@@ -1,0 +1,14 @@
+button:
+  about: შესახებ
+  back: უკან
+  go: დაწყება
+  home: მთავარი
+  toggle_dark: გადართე მუქი რეჟიმი
+  toggle_langs: ენის შეცვლა
+intro:
+  desc: Opinionated Vite Starter Template
+  dynamic-route: დინამიური როუტინგის დემო
+  hi: გამარჯობა, {name}!
+  aka: ასევე ცნობილი როგორც
+  whats-your-name: რა გქვია?
+not-found: ვერ მოიძებნა

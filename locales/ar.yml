@@ -1,0 +1,14 @@
+button:
+  about: حول
+  back: رجوع
+  go: تجربة
+  home: الرئيسية
+  toggle_dark: التغيير إلى الوضع المظلم
+  toggle_langs: تغيير اللغة
+intro:
+  desc: vite مثال لتطبيق
+  dynamic-route: عرض لتوجيهات ديناميكية
+  hi: مرحبا {name}
+  aka: معروف أيضا تحت مسمى
+  whats-your-name: ما إسمك؟
+not-found: صفحة غير موجودة
