@@ -12,6 +12,7 @@ import Avatar from '../assets/live2d/models/hiyori_free_zh/avatar.png'
 import Live2DViewer from '../components/Live2DViewer.vue'
 import BasicTextarea from '../components/BasicTextarea.vue'
 import { useLLM } from '../stores/llm'
+import { useQueue } from '../composables/queue'
 import AudioWaveform from './AudioWaveform.vue'
 
 interface Message {
@@ -22,8 +23,8 @@ interface Message {
 const llm = useLLM()
 const { audioContext } = useAudioContext()
 
-const openAIAPIKey = useLocalStorage('openai-api-key', '')
-const openAIAPIBaseURL = useLocalStorage('openai-api-base-url', 'https://api.openai.com/v1')
+const openAiApiKey = useLocalStorage('openai-api-key', '')
+const openAiApiBaseURL = useLocalStorage('openai-api-base-url', 'https://api.openai.com/v1')
 const openAIModel = useLocalStorage('openai-model', '')
 
 const mouthOpenSize = ref(0)
@@ -52,6 +53,81 @@ const model = computed<string>({
   },
 })
 
+const temp = ref<string>('')
+
+const audioQueue = useQueue<{ audioBuffer: AudioBuffer, text: string }>({
+  handlers: [
+    (ctx) => {
+      return new Promise((resolve) => {
+        // Create an AudioBufferSourceNode
+        const source = audioContext.createBufferSource()
+        source.buffer = ctx.data.audioBuffer
+
+        // Connect the source to the AudioContext's destination (the speakers)
+        source.connect(audioContext.destination)
+        // Connect the source to the analyzer
+        source.connect(audioWaveformRef.value!.analyser())
+
+        // Start playing the audio
+        speaking.value = true
+        source.start(0)
+        source.onended = () => {
+          speaking.value = false
+          resolve()
+        }
+      })
+    },
+  ],
+})
+
+const ttsQueue = useQueue<string>({
+  handlers: [
+    async (ctx) => {
+      const audioBuffer = await streamSpeech(ctx.data)
+      audioQueue.add({ audioBuffer, text: ctx.data })
+    },
+  ],
+})
+
+const messageContentQueue = useQueue<string>({
+  handlers: [
+    async (ctx) => {
+      if (ctx.data === '|<llm_inference_end>|') {
+        const content = temp.value.trim()
+        if (content)
+          ttsQueue.add(content)
+
+        temp.value = ''
+        return
+      }
+
+      const endMarker = ['.', '?', '!']
+
+      let newEndPartDiscovered = false
+
+      for (const marker of endMarker) {
+        if (!ctx.data.includes(marker))
+          continue
+
+        // find the end of the sentence and push it to the queue with temp
+        const periodIndex = ctx.data.indexOf(marker)
+        // split
+        const beforePeriod = ctx.data.slice(0, periodIndex + 1)
+        const afterPeriod = ctx.data.slice(periodIndex + 1)
+
+        temp.value += beforePeriod
+        ttsQueue.add(temp.value.trim())
+        temp.value = afterPeriod
+
+        newEndPartDiscovered = true
+      }
+
+      if (!newEndPartDiscovered)
+        temp.value += ctx.data
+    },
+  ],
+})
+
 async function streamSpeech(text: string) {
   const res = await ofetch('/api/v1/llm/voice/text-to-speech', {
     body: {
@@ -63,23 +139,7 @@ async function streamSpeech(text: string) {
   })
 
   // Decode the ArrayBuffer into an AudioBuffer
-  const audioBuffer = await audioContext.decodeAudioData(res)
-
-  // Create an AudioBufferSourceNode
-  const source = audioContext.createBufferSource()
-  source.buffer = audioBuffer
-
-  // Connect the source to the AudioContext's destination (the speakers)
-  source.connect(audioContext.destination)
-  // Connect the source to the analyzer
-  source.connect(audioWaveformRef.value!.analyser())
-
-  // Start playing the audio
-  speaking.value = true
-  source.start(0)
-  source.onended = () => {
-    speaking.value = false
-  }
+  return await audioContext.decodeAudioData(res)
 }
 
 function getVolumeWithLinearNormalize() {
@@ -155,12 +215,16 @@ function onSendMessage(sendingMessage: string) {
   messages.value.push({ role: 'user', content: sendingMessage })
   messages.value.push(message)
   const index = messages.value.length - 1
+  const textParts: string[] = []
 
   llm.stream(model.value, sendingMessage).then(async (res) => {
-    for await (const textPart of res.textStream)
+    for await (const textPart of res.textStream) {
       messages.value[index].content += textPart
+      messageContentQueue.add(textPart)
+      textParts.push(textPart)
+    }
 
-    await streamSpeech(messages.value[index].content)
+    messageContentQueue.add('|<llm_inference_end>|')
   })
 
   input.value = ''
@@ -175,20 +239,20 @@ function fromMarkdownToHTML(markdown: string) {
     .toString()
 }
 
-watch(openAIAPIKey, (value) => {
+watch(openAiApiKey, (value) => {
   llm.setupOpenAI({
     apiKey: value,
-    baseURL: openAIAPIBaseURL.value,
+    baseURL: openAiApiBaseURL.value,
   })
 })
 
 onMounted(async () => {
-  if (!openAIAPIKey.value)
+  if (!openAiApiKey.value)
     return
 
   llm.setupOpenAI({
-    apiKey: openAIAPIKey.value,
-    baseURL: openAIAPIBaseURL.value,
+    apiKey: openAiApiKey.value,
+    baseURL: openAiApiBaseURL.value,
   })
 
   const fetchedModels = await llm.models()
@@ -205,14 +269,14 @@ onUnmounted(() => {
     <div space-x="2" flex="~ row" w-full>
       <div flex="~ row" w-full>
         <input
-          v-model="openAIAPIKey"
+          v-model="openAiApiKey"
           placeholder="Input your API key"
           p="2" bg="zinc-100 dark:zinc-800" w-full rounded-lg outline-none
         >
       </div>
       <div flex="~ row" w-full>
         <input
-          v-model="openAIAPIBaseURL"
+          v-model="openAiApiBaseURL"
           placeholder="Input your API base URL"
           p="2" bg="zinc-100 dark:zinc-800" w-full rounded-lg outline-none
         >
@@ -220,11 +284,11 @@ onUnmounted(() => {
     </div>
     <div flex="~ row 1" w-full items-end space-x-2>
       <div w-full>
+        <Live2DViewer :mouth-open-size="mouthOpenSize" />
         <div>
+          <input v-model.number="mouthOpenSize" type="range" max="1" min="0" step="0.01">
           <span>{{ mouthOpenSize }}</span>
         </div>
-        <Live2DViewer :mouth-open-size="mouthOpenSize" />
-        <input v-model.number="mouthOpenSize" type="range" max="1" min="0" step="0.01">
         <AudioWaveform ref="audioWaveformRef" />
       </div>
       <div my="2" w-full space-y-2>

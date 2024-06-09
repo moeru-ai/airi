@@ -1,0 +1,15 @@
+version: "0.2"
+ignorePaths: []
+dictionaryDefinitions: []
+dictionaries: []
+words:
+  - composables
+  - hiyori
+  - Neuro
+  - ofetch
+  - openai
+  - pixi
+  - rehype
+  - vueuse
+ignoreWords: []
+import: []

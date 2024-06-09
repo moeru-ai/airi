@@ -7,7 +7,9 @@ export default defineEventHandler(async (event) => {
   })
 
   const res = await client.generate({
-    voice: 'Beatrice',
+    voice: 'Myriam',
+    // Beatrice is not 'childish' like the others
+    // voice: 'Beatrice',
     text: body.text,
     stream: true,
     model_id: 'eleven_multilingual_v2',
