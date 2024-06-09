@@ -4,7 +4,7 @@ import { Application } from '@pixi/app'
 import { extensions } from '@pixi/extensions'
 import { Ticker, TickerPlugin } from '@pixi/ticker'
 import { Live2DModel } from 'pixi-live2d-display/cubism4'
-import { useElementBounding } from '@vueuse/core'
+import { useElementBounding, useWindowSize } from '@vueuse/core'
 
 const props = withDefaults(defineProps<{
   mouthOpenSize?: number
@@ -14,13 +14,16 @@ const props = withDefaults(defineProps<{
 
 const containerRef = ref<HTMLDivElement>()
 const pixiApp = ref<Application>()
+const pixiAppCanvas = ref<HTMLCanvasElement>()
 const model = ref<Live2DModel>()
 const mouthOpenSize = computed(() => {
   return Math.max(0, Math.min(100, props.mouthOpenSize))
 })
 
+const { width, height } = useWindowSize()
+const containerElementBounding = useElementBounding(containerRef)
+
 async function initLive2DPixiStage(parent: HTMLDivElement) {
-  const containerElementBounding = useElementBounding(parent)
   containerElementBounding.update()
 
   // https://guansss.github.io/pixi-live2d-display/#package-importing
@@ -33,6 +36,7 @@ async function initLive2DPixiStage(parent: HTMLDivElement) {
     backgroundAlpha: 0,
   })
 
+  pixiAppCanvas.value = pixiApp.value.view
   parent.appendChild(pixiApp.value.view)
 
   model.value = await Live2DModel.from('assets/live2d/models/hiyori_free_zh/runtime/hiyori_free_t08.model3.json')
@@ -53,6 +57,21 @@ async function initLive2DPixiStage(parent: HTMLDivElement) {
   const coreModel = model.value.internalModel.coreModel as any
   coreModel.setParameterValueById('ParamMouthOpenY', mouthOpenSize.value)
 }
+
+watch([width, height], () => {
+  if (pixiApp.value)
+    pixiApp.value.renderer.resize((width.value - 16) / 2, 550)
+
+  if (pixiAppCanvas.value) {
+    pixiAppCanvas.value.width = (width.value - 16) / 2
+    pixiAppCanvas.value.height = 550
+  }
+
+  if (model.value) {
+    model.value.x = (width.value - 16) / 4
+    model.value.y = 600
+  }
+})
 
 onMounted(async () => {
   if (!containerRef.value)
