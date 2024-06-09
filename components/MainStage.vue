@@ -137,19 +137,26 @@ function getVolumeWithMinMaxNormalizeWithFrameUpdates() {
   mouthOpenSize.value = calculateVolume(audioWaveformRef.value!.analyser(), 'minmax')
 }
 
-function onSendMessage(sendingMessage: string) {
+function setupLipSync() {
   if (!lipSyncStarted.value) {
     getVolumeWithMinMaxNormalizeWithFrameUpdates()
     audioContext.resume()
     lipSyncStarted.value = true
   }
+}
+
+function onSendMessage(sendingMessage: string) {
+  if (!sendingMessage)
+    return
+
+  setupLipSync()
 
   const message: Message = { role: 'assistant', content: '' }
   messages.value.push({ role: 'user', content: sendingMessage })
   messages.value.push(message)
   const index = messages.value.length - 1
 
-  llm.stream(model.value, sendingMessage).then(async (res) => {
+  llm.stream(model.value, messages.value.slice(0, messages.value.length - 1)).then(async (res) => {
     for await (const textPart of res.textStream) {
       messages.value[index].content += textPart
       messageContentQueue.add(textPart)
@@ -161,11 +168,14 @@ function onSendMessage(sendingMessage: string) {
   messageInput.value = ''
 }
 
-watch(openAiApiKey, (value) => {
+watch(openAiApiKey, async (value) => {
   llm.setupOpenAI({
     apiKey: value,
     baseURL: openAiApiBaseURL.value,
   })
+
+  const fetchedModels = await llm.models()
+  supportedModels.value = fetchedModels.data
 })
 
 onMounted(async () => {

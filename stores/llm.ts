@@ -1,4 +1,5 @@
 import { defineStore } from 'pinia'
+import type { CoreMessage } from 'ai'
 import { streamText } from 'ai'
 import { type OpenAIProvider, type OpenAIProviderSettings, createOpenAI } from '@ai-sdk/openai'
 import { OpenAI } from 'openai'
@@ -17,18 +18,13 @@ export const useLLM = defineStore('llm', () => {
     openAIProvider.value = createOpenAI(options)
   }
 
-  async function stream(model: string, content: string) {
+  async function stream(model: string, messages: CoreMessage[]) {
     if (!openAIProvider.value)
       throw new Error('OpenAI not initialized')
 
     return await streamText({
       model: openAIProvider.value(model),
-      messages: [
-        {
-          role: 'user',
-          content,
-        },
-      ],
+      messages,
     })
   }
 
