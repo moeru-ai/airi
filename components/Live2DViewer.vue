@@ -3,10 +3,11 @@ import { onMounted, onUnmounted, ref, watch } from 'vue'
 import { Application } from '@pixi/app'
 import { extensions } from '@pixi/extensions'
 import { Ticker, TickerPlugin } from '@pixi/ticker'
-import { Live2DModel } from 'pixi-live2d-display/cubism4'
+import { Live2DModel, MotionPreloadStrategy, MotionPriority } from 'pixi-live2d-display/cubism4'
 import { useElementBounding, useWindowSize } from '@vueuse/core'
 
 const props = withDefaults(defineProps<{
+  model: string
   mouthOpenSize?: number
 }>(), {
   mouthOpenSize: 0,
@@ -22,9 +23,15 @@ const mouthOpenSize = computed(() => {
 
 const { width, height } = useWindowSize()
 const containerElementBounding = useElementBounding(containerRef)
+const containerParentElementBounding = useElementBounding(containerRef.value?.parentElement)
+
+function getCoreModel() {
+  return model.value!.internalModel.coreModel as any
+}
 
 async function initLive2DPixiStage(parent: HTMLDivElement) {
   containerElementBounding.update()
+  containerParentElementBounding.update()
 
   // https://guansss.github.io/pixi-live2d-display/#package-importing
   Live2DModel.registerTicker(Ticker)
@@ -32,21 +39,21 @@ async function initLive2DPixiStage(parent: HTMLDivElement) {
 
   pixiApp.value = new Application({
     width: containerElementBounding.width.value,
-    height: 550,
+    height: Math.max(800, containerParentElementBounding.height.value),
     backgroundAlpha: 0,
   })
 
   pixiAppCanvas.value = pixiApp.value.view
   parent.appendChild(pixiApp.value.view)
 
-  model.value = await Live2DModel.from('assets/live2d/models/hiyori_free_zh/runtime/hiyori_free_t08.model3.json')
+  model.value = await Live2DModel.from(props.model, { motionPreload: MotionPreloadStrategy.ALL })
   pixiApp.value.stage.addChild(model.value as any)
 
   model.value.x = containerElementBounding.width.value / 2
-  model.value.y = 600
+  model.value.y = Math.max(1000, containerParentElementBounding.height.value)
   model.value.rotation = Math.PI
   model.value.skew.x = Math.PI
-  model.value.scale.set(0.3, 0.3)
+  model.value.scale.set(0.5, 0.5)
   model.value.anchor.set(0.5, 0.5)
 
   model.value.on('hit', (hitAreas) => {
@@ -58,18 +65,22 @@ async function initLive2DPixiStage(parent: HTMLDivElement) {
   coreModel.setParameterValueById('ParamMouthOpenY', mouthOpenSize.value)
 }
 
+async function setMotion(motionName: string) {
+  await model.value!.motion(motionName, undefined, MotionPriority.FORCE)
+}
+
 watch([width, height], () => {
   if (pixiApp.value)
     pixiApp.value.renderer.resize((width.value - 16) / 2, 550)
 
   if (pixiAppCanvas.value) {
     pixiAppCanvas.value.width = (width.value - 16) / 2
-    pixiAppCanvas.value.height = 550
+    pixiAppCanvas.value.height = Math.max(800, containerParentElementBounding.height.value)
   }
 
   if (model.value) {
     model.value.x = (width.value - 16) / 4
-    model.value.y = 600
+    model.value.y = Math.max(1000, containerParentElementBounding.height.value)
   }
 })
 
@@ -85,11 +96,14 @@ onUnmounted(() => {
 })
 
 watch(mouthOpenSize, (value) => {
-  const coreModel = model.value!.internalModel.coreModel as any
-  coreModel.setParameterValueById('ParamMouthOpenY', value)
+  getCoreModel().setParameterValueById('ParamMouthOpenY', value)
+})
+
+defineExpose({
+  setMotion,
 })
 </script>
 
 <template>
-  <div ref="containerRef" h="[550px]" w-full />
+  <div ref="containerRef" h-full w-full />
 </template>

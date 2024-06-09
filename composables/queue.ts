@@ -4,6 +4,7 @@ import type { Ref } from 'vue'
 export interface HandlerContext<T> {
   data: T
   itemsToBeProcessed: () => number
+  emit: (eventName: string, ...params: any[]) => void
 }
 
 interface Events<T> {
@@ -16,10 +17,7 @@ interface Events<T> {
 }
 
 export function useQueue<T>(options: {
-  handlers: Array<(param: {
-    data: T
-    itemsToBeProcessed: () => number
-  }) => Promise<void>>
+  handlers: Array<(ctx: HandlerContext<T>) => Promise<void>>
 }) {
   const queue = ref<T[]>([]) as Ref<T[]>
   const isProcessing = ref(false)
@@ -31,6 +29,7 @@ export function useQueue<T>(options: {
     processed: [],
     done: [],
   }
+  const internalHandlerEventHandler: Record<string, Array<(...params: any[]) => void>> = {}
 
   function on<E extends keyof Events<T>>(eventName: E, handler: Events<T>[E][number]) {
     internalEventHandler[eventName].push(handler as any)
@@ -43,7 +42,19 @@ export function useQueue<T>(options: {
     })
   }
 
-  function add(payload: T) {
+  function onHandlerEvent(eventName: string, handler: (...params: any[]) => void) {
+    internalHandlerEventHandler[eventName] = internalHandlerEventHandler[eventName] || []
+    internalHandlerEventHandler[eventName].push(handler)
+  }
+
+  function emitHandlerEvent(eventName: string, ...params: any[]) {
+    const handlers = internalHandlerEventHandler[eventName] || []
+    handlers.forEach((handler) => {
+      handler(...params)
+    })
+  }
+
+  async function add(payload: T) {
     queue.value.push(payload)
     emit('add', payload)
   }
@@ -70,7 +81,7 @@ export function useQueue<T>(options: {
     for (const handler of options.handlers) {
       emit('processing', payload, handler)
       try {
-        const result = await handler({ data: payload, itemsToBeProcessed: () => queue.value.length })
+        const result = await handler({ data: payload, itemsToBeProcessed: () => queue.value.length, emit: emitHandlerEvent })
         emit('processed', payload, result, handler)
       }
       catch (err) {
@@ -81,6 +92,10 @@ export function useQueue<T>(options: {
 
     isProcessing.value = false
     emit('done', payload)
+
+    // Process next item if any
+    if (queue.value.length > 0)
+      handleItem()
   }
 
   on('add', handleItem)
@@ -89,6 +104,7 @@ export function useQueue<T>(options: {
   return {
     add,
     on,
+    onHandlerEvent,
     queue,
   }
 }
