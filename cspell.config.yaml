@@ -4,10 +4,13 @@ dictionaryDefinitions: []
 dictionaries: []
 words:
   - composables
+  - elevenlabs
   - hiyori
+  - Myriam
   - Neuro
   - ofetch
   - openai
+  - pinia
   - pixi
   - rehype
   - vueuse

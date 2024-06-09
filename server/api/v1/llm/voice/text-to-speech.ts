@@ -1,4 +1,4 @@
-import { ElevenLabsClient, stream } from 'elevenlabs'
+import { ElevenLabsClient } from 'elevenlabs'
 
 export default defineEventHandler(async (event) => {
   const body = await readBody<{ text: string }>(event)

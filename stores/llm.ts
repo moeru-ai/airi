@@ -3,6 +3,7 @@ import { streamText } from 'ai'
 import { type OpenAIProvider, type OpenAIProviderSettings, createOpenAI } from '@ai-sdk/openai'
 import { OpenAI } from 'openai'
 import { ref } from 'vue'
+import { ofetch } from 'ofetch'
 
 export const useLLM = defineStore('llm', () => {
   const openAI = ref<OpenAI>()
@@ -38,10 +39,22 @@ export const useLLM = defineStore('llm', () => {
     return await openAI.value.models.list()
   }
 
+  async function streamSpeech(text: string) {
+    return await ofetch('/api/v1/llm/voice/text-to-speech', {
+      body: {
+        text,
+      },
+      method: 'POST',
+      cache: 'no-cache',
+      responseType: 'arrayBuffer',
+    })
+  }
+
   return {
     setupOpenAI,
     openAI,
     models,
     stream,
+    streamSpeech,
   }
 })
