@@ -17,6 +17,9 @@ interface Message {
   content: string
 }
 
+const nowSpeakingAvatarBorderOpacityMin = 30
+const nowSpeakingAvatarBorderOpacityMax = 100
+
 const llm = useLLM()
 const { audioContext, calculateVolume } = useAudioContext()
 const { process } = useMarkdown()
@@ -25,14 +28,22 @@ const openAiApiKey = useLocalStorage('openai-api-key', '')
 const openAiApiBaseURL = useLocalStorage('openai-api-base-url', 'https://api.openai.com/v1')
 const openAIModel = useLocalStorage('openai-model', '')
 
-const audioWaveformRef = ref<{ analyser: () => AnalyserNode }>()
-
-const mouthOpenSize = ref(0)
 const supportedModels = ref<OpenAI.Model[]>([])
 const messageInput = ref<string>('')
 const messages = ref<Message[]>([])
+const audioAnalyser = ref<AnalyserNode>()
+
+const mouthOpenSize = ref(0)
 const nowSpeaking = ref(false)
 const lipSyncStarted = ref(false)
+
+const nowSpeakingAvatarBorderOpacity = computed<number>(() => {
+  if (!nowSpeaking.value)
+    return nowSpeakingAvatarBorderOpacityMin
+
+  return ((nowSpeakingAvatarBorderOpacityMin
+    + (nowSpeakingAvatarBorderOpacityMax - nowSpeakingAvatarBorderOpacityMin) * mouthOpenSize.value) / 100)
+})
 
 const model = computed<string>({
   get: () => {
@@ -65,7 +76,7 @@ const audioQueue = useQueue<{ audioBuffer: AudioBuffer, text: string }>({
         // Connect the source to the AudioContext's destination (the speakers)
         source.connect(audioContext.destination)
         // Connect the source to the analyzer
-        source.connect(audioWaveformRef.value!.analyser())
+        source.connect(audioAnalyser.value!)
 
         // Start playing the audio
         nowSpeaking.value = true
@@ -134,7 +145,7 @@ function getVolumeWithMinMaxNormalizeWithFrameUpdates() {
   if (!nowSpeaking.value)
     return
 
-  mouthOpenSize.value = calculateVolume(audioWaveformRef.value!.analyser(), 'minmax')
+  mouthOpenSize.value = calculateVolume(audioAnalyser.value!, 'linear')
 }
 
 function setupLipSync() {
@@ -145,11 +156,17 @@ function setupLipSync() {
   }
 }
 
+function setupAnalyser() {
+  if (!audioAnalyser.value)
+    audioAnalyser.value = audioContext.createAnalyser()
+}
+
 function onSendMessage(sendingMessage: string) {
   if (!sendingMessage)
     return
 
   setupLipSync()
+  setupAnalyser()
 
   const message: Message = { role: 'assistant', content: '' }
   messages.value.push({ role: 'user', content: sendingMessage })
@@ -217,16 +234,23 @@ onUnmounted(() => {
     <div flex="~ row 1" w-full items-end space-x-2>
       <div w-full>
         <Live2DViewer :mouth-open-size="mouthOpenSize" />
-        <div>
+        <!-- <div>
           <input v-model.number="mouthOpenSize" type="range" max="1" min="0" step="0.01">
           <span>{{ mouthOpenSize }}</span>
-        </div>
-        <AudioWaveform ref="audioWaveformRef" />
+        </div> -->
+        <!-- <AudioWaveform ref="audioWaveformRef" /> -->
       </div>
       <div my="2" w-full space-y-2>
         <div v-for="(message, index) in messages" :key="index">
           <div v-if="message.role === 'assistant'" flex mr="12">
-            <div h-10 min-h-10 min-w-10 w-10 overflow-hidden rounded-full border="pink solid 3" mr="2">
+            <div
+              mr-2 h-10 min-h-10 min-w-10 w-10 overflow-hidden rounded-full
+              border="solid 3"
+              transition="all ease-in-out" duration-100
+              :style="{
+                borderColor: `rgba(236, 72, 153, ${nowSpeakingAvatarBorderOpacity.toFixed(2)})`,
+              }"
+            >
               <img :src="Avatar">
             </div>
             <div flex="~ col" bg="pink-50/50 dark:pink-900/50" p="2" border="2 solid pink/10" rounded-lg>
