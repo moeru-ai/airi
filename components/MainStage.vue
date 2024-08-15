@@ -187,11 +187,12 @@ async function onSendMessage(sendingMessage: string) {
   let buffer = ''
 
   for await (const textPart of res.textStream) {
+    for (const textSingleChar of textPart) {
     let newState: States = state
 
-    if (textPart === '<')
+      if (textSingleChar === '<')
       newState = States.Special
-    else if (textPart === '>')
+      else if (textSingleChar === '>')
       newState = States.Literal
 
     if (state === States.Literal && newState === States.Special) {
@@ -203,12 +204,14 @@ async function onSendMessage(sendingMessage: string) {
       buffer = '' // Clear buffer when exiting Special state
 
     if (state === States.Literal && newState === States.Literal) {
-      streamingMessage.value.content += textPart
+        streamingMessage.value.content += textSingleChar
       buffer = ''
     }
 
-    await delaysQueue.add(textPart)
+      await delaysQueue.add(textSingleChar)
     state = newState
+      buffer += textSingleChar
+    }
   }
 
   if (buffer)
