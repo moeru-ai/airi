@@ -39,7 +39,7 @@ async function initLive2DPixiStage(parent: HTMLDivElement) {
 
   pixiApp.value = new Application({
     width: containerElementBounding.width.value,
-    height: Math.max(800, containerParentElementBounding.height.value),
+    height: Math.max(600, containerParentElementBounding.height.value),
     backgroundAlpha: 0,
   })
 
@@ -50,10 +50,10 @@ async function initLive2DPixiStage(parent: HTMLDivElement) {
   pixiApp.value.stage.addChild(model.value as any)
 
   model.value.x = containerElementBounding.width.value / 2
-  model.value.y = Math.max(1000, containerParentElementBounding.height.value)
+  model.value.y = Math.max(600, containerParentElementBounding.height.value)
   model.value.rotation = Math.PI
   model.value.skew.x = Math.PI
-  model.value.scale.set(0.5, 0.5)
+  model.value.scale.set(0.3, 0.3)
   model.value.anchor.set(0.5, 0.5)
 
   model.value.on('hit', (hitAreas) => {
@@ -75,12 +75,12 @@ watch([width, height], () => {
 
   if (pixiAppCanvas.value) {
     pixiAppCanvas.value.width = (width.value - 16) / 2
-    pixiAppCanvas.value.height = Math.max(800, containerParentElementBounding.height.value)
+    pixiAppCanvas.value.height = Math.max(600, containerParentElementBounding.height.value)
   }
 
   if (model.value) {
     model.value.x = (width.value - 16) / 4
-    model.value.y = Math.max(1000, containerParentElementBounding.height.value)
+    model.value.y = Math.max(600, containerParentElementBounding.height.value)
   }
 })
 

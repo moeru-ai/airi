@@ -188,28 +188,28 @@ async function onSendMessage(sendingMessage: string) {
 
   for await (const textPart of res.textStream) {
     for (const textSingleChar of textPart) {
-    let newState: States = state
+      let newState: States = state
 
       if (textSingleChar === '<')
-      newState = States.Special
+        newState = States.Special
       else if (textSingleChar === '>')
-      newState = States.Literal
+        newState = States.Literal
 
-    if (state === States.Literal && newState === States.Special) {
-      streamingMessage.value.content += buffer
-      buffer = ''
-    }
+      if (state === States.Literal && newState === States.Special) {
+        streamingMessage.value.content += buffer
+        buffer = ''
+      }
 
-    if (state === States.Special && newState === States.Literal)
-      buffer = '' // Clear buffer when exiting Special state
+      if (state === States.Special && newState === States.Literal)
+        buffer = '' // Clear buffer when exiting Special state
 
-    if (state === States.Literal && newState === States.Literal) {
+      if (state === States.Literal && newState === States.Literal) {
         streamingMessage.value.content += textSingleChar
-      buffer = ''
-    }
+        buffer = ''
+      }
 
       await delaysQueue.add(textSingleChar)
-    state = newState
+      state = newState
       buffer += textSingleChar
     }
   }
@@ -269,7 +269,7 @@ onUnmounted(() => {
       </div>
     </div>
     <div flex="~ row 1" w-full items-end space-x-2>
-      <div w-full min-h="100 sm:200">
+      <div w-full min-h="100 sm:100">
         <Live2DViewer ref="live2DViewerRef" :mouth-open-size="mouthOpenSize" model="assets/live2d/models/hiyori_pro_zh/hiyori_pro_t11.model3.json" />
         <!-- <div>
           <input v-model.number="mouthOpenSize" type="range" max="1" min="0" step="0.01">
