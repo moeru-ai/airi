@@ -1,4 +1,4 @@
-version: "0.2"
+version: '0.2'
 ignorePaths: []
 dictionaryDefinitions: []
 dictionaries: []
@@ -7,6 +7,7 @@ words:
   - elevenlabs
   - hiyori
   - Myriam
+  - nekomeowww
   - Neuro
   - ofetch
   - openai
@@ -14,5 +15,6 @@ words:
   - pixi
   - rehype
   - vueuse
+  - airi-vtuber
 ignoreWords: []
 import: []
