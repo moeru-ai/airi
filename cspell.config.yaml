@@ -1,4 +1,4 @@
-version: '0.2'
+version: "0.2"
 ignorePaths: []
 dictionaryDefinitions: []
 dictionaries: []
@@ -9,6 +9,7 @@ words:
   - hiyori
   - iconify
   - kwaa
+  - live2dcubismcore
   - Myriam
   - nekomeowww
   - Neuro
@@ -21,8 +22,9 @@ words:
   - pinia
   - pixi
   - rehype
+  - typeschema
   - unocss
+  - unplugin
   - vueuse
-  - live2dcubismcore
 ignoreWords: []
 import: []
