@@ -7,10 +7,6 @@ settings:
 importers:
 
   .:
-    dependencies:
-      elevenlabs:
-        specifier: ^0.18.1
-        version: 0.18.1
     devDependencies:
       '@ai-sdk/openai':
         specifier: ^1.0.5
@@ -99,6 +95,9 @@ importers:
       consola:
         specifier: ^3.2.3
         version: 3.2.3
+      elevenlabs:
+        specifier: ^0.18.1
+        version: 0.18.1
       eslint:
         specifier: ^9.16.0
         version: 9.16.0(jiti@2.4.1)
