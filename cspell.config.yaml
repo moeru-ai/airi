@@ -8,9 +8,11 @@ words:
   - elevenlabs
   - hiyori
   - iconify
+  - kwaa
   - Myriam
   - nekomeowww
   - Neuro
+  - Neuro-sama
   - nuxi
   - nuxt
   - nuxtjs
@@ -21,6 +23,5 @@ words:
   - rehype
   - unocss
   - vueuse
-  - Neuro-sama
 ignoreWords: []
 import: []
