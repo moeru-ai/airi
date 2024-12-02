@@ -73,6 +73,8 @@ export default defineNuxtConfig({
     },
     routeRules: {
       '/assets/**': { static: true },
+      '/assets/js/**': { static: true },
+      '/assets/live2d/models/**': { static: true },
     },
   },
 

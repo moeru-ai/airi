@@ -61,9 +61,7 @@
     "vite-plugin-inspect": "^0.10.2",
     "vue-tsc": "^2.1.10",
     "yauzl": "^3.2.0",
-    "zod": "^3.23.8"
-  },
-  "dependencies": {
+    "zod": "^3.23.8",
     "elevenlabs": "^0.18.1"
   }
 }
