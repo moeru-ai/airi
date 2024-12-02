@@ -40,11 +40,6 @@ export default defineNuxtConfig({
         target: 'esnext',
       },
     },
-    prerender: {
-      crawlLinks: false,
-      routes: ['/'],
-      ignore: ['/assets/js/CubismSdkForWeb-5-r.1/Core/live2dcubismcore.min.js'],
-    },
     experimental: {
       websocket: true,
     },
@@ -157,6 +152,9 @@ export default defineNuxtConfig({
   eslint: {
     config: {
       standalone: false,
+      nuxt: {
+        sortConfigKeys: true,
+      },
     },
   },
 
