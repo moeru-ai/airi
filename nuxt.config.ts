@@ -24,14 +24,14 @@ export default defineNuxtConfig({
 
   app: {
     head: {
-      viewport: 'width=device-width,initial-scale=1',
+      viewport: 'width=device-width,initial-scale=1,user-scalable=0',
       link: [
         { rel: 'icon', href: '/favicon.ico', sizes: 'any' },
         { rel: 'icon', type: 'image/svg+xml', href: '/nuxt.svg' },
         { rel: 'apple-touch-icon', href: '/apple-touch-icon.png' },
       ],
       meta: [
-        { name: 'viewport', content: 'width=device-width, initial-scale=1' },
+        { name: 'viewport', content: 'width=device-width, initial-scale=1, user-scalable=0' },
         { name: 'description', content: appDescription },
         { name: 'apple-mobile-web-app-status-bar-style', content: 'black-translucent' },
         { name: 'theme-color', media: '(prefers-color-scheme: light)', content: 'white' },
@@ -69,8 +69,18 @@ export default defineNuxtConfig({
     esbuild: {
       options: {
         target: 'esnext',
+        exclude: [
+          'node_modules/**',
+          '**/js/CubismSdkForWeb-5-r.1/**',
+          '**/live2d/models/**',
+        ],
       },
     },
+    ignore: [
+      '**/js/CubismSdkForWeb-5-r.1/**',
+      '**/live2d/models/**',
+    ],
+    noExternals: false,
     routeRules: {
       '/assets/**': { static: true },
       '/assets/js/**': { static: true },

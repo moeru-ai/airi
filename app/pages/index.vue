@@ -1,7 +1,7 @@
 <template>
   <div>
     <ClientOnly>
-      <MainStage />
+      <!-- <MainStage /> -->
     </ClientOnly>
   </div>
 </template>
