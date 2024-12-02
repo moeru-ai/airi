@@ -1,6 +1,6 @@
 import type { Buffer } from 'node:buffer'
-import { createWriteStream, mkdirSync } from 'node:fs'
-import { join } from 'node:path'
+import { createWriteStream, existsSync, mkdirSync } from 'node:fs'
+import { dirname, join } from 'node:path'
 import { fromBuffer } from 'yauzl'
 import { noError, onError, resolveWhenNoError } from './errors'
 
@@ -21,6 +21,8 @@ import { noError, onError, resolveWhenNoError } from './errors'
  */
 export async function unzip(buffer: Buffer, target: string) {
   return new Promise<void>((resolve, reject) => {
+    let pendingWrites = 0
+
     fromBuffer(buffer, { lazyEntries: true }, noError(reject, (zipFile) => {
       // This is the key. We start by reading the first entry.
       zipFile.readEntry()
@@ -29,26 +31,45 @@ export async function unzip(buffer: Buffer, target: string) {
       // to disk. Then call zipFile.readEntry() again to
       // trigger the next cycle.
       zipFile.on('entry', (entry) => {
-      // Directories
+        // Directories
         if (/\/$/.test(entry.fileName)) {
-        // Create the directory then read the next entry.
-          mkdirSync(join(target, entry.fileName))
+          // Create the directory then read the next entry.
+          mkdirSync(join(target, entry.fileName), { recursive: true })
           zipFile.readEntry()
 
           return
         }
 
         // Files
+        const dir = dirname(join(target, entry.fileName))
+        if (!existsSync(dir)) {
+          mkdirSync(dir, { recursive: true })
+        }
 
         // Write the file to disk.
+        pendingWrites++
         zipFile.openReadStream(entry, noError(reject, (readStream) => {
           const file = createWriteStream(join(target, entry.fileName))
           readStream.pipe(file)
 
           // Handle errors
-          file.on('error', onError(reject, zipFile.close))
+          file.on('error', (err) => {
+            pendingWrites--
+            zipFile.close()
+            reject(err)
+          })
+
           // Wait until the file is finished writing, then read the next entry.
-          file.on('finish', () => file.close(() => { zipFile.readEntry() }))
+          file.on('finish', () => {
+            file.close(() => {
+              pendingWrites--
+              if (pendingWrites === 0) {
+                resolve()
+              }
+
+              zipFile.readEntry()
+            })
+          })
         }))
       })
 

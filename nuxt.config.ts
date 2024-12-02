@@ -43,7 +43,7 @@ export default defineNuxtConfig({
     prerender: {
       crawlLinks: false,
       routes: ['/'],
-      ignore: ['/hi'],
+      ignore: ['/assets/js/CubismSdkForWeb-5-r.1/Core/live2dcubismcore.min.js'],
     },
     experimental: {
       websocket: true,
@@ -83,20 +83,72 @@ export default defineNuxtConfig({
   vite: {
     plugins: [
       {
-        name: 'live2d-cubism',
+        name: 'live2d-cubism-sdk',
         async configResolved(config) {
-          if (await exists(join(config.root, 'public/assets/js/CubismSdkForWeb-5-r.1'))) {
-            return
+          try {
+            if (await exists(join(config.root, 'public/assets/js/CubismSdkForWeb-5-r.1'))) {
+              return
+            }
+
+            console.log('Downloading Cubism SDK...')
+            const stream = await ofetch('https://dist.ayaka.moe/npm/live2d-cubism/CubismSdkForWeb-5-r.1.zip', { responseType: 'arrayBuffer' })
+
+            console.log('Unzipping Cubism SDK...')
+            await mkdir(join(config.root, 'public/assets/js'), { recursive: true })
+            await unzip(Buffer.from(stream), join(config.root, 'public/assets/js'))
+
+            console.log('Cubism SDK downloaded and unzipped.')
           }
+          catch (err) {
+            console.error(err)
+            throw err
+          }
+        },
+      },
+      {
+        name: 'live2d-models-hiyori-free',
+        async configResolved(config) {
+          try {
+            if (await exists(join(config.root, 'public/assets/live2d/models/hiyori_free_zh'))) {
+              return
+            }
 
-          console.log('Downloading Cubism SDK...')
-          const stream = await ofetch('https://dist.ayaka.moe/npm/live2d-cubism/CubismSdkForWeb-5-r.1.zip', { responseType: 'arrayBuffer' })
+            console.log('Downloading Demo Live2D Model - Hiyori Free...')
+            const stream = await ofetch('https://dist.ayaka.moe/live2d-models/hiyori_free_zh.zip', { responseType: 'arrayBuffer' })
 
-          console.log('Unzipping Cubism SDK...')
-          await mkdir(join(config.root, 'public/assets/js'), { recursive: true })
-          await unzip(Buffer.from(stream), join(config.root, 'public/assets/js'))
+            console.log('Unzipping Demo Live2D Model - Hiyori Free...')
+            await mkdir(join(config.root, 'public/assets/live2d/models'), { recursive: true })
+            await unzip(Buffer.from(stream), join(config.root, 'public/assets/live2d/models'))
 
-          console.log('Cubism SDK downloaded and unzipped.')
+            console.log('Demo Live2D Model - Hiyori Free downloaded and unzipped.')
+          }
+          catch (err) {
+            console.error(err)
+            throw err
+          }
+        },
+      },
+      {
+        name: 'live2d-models-hiyori-pro',
+        async configResolved(config) {
+          try {
+            if (await exists(join(config.root, 'public/assets/live2d/models/hiyori_pro_zh'))) {
+              return
+            }
+
+            console.log('Downloading Demo Live2D Model - Hiyori Pro...')
+            const stream = await ofetch('https://dist.ayaka.moe/live2d-models/hiyori_pro_zh.zip', { responseType: 'arrayBuffer' })
+
+            console.log('Unzipping Demo Live2D Model - Hiyori Pro...')
+            await mkdir(join(config.root, 'public/assets/live2d/models'), { recursive: true })
+            await unzip(Buffer.from(stream), join(config.root, 'public/assets/live2d/models'))
+
+            console.log('Demo Live2D Model - Hiyori Pro downloaded and unzipped.')
+          }
+          catch (err) {
+            console.error(err)
+            throw err
+          }
         },
       },
     ],

@@ -23,5 +23,6 @@ words:
   - rehype
   - unocss
   - vueuse
+  - live2dcubismcore
 ignoreWords: []
 import: []

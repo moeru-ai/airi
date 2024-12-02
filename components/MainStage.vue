@@ -270,7 +270,7 @@ onUnmounted(() => {
     </div>
     <div flex="~ row 1" w-full items-end space-x-2>
       <div w-full min-h="100 sm:100">
-        <Live2DViewer ref="live2DViewerRef" :mouth-open-size="mouthOpenSize" model="assets/live2d/models/hiyori_pro_zh/hiyori_pro_t11.model3.json" />
+        <Live2DViewer ref="live2DViewerRef" :mouth-open-size="mouthOpenSize" model="assets/live2d/models/hiyori_pro_zh/runtime/hiyori_pro_t11.model3.json" />
         <!-- <div>
           <input v-model.number="mouthOpenSize" type="range" max="1" min="0" step="0.01">
           <span>{{ mouthOpenSize }}</span>

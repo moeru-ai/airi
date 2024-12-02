@@ -6,13 +6,20 @@ export async function exists(path: string) {
     return true
   }
   catch (error) {
-    if (!(error instanceof Error))
-      throw error
-    if (!('code' in error))
-      throw error
-    if (error.code !== 'ENOENT')
-      throw error
+    if (isENOENTError(error))
+      return false
 
-    return false
+    throw error
   }
+}
+
+export function isENOENTError(error: unknown): boolean {
+  if (!(error instanceof Error))
+    return false
+  if (!('code' in error))
+    return false
+  if (error.code !== 'ENOENT')
+    return false
+
+  return true
 }
