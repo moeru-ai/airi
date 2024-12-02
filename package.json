@@ -62,5 +62,8 @@
     "vue-tsc": "^2.1.10",
     "yauzl": "^3.2.0",
     "zod": "^3.23.8"
+  },
+  "dependencies": {
+    "elevenlabs": "^0.18.1"
   }
 }

@@ -37,6 +37,7 @@ const nowSpeakingAvatarBorderOpacityMax = 100
 const openAiApiKey = useLocalStorage('openai-api-key', '')
 const openAiApiBaseURL = useLocalStorage('openai-api-base-url', '')
 const openAIModel = useLocalStorage<{ id: string, name?: string }>('openai-model', { id: 'openai/gpt-3.5-turbo', name: 'OpenAI GPT3.5 Turbo' })
+const elevenLabsApiKey = useLocalStorage('elevenlabs-api-key', '')
 
 const { setupOpenAI, streamSpeech, stream, models } = useLLM()
 const { audioContext, calculateVolume } = useAudioContext()
@@ -102,7 +103,7 @@ const ttsQueue = useQueue<string>({
   handlers: [
     async (ctx) => {
       const now = Date.now()
-      const res = await streamSpeech(ctx.data)
+      const res = await streamSpeech(ctx.data, elevenLabsApiKey.value)
       const elapsed = Date.now() - now
 
       // eslint-disable-next-line no-console
@@ -255,6 +256,13 @@ onUnmounted(() => {
     <div space-x="2" flex="~ row" w-full>
       <div flex="~ row" w-full>
         <input
+          v-model="openAiApiBaseURL"
+          placeholder="Input your API base URL"
+          p="2" bg="zinc-100 dark:zinc-700" w-full rounded-lg outline-none
+        >
+      </div>
+      <div flex="~ row" w-full>
+        <input
           v-model="openAiApiKey"
           placeholder="Input your API key"
           p="2" bg="zinc-100 dark:zinc-700" w-full rounded-lg outline-none
@@ -262,8 +270,8 @@ onUnmounted(() => {
       </div>
       <div flex="~ row" w-full>
         <input
-          v-model="openAiApiBaseURL"
-          placeholder="Input your API base URL"
+          v-model="elevenLabsApiKey"
+          placeholder="Input your ElevenLabs API key"
           p="2" bg="zinc-100 dark:zinc-700" w-full rounded-lg outline-none
         >
       </div>

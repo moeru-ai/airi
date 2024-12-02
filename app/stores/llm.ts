@@ -35,13 +35,14 @@ export const useLLM = defineStore('llm', () => {
     return await openAI.value.models.list()
   }
 
-  async function streamSpeech(text: string) {
+  async function streamSpeech(text: string, apiKey: string) {
     if (!text || !text.trim())
       throw new Error('Text is required')
 
     return await ofetch('/api/v1/llm/voice/text-to-speech', {
       body: {
         text,
+        apiKey,
       },
       method: 'POST',
       cache: 'no-cache',
