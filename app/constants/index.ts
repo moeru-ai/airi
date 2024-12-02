@@ -1,2 +1,4 @@
-export const appName = 'Vitesse for Nuxt 3'
-export const appDescription = 'Vitesse for Nuxt 3'
+export const appName = 'アイリ VTuber'
+export const appDescription = 'アイリ VTuber - LLM Powered Live2D VTuber'
+
+export const llmInferenceEndToken = '<|llm_inference_end|>'

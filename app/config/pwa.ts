@@ -39,6 +39,7 @@ export const pwa: ModuleOptions = {
     navigateFallbackDenylist: [/^\/api\//],
     navigateFallback: '/',
     cleanupOutdatedCaches: true,
+    maximumFileSizeToCacheInBytes: 5 * 1024 * 1024, // <== 5 MB
     runtimeCaching: [
       {
         urlPattern: /^https:\/\/fonts.googleapis.com\/.*/i,

@@ -1,0 +1,28 @@
+version: '0.2'
+ignorePaths: []
+dictionaryDefinitions: []
+dictionaries: []
+words:
+  - airi-vtuber
+  - composables
+  - elevenlabs
+  - hiyori
+  - iconify
+  - kwaa
+  - Myriam
+  - nekomeowww
+  - Neuro
+  - Neuro-sama
+  - nuxi
+  - nuxt
+  - nuxtjs
+  - ofetch
+  - openai
+  - pinia
+  - pixi
+  - rehype
+  - unocss
+  - vueuse
+  - live2dcubismcore
+ignoreWords: []
+import: []
