@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
 import { useElementBounding } from '@vueuse/core'
+import { onMounted, ref } from 'vue'
 
 const containerRef = ref<HTMLDivElement>()
 // https://developer.mozilla.org/en-US/docs/Web/API/AnalyserNode

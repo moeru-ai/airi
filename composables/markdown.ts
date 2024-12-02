@@ -1,7 +1,7 @@
-import { unified } from 'unified'
-import RemarkRehype from 'remark-rehype'
-import RemarkParse from 'remark-parse'
 import RehypeStringify from 'rehype-stringify'
+import RemarkParse from 'remark-parse'
+import RemarkRehype from 'remark-rehype'
+import { unified } from 'unified'
 
 export function useMarkdown() {
   const instance = unified()

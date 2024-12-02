@@ -1,20 +1,26 @@
-version: '0.2'
+version: "0.2"
 ignorePaths: []
 dictionaryDefinitions: []
 dictionaries: []
 words:
+  - airi-vtuber
   - composables
   - elevenlabs
   - hiyori
+  - iconify
   - Myriam
   - nekomeowww
   - Neuro
+  - nuxi
+  - nuxt
+  - nuxtjs
   - ofetch
   - openai
   - pinia
   - pixi
   - rehype
+  - unocss
   - vueuse
-  - airi-vtuber
+  - Neuro-sama
 ignoreWords: []
 import: []

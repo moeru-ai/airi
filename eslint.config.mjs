@@ -7,6 +7,11 @@ export default nuxt(
     {
       unocss: true,
       formatters: true,
+      yaml: false,
+      markdown: false,
+      ignores: [
+        'public/assets/**/*',
+      ],
     },
   ),
 )

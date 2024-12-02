@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import { ref } from 'vue'
-
 import type { Emotion } from '../../../constants/emotions'
-import { llmInferenceEndToken } from '../../../constants'
+
+import { ref } from 'vue'
+import BasicTextarea from '../../../components/BasicTextarea.vue'
 import { useQueue } from '../../../composables/queue'
 import { useEmotionsMessageQueue } from '../../../composables/queues'
-import BasicTextarea from '../../../components/BasicTextarea.vue'
+import { llmInferenceEndToken } from '../../../constants'
 
 const messageInput = ref<string>('')
 const messagesProcessed = ref<string[]>([])

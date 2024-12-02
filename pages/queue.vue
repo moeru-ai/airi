@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref, watch } from 'vue'
+import { onMounted, ref } from 'vue'
 import { useQueue } from '../composables/queue'
 
 function sleep(ms: number): Promise<void> {

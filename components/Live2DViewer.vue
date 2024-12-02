@@ -1,10 +1,10 @@
 <script setup lang="ts" generic="T extends any, O extends any">
-import { onMounted, onUnmounted, ref, watch } from 'vue'
 import { Application } from '@pixi/app'
 import { extensions } from '@pixi/extensions'
 import { Ticker, TickerPlugin } from '@pixi/ticker'
-import { Live2DModel, MotionPreloadStrategy, MotionPriority } from 'pixi-live2d-display/cubism4'
 import { useElementBounding, useWindowSize } from '@vueuse/core'
+import { Live2DModel, MotionPreloadStrategy, MotionPriority } from 'pixi-live2d-display/cubism4'
+import { onMounted, onUnmounted, ref, watch } from 'vue'
 
 const props = withDefaults(defineProps<{
   model: string

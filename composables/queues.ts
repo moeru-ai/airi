@@ -1,7 +1,7 @@
+import type { Emotion } from '../constants/emotions'
 import { ref } from 'vue'
 
 import { llmInferenceEndToken } from '../constants'
-import type { Emotion } from '../constants/emotions'
 import { EMOTION_VALUES } from '../constants/emotions'
 import { useQueue } from './queue'
 
@@ -100,7 +100,7 @@ export function useEmotionsMessageQueue(emotionsQueue: ReturnType<typeof useQueu
 export function useDelayMessageQueue(useEmotionsMessageQueue: ReturnType<typeof useQueue<string>>) {
   function splitDelays(content: string) {
     // doesn't include the emotion, continue
-    if (!(/<\|DELAY:(\d+)\|>/gi.test(content))) {
+    if (!(/<\|DELAY:\d+\|>/i.test(content))) {
       return {
         ok: false,
         delay: 0,
@@ -109,7 +109,7 @@ export function useDelayMessageQueue(useEmotionsMessageQueue: ReturnType<typeof 
       }
     }
 
-    const delayExecArray = /<\|DELAY:(\d+)\|>/gi.exec(content)
+    const delayExecArray = /<\|DELAY:(\d+)\|>/i.exec(content)
 
     const delay = delayExecArray?.[1]
     if (!delay) {
@@ -214,7 +214,7 @@ export function useMessageContentQueue(ttsQueue: ReturnType<typeof useQueue<stri
           return
         }
 
-        const endMarker = /(\.)|(\?)|(!)/
+        const endMarker = /[.?!]/
         processed.value += ctx.data
 
         while (processed.value) {

@@ -1,35 +1,35 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
-import { useLocalStorage } from '@vueuse/core'
 import type {
   CoreAssistantMessage,
   CoreSystemMessage,
   CoreUserMessage,
 } from 'ai'
-
-import { llmInferenceEndToken } from '../constants'
 import type {
   Emotion,
 } from '../constants/emotions'
-import {
-  EMOTION_EmotioMotionName_value,
-  EmotionThinkMotionName,
-} from '../constants/emotions'
 
+import { useLocalStorage } from '@vueuse/core'
+import { computed, onMounted, ref, watch } from 'vue'
 import Avatar from '../assets/live2d/models/hiyori_free_zh/avatar.png'
-import { useLLM } from '../stores/llm'
+import { useMarkdown } from '../composables/markdown'
+
 import { useQueue } from '../composables/queue'
 import {
   useDelayMessageQueue,
   useEmotionsMessageQueue,
   useMessageContentQueue,
 } from '../composables/queues'
-import { useMarkdown } from '../composables/markdown'
+import { llmInferenceEndToken } from '../constants'
+import {
+  EMOTION_EmotioMotionName_value,
+  EmotionThinkMotionName,
+} from '../constants/emotions'
 import SystemPromptV2 from '../constants/prompts/system-v2'
+import { useLLM } from '../stores/llm'
 
+import BasicTextarea from './BasicTextarea.vue'
 // import AudioWaveform from './AudioWaveform.vue'
 import Live2DViewer from './Live2DViewer.vue'
-import BasicTextarea from './BasicTextarea.vue'
 
 const nowSpeakingAvatarBorderOpacityMin = 30
 const nowSpeakingAvatarBorderOpacityMax = 100

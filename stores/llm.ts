@@ -1,10 +1,10 @@
-import { defineStore } from 'pinia'
 import type { CoreMessage } from 'ai'
+import { createOpenAI, type OpenAIProvider, type OpenAIProviderSettings } from '@ai-sdk/openai'
 import { streamText } from 'ai'
-import { type OpenAIProvider, type OpenAIProviderSettings, createOpenAI } from '@ai-sdk/openai'
-import { OpenAI } from 'openai'
-import { ref } from 'vue'
 import { ofetch } from 'ofetch'
+import { OpenAI } from 'openai'
+import { defineStore } from 'pinia'
+import { ref } from 'vue'
 
 export const useLLM = defineStore('llm', () => {
   const openAI = ref<OpenAI>()

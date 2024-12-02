@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 
-import { llmInferenceEndToken } from '../../../constants'
+import BasicTextarea from '../../../components/BasicTextarea.vue'
 import { useQueue } from '../../../composables/queue'
 import { useMessageContentQueue } from '../../../composables/queues'
-import BasicTextarea from '../../../components/BasicTextarea.vue'
+import { llmInferenceEndToken } from '../../../constants'
 
 const messageInput = ref<string>('')
 const ttsProcessed = ref<string[]>([])
