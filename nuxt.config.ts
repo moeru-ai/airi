@@ -61,7 +61,7 @@ export default defineNuxtConfig({
         { name: 'theme-color', media: '(prefers-color-scheme: dark)', content: '#222222' },
       ],
       script: [
-        { src: './assets/js/CubismSdkForWeb-5-r.1/Core/live2dcubismcore.min.js' },
+        { src: '/assets/js/CubismSdkForWeb-5-r.1/Core/live2dcubismcore.min.js' },
       ],
     },
   },
