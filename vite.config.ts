@@ -17,6 +17,7 @@ import VueDevTools from 'vite-plugin-vue-devtools'
 import Layouts from 'vite-plugin-vue-layouts'
 import WebfontDownload from 'vite-plugin-webfont-dl'
 
+import { appName } from '~/constants'
 import { exists } from './scripts/fs'
 import { unzip } from './scripts/unzip'
 
@@ -102,27 +103,21 @@ export default defineConfig({
     // https://github.com/antfu/vite-plugin-pwa
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.svg', 'safari-pinned-tab.svg'],
+      includeAssets: ['favicon.svg', 'apple-touch-icon.png'],
       manifest: {
-        name: 'Vitesse',
-        short_name: 'Vitesse',
+        name: appName,
+        short_name: appName,
         theme_color: '#ffffff',
         icons: [
           {
-            src: '/pwa-192x192.png',
+            src: '/web-app-manifest-192x192.png',
             sizes: '192x192',
             type: 'image/png',
           },
           {
-            src: '/pwa-512x512.png',
+            src: '/web-app-manifest-512x512.png',
             sizes: '512x512',
             type: 'image/png',
-          },
-          {
-            src: '/pwa-512x512.png',
-            sizes: '512x512',
-            type: 'image/png',
-            purpose: 'any maskable',
           },
         ],
       },
@@ -230,22 +225,4 @@ export default defineConfig({
       },
     },
   ],
-
-  // // https://github.com/vitest-dev/vitest
-  // test: {
-  //   include: ['test/**/*.test.ts'],
-  //   environment: 'jsdom',
-  // },
-
-  // // https://github.com/antfu/vite-ssg
-  // ssgOptions: {
-  //   script: 'async',
-  //   formatting: 'minify',
-  //   crittersOptions: {
-  //     reduceInlineStyles: false,
-  //   },
-  //   onFinished() {
-  //     generateSitemap()
-  //   },
-  // },
 })
