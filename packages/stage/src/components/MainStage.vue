@@ -36,7 +36,7 @@ const {
 const { audioContext, calculateVolume } = useAudioContext()
 const { process } = useMarkdown()
 
-const selectedStageView = ref<string>('')
+const selectedStageView = ref<string>('2d')
 const listening = ref(false)
 const live2DViewerRef = ref<{ setMotion: (motionName: string) => Promise<void> }>()
 const supportedModels = ref<{ id: string, name?: string }[]>([])
