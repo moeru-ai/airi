@@ -4,7 +4,7 @@
   [<a href="https://airi.ayaka.io">试试看</a>]
 </p>
 
-> 由 [Neuro-sama](https://www.youtube.com/@Neurosama) 强烈启发
+> 深受 [Neuro-sama](https://www.youtube.com/@Neurosama) 启发
 
 ## 开发
 

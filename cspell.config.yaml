@@ -3,12 +3,27 @@ ignorePaths: []
 dictionaryDefinitions: []
 dictionaries: []
 words:
+  - acubismmotion
   - airi-vtuber
   - composables
+  - csmmap
+  - csmvector
+  - cubismbreath
+  - cubismdebug
+  - cubismdefaultparameterid
+  - cubismeyeblink
+  - cubismmatrix44
+  - cubismmoc
+  - cubismmodelsettingjson
+  - cubismmotionqueuemanager
+  - cubismusermodel
+  - cubismviewmatrix
   - elevenlabs
   - hiyori
   - iconify
   - kwaa
+  - live2dcubismcore
+  - live2dcubismframework
   - Myriam
   - nekomeowww
   - Neuro
@@ -21,22 +36,12 @@ words:
   - pinia
   - pixi
   - rehype
+  - shiki
+  - shikijs
+  - sizecheck
+  - taze
+  - unhead
   - unocss
   - vueuse
-  - live2dcubismcore
-  - live2dcubismframework
-  - cubismmatrix44
-  - csmvector
-  - cubismviewmatrix
-  - cubismdefaultparameterid
-  - cubismmodelsettingjson
-  - cubismbreath
-  - cubismeyeblink
-  - cubismusermodel
-  - acubismmotion
-  - cubismmotionqueuemanager
-  - csmmap
-  - cubismdebug
-  - cubismmoc
 ignoreWords: []
 import: []

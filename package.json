@@ -62,7 +62,6 @@
     "@vue-macros/volar": "^0.30.6",
     "critters": "^0.0.25",
     "cross-env": "^7.0.3",
-    "elevenlabs": "^0.18.1",
     "eslint": "^9.16.0",
     "eslint-plugin-cypress": "^4.1.0",
     "eslint-plugin-format": "^0.1.3",
