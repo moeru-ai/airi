@@ -1,6 +1,0 @@
-{
-  "extends": "./.nuxt/tsconfig.json",
-  "exclude": [
-    "public/assets/**/*"
-  ]
-}
