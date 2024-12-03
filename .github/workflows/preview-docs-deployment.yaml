@@ -1,0 +1,151 @@
+name: Push Previewing Docs to Netlify
+
+on:
+  workflow_run:
+    workflows:
+      - Build Previewing Docs
+    types:
+      - completed
+
+env:
+  PR_NUM: 0
+  STORE_PATH: ''
+  UBUNTU_NETLIFY_JSON_OUTPUT: ''
+  UBUNTU_NETLIFY_URL: ''
+  WINDOWS_NETLIFY_JSON_OUTPUT: ''
+  WINDOWS_NETLIFY_URL: ''
+
+jobs:
+  on-success:
+    name: Deploy to Netlify
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    steps:
+      - name: Download artifact - PR
+        uses: dawidd6/action-download-artifact@v7
+        with:
+          workflow_conclusion: success
+          run_id: ${{ github.event.workflow_run.id }}
+          name: pr-num
+          path: pr-num
+          allow_forks: true
+
+      - name: Obtain PR number
+        id: pr-num
+        run: |
+          echo "PR_NUM=$(cat pr-num/pr_num)" >> $GITHUB_ENV
+
+      - name: Download artifact - Ubuntu
+        uses: dawidd6/action-download-artifact@v7
+        with:
+          workflow_conclusion: success
+          run_id: ${{ github.event.workflow_run.id }}
+          name: docs-ubuntu-latest-build
+          path: docs-ubuntu-latest-build
+          allow_forks: true
+
+      - name: Install Node.js 22.x
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.x
+
+      - uses: pnpm/action-setup@v3
+        name: Install pnpm
+        with:
+          run_install: false
+          version: 9
+
+      - name: Get pnpm store directory
+        shell: bash
+        run: |
+          echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
+
+      - uses: actions/cache@v4
+        name: Setup pnpm cache
+        with:
+          path: ${{ env.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+
+      - name: Install Netlify CLI
+        run: pnpm install -g netlify-cli@17.36.0
+
+      - name: Push to Netlify - Ubuntu
+        id: netlify-ubuntu-latest
+        timeout-minutes: 10
+        run: |
+          UBUNTU_NETLIFY_JSON_OUTPUT=$(netlify deploy --dir docs-ubuntu-latest-build --json)
+          echo $UBUNTU_NETLIFY_JSON_OUTPUT
+
+          echo "UBUNTU_NETLIFY_JSON_OUTPUT=$(echo $UBUNTU_NETLIFY_JSON_OUTPUT)" >> $GITHUB_ENV
+          echo "UBUNTU_NETLIFY_URL=$(echo $UBUNTU_NETLIFY_JSON_OUTPUT | jq -r .deploy_url)" >> $GITHUB_ENV
+        env:
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+          NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
+
+      - name: Find Comment
+        uses: peter-evans/find-comment@v3
+        id: fc
+        with:
+          issue-number: ${{ env.PR_NUM }}
+          comment-author: 'github-actions[bot]'
+          body-includes: to Netlify
+
+      - name: Create or update comment
+        uses: peter-evans/create-or-update-comment@v4
+        with:
+          comment-id: ${{ steps.fc.outputs.comment-id }}
+          issue-number: ${{ env.PR_NUM }}
+          body: |
+            ## ✅ Successfully deployed to Netlify
+
+            | Platform | Status      | URL                              |
+            |:---------|:------------|:---------------------------------|
+            | Ubuntu   | Success     | ${{ env.UBUNTU_NETLIFY_URL }}    |
+          edit-mode: replace
+
+  on-failure:
+    name: Failed to build previewing docs
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+
+    if: ${{ github.event.workflow_run.conclusion == 'failure' }}
+    steps:
+      - name: Download artifact - PR
+        uses: dawidd6/action-download-artifact@v7
+        with:
+          workflow_conclusion: success
+          run_id: ${{ github.event.workflow_run.id }}
+          name: pr-num
+          path: pr-num
+          allow_forks: true
+
+      - name: Obtain PR number
+        id: pr-num
+        run: |
+          echo "PR_NUM=$(cat pr-num/pr_num)" >> $GITHUB_ENV
+
+      - name: Find Comment
+        uses: peter-evans/find-comment@v3
+        id: fc
+        with:
+          issue-number: ${{ env.PR_NUM }}
+          comment-author: 'github-actions[bot]'
+          body-includes: to Netlify
+
+      - name: Create or update comment
+        uses: peter-evans/create-or-update-comment@v4
+        with:
+          comment-id: ${{ steps.fc.outputs.comment-id }}
+          issue-number: ${{ env.PR_NUM }}
+          body: |
+            ## ❌ Failed to deploy to Netlify
+
+            | Platform | Status      | URL                                                   |
+            |:---------|:------------|:------------------------------------------------------|
+            | Ubuntu   | Failed      | Please check the status and logs of the workflow run. |
+          edit-mode: replace
