@@ -147,8 +147,6 @@ onMounted(() => {
 
 <template>
   <div>
-    <ClientOnly>
-      <div />
-    </ClientOnly>
+    <div />
   </div>
 </template>

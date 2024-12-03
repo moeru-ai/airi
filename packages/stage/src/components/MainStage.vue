@@ -9,7 +9,9 @@ import type {
 } from '../constants/emotions'
 
 import { useLocalStorage } from '@vueuse/core'
+import { storeToRefs } from 'pinia'
 import { computed, onMounted, ref, watch } from 'vue'
+
 import Avatar from '../assets/live2d/models/hiyori_free_zh/avatar.png'
 import { useMarkdown } from '../composables/markdown'
 
@@ -26,18 +28,18 @@ import {
 } from '../constants/emotions'
 import SystemPromptV2 from '../constants/prompts/system-v2'
 import { useLLM } from '../stores/llm'
+import { useSettings } from '../stores/settings'
 
 import BasicTextarea from './BasicTextarea.vue'
 // import AudioWaveform from './AudioWaveform.vue'
 import Live2DViewer from './Live2DViewer.vue'
+import Settings from './Settings.vue'
 
 const nowSpeakingAvatarBorderOpacityMin = 30
 const nowSpeakingAvatarBorderOpacityMax = 100
 
-const openAiApiKey = useLocalStorage('openai-api-key', '')
-const openAiApiBaseURL = useLocalStorage('openai-api-base-url', '')
+const { elevenLabsApiKey, openAiApiBaseURL, openAiApiKey } = storeToRefs(useSettings())
 const openAIModel = useLocalStorage<{ id: string, name?: string }>('openai-model', { id: 'openai/gpt-3.5-turbo', name: 'OpenAI GPT3.5 Turbo' })
-const elevenLabsApiKey = useLocalStorage('elevenlabs-api-key', '')
 
 const {
   setupOpenAI,
@@ -270,37 +272,10 @@ onUnmounted(() => {
 
 <template>
   <div max-h="[100vh]" h-full p="2" flex="~ col">
-    <div space-x="2" flex="~ row" w-full>
-      <div flex="~ row" w-full>
-        <input
-          v-model="openAiApiBaseURL"
-          placeholder="Input your API base URL"
-          p="2" bg="zinc-100 dark:zinc-700" w-full rounded-lg outline-none
-        >
-      </div>
-      <div flex="~ row" w-full>
-        <input
-          v-model="openAiApiKey"
-          placeholder="Input your API key"
-          p="2" bg="zinc-100 dark:zinc-700" w-full rounded-lg outline-none
-        >
-      </div>
-      <div flex="~ row" w-full>
-        <input
-          v-model="elevenLabsApiKey"
-          placeholder="Input your ElevenLabs API key"
-          p="2" bg="zinc-100 dark:zinc-700" w-full rounded-lg outline-none
-        >
-      </div>
-    </div>
+    <Settings />
     <div flex="~ row 1" w-full items-end space-x-2>
       <div w-full min-h="100 sm:100">
         <Live2DViewer ref="live2DViewerRef" :mouth-open-size="mouthOpenSize" model="/assets/live2d/models/hiyori_pro_zh/runtime/hiyori_pro_t11.model3.json" />
-        <!-- <div>
-          <input v-model.number="mouthOpenSize" type="range" max="1" min="0" step="0.01">
-          <span>{{ mouthOpenSize }}</span>
-        </div> -->
-        <!-- <AudioWaveform ref="audioWaveformRef" /> -->
       </div>
       <div my="2" w-full space-y-2 max-h="[calc(100vh-117px)]">
         <div v-for="(message, index) in messages" :key="index">

@@ -144,6 +144,12 @@ importers:
       '@pixi/utils':
         specifier: '6'
         version: 6.5.10(@pixi/constants@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10))
+      '@pixiv/three-vrm':
+        specifier: ^3.2.0
+        version: 3.2.0(three@0.171.0)
+      '@tresjs/core':
+        specifier: ^4.3.1
+        version: 4.3.1(three@0.171.0)(vue@3.5.13(typescript@5.7.2))
       '@types/yauzl':
         specifier: ^2.10.3
         version: 2.10.3
@@ -186,6 +192,9 @@ importers:
       remark-rehype:
         specifier: ^11.1.1
         version: 11.1.1
+      three:
+        specifier: ^0.171.0
+        version: 0.171.0
       unified:
         specifier: ^11.0.5
         version: 11.0.5
@@ -226,6 +235,9 @@ importers:
       '@types/nprogress':
         specifier: ^0.2.3
         version: 0.2.3
+      '@types/three':
+        specifier: ^0.170.0
+        version: 0.170.0
       '@vitejs/plugin-vue':
         specifier: ^5.2.1
         version: 5.2.1(vite@6.0.2(@types/node@22.10.1)(jiti@2.4.0)(terser@5.17.6)(tsx@4.19.2)(yaml@2.5.0))(vue@3.5.13(typescript@5.7.2))
@@ -326,6 +338,9 @@ packages:
     peerDependenciesMeta:
       zod:
         optional: true
+
+  '@alvarosabu/utils@3.2.0':
+    resolution: {integrity: sha512-aoGWRfaQjOo9TUwrBA6W0zwTHktgrXy69GIFNILT4gHsqscw6+X8P6uoSlZVQFr887SPm8x3aDin5EBVq8y4pw==}
 
   '@ampproject/remapping@2.3.0':
     resolution: {integrity: sha512-30iZtAPgz+LTIYoeivqYo853f02jBYSd5uGnGpkFV0M3xOt9aN73erkgYAmZU43x4VfqcnLxW9Kpg3R5LC4YYw==}
@@ -1924,6 +1939,62 @@ packages:
       '@pixi/constants': 6.5.10
       '@pixi/settings': 6.5.10
 
+  '@pixiv/three-vrm-core@3.2.0':
+    resolution: {integrity: sha512-S/vEMSouVsbS7yv+PToK+r6UOWm0uR6d3djPOVSeGZKXbXjoNWZc5btjVWL+FAE1/rtdxXO9cMw0kBvI43Rujw==}
+    peerDependencies:
+      three: '>=0.137'
+
+  '@pixiv/three-vrm-materials-hdr-emissive-multiplier@3.2.0':
+    resolution: {integrity: sha512-3Ai1ENdNiVnsxfzzXSKDCyT+w6awY7sHjoX6fKKnQ9tn2WGhxY596VUGDp/WyGDY2BM4NkSCUVd6qSGNEeEX6g==}
+    peerDependencies:
+      three: '>=0.137'
+
+  '@pixiv/three-vrm-materials-mtoon@3.2.0':
+    resolution: {integrity: sha512-wZollYD+cnTCdCJyrSuIGC1zVqXrZl2zWEzzwZ0+955/+UUltxYAHdFmSXpoChYNX89FFiIzIdfoARdYHMqNzw==}
+    peerDependencies:
+      three: '>=0.137'
+
+  '@pixiv/three-vrm-materials-v0compat@3.2.0':
+    resolution: {integrity: sha512-z1qjQUjqTWWE7f/7vm2QzluL7e8fcSi/q6RMjpmsXQurfXdH06j43IWn5Lp8E9O16ZHbKw9HqBN8YkBv1qpgmg==}
+    peerDependencies:
+      three: '>=0.137'
+
+  '@pixiv/three-vrm-node-constraint@3.2.0':
+    resolution: {integrity: sha512-NQMD3KQJx2i6CEGnabcOdeS8/m0KUrvOp4N4iEdFM0LRd/34zmasHBqLROlhFMG7tGan858wZ1HqyWnKOIc6Rw==}
+    peerDependencies:
+      three: '>=0.137'
+
+  '@pixiv/three-vrm-springbone@3.2.0':
+    resolution: {integrity: sha512-kMdHQLgHvhwNj/5WAPh6n+Q/Vva+9OgMFAzBtILoMKxfusS/LyDc7Du2KUaHU8huyB/ucvHSEan0rTEH2mz1dQ==}
+    peerDependencies:
+      three: '>=0.137'
+
+  '@pixiv/three-vrm@3.2.0':
+    resolution: {integrity: sha512-M/t9xRK3v0SYsY1G4S3MMcQimovrQQBn4rcM+Ffh3z/gZTOGeivfRuGWhjZhxWY+ACoZ9X8HcpdvGbNsTVPrjQ==}
+    peerDependencies:
+      three: '>=0.137'
+
+  '@pixiv/types-vrm-0.0@3.2.0':
+    resolution: {integrity: sha512-hxj3Z1V8KqEfeg11+6Q0groz7Rdpg/WL0PsoEFvPY1U06QD2SZFIdxLsSh2yRfMiwL1DhZJi614PoaHMaMiVhQ==}
+
+  '@pixiv/types-vrmc-materials-hdr-emissive-multiplier-1.0@3.2.0':
+    resolution: {integrity: sha512-xWiWtUP7IdVAT4JFjSD797TaX1fD38TwBucahYjT8Yq2b20frRQJ+/FrCG1cJ83Ja02PDQGtLY1VKy4lZ6c4Xg==}
+
+  '@pixiv/types-vrmc-materials-mtoon-1.0@3.2.0':
+    resolution: {integrity: sha512-p6sWf6uzce3cSc8KiStSyB33GPwDEYPFjRxDKNpepe64i9wuXVqdtJNvh0WOWrb85VLxOfq78XAWeJIcdUF2Ww==}
+
+  '@pixiv/types-vrmc-node-constraint-1.0@3.2.0':
+    resolution: {integrity: sha512-wZT86mIHDBV7GefnsdsEGwT6IDxZISNHhbaCAjmoyZNZz+mO/J65WOrdbiMSlTgFXxyiBVge7h4WplLMsZCuhA==}
+
+  '@pixiv/types-vrmc-springbone-1.0@3.2.0':
+    resolution: {integrity: sha512-ifnnbtGQiVTJF51MRhNPGfpdZMePBlEKDpOJe83n0S0XmVtHahbspWelGxiecDbPfYUMElqpIBhnDZmai4fT5Q==}
+
+  '@pixiv/types-vrmc-springbone-extended-collider-1.0@3.2.0':
+    resolution: {integrity: sha512-tImS5zKDMT9mliAyAaUmjs9susVj+mJiV8ZK2G2EOcchkt0SlD+kcrfpJPFxng5zfux/EFpIHUbXRFL9wqUOrQ==}
+
+  '@pixiv/types-vrmc-vrm-1.0@3.2.0':
+    resolution: {integrity: sha512-XvqfRK90DIQl+6PxqIi0svEmjilFzpOOOdzGR6zh0tNV0yBV4cemLSs9v6BouDMtPt4aZ69dQR2ApA8VMbaV4w==}
+
   '@pkgr/core@0.1.0':
     resolution: {integrity: sha512-Zwq5OCzuwJC2jwqmpEQt7Ds1DTi6BWSwoGkbb1n9pO3hzb35BoJELx7c0T23iDkBGkh2e7tvOtjF3tr3OaQHDQ==}
     engines: {node: ^12.20.0 || ^14.18.0 || >=16.0.0}
@@ -2140,9 +2211,18 @@ packages:
   '@surma/rollup-plugin-off-main-thread@2.2.3':
     resolution: {integrity: sha512-lR8q/9W7hZpMWweNiAKU7NQerBnzQQLvi8qnTDU/fxItPhtZVMbPV3lbCwjhIlNBe9Bbr5V+KHshvWmVSG9cxQ==}
 
+  '@tresjs/core@4.3.1':
+    resolution: {integrity: sha512-81//cbtReAN/azjBgSGOsjmgPQGDNrqAsODuAnThILcAJcNDx5n/Qwut7kfnoyCHef4LynuAHCyd8EbvDSwyJg==}
+    peerDependencies:
+      three: '>=0.133'
+      vue: '>=3.4'
+
   '@trysound/sax@0.2.0':
     resolution: {integrity: sha512-L7z9BgrNEcYyUYtF+HaEfiS5ebkh9jXqbszz7pC0hRBPaatV0XjSD3+eHrpqFemQfgwiFF0QPIarnIihIDn7OA==}
     engines: {node: '>=10.13.0'}
+
+  '@tweenjs/tween.js@23.1.3':
+    resolution: {integrity: sha512-vJmvvwFxYuGnF2axRtPYocag6Clbb5YS7kLL+SO/TeVFzHqDIWrNKYtcsPMibjDx9O+bu+psAy9NKfWklassUA==}
 
   '@tybys/wasm-util@0.9.0':
     resolution: {integrity: sha512-6+7nlbMVX/PVDCwaIQ8nTOPveOcFLSt8GcXdx8hD0bt39uWxYT88uXzqTd4fTvqta7oeUJqudepapKNt2DYJFw==}
@@ -2210,6 +2290,12 @@ packages:
   '@types/resolve@1.20.2':
     resolution: {integrity: sha512-60BCwRFOZCQhDncwQdxxeOEEkbc5dIMccYLwbxsS4TUNeVECQ/pBJ0j09mrHOl/JJvpRPGwO9SvE4nR2Nb/a4Q==}
 
+  '@types/stats.js@0.17.3':
+    resolution: {integrity: sha512-pXNfAD3KHOdif9EQXZ9deK82HVNaXP5ZIF5RP2QG6OQFNTaY2YIetfrE9t528vEreGQvEPRDDc8muaoYeK0SxQ==}
+
+  '@types/three@0.170.0':
+    resolution: {integrity: sha512-CUm2uckq+zkCY7ZbFpviRttY+6f9fvwm6YqSqPfA5K22s9w7R4VnA3rzJse8kHVvuzLcTx+CjNCs2NYe0QFAyg==}
+
   '@types/trusted-types@2.0.3':
     resolution: {integrity: sha512-NfQ4gyz38SL8sDNrSixxU2Os1a5xcdFxipAFxYEuLUlvU2uDwS4NUpsImcf1//SlWItCVMMLiylsxbmNMToV/g==}
 
@@ -2218,6 +2304,9 @@ packages:
 
   '@types/web-bluetooth@0.0.20':
     resolution: {integrity: sha512-g9gZnnXVq7gM7v3tJCWV/qw7w+KeOlSHAhgF9RytFyifW6AF61hdT2ucrYhPq9hLs5JIryeupHV3qGk95dH9ow==}
+
+  '@types/webxr@0.5.20':
+    resolution: {integrity: sha512-JGpU6qiIJQKUuVSKx1GtQnHJGxRjtfGIhzO2ilq43VZZS//f1h1Sgexbdk+Lq+7569a6EYhOWrUpIruR/1Enmg==}
 
   '@types/yauzl@2.10.3':
     resolution: {integrity: sha512-oJoftv0LSuaDZE3Le4DbKX+KS9G36NzOeSap90UIK0yMA/NhKJhqlSGtNDORNRaIbQfzjXDrQa0ytJ6mNRGz/Q==}
@@ -2681,6 +2770,9 @@ packages:
   '@vue/shared@3.5.13':
     resolution: {integrity: sha512-/hnE/qP5ZoGpol0a5mDi45bOd7t3tjYJBjsgCsivow7D48cJeV5l05RD82lPqi7gRiphZM37rnhW1l6ZoCNNnQ==}
 
+  '@vueuse/core@11.3.0':
+    resolution: {integrity: sha512-7OC4Rl1f9G8IT6rUfi9JrKiXy4bfmHhZ5x2Ceojy0jnd3mHNEvV4JaRygH362ror6/NZ+Nl+n13LPzGiPN8cKA==}
+
   '@vueuse/core@12.0.0':
     resolution: {integrity: sha512-C12RukhXiJCbx4MGhjmd/gH52TjJsc3G0E0kQj/kb19H3Nt6n1CA4DRWuTdWWcaFRdlTe0npWDS942mvacvNBw==}
 
@@ -2689,11 +2781,20 @@ packages:
     peerDependencies:
       vue: '>=2.7 || >=3'
 
+  '@vueuse/metadata@11.3.0':
+    resolution: {integrity: sha512-pwDnDspTqtTo2HwfLw4Rp6yywuuBdYnPYDq+mO38ZYKGebCUQC/nVj/PXSiK9HX5otxLz8Fn7ECPbjiRz2CC3g==}
+
   '@vueuse/metadata@12.0.0':
     resolution: {integrity: sha512-Yzimd1D3sjxTDOlF05HekU5aSGdKjxhuhRFHA7gDWLn57PRbBIh+SF5NmjhJ0WRgF3my7T8LBucyxdFJjIfRJQ==}
 
+  '@vueuse/shared@11.3.0':
+    resolution: {integrity: sha512-P8gSSWQeucH5821ek2mn/ciCk+MS/zoRKqdQIM3bHq6p7GXDAJLmnRRKmF5F65sAVJIfzQlwR3aDzwCn10s8hA==}
+
   '@vueuse/shared@12.0.0':
     resolution: {integrity: sha512-3i6qtcq2PIio5i/vVYidkkcgvmTjCqrf26u+Fd4LhnbBmIT6FN8y6q/GJERp8lfcB9zVEfjdV0Br0443qZuJpw==}
+
+  '@webgpu/types@0.1.51':
+    resolution: {integrity: sha512-ktR3u64NPjwIViNCck+z9QeyN0iPkQCUOQ07ZCV1RzlkfP+olLTeEZ95O1QHS+v4w9vJeY9xj/uJuSphsHy5rQ==}
 
   abort-controller@3.0.0:
     resolution: {integrity: sha512-h8lQ8tacZYnR3vNQTgibj+tODHI5/+l06Au2Pcriv/Gmet0eaj4TwWH41sO9wnHDiQsEj19q0drzdWdeAHtweg==}
@@ -3766,6 +3867,9 @@ packages:
       picomatch:
         optional: true
 
+  fflate@0.8.2:
+    resolution: {integrity: sha512-cPJU47OaAoCbg0pBvzsgpTPhmhqI5eJjh/JIu8tPj5q+T7iLvW/JAYUqmE7KOB4R1ZyEhzBaIQpQpardBF5z8A==}
+
   figures@6.1.0:
     resolution: {integrity: sha512-d+l3qxjSesT4V7v2fh+QnmFnUWv9lSpjarhShNTgBOfA0ttejbQUAlHLitbjkoRiDulW0OPoQPYIGhIC8ohejg==}
     engines: {node: '>=18'}
@@ -4613,6 +4717,9 @@ packages:
   merge2@1.4.1:
     resolution: {integrity: sha512-8q7VEgMJW4J8tcfVPy8g09NcQwZdbwFEqhe/WZkoIzjn/3TGDwtOCYtXGxA3O8tPzpczCCDgv+P2P5y00ZJOOg==}
     engines: {node: '>= 8'}
+
+  meshoptimizer@0.18.1:
+    resolution: {integrity: sha512-ZhoIoL7TNV4s5B6+rx5mC//fw8/POGyNxS/DZyCJeiZ12ScLfVwRE/GfsxwiTkMYYD5DmK2/JXnEVXqL4rF+Sw==}
 
   methods@1.1.2:
     resolution: {integrity: sha512-iclAHeNqNm68zFtnZ0e+1L2yUIdvzNoauKU4WBA3VvH/vPFieF7qfRlwUZU+DA9P9bPXIS90ulxoUoCH23sV2w==}
@@ -5922,6 +6029,9 @@ packages:
     engines: {node: '>=10'}
     hasBin: true
 
+  three@0.171.0:
+    resolution: {integrity: sha512-Y/lAXPaKZPcEdkKjh0JOAHVv8OOnv/NDJqm0wjfCzyQmfKxV7zvkwsnBgPBKTzJHToSOhRGQAGbPJObT59B/PQ==}
+
   throttleit@2.1.0:
     resolution: {integrity: sha512-nt6AMGKW1p/70DF/hGBdJB57B8Tspmbp5gfJ8ilhLnt7kkr2ye7hzD6NVG8GGErk2HWF34igrL2CXmNIkzKqKw==}
     engines: {node: '>=18'}
@@ -6774,6 +6884,8 @@ snapshots:
       zod-to-json-schema: 3.23.5(zod@3.23.8)
     optionalDependencies:
       zod: 3.23.8
+
+  '@alvarosabu/utils@3.2.0': {}
 
   '@ampproject/remapping@2.3.0':
     dependencies:
@@ -8315,6 +8427,65 @@ snapshots:
       eventemitter3: 3.1.2
       url: 0.11.4
 
+  '@pixiv/three-vrm-core@3.2.0(three@0.171.0)':
+    dependencies:
+      '@pixiv/types-vrm-0.0': 3.2.0
+      '@pixiv/types-vrmc-vrm-1.0': 3.2.0
+      three: 0.171.0
+
+  '@pixiv/three-vrm-materials-hdr-emissive-multiplier@3.2.0(three@0.171.0)':
+    dependencies:
+      '@pixiv/types-vrmc-materials-hdr-emissive-multiplier-1.0': 3.2.0
+      three: 0.171.0
+
+  '@pixiv/three-vrm-materials-mtoon@3.2.0(three@0.171.0)':
+    dependencies:
+      '@pixiv/types-vrm-0.0': 3.2.0
+      '@pixiv/types-vrmc-materials-mtoon-1.0': 3.2.0
+      three: 0.171.0
+
+  '@pixiv/three-vrm-materials-v0compat@3.2.0(three@0.171.0)':
+    dependencies:
+      '@pixiv/types-vrm-0.0': 3.2.0
+      '@pixiv/types-vrmc-materials-mtoon-1.0': 3.2.0
+      three: 0.171.0
+
+  '@pixiv/three-vrm-node-constraint@3.2.0(three@0.171.0)':
+    dependencies:
+      '@pixiv/types-vrmc-node-constraint-1.0': 3.2.0
+      three: 0.171.0
+
+  '@pixiv/three-vrm-springbone@3.2.0(three@0.171.0)':
+    dependencies:
+      '@pixiv/types-vrm-0.0': 3.2.0
+      '@pixiv/types-vrmc-springbone-1.0': 3.2.0
+      '@pixiv/types-vrmc-springbone-extended-collider-1.0': 3.2.0
+      three: 0.171.0
+
+  '@pixiv/three-vrm@3.2.0(three@0.171.0)':
+    dependencies:
+      '@pixiv/three-vrm-core': 3.2.0(three@0.171.0)
+      '@pixiv/three-vrm-materials-hdr-emissive-multiplier': 3.2.0(three@0.171.0)
+      '@pixiv/three-vrm-materials-mtoon': 3.2.0(three@0.171.0)
+      '@pixiv/three-vrm-materials-v0compat': 3.2.0(three@0.171.0)
+      '@pixiv/three-vrm-node-constraint': 3.2.0(three@0.171.0)
+      '@pixiv/three-vrm-springbone': 3.2.0(three@0.171.0)
+      three: 0.171.0
+
+  '@pixiv/types-vrm-0.0@3.2.0': {}
+
+  '@pixiv/types-vrmc-materials-hdr-emissive-multiplier-1.0@3.2.0': {}
+
+  '@pixiv/types-vrmc-materials-mtoon-1.0@3.2.0': {}
+
+  '@pixiv/types-vrmc-node-constraint-1.0@3.2.0': {}
+
+  '@pixiv/types-vrmc-springbone-1.0@3.2.0': {}
+
+  '@pixiv/types-vrmc-springbone-extended-collider-1.0@3.2.0': {}
+
+  '@pixiv/types-vrmc-vrm-1.0@3.2.0': {}
+
   '@pkgr/core@0.1.0': {}
 
   '@polka/url@1.0.0-next.24': {}
@@ -8523,7 +8694,19 @@ snapshots:
       magic-string: 0.25.9
       string.prototype.matchall: 4.0.8
 
+  '@tresjs/core@4.3.1(three@0.171.0)(vue@3.5.13(typescript@5.7.2))':
+    dependencies:
+      '@alvarosabu/utils': 3.2.0
+      '@vue/devtools-api': 6.6.4
+      '@vueuse/core': 11.3.0(vue@3.5.13(typescript@5.7.2))
+      three: 0.171.0
+      vue: 3.5.13(typescript@5.7.2)
+    transitivePeerDependencies:
+      - '@vue/composition-api'
+
   '@trysound/sax@0.2.0': {}
+
+  '@tweenjs/tween.js@23.1.3': {}
 
   '@tybys/wasm-util@0.9.0':
     dependencies:
@@ -8592,11 +8775,24 @@ snapshots:
 
   '@types/resolve@1.20.2': {}
 
+  '@types/stats.js@0.17.3': {}
+
+  '@types/three@0.170.0':
+    dependencies:
+      '@tweenjs/tween.js': 23.1.3
+      '@types/stats.js': 0.17.3
+      '@types/webxr': 0.5.20
+      '@webgpu/types': 0.1.51
+      fflate: 0.8.2
+      meshoptimizer: 0.18.1
+
   '@types/trusted-types@2.0.3': {}
 
   '@types/unist@3.0.0': {}
 
   '@types/web-bluetooth@0.0.20': {}
+
+  '@types/webxr@0.5.20': {}
 
   '@types/yauzl@2.10.3':
     dependencies:
@@ -9349,6 +9545,16 @@ snapshots:
 
   '@vue/shared@3.5.13': {}
 
+  '@vueuse/core@11.3.0(vue@3.5.13(typescript@5.7.2))':
+    dependencies:
+      '@types/web-bluetooth': 0.0.20
+      '@vueuse/metadata': 11.3.0
+      '@vueuse/shared': 11.3.0(vue@3.5.13(typescript@5.7.2))
+      vue-demi: 0.14.10(vue@3.5.13(typescript@5.7.2))
+    transitivePeerDependencies:
+      - '@vue/composition-api'
+      - vue
+
   '@vueuse/core@12.0.0(typescript@5.7.2)':
     dependencies:
       '@types/web-bluetooth': 0.0.20
@@ -9366,13 +9572,24 @@ snapshots:
       '@unhead/vue': 1.11.13(vue@3.5.13(typescript@5.7.2))
       vue: 3.5.13(typescript@5.7.2)
 
+  '@vueuse/metadata@11.3.0': {}
+
   '@vueuse/metadata@12.0.0': {}
+
+  '@vueuse/shared@11.3.0(vue@3.5.13(typescript@5.7.2))':
+    dependencies:
+      vue-demi: 0.14.10(vue@3.5.13(typescript@5.7.2))
+    transitivePeerDependencies:
+      - '@vue/composition-api'
+      - vue
 
   '@vueuse/shared@12.0.0(typescript@5.7.2)':
     dependencies:
       vue: 3.5.13(typescript@5.7.2)
     transitivePeerDependencies:
       - typescript
+
+  '@webgpu/types@0.1.51': {}
 
   abort-controller@3.0.0:
     dependencies:
@@ -10727,6 +10944,8 @@ snapshots:
     optionalDependencies:
       picomatch: 4.0.2
 
+  fflate@0.8.2: {}
+
   figures@6.1.0:
     dependencies:
       is-unicode-supported: 2.1.0
@@ -11671,6 +11890,8 @@ snapshots:
   merge-stream@2.0.0: {}
 
   merge2@1.4.1: {}
+
+  meshoptimizer@0.18.1: {}
 
   methods@1.1.2: {}
 
@@ -13133,6 +13354,8 @@ snapshots:
       acorn: 8.14.0
       commander: 2.20.3
       source-map-support: 0.5.21
+
+  three@0.171.0: {}
 
   throttleit@2.1.0: {}
 

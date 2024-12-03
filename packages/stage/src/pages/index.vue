@@ -1,8 +1,6 @@
 <template>
   <div>
-    <ClientOnly>
-      <MainStage />
-    </ClientOnly>
+    <MainStage />
   </div>
 </template>
 

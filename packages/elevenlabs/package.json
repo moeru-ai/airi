@@ -27,7 +27,7 @@
     "package.json"
   ],
   "scripts": {
-    "dev": "concurrently \"pnpm run stub\"",
+    "dev": "pnpm run stub",
     "stub": "unbuild --stub",
     "build": "unbuild"
   },

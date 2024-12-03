@@ -9,15 +9,13 @@ function calculateVolumeWithLinearNormalize(analyser: AnalyserNode) {
     volumeVector.push(dataBuffer[i])
 
   const volumeSum = dataBuffer
-    // The volume changes are so flatten, and the volume is so low, so we need to amplify it
-    // We can apply a power function to amplify the volume, for example
+    // The volume changes flatten-ly, while the volume is often low, therefore we need to amplify it.
+    // Applying a power function to amplify the volume is helpful, for example:
     // v ** 1.2 will amplify the volume by 1.2 times
     .map(v => v ** 1.2)
     // Scale up the volume values to make them more distinguishable
     .map(v => v * 1.2)
     .reduce((acc, cur) => acc + cur, 0)
-
-  // console.log('volumeSum linear', volumeSum, (volumeSum / dataBuffer.length / 100))
 
   return (volumeSum / dataBuffer.length / 100)
 }
@@ -30,7 +28,7 @@ function calculateVolumeWithMinMaxNormalize(analyser: AnalyserNode) {
   for (let i = 0; i < 700; i += 80)
     volumeVector.push(dataBuffer[i])
 
-  // The volume changes are so flatten, and the volume is so low, so we need to amplify it
+  // The volume changes flatten-ly, while the volume is often low, therefore we need to amplify it.
   // We can apply a power function to amplify the volume, for example
   // v ** 1.2 will amplify the volume by 1.2 times
   const amplifiedVolumeVector = dataBuffer.map(v => v ** 1.5)
@@ -51,7 +49,6 @@ function calculateVolumeWithMinMaxNormalize(analyser: AnalyserNode) {
 
   // Aggregate the volume values
   const volumeSum = normalizedVolumeVector.reduce((acc, cur) => acc + cur, 0)
-  // console.log('volumeSum minmax', volumeSum)
 
   // Average the volume values
   return volumeSum / dataBuffer.length

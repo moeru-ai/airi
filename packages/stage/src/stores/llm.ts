@@ -12,16 +12,16 @@ export const useLLM = defineStore('llm', () => {
   const openAIProvider = ref<OpenAIProvider>()
 
   function setupOpenAI(options: OpenAIProviderSettings) {
-    openAI.value = new OpenAI({
-      ...options,
-      dangerouslyAllowBrowser: true,
-    })
+    openAI.value = new OpenAI({ ...options, dangerouslyAllowBrowser: true })
     openAIProvider.value = createOpenAI(options)
   }
 
   async function stream(model: string, messages: CoreMessage[]) {
     if (!openAIProvider.value)
       throw new Error('OpenAI not initialized')
+    if (openAI.value?.baseURL === '') {
+      throw new Error('OpenAI not initialized')
+    }
 
     return await streamText({
       model: openAIProvider.value(model),
@@ -32,8 +32,26 @@ export const useLLM = defineStore('llm', () => {
   async function models() {
     if (!openAI.value)
       throw new Error('OpenAI not initialized')
+    if (openAI.value?.baseURL === '') {
+      return {
+        data: [],
+        object: '',
+      }
+    }
 
-    return await openAI.value.models.list()
+    try {
+      return await openAI.value.models.list()
+    }
+    catch (err) {
+      if (String(err).includes(`Failed to construct 'URL': Invalid URL`)) {
+        return {
+          data: [],
+          object: '',
+        }
+      }
+
+      throw err
+    }
   }
 
   async function streamSpeech(baseUrl: string, apiKey: string, text: string, options: Omit<Omit<GenerateAudioStream, 'stream'> & { voice: string }, 'text'>) {

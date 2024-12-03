@@ -24,15 +24,13 @@ function handleFileUpload(e: Event) {
 
 <template>
   <div>
-    <ClientOnly>
-      <div>
-        <div ref="containerRef" />
-        <input
-          ref="fileInputRef"
-          type="file"
-          @change="handleFileUpload"
-        >
-      </div>
-    </ClientOnly>
+    <div>
+      <div ref="containerRef" />
+      <input
+        ref="fileInputRef"
+        type="file"
+        @change="handleFileUpload"
+      >
+    </div>
   </div>
 </template>
