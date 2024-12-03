@@ -17,9 +17,9 @@ import VueDevTools from 'vite-plugin-vue-devtools'
 import Layouts from 'vite-plugin-vue-layouts'
 import WebfontDownload from 'vite-plugin-webfont-dl'
 
-import { appName } from '~/constants'
 import { exists } from './scripts/fs'
 import { unzip } from './scripts/unzip'
+import { appName } from './src/constants'
 
 export default defineConfig({
   optimizeDeps: {
