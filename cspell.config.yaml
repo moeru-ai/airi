@@ -42,11 +42,13 @@ words:
   - openai
   - pinia
   - pixi
+  - pixiv
   - rehype
   - shiki
   - shikijs
   - sizecheck
   - taze
+  - tresjs
   - unhead
   - unocss
   - unplugin
