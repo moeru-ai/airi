@@ -165,6 +165,12 @@ importers:
       '@vueuse/head':
         specifier: ^2.0.0
         version: 2.0.0(vue@3.5.13(typescript@5.7.2))
+      '@xsai/shared-chat-completion':
+        specifier: ^0.0.13
+        version: 0.0.13
+      '@xsai/stream-text':
+        specifier: ^0.0.13
+        version: 0.0.13
       ai:
         specifier: ^4.0.10
         version: 4.0.10(react@18.3.1)(zod@3.23.8)
@@ -2801,6 +2807,15 @@ packages:
 
   '@webgpu/types@0.1.51':
     resolution: {integrity: sha512-ktR3u64NPjwIViNCck+z9QeyN0iPkQCUOQ07ZCV1RzlkfP+olLTeEZ95O1QHS+v4w9vJeY9xj/uJuSphsHy5rQ==}
+
+  '@xsai/shared-chat-completion@0.0.13':
+    resolution: {integrity: sha512-dChG1QWeLYm6ElBEn9sCASHfQMdDctx/QSlcXus7erNdS5ZDnhY78tQBg023jdxICcoX6xwNhvMJtcq4qiFNHA==}
+
+  '@xsai/shared@0.0.13':
+    resolution: {integrity: sha512-rPyf1dEU0MsRMwSLJek+w6DIe2iuXjk07VRJ8q2/FSq7JY1LPCOa/OXT9lTwG317+zq2+p8IR6nzwK+VFDZpjQ==}
+
+  '@xsai/stream-text@0.0.13':
+    resolution: {integrity: sha512-ySJnUMjhmSdPHiojuCjyMw25lYZu0v+pbRap4akvUnyslKcKI9yIdKK3Rt+JRm645VBQmFquJ7mYUC6eDii6yw==}
 
   abort-controller@3.0.0:
     resolution: {integrity: sha512-h8lQ8tacZYnR3vNQTgibj+tODHI5/+l06Au2Pcriv/Gmet0eaj4TwWH41sO9wnHDiQsEj19q0drzdWdeAHtweg==}
@@ -9600,6 +9615,16 @@ snapshots:
       - typescript
 
   '@webgpu/types@0.1.51': {}
+
+  '@xsai/shared-chat-completion@0.0.13':
+    dependencies:
+      '@xsai/shared': 0.0.13
+
+  '@xsai/shared@0.0.13': {}
+
+  '@xsai/stream-text@0.0.13':
+    dependencies:
+      '@xsai/shared-chat-completion': 0.0.13
 
   abort-controller@3.0.0:
     dependencies:

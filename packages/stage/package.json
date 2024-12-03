@@ -39,6 +39,8 @@
     "@unocss/reset": "^0.65.0",
     "@vueuse/core": "^12.0.0",
     "@vueuse/head": "^2.0.0",
+    "@xsai/shared-chat-completion": "^0.0.13",
+    "@xsai/stream-text": "^0.0.13",
     "ai": "^4.0.10",
     "nprogress": "^0.2.0",
     "ofetch": "^1.4.1",

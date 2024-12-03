@@ -1,13 +1,9 @@
 <script setup lang="ts">
-import type {
-  CoreAssistantMessage,
-  CoreSystemMessage,
-  CoreUserMessage,
-} from 'ai'
+import type { AssistantMessage, Message, SystemMessage } from '@xsai/shared-chat-completion'
+
 import type {
   Emotion,
 } from '../constants/emotions'
-
 import { useLocalStorage } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, ref, watch } from 'vue'
@@ -42,7 +38,6 @@ const { elevenLabsApiKey, openAiApiBaseURL, openAiApiKey } = storeToRefs(useSett
 const openAIModel = useLocalStorage<{ id: string, name?: string }>('openai-model', { id: 'openai/gpt-3.5-turbo', name: 'OpenAI GPT3.5 Turbo' })
 
 const {
-  setupOpenAI,
   streamSpeech,
   stream,
   models,
@@ -54,8 +49,8 @@ const listening = ref(false)
 const live2DViewerRef = ref<{ setMotion: (motionName: string) => Promise<void> }>()
 const supportedModels = ref<{ id: string, name?: string }[]>([])
 const messageInput = ref<string>('')
-const messages = ref<Array<CoreAssistantMessage | CoreUserMessage | CoreSystemMessage>>([SystemPromptV2 as CoreSystemMessage])
-const streamingMessage = ref<CoreAssistantMessage>({ role: 'assistant', content: '' })
+const messages = ref<Array<Message>>([SystemPromptV2 as SystemMessage])
+const streamingMessage = ref<AssistantMessage>({ role: 'assistant', content: '' })
 const audioAnalyser = ref<AnalyserNode>()
 const mouthOpenSize = ref(0)
 const nowSpeaking = ref(false)
@@ -183,6 +178,25 @@ function setupAnalyser() {
     audioAnalyser.value = audioContext.createAnalyser()
 }
 
+async function* asyncIteratorFromReadableStream<T, F = Uint8Array>(res: ReadableStream<F>, func: (value: F) => Promise<T>): AsyncGenerator<T, void, unknown> {
+  // react js - TS2504: Type 'ReadableStream<Uint8Array>' must have a '[Symbol.asyncIterator]()' method that returns an async iterator - Stack Overflow
+  // https://stackoverflow.com/questions/76700924/ts2504-type-readablestreamuint8array-must-have-a-symbol-asynciterator
+  const reader = res.getReader()
+  try {
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) {
+        return
+      }
+
+      yield func(value)
+    }
+  }
+  finally {
+    reader.releaseLock()
+  }
+}
+
 async function onSendMessage(sendingMessage: string) {
   if (!sendingMessage)
     return
@@ -196,7 +210,7 @@ async function onSendMessage(sendingMessage: string) {
   // const index = messages.value.length - 1
   live2DViewerRef.value?.setMotion(EmotionThinkMotionName)
 
-  const res = await stream(model.value, messages.value.slice(0, messages.value.length - 1))
+  const res = await stream(openAiApiBaseURL.value, openAiApiKey.value, model.value, messages.value.slice(0, messages.value.length - 1))
 
   enum States {
     Literal = 'literal',
@@ -206,7 +220,7 @@ async function onSendMessage(sendingMessage: string) {
   let state = States.Literal
   let buffer = ''
 
-  for await (const textPart of res.textStream) {
+  for await (const textPart of asyncIteratorFromReadableStream(res.textStream, async v => v)) {
     for (const textSingleChar of textPart) {
       let newState: States = state
 
@@ -243,25 +257,20 @@ async function onSendMessage(sendingMessage: string) {
 }
 
 watch([openAiApiBaseURL, openAiApiKey], async ([baseUrl, apiKey]) => {
-  setupOpenAI({
-    apiKey,
-    baseURL: baseUrl,
-  })
+  if (!baseUrl || !apiKey) {
+    supportedModels.value = []
+    return
+  }
 
-  const fetchedModels = await models()
+  const fetchedModels = await models(baseUrl, apiKey)
   supportedModels.value = fetchedModels.data
 })
 
 onMounted(async () => {
-  if (!openAiApiKey.value)
+  if (!openAiApiBaseURL.value || !openAiApiKey.value)
     return
 
-  setupOpenAI({
-    apiKey: openAiApiKey.value,
-    baseURL: openAiApiBaseURL.value,
-  })
-
-  const fetchedModels = await models()
+  const fetchedModels = await models(openAiApiBaseURL.value, openAiApiKey.value)
   supportedModels.value = fetchedModels.data
 })
 

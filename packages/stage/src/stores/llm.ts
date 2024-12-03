@@ -1,38 +1,25 @@
 import type { GenerateAudioStream } from '@airi-proj/elevenlabs/types'
-import type { CoreMessage } from 'ai'
-import { createOpenAI, type OpenAIProvider, type OpenAIProviderSettings } from '@ai-sdk/openai'
-import { streamText } from 'ai'
+import type { Message } from '@xsai/shared-chat-completion'
+import { streamText } from '@xsai/stream-text'
 import { ofetch } from 'ofetch'
 import { OpenAI } from 'openai'
 import { defineStore } from 'pinia'
-import { ref } from 'vue'
 
 export const useLLM = defineStore('llm', () => {
-  const openAI = ref<OpenAI>()
-  const openAIProvider = ref<OpenAIProvider>()
-
-  function setupOpenAI(options: OpenAIProviderSettings) {
-    openAI.value = new OpenAI({ ...options, dangerouslyAllowBrowser: true })
-    openAIProvider.value = createOpenAI(options)
-  }
-
-  async function stream(model: string, messages: CoreMessage[]) {
-    if (!openAIProvider.value)
-      throw new Error('OpenAI not initialized')
-    if (openAI.value?.baseURL === '') {
-      throw new Error('OpenAI not initialized')
-    }
-
+  async function stream(apiUrl: string, apiKey: string, model: string, messages: Message[]) {
     return await streamText({
-      model: openAIProvider.value(model),
+      url: `${apiUrl}/chat/completions`,
+      apiKey,
+      model,
       messages,
+      streamOptions: {
+        usage: true,
+      },
     })
   }
 
-  async function models() {
-    if (!openAI.value)
-      throw new Error('OpenAI not initialized')
-    if (openAI.value?.baseURL === '') {
+  async function models(apiUrl: string, apiKey: string) {
+    if (apiUrl === '') {
       return {
         data: [],
         object: '',
@@ -40,7 +27,13 @@ export const useLLM = defineStore('llm', () => {
     }
 
     try {
-      return await openAI.value.models.list()
+      const openai = new OpenAI({
+        apiKey,
+        baseURL: apiUrl,
+        dangerouslyAllowBrowser: true,
+      })
+
+      return await openai.models.list()
     }
     catch (err) {
       if (String(err).includes(`Failed to construct 'URL': Invalid URL`)) {
@@ -74,8 +67,6 @@ export const useLLM = defineStore('llm', () => {
   }
 
   return {
-    setupOpenAI,
-    openAI,
     models,
     stream,
     streamSpeech,
