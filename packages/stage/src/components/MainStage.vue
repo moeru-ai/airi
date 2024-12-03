@@ -242,10 +242,10 @@ async function onSendMessage(sendingMessage: string) {
   messageInput.value = ''
 }
 
-watch(openAiApiKey, async (value) => {
+watch([openAiApiBaseURL, openAiApiKey], async ([baseUrl, apiKey]) => {
   setupOpenAI({
-    apiKey: value,
-    baseURL: openAiApiBaseURL.value,
+    apiKey,
+    baseURL: baseUrl,
   })
 
   const fetchedModels = await models()
