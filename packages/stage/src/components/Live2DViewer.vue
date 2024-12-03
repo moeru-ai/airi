@@ -2,7 +2,7 @@
 import { Application } from '@pixi/app'
 import { extensions } from '@pixi/extensions'
 import { Ticker, TickerPlugin } from '@pixi/ticker'
-import { useElementBounding, useWindowSize } from '@vueuse/core'
+import { breakpointsTailwind, useBreakpoints, useElementBounding, useWindowSize } from '@vueuse/core'
 import { Live2DModel, MotionPreloadStrategy, MotionPriority } from 'pixi-live2d-display/cubism4'
 import { onMounted, onUnmounted, ref, watch } from 'vue'
 
@@ -21,9 +21,36 @@ const mouthOpenSize = computed(() => {
   return Math.max(0, Math.min(100, props.mouthOpenSize))
 })
 
+const breakpoints = useBreakpoints(breakpointsTailwind)
 const { width, height } = useWindowSize()
 const containerElementBounding = useElementBounding(containerRef)
 const containerParentElementBounding = useElementBounding(containerRef.value?.parentElement)
+
+const isMobile = computed(() => breakpoints.between('sm', 'md').value || breakpoints.smaller('sm').value)
+const isTablet = computed(() => breakpoints.between('md', 'lg').value)
+const isDesktop = computed(() => breakpoints.greaterOrEqual('lg').value)
+
+const canvasWidth = computed(() => {
+  if (isDesktop.value)
+    return containerElementBounding.width.value
+  else if (isMobile.value)
+    return (width.value - 16) // padding
+  else if (isTablet.value)
+    return (width.value - 16) // padding
+  else
+    return containerElementBounding.width.value
+})
+
+const canvasHeight = computed(() => {
+  if (isDesktop.value)
+    return Math.max(600, containerParentElementBounding.height.value)
+  else if (isMobile.value)
+    return 600
+  else if (isTablet.value)
+    return 600
+  else
+    return Math.max(600, containerParentElementBounding.height.value)
+})
 
 function getCoreModel() {
   return model.value!.internalModel.coreModel as any
@@ -38,19 +65,20 @@ async function initLive2DPixiStage(parent: HTMLDivElement) {
   extensions.add(TickerPlugin)
 
   pixiApp.value = new Application({
-    width: containerElementBounding.width.value,
-    height: Math.max(600, containerParentElementBounding.height.value),
+    width: canvasWidth.value,
+    height: canvasHeight.value,
     backgroundAlpha: 0,
   })
 
   pixiAppCanvas.value = pixiApp.value.view
+  pixiAppCanvas.value.style.objectFit = 'contain'
   parent.appendChild(pixiApp.value.view)
 
   model.value = await Live2DModel.from(props.model, { motionPreload: MotionPreloadStrategy.ALL })
   pixiApp.value.stage.addChild(model.value as any)
 
-  model.value.x = containerElementBounding.width.value / 2
-  model.value.y = Math.max(600, containerParentElementBounding.height.value)
+  model.value.x = canvasWidth.value / 2
+  model.value.y = canvasHeight.value
   model.value.rotation = Math.PI
   model.value.skew.x = Math.PI
   model.value.scale.set(0.3, 0.3)
@@ -69,18 +97,18 @@ async function setMotion(motionName: string) {
   await model.value!.motion(motionName, undefined, MotionPriority.FORCE)
 }
 
-watch([width, height], () => {
+watch([width, height, canvasWidth, canvasHeight], () => {
   if (pixiApp.value)
-    pixiApp.value.renderer.resize((width.value - 16) / 2, 550)
+    pixiApp.value.renderer.resize(canvasWidth.value, canvasHeight.value)
 
   if (pixiAppCanvas.value) {
-    pixiAppCanvas.value.width = (width.value - 16) / 2
-    pixiAppCanvas.value.height = Math.max(600, containerParentElementBounding.height.value)
+    pixiAppCanvas.value.width = canvasWidth.value
+    pixiAppCanvas.value.height = canvasHeight.value
   }
 
   if (model.value) {
-    model.value.x = (width.value - 16) / 4
-    model.value.y = Math.max(600, containerParentElementBounding.height.value)
+    model.value.x = canvasWidth.value / 2
+    model.value.y = canvasHeight.value
   }
 })
 
@@ -105,5 +133,5 @@ defineExpose({
 </script>
 
 <template>
-  <div ref="containerRef" h-full w-full />
+  <div ref="containerRef" />
 </template>

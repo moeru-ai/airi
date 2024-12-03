@@ -273,15 +273,25 @@ onUnmounted(() => {
 <template>
   <div max-h="[100vh]" h-full p="2" flex="~ col">
     <Settings />
-    <div flex="~ row 1" w-full items-end space-x-2>
-      <div w-full min-h="100 sm:100">
-        <Live2DViewer ref="live2DViewerRef" :mouth-open-size="mouthOpenSize" model="/assets/live2d/models/hiyori_pro_zh/runtime/hiyori_pro_t11.model3.json" />
+    <div flex="~ row 1" relative w-full items-end gap-2>
+      <div w="50%" min-w="50% <lg:full" min-h="100 sm:100" flex-1>
+        <Live2DViewer
+          ref="live2DViewerRef"
+          :mouth-open-size="mouthOpenSize"
+          model="/assets/live2d/models/hiyori_pro_zh/runtime/hiyori_pro_t11.model3.json"
+        />
       </div>
-      <div my="2" w-full space-y-2 max-h="[calc(100vh-117px)]">
+      <div
+        class="relative <lg:(absolute bottom-0 from-zinc-800/80 to-zinc-800/0 bg-gradient-to-t p-2)"
+        px="<sm:2" py="<sm:2" rounded="<sm:lg"
+        w="50% <lg:full" flex="~ col 1" gap-2 max-h="[calc(100vh-117px)]"
+      >
         <div v-for="(message, index) in messages" :key="index">
           <div v-if="message.role === 'assistant'" flex mr="12">
             <div
-              mr-2 h-10 min-h-10 min-w-10 w-10 overflow-hidden rounded-full
+              mr-2 h-10
+              min-h-10 min-w-10 w-10
+              overflow-hidden rounded-full
               border="solid 3"
               transition="all ease-in-out" duration-100
               :style="{
@@ -290,22 +300,44 @@ onUnmounted(() => {
             >
               <img :src="Avatar">
             </div>
-            <div flex="~ col" bg="pink-50/50 dark:pink-900/50" p="2" border="2 solid pink/10" rounded-lg>
+            <div
+              flex="~ col"
+              bg="pink-50 dark:pink-900"
+              p="2"
+              border="2 solid pink dark:pink-700"
+              rounded-lg
+              h="unset <sm:fit"
+            >
               <div>
-                <span font-semibold>Neuro</span>
+                <span font-semibold class="inline <sm:hidden">Neuro</span>
               </div>
-              <div v-html="process(message.content as string)" />
+              <div v-if="message.content" text="base <sm:xs" v-html="process(message.content as string)" />
+              <div v-else i-eos-icons:three-dots-loading />
             </div>
           </div>
           <div v-else-if="message.role === 'user'" flex="~ row-reverse" ml="12">
-            <div border="purple solid 3" ml="2" h-10 min-h-10 min-w-10 w-10 overflow-hidden rounded-full>
+            <div
+              class="block <sm:hidden"
+              border="purple solid 3"
+              ml="2"
+              h-10 min-h-10 min-w-10 w-10
+              overflow-hidden rounded-full
+            >
               <div i-carbon:user-avatar-filled text="purple" h-full w-full p="0" m="0" />
             </div>
-            <div flex="~ col" bg="purple-50/50 dark:purple-900/50" p="2" border="2 solid pink/10" rounded-lg>
+            <div
+              flex="~ col"
+              bg="purple-50 dark:purple-900"
+              p="2"
+              border="2 solid purple dark:purple-700"
+              rounded-lg
+              h="unset <sm:fit"
+            >
               <div>
-                <span font-semibold>You</span>
+                <span font-semibold class="inline <sm:hidden">You</span>
               </div>
-              <div v-html="process(message.content as string)" />
+              <div v-if="message.content" text="base <sm:xs" v-html="process(message.content as string)" />
+              <div v-else />
             </div>
           </div>
         </div>
@@ -329,10 +361,10 @@ onUnmounted(() => {
             {{ 'name' in m ? `${m.name} (${m.id})` : m.id }}
           </option>
         </select>
-        <div absolute bottom="5" left="50%" translate-x="-50%">
+        <div fixed bottom="5" left="50%" translate-x="-50%">
           <button
             bg="zinc-100 dark:zinc-700" flex="~ row"
-            items-center rounded-full px-4 py-2
+            items-center rounded-full px-4 py-2 border="2 solid zinc-500/50"
             transition="all ease-in-out"
             @click="listening = !listening"
           >

@@ -223,6 +223,9 @@ importers:
       '@iconify-json/carbon':
         specifier: ^1.2.4
         version: 1.2.4
+      '@iconify-json/eos-icons':
+        specifier: ^1.2.1
+        version: 1.2.1
       '@intlify/unplugin-vue-i18n':
         specifier: ^6.0.0
         version: 6.0.0(@vue/compiler-dom@3.5.13)(eslint@9.16.0(jiti@2.4.0))(rollup@2.79.1)(typescript@5.7.2)(vue-i18n@10.0.5(vue@3.5.13(typescript@5.7.2)))(vue@3.5.13(typescript@5.7.2))
@@ -1682,6 +1685,9 @@ packages:
 
   '@iconify-json/carbon@1.2.4':
     resolution: {integrity: sha512-DhW2jjMVGwV0DLHc0cmDYohdtGxMra8UuwgjHrryPy+rQX4gXhJwCBBVP2h2UG/92AoRCTn7zUJve4WvY5MLYg==}
+
+  '@iconify-json/eos-icons@1.2.1':
+    resolution: {integrity: sha512-nqucN9E670dRHDk5osNNObhxQg/eBI8wvYA+zWaOMsJR0g8VodF9z/cpDvMH7YyUm4elOF9r8cGIj3byFBFLRQ==}
 
   '@iconify/types@2.0.0':
     resolution: {integrity: sha512-+wluvCrRhXrhyOmRDJ3q8mux9JkKy5SJ/v8ol2tu4FVjyYvtEzkc/3pK15ET6RKg4b4w4BmTk1+gsCUhf21Ykg==}
@@ -8167,6 +8173,10 @@ snapshots:
   '@humanwhocodes/retry@0.4.1': {}
 
   '@iconify-json/carbon@1.2.4':
+    dependencies:
+      '@iconify/types': 2.0.0
+
+  '@iconify-json/eos-icons@1.2.1':
     dependencies:
       '@iconify/types': 2.0.0
 
