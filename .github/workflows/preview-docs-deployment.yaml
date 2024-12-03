@@ -42,8 +42,8 @@ jobs:
         with:
           workflow_conclusion: success
           run_id: ${{ github.event.workflow_run.id }}
-          name: docs-ubuntu-latest-build
-          path: docs-ubuntu-latest-build
+          name: site-ubuntu-latest-build
+          path: site-ubuntu-latest-build
           allow_forks: true
 
       - name: Install Node.js 22.x
@@ -77,7 +77,7 @@ jobs:
         id: netlify-ubuntu-latest
         timeout-minutes: 10
         run: |
-          UBUNTU_NETLIFY_JSON_OUTPUT=$(netlify deploy --dir docs-ubuntu-latest-build --json)
+          UBUNTU_NETLIFY_JSON_OUTPUT=$(netlify deploy --dir site-ubuntu-latest-build --json)
           echo $UBUNTU_NETLIFY_JSON_OUTPUT
 
           echo "UBUNTU_NETLIFY_JSON_OUTPUT=$(echo $UBUNTU_NETLIFY_JSON_OUTPUT)" >> $GITHUB_ENV
