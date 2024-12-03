@@ -1,5 +1,5 @@
 import { Buffer } from 'node:buffer'
-import { cp, mkdir } from 'node:fs/promises'
+import { copyFile, cp, mkdir } from 'node:fs/promises'
 import path, { join, resolve } from 'node:path'
 
 import VueI18n from '@intlify/unplugin-vue-i18n/vite'
@@ -161,8 +161,8 @@ export default defineConfig({
           }
 
           if (!(await exists(resolve(join(publicDir, 'assets/js/CubismSdkForWeb-5-r.1'))))) {
-            await mkdir(join(publicDir, 'assets/js/CubismSdkForWeb-5-r.1'), { recursive: true }).catch(() => {})
-            await cp(join(cacheDir, 'assets/js/CubismSdkForWeb-5-r.1/Core/live2dcubismcore.min.js'), join(publicDir, 'assets/js/CubismSdkForWeb-5-r.1/Core/live2dcubismcore.min.js'), { recursive: true })
+            await mkdir(join(publicDir, 'assets/js/CubismSdkForWeb-5-r.1/Core'), { recursive: true }).catch(() => {})
+            await copyFile(join(cacheDir, 'assets/js/CubismSdkForWeb-5-r.1/Core/live2dcubismcore.min.js'), join(publicDir, 'assets/js/CubismSdkForWeb-5-r.1/Core/live2dcubismcore.min.js'))
           }
         }
         catch (err) {
@@ -190,8 +190,8 @@ export default defineConfig({
           }
 
           if (!(await exists(resolve(join(publicDir, 'assets/live2d/models/hiyori_free_zh'))))) {
-            await mkdir(join(publicDir, 'assets/live2d/models/hiyori_free_zh'), { recursive: true }).catch(() => { })
-            await cp(join(cacheDir, 'assets/live2d/models/hiyori_free_zh/'), join(publicDir, 'assets/live2d/models/hiyori_free_zh/'), { recursive: true })
+            await mkdir(join(publicDir, 'assets/live2d/models'), { recursive: true }).catch(() => { })
+            await cp(join(cacheDir, 'assets/live2d/models/hiyori_free_zh'), join(publicDir, 'assets/live2d/models/hiyori_free_zh'), { recursive: true })
           }
         }
         catch (err) {
@@ -219,8 +219,8 @@ export default defineConfig({
           }
 
           if (!(await exists(resolve(join(publicDir, 'assets/live2d/models/hiyori_pro_zh'))))) {
-            await mkdir(join(publicDir, 'assets/live2d/models/hiyori_pro_zh'), { recursive: true }).catch(() => { })
-            await cp(join(cacheDir, 'assets/live2d/models/hiyori_pro_zh/'), join(publicDir, 'assets/live2d/models/hiyori_pro_zh/'), { recursive: true })
+            await mkdir(join(publicDir, 'assets/live2d/models'), { recursive: true }).catch(() => { })
+            await cp(join(cacheDir, 'assets/live2d/models/hiyori_pro_zh'), join(publicDir, 'assets/live2d/models/hiyori_pro_zh'), { recursive: true })
           }
         }
         catch (err) {

@@ -2,7 +2,7 @@ import type { Buffer } from 'node:buffer'
 import { createWriteStream, existsSync, mkdirSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fromBuffer } from 'yauzl'
-import { noError, onError, resolveWhenNoError } from './errors'
+import { noError, onError } from './errors'
 
 /**
  * Example:
@@ -22,6 +22,13 @@ import { noError, onError, resolveWhenNoError } from './errors'
 export async function unzip(buffer: Buffer, target: string) {
   return new Promise<void>((resolve, reject) => {
     let pendingWrites = 0
+    let isReadingComplete = false
+
+    function tryResolve() {
+      if (isReadingComplete && pendingWrites === 0) {
+        resolve()
+      }
+    }
 
     fromBuffer(buffer, { lazyEntries: true }, noError(reject, (zipFile) => {
       // This is the key. We start by reading the first entry.
@@ -63,10 +70,7 @@ export async function unzip(buffer: Buffer, target: string) {
           file.on('finish', () => {
             file.close(() => {
               pendingWrites--
-              if (pendingWrites === 0) {
-                resolve()
-              }
-
+              tryResolve()
               zipFile.readEntry()
             })
           })
@@ -74,7 +78,10 @@ export async function unzip(buffer: Buffer, target: string) {
       })
 
       zipFile.on('error', onError(reject, zipFile.close))
-      zipFile.on('end', resolveWhenNoError(reject, resolve))
+      zipFile.on('end', noError(reject, () => {
+        isReadingComplete = true
+        tryResolve()
+      }))
     }))
   })
 }
