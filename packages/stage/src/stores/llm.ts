@@ -1,3 +1,4 @@
+import type { GenerateAudioStream } from '@airi-proj/elevenlabs/types'
 import type { CoreMessage } from 'ai'
 import { createOpenAI, type OpenAIProvider, type OpenAIProviderSettings } from '@ai-sdk/openai'
 import { streamText } from 'ai'
@@ -35,18 +36,22 @@ export const useLLM = defineStore('llm', () => {
     return await openAI.value.models.list()
   }
 
-  async function streamSpeech(text: string, apiKey: string) {
+  async function streamSpeech(baseUrl: string, apiKey: string, text: string, options: Omit<Omit<GenerateAudioStream, 'stream'> & { voice: string }, 'text'>) {
     if (!text || !text.trim())
       throw new Error('Text is required')
 
-    return await ofetch('/api/v1/llm/voice/text-to-speech', {
+    return await ofetch(`${baseUrl}/api/v1/llm/voice/elevenlabs`, {
       body: {
+        ...options,
+        stream: true,
         text,
-        apiKey,
       },
       method: 'POST',
       cache: 'no-cache',
       responseType: 'arrayBuffer',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+      },
     })
   }
 

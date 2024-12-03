@@ -1,0 +1,37 @@
+{
+  "name": "@airi-proj/elevenlabs",
+  "type": "module",
+  "private": false,
+  "description": "Simple wrapper of types of Elevenlabs's SDK",
+  "author": {
+    "name": "Neko Ayaka",
+    "email": "neko@ayaka.moe",
+    "url": "https://github.com/nekomeowww"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/nekomeowww/airi-vtuber.git",
+    "directory": "packages/types-elevenlabs"
+  },
+  "sideEffects": false,
+  "exports": {
+    "./types": {
+      "types": "./dist/types/index.d.ts"
+    }
+  },
+  "types": "./dist/types/index.d.ts",
+  "files": [
+    "README.md",
+    "dist",
+    "package.json"
+  ],
+  "scripts": {
+    "dev": "concurrently \"pnpm run stub\"",
+    "stub": "unbuild --stub",
+    "build": "unbuild"
+  },
+  "devDependencies": {
+    "elevenlabs": "^0.18.1"
+  }
+}

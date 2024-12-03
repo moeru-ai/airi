@@ -23,7 +23,7 @@ export const EmotionAwkwardMotionName = 'EmotionAwkward'
 export const EmotionThinkMotionName = 'EmotionThink'
 export const EmotionSurpriseMotionName = 'EmotionSurprise'
 
-export const EMOTION_EmotioMotionName_value = {
+export const EMOTION_EmotionMotionName_value = {
   [Emotion.Happy]: EmotionHappyMotionName,
   [Emotion.Sad]: EmotionSadMotionName,
   [Emotion.Angry]: EmotionAngryMotionName,

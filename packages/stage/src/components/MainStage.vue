@@ -21,7 +21,7 @@ import {
 } from '../composables/queues'
 import { llmInferenceEndToken } from '../constants'
 import {
-  EMOTION_EmotioMotionName_value,
+  EMOTION_EmotionMotionName_value,
   EmotionThinkMotionName,
 } from '../constants/emotions'
 import SystemPromptV2 from '../constants/prompts/system-v2'
@@ -41,7 +41,7 @@ const elevenLabsApiKey = useLocalStorage('elevenlabs-api-key', '')
 
 const {
   setupOpenAI,
-  // streamSpeech,
+  streamSpeech,
   stream,
   models,
 } = useLLM()
@@ -79,46 +79,56 @@ function handleModelChange(event: Event) {
   openAIModel.value = found
 }
 
-// const audioQueue = useQueue<{ audioBuffer: AudioBuffer, text: string }>({
-//   handlers: [
-//     (ctx) => {
-//       return new Promise((resolve) => {
-//         // Create an AudioBufferSourceNode
-//         const source = audioContext.createBufferSource()
-//         source.buffer = ctx.data.audioBuffer
+const audioQueue = useQueue<{ audioBuffer: AudioBuffer, text: string }>({
+  handlers: [
+    (ctx) => {
+      return new Promise((resolve) => {
+        // Create an AudioBufferSourceNode
+        const source = audioContext.createBufferSource()
+        source.buffer = ctx.data.audioBuffer
 
-//         // Connect the source to the AudioContext's destination (the speakers)
-//         source.connect(audioContext.destination)
-//         // Connect the source to the analyzer
-//         source.connect(audioAnalyser.value!)
+        // Connect the source to the AudioContext's destination (the speakers)
+        source.connect(audioContext.destination)
+        // Connect the source to the analyzer
+        source.connect(audioAnalyser.value!)
 
-//         // Start playing the audio
-//         nowSpeaking.value = true
-//         source.start(0)
-//         source.onended = () => {
-//           nowSpeaking.value = false
-//           resolve()
-//         }
-//       })
-//     },
-//   ],
-// })
+        // Start playing the audio
+        nowSpeaking.value = true
+        source.start(0)
+        source.onended = () => {
+          nowSpeaking.value = false
+          resolve()
+        }
+      })
+    },
+  ],
+})
 
 const ttsQueue = useQueue<string>({
   handlers: [
-    async () => {
-      // TODO: migrating to ElevenLabs API, but we need TTS SDK to wrap the API
+    async (ctx) => {
+      const now = Date.now()
+      const res = await streamSpeech('https://airi-api.ayaka.io', elevenLabsApiKey.value, ctx.data, {
+        // voice: 'ShanShan',
+        // Quite good for English
+        voice: 'Myriam',
+        // Beatrice is not 'childish' like the others
+        // voice: 'Beatrice',
+        // text: body.text,
+        model_id: 'eleven_multilingual_v2',
+        voice_settings: {
+          stability: 0.4,
+          similarity_boost: 0.5,
+        },
+      })
+      const elapsed = Date.now() - now
 
-      // const now = Date.now()
-      // const res = await streamSpeech(ctx.data, elevenLabsApiKey.value)
-      // const elapsed = Date.now() - now
-
-      // // eslint-disable-next-line no-console
-      // console.debug('TTS took', elapsed, 'ms')
+      // eslint-disable-next-line no-console
+      console.debug('TTS took', elapsed, 'ms')
 
       // Decode the ArrayBuffer into an AudioBuffer
-      // const audioBuffer = await audioContext.decodeAudioData(res)
-      // await audioQueue.add({ audioBuffer, text: ctx.data })
+      const audioBuffer = await audioContext.decodeAudioData(res)
+      await audioQueue.add({ audioBuffer, text: ctx.data })
     },
   ],
 })
@@ -133,7 +143,7 @@ const messageContentQueue = useMessageContentQueue(ttsQueue)
 const emotionsQueue = useQueue<Emotion>({
   handlers: [
     async (ctx) => {
-      await live2DViewerRef.value!.setMotion(EMOTION_EmotioMotionName_value[ctx.data])
+      await live2DViewerRef.value!.setMotion(EMOTION_EmotionMotionName_value[ctx.data])
     },
   ],
 })

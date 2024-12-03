@@ -4,6 +4,7 @@ dictionaryDefinitions: []
 dictionaries: []
 words:
   - acubismmotion
+  - airi
   - airi-vtuber
   - Attributify
   - Ayaka
@@ -21,9 +22,11 @@ words:
   - cubismmotionqueuemanager
   - cubismusermodel
   - cubismviewmatrix
+  - demi
   - elevenlabs
   - hiyori
   - iconify
+  - intlify
   - kwaa
   - live2dcubismcore
   - live2dcubismframework
@@ -46,6 +49,7 @@ words:
   - taze
   - unhead
   - unocss
+  - unplugin
   - vueuse
 ignoreWords: []
 import: []

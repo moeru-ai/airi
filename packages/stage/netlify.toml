@@ -1,6 +1,6 @@
 [build]
 publish = "packages/stage/dist"
-command = "pnpm run build"
+command = "pnpm run packages:stub && pnpm run build"
 
 [build.environment]
 NODE_VERSION = "22"

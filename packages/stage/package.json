@@ -1,5 +1,5 @@
 {
-  "name": "@airi-vtuber/stage",
+  "name": "@airi-proj/stage",
   "type": "module",
   "private": true,
   "packageManager": "pnpm@9.14.4",
@@ -55,6 +55,7 @@
     "zod": "^3.23.8"
   },
   "devDependencies": {
+    "@airi-proj/elevenlabs": "workspace:^",
     "@iconify-json/carbon": "^1.2.4",
     "@intlify/unplugin-vue-i18n": "^6.0.0",
     "@shikijs/markdown-it": "^1.24.0",
