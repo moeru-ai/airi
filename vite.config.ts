@@ -1,5 +1,5 @@
 import { Buffer } from 'node:buffer'
-import { mkdir } from 'node:fs/promises'
+import { cp, mkdir } from 'node:fs/promises'
 import path, { join, resolve } from 'node:path'
 
 import VueI18n from '@intlify/unplugin-vue-i18n/vite'
@@ -146,51 +146,53 @@ export default defineConfig({
       name: 'live2d-cubism-sdk',
       async configResolved(config) {
         const cacheDir = resolve(join(config.root, '.cache'))
+        const publicDir = resolve(join(config.root, 'public'))
 
         try {
-          if (await exists(resolve(join(cacheDir, 'assets/js/CubismSdkForWeb-5-r.1')))) {
-            return
+          if (!(await exists(resolve(join(cacheDir, 'assets/js/CubismSdkForWeb-5-r.1'))))) {
+            console.log('Downloading Cubism SDK...')
+            const stream = await ofetch('https://dist.ayaka.moe/npm/live2d-cubism/CubismSdkForWeb-5-r.1.zip', { responseType: 'arrayBuffer' })
+
+            console.log('Unzipping Cubism SDK...')
+            await mkdir(join(cacheDir, 'assets/js'), { recursive: true })
+            await unzip(Buffer.from(stream), join(cacheDir, 'assets/js'))
+
+            console.log('Cubism SDK downloaded and unzipped.')
           }
 
-          console.log('Downloading Cubism SDK...')
-          const stream = await ofetch('https://dist.ayaka.moe/npm/live2d-cubism/CubismSdkForWeb-5-r.1.zip', { responseType: 'arrayBuffer' })
-
-          console.log('Unzipping Cubism SDK...')
-          await mkdir(join(cacheDir, 'assets/js'), { recursive: true })
-          await unzip(Buffer.from(stream), join(cacheDir, 'assets/js'))
-
-          console.log('Cubism SDK downloaded and unzipped.')
+          if (!(await exists(resolve(join(publicDir, 'assets/js/CubismSdkForWeb-5-r.1'))))) {
+            await mkdir(join(publicDir, 'assets/js/CubismSdkForWeb-5-r.1'), { recursive: true }).catch(() => {})
+            await cp(join(cacheDir, 'assets/js/CubismSdkForWeb-5-r.1/Core/live2dcubismcore.min.js'), join(publicDir, 'assets/js/CubismSdkForWeb-5-r.1/Core/live2dcubismcore.min.js'), { recursive: true })
+          }
         }
         catch (err) {
           console.error(err)
           throw err
         }
       },
-      async buildStart() {
-        this.emitFile({
-          type: 'asset',
-          fileName: '',
-        })
-      },
     },
     {
       name: 'live2d-models-hiyori-free',
       async configResolved(config) {
         const cacheDir = resolve(join(config.root, '.cache'))
+        const publicDir = resolve(join(config.root, 'public'))
 
         try {
-          if (await exists(resolve(join(cacheDir, 'assets/live2d/models/hiyori_free_zh')))) {
-            return
+          if (!(await exists(resolve(join(cacheDir, 'assets/live2d/models/hiyori_free_zh'))))) {
+            console.log('Downloading Demo Live2D Model - Hiyori Free...')
+            const stream = await ofetch('https://dist.ayaka.moe/live2d-models/hiyori_free_zh.zip', { responseType: 'arrayBuffer' })
+
+            console.log('Unzipping Demo Live2D Model - Hiyori Free...')
+            await mkdir(join(cacheDir, 'assets/live2d/models'), { recursive: true })
+            await unzip(Buffer.from(stream), join(cacheDir, 'assets/live2d/models'))
+
+            console.log('Demo Live2D Model - Hiyori Free downloaded and unzipped.')
           }
 
-          console.log('Downloading Demo Live2D Model - Hiyori Free...')
-          const stream = await ofetch('https://dist.ayaka.moe/live2d-models/hiyori_free_zh.zip', { responseType: 'arrayBuffer' })
-
-          console.log('Unzipping Demo Live2D Model - Hiyori Free...')
-          await mkdir(join(cacheDir, 'assets/live2d/models'), { recursive: true })
-          await unzip(Buffer.from(stream), join(cacheDir, 'assets/live2d/models'))
-
-          console.log('Demo Live2D Model - Hiyori Free downloaded and unzipped.')
+          if (!(await exists(resolve(join(publicDir, 'assets/live2d/models/hiyori_free_zh'))))) {
+            await mkdir(join(publicDir, 'assets/live2d/models/hiyori_free_zh'), { recursive: true }).catch(() => { })
+            await cp(join(cacheDir, 'assets/live2d/models/hiyori_free_zh/'), join(publicDir, 'assets/live2d/models/hiyori_free_zh/'), { recursive: true })
+          }
         }
         catch (err) {
           console.error(err)
@@ -202,20 +204,24 @@ export default defineConfig({
       name: 'live2d-models-hiyori-pro',
       async configResolved(config) {
         const cacheDir = resolve(join(config.root, '.cache'))
+        const publicDir = resolve(join(config.root, 'public'))
 
         try {
-          if (await exists(resolve(join(cacheDir, 'assets/live2d/models/hiyori_pro_zh')))) {
-            return
+          if (!(await exists(resolve(join(cacheDir, 'assets/live2d/models/hiyori_pro_zh'))))) {
+            console.log('Downloading Demo Live2D Model - Hiyori Pro...')
+            const stream = await ofetch('https://dist.ayaka.moe/live2d-models/hiyori_pro_zh.zip', { responseType: 'arrayBuffer' })
+
+            console.log('Unzipping Demo Live2D Model - Hiyori Pro...')
+            await mkdir(join(cacheDir, 'assets/live2d/models'), { recursive: true })
+            await unzip(Buffer.from(stream), join(cacheDir, 'assets/live2d/models'))
+
+            console.log('Demo Live2D Model - Hiyori Pro downloaded and unzipped.')
           }
 
-          console.log('Downloading Demo Live2D Model - Hiyori Pro...')
-          const stream = await ofetch('https://dist.ayaka.moe/live2d-models/hiyori_pro_zh.zip', { responseType: 'arrayBuffer' })
-
-          console.log('Unzipping Demo Live2D Model - Hiyori Pro...')
-          await mkdir(join(cacheDir, 'assets/live2d/models'), { recursive: true })
-          await unzip(Buffer.from(stream), join(cacheDir, 'assets/live2d/models'))
-
-          console.log('Demo Live2D Model - Hiyori Pro downloaded and unzipped.')
+          if (!(await exists(resolve(join(publicDir, 'assets/live2d/models/hiyori_pro_zh'))))) {
+            await mkdir(join(publicDir, 'assets/live2d/models/hiyori_pro_zh'), { recursive: true }).catch(() => { })
+            await cp(join(cacheDir, 'assets/live2d/models/hiyori_pro_zh/'), join(publicDir, 'assets/live2d/models/hiyori_pro_zh/'), { recursive: true })
+          }
         }
         catch (err) {
           console.error(err)
