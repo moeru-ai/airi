@@ -1,13 +1,17 @@
 {
   "recommendations": [
-    "antfu.iconify",
-    "antfu.unocss",
-    "antfu.vite",
-    "antfu.goto-alias",
-    "csstools.postcss",
+    "streetsidesoftware.code-spell-checker",
+    "mikestead.dotenv",
+    "EditorConfig.EditorConfig",
+    "usernamehw.errorlens",
     "dbaeumer.vscode-eslint",
-    "vue.volar",
+    "antfu.goto-alias",
     "lokalise.i18n-ally",
-    "streetsidesoftware.code-spell-checker"
+    "antfu.iconify",
+    "yzhang.markdown-all-in-one",
+    "antfu.unocss",
+    "Vue.volar",
+    "vitest.explorer",
+    "redhat.vscode-yaml"
   ]
 }
