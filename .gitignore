@@ -9,11 +9,11 @@
 .vite-inspect
 *.local
 *.log
-.cache/
 components.d.ts
 dist
 node_modules
 .eslintcache
+.cache/
 **/.vitepress/docsMetadata.json
 **/.vitepress/cache/
 

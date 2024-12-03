@@ -1,0 +1,88 @@
+name: Build Previewing Docs
+
+on:
+  pull_request:
+    branches:
+      - main
+
+env:
+  STORE_PATH: ''
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
+
+    name: Build - ${{ matrix.os }}
+
+    runs-on: ${{ matrix.os }}
+    steps:
+      # This is quite weird.
+      # Eventhough this is the *intended* solution introduces in official blog post here
+      # https://securitylab.github.com/research/github-actions-preventing-pwn-requests/.
+      # But still, as https://github.com/orgs/community/discussions/25220#discussioncomment-7856118 stated,
+      # this is vulnerable since there is no source of truth about which PR in the triggered workflow.
+      - name: Presist PR number
+        run: |
+          echo "${{ github.event.number }}" > pr_num
+
+      - name: Upload PR artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr-num
+          path: ./pr_num
+          overwrite: true
+
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install Node.js 22.x
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.x
+
+      - uses: pnpm/action-setup@v3
+        name: Install pnpm
+        with:
+          run_install: false
+
+      - name: Get pnpm store directory
+        shell: bash
+        run: |
+          echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
+
+      - uses: actions/cache@v4
+        name: Setup pnpm cache
+        with:
+          path: ${{ env.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build packages
+        run: pnpm packages:build
+        env:
+          # As suggested in Verbose Build option to be able to track down errors https://github.com/vuejs/vitepress/issues/422
+          # vitepress build command does not have --debug option, so we need to set it manually where the debug package is used.
+          DEBUG: none
+
+      - name: Build docs
+        run: pnpm docs:build
+        env:
+          # As suggested in Verbose Build option to be able to track down errors https://github.com/vuejs/vitepress/issues/422
+          # vitepress build command does not have --debug option, so we need to set it manually where the debug package is used.
+          # DEBUG: 'vitepress:*'
+          VUE_PROD_HYDRATION_MISMATCH_DETAILS_FLAG: '1'
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: docs-${{ matrix.os }}-build
+          path: docs/.vitepress/dist
+          overwrite: true

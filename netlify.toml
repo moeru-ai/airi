@@ -6,9 +6,16 @@ command = "pnpm run build"
 NODE_VERSION = "20"
 
 [[redirects]]
+from = "/assets/*"
+to = "/assets/:splat"
+status = 200
+force = true
+
+[[redirects]]
 from = "/*"
 to = "/index.html"
 status = 200
+force = false
 
 [[headers]]
 for = "/manifest.webmanifest"

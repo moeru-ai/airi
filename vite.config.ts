@@ -1,13 +1,14 @@
-import path from 'node:path'
+import { Buffer } from 'node:buffer'
+import { mkdir } from 'node:fs/promises'
+import path, { join, resolve } from 'node:path'
+
 import VueI18n from '@intlify/unplugin-vue-i18n/vite'
-import Shiki from '@shikijs/markdown-it'
 import Vue from '@vitejs/plugin-vue'
-import LinkAttributes from 'markdown-it-link-attributes'
+import { ofetch } from 'ofetch'
 import Unocss from 'unocss/vite'
 import AutoImport from 'unplugin-auto-import/vite'
 import Components from 'unplugin-vue-components/vite'
 import VueMacros from 'unplugin-vue-macros/vite'
-import Markdown from 'unplugin-vue-markdown/vite'
 import { VueRouterAutoImports } from 'unplugin-vue-router'
 import VueRouter from 'unplugin-vue-router/vite'
 import { defineConfig } from 'vite'
@@ -15,9 +16,31 @@ import { VitePWA } from 'vite-plugin-pwa'
 import VueDevTools from 'vite-plugin-vue-devtools'
 import Layouts from 'vite-plugin-vue-layouts'
 import WebfontDownload from 'vite-plugin-webfont-dl'
-import generateSitemap from 'vite-ssg-sitemap'
+
+import { exists } from './scripts/fs'
+import { unzip } from './scripts/unzip'
 
 export default defineConfig({
+  optimizeDeps: {
+    exclude: [
+      'public/assets/*',
+      '@framework/live2dcubismframework',
+      '@framework/math/cubismmatrix44',
+      '@framework/type/csmvector',
+      '@framework/math/cubismviewmatrix',
+      '@framework/cubismdefaultparameterid',
+      '@framework/cubismmodelsettingjson',
+      '@framework/effect/cubismbreath',
+      '@framework/effect/cubismeyeblink',
+      '@framework/model/cubismusermodel',
+      '@framework/motion/acubismmotion',
+      '@framework/motion/cubismmotionqueuemanager',
+      '@framework/type/csmmap',
+      '@framework/utils/cubismdebug',
+      '@framework/model/cubismmoc',
+    ],
+  },
+
   resolve: {
     alias: {
       '~/': `${path.resolve(__dirname, 'src')}/`,
@@ -76,29 +99,6 @@ export default defineConfig({
     // see uno.config.ts for config
     Unocss(),
 
-    // https://github.com/unplugin/unplugin-vue-markdown
-    // Don't need this? Try vitesse-lite: https://github.com/antfu/vitesse-lite
-    Markdown({
-      wrapperClasses: 'prose prose-sm m-auto text-left',
-      headEnabled: true,
-      async markdownItSetup(md) {
-        md.use(LinkAttributes, {
-          matcher: (link: string) => /^https?:\/\//.test(link),
-          attrs: {
-            target: '_blank',
-            rel: 'noopener',
-          },
-        })
-        md.use(await Shiki({
-          defaultColor: false,
-          themes: {
-            light: 'vitesse-light',
-            dark: 'vitesse-dark',
-          },
-        }))
-      },
-    }),
-
     // https://github.com/antfu/vite-plugin-pwa
     VitePWA({
       registerType: 'autoUpdate',
@@ -141,28 +141,105 @@ export default defineConfig({
 
     // https://github.com/webfansplz/vite-plugin-vue-devtools
     VueDevTools(),
+
+    {
+      name: 'live2d-cubism-sdk',
+      async configResolved(config) {
+        const cacheDir = resolve(join(config.root, '.cache'))
+
+        try {
+          if (await exists(resolve(join(cacheDir, 'assets/js/CubismSdkForWeb-5-r.1')))) {
+            return
+          }
+
+          console.log('Downloading Cubism SDK...')
+          const stream = await ofetch('https://dist.ayaka.moe/npm/live2d-cubism/CubismSdkForWeb-5-r.1.zip', { responseType: 'arrayBuffer' })
+
+          console.log('Unzipping Cubism SDK...')
+          await mkdir(join(cacheDir, 'assets/js'), { recursive: true })
+          await unzip(Buffer.from(stream), join(cacheDir, 'assets/js'))
+
+          console.log('Cubism SDK downloaded and unzipped.')
+        }
+        catch (err) {
+          console.error(err)
+          throw err
+        }
+      },
+      async buildStart() {
+        this.emitFile({
+          type: 'asset',
+          fileName: '',
+        })
+      },
+    },
+    {
+      name: 'live2d-models-hiyori-free',
+      async configResolved(config) {
+        const cacheDir = resolve(join(config.root, '.cache'))
+
+        try {
+          if (await exists(resolve(join(cacheDir, 'assets/live2d/models/hiyori_free_zh')))) {
+            return
+          }
+
+          console.log('Downloading Demo Live2D Model - Hiyori Free...')
+          const stream = await ofetch('https://dist.ayaka.moe/live2d-models/hiyori_free_zh.zip', { responseType: 'arrayBuffer' })
+
+          console.log('Unzipping Demo Live2D Model - Hiyori Free...')
+          await mkdir(join(cacheDir, 'assets/live2d/models'), { recursive: true })
+          await unzip(Buffer.from(stream), join(cacheDir, 'assets/live2d/models'))
+
+          console.log('Demo Live2D Model - Hiyori Free downloaded and unzipped.')
+        }
+        catch (err) {
+          console.error(err)
+          throw err
+        }
+      },
+    },
+    {
+      name: 'live2d-models-hiyori-pro',
+      async configResolved(config) {
+        const cacheDir = resolve(join(config.root, '.cache'))
+
+        try {
+          if (await exists(resolve(join(cacheDir, 'assets/live2d/models/hiyori_pro_zh')))) {
+            return
+          }
+
+          console.log('Downloading Demo Live2D Model - Hiyori Pro...')
+          const stream = await ofetch('https://dist.ayaka.moe/live2d-models/hiyori_pro_zh.zip', { responseType: 'arrayBuffer' })
+
+          console.log('Unzipping Demo Live2D Model - Hiyori Pro...')
+          await mkdir(join(cacheDir, 'assets/live2d/models'), { recursive: true })
+          await unzip(Buffer.from(stream), join(cacheDir, 'assets/live2d/models'))
+
+          console.log('Demo Live2D Model - Hiyori Pro downloaded and unzipped.')
+        }
+        catch (err) {
+          console.error(err)
+          throw err
+        }
+      },
+    },
   ],
 
-  // https://github.com/vitest-dev/vitest
-  test: {
-    include: ['test/**/*.test.ts'],
-    environment: 'jsdom',
-  },
+  // // https://github.com/vitest-dev/vitest
+  // test: {
+  //   include: ['test/**/*.test.ts'],
+  //   environment: 'jsdom',
+  // },
 
-  // https://github.com/antfu/vite-ssg
-  ssgOptions: {
-    script: 'async',
-    formatting: 'minify',
-    crittersOptions: {
-      reduceInlineStyles: false,
-    },
-    onFinished() {
-      generateSitemap()
-    },
-  },
-
-  ssr: {
-    // TODO: workaround until they support native ESM
-    noExternal: ['workbox-window', /vue-i18n/],
-  },
+  // // https://github.com/antfu/vite-ssg
+  // ssgOptions: {
+  //   script: 'async',
+  //   formatting: 'minify',
+  //   crittersOptions: {
+  //     reduceInlineStyles: false,
+  //   },
+  //   onFinished() {
+  //     generateSitemap()
+  //   },
+  // },
 })

@@ -1,25 +1,37 @@
-import type { UserModule } from './types'
-
+import NProgress from 'nprogress'
+import { createPinia } from 'pinia'
 import { setupLayouts } from 'virtual:generated-layouts'
-import { ViteSSG } from 'vite-ssg'
+import { createRouter, createWebHistory } from 'vue-router'
 import { routes } from 'vue-router/auto-routes'
+
 import App from './App.vue'
 
+import i18n from './modules/i18n'
 import '@unocss/reset/tailwind.css'
 import './styles/main.css'
 import 'uno.css'
 
-// https://github.com/antfu/vite-ssg
-export const createApp = ViteSSG(
-  App,
-  {
-    routes: setupLayouts(routes),
-    base: import.meta.env.BASE_URL,
-  },
-  (ctx) => {
-    // install all modules under `modules/`
-    Object.values(import.meta.glob<{ install: UserModule }>('./modules/*.ts', { eager: true }))
-      .forEach(i => i.install?.(ctx))
-    // ctx.app.use(Previewer)
-  },
-)
+const pinia = createPinia()
+const router = createRouter({ routes: setupLayouts(routes), history: createWebHistory() })
+
+router.beforeEach((to, from) => {
+  if (to.path !== from.path)
+    NProgress.start()
+})
+
+router.afterEach(() => {
+  NProgress.done()
+})
+
+router.isReady()
+  .then(async () => {
+    const { registerSW } = await import('virtual:pwa-register')
+    registerSW({ immediate: true })
+  })
+  .catch(() => { })
+
+createApp(App)
+  .use(router)
+  .use(pinia)
+  .use(i18n)
+  .mount('#app')

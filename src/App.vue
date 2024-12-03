@@ -1,4 +1,10 @@
 <script setup lang="ts">
+import { useDark, usePreferredDark } from '@vueuse/core'
+
+const isDark = useDark()
+const preferredDark = usePreferredDark()
+// const toggleDark = useToggle(isDark)
+
 // https://github.com/vueuse/head
 // you can use this to manipulate the document head in any components,
 // they will be rendered correctly in the html results with vite-ssg
@@ -25,5 +31,7 @@ useHead({
 </script>
 
 <template>
-  <RouterView />
+  <ClientOnly>
+    <RouterView />
+  </ClientOnly>
 </template>
