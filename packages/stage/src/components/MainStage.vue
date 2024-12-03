@@ -1,27 +1,17 @@
 <script setup lang="ts">
 import type { AssistantMessage, Message, SystemMessage } from '@xsai/shared-chat-completion'
-
-import type {
-  Emotion,
-} from '../constants/emotions'
+import type { Emotion } from '../constants/emotions'
 import { useLocalStorage } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
+
 import { computed, onMounted, ref, watch } from 'vue'
-
 import Avatar from '../assets/live2d/models/hiyori_free_zh/avatar.png'
-import { useMarkdown } from '../composables/markdown'
 
+import { useMarkdown } from '../composables/markdown'
 import { useQueue } from '../composables/queue'
-import {
-  useDelayMessageQueue,
-  useEmotionsMessageQueue,
-  useMessageContentQueue,
-} from '../composables/queues'
+import { useDelayMessageQueue, useEmotionsMessageQueue, useMessageContentQueue } from '../composables/queues'
 import { llmInferenceEndToken } from '../constants'
-import {
-  EMOTION_EmotionMotionName_value,
-  EmotionThinkMotionName,
-} from '../constants/emotions'
+import { EMOTION_EmotionMotionName_value, EmotionThinkMotionName } from '../constants/emotions'
 import SystemPromptV2 from '../constants/prompts/system-v2'
 import { useLLM } from '../stores/llm'
 import { useSettings } from '../stores/settings'
@@ -30,6 +20,7 @@ import BasicTextarea from './BasicTextarea.vue'
 // import AudioWaveform from './AudioWaveform.vue'
 import Live2DViewer from './Live2DViewer.vue'
 import Settings from './Settings.vue'
+import ThreeViewer from './ThreeViewer.vue'
 
 const nowSpeakingAvatarBorderOpacityMin = 30
 const nowSpeakingAvatarBorderOpacityMax = 100
@@ -45,6 +36,7 @@ const {
 const { audioContext, calculateVolume } = useAudioContext()
 const { process } = useMarkdown()
 
+const selectedStageView = ref<string>('')
 const listening = ref(false)
 const live2DViewerRef = ref<{ setMotion: (motionName: string) => Promise<void> }>()
 const supportedModels = ref<{ id: string, name?: string }[]>([])
@@ -281,13 +273,60 @@ onUnmounted(() => {
 
 <template>
   <div max-h="[100vh]" h-full p="2" flex="~ col">
-    <Settings />
+    <div flex gap-2>
+      <fieldset
+        flex="~ row"
+        bg="zinc-100 dark:zinc-700"
+        text="sm zinc-400 dark:zinc-500"
+        appearance-none gap-1 rounded-lg rounded-md border-none p-1
+      >
+        <label
+          h-fit cursor-pointer
+          :class="[selectedStageView === '2d' ? 'bg-zinc-300 text-zinc-900 dark:bg-zinc-200 dark:text-zinc-800' : '']"
+          rounded-md px-4 py-2
+        >
+          <input
+            v-model="selectedStageView"
+            :checked="selectedStageView === '2d'"
+            :aria-checked="selectedStageView === '2d'"
+            name="stageView"
+            type="radio"
+            role="radio"
+            value="2d"
+            hidden appearance-none outline-none
+          >
+          <div select-none>2D</div>
+        </label>
+        <label
+          h-fit cursor-pointer
+          :class="[selectedStageView === '3d' ? 'bg-zinc-300 text-zinc-900 dark:bg-zinc-200 dark:text-zinc-800' : '']"
+          rounded-md px-4 py-2
+        >
+          <input
+            v-model="selectedStageView"
+            :checked="selectedStageView === '3d'"
+            :aria-checked="selectedStageView === '3d'"
+            name="stageView"
+            type="radio"
+            role="radio"
+            value="3d"
+            hidden appearance-none outline-none
+          >
+          <div select-none>3D</div>
+        </label>
+      </fieldset>
+      <Settings />
+    </div>
     <div flex="~ row 1" relative w-full items-end gap-2>
       <div w="50%" min-w="50% <lg:full" min-h="100 sm:100" flex-1>
         <Live2DViewer
+          v-if="selectedStageView === '2d'"
           ref="live2DViewerRef"
           :mouth-open-size="mouthOpenSize"
           model="/assets/live2d/models/hiyori_pro_zh/runtime/hiyori_pro_t11.model3.json"
+        />
+        <ThreeViewer
+          v-else-if="selectedStageView === '3d'"
         />
       </div>
       <div
