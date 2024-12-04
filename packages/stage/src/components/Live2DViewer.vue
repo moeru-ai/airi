@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { InternalModel } from 'pixi-live2d-display/cubism4'
 import { Application } from '@pixi/app'
 import { extensions } from '@pixi/extensions'
 import { Ticker, TickerPlugin } from '@pixi/ticker'
@@ -62,6 +63,22 @@ function getCoreModel() {
   return model.value!.internalModel.coreModel as any
 }
 
+function setScale(model: Ref<Live2DModel<InternalModel> | undefined>) {
+  if (!model.value)
+    return
+
+  let offsetFactor = 2
+  if (isMobile.value) {
+    offsetFactor = 3.5
+  }
+
+  const heightScale = canvasHeight.value * 0.95 / model.value.height * offsetFactor
+  const widthScale = canvasWidth.value * 0.95 / model.value.width * offsetFactor
+  const scale = Math.min(heightScale, widthScale)
+
+  model.value.scale.set(scale, scale)
+}
+
 async function initLive2DPixiStage(parent: HTMLDivElement) {
   // https://guansss.github.io/pixi-live2d-display/#package-importing
   Live2DModel.registerTicker(Ticker)
@@ -84,8 +101,8 @@ async function initLive2DPixiStage(parent: HTMLDivElement) {
   model.value.y = canvasHeight.value
   model.value.rotation = Math.PI
   model.value.skew.x = Math.PI
-  model.value.scale.set(0.3, 0.3)
   model.value.anchor.set(0.5, 0.5)
+  setScale(model)
 
   model.value.on('hit', (hitAreas) => {
     if (model.value && hitAreas.includes('body'))
