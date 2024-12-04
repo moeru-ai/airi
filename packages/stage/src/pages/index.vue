@@ -1,5 +1,5 @@
 <template>
-  <div>
+  <div h-full w-full>
     <MainStage />
   </div>
 </template>

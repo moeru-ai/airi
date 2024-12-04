@@ -23,8 +23,7 @@ const mouthOpenSize = computed(() => {
 
 const breakpoints = useBreakpoints(breakpointsTailwind)
 const { width, height } = useWindowSize()
-const containerElementBounding = useElementBounding(containerRef)
-const containerParentElementBounding = useElementBounding(containerRef.value?.parentElement)
+const containerElementBounding = useElementBounding(containerRef, { immediate: true, windowResize: true, reset: true })
 
 const isMobile = computed(() => breakpoints.between('sm', 'md').value || breakpoints.smaller('sm').value)
 const isTablet = computed(() => breakpoints.between('md', 'lg').value)
@@ -41,15 +40,22 @@ const canvasWidth = computed(() => {
     return containerElementBounding.width.value
 })
 
-const canvasHeight = computed(() => {
-  if (isDesktop.value)
-    return Math.max(600, containerParentElementBounding.height.value)
-  else if (isMobile.value)
-    return 600
-  else if (isTablet.value)
-    return 600
-  else
-    return Math.max(600, containerParentElementBounding.height.value)
+const canvasHeight = ref(0)
+watch([width, height, containerRef], () => {
+  const bounding = containerRef.value?.getBoundingClientRect()
+
+  if (isDesktop.value) {
+    canvasHeight.value = bounding?.height || 0
+  }
+  else if (isMobile.value) {
+    canvasHeight.value = bounding?.height || 0
+  }
+  else if (isTablet.value) {
+    canvasHeight.value = bounding?.height || 0
+  }
+  else {
+    canvasHeight.value = 600
+  }
 })
 
 function getCoreModel() {
@@ -57,9 +63,6 @@ function getCoreModel() {
 }
 
 async function initLive2DPixiStage(parent: HTMLDivElement) {
-  containerElementBounding.update()
-  containerParentElementBounding.update()
-
   // https://guansss.github.io/pixi-live2d-display/#package-importing
   Live2DModel.registerTicker(Ticker)
   extensions.add(TickerPlugin)
@@ -116,6 +119,8 @@ onMounted(async () => {
   if (!containerRef.value)
     return
 
+  containerElementBounding.update()
+
   await initLive2DPixiStage(containerRef.value)
 })
 
@@ -133,5 +138,5 @@ defineExpose({
 </script>
 
 <template>
-  <div ref="containerRef" />
+  <div ref="containerRef" h-full w-full />
 </template>

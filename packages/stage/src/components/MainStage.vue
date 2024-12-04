@@ -272,7 +272,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div max-h="[100vh]" h-full p="2" flex="~ col">
+  <div h-full p="2" flex="~ col">
     <div flex gap-2>
       <fieldset
         flex="~ row"
@@ -318,17 +318,16 @@ onUnmounted(() => {
       <Settings />
     </div>
     <div flex="~ row 1" relative w-full items-end gap-2>
-      <div w="50%" min-w="50% <lg:full" min-h="100 sm:100" flex-1>
-        <Live2DViewer
-          v-if="selectedStageView === '2d'"
-          ref="live2DViewerRef"
-          :mouth-open-size="mouthOpenSize"
-          model="/assets/live2d/models/hiyori_pro_zh/runtime/hiyori_pro_t11.model3.json"
-        />
-        <ThreeViewer
-          v-else-if="selectedStageView === '3d'"
-        />
-      </div>
+      <Live2DViewer
+        v-if="selectedStageView === '2d'"
+        ref="live2DViewerRef"
+        :mouth-open-size="mouthOpenSize"
+        model="/assets/live2d/models/hiyori_pro_zh/runtime/hiyori_pro_t11.model3.json"
+        w="50%" min-w="50% <lg:full" min-h="100 sm:100" h-full flex-1
+      />
+      <ThreeViewer
+        v-else-if="selectedStageView === '3d'"
+      />
       <div
         class="relative <lg:(absolute bottom-0 from-zinc-800/80 to-zinc-800/0 bg-gradient-to-t p-2)"
         px="<sm:2" py="<sm:2" rounded="<sm:lg"
@@ -409,10 +408,18 @@ onUnmounted(() => {
             {{ 'name' in m ? `${m.name} (${m.id})` : m.id }}
           </option>
         </select>
-        <div fixed bottom="5" left="50%" translate-x="-50%">
+        <div flex gap-2>
+          <BasicTextarea
+            v-model="messageInput"
+            placeholder="Message"
+            p="2" bg="zinc-100 dark:zinc-700"
+            w="[95%]" rounded-lg outline-none
+            @submit="onSendMessage"
+          />
           <button
-            bg="zinc-100 dark:zinc-700" flex="~ row"
-            items-center rounded-full px-4 py-2 border="2 solid zinc-500/50"
+            flex="~ row"
+            p="2" bg="zinc-100 dark:zinc-700"
+            w="[5%]" items-center rounded-lg outline-none
             transition="all ease-in-out"
             @click="listening = !listening"
           >
@@ -432,13 +439,6 @@ onUnmounted(() => {
             </Transition>
           </button>
         </div>
-        <BasicTextarea
-          v-model="messageInput"
-          placeholder="Message"
-          p="2" bg="zinc-100 dark:zinc-700"
-          w-full rounded-lg outline-none
-          @submit="onSendMessage"
-        />
       </div>
     </div>
   </div>
