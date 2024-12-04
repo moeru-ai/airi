@@ -241,5 +241,63 @@ export default defineConfig({
         }
       },
     },
+    {
+      name: 'vrm-models-sample-a',
+      async configResolved(config) {
+        const cacheDir = resolve(join(config.root, '.cache'))
+        const publicDir = resolve(join(config.root, 'public'))
+
+        try {
+          if (!(await exists(resolve(join(cacheDir, 'assets/vrm/models/AvatarSample-A'))))) {
+            await mkdir(join(cacheDir, 'assets/vrm/models/AvatarSample-A'), { recursive: true })
+
+            console.log('Downloading VRM Model - Avatar Sample A...')
+            const res = await ofetch('https://dist.ayaka.moe/vrm-models/VRoid-Hub/AvatarSample-A/AvatarSample_A.vrm', { responseType: 'arrayBuffer' })
+
+            console.log('Saving VRM Model - Avatar Sample A...')
+            await writeFile(join(cacheDir, 'assets/vrm/models/AvatarSample-A/AvatarSample_A.vrm'), Buffer.from(res))
+
+            console.log('VRM Model - Avatar Sample A downloaded and saved.')
+          }
+
+          if (!(await exists(resolve(join(publicDir, 'assets/vrm/models/AvatarSample-A'))))) {
+            await mkdir(join(publicDir, 'assets/vrm/models/AvatarSample-A'), { recursive: true }).catch(() => { })
+            await cp(join(cacheDir, 'assets/vrm/models/AvatarSample-A'), join(publicDir, 'assets/vrm/models/AvatarSample-A'), { recursive: true })
+          }
+        }
+        catch (err) {
+          console.error(err)
+          throw err
+        }
+      },
+    },
+    {
+      name: 'vrm-models-sample-b',
+      async configResolved(config) {
+        const cacheDir = resolve(join(config.root, '.cache'))
+        const publicDir = resolve(join(config.root, 'public'))
+
+        try {
+          if (!(await exists(resolve(join(cacheDir, 'assets/vrm/models/AvatarSample-B'))))) {
+            await mkdir(join(cacheDir, 'assets/vrm/models/AvatarSample-B'), { recursive: true })
+
+            console.log('Downloading VRM Model - Avatar Sample B...')
+            const res = await ofetch('https://dist.ayaka.moe/vrm-models/VRoid-Hub/AvatarSample-B/AvatarSample_B.vrm', { responseType: 'arrayBuffer' })
+
+            console.log('Saving VRM Model - Avatar Sample B...')
+            await writeFile(join(cacheDir, 'assets/vrm/models/AvatarSample-B/AvatarSample_B.vrm'), Buffer.from(res))
+          }
+
+          if (!(await exists(resolve(join(publicDir, 'assets/vrm/models/AvatarSample-B'))))) {
+            await mkdir(join(publicDir, 'assets/vrm/models/AvatarSample-B'), { recursive: true }).catch(() => { })
+            await cp(join(cacheDir, 'assets/vrm/models/AvatarSample-B'), join(publicDir, 'assets/vrm/models/AvatarSample-B'), { recursive: true })
+          }
+        }
+        catch (err) {
+          console.error(err)
+          throw err
+        }
+      },
+    },
   ],
 })

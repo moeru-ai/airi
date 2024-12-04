@@ -20,7 +20,7 @@ import BasicTextarea from './BasicTextarea.vue'
 // import AudioWaveform from './AudioWaveform.vue'
 import Live2DViewer from './Live2DViewer.vue'
 import Settings from './Settings.vue'
-import ThreeViewer from './ThreeViewer.vue'
+import ThreeDScene from './ThreeDScene.vue'
 
 const nowSpeakingAvatarBorderOpacityMin = 30
 const nowSpeakingAvatarBorderOpacityMax = 100
@@ -316,7 +316,7 @@ onUnmounted(() => {
       </fieldset>
       <Settings />
     </div>
-    <div flex="~ row 1" max-h="[calc(100vh-160px)]" relative h-full w-full items-end gap-2>
+    <div flex="~ row 1" max-h="[calc(100vh-210px)]" relative h-full w-full items-end gap-2>
       <Live2DViewer
         v-if="stageView === '2d'"
         ref="live2DViewerRef"
@@ -324,14 +324,16 @@ onUnmounted(() => {
         model="/assets/live2d/models/hiyori_pro_zh/runtime/hiyori_pro_t11.model3.json"
         w="50%" min-w="50% <lg:full" min-h="100 sm:100" h-full flex-1
       />
-      <ThreeViewer
+      <ThreeDScene
         v-else-if="stageView === '3d'"
+        model="/assets/vrm/models/AvatarSample-A/AvatarSample_A.vrm"
         w="50%" min-w="50% <lg:full" min-h="100 sm:100" h-full flex-1
+        @error="console.error"
       />
       <div
         class="relative <lg:(absolute bottom-0 from-zinc-800/80 to-zinc-800/0 bg-gradient-to-t p-2)"
         px="<sm:2" py="<sm:2" rounded="<sm:lg"
-        w="50% <lg:full" flex="~ col 1" gap-2 max-h="[calc(100vh-160px)]"
+        w="50% <lg:full" flex="~ col 1" gap-2 max-h="[calc(100vh-210px)]"
       >
         <div v-for="(message, index) in messages" :key="index">
           <div v-if="message.role === 'assistant'" flex mr="12">
@@ -413,7 +415,7 @@ onUnmounted(() => {
             v-model="messageInput"
             placeholder="Message"
             p="2" bg="zinc-100 dark:zinc-700"
-            w="[95%]" rounded-lg outline-none
+            w="[95%]" rounded-lg outline-none min-h="[100px]"
             @submit="onSendMessage"
           />
           <button

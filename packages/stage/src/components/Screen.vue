@@ -1,6 +1,4 @@
 <script setup lang="ts">
-import { OrbitControls } from '@tresjs/cientos'
-import { TresCanvas } from '@tresjs/core'
 import { breakpointsTailwind, useBreakpoints, useElementBounding, useWindowSize } from '@vueuse/core'
 import { computed, ref } from 'vue'
 
@@ -53,14 +51,6 @@ onMounted(async () => {
 
 <template>
   <div ref="containerRef" h-full w-full>
-    <TresCanvas :alpha="true" :antialias="true" :width="canvasWidth" :height="canvasHeight">
-      <TresPerspectiveCamera />
-      <TresMesh>
-        <TresTorusGeometry :args="[1, 0.5, 16, 32]" />
-        <TresMeshBasicMaterial color="orange" />
-      </TresMesh>
-      <OrbitControls />
-      <TresAmbientLight :intensity="1" />
-    </TresCanvas>
+    <slot :width="canvasWidth" height="canvasHeight" />
   </div>
 </template>
