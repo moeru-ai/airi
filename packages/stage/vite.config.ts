@@ -3,6 +3,7 @@ import { copyFile, cp, mkdir } from 'node:fs/promises'
 import path, { join, resolve } from 'node:path'
 
 import VueI18n from '@intlify/unplugin-vue-i18n/vite'
+import { templateCompilerOptions } from '@tresjs/core'
 import Vue from '@vitejs/plugin-vue'
 import { ofetch } from 'ofetch'
 import Unocss from 'unocss/vite'
@@ -53,6 +54,7 @@ export default defineConfig({
       plugins: {
         vue: Vue({
           include: [/\.vue$/, /\.md$/],
+          ...templateCompilerOptions,
         }),
       },
     }),

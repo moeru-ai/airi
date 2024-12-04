@@ -1,3 +1,4 @@
+import Tres from '@tresjs/core'
 import NProgress from 'nprogress'
 import { createPinia } from 'pinia'
 import { setupLayouts } from 'virtual:generated-layouts'
@@ -34,4 +35,5 @@ createApp(App)
   .use(router)
   .use(pinia)
   .use(i18n)
+  .use(Tres)
   .mount('#app')
