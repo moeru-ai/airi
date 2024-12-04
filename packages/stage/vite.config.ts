@@ -1,5 +1,5 @@
 import { Buffer } from 'node:buffer'
-import { copyFile, cp, mkdir } from 'node:fs/promises'
+import { copyFile, cp, mkdir, readFile, writeFile } from 'node:fs/promises'
 import path, { join, resolve } from 'node:path'
 
 import VueI18n from '@intlify/unplugin-vue-i18n/vite'
@@ -219,6 +219,21 @@ export default defineConfig({
             await mkdir(join(publicDir, 'assets/live2d/models'), { recursive: true }).catch(() => { })
             await cp(join(cacheDir, 'assets/live2d/models/hiyori_pro_zh'), join(publicDir, 'assets/live2d/models/hiyori_pro_zh'), { recursive: true })
           }
+
+          const hiyoriEmotions = {
+            EmotionHappy: [{ File: 'motion/hiyori_m08.motion3.json' }],
+            EmotionSad: [{ File: 'motion/hiyori_m10.motion3.json' }],
+            EmotionAngry: [{ File: 'motion/hiyori_m09.motion3.json' }],
+            EmotionAwkward: [{ File: 'motion/hiyori_m04.motion3.json' }],
+            EmotionThink: [{ File: 'motion/hiyori_m03.motion3.json' }],
+            EmotionSurprise: [{ File: 'motion/hiyori_m03.motion3.json' }],
+            EmotionQuestion: [{ File: 'motion/hiyori_m10.motion3.json' }],
+          }
+
+          const read = await readFile(join(publicDir, 'assets/live2d/models/hiyori_pro_zh/runtime/hiyori_pro_t11.model3.json'), 'utf-8')
+          const model = JSON.parse(read.toString()) as { FileReferences: { Motions: Record<string, { File: string }[]> } }
+          Object.assign(model.FileReferences.Motions, hiyoriEmotions)
+          await writeFile(join(publicDir, 'assets/live2d/models/hiyori_pro_zh/runtime/hiyori_pro_t11.model3.json'), JSON.stringify(model, null, 4), 'utf-8')
         }
         catch (err) {
           console.error(err)

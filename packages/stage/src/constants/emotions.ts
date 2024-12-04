@@ -4,6 +4,7 @@ export const EMOTION_ANGRY = '<|EMOTE_ANGRY|>'
 export const EMOTION_THINK = '<|EMOTE_THINK|>'
 export const EMOTION_SURPRISE = '<|EMOTE_SURPRISE|>'
 export const EMOTION_AWKWARD = '<|EMOTE_AWKWARD|>'
+export const EMOTION_QUESTION = '<|EMOTE_QUESTION|>'
 
 export enum Emotion {
   Happy = '<|EMOTE_HAPPY|>',
@@ -12,6 +13,7 @@ export enum Emotion {
   Think = '<|EMOTE_THINK|>',
   Surprise = '<|EMOTE_SURPRISE|>',
   Awkward = '<|EMOTE_AWKWARD|>',
+  Question = '<|EMOTE_QUESTION|>',
 }
 
 export const EMOTION_VALUES = Object.values(Emotion)
@@ -22,6 +24,7 @@ export const EmotionAngryMotionName = 'EmotionAngry'
 export const EmotionAwkwardMotionName = 'EmotionAwkward'
 export const EmotionThinkMotionName = 'EmotionThink'
 export const EmotionSurpriseMotionName = 'EmotionSurprise'
+export const EmotionQuestionMotionName = 'EmotionQuestion'
 
 export const EMOTION_EmotionMotionName_value = {
   [Emotion.Happy]: EmotionHappyMotionName,
@@ -30,4 +33,5 @@ export const EMOTION_EmotionMotionName_value = {
   [Emotion.Think]: EmotionThinkMotionName,
   [Emotion.Surprise]: EmotionSurpriseMotionName,
   [Emotion.Awkward]: EmotionAwkwardMotionName,
+  [Emotion.Question]: EmotionQuestionMotionName,
 }
