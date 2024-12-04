@@ -26,7 +26,8 @@ const nowSpeakingAvatarBorderOpacityMin = 30
 const nowSpeakingAvatarBorderOpacityMax = 100
 
 const { elevenLabsApiKey, openAiApiBaseURL, openAiApiKey } = storeToRefs(useSettings())
-const openAIModel = useLocalStorage<{ id: string, name?: string }>('openai-model', { id: 'openai/gpt-3.5-turbo', name: 'OpenAI GPT3.5 Turbo' })
+const openAIModel = useLocalStorage<{ id: string, name?: string }>('settings/llm/openai/model', { id: 'openai/gpt-3.5-turbo', name: 'OpenAI GPT3.5 Turbo' })
+const stageView = useLocalStorage('settings/stage/view/model-renderer', '2d')
 
 const {
   streamSpeech,
@@ -36,7 +37,6 @@ const {
 const { audioContext, calculateVolume } = useAudioContext()
 const { process } = useMarkdown()
 
-const selectedStageView = ref<string>('2d')
 const listening = ref(false)
 const live2DViewerRef = ref<{ setMotion: (motionName: string) => Promise<void> }>()
 const supportedModels = ref<{ id: string, name?: string }[]>([])
@@ -282,13 +282,13 @@ onUnmounted(() => {
       >
         <label
           h-fit cursor-pointer
-          :class="[selectedStageView === '2d' ? 'bg-zinc-300 text-zinc-900 dark:bg-zinc-200 dark:text-zinc-800' : '']"
+          :class="[stageView === '2d' ? 'bg-zinc-300 text-zinc-900 dark:bg-zinc-200 dark:text-zinc-800' : '']"
           rounded-md px-4 py-2
         >
           <input
-            v-model="selectedStageView"
-            :checked="selectedStageView === '2d'"
-            :aria-checked="selectedStageView === '2d'"
+            v-model="stageView"
+            :checked="stageView === '2d'"
+            :aria-checked="stageView === '2d'"
             name="stageView"
             type="radio"
             role="radio"
@@ -299,13 +299,13 @@ onUnmounted(() => {
         </label>
         <label
           h-fit cursor-pointer
-          :class="[selectedStageView === '3d' ? 'bg-zinc-300 text-zinc-900 dark:bg-zinc-200 dark:text-zinc-800' : '']"
+          :class="[stageView === '3d' ? 'bg-zinc-300 text-zinc-900 dark:bg-zinc-200 dark:text-zinc-800' : '']"
           rounded-md px-4 py-2
         >
           <input
-            v-model="selectedStageView"
-            :checked="selectedStageView === '3d'"
-            :aria-checked="selectedStageView === '3d'"
+            v-model="stageView"
+            :checked="stageView === '3d'"
+            :aria-checked="stageView === '3d'"
             name="stageView"
             type="radio"
             role="radio"
@@ -319,14 +319,14 @@ onUnmounted(() => {
     </div>
     <div flex="~ row 1" relative w-full items-end gap-2>
       <Live2DViewer
-        v-if="selectedStageView === '2d'"
+        v-if="stageView === '2d'"
         ref="live2DViewerRef"
         :mouth-open-size="mouthOpenSize"
         model="/assets/live2d/models/hiyori_pro_zh/runtime/hiyori_pro_t11.model3.json"
         w="50%" min-w="50% <lg:full" min-h="100 sm:100" h-full flex-1
       />
       <ThreeViewer
-        v-else-if="selectedStageView === '3d'"
+        v-else-if="stageView === '3d'"
       />
       <div
         class="relative <lg:(absolute bottom-0 from-zinc-800/80 to-zinc-800/0 bg-gradient-to-t p-2)"

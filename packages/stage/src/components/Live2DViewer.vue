@@ -69,7 +69,7 @@ function setScale(model: Ref<Live2DModel<InternalModel> | undefined>) {
 
   let offsetFactor = 2
   if (isMobile.value) {
-    offsetFactor = 3.5
+    offsetFactor = 2.5
   }
 
   const heightScale = canvasHeight.value * 0.95 / model.value.height * offsetFactor
