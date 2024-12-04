@@ -37,7 +37,7 @@ const vrmModelPositionZ = ref(-0.3)
           <label w-full flex items-center gap-2>
             <DataGuiRange v-model="cameraPositionX" :min="-10" :max="10" :step="0.01" />
           </label>
-          <div>
+          <div text-right>
             <span>{{ cameraPositionX }}</span>
           </div>
 
@@ -47,7 +47,7 @@ const vrmModelPositionZ = ref(-0.3)
           <label w-full flex items-center gap-2>
             <DataGuiRange v-model="cameraPositionY" :min="-10" :max="10" :step="0.01" />
           </label>
-          <div>
+          <div text-right>
             <span>{{ cameraPositionY }}</span>
           </div>
 
@@ -57,7 +57,7 @@ const vrmModelPositionZ = ref(-0.3)
           <label w-full flex items-center gap-2>
             <DataGuiRange v-model="cameraPositionZ" :min="-10" :max="10" :step="0.01" />
           </label>
-          <div>
+          <div text-right>
             <span>{{ cameraPositionZ }}</span>
           </div>
         </div>
@@ -74,7 +74,7 @@ const vrmModelPositionZ = ref(-0.3)
           <label w-full flex items-center gap-2>
             <DataGuiRange v-model="vrmModelPositionX" :min="-10" :max="10" :step="0.01" />
           </label>
-          <div>
+          <div text-right>
             <span>{{ vrmModelPositionX }}</span>
           </div>
 
@@ -84,7 +84,7 @@ const vrmModelPositionZ = ref(-0.3)
           <label w-full flex items-center gap-2>
             <DataGuiRange v-model="vrmModelPositionY" :min="-10" :max="10" :step="0.01" />
           </label>
-          <div>
+          <div text-right>
             <span>{{ vrmModelPositionY }}</span>
           </div>
 
@@ -94,7 +94,7 @@ const vrmModelPositionZ = ref(-0.3)
           <label w-full flex items-center gap-2>
             <DataGuiRange v-model="vrmModelPositionZ" :min="-10" :max="10" :step="0.01" />
           </label>
-          <div>
+          <div text-right>
             <span>{{ vrmModelPositionZ }}</span>
           </div>
         </div>
