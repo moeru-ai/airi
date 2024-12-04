@@ -46,7 +46,6 @@ const streamingMessage = ref<AssistantMessage>({ role: 'assistant', content: '' 
 const audioAnalyser = ref<AnalyserNode>()
 const mouthOpenSize = ref(0)
 const nowSpeaking = ref(false)
-const model = ref('')
 const lipSyncStarted = ref(false)
 
 const nowSpeakingAvatarBorderOpacity = computed<number>(() => {
@@ -202,7 +201,7 @@ async function onSendMessage(sendingMessage: string) {
   // const index = messages.value.length - 1
   live2DViewerRef.value?.setMotion(EmotionThinkMotionName)
 
-  const res = await stream(openAiApiBaseURL.value, openAiApiKey.value, model.value, messages.value.slice(0, messages.value.length - 1))
+  const res = await stream(openAiApiBaseURL.value, openAiApiKey.value, openAIModel.value.id, messages.value.slice(0, messages.value.length - 1))
 
   enum States {
     Literal = 'literal',
