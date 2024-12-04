@@ -272,8 +272,8 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div h-full p="2" flex="~ col">
-    <div flex gap-2>
+  <div h-full max-h="[100vh]" p="2" flex="~ col">
+    <div flex="~" gap-2>
       <fieldset
         flex="~ row"
         bg="zinc-100 dark:zinc-700"
@@ -317,7 +317,7 @@ onUnmounted(() => {
       </fieldset>
       <Settings />
     </div>
-    <div flex="~ row 1" relative w-full items-end gap-2>
+    <div flex="~ row 1" max-h="[calc(100vh-160px)]" relative h-full w-full items-end gap-2>
       <Live2DViewer
         v-if="stageView === '2d'"
         ref="live2DViewerRef"
@@ -327,11 +327,12 @@ onUnmounted(() => {
       />
       <ThreeViewer
         v-else-if="stageView === '3d'"
+        w="50%" min-w="50% <lg:full" min-h="100 sm:100" h-full flex-1
       />
       <div
         class="relative <lg:(absolute bottom-0 from-zinc-800/80 to-zinc-800/0 bg-gradient-to-t p-2)"
         px="<sm:2" py="<sm:2" rounded="<sm:lg"
-        w="50% <lg:full" flex="~ col 1" gap-2 max-h="[calc(100vh-117px)]"
+        w="50% <lg:full" flex="~ col 1" gap-2 max-h="[calc(100vh-160px)]"
       >
         <div v-for="(message, index) in messages" :key="index">
           <div v-if="message.role === 'assistant'" flex mr="12">
@@ -390,7 +391,7 @@ onUnmounted(() => {
         </div>
       </div>
     </div>
-    <div my="2" space-x="2" flex="~ row" w-full self-end>
+    <div flex="~ row" my="2" space-x="2" w-full self-end>
       <div flex="~ col" w-full space-y="2">
         <select
           p="2"

@@ -33,6 +33,7 @@
     "@pixi/ticker": "^6.5.10",
     "@pixi/utils": "6",
     "@pixiv/three-vrm": "^3.2.0",
+    "@tresjs/cientos": "^4.0.3",
     "@tresjs/core": "^4.3.1",
     "@types/yauzl": "^2.10.3",
     "@unhead/vue": "^1.11.13",
