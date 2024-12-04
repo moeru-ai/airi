@@ -9,6 +9,7 @@ words:
   - Attributify
   - Ayaka
   - bumpp
+  - cientos
   - composables
   - csmmap
   - csmvector
@@ -53,5 +54,6 @@ words:
   - unocss
   - unplugin
   - vueuse
+  - xsai
 ignoreWords: []
 import: []

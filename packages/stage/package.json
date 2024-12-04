@@ -19,7 +19,6 @@
   },
   "dependencies": {
     "@11labs/client": "^0.0.4",
-    "@ai-sdk/openai": "^1.0.6",
     "@pixi/app": "^6.5.10",
     "@pixi/constants": "6",
     "@pixi/core": "6",
@@ -42,7 +41,6 @@
     "@vueuse/head": "^2.0.0",
     "@xsai/shared-chat-completion": "^0.0.14",
     "@xsai/stream-text": "^0.0.14",
-    "ai": "^4.0.11",
     "nprogress": "^0.2.0",
     "ofetch": "^1.4.1",
     "openai": "^4.75.0",
