@@ -16,10 +16,10 @@ const emit = defineEmits<{
 }>()
 
 const cameraPositionX = ref(0)
-const cameraPositionY = ref(0.15)
-const cameraPositionZ = ref(-1)
+const cameraPositionY = ref(0.1)
+const cameraPositionZ = ref(-1.5)
 const vrmModelPositionX = ref(0)
-const vrmModelPositionY = ref(-1.3)
+const vrmModelPositionY = ref(-1.4)
 const vrmModelPositionZ = ref(-0.3)
 </script>
 
