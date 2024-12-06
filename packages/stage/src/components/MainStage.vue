@@ -253,16 +253,14 @@ watch([openAiApiBaseURL, openAiApiKey], async ([baseUrl, apiKey]) => {
     return
   }
 
-  const fetchedModels = await models(baseUrl, apiKey)
-  supportedModels.value = fetchedModels.data
+  supportedModels.value = await models(baseUrl, apiKey)
 })
 
 onMounted(async () => {
   if (!openAiApiBaseURL.value || !openAiApiKey.value)
     return
 
-  const fetchedModels = await models(openAiApiBaseURL.value, openAiApiKey.value)
-  supportedModels.value = fetchedModels.data
+  supportedModels.value = await models(openAiApiBaseURL.value, openAiApiKey.value)
 })
 
 onUnmounted(() => {
