@@ -11,7 +11,7 @@ import { useMarkdown } from '../composables/markdown'
 import { useQueue } from '../composables/queue'
 import { useDelayMessageQueue, useEmotionsMessageQueue, useMessageContentQueue } from '../composables/queues'
 import { llmInferenceEndToken } from '../constants'
-import { EMOTION_EmotionMotionName_value, EmotionThinkMotionName } from '../constants/emotions'
+import { EMOTION_EmotionMotionName_value, EMOTION_VRMExpressionName_value, EmotionThinkMotionName } from '../constants/emotions'
 import SystemPromptV2 from '../constants/prompts/system-v2'
 import { useLLM } from '../stores/llm'
 import { useSettings } from '../stores/settings'
@@ -25,9 +25,13 @@ import ThreeDScene from './ThreeDScene.vue'
 const nowSpeakingAvatarBorderOpacityMin = 30
 const nowSpeakingAvatarBorderOpacityMax = 100
 
-const { elevenLabsApiKey, openAiApiBaseURL, openAiApiKey } = storeToRefs(useSettings())
+const {
+  elevenLabsApiKey,
+  openAiApiBaseURL,
+  openAiApiKey,
+  stageView,
+} = storeToRefs(useSettings())
 const openAIModel = useLocalStorage<{ id: string, name?: string }>('settings/llm/openai/model', { id: 'openai/gpt-3.5-turbo', name: 'OpenAI GPT3.5 Turbo' })
-const stageView = useLocalStorage('settings/stage/view/model-renderer', '2d')
 
 const {
   streamSpeech,
@@ -39,6 +43,7 @@ const { process } = useMarkdown()
 
 const listening = ref(false)
 const live2DViewerRef = ref<{ setMotion: (motionName: string) => Promise<void> }>()
+const vrmViewerRef = ref<{ setExpression: (expression: string) => void }>()
 const supportedModels = ref<{ id: string, name?: string }[]>([])
 const messageInput = ref<string>('')
 const messages = ref<Array<Message>>([SystemPromptV2 as SystemMessage])
@@ -131,7 +136,16 @@ const messageContentQueue = useMessageContentQueue(ttsQueue)
 const emotionsQueue = useQueue<Emotion>({
   handlers: [
     async (ctx) => {
-      await live2DViewerRef.value!.setMotion(EMOTION_EmotionMotionName_value[ctx.data])
+      if (stageView.value === '3d') {
+        const value = EMOTION_VRMExpressionName_value[ctx.data]
+        if (!value)
+          return
+
+        await vrmViewerRef.value!.setExpression(value)
+      }
+      else if (stageView.value === '2d') {
+        await live2DViewerRef.value!.setMotion(EMOTION_EmotionMotionName_value[ctx.data])
+      }
     },
   ],
 })
@@ -289,6 +303,7 @@ onUnmounted(() => {
       />
       <ThreeDScene
         v-else-if="stageView === '3d'"
+        ref="vrmViewerRef"
         model="/assets/vrm/models/AvatarSample-B/AvatarSample_B.vrm"
         idle-animation="/assets/vrm/animations/idle_loop.vrma"
         w="50%" min-w="50% <lg:full" min-h="100 sm:100" h-full flex-1

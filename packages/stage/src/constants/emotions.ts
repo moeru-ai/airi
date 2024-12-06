@@ -35,3 +35,13 @@ export const EMOTION_EmotionMotionName_value = {
   [Emotion.Awkward]: EmotionAwkwardMotionName,
   [Emotion.Question]: EmotionQuestionMotionName,
 }
+
+export const EMOTION_VRMExpressionName_value = {
+  [Emotion.Happy]: 'happy',
+  [Emotion.Sad]: 'sad',
+  [Emotion.Angry]: 'angry',
+  [Emotion.Think]: undefined,
+  [Emotion.Surprise]: 'surprised',
+  [Emotion.Awkward]: undefined,
+  [Emotion.Question]: undefined,
+} satisfies Record<Emotion, string | undefined>

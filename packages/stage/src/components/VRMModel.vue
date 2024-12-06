@@ -4,6 +4,7 @@ import { useLoop, useTresContext } from '@tresjs/core'
 import { AnimationMixer } from 'three'
 import { clipFromVRMAnimation, loadVRMAnimation, useBlink } from '~/composables/vrm/animation'
 import { loadVrm } from '~/composables/vrm/core'
+import { useVRMEmote } from '~/composables/vrm/expression'
 
 const props = defineProps<{
   model: string
@@ -22,6 +23,7 @@ const vrmAnimationMixer = ref<AnimationMixer>()
 const { scene } = useTresContext()
 const { onBeforeRender } = useLoop()
 const blink = useBlink()
+const vrmEmote = ref<ReturnType<typeof useVRMEmote>>()
 
 watch(() => props.position, ([x, y, z]) => {
   if (vrm.value) {
@@ -57,10 +59,13 @@ onMounted(async () => {
     vrmAnimationMixer.value = new AnimationMixer(_vrm.scene)
     vrmAnimationMixer.value.clipAction(clip).play()
 
+    vrmEmote.value = useVRMEmote(_vrm)
+
     onBeforeRender(({ delta }) => {
       vrmAnimationMixer.value?.update(delta)
       vrm.value?.update(delta)
       blink.update(vrm.value, delta)
+      vrmEmote.value?.update(delta)
     })
 
     vrm.value = _vrm
@@ -75,6 +80,12 @@ onUnmounted(() => {
     const { scene } = useTresContext()
     scene.value.remove(vrm.value.scene)
   }
+})
+
+defineExpose({
+  setExpression(expression: string) {
+    vrmEmote.value?.setEmotionWithResetAfter(expression, 1000)
+  },
 })
 </script>
 
