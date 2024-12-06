@@ -20,10 +20,7 @@ export const useLLM = defineStore('llm', () => {
 
   async function models(apiUrl: string, apiKey: string) {
     if (apiUrl === '') {
-      return {
-        data: [],
-        object: '',
-      }
+      return []
     }
 
     try {
@@ -34,10 +31,7 @@ export const useLLM = defineStore('llm', () => {
     }
     catch (err) {
       if (String(err).includes(`Failed to construct 'URL': Invalid URL`)) {
-        return {
-          data: [],
-          object: '',
-        }
+        return []
       }
 
       throw err

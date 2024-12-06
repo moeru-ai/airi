@@ -1,11 +1,14 @@
 <script setup lang="ts">
-import type { VRMCore } from '@pixiv/three-vrm'
-import { VRMLoaderPlugin } from '@pixiv/three-vrm'
-import { useTresContext } from '@tresjs/core'
-import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js'
+import type { VRMCore } from '@pixiv/three-vrm-core'
+import { useLoop, useTresContext } from '@tresjs/core'
+import { AnimationMixer } from 'three'
+import { clipFromVRMAnimation, loadVRMAnimation } from '~/composables/vrm/animation'
+import { loadVrm } from '~/composables/vrm/core'
 
 const props = defineProps<{
   model: string
+  idleAnimation: string
+  loadAnimations?: string[]
   position: [number, number, number]
 }>()
 
@@ -14,43 +17,61 @@ const emit = defineEmits<{
   (e: 'error', value: unknown): void
 }>()
 
-let vrm: VRMCore
+const vrm = ref<VRMCore>()
+const vrmAnimationMixer = ref<AnimationMixer>()
 const { scene } = useTresContext()
+const { onBeforeRender } = useLoop()
 
-interface GLTFUserdata extends Record<string, any> {
-  vrm: VRMCore
-}
-
-onMounted(() => {
+onMounted(async () => {
   if (!scene.value) {
     return
   }
 
-  const loader = new GLTFLoader()
-  loader.register(parser => new VRMLoaderPlugin(parser))
-  loader.load(
-    props.model,
-    (gltf) => {
-      const userData = gltf.userData as GLTFUserdata
-      vrm = userData.vrm as VRMCore
-      scene.value.add(vrm.scene)
-      vrm.scene.position.set(...props.position)
-    },
-    progress => emit('loadModelProgress', Number.parseFloat((100.0 * (progress.loaded / progress.total)).toFixed(2))),
-    error => emit('error', error),
-  )
+  try {
+    const _vrm = await loadVrm(props.model, {
+      scene: scene.value,
+      lookAt: true,
+      position: props.position,
+      onProgress: progress => emit('loadModelProgress', Number.parseFloat((100.0 * (progress.loaded / progress.total)).toFixed(2))),
+    })
+    if (!_vrm) {
+      console.warn('No VRM model loaded')
+      return
+    }
+
+    const animation = await loadVRMAnimation(props.idleAnimation)
+    const clip = await clipFromVRMAnimation(_vrm, animation)
+    if (!clip) {
+      console.warn('No VRM animation loaded')
+      return
+    }
+
+    // play animation
+    vrmAnimationMixer.value = new AnimationMixer(_vrm.scene)
+    vrmAnimationMixer.value.clipAction(clip).play()
+
+    onBeforeRender(({ delta }) => {
+      vrmAnimationMixer.value?.update(delta)
+      vrm.value?.update(delta)
+    })
+
+    vrm.value = _vrm
+  }
+  catch (err) {
+    emit('error', err)
+  }
 })
 
 onUnmounted(() => {
-  if (vrm) {
+  if (vrm.value) {
     const { scene } = useTresContext()
-    scene.value.remove(vrm.scene)
+    scene.value.remove(vrm.value.scene)
   }
 })
 
 watch(() => props.position, ([x, y, z]) => {
-  if (vrm) {
-    vrm.scene.position.set(x, y, z)
+  if (vrm.value) {
+    vrm.value.scene.position.set(x, y, z)
   }
 })
 </script>

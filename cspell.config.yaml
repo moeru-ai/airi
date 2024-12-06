@@ -54,6 +54,7 @@ words:
   - unhead
   - unocss
   - unplugin
+  - vrma
   - vueuse
   - xsai
 ignoreWords: []

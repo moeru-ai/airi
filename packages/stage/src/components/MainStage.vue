@@ -324,7 +324,8 @@ onUnmounted(() => {
       />
       <ThreeDScene
         v-else-if="stageView === '3d'"
-        model="/assets/vrm/models/AvatarSample-A/AvatarSample_A.vrm"
+        model="/assets/vrm/models/AvatarSample-B/AvatarSample_B.vrm"
+        idle-animation="/assets/vrm/animations/idle_loop.vrma"
         w="50%" min-w="50% <lg:full" min-h="100 sm:100" h-full flex-1
         @error="console.error"
       />

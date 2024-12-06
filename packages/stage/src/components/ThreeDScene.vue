@@ -8,6 +8,7 @@ import VRMModel from './VRMModel.vue'
 
 const props = defineProps<{
   model: string
+  idleAnimation: string
 }>()
 
 const emit = defineEmits<{
@@ -15,12 +16,12 @@ const emit = defineEmits<{
   (e: 'error', value: unknown): void
 }>()
 
-const cameraPositionX = ref(0)
-const cameraPositionY = ref(0.1)
-const cameraPositionZ = ref(-1.5)
-const vrmModelPositionX = ref(0)
+const cameraPositionX = ref(-0.17)
+const cameraPositionY = ref(0)
+const cameraPositionZ = ref(-1)
+const vrmModelPositionX = ref(-0.18)
 const vrmModelPositionY = ref(-1.4)
-const vrmModelPositionZ = ref(-0.3)
+const vrmModelPositionZ = ref(-0.24)
 </script>
 
 <template>
@@ -102,14 +103,16 @@ const vrmModelPositionZ = ref(-0.3)
     </div>
     <TresCanvas :alpha="true" :antialias="true" :width="canvasWidth" :height="canvasHeight">
       <TresPerspectiveCamera :position="[cameraPositionX, cameraPositionY, cameraPositionZ]" />
+      <TresDirectionalLight :color="0xFFFFFF" :intensity="0.6" :position="[1, 1, 1]" />
       <OrbitControls />
       <VRMModel
         :model="props.model"
+        :idle-animation="props.idleAnimation"
         :position="[vrmModelPositionX, vrmModelPositionY, vrmModelPositionZ]"
         @load-model-progress="(val) => emit('loadModelProgress', val)"
         @error="(val) => emit('error', val)"
       />
-      <TresAmbientLight :intensity="1" />
+      <TresAmbientLight :color="0xFFFFFF" :intensity="0.4" />
     </TresCanvas>
   </Screen>
 </template>
