@@ -74,8 +74,8 @@ const show = ref(false)
         </label>
       </div>
       <div
-        v-if="show" w="120" right="0" bg="zinc-100 dark:zinc-700"
-        grid="~ cols-[140px_1fr]" absolute z-10 my-2 items-center gap-1.5 rounded-lg p-2
+        v-if="show" w="120 <sm:[calc(100vw-16px)]" right="0" bg="zinc-100 dark:zinc-700"
+        grid="~ cols-[140px_1fr]" absolute z-100 my-2 items-center gap-1.5 rounded-lg p-2
       >
         <div text-sm>
           <span>OpenAI API BaseURL</span>

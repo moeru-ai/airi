@@ -293,7 +293,7 @@ onUnmounted(() => {
       </div>
       <Settings />
     </div>
-    <div flex="~ row 1" max-h="[calc(100vh-220px)]" relative h-full w-full items-end gap-2>
+    <div flex="~ row 1" max-h="[calc(100vh-220px)] <sm:[calc(100vh-320px)]" relative h-full w-full items-end gap-2>
       <Live2DViewer
         v-if="stageView === '2d'"
         ref="live2DViewerRef"
