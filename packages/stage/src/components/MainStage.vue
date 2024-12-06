@@ -318,7 +318,7 @@ onUnmounted(() => {
                 flex="~ col"
                 bg="pink-50 dark:pink-900"
                 border="2 solid pink dark:pink-700"
-                rounded-lg px-2 py-1
+                min-w-20 rounded-lg px-2 py-1
                 h="unset <sm:fit"
               >
                 <div>
@@ -330,11 +330,11 @@ onUnmounted(() => {
             </div>
             <div v-else-if="message.role === 'user'" flex="~ row-reverse" ml="12">
               <div
-                flex="~ col"
-                bg="pink-50 dark:pink-900"
-                border="2 solid pink dark:pink-700"
-                rounded-lg px-2 py-1
-                h="unset <sm:fit"
+                class="block <sm:hidden"
+                border="purple solid 3"
+                ml="2"
+                h-10 min-h-10 min-w-10 w-10
+                overflow-hidden rounded-full
               >
                 <div i-carbon:user-avatar-filled text="purple" h-full w-full p="0" m="0" />
               </div>
@@ -343,8 +343,8 @@ onUnmounted(() => {
                 bg="purple-50 dark:purple-900"
                 px="2"
                 border="2 solid purple dark:purple-700"
-                rounded-lg
-                h="unset <sm:fit"
+
+                h="unset <sm:fit" min-w-20 rounded-lg px-2 py-1
               >
                 <div>
                   <span text-xs text="white/50" font-semibold class="inline <sm:hidden">You</span>
