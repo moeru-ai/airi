@@ -22,6 +22,12 @@ const vrmAnimationMixer = ref<AnimationMixer>()
 const { scene } = useTresContext()
 const { onBeforeRender } = useLoop()
 
+watch(() => props.position, ([x, y, z]) => {
+  if (vrm.value) {
+    vrm.value.scene.position.set(x, y, z)
+  }
+})
+
 onMounted(async () => {
   if (!scene.value) {
     return
@@ -66,12 +72,6 @@ onUnmounted(() => {
   if (vrm.value) {
     const { scene } = useTresContext()
     scene.value.remove(vrm.value.scene)
-  }
-})
-
-watch(() => props.position, ([x, y, z]) => {
-  if (vrm.value) {
-    vrm.value.scene.position.set(x, y, z)
   }
 })
 </script>

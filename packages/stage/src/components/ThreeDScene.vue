@@ -26,12 +26,12 @@ const vrmModelPositionZ = ref(-0.24)
 
 <template>
   <Screen v-slot="{ canvasHeight, canvasWidth }" relative>
-    <div z="10" top="2" absolute w-full gap-2 px-2 flex="~ col md:row">
+    <div z="10" top="2" absolute w-full gap-2 flex="~ col md:row">
       <Collapsable h-fit w-full>
         <template #label>
           <span font-mono>Camera</span>
         </template>
-        <div grid="~ cols-[20px_1fr_60px]" w-full gap-2 p-2 text-sm font-mono>
+        <div grid="~ cols-[20px_1fr_60px]" w-full gap-1 p-2 text-sm font-mono>
           <div text="zinc-400 dark:zinc-500">
             <span>X</span>
           </div>
@@ -67,7 +67,7 @@ const vrmModelPositionZ = ref(-0.24)
         <template #label>
           <span font-mono>Model</span>
         </template>
-        <div grid="~ cols-[20px_1fr_60px]" w-full gap-2 p-2 text-sm font-mono>
+        <div grid="~ cols-[20px_1fr_60px]" w-full gap-1 p-2 text-sm font-mono>
           <div text="zinc-400 dark:zinc-500">
             <span>X</span>
           </div>
@@ -102,9 +102,10 @@ const vrmModelPositionZ = ref(-0.24)
       </Collapsable>
     </div>
     <TresCanvas :alpha="true" :antialias="true" :width="canvasWidth" :height="canvasHeight">
-      <TresPerspectiveCamera :position="[cameraPositionX, cameraPositionY, cameraPositionZ]" />
-      <TresDirectionalLight :color="0xFFFFFF" :intensity="0.6" :position="[1, 1, 1]" />
       <OrbitControls />
+      <TresPerspectiveCamera :position="[cameraPositionX, cameraPositionY, cameraPositionZ]" />
+      <TresDirectionalLight :color="0xFFFFFF" :intensity="1.2" :position="[1, 1, 1]" />
+      <TresAmbientLight :color="0xFFFFFF" :intensity="1.5" />
       <VRMModel
         :model="props.model"
         :idle-animation="props.idleAnimation"
@@ -112,7 +113,6 @@ const vrmModelPositionZ = ref(-0.24)
         @load-model-progress="(val) => emit('loadModelProgress', val)"
         @error="(val) => emit('error', val)"
       />
-      <TresAmbientLight :color="0xFFFFFF" :intensity="0.4" />
     </TresCanvas>
   </Screen>
 </template>

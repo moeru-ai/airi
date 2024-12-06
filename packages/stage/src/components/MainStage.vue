@@ -41,7 +41,7 @@ const listening = ref(false)
 const live2DViewerRef = ref<{ setMotion: (motionName: string) => Promise<void> }>()
 const supportedModels = ref<{ id: string, name?: string }[]>([])
 const messageInput = ref<string>('')
-const messages = ref<Array<Message>>([SystemPromptV2 as SystemMessage])
+const messages = ref<Array<Message>>([SystemPromptV2 as SystemMessage, { role: 'assistant', content: 'A'.repeat(1000) }, { role: 'assistant', content: 'A'.repeat(1000) }])
 const streamingMessage = ref<AssistantMessage>({ role: 'assistant', content: '' })
 const audioAnalyser = ref<AnalyserNode>()
 const mouthOpenSize = ref(0)
@@ -269,52 +269,17 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div h-full max-h="[100vh]" p="2" flex="~ col">
-    <div flex="~" gap-2>
-      <fieldset
-        flex="~ row"
-        bg="zinc-100 dark:zinc-700"
-        text="sm zinc-400 dark:zinc-500"
-        appearance-none gap-1 rounded-lg rounded-md border-none p-1
-      >
-        <label
-          h-fit cursor-pointer
-          :class="[stageView === '2d' ? 'bg-zinc-300 text-zinc-900 dark:bg-zinc-200 dark:text-zinc-800' : '']"
-          rounded-md px-4 py-2
-        >
-          <input
-            v-model="stageView"
-            :checked="stageView === '2d'"
-            :aria-checked="stageView === '2d'"
-            name="stageView"
-            type="radio"
-            role="radio"
-            value="2d"
-            hidden appearance-none outline-none
-          >
-          <div select-none>2D</div>
-        </label>
-        <label
-          h-fit cursor-pointer
-          :class="[stageView === '3d' ? 'bg-zinc-300 text-zinc-900 dark:bg-zinc-200 dark:text-zinc-800' : '']"
-          rounded-md px-4 py-2
-        >
-          <input
-            v-model="stageView"
-            :checked="stageView === '3d'"
-            :aria-checked="stageView === '3d'"
-            name="stageView"
-            type="radio"
-            role="radio"
-            value="3d"
-            hidden appearance-none outline-none
-          >
-          <div select-none>3D</div>
-        </label>
-      </fieldset>
+  <div h-full max-h="[100vh]" max-w="[100vw]" p="2" flex="~ col" overflow-hidden>
+    <div flex="~" mb-1 w-full gap-2>
+      <div flex="~ 1" w-full items-center gap-2 text-nowrap text-2xl>
+        <div i-solar:cat-outline text="[#ed869d]" />
+        <div font-cute>
+          <span>アイリ</span>
+        </div>
+      </div>
       <Settings />
     </div>
-    <div flex="~ row 1" max-h="[calc(100vh-210px)]" relative h-full w-full items-end gap-2>
+    <div flex="~ row 1" max-h="[calc(100vh-220px)]" relative h-full w-full items-end gap-2>
       <Live2DViewer
         v-if="stageView === '2d'"
         ref="live2DViewerRef"
@@ -331,61 +296,62 @@ onUnmounted(() => {
       />
       <div
         class="relative <lg:(absolute bottom-0 from-zinc-800/80 to-zinc-800/0 bg-gradient-to-t p-2)"
-        px="<sm:2" py="<sm:2" rounded="<sm:lg"
-        w="50% <lg:full" flex="~ col 1" gap-2 max-h="[calc(100vh-210px)]"
+        px="<sm:2" py="<sm:2" rounded="lg"
+        w="50% <lg:full" flex="~ col 1" overflow-hidden max-h="[calc(100vh-220px)]"
       >
-        <div v-for="(message, index) in messages" :key="index">
-          <div v-if="message.role === 'assistant'" flex mr="12">
-            <div
-              mr-2 h-10
-              min-h-10 min-w-10 w-10
-              overflow-hidden rounded-full
-              border="solid 3"
-              transition="all ease-in-out" duration-100
-              :style="{
-                borderColor: `rgba(236, 72, 153, ${nowSpeakingAvatarBorderOpacity.toFixed(2)})`,
-              }"
-            >
-              <img :src="Avatar">
-            </div>
-            <div
-              flex="~ col"
-              bg="pink-50 dark:pink-900"
-              p="2"
-              border="2 solid pink dark:pink-700"
-              rounded-lg
-              h="unset <sm:fit"
-            >
-              <div>
-                <span font-semibold class="inline <sm:hidden">Neuro</span>
+        <div h-full w-full overflow-scroll>
+          <div v-for="(message, index) in messages" :key="index" mb-2>
+            <div v-if="message.role === 'assistant'" flex mr="12">
+              <div
+                mr-2 h-10
+                min-h-10 min-w-10 w-10
+                overflow-hidden rounded-full
+                border="solid 3"
+                transition="all ease-in-out" duration-100
+                :style="{
+                  borderColor: `rgba(236, 72, 153, ${nowSpeakingAvatarBorderOpacity.toFixed(2)})`,
+                }"
+              >
+                <img :src="Avatar">
               </div>
-              <div v-if="message.content" text="base <sm:xs" v-html="process(message.content as string)" />
-              <div v-else i-eos-icons:three-dots-loading />
-            </div>
-          </div>
-          <div v-else-if="message.role === 'user'" flex="~ row-reverse" ml="12">
-            <div
-              class="block <sm:hidden"
-              border="purple solid 3"
-              ml="2"
-              h-10 min-h-10 min-w-10 w-10
-              overflow-hidden rounded-full
-            >
-              <div i-carbon:user-avatar-filled text="purple" h-full w-full p="0" m="0" />
-            </div>
-            <div
-              flex="~ col"
-              bg="purple-50 dark:purple-900"
-              p="2"
-              border="2 solid purple dark:purple-700"
-              rounded-lg
-              h="unset <sm:fit"
-            >
-              <div>
-                <span font-semibold class="inline <sm:hidden">You</span>
+              <div
+                flex="~ col"
+                bg="pink-50 dark:pink-900"
+                border="2 solid pink dark:pink-700"
+                rounded-lg px-2 py-1
+                h="unset <sm:fit"
+              >
+                <div>
+                  <span text-xs text="white/50" font-semibold class="inline <sm:hidden">Airi</span>
+                </div>
+                <div v-if="message.content" class="markdown-content" text="base <sm:xs" v-html="process(message.content as string)" />
+                <div v-else i-eos-icons:three-dots-loading />
               </div>
-              <div v-if="message.content" text="base <sm:xs" v-html="process(message.content as string)" />
-              <div v-else />
+            </div>
+            <div v-else-if="message.role === 'user'" flex="~ row-reverse" ml="12">
+              <div
+                flex="~ col"
+                bg="pink-50 dark:pink-900"
+                border="2 solid pink dark:pink-700"
+                rounded-lg px-2 py-1
+                h="unset <sm:fit"
+              >
+                <div i-carbon:user-avatar-filled text="purple" h-full w-full p="0" m="0" />
+              </div>
+              <div
+                flex="~ col"
+                bg="purple-50 dark:purple-900"
+                px="2"
+                border="2 solid purple dark:purple-700"
+                rounded-lg
+                h="unset <sm:fit"
+              >
+                <div>
+                  <span text-xs text="white/50" font-semibold class="inline <sm:hidden">You</span>
+                </div>
+                <div v-if="message.content" class="markdown-content" text="base <sm:xs" whitespace-nowrap v-html="process(message.content as string)" />
+                <div v-else />
+              </div>
             </div>
           </div>
         </div>
@@ -414,24 +380,21 @@ onUnmounted(() => {
             v-model="messageInput"
             placeholder="Message"
             p="2" bg="zinc-100 dark:zinc-700"
-            w="[95%]" rounded-lg outline-none min-h="[100px]"
+            w="[92%]" rounded-lg outline-none min-h="[100px]"
             @submit="onSendMessage"
           />
           <button
             flex="~ row"
             p="2" bg="zinc-100 dark:zinc-700"
-            w="[5%]" items-center rounded-lg outline-none
+            w="[8%]" items-center justify-center rounded-lg outline-none
             transition="all ease-in-out"
             @click="listening = !listening"
           >
             <Transition mode="out-in">
-              <div v-if="listening" flex="~ row" items-center space-x-1>
+              <div v-if="listening" flex="~ row" items-center justify-center space-x-1>
                 <div i-carbon:microphone-filled text-red />
-                <span>
-                  Listening...
-                </span>
               </div>
-              <div v-else flex="~ row" items-center space-x-1>
+              <div v-else flex="~ row" items-center justify-center space-x-1>
                 <div i-carbon:microphone text-inherit />
                 <span>
                   Talk
@@ -454,5 +417,14 @@ onUnmounted(() => {
 .v-enter-from,
 .v-leave-to {
   opacity: 0;
+}
+
+.markdown-content p {
+  word-wrap: break-word;
+  word-break: normal;
+  text-overflow: ellipsis;
+  text-wrap: auto;
+  white-space: break-spaces;
+  overflow-wrap: anywhere;
 }
 </style>

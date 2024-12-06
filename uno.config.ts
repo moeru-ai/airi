@@ -26,6 +26,7 @@ export default defineConfig({
         sans: 'DM Sans',
         serif: 'DM Serif Display',
         mono: 'DM Mono',
+        cute: 'Kiwi Maru',
       },
     }),
   ],
