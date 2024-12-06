@@ -1,14 +1,14 @@
 import type { GenerateAudioStream } from '@airi-proj/elevenlabs/types'
 import type { Message } from '@xsai/shared-chat-completion'
+import { listModels } from '@xsai/model'
 import { streamText } from '@xsai/stream-text'
 import { ofetch } from 'ofetch'
-import { OpenAI } from 'openai'
 import { defineStore } from 'pinia'
 
 export const useLLM = defineStore('llm', () => {
   async function stream(apiUrl: string, apiKey: string, model: string, messages: Message[]) {
     return await streamText({
-      url: `${apiUrl}/chat/completions`,
+      baseURL: (apiUrl.endsWith('/') ? apiUrl : `${apiUrl}/`) as `${string}/`,
       apiKey,
       model,
       messages,
@@ -27,13 +27,10 @@ export const useLLM = defineStore('llm', () => {
     }
 
     try {
-      const openai = new OpenAI({
+      return await listModels({
+        baseURL: (apiUrl.endsWith('/') ? apiUrl : `${apiUrl}/`) as `${string}/`,
         apiKey,
-        baseURL: apiUrl,
-        dangerouslyAllowBrowser: true,
       })
-
-      return await openai.models.list()
     }
     catch (err) {
       if (String(err).includes(`Failed to construct 'URL': Invalid URL`)) {
