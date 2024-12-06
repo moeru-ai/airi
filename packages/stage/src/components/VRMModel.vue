@@ -2,7 +2,7 @@
 import type { VRMCore } from '@pixiv/three-vrm-core'
 import { useLoop, useTresContext } from '@tresjs/core'
 import { AnimationMixer } from 'three'
-import { clipFromVRMAnimation, loadVRMAnimation } from '~/composables/vrm/animation'
+import { clipFromVRMAnimation, loadVRMAnimation, useBlink } from '~/composables/vrm/animation'
 import { loadVrm } from '~/composables/vrm/core'
 
 const props = defineProps<{
@@ -21,6 +21,7 @@ const vrm = ref<VRMCore>()
 const vrmAnimationMixer = ref<AnimationMixer>()
 const { scene } = useTresContext()
 const { onBeforeRender } = useLoop()
+const blink = useBlink()
 
 watch(() => props.position, ([x, y, z]) => {
   if (vrm.value) {
@@ -59,6 +60,7 @@ onMounted(async () => {
     onBeforeRender(({ delta }) => {
       vrmAnimationMixer.value?.update(delta)
       vrm.value?.update(delta)
+      blink.update(vrm.value, delta)
     })
 
     vrm.value = _vrm
