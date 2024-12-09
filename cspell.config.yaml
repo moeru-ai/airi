@@ -27,6 +27,7 @@ words:
   - elevenlabs
   - gltf
   - hiyori
+  - huggingface
   - iconify
   - intlify
   - kwaa
@@ -46,6 +47,7 @@ words:
   - pinia
   - pixi
   - pixiv
+  - pretrained
   - rehype
   - shiki
   - shikijs
@@ -57,6 +59,7 @@ words:
   - unplugin
   - vrma
   - vueuse
+  - webgpu
   - xsai
 ignoreWords: []
 import: []
