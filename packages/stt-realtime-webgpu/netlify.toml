@@ -1,5 +1,5 @@
 [build]
-publish = "packages/stage/dist"
+publish = "packages/stt-realtime-webgpu/dist"
 command = "pnpm run packages:stub && pnpm run build"
 
 [build.environment]
