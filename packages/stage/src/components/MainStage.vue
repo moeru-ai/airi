@@ -17,7 +17,6 @@ import { useLLM } from '../stores/llm'
 import { useSettings } from '../stores/settings'
 
 import BasicTextarea from './BasicTextarea.vue'
-// import AudioWaveform from './AudioWaveform.vue'
 import Live2DViewer from './Live2DViewer.vue'
 import Settings from './Settings.vue'
 import ThreeDScene from './ThreeDScene.vue'
@@ -107,7 +106,6 @@ const ttsQueue = useQueue<string>({
         voice: 'Myriam',
         // Beatrice is not 'childish' like the others
         // voice: 'Beatrice',
-        // text: body.text,
         model_id: 'eleven_multilingual_v2',
         voice_settings: {
           stability: 0.4,
@@ -150,13 +148,13 @@ const emotionsQueue = useQueue<Emotion>({
   ],
 })
 
-const emotionMessageContentQueue = useEmotionsMessageQueue(emotionsQueue, messageContentQueue)
+const emotionMessageContentQueue = useEmotionsMessageQueue(emotionsQueue)
 emotionMessageContentQueue.onHandlerEvent('emotion', (emotion) => {
   // eslint-disable-next-line no-console
   console.debug('emotion detected', emotion)
 })
 
-const delaysQueue = useDelayMessageQueue(emotionMessageContentQueue)
+const delaysQueue = useDelayMessageQueue()
 delaysQueue.onHandlerEvent('delay', (delay) => {
   // eslint-disable-next-line no-console
   console.debug('delay detected', delay)
@@ -216,49 +214,31 @@ async function onSendMessage(sendingMessage: string) {
   live2DViewerRef.value?.setMotion(EmotionThinkMotionName)
 
   const res = await stream(openAiApiBaseURL.value, openAiApiKey.value, openAIModel.value.id, messages.value.slice(0, messages.value.length - 1))
+  let fullText = ''
 
-  enum States {
-    Literal = 'literal',
-    Special = 'special',
-  }
-
-  let state = States.Literal
-  let buffer = ''
+  const parser = useLlmmarkerParser({
+    onLiteral: async (literal) => {
+      await messageContentQueue.add(literal)
+      streamingMessage.value.content += literal
+    },
+    onSpecial: async (special) => {
+      await delaysQueue.add(special)
+      await emotionMessageContentQueue.add(special)
+    },
+  })
 
   for await (const textPart of asyncIteratorFromReadableStream(res.textStream, async v => v)) {
-    for (const textSingleChar of textPart) {
-      let newState: States = state
-
-      if (textSingleChar === '<')
-        newState = States.Special
-      else if (textSingleChar === '>')
-        newState = States.Literal
-
-      if (state === States.Literal && newState === States.Special) {
-        streamingMessage.value.content += buffer
-        buffer = ''
-      }
-
-      if (state === States.Special && newState === States.Literal)
-        buffer = '' // Clear buffer when exiting Special state
-
-      if (state === States.Literal && newState === States.Literal) {
-        streamingMessage.value.content += textSingleChar
-        buffer = ''
-      }
-
-      await delaysQueue.add(textSingleChar)
-      state = newState
-      buffer += textSingleChar
-    }
+    fullText += textPart
+    await parser.consume(textPart)
   }
 
-  if (buffer)
-    streamingMessage.value.content += buffer
-
+  await parser.end()
   await delaysQueue.add(llmInferenceEndToken)
 
   messageInput.value = ''
+
+  // eslint-disable-next-line no-console
+  console.debug('Full text:', fullText)
 }
 
 watch([openAiApiBaseURL, openAiApiKey], async ([baseUrl, apiKey]) => {

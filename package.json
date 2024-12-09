@@ -53,12 +53,6 @@
     "packages/*",
     "docs"
   ],
-  "pnpm": {
-    "override": {
-      "@babel/preset-env": "7.26.0",
-      "workbox-build": "7.3.0"
-    }
-  },
   "simple-git-hooks": {
     "pre-commit": "pnpm lint-staged"
   },

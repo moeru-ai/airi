@@ -196,6 +196,7 @@ declare global {
   const useLLM: typeof import('./stores/llm')['useLLM']
   const useLastChanged: typeof import('@vueuse/core')['useLastChanged']
   const useLink: typeof import('vue-router/auto')['useLink']
+  const useLlmmarkerParser: typeof import('./composables/llmmarkerParser')['useLlmmarkerParser']
   const useLocalStorage: typeof import('@vueuse/core')['useLocalStorage']
   const useMagicKeys: typeof import('@vueuse/core')['useMagicKeys']
   const useManualRefHistory: typeof import('@vueuse/core')['useManualRefHistory']
@@ -503,6 +504,7 @@ declare module 'vue' {
     readonly useLLM: UnwrapRef<typeof import('./stores/llm')['useLLM']>
     readonly useLastChanged: UnwrapRef<typeof import('@vueuse/core')['useLastChanged']>
     readonly useLink: UnwrapRef<typeof import('vue-router/auto')['useLink']>
+    readonly useLlmmarkerParser: UnwrapRef<typeof import('./composables/llmmarkerParser')['useLlmmarkerParser']>
     readonly useLocalStorage: UnwrapRef<typeof import('@vueuse/core')['useLocalStorage']>
     readonly useMagicKeys: UnwrapRef<typeof import('@vueuse/core')['useMagicKeys']>
     readonly useManualRefHistory: UnwrapRef<typeof import('@vueuse/core')['useManualRefHistory']>
