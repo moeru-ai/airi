@@ -12,7 +12,7 @@
   "license": "MIT",
   "scripts": {
     "build": "vite build",
-    "dev": "vite",
+    "dev": "vite  --port 5174",
     "lint": "eslint .",
     "preview": "vite preview",
     "typecheck": "vue-tsc --noEmit"
