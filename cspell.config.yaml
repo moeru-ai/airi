@@ -43,6 +43,7 @@ words:
   - nuxt
   - nuxtjs
   - ofetch
+  - onnxruntime
   - openai
   - pinia
   - pixi

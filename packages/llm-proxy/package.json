@@ -2,17 +2,17 @@
   "name": "@airi-proj/llm-proxy",
   "type": "module",
   "private": true,
-  "packageManager": "pnpm@9.14.4",
+  "packageManager": "pnpm@9.15.0",
   "scripts": {
     "dev": "wrangler dev",
     "deploy": "wrangler deploy --minify"
   },
   "dependencies": {
     "elevenlabs": "^0.18.1",
-    "hono": "^4.6.12"
+    "hono": "^4.6.13"
   },
   "devDependencies": {
-    "@cloudflare/workers-types": "^4.20241202.0",
-    "wrangler": "^3.91.0"
+    "@cloudflare/workers-types": "^4.20241205.0",
+    "wrangler": "^3.94.0"
   }
 }
