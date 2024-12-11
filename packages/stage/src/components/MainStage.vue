@@ -307,7 +307,7 @@ onUnmounted(() => {
         @error="console.error"
       />
       <div
-        class="relative <lg:(absolute bottom-0 from-zinc-800/80 to-zinc-800/0 bg-gradient-to-t p-2)"
+        class="relative <lg:(absolute bottom-0 from-zinc-100/80 to-zinc-800/0 bg-gradient-to-t p-2 dark:from-zinc-800/80)"
         px="<sm:2" py="<sm:2" rounded="lg"
         w="50% <lg:full" flex="~ col 1" overflow-hidden max-h="[calc(100vh-220px)]"
       >
