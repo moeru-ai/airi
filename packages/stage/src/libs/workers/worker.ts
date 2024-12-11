@@ -27,7 +27,7 @@ class AutomaticSpeechRecognitionPipeline {
   static model: Promise<PreTrainedModel>
 
   static async getInstance(progress_callback?: ProgressCallback) {
-    this.model_id = 'onnx-community/whisper-base'
+    this.model_id = 'onnx-community/whisper-large-v3-turbo'
 
     this.tokenizer ??= AutoTokenizer.from_pretrained(this.model_id, {
       progress_callback,
@@ -39,7 +39,9 @@ class AutomaticSpeechRecognitionPipeline {
 
     this.model ??= WhisperForConditionalGeneration.from_pretrained(this.model_id, {
       dtype: {
-        encoder_model: 'fp32', // 'fp16' works too
+        // [v3.x] Cannot load whisper-v3-large-turbo · Issue #989 · huggingface/transformers.js
+        // https://github.com/huggingface/transformers.js/issues/989
+        encoder_model: 'fp16', // 'fp16' works too
         decoder_model_merged: 'q4', // or 'fp32' ('fp16' is broken)
       },
       device: 'webgpu',
@@ -150,7 +152,8 @@ async function load() {
 
   // Run model with dummy input to compile shaders
   await model.generate({
-    input_features: full([1, 80, 3000], 0.0),
+    // input_features: full([1, 80, 3000], 0.0), // for fp32
+    input_features: full([1, 128, 3000], 0.0), // for fp16
     max_new_tokens: 1,
   })
 

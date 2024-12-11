@@ -114,31 +114,31 @@ defineExpose({
       </div>
       <div flex="~ row" w-full flex-wrap gap-2>
         <button
-          rounded-lg bg="zinc-100 dark:zinc-800/50" px-2 py-1
+          rounded-lg bg="zinc-100/70 dark:zinc-800/50" px-2 py-1 backdrop-blur-sm
           @click="modelRef?.setExpression('neutral')"
         >
           🙂 Neutral
         </button>
         <button
-          rounded-lg bg="zinc-100 dark:zinc-800/50" px-2 py-1
+          rounded-lg bg="zinc-100/70 dark:zinc-800/50" px-2 py-1 backdrop-blur-sm
           @click="modelRef?.setExpression('surprised')"
         >
           🤯 Surprised
         </button>
         <button
-          rounded-lg bg="zinc-100 dark:zinc-800/50" px-2 py-1
+          rounded-lg bg="zinc-100/70 dark:zinc-800/50" px-2 py-1 backdrop-blur-sm
           @click="modelRef?.setExpression('sad')"
         >
           😫 Sad
         </button>
         <button
-          rounded-lg bg="zinc-100 dark:zinc-800/50" px-2 py-1
+          rounded-lg bg="zinc-100/70 dark:zinc-800/50" px-2 py-1 backdrop-blur-sm
           @click="modelRef?.setExpression('angry')"
         >
           😠 Angry
         </button>
         <button
-          rounded-lg bg="zinc-100 dark:zinc-800/50" px-2 py-1
+          rounded-lg bg="zinc-100/70 dark:zinc-800/50" px-2 py-1 backdrop-blur-sm
           @click="modelRef?.setExpression('happy')"
         >
           😄 Happy

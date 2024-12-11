@@ -1,7 +1,34 @@
 import type { MessageEvents, MessageGenerate, ProgressMessageEvents } from '../libs/workers/types'
+import { defu } from 'defu'
 
-export function useWhisper(url: string) {
-  const { post: whisperPost, data: whisperData, terminate } = useWebWorker<MessageEvents>(url, { type: 'module' })
+export interface UseWhisperOptions {
+  onLoading: (message: string) => void
+  onInitiate: (message: ProgressMessageEvents) => void
+  onProgress: (message: ProgressMessageEvents) => void
+  onDone: (message: ProgressMessageEvents) => void
+  onReady: () => void
+  onStart: () => void
+  onUpdate: (tps: number) => void
+  onComplete: (output: string) => void
+}
+
+export function useWhisper(url: string, options?: Partial<UseWhisperOptions>) {
+  const opts = defu<Partial<UseWhisperOptions>, UseWhisperOptions[]>(options, {
+    onLoading: () => {},
+    onInitiate: () => {},
+    onProgress: () => {},
+    onDone: () => {},
+    onReady: () => {},
+    onStart: () => {},
+    onUpdate: () => {},
+    onComplete: () => {},
+  })
+
+  const {
+    post: whisperPost,
+    data: whisperData,
+    terminate,
+  } = useWebWorker<MessageEvents>(url, { type: 'module' })
 
   const status = ref<'loading' | 'ready' | null>(null)
   const loadingMessage = ref('')
@@ -15,10 +42,12 @@ export function useWhisper(url: string) {
       case 'loading':
         status.value = 'loading'
         loadingMessage.value = e.data
+        opts.onLoading?.(e.data)
         break
 
       case 'initiate':
         loadingProgress.value.push(e)
+        opts.onInitiate?.(e)
         break
 
       case 'progress':
@@ -28,22 +57,27 @@ export function useWhisper(url: string) {
           }
           return item
         })
+        opts.onProgress?.(e)
         break
 
       case 'done':
         loadingProgress.value = loadingProgress.value.filter(item => item.file !== e.file)
+        opts.onDone?.(e)
         break
 
       case 'ready':
         status.value = 'ready'
+        opts.onReady?.()
         break
 
       case 'start':
         transcribing.value = true
+        opts.onStart?.()
         break
 
       case 'update':
         tps.value = e.tps
+        opts.onUpdate?.(e.tps)
         break
 
       case 'complete':
@@ -51,6 +85,7 @@ export function useWhisper(url: string) {
         result.value = e.output[0] || ''
         // eslint-disable-next-line no-console
         console.debug('Whisper result:', result.value)
+        opts.onComplete?.(e.output[0])
         break
     }
   })
@@ -67,5 +102,7 @@ export function useWhisper(url: string) {
     transcribing,
     tps,
     result,
+    load: () => whisperPost({ type: 'load' }),
+    terminate,
   }
 }

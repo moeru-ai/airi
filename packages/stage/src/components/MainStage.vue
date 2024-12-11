@@ -41,7 +41,6 @@ const { streamSpeech, stream, models } = useLLM()
 const { audioContext, calculateVolume } = useAudioContext()
 const { process } = useMarkdown()
 const { audioInputs } = useDevicesList({ constraints: { audio: true }, requestPermissions: true })
-const { transcribe: generate } = useWhisper(WhisperWorker)
 
 const listening = ref(false)
 const live2DViewerRef = ref<{ setMotion: (motionName: string) => Promise<void> }>()
@@ -55,6 +54,7 @@ const mouthOpenSize = ref(0)
 const nowSpeaking = ref(false)
 const lipSyncStarted = ref(false)
 const selectedAudioDevice = ref<MediaDeviceInfo>()
+const isAudioInputOn = ref('false')
 
 const selectedAudioDeviceId = computed(() => selectedAudioDevice.value?.deviceId)
 const nowSpeakingAvatarBorderOpacity = computed<number>(() => {
@@ -63,39 +63,6 @@ const nowSpeakingAvatarBorderOpacity = computed<number>(() => {
 
   return ((nowSpeakingAvatarBorderOpacityMin
     + (nowSpeakingAvatarBorderOpacityMax - nowSpeakingAvatarBorderOpacityMin) * mouthOpenSize.value) / 100)
-})
-
-async function handleTranscription(buffer: Float32Array) {
-  await audioContext.resume()
-
-  // Convert Float32Array to WAV format
-  const audioBase64 = await encodeWAVToBase64(buffer, audioContext.sampleRate)
-  generate({ type: 'generate', data: { audio: audioBase64, language: 'en' } })
-}
-
-useMicVAD(selectedAudioDeviceId, {
-  onSpeechStart: () => {
-    // TODO: interrupt the playback
-    // TODO: interrupt any of the ongoing TTS
-    // TODO: interrupt any of the ongoing LLM requests
-    // TODO: interrupt any of the ongoing animation of Live2D or VRM
-    // TODO: once interrupted, we should somehow switch to listen or thinking
-    //       emotion / expression?
-    listening.value = true
-  },
-  // VAD misfire means while speech end is detected but
-  // the frames of the segment of the audio buffer
-  // is not enough to be considered as a speech segment
-  // which controlled by the `minSpeechFrames` parameter
-  onVADMisfire: () => {
-    // TODO: do audio buffer send to whisper
-    listening.value = false
-  },
-  onSpeechEnd: (buffer) => {
-    // TODO: do audio buffer send to whisper
-    listening.value = false
-    handleTranscription(buffer)
-  },
 })
 
 function handleModelChange(event: Event) {
@@ -271,6 +238,63 @@ async function onSendMessage(sendingMessage: string) {
   console.debug('Full text:', fullText)
 }
 
+const { transcribe: generate, load: loadWhisper, status: whisperStatus, terminate } = useWhisper(WhisperWorker, {
+  onComplete: async (res) => {
+    await onSendMessage(res)
+  },
+})
+
+function handleLoadWhisper() {
+  if (whisperStatus.value === 'loading')
+    return
+
+  loadWhisper()
+}
+
+async function handleTranscription(buffer: Float32Array) {
+  await audioContext.resume()
+
+  // Convert Float32Array to WAV format
+  const audioBase64 = await encodeWAVToBase64(buffer, audioContext.sampleRate)
+  generate({ type: 'generate', data: { audio: audioBase64, language: 'en' } })
+}
+
+const { destroy } = useMicVAD(selectedAudioDeviceId, {
+  onSpeechStart: () => {
+    // TODO: interrupt the playback
+    // TODO: interrupt any of the ongoing TTS
+    // TODO: interrupt any of the ongoing LLM requests
+    // TODO: interrupt any of the ongoing animation of Live2D or VRM
+    // TODO: once interrupted, we should somehow switch to listen or thinking
+    //       emotion / expression?
+    listening.value = true
+  },
+  // VAD misfire means while speech end is detected but
+  // the frames of the segment of the audio buffer
+  // is not enough to be considered as a speech segment
+  // which controlled by the `minSpeechFrames` parameter
+  onVADMisfire: () => {
+    // TODO: do audio buffer send to whisper
+    listening.value = false
+  },
+  onSpeechEnd: (buffer) => {
+    // TODO: do audio buffer send to whisper
+    listening.value = false
+    handleTranscription(buffer)
+  },
+})
+
+watch(isAudioInputOn, async (value) => {
+  if (value === 'false') {
+    selectedAudioDevice.value = undefined
+    destroy()
+    terminate()
+  }
+  if (value === 'true') {
+    selectedAudioDevice.value = audioInputs.value[0]
+  }
+})
+
 watch([openAiApiBaseURL, openAiApiKey], async ([baseUrl, apiKey]) => {
   if (!baseUrl || !apiKey) {
     supportedModels.value = []
@@ -294,7 +318,7 @@ onUnmounted(() => {
 
 <template>
   <div h-full max-h="[100vh]" max-w="[100vw]" p="2" flex="~ col" overflow-hidden>
-    <div flex="~" mb-1 w-full gap-2>
+    <header flex="~" mb-1 w-full gap-2>
       <div flex="~ 1" w-full items-center gap-2 text-nowrap text-2xl>
         <div i-solar:cat-outline text="[#ed869d]" />
         <div font-cute>
@@ -302,8 +326,8 @@ onUnmounted(() => {
         </div>
       </div>
       <Settings />
-    </div>
-    <div flex="~ row 1" max-h="[calc(100vh-220px)] <sm:[calc(100vh-320px)]" relative h-full w-full items-end gap-2>
+    </header>
+    <div flex="~ row 1" max-h="[calc(100vh-270px)] <sm:[calc(100vh-320px)]" relative h-full w-full items-end gap-2>
       <Live2DScene
         v-if="stageView === '2d'"
         ref="live2DViewerRef"
@@ -322,7 +346,7 @@ onUnmounted(() => {
       <div
         class="relative <lg:(absolute bottom-0 from-zinc-100/80 to-zinc-800/0 bg-gradient-to-t p-2 dark:from-zinc-800/80)"
         px="<sm:2" py="<sm:2" rounded="lg"
-        w="50% <lg:full" flex="~ col 1" overflow-hidden max-h="[calc(100vh-220px)]"
+        w="50% <lg:full" flex="~ col 1" overflow-hidden max-h="[calc(100vh-280px)]"
       >
         <div h-full w-full overflow-scroll>
           <div v-for="(message, index) in messages" :key="index" mb-2>
@@ -383,7 +407,7 @@ onUnmounted(() => {
       </div>
     </div>
     <div flex="~ row" my="2" space-x="2" w-full self-end>
-      <div flex="~ col" w-full space-y="2">
+      <div flex="~ col" w="100%" space-y="2">
         <select
           p="2"
           bg="zinc-100 dark:zinc-700" w-full rounded-lg
@@ -421,29 +445,91 @@ onUnmounted(() => {
             v-model="messageInput"
             placeholder="Message"
             p="2" bg="zinc-100 dark:zinc-700"
-            w="[92%]" rounded-lg outline-none min-h="[100px]"
+            w-full rounded-lg outline-none min-h="[100px]"
             @submit="onSendMessage"
           />
-          <button
-            flex="~ row"
-            p="2" bg="zinc-100 dark:zinc-700"
-            w="[8%]" items-center justify-center rounded-lg outline-none
-            transition="all ease-in-out"
-            @click="listening = !listening"
-          >
-            <Transition mode="out-in">
-              <div v-if="listening" flex="~ row" items-center justify-center space-x-1>
-                <div i-carbon:microphone-filled text-red />
-              </div>
-              <div v-else flex="~ row" items-center justify-center space-x-1>
-                <div i-carbon:microphone text-inherit />
-                <span>
-                  Talk
-                </span>
-              </div>
-            </Transition>
-          </button>
         </div>
+      </div>
+      <div h-full w="[16%]" flex="~ col" gap-2>
+        <fieldset
+          flex="~ row"
+          bg="zinc-100 dark:zinc-700"
+          text="sm zinc-400 dark:zinc-500"
+          appearance-none gap-1 rounded-lg rounded-md border-none p-1
+        >
+          <label
+            :class="[isAudioInputOn === 'true' ? 'bg-zinc-300 text-zinc-900 dark:bg-zinc-200 dark:text-zinc-800' : '']"
+            min-h="7.75" flex="~" w-full cursor-pointer items-center justify-center rounded-md
+          >
+            <input
+              v-model="isAudioInputOn"
+              :checked="isAudioInputOn === 'true'"
+              :aria-checked="isAudioInputOn === 'true'"
+              name="isAudioInputOn"
+              type="radio"
+              role="radio"
+              value="true"
+              hidden appearance-none outline-none
+            >
+            <div select-none>ON</div>
+          </label>
+          <label
+            :class="[isAudioInputOn === 'false' ? 'bg-zinc-300 text-zinc-900 dark:bg-zinc-200 dark:text-zinc-800' : '']"
+            min-h="7.75" flex="~" w-full cursor-pointer items-center justify-center rounded-md
+          >
+            <input
+              v-model="isAudioInputOn"
+              :checked="isAudioInputOn === 'false'"
+              :aria-checked="isAudioInputOn === 'false'"
+              name="stageView"
+              type="radio"
+              role="radio"
+              value="false"
+              hidden appearance-none outline-none
+            >
+            <div select-none>OFF</div>
+          </label>
+        </fieldset>
+        <button
+          flex="~ row"
+          p="2" bg="zinc-100 dark:zinc-700" min-h="9.75"
+          min-w-20 w-full items-center justify-center rounded-lg outline-none
+          transition="all ease-in-out"
+          @click="handleLoadWhisper"
+        >
+          <Transition mode="out-in">
+            <div v-if="whisperStatus === null" flex="~ row" items-center justify-center space-x-1>
+              Load Model
+            </div>
+            <div v-else-if="whisperStatus === 'loading'" flex="~ row" items-center justify-center space-x-1>
+              <div i-svg-spinners:bouncing-ball text-pink />
+              <span>Loading</span>
+            </div>
+            <div v-else-if="whisperStatus === 'ready'" flex="~ row" items-center justify-center space-x-1>
+              <div i-lucide:check text-green />
+              <span>Ready</span>
+            </div>
+          </Transition>
+        </button>
+        <button
+          flex="~ row" h-full
+          p="2" bg="zinc-100 dark:zinc-700"
+          min-w-20 w-full items-center justify-center rounded-lg outline-none
+          transition="all ease-in-out"
+          @click="listening = !listening"
+        >
+          <Transition mode="out-in">
+            <div v-if="listening" flex="~ row" items-center justify-center space-x-1>
+              <div i-carbon:microphone-filled text-red />
+            </div>
+            <div v-else flex="~ row" items-center justify-center space-x-1>
+              <div i-carbon:microphone text-inherit />
+              <span>
+                Talk
+              </span>
+            </div>
+          </Transition>
+        </button>
       </div>
     </div>
   </div>

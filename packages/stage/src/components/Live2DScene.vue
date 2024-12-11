@@ -24,43 +24,43 @@ defineExpose({
     <div z="10" top="2" absolute w-full flex="~ col" gap-2>
       <div flex="~ row" w-full flex-wrap gap-2>
         <button
-          rounded-lg bg="zinc-100 dark:zinc-800/50" px-2 py-1
+          rounded-lg bg="zinc-100/70 dark:zinc-800/50" px-2 py-1 backdrop-blur-sm
           @click="modelRef?.setMotion(EmotionSurpriseMotionName)"
         >
           🤯 Surprised
         </button>
         <button
-          rounded-lg bg="zinc-100 dark:zinc-800/50" px-2 py-1
+          rounded-lg bg="zinc-100/70 dark:zinc-800/50" px-2 py-1 backdrop-blur-sm
           @click="modelRef?.setMotion(EmotionSadMotionName)"
         >
           😫 Sad
         </button>
         <button
-          rounded-lg bg="zinc-100 dark:zinc-800/50" px-2 py-1
+          rounded-lg bg="zinc-100/70 dark:zinc-800/50" px-2 py-1 backdrop-blur-sm
           @click="modelRef?.setMotion(EmotionAngryMotionName)"
         >
           😠 Angry
         </button>
         <button
-          rounded-lg bg="zinc-100 dark:zinc-800/50" px-2 py-1
+          rounded-lg bg="zinc-100/70 dark:zinc-800/50" px-2 py-1 backdrop-blur-sm
           @click="modelRef?.setMotion(EmotionHappyMotionName)"
         >
           😄 Happy
         </button>
         <button
-          rounded-lg bg="zinc-100 dark:zinc-800/50" px-2 py-1
+          rounded-lg bg="zinc-100/70 dark:zinc-800/50" px-2 py-1 backdrop-blur-sm
           @click="modelRef?.setMotion(EmotionAwkwardMotionName)"
         >
           😳 Awkward
         </button>
         <button
-          rounded-lg bg="zinc-100 dark:zinc-800/50" px-2 py-1
+          rounded-lg bg="zinc-100/70 dark:zinc-800/50" px-2 py-1 backdrop-blur-sm
           @click="modelRef?.setMotion(EmotionQuestionMotionName)"
         >
           🤔 Question
         </button>
         <button
-          rounded-lg bg="zinc-100 dark:zinc-800/50" px-2 py-1
+          rounded-lg bg="zinc-100/70 dark:zinc-800/50" px-2 py-1 backdrop-blur-sm
           @click="modelRef?.setMotion(EmotionThinkMotionName)"
         >
           🤨 Think

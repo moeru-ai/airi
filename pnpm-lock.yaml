@@ -253,7 +253,13 @@ importers:
       '@iconify-json/eos-icons':
         specifier: ^1.2.1
         version: 1.2.1
+      '@iconify-json/lucide':
+        specifier: ^1.2.18
+        version: 1.2.18
       '@iconify-json/solar':
+        specifier: ^1.2.1
+        version: 1.2.1
+      '@iconify-json/svg-spinners':
         specifier: ^1.2.1
         version: 1.2.1
       '@intlify/unplugin-vue-i18n':
@@ -1702,8 +1708,14 @@ packages:
   '@iconify-json/eos-icons@1.2.1':
     resolution: {integrity: sha512-nqucN9E670dRHDk5osNNObhxQg/eBI8wvYA+zWaOMsJR0g8VodF9z/cpDvMH7YyUm4elOF9r8cGIj3byFBFLRQ==}
 
+  '@iconify-json/lucide@1.2.18':
+    resolution: {integrity: sha512-SFBoHBSULntem84iWxGM9NzlP6QY/dwjxC5t4c1lC7+xq31Fous8JkppoJih0/ICJ3CsbppRZeb11y3iLcwwug==}
+
   '@iconify-json/solar@1.2.1':
     resolution: {integrity: sha512-LA3WZ7HOi5O/sEc2M+BcQNJYNFDnUKP+ZldmNf8kwndnCuFMo+fukt6tSu4BqYRsRgp/Ku4xnys1JGBDi+QtCQ==}
+
+  '@iconify-json/svg-spinners@1.2.1':
+    resolution: {integrity: sha512-QZNA4YzFD2zqdC6nIBJM6WlAGakUCjvMt92Ks1R4XFxkd76Ps3rdiauYWESDRZvNYURAByp2b9cwZarFula65g==}
 
   '@iconify/types@2.0.0':
     resolution: {integrity: sha512-+wluvCrRhXrhyOmRDJ3q8mux9JkKy5SJ/v8ol2tu4FVjyYvtEzkc/3pK15ET6RKg4b4w4BmTk1+gsCUhf21Ykg==}
@@ -8478,7 +8490,15 @@ snapshots:
     dependencies:
       '@iconify/types': 2.0.0
 
+  '@iconify-json/lucide@1.2.18':
+    dependencies:
+      '@iconify/types': 2.0.0
+
   '@iconify-json/solar@1.2.1':
+    dependencies:
+      '@iconify/types': 2.0.0
+
+  '@iconify-json/svg-spinners@1.2.1':
     dependencies:
       '@iconify/types': 2.0.0
 
