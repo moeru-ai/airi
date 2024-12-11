@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import type { AssistantMessage, Message, SystemMessage } from '@xsai/shared-chat-completion'
 import type { Emotion } from '../constants/emotions'
-import { MicVAD } from '@ricky0123/vad-web'
 import { useLocalStorage } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 
@@ -9,6 +8,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 import Avatar from '../assets/live2d/models/hiyori_free_zh/avatar.png'
 
 import { useMarkdown } from '../composables/markdown'
+import { useMicVAD } from '../composables/micvad'
 import { useQueue } from '../composables/queue'
 import { useDelayMessageQueue, useEmotionsMessageQueue, useMessageContentQueue } from '../composables/queues'
 import { llmInferenceEndToken } from '../constants'
@@ -52,9 +52,9 @@ const audioAnalyser = ref<AnalyserNode>()
 const mouthOpenSize = ref(0)
 const nowSpeaking = ref(false)
 const lipSyncStarted = ref(false)
-const micVad = ref<MicVAD>()
 const { audioInputs } = useDevicesList({ constraints: { audio: true }, requestPermissions: true })
 const selectedAudioDevice = ref<MediaDeviceInfo>()
+const selectedAudioDeviceId = computed(() => selectedAudioDevice.value?.deviceId)
 
 const nowSpeakingAvatarBorderOpacity = computed<number>(() => {
   if (!nowSpeaking.value)
@@ -62,6 +62,30 @@ const nowSpeakingAvatarBorderOpacity = computed<number>(() => {
 
   return ((nowSpeakingAvatarBorderOpacityMin
     + (nowSpeakingAvatarBorderOpacityMax - nowSpeakingAvatarBorderOpacityMin) * mouthOpenSize.value) / 100)
+})
+
+useMicVAD(selectedAudioDeviceId, {
+  onSpeechStart: () => {
+    // TODO: interrupt the playback
+    // TODO: interrupt any of the ongoing TTS
+    // TODO: interrupt any of the ongoing LLM requests
+    // TODO: interrupt any of the ongoing animation of Live2D or VRM
+    // TODO: once interrupted, we should somehow switch to listen or thinking
+    //       emotion / expression?
+    listening.value = true
+  },
+  // VAD misfire means while speech end is detected but
+  // the frames of the segment of the audio buffer
+  // is not enough to be considered as a speech segment
+  // which controlled by the `minSpeechFrames` parameter
+  onVADMisfire: () => {
+    // TODO: do audio buffer send to whisper
+    listening.value = false
+  },
+  onSpeechEnd: () => {
+    // TODO: do audio buffer send to whisper
+    listening.value = false
+  },
 })
 
 function handleModelChange(event: Event) {
@@ -75,55 +99,6 @@ function handleModelChange(event: Event) {
   openAIModel.value = found
 }
 
-async function handleMicVADActivation(deviceId: string) {
-  if (micVad.value) {
-    micVad.value.destroy()
-    micVad.value = undefined
-    console.warn('existing MicVAD destroyed')
-  }
-
-  const media = await navigator.mediaDevices.getUserMedia({ audio: { deviceId } })
-
-  // Use of MicVAD is inspired by Open-LLM-VTuber
-  // Source code reference: https://github.com/t41372/Open-LLM-VTuber/blob/92cbf4349b84a68b0035bc825bc3d1d61fd0f063/static/index.html#L119
-  micVad.value = await MicVAD.new({
-    stream: media,
-    model: 'v5',
-    positiveSpeechThreshold: 0.2, // default is 0.5
-    negativeSpeechThreshold: 0.08, // default is 0.5 - 0.15
-    minSpeechFrames: 60, // default is 9
-    onSpeechStart: () => {
-      // TODO: interrupt the playback
-      // TODO: interrupt any of the ongoing TTS
-      // TODO: interrupt any of the ongoing LLM requests
-      // TODO: interrupt any of the ongoing animation of Live2D or VRM
-      // TODO: once interrupted, we should somehow switch to listen or thinking
-      //       emotion / expression?
-      listening.value = true
-    },
-    // VAD misfire means while speech end is detected but
-    // the frames of the segment of the audio buffer
-    // is not enough to be considered as a speech segment
-    // which controlled by the `minSpeechFrames` parameter
-    onVADMisfire: () => {
-      // TODO: do audio buffer send to whisper
-      listening.value = false
-    },
-    onSpeechEnd: () => {
-      // TODO: do audio buffer send to whisper
-      listening.value = false
-    },
-    // WORKAROUND: temporary workaround for onnxruntime-web, since @ricky0123/vad-web
-    // uses hardcoded version of onnxruntime-web@1.14.0 to fetch the already non-existing
-    // ort-wasm-simd-threaded.mjs file and its WASM binary, we are going to force
-    // the onnxruntime-web to use the latest version of onnxruntime-web from jsdelivr
-    // to fetch the correct ort-wasm-simd-threaded.wasm binary
-    onnxWASMBasePath: 'https://cdn.jsdelivr.net/npm/onnxruntime-web/dist/',
-  })
-
-  micVad.value.start()
-}
-
 async function handleAudioInputChange(event: Event) {
   const target = event.target as HTMLSelectElement
   const found = audioInputs.value.find(d => d.deviceId === target.value)
@@ -133,7 +108,6 @@ async function handleAudioInputChange(event: Event) {
   }
 
   selectedAudioDevice.value = found
-  await handleMicVADActivation(found.deviceId)
 }
 
 const audioQueue = useQueue<{ audioBuffer: AudioBuffer, text: string }>({
@@ -313,11 +287,6 @@ watch([openAiApiBaseURL, openAiApiKey], async ([baseUrl, apiKey]) => {
   }
 
   supportedModels.value = await models(baseUrl, apiKey)
-})
-
-onUnmounted(() => {
-  if (micVad.value)
-    micVad.value.destroy()
 })
 
 onMounted(async () => {

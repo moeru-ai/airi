@@ -23,6 +23,7 @@ words:
   - cubismmotionqueuemanager
   - cubismusermodel
   - cubismviewmatrix
+  - defu
   - demi
   - elevenlabs
   - gltf
@@ -43,6 +44,7 @@ words:
   - nuxt
   - nuxtjs
   - ofetch
+  - onnx
   - onnxruntime
   - openai
   - pinia

@@ -206,6 +206,7 @@ declare global {
   const useMemoize: typeof import('@vueuse/core')['useMemoize']
   const useMemory: typeof import('@vueuse/core')['useMemory']
   const useMessageContentQueue: typeof import('./composables/queues')['useMessageContentQueue']
+  const useMicVAD: typeof import('./composables/micvad')['useMicVAD']
   const useModel: typeof import('vue')['useModel']
   const useMounted: typeof import('@vueuse/core')['useMounted']
   const useMouse: typeof import('@vueuse/core')['useMouse']
@@ -514,6 +515,7 @@ declare module 'vue' {
     readonly useMemoize: UnwrapRef<typeof import('@vueuse/core')['useMemoize']>
     readonly useMemory: UnwrapRef<typeof import('@vueuse/core')['useMemory']>
     readonly useMessageContentQueue: UnwrapRef<typeof import('./composables/queues')['useMessageContentQueue']>
+    readonly useMicVAD: UnwrapRef<typeof import('./composables/micvad')['useMicVAD']>
     readonly useModel: UnwrapRef<typeof import('vue')['useModel']>
     readonly useMounted: UnwrapRef<typeof import('@vueuse/core')['useMounted']>
     readonly useMouse: UnwrapRef<typeof import('@vueuse/core')['useMouse']>
