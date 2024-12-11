@@ -54,7 +54,7 @@ const mouthOpenSize = ref(0)
 const nowSpeaking = ref(false)
 const lipSyncStarted = ref(false)
 const selectedAudioDevice = ref<MediaDeviceInfo>()
-const isAudioInputOn = ref('false')
+const isAudioInputOn = ref('true')
 
 const selectedAudioDeviceId = computed(() => selectedAudioDevice.value?.deviceId)
 const nowSpeakingAvatarBorderOpacity = computed<number>(() => {
@@ -516,7 +516,6 @@ onUnmounted(() => {
           p="2" bg="zinc-100 dark:zinc-700"
           min-w-20 w-full items-center justify-center rounded-lg outline-none
           transition="all ease-in-out"
-          @click="listening = !listening"
         >
           <Transition mode="out-in">
             <div v-if="listening" flex="~ row" items-center justify-center space-x-1>
@@ -524,9 +523,7 @@ onUnmounted(() => {
             </div>
             <div v-else flex="~ row" items-center justify-center space-x-1>
               <div i-carbon:microphone text-inherit />
-              <span>
-                Talk
-              </span>
+              Not Listening
             </div>
           </Transition>
         </button>
