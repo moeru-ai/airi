@@ -22,7 +22,7 @@ import { useSettings } from '../stores/settings'
 import { encodeWAVToBase64 } from '../utils/binary'
 import { asyncIteratorFromReadableStream } from '../utils/iterator'
 import BasicTextarea from './BasicTextarea.vue'
-import Live2DViewer from './Live2DViewer.vue'
+import Live2DScene from './Live2DScene.vue'
 import Settings from './Settings.vue'
 import ThreeDScene from './ThreeDScene.vue'
 
@@ -304,7 +304,7 @@ onUnmounted(() => {
       <Settings />
     </div>
     <div flex="~ row 1" max-h="[calc(100vh-220px)] <sm:[calc(100vh-320px)]" relative h-full w-full items-end gap-2>
-      <Live2DViewer
+      <Live2DScene
         v-if="stageView === '2d'"
         ref="live2DViewerRef"
         :mouth-open-size="mouthOpenSize"

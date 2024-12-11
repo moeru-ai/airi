@@ -3,7 +3,7 @@ import type { InternalModel } from 'pixi-live2d-display/cubism4'
 import { Application } from '@pixi/app'
 import { extensions } from '@pixi/extensions'
 import { Ticker, TickerPlugin } from '@pixi/ticker'
-import { breakpointsTailwind, useBreakpoints, useElementBounding, useWindowSize } from '@vueuse/core'
+import { breakpointsTailwind, useBreakpoints } from '@vueuse/core'
 import { Live2DModel, MotionPreloadStrategy, MotionPriority } from 'pixi-live2d-display/cubism4'
 import { onMounted, onUnmounted, ref, watch } from 'vue'
 
@@ -23,41 +23,8 @@ const mouthOpenSize = computed(() => {
 })
 
 const breakpoints = useBreakpoints(breakpointsTailwind)
-const { width, height } = useWindowSize()
-const containerElementBounding = useElementBounding(containerRef, { immediate: true, windowResize: true, reset: true })
-
 const isMobile = computed(() => breakpoints.between('sm', 'md').value || breakpoints.smaller('sm').value)
-const isTablet = computed(() => breakpoints.between('md', 'lg').value)
-const isDesktop = computed(() => breakpoints.greaterOrEqual('lg').value)
-
-const canvasWidth = computed(() => {
-  if (isDesktop.value)
-    return containerElementBounding.width.value
-  else if (isMobile.value)
-    return (width.value - 16) // padding
-  else if (isTablet.value)
-    return (width.value - 16) // padding
-  else
-    return containerElementBounding.width.value
-})
-
-const canvasHeight = ref(0)
-watch([width, height, containerRef], () => {
-  const bounding = containerRef.value?.getBoundingClientRect()
-
-  if (isDesktop.value) {
-    canvasHeight.value = bounding?.height || 0
-  }
-  else if (isMobile.value) {
-    canvasHeight.value = bounding?.height || 0
-  }
-  else if (isTablet.value) {
-    canvasHeight.value = bounding?.height || 0
-  }
-  else {
-    canvasHeight.value = 600
-  }
-})
+const { height, width } = useElementBounding(containerRef, { immediate: true, windowResize: true, reset: true })
 
 function getCoreModel() {
   return model.value!.internalModel.coreModel as any
@@ -72,8 +39,8 @@ function setScale(model: Ref<Live2DModel<InternalModel> | undefined>) {
     offsetFactor = 2.5
   }
 
-  const heightScale = canvasHeight.value * 0.95 / model.value.height * offsetFactor
-  const widthScale = canvasWidth.value * 0.95 / model.value.width * offsetFactor
+  const heightScale = height.value * 0.95 / model.value.height * offsetFactor
+  const widthScale = width.value * 0.95 / model.value.width * offsetFactor
   const scale = Math.min(heightScale, widthScale)
 
   model.value.scale.set(scale, scale)
@@ -85,8 +52,8 @@ async function initLive2DPixiStage(parent: HTMLDivElement) {
   extensions.add(TickerPlugin)
 
   pixiApp.value = new Application({
-    width: canvasWidth.value,
-    height: canvasHeight.value,
+    width: width.value,
+    height: height.value,
     backgroundAlpha: 0,
   })
 
@@ -97,8 +64,8 @@ async function initLive2DPixiStage(parent: HTMLDivElement) {
   model.value = await Live2DModel.from(props.model, { motionPreload: MotionPreloadStrategy.ALL })
   pixiApp.value.stage.addChild(model.value as any)
 
-  model.value.x = canvasWidth.value / 2
-  model.value.y = canvasHeight.value
+  model.value.x = width.value / 2
+  model.value.y = height.value
   model.value.rotation = Math.PI
   model.value.skew.x = Math.PI
   model.value.anchor.set(0.5, 0.5)
@@ -117,26 +84,24 @@ async function setMotion(motionName: string) {
   await model.value!.motion(motionName, undefined, MotionPriority.FORCE)
 }
 
-watch([width, height, canvasWidth, canvasHeight], () => {
+watch([width, height, width, height], () => {
   if (pixiApp.value)
-    pixiApp.value.renderer.resize(canvasWidth.value, canvasHeight.value)
+    pixiApp.value.renderer.resize(width.value, height.value)
 
   if (pixiAppCanvas.value) {
-    pixiAppCanvas.value.width = canvasWidth.value
-    pixiAppCanvas.value.height = canvasHeight.value
+    pixiAppCanvas.value.width = width.value
+    pixiAppCanvas.value.height = height.value
   }
 
   if (model.value) {
-    model.value.x = canvasWidth.value / 2
-    model.value.y = canvasHeight.value
+    model.value.x = width.value / 2
+    model.value.y = height.value
   }
 })
 
 onMounted(async () => {
   if (!containerRef.value)
     return
-
-  containerElementBounding.update()
 
   await initLive2DPixiStage(containerRef.value)
 })

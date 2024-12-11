@@ -112,33 +112,33 @@ defineExpose({
           </div>
         </Collapsable>
       </div>
-      <div flex="~ row" w-full gap-2>
+      <div flex="~ row" w-full flex-wrap gap-2>
         <button
-          rounded-lg bg="zinc-200 dark:zinc-800/50" px-2 py-1
+          rounded-lg bg="zinc-100 dark:zinc-800/50" px-2 py-1
           @click="modelRef?.setExpression('neutral')"
         >
           🙂 Neutral
         </button>
         <button
-          rounded-lg bg="zinc-200 dark:zinc-800/50" px-2 py-1
+          rounded-lg bg="zinc-100 dark:zinc-800/50" px-2 py-1
           @click="modelRef?.setExpression('surprised')"
         >
           🤯 Surprised
         </button>
         <button
-          rounded-lg bg="zinc-200 dark:zinc-800/50" px-2 py-1
+          rounded-lg bg="zinc-100 dark:zinc-800/50" px-2 py-1
           @click="modelRef?.setExpression('sad')"
         >
           😫 Sad
         </button>
         <button
-          rounded-lg bg="zinc-200 dark:zinc-800/50" px-2 py-1
+          rounded-lg bg="zinc-100 dark:zinc-800/50" px-2 py-1
           @click="modelRef?.setExpression('angry')"
         >
           😠 Angry
         </button>
         <button
-          rounded-lg bg="zinc-200 dark:zinc-800/50" px-2 py-1
+          rounded-lg bg="zinc-100 dark:zinc-800/50" px-2 py-1
           @click="modelRef?.setExpression('happy')"
         >
           😄 Happy
