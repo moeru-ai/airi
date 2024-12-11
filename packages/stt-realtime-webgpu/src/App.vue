@@ -16,8 +16,6 @@ const MAX_SAMPLES = WHISPER_SAMPLING_RATE * MAX_AUDIO_LENGTH
 
 const { top, right, bottom, left } = useScreenSafeArea()
 
-const recorder = ref<MediaRecorder>()
-
 const status = ref<'loading' | 'ready' | null>(null)
 const loadingMessage = ref('')
 const progressItems = ref<ProgressMessageEvents[]>([])
@@ -26,6 +24,7 @@ const text = ref('')
 const tps = ref<number>()
 const language = ref('en')
 
+const recorder = ref<MediaRecorder>()
 const recording = ref(false)
 const isProcessing = ref(false)
 const chunks = ref<Blob[]>([])

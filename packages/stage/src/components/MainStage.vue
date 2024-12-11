@@ -2,11 +2,12 @@
 import type { AssistantMessage, Message, SystemMessage } from '@xsai/shared-chat-completion'
 import type { Emotion } from '../constants/emotions'
 import { useLocalStorage } from '@vueuse/core'
+
 import { storeToRefs } from 'pinia'
-
 import { computed, onMounted, ref, watch } from 'vue'
-import Avatar from '../assets/live2d/models/hiyori_free_zh/avatar.png'
 
+import { useWhisper } from '~/composables/whisper'
+import Avatar from '../assets/live2d/models/hiyori_free_zh/avatar.png'
 import { useMarkdown } from '../composables/markdown'
 import { useMicVAD } from '../composables/micvad'
 import { useQueue } from '../composables/queue'
@@ -14,10 +15,12 @@ import { useDelayMessageQueue, useEmotionsMessageQueue, useMessageContentQueue }
 import { llmInferenceEndToken } from '../constants'
 import { EMOTION_EmotionMotionName_value, EMOTION_VRMExpressionName_value, EmotionThinkMotionName } from '../constants/emotions'
 import SystemPromptV2 from '../constants/prompts/system-v2'
+import WhisperWorker from '../libs/workers/worker?worker&url'
 import { useLLM } from '../stores/llm'
-import { useSettings } from '../stores/settings'
-import { asyncIteratorFromReadableStream } from '../utils/iterator'
 
+import { useSettings } from '../stores/settings'
+import { encodeWAVToBase64 } from '../utils/binary'
+import { asyncIteratorFromReadableStream } from '../utils/iterator'
 import BasicTextarea from './BasicTextarea.vue'
 import Live2DViewer from './Live2DViewer.vue'
 import Settings from './Settings.vue'
@@ -38,6 +41,7 @@ const { streamSpeech, stream, models } = useLLM()
 const { audioContext, calculateVolume } = useAudioContext()
 const { process } = useMarkdown()
 const { audioInputs } = useDevicesList({ constraints: { audio: true }, requestPermissions: true })
+const { transcribe: generate } = useWhisper(WhisperWorker)
 
 const listening = ref(false)
 const live2DViewerRef = ref<{ setMotion: (motionName: string) => Promise<void> }>()
@@ -61,6 +65,14 @@ const nowSpeakingAvatarBorderOpacity = computed<number>(() => {
     + (nowSpeakingAvatarBorderOpacityMax - nowSpeakingAvatarBorderOpacityMin) * mouthOpenSize.value) / 100)
 })
 
+async function handleTranscription(buffer: Float32Array) {
+  await audioContext.resume()
+
+  // Convert Float32Array to WAV format
+  const audioBase64 = await encodeWAVToBase64(buffer, audioContext.sampleRate)
+  generate({ type: 'generate', data: { audio: audioBase64, language: 'en' } })
+}
+
 useMicVAD(selectedAudioDeviceId, {
   onSpeechStart: () => {
     // TODO: interrupt the playback
@@ -79,9 +91,10 @@ useMicVAD(selectedAudioDeviceId, {
     // TODO: do audio buffer send to whisper
     listening.value = false
   },
-  onSpeechEnd: () => {
+  onSpeechEnd: (buffer) => {
     // TODO: do audio buffer send to whisper
     listening.value = false
+    handleTranscription(buffer)
   },
 })
 
