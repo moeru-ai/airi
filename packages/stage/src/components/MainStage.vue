@@ -327,7 +327,7 @@ onUnmounted(() => {
       </div>
       <Settings />
     </header>
-    <div flex="~ row 1" max-h="[calc(100vh-270px)] <sm:[calc(100vh-320px)]" relative h-full w-full items-end gap-2>
+    <div flex="~ row 1" max-h="[calc(100vh-270px)] <sm:[calc(100vh-280px)]" relative h-full w-full items-end gap-2>
       <Live2DScene
         v-if="stageView === '2d'"
         ref="live2DViewerRef"
@@ -346,12 +346,13 @@ onUnmounted(() => {
       <div
         class="relative <lg:(absolute bottom-0 from-zinc-100/80 to-zinc-800/0 bg-gradient-to-t p-2 dark:from-zinc-800/80)"
         px="<sm:2" py="<sm:2" rounded="lg"
-        w="50% <lg:full" flex="~ col 1" overflow-hidden max-h="[calc(100vh-280px)]"
+        w="50% <lg:full" flex="~ col 1" overflow-hidden max-h="[calc(100vh-280px)] <sm:[calc(100vh-96%)]"
       >
         <div h-full w-full overflow-scroll>
           <div v-for="(message, index) in messages" :key="index" mb-2>
             <div v-if="message.role === 'assistant'" flex mr="12">
               <div
+                class="block <sm:hidden"
                 mr-2 h-10
                 min-h-10 min-w-10 w-10
                 overflow-hidden rounded-full
@@ -392,7 +393,6 @@ onUnmounted(() => {
                 bg="purple-50 dark:purple-900"
                 px="2"
                 border="2 solid purple dark:purple-700"
-
                 h="unset <sm:fit" min-w-20 rounded-lg px-2 py-1
               >
                 <div>
@@ -450,7 +450,7 @@ onUnmounted(() => {
           />
         </div>
       </div>
-      <div h-full w="[16%]" flex="~ col" gap-2>
+      <div h-full w="[16%] <sm:[50%]" flex="~ col" gap-2>
         <fieldset
           flex="~ row"
           bg="zinc-100 dark:zinc-700"
@@ -499,7 +499,7 @@ onUnmounted(() => {
         >
           <Transition mode="out-in">
             <div v-if="whisperStatus === null" flex="~ row" items-center justify-center space-x-1>
-              Load Model
+              Load
             </div>
             <div v-else-if="whisperStatus === 'loading'" flex="~ row" items-center justify-center space-x-1>
               <div i-svg-spinners:bouncing-ball text-pink />
@@ -523,7 +523,7 @@ onUnmounted(() => {
             </div>
             <div v-else flex="~ row" items-center justify-center space-x-1>
               <div i-carbon:microphone text-inherit />
-              Not Listening
+              Waiting
             </div>
           </Transition>
         </button>
