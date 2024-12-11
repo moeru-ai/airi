@@ -16,6 +16,7 @@ import { EMOTION_EmotionMotionName_value, EMOTION_VRMExpressionName_value, Emoti
 import SystemPromptV2 from '../constants/prompts/system-v2'
 import { useLLM } from '../stores/llm'
 import { useSettings } from '../stores/settings'
+import { asyncIteratorFromReadableStream } from '../utils/iterator'
 
 import BasicTextarea from './BasicTextarea.vue'
 import Live2DViewer from './Live2DViewer.vue'
@@ -33,13 +34,10 @@ const {
 } = storeToRefs(useSettings())
 const openAIModel = useLocalStorage<{ id: string, name?: string }>('settings/llm/openai/model', { id: 'openai/gpt-3.5-turbo', name: 'OpenAI GPT3.5 Turbo' })
 
-const {
-  streamSpeech,
-  stream,
-  models,
-} = useLLM()
+const { streamSpeech, stream, models } = useLLM()
 const { audioContext, calculateVolume } = useAudioContext()
 const { process } = useMarkdown()
+const { audioInputs } = useDevicesList({ constraints: { audio: true }, requestPermissions: true })
 
 const listening = ref(false)
 const live2DViewerRef = ref<{ setMotion: (motionName: string) => Promise<void> }>()
@@ -52,10 +50,9 @@ const audioAnalyser = ref<AnalyserNode>()
 const mouthOpenSize = ref(0)
 const nowSpeaking = ref(false)
 const lipSyncStarted = ref(false)
-const { audioInputs } = useDevicesList({ constraints: { audio: true }, requestPermissions: true })
 const selectedAudioDevice = ref<MediaDeviceInfo>()
-const selectedAudioDeviceId = computed(() => selectedAudioDevice.value?.deviceId)
 
+const selectedAudioDeviceId = computed(() => selectedAudioDevice.value?.deviceId)
 const nowSpeakingAvatarBorderOpacity = computed<number>(() => {
   if (!nowSpeaking.value)
     return nowSpeakingAvatarBorderOpacityMin
@@ -218,25 +215,6 @@ function setupLipSync() {
 function setupAnalyser() {
   if (!audioAnalyser.value)
     audioAnalyser.value = audioContext.createAnalyser()
-}
-
-async function* asyncIteratorFromReadableStream<T, F = Uint8Array>(res: ReadableStream<F>, func: (value: F) => Promise<T>): AsyncGenerator<T, void, unknown> {
-  // react js - TS2504: Type 'ReadableStream<Uint8Array>' must have a '[Symbol.asyncIterator]()' method that returns an async iterator - Stack Overflow
-  // https://stackoverflow.com/questions/76700924/ts2504-type-readablestreamuint8array-must-have-a-symbol-asynciterator
-  const reader = res.getReader()
-  try {
-    while (true) {
-      const { done, value } = await reader.read()
-      if (done) {
-        return
-      }
-
-      yield func(value)
-    }
-  }
-  finally {
-    reader.releaseLock()
-  }
 }
 
 async function onSendMessage(sendingMessage: string) {
