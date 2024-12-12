@@ -1,5 +1,5 @@
 {
-  "name": "@airi-proj/llm-proxy",
+  "name": "@proj-airi/llm-proxy",
   "type": "module",
   "private": true,
   "packageManager": "pnpm@9.15.0",

@@ -78,6 +78,8 @@ importers:
         specifier: ^2.1.8
         version: 2.1.8(@types/node@22.10.1)(jsdom@25.0.1)(terser@5.17.6)
 
+  packages/cute-ui: {}
+
   packages/elevenlabs:
     devDependencies:
       elevenlabs:
@@ -244,9 +246,6 @@ importers:
         specifier: ^3.23.8
         version: 3.23.8
     devDependencies:
-      '@airi-proj/elevenlabs':
-        specifier: workspace:^
-        version: link:../elevenlabs
       '@iconify-json/carbon':
         specifier: ^1.2.4
         version: 1.2.4
@@ -265,6 +264,9 @@ importers:
       '@intlify/unplugin-vue-i18n':
         specifier: ^6.0.1
         version: 6.0.1(@vue/compiler-dom@3.5.13)(eslint@9.16.0(jiti@2.4.0))(rollup@2.79.1)(typescript@5.7.2)(vue-i18n@10.0.5(vue@3.5.13(typescript@5.7.2)))(vue@3.5.13(typescript@5.7.2))
+      '@proj-airi/elevenlabs':
+        specifier: workspace:^
+        version: link:../elevenlabs
       '@shikijs/markdown-it':
         specifier: ^1.24.2
         version: 1.24.2
@@ -320,7 +322,7 @@ importers:
         specifier: ^2.1.10
         version: 2.1.10(typescript@5.7.2)
 
-  packages/stt-realtime-webgpu:
+  packages/whisper-webgpu:
     dependencies:
       '@unocss/reset':
         specifier: ^0.65.1

@@ -1,5 +1,5 @@
 {
-  "name": "@airi-proj/stage",
+  "name": "@proj-airi/stage",
   "type": "module",
   "private": true,
   "packageManager": "pnpm@9.15.0",
@@ -67,13 +67,13 @@
     "zod": "^3.23.8"
   },
   "devDependencies": {
-    "@airi-proj/elevenlabs": "workspace:^",
     "@iconify-json/carbon": "^1.2.4",
     "@iconify-json/eos-icons": "^1.2.1",
     "@iconify-json/lucide": "^1.2.18",
     "@iconify-json/solar": "^1.2.1",
     "@iconify-json/svg-spinners": "^1.2.1",
     "@intlify/unplugin-vue-i18n": "^6.0.1",
+    "@proj-airi/elevenlabs": "workspace:^",
     "@shikijs/markdown-it": "^1.24.2",
     "@types/markdown-it-link-attributes": "^3.0.5",
     "@types/nprogress": "^0.2.3",

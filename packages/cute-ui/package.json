@@ -1,0 +1,24 @@
+{
+  "name": "@proj-airi/cute-ui",
+  "version": "1.0.0",
+  "description": "",
+  "author": {
+    "name": "Neko Ayaka",
+    "email": "neko@ayaka.moe",
+    "url": "https://github.com/nekomeowww"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/nekomeowww/airi-vtuber.git",
+    "directory": "packages/cute-ui"
+  },
+  "files": [
+    "README.md",
+    "dist",
+    "package.json"
+  ],
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  }
+}

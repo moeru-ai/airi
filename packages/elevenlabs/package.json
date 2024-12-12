@@ -1,5 +1,5 @@
 {
-  "name": "@airi-proj/elevenlabs",
+  "name": "@proj-airi/elevenlabs",
   "type": "module",
   "private": false,
   "description": "Simple wrapper of types of Elevenlabs's SDK",
@@ -12,7 +12,7 @@
   "repository": {
     "type": "git",
     "url": "https://github.com/nekomeowww/airi-vtuber.git",
-    "directory": "packages/types-elevenlabs"
+    "directory": "packages/elevenlabs"
   },
   "sideEffects": false,
   "exports": {
