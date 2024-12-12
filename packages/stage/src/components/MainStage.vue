@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { AssistantMessage, Message } from '@xsai/shared-chat-completion'
 import type { Emotion } from '../constants/emotions'
-import { useLocalStorage } from '@vueuse/core'
+import { useDevicesList, useElementBounding, useLocalStorage, useScroll } from '@vueuse/core'
 
 import { storeToRefs } from 'pinia'
 
@@ -46,6 +46,8 @@ const { audioContext, calculateVolume } = useAudioContext()
 const { process } = useMarkdown()
 const { audioInputs } = useDevicesList({ constraints: { audio: true }, requestPermissions: true })
 
+const isAudioInputOn = ref('true')
+const chatHistoryRef = ref<HTMLDivElement>()
 const listening = ref(false)
 const live2DViewerRef = ref<{ setMotion: (motionName: string) => Promise<void> }>()
 const vrmViewerRef = ref<{ setExpression: (expression: string) => void }>()
@@ -61,7 +63,9 @@ const mouthOpenSize = ref(0)
 const nowSpeaking = ref(false)
 const lipSyncStarted = ref(false)
 const selectedAudioDevice = ref<MediaDeviceInfo>()
-const isAudioInputOn = ref('true')
+
+const bounding = useElementBounding(chatHistoryRef, { immediate: true, windowScroll: true, windowResize: true })
+const { y: chatHistoryContainerY } = useScroll(chatHistoryRef)
 
 const selectedAudioDeviceId = computed(() => selectedAudioDevice.value?.deviceId)
 const nowSpeakingAvatarBorderOpacity = computed<number>(() => {
@@ -213,6 +217,13 @@ async function onSendMessage(sendingMessage: string) {
 
   streamingMessage.value = { role: 'assistant', content: '' }
   messages.value.push({ role: 'user', content: sendingMessage })
+
+  // Scroll down to the new sent message
+  nextTick().then(() => {
+    bounding.update()
+    chatHistoryContainerY.value = bounding.height.value
+  })
+
   messages.value.push(streamingMessage.value)
   // const index = messages.value.length - 1
   live2DViewerRef.value?.setMotion(EmotionThinkMotionName)
@@ -224,6 +235,12 @@ async function onSendMessage(sendingMessage: string) {
     onLiteral: async (literal) => {
       await messageContentQueue.add(literal)
       streamingMessage.value.content += literal
+
+      // Scroll down to the new responding message
+      nextTick(() => {
+        bounding.update()
+        chatHistoryContainerY.value = bounding.height.value
+      })
     },
     onSpecial: async (special) => {
       await delaysQueue.add(special)
@@ -355,7 +372,7 @@ onUnmounted(() => {
         px="<sm:2" py="<sm:2" rounded="lg"
         w="50% <lg:full" flex="~ col 1" overflow-hidden max-h="[calc(100vh-280px)] <sm:[calc(100vh-96%)]"
       >
-        <div h-full w-full overflow-scroll>
+        <div ref="chatHistoryRef" h-full w-full overflow-scroll>
           <div v-for="(message, index) in messages" :key="index" mb-2>
             <div v-if="message.role === 'assistant'" flex mr="12">
               <div
@@ -379,7 +396,7 @@ onUnmounted(() => {
                 h="unset <sm:fit"
               >
                 <div>
-                  <span text-xs text="white/50" font-semibold class="inline <sm:hidden">Airi</span>
+                  <span text-xs text="black/50 dark:white/50" font-semibold class="inline <sm:hidden">Airi</span>
                 </div>
                 <div v-if="message.content" class="markdown-content" text="base <sm:xs" v-html="process(message.content as string)" />
                 <div v-else i-eos-icons:three-dots-loading />
@@ -403,7 +420,7 @@ onUnmounted(() => {
                 h="unset <sm:fit" min-w-20 rounded-lg px-2 py-1
               >
                 <div>
-                  <span text-xs text="white/50" font-semibold class="inline <sm:hidden">You</span>
+                  <span text-xs text="black/50 dark:white/50" font-semibold class="inline <sm:hidden">You</span>
                 </div>
                 <div v-if="message.content" class="markdown-content" text="base <sm:xs" whitespace-nowrap v-html="process(message.content as string)" />
                 <div v-else />
