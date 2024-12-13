@@ -2,9 +2,10 @@
 import type { VRMCore } from '@pixiv/three-vrm-core'
 import { useLoop, useTresContext } from '@tresjs/core'
 import { AnimationMixer } from 'three'
-import { clipFromVRMAnimation, loadVRMAnimation, useBlink } from '~/composables/vrm/animation'
-import { loadVrm } from '~/composables/vrm/core'
-import { useVRMEmote } from '~/composables/vrm/expression'
+
+import { clipFromVRMAnimation, loadVRMAnimation, useBlink } from '../../composables/vrm/animation'
+import { loadVrm } from '../../composables/vrm/core'
+import { useVRMEmote } from '../../composables/vrm/expression'
 
 const props = defineProps<{
   model: string

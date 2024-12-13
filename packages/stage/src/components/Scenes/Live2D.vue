@@ -1,5 +1,16 @@
 <script setup lang="ts">
-import { EmotionAngryMotionName, EmotionAwkwardMotionName, EmotionHappyMotionName, EmotionQuestionMotionName, EmotionSadMotionName, EmotionSurpriseMotionName, EmotionThinkMotionName } from '~/constants/emotions'
+import {
+  EmotionAngryMotionName,
+  EmotionAwkwardMotionName,
+  EmotionHappyMotionName,
+  EmotionQuestionMotionName,
+  EmotionSadMotionName,
+  EmotionSurpriseMotionName,
+  EmotionThinkMotionName,
+} from '../../constants/emotions'
+
+import Live2DViewer from '../Live2D/Viewer.vue'
+import Screen from '../Screen.vue'
 
 withDefaults(defineProps<{
   model: string
@@ -20,7 +31,7 @@ defineExpose({
 </script>
 
 <template>
-  <Screen v-slot="{ canvasHeight, canvasWidth }" relative>
+  <Screen v-slot="{ width, height }" relative>
     <div z="10" top="2" absolute w-full flex="~ col" gap-2>
       <div flex="~ row" w-full flex-wrap gap-2>
         <button
@@ -67,6 +78,6 @@ defineExpose({
         </button>
       </div>
     </div>
-    <Live2DViewer ref="modelRef" :canvas-width="canvasWidth" :canvas-height="canvasHeight" :model="model" :mouth-open-size="mouthOpenSize" />
+    <Live2DViewer ref="modelRef" :canvas-width="width" :canvas-height="height" :model="model" :mouth-open-size="mouthOpenSize" />
   </Screen>
 </template>

@@ -2,9 +2,9 @@
 import { OrbitControls } from '@tresjs/cientos'
 import { TresCanvas } from '@tresjs/core'
 
-import Collapsable from './Collapsable.vue'
-import DataGuiRange from './DataGui/Range.vue'
-import VRMModel from './VRMModel.vue'
+import Collapsable from '../Collapsable.vue'
+import DataGuiRange from '../DataGui/Range.vue'
+import VRMModel from '../VRM/Model.vue'
 
 const props = defineProps<{
   model: string

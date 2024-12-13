@@ -51,6 +51,6 @@ onMounted(async () => {
 
 <template>
   <div ref="containerRef" h-full w-full>
-    <slot :width="canvasWidth" height="canvasHeight" />
+    <slot :width="canvasWidth" :height="canvasHeight" />
   </div>
 </template>

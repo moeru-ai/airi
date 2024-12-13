@@ -6,16 +6,35 @@ export const useSettings = defineStore('settings', () => {
   const openAiApiKey = useLocalStorage('settings/credentials/openai-api-key', '')
   const openAiApiBaseURL = useLocalStorage('settings/credentials/openai-api-base-url', '')
   const elevenLabsApiKey = useLocalStorage('settings/credentials/elevenlabs-api-key', '')
-  const language = useLocalStorage('settings/language', 'en')
+
+  const language = useLocalStorage('settings/language', 'en-US')
   const stageView = useLocalStorage('settings/stage/view/model-renderer', '2d')
+  const openAiModel = useLocalStorage<{ id: string, name?: string }>('settings/llm/openai/model', { id: 'openai/gpt-3.5-turbo', name: 'OpenAI GPT3.5 Turbo' })
+  const isAudioInputOn = useLocalStorage('settings/audio/input', 'true')
+  const selectedAudioDevice = useLocalStorage<MediaDeviceInfo | undefined>('settings/audio/input/device', undefined)
+  const selectedAudioDeviceId = computed(() => selectedAudioDevice.value?.deviceId)
+  const { audioInputs } = useDevicesList({ constraints: { audio: true }, requestPermissions: true })
+
+  watch(isAudioInputOn, async (value) => {
+    if (value === 'false') {
+      selectedAudioDevice.value = undefined
+    }
+    if (value === 'true') {
+      selectedAudioDevice.value = audioInputs.value[0]
+    }
+  })
 
   watch(language, value => i18n.global.locale.value = value)
 
   return {
     openAiApiKey,
     openAiApiBaseURL,
+    openAiModel,
     elevenLabsApiKey,
     language,
     stageView,
+    isAudioInputOn,
+    selectedAudioDevice,
+    selectedAudioDeviceId,
   }
 })

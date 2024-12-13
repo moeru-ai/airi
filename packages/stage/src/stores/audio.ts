@@ -71,3 +71,24 @@ export const useAudioContext = defineStore('AudioContext', () => {
     calculateVolume,
   }
 })
+
+export const useSpeakingStore = defineStore('SpeakingStore', () => {
+  const nowSpeakingAvatarBorderOpacityMin = 30
+  const nowSpeakingAvatarBorderOpacityMax = 100
+  const mouthOpenSize = ref(0)
+  const nowSpeaking = ref(false)
+
+  const nowSpeakingAvatarBorderOpacity = computed<number>(() => {
+    if (!nowSpeaking.value)
+      return nowSpeakingAvatarBorderOpacityMin
+
+    return ((nowSpeakingAvatarBorderOpacityMin
+      + (nowSpeakingAvatarBorderOpacityMax - nowSpeakingAvatarBorderOpacityMin) * mouthOpenSize.value) / 100)
+  })
+
+  return {
+    mouthOpenSize,
+    nowSpeaking,
+    nowSpeakingAvatarBorderOpacity,
+  }
+})
