@@ -1,4 +1,4 @@
-import type { GenerateAudioStream } from '@airi-proj/elevenlabs/types'
+import type { GenerateAudioStream } from '@proj-airi/elevenlabs/types'
 import type { Message } from '@xsai/shared-chat-completion'
 import { listModels } from '@xsai/model'
 import { streamText } from '@xsai/stream-text'

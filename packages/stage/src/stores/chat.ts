@@ -105,8 +105,6 @@ export const useChatStore = defineStore('chat', () => {
         for (const hook of onTokenSpecialHooks.value) {
           await hook(special)
         }
-
-        streamingMessage.value.content += special
       },
     })
 

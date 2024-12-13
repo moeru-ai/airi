@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import type { Message } from '@xsai/shared-chat-completion'
 import { storeToRefs } from 'pinia'
 
 import { ref } from 'vue'
@@ -7,8 +6,9 @@ import Avatar from '../../assets/live2d/models/hiyori_free_zh/avatar.png'
 import { useMarkdown } from '../../composables/markdown'
 import { useSpeakingStore } from '../../stores/audio'
 
-const messages = ref<Message[]>([])
 const chatHistoryRef = ref<HTMLDivElement>()
+
+const { messages } = storeToRefs(useChatStore())
 const bounding = useElementBounding(chatHistoryRef, { immediate: true, windowScroll: true, windowResize: true })
 const { y: chatHistoryContainerY } = useScroll(chatHistoryRef)
 

@@ -6,6 +6,10 @@ import { ref } from 'vue'
 import WhisperWorker from '../../libs/workers/worker?worker&url'
 import { encodeWAVToBase64 } from '../../utils/binary'
 
+const messageInput = ref('')
+const supportedModels = ref<{ id: string, name?: string }[]>([])
+const listening = ref(false)
+
 const { audioInputs } = useDevicesList({ constraints: { audio: true }, requestPermissions: true })
 const { openAiModel, openAiApiBaseURL, openAiApiKey, selectedAudioDevice, isAudioInputOn, selectedAudioDeviceId } = storeToRefs(useSettings())
 const { models } = useLLM()
@@ -13,58 +17,17 @@ const { send, onAfterSend } = useChatStore()
 const { audioContext } = useAudioContext()
 const { t } = useI18n()
 
-const messageInput = ref('')
-const supportedModels = ref<{ id: string, name?: string }[]>([])
-const listening = ref(false)
-
-function handleModelChange(event: Event) {
-  const target = event.target as HTMLSelectElement
-  const found = supportedModels.value.find(m => m.id === target.value)
-  if (!found) {
-    openAiModel.value = undefined
-    return
-  }
-
-  openAiModel.value = found
-}
-
-async function handleAudioInputChange(event: Event) {
-  const target = event.target as HTMLSelectElement
-  const found = audioInputs.value.find(d => d.deviceId === target.value)
-  if (!found) {
-    selectedAudioDevice.value = undefined
-    return
-  }
-
-  selectedAudioDevice.value = found
-}
-
 const { transcribe: generate, load: loadWhisper, status: whisperStatus, terminate } = useWhisper(WhisperWorker, {
   onComplete: async (res) => {
     await send(res)
   },
 })
 
-function handleLoadWhisper() {
-  if (whisperStatus.value === 'loading')
-    return
-
-  loadWhisper()
-}
-
-async function handleTranscription(buffer: Float32Array) {
-  await audioContext.resume()
-
-  // Convert Float32Array to WAV format
-  const audioBase64 = await encodeWAVToBase64(buffer, audioContext.sampleRate)
-  generate({ type: 'generate', data: { audio: audioBase64, language: 'en' } })
-}
-
 async function handleSend() {
   await send(messageInput.value)
 }
 
-const { destroy } = useMicVAD(selectedAudioDeviceId, {
+const { destroy, start } = useMicVAD(selectedAudioDeviceId, {
   onSpeechStart: () => {
     // TODO: interrupt the playback
     // TODO: interrupt any of the ongoing TTS
@@ -87,7 +50,46 @@ const { destroy } = useMicVAD(selectedAudioDeviceId, {
     listening.value = false
     handleTranscription(buffer)
   },
+  auto: false,
 })
+
+function handleLoadWhisper() {
+  if (whisperStatus.value === 'loading')
+    return
+
+  loadWhisper()
+  start()
+}
+
+async function handleTranscription(buffer: Float32Array) {
+  await audioContext.resume()
+
+  // Convert Float32Array to WAV format
+  const audioBase64 = await encodeWAVToBase64(buffer, audioContext.sampleRate)
+  generate({ type: 'generate', data: { audio: audioBase64, language: 'en' } })
+}
+
+function handleModelChange(event: Event) {
+  const target = event.target as HTMLSelectElement
+  const found = supportedModels.value.find(m => m.id === target.value)
+  if (!found) {
+    openAiModel.value = undefined
+    return
+  }
+
+  openAiModel.value = found
+}
+
+async function handleAudioInputChange(event: Event) {
+  const target = event.target as HTMLSelectElement
+  const found = audioInputs.value.find(d => d.deviceId === target.value)
+  if (!found) {
+    selectedAudioDevice.value = undefined
+    return
+  }
+
+  selectedAudioDevice.value = found
+}
 
 watch(isAudioInputOn, async (value) => {
   if (value === 'false') {
