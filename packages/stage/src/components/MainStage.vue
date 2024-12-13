@@ -1,10 +1,12 @@
 <script setup lang="ts">
-import type { AssistantMessage, Message, SystemMessage } from '@xsai/shared-chat-completion'
+import type { AssistantMessage, Message } from '@xsai/shared-chat-completion'
 import type { Emotion } from '../constants/emotions'
 import { useLocalStorage } from '@vueuse/core'
 
 import { storeToRefs } from 'pinia'
+
 import { computed, onMounted, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import { useWhisper } from '~/composables/whisper'
 import Avatar from '../assets/live2d/models/hiyori_free_zh/avatar.png'
@@ -25,6 +27,8 @@ import BasicTextarea from './BasicTextarea.vue'
 import Live2DScene from './Live2DScene.vue'
 import Settings from './Settings.vue'
 import ThreeDScene from './ThreeDScene.vue'
+
+const { t } = useI18n()
 
 const nowSpeakingAvatarBorderOpacityMin = 30
 const nowSpeakingAvatarBorderOpacityMax = 100
@@ -47,7 +51,10 @@ const live2DViewerRef = ref<{ setMotion: (motionName: string) => Promise<void> }
 const vrmViewerRef = ref<{ setExpression: (expression: string) => void }>()
 const supportedModels = ref<{ id: string, name?: string }[]>([])
 const messageInput = ref<string>('')
-const messages = ref<Array<Message>>([SystemPromptV2 as SystemMessage])
+const messages = ref<Array<Message>>([SystemPromptV2(
+  t('prompt.prefix'),
+  t('prompt.suffix'),
+)])
 const streamingMessage = ref<AssistantMessage>({ role: 'assistant', content: '' })
 const audioAnalyser = ref<AnalyserNode>()
 const mouthOpenSize = ref(0)
@@ -415,7 +422,7 @@ onUnmounted(() => {
           @change="handleAudioInputChange"
         >
           <option disabled>
-            Select a Audio Input
+            {{ t('stage.select-a-audio-input') }}
           </option>
           <option v-if="selectedAudioDevice" :value="selectedAudioDevice.deviceId">
             {{ selectedAudioDevice.label }}
@@ -431,7 +438,7 @@ onUnmounted(() => {
           @change="handleModelChange"
         >
           <option disabled>
-            Select a model
+            {{ t('stage.select-a-model') }}
           </option>
           <option v-if="openAIModel" :value="openAIModel.id">
             {{ 'name' in openAIModel ? `${openAIModel.name} (${openAIModel.id})` : openAIModel.id }}
@@ -443,7 +450,7 @@ onUnmounted(() => {
         <div flex gap-2>
           <BasicTextarea
             v-model="messageInput"
-            placeholder="Message"
+            :placeholder="t('stage.message')"
             p="2" bg="zinc-100 dark:zinc-700"
             w-full rounded-lg outline-none min-h="[100px]"
             @submit="onSendMessage"
@@ -523,7 +530,7 @@ onUnmounted(() => {
             </div>
             <div v-else flex="~ row" items-center justify-center space-x-1>
               <div i-carbon:microphone text-inherit />
-              Waiting
+              {{ t('stage.waiting') }}
             </div>
           </Transition>
         </button>
