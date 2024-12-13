@@ -1,5 +1,8 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import { useSettings } from '../stores/settings'
+
+const { t } = useI18n()
 
 const settings = useSettings()
 const show = ref(false)
@@ -78,37 +81,53 @@ const show = ref(false)
         grid="~ cols-[140px_1fr]" absolute z-100 my-2 items-center gap-1.5 rounded-lg p-2
       >
         <div text-sm>
-          <span>OpenAI API BaseURL</span>
+          <span>{{ t('settings.openai-base-url.label') }}</span>
         </div>
         <div flex="~ row" w-full text="sm">
           <input
             v-model="settings.openAiApiBaseURL"
             type="text"
-            placeholder="Input your API base URL"
+            :placeholder="t('settings.openai-base-url.placeholder')"
             bg="zinc-200 dark:zinc-800/50" w-full rounded-md px-2 py-1 font-mono outline-none
           >
         </div>
         <div text-sm>
-          <span>OpenAI API Key</span>
+          <span>{{ t('settings.openai-api-key.label') }}</span>
         </div>
         <div flex="~ row" w-full text="sm">
           <input
             v-model="settings.openAiApiKey"
             type="text"
-            placeholder="Input your API key"
+            :placeholder="t('settings.openai-api-key.placeholder')"
             bg="zinc-200 dark:zinc-800/50" w-full rounded-md px-2 py-1 font-mono outline-none
           >
         </div>
         <div text-sm>
-          <span>ElevenLabs API Key</span>
+          <span>{{ t('settings.elevenlabs-api-key.label') }}</span>
         </div>
         <div flex="~ row" w-full text="sm">
           <input
             v-model="settings.elevenLabsApiKey"
             type="text"
-            placeholder="Input your ElevenLabs API key"
+            :placeholder="t('settings.elevenlabs-api-key.placeholder')"
             bg="zinc-200 dark:zinc-800/50" w-full rounded-md px-2 py-1 font-mono outline-none
           >
+        </div>
+        <div text-sm>
+          <span>{{ t('settings.language') }}</span>
+        </div>
+        <div flex="~ row" w-full text="sm">
+          <select
+            v-model="settings.language" bg="zinc-200 dark:zinc-800/50" w-full rounded-md px-2 py-1 font-mono
+            outline-none
+          >
+            <option value="en-US">
+              English
+            </option>
+            <option value="zh-CN">
+              简体中文
+            </option>
+          </select>
         </div>
       </div>
     </div>
