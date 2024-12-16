@@ -35,7 +35,9 @@ const dark = useDark({ disableTransition: false })
           value="2d"
           hidden appearance-none outline-none
         >
-        <div select-none>2D</div>
+        <div select-none :class="[settings.stageView === '2d' ? 'font-semibold' : '']">
+          2D
+        </div>
       </label>
       <label
         h-fit cursor-pointer
@@ -52,7 +54,9 @@ const dark = useDark({ disableTransition: false })
           value="3d"
           hidden appearance-none outline-none
         >
-        <div select-none>3D</div>
+        <div select-none :class="[settings.stageView === '3d' ? 'font-semibold' : '']">
+          3D
+        </div>
       </label>
     </fieldset>
     <div relative>

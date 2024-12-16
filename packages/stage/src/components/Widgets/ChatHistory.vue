@@ -5,6 +5,7 @@ import { ref } from 'vue'
 import Avatar from '../../assets/live2d/models/hiyori_free_zh/avatar.png'
 import { useMarkdown } from '../../composables/markdown'
 import { useSpeakingStore } from '../../stores/audio'
+import { useChatStore } from '../../stores/chat'
 
 const chatHistoryRef = ref<HTMLDivElement>()
 
@@ -35,9 +36,11 @@ onTokenLiteral(async () => {
 
 <template>
   <div
-    class="relative <lg:(absolute bottom-0 from-zinc-100/80 to-zinc-800/0 bg-gradient-to-t p-2 dark:from-zinc-800/80)"
-    px="<sm:2" py="<sm:2" rounded="lg"
-    w="50% <lg:full" flex="~ col 1" overflow-hidden max-h="[80vh]"
+    relative
+    class="<lg:(absolute bottom-0 from-zinc-100/80 to-zinc-800/0 bg-gradient-to-t p-2 dark:from-zinc-800/80)"
+    px="<sm:2" py="<sm:2" w="50% <lg:full" flex="~ col 1"
+    rounded="lg" max-h="[80vh]"
+    overflow-hidden
   >
     <div ref="chatHistoryRef" h-full w-full overflow-scroll>
       <div v-for="(message, index) in messages" :key="index" mb-2>
