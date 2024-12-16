@@ -20,7 +20,7 @@ const cameraPositionX = ref(-0.17)
 const cameraPositionY = ref(0)
 const cameraPositionZ = ref(-1)
 const vrmModelPositionX = ref(-0.18)
-const vrmModelPositionY = ref(-1.4)
+const vrmModelPositionY = ref(-1.32)
 const vrmModelPositionZ = ref(-0.24)
 
 const modelRef = ref<{
@@ -36,7 +36,21 @@ defineExpose({
 
 <template>
   <Screen v-slot="{ canvasHeight, canvasWidth }" relative>
-    <div z="10" top="2" absolute w-full flex="~ col" gap-2>
+    <TresCanvas :alpha="true" :antialias="true" :width="canvasWidth" :height="canvasHeight">
+      <OrbitControls />
+      <TresPerspectiveCamera :position="[cameraPositionX, cameraPositionY, cameraPositionZ]" />
+      <TresDirectionalLight :color="0xFFFFFF" :intensity="1.2" :position="[1, 1, 1]" />
+      <TresAmbientLight :color="0xFFFFFF" :intensity="1.5" />
+      <VRMModel
+        ref="modelRef"
+        :model="props.model"
+        :idle-animation="props.idleAnimation"
+        :position="[vrmModelPositionX, vrmModelPositionY, vrmModelPositionZ]"
+        @load-model-progress="(val) => emit('loadModelProgress', val)"
+        @error="(val) => emit('error', val)"
+      />
+    </TresCanvas>
+    <div z="10" bottom="2" absolute w-full flex="~ col" gap-2>
       <div w-full flex="~ col md:row" gap-2>
         <Collapsable h-fit w-full>
           <template #label>
@@ -145,19 +159,5 @@ defineExpose({
         </button>
       </div>
     </div>
-    <TresCanvas :alpha="true" :antialias="true" :width="canvasWidth" :height="canvasHeight">
-      <OrbitControls />
-      <TresPerspectiveCamera :position="[cameraPositionX, cameraPositionY, cameraPositionZ]" />
-      <TresDirectionalLight :color="0xFFFFFF" :intensity="1.2" :position="[1, 1, 1]" />
-      <TresAmbientLight :color="0xFFFFFF" :intensity="1.5" />
-      <VRMModel
-        ref="modelRef"
-        :model="props.model"
-        :idle-animation="props.idleAnimation"
-        :position="[vrmModelPositionX, vrmModelPositionY, vrmModelPositionZ]"
-        @load-model-progress="(val) => emit('loadModelProgress', val)"
-        @error="(val) => emit('error', val)"
-      />
-    </TresCanvas>
   </Screen>
 </template>

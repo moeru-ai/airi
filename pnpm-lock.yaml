@@ -107,6 +107,9 @@ importers:
       '@11labs/client':
         specifier: ^0.0.4
         version: 0.0.4
+      '@formkit/auto-animate':
+        specifier: ^0.8.2
+        version: 0.8.2
       '@huggingface/transformers':
         specifier: ^3.1.2
         version: 3.1.2
@@ -1671,6 +1674,9 @@ packages:
   '@fastify/busboy@2.1.1':
     resolution: {integrity: sha512-vBZP4NlzfOlerQTnba4aqZoMhE/a9HY7HRqoOPaETQcSQuWEIyZMHGfVu6w9wGtGK5fED5qRs2DteVCjOH60sA==}
     engines: {node: '>=14'}
+
+  '@formkit/auto-animate@0.8.2':
+    resolution: {integrity: sha512-SwPWfeRa5veb1hOIBMdzI+73te5puUBHmqqaF1Bu7FjvxlYSz/kJcZKSa9Cg60zL0uRNeJL2SbRxV6Jp6Q1nFQ==}
 
   '@huggingface/jinja@0.3.2':
     resolution: {integrity: sha512-F2FvuIc+w1blGsaqJI/OErRbWH6bVJDCBI8Rm5D86yZ2wlwrGERsfIaru7XUv9eYC3DMP3ixDRRtF0h6d8AZcQ==}
@@ -8407,6 +8413,8 @@ snapshots:
       levn: 0.4.1
 
   '@fastify/busboy@2.1.1': {}
+
+  '@formkit/auto-animate@0.8.2': {}
 
   '@huggingface/jinja@0.3.2': {}
 

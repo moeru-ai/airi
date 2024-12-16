@@ -37,7 +37,7 @@ onTokenLiteral(async () => {
   <div
     class="relative <lg:(absolute bottom-0 from-zinc-100/80 to-zinc-800/0 bg-gradient-to-t p-2 dark:from-zinc-800/80)"
     px="<sm:2" py="<sm:2" rounded="lg"
-    w="50% <lg:full" flex="~ col 1" overflow-hidden max-h="[calc(100vh-280px)] <sm:[calc(100vh-96%)]"
+    w="50% <lg:full" flex="~ col 1" overflow-hidden max-h="[80vh]"
   >
     <div ref="chatHistoryRef" h-full w-full overflow-scroll>
       <div v-for="(message, index) in messages" :key="index" mb-2>

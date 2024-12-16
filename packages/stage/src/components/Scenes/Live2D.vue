@@ -32,7 +32,8 @@ defineExpose({
 
 <template>
   <Screen v-slot="{ width, height }" relative>
-    <div z="10" top="2" absolute w-full flex="~ col" gap-2>
+    <Live2DViewer ref="modelRef" :canvas-width="width" :canvas-height="height" :model="model" :mouth-open-size="mouthOpenSize" />
+    <div z="10" bottom="2" absolute w-full flex="~ col" gap-2>
       <div flex="~ row" w-full flex-wrap gap-2>
         <button
           rounded-lg bg="zinc-100/70 dark:zinc-800/50" px-2 py-1 backdrop-blur-sm
@@ -78,6 +79,5 @@ defineExpose({
         </button>
       </div>
     </div>
-    <Live2DViewer ref="modelRef" :canvas-width="width" :canvas-height="height" :model="model" :mouth-open-size="mouthOpenSize" />
   </Screen>
 </template>

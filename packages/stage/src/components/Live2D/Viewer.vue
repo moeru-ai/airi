@@ -34,7 +34,7 @@ function setScale(model: Ref<Live2DModel<InternalModel> | undefined>) {
   if (!model.value)
     return
 
-  let offsetFactor = 2
+  let offsetFactor = 2.2
   if (isMobile.value) {
     offsetFactor = 2.5
   }

@@ -19,6 +19,7 @@
   },
   "dependencies": {
     "@11labs/client": "^0.0.4",
+    "@formkit/auto-animate": "^0.8.2",
     "@huggingface/transformers": "^3.1.2",
     "@pixi/app": "^6.5.10",
     "@pixi/constants": "6",
