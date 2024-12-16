@@ -1,4 +1,4 @@
-@import './markdown.css';
+@import './themes.css';
 
 html,
 body,
@@ -6,6 +6,11 @@ body,
   height: 100%;
   margin: 0;
   padding: 0;
+}
+
+html {
+  background: #fff;
+  transition: all 0.3s ease-in-out;
 }
 
 html.dark {

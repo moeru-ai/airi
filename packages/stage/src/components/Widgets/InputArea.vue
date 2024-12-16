@@ -120,15 +120,15 @@ onAfterSend(async () => {
 </script>
 
 <template>
-  <div flex="~ row" my="2" space-x="2" w-full self-end>
+  <div flex="~ row" my="2" space-x="2" w-full self-end class="bg-primary-50/30 border-primary-200/50 dark:bg-primary-950/30 dark:border-primary-800/50 border-2 rounded-xl p-4 backdrop-blur-sm">
     <div flex="~ col" w="100%" space-y="2">
       <select
         p="2"
-        bg="zinc-100 dark:zinc-700" w-full rounded-lg
+        class="border-primary-200 text-primary-800 dark:border-primary-800 dark:text-primary-200 w-full border-2 rounded-xl bg-white/70 font-medium dark:bg-zinc-800/70"
         outline-none
         @change="handleAudioInputChange"
       >
-        <option disabled>
+        <option disabled class="bg-white dark:bg-zinc-800">
           {{ t('stage.select-a-audio-input') }}
         </option>
         <option v-if="selectedAudioDevice" :value="selectedAudioDevice.deviceId">
@@ -140,11 +140,11 @@ onAfterSend(async () => {
       </select>
       <select
         p="2"
-        bg="zinc-100 dark:zinc-700" w-full rounded-lg
+        class="border-primary-200 text-primary-800 dark:border-primary-800 dark:text-primary-200 w-full border-2 rounded-xl bg-white/70 font-medium dark:bg-zinc-800/70"
         outline-none
         @change="handleModelChange"
       >
-        <option disabled>
+        <option disabled class="bg-white dark:bg-zinc-800">
           {{ t('stage.select-a-model') }}
         </option>
         <option v-if="openAiModel" :value="openAiModel.id">
@@ -158,8 +158,8 @@ onAfterSend(async () => {
         <BasicTextarea
           v-model="messageInput"
           :placeholder="t('stage.message')"
-          p="2" bg="zinc-100 dark:zinc-700"
-          w-full rounded-lg outline-none min-h="[100px]"
+          class="border-primary-200 text-primary-800 dark:border-primary-800 dark:text-primary-200 placeholder:text-primary-400 dark:placeholder:text-primary-600 min-h-[100px] w-full border-2 rounded-xl bg-white/70 p-4 font-medium dark:bg-zinc-800/70"
+          outline-none
           @submit="handleSend"
         />
       </div>
@@ -167,13 +167,13 @@ onAfterSend(async () => {
     <div h-full w="[16%] <sm:[50%]" flex="~ col" gap-2>
       <fieldset
         flex="~ row"
-        bg="zinc-100 dark:zinc-700"
-        text="sm zinc-400 dark:zinc-500"
-        appearance-none gap-1 rounded-lg rounded-md border-none p-1
+        class="border-primary-200 dark:border-primary-800 border-2 rounded-xl bg-white/70 dark:bg-zinc-800/70"
+        text="sm primary-400 dark:primary-500"
+        appearance-none gap-1 p-1
       >
         <label
-          :class="[isAudioInputOn === 'true' ? 'bg-zinc-300 text-zinc-900 dark:bg-zinc-200 dark:text-zinc-800' : '']"
-          min-h="7.75" flex="~" w-full cursor-pointer items-center justify-center rounded-md
+          :class="[isAudioInputOn === 'true' ? 'bg-primary-200 text-primary-900 dark:bg-primary-300 dark:text-primary-900' : '']"
+          min-h="7.75" flex="~" w-full cursor-pointer items-center justify-center rounded-lg
         >
           <input
             v-model="isAudioInputOn"
@@ -188,8 +188,8 @@ onAfterSend(async () => {
           <div select-none>ON</div>
         </label>
         <label
-          :class="[isAudioInputOn === 'false' ? 'bg-zinc-300 text-zinc-900 dark:bg-zinc-200 dark:text-zinc-800' : '']"
-          min-h="7.75" flex="~" w-full cursor-pointer items-center justify-center rounded-md
+          :class="[isAudioInputOn === 'false' ? 'bg-primary-200 text-primary-900 dark:bg-primary-300 dark:text-primary-900' : '']"
+          min-h="7.75" flex="~" w-full cursor-pointer items-center justify-center rounded-lg
         >
           <input
             v-model="isAudioInputOn"
@@ -205,9 +205,10 @@ onAfterSend(async () => {
         </label>
       </fieldset>
       <button
+        class="border-primary-200 text-primary-800 dark:border-primary-800 dark:text-primary-200 hover:bg-primary-100 dark:hover:bg-primary-900/50 border-2 rounded-xl bg-white/70 font-medium dark:bg-zinc-800/70"
         flex="~ row"
-        p="2" bg="zinc-100 dark:zinc-700" min-h="9.75"
-        min-w-20 w-full items-center justify-center rounded-lg outline-none
+        p="2" min-h="9.75"
+        min-w-20 w-full items-center justify-center outline-none
         transition="all ease-in-out"
         @click="handleLoadWhisper"
       >
@@ -216,27 +217,28 @@ onAfterSend(async () => {
             Load
           </div>
           <div v-else-if="whisperStatus === 'loading'" flex="~ row" items-center justify-center space-x-1>
-            <div i-svg-spinners:bouncing-ball text-pink />
+            <div i-svg-spinners:bouncing-ball class="text-primary-500" />
             <span>Loading</span>
           </div>
           <div v-else-if="whisperStatus === 'ready'" flex="~ row" items-center justify-center space-x-1>
-            <div i-lucide:check text-green />
+            <div i-lucide:check class="text-primary-500" />
             <span>Ready</span>
           </div>
         </Transition>
       </button>
       <button
+        class="border-primary-200 text-primary-800 dark:border-primary-800 hover:bg-primary-100 dark:text-primary-200 dark:hover:bg-primary-900/50 border-2 rounded-xl bg-white/70 font-medium dark:bg-zinc-800/70"
         flex="~ row" h-full
-        p="2" bg="zinc-100 dark:zinc-700"
-        min-w-20 w-full items-center justify-center rounded-lg outline-none
+        p="2"
+        min-w-20 w-full items-center justify-center outline-none
         transition="all ease-in-out"
       >
         <Transition mode="out-in">
           <div v-if="listening" flex="~ row" items-center justify-center space-x-1>
-            <div i-carbon:microphone-filled text-red />
+            <div i-carbon:microphone-filled class="text-primary-500" />
           </div>
           <div v-else flex="~ row" items-center justify-center space-x-1>
-            <div i-carbon:microphone text-inherit />
+            <div i-carbon:microphone class="text-primary-400" />
             {{ t('stage.waiting') }}
           </div>
         </Transition>
@@ -244,3 +246,15 @@ onAfterSend(async () => {
     </div>
   </div>
 </template>
+
+<style>
+.v-enter-active,
+.v-leave-active {
+  transition: opacity 0.2s ease;
+}
+
+.v-enter-from,
+.v-leave-to {
+  opacity: 0;
+}
+</style>

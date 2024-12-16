@@ -1,11 +1,14 @@
 <script setup lang="ts">
+import { useDark } from '@vueuse/core'
 import { useI18n } from 'vue-i18n'
+
 import { useSettings } from '../stores/settings'
 
 const { t } = useI18n()
 
 const settings = useSettings()
 const show = ref(false)
+const dark = useDark({ disableTransition: false })
 </script>
 
 <template>
@@ -131,5 +134,49 @@ const show = ref(false)
         </div>
       </div>
     </div>
+    <div>
+      <div
+        flex="~ row"
+        bg="zinc-100 dark:zinc-700"
+        text="sm zinc-400 dark:zinc-500"
+        h-fit w-fit appearance-none gap-1 rounded-lg rounded-md border-none p-1
+      >
+        <label
+          h-fit cursor-pointer
+          :class="[dark ? 'bg-zinc-300 text-zinc-900 dark:bg-zinc-200 dark:text-zinc-800' : '']"
+          rounded-md px-2 py-2
+        >
+          <input
+            v-model="dark"
+            :checked="dark"
+            :aria-checked="dark"
+            name="stageView"
+            type="checkbox"
+            hidden appearance-none outline-none
+          >
+          <div select-none>
+            <Transition name="slide-away" mode="out-in">
+              <div v-if="dark" i-solar:sun-fog-bold-duotone text="zinc-900 dark:zinc-800 lg" />
+              <div v-else i-solar:moon-stars-bold-duotone text="zinc-900 dark:zinc-800 lg" />
+            </Transition>
+          </div>
+        </label>
+      </div>
+    </div>
   </div>
 </template>
+
+<style lang="css" scoped>
+.slide-away-enter-active,
+.slide-away-leave-active {
+  transition:
+    transform 0.3s ease-in-out,
+    opacity 0.3s ease-in-out;
+}
+
+.slide-away-enter,
+.slide-away-leave-to {
+  transform: translateY(-10px);
+  opacity: 0;
+}
+</style>
