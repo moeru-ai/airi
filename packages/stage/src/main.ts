@@ -1,4 +1,6 @@
+import { autoAnimatePlugin } from '@formkit/auto-animate/vue'
 import Tres from '@tresjs/core'
+import { MotionPlugin } from '@vueuse/motion'
 import NProgress from 'nprogress'
 import { createPinia } from 'pinia'
 import { setupLayouts } from 'virtual:generated-layouts'
@@ -32,6 +34,8 @@ router.isReady()
   .catch(() => { })
 
 createApp(App)
+  .use(MotionPlugin)
+  .use(autoAnimatePlugin)
   .use(router)
   .use(pinia)
   .use(i18n)

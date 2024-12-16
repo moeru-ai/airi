@@ -1,10 +1,8 @@
 <script setup lang="ts">
 import { storeToRefs } from 'pinia'
-
 import { ref } from 'vue'
-import Avatar from '../../assets/live2d/models/hiyori_free_zh/avatar.png'
+
 import { useMarkdown } from '../../composables/markdown'
-import { useSpeakingStore } from '../../stores/audio'
 import { useChatStore } from '../../stores/chat'
 
 const chatHistoryRef = ref<HTMLDivElement>()
@@ -14,7 +12,6 @@ const bounding = useElementBounding(chatHistoryRef, { immediate: true, windowScr
 const { y: chatHistoryContainerY } = useScroll(chatHistoryRef)
 
 const { process } = useMarkdown()
-const { nowSpeakingAvatarBorderOpacity } = storeToRefs(useSpeakingStore())
 const { onBeforeMessageComposed, onTokenLiteral } = useChatStore()
 
 onBeforeMessageComposed(async () => {
@@ -46,19 +43,6 @@ onTokenLiteral(async () => {
       <div v-for="(message, index) in messages" :key="index" mb-2>
         <div v-if="message.role === 'assistant'" flex mr="12">
           <div
-            class="block <sm:hidden"
-            mr-2 h-10
-            min-h-10 min-w-10 w-10
-            overflow-hidden rounded-full
-            border="solid 3"
-            transition="all ease-in-out" duration-100
-            :style="{
-              borderColor: `rgba(236, 72, 153, ${nowSpeakingAvatarBorderOpacity.toFixed(2)})`,
-            }"
-          >
-            <img :src="Avatar">
-          </div>
-          <div
             flex="~ col"
             bg="pink-50 dark:pink-900"
             border="2 solid pink dark:pink-700"
@@ -73,15 +57,6 @@ onTokenLiteral(async () => {
           </div>
         </div>
         <div v-else-if="message.role === 'user'" flex="~ row-reverse" ml="12">
-          <div
-            class="block <sm:hidden"
-            border="purple solid 3"
-            ml="2"
-            h-10 min-h-10 min-w-10 w-10
-            overflow-hidden rounded-full
-          >
-            <div i-carbon:user-avatar-filled text="purple" h-full w-full p="0" m="0" />
-          </div>
           <div
             flex="~ col"
             bg="purple-50 dark:purple-900"
