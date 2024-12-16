@@ -16,6 +16,8 @@ const emit = defineEmits<{
   (e: 'error', value: unknown): void
 }>()
 
+const show = ref(false)
+
 const cameraPositionX = ref(-0.17)
 const cameraPositionY = ref(0)
 const cameraPositionZ = ref(-1)
@@ -50,114 +52,149 @@ defineExpose({
         @error="(val) => emit('error', val)"
       />
     </TresCanvas>
-    <div z="10" bottom="2" absolute w-full flex="~ col" gap-2>
-      <div w-full flex="~ col md:row" gap-2>
-        <Collapsable h-fit w-full>
-          <template #label>
-            <span font-mono>Camera</span>
-          </template>
-          <div grid="~ cols-[20px_1fr_60px]" w-full gap-1 p-2 text-sm font-mono>
-            <div text="zinc-400 dark:zinc-500">
-              <span>X</span>
+    <div absolute top="2">
+      <div
+        flex="~ row"
+        bg="zinc-100 dark:zinc-700"
+        text="sm zinc-400 dark:zinc-500"
+        h-fit w-fit appearance-none gap-1 rounded-lg rounded-md border-none
+      >
+        <label
+          h-fit cursor-pointer
+          :class="[show ? 'bg-zinc-300 text-zinc-900 dark:bg-zinc-200 dark:text-zinc-800' : '']"
+          transition="all ease-in-out duration-500"
+          rounded-md px-2 py-2
+        >
+          <input
+            v-model="show"
+            :checked="show"
+            :aria-checked="show"
+            name="showLive2DViewerInspector"
+            type="checkbox"
+            hidden appearance-none outline-none
+          >
+          <div select-none>
+            <div i-solar:bug-bold-duotone text="text-zinc-900 dark:text-zinc-800" />
+          </div>
+        </label>
+      </div>
+      <TransitionVertical>
+        <div v-if="show" absolute w-full top="10" min-w="50vw">
+          <div bg="zinc-200/20 dark:black/20" flex="~ col" gap-2 rounded-lg p-2 backdrop-blur-sm>
+            <div font-mono>
+              <span>Model</span>
             </div>
-            <label w-full flex items-center gap-2>
-              <DataGuiRange v-model="cameraPositionX" :min="-10" :max="10" :step="0.01" />
-            </label>
-            <div text-right>
-              <span>{{ cameraPositionX }}</span>
-            </div>
+            <Collapsable h-fit w-full>
+              <template #label>
+                <span font-mono>Camera</span>
+              </template>
+              <div grid="~ cols-[20px_1fr_60px]" w-full gap-1 p-2 text-sm font-mono>
+                <div text="zinc-400 dark:zinc-500">
+                  <span>X</span>
+                </div>
+                <label w-full flex items-center gap-2>
+                  <DataGuiRange v-model="cameraPositionX" :min="-10" :max="10" :step="0.01" />
+                </label>
+                <div text-right>
+                  <span>{{ cameraPositionX }}</span>
+                </div>
 
-            <div text="zinc-400 dark:zinc-500">
-              <span>Y</span>
-            </div>
-            <label w-full flex items-center gap-2>
-              <DataGuiRange v-model="cameraPositionY" :min="-10" :max="10" :step="0.01" />
-            </label>
-            <div text-right>
-              <span>{{ cameraPositionY }}</span>
-            </div>
+                <div text="zinc-400 dark:zinc-500">
+                  <span>Y</span>
+                </div>
+                <label w-full flex items-center gap-2>
+                  <DataGuiRange v-model="cameraPositionY" :min="-10" :max="10" :step="0.01" />
+                </label>
+                <div text-right>
+                  <span>{{ cameraPositionY }}</span>
+                </div>
 
-            <div text="zinc-400 dark:zinc-500">
-              <span>Z</span>
+                <div text="zinc-400 dark:zinc-500">
+                  <span>Z</span>
+                </div>
+                <label w-full flex items-center gap-2>
+                  <DataGuiRange v-model="cameraPositionZ" :min="-10" :max="10" :step="0.01" />
+                </label>
+                <div text-right>
+                  <span>{{ cameraPositionZ }}</span>
+                </div>
+              </div>
+            </Collapsable>
+            <Collapsable h-fit w-full>
+              <template #label>
+                <span font-mono>Model</span>
+              </template>
+              <div grid="~ cols-[20px_1fr_60px]" w-full gap-1 p-2 text-sm font-mono>
+                <div text="zinc-400 dark:zinc-500">
+                  <span>X</span>
+                </div>
+
+                <label w-full flex items-center gap-2>
+                  <DataGuiRange v-model="vrmModelPositionX" :min="-10" :max="10" :step="0.01" />
+                </label>
+                <div text-right>
+                  <span>{{ vrmModelPositionX }}</span>
+                </div>
+
+                <div text="zinc-400 dark:zinc-500">
+                  <span>Y</span>
+                </div>
+                <label w-full flex items-center gap-2>
+                  <DataGuiRange v-model="vrmModelPositionY" :min="-10" :max="10" :step="0.01" />
+                </label>
+                <div text-right>
+                  <span>{{ vrmModelPositionY }}</span>
+                </div>
+
+                <div text="zinc-400 dark:zinc-500">
+                  <span>Z</span>
+                </div>
+                <label w-full flex items-center gap-2>
+                  <DataGuiRange v-model="vrmModelPositionZ" :min="-10" :max="10" :step="0.01" />
+                </label>
+                <div text-right>
+                  <span>{{ vrmModelPositionZ }}</span>
+                </div>
+              </div>
+            </Collapsable>
+            <div font-mono>
+              <span>Emotions</span>
             </div>
-            <label w-full flex items-center gap-2>
-              <DataGuiRange v-model="cameraPositionZ" :min="-10" :max="10" :step="0.01" />
-            </label>
-            <div text-right>
-              <span>{{ cameraPositionZ }}</span>
+            <div flex="~ row" w-full flex-wrap gap-2>
+              <button
+                rounded-lg bg="zinc-100/70 dark:zinc-800/50" px-2 py-1 backdrop-blur-sm
+                @click="modelRef?.setExpression('neutral')"
+              >
+                🙂 Neutral
+              </button>
+              <button
+                rounded-lg bg="zinc-100/70 dark:zinc-800/50" px-2 py-1 backdrop-blur-sm
+                @click="modelRef?.setExpression('surprised')"
+              >
+                🤯 Surprised
+              </button>
+              <button
+                rounded-lg bg="zinc-100/70 dark:zinc-800/50" px-2 py-1 backdrop-blur-sm
+                @click="modelRef?.setExpression('sad')"
+              >
+                😫 Sad
+              </button>
+              <button
+                rounded-lg bg="zinc-100/70 dark:zinc-800/50" px-2 py-1 backdrop-blur-sm
+                @click="modelRef?.setExpression('angry')"
+              >
+                😠 Angry
+              </button>
+              <button
+                rounded-lg bg="zinc-100/70 dark:zinc-800/50" px-2 py-1 backdrop-blur-sm
+                @click="modelRef?.setExpression('happy')"
+              >
+                😄 Happy
+              </button>
             </div>
           </div>
-        </Collapsable>
-        <Collapsable h-fit w-full>
-          <template #label>
-            <span font-mono>Model</span>
-          </template>
-          <div grid="~ cols-[20px_1fr_60px]" w-full gap-1 p-2 text-sm font-mono>
-            <div text="zinc-400 dark:zinc-500">
-              <span>X</span>
-            </div>
-
-            <label w-full flex items-center gap-2>
-              <DataGuiRange v-model="vrmModelPositionX" :min="-10" :max="10" :step="0.01" />
-            </label>
-            <div text-right>
-              <span>{{ vrmModelPositionX }}</span>
-            </div>
-
-            <div text="zinc-400 dark:zinc-500">
-              <span>Y</span>
-            </div>
-            <label w-full flex items-center gap-2>
-              <DataGuiRange v-model="vrmModelPositionY" :min="-10" :max="10" :step="0.01" />
-            </label>
-            <div text-right>
-              <span>{{ vrmModelPositionY }}</span>
-            </div>
-
-            <div text="zinc-400 dark:zinc-500">
-              <span>Z</span>
-            </div>
-            <label w-full flex items-center gap-2>
-              <DataGuiRange v-model="vrmModelPositionZ" :min="-10" :max="10" :step="0.01" />
-            </label>
-            <div text-right>
-              <span>{{ vrmModelPositionZ }}</span>
-            </div>
-          </div>
-        </Collapsable>
-      </div>
-      <div flex="~ row" w-full flex-wrap gap-2>
-        <button
-          rounded-lg bg="zinc-100/70 dark:zinc-800/50" px-2 py-1 backdrop-blur-sm
-          @click="modelRef?.setExpression('neutral')"
-        >
-          🙂 Neutral
-        </button>
-        <button
-          rounded-lg bg="zinc-100/70 dark:zinc-800/50" px-2 py-1 backdrop-blur-sm
-          @click="modelRef?.setExpression('surprised')"
-        >
-          🤯 Surprised
-        </button>
-        <button
-          rounded-lg bg="zinc-100/70 dark:zinc-800/50" px-2 py-1 backdrop-blur-sm
-          @click="modelRef?.setExpression('sad')"
-        >
-          😫 Sad
-        </button>
-        <button
-          rounded-lg bg="zinc-100/70 dark:zinc-800/50" px-2 py-1 backdrop-blur-sm
-          @click="modelRef?.setExpression('angry')"
-        >
-          😠 Angry
-        </button>
-        <button
-          rounded-lg bg="zinc-100/70 dark:zinc-800/50" px-2 py-1 backdrop-blur-sm
-          @click="modelRef?.setExpression('happy')"
-        >
-          😄 Happy
-        </button>
-      </div>
+        </div>
+      </TransitionVertical>
     </div>
   </Screen>
 </template>
