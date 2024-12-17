@@ -51,11 +51,8 @@ export const useChatStore = defineStore('chat', () => {
       t('prompt.prefix'),
       t('prompt.suffix'),
     ),
-    { role: 'assistant', content: 'ABCD' },
-    { role: 'user', content: 'ABCD' },
-    { role: 'assistant', content: 'ABCD' },
-    { role: 'user', content: 'ABCD' },
   ])
+
   const streamingMessage = ref<AssistantMessage>({ role: 'assistant', content: '' })
 
   async function send(sendingMessage: string, options?: {

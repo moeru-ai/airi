@@ -1,12 +1,11 @@
 <script setup lang="ts">
-import SakuraPetal from '../Backgrounds/SakuraPetal.vue'
 import ChatHistory from '../Widgets/ChatHistory.vue'
 
 const tab = ref<'chat' | 'custom' | 'clothes'>('chat')
 </script>
 
 <template>
-  <div flex="~ col" h-full items-center pt-4>
+  <div flex="~ col" h-full w-full items-center pt-4>
     <fieldset flex="~ row" w-fit rounded-lg>
       <label
         :class="[
@@ -70,9 +69,9 @@ const tab = ref<'chat' | 'custom' | 'clothes'>('chat')
       </label>
     </fieldset>
     <div h-full max-h="[85vh]" w-full px-12 py-4>
-      <SakuraPetal border="solid 2 pink-100 dark:pink-400/20" h-full w-full overflow-scroll rounded-xl p-4>
+      <div border="solid 2 pink-100 dark:pink-400/20" h-full w-full overflow-scroll rounded-xl p-4>
         <ChatHistory />
-      </SakuraPetal>
+      </div>
     </div>
   </div>
 </template>
