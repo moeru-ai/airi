@@ -22,7 +22,8 @@ const { stageView, elevenLabsApiKey } = storeToRefs(useSettings())
 const { mouthOpenSize } = storeToRefs(useSpeakingStore())
 const { audioContext, calculateVolume } = useAudioContext()
 const { streamSpeech } = useLLM()
-const { onBeforeMessageComposed, onBeforeSend, onTokenLiteral, onTokenSpecial, onStreamEnd } = useChatStore()
+const { onBeforeMessageComposed, onBeforeSend, onTokenLiteral, onTokenSpecial, onStreamEnd, streamingMessage } = useChatStore()
+const { process } = useMarkdown()
 
 const audioAnalyser = ref<AnalyserNode>()
 const nowSpeaking = ref(false)
@@ -166,19 +167,86 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <Live2DScene
-    v-if="stageView === '2d'"
-    ref="live2DViewerRef"
-    :mouth-open-size="mouthOpenSize"
-    model="/assets/live2d/models/hiyori_pro_zh/runtime/hiyori_pro_t11.model3.json"
-    w="50%" min-w="50% <lg:full" min-h="100 sm:100" h-full flex-1
-  />
-  <VRMScene
-    v-else-if="stageView === '3d'"
-    ref="vrmViewerRef"
-    model="/assets/vrm/models/AvatarSample-B/AvatarSample_B.vrm"
-    idle-animation="/assets/vrm/animations/idle_loop.vrma"
-    w="50%" min-w="50% <lg:full" min-h="100 sm:100" h-full flex-1
-    @error="console.error"
-  />
+  <div relative h-full w-full>
+    <div h-full w-full>
+      <Live2DScene
+        v-if="stageView === '2d'"
+        ref="live2DViewerRef"
+        :mouth-open-size="mouthOpenSize"
+        model="/assets/live2d/models/hiyori_pro_zh/runtime/hiyori_pro_t11.model3.json"
+        w="50%" min-w="50% <lg:full" min-h="100 sm:100" h-full flex-1
+      />
+      <VRMScene
+        v-else-if="stageView === '3d'"
+        ref="vrmViewerRef"
+        model="/assets/vrm/models/AvatarSample-B/AvatarSample_B.vrm"
+        idle-animation="/assets/vrm/animations/idle_loop.vrma"
+        w="50%" min-w="50% <lg:full" min-h="100 sm:100" h-full flex-1
+        @error="console.error"
+      />
+    </div>
+    <div
+      v-if="streamingMessage.content !== ''"
+      class="animate-stripe"
+      absolute
+      left="1/2"
+      bottom="20%"
+      z="20"
+      rounded-2xl
+      text="pink-600"
+      px-2 py-2
+      transform="translate-x--1/2"
+    >
+      <div bg="pink-50" rounded-xl px-10 py-6>
+        <div class="markdown-content" v-html="process(streamingMessage.content as string)" />
+      </div>
+    </div>
+  </div>
 </template>
+
+<style lang="css" scoped>
+/**
+  Plunker - Untitled
+  https://plnkr.co/edit/4wPv1ogKNMfJ6rQPhZdJ?p=preview&preview
+
+  by https://stackoverflow.com/a/31547711/19954520
+ */
+.animate-stripe {
+  background-image: repeating-linear-gradient(-45deg, #f472b6, #f472b6 25px, #f9a8d4 25px, #f9a8d4 50px);
+  animation: progress 2s linear infinite;
+  background-size: 150% 100%;
+}
+
+@-webkit-keyframes progress {
+  0% {
+    background-position: 0 0;
+  }
+  100% {
+    background-position: -75px 0px;
+  }
+}
+@-moz-keyframes progress {
+  0% {
+    background-position: 0 0;
+  }
+  100% {
+    background-position: -75px 0px;
+  }
+}
+@-ms-keyframes progress {
+  0% {
+    background-position: 0 0;
+  }
+  100% {
+    background-position: -75px 0px;
+  }
+}
+@keyframes progress {
+  0% {
+    background-position: 0 0;
+  }
+  100% {
+    background-position: -70px 0px;
+  }
+}
+</style>

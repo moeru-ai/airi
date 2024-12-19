@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useDark } from '@vueuse/core'
+import { storeToRefs } from 'pinia'
 import { useI18n } from 'vue-i18n'
 
 import { useSettings } from '../stores/settings'
@@ -10,6 +11,25 @@ const { t } = useI18n()
 const settings = useSettings()
 const show = ref(false)
 const dark = useDark({ disableTransition: false })
+const supportedModels = ref<{ id: string, name?: string }[]>([])
+const { models } = useLLM()
+const { openAiApiBaseURL, openAiApiKey } = storeToRefs(settings)
+
+watch([openAiApiBaseURL, openAiApiKey], async ([baseUrl, apiKey]) => {
+  if (!baseUrl || !apiKey) {
+    supportedModels.value = []
+    return
+  }
+
+  supportedModels.value = await models(baseUrl, apiKey)
+})
+
+onMounted(async () => {
+  if (!openAiApiBaseURL.value || !openAiApiKey.value)
+    return
+
+  supportedModels.value = await models(openAiApiBaseURL.value, openAiApiKey.value)
+})
 </script>
 
 <template>
@@ -136,6 +156,25 @@ const dark = useDark({ disableTransition: false })
               </option>
               <option value="zh-CN">
                 简体中文
+              </option>
+            </select>
+          </div>
+          <div text-sm>
+            <span>{{ t('settings.models') }}</span>
+          </div>
+          <div flex="~ row" w-full text="sm">
+            <select
+              v-model="settings.openAiModel" bg="zinc-200 dark:zinc-800/50" w-full rounded-md px-2 py-1 font-mono
+              outline-none
+            >
+              <option disabled class="bg-white dark:bg-zinc-800">
+                {{ t('stage.select-a-model') }}
+              </option>
+              <option v-if="settings.openAiModel" :value="settings.openAiModel.id">
+                {{ 'name' in settings.openAiModel ? `${settings.openAiModel.name} (${settings.openAiModel.id})` : settings.openAiModel.id }}
+              </option>
+              <option v-for="m in supportedModels" :key="m.id" :value="m.id">
+                {{ 'name' in m ? `${m.name} (${m.id})` : m.id }}
               </option>
             </select>
           </div>

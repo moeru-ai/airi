@@ -44,8 +44,8 @@ onTokenLiteral(async () => {
         <div v-if="message.role === 'assistant'" flex mr="12">
           <div
             flex="~ col"
-            border="2 solid pink-200/50 dark:pink-500/50"
-            shadow="md pink-200/50 dark:pink-500/50"
+            border="4 solid pink-200/50 dark:pink-500/50"
+            shadow="md pink-200/50 dark:none"
             min-w-20 rounded-lg px-2 py-1
             h="unset <sm:fit"
           >
@@ -59,15 +59,15 @@ onTokenLiteral(async () => {
         <div v-else-if="message.role === 'user'" flex="~ row-reverse" ml="12">
           <div
             flex="~ col"
-            border="2 solid emerald-200/50 dark:emerald-500/50"
-            shadow="md emerald-200/50"
+            border="4 solid teal-200/50 dark:teal-500/50"
+            shadow="md teal-200/50 dark:none"
             px="2"
             h="unset <sm:fit" min-w-20 rounded-lg px-2 py-1
           >
             <div>
-              <span text-xs text="emerald-400/90 dark:emerald-600/90" font-semibold class="inline <sm:hidden">You</span>
+              <span text-xs text="teal-400/90 dark:teal-600/90" font-semibold class="inline <sm:hidden">You</span>
             </div>
-            <div v-if="message.content" class="markdown-content" text="base <sm:xs" whitespace-nowrap v-html="process(message.content as string)" />
+            <div v-if="message.content" class="markdown-content" text="base <sm:xs" v-html="process(message.content as string)" />
             <div v-else />
           </div>
         </div>

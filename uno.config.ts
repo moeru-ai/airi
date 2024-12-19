@@ -19,10 +19,11 @@ export default defineConfig({
     presetTypography(),
     presetWebFonts({
       fonts: {
-        sans: 'DM Sans',
-        serif: 'DM Serif Display',
-        mono: 'DM Mono',
-        cute: 'Kiwi Maru',
+        'sans': 'DM Sans',
+        'serif': 'DM Serif Display',
+        'mono': 'DM Mono',
+        'cute': 'Kiwi Maru',
+        'cute-en': 'Sniglet',
       },
     }),
   ],
