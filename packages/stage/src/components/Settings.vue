@@ -13,7 +13,18 @@ const show = ref(false)
 const dark = useDark({ disableTransition: false })
 const supportedModels = ref<{ id: string, name?: string }[]>([])
 const { models } = useLLM()
-const { openAiApiBaseURL, openAiApiKey } = storeToRefs(settings)
+const { openAiModel, openAiApiBaseURL, openAiApiKey } = storeToRefs(settings)
+
+function handleModelChange(event: Event) {
+  const target = event.target as HTMLSelectElement
+  const found = supportedModels.value.find(m => m.id === target.value)
+  if (!found) {
+    openAiModel.value = undefined
+    return
+  }
+
+  openAiModel.value = found
+}
 
 watch([openAiApiBaseURL, openAiApiKey], async ([baseUrl, apiKey]) => {
   if (!baseUrl || !apiKey) {
@@ -164,8 +175,9 @@ onMounted(async () => {
           </div>
           <div flex="~ row" w-full text="sm">
             <select
-              v-model="settings.openAiModel" bg="zinc-200 dark:zinc-800/50" w-full rounded-md px-2 py-1 font-mono
+              bg="zinc-200 dark:zinc-800/50" w-full rounded-md px-2 py-1 font-mono
               outline-none
+              @change="handleModelChange"
             >
               <option disabled class="bg-white dark:bg-zinc-800">
                 {{ t('stage.select-a-model') }}
