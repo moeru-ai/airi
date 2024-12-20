@@ -1,4 +1,4 @@
-import { defineConfig, mergeConfigs } from 'unocss'
+import { defineConfig, mergeConfigs, presetWebFonts } from 'unocss'
 import presetTheme from 'unocss-preset-theme'
 import UnoCSSConfig from '../../uno.config'
 
@@ -42,6 +42,15 @@ export default defineConfig(mergeConfigs([
               },
             },
           },
+        },
+      }),
+      presetWebFonts({
+        fonts: {
+          'sans': 'DM Sans',
+          'serif': 'DM Serif Display',
+          'mono': 'DM Mono',
+          'cute': 'Kiwi Maru',
+          'cute-en': 'Sniglet',
         },
       }),
     ],
