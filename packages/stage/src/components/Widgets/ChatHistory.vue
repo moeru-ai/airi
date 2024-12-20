@@ -35,8 +35,8 @@ onTokenLiteral(async () => {
   <div
     relative
     class="<lg:(absolute bottom-0 from-zinc-100/80 to-zinc-800/0 bg-gradient-to-t p-2 dark:from-zinc-800/80)"
-    px="<sm:2" py="<sm:2" w="full" flex="~ col 1"
-    rounded="lg" max-h="[80vh]"
+    px="<sm:2" py="<sm:2" flex="~ col"
+    rounded="lg"
     overflow-hidden
   >
     <div ref="chatHistoryRef" v-auto-animate h-full w-full overflow-scroll>

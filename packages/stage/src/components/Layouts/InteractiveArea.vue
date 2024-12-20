@@ -17,12 +17,17 @@ const { audioInputs } = useDevicesList({ constraints: { audio: true }, requestPe
 const { selectedAudioDevice, isAudioInputOn, selectedAudioDeviceId } = storeToRefs(useSettings())
 const { send, onAfterSend } = useChatStore()
 const { audioContext } = useAudioContext()
+const { t } = useI18n()
 
 const { transcribe: generate, load: loadWhisper, status: whisperStatus, terminate } = useWhisper(WhisperWorker, {
   onComplete: async (res) => {
     await send(res)
   },
 })
+
+async function handleSend() {
+  await send(messageInput.value)
+}
 
 const { destroy, start } = useMicVAD(selectedAudioDeviceId, {
   onSpeechStart: () => {
@@ -154,8 +159,24 @@ onAfterSend(async () => {
       </label>
     </fieldset>
     <div h-full max-h="[85vh]" w-full px-12 py-4>
-      <div border="solid 4 pink-100 dark:pink-400/20" h-full w-full overflow-scroll rounded-xl p-4>
-        <ChatHistory />
+      <div
+        flex="~ col"
+        border="solid 4 pink-100 dark:pink-400/20"
+        h-full w-full overflow-scroll rounded-xl
+      >
+        <ChatHistory h-full flex-1 p-4 w="full" max-h="[80vh]" />
+        <div flex gap-2>
+          <BasicTextarea
+            v-model="messageInput"
+            :placeholder="t('stage.message')"
+            text="pink-300 hover:pink-500 dark:pink-300/50 dark:hover:pink-500 placeholder:pink-300 placeholder:hover:pink-500 placeholder:dark:pink-300/50 placeholder:dark:hover:pink-500"
+            bg="pink-100 dark:pink-400/20"
+            min-h="[100px]" w-full
+            rounded-xl p-4 font-medium
+            outline-none transition="all duration-250 ease-in-out placeholder:all placeholder:duration-250 placeholder:ease-in-out"
+            @submit="handleSend"
+          />
+        </div>
       </div>
     </div>
     <div flex="~ row" gap-2>
