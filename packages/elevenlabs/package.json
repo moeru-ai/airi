@@ -32,6 +32,6 @@
     "build": "unbuild"
   },
   "devDependencies": {
-    "elevenlabs": "^0.18.1"
+    "elevenlabs": "^1.50.2"
   }
 }
