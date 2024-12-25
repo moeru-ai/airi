@@ -39,4 +39,8 @@ jobs:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
           HF_USERNAME: ${{ secrets.HF_USERNAME }}
         run: |-
-          git add . && git commit -m "release: build ${{ github.sha }}" && git push -f
+          git add .
+          git config --local user.email "neko@ayaka.moe"
+          git config --local user.name "Neko Ayaka"
+          git commit -m "release: build ${{ github.sha }}"
+          git push -f
