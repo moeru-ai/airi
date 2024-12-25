@@ -35,14 +35,16 @@ jobs:
       - run: pnpm install
       - run: pnpm build
 
-      - id: check_moonshine_web_changes
+      - id: moonshine_web_diff
         working-directory: ./packages/moonshine-web/dist
         run: |-
           mv ../README.md .
           git add .
-          git diff --quiet . || echo "changed=true" >> $GITHUB_OUTPUT
+          if [[ -n $(git status --porcelain) ]]; then
+              echo "changes=true" >> "$GITHUB_OUTPUT";
+          fi
 
-      - if: steps.check_moonshine_web_changes.outputs.changed == 'true'
+      - if: steps.moonshine_web_diff.outputs.changes == 'true'
         working-directory: ./packages/moonshine-web/dist
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
@@ -53,14 +55,16 @@ jobs:
           git commit -m "release: build ${{ github.sha }}"
           git push -f
 
-      - id: check_whisper_webgpu_changes
+      - id: whisper_webgpu_diff
         working-directory: ./packages/whisper-webgpu/dist
         run: |-
           mv ../README.md .
           git add .
-          git diff --quiet . || echo "changed=true" >> $GITHUB_OUTPUT
+          if [[ -n $(git status --porcelain) ]]; then
+              echo "changes=true" >> "$GITHUB_OUTPUT";
+          fi
 
-      - if: steps.check_whisper_webgpu_changes.outputs.changed == 'true'
+      - if: steps.whisper_webgpu_diff.outputs.changes == 'true'
         working-directory: ./packages/whisper-webgpu/dist
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
