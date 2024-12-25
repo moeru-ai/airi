@@ -5,7 +5,7 @@ colorFrom: gray
 colorTo: green
 sdk: static
 pinned: false
-license: MIT
+license: mit
 models:
 - onnx-community/whisper-base
 short_description: Yet another Real-time Whisper with WebGPU, written in Vue

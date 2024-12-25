@@ -5,7 +5,7 @@ colorFrom: blue
 colorTo: pink
 sdk: static
 pinned: false
-license: MIT
+license: mit
 models:
   - onnx-community/moonshine-base-ONNX
 short_description: Yet another Real-time in-browser STT, re-implemented in Vue
