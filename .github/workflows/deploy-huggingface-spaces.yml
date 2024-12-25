@@ -35,6 +35,7 @@ jobs:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
           HF_USERNAME: ${{ secrets.HF_USERNAME }}
         run: |-
+          mv ../README.md .
           git add .
           git config --local user.email "neko@ayaka.moe"
           git config --local user.name "Neko Ayaka"
