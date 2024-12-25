@@ -2,11 +2,15 @@ export enum MessageType {
   Status = 'status',
   Output = 'output',
   Info = 'info',
+  Request = 'request',
+  Error = 'error',
+  Load = 'load',
 }
 
 export enum MessageStatus {
   RecordingStart = 'recording_start',
   RecordingEnd = 'recording_end',
+  Ready = 'ready',
 }
 
 export enum Duration {
@@ -17,7 +21,7 @@ export interface MessageEventStatus {
   type: MessageType.Status
   status: MessageStatus
   message: string
-  duration: Duration
+  duration?: Duration
 }
 
 export interface MessageEventOutput {
@@ -35,8 +39,21 @@ export interface MessageEventInfo {
   duration?: Duration.UntilNext
 }
 
-export interface MessageEventError {
-  error: unknown
+export interface MessageEventBufferRequest {
+  type: MessageType.Request
+  buffer: Float32Array<any>
+  message?: string
 }
 
-export type MessageEvent = MessageEventError | MessageEventStatus | MessageEventOutput | MessageEventInfo
+export interface MessageEventError {
+  type: MessageType.Error
+  error: unknown
+  message?: string
+}
+
+export interface MessageEventLoad {
+  type: MessageType.Load
+  message?: string
+}
+
+export type MessageEvent = MessageEventError | MessageEventStatus | MessageEventOutput | MessageEventInfo | MessageEventBufferRequest | MessageEventLoad

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { MessageEvent, MessageEventInfo, MessageEventOutput, MessageEventStatus } from './libs/types'
+import type { MessageEvent, MessageEventBufferRequest, MessageEventInfo, MessageEventLoad, MessageEventOutput, MessageEventStatus } from './libs/types'
 import { TresCanvas } from '@tresjs/core'
 import { useWebWorker } from '@vueuse/core'
 import { ACESFilmicToneMapping, SRGBColorSpace } from 'three'
@@ -16,7 +16,7 @@ import { formatDate } from './utils'
 
 const status = ref<string | null>(null)
 const error = ref(null)
-const messages = ref<Array<MessageEventStatus | MessageEventInfo | MessageEventOutput>>([])
+const messages = ref<Array<MessageEventStatus | MessageEventInfo | MessageEventOutput | MessageEventBufferRequest | MessageEventLoad>>([])
 const frequency = ref(0)
 
 const { post, data } = useWebWorker<MessageEvent>(Worker, { type: 'module' })
@@ -31,11 +31,25 @@ watch(data, () => {
   }
   if (data.value.type === MessageType.Status) {
     status.value = data.value.message
-    messages.value = [...messages.value, data.value]
+    messages.value.push(data.value)
+
+    // pop out the other messages except the last status message
+    if (messages.value.length > 1) {
+      messages.value = messages.value.slice(-1)
+    }
   }
   else {
-    messages.value = [...messages.value, data.value]
+    messages.value.push(data.value)
+
+    // pop out the last message
+    if (messages.value.length > 1) {
+      messages.value = messages.value.slice(-1)
+    }
   }
+})
+
+onMounted(() => {
+  post({ type: MessageType.Load } satisfies MessageEventLoad)
 })
 
 onMounted(() => {
@@ -107,7 +121,7 @@ onMounted(() => {
         const { buffer } = event.data
 
         // Dispatch buffer for voice activity detection
-        post({ buffer })
+        post({ type: MessageType.Request, buffer } satisfies MessageEventBufferRequest)
       }
     })
     .catch((err) => {
@@ -174,21 +188,20 @@ function downloadTranscript() {
     </template>
     <template v-else>
       <div class="absolute bottom-0 z-10 w-full overflow-hidden pb-8 text-center text-white">
-        <template v-for="(message, index) of messages" :key="index">
+        <TransitionGroup name="fade-up" tag="div">
           <div
+            v-for="(message) of messages" :key="message.message || ''"
             :initial="{ opacity: 0, y: 25 }"
             :enter="{ opacity: 1, y: 0 }"
             :duration="200"
             class="mb-1"
             :class="[message.type === 'output' ? 'text-5xl' : 'text-2xl text-green-300 font-light']"
           >
-            <Transition name="fade-up">
-              <div v-if="message.duration === 'until_next' && index === messages.length - 1">
-                {{ message.message }}
-              </div>
-            </Transition>
+            <div>
+              {{ message.message }}
+            </div>
           </div>
-        </template>
+        </TransitionGroup>
       </div>
       <TresCanvas window-size :alpha="true" :antialias="true" power-preference="high-performance" :output-color-space="SRGBColorSpace" :tone-mapping="ACESFilmicToneMapping">
         <TresPerspectiveCamera :position="[0, 0, 8]" :fov="75" :near="0.1" :far="1000" />
@@ -255,7 +268,11 @@ function downloadTranscript() {
   transition: all 0.5s ease-in-out;
 }
 
-.fade-up-enter-from,
+.fade-up-enter-from {
+  opacity: 0;
+  transform: translateY(25px);
+}
+
 .fade-up-leave-to {
   opacity: 0;
   transform: translateY(-25px);
