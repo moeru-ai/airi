@@ -1,5 +1,5 @@
 import type { GenerateAudioStream } from '@proj-airi/elevenlabs/types'
-import type { Message } from '@xsai/shared-chat-completion'
+import type { Message } from '@xsai/shared-chat'
 import { listModels } from '@xsai/model'
 import { streamText } from '@xsai/stream-text'
 import { ofetch } from 'ofetch'

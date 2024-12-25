@@ -49,6 +49,7 @@ words:
   - onnx
   - onnxruntime
   - openai
+  - picklist
   - pinia
   - pixi
   - pixiv
@@ -59,9 +60,11 @@ words:
   - sizecheck
   - taze
   - tresjs
+  - typeschema
   - unhead
   - unocss
   - unplugin
+  - valibot
   - vrma
   - vueuse
   - webgpu

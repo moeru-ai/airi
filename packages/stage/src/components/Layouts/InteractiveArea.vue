@@ -172,7 +172,7 @@ onAfterSend(async () => {
             text="pink-300 hover:pink-500 dark:pink-300/50 dark:hover:pink-500 placeholder:pink-300 placeholder:hover:pink-500 placeholder:dark:pink-300/50 placeholder:dark:hover:pink-500"
             bg="pink-100 dark:pink-400/20"
             min-h="[100px]" w-full
-            rounded-xl p-4 font-medium
+            rounded-t-xl p-4 font-medium
             outline-none transition="all duration-250 ease-in-out placeholder:all placeholder:duration-250 placeholder:ease-in-out"
             @submit="handleSend"
           />
@@ -181,10 +181,9 @@ onAfterSend(async () => {
     </div>
     <div flex="~ row" gap-2>
       <button
-        border="solid 4 teal-200 hover:teal-300 dark:teal-800 dark:hover:teal-700"
-        bg="white dark:teal-700 dark:hover:teal-600"
+        bg="teal-100 hover:teal-200 dark:teal-800 dark:hover:teal-700"
         transition="all duration-250 ease-in-out"
-        text="teal-400 dark:white/50 dark:hover:white"
+        text="teal-400"
         mb-6 flex cursor-pointer items-center justify-center gap-2 rounded-full px-4 py-2
         @click="handleLoadWhisper"
       >
@@ -202,7 +201,7 @@ onAfterSend(async () => {
           </div>
         </Transition>
       </button>
-      <div flex="~ row" relative text-xl text-white font-bold>
+      <div flex="~ row" relative text-white font-bold>
         <TransitionVertical>
           <fieldset
             v-if="showMicrophoneSelect"
@@ -227,10 +226,9 @@ onAfterSend(async () => {
           </fieldset>
         </TransitionVertical>
         <label
-          border="solid 4 teal-200 hover:teal-300 dark:teal-800 dark:hover:teal-700"
-          bg="white dark:teal-700 dark:hover:teal-600"
+          bg="teal-100 hover:teal-200 dark:teal-800 dark:hover:teal-700"
           transition="all duration-250 ease-in-out"
-          text="teal-400 dark:white/50 dark:hover:white"
+          text="teal-400"
           mb-6 flex cursor-pointer items-center justify-center gap-2 rounded-full px-4 py-2
         >
           <input v-model="showMicrophoneSelect" type="checkbox" hidden>

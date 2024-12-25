@@ -1,4 +1,4 @@
-import type { AssistantMessage, Message } from '@xsai/shared-chat-completion'
+import type { AssistantMessage, Message } from '@xsai/shared-chat'
 
 import { defineStore, storeToRefs } from 'pinia'
 import SystemPromptV2 from '../constants/prompts/system-v2'

@@ -1,4 +1,4 @@
-import type { SystemMessage } from '@xsai/shared-chat-completion'
+import type { SystemMessage } from '@xsai/shared-chat'
 import { EMOTION_VALUES } from '../emotions'
 
 function message(prefix: string, suffix: string) {
