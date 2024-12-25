@@ -1,5 +1,5 @@
 [build]
-publish = "packages/whisper-webgpu/dist"
+publish = "packages/moonshine-web/dist"
 command = "pnpm run packages:stub && pnpm run build"
 
 [build.environment]

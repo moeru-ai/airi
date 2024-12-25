@@ -8,7 +8,7 @@ import Progress from './components/Progress.vue'
 import WhisperLanguageSelect from './components/WhisperLanguageSelect.vue'
 import Worker from './libs/worker?worker&url'
 
-const IS_WEBGPU_AVAILABLE = !!(navigator as unknown as any).gpu
+const IS_WEBGPU_AVAILABLE = (('gpu' in navigator) && !navigator.gpu)
 
 const WHISPER_SAMPLING_RATE = 16_000
 const MAX_AUDIO_LENGTH = 30 // seconds

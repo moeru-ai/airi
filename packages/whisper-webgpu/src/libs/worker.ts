@@ -1,3 +1,4 @@
+/* eslint-disable no-restricted-globals */
 import type {
   ModelOutput,
   PreTrainedModel,
@@ -57,7 +58,7 @@ async function generate({ audio, language }: { audio: ArrayBuffer, language: str
   processing = true
 
   // Tell the main thread we are starting
-  globalThis.postMessage({ status: 'start' })
+  self.postMessage({ status: 'start' })
 
   // Retrieve the text-generation pipeline.
   const [tokenizer, processor, model] = await AutomaticSpeechRecognitionPipeline.getInstance()
@@ -72,7 +73,7 @@ async function generate({ audio, language }: { audio: ArrayBuffer, language: str
       tps = numTokens / (performance.now() - startTime) * 1000
     }
 
-    globalThis.postMessage({
+    self.postMessage({
       status: 'update',
       output,
       tps,
@@ -100,7 +101,7 @@ async function generate({ audio, language }: { audio: ArrayBuffer, language: str
   const outputText = tokenizer.batch_decode(outputs as Tensor, { skip_special_tokens: true })
 
   // Send the output back to the main thread
-  globalThis.postMessage({
+  self.postMessage({
     status: 'complete',
     output: outputText,
   })
@@ -108,7 +109,7 @@ async function generate({ audio, language }: { audio: ArrayBuffer, language: str
 }
 
 async function load() {
-  globalThis.postMessage({
+  self.postMessage({
     status: 'loading',
     data: 'Loading model...',
   })
@@ -118,10 +119,10 @@ async function load() {
   const [tokenizer, processor, model] = await AutomaticSpeechRecognitionPipeline.getInstance((x) => {
     // We also add a progress callback to the pipeline so that we can
     // track model loading.
-    globalThis.postMessage(x)
+    self.postMessage(x)
   })
 
-  globalThis.postMessage({
+  self.postMessage({
     status: 'loading',
     data: 'Compiling shaders and warming up model...',
   })
@@ -132,10 +133,10 @@ async function load() {
     max_new_tokens: 1,
   })
 
-  globalThis.postMessage({ status: 'ready' })
+  self.postMessage({ status: 'ready' })
 }
 // Listen for messages from the main thread
-globalThis.addEventListener('message', async (e) => {
+self.addEventListener('message', async (e) => {
   const { type, data } = e.data
 
   switch (type) {

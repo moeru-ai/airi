@@ -1,9 +1,9 @@
 {
-  "name": "@proj-airi/whisper-webgpu",
+  "name": "@proj-airi/moonshine-web",
   "type": "module",
   "private": true,
   "packageManager": "pnpm@9.15.1",
-  "description": "Yet another WebGPU based Whisper Realtime STT re-implemented",
+  "description": "Yet another WebGPU based STT + VAD with Moonshine model re-implemented",
   "author": {
     "name": "Neko Ayaka",
     "email": "neko@ayaka.moe",
@@ -12,19 +12,24 @@
   "license": "MIT",
   "scripts": {
     "build": "vite build",
-    "dev": "vite  --port 5174",
+    "dev": "vite  --port 5175",
     "lint": "eslint .",
     "preview": "vite preview",
     "typecheck": "vue-tsc --noEmit"
   },
   "dependencies": {
+    "@tresjs/core": "^4.3.1",
     "@unocss/reset": "^0.65.2",
     "@vueuse/core": "^12.1.0",
+    "@vueuse/motion": "^2.2.6",
     "ofetch": "^1.4.1",
+    "three": "^0.171.0",
     "vue": "^3.5.13"
   },
   "devDependencies": {
     "@huggingface/transformers": "^3.2.1",
+    "@types/audioworklet": "^0.0.65",
+    "@types/three": "^0.171.0",
     "@vitejs/plugin-vue": "^5.2.1",
     "@webgpu/types": "^0.1.52",
     "vue-tsc": "^2.1.10"
