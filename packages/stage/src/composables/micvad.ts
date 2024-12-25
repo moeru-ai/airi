@@ -11,12 +11,6 @@ export function useMicVAD(deviceId: MaybeRef<ConstrainDOMString | undefined>, op
     positiveSpeechThreshold: 0.5, // default is 0.5
     negativeSpeechThreshold: 0.5 - 0.15, // default is 0.5 - 0.15
     minSpeechFrames: 15, // default is 9
-    // WORKAROUND: temporary workaround for onnxruntime-web, since @ricky0123/vad-web
-    // uses hardcoded version of onnxruntime-web@1.14.0 to fetch the already non-existing
-    // ort-wasm-simd-threaded.mjs file and its WASM binary, we are going to force
-    // the onnxruntime-web to use the latest version of onnxruntime-web from jsdelivr
-    // to fetch the correct ort-wasm-simd-threaded.wasm binary
-    onnxWASMBasePath: 'https://cdn.jsdelivr.net/npm/onnxruntime-web/dist/',
     auto: true,
   })
 
