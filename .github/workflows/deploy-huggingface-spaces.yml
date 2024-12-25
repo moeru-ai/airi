@@ -18,12 +18,8 @@ jobs:
           fetch-depth: 0
           lfs: true
 
-      - uses: actions/checkout@v4
-        with:
-          repository: https://$HF_USERNAME:$HF_TOKEN@huggingface.co/spaces/moeru-ai/moonshine-web-vue
-          fetch-depth: 0
-          lfs: true
-          path: packages/moonshine-web/dist
+      - run: |-
+          git clone https://$HF_USERNAME:$HF_TOKEN@huggingface.co/spaces/moeru-ai/moonshine-web-vue --depth 1 packages/moonshine-web/dist
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
           HF_USERNAME: ${{ secrets.HF_USERNAME }}
