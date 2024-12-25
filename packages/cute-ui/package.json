@@ -10,7 +10,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/nekomeowww/airi-vtuber.git",
+    "url": "https://github.com/moeru-ai/airi.git",
     "directory": "packages/cute-ui"
   },
   "files": [

@@ -21,7 +21,7 @@
     "@11labs/client": "^0.0.4",
     "@formkit/auto-animate": "^0.8.2",
     "@gcornut/valibot-json-schema": "^0.42.0",
-    "@huggingface/transformers": "^3.2.1",
+    "@huggingface/transformers": "^3.2.3",
     "@pixi/app": "^6.5.10",
     "@pixi/constants": "6",
     "@pixi/core": "6",
@@ -43,10 +43,10 @@
     "@types/yauzl": "^2.10.3",
     "@typeschema/valibot": "^0.14.0",
     "@unhead/vue": "^1.11.14",
-    "@unocss/reset": "^0.65.2",
-    "@vueuse/core": "^12.1.0",
+    "@unocss/reset": "^0.65.3",
+    "@vueuse/core": "^12.2.0",
     "@vueuse/head": "^2.0.0",
-    "@vueuse/shared": "^12.1.0",
+    "@vueuse/shared": "^12.2.0",
     "@xsai/generate-text": "^0.0.22",
     "@xsai/model": "^0.0.22",
     "@xsai/providers": "^0.0.22",
@@ -76,7 +76,7 @@
     "@iconify-json/carbon": "^1.2.5",
     "@iconify-json/eos-icons": "^1.2.2",
     "@iconify-json/lucide": "^1.2.20",
-    "@iconify-json/mingcute": "^1.2.2",
+    "@iconify-json/mingcute": "^1.2.3",
     "@iconify-json/solar": "^1.2.2",
     "@iconify-json/svg-spinners": "^1.2.2",
     "@intlify/unplugin-vue-i18n": "^6.0.2",
@@ -100,6 +100,6 @@
     "vite-plugin-vue-devtools": "^7.6.8",
     "vite-plugin-vue-layouts": "^0.11.0",
     "vite-plugin-webfont-dl": "^3.10.3",
-    "vue-tsc": "^2.1.10"
+    "vue-tsc": "^2.2.0"
   }
 }
