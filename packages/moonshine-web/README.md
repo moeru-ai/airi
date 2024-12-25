@@ -5,11 +5,11 @@ colorFrom: blue
 colorTo: pink
 sdk: static
 pinned: false
-license: apache-2.0
+license: MIT
 models:
   - onnx-community/moonshine-base-ONNX
 short_description: Yet another Real-time in-browser STT, re-implemented in Vue
-thumbnail: https://raw.githubusercontent.com/moeru-ai/airi/refs/heads/main/packages/whisper-webgpu/public/banner.png
+thumbnail: https://raw.githubusercontent.com/moeru-ai/airi/refs/heads/main/packages/moonshine-web/public/banner.png
 ---
 
 <h1 align="center">Moonshine Web (Vue)</h1>
