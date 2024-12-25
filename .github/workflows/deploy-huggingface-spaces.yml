@@ -35,27 +35,37 @@ jobs:
       - run: pnpm install
       - run: pnpm build
 
-      - name: Push to hub
+      - id: check_moonshine_web_changes
+        working-directory: ./packages/moonshine-web/dist
+        run: |-
+          mv ../README.md .
+          git add .
+          git diff --quiet . || echo "changed=true" >> $GITHUB_OUTPUT
+
+      - if: steps.check_moonshine_web_changes.outputs.changed == 'true'
         working-directory: ./packages/moonshine-web/dist
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
           HF_USERNAME: ${{ secrets.HF_USERNAME }}
         run: |-
-          mv ../README.md .
-          git add .
           git config --local user.email "neko@ayaka.moe"
           git config --local user.name "Neko Ayaka"
           git commit -m "release: build ${{ github.sha }}"
           git push -f
 
-      - name: Push to hub
+      - id: check_whisper_webgpu_changes
+        working-directory: ./packages/whisper-webgpu/dist
+        run: |-
+          mv ../README.md .
+          git add .
+          git diff --quiet . || echo "changed=true" >> $GITHUB_OUTPUT
+
+      - if: steps.check_whisper_webgpu_changes.outputs.changed == 'true'
         working-directory: ./packages/whisper-webgpu/dist
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
           HF_USERNAME: ${{ secrets.HF_USERNAME }}
         run: |-
-          mv ../README.md .
-          git add .
           git config --local user.email "neko@ayaka.moe"
           git config --local user.name "Neko Ayaka"
           git commit -m "release: build ${{ github.sha }}"
