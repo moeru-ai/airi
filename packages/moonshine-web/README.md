@@ -8,7 +8,7 @@ pinned: false
 license: apache-2.0
 models:
   - onnx-community/moonshine-base-ONNX
-short_description: Yet another Real-time in-browser speech recognition, re-implemented with Vue
+short_description: Yet another Real-time in-browser STT, re-implemented in Vue
 thumbnail: https://raw.githubusercontent.com/moeru-ai/airi/refs/heads/main/packages/whisper-webgpu/public/banner.png
 ---
 
