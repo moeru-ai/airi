@@ -34,12 +34,14 @@ onTokenLiteral(async () => {
 <template>
   <div
     relative
-    class="<lg:(absolute bottom-0 from-zinc-100/80 to-zinc-800/0 bg-gradient-to-t p-2 dark:from-zinc-800/80)"
+    class="<md:(absolute left-0 top-0 from-zinc-100/80 to-zinc-800/0 bg-gradient-to-t p-2 dark:from-zinc-800/80)"
     px="<sm:2" py="<sm:2" flex="~ col"
     rounded="lg"
     overflow-hidden
   >
-    <div ref="chatHistoryRef" v-auto-animate h-full w-full overflow-scroll>
+    <div flex-1 /> <!-- spacer -->
+    <div ref="chatHistoryRef" v-auto-animate h-full w-full flex="~ col" overflow-scroll>
+      <div flex-1 /> <!-- spacer -->
       <div v-for="(message, index) in messages" :key="index" mb-2>
         <div v-if="message.role === 'assistant'" flex mr="12">
           <div
@@ -48,6 +50,7 @@ onTokenLiteral(async () => {
             shadow="md pink-200/50 dark:none"
             min-w-20 rounded-lg px-2 py-1
             h="unset <sm:fit"
+            bg="<md:pink-500/25"
           >
             <div>
               <span text-xs text="pink-400/90 dark:pink-600/90" font-semibold class="inline <sm:hidden">Airi</span>
@@ -63,6 +66,7 @@ onTokenLiteral(async () => {
             shadow="md teal-200/50 dark:none"
             px="2"
             h="unset <sm:fit" min-w-20 rounded-lg px-2 py-1
+            bg="<md:teal-500/25"
           >
             <div>
               <span text-xs text="teal-400/90 dark:teal-600/90" font-semibold class="inline <sm:hidden">You</span>

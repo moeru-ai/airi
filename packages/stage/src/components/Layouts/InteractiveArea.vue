@@ -158,14 +158,14 @@ onAfterSend(async () => {
         </div>
       </label>
     </fieldset>
-    <div h-full max-h="[85vh]" w-full px-12 py-4>
+    <div h-full max-h="[85vh]" w-full px="12 <md:0" py="4">
       <div
         flex="~ col"
         border="solid 4 pink-100 dark:pink-400/20"
         h-full w-full overflow-scroll rounded-xl
       >
-        <ChatHistory h-full flex-1 p-4 w="full" max-h="[80vh]" />
-        <div flex gap-2>
+        <ChatHistory h-full flex-1 p-4 w="full" max-h="<md:[60%]" />
+        <div h="<md:full" flex gap-2>
           <BasicTextarea
             v-model="messageInput"
             :placeholder="t('stage.message')"
