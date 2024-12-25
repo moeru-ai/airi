@@ -26,6 +26,12 @@ jobs:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
           HF_USERNAME: ${{ secrets.HF_USERNAME }}
 
+      - run: |-
+          git clone https://$HF_USERNAME:$HF_TOKEN@huggingface.co/spaces/moeru-ai/airi --depth 1 packages/stage/dist
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          HF_USERNAME: ${{ secrets.HF_USERNAME }}
+
       - uses: pnpm/action-setup@v3
       - uses: actions/setup-node@v4
         with:
@@ -66,6 +72,26 @@ jobs:
 
       - if: steps.whisper_webgpu_diff.outputs.changes == 'true'
         working-directory: ./packages/whisper-webgpu/dist
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          HF_USERNAME: ${{ secrets.HF_USERNAME }}
+        run: |-
+          git config --local user.email "neko@ayaka.moe"
+          git config --local user.name "Neko Ayaka"
+          git commit -m "release: build ${{ github.sha }}"
+          git push -f
+
+      - id: airi_diff
+        working-directory: ./packages/stage/dist
+        run: |-
+          mv ../README.md .
+          git add .
+          if [[ -n $(git status --porcelain) ]]; then
+              echo "changes=true" >> "$GITHUB_OUTPUT";
+          fi
+
+      - if: steps.airi_diff.outputs.changes == 'true'
+        working-directory: ./packages/stage/dist
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
           HF_USERNAME: ${{ secrets.HF_USERNAME }}
