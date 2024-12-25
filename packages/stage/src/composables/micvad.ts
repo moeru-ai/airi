@@ -7,10 +7,10 @@ import { defu } from 'defu'
 export function useMicVAD(deviceId: MaybeRef<ConstrainDOMString | undefined>, options?: Partial<RealTimeVADOptions> & { auto?: boolean }) {
   const opts = defu<Partial<RealTimeVADOptions> & { auto?: boolean }, Array<Omit<RealTimeVADOptions, 'stream'> & { auto?: boolean }>>(options ?? {}, {
     ...getDefaultRealTimeVADOptions('v5'),
-    preSpeechPadFrames: 20,
+    preSpeechPadFrames: 30,
     positiveSpeechThreshold: 0.5, // default is 0.5
     negativeSpeechThreshold: 0.5 - 0.15, // default is 0.5 - 0.15
-    minSpeechFrames: 15, // default is 9
+    minSpeechFrames: 30, // default is 9
     auto: true,
   })
 
