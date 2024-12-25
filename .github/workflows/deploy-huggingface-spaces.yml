@@ -6,7 +6,7 @@ on:
       - main
 
 jobs:
-  deploy-moonshine-web-vue:
+  deploy:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -25,15 +25,6 @@ jobs:
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
           HF_USERNAME: ${{ secrets.HF_USERNAME }}
-
-      - uses: pnpm/action-setup@v3
-      - uses: actions/setup-node@v4
-        with:
-          node-version: lts/*
-          cache: pnpm
-
-      - run: pnpm install
-      - run: pnpm build
 
       - uses: pnpm/action-setup@v3
       - uses: actions/setup-node@v4
