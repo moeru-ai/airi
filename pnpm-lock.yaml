@@ -86,8 +86,11 @@ importers:
         specifier: ^1.50.2
         version: 1.50.2
 
-  packages/hfsup:
+  packages/hfup:
     dependencies:
+      defu:
+        specifier: ^6.1.4
+        version: 6.1.4
       gray-matter:
         specifier: ^4.0.3
         version: 4.0.3
@@ -150,9 +153,9 @@ importers:
       '@webgpu/types':
         specifier: ^0.1.52
         version: 0.1.52
-      hfsup:
+      hfup:
         specifier: workspace:^
-        version: link:../hfsup
+        version: link:../hfup
       vue-tsc:
         specifier: ^2.2.0
         version: 2.2.0(typescript@5.7.2)
@@ -364,9 +367,9 @@ importers:
       '@vueuse/motion':
         specifier: ^2.2.6
         version: 2.2.6(rollup@2.79.1)(vue@3.5.13(typescript@5.7.2))
-      hfsup:
+      hfup:
         specifier: workspace:^
-        version: link:../hfsup
+        version: link:../hfup
       markdown-it-link-attributes:
         specifier: ^4.0.1
         version: 4.0.1
@@ -431,9 +434,9 @@ importers:
       '@webgpu/types':
         specifier: ^0.1.52
         version: 0.1.52
-      hfsup:
+      hfup:
         specifier: workspace:^
-        version: link:../hfsup
+        version: link:../hfup
       vue-tsc:
         specifier: ^2.2.0
         version: 2.2.0(typescript@5.7.2)

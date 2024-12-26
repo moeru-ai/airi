@@ -14,7 +14,6 @@
     "url": "https://github.com/moeru-ai/airi.git",
     "directory": "packages/elevenlabs"
   },
-  "sideEffects": false,
   "exports": {
     "./types": {
       "types": "./dist/types/index.d.ts"

@@ -1,6 +1,6 @@
 import { templateCompilerOptions } from '@tresjs/core'
 import Vue from '@vitejs/plugin-vue'
-import { LFS, SpaceCard } from 'hfsup/vite'
+import { LFS, SpaceCard } from 'hfup/vite'
 import Unocss from 'unocss/vite'
 import { defineConfig } from 'vite'
 
@@ -19,8 +19,8 @@ export default defineConfig({
     SpaceCard({
       title: 'Moonshine Web (Vue)',
       emoji: '🌙',
-      colorFrom: 'blue',
-      colorTo: 'pink',
+      colorFrom: 'yellow',
+      colorTo: 'yellow',
       sdk: 'static',
       pinned: false,
       license: 'mit',

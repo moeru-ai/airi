@@ -1,5 +1,5 @@
 import Vue from '@vitejs/plugin-vue'
-import { LFS, SpaceCard } from 'hfsup/vite'
+import { LFS, SpaceCard } from 'hfup/vite'
 import Unocss from 'unocss/vite'
 import { defineConfig } from 'vite'
 
@@ -15,8 +15,8 @@ export default defineConfig({
     SpaceCard({
       title: 'Real-time Whisper WebGPU (Vue)',
       emoji: '🎤',
-      colorFrom: 'gray',
-      colorTo: 'green',
+      colorFrom: 'blue',
+      colorTo: 'blue',
       sdk: 'static',
       pinned: false,
       license: 'mit',

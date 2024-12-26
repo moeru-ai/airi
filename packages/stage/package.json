@@ -88,7 +88,7 @@
     "@vitejs/plugin-vue": "^5.2.1",
     "@vue-macros/volar": "^0.30.8",
     "@vueuse/motion": "^2.2.6",
-    "hfsup": "workspace:^",
+    "hfup": "workspace:^",
     "markdown-it-link-attributes": "^4.0.1",
     "unocss-preset-theme": "^0.14.1",
     "unplugin-auto-import": "^0.19.0",

@@ -32,6 +32,7 @@ words:
   - gltf
   - hfspaceup
   - hfsup
+  - hfup
   - histoire
   - hiyori
   - huggingface
@@ -80,5 +81,6 @@ words:
   - webgpu
   - worklet
   - xsai
+  - hfup
 ignoreWords: []
 import: []

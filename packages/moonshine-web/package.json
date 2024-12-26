@@ -32,7 +32,7 @@
     "@types/three": "^0.171.0",
     "@vitejs/plugin-vue": "^5.2.1",
     "@webgpu/types": "^0.1.52",
-    "hfsup": "workspace:^",
+    "hfup": "workspace:^",
     "vue-tsc": "^2.2.0"
   }
 }

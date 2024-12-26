@@ -1,7 +1,9 @@
 import type { Plugin, ResolvedConfig } from 'vite'
 import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
+import { defu } from 'defu'
 import grayMatter from 'gray-matter'
+
 import { exists } from '../../utils/fs'
 import { type License, licenseValues, type SpaceConfiguration } from './types'
 
@@ -11,7 +13,15 @@ import { type License, licenseValues, type SpaceConfiguration } from './types'
 // https://huggingface.co/docs/hub/model-cards#model-card-metadata
 export function SpaceCard(configuration?: SpaceConfiguration): Plugin {
   let _config: ResolvedConfig
-  const _configuration: SpaceConfiguration = configuration ?? { emoji: '🚀', sdk: 'static' }
+  const _configuration = defu<SpaceConfiguration, SpaceConfiguration[]>(
+    configuration,
+    {
+      emoji: '🚀',
+      sdk: 'static',
+      pinned: false,
+      license: 'unknown',
+    },
+  )
   let packageJSON: Record<string, any> = {}
   let readme = ''
 

@@ -6,7 +6,7 @@ import { env } from 'node:process'
 import VueI18n from '@intlify/unplugin-vue-i18n/vite'
 import { templateCompilerOptions } from '@tresjs/core'
 import Vue from '@vitejs/plugin-vue'
-import { LFS, SpaceCard } from 'hfsup/vite'
+import { LFS, SpaceCard } from 'hfup/vite'
 import { ofetch } from 'ofetch'
 import Unocss from 'unocss/vite'
 import Components from 'unplugin-vue-components/vite'
@@ -297,9 +297,9 @@ export default defineConfig({
     }),
     SpaceCard({
       title: 'アイリ VTuber',
-      emoji: '🌙',
+      emoji: '🧸',
       colorFrom: 'pink',
-      colorTo: 'yellow',
+      colorTo: 'pink',
       sdk: 'static',
       pinned: false,
       license: 'mit',

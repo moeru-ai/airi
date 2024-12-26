@@ -1,5 +1,5 @@
 {
-  "name": "hfsup",
+  "name": "hfup",
   "type": "module",
   "private": false,
   "description": "A collection of tools to help you deploy, bundle HuggingFace Spaces and related assets with ease.",
@@ -14,7 +14,6 @@
     "url": "https://github.com/moeru-ai/airi.git",
     "directory": "packages/huggingspace"
   },
-  "sideEffects": false,
   "exports": {
     "./vite": {
       "types": "./dist/vite/index.d.ts",
@@ -36,6 +35,7 @@
     "build": "unbuild"
   },
   "dependencies": {
+    "defu": "^6.1.4",
     "gray-matter": "^4.0.3",
     "vite": "^6.0.5"
   }
