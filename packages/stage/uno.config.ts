@@ -46,11 +46,11 @@ export default defineConfig(mergeConfigs([
       }),
       presetWebFonts({
         fonts: {
-          'sans': 'DM Sans',
-          'serif': 'DM Serif Display',
-          'mono': 'DM Mono',
-          'cute': 'Kiwi Maru',
-          'cute-en': 'Sniglet',
+          sans: 'DM Sans',
+          serif: 'DM Serif Display',
+          mono: 'DM Mono',
+          cute: 'Kiwi Maru',
+          cuteen: 'Sniglet',
         },
       }),
     ],
