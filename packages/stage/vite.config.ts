@@ -294,6 +294,11 @@ export default defineConfig({
       license: 'mit',
       models: ['onnx-community/whisper-base'],
       short_description: 'アイリ VTuber. LLM powered Live2D/VRM living character.',
+      custom_headers: {
+        'cross-origin-embedder-policy': 'require-corp',
+        'cross-origin-opener-policy': 'same-origin',
+        'cross-origin-resource-policy': 'cross-origin',
+      },
     }),
   ],
 })
