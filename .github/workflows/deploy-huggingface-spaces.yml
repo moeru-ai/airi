@@ -5,6 +5,10 @@ on:
     branches:
       - main
 
+  pull_request:
+    branches:
+      - main
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -26,11 +30,11 @@ jobs:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
           HF_USERNAME: ${{ secrets.HF_USERNAME }}
 
-      # - run: |-
-      #     git clone https://$HF_USERNAME:$HF_TOKEN@huggingface.co/spaces/moeru-ai/airi --depth 1 packages/stage/dist
-      #   env:
-      #     HF_TOKEN: ${{ secrets.HF_TOKEN }}
-      #     HF_USERNAME: ${{ secrets.HF_USERNAME }}
+      - run: |-
+          git clone https://$HF_USERNAME:$HF_TOKEN@huggingface.co/spaces/moeru-ai/airi --depth 1 packages/stage/dist
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          HF_USERNAME: ${{ secrets.HF_USERNAME }}
 
       - uses: pnpm/action-setup@v3
       - uses: actions/setup-node@v4
@@ -44,7 +48,7 @@ jobs:
       - id: moonshine_web_diff
         working-directory: ./packages/moonshine-web/dist
         run: |-
-          mv ../README.md .
+          git lfs ls-files --all
           git add .
           if [[ -n $(git status --porcelain) ]]; then
               echo "changes=true" >> "$GITHUB_OUTPUT";
@@ -59,12 +63,13 @@ jobs:
           git config --local user.email "neko@ayaka.moe"
           git config --local user.name "Neko Ayaka"
           git commit -m "release: build ${{ github.sha }}"
+          git lfs push origin main --all
           git push -f
 
       - id: whisper_webgpu_diff
         working-directory: ./packages/whisper-webgpu/dist
         run: |-
-          mv ../README.md .
+          git lfs ls-files --all
           git add .
           if [[ -n $(git status --porcelain) ]]; then
               echo "changes=true" >> "$GITHUB_OUTPUT";
@@ -79,24 +84,26 @@ jobs:
           git config --local user.email "neko@ayaka.moe"
           git config --local user.name "Neko Ayaka"
           git commit -m "release: build ${{ github.sha }}"
+          git lfs push origin main --all
           git push -f
 
-      # - id: airi_diff
-      #   working-directory: ./packages/stage/dist
-      #   run: |-
-      #     mv ../README.md .
-      #     git add .
-      #     if [[ -n $(git status --porcelain) ]]; then
-      #         echo "changes=true" >> "$GITHUB_OUTPUT";
-      #     fi
+      - id: airi_diff
+        working-directory: ./packages/stage/dist
+        run: |-
+          git lfs ls-files --all
+          git add .
+          if [[ -n $(git status --porcelain) ]]; then
+              echo "changes=true" >> "$GITHUB_OUTPUT";
+          fi
 
-      # - if: steps.airi_diff.outputs.changes == 'true'
-      #   working-directory: ./packages/stage/dist
-      #   env:
-      #     HF_TOKEN: ${{ secrets.HF_TOKEN }}
-      #     HF_USERNAME: ${{ secrets.HF_USERNAME }}
-      #   run: |-
-      #     git config --local user.email "neko@ayaka.moe"
-      #     git config --local user.name "Neko Ayaka"
-      #     git commit -m "release: build ${{ github.sha }}"
-      #     git push -f
+      - if: steps.airi_diff.outputs.changes == 'true'
+        working-directory: ./packages/stage/dist
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          HF_USERNAME: ${{ secrets.HF_USERNAME }}
+        run: |-
+          git config --local user.email "neko@ayaka.moe"
+          git config --local user.name "Neko Ayaka"
+          git commit -m "release: build ${{ github.sha }}"
+          git lfs push origin main --all
+          git push -f

@@ -5,6 +5,7 @@ import path, { join, resolve } from 'node:path'
 import VueI18n from '@intlify/unplugin-vue-i18n/vite'
 import { templateCompilerOptions } from '@tresjs/core'
 import Vue from '@vitejs/plugin-vue'
+import { LFS, SpaceCard } from 'hfsup/vite'
 import { ofetch } from 'ofetch'
 import Unocss from 'unocss/vite'
 import Components from 'unplugin-vue-components/vite'
@@ -269,5 +270,30 @@ export default defineConfig({
         }
       },
     },
+
+    // HuggingFace Spaces
+    LFS({
+      extraGlobs: [
+        '*.vrm',
+        '*.cmo3',
+        '*.png',
+        '*.jpg',
+        '*.jpeg',
+        '*.gif',
+        '*.webp',
+        '*.bmp',
+      ],
+    }),
+    SpaceCard({
+      title: 'アイリ VTuber',
+      emoji: '🌙',
+      colorFrom: 'pink',
+      colorTo: 'yellow',
+      sdk: 'static',
+      pinned: false,
+      license: 'mit',
+      models: ['onnx-community/whisper-base'],
+      short_description: 'アイリ VTuber. LLM powered Live2D/VRM living character.',
+    }),
   ],
 })

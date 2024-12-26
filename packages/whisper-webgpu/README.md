@@ -1,17 +1,3 @@
----
-title: Real-time Whisper WebGPU (Vue)
-emoji: 🎤
-colorFrom: gray
-colorTo: green
-sdk: static
-pinned: false
-license: mit
-models:
-- onnx-community/whisper-base
-short_description: Yet another Real-time Whisper with WebGPU, written in Vue
-thumbnail: https://raw.githubusercontent.com/moeru-ai/airi/refs/heads/main/packages/whisper-webgpu/public/banner.png
----
-
 <h1 align="center">Whisper Realtime Demo (WebGPU)</h1>
 
 <p align="center">
