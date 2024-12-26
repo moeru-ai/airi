@@ -2,6 +2,7 @@ import { Buffer } from 'node:buffer'
 import { copyFile, cp, mkdir, readFile, writeFile } from 'node:fs/promises'
 import path, { join, resolve } from 'node:path'
 
+import { env } from 'node:process'
 import VueI18n from '@intlify/unplugin-vue-i18n/vite'
 import { templateCompilerOptions } from '@tresjs/core'
 import Vue from '@vitejs/plugin-vue'
@@ -14,13 +15,21 @@ import VueRouter from 'unplugin-vue-router/vite'
 import { defineConfig } from 'vite'
 import { VitePWA } from 'vite-plugin-pwa'
 import VueDevTools from 'vite-plugin-vue-devtools'
-import Layouts from 'vite-plugin-vue-layouts'
 
+import Layouts from 'vite-plugin-vue-layouts'
 import { exists } from './scripts/fs'
 import { unzip } from './scripts/unzip'
 import { appName } from './src/constants'
 
 export default defineConfig({
+  build: {
+    rollupOptions: {
+      external: [
+        'virtual:pwa-register',
+      ],
+    },
+  },
+
   optimizeDeps: {
     exclude: [
       'public/assets/*',
@@ -74,27 +83,29 @@ export default defineConfig({
     Unocss(),
 
     // https://github.com/antfu/vite-plugin-pwa
-    VitePWA({
-      registerType: 'autoUpdate',
-      includeAssets: ['favicon.svg', 'apple-touch-icon.png'],
-      manifest: {
-        name: appName,
-        short_name: appName,
-        theme_color: '#ffffff',
-        icons: [
-          {
-            src: '/web-app-manifest-192x192.png',
-            sizes: '192x192',
-            type: 'image/png',
+    ...(env.TARGET_HUGGINGFACE_SPACE
+      ? []
+      : [VitePWA({
+          registerType: 'autoUpdate',
+          includeAssets: ['favicon.svg', 'apple-touch-icon.png'],
+          manifest: {
+            name: appName,
+            short_name: appName,
+            theme_color: '#ffffff',
+            icons: [
+              {
+                src: '/web-app-manifest-192x192.png',
+                sizes: '192x192',
+                type: 'image/png',
+              },
+              {
+                src: '/web-app-manifest-512x512.png',
+                sizes: '512x512',
+                type: 'image/png',
+              },
+            ],
           },
-          {
-            src: '/web-app-manifest-512x512.png',
-            sizes: '512x512',
-            type: 'image/png',
-          },
-        ],
-      },
-    }),
+        })]),
 
     // https://github.com/intlify/bundle-tools/tree/main/packages/unplugin-vue-i18n
     VueI18n({
@@ -294,11 +305,6 @@ export default defineConfig({
       license: 'mit',
       models: ['onnx-community/whisper-base'],
       short_description: 'アイリ VTuber. LLM powered Live2D/VRM living character.',
-      custom_headers: {
-        'cross-origin-embedder-policy': 'require-corp',
-        'cross-origin-opener-policy': 'same-origin',
-        'cross-origin-resource-policy': 'cross-origin',
-      },
     }),
   ],
 })

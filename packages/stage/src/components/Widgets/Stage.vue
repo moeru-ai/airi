@@ -175,14 +175,14 @@ onUnmounted(() => {
         ref="live2DViewerRef"
         :mouth-open-size="mouthOpenSize"
         model="/assets/live2d/models/hiyori_pro_zh/runtime/hiyori_pro_t11.model3.json"
-        w="50%" min-w="50% <lg:full" min-h="100 sm:100" h-full flex-1
+        min-w="50% <lg:full" min-h="100 sm:100" h-full w-full flex-1
       />
       <VRMScene
         v-else-if="stageView === '3d'"
         ref="vrmViewerRef"
         model="/assets/vrm/models/AvatarSample-B/AvatarSample_B.vrm"
         idle-animation="/assets/vrm/animations/idle_loop.vrma"
-        w="50%" min-w="50% <lg:full" min-h="100 sm:100" h-full flex-1
+        min-w="50% <lg:full" min-h="100 sm:100" h-full w-full flex-1
         @error="console.error"
       />
     </div>
