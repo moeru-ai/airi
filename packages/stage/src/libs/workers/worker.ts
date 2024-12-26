@@ -138,8 +138,8 @@ async function load() {
   })
 
   // Load the pipeline and save it for future use.
-  // eslint-disable-next-line unused-imports/no-unused-vars
-  const [tokenizer, processor, model] = await AutomaticSpeechRecognitionPipeline.getInstance((x) => {
+  // const [tokenizer, processor, model] = await AutomaticSpeechRecognitionPipeline.getInstance((x) => {
+  const [_tokenizer, _processor, model] = await AutomaticSpeechRecognitionPipeline.getInstance((x) => {
     // We also add a progress callback to the pipeline so that we can
     // track model loading.
     globalThis.postMessage(x)

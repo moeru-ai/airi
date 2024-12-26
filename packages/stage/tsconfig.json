@@ -6,9 +6,6 @@
     "baseUrl": ".",
     "module": "ESNext",
     "moduleResolution": "Bundler",
-    "paths": {
-      "~/*": ["src/*"]
-    },
     "resolveJsonModule": true,
     "types": [
       "vitest",

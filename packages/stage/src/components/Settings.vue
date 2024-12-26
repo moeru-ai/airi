@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { useDark } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
+import { onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useLLM } from '../stores/llm'
 
 import { useSettings } from '../stores/settings'
 import TransitionVertical from './TransitionVertical.vue'

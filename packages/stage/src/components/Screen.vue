@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { breakpointsTailwind, useBreakpoints, useElementBounding, useWindowSize } from '@vueuse/core'
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 
 const containerRef = ref<HTMLDivElement>()
 

@@ -2,9 +2,15 @@
 import { useDevicesList } from '@vueuse/core'
 
 import { storeToRefs } from 'pinia'
-import { ref } from 'vue'
-import WhisperWorker from '../../libs/workers/worker?worker&url'
+import { ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 
+import { useMicVAD } from '../../composables/micvad'
+import { useWhisper } from '../../composables/whisper'
+import WhisperWorker from '../../libs/workers/worker?worker&url'
+import { useAudioContext } from '../../stores/audio'
+import { useChatStore } from '../../stores/chat'
+import { useSettings } from '../../stores/settings'
 import { encodeWAVToBase64 } from '../../utils/binary'
 import ChatHistory from '../Widgets/ChatHistory.vue'
 

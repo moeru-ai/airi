@@ -2,7 +2,7 @@
 import { ref } from 'vue'
 
 import BasicTextarea from '../../../components/BasicTextarea.vue'
-import { useQueue } from '../../../composables/queue'
+// import { useQueue } from '../../../composables/queue'
 import { useDelayMessageQueue } from '../../../composables/queues'
 import { llmInferenceEndToken } from '../../../constants'
 
@@ -11,15 +11,15 @@ const emotionMessageContentProcessed = ref<string[]>([])
 const delaysProcessed = ref<number[]>([])
 const processing = ref<boolean>(false)
 
-const emotionMessageContentQueue = useQueue<string>({
-  handlers: [
-    async (ctx) => {
-      emotionMessageContentProcessed.value.push(ctx.data)
-    },
-  ],
-})
+// const emotionMessageContentQueue = useQueue<string>({
+//   handlers: [
+//     async (ctx) => {
+//       emotionMessageContentProcessed.value.push(ctx.data)
+//     },
+//   ],
+// })
 
-const delaysQueue = useDelayMessageQueue(emotionMessageContentQueue)
+const delaysQueue = useDelayMessageQueue()
 delaysQueue.onHandlerEvent('delay', (delay) => {
   delaysProcessed.value.push(delay)
 })

@@ -2,8 +2,10 @@
 import { OrbitControls } from '@tresjs/cientos'
 import { TresCanvas } from '@tresjs/core'
 
+import { ref } from 'vue'
 import Collapsable from '../Collapsable.vue'
 import DataGuiRange from '../DataGui/Range.vue'
+import Screen from '../Screen.vue'
 import VRMModel from '../VRM/Model.vue'
 
 const props = defineProps<{
@@ -37,8 +39,8 @@ defineExpose({
 </script>
 
 <template>
-  <Screen v-slot="{ canvasHeight, canvasWidth }" relative>
-    <TresCanvas :alpha="true" :antialias="true" :width="canvasWidth" :height="canvasHeight">
+  <Screen v-slot="{ height, width }" relative>
+    <TresCanvas :alpha="true" :antialias="true" :width="width" :height="height">
       <OrbitControls />
       <TresPerspectiveCamera :position="[cameraPositionX, cameraPositionY, cameraPositionZ]" />
       <TresDirectionalLight :color="0xFFFFFF" :intensity="1.2" :position="[1, 1, 1]" />

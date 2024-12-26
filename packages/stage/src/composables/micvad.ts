@@ -1,8 +1,10 @@
 import type { RealTimeVADOptions } from '@ricky0123/vad-web'
+import type { MaybeRef } from '@vueuse/shared'
 import { getDefaultRealTimeVADOptions, MicVAD } from '@ricky0123/vad-web'
 import { usePermission } from '@vueuse/core'
 import { tryOnMounted } from '@vueuse/shared'
 import { defu } from 'defu'
+import { onUnmounted, ref, toRef, unref, watch } from 'vue'
 
 export function useMicVAD(deviceId: MaybeRef<ConstrainDOMString | undefined>, options?: Partial<RealTimeVADOptions> & { auto?: boolean }) {
   const opts = defu<Partial<RealTimeVADOptions> & { auto?: boolean }, Array<Omit<RealTimeVADOptions, 'stream'> & { auto?: boolean }>>(options ?? {}, {

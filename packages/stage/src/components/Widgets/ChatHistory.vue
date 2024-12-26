@@ -1,7 +1,8 @@
 <script setup lang="ts">
+import { useElementBounding, useScroll } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { ref } from 'vue'
 
+import { nextTick, ref } from 'vue'
 import { useMarkdown } from '../../composables/markdown'
 import { useChatStore } from '../../stores/chat'
 

@@ -23,10 +23,12 @@ words:
   - cubismmotionqueuemanager
   - cubismusermodel
   - cubismviewmatrix
+  - cuteen
   - defu
   - demi
   - dtype
   - elevenlabs
+  - formkit
   - gltf
   - histoire
   - hiyori
@@ -37,6 +39,7 @@ words:
   - live2dcubismcore
   - live2dcubismframework
   - Llmmarker
+  - Maru
   - micvad
   - Myriam
   - Neko
@@ -60,6 +63,7 @@ words:
   - shikijs
   - silero
   - sizecheck
+  - Sniglet
   - taze
   - tresjs
   - typeschema

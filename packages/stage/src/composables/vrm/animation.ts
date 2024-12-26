@@ -1,6 +1,7 @@
 import type { VRMAnimation } from '@pixiv/three-vrm-animation'
 import type { VRMCore } from '@pixiv/three-vrm-core'
 import { createVRMAnimationClip } from '@pixiv/three-vrm-animation'
+import { ref } from 'vue'
 import { useVRMLoader } from './loader'
 
 export interface GLTFUserdata extends Record<string, any> {

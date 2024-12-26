@@ -7,16 +7,13 @@ import { templateCompilerOptions } from '@tresjs/core'
 import Vue from '@vitejs/plugin-vue'
 import { ofetch } from 'ofetch'
 import Unocss from 'unocss/vite'
-import AutoImport from 'unplugin-auto-import/vite'
 import Components from 'unplugin-vue-components/vite'
 import VueMacros from 'unplugin-vue-macros/vite'
-import { VueRouterAutoImports } from 'unplugin-vue-router'
 import VueRouter from 'unplugin-vue-router/vite'
 import { defineConfig } from 'vite'
 import { VitePWA } from 'vite-plugin-pwa'
 import VueDevTools from 'vite-plugin-vue-devtools'
 import Layouts from 'vite-plugin-vue-layouts'
-import WebfontDownload from 'vite-plugin-webfont-dl'
 
 import { exists } from './scripts/fs'
 import { unzip } from './scripts/unzip'
@@ -43,12 +40,6 @@ export default defineConfig({
     ],
   },
 
-  resolve: {
-    alias: {
-      '~/': `${path.resolve(__dirname, 'src')}/`,
-    },
-  },
-
   plugins: [
     VueMacros({
       plugins: {
@@ -67,27 +58,6 @@ export default defineConfig({
 
     // https://github.com/JohnCampionJr/vite-plugin-vue-layouts
     Layouts(),
-
-    // https://github.com/antfu/unplugin-auto-import
-    AutoImport({
-      imports: [
-        'vue',
-        'vue-i18n',
-        '@vueuse/head',
-        '@vueuse/core',
-        VueRouterAutoImports,
-        {
-          // add any other imports you were relying on
-          'vue-router/auto': ['useLink'],
-        },
-      ],
-      dts: 'src/auto-imports.d.ts',
-      dirs: [
-        'src/composables',
-        'src/stores',
-      ],
-      vueTemplate: true,
-    }),
 
     // https://github.com/antfu/unplugin-vue-components
     Components({
@@ -134,7 +104,7 @@ export default defineConfig({
     }),
 
     // https://github.com/feat-agency/vite-plugin-webfont-dl
-    WebfontDownload(),
+    // WebfontDownload(),
 
     // https://github.com/webfansplz/vite-plugin-vue-devtools
     VueDevTools(),

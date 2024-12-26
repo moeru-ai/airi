@@ -1,6 +1,7 @@
-import { useLocalStorage } from '@vueuse/core'
+import { useDevicesList, useLocalStorage } from '@vueuse/core'
 import { defineStore } from 'pinia'
-import { i18n } from '~/modules/i18n'
+import { computed, onMounted, ref, watch } from 'vue'
+import { i18n } from '../modules/i18n'
 
 export const useSettings = defineStore('settings', () => {
   const selectedAudioDevice = ref<MediaDeviceInfo>()

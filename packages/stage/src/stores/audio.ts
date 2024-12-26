@@ -1,4 +1,5 @@
 import { defineStore } from 'pinia'
+import { computed, ref } from 'vue'
 
 function calculateVolumeWithLinearNormalize(analyser: AnalyserNode) {
   const dataBuffer = new Uint8Array(analyser.frequencyBinCount)
