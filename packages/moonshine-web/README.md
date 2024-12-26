@@ -1,17 +1,3 @@
----
-title: Moonshine Web (Vue)
-emoji: 🌙
-colorFrom: blue
-colorTo: pink
-sdk: static
-pinned: false
-license: mit
-models:
-  - onnx-community/moonshine-base-ONNX
-short_description: Yet another Real-time in-browser STT, re-implemented in Vue
-thumbnail: https://raw.githubusercontent.com/moeru-ai/airi/refs/heads/main/packages/moonshine-web/public/banner.png
----
-
 <h1 align="center">Moonshine Web (Vue)</h1>
 
 <p align="center">
