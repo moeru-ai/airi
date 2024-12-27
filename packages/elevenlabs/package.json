@@ -28,7 +28,8 @@
   "scripts": {
     "dev": "pnpm run stub",
     "stub": "unbuild --stub",
-    "build": "unbuild"
+    "build": "unbuild",
+    "package:publish": "pnpm build && pnpm publish --access public --no-git-checks"
   },
   "devDependencies": {
     "elevenlabs": "^1.50.2"

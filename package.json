@@ -18,6 +18,7 @@
     "packages:dev": "pnpm -r --filter=./packages/* --parallel run dev",
     "packages:stub": "pnpm -r --filter=./packages/* run stub",
     "packages:build": "pnpm -r --filter=./packages/* run build",
+    "packages:publish": "pnpm -r --filter=./packages/* run package:publish",
     "test": "vitest --coverage",
     "test:run": "vitest run",
     "up": "taze major -I",
