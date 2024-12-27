@@ -1,6 +1,7 @@
 {
   "name": "@proj-airi/elevenlabs",
   "type": "module",
+  "version": "0.1.0",
   "private": false,
   "description": "Simple wrapper of types of Elevenlabs's SDK",
   "author": {
