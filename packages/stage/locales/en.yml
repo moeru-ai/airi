@@ -46,14 +46,17 @@ settings:
   elevenlabs-api-key:
     label: ElevenLabs API Key
     placeholder: Input your ElevenLabs API key
+    placeholder_mobile: Elevenlabs API Key
   language: Language
   models: Model
   openai-api-key:
     label: OpenAI API Key
     placeholder: Input your API key
+    placeholder_mobile: OpenAI API Key
   openai-base-url:
     label: OpenAI API BaseURL
     placeholder: Input your API base URL
+    placeholder_mobile: OpenAI API BaseURL
 stage:
   message: Message
   select-a-audio-input: Select a Audio Input

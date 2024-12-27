@@ -65,7 +65,7 @@ onMounted(async () => {
           <input
             v-model="settings.openAiApiBaseURL"
             type="text"
-            :placeholder="t('settings.openai-base-url.placeholder')"
+            :placeholder="t('settings.openai-base-url.placeholder_mobile')"
             w-full rounded-md bg-transparent px-2 py-1 text-right font-mono outline-none
           >
         </div>
@@ -76,7 +76,7 @@ onMounted(async () => {
           <input
             v-model="settings.openAiApiKey"
             type="text"
-            :placeholder="t('settings.openai-api-key.placeholder')"
+            :placeholder="t('settings.openai-api-key.placeholder_mobile')"
             w-full rounded-md bg-transparent px-2 py-1 text-right font-mono outline-none
           >
         </div>
@@ -87,7 +87,7 @@ onMounted(async () => {
           <input
             v-model="settings.elevenLabsApiKey"
             type="text"
-            :placeholder="t('settings.elevenlabs-api-key.placeholder')"
+            :placeholder="t('settings.elevenlabs-api-key.placeholder_mobile')"
             w-full rounded-md bg-transparent px-2 py-1 text-right font-mono outline-none
           >
         </div>
@@ -137,28 +137,24 @@ onMounted(async () => {
         bg="[#fff6fc] dark:[#2c2529]" px-2 py-1 text="pink-400"
       >
         <div text="sm pink-500">
-          <span>Theme</span>
+          <span>Viewer</span>
         </div>
-        <label
-          h-fit cursor-pointer rounded-md px-2 py-2
+        <select
+          w-full rounded-md bg-transparent px-2 py-1 text-right font-mono outline-none
+          @change="handleViewChange"
         >
-          <select
-            w-full rounded-md bg-transparent px-2 py-1 text-right font-mono outline-none
-            @change="handleViewChange"
-          >
-            <option value="2d">
-              2D
-            </option>
-            <option value="3d">
-              3D
-            </option>
-          </select>
-        </label>
+          <option value="2d">
+            2D
+          </option>
+          <option value="3d">
+            3D
+          </option>
+        </select>
         <div text="sm pink-500">
           <span>Theme</span>
         </div>
         <label
-          h-fit cursor-pointer rounded-md px-2 py-2
+          cursor-pointer px-2 py-1
         >
           <input
             v-model="dark"
@@ -170,8 +166,8 @@ onMounted(async () => {
           >
           <div flex select-none justify-end>
             <Transition name="slide-away" mode="out-in">
-              <div v-if="dark" i-solar:sun-fog-bold-duotone text="lg hover:pink-600 dark:hover:pink-300" transition="all ease-in-out duration-250" />
-              <div v-else i-solar:moon-stars-bold-duotone text="lg hover:pink-600 dark:hover:pink-300" transition="all ease-in-out duration-250" />
+              <div v-if="dark" i-solar:sun-fog-bold-duotone text="base hover:pink-600 dark:hover:pink-300" transition="all ease-in-out duration-250" />
+              <div v-else i-solar:moon-stars-bold-duotone text="base hover:pink-600 dark:hover:pink-300" transition="all ease-in-out duration-250" />
             </Transition>
           </div>
         </label>

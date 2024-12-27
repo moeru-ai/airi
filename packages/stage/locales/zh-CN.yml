@@ -34,14 +34,17 @@ settings:
   elevenlabs-api-key:
     label: ElevenLabs API 密钥
     placeholder: 输入您的 ElevenLabs API 密钥
+    placeholder_mobile: ElevenLabs API Key
   language: 语言
   models: 模型
   openai-api-key:
     label: OpenAI API 密钥
     placeholder: 输入您的 API 密钥
+    placeholder_mobile: OpenAI API Key
   openai-base-url:
     label: OpenAI API BaseURL
     placeholder: 输入您的 API BaseURL
+    placeholder_mobile: OpenAI BaseURL
 stage:
   message: 消息
   select-a-audio-input: 选择一个音频输入设备

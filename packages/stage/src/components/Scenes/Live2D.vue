@@ -46,7 +46,7 @@ defineExpose({
           h-fit cursor-pointer
           :class="[show ? 'bg-zinc-300 text-zinc-900 dark:bg-zinc-200 dark:text-zinc-800' : '']"
           transition="all ease-in-out duration-500"
-          rounded-md px-2 py-2 z="<md:1000"
+          rounded-md px-2 py-2 z="<md:20"
         >
           <input
             v-model="show"
@@ -62,7 +62,7 @@ defineExpose({
         </label>
       </div>
       <TransitionVertical>
-        <div v-if="show" absolute w-full top="10" min-w="50vw" z="<md:1000">
+        <div v-if="show" absolute w-full top="10" min-w="50vw" z="<md:20">
           <div bg="zinc-200/20 dark:black/20" rounded-lg p-2 backdrop-blur-sm>
             <div font-mono>
               <span>Emotions</span>

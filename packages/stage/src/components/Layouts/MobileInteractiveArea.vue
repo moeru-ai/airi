@@ -110,12 +110,10 @@ onMounted(() => {
         <div i-solar:settings-bold-duotone />
       </DrawerTrigger>
       <DrawerPortal>
-        <DrawerOverlay class="fixed inset-0 bg-black/40" />
+        <DrawerOverlay class="fixed inset-0 z-50 bg-black/40" />
         <DrawerContent
           max-h="[75%]"
-          fixed bottom-0 left-0 right-0
-          mt-24 h-full flex flex-col
-          rounded-t-lg bg="[#fffbff] dark:[#1f1a1d]"
+          fixed bottom-0 left-0 right-0 z-50 mt-24 h-full flex flex-col rounded-t-lg bg="[#fffbff] dark:[#1f1a1d]"
         >
           <div class="flex flex-1 flex-col rounded-t-lg p-5" bg="[#fffbff] dark:[#1f1a1d]" gap-2>
             <MobileSettings />

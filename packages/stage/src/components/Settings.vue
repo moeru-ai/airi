@@ -225,24 +225,3 @@ onMounted(async () => {
     </div>
   </div>
 </template>
-
-<style lang="css" scoped>
-.slide-away-enter-active,
-.slide-away-leave-active {
-  transition:
-    transform 0.3s ease-in-out,
-    opacity 0.3s ease-in-out;
-}
-
-.slide-away-enter,
-.slide-away-leave-to {
-  transform: translateY(-10px);
-  opacity: 0;
-}
-
-.slide-away-enter-from,
-.slide-away-leave {
-  transform: translateY(10px);
-  opacity: 0;
-}
-</style>
