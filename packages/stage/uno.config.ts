@@ -1,49 +1,11 @@
 import { defineConfig, mergeConfigs, presetWebFonts } from 'unocss'
-// import presetTheme from 'unocss-preset-theme'
+import presetAnimations from 'unocss-preset-animations'
 import UnoCSSConfig from '../../uno.config'
 
 export default defineConfig(mergeConfigs([
   UnoCSSConfig,
   {
     presets: [
-      // presetTheme({
-      //   theme: {
-      //     light: {
-      //       colors: {
-      //         primary: {
-      //           50: 'var(--airi-theme-primary-50)',
-      //           100: 'var(--airi-theme-primary-100)',
-      //           200: 'var(--airi-theme-primary-200)',
-      //           300: 'var(--airi-theme-primary-300)',
-      //           400: 'var(--airi-theme-primary-400)',
-      //           500: 'var(--airi-theme-primary-500)',
-      //           600: 'var(--airi-theme-primary-600)',
-      //           700: 'var(--airi-theme-primary-700)',
-      //           800: 'var(--airi-theme-primary-800)',
-      //           900: 'var(--airi-theme-primary-900)',
-      //           950: 'var(--airi-theme-primary-950)',
-      //         },
-      //       },
-      //     },
-      //     dark: {
-      //       colors: {
-      //         primary: {
-      //           50: 'var(--airi-theme-primary-50)',
-      //           100: 'var(--airi-theme-primary-100)',
-      //           200: 'var(--airi-theme-primary-200)',
-      //           300: 'var(--airi-theme-primary-300)',
-      //           400: 'var(--airi-theme-primary-400)',
-      //           500: 'var(--airi-theme-primary-500)',
-      //           600: 'var(--airi-theme-primary-600)',
-      //           700: 'var(--airi-theme-primary-700)',
-      //           800: 'var(--airi-theme-primary-800)',
-      //           900: 'var(--airi-theme-primary-900)',
-      //           950: 'var(--airi-theme-primary-950)',
-      //         },
-      //       },
-      //     },
-      //   },
-      // }),
       presetWebFonts({
         fonts: {
           sans: 'DM Sans',
@@ -53,6 +15,29 @@ export default defineConfig(mergeConfigs([
           cuteen: 'Sniglet',
         },
       }),
+      // hyoban/unocss-preset-shadcn: Use shadcn ui with UnoCSS
+      // https://github.com/hyoban/unocss-preset-shadcn
+      presetAnimations(),
     ],
+    // hyoban/unocss-preset-shadcn: Use shadcn ui with UnoCSS
+    // https://github.com/hyoban/unocss-preset-shadcn
+    //
+    // Thanks to
+    // https://github.com/unovue/shadcn-vue/issues/34#issuecomment-2467318118
+    // https://github.com/hyoban-template/shadcn-vue-unocss-starter
+    //
+    // By default, `.ts` and `.js` files are NOT extracted.
+    // If you want to extract them, use the following configuration.
+    // It's necessary to add the following configuration if you use shadcn-vue or shadcn-svelte.
+    content: {
+      pipeline: {
+        include: [
+        // the default
+          /\.(vue|svelte|[jt]sx|mdx?|astro|elm|php|phtml|html)($|\?)/,
+          // include js/ts files
+          '(components|src)/**/*.{js,ts}',
+        ],
+      },
+    },
   },
 ]))

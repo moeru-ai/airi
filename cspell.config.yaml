@@ -37,6 +37,7 @@ words:
   - hiyori
   - huggingface
   - huggingspace
+  - hyoban
   - iconify
   - intlify
   - kwaa
@@ -63,6 +64,7 @@ words:
   - pixiv
   - pretrained
   - rehype
+  - Shadcn
   - shiki
   - shikijs
   - silero
@@ -81,6 +83,5 @@ words:
   - webgpu
   - worklet
   - xsai
-  - hfup
 ignoreWords: []
 import: []

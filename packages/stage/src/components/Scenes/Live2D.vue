@@ -35,7 +35,7 @@ defineExpose({
 <template>
   <Screen v-slot="{ width, height }" relative>
     <Live2DViewer ref="modelRef" :canvas-width="width" :canvas-height="height" :model="model" :mouth-open-size="mouthOpenSize" />
-    <div absolute top="2">
+    <div absolute bottom="2" right="2">
       <div
         flex="~ row"
         bg="zinc-100 dark:zinc-700"

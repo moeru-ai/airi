@@ -1,8 +1,8 @@
 import { Buffer } from 'node:buffer'
 import { copyFile, cp, mkdir, readFile, writeFile } from 'node:fs/promises'
 import path, { join, resolve } from 'node:path'
-
 import { env } from 'node:process'
+
 import VueI18n from '@intlify/unplugin-vue-i18n/vite'
 import { templateCompilerOptions } from '@tresjs/core'
 import Vue from '@vitejs/plugin-vue'
@@ -22,14 +22,6 @@ import { unzip } from './scripts/unzip'
 import { appName } from './src/constants'
 
 export default defineConfig({
-  build: {
-    rollupOptions: {
-      external: [
-        'virtual:pwa-register',
-      ],
-    },
-  },
-
   optimizeDeps: {
     exclude: [
       'public/assets/*',
@@ -48,6 +40,14 @@ export default defineConfig({
       '@framework/utils/cubismdebug',
       '@framework/model/cubismmoc',
     ],
+  },
+
+  build: {
+    rollupOptions: {
+      external: [
+        'virtual:pwa-register',
+      ],
+    },
   },
 
   plugins: [
@@ -114,9 +114,6 @@ export default defineConfig({
       fullInstall: true,
       include: [path.resolve(__dirname, 'locales/**')],
     }),
-
-    // https://github.com/feat-agency/vite-plugin-webfont-dl
-    // WebfontDownload(),
 
     // https://github.com/webfansplz/vite-plugin-vue-devtools
     VueDevTools(),

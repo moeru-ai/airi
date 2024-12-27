@@ -54,7 +54,7 @@ defineExpose({
         @error="(val) => emit('error', val)"
       />
     </TresCanvas>
-    <div absolute top="2">
+    <div absolute bottom="2" right="2">
       <div
         flex="~ row"
         bg="zinc-100 dark:zinc-700"
