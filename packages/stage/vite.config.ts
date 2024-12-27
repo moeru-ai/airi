@@ -200,6 +200,14 @@ export default defineConfig({
           }
 
           const hiyoriEmotions = {
+            Idle: [
+              {
+                File: 'motion/hiyori_m01.motion3.json',
+              },
+              {
+                File: 'motion/hiyori_m05.motion3.json',
+              },
+            ],
             EmotionHappy: [{ File: 'motion/hiyori_m08.motion3.json' }],
             EmotionSad: [{ File: 'motion/hiyori_m10.motion3.json' }],
             EmotionAngry: [{ File: 'motion/hiyori_m09.motion3.json' }],
