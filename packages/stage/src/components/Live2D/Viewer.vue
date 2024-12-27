@@ -4,7 +4,7 @@ import type { Ref } from 'vue'
 import { Application } from '@pixi/app'
 import { extensions } from '@pixi/extensions'
 import { Ticker, TickerPlugin } from '@pixi/ticker'
-import { breakpointsTailwind, useBreakpoints, useElementBounding } from '@vueuse/core'
+import { breakpointsTailwind, useBreakpoints, useDebounceFn, useElementBounding } from '@vueuse/core'
 import { Live2DModel, MotionPreloadStrategy, MotionPriority } from 'pixi-live2d-display/cubism4'
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 
@@ -19,6 +19,8 @@ const containerRef = ref<HTMLDivElement>()
 const pixiApp = ref<Application>()
 const pixiAppCanvas = ref<HTMLCanvasElement>()
 const model = ref<Live2DModel>()
+const initialModelWidth = ref<number>(0)
+const initialModelHeight = ref<number>(0)
 const mouthOpenSize = computed(() => {
   return Math.max(0, Math.min(100, props.mouthOpenSize))
 })
@@ -40,8 +42,8 @@ function setScale(model: Ref<Live2DModel<InternalModel> | undefined>) {
     offsetFactor = 2.5
   }
 
-  const heightScale = height.value * 0.95 / model.value.height * offsetFactor
-  const widthScale = width.value * 0.95 / model.value.width * offsetFactor
+  const heightScale = height.value * 0.95 / initialModelHeight.value * offsetFactor
+  const widthScale = width.value * 0.95 / initialModelWidth.value * offsetFactor
   const scale = Math.min(heightScale, widthScale)
 
   model.value.scale.set(scale, scale)
@@ -64,6 +66,8 @@ async function initLive2DPixiStage(parent: HTMLDivElement) {
 
   model.value = await Live2DModel.from(props.model, { motionPreload: MotionPreloadStrategy.ALL })
   pixiApp.value.stage.addChild(model.value as any)
+  initialModelWidth.value = model.value.width
+  initialModelHeight.value = model.value.height
 
   model.value.x = width.value / 2
   model.value.y = height.value
@@ -85,7 +89,7 @@ async function setMotion(motionName: string) {
   await model.value!.motion(motionName, undefined, MotionPriority.FORCE)
 }
 
-watch([width, height, width, height], () => {
+const handleResize = useDebounceFn(() => {
   if (pixiApp.value)
     pixiApp.value.renderer.resize(width.value, height.value)
 
@@ -97,7 +101,12 @@ watch([width, height, width, height], () => {
   if (model.value) {
     model.value.x = width.value / 2
     model.value.y = height.value
+    setScale(model)
   }
+}, 500)
+
+watch([width, height], () => {
+  handleResize()
 })
 
 onMounted(async () => {
