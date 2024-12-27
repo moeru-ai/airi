@@ -25,28 +25,13 @@
 
 ## Installation
 
-[`pnpm`](https://pnpm.io/)
+Pick the package manager of your choice:
 
 ```shell
+ni hfup -D # from @antfu/ni, can be installed via `npm i -g @antfu/ni`
 pnpm i hfup -D
-```
-
-[`@antfu/ni`](https://www.npmjs.com/package/@antfu/ni)
-
-```shell
-ni hfup -D
-```
-
-`npm`
-
-```shell
-npm i hfup -D
-```
-
-Yarn
-
-```shell
 yarn i hfup -D
+npm i hfup -D
 ```
 
 ## Usage
