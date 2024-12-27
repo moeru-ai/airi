@@ -1,4 +1,4 @@
-import { assistant, type AssistantMessage, type Message, user } from '@xsai/shared-chat'
+import type { AssistantMessage, Message } from '@xsai/shared-chat'
 
 import { defineStore, storeToRefs } from 'pinia'
 import { ref } from 'vue'
@@ -55,8 +55,6 @@ export const useChatStore = defineStore('chat', () => {
       t('prompt.prefix'),
       t('prompt.suffix'),
     ),
-    user('Hello!'),
-    assistant('Hello!'),
   ])
 
   const streamingMessage = ref<AssistantMessage>({ role: 'assistant', content: '' })
