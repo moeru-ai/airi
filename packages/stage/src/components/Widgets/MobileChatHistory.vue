@@ -33,15 +33,9 @@ onTokenLiteral(async () => {
 </script>
 
 <template>
-  <div
-    relative
-    class="<md:(absolute left-0 top-0 from-zinc-100/80 to-zinc-800/0 bg-gradient-to-t p-2 dark:from-zinc-800/80)"
-    px="<sm:2" py="<sm:2" flex="~ col"
-    rounded="lg"
-    overflow-hidden
-  >
+  <div py="1" flex="~ col" rounded="lg" overflow-hidden>
     <div flex-1 /> <!-- spacer -->
-    <div ref="chatHistoryRef" v-auto-animate h-full w-full flex="~ col" overflow-scroll>
+    <div ref="chatHistoryRef" v-auto-animate h-full w-full max-h="30vh" flex="~ col" overflow-scroll>
       <div flex-1 /> <!-- spacer -->
       <div v-for="(message, index) in messages" :key="index" mb-2>
         <div v-if="message.role === 'assistant'" flex mr="12">
@@ -60,7 +54,7 @@ onTokenLiteral(async () => {
             <div v-else i-eos-icons:three-dots-loading />
           </div>
         </div>
-        <div v-else-if="message.role === 'user'" flex="~ row-reverse" ml="12">
+        <div v-else-if="message.role === 'user'" flex="~">
           <div
             flex="~ col"
             border="4 solid teal-200/50 dark:teal-500/50"

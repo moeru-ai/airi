@@ -15,7 +15,7 @@ import Stage from '../components/Widgets/Stage.vue'
       <div flex="~ 1 row <md:col" relative h-full w-full items-end gap-2>
         <Stage h-full w-full flex-1 mb="<md:18" min-w="50%" />
         <InteractiveArea w-full flex-1 h="full <md:40%" max-w="30% <md:100%" class="flex <md:hidden" />
-        <MobileInteractiveArea w="full" class="md:hidden <md:flex" absolute bottom-0 w-full />
+        <MobileInteractiveArea class="<md:block md:hidden" absolute bottom-0 w-full />
       </div>
     </div>
   </AnimatedBackground>

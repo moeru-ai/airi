@@ -10,6 +10,7 @@ import { useMicVAD } from '../../composables/micvad'
 // import { useAudioContext } from '../../stores/audio'
 import { useChatStore } from '../../stores/chat'
 import { useSettings } from '../../stores/settings'
+import MobileChatHistory from '../Widgets/MobileChatHistory.vue'
 import MobileSettings from '../Widgets/MobileSettings.vue'
 
 const messageInput = ref('')
@@ -87,39 +88,42 @@ onMounted(() => {
 </script>
 
 <template>
-  <div gap-1>
-    <div flex flex-1>
-      <BasicTextarea
-        v-model="messageInput"
-        :placeholder="t('stage.message')"
-        border="solid 2 pink-100 dark:pink-400/20"
-        text="pink-400 hover:pink-600 dark:pink-400/50 dark:hover:pink-600 placeholder:pink-400 placeholder:hover:pink-600 placeholder:dark:pink-400/50 placeholder:dark:hover:pink-600"
-        bg="pink-50 dark:pink-400/20" max-h="[10lh]" min-h="[1lh]"
-        w-full resize-none overflow-y-scroll rounded-l-xl p-2 font-medium outline-none
-        transition="all duration-250 ease-in-out placeholder:all placeholder:duration-250 placeholder:ease-in-out"
-        @submit="handleSend"
-      />
-    </div>
-    <DrawerRoot should-scale-background>
-      <DrawerTrigger
-        class="px-4 py-2.5"
-        border="solid 2 pink-100 dark:pink-400/20"
-        text="lg pink-400 hover:pink-600 dark:pink-400/50 dark:hover:pink-600 placeholder:pink-400 placeholder:hover:pink-600 placeholder:dark:pink-400/50 placeholder:dark:hover:pink-600"
-        bg="pink-50 dark:pink-400/20" max-h="[10lh]" min-h="[1lh]" rounded-r-xl
-      >
-        <div i-solar:settings-bold-duotone />
-      </DrawerTrigger>
-      <DrawerPortal>
-        <DrawerOverlay class="fixed inset-0 z-50 bg-black/40" />
-        <DrawerContent
-          max-h="[75%]"
-          fixed bottom-0 left-0 right-0 z-50 mt-24 h-full flex flex-col rounded-t-lg bg="[#fffbff] dark:[#1f1a1d]"
+  <div>
+    <div relative w-full flex gap-1>
+      <MobileChatHistory absolute left-0 top-0 transform="translate-y-[-100%]" w-full />
+      <div flex flex-1>
+        <BasicTextarea
+          v-model="messageInput"
+          :placeholder="t('stage.message')"
+          border="solid 2 pink-100 dark:pink-400/20"
+          text="pink-400 hover:pink-600 dark:pink-400/50 dark:hover:pink-600 placeholder:pink-400 placeholder:hover:pink-600 placeholder:dark:pink-400/50 placeholder:dark:hover:pink-600"
+          bg="pink-50 dark:pink-400/20" max-h="[10lh]" min-h="[1lh]"
+          w-full resize-none overflow-y-scroll rounded-l-xl p-2 font-medium outline-none
+          transition="all duration-250 ease-in-out placeholder:all placeholder:duration-250 placeholder:ease-in-out"
+          @submit="handleSend"
+        />
+      </div>
+      <DrawerRoot should-scale-background>
+        <DrawerTrigger
+          class="px-4 py-2.5"
+          border="solid 2 pink-100 dark:pink-400/20"
+          text="lg pink-400 hover:pink-600 dark:pink-400/50 dark:hover:pink-600 placeholder:pink-400 placeholder:hover:pink-600 placeholder:dark:pink-400/50 placeholder:dark:hover:pink-600"
+          bg="pink-50 dark:pink-400/20" max-h="[10lh]" min-h="[1lh]" rounded-r-xl
         >
-          <div class="flex flex-1 flex-col rounded-t-lg p-5" bg="[#fffbff] dark:[#1f1a1d]" gap-2>
-            <MobileSettings />
-          </div>
-        </DrawerContent>
-      </DrawerPortal>
-    </DrawerRoot>
+          <div i-solar:settings-bold-duotone />
+        </DrawerTrigger>
+        <DrawerPortal>
+          <DrawerOverlay class="fixed inset-0 z-50 bg-black/40" />
+          <DrawerContent
+            max-h="[75%]"
+            fixed bottom-0 left-0 right-0 z-50 mt-24 h-full flex flex-col rounded-t-lg bg="[#fffbff] dark:[#1f1a1d]"
+          >
+            <div class="flex flex-1 flex-col rounded-t-lg p-5" bg="[#fffbff] dark:[#1f1a1d]" gap-2>
+              <MobileSettings />
+            </div>
+          </DrawerContent>
+        </DrawerPortal>
+      </DrawerRoot>
+    </div>
   </div>
 </template>
