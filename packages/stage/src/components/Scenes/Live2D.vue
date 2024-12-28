@@ -62,7 +62,7 @@ defineExpose({
         </label>
       </div>
       <TransitionVertical>
-        <div v-if="show" absolute w-full top="10" min-w="50vw" z="<md:20">
+        <div v-if="show" absolute w-full min-w="50vw" z="<md:20" class="<md:bottom-10 <md:right-0">
           <div bg="zinc-200/20 dark:black/20" rounded-lg p-2 backdrop-blur-sm>
             <div font-mono>
               <span>Emotions</span>

@@ -24,6 +24,7 @@ const canvasWidth = computed(() => {
 })
 
 const canvasHeight = ref(0)
+
 watch([width, height, containerRef], () => {
   const bounding = containerRef.value?.parentElement?.getBoundingClientRect()
 
@@ -35,6 +36,21 @@ watch([width, height, containerRef], () => {
   }
   else if (isTablet.value) {
     canvasHeight.value = bounding?.height || 0
+  }
+  else {
+    canvasHeight.value = 600
+  }
+})
+
+watch([containerElementBounding.width, containerElementBounding.height], () => {
+  if (isDesktop.value) {
+    canvasHeight.value = containerElementBounding.height.value
+  }
+  else if (isMobile.value) {
+    canvasHeight.value = containerElementBounding.height.value
+  }
+  else if (isTablet.value) {
+    canvasHeight.value = containerElementBounding.height.value
   }
   else {
     canvasHeight.value = 600

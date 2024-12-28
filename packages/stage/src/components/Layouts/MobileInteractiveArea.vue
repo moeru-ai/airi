@@ -87,7 +87,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <div w-full flex gap-1>
+  <div gap-1>
     <div flex flex-1>
       <BasicTextarea
         v-model="messageInput"

@@ -101,7 +101,7 @@ onAfterSend(async () => {
 </script>
 
 <template>
-  <div flex="col" h-full w-full items-center pt-4>
+  <div flex="col" items-center pt-4>
     <fieldset flex="~ row" w-fit rounded-lg>
       <label
         :class="[

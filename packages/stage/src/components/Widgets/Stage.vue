@@ -168,7 +168,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div relative h-full w-full>
+  <div relative>
     <div h-full w-full>
       <Live2DScene
         v-if="stageView === '2d'"

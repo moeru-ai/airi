@@ -39,7 +39,7 @@ function setScale(model: Ref<Live2DModel<InternalModel> | undefined>) {
 
   let offsetFactor = 2.2
   if (isMobile.value) {
-    offsetFactor = 2.5
+    offsetFactor = 2.2
   }
 
   const heightScale = height.value * 0.95 / initialModelHeight.value * offsetFactor
@@ -103,7 +103,7 @@ const handleResize = useDebounceFn(() => {
     model.value.y = height.value
     setScale(model)
   }
-}, 500)
+}, 100)
 
 watch([width, height], () => {
   handleResize()
