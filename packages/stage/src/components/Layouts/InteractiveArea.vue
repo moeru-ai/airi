@@ -188,9 +188,9 @@ onAfterSend(async () => {
     </div>
     <div flex="~ row" gap-2>
       <button
-        bg="teal-100 hover:teal-200 dark:teal-800 dark:hover:teal-700"
+        bg="cyan-100 hover:cyan-200 dark:cyan-800 dark:hover:cyan-700"
         transition="all duration-250 ease-in-out"
-        text="teal-400"
+        text="cyan-400"
         mb-6 flex cursor-pointer items-center justify-center gap-2 rounded-full px-4 py-2
         @click="handleLoadWhisper"
       >
@@ -212,10 +212,10 @@ onAfterSend(async () => {
         <TransitionVertical>
           <fieldset
             v-if="showMicrophoneSelect"
-            transform="translate-y--100%" right="-50%" bottom="-10" text="teal-400 dark:white" bg="white dark:teal-900" border="solid 4 teal-200 dark:teal-800"
+            transform="translate-y--100%" right="-50%" bottom="-10" text="cyan-400 dark:white" bg="white dark:cyan-900" border="solid 4 cyan-200 dark:cyan-800"
             absolute z-30 rounded-2xl px-2 py-2 text-right text-nowrap text-base font-sans
           >
-            <label v-for="(input, index) in audioInputs" :key="index" class="[&_div_span]:dark:hover:bg-teal-300 [&_div_span]:dark:hover:bg-teal-900">
+            <label v-for="(input, index) in audioInputs" :key="index" class="[&_div_span]:dark:hover:bg-cyan-300 [&_div_span]:dark:hover:bg-cyan-900">
               <input type="radio" name="audioInput" :value="input.deviceId" hidden @change="handleAudioInputChange">
               <div flex="~ row" cursor-pointer items-center gap-2 grid="cols-2">
                 <div min-w="6">
@@ -223,7 +223,7 @@ onAfterSend(async () => {
                 </div>
                 <span
                   inline-block
-                  :class="[input.deviceId === selectedAudioDeviceId ? 'teal-400 dark:text-white' : 'teal-400/50 dark:text-white/50']"
+                  :class="[input.deviceId === selectedAudioDeviceId ? 'cyan-400 dark:text-white' : 'cyan-400/50 dark:text-white/50']"
                   transition="all duration-250 ease-in-out"
                 >
                   {{ input.label }}
@@ -233,9 +233,9 @@ onAfterSend(async () => {
           </fieldset>
         </TransitionVertical>
         <label
-          bg="teal-100 hover:teal-200 dark:teal-800 dark:hover:teal-700"
+          bg="cyan-100 hover:cyan-200 dark:cyan-800 dark:hover:cyan-700"
           transition="all duration-250 ease-in-out"
-          text="teal-400"
+          text="cyan-400"
           mb-6 flex cursor-pointer items-center justify-center gap-2 rounded-full px-4 py-2
         >
           <input v-model="showMicrophoneSelect" type="checkbox" hidden>

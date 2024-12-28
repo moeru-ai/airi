@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="./docs/public/readme-image-pc-preview.png" width="50%">
+</p>
+
 <h1 align="center">アイリ VTuber</h1>
 
 <p align="center">
