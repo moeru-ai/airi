@@ -57,8 +57,10 @@ settings:
     label: OpenAI API BaseURL
     placeholder: Input your API base URL
     placeholder_mobile: OpenAI API BaseURL
+  voices: Voice
 stage:
   message: Message
   select-a-audio-input: Select a Audio Input
   select-a-model: Select a model
+  select-a-voice: Choose a voice
   waiting: Waiting

@@ -3,14 +3,16 @@ import type { Emotion } from '../../constants/emotions'
 import { storeToRefs } from 'pinia'
 
 import { onUnmounted, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useMarkdown } from '../../composables/markdown'
 import { useQueue } from '../../composables/queue'
 import { useDelayMessageQueue, useEmotionsMessageQueue, useMessageContentQueue } from '../../composables/queues'
 import { llmInferenceEndToken } from '../../constants'
+import { Voice } from '../../constants/elevenlabs'
 import { EMOTION_EmotionMotionName_value, EMOTION_VRMExpressionName_value, EmotionThinkMotionName } from '../../constants/emotions'
+
 import { useAudioContext, useSpeakingStore } from '../../stores/audio'
 import { useChatStore } from '../../stores/chat'
-
 import { useLLM } from '../../stores/llm'
 import { useSettings } from '../../stores/settings'
 import Live2DScene from '../Scenes/Live2D.vue'
@@ -19,12 +21,13 @@ import VRMScene from '../Scenes/VRM.vue'
 const live2DViewerRef = ref<{ setMotion: (motionName: string) => Promise<void> }>()
 const vrmViewerRef = ref<{ setExpression: (expression: string) => void }>()
 
-const { stageView, elevenLabsApiKey } = storeToRefs(useSettings())
+const { stageView, elevenLabsApiKey, elevenlabsVoiceEnglish, elevenlabsVoiceJapanese } = storeToRefs(useSettings())
 const { mouthOpenSize } = storeToRefs(useSpeakingStore())
 const { audioContext, calculateVolume } = useAudioContext()
 const { streamSpeech } = useLLM()
 const { onBeforeMessageComposed, onBeforeSend, onTokenLiteral, onTokenSpecial, onStreamEnd, streamingMessage } = useChatStore()
 const { process } = useMarkdown()
+const { locale } = useI18n()
 
 const audioAnalyser = ref<AnalyserNode>()
 const nowSpeaking = ref(false)
@@ -58,11 +61,17 @@ const audioQueue = useQueue<{ audioBuffer: AudioBuffer, text: string }>({
 const ttsQueue = useQueue<string>({
   handlers: [
     async (ctx) => {
+      let voice = Voice.Camilla_KM
+      if (locale.value === 'jp' || locale.value === 'jp-JP')
+        voice = elevenlabsVoiceJapanese.value
+      else
+        voice = elevenlabsVoiceEnglish.value
+
       const now = Date.now()
       const res = await streamSpeech('https://airi-api.ayaka.io', elevenLabsApiKey.value, ctx.data, {
         // voice: 'ShanShan',
         // Quite good for English
-        voice: 'Myriam',
+        voice,
         // Beatrice is not 'childish' like the others
         // voice: 'Beatrice',
         model_id: 'eleven_multilingual_v2',

@@ -1,21 +1,23 @@
 <script setup lang="ts">
+import type { Voice } from '../constants/elevenlabs'
 import { useDark } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { onMounted, ref, watch } from 'vue'
-import { useI18n } from 'vue-i18n'
 
+import { useI18n } from 'vue-i18n'
+import { voiceList } from '../constants/elevenlabs'
 import { useLLM } from '../stores/llm'
 import { useSettings } from '../stores/settings'
 import TransitionVertical from './TransitionVertical.vue'
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
 
 const settings = useSettings()
 const show = ref(false)
 const dark = useDark({ disableTransition: false })
 const supportedModels = ref<{ id: string, name?: string }[]>([])
 const { models } = useLLM()
-const { openAiModel, openAiApiBaseURL, openAiApiKey } = storeToRefs(settings)
+const { openAiModel, openAiApiBaseURL, openAiApiKey, elevenlabsVoiceEnglish, elevenlabsVoiceJapanese } = storeToRefs(settings)
 
 function handleModelChange(event: Event) {
   const target = event.target as HTMLSelectElement
@@ -26,6 +28,26 @@ function handleModelChange(event: Event) {
   }
 
   openAiModel.value = found
+}
+
+function handleVoiceChange(event: Event) {
+  const value = (event.target as HTMLSelectElement).value as Voice
+  switch (locale.value) {
+    case 'en':
+    case 'en-US':
+      elevenlabsVoiceEnglish.value = value
+      break
+    case 'zh':
+    case 'zh-CN':
+    case 'zh-TW':
+    case 'zh-HK':
+      elevenlabsVoiceEnglish.value = value
+      break
+    case 'jp':
+    case 'jp-JP':
+      elevenlabsVoiceJapanese.value = value
+      break
+  }
 }
 
 watch([openAiApiBaseURL, openAiApiKey], async ([baseUrl, apiKey]) => {
@@ -189,6 +211,32 @@ onMounted(async () => {
               </option>
               <option v-for="m in supportedModels" :key="m.id" :value="m.id">
                 {{ 'name' in m ? `${m.name} (${m.id})` : m.id }}
+              </option>
+            </select>
+          </div>
+          <div text-sm>
+            <span>{{ t('settings.voices') }}</span>
+          </div>
+          <div flex="~ row" w-full text="sm">
+            <select
+              bg="zinc-200 dark:zinc-800/50" w-full rounded-md px-2 py-1 font-mono
+              outline-none
+              @change="handleVoiceChange"
+            >
+              <option disabled class="bg-white dark:bg-zinc-800">
+                {{ t('stage.select-a-voice') }}
+              </option>
+              <option v-if="['en', 'en-US'].indexOf(locale) !== -1 && elevenlabsVoiceEnglish" :value="elevenlabsVoiceEnglish">
+                {{ elevenlabsVoiceEnglish }}
+              </option>
+              <option v-if="['zh', 'zh-CN', 'zh-TW', 'zh-HK'].indexOf(locale) !== -1 && elevenlabsVoiceEnglish" :value="elevenlabsVoiceEnglish">
+                {{ elevenlabsVoiceEnglish }}
+              </option>
+              <option v-if="['jp', 'jp-JP'].indexOf(locale) !== -1 && elevenlabsVoiceJapanese" :value="elevenlabsVoiceJapanese">
+                {{ elevenlabsVoiceJapanese }}
+              </option>
+              <option v-for="(m, index) in voiceList[locale]" :key="index" :value="m">
+                {{ m }}
               </option>
             </select>
           </div>

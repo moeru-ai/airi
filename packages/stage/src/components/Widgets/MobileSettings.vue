@@ -1,19 +1,21 @@
 <script setup lang="ts">
+import type { Voice } from '../../constants/elevenlabs'
 import { useDark } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import { voiceList } from '../../constants/elevenlabs'
 import { useLLM } from '../../stores/llm'
 import { useSettings } from '../../stores/settings'
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
 
 const settings = useSettings()
 const dark = useDark({ disableTransition: false })
 const supportedModels = ref<{ id: string, name?: string }[]>([])
 const { models } = useLLM()
-const { openAiModel, openAiApiBaseURL, openAiApiKey } = storeToRefs(settings)
+const { openAiModel, openAiApiBaseURL, openAiApiKey, elevenlabsVoiceEnglish, elevenlabsVoiceJapanese } = storeToRefs(settings)
 
 function handleModelChange(event: Event) {
   const target = event.target as HTMLSelectElement
@@ -29,6 +31,26 @@ function handleModelChange(event: Event) {
 function handleViewChange(event: Event) {
   const target = event.target as HTMLSelectElement
   settings.stageView = target.value
+}
+
+function handleVoiceChange(event: Event) {
+  const value = (event.target as HTMLSelectElement).value as Voice
+  switch (locale.value) {
+    case 'en':
+    case 'en-US':
+      elevenlabsVoiceEnglish.value = value
+      break
+    case 'zh':
+    case 'zh-CN':
+    case 'zh-TW':
+    case 'zh-HK':
+      elevenlabsVoiceEnglish.value = value
+      break
+    case 'jp':
+    case 'jp-JP':
+      elevenlabsVoiceJapanese.value = value
+      break
+  }
 }
 
 watch([openAiApiBaseURL, openAiApiKey], async ([baseUrl, apiKey]) => {
@@ -53,7 +75,7 @@ onMounted(async () => {
     <h2 text="slate-800/80 dark:slate-200/80 xl" font-bold>
       Settings
     </h2>
-    <div flex="~" gap-2>
+    <div>
       <div
         grid="~ cols-[140px_1fr]" my-2 items-center gap-1.5 rounded-lg
         bg="[#fff6fc] dark:[#2c2529]" px-2 py-1 text="pink-400"
@@ -66,7 +88,7 @@ onMounted(async () => {
             v-model="settings.openAiApiBaseURL"
             type="text"
             :placeholder="t('settings.openai-base-url.placeholder_mobile')"
-            w-full rounded-md bg-transparent px-2 py-1 text-right font-mono outline-none
+            h-8 w-full rounded-md bg-transparent px-2 py-1 text-right font-mono outline-none
           >
         </div>
         <div text="sm pink-500">
@@ -77,7 +99,7 @@ onMounted(async () => {
             v-model="settings.openAiApiKey"
             type="text"
             :placeholder="t('settings.openai-api-key.placeholder_mobile')"
-            w-full rounded-md bg-transparent px-2 py-1 text-right font-mono outline-none
+            h-8 w-full rounded-md bg-transparent px-2 py-1 text-right font-mono outline-none
           >
         </div>
         <div text="sm pink-500">
@@ -88,7 +110,7 @@ onMounted(async () => {
             v-model="settings.elevenLabsApiKey"
             type="text"
             :placeholder="t('settings.elevenlabs-api-key.placeholder_mobile')"
-            w-full rounded-md bg-transparent px-2 py-1 text-right font-mono outline-none
+            h-8 w-full rounded-md bg-transparent px-2 py-1 text-right font-mono outline-none
           >
         </div>
         <div text="sm pink-500">
@@ -97,7 +119,7 @@ onMounted(async () => {
         <div flex="~ row" w-full text="sm">
           <select
             v-model="settings.language"
-            w-full rounded-md bg-transparent px-2 py-1 text-right font-mono outline-none
+            h-8 w-full rounded-md bg-transparent px-2 py-1 text-right font-mono outline-none
           >
             <option value="en-US">
               English
@@ -112,7 +134,7 @@ onMounted(async () => {
         </div>
         <div flex="~ row" w-full text="sm">
           <select
-            w-full rounded-md bg-transparent px-2 py-1 font-mono outline-none
+            h-8 w-full rounded-md bg-transparent px-2 py-1 text-right font-mono outline-none
             @change="handleModelChange"
           >
             <option disabled class="bg-white dark:bg-zinc-800">
@@ -123,6 +145,32 @@ onMounted(async () => {
             </option>
             <option v-for="m in supportedModels" :key="m.id" :value="m.id">
               {{ 'name' in m ? `${m.name} (${m.id})` : m.id }}
+            </option>
+          </select>
+        </div>
+        <div text="sm pink-500">
+          <span>{{ t('settings.voices') }}</span>
+        </div>
+        <div flex="~ row" w-full text="sm">
+          <select
+            h-8 w-full rounded-md bg-transparent px-2 py-1 text-right font-mono outline-none
+            @change="handleVoiceChange"
+          >
+            <option disabled class="bg-white dark:bg-zinc-800">
+              {{ t('stage.select-a-voice') }}
+            </option>
+            <option v-if="['en', 'en-US'].indexOf(locale) !== -1 && elevenlabsVoiceEnglish" :value="elevenlabsVoiceEnglish">
+              {{ elevenlabsVoiceEnglish }}
+            </option>
+            <!-- TODO -->
+            <option v-if="['zh', 'zh-CN', 'zh-TW', 'zh-HK'].indexOf(locale) !== -1 && elevenlabsVoiceEnglish" :value="elevenlabsVoiceEnglish">
+              {{ elevenlabsVoiceEnglish }}
+            </option>
+            <option v-if="['jp', 'jp-JP'].indexOf(locale) !== -1 && elevenlabsVoiceJapanese" :value="elevenlabsVoiceJapanese">
+              {{ elevenlabsVoiceJapanese }}
+            </option>
+            <option v-for="(m, index) in voiceList[locale]" :key="index" :value="m">
+              {{ m }}
             </option>
           </select>
         </div>
@@ -140,7 +188,7 @@ onMounted(async () => {
           <span>Viewer</span>
         </div>
         <select
-          w-full rounded-md bg-transparent px-2 py-1 text-right font-mono outline-none
+          h-8 w-full rounded-md bg-transparent px-2 py-1 text-right font-mono outline-none
           @change="handleViewChange"
         >
           <option value="2d">
@@ -153,9 +201,7 @@ onMounted(async () => {
         <div text="sm pink-500">
           <span>Theme</span>
         </div>
-        <label
-          cursor-pointer px-2 py-1
-        >
+        <label h-8 flex cursor-pointer items-center justify-end>
           <input
             v-model="dark"
             :checked="dark"
@@ -164,10 +210,10 @@ onMounted(async () => {
             type="checkbox"
             hidden appearance-none outline-none
           >
-          <div flex select-none justify-end>
+          <div select-none>
             <Transition name="slide-away" mode="out-in">
-              <div v-if="dark" i-solar:sun-fog-bold-duotone text="base hover:pink-600 dark:hover:pink-300" transition="all ease-in-out duration-250" />
-              <div v-else i-solar:moon-stars-bold-duotone text="base hover:pink-600 dark:hover:pink-300" transition="all ease-in-out duration-250" />
+              <div v-if="dark" i-solar:sun-fog-bold-duotone text="lg hover:pink-600 dark:hover:pink-300" transition="all ease-in-out duration-250" />
+              <div v-else i-solar:moon-stars-bold-duotone text="lg hover:pink-600 dark:hover:pink-300" transition="all ease-in-out duration-250" />
             </Transition>
           </div>
         </label>
