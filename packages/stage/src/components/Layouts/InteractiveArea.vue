@@ -105,14 +105,14 @@ onAfterSend(async () => {
     <fieldset flex="~ row" w-fit rounded-lg>
       <label
         :class="[
-          tab === 'chat' ? 'bg-pink-100 dark:bg-pink-400/20' : '',
+          tab === 'chat' ? 'bg-pink-100 dark:bg-[#3c2632]' : 'bg-white dark:bg-[#121212]',
           tab === 'chat' ? 'text-pink-500 dark:text-pink-500' : '',
         ]"
         flex="~ row"
         :checked="tab === 'chat'"
         :aria-checked="tab === 'chat'"
-        border="solid l-2 t-2 b-2 pink-100 dark:pink-400/20"
-        bg="hover:pink-100 dark:hover:pink-400/20"
+        border="solid l-2 t-2 b-2 pink-100 dark:[#3c2632]"
+        bg="hover:pink-100 dark:hover:[#3c2632]"
         text="pink-300 hover:pink-500 dark:pink-300/50 dark:hover:pink-500"
         transition="all duration-250 ease-in-out"
         cursor-pointer items-center gap-1 rounded-l-lg px-2
@@ -125,14 +125,14 @@ onAfterSend(async () => {
       </label>
       <label
         :class="[
-          tab === 'custom' ? 'bg-pink-100 dark:bg-pink-400/20' : '',
+          tab === 'custom' ? 'bg-pink-100 dark:bg-[#3c2632]' : 'bg-white dark:bg-[#121212]',
           tab === 'custom' ? 'text-pink-500 dark:text-pink-500' : '',
         ]"
         flex="~ row"
         :checked="tab === 'custom'"
         :aria-checked="tab === 'custom'"
-        border="solid t-2 b-2 pink-100 dark:pink-400/20"
-        bg="hover:pink-100 dark:hover:pink-400/20"
+        border="solid t-2 b-2 pink-100 dark:[#3c2632]"
+        bg="hover:pink-100 dark:hover:[#3c2632]"
         text="pink-300 hover:pink-500 dark:pink-300/50 dark:hover:pink-500"
         transition="all duration-250 ease-in-out"
         cursor-pointer items-center gap-1 px-2
@@ -145,14 +145,14 @@ onAfterSend(async () => {
       </label>
       <label
         :class="[
-          tab === 'clothes' ? 'bg-pink-100 dark:bg-pink-400/20' : '',
+          tab === 'clothes' ? 'bg-pink-100 dark:bg-[#3c2632]' : 'bg-white dark:bg-[#121212]',
           tab === 'clothes' ? 'text-pink-500 dark:text-pink-500' : '',
         ]"
         flex="~ row"
         :checked="tab === 'clothes'"
         :aria-checked="tab === 'clothes'"
-        border="solid r-2 t-2 b-2 pink-100 dark:pink-400/20"
-        bg="hover:pink-100 dark:hover:pink-400/20"
+        border="solid r-2 t-2 b-2 pink-100 dark:[#3c2632]"
+        bg="hover:pink-100 dark:hover:[#3c2632]"
         text="pink-300 hover:pink-500 dark:pink-300/50 dark:hover:pink-500"
         transition="all duration-250 ease-in-out"
         cursor-pointer items-center gap-1 rounded-r-lg px-2
@@ -169,6 +169,7 @@ onAfterSend(async () => {
         flex="~ col"
         border="solid 4 pink-100 dark:pink-400/20"
         h-full w-full overflow-scroll rounded-xl
+        bg="white dark:[#0f060c]"
       >
         <ChatHistory h-full flex-1 p-4 w="full" max-h="<md:[60%]" />
         <div h="<md:full" flex gap-2>
