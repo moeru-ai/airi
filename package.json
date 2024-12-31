@@ -15,6 +15,7 @@
     "typecheck": "pnpm -r --filter=./packages/* run build",
     "dev": "pnpm packages:dev",
     "build": "pnpm packages:build",
+    "dev:desktop": "pnpm packages:dev:desktop",
     "packages:dev": "pnpm -r --filter=./packages/* --parallel run dev",
     "packages:stub": "pnpm -r --filter=./packages/* run stub",
     "packages:build": "pnpm -r --filter=./packages/* run build",

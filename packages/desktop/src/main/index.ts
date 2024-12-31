@@ -11,6 +11,9 @@ function createWindow(): void {
     height: 670,
     show: false,
     autoHideMenuBar: true,
+    frame: false,
+    transparent: true,
+    resizable: false,
     ...(process.platform === 'linux' ? { icon } : {}),
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
@@ -33,7 +36,7 @@ function createWindow(): void {
     mainWindow.loadURL(process.env.ELECTRON_RENDERER_URL)
   }
   else {
-    mainWindow.loadFile(join(__dirname, '../../../stage/dist/index.html'))
+    mainWindow.loadURL('http://localhost:5173')
   }
 }
 
@@ -54,6 +57,7 @@ app.whenReady().then(() => {
   // IPC test
   // eslint-disable-next-line no-console
   ipcMain.on('ping', () => console.log('pong'))
+  ipcMain.on('quit', () => app.quit())
 
   createWindow()
 

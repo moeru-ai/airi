@@ -2,6 +2,7 @@
 import Versions from './components/Versions.vue'
 
 const ipcHandle = () => window.electron.ipcRenderer.send('ping')
+const quit = () => window.electron.ipcRenderer.send('quit')
 </script>
 
 <template>
@@ -24,6 +25,9 @@ const ipcHandle = () => window.electron.ipcRenderer.send('ping')
     </div>
     <div class="action">
       <a target="_blank" rel="noreferrer" @click="ipcHandle">Send IPC</a>
+    </div>
+    <div class="action">
+      <a target="_blank" rel="noreferrer" @click="quit">Quit</a>
     </div>
   </div>
   <Versions />
