@@ -26,9 +26,11 @@ pnpm dev
 
 ## Similar Projects
 
+- [ardha27/AI-Waifu-Vtuber](https://github.com/ardha27/AI-Waifu-Vtuber)
 - [InsanityLabs/AIVTuber](https://github.com/InsanityLabs/AIVTuber?tab=readme-ov-file)
 - [IRedDragonICY/vixevia](https://github.com/IRedDragonICY/vixevia)
 - [t41372/Open-LLM-VTuber](https://github.com/t41372/Open-LLM-VTuber)
+- [PeterH0323/Streamer-Sales](https://github.com/PeterH0323/Streamer-Sales?tab=readme-ov-file)
 
 ## Acknowledgements
 
