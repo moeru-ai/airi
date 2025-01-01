@@ -2,7 +2,7 @@
 // import { useDevicesList } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 
-import { DrawerContent, DrawerOverlay, DrawerPortal, DrawerRoot, DrawerTrigger } from 'vaul-vue'
+import { DrawerContent, DrawerPortal, DrawerRoot, DrawerTrigger } from 'vaul-vue'
 import { onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
@@ -11,8 +11,8 @@ import { useMicVAD } from '../../composables/micvad'
 import { useChatStore } from '../../stores/chat'
 import { useSettings } from '../../stores/settings'
 import BasicTextarea from '../BasicTextarea.vue'
-import MobileChatHistory from '../Widgets/MobileChatHistory.vue'
-import MobileSettings from '../Widgets/MobileSettings.vue'
+import DesktopChatHistory from '../Widgets/DesktopChatHistory.vue'
+import DesktopSettings from '../Widgets/DesktopSettings.vue'
 
 const messageInput = ref('')
 const listening = ref(false)
@@ -91,13 +91,13 @@ onMounted(() => {
 <template>
   <div>
     <div relative w-full flex gap-1>
-      <MobileChatHistory absolute left-0 top-0 transform="translate-y-[-100%]" w-full />
+      <DesktopChatHistory absolute left-0 top-0 transform="translate-y-[-100%]" w-full />
       <div flex flex-1>
         <BasicTextarea
           v-model="messageInput"
           :placeholder="t('stage.message')"
-          border="solid 2 pink-100 dark:pink-400/20"
-          text="pink-400 hover:pink-600 dark:[#905073] dark:hover:pink-600 placeholder:pink-400 placeholder:hover:pink-600 placeholder:dark:[#905073] placeholder:dark:hover:pink-600"
+          border="solid 2 pink-100"
+          text="pink-400 hover:pink-600  placeholder:pink-400 placeholder:hover:pink-600"
           bg="pink-50 dark:[#3c2632]" max-h="[10lh]" min-h="[1lh]"
           w-full resize-none overflow-y-scroll rounded-l-xl p-2 font-medium outline-none
           transition="all duration-250 ease-in-out placeholder:all placeholder:duration-250 placeholder:ease-in-out"
@@ -107,20 +107,19 @@ onMounted(() => {
       <DrawerRoot should-scale-background>
         <DrawerTrigger
           class="px-4 py-2.5"
-          border="solid 2 pink-100 dark:pink-400/20"
-          text="lg pink-400 hover:pink-600 dark:[#905073] dark:hover:pink-600 placeholder:pink-400 placeholder:hover:pink-600 placeholder:dark:[#905073] placeholder:dark:hover:pink-600"
+          border="solid 2 pink-100 "
+          text="lg pink-400 hover:pink-600  placeholder:pink-400 placeholder:hover:pink-600"
           bg="pink-50 dark:[#3c2632]" max-h="[10lh]" min-h="[1lh]" rounded-r-xl
         >
           <div i-solar:settings-bold-duotone />
         </DrawerTrigger>
         <DrawerPortal>
-          <DrawerOverlay class="fixed inset-0 z-50 bg-black/40" />
           <DrawerContent
-            max-h="[75%]"
+            max-h="[90%]"
             fixed bottom-0 left-0 right-0 z-50 mt-24 h-full flex flex-col rounded-t-lg bg="[#fffbff] dark:[#1f1a1d]"
           >
             <div class="flex flex-1 flex-col rounded-t-lg p-5" bg="[#fffbff] dark:[#1f1a1d]" gap-2>
-              <MobileSettings />
+              <DesktopSettings />
             </div>
           </DrawerContent>
         </DrawerPortal>

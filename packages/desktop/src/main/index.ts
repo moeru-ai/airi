@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import process from 'node:process'
 import { electronApp, is, optimizer } from '@electron-toolkit/utils'
@@ -7,13 +8,15 @@ import icon from '../../resources/icon.png?asset'
 function createWindow(): void {
   // Create the browser window.
   const mainWindow = new BrowserWindow({
-    width: 900,
-    height: 670,
+    width: 300,
+    height: 400,
     show: false,
     autoHideMenuBar: true,
     frame: false,
     transparent: true,
     resizable: false,
+    hasShadow: false,
+    alwaysOnTop: true,
     ...(process.platform === 'linux' ? { icon } : {}),
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
@@ -30,13 +33,21 @@ function createWindow(): void {
     return { action: 'deny' }
   })
 
+  mainWindow.show()
+
   // HMR for renderer base on electron-vite cli.
   // Load the remote URL for development or the local html file for production.
-  if (is.dev && process.env.ELECTRON_RENDERER_URL) {
-    mainWindow.loadURL(process.env.ELECTRON_RENDERER_URL)
+
+  if (is.dev) {
+    // try to read port number from stage.dev.json
+    const devFile = readFileSync(join(__dirname, '../../../stage/stage.dev.json'), 'utf-8')
+    const devInfo = JSON.parse(devFile) as { address: { address: string, family: string, port: number } }
+    mainWindow.loadURL(`http://localhost:${devInfo.address.port}`).catch((e) => {
+      console.error('Failed to load URL', e)
+    })
   }
   else {
-    mainWindow.loadURL('http://localhost:5173')
+    mainWindow.loadFile(join(__dirname, '../../../stage/dist/index.html'))
   }
 }
 
@@ -64,8 +75,9 @@ app.whenReady().then(() => {
   app.on('activate', () => {
     // On macOS it's common to re-create a window in the app when the
     // dock icon is clicked and there are no other windows open.
-    if (BrowserWindow.getAllWindows().length === 0)
+    if (BrowserWindow.getAllWindows().length === 0) {
       createWindow()
+    }
   })
 })
 

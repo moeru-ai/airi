@@ -15,7 +15,8 @@
     "dev": "vite",
     "lint": "eslint .",
     "preview": "vite preview",
-    "typecheck": "vue-tsc --noEmit"
+    "typecheck": "vue-tsc --noEmit",
+    "dev:desktop": "vite --mode desktop"
   },
   "dependencies": {
     "@11labs/client": "^0.0.4",
@@ -92,6 +93,7 @@
     "@vue-macros/volar": "^0.30.8",
     "@vueuse/motion": "^2.2.6",
     "hfup": "workspace:^",
+    "less": "^4.2.1",
     "markdown-it-link-attributes": "^4.0.1",
     "unocss-preset-animations": "^1.1.0",
     "unocss-preset-shadcn": "^0.3.1",

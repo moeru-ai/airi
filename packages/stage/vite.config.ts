@@ -1,7 +1,7 @@
 import { Buffer } from 'node:buffer'
 import { copyFile, cp, mkdir, readFile, writeFile } from 'node:fs/promises'
 import path, { join, resolve } from 'node:path'
-import { env } from 'node:process'
+import { cwd, env } from 'node:process'
 
 import VueI18n from '@intlify/unplugin-vue-i18n/vite'
 import { templateCompilerOptions } from '@tresjs/core'
@@ -51,7 +51,8 @@ export default defineConfig(({ mode }) => {
       },
     },
 
-    base: mode === 'desktop' ? '.' : '/',
+    base: mode === 'desktop' ? './' : '',
+    root: mode === 'desktop' ? 'desktop' : '',
 
     plugins: [
       VueMacros({
@@ -314,6 +315,26 @@ export default defineConfig(({ mode }) => {
         models: ['onnx-community/whisper-base'],
         short_description: 'アイリ VTuber. LLM powered Live2D/VRM living character.',
       }),
+      {
+        name: 'write-port-number-to-file-when-dev',
+        apply: 'serve',
+        configureServer(server) {
+          if (mode !== 'desktop')
+            return
+
+          if (!server.httpServer)
+            return
+
+          server.httpServer.once('listening', () => {
+            const address = server.httpServer!.address()
+            if (!address || typeof address !== 'object' || !('port' in address))
+              return
+            writeFile(join(cwd(), 'stage.dev.json'), JSON.stringify({
+              address,
+            }))
+          })
+        },
+      },
     ],
   }
 })
