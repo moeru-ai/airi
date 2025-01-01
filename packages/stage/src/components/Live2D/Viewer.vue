@@ -4,7 +4,8 @@ import type { Ref } from 'vue'
 import { Application } from '@pixi/app'
 import { extensions } from '@pixi/extensions'
 import { Ticker, TickerPlugin } from '@pixi/ticker'
-import { breakpointsTailwind, useBreakpoints, useDebounceFn, useElementBounding } from '@vueuse/core'
+import { breakpointsTailwind, useBreakpoints, useDark, useDebounceFn, useElementBounding } from '@vueuse/core'
+import { DropShadowFilter } from 'pixi-filters'
 import { Live2DModel, MotionPreloadStrategy, MotionPriority } from 'pixi-live2d-display/cubism4'
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 
@@ -25,6 +26,7 @@ const mouthOpenSize = computed(() => {
   return Math.max(0, Math.min(100, props.mouthOpenSize))
 })
 
+const dark = useDark()
 const breakpoints = useBreakpoints(breakpointsTailwind)
 const isMobile = computed(() => breakpoints.between('sm', 'md').value || breakpoints.smaller('sm').value)
 const { height, width } = useElementBounding(containerRef, { immediate: true, windowResize: true, reset: true })
@@ -105,9 +107,29 @@ const handleResize = useDebounceFn(() => {
   }
 }, 100)
 
+function updateDropShadowFilter() {
+  if (model.value) {
+    model.value.filters = [new DropShadowFilter({
+      color: dark.value ? 0x99667F : 0xDFB9D2,
+      alpha: 0.3,
+      blur: 0,
+      distance: 20,
+      rotation: 45,
+    })]
+  }
+}
+
 watch([width, height], () => {
   handleResize()
 })
+
+watch(dark, updateDropShadowFilter, {
+  immediate: true,
+})
+
+watch(model, updateDropShadowFilter)
+
+onMounted(updateDropShadowFilter)
 
 onMounted(async () => {
   if (!containerRef.value)
