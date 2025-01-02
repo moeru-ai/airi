@@ -18,13 +18,14 @@ export enum Emotion {
 
 export const EMOTION_VALUES = Object.values(Emotion)
 
-export const EmotionHappyMotionName = 'EmotionHappy'
+// FIXME: need a editor to remap the motion
+export const EmotionHappyMotionName = 'Tap'
 export const EmotionSadMotionName = 'EmotionSad'
-export const EmotionAngryMotionName = 'EmotionAngry'
-export const EmotionAwkwardMotionName = 'EmotionAwkward'
-export const EmotionThinkMotionName = 'EmotionThink'
-export const EmotionSurpriseMotionName = 'EmotionSurprise'
-export const EmotionQuestionMotionName = 'EmotionQuestion'
+export const EmotionAngryMotionName = 'Tap@Body'
+export const EmotionAwkwardMotionName = 'FlickDown'
+export const EmotionThinkMotionName = 'Flick'
+export const EmotionSurpriseMotionName = 'Flick'
+export const EmotionQuestionMotionName = 'Flick@Body'
 
 export const EMOTION_EmotionMotionName_value = {
   [Emotion.Happy]: EmotionHappyMotionName,

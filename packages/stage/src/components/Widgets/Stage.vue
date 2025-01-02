@@ -9,14 +9,17 @@ import { useQueue } from '../../composables/queue'
 import { useDelayMessageQueue, useEmotionsMessageQueue, useMessageContentQueue } from '../../composables/queues'
 import { llmInferenceEndToken } from '../../constants'
 import { Voice } from '../../constants/elevenlabs'
-import { EMOTION_EmotionMotionName_value, EMOTION_VRMExpressionName_value, EmotionThinkMotionName } from '../../constants/emotions'
 
+import { EMOTION_EmotionMotionName_value, EMOTION_VRMExpressionName_value, EmotionThinkMotionName } from '../../constants/emotions'
 import { useAudioContext, useSpeakingStore } from '../../stores/audio'
 import { useChatStore } from '../../stores/chat'
 import { useLLM } from '../../stores/llm'
 import { useSettings } from '../../stores/settings'
 import Live2DScene from '../Scenes/Live2D.vue'
+
 import VRMScene from '../Scenes/VRM.vue'
+
+import '../../utils/live2d-zip-loader'
 
 const live2DViewerRef = ref<{ setMotion: (motionName: string) => Promise<void> }>()
 const vrmViewerRef = ref<{ setExpression: (expression: string) => void }>()
@@ -183,7 +186,7 @@ onUnmounted(() => {
         v-if="stageView === '2d'"
         ref="live2DViewerRef"
         :mouth-open-size="mouthOpenSize"
-        model="/assets/live2d/models/hiyori_pro_zh/runtime/hiyori_pro_t11.model3.json"
+        model="./assets/live2d/models/hiyori_pro_zh.zip"
         min-w="50% <lg:full" min-h="100 sm:100" h-full w-full flex-1
       />
       <VRMScene

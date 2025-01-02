@@ -47,7 +47,7 @@ function createWindow(): void {
     })
   }
   else {
-    mainWindow.loadFile(join(__dirname, '../../../stage/dist/index.html'))
+    mainWindow.loadFile(join(__dirname, '../../out/renderer/index.html'))
   }
 
   ipcMain.on('move-window', (_, dx, dy) => {

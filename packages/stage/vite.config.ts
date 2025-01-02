@@ -87,7 +87,7 @@ export default defineConfig(({ mode }) => {
       Unocss(),
 
       // https://github.com/antfu/vite-plugin-pwa
-      ...(env.TARGET_HUGGINGFACE_SPACE
+      ...(env.TARGET_HUGGINGFACE_SPACE || mode === 'desktop'
         ? []
         : [VitePWA({
             registerType: 'autoUpdate',
@@ -164,8 +164,8 @@ export default defineConfig(({ mode }) => {
 
               console.log('Unzipping Demo Live2D Model - Hiyori Free...')
               await mkdir(join(cacheDir, 'assets/live2d/models'), { recursive: true })
-              await unzip(Buffer.from(stream), join(cacheDir, 'assets/live2d/models'))
-
+              // await unzip(Buffer.from(stream), join(cacheDir, 'assets/live2d/models'))
+              await writeFile(join(cacheDir, 'assets/live2d/models/hiyori_free_zh.zip'), Buffer.from(stream))
               console.log('Demo Live2D Model - Hiyori Free downloaded and unzipped.')
             }
 
@@ -193,14 +193,15 @@ export default defineConfig(({ mode }) => {
 
               console.log('Unzipping Demo Live2D Model - Hiyori Pro...')
               await mkdir(join(cacheDir, 'assets/live2d/models'), { recursive: true })
-              await unzip(Buffer.from(stream), join(cacheDir, 'assets/live2d/models'))
+              // await unzip(Buffer.from(stream), join(cacheDir, 'assets/live2d/models'))
+              await writeFile(join(cacheDir, 'assets/live2d/models/hiyori_pro_zh.zip'), Buffer.from(stream))
 
               console.log('Demo Live2D Model - Hiyori Pro downloaded and unzipped.')
             }
 
-            if (!(await exists(resolve(join(publicDir, 'assets/live2d/models/hiyori_pro_zh'))))) {
+            if (!(await exists(resolve(join(publicDir, 'assets/live2d/models/hiyori_pro_zh.zip'))))) {
               await mkdir(join(publicDir, 'assets/live2d/models'), { recursive: true }).catch(() => { })
-              await cp(join(cacheDir, 'assets/live2d/models/hiyori_pro_zh'), join(publicDir, 'assets/live2d/models/hiyori_pro_zh'), { recursive: true })
+              await cp(join(cacheDir, 'assets/live2d/models/hiyori_pro_zh.zip'), join(publicDir, 'assets/live2d/models/hiyori_pro_zh.zip'), { recursive: true })
             }
 
             const hiyoriEmotions = {
