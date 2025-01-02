@@ -51,8 +51,8 @@ export default defineConfig(({ mode }) => {
       },
     },
 
-    base: mode === 'desktop' ? './' : '',
-    root: mode === 'desktop' ? 'desktop' : '',
+    base: mode === 'tamagotchi' ? './' : '',
+    root: mode === 'tamagotchi' ? 'tamagotchi' : '',
 
     plugins: [
       VueMacros({
@@ -87,7 +87,7 @@ export default defineConfig(({ mode }) => {
       Unocss(),
 
       // https://github.com/antfu/vite-plugin-pwa
-      ...(env.TARGET_HUGGINGFACE_SPACE || mode === 'desktop'
+      ...(env.TARGET_HUGGINGFACE_SPACE || mode === 'tamagotchi'
         ? []
         : [VitePWA({
             registerType: 'autoUpdate',
@@ -320,7 +320,7 @@ export default defineConfig(({ mode }) => {
         name: 'write-port-number-to-file-when-dev',
         apply: 'serve',
         configureServer(server) {
-          if (mode !== 'desktop')
+          if (mode !== 'tamagotchi')
             return
 
           if (!server.httpServer)

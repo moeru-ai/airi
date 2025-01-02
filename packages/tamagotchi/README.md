@@ -17,7 +17,7 @@ $ pnpm install
 ### Development
 
 ```bash
-$ pnpm dev
+$ pnpm dev:tamagotchi
 ```
 
 ### Build

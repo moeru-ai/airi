@@ -1,3 +1,3 @@
-export function isPlatformDesktop() {
-  return import.meta.env.MODE === 'desktop'
+export function isPlatformTamagotchi() {
+  return import.meta.env.MODE === 'tamagotchi'
 }

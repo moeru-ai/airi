@@ -1,5 +1,5 @@
-appId: com.electron.app
-productName: desktop
+appId: io.ayaka.moeru-ai.airi-tamagotchi
+productName: airi
 directories:
   buildResources: build
 files:
@@ -12,7 +12,7 @@ files:
 asarUnpack:
   - resources/**
 win:
-  executableName: desktop
+  executableName: tamagotchi
 nsis:
   artifactName: ${name}-${version}-setup.${ext}
   shortcutName: ${productName}

@@ -1,5 +1,5 @@
 {
-  "name": "desktop",
+  "name": "@proj-airi/tamagotchi",
   "version": "1.0.0",
   "description": "An Electron application with Vue and TypeScript",
   "author": "LemonNekoGH",
@@ -12,8 +12,8 @@
     "typecheck:web": "vue-tsc --noEmit -p tsconfig.web.json --composite false",
     "typecheck": "npm run typecheck:node && npm run typecheck:web",
     "start": "electron-vite preview",
-    "dev:desktop": "npm run build && electron .",
-    "build": "npm run typecheck && electron-vite build && rm -rf ./out/renderer && cp -r ../stage/desktop/dist/ ./out/renderer",
+    "dev:tamagotchi": "npm run build && electron .",
+    "build": "npm run typecheck && electron-vite build && rm -rf ./out/renderer && cp -r ../stage/tamagotchi/dist/ ./out/renderer",
     "postinstall": "electron-builder install-app-deps",
     "build:unpack": "npm run build && electron-builder --dir",
     "build:win": "npm run build && electron-builder --win",

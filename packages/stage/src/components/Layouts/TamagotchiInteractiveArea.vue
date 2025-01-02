@@ -11,8 +11,8 @@ import { useMicVAD } from '../../composables/micvad'
 import { useChatStore } from '../../stores/chat'
 import { useSettings } from '../../stores/settings'
 import BasicTextarea from '../BasicTextarea.vue'
-import DesktopChatHistory from '../Widgets/DesktopChatHistory.vue'
-import DesktopSettings from '../Widgets/DesktopSettings.vue'
+import DesktopChatHistory from '../Widgets/TamagotchiChatHistory.vue'
+import DesktopSettings from '../Widgets/TamagotchiSettings.vue'
 
 const messageInput = ref('')
 const listening = ref(false)

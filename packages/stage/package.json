@@ -16,7 +16,8 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "typecheck": "vue-tsc --noEmit",
-    "dev:desktop": "vite --mode desktop"
+    "dev:tamagotchi": "vite --mode tamagotchi",
+    "build:tamagotchi": "vite build --mode tamagotchi"
   },
   "dependencies": {
     "@11labs/client": "^0.0.4",
