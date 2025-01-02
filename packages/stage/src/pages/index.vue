@@ -6,6 +6,7 @@ import AnimatedBackground from '../components/Layouts/AnimatedBackground.vue'
 import Header from '../components/Layouts/Header.vue'
 import InteractiveArea from '../components/Layouts/InteractiveArea.vue'
 import MobileHeader from '../components/Layouts/MobileHeader.vue'
+import MobileInteractiveArea from '../components/Layouts/MobileInteractiveArea.vue'
 import Stage from '../components/Widgets/Stage.vue'
 
 const dark = useDark()
@@ -30,4 +31,4 @@ const dark = useDark()
 <route lang="yaml">
   meta:
     layout: default
-</route>
+  </route>
