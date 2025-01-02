@@ -382,9 +382,6 @@ importers:
       hfup:
         specifier: workspace:^
         version: link:../hfup
-      less:
-        specifier: ^4.2.1
-        version: 4.2.1
       markdown-it-link-attributes:
         specifier: ^4.0.1
         version: 4.0.1
@@ -13038,6 +13035,7 @@ snapshots:
   copy-anything@2.0.6:
     dependencies:
       is-what: 3.14.1
+    optional: true
 
   copy-anything@3.0.5:
     dependencies:
@@ -14818,7 +14816,8 @@ snapshots:
     dependencies:
       call-bind: 1.0.7
 
-  is-what@3.14.1: {}
+  is-what@3.14.1:
+    optional: true
 
   is-what@4.1.16: {}
 
@@ -14993,6 +14992,7 @@ snapshots:
       mime: 1.6.0
       needle: 3.3.1
       source-map: 0.6.1
+    optional: true
 
   leven@3.1.0: {}
 
@@ -15857,7 +15857,8 @@ snapshots:
 
   parse-ms@4.0.0: {}
 
-  parse-node-version@1.0.1: {}
+  parse-node-version@1.0.1:
+    optional: true
 
   parse5@7.1.2:
     dependencies:

@@ -95,7 +95,6 @@
     "@vue-macros/volar": "^0.30.8",
     "@vueuse/motion": "^2.2.6",
     "hfup": "workspace:^",
-    "less": "^4.2.1",
     "markdown-it-link-attributes": "^4.0.1",
     "unocss-preset-animations": "^1.1.0",
     "unocss-preset-shadcn": "^0.3.1",

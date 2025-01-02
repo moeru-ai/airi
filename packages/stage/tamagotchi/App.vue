@@ -37,7 +37,7 @@ function handleMouseMove(event: MouseEvent) {
   </div>
 </template>
 
-<style lang="less" scoped>
+<style scoped>
 .view {
   &:hover {
     .interaction-area {
