@@ -196,21 +196,7 @@ onMounted(async () => {
             3D
           </option>
         </select>
-        <div text="xs pink-500" class="move-window" select-none>
-          <span>Move window</span>
-        </div>
-        <label h-6 flex cursor-grab items-center justify-end class="move-window" text-xs>
-          <div select-none>
-            <div i-solar:mouse-minimalistic-bold text="lg hover:pink-600" transition="all ease-in-out duration-250" />
-          </div>
-        </label>
       </div>
     </div>
   </div>
 </template>
-
-<style scoped>
-.move-window {
-  -webkit-app-region: drag;
-}
-</style>

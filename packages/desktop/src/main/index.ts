@@ -49,6 +49,11 @@ function createWindow(): void {
   else {
     mainWindow.loadFile(join(__dirname, '../../../stage/dist/index.html'))
   }
+
+  ipcMain.on('move-window', (_, dx, dy) => {
+    const [currentX, currentY] = mainWindow.getPosition()
+    mainWindow.setPosition(currentX + dx, currentY + dy)
+  })
 }
 
 // This method will be called when Electron has finished
