@@ -11,8 +11,8 @@ import { useMicVAD } from '../../composables/micvad'
 import { useChatStore } from '../../stores/chat'
 import { useSettings } from '../../stores/settings'
 import BasicTextarea from '../BasicTextarea.vue'
-import DesktopChatHistory from '../Widgets/TamagotchiChatHistory.vue'
-import DesktopSettings from '../Widgets/TamagotchiSettings.vue'
+import TamagotchiChatHistory from '../Widgets/TamagotchiChatHistory.vue'
+import TamagotchiSettings from '../Widgets/TamagotchiSettings.vue'
 
 const messageInput = ref('')
 const listening = ref(false)
@@ -91,7 +91,7 @@ onMounted(() => {
 <template>
   <div>
     <div relative w-full flex gap-1>
-      <DesktopChatHistory absolute left-0 top-0 transform="translate-y-[-100%]" w-full />
+      <TamagotchiChatHistory absolute left-0 top-0 transform="translate-y-[-100%]" w-full />
       <div flex flex-1>
         <BasicTextarea
           v-model="messageInput"
@@ -119,7 +119,7 @@ onMounted(() => {
             fixed bottom-0 left-0 right-0 z-50 mt-24 h-full flex flex-col rounded-t-lg bg="[#fffbff] dark:[#1f1a1d]"
           >
             <div class="flex flex-1 flex-col rounded-t-lg p-5" bg="[#fffbff] dark:[#1f1a1d]" gap-2>
-              <DesktopSettings />
+              <TamagotchiSettings />
             </div>
           </DrawerContent>
         </DrawerPortal>
