@@ -1,5 +1,5 @@
 import { Buffer } from 'node:buffer'
-import { copyFile, cp, mkdir, readFile, writeFile } from 'node:fs/promises'
+import { copyFile, cp, mkdir, writeFile } from 'node:fs/promises'
 import path, { join, resolve } from 'node:path'
 import { cwd, env } from 'node:process'
 
@@ -164,8 +164,7 @@ export default defineConfig(({ mode }) => {
 
               console.log('Unzipping Demo Live2D Model - Hiyori Free...')
               await mkdir(join(cacheDir, 'assets/live2d/models'), { recursive: true })
-              // await unzip(Buffer.from(stream), join(cacheDir, 'assets/live2d/models'))
-              await writeFile(join(cacheDir, 'assets/live2d/models/hiyori_free_zh.zip'), Buffer.from(stream))
+              await unzip(Buffer.from(stream), join(cacheDir, 'assets/live2d/models'))
               console.log('Demo Live2D Model - Hiyori Free downloaded and unzipped.')
             }
 
@@ -196,7 +195,7 @@ export default defineConfig(({ mode }) => {
               // await unzip(Buffer.from(stream), join(cacheDir, 'assets/live2d/models'))
               await writeFile(join(cacheDir, 'assets/live2d/models/hiyori_pro_zh.zip'), Buffer.from(stream))
 
-              console.log('Demo Live2D Model - Hiyori Pro downloaded and unzipped.')
+              console.log('Demo Live2D Model - Hiyori Pro downloaded.')
             }
 
             if (!(await exists(resolve(join(publicDir, 'assets/live2d/models/hiyori_pro_zh.zip'))))) {
@@ -204,28 +203,29 @@ export default defineConfig(({ mode }) => {
               await cp(join(cacheDir, 'assets/live2d/models/hiyori_pro_zh.zip'), join(publicDir, 'assets/live2d/models/hiyori_pro_zh.zip'), { recursive: true })
             }
 
-            const hiyoriEmotions = {
-              Idle: [
-                {
-                  File: 'motion/hiyori_m01.motion3.json',
-                },
-                {
-                  File: 'motion/hiyori_m05.motion3.json',
-                },
-              ],
-              EmotionHappy: [{ File: 'motion/hiyori_m08.motion3.json' }],
-              EmotionSad: [{ File: 'motion/hiyori_m10.motion3.json' }],
-              EmotionAngry: [{ File: 'motion/hiyori_m09.motion3.json' }],
-              EmotionAwkward: [{ File: 'motion/hiyori_m04.motion3.json' }],
-              EmotionThink: [{ File: 'motion/hiyori_m03.motion3.json' }],
-              EmotionSurprise: [{ File: 'motion/hiyori_m03.motion3.json' }],
-              EmotionQuestion: [{ File: 'motion/hiyori_m10.motion3.json' }],
-            }
+            // TODO: use motion editor to remap emotions
+            // const hiyoriEmotions = {
+            //   Idle: [
+            //     {
+            //       File: 'motion/hiyori_m01.motion3.json',
+            //     },
+            //     {
+            //       File: 'motion/hiyori_m05.motion3.json',
+            //     },
+            //   ],
+            //   EmotionHappy: [{ File: 'motion/hiyori_m08.motion3.json' }],
+            //   EmotionSad: [{ File: 'motion/hiyori_m10.motion3.json' }],
+            //   EmotionAngry: [{ File: 'motion/hiyori_m09.motion3.json' }],
+            //   EmotionAwkward: [{ File: 'motion/hiyori_m04.motion3.json' }],
+            //   EmotionThink: [{ File: 'motion/hiyori_m03.motion3.json' }],
+            //   EmotionSurprise: [{ File: 'motion/hiyori_m03.motion3.json' }],
+            //   EmotionQuestion: [{ File: 'motion/hiyori_m10.motion3.json' }],
+            // }
 
-            const read = await readFile(join(publicDir, 'assets/live2d/models/hiyori_pro_zh/runtime/hiyori_pro_t11.model3.json'), 'utf-8')
-            const model = JSON.parse(read.toString()) as { FileReferences: { Motions: Record<string, { File: string }[]> } }
-            Object.assign(model.FileReferences.Motions, hiyoriEmotions)
-            await writeFile(join(publicDir, 'assets/live2d/models/hiyori_pro_zh/runtime/hiyori_pro_t11.model3.json'), JSON.stringify(model, null, 4), 'utf-8')
+            // const read = await readFile(join(publicDir, 'assets/live2d/models/hiyori_pro_zh/runtime/hiyori_pro_t11.model3.json'), 'utf-8')
+            // const model = JSON.parse(read.toString()) as { FileReferences: { Motions: Record<string, { File: string }[]> } }
+            // Object.assign(model.FileReferences.Motions, hiyoriEmotions)
+            // await writeFile(join(publicDir, 'assets/live2d/models/hiyori_pro_zh/runtime/hiyori_pro_t11.model3.json'), JSON.stringify(model, null, 4), 'utf-8')
           }
           catch (err) {
             console.error(err)
