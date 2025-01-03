@@ -31,7 +31,7 @@
     "@antfu/eslint-config": "^3.12.1",
     "@antfu/ni": "^0.23.2",
     "@cspell/dict-ru_ru": "^2.2.4",
-    "@types/node": "^22.10.3",
+    "@types/node": "^22.10.5",
     "@unocss/eslint-config": "^0.65.3",
     "@unocss/eslint-plugin": "^0.65.3",
     "bumpp": "^9.9.2",
@@ -48,7 +48,7 @@
     "typescript": "~5.7.2",
     "unbuild": "3.0.0-rc.11",
     "unocss": "^0.65.3",
-    "vite": "^6.0.6",
+    "vite": "^6.0.7",
     "vite-plugin-inspect": "^0.10.6",
     "vitest": "^2.1.8"
   },
