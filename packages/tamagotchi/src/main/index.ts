@@ -1,12 +1,9 @@
 import { readFileSync } from 'node:fs'
-import { dirname, join } from 'node:path'
+import { join } from 'node:path'
 import { platform } from 'node:process'
-import { fileURLToPath } from 'node:url'
 import { electronApp, is, optimizer } from '@electron-toolkit/utils'
 import { app, BrowserWindow, ipcMain, shell } from 'electron'
 import icon from '../../build/icon.png?asset'
-
-const __dirname = dirname(fileURLToPath(import.meta.url))
 
 function createWindow(): void {
   // Create the browser window.
@@ -22,7 +19,7 @@ function createWindow(): void {
     alwaysOnTop: true,
     ...(platform === 'linux' ? { icon } : {}),
     webPreferences: {
-      preload: join(__dirname, '..', 'preload', 'index.js'),
+      preload: join(import.meta.dirname, '..', 'preload', 'index.js'),
       sandbox: false,
     },
   })
@@ -43,14 +40,14 @@ function createWindow(): void {
 
   if (is.dev) {
     // try to read port number from stage.dev.json
-    const devFile = readFileSync(join(__dirname, '../../../stage/stage.dev.json'), 'utf-8')
+    const devFile = readFileSync(join(import.meta.dirname, '../../../stage/stage.dev.json'), 'utf-8')
     const devInfo = JSON.parse(devFile) as { address: { address: string, family: string, port: number } }
     mainWindow.loadURL(`http://localhost:${devInfo.address.port}`).catch((e) => {
       console.error('Failed to load URL', e)
     })
   }
   else {
-    mainWindow.loadFile(join(__dirname, '..', '..', 'out', 'renderer', 'index.html'))
+    mainWindow.loadFile(join(import.meta.dirname, '..', '..', 'out', 'renderer', 'index.html'))
   }
 
   ipcMain.on('move-window', (_, dx, dy) => {
