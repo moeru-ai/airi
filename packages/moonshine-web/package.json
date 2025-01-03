@@ -18,9 +18,9 @@
     "typecheck": "vue-tsc --noEmit"
   },
   "dependencies": {
-    "@tresjs/core": "^4.3.1",
+    "@tresjs/core": "^4.3.2",
     "@unocss/reset": "^0.65.3",
-    "@vueuse/core": "^12.2.0",
+    "@vueuse/core": "^12.3.0",
     "@vueuse/motion": "^2.2.6",
     "ofetch": "^1.4.1",
     "three": "^0.172.0",

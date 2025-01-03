@@ -1,22 +1,23 @@
 <script setup lang="ts">
 import type { Emotion } from '../../constants/emotions'
-import { storeToRefs } from 'pinia'
 
+import { generateSpeech } from '@xsai/generate-speech'
+import { createUnElevenLabs } from '@xsai/providers'
+import { storeToRefs } from 'pinia'
 import { onUnmounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+
 import { useMarkdown } from '../../composables/markdown'
 import { useQueue } from '../../composables/queue'
 import { useDelayMessageQueue, useEmotionsMessageQueue, useMessageContentQueue } from '../../composables/queues'
 import { llmInferenceEndToken } from '../../constants'
 import { Voice } from '../../constants/elevenlabs'
-
 import { EMOTION_EmotionMotionName_value, EMOTION_VRMExpressionName_value, EmotionThinkMotionName } from '../../constants/emotions'
 import { useAudioContext, useSpeakingStore } from '../../stores/audio'
 import { useChatStore } from '../../stores/chat'
-import { useLLM } from '../../stores/llm'
 import { useSettings } from '../../stores/settings'
-import Live2DScene from '../Scenes/Live2D.vue'
 
+import Live2DScene from '../Scenes/Live2D.vue'
 import VRMScene from '../Scenes/VRM.vue'
 
 import '../../utils/live2d-zip-loader'
@@ -27,7 +28,6 @@ const vrmViewerRef = ref<{ setExpression: (expression: string) => void }>()
 const { stageView, elevenLabsApiKey, elevenlabsVoiceEnglish, elevenlabsVoiceJapanese } = storeToRefs(useSettings())
 const { mouthOpenSize } = storeToRefs(useSpeakingStore())
 const { audioContext, calculateVolume } = useAudioContext()
-const { streamSpeech } = useLLM()
 const { onBeforeMessageComposed, onBeforeSend, onTokenLiteral, onTokenSpecial, onStreamEnd, streamingMessage } = useChatStore()
 const { process } = useMarkdown()
 const { locale } = useI18n()
@@ -71,17 +71,26 @@ const ttsQueue = useQueue<string>({
         voice = elevenlabsVoiceEnglish.value
 
       const now = Date.now()
-      const res = await streamSpeech('https://airi-api.ayaka.io', elevenLabsApiKey.value, ctx.data, {
-        // voice: 'ShanShan',
-        // Quite good for English
-        voice,
-        // Beatrice is not 'childish' like the others
-        // voice: 'Beatrice',
-        model_id: 'eleven_multilingual_v2',
-        voice_settings: {
-          stability: 0.4,
-          similarity_boost: 0.5,
-        },
+
+      const elevenlabs = createUnElevenLabs({
+        apiKey: elevenLabsApiKey.value,
+        baseURL: 'https://unspeech.hyp3r.link/v1/',
+        model: 'eleven_multilingual_v2',
+      })
+      const res = await generateSpeech({
+        ...elevenlabs.speech({
+          stream: true,
+          // voice: 'ShanShan',
+          // Quite good for English
+          voice,
+          // Beatrice is not 'childish' like the others
+          // voice: 'Beatrice',
+          voiceSettings: {
+            stability: 0.4,
+            similarityBoost: 0.5,
+          },
+        }),
+        input: ctx.data,
       })
       const elapsed = Date.now() - now
 
