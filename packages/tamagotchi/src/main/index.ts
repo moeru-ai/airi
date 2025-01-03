@@ -1,11 +1,14 @@
 import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
 import process from 'node:process'
+import { fileURLToPath } from 'node:url'
 import { electronApp, is, optimizer } from '@electron-toolkit/utils'
 import { app, BrowserWindow, ipcMain, shell } from 'electron'
 import icon from '../../build/icon.png?asset'
 
 function createWindow(): void {
+  const __dirname = dirname(fileURLToPath(import.meta.url))
+
   // Create the browser window.
   const mainWindow = new BrowserWindow({
     width: 300,
