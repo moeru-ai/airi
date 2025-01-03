@@ -1,4 +1,4 @@
-appId: io.ayaka.moeru-ai.airi-tamagotchi
+appId: com.github.moeru-ai.airi-tamagotchi
 productName: airi
 directories:
   buildResources: build

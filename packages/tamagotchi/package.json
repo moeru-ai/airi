@@ -1,5 +1,5 @@
 {
-  "name": "@proj-airi/tamagotchi",
+  "name": "@proj-airi/stage-tamagotchi",
   "version": "1.0.0",
   "description": "An Electron application with Vue and TypeScript",
   "author": "LemonNekoGH",

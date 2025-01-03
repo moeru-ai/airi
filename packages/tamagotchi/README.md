@@ -1,6 +1,6 @@
-# AIRI Tamagotchi
+# たまごっち アイリ
 
-A desktop application for AIRI Tamagotchi.
+A desktop application for たまごっち アイリ.
 
 ## Project Setup
 

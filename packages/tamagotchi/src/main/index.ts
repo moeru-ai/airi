@@ -1,14 +1,14 @@
 import { readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
-import process from 'node:process'
+import { platform } from 'node:process'
 import { fileURLToPath } from 'node:url'
 import { electronApp, is, optimizer } from '@electron-toolkit/utils'
 import { app, BrowserWindow, ipcMain, shell } from 'electron'
 import icon from '../../build/icon.png?asset'
 
-function createWindow(): void {
-  const __dirname = dirname(fileURLToPath(import.meta.url))
+const __dirname = dirname(fileURLToPath(import.meta.url))
 
+function createWindow(): void {
   // Create the browser window.
   const mainWindow = new BrowserWindow({
     width: 300,
@@ -20,9 +20,9 @@ function createWindow(): void {
     resizable: false,
     hasShadow: false,
     alwaysOnTop: true,
-    ...(process.platform === 'linux' ? { icon } : {}),
+    ...(platform === 'linux' ? { icon } : {}),
     webPreferences: {
-      preload: join(__dirname, '../preload/index.js'),
+      preload: join(__dirname, '..', 'preload', 'index.js'),
       sandbox: false,
     },
   })
@@ -50,7 +50,7 @@ function createWindow(): void {
     })
   }
   else {
-    mainWindow.loadFile(join(__dirname, '../../out/renderer/index.html'))
+    mainWindow.loadFile(join(__dirname, '..', '..', 'out', 'renderer', 'index.html'))
   }
 
   ipcMain.on('move-window', (_, dx, dy) => {
@@ -64,7 +64,7 @@ function createWindow(): void {
 // Some APIs can only be used after this event occurs.
 app.whenReady().then(() => {
   // Set app user model id for windows
-  electronApp.setAppUserModelId('moe.ayaka.proj-airi')
+  electronApp.setAppUserModelId('com.github.moeru-ai.airi-tamagotchi')
 
   // Default open or close DevTools by F12 in development
   // and ignore CommandOrControl + R in production.
@@ -74,8 +74,6 @@ app.whenReady().then(() => {
   })
 
   // IPC test
-  // eslint-disable-next-line no-console
-  ipcMain.on('ping', () => console.log('pong'))
   ipcMain.on('quit', () => app.quit())
 
   createWindow()
@@ -93,7 +91,7 @@ app.whenReady().then(() => {
 // for applications and their menu bar to stay active until the user quits
 // explicitly with Cmd + Q.
 app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') {
+  if (platform !== 'darwin') {
     app.quit()
   }
 })
