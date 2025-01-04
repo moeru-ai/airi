@@ -11,7 +11,7 @@ import { useMarkdown } from '../../composables/markdown'
 import { useQueue } from '../../composables/queue'
 import { useDelayMessageQueue, useEmotionsMessageQueue, useMessageContentQueue } from '../../composables/queues'
 import { llmInferenceEndToken } from '../../constants'
-import { Voice } from '../../constants/elevenlabs'
+import { Voice, voiceMap } from '../../constants/elevenlabs'
 import { EMOTION_EmotionMotionName_value, EMOTION_VRMExpressionName_value, EmotionThinkMotionName } from '../../constants/emotions'
 import { useAudioContext, useSpeakingStore } from '../../stores/audio'
 import { useChatStore } from '../../stores/chat'
@@ -78,8 +78,8 @@ const ttsQueue = useQueue<string>({
       })
       const res = await generateSpeech({
         ...elevenlabs.speech({
-          model: 'eleven_multilingual_v2',
-          voice,
+          model: 'elevenlabs/eleven_multilingual_v2',
+          voice: voiceMap[voice],
           voiceSettings: {
             stability: 0.4,
             similarityBoost: 0.5,
