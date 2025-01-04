@@ -30,7 +30,10 @@ words:
   - dtype
   - elevenlabs
   - formkit
+  - gcornut
   - gltf
+  - grammyjs
+  - guiiai
   - hfspaceup
   - hfsup
   - hfup
@@ -46,6 +49,7 @@ words:
   - live2dcubismcore
   - live2dcubismframework
   - Llmmarker
+  - logg
   - Maru
   - micvad
   - Morioki
@@ -58,9 +62,11 @@ words:
   - nuxt
   - nuxtjs
   - ofetch
+  - Oneliner
   - onnx
   - onnxruntime
   - openai
+  - pgvector
   - picklist
   - pinia
   - pixi
@@ -68,6 +74,7 @@ words:
   - pretrained
   - rehype
   - rushstack
+  - remeda
   - Shadcn
   - shiki
   - shikijs
@@ -75,6 +82,7 @@ words:
   - sizecheck
   - Sniglet
   - tamagotchi
+  - supergroup
   - taze
   - tresjs
   - typeschema
