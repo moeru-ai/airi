@@ -75,16 +75,11 @@ const ttsQueue = useQueue<string>({
       const elevenlabs = createUnElevenLabs({
         apiKey: elevenLabsApiKey.value,
         baseURL: 'https://unspeech.hyp3r.link/v1/',
-        model: 'eleven_multilingual_v2',
       })
       const res = await generateSpeech({
         ...elevenlabs.speech({
-          stream: true,
-          // voice: 'ShanShan',
-          // Quite good for English
+          model: 'eleven_multilingual_v2',
           voice,
-          // Beatrice is not 'childish' like the others
-          // voice: 'Beatrice',
           voiceSettings: {
             stability: 0.4,
             similarityBoost: 0.5,
