@@ -1,0 +1,10 @@
+version: '3.8'
+
+services:
+  pgvector:
+    image: pgvector/pgvector:pg17
+    ports:
+      - 5432:5432
+    environment:
+      POSTGRES_DATABASE: postgres
+      POSTGRES_PASSWORD: '123456'
