@@ -81,7 +81,7 @@
   "devDependencies": {
     "@iconify-json/carbon": "^1.2.5",
     "@iconify-json/eos-icons": "^1.2.2",
-    "@iconify-json/lucide": "^1.2.20",
+    "@iconify-json/lucide": "^1.2.21",
     "@iconify-json/mingcute": "^1.2.3",
     "@iconify-json/solar": "^1.2.2",
     "@iconify-json/svg-spinners": "^1.2.2",
