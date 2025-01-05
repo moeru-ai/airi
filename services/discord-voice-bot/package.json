@@ -1,0 +1,47 @@
+{
+  "name": "@proj-airi/discord-voice-bot",
+  "type": "module",
+  "version": "0.1.0",
+  "private": false,
+  "description": "Discord voice bot for Airi",
+  "author": {
+    "name": "Neko Ayaka",
+    "email": "neko@ayaka.moe",
+    "url": "https://github.com/nekomeowww"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/moeru-ai/airi.git",
+    "directory": "services/discord-voice-bot"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs"
+    }
+  },
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "README.md",
+    "dist",
+    "package.json"
+  ],
+  "scripts": {
+    "start": "dotenvx run -f .env.local -f .env -- tsx src/index.ts"
+  },
+  "dependencies": {
+    "@discordjs/voice": "^0.18.0",
+    "@dotenvx/dotenvx": "^1.32.0",
+    "@guiiai/logg": "^1.0.6",
+    "@huggingface/transformers": "^3.2.4",
+    "discord.js": "^14.17.2",
+    "ffmpeg-static": "^5.2.0",
+    "fluent-ffmpeg": "^2.1.3",
+    "libsodium-wrappers": "^0.7.15",
+    "opusscript": "^0.1.1",
+    "prism-media": "2.0.0-alpha.0",
+    "tsx": "^4.19.2"
+  }
+}

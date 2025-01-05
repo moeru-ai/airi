@@ -9,6 +9,7 @@ words:
   - airi-vtuber
   - Attributify
   - Ayaka
+  - Bitstream
   - bumpp
   - cientos
   - composables
@@ -27,6 +28,7 @@ words:
   - cuteen
   - defu
   - demi
+  - dotenvx
   - dtype
   - elevenlabs
   - formkit
@@ -66,6 +68,7 @@ words:
   - onnx
   - onnxruntime
   - openai
+  - opusscript
   - pgvector
   - picklist
   - pinia
@@ -73,16 +76,16 @@ words:
   - pixiv
   - pretrained
   - rehype
-  - rushstack
   - remeda
+  - rushstack
   - Shadcn
   - shiki
   - shikijs
   - silero
   - sizecheck
   - Sniglet
-  - tamagotchi
   - supergroup
+  - tamagotchi
   - taze
   - tresjs
   - typeschema
