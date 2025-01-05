@@ -13,6 +13,8 @@ export enum Voice {
 export const voiceMap: Record<Voice, string> = {
   // English
   [Voice.Myriam]: 'lNxY9WuCBCZCISASyJ55',
+  // Beatrice is not 'childish' like the others
+  // voice: 'Beatrice',
   [Voice.Beatrice]: 'KAsXoQDshjF6ehsWa1mF',
   [Voice.Camilla_KM]: 'dLhSyo03JRp5WkGpUlz1',
   [Voice.SallySunshine]: 'qswttdunP3b44zVZKMRB',
@@ -21,6 +23,9 @@ export const voiceMap: Record<Voice, string> = {
   // Japanese
   [Voice.Morioki]: '8EkOjt4xTPGMclNlh1pk',
 }
+
+// voice: 'ShanShan',
+// Quite good for English
 
 export const enVoiceList = [
   Voice.Myriam,

@@ -21,7 +21,7 @@ export const useSettings = defineStore('settings', () => {
   const selectedAudioDeviceId = computed(() => selectedAudioDevice.value?.deviceId)
   const { audioInputs } = useDevicesList({ constraints: { audio: true }, requestPermissions: true })
 
-  const elevenlabsVoiceEnglish = useLocalStorage<Voice>('settings/llm/elevenlabs/voice/en', Voice.Camilla_KM)
+  const elevenlabsVoiceEnglish = useLocalStorage<Voice>('settings/llm/elevenlabs/voice/en', Voice.Myriam)
   const elevenlabsVoiceJapanese = useLocalStorage<Voice>('settings/llm/elevenlabs/voice/ja', Voice.Morioki)
 
   watch(isAudioInputOn, (value) => {
