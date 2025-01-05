@@ -3,6 +3,7 @@ import { Format, LogLevel, setGlobalFormat, setGlobalLogLevel, useLogg } from '@
 import { Client, Events, GatewayIntentBits } from 'discord.js'
 
 import { handlePing, handleSummon, registerCommands } from './bots/discord/commands'
+import { WhisperLargeV3Pipeline } from './pipelines/tts'
 
 import 'dotenv/config'
 
@@ -12,6 +13,7 @@ const log = useLogg('Bot').useGlobalConfig()
 
 // Create a new client instance
 async function main() {
+  await WhisperLargeV3Pipeline.getInstance()
   const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildVoiceStates] })
 
   // When the client is ready, run this code (only once).

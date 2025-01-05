@@ -488,6 +488,9 @@ importers:
       '@huggingface/transformers':
         specifier: ^3.2.4
         version: 3.2.4
+      date-fns:
+        specifier: ^4.1.0
+        version: 4.1.0
       discord.js:
         specifier: ^14.17.2
         version: 14.17.2
@@ -509,6 +512,9 @@ importers:
       tsx:
         specifier: ^4.19.2
         version: 4.19.2
+      wavefile:
+        specifier: ^11.0.0
+        version: 11.0.0
 
 packages:
 
@@ -8261,6 +8267,11 @@ packages:
   w3c-xmlserializer@5.0.0:
     resolution: {integrity: sha512-o8qghlI8NZHU1lLPrpi2+Uq7abh4GGPpYANlalzWxyWteJOCsr/P+oPBA49TOLu5FTZO4d3F9MnWJfiMo4BkmA==}
     engines: {node: '>=18'}
+
+  wavefile@11.0.0:
+    resolution: {integrity: sha512-/OBiAALgWU24IG7sC84cDO/KfFuvajWc5Uec0oV2zrpOOZZDgGdOwHwgEzOrwh8jkubBk7PtZfQBIcI1OaE5Ng==}
+    engines: {node: '>=8'}
+    hasBin: true
 
   wbuf@1.7.3:
     resolution: {integrity: sha512-O84QOnr0icsbFGLS0O3bI5FswxzRr8/gHwWkDlQFskhSPryQXvrTMxjxGP4+iWYoauLoBvfDpkrOauZ+0iZpDA==}
@@ -17724,6 +17735,8 @@ snapshots:
     dependencies:
       xml-name-validator: 5.0.0
     optional: true
+
+  wavefile@11.0.0: {}
 
   wbuf@1.7.3:
     dependencies:

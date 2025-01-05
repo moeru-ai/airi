@@ -29,3 +29,5 @@ coverage/
 *.wav
 *.ogg
 *.mp3
+
+**/temp/ */
