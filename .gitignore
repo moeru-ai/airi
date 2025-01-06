@@ -24,3 +24,10 @@ coverage/
 **/public/assets/js/*
 **/public/assets/live2d/models/*
 **/public/assets/vrm/models/*
+
+*.pcm
+*.wav
+*.ogg
+*.mp3
+
+**/temp/

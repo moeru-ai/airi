@@ -3,6 +3,7 @@ import type { AssistantMessage, Message } from '@xsai/shared-chat'
 import { defineStore, storeToRefs } from 'pinia'
 import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+
 import { useLlmmarkerParser } from '../composables/llmmarkerParser'
 import SystemPromptV2 from '../constants/prompts/system-v2'
 import { useLLM } from '../stores/llm'

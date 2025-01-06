@@ -1,14 +1,14 @@
 import type { Infer, Schema } from '@typeschema/valibot'
-import type { CommonProviderOptions } from '@xsai/providers'
+import type { ProviderOptions } from '@xsai/providers'
 import type { Message } from '@xsai/shared-chat'
 
 import { toJSONSchema, validate } from '@typeschema/valibot'
 import { generateText } from '@xsai/generate-text'
-import { user } from '@xsai/shared-chat'
+import { message } from '@xsai/shared-chat'
 
 type SchemaOrString<S extends Schema | undefined | unknown> = S extends unknown ? string : S extends Schema ? Infer<S> : never
 
-async function parseJSONFormat<S extends Schema, R extends SchemaOrString<S>>(content: string, options: { messages: Message[], apiKey?: string, baseURL: string, model: string } & CommonProviderOptions, schema?: S, erroredValue?: string, errorMessage?: string): Promise<R> {
+async function parseJSONFormat<S extends Schema, R extends SchemaOrString<S>>(content: string, options: { messages: Message[], apiKey?: string, baseURL: string, model: string } & ProviderOptions, schema?: S, erroredValue?: string, errorMessage?: string): Promise<R> {
   if (!schema)
     return content as unknown as R
 
@@ -26,7 +26,7 @@ async function parseJSONFormat<S extends Schema, R extends SchemaOrString<S>>(co
     catch (parseError) {
       console.error('Error parsing JSON:', parseError, content)
 
-      options.messages.push(user(`
+      options.messages.push(message.user(`
 ${correctionPrompt}The response was not valid JSON:
 ${JSON.stringify(content)}
 
@@ -45,7 +45,7 @@ ${JSON.stringify(await toJSONSchema(schema))}`))
     }
 
     console.error('Schema validation failed:', validation.issues, parsedContent)
-    options.messages.push(user(`
+    options.messages.push(message.user(`
 ${correctionPrompt}The response failed schema validation:
 ${JSON.stringify(parsedContent)}
 
@@ -67,9 +67,9 @@ ${JSON.stringify(await toJSONSchema(schema))}`))
 /**
  * Processes user input and generates LLM response along with thought nodes.
  */
-async function call<S extends Schema, R extends SchemaOrString<S>>(options: { messages: Message[], apiKey?: string, baseURL: string, model: string } & CommonProviderOptions, schema?: S): Promise<R> {
+async function call<S extends Schema, R extends SchemaOrString<S>>(options: { messages: Message[], apiKey?: string, baseURL: string, model: string } & ProviderOptions, schema?: S): Promise<R> {
   if (schema != null) {
-    options.messages.push(user(`Your response must follow the following schema:
+    options.messages.push(message.user(`Your response must follow the following schema:
 ${JSON.stringify(await toJSONSchema(schema))}
 
 Without any extra markups such as \`\`\` in markdown, or descriptions.`))
@@ -85,6 +85,6 @@ Without any extra markups such as \`\`\` in markdown, or descriptions.`))
   return await parseJSONFormat<S, R>(response.text || '', options, schema)
 }
 
-export async function generateObject<S extends Schema, R extends SchemaOrString<S>>(options: { messages: Message[], model: string, apiKey?: string, baseURL: string } & CommonProviderOptions, schema?: S): Promise<R> {
+export async function generateObject<S extends Schema, R extends SchemaOrString<S>>(options: { messages: Message[], model: string, apiKey?: string, baseURL: string } & ProviderOptions, schema?: S): Promise<R> {
   return await call(options, schema)
 }
