@@ -500,18 +500,9 @@ importers:
       '@xsai/shared-chat':
         specifier: ^0.0.23
         version: 0.0.23
-      date-fns:
-        specifier: ^4.1.0
-        version: 4.1.0
       discord.js:
         specifier: ^14.17.2
         version: 14.17.2
-      ffmpeg-static:
-        specifier: ^5.2.0
-        version: 5.2.0
-      fluent-ffmpeg:
-        specifier: ^2.1.3
-        version: 2.1.3
       libsodium-wrappers:
         specifier: ^0.7.15
         version: 0.7.15
@@ -3886,9 +3877,6 @@ packages:
     resolution: {integrity: sha512-NW2cX8m1Q7KPA7a5M2ULQeZ2wR5qI5PAbw5L0UOMxdioVk9PMZ0h1TmyZEkPYrCvYjDlFICusOu1dlEKAAeXBw==}
     engines: {node: '>=0.12.0'}
 
-  async@0.2.10:
-    resolution: {integrity: sha512-eAkdoKxU6/LkKDBzLpT+t6Ff5EtfSF4wx1WfJiPEEV7WNLnDaRXk0oVysiEPm262roaachGexwUv94WhSgN5TQ==}
-
   async@2.6.4:
     resolution: {integrity: sha512-mzo5dfJYwAn29PeiJ0zvwTo04zj8HDJj0Mn8TD7sno7q12prdbnasKJHhkm2c1LgrhlJ0teaea8860oxi51mGA==}
 
@@ -5119,10 +5107,6 @@ packages:
 
   flatted@3.3.1:
     resolution: {integrity: sha512-X8cqMLLie7KsNUDSdzeN8FYK9rEt4Dt67OsG/DNGnYTSDBG4uFAJFBnUeiV+zCVAvwFy56IjM9sH51jVaEhNxw==}
-
-  fluent-ffmpeg@2.1.3:
-    resolution: {integrity: sha512-Be3narBNt2s6bsaqP6Jzq91heDgOEaDCJAXcE3qcma/EJBSy5FB4cvO31XBInuAuKBx8Kptf8dkhjK0IOru39Q==}
-    engines: {node: '>=18'}
 
   follow-redirects@1.15.2:
     resolution: {integrity: sha512-VQLG33o04KaQ8uYi2tVNbdrWp1QWxNNea+nmIB4EVM28v0hmP17z7aG1+wAkNzVq4KeXTq3221ye5qTJP91JwA==}
@@ -8374,10 +8358,6 @@ packages:
     resolution: {integrity: sha512-qe9UWWpkeG5yzZ0tNYxDmd7vo58HDBc39mZ0xWWpolAGADdFOzkfamWLDxkOWcvHQKVmdTyQdLD4NOfjLWTKew==}
     engines: {node: '>= 0.4'}
 
-  which@1.3.1:
-    resolution: {integrity: sha512-HxJdYWq1MTIQbJ3nw0cqssHoTNU267KlrDuGZ1WYlxDStUtKUhOaJmh112/TZmHxxUfuJqPXSOm7tDyas0OSIQ==}
-    hasBin: true
-
   which@2.0.2:
     resolution: {integrity: sha512-BLI3Tl1TW3Pvl70l3yq3Y64i+awpwXqsGBYWkkqMtnbXgrMD+yj7rhW0kuEDxzJaYXGjEW5ogapKNMEKNMjibA==}
     engines: {node: '>= 8'}
@@ -9367,6 +9347,7 @@ snapshots:
       concat-stream: 2.0.0
       http-response-object: 3.0.2
       parse-cache-control: 1.0.1
+    optional: true
 
   '@develar/schema-utils@2.6.5':
     dependencies:
@@ -11107,7 +11088,8 @@ snapshots:
 
   '@types/ms@0.7.34': {}
 
-  '@types/node@10.17.60': {}
+  '@types/node@10.17.60':
+    optional: true
 
   '@types/node@20.17.11':
     dependencies:
@@ -12439,8 +12421,6 @@ snapshots:
 
   async-exit-hook@2.0.1: {}
 
-  async@0.2.10: {}
-
   async@2.6.4:
     dependencies:
       lodash: 4.17.21
@@ -12691,7 +12671,8 @@ snapshots:
 
   caniuse-lite@1.0.30001680: {}
 
-  caseless@0.12.0: {}
+  caseless@0.12.0:
+    optional: true
 
   ccount@2.0.1: {}
 
@@ -12864,6 +12845,7 @@ snapshots:
       inherits: 2.0.4
       readable-stream: 3.6.2
       typedarray: 0.0.6
+    optional: true
 
   confbox@0.1.8: {}
 
@@ -13992,6 +13974,7 @@ snapshots:
       progress: 2.0.3
     transitivePeerDependencies:
       - supports-color
+    optional: true
 
   figures@6.1.0:
     dependencies:
@@ -14061,11 +14044,6 @@ snapshots:
   flatbuffers@1.12.0: {}
 
   flatted@3.3.1: {}
-
-  fluent-ffmpeg@2.1.3:
-    dependencies:
-      async: 0.2.10
-      which: 1.3.1
 
   follow-redirects@1.15.2: {}
 
@@ -14455,6 +14433,7 @@ snapshots:
   http-response-object@3.0.2:
     dependencies:
       '@types/node': 10.17.60
+    optional: true
 
   http2-wrapper@1.0.3:
     dependencies:
@@ -15716,7 +15695,8 @@ snapshots:
     dependencies:
       callsites: 3.1.0
 
-  parse-cache-control@1.0.1: {}
+  parse-cache-control@1.0.1:
+    optional: true
 
   parse-gitignore@2.0.0: {}
 
@@ -17132,7 +17112,8 @@ snapshots:
       for-each: 0.3.3
       is-typed-array: 1.1.12
 
-  typedarray@0.0.6: {}
+  typedarray@0.0.6:
+    optional: true
 
   typescript@5.7.2: {}
 
@@ -17935,10 +17916,6 @@ snapshots:
       for-each: 0.3.3
       gopd: 1.0.1
       has-tostringtag: 1.0.0
-
-  which@1.3.1:
-    dependencies:
-      isexe: 2.0.0
 
   which@2.0.2:
     dependencies:

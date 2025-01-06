@@ -2,25 +2,64 @@ import type { AudioReceiveStream } from '@discordjs/voice'
 import type { useLogg } from '@guiiai/logg'
 import type { CacheType, ChatInputCommandInteraction, GuildMember } from 'discord.js'
 import { Buffer } from 'node:buffer'
-import { createWriteStream } from 'node:fs'
-import { mkdir, readFile } from 'node:fs/promises'
 import { env } from 'node:process'
-import { Readable } from 'node:stream'
+import { Readable, Writable } from 'node:stream'
 import { createAudioPlayer, createAudioResource, EndBehaviorType, entersState, joinVoiceChannel, NoSubscriberBehavior, VoiceConnectionStatus } from '@discordjs/voice'
 import { generateSpeech } from '@xsai/generate-speech'
 import { generateText } from '@xsai/generate-text'
 import { createOpenAI, createUnElevenLabs } from '@xsai/providers'
 import { message } from '@xsai/shared-chat'
-import { formatDate } from 'date-fns'
-import ffmpeg from 'fluent-ffmpeg'
 import OpusScript from 'opusscript'
-import wavefile from 'wavefile'
 
-import { WhisperLargeV3Pipeline } from '../../../pipelines/tts'
+import { transcribe } from '../../../pipelines/tts'
 import { systemPrompt } from '../../../prompts/system-v1'
-import { exists } from '../../../utils/fs'
 
 const decoder = new OpusScript(48000, 2)
+
+async function transcribeTextFromAudioReceiveStream(stream: AudioReceiveStream) {
+  return new Promise<string>((resolve, reject) => {
+    try {
+      let pcmBuffer = Buffer.alloc(0)
+      const pcmStream = new Writable({
+        write(chunk, _encoding, callback) {
+          pcmBuffer = Buffer.concat([pcmBuffer, chunk])
+          callback()
+        },
+      })
+
+      stream.on('error', (err) => {
+        reject(err)
+      })
+
+      // Create the pipeline
+      stream.on('data', async (chunk) => {
+        try {
+          const pcm = decoder.decode(chunk)
+          pcmStream.write(pcm)
+        }
+        catch (err) {
+          reject(err)
+        }
+      })
+
+      // When user stops talking, stop the stream and generate an mp3 file.
+      stream.on('end', async () => {
+        try {
+          pcmStream.end()
+
+          const result = await transcribe(pcmBuffer)
+          resolve(result)
+        }
+        catch (err) {
+          reject(err)
+        }
+      })
+    }
+    catch (err) {
+      reject(err)
+    }
+  })
+}
 
 export async function handleSummon(log: ReturnType<typeof useLogg>, interaction: ChatInputCommandInteraction<CacheType>) {
   const currVoiceChannel = (interaction.member as GuildMember).voice.channel
@@ -85,7 +124,8 @@ export async function handleSummon(log: ReturnType<typeof useLogg>, interaction:
           },
         })
 
-        const result = await transcribeAudioStream(log, listenStream, userId)
+        const result = await transcribeTextFromAudioReceiveStream(listenStream)
+
         const openai = createOpenAI({
           apiKey: env.OPENAI_API_KEY,
           baseURL: env.OPENAI_API_BASE_URL,
@@ -115,11 +155,18 @@ export async function handleSummon(log: ReturnType<typeof useLogg>, interaction:
         })
 
         const speechRes = await generateSpeech({
-          ...elevenlabs.speech({ model: 'elevenlabs/eleven_multilingual_v2', voice: 'lNxY9WuCBCZCISASyJ55' }),
+          ...elevenlabs.speech({
+            model: 'eleven_multilingual_v2',
+            voice: 'lNxY9WuCBCZCISASyJ55',
+            voiceSettings: {
+              stability: 0.4,
+              similarityBoost: 0.5,
+            },
+          }),
           input: res.text,
         })
 
-        log.withField('length', speechRes.byteLength).withField('text', Buffer.from(speechRes).toString('utf-8')).log('Generated speech')
+        log.withField('length', speechRes.byteLength).log('Generated speech')
 
         const audioResource = createAudioResource(Readable.from(Buffer.from(speechRes)))
         player.play(audioResource)
@@ -137,93 +184,4 @@ export async function handleSummon(log: ReturnType<typeof useLogg>, interaction:
     log.error(error)
     await interaction.reply('Could not join voice channel.')
   }
-}
-
-async function transcribeAudioStream(log: ReturnType<typeof useLogg>, stream: AudioReceiveStream, userId: string) {
-  async function createDirIfNotExists(path: string) {
-    if (!(await exists(path))) {
-      await mkdir(path, { recursive: true })
-    }
-  }
-
-  return new Promise<string>((resolve, reject) => {
-    createDirIfNotExists(`temp/audios/${userId}`).then(() => {
-      try {
-        const fileBasename = formatDate(new Date(), 'yyyy-MM-dd HH:mm:ss')
-
-        // Generate a uid for the audio file.
-        // Create a stream that writes a new pcm file with the generated uid
-        const writeStream = createWriteStream(`temp/audios/${userId}/${fileBasename}.pcm`, { flags: 'a' })
-
-        stream.on('error', (err) => {
-          reject(err)
-        })
-
-        // Create the pipeline
-        stream.on('data', async (chunk) => {
-          try {
-            const pcm = decoder.decode(chunk)
-            writeStream.write(pcm)
-          }
-          catch (err) {
-            log.withError(err).log('Error decoding audio')
-          }
-        })
-
-        // When user stops talking, stop the stream and generate an mp3 file.
-        stream.on('end', async () => {
-          writeStream.end()
-
-          ffmpeg()
-            .input(`temp/audios/${userId}/${fileBasename}.pcm`)
-            .inputFormat('s32le')
-            .audioFrequency(60000)
-            .audioChannels(2)
-            .output(`temp/audios/${userId}/${fileBasename}.wav`)
-            .outputFormat('wav')
-            .on('error', (err) => {
-              reject(err)
-            })
-            .on('end', async () => {
-              log.log('Audio file generated')
-
-              // Read .wav file and convert it to required format
-              const wav = new wavefile.WaveFile(await readFile(`temp/audios/${userId}/${fileBasename}.wav`))
-              wav.toBitDepth('32f') // Pipeline expects input as a Float32Array
-              wav.toSampleRate(16000) // Whisper expects audio with a sampling rate of 16000
-              const audioData = wav.getSamples()
-
-              const transcriber = await WhisperLargeV3Pipeline.getInstance()
-              log.log('Transcribing audio')
-
-              const result = await transcriber(audioData)
-              if (Array.isArray(result)) {
-                const arrayResult = result as { text: string }[]
-                if (arrayResult.length === 0) {
-                  log.log('No transcription result')
-                  return resolve('')
-                }
-
-                log.withField('result', result[0].text).log('Transcription result')
-                resolve(result[0].text)
-              }
-              else {
-                if ('text' in result) {
-                  log.withField('result', result.text).log('Transcription result')
-                  return resolve(result.text)
-                }
-                else {
-                  log.withField('result', result).log('No transcription result')
-                  return resolve('')
-                }
-              }
-            })
-            .run()
-        })
-      }
-      catch (err) {
-        reject(err)
-      }
-    })
-  })
 }
