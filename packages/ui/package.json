@@ -1,0 +1,13 @@
+{
+  "name": "@proj-airi/stage-core",
+  "type": "module",
+  "private": true,
+  "packageManager": "pnpm@9.15.2",
+  "description": "Shared core for stage",
+  "author": {
+    "name": "Neko Ayaka",
+    "email": "neko@ayaka.moe",
+    "url": "https://github.com/nekomeowww"
+  },
+  "license": "MIT"
+}
