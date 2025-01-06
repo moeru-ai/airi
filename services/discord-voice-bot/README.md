@@ -1,3 +1,32 @@
+# `discord-voice-bot`
+
+Allow アイリ to talk to you and many other users in Discord voice channels.
+
+## Usage
+
+```
+pnpm i
+cp .env .env.local
+```
+
+Fill-in the following credentials as configurations:
+
+```shell
+DISCORD_TOKEN=''
+DISCORD_BOT_CLIENT_ID=''
+
+OPENAI_MODEL=''
+OPENAI_API_KEY=''
+OPENAI_API_BASE_URL=''
+
+ELEVENLABS_API_KEY=''
+ELEVENLABS_API_BASE_URL=''
+```
+
+```shell
+pnpm run -F @proj-airi/discord-voice-bot start
+```
+
 ## Acknowledgements
 
 - Implementation of Audio handling and processing https://github.com/TheTrueSCP/CharacterAIVoice/blob/54d6a41b4e0eba9ad996c5f9ddcc6230277af2f8/src/VoiceHandler.js
