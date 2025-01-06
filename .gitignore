@@ -30,4 +30,4 @@ coverage/
 *.ogg
 *.mp3
 
-**/temp/ */
+**/temp/
