@@ -200,6 +200,9 @@ importers:
       '@pixiv/three-vrm-core':
         specifier: ^3.3.2
         version: 3.3.2(three@0.172.0)
+      '@proj-airi/ui':
+        specifier: workspace:^
+        version: link:../ui
       '@ricky0123/vad-web':
         specifier: ^0.0.22
         version: 0.0.22
@@ -417,6 +420,9 @@ importers:
       '@electron-toolkit/utils':
         specifier: ^3.0.0
         version: 3.0.0(electron@31.7.6)
+      '@proj-airi/ui':
+        specifier: workspace:^
+        version: link:../ui
     devDependencies:
       '@electron-toolkit/tsconfig':
         specifier: ^1.0.1
@@ -439,6 +445,8 @@ importers:
       vue-tsc:
         specifier: ^2.2.0
         version: 2.2.0(typescript@5.7.2)
+
+  packages/ui: {}
 
   packages/whisper-webgpu:
     dependencies:

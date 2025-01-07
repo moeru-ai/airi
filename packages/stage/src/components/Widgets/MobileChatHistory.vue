@@ -3,8 +3,8 @@ import { useElementBounding, useScroll } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 
 import { nextTick, ref } from 'vue'
-import { useMarkdown } from '../../composables/markdown'
-import { useChatStore } from '../../stores/chat'
+import { useMarkdown } from '../../../../ui/src/composables/markdown'
+import { useChatStore } from '../../../../ui/src/stores/chat'
 
 const chatHistoryRef = ref<HTMLDivElement>()
 

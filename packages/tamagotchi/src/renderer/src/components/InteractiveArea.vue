@@ -1,18 +1,17 @@
 <script setup lang="ts">
+import BasicTextarea from '@proj-airi/ui/components'
+
+import { useMicVAD } from '@proj-airi/ui/composables'
+// import { useAudioContext } from '../../stores/audio'
+import { useChatStore, useSettings } from '@proj-airi/ui/stores'
+
 // import { useDevicesList } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-
 import { DrawerContent, DrawerPortal, DrawerRoot, DrawerTrigger } from 'vaul-vue'
 import { onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-
-import { useMicVAD } from '../../composables/micvad'
-// import { useAudioContext } from '../../stores/audio'
-import { useChatStore } from '../../stores/chat'
-import { useSettings } from '../../stores/settings'
-import BasicTextarea from '../BasicTextarea.vue'
-import TamagotchiChatHistory from '../Widgets/TamagotchiChatHistory.vue'
-import TamagotchiSettings from '../Widgets/TamagotchiSettings.vue'
+import TamagotchiChatHistory from './ChatHistory.vue'
+import TamagotchiSettings from './Settings.vue'
 
 const messageInput = ref('')
 const listening = ref(false)

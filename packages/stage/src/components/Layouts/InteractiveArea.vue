@@ -1,16 +1,16 @@
 <script setup lang="ts">
-import { useDevicesList } from '@vueuse/core'
+import { useMicVAD } from '@proj-airi/ui/composables/micvad'
 
+import { useWhisper } from '@proj-airi/ui/composables/whisper'
+import WhisperWorker from '@proj-airi/ui/libs/workers/worker?worker&url'
+import { useAudioContext } from '@proj-airi/ui/stores/audio'
+
+import { useChatStore } from '@proj-airi/ui/stores/chat'
+import { useSettings } from '@proj-airi/ui/stores/settings'
+import { useDevicesList } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-
-import { useMicVAD } from '../../composables/micvad'
-import { useWhisper } from '../../composables/whisper'
-import WhisperWorker from '../../libs/workers/worker?worker&url'
-import { useAudioContext } from '../../stores/audio'
-import { useChatStore } from '../../stores/chat'
-import { useSettings } from '../../stores/settings'
 import { encodeWAVToBase64 } from '../../utils/binary'
 import ChatHistory from '../Widgets/ChatHistory.vue'
 

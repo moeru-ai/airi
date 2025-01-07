@@ -7,8 +7,8 @@ import { useI18n } from 'vue-i18n'
 import { useLlmmarkerParser } from '../composables/llmmarkerParser'
 import SystemPromptV2 from '../constants/prompts/system-v2'
 import { useLLM } from '../stores/llm'
+import { useSettings } from '../stores/settings'
 import { asyncIteratorFromReadableStream } from '../utils/iterator'
-import { useSettings } from './settings'
 
 export const useChatStore = defineStore('chat', () => {
   const { stream } = useLLM()

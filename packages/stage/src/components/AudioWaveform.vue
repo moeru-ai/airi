@@ -2,7 +2,7 @@
 import { useDark, useElementBounding } from '@vueuse/core'
 import { onMounted, ref } from 'vue'
 
-import { useAudioContext } from '../stores/audio'
+import { useAudioContext } from '../../../ui/src/stores/audio'
 
 const containerRef = ref<HTMLDivElement>()
 // https://developer.mozilla.org/en-US/docs/Web/API/AnalyserNode

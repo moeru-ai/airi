@@ -1,6 +1,6 @@
 <script setup lang="ts">
+import { useQueue } from '@proj-airi/ui/composables/queue'
 import { onMounted, ref } from 'vue'
-import { useQueue } from '../composables/queue'
 
 function sleep(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms))

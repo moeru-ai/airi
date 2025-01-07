@@ -1,14 +1,14 @@
 <script setup lang="ts">
-import type { Voice } from '../constants/elevenlabs'
+import type { Voice } from '@proj-airi/ui/constants/elevenlabs'
+import { TransitionVertical } from '@proj-airi/ui/components'
+import { voiceList } from '@proj-airi/ui/constants/elevenlabs'
+import { useLLM } from '@proj-airi/ui/stores/llm'
+
+import { useSettings } from '@proj-airi/ui/stores/settings'
 import { useDark } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { onMounted, ref, watch } from 'vue'
-
 import { useI18n } from 'vue-i18n'
-import { voiceList } from '../constants/elevenlabs'
-import { useLLM } from '../stores/llm'
-import { useSettings } from '../stores/settings'
-import TransitionVertical from './TransitionVertical.vue'
 
 const { t, locale } = useI18n()
 

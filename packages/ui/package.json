@@ -1,5 +1,5 @@
 {
-  "name": "@proj-airi/stage-core",
+  "name": "@proj-airi/ui",
   "type": "module",
   "private": true,
   "packageManager": "pnpm@9.15.2",
@@ -9,5 +9,44 @@
     "email": "neko@ayaka.moe",
     "url": "https://github.com/nekomeowww"
   },
-  "license": "MIT"
+  "license": "MIT",
+  "exports": {
+    "./constants": {
+      "types": "./dist/constants/index.d.ts",
+      "import": "./dist/constants/index.mjs"
+    },
+    "./components": {
+      "types": "./dist/components/index.d.ts",
+      "import": "./dist/components/index.mjs"
+    },
+    "./stores": {
+      "types": "./dist/stores/index.d.ts",
+      "import": "./dist/stores/index.mjs"
+    },
+    ".": {
+      "types": "./dist/components/index.d.ts",
+      "import": "./dist/components/index.mjs"
+    },
+    "./composables": {
+      "types": "./dist/composables/index.d.ts",
+      "import": "./dist/composables/index.mjs"
+    },
+    "./utils": {
+      "types": "./dist/utils/index.d.ts",
+      "import": "./dist/utils/index.mjs"
+    },
+    "./libs": {
+      "types": "./dist/libs/index.d.ts",
+      "import": "./dist/libs/index.mjs"
+    }
+  },
+  "module": "./dist/components/index.mjs",
+  "types": "./dist/components/index.d.ts",
+  "files": [
+    "dist",
+    "package.json"
+  ],
+  "scripts": {
+    "build": "unbuild"
+  }
 }

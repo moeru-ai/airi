@@ -4,6 +4,7 @@ import path, { join, resolve } from 'node:path'
 import { cwd, env } from 'node:process'
 
 import VueI18n from '@intlify/unplugin-vue-i18n/vite'
+import { appName } from '@proj-airi/ui/constants'
 import { templateCompilerOptions } from '@tresjs/core'
 import Vue from '@vitejs/plugin-vue'
 import { LFS, SpaceCard } from 'hfup/vite'
@@ -14,12 +15,11 @@ import VueMacros from 'unplugin-vue-macros/vite'
 import VueRouter from 'unplugin-vue-router/vite'
 import { defineConfig } from 'vite'
 import { VitePWA } from 'vite-plugin-pwa'
-import VueDevTools from 'vite-plugin-vue-devtools'
 
+import VueDevTools from 'vite-plugin-vue-devtools'
 import Layouts from 'vite-plugin-vue-layouts'
 import { exists } from './scripts/fs'
 import { unzip } from './scripts/unzip'
-import { appName } from './src/constants'
 
 export default defineConfig(({ mode }) => {
   return {
@@ -48,6 +48,13 @@ export default defineConfig(({ mode }) => {
         external: [
           'virtual:pwa-register',
         ],
+      },
+    },
+
+    resolve: {
+      alias: {
+        '@proj-airi/ui': resolve(join(__dirname, '..', 'ui', 'dist')),
+        '@proj-airi/ui/stores': resolve(join(__dirname, '..', 'ui', 'dist', 'stores')),
       },
     },
 

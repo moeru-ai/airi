@@ -1,12 +1,11 @@
 <script setup lang="ts">
-import type { Voice } from '../../constants/elevenlabs'
+import type { Voice } from '@proj-airi/ui/constants'
+import { voiceList } from '@proj-airi/ui/constants'
+import { useLLM, useSettings } from '@proj-airi/ui/stores'
+
 import { storeToRefs } from 'pinia'
 import { onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-
-import { voiceList } from '../../constants/elevenlabs'
-import { useLLM } from '../../stores/llm'
-import { useSettings } from '../../stores/settings'
 
 const { t, locale } = useI18n()
 

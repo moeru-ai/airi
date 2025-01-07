@@ -1,10 +1,10 @@
 <script setup lang="ts">
+import { useMarkdown } from '@proj-airi/ui/composables'
+import { useChatStore } from '@proj-airi/ui/stores'
+
 import { useElementBounding, useScroll } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-
 import { nextTick, ref } from 'vue'
-import { useMarkdown } from '../../composables/markdown'
-import { useChatStore } from '../../stores/chat'
 
 const chatHistoryRef = ref<HTMLDivElement>()
 

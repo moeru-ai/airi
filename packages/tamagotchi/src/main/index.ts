@@ -1,6 +1,5 @@
-import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { platform } from 'node:process'
+import { env, platform } from 'node:process'
 import { electronApp, is, optimizer } from '@electron-toolkit/utils'
 import { app, BrowserWindow, ipcMain, shell } from 'electron'
 import icon from '../../build/icon.png?asset'
@@ -38,13 +37,8 @@ function createWindow(): void {
   // HMR for renderer base on electron-vite cli.
   // Load the remote URL for development or the local html file for production.
 
-  if (is.dev) {
-    // try to read port number from stage.dev.json
-    const devFile = readFileSync(join(import.meta.dirname, '../../../stage/stage.dev.json'), 'utf-8')
-    const devInfo = JSON.parse(devFile) as { address: { address: string, family: string, port: number } }
-    mainWindow.loadURL(`http://localhost:${devInfo.address.port}`).catch((e) => {
-      console.error('Failed to load URL', e)
-    })
+  if (is.dev && env.ELECTRON_RENDERER_URL) {
+    mainWindow.loadURL(env.ELECTRON_RENDERER_URL)
   }
   else {
     mainWindow.loadFile(join(import.meta.dirname, '..', '..', 'out', 'renderer', 'index.html'))

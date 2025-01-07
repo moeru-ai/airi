@@ -1,13 +1,13 @@
 <script setup lang="ts">
-import { useDark } from '@vueuse/core'
+import { WidgetStage } from '@proj-airi/ui/components'
 
+import { useDark } from '@vueuse/core'
 import Cross from '../components/Backgrounds/Cross.vue'
 import AnimatedBackground from '../components/Layouts/AnimatedBackground.vue'
 import Header from '../components/Layouts/Header.vue'
 import InteractiveArea from '../components/Layouts/InteractiveArea.vue'
 import MobileHeader from '../components/Layouts/MobileHeader.vue'
 import MobileInteractiveArea from '../components/Layouts/MobileInteractiveArea.vue'
-import Stage from '../components/Widgets/Stage.vue'
 
 const dark = useDark()
 </script>
@@ -19,7 +19,7 @@ const dark = useDark()
         <Header class="flex <md:hidden" />
         <MobileHeader class="hidden <md:block" />
         <div flex="~ 1 row <md:col" relative h-full w-full items-end gap-2>
-          <Stage h-full w-full flex-1 mb="<md:18" min-w="50%" />
+          <WidgetStage h-full w-full flex-1 mb="<md:18" min-w="50%" />
           <InteractiveArea w-full flex-1 h="full <md:40%" max-w="30% <md:100%" class="flex <md:hidden" />
           <MobileInteractiveArea class="<md:block md:hidden" absolute bottom-0 w-full />
         </div>

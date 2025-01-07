@@ -15,9 +15,7 @@
     "dev": "vite",
     "lint": "eslint .",
     "preview": "vite preview",
-    "typecheck": "vue-tsc --noEmit",
-    "dev:tamagotchi": "vite --mode tamagotchi",
-    "build:tamagotchi": "vite build --mode tamagotchi"
+    "typecheck": "vue-tsc --noEmit"
   },
   "dependencies": {
     "@11labs/client": "^0.0.4",
@@ -39,6 +37,7 @@
     "@pixiv/three-vrm": "^3.3.2",
     "@pixiv/three-vrm-animation": "^3.3.2",
     "@pixiv/three-vrm-core": "^3.3.2",
+    "@proj-airi/ui": "workspace:^",
     "@ricky0123/vad-web": "^0.0.22",
     "@tresjs/cientos": "^4.0.3",
     "@tresjs/core": "^4.3.2",

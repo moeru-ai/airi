@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import type { Emotion } from '../../../constants/emotions'
+import type { Emotion } from '@proj-airi/ui/constants/emotions'
 
+import BasicTextarea from '@proj-airi/ui/components/BasicTextarea.vue'
+import { useQueue } from '@proj-airi/ui/composables/queue'
+import { useEmotionsMessageQueue } from '@proj-airi/ui/composables/queues'
+import { llmInferenceEndToken } from '@proj-airi/ui/constants'
 import { ref } from 'vue'
-import BasicTextarea from '../../../components/BasicTextarea.vue'
-import { useQueue } from '../../../composables/queue'
-import { useEmotionsMessageQueue } from '../../../composables/queues'
-import { llmInferenceEndToken } from '../../../constants'
 
 const messageInput = ref<string>('')
 const messagesProcessed = ref<string[]>([])

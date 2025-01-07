@@ -3,7 +3,6 @@ import { defineStore } from 'pinia'
 import { computed, onMounted, ref, watch } from 'vue'
 
 import { Voice } from '../constants/elevenlabs'
-import { i18n } from '../modules/i18n'
 
 export const useSettings = defineStore('settings', () => {
   const selectedAudioDevice = ref<MediaDeviceInfo>()
@@ -44,8 +43,6 @@ export const useSettings = defineStore('settings', () => {
       selectedAudioDevice.value = audioInputs.value[0]
     }
   })
-
-  watch(language, value => i18n.global.locale.value = value)
 
   return {
     openAiApiKey,

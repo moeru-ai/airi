@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import BasicTextarea from '@proj-airi/ui/components/BasicTextarea.vue'
 
-import BasicTextarea from '../../../components/BasicTextarea.vue'
 // import { useQueue } from '../../../composables/queue'
-import { useDelayMessageQueue } from '../../../composables/queues'
-import { llmInferenceEndToken } from '../../../constants'
+import { useDelayMessageQueue } from '@proj-airi/ui/composables'
+import { llmInferenceEndToken } from '@proj-airi/ui/constants'
+import { ref } from 'vue'
 
 const messageInput = ref<string>('')
 const emotionMessageContentProcessed = ref<string[]>([])
