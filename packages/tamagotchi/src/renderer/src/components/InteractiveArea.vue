@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import BasicTextarea from '@proj-airi/ui/components'
+import { BasicTextarea } from '@proj-airi/ui/components'
 
 import { useMicVAD } from '@proj-airi/ui/composables'
 // import { useAudioContext } from '../../stores/audio'

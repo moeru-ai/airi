@@ -7,7 +7,8 @@ export interface HandlerContext<T> {
   emit: (eventName: string, ...params: any[]) => void
 }
 
-interface Events<T> {
+// FIXME: should be exported?
+export interface Events<T> {
   add: Array<(payload: T) => void>
   pick: Array<(payload: T) => void>
   processing: Array<(payload: T, handler: (param: HandlerContext<T>) => Promise<any>) => void>
@@ -108,3 +109,5 @@ export function useQueue<T>(options: {
     queue,
   }
 }
+
+export type UseQueueReturn<T> = ReturnType<typeof useQueue<T>>

@@ -1,3 +1,5 @@
+export { default as BasicTextarea } from './BasicTextarea.vue'
+
 export { default as Live2DViewer } from './Live2D/Viewer.vue'
 
 export { default as SceneLive2D } from './Scenes/Live2D.vue'

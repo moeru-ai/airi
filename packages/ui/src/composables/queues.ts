@@ -3,9 +3,9 @@ import { ref } from 'vue'
 
 import { llmInferenceEndToken } from '../constants'
 import { EMOTION_VALUES } from '../constants/emotions'
-import { useQueue } from './queue'
+import { useQueue, type UseQueueReturn } from './queue'
 
-export function useEmotionsMessageQueue(emotionsQueue: ReturnType<typeof useQueue<Emotion>>) {
+export function useEmotionsMessageQueue(emotionsQueue: UseQueueReturn<Emotion>) {
   function splitEmotion(content: string) {
     for (const emotion of EMOTION_VALUES) {
       // doesn't include the emotion, continue
@@ -102,7 +102,7 @@ export function useDelayMessageQueue() {
   })
 }
 
-export function useMessageContentQueue(ttsQueue: ReturnType<typeof useQueue<string>>) {
+export function useMessageContentQueue(ttsQueue: UseQueueReturn<string>) {
   const processed = ref<string>('')
 
   return useQueue<string>({

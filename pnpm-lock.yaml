@@ -423,6 +423,9 @@ importers:
       '@proj-airi/ui':
         specifier: workspace:^
         version: link:../ui
+      vue-i18n:
+        specifier: ^11.0.1
+        version: 11.0.1(vue@3.5.13(typescript@5.7.2))
     devDependencies:
       '@electron-toolkit/tsconfig':
         specifier: ^1.0.1

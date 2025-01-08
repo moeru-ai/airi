@@ -7,12 +7,13 @@
     <!-- https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP -->
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:"
+      content="default-src 'self'; script-src-elem 'self' 'unsafe-eval' https://cdn.jsdelivr.net/; script-src 'self' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' https://fonts.gstatic.com/; connect-src 'self' https://cdn.jsdelivr.net/"
     />
+    <script src="/assets/js/CubismSdkForWeb-5-r.1/Core/live2dcubismcore.min.js"></script>
   </head>
 
   <body>
     <div id="app"></div>
-    <script type="module" src="./src/main.ts"></script>
+    <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

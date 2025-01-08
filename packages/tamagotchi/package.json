@@ -10,18 +10,19 @@
     "typecheck:web": "vue-tsc --noEmit -p tsconfig.web.json --composite false",
     "typecheck": "npm run typecheck:node && npm run typecheck:web",
     "start": "electron-vite preview",
-    "dev:tamagotchi": "npm run build:tamagotchi && electron .",
-    "build:tamagotchi": "npm run typecheck && electron-vite build && rm -rf ./out/renderer && cp -r ../stage/tamagotchi/dist/ ./out/renderer",
+    "dev": "electron-vite dev",
+    "build": "npm run typecheck && electron-vite build",
     "postinstall": "electron-builder install-app-deps",
-    "build:unpack": "npm run build:tamagotchi && electron-builder --dir",
-    "build:win": "npm run build:tamagotchi && electron-builder --win",
-    "build:mac": "npm run build:tamagotchi && electron-builder --mac",
-    "build:linux": "npm run build:tamagotchi && electron-builder --linux"
+    "build:unpack": "npm run build && electron-builder --dir",
+    "build:win": "npm run build && electron-builder --win",
+    "build:mac": "npm run build && electron-builder --mac",
+    "build:linux": "npm run build && electron-builder --linux"
   },
   "dependencies": {
     "@electron-toolkit/preload": "^3.0.1",
     "@electron-toolkit/utils": "^3.0.0",
-    "@proj-airi/ui": "workspace:^"
+    "@proj-airi/ui": "workspace:^",
+    "vue-i18n": "^11.0.1"
   },
   "devDependencies": {
     "@electron-toolkit/tsconfig": "^1.0.1",
