@@ -21,7 +21,7 @@ import Layouts from 'vite-plugin-vue-layouts'
 
 import { exists } from '../../scripts/fs'
 
-import { live2dModelDownloader } from '../../vite-plugins/live2d-model-downloader'
+import { fileDownloader } from '../../vite-plugins/file-downloader'
 import { live2dSdkDownloader } from '../../vite-plugins/live2d-sdk-downloader'
 
 export default defineConfig({
@@ -130,8 +130,8 @@ export default defineConfig({
 
     live2dSdkDownloader(),
 
-    live2dModelDownloader('hiyori_free_zh'),
-    live2dModelDownloader('hiyori_pro_zh'),
+    fileDownloader('https://dist.ayaka.moe/live2d-models/hiyori_free_zh.zip', 'hiyori_free_zh.zip', 'assets/live2d/models'),
+    fileDownloader('https://dist.ayaka.moe/live2d-models/hiyori_pro_zh.zip', 'hiyori_pro_zh.zip', 'assets/live2d/models'),
 
     {
       name: 'vrm-models-sample-a',
