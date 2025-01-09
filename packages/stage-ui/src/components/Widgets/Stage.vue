@@ -77,15 +77,14 @@ const ttsQueue = useQueue<string>({
         baseURL: 'https://unspeech.hyp3r.link/v1/',
       })
       const res = await generateSpeech({
-        ...elevenlabs.speech({
-          model: 'elevenlabs/eleven_multilingual_v2',
-          voice: voiceMap[voice],
+        ...elevenlabs.speech('elevenlabs/eleven_multilingual_v2', {
           voiceSettings: {
             stability: 0.4,
             similarityBoost: 0.5,
           },
         }),
         input: ctx.data,
+        voice: voiceMap[voice],
       })
       const elapsed = Date.now() - now
 

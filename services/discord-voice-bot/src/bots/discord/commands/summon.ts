@@ -155,15 +155,14 @@ export async function handleSummon(log: ReturnType<typeof useLogg>, interaction:
         })
 
         const speechRes = await generateSpeech({
-          ...elevenlabs.speech({
-            model: 'eleven_multilingual_v2',
-            voice: 'lNxY9WuCBCZCISASyJ55',
+          ...elevenlabs.speech('eleven_multilingual_v2', {
             voiceSettings: {
               stability: 0.4,
               similarityBoost: 0.5,
             },
           }),
           input: res.text,
+          voice: 'lNxY9WuCBCZCISASyJ55',
         })
 
         log.withField('length', speechRes.byteLength).log('Generated speech')
