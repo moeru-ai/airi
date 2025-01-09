@@ -1,5 +1,5 @@
 [build]
-publish = "packages/stage/dist"
+publish = "packages/stage-web/dist"
 command = "pnpm run packages:stub && pnpm run build"
 
 [build.environment]
