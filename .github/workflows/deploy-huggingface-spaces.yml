@@ -27,7 +27,7 @@ jobs:
           HF_USERNAME: ${{ secrets.HF_USERNAME }}
 
       - run: |-
-          git clone https://$HF_USERNAME:$HF_TOKEN@huggingface.co/spaces/moeru-ai/airi --depth 1 packages/stage/dist
+          git clone https://$HF_USERNAME:$HF_TOKEN@huggingface.co/spaces/moeru-ai/airi --depth 1 packages/stage-web/dist
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
           HF_USERNAME: ${{ secrets.HF_USERNAME }}
@@ -87,7 +87,7 @@ jobs:
           git push -f
 
       - id: airi_diff
-        working-directory: ./packages/stage/dist
+        working-directory: ./packages/stage-web/dist
         run: |-
           git lfs ls-files --all
           git add .
@@ -96,7 +96,7 @@ jobs:
           fi
 
       - if: steps.airi_diff.outputs.changes == 'true'
-        working-directory: ./packages/stage/dist
+        working-directory: ./packages/stage-web/dist
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
           HF_USERNAME: ${{ secrets.HF_USERNAME }}
