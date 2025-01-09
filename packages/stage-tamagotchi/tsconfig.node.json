@@ -4,5 +4,10 @@
     "composite": true,
     "types": ["electron-vite/node"]
   },
-  "include": ["electron.vite.config.*", "src/main/**/*", "src/preload/**/*", "src/renderer/**/*", "../../vite-plugins/**/*"]
+  "include": [
+    "electron.vite.config.*",
+    "src/main/**/*",
+    "src/preload/**/*",
+    "../../vite-plugins/**/*"
+  ]
 }

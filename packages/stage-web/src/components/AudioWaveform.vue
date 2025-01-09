@@ -1,8 +1,8 @@
 <script setup lang="ts">
+import { useAudioContext } from '@proj-airi/stage-ui/stores'
 import { useDark, useElementBounding } from '@vueuse/core'
-import { onMounted, ref } from 'vue'
 
-import { useAudioContext } from '../../../ui/src/stores/audio'
+import { onMounted, ref } from 'vue'
 
 const containerRef = ref<HTMLDivElement>()
 // https://developer.mozilla.org/en-US/docs/Web/API/AnalyserNode
