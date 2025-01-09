@@ -1,9 +1,9 @@
 {
-  "name": "hfup",
+  "name": "@proj-airi/unplugin-live2d-sdk",
   "type": "module",
   "version": "0.1.0",
-  "private": false,
-  "description": "A collection of tools to help you deploy, bundle HuggingFace Spaces and related assets with ease.",
+  "private": true,
+  "description": "Vite plugin to download Live2D SDK",
   "author": {
     "name": "Neko Ayaka",
     "email": "neko@ayaka.moe",
@@ -13,7 +13,7 @@
   "repository": {
     "type": "git",
     "url": "https://github.com/moeru-ai/airi.git",
-    "directory": "packages/huggingspace"
+    "directory": "packages/unplugin-live2d-sdk"
   },
   "exports": {
     ".": {
@@ -38,12 +38,11 @@
   "scripts": {
     "dev": "pnpm run stub",
     "stub": "unbuild --stub",
-    "build": "unbuild",
-    "package:publish": "pnpm build && pnpm publish --access public --no-git-checks"
+    "build": "unbuild"
   },
   "dependencies": {
-    "defu": "^6.1.4",
-    "gray-matter": "^4.0.3",
-    "vite": "^6.0.7"
+    "ofetch": "^1.4.1",
+    "vite": "^6.0.7",
+    "yauzl": "^3.2.0"
   }
 }

@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import type { Voice } from '@proj-airi/ui/constants/elevenlabs'
-import { TransitionVertical } from '@proj-airi/ui/components'
-import { voiceList } from '@proj-airi/ui/constants/elevenlabs'
-import { useLLM } from '@proj-airi/ui/stores/llm'
+import type { Voice } from '@proj-airi/stage-ui/constants/elevenlabs'
+import { TransitionVertical } from '@proj-airi/stage-ui/components'
+import { voiceList } from '@proj-airi/stage-ui/constants/elevenlabs'
+import { useLLM } from '@proj-airi/stage-ui/stores/llm'
 
-import { useSettings } from '@proj-airi/ui/stores/settings'
+import { useSettings } from '@proj-airi/stage-ui/stores/settings'
 import { useDark } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { onMounted, ref, watch } from 'vue'

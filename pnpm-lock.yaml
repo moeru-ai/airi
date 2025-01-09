@@ -196,6 +196,12 @@ importers:
       '@electron-toolkit/tsconfig':
         specifier: ^1.0.1
         version: 1.0.1(@types/node@22.10.5)
+      '@proj-airi/unplugin-download':
+        specifier: workspace:^
+        version: link:../unplugin-download
+      '@proj-airi/unplugin-live2d-sdk':
+        specifier: workspace:^
+        version: link:../unplugin-live2d-sdk
       '@vitejs/plugin-vue':
         specifier: ^5.2.1
         version: 5.2.1(vite@6.0.7(@types/node@22.10.5)(jiti@2.4.0)(less@4.2.1)(terser@5.17.6)(tsx@4.19.2)(yaml@2.6.1))(vue@3.5.13(typescript@5.7.2))
@@ -418,6 +424,12 @@ importers:
       '@proj-airi/elevenlabs':
         specifier: workspace:^
         version: link:../elevenlabs
+      '@proj-airi/unplugin-download':
+        specifier: workspace:^
+        version: link:../unplugin-download
+      '@proj-airi/unplugin-live2d-sdk':
+        specifier: workspace:^
+        version: link:../unplugin-live2d-sdk
       '@shikijs/markdown-it':
         specifier: ^1.26.1
         version: 1.26.1
@@ -487,6 +499,27 @@ importers:
       vue-tsc:
         specifier: ^2.2.0
         version: 2.2.0(typescript@5.7.2)
+
+  packages/unplugin-download:
+    dependencies:
+      ofetch:
+        specifier: ^1.4.1
+        version: 1.4.1
+      vite:
+        specifier: ^6.0.7
+        version: 6.0.7(@types/node@22.10.5)(jiti@2.4.0)(less@4.2.1)(terser@5.17.6)(tsx@4.19.2)(yaml@2.6.1)
+
+  packages/unplugin-live2d-sdk:
+    dependencies:
+      ofetch:
+        specifier: ^1.4.1
+        version: 1.4.1
+      vite:
+        specifier: ^6.0.7
+        version: 6.0.7(@types/node@22.10.5)(jiti@2.4.0)(less@4.2.1)(terser@5.17.6)(tsx@4.19.2)(yaml@2.6.1)
+      yauzl:
+        specifier: ^3.2.0
+        version: 3.2.0
 
   packages/whisper-webgpu:
     dependencies:

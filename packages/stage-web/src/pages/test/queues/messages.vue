@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import BasicTextarea from '@proj-airi/ui/components/BasicTextarea.vue'
+import BasicTextarea from '@proj-airi/stage-ui/components/BasicTextarea.vue'
 
-import { useQueue } from '@proj-airi/ui/composables/queue'
-import { useMessageContentQueue } from '@proj-airi/ui/composables/queues'
-import { llmInferenceEndToken } from '@proj-airi/ui/constants'
+import { useQueue } from '@proj-airi/stage-ui/composables/queue'
+import { useMessageContentQueue } from '@proj-airi/stage-ui/composables/queues'
+import { llmInferenceEndToken } from '@proj-airi/stage-ui/constants'
 import { ref } from 'vue'
 
 const messageInput = ref<string>('')

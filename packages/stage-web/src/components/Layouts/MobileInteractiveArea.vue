@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import BasicTextarea from '@proj-airi/ui/components/BasicTextarea.vue'
+import BasicTextarea from '@proj-airi/stage-ui/components/BasicTextarea.vue'
 
-import { useMicVAD } from '@proj-airi/ui/composables/micvad'
+import { useMicVAD } from '@proj-airi/stage-ui/composables/micvad'
 // import { useAudioContext } from '../../stores/audio'
-import { useChatStore } from '@proj-airi/ui/stores/chat'
-import { useSettings } from '@proj-airi/ui/stores/settings'
+import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
+import { useSettings } from '@proj-airi/stage-ui/stores/settings'
 
 // import { useDevicesList } from '@vueuse/core'
 import { storeToRefs } from 'pinia'

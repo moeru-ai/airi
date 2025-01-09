@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import type { Voice } from '@proj-airi/ui/constants'
-import { voiceList } from '@proj-airi/ui/constants'
-import { useLLM, useSettings } from '@proj-airi/ui/stores'
+import type { Voice } from '@proj-airi/stage-ui/constants'
+import { voiceList } from '@proj-airi/stage-ui/constants'
+import { useLLM, useSettings } from '@proj-airi/stage-ui/stores'
 
 import { storeToRefs } from 'pinia'
 import { onMounted, ref, watch } from 'vue'

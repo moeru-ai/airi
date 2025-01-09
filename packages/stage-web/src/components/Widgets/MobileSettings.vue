@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import type { Voice } from '@proj-airi/ui/constants/elevenlabs'
-import { voiceList } from '@proj-airi/ui/constants/elevenlabs'
-import { useLLM } from '@proj-airi/ui/stores/llm'
-import { useSettings } from '@proj-airi/ui/stores/settings'
+import type { Voice } from '@proj-airi/stage-ui/constants/elevenlabs'
+import { voiceList } from '@proj-airi/stage-ui/constants/elevenlabs'
+import { useLLM } from '@proj-airi/stage-ui/stores/llm'
+import { useSettings } from '@proj-airi/stage-ui/stores/settings'
 import { useDark } from '@vueuse/core'
 
 import { storeToRefs } from 'pinia'

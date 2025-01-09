@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useQueue } from '@proj-airi/ui/composables/queue'
+import { useQueue } from '@proj-airi/stage-ui/composables/queue'
 import { onMounted, ref } from 'vue'
 
 function sleep(ms: number): Promise<void> {

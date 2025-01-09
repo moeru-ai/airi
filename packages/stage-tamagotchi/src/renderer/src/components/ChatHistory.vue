@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { useMarkdown } from '@proj-airi/ui/composables'
-import { useChatStore } from '@proj-airi/ui/stores'
+import { useMarkdown } from '@proj-airi/stage-ui/composables'
+import { useChatStore } from '@proj-airi/stage-ui/stores'
 
 import { useElementBounding, useScroll } from '@vueuse/core'
 import { storeToRefs } from 'pinia'

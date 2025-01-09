@@ -1,19 +1,22 @@
-/* eslint-disable no-console */
 import type { Plugin } from 'vite'
 import { Buffer } from 'node:buffer'
 import { copyFile, mkdir, writeFile } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
 import { ofetch } from 'ofetch'
-import { exists } from '../scripts/fs'
+import { createLogger } from 'vite'
 
-export function fileDownloader(
+import { exists } from '../utils'
+
+export function Download(
   url: string,
   filename: string,
   destination: string,
 ): Plugin {
   return {
-    name: `file-downloader-${filename}`,
+    name: `download-${filename}`,
     async configResolved(config) {
+      const logger = createLogger()
+
       const cacheDir = resolve(join(config.root, '.cache'))
       const publicDir = resolve(join(config.root, 'public'))
 
@@ -23,12 +26,12 @@ export function fileDownloader(
           return
         }
 
-        console.log(`Downloading ${filename}...`)
+        logger.info(`Downloading ${filename}...`)
         const stream = await ofetch(url, { responseType: 'arrayBuffer' })
         await mkdir(join(cacheDir, destination), { recursive: true })
         await writeFile(join(cacheDir, destination, filename), Buffer.from(stream))
 
-        console.log(`${filename} downloaded.`)
+        logger.info(`${filename} downloaded.`)
 
         if (await exists(resolve(join(publicDir, destination, filename)))) {
           return

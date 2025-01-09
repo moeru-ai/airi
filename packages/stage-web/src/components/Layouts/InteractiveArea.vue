@@ -1,12 +1,12 @@
 <script setup lang="ts">
-import { useMicVAD } from '@proj-airi/ui/composables/micvad'
+import { useMicVAD } from '@proj-airi/stage-ui/composables/micvad'
 
-import { useWhisper } from '@proj-airi/ui/composables/whisper'
-import WhisperWorker from '@proj-airi/ui/libs/workers/worker?worker&url'
-import { useAudioContext } from '@proj-airi/ui/stores/audio'
+import { useWhisper } from '@proj-airi/stage-ui/composables/whisper'
+import WhisperWorker from '@proj-airi/stage-ui/libs/workers/worker?worker&url'
+import { useAudioContext } from '@proj-airi/stage-ui/stores/audio'
 
-import { useChatStore } from '@proj-airi/ui/stores/chat'
-import { useSettings } from '@proj-airi/ui/stores/settings'
+import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
+import { useSettings } from '@proj-airi/stage-ui/stores/settings'
 import { useDevicesList } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { ref, watch } from 'vue'

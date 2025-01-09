@@ -39,6 +39,8 @@
   },
   "devDependencies": {
     "@electron-toolkit/tsconfig": "^1.0.1",
+    "@proj-airi/unplugin-download": "workspace:^",
+    "@proj-airi/unplugin-live2d-sdk": "workspace:^",
     "@vitejs/plugin-vue": "^5.2.1",
     "electron": "^31.7.6",
     "electron-builder": "^24.13.3",

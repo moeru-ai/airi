@@ -4,6 +4,8 @@ import path, { join, resolve } from 'node:path'
 import { env } from 'node:process'
 
 import VueI18n from '@intlify/unplugin-vue-i18n/vite'
+import { Download } from '@proj-airi/unplugin-download/vite'
+import { DownloadLive2DSDK } from '@proj-airi/unplugin-live2d-sdk/vite'
 import { templateCompilerOptions } from '@tresjs/core'
 import Vue from '@vitejs/plugin-vue'
 import { LFS, SpaceCard } from 'hfup/vite'
@@ -14,19 +16,17 @@ import VueMacros from 'unplugin-vue-macros/vite'
 import VueRouter from 'unplugin-vue-router/vite'
 import { defineConfig } from 'vite'
 import { VitePWA } from 'vite-plugin-pwa'
+
 import VueDevTools from 'vite-plugin-vue-devtools'
 import Layouts from 'vite-plugin-vue-layouts'
-
 import { exists } from '../../scripts/fs'
-import { fileDownloader } from '../../vite-plugins/file-downloader'
 
-import { live2dSdkDownloader } from '../../vite-plugins/live2d-sdk-downloader'
 import { appName } from './src/constants'
 
 export default defineConfig({
   optimizeDeps: {
     exclude: [
-      '@proj-airi/ui/*',
+      '@proj-airi/stage-ui/*',
       'public/assets/*',
       '@framework/live2dcubismframework',
       '@framework/math/cubismmatrix44',
@@ -55,8 +55,8 @@ export default defineConfig({
 
   resolve: {
     alias: {
-      '@proj-airi/ui': resolve(join(import.meta.dirname, '..', 'ui', 'dist')),
-      '@proj-airi/ui/stores': resolve(join(import.meta.dirname, '..', 'ui', 'dist', 'stores')),
+      '@proj-airi/stage-ui': resolve(join(import.meta.dirname, '..', 'stage-ui', 'dist')),
+      '@proj-airi/stage-ui/stores': resolve(join(import.meta.dirname, '..', 'stage-ui', 'dist', 'stores')),
     },
   },
 
@@ -128,10 +128,9 @@ export default defineConfig({
     // https://github.com/webfansplz/vite-plugin-vue-devtools
     VueDevTools(),
 
-    live2dSdkDownloader(),
-
-    fileDownloader('https://dist.ayaka.moe/live2d-models/hiyori_free_zh.zip', 'hiyori_free_zh.zip', 'assets/live2d/models'),
-    fileDownloader('https://dist.ayaka.moe/live2d-models/hiyori_pro_zh.zip', 'hiyori_pro_zh.zip', 'assets/live2d/models'),
+    DownloadLive2DSDK(),
+    Download('https://dist.ayaka.moe/live2d-models/hiyori_free_zh.zip', 'hiyori_free_zh.zip', 'assets/live2d/models'),
+    Download('https://dist.ayaka.moe/live2d-models/hiyori_pro_zh.zip', 'hiyori_pro_zh.zip', 'assets/live2d/models'),
 
     {
       name: 'vrm-models-sample-a',

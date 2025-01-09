@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { WidgetStage } from '@proj-airi/ui/components'
+import { WidgetStage } from '@proj-airi/stage-ui/components'
 
 import { useDark } from '@vueuse/core'
 import Cross from '../components/Backgrounds/Cross.vue'

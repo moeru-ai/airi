@@ -6,6 +6,7 @@
   "compilerOptions": {
     "composite": true,
     "baseUrl": ".",
+    "module": "ESNext",
     "moduleResolution": "bundler",
     "paths": {
       "@renderer/*": [
