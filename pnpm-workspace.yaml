@@ -3,3 +3,11 @@ packages:
   - 'services/**'
   - 'examples/**'
   - '!**/dist/**'
+
+catalog:
+  '@xsai/generate-speech': ^0.0.24
+  '@xsai/generate-text': ^0.0.24
+  '@xsai/model': ^0.0.24
+  '@xsai/providers': ^0.0.24
+  '@xsai/shared-chat': ^0.0.24
+  '@xsai/stream-text': ^0.0.24
