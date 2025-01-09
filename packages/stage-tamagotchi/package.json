@@ -34,7 +34,7 @@
     "@pixi/ticker": "6",
     "@pixi/unsafe-eval": "6",
     "@pixi/utils": "6",
-    "@proj-airi/ui": "workspace:^",
+    "@proj-airi/stage-ui": "workspace:^",
     "vue-i18n": "^11.0.1"
   },
   "devDependencies": {

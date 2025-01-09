@@ -1,5 +1,5 @@
 {
-  "name": "@proj-airi/stage",
+  "name": "@proj-airi/stage-web",
   "type": "module",
   "private": true,
   "packageManager": "pnpm@9.15.2",
@@ -37,7 +37,7 @@
     "@pixiv/three-vrm": "^3.3.2",
     "@pixiv/three-vrm-animation": "^3.3.2",
     "@pixiv/three-vrm-core": "^3.3.2",
-    "@proj-airi/ui": "workspace:^",
+    "@proj-airi/stage-ui": "workspace:^",
     "@ricky0123/vad-web": "^0.0.22",
     "@tresjs/cientos": "^4.0.3",
     "@tresjs/core": "^4.3.2",
