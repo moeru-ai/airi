@@ -4,7 +4,6 @@ import path, { join, resolve } from 'node:path'
 import { env } from 'node:process'
 
 import VueI18n from '@intlify/unplugin-vue-i18n/vite'
-import { appName } from '@proj-airi/ui/constants'
 import { templateCompilerOptions } from '@tresjs/core'
 import Vue from '@vitejs/plugin-vue'
 import { LFS, SpaceCard } from 'hfup/vite'
@@ -15,18 +14,19 @@ import VueMacros from 'unplugin-vue-macros/vite'
 import VueRouter from 'unplugin-vue-router/vite'
 import { defineConfig } from 'vite'
 import { VitePWA } from 'vite-plugin-pwa'
-
 import VueDevTools from 'vite-plugin-vue-devtools'
 import Layouts from 'vite-plugin-vue-layouts'
 
 import { exists } from '../../scripts/fs'
-
 import { fileDownloader } from '../../vite-plugins/file-downloader'
+
 import { live2dSdkDownloader } from '../../vite-plugins/live2d-sdk-downloader'
+import { appName } from './src/constants'
 
 export default defineConfig({
   optimizeDeps: {
     exclude: [
+      '@proj-airi/ui/*',
       'public/assets/*',
       '@framework/live2dcubismframework',
       '@framework/math/cubismmatrix44',
@@ -55,8 +55,8 @@ export default defineConfig({
 
   resolve: {
     alias: {
-      '@proj-airi/ui': resolve(join(__dirname, '..', 'ui', 'dist')),
-      '@proj-airi/ui/stores': resolve(join(__dirname, '..', 'ui', 'dist', 'stores')),
+      '@proj-airi/ui': resolve(join(import.meta.dirname, '..', 'ui', 'dist')),
+      '@proj-airi/ui/stores': resolve(join(import.meta.dirname, '..', 'ui', 'dist', 'stores')),
     },
   },
 
@@ -73,7 +73,7 @@ export default defineConfig({
     // https://github.com/posva/unplugin-vue-router
     VueRouter({
       extensions: ['.vue', '.md'],
-      dts: path.resolve(__dirname, 'src/typed-router.d.ts'),
+      dts: path.resolve(import.meta.dirname, 'src/typed-router.d.ts'),
     }),
 
     // https://github.com/JohnCampionJr/vite-plugin-vue-layouts
@@ -122,7 +122,7 @@ export default defineConfig({
       runtimeOnly: true,
       compositionOnly: true,
       fullInstall: true,
-      include: [path.resolve(__dirname, 'locales/**')],
+      include: [path.resolve(import.meta.dirname, 'locales/**')],
     }),
 
     // https://github.com/webfansplz/vite-plugin-vue-devtools

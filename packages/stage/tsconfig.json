@@ -1,11 +1,12 @@
 {
+  "extends": "../../tsconfig.json",
   "compilerOptions": {
-    "target": "ESNext",
     "jsx": "preserve",
-    "lib": ["DOM", "ESNext"],
+    "lib": [
+      "DOM",
+      "ESNext"
+    ],
     "baseUrl": ".",
-    "module": "ESNext",
-    "moduleResolution": "Bundler",
     "resolveJsonModule": true,
     "types": [
       "vitest",
@@ -16,21 +17,12 @@
       "unplugin-vue-router/client"
     ],
     "allowJs": true,
-    "strict": true,
-    "strictNullChecks": true,
-    "noUnusedLocals": true,
-    "noEmit": true,
-    "esModuleInterop": true,
-    "forceConsistentCasingInFileNames": true,
-    "isolatedModules": true,
-    "verbatimModuleSyntax": true,
-    "skipLibCheck": true
+    "strict": true
   },
   "vueCompilerOptions": {
     "plugins": [
       "@vue-macros/volar/define-models",
       "@vue-macros/volar/define-slots"
     ]
-  },
-  "exclude": ["dist", "node_modules", "cypress"]
+  }
 }

@@ -47,6 +47,8 @@
     "package.json"
   ],
   "scripts": {
+    "dev": "pnpm run stub",
+    "stub": "unbuild --stub",
     "build": "unbuild"
   }
 }

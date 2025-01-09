@@ -1,5 +1,8 @@
 {
-  "extends": "@electron-toolkit/tsconfig/tsconfig.web.json",
+  "extends": [
+    "@electron-toolkit/tsconfig/tsconfig.web.json",
+    "../../tsconfig.json"
+  ],
   "compilerOptions": {
     "composite": true,
     "baseUrl": ".",

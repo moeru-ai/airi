@@ -13,9 +13,16 @@ export default defineConfig({
     plugins: [externalizeDepsPlugin()],
   },
   renderer: {
+    optimizeDeps: {
+      exclude: [
+        '@proj-airi/ui/*',
+      ],
+    },
     resolve: {
       alias: {
         '@renderer': resolve(join('src', 'renderer', 'src')),
+        '@proj-airi/ui': resolve(join(import.meta.dirname, '..', 'ui', 'dist')),
+        '@proj-airi/ui/stores': resolve(join(import.meta.dirname, '..', 'ui', 'dist', 'stores')),
       },
     },
     plugins: [

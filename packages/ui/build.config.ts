@@ -13,7 +13,4 @@ export default defineBuildConfig({
   declaration: true,
   sourcemap: true,
   clean: true,
-  rollup: {
-    emitCJS: true,
-  },
 })
