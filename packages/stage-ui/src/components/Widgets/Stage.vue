@@ -77,7 +77,7 @@ const ttsQueue = useQueue<string>({
         baseURL: 'https://unspeech.hyp3r.link/v1/',
       })
       const res = await generateSpeech({
-        ...elevenlabs.speech('elevenlabs/eleven_multilingual_v2', {
+        ...elevenlabs.speech('eleven_multilingual_v2', {
           voiceSettings: {
             stability: 0.4,
             similarityBoost: 0.5,
