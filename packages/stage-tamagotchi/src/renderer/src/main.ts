@@ -6,9 +6,6 @@ import { createApp } from 'vue'
 import { createI18n } from 'vue-i18n'
 import App from './App.vue'
 
-// FIXME: is there some way to avoid this?
-import '@pixi/unsafe-eval'
-
 import '@unocss/reset/tailwind.css'
 import 'uno.css'
 import './main.css'

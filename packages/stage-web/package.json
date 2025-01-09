@@ -33,7 +33,6 @@
     "@pixi/settings": "6",
     "@pixi/sprite": "6",
     "@pixi/ticker": "6",
-    "@pixi/unsafe-eval": "^7.4.2",
     "@pixi/utils": "6",
     "@pixiv/three-vrm": "^3.3.2",
     "@pixiv/three-vrm-animation": "^3.3.2",
