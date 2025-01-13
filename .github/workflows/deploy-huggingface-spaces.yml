@@ -1,4 +1,4 @@
-name: Deploy to HuggingFace Spaces
+name: HuggingFace Spaces
 
 on:
   push:
@@ -7,6 +7,7 @@ on:
 
 jobs:
   deploy:
+    name: Deploy
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
