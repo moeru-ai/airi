@@ -28,12 +28,12 @@
     "sizecheck": "npx vite-bundle-visualizer"
   },
   "devDependencies": {
-    "@antfu/eslint-config": "^3.13.0",
+    "@antfu/eslint-config": "^3.14.0",
     "@antfu/ni": "^23.2.0",
     "@cspell/dict-ru_ru": "^2.2.4",
     "@types/node": "^22.10.5",
-    "@unocss/eslint-config": "^0.65.4",
-    "@unocss/eslint-plugin": "^0.65.4",
+    "@unocss/eslint-config": "^65.4.0",
+    "@unocss/eslint-plugin": "^65.4.0",
     "bumpp": "^9.10.0",
     "cross-env": "^7.0.3",
     "eslint": "^9.17.0",
@@ -46,7 +46,7 @@
     "taze": "^18.1.0",
     "typescript": "~5.7.3",
     "unbuild": "3.0.0-rc.11",
-    "unocss": "^0.65.4",
+    "unocss": "^65.4.0",
     "vite": "^6.0.7",
     "vite-plugin-inspect": "^10.0.6",
     "vitest": "^2.1.8"

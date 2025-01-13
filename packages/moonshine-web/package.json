@@ -19,8 +19,8 @@
   },
   "dependencies": {
     "@tresjs/core": "^4.3.2",
-    "@unocss/reset": "^0.65.4",
-    "@vueuse/core": "^12.3.0",
+    "@unocss/reset": "^65.4.0",
+    "@vueuse/core": "^12.4.0",
     "@vueuse/motion": "^2.2.6",
     "ofetch": "^1.4.1",
     "three": "^0.172.0",

@@ -1,13 +1,12 @@
 packages:
-  - 'packages/**'
-  - 'services/**'
-  - 'examples/**'
+  - packages/**
+  - services/**
+  - examples/**
   - '!**/dist/**'
-
 catalog:
-  '@xsai/generate-speech': ^0.0.26
-  '@xsai/generate-text': ^0.0.26
-  '@xsai/model': ^0.0.26
-  '@xsai/providers': ^0.0.26
-  '@xsai/shared-chat': ^0.0.26
-  '@xsai/stream-text': ^0.0.26
+  '@xsai/generate-speech': ^0.0.27
+  '@xsai/generate-text': ^0.0.27
+  '@xsai/model': ^0.0.27
+  '@xsai/providers': ^0.0.27
+  '@xsai/shared-chat': ^0.0.27
+  '@xsai/stream-text': ^0.0.27

@@ -18,8 +18,8 @@
     "typecheck": "vue-tsc --noEmit"
   },
   "dependencies": {
-    "@unocss/reset": "^0.65.4",
-    "@vueuse/core": "^12.3.0",
+    "@unocss/reset": "^65.4.0",
+    "@vueuse/core": "^12.4.0",
     "ofetch": "^1.4.1",
     "vue": "^3.5.13"
   },
