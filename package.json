@@ -56,7 +56,7 @@
     "docs"
   ],
   "simple-git-hooks": {
-    "pre-commit": "pnpm lint-staged"
+    "pre-commit": "pnpm lint-staged && pnpm typecheck"
   },
   "lint-staged": {
     "*": "eslint --fix"
