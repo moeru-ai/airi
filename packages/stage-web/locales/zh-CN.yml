@@ -35,7 +35,10 @@ settings:
     label: ElevenLabs API 密钥
     placeholder: 输入您的 ElevenLabs API 密钥
     placeholder_mobile: ElevenLabs API Key
-  language: 语言
+  language:
+    chinese: 简体中文
+    english: English
+    title: 语言
   models: 模型
   openai-api-key:
     label: OpenAI API 密钥
@@ -45,6 +48,7 @@ settings:
     label: OpenAI API BaseURL
     placeholder: 输入您的 API BaseURL
     placeholder_mobile: OpenAI BaseURL
+  title: 设置
   voices: 声线
 stage:
   message: 消息

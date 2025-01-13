@@ -2,7 +2,8 @@
   "i18n-ally.sourceLanguage": "en",
   "i18n-ally.keystyle": "nested",
   "i18n-ally.localesPaths": [
-    "packages/stage/locales"
+    "packages/stage-web/locales",
+    "packages/stage-tamagotchi/locales"
   ],
   "i18n-ally.sortKeys": true,
 

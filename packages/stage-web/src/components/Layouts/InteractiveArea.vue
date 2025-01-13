@@ -117,7 +117,7 @@ onAfterSend(async () => {
         <input v-model="tab" type="radio" name="tab" value="chat" hidden>
         <div i-solar:dialog-2-bold-duotone text="2xl" transform="translate-y--2" />
         <div flex="~ row" items-center>
-          <span min-w="3em">Chat</span>
+          <span min-w="3em">{{ $t('stage.chat.tabs.chat') }}</span>
         </div>
       </label>
       <label
@@ -137,7 +137,7 @@ onAfterSend(async () => {
         <input v-model="tab" type="radio" name="tab" value="custom" hidden>
         <div i-solar:star-fall-2-bold-duotone text="2xl" transform="translate-y--2" />
         <div flex="~ row" items-center>
-          <span>Custom</span>
+          <span>{{ $t('stage.chat.tabs.custom') }}</span>
         </div>
       </label>
       <label
@@ -157,7 +157,7 @@ onAfterSend(async () => {
         <input v-model="tab" type="radio" name="tab" value="clothes" hidden>
         <div i-solar:magic-stick-3-bold-duotone text="2xl" transform="translate-y--2" />
         <div flex="~ row" items-center>
-          <span>Clothes</span>
+          <span>{{ $t('stage.chat.tabs.clothes') }}</span>
         </div>
       </label>
     </fieldset>
@@ -193,15 +193,15 @@ onAfterSend(async () => {
       >
         <Transition mode="out-in">
           <div v-if="whisperStatus === null" flex="~ row" items-center justify-center space-x-1>
-            Load Models
+            {{ $t('stage.operations.load-models') }}
           </div>
           <div v-else-if="whisperStatus === 'loading'" flex="~ row" items-center justify-center space-x-1>
             <div i-svg-spinners:bouncing-ball class="text-cyan" />
-            <span>Loading</span>
+            <span>{{ $t('stage.operations.load-models-status.loading') }}</span>
           </div>
           <div v-else-if="whisperStatus === 'ready'" flex="~ row" items-center justify-center space-x-1>
             <div i-lucide:check class="text-cyan" />
-            <span>Ready</span>
+            <span>{{ $t('stage.operations.load-models-status.ready') }}</span>
           </div>
         </Transition>
       </button>
@@ -238,7 +238,7 @@ onAfterSend(async () => {
           <input v-model="showMicrophoneSelect" type="checkbox" hidden>
           <div i-solar:microphone-2-bold-duotone />
           <div>
-            <span v-if="!listening">Microphone</span>
+            <span v-if="!listening">{{ $t('settings.microphone') }}</span>
             <span v-else>Listening...</span>
           </div>
         </label>

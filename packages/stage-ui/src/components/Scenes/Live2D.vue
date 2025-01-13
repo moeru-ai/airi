@@ -65,50 +65,50 @@ defineExpose({
         <div v-if="show" absolute w-full min-w="50vw" z="<md:20" class="bottom-10 right-0">
           <div bg="zinc-200/20 dark:black/20" rounded-lg p-2 backdrop-blur-sm>
             <div font-mono>
-              <span>Emotions</span>
+              <span>{{ $t('stage.viewers.debug-menu.emotions') }}</span>
             </div>
             <div flex="~ row" flex-wrap gap-2>
               <button
                 rounded-lg bg="zinc-100/70 dark:zinc-800/50" px-2 py-1 backdrop-blur-sm
                 @click="modelRef?.setMotion(EmotionSurpriseMotionName)"
               >
-                🤯 Surprised
+                {{ $t('stage.viewers.debug-menu.emotions-btn.surprised') }}
               </button>
               <button
                 rounded-lg bg="zinc-100/70 dark:zinc-800/50" px-2 py-1 backdrop-blur-sm
                 @click="modelRef?.setMotion(EmotionSadMotionName)"
               >
-                😫 Sad
+                {{ $t('stage.viewers.debug-menu.emotions-btn.sad') }}
               </button>
               <button
                 rounded-lg bg="zinc-100/70 dark:zinc-800/50" px-2 py-1 backdrop-blur-sm
                 @click="modelRef?.setMotion(EmotionAngryMotionName)"
               >
-                😠 Angry
+                {{ $t('stage.viewers.debug-menu.emotions-btn.angry') }}
               </button>
               <button
                 rounded-lg bg="zinc-100/70 dark:zinc-800/50" px-2 py-1 backdrop-blur-sm
                 @click="modelRef?.setMotion(EmotionHappyMotionName)"
               >
-                😄 Happy
+                {{ $t('stage.viewers.debug-menu.emotions-btn.happy') }}
               </button>
               <button
                 rounded-lg bg="zinc-100/70 dark:zinc-800/50" px-2 py-1 backdrop-blur-sm
                 @click="modelRef?.setMotion(EmotionAwkwardMotionName)"
               >
-                😳 Awkward
+                {{ $t('stage.viewers.debug-menu.emotions-btn.awkward') }}
               </button>
               <button
                 rounded-lg bg="zinc-100/70 dark:zinc-800/50" px-2 py-1 backdrop-blur-sm
                 @click="modelRef?.setMotion(EmotionQuestionMotionName)"
               >
-                🤔 Question
+                {{ $t('stage.viewers.debug-menu.emotions-btn.question') }}
               </button>
               <button
                 rounded-lg bg="zinc-100/70 dark:zinc-800/50" px-2 py-1 backdrop-blur-sm
                 @click="modelRef?.setMotion(EmotionThinkMotionName)"
               >
-                🤨 Think
+                {{ $t('stage.viewers.debug-menu.emotions-btn.think') }}
               </button>
             </div>
           </div>

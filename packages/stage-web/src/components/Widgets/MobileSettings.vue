@@ -72,7 +72,7 @@ onMounted(async () => {
 <template>
   <div>
     <h2 text="slate-800/80 dark:slate-200/80 xl" font-bold>
-      Settings
+      {{ t('settings.title') }}
     </h2>
     <div>
       <div
@@ -113,7 +113,7 @@ onMounted(async () => {
           >
         </div>
         <div text="sm pink-500">
-          <span>{{ t('settings.language') }}</span>
+          <span>{{ t('settings.language.title') }}</span>
         </div>
         <div flex="~ row" w-full text="sm">
           <select
@@ -121,10 +121,10 @@ onMounted(async () => {
             h-8 w-full rounded-md bg-transparent px-2 py-1 text-right font-mono outline-none
           >
             <option value="en-US">
-              English
+              {{ t('settings.language.english') }}
             </option>
             <option value="zh-CN">
-              简体中文
+              {{ t('settings.language.chinese') }}
             </option>
           </select>
         </div>

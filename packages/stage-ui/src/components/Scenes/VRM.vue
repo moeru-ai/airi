@@ -84,11 +84,11 @@ defineExpose({
         <div v-if="show" absolute w-full min-w="50vw" z="<md:20" class="bottom-10 right-0">
           <div bg="zinc-200/20 dark:black/20" flex="~ col" gap-2 rounded-lg p-2 backdrop-blur-sm>
             <div font-mono>
-              <span>Model</span>
+              <span>{{ $t('stage.viewers.debug-menu.vrm.model.title') }}</span>
             </div>
             <Collapsable h-fit w-full>
               <template #label>
-                <span font-mono>Camera</span>
+                <span font-mono>{{ $t('stage.viewers.debug-menu.vrm.camera') }}</span>
               </template>
               <div grid="~ cols-[20px_1fr_60px]" w-full gap-1 p-2 text-sm font-mono>
                 <div text="zinc-400 dark:zinc-500">
@@ -124,7 +124,7 @@ defineExpose({
             </Collapsable>
             <Collapsable h-fit w-full>
               <template #label>
-                <span font-mono>Model</span>
+                <span font-mono>{{ $t('stage.viewers.debug-menu.vrm.model.title') }}</span>
               </template>
               <div grid="~ cols-[20px_1fr_60px]" w-full gap-1 p-2 text-sm font-mono>
                 <div text="zinc-400 dark:zinc-500">
@@ -160,38 +160,38 @@ defineExpose({
               </div>
             </Collapsable>
             <div font-mono>
-              <span>Emotions</span>
+              <span>{{ $t('stage.viewers.debug-menu.emotions') }}</span>
             </div>
             <div flex="~ row" w-full flex-wrap gap-2>
               <button
                 rounded-lg bg="zinc-100/70 dark:zinc-800/50" px-2 py-1 backdrop-blur-sm
                 @click="modelRef?.setExpression('neutral')"
               >
-                🙂 Neutral
+                {{ $t('stage.viewers.debug-menu.emotions-btn.neutral') }}
               </button>
               <button
                 rounded-lg bg="zinc-100/70 dark:zinc-800/50" px-2 py-1 backdrop-blur-sm
                 @click="modelRef?.setExpression('surprised')"
               >
-                🤯 Surprised
+                {{ $t('stage.viewers.debug-menu.emotions-btn.surprised') }}
               </button>
               <button
                 rounded-lg bg="zinc-100/70 dark:zinc-800/50" px-2 py-1 backdrop-blur-sm
                 @click="modelRef?.setExpression('sad')"
               >
-                😫 Sad
+                {{ $t('stage.viewers.debug-menu.emotions-btn.sad') }}
               </button>
               <button
                 rounded-lg bg="zinc-100/70 dark:zinc-800/50" px-2 py-1 backdrop-blur-sm
                 @click="modelRef?.setExpression('angry')"
               >
-                😠 Angry
+                {{ $t('stage.viewers.debug-menu.emotions-btn.angry') }}
               </button>
               <button
                 rounded-lg bg="zinc-100/70 dark:zinc-800/50" px-2 py-1 backdrop-blur-sm
                 @click="modelRef?.setExpression('happy')"
               >
-                😄 Happy
+                {{ $t('stage.viewers.debug-menu.emotions-btn.happy') }}
               </button>
             </div>
           </div>

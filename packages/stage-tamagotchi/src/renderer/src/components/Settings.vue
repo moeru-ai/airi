@@ -111,7 +111,7 @@ onMounted(async () => {
           >
         </div>
         <div text="xs pink-500">
-          <span>{{ t('settings.language') }}</span>
+          <span>{{ t('settings.language.title') }}</span>
         </div>
         <div flex="~ row" w-full text="xs">
           <select

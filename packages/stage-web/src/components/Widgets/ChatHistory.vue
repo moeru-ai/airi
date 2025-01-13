@@ -50,7 +50,7 @@ onTokenLiteral(async () => {
             bg="<md:pink-500/25"
           >
             <div>
-              <span text-xs text="pink-400/90 dark:pink-600/90" font-semibold class="inline <sm:hidden">Airi</span>
+              <span text-xs text="pink-400/90 dark:pink-600/90" font-semibold class="inline <sm:hidden">{{ $t('stage.chat.message.character-name.airi') }}</span>
             </div>
             <div v-if="message.content" class="markdown-content" text="base <sm:xs" v-html="process(message.content as string)" />
             <div v-else i-eos-icons:three-dots-loading />
@@ -66,7 +66,7 @@ onTokenLiteral(async () => {
             bg="<md:cyan-500/25"
           >
             <div>
-              <span text-xs text="cyan-400/90 dark:cyan-600/90" font-semibold class="inline <sm:hidden">You</span>
+              <span text-xs text="cyan-400/90 dark:cyan-600/90" font-semibold class="inline <sm:hidden">{{ $t('stage.chat.message.character-name.you') }}</span>
             </div>
             <div v-if="message.content" class="markdown-content" text="base <sm:xs" v-html="process(message.content as string)" />
             <div v-else />

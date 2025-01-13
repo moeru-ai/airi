@@ -178,7 +178,7 @@ onMounted(async () => {
             >
           </div>
           <div text-sm>
-            <span>{{ t('settings.language') }}</span>
+            <span>{{ t('settings.language.title') }}</span>
           </div>
           <div flex="~ row" w-full text="sm">
             <select
@@ -186,10 +186,10 @@ onMounted(async () => {
               outline-none
             >
               <option value="en-US">
-                English
+                {{ $t('settings.language.english') }}
               </option>
               <option value="zh-CN">
-                简体中文
+                {{ $t('settings.language.chinese') }}
               </option>
             </select>
           </div>
