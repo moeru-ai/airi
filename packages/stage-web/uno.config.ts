@@ -1,5 +1,5 @@
 import { defineConfig, mergeConfigs, presetWebFonts } from 'unocss'
-import presetAnimations from 'unocss-preset-animations'
+
 import UnoCSSConfig from '../../uno.config'
 
 export default defineConfig(mergeConfigs([
@@ -15,9 +15,6 @@ export default defineConfig(mergeConfigs([
           cuteen: 'Sniglet',
         },
       }),
-      // hyoban/unocss-preset-shadcn: Use shadcn ui with UnoCSS
-      // https://github.com/hyoban/unocss-preset-shadcn
-      presetAnimations(),
     ],
     // hyoban/unocss-preset-shadcn: Use shadcn ui with UnoCSS
     // https://github.com/hyoban/unocss-preset-shadcn

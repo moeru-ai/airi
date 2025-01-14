@@ -2,7 +2,7 @@
   "name": "@proj-airi/moonshine-web",
   "type": "module",
   "private": true,
-  "packageManager": "pnpm@9.15.3",
+  "packageManager": "pnpm@9.15.4",
   "description": "Yet another WebGPU based STT + VAD with Moonshine model re-implemented",
   "author": {
     "name": "Neko Ayaka",

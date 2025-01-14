@@ -33,7 +33,7 @@
   },
   "dependencies": {
     "@discordjs/voice": "^0.18.0",
-    "@dotenvx/dotenvx": "^1.32.1",
+    "@dotenvx/dotenvx": "^1.33.0",
     "@guiiai/logg": "^1.0.6",
     "@huggingface/transformers": "^3.2.4",
     "@xsai/generate-speech": "catalog:",

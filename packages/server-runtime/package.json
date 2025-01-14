@@ -1,0 +1,38 @@
+{
+  "name": "@proj-airi/server-runtime",
+  "type": "module",
+  "version": "0.1.1",
+  "private": false,
+  "description": "Server runtime and utility implementation for Airi running in different environments",
+  "author": {
+    "name": "Neko Ayaka",
+    "email": "neko@ayaka.moe",
+    "url": "https://github.com/nekomeowww"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/moeru-ai/airi.git",
+    "directory": "packages/server-runtime"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "README.md",
+    "dist",
+    "package.json"
+  ],
+  "scripts": {},
+  "dependencies": {
+    "defu": "^6.1.4",
+    "h3": "^1.13.1"
+  }
+}
