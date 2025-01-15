@@ -798,7 +798,55 @@ importers:
         specifier: ^2.2.0
         version: 2.2.0(typescript@5.7.3)
 
-  services/continuous-bot:
+  services/discord-voice-bot:
+    dependencies:
+      '@discordjs/voice':
+        specifier: ^0.18.0
+        version: 0.18.0(@discordjs/opus@0.9.0)(bufferutil@4.0.9)(ffmpeg-static@5.2.0)(opusscript@0.1.1)(utf-8-validate@5.0.10)
+      '@dotenvx/dotenvx':
+        specifier: ^1.33.0
+        version: 1.33.0
+      '@guiiai/logg':
+        specifier: ^1.0.6
+        version: 1.0.6
+      '@huggingface/transformers':
+        specifier: ^3.2.4
+        version: 3.2.4
+      '@proj-airi/server-sdk':
+        specifier: workspace:^
+        version: link:../../packages/server-sdk
+      '@proj-airi/server-shared':
+        specifier: workspace:^
+        version: link:../../packages/server-shared
+      '@xsai/generate-speech':
+        specifier: 'catalog:'
+        version: 0.0.27
+      '@xsai/generate-text':
+        specifier: 'catalog:'
+        version: 0.0.27
+      '@xsai/providers':
+        specifier: 'catalog:'
+        version: 0.0.27
+      '@xsai/shared-chat':
+        specifier: 'catalog:'
+        version: 0.0.27
+      discord.js:
+        specifier: ^14.17.3
+        version: 14.17.3(bufferutil@4.0.9)(utf-8-validate@5.0.10)
+      libsodium-wrappers:
+        specifier: ^0.7.15
+        version: 0.7.15
+      opusscript:
+        specifier: ^0.1.1
+        version: 0.1.1
+      tsx:
+        specifier: ^4.19.2
+        version: 4.19.2
+      wavefile:
+        specifier: ^11.0.0
+        version: 11.0.0
+
+  services/telegram-bot:
     dependencies:
       '@gcornut/valibot-json-schema':
         specifier: ^0.42.0
@@ -858,54 +906,6 @@ importers:
       tsx:
         specifier: ^4.19.2
         version: 4.19.2
-
-  services/discord-voice-bot:
-    dependencies:
-      '@discordjs/voice':
-        specifier: ^0.18.0
-        version: 0.18.0(@discordjs/opus@0.9.0)(bufferutil@4.0.9)(ffmpeg-static@5.2.0)(opusscript@0.1.1)(utf-8-validate@5.0.10)
-      '@dotenvx/dotenvx':
-        specifier: ^1.33.0
-        version: 1.33.0
-      '@guiiai/logg':
-        specifier: ^1.0.6
-        version: 1.0.6
-      '@huggingface/transformers':
-        specifier: ^3.2.4
-        version: 3.2.4
-      '@proj-airi/server-sdk':
-        specifier: workspace:^
-        version: link:../../packages/server-sdk
-      '@proj-airi/server-shared':
-        specifier: workspace:^
-        version: link:../../packages/server-shared
-      '@xsai/generate-speech':
-        specifier: 'catalog:'
-        version: 0.0.27
-      '@xsai/generate-text':
-        specifier: 'catalog:'
-        version: 0.0.27
-      '@xsai/providers':
-        specifier: 'catalog:'
-        version: 0.0.27
-      '@xsai/shared-chat':
-        specifier: 'catalog:'
-        version: 0.0.27
-      discord.js:
-        specifier: ^14.17.3
-        version: 14.17.3(bufferutil@4.0.9)(utf-8-validate@5.0.10)
-      libsodium-wrappers:
-        specifier: ^0.7.15
-        version: 0.7.15
-      opusscript:
-        specifier: ^0.1.1
-        version: 0.1.1
-      tsx:
-        specifier: ^4.19.2
-        version: 4.19.2
-      wavefile:
-        specifier: ^11.0.0
-        version: 11.0.0
 
 packages:
 

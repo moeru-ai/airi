@@ -1,5 +1,5 @@
 {
-  "name": "@proj-airi/continuous-bot",
+  "name": "@proj-airi/telegram-bot",
   "type": "module",
   "private": true,
   "packageManager": "pnpm@9.15.2",
