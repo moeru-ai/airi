@@ -1,7 +1,7 @@
 import { join } from 'node:path'
 import { env, platform } from 'node:process'
 import { electronApp, is, optimizer } from '@electron-toolkit/utils'
-import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron'
+import { app, BrowserWindow, dialog, ipcMain, Menu, shell } from 'electron'
 import icon from '../../build/icon.png?asset'
 
 function createWindow(): void {
@@ -95,6 +95,28 @@ function createSettingsWindow(): void {
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
 app.whenReady().then(() => {
+  // Menu
+  const menu = Menu.buildFromTemplate([
+    {
+      label: 'airi',
+      role: 'appMenu',
+      submenu: [
+        {
+          role: 'about',
+        },
+        {
+          label: 'Settings',
+          click: () => createSettingsWindow(),
+        },
+        {
+          label: 'Quit',
+          click: () => app.quit(),
+        },
+      ],
+    },
+  ])
+  Menu.setApplicationMenu(menu)
+
   // Set app user model id for windows
   electronApp.setAppUserModelId('com.github.moeru-ai.airi-tamagotchi')
 
