@@ -122,11 +122,17 @@ export async function handleSummon(log: ReturnType<typeof useLogg>, interaction:
         const speakingUser = await interaction.guild.members.fetch(userId)
         const result = await transcribeTextFromAudioReceiveStream(listenStream)
 
-        airiClient.send({ type: 'input:voice:discord:transcription', data: {
-          text: result,
-          userDisplayName: speakingUser.displayName,
-          userId,
-          username: speakingUser.nickname,
+        airiClient.send({ type: 'input:text:voice', data: {
+          transcription: result,
+          discord: {
+            guildId: interaction.guild.id,
+            channelId: currVoiceChannel.id,
+            guildMember: {
+              id: userId,
+              nickname: speakingUser.nickname,
+              displayName: speakingUser.displayName,
+            },
+          },
         } })
       }
       catch (err) {

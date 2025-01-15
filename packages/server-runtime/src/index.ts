@@ -24,7 +24,7 @@ router.get('/ws', defineWebSocketHandler({
 
     websocketLogger.withFields({ peer: peer.id, message: event }).log('received message')
     switch (event.type) {
-      case 'input:voice:discord:transcription':
+      case 'input:text:voice':
         websocketLogger.withFields({ message: event }).log('transcribed')
         break
     }

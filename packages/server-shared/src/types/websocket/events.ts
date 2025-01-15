@@ -1,6 +1,27 @@
+export interface DiscordGuildMember {
+  nickname: string
+  displayName: string
+  id: string
+}
+
+export interface Discord {
+  guildMember?: DiscordGuildMember
+  guildId?: string
+  channelId?: string
+}
+
+interface InputSource {
+  browser: string
+  discord: Discord
+}
+
 export interface WebSocketBaseEvent<T, D> {
   type: T
   data: D
+}
+
+export type WithInputSource<Source extends keyof InputSource> = {
+  [S in Source]: InputSource[S]
 }
 
 // Thanks to:
@@ -10,13 +31,17 @@ export interface WebSocketBaseEvent<T, D> {
 export interface WebSocketEvents {
   'module:announce': {
     name: string
+    possibleEvents: Array<(keyof WebSocketEvents)>
   }
-  'input:voice:discord:transcription': {
+  'input:text': {
     text: string
-    username: string
-    userDisplayName: string
-    userId: string
-  }
+  } & Partial<WithInputSource<'browser' | 'discord'>>
+  'input:text:voice': {
+    transcription: string
+  } & Partial<WithInputSource<'browser' | 'discord'>>
+  'input:voice': {
+    audio: ArrayBuffer
+  } & Partial<WithInputSource<'browser' | 'discord'>>
 }
 
 export type WebSocketEvent = {

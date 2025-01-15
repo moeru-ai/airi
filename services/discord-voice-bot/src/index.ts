@@ -17,9 +17,7 @@ async function main() {
   await WhisperLargeV3Pipeline.getInstance()
 
   const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildVoiceStates] })
-  const airiClient = new AiriClient('ws://localhost:6121/ws')
-
-  airiClient.send({ type: 'module:announce', data: { name: 'input:voice:discord' } })
+  const airiClient = new AiriClient({ name: 'discord-voice-bot', possibleEvents: ['input:text', 'input:text:voice', 'input:voice'] })
 
   // When the client is ready, run this code (only once).
   // The distinction between `client: Client<boolean>` and `readyClient: Client<true>` is important for TypeScript developers.
