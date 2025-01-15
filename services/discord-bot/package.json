@@ -1,9 +1,8 @@
 {
-  "name": "@proj-airi/discord-voice-bot",
+  "name": "@proj-airi/discord-bot",
   "type": "module",
-  "version": "0.1.1",
   "private": false,
-  "description": "Discord voice bot for Airi",
+  "description": "Discord bot for Airi",
   "author": {
     "name": "Neko Ayaka",
     "email": "neko@ayaka.moe",
@@ -13,21 +12,8 @@
   "repository": {
     "type": "git",
     "url": "https://github.com/moeru-ai/airi.git",
-    "directory": "services/discord-voice-bot"
+    "directory": "services/discord-bot"
   },
-  "exports": {
-    ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.mjs"
-    }
-  },
-  "module": "./dist/index.mjs",
-  "types": "./dist/index.d.ts",
-  "files": [
-    "README.md",
-    "dist",
-    "package.json"
-  ],
   "scripts": {
     "start": "dotenvx run -f .env.local -f .env --ignore=MISSING_ENV_FILE -- tsx src/index.ts"
   },
@@ -35,7 +21,7 @@
     "@discordjs/voice": "^0.18.0",
     "@dotenvx/dotenvx": "^1.33.0",
     "@guiiai/logg": "^1.0.6",
-    "@huggingface/transformers": "^3.2.4",
+    "@huggingface/transformers": "^3.3.0",
     "@proj-airi/server-sdk": "workspace:^",
     "@proj-airi/server-shared": "workspace:^",
     "@xsai/generate-speech": "catalog:",

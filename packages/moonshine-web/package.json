@@ -27,11 +27,11 @@
     "vue": "^3.5.13"
   },
   "devDependencies": {
-    "@huggingface/transformers": "^3.2.4",
+    "@huggingface/transformers": "^3.3.0",
     "@types/audioworklet": "^0.0.65",
     "@types/three": "^0.172.0",
     "@vitejs/plugin-vue": "^5.2.1",
-    "@webgpu/types": "^0.1.52",
+    "@webgpu/types": "^0.1.53",
     "hfup": "workspace:^",
     "vue-tsc": "^2.2.0"
   }

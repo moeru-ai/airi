@@ -1,11 +1,18 @@
-# `discord-voice-bot`
+# `discord-bot`
 
 Allow アイリ to talk to you and many other users in Discord voice channels.
 
-## Usage
+## Getting started
 
-```
+```shell
+git clone git@github.com:moeru-ai/airi.git
 pnpm i
+```
+
+Create a `.env.local` file:
+
+```shell
+cd services/discord-bot
 cp .env .env.local
 ```
 
@@ -24,7 +31,7 @@ ELEVENLABS_API_BASE_URL=''
 ```
 
 ```shell
-pnpm run -F @proj-airi/discord-voice-bot start
+pnpm run -F @proj-airi/discord-bot start
 ```
 
 ## Acknowledgements

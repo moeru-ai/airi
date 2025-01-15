@@ -1,0 +1,44 @@
+{
+  "name": "@proj-airi/telegram-bot",
+  "type": "module",
+  "private": false,
+  "description": "Telegram bot for Airi",
+  "author": {
+    "name": "Neko Ayaka",
+    "email": "neko@ayaka.moe",
+    "url": "https://github.com/nekomeowww"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/moeru-ai/airi.git",
+    "directory": "services/telegram-bot"
+  },
+  "scripts": {
+    "start": "dotenvx run -f .env.local -f .env --ignore=MISSING_ENV_FILE -- tsx src/index.ts"
+  },
+  "dependencies": {
+    "@dotenvx/dotenvx": "^1.33.0",
+    "@gcornut/valibot-json-schema": "^0.42.0",
+    "@grammyjs/files": "^1.1.1",
+    "@guiiai/logg": "^1.0.6",
+    "@typeschema/valibot": "^0.14.0",
+    "@xsai/generate-text": "^0.0.27",
+    "@xsai/providers": "^0.0.27",
+    "@xsai/shared-chat": "^0.0.27",
+    "@xsai/tool": "^0.0.27",
+    "dotenv": "^16.4.7",
+    "drizzle-orm": "^0.38.3",
+    "grammy": "^1.34.0",
+    "pg": "^8.13.1",
+    "remeda": "^2.19.1",
+    "sharp": "^0.33.5",
+    "telegram": "^2.26.16",
+    "valibot": "1.0.0-beta.9"
+  },
+  "devDependencies": {
+    "@types/pg": "^8.11.10",
+    "drizzle-kit": "^0.30.1",
+    "tsx": "^4.19.2"
+  }
+}
