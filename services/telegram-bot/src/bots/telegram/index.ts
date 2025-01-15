@@ -4,7 +4,7 @@ import type { Action, BotSelf, ExtendedContext } from '../../types'
 import { env } from 'node:process'
 import { useLogg } from '@guiiai/logg'
 import { generateText } from '@xsai/generate-text'
-import { messages, system, user } from '@xsai/shared-chat'
+import { message } from '@xsai/shared-chat'
 import { Bot } from 'grammy'
 import { randomInteger } from 'remeda'
 
@@ -69,9 +69,9 @@ async function sendMayStructuredMessage(
 
 async function handleLoop(state: BotSelf, msgs?: LLMMessage[]) {
   if (msgs == null) {
-    msgs = messages(
-      system(consciousnessSystemPrompt()),
-      system(
+    msgs = message.messages(
+      message.system(consciousnessSystemPrompt()),
+      message.system(
         [
           {
             description: 'List all available chats, best to do before you want to send a message to a chat.',
@@ -116,7 +116,7 @@ async function handleLoop(state: BotSelf, msgs?: LLMMessage[]) {
           .map((item, index) => `${index}: ${JSON.stringify(item.example)}: ${item.description}`)
           .join('\n'),
       ),
-      system(''
+      message.system(''
         + `Now the time is: ${new Date().toLocaleString()}. `
         + `You have total ${Object.values(state.unreadMessages).reduce((acc, cur) => acc + cur.length, 0)} unread messages.`
         + '\n'
@@ -124,7 +124,7 @@ async function handleLoop(state: BotSelf, msgs?: LLMMessage[]) {
         + `${Object.entries(state.unreadMessages).map(([key, value]) => `ID:${key}, Unread message count:${value.length}`).join('\n')}`
         + '',
       ),
-      user('What do you want to do? Respond with the action and parameters you choose in JSON only, without any explanation and markups'),
+      message.user('What do you want to do? Respond with the action and parameters you choose in JSON only, without any explanation and markups'),
     )
   }
 
@@ -161,17 +161,17 @@ async function handleLoop(state: BotSelf, msgs?: LLMMessage[]) {
         // eslint-disable-next-line no-case-declarations
         const response = await generateText({
           ...openAI.chat('openai/gpt-4o-mini'),
-          messages: messages(
+          messages: message.messages(
             systemPrompt(),
-            user(`All unread messages:\n${unreadHistoryMessageOneliner}`),
-            user('Would you like to say something? Or ignore?'),
+            message.user(`All unread messages:\n${unreadHistoryMessageOneliner}`),
+            message.user('Would you like to say something? Or ignore?'),
           ),
         })
 
         await sendMayStructuredMessage(state, response.text, action.groupId.toString())
         break
       case 'listChats':
-        msgs.push(user(`List of chats:${(await listJoinedChats()).map(chat => `ID:${chat.chatId}, Name:${chat.chatName}`).join('\n')}`))
+        msgs.push(message.user(`List of chats:${(await listJoinedChats()).map(chat => `ID:${chat.chatId}, Name:${chat.chatName}`).join('\n')}`))
         await handleLoop(state, msgs)
         break
       case 'sendMessage':

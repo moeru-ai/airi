@@ -1,4 +1,4 @@
-import { system } from '@xsai/shared-chat'
+import { message } from '@xsai/shared-chat'
 
 export function personality() {
   return ''
@@ -55,7 +55,7 @@ export function personality() {
 }
 
 export function systemPrompt() {
-  return system(''
+  return message.system(''
     + `${personality()}`
     + '\n'
     + 'If you will ever wanted to send messages. Please...'
@@ -153,7 +153,7 @@ export function systemPrompt() {
 }
 
 export function memeAndFunnyChoicesGeneratorSystemPrompt() {
-  return system(''
+  return message.system(''
     + `${personality()}`
     + 'Based on your personalities. Giving the above context and chat history, generate natural responses like a real Chinese netizen in the style of 2023 to 2025.'
     + 'Rules:'

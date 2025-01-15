@@ -1,20 +1,37 @@
-# `continuous-bot` (WIP)
+# `telegram-bot`
+
+Allow アイリ to talk to you and many other users in Telegram.
+
+## Getting started
 
 Clone & install dependencies:
 
 ```shell
 git clone git@github.com:moeru-ai/airi.git
-pnpm install
-cd services/continuous-bot
+pnpm i
 ```
 
-Run the bot:
+Create a `.env.local` file:
+
+```shell
+cd services/telegram-bot
+cp .env .env.local
+```
+
+Fill-in the following credentials as configurations:
+
+```shell
+DISCORD_TOKEN=''
+DISCORD_BOT_CLIENT_ID=''
+
+OPENAI_MODEL=''
+OPENAI_API_KEY=''
+OPENAI_API_BASE_URL=''
+```
+
+Start both DB and the bot:
 
 ```shell
 docker compose up -d
-
-OPENAI_API_BASE_URL='https://openrouter.ai/api/v1/' \
-OPENAI_API_KEY='<API Token>' \
-TELEGRAM_BOT_TOKEN='<Bot Token>' \
-pnpm run start
+pnpm run -F @proj-airi/telegram-bot start
 ```

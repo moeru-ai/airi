@@ -48,8 +48,8 @@ importers:
         specifier: ^65.4.0
         version: 65.4.0(eslint@9.18.0(jiti@2.4.0))(typescript@5.7.3)
       bumpp:
-        specifier: ^9.10.0
-        version: 9.10.0
+        specifier: ^9.10.1
+        version: 9.10.1
       cross-env:
         specifier: ^7.0.3
         version: 7.0.3
@@ -75,8 +75,8 @@ importers:
         specifier: ^2.11.1
         version: 2.11.1
       taze:
-        specifier: ^18.1.0
-        version: 18.1.0
+        specifier: ^18.2.0
+        version: 18.2.0
       typescript:
         specifier: ~5.7.3
         version: 5.7.3
@@ -139,8 +139,8 @@ importers:
         version: 3.5.13(typescript@5.7.3)
     devDependencies:
       '@huggingface/transformers':
-        specifier: ^3.2.4
-        version: 3.2.4
+        specifier: ^3.3.0
+        version: 3.3.0
       '@types/audioworklet':
         specifier: ^0.0.65
         version: 0.0.65
@@ -151,8 +151,8 @@ importers:
         specifier: ^5.2.1
         version: 5.2.1(vite@6.0.7(@types/node@22.10.6)(jiti@2.4.0)(less@4.2.1)(terser@5.17.6)(tsx@4.19.2)(yaml@2.6.1))(vue@3.5.13(typescript@5.7.3))
       '@webgpu/types':
-        specifier: ^0.1.52
-        version: 0.1.52
+        specifier: ^0.1.53
+        version: 0.1.53
       hfup:
         specifier: workspace:^
         version: link:../hfup
@@ -215,10 +215,10 @@ importers:
         version: 0.8.2
       '@gcornut/valibot-json-schema':
         specifier: ^0.42.0
-        version: 0.42.0(esbuild@0.24.2)(typescript@5.7.3)
+        version: 0.42.0(esbuild@0.23.1)(typescript@5.7.3)
       '@huggingface/transformers':
-        specifier: ^3.2.4
-        version: 3.2.4
+        specifier: ^3.3.0
+        version: 3.3.0
       '@pixi/app':
         specifier: '6'
         version: 6.5.10(@pixi/core@6.5.10(@pixi/constants@6.5.10)(@pixi/extensions@6.5.10)(@pixi/math@6.5.10)(@pixi/runner@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10))(@pixi/ticker@6.5.10(@pixi/extensions@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10)))(@pixi/utils@6.5.10(@pixi/constants@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10))))(@pixi/display@6.5.10(@pixi/constants@6.5.10)(@pixi/math@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10))(@pixi/utils@6.5.10(@pixi/constants@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10))))(@pixi/math@6.5.10)(@pixi/utils@6.5.10(@pixi/constants@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10)))
@@ -281,7 +281,7 @@ importers:
         version: 2.10.3
       '@typeschema/valibot':
         specifier: ^0.14.0
-        version: 0.14.0(@gcornut/valibot-json-schema@0.42.0(esbuild@0.24.2)(typescript@5.7.3))(@types/json-schema@7.0.15)(valibot@1.0.0-beta.9(typescript@5.7.3))
+        version: 0.14.0(@gcornut/valibot-json-schema@0.42.0(esbuild@0.23.1)(typescript@5.7.3))(@types/json-schema@7.0.15)(valibot@1.0.0-beta.9(typescript@5.7.3))
       '@unhead/vue':
         specifier: ^1.11.18
         version: 1.11.18(vue@3.5.13(typescript@5.7.3))
@@ -349,8 +349,8 @@ importers:
         specifier: ^11.1.1
         version: 11.1.1
       shiki:
-        specifier: ^1.27.0
-        version: 1.27.0
+        specifier: ^1.27.2
+        version: 1.27.2
       three:
         specifier: ^0.172.0
         version: 0.172.0
@@ -416,8 +416,8 @@ importers:
         specifier: workspace:^
         version: link:../unplugin-live2d-sdk
       '@shikijs/markdown-it':
-        specifier: ^1.26.2
-        version: 1.26.2
+        specifier: ^1.27.2
+        version: 1.27.2
       '@types/markdown-it-link-attributes':
         specifier: ^3.0.5
         version: 3.0.5
@@ -456,7 +456,7 @@ importers:
         version: 28.0.0(@babel/parser@7.26.3)(@nuxt/kit@3.14.1592(rollup@2.79.1))(rollup@2.79.1)(vue@3.5.13(typescript@5.7.3))
       unplugin-vue-macros:
         specifier: ^2.13.8
-        version: 2.13.8(@vueuse/core@12.4.0(typescript@5.7.3))(esbuild@0.24.2)(rollup@2.79.1)(typescript@5.7.3)(vite@6.0.7(@types/node@22.10.6)(jiti@2.4.0)(less@4.2.1)(terser@5.17.6)(tsx@4.19.2)(yaml@2.6.1))(vue-tsc@2.2.0(typescript@5.7.3))(vue@3.5.13(typescript@5.7.3))
+        version: 2.13.8(@vueuse/core@12.4.0(typescript@5.7.3))(esbuild@0.23.1)(rollup@2.79.1)(typescript@5.7.3)(vite@6.0.7(@types/node@22.10.6)(jiti@2.4.0)(less@4.2.1)(terser@5.17.6)(tsx@4.19.2)(yaml@2.6.1))(vue-tsc@2.2.0(typescript@5.7.3))(vue@3.5.13(typescript@5.7.3))
       unplugin-vue-markdown:
         specifier: ^28.0.0
         version: 28.0.0(rollup@2.79.1)(vite@6.0.7(@types/node@22.10.6)(jiti@2.4.0)(less@4.2.1)(terser@5.17.6)(tsx@4.19.2)(yaml@2.6.1))
@@ -493,8 +493,8 @@ importers:
         specifier: ^0.42.0
         version: 0.42.0(esbuild@0.24.2)(typescript@5.7.3)
       '@huggingface/transformers':
-        specifier: ^3.2.4
-        version: 3.2.4
+        specifier: ^3.3.0
+        version: 3.3.0
       '@pixi/app':
         specifier: '6'
         version: 6.5.10(@pixi/core@6.5.10(@pixi/constants@6.5.10)(@pixi/extensions@6.5.10)(@pixi/math@6.5.10)(@pixi/runner@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10))(@pixi/ticker@6.5.10(@pixi/extensions@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10)))(@pixi/utils@6.5.10(@pixi/constants@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10))))(@pixi/display@6.5.10(@pixi/constants@6.5.10)(@pixi/math@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10))(@pixi/utils@6.5.10(@pixi/constants@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10))))(@pixi/math@6.5.10)(@pixi/utils@6.5.10(@pixi/constants@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10)))
@@ -625,8 +625,8 @@ importers:
         specifier: ^11.1.1
         version: 11.1.1
       shiki:
-        specifier: ^1.27.0
-        version: 1.27.0
+        specifier: ^1.27.2
+        version: 1.27.2
       three:
         specifier: ^0.172.0
         version: 0.172.0
@@ -689,8 +689,8 @@ importers:
         specifier: workspace:^
         version: link:../unplugin-live2d-sdk
       '@shikijs/markdown-it':
-        specifier: ^1.26.2
-        version: 1.26.2
+        specifier: ^1.27.2
+        version: 1.27.2
       '@types/markdown-it-link-attributes':
         specifier: ^3.0.5
         version: 3.0.5
@@ -783,14 +783,14 @@ importers:
         version: 3.5.13(typescript@5.7.3)
     devDependencies:
       '@huggingface/transformers':
-        specifier: ^3.2.4
-        version: 3.2.4
+        specifier: ^3.3.0
+        version: 3.3.0
       '@vitejs/plugin-vue':
         specifier: ^5.2.1
         version: 5.2.1(vite@6.0.7(@types/node@22.10.6)(jiti@2.4.0)(less@4.2.1)(terser@5.17.6)(tsx@4.19.2)(yaml@2.6.1))(vue@3.5.13(typescript@5.7.3))
       '@webgpu/types':
-        specifier: ^0.1.52
-        version: 0.1.52
+        specifier: ^0.1.53
+        version: 0.1.53
       hfup:
         specifier: workspace:^
         version: link:../hfup
@@ -810,8 +810,8 @@ importers:
         specifier: ^1.0.6
         version: 1.0.6
       '@huggingface/transformers':
-        specifier: ^3.2.4
-        version: 3.2.4
+        specifier: ^3.3.0
+        version: 3.3.0
       '@proj-airi/server-sdk':
         specifier: workspace:^
         version: link:../../packages/server-sdk
@@ -848,6 +848,9 @@ importers:
 
   services/telegram-bot:
     dependencies:
+      '@dotenvx/dotenvx':
+        specifier: ^1.33.0
+        version: 1.33.0
       '@gcornut/valibot-json-schema':
         specifier: ^0.42.0
         version: 0.42.0(esbuild@0.19.12)(typescript@5.7.3)
@@ -861,17 +864,17 @@ importers:
         specifier: ^0.14.0
         version: 0.14.0(@gcornut/valibot-json-schema@0.42.0(esbuild@0.19.12)(typescript@5.7.3))(@types/json-schema@7.0.15)(valibot@1.0.0-beta.9(typescript@5.7.3))
       '@xsai/generate-text':
-        specifier: ^0.0.22
-        version: 0.0.22
+        specifier: ^0.0.27
+        version: 0.0.27
       '@xsai/providers':
-        specifier: ^0.0.22
-        version: 0.0.22
+        specifier: ^0.0.27
+        version: 0.0.27
       '@xsai/shared-chat':
-        specifier: ^0.0.22
-        version: 0.0.22
+        specifier: ^0.0.27
+        version: 0.0.27
       '@xsai/tool':
-        specifier: ^0.0.22
-        version: 0.0.22(@types/json-schema@7.0.15)(@typeschema/valibot@0.14.0(@gcornut/valibot-json-schema@0.42.0(esbuild@0.19.12)(typescript@5.7.3))(@types/json-schema@7.0.15)(valibot@1.0.0-beta.9(typescript@5.7.3)))(@xsai/generate-text@0.0.22)
+        specifier: ^0.0.27
+        version: 0.0.27(@types/json-schema@7.0.15)(@typeschema/valibot@0.14.0(@gcornut/valibot-json-schema@0.42.0(esbuild@0.19.12)(typescript@5.7.3))(@types/json-schema@7.0.15)(valibot@1.0.0-beta.9(typescript@5.7.3)))(@xsai/generate-text@0.0.27)
       dotenv:
         specifier: ^16.4.7
         version: 16.4.7
@@ -879,13 +882,13 @@ importers:
         specifier: ^0.38.3
         version: 0.38.3(@types/pg@8.11.10)(pg@8.13.1)(react@18.3.1)
       grammy:
-        specifier: ^1.33.0
+        specifier: ^1.34.0
         version: 1.34.0
       pg:
         specifier: ^8.13.1
         version: 8.13.1
       remeda:
-        specifier: ^2.19.0
+        specifier: ^2.19.1
         version: 2.19.1
       sharp:
         specifier: ^0.33.5
@@ -977,10 +980,6 @@ packages:
 
   '@antfu/install-pkg@1.0.0':
     resolution: {integrity: sha512-xvX6P/lo1B3ej0OsaErAjqgFYzYVcJpamjLAFLYh9vRJngBrMoUG7aVnrGTeqM7yxbyTD5p3F2+0/QUEh8Vzhw==}
-
-  '@antfu/ni@0.23.2':
-    resolution: {integrity: sha512-FSEVWXvwroExDXUu8qV6Wqp2X3D1nJ0Li4LFymCyvCVrm7I3lNfG0zZWSWvGU1RE7891eTnFTyh31L3igOwNKQ==}
-    hasBin: true
 
   '@antfu/ni@23.2.0':
     resolution: {integrity: sha512-PsqWG9QcgTQ0eyEMxYaaJMxoCaCmy8InPkToC7MQuOHHUPQknMZtCrnzZSZDXk+X9Z93eGFh+v0mE2X6FWNtuw==}
@@ -2472,8 +2471,8 @@ packages:
     resolution: {integrity: sha512-F2FvuIc+w1blGsaqJI/OErRbWH6bVJDCBI8Rm5D86yZ2wlwrGERsfIaru7XUv9eYC3DMP3ixDRRtF0h6d8AZcQ==}
     engines: {node: '>=18'}
 
-  '@huggingface/transformers@3.2.4':
-    resolution: {integrity: sha512-XLXoC2lj72SXCftDh1ptmYwCrjDtky+WT7W51jZERU4jbKzEXz0qHC+vCZwGX+Q7nTFogdwIGU2SuaCG9XKBLA==}
+  '@huggingface/transformers@3.3.0':
+    resolution: {integrity: sha512-YIbAXgDfg92um/kFASQHawekTrJvlhZVoF1zU3daQC63YbCXws1RzexA86XfwDItpAisRL21fqTaURpjAyTj5g==}
 
   '@humanfs/core@0.19.1':
     resolution: {integrity: sha512-5DyQ4+1JEUzejeK1JGICcideyfUbGixgS9jNgex5nqkW+cY7WZhxBigmieN5Qnw9ZosSNVC9KQKyb+GUaGyKUA==}
@@ -3514,44 +3513,26 @@ packages:
   '@sec-ant/readable-stream@0.4.1':
     resolution: {integrity: sha512-831qok9r2t8AlxLko40y2ebgSDhenenCatLVeW/uBtnHPyhHOvG0C7TvfgecV+wHzIm5KUICgzmVpWS+IMEAeg==}
 
-  '@shikijs/core@1.26.2':
-    resolution: {integrity: sha512-ORyu3MrY7dCC7FDLDsFSkBM9b/AT9/Y8rH+UQ07Rtek48pp0ZhQOMPTKolqszP4bBCas6FqTZQYt18BBamVl/g==}
+  '@shikijs/core@1.27.2':
+    resolution: {integrity: sha512-ns1dokDr0KE1lQ9mWd4rqaBkhSApk0qGCK1+lOqwnkQSkVZ08UGqXj1Ef8dAcTMZNFkN6PSNjkL5TYNX7pyPbQ==}
 
-  '@shikijs/core@1.27.0':
-    resolution: {integrity: sha512-2RkIwaXVWxJQQw8JvqikTVe4gBxS3elH3qF3b7Ews1KdJc+TH9/nsVEftrtPn0bLOkdlMaGj5H2RBHpfWmRIcA==}
+  '@shikijs/engine-javascript@1.27.2':
+    resolution: {integrity: sha512-0JB7U5vJc16NShBdxv9hSSJYSKX79+32O7F4oXIxJLdYfomyFvx4B982ackUI9ftO9T3WwagkiiD3nOxOOLiGA==}
 
-  '@shikijs/engine-javascript@1.26.2':
-    resolution: {integrity: sha512-ngkIu9swLVo9Zt5QBtz5Sk08vmPcwuj01r7pPK/Zjmo2U2WyKMK4WMUMmkdQiUacdcLth0zt8u1onp4zhkFXKQ==}
+  '@shikijs/engine-oniguruma@1.27.2':
+    resolution: {integrity: sha512-FZYKD1KN7srvpkz4lbGLOYWlyDU4Rd+2RtuKfABTkafAPOFr+J6umfIwY/TzOQqfNtWjL7SAwPAO0dcOraRLaQ==}
 
-  '@shikijs/engine-javascript@1.27.0':
-    resolution: {integrity: sha512-1nzz37go+wb6uR97QSRtU4GEwx99efuucB6QI4R682wmPbti6LeWe5VcMNy8LJJt02GEYcZeJK6Lvq8YXBVNXA==}
+  '@shikijs/langs@1.27.2':
+    resolution: {integrity: sha512-MSrknKL0DbeXvhtSigMLIzjPOOQfvK7fsbcRv2NUUB0EvuTTomY8/U+lAkczYrXY2+dygKOapJKk8ScFYbtoNw==}
 
-  '@shikijs/engine-oniguruma@1.26.2':
-    resolution: {integrity: sha512-mlN7Qrs+w60nKrd7at7XkXSwz6728Pe34taDmHrG6LRHjzCqQ+ysg+/AT6/D2LMk0s2lsr71DjpI73430QP4/w==}
+  '@shikijs/markdown-it@1.27.2':
+    resolution: {integrity: sha512-jZfsrLhqqettpsRjKSiD+2AgIt7PfBQIX8X3qyiwSZrIjtcP6adb/hopj5tCXKYCbXA1bPe1T5QwNfylKSUvkw==}
 
-  '@shikijs/engine-oniguruma@1.27.0':
-    resolution: {integrity: sha512-x1XMJvQuToX2KhESav2cnaTFDEwpJ1bcczaXy8wlRWhPVVAGR/MxlWnJbhHFe+ETerQgdpLZN8l+EgO0rVfEFQ==}
+  '@shikijs/themes@1.27.2':
+    resolution: {integrity: sha512-Yw/uV7EijjWavIIZLoWneTAohcbBqEKj6XMX1bfMqO3llqTKsyXukPp1evf8qPqzUHY7ibauqEaQchhfi857mg==}
 
-  '@shikijs/langs@1.26.2':
-    resolution: {integrity: sha512-o5cdPycB2Kw3IgncHxWopWPiTkjAj7dG01fLkkUyj3glb5ftxL/Opecq9F54opMlrgXy7ZIqDERvFLlUzsCOuA==}
-
-  '@shikijs/langs@1.27.0':
-    resolution: {integrity: sha512-6fBE0OL17XGYlNj8IuHfKtTALLk6+CVAXw8Rj2y/K8NP646/hows9+XwzIFcvFo3wZ0fPAcPKQ9pwG6a1FBevw==}
-
-  '@shikijs/markdown-it@1.26.2':
-    resolution: {integrity: sha512-5RCfBSpXuHkfWs+q1s7iJ8bjsPWZkoxgzcXQ7fz2XrfO9Ldp2Bo0IpLZZwcMt6WR5zMx1dV1YM9tAUOmhWIgPw==}
-
-  '@shikijs/themes@1.26.2':
-    resolution: {integrity: sha512-y4Pn6PM5mODz/e3yF6jAUG7WLKJzqL2tJ5qMJCUkMUB1VRgtQVvoa1cHh7NScryGXyrYGJ8nPnRDhdv2rw0xpA==}
-
-  '@shikijs/themes@1.27.0':
-    resolution: {integrity: sha512-L21LFq8hdsrBUXLh0fxKRURwE1brSlofK3Onutpwk71/EddfPqv60PG+Cg/KawPi8B04Mwp66EWw1shQjcYfBQ==}
-
-  '@shikijs/types@1.26.2':
-    resolution: {integrity: sha512-PO2jucx2FIdlLBPYbIUlMtWSLs5ulcRcuV93cR3T65lkK5SJP4MGBRt9kmWGXiQc0f7+FHj/0BEawditZcI/fQ==}
-
-  '@shikijs/types@1.27.0':
-    resolution: {integrity: sha512-oOJdIeOnGo+hbM7MH+Ejpksse2ASex4DVHdvBoKyY3+26GEzG9PwM85BeXNGxUZuVxtVKo43sZl0qtJs/K2Zow==}
+  '@shikijs/types@1.27.2':
+    resolution: {integrity: sha512-DM9OWUyjmdYdnKDpaGB/GEn9XkToyK1tqxuqbmc5PV+5K8WjjwfygL3+cIvbkSw2v1ySwHDgqATq/+98pJ4Kyg==}
 
   '@shikijs/vscode-textmate@10.0.1':
     resolution: {integrity: sha512-fTIQwLF+Qhuws31iw7Ncl1R3HUDtGwIipiJ9iU+UsDUwMhegFcQKQHd51nZjb7CArq0MvON8rbgCGQYWHUKAdg==}
@@ -4325,8 +4306,8 @@ packages:
   '@vueuse/shared@12.4.0':
     resolution: {integrity: sha512-9yLgbHVIF12OSCojnjTIoZL1+UA10+O4E1aD6Hpfo/DKVm5o3SZIwz6CupqGy3+IcKI8d6Jnl26EQj/YucnW0Q==}
 
-  '@webgpu/types@0.1.52':
-    resolution: {integrity: sha512-eI883Nlag2hGIkhXxAnq8s4APpqXWuPL3Gbn2ghiU12UjLvfCbVqHK4XfXl3eLRTatqcMmeK7jws7IwWsGfbzw==}
+  '@webgpu/types@0.1.53':
+    resolution: {integrity: sha512-x+BLw/opaz9LiVyrMsP75nO1Rg0QfrACUYIbVSfGwY/w0DiWIPYYrpte6us//KZXinxFAOJl0+C17L1Vi2vmDw==}
 
   '@xmldom/xmldom@0.8.10':
     resolution: {integrity: sha512-2WALfTl4xo2SkGCYRt6rDTFfk9R1czmBvUQy12gK2KuRKIpWEhcbbzy8EZXtz/jkRqHX8bFEc6FC1HjX4TUWYw==}
@@ -4335,23 +4316,14 @@ packages:
   '@xsai/generate-speech@0.0.27':
     resolution: {integrity: sha512-rg8DCM+USidYp3YSUzjRZLtgpmROYDzphbj2yvIJKSQBKIUalvMRNOb6eJtViQhnwqvIlUbmGkkLF8A70aXHgw==}
 
-  '@xsai/generate-text@0.0.22':
-    resolution: {integrity: sha512-3ZkxR3QfN0lkcCD4NM6glkA9+cWxPodHx73qnlSKzFV/m1McAI42JPKWpFOxfQdxkAQAkZ5cD5Et7PZs8Rc7bQ==}
-
   '@xsai/generate-text@0.0.27':
     resolution: {integrity: sha512-pkmBvNwL2AxWh0CUKnurbKzXtZpZ+x4VAXqiX8MrbnKxUPfYqUaz8k/BZ2yKvda+Y+9r3KNNFVfTWrNK5ofzwQ==}
 
   '@xsai/model@0.0.27':
     resolution: {integrity: sha512-2ckL7bLscS+viib7zi/gFS4M55Q7hi19cfDmSWNOXJ7ELCoFo6n2A2BWTuNXye/K5kfU6/StNYo9kvxGL2CQyQ==}
 
-  '@xsai/providers@0.0.22':
-    resolution: {integrity: sha512-TinCtYJvnWB5MY4WuWzL/svbD0vrx3znRQglVUuPIGMqm3MCaGyvQk0hq9GK8FdGkyb/LZikxT2N8lB6NaHPBw==}
-
   '@xsai/providers@0.0.27':
     resolution: {integrity: sha512-UWAzbCrZuJYL49CSH1LDs8ZHP6SC3wnXfgwMJfSRWIFPM8OsxYBe56//6yzZKaapfv0RSHnsPevfaZVM577BMw==}
-
-  '@xsai/shared-chat@0.0.22':
-    resolution: {integrity: sha512-VQHGrUkNrUj50TRho/qClPbeJLNjEbTC+MvDNTxuYrxcGydpkImP+SLmcpvdsSUjbr3GlGeZfpWrq/Y1WbreQQ==}
 
   '@xsai/shared-chat@0.0.27':
     resolution: {integrity: sha512-2w156XQ9N4FxwbcKeOU4DrHMssOSTt5NgY2WRDQvyTLaUkQSHyCmLkvPdDZxk8C03lR8RvnrlBqNZr0uW106yw==}
@@ -4362,10 +4334,10 @@ packages:
   '@xsai/stream-text@0.0.27':
     resolution: {integrity: sha512-q23LkBFAyDb5gPZ8LxDSXayt98QtHDgwXwz8t2RyViz/58UD5Ffd+OLTtAJQ5kj0RQJTHRV7mDokcwzt4nTxyA==}
 
-  '@xsai/tool@0.0.22':
-    resolution: {integrity: sha512-4JJRaSJ77rMZrzsqzuPf90KQvquXFApvmKyXAv5InzSLltsTu5muC0YvNGCy9MAN50FCpLuBqt9CXusccLB8DQ==}
+  '@xsai/tool@0.0.27':
+    resolution: {integrity: sha512-x3fL3+CR3jidM7LxhpmPCXLR7sYDsFFzk/KlviuEmLVO/6yOAqTEOt93aWh68ZsqsmlMYp2NVpMT5r3Y7ss3Jg==}
     peerDependencies:
-      '@xsai/generate-text': 0.0.22
+      '@xsai/generate-text': 0.0.27
     peerDependenciesMeta:
       '@xsai/generate-text':
         optional: true
@@ -4643,8 +4615,8 @@ packages:
     resolution: {integrity: sha512-zhaCDicdLuWN5UbN5IMnFqNMhNfo919sH85y2/ea+5Yg9TsTkeZxpL+JLbp6cgYFS4sRLp3YV4S6yDuqVWHYOw==}
     engines: {node: '>=6'}
 
-  bumpp@9.10.0:
-    resolution: {integrity: sha512-gNY3tYEGKyqW8+qtpeLQ2UfQW7G81d/vhCWNGrMlvy0Toq1LZPRs8wk9woAw8o9Tzv7pvjaF/Gno+UN3qiqNxA==}
+  bumpp@9.10.1:
+    resolution: {integrity: sha512-KG7oQmv6cz7QQwOvM3x/yPcF8+VBEtuLEEecmohNyb4+bLbtSVpJp8brjzcZYQN7UOyR4i0qIIYThnsBgP8uCA==}
     engines: {node: '>=10'}
     hasBin: true
 
@@ -7153,8 +7125,8 @@ packages:
     resolution: {integrity: sha512-1FlR+gjXK7X+AsAHso35MnyN5KqGwJRi/31ft6x0M194ht7S+rWAvd7PHss9xSKMzE0asv1pyIHaJYq+BbacAQ==}
     engines: {node: '>=12'}
 
-  oniguruma-to-es@1.0.0:
-    resolution: {integrity: sha512-kihvp0O4lFwf5tZMkfanwQLIZ9ORe9OeOFgZonH0BQeThgwfJiaZFeOfvvJVnJIM9TiVmx0RDD35hUJDR0++rQ==}
+  oniguruma-to-es@2.0.0:
+    resolution: {integrity: sha512-pE7+9jQgomy10aK6BJKRNHj1Nth0YLOzb3iRuhlz4gRzNSBSd7hga6U8BE6o0SoSuSkqv+PPtt511Msd1Hkl0w==}
 
   onnx-proto@4.0.4:
     resolution: {integrity: sha512-aldMOB3HRoo6q/phyB6QRQxSt895HNNw82BNyZ2CMh4bjeKv7g/c+VpAFtJuEMVfYLMbRx61hbuqnKceLeDcDA==}
@@ -7165,8 +7137,8 @@ packages:
   onnxruntime-common@1.20.1:
     resolution: {integrity: sha512-YiU0s0IzYYC+gWvqD1HzLc46Du1sXpSiwzKb63PACIJr6LfL27VsXSXQvt68EzD3V0D5Bc0vyJTjmMxp0ylQiw==}
 
-  onnxruntime-common@1.21.0-dev.20241205-6ed77cc374:
-    resolution: {integrity: sha512-U4DGq/dZiboIEK0Zv1KUuWJesJ/txUALpWSXwI8kqOCSxe8GrI65xfRFeMbqYFhPVGAWZPsBpT1zo1s4ksrlrg==}
+  onnxruntime-common@1.21.0-dev.20241212-1f88284f96:
+    resolution: {integrity: sha512-zD6mQJfgeezbNKV2fiN/ZqB+LKdixJ7sKc5vu6PdqMU+bZk581g5XqrhoYNwe/RDJdFGQSMKK9+gUg4Mep+jKw==}
 
   onnxruntime-node@1.20.1:
     resolution: {integrity: sha512-di/I4HDXRw+FLgq+TyHmQEDd3cEp9iFFZm0r4uJ1Wd7b/WE1VXtKWo8yemex347c6GNF/3Pv86ZfPhIWxORr0w==}
@@ -7178,8 +7150,8 @@ packages:
   onnxruntime-web@1.20.1:
     resolution: {integrity: sha512-TePF6XVpLL1rWVMIl5Y9ACBQcyCNFThZON/jgElNd9Txb73CIEGlklhYR3UEr1cp5r0rbGI6nDwwrs79g7WjoA==}
 
-  onnxruntime-web@1.21.0-dev.20241205-d27fecd3d3:
-    resolution: {integrity: sha512-neeC9mv1sFWjUFrTaDl7enufNxbtSSTwR5V2i35ga4yXWS6r1MbpUwWwD1X+VKANujbSG8M5pk/ohRAOm2QhMQ==}
+  onnxruntime-web@1.21.0-dev.20250111-73f5b0c597:
+    resolution: {integrity: sha512-xk0FmmsJg9uFm38POs2ACtwXCyzivWnMyyXJ7/hlWFFAJC0/DiSl4saHAYTApXXye3RZuoqD3LfnLxaLl9AldQ==}
 
   open@10.1.0:
     resolution: {integrity: sha512-mnkeQ1qP5Ue2wd+aivTD3NHd/lZ96Lu0jgf0pwktLPtx6cTZiH7tyeGRRHs0zX0rbrahXPnXlUnbeXyaBBuIaw==}
@@ -8056,11 +8028,8 @@ packages:
     resolution: {integrity: sha512-7++dFhtcx3353uBaq8DDR4NuxBetBzC7ZQOhmTQInHEd6bSrXdiEyzCvG07Z44UYdLShWUyXt5M/yhz8ekcb1A==}
     engines: {node: '>=8'}
 
-  shiki@1.26.2:
-    resolution: {integrity: sha512-iP7u2NA9A6JwRRCkIUREEX2cMhlYV5EBmbbSlfSRvPThwca8HBRbVkWuNWW+kw9+i6BSUZqqG6YeUs5dC2SjZw==}
-
-  shiki@1.27.0:
-    resolution: {integrity: sha512-PdrOqs36vGmftWETJJF6IJAUDS0ERYOYofHCBTHpLTvWLC8E/E6lyh+Xm1lMIZ/sBWT5uJSmri6NNW5ZDglMqQ==}
+  shiki@1.27.2:
+    resolution: {integrity: sha512-QtA1C41oEVixKog+V8I3ia7jjGls7oCZ8Yul8vdHrVBga5uPoyTtMvFF4lMMXIyAZo5A5QbXq91bot2vA6Q+eQ==}
 
   side-channel@1.0.6:
     resolution: {integrity: sha512-fDW/EZ6Q9RiO8eFG8Hj+7u/oW+XrPTIChwCOM2+th2A6OblDtYYIpve9m+KvI9Z4C9qSEXlaGR6bTEYHReuglA==}
@@ -8359,8 +8328,8 @@ packages:
     resolution: {integrity: sha512-5S7Va8hKfV7W5U6g3aYxXmlPoZVAwUMy9AOKyF2fVuZa2UD3qZjg578OrLRt8PcNN1PleVaL/5/yYATNL0ICUw==}
     engines: {node: '>=18'}
 
-  taze@18.1.0:
-    resolution: {integrity: sha512-Mc/PtV3ZePomBPUAzTHVALOq2fbMPR/f7MjWljZ0YHJa9UsteyNfACcAZOhO/nWXKp9C544mSo/woRx7wTkU7g==}
+  taze@18.2.0:
+    resolution: {integrity: sha512-rjKW+/AJ8KTBl27cyCo6jtk6j9r3axN8olOOBhA12UciMLDXn79wZG09Nb3t1r51m1pqV8nOz98vKaFDerTe2g==}
     hasBin: true
 
   telegram@2.26.16:
@@ -9350,8 +9319,6 @@ snapshots:
     dependencies:
       package-manager-detector: 0.2.8
       tinyexec: 0.3.2
-
-  '@antfu/ni@0.23.2': {}
 
   '@antfu/ni@23.2.0': {}
 
@@ -10761,6 +10728,16 @@ snapshots:
       - esbuild
       - typescript
 
+  '@gcornut/valibot-json-schema@0.42.0(esbuild@0.23.1)(typescript@5.7.3)':
+    dependencies:
+      valibot: 0.42.1(typescript@5.7.3)
+    optionalDependencies:
+      '@types/json-schema': 7.0.15
+      esbuild-runner: 2.2.2(esbuild@0.23.1)
+    transitivePeerDependencies:
+      - esbuild
+      - typescript
+
   '@gcornut/valibot-json-schema@0.42.0(esbuild@0.24.2)(typescript@5.7.3)':
     dependencies:
       valibot: 0.42.1(typescript@5.7.3)
@@ -10784,11 +10761,11 @@ snapshots:
 
   '@huggingface/jinja@0.3.2': {}
 
-  '@huggingface/transformers@3.2.4':
+  '@huggingface/transformers@3.3.0':
     dependencies:
       '@huggingface/jinja': 0.3.2
       onnxruntime-node: 1.20.1
-      onnxruntime-web: 1.21.0-dev.20241205-d27fecd3d3
+      onnxruntime-web: 1.21.0-dev.20250111-73f5b0c597
       sharp: 0.33.5
 
   '@humanfs/core@0.19.1': {}
@@ -11832,73 +11809,40 @@ snapshots:
 
   '@sec-ant/readable-stream@0.4.1': {}
 
-  '@shikijs/core@1.26.2':
+  '@shikijs/core@1.27.2':
     dependencies:
-      '@shikijs/engine-javascript': 1.26.2
-      '@shikijs/engine-oniguruma': 1.26.2
-      '@shikijs/types': 1.26.2
+      '@shikijs/engine-javascript': 1.27.2
+      '@shikijs/engine-oniguruma': 1.27.2
+      '@shikijs/types': 1.27.2
       '@shikijs/vscode-textmate': 10.0.1
       '@types/hast': 3.0.4
       hast-util-to-html: 9.0.4
 
-  '@shikijs/core@1.27.0':
+  '@shikijs/engine-javascript@1.27.2':
     dependencies:
-      '@shikijs/engine-javascript': 1.27.0
-      '@shikijs/engine-oniguruma': 1.27.0
-      '@shikijs/types': 1.27.0
+      '@shikijs/types': 1.27.2
       '@shikijs/vscode-textmate': 10.0.1
-      '@types/hast': 3.0.4
-      hast-util-to-html: 9.0.4
+      oniguruma-to-es: 2.0.0
 
-  '@shikijs/engine-javascript@1.26.2':
+  '@shikijs/engine-oniguruma@1.27.2':
     dependencies:
-      '@shikijs/types': 1.26.2
-      '@shikijs/vscode-textmate': 10.0.1
-      oniguruma-to-es: 1.0.0
-
-  '@shikijs/engine-javascript@1.27.0':
-    dependencies:
-      '@shikijs/types': 1.27.0
-      '@shikijs/vscode-textmate': 10.0.1
-      oniguruma-to-es: 1.0.0
-
-  '@shikijs/engine-oniguruma@1.26.2':
-    dependencies:
-      '@shikijs/types': 1.26.2
+      '@shikijs/types': 1.27.2
       '@shikijs/vscode-textmate': 10.0.1
 
-  '@shikijs/engine-oniguruma@1.27.0':
+  '@shikijs/langs@1.27.2':
     dependencies:
-      '@shikijs/types': 1.27.0
-      '@shikijs/vscode-textmate': 10.0.1
+      '@shikijs/types': 1.27.2
 
-  '@shikijs/langs@1.26.2':
-    dependencies:
-      '@shikijs/types': 1.26.2
-
-  '@shikijs/langs@1.27.0':
-    dependencies:
-      '@shikijs/types': 1.27.0
-
-  '@shikijs/markdown-it@1.26.2':
+  '@shikijs/markdown-it@1.27.2':
     dependencies:
       markdown-it: 14.1.0
-      shiki: 1.26.2
+      shiki: 1.27.2
 
-  '@shikijs/themes@1.26.2':
+  '@shikijs/themes@1.27.2':
     dependencies:
-      '@shikijs/types': 1.26.2
+      '@shikijs/types': 1.27.2
 
-  '@shikijs/themes@1.27.0':
-    dependencies:
-      '@shikijs/types': 1.27.0
-
-  '@shikijs/types@1.26.2':
-    dependencies:
-      '@shikijs/vscode-textmate': 10.0.1
-      '@types/hast': 3.0.4
-
-  '@shikijs/types@1.27.0':
+  '@shikijs/types@1.27.2':
     dependencies:
       '@shikijs/vscode-textmate': 10.0.1
       '@types/hast': 3.0.4
@@ -12095,7 +12039,7 @@ snapshots:
       '@tweenjs/tween.js': 23.1.3
       '@types/stats.js': 0.17.3
       '@types/webxr': 0.5.20
-      '@webgpu/types': 0.1.52
+      '@webgpu/types': 0.1.53
       fflate: 0.8.2
       meshoptimizer: 0.18.1
 
@@ -12135,6 +12079,15 @@ snapshots:
       '@typeschema/core': 0.14.0(@types/json-schema@7.0.15)
     optionalDependencies:
       '@gcornut/valibot-json-schema': 0.42.0(esbuild@0.19.12)(typescript@5.7.3)
+      valibot: 1.0.0-beta.9(typescript@5.7.3)
+    transitivePeerDependencies:
+      - '@types/json-schema'
+
+  '@typeschema/valibot@0.14.0(@gcornut/valibot-json-schema@0.42.0(esbuild@0.23.1)(typescript@5.7.3))(@types/json-schema@7.0.15)(valibot@1.0.0-beta.9(typescript@5.7.3))':
+    dependencies:
+      '@typeschema/core': 0.14.0(@types/json-schema@7.0.15)
+    optionalDependencies:
+      '@gcornut/valibot-json-schema': 0.42.0(esbuild@0.23.1)(typescript@5.7.3)
       valibot: 1.0.0-beta.9(typescript@5.7.3)
     transitivePeerDependencies:
       - '@types/json-schema'
@@ -13284,17 +13237,13 @@ snapshots:
     transitivePeerDependencies:
       - typescript
 
-  '@webgpu/types@0.1.52': {}
+  '@webgpu/types@0.1.53': {}
 
   '@xmldom/xmldom@0.8.10': {}
 
   '@xsai/generate-speech@0.0.27':
     dependencies:
       '@xsai/shared': 0.0.27
-
-  '@xsai/generate-text@0.0.22':
-    dependencies:
-      '@xsai/shared-chat': 0.0.27
 
   '@xsai/generate-text@0.0.27':
     dependencies:
@@ -13304,15 +13253,7 @@ snapshots:
     dependencies:
       '@xsai/shared': 0.0.27
 
-  '@xsai/providers@0.0.22':
-    dependencies:
-      '@xsai/shared': 0.0.27
-
   '@xsai/providers@0.0.27':
-    dependencies:
-      '@xsai/shared': 0.0.27
-
-  '@xsai/shared-chat@0.0.22':
     dependencies:
       '@xsai/shared': 0.0.27
 
@@ -13326,12 +13267,12 @@ snapshots:
     dependencies:
       '@xsai/shared-chat': 0.0.27
 
-  '@xsai/tool@0.0.22(@types/json-schema@7.0.15)(@typeschema/valibot@0.14.0(@gcornut/valibot-json-schema@0.42.0(esbuild@0.19.12)(typescript@5.7.3))(@types/json-schema@7.0.15)(valibot@1.0.0-beta.9(typescript@5.7.3)))(@xsai/generate-text@0.0.22)':
+  '@xsai/tool@0.0.27(@types/json-schema@7.0.15)(@typeschema/valibot@0.14.0(@gcornut/valibot-json-schema@0.42.0(esbuild@0.19.12)(typescript@5.7.3))(@types/json-schema@7.0.15)(valibot@1.0.0-beta.9(typescript@5.7.3)))(@xsai/generate-text@0.0.27)':
     dependencies:
       '@typeschema/main': 0.14.1(@types/json-schema@7.0.15)(@typeschema/valibot@0.14.0(@gcornut/valibot-json-schema@0.42.0(esbuild@0.19.12)(typescript@5.7.3))(@types/json-schema@7.0.15)(valibot@1.0.0-beta.9(typescript@5.7.3)))
       '@xsai/shared': 0.0.27
     optionalDependencies:
-      '@xsai/generate-text': 0.0.22
+      '@xsai/generate-text': 0.0.27
     transitivePeerDependencies:
       - '@types/json-schema'
       - '@typeschema/arktype'
@@ -13704,7 +13645,7 @@ snapshots:
 
   builtin-modules@3.3.0: {}
 
-  bumpp@9.10.0:
+  bumpp@9.10.1:
     dependencies:
       c12: 2.0.1
       cac: 6.7.14
@@ -14521,6 +14462,13 @@ snapshots:
   esbuild-runner@2.2.2(esbuild@0.19.12):
     dependencies:
       esbuild: 0.19.12
+      source-map-support: 0.5.21
+      tslib: 2.4.0
+    optional: true
+
+  esbuild-runner@2.2.2(esbuild@0.23.1):
+    dependencies:
+      esbuild: 0.23.1
       source-map-support: 0.5.21
       tslib: 2.4.0
     optional: true
@@ -16712,7 +16660,7 @@ snapshots:
     dependencies:
       mimic-fn: 4.0.0
 
-  oniguruma-to-es@1.0.0:
+  oniguruma-to-es@2.0.0:
     dependencies:
       emoji-regex-xs: 1.0.0
       regex: 5.1.1
@@ -16726,7 +16674,7 @@ snapshots:
 
   onnxruntime-common@1.20.1: {}
 
-  onnxruntime-common@1.21.0-dev.20241205-6ed77cc374: {}
+  onnxruntime-common@1.21.0-dev.20241212-1f88284f96: {}
 
   onnxruntime-node@1.20.1:
     dependencies:
@@ -16751,12 +16699,12 @@ snapshots:
       platform: 1.3.6
       protobufjs: 7.4.0
 
-  onnxruntime-web@1.21.0-dev.20241205-d27fecd3d3:
+  onnxruntime-web@1.21.0-dev.20250111-73f5b0c597:
     dependencies:
       flatbuffers: 1.12.0
       guid-typescript: 1.0.9
       long: 5.2.3
-      onnxruntime-common: 1.21.0-dev.20241205-6ed77cc374
+      onnxruntime-common: 1.21.0-dev.20241212-1f88284f96
       platform: 1.3.6
       protobufjs: 7.4.0
 
@@ -17746,25 +17694,14 @@ snapshots:
 
   shebang-regex@3.0.0: {}
 
-  shiki@1.26.2:
+  shiki@1.27.2:
     dependencies:
-      '@shikijs/core': 1.26.2
-      '@shikijs/engine-javascript': 1.26.2
-      '@shikijs/engine-oniguruma': 1.26.2
-      '@shikijs/langs': 1.26.2
-      '@shikijs/themes': 1.26.2
-      '@shikijs/types': 1.26.2
-      '@shikijs/vscode-textmate': 10.0.1
-      '@types/hast': 3.0.4
-
-  shiki@1.27.0:
-    dependencies:
-      '@shikijs/core': 1.27.0
-      '@shikijs/engine-javascript': 1.27.0
-      '@shikijs/engine-oniguruma': 1.27.0
-      '@shikijs/langs': 1.27.0
-      '@shikijs/themes': 1.27.0
-      '@shikijs/types': 1.27.0
+      '@shikijs/core': 1.27.2
+      '@shikijs/engine-javascript': 1.27.2
+      '@shikijs/engine-oniguruma': 1.27.2
+      '@shikijs/langs': 1.27.2
+      '@shikijs/themes': 1.27.2
+      '@shikijs/types': 1.27.2
       '@shikijs/vscode-textmate': 10.0.1
       '@types/hast': 3.0.4
 
@@ -18078,9 +18015,9 @@ snapshots:
       mkdirp: 3.0.1
       yallist: 5.0.0
 
-  taze@18.1.0:
+  taze@18.2.0:
     dependencies:
-      '@antfu/ni': 0.23.2
+      '@antfu/ni': 23.2.0
       js-yaml: 4.1.0
       ofetch: 1.4.1
       package-manager-detector: 0.2.8
@@ -18556,12 +18493,12 @@ snapshots:
     transitivePeerDependencies:
       - rollup
 
-  unplugin-combine@1.0.3(esbuild@0.24.2)(rollup@2.79.1)(vite@6.0.7(@types/node@22.10.6)(jiti@2.4.0)(less@4.2.1)(terser@5.17.6)(tsx@4.19.2)(yaml@2.6.1)):
+  unplugin-combine@1.0.3(esbuild@0.23.1)(rollup@2.79.1)(vite@6.0.7(@types/node@22.10.6)(jiti@2.4.0)(less@4.2.1)(terser@5.17.6)(tsx@4.19.2)(yaml@2.6.1)):
     dependencies:
       '@antfu/utils': 0.7.10
       unplugin: 1.16.0
     optionalDependencies:
-      esbuild: 0.24.2
+      esbuild: 0.23.1
       rollup: 2.79.1
       vite: 6.0.7(@types/node@22.10.6)(jiti@2.4.0)(less@4.2.1)(terser@5.17.6)(tsx@4.19.2)(yaml@2.6.1)
 
@@ -18632,7 +18569,7 @@ snapshots:
       - rollup
       - vue
 
-  unplugin-vue-macros@2.13.8(@vueuse/core@12.4.0(typescript@5.7.3))(esbuild@0.24.2)(rollup@2.79.1)(typescript@5.7.3)(vite@6.0.7(@types/node@22.10.6)(jiti@2.4.0)(less@4.2.1)(terser@5.17.6)(tsx@4.19.2)(yaml@2.6.1))(vue-tsc@2.2.0(typescript@5.7.3))(vue@3.5.13(typescript@5.7.3)):
+  unplugin-vue-macros@2.13.8(@vueuse/core@12.4.0(typescript@5.7.3))(esbuild@0.23.1)(rollup@2.79.1)(typescript@5.7.3)(vite@6.0.7(@types/node@22.10.6)(jiti@2.4.0)(less@4.2.1)(terser@5.17.6)(tsx@4.19.2)(yaml@2.6.1))(vue-tsc@2.2.0(typescript@5.7.3))(vue@3.5.13(typescript@5.7.3)):
     dependencies:
       '@vue-macros/better-define': 1.11.1(rollup@2.79.1)(vue@3.5.13(typescript@5.7.3))
       '@vue-macros/boolean-prop': 0.5.3(rollup@2.79.1)(vue@3.5.13(typescript@5.7.3))
@@ -18664,7 +18601,7 @@ snapshots:
       '@vue-macros/short-vmodel': 1.5.3(rollup@2.79.1)(vue@3.5.13(typescript@5.7.3))
       '@vue-macros/volar': 0.30.10(rollup@2.79.1)(typescript@5.7.3)(vue-tsc@2.2.0(typescript@5.7.3))(vue@3.5.13(typescript@5.7.3))
       unplugin: 1.16.0
-      unplugin-combine: 1.0.3(esbuild@0.24.2)(rollup@2.79.1)(vite@6.0.7(@types/node@22.10.6)(jiti@2.4.0)(less@4.2.1)(terser@5.17.6)(tsx@4.19.2)(yaml@2.6.1))
+      unplugin-combine: 1.0.3(esbuild@0.23.1)(rollup@2.79.1)(vite@6.0.7(@types/node@22.10.6)(jiti@2.4.0)(less@4.2.1)(terser@5.17.6)(tsx@4.19.2)(yaml@2.6.1))
       unplugin-vue-define-options: 1.5.3(rollup@2.79.1)(vue@3.5.13(typescript@5.7.3))
       vue: 3.5.13(typescript@5.7.3)
     transitivePeerDependencies:

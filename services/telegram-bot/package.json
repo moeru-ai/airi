@@ -15,22 +15,23 @@
     "directory": "services/telegram-bot"
   },
   "scripts": {
-    "start": "tsx ./src/index.ts"
+    "start": "dotenvx run -f .env.local -f .env --ignore=MISSING_ENV_FILE -- tsx src/index.ts"
   },
   "dependencies": {
+    "@dotenvx/dotenvx": "^1.33.0",
     "@gcornut/valibot-json-schema": "^0.42.0",
     "@grammyjs/files": "^1.1.1",
     "@guiiai/logg": "^1.0.6",
     "@typeschema/valibot": "^0.14.0",
-    "@xsai/generate-text": "^0.0.22",
-    "@xsai/providers": "^0.0.22",
-    "@xsai/shared-chat": "^0.0.22",
-    "@xsai/tool": "^0.0.22",
+    "@xsai/generate-text": "^0.0.27",
+    "@xsai/providers": "^0.0.27",
+    "@xsai/shared-chat": "^0.0.27",
+    "@xsai/tool": "^0.0.27",
     "dotenv": "^16.4.7",
     "drizzle-orm": "^0.38.3",
-    "grammy": "^1.33.0",
+    "grammy": "^1.34.0",
     "pg": "^8.13.1",
-    "remeda": "^2.19.0",
+    "remeda": "^2.19.1",
     "sharp": "^0.33.5",
     "telegram": "^2.26.16",
     "valibot": "1.0.0-beta.9"
