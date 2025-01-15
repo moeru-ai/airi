@@ -5,9 +5,9 @@
     "types": ["electron-vite/node"]
   },
   "include": [
+    "renderer.vite.config.*",
     "electron.vite.config.*",
     "src/main/**/*",
-    "src/preload/**/*",
-    "../../vite-plugins/**/*"
+    "src/preload/**/*"
   ]
 }

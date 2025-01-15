@@ -1,7 +1,7 @@
 import { join } from 'node:path'
 import { env, platform } from 'node:process'
 import { electronApp, is, optimizer } from '@electron-toolkit/utils'
-import { app, BrowserWindow, ipcMain, shell } from 'electron'
+import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron'
 import icon from '../../build/icon.png?asset'
 
 function createWindow(): void {
@@ -50,6 +50,47 @@ function createWindow(): void {
   })
 }
 
+let settingsWindow: BrowserWindow | null = null
+
+function createSettingsWindow(): void {
+  if (settingsWindow) {
+    settingsWindow.show()
+    return
+  }
+
+  settingsWindow = new BrowserWindow({
+    width: 300,
+    height: 400,
+    show: false,
+    webPreferences: {
+      preload: join(import.meta.dirname, '..', 'preload', 'index.js'),
+      sandbox: false,
+    },
+  })
+
+  settingsWindow.on('ready-to-show', () => {
+    settingsWindow?.show()
+  })
+
+  settingsWindow.webContents.setWindowOpenHandler((details) => {
+    shell.openExternal(details.url)
+    return { action: 'deny' }
+  })
+
+  settingsWindow.on('close', () => {
+    settingsWindow = null
+  })
+
+  settingsWindow.show()
+
+  if (is.dev && env.ELECTRON_RENDERER_URL) {
+    settingsWindow.loadURL(join(env.ELECTRON_RENDERER_URL, 'settings'))
+  }
+  else {
+    settingsWindow.loadFile(join(import.meta.dirname, '..', '..', 'out', 'renderer', 'index.html', 'settings'))
+  }
+}
+
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
@@ -65,7 +106,21 @@ app.whenReady().then(() => {
   })
 
   // IPC test
-  ipcMain.on('quit', () => app.quit())
+  // TODO: i18n
+  ipcMain.on('quit', () => {
+    dialog.showMessageBox({
+      type: 'info',
+      title: 'Quit',
+      message: 'Are you sure you want to quit?',
+      buttons: ['Quit', 'Cancel'],
+    }).then((result) => {
+      if (result.response === 0) {
+        app.quit()
+      }
+    })
+  })
+
+  ipcMain.on('open-settings', () => createSettingsWindow())
 
   createWindow()
 

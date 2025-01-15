@@ -65,10 +65,14 @@ onMounted(async () => {
 
   supportedModels.value = await models(openAiApiBaseURL.value, openAiApiKey.value)
 })
+
+function handleQuit() {
+  window.electron.ipcRenderer.send('quit')
+}
 </script>
 
 <template>
-  <div>
+  <div m-4>
     <h2 text="slate-800/80" font-bold>
       Settings
     </h2>
@@ -195,6 +199,24 @@ onMounted(async () => {
             3D
           </option>
         </select>
+      </div>
+    </div>
+    <h2 text="slate-800/80" font-bold>
+      Other
+    </h2>
+    <div pb-2>
+      <div
+        grid="~ cols-[140px_1fr]" my-2 items-center gap-1.5 rounded-lg
+        bg="[#fff6fc]" p-2 text="pink-400" @click="handleQuit"
+      >
+        <div text="xs pink-500">
+          <span>
+            Quit
+          </span>
+        </div>
+        <div text="sm pink-500" text-right>
+          <div i-solar:exit-bold-duotone ml-auto />
+        </div>
       </div>
     </div>
   </div>
