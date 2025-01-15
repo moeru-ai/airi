@@ -7,11 +7,9 @@ import { useChatStore, useSettings } from '@proj-airi/stage-ui/stores'
 
 // import { useDevicesList } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { DrawerContent, DrawerPortal, DrawerRoot, DrawerTrigger } from 'vaul-vue'
 import { onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import TamagotchiChatHistory from './ChatHistory.vue'
-import TamagotchiSettings from './Settings.vue'
 
 const messageInput = ref('')
 const listening = ref(false)
@@ -72,6 +70,10 @@ function handleTranscription(_buffer: Float32Array<ArrayBufferLike>) {
 //   selectedAudioDevice.value = found
 // }
 
+function openSettings() {
+  window.electron.ipcRenderer.send('open-settings')
+}
+
 watch(isAudioInputOn, async (value) => {
   if (value === 'false') {
     destroy()
@@ -103,26 +105,16 @@ onMounted(() => {
           @submit="handleSend"
         />
       </div>
-      <DrawerRoot should-scale-background>
-        <DrawerTrigger
-          class="px-4 py-2.5"
-          border="solid 2 pink-100 "
-          text="lg pink-400 hover:pink-600  placeholder:pink-400 placeholder:hover:pink-600"
-          bg="pink-50 dark:[#3c2632]" max-h="[10lh]" min-h="[1lh]" rounded-r-xl
-        >
-          <div i-solar:settings-bold-duotone />
-        </DrawerTrigger>
-        <DrawerPortal>
-          <DrawerContent
-            max-h="[90%]"
-            fixed bottom-0 left-0 right-0 z-50 mt-24 h-full flex flex-col rounded-t-lg bg="[#fffbff] dark:[#1f1a1d]"
-          >
-            <div class="flex flex-1 flex-col rounded-t-lg p-5" bg="[#fffbff] dark:[#1f1a1d]" gap-2>
-              <TamagotchiSettings />
-            </div>
-          </DrawerContent>
-        </DrawerPortal>
-      </DrawerRoot>
+      <div
+        class="px-4 py-2.5"
+        border="solid 2 pink-100 "
+        text="lg pink-400 hover:pink-600  placeholder:pink-400 placeholder:hover:pink-600"
+        bg="pink-50 dark:[#3c2632]" max-h="[10lh]" min-h="[1lh]"
+        flex items-center justify-center rounded-r-xl
+        @click="openSettings"
+      >
+        <div i-solar:settings-bold-duotone />
+      </div>
     </div>
   </div>
 </template>
