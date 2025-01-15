@@ -26,9 +26,14 @@ pnpm dev
 
 ## 类似项目
 
-- [InsanityLabs/AIVTuber](https://github.com/InsanityLabs/AIVTuber?tab=readme-ov-file)
+- [SugarcaneDefender/z-waif](https://github.com/SugarcaneDefender/z-waif): Great at gaming, autonomous, and prompt engineering
+- [semperai/amica](https://github.com/semperai/amica/): Great at VRM, WebXR
+- [elizaOS/eliza](https://github.com/elizaOS/eliza): Great examples and software engineering on how to integrate agent into various of systems and APIs
+- [ardha27/AI-Waifu-Vtuber](https://github.com/ardha27/AI-Waifu-Vtuber): Great about Twitch API integrations
+- [InsanityLabs/AIVTuber](https://github.com/InsanityLabs/AIVTuber): Nice UI and UX
 - [IRedDragonICY/vixevia](https://github.com/IRedDragonICY/vixevia)
 - [t41372/Open-LLM-VTuber](https://github.com/t41372/Open-LLM-VTuber)
+- [PeterH0323/Streamer-Sales](https://github.com/PeterH0323/Streamer-Sales)
 
 ## 鸣谢
 
