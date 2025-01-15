@@ -5,8 +5,8 @@ import { env } from 'node:process'
 import { useLogg } from '@guiiai/logg'
 import { generateText } from '@xsai/generate-text'
 import { message } from '@xsai/shared-chat'
+import { randomInt } from 'es-toolkit'
 import { Bot } from 'grammy'
-import { randomInteger } from 'remeda'
 
 import { openAI } from '../../llm'
 import { interpretPhotos } from '../../llm/photo'
@@ -53,7 +53,7 @@ async function sendMayStructuredMessage(
       state.currentTask = replyTask
       const msg = await replyTask.promise
       await recordMessage(state.bot.botInfo, msg)
-      await sleep(randomInteger(50, 1000))
+      await sleep(randomInt(50, 1000))
     }
   }
   else if (responseText) {
