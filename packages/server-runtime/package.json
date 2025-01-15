@@ -1,7 +1,7 @@
 {
   "name": "@proj-airi/server-runtime",
   "type": "module",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "private": false,
   "description": "Server runtime implementation for Airi running in different environments",
   "author": {
