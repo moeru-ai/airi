@@ -798,7 +798,7 @@ importers:
         specifier: ^2.2.0
         version: 2.2.0(typescript@5.7.3)
 
-  services/discord-voice-bot:
+  services/discord-bot:
     dependencies:
       '@discordjs/voice':
         specifier: ^0.18.0
