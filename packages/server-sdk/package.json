@@ -1,9 +1,9 @@
 {
-  "name": "@proj-airi/server-runtime",
+  "name": "@proj-airi/server-sdk",
   "type": "module",
   "version": "0.1.1",
   "private": false,
-  "description": "Server runtime implementation for Airi running in different environments",
+  "description": "Client-side SDK implementation for connecting to Airi server components and runtimes",
   "author": {
     "name": "Neko Ayaka",
     "email": "neko@ayaka.moe",
@@ -13,7 +13,7 @@
   "repository": {
     "type": "git",
     "url": "https://github.com/moeru-ai/airi.git",
-    "directory": "packages/server-runtime"
+    "directory": "packages/server-sdk"
   },
   "exports": {
     ".": {
@@ -31,15 +31,13 @@
     "package.json"
   ],
   "scripts": {
-    "dev": "listhen -w --ws --port 6121 ./src/index.ts",
-    "start": "listhen --ws --port 6121 ./src/index.ts"
+    "dev": "pnpm run stub",
+    "stub": "unbuild --stub",
+    "build": "unbuild",
+    "package:publish": "pnpm build && pnpm publish --access public --no-git-checks"
   },
   "dependencies": {
-    "@guiiai/logg": "^1.0.6",
     "@proj-airi/server-shared": "workspace:^",
-    "crossws": "^0.3.1",
-    "defu": "^6.1.4",
-    "h3": "^1.13.1",
-    "listhen": "^1.9.0"
+    "crossws": "^0.3.1"
   }
 }
