@@ -4,7 +4,7 @@ import { MotionPlugin } from '@vueuse/motion'
 import { createPinia } from 'pinia'
 import { createApp } from 'vue'
 import { createI18n } from 'vue-i18n'
-import { createRouter, createWebHistory } from 'vue-router'
+import { createRouter, createWebHashHistory } from 'vue-router'
 
 import { routes } from 'vue-router/auto-routes'
 
@@ -26,7 +26,7 @@ const i18n = createI18n({
 })
 
 const router = createRouter({
-  history: createWebHistory(),
+  history: createWebHashHistory(),
   routes,
 })
 

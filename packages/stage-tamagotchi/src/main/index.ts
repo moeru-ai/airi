@@ -84,10 +84,12 @@ function createSettingsWindow(): void {
   settingsWindow.show()
 
   if (is.dev && env.ELECTRON_RENDERER_URL) {
-    settingsWindow.loadURL(join(env.ELECTRON_RENDERER_URL, 'settings'))
+    settingsWindow.loadURL(join(env.ELECTRON_RENDERER_URL, '#/settings'))
   }
   else {
-    settingsWindow.loadFile(join(import.meta.dirname, '..', '..', 'out', 'renderer', 'index.html', 'settings'))
+    settingsWindow.loadFile(join(import.meta.dirname, '..', '..', 'out', 'renderer', 'index.html'), {
+      hash: '/settings',
+    })
   }
 }
 
@@ -103,6 +105,9 @@ app.whenReady().then(() => {
       submenu: [
         {
           role: 'about',
+        },
+        {
+          role: 'toggleDevTools',
         },
         {
           label: 'Settings',
