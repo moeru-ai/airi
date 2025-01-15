@@ -1,5 +1,6 @@
 import { env } from 'node:process'
 import { Format, LogLevel, setGlobalFormat, setGlobalLogLevel, useLogg } from '@guiiai/logg'
+import { Client as AiriClient } from '@proj-airi/server-sdk'
 import { Client, Events, GatewayIntentBits } from 'discord.js'
 
 import { handlePing, handleSummon, registerCommands } from './bots/discord/commands'
@@ -14,7 +15,9 @@ const log = useLogg('Bot').useGlobalConfig()
 // Create a new client instance
 async function main() {
   await WhisperLargeV3Pipeline.getInstance()
+
   const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildVoiceStates] })
+  const airiClient = new AiriClient({ name: 'discord-voice-bot', possibleEvents: ['input:text', 'input:text:voice', 'input:voice'] })
 
   // When the client is ready, run this code (only once).
   // The distinction between `client: Client<boolean>` and `readyClient: Client<true>` is important for TypeScript developers.
@@ -34,7 +37,7 @@ async function main() {
         await handlePing(interaction)
         break
       case 'summon':
-        await handleSummon(log, interaction)
+        await handleSummon(log, interaction, airiClient)
         break
     }
   })

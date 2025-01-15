@@ -36,6 +36,8 @@
     "@dotenvx/dotenvx": "^1.33.0",
     "@guiiai/logg": "^1.0.6",
     "@huggingface/transformers": "^3.2.4",
+    "@proj-airi/server-sdk": "workspace:^",
+    "@proj-airi/server-shared": "workspace:^",
     "@xsai/generate-speech": "catalog:",
     "@xsai/generate-text": "catalog:",
     "@xsai/providers": "catalog:",
