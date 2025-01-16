@@ -4,9 +4,9 @@ packages:
   - examples/**
   - '!**/dist/**'
 catalog:
-  '@xsai/generate-speech': ^0.0.27
-  '@xsai/generate-text': ^0.0.27
-  '@xsai/model': ^0.0.27
-  '@xsai/providers': ^0.0.27
-  '@xsai/shared-chat': ^0.0.27
-  '@xsai/stream-text': ^0.0.27
+  '@xsai/generate-speech': ^0.0.28
+  '@xsai/generate-text': ^0.0.28
+  '@xsai/model': ^0.0.28
+  '@xsai/providers': ^0.0.28
+  '@xsai/shared-chat': ^0.0.28
+  '@xsai/stream-text': ^0.0.28

@@ -35,7 +35,7 @@
     "start": "listhen --ws --port 6121 ./src/index.ts"
   },
   "dependencies": {
-    "@guiiai/logg": "^1.0.6",
+    "@guiiai/logg": "^1.0.7",
     "@proj-airi/server-shared": "workspace:^",
     "crossws": "^0.3.1",
     "defu": "^6.1.4",

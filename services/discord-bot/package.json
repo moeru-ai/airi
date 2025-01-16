@@ -20,8 +20,8 @@
   "dependencies": {
     "@discordjs/voice": "^0.18.0",
     "@dotenvx/dotenvx": "^1.33.0",
-    "@guiiai/logg": "^1.0.6",
-    "@huggingface/transformers": "^3.3.0",
+    "@guiiai/logg": "^1.0.7",
+    "@huggingface/transformers": "^3.3.1",
     "@proj-airi/server-sdk": "workspace:^",
     "@proj-airi/server-shared": "workspace:^",
     "@xsai/generate-speech": "catalog:",

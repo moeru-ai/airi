@@ -1,5 +1,5 @@
 import type { FileFlavor } from '@grammyjs/files'
-import type { useLogg } from '@guiiai/logg'
+import type { Logg } from '@guiiai/logg'
 import type { Bot, Context } from 'grammy'
 import type { Message } from 'grammy/types'
 import type { CancellablePromise } from './utils/promise'
@@ -18,7 +18,7 @@ export interface BotSelf {
   messageQueue: PendingMessage[]
   unreadMessages: Record<string, Message[]>
   processedIds: Set<string>
-  logger: ReturnType<typeof useLogg>
+  logger: Logg
   processing: boolean
 }
 

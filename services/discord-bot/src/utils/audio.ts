@@ -1,4 +1,5 @@
 import { Buffer } from 'node:buffer'
+import { DECODE_SAMPLE_RATE } from '../constants/audio'
 
 export function pcmToWav(pcmBuffer: Buffer, sampleRate: number, numChannels: number): Uint8Array {
   const byteRate = sampleRate * numChannels * 2 // Assuming 16-bit PCM (2 bytes per sample)
@@ -74,4 +75,23 @@ export function getWavHeader(
   wavHeader.write('data', 36) // Data chunk header
   wavHeader.writeUInt32LE(audioLength, 40) // Data chunk size
   return wavHeader
+}
+
+export function convertOpusToWav(pcmBuffer: Buffer): Buffer {
+  try {
+    // Generate the WAV header
+    const wavHeader = getWavHeader(
+      pcmBuffer.length,
+      DECODE_SAMPLE_RATE,
+    )
+
+    // Concatenate the WAV header and PCM data
+    const wavBuffer = Buffer.concat([wavHeader, pcmBuffer])
+
+    return wavBuffer
+  }
+  catch (error) {
+    console.error('Error converting PCM to WAV:', error)
+    throw error
+  }
 }

@@ -2,7 +2,7 @@ import type { Message as LLMMessage } from '@xsai/shared-chat'
 import type { Action, BotSelf, ExtendedContext } from '../../types'
 
 import { env } from 'node:process'
-import { useLogg } from '@guiiai/logg'
+import { type Logg, useLogg } from '@guiiai/logg'
 import { generateText } from '@xsai/generate-text'
 import { message } from '@xsai/shared-chat'
 import { randomInt } from 'es-toolkit'
@@ -190,7 +190,7 @@ function loop(state: BotSelf) {
   }, 20000)
 }
 
-function newBotSelf(bot: Bot, logger: ReturnType<typeof useLogg>): BotSelf {
+function newBotSelf(bot: Bot, logger: Logg): BotSelf {
   return {
     bot,
     currentTask: null,
