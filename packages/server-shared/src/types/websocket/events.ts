@@ -29,6 +29,15 @@ export type WithInputSource<Source extends keyof InputSource> = {
 // A little hack for creating extensible discriminated unions : r/typescript
 // https://www.reddit.com/r/typescript/comments/1064ibt/a_little_hack_for_creating_extensible/
 export interface WebSocketEvents {
+  'error': {
+    message: string
+  }
+  'module:authenticate': {
+    token: string
+  }
+  'module:authenticated': {
+    authenticated: boolean
+  }
   'module:announce': {
     name: string
     possibleEvents: Array<(keyof WebSocketEvents)>

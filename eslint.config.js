@@ -8,6 +8,7 @@ export default antfu(
     ignores: [
       '**/assets/js/**',
       '**/assets/live2d/models/**',
+      'packages/stage-tamagotchi/out/**',
     ],
   },
 )
