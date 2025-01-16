@@ -14,7 +14,7 @@ async function main() {
   // await WhisperLargeV3Pipeline.getInstance()
 
   const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildVoiceStates] })
-  const airiClient = new AiriClient({ name: 'discord-bot', possibleEvents: ['input:text', 'input:text:voice', 'input:voice'] })
+  const airiClient = new AiriClient({ name: 'discord-bot', possibleEvents: ['input:text', 'input:text:voice', 'input:voice'], token: 'abcd' })
   const voiceManager = new VoiceManager(client, airiClient)
 
   // When the client is ready, run this code (only once).

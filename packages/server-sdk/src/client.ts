@@ -25,12 +25,12 @@ export class Client {
   private authenticateAttempts = 0
 
   constructor(options: ClientOptions) {
-    const opts = defu<Required<ClientOptions>, Required<Omit<ClientOptions, 'name' | 'token'>>[]>(
+    this.opts = defu<Required<ClientOptions>, Required<Omit<ClientOptions, 'name' | 'token'>>[]>(
       options,
       { url: 'ws://localhost:6121/ws', possibleEvents: [] },
     )
 
-    this.websocket = new WebSocket(opts.url)
+    this.websocket = new WebSocket(this.opts.url)
 
     this.onEvent('module:authenticated', async (event) => {
       const auth = event.data.authenticated
@@ -47,7 +47,7 @@ export class Client {
     this.websocket.onmessage = this.handleMessage.bind(this)
 
     this.websocket.onopen = () => {
-      if (opts.token) {
+      if (this.opts.token) {
         this.tryAuthenticate()
       }
       else {
