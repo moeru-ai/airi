@@ -294,7 +294,12 @@ export class VoiceManager extends EventEmitter {
     opusDecoder.on('close', closeHandler)
     receiveStream?.on('close', streamCloseHandler)
 
-    pipeline(receiveStream, opusDecoder, err => this.logger.withError(err).error('Opus decoding pipeline error'))
+    pipeline(receiveStream, opusDecoder, (err) => {
+      this.logger.withError(err).error('Opus decoding pipeline error')
+      if (err.message.includes('memory access out of bounds')) {
+        throw err
+      }
+    })
 
     this.logger.log(`Monitoring user: ${member.displayName}`)
     await this.handleUserStream(userId, member, member.guild.id, channelId, opusDecoder)
@@ -439,24 +444,24 @@ export class VoiceManager extends EventEmitter {
       const result = await openaiTranscribe(wavBuffer)
       const transcriptionText = result
 
-      const discordContext = {
-        channelId,
-        guildId,
-        guildMember: member,
-      } satisfies Discord
-
-      this.airiClient.send({
-        type: 'input:text:voice',
-        data: { transcription: transcriptionText, discord: discordContext },
-      })
-
-      this.airiClient.send({
-        type: 'input:text',
-        data: { text: transcriptionText, discord: discordContext },
-      })
-
       if (transcriptionText && isValidTranscription(transcriptionText)) {
         state.transcriptionText += transcriptionText
+
+        const discordContext = {
+          channelId,
+          guildId,
+          guildMember: member,
+        } satisfies Discord
+
+        this.airiClient.send({
+          type: 'input:text:voice',
+          data: { transcription: transcriptionText, discord: discordContext },
+        })
+
+        this.airiClient.send({
+          type: 'input:text',
+          data: { text: transcriptionText, discord: discordContext },
+        })
       }
       if (state.transcriptionText.length) {
         this.cleanupAudioPlayer(this.activeAudioPlayer)
