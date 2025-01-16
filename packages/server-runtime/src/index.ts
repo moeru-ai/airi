@@ -1,4 +1,5 @@
 import type { WebSocketEvent } from '@proj-airi/server-shared/types'
+import type { Peer } from 'crossws'
 import { Format, LogLevel, setGlobalFormat, setGlobalLogLevel, useLogg } from '@guiiai/logg'
 import { createApp, createRouter, defineWebSocketHandler } from 'h3'
 
@@ -15,24 +16,34 @@ export const app = createApp({
 const router = createRouter()
 app.use(router)
 
+const peers = new Set<Peer>()
+
 router.get('/ws', defineWebSocketHandler({
   open: (peer) => {
-    websocketLogger.withFields({ peer: peer.id }).log('connected')
+    peers.add(peer)
+    websocketLogger.withFields({ peer: peer.id, activePeers: peers.size }).log('connected')
   },
   message: (peer, message) => {
     const event = message.json() as WebSocketEvent
 
-    websocketLogger.withFields({ peer: peer.id, message: event }).log('received message')
     switch (event.type) {
-      case 'input:text:voice':
-        websocketLogger.withFields({ message: event }).log('transcribed')
+      case 'input:text':
         break
+      case 'input:text:voice':
+        break
+    }
+
+    for (const p of peers) {
+      if (p.id !== peer.id) {
+        p.send(JSON.stringify(event))
+      }
     }
   },
   error: (peer, error) => {
     websocketLogger.withFields({ peer: peer.id }).withError(error).error('an error occurred')
   },
   close: (peer, details) => {
-    websocketLogger.withFields({ peer: peer.id, details }).log('closed')
+    websocketLogger.withFields({ peer: peer.id, details, activePeers: peers.size }).log('closed')
+    peers.delete(peer)
   },
 }))

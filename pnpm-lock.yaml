@@ -824,6 +824,9 @@ importers:
       '@xsai/generate-text':
         specifier: 'catalog:'
         version: 0.0.27
+      '@xsai/generate-transcription':
+        specifier: ^0.0.28
+        version: 0.0.28
       '@xsai/providers':
         specifier: 'catalog:'
         version: 0.0.27
@@ -4319,6 +4322,9 @@ packages:
   '@xsai/generate-text@0.0.27':
     resolution: {integrity: sha512-pkmBvNwL2AxWh0CUKnurbKzXtZpZ+x4VAXqiX8MrbnKxUPfYqUaz8k/BZ2yKvda+Y+9r3KNNFVfTWrNK5ofzwQ==}
 
+  '@xsai/generate-transcription@0.0.28':
+    resolution: {integrity: sha512-ChfJfh269XhFxWp2ARIEBXfOjYTQbq7E6ifva0Hv/0oPnModrDvxX6ZXyfhbzvIQl0ZBenKo4M8cTu6NYhADiw==}
+
   '@xsai/model@0.0.27':
     resolution: {integrity: sha512-2ckL7bLscS+viib7zi/gFS4M55Q7hi19cfDmSWNOXJ7ELCoFo6n2A2BWTuNXye/K5kfU6/StNYo9kvxGL2CQyQ==}
 
@@ -4330,6 +4336,9 @@ packages:
 
   '@xsai/shared@0.0.27':
     resolution: {integrity: sha512-U+lvjD6HdX3xJq57ASoDXk7z12zKTBwuDb30oRuaCq2+jBxUcMbXTMtWbI1EJL/TDNFtrXBjpLj35/7Q6LXUDQ==}
+
+  '@xsai/shared@0.0.28':
+    resolution: {integrity: sha512-IEVh6NI5dEl+Loxn2I8EoZBjtAQWpwBGGk9niNVCNSsbATJnfIbLOUGL/UNqX7ZNbh3wQid1mTHMyJGMkn8sZQ==}
 
   '@xsai/stream-text@0.0.27':
     resolution: {integrity: sha512-q23LkBFAyDb5gPZ8LxDSXayt98QtHDgwXwz8t2RyViz/58UD5Ffd+OLTtAJQ5kj0RQJTHRV7mDokcwzt4nTxyA==}
@@ -13226,6 +13235,10 @@ snapshots:
     dependencies:
       '@xsai/shared-chat': 0.0.27
 
+  '@xsai/generate-transcription@0.0.28':
+    dependencies:
+      '@xsai/shared': 0.0.28
+
   '@xsai/model@0.0.27':
     dependencies:
       '@xsai/shared': 0.0.27
@@ -13239,6 +13252,8 @@ snapshots:
       '@xsai/shared': 0.0.27
 
   '@xsai/shared@0.0.27': {}
+
+  '@xsai/shared@0.0.28': {}
 
   '@xsai/stream-text@0.0.27':
     dependencies:

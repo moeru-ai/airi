@@ -1,4 +1,4 @@
-import type { Buffer } from 'node:buffer'
+import { Buffer } from 'node:buffer'
 
 export function pcmToWav(pcmBuffer: Buffer, sampleRate: number, numChannels: number): Uint8Array {
   const byteRate = sampleRate * numChannels * 2 // Assuming 16-bit PCM (2 bytes per sample)
@@ -48,4 +48,30 @@ function writeString(view, offset, string) {
   for (let i = 0; i < string.length; i++) {
     view.setUint8(offset + i, string.charCodeAt(i))
   }
+}
+
+export function getWavHeader(
+  audioLength: number,
+  sampleRate: number,
+  channelCount: number = 1,
+  bitsPerSample: number = 16,
+): Buffer {
+  const wavHeader = Buffer.alloc(44)
+  wavHeader.write('RIFF', 0)
+  wavHeader.writeUInt32LE(36 + audioLength, 4) // Length of entire file in bytes minus 8
+  wavHeader.write('WAVE', 8)
+  wavHeader.write('fmt ', 12)
+  wavHeader.writeUInt32LE(16, 16) // Length of format data
+  wavHeader.writeUInt16LE(1, 20) // Type of format (1 is PCM)
+  wavHeader.writeUInt16LE(channelCount, 22) // Number of channels
+  wavHeader.writeUInt32LE(sampleRate, 24) // Sample rate
+  wavHeader.writeUInt32LE(
+    (sampleRate * bitsPerSample * channelCount) / 8,
+    28,
+  ) // Byte rate
+  wavHeader.writeUInt16LE((bitsPerSample * channelCount) / 8, 32) // Block align ((BitsPerSample * Channels) / 8)
+  wavHeader.writeUInt16LE(bitsPerSample, 34) // Bits per sample
+  wavHeader.write('data', 36) // Data chunk header
+  wavHeader.writeUInt32LE(audioLength, 40) // Data chunk size
+  return wavHeader
 }
