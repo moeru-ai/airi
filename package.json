@@ -1,7 +1,7 @@
 {
   "name": "airi-vtuber",
   "type": "module",
-  "packageManager": "pnpm@9.15.4",
+  "packageManager": "pnpm@10.0.0",
   "description": "LLM powered virtual character",
   "author": {
     "name": "Neko Ayaka",
