@@ -26,7 +26,7 @@
     "@proj-airi/server-shared": "workspace:^",
     "@xsai/generate-speech": "catalog:",
     "@xsai/generate-text": "catalog:",
-    "@xsai/generate-transcription": "^0.0.28",
+    "@xsai/generate-transcription": "catalog:",
     "@xsai/providers": "catalog:",
     "@xsai/shared-chat": "catalog:",
     "discord.js": "^14.17.3",
