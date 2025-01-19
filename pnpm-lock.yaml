@@ -65,9 +65,6 @@ importers:
       lint-staged:
         specifier: ^15.4.0
         version: 15.4.0
-      pnpm:
-        specifier: ^9.15.4
-        version: 9.15.4
       rollup:
         specifier: ^4.30.1
         version: 4.30.1
@@ -335,10 +332,10 @@ importers:
         version: 2.3.0(typescript@5.7.3)(vue@3.5.13(typescript@5.7.3))
       pixi-filters:
         specifier: ^4.2.0
-        version: 4.2.0(loysptdgmjku7omjbg7krwlz24)
+        version: 4.2.0(5af797a0b5bd919a06578c24a7479046)
       pixi-live2d-display:
         specifier: ^0.4.0
-        version: 0.4.0(76g3zz2nt7dtjnktvdvk76m2oe)
+        version: 0.4.0(0736f5bd67d2e4de7e9fff36ad63fa2e)
       rehype-stringify:
         specifier: ^10.0.1
         version: 10.0.1
@@ -611,10 +608,10 @@ importers:
         version: 2.3.0(typescript@5.7.3)(vue@3.5.13(typescript@5.7.3))
       pixi-filters:
         specifier: ^4.2.0
-        version: 4.2.0(loysptdgmjku7omjbg7krwlz24)
+        version: 4.2.0(5af797a0b5bd919a06578c24a7479046)
       pixi-live2d-display:
         specifier: ^0.4.0
-        version: 0.4.0(76g3zz2nt7dtjnktvdvk76m2oe)
+        version: 0.4.0(0736f5bd67d2e4de7e9fff36ad63fa2e)
       rehype-stringify:
         specifier: ^10.0.1
         version: 10.0.1
@@ -7438,11 +7435,6 @@ packages:
     resolution: {integrity: sha512-Nc3IT5yHzflTfbjgqWcCPpo7DaKy4FnpB0l/zCAW0Tc7jxAiuqSxHasntB3D7887LSrA93kDJ9IXovxJYxyLCA==}
     engines: {node: '>=4'}
 
-  pnpm@9.15.4:
-    resolution: {integrity: sha512-stwg4vxys+GISEWbNzWaMgZGY+VielHkx0ssKd2OjgSRSDw6u0B4nP1Xi/Ni+2uoJhsF8Dh9dnku1uI+o7G2oA==}
-    engines: {node: '>=18.12'}
-    hasBin: true
-
   popmotion@11.0.5:
     resolution: {integrity: sha512-la8gPM1WYeFznb/JqF4GiTkRRPZsfaj2+kCxqQgr2MJylMmIKUwBfWW8Wa5fml/8gmtlD5yI01MP1QCZPWmppA==}
 
@@ -11361,7 +11353,7 @@ snapshots:
       '@pixi/math': 6.5.10
       '@pixi/utils': 6.5.10(@pixi/constants@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10))
 
-  '@pixi/filter-bloom@4.2.0(7n6ylgx4tbwrexny4hitvaigqm)':
+  '@pixi/filter-bloom@4.2.0(84172d5a9c3f97ab2b843c48c30bfc44)':
     dependencies:
       '@pixi/constants': 6.5.10
       '@pixi/core': 6.5.10(@pixi/constants@6.5.10)(@pixi/extensions@6.5.10)(@pixi/math@6.5.10)(@pixi/runner@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10))(@pixi/ticker@6.5.10(@pixi/extensions@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10)))(@pixi/utils@6.5.10(@pixi/constants@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10)))
@@ -16963,13 +16955,13 @@ snapshots:
 
   pinkie@2.0.4: {}
 
-  pixi-filters@4.2.0(loysptdgmjku7omjbg7krwlz24):
+  pixi-filters@4.2.0(5af797a0b5bd919a06578c24a7479046):
     dependencies:
       '@pixi/filter-adjustment': 4.2.0(@pixi/constants@6.5.10)(@pixi/core@6.5.10(@pixi/constants@6.5.10)(@pixi/extensions@6.5.10)(@pixi/math@6.5.10)(@pixi/runner@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10))(@pixi/ticker@6.5.10(@pixi/extensions@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10)))(@pixi/utils@6.5.10(@pixi/constants@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10))))
       '@pixi/filter-advanced-bloom': 4.2.0(@pixi/constants@6.5.10)(@pixi/core@6.5.10(@pixi/constants@6.5.10)(@pixi/extensions@6.5.10)(@pixi/math@6.5.10)(@pixi/runner@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10))(@pixi/ticker@6.5.10(@pixi/extensions@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10)))(@pixi/utils@6.5.10(@pixi/constants@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10))))(@pixi/math@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10))
       '@pixi/filter-ascii': 4.2.0(@pixi/core@6.5.10(@pixi/constants@6.5.10)(@pixi/extensions@6.5.10)(@pixi/math@6.5.10)(@pixi/runner@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10))(@pixi/ticker@6.5.10(@pixi/extensions@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10)))(@pixi/utils@6.5.10(@pixi/constants@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10))))
       '@pixi/filter-bevel': 4.2.0(@pixi/core@6.5.10(@pixi/constants@6.5.10)(@pixi/extensions@6.5.10)(@pixi/math@6.5.10)(@pixi/runner@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10))(@pixi/ticker@6.5.10(@pixi/extensions@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10)))(@pixi/utils@6.5.10(@pixi/constants@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10))))(@pixi/math@6.5.10)(@pixi/utils@6.5.10(@pixi/constants@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10)))
-      '@pixi/filter-bloom': 4.2.0(7n6ylgx4tbwrexny4hitvaigqm)
+      '@pixi/filter-bloom': 4.2.0(84172d5a9c3f97ab2b843c48c30bfc44)
       '@pixi/filter-bulge-pinch': 4.2.0(@pixi/constants@6.5.10)(@pixi/core@6.5.10(@pixi/constants@6.5.10)(@pixi/extensions@6.5.10)(@pixi/math@6.5.10)(@pixi/runner@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10))(@pixi/ticker@6.5.10(@pixi/extensions@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10)))(@pixi/utils@6.5.10(@pixi/constants@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10))))(@pixi/math@6.5.10)
       '@pixi/filter-color-map': 4.2.0(@pixi/constants@6.5.10)(@pixi/core@6.5.10(@pixi/constants@6.5.10)(@pixi/extensions@6.5.10)(@pixi/math@6.5.10)(@pixi/runner@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10))(@pixi/ticker@6.5.10(@pixi/extensions@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10)))(@pixi/utils@6.5.10(@pixi/constants@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10))))
       '@pixi/filter-color-overlay': 4.2.0(@pixi/core@6.5.10(@pixi/constants@6.5.10)(@pixi/extensions@6.5.10)(@pixi/math@6.5.10)(@pixi/runner@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10))(@pixi/ticker@6.5.10(@pixi/extensions@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10)))(@pixi/utils@6.5.10(@pixi/constants@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10))))(@pixi/utils@6.5.10(@pixi/constants@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10)))
@@ -17006,7 +16998,7 @@ snapshots:
       - '@pixi/settings'
       - '@pixi/utils'
 
-  pixi-live2d-display@0.4.0(76g3zz2nt7dtjnktvdvk76m2oe):
+  pixi-live2d-display@0.4.0(0736f5bd67d2e4de7e9fff36ad63fa2e):
     dependencies:
       '@pixi/core': 6.5.10(@pixi/constants@6.5.10)(@pixi/extensions@6.5.10)(@pixi/math@6.5.10)(@pixi/runner@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10))(@pixi/ticker@6.5.10(@pixi/extensions@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10)))(@pixi/utils@6.5.10(@pixi/constants@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10)))
       '@pixi/display': 6.5.10(@pixi/constants@6.5.10)(@pixi/math@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10))(@pixi/utils@6.5.10(@pixi/constants@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10)))
@@ -17035,8 +17027,6 @@ snapshots:
       xmlbuilder: 15.1.1
 
   pluralize@8.0.0: {}
-
-  pnpm@9.15.4: {}
 
   popmotion@11.0.5:
     dependencies:

@@ -40,7 +40,6 @@
     "eslint-plugin-cypress": "^4.1.0",
     "eslint-plugin-format": "^1.0.1",
     "lint-staged": "^15.4.0",
-    "pnpm": "^9.15.4",
     "rollup": "^4.30.1",
     "simple-git-hooks": "^2.11.1",
     "taze": "^18.2.0",
