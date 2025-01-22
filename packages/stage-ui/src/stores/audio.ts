@@ -5,7 +5,7 @@ function calculateVolumeWithLinearNormalize(analyser: AnalyserNode) {
   const dataBuffer = new Uint8Array(analyser.frequencyBinCount)
   analyser.getByteFrequencyData(dataBuffer)
 
-  const volumeVector = []
+  const volumeVector: Array<number> = []
   for (let i = 0; i < 700; i += 80)
     volumeVector.push(dataBuffer[i])
 
@@ -25,7 +25,7 @@ function calculateVolumeWithMinMaxNormalize(analyser: AnalyserNode) {
   const dataBuffer = new Uint8Array(analyser.frequencyBinCount)
   analyser.getByteFrequencyData(dataBuffer)
 
-  const volumeVector = []
+  const volumeVector: Array<number> = []
   for (let i = 0; i < 700; i += 80)
     volumeVector.push(dataBuffer[i])
 

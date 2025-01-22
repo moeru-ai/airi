@@ -155,7 +155,7 @@ async function load() {
     // input_features: full([1, 80, 3000], 0.0), // for fp32
     input_features: full([1, 128, 3000], 0.0), // for fp16
     max_new_tokens: 1,
-  })
+  } as Record<string, unknown>)
 
   globalThis.postMessage({ status: 'ready' })
 }

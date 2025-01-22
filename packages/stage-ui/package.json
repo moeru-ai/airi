@@ -49,6 +49,7 @@
   "scripts": {
     "dev": "pnpm run stub",
     "stub": "unbuild --stub",
-    "build": "unbuild"
+    "build": "unbuild",
+    "typecheck": "vue-tsc --noEmit"
   }
 }

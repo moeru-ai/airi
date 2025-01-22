@@ -12,14 +12,6 @@ const messagesProcessed = ref<string[]>([])
 const emotionsProcessed = ref<string[]>([])
 const processing = ref<boolean>(false)
 
-const messageContentQueue = useQueue<string>({
-  handlers: [
-    async (ctx) => {
-      messagesProcessed.value.push(ctx.data)
-    },
-  ],
-})
-
 const emotionsQueue = useQueue<Emotion>({
   handlers: [
     async (ctx) => {
@@ -28,7 +20,7 @@ const emotionsQueue = useQueue<Emotion>({
   ],
 })
 
-const emotionMessageContentQueue = useEmotionsMessageQueue(emotionsQueue, messageContentQueue)
+const emotionMessageContentQueue = useEmotionsMessageQueue(emotionsQueue)
 
 function onSendMessage() {
   processing.value = true

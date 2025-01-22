@@ -1,11 +1,11 @@
 /* eslint-disable no-restricted-globals */
 import type {
   ModelOutput,
-  PreTrainedModel,
   PreTrainedTokenizer,
   Processor,
   ProgressCallback,
   Tensor,
+  WhisperModel,
 } from '@huggingface/transformers'
 
 import {
@@ -25,7 +25,7 @@ class AutomaticSpeechRecognitionPipeline {
   static model_id: string | null = null
   static tokenizer: Promise<PreTrainedTokenizer>
   static processor: Promise<Processor>
-  static model: Promise<PreTrainedModel>
+  static model: Promise<WhisperModel>
 
   static async getInstance(progress_callback?: ProgressCallback) {
     this.model_id = 'onnx-community/whisper-base'
@@ -45,7 +45,7 @@ class AutomaticSpeechRecognitionPipeline {
       },
       device: 'webgpu',
       progress_callback,
-    })
+    }) as Promise<unknown> as Promise<WhisperModel>
 
     return Promise.all([this.tokenizer, this.processor, this.model])
   }
@@ -115,8 +115,7 @@ async function load() {
   })
 
   // Load the pipeline and save it for future use.
-  // eslint-disable-next-line unused-imports/no-unused-vars
-  const [tokenizer, processor, model] = await AutomaticSpeechRecognitionPipeline.getInstance((x) => {
+  const [_tokenizer, _processor, model] = await AutomaticSpeechRecognitionPipeline.getInstance((x) => {
     // We also add a progress callback to the pipeline so that we can
     // track model loading.
     self.postMessage(x)
@@ -131,7 +130,7 @@ async function load() {
   await model.generate({
     input_features: full([1, 80, 3000], 0.0),
     max_new_tokens: 1,
-  })
+  } as Record<string, unknown>)
 
   self.postMessage({ status: 'ready' })
 }

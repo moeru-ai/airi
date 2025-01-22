@@ -7,6 +7,11 @@
       "ESNext"
     ],
     "baseUrl": ".",
+    "paths": {
+      "@proj-airi/stage-ui/*": [
+        "../stage-ui/src/*"
+      ]
+    },
     "resolveJsonModule": true,
     "types": [
       "vitest",
@@ -17,7 +22,8 @@
       "unplugin-vue-router/client"
     ],
     "allowJs": true,
-    "strict": true
+    "strict": true,
+    "skipLibCheck": true
   },
   "vueCompilerOptions": {
     "plugins": [

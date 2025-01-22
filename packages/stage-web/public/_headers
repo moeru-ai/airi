@@ -2,7 +2,7 @@
 #
 # Proxying Plausible through Netlify | Plausible docs
 # https://plausible.io/docs/proxy/guides/netlify
-/assets/page-external-data/js/script.js https://plausible.io/js/script.js 200
+/remote-assets/page-external-data/js/script.js https://plausible.io/js/script.js 200
 /api/v1/page-external-data/submit https://plausible.io/api/event 200
 
 /assets/*

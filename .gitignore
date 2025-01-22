@@ -16,6 +16,7 @@ node_modules
 **/.cache/**
 **/.vitepress/docsMetadata.json
 **/.vitepress/cache/
+**/tsconfig.tsbuildinfo
 
 **/.netlify/*
 **/.netlify/functions-serve/*

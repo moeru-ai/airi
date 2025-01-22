@@ -32,7 +32,8 @@
   ],
   "scripts": {
     "dev": "listhen -w --ws --port 6121 ./src/index.ts",
-    "start": "listhen --ws --port 6121 ./src/index.ts"
+    "start": "listhen --ws --port 6121 ./src/index.ts",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@guiiai/logg": "^1.0.7",

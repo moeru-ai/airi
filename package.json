@@ -12,7 +12,7 @@
   "scripts": {
     "lint": "eslint --cache .",
     "lint:fix": "eslint --cache --fix .",
-    "typecheck": "pnpm -r --filter=./packages/* run build",
+    "typecheck": "pnpm -r --filter=./packages/* run typecheck",
     "dev": "pnpm packages:dev",
     "build": "pnpm packages:build",
     "dev:tamagotchi": "pnpm packages:dev:tamagotchi",

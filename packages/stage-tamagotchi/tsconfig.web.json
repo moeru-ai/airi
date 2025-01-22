@@ -11,6 +11,9 @@
     "paths": {
       "@renderer/*": [
         "src/renderer/src/*"
+      ],
+      "@proj-airi/stage-ui/*": [
+        "../stage-ui/src/*"
       ]
     }
   },
