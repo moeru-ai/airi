@@ -18,7 +18,7 @@
     "start": "dotenvx run -f .env -f .env.local --overload --ignore=MISSING_ENV_FILE -- tsx src/index.ts"
   },
   "dependencies": {
-    "@dotenvx/dotenvx": "^1.33.0",
+    "@dotenvx/dotenvx": "^1.34.0",
     "@gcornut/valibot-json-schema": "^0.42.0",
     "@grammyjs/files": "^1.1.1",
     "@guiiai/logg": "^1.0.7",
@@ -28,17 +28,17 @@
     "@xsai/shared-chat": "catalog:",
     "@xsai/tool": "catalog:",
     "dotenv": "^16.4.7",
-    "drizzle-orm": "^0.38.3",
-    "es-toolkit": "^1.31.0",
-    "grammy": "^1.34.0",
+    "drizzle-orm": "^0.38.4",
+    "es-toolkit": "^1.32.0",
+    "grammy": "^1.34.1",
     "pg": "^8.13.1",
     "sharp": "^0.33.5",
     "telegram": "^2.26.16",
     "valibot": "1.0.0-beta.9"
   },
   "devDependencies": {
-    "@types/pg": "^8.11.10",
-    "drizzle-kit": "^0.30.1",
+    "@types/pg": "^8.11.11",
+    "drizzle-kit": "^0.30.4",
     "tsx": "^4.19.2"
   }
 }

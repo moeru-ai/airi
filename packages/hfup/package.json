@@ -45,6 +45,6 @@
   "dependencies": {
     "defu": "^6.1.4",
     "gray-matter": "^4.0.3",
-    "vite": "^6.0.7"
+    "vite": "^6.0.11"
   }
 }

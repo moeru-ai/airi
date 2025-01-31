@@ -4,7 +4,7 @@ import type { Action, BotSelf, ExtendedContext } from '../../types'
 import { env } from 'node:process'
 import { type Logg, useLogg } from '@guiiai/logg'
 import { generateText } from '@xsai/generate-text'
-import { message } from '@xsai/shared-chat'
+import { message } from '@xsai/utils-chat'
 import { randomInt } from 'es-toolkit'
 import { Bot } from 'grammy'
 

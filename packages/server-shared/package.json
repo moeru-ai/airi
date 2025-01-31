@@ -38,6 +38,6 @@
     "package:publish": "pnpm build && pnpm publish --access public --no-git-checks"
   },
   "dependencies": {
-    "crossws": "^0.3.1"
+    "crossws": "^0.3.3"
   }
 }

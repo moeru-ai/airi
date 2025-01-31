@@ -1,4 +1,4 @@
-import { message } from '@xsai/shared-chat'
+import { message } from '@xsai/utils-chat'
 
 export function personality() {
   return ''

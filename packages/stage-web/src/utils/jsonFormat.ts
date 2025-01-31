@@ -4,7 +4,7 @@ import type { Message } from '@xsai/shared-chat'
 
 import { toJSONSchema, validate } from '@typeschema/valibot'
 import { generateText } from '@xsai/generate-text'
-import { message } from '@xsai/shared-chat'
+import { message } from '@xsai/utils-chat'
 
 type SchemaOrString<S extends Schema | undefined | unknown> = S extends unknown ? string : S extends Schema ? Infer<S> : never
 
