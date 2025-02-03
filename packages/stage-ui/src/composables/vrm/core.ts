@@ -1,5 +1,6 @@
+import type { VRMCore } from '@pixiv/three-vrm'
 import type { Object3D, Scene } from 'three'
-import { type VRMCore, VRMUtils } from '@pixiv/three-vrm'
+import { VRMUtils } from '@pixiv/three-vrm'
 
 import { VRMLookAtQuaternionProxy } from '@pixiv/three-vrm-animation'
 import { useVRMLoader } from './loader'

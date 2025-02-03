@@ -2,7 +2,7 @@
   "name": "@proj-airi/moonshine-web",
   "type": "module",
   "private": true,
-  "packageManager": "pnpm@9.15.4",
+  "packageManager": "pnpm@9.15.5",
   "description": "Yet another WebGPU based STT + VAD with Moonshine model re-implemented",
   "author": {
     "name": "Neko Ayaka",
@@ -29,9 +29,9 @@
   "devDependencies": {
     "@huggingface/transformers": "^3.3.2",
     "@types/audioworklet": "^0.0.68",
-    "@types/three": "^0.172.0",
+    "@types/three": "^0.173.0",
     "@vitejs/plugin-vue": "^5.2.1",
-    "@webgpu/types": "^0.1.53",
+    "@webgpu/types": "^0.1.54",
     "hfup": "workspace:^",
     "vue-tsc": "^2.2.0"
   }

@@ -1,11 +1,12 @@
 import type { Plugin, ResolvedConfig } from 'vite'
+import type { License, SpaceConfiguration } from './types'
 import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { defu } from 'defu'
-import grayMatter from 'gray-matter'
 
+import grayMatter from 'gray-matter'
 import { exists } from '../../utils/fs'
-import { type License, licenseValues, type SpaceConfiguration } from './types'
+import { licenseValues } from './types'
 
 // Please find the documentation at:
 // Spaces Configuration Reference

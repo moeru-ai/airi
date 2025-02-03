@@ -1,7 +1,8 @@
+import type { PipelineType } from '@huggingface/transformers'
 import type { Buffer } from 'node:buffer'
 import { env } from 'node:process'
 import { useLogg } from '@guiiai/logg'
-import { pipeline, type PipelineType } from '@huggingface/transformers'
+import { pipeline } from '@huggingface/transformers'
 import { generateTranscription } from '@xsai/generate-transcription'
 import { createOpenAI } from '@xsai/providers'
 

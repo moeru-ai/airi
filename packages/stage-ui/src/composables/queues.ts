@@ -1,9 +1,10 @@
 import type { Emotion } from '../constants/emotions'
-import { ref } from 'vue'
+import type { UseQueueReturn } from './queue'
 
+import { ref } from 'vue'
 import { llmInferenceEndToken } from '../constants'
 import { EMOTION_VALUES } from '../constants/emotions'
-import { useQueue, type UseQueueReturn } from './queue'
+import { useQueue } from './queue'
 
 export function useEmotionsMessageQueue(emotionsQueue: UseQueueReturn<Emotion>) {
   function splitEmotion(content: string) {

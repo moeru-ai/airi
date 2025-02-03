@@ -4,11 +4,11 @@ packages:
   - examples/**
   - '!**/dist/**'
 catalog:
-  '@xsai/generate-speech': ^0.0.30
-  '@xsai/generate-text': ^0.0.30
-  '@xsai/generate-transcription': ^0.0.30
-  '@xsai/model': ^0.0.30
-  '@xsai/providers': ^0.0.30
-  '@xsai/shared-chat': ^0.0.30
-  '@xsai/stream-text': ^0.0.30
-  '@xsai/tool': ^0.0.30
+  '@xsai/generate-speech': ^0.0.31
+  '@xsai/generate-text': ^0.0.31
+  '@xsai/generate-transcription': ^0.0.31
+  '@xsai/model': ^0.0.31
+  '@xsai/providers': ^0.0.31
+  '@xsai/shared-chat': ^0.0.31
+  '@xsai/stream-text': ^0.0.31
+  '@xsai/tool': ^0.0.31
