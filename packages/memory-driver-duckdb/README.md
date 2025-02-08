@@ -1,3 +1,3 @@
-<h1 align="center">🔮 Alaya</h1>
+# 🦆 Drizzle ORM driver for `@duckdb/duckdb-wasm`
 
-> Where `alaya` stands for **storehouse** or **repository** in Sanskrit, from the word **阿賴耶識** ("All-encompassing foundation consciousness") in Buddhism, you may think it means "to store the memories, data, and all the related knowledge in a single well-managed place".
+This package provides a Drizzle ORM driver for the DuckDB WASM implementation.
