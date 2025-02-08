@@ -6,6 +6,7 @@ import { ref } from 'vue'
 import Collapsable from '../Collapsable.vue'
 import DataGuiRange from '../DataGui/Range.vue'
 import Screen from '../Screen.vue'
+import TransitionVertical from '../TransitionVertical.vue'
 import VRMModel from '../VRM/Model.vue'
 
 const props = defineProps<{
