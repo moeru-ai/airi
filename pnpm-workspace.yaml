@@ -2,6 +2,7 @@ packages:
   - packages/**
   - services/**
   - examples/**
+  - docs/**
   - '!**/dist/**'
 catalog:
   '@xsai/generate-speech': ^0.0.31

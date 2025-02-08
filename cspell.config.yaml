@@ -32,6 +32,10 @@ words:
   - demi
   - dotenvx
   - dtype
+  - duckdb
+  - DuckDBWASM
+  - DuckDBWASMQuery
+  - DuckDBWASMQ
   - elevenlabs
   - formkit
   - gcornut
@@ -82,6 +86,7 @@ words:
   - pixi
   - pixiv
   - pretrained
+  - pthread
   - rehype
   - rushstack
   - Shadcn

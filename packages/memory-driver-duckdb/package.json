@@ -1,0 +1,69 @@
+{
+  "name": "@proj-airi/memory-driver-duckdb",
+  "type": "module",
+  "version": "1.0.0",
+  "private": true,
+  "description": "",
+  "author": {
+    "name": "Neko Ayaka",
+    "email": "neko@ayaka.moe",
+    "url": "https://github.com/nekomeowww"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/moeru-ai/airi.git",
+    "directory": "packages/memory-driver-duckdb"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.cjs"
+    },
+    "./drizzle-orm": {
+      "types": "./dist/drizzle-orm/index.d.ts",
+      "import": "./dist/drizzle-orm/index.mjs",
+      "node": "./dist/drizzle-orm/index.cjs"
+    },
+    "./drizzle-orm/vite": {
+      "types": "./dist/drizzle-orm/vite.d.ts",
+      "import": "./dist/drizzle-orm/vite.mjs",
+      "node": "./dist/drizzle-orm/vite.cjs"
+    }
+  },
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "README.md",
+    "dist",
+    "package.json"
+  ],
+  "scripts": {
+    "playground:dev": "vite",
+    "dev": "pnpm run stub && vite",
+    "stub": "unbuild --stub",
+    "build": "unbuild",
+    "typecheck": "tsc --noEmit",
+    "db:generate": "drizzle-kit generate"
+  },
+  "dependencies": {
+    "@date-fns/tz": "^1.2.0",
+    "@duckdb/duckdb-wasm": "^1.29.0",
+    "apache-arrow": "^19.0.0",
+    "date-fns": "^4.1.0",
+    "defu": "^6.1.4",
+    "drizzle-orm": "^0.39.1",
+    "es-toolkit": "^1.32.0"
+  },
+  "devDependencies": {
+    "@unocss/reset": "^65.4.3",
+    "@vitejs/plugin-vue": "^5.2.1",
+    "@vueuse/core": "^12.5.0",
+    "drizzle-kit": "^0.30.4",
+    "vite": "^6.0.11",
+    "vue": "^3.5.13",
+    "vue-tsc": "^2.2.0"
+  }
+}

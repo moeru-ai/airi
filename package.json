@@ -51,8 +51,10 @@
     "vitest": "^3.0.4"
   },
   "workspaces": [
-    "packages/*",
-    "docs"
+    "packages/**",
+    "services/**",
+    "examples/**",
+    "docs/**"
   ],
   "simple-git-hooks": {
     "pre-commit": "pnpm lint-staged && pnpm typecheck"

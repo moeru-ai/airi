@@ -9,6 +9,7 @@ export default antfu(
       '**/assets/js/**',
       '**/assets/live2d/models/**',
       'packages/stage-tamagotchi/out/**',
+      '**/drizzle/**',
     ],
   },
 )

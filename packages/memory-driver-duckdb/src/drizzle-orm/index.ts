@@ -1,0 +1,7 @@
+export type { ConnectOptionalOptions, ConnectOptions, ConnectRequiredOptions, DuckDBWasmClient } from './dialect'
+export { connect, format, getBundles } from './dialect'
+export * from './driver'
+export * from './migrator'
+export * from './session'
+export type { AsyncDuckDBConnection, DuckDBBundles, Logger } from '@duckdb/duckdb-wasm'
+export { AsyncDuckDB, ConsoleLogger, selectBundle, VoidLogger } from '@duckdb/duckdb-wasm'

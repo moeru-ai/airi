@@ -2,10 +2,16 @@
   "compilerOptions": {
     "target": "ESNext",
     "lib": [
-      "ESNext"
+      "ESNext",
+      "DOM",
+      "DOM.Iterable",
+      "WebWorker"
     ],
     "module": "ESNext",
     "moduleResolution": "bundler",
+    "types": [
+      "vite/client"
+    ],
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
     "isolatedModules": true,
