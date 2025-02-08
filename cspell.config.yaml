@@ -12,6 +12,7 @@ words:
   - Ayaka
   - Bitstream
   - bumpp
+  - catppuccin
   - cientos
   - composables
   - crossws
@@ -34,8 +35,8 @@ words:
   - dtype
   - duckdb
   - DuckDBWASM
-  - DuckDBWASMQuery
   - DuckDBWASMQ
+  - DuckDBWASMQuery
   - elevenlabs
   - formkit
   - gcornut
