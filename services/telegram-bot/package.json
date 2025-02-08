@@ -15,7 +15,9 @@
     "directory": "services/telegram-bot"
   },
   "scripts": {
-    "start": "dotenvx run -f .env -f .env.local --overload --ignore=MISSING_ENV_FILE -- tsx src/index.ts"
+    "start": "dotenvx run -f .env -f .env.local --overload --ignore=MISSING_ENV_FILE -- tsx src/index.ts",
+    "db:generate": "drizzle-kit generate",
+    "db:push": "drizzle-kit push"
   },
   "dependencies": {
     "@dotenvx/dotenvx": "^1.34.0",

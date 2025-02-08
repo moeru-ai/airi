@@ -35,15 +35,19 @@ export const photosTable = pgTable('photos', {
   updatedAt: bigint({ mode: 'number' }).notNull().default(0).$defaultFn(() => Date.now()),
 })
 
-export const joinedChatsTable = pgTable('joined_chats', {
-  id: uuid().primaryKey().defaultRandom(),
-  platform: text().notNull().default(''),
-  chatId: text().notNull().default(''),
-  chatName: text().notNull().default(''),
-  createdAt: bigint({ mode: 'number' }).notNull().default(0).$defaultFn(() => Date.now()),
-  updatedAt: bigint({ mode: 'number' }).notNull().default(0).$defaultFn(() => Date.now()),
-}, (table) => {
+export const joinedChatsTable = pgTable('joined_chats', () => {
   return {
-    uniquePlatformChatId: uniqueIndex('platform_chat_id_unique_index').on(table.platform, table.chatId),
+    id: uuid().primaryKey().defaultRandom(),
+    platform: text().notNull().default(''),
+    chatId: text().notNull().default(''),
+    chatName: text().notNull().default(''),
+    createdAt: bigint({ mode: 'number' }).notNull().default(0).$defaultFn(() => Date.now()),
+    updatedAt: bigint({ mode: 'number' }).notNull().default(0).$defaultFn(() => Date.now()),
   }
+}, (table) => {
+  return [
+    {
+      uniquePlatformChatId: uniqueIndex('platform_chat_id_unique_index').on(table.platform, table.chatId),
+    },
+  ]
 })
