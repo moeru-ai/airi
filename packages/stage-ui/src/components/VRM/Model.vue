@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import type { VRMCore } from '@pixiv/three-vrm-core'
+import { VRMUtils } from '@pixiv/three-vrm'
 import { useLoop, useTresContext } from '@tresjs/core'
 import { AnimationMixer } from 'three'
 
 import { onMounted, onUnmounted, ref, watch } from 'vue'
-import { clipFromVRMAnimation, loadVRMAnimation, useBlink } from '../../composables/vrm/animation'
+import { clipFromVRMAnimation, loadVRMAnimation, useBlink, useIdleEyeSaccades } from '../../composables/vrm/animation'
 import { loadVrm } from '../../composables/vrm/core'
 import { useVRMEmote } from '../../composables/vrm/expression'
 
@@ -20,11 +21,14 @@ const emit = defineEmits<{
   (e: 'error', value: unknown): void
 }>()
 
+let disposeBeforeRenderLoop: (() => void | undefined)
+
 const vrm = ref<VRMCore>()
 const vrmAnimationMixer = ref<AnimationMixer>()
 const { scene } = useTresContext()
 const { onBeforeRender } = useLoop()
 const blink = useBlink()
+const idleEyeSaccades = useIdleEyeSaccades()
 const vrmEmote = ref<ReturnType<typeof useVRMEmote>>()
 
 watch(() => props.position, ([x, y, z]) => {
@@ -63,14 +67,15 @@ onMounted(async () => {
 
     vrmEmote.value = useVRMEmote(_vrm)
 
-    onBeforeRender(({ delta }) => {
+    vrm.value = _vrm
+
+    disposeBeforeRenderLoop = onBeforeRender(({ delta }) => {
       vrmAnimationMixer.value?.update(delta)
       vrm.value?.update(delta)
       blink.update(vrm.value, delta)
+      idleEyeSaccades.update(vrm.value, delta)
       vrmEmote.value?.update(delta)
-    })
-
-    vrm.value = _vrm
+    }).off
   }
   catch (err) {
     emit('error', err)
@@ -78,9 +83,10 @@ onMounted(async () => {
 })
 
 onUnmounted(() => {
+  disposeBeforeRenderLoop?.()
   if (vrm.value) {
-    const { scene } = useTresContext()
-    scene.value.remove(vrm.value.scene)
+    vrm.value.scene.removeFromParent()
+    VRMUtils.deepDispose(vrm.value.scene)
   }
 })
 

@@ -3,7 +3,7 @@ publish = "packages/stage-web/dist"
 command = "pnpm run packages:stub && pnpm run build"
 
 [build.environment]
-NODE_VERSION = "22"
+NODE_VERSION = "23"
 
 [[redirects]]
 from = "/assets/*"
