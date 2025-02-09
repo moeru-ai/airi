@@ -12,11 +12,6 @@ export class DuckDBWasmDatabase<
   TSchema extends Record<string, unknown> = Record<string, never>,
 > extends PgDatabase<DuckDBWasmQueryResultHKT, TSchema> {
   static override readonly [entityKind]: string = 'DuckDBWasmDatabase'
-
-  // ** @internal */
-  dialect: PgDialect
-  // ** @internal */
-  session: DuckDBWasmSession<Promise<DuckDBWasmClient>, TSchema, TablesRelationalConfig>
 }
 
 function construct<

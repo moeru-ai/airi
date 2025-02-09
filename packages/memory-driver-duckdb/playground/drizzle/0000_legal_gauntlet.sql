@@ -1,4 +1,4 @@
 CREATE TABLE "users" (
-	"id" bigint PRIMARY KEY DEFAULT 0 NOT NULL,
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	CONSTRAINT "users_id_unique" UNIQUE("id")
 );

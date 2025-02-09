@@ -9,5 +9,5 @@ export async function migrate<TSchema extends Record<string, unknown>>(
   config: MigrationConfig,
 ) {
   const migrations = readMigrationFiles(config)
-  await db.dialect.migrate(migrations, db.session as unknown as PgSession, config)
+  await (db as any).dialect.migrate(migrations, (db as any).session as unknown as PgSession, config)
 }

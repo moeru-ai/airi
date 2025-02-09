@@ -1,5 +1,5 @@
 {
-  "id": "243b9794-66eb-484e-8359-cc3354344cf6",
+  "id": "b731cb60-cb64-4cb0-8262-52b1c3fc467e",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -10,10 +10,10 @@
       "columns": {
         "id": {
           "name": "id",
-          "type": "bigint",
+          "type": "uuid",
           "primaryKey": true,
           "notNull": true,
-          "default": "0"
+          "default": "gen_random_uuid()"
         }
       },
       "indexes": {},
