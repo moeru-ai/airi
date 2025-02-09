@@ -1,0 +1,12 @@
+[build]
+publish = "packages/memory-driver-duckdb/dist"
+command = "pnpm run build"
+
+[build.environment]
+NODE_VERSION = "23"
+
+[[redirects]]
+from = "/*"
+to = "/index.html"
+status = 200
+force = false

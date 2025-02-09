@@ -41,10 +41,12 @@
     "package.json"
   ],
   "scripts": {
-    "playground:dev": "vite",
-    "dev": "pnpm run stub && vite",
+    "dev": "pnpm run stub && pnpm run play:dev",
     "stub": "unbuild --stub",
-    "build": "unbuild",
+    "build": "unbuild && pnpm run play:build",
+    "play:dev": "vite",
+    "play:build": "vite build",
+    "play:preview": "vite preview",
     "typecheck": "tsc --noEmit",
     "db:generate": "drizzle-kit generate"
   },
