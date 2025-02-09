@@ -11,5 +11,18 @@ export default antfu(
       'packages/stage-tamagotchi/out/**',
       '**/drizzle/**',
     ],
+    // rules: {
+    //   'import/order': [
+    //     'error',
+    //     {
+    //       'groups': [
+    //         ['type'],
+    //         ['builtin', 'external'],
+    //         ['parent', 'sibling', 'index'],
+    //       ],
+    //       'newlines-between': 'always',
+    //     },
+    //   ],
+    // },
   },
 )

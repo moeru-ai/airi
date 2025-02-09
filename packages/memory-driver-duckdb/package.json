@@ -57,7 +57,8 @@
     "date-fns": "^4.1.0",
     "defu": "^6.1.4",
     "drizzle-orm": "^0.39.2",
-    "es-toolkit": "^1.32.0"
+    "es-toolkit": "^1.32.0",
+    "superjson": "^2.2.2"
   },
   "devDependencies": {
     "@unocss/reset": "^65.4.3",

@@ -2,6 +2,7 @@ import type { DuckDBBundles, Logger } from '@duckdb/duckdb-wasm'
 import type { DrizzleConfig, RelationalSchemaConfig, TablesRelationalConfig } from 'drizzle-orm'
 import type { DuckDBWasmClient } from './dialect'
 import type { DuckDBWasmQueryResultHKT } from './session'
+import { ConsoleLogger } from '@duckdb/duckdb-wasm'
 
 import { createTableRelationsHelpers, DefaultLogger, entityKind, extractTablesRelationalConfig, isConfig } from 'drizzle-orm'
 import { PgDatabase, PgDialect } from 'drizzle-orm/pg-core'
@@ -68,11 +69,12 @@ export function drizzle<
 ): DuckDBWasmDrizzleDatabase<TSchema, TClient> {
   if (typeof params[0] === 'string') {
     const parsedDSN = new URL(params[0] as string)
-    if (parsedDSN.searchParams.get('bundles') === 'worker-url') {
+    if (parsedDSN.searchParams.get('bundles') === 'import-url') {
+      const logger = parsedDSN.searchParams.get('logger') === 'true' ? new ConsoleLogger() : undefined
       return construct(new Promise<DuckDBWasmClient>((resolve) => {
         import('./dialect/duckdb-vite-bundles')
           .then(res => res.getViteBundles())
-          .then(bundles => connect({ bundles }))
+          .then(bundles => connect({ bundles, logger }))
           .then(resolve)
       }), params[1]) as any
     }
@@ -100,7 +102,7 @@ export function drizzle<
     if (typeof connection === 'object' && connection.url !== undefined) {
       const { url } = connection
       const parsedDSN = new URL(url)
-      if (parsedDSN.searchParams.get('bundles') === 'worker-url') {
+      if (parsedDSN.searchParams.get('bundles') === 'import-url') {
         return construct(new Promise<DuckDBWasmClient>((resolve) => {
           import('./dialect/duckdb-vite-bundles')
             .then(res => res.getViteBundles())

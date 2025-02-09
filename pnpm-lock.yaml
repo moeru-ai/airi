@@ -155,6 +155,9 @@ importers:
       es-toolkit:
         specifier: ^1.32.0
         version: 1.32.0
+      superjson:
+        specifier: ^2.2.2
+        version: 2.2.2
     devDependencies:
       '@unocss/reset':
         specifier: ^65.4.3
@@ -9279,6 +9282,10 @@ packages:
 
   superjson@2.2.1:
     resolution: {integrity: sha512-8iGv75BYOa0xRJHK5vRLEjE2H/i4lulTjzpUXic3Eg8akftYjkmQDa8JARQ42rlczXyFR3IeRoeFCc7RxHsYZA==}
+    engines: {node: '>=16'}
+
+  superjson@2.2.2:
+    resolution: {integrity: sha512-5JRxVqC8I8NuOUjzBbvVJAKNM8qoVuH0O77h4WInc/qC2q5IreqKxYwgkga3PfA22OayK2ikceb/B26dztPl+Q==}
     engines: {node: '>=16'}
 
   supports-color@7.2.0:
@@ -20432,6 +20439,10 @@ snapshots:
       - supports-color
 
   superjson@2.2.1:
+    dependencies:
+      copy-anything: 3.0.5
+
+  superjson@2.2.2:
     dependencies:
       copy-anything: 3.0.5
 

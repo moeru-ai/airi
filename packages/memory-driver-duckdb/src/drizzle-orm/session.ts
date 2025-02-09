@@ -5,7 +5,7 @@ import type { DuckDBWasmClient } from './dialect'
 
 import { entityKind, fillPlaceholders, NoopLogger } from 'drizzle-orm'
 import { PgPreparedQuery, PgSession, PgTransaction } from 'drizzle-orm/pg-core'
-import { beginTransaction, format, withSavepoint } from './dialect'
+import { beginTransaction, mapColumnData, withSavepoint } from './dialect'
 
 export type Row = Record<string, any>
 
@@ -16,7 +16,7 @@ function toJSRepresentedRows<T extends { toArray: () => StructRow[], schema: Sch
 
   const jsRepresentedRows = rows.map((row) => {
     results.schema.fields.forEach((field) => {
-      return row[field.name] = format(row[field.name], field)
+      return row[field.name] = mapColumnData(row[field.name], field)
     })
 
     return row

@@ -239,7 +239,8 @@ export function isIntervalType(type?: Field): boolean {
   // ArrowDataType.isInterval checks for a different (unsupported) type and not related
   // to the pandas interval extension type.
   return (
-    (ArrowDataType.isStruct(type.type)
-      && type.metadata.get('ARROW:extension:name') === 'interval')
+    ((ArrowDataType.isStruct(type.type)
+      && type.metadata.get('ARROW:extension:name') === 'interval'))
+    || ArrowDataType.isInterval(type.type)
   )
 }
