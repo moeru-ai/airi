@@ -1,6 +1,8 @@
 import type { AsyncDuckDBConnection, DuckDBBundles, Logger } from '@duckdb/duckdb-wasm'
+
 import { AsyncDuckDB, ConsoleLogger, selectBundle, VoidLogger } from '@duckdb/duckdb-wasm'
 import { defu } from 'defu'
+
 import { getBundles } from './duckdb-default-bundles'
 
 export type ConnectOptions = ConnectRequiredOptions & ConnectOptionalOptions

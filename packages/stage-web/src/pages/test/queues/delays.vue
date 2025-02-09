@@ -1,7 +1,5 @@
 <script setup lang="ts">
-import BasicTextarea from '@proj-airi/stage-ui/components/BasicTextarea.vue'
-
-// import { useQueue } from '../../../composables/queue'
+import { BasicTextarea } from '@proj-airi/stage-ui/components'
 import { useDelayMessageQueue } from '@proj-airi/stage-ui/composables'
 import { llmInferenceEndToken } from '@proj-airi/stage-ui/constants'
 import { ref } from 'vue'

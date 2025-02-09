@@ -6,7 +6,6 @@
       "DOM",
       "ESNext"
     ],
-    "baseUrl": ".",
     "paths": {
       "@proj-airi/stage-ui/*": [
         "../stage-ui/src/*"

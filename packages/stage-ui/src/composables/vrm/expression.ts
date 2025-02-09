@@ -1,4 +1,5 @@
 import type { VRMCore } from '@pixiv/three-vrm-core'
+
 import { ref } from 'vue'
 
 interface EmotionState {

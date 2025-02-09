@@ -5,6 +5,7 @@ import type { DuckDBWasmClient } from './dialect'
 
 import { entityKind, fillPlaceholders, NoopLogger } from 'drizzle-orm'
 import { PgPreparedQuery, PgSession, PgTransaction } from 'drizzle-orm/pg-core'
+
 import { beginTransaction, mapColumnData, withSavepoint } from './dialect'
 
 export type Row = Record<string, any>

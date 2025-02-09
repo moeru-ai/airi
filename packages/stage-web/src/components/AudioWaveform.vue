@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { useAudioContext } from '@proj-airi/stage-ui/stores'
 import { useDark, useElementBounding } from '@vueuse/core'
-
 import { onMounted, ref } from 'vue'
 
 const containerRef = ref<HTMLDivElement>()

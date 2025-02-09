@@ -2,10 +2,11 @@ import type { DuckDBBundles, Logger } from '@duckdb/duckdb-wasm'
 import type { DrizzleConfig, RelationalSchemaConfig, TablesRelationalConfig } from 'drizzle-orm'
 import type { DuckDBWasmClient } from './dialect'
 import type { DuckDBWasmQueryResultHKT } from './session'
-import { ConsoleLogger } from '@duckdb/duckdb-wasm'
 
+import { ConsoleLogger } from '@duckdb/duckdb-wasm'
 import { createTableRelationsHelpers, DefaultLogger, entityKind, extractTablesRelationalConfig, isConfig } from 'drizzle-orm'
 import { PgDatabase, PgDialect } from 'drizzle-orm/pg-core'
+
 import { connect } from './dialect'
 import { DuckDBWasmSession } from './session'
 

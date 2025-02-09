@@ -1,7 +1,7 @@
 import type { TZDate } from '@date-fns/tz'
 import type { Field, StructRow } from 'apache-arrow'
-
 import type { DataType } from './duckdb-types'
+
 import { TZDateMini } from '@date-fns/tz'
 import { DataType as ArrowDataType, IntervalUnit, Struct, TimeUnit, util } from 'apache-arrow'
 import {
@@ -20,8 +20,8 @@ import {
   setDay,
   transpose,
 } from 'date-fns'
-
 import { trimEnd } from 'es-toolkit'
+
 import { isNullOrUndefined, notNullOrUndefined } from './duckdb-common'
 import {
   isBooleanType,

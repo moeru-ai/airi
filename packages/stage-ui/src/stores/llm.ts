@@ -1,4 +1,5 @@
 import type { Message } from '@xsai/shared-chat'
+
 import { listModels } from '@xsai/model'
 import { streamText } from '@xsai/stream-text'
 import { defineStore } from 'pinia'

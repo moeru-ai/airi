@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { Emotion } from '@proj-airi/stage-ui/constants/emotions'
 
-import BasicTextarea from '@proj-airi/stage-ui/components/BasicTextarea.vue'
+import { BasicTextarea } from '@proj-airi/stage-ui/components'
 import { useQueue } from '@proj-airi/stage-ui/composables/queue'
 import { useEmotionsMessageQueue } from '@proj-airi/stage-ui/composables/queues'
 import { llmInferenceEndToken } from '@proj-airi/stage-ui/constants'

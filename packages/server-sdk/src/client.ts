@@ -1,7 +1,9 @@
 import type { WebSocketBaseEvent, WebSocketEvent, WebSocketEvents } from '@proj-airi/server-shared/types'
 import type { Blob } from 'node:buffer'
+
 import WebSocket from 'crossws/websocket'
 import { defu } from 'defu'
+
 import { sleep } from './utils'
 
 export interface ClientOptions {

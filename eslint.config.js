@@ -10,19 +10,20 @@ export default antfu(
       '**/assets/live2d/models/**',
       'packages/stage-tamagotchi/out/**',
       '**/drizzle/**',
+      '**/.astro/**',
     ],
-    // rules: {
-    //   'import/order': [
-    //     'error',
-    //     {
-    //       'groups': [
-    //         ['type'],
-    //         ['builtin', 'external'],
-    //         ['parent', 'sibling', 'index'],
-    //       ],
-    //       'newlines-between': 'always',
-    //     },
-    //   ],
-    // },
+    rules: {
+      'import/order': [
+        'error',
+        {
+          'groups': [
+            ['type'],
+            ['builtin', 'external'],
+            ['parent', 'sibling', 'index'],
+          ],
+          'newlines-between': 'always',
+        },
+      ],
+    },
   },
 )

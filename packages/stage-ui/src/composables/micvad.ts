@@ -1,5 +1,6 @@
 import type { RealTimeVADOptions } from '@ricky0123/vad-web'
 import type { MaybeRef } from '@vueuse/shared'
+
 import { getDefaultRealTimeVADOptions, MicVAD } from '@ricky0123/vad-web'
 import { usePermission } from '@vueuse/core'
 import { tryOnMounted } from '@vueuse/shared'

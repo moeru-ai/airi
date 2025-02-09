@@ -2,7 +2,6 @@ import { Buffer } from 'node:buffer'
 import { cp, mkdir, writeFile } from 'node:fs/promises'
 import path, { join, resolve } from 'node:path'
 import { env } from 'node:process'
-
 import VueI18n from '@intlify/unplugin-vue-i18n/vite'
 import { Download } from '@proj-airi/unplugin-download/vite'
 import { DownloadLive2DSDK } from '@proj-airi/unplugin-live2d-sdk/vite'
@@ -16,11 +15,10 @@ import VueMacros from 'unplugin-vue-macros/vite'
 import VueRouter from 'unplugin-vue-router/vite'
 import { defineConfig } from 'vite'
 import { VitePWA } from 'vite-plugin-pwa'
-
 import VueDevTools from 'vite-plugin-vue-devtools'
 import Layouts from 'vite-plugin-vue-layouts'
-import { exists } from '../../scripts/fs'
 
+import { exists } from '../../scripts/fs'
 import { appName } from './src/constants'
 
 export default defineConfig({

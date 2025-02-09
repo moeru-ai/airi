@@ -1,5 +1,7 @@
 import type { Dictionary, Field, Struct, StructRow, Vector } from 'apache-arrow'
+
 import { DataType as ArrowDataType } from 'apache-arrow'
+
 import { isNullOrUndefined } from './duckdb-common'
 
 /** Data types used by ArrowJS. */

@@ -2,6 +2,7 @@ import type { Emotion } from '../constants/emotions'
 import type { UseQueueReturn } from './queue'
 
 import { ref } from 'vue'
+
 import { llmInferenceEndToken } from '../constants'
 import { EMOTION_VALUES } from '../constants/emotions'
 import { useQueue } from './queue'

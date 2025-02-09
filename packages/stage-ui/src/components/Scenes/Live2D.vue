@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
+
 import {
   EmotionAngryMotionName,
   EmotionAwkwardMotionName,
@@ -9,7 +10,6 @@ import {
   EmotionSurpriseMotionName,
   EmotionThinkMotionName,
 } from '../../constants/emotions'
-
 import Live2DViewer from '../Live2D/Viewer.vue'
 import Screen from '../Screen.vue'
 
