@@ -1,5 +1,5 @@
 [build]
-publish = "packages/memory-driver-duckdb/dist"
+publish = "packages/memory-driver-duckdb/playground/dist"
 command = "pnpm run build"
 
 [build.environment]
