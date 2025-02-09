@@ -2,7 +2,6 @@
   "name": "@proj-airi/whisper-webgpu",
   "type": "module",
   "private": true,
-  "packageManager": "pnpm@9.15.5",
   "description": "Yet another WebGPU based Whisper Realtime STT re-implemented",
   "author": {
     "name": "Neko Ayaka",
@@ -24,7 +23,7 @@
     "vue": "^3.5.13"
   },
   "devDependencies": {
-    "@huggingface/transformers": "^3.3.2",
+    "@huggingface/transformers": "^3.3.3",
     "@vitejs/plugin-vue": "^5.2.1",
     "@webgpu/types": "^0.1.54",
     "hfup": "workspace:^",

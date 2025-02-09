@@ -40,7 +40,7 @@
     "@proj-airi/server-shared": "workspace:^",
     "crossws": "^0.3.3",
     "defu": "^6.1.4",
-    "h3": "^1.14.0",
+    "h3": "^1.15.0",
     "listhen": "^1.9.0"
   }
 }
