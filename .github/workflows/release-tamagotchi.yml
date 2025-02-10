@@ -6,7 +6,7 @@ permissions:
 on:
   push:
     tags:
-      - 'tamagotchi/v*'
+      - 'v*'
 
 jobs:
   build-tamagotchi:
@@ -36,20 +36,6 @@ jobs:
             artifact: exe
     runs-on: ${{ matrix.os }}
     steps:
-      - name: Remove Version Prefix
-        if: ${{ matrix.platform != 'win' }}
-        run: |
-          version=$(echo "${{ github.ref_name }}" | sed 's/tamagotchi\/v//')
-          echo "Version: $version"
-          echo "VERSION=$version" >> $GITHUB_ENV
-      - name: Remove Version Prefix
-        if: ${{ matrix.platform == 'win' }}
-        run: |
-          # PowerShell version of the above
-          $version = '${{ github.ref_name }}' -replace 'tamagotchi/v', ''
-          echo "Version: $version"
-          echo "VERSION=$version" >> $env:GITHUB_ENV
-
       - name: Checkout
         uses: actions/checkout@v4
 
@@ -91,8 +77,8 @@ jobs:
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: airi-${{ matrix.platform }}-${{ matrix.arch }}-${{ env.VERSION }}
-          path: packages/stage-tamagotchi/dist/airi-${{ matrix.platform }}-${{ matrix.arch }}-${{ env.VERSION }}.${{ matrix.artifact }}
+          name: airi-${{ matrix.platform }}-${{ matrix.arch }}-${{ github.ref_name }}
+          path: packages/stage-tamagotchi/dist/airi-${{ matrix.platform }}-${{ matrix.arch }}-${{ github.ref_name }}.${{ matrix.artifact }}
 
   release-tamagotchi:
     name: Release Tamagotchi
