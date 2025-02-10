@@ -1,5 +1,8 @@
 name: Release Tamagotchi
 
+permissions:
+  contents: write
+
 on:
   push:
     tags:
