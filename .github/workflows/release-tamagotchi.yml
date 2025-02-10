@@ -34,8 +34,16 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - name: Remove Version Prefix
+        if: ${{ matrix.platform != 'win' }}
         run: |
           version=$(echo "${{ github.ref_name }}" | sed 's/tamagotchi\/v//')
+          echo "Version: $version"
+          echo "VERSION=$version" >> $GITHUB_ENV
+      - name: Remove Version Prefix
+        if: ${{ matrix.platform == 'win' }}
+        run: |
+          # PowerShell version of the above
+          $version = ${{ github.ref_name }} -replace 'tamagotchi/v', ''
           echo "Version: $version"
           echo "VERSION=$version" >> $GITHUB_ENV
 
@@ -88,12 +96,6 @@ jobs:
     runs-on: ubuntu-24.04
     needs: build-tamagotchi
     steps:
-      - name: Remove Version Prefix
-        run: |
-          version=$(echo "${{ github.ref_name }}" | sed 's/tamagotchi\/v//')
-          echo "Version: $version"
-          echo "VERSION=$version" >> $GITHUB_ENV
-
       - name: Checkout
         uses: actions/checkout@v4
 
