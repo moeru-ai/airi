@@ -45,7 +45,7 @@ jobs:
           # PowerShell version of the above
           $version = '${{ github.ref_name }}' -replace 'tamagotchi/v', ''
           echo "Version: $version"
-          echo "VERSION=$version" >> $GITHUB_ENV
+          echo "VERSION=$version" >> $env:GITHUB_ENV
 
       - name: Checkout
         uses: actions/checkout@v4
