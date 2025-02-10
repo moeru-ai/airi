@@ -43,7 +43,7 @@ jobs:
         if: ${{ matrix.platform == 'win' }}
         run: |
           # PowerShell version of the above
-          $version = ${{ github.ref_name }} -replace 'tamagotchi/v', ''
+          $version = '${{ github.ref_name }}' -replace 'tamagotchi/v', ''
           echo "Version: $version"
           echo "VERSION=$version" >> $GITHUB_ENV
 
