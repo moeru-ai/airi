@@ -1,7 +1,7 @@
 {
   "name": "@proj-airi/server-sdk",
   "type": "module",
-  "version": "0.1.4",
+  "version": "0.1.6",
   "private": false,
   "description": "Client-side SDK implementation for connecting to Airi server components and runtimes",
   "author": {
