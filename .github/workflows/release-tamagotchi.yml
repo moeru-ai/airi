@@ -1,0 +1,103 @@
+name: Release Tamagotchi
+
+permissions:
+  contents: write
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build-tamagotchi:
+    name: Build Tamagotchi
+    strategy:
+      matrix:
+        include:
+          - os: macos-13
+            platform: mac
+            arch: x64
+            artifact: dmg
+          - os: macos-latest
+            platform: mac
+            arch: arm64
+            artifact: dmg
+          - os: ubuntu-latest
+            platform: linux
+            arch: x86_64
+            artifact: AppImage
+          - os: ubuntu-24.04-arm
+            platform: linux
+            arch: arm64
+            artifact: AppImage
+          - os: windows-latest
+            platform: win
+            arch: x64
+            artifact: exe
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Node.js 22.x
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.x
+          # registry-url required. Learn more at
+          # https://docs.github.com/en/actions/publishing-packages/publishing-nodejs-packages
+          registry-url: 'https://registry.npmjs.org'
+
+      - uses: pnpm/action-setup@v3
+        name: Install pnpm
+        with:
+          run_install: false
+
+      - name: Get pnpm store directory
+        shell: bash
+        run: |
+          echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
+
+      - uses: actions/cache@v4
+        name: Setup pnpm cache
+        with:
+          path: ${{ env.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build Dependencies
+        run: pnpm run build
+
+      - name: Build Application
+        run: pnpm run -F @proj-airi/stage-tamagotchi build:${{ matrix.platform }}
+
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: airi-${{ matrix.platform }}-${{ matrix.arch }}-${{ github.ref_name }}
+          path: packages/stage-tamagotchi/dist/airi-${{ matrix.platform }}-${{ matrix.arch }}-${{ github.ref_name }}.${{ matrix.artifact }}
+
+  release-tamagotchi:
+    name: Release Tamagotchi
+    runs-on: ubuntu-24.04
+    needs: build-tamagotchi
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          merge-multiple: true
+          path: dist
+
+      - run: ls -la dist
+
+      - name: Upload To GitHub Releases
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/airi-*
+          generate_release_notes: true

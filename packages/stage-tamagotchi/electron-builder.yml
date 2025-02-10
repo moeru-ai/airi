@@ -14,7 +14,7 @@ asarUnpack:
 win:
   executableName: tamagotchi
 nsis:
-  artifactName: ${name}-${version}-setup.${ext}
+  artifactName: ${productName}-${os}-${arch}-v${version}.${ext}
   shortcutName: ${productName}
   uninstallDisplayName: ${productName}
   createDesktopShortcut: always
@@ -27,16 +27,14 @@ mac:
     - NSDownloadsFolderUsageDescription: Application requests access to the user's Downloads folder.
   notarize: false
 dmg:
-  artifactName: ${name}-${version}.${ext}
+  artifactName: ${productName}-${os}-${arch}-v${version}.${ext}
 linux:
   target:
     - AppImage
-    - snap
-    - deb
   maintainer: github.com/moeru-ai Contributors
   category: Entertainment
 appImage:
-  artifactName: ${name}-${version}.${ext}
+  artifactName: ${productName}-${os}-${arch}-v${version}.${ext}
 npmRebuild: false
 # publish:
 #   provider: generic
