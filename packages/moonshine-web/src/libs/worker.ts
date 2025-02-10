@@ -1,6 +1,7 @@
 /* eslint-disable no-restricted-globals */
 import type { AutomaticSpeechRecognitionPipeline, PreTrainedModel } from '@huggingface/transformers'
 import type { MessageEvent as InternalMessageEvent, MessageEventBufferRequest, MessageEventError, MessageEventInfo, MessageEventOutput, MessageEventStatus } from './types'
+
 import { AutoModel, pipeline, Tensor } from '@huggingface/transformers'
 
 import {

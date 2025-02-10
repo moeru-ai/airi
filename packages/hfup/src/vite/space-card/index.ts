@@ -1,10 +1,11 @@
 import type { Plugin, ResolvedConfig } from 'vite'
 import type { License, SpaceConfiguration } from './types'
+
 import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { defu } from 'defu'
-
 import grayMatter from 'gray-matter'
+
 import { exists } from '../../utils/fs'
 import { licenseValues } from './types'
 

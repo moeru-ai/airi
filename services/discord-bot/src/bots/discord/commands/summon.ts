@@ -10,6 +10,7 @@ import type {
   GuildMember,
 } from 'discord.js'
 import type { Readable } from 'node:stream'
+
 import { Buffer } from 'node:buffer'
 import { EventEmitter } from 'node:events'
 import { pipeline } from 'node:stream'

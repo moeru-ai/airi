@@ -5,7 +5,6 @@ import { createPinia } from 'pinia'
 import { createApp } from 'vue'
 import { createI18n } from 'vue-i18n'
 import { createRouter, createWebHashHistory } from 'vue-router'
-
 import { routes } from 'vue-router/auto-routes'
 
 import App from './App.vue'

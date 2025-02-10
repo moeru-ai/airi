@@ -16,7 +16,6 @@ import { EMOTION_EmotionMotionName_value, EMOTION_VRMExpressionName_value, Emoti
 import { useAudioContext, useSpeakingStore } from '../../stores/audio'
 import { useChatStore } from '../../stores/chat'
 import { useSettings } from '../../stores/settings'
-
 import Live2DScene from '../Scenes/Live2D.vue'
 import VRMScene from '../Scenes/VRM.vue'
 

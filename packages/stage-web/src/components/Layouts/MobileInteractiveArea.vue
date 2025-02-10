@@ -1,15 +1,12 @@
 <script setup lang="ts">
 import { BasicTextarea } from '@proj-airi/stage-ui/components'
-
 import { useMicVAD } from '@proj-airi/stage-ui/composables'
-// import { useAudioContext } from '../../stores/audio'
 import { useChatStore, useSettings } from '@proj-airi/stage-ui/stores'
-
-// import { useDevicesList } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { DrawerContent, DrawerOverlay, DrawerPortal, DrawerRoot, DrawerTrigger } from 'vaul-vue'
 import { onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+
 import MobileChatHistory from '../Widgets/MobileChatHistory.vue'
 import MobileSettings from '../Widgets/MobileSettings.vue'
 

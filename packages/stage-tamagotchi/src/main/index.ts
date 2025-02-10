@@ -2,6 +2,7 @@ import { join } from 'node:path'
 import { env, platform } from 'node:process'
 import { electronApp, is, optimizer } from '@electron-toolkit/utils'
 import { app, BrowserWindow, dialog, ipcMain, Menu, shell } from 'electron'
+
 import icon from '../../build/icon.png?asset'
 
 function createWindow(): void {

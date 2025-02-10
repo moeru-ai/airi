@@ -1,5 +1,6 @@
 <script lang="ts" setup>
 import { watchEffect } from 'vue'
+
 import TransitionVertical from './TransitionVertical.vue'
 
 const props = defineProps<{

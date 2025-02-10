@@ -1,7 +1,9 @@
+import type { TZDate } from '@date-fns/tz'
 import type { Field, StructRow } from 'apache-arrow'
 import type { DataType } from './duckdb-types'
-import { TZDate } from '@date-fns/tz'
-import { Struct, TimeUnit, util } from 'apache-arrow'
+
+import { TZDateMini } from '@date-fns/tz'
+import { DataType as ArrowDataType, IntervalUnit, Struct, TimeUnit, util } from 'apache-arrow'
 import {
   addDays,
   addHours,
@@ -16,17 +18,19 @@ import {
   formatDuration as dateFormatDuration,
   fromUnixTime,
   setDay,
+  transpose,
 } from 'date-fns'
-
 import { trimEnd } from 'es-toolkit'
+
 import { isNullOrUndefined, notNullOrUndefined } from './duckdb-common'
 import {
-
+  isBooleanType,
   isDatetimeType,
   isDateType,
   isDecimalType,
   isDurationType,
   isFloatType,
+  isIntegerType,
   isIntervalType,
   isListType,
   isObjectType,
@@ -284,7 +288,7 @@ export function formatDate(date: number | Date): string {
 /**
  * Format datetime value from Arrow to string.
  */
-export function formatDatetime(date: number | Date, field?: Field): string {
+export function formatDatetime(date: number | Date, field?: Field): Date | null {
   // Datetime values from arrow are already converted to a date object
   // or a timestamp in milliseconds even if the field unit might indicate a
   // different unit.
@@ -297,25 +301,34 @@ export function formatDatetime(date: number | Date, field?: Field): string {
     )
   ) {
     console.warn(`Unsupported datetime value: ${date}`)
-    return String(date)
+    return null
   }
 
   let datetime: TZDate
+  const timezone = field?.type?.timezone
 
+  // Impact by upstream changes, see:
+  // - How to replace date-fns-tz · Issue #9 - https://github.com/date-fns/tz/issues/9
+  // - Inconsistencies from date-fns-tz · Issue #6 - https://github.com/date-fns/tz/issues/6
   if (typeof date === 'number') {
-    datetime = new TZDate(date, 'UTC')
+    if (timezone) {
+      datetime = new TZDateMini(date, timezone)
+    }
+    else {
+      datetime = new TZDateMini(date)
+    }
   }
   else {
-    datetime = new TZDate(date, 'UTC')
+    if (timezone) {
+      datetime = new TZDateMini(date, timezone)
+    }
+    else {
+      datetime = new TZDateMini(date)
+    }
   }
 
-  const timezone = field?.type?.timezone
-  if (timezone) {
-    datetime = datetime.withTimeZone(timezone)
-    return dateFormat(datetime, 'yyyy-MM-dd HH:mm:ss OOOO')
-  }
   // Return the timestamp without timezone information
-  return dateFormat(datetime, 'yyyy-MM-dd HH:mm:ss')
+  return transpose(datetime, Date)
 }
 
 /**
@@ -329,7 +342,7 @@ export function formatDatetime(date: number | Date, field?: Field): string {
  * https://github.com/apache/arrow/issues/28804
  * https://github.com/apache/arrow/issues/35745
  */
-export function formatDecimal(value: Uint32Array, field?: Field): string {
+export function formatDecimal(value: Uint32Array | Int32Array, field?: Field): string {
   const scale = field?.type?.scale || 0
 
   // Format Uint32Array to a numerical string and pad it with zeros
@@ -382,7 +395,30 @@ export function formatFloat(num: number): string {
 /**
  * Formats an interval value from arrow to string.
  */
-export function formatInterval(x: StructRow, field?: Field): string {
+export function formatInterval(x: StructRow | Int32Array, field?: Field): string {
+  // TODO: still buggy, the return value of interval related fields are always
+  // [0, 0] as Int32Array, should follow the issue to resolve this.
+  if (ArrowDataType.isInterval(field?.type)) {
+    const value = formatDecimal(x as Int32Array, field)
+    const unit = field?.type.unit
+    switch (unit) {
+      case IntervalUnit.MONTH_DAY_NANO:
+        // In Python:
+        // pa.scalar((1, 15, -30), type=pa.month_day_nano_interval())
+        // <pyarrow.MonthDayNanoIntervalScalar: MonthDayNano(months=1, days=15, nanoseconds=-30)>
+        //
+        // see: pyarrow.month_day_nano_interval — Apache Arrow v19.0.0
+        // https://arrow.apache.org/docs/python/generated/pyarrow.month_day_nano_interval.html
+        return `${value} months`
+      case IntervalUnit.DAY_TIME:
+        return `${value} days`
+      case IntervalUnit.YEAR_MONTH:
+        return `${value} years`
+      default:
+        return value
+    }
+  }
+
   // Serialization for pandas.Interval is provided by Arrow extensions
   // https://github.com/pandas-dev/pandas/blob/235d9009b571c21b353ab215e1e675b1924ae55c/
   // pandas/core/arrays/arrow/extension_types.py#L17
@@ -401,8 +437,8 @@ export function formatInterval(x: StructRow, field?: Field): string {
     const leftBracket = closed === 'both' || closed === 'left' ? '[' : '('
     const rightBracket = closed === 'both' || closed === 'right' ? ']' : ')'
 
-    const leftInterval = format(interval.left, (field.type as Struct)?.children?.[0])
-    const rightInterval = format(interval.right, (field.type as Struct)?.children?.[1])
+    const leftInterval = mapColumnData(interval.left, (field.type as Struct)?.children?.[0])
+    const rightInterval = mapColumnData(interval.right, (field.type as Struct)?.children?.[1])
 
     return `${leftBracket + leftInterval}, ${rightInterval + rightBracket}`
   }
@@ -468,31 +504,36 @@ export function formatPeriod(duration: number | bigint, field?: Field): string {
  * @param field The field metadata from arrow containing metadata about the column.
  * @returns The formatted JSON string.
  */
-export function formatObject(object: any, field?: Field): string {
+export function formatObject(object: any, field?: Field): unknown {
   if (field?.type instanceof Struct) {
     // This type is used by python dictionary values
 
-    return JSON.stringify(object, (_key, value) => {
-      if (!notNullOrUndefined(value)) {
+    return JSON.parse(
+      JSON.stringify(object, (_key, value) => {
+        if (!notNullOrUndefined(value)) {
         // Workaround: Arrow JS adds all properties from all cells
         // as fields. When you convert to string, it will contain lots of fields with
         // null values. To mitigate this, we filter out null values.
-        return undefined
-      }
-      if (typeof value === 'bigint') {
+          return undefined
+        }
+        if (typeof value === 'bigint') {
         // JSON.stringify fails to serialize bigint values, therefore we have to
         // handle them manually.
         // TODO(lukasmasuch): Would it be better to serialize it to a string to
         // not lose precision?
-        return Number(value)
-      }
-      return value
-    })
+          return Number(value)
+        }
+
+        return value
+      }),
+    )
   }
 
   // TODO(lukasmasuch): Investigate if we can unify this with the logic above.
-  return JSON.stringify(object, (_key, value) =>
-    typeof value === 'bigint' ? Number(value) : value)
+  return JSON.parse(
+    JSON.stringify(object, (_key, value) =>
+      typeof value === 'bigint' ? Number(value) : value),
+  )
 }
 
 /**
@@ -506,47 +547,61 @@ export function formatObject(object: any, field?: Field): string {
  * @param field The field metadata from arrow containing metadata about the column.
  * @returns The formatted cell value.
  */
-export function format(x: DataType, field?: Field): string {
+export function mapColumnData<T = unknown>(x: DataType, field?: Field): T {
   if (isNullOrUndefined(x)) {
-    return ''
+    return null as null as unknown as T
   }
 
   const isDate = x instanceof Date || Number.isFinite(x)
   if (isDate && isDateType(field)) {
-    return formatDate(x as Date | number)
+    return formatDate(x as Date | number) as string as T
   }
 
   if (typeof x === 'bigint' && isTimeType(field)) {
-    return formatTime(Number(x), field)
+    return formatTime(Number(x), field) as string as T
   }
 
   if (isDate && isDatetimeType(field)) {
-    return formatDatetime(x as Date | number, field)
+    return formatDatetime(x as Date | number, field) as Date as T
   }
 
   if (isPeriodType(field)) {
-    return formatPeriod(x as bigint, field)
+    // Not supported yet by Postgres and DuckDB
+    throw new Error('Period type is not supported yet')
   }
 
   if (isIntervalType(field)) {
-    return formatInterval(x as StructRow, field)
+    return formatInterval(x as StructRow, field) as string as T
   }
 
   if (isDurationType(field)) {
-    return formatDuration(x as number | bigint, field)
+    // Not supported yet by Postgres and DuckDB
+    throw new Error('Duration type is not supported yet')
   }
 
   if (isDecimalType(field)) {
-    return formatDecimal(x as Uint32Array, field)
+  // 'numeric' in Postgres also applies here
+    return formatDecimal(x as Uint32Array, field) as string as T
   }
 
   if (isFloatType(field) && Number.isFinite(x)) {
-    return formatFloat(x as number)
+    return x as number as T
+  }
+
+  if (isIntegerType(field)) {
+    // If int64 or uint64, it should be bigint already,
+    // if int32 or uint32, it should be number already,
+    // therefore we can just return the value as is.
+    return x as number as T
   }
 
   if (isObjectType(field) || isListType(field)) {
-    return formatObject(x, field)
+    return formatObject(x, field) as T
   }
 
-  return String(x)
+  if (isBooleanType(field)) {
+    return Boolean(x) as boolean as T
+  }
+
+  return String(x) as T
 }

@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import type { VRMCore } from '@pixiv/three-vrm-core'
+
 import { VRMUtils } from '@pixiv/three-vrm'
 import { useLoop, useTresContext } from '@tresjs/core'
 import { AnimationMixer } from 'three'
-
 import { onMounted, onUnmounted, ref, watch } from 'vue'
+
 import { clipFromVRMAnimation, loadVRMAnimation, useBlink, useIdleEyeSaccades } from '../../composables/vrm/animation'
 import { loadVrm } from '../../composables/vrm/core'
 import { useVRMEmote } from '../../composables/vrm/expression'

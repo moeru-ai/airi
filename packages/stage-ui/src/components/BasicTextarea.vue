@@ -1,5 +1,6 @@
 <script setup lang="ts" generic="T extends any, O extends any">
 import type { CSSProperties } from 'vue'
+
 import { nextTick, onMounted, ref } from 'vue'
 
 const events = defineEmits<{

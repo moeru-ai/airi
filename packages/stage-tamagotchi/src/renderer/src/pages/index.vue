@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { WidgetStage } from '@proj-airi/stage-ui/components'
 import { ref } from 'vue'
+
 import InteractiveArea from '../components/InteractiveArea.vue'
 
 const dragDelay = ref(0)

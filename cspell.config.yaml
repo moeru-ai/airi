@@ -10,6 +10,7 @@ words:
   - Attributify
   - audioworklet
   - Ayaka
+  - bigserial
   - Bitstream
   - bumpp
   - catppuccin
@@ -97,8 +98,10 @@ words:
   - shikijs
   - silero
   - sizecheck
+  - smallserial
   - Sniglet
   - supergroup
+  - superjson
   - tamagotchi
   - taze
   - tresjs

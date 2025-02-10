@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { WidgetStage } from '@proj-airi/stage-ui/components'
-
 import { useDark } from '@vueuse/core'
+
 import Cross from '../components/Backgrounds/Cross.vue'
 import AnimatedBackground from '../components/Layouts/AnimatedBackground.vue'
 import Header from '../components/Layouts/Header.vue'

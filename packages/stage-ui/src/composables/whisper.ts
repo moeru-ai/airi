@@ -1,4 +1,5 @@
 import type { MessageEvents, MessageGenerate, ProgressMessageEvents } from '../libs/workers/types'
+
 import { useWebWorker } from '@vueuse/core'
 import { defu } from 'defu'
 import { onUnmounted, ref, watch } from 'vue'

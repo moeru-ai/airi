@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { MessageEvent, MessageEventBufferRequest, MessageEventInfo, MessageEventLoad, MessageEventOutput, MessageEventStatus } from './libs/types'
+
 import { TresCanvas } from '@tresjs/core'
 import { useWebWorker } from '@vueuse/core'
 import { ACESFilmicToneMapping, SRGBColorSpace } from 'three'
@@ -7,7 +8,6 @@ import { onMounted, ref, watch } from 'vue'
 
 import AnimatedMesh from './components/AnimatedMesh.vue'
 import BloomScene from './components/BloomScene.vue'
-
 import { SAMPLE_RATE } from './constants'
 import ProcessorWorklet from './libs/processor?worker&url'
 import { MessageType } from './libs/types'

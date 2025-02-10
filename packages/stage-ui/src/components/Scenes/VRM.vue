@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { OrbitControls } from '@tresjs/cientos'
 import { TresCanvas } from '@tresjs/core'
-
 import { ref } from 'vue'
+
 import Collapsable from '../Collapsable.vue'
 import DataGuiRange from '../DataGui/Range.vue'
 import Screen from '../Screen.vue'

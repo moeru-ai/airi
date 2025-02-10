@@ -5,12 +5,11 @@
   ],
   "compilerOptions": {
     "composite": true,
-    "baseUrl": ".",
     "module": "ESNext",
     "moduleResolution": "bundler",
     "paths": {
       "@renderer/*": [
-        "src/renderer/src/*"
+        "./src/renderer/src/*"
       ],
       "@proj-airi/stage-ui/*": [
         "../stage-ui/src/*"
@@ -21,6 +20,7 @@
     "src/renderer/src/shims.ts",
     "src/renderer/src/**/*",
     "src/renderer/src/**/*.vue",
-    "src/preload/*.d.ts"
+    "src/preload/*.d.ts",
+    "../stage-ui/src/**/*.ts" // REVIEW: why?
   ]
 }

@@ -1,7 +1,7 @@
 import type { Logg } from '@guiiai/logg'
 import type { Message as LLMMessage } from '@xsai/shared-chat'
-
 import type { Action, BotSelf, ExtendedContext } from '../../types'
+
 import { env } from 'node:process'
 import { useLogg } from '@guiiai/logg'
 import { generateText } from '@xsai/generate-text'

@@ -1,14 +1,11 @@
 <script setup lang="ts">
 import { BasicTextarea } from '@proj-airi/stage-ui/components'
-
 import { useMicVAD } from '@proj-airi/stage-ui/composables'
-// import { useAudioContext } from '../../stores/audio'
 import { useChatStore, useSettings } from '@proj-airi/stage-ui/stores'
-
-// import { useDevicesList } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+
 import TamagotchiChatHistory from './ChatHistory.vue'
 
 const messageInput = ref('')

@@ -1,9 +1,11 @@
 import type { VRMAnimation } from '@pixiv/three-vrm-animation'
 import type { VRMCore } from '@pixiv/three-vrm-core'
+
 import { createVRMAnimationClip } from '@pixiv/three-vrm-animation'
 import { Object3D, Vector3 } from 'three'
 import { randFloat } from 'three/src/math/MathUtils.js'
 import { ref } from 'vue'
+
 import { useVRMLoader } from './loader'
 
 export interface GLTFUserdata extends Record<string, any> {

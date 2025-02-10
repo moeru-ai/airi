@@ -1,4 +1,5 @@
 import { Buffer } from 'node:buffer'
+
 import { DECODE_SAMPLE_RATE } from '../constants/audio'
 
 export function pcmToWav(pcmBuffer: Buffer, sampleRate: number, numChannels: number): Uint8Array {

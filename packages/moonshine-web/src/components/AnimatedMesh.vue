@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { Mesh } from 'three'
+
 import { useRenderLoop } from '@tresjs/core'
 import { IcosahedronGeometry, ShaderMaterial } from 'three'
 import { computed, ref } from 'vue'

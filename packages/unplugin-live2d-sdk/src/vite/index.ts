@@ -1,4 +1,5 @@
 import type { Plugin } from 'vite'
+
 import { Buffer } from 'node:buffer'
 import { copyFile, mkdir } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
