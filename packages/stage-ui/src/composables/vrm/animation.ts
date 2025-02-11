@@ -6,6 +6,7 @@ import { Object3D, Vector3 } from 'three'
 import { randFloat } from 'three/src/math/MathUtils.js'
 import { ref } from 'vue'
 
+import { randomSaccadeInterval } from '../../utils'
 import { useVRMLoader } from './loader'
 
 export interface GLTFUserdata extends Record<string, any> {
@@ -102,34 +103,6 @@ export function useIdleEyeSaccades() {
   let fixationTarget: Vector3 | undefined
   let timeSinceLastSaccade = 0
 
-  const STEP = 400
-  const P = [
-    [0.075, 800],
-    [0.110, 0],
-    [0.125, 0],
-    [0.140, 0],
-    [0.125, 0],
-    [0.050, 0],
-    [0.040, 0],
-    [0.030, 0],
-    [0.020, 0],
-    [1.000, 0],
-  ]
-  for (let i = 1; i < P.length; i++) {
-    P[i][0] += P[i - 1][0]
-    P[i][1] = P[i - 1][1] + STEP
-  }
-
-  function nextSaccadeTimeMs() {
-    const r = Math.random()
-    for (let i = 0; i < P.length; i++) {
-      if (r <= P[i][0]) {
-        return P[i][1] + Math.random() * STEP
-      }
-    }
-    return P[P.length - 1][1] + Math.random() * STEP
-  }
-
   // Just a naive vector generator - Simulating random content on a 27in monitor at 65cm distance
   function updateFixationTarget() {
     if (!fixationTarget) {
@@ -148,7 +121,7 @@ export function useIdleEyeSaccades() {
     if (timeSinceLastSaccade >= nextSaccadeAfter) {
       updateFixationTarget()
       timeSinceLastSaccade = 0
-      nextSaccadeAfter = nextSaccadeTimeMs() / 1000
+      nextSaccadeAfter = randomSaccadeInterval() / 1000
     }
     else if (!fixationTarget) {
       updateFixationTarget()

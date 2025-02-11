@@ -10,6 +10,8 @@ import { DropShadowFilter } from 'pixi-filters'
 import { Live2DModel, MotionPreloadStrategy, MotionPriority } from 'pixi-live2d-display/cubism4'
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 
+import { useLive2DIdleEyeFocus } from '../../composables/live2d'
+
 const props = withDefaults(defineProps<{
   model: string
   mouthOpenSize?: number
@@ -31,6 +33,8 @@ const dark = useDark()
 const breakpoints = useBreakpoints(breakpointsTailwind)
 const isMobile = computed(() => breakpoints.between('sm', 'md').value || breakpoints.smaller('sm').value)
 const { height, width } = useElementBounding(containerRef, { immediate: true, windowResize: true, reset: true })
+
+const idleEyeFocus = useLive2DIdleEyeFocus()
 
 function getCoreModel() {
   return model.value!.internalModel.coreModel as any
@@ -84,8 +88,34 @@ async function initLive2DPixiStage(parent: HTMLDivElement) {
       model.value.motion('tap_body')
   })
 
-  const coreModel = model.value.internalModel.coreModel as any
+  const internalModel = model.value.internalModel
+  const coreModel = internalModel.coreModel as any
+  const motionManager = internalModel.motionManager
   coreModel.setParameterValueById('ParamMouthOpenY', mouthOpenSize.value)
+
+  // Remove eye ball movements from idle motion group to prevent conflicts
+  // This is too hacky
+  if (motionManager.groups.idle) {
+    motionManager.motionGroups[motionManager.groups.idle]?.forEach((motion) => {
+      motion._motionData.curves.forEach((curve: any) => {
+        // TODO: After emotion mapper, stage editor, eye related parameters should be take cared to be dynamical instead of hardcoding
+        if (curve.id === 'ParamEyeBallX' || curve.id === 'ParamEyeBallY') {
+          curve.id = `_${curve.id}`
+        }
+      })
+    })
+  }
+
+  // This is hacky too
+  const hookedUpdate = motionManager.update
+  motionManager.update = function (model, now) {
+    hookedUpdate?.call(this, model, now)
+    // Only update eye focus when the model is idle
+    if (motionManager.state.currentGroup === motionManager.groups.idle) {
+      idleEyeFocus.update(internalModel, now)
+    }
+    return true
+  }
 }
 
 async function setMotion(motionName: string) {
