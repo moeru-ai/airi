@@ -98,6 +98,7 @@ async function initLive2DPixiStage(parent: HTMLDivElement) {
   if (motionManager.groups.idle) {
     motionManager.motionGroups[motionManager.groups.idle]?.forEach((motion) => {
       motion._motionData.curves.forEach((curve: any) => {
+        // TODO: After emotion mapper, stage editor, eye related parameters should be take cared to be dynamical instead of hardcoding
         if (curve.id === 'ParamEyeBallX' || curve.id === 'ParamEyeBallY') {
           curve.id = `_${curve.id}`
         }
