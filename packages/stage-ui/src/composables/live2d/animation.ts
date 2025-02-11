@@ -25,6 +25,7 @@ export function useLive2DIdleEyeFocus() {
 
     model.focusController.update(now - lastSaccadeAt)
     const coreModel = model.coreModel as any
+    // TODO: After emotion mapper, stage editor, eye related parameters should be take cared to be dynamical instead of hardcoding
     coreModel.setParameterValueById('ParamEyeBallX', lerp(coreModel.getParameterValueById('ParamEyeBallX'), focusTarget![0], 0.3))
     coreModel.setParameterValueById('ParamEyeBallY', lerp(coreModel.getParameterValueById('ParamEyeBallY'), focusTarget![1], 0.3))
   }
