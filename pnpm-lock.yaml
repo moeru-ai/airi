@@ -924,9 +924,6 @@ importers:
 
   services/minecraft:
     dependencies:
-      '@dotenvx/dotenvx':
-        specifier: ^1.34.0
-        version: 1.35.0
       '@guiiai/logg':
         specifier: ^1.0.7
         version: 1.0.7
@@ -939,9 +936,6 @@ importers:
       awilix:
         specifier: ^12.0.4
         version: 12.0.4
-      dotenv:
-        specifier: ^16.4.7
-        version: 16.4.7
       es-toolkit:
         specifier: ^1.32.0
         version: 1.32.0
@@ -1003,27 +997,12 @@ importers:
         specifier: ^3.24.1
         version: 3.24.1(zod@3.24.1)
     devDependencies:
-      '@antfu/eslint-config':
-        specifier: ^4.1.1
-        version: 4.1.1(@typescript-eslint/utils@8.22.0(eslint@9.20.0(jiti@2.4.2))(typescript@5.7.3))(@unocss/eslint-plugin@65.4.3(eslint@9.20.0(jiti@2.4.2))(typescript@5.7.3))(@vue/compiler-sfc@3.5.13)(eslint-plugin-format@1.0.1(eslint@9.20.0(jiti@2.4.2)))(eslint@9.20.0(jiti@2.4.2))(typescript@5.7.3)(vitest@3.0.5(@types/debug@4.1.12)(@types/node@22.13.1)(jiti@2.4.2)(jsdom@25.0.1(bufferutil@4.0.9)(utf-8-validate@5.0.10))(less@4.2.1)(terser@5.17.6)(tsx@4.19.2)(yaml@2.7.0))
-      eslint:
-        specifier: ^9.19.0
-        version: 9.20.0(jiti@2.4.2)
-      lint-staged:
-        specifier: ^15.4.3
-        version: 15.4.3
-      simple-git-hooks:
-        specifier: ^2.11.1
-        version: 2.11.1
-      tsx:
-        specifier: ^4.19.2
-        version: 4.19.2
-      typescript:
-        specifier: ^5.7.3
-        version: 5.7.3
-      vitest:
-        specifier: ^3.0.4
-        version: 3.0.5(@types/debug@4.1.12)(@types/node@22.13.1)(jiti@2.4.2)(jsdom@25.0.1(bufferutil@4.0.9)(utf-8-validate@5.0.10))(less@4.2.1)(terser@5.17.6)(tsx@4.19.2)(yaml@2.7.0)
+      '@dotenvx/dotenvx':
+        specifier: ^1.34.0
+        version: 1.35.0
+      dotenv:
+        specifier: ^16.4.7
+        version: 16.4.7
 
   services/telegram-bot:
     dependencies:

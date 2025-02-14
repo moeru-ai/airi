@@ -1,9 +1,10 @@
 import type { Message } from 'neuri/openai'
 import type { Action } from '../../libs/mineflayer'
 import type { AgentConfig, MemoryAgent } from '../../libs/mineflayer/base-agent'
+import type { Logger } from '../../utils/logger'
 
 import { Memory } from '../../libs/mineflayer/memory'
-import { type Logger, useLogger } from '../../utils/logger'
+import { useLogger } from '../../utils/logger'
 
 export class MemoryAgentImpl implements MemoryAgent {
   public readonly type = 'memory' as const

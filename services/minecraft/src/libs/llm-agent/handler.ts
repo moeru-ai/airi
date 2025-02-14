@@ -1,10 +1,11 @@
 import type { NeuriContext } from 'neuri'
 import type { ChatCompletion, Message } from 'neuri/openai'
+import type { Logger } from '../../utils/logger'
 import type { LLMConfig, LLMResponse } from './types'
 
 import { config } from '../../composables/config'
 import { toRetriable } from '../../utils/helper'
-import { type Logger, useLogger } from '../../utils/logger'
+import { useLogger } from '../../utils/logger'
 
 export abstract class BaseLLMHandler {
   protected logger: Logger

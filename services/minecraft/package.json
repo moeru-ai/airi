@@ -2,9 +2,8 @@
   "name": "@proj-airi/minecraft-bot",
   "type": "module",
   "version": "1.0.0",
-  "packageManager": "pnpm@9.15.5",
+  "private": true,
   "description": "An intelligent Minecraft bot powered by LLM. AIRI can understand natural language commands, interact with the world, and assist players in various tasks.",
-  "main": "src/main.ts",
   "scripts": {
     "dev": "dotenvx run -f .env -f .env.local --overload --debug --ignore=MISSING_ENV_FILE -- tsx src/main.ts",
     "start": "dotenvx run -f .env -f .env.local --overload --ignore=MISSING_ENV_FILE -- tsx src/main.ts",
@@ -14,12 +13,10 @@
     "test": "vitest"
   },
   "dependencies": {
-    "@dotenvx/dotenvx": "^1.34.0",
     "@guiiai/logg": "^1.0.7",
     "@proj-airi/server-sdk": "^0.1.4",
     "@typeschema/zod": "^0.14.0",
     "awilix": "^12.0.4",
-    "dotenv": "^16.4.7",
     "es-toolkit": "^1.32.0",
     "eventemitter3": "^5.0.1",
     "minecraft-data": "^3.83.1",
@@ -42,12 +39,7 @@
     "zod-to-json-schema": "^3.24.1"
   },
   "devDependencies": {
-    "@antfu/eslint-config": "^4.1.1",
-    "eslint": "^9.19.0",
-    "lint-staged": "^15.4.3",
-    "simple-git-hooks": "^2.11.1",
-    "tsx": "^4.19.2",
-    "typescript": "^5.7.3",
-    "vitest": "^3.0.4"
+    "@dotenvx/dotenvx": "^1.34.0",
+    "dotenv": "^16.4.7"
   }
 }
