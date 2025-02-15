@@ -1,0 +1,47 @@
+{
+  "name": "@proj-airi/iconify-json-lobe",
+  "type": "module",
+  "version": "1.0.0",
+  "private": true,
+  "description": "",
+  "author": {
+    "name": "Neko Ayaka",
+    "email": "neko@ayaka.moe",
+    "url": "https://github.com/nekomeowww"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/moeru-ai/airi.git",
+    "directory": "packages/iconify-json-lobe"
+  },
+  "exports": {
+    "./*": "./*",
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.cjs"
+    },
+    "./icons.json": "./dist/icons.json",
+    "./info.json": "./dist/info.json",
+    "./metadata.json": "./dist/metadata.json"
+  },
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "README.md",
+    "dist",
+    "package.json"
+  ],
+  "scripts": {
+    "dev": "unbuild",
+    "stub": "unbuild",
+    "build": "unbuild"
+  },
+  "devDependencies": {
+    "@iconify/tools": "^4.1.1",
+    "@lobehub/icons-static-svg": "^1.23.0",
+    "local-pkg": "^1.0.0"
+  }
+}
