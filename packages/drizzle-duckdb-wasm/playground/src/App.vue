@@ -16,7 +16,13 @@ const schemaResults = ref<Record<string, unknown>[]>()
 const query = ref(`SELECT 1 + 1 AS result`)
 
 onMounted(async () => {
-  db.value = drizzle('duckdb-wasm://?bundles=import-url', { schema })
+  const dsnURL = new URL('duckdb-wasm:///db1')
+  dsnURL.searchParams.set('bundles', 'import-url')
+  dsnURL.searchParams.set('format', 'parquet')
+  dsnURL.searchParams.set('storage', 'opfs')
+  dsnURL.searchParams.set('read_only', 'false')
+
+  db.value = drizzle(dsnURL.href, { schema })
   await db.value?.execute('INSTALL vss;')
   await db.value?.execute('LOAD vss;')
 
@@ -35,6 +41,23 @@ onMounted(async () => {
 
   const usersResults = await db.value.select().from(users)
   schemaResults.value = usersResults
+
+  window._opfs = {
+    async purge() {
+      // Delete all files in OPFS
+      const root = await window.navigator.storage.getDirectory()
+      for await (const name of root.keys()) {
+        await root.removeEntry(name, { recursive: true })
+      }
+      console.log('everything in OPFS has been deleted')
+    },
+  }
+
+  window._client = await db.value.$client
+
+  // for (const table of await (await db.value.$client).persistTables('users')) {
+  //   console.log(await table)
+  // }
 })
 
 onUnmounted(() => {

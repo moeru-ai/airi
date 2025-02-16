@@ -97,6 +97,7 @@ words:
   - onnxruntime
   - openai
   - openrouter
+  - OPFS
   - opusscript
   - pgvector
   - picklist

@@ -5,12 +5,14 @@
       "ESNext",
       "DOM",
       "DOM.Iterable",
+      "DOM.AsyncIterable",
       "WebWorker"
     ],
     "module": "ESNext",
     "moduleResolution": "bundler",
     "types": [
-      "vite/client"
+      "vite/client",
+      "@vitest/browser/providers/playwright"
     ],
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
