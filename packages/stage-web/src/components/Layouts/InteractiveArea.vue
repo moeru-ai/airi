@@ -98,7 +98,7 @@ onAfterSend(async () => {
 </script>
 
 <template>
-  <div v-if="false" flex="col" items-center pt-4>
+  <div flex="col" items-center pt-4>
     <fieldset flex="~ row" w-fit rounded-lg>
       <label
         :class="[
