@@ -76,10 +76,10 @@ onMounted(async () => {
     </h2>
     <div>
       <div
-        grid="~ cols-[140px_1fr]" my-2 items-center gap-1.5 rounded-lg
+        grid="~ cols-[150px_1fr]" my-2 items-center gap-1.5 rounded-lg
         bg="[#fff6fc] dark:[#2c2529]" px-2 py-1 text="pink-400"
       >
-        <div text="sm pink-500">
+        <div text="sm pink-500" pl-1>
           <span>{{ t('settings.openai-base-url.label') }}</span>
         </div>
         <div flex="~ row" w-full text="sm">
@@ -90,7 +90,7 @@ onMounted(async () => {
             h-8 w-full rounded-md bg-transparent px-2 py-1 text-right font-mono outline-none
           >
         </div>
-        <div text="sm pink-500">
+        <div text="sm pink-500" pl-1>
           <span>{{ t('settings.openai-api-key.label') }}</span>
         </div>
         <div flex="~ row" w-full text="sm">
@@ -101,7 +101,7 @@ onMounted(async () => {
             h-8 w-full rounded-md bg-transparent px-2 py-1 text-right font-mono outline-none
           >
         </div>
-        <div text="sm pink-500">
+        <div text="sm pink-500" pl-1>
           <span>{{ t('settings.elevenlabs-api-key.label') }}</span>
         </div>
         <div flex="~ row" w-full text="sm">
@@ -112,7 +112,7 @@ onMounted(async () => {
             h-8 w-full rounded-md bg-transparent px-2 py-1 text-right font-mono outline-none
           >
         </div>
-        <div text="sm pink-500">
+        <div text="sm pink-500" pl-1>
           <span>{{ t('settings.language.title') }}</span>
         </div>
         <div flex="~ row" w-full text="sm">
@@ -128,7 +128,7 @@ onMounted(async () => {
             </option>
           </select>
         </div>
-        <div text="sm pink-500">
+        <div text="sm pink-500" pl-1>
           <span>{{ t('settings.models') }}</span>
         </div>
         <div flex="~ row" w-full text="sm">
@@ -147,7 +147,7 @@ onMounted(async () => {
             </option>
           </select>
         </div>
-        <div text="sm pink-500">
+        <div text="sm pink-500" pl-1>
           <span>{{ t('settings.voices') }}</span>
         </div>
         <div flex="~ row" w-full text="sm">
@@ -183,7 +183,7 @@ onMounted(async () => {
         grid="~ cols-[140px_1fr]" my-2 items-center gap-1.5 rounded-lg
         bg="[#fff6fc] dark:[#2c2529]" px-2 py-1 text="pink-400"
       >
-        <div text="sm pink-500">
+        <div text="sm pink-500" pl-1>
           <span>Viewer</span>
         </div>
         <select
@@ -197,7 +197,7 @@ onMounted(async () => {
             3D
           </option>
         </select>
-        <div text="sm pink-500">
+        <div text="sm pink-500" pl-1>
           <span>Theme</span>
         </div>
         <label h-8 flex cursor-pointer items-center justify-end>

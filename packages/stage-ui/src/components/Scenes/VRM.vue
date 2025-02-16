@@ -55,18 +55,13 @@ defineExpose({
         @error="(val) => emit('error', val)"
       />
     </TresCanvas>
-    <div absolute bottom="2" right="2">
-      <div
-        flex="~ row"
-        bg="zinc-100 dark:zinc-700"
-        text="sm zinc-400 dark:zinc-500"
-        h-fit w-fit appearance-none gap-1 rounded-lg rounded-md border-none
-      >
+    <div absolute bottom="3" right="3">
+      <div flex="~ row" cursor-pointer>
         <label
-          h-fit cursor-pointer
-          :class="[show ? 'bg-zinc-300 text-zinc-900 dark:bg-zinc-200 dark:text-zinc-800' : '']"
+          :class="[show ? 'bg-zinc-300 dark:bg-zinc-200' : 'bg-zinc-100 dark:bg-zinc-700']"
           transition="all ease-in-out duration-500"
-          rounded-md px-2 py-2 z="<md:20"
+          text="lg zinc-500 dark:zinc-400"
+          m-1 h-fit w-fit cursor-pointer appearance-none gap-1 rounded-lg rounded-md border-none p-2 outline-none
         >
           <input
             v-model="show"
@@ -77,12 +72,12 @@ defineExpose({
             hidden appearance-none outline-none
           >
           <div select-none>
-            <div i-solar:bug-bold-duotone text="text-zinc-900 dark:text-zinc-800" />
+            <div i-solar:bug-bold-duotone />
           </div>
         </label>
       </div>
       <TransitionVertical>
-        <div v-if="show" absolute w-full min-w="50vw" z="<md:20" class="bottom-10 right-0">
+        <div v-if="show" min-w="50vw" z="<md:20" class="bottom-11 right-0" absolute m-1 w-full>
           <div bg="zinc-200/20 dark:black/20" flex="~ col" gap-2 rounded-lg p-2 backdrop-blur-sm>
             <div font-mono>
               <span>{{ $t('stage.viewers.debug-menu.vrm.model.title') }}</span>

@@ -1,5 +1,5 @@
 {
-  "name": "@proj-airi/iconify-json-lobe",
+  "name": "@proj-airi/lobe-icons",
   "type": "module",
   "version": "1.0.0",
   "private": true,
@@ -13,7 +13,7 @@
   "repository": {
     "type": "git",
     "url": "https://github.com/moeru-ai/airi.git",
-    "directory": "packages/iconify-json-lobe"
+    "directory": "packages/lobe-icons"
   },
   "exports": {
     "./*": "./*",

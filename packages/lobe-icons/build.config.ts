@@ -6,6 +6,10 @@ import { defineBuildConfig } from 'unbuild'
 
 import packageJSON from './package.json'
 
+function json(any: any) {
+  return JSON.stringify(any, null, 2)
+}
+
 export default defineBuildConfig({
   entries: [
     { builder: 'rollup', input: 'src/index.ts', outDir: 'dist', declaration: true },
@@ -35,10 +39,10 @@ export default defineBuildConfig({
       const iconSetData = await importDirectory(join(pkg.rootPath, 'icons'), { prefix: 'lobe-icons', ignoreImportErrors: 'warn' })
       const iconJSONData = iconSetData.export()
 
-      await writeFile('./dist/metadata.json', JSON.stringify({ categories: iconSetData.categories }, null, 2), { encoding: 'utf8' })
-      await writeFile('./dist/icons.json', JSON.stringify(iconJSONData, null, 2), { encoding: 'utf8' })
-      await writeFile('./dist/chars.json', JSON.stringify({}, null, 2), { encoding: 'utf8' })
-      await writeFile('./dist/info.json', JSON.stringify({
+      await writeFile('./dist/metadata.json', json({ categories: iconSetData.categories }), { encoding: 'utf8' })
+      await writeFile('./dist/icons.json', json(iconJSONData), { encoding: 'utf8' })
+      await writeFile('./dist/chars.json', json({}), { encoding: 'utf8' })
+      await writeFile('./dist/info.json', json({
         prefix: 'lobe-icons',
         name: 'Lobe Icons',
         total: Object.keys(iconJSONData.icons).length,
@@ -56,9 +60,9 @@ export default defineBuildConfig({
           'deepseek',
           'claude',
         ],
-        height: 32,
-        displayHeight: 16,
-        category: 'Logos 16px / 32px',
+        height: 20,
+        displayHeight: 20,
+        category: 'Logos 20px',
         tags: [
           'AI',
           'Models',
@@ -66,7 +70,7 @@ export default defineBuildConfig({
           'Lobe',
         ],
         palette: false,
-      }, null, 2), { encoding: 'utf8' })
+      }), { encoding: 'utf8' })
     },
   },
 })

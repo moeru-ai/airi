@@ -1,4 +1,4 @@
-import { defineConfig, mergeConfigs, presetWebFonts } from 'unocss'
+import { defineConfig, mergeConfigs, presetIcons, presetWebFonts } from 'unocss'
 
 import UnoCSSConfig from '../../uno.config'
 
@@ -14,6 +14,9 @@ export default defineConfig(mergeConfigs([
           cute: 'Kiwi Maru',
           cuteen: 'Sniglet',
         },
+      }),
+      presetIcons({
+        scale: 1.2,
       }),
     ],
   },

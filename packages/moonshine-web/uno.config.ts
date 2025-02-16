@@ -1,4 +1,4 @@
-import { defineConfig, mergeConfigs, presetWebFonts } from 'unocss'
+import { defineConfig, mergeConfigs, presetIcons, presetWebFonts } from 'unocss'
 
 import UnoCSSConfig from '../../uno.config'
 
@@ -12,6 +12,9 @@ export default defineConfig(mergeConfigs([
           serif: 'DM Serif Display',
           mono: 'DM Mono',
         },
+      }),
+      presetIcons({
+        scale: 1.2,
       }),
     ],
   },
