@@ -1,5 +1,5 @@
-import type { DuckDBBundles, Logger } from '@duckdb/duckdb-wasm'
-import type { DuckDBWasmClient } from '@proj-airi/duckdb-wasm'
+import type { DuckDBBundles } from '@duckdb/duckdb-wasm'
+import type { ConnectOptions, DuckDBWasmClient } from '@proj-airi/duckdb-wasm'
 import type { DrizzleConfig, RelationalSchemaConfig, TablesRelationalConfig } from 'drizzle-orm'
 import type { DuckDBWasmQueryResultHKT } from './session'
 
@@ -8,6 +8,7 @@ import { connect, getEnvironment } from '@proj-airi/duckdb-wasm'
 import { createTableRelationsHelpers, DefaultLogger, entityKind, extractTablesRelationalConfig, isConfig } from 'drizzle-orm'
 import { PgDatabase, PgDialect } from 'drizzle-orm/pg-core'
 
+import { parseDSN } from './dsn'
 import { DuckDBWasmSession } from './session'
 
 export class DuckDBWasmDatabase<
@@ -59,45 +60,51 @@ export interface DuckDBWasmDrizzleDatabase<
   $client: TClient
 }
 
+async function getBundles(importUrl = false): Promise<DuckDBBundles> {
+  const env = await getEnvironment()
+  switch (env) {
+    case 'browser':
+      return importUrl
+        ? (await import('@proj-airi/duckdb-wasm/bundles/import-url-browser')).getImportUrlBundles()
+        : (await import('@proj-airi/duckdb-wasm/bundles/default-browser')).getBundles()
+    case 'node':
+      return importUrl
+        ? await (await import('@proj-airi/duckdb-wasm/bundles/import-url-node')).getImportUrlBundles()
+        : await (await import('@proj-airi/duckdb-wasm/bundles/default-node')).getBundles()
+    default:
+      throw new Error(`Unsupported environment: "${env}"`)
+  }
+}
+
+function constructByDSN<
+  TSchema extends Record<string, unknown> = Record<string, never>,
+>(
+  dsn: string,
+  drizzleConfig?: DrizzleConfig<TSchema>,
+): DuckDBWasmDrizzleDatabase<TSchema, Promise<DuckDBWasmClient>> {
+  const structured = parseDSN(dsn)
+
+  return construct(connect({
+    bundles: getBundles(structured.bundles === 'import-url'),
+    logger: structured.logger ? new ConsoleLogger() : undefined,
+    storage: structured.storage,
+  }), drizzleConfig) as any
+}
+
 export function drizzle<
   TSchema extends Record<string, unknown> = Record<string, never>,
   TClient extends Promise<DuckDBWasmClient> = Promise<DuckDBWasmClient>,
 >(
   ...params:
-    | [{ connection: string | ({ url?: string, bundles?: DuckDBBundles | Promise<DuckDBBundles>, logger?: Logger | false }) }]
-    | [{ connection: string | ({ url?: string, bundles?: DuckDBBundles | Promise<DuckDBBundles>, logger?: Logger | false }) }, DrizzleConfig<TSchema>]
+    | [{ connection: string | ConnectOptions }]
+    | [{ connection: string | ConnectOptions }, DrizzleConfig<TSchema>]
     | [{ client: TClient }]
     | [{ client: TClient }, DrizzleConfig<TSchema>]
     | [ TClient | string ]
     | [ TClient | string, DrizzleConfig<TSchema> ]
 ): DuckDBWasmDrizzleDatabase<TSchema, TClient> {
   if (typeof params[0] === 'string') {
-    const parsedDSN = new URL(params[0] as string)
-    if (parsedDSN.searchParams.get('bundles') === 'import-url') {
-      const logger = parsedDSN.searchParams.get('logger') === 'true' ? new ConsoleLogger() : undefined
-      return construct(new Promise<DuckDBWasmClient>((resolve) => {
-        getEnvironment().then((env) => {
-          if (env === 'browser') {
-            import('@proj-airi/duckdb-wasm/bundles/import-url-browser')
-              .then(res => res.getImportUrlBundles())
-              .then(bundles => connect({ bundles, logger }))
-              .then(resolve)
-          }
-          else if (env === 'node') {
-            import('@proj-airi/duckdb-wasm/bundles/import-url-node')
-              .then(res => res.getImportUrlBundles())
-              .then(bundles => connect({ bundles, logger }))
-              .then(resolve)
-          }
-          else {
-            throw new Error('Unsupported environment')
-          }
-        })
-      }), params[1]) as any
-    }
-
-    const instance = connect({})
-    return construct(instance, params[1]) as any
+    return constructByDSN(params[0] as string, params[1]) as any
   }
 
   if (isConfig(params[0])) {
@@ -106,48 +113,21 @@ export function drizzle<
       client,
       ...drizzleConfig
     } = params[0] as {
-      connection?: {
-        url?: string
-        bundles?: DuckDBBundles
-      }
+      connection?: string | ConnectOptions // a DSN or a ConnectOptions object
       client?: TClient
     } & DrizzleConfig<TSchema>
 
     if (client)
       return construct(client, drizzleConfig) as any
 
-    if (typeof connection === 'object') {
-      if (connection.url !== undefined) {
-        const { url } = connection
-        const parsedDSN = new URL(url)
-        const logger = parsedDSN.searchParams.get('logger') === 'true' ? new ConsoleLogger() : undefined
-        if (parsedDSN.searchParams.get('bundles') === 'import-url') {
-          return construct(new Promise<DuckDBWasmClient>((resolve) => {
-            getEnvironment().then((env) => {
-              if (env === 'browser') {
-                import('@proj-airi/duckdb-wasm/bundles/import-url-browser')
-                  .then(res => res.getImportUrlBundles())
-                  .then(bundles => connect({ bundles, logger }))
-                  .then(resolve)
-              }
-              else if (env === 'node') {
-                import('@proj-airi/duckdb-wasm/bundles/import-url-node')
-                  .then(res => res.getImportUrlBundles())
-                  .then(bundles => connect({ bundles, logger }))
-                  .then(resolve)
-              }
-              else {
-                throw new Error('Unsupported environment')
-              }
-            })
-          }), drizzleConfig) as any
-        }
-      }
+    if (typeof connection === 'string')
+      return constructByDSN(connection, drizzleConfig) as any
 
-      return construct(connect({ bundles: connection.bundles }), drizzleConfig) as any
-    }
-
-    return construct(connect({}), drizzleConfig) as any
+    return construct(connect({
+      bundles: connection.bundles,
+      logger: connection.logger,
+      storage: connection.storage,
+    }), drizzleConfig) as any
   }
 
   return construct(params[0] as TClient, params[1] as DrizzleConfig<TSchema> | undefined) as any

@@ -55,7 +55,9 @@
     "play:build": "vite build",
     "play:preview": "vite preview",
     "typecheck": "tsc --noEmit",
-    "db:generate": "drizzle-kit generate"
+    "db:generate": "drizzle-kit generate",
+    "test": "vitest",
+    "test:run": "vitest run"
   },
   "peerDependencies": {
     "web-worker": "^1.5.0"
@@ -67,7 +69,7 @@
   },
   "dependencies": {
     "@date-fns/tz": "^1.2.0",
-    "@duckdb/duckdb-wasm": "^1.29.0",
+    "@duckdb/duckdb-wasm": "1.29.1-dev68.0",
     "@proj-airi/duckdb-wasm": "workspace:^",
     "apache-arrow": "^19.0.1",
     "date-fns": "^4.1.0",
@@ -78,8 +80,10 @@
   "devDependencies": {
     "@unocss/reset": "^66.0.0",
     "@vitejs/plugin-vue": "^5.2.1",
+    "@vitest/browser": "^3.0.6",
     "@vueuse/core": "^12.7.0",
     "drizzle-kit": "^0.30.4",
+    "playwright": "^1.50.1",
     "superjson": "^2.2.2",
     "vite": "^6.1.1",
     "vue": "^3.5.13",
