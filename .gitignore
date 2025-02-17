@@ -10,6 +10,7 @@
 *.local
 *.log
 components.d.ts
+**/typed-router.d.ts
 dist
 node_modules
 .eslintcache
