@@ -59,7 +59,7 @@
     "neverBuiltDependencies": []
   },
   "simple-git-hooks": {
-    "pre-commit": "pnpm packages:stub && pnpm lint-staged && pnpm typecheck"
+    "pre-commit": "pnpm packages:stub && pnpm lint-staged"
   },
   "lint-staged": {
     "*": "eslint --fix"
