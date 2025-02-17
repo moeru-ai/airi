@@ -2,6 +2,7 @@
 .trash/
 .DS_Store
 **/.obsidian/
+.postgres
 
 .idea
 .nuxt
