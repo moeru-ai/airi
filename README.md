@@ -10,6 +10,36 @@
 
 > Heavily inspired by [Neuro-sama](https://www.youtube.com/@Neurosama)
 
+## Current progress
+
+Capable of
+
+- [x] Brain
+  - [x] Play [Minecraft](https://www.minecraft.net)
+  - [ ] Play [Factorio](https://www.factorio.com) (WIP, but [PoC and demo available](https://github.com/moeru-ai/airi-factorio))
+  - [x] Chat in [Telegram](https://telegram.org)
+  - [x] Chat in [Discord](https://discord.com)
+- [x] Ears
+  - [x] Audio input from browser
+  - [x] Audio input from [Discord](https://discord.com)
+  - [x] Client side speech recognition
+  - [x] Client side talking detection
+- [x] Mouth
+  - [x] ElevenLabs voice synthesis
+- [x] Body
+  - [x] VRM support
+    - [x] Control VRM model
+  - [x] VRM model animations
+    - [x] Auto blink
+    - [x] Auto look at
+    - [x] Idle eye movement
+  - [x] Live2D support
+    - [x] Control Live2D model
+  - [x] Live2D model animations
+    - [x] Auto blink
+    - [x] Auto look at
+    - [x] Idle eye movement
+
 ## Development
 
 ```shell

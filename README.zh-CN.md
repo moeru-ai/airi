@@ -10,6 +10,36 @@
 
 > 深受 [Neuro-sama](https://www.youtube.com/@Neurosama) 启发
 
+## 当前进度
+
+能够
+
+- [x] 大脑
+  - [x] 玩 [Minecraft](https://www.minecraft.net)
+  - [ ] 玩 [Factorio](https://www.factorio.com) (WIP, 但 [PoC 和演示可用](https://github.com/moeru-ai/airi-factorio))
+  - [x] 在 [Telegram](https://telegram.org) 聊天
+  - [x] 在 [Discord](https://discord.com) 聊天
+- [x] 耳朵
+  - [x] 浏览器音频输入
+  - [x] [Discord](https://discord.com) 音频输入
+  - [x] 客户端端语音识别
+  - [x] 客户端端说话检测
+- [x] 嘴巴
+  - [x] ElevenLabs 语音合成
+- [x] 身体
+  - [x] VRM 支持
+    - [x] 控制 VRM 模型
+  - [x] VRM 模型动画
+    - [x] 自动眨眼
+    - [x] 自动看
+    - [x] 空闲眼睛移动
+  - [x] Live2D 支持
+    - [x] 控制 Live2D 模型
+  - [x] Live2D 模型动画
+    - [x] 自动眨眼
+    - [x] 自动看
+    - [x] 空闲眼睛移动
+
 ## 开发
 
 ```shell
