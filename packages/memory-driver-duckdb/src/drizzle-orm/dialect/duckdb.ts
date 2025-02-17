@@ -1,14 +1,14 @@
-import type { AsyncDuckDBConnection, DuckDBBundles, Logger } from '@duckdb/duckdb-wasm'
+import type { AsyncDuckDBConnection, DuckDBBundle, DuckDBBundles, Logger } from '@duckdb/duckdb-wasm'
 
 import { AsyncDuckDB, ConsoleLogger, selectBundle, VoidLogger } from '@duckdb/duckdb-wasm'
 import { defu } from 'defu'
 
-import { getBundles } from './duckdb-default-bundles'
+import { getEnvironment } from './duckdb-common'
 
 export type ConnectOptions = ConnectRequiredOptions & ConnectOptionalOptions
 
 export interface ConnectOptionalOptions {
-  bundles?: DuckDBBundles
+  bundles?: DuckDBBundles | Promise<DuckDBBundles>
   logger?: boolean | Logger
 }
 
@@ -24,10 +24,38 @@ export interface DuckDBWasmClient {
 }
 
 export async function connect(options: ConnectOptions): Promise<DuckDBWasmClient> {
-  const opts = defu(options, { bundles: getBundles(), logger: false })
+  const opts = defu(options, { logger: false })
 
-  const bundle = await selectBundle(opts.bundles)
-  const worker = new Worker(bundle.mainWorker!)
+  let worker: Worker
+  let bundle: DuckDBBundle
+
+  const env = await getEnvironment()
+  if (env === 'browser') {
+    if (typeof opts.bundles === 'undefined') {
+      const { getBundles } = await import('../bundles/default-browser')
+      opts.bundles = await getBundles()
+    }
+
+    bundle = await selectBundle(await opts.bundles)
+    worker = new Worker(bundle.mainWorker!)
+  }
+  else if (env === 'node') {
+    if (typeof opts.bundles === 'undefined') {
+      const { getBundles } = await import('../bundles/default-node')
+      opts.bundles = await getBundles()
+    }
+
+    bundle = await selectBundle(await opts.bundles)
+
+    let workerUrl = bundle.mainWorker!
+    if (workerUrl.startsWith('/@fs/')) {
+      workerUrl = workerUrl.replace('/@fs/', 'file://')
+    }
+
+    const ww = await import('web-worker')
+    // eslint-disable-next-line new-cap
+    worker = new ww.default(workerUrl, { type: 'module' })
+  }
 
   let logger: Logger
   if (opts.logger === true) {

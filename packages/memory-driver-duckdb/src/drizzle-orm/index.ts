@@ -1,5 +1,5 @@
 export type { ConnectOptionalOptions, ConnectOptions, ConnectRequiredOptions, DuckDBWasmClient } from './dialect'
-export { connect, getBundles, mapColumnData } from './dialect'
+export { connect, mapColumnData } from './dialect'
 export * from './driver'
 export * from './migrator'
 export * from './session'

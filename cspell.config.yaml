@@ -11,6 +11,8 @@ words:
   - audioworklet
   - awilix
   - Ayaka
+  - baichuan
+  - baiducloud
   - bigserial
   - Bitstream
   - bumpp
@@ -44,16 +46,20 @@ words:
   - elevenlabs
   - formkit
   - gcornut
+  - giteeai
   - gltf
   - grammyjs
+  - groq
   - guiiai
   - hfspaceup
   - hfsup
   - hfup
+  - higress
   - histoire
   - hiyori
   - huggingface
   - huggingspace
+  - hunyuan
   - hyoban
   - iconify
   - intlify
@@ -79,14 +85,17 @@ words:
   - neuri
   - Neuro
   - Neuro-sama
+  - novita
   - nuxi
   - nuxt
   - nuxtjs
   - ofetch
+  - ollama
   - Oneliner
   - onnx
   - onnxruntime
   - openai
+  - openrouter
   - opusscript
   - pgvector
   - picklist
@@ -97,17 +106,22 @@ words:
   - pretrained
   - prismarine
   - pthread
+  - qwen
   - rehype
   - rushstack
   - Saccade
   - saccades
+  - SAVEPOINT
+  - sensenova
   - Shadcn
   - shiki
   - shikijs
   - silero
+  - siliconcloud
   - sizecheck
   - smallserial
   - Sniglet
+  - stepfun
   - supergroup
   - superjson
   - tamagotchi
@@ -120,6 +134,7 @@ words:
   - valibot
   - vaul
   - VITE
+  - vllm
   - vrma
   - vueuse
   - wavefile
@@ -127,5 +142,6 @@ words:
   - worklet
   - Xenova
   - xsai
+  - zhipu
 ignoreWords: []
 import: []

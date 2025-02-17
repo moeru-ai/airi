@@ -26,10 +26,23 @@
       "import": "./dist/drizzle-orm/index.mjs",
       "node": "./dist/drizzle-orm/index.cjs"
     },
-    "./drizzle-orm/vite": {
-      "types": "./dist/drizzle-orm/vite.d.ts",
-      "import": "./dist/drizzle-orm/vite.mjs",
-      "node": "./dist/drizzle-orm/vite.cjs"
+    "./drizzle-orm/bundles/default-browser": {
+      "types": "./dist/drizzle-orm/bundles/default-browser.d.ts",
+      "import": "./dist/drizzle-orm/bundles/default-browser.mjs"
+    },
+    "./drizzle-orm/bundles/default-node": {
+      "types": "./dist/drizzle-orm/bundles/default-node.d.ts",
+      "import": "./dist/drizzle-orm/bundles/default-node.mjs",
+      "node": "./dist/drizzle-orm/bundles/default-node.cjs"
+    },
+    "./drizzle-orm/bundles/import-url-browser": {
+      "types": "./dist/drizzle-orm/bundles/import-url-browser.d.ts",
+      "import": "./dist/drizzle-orm/bundles/import-url-browser.mjs"
+    },
+    "./drizzle-orm/bundles/import-url-node": {
+      "types": "./dist/drizzle-orm/bundles/import-url-node.d.ts",
+      "import": "./dist/drizzle-orm/bundles/import-url-node.mjs",
+      "node": "./dist/drizzle-orm/bundles/import-url-node.cjs"
     }
   },
   "main": "./dist/index.cjs",
@@ -50,6 +63,14 @@
     "typecheck": "tsc --noEmit",
     "db:generate": "drizzle-kit generate"
   },
+  "peerDependencies": {
+    "web-worker": "^1.5.0"
+  },
+  "peerDependenciesMeta": {
+    "web-worker": {
+      "optional": true
+    }
+  },
   "dependencies": {
     "@date-fns/tz": "^1.2.0",
     "@duckdb/duckdb-wasm": "^1.29.0",
@@ -57,14 +78,14 @@
     "date-fns": "^4.1.0",
     "defu": "^6.1.4",
     "drizzle-orm": "^0.39.2",
-    "es-toolkit": "^1.32.0",
-    "superjson": "^2.2.2"
+    "es-toolkit": "^1.32.0"
   },
   "devDependencies": {
     "@unocss/reset": "^65.4.3",
     "@vitejs/plugin-vue": "^5.2.1",
     "@vueuse/core": "^12.5.0",
     "drizzle-kit": "^0.30.4",
+    "superjson": "^2.2.2",
     "vite": "^6.1.0",
     "vue": "^3.5.13",
     "vue-tsc": "^2.2.0"

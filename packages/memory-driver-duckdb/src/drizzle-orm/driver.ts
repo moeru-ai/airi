@@ -7,7 +7,7 @@ import { ConsoleLogger } from '@duckdb/duckdb-wasm'
 import { createTableRelationsHelpers, DefaultLogger, entityKind, extractTablesRelationalConfig, isConfig } from 'drizzle-orm'
 import { PgDatabase, PgDialect } from 'drizzle-orm/pg-core'
 
-import { connect } from './dialect'
+import { connect, getEnvironment } from './dialect'
 import { DuckDBWasmSession } from './session'
 
 export class DuckDBWasmDatabase<
@@ -64,19 +64,35 @@ export function drizzle<
   TClient extends Promise<DuckDBWasmClient> = Promise<DuckDBWasmClient>,
 >(
   ...params:
-    [ TClient | string ] |
-    [ TClient | string, DrizzleConfig<TSchema> ] |
-    [(DrizzleConfig<TSchema> & ({ connection: string | ({ url?: string, bundles?: DuckDBBundles, logger?: Logger }) } | { client: TClient })) ]
+    | [{ connection: string | ({ url?: string, bundles?: DuckDBBundles | Promise<DuckDBBundles>, logger?: Logger | false }) }]
+    | [{ connection: string | ({ url?: string, bundles?: DuckDBBundles | Promise<DuckDBBundles>, logger?: Logger | false }) }, DrizzleConfig<TSchema>]
+    | [{ client: TClient }]
+    | [{ client: TClient }, DrizzleConfig<TSchema>]
+    | [ TClient | string ]
+    | [ TClient | string, DrizzleConfig<TSchema> ]
 ): DuckDBWasmDrizzleDatabase<TSchema, TClient> {
   if (typeof params[0] === 'string') {
     const parsedDSN = new URL(params[0] as string)
     if (parsedDSN.searchParams.get('bundles') === 'import-url') {
       const logger = parsedDSN.searchParams.get('logger') === 'true' ? new ConsoleLogger() : undefined
       return construct(new Promise<DuckDBWasmClient>((resolve) => {
-        import('./dialect/duckdb-vite-bundles')
-          .then(res => res.getViteBundles())
-          .then(bundles => connect({ bundles, logger }))
-          .then(resolve)
+        getEnvironment().then((env) => {
+          if (env === 'browser') {
+            import('./bundles/import-url-browser')
+              .then(res => res.getImportUrlBundles())
+              .then(bundles => connect({ bundles, logger }))
+              .then(resolve)
+          }
+          else if (env === 'node') {
+            import('./bundles/import-url-node')
+              .then(res => res.getImportUrlBundles())
+              .then(bundles => connect({ bundles, logger }))
+              .then(resolve)
+          }
+          else {
+            throw new Error('Unsupported environment')
+          }
+        })
       }), params[1]) as any
     }
 
@@ -100,16 +116,32 @@ export function drizzle<
     if (client)
       return construct(client, drizzleConfig) as any
 
-    if (typeof connection === 'object' && connection.url !== undefined) {
-      const { url } = connection
-      const parsedDSN = new URL(url)
-      if (parsedDSN.searchParams.get('bundles') === 'import-url') {
-        return construct(new Promise<DuckDBWasmClient>((resolve) => {
-          import('./dialect/duckdb-vite-bundles')
-            .then(res => res.getViteBundles())
-            .then(bundles => connect({ bundles }))
-            .then(resolve)
-        }), drizzleConfig) as any
+    if (typeof connection === 'object') {
+      if (connection.url !== undefined) {
+        const { url } = connection
+        const parsedDSN = new URL(url)
+        const logger = parsedDSN.searchParams.get('logger') === 'true' ? new ConsoleLogger() : undefined
+        if (parsedDSN.searchParams.get('bundles') === 'import-url') {
+          return construct(new Promise<DuckDBWasmClient>((resolve) => {
+            getEnvironment().then((env) => {
+              if (env === 'browser') {
+                import('./bundles/import-url-browser')
+                  .then(res => res.getImportUrlBundles())
+                  .then(bundles => connect({ bundles, logger }))
+                  .then(resolve)
+              }
+              else if (env === 'node') {
+                import('./bundles/import-url-node')
+                  .then(res => res.getImportUrlBundles())
+                  .then(bundles => connect({ bundles, logger }))
+                  .then(resolve)
+              }
+              else {
+                throw new Error('Unsupported environment')
+              }
+            })
+          }), drizzleConfig) as any
+        }
       }
 
       return construct(connect({ bundles: connection.bundles }), drizzleConfig) as any

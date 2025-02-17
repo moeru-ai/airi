@@ -1,1 +1,0 @@
-export { getViteBundles } from './dialect'

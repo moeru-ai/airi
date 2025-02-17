@@ -9,7 +9,7 @@ import coiMainModule from '@duckdb/duckdb-wasm/dist/duckdb-coi.wasm?url'
 import coiMainWorker from '@duckdb/duckdb-wasm/dist/duckdb-browser-coi.worker.js?url'
 import coiPthreadWorker from '@duckdb/duckdb-wasm/dist/duckdb-browser-coi.pthread.worker.js?url'
 
-export function getViteBundles(): DuckDBBundles {
+export function getImportUrlBundles(): DuckDBBundles {
   return {
     mvp: {
       mainModule: mvpMainModule,
