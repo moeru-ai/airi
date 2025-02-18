@@ -1,13 +1,13 @@
 import type { DuckDBBundles, Logger } from '@duckdb/duckdb-wasm'
+import type { DuckDBWasmClient } from '@proj-airi/duckdb-wasm'
 import type { DrizzleConfig, RelationalSchemaConfig, TablesRelationalConfig } from 'drizzle-orm'
-import type { DuckDBWasmClient } from './dialect'
 import type { DuckDBWasmQueryResultHKT } from './session'
 
 import { ConsoleLogger } from '@duckdb/duckdb-wasm'
+import { connect, getEnvironment } from '@proj-airi/duckdb-wasm'
 import { createTableRelationsHelpers, DefaultLogger, entityKind, extractTablesRelationalConfig, isConfig } from 'drizzle-orm'
 import { PgDatabase, PgDialect } from 'drizzle-orm/pg-core'
 
-import { connect, getEnvironment } from './dialect'
 import { DuckDBWasmSession } from './session'
 
 export class DuckDBWasmDatabase<
@@ -78,13 +78,13 @@ export function drizzle<
       return construct(new Promise<DuckDBWasmClient>((resolve) => {
         getEnvironment().then((env) => {
           if (env === 'browser') {
-            import('./bundles/import-url-browser')
+            import('@proj-airi/duckdb-wasm/bundles/import-url-browser')
               .then(res => res.getImportUrlBundles())
               .then(bundles => connect({ bundles, logger }))
               .then(resolve)
           }
           else if (env === 'node') {
-            import('./bundles/import-url-node')
+            import('@proj-airi/duckdb-wasm/bundles/import-url-node')
               .then(res => res.getImportUrlBundles())
               .then(bundles => connect({ bundles, logger }))
               .then(resolve)
@@ -125,13 +125,13 @@ export function drizzle<
           return construct(new Promise<DuckDBWasmClient>((resolve) => {
             getEnvironment().then((env) => {
               if (env === 'browser') {
-                import('./bundles/import-url-browser')
+                import('@proj-airi/duckdb-wasm/bundles/import-url-browser')
                   .then(res => res.getImportUrlBundles())
                   .then(bundles => connect({ bundles, logger }))
                   .then(resolve)
               }
               else if (env === 'node') {
-                import('./bundles/import-url-node')
+                import('@proj-airi/duckdb-wasm/bundles/import-url-node')
                   .then(res => res.getImportUrlBundles())
                   .then(bundles => connect({ bundles, logger }))
                   .then(resolve)

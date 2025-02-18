@@ -1,6 +1,6 @@
 import type { TZDate } from '@date-fns/tz'
 import type { Field, StructRow } from 'apache-arrow'
-import type { DataType } from './duckdb-types'
+import type { DataType } from './types'
 
 import { TZDateMini } from '@date-fns/tz'
 import { DataType as ArrowDataType, IntervalUnit, Struct, TimeUnit, util } from 'apache-arrow'
@@ -22,7 +22,7 @@ import {
 } from 'date-fns'
 import { trimEnd } from 'es-toolkit'
 
-import { isNullOrUndefined, notNullOrUndefined } from './duckdb-common'
+import { isNullOrUndefined, notNullOrUndefined } from './common'
 import {
   isBooleanType,
   isDatetimeType,
@@ -36,7 +36,7 @@ import {
   isObjectType,
   isPeriodType,
   isTimeType,
-} from './duckdb-types'
+} from './types'
 
 /**
  * The frequency strings defined in pandas.

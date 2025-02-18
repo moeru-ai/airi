@@ -1,5 +1,5 @@
 {
-  "name": "@proj-airi/drizzle-duckdb-wasm",
+  "name": "@proj-airi/duckdb-wasm",
   "type": "module",
   "version": "0.1.6",
   "private": true,
@@ -13,7 +13,7 @@
   "repository": {
     "type": "git",
     "url": "https://github.com/moeru-ai/airi.git",
-    "directory": "packages/drizzle-duckdb-wasm"
+    "directory": "packages/duckdb-wasm"
   },
   "exports": {
     ".": {
@@ -52,11 +52,7 @@
     "dev": "pnpm run stub && pnpm run play:dev",
     "stub": "unbuild --stub",
     "build": "unbuild && pnpm run play:build",
-    "play:dev": "vite",
-    "play:build": "vite build",
-    "play:preview": "vite preview",
-    "typecheck": "tsc --noEmit",
-    "db:generate": "drizzle-kit generate"
+    "typecheck": "tsc --noEmit"
   },
   "peerDependencies": {
     "web-worker": "^1.5.0"
@@ -69,7 +65,6 @@
   "dependencies": {
     "@date-fns/tz": "^1.2.0",
     "@duckdb/duckdb-wasm": "^1.29.0",
-    "@proj-airi/duckdb-wasm": "workspace:^",
     "apache-arrow": "^19.0.0",
     "date-fns": "^4.1.0",
     "defu": "^6.1.4",
@@ -77,13 +72,6 @@
     "es-toolkit": "^1.32.0"
   },
   "devDependencies": {
-    "@unocss/reset": "^65.4.3",
-    "@vitejs/plugin-vue": "^5.2.1",
-    "@vueuse/core": "^12.5.0",
-    "drizzle-kit": "^0.30.4",
-    "superjson": "^2.2.2",
-    "vite": "^6.1.0",
-    "vue": "^3.5.13",
-    "vue-tsc": "^2.2.0"
+    "drizzle-kit": "^0.30.4"
   }
 }

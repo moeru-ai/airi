@@ -122,6 +122,9 @@ importers:
       '@duckdb/duckdb-wasm':
         specifier: ^1.29.0
         version: 1.29.0
+      '@proj-airi/duckdb-wasm':
+        specifier: workspace:^
+        version: link:../duckdb-wasm
       apache-arrow:
         specifier: ^19.0.0
         version: 19.0.0
@@ -165,6 +168,37 @@ importers:
       vue-tsc:
         specifier: ^2.2.0
         version: 2.2.0(typescript@5.7.3)
+
+  packages/duckdb-wasm:
+    dependencies:
+      '@date-fns/tz':
+        specifier: ^1.2.0
+        version: 1.2.0
+      '@duckdb/duckdb-wasm':
+        specifier: ^1.29.0
+        version: 1.29.0
+      apache-arrow:
+        specifier: ^19.0.0
+        version: 19.0.0
+      date-fns:
+        specifier: ^4.1.0
+        version: 4.1.0
+      defu:
+        specifier: ^6.1.4
+        version: 6.1.4
+      drizzle-orm:
+        specifier: ^0.39.2
+        version: 0.39.2(@types/pg@8.11.11)(pg@8.13.1)(react@18.3.1)
+      es-toolkit:
+        specifier: ^1.32.0
+        version: 1.32.0
+      web-worker:
+        specifier: ^1.5.0
+        version: 1.5.0
+    devDependencies:
+      drizzle-kit:
+        specifier: ^0.30.4
+        version: 0.30.4
 
   packages/elevenlabs:
     devDependencies:
@@ -1032,7 +1066,7 @@ importers:
         version: 1.35.0
       '@gcornut/valibot-json-schema':
         specifier: ^0.42.0
-        version: 0.42.0(esbuild@0.19.12)(typescript@5.7.3)
+        version: 0.42.0(esbuild@0.25.0)(typescript@5.7.3)
       '@grammyjs/files':
         specifier: ^1.1.1
         version: 1.1.1(grammy@1.34.1(encoding@0.1.13))
@@ -1041,7 +1075,7 @@ importers:
         version: 1.0.7
       '@typeschema/valibot':
         specifier: ^0.14.0
-        version: 0.14.0(@gcornut/valibot-json-schema@0.42.0(esbuild@0.19.12)(typescript@5.7.3))(@types/json-schema@7.0.15)(valibot@1.0.0-beta.9(typescript@5.7.3))
+        version: 0.14.0(@gcornut/valibot-json-schema@0.42.0(esbuild@0.25.0)(typescript@5.7.3))(@types/json-schema@7.0.15)(valibot@1.0.0-beta.9(typescript@5.7.3))
       '@xsai/generate-text':
         specifier: 'catalog:'
         version: 0.1.0-beta.2
@@ -13090,16 +13124,6 @@ snapshots:
 
   '@formkit/auto-animate@0.8.2': {}
 
-  '@gcornut/valibot-json-schema@0.42.0(esbuild@0.19.12)(typescript@5.7.3)':
-    dependencies:
-      valibot: 0.42.1(typescript@5.7.3)
-    optionalDependencies:
-      '@types/json-schema': 7.0.15
-      esbuild-runner: 2.2.2(esbuild@0.19.12)
-    transitivePeerDependencies:
-      - esbuild
-      - typescript
-
   '@gcornut/valibot-json-schema@0.42.0(esbuild@0.25.0)(typescript@5.7.3)':
     dependencies:
       valibot: 0.42.1(typescript@5.7.3)
@@ -14611,17 +14635,8 @@ snapshots:
     dependencies:
       '@typeschema/core': 0.14.0(@types/json-schema@7.0.15)
     optionalDependencies:
-      '@typeschema/valibot': 0.14.0(@gcornut/valibot-json-schema@0.42.0(esbuild@0.19.12)(typescript@5.7.3))(@types/json-schema@7.0.15)(valibot@1.0.0-beta.9(typescript@5.7.3))
+      '@typeschema/valibot': 0.14.0(@gcornut/valibot-json-schema@0.42.0(esbuild@0.25.0)(typescript@5.7.3))(@types/json-schema@7.0.15)(valibot@1.0.0-beta.9(typescript@5.7.3))
       '@typeschema/zod': 0.14.0(@types/json-schema@7.0.15)(zod-to-json-schema@3.24.1(zod@3.24.1))(zod@3.24.1)
-    transitivePeerDependencies:
-      - '@types/json-schema'
-
-  '@typeschema/valibot@0.14.0(@gcornut/valibot-json-schema@0.42.0(esbuild@0.19.12)(typescript@5.7.3))(@types/json-schema@7.0.15)(valibot@1.0.0-beta.9(typescript@5.7.3))':
-    dependencies:
-      '@typeschema/core': 0.14.0(@types/json-schema@7.0.15)
-    optionalDependencies:
-      '@gcornut/valibot-json-schema': 0.42.0(esbuild@0.19.12)(typescript@5.7.3)
-      valibot: 1.0.0-beta.9(typescript@5.7.3)
     transitivePeerDependencies:
       - '@types/json-schema'
 
@@ -17235,13 +17250,6 @@ snapshots:
       esbuild: 0.19.12
     transitivePeerDependencies:
       - supports-color
-
-  esbuild-runner@2.2.2(esbuild@0.19.12):
-    dependencies:
-      esbuild: 0.19.12
-      source-map-support: 0.5.21
-      tslib: 2.4.0
-    optional: true
 
   esbuild-runner@2.2.2(esbuild@0.25.0):
     dependencies:

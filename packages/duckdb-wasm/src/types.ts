@@ -2,7 +2,7 @@ import type { Dictionary, Field, Struct, StructRow, Vector } from 'apache-arrow'
 
 import { DataType as ArrowDataType } from 'apache-arrow'
 
-import { isNullOrUndefined } from './duckdb-common'
+import { isNullOrUndefined } from './common'
 
 /** Data types used by ArrowJS. */
 export type DataType =
@@ -35,11 +35,12 @@ export enum DataFrameCellType {
  * @returns The list of strings.
  */
 export function convertVectorToList(vector: Vector<any>): string[] {
-  const values = []
+  const values: string[] = []
 
   for (let i = 0; i < vector.length; i++) {
     values.push(vector.get(i))
   }
+
   return values
 }
 

@@ -1,12 +1,11 @@
+import type { DuckDBWasmClient } from '@proj-airi/duckdb-wasm'
 import type { Schema, StructRow } from 'apache-arrow'
 import type { Assume, Logger, Query, RelationalSchemaConfig, TablesRelationalConfig } from 'drizzle-orm'
 import type { PgDialect, PgQueryResultHKT, PgTransactionConfig, PreparedQueryConfig, SelectedFieldsOrdered } from 'drizzle-orm/pg-core'
-import type { DuckDBWasmClient } from './dialect'
 
+import { beginTransaction, mapColumnData, withSavepoint } from '@proj-airi/duckdb-wasm'
 import { entityKind, fillPlaceholders, NoopLogger } from 'drizzle-orm'
 import { PgPreparedQuery, PgSession, PgTransaction } from 'drizzle-orm/pg-core'
-
-import { beginTransaction, mapColumnData, withSavepoint } from './dialect'
 
 export type Row = Record<string, any>
 

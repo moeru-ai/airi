@@ -1,7 +1,7 @@
+import { getBundles } from '@proj-airi/duckdb-wasm/bundles/default-node'
 import { describe, expect, it } from 'vitest'
 
 import { drizzle } from '.'
-import { getBundles } from './bundles/default-node'
 
 describe('drizzle', { timeout: 10000 }, async () => {
   it('should connect to a DuckDBWasm database', async () => {
