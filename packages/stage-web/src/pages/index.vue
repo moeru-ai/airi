@@ -13,15 +13,19 @@ const dark = useDark()
 </script>
 
 <template>
-  <Cross h-full w-full>
-    <AnimatedBackground h-full w-full :fill-color="dark ? '#563544' : '#f8e8f2'">
-      <div relative max-h="[100vh]" max-w="[100vw]" p="2" flex="~ col" z-2 h-full overflow-hidden>
-        <Header class="flex <md:hidden" />
-        <MobileHeader class="hidden <md:block" />
-        <div flex="~ 1 row <md:col" relative h-full w-full items-end gap-2>
-          <WidgetStage h-full w-full flex-1 mb="<md:18" min-w="50%" />
-          <InteractiveArea w-full flex-1 h="full <md:40%" max-w="30% <md:100%" class="flex <md:hidden" />
-          <MobileInteractiveArea class="<md:block md:hidden" absolute bottom-0 w-full />
+  <Cross>
+    <AnimatedBackground :fill-color="dark ? '#563544' : '#f8e8f2'">
+      <div relative flex="~ col" z-2 h-100vh w-100vw of-hidden>
+        <!-- header -->
+        <div>
+          <Header class="flex <md:hidden" p2 />
+          <MobileHeader class="hidden <md:block" />
+        </div>
+        <!-- page -->
+        <div relative flex="~ 1 row gap-y-0 gap-x-2 <md:col">
+          <WidgetStage flex-1 min-w="1/2" />
+          <InteractiveArea class="flex <md:hidden" flex-1 max-w="30%" />
+          <MobileInteractiveArea class="hidden <md:block" mx2 mb2 />
         </div>
       </div>
     </AnimatedBackground>
