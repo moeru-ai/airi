@@ -114,37 +114,7 @@ importers:
         specifier: ^2.0.0
         version: 2.0.0(@astrojs/starlight@0.31.1(astro@5.2.5(@types/node@22.13.1)(jiti@2.4.2)(less@4.2.1)(rollup@4.34.6)(terser@5.17.6)(tsx@4.19.2)(typescript@5.7.3)(yaml@2.7.0)))(astro@5.2.5(@types/node@22.13.1)(jiti@2.4.2)(less@4.2.1)(rollup@4.34.6)(terser@5.17.6)(tsx@4.19.2)(typescript@5.7.3)(yaml@2.7.0))
 
-  packages/elevenlabs:
-    devDependencies:
-      elevenlabs:
-        specifier: ^1.50.5
-        version: 1.50.5(encoding@0.1.13)
-
-  packages/hfup:
-    dependencies:
-      defu:
-        specifier: ^6.1.4
-        version: 6.1.4
-      gray-matter:
-        specifier: ^4.0.3
-        version: 4.0.3
-      vite:
-        specifier: ^6.1.0
-        version: 6.1.0(@types/node@22.13.1)(jiti@2.4.2)(less@4.2.1)(terser@5.17.6)(tsx@4.19.2)(yaml@2.7.0)
-
-  packages/lobe-icons:
-    devDependencies:
-      '@iconify/tools':
-        specifier: ^4.1.1
-        version: 4.1.1
-      '@lobehub/icons-static-svg':
-        specifier: ^1.23.0
-        version: 1.23.0
-      local-pkg:
-        specifier: ^1.0.0
-        version: 1.0.0
-
-  packages/memory-driver-duckdb-wasm:
+  packages/drizzle-duckdb-wasm:
     dependencies:
       '@date-fns/tz':
         specifier: ^1.2.0
@@ -195,6 +165,36 @@ importers:
       vue-tsc:
         specifier: ^2.2.0
         version: 2.2.0(typescript@5.7.3)
+
+  packages/elevenlabs:
+    devDependencies:
+      elevenlabs:
+        specifier: ^1.50.5
+        version: 1.50.5(encoding@0.1.13)
+
+  packages/hfup:
+    dependencies:
+      defu:
+        specifier: ^6.1.4
+        version: 6.1.4
+      gray-matter:
+        specifier: ^4.0.3
+        version: 4.0.3
+      vite:
+        specifier: ^6.1.0
+        version: 6.1.0(@types/node@22.13.1)(jiti@2.4.2)(less@4.2.1)(terser@5.17.6)(tsx@4.19.2)(yaml@2.7.0)
+
+  packages/lobe-icons:
+    devDependencies:
+      '@iconify/tools':
+        specifier: ^4.1.1
+        version: 4.1.1
+      '@lobehub/icons-static-svg':
+        specifier: ^1.23.0
+        version: 1.23.0
+      local-pkg:
+        specifier: ^1.0.0
+        version: 1.0.0
 
   packages/moonshine-web:
     dependencies:
