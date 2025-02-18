@@ -5,7 +5,7 @@
 <h1 align="center">アイリ VTuber</h1>
 
 <p align="center">
-  [<a href="https:///airi.ayaka.io">Try it</a>]
+  [<a href="https:///airi.ayaka.io">Try it</a>] [<a href="https://github.com/moeru-ai/airi/blob/main/README.zh-CN.md">简体中文文档</a>]
 </p>
 
 > Heavily inspired by [Neuro-sama](https://www.youtube.com/@Neurosama)

@@ -5,7 +5,7 @@
 <h1 align="center">アイリ VTuber</h1>
 
 <p align="center">
-  [<a href="https://airi.moeru.ai">试试看</a>]
+  [<a href="https://airi.moeru.ai">试试看</a>] [<a href="https://github.com/moeru-ai/airi">English Docs</a>]
 </p>
 
 > 深受 [Neuro-sama](https://www.youtube.com/@Neurosama) 启发
