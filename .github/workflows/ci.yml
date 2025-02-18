@@ -11,6 +11,7 @@ on:
 
 jobs:
   lint:
+    name: Lint
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -29,7 +30,28 @@ jobs:
       - name: Lint
         run: pnpm run lint
 
+  build-test:
+    name: Build Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v3
+      - uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install
+
+      - name: Stub
+        run: pnpm run packages:stub
+
+      - name: Build
+        run: pnpm run packages:build
+
   typecheck:
+    name: Type Check
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
