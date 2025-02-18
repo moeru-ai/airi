@@ -34,10 +34,9 @@
     "dev": "pnpm run stub",
     "stub": "unbuild --stub",
     "build": "unbuild",
-    "typecheck": "tsc --noEmit",
-    "package:publish": "pnpm build && pnpm publish --access public --no-git-checks"
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "crossws": "^0.3.3"
+    "crossws": "^0.3.4"
   }
 }

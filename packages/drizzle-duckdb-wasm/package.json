@@ -72,17 +72,17 @@
     "apache-arrow": "^19.0.0",
     "date-fns": "^4.1.0",
     "defu": "^6.1.4",
-    "drizzle-orm": "^0.39.2",
+    "drizzle-orm": "^0.39.3",
     "es-toolkit": "^1.32.0"
   },
   "devDependencies": {
-    "@unocss/reset": "^65.4.3",
+    "@unocss/reset": "^65.5.0",
     "@vitejs/plugin-vue": "^5.2.1",
-    "@vueuse/core": "^12.5.0",
+    "@vueuse/core": "^12.7.0",
     "drizzle-kit": "^0.30.4",
     "superjson": "^2.2.2",
     "vite": "^6.1.0",
     "vue": "^3.5.13",
-    "vue-tsc": "^2.2.0"
+    "vue-tsc": "^2.2.2"
   }
 }

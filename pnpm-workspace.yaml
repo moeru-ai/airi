@@ -5,11 +5,11 @@ packages:
   - docs/**
   - '!**/dist/**'
 catalog:
-  '@xsai/generate-speech': ^0.1.0-beta.2
-  '@xsai/generate-text': ^0.1.0-beta.2
-  '@xsai/generate-transcription': ^0.1.0-beta.2
-  '@xsai/model': ^0.1.0-beta.2
-  '@xsai/providers': ^0.1.0-beta.2
-  '@xsai/shared-chat': ^0.1.0-beta.2
-  '@xsai/stream-text': ^0.1.0-beta.2
-  '@xsai/tool': ^0.1.0-beta.2
+  '@xsai/generate-speech': ^0.1.0-beta.5
+  '@xsai/generate-text': ^0.1.0-beta.5
+  '@xsai/generate-transcription': ^0.1.0-beta.5
+  '@xsai/model': ^0.1.0-beta.5
+  '@xsai/providers': ^0.1.0-beta.5
+  '@xsai/shared-chat': ^0.1.0-beta.5
+  '@xsai/stream-text': ^0.1.0-beta.5
+  '@xsai/tool': ^0.1.0-beta.5

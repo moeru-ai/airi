@@ -1,7 +1,7 @@
 {
   "name": "@proj-airi/telegram-bot",
   "type": "module",
-  "private": false,
+  "private": true,
   "description": "Telegram bot for Airi",
   "author": {
     "name": "Neko Ayaka",
@@ -20,7 +20,7 @@
     "db:push": "drizzle-kit push"
   },
   "dependencies": {
-    "@dotenvx/dotenvx": "^1.35.0",
+    "@dotenvx/dotenvx": "^1.36.0",
     "@gcornut/valibot-json-schema": "^0.42.0",
     "@grammyjs/files": "^1.1.1",
     "@guiiai/logg": "^1.0.7",
@@ -30,12 +30,12 @@
     "@xsai/shared-chat": "catalog:",
     "@xsai/tool": "catalog:",
     "dotenv": "^16.4.7",
-    "drizzle-orm": "^0.39.2",
+    "drizzle-orm": "^0.39.3",
     "es-toolkit": "^1.32.0",
-    "grammy": "^1.34.1",
-    "pg": "^8.13.1",
+    "grammy": "^1.35.0",
+    "pg": "^8.13.3",
     "sharp": "^0.33.5",
-    "telegram": "^2.26.16",
+    "telegram": "^2.26.22",
     "valibot": "1.0.0-beta.9"
   },
   "devDependencies": {

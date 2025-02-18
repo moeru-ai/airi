@@ -38,7 +38,7 @@
   "dependencies": {
     "@guiiai/logg": "^1.0.7",
     "@proj-airi/server-shared": "workspace:^",
-    "crossws": "^0.3.3",
+    "crossws": "^0.3.4",
     "defu": "^6.1.4",
     "h3": "^1.15.0",
     "listhen": "^1.9.0"

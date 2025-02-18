@@ -19,7 +19,7 @@
     "awilix": "^12.0.4",
     "es-toolkit": "^1.32.0",
     "eventemitter3": "^5.0.1",
-    "minecraft-data": "^3.83.1",
+    "minecraft-data": "^3.84.1",
     "mineflayer": "^4.26.0",
     "mineflayer-armor-manager": "^2.0.1",
     "mineflayer-auto-eat": "^5.0.0",
@@ -27,19 +27,19 @@
     "mineflayer-pathfinder": "^2.4.5",
     "mineflayer-pvp": "^1.3.2",
     "mineflayer-tool": "^1.2.0",
-    "neuri": "^0.0.21",
+    "neuri": "^0.0.22",
     "prismarine-block": "^1.21.0",
     "prismarine-entity": "^2.5.0",
     "prismarine-item": "^1.16.0",
     "prismarine-recipe": "^1.3.1",
-    "prismarine-viewer": "^1.30.0",
+    "prismarine-viewer": "^1.33.0",
     "prismarine-windows": "^2.9.0",
     "vec3": "^0.1.10",
-    "zod": "^3.24.1",
+    "zod": "^3.24.2",
     "zod-to-json-schema": "^3.24.1"
   },
   "devDependencies": {
-    "@dotenvx/dotenvx": "^1.34.0",
+    "@dotenvx/dotenvx": "^1.36.0",
     "dotenv": "^16.4.7"
   }
 }

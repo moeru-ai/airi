@@ -41,7 +41,7 @@
   },
   "devDependencies": {
     "@iconify/tools": "^4.1.1",
-    "@lobehub/icons-static-svg": "^1.23.0",
+    "@lobehub/icons-static-svg": "^1.25.0",
     "local-pkg": "^1.0.0"
   }
 }

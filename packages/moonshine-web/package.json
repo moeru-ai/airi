@@ -18,8 +18,8 @@
   },
   "dependencies": {
     "@tresjs/core": "^4.3.3",
-    "@unocss/reset": "^65.4.3",
-    "@vueuse/core": "^12.5.0",
+    "@unocss/reset": "^65.5.0",
+    "@vueuse/core": "^12.7.0",
     "@vueuse/motion": "^2.2.6",
     "ofetch": "^1.4.1",
     "three": "^0.173.0",
@@ -32,6 +32,6 @@
     "@vitejs/plugin-vue": "^5.2.1",
     "@webgpu/types": "^0.1.54",
     "hfup": "workspace:^",
-    "vue-tsc": "^2.2.0"
+    "vue-tsc": "^2.2.2"
   }
 }

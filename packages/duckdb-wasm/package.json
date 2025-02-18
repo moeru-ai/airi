@@ -67,7 +67,7 @@
     "apache-arrow": "^19.0.0",
     "date-fns": "^4.1.0",
     "defu": "^6.1.4",
-    "drizzle-orm": "^0.39.2",
+    "drizzle-orm": "^0.39.3",
     "es-toolkit": "^1.32.0"
   },
   "devDependencies": {

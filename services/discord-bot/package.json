@@ -1,7 +1,7 @@
 {
   "name": "@proj-airi/discord-bot",
   "type": "module",
-  "private": false,
+  "private": true,
   "description": "Discord bot for Airi",
   "author": {
     "name": "Neko Ayaka",
@@ -19,7 +19,7 @@
   },
   "dependencies": {
     "@discordjs/voice": "^0.18.0",
-    "@dotenvx/dotenvx": "^1.35.0",
+    "@dotenvx/dotenvx": "^1.36.0",
     "@guiiai/logg": "^1.0.7",
     "@huggingface/transformers": "^3.3.3",
     "@proj-airi/server-sdk": "workspace:^",
@@ -29,7 +29,7 @@
     "@xsai/generate-transcription": "catalog:",
     "@xsai/providers": "catalog:",
     "@xsai/shared-chat": "catalog:",
-    "discord.js": "^14.17.3",
+    "discord.js": "^14.18.0",
     "libsodium-wrappers": "^0.7.15",
     "opusscript": "^0.1.1",
     "tsx": "^4.19.2",
