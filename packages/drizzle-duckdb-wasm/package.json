@@ -1,5 +1,5 @@
 {
-  "name": "@proj-airi/memory-driver-duckdb",
+  "name": "@proj-airi/drizzle-duckdb-wasm",
   "type": "module",
   "version": "0.1.6",
   "private": true,
@@ -13,36 +13,31 @@
   "repository": {
     "type": "git",
     "url": "https://github.com/moeru-ai/airi.git",
-    "directory": "packages/memory-driver-duckdb"
+    "directory": "packages/drizzle-duckdb-wasm"
   },
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.mjs",
-      "require": "./dist/index.cjs"
+      "node": "./dist/index.cjs"
     },
-    "./drizzle-orm": {
-      "types": "./dist/drizzle-orm/index.d.ts",
-      "import": "./dist/drizzle-orm/index.mjs",
-      "node": "./dist/drizzle-orm/index.cjs"
+    "./bundles/default-browser": {
+      "types": "./dist/bundles/default-browser.d.ts",
+      "import": "./dist/bundles/default-browser.mjs"
     },
-    "./drizzle-orm/bundles/default-browser": {
-      "types": "./dist/drizzle-orm/bundles/default-browser.d.ts",
-      "import": "./dist/drizzle-orm/bundles/default-browser.mjs"
+    "./bundles/default-node": {
+      "types": "./dist/bundles/default-node.d.ts",
+      "import": "./dist/bundles/default-node.mjs",
+      "node": "./dist/bundles/default-node.cjs"
     },
-    "./drizzle-orm/bundles/default-node": {
-      "types": "./dist/drizzle-orm/bundles/default-node.d.ts",
-      "import": "./dist/drizzle-orm/bundles/default-node.mjs",
-      "node": "./dist/drizzle-orm/bundles/default-node.cjs"
+    "./bundles/import-url-browser": {
+      "types": "./dist/bundles/import-url-browser.d.ts",
+      "import": "./dist/bundles/import-url-browser.mjs"
     },
-    "./drizzle-orm/bundles/import-url-browser": {
-      "types": "./dist/drizzle-orm/bundles/import-url-browser.d.ts",
-      "import": "./dist/drizzle-orm/bundles/import-url-browser.mjs"
-    },
-    "./drizzle-orm/bundles/import-url-node": {
-      "types": "./dist/drizzle-orm/bundles/import-url-node.d.ts",
-      "import": "./dist/drizzle-orm/bundles/import-url-node.mjs",
-      "node": "./dist/drizzle-orm/bundles/import-url-node.cjs"
+    "./bundles/import-url-node": {
+      "types": "./dist/bundles/import-url-node.d.ts",
+      "import": "./dist/bundles/import-url-node.mjs",
+      "node": "./dist/bundles/import-url-node.cjs"
     }
   },
   "main": "./dist/index.cjs",

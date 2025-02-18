@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import type { DuckDBWasmDrizzleDatabase } from '../../src/drizzle-orm'
+import type { DuckDBWasmDrizzleDatabase } from '../../src'
 
 import { useDebounceFn } from '@vueuse/core'
 import { serialize } from 'superjson'
 import { onMounted, onUnmounted, ref, watch } from 'vue'
 
-import { drizzle } from '../../src/drizzle-orm'
+import { drizzle } from '../../src'
 import * as schema from '../db/schema'
 import { users } from '../db/schema'
 import migration1 from '../drizzle/0000_cute_kulan_gath.sql?raw'
