@@ -14,6 +14,8 @@ const supportedModels = ref<{ id: string, name?: string }[]>([])
 const { models } = useLLM()
 const { openAiModel, openAiApiBaseURL, openAiApiKey, elevenlabsVoiceEnglish, elevenlabsVoiceJapanese } = storeToRefs(settings)
 
+// TODO: main process i18n
+
 function handleModelChange(event: Event) {
   const target = event.target as HTMLSelectElement
   const found = supportedModels.value.find(m => m.id === target.value)
