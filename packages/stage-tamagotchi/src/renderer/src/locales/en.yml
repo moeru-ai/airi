@@ -63,6 +63,8 @@ settings:
     placeholder_mobile: OpenAI API BaseURL
   title: Settings
   voices: Voice
+  quit: Quit
+  viewer: Viewer
 stage:
   chat:
     message:
