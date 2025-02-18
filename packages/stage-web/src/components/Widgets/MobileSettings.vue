@@ -70,55 +70,59 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div>
-    <h2 text="slate-800/80 dark:slate-200/80 xl" font-bold>
+  <div text="zinc-500 dark:zinc-400">
+    <h2 text="zinc-800/80 dark:zinc-200/80 xl" font-bold>
       {{ t('settings.title') }}
     </h2>
     <div>
       <div
         grid="~ cols-[150px_1fr]" my-2 items-center gap-1.5 rounded-lg
-        bg="[#fff6fc] dark:[#2c2529]" px-2 py-1 text="pink-400"
+        bg="zinc-100 dark:zinc-800" px-2 py-1
       >
-        <div text="sm pink-500" pl-1>
+        <div text="sm" pl-1>
           <span>{{ t('settings.openai-base-url.label') }}</span>
         </div>
         <div flex="~ row" w-full text="sm">
           <input
             v-model="settings.openAiApiBaseURL"
+            text="zinc-800 dark:zinc-100"
             type="text"
             :placeholder="t('settings.openai-base-url.placeholder_mobile')"
             h-8 w-full rounded-md bg-transparent px-2 py-1 text-right font-mono outline-none
           >
         </div>
-        <div text="sm pink-500" pl-1>
+        <div text="sm" pl-1>
           <span>{{ t('settings.openai-api-key.label') }}</span>
         </div>
         <div flex="~ row" w-full text="sm">
           <input
             v-model="settings.openAiApiKey"
+            text="zinc-800 dark:zinc-100"
             type="text"
             :placeholder="t('settings.openai-api-key.placeholder_mobile')"
             h-8 w-full rounded-md bg-transparent px-2 py-1 text-right font-mono outline-none
           >
         </div>
-        <div text="sm pink-500" pl-1>
+        <div text="sm" pl-1>
           <span>{{ t('settings.elevenlabs-api-key.label') }}</span>
         </div>
         <div flex="~ row" w-full text="sm">
           <input
             v-model="settings.elevenLabsApiKey"
+            text="zinc-800 dark:zinc-100"
             type="text"
             :placeholder="t('settings.elevenlabs-api-key.placeholder_mobile')"
             h-8 w-full rounded-md bg-transparent px-2 py-1 text-right font-mono outline-none
           >
         </div>
-        <div text="sm pink-500" pl-1>
+        <div text="sm" pl-1>
           <span>{{ t('settings.language.title') }}</span>
         </div>
         <div flex="~ row" w-full text="sm">
           <select
             v-model="settings.language"
             h-8 w-full rounded-md bg-transparent px-2 py-1 text-right font-mono outline-none
+            text="zinc-800 dark:zinc-100"
           >
             <option value="en-US">
               {{ t('settings.language.english') }}
@@ -128,12 +132,13 @@ onMounted(async () => {
             </option>
           </select>
         </div>
-        <div text="sm pink-500" pl-1>
+        <div text="sm" pl-1>
           <span>{{ t('settings.models') }}</span>
         </div>
         <div flex="~ row" w-full text="sm">
           <select
             h-8 w-full rounded-md bg-transparent px-2 py-1 text-right font-mono outline-none
+            text="zinc-800 dark:zinc-100"
             @change="handleModelChange"
           >
             <option disabled class="bg-white dark:bg-zinc-800">
@@ -147,12 +152,13 @@ onMounted(async () => {
             </option>
           </select>
         </div>
-        <div text="sm pink-500" pl-1>
+        <div text="sm" pl-1>
           <span>{{ t('settings.voices') }}</span>
         </div>
         <div flex="~ row" w-full text="sm">
           <select
             h-8 w-full rounded-md bg-transparent px-2 py-1 text-right font-mono outline-none
+            text="zinc-800 dark:zinc-100"
             @change="handleVoiceChange"
           >
             <option disabled class="bg-white dark:bg-zinc-800">
@@ -175,19 +181,20 @@ onMounted(async () => {
         </div>
       </div>
     </div>
-    <h2 text="slate-800/80 dark:slate-200/80 xl" font-bold>
+    <h2 text="zinc-800/80 dark:zinc-200/80 xl" font-bold>
       View
     </h2>
     <div>
       <div
         grid="~ cols-[140px_1fr]" my-2 items-center gap-1.5 rounded-lg
-        bg="[#fff6fc] dark:[#2c2529]" px-2 py-1 text="pink-400"
+        bg="zinc-100 dark:zinc-800" px-2 py-1
       >
-        <div text="sm pink-500" pl-1>
+        <div text="sm" pl-1>
           <span>Viewer</span>
         </div>
         <select
           h-8 w-full rounded-md bg-transparent px-2 py-1 text-right font-mono outline-none
+          text="zinc-800 dark:zinc-100"
           @change="handleViewChange"
         >
           <option value="2d">
@@ -197,12 +204,13 @@ onMounted(async () => {
             3D
           </option>
         </select>
-        <div text="sm pink-500" pl-1>
+        <div text="sm" pl-1>
           <span>Theme</span>
         </div>
         <label h-8 flex cursor-pointer items-center justify-end>
           <input
             v-model="dark"
+            text="zinc-800 dark:zinc-100"
             :checked="dark"
             :aria-checked="dark"
             name="stageView"
@@ -211,8 +219,8 @@ onMounted(async () => {
           >
           <div select-none>
             <Transition name="slide-away" mode="out-in">
-              <div v-if="dark" i-solar:sun-fog-bold-duotone text="lg hover:pink-600 dark:hover:pink-300" transition="all ease-in-out duration-250" />
-              <div v-else i-solar:moon-stars-bold-duotone text="lg hover:pink-600 dark:hover:pink-300" transition="all ease-in-out duration-250" />
+              <div v-if="dark" i-solar:sun-fog-bold-duotone transition="all ease-in-out duration-250" />
+              <div v-else i-solar:moon-stars-bold-duotone transition="all ease-in-out duration-250" />
             </Transition>
           </div>
         </label>
