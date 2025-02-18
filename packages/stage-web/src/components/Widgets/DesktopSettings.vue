@@ -16,12 +16,14 @@ import MobileSettings from './MobileSettings.vue'
         <div i-solar:settings-minimalistic-bold-duotone />
       </DrawerTrigger>
       <DrawerPortal>
-        <DrawerOverlay class="fixed inset-0 z-50 bg-black/40" />
+        <DrawerOverlay fixed inset-0 z-50 bg-black:40 />
         <DrawerContent
-          max-w="[50%]" bg="[#fffbff] dark:[#1f1a1d]" fixed bottom-0 right-0 top-0 z-50 ml-24 h-full w-full
-          flex flex-col overflow-y-scroll rounded-l-lg
+          class="max-w-40% min-w-500px w-full"
+          flex="~ col"
+          bg="white dark:zinc-900"
+          fixed inset-y-4 right-4 z-50 of-hidden rounded-lg
         >
-          <div class="flex flex-1 flex-col rounded-t-lg p-5" bg="[#fffbff] dark:[#1f1a1d]" gap-2>
+          <div flex="~ 1 col gap-2" of-y-scroll rounded-t-lg p-5>
             <MobileSettings />
           </div>
         </DrawerContent>
