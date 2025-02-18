@@ -36,6 +36,4 @@ export async function getEnvironment() {
   catch {
     return 'unknown'
   }
-
-  return 'unknown'
 }

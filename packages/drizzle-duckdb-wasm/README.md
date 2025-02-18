@@ -41,42 +41,42 @@ export const users = pgTable('users', () => ({
 drizzle-kit generate
 ```
 
-```vue
+```html
 <!-- ./src/App.vue -->
 <script setup lang="ts">
-import type { DuckDBWasmDrizzleDatabase } from '@proj-airi/drizzle-duckdb-wasm'
+  import type { DuckDBWasmDrizzleDatabase } from '@proj-airi/drizzle-duckdb-wasm'
 
-import { drizzle } from '@proj-airi/drizzle-duckdb-wasm'
-import { getImportUrlBundles } from '@proj-airi/drizzle-duckdb-wasm/bundles/import-url-browser'
-import { useDebounceFn } from '@vueuse/core'
-import { serialize } from 'superjson'
-import { onMounted, onUnmounted, ref, watch } from 'vue'
+  import { drizzle } from '@proj-airi/drizzle-duckdb-wasm'
+  import { getImportUrlBundles } from '@proj-airi/drizzle-duckdb-wasm/bundles/import-url-browser'
+  import { useDebounceFn } from '@vueuse/core'
+  import { serialize } from 'superjson'
+  import { onMounted, onUnmounted, ref, watch } from 'vue'
 
-import * as schema from './db/schema'
-import { users } from './db/schema'
-import migration1 from './drizzle/0000_cute_kulan_gath.sql?raw'
+  import * as schema from './db/schema'
+  import { users } from './db/schema'
+  import migration1 from './drizzle/0000_cute_kulan_gath.sql?raw'
 
-const results = ref<any[]>([])
+  const results = ref<any[]>([])
 
-onMounted(async () => {
-  // db.value = drizzle('duckdb-wasm://?bundles=import-url', { schema })
-  // db.value = drizzle({ connection: { bundles: getImportUrlBundles() } }, { schema })
+  onMounted(async () => {
+    // db.value = drizzle('duckdb-wasm://?bundles=import-url', { schema })
+    // db.value = drizzle({ connection: { bundles: getImportUrlBundles() } }, { schema })
 
-  await db.value?.execute(migration1)
-  results.value = await db.value?.execute('SELECT count(*)::INTEGER as v FROM generate_series(0, 100) t(v)')
-  console.log(results.value) // Output [{ v: 101 }]
+    await db.value?.execute(migration1)
+    results.value = await db.value?.execute('SELECT count(*)::INTEGER as v FROM generate_series(0, 100) t(v)')
+    console.log(results.value) // Output [{ v: 101 }]
 
-  await db.value.insert(users).values({ id: '00000000-0000-0000-0000-000000000000' })
-  const foundUsers = await db.value.select().from(users)
-  console.log(foundUsers) // Output [{ id: '00000000-0000-0000-0000-000000000000' }]
-})
+    await db.value.insert(users).values({ id: '00000000-0000-0000-0000-000000000000' })
+    const foundUsers = await db.value.select().from(users)
+    console.log(foundUsers) // Output [{ id: '00000000-0000-0000-0000-000000000000' }]
+  })
 
-onUnmounted(async () => {
-  if (db.value) {
-    const client = await db.value.$client
-    await client.close()
-  }
-})
+  onUnmounted(async () => {
+    if (db.value) {
+      const client = await db.value.$client
+      await client.close()
+    }
+  })
 </script>
 ```
 
@@ -133,3 +133,7 @@ async function main() {
   await client.close()
 }
 ```
+
+## Footnotes
+
+Check out [the package](https://github.com/moeru-ai/airi/tree/main/packages/duckdb-wasm/README.md) we made for easier call to `@duckdb/duckdb-wasm` as well!

@@ -1,45 +1,14 @@
 import type { DuckDBWasmClient } from '@proj-airi/duckdb-wasm'
-import type { Schema, StructRow } from 'apache-arrow'
 import type { Assume, Logger, Query, RelationalSchemaConfig, TablesRelationalConfig } from 'drizzle-orm'
 import type { PgDialect, PgQueryResultHKT, PgTransactionConfig, PreparedQueryConfig, SelectedFieldsOrdered } from 'drizzle-orm/pg-core'
 
-import { beginTransaction, mapColumnData, withSavepoint } from '@proj-airi/duckdb-wasm'
+import { beginTransaction, withSavepoint } from '@proj-airi/duckdb-wasm'
 import { entityKind, fillPlaceholders, NoopLogger } from 'drizzle-orm'
 import { PgPreparedQuery, PgSession, PgTransaction } from 'drizzle-orm/pg-core'
 
 export type Row = Record<string, any>
 
 export type RowList<T extends Row[]> = T
-
-function toJSRepresentedRows<T extends { toArray: () => StructRow[], schema: Schema }>(results: T) {
-  const rows = (results.toArray() as StructRow[] || []).map(item => item.toJSON()) || []
-
-  const jsRepresentedRows = rows.map((row) => {
-    results.schema.fields.forEach((field) => {
-      return row[field.name] = mapColumnData(row[field.name], field)
-    })
-
-    return row
-  })
-
-  return jsRepresentedRows
-}
-
-async function callQuery(client: Promise<DuckDBWasmClient>, query: string, params: unknown[]) {
-  const c = await client
-
-  if (!params || params.length === 0) {
-    const results = await c.conn.query(query)
-    return toJSRepresentedRows(results)
-  }
-
-  const stmt = await c.conn.prepare(query)
-  const results = await stmt.query(...params)
-  const rows = toJSRepresentedRows(results)
-
-  stmt.close()
-  return rows
-}
 
 export class DuckDBWASMPreparedQuery<T extends PreparedQueryConfig> extends PgPreparedQuery<T> {
   static override readonly [entityKind]: string = 'DuckDBWasmPreparedQuery'
@@ -60,17 +29,21 @@ export class DuckDBWASMPreparedQuery<T extends PreparedQueryConfig> extends PgPr
     this.logger.logQuery(this.queryString, params)
 
     const { fields, queryString: query, client, customResultMapper } = this
+    const c = await client
+
     if (!fields && !customResultMapper) {
-      return callQuery(client, query, params)
+      return c.query(query, params)
     }
 
-    return callQuery(client, query, params)
+    return c.query(query, params)
   }
 
   async all(placeholderValues: Record<string, unknown> | undefined = {}): Promise<T['all']> {
     const params = fillPlaceholders(this.params, placeholderValues)
     this.logger.logQuery(this.queryString, params)
-    return callQuery(this.client, this.queryString, params)
+
+    const c = await this.client
+    return c.query(this.queryString, params)
   }
 }
 
@@ -116,7 +89,8 @@ export class DuckDBWasmSession<
 
   async query(query: string, params: unknown[]): Promise<RowList<Row[]>> {
     this.logger.logQuery(query, params)
-    return callQuery(this.client, query, params)
+    const c = await this.client
+    return c.query(query, params)
   }
 
   async queryObjects<T extends Row>(
@@ -124,7 +98,8 @@ export class DuckDBWasmSession<
     params: unknown[],
   ): Promise<RowList<T[]>> {
     this.logger.logQuery(query, params)
-    return callQuery(this.client, query, params) as Promise<RowList<T[]>>
+    const c = await this.client
+    return c.query(query, params) as Promise<RowList<T[]>>
   }
 
   override transaction<T>(

@@ -4,6 +4,7 @@ import { AsyncDuckDB, ConsoleLogger, selectBundle, VoidLogger } from '@duckdb/du
 import { defu } from 'defu'
 
 import { getEnvironment } from './common'
+import { mapStructRowData } from './format'
 
 export type ConnectOptions = ConnectRequiredOptions & ConnectOptionalOptions
 
@@ -21,6 +22,7 @@ export interface DuckDBWasmClient {
   db: AsyncDuckDB
   conn: AsyncDuckDBConnection
   close: () => Promise<void>
+  query: (string, params?: unknown[]) => Promise<Record<string, unknown>[]>
 }
 
 export async function connect(options: ConnectOptions): Promise<DuckDBWasmClient> {
@@ -79,6 +81,19 @@ export async function connect(options: ConnectOptions): Promise<DuckDBWasmClient
     worker,
     db,
     conn,
+    query: async (query: string, params: unknown[] = []) => {
+      if (!params || params.length === 0) {
+        const results = await conn.query(query)
+        return mapStructRowData(results)
+      }
+
+      const stmt = await conn.prepare(query)
+      const results = await stmt.query(...params)
+      const rows = mapStructRowData(results)
+
+      stmt.close()
+      return rows
+    },
     close: async () => {
       await conn.close()
       await db.terminate()

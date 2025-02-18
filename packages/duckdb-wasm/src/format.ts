@@ -1,5 +1,5 @@
 import type { TZDate } from '@date-fns/tz'
-import type { Field, StructRow } from 'apache-arrow'
+import type { Field, Schema, StructRow } from 'apache-arrow'
 import type { DataType } from './types'
 
 import { TZDateMini } from '@date-fns/tz'
@@ -604,4 +604,18 @@ export function mapColumnData<T = unknown>(x: DataType, field?: Field): T {
   }
 
   return String(x) as T
+}
+
+export function mapStructRowData<T extends { toArray: () => StructRow[], schema: Schema }>(results: T) {
+  const rows = (results.toArray() as StructRow[] || []).map(item => item.toJSON()) || []
+
+  const jsRepresentedRows = rows.map((row) => {
+    results.schema.fields.forEach((field) => {
+      return row[field.name] = mapColumnData(row[field.name], field)
+    })
+
+    return row
+  })
+
+  return jsRepresentedRows
 }

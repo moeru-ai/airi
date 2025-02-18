@@ -17,25 +17,25 @@ npm i @proj-airi/duckdb-wasm -D
 
 ### Browser
 
-```vue
+```html
 <script setup lang="ts">
-import type { DuckDBWasmClient } from '@proj-airi/duckdb-wasm'
+  import type { DuckDBWasmClient } from '@proj-airi/duckdb-wasm'
 
-import { connect, getEnvironment } from '@proj-airi/duckdb-wasm'
-import { getImportUrlBundles } from '@proj-airi/duckdb-wasm/bundles/import-url-browser'
-import { onMounted, onUnmounted, ref } from 'vue'
+  import { connect, getEnvironment } from '@proj-airi/duckdb-wasm'
+  import { getImportUrlBundles } from '@proj-airi/duckdb-wasm/bundles/import-url-browser'
+  import { onMounted, onUnmounted, ref } from 'vue'
 
-const db = ref<DuckDBWasmClient>()
+  const db = ref<DuckDBWasmClient>()
 
-onMounted(async () => {
-  db.value = await connect({ bundles: getImportUrlBundles })
-  const result = await db.value.conn.query('SELECT 1 + 1 AS res')
-  console.log(result) // Output: [{ res: 2 }]
-})
+  onMounted(async () => {
+    db.value = await connect({ bundles: getImportUrlBundles })
+    const result = await db.value.conn.query('SELECT 1 + 1 AS res')
+    console.log(result) // Output: [{ res: 2 }]
+  })
 
-onUnmounted(() => {
-  db.value?.close()
-})
+  onUnmounted(() => {
+    db.value?.close()
+  })
 </script>
 ```
 
@@ -62,3 +62,7 @@ async function main() {
   await close()
 }
 ```
+
+## Footnotes
+
+Check out the [Drizzle ORM driver](https://github.com/moeru-ai/airi/blob/main/packages/drizzle-duckdb-wasm/README.md) we made for `@duckdb/duckdb-wasm` as welL!
