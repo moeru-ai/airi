@@ -3,7 +3,7 @@ import type { AsyncDuckDBConnection, DuckDBBundle, DuckDBBundles, Logger } from 
 import { AsyncDuckDB, ConsoleLogger, selectBundle, VoidLogger } from '@duckdb/duckdb-wasm'
 import { defu } from 'defu'
 
-import { getEnvironment } from './duckdb-common'
+import { getEnvironment } from './common'
 
 export type ConnectOptions = ConnectRequiredOptions & ConnectOptionalOptions
 
@@ -32,7 +32,7 @@ export async function connect(options: ConnectOptions): Promise<DuckDBWasmClient
   const env = await getEnvironment()
   if (env === 'browser') {
     if (typeof opts.bundles === 'undefined') {
-      const { getBundles } = await import('../bundles/default-browser')
+      const { getBundles } = await import('./bundles/default-browser')
       opts.bundles = await getBundles()
     }
 
@@ -41,7 +41,7 @@ export async function connect(options: ConnectOptions): Promise<DuckDBWasmClient
   }
   else if (env === 'node') {
     if (typeof opts.bundles === 'undefined') {
-      const { getBundles } = await import('../bundles/default-node')
+      const { getBundles } = await import('./bundles/default-node')
       opts.bundles = await getBundles()
     }
 
@@ -55,6 +55,9 @@ export async function connect(options: ConnectOptions): Promise<DuckDBWasmClient
     const ww = await import('web-worker')
     // eslint-disable-next-line new-cap
     worker = new ww.default(workerUrl, { type: 'module' })
+  }
+  else {
+    throw new Error(`Unsupported environment: ${env}`)
   }
 
   let logger: Logger
