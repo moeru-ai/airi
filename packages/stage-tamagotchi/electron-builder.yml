@@ -25,6 +25,8 @@ mac:
     - NSMicrophoneUsageDescription: Application requests access to the device's microphone.
     - NSDocumentsFolderUsageDescription: Application requests access to the user's Documents folder.
     - NSDownloadsFolderUsageDescription: Application requests access to the user's Downloads folder.
+    # - NSCameraUseContinuityCameraDeviceType: Application requests access to the device's camera.
+    # - AVCaptureDeviceTypeContinuityCamera: Application requests access to the device's camera.
   notarize: false
 dmg:
   artifactName: ${productName}-${os}-${arch}-v${version}.${ext}

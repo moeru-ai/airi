@@ -8,8 +8,8 @@ import icon from '../../build/icon.png?asset'
 function createWindow(): void {
   // Create the browser window.
   const mainWindow = new BrowserWindow({
-    width: 300,
-    height: 400,
+    width: 300 * 1.5,
+    height: 400 * 1.5,
     show: false,
     autoHideMenuBar: true,
     frame: false,
@@ -60,8 +60,8 @@ function createSettingsWindow(): void {
   }
 
   settingsWindow = new BrowserWindow({
-    width: 300,
-    height: 400,
+    width: 300 * 2,
+    height: 400 * 2,
     show: false,
     webPreferences: {
       preload: join(import.meta.dirname, '..', 'preload', 'index.js'),

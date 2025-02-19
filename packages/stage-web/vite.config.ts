@@ -1,6 +1,6 @@
 import { Buffer } from 'node:buffer'
 import { cp, mkdir, writeFile } from 'node:fs/promises'
-import path, { join, resolve } from 'node:path'
+import { join, resolve } from 'node:path'
 import { env } from 'node:process'
 import VueI18n from '@intlify/unplugin-vue-i18n/vite'
 import { Download } from '@proj-airi/unplugin-download/vite'
@@ -71,7 +71,7 @@ export default defineConfig({
     // https://github.com/posva/unplugin-vue-router
     VueRouter({
       extensions: ['.vue', '.md'],
-      dts: path.resolve(import.meta.dirname, 'src/typed-router.d.ts'),
+      dts: resolve(import.meta.dirname, 'src/typed-router.d.ts'),
     }),
 
     // https://github.com/JohnCampionJr/vite-plugin-vue-layouts
@@ -120,7 +120,7 @@ export default defineConfig({
       runtimeOnly: true,
       compositionOnly: true,
       fullInstall: true,
-      include: [path.resolve(import.meta.dirname, 'locales/**')],
+      include: [resolve(import.meta.dirname, 'locales/**')],
     }),
 
     // https://github.com/webfansplz/vite-plugin-vue-devtools

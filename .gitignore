@@ -13,6 +13,7 @@
 components.d.ts
 **/typed-router.d.ts
 dist
+out/
 node_modules
 .eslintcache
 **/.cache/**

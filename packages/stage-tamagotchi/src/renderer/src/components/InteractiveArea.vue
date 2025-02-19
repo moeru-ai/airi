@@ -51,7 +51,7 @@ const { destroy, start } = useMicVAD(selectedAudioDeviceId, {
   auto: false,
 })
 
-function handleTranscription(_buffer: Float32Array<ArrayBufferLike>) {
+function handleTranscription(_buffer: Float32Array) {
   // eslint-disable-next-line no-alert
   alert('Transcription is not implemented yet')
 }

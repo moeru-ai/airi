@@ -1,4 +1,5 @@
 import { join, resolve } from 'node:path'
+import VueI18n from '@intlify/unplugin-vue-i18n/vite'
 import { Download } from '@proj-airi/unplugin-download'
 import { DownloadLive2DSDK } from '@proj-airi/unplugin-live2d-sdk'
 import Vue from '@vitejs/plugin-vue'
@@ -25,6 +26,13 @@ export default defineConfig({
     VueRouter({
       dts: resolve(import.meta.dirname, 'src/typed-router.d.ts'),
       routesFolder: 'src/renderer/src/pages',
+    }),
+    // https://github.com/intlify/bundle-tools/tree/main/packages/unplugin-vue-i18n
+    VueI18n({
+      runtimeOnly: true,
+      compositionOnly: true,
+      fullInstall: true,
+      include: [resolve(import.meta.dirname, 'locales/**')],
     }),
     DownloadLive2DSDK(),
     Download('https://dist.ayaka.moe/live2d-models/hiyori_free_zh.zip', 'hiyori_free_zh.zip', 'assets/live2d/models'),
