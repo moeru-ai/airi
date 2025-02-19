@@ -26,6 +26,7 @@
     "@pixi/core": "6",
     "@pixi/display": "6",
     "@pixi/extensions": "6",
+    "@pixi/interaction": "6",
     "@pixi/loaders": "6",
     "@pixi/math": "6",
     "@pixi/runner": "6",

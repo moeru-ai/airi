@@ -10,8 +10,10 @@ import {
   EmotionSurpriseMotionName,
   EmotionThinkMotionName,
 } from '../../constants/emotions'
-import Live2DViewer from '../Live2D/Viewer.vue'
+import Live2DCanvas from '../Live2D/Canvas.vue'
+import Live2DModel from '../Live2D/Model.vue'
 import Screen from '../Screen.vue'
+import TransitionVertical from '../TransitionVertical.vue'
 
 withDefaults(defineProps<{
   model: string
@@ -20,21 +22,15 @@ withDefaults(defineProps<{
   mouthOpenSize: 0,
 })
 
-const modelRef = ref<{
-  setMotion: (motionName: string) => Promise<void>
-}>()
+const motion = defineModel<string>('motion')
 const show = ref(false)
-
-defineExpose({
-  setMotion: async (motionName: string): Promise<void> => {
-    await modelRef.value?.setMotion(motionName)
-  },
-})
 </script>
 
 <template>
   <Screen v-slot="{ width, height }" relative>
-    <Live2DViewer ref="modelRef" :canvas-width="width" :canvas-height="height" :model="model" :mouth-open-size="mouthOpenSize" />
+    <Live2DCanvas v-slot="{ app }" :width="width" :height="height">
+      <Live2DModel :app="app" :model="model" :mouth-open-size="mouthOpenSize" :width="width" :height="height" :motion="motion" />
+    </Live2DCanvas>
     <div absolute bottom="3" right="3">
       <div flex="~ row" cursor-pointer>
         <label
@@ -65,43 +61,43 @@ defineExpose({
             <div flex="~ row" flex-wrap gap-2>
               <button
                 rounded-lg bg="zinc-100/70 dark:zinc-800/50" px-2 py-1 backdrop-blur-sm
-                @click="modelRef?.setMotion(EmotionSurpriseMotionName)"
+                @click="motion = EmotionSurpriseMotionName"
               >
                 {{ $t('stage.viewers.debug-menu.emotions-btn.surprised') }}
               </button>
               <button
                 rounded-lg bg="zinc-100/70 dark:zinc-800/50" px-2 py-1 backdrop-blur-sm
-                @click="modelRef?.setMotion(EmotionSadMotionName)"
+                @click="motion = EmotionSadMotionName"
               >
                 {{ $t('stage.viewers.debug-menu.emotions-btn.sad') }}
               </button>
               <button
                 rounded-lg bg="zinc-100/70 dark:zinc-800/50" px-2 py-1 backdrop-blur-sm
-                @click="modelRef?.setMotion(EmotionAngryMotionName)"
+                @click="motion = EmotionAngryMotionName"
               >
                 {{ $t('stage.viewers.debug-menu.emotions-btn.angry') }}
               </button>
               <button
                 rounded-lg bg="zinc-100/70 dark:zinc-800/50" px-2 py-1 backdrop-blur-sm
-                @click="modelRef?.setMotion(EmotionHappyMotionName)"
+                @click="motion = EmotionHappyMotionName"
               >
                 {{ $t('stage.viewers.debug-menu.emotions-btn.happy') }}
               </button>
               <button
                 rounded-lg bg="zinc-100/70 dark:zinc-800/50" px-2 py-1 backdrop-blur-sm
-                @click="modelRef?.setMotion(EmotionAwkwardMotionName)"
+                @click="motion = EmotionAwkwardMotionName"
               >
                 {{ $t('stage.viewers.debug-menu.emotions-btn.awkward') }}
               </button>
               <button
                 rounded-lg bg="zinc-100/70 dark:zinc-800/50" px-2 py-1 backdrop-blur-sm
-                @click="modelRef?.setMotion(EmotionQuestionMotionName)"
+                @click="motion = EmotionQuestionMotionName"
               >
                 {{ $t('stage.viewers.debug-menu.emotions-btn.question') }}
               </button>
               <button
                 rounded-lg bg="zinc-100/70 dark:zinc-800/50" px-2 py-1 backdrop-blur-sm
-                @click="modelRef?.setMotion(EmotionThinkMotionName)"
+                @click="motion = EmotionThinkMotionName"
               >
                 {{ $t('stage.viewers.debug-menu.emotions-btn.think') }}
               </button>

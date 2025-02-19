@@ -1,39 +1,38 @@
 <script setup lang="ts">
+import type { Application } from '@pixi/app'
 import type { InternalModel } from 'pixi-live2d-display/cubism4'
 import type { Ref } from 'vue'
 
-import { Application } from '@pixi/app'
 import { extensions } from '@pixi/extensions'
+import { InteractionManager } from '@pixi/interaction'
 import { Ticker, TickerPlugin } from '@pixi/ticker'
-import { breakpointsTailwind, useBreakpoints, useDark, useDebounceFn, useElementBounding } from '@vueuse/core'
+import { breakpointsTailwind, useBreakpoints, useDark, useDebounceFn } from '@vueuse/core'
 import { DropShadowFilter } from 'pixi-filters'
 import { Live2DModel, MotionPreloadStrategy, MotionPriority } from 'pixi-live2d-display/cubism4'
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref, toRef, watch } from 'vue'
 
 import { useLive2DIdleEyeFocus } from '../../composables/live2d'
 
 const props = withDefaults(defineProps<{
+  app?: Application
   model: string
   mouthOpenSize?: number
+  width: number
+  height: number
+  motion?: string
 }>(), {
   mouthOpenSize: 0,
 })
 
-const containerRef = ref<HTMLDivElement>()
-const pixiApp = ref<Application>()
-const pixiAppCanvas = ref<HTMLCanvasElement>()
+const pixiApp = toRef(() => props.app)
 const model = ref<Live2DModel>()
 const initialModelWidth = ref<number>(0)
 const initialModelHeight = ref<number>(0)
-const mouthOpenSize = computed(() => {
-  return Math.max(0, Math.min(100, props.mouthOpenSize))
-})
+const mouthOpenSize = computed(() => Math.max(0, Math.min(100, props.mouthOpenSize)))
 
 const dark = useDark()
 const breakpoints = useBreakpoints(breakpointsTailwind)
 const isMobile = computed(() => breakpoints.between('sm', 'md').value || breakpoints.smaller('sm').value)
-const { height, width } = useElementBounding(containerRef, { immediate: true, windowResize: true, reset: true })
-
 const idleEyeFocus = useLive2DIdleEyeFocus()
 
 function getCoreModel() {
@@ -49,35 +48,29 @@ function setScale(model: Ref<Live2DModel<InternalModel> | undefined>) {
     offsetFactor = 2.2
   }
 
-  const heightScale = height.value * 0.95 / initialModelHeight.value * offsetFactor
-  const widthScale = width.value * 0.95 / initialModelWidth.value * offsetFactor
+  const heightScale = props.height * 0.95 / initialModelHeight.value * offsetFactor
+  const widthScale = props.width * 0.95 / initialModelWidth.value * offsetFactor
   const scale = Math.min(heightScale, widthScale)
 
   model.value.scale.set(scale, scale)
 }
 
-async function initLive2DPixiStage(parent: HTMLDivElement) {
+async function initLive2DPixiStage() {
+  if (!pixiApp.value)
+    return
+
   // https://guansss.github.io/pixi-live2d-display/#package-importing
   Live2DModel.registerTicker(Ticker)
   extensions.add(TickerPlugin)
-
-  pixiApp.value = new Application({
-    width: width.value,
-    height: height.value,
-    backgroundAlpha: 0,
-  })
-
-  pixiAppCanvas.value = pixiApp.value.view
-  pixiAppCanvas.value.style.objectFit = 'contain'
-  parent.appendChild(pixiApp.value.view)
+  extensions.add(InteractionManager)
 
   model.value = await Live2DModel.from(props.model, { motionPreload: MotionPreloadStrategy.ALL })
   pixiApp.value.stage.addChild(model.value as any)
   initialModelWidth.value = model.value.width
   initialModelHeight.value = model.value.height
 
-  model.value.x = width.value / 2
-  model.value.y = height.value
+  model.value.x = props.width / 2
+  model.value.y = props.height
   model.value.rotation = Math.PI
   model.value.skew.x = Math.PI
   model.value.anchor.set(0.5, 0.5)
@@ -123,17 +116,9 @@ async function setMotion(motionName: string) {
 }
 
 const handleResize = useDebounceFn(() => {
-  if (pixiApp.value)
-    pixiApp.value.renderer.resize(width.value, height.value)
-
-  if (pixiAppCanvas.value) {
-    pixiAppCanvas.value.width = width.value
-    pixiAppCanvas.value.height = height.value
-  }
-
   if (model.value) {
-    model.value.x = width.value / 2
-    model.value.y = height.value
+    model.value.x = props.width / 2
+    model.value.y = props.height
     setScale(model)
   }
 }, 100)
@@ -150,38 +135,17 @@ function updateDropShadowFilter() {
   }
 }
 
-watch([width, height], () => {
-  handleResize()
-})
-
-watch(dark, updateDropShadowFilter, {
-  immediate: true,
-})
-
+watch([() => props.width, () => props.height], () => handleResize())
+watch(dark, updateDropShadowFilter, { immediate: true })
 watch(model, updateDropShadowFilter)
+watch(mouthOpenSize, value => getCoreModel().setParameterValueById('ParamMouthOpenY', value))
+watch(pixiApp, initLive2DPixiStage)
+watch(() => props.motion, () => props.motion && setMotion(props.motion))
 
 onMounted(updateDropShadowFilter)
-
-onMounted(async () => {
-  if (!containerRef.value)
-    return
-
-  await initLive2DPixiStage(containerRef.value)
-})
-
-onUnmounted(() => {
-  pixiApp.value?.destroy()
-})
-
-watch(mouthOpenSize, (value) => {
-  getCoreModel().setParameterValueById('ParamMouthOpenY', value)
-})
-
-defineExpose({
-  setMotion,
-})
+onUnmounted(() => model.value && pixiApp.value?.stage.removeChild(model.value))
 </script>
 
 <template>
-  <div ref="containerRef" h-full w-full />
+  <slot />
 </template>
