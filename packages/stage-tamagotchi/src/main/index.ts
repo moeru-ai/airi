@@ -5,9 +5,6 @@ import { app, BrowserWindow, dialog, ipcMain, Menu, screen, shell } from 'electr
 import { animate } from 'popmotion'
 
 import icon from '../../build/icon.png?asset'
-import { createI18n } from './locales'
-
-const { t, setLocale } = createI18n()
 
 let globalMouseTracker: ReturnType<typeof setInterval> | null = null
 let mainWindow: BrowserWindow
@@ -141,39 +138,33 @@ function createSettingsWindow(): void {
   }
 }
 
-function buildMenu(): Menu {
-  return Menu.buildFromTemplate([
+// This method will be called when Electron has finished
+// initialization and is ready to create browser windows.
+// Some APIs can only be used after this event occurs.
+app.whenReady().then(() => {
+  // Menu
+  const menu = Menu.buildFromTemplate([
     {
       label: 'airi',
       role: 'appMenu',
       submenu: [
         {
           role: 'about',
-          label: t('menu.about'),
         },
         {
           role: 'toggleDevTools',
-          label: t('menu.toggleDevTools'),
         },
         {
-          label: t('menu.settings'),
+          label: 'Settings',
           click: () => createSettingsWindow(),
         },
         {
-          label: t('menu.quit'),
+          label: 'Quit',
           click: () => app.quit(),
         },
       ],
     },
   ])
-}
-
-// This method will be called when Electron has finished
-// initialization and is ready to create browser windows.
-// Some APIs can only be used after this event occurs.
-app.whenReady().then(() => {
-  // Menu
-  const menu = buildMenu()
   Menu.setApplicationMenu(menu)
 
   // Set app user model id for windows
@@ -186,19 +177,14 @@ app.whenReady().then(() => {
     optimizer.watchWindowShortcuts(window)
   })
 
-  ipcMain.on('locale-changed', (_, locale: string) => {
-    setLocale(locale)
-
-    Menu.setApplicationMenu(buildMenu())
-  })
-
+  // IPC test
+  // TODO: i18n
   ipcMain.on('quit', () => {
     dialog.showMessageBox({
       type: 'info',
-      title: t('quitDialog.title'),
-      message: t('quitDialog.message'),
-      buttons: [t('quitDialog.buttons.0'), t('quitDialog.buttons.1')],
-      defaultId: 0,
+      title: 'Quit',
+      message: 'Are you sure you want to quit?',
+      buttons: ['Quit', 'Cancel'],
     }).then((result) => {
       if (result.response === 0) {
         app.quit()
@@ -249,8 +235,8 @@ function handleWindowMove(cursorX: number, cursorY: number) {
 
   // Shared animation config for squishie bounce effect
   const springConfig = {
-    stiffness: 300, // Reduced for more elastic feel
-    damping: 15, // Lower damping for more bounces
+    stiffness: 2000, // Reduced for more elastic feel
+    damping: 100, // Lower damping for more bounces
     mass: 0.5, // Higher mass for more momentum
     restSpeed: 0.1, // Lower rest speed to allow more bouncing
   }
