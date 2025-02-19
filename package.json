@@ -33,6 +33,7 @@
     "@types/node": "^22.13.4",
     "@unocss/eslint-config": "^65.5.0",
     "@unocss/eslint-plugin": "^65.5.0",
+    "@vitest/coverage-v8": "3.0.5",
     "bumpp": "^10.0.3",
     "cross-env": "^7.0.3",
     "eslint": "^9.20.1",

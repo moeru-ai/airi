@@ -12,9 +12,7 @@ const { t, locale } = useI18n()
 const settings = useSettings()
 const supportedModels = ref<{ id: string, name?: string }[]>([])
 const { models } = useLLM()
-const { openAiModel, openAiApiBaseURL, openAiApiKey, elevenlabsVoiceEnglish, elevenlabsVoiceJapanese } = storeToRefs(settings)
-
-// TODO: main process i18n
+const { openAiModel, openAiApiBaseURL, openAiApiKey, elevenlabsVoiceEnglish, elevenlabsVoiceJapanese, language } = storeToRefs(settings)
 
 function handleModelChange(event: Event) {
   const target = event.target as HTMLSelectElement
@@ -121,7 +119,7 @@ function handleQuit() {
         </div>
         <div flex="~ row" w-full text="xs">
           <select
-            v-model="settings.language"
+            v-model="language"
             h-6 w-full rounded-md bg-transparent px-2 py-1 text-right font-mono outline-none
           >
             <option value="en-US">
