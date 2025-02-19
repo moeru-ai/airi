@@ -1,20 +1,18 @@
 <script setup lang="ts">
 import { WidgetStage } from '@proj-airi/stage-ui/components'
+import { refDebounced } from '@vueuse/shared'
 import { ref } from 'vue'
 
 import InteractiveArea from '../components/InteractiveArea.vue'
 
-const dragDelay = ref(0)
 const isDragging = ref(false)
+const isDraggingDebounced = refDebounced(isDragging, 100)
 
 function handleMouseDown() {
-  dragDelay.value = window.setTimeout(() => {
-    isDragging.value = true
-  }, 500)
+  isDragging.value = true
 }
 
 function handleMouseUp() {
-  clearTimeout(dragDelay.value)
   isDragging.value = false
 }
 
@@ -23,7 +21,7 @@ function handleMouseLeave() {
 }
 
 function handleMouseMove(event: MouseEvent) {
-  if (isDragging.value) {
+  if (isDraggingDebounced.value) {
     window.electron.ipcRenderer.send('move-window', event.movementX, event.movementY)
   }
 }

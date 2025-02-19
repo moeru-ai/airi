@@ -41,6 +41,7 @@ function handleResize() {
 }
 
 watch([() => props.width, () => props.height], () => handleResize())
+
 onMounted(async () => containerRef.value && await initLive2DPixiStage(containerRef.value))
 onUnmounted(() => pixiApp.value?.destroy())
 </script>
