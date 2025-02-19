@@ -32,7 +32,7 @@ export default defineConfig({
       runtimeOnly: true,
       compositionOnly: true,
       fullInstall: true,
-      include: [resolve(import.meta.dirname, 'locales/**')],
+      include: [resolve(import.meta.dirname, 'src', 'renderer', 'locales/**')],
     }),
     DownloadLive2DSDK(),
     Download('https://dist.ayaka.moe/live2d-models/hiyori_free_zh.zip', 'hiyori_free_zh.zip', 'assets/live2d/models'),

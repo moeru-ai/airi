@@ -12,7 +12,7 @@ const { t, locale } = useI18n()
 const settings = useSettings()
 const supportedModels = ref<{ id: string, name?: string }[]>([])
 const { models } = useLLM()
-const { openAiModel, openAiApiBaseURL, openAiApiKey, elevenlabsVoiceEnglish, elevenlabsVoiceJapanese } = storeToRefs(settings)
+const { openAiModel, openAiApiBaseURL, openAiApiKey, elevenlabsVoiceEnglish, elevenlabsVoiceJapanese, language } = storeToRefs(settings)
 
 function handleModelChange(event: Event) {
   const target = event.target as HTMLSelectElement
@@ -119,7 +119,7 @@ function handleQuit() {
         </div>
         <div flex="~ row" w-full text="xs">
           <select
-            v-model="settings.language"
+            v-model="language"
             h-6 w-full rounded-md bg-transparent px-2 py-1 text-right font-mono outline-none
           >
             <option value="en-US">
@@ -186,7 +186,7 @@ function handleQuit() {
         bg="[#fff6fc]" px-2 py-1 text="pink-400"
       >
         <div text="xs pink-500">
-          <span>Viewer</span>
+          <span>{{ t('settings.viewer') }}</span>
         </div>
         <select
           h-6 w-full rounded-md bg-transparent px-2 py-1 text-right text-xs font-mono outline-none
@@ -202,7 +202,7 @@ function handleQuit() {
       </div>
     </div>
     <h2 text="slate-800/80" font-bold>
-      Other
+      {{ t('settings.other') }}
     </h2>
     <div pb-2>
       <div
@@ -211,7 +211,7 @@ function handleQuit() {
       >
         <div text="xs pink-500">
           <span>
-            Quit
+            {{ t('settings.quit') }}
           </span>
         </div>
         <div text="sm pink-500" text-right>

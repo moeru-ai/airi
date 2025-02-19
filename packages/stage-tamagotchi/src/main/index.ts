@@ -5,6 +5,9 @@ import { app, BrowserWindow, dialog, ipcMain, Menu, screen, shell } from 'electr
 import { animate } from 'popmotion'
 
 import icon from '../../build/icon.png?asset'
+import { createI18n } from './locales'
+
+const { t, setLocale } = createI18n()
 
 let globalMouseTracker: ReturnType<typeof setInterval> | null = null
 let mainWindow: BrowserWindow
@@ -138,33 +141,39 @@ function createSettingsWindow(): void {
   }
 }
 
-// This method will be called when Electron has finished
-// initialization and is ready to create browser windows.
-// Some APIs can only be used after this event occurs.
-app.whenReady().then(() => {
-  // Menu
-  const menu = Menu.buildFromTemplate([
+function buildMenu(): Menu {
+  return Menu.buildFromTemplate([
     {
       label: 'airi',
       role: 'appMenu',
       submenu: [
         {
           role: 'about',
+          label: t('menu.about'),
         },
         {
           role: 'toggleDevTools',
+          label: t('menu.toggleDevTools'),
         },
         {
-          label: 'Settings',
+          label: t('menu.settings'),
           click: () => createSettingsWindow(),
         },
         {
-          label: 'Quit',
+          label: t('menu.quit'),
           click: () => app.quit(),
         },
       ],
     },
   ])
+}
+
+// This method will be called when Electron has finished
+// initialization and is ready to create browser windows.
+// Some APIs can only be used after this event occurs.
+app.whenReady().then(() => {
+  // Menu
+  const menu = buildMenu()
   Menu.setApplicationMenu(menu)
 
   // Set app user model id for windows
@@ -177,14 +186,19 @@ app.whenReady().then(() => {
     optimizer.watchWindowShortcuts(window)
   })
 
-  // IPC test
-  // TODO: i18n
+  ipcMain.on('locale-changed', (_, locale: string) => {
+    setLocale(locale)
+
+    Menu.setApplicationMenu(buildMenu())
+  })
+
   ipcMain.on('quit', () => {
     dialog.showMessageBox({
       type: 'info',
-      title: 'Quit',
-      message: 'Are you sure you want to quit?',
-      buttons: ['Quit', 'Cancel'],
+      title: t('quitDialog.title'),
+      message: t('quitDialog.message'),
+      buttons: [t('quitDialog.buttons.0'), t('quitDialog.buttons.1')],
+      defaultId: 0,
     }).then((result) => {
       if (result.response === 0) {
         app.quit()
