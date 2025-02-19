@@ -1,13 +1,21 @@
 import { join } from 'node:path'
 import { env, platform } from 'node:process'
 import { electronApp, is, optimizer } from '@electron-toolkit/utils'
-import { app, BrowserWindow, dialog, ipcMain, Menu, shell } from 'electron'
+import { app, BrowserWindow, dialog, ipcMain, Menu, screen, shell } from 'electron'
+import { animate } from 'popmotion'
 
 import icon from '../../build/icon.png?asset'
 
+let globalMouseTracker: ReturnType<typeof setInterval> | null = null
+let mainWindow: BrowserWindow
+let currentAnimationX: { stop: () => void } | null = null
+let currentAnimationY: { stop: () => void } | null = null
+let isDragging = false
+let dragOffset = { x: 0, y: 0 }
+
 function createWindow(): void {
   // Create the browser window.
-  const mainWindow = new BrowserWindow({
+  mainWindow = new BrowserWindow({
     width: 300 * 1.5,
     height: 400 * 1.5,
     show: false,
@@ -45,9 +53,45 @@ function createWindow(): void {
     mainWindow.loadFile(join(import.meta.dirname, '..', '..', 'out', 'renderer', 'index.html'))
   }
 
-  ipcMain.on('move-window', (_, dx, dy) => {
-    const [currentX, currentY] = mainWindow.getPosition()
-    mainWindow.setPosition(currentX + dx, currentY + dy)
+  ipcMain.on('start-window-drag', (_, clickX: number, clickY: number) => {
+    isDragging = true
+    dragOffset = {
+      x: clickX,
+      y: clickY,
+    }
+
+    // Stop any existing animations
+    if (currentAnimationX) {
+      currentAnimationX.stop()
+      currentAnimationX = null
+    }
+    if (currentAnimationY) {
+      currentAnimationY.stop()
+      currentAnimationY = null
+    }
+
+    // Start global mouse tracking
+    if (!globalMouseTracker) {
+      globalMouseTracker = setInterval(() => {
+        const mousePos = screen.getCursorScreenPoint()
+        if (isDragging) {
+          // Simulate move-window event with global cursor position
+          handleWindowMove(mousePos.x, mousePos.y)
+        }
+      }, 16) // ~60fps
+    }
+  })
+
+  ipcMain.on('end-window-drag', () => {
+    isDragging = false
+    if (globalMouseTracker) {
+      clearInterval(globalMouseTracker)
+      globalMouseTracker = null
+    }
+  })
+
+  ipcMain.on('move-window', (_, cursorX: number, cursorY: number) => {
+    handleWindowMove(cursorX, cursorY)
   })
 }
 
@@ -172,3 +216,56 @@ app.on('window-all-closed', () => {
 
 // In this file you can include the rest of your app"s specific main process
 // code. You can also put them in separate files and require them here.
+
+function handleWindowMove(cursorX: number, cursorY: number) {
+  if (!isDragging)
+    return
+
+  // Stop current animations
+  if (currentAnimationX)
+    currentAnimationX.stop()
+  if (currentAnimationY)
+    currentAnimationY.stop()
+
+  const targetX = cursorX - dragOffset.x
+  const targetY = cursorY - dragOffset.y
+  const [currentX, currentY] = mainWindow.getPosition()
+  let latestX = currentX
+  let latestY = currentY
+
+  // Shared animation config for squishie bounce effect
+  const springConfig = {
+    stiffness: 300, // Reduced for more elastic feel
+    damping: 15, // Lower damping for more bounces
+    mass: 0.5, // Higher mass for more momentum
+    restSpeed: 0.1, // Lower rest speed to allow more bouncing
+  }
+
+  currentAnimationX = animate({
+    from: currentX,
+    to: targetX,
+    type: 'spring',
+    ...springConfig,
+    onUpdate: (x) => {
+      latestX = x
+      mainWindow.setPosition(Math.round(latestX), Math.round(latestY))
+    },
+    onComplete: () => {
+      currentAnimationX = null
+    },
+  })
+
+  currentAnimationY = animate({
+    from: currentY,
+    to: targetY,
+    type: 'spring',
+    ...springConfig,
+    onUpdate: (y) => {
+      latestY = y
+      mainWindow.setPosition(Math.round(latestX), Math.round(latestY))
+    },
+    onComplete: () => {
+      currentAnimationY = null
+    },
+  })
+}
