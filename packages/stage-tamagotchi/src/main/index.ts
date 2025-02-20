@@ -2,7 +2,7 @@ import { join } from 'node:path'
 import { env, platform } from 'node:process'
 import { electronApp, is, optimizer } from '@electron-toolkit/utils'
 import { app, BrowserWindow, dialog, ipcMain, Menu, screen, shell } from 'electron'
-import { animate } from 'popmotion'
+import { inertia } from 'popmotion'
 
 import icon from '../../build/icon.png?asset'
 
@@ -11,6 +11,9 @@ let mainWindow: BrowserWindow
 let currentAnimationX: { stop: () => void } | null = null
 let currentAnimationY: { stop: () => void } | null = null
 let isDragging = false
+let lastMousePosition = { x: 0, y: 0 }
+let lastMouseTime = Date.now()
+let currentVelocity = { x: 0, y: 0 }
 let dragOffset = { x: 0, y: 0 }
 
 function createWindow(): void {
@@ -53,11 +56,15 @@ function createWindow(): void {
     mainWindow.loadFile(join(import.meta.dirname, '..', '..', 'out', 'renderer', 'index.html'))
   }
 
-  ipcMain.on('start-window-drag', (_, clickX: number, clickY: number) => {
+  ipcMain.on('start-window-drag', (_) => {
     isDragging = true
+    const mousePos = screen.getCursorScreenPoint()
+    const [windowX, windowY] = mainWindow.getPosition()
+
+    // Calculate the offset between cursor and window position
     dragOffset = {
-      x: clickX,
-      y: clickY,
+      x: mousePos.x - windowX,
+      y: mousePos.y - windowY,
     }
 
     // Stop any existing animations
@@ -70,12 +77,16 @@ function createWindow(): void {
       currentAnimationY = null
     }
 
+    // Initialize last position for velocity tracking
+    lastMousePosition = { x: mousePos.x, y: mousePos.y }
+    lastMouseTime = Date.now()
+    currentVelocity = { x: 0, y: 0 }
+
     // Start global mouse tracking
     if (!globalMouseTracker) {
       globalMouseTracker = setInterval(() => {
         const mousePos = screen.getCursorScreenPoint()
         if (isDragging) {
-          // Simulate move-window event with global cursor position
           handleWindowMove(mousePos.x, mousePos.y)
         }
       }, 16) // ~60fps
@@ -87,6 +98,61 @@ function createWindow(): void {
     if (globalMouseTracker) {
       clearInterval(globalMouseTracker)
       globalMouseTracker = null
+    }
+
+    // Apply inertia animation when drag ends
+    const [currentX, currentY] = mainWindow.getPosition()
+    let latestX = currentX
+    let latestY = currentY
+
+    const inertiaConfig = {
+      power: 0.4, // Reduced from 0.6 for stronger resistance
+      timeConstant: 250, // Reduced from 400 for quicker deceleration
+      modifyTarget: (v: number) => v,
+      min: 0,
+      max: Infinity,
+    }
+
+    // Clamp velocity to reasonable values
+    const clampVelocity = (v: number) => {
+      const maxVelocity = 500 // Reduced from 800 for less momentum
+      const minVelocity = -500
+      return Math.min(Math.max(v, minVelocity), maxVelocity)
+    }
+
+    // Reduce velocity amplification and clamp values
+    const amplifiedVelocity = {
+      x: clampVelocity(currentVelocity.x * 0.2), // Reduced from 0.3 for less momentum
+      y: clampVelocity(currentVelocity.y * 0.2),
+    }
+
+    // Ignore very small movements
+    if (Math.abs(amplifiedVelocity.x) > 35 || Math.abs(amplifiedVelocity.y) > 35) {
+      currentAnimationX = inertia({
+        from: currentX,
+        velocity: amplifiedVelocity.x,
+        ...inertiaConfig,
+        onUpdate: (x) => {
+          latestX = Math.round(x)
+          mainWindow.setPosition(latestX, Math.round(latestY))
+        },
+        onComplete: () => {
+          currentAnimationX = null
+        },
+      })
+
+      currentAnimationY = inertia({
+        from: currentY,
+        velocity: amplifiedVelocity.y,
+        ...inertiaConfig,
+        onUpdate: (y) => {
+          latestY = Math.round(y)
+          mainWindow.setPosition(Math.round(latestX), latestY)
+        },
+        onComplete: () => {
+          currentAnimationY = null
+        },
+      })
     }
   })
 
@@ -221,51 +287,26 @@ function handleWindowMove(cursorX: number, cursorY: number) {
   if (!isDragging)
     return
 
-  // Stop current animations
-  if (currentAnimationX)
-    currentAnimationX.stop()
-  if (currentAnimationY)
-    currentAnimationY.stop()
+  // Calculate actual velocity based on mouse movement
+  const currentTime = Date.now()
+  const deltaTime = currentTime - lastMouseTime
 
-  const targetX = cursorX - dragOffset.x
-  const targetY = cursorY - dragOffset.y
-  const [currentX, currentY] = mainWindow.getPosition()
-  let latestX = currentX
-  let latestY = currentY
+  if (deltaTime > 0) {
+    // Smooth out velocity calculation with some averaging
+    const newVelocityX = (cursorX - lastMousePosition.x) / deltaTime * 1000
+    const newVelocityY = (cursorY - lastMousePosition.y) / deltaTime * 1000
 
-  // Shared animation config for squishie bounce effect
-  const springConfig = {
-    stiffness: 2000, // Reduced for more elastic feel
-    damping: 100, // Lower damping for more bounces
-    mass: 0.5, // Higher mass for more momentum
-    restSpeed: 0.1, // Lower rest speed to allow more bouncing
+    currentVelocity = {
+      x: currentVelocity.x * 0.8 + newVelocityX * 0.2, // Smooth velocity
+      y: currentVelocity.y * 0.8 + newVelocityY * 0.2,
+    }
   }
 
-  currentAnimationX = animate({
-    from: currentX,
-    to: targetX,
-    type: 'spring',
-    ...springConfig,
-    onUpdate: (x) => {
-      latestX = x
-      mainWindow.setPosition(Math.round(latestX), Math.round(latestY))
-    },
-    onComplete: () => {
-      currentAnimationX = null
-    },
-  })
+  // Update window position based on cursor position and offset
+  const newX = cursorX - dragOffset.x
+  const newY = cursorY - dragOffset.y
+  mainWindow.setPosition(Math.round(newX), Math.round(newY))
 
-  currentAnimationY = animate({
-    from: currentY,
-    to: targetY,
-    type: 'spring',
-    ...springConfig,
-    onUpdate: (y) => {
-      latestY = y
-      mainWindow.setPosition(Math.round(latestX), Math.round(latestY))
-    },
-    onComplete: () => {
-      currentAnimationY = null
-    },
-  })
+  lastMousePosition = { x: cursorX, y: cursorY }
+  lastMouseTime = currentTime
 }
