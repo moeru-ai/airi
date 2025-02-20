@@ -78,7 +78,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: airi-${{ matrix.platform }}-${{ matrix.arch }}-${{ github.ref_name }}
-          path: packages/stage-tamagotchi/dist/airi-${{ matrix.platform }}-${{ matrix.arch }}-${{ github.ref_name }}.${{ matrix.artifact }}
+          path: apps/stage-tamagotchi/dist/airi-${{ matrix.platform }}-${{ matrix.arch }}-${{ github.ref_name }}.${{ matrix.artifact }}
 
   release-tamagotchi:
     name: Release Tamagotchi
