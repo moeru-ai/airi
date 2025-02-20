@@ -10,19 +10,6 @@ import { WindowControlMode } from '../types/window-controls'
 const windowStore = useWindowControlStore()
 useWindowShortcuts()
 
-function handleMouseDown(event: MouseEvent) {
-  if (!windowStore.isControlActive || windowStore.controlMode !== WindowControlMode.MOVE)
-    return
-
-  window.electron.ipcRenderer.send('start-window-drag', event.x, event.y)
-}
-
-function handleMouseUp() {
-  if (windowStore.controlMode === WindowControlMode.MOVE) {
-    window.electron.ipcRenderer.send('end-window-drag')
-  }
-}
-
 const modeIndicatorClass = computed(() => {
   switch (windowStore.controlMode) {
     case WindowControlMode.MOVE:
@@ -48,10 +35,8 @@ const modeIndicatorClass = computed(() => {
     z-2
     h-full
     overflow-hidden
-    @mousedown="handleMouseDown"
-    @mouseup="handleMouseUp"
   >
-    <div relative h-full w-full items-end gap-2 class="view">
+    <div relative h-full w-full items-end gap-2 class="view" :class="{ 'drag-region': windowStore.controlMode === WindowControlMode.MOVE }">
       <WidgetStage h-full w-full flex-1 mb="<md:18" />
       <InteractiveArea
         class="interaction-area block"
@@ -75,5 +60,10 @@ const modeIndicatorClass = computed(() => {
       pointer-events: auto;
     }
   }
+}
+
+.drag-region {
+  app-region: drag;
+  cursor: grab !important;
 }
 </style>
