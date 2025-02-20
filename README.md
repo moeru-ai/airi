@@ -65,36 +65,66 @@ pnpm dev
 - [🥺 SAD](https://github.com/moeru-ai/sad): Documentation and notes for self-host and browser running LLMs
 
 ```mermaid
+
+%%{ init: { 'flowchart': { 'curve': 'catmullRom' } } }%%
+
 flowchart TD
 
-  A["core"]
-  B["unspeech"]
-  C["hfup"]
-  D["@proj-airi/drizzle-duckdb-wasm"]
-  E["@proj-airi/duckdb-wasm"]
-  F["@proj-airi/lobe-icons"]
-  G{{"@proj-airi/elevenlabs"}}
-  I["Factorio RCON API"]
-  J["autorio"]
-  K["tstl-plugin-reload-factorio-mod"]
+  CORE("Core")
+  UNSPEECH["unspeech"]
+  DB1["@proj-airi/drizzle-duckdb-wasm"]
+  DB2["[WIP] Memory Alaya"]
+  DB0["@proj-airi/duckdb-wasm"]
+  ICONS["@proj-airi/lobe-icons"]
+  UI("UI")
+  Stage("Stage")
+  ELEVENLABS{{"@proj-airi/elevenlabs"}}
+  F_AGENT("Factorio Agent")
+  F_API["Factorio RCON API"]
+  F_MOD1["autorio"]
+  SVRT["@proj-airi/server-runtime"]
+  MC_AGENT("Minecraft Agent")
+  XSAI["xsai"]
   
   subgraph airi-vtuber
-    D --> E --> A
-    F --> |emoji|A
-    A --> G
+    DB0 --> DB1 --> DB2 --> CORE
+    ICONS --> UI --> Stage --> CORE
+    CORE --> ELEVENLABS
+    CORE --> SVRT
   end
-  airi-vtuber --> |Speaking|B
-  airi-vtuber --> |Playing Factorio|Airi-Factorio
+  ELEVENLABS --> |Speaking|UNSPEECH
+  SVRT --> |Playing Factorio|F_AGENT
 
   subgraph Airi-Factorio
-    I --> factorio-server
-    factorio-server --> I
-    subgraph factorio-server
-      J
+    F_AGENT --> F_API -..- factorio-server
+    subgraph factorio-server-wrapper
+      subgraph factorio-server
+        F_MOD1
+      end
     end
-    K --> J
   end
 
+  SVRT --> |Playing Factorio|MC_AGENT -..- minecraft-server
+
+  XSAI --> CORE
+  XSAI --> F_AGENT
+  XSAI --> MC_AGENT
+
+```
+
+```mermaid
+
+%%{ init: { 'flowchart': { 'curve': 'catmullRom' } } }%%
+
+flowchart TD
+  subgraph deploy&bundle
+    direction LR
+    HFUP["hfup"]
+    HF[/"HuggingFace Spaces"\]
+    HFUP -...- UI -...-> HF
+    HFUP -...- whisper-webgpu -...-> HF
+    HFUP -...- moonshine-web -...-> HF
+  end
 
 ```
 
