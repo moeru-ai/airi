@@ -69,19 +69,19 @@
     "@date-fns/tz": "^1.2.0",
     "@duckdb/duckdb-wasm": "^1.29.0",
     "@proj-airi/duckdb-wasm": "workspace:^",
-    "apache-arrow": "^19.0.0",
+    "apache-arrow": "^19.0.1",
     "date-fns": "^4.1.0",
     "defu": "^6.1.4",
     "drizzle-orm": "^0.39.3",
     "es-toolkit": "^1.32.0"
   },
   "devDependencies": {
-    "@unocss/reset": "^65.5.0",
+    "@unocss/reset": "^66.0.0",
     "@vitejs/plugin-vue": "^5.2.1",
     "@vueuse/core": "^12.7.0",
     "drizzle-kit": "^0.30.4",
     "superjson": "^2.2.2",
-    "vite": "^6.1.0",
+    "vite": "^6.1.1",
     "vue": "^3.5.13",
     "vue-tsc": "^2.2.2"
   }

@@ -41,6 +41,6 @@
   },
   "dependencies": {
     "ofetch": "^1.4.1",
-    "vite": "^6.1.0"
+    "vite": "^6.1.1"
   }
 }

@@ -31,12 +31,12 @@
     "changelogithub": "changelogithub"
   },
   "devDependencies": {
-    "@antfu/eslint-config": "^4.2.1",
+    "@antfu/eslint-config": "^4.3.0",
     "@antfu/ni": "^23.3.1",
     "@cspell/dict-ru_ru": "^2.2.4",
     "@types/node": "^22.13.4",
-    "@unocss/eslint-config": "^65.5.0",
-    "@unocss/eslint-plugin": "^65.5.0",
+    "@unocss/eslint-config": "^66.0.0",
+    "@unocss/eslint-plugin": "^66.0.0",
     "@vitest/coverage-v8": "3.0.5",
     "bumpp": "^10.0.3",
     "changelogithub": "^13.12.1",
@@ -50,10 +50,10 @@
     "taze": "^18.6.0",
     "typescript": "~5.7.3",
     "unbuild": "3.0.0-rc.11",
-    "unocss": "^65.5.0",
-    "vite": "^6.1.0",
+    "unocss": "^66.0.0",
+    "vite": "^6.1.1",
     "vite-plugin-inspect": "^10.2.1",
-    "vitest": "^3.0.5"
+    "vitest": "^3.0.6"
   },
   "workspaces": [
     "packages/**",
