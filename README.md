@@ -64,6 +64,40 @@ pnpm dev
 - [`tstl-plugin-reload-factorio-mod](https://github.com/moeru-ai/airi-factorio/tree/main/packages/tstl-plugin-reload-factorio-mod): Reload Factorio mod when developing
 - [🥺 SAD](https://github.com/moeru-ai/sad): Documentation and notes for self-host and browser running LLMs
 
+```mermaid
+flowchart TD
+
+  A["core"]
+  B["unspeech"]
+  C["hfup"]
+  D["@proj-airi/drizzle-duckdb-wasm"]
+  E["@proj-airi/duckdb-wasm"]
+  F["@proj-airi/lobe-icons"]
+  G{{"@proj-airi/elevenlabs"}}
+  I["Factorio RCON API"]
+  J["autorio"]
+  K["tstl-plugin-reload-factorio-mod"]
+  
+  subgraph airi-vtuber
+    D --> E --> A
+    F --> |emoji|A
+    A --> G
+  end
+  airi-vtuber --> |Speaking|B
+  airi-vtuber --> |Playing Factorio|Airi-Factorio
+
+  subgraph Airi-Factorio
+    I --> factorio-server
+    factorio-server --> I
+    subgraph factorio-server
+      J
+    end
+    K --> J
+  end
+
+
+```
+
 ## Models used
 
 - [onnx-community/whisper-large-v3-turbo · Hugging Face](https://huggingface.co/onnx-community/whisper-large-v3-turbo)
