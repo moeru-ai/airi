@@ -1,6 +1,6 @@
 {
   "name": "@proj-airi/stage-tamagotchi",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "private": true,
   "description": "An Electron application with Vue and TypeScript",
   "author": "LemonNekoGH",
