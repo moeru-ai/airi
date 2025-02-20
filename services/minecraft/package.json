@@ -1,7 +1,7 @@
 {
   "name": "@proj-airi/minecraft-bot",
   "type": "module",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
   "description": "An intelligent Minecraft bot powered by LLM. AIRI can understand natural language commands, interact with the world, and assist players in various tasks.",
   "scripts": {
