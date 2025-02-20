@@ -1,6 +1,7 @@
 [build]
-publish = "apps/stage-web/dist"
+base = "/"
 command = "pnpm -F @proj-airi/stage-web... run build"
+publish = "/apps/stage-web/dist"
 
 [build.environment]
 NODE_VERSION = "23"

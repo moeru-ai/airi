@@ -1,6 +1,7 @@
 [build]
-publish = "apps/whisper-webgpu/dist"
+base = "/"
 command = "pnpm -F @proj-airi/whisper-webgpu... run build"
+publish = "/apps/whisper-webgpu/dist"
 
 [build.environment]
 NODE_VERSION = "23"

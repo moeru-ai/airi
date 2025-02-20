@@ -1,6 +1,7 @@
 [build]
-publish = "packages/drizzle-duckdb-wasm/playground/dist"
+base = "/"
 command = "pnpm -F @proj-airi/drizzle-duckdb-wasm... run build"
+publish = "/packages/drizzle-duckdb-wasm/playground/dist"
 
 [build.environment]
 NODE_VERSION = "23"
