@@ -27,7 +27,8 @@
     "lint:fix": "eslint --cache --fix .",
     "typecheck": "pnpm -r --filter './packages/*' --filter './apps/*' --filter run --parallel typecheck",
     "sizecheck": "npx vite-bundle-visualizer",
-    "up": "taze major -I"
+    "up": "taze major -I",
+    "changelogithub": "changelogithub"
   },
   "devDependencies": {
     "@antfu/eslint-config": "^4.2.1",
