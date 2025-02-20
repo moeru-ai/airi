@@ -6,7 +6,7 @@ const { top, right, bottom, left } = useScreenSafeArea()
 
 <template>
   <main
-    text="gray-700 dark:gray-200" font-cuteen h-full
+    text="gray-700 dark:gray-200" h-full font-cuteen
     :style="{
       paddingTop: `${top}px`,
       paddingRight: `${right}px`,

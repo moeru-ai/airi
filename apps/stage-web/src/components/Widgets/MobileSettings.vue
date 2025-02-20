@@ -164,14 +164,14 @@ onMounted(async () => {
             <option disabled class="bg-white dark:bg-zinc-800">
               {{ t('stage.select-a-voice') }}
             </option>
-            <option v-if="['en', 'en-US'].indexOf(locale) !== -1 && elevenlabsVoiceEnglish" :value="elevenlabsVoiceEnglish">
+            <option v-if="['en', 'en-US'].includes(locale) && elevenlabsVoiceEnglish" :value="elevenlabsVoiceEnglish">
               {{ elevenlabsVoiceEnglish }}
             </option>
             <!-- TODO -->
-            <option v-if="['zh', 'zh-CN', 'zh-TW', 'zh-HK'].indexOf(locale) !== -1 && elevenlabsVoiceEnglish" :value="elevenlabsVoiceEnglish">
+            <option v-if="['zh', 'zh-CN', 'zh-TW', 'zh-HK'].includes(locale) && elevenlabsVoiceEnglish" :value="elevenlabsVoiceEnglish">
               {{ elevenlabsVoiceEnglish }}
             </option>
-            <option v-if="['jp', 'jp-JP'].indexOf(locale) !== -1 && elevenlabsVoiceJapanese" :value="elevenlabsVoiceJapanese">
+            <option v-if="['jp', 'jp-JP'].includes(locale) && elevenlabsVoiceJapanese" :value="elevenlabsVoiceJapanese">
               {{ elevenlabsVoiceJapanese }}
             </option>
             <option v-for="(m, index) in voiceList[locale]" :key="index" :value="m">
