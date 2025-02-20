@@ -3,6 +3,7 @@ packages:
   - services/**
   - examples/**
   - docs/**
+  - apps/**
   - '!**/dist/**'
 catalog:
   '@xsai/generate-speech': ^0.1.0-beta.5

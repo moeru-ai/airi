@@ -48,7 +48,9 @@ jobs:
         run: pnpm run packages:stub
 
       - name: Build
-        run: pnpm run packages:build
+        run: |
+          pnpm run packages:build
+          pnpm run apps:build
 
   typecheck:
     name: Type Check

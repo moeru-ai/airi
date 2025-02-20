@@ -16,8 +16,8 @@ export default defineConfig({
   resolve: {
     alias: {
       '@renderer': resolve(join('src', 'renderer', 'src')),
-      '@proj-airi/stage-ui': resolve(join(import.meta.dirname, '..', 'stage-ui', 'dist')),
-      '@proj-airi/stage-ui/stores': resolve(join(import.meta.dirname, '..', 'stage-ui', 'dist', 'stores')),
+      '@proj-airi/stage-ui': resolve(join(import.meta.dirname, '..', '..', 'packages', 'stage-ui', 'dist')),
+      '@proj-airi/stage-ui/stores': resolve(join(import.meta.dirname, '..', '..', 'packages', 'stage-ui', 'dist', 'stores')),
     },
   },
   plugins: [

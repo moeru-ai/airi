@@ -1,6 +1,6 @@
 [build]
-publish = "packages/moonshine-web/dist"
-command = "pnpm run packages:stub && pnpm run build"
+publish = "apps/moonshine-web/dist"
+command = "pnpm run packages:stub && pnpm -F @proj-airi/moonshine-web run build"
 
 [build.environment]
 NODE_VERSION = "23"

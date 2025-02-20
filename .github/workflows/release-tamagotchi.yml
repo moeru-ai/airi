@@ -69,7 +69,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Build Dependencies
-        run: pnpm run build
+        run: pnpm run packages:build
 
       - name: Build Application
         run: pnpm run -F @proj-airi/stage-tamagotchi build:${{ matrix.platform }}

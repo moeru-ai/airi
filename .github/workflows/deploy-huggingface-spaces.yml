@@ -16,19 +16,19 @@ jobs:
           lfs: true
 
       - run: |-
-          git clone https://$HF_USERNAME:$HF_TOKEN@huggingface.co/spaces/moeru-ai/moonshine-web-vue --depth 1 packages/moonshine-web/dist
+          git clone https://$HF_USERNAME:$HF_TOKEN@huggingface.co/spaces/moeru-ai/moonshine-web-vue --depth 1 apps/moonshine-web/dist
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
           HF_USERNAME: ${{ secrets.HF_USERNAME }}
 
       - run: |-
-          git clone https://$HF_USERNAME:$HF_TOKEN@huggingface.co/spaces/moeru-ai/whisper-webgpu-vue --depth 1 packages/whisper-webgpu/dist
+          git clone https://$HF_USERNAME:$HF_TOKEN@huggingface.co/spaces/moeru-ai/whisper-webgpu-vue --depth 1 apps/whisper-webgpu/dist
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
           HF_USERNAME: ${{ secrets.HF_USERNAME }}
 
       - run: |-
-          git clone https://$HF_USERNAME:$HF_TOKEN@huggingface.co/spaces/moeru-ai/airi --depth 1 packages/stage-web/dist
+          git clone https://$HF_USERNAME:$HF_TOKEN@huggingface.co/spaces/moeru-ai/airi --depth 1 apps/stage-web/dist
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
           HF_USERNAME: ${{ secrets.HF_USERNAME }}
@@ -46,7 +46,7 @@ jobs:
           VITE_APP_TARGET_HUGGINGFACE_SPACE: 'true'
 
       - id: moonshine_web_diff
-        working-directory: ./packages/moonshine-web/dist
+        working-directory: ./apps/moonshine-web/dist
         run: |-
           git lfs ls-files --all
           git add .
@@ -55,7 +55,7 @@ jobs:
           fi
 
       - if: steps.moonshine_web_diff.outputs.changes == 'true'
-        working-directory: ./packages/moonshine-web/dist
+        working-directory: ./apps/moonshine-web/dist
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
           HF_USERNAME: ${{ secrets.HF_USERNAME }}
@@ -67,7 +67,7 @@ jobs:
           git push -f
 
       - id: whisper_webgpu_diff
-        working-directory: ./packages/whisper-webgpu/dist
+        working-directory: ./apps/whisper-webgpu/dist
         run: |-
           git lfs ls-files --all
           git add .
@@ -76,7 +76,7 @@ jobs:
           fi
 
       - if: steps.whisper_webgpu_diff.outputs.changes == 'true'
-        working-directory: ./packages/whisper-webgpu/dist
+        working-directory: ./apps/whisper-webgpu/dist
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
           HF_USERNAME: ${{ secrets.HF_USERNAME }}
@@ -88,7 +88,7 @@ jobs:
           git push -f
 
       - id: airi_diff
-        working-directory: ./packages/stage-web/dist
+        working-directory: ./apps/stage-web/dist
         run: |-
           git lfs ls-files --all
           git add .
@@ -97,7 +97,7 @@ jobs:
           fi
 
       - if: steps.airi_diff.outputs.changes == 'true'
-        working-directory: ./packages/stage-web/dist
+        working-directory: ./apps/stage-web/dist
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
           HF_USERNAME: ${{ secrets.HF_USERNAME }}

@@ -1,6 +1,6 @@
 [build]
-publish = "packages/whisper-webgpu/dist"
-command = "pnpm run packages:stub && pnpm run build"
+publish = "apps/whisper-webgpu/dist"
+command = "pnpm run packages:stub && pnpm -F @proj-airi/whisper-webgpu run build"
 
 [build.environment]
 NODE_VERSION = "23"

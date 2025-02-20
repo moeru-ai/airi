@@ -8,7 +8,7 @@
     ],
     "paths": {
       "@proj-airi/stage-ui/*": [
-        "../stage-ui/src/*"
+        "../../packages/stage-ui/src/*"
       ]
     },
     "resolveJsonModule": true,

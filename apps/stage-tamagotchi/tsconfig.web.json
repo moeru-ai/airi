@@ -12,7 +12,7 @@
         "./src/renderer/src/*"
       ],
       "@proj-airi/stage-ui/*": [
-        "../stage-ui/src/*"
+        "../../packages/stage-ui/src/*"
       ]
     }
   },
@@ -21,6 +21,6 @@
     "src/renderer/src/**/*",
     "src/renderer/src/**/*.vue",
     "src/preload/*.d.ts",
-    "../stage-ui/src/**/*.ts" // REVIEW: why?
+    "../../packages/stage-ui/src/**/*.ts" // REVIEW: why?
   ]
 }

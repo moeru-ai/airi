@@ -11,20 +11,23 @@
   },
   "license": "MIT",
   "scripts": {
-    "lint": "eslint --cache .",
-    "lint:fix": "eslint --cache --fix .",
-    "typecheck": "pnpm -r --filter=./packages/* run typecheck",
-    "dev": "pnpm packages:dev",
-    "build": "pnpm packages:build",
-    "packages:dev": "pnpm packages:stub && pnpm -r --filter=./packages/* --parallel run dev",
-    "packages:dev:tamagotchi": "pnpm packages:stub && pnpm -r --filter=@proj-airi/stage-tamagotchi --parallel run dev",
-    "packages:stub": "pnpm -r --filter=./packages/* run stub",
-    "packages:build": "pnpm -r --filter=./packages/* run build",
+    "postinstall": "npx simple-git-hooks",
+    "dev": "pnpm -r --filter './packages/*' --filter './apps/*' run --parallel dev",
+    "build": "pnpm -r --filter './packages/*' --filter './apps/*' run build",
+    "apps:dev": "pnpm packages:stub && pnpm -r --filter './apps/*' run --parallel dev",
+    "apps:tamagotchi:dev": "pnpm packages:stub && pnpm -r --filter=@proj-airi/stage-tamagotchi run dev",
+    "apps:tamagotchi:build": "pnpm packages:build && pnpm -r --filter=@proj-airi/stage-tamagotchi run build",
+    "apps:build": "pnpm packages:build && pnpm -r --filter './apps/*' run build",
+    "packages:dev": "pnpm packages:stub && pnpm -r --filter './packages/*' --parallel run dev",
+    "packages:stub": "pnpm -r --filter './packages/*' run --parallel stub",
+    "packages:build": "pnpm -r --filter './packages/*' run build",
     "test": "vitest --coverage",
     "test:run": "vitest run",
-    "up": "taze major -I",
-    "postinstall": "npx simple-git-hooks",
-    "sizecheck": "npx vite-bundle-visualizer"
+    "lint": "eslint --cache .",
+    "lint:fix": "eslint --cache --fix .",
+    "typecheck": "pnpm -r --filter './packages/*' --filter './apps/*' --filter run --parallel typecheck",
+    "sizecheck": "npx vite-bundle-visualizer",
+    "up": "taze major -I"
   },
   "devDependencies": {
     "@antfu/eslint-config": "^4.2.1",
@@ -54,7 +57,8 @@
     "packages/**",
     "services/**",
     "examples/**",
-    "docs/**"
+    "docs/**",
+    "apps/**"
   ],
   "pnpm": {
     "neverBuiltDependencies": []
