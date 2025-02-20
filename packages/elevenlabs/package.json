@@ -2,7 +2,6 @@
   "name": "@proj-airi/elevenlabs",
   "type": "module",
   "version": "0.3.0",
-  "private": false,
   "description": "Simple wrapper of types of Elevenlabs's SDK",
   "author": {
     "name": "Neko Ayaka",

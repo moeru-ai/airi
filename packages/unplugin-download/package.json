@@ -1,7 +1,6 @@
 {
   "name": "@proj-airi/unplugin-download",
   "type": "module",
-  "version": "0.3.0",
   "private": true,
   "description": "Vite plugin to download files",
   "author": {
