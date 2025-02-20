@@ -1,7 +1,33 @@
-import { defineConfig, mergeConfigs } from 'unocss'
+import {
+  defineConfig,
+  presetAttributify,
+  presetIcons,
+  presetTypography,
+  presetWebFonts,
+  presetWind3,
+  transformerDirectives,
+  transformerVariantGroup,
+} from 'unocss'
 
-import UnoCSSConfig from '../../uno.config'
-
-export default defineConfig(mergeConfigs([
-  UnoCSSConfig,
-]))
+export default defineConfig({
+  presets: [
+    presetWind3(),
+    presetAttributify(),
+    presetTypography(),
+    presetWebFonts({
+      fonts: {
+        sans: 'DM Sans',
+        serif: 'DM Serif Display',
+        mono: 'DM Mono',
+      },
+    }),
+    presetIcons({
+      scale: 1.2,
+    }),
+  ],
+  transformers: [
+    transformerDirectives(),
+    transformerVariantGroup(),
+  ],
+  safelist: 'prose prose-sm m-auto text-left'.split(' '),
+})
