@@ -13,14 +13,14 @@ $ pnpm install
 ### Development
 
 ```bash
-$ cd /packages/stage
+$ cd /apps/stage
 $ pnpm dev:tamagotchi
 ```
 
 Then open another terminal and run:
 
 ```bash
-$ cd /packages/tamagotchi
+$ cd /apps/tamagotchi
 $ pnpm dev:tamagotchi
 ```
 
