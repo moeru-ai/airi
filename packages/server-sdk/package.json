@@ -1,7 +1,7 @@
 {
   "name": "@proj-airi/server-sdk",
   "type": "module",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "description": "Client-side SDK implementation for connecting to Airi server components and runtimes",
   "author": {
     "name": "Neko Ayaka",
