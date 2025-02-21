@@ -104,7 +104,7 @@ flowchart TD
     end
   end
 
-  SVRT --> |Playing Factorio|MC_AGENT -..- minecraft-server
+  SVRT --> |Playing Minecraft|MC_AGENT -..- minecraft-server
 
   XSAI --> CORE
   XSAI --> F_AGENT
