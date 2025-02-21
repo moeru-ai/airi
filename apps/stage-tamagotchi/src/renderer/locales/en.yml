@@ -65,6 +65,14 @@ settings:
   voices: Voice
   quit: Quit
   viewer: Viewer
+  shortcuts:
+    title: Shortcuts
+    window:
+      move: Move the window
+      resize: Resize the window
+      debug: Toggle developer tools
+  press_keys: Press keys...
+  other: Other
 stage:
   chat:
     message:

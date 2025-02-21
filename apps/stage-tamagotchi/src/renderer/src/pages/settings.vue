@@ -3,16 +3,28 @@ import type { Voice } from '@proj-airi/stage-ui/constants'
 
 import { voiceList } from '@proj-airi/stage-ui/constants'
 import { useLLM, useSettings } from '@proj-airi/stage-ui/stores'
+import { useShortcutsStore } from '@renderer/stores/shortcuts'
+import { useEventListener } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { onMounted, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 const { t, locale } = useI18n()
 
 const settings = useSettings()
+const { shortcuts } = storeToRefs(useShortcutsStore())
 const supportedModels = ref<{ id: string, name?: string }[]>([])
 const { models } = useLLM()
 const { openAiModel, openAiApiBaseURL, openAiApiKey, elevenlabsVoiceEnglish, elevenlabsVoiceJapanese, language } = storeToRefs(settings)
+
+const recordingFor = ref<string | null>(null)
+const recordingKeys = ref<{
+  modifier: string[]
+  key: string
+}>({
+  modifier: [],
+  key: '',
+})
 
 function handleModelChange(event: Event) {
   const target = event.target as HTMLSelectElement
@@ -68,6 +80,68 @@ onMounted(async () => {
 
 function handleQuit() {
   window.electron.ipcRenderer.send('quit')
+}
+
+// Add function to handle shortcut recording
+function startRecording(shortcut: typeof shortcuts.value[0]) {
+  recordingFor.value = shortcut.type
+}
+
+function isModifierKey(key: string) {
+  return ['Shift', 'Control', 'Alt', 'Meta'].includes(key)
+}
+
+// Handle key combinations
+useEventListener('keydown', (e) => {
+  if (!recordingFor.value)
+    return
+
+  e.preventDefault()
+
+  if (isModifierKey(e.key)) {
+    if (recordingKeys.value.modifier.includes(e.key))
+      return
+
+    recordingKeys.value.modifier.push(e.key)
+
+    return
+  }
+
+  if (recordingKeys.value.modifier.length === 0)
+    return
+
+  recordingKeys.value.key = e.key.toUpperCase()
+
+  const shortcut = shortcuts.value.find(s => s.type === recordingFor.value)
+  if (shortcut)
+    shortcut.shortcut = `${recordingKeys.value.modifier.join('+')}+${recordingKeys.value.key}`
+
+  recordingKeys.value = {
+    modifier: [],
+    key: '',
+  }
+  recordingFor.value = null
+}, { passive: false })
+
+// Add click outside handler to cancel recording
+useEventListener('click', (e) => {
+  if (recordingFor.value) {
+    const target = e.target as HTMLElement
+    if (!target.closest('.shortcut-item')) {
+      recordingFor.value = null
+    }
+  }
+})
+
+const pressKeysMessage = computed(() => {
+  if (recordingKeys.value.modifier.length === 0)
+    return t('settings.press_keys')
+
+  return `${t('settings.press_keys')}: ${recordingKeys.value.modifier.join('+')}+${recordingKeys.value.key}`
+})
+
+function isConflict(shortcut: typeof shortcuts.value[0]) {
+  return shortcuts.value.some(s => s.type !== shortcut.type && s.shortcut === shortcut.shortcut)
 }
 </script>
 
@@ -199,6 +273,36 @@ function handleQuit() {
             3D
           </option>
         </select>
+      </div>
+    </div>
+    <h2 text="slate-800/80" font-bold>
+      {{ t('settings.shortcuts.title') }}
+    </h2>
+    <div pb-2>
+      <div
+        grid="~ cols-[140px_1fr]" my-2 items-center gap-1.5 rounded-lg
+        bg="[#fff6fc]" p-2 text="pink-400"
+      >
+        <template v-for="shortcut in shortcuts" :key="shortcut.type">
+          <span text="xs pink-500">
+            {{ t(shortcut.name) }}
+          </span>
+          <div
+            class="shortcut-item flex items-center justify-end gap-x-2 px-2 py-0.5"
+            :class="{ recording: recordingFor === shortcut.type }"
+            text="xs pink-500"
+            cursor-pointer
+            @click="startRecording(shortcut)"
+          >
+            <div v-if="recordingFor === shortcut.type" class="pointer-events-none animate-flash animate-count-infinite">
+              {{ pressKeysMessage }}
+            </div>
+            <div v-else class="pointer-events-none">
+              {{ shortcut.shortcut }}
+            </div>
+            <div v-if="isConflict(shortcut)" text="xs pink-500" i-solar:danger-square-bold w-4 />
+          </div>
+        </template>
       </div>
     </div>
     <h2 text="slate-800/80" font-bold>
