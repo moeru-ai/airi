@@ -52,6 +52,14 @@ settings:
   voices: 声线
   quit: 退出
   viewer: 查看器
+  shortcuts:
+    title: 快捷键
+    window:
+      move: 移动窗口
+      resize: 调整窗口大小
+      debug: 切换开发者模式
+  press_keys: 按下快捷键...
+  other: 其他
 stage:
   message: 消息
   select-a-audio-input: 选择一个音频输入设备
