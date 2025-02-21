@@ -1,12 +1,15 @@
 <script setup lang="ts">
 import { DrawerContent, DrawerOverlay, DrawerPortal, DrawerRoot, DrawerTrigger } from 'vaul-vue'
+import { ref } from 'vue'
 
 import MobileSettings from './MobileSettings.vue'
+
+const isOpen = ref(false)
 </script>
 
 <template>
   <div flex="~" gap-2>
-    <DrawerRoot should-scale-background direction="right">
+    <DrawerRoot v-model:open="isOpen" should-scale-background direction="right">
       <DrawerTrigger
         bg="zinc-100 dark:zinc-800"
         text="lg zinc-500 dark:zinc-400"

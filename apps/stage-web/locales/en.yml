@@ -52,6 +52,8 @@ settings:
     english: English
     title: Language
   microphone: Microphone
+  model-provider:
+    title: Model Providers
   models: Model
   openai-api-key:
     label: OpenAI API Key
@@ -61,6 +63,7 @@ settings:
     label: OpenAI API BaseURL
     placeholder: Input your API base URL
     placeholder_mobile: OpenAI API BaseURL
+  theme: Theme
   title: Settings
   voices: Voice
 stage:
