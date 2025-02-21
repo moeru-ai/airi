@@ -64,6 +64,70 @@ pnpm dev
 - [`tstl-plugin-reload-factorio-mod](https://github.com/moeru-ai/airi-factorio/tree/main/packages/tstl-plugin-reload-factorio-mod): Reload Factorio mod when developing
 - [🥺 SAD](https://github.com/moeru-ai/sad): Documentation and notes for self-host and browser running LLMs
 
+```mermaid
+
+%%{ init: { 'flowchart': { 'curve': 'catmullRom' } } }%%
+
+flowchart TD
+
+  CORE("Core")
+  UNSPEECH["unspeech"]
+  DB1["@proj-airi/drizzle-duckdb-wasm"]
+  DB2["[WIP] Memory Alaya"]
+  DB0["@proj-airi/duckdb-wasm"]
+  ICONS["@proj-airi/lobe-icons"]
+  UI("UI")
+  Stage("Stage")
+  ELEVENLABS{{"@proj-airi/elevenlabs"}}
+  F_AGENT("Factorio Agent")
+  F_API["Factorio RCON API"]
+  F_MOD1["autorio"]
+  SVRT["@proj-airi/server-runtime"]
+  MC_AGENT("Minecraft Agent")
+  XSAI["xsai"]
+  
+  subgraph airi-vtuber
+    DB0 --> DB1 --> DB2 --> CORE
+    ICONS --> UI --> Stage --> CORE
+    CORE --> ELEVENLABS
+    CORE --> SVRT
+  end
+  ELEVENLABS --> |Speaking|UNSPEECH
+  SVRT --> |Playing Factorio|F_AGENT
+
+  subgraph Airi-Factorio
+    F_AGENT --> F_API -..- factorio-server
+    subgraph factorio-server-wrapper
+      subgraph factorio-server
+        F_MOD1
+      end
+    end
+  end
+
+  SVRT --> |Playing Minecraft|MC_AGENT -..- minecraft-server
+
+  XSAI --> CORE
+  XSAI --> F_AGENT
+  XSAI --> MC_AGENT
+
+```
+
+```mermaid
+
+%%{ init: { 'flowchart': { 'curve': 'catmullRom' } } }%%
+
+flowchart TD
+  subgraph deploy&bundle
+    direction LR
+    HFUP["hfup"]
+    HF[/"HuggingFace Spaces"\]
+    HFUP -...- UI -...-> HF
+    HFUP -...- whisper-webgpu -...-> HF
+    HFUP -...- moonshine-web -...-> HF
+  end
+
+```
+
 ## Models used
 
 - [onnx-community/whisper-large-v3-turbo · Hugging Face](https://huggingface.co/onnx-community/whisper-large-v3-turbo)
