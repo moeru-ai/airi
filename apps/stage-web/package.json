@@ -63,6 +63,7 @@
     "pinia": "^3.0.1",
     "pixi-filters": "^4.2.0",
     "pixi-live2d-display": "^0.4.0",
+    "radix-vue": "^1.9.16",
     "rehype-stringify": "^10.0.1",
     "remark-parse": "^11.0.0",
     "remark-rehype": "^11.1.1",

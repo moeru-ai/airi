@@ -1,230 +1,192 @@
 <script setup lang="ts">
-import type { Voice } from '@proj-airi/stage-ui/constants'
-
-import { voiceList } from '@proj-airi/stage-ui/constants'
-import { useLLM, useSettings } from '@proj-airi/stage-ui/stores'
+import { useSettings } from '@proj-airi/stage-ui/stores'
 import { useDark } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { onMounted, ref, watch } from 'vue'
+import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-const { t, locale } = useI18n()
+import ModelProviderSettings from './ModelProviderSettings.vue'
 
-const settings = useSettings()
+const { t } = useI18n()
+const settings = storeToRefs(useSettings())
+
 const dark = useDark({ disableTransition: false })
-const supportedModels = ref<{ id: string, name?: string }[]>([])
-const { models } = useLLM()
-const { openAiModel, openAiApiBaseURL, openAiApiKey, elevenlabsVoiceEnglish, elevenlabsVoiceJapanese } = storeToRefs(settings)
+const currentView = ref('main')
+const slideDirection = ref('forward') // 'forward' | 'backward'
 
-function handleModelChange(event: Event) {
+function handleLanguageChange(event: Event) {
   const target = event.target as HTMLSelectElement
-  const found = supportedModels.value.find(m => m.id === target.value)
-  if (!found) {
-    openAiModel.value = undefined
-    return
-  }
-
-  openAiModel.value = found
+  settings.language.value = target.value
 }
 
-function handleViewChange(event: Event) {
-  const target = event.target as HTMLSelectElement
-  settings.stageView = target.value
+function navigateToProviders() {
+  slideDirection.value = 'forward'
+  currentView.value = 'providers'
 }
 
-function handleVoiceChange(event: Event) {
-  const value = (event.target as HTMLSelectElement).value as Voice
-  switch (locale.value) {
-    case 'en':
-    case 'en-US':
-      elevenlabsVoiceEnglish.value = value
-      break
-    case 'zh':
-    case 'zh-CN':
-    case 'zh-TW':
-    case 'zh-HK':
-      elevenlabsVoiceEnglish.value = value
-      break
-    case 'jp':
-    case 'jp-JP':
-      elevenlabsVoiceJapanese.value = value
-      break
-  }
+function navigateBack() {
+  slideDirection.value = 'backward'
+  currentView.value = 'main'
 }
-
-watch([openAiApiBaseURL, openAiApiKey], async ([baseUrl, apiKey]) => {
-  if (!baseUrl || !apiKey) {
-    supportedModels.value = []
-    return
-  }
-
-  supportedModels.value = await models(baseUrl, apiKey)
-})
-
-onMounted(async () => {
-  if (!openAiApiBaseURL.value || !openAiApiKey.value)
-    return
-
-  supportedModels.value = await models(openAiApiBaseURL.value, openAiApiKey.value)
-})
 </script>
 
 <template>
-  <div text="zinc-500 dark:zinc-400">
-    <h2 text="zinc-800/80 dark:zinc-200/80 xl" font-bold>
-      {{ t('settings.title') }}
-    </h2>
-    <div>
-      <div
-        grid="~ cols-[150px_1fr]" my-2 items-center gap-1.5 rounded-lg
-        bg="zinc-100 dark:zinc-800" px-2 py-1
-      >
-        <div text="sm" pl-1>
-          <span>{{ t('settings.openai-base-url.label') }}</span>
-        </div>
-        <div flex="~ row" w-full text="sm">
-          <input
-            v-model="settings.openAiApiBaseURL"
-            text="zinc-800 dark:zinc-100"
-            type="text"
-            :placeholder="t('settings.openai-base-url.placeholder_mobile')"
-            h-8 w-full rounded-md bg-transparent px-2 py-1 text-right font-mono outline-none
-          >
-        </div>
-        <div text="sm" pl-1>
-          <span>{{ t('settings.openai-api-key.label') }}</span>
-        </div>
-        <div flex="~ row" w-full text="sm">
-          <input
-            v-model="settings.openAiApiKey"
-            text="zinc-800 dark:zinc-100"
-            type="text"
-            :placeholder="t('settings.openai-api-key.placeholder_mobile')"
-            h-8 w-full rounded-md bg-transparent px-2 py-1 text-right font-mono outline-none
-          >
-        </div>
-        <div text="sm" pl-1>
-          <span>{{ t('settings.elevenlabs-api-key.label') }}</span>
-        </div>
-        <div flex="~ row" w-full text="sm">
-          <input
-            v-model="settings.elevenLabsApiKey"
-            text="zinc-800 dark:zinc-100"
-            type="text"
-            :placeholder="t('settings.elevenlabs-api-key.placeholder_mobile')"
-            h-8 w-full rounded-md bg-transparent px-2 py-1 text-right font-mono outline-none
-          >
-        </div>
-        <div text="sm" pl-1>
-          <span>{{ t('settings.language.title') }}</span>
-        </div>
-        <div flex="~ row" w-full text="sm">
-          <select
-            v-model="settings.language"
-            h-8 w-full rounded-md bg-transparent px-2 py-1 text-right font-mono outline-none
-            text="zinc-800 dark:zinc-100"
-          >
-            <option value="en-US">
-              {{ t('settings.language.english') }}
-            </option>
-            <option value="zh-CN">
-              {{ t('settings.language.chinese') }}
-            </option>
-          </select>
-        </div>
-        <div text="sm" pl-1>
-          <span>{{ t('settings.models') }}</span>
-        </div>
-        <div flex="~ row" w-full text="sm">
-          <select
-            h-8 w-full rounded-md bg-transparent px-2 py-1 text-right font-mono outline-none
-            text="zinc-800 dark:zinc-100"
-            @change="handleModelChange"
-          >
-            <option disabled class="bg-white dark:bg-zinc-800">
-              {{ t('stage.select-a-model') }}
-            </option>
-            <option v-if="settings.openAiModel" :value="settings.openAiModel.id">
-              {{ 'name' in settings.openAiModel ? `${settings.openAiModel.name} (${settings.openAiModel.id})` : settings.openAiModel.id }}
-            </option>
-            <option v-for="m in supportedModels" :key="m.id" :value="m.id">
-              {{ 'name' in m ? `${m.name} (${m.id})` : m.id }}
-            </option>
-          </select>
-        </div>
-        <div text="sm" pl-1>
-          <span>{{ t('settings.voices') }}</span>
-        </div>
-        <div flex="~ row" w-full text="sm">
-          <select
-            h-8 w-full rounded-md bg-transparent px-2 py-1 text-right font-mono outline-none
-            text="zinc-800 dark:zinc-100"
-            @change="handleVoiceChange"
-          >
-            <option disabled class="bg-white dark:bg-zinc-800">
-              {{ t('stage.select-a-voice') }}
-            </option>
-            <option v-if="['en', 'en-US'].includes(locale) && elevenlabsVoiceEnglish" :value="elevenlabsVoiceEnglish">
-              {{ elevenlabsVoiceEnglish }}
-            </option>
-            <!-- TODO -->
-            <option v-if="['zh', 'zh-CN', 'zh-TW', 'zh-HK'].includes(locale) && elevenlabsVoiceEnglish" :value="elevenlabsVoiceEnglish">
-              {{ elevenlabsVoiceEnglish }}
-            </option>
-            <option v-if="['jp', 'jp-JP'].includes(locale) && elevenlabsVoiceJapanese" :value="elevenlabsVoiceJapanese">
-              {{ elevenlabsVoiceJapanese }}
-            </option>
-            <option v-for="(m, index) in voiceList[locale]" :key="index" :value="m">
-              {{ m }}
-            </option>
-          </select>
-        </div>
-      </div>
-    </div>
-    <h2 text="zinc-800/80 dark:zinc-200/80 xl" font-bold>
-      View
-    </h2>
-    <div>
-      <div
-        grid="~ cols-[140px_1fr]" my-2 items-center gap-1.5 rounded-lg
-        bg="zinc-100 dark:zinc-800" px-2 py-1
-      >
-        <div text="sm" pl-1>
-          <span>Viewer</span>
-        </div>
-        <select
-          h-8 w-full rounded-md bg-transparent px-2 py-1 text-right font-mono outline-none
-          text="zinc-800 dark:zinc-100"
-          @change="handleViewChange"
-        >
-          <option value="2d">
-            2D
-          </option>
-          <option value="3d">
-            3D
-          </option>
-        </select>
-        <div text="sm" pl-1>
-          <span>Theme</span>
-        </div>
-        <label h-8 flex cursor-pointer items-center justify-end>
-          <input
-            v-model="dark"
-            text="zinc-800 dark:zinc-100"
-            :checked="dark"
-            :aria-checked="dark"
-            name="stageView"
-            type="checkbox"
-            hidden appearance-none outline-none
-          >
-          <div select-none>
-            <Transition name="slide-away" mode="out-in">
-              <div v-if="dark" i-solar:sun-fog-bold-duotone transition="all ease-in-out duration-250" />
-              <div v-else i-solar:moon-stars-bold-duotone transition="all ease-in-out duration-250" />
-            </Transition>
+  <div text="zinc-500 dark:zinc-400" class="relative">
+    <Transition :name="slideDirection === 'forward' ? 'slide-forward' : 'slide-backward'">
+      <!-- Main Settings View -->
+      <div v-if="currentView === 'main'" key="main">
+        <h2 text="zinc-800/80 dark:zinc-200/80 xl" font-bold>
+          {{ t('settings.title') }}
+        </h2>
+        <div my-2>
+          <!-- Model Providers Navigation Item -->
+          <div class="space-y-2">
+            <div
+              grid="~ cols-[150px_1fr]"
+              bg="zinc-100 dark:zinc-800"
+              hover="bg-zinc-200 dark:bg-zinc-700"
+              transition="all ease-in-out duration-250"
+              cursor-pointer items-center gap-1.5 rounded-lg px-4 py-3
+              @click="navigateToProviders"
+            >
+              <div text="sm">
+                <span>{{ t('settings.model-provider.title') }}</span>
+              </div>
+              <div flex="~ row" w-full justify-end text="sm">
+                <div i-solar:alt-arrow-right-bold-duotone />
+              </div>
+            </div>
+
+            <!-- Language Setting -->
+            <div
+              grid="~ cols-[150px_1fr]"
+              bg="zinc-100 dark:zinc-800"
+              hover="bg-zinc-200 dark:bg-zinc-700"
+              transition="all ease-in-out duration-250"
+              items-center gap-1.5 rounded-lg px-4 py-3
+            >
+              <div text="sm">
+                <span>{{ t('settings.language.title') }}</span>
+              </div>
+              <div flex="~ row" w-full justify-end>
+                <select
+                  class="w-32"
+                  bg="transparent"
+                  text="sm right zinc-800 dark:zinc-100"
+                  transition="all ease-in-out duration-250"
+                  outline="none"
+                  @change="handleLanguageChange"
+                >
+                  <option value="en-US">
+                    {{ t('settings.language.english') }}
+                  </option>
+                  <option value="zh-CN">
+                    {{ t('settings.language.chinese') }}
+                  </option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Theme Setting -->
+            <label
+              bg="zinc-100 dark:zinc-800"
+              hover="bg-zinc-200 dark:bg-zinc-700"
+              transition="all ease-in-out duration-250"
+              w-full flex cursor-pointer rounded-lg px-4 py-3
+            >
+              <input
+                v-model="dark"
+                text="zinc-800 dark:zinc-100"
+                :checked="dark"
+                :aria-checked="dark"
+                type="checkbox"
+                hidden appearance-none outline-none
+              >
+              <div flex="~ row" w-full items-center gap-1.5>
+                <div text="sm" w-full flex-1>
+                  <span>{{ t('settings.theme') }}</span>
+                </div>
+                <div select-none>
+                  <Transition name="slide-away" mode="out-in">
+                    <div
+                      v-if="dark"
+                      i-solar:moon-stars-bold-duotone
+                      transition="all ease-in-out duration-250"
+                    />
+                    <div
+                      v-else
+                      i-solar:sun-fog-bold-duotone
+                      transition="all ease-in-out duration-250"
+                    />
+                  </Transition>
+                </div>
+              </div>
+            </label>
           </div>
-        </label>
+        </div>
       </div>
-    </div>
+
+      <!-- Model Providers View -->
+      <div v-else-if="currentView === 'providers'" key="providers">
+        <div mb-4 flex items-center gap-2>
+          <button
+            text="zinc-800/80 dark:zinc-200/80"
+            @click="navigateBack"
+          >
+            <div i-solar:alt-arrow-left-bold-duotone />
+          </button>
+          <h2 text="zinc-800/80 dark:zinc-200/80 xl" font-bold>
+            {{ t('settings.model-provider.title') }}
+          </h2>
+        </div>
+        <ModelProviderSettings />
+      </div>
+    </Transition>
   </div>
 </template>
+
+<style scoped>
+/* Forward navigation transitions */
+.slide-forward-enter-active,
+.slide-forward-leave-active {
+  transition: all 0.2s ease;
+  position: absolute;
+  width: 100%;
+}
+
+.slide-forward-enter-from {
+  transform: translateX(100%);
+}
+
+.slide-forward-leave-to {
+  transform: translateX(-30%);
+  opacity: 0;
+}
+
+.slide-forward-enter-to,
+.slide-forward-leave-from {
+  transform: translateX(0);
+}
+
+/* Backward navigation transitions */
+.slide-backward-enter-active,
+.slide-backward-leave-active {
+  transition: all 0.2s ease;
+  position: absolute;
+  width: 100%;
+}
+
+.slide-backward-enter-from {
+  transform: translateX(-30%);
+  opacity: 0;
+}
+
+.slide-backward-leave-to {
+  transform: translateX(100%);
+}
+
+.slide-backward-enter-to,
+.slide-backward-leave-from {
+  transform: translateX(0);
+}
+</style>

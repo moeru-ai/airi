@@ -320,7 +320,7 @@ importers:
         version: 1.0.0-beta.9(typescript@5.7.3)
       vaul-vue:
         specifier: ^0.2.1
-        version: 0.2.1(radix-vue@1.9.11(vue@3.5.13(typescript@5.7.3)))(vue@3.5.13(typescript@5.7.3))
+        version: 0.2.1(radix-vue@1.9.16(vue@3.5.13(typescript@5.7.3)))(vue@3.5.13(typescript@5.7.3))
       vue:
         specifier: ^3.5.13
         version: 3.5.13(typescript@5.7.3)
@@ -577,6 +577,9 @@ importers:
       pixi-live2d-display:
         specifier: ^0.4.0
         version: 0.4.0(0736f5bd67d2e4de7e9fff36ad63fa2e)
+      radix-vue:
+        specifier: ^1.9.16
+        version: 1.9.16(vue@3.5.13(typescript@5.7.3))
       rehype-stringify:
         specifier: ^10.0.1
         version: 10.0.1
@@ -600,7 +603,7 @@ importers:
         version: 1.0.0-beta.9(typescript@5.7.3)
       vaul-vue:
         specifier: ^0.2.1
-        version: 0.2.1(radix-vue@1.9.11(vue@3.5.13(typescript@5.7.3)))(vue@3.5.13(typescript@5.7.3))
+        version: 0.2.1(radix-vue@1.9.16(vue@3.5.13(typescript@5.7.3)))(vue@3.5.13(typescript@5.7.3))
       vue:
         specifier: ^3.5.13
         version: 3.5.13(typescript@5.7.3)
@@ -4799,8 +4802,11 @@ packages:
   '@xsai/shared-chat@0.1.0-beta.5':
     resolution: {integrity: sha512-P9FTSPUzT6AYHh1Be8eksYzbX3wxcjUGWbdgamhBierbRzif15zeDeXKsvIJpYYHwpfYHE5gKyNwXztF9wegzA==}
 
-  '@xsai/shared@0.1.0-beta.5':
-    resolution: {integrity: sha512-6xk7udi8L6oI8VaLS10r8j0ZyjEYd9YPwoZ1Pj+28t/6b7UgzJZ0KO5Plc42SNvb784ivXp9UNvoBbya18vL3Q==}
+  '@xsai/shared-chat@0.1.0-beta.6':
+    resolution: {integrity: sha512-I2e7JCbho1qowsJ2/SDnebcUIWl/cHEHbjA79fyS9YIcAi4H/mVLEJZgJvhnrZmMzO97zFNgo8FAJ5eTA/dkFQ==}
+
+  '@xsai/shared@0.1.0-beta.6':
+    resolution: {integrity: sha512-UCTpiD9bCMdOwmoZebi4GNGHkiYMDtI2GUa8d4OCykcrn9sm/+7cjwt4xXm1MYslsMvCrTX1l0sC1QbWHi+kbQ==}
 
   '@xsai/stream-text@0.1.0-beta.5':
     resolution: {integrity: sha512-t7snYYNFIhJ+9gKSaLQ3SvqAj2/LVgJQnGu4w1Oq/VLlidukPlxVVi1lhr+oYfW15xXJsbe/9C3sCCACRlpfIg==}
@@ -5562,9 +5568,6 @@ packages:
   copy-anything@3.0.5:
     resolution: {integrity: sha512-yCEafptTtb4bk7GLEQoM8KVJpxAfdBJYaXyzQEgQQQgYrZiDp8SJmGKlYza6CYjEDNstAdNdKA3UuoULlEbS6w==}
     engines: {node: '>=12.13'}
-
-  core-js-compat@3.39.0:
-    resolution: {integrity: sha512-VgEUx3VwlExr5no0tXlBt+silBvhTryPwCXRI2Id1PN8WTKu7MreethvddqOubrYxkFdv/RnYrqlv1sFNAUelw==}
 
   core-js-compat@3.40.0:
     resolution: {integrity: sha512-0XEDpr5y5mijvw8Lbc6E5AkjrHfp7eEoPlu36SWeAbcL8fn1G1ANe8DBlo2XoNN89oVpxWwOjYIPVzR4ZvsKCQ==}
@@ -8169,11 +8172,6 @@ packages:
   muggle-string@0.4.1:
     resolution: {integrity: sha512-VNTrAak/KhO2i8dqqnqnAHOa3cYBwXEZe9h+D5h/1ZqFSTEFHdM65lR7RoIqq3tBBYavsOXV84NoHXZ0AkPyqQ==}
 
-  nanoid@3.3.7:
-    resolution: {integrity: sha512-eSRppjcPIatRIMC1U6UngP8XFcz8MQWGQdt1MTBQ7NaAmvXDfvNxbvWV3x2y6CdEUciCSsDHDQZbhYaB8QEo2g==}
-    engines: {node: ^10 || ^12 || ^13.7 || ^14 || >=15.0.1}
-    hasBin: true
-
   nanoid@3.3.8:
     resolution: {integrity: sha512-WNLf5Sd8oZxOm+TzppcYk8gVOgP+l58xNy58D0nbUnOxOWRWvlcCV4kUF7ltmI6PsrLl/BgKEyS4mqsGChFN0w==}
     engines: {node: ^10 || ^12 || ^13.7 || ^14 || >=15.0.1}
@@ -9126,8 +9124,8 @@ packages:
     resolution: {integrity: sha512-WuyALRjWPDGtt/wzJiadO5AXY+8hZ80hVpe6MyivgraREW751X3SbhRvG3eLKOYN+8VEvqLcf3wdnt44Z4S4SA==}
     engines: {node: '>=10'}
 
-  radix-vue@1.9.11:
-    resolution: {integrity: sha512-C+MtJ66jf8J28DO5bKgNwhGCi6WQYuEosD/tY/Orry9BTDcuF/Mps4HlFd2Tq4YlXF44BEPLQ2Paz89Mz70ZgA==}
+  radix-vue@1.9.16:
+    resolution: {integrity: sha512-xwkTfQ7Ub/0XmT40JDc3g03xuYqKIJzVKGazcIkk8mUksj/tbw1pcCVRP0e3hKvPHKeQ0cktI1MvRnlUwCRvoQ==}
     peerDependencies:
       vue: '>= 3.2.0'
 
@@ -10935,10 +10933,10 @@ packages:
     resolution: {integrity: sha512-TEU+nJVUUnA4CYJFLvK5X9AOeH4KvDvhIfm0vV1GaQRtchnG0hgK5p8hw/xjv8cunWYCsiPCSDzObPyhEwq3KQ==}
     engines: {node: '>=0.4.0'}
 
-  xsschema@0.1.0-beta.5:
-    resolution: {integrity: sha512-SGrU5HxzLaNTAU7iVYXQko7S/3dbKWk3O/xwLZZUBsJrZyK5JlvdLif8tXSp1HVePi0JY9lTu2jcUDDjlgeSKw==}
+  xsschema@0.1.0-beta.6:
+    resolution: {integrity: sha512-4pVgWLAP6u+ftPTDHRRICtmsNsDUZuMpsSrnJyFxm6a8YAfSWIlewo9Tv6lnlPVCgTTOFRiAqUdbGKjamelNYg==}
     peerDependencies:
-      '@valibot/to-json-schema': ^1.0.0-beta.5
+      '@valibot/to-json-schema': ^1.0.0-rc.0
       zod-to-json-schema: ^3.24.1
     peerDependenciesMeta:
       '@valibot/to-json-schema':
@@ -11899,7 +11897,7 @@ snapshots:
       babel-plugin-polyfill-corejs2: 0.4.12(@babel/core@7.26.0)
       babel-plugin-polyfill-corejs3: 0.10.6(@babel/core@7.26.0)
       babel-plugin-polyfill-regenerator: 0.6.3(@babel/core@7.26.0)
-      core-js-compat: 3.39.0
+      core-js-compat: 3.40.0
       semver: 6.3.1
     transitivePeerDependencies:
       - supports-color
@@ -15076,39 +15074,43 @@ snapshots:
 
   '@xsai/generate-speech@0.1.0-beta.5':
     dependencies:
-      '@xsai/shared': 0.1.0-beta.5
+      '@xsai/shared': 0.1.0-beta.6
 
   '@xsai/generate-text@0.1.0-beta.5':
     dependencies:
-      '@xsai/shared-chat': 0.1.0-beta.5
+      '@xsai/shared-chat': 0.1.0-beta.6
 
   '@xsai/generate-transcription@0.1.0-beta.5':
     dependencies:
-      '@xsai/shared': 0.1.0-beta.5
+      '@xsai/shared': 0.1.0-beta.6
 
   '@xsai/model@0.1.0-beta.5':
     dependencies:
-      '@xsai/shared': 0.1.0-beta.5
+      '@xsai/shared': 0.1.0-beta.6
 
   '@xsai/providers@0.1.0-beta.5':
     dependencies:
-      '@xsai/shared': 0.1.0-beta.5
+      '@xsai/shared': 0.1.0-beta.6
 
   '@xsai/shared-chat@0.1.0-beta.5':
     dependencies:
-      '@xsai/shared': 0.1.0-beta.5
+      '@xsai/shared': 0.1.0-beta.6
 
-  '@xsai/shared@0.1.0-beta.5': {}
+  '@xsai/shared-chat@0.1.0-beta.6':
+    dependencies:
+      '@xsai/shared': 0.1.0-beta.6
+
+  '@xsai/shared@0.1.0-beta.6': {}
 
   '@xsai/stream-text@0.1.0-beta.5':
     dependencies:
-      '@xsai/shared-chat': 0.1.0-beta.5
+      '@xsai/shared-chat': 0.1.0-beta.6
 
   '@xsai/tool@0.1.0-beta.5(@xsai/generate-text@0.1.0-beta.5)(zod-to-json-schema@3.24.1(zod@3.24.2))':
     dependencies:
-      '@xsai/shared': 0.1.0-beta.5
-      '@xsai/shared-chat': 0.1.0-beta.5
-      xsschema: 0.1.0-beta.5(zod-to-json-schema@3.24.1(zod@3.24.2))
+      '@xsai/shared': 0.1.0-beta.6
+      '@xsai/shared-chat': 0.1.0-beta.6
+      xsschema: 0.1.0-beta.6(zod-to-json-schema@3.24.1(zod@3.24.2))
     optionalDependencies:
       '@xsai/generate-text': 0.1.0-beta.5
     transitivePeerDependencies:
@@ -15117,7 +15119,7 @@ snapshots:
 
   '@xsai/utils-chat@0.1.0-beta.5':
     dependencies:
-      '@xsai/shared-chat': 0.1.0-beta.5
+      '@xsai/shared-chat': 0.1.0-beta.6
 
   abbrev@1.1.1:
     optional: true
@@ -15543,7 +15545,7 @@ snapshots:
     dependencies:
       '@babel/core': 7.26.0
       '@babel/helper-define-polyfill-provider': 0.6.3(@babel/core@7.26.0)
-      core-js-compat: 3.39.0
+      core-js-compat: 3.40.0
     transitivePeerDependencies:
       - supports-color
 
@@ -16120,10 +16122,6 @@ snapshots:
   copy-anything@3.0.5:
     dependencies:
       is-what: 4.1.16
-
-  core-js-compat@3.39.0:
-    dependencies:
-      browserslist: 4.24.2
 
   core-js-compat@3.40.0:
     dependencies:
@@ -19613,8 +19611,6 @@ snapshots:
 
   muggle-string@0.4.1: {}
 
-  nanoid@3.3.7: {}
-
   nanoid@3.3.8: {}
 
   nanoid@5.0.9: {}
@@ -20415,7 +20411,7 @@ snapshots:
 
   postcss@8.4.49:
     dependencies:
-      nanoid: 3.3.7
+      nanoid: 3.3.8
       picocolors: 1.1.1
       source-map-js: 1.2.1
 
@@ -20716,7 +20712,7 @@ snapshots:
 
   quick-lru@5.1.1: {}
 
-  radix-vue@1.9.11(vue@3.5.13(typescript@5.7.3)):
+  radix-vue@1.9.16(vue@3.5.13(typescript@5.7.3)):
     dependencies:
       '@floating-ui/dom': 1.6.12
       '@floating-ui/vue': 1.1.5(vue@3.5.13(typescript@5.7.3))
@@ -22607,10 +22603,10 @@ snapshots:
 
   vary@1.1.2: {}
 
-  vaul-vue@0.2.1(radix-vue@1.9.11(vue@3.5.13(typescript@5.7.3)))(vue@3.5.13(typescript@5.7.3)):
+  vaul-vue@0.2.1(radix-vue@1.9.16(vue@3.5.13(typescript@5.7.3)))(vue@3.5.13(typescript@5.7.3)):
     dependencies:
       '@vueuse/core': 10.11.1(vue@3.5.13(typescript@5.7.3))
-      radix-vue: 1.9.11(vue@3.5.13(typescript@5.7.3))
+      radix-vue: 1.9.16(vue@3.5.13(typescript@5.7.3))
       vue: 3.5.13(typescript@5.7.3)
     transitivePeerDependencies:
       - '@vue/composition-api'
@@ -23171,7 +23167,7 @@ snapshots:
 
   xmlhttprequest-ssl@2.1.2: {}
 
-  xsschema@0.1.0-beta.5(zod-to-json-schema@3.24.1(zod@3.24.2)):
+  xsschema@0.1.0-beta.6(zod-to-json-schema@3.24.1(zod@3.24.2)):
     optionalDependencies:
       zod-to-json-schema: 3.24.1(zod@3.24.2)
 

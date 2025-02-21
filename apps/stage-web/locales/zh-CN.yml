@@ -39,6 +39,8 @@ settings:
     chinese: 简体中文
     english: English
     title: 语言
+  model-provider:
+    title: 模型提供商
   models: 模型
   openai-api-key:
     label: OpenAI API 密钥
@@ -48,9 +50,15 @@ settings:
     label: OpenAI API BaseURL
     placeholder: 输入您的 API BaseURL
     placeholder_mobile: OpenAI BaseURL
+  theme: 主题颜色
   title: 设置
   voices: 声线
 stage:
+  chat:
+    message:
+      character-name:
+        airi: Airi
+        you: 你
   message: 消息
   select-a-audio-input: 选择一个音频输入设备
   select-a-model: 选择一个模型
