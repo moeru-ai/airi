@@ -6,6 +6,8 @@ import { inertia } from 'popmotion'
 
 import icon from '../../build/icon.png?asset'
 
+// FIXME: electron i18n
+
 let globalMouseTracker: ReturnType<typeof setInterval> | null = null
 let mainWindow: BrowserWindow
 let currentAnimationX: { stop: () => void } | null = null

@@ -1,39 +1,56 @@
-import { onMounted, onUnmounted } from 'vue'
+import type { EffectScope } from 'vue'
+
+import { useShortcutsStore } from '@renderer/stores/shortcuts'
+import { useMagicKeys, whenever } from '@vueuse/core'
+import { storeToRefs } from 'pinia'
+import { computed, effectScope, watch } from 'vue'
 
 import { useWindowControlStore } from '../stores/window-controls'
 import { WindowControlMode } from '../types/window-controls'
 
 export function useWindowShortcuts() {
   const windowStore = useWindowControlStore()
+  const magicKeys = useMagicKeys()
 
-  function handleKeydown(event: KeyboardEvent) {
-    // Ctrl/Cmd + Shift + D for debug mode
-    if ((event.ctrlKey || event.metaKey) && event.shiftKey && event.key === 'd') {
-      windowStore.setMode(WindowControlMode.DEBUG)
-      windowStore.toggleControl()
-    }
-    // Ctrl/Cmd + M for move mode
-    if ((event.ctrlKey || event.metaKey) && event.key === 'm') {
-      windowStore.setMode(WindowControlMode.MOVE)
-      windowStore.toggleControl()
-    }
-    // Ctrl/Cmd + R for resize mode
-    if ((event.ctrlKey || event.metaKey) && event.key === 'r') {
-      windowStore.setMode(WindowControlMode.RESIZE)
-      windowStore.toggleControl()
-    }
-    // Escape to exit any mode
-    if (event.key === 'Escape') {
-      windowStore.setMode(WindowControlMode.DEFAULT)
-      windowStore.toggleControl()
-    }
-  }
+  const { shortcuts } = storeToRefs(useShortcutsStore())
+  const handlers = computed(() => [
+    {
+      handle: () => {
+        windowStore.setMode(WindowControlMode.MOVE)
+        windowStore.toggleControl()
+      },
+      shortcut: shortcuts.value.find(shortcut => shortcut.type === 'move')?.shortcut,
+    },
+    {
+      handle: () => {
+        windowStore.setMode(WindowControlMode.RESIZE)
+        windowStore.toggleControl()
+      },
+      shortcut: shortcuts.value.find(shortcut => shortcut.type === 'resize')?.shortcut,
+    },
+    {
+      handle: () => {
+        windowStore.setMode(WindowControlMode.DEBUG)
+        windowStore.toggleControl()
+      },
+      shortcut: shortcuts.value.find(shortcut => shortcut.type === 'debug')?.shortcut,
+    },
+  ])
 
-  onMounted(() => {
-    window.addEventListener('keydown', handleKeydown)
-  })
+  let currentScope: EffectScope | null = null
+  watch(handlers, () => {
+    if (currentScope) {
+      currentScope.stop()
+    }
 
-  onUnmounted(() => {
-    window.removeEventListener('keydown', handleKeydown)
-  })
+    currentScope = effectScope()
+    currentScope.run(() => {
+      handlers.value.forEach((handler) => {
+        if (!handler.shortcut) {
+          return
+        }
+        whenever(magicKeys[handler.shortcut], handler.handle)
+      })
+    })
+  }, { immediate: true })
 }
