@@ -85,7 +85,7 @@ flowchart TD
   SVRT["@proj-airi/server-runtime"]
   MC_AGENT("Minecraft Agent")
   XSAI["xsai"]
-  
+
   subgraph airi-vtuber
     DB0 --> DB1 --> DB2 --> CORE
     ICONS --> UI --> Stage --> CORE
