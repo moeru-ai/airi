@@ -24,7 +24,7 @@ const isOpen = ref(false)
           class="max-w-40% min-w-500px w-full"
           flex="~ col"
           bg="white dark:zinc-900"
-          fixed inset-y-4 right-4 z-50 of-hidden rounded-lg
+          fixed inset-y-4 right-4 z-50 of-hidden rounded-lg outline-none
         >
           <div flex="~ 1 col gap-2" of-y-scroll rounded-t-lg p-5>
             <MobileSettings />
