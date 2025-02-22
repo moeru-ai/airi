@@ -82,7 +82,7 @@ defineExpose({
             <div font-mono>
               <span>{{ $t('stage.viewers.debug-menu.vrm.model.title') }}</span>
             </div>
-            <Collapsable h-fit w-full>
+            <Collapsable h-fit w-full flex="~ col" border="~ gray/25 rounded-lg" divide="y dashed gray/25" of-clip shadow-sm>
               <template #label>
                 <span font-mono>{{ $t('stage.viewers.debug-menu.vrm.camera') }}</span>
               </template>
@@ -118,7 +118,7 @@ defineExpose({
                 </div>
               </div>
             </Collapsable>
-            <Collapsable h-fit w-full>
+            <Collapsable h-fit w-full flex="~ col" border="~ gray/25 rounded-lg" divide="y dashed gray/25" of-clip shadow-sm>
               <template #label>
                 <span font-mono>{{ $t('stage.viewers.debug-menu.vrm.model.title') }}</span>
               </template>
