@@ -21,8 +21,9 @@ import VRMScene from '../Scenes/VRM.vue'
 
 import '../../utils/live2d-zip-loader'
 
-const live2DViewerRef = ref<{ setMotion: (motionName: string) => Promise<void> }>()
 const vrmViewerRef = ref<{ setExpression: (expression: string) => void }>()
+
+const motion = ref('')
 
 const { stageView, elevenLabsApiKey, elevenlabsVoiceEnglish, elevenlabsVoiceJapanese } = storeToRefs(useSettings())
 const { mouthOpenSize } = storeToRefs(useSpeakingStore())
@@ -115,7 +116,7 @@ const emotionsQueue = useQueue<Emotion>({
         await vrmViewerRef.value!.setExpression(value)
       }
       else if (stageView.value === '2d') {
-        await live2DViewerRef.value!.setMotion(EMOTION_EmotionMotionName_value[ctx.data])
+        motion.value = EMOTION_EmotionMotionName_value[ctx.data]
       }
     },
   ],
@@ -160,7 +161,7 @@ onBeforeMessageComposed(async () => {
 })
 
 onBeforeSend(async () => {
-  live2DViewerRef.value?.setMotion(EmotionThinkMotionName)
+  motion.value = EmotionThinkMotionName
 })
 
 onTokenLiteral(async (literal) => {
@@ -186,7 +187,7 @@ onUnmounted(() => {
     <div h-full w-full>
       <Live2DScene
         v-if="stageView === '2d'"
-        ref="live2DViewerRef"
+        v-model:motion="motion"
         :mouth-open-size="mouthOpenSize"
         model="./assets/live2d/models/hiyori_pro_zh.zip"
         min-w="50% <lg:full" min-h="100 sm:100" h-full w-full flex-1
