@@ -35,10 +35,10 @@ function navigateBack() {
     <Transition :name="slideDirection === 'forward' ? 'slide-forward' : 'slide-backward'">
       <!-- Main Settings View -->
       <div v-if="currentView === 'main'" key="main">
-        <h2 text="zinc-800/80 dark:zinc-200/80 xl" font-bold>
+        <h2 text="zinc-800/80 dark:zinc-200/80 xl" mb-4 font-bold>
           {{ t('settings.title') }}
         </h2>
-        <div my-2>
+        <div>
           <!-- Model Providers Navigation Item -->
           <div class="space-y-2">
             <div

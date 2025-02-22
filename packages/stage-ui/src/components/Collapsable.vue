@@ -32,7 +32,7 @@ function setVisible(value: boolean) {
       </button>
     </slot>
     <TransitionVertical>
-      <slot v-if="visible" />
+      <slot v-if="visible" v-bind="{ visible, setVisible }" />
     </TransitionVertical>
   </div>
 </template>

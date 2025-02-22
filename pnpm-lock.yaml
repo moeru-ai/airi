@@ -505,6 +505,9 @@ importers:
       '@ricky0123/vad-web':
         specifier: ^0.0.22
         version: 0.0.22
+      '@standard-schema/spec':
+        specifier: ^1.0.0
+        version: 1.0.0
       '@tresjs/cientos':
         specifier: ^4.1.0
         version: 4.1.0(@tresjs/core@4.3.3(three@0.173.0)(typescript@5.7.3)(vue@3.5.13(typescript@5.7.3)))(@types/three@0.173.0)(react@18.3.1)(three@0.173.0)(typescript@5.7.3)(vue@3.5.13(typescript@5.7.3))
@@ -523,6 +526,9 @@ importers:
       '@unocss/reset':
         specifier: ^66.0.0
         version: 66.0.0
+      '@valibot/to-json-schema':
+        specifier: 1.0.0-rc.0
+        version: 1.0.0-rc.0(valibot@1.0.0-beta.9(typescript@5.7.3))
       '@vueuse/core':
         specifier: ^12.7.0
         version: 12.7.0(typescript@5.7.3)
@@ -635,6 +641,9 @@ importers:
       '@iconify-json/mingcute':
         specifier: ^1.2.3
         version: 1.2.3
+      '@iconify-json/simple-icons':
+        specifier: ^1.2.25
+        version: 1.2.25
       '@iconify-json/solar':
         specifier: ^1.2.2
         version: 1.2.2
@@ -1102,7 +1111,7 @@ importers:
         version: 0.1.0-beta.5
       '@xsai/tool':
         specifier: 'catalog:'
-        version: 0.1.0-beta.5(@xsai/generate-text@0.1.0-beta.5)(zod-to-json-schema@3.24.1(zod@3.24.2))
+        version: 0.1.0-beta.5(@valibot/to-json-schema@1.0.0-rc.0(valibot@1.0.0-beta.9(typescript@5.7.3)))(@xsai/generate-text@0.1.0-beta.5)(zod-to-json-schema@3.24.1(zod@3.24.2))
       dotenv:
         specifier: ^16.4.7
         version: 16.4.7
@@ -2813,6 +2822,9 @@ packages:
   '@iconify-json/mingcute@1.2.3':
     resolution: {integrity: sha512-yiEQfLBF5iwyOdxuY0kEU06+8Mp6Mrp14KVXTb+5jjSVuD71C9EQrzM/mm1Efd8Nu2amJalTPisl3loC8pHBqQ==}
 
+  '@iconify-json/simple-icons@1.2.25':
+    resolution: {integrity: sha512-2E1/gOCO97rF6usfhhiXxwzCb+UhdEsxW3lW1Sew+xZY0COY6dp82Z/r1rUt2fWKneWjuoGcNeJHHXQyG8mIuw==}
+
   '@iconify-json/solar@1.2.2':
     resolution: {integrity: sha512-lcTb6DWL4HZObiY1W3fHfuxxuQHUc6CFHFeywKEx7Ry0k+dU6POZCMC7oVLr0F8vuf+KgaQ3oOoGO/yFzOwrNg==}
 
@@ -3944,6 +3956,9 @@ packages:
   '@socket.io/component-emitter@3.1.2':
     resolution: {integrity: sha512-9BCxFwvbGg/RsZK9tjXd8s4UcwR0MWeFQ1XEKIQVVvAGJyINdrqKMcTRyLoK8Rse1GjzLV9cwjWV1olXRWEXVA==}
 
+  '@standard-schema/spec@1.0.0':
+    resolution: {integrity: sha512-m2bOd0f2RT9k8QJx1JN85cZYyH1RqFBdlwtkSlf4tBDYLCiiZnv1fIIwacK6cqwXavOydf0NPToMQgpKq+dVlA==}
+
   '@stylistic/eslint-plugin@4.0.1':
     resolution: {integrity: sha512-RwKkRKiDrF4ptiur54ckDhOByQYKYZ1dEmI5K8BJCmuGpauFJXzVL1UQYTA2zq702CqMFdYiJcVFJWfokIgFxw==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
@@ -4435,6 +4450,11 @@ packages:
     resolution: {integrity: sha512-IVcPX8xL+2edyXKt4tp9yu5A6gcbPVCsspfcL0XgziCr01kS+4qSoZ90F3IUs3hXc/AyO5eCpRtGFMPLpOjXQg==}
     peerDependencies:
       vite: ^2.9.0 || ^3.0.0-0 || ^4.0.0 || ^5.0.0-0 || ^6.0.0-0
+
+  '@valibot/to-json-schema@1.0.0-rc.0':
+    resolution: {integrity: sha512-F3WDgnPzcDs9Y8qZwU9qfPnEJBQ6lCMCFjI7VsMjAza6yAixGr4cZ50gOy6zniSCk49GkFvq2a6cBKfZjTpyOw==}
+    peerDependencies:
+      valibot: ^1.0.0 || ^1.0.0-beta.5 || ^1.0.0-rc
 
   '@vitejs/plugin-vue@5.2.1':
     resolution: {integrity: sha512-cxh314tzaWwOLqVes2gnnCtvBDcM1UMdn+iFR+UjAn411dPT3tOmqrJjbMd7koZpMAmBM/GqeV4n9ge7JSiJJQ==}
@@ -12729,6 +12749,10 @@ snapshots:
     dependencies:
       '@iconify/types': 2.0.0
 
+  '@iconify-json/simple-icons@1.2.25':
+    dependencies:
+      '@iconify/types': 2.0.0
+
   '@iconify-json/solar@1.2.2':
     dependencies:
       '@iconify/types': 2.0.0
@@ -13915,6 +13939,8 @@ snapshots:
 
   '@socket.io/component-emitter@3.1.2': {}
 
+  '@standard-schema/spec@1.0.0': {}
+
   '@stylistic/eslint-plugin@4.0.1(eslint@9.20.1(jiti@2.4.2))(typescript@5.7.3)':
     dependencies:
       '@typescript-eslint/utils': 8.24.1(eslint@9.20.1(jiti@2.4.2))(typescript@5.7.3)
@@ -14509,6 +14535,10 @@ snapshots:
       vite: 6.1.1(@types/node@22.13.4)(jiti@2.4.2)(less@4.2.1)(terser@5.17.6)(tsx@4.19.3)(yaml@2.7.0)
     transitivePeerDependencies:
       - vue
+
+  '@valibot/to-json-schema@1.0.0-rc.0(valibot@1.0.0-beta.9(typescript@5.7.3))':
+    dependencies:
+      valibot: 1.0.0-beta.9(typescript@5.7.3)
 
   '@vitejs/plugin-vue@5.2.1(vite@6.1.1(@types/node@22.13.4)(jiti@2.4.2)(less@4.2.1)(terser@5.17.6)(tsx@4.19.3)(yaml@2.7.0))(vue@3.5.13(typescript@5.7.3))':
     dependencies:
@@ -15106,11 +15136,11 @@ snapshots:
     dependencies:
       '@xsai/shared-chat': 0.1.0-beta.6
 
-  '@xsai/tool@0.1.0-beta.5(@xsai/generate-text@0.1.0-beta.5)(zod-to-json-schema@3.24.1(zod@3.24.2))':
+  '@xsai/tool@0.1.0-beta.5(@valibot/to-json-schema@1.0.0-rc.0(valibot@1.0.0-beta.9(typescript@5.7.3)))(@xsai/generate-text@0.1.0-beta.5)(zod-to-json-schema@3.24.1(zod@3.24.2))':
     dependencies:
       '@xsai/shared': 0.1.0-beta.6
       '@xsai/shared-chat': 0.1.0-beta.6
-      xsschema: 0.1.0-beta.6(zod-to-json-schema@3.24.1(zod@3.24.2))
+      xsschema: 0.1.0-beta.6(@valibot/to-json-schema@1.0.0-rc.0(valibot@1.0.0-beta.9(typescript@5.7.3)))(zod-to-json-schema@3.24.1(zod@3.24.2))
     optionalDependencies:
       '@xsai/generate-text': 0.1.0-beta.5
     transitivePeerDependencies:
@@ -19647,7 +19677,7 @@ snapshots:
       '@xsai/providers': 0.1.0-beta.5
       '@xsai/shared-chat': 0.1.0-beta.5
       '@xsai/stream-text': 0.1.0-beta.5
-      '@xsai/tool': 0.1.0-beta.5(@xsai/generate-text@0.1.0-beta.5)(zod-to-json-schema@3.24.1(zod@3.24.2))
+      '@xsai/tool': 0.1.0-beta.5(@valibot/to-json-schema@1.0.0-rc.0(valibot@1.0.0-beta.9(typescript@5.7.3)))(@xsai/generate-text@0.1.0-beta.5)(zod-to-json-schema@3.24.1(zod@3.24.2))
       '@xsai/utils-chat': 0.1.0-beta.5
       defu: 6.1.4
       fetch-mock: 12.3.0
@@ -23167,8 +23197,9 @@ snapshots:
 
   xmlhttprequest-ssl@2.1.2: {}
 
-  xsschema@0.1.0-beta.6(zod-to-json-schema@3.24.1(zod@3.24.2)):
+  xsschema@0.1.0-beta.6(@valibot/to-json-schema@1.0.0-rc.0(valibot@1.0.0-beta.9(typescript@5.7.3)))(zod-to-json-schema@3.24.1(zod@3.24.2)):
     optionalDependencies:
+      '@valibot/to-json-schema': 1.0.0-rc.0(valibot@1.0.0-beta.9(typescript@5.7.3))
       zod-to-json-schema: 3.24.1(zod@3.24.2)
 
   xtend@4.0.2: {}
