@@ -4,7 +4,7 @@ import { DuckDBAccessMode } from '@duckdb/duckdb-wasm'
 import { DBStorageType } from '@proj-airi/duckdb-wasm'
 
 export interface StructuredDSN {
-  protocol: 'duckdb-wasm:'
+  scheme: 'duckdb-wasm:'
   bundles?: 'import-url'
   logger?: boolean
   storage?: DBStorage
@@ -28,13 +28,15 @@ export function isLiterallyTrue(value?: string): boolean {
  */
 export function parseDSN(dsn: string): StructuredDSN {
   const structured: StructuredDSN = {
-    protocol: 'duckdb-wasm:',
+    scheme: 'duckdb-wasm:',
   }
 
   const parsed = new URL(dsn)
 
+  // The protocol in the URL maps to the scheme in the DSN (URI)
+  // See: https://developer.mozilla.org/en-US/docs/Web/API/URL/protocol
   if (!parsed.protocol.startsWith('duckdb-wasm:')) {
-    throw new Error(`Expected protocol to be "duckdb-wasm:" but got "${parsed.protocol}"`)
+    throw new Error(`Expected scheme to be "duckdb-wasm:" but got "${parsed.protocol}"`)
   }
 
   if (parsed.searchParams.get('bundles') === 'import-url') {

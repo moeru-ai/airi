@@ -24,7 +24,7 @@ const readOnly = ref(false)
 
 const dsn = computed(() => {
   return buildDSN({
-    protocol: 'duckdb-wasm:',
+    scheme: 'duckdb-wasm:',
     bundles: 'import-url',
     logger: logger.value,
     ...storage.value === DBStorageType.ORIGIN_PRIVATE_FS && {

@@ -12,7 +12,7 @@ describe('parseDSN', { timeout: 10000 }, async () => {
   it('should fail with non-duckdb-wasm protocol', async () => {
     const dsn = 'random-db:///database.db'
 
-    expect(() => parseDSN(dsn)).toThrow('Expected protocol to be "duckdb-wasm:" but got "random-db:"')
+    expect(() => parseDSN(dsn)).toThrow('Expected scheme to be "duckdb-wasm:" but got "random-db:"')
   })
 
   it('should parse OPFS with path', async () => {
@@ -21,7 +21,7 @@ describe('parseDSN', { timeout: 10000 }, async () => {
     let structured: StructuredDSN
     expect(() => structured = parseDSN(dsn)).not.toThrow()
     expect(structured).toEqual({
-      protocol: 'duckdb-wasm:',
+      scheme: 'duckdb-wasm:',
       storage: {
         type: DBStorageType.ORIGIN_PRIVATE_FS,
         path: 'path/to/database.db',
@@ -38,7 +38,7 @@ describe('parseDSN', { timeout: 10000 }, async () => {
     let structured: StructuredDSN
     expect(() => structured = parseDSN(dsn)).not.toThrow()
     expect(structured).toEqual({
-      protocol: 'duckdb-wasm:',
+      scheme: 'duckdb-wasm:',
       storage: {
         type: DBStorageType.ORIGIN_PRIVATE_FS,
         path: 'to/database.db',
@@ -54,7 +54,7 @@ describe('parseDSN', { timeout: 10000 }, async () => {
 
     const structured = parseDSN(dsn)
     expect(structured).toEqual({
-      protocol: 'duckdb-wasm:',
+      scheme: 'duckdb-wasm:',
       storage: {
         type: DBStorageType.ORIGIN_PRIVATE_FS,
         path: 'path/to/database.db',
@@ -68,7 +68,7 @@ describe('parseDSN', { timeout: 10000 }, async () => {
 
     const structured = parseDSN(dsn)
     expect(structured).toEqual({
-      protocol: 'duckdb-wasm:',
+      scheme: 'duckdb-wasm:',
       storage: {
         type: DBStorageType.ORIGIN_PRIVATE_FS,
         path: 'path/to/database.db',
@@ -80,7 +80,7 @@ describe('parseDSN', { timeout: 10000 }, async () => {
 describe('buildDSN', { timeout: 10000 }, async () => {
   it('should build DSN with OPFS (ro)', async () => {
     const structured: StructuredDSN = {
-      protocol: 'duckdb-wasm:',
+      scheme: 'duckdb-wasm:',
       bundles: 'import-url',
       storage: {
         type: DBStorageType.ORIGIN_PRIVATE_FS,
@@ -100,7 +100,7 @@ describe('buildDSN', { timeout: 10000 }, async () => {
 
   it('should build DSN with OPFS (rw)', async () => {
     const structured: StructuredDSN = {
-      protocol: 'duckdb-wasm:',
+      scheme: 'duckdb-wasm:',
       bundles: 'import-url',
       storage: {
         type: DBStorageType.ORIGIN_PRIVATE_FS,
@@ -121,7 +121,7 @@ describe('buildDSN', { timeout: 10000 }, async () => {
 
   it('should build the same DSN with OPFS but with a leading slash in the path', async () => {
     const structured: StructuredDSN = {
-      protocol: 'duckdb-wasm:',
+      scheme: 'duckdb-wasm:',
       bundles: 'import-url',
       storage: {
         type: DBStorageType.ORIGIN_PRIVATE_FS,
