@@ -1,16 +1,19 @@
 import type { AsyncDuckDBConnection, DuckDBBundle, DuckDBBundles, Logger } from '@duckdb/duckdb-wasm'
+import type { DBStorage } from './storage'
 
 import { AsyncDuckDB, ConsoleLogger, selectBundle, VoidLogger } from '@duckdb/duckdb-wasm'
 import { defu } from 'defu'
 
 import { getEnvironment } from './common'
 import { mapStructRowData } from './format'
+import { DBStorageType } from './storage'
 
 export type ConnectOptions = ConnectRequiredOptions & ConnectOptionalOptions
 
 export interface ConnectOptionalOptions {
   bundles?: DuckDBBundles | Promise<DuckDBBundles>
   logger?: boolean | Logger
+  storage?: DBStorage
 }
 
 export interface ConnectRequiredOptions {
@@ -75,6 +78,47 @@ export async function connect(options: ConnectOptions): Promise<DuckDBWasmClient
 
   const db = new AsyncDuckDB(logger, worker)
   await db.instantiate(bundle.mainModule, bundle.pthreadWorker)
+
+  if (opts.storage) {
+    switch (opts.storage.type) {
+      case DBStorageType.ORIGIN_PRIVATE_FS: {
+        try {
+          let strippedPath = opts.storage.path
+          if (strippedPath.startsWith('/')) {
+            // We will strip the only leading slash as it is not needed
+            strippedPath = strippedPath.slice(1)
+          }
+          await db.open({
+            path: `opfs://${strippedPath}`,
+            accessMode: opts.storage.accessMode,
+            // OPFS already uses direct IO
+          })
+        }
+        catch (e) {
+          await db.terminate()
+          await worker.terminate()
+          throw e
+        }
+        break
+      }
+      case DBStorageType.NODE_FS: {
+        try {
+          await db.open({
+            path: opts.storage.path,
+            accessMode: opts.storage.accessMode,
+            useDirectIO: true, // Important! Otherwise the file will be created without DB init
+          })
+        }
+        catch (e) {
+          await db.terminate()
+          await worker.terminate()
+          throw e
+        }
+        break
+      }
+    }
+  }
+
   const conn = await db.connect()
 
   return {
