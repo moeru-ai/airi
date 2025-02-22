@@ -9,6 +9,9 @@ import {
   transformerDirectives,
   transformerVariantGroup,
 } from 'unocss'
+import { presetScrollbar } from 'unocss-preset-scrollbar'
+
+import UnoCSSConfig from '../../uno.config'
 
 export default defineConfig({
   presets: [
@@ -30,6 +33,7 @@ export default defineConfig({
         ...createExternalPackageIconLoader('@proj-airi/lobe-icons'),
       },
     }),
+      presetScrollbar(),
   ],
   transformers: [
     transformerDirectives(),

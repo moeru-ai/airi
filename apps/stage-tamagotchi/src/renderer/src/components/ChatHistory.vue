@@ -34,7 +34,7 @@ onTokenLiteral(async () => {
 <template>
   <div py="1" flex="~ col" rounded="lg" overflow-hidden>
     <div flex-1 /> <!-- spacer -->
-    <div ref="chatHistoryRef" v-auto-animate h-full w-full max-h="30vh" flex="~ col" overflow-scroll>
+    <div ref="chatHistoryRef" v-auto-animate max-h="30vh" flex="~ col" scrollbar="~ w-2 track-color-transparent thumb-color-pink-300 rounded" h-full w-full overflow-scroll>
       <div flex-1 /> <!-- spacer -->
       <div v-for="(message, index) in messages" :key="index" mb-2>
         <div v-if="message.role === 'assistant'" flex mr="12">
