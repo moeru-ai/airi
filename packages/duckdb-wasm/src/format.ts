@@ -3,7 +3,7 @@ import type { Field, Schema, StructRow } from 'apache-arrow'
 import type { DataType } from './types'
 
 import { TZDateMini } from '@date-fns/tz'
-import { DataType as ArrowDataType, IntervalUnit, Struct, TimeUnit, util } from 'apache-arrow'
+import { DataType as ArrowDataType, Struct, TimeUnit, util } from 'apache-arrow'
 import {
   addDays,
   addHours,
@@ -392,31 +392,65 @@ export function formatFloat(num: number): string {
   return formatter.format(num)
 }
 
+// - INTERVAL '24' MONTHS returns [2, 0] as Int32Array, should resolve to '2 years'
+// - INTERVAL '1' YEAR returns [1, 0] as Int32Array, should resolve to '1 year'
+// - INTERVAL '13' MONTHS returns [1, 1] as Int32Array, should resolve to '1 year 1 month'
+// - INTERVAL '1' MONTH returns [0, 1] as Int32Array, should resolve to '1 month'
+// - INTERVAL '30' MONTHS returns [2, 6] as Int32Array, should resolve to '2 years 6 months'
+function parseInterval(arr: Int32Array) {
+  const years = arr[0]
+  const months = arr[1]
+
+  const result = []
+  if (years !== 0) {
+    result.push(`${years} year${years > 1 ? 's' : ''}`)
+  }
+  if (months !== 0) {
+    result.push(`${months} month${months > 1 ? 's' : ''}`)
+  }
+
+  return result.length ? result.join(' ') : '0 months'
+}
+
 /**
  * Formats an interval value from arrow to string.
  */
-export function formatInterval(x: StructRow | Int32Array, field?: Field): string {
+export function formatInterval(x: DataType, field?: Field): string {
   // TODO: still buggy, the return value of interval related fields are always
   // [0, 0] as Int32Array, should follow the issue to resolve this.
   if (ArrowDataType.isInterval(field?.type)) {
-    const value = formatDecimal(x as Int32Array, field)
-    const unit = field?.type.unit
-    switch (unit) {
-      case IntervalUnit.MONTH_DAY_NANO:
-        // In Python:
-        // pa.scalar((1, 15, -30), type=pa.month_day_nano_interval())
-        // <pyarrow.MonthDayNanoIntervalScalar: MonthDayNano(months=1, days=15, nanoseconds=-30)>
-        //
-        // see: pyarrow.month_day_nano_interval — Apache Arrow v19.0.0
-        // https://arrow.apache.org/docs/python/generated/pyarrow.month_day_nano_interval.html
-        return `${value} months`
-      case IntervalUnit.DAY_TIME:
-        return `${value} days`
-      case IntervalUnit.YEAR_MONTH:
-        return `${value} years`
-      default:
-        return value
-    }
+    return parseInterval(x as Int32Array)
+
+    // However, this doesn't mean that the acceptable value of parseInterval is correct and
+    // respect field?.type.unit (IntervalUnit), since now the interval units are all
+    // IntervalUnit.YEAR_MONTH, but @duckdb/duckdb-wasm returned 2 (IntervalUnit.MONTH_DAY_NANO),
+    // which is not correct.
+    //
+    // Experimented with:
+    // - https://www.quackdb.com/ : Cannot parse
+    // - https://sekuel.com/playground/?q=U0VMRUNUIElOVEVSVkFMICcxJyBEQVkgQVMgaXQ7 : Cannot parse
+    // - https://csvfiddle.io/#JTdCJTIyaXNUYWJsZU1ldGFkYXRhT3BlbiUyMiUzQWZhbHNlJTJDJTIyaXNOZXdUYWJsZUZvcm1PcGVuJTIyJTNBZmFsc2UlMkMlMjJpc0NvbmZpcm1EZWxldGVRdWVyeU9wZW4lMjIlM0FmYWxzZSUyQyUyMmlzQ29uZmlybURyb3BUYWJsZU9wZW4lMjIlM0FmYWxzZSUyQyUyMmlzU2hhcmVEaWFsb2dPcGVuJTIyJTNBZmFsc2UlMkMlMjJkYlJlYWR5JTIyJTNBZmFsc2UlMkMlMjJ0YWJsZXMlMjIlM0ElNUIlNUQlMkMlMjJxdWVyaWVzJTIyJTNBJTdCJTIyMCUyMiUzQSU3QiUyMmlkJTIyJTNBMCUyQyUyMnRpdGxlJTIyJTNBJTIyVW50aXRsZWQlMjBxdWVyeSUyMiUyQyUyMmJvZHklMjIlM0ElMjJTRUxFQ1QlMjBJTlRFUlZBTCUyMCcxJyUyMERBWSUyMEFTJTIwaXQlM0IlMjIlMkMlMjJyZXN1bHQlMjIlM0ElNUIlNUQlMkMlMjJlcnJvciUyMiUzQW51bGwlN0QlN0QlMkMlMjJhY3RpdmVRdWVyeUlkJTIyJTNBMCUyQyUyMmFjdGl2ZVRhYmxlTWV0YWRhdGFDb2x1bW5zJTIyJTNBJTVCJTVEJTJDJTIybG9jYWxUYWJsZXNUb1dhcm4lMjIlM0ElNUIlNUQlMkMlMjJpc1F1ZXJ5SW5Qcm9ncmVzcyUyMiUzQWZhbHNlJTJDJTIyZGlkQWRkTmV3VGFibGVTdWNjZWVkJTIyJTNBbnVsbCUyQyUyMmFkZE5ld1RhYmxlRXJyb3IlMjIlM0FudWxsJTdE : Can parse but not even open source
+    // - https://sidequery.ai/ : Cannot parse
+    // - https://codapi.org/duckdb/ : Can parse (because based on Go)
+    //
+    // const value = formatDecimal(x as Int32Array, field)
+    // const unit = field?.type.unit
+    // switch (unit) {
+    //   case IntervalUnit.MONTH_DAY_NANO:
+    //     // In Python:
+    //     // pa.scalar((1, 15, -30), type=pa.month_day_nano_interval())
+    //     // <pyarrow.MonthDayNanoIntervalScalar: MonthDayNano(months=1, days=15, nanoseconds=-30)>
+    //     //
+    //     // see: pyarrow.month_day_nano_interval — Apache Arrow v19.0.0
+    //     // https://arrow.apache.org/docs/python/generated/pyarrow.month_day_nano_interval.html
+    //     return `${value} months`
+    //   case IntervalUnit.DAY_TIME:
+    //     return `${value} days`
+    //   case IntervalUnit.YEAR_MONTH:
+    //     return `${value} years`
+    //   default:
+    //     return value
+    // }
   }
 
   // Serialization for pandas.Interval is provided by Arrow extensions
@@ -571,7 +605,7 @@ export function mapColumnData<T = unknown>(x: DataType, field?: Field): T {
   }
 
   if (isIntervalType(field)) {
-    return formatInterval(x as StructRow, field) as string as T
+    return formatInterval(x, field) as string as T
   }
 
   if (isDurationType(field)) {
