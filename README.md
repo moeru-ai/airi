@@ -10,13 +10,43 @@
 
 > Heavily inspired by [Neuro-sama](https://www.youtube.com/@Neurosama)
 
+Unlike the other AI driven VTuber open source projects, アイリ VTuber was built with many support of Web technologies such as [WebGPU](https://www.w3.org/TR/webgpu/), [WebAudio](https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API), [Web Workers](https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API/Using_web_workers), [WebAssembly](https://webassembly.org/), [WebSocket](https://developer.mozilla.org/en-US/docs/Web/API/WebSocket), etc. from the first day.
+
+This means that **アイリ VTuber is capable to run on modern browsers and devices**, and even on mobile devices (already done with PWA support), this brought a lot of possibilities for us (the developers) to build and extend the power of アイリ VTuber to the next level, while still left the flexibilities for users to enable features that requires TCP connections or other non-Web technologies such as connect to voice channel to Discord, or playing Minecraft, Factorio with you and your friends.
+
+> [!NOTE]
+>
+> We are still in the early stage of development where we are seeking out talented developers to join us and help us to make アイリ VTuber a reality.
+>
+> It's ok if you are not familiar with Vue.js, TypeScript, and devtools that required for this project, you can join us as an artist, designer, or even help us to launch our first live stream.
+>
+> Even you are a big fan of React or Svelte, even Solid, we welcome you, you can open a sub-directory to add features that you want to see in アイリ VTuber, or would like to experiment with.
+>
+> Fields (and related projects) that we are looking for:
+>
+> - Live2D modeller
+> - VRM modeller
+> - VRChat avatar designer
+> - Computer Vision
+> - Reinforcement Learning
+> - Speech Recognition
+> - Speech Synthesis
+> - ONNX Runtime
+> - Transformers.js
+> - vLLM
+> - WebGPU
+> - Three.js
+> - WebXR ([checkout the another project](https://github.com/moeru-ai/n3p6) we have under @moeru-ai organization)
+>
+> **If you are interested in, why not introduce yourself here? [Would like to join part of us to build Airi?](https://github.com/moeru-ai/airi/discussions/33)**
+
 ## Current progress
 
 Capable of
 
 - [x] Brain
   - [x] Play [Minecraft](https://www.minecraft.net)
-  - [ ] Play [Factorio](https://www.factorio.com) (WIP, but [PoC and demo available](https://github.com/moeru-ai/airi-factorio))
+  - [x] Play [Factorio](https://www.factorio.com) (WIP, but [PoC and demo available](https://github.com/moeru-ai/airi-factorio))
   - [x] Chat in [Telegram](https://telegram.org)
   - [x] Chat in [Discord](https://discord.com)
 - [x] Ears
@@ -25,7 +55,7 @@ Capable of
   - [x] Client side speech recognition
   - [x] Client side talking detection
 - [x] Mouth
-  - [x] ElevenLabs voice synthesis
+  - [x] [ElevenLabs](https://elevenlabs.io/) voice synthesis
 - [x] Body
   - [x] VRM support
     - [x] Control VRM model
@@ -58,9 +88,9 @@ pnpm dev
 - [x] [Ollama](https://github.com/ollama/ollama)
 - [x] [Google Gemini](https://developers.generativeai.google)
 - [x] [OpenAI](https://platform.openai.com/docs/guides/gpt/chat-completions-api)
-  - [ ] [Azure OpenAI API](https://learn.microsoft.com/en-us/azure/ai-services/openai/reference)
+  - [ ] [Azure OpenAI API](https://learn.microsoft.com/en-us/azure/ai-services/openai/reference) (PR welcome)
 - [x] [Anthropic Claude](https://anthropic.com)
-  - [ ] [AWS Claude](https://learn.microsoft.com/en-us/azure/ai-services/openai/reference)
+  - [ ] [AWS Claude](https://learn.microsoft.com/en-us/azure/ai-services/openai/reference) (PR welcome)
 - [x] [DeepSeek](https://www.deepseek.com/)
 - [x] [Qwen](https://help.aliyun.com/document_detail/2400395.html)
 - [x] [xAI](https://x.ai/)
@@ -77,8 +107,8 @@ pnpm dev
 - [x] [Minimax](https://api.minimax.chat/)
 - [x] [Moonshot AI](https://platform.moonshot.cn/)
 - [x] [Tencent Cloud](https://cloud.tencent.com/document/product/1729)
-- [ ] [Sparks](https://www.xfyun.cn/doc/spark/Web.html)
-- [ ] [Volcano Engine](https://www.volcengine.com/experience/ark?utm_term=202502dsinvite&ac=DSASUQY5&rc=2QXCA1VI)
+- [ ] [Sparks](https://www.xfyun.cn/doc/spark/Web.html) (PR welcome)
+- [ ] [Volcano Engine](https://www.volcengine.com/experience/ark?utm_term=202502dsinvite&ac=DSASUQY5&rc=2QXCA1VI) (PR welcome)
 
 ## Sub-projects born from this project
 
