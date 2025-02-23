@@ -50,6 +50,36 @@ pnpm i
 pnpm dev
 ```
 
+## 原生支持的 LLM API 提供商列表（由 [xsai](https://github.com/moeru-ai/xsai) 驱动）
+
+- [x] [OpenRouter](https://openrouter.ai/)
+- [x] [vLLM](https://github.com/vllm-project/vllm)
+- [x] [SGLang](https://github.com/sgl-project/sglang)
+- [x] [Ollama](https://github.com/ollama/ollama)
+- [x] [Google Gemini](https://developers.generativeai.google)
+- [x] [OpenAI](https://platform.openai.com/docs/guides/gpt/chat-completions-api)
+  - [ ] [Azure OpenAI API](https://learn.microsoft.com/en-us/azure/ai-services/openai/reference)
+- [x] [Anthropic Claude](https://anthropic.com)
+  - [ ] [AWS Claude](https://learn.microsoft.com/en-us/azure/ai-services/openai/reference)
+- [x] [深度求索 DeepSeek](https://www.deepseek.com/)
+- [x] [通义千问 Qwen](https://help.aliyun.com/document_detail/2400395.html)
+- [x] [xAI](https://x.ai/)
+- [x] [Groq](https://wow.groq.com/)
+- [x] [Mistral](https://mistral.ai/)
+- [x] [Cloudflare Workers AI](https://developers.cloudflare.com/workers-ai/)
+- [x] [Together.ai](https://www.together.ai/)
+- [x] [Fireworks.ai](https://www.together.ai/)
+- [x] [Novita](https://www.novita.ai/)
+- [x] [智谱](https://bigmodel.cn)
+- [x] [硅基流动](https://cloud.siliconflow.cn/i/rKXmRobW)
+- [x] [阶跃星辰](https://platform.stepfun.com/)
+- [x] [百川](https://platform.baichuan-ai.com)
+- [x] [Minimax](https://api.minimax.chat/)
+- [x] [月之暗面](https://platform.moonshot.cn/)
+- [x] [腾讯混元](https://cloud.tencent.com/document/product/1729)
+- [ ] [讯飞星火](https://www.xfyun.cn/doc/spark/Web.html)
+- [ ] [火山引擎（豆包）](https://www.volcengine.com/experience/ark?utm_term=202502dsinvite&ac=DSASUQY5&rc=2QXCA1VI)
+
 ## 从这个项目诞生的子项目
 
 - [`unspeech`](https://github.com/moeru-ai/unspeech): 用于代理 `/audio/transcriptions` 和 `/audio/speech` 的代理服务器实现，类似 LiteLLM 但面向任何 ASR 和 TTS

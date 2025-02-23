@@ -50,6 +50,36 @@ pnpm i
 pnpm dev
 ```
 
+## Supported the following LLM API Providers (powered by [xsai](https://github.com/moeru-ai/xsai))
+
+- [x] [OpenRouter](https://openrouter.ai/)
+- [x] [vLLM](https://github.com/vllm-project/vllm)
+- [x] [SGLang](https://github.com/sgl-project/sglang)
+- [x] [Ollama](https://github.com/ollama/ollama)
+- [x] [Google Gemini](https://developers.generativeai.google)
+- [x] [OpenAI](https://platform.openai.com/docs/guides/gpt/chat-completions-api)
+  - [ ] [Azure OpenAI API](https://learn.microsoft.com/en-us/azure/ai-services/openai/reference)
+- [x] [Anthropic Claude](https://anthropic.com)
+  - [ ] [AWS Claude](https://learn.microsoft.com/en-us/azure/ai-services/openai/reference)
+- [x] [DeepSeek](https://www.deepseek.com/)
+- [x] [Qwen](https://help.aliyun.com/document_detail/2400395.html)
+- [x] [xAI](https://x.ai/)
+- [x] [Groq](https://wow.groq.com/)
+- [x] [Mistral](https://mistral.ai/)
+- [x] [Cloudflare Workers AI](https://developers.cloudflare.com/workers-ai/)
+- [x] [Together.ai](https://www.together.ai/)
+- [x] [Fireworks.ai](https://www.together.ai/)
+- [x] [Novita](https://www.novita.ai/)
+- [x] [Zhipu](https://bigmodel.cn)
+- [x] [SiliconFlow](https://cloud.siliconflow.cn/i/rKXmRobW)
+- [x] [Stepfun](https://platform.stepfun.com/)
+- [x] [Baichuan](https://platform.baichuan-ai.com)
+- [x] [Minimax](https://api.minimax.chat/)
+- [x] [Moonshot AI](https://platform.moonshot.cn/)
+- [x] [Tencent Cloud](https://cloud.tencent.com/document/product/1729)
+- [ ] [Sparks](https://www.xfyun.cn/doc/spark/Web.html)
+- [ ] [Volcano Engine](https://www.volcengine.com/experience/ark?utm_term=202502dsinvite&ac=DSASUQY5&rc=2QXCA1VI)
+
 ## Sub-projects born from this project
 
 - [`unspeech`](https://github.com/moeru-ai/unspeech): Universal endpoint proxy server for `/audio/transcriptions` and `/audio/speech`, like LiteLLM but for any ASR and TTS
