@@ -64,6 +64,75 @@ pnpm dev
 - [`tstl-plugin-reload-factorio-mod](https://github.com/moeru-ai/airi-factorio/tree/main/packages/tstl-plugin-reload-factorio-mod): 开发时支持热重载 Factorio 模组
 - [🥺 SAD](https://github.com/moeru-ai/sad): 自托管和浏览器运行 LLM 的文档和说明
 
+```mermaid
+%%{ init: { 'flowchart': { 'curve': 'catmullRom' } } }%%
+
+flowchart TD
+  Core("Core")
+  Unspeech["unspeech"]
+  DBDriver["@proj-airi/drizzle-duckdb-wasm"]
+  MemoryDriver["[WIP] Memory Alaya"]
+  DB1["@proj-airi/duckdb-wasm"]
+  ICONS["@proj-airi/lobe-icons"]
+  UI("@proj-airi/stage-ui")
+  Stage("Stage")
+  F_AGENT("Factorio Agent")
+  F_API["Factorio RCON API"]
+  F_MOD1["autorio"]
+  SVRT["@proj-airi/server-runtime"]
+  MC_AGENT("Minecraft Agent")
+  XSAI["xsai"]
+
+  subgraph Airi
+    DB1 --> DBDriver --> MemoryDriver --> Memory --> Core
+    ICONS --> UI --> Stage --> Core
+    Core --> STT
+    Core --> SVRT
+  end
+
+  STT --> |Speaking|Unspeech
+  SVRT --> |Playing Factorio|F_AGENT
+  SVRT --> |Playing Minecraft|MC_AGENT
+
+  subgraph Factorio Agent
+    F_AGENT --> F_API -..- factorio-server
+    subgraph factorio-server-wrapper
+      subgraph factorio-server
+        F_MOD1
+      end
+    end
+  end
+
+  subgraph Minecraft Agent
+    MC_AGENT --> Mineflayer -..- minecraft-server
+    subgraph factorio-server-wrapper
+      subgraph factorio-server
+        F_MOD1
+      end
+    end
+  end
+
+  XSAI --> Core
+  XSAI --> F_AGENT
+  XSAI --> MC_AGENT
+```
+
+```mermaid
+
+%%{ init: { 'flowchart': { 'curve': 'catmullRom' } } }%%
+
+flowchart TD
+  subgraph deploy&bundle
+    direction LR
+    HFUP["hfup"]
+    HF[/"HuggingFace Spaces"\]
+    HFUP -...- UI -...-> HF
+    HFUP -...- whisper-webgpu -...-> HF
+    HFUP -...- moonshine-web -...-> HF
+  end
+
+```
+
 ## 使用的模型
 
 - [onnx-community/whisper-large-v3-turbo · Hugging Face](https://huggingface.co/onnx-community/whisper-large-v3-turbo)

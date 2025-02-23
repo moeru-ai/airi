@@ -65,20 +65,17 @@ pnpm dev
 - [🥺 SAD](https://github.com/moeru-ai/sad): Documentation and notes for self-host and browser running LLMs
 
 ```mermaid
-
 %%{ init: { 'flowchart': { 'curve': 'catmullRom' } } }%%
 
 flowchart TD
-
-  CORE("Core")
-  UNSPEECH["unspeech"]
-  DB1["@proj-airi/drizzle-duckdb-wasm"]
-  DB2["[WIP] Memory Alaya"]
-  DB0["@proj-airi/duckdb-wasm"]
+  Core("Core")
+  Unspeech["unspeech"]
+  DBDriver["@proj-airi/drizzle-duckdb-wasm"]
+  MemoryDriver["[WIP] Memory Alaya"]
+  DB1["@proj-airi/duckdb-wasm"]
   ICONS["@proj-airi/lobe-icons"]
-  UI("UI")
+  UI("@proj-airi/stage-ui")
   Stage("Stage")
-  ELEVENLABS{{"@proj-airi/elevenlabs"}}
   F_AGENT("Factorio Agent")
   F_API["Factorio RCON API"]
   F_MOD1["autorio"]
@@ -86,16 +83,18 @@ flowchart TD
   MC_AGENT("Minecraft Agent")
   XSAI["xsai"]
 
-  subgraph airi-vtuber
-    DB0 --> DB1 --> DB2 --> CORE
-    ICONS --> UI --> Stage --> CORE
-    CORE --> ELEVENLABS
-    CORE --> SVRT
+  subgraph Airi
+    DB1 --> DBDriver --> MemoryDriver --> Memory --> Core
+    ICONS --> UI --> Stage --> Core
+    Core --> STT
+    Core --> SVRT
   end
-  ELEVENLABS --> |Speaking|UNSPEECH
-  SVRT --> |Playing Factorio|F_AGENT
 
-  subgraph Airi-Factorio
+  STT --> |Speaking|Unspeech
+  SVRT --> |Playing Factorio|F_AGENT
+  SVRT --> |Playing Minecraft|MC_AGENT
+
+  subgraph Factorio Agent
     F_AGENT --> F_API -..- factorio-server
     subgraph factorio-server-wrapper
       subgraph factorio-server
@@ -104,16 +103,21 @@ flowchart TD
     end
   end
 
-  SVRT --> |Playing Minecraft|MC_AGENT -..- minecraft-server
+  subgraph Minecraft Agent
+    MC_AGENT --> Mineflayer -..- minecraft-server
+    subgraph factorio-server-wrapper
+      subgraph factorio-server
+        F_MOD1
+      end
+    end
+  end
 
-  XSAI --> CORE
+  XSAI --> Core
   XSAI --> F_AGENT
   XSAI --> MC_AGENT
-
 ```
 
 ```mermaid
-
 %%{ init: { 'flowchart': { 'curve': 'catmullRom' } } }%%
 
 flowchart TD
