@@ -89,7 +89,7 @@ onMounted(() => {
 <template>
   <div>
     <div relative w-full flex gap-1>
-      <TamagotchiChatHistory absolute left-0 top-0 transform="translate-y-[-100%]" w-full />
+      <TamagotchiChatHistory transform="translate-y-[-100%]" absolute left-0 top-0 w-full />
       <div flex flex-1>
         <BasicTextarea
           v-model="messageInput"

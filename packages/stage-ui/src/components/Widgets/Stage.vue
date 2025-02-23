@@ -4,7 +4,7 @@ import type { Emotion } from '../../constants/emotions'
 import { generateSpeech } from '@xsai/generate-speech'
 import { createUnElevenLabs } from '@xsai/providers'
 import { storeToRefs } from 'pinia'
-import { onUnmounted, ref } from 'vue'
+import { onMounted, onUnmounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { useMarkdown } from '../../composables/markdown'
@@ -12,7 +12,7 @@ import { useQueue } from '../../composables/queue'
 import { useDelayMessageQueue, useEmotionsMessageQueue, useMessageContentQueue } from '../../composables/queues'
 import { llmInferenceEndToken } from '../../constants'
 import { Voice, voiceMap } from '../../constants/elevenlabs'
-import { EMOTION_EmotionMotionName_value, EMOTION_VRMExpressionName_value, EmotionThinkMotionName } from '../../constants/emotions'
+import { EMOTION_EmotionMotionName_value, EMOTION_VRMExpressionName_value, EmotionAngryMotionName, EmotionHappyMotionName, EmotionThinkMotionName } from '../../constants/emotions'
 import { useAudioContext, useSpeakingStore } from '../../stores/audio'
 import { useChatStore } from '../../stores/chat'
 import { useSettings } from '../../stores/settings'
@@ -21,8 +21,9 @@ import VRMScene from '../Scenes/VRM.vue'
 
 import '../../utils/live2d-zip-loader'
 
-const live2DViewerRef = ref<{ setMotion: (motionName: string) => Promise<void> }>()
 const vrmViewerRef = ref<{ setExpression: (expression: string) => void }>()
+
+const motion = ref('')
 
 const { stageView, elevenLabsApiKey, elevenlabsVoiceEnglish, elevenlabsVoiceJapanese } = storeToRefs(useSettings())
 const { mouthOpenSize } = storeToRefs(useSpeakingStore())
@@ -115,7 +116,7 @@ const emotionsQueue = useQueue<Emotion>({
         await vrmViewerRef.value!.setExpression(value)
       }
       else if (stageView.value === '2d') {
-        await live2DViewerRef.value!.setMotion(EMOTION_EmotionMotionName_value[ctx.data])
+        motion.value = EMOTION_EmotionMotionName_value[ctx.data]
       }
     },
   ],
@@ -160,7 +161,7 @@ onBeforeMessageComposed(async () => {
 })
 
 onBeforeSend(async () => {
-  live2DViewerRef.value?.setMotion(EmotionThinkMotionName)
+  motion.value = EmotionThinkMotionName
 })
 
 onTokenLiteral(async (literal) => {
@@ -178,6 +179,21 @@ onStreamEnd(async () => {
 
 onUnmounted(() => {
   lipSyncStarted.value = false
+  window.electron?.ipcRenderer.removeAllListeners('before-hide')
+  window.electron?.ipcRenderer.removeAllListeners('after-show')
+  window.electron?.ipcRenderer.removeAllListeners('before-quit')
+})
+
+onMounted(() => {
+  window.electron?.ipcRenderer.on('before-hide', () => {
+    motion.value = EmotionAngryMotionName
+  })
+  window.electron?.ipcRenderer.on('after-show', () => {
+    motion.value = EmotionHappyMotionName
+  })
+  window.electron?.ipcRenderer.on('before-quit', () => {
+    motion.value = EmotionThinkMotionName
+  })
 })
 </script>
 
@@ -186,7 +202,7 @@ onUnmounted(() => {
     <div h-full w-full>
       <Live2DScene
         v-if="stageView === '2d'"
-        ref="live2DViewerRef"
+        v-model:motion="motion"
         :mouth-open-size="mouthOpenSize"
         model="./assets/live2d/models/hiyori_pro_zh.zip"
         min-w="50% <lg:full" min-h="100 sm:100" h-full w-full flex-1

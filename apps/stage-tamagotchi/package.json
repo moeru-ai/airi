@@ -107,6 +107,7 @@
     "electron-builder": "24.13.3",
     "electron-vite": "^2.3.0",
     "markdown-it-link-attributes": "^4.0.1",
+    "unocss-preset-scrollbar": "^3.2.0",
     "unplugin-auto-import": "^19.1.0",
     "unplugin-vue-components": "^28.4.0",
     "unplugin-vue-macros": "^2.14.2",

@@ -60,7 +60,7 @@ const modeIndicatorClass = computed(() => {
   >
     <div
       v-if="windowStore.controlMode === WindowControlMode.MOVE"
-      class="drag-region absolute left-0 top-0 z-999 h-full w-full flex items-center justify-center"
+      class="drag-region absolute left-0 top-0 z-999 h-full w-full flex items-center justify-center overflow-hidden"
     >
       <div class="absolute h-32 w-full flex items-center justify-center b-2 b-pink bg-white">
         <div class="wall absolute top-0 h-8" />
