@@ -208,6 +208,10 @@ flowchart TD
 - [t41372/Open-LLM-VTuber](https://github.com/t41372/Open-LLM-VTuber)
 - [PeterH0323/Streamer-Sales](https://github.com/PeterH0323/Streamer-Sales)
 
+## 项目状态
+
+![Repobeats analytics image](https://repobeats.axiom.co/api/embed/a1d6fe2c13ea2bb53a5154435a71e2431f70c2ee.svg 'Repobeats analytics image')
+
 ## 鸣谢
 
 - [pixiv/ChatVRM](https://github.com/pixiv/ChatVRM)
