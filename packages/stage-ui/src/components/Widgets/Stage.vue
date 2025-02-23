@@ -4,7 +4,7 @@ import type { Emotion } from '../../constants/emotions'
 import { generateSpeech } from '@xsai/generate-speech'
 import { createUnElevenLabs } from '@xsai/providers'
 import { storeToRefs } from 'pinia'
-import { onUnmounted, ref } from 'vue'
+import { onMounted, onUnmounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { useMarkdown } from '../../composables/markdown'
@@ -12,7 +12,7 @@ import { useQueue } from '../../composables/queue'
 import { useDelayMessageQueue, useEmotionsMessageQueue, useMessageContentQueue } from '../../composables/queues'
 import { llmInferenceEndToken } from '../../constants'
 import { Voice, voiceMap } from '../../constants/elevenlabs'
-import { EMOTION_EmotionMotionName_value, EMOTION_VRMExpressionName_value, EmotionThinkMotionName } from '../../constants/emotions'
+import { EMOTION_EmotionMotionName_value, EMOTION_VRMExpressionName_value, EmotionAngryMotionName, EmotionHappyMotionName, EmotionThinkMotionName } from '../../constants/emotions'
 import { useAudioContext, useSpeakingStore } from '../../stores/audio'
 import { useChatStore } from '../../stores/chat'
 import { useSettings } from '../../stores/settings'
@@ -179,6 +179,26 @@ onStreamEnd(async () => {
 
 onUnmounted(() => {
   lipSyncStarted.value = false
+  if (window.electron) {
+    window.electron.ipcRenderer.removeAllListeners('before-hide')
+    window.electron.ipcRenderer.removeAllListeners('after-show')
+    window.electron.ipcRenderer.removeAllListeners('before-quit')
+  }
+})
+
+onMounted(() => {
+// Is this a good idea?
+  if (window.electron) {
+    window.electron.ipcRenderer.on('before-hide', () => {
+      motion.value = EmotionAngryMotionName
+    })
+    window.electron.ipcRenderer.on('after-show', () => {
+      motion.value = EmotionHappyMotionName
+    })
+    window.electron.ipcRenderer.on('before-quit', () => {
+      motion.value = EmotionThinkMotionName
+    })
+  }
 })
 </script>
 
