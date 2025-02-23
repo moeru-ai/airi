@@ -179,26 +179,21 @@ onStreamEnd(async () => {
 
 onUnmounted(() => {
   lipSyncStarted.value = false
-  if (window.electron) {
-    window.electron.ipcRenderer.removeAllListeners('before-hide')
-    window.electron.ipcRenderer.removeAllListeners('after-show')
-    window.electron.ipcRenderer.removeAllListeners('before-quit')
-  }
+  window.electron?.ipcRenderer.removeAllListeners('before-hide')
+  window.electron?.ipcRenderer.removeAllListeners('after-show')
+  window.electron?.ipcRenderer.removeAllListeners('before-quit')
 })
 
 onMounted(() => {
-// Is this a good idea?
-  if (window.electron) {
-    window.electron.ipcRenderer.on('before-hide', () => {
-      motion.value = EmotionAngryMotionName
-    })
-    window.electron.ipcRenderer.on('after-show', () => {
-      motion.value = EmotionHappyMotionName
-    })
-    window.electron.ipcRenderer.on('before-quit', () => {
-      motion.value = EmotionThinkMotionName
-    })
-  }
+  window.electron?.ipcRenderer.on('before-hide', () => {
+    motion.value = EmotionAngryMotionName
+  })
+  window.electron?.ipcRenderer.on('after-show', () => {
+    motion.value = EmotionHappyMotionName
+  })
+  window.electron?.ipcRenderer.on('before-quit', () => {
+    motion.value = EmotionThinkMotionName
+  })
 })
 </script>
 
