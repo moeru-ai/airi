@@ -50,5 +50,8 @@
     "stub": "unbuild --stub",
     "build": "unbuild",
     "typecheck": "vue-tsc --noEmit"
+  },
+  "devDependencies": {
+    "@electron-toolkit/preload": "^3.0.1"
   }
 }

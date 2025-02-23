@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { ElectronAPI } from '@electron-toolkit/preload'
 import type { Emotion } from '../../constants/emotions'
 
 import { generateSpeech } from '@xsai/generate-speech'
@@ -179,19 +180,24 @@ onStreamEnd(async () => {
 
 onUnmounted(() => {
   lipSyncStarted.value = false
-  window.electron?.ipcRenderer.removeAllListeners('before-hide')
-  window.electron?.ipcRenderer.removeAllListeners('after-show')
-  window.electron?.ipcRenderer.removeAllListeners('before-quit')
+
+  const extendedWindow = window as Window & typeof globalThis & { electron?: ElectronAPI }
+
+  extendedWindow.electron?.ipcRenderer.removeAllListeners('before-hide')
+  extendedWindow.electron?.ipcRenderer.removeAllListeners('after-show')
+  extendedWindow.electron?.ipcRenderer.removeAllListeners('before-quit')
 })
 
 onMounted(() => {
-  window.electron?.ipcRenderer.on('before-hide', () => {
+  const extendedWindow = window as Window & typeof globalThis & { electron?: ElectronAPI }
+
+  extendedWindow.electron?.ipcRenderer.on('before-hide', () => {
     motion.value = EmotionAngryMotionName
   })
-  window.electron?.ipcRenderer.on('after-show', () => {
+  extendedWindow.electron?.ipcRenderer.on('after-show', () => {
     motion.value = EmotionHappyMotionName
   })
-  window.electron?.ipcRenderer.on('before-quit', () => {
+  extendedWindow.electron?.ipcRenderer.on('before-quit', () => {
     motion.value = EmotionThinkMotionName
   })
 })

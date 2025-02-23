@@ -9,6 +9,7 @@ export default defineBuildConfig({
     { builder: 'mkdist', input: './src/composables/', outDir: './dist/composables', pattern: '**/*.ts', format: 'esm', loaders: ['js'] },
     { builder: 'mkdist', input: './src/utils/', outDir: './dist/utils', pattern: '**/*.ts', format: 'esm', loaders: ['js'] },
     { builder: 'mkdist', input: './src/libs/', outDir: './dist/libs', pattern: '**/*.ts', format: 'esm', loaders: ['js'] },
+    { builder: 'mkdist', input: './src/types/', outDir: './dist/types', pattern: '**/*.ts', format: 'esm', loaders: ['js'] },
   ],
   declaration: true,
   sourcemap: true,
