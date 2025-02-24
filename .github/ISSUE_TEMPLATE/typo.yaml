@@ -1,0 +1,15 @@
+name: 👀 Typo / Grammar fix
+description: You can just go ahead and send a PR! Thank you!
+labels: [documentation]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## PR Welcome!
+
+        If the typo / grammar issue is trivial and straightforward, you can help by **directly sending a quick pull request**!
+        If you spot multiple of them, we suggest combining them into a single PR. Thanks!
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
