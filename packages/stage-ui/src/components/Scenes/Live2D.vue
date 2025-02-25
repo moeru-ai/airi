@@ -17,6 +17,7 @@ import TransitionVertical from '../TransitionVertical.vue'
 
 withDefaults(defineProps<{
   model: string
+  paused: boolean
   mouthOpenSize?: number
 }>(), {
   mouthOpenSize: 0,
@@ -29,7 +30,7 @@ const show = ref(false)
 <template>
   <Screen v-slot="{ width, height }" relative>
     <Live2DCanvas v-slot="{ app }" :width="width" :height="height">
-      <Live2DModel :app="app" :model="model" :mouth-open-size="mouthOpenSize" :width="width" :height="height" :motion="motion" />
+      <Live2DModel :app="app" :model="model" :mouth-open-size="mouthOpenSize" :width="width" :height="height" :motion="motion" :paused="paused" />
     </Live2DCanvas>
     <div absolute bottom="3" right="3">
       <div flex="~ row" cursor-pointer>
