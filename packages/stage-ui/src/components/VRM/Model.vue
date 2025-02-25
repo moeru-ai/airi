@@ -15,6 +15,7 @@ const props = defineProps<{
   idleAnimation: string
   loadAnimations?: string[]
   position: [number, number, number]
+  paused: boolean
 }>()
 
 const emit = defineEmits<{
@@ -95,6 +96,12 @@ defineExpose({
   setExpression(expression: string) {
     vrmEmote.value?.setEmotionWithResetAfter(expression, 1000)
   },
+})
+
+const { pause, resume } = useLoop()
+
+watch(() => props.paused, (value) => {
+  value ? pause() : resume()
 })
 </script>
 

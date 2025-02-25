@@ -22,6 +22,12 @@ import VRMScene from '../Scenes/VRM.vue'
 
 import '../../utils/live2d-zip-loader'
 
+withDefaults(defineProps<{
+  paused?: boolean
+}>(), {
+  paused: false,
+})
+
 const vrmViewerRef = ref<{ setExpression: (expression: string) => void }>()
 
 const motion = ref('')
@@ -212,6 +218,7 @@ onMounted(() => {
         :mouth-open-size="mouthOpenSize"
         model="./assets/live2d/models/hiyori_pro_zh.zip"
         min-w="50% <lg:full" min-h="100 sm:100" h-full w-full flex-1
+        :paused="paused"
       />
       <VRMScene
         v-else-if="stageView === '3d'"
@@ -219,6 +226,7 @@ onMounted(() => {
         model="/assets/vrm/models/AvatarSample-B/AvatarSample_B.vrm"
         idle-animation="/assets/vrm/animations/idle_loop.vrma"
         min-w="50% <lg:full" min-h="100 sm:100" h-full w-full flex-1
+        :paused="paused"
         @error="console.error"
       />
     </div>

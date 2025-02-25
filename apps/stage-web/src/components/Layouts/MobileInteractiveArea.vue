@@ -10,6 +10,10 @@ import { useI18n } from 'vue-i18n'
 import MobileChatHistory from '../Widgets/MobileChatHistory.vue'
 import MobileSettings from '../Widgets/MobileSettings.vue'
 
+const emit = defineEmits<{
+  (e: 'settingsOpen', open: boolean): void
+}>()
+
 const messageInput = ref('')
 const listening = ref(false)
 
@@ -69,6 +73,10 @@ function handleTranscription(_buffer: Float32Array<ArrayBufferLike>) {
 //   selectedAudioDevice.value = found
 // }
 
+function handleSettingsOpen(open: boolean) {
+  emit('settingsOpen', open)
+}
+
 watch(isAudioInputOn, async (value) => {
   if (value === 'false') {
     destroy()
@@ -100,7 +108,7 @@ onMounted(() => {
           @submit="handleSend"
         />
       </div>
-      <DrawerRoot should-scale-background>
+      <DrawerRoot should-scale-background @update:open="handleSettingsOpen">
         <DrawerTrigger
           class="px-4 py-2.5"
           border="solid 2 pink-100 dark:pink-400/20"

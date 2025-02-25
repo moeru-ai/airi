@@ -20,11 +20,13 @@ const props = withDefaults(defineProps<{
   width: number
   height: number
   motion?: string
+  paused: boolean
 }>(), {
   mouthOpenSize: 0,
 })
 
 const pixiApp = toRef(() => props.app)
+const paused = toRef(() => props.paused)
 const model = ref<Live2DModel>()
 const initialModelWidth = ref<number>(0)
 const initialModelHeight = ref<number>(0)
@@ -141,6 +143,9 @@ watch(model, updateDropShadowFilter)
 watch(mouthOpenSize, value => getCoreModel().setParameterValueById('ParamMouthOpenY', value))
 watch(pixiApp, initLive2DPixiStage)
 watch(() => props.motion, () => props.motion && setMotion(props.motion))
+watch(paused, (value) => {
+  value ? pixiApp.value?.stop() : pixiApp.value?.start()
+})
 
 onMounted(updateDropShadowFilter)
 onUnmounted(() => model.value && pixiApp.value?.stage.removeChild(model.value))
