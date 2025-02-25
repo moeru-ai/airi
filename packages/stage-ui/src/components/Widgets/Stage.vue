@@ -22,9 +22,11 @@ import VRMScene from '../Scenes/VRM.vue'
 
 import '../../utils/live2d-zip-loader'
 
-defineProps<{
-  paused: boolean
-}>()
+withDefaults(defineProps<{
+  paused?: boolean
+}>(), {
+  paused: false,
+})
 
 const vrmViewerRef = ref<{ setExpression: (expression: string) => void }>()
 
