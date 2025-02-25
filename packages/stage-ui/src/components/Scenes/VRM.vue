@@ -12,6 +12,7 @@ import VRMModel from '../VRM/Model.vue'
 const props = defineProps<{
   model: string
   idleAnimation: string
+  paused: boolean
 }>()
 
 const emit = defineEmits<{
@@ -51,6 +52,7 @@ defineExpose({
         :model="props.model"
         :idle-animation="props.idleAnimation"
         :position="[vrmModelPositionX, vrmModelPositionY, vrmModelPositionZ]"
+        :paused="props.paused"
         @load-model-progress="(val) => emit('loadModelProgress', val)"
         @error="(val) => emit('error', val)"
       />

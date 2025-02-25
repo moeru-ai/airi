@@ -224,6 +224,7 @@ onMounted(() => {
         model="/assets/vrm/models/AvatarSample-B/AvatarSample_B.vrm"
         idle-animation="/assets/vrm/animations/idle_loop.vrma"
         min-w="50% <lg:full" min-h="100 sm:100" h-full w-full flex-1
+        :paused="paused"
         @error="console.error"
       />
     </div>
