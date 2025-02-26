@@ -13,7 +13,7 @@
   },
   "dependencies": {
     "@guiiai/logg": "^1.0.7",
-    "@proj-airi/server-sdk": "^0.3.1",
+    "@proj-airi/server-sdk": "^0.3.3",
     "@typeschema/zod": "^0.14.0",
     "awilix": "^12.0.4",
     "es-toolkit": "^1.32.0",
@@ -33,12 +33,13 @@
     "prismarine-recipe": "^1.3.1",
     "prismarine-viewer": "^1.33.0",
     "prismarine-windows": "^2.9.0",
+    "valibot": "1.0.0-beta.9",
     "vec3": "^0.1.10",
     "zod": "^3.24.2",
-    "zod-to-json-schema": "^3.24.1"
+    "zod-to-json-schema": "^3.24.3"
   },
   "devDependencies": {
-    "@dotenvx/dotenvx": "^1.36.0",
+    "@dotenvx/dotenvx": "^1.38.3",
     "dotenv": "^16.4.7"
   }
 }

@@ -19,7 +19,7 @@
   },
   "dependencies": {
     "@discordjs/voice": "^0.18.0",
-    "@dotenvx/dotenvx": "^1.36.0",
+    "@dotenvx/dotenvx": "^1.38.3",
     "@guiiai/logg": "^1.0.7",
     "@huggingface/transformers": "^3.3.3",
     "@proj-airi/server-sdk": "workspace:^",

@@ -32,6 +32,6 @@
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
-    "elevenlabs": "^1.51.0"
+    "elevenlabs": "^1.52.0"
   }
 }

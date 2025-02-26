@@ -20,7 +20,7 @@
     "db:push": "drizzle-kit push"
   },
   "dependencies": {
-    "@dotenvx/dotenvx": "^1.36.0",
+    "@dotenvx/dotenvx": "^1.38.3",
     "@gcornut/valibot-json-schema": "^0.42.0",
     "@grammyjs/files": "^1.1.1",
     "@guiiai/logg": "^1.0.7",
@@ -40,7 +40,7 @@
   },
   "devDependencies": {
     "@types/pg": "^8.11.11",
-    "drizzle-kit": "^0.30.4",
+    "drizzle-kit": "^0.30.5",
     "tsx": "^4.19.3"
   }
 }
