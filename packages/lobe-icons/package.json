@@ -1,7 +1,7 @@
 {
   "name": "@proj-airi/lobe-icons",
   "type": "module",
-  "version": "0.3.3",
+  "version": "0.3.4",
   "description": "Iconify JSON IconSet port for @lobehub/icons",
   "author": {
     "name": "Neko Ayaka",

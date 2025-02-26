@@ -1,7 +1,7 @@
 {
   "name": "@proj-airi/drizzle-duckdb-wasm",
   "type": "module",
-  "version": "0.3.3",
+  "version": "0.3.4",
   "description": "🦆 Drizzle ORM driver for @duckdb/duckdb-wasm that works on both browser and Node.js environments",
   "author": {
     "name": "Neko Ayaka",

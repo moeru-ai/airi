@@ -1,7 +1,7 @@
 {
   "name": "@proj-airi/duckdb-wasm",
   "type": "module",
-  "version": "0.3.3",
+  "version": "0.3.4",
   "description": "Easy to use @duckdb/duckdb-wasm wrapper for both browser and Node.js environments",
   "author": {
     "name": "Neko Ayaka",
