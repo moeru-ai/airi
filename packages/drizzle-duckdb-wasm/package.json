@@ -78,6 +78,7 @@
     "es-toolkit": "^1.32.0"
   },
   "devDependencies": {
+    "@iconify-json/solar": "^1.2.2",
     "@unocss/reset": "^66.1.0-beta.1",
     "@vitejs/plugin-vue": "^5.2.1",
     "@vitest/browser": "^3.0.7",
