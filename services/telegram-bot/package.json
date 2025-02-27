@@ -30,7 +30,7 @@
     "@xsai/shared-chat": "catalog:",
     "@xsai/tool": "catalog:",
     "dotenv": "^16.4.7",
-    "drizzle-orm": "^0.39.3",
+    "drizzle-orm": "^0.40.0",
     "es-toolkit": "^1.32.0",
     "grammy": "^1.35.0",
     "pg": "^8.13.3",

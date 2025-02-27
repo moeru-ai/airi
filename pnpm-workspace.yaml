@@ -6,11 +6,15 @@ packages:
   - apps/**
   - '!**/dist/**'
 catalog:
-  '@xsai/generate-speech': ^0.1.0-beta.7
-  '@xsai/generate-text': ^0.1.0-beta.7
-  '@xsai/generate-transcription': ^0.1.0-beta.7
-  '@xsai/model': ^0.1.0-beta.7
+  '@xsai/generate-speech': ^0.1.0-beta.9
+  '@xsai/generate-text': ^0.1.0-beta.9
+  '@xsai/generate-transcription': ^0.1.0-beta.9
+  '@xsai/model': ^0.1.0-beta.9
   '@xsai/providers': ^0.1.0-beta.5
-  '@xsai/shared-chat': ^0.1.0-beta.7
-  '@xsai/stream-text': ^0.1.0-beta.7
-  '@xsai/tool': ^0.1.0-beta.7
+  '@xsai/shared-chat': ^0.1.0-beta.9
+  '@xsai/stream-text': ^0.1.0-beta.9
+  '@xsai/tool': ^0.1.0-beta.9
+  '@xsai/utils-chat': ^0.1.0-beta.9
+  '@xsai/embed': ^0.1.0-beta.9
+  '@xsai/shared': ^0.1.0-beta.9
+  '@xsai-ext/shared-providers': ^0.1.0-beta.9
