@@ -7,14 +7,18 @@ import { merge } from '@xsai-ext/shared-providers'
 
 export type Loadable<P, T = string, T2 = undefined> = P & {
   loadEmbed: (model: (string & {}) | T, options?: T2) => Promise<void>
+  terminateEmbed: () => void
 }
 
-export function createEmbedProvider<T extends string, T2 extends CommonRequestOptions & LoadOptions>(createOptions: CreateProviderOptions): Loadable<EmbedProviderWithExtraOptions<T, T2>, T, T2> {
+export function createEmbedProvider<T extends string, T2 extends Omit<CommonRequestOptions, 'baseURL' | 'model'> & LoadOptions>(createOptions: CreateProviderOptions): Loadable<EmbedProviderWithExtraOptions<T, T2>, T, T2> {
   let worker: Worker
   let isReady = false
 
   function loadModel(model: (string & {}) | T, options: T2) {
     return new Promise<void>((resolve, reject) => {
+      const onProgress = options.onProgress
+      delete options.onProgress
+
       try {
         const workerURL = new URL(createOptions.baseURL)
 
@@ -29,7 +33,7 @@ export function createEmbedProvider<T extends string, T2 extends CommonRequestOp
         reject(err)
       }
 
-      worker.onmessage = (event: MessageEvent<WorkerMessageEvent>) => {
+      worker.addEventListener('message', (event: MessageEvent<WorkerMessageEvent>) => {
         switch (event.data.type) {
           case 'error':
             reject(event.data.data.error)
@@ -41,8 +45,14 @@ export function createEmbedProvider<T extends string, T2 extends CommonRequestOp
             }
 
             break
+          case 'progress':
+            if (onProgress != null && typeof onProgress === 'function') {
+              onProgress(event.data.data.progress)
+            }
+
+            break
         }
-      }
+      })
     })
   }
 
@@ -56,13 +66,18 @@ export function createEmbedProvider<T extends string, T2 extends CommonRequestOp
               return
             }
 
+            worker.addEventListener('error', (event: ErrorEvent) => {
+              reject(event)
+            })
+
             let text: string = ''
-            let body: any
+            let body: LoadOptions & { input: string }
 
             try {
               body = JSON.parse(init.body.toString())
               text = body.input
               delete body.input
+              delete body.onProgress
             }
             catch (err) {
               reject(err)
@@ -72,7 +87,7 @@ export function createEmbedProvider<T extends string, T2 extends CommonRequestOp
             let errored = false
             let resultDone = false
 
-            worker.onmessage = (event: MessageEvent<WorkerMessageEvent>) => {
+            worker.addEventListener('message', (event: MessageEvent<WorkerMessageEvent>) => {
               switch (event.data.type) {
                 case 'error':
                   errored = true
@@ -88,20 +103,26 @@ export function createEmbedProvider<T extends string, T2 extends CommonRequestOp
                   resolve(new Response(encoder.encode(JSON.stringify(result))))
                   break
               }
-            }
+            })
 
             if (!errored && !resultDone)
               worker.postMessage({ type: 'extract', data: { text, options: body as any } } satisfies WorkerMessageEvent)
           })
         })
       },
-    }) as unknown as T2,
+    }) as unknown as Omit<CommonRequestOptions, 'baseURL'> & Partial<T2> as any,
     loadEmbed: loadModel,
+    terminateEmbed: () => {
+      if (worker) {
+        worker.terminate()
+        worker = undefined
+      }
+    },
   }
 }
 
 export function createTransformers(options: { embedWorkerURL: string }) {
   return merge(
-    createEmbedProvider<'Xenova/all-MiniLM-L6-v2', CreateProviderOptions & LoadOptions & { model: string }>({ baseURL: `xsai-provider-ext:///?worker-url=${options.embedWorkerURL}&other=` }),
+    createEmbedProvider<'Xenova/all-MiniLM-L6-v2', Omit<CreateProviderOptions, 'baseURL'> & LoadOptions>({ baseURL: `xsai-provider-ext:///?worker-url=${options.embedWorkerURL}&other=` }),
   )
 }

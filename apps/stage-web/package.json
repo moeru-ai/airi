@@ -94,6 +94,7 @@
     "@intlify/unplugin-vue-i18n": "^6.0.3",
     "@proj-airi/elevenlabs": "workspace:^",
     "@proj-airi/lobe-icons": "workspace:^",
+    "@proj-airi/provider-transformers": "workspace:^",
     "@proj-airi/unplugin-download": "workspace:^",
     "@proj-airi/unplugin-live2d-sdk": "workspace:^",
     "@shikijs/markdown-it": "^3.0.0",
