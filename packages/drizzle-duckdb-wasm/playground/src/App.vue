@@ -3,6 +3,7 @@ import type { DuckDBWasmDrizzleDatabase } from '../../src'
 
 import { DuckDBAccessMode } from '@duckdb/duckdb-wasm'
 import { DBStorageType } from '@proj-airi/duckdb-wasm'
+import { useDark, useToggle } from '@vueuse/core'
 import { serialize } from 'superjson'
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 
@@ -11,6 +12,9 @@ import { buildDSN } from '../../src/dsn'
 import * as schema from '../db/schema'
 import { users } from '../db/schema'
 import migration1 from '../drizzle/0000_cute_kulan_gath.sql?raw'
+
+const isDark = useDark()
+const toggleDark = useToggle(isDark)
 
 const db = ref<DuckDBWasmDrizzleDatabase<typeof schema>>()
 const results = ref<Record<string, unknown>[]>()
@@ -123,9 +127,18 @@ onUnmounted(() => {
 
 <template>
   <div flex flex-col gap-2 p-4>
-    <h1 text-2xl>
-      <code>@duckdb/duckdb-wasm</code> + <code>drizzle-orm</code> Playground
-    </h1>
+    <header flex flex-row items-center justify-between>
+      <h1 text-2xl>
+        <a href="https://github.com/duckdb/duckdb-wasm"><code>@duckdb/duckdb-wasm</code></a> + <a
+          href="https://orm.drizzle.team/"
+        >Drizzle ORM</a>
+        Playground
+      </h1>
+      <button text-lg @click="() => toggleDark()">
+        <div v-if="isDark" i-solar:moon-stars-bold-duotone />
+        <div v-else i-solar:sun-bold />
+      </button>
+    </header>
     <div flex flex-col gap-2>
       <h2 text-xl>
         Storage
@@ -187,21 +200,24 @@ onUnmounted(() => {
     </div>
     <div flex flex-row justify-between gap-2>
       <div flex flex-row gap-2>
-        <button rounded-lg bg="pink-100 dark:pink-700" px-4 py-2 @click="reconnect">
+        <button rounded-lg bg="cyan-100 dark:cyan-900" px-4 py-2 @click="reconnect">
           Reconnect
         </button>
-        <button rounded-lg bg="orange-100 dark:orange-700" px-4 py-2 :class="{ 'cursor-not-allowed': isMigrated }" :disabled="isMigrated" @click="migrate">
+        <button
+          rounded-lg bg="blue-100 dark:blue-900" px-4 py-2 :class="{ 'cursor-not-allowed': isMigrated }"
+          :disabled="isMigrated" @click="migrate"
+        >
           {{ isMigrated ? 'Already migrated 🥳' : 'Migrate' }}
         </button>
-        <button rounded-lg bg="purple-100 dark:purple-700" px-4 py-2 @click="insert">
+        <button rounded-lg bg="violet-100 dark:violet-900" px-4 py-2 @click="insert">
           Insert
         </button>
       </div>
       <div flex flex-row gap-2>
-        <button rounded-lg bg="green-100 dark:green-700" px-4 py-2 @click="shallowListOPFS">
+        <button rounded-lg bg="cyan-100 dark:cyan-900" px-4 py-2 @click="shallowListOPFS">
           List OPFS (See console)
         </button>
-        <button rounded-lg bg="red-100 dark:red-700" px-4 py-2 @click="wipeOPFS">
+        <button rounded-lg bg="violet-100 dark:violet-900" px-4 py-2 @click="wipeOPFS">
           Wipe OPFS
         </button>
       </div>
@@ -215,7 +231,7 @@ onUnmounted(() => {
           <textarea v-model="query" h-full w-full rounded-lg bg="neutral-100 dark:neutral-800" p-4 font-mono />
         </div>
         <div flex flex-row gap-2>
-          <button rounded-lg bg="blue-100 dark:blue-700" px-4 py-2 @click="execute">
+          <button rounded-lg bg="blue-100 dark:blue-900" px-4 py-2 @click="execute">
             Execute
           </button>
         </div>
@@ -240,7 +256,7 @@ await db.select().from(users)
             </pre>
           </div>
           <div flex flex-row gap-2>
-            <button rounded-lg bg="blue-100 dark:blue-700" px-4 py-2 @click="executeORM">
+            <button rounded-lg bg="blue-100 dark:blue-900" px-4 py-2 @click="executeORM">
               Execute
             </button>
           </div>
