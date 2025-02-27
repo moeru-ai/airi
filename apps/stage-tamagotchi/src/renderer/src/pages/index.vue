@@ -71,6 +71,21 @@ const modeIndicatorClass = computed(() => {
       </div>
     </div>
   </Transition>
+  <Transition
+    enter-active-class="transition-opacity duration-250"
+    enter-from-class="opacity-0"
+    enter-to-class="opacity-100"
+    leave-active-class="transition-opacity duration-250"
+    leave-from-class="opacity-100"
+    leave-to-class="opacity-0"
+  >
+    <div
+      v-if="windowStore.controlMode === WindowControlMode.RESIZE"
+      class="absolute left-0 top-0 z-999 h-full w-full"
+    >
+      <div h-full w-full animate-flash animate-duration-2.5s animate-count-infinite b-8 b-pink rounded-2xl />
+    </div>
+  </Transition>
 </template>
 
 <style scoped>

@@ -177,4 +177,28 @@ app.whenReady().then(() => {
     rebuildTrayMenu()
     createApplicationMenu(i18n, showQuitDialog, createSettingsWindow)
   })
+
+  ipcMain.on('start-resize-window', () => {
+    mainWindow.setResizable(true)
+  })
+
+  ipcMain.on('stop-resize-window', () => {
+    mainWindow.setResizable(false)
+  })
+
+  ipcMain.handle('stop-move-window', () => {
+    return mainWindow.getPosition()
+  })
+
+  ipcMain.on('window-size-changed', (_, width: number, height: number) => {
+    if (width === 0 || height === 0) {
+      mainWindow.setSize(300 * 1.5, 400 * 1.5) // back to default size
+      return
+    }
+    mainWindow.setSize(width, height)
+  })
+
+  ipcMain.on('window-position-changed', (_, x: number, y: number) => {
+    mainWindow.setPosition(x, y)
+  })
 })
