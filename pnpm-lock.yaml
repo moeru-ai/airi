@@ -1044,6 +1044,10 @@ importers:
       onnxruntime-common:
         specifier: ^1.20.1
         version: 1.20.1
+    devDependencies:
+      '@iconify-json/simple-icons':
+        specifier: ^1.2.26
+        version: 1.2.26
 
   services/discord-bot:
     dependencies:

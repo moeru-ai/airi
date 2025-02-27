@@ -7,6 +7,7 @@ import { merge } from '@xsai-ext/shared-providers'
 
 export type Loadable<P, T = string, T2 = undefined> = P & {
   loadEmbed: (model: (string & {}) | T, options?: T2) => Promise<void>
+  terminateEmbed: () => void
 }
 
 export function createEmbedProvider<T extends string, T2 extends Omit<CommonRequestOptions, 'baseURL' | 'model'> & LoadOptions>(createOptions: CreateProviderOptions): Loadable<EmbedProviderWithExtraOptions<T, T2>, T, T2> {
@@ -111,6 +112,12 @@ export function createEmbedProvider<T extends string, T2 extends Omit<CommonRequ
       },
     }) as unknown as Omit<CommonRequestOptions, 'baseURL'> & Partial<T2> as any,
     loadEmbed: loadModel,
+    terminateEmbed: () => {
+      if (worker) {
+        worker.terminate()
+        worker = undefined
+      }
+    },
   }
 }
 
