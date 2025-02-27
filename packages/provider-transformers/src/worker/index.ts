@@ -37,7 +37,8 @@ async function load(modelId: string, options?: Omit<PipelineOptionsFrom<typeof p
 
 async function extract(text: string | string[], options?: FeatureExtractionPipelineOptions) {
   const result = await embed(text, options)
-  self.postMessage({ type: 'extractResult', data: { input: { text, options }, output: { data: Array.from(result.data), dims: result.dims } } } satisfies WorkerMessageEvent)
+  const resultArray = result.tolist()
+  self.postMessage({ type: 'extractResult', data: { input: { text, options }, output: { data: Array.from(resultArray[0] || []), dims: result.dims } } } satisfies WorkerMessageEvent)
 }
 
 self.addEventListener('message', (event: MessageEvent<WorkerMessageEvent>) => {

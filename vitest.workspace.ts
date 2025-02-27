@@ -5,5 +5,4 @@ export default defineWorkspace([
   'apps/*',
   'services/*',
   'examples/*',
-  'docs/*',
 ])

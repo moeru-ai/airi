@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { Collapsable } from '@proj-airi/stage-ui/components'
+import { useProvidersStore } from '@proj-airi/stage-ui/stores'
 import { toJsonSchema } from '@valibot/to-json-schema'
+import { storeToRefs } from 'pinia'
 import { description, object, optional, pipe, record, string, title } from 'valibot'
-import { computed, ref } from 'vue'
+import { computed } from 'vue'
 
 interface ModelProvider {
   id: string
@@ -158,13 +160,13 @@ const providers = computed<ModelProvider[]>(() => [
   },
 ])
 
-const providerValues = ref<Record<string, Record<string, string>>>({})
+const { providers: providerValues } = storeToRefs(useProvidersStore())
 
-function getFieldValue(providerId: string, fieldName: string): string {
+function getFieldValue(providerId: string, fieldName: string): unknown {
   return providerValues.value[providerId]?.[fieldName] || ''
 }
 
-function setFieldValue(providerId: string, fieldName: string, value: string) {
+function setFieldValue(providerId: string, fieldName: string, value: unknown) {
   if (!providerValues.value[providerId]) {
     providerValues.value[providerId] = {}
   }
@@ -176,7 +178,7 @@ function getRecordEntries(providerId: string, fieldName: string): Array<[string,
   if (!value)
     return [['', '']]
   try {
-    return Object.entries(JSON.parse(value))
+    return Object.entries(value)
   }
   catch {
     return [['', '']]
@@ -191,7 +193,7 @@ function setRecordValue(providerId: string, fieldName: string, entries: Array<[s
   }
 
   const record = Object.fromEntries(validEntries)
-  setFieldValue(providerId, fieldName, JSON.stringify(record))
+  setFieldValue(providerId, fieldName, record)
 }
 
 function addRecordEntry(entries: Array<[string, string]>) {

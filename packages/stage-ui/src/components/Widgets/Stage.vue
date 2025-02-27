@@ -1,9 +1,15 @@
 <script setup lang="ts">
 import type { ElectronAPI } from '@electron-toolkit/preload'
+import type { DuckDBWasmDrizzleDatabase } from '@proj-airi/drizzle-duckdb-wasm'
 import type { Emotion } from '../../constants/emotions'
 
+import { drizzle } from '@proj-airi/drizzle-duckdb-wasm'
+// import { createTransformers } from '@proj-airi/provider-transformers'
+// import embedWorkerURL from '@proj-airi/provider-transformers/worker?worker&url'
+// import { embed } from '@xsai/embed'
 import { generateSpeech } from '@xsai/generate-speech'
 import { createUnElevenLabs } from '@xsai/providers'
+import { sql } from 'drizzle-orm'
 import { storeToRefs } from 'pinia'
 import { onMounted, onUnmounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -22,20 +28,18 @@ import VRMScene from '../Scenes/VRM.vue'
 
 import '../../utils/live2d-zip-loader'
 
-withDefaults(defineProps<{
-  paused?: boolean
-}>(), {
-  paused: false,
-})
+withDefaults(defineProps<{ paused?: boolean }>(), { paused: false })
+
+const db = ref<DuckDBWasmDrizzleDatabase>()
+// const transformersProvider = createTransformers({ embedWorkerURL })
 
 const vrmViewerRef = ref<{ setExpression: (expression: string) => void }>()
-
 const motion = ref('')
 
 const { stageView, elevenLabsApiKey, elevenlabsVoiceEnglish, elevenlabsVoiceJapanese } = storeToRefs(useSettings())
 const { mouthOpenSize } = storeToRefs(useSpeakingStore())
 const { audioContext, calculateVolume } = useAudioContext()
-const { onBeforeMessageComposed, onBeforeSend, onTokenLiteral, onTokenSpecial, onStreamEnd, streamingMessage } = useChatStore()
+const { onBeforeMessageComposed, onBeforeSend, onTokenLiteral, onTokenSpecial, onStreamEnd, streamingMessage, onAssistantResponseEnd } = useChatStore()
 const { process } = useMarkdown()
 const { locale } = useI18n()
 
@@ -184,6 +188,15 @@ onStreamEnd(async () => {
   await delaysQueue.add(llmInferenceEndToken)
 })
 
+onAssistantResponseEnd(async (_message) => {
+  // const res = await embed({
+  //   ...transformersProvider.embed('Xenova/nomic-embed-text-v1'),
+  //   input: message,
+  // })
+
+  // await db.value?.execute(`INSERT INTO memory_test (vec) VALUES (${JSON.stringify(res.embedding)});`)
+})
+
 onUnmounted(() => {
   lipSyncStarted.value = false
 
@@ -206,6 +219,11 @@ onMounted(() => {
   extendedWindow.electron?.ipcRenderer.on('before-quit', () => {
     motion.value = EmotionThinkMotionName
   })
+})
+
+onMounted(async () => {
+  db.value = drizzle('duckdb-wasm://?bundles=import-url')
+  await db.value.execute(sql`CREATE TABLE memory_test (vec FLOAT[768]);`)
 })
 </script>
 

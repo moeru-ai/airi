@@ -1,19 +1,19 @@
 import type { AssistantMessage, Message } from '@xsai/shared-chat'
 
 import { defineStore, storeToRefs } from 'pinia'
-import { ref } from 'vue'
+import { ref, toRaw } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { useLlmmarkerParser } from '../composables/llmmarkerParser'
 import SystemPromptV2 from '../constants/prompts/system-v2'
 import { useLLM } from '../stores/llm'
-import { useSettings } from '../stores/settings'
+import { useProvidersStore } from '../stores/providers'
 import { asyncIteratorFromReadableStream } from '../utils/iterator'
 
 export const useChatStore = defineStore('chat', () => {
   const { stream } = useLLM()
   const { t } = useI18n()
-  const { openAiApiBaseURL, openAiApiKey, openAiModel } = storeToRefs(useSettings())
+  const { providers: providerValues } = storeToRefs(useProvidersStore())
 
   const onBeforeMessageComposedHooks = ref<Array<(message: string) => Promise<void>>>([])
   const onAfterMessageComposedHooks = ref<Array<(message: string) => Promise<void>>>([])
@@ -22,6 +22,7 @@ export const useChatStore = defineStore('chat', () => {
   const onTokenLiteralHooks = ref<Array<(literal: string) => Promise<void>>>([])
   const onTokenSpecialHooks = ref<Array<(special: string) => Promise<void>>>([])
   const onStreamEndHooks = ref<Array<() => Promise<void>>>([])
+  const onAssistantResponseEndHooks = ref<Array<(message: string) => Promise<void>>>([])
 
   function onBeforeMessageComposed(cb: (message: string) => Promise<void>) {
     onBeforeMessageComposedHooks.value.push(cb)
@@ -51,6 +52,10 @@ export const useChatStore = defineStore('chat', () => {
     onStreamEndHooks.value.push(cb)
   }
 
+  function onAssistantResponseEnd(cb: (message: string) => Promise<void>) {
+    onAssistantResponseEndHooks.value.push(cb)
+  }
+
   const messages = ref<Array<Message>>([
     SystemPromptV2(
       t('prompt.prefix'),
@@ -73,15 +78,15 @@ export const useChatStore = defineStore('chat', () => {
     }
 
     const {
-      baseUrl = openAiApiBaseURL.value,
-      apiKey = openAiApiKey.value,
-      model = openAiModel.value,
+      baseUrl = providerValues.value['openrouter-ai']?.baseUrl as string | undefined || '',
+      apiKey = providerValues.value['openrouter-ai']?.apiKey as string | undefined || '',
+      model = providerValues.value['openrouter-ai']?.model as { id: string } | undefined || { id: 'openai/gpt-4o-mini' },
     } = options ?? { }
 
     streamingMessage.value = { role: 'assistant', content: '' }
     messages.value.push({ role: 'user', content: sendingMessage })
     messages.value.push(streamingMessage.value)
-    const newMessages = messages.value.slice(0, messages.value.length - 1)
+    const newMessages = messages.value.slice(0, messages.value.length - 1).map(msg => toRaw(msg))
 
     for (const hook of onAfterMessageComposedHooks.value) {
       await hook(sendingMessage)
@@ -125,6 +130,10 @@ export const useChatStore = defineStore('chat', () => {
       await hook()
     }
 
+    for (const hook of onAssistantResponseEndHooks.value) {
+      await hook(fullText)
+    }
+
     // eslint-disable-next-line no-console
     console.debug('LLM output:', fullText)
   }
@@ -140,5 +149,6 @@ export const useChatStore = defineStore('chat', () => {
     onTokenLiteral,
     onTokenSpecial,
     onStreamEnd,
+    onAssistantResponseEnd,
   }
 })

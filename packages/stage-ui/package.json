@@ -52,6 +52,9 @@
     "typecheck": "vue-tsc --noEmit"
   },
   "devDependencies": {
-    "@electron-toolkit/preload": "^3.0.1"
+    "@electron-toolkit/preload": "^3.0.1",
+    "@proj-airi/provider-transformers": "workspace:^",
+    "@proj-airi/utils-transformers": "workspace:^",
+    "@xsai/embed": "catalog:"
   }
 }

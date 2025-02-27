@@ -220,4 +220,12 @@ describe('drizzle with duckdb wasm in browser', { timeout: 10000 }, async () => 
     expect(await db2.execute('SHOW TABLES')).toEqual([{ name: 'test' }])
     expect(await db2.execute('SELECT * FROM test')).toEqual([{ v: 1 }, { v: 2 }, { v: 3 }])
   })
+
+  it('should create a table with a float array column', async () => {
+    const db = drizzle({ connection: { bundles: getImportUrlBundles() } })
+    await db.execute('CREATE TABLE test (v FLOAT[26880], v2 text)')
+    await db.execute('INSERT INTO test VALUES (1, 2, 3, 4, "test")')
+    const res = await db.execute('SELECT * FROM test')
+    expect(res).toEqual([{ v: [1, 2, 3, 4], v2: 'test' }])
+  })
 })

@@ -6,7 +6,7 @@ export enum MessageStatus {
   Ready = 'ready',
 }
 
-export type LoadOptions = Omit<PretrainedOptions & ModelSpecificPretrainedOptions, 'progress_callback'> & { onProgress?: LoadOptionProgressCallback }
+export type LoadOptions = Omit<PretrainedOptions & ModelSpecificPretrainedOptions, 'progress_callback'> & { onProgress?: LoadOptionProgressCallback } & FeatureExtractionPipelineOptions
 export type LoadOptionProgressCallback = (progress: ProgressInfo) => void | Promise<void>
 export type { ProgressInfo }
 
