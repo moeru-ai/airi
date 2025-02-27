@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import type { InitiateProgressInfo, ProgressStatusInfo } from '@proj-airi/utils-transformers/types'
+
 import { useDark, useToggle } from '@vueuse/core'
 import { embed } from '@xsai/embed'
 import { serialize } from 'superjson'
@@ -6,6 +8,7 @@ import { onMounted, ref } from 'vue'
 
 import { createTransformers } from '../../src'
 import embedWorkerURL from '../../src/worker?worker&url'
+import Progress from './components/Progress.vue'
 
 const isDark = useDark()
 const toggleDark = useToggle(isDark)
@@ -13,11 +16,33 @@ const toggleDark = useToggle(isDark)
 const modelId = ref('Xenova/all-MiniLM-L6-v2')
 const input = ref('Hello, world!')
 const results = ref<any>()
+const loadingItems = ref<(InitiateProgressInfo | ProgressStatusInfo)[]>([])
 
 const transformersProvider = createTransformers({ embedWorkerURL })
 
 onMounted(async () => {
-  await transformersProvider.loadEmbed(modelId.value)
+  await transformersProvider.loadEmbed(modelId.value, {
+    onProgress: (progress) => {
+      switch (progress.status) {
+        case 'initiate':
+          loadingItems.value.push(progress)
+          break
+
+        case 'progress':
+          loadingItems.value = loadingItems.value.map((item) => {
+            if (item.file === progress.file) {
+              return { ...item, ...progress }
+            }
+            return item
+          })
+          break
+
+        case 'done':
+          // loadingItems.value = loadingItems.value.filter(item => item.file !== progress.file)
+          break
+      }
+    },
+  })
 })
 
 async function execute() {
@@ -54,6 +79,15 @@ async function execute() {
             <input v-model="modelId" bg="neutral-100 dark:neutral-800" block min-w-full w-full rounded-lg p-2>
           </label>
         </div>
+      </div>
+      <div v-if="loadingItems.length > 0" class="w-[50%] flex flex-col gap-2">
+        <Progress
+          v-for="(item, index) of loadingItems"
+          :key="index"
+          :text="item.file"
+          :percentage="'progress' in item ? item.progress || 0 : 0"
+          :total="'total' in item ? item.total || 0 : 0"
+        />
       </div>
     </div>
     <div grid grid-cols-2 gap-2>

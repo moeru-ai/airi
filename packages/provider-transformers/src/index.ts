@@ -15,6 +15,9 @@ export function createEmbedProvider<T extends string, T2 extends Omit<CommonRequ
 
   function loadModel(model: (string & {}) | T, options: T2) {
     return new Promise<void>((resolve, reject) => {
+      const onProgress = options.onProgress
+      delete options.onProgress
+
       try {
         const workerURL = new URL(createOptions.baseURL)
 
@@ -29,7 +32,7 @@ export function createEmbedProvider<T extends string, T2 extends Omit<CommonRequ
         reject(err)
       }
 
-      worker.onmessage = (event: MessageEvent<WorkerMessageEvent>) => {
+      worker.addEventListener('message', (event: MessageEvent<WorkerMessageEvent>) => {
         switch (event.data.type) {
           case 'error':
             reject(event.data.data.error)
@@ -42,13 +45,13 @@ export function createEmbedProvider<T extends string, T2 extends Omit<CommonRequ
 
             break
           case 'progress':
-            if (options.onProgress != null && typeof options.onProgress === 'function') {
-              options.onProgress(event.data.data.progress)
+            if (onProgress != null && typeof onProgress === 'function') {
+              onProgress(event.data.data.progress)
             }
 
             break
         }
-      }
+      })
     })
   }
 
@@ -62,13 +65,18 @@ export function createEmbedProvider<T extends string, T2 extends Omit<CommonRequ
               return
             }
 
+            worker.addEventListener('error', (event: ErrorEvent) => {
+              reject(event)
+            })
+
             let text: string = ''
-            let body: any
+            let body: LoadOptions & { input: string }
 
             try {
               body = JSON.parse(init.body.toString())
               text = body.input
               delete body.input
+              delete body.onProgress
             }
             catch (err) {
               reject(err)
@@ -78,7 +86,7 @@ export function createEmbedProvider<T extends string, T2 extends Omit<CommonRequ
             let errored = false
             let resultDone = false
 
-            worker.onmessage = (event: MessageEvent<WorkerMessageEvent>) => {
+            worker.addEventListener('message', (event: MessageEvent<WorkerMessageEvent>) => {
               switch (event.data.type) {
                 case 'error':
                   errored = true
@@ -94,7 +102,7 @@ export function createEmbedProvider<T extends string, T2 extends Omit<CommonRequ
                   resolve(new Response(encoder.encode(JSON.stringify(result))))
                   break
               }
-            }
+            })
 
             if (!errored && !resultDone)
               worker.postMessage({ type: 'extract', data: { text, options: body as any } } satisfies WorkerMessageEvent)
