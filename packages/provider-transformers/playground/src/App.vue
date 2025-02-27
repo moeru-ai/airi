@@ -5,7 +5,7 @@ import { serialize } from 'superjson'
 import { onMounted, ref } from 'vue'
 
 import { createTransformers } from '../../src'
-import embedWorkerURL from '../../src/worker?url'
+import embedWorkerURL from '../../src/worker?worker&url'
 
 const isDark = useDark()
 const toggleDark = useToggle(isDark)
