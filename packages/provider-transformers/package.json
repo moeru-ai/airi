@@ -56,14 +56,15 @@
     "@huggingface/transformers": "^3.3.3",
     "@proj-airi/utils-transformers": "workspace:^",
     "@webgpu/types": "^0.1.54",
-    "@xsai-ext/shared-providers": "0.1.0-beta.8",
-    "@xsai/embed": "0.1.0-beta.8",
+    "@xsai-ext/shared-providers": "catalog:",
+    "@xsai/embed": "catalog:",
+    "@xsai/shared": "catalog:",
     "defu": "^6.1.4",
     "es-toolkit": "^1.32.0"
   },
   "devDependencies": {
     "@iconify-json/solar": "^1.2.2",
-    "@unocss/reset": "^66.1.0-beta.1",
+    "@unocss/reset": "^66.1.0-beta.3",
     "@vitejs/plugin-vue": "^5.2.1",
     "@vueuse/core": "^12.7.0",
     "vite": "^6.2.0",

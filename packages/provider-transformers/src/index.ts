@@ -1,33 +1,15 @@
-import type { CreateProviderOptions } from '@xsai-ext/shared-providers'
-import type { EmbedResponseUsage } from '@xsai/embed'
+import type { CreateProviderOptions, EmbedProviderWithExtraOptions } from '@xsai-ext/shared-providers'
+import type { EmbedResponse } from '@xsai/embed'
+import type { CommonRequestOptions } from '@xsai/shared'
 import type { LoadOptions, WorkerMessageEvent } from './types'
 
 import { merge } from '@xsai-ext/shared-providers'
-
-export interface EmbedProvider<T = string, T2 = undefined> {
-  embed: (model: (string & {}) | T, extraOptions?: T2) => T2
-}
 
 export type Loadable<P, T = string, T2 = undefined> = P & {
   loadEmbed: (model: (string & {}) | T, options?: T2) => Promise<void>
 }
 
-export interface EmbedResponse {
-  data: {
-    embedding: number[]
-    index: number
-    object: 'embedding'
-  }[]
-  model: string
-  object: 'list' | (string & {})
-  system_fingerprint?: string
-  usage: EmbedResponseUsage
-}
-
-export function createEmbedProvider<
-  T extends string = string,
-  T2 = CreateProviderOptions & LoadOptions,
->(createOptions: CreateProviderOptions): Loadable<EmbedProvider<T, T2>, T, T2> {
+export function createEmbedProvider<T extends string, T2 extends CommonRequestOptions & LoadOptions>(createOptions: CreateProviderOptions): Loadable<EmbedProviderWithExtraOptions<T, T2>, T, T2> {
   let worker: Worker
   let isReady = false
 
@@ -120,6 +102,6 @@ export function createEmbedProvider<
 
 export function createTransformers(options: { embedWorkerURL: string }) {
   return merge(
-    createEmbedProvider<'Xenova/all-MiniLM-L6-v2'>({ baseURL: `xsai-provider-ext:///?worker-url=${options.embedWorkerURL}&other=` }),
+    createEmbedProvider<'Xenova/all-MiniLM-L6-v2', CreateProviderOptions & LoadOptions & { model: string }>({ baseURL: `xsai-provider-ext:///?worker-url=${options.embedWorkerURL}&other=` }),
   )
 }
