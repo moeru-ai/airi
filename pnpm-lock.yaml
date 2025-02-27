@@ -1021,7 +1021,11 @@ importers:
         specifier: ^3.2.0
         version: 3.2.0
 
-  packages/utils-transformers: {}
+  packages/utils-transformers:
+    dependencies:
+      '@huggingface/transformers':
+        specifier: ^3.3.3
+        version: 3.3.3
 
   services/discord-bot:
     dependencies:

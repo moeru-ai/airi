@@ -30,5 +30,8 @@
     "stub": "unbuild --stub",
     "build": "unbuild",
     "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@huggingface/transformers": "^3.3.3"
   }
 }
