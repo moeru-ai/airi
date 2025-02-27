@@ -191,6 +191,10 @@ app.whenReady().then(() => {
   })
 
   ipcMain.on('window-size-changed', (_, width: number, height: number) => {
+    if (width === 0 || height === 0) {
+      mainWindow.setSize(300 * 1.5, 400 * 1.5) // back to default size
+      return
+    }
     mainWindow.setSize(width, height)
   })
 
