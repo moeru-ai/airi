@@ -906,6 +906,55 @@ importers:
         specifier: ^1.0.0
         version: 1.0.0
 
+  packages/provider-transformers:
+    dependencies:
+      '@huggingface/transformers':
+        specifier: ^3.3.3
+        version: 3.3.3
+      '@proj-airi/utils-transformers':
+        specifier: workspace:^
+        version: link:../utils-transformers
+      '@webgpu/types':
+        specifier: ^0.1.54
+        version: 0.1.54
+      '@xsai-ext/shared-providers':
+        specifier: 0.1.0-beta.8
+        version: 0.1.0-beta.8
+      '@xsai/embed':
+        specifier: 0.1.0-beta.8
+        version: 0.1.0-beta.8
+      defu:
+        specifier: ^6.1.4
+        version: 6.1.4
+      es-toolkit:
+        specifier: ^1.32.0
+        version: 1.32.0
+      web-worker:
+        specifier: ^1.5.0
+        version: 1.5.0
+    devDependencies:
+      '@iconify-json/solar':
+        specifier: ^1.2.2
+        version: 1.2.2
+      '@unocss/reset':
+        specifier: ^66.1.0-beta.1
+        version: 66.1.0-beta.1
+      '@vitejs/plugin-vue':
+        specifier: ^5.2.1
+        version: 5.2.1(vite@6.2.0(@types/node@22.13.5)(jiti@2.4.2)(less@4.2.1)(terser@5.17.6)(tsx@4.19.3)(yaml@2.7.0))(vue@3.5.13(typescript@5.7.3))
+      '@vueuse/core':
+        specifier: ^12.7.0
+        version: 12.7.0(typescript@5.7.3)
+      vite:
+        specifier: ^6.2.0
+        version: 6.2.0(@types/node@22.13.5)(jiti@2.4.2)(less@4.2.1)(terser@5.17.6)(tsx@4.19.3)(yaml@2.7.0)
+      vue:
+        specifier: ^3.5.13
+        version: 3.5.13(typescript@5.7.3)
+      vue-tsc:
+        specifier: ^2.2.4
+        version: 2.2.4(typescript@5.7.3)
+
   packages/server-runtime:
     dependencies:
       '@guiiai/logg':
@@ -971,6 +1020,8 @@ importers:
       yauzl:
         specifier: ^3.2.0
         version: 3.2.0
+
+  packages/utils-transformers: {}
 
   services/discord-bot:
     dependencies:
@@ -4926,6 +4977,12 @@ packages:
   '@xmldom/xmldom@0.8.10':
     resolution: {integrity: sha512-2WALfTl4xo2SkGCYRt6rDTFfk9R1czmBvUQy12gK2KuRKIpWEhcbbzy8EZXtz/jkRqHX8bFEc6FC1HjX4TUWYw==}
     engines: {node: '>=10.0.0'}
+
+  '@xsai-ext/shared-providers@0.1.0-beta.8':
+    resolution: {integrity: sha512-ggc0hrw18AGBTZ+dFhfoKrbAHxgCnb/F3KG6WxLofpPpnJWdIazFFYcJtujMRXWAiaIONa+budmaz0rcKKFZZg==}
+
+  '@xsai/embed@0.1.0-beta.8':
+    resolution: {integrity: sha512-CHcyfTf4ob2/QFE06E0FvJyV3hs/n5eBl6y0Jqo1yJTrA6kaAE/8o9qMgh7YG+4ild3kabMdeEnxZ0gQD8vh9w==}
 
   '@xsai/generate-speech@0.1.0-beta.7':
     resolution: {integrity: sha512-4XSkvZs7l4CCzi4NeCaokzabcm48SuCUwYBEs9cFTjjX85lyqcQOD/+4e2HiEWDhy+ZKqE1J/XFzQwlZCnJGZQ==}
@@ -15477,6 +15534,14 @@ snapshots:
       - debug
 
   '@xmldom/xmldom@0.8.10': {}
+
+  '@xsai-ext/shared-providers@0.1.0-beta.8':
+    dependencies:
+      '@xsai/shared': 0.1.0-beta.8
+
+  '@xsai/embed@0.1.0-beta.8':
+    dependencies:
+      '@xsai/shared': 0.1.0-beta.8
 
   '@xsai/generate-speech@0.1.0-beta.7':
     dependencies:

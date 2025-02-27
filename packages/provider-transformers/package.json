@@ -1,0 +1,73 @@
+{
+  "name": "@proj-airi/provider-transformers",
+  "type": "module",
+  "private": true,
+  "description": "Transformers.js wrapper makes it easy to use with xsai",
+  "author": {
+    "name": "Neko Ayaka",
+    "email": "neko@ayaka.moe",
+    "url": "https://github.com/nekomeowww"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/moeru-ai/airi.git",
+    "directory": "packages/provider-transformers"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs"
+    },
+    "./worker": {
+      "types": "./dist/worker/index.d.ts",
+      "import": "./dist/worker/index.mjs"
+    },
+    "./types": {
+      "types": "./dist/types/index.d.ts",
+      "import": "./dist/types/index.mjs"
+    }
+  },
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "README.md",
+    "dist",
+    "package.json"
+  ],
+  "scripts": {
+    "dev": "pnpm run stub && pnpm run play:dev",
+    "stub": "unbuild --stub",
+    "build": "unbuild && pnpm run play:build",
+    "play:dev": "vite",
+    "play:build": "vite build",
+    "play:preview": "vite preview",
+    "typecheck": "tsc --noEmit"
+  },
+  "peerDependencies": {
+    "web-worker": "^1.5.0"
+  },
+  "peerDependenciesMeta": {
+    "web-worker": {
+      "optional": true
+    }
+  },
+  "dependencies": {
+    "@huggingface/transformers": "^3.3.3",
+    "@proj-airi/utils-transformers": "workspace:^",
+    "@webgpu/types": "^0.1.54",
+    "@xsai-ext/shared-providers": "0.1.0-beta.8",
+    "@xsai/embed": "0.1.0-beta.8",
+    "defu": "^6.1.4",
+    "es-toolkit": "^1.32.0"
+  },
+  "devDependencies": {
+    "@iconify-json/solar": "^1.2.2",
+    "@unocss/reset": "^66.1.0-beta.1",
+    "@vitejs/plugin-vue": "^5.2.1",
+    "@vueuse/core": "^12.7.0",
+    "vite": "^6.2.0",
+    "vue": "^3.5.13",
+    "vue-tsc": "^2.2.4"
+  }
+}
