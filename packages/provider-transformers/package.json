@@ -22,10 +22,6 @@
     "./worker": {
       "types": "./dist/worker/index.d.ts",
       "import": "./dist/worker/index.mjs"
-    },
-    "./types": {
-      "types": "./dist/types/index.d.ts",
-      "import": "./dist/types/index.mjs"
     }
   },
   "module": "./dist/index.mjs",

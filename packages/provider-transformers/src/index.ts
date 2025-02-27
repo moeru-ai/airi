@@ -9,7 +9,7 @@ export type Loadable<P, T = string, T2 = undefined> = P & {
   loadEmbed: (model: (string & {}) | T, options?: T2) => Promise<void>
 }
 
-export function createEmbedProvider<T extends string, T2 extends CommonRequestOptions & LoadOptions>(createOptions: CreateProviderOptions): Loadable<EmbedProviderWithExtraOptions<T, T2>, T, T2> {
+export function createEmbedProvider<T extends string, T2 extends Omit<CommonRequestOptions, 'baseURL' | 'model'> & LoadOptions>(createOptions: CreateProviderOptions): Loadable<EmbedProviderWithExtraOptions<T, T2>, T, T2> {
   let worker: Worker
   let isReady = false
 
@@ -38,6 +38,12 @@ export function createEmbedProvider<T extends string, T2 extends CommonRequestOp
             if (event.data.data.status === 'ready') {
               isReady = true
               resolve()
+            }
+
+            break
+          case 'progress':
+            if (options.onProgress != null && typeof options.onProgress === 'function') {
+              options.onProgress(event.data.data.progress)
             }
 
             break
@@ -95,13 +101,13 @@ export function createEmbedProvider<T extends string, T2 extends CommonRequestOp
           })
         })
       },
-    }) as unknown as T2,
+    }) as unknown as Omit<CommonRequestOptions, 'baseURL'> & Partial<T2> as any,
     loadEmbed: loadModel,
   }
 }
 
 export function createTransformers(options: { embedWorkerURL: string }) {
   return merge(
-    createEmbedProvider<'Xenova/all-MiniLM-L6-v2', CreateProviderOptions & LoadOptions & { model: string }>({ baseURL: `xsai-provider-ext:///?worker-url=${options.embedWorkerURL}&other=` }),
+    createEmbedProvider<'Xenova/all-MiniLM-L6-v2', Omit<CreateProviderOptions, 'baseURL'> & LoadOptions>({ baseURL: `xsai-provider-ext:///?worker-url=${options.embedWorkerURL}&other=` }),
   )
 }

@@ -1,12 +1,14 @@
-import type { FeatureExtractionPipelineOptions, pipeline, ProgressInfo } from '@huggingface/transformers'
-import type { PipelineOptionsFrom } from '@proj-airi/utils-transformers/types'
+import type { FeatureExtractionPipelineOptions } from '@huggingface/transformers'
+import type { ModelSpecificPretrainedOptions, PretrainedOptions, ProgressInfo } from '@proj-airi/utils-transformers/types'
 
 export enum MessageStatus {
   Loading = 'loading',
   Ready = 'ready',
 }
 
-export type LoadOptions = Omit<PipelineOptionsFrom<typeof pipeline<'feature-extraction'>>, 'progress_callback'>
+export type LoadOptions = Omit<PretrainedOptions & ModelSpecificPretrainedOptions, 'progress_callback'> & { onProgress?: LoadOptionProgressCallback }
+export type LoadOptionProgressCallback = (progress: ProgressInfo) => void | Promise<void>
+export type { ProgressInfo }
 
 export interface WorkerMessageBaseEvent<T, D> {
   type: T

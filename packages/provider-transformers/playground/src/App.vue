@@ -23,7 +23,6 @@ onMounted(async () => {
 async function execute() {
   const result = await embed({
     ...transformersProvider.embed(modelId.value),
-    model: modelId.value,
     input: input.value,
   })
 
