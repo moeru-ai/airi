@@ -25,7 +25,7 @@ export interface DuckDBWasmClient {
   db: AsyncDuckDB
   conn: AsyncDuckDBConnection
   close: () => Promise<void>
-  query: (string, params?: unknown[]) => Promise<Record<string, unknown>[]>
+  query: (query: string, params?: unknown[]) => Promise<Record<string, unknown>[]>
 }
 
 export async function connect(options: ConnectOptions): Promise<DuckDBWasmClient> {

@@ -123,6 +123,9 @@ export function drizzle<
     if (typeof connection === 'string')
       return constructByDSN(connection, drizzleConfig) as any
 
+    if (typeof connection === 'undefined')
+      throw new Error('connection option is required')
+
     return construct(connect({
       bundles: connection.bundles,
       logger: connection.logger,

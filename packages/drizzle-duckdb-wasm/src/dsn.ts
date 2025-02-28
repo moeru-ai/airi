@@ -43,7 +43,8 @@ export function parseDSN(dsn: string): StructuredDSN {
     structured.bundles = 'import-url'
   }
 
-  if (isLiterallyTrue(parsed.searchParams.get('logger'))) {
+  const paramLogger = parsed.searchParams.get('logger')
+  if (paramLogger && isLiterallyTrue(paramLogger)) {
     structured.logger = true
   }
 
@@ -57,9 +58,9 @@ export function parseDSN(dsn: string): StructuredDSN {
       structured.storage = {
         type: DBStorageType.ORIGIN_PRIVATE_FS,
         path: parsed.pathname.startsWith('/') ? parsed.pathname.slice(1) : parsed.pathname,
-        ...isLiterallyTrue(paramWrite) && {
+        ...(paramWrite && isLiterallyTrue(paramWrite) && {
           accessMode: DuckDBAccessMode.READ_WRITE,
-        },
+        }),
       }
       break
     }
