@@ -401,7 +401,7 @@ function parseInterval(arr: Int32Array) {
   const years = arr[0]
   const months = arr[1]
 
-  const result = []
+  const result: string[] = []
   if (years !== 0) {
     result.push(`${years} year${years > 1 ? 's' : ''}`)
   }
