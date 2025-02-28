@@ -73,8 +73,8 @@ export class DuckDBWasmSession<
   prepareQuery<T extends PreparedQueryConfig = PreparedQueryConfig>(
     query: Query,
     fields: SelectedFieldsOrdered | undefined,
-    name: string | undefined,
-    isResponseInArrayMode: boolean,
+    _name: string | undefined,
+    _isResponseInArrayMode: boolean,
     customResultMapper?: (rows: unknown[][]) => T['execute'],
   ): PgPreparedQuery<T> {
     return new DuckDBWASMPreparedQuery(
