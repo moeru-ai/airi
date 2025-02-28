@@ -4,9 +4,9 @@ permissions:
   contents: write
 
 on:
-  push:
-    tags:
-      - 'v*'
+  release:
+    types:
+      - published
 
 jobs:
   build-tamagotchi:
@@ -100,4 +100,4 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: dist/airi-*
-          generate_release_notes: true
+          append_body: true
