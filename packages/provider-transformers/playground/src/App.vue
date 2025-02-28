@@ -16,7 +16,9 @@ const toggleDark = useToggle(isDark)
 const modelId = ref('Xenova/all-MiniLM-L6-v2')
 const input = ref('Hello, world!')
 const results = ref<any>()
+
 const loadingItems = ref<(InitiateProgressInfo | ProgressStatusInfo)[]>([])
+const loadingItemsSet = new Set<string>()
 
 const transformersProvider = createTransformers({ embedWorkerURL })
 
@@ -29,6 +31,11 @@ async function load() {
     onProgress: (progress) => {
       switch (progress.status) {
         case 'initiate':
+          if (loadingItemsSet.has(progress.file)) {
+            return
+          }
+
+          loadingItemsSet.add(progress.file)
           loadingItems.value.push(progress)
           break
 
@@ -37,8 +44,10 @@ async function load() {
             if (item.file === progress.file) {
               return { ...item, ...progress }
             }
+
             return item
           })
+
           break
 
         case 'done':
@@ -72,7 +81,7 @@ async function handleLoad() {
           href="https://github.com/moeru-ai/xsai"
         >xsai</a> Playground
       </h1>
-      <div flex flex-row gap-2>
+      <div flex flex-row items-center gap-2>
         <button text-lg @click="() => toggleDark()">
           <div v-if="isDark" i-solar:moon-stars-bold-duotone />
           <div v-else i-solar:sun-bold />
