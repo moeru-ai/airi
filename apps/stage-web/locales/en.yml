@@ -54,6 +54,16 @@ settings:
   microphone: Microphone
   model-provider:
     title: Model Providers
+  live2d:
+    title: Live2D Settings
+    change-model:
+      title: Change Model
+      from-url: Load from URL
+      from-url-placeholder: Enter Live2D model URL
+      from-file: Load from File
+    map-motions:
+      title: Map Motions
+      play: Play Motion
   models: Model
   openai-api-key:
     label: OpenAI API Key

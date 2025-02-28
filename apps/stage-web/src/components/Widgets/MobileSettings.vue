@@ -24,6 +24,11 @@ function navigateToProviders() {
   currentView.value = 'providers'
 }
 
+function navigateToLive2D() {
+  slideDirection.value = 'forward'
+  currentView.value = 'live2d'
+}
+
 function navigateBack() {
   slideDirection.value = 'backward'
   currentView.value = 'main'
@@ -122,6 +127,22 @@ function navigateBack() {
                 </div>
               </div>
             </label>
+            <!-- Live2D Setting -->
+            <div
+              grid="~ cols-[150px_1fr]"
+              bg="zinc-100 dark:zinc-800"
+              hover="bg-zinc-200 dark:bg-zinc-700"
+              transition="all ease-in-out duration-250"
+              cursor-pointer items-center gap-1.5 rounded-lg px-4 py-3
+              @click="navigateToLive2D"
+            >
+              <div text="sm">
+                <span>{{ t('settings.live2d.title') }}</span>
+              </div>
+              <div flex="~ row" w-full justify-end>
+                <div i-solar:alt-arrow-right-bold-duotone />
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -140,6 +161,21 @@ function navigateBack() {
           </h2>
         </div>
         <ModelProviderSettings />
+      </div>
+      <!-- Live2D Settings View -->
+      <div v-else-if="currentView === 'live2d'" key="live2d">
+        <div mb-4 flex items-center gap-2>
+          <button
+            text="zinc-800/80 dark:zinc-200/80"
+            @click="navigateBack"
+          >
+            <div i-solar:alt-arrow-left-bold-duotone />
+          </button>
+          <h2 text="zinc-800/80 dark:zinc-200/80 xl" font-bold>
+            {{ t('settings.live2d.title') }}
+          </h2>
+        </div>
+        <Live2DSettings />
       </div>
     </Transition>
   </div>

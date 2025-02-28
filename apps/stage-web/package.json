@@ -61,6 +61,7 @@
     "drizzle-kit": "^0.30.5",
     "drizzle-orm": "^0.40.0",
     "jszip": "^3.10.1",
+    "localforage": "^1.10.0",
     "nprogress": "^0.2.0",
     "ofetch": "^1.4.1",
     "onnxruntime-web": "^1.20.1",
