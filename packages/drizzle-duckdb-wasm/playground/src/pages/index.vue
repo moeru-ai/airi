@@ -3,7 +3,6 @@ import type { DuckDBWasmDrizzleDatabase } from '../../../src'
 
 import { DuckDBAccessMode } from '@duckdb/duckdb-wasm'
 import { DBStorageType } from '@proj-airi/duckdb-wasm'
-import { useDark, useToggle } from '@vueuse/core'
 import { serialize } from 'superjson'
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 
@@ -12,9 +11,6 @@ import { buildDSN } from '../../../src/dsn'
 import * as schema from '../../db/schema'
 import { users } from '../../db/schema'
 import migration1 from '../../drizzle/0000_cute_kulan_gath.sql?raw'
-
-const isDark = useDark()
-const toggleDark = useToggle(isDark)
 
 const db = ref<DuckDBWasmDrizzleDatabase<typeof schema>>()
 const results = ref<Record<string, unknown>[]>()
@@ -126,153 +122,144 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div flex flex-col gap-2 p-4>
-    <header flex flex-row items-center justify-between>
-      <h1 text-2xl>
-        <a href="https://github.com/duckdb/duckdb-wasm"><code>@duckdb/duckdb-wasm</code></a> + <a
-          href="https://orm.drizzle.team/"
-        >Drizzle ORM</a>
-        Playground
-      </h1>
-      <div flex flex-row items-center gap-2>
-        <button text-lg @click="() => toggleDark()">
-          <div v-if="isDark" i-solar:moon-stars-bold-duotone />
-          <div v-else i-solar:sun-bold />
-        </button>
-        <a href="https://github.com/moeru-ai/airi/tree/main/packages/drizzle-duckdb-wasm">
-          <div i-simple-icons:github />
-        </a>
+  <div flex flex-col gap-2>
+    <h2 text-xl>
+      Storage
+    </h2>
+    <div flex flex-row gap-2>
+      <div flex flex-row gap-2>
+        <input id="in-memory" v-model="storage" type="radio" :value="undefined">
+        <label for="in-memory">In-Memory</label>
       </div>
-    </header>
+      <div flex flex-row gap-2>
+        <input id="opfs" v-model="storage" type="radio" :value="DBStorageType.ORIGIN_PRIVATE_FS">
+        <label for="opfs">Origin Private FS</label>
+      </div>
+    </div>
+  </div>
+  <div grid grid-cols-3 gap-2>
     <div flex flex-col gap-2>
       <h2 text-xl>
-        Storage
+        Logger
       </h2>
       <div flex flex-row gap-2>
-        <div flex flex-row gap-2>
-          <input id="in-memory" v-model="storage" type="radio" :value="undefined">
-          <label for="in-memory">In-Memory</label>
-        </div>
-        <div flex flex-row gap-2>
-          <input id="opfs" v-model="storage" type="radio" :value="DBStorageType.ORIGIN_PRIVATE_FS">
-          <label for="opfs">Origin Private FS</label>
-        </div>
-      </div>
-    </div>
-    <div grid grid-cols-3 gap-2>
-      <div flex flex-col gap-2>
-        <h2 text-xl>
-          Logger
-        </h2>
-        <div flex flex-row gap-2>
-          <input id="logger" v-model="logger" type="checkbox">
-          <label for="logger">Enable</label>
-        </div>
-      </div>
-      <div flex flex-col gap-2>
-        <h2 text-xl>
-          Read-only
-        </h2>
-        <div flex flex-row gap-2>
-          <input id="readOnly" v-model="readOnly" type="checkbox">
-          <label for="readOnly">Read-only (DB file creation will fail)</label>
-        </div>
-      </div>
-    </div>
-    <div v-if="storage === DBStorageType.ORIGIN_PRIVATE_FS" flex flex-col gap-2>
-      <h2 text-xl>
-        Path
-      </h2>
-      <div flex flex-col gap-1>
-        <input v-model="path" type="text" w-full rounded-lg p-4 font-mono bg="neutral-100 dark:neutral-800">
-        <div text-sm>
-          <ul list-disc-inside>
-            <li>
-              Leading slash is optional ("/path/to/database.db" is equivalent to "path/to/database.db")
-            </li>
-            <li>Empty path is INVALID</li>
-          </ul>
-        </div>
+        <input id="logger" v-model="logger" type="checkbox">
+        <label for="logger">Enable</label>
       </div>
     </div>
     <div flex flex-col gap-2>
       <h2 text-xl>
-        DSN (read-only)
+        Read-only
+      </h2>
+      <div flex flex-row gap-2>
+        <input id="readOnly" v-model="readOnly" type="checkbox">
+        <label for="readOnly">Read-only (DB file creation will fail)</label>
+      </div>
+    </div>
+  </div>
+  <div v-if="storage === DBStorageType.ORIGIN_PRIVATE_FS" flex flex-col gap-2>
+    <h2 text-xl>
+      Path
+    </h2>
+    <div flex flex-col gap-1>
+      <input v-model="path" type="text" w-full rounded-lg p-4 font-mono bg="neutral-100 dark:neutral-800">
+      <div text-sm>
+        <ul list-disc-inside>
+          <li>
+            Leading slash is optional ("/path/to/database.db" is equivalent to "path/to/database.db")
+          </li>
+          <li>Empty path is INVALID</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  <div flex flex-col gap-2>
+    <h2 text-xl>
+      DSN (read-only)
+    </h2>
+    <div>
+      <input v-model="dsn" readonly type="text" w-full rounded-lg p-4 font-mono bg="neutral-100 dark:neutral-800">
+    </div>
+  </div>
+  <div flex flex-row justify-between gap-2>
+    <div flex flex-row gap-2>
+      <button rounded-lg bg="cyan-100 dark:cyan-900" px-4 py-2 @click="reconnect">
+        Reconnect
+      </button>
+      <button
+        rounded-lg bg="blue-100 dark:blue-900" px-4 py-2 :class="{ 'cursor-not-allowed': isMigrated }"
+        :disabled="isMigrated" @click="migrate"
+      >
+        {{ isMigrated ? 'Already migrated 🥳' : 'Migrate' }}
+      </button>
+      <button rounded-lg bg="violet-100 dark:violet-900" px-4 py-2 @click="insert">
+        Insert
+      </button>
+    </div>
+    <div flex flex-row gap-2>
+      <button rounded-lg bg="cyan-100 dark:cyan-900" px-4 py-2 @click="shallowListOPFS">
+        List OPFS (See console)
+      </button>
+      <button rounded-lg bg="violet-100 dark:violet-900" px-4 py-2 @click="wipeOPFS">
+        Wipe OPFS
+      </button>
+    </div>
+  </div>
+  <div grid grid-cols-2 gap-2>
+    <div flex flex-col gap-2>
+      <h2 text-xl>
+        Executing
       </h2>
       <div>
-        <input v-model="dsn" readonly type="text" w-full rounded-lg p-4 font-mono bg="neutral-100 dark:neutral-800">
-      </div>
-    </div>
-    <div flex flex-row justify-between gap-2>
-      <div flex flex-row gap-2>
-        <button rounded-lg bg="cyan-100 dark:cyan-900" px-4 py-2 @click="reconnect">
-          Reconnect
-        </button>
-        <button
-          rounded-lg bg="blue-100 dark:blue-900" px-4 py-2 :class="{ 'cursor-not-allowed': isMigrated }"
-          :disabled="isMigrated" @click="migrate"
-        >
-          {{ isMigrated ? 'Already migrated 🥳' : 'Migrate' }}
-        </button>
-        <button rounded-lg bg="violet-100 dark:violet-900" px-4 py-2 @click="insert">
-          Insert
-        </button>
+        <textarea v-model="query" h-full w-full rounded-lg bg="neutral-100 dark:neutral-800" p-4 font-mono />
       </div>
       <div flex flex-row gap-2>
-        <button rounded-lg bg="cyan-100 dark:cyan-900" px-4 py-2 @click="shallowListOPFS">
-          List OPFS (See console)
-        </button>
-        <button rounded-lg bg="violet-100 dark:violet-900" px-4 py-2 @click="wipeOPFS">
-          Wipe OPFS
+        <button rounded-lg bg="blue-100 dark:blue-900" px-4 py-2 @click="execute">
+          Execute
         </button>
       </div>
-    </div>
-    <div grid grid-cols-2 gap-2>
       <div flex flex-col gap-2>
         <h2 text-xl>
-          Executing
+          Results
+        </h2>
+        <div whitespace-pre-wrap p-4 font-mono>
+          {{ JSON.stringify(serialize(results).json, null, 2) }}
+        </div>
+      </div>
+    </div>
+    <div>
+      <div flex flex-col gap-2>
+        <h2 text-xl>
+          Executing (ORM, read-only)
         </h2>
         <div>
-          <textarea v-model="query" h-full w-full rounded-lg bg="neutral-100 dark:neutral-800" p-4 font-mono />
+          <pre whitespace-pre-wrap rounded-lg p-4 font-mono bg="neutral-100 dark:neutral-800">
+await db
+  .insert(users)
+  .values({
+    id: crypto.randomUUID().replace(/-/g, ''),
+    decimal: '1.23456',
+    numeric: '1.23456',
+    real: 1.23456,
+    double: 1.23456,
+    interval: '365 day',
+  })
+
+await db.select().from(users)
+            </pre>
         </div>
         <div flex flex-row gap-2>
-          <button rounded-lg bg="blue-100 dark:blue-900" px-4 py-2 @click="execute">
+          <button rounded-lg bg="blue-100 dark:blue-900" px-4 py-2 @click="executeORM">
             Execute
           </button>
         </div>
-        <div flex flex-col gap-2>
-          <h2 text-xl>
-            Results
-          </h2>
-          <div whitespace-pre-wrap p-4 font-mono>
-            {{ JSON.stringify(serialize(results).json, null, 2) }}
-          </div>
-        </div>
       </div>
-      <div>
-        <div flex flex-col gap-2>
-          <h2 text-xl>
-            Executing (ORM, read-only)
-          </h2>
-          <div>
-            <pre whitespace-pre-wrap rounded-lg p-4 font-mono bg="neutral-100 dark:neutral-800">
-await db.insert(users).values({ id: '9449af72-faad-4c97-8a45-69f9f1ca1b05' })
-await db.select().from(users)
-            </pre>
-          </div>
-          <div flex flex-row gap-2>
-            <button rounded-lg bg="blue-100 dark:blue-900" px-4 py-2 @click="executeORM">
-              Execute
-            </button>
-          </div>
-        </div>
-        <div flex flex-col gap-2>
-          <h2 text-xl>
-            Schema Results
-          </h2>
-          <div whitespace-pre-wrap p-4 font-mono>
-            {{ JSON.stringify(serialize(schemaResults).json, null, 2) }}
-          </div>
+      <div flex flex-col gap-2>
+        <h2 text-xl>
+          Schema Results
+        </h2>
+        <div whitespace-pre-wrap p-4 font-mono>
+          {{ JSON.stringify(serialize(schemaResults).json, null, 2) }}
         </div>
       </div>
     </div>

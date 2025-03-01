@@ -1,7 +1,45 @@
 <script setup lang="ts">
-import { RouterView } from 'vue-router'
+import { useDark, useToggle } from '@vueuse/core'
+import { RouterLink, RouterView } from 'vue-router'
+
+const isDark = useDark()
+const toggleDark = useToggle(isDark)
 </script>
 
 <template>
-  <RouterView />
+  <div flex flex-col gap-2 p-4>
+    <header flex flex-row items-center justify-between>
+      <h1 text-2xl>
+        <a href="https://github.com/duckdb/duckdb-wasm">🦆 <code>@duckdb/duckdb-wasm</code></a> + <a
+          href="https://orm.drizzle.team/"
+        >Drizzle ORM</a>
+        Playground
+      </h1>
+      <div flex flex-row items-center gap-2>
+        <button text-lg @click="() => toggleDark()">
+          <div v-if="isDark" i-solar:moon-stars-bold-duotone />
+          <div v-else i-solar:sun-bold />
+        </button>
+        <a href="https://github.com/moeru-ai/airi/tree/main/packages/drizzle-duckdb-wasm">
+          <div i-simple-icons:github />
+        </a>
+      </div>
+    </header>
+    <nav bg="neutral-100 dark:neutral-800" w-fit flex items-center of-hidden rounded-lg>
+      <RouterLink
+        to="/" px-3 py-2 bg="hover:neutral-200 dark:hover:neutral-700"
+        transition="all duration-250 ease-in-out"
+      >
+        <h1>Interactive</h1>
+      </RouterLink>
+      <div bg="neutral-200 dark:neutral-600" h="1lh" w="0.5" />
+      <RouterLink
+        to="/graph" px-3 py-2 bg="hover:neutral-200 dark:hover:neutral-700"
+        transition="all duration-250 ease-in-out"
+      >
+        <h1>Graph</h1>
+      </RouterLink>
+    </nav>
+    <RouterView />
+  </div>
 </template>
