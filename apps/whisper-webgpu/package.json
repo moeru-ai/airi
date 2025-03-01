@@ -27,6 +27,6 @@
     "@vitejs/plugin-vue": "^5.2.1",
     "@webgpu/types": "^0.1.54",
     "hfup": "workspace:^",
-    "vue-tsc": "^2.2.4"
+    "vue-tsc": "^2.2.6"
   }
 }

@@ -10,8 +10,8 @@
     "astro": "astro"
   },
   "dependencies": {
-    "@astrojs/starlight": "^0.32.1",
-    "astro": "^5.3.1",
+    "@astrojs/starlight": "^0.32.2",
+    "astro": "^5.4.1",
     "sharp": "^0.33.5",
     "starlight-theme-catppuccin": "^2.0.0"
   }

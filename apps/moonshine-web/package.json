@@ -22,16 +22,16 @@
     "@vueuse/core": "^12.7.0",
     "@vueuse/motion": "^2.2.6",
     "ofetch": "^1.4.1",
-    "three": "^0.173.0",
+    "three": "^0.174.0",
     "vue": "^3.5.13"
   },
   "devDependencies": {
     "@huggingface/transformers": "^3.3.3",
     "@types/audioworklet": "^0.0.71",
-    "@types/three": "^0.173.0",
+    "@types/three": "^0.174.0",
     "@vitejs/plugin-vue": "^5.2.1",
     "@webgpu/types": "^0.1.54",
     "hfup": "workspace:^",
-    "vue-tsc": "^2.2.4"
+    "vue-tsc": "^2.2.6"
   }
 }
