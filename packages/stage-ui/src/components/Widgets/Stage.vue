@@ -34,7 +34,7 @@ const db = ref<DuckDBWasmDrizzleDatabase>()
 // const transformersProvider = createTransformers({ embedWorkerURL })
 
 const vrmViewerRef = ref<{ setExpression: (expression: string) => void }>()
-const motion = ref('')
+const motion = ref<string>('')
 
 const { stageView, elevenLabsApiKey, elevenlabsVoiceEnglish, elevenlabsVoiceJapanese } = storeToRefs(useSettings())
 const { mouthOpenSize } = storeToRefs(useSpeakingStore())

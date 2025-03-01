@@ -23,6 +23,7 @@ const props = withDefaults(defineProps<{
   paused: boolean
 }>(), {
   mouthOpenSize: 0,
+  motion: '',
 })
 
 const pixiApp = toRef(() => props.app)
