@@ -5,12 +5,15 @@ import VueRouter from 'unplugin-vue-router/vite'
 import { defineConfig } from 'vite'
 
 export default defineConfig({
+  build: {
+    outDir: resolve(import.meta.dirname, 'playground', 'dist'),
+  },
   plugins: [
     // https://github.com/posva/unplugin-vue-router
     VueRouter({
       root: 'playground',
       extensions: ['.vue', '.md'],
-      dts: resolve(import.meta.dirname, 'playground/src/typed-router.d.ts'),
+      dts: resolve(import.meta.dirname, 'playground', 'src', 'typed-router.d.ts'),
     }),
     Vue(),
     // https://github.com/antfu/unocss
