@@ -7,7 +7,7 @@ const toggleDark = useToggle(isDark)
 </script>
 
 <template>
-  <div flex flex-col gap-2 p-4>
+  <div mx-auto max-w-screen-lg flex flex-col gap-2 p-4>
     <header flex flex-row items-center justify-between>
       <h1 text-2xl>
         <a href="https://github.com/duckdb/duckdb-wasm">🦆 <code>@duckdb/duckdb-wasm</code></a> + <a
@@ -43,3 +43,24 @@ const toggleDark = useToggle(isDark)
     <RouterView />
   </div>
 </template>
+
+<style>
+html,
+body,
+#app {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  overscroll-behavior: none;
+}
+
+html {
+  background: #fff;
+  transition: all 0.3s ease-in-out;
+}
+
+html.dark {
+  background: #121212;
+  color-scheme: dark;
+}
+</style>

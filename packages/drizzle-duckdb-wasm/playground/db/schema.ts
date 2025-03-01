@@ -45,3 +45,42 @@ export const users = pgTable('users', () => ({
   timestamp: timestamp().notNull().default(sql`'2020-01-01 00:00:00'`),
   interval: interval().notNull().default(sql`'1 day'`),
 }))
+
+export const nodeUsers = pgTable('node_users', () => ({
+  id: uuid().primaryKey().unique().default(sql`gen_random_uuid()`),
+  name: text().notNull().default(''),
+}))
+
+export const nodePets = pgTable('node_pets', () => ({
+  id: uuid().primaryKey().unique().default(sql`gen_random_uuid()`),
+  name: text().notNull().default(''),
+}))
+
+export const nodeGroups = pgTable('node_groups', () => ({
+  id: uuid().primaryKey().unique().default(sql`gen_random_uuid()`),
+  name: text().notNull().default(''),
+}))
+
+export const edgePets = pgTable('edge_pets', () => ({
+  id: uuid().primaryKey().unique().default(sql`gen_random_uuid()`),
+  source: uuid(),
+  target: uuid(),
+}))
+
+export const edgeOwners = pgTable('edge_owners', () => ({
+  id: uuid().primaryKey().unique().default(sql`gen_random_uuid()`),
+  source: uuid(),
+  target: uuid(),
+}))
+
+export const edgeUsers = pgTable('edge_users', () => ({
+  id: uuid().primaryKey().unique().default(sql`gen_random_uuid()`),
+  source: uuid(),
+  target: uuid(),
+}))
+
+export const edgeGroups = pgTable('edge_groups', () => ({
+  id: uuid().primaryKey().unique().default(sql`gen_random_uuid()`),
+  source: uuid(),
+  target: uuid(),
+}))

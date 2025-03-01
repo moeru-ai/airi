@@ -75,21 +75,25 @@
     "date-fns": "^4.1.0",
     "defu": "^6.1.4",
     "drizzle-orm": "^0.40.0",
-    "es-toolkit": "^1.32.0",
-    "vue-router": "^4.5.0"
+    "es-toolkit": "^1.32.0"
   },
   "devDependencies": {
     "@iconify-json/solar": "^1.2.2",
+    "@types/d3": "^7.4.3",
+    "@types/d3-force": "^3.0.10",
     "@unocss/reset": "^66.1.0-beta.3",
     "@vitejs/plugin-vue": "^5.2.1",
     "@vitest/browser": "^3.0.7",
     "@vueuse/core": "^12.7.0",
+    "d3": "^7.9.0",
+    "d3-force": "^3.0.0",
     "drizzle-kit": "^0.30.5",
     "playwright": "^1.50.1",
     "superjson": "^2.2.2",
     "unplugin-vue-router": "^0.11.2",
     "vite": "^6.2.0",
     "vue": "^3.5.13",
+    "vue-router": "^4.5.0",
     "vue-tsc": "^2.2.6"
   }
 }

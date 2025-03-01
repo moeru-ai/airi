@@ -17,6 +17,6 @@ CREATE TABLE "users" (
 	"date" date DEFAULT '2020-01-01' NOT NULL,
 	"time" time DEFAULT '00:00:00' NOT NULL,
 	"timestamp" timestamp DEFAULT '2020-01-01 00:00:00' NOT NULL,
-	"interval" interval DEFAULT '0 day' NOT NULL,
+	"interval" interval DEFAULT '1 day' NOT NULL,
 	CONSTRAINT "users_id_unique" UNIQUE("id")
 );

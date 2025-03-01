@@ -265,24 +265,3 @@ await db.select().from(users)
     </div>
   </div>
 </template>
-
-<style>
-html,
-body,
-#app {
-  height: 100%;
-  margin: 0;
-  padding: 0;
-  overscroll-behavior: none;
-}
-
-html {
-  background: #fff;
-  transition: all 0.3s ease-in-out;
-}
-
-html.dark {
-  background: #121212;
-  color-scheme: dark;
-}
-</style>
