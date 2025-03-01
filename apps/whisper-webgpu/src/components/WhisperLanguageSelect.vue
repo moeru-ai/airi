@@ -1,5 +1,5 @@
 <script setup lang="ts">
-const language = defineModel({ type: String })
+const language = defineModel({ type: String, required: true })
 
 // List of supported languages:
 // https://help.openai.com/en/articles/7031512-whisper-api-faq

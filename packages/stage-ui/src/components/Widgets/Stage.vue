@@ -232,7 +232,7 @@ onMounted(async () => {
     <div h-full w-full>
       <Live2DScene
         v-if="stageView === '2d'"
-        v-model:motion="motion"
+        :motion="motion"
         :mouth-open-size="mouthOpenSize"
         model="./assets/live2d/models/hiyori_pro_zh.zip"
         min-w="50% <lg:full" min-h="100 sm:100" h-full w-full flex-1

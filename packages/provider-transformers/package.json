@@ -38,7 +38,7 @@
     "play:dev": "vite",
     "play:build": "vite build",
     "play:preview": "vite preview",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "vue-tsc --noEmit"
   },
   "peerDependencies": {
     "web-worker": "^1.5.0"
