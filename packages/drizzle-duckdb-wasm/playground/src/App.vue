@@ -134,10 +134,15 @@ onUnmounted(() => {
         >Drizzle ORM</a>
         Playground
       </h1>
-      <button text-lg @click="() => toggleDark()">
-        <div v-if="isDark" i-solar:moon-stars-bold-duotone />
-        <div v-else i-solar:sun-bold />
-      </button>
+      <div flex flex-row items-center gap-2>
+        <button text-lg @click="() => toggleDark()">
+          <div v-if="isDark" i-solar:moon-stars-bold-duotone />
+          <div v-else i-solar:sun-bold />
+        </button>
+        <a href="https://github.com/moeru-ai/airi/tree/main/packages/drizzle-duckdb-wasm">
+          <div i-simple-icons:github />
+        </a>
+      </div>
     </header>
     <div flex flex-col gap-2>
       <h2 text-xl>
