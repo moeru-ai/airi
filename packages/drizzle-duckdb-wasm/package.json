@@ -54,7 +54,7 @@
     "play:dev": "vite",
     "play:build": "vite build",
     "play:preview": "vite preview",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "vue-tsc --noEmit",
     "db:generate": "drizzle-kit generate",
     "test": "vitest",
     "test:run": "vitest run"
@@ -75,7 +75,8 @@
     "date-fns": "^4.1.0",
     "defu": "^6.1.4",
     "drizzle-orm": "^0.40.0",
-    "es-toolkit": "^1.32.0"
+    "es-toolkit": "^1.32.0",
+    "vue-router": "^4.5.0"
   },
   "devDependencies": {
     "@iconify-json/solar": "^1.2.2",
@@ -86,6 +87,7 @@
     "drizzle-kit": "^0.30.5",
     "playwright": "^1.50.1",
     "superjson": "^2.2.2",
+    "unplugin-vue-router": "^0.11.2",
     "vite": "^6.2.0",
     "vue": "^3.5.13",
     "vue-tsc": "^2.2.6"
