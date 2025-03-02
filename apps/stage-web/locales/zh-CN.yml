@@ -41,6 +41,18 @@ settings:
     title: 语言
   model-provider:
     title: 模型提供商
+  live2d:
+    title: Live2D 设置
+    change-model:
+      title: 更换模型
+      from-url: 从 URL 加载
+      from-url-placeholder: 输入 Live2D 模型 URL
+      from-url-confirm: 加载
+      from-file: 从文件加载
+      from-file-select: 选择
+    map-motions:
+      title: 映射动作
+      play: 播放动作
   models: 模型
   openai-api-key:
     label: OpenAI API 密钥

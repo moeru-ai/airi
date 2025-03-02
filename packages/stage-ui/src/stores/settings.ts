@@ -23,6 +23,11 @@ export const useSettings = defineStore('settings', () => {
   const elevenlabsVoiceEnglish = useLocalStorage<Voice>('settings/llm/elevenlabs/voice/en', Voice.Myriam)
   const elevenlabsVoiceJapanese = useLocalStorage<Voice>('settings/llm/elevenlabs/voice/ja', Voice.Morioki)
 
+  // TODO: extract to a separate store
+  const live2dModel = ref<File | string>('./assets/live2d/models/hiyori_pro_zh.zip')
+  const live2dPosition = useLocalStorage('settings/live2d/position', { x: 0, y: 0 }) // position is relative to the center of the screen
+  const loadingLive2dModel = ref(false)
+
   watch(isAudioInputOn, (value) => {
     if (value === 'false') {
       selectedAudioDevice.value = undefined
@@ -49,6 +54,9 @@ export const useSettings = defineStore('settings', () => {
     openAiApiBaseURL,
     openAiModel,
     elevenLabsApiKey,
+    live2dModel,
+    live2dPosition,
+    loadingLive2dModel,
     language,
     stageView,
     isAudioInputOn,
