@@ -234,7 +234,6 @@ onMounted(async () => {
         v-if="stageView === '2d'"
         :motion="motion"
         :mouth-open-size="mouthOpenSize"
-        model="./assets/live2d/models/hiyori_pro_zh.zip"
         min-w="50% <lg:full" min-h="100 sm:100" h-full w-full flex-1
         :paused="paused"
       />

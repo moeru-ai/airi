@@ -1,23 +1,20 @@
 <script setup lang="ts">
 import { Collapsable } from '@proj-airi/stage-ui/components'
+import { useSettings } from '@proj-airi/stage-ui/stores'
 import { useFileDialog } from '@vueuse/core'
-import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-
-const emit = defineEmits<{
-  (e: 'modelUpdated', file?: File, url?: string): void
-}>()
 
 const { t } = useI18n()
 
-const live2dModelUrl = ref('')
 const modelFile = useFileDialog({
   accept: 'application/zip',
 })
 
+const settings = useSettings()
+
 modelFile.onChange((files) => {
   if (files && files.length > 0) {
-    emit('modelUpdated', files[0])
+    settings.live2dModel = [files[0]] // TODO: support directory
   }
 })
 </script>
@@ -56,7 +53,7 @@ modelFile.onChange((files) => {
             </div>
           </div>
           <input
-            v-model="live2dModelUrl"
+            v-model="settings.live2dModel"
             type="text"
             rounded
             border="zinc-300 dark:zinc-800 solid 1 focus:zinc-400 dark:focus:zinc-600"
@@ -71,15 +68,16 @@ modelFile.onChange((files) => {
               {{ t('settings.live2d.change-model.from-file') }}
             </div>
           </div>
-          <input
-            v-model="live2dModelUrl"
-            type="text"
+          <button
             rounded
-            border="zinc-300 dark:zinc-800 solid 1 focus:zinc-400 dark:focus:zinc-600"
-            transition="border duration-250 ease-in-out"
+            bg="zinc-100 dark:zinc-800"
+            hover="bg-zinc-200 dark:bg-zinc-700"
+            transition="all ease-in-out duration-250"
             px-2 py-1 text-sm outline-none
-            :placeholder="t('settings.live2d.change-model.from-file-placeholder')"
+            @click="modelFile.open()"
           >
+            {{ t('settings.live2d.change-model.from-file') }}
+          </button>
         </div>
       </div>
     </div>

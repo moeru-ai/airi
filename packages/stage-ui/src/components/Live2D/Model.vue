@@ -6,16 +6,18 @@ import type { Ref } from 'vue'
 import { extensions } from '@pixi/extensions'
 import { InteractionManager } from '@pixi/interaction'
 import { Ticker, TickerPlugin } from '@pixi/ticker'
-import { breakpointsTailwind, useBreakpoints, useDark, useDebounceFn } from '@vueuse/core'
+import { breakpointsTailwind, useBreakpoints, useDark, useDebounceFn, watchDebounced } from '@vueuse/core'
+import localforage from 'localforage'
+import { storeToRefs } from 'pinia'
 import { DropShadowFilter } from 'pixi-filters'
-import { Live2DModel, MotionPreloadStrategy, MotionPriority } from 'pixi-live2d-display/cubism4'
+import { Live2DFactory, Live2DModel, MotionPriority } from 'pixi-live2d-display/cubism4'
 import { computed, onMounted, onUnmounted, ref, toRef, watch } from 'vue'
 
 import { useLive2DIdleEyeFocus } from '../../composables/live2d'
+import { useSettings } from '../../stores'
 
 const props = withDefaults(defineProps<{
   app?: Application
-  model: string
   mouthOpenSize?: number
   width: number
   height: number
@@ -58,16 +60,24 @@ function setScale(model: Ref<Live2DModel<InternalModel> | undefined>) {
   model.value.scale.set(scale, scale)
 }
 
-async function initLive2DPixiStage() {
+const loadingModel = ref(false)
+
+async function loadModel(source: string | Blob[]) {
   if (!pixiApp.value)
     return
 
-  // https://guansss.github.io/pixi-live2d-display/#package-importing
-  Live2DModel.registerTicker(Ticker)
-  extensions.add(TickerPlugin)
-  extensions.add(InteractionManager)
+  if (model.value) {
+    pixiApp.value.stage.removeChild(model.value)
+    model.value.destroy()
+    model.value = undefined
+  }
 
-  model.value = await Live2DModel.from(props.model, { motionPreload: MotionPreloadStrategy.ALL })
+  loadingModel.value = true
+
+  const modelInstance = new Live2DModel()
+  await Live2DFactory.setupLive2DModel(modelInstance, source)
+
+  model.value = modelInstance
   pixiApp.value.stage.addChild(model.value as any)
   initialModelWidth.value = model.value.width
   initialModelHeight.value = model.value.height
@@ -112,6 +122,30 @@ async function initLive2DPixiStage() {
     }
     return true
   }
+
+  loadingModel.value = false
+}
+
+const { live2dModel } = storeToRefs(useSettings())
+const live2dModelBlobUrl = ref<string | null>(null)
+
+async function initLive2DPixiStage() {
+  if (!pixiApp.value)
+    return
+
+  // https://guansss.github.io/pixi-live2d-display/#package-importing
+  Live2DModel.registerTicker(Ticker)
+  extensions.add(TickerPlugin)
+  extensions.add(InteractionManager)
+
+  // load indexdb model first
+  const live2dModelBlob = await localforage.getItem<Blob>('live2dModel')
+  if (live2dModelBlob) {
+    await loadModel([live2dModelBlob])
+    return
+  }
+
+  await loadModel(live2dModel.value)
 }
 
 async function setMotion(motionName: string) {
@@ -148,8 +182,20 @@ watch(paused, (value) => {
   value ? pixiApp.value?.stop() : pixiApp.value?.start()
 })
 
+watchDebounced(live2dModel, (value) => {
+  if (!value)
+    return
+
+  loadModel(value)
+}, { debounce: 1000 })
+
 onMounted(updateDropShadowFilter)
-onUnmounted(() => model.value && pixiApp.value?.stage.removeChild(model.value))
+onUnmounted(() => {
+  model.value && pixiApp.value?.stage.removeChild(model.value)
+  if (live2dModelBlobUrl.value) {
+    URL.revokeObjectURL(live2dModelBlobUrl.value)
+  }
+})
 </script>
 
 <template>
