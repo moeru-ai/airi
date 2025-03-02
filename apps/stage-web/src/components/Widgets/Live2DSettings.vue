@@ -2,6 +2,7 @@
 import { Collapsable } from '@proj-airi/stage-ui/components'
 import { useSettings } from '@proj-airi/stage-ui/stores'
 import { useFileDialog } from '@vueuse/core'
+import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 const { t } = useI18n()
@@ -11,10 +12,11 @@ const modelFile = useFileDialog({
 })
 
 const settings = useSettings()
+const modelUrl = ref(settings.live2dModel)
 
 modelFile.onChange((files) => {
   if (files && files.length > 0) {
-    settings.live2dModel = [files[0]] // TODO: support directory
+    settings.live2dModel = files[0]
   }
 })
 </script>
@@ -52,15 +54,29 @@ modelFile.onChange((files) => {
               {{ t('settings.live2d.change-model.from-url') }}
             </div>
           </div>
-          <input
-            v-model="settings.live2dModel"
-            type="text"
-            rounded
-            border="zinc-300 dark:zinc-800 solid 1 focus:zinc-400 dark:focus:zinc-600"
-            transition="border duration-250 ease-in-out"
-            px-2 py-1 text-sm outline-none
-            :placeholder="t('settings.live2d.change-model.from-url-placeholder')"
-          >
+          <div>
+            <input
+              v-model="modelUrl"
+              :disabled="settings.loadingLive2dModel"
+              type="text"
+              rounded
+              border="zinc-300 dark:zinc-800 solid 1 focus:zinc-400 dark:focus:zinc-600"
+              transition="border duration-250 ease-in-out"
+              px-2 py-1 text-sm outline-none
+              :placeholder="t('settings.live2d.change-model.from-url-placeholder')"
+            >
+            <button
+              :disabled="settings.loadingLive2dModel"
+
+              bg="zinc-100 dark:zinc-800"
+              hover="bg-zinc-200 dark:bg-zinc-700"
+              transition="all ease-in-out duration-250"
+              ml-2 rounded px-2 py-1 text-sm outline-none
+              @click="settings.live2dModel = modelUrl"
+            >
+              {{ t('settings.live2d.change-model.from-url-confirm') }}
+            </button>
+          </div>
         </div>
         <div class="flex items-center justify-between">
           <div>
@@ -69,6 +85,7 @@ modelFile.onChange((files) => {
             </div>
           </div>
           <button
+            :disabled="settings.loadingLive2dModel"
             rounded
             bg="zinc-100 dark:zinc-800"
             hover="bg-zinc-200 dark:bg-zinc-700"
@@ -76,7 +93,7 @@ modelFile.onChange((files) => {
             px-2 py-1 text-sm outline-none
             @click="modelFile.open()"
           >
-            {{ t('settings.live2d.change-model.from-file') }}
+            {{ t('settings.live2d.change-model.from-file-select') }}
           </button>
         </div>
       </div>

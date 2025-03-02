@@ -60,9 +60,10 @@ function setScale(model: Ref<Live2DModel<InternalModel> | undefined>) {
   model.value.scale.set(scale, scale)
 }
 
-const loadingModel = ref(false)
+const { live2dModel, loadingLive2dModel } = storeToRefs(useSettings())
 
-async function loadModel(source: string | Blob[]) {
+// FIXME: it cannot blink if loading other model
+async function loadModel(source: string | Blob) {
   if (!pixiApp.value)
     return
 
@@ -72,10 +73,16 @@ async function loadModel(source: string | Blob[]) {
     model.value = undefined
   }
 
-  loadingModel.value = true
+  loadingLive2dModel.value = true
 
   const modelInstance = new Live2DModel()
-  await Live2DFactory.setupLive2DModel(modelInstance, source)
+
+  if (source instanceof Blob) {
+    await Live2DFactory.setupLive2DModel(modelInstance, [source])
+  }
+  else {
+    await Live2DFactory.setupLive2DModel(modelInstance, source)
+  }
 
   model.value = modelInstance
   pixiApp.value.stage.addChild(model.value as any)
@@ -123,11 +130,11 @@ async function loadModel(source: string | Blob[]) {
     return true
   }
 
-  loadingModel.value = false
-}
+  // save to indexdb
+  await localforage.setItem('live2dModel', source)
 
-const { live2dModel } = storeToRefs(useSettings())
-const live2dModelBlobUrl = ref<string | null>(null)
+  loadingLive2dModel.value = false
+}
 
 async function initLive2DPixiStage() {
   if (!pixiApp.value)
@@ -141,7 +148,7 @@ async function initLive2DPixiStage() {
   // load indexdb model first
   const live2dModelBlob = await localforage.getItem<Blob>('live2dModel')
   if (live2dModelBlob) {
-    await loadModel([live2dModelBlob])
+    await loadModel(live2dModelBlob)
     return
   }
 
@@ -192,9 +199,6 @@ watchDebounced(live2dModel, (value) => {
 onMounted(updateDropShadowFilter)
 onUnmounted(() => {
   model.value && pixiApp.value?.stage.removeChild(model.value)
-  if (live2dModelBlobUrl.value) {
-    URL.revokeObjectURL(live2dModelBlobUrl.value)
-  }
 })
 </script>
 
