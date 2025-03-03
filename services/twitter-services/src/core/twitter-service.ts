@@ -63,7 +63,7 @@ export class TwitterService implements ITwitterService {
   /**
    * 搜索推文
    */
-  async search(_query: string, _options?: SearchOptions): Promise<Tweet[]> {
+  async searchTweets(_query: string, _options?: SearchOptions): Promise<Tweet[]> {
     throw new Error('搜索功能尚未实现')
   }
 
