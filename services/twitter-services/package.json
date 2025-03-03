@@ -1,25 +1,10 @@
 {
   "name": "twitter-services",
   "version": "0.1.0",
-  "description": "Twitter 服务 - 提供结构化的 Twitter 数据访问",
-  "author": "Your Name",
-  "license": "MIT",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/yourusername/twitter-services.git"
-  },
-  "keywords": [
-    "twitter",
-    "api",
-    "automation",
-    "scraping",
-    "web"
-  ],
+  "description": "Twitter Services for MCP",
+  "author": "RainbowBird <rbxin2003@outlook.com>",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
-  "engines": {
-    "node": ">=14.0.0"
-  },
   "scripts": {
     "build": "tsc",
     "start": "tsx dist/index.js",
