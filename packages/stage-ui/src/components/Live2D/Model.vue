@@ -21,11 +21,9 @@ const props = withDefaults(defineProps<{
   mouthOpenSize?: number
   width: number
   height: number
-  motion?: string
   paused: boolean
 }>(), {
   mouthOpenSize: 0,
-  motion: '',
 })
 
 const pixiApp = toRef(() => props.app)
@@ -60,7 +58,7 @@ function setScale(model: Ref<Live2DModel<InternalModel> | undefined>) {
   model.value.scale.set(scale, scale)
 }
 
-const { live2dModel, loadingLive2dModel } = storeToRefs(useSettings())
+const { live2dModel, loadingLive2dModel, live2dCurrentMotion } = storeToRefs(useSettings())
 
 // FIXME: it cannot blink if loading other model
 async function loadModel(source: string | Blob) {
@@ -184,7 +182,7 @@ watch(dark, updateDropShadowFilter, { immediate: true })
 watch(model, updateDropShadowFilter)
 watch(mouthOpenSize, value => getCoreModel().setParameterValueById('ParamMouthOpenY', value))
 watch(pixiApp, initLive2DPixiStage)
-watch(() => props.motion, () => props.motion && setMotion(props.motion))
+watch(live2dCurrentMotion, setMotion)
 watch(paused, (value) => {
   value ? pixiApp.value?.stop() : pixiApp.value?.start()
 })
