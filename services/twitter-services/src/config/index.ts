@@ -51,7 +51,7 @@ export class ConfigManager {
    */
   private validateConfig(): void {
     // 验证必要的 API 密钥
-    if (!this.config.browserbase.apiKey) {
+    if (!this.config.browser.apiKey) {
       console.warn('未设置 BrowserBase API 密钥!')
     }
 

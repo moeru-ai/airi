@@ -1299,6 +1299,9 @@ importers:
 
   services/twitter-services:
     dependencies:
+      '@browserbasehq/stagehand':
+        specifier: ^1.13.1
+        version: 1.13.1(@playwright/test@1.50.1)(bufferutil@4.0.9)(deepmerge@4.3.1)(dotenv@16.4.7)(encoding@0.1.13)(openai@4.85.0(encoding@0.1.13)(ws@8.18.1(bufferutil@4.0.9)(utf-8-validate@5.0.10))(zod@3.24.2))(utf-8-validate@5.0.10)(zod@3.24.2)
       '@guiiai/logg':
         specifier: ^1.0.0
         version: 1.0.7
@@ -1332,6 +1335,9 @@ importers:
       ofetch:
         specifier: ^1.3.3
         version: 1.4.1
+      playwright:
+        specifier: ^1.50.1
+        version: 1.50.1
       rehype-parse:
         specifier: ^9.0.0
         version: 9.0.1
@@ -1342,7 +1348,7 @@ importers:
         specifier: ^5.0.0
         version: 5.0.0
       zod:
-        specifier: ^3.22.2
+        specifier: ^3.24.2
         version: 3.24.2
     devDependencies:
       '@types/node':
@@ -1432,6 +1438,9 @@ packages:
 
   '@antfu/utils@8.1.0':
     resolution: {integrity: sha512-XPR7Jfwp0FFl/dFYPX8ZjpmU4/1mIXTjnZ1ba48BLMyKOV62/tiRjdsFcPs2hsYcSud4tzk7w3a3LjX8Fu3huA==}
+
+  '@anthropic-ai/sdk@0.27.3':
+    resolution: {integrity: sha512-IjLt0gd3L4jlOfilxVXTifn42FnVffMgDC04RJK1KDZpmkBWLv0XC92MVVmkxrFZNS/7l3xWgP/I3nqtX1sQHw==}
 
   '@apideck/better-ajv-errors@0.3.6':
     resolution: {integrity: sha512-P+ZygBLZtkp0qqOAJJVX4oX/sFo5JR3eBWwwuqHHhK0GIgQOKWrAfiAaWX0aArHkRWHMuggFEgAZNxVPwPZYaA==}
@@ -2020,6 +2029,18 @@ packages:
   '@bcoe/v8-coverage@1.0.2':
     resolution: {integrity: sha512-6zABk/ECA/QYSCQ1NGiVwwbQerUCZ+TQbp64Q3AgmfNvurHH0j8TtXa1qbShXA6qqkpAj4V5W8pP6mLe1mcMqA==}
     engines: {node: '>=18'}
+
+  '@browserbasehq/sdk@2.3.0':
+    resolution: {integrity: sha512-H2nu46C6ydWgHY+7yqaP8qpfRJMJFVGxVIgsuHe1cx9HkfJHqzkuIqaK/k8mU4ZeavQgV5ZrJa0UX6MDGYiT4w==}
+
+  '@browserbasehq/stagehand@1.13.1':
+    resolution: {integrity: sha512-sty9bDiuuQJDOS+/uBfXpwYQY+mhFyqi6uT5wSOrazagZ5s8tgk3ryCIheB/BGS5iisc6ivAsKe9aC9n5WBTAg==}
+    peerDependencies:
+      '@playwright/test': ^1.42.1
+      deepmerge: ^4.3.1
+      dotenv: ^16.4.5
+      openai: ^4.62.1
+      zod: ^3.23.8
 
   '@bundled-es-modules/cookie@2.0.1':
     resolution: {integrity: sha512-8o+5fRPLNbjbdGRRmJj3h6Hh1AQJf2dk3qQ/5ZFb+PXkRNiSoMGGUKlsgLfrxneb72axVJyIYji64E2+nNfYyw==}
@@ -3922,6 +3943,11 @@ packages:
   '@pkgr/core@0.1.0':
     resolution: {integrity: sha512-Zwq5OCzuwJC2jwqmpEQt7Ds1DTi6BWSwoGkbb1n9pO3hzb35BoJELx7c0T23iDkBGkh2e7tvOtjF3tr3OaQHDQ==}
     engines: {node: ^12.20.0 || ^14.18.0 || >=16.0.0}
+
+  '@playwright/test@1.50.1':
+    resolution: {integrity: sha512-Jii3aBg+CEDpgnuDxEp/h7BimHcUTDlpEtce89xEumlJ5ef2hqepZ+PWp1DDpYC/VO9fmWVI1IlEaoI5fK9FXQ==}
+    engines: {node: '>=18'}
+    hasBin: true
 
   '@polka/url@1.0.0-next.24':
     resolution: {integrity: sha512-2LuNTFBIO0m7kKIQvvPHN6UE63VjpmL9rnEEaOOaiSPbZK+zUOYIzBAWcED+3XYzhYsd/0mD57VdxAEqqV52CQ==}
@@ -11981,6 +12007,18 @@ snapshots:
 
   '@antfu/utils@8.1.0': {}
 
+  '@anthropic-ai/sdk@0.27.3(encoding@0.1.13)':
+    dependencies:
+      '@types/node': 18.19.76
+      '@types/node-fetch': 2.6.12
+      abort-controller: 3.0.0
+      agentkeepalive: 4.6.0
+      form-data-encoder: 1.7.2
+      formdata-node: 4.4.1
+      node-fetch: 2.7.0(encoding@0.1.13)
+    transitivePeerDependencies:
+      - encoding
+
   '@apideck/better-ajv-errors@0.3.6(ajv@8.12.0)':
     dependencies:
       ajv: 8.12.0
@@ -12828,6 +12866,34 @@ snapshots:
       '@babel/helper-validator-identifier': 7.25.9
 
   '@bcoe/v8-coverage@1.0.2': {}
+
+  '@browserbasehq/sdk@2.3.0(encoding@0.1.13)':
+    dependencies:
+      '@types/node': 18.19.76
+      '@types/node-fetch': 2.6.12
+      abort-controller: 3.0.0
+      agentkeepalive: 4.6.0
+      form-data-encoder: 1.7.2
+      formdata-node: 4.4.1
+      node-fetch: 2.7.0(encoding@0.1.13)
+    transitivePeerDependencies:
+      - encoding
+
+  '@browserbasehq/stagehand@1.13.1(@playwright/test@1.50.1)(bufferutil@4.0.9)(deepmerge@4.3.1)(dotenv@16.4.7)(encoding@0.1.13)(openai@4.85.0(encoding@0.1.13)(ws@8.18.1(bufferutil@4.0.9)(utf-8-validate@5.0.10))(zod@3.24.2))(utf-8-validate@5.0.10)(zod@3.24.2)':
+    dependencies:
+      '@anthropic-ai/sdk': 0.27.3(encoding@0.1.13)
+      '@browserbasehq/sdk': 2.3.0(encoding@0.1.13)
+      '@playwright/test': 1.50.1
+      deepmerge: 4.3.1
+      dotenv: 16.4.7
+      openai: 4.85.0(encoding@0.1.13)(ws@8.18.1(bufferutil@4.0.9)(utf-8-validate@5.0.10))(zod@3.24.2)
+      ws: 8.18.1(bufferutil@4.0.9)(utf-8-validate@5.0.10)
+      zod: 3.24.2
+      zod-to-json-schema: 3.24.3(zod@3.24.2)
+    transitivePeerDependencies:
+      - bufferutil
+      - encoding
+      - utf-8-validate
 
   '@bundled-es-modules/cookie@2.0.1':
     dependencies:
@@ -14584,6 +14650,10 @@ snapshots:
     optional: true
 
   '@pkgr/core@0.1.0': {}
+
+  '@playwright/test@1.50.1':
+    dependencies:
+      playwright: 1.50.1
 
   '@polka/url@1.0.0-next.24': {}
 

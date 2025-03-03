@@ -7,14 +7,11 @@ import process from 'node:process'
  * 完整配置接口
  */
 export interface Config {
-  // BrowserBase 配置
-  browserbase: {
-    apiKey: string
-    endpoint?: string
-  }
-
   // 浏览器配置
-  browser: BrowserConfig
+  browser: BrowserConfig & {
+    apiKey: string // 为 Stagehand 保留 API Key
+    endpoint?: string // 可选的 Stagehand 服务端点
+  }
 
   // Twitter 配置
   twitter: {
@@ -50,10 +47,8 @@ export interface Config {
  * 默认配置
  */
 export const DEFAULT_CONFIG: Config = {
-  browserbase: {
-    apiKey: process.env.BROWSERBASE_API_KEY || '',
-  },
   browser: {
+    apiKey: process.env.BROWSERBASE_API_KEY || '', // 将 apiKey 移到 browser 配置中
     headless: true,
     userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
     viewport: {
@@ -61,8 +56,8 @@ export const DEFAULT_CONFIG: Config = {
       height: 800,
     },
     timeout: 30000,
-    requestTimeout: 20000, // API 请求超时设置 (20秒)
-    requestRetries: 2, // 网络错误时重试次数
+    requestTimeout: 20000,
+    requestRetries: 2,
   },
   twitter: {
     credentials: {
