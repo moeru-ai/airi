@@ -2,6 +2,8 @@ import type { TimelineOptions, TwitterCredentials, TwitterService } from '../typ
 
 import { Client } from '@proj-airi/server-sdk'
 
+import { logger } from '../utils/logger'
+
 /**
  * Airi 适配器
  * 将 Twitter 服务适配为 Airi 模块

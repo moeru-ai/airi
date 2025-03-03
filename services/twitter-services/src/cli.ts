@@ -9,6 +9,7 @@ import { BrowserBaseMCPAdapter } from './adapters/browserbase-adapter'
 import { createDefaultConfig } from './config'
 import { TwitterService } from './core/twitter-service'
 import { TwitterServiceLauncher } from './index'
+import { errorToMessage } from './utils/error'
 
 // 获取版本
 const packageJsonPath = path.join(__dirname, '..', 'package.json')
@@ -103,7 +104,7 @@ program
       await browser.close()
     }
     catch (error) {
-      console.error('获取时间线失败:', error.message)
+      console.error('获取时间线失败:', errorToMessage(error))
       process.exit(1)
     }
   })

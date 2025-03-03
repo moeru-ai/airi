@@ -62,8 +62,14 @@ async function startDevServer() {
   // 配置 MCP 资源
   mcpServer.resource(
     'timeline',
-    new ResourceTemplate('twitter://timeline/{count}', { list: 'twitter://timeline' }),
-    async (uri, { count }) => {
+    new ResourceTemplate('twitter://timeline/{count}', { list: async () => ({
+      resources: [{
+        name: 'twitter-timeline',
+        uri: 'twitter://timeline',
+        description: '推文时间线',
+      }],
+    }) }),
+    async (_uri: URL, { count }: { count?: string }) => {
       try {
         const tweets = await twitter.getTimeline({
           count: count ? Number.parseInt(count) : undefined,
@@ -77,7 +83,7 @@ async function startDevServer() {
         }
       }
       catch (error) {
-        console.error('Error fetching timeline:', error)
+        logger.mcp.errorWithError('获取时间线错误:', error)
         return { contents: [] }
       }
     },
@@ -89,7 +95,7 @@ async function startDevServer() {
     {
       content: z.string(),
     },
-    async ({ content }) => {
+    async ({ content }: { content: string }) => {
       try {
         const tweetId = await twitter.postTweet(content)
         return {

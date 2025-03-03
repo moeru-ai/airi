@@ -20,14 +20,14 @@ export function createApiClient(baseURL: string, options: Record<string, any> = 
     onRequest({ request, options }) {
       const method = options.method || 'GET'
       const url = request.toString()
-      logger.browser.withField('method', method).withField('url', url).debug('API 请求')
+      logger.browser.withFields({ method, url }).debug('API 请求')
     },
 
     // 请求错误拦截器
     onRequestError({ request, error, options }) {
       const method = options.method || 'GET'
       const url = request.toString()
-      logger.browser.withField('method', method).withField('url', url).error('API 请求失败', error)
+      logger.browser.withFields({ method, url }).errorWithError('API 请求失败', error)
     },
 
     // 响应拦截器

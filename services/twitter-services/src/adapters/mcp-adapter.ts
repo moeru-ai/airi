@@ -19,7 +19,7 @@ export class MCPAdapter {
   private twitterService: TwitterService
   private mcpServer: McpServer
   private app: ReturnType<typeof createApp>
-  private server: ReturnType<typeof createServer>
+  private server: ReturnType<typeof createServer> | null = null
   private port: number
   private activeTransports: SSEServerTransport[] = []
 
@@ -50,8 +50,14 @@ export class MCPAdapter {
     // 添加时间线资源
     this.mcpServer.resource(
       'timeline',
-      new ResourceTemplate('twitter://timeline/{count}', { list: 'twitter://timeline' }),
-      async (uri, { count }) => {
+      new ResourceTemplate('twitter://timeline/{count}', { list: async () => ({
+        resources: [{
+          name: 'timeline',
+          uri: 'twitter://timeline',
+          description: '推文时间线',
+        }],
+      }) }),
+      async (_uri: URL, { count }: { count?: string }) => {
         try {
           const tweets = await this.twitterService.getTimeline({
             count: count ? Number.parseInt(count) : undefined,
@@ -65,7 +71,7 @@ export class MCPAdapter {
           }
         }
         catch (error) {
-          logger.mcp.error('获取时间线错误:', error)
+          logger.mcp.errorWithError('获取时间线错误:', error)
           return { contents: [] }
         }
       },
@@ -75,9 +81,9 @@ export class MCPAdapter {
     this.mcpServer.resource(
       'tweet',
       new ResourceTemplate('twitter://tweet/{id}', { list: undefined }),
-      async (uri, { id }) => {
+      async (uri: URL, { id }) => {
         try {
-          const tweet = await this.twitterService.getTweetDetails(id)
+          const tweet = await this.twitterService.getTweetDetails(id as string)
 
           return {
             contents: [{
@@ -87,7 +93,7 @@ export class MCPAdapter {
           }
         }
         catch (error) {
-          logger.mcp.error('获取推文详情错误:', error)
+          logger.mcp.errorWithError('获取推文详情错误:', error)
           return { contents: [] }
         }
       },
@@ -99,7 +105,7 @@ export class MCPAdapter {
       new ResourceTemplate('twitter://user/{username}', { list: undefined }),
       async (uri, { username }) => {
         try {
-          const profile = await this.twitterService.getUserProfile(username)
+          const profile = await this.twitterService.getUserProfile(username as string)
 
           return {
             contents: [{
@@ -109,7 +115,7 @@ export class MCPAdapter {
           }
         }
         catch (error) {
-          logger.mcp.error('获取用户资料错误:', error)
+          logger.mcp.errorWithError('获取用户资料错误:', error)
           return { contents: [] }
         }
       },
@@ -243,7 +249,7 @@ export class MCPAdapter {
         }
         catch (error) {
           return {
-            content: [{ type: 'text', text: `搜索失败: ${(error as Error).message}` }],
+            content: [{ type: 'text', text: `搜索失败: ${errorToMessage(error)}` }],
             isError: true,
           }
         }
@@ -309,7 +315,7 @@ export class MCPAdapter {
         const transport = this.activeTransports[this.activeTransports.length - 1]
 
         // 手动处理 POST 消息，因为 H3 不是 Express 兼容的
-        const response = await transport.handleRawMessage(body)
+        const response = await transport.handleMessage(body)
 
         return response
       }

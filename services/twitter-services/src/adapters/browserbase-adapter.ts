@@ -1,4 +1,5 @@
 import type { Buffer } from 'node:buffer'
+import type { BrowserBaseClientOptions } from '../browser/browserbase'
 import type { BrowserConfig, ElementHandle, WaitOptions } from '../types/browser'
 import type { BrowserAdapter } from './browser-adapter'
 
@@ -60,7 +61,7 @@ export class BrowserBaseMCPAdapter implements BrowserAdapter {
         headless: config.headless,
         userAgent: config.userAgent,
         viewport: config.viewport,
-        proxyUrl: config.proxy,
+        // proxyUrl: config.proxy, // TODO: Proxy
       })
       logger.browser.log('浏览器会话已创建', { headless: config.headless })
     }

@@ -1,5 +1,7 @@
-import type { Element, Root } from 'hast'
-import type { UserProfile } from '../types/twitter'
+import type { Element, Node, Root } from 'hast'
+import type { UserLink, UserProfile, UserStats } from '../types/twitter'
+
+import { select } from 'hast-util-select'
 
 import { SELECTORS } from '../utils/selectors'
 import { HtmlParser } from './html-parser'
@@ -64,7 +66,7 @@ export class ProfileParser {
    * 从页面中提取用户名
    */
   private static extractUsername(_tree: Root): string {
-    // 可以从URL或特定DOM元素中提取
+    // TODO: 可以从URL或特定DOM元素中提取
     return ''
   }
 
@@ -72,7 +74,7 @@ export class ProfileParser {
    * 提取用户统计数据
    */
   private static extractProfileStats(tree: Root) {
-    // 提取粉丝数、关注数、推文数等
+    // TODO: 提取粉丝数、关注数、推文数等
     const _statsElement = HtmlParser.select(tree, SELECTORS.PROFILE.STATS)[0]
 
     return {
@@ -113,9 +115,9 @@ export class ProfileParser {
 
     try {
       // 查找统计信息容器
-      const _statsElement = document.querySelector('[data-testid="userProfileStats"]')
+      const _statsElement = _tree ? select('[data-testid="userProfileStats"]', _tree as Root) : null
 
-      // 暂未实现具体解析逻辑
+      // TODO: 暂未实现具体解析逻辑
 
       return stats
     }
@@ -128,7 +130,7 @@ export class ProfileParser {
    * 从 HTML 提取用户链接
    */
   static extractUserLinks(_html: string, _tree?: Node): UserLink[] {
-    // 暂未实现
+    // TODO: 暂未实现
     return []
   }
 
@@ -136,7 +138,7 @@ export class ProfileParser {
    * 从 HTML 提取用户加入日期
    */
   static extractJoinDate(_html: string, _tree?: Node): string | null {
-    // 暂未实现
+    // TODO: 暂未实现
     return null
   }
 }

@@ -74,6 +74,24 @@ export interface PostOptions {
 }
 
 /**
+ * 用户统计信息
+ */
+export interface UserStats {
+  tweets: number
+  following: number
+  followers: number
+}
+
+/**
+ * 用户链接信息
+ */
+export interface UserLink {
+  type: string
+  url: string
+  title: string
+}
+
+/**
  * Twitter 服务接口
  */
 export interface TwitterService {
