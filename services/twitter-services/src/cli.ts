@@ -8,7 +8,7 @@ import { Command } from 'commander'
 import { BrowserBaseMCPAdapter } from './adapters/browserbase-adapter'
 import { createDefaultConfig } from './config'
 import { TwitterService } from './core/twitter-service'
-import { TwitterServiceLauncher } from './index'
+import { TwitterServiceLauncher } from './launcher'
 import { errorToMessage } from './utils/error'
 
 // 获取版本

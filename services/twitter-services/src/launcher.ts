@@ -1,18 +1,19 @@
+import type { AiriAdapter } from './adapters/airi-adapter'
+import type { StagehandBrowserAdapter } from './adapters/browserbase-adapter'
+import type { MCPAdapter } from './adapters/mcp-adapter'
+
 import process from 'node:process'
 
-import { AiriAdapter } from './adapters/airi-adapter'
-import { BrowserBaseMCPAdapter } from './adapters/browserbase-adapter'
-import { MCPAdapter } from './adapters/mcp-adapter'
 import { createDefaultConfig } from './config'
 import { TwitterService } from './core/twitter-service'
-import { initializeLogger, logger } from './utils/logger'
+import { logger } from './utils/logger'
 
 /**
  * Twitter 服务启动器类
  * 负责初始化和启动服务
  */
 export class TwitterServiceLauncher {
-  private browser?: BrowserBaseMCPAdapter
+  private browser?: StagehandBrowserAdapter
   private twitterService?: TwitterService
   private airiAdapter?: AiriAdapter
   private mcpAdapter?: MCPAdapter
@@ -26,17 +27,17 @@ export class TwitterServiceLauncher {
       const configManager = createDefaultConfig()
       const config = configManager.getConfig()
 
-      // 初始化日志系统
-      initializeLogger()
       logger.main.log('正在启动 Twitter 服务...')
 
       // 初始化浏览器
-      this.browser = new BrowserBaseMCPAdapter(
-        config.browserbase.apiKey,
-        config.browserbase.endpoint,
+      // 导入处理
+      const { StagehandBrowserAdapter } = await import('./adapters/browserbase-adapter')
+      this.browser = new StagehandBrowserAdapter(
+        config.browser.apiKey,
+        config.browser.endpoint,
         {
           timeout: config.browser.requestTimeout,
-          retries: config.browser.requestRetries,
+          // retries: config.browser.requestRetries,
         },
       )
 
@@ -59,6 +60,8 @@ export class TwitterServiceLauncher {
 
       // 启动适配器
       if (config.adapters.airi?.enabled && this.twitterService) {
+        // 导入处理
+        const { AiriAdapter } = await import('./adapters/airi-adapter')
         this.airiAdapter = new AiriAdapter(this.twitterService, {
           url: config.adapters.airi.url,
           token: config.adapters.airi.token,
@@ -70,6 +73,8 @@ export class TwitterServiceLauncher {
       }
 
       if (config.adapters.mcp?.enabled && this.twitterService) {
+        // 导入处理
+        const { MCPAdapter } = await import('./adapters/mcp-adapter')
         this.mcpAdapter = new MCPAdapter(this.twitterService, config.adapters.mcp.port)
 
         await this.mcpAdapter.start()

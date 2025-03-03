@@ -7,7 +7,7 @@ import { createApp, createRouter, defineEventHandler, toNodeListener } from 'h3'
 import { listen } from 'listhen'
 import { z } from 'zod'
 
-import { BrowserBaseMCPAdapter } from './adapters/browserbase-adapter'
+import { StagehandBrowserAdapter } from './adapters/browserbase-adapter'
 import { TwitterService } from './core/twitter-service'
 import { errorToMessage } from './utils/error'
 import { logger } from './utils/logger'
@@ -20,17 +20,11 @@ dotenv.config()
  * 使用 listhen 提供开发时的便利功能
  */
 async function startDevServer() {
-  // 基本检查环境变量
-  if (!process.env.BROWSERBASE_API_KEY) {
-    console.error('错误: 缺少环境变量 BROWSERBASE_API_KEY')
-    process.exit(1)
-  }
-
   const app = createApp()
   const router = createRouter()
 
   // 创建浏览器和 Twitter 服务
-  const browser = new BrowserBaseMCPAdapter(process.env.BROWSERBASE_API_KEY)
+  const browser = new StagehandBrowserAdapter(process.env.BROWSERBASE_API_KEY || '')
   await browser.initialize({
     headless: true,
     userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',

@@ -1,20 +1,20 @@
 import type { Buffer } from 'node:buffer'
-import type { BrowserBaseClientOptions } from '../browser/browserbase'
+import type { StagehandClientOptions } from '../browser/browserbase'
 import type { BrowserConfig, ElementHandle, WaitOptions } from '../types/browser'
 import type { BrowserAdapter } from './browser-adapter'
 
-import { BrowserBaseClient } from '../browser/browserbase'
+import { StagehandClient } from '../browser/browserbase'
 import { errorToMessage } from '../utils/error'
 import { logger } from '../utils/logger'
 
 /**
- * BrowserBase 元素句柄实现
+ * Stagehand 元素句柄实现
  */
-class BrowserBaseElementHandle implements ElementHandle {
-  private client: BrowserBaseClient
+class StagehandElementHandle implements ElementHandle {
+  private client: StagehandClient
   private selector: string
 
-  constructor(client: BrowserBaseClient, selector: string) {
+  constructor(client: StagehandClient, selector: string) {
     this.client = client
     this.selector = selector
   }
@@ -41,14 +41,14 @@ class BrowserBaseElementHandle implements ElementHandle {
 }
 
 /**
- * BrowserBase 适配器实现
- * 将 BrowserBase API 适配为通用浏览器接口
+ * Stagehand 浏览器适配器实现
+ * 将 Stagehand API 适配为通用浏览器接口
  */
-export class BrowserBaseMCPAdapter implements BrowserAdapter {
-  private client: BrowserBaseClient
+export class StagehandBrowserAdapter implements BrowserAdapter {
+  private client: StagehandClient
 
-  constructor(apiKey: string, baseUrl?: string, options: Partial<BrowserBaseClientOptions> = {}) {
-    this.client = new BrowserBaseClient({
+  constructor(apiKey: string, baseUrl?: string, options: Partial<StagehandClientOptions> = {}) {
+    this.client = new StagehandClient({
       apiKey,
       baseUrl,
       ...options,
@@ -61,12 +61,13 @@ export class BrowserBaseMCPAdapter implements BrowserAdapter {
         headless: config.headless,
         userAgent: config.userAgent,
         viewport: config.viewport,
-        // proxyUrl: config.proxy, // TODO: Proxy
       })
-      logger.browser.log('浏览器会话已创建', { headless: config.headless })
+      logger.browser.withFields({
+        headless: config.headless,
+      }).log('浏览器会话已创建')
     }
     catch (error) {
-      logger.browser.errorWithError('浏览器初始化失败', error)
+      logger.browser.withError(error).error('浏览器初始化失败')
       throw new Error(`无法初始化浏览器: ${errorToMessage(error)}`)
     }
   }
@@ -101,14 +102,19 @@ export class BrowserBaseMCPAdapter implements BrowserAdapter {
     // 获取所有匹配元素的选择器
     const selectors = await this.executeScript<string[]>(`
       Array.from(document.querySelectorAll('${selector}')).map((el, i) => {
-        const uniqueId = 'browserbase-' + Date.now() + '-' + i;
-        el.setAttribute('data-browserbase-id', uniqueId);
-        return '[data-browserbase-id="' + uniqueId + '"]';
+        const uniqueId = 'stagehand-' + Date.now() + '-' + i;
+        el.setAttribute('data-stagehand-id', uniqueId);
+        return '[data-stagehand-id="' + uniqueId + '"]';
       })
     `)
 
     // 为每个匹配的元素创建一个 ElementHandle
-    return selectors.map(selector => new BrowserBaseElementHandle(this.client, selector))
+    return selectors.map(selector => new StagehandElementHandle(this.client, selector))
+  }
+
+  // 新增 Stagehand 相关方法
+  async act(instruction: string): Promise<void> {
+    await this.client.act(instruction)
   }
 
   async getScreenshot(): Promise<Buffer> {

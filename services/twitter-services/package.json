@@ -6,10 +6,10 @@
   "author": "RainbowBird <rbxin2003@outlook.com>",
   "license": "MIT",
   "scripts": {
-    "build": "tsc",
-    "start": "tsx dist/index.js",
-    "dev": "tsx src/index.ts",
-    "dev:mcp": "tsx src/dev-server.ts"
+    "start": "tsx src/main.ts",
+    "dev": "tsx watch src/main.ts",
+    "dev:mcp": "tsx src/dev-server.ts",
+    "postinstall": "playwright install chromium"
   },
   "dependencies": {
     "@browserbasehq/stagehand": "^1.13.1",
@@ -17,7 +17,8 @@
     "@modelcontextprotocol/sdk": "^1.6.1",
     "@proj-airi/server-sdk": "^0.1.0",
     "@types/hast": "^3.0.1",
-    "dotenv": "^16.0.3",
+    "defu": "^6.1.4",
+    "dotenv": "^16.4.7",
     "h3": "^1.11.0",
     "hast-util-is-element": "^3.0.0",
     "hast-util-select": "^6.0.4",

@@ -1314,8 +1314,11 @@ importers:
       '@types/hast':
         specifier: ^3.0.1
         version: 3.0.4
+      defu:
+        specifier: ^6.1.4
+        version: 6.1.4
       dotenv:
-        specifier: ^16.0.3
+        specifier: ^16.4.7
         version: 16.4.7
       h3:
         specifier: ^1.11.0
