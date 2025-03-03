@@ -241,6 +241,57 @@ export class StagehandClient {
   }
 
   /**
+   * Get all cookies from browser context
+   * This includes HTTP_ONLY cookies that can't be accessed via document.cookie
+   */
+  async getAllCookies(): Promise<Array<{
+    name: string
+    value: string
+    domain?: string
+    path?: string
+    expires?: number
+    httpOnly?: boolean
+    secure?: boolean
+    sameSite?: 'Strict' | 'Lax' | 'None'
+  }>> {
+    this.ensurePageExists()
+    const context = this.page!.context()
+    return await context.cookies()
+  }
+
+  /**
+   * Set cookies in browser context
+   * This can set HTTP_ONLY cookies that can't be set via document.cookie
+   */
+  async setCookies(cookies: Array<{
+    name: string
+    value: string
+    domain?: string
+    path?: string
+    expires?: number
+    httpOnly?: boolean
+    secure?: boolean
+    sameSite?: 'Strict' | 'Lax' | 'None'
+  }>): Promise<void> {
+    this.ensurePageExists()
+    const context = this.page!.context()
+    // Format cookies correctly for Playwright
+    const formattedCookies = cookies.map((cookie) => {
+      // Ensure domain is set for Twitter
+      if (!cookie.domain) {
+        cookie.domain = '.twitter.com'
+      }
+      // Ensure path is set
+      if (!cookie.path) {
+        cookie.path = '/'
+      }
+      return cookie
+    })
+
+    await context.addCookies(formattedCookies)
+  }
+
+  /**
    * Close session
    */
   async closeSession(): Promise<void> {

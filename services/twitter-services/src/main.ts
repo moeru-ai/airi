@@ -13,7 +13,6 @@ async function bootstrap() {
 
   try {
     await launcher.start()
-    logger.main.log('Twitter service successfully started')
   }
   catch (error) {
     logger.main.withError(error).error('Startup failed')

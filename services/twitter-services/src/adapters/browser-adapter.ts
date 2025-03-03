@@ -62,6 +62,21 @@ export interface BrowserAdapter {
   }>>
 
   /**
+   * Set cookies in the browser context
+   * This can set HTTP_ONLY cookies that can't be set via document.cookie
+   */
+  setCookies: (cookies: Array<{
+    name: string
+    value: string
+    domain?: string
+    path?: string
+    expires?: number
+    httpOnly?: boolean
+    secure?: boolean
+    sameSite?: 'Strict' | 'Lax' | 'None'
+  }>) => Promise<void>
+
+  /**
    * Get screenshot
    */
   getScreenshot: () => Promise<Buffer>

@@ -88,7 +88,13 @@ Using listhen for optimized development experience, including automatic browser 
 
 #### 5.2.1 Authentication Service (Auth Service)
 
-Handles Twitter session detection and maintenance. Uses a manual login approach where the service opens the Twitter login page and waits for the user to complete the authentication process. After successful login, the service can save cookies for future sessions, allowing cookie-based authentication in subsequent uses.
+Handles Twitter session detection and maintenance. Features a multi-stage authentication approach:
+
+1. **Session File Loading**: First attempts to load saved sessions from disk using the SessionManager
+2. **Existing Session Detection**: Checks if the browser already has a valid Twitter session
+3. **Manual Login Process**: If no existing session is found, opens the Twitter login page for user authentication
+
+After successful login through any method, the service automatically saves the session cookies to file for future use. The SessionManager handles the serialization and persistence of authentication data, reducing the need for repeated manual logins.
 
 #### 5.2.2 Timeline Service (Timeline Service)
 
@@ -108,10 +114,21 @@ Extracts structured data from HTML.
 
 Controls request frequency to avoid triggering Twitter limits.
 
+#### 5.3.3 Session Manager
+
+Manages authentication session data, providing methods to:
+
+- Save session cookies to local files
+- Load previous sessions during startup
+- Delete invalid or expired sessions
+- Validate session age and integrity
+
 ## 6. Data Flow
 
 1. **Request Flow**: Application Layer → Adapter → Core Service → Browser Adapter Layer → BrowserBase API → Twitter
 2. **Response Flow**: Twitter → BrowserBase API → Browser Adapter Layer → Core Service → Data Parsing → Adapter → Application Layer
+3. **Authentication Flow**:
+   - Load Session → Check Existing Session → Manual Login → Session Validation → Session Storage
 
 ## 7. Configuration System
 
@@ -158,6 +175,8 @@ interface Config {
 }
 ```
 
+The system no longer relies on the `TWITTER_COOKIES` environment variable, as cookies are now managed through the session management system.
+
 ## 8. Development and Testing
 
 ### 8.1 Development Environment Setup
@@ -168,7 +187,7 @@ npm install
 
 # Set environment variables
 cp .env.example .env
-# Edit .env to add BrowserBase API key and Twitter credentials
+# Edit .env to add BrowserBase API key and Twitter credentials (optional)
 
 # Development mode startup
 npm run dev        # Standard mode
@@ -196,15 +215,17 @@ async function main() {
   // Create Twitter service
   const twitter = new TwitterService(browser)
 
-  // Initiate manual login and wait for user to complete authentication
+  // Initiate login process - will try:
+  // 1. Load existing session file
+  // 2. Check for existing browser session
+  // 3. Finally fall back to manual login if needed
   const loggedIn = await twitter.login({})
 
   if (loggedIn) {
     console.log('Login successful')
 
-    // Export cookies for future use (optional)
-    const cookies = await twitter.exportCookies()
-    console.log('Cookies saved for future use:', Object.keys(cookies).length)
+    // Session cookies are automatically saved to file after successful login
+    // No need to manually export cookies
 
     // Get timeline
     const tweets = await twitter.getTimeline({ count: 10 })
@@ -230,7 +251,7 @@ async function startAiriModule() {
 
   const twitter = new TwitterService(browser)
 
-  // Create Airi adapter (no credentials needed for manual login)
+  // Create Airi adapter
   const airiAdapter = new AiriAdapter(twitter, {
     url: process.env.AIRI_URL,
     token: process.env.AIRI_TOKEN
@@ -292,8 +313,8 @@ For example, adding "Get Tweets from a Specific User" functionality:
 - **Automated Testing**: Write unit tests and integration tests
 - **Monitoring & Alerts**: Monitor service status and Twitter access limitations
 - **Selector Updates**: Regularly validate and update selector configurations
-- **Session Management**: Optimize session management to improve stability
-- **Cookie Management**: Implement secure storage for saved session cookies
+- **Session Management**: Use the built-in session management system to improve stability and reduce manual login requirements. Consider implementing session rotation and validation.
+- **Cookie Management**: The system now automatically manages cookie storage via the SessionManager, but consider adding encrypted storage for production environments.
 
 ## 12. Project Roadmap
 

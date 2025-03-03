@@ -121,6 +121,32 @@ export class StagehandBrowserAdapter implements BrowserAdapter {
     return this.client.getScreenshot()
   }
 
+  async getAllCookies(): Promise<Array<{
+    name: string
+    value: string
+    domain?: string
+    path?: string
+    expires?: number
+    httpOnly?: boolean
+    secure?: boolean
+    sameSite?: 'Strict' | 'Lax' | 'None'
+  }>> {
+    return this.client.getAllCookies()
+  }
+
+  async setCookies(cookies: Array<{
+    name: string
+    value: string
+    domain?: string
+    path?: string
+    expires?: number
+    httpOnly?: boolean
+    secure?: boolean
+    sameSite?: 'Strict' | 'Lax' | 'None'
+  }>): Promise<void> {
+    return this.client.setCookies(cookies)
+  }
+
   async close(): Promise<void> {
     await this.client.closeSession()
   }

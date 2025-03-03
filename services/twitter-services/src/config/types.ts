@@ -47,28 +47,8 @@ export interface Config {
  * Default configuration
  */
 export function getDefaultConfig(): Config {
-  // Parse cookies from environment variable if provided
-  let cookiesFromEnv: Record<string, string> | undefined
-
-  if (process.env.TWITTER_COOKIES) {
-    // Try to parse as JSON first
-    try {
-      cookiesFromEnv = JSON.parse(process.env.TWITTER_COOKIES)
-    }
-    catch {
-      // If JSON parsing fails, treat as document.cookie format string
-      cookiesFromEnv = process.env.TWITTER_COOKIES
-        .split(';')
-        .map(v => v.split('='))
-        .reduce((acc, v) => {
-          // Skip empty values
-          if (v.length < 2)
-            return acc
-          acc[decodeURIComponent(v[0].trim())] = decodeURIComponent(v[1].trim())
-          return acc
-        }, {} as Record<string, string>)
-    }
-  }
+  // No longer parse cookies from environment variable
+  // The auth service will load cookies from session file instead
 
   return {
     browser: {
@@ -87,7 +67,7 @@ export function getDefaultConfig(): Config {
       credentials: {
         username: process.env.TWITTER_USERNAME || '',
         password: process.env.TWITTER_PASSWORD || '',
-        cookies: cookiesFromEnv,
+        // Don't include cookies here, they will be loaded from session file
       },
       defaultOptions: {
         timeline: {
