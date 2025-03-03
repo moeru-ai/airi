@@ -2,57 +2,57 @@ import type { Buffer } from 'node:buffer'
 import type { BrowserConfig, ElementHandle, WaitOptions } from '../types/browser'
 
 /**
- * 浏览器操作的通用接口
- * 定义了与不同浏览器后端交互所需的基本操作
+ * Generic browser adapter interface
+ * Defines the basic operations required for interacting with different browser backends
  */
 export interface BrowserAdapter {
   /**
-   * 初始化浏览器会话
+   * Initialize browser session
    */
   initialize: (config: BrowserConfig) => Promise<void>
 
   /**
-   * 导航到指定 URL
+   * Navigate to specified URL
    */
   navigate: (url: string) => Promise<void>
 
   /**
-   * 执行 JavaScript 脚本
+   * Execute JavaScript script
    */
   executeScript: <T>(script: string) => Promise<T>
 
   /**
-   * 等待元素出现
+   * Wait for element to appear
    */
   waitForSelector: (selector: string, options?: WaitOptions) => Promise<void>
 
   /**
-   * 点击元素
+   * Click element
    */
   click: (selector: string) => Promise<void>
 
   /**
-   * 向输入框输入文本
+   * Type text into input
    */
   type: (selector: string, text: string) => Promise<void>
 
   /**
-   * 获取元素文本内容
+   * Get element text content
    */
   getText: (selector: string) => Promise<string>
 
   /**
-   * 获取多个元素的句柄
+   * Get multiple element handles
    */
   getElements: (selector: string) => Promise<ElementHandle[]>
 
   /**
-   * 获取屏幕截图
+   * Get screenshot
    */
   getScreenshot: () => Promise<Buffer>
 
   /**
-   * 关闭浏览器会话
+   * Close browser session
    */
   close: () => Promise<void>
 }
