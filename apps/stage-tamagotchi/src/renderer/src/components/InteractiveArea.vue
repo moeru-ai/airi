@@ -15,6 +15,7 @@ const listening = ref(false)
 // const { selectedAudioDevice, isAudioInputOn, selectedAudioDeviceId } = storeToRefs(useSettings())
 const { isAudioInputOn, selectedAudioDeviceId } = storeToRefs(useSettings())
 const { send, onAfterSend } = useChatStore()
+const { messages } = storeToRefs(useChatStore())
 const { t } = useI18n()
 
 async function handleSend() {
@@ -22,7 +23,16 @@ async function handleSend() {
     return
   }
 
-  await send(messageInput.value)
+  try {
+    await send(messageInput.value)
+  }
+  catch (error) {
+    messages.value.pop()
+    messages.value.push({
+      role: 'error',
+      content: (error as Error).message,
+    })
+  }
 }
 
 const { destroy, start } = useMicVAD(selectedAudioDeviceId, {

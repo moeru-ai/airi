@@ -16,6 +16,7 @@ watchEffect(() => {
 
 function setVisible(value: boolean) {
   visible.value = value
+  return value
 }
 </script>
 

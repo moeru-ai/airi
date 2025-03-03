@@ -39,20 +39,21 @@ settings:
     chinese: 简体中文
     english: English
     title: 语言
-  model-provider:
-    title: 模型提供商
   live2d:
-    title: Live2D 设置
     change-model:
-      title: 更换模型
-      from-url: 从 URL 加载
-      from-url-placeholder: 输入 Live2D 模型 URL
-      from-url-confirm: 加载
       from-file: 从文件加载
       from-file-select: 选择
+      from-url: 从 URL 加载
+      from-url-confirm: 加载
+      from-url-placeholder: 输入 Live2D 模型 URL
+      title: 更换模型
     map-motions:
-      title: 映射动作
       play: 播放动作
+      title: 映射动作
+    title: Live2D 设置
+  microphone: 麦克风
+  model-provider:
+    title: 模型提供商
   models: 模型
   openai-api-key:
     label: OpenAI API 密钥
@@ -70,9 +71,22 @@ stage:
     message:
       character-name:
         airi: Airi
+        core-system: 核心系统
         you: 你
+    tabs:
+      chat: 聊天
+      clothes: 换装
+      custom: 自定义
   message: 消息
+  operations:
+    load-models: 加载推理模型
+    load-models-status:
+      loading: 加载中
+      ready: 已就绪
   select-a-audio-input: 选择一个音频输入设备
   select-a-model: 选择一个模型
   select-a-voice: 选择一个声线
+  viewers:
+    debug-menu:
+      emotions: 表情
   waiting: 等待中

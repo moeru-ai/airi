@@ -19,17 +19,35 @@ const showMicrophoneSelect = ref(false)
 const { audioInputs } = useDevicesList({ constraints: { audio: true }, requestPermissions: true })
 const { selectedAudioDevice, isAudioInputOn, selectedAudioDeviceId } = storeToRefs(useSettings())
 const { send, onAfterSend } = useChatStore()
+const { messages } = storeToRefs(useChatStore())
 const { audioContext } = useAudioContext()
 const { t } = useI18n()
 
 const { transcribe: generate, load: loadWhisper, status: whisperStatus, terminate } = useWhisper(WhisperWorker, {
   onComplete: async (res) => {
+    if (!res || !res.trim()) {
+      return
+    }
+
     await send(res)
   },
 })
 
 async function handleSend() {
-  await send(messageInput.value)
+  if (!messageInput.value.trim()) {
+    return
+  }
+
+  try {
+    await send(messageInput.value)
+  }
+  catch (error) {
+    messages.value.pop()
+    messages.value.push({
+      role: 'error',
+      content: (error as Error).message,
+    })
+  }
 }
 
 const { destroy, start } = useMicVAD(selectedAudioDeviceId, {

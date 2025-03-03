@@ -66,3 +66,18 @@ stage:
   select-a-model: 选择一个模型
   select-a-voice: 选择一个声线
   waiting: 等待中
+  chat:
+    message:
+      character-name:
+        airi: Airi
+        you: 你
+        core-system: 核心系统
+    tabs:
+      chat: 聊天
+      clothes: 换装
+      custom: 自定义
+  operations:
+    load-models: 加载推理模型
+    load-models-status:
+      loading: 加载中
+      ready: 已就绪

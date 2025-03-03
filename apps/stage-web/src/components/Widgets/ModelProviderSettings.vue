@@ -203,6 +203,58 @@ function addRecordEntry(entries: Array<[string, string]>) {
 function removeRecordEntry(entries: Array<[string, string]>, index: number) {
   entries.splice(index, 1)
 }
+
+// Helper function to get default value from field schema
+function getDefaultValue(field: any, _fieldName: string) {
+  // Check if field has a default value defined
+  if (field.default !== undefined) {
+    return field.default
+  }
+
+  // For record types, return an empty array (for the key-value pairs)
+  if (field.type === 'object' && field.additionalProperties) {
+    return []
+  }
+
+  // Return appropriate empty values based on field type
+  switch (field.type) {
+    case 'string':
+      return ''
+    case 'number':
+    case 'integer':
+      return 0
+    case 'boolean':
+      return false
+    case 'array':
+      return []
+    case 'object':
+      return {}
+    default:
+      return ''
+  }
+}
+
+// Initialize field with default value if not already set
+function initFieldWithDefault(providerId: string, fieldName: string, field: any) {
+  const currentValue = providerValues.value[providerId]?.[fieldName]
+
+  // Only set default if field doesn't already have a value
+  if (currentValue === undefined) {
+    const defaultValue = getDefaultValue(field, fieldName)
+    setFieldValue(providerId, fieldName, defaultValue)
+  }
+}
+
+// Initialize all fields with defaults when provider is expanded
+function initProviderDefaults(providerId: string) {
+  const provider = providers.value.find(p => p.id === providerId)
+  if (!provider || !provider.fields.properties)
+    return
+
+  Object.entries(provider.fields.properties).forEach(([fieldName, field]) => {
+    initFieldWithDefault(providerId, fieldName, field)
+  })
+}
 </script>
 
 <template>
@@ -216,7 +268,7 @@ function removeRecordEntry(entries: Array<[string, string]>, index: number) {
             transition="all ease-in-out duration-250"
             w-full flex items-center gap-1.5 rounded-lg px-4 py-3 outline-none
             class="[&_.provider-icon]:grayscale-100 [&_.provider-icon]:hover:grayscale-0"
-            @click="slotProps.setVisible(!slotProps.visible)"
+            @click="slotProps.setVisible(!slotProps.visible) && initProviderDefaults(provider.id)"
           >
             <div flex="~ row 1" items-center gap-1.5>
               <div

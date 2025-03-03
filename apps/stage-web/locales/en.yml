@@ -51,21 +51,21 @@ settings:
     chinese: 简体中文
     english: English
     title: Language
+  live2d:
+    change-model:
+      from-file: Load from File
+      from-file-select: Select
+      from-url: Load from URL
+      from-url-confirm: Load
+      from-url-placeholder: Enter Live2D model URL
+      title: Change Model
+    map-motions:
+      play: Play Motion
+      title: Map Motions
+    title: Live2D Settings
   microphone: Microphone
   model-provider:
     title: Model Providers
-  live2d:
-    title: Live2D Settings
-    change-model:
-      title: Change Model
-      from-url: Load from URL
-      from-url-placeholder: Enter Live2D model URL
-      from-url-confirm: Load
-      from-file: Load from File
-      from-file-select: Select
-    map-motions:
-      title: Map Motions
-      play: Play Motion
   models: Model
   openai-api-key:
     label: OpenAI API Key
@@ -83,6 +83,7 @@ stage:
     message:
       character-name:
         airi: Airi
+        core-system: Core System
         you: You
     tabs:
       chat: Chat

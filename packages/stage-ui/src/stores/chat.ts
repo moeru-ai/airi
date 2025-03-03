@@ -10,10 +10,17 @@ import { useLLM } from '../stores/llm'
 import { useProvidersStore } from '../stores/providers'
 import { asyncIteratorFromReadableStream } from '../utils/iterator'
 
+export interface ErrorMessage {
+  role: 'error'
+  content: string
+}
+
 export const useChatStore = defineStore('chat', () => {
   const { stream } = useLLM()
   const { t } = useI18n()
   const { providers: providerValues } = storeToRefs(useProvidersStore())
+
+  const sending = ref(false)
 
   const onBeforeMessageComposedHooks = ref<Array<(message: string) => Promise<void>>>([])
   const onAfterMessageComposedHooks = ref<Array<(message: string) => Promise<void>>>([])
@@ -56,7 +63,7 @@ export const useChatStore = defineStore('chat', () => {
     onAssistantResponseEndHooks.value.push(cb)
   }
 
-  const messages = ref<Array<Message>>([
+  const messages = ref<Array<Message | ErrorMessage>>([
     SystemPromptV2(
       t('prompt.prefix'),
       t('prompt.suffix'),
@@ -70,75 +77,83 @@ export const useChatStore = defineStore('chat', () => {
     apiKey?: string
     model?: { id: string }
   }) {
-    if (!sendingMessage)
-      return
+    try {
+      sending.value = true
 
-    for (const hook of onBeforeMessageComposedHooks.value) {
-      await hook(sendingMessage)
+      if (!sendingMessage)
+        return
+
+      for (const hook of onBeforeMessageComposedHooks.value) {
+        await hook(sendingMessage)
+      }
+
+      const {
+        baseUrl = providerValues.value['openrouter-ai']?.baseUrl as string | undefined || '',
+        apiKey = providerValues.value['openrouter-ai']?.apiKey as string | undefined || '',
+        model = providerValues.value['openrouter-ai']?.model as { id: string } | undefined || { id: 'openai/gpt-4o-mini' },
+      } = options ?? { }
+
+      streamingMessage.value = { role: 'assistant', content: '' }
+      messages.value.push({ role: 'user', content: sendingMessage })
+      messages.value.push(streamingMessage.value)
+      const newMessages = messages.value.slice(0, messages.value.length - 1).map(msg => toRaw(msg))
+
+      for (const hook of onAfterMessageComposedHooks.value) {
+        await hook(sendingMessage)
+      }
+
+      for (const hook of onBeforeSendHooks.value) {
+        await hook(sendingMessage)
+      }
+
+      const res = await stream(baseUrl, apiKey, model.id, newMessages as Message[])
+
+      for (const hook of onAfterSendHooks.value) {
+        await hook(sendingMessage)
+      }
+
+      let fullText = ''
+
+      const parser = useLlmmarkerParser({
+        onLiteral: async (literal) => {
+          for (const hook of onTokenLiteralHooks.value) {
+            await hook(literal)
+          }
+
+          streamingMessage.value.content += literal
+        },
+        onSpecial: async (special) => {
+          for (const hook of onTokenSpecialHooks.value) {
+            await hook(special)
+          }
+        },
+      })
+
+      for await (const textPart of asyncIteratorFromReadableStream(res.textStream, async v => v)) {
+        fullText += textPart
+        await parser.consume(textPart)
+      }
+
+      await parser.end()
+
+      for (const hook of onStreamEndHooks.value) {
+        await hook()
+      }
+
+      for (const hook of onAssistantResponseEndHooks.value) {
+        await hook(fullText)
+      }
+
+      // eslint-disable-next-line no-console
+      console.debug('LLM output:', fullText)
     }
-
-    const {
-      baseUrl = providerValues.value['openrouter-ai']?.baseUrl as string | undefined || '',
-      apiKey = providerValues.value['openrouter-ai']?.apiKey as string | undefined || '',
-      model = providerValues.value['openrouter-ai']?.model as { id: string } | undefined || { id: 'openai/gpt-4o-mini' },
-    } = options ?? { }
-
-    streamingMessage.value = { role: 'assistant', content: '' }
-    messages.value.push({ role: 'user', content: sendingMessage })
-    messages.value.push(streamingMessage.value)
-    const newMessages = messages.value.slice(0, messages.value.length - 1).map(msg => toRaw(msg))
-
-    for (const hook of onAfterMessageComposedHooks.value) {
-      await hook(sendingMessage)
+    finally {
+      sending.value = false
     }
-
-    for (const hook of onBeforeSendHooks.value) {
-      await hook(sendingMessage)
-    }
-
-    const res = await stream(baseUrl, apiKey, model.id, newMessages)
-
-    for (const hook of onAfterSendHooks.value) {
-      await hook(sendingMessage)
-    }
-
-    let fullText = ''
-
-    const parser = useLlmmarkerParser({
-      onLiteral: async (literal) => {
-        for (const hook of onTokenLiteralHooks.value) {
-          await hook(literal)
-        }
-
-        streamingMessage.value.content += literal
-      },
-      onSpecial: async (special) => {
-        for (const hook of onTokenSpecialHooks.value) {
-          await hook(special)
-        }
-      },
-    })
-
-    for await (const textPart of asyncIteratorFromReadableStream(res.textStream, async v => v)) {
-      fullText += textPart
-      await parser.consume(textPart)
-    }
-
-    await parser.end()
-
-    for (const hook of onStreamEndHooks.value) {
-      await hook()
-    }
-
-    for (const hook of onAssistantResponseEndHooks.value) {
-      await hook(fullText)
-    }
-
-    // eslint-disable-next-line no-console
-    console.debug('LLM output:', fullText)
   }
 
   return {
+    sending,
     messages,
     streamingMessage,
     send,

@@ -79,6 +79,7 @@ stage:
       character-name:
         airi: Airi
         you: You
+        core-system: Core System
     tabs:
       chat: Chat
       clothes: Clothes
