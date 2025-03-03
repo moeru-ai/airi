@@ -6,8 +6,10 @@ export const SELECTORS = {
   LOGIN: {
     USERNAME_INPUT: 'input[autocomplete="username"]',
     PASSWORD_INPUT: 'input[type="password"]',
-    NEXT_BUTTON: '[data-testid="auth-login-button"]',
-    LOGIN_BUTTON: '[data-testid="LoginForm_Login_Button"]',
+    NEXT_BUTTON: 'div[role="button"]:has-text("Next")',
+    LOGIN_BUTTON: 'div[role="button"]:has-text("Log in")',
+    NEXT_BUTTON_ALT: '[data-testid="login-next-button"]',
+    LOGIN_BUTTON_ALT: '[data-testid="login-submit-button"]',
   },
   HOME: {
     TIMELINE: '[data-testid="primaryColumn"]',

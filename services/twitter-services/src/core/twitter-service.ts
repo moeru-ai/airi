@@ -111,4 +111,12 @@ export class TwitterService implements ITwitterService {
       throw new Error('Not authenticated. Call login() first.')
     }
   }
+
+  /**
+   * Export current session cookies
+   * @param format - The format of the returned cookies ('object' or 'string')
+   */
+  async exportCookies(format: 'object' | 'string' = 'object'): Promise<Record<string, string> | string> {
+    return await this.authService.exportCookies(format)
+  }
 }

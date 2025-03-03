@@ -47,23 +47,47 @@ export interface Config {
  * Default configuration
  */
 export function getDefaultConfig(): Config {
+  // Parse cookies from environment variable if provided
+  let cookiesFromEnv: Record<string, string> | undefined
+
+  if (process.env.TWITTER_COOKIES) {
+    // Try to parse as JSON first
+    try {
+      cookiesFromEnv = JSON.parse(process.env.TWITTER_COOKIES)
+    }
+    catch {
+      // If JSON parsing fails, treat as document.cookie format string
+      cookiesFromEnv = process.env.TWITTER_COOKIES
+        .split(';')
+        .map(v => v.split('='))
+        .reduce((acc, v) => {
+          // Skip empty values
+          if (v.length < 2)
+            return acc
+          acc[decodeURIComponent(v[0].trim())] = decodeURIComponent(v[1].trim())
+          return acc
+        }, {} as Record<string, string>)
+    }
+  }
+
   return {
     browser: {
       apiKey: process.env.BROWSERBASE_API_KEY || '', // Move apiKey to browser config
-      headless: true,
-      userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+      headless: process.env.BROWSER_HEADLESS === 'true',
+      userAgent: process.env.BROWSER_USER_AGENT || 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
       viewport: {
-        width: 1280,
-        height: 800,
+        width: Number.parseInt(process.env.BROWSER_VIEWPORT_WIDTH || '1280'),
+        height: Number.parseInt(process.env.BROWSER_VIEWPORT_HEIGHT || '800'),
       },
-      timeout: 30000,
-      requestTimeout: 20000,
-      requestRetries: 2,
+      timeout: Number.parseInt(process.env.BROWSER_TIMEOUT || '30000'),
+      requestTimeout: Number.parseInt(process.env.BROWSER_REQUEST_TIMEOUT || '20000'),
+      requestRetries: Number.parseInt(process.env.BROWSER_REQUEST_RETRIES || '2'),
     },
     twitter: {
       credentials: {
         username: process.env.TWITTER_USERNAME || '',
         password: process.env.TWITTER_PASSWORD || '',
+        cookies: cookiesFromEnv,
       },
       defaultOptions: {
         timeline: {

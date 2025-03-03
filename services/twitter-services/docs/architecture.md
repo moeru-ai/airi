@@ -88,7 +88,7 @@ Using listhen for optimized development experience, including automatic browser 
 
 #### 5.2.1 Authentication Service (Auth Service)
 
-Handles Twitter login and session maintenance.
+Handles Twitter session detection and maintenance. Uses a manual login approach where the service opens the Twitter login page and waits for the user to complete the authentication process. After successful login, the service can save cookies for future sessions, allowing cookie-based authentication in subsequent uses.
 
 #### 5.2.2 Timeline Service (Timeline Service)
 
@@ -196,15 +196,23 @@ async function main() {
   // Create Twitter service
   const twitter = new TwitterService(browser)
 
-  // Login
-  await twitter.login({
-    username: 'your-username',
-    password: 'your-password'
-  })
+  // Initiate manual login and wait for user to complete authentication
+  const loggedIn = await twitter.login({})
 
-  // Get timeline
-  const tweets = await twitter.getTimeline({ count: 10 })
-  console.log(tweets)
+  if (loggedIn) {
+    console.log('Login successful')
+
+    // Export cookies for future use (optional)
+    const cookies = await twitter.exportCookies()
+    console.log('Cookies saved for future use:', Object.keys(cookies).length)
+
+    // Get timeline
+    const tweets = await twitter.getTimeline({ count: 10 })
+    console.log(tweets)
+  }
+  else {
+    console.error('Login failed')
+  }
 
   // Release resources
   await browser.close()
@@ -222,14 +230,10 @@ async function startAiriModule() {
 
   const twitter = new TwitterService(browser)
 
-  // Create Airi adapter
+  // Create Airi adapter (no credentials needed for manual login)
   const airiAdapter = new AiriAdapter(twitter, {
     url: process.env.AIRI_URL,
-    token: process.env.AIRI_TOKEN,
-    credentials: {
-      username: process.env.TWITTER_USERNAME,
-      password: process.env.TWITTER_PASSWORD
-    }
+    token: process.env.AIRI_TOKEN
   })
 
   // Start adapter
@@ -289,6 +293,7 @@ For example, adding "Get Tweets from a Specific User" functionality:
 - **Monitoring & Alerts**: Monitor service status and Twitter access limitations
 - **Selector Updates**: Regularly validate and update selector configurations
 - **Session Management**: Optimize session management to improve stability
+- **Cookie Management**: Implement secure storage for saved session cookies
 
 ## 12. Project Roadmap
 

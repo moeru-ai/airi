@@ -47,6 +47,21 @@ export interface BrowserAdapter {
   getElements: (selector: string) => Promise<ElementHandle[]>
 
   /**
+   * Get all cookies from the browser context
+   * This includes HTTP_ONLY cookies that can't be accessed via document.cookie
+   */
+  getAllCookies: () => Promise<Array<{
+    name: string
+    value: string
+    domain?: string
+    path?: string
+    expires?: number
+    httpOnly?: boolean
+    secure?: boolean
+    sameSite?: 'Strict' | 'Lax' | 'None'
+  }>>
+
+  /**
    * Get screenshot
    */
   getScreenshot: () => Promise<Buffer>

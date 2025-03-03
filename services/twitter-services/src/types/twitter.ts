@@ -2,8 +2,9 @@
  * Twitter Credentials
  */
 export interface TwitterCredentials {
-  username: string
-  password: string
+  username?: string
+  password?: string
+  cookies?: Record<string, string>
 }
 
 /**

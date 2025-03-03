@@ -7,7 +7,7 @@
   "license": "MIT",
   "scripts": {
     "start": "tsx src/main.ts",
-    "dev": "tsx watch src/main.ts",
+    "dev": "tsx src/main.ts",
     "dev:mcp": "tsx src/dev-server.ts",
     "postinstall": "playwright install chromium"
   },
