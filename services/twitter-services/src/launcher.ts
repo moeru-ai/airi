@@ -9,8 +9,8 @@ import { TwitterService } from './core/twitter-service'
 import { logger } from './utils/logger'
 
 /**
- * Twitter 服务启动器类
- * 负责初始化和启动服务
+ * Twitter service launcher class
+ * Responsible for initializing and starting services
  */
 export class TwitterServiceLauncher {
   private browser?: StagehandBrowserAdapter
@@ -19,18 +19,18 @@ export class TwitterServiceLauncher {
   private mcpAdapter?: MCPAdapter
 
   /**
-   * 启动 Twitter 服务
+   * Start Twitter service
    */
   async start() {
     try {
-      // 加载配置
+      // Load configuration
       const configManager = createDefaultConfig()
       const config = configManager.getConfig()
 
-      logger.main.log('正在启动 Twitter 服务...')
+      logger.main.log('Starting Twitter service...')
 
-      // 初始化浏览器
-      // 导入处理
+      // Initialize browser
+      // Import handling
       const { StagehandBrowserAdapter } = await import('./adapters/browserbase-adapter')
       this.browser = new StagehandBrowserAdapter(
         config.browser.apiKey,
@@ -42,26 +42,27 @@ export class TwitterServiceLauncher {
       )
 
       await this.browser.initialize(config.browser)
-      logger.main.log('浏览器已初始化')
+      logger.main.log('Browser initialized')
 
-      // 创建 Twitter 服务
+      // Create Twitter service
       this.twitterService = new TwitterService(this.browser)
 
-      // 尝试登录
+      // Try to log in
       if (config.twitter.credentials) {
         const success = await this.twitterService.login(config.twitter.credentials)
         if (success) {
-          logger.main.log('成功登录 Twitter')
+          logger.main.log('Successfully logged into Twitter')
         }
         else {
-          logger.main.error('Twitter 登录失败!')
+          logger.main.error('Twitter login failed!')
         }
       }
 
-      // 启动适配器
-      if (config.adapters.airi?.enabled && this.twitterService) {
-        // 导入处理
+      // Start enabled adapters
+      if (config.adapters.airi?.enabled) {
+        logger.main.log('Starting Airi adapter...')
         const { AiriAdapter } = await import('./adapters/airi-adapter')
+
         this.airiAdapter = new AiriAdapter(this.twitterService, {
           url: config.adapters.airi.url,
           token: config.adapters.airi.token,
@@ -69,69 +70,73 @@ export class TwitterServiceLauncher {
         })
 
         await this.airiAdapter.start()
-        logger.main.log('Airi 适配器已启动')
+        logger.main.log('Airi adapter started')
       }
 
-      if (config.adapters.mcp?.enabled && this.twitterService) {
-        // 导入处理
+      if (config.adapters.mcp?.enabled) {
+        logger.main.log('Starting MCP adapter...')
         const { MCPAdapter } = await import('./adapters/mcp-adapter')
-        this.mcpAdapter = new MCPAdapter(this.twitterService, config.adapters.mcp.port)
+
+        this.mcpAdapter = new MCPAdapter(
+          this.twitterService,
+          config.adapters.mcp.port,
+        )
 
         await this.mcpAdapter.start()
-        logger.main.log('MCP 适配器已启动')
+        logger.main.log('MCP adapter started')
       }
 
-      logger.main.log('Twitter 服务已成功启动!')
+      logger.main.log('Twitter service successfully started!')
 
-      // 设置关闭钩子
+      // Set up shutdown hooks
       this.setupShutdownHooks()
     }
     catch (error) {
-      logger.main.withError(error).error('启动 Twitter 服务失败')
+      logger.main.withError(error).error('Failed to start Twitter service')
     }
   }
 
   /**
-   * 停止服务
+   * Stop service
    */
   async stop() {
-    logger.main.log('正在停止 Twitter 服务...')
+    logger.main.log('Stopping Twitter service...')
 
-    // 停止 MCP 适配器
+    // Stop MCP adapter
     if (this.mcpAdapter) {
       await this.mcpAdapter.stop()
-      logger.main.log('MCP 适配器已停止')
+      logger.main.log('MCP adapter stopped')
     }
 
-    // 关闭浏览器
+    // Close browser
     if (this.browser) {
       await this.browser.close()
-      logger.main.log('浏览器已关闭')
+      logger.main.log('Browser closed')
     }
 
-    logger.main.log('Twitter 服务已停止')
+    logger.main.log('Twitter service stopped')
   }
 
   /**
-   * 设置关闭钩子
+   * Set up shutdown hooks
    */
   private setupShutdownHooks() {
-    // 处理进程退出
+    // Handle process exit
     process.on('SIGINT', async () => {
-      logger.main.log('接收到退出信号...')
+      logger.main.log('Received exit signal...')
       await this.stop()
       process.exit(0)
     })
 
     process.on('SIGTERM', async () => {
-      logger.main.log('接收到终止信号...')
+      logger.main.log('Received termination signal...')
       await this.stop()
       process.exit(0)
     })
 
-    // 处理未捕获的异常
+    // Handle uncaught exceptions
     process.on('uncaughtException', async (error) => {
-      logger.main.withError(error).error('未捕获的异常')
+      logger.main.withError(error).error('Uncaught exception')
       await this.stop()
       process.exit(1)
     })

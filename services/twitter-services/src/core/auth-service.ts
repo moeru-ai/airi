@@ -5,8 +5,8 @@ import { logger } from '../utils/logger'
 import { SELECTORS } from '../utils/selectors'
 
 /**
- * Twitter 认证服务
- * 处理登录和会话管理
+ * Twitter Authentication Service
+ * Handles login and session management
  */
 export class TwitterAuthService {
   private browser: BrowserAdapter
@@ -17,52 +17,52 @@ export class TwitterAuthService {
   }
 
   /**
-   * 登录到 Twitter
+   * Login to Twitter
    */
   async login(credentials: TwitterCredentials): Promise<boolean> {
-    logger.auth.withField('username', credentials.username.replace(/./g, '*')).log('尝试登录 Twitter')
+    logger.auth.withField('username', credentials.username.replace(/./g, '*')).log('Attempting to login to Twitter')
 
     try {
-      // 导航到登录页
+      // Navigate to login page
       await this.browser.navigate('https://twitter.com/i/flow/login')
 
-      // 等待并输入用户名
+      // Wait for and enter username
       await this.browser.waitForSelector(SELECTORS.LOGIN.USERNAME_INPUT)
       await this.browser.type(SELECTORS.LOGIN.USERNAME_INPUT, credentials.username)
       await this.browser.click(SELECTORS.LOGIN.NEXT_BUTTON)
 
-      // 等待并输入密码
+      // Wait for and enter password
       await this.browser.waitForSelector(SELECTORS.LOGIN.PASSWORD_INPUT)
       await this.browser.type(SELECTORS.LOGIN.PASSWORD_INPUT, credentials.password)
       await this.browser.click(SELECTORS.LOGIN.LOGIN_BUTTON)
 
-      // 验证登录是否成功
-      logger.auth.log('登录表单已填写完成，提交中...')
+      // Verify if login was successful
+      logger.auth.log('Login form submitted, verifying...')
       const loginSuccess = await this.verifyLogin()
 
       if (loginSuccess) {
-        logger.auth.log('登录成功')
+        logger.auth.log('Login successful')
         this.isLoggedIn = true
       }
       else {
-        logger.auth.warn('登录验证失败')
+        logger.auth.warn('Login verification failed')
       }
 
       return loginSuccess
     }
     catch (error) {
-      logger.auth.errorWithError('登录过程中发生错误', error)
+      logger.auth.errorWithError('Error during login process', error)
       this.isLoggedIn = false
       return false
     }
   }
 
   /**
-   * 验证是否已成功登录
+   * Verify if login was successful
    */
   private async verifyLogin(): Promise<boolean> {
     try {
-      // 等待主页内容加载
+      // Wait for home page content to load
       await this.browser.waitForSelector(SELECTORS.HOME.TIMELINE, { timeout: 10000 })
       return true
     }
@@ -72,7 +72,7 @@ export class TwitterAuthService {
   }
 
   /**
-   * 检查当前是否已登录
+   * Check current login status
    */
   async checkLoginStatus(): Promise<boolean> {
     try {
@@ -85,7 +85,7 @@ export class TwitterAuthService {
   }
 
   /**
-   * 获取登录状态
+   * Get login status
    */
   isAuthenticated(): boolean {
     return this.isLoggedIn

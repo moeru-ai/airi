@@ -1,6 +1,6 @@
 /**
- * Twitter 网站 CSS 选择器常量
- * 用于定位页面上的元素
+ * Twitter website CSS selector constants
+ * Used to locate elements on the page
  */
 export const SELECTORS = {
   LOGIN: {

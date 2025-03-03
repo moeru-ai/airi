@@ -12,18 +12,18 @@ import { TwitterService } from './core/twitter-service'
 import { errorToMessage } from './utils/error'
 import { logger } from './utils/logger'
 
-// 加载环境变量
+// Load environment variables
 dotenv.config()
 
 /**
- * 开发服务器入口点
- * 使用 listhen 提供开发时的便利功能
+ * Development server entry point
+ * Provides convenience features for development
  */
 async function startDevServer() {
   const app = createApp()
   const router = createRouter()
 
-  // 创建浏览器和 Twitter 服务
+  // Create browser and Twitter service
   const browser = new StagehandBrowserAdapter(process.env.BROWSERBASE_API_KEY || '')
   await browser.initialize({
     headless: true,
@@ -32,7 +32,7 @@ async function startDevServer() {
 
   const twitter = new TwitterService(browser)
 
-  // 可选: 如果有凭据，进行登录
+  // Optional: If credentials are available, login
   if (process.env.TWITTER_USERNAME && process.env.TWITTER_PASSWORD) {
     const success = await twitter.login({
       username: process.env.TWITTER_USERNAME,
@@ -40,27 +40,27 @@ async function startDevServer() {
     })
 
     if (success) {
-      logger.main.log('✅ 已成功登录 Twitter')
+      logger.main.log('✅ Successfully logged in Twitter')
     }
     else {
-      logger.main.warn('⚠️ Twitter 登录失败')
+      logger.main.warn('⚠️ Twitter login failed')
     }
   }
 
-  // 创建 MCP 服务器
+  // Create MCP server
   const mcpServer = new McpServer({
     name: 'Twitter Service (Dev)',
     version: '1.0.0-dev',
   })
 
-  // 配置 MCP 资源
+  // Configure MCP resources
   mcpServer.resource(
     'timeline',
     new ResourceTemplate('twitter://timeline/{count}', { list: async () => ({
       resources: [{
         name: 'twitter-timeline',
         uri: 'twitter://timeline',
-        description: '推文时间线',
+        description: 'Twitter timeline',
       }],
     }) }),
     async (_uri: URL, { count }: { count?: string }) => {
@@ -77,13 +77,13 @@ async function startDevServer() {
         }
       }
       catch (error) {
-        logger.mcp.errorWithError('获取时间线错误:', error)
+        logger.mcp.errorWithError('Get timeline error:', error)
         return { contents: [] }
       }
     },
   )
 
-  // 配置一些基本工具
+  // Configure some basic tools
   mcpServer.tool(
     'post-tweet',
     {
@@ -93,25 +93,25 @@ async function startDevServer() {
       try {
         const tweetId = await twitter.postTweet(content)
         return {
-          content: [{ type: 'text', text: `成功发布推文: ${tweetId}` }],
+          content: [{ type: 'text', text: `Successfully posted tweet: ${tweetId}` }],
         }
       }
       catch (error) {
         return {
-          content: [{ type: 'text', text: `发推失败: ${errorToMessage(error)}` }],
+          content: [{ type: 'text', text: `Failed to post tweet: ${errorToMessage(error)}` }],
           isError: true,
         }
       }
     },
   )
 
-  // 保存活跃的 SSE 传输
+  // Save active SSE transports
   const activeTransports: SSEServerTransport[] = []
 
-  // 设置路由
+  // Set up routes
   router.get('/', defineEventHandler(() => {
     return {
-      name: 'Twitter MCP 开发服务',
+      name: 'Twitter MCP Dev Server',
       version: '1.0.0-dev',
       status: 'running',
       endpoints: {
@@ -121,7 +121,7 @@ async function startDevServer() {
     }
   }))
 
-  // SSE 端点
+  // SSE endpoint
   router.get('/sse', defineEventHandler(async (event) => {
     const { req, res } = event.node
 
@@ -129,11 +129,11 @@ async function startDevServer() {
     res.setHeader('Cache-Control', 'no-cache')
     res.setHeader('Connection', 'keep-alive')
 
-    // 创建 SSE 传输
+    // Create SSE transport
     const transport = new SSEServerTransport('/messages', res)
     activeTransports.push(transport)
 
-    // 客户端断开连接时清理
+    // Clean up when client disconnects
     req.on('close', () => {
       const index = activeTransports.indexOf(transport)
       if (index !== -1) {
@@ -141,11 +141,11 @@ async function startDevServer() {
       }
     })
 
-    // 连接到 MCP 服务器
+    // Connect to MCP server
     await mcpServer.connect(transport)
   }))
 
-  // 消息端点
+  // Messages endpoint
   router.post('/messages', defineEventHandler(async (event) => {
     if (activeTransports.length === 0) {
       event.node.res.statusCode = 503
@@ -153,7 +153,7 @@ async function startDevServer() {
     }
 
     try {
-      // 解析请求体
+      // Parse request body
       const buffers = []
       for await (const chunk of event.node.req) {
         buffers.push(chunk)
@@ -161,10 +161,10 @@ async function startDevServer() {
       const data = Buffer.concat(buffers).toString()
       const body = JSON.parse(data)
 
-      // 使用最近的传输
+      // Use latest transport
       const transport = activeTransports[activeTransports.length - 1]
 
-      // 处理消息
+      // Handle message
       const response = await transport.handleMessage(body)
       return response
     }
@@ -174,10 +174,10 @@ async function startDevServer() {
     }
   }))
 
-  // 注册路由
+  // Register routes
   app.use(router)
 
-  // 启动服务器
+  // Start server
   const listener = toNodeListener(app)
   await listen(listener, {
     showURL: true,
@@ -185,18 +185,18 @@ async function startDevServer() {
     open: true,
   })
 
-  logger.main.log('🚀 Twitter MCP 开发服务器已启动')
+  logger.main.log('🚀 Twitter MCP Dev Server started')
 
-  // 处理退出
+  // Handle exit
   process.on('SIGINT', async () => {
-    logger.main.log('正在关闭服务器...')
+    logger.main.log('Shutting down server...')
     await browser.close()
     process.exit(0)
   })
 }
 
-// 执行
+// Execute
 startDevServer().catch((error) => {
-  logger.main.error('启动开发服务器失败:', error)
+  logger.main.error('Failed to start dev server:', error)
   process.exit(1)
 })

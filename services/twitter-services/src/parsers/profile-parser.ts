@@ -7,33 +7,33 @@ import { SELECTORS } from '../utils/selectors'
 import { HtmlParser } from './html-parser'
 
 /**
- * 用户资料解析器
- * 从 HTML 中提取用户资料信息
+ * Profile Parser
+ * Extracts user profile information from HTML
  */
 export class ProfileParser {
   /**
-   * 从 HTML 中解析用户资料
-   * @param html HTML 字符串
-   * @returns 用户资料
+   * Parse user profile from HTML
+   * @param html HTML string
+   * @returns User profile
    */
   static parseUserProfile(html: string): UserProfile {
     const tree = HtmlParser.parse(html)
 
-    // 提取用户名和显示名称
+    // Extract username and display name
     const displayNameElement = HtmlParser.select(tree, SELECTORS.PROFILE.DISPLAY_NAME)[0]
     const displayName = this.extractTextContent(displayNameElement) || 'Unknown User'
 
-    // 从URL或DOM中提取用户名
+    // Extract username from URL or DOM
     const username = this.extractUsername(tree) || 'unknown'
 
-    // 提取用户简介
+    // Extract user bio
     const bioElement = HtmlParser.select(tree, SELECTORS.PROFILE.BIO)[0]
     const bio = this.extractTextContent(bioElement)
 
-    // 提取用户统计数据
+    // Extract user stats
     const stats = this.extractProfileStats(tree)
 
-    // 提取头像和背景图
+    // Extract avatar and banner URL
     const avatarUrl = this.extractAvatarUrl(tree)
     const bannerUrl = this.extractBannerUrl(tree)
 
@@ -48,7 +48,7 @@ export class ProfileParser {
   }
 
   /**
-   * 提取文本内容
+   * Extract text content
    */
   private static extractTextContent(element?: Element): string {
     if (!element)
@@ -63,18 +63,18 @@ export class ProfileParser {
   }
 
   /**
-   * 从页面中提取用户名
+   * Extract username from page
    */
   private static extractUsername(_tree: Root): string {
-    // TODO: 可以从URL或特定DOM元素中提取
+    // TODO: Can be extracted from URL or specific DOM element
     return ''
   }
 
   /**
-   * 提取用户统计数据
+   * Extract user stats
    */
   private static extractProfileStats(tree: Root) {
-    // TODO: 提取粉丝数、关注数、推文数等
+    // TODO: Extract followers, following, tweet count, etc.
     const _statsElement = HtmlParser.select(tree, SELECTORS.PROFILE.STATS)[0]
 
     return {
@@ -87,26 +87,26 @@ export class ProfileParser {
   }
 
   /**
-   * 提取头像URL
+   * Extract avatar URL
    */
   private static extractAvatarUrl(_tree: Root): string | undefined {
-    // 提取头像图片URL
+    // TODO: Extract avatar image URL
     return undefined
   }
 
   /**
-   * 提取背景图URL
+   * Extract banner URL
    */
   private static extractBannerUrl(_tree: Root): string | undefined {
-    // 提取背景图URL
+    // TODO: Extract banner image URL
     return undefined
   }
 
   /**
-   * 从 HTML 提取用户统计信息
+   * Extract user stats
    */
   static extractUserStats(_html: string, _tree?: Node): UserStats {
-    // 解析 HTML 获取统计数据
+    // Parse HTML to get stats
     const stats: UserStats = {
       tweets: 0,
       following: 0,
@@ -114,10 +114,10 @@ export class ProfileParser {
     }
 
     try {
-      // 查找统计信息容器
+      // Find stats container
       const _statsElement = _tree ? select('[data-testid="userProfileStats"]', _tree as Root) : null
 
-      // TODO: 暂未实现具体解析逻辑
+      // TODO: Not implemented yet
 
       return stats
     }
@@ -127,18 +127,18 @@ export class ProfileParser {
   }
 
   /**
-   * 从 HTML 提取用户链接
+   * Extract user links
    */
   static extractUserLinks(_html: string, _tree?: Node): UserLink[] {
-    // TODO: 暂未实现
+    // TODO: Not implemented yet
     return []
   }
 
   /**
-   * 从 HTML 提取用户加入日期
+   * Extract user join date
    */
   static extractJoinDate(_html: string, _tree?: Node): string | null {
-    // TODO: 暂未实现
+    // TODO: Not implemented yet
     return null
   }
 }

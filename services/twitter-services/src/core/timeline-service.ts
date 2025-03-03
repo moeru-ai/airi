@@ -6,8 +6,8 @@ import { RateLimiter } from '../utils/rate-limiter'
 import { SELECTORS } from '../utils/selectors'
 
 /**
- * Twitter 时间线服务
- * 处理获取和解析时间线内容
+ * Twitter Timeline Service
+ * Handles fetching and parsing timeline content
  */
 export class TwitterTimelineService {
   private browser: BrowserAdapter
@@ -15,33 +15,33 @@ export class TwitterTimelineService {
 
   constructor(browser: BrowserAdapter) {
     this.browser = browser
-    this.rateLimiter = new RateLimiter(10, 60000) // 每分钟10个请求
+    this.rateLimiter = new RateLimiter(10, 60000) // 10 requests per minute
   }
 
   /**
-   * 获取时间线
+   * Get timeline
    */
   async getTimeline(options: TimelineOptions = {}): Promise<Tweet[]> {
-    // 等待频率限制
+    // Wait for rate limit
     await this.rateLimiter.waitUntilReady()
 
     try {
-      // 导航到主页
+      // Navigate to home page
       await this.browser.navigate('https://twitter.com/home')
 
-      // 等待时间线加载
+      // Wait for timeline to load
       await this.browser.waitForSelector(SELECTORS.TIMELINE.TWEET)
 
-      // 延迟一下，确保内容加载完成
+      // Delay a bit to ensure content is fully loaded
       await new Promise(resolve => setTimeout(resolve, 2000))
 
-      // 获取页面HTML内容
+      // Get page HTML content
       const html = await this.browser.executeScript<string>('document.documentElement.outerHTML')
 
-      // 解析推文
+      // Parse tweets
       const tweets = TweetParser.parseTimelineTweets(html)
 
-      // 应用筛选和限制
+      // Apply filtering and limits
       let filteredTweets = tweets
 
       if (options.includeReplies === false) {

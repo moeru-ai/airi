@@ -1,5 +1,5 @@
 /**
- * Twitter 认证凭据
+ * Twitter Credentials
  */
 export interface TwitterCredentials {
   username: string
@@ -7,7 +7,7 @@ export interface TwitterCredentials {
 }
 
 /**
- * 推文接口
+ * Tweet Interface
  */
 export interface Tweet {
   id: string
@@ -25,7 +25,7 @@ export interface Tweet {
 }
 
 /**
- * 推文详情
+ * Tweet Detail
  */
 export interface TweetDetail extends Tweet {
   replies?: Tweet[]
@@ -33,7 +33,7 @@ export interface TweetDetail extends Tweet {
 }
 
 /**
- * 用户资料
+ * User Profile
  */
 export interface UserProfile {
   username: string
@@ -49,7 +49,7 @@ export interface UserProfile {
 }
 
 /**
- * 时间线选项
+ * Timeline Options
  */
 export interface TimelineOptions {
   count?: number
@@ -58,7 +58,7 @@ export interface TimelineOptions {
 }
 
 /**
- * 搜索选项
+ * Search Options
  */
 export interface SearchOptions {
   count?: number
@@ -66,7 +66,7 @@ export interface SearchOptions {
 }
 
 /**
- * 发推选项
+ * Post Options
  */
 export interface PostOptions {
   media?: string[]
@@ -74,7 +74,7 @@ export interface PostOptions {
 }
 
 /**
- * 用户统计信息
+ * User Stats
  */
 export interface UserStats {
   tweets: number
@@ -83,7 +83,7 @@ export interface UserStats {
 }
 
 /**
- * 用户链接信息
+ * User Link
  */
 export interface UserLink {
   type: string
@@ -92,7 +92,7 @@ export interface UserLink {
 }
 
 /**
- * Twitter 服务接口
+ * Twitter Service Interface
  */
 export interface TwitterService {
   login: (credentials: TwitterCredentials) => Promise<boolean>

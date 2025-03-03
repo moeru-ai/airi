@@ -1,25 +1,26 @@
-# Twitter 服务架构文档
+# Twitter Service Architecture Documentation
 
-## 1. 项目概述
+## 1. Project Overview
 
-Twitter 服务是一个基于 BrowserBase 的 Web 自动化服务，提供结构化的 Twitter 数据访问和交互能力。它采用分层架构设计，支持多种适配器以便与不同的应用集成。
+Twitter Service is a web automation service based on BrowserBase, providing structured access and interaction capabilities with Twitter data. It employs a layered architecture design that supports multiple adapters for integration with different applications.
 
-## 2. 设计目标
+## 2. Design Goals
 
-- **可靠性**：稳定处理 Twitter 页面的变化和限制
-- **可扩展性**：易于添加新功能和支持不同接入方式
-- **性能优化**：智能管理请求频率和浏览器会话
-- **数据结构化**：提供规范、类型化的数据模型
+- **Reliability**: Stable handling of Twitter page changes and limitations
+- **Scalability**: Easy to add new features and support different integration methods
+- **Performance Optimization**: Intelligent management of request frequency and browser sessions
+- **Data Structuring**: Provides standardized, typed data models
 
-## 3. 架构总览
+## 3. Architecture Overview
 
 ```
 ┌─────────────────────────────────────────────┐
-│               应用层/消费者层                │
+│               Application/Consumer Layer    │
 │                                             │
 │   ┌────────────┐         ┌─────────────┐    │
 │   │            │         │             │    │
-│   │  Airi Core │         │ 其他 LLM 应用 │    │
+│   │  Airi Core │         │ Other LLM   │    │
+│   │            │         │ Applications │    │
 │   │            │         │             │    │
 │   └──────┬─────┘         └──────┬──────┘    │
 └──────────┼─────────────────────┼────────────┘
@@ -57,77 +58,77 @@ Twitter 服务是一个基于 BrowserBase 的 Web 自动化服务，提供结构
           └──────────────────────────┘
 ```
 
-## 4. 技术栈与依赖
+## 4. Technology Stack and Dependencies
 
-- **核心库**: TypeScript, Node.js
-- **浏览器自动化**: BrowserBase API
-- **HTML解析**: unified, rehype-parse, unist-util-visit
-- **API服务器**: H3.js, listhen
-- **适配器**: Airi Server SDK, MCP SDK
-- **日志系统**: @guiiai/logg
-- **工具库**: zod（类型验证）
+- **Core Library**: TypeScript, Node.js
+- **Browser Automation**: BrowserBase API
+- **HTML Parsing**: unified, rehype-parse, unist-util-visit
+- **API Server**: H3.js, listhen
+- **Adapters**: Airi Server SDK, MCP SDK
+- **Logging System**: @guiiai/logg
+- **Utility Library**: zod (type validation)
 
-## 5. 关键组件
+## 5. Key Components
 
-### 5.1 适配器层
+### 5.1 Adapter Layer
 
-#### 5.1.1 Airi 适配器
+#### 5.1.1 Airi Adapter
 
-提供与 Airi LLM 平台的集成，处理事件驱动的通信。
+Provides integration with the Airi LLM platform, handling event-driven communication.
 
-#### 5.1.2 MCP 适配器
+#### 5.1.2 MCP Adapter
 
-实现 Model Context Protocol 接口，提供基于 HTTP 的通信。现使用官方 MCP SDK 实现，通过 H3.js 提供高性能 HTTP 服务器和 SSE 通信。
+Implements the Model Context Protocol interface, providing communication based on HTTP. Currently using the official MCP SDK implementation, providing high-performance HTTP server and SSE communication through H3.js.
 
-#### 5.1.3 开发服务器
+#### 5.1.3 Development Server
 
-使用 listhen 提供优化的开发体验，包括自动打开浏览器、实时日志和调试工具。
+Using listhen for optimized development experience, including automatic browser opening, real-time logging, and debugging tools.
 
-### 5.2 核心服务层
+### 5.2 Core Service Layer
 
-#### 5.2.1 认证服务 (Auth Service)
+#### 5.2.1 Authentication Service (Auth Service)
 
-处理 Twitter 登录和会话维护。
+Handles Twitter login and session maintenance.
 
-#### 5.2.2 时间线服务 (Timeline Service)
+#### 5.2.2 Timeline Service (Timeline Service)
 
-获取和处理 Twitter 时间线内容。
+Gets and processes Twitter timeline content.
 
-#### 5.2.3 其他服务
+#### 5.2.3 Other Services
 
-包括搜索服务、互动服务、用户资料服务等（部分未在 MVP 中实现）。
+Includes search service, interaction service, user profile service, etc. (not implemented in MVP)
 
-### 5.3 解析器和工具
+### 5.3 Parsers and Tools
 
-#### 5.3.1 Tweet 解析器
+#### 5.3.1 Tweet Parser
 
-从 HTML 中提取推文结构化数据。
+Extracts structured data from HTML.
 
-#### 5.3.2 频率限制器
+#### 5.3.2 Rate Limiter
 
-控制请求频率，避免触发 Twitter 的限制。
+Controls request frequency to avoid triggering Twitter limits.
 
-## 6. 数据流
+## 6. Data Flow
 
-1. **请求流**：应用层 → 适配器 → 核心服务 → 浏览器适配层 → BrowserBase API → Twitter
-2. **响应流**：Twitter → BrowserBase API → 浏览器适配层 → 核心服务 → 数据解析 → 适配器 → 应用层
+1. **Request Flow**: Application Layer → Adapter → Core Service → Browser Adapter Layer → BrowserBase API → Twitter
+2. **Response Flow**: Twitter → BrowserBase API → Browser Adapter Layer → Core Service → Data Parsing → Adapter → Application Layer
 
-## 7. 配置系统
+## 7. Configuration System
 
-配置分为以下几个主要部分：
+Configuration is divided into several main parts:
 
 ```typescript
 interface Config {
-  // BrowserBase 配置
+  // BrowserBase configuration
   browserbase: {
     apiKey: string
     endpoint?: string
   }
 
-  // 浏览器配置
+  // Browser configuration
   browser: BrowserConfig
 
-  // Twitter 配置
+  // Twitter configuration
   twitter: {
     credentials?: TwitterCredentials
     defaultOptions?: {
@@ -136,7 +137,7 @@ interface Config {
     }
   }
 
-  // 适配器配置
+  // Adapter configuration
   adapters: {
     airi?: {
       url?: string
@@ -149,7 +150,7 @@ interface Config {
     }
   }
 
-  // 系统配置
+  // System configuration
   system: {
     logLevel: string
     concurrency: number
@@ -157,60 +158,60 @@ interface Config {
 }
 ```
 
-## 8. 开发与测试
+## 8. Development and Testing
 
-### 8.1 开发环境设置
+### 8.1 Development Environment Setup
 
 ```bash
-# 安装依赖
+# Install dependencies
 npm install
 
-# 设置环境变量
+# Set environment variables
 cp .env.example .env
-# 编辑 .env 添加 BrowserBase API 密钥和 Twitter 凭据
+# Edit .env to add BrowserBase API key and Twitter credentials
 
-# 开发模式启动
-npm run dev        # 标准模式
-npm run dev:mcp    # MCP 开发服务器模式
+# Development mode startup
+npm run dev        # Standard mode
+npm run dev:mcp    # MCP development server mode
 ```
 
-### 8.2 测试策略
+### 8.2 Testing Strategy
 
-- **单元测试**：测试解析器、工具类和业务逻辑
-- **集成测试**：测试服务和适配器的交互
-- **端到端测试**：模拟完整的使用场景
+- **Unit Tests**: Test parsers, utility classes, and business logic
+- **Integration Tests**: Test service and adapter interaction
+- **End-to-End Tests**: Simulate complete usage scenarios
 
-## 9. 集成示例
+## 9. Integration Example
 
-### 9.1 从其他 Node.js 应用集成
+### 9.1 Integrating from Other Node.js Applications
 
 ```typescript
 import { BrowserBaseMCPAdapter, TwitterService } from 'twitter-services'
 
 async function main() {
-  // 初始化浏览器
+  // Initialize browser
   const browser = new BrowserBaseMCPAdapter('your-api-key')
   await browser.initialize({ headless: true })
 
-  // 创建 Twitter 服务
+  // Create Twitter service
   const twitter = new TwitterService(browser)
 
-  // 登录
+  // Login
   await twitter.login({
     username: 'your-username',
     password: 'your-password'
   })
 
-  // 获取时间线
+  // Get timeline
   const tweets = await twitter.getTimeline({ count: 10 })
   console.log(tweets)
 
-  // 释放资源
+  // Release resources
   await browser.close()
 }
 ```
 
-### 9.2 作为 Airi 模块集成
+### 9.2 Integrating as Airi Module
 
 ```typescript
 import { AiriAdapter, BrowserBaseMCPAdapter, TwitterService } from 'twitter-services'
@@ -221,7 +222,7 @@ async function startAiriModule() {
 
   const twitter = new TwitterService(browser)
 
-  // 创建 Airi 适配器
+  // Create Airi adapter
   const airiAdapter = new AiriAdapter(twitter, {
     url: process.env.AIRI_URL,
     token: process.env.AIRI_TOKEN,
@@ -231,33 +232,33 @@ async function startAiriModule() {
     }
   })
 
-  // 启动适配器
+  // Start adapter
   await airiAdapter.start()
 
   console.log('Twitter service running as Airi module')
 }
 ```
 
-### 9.3 使用 MCP 进行集成
+### 9.3 Using MCP for Integration
 
 ```typescript
-// 使用 MCP SDK 与 Twitter 服务交互
+// Use MCP SDK to interact with Twitter service
 import { McpClient } from '@modelcontextprotocol/sdk/client/mcp.js'
 import { SSEClientTransport } from '@modelcontextprotocol/sdk/client/sse.js'
 
 async function connectToTwitterService() {
-  // 创建 SSE 传输
+  // Create SSE transport
   const transport = new SSEClientTransport('http://localhost:8080/sse', 'http://localhost:8080/messages')
 
-  // 创建客户端
+  // Create client
   const client = new McpClient()
   await client.connect(transport)
 
-  // 获取时间线
+  // Get timeline
   const timeline = await client.get('twitter://timeline/10')
   console.log('Timeline:', timeline.contents)
 
-  // 使用工具发送推文
+  // Use tool to send tweet
   const result = await client.useTool('post-tweet', { content: 'Hello from MCP!' })
   console.log('Result:', result.content)
 
@@ -265,33 +266,33 @@ async function connectToTwitterService() {
 }
 ```
 
-## 10. 扩展指南
+## 10. Extension Guide
 
-### 10.1 添加新功能
+### 10.1 Adding New Features
 
-例如添加"获取特定用户发布的推文"功能：
+For example, adding "Get Tweets from a Specific User" functionality:
 
-1. 在 `src/types/twitter.ts` 中扩展接口
-2. 在 `src/core/twitter-service.ts` 中实现方法
-3. 在适配器中添加对应的处理逻辑
-4. 如果是 MCP 适配器，在 `configureServer()` 中添加相应的资源或工具
+1. Extend the interface in `src/types/twitter.ts`
+2. Implement the method in `src/core/twitter-service.ts`
+3. Add corresponding handling logic in the adapter
+4. If it's an MCP adapter, add appropriate resources or tools in `configureServer()`
 
-### 10.2 支持新的适配器
+### 10.2 Supporting New Adapters
 
-1. 创建新的适配器类
-2. 实现与目标系统的通信逻辑
-3. 在入口文件中添加配置支持
+1. Create a new adapter class
+2. Implement communication logic with the target system
+3. Add configuration support in the entry file
 
-## 11. 维护建议
+## 11. Maintenance Recommendations
 
-- **自动化测试**：编写单元测试和集成测试
-- **监控与告警**：监控服务状态和 Twitter 的访问限制
-- **选择器更新**：定期验证和更新选择器配置
-- **会话管理**：优化会话管理以提高稳定性
+- **Automated Testing**: Write unit tests and integration tests
+- **Monitoring & Alerts**: Monitor service status and Twitter access limitations
+- **Selector Updates**: Regularly validate and update selector configurations
+- **Session Management**: Optimize session management to improve stability
 
-## 12. 项目路线图
+## 12. Project Roadmap
 
-- MVP 阶段：实现核心功能（认证、浏览时间线）
-- 阶段二：完善互动功能（点赞、评论、转发）
-- 阶段三：高级功能（搜索、高级过滤、数据分析）
-- 阶段四：性能优化和稳定性提升
+- MVP Stage: Implement core functionality (authentication, browsing timeline)
+- Stage Two: Enhance interaction features (likes, comments, retweets)
+- Stage Three: Advanced features (search, advanced filtering, data analysis)
+- Stage Four: Performance optimization and stability improvements

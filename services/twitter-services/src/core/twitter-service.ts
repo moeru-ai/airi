@@ -14,8 +14,8 @@ import { TwitterAuthService } from './auth-service'
 import { TwitterTimelineService } from './timeline-service'
 
 /**
- * Twitter 服务实现
- * 集成各个服务组件，提供统一的接口
+ * Twitter service implementation
+ * Integrates various service components, providing a unified interface
  */
 export class TwitterService implements ITwitterService {
   private browser: BrowserAdapter
@@ -29,14 +29,14 @@ export class TwitterService implements ITwitterService {
   }
 
   /**
-   * 登录 Twitter
+   * Log in to Twitter
    */
   async login(credentials: TwitterCredentials): Promise<boolean> {
     return await this.authService.login(credentials)
   }
 
   /**
-   * 获取时间线
+   * Get timeline
    */
   async getTimeline(options?: TimelineOptions): Promise<Tweet[]> {
     this.ensureAuthenticated()
@@ -44,14 +44,14 @@ export class TwitterService implements ITwitterService {
   }
 
   /**
-   * 获取推文详情（MVP暂未实现）
+   * Get tweet details (not implemented in MVP)
    */
   async getTweetDetails(tweetId: string): Promise<TweetDetail> {
     this.ensureAuthenticated()
-    // MVP阶段，返回一个基本结构
+    // In MVP stage, return a basic structure
     return {
       id: tweetId,
-      text: '推文详情功能尚未实现',
+      text: 'Tweet details feature not yet implemented',
       author: {
         username: 'twitter',
         displayName: 'Twitter',
@@ -61,21 +61,21 @@ export class TwitterService implements ITwitterService {
   }
 
   /**
-   * 搜索推文
+   * Search tweets
    */
   async searchTweets(_query: string, _options?: SearchOptions): Promise<Tweet[]> {
-    throw new Error('搜索功能尚未实现')
+    throw new Error('Search feature not yet implemented')
   }
 
   /**
-   * 获取用户资料
+   * Get user profile
    */
   async getUserProfile(_username: string): Promise<UserProfile> {
-    throw new Error('获取用户资料功能尚未实现')
+    throw new Error('Get user profile feature not yet implemented')
   }
 
   /**
-   * 关注用户（MVP暂未实现）
+   * Follow user (not implemented in MVP)
    */
   async followUser(_username: string): Promise<boolean> {
     this.ensureAuthenticated()
@@ -83,28 +83,28 @@ export class TwitterService implements ITwitterService {
   }
 
   /**
-   * 点赞推文
+   * Like tweet
    */
   async likeTweet(_tweetId: string): Promise<boolean> {
-    throw new Error('点赞功能尚未实现')
+    throw new Error('Like feature not yet implemented')
   }
 
   /**
-   * 转发推文
+   * Retweet
    */
   async retweet(_tweetId: string): Promise<boolean> {
-    throw new Error('转发功能尚未实现')
+    throw new Error('Retweet feature not yet implemented')
   }
 
   /**
-   * 发送推文
+   * Post tweet
    */
   async postTweet(_content: string, _options?: PostOptions): Promise<string> {
-    throw new Error('发送推文功能尚未实现')
+    throw new Error('Post tweet feature not yet implemented')
   }
 
   /**
-   * 确保已经登录
+   * Ensure authenticated
    */
   private ensureAuthenticated(): void {
     if (!this.authService.isAuthenticated()) {

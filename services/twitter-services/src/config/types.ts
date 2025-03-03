@@ -4,16 +4,16 @@ import type { SearchOptions, TimelineOptions, TwitterCredentials } from '../type
 import process from 'node:process'
 
 /**
- * 完整配置接口
+ * Complete configuration interface
  */
 export interface Config {
-  // 浏览器配置
+  // Browser configuration
   browser: BrowserConfig & {
-    apiKey: string // 为 Stagehand 保留 API Key
-    endpoint?: string // 可选的 Stagehand 服务端点
+    apiKey: string // API Key for Stagehand
+    endpoint?: string // Optional Stagehand service endpoint
   }
 
-  // Twitter 配置
+  // Twitter configuration
   twitter: {
     credentials?: TwitterCredentials
     defaultOptions?: {
@@ -22,7 +22,7 @@ export interface Config {
     }
   }
 
-  // 适配器配置
+  // Adapter configuration
   adapters: {
     airi?: {
       url?: string
@@ -35,7 +35,7 @@ export interface Config {
     }
   }
 
-  // 系统配置
+  // System configuration
   system: {
     logLevel: 'error' | 'warn' | 'info' | 'verbose' | 'debug'
     logFormat?: 'json' | 'pretty'
@@ -44,12 +44,12 @@ export interface Config {
 }
 
 /**
- * 默认配置
+ * Default configuration
  */
 export function getDefaultConfig(): Config {
   return {
     browser: {
-      apiKey: process.env.BROWSERBASE_API_KEY || '', // 将 apiKey 移到 browser 配置中
+      apiKey: process.env.BROWSERBASE_API_KEY || '', // Move apiKey to browser config
       headless: true,
       userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
       viewport: {

@@ -3,16 +3,16 @@ import { createLogg, Format, LogLevel, setGlobalFormat, setGlobalLogLevel } from
 
 import { createDefaultConfig } from '../config'
 
-// 记录初始化状态
+// Track initialization status
 let isInitialized = false
 
-// 初始化全局日志配置
+// Initialize global logging configuration
 export function initializeLogger(): void {
   if (isInitialized) {
-    return // 防止多次初始化
+    return // Prevent multiple initializations
   }
 
-  // 设置全局日志级别
+  // Set global log level
   setGlobalLogLevel(LogLevel.Debug)
   setGlobalFormat(Format.Pretty)
 
@@ -28,7 +28,7 @@ export function initializeLogger(): void {
 
   setGlobalLogLevel(logLevelMap[config.system?.logLevel] || LogLevel.Debug)
 
-  // 根据配置设置格式
+  // Set format based on configuration
   if (config.system?.logFormat === 'pretty') {
     setGlobalFormat(Format.Pretty)
   }
@@ -59,7 +59,7 @@ export function useLogger(name?: string): ReturnType<typeof createLogg> {
   return createLogg(`${dirName}/${fileName}:${lineNumber}`).useGlobalConfig()
 }
 
-// 创建各种服务的预配置日志记录器
+// Create pre-configured loggers for various services
 export const logger = {
   auth: useLogger('auth-service'),
   timeline: useLogger('timeline-service'),

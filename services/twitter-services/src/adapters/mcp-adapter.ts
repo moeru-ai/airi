@@ -11,9 +11,9 @@ import { errorToMessage } from '../utils/error'
 import { logger } from '../utils/logger'
 
 /**
- * MCP 协议适配器
- * 使用官方 MCP SDK 将 Twitter 服务适配为 MCP 协议服务
- * 基于 H3.js 实现 HTTP 服务器
+ * MCP Protocol Adapter
+ * Adapts the Twitter service to MCP protocol using official MCP SDK
+ * Implements HTTP server using H3.js
  */
 export class MCPAdapter {
   private twitterService: TwitterService
@@ -27,34 +27,34 @@ export class MCPAdapter {
     this.twitterService = twitterService
     this.port = port
 
-    // 创建 MCP 服务器
+    // Create MCP server
     this.mcpServer = new McpServer({
       name: 'Twitter Service',
       version: '1.0.0',
     })
 
-    // 创建 H3 应用
+    // Create H3 app
     this.app = createApp()
 
-    // 配置资源和工具
+    // Configure resources and tools
     this.configureServer()
 
-    // 设置 H3 路由
+    // Set up H3 routes
     this.setupRoutes()
   }
 
   /**
-   * 配置 MCP 服务器的资源和工具
+   * Configure MCP server resources and tools
    */
   private configureServer(): void {
-    // 添加时间线资源
+    // Add timeline resource
     this.mcpServer.resource(
       'timeline',
       new ResourceTemplate('twitter://timeline/{count}', { list: async () => ({
         resources: [{
           name: 'timeline',
           uri: 'twitter://timeline',
-          description: '推文时间线',
+          description: 'Tweet timeline',
         }],
       }) }),
       async (_uri: URL, { count }: { count?: string }) => {
@@ -71,13 +71,13 @@ export class MCPAdapter {
           }
         }
         catch (error) {
-          logger.mcp.errorWithError('获取时间线错误:', error)
+          logger.mcp.errorWithError('Error fetching timeline:', error)
           return { contents: [] }
         }
       },
     )
 
-    // 添加推文详情资源
+    // Add tweet details resource
     this.mcpServer.resource(
       'tweet',
       new ResourceTemplate('twitter://tweet/{id}', { list: undefined }),
@@ -93,13 +93,13 @@ export class MCPAdapter {
           }
         }
         catch (error) {
-          logger.mcp.errorWithError('获取推文详情错误:', error)
+          logger.mcp.errorWithError('Error fetching tweet details:', error)
           return { contents: [] }
         }
       },
     )
 
-    // 添加用户资料资源
+    // Add user profile resource
     this.mcpServer.resource(
       'profile',
       new ResourceTemplate('twitter://user/{username}', { list: undefined }),
@@ -115,13 +115,13 @@ export class MCPAdapter {
           }
         }
         catch (error) {
-          logger.mcp.errorWithError('获取用户资料错误:', error)
+          logger.mcp.errorWithError('Error fetching user profile:', error)
           return { contents: [] }
         }
       },
     )
 
-    // 添加登录工具
+    // Add login tool
     this.mcpServer.tool(
       'login',
       {
@@ -135,20 +135,20 @@ export class MCPAdapter {
           return {
             content: [{
               type: 'text',
-              text: success ? '成功登录到 Twitter' : '登录失败，请检查凭据',
+              text: success ? 'Successfully logged into Twitter' : 'Login failed, please check credentials',
             }],
           }
         }
         catch (error) {
           return {
-            content: [{ type: 'text', text: `登录失败: ${errorToMessage(error)}` }],
+            content: [{ type: 'text', text: `Login failed: ${errorToMessage(error)}` }],
             isError: true,
           }
         }
       },
     )
 
-    // 添加发推工具
+    // Add post tweet tool
     this.mcpServer.tool(
       'post-tweet',
       {
@@ -166,20 +166,20 @@ export class MCPAdapter {
           return {
             content: [{
               type: 'text',
-              text: `成功发布推文: ${tweetId}`,
+              text: `Successfully posted tweet: ${tweetId}`,
             }],
           }
         }
         catch (error) {
           return {
-            content: [{ type: 'text', text: `发推失败: ${errorToMessage(error)}` }],
+            content: [{ type: 'text', text: `Failed to post tweet: ${errorToMessage(error)}` }],
             isError: true,
           }
         }
       },
     )
 
-    // 添加点赞工具
+    // Add like tweet tool
     this.mcpServer.tool(
       'like-tweet',
       { tweetId: z.string() },
@@ -190,20 +190,20 @@ export class MCPAdapter {
           return {
             content: [{
               type: 'text',
-              text: success ? '成功点赞' : '点赞失败',
+              text: success ? 'Successfully liked tweet' : 'Failed to like tweet',
             }],
           }
         }
         catch (error) {
           return {
-            content: [{ type: 'text', text: `点赞失败: ${errorToMessage(error)}` }],
+            content: [{ type: 'text', text: `Failed to like tweet: ${errorToMessage(error)}` }],
             isError: true,
           }
         }
       },
     )
 
-    // 添加转发工具
+    // Add retweet tool
     this.mcpServer.tool(
       'retweet',
       { tweetId: z.string() },
@@ -214,20 +214,20 @@ export class MCPAdapter {
           return {
             content: [{
               type: 'text',
-              text: success ? '成功转发' : '转发失败',
+              text: success ? 'Successfully retweeted' : 'Failed to retweet',
             }],
           }
         }
         catch (error) {
           return {
-            content: [{ type: 'text', text: `转发失败: ${errorToMessage(error)}` }],
+            content: [{ type: 'text', text: `Failed to retweet: ${errorToMessage(error)}` }],
             isError: true,
           }
         }
       },
     )
 
-    // 添加搜索工具
+    // Add search tool
     this.mcpServer.tool(
       'search',
       {
@@ -242,14 +242,14 @@ export class MCPAdapter {
           return {
             content: [{
               type: 'text',
-              text: `搜索结果: ${results.length} 条推文`,
+              text: `Search results: ${results.length} tweets`,
             }],
             resources: results.map(tweet => `twitter://tweet/${tweet.id}`),
           }
         }
         catch (error) {
           return {
-            content: [{ type: 'text', text: `搜索失败: ${errorToMessage(error)}` }],
+            content: [{ type: 'text', text: `Search failed: ${errorToMessage(error)}` }],
             isError: true,
           }
         }
@@ -258,12 +258,12 @@ export class MCPAdapter {
   }
 
   /**
-   * 设置 H3 路由
+   * Set up H3 routes
    */
   private setupRoutes(): void {
     const router = createRouter()
 
-    // 设置 CORS
+    // Set up CORS
     router.use('*', defineEventHandler((event) => {
       event.node.res.setHeader('Access-Control-Allow-Origin', '*')
       event.node.res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
@@ -275,7 +275,7 @@ export class MCPAdapter {
       }
     }))
 
-    // SSE 端点
+    // SSE endpoint
     router.get('/sse', defineEventHandler(async (event) => {
       const { req, res } = event.node
 
@@ -283,11 +283,11 @@ export class MCPAdapter {
       res.setHeader('Cache-Control', 'no-cache')
       res.setHeader('Connection', 'keep-alive')
 
-      // 创建 SSE 传输
+      // Create SSE transport
       const transport = new SSEServerTransport('/messages', res)
       this.activeTransports.push(transport)
 
-      // 客户端断开连接时清理
+      // Clean up when client disconnects
       req.on('close', () => {
         const index = this.activeTransports.indexOf(transport)
         if (index !== -1) {
@@ -295,11 +295,11 @@ export class MCPAdapter {
         }
       })
 
-      // 连接到 MCP 服务器
+      // Connect to MCP server
       await this.mcpServer.connect(transport)
     }))
 
-    // 消息端点，接收客户端请求
+    // Messages endpoint - receive client requests
     router.post('/messages', defineEventHandler(async (event) => {
       if (this.activeTransports.length === 0) {
         event.node.res.statusCode = 503
@@ -307,14 +307,14 @@ export class MCPAdapter {
       }
 
       try {
-        // 解析请求体
+        // Parse request body
         const body = await readBody(event)
 
-        // 简单处理 - 发送到最近的传输
-        // 注意: 生产环境中应该使用会话ID来路由到正确的传输
+        // Simple handling - send to most recent transport
+        // Note: In production, should use session ID to route to correct transport
         const transport = this.activeTransports[this.activeTransports.length - 1]
 
-        // 手动处理 POST 消息，因为 H3 不是 Express 兼容的
+        // Manually handle POST message, as H3 is not Express-compatible
         const response = await transport.handleMessage(body)
 
         return response
@@ -325,7 +325,7 @@ export class MCPAdapter {
       }
     }))
 
-    // 根路径 - 提供服务信息
+    // Root path - provide service info
     router.get('/', defineEventHandler(() => {
       return {
         name: 'Twitter MCP Service',
@@ -337,27 +337,27 @@ export class MCPAdapter {
       }
     }))
 
-    // 使用路由
+    // Use router
     this.app.use(router)
   }
 
   /**
-   * 启动 MCP 服务器
+   * Start MCP server
    */
   start(): Promise<void> {
     return new Promise((resolve) => {
-      // 创建 Node.js HTTP 服务器
+      // Create Node.js HTTP server
       this.server = createServer(toNodeListener(this.app))
 
       this.server.listen(this.port, () => {
-        logger.mcp.withField('port', this.port).log('MCP 服务器已启动')
+        logger.mcp.withField('port', this.port).log('MCP server started')
         resolve()
       })
     })
   }
 
   /**
-   * 停止 MCP 服务器
+   * Stop MCP server
    */
   stop(): Promise<void> {
     return new Promise((resolve, reject) => {
@@ -370,7 +370,7 @@ export class MCPAdapter {
           reject(error)
         }
         else {
-          logger.mcp.log('MCP 服务器已停止')
+          logger.mcp.log('MCP server stopped')
           resolve()
         }
       })
@@ -378,7 +378,7 @@ export class MCPAdapter {
   }
 }
 
-// h3 工具函数：从 event 读取请求体
+// h3 utility function: read body from event
 async function readBody(event: any): Promise<any> {
   const buffers = []
   for await (const chunk of event.node.req) {

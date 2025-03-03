@@ -7,7 +7,7 @@ import { chromium } from 'playwright'
 import { logger } from '../utils/logger'
 
 /**
- * Stagehand 客户端配置选项
+ * Stagehand client configuration options
  */
 export interface StagehandClientOptions {
   apiKey: string
@@ -19,8 +19,8 @@ export interface StagehandClientOptions {
 }
 
 /**
- * Stagehand 客户端
- * 使用 @browserbasehq/stagehand 实现浏览器自动化
+ * Stagehand client
+ * Implements browser automation using @browserbasehq/stagehand
  */
 export class StagehandClient {
   private browser: Browser | null = null
@@ -49,7 +49,7 @@ export class StagehandClient {
   }
 
   /**
-   * 创建浏览器会话
+   * Create browser session
    */
   async createSession(options?: {
     headless?: boolean
@@ -57,56 +57,56 @@ export class StagehandClient {
     viewport?: { width: number, height: number }
   }): Promise<string> {
     try {
-      // 启动 Playwright 浏览器
+      // Launch Playwright browser
       this.browser = await chromium.launch({
         headless: options?.headless ?? this.options.headless,
       })
 
-      // 创建上下文
+      // Create context
       const context = await this.browser.newContext({
         userAgent: options?.userAgent ?? this.options.userAgent,
         viewport: options?.viewport ?? this.options.viewport,
-        // 设置任何其他所需的浏览器上下文选项
+        // Set any other required browser context options
       })
 
-      // 创建页面
+      // Create page
       this.page = await context.newPage()
 
-      // 为页面添加 Stagehand 扩展
+      // Add Stagehand extension to page
       await this.setupStagehand()
 
       const sessionId = `session-${Date.now()}`
-      logger.browser.withField('sessionId', sessionId).log('创建浏览器会话成功')
+      logger.browser.withField('sessionId', sessionId).log('Browser session created successfully')
       return sessionId
     }
     catch (error) {
-      logger.browser.errorWithError('创建浏览器会话失败', error)
+      logger.browser.errorWithError('Failed to create browser session', error)
       throw error
     }
   }
 
   /**
-   * 设置 Stagehand 扩展
-   * 这将添加 act, extract, observe 方法到 page 对象
+   * Set up Stagehand extension
+   * This adds act, extract, observe methods to the page object
    */
   private async setupStagehand(): Promise<void> {
     if (!this.page) {
       throw new Error('No active page. Call createSession first.')
     }
 
-    // 在实际实现中，这里会使用 Stagehand 的 API 设置页面对象
-    // 这可能涉及到页面扩展或注入 Stagehand 的功能
-    // 示例代码（实际使用需要根据 Stagehand 的文档进行调整）:
+    // In actual implementation, this would use Stagehand's API to set up the page object
+    // This might involve page extension or injecting Stagehand functionality
+    // Example code (actual usage would need to be adjusted based on Stagehand's documentation):
     //
     // import { extendPage } from '@browserbasehq/stagehand'
     // await extendPage(this.page, {
     //   apiKey: this.apiKey,
-    //   // 其他 Stagehand 选项
+    //   // Other Stagehand options
     // })
   }
 
   /**
-   * 导航到指定URL
+   * Navigate to specified URL
    */
   async navigate(url: string): Promise<void> {
     this.ensurePageExists()
@@ -114,7 +114,7 @@ export class StagehandClient {
   }
 
   /**
-   * 执行JavaScript脚本
+   * Execute JavaScript script
    */
   async executeScript<T>(script: string): Promise<T> {
     this.ensurePageExists()
@@ -122,19 +122,19 @@ export class StagehandClient {
   }
 
   /**
-   * 使用 Stagehand 的 act API 执行操作
+   * Use Stagehand's act API to perform operations
    */
   async act(instruction: string): Promise<void> {
     this.ensurePageExists()
 
-    // 在实际实现中，这将使用 Stagehand 的 act API
-    // 示例：await this.page!.act(instruction)
+    // In actual implementation, this would use Stagehand's act API
+    // Example: await this.page!.act(instruction)
 
-    // 临时实现，使用 Playwright 的基本能力模拟
-    logger.browser.withField('instruction', instruction).log('执行 act 指令')
+    // Temporary implementation, simulating act behavior with Playwright basics
+    logger.browser.withField('instruction', instruction).log('Executing act instruction')
 
-    // 这里通过简单的方法来模拟 act 的行为
-    // 实际需要使用 Stagehand 的 act API
+    // Simulate act behavior through simple methods
+    // Actual implementation would use Stagehand's act API
     if (instruction.includes('click')) {
       const match = instruction.match(/click on the ['"](.+?)['"]/)
       if (match && match[1]) {
@@ -144,7 +144,7 @@ export class StagehandClient {
   }
 
   /**
-   * 使用 Stagehand 的 extract API 提取数据
+   * Use Stagehand's extract API to extract data
    */
   async extract<T extends z.ZodTypeAny>({
     instruction,
@@ -155,36 +155,36 @@ export class StagehandClient {
   }): Promise<z.infer<T>> {
     this.ensurePageExists()
 
-    // 在实际实现中，这将使用 Stagehand 的 extract API
-    // 示例：return await this.page!.extract({ instruction, schema })
+    // In actual implementation, this would use Stagehand's extract API
+    // Example: return await this.page!.extract({ instruction, schema })
 
-    // 临时实现，记录指令并返回一个空对象
-    logger.browser.withField('instruction', instruction).log('执行 extract 指令')
+    // Temporary implementation, log instruction and return empty object
+    logger.browser.withField('instruction', instruction).log('Executing extract instruction')
 
-    // 这里只是简单地返回一个空对象
-    // 实际需要使用 Stagehand 的 extract API
+    // Simply return an empty object
+    // Actual implementation would use Stagehand's extract API
     return {} as z.infer<T>
   }
 
   /**
-   * 使用 Stagehand 的 observe API 观察页面状态
+   * Use Stagehand's observe API to observe page state
    */
   async observe(instruction: string): Promise<string> {
     this.ensurePageExists()
 
-    // 在实际实现中，这将使用 Stagehand 的 observe API
-    // 示例：return await this.page!.observe(instruction)
+    // In actual implementation, this would use Stagehand's observe API
+    // Example: return await this.page!.observe(instruction)
 
-    // 临时实现，记录指令并返回空字符串
-    logger.browser.withField('instruction', instruction).log('执行 observe 指令')
+    // Temporary implementation, log instruction and return empty string
+    logger.browser.withField('instruction', instruction).log('Executing observe instruction')
 
-    // 这里只是简单地返回一个空字符串
-    // 实际需要使用 Stagehand 的 observe API
+    // Simply return an empty string
+    // Actual implementation would use Stagehand's observe API
     return ''
   }
 
   /**
-   * 获取页面内容
+   * Get page content
    */
   async getContent(): Promise<string> {
     this.ensurePageExists()
@@ -192,7 +192,7 @@ export class StagehandClient {
   }
 
   /**
-   * 等待元素出现
+   * Wait for element to appear
    */
   async waitForSelector(selector: string, options: { timeout?: number } = {}): Promise<void> {
     this.ensurePageExists()
@@ -202,7 +202,7 @@ export class StagehandClient {
   }
 
   /**
-   * 点击元素
+   * Click element
    */
   async click(selector: string): Promise<void> {
     this.ensurePageExists()
@@ -210,18 +210,18 @@ export class StagehandClient {
   }
 
   /**
-   * 向输入框输入文本
+   * Type text into input field
    */
   async type(selector: string, text: string): Promise<void> {
     this.ensurePageExists()
-    // 先清空输入框
+    // Clear input field first
     await this.page!.fill(selector, '')
-    // 然后输入文本
+    // Then type text
     await this.page!.fill(selector, text)
   }
 
   /**
-   * 获取元素文本内容
+   * Get element text content
    */
   async getText(selector: string): Promise<string> {
     this.ensurePageExists()
@@ -233,7 +233,7 @@ export class StagehandClient {
   }
 
   /**
-   * 获取屏幕截图
+   * Get screenshot
    */
   async getScreenshot(): Promise<Buffer> {
     this.ensurePageExists()
@@ -241,19 +241,19 @@ export class StagehandClient {
   }
 
   /**
-   * 关闭会话
+   * Close session
    */
   async closeSession(): Promise<void> {
     if (this.browser) {
       await this.browser.close()
       this.browser = null
       this.page = null
-      logger.browser.log('浏览器会话已关闭')
+      logger.browser.log('Browser session closed')
     }
   }
 
   /**
-   * 确保页面存在
+   * Ensure page exists
    */
   private ensurePageExists(): void {
     if (!this.page) {

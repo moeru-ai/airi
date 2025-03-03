@@ -3,34 +3,34 @@ import { ofetch } from 'ofetch'
 import { logger } from './logger'
 
 /**
- * 创建一个预配置的 ofetch 实例
+ * Create a pre-configured ofetch instance
  *
- * @param baseURL - API 的基础 URL
- * @param options - 附加选项
- * @returns - 定制的 ofetch 实例
+ * @param baseURL - Base URL for the API
+ * @param options - Additional options
+ * @returns - Customized ofetch instance
  */
 export function createApiClient(baseURL: string, options: Record<string, any> = {}) {
   const client = ofetch.create({
     baseURL,
     retry: 1,
-    timeout: 30000, // 默认 30 秒超时
+    timeout: 30000, // Default 30 second timeout
     ...options,
 
-    // 请求拦截器
+    // Request interceptor
     onRequest({ request, options }) {
       const method = options.method || 'GET'
       const url = request.toString()
-      logger.browser.withFields({ method, url }).debug('API 请求')
+      logger.browser.withFields({ method, url }).debug('API request')
     },
 
-    // 请求错误拦截器
+    // Request error interceptor
     onRequestError({ request, error, options }) {
       const method = options.method || 'GET'
       const url = request.toString()
-      logger.browser.withFields({ method, url }).errorWithError('API 请求失败', error)
+      logger.browser.withFields({ method, url }).errorWithError('API request failed', error)
     },
 
-    // 响应拦截器
+    // Response interceptor
     onResponse({ request, response, options }) {
       const method = options.method || 'GET'
       const url = request.toString()
@@ -40,10 +40,10 @@ export function createApiClient(baseURL: string, options: Record<string, any> = 
         .withField('method', method)
         .withField('url', url)
         .withField('status', status)
-        .debug('API 响应')
+        .debug('API response')
     },
 
-    // 响应错误拦截器
+    // Response error interceptor
     onResponseError({ request, response, options }) {
       const method = options.method || 'GET'
       const url = request.toString()
@@ -54,7 +54,7 @@ export function createApiClient(baseURL: string, options: Record<string, any> = 
         .withField('url', url)
         .withField('status', status)
         .withField('body', response._data)
-        .error('API 响应错误')
+        .error('API response error')
     },
   })
 

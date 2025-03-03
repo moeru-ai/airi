@@ -5,8 +5,8 @@ import { Client } from '@proj-airi/server-sdk'
 import { logger } from '../utils/logger'
 
 /**
- * Airi 适配器
- * 将 Twitter 服务适配为 Airi 模块
+ * Airi Adapter
+ * Adapts the Twitter service as an Airi module
  */
 export class AiriAdapter {
   private client: Client
@@ -26,7 +26,7 @@ export class AiriAdapter {
       name: 'twitter-module',
       token: options.token,
       possibleEvents: [
-        // 定义此模块可以处理的事件类型
+        // Define event types this module can handle
         'twitter:login',
         'twitter:getTimeline',
         'twitter:getTweetDetails',
@@ -43,10 +43,10 @@ export class AiriAdapter {
   }
 
   /**
-   * 设置事件处理器
+   * Set up event handlers
    */
   private setupEventHandlers(): void {
-    // 登录处理
+    // Login handler
     this.client.onEvent('twitter:login', async (event) => {
       try {
         const credentials = event.data.credentials as TwitterCredentials || this.credentials
@@ -64,7 +64,7 @@ export class AiriAdapter {
       }
     })
 
-    // 获取时间线处理
+    // Timeline handler
     this.client.onEvent('twitter:getTimeline', async (event) => {
       try {
         const options = event.data.options as TimelineOptions || {}
@@ -82,14 +82,14 @@ export class AiriAdapter {
       }
     })
 
-    // 其他事件处理...
+    // Other event handlers...
   }
 
   /**
-   * 启动适配器
+   * Start the adapter
    */
   async start(): Promise<void> {
-    // 可以在这里添加初始化逻辑
+    // Initialization logic can be added here
     logger.airi.log('Airi Twitter adapter started')
   }
 }

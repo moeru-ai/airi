@@ -1,5 +1,5 @@
 /**
- * 浏览器配置接口
+ * Browser Config Interface
  */
 export interface BrowserConfig {
   headless?: boolean
@@ -9,13 +9,13 @@ export interface BrowserConfig {
     height: number
   }
   timeout?: number
-  requestTimeout?: number // API 请求超时设置
-  requestRetries?: number // 请求重试次数
+  requestTimeout?: number // API request timeout
+  requestRetries?: number // Request retries
   proxy?: string
 }
 
 /**
- * 元素句柄接口
+ * Element Handle Interface
  */
 export interface ElementHandle {
   getText: () => Promise<string>
@@ -25,7 +25,7 @@ export interface ElementHandle {
 }
 
 /**
- * 等待选项接口
+ * Wait Options Interface
  */
 export interface WaitOptions {
   timeout?: number

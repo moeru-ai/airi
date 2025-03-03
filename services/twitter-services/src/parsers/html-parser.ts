@@ -9,15 +9,15 @@ export interface ParseOptions {
 }
 
 /**
- * HTML 解析器
- * 使用 rehype 将 HTML 字符串转换为 AST，便于后续处理
+ * HTML Parser
+ * Uses rehype to convert HTML strings to AST, for further processing
  */
 export class HtmlParser {
   /**
-   * 将 HTML 字符串解析为 rehype AST
-   * @param html HTML 字符串
-   * @param options 解析选项
-   * @returns hast 语法树
+   * Parse HTML string to rehype AST
+   * @param html HTML string
+   * @param options Parse options
+   * @returns hast syntax tree
    */
   static parse(html: string, options: ParseOptions = {}): Root {
     const processor = unified().use(rehypeParse, {
@@ -31,16 +31,16 @@ export class HtmlParser {
   }
 
   /**
-   * 根据选择器查找元素
-   * @param tree AST 树
-   * @param selector 简化版选择器 (tagName, className, id)
-   * @returns 匹配的元素数组
+   * Find elements by selector
+   * @param tree AST tree
+   * @param selector Simplified selector (tagName, className, id)
+   * @returns Matching element array
    */
   static select(tree: Root, selector: string): Element[] {
     const elements: Element[] = []
 
     visit(tree, 'element', (node) => {
-      // 简单选择器实现
+      // Simple selector implementation
       if (this.matchesSelector(node, selector)) {
         elements.push(node)
       }
@@ -50,27 +50,27 @@ export class HtmlParser {
   }
 
   /**
-   * 简单的选择器匹配逻辑
+   * Simple selector matching logic
    */
   private static matchesSelector(node: Element, selector: string): boolean {
-    // 标签选择器
+    // Tag selector
     if (selector.match(/^[a-z0-9]+$/i)) {
       return node.tagName === selector
     }
 
-    // 类选择器
+    // Class selector
     if (selector.startsWith('.')) {
       const className = selector.slice(1)
       return (node.properties?.className as string[])?.includes(className) ?? false
     }
 
-    // ID 选择器
+    // ID selector
     if (selector.startsWith('#')) {
       const id = selector.slice(1)
       return node.properties?.id === id
     }
 
-    // 数据属性选择器
+    // Data attribute selector
     if (selector.startsWith('[data-')) {
       // Use non-greedy quantifier and more specific character classes to avoid backtracking
       const match = selector.match(/\[([^=\]]+)=(['"]?)([^"'\]]+)\2\]/)
@@ -84,10 +84,10 @@ export class HtmlParser {
   }
 
   /**
-   * 访问特定类型的节点
-   * @param tree AST 树
-   * @param nodeType 节点类型
-   * @param visitor 访问器函数
+   * Visit specific node type
+   * @param tree AST tree
+   * @param nodeType Node type
+   * @param visitor Visitor function
    */
   static visit(tree: Element | Root, nodeType: string, visitor: (node: any) => void): void {
     visit(tree, nodeType, visitor)

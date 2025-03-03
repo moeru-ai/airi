@@ -5,14 +5,14 @@ import { SELECTORS } from '../utils/selectors'
 import { HtmlParser } from './html-parser'
 
 /**
- * 推文解析器
- * 从 HTML 中提取推文信息
+ * Tweet Parser
+ * Extracts tweet information from HTML
  */
 export class TweetParser {
   /**
-   * 从 HTML 中解析推文列表
-   * @param html HTML 字符串
-   * @returns 推文数组
+   * Parse timeline tweets from HTML
+   * @param html HTML string
+   * @returns Tweet array
    */
   static parseTimelineTweets(html: string): Tweet[] {
     const tree = HtmlParser.parse(html)
@@ -22,26 +22,26 @@ export class TweetParser {
   }
 
   /**
-   * 从推文元素中提取推文数据
-   * @param element 推文元素
-   * @returns 推文数据
+   * Extract tweet data from tweet element
+   * @param element Tweet element
+   * @returns Tweet data
    */
   static extractTweetData(element: Element): Tweet {
-    // 获取推文 ID
+    // Get tweet ID
     const id = this.extractTweetId(element)
 
-    // 获取推文文本
+    // Get tweet text
     const textElement = HtmlParser.select(element, SELECTORS.TIMELINE.TWEET_TEXT)[0]
     const text = this.extractTextContent(textElement)
 
-    // 获取作者信息
+    // Get author info
     const author = this.extractAuthorInfo(element)
 
-    // 获取时间戳
+    // Get timestamp
     const timeElement = HtmlParser.select(element, SELECTORS.TIMELINE.TWEET_TIME)[0]
     const timestamp = timeElement?.properties?.datetime as string || new Date().toISOString()
 
-    // 获取统计数据
+    // Get stats
     const stats = this.extractTweetStats(element)
 
     return {
@@ -54,16 +54,16 @@ export class TweetParser {
   }
 
   /**
-   * 提取推文ID
+   * Extract tweet ID
    */
   private static extractTweetId(element: Element): string {
-    // 从 data-tweet-id 属性或其他位置提取ID
+    // Extract ID from data-tweet-id attribute or other location
     return element.properties?.['data-tweet-id'] as string
       || `tweet-${Math.random().toString(36).substring(2, 15)}`
   }
 
   /**
-   * 提取文本内容
+   * Extract text content
    */
   private static extractTextContent(element?: Element): string {
     if (!element)
@@ -78,23 +78,23 @@ export class TweetParser {
   }
 
   /**
-   * 提取作者信息
+   * Extract author info
    */
   private static extractAuthorInfo(_element: Element) {
-    // 根据选择器提取作者名称、用户名和头像
-    // 这部分需要根据Twitter的实际DOM结构调整
+    // Extract author name, username and avatar
+    // This part needs to be adjusted based on the actual DOM structure of Twitter
     return {
-      username: '用户名', // 占位，实际实现需要根据DOM结构
-      displayName: '显示名称',
+      username: 'username', // Placeholder, actual implementation needs to be based on DOM structure
+      displayName: 'displayName',
       avatarUrl: undefined,
     }
   }
 
   /**
-   * 提取推文统计信息
+   * Extract tweet stats
    */
   private static extractTweetStats(_element: Element) {
-    // 提取点赞数、转发数和评论数
+    // Extract like count, retweet count and reply count
     return {
       likeCount: undefined,
       retweetCount: undefined,

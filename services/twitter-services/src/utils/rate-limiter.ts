@@ -1,6 +1,6 @@
 /**
- * 请求频率限制器
- * 控制对 Twitter 的请求频率，避免触发限制
+ * Request rate limiter
+ * Controls request frequency to Twitter to avoid triggering limits
  */
 export class RateLimiter {
   private requestHistory: number[] = []
@@ -8,9 +8,9 @@ export class RateLimiter {
   private timeWindow: number
 
   /**
-   * 创建频率限制器
-   * @param maxRequests 时间窗口内的最大请求数
-   * @param timeWindow 时间窗口大小（毫秒）
+   * Create rate limiter
+   * @param maxRequests Maximum requests within time window
+   * @param timeWindow Time window size (milliseconds)
    */
   constructor(maxRequests: number = 20, timeWindow: number = 60000) {
     this.maxRequests = maxRequests
@@ -18,7 +18,7 @@ export class RateLimiter {
   }
 
   /**
-   * 检查是否可以发送请求
+   * Check if request can be sent
    */
   canRequest(): boolean {
     this.cleanOldRequests()
@@ -26,15 +26,15 @@ export class RateLimiter {
   }
 
   /**
-   * 记录一次请求
+   * Record a request
    */
   recordRequest(): void {
     this.requestHistory.push(Date.now())
   }
 
   /**
-   * 获取下次可请求的等待时间（毫秒）
-   * 如果当前可以请求，返回0
+   * Get wait time until next available request (milliseconds)
+   * Returns 0 if request can be sent now
    */
   getWaitTime(): number {
     if (this.canRequest()) {
@@ -46,7 +46,7 @@ export class RateLimiter {
   }
 
   /**
-   * 清理过期的请求记录
+   * Clean expired request records
    */
   private cleanOldRequests(): void {
     const now = Date.now()
@@ -55,7 +55,7 @@ export class RateLimiter {
   }
 
   /**
-   * 等待直到可以发送请求
+   * Wait until request can be sent
    */
   async waitUntilReady(): Promise<void> {
     const waitTime = this.getWaitTime()

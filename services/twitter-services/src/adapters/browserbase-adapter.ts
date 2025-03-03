@@ -8,7 +8,7 @@ import { errorToMessage } from '../utils/error'
 import { logger } from '../utils/logger'
 
 /**
- * Stagehand 元素句柄实现
+ * Stagehand element handle implementation
  */
 class StagehandElementHandle implements ElementHandle {
   private client: StagehandClient
@@ -41,8 +41,8 @@ class StagehandElementHandle implements ElementHandle {
 }
 
 /**
- * Stagehand 浏览器适配器实现
- * 将 Stagehand API 适配为通用浏览器接口
+ * Stagehand browser adapter implementation
+ * Adapts the Stagehand API to a common browser interface
  */
 export class StagehandBrowserAdapter implements BrowserAdapter {
   private client: StagehandClient
@@ -64,11 +64,11 @@ export class StagehandBrowserAdapter implements BrowserAdapter {
       })
       logger.browser.withFields({
         headless: config.headless,
-      }).log('浏览器会话已创建')
+      }).log('Browser session created')
     }
     catch (error) {
-      logger.browser.withError(error).error('浏览器初始化失败')
-      throw new Error(`无法初始化浏览器: ${errorToMessage(error)}`)
+      logger.browser.withError(error).error('Failed to initialize browser')
+      throw new Error(`Unable to initialize browser: ${errorToMessage(error)}`)
     }
   }
 
@@ -99,7 +99,7 @@ export class StagehandBrowserAdapter implements BrowserAdapter {
   }
 
   async getElements(selector: string): Promise<ElementHandle[]> {
-    // 获取所有匹配元素的选择器
+    // Get all matching element selectors
     const selectors = await this.executeScript<string[]>(`
       Array.from(document.querySelectorAll('${selector}')).map((el, i) => {
         const uniqueId = 'stagehand-' + Date.now() + '-' + i;
@@ -108,11 +108,11 @@ export class StagehandBrowserAdapter implements BrowserAdapter {
       })
     `)
 
-    // 为每个匹配的元素创建一个 ElementHandle
+    // Create an ElementHandle for each match
     return selectors.map(selector => new StagehandElementHandle(this.client, selector))
   }
 
-  // 新增 Stagehand 相关方法
+  // Add Stagehand specific methods
   async act(instruction: string): Promise<void> {
     await this.client.act(instruction)
   }
