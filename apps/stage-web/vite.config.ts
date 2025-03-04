@@ -19,7 +19,6 @@ import VueDevTools from 'vite-plugin-vue-devtools'
 import Layouts from 'vite-plugin-vue-layouts'
 
 import { exists } from '../../scripts/fs'
-import { appName } from './src/constants'
 
 export default defineConfig({
   optimizeDeps: {
@@ -97,10 +96,40 @@ export default defineConfig({
           registerType: 'autoUpdate',
           includeAssets: ['favicon.svg', 'apple-touch-icon.png'],
           manifest: {
-            name: appName,
+            name: 'Airi',
             short_name: appName,
-            theme_color: '#ffffff',
+            theme_color: '#ffc6cb',
             icons: [
+              {
+                purpose: 'maskable',
+                sizes: '128x128',
+                src: '/maskable_icon_x128.png',
+                type: 'image/png',
+              },
+              {
+                purpose: 'maskable',
+                sizes: '192x192',
+                src: '/maskable_icon_x192.png',
+                type: 'image/png',
+              },
+              {
+                purpose: 'maskable',
+                sizes: '384x384',
+                src: '/maskable_icon_x384.png',
+                type: 'image/png',
+              },
+              {
+                purpose: 'maskable',
+                sizes: '512x512',
+                src: '/maskable_icon_x512.png',
+                type: 'image/png',
+              },
+              {
+                purpose: 'maskable',
+                sizes: '1024x1024',
+                src: '/maskable_icon.png',
+                type: 'image/png',
+              },
               {
                 src: '/web-app-manifest-192x192.png',
                 sizes: '192x192',
