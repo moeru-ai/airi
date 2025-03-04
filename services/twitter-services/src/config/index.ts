@@ -120,7 +120,7 @@ let configInstance: ConfigManager | null = null
 /**
  * Create default configuration manager (singleton)
  */
-export function createDefaultConfig(): ConfigManager {
+export function useConfigManager(): ConfigManager {
   if (configInstance) {
     return configInstance
   }

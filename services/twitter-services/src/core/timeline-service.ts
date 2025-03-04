@@ -22,7 +22,7 @@ export class TwitterTimelineService {
   async getTimeline(options: TimelineOptions = {}): Promise<Tweet[]> {
     try {
       // Navigate to home page
-      await this.page.goto('https://twitter.com/home')
+      await this.page.goto('https://x.com/home')
 
       // Wait for timeline to load
       await this.page.waitForSelector(SELECTORS.TIMELINE.TWEET, { timeout: 10000 })

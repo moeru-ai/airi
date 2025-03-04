@@ -1,13 +1,13 @@
 import path from 'node:path'
 import { createLogg, Format, LogLevel, setGlobalFormat, setGlobalLogLevel } from '@guiiai/logg'
 
-import { createDefaultConfig } from '../config'
+import { useConfigManager } from '../config'
 
 // Track initialization status
 let isInitialized = false
 
 // Initialize global logging configuration
-export function initializeLogger(): void {
+export function initLogger(): void {
   if (isInitialized) {
     return // Prevent multiple initializations
   }
@@ -16,7 +16,7 @@ export function initializeLogger(): void {
   setGlobalLogLevel(LogLevel.Debug)
   setGlobalFormat(Format.Pretty)
 
-  const config = createDefaultConfig().getConfig()
+  const config = useConfigManager().getConfig()
 
   const logLevelMap: Record<string, LogLevel> = {
     error: LogLevel.Error,

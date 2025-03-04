@@ -5,182 +5,169 @@ import type { MCPAdapter } from './adapters/mcp-adapter'
 import process from 'node:process'
 import { chromium } from 'playwright'
 
-import { createDefaultConfig } from './config'
+import { useConfigManager } from './config'
 import { TwitterAuthService } from './core/auth-service'
 import { TwitterTimelineService } from './core/timeline-service'
 import { TwitterService } from './core/twitter-service'
-import { initializeLogger, logger } from './utils/logger'
+import { initLogger, logger } from './utils/logger'
 
 /**
- * Twitter service launcher class
- * Responsible for initializing and starting services
+ * Initialize browser and create page
  */
-export class TwitterServiceLauncher {
-  private browser?: Browser
-  private context?: BrowserContext
-  private twitterService?: TwitterService
-  private airiAdapter?: AiriAdapter
-  private mcpAdapter?: MCPAdapter
+async function initBrowser(config: any): Promise<{ browser: Browser, context: BrowserContext, page: any }> {
+  const browser = await chromium.launch({
+    headless: config.browser.headless,
+  })
 
-  /**
-   * Start Twitter service
-   */
-  async start() {
-    try {
-      // Load configuration
-      const configManager = createDefaultConfig()
-      const config = configManager.getConfig()
+  const context = await browser.newContext({
+    userAgent: config.browser.userAgent,
+    viewport: config.browser.viewport,
+    bypassCSP: true,
+  })
 
-      logger.main.log('Starting Twitter service...')
+  context.setDefaultTimeout(config.browser.timeout || 30000)
+  const page = await context.newPage()
 
-      // Initialize Playwright browser
-      this.browser = await chromium.launch({
-        headless: config.browser.headless,
-      })
-
-      // Create a browser context
-      this.context = await this.browser.newContext({
-        userAgent: config.browser.userAgent,
-        viewport: config.browser.viewport,
-        bypassCSP: true,
-      })
-
-      // Set default timeout for navigation and actions
-      this.context.setDefaultTimeout(config.browser.timeout || 30000)
-
-      // Create a page
-      const page = await this.context.newPage()
-
-      logger.main.log('Browser initialized')
-
-      // Create service instances
-      const authService = new TwitterAuthService(page, this.context)
-      const timelineService = new TwitterTimelineService(page)
-
-      // Create Twitter service with direct service dependencies
-      this.twitterService = new TwitterService(authService, timelineService)
-
-      // Try to log in
-      if (config.twitter.credentials) {
-        const success = await this.twitterService.login(config.twitter.credentials)
-        if (success) {
-          logger.main.log('Successfully logged into Twitter')
-        }
-        else {
-          logger.main.error('Twitter login failed!')
-        }
-      }
-
-      // Start enabled adapters
-      if (config.adapters.airi?.enabled) {
-        logger.main.log('Starting Airi adapter...')
-        const { AiriAdapter } = await import('./adapters/airi-adapter')
-
-        this.airiAdapter = new AiriAdapter(this.twitterService, {
-          url: config.adapters.airi.url,
-          token: config.adapters.airi.token,
-          credentials: config.twitter.credentials!,
-        })
-
-        await this.airiAdapter.start()
-        logger.main.log('Airi adapter started')
-      }
-
-      if (config.adapters.mcp?.enabled) {
-        logger.main.log('Starting MCP adapter...')
-        const { MCPAdapter } = await import('./adapters/mcp-adapter')
-
-        this.mcpAdapter = new MCPAdapter(
-          this.twitterService,
-          config.adapters.mcp.port,
-        )
-
-        await this.mcpAdapter.start()
-        logger.main.log('MCP adapter started')
-      }
-
-      logger.main.log('Twitter service successfully started!')
-
-      // Set up shutdown hooks
-      this.setupShutdownHooks()
-    }
-    catch (error) {
-      logger.main.withError(error).error('Failed to start Twitter service')
-    }
-  }
-
-  /**
-   * Stop service
-   */
-  async stop() {
-    logger.main.log('Stopping Twitter service...')
-
-    // Stop MCP adapter
-    if (this.mcpAdapter) {
-      await this.mcpAdapter.stop()
-      logger.main.log('MCP adapter stopped')
-    }
-
-    // Close browser
-    if (this.context) {
-      await this.context.close()
-    }
-
-    if (this.browser) {
-      await this.browser.close()
-      logger.main.log('Browser closed')
-    }
-
-    logger.main.log('Twitter service stopped')
-  }
-
-  /**
-   * Set up shutdown hooks
-   */
-  private setupShutdownHooks() {
-    // Handle process exit
-    process.on('SIGINT', async () => {
-      logger.main.log('Received exit signal...')
-      await this.stop()
-      process.exit(0)
-    })
-
-    process.on('SIGTERM', async () => {
-      logger.main.log('Received termination signal...')
-      await this.stop()
-      process.exit(0)
-    })
-
-    // Handle uncaught exceptions
-    process.on('uncaughtException', async (error) => {
-      logger.main.withError(error).error('Uncaught exception')
-      await this.stop()
-      process.exit(1)
-    })
-  }
+  logger.main.log('Browser initialized')
+  return { browser, context, page }
 }
 
-// Ensure initialization only happens once
-async function bootstrap() {
-  // 1. First initialize logging system
-  initializeLogger()
+/**
+ * Initialize Twitter service and login
+ */
+async function initTwitterService(page: any, context: BrowserContext, config: any): Promise<TwitterService> {
+  const authService = new TwitterAuthService(page, context)
+  const timelineService = new TwitterTimelineService(page)
+  const twitterService = new TwitterService(authService, timelineService)
 
-  // 2. Then create and start service
-  const launcher = new TwitterServiceLauncher()
+  if (config.twitter.credentials) {
+    const success = await twitterService.login(config.twitter.credentials)
+    if (success) {
+      logger.main.log('Successfully logged into Twitter')
+    }
+    else {
+      logger.main.error('Twitter login failed!')
+    }
+  }
+
+  return twitterService
+}
+
+/**
+ * Initialize adapters
+ */
+async function initAdapters(twitterService: TwitterService, config: any): Promise<{ airi?: AiriAdapter, mcp?: MCPAdapter }> {
+  const adapters: { airi?: AiriAdapter, mcp?: MCPAdapter } = {}
+
+  if (config.adapters.airi?.enabled) {
+    logger.main.log('Starting Airi adapter...')
+    const { AiriAdapter } = await import('./adapters/airi-adapter')
+
+    adapters.airi = new AiriAdapter(twitterService, {
+      url: config.adapters.airi.url,
+      token: config.adapters.airi.token,
+      credentials: config.twitter.credentials!,
+    })
+
+    await adapters.airi.start()
+    logger.main.log('Airi adapter started')
+  }
+
+  if (config.adapters.mcp?.enabled) {
+    logger.main.log('Starting MCP adapter...')
+    const { MCPAdapter } = await import('./adapters/mcp-adapter')
+
+    adapters.mcp = new MCPAdapter(
+      twitterService,
+      config.adapters.mcp.port,
+    )
+
+    await adapters.mcp.start()
+    logger.main.log('MCP adapter started')
+  }
+
+  return adapters
+}
+
+/**
+ * Clean up resources
+ */
+async function cleanup(
+  adapters: { airi?: AiriAdapter, mcp?: MCPAdapter },
+  context?: BrowserContext,
+  browser?: Browser,
+) {
+  logger.main.log('Stopping Twitter service...')
+
+  if (adapters.mcp) {
+    await adapters.mcp.stop()
+    logger.main.log('MCP adapter stopped')
+  }
+
+  if (context) {
+    await context.close()
+  }
+
+  if (browser) {
+    await browser.close()
+    logger.main.log('Browser closed')
+  }
+
+  logger.main.log('Twitter service stopped')
+}
+
+/**
+ * Set up process shutdown hooks
+ */
+function setupShutdownHooks(
+  adapters: { airi?: AiriAdapter, mcp?: MCPAdapter },
+  context?: BrowserContext,
+  browser?: Browser,
+) {
+  const handleShutdown = async (signal: string) => {
+    logger.main.log(`Received ${signal} signal...`)
+    await cleanup(adapters, context, browser)
+    process.exit(0)
+  }
+
+  process.on('SIGINT', () => handleShutdown('exit'))
+  process.on('SIGTERM', () => handleShutdown('termination'))
+
+  process.on('uncaughtException', async (error) => {
+    logger.main.withError(error).error('Uncaught exception')
+    await cleanup(adapters, context, browser)
+    process.exit(1)
+  })
+}
+
+// Start application
+async function bootstrap() {
+  // Initialize logging system
+  initLogger()
 
   try {
-    await launcher.start()
+    const config = useConfigManager().getConfig()
+    logger.main.log('Starting Twitter service...')
+
+    // Initialize core components
+    const { browser, context, page } = await initBrowser(config)
+    const twitterService = await initTwitterService(page, context, config)
+    const adapters = await initAdapters(twitterService, config)
+
+    // Set up shutdown hooks
+    setupShutdownHooks(adapters, context, browser)
+
+    logger.main.log('Twitter service successfully started!')
   }
   catch (error) {
     logger.main.withError(error).error('Startup failed')
     process.exit(1)
   }
 
-  // Set up process event handling
+  // Handle unhandled rejections
   process.on('unhandledRejection', (reason) => {
     logger.main.withError(reason).error('Unhandled Promise rejection:')
   })
 }
 
-// Start application
 bootstrap()
