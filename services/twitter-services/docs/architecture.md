@@ -20,13 +20,13 @@ Twitter Service is a web automation service based on BrowserBase, providing stru
 │   ┌────────────┐         ┌─────────────┐    │
 │   │            │         │             │    │
 │   │  Airi Core │         │ Other LLM   │    │
-│   │            │         │ Applications │    │
+│   │            │         │ Applications│    │
 │   │            │         │             │    │
 │   └──────┬─────┘         └──────┬──────┘    │
 └──────────┼─────────────────────┼────────────┘
            │                     │
 ┌──────────▼─────────────────────▼────────────┐
-│                   适配器层                   │
+│                  Adapter Layer              │
 │                                             │
 │   ┌────────────┐         ┌─────────────┐    │
 │   │Airi Adapter│         │ MCP Adapter │    │
@@ -35,37 +35,42 @@ Twitter Service is a web automation service based on BrowserBase, providing stru
 └──────────┼─────────────────────┼────────────┘
            │                     │
 ┌──────────▼─────────────────────▼────────────┐
-│                 核心服务层                   │
+│                 Core Services Layer         │
 │                                             │
 │   ┌──────────────────────────────────┐      │
-│   │          Twitter Services         │      │
-│   │                                   │      │
-│   │  ┌────────┐       ┌────────────┐  │      │
-│   │  │ Auth   │       │ Timeline   │  │      │
-│   │  │ Service│       │ Service    │  │      │
-│   │  └────────┘       └────────────┘  │      │
-│   │                                   │      │
-│   └──────────────────┬────────────────┘      │
-└──────────────────────┼────────────────────────┘
+│   │          Twitter Services        │      │
+│   │                                  │      │
+│   │  ┌────────┐       ┌────────────┐ │      │
+│   │  │ Auth   │       │ Timeline   │ │      │
+│   │  │ Service│       │ Service    │ │      │
+│   │  └────────┘       └────────────┘ │      │
+│   │                                  │      │
+│   └──────────────────┬───────────────┘      │
+└──────────────────────┼──────────────────────┘
                       │
           ┌───────────▼────────────┐
-          │     浏览器适配层       │
+          │ Browser Adapter Layer  │
           │   (BrowserAdapter)     │
           └───────────┬────────────┘
                       │
           ┌───────────▼────────────┐
-          │     BrowserBase API    │
-          └──────────────────────────┘
+          │      Stagehand         │
+          └───────────┬────────────┘
+                      │
+          ┌───────────▼────────────┐
+          │     Playwright         │
+          └────────────────────────┘
 ```
 
 ## 4. Technology Stack and Dependencies
 
 - **Core Library**: TypeScript, Node.js
-- **Browser Automation**: BrowserBase API
+- **Browser Automation**: BrowserBase Stagehand, Playwright
 - **HTML Parsing**: unified, rehype-parse, unist-util-visit
 - **API Server**: H3.js, listhen
 - **Adapters**: Airi Server SDK, MCP SDK
 - **Logging System**: @guiiai/logg
+- **Configuration**: defu (deep merging configurations)
 - **Utility Library**: zod (type validation)
 
 ## 5. Key Components
@@ -88,13 +93,21 @@ Using listhen for optimized development experience, including automatic browser 
 
 #### 5.2.1 Authentication Service (Auth Service)
 
-Handles Twitter session detection and maintenance. Features a multi-stage authentication approach:
+The Authentication Service has been significantly enhanced to improve reliability and error handling:
 
-1. **Session File Loading**: First attempts to load saved sessions from disk using the SessionManager
+1. **Improved Session Detection**: Enhanced logic for detecting existing browser sessions
+2. **Robust Error Handling**: Implemented granular error handling to distinguish between different authentication failure types
+3. **Timeout Optimization**: Adjusted timeouts for various operations to enhance stability during network fluctuations
+4. **Enhanced Cookie Management**: Improved cookie storage and loading mechanisms to reduce the need for manual login
+5. **Session Validation**: Added comprehensive session validation to verify the integrity of saved sessions
+
+The service follows a multi-stage authentication approach:
+
+1. **Session File Loading**: First attempts to load saved sessions from disk
 2. **Existing Session Detection**: Checks if the browser already has a valid Twitter session
-3. **Manual Login Process**: If no existing session is found, opens the Twitter login page for user authentication
+3. **Manual Login Process**: If necessary, guides through the Twitter login page
 
-After successful login through any method, the service automatically saves the session cookies to file for future use. The SessionManager handles the serialization and persistence of authentication data, reducing the need for repeated manual logins.
+After successful authentication through any method, sessions are automatically persisted for future use.
 
 #### 5.2.2 Timeline Service (Timeline Service)
 
@@ -123,6 +136,16 @@ Manages authentication session data, providing methods to:
 - Delete invalid or expired sessions
 - Validate session age and integrity
 
+### 5.3.4 Browser Adapter Layer
+
+The service has migrated from direct BrowserBase API usage to Stagehand, an AI-powered web browsing framework built on top of Playwright. Stagehand offers three core APIs that simplify browser automation:
+
+- **act**: Execute actions on the page through natural language instructions
+- **extract**: Retrieve structured data from the page using natural language queries
+- **observe**: Analyze the page and suggest possible actions before execution
+
+Stagehand processes the DOM in chunks to optimize LLM performance and provides fallback vision capabilities for complex page structures. This migration significantly improves code maintainability and automation reliability when interacting with Twitter's interface.
+
 ## 6. Data Flow
 
 1. **Request Flow**: Application Layer → Adapter → Core Service → Browser Adapter Layer → BrowserBase API → Twitter
@@ -132,14 +155,21 @@ Manages authentication session data, providing methods to:
 
 ## 7. Configuration System
 
-Configuration is divided into several main parts:
+The configuration system has been optimized using the `defu` library for deep merging configurations, eliminating redundant initialization. The updated configuration structure includes Stagehand-specific settings:
 
 ```typescript
 interface Config {
-  // BrowserBase configuration
+  // BrowserBase/Stagehand configuration
   browserbase: {
     apiKey: string
+    projectId?: string
     endpoint?: string
+    stagehand?: {
+      modelName?: string // e.g., "gpt-4o" or "claude-3-5-sonnet-latest"
+      modelClientOptions?: {
+        apiKey: string // OpenAI or Anthropic API key
+      }
+    }
   }
 
   // Browser configuration
@@ -202,32 +232,34 @@ npm run dev:mcp    # MCP development server mode
 
 ## 9. Integration Example
 
-### 9.1 Integrating from Other Node.js Applications
+### 9.1 Integration Example with Stagehand
 
 ```typescript
-import { BrowserBaseMCPAdapter, TwitterService } from 'twitter-services'
+import { StagehandAdapter, TwitterService } from 'twitter-services'
 
 async function main() {
-  // Initialize browser
-  const browser = new BrowserBaseMCPAdapter('your-api-key')
-  await browser.initialize({ headless: true })
+  // Initialize Stagehand adapter
+  const browser = new StagehandAdapter(process.env.BROWSERBASE_API_KEY, process.env.BROWSERBASE_PROJECT_ID)
+  await browser.initialize({
+    headless: true,
+    stagehand: {
+      modelName: 'gpt-4o', // Or 'claude-3-5-sonnet-latest' for Anthropic
+      modelClientOptions: {
+        apiKey: process.env.OPENAI_API_KEY // Or process.env.ANTHROPIC_API_KEY
+      }
+    }
+  })
 
   // Create Twitter service
   const twitter = new TwitterService(browser)
 
-  // Initiate login process - will try:
-  // 1. Load existing session file
-  // 2. Check for existing browser session
-  // 3. Finally fall back to manual login if needed
+  // Authenticate - will try multi-stage approach
   const loggedIn = await twitter.login({})
 
   if (loggedIn) {
     console.log('Login successful')
 
-    // Session cookies are automatically saved to file after successful login
-    // No need to manually export cookies
-
-    // Get timeline
+    // Get timeline using natural language capabilities of Stagehand
     const tweets = await twitter.getTimeline({ count: 10 })
     console.log(tweets)
   }
@@ -316,9 +348,16 @@ For example, adding "Get Tweets from a Specific User" functionality:
 - **Session Management**: Use the built-in session management system to improve stability and reduce manual login requirements. Consider implementing session rotation and validation.
 - **Cookie Management**: The system now automatically manages cookie storage via the SessionManager, but consider adding encrypted storage for production environments.
 
+### 11.4 Stagehand Maintenance
+
+- **Model Selection**: Regularly evaluate the performance of different LLM models (GPT-4o, Claude 3.5 Sonnet) for your specific use cases
+- **Prompt Engineering**: Refine natural language instructions to improve reliability and performance
+- **Vision Capabilities**: Consider enabling vision capabilities for complex DOM structures by setting `useVision: true` in appropriate operations
+- **DOM Chunking**: Monitor and optimize chunk sizes based on the complexity of the Twitter interface
+
 ## 12. Project Roadmap
 
-- MVP Stage: Implement core functionality (authentication, browsing timeline)
-- Stage Two: Enhance interaction features (likes, comments, retweets)
-- Stage Three: Advanced features (search, advanced filtering, data analysis)
-- Stage Four: Performance optimization and stability improvements
+- MVP Stage: Core functionality with Stagehand integration (authentication, browsing timeline)
+- Stage Two: Enhanced interaction features utilizing Stagehand's natural language capabilities
+- Stage Three: Advanced search and filtering features with optimized LLM prompts
+- Stage Four: Performance optimization and multi-model support
