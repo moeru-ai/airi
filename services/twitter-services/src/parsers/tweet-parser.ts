@@ -68,7 +68,7 @@ export class TweetParser {
         id,
         text: text || '',
         author,
-        timestamp,
+        timestamp: timestamp || new Date().toISOString(),
         ...stats,
       }
 
@@ -130,12 +130,12 @@ export class TweetParser {
 
       // Get display name
       const displayNameElement = await authorElement.$('span:first-child')
-      const displayName = displayNameElement ? await displayNameElement.textContent() : 'Unknown User'
+      const displayName = displayNameElement ? await displayNameElement.textContent() || 'Unknown User' : 'Unknown User'
 
       // Get username
       const usernameElement = await authorElement.$('span a[href^="/"]')
       let username = usernameElement ? await usernameElement.textContent() : 'unknown'
-      username = username.replace('@', '')
+      username = username?.replace('@', '') || 'unknown'
 
       // Get avatar URL
       const avatarElement = await tweetElement.$('img[src*="/profile_images/"]')
