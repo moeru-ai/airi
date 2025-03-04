@@ -1,4 +1,3 @@
-import type { BrowserAdapter } from '../adapters/browser-adapter'
 import type {
   TwitterService as ITwitterService,
   PostOptions,
@@ -9,23 +8,20 @@ import type {
   TwitterCredentials,
   UserProfile,
 } from '../types/twitter'
-
-import { TwitterAuthService } from './auth-service'
-import { TwitterTimelineService } from './timeline-service'
+import type { TwitterAuthService } from './auth-service'
+import type { TwitterTimelineService } from './timeline-service'
 
 /**
  * Twitter service implementation
  * Integrates various service components, providing a unified interface
  */
 export class TwitterService implements ITwitterService {
-  private browser: BrowserAdapter
   private authService: TwitterAuthService
   private timelineService: TwitterTimelineService
 
-  constructor(browser: BrowserAdapter) {
-    this.browser = browser
-    this.authService = new TwitterAuthService(browser)
-    this.timelineService = new TwitterTimelineService(browser)
+  constructor(authService: TwitterAuthService, timelineService: TwitterTimelineService) {
+    this.authService = authService
+    this.timelineService = timelineService
   }
 
   /**

@@ -7,7 +7,6 @@
   "license": "MIT",
   "scripts": {
     "dev": "tsx src/main.ts",
-    "dev:mcp": "tsx src/mcp-server.ts",
     "mcp:ui": "pnpx @modelcontextprotocol/inspector",
     "postinstall": "playwright install chromium"
   },

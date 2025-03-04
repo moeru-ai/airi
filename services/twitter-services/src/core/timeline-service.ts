@@ -1,8 +1,8 @@
-import type { BrowserAdapter } from '../adapters/browser-adapter'
+import type { Page } from 'playwright'
 import type { TimelineOptions, Tweet } from '../types/twitter'
 
 import { TweetParser } from '../parsers/tweet-parser'
-import { RateLimiter } from '../utils/rate-limiter'
+import { logger } from '../utils/logger'
 import { SELECTORS } from '../utils/selectors'
 
 /**
@@ -10,48 +10,41 @@ import { SELECTORS } from '../utils/selectors'
  * Handles fetching and parsing timeline content
  */
 export class TwitterTimelineService {
-  private browser: BrowserAdapter
-  private rateLimiter: RateLimiter
+  private page: Page
 
-  constructor(browser: BrowserAdapter) {
-    this.browser = browser
-    this.rateLimiter = new RateLimiter(10, 60000) // 10 requests per minute
+  constructor(page: Page) {
+    this.page = page
   }
 
   /**
    * Get timeline
    */
   async getTimeline(options: TimelineOptions = {}): Promise<Tweet[]> {
-    // Wait for rate limit
-    await this.rateLimiter.waitUntilReady()
-
     try {
       // Navigate to home page
-      await this.browser.navigate('https://twitter.com/home')
+      await this.page.goto('https://twitter.com/home')
 
       // Wait for timeline to load
-      await this.browser.waitForSelector(SELECTORS.TIMELINE.TWEET)
+      await this.page.waitForSelector(SELECTORS.TIMELINE.TWEET, { timeout: 10000 })
 
-      // Delay a bit to ensure content is fully loaded
-      await new Promise(resolve => setTimeout(resolve, 2000))
-
-      // Get page HTML content
-      const html = await this.browser.executeScript<string>('document.documentElement.outerHTML')
-
-      // Parse tweets
+      // Get page HTML and parse all tweets
+      const html = await this.page.content()
       const tweets = TweetParser.parseTimelineTweets(html)
 
-      // Apply filtering and limits
+      logger.main.log(`Found ${tweets.length} tweets in timeline`)
+
+      // Apply filters
       let filteredTweets = tweets
 
       if (options.includeReplies === false) {
-        filteredTweets = filteredTweets.filter(tweet => !tweet.id.includes('reply'))
+        filteredTweets = filteredTweets.filter(tweet => !tweet.text.startsWith('@'))
       }
 
       if (options.includeRetweets === false) {
-        filteredTweets = filteredTweets.filter(tweet => !tweet.id.includes('retweet'))
+        filteredTweets = filteredTweets.filter(tweet => !tweet.text.startsWith('RT @'))
       }
 
+      // Apply count limit if specified
       if (options.count) {
         filteredTweets = filteredTweets.slice(0, options.count)
       }
@@ -59,7 +52,7 @@ export class TwitterTimelineService {
       return filteredTweets
     }
     catch (error) {
-      console.error('Failed to get timeline:', error)
+      logger.main.withError(error as Error).error('Failed to get timeline')
       return []
     }
   }

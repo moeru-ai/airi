@@ -1,21 +1,99 @@
-import type { BrowserAdapter } from '../adapters/browser-adapter'
+import type { BrowserContext, Cookie, Page } from 'playwright'
 import type { TwitterCredentials } from '../types/twitter'
-import type { SessionData } from '../utils/session-manager'
+
+import fs from 'node:fs/promises'
+import path from 'node:path'
+import process from 'node:process'
 
 import { logger } from '../utils/logger'
 import { SELECTORS } from '../utils/selectors'
-import { getSessionManager } from '../utils/session-manager'
+
+/**
+ * Playwright storage state type definition
+ */
+interface StorageState {
+  cookies: Cookie[]
+  origins: {
+    origin: string
+    localStorage: {
+      name: string
+      value: string
+    }[]
+  }[]
+  path?: string
+}
+
+/**
+ * Simple session manager for storing and retrieving browser session data
+ */
+class SessionManager {
+  private sessionPath: string
+
+  constructor() {
+    this.sessionPath = path.join(process.cwd(), 'data', 'twitter-session.json')
+  }
+
+  /**
+   * Load storage state from disk
+   */
+  async loadStorageState(): Promise<StorageState | null> {
+    try {
+      // Ensure directory exists
+      const dir = path.dirname(this.sessionPath)
+      await fs.mkdir(dir, { recursive: true })
+
+      // Check if file exists
+      try {
+        await fs.access(this.sessionPath)
+      }
+      catch {
+        // File doesn't exist
+        return null
+      }
+
+      // Read file
+      const data = await fs.readFile(this.sessionPath, 'utf-8')
+      return JSON.parse(data) as StorageState
+    }
+    catch (error) {
+      logger.auth.withError(error as Error).warn('Failed to load session data')
+      return null
+    }
+  }
+
+  /**
+   * Save storage state to disk
+   */
+  async saveStorageState(state: StorageState): Promise<void> {
+    try {
+      // Ensure directory exists
+      const dir = path.dirname(this.sessionPath)
+      await fs.mkdir(dir, { recursive: true })
+
+      // Write to file
+      await fs.writeFile(this.sessionPath, JSON.stringify(state, null, 2))
+    }
+    catch (error) {
+      logger.auth.withError(error as Error).warn('Failed to save session data')
+    }
+  }
+}
+
+// Singleton instance
+const sessionManager = new SessionManager()
 
 /**
  * Twitter Authentication Service
  * Handles login and session management
  */
 export class TwitterAuthService {
-  private browser: BrowserAdapter
+  private page: Page
+  private context: BrowserContext
   private isLoggedIn: boolean = false
 
-  constructor(browser: BrowserAdapter) {
-    this.browser = browser
+  constructor(page: Page, context: BrowserContext) {
+    this.page = page
+    this.context = context
   }
 
   /**
@@ -26,52 +104,30 @@ export class TwitterAuthService {
     logger.auth.log('Starting Twitter login process')
 
     try {
-      // First try to load session from file if no cookies provided
-      if (!credentials.cookies || Object.keys(credentials.cookies).length === 0) {
-        logger.auth.log('No cookies provided, attempting to load session from file')
-
-        // Get the session manager and load the session
-        const sessionManager = getSessionManager()
-        const sessionData = await sessionManager.loadSession()
-
-        if (sessionData && sessionData.cookies && Object.keys(sessionData.cookies).length > 0) {
-          logger.auth.log(`Found session file with ${Object.keys(sessionData.cookies).length} cookies, attempting login`)
-
-          // Use the dedicated method for session-based login
-          const sessionLoginSuccess = await this.loginWithSessionData(sessionData)
-          if (sessionLoginSuccess) {
-            logger.auth.log('✅ Successfully logged in using saved session')
-            return true
-          }
-          logger.auth.log('Session login failed, continuing with other login methods')
-        }
-        else {
-          logger.auth.log('No valid session file found')
-        }
-      }
-
-      // If cookies are provided directly, try to use them for login
+      // Check if cookies are provided
       if (credentials.cookies && Object.keys(credentials.cookies).length > 0) {
-        logger.auth.log('Cookies provided, attempting cookie-based login')
-        const cookieLoginSuccess = await this.loginWithCookies(credentials.cookies)
-        if (cookieLoginSuccess) {
-          return true
-        }
-        // If cookie login fails, log the issue but continue to manual login
-        logger.auth.log('Cookie login failed, falling back to manual login')
+        logger.auth.log(`Attempting to login with ${Object.keys(credentials.cookies).length} provided cookies`)
+        return await this.loginWithCookies(credentials.cookies)
       }
 
-      // Check for existing session first
-      logger.auth.log('Checking for existing session before initiating manual login')
-      const existingSession = await this.checkExistingSession()
-      if (existingSession) {
-        logger.auth.log('✅ Successfully logged in using existing browser session')
+      // Try to login with existing session first
+      logger.auth.log('No cookies provided, attempting to load session from file')
+      const sessionSuccess = await this.checkExistingSession()
+
+      if (sessionSuccess) {
+        logger.auth.log('Successfully logged in with session file')
         return true
       }
 
-      // Fallback to manual login flow
-      logger.auth.log('No existing session found, initiating manual login process')
-      return this.initiateManualLogin()
+      // If credentials are provided, try username/password login
+      if (credentials.username && credentials.password) {
+        logger.auth.log('Session login failed, attempting username/password login')
+        return await this.initiateManualLogin(credentials.username, credentials.password)
+      }
+
+      // No credentials and no session, fail
+      logger.auth.warn('No cookies, no valid session, and no credentials provided')
+      return false
     }
     catch (error: unknown) {
       logger.auth.withError(error as Error).error('Login process failed')
@@ -88,7 +144,7 @@ export class TwitterAuthService {
       // Try multiple selectors to determine login status
       // First check for timeline which is definitive proof of being logged in
       try {
-        await this.browser.waitForSelector(SELECTORS.HOME.TIMELINE, { timeout: 15000 })
+        await this.page.waitForSelector(SELECTORS.HOME.TIMELINE, { timeout: 15000 })
         return true
       }
       catch {
@@ -98,7 +154,7 @@ export class TwitterAuthService {
       // Check for profile button which appears when logged in
       try {
         const profileSelector = '[data-testid="AppTabBar_Profile_Link"]'
-        await this.browser.waitForSelector(profileSelector, { timeout: 5000 })
+        await this.page.waitForSelector(profileSelector, { timeout: 5000 })
         return true
       }
       catch {
@@ -108,7 +164,7 @@ export class TwitterAuthService {
       // Check for login form to confirm NOT logged in
       try {
         const loginFormSelector = '[data-testid="loginForm"]'
-        await this.browser.waitForSelector(loginFormSelector, { timeout: 3000 })
+        await this.page.waitForSelector(loginFormSelector, { timeout: 3000 })
         // If login form is visible, we're definitely not logged in
         return false
       }
@@ -118,7 +174,7 @@ export class TwitterAuthService {
 
       // If we got here, we couldn't definitively confirm login status
       // Check current URL for additional clues
-      const currentUrl = await this.browser.executeScript<string>(`
+      const currentUrl = await this.page.evaluate<string>(`
         (() => {
           return window.location.href;
         })()
@@ -142,7 +198,7 @@ export class TwitterAuthService {
    */
   async checkLoginStatus(): Promise<boolean> {
     try {
-      await this.browser.navigate('https://twitter.com/home')
+      await this.page.goto('https://twitter.com/home')
       return await this.verifyLogin()
     }
     catch {
@@ -158,15 +214,13 @@ export class TwitterAuthService {
   }
 
   /**
-   * Export current session cookies
-   * Can be used to save and reuse session later
-   * @param format - The format of the returned cookies ('object' or 'string')
+   * Export current cookies
+   * @param format Export format, either 'object' or 'string'
    */
   async exportCookies(format: 'object' | 'string' = 'object'): Promise<Record<string, string> | string> {
     try {
-      // Use the new getAllCookies method to get all cookies, including HTTP_ONLY ones
-      const allCookies = await this.browser.getAllCookies()
-      logger.auth.log(`Retrieved ${allCookies.length} cookies from browser context`)
+      // Get all cookies from browser
+      const allCookies = await this.context.cookies()
 
       if (format === 'string') {
         // Convert cookie objects to string format
@@ -188,9 +242,12 @@ export class TwitterAuthService {
         return cookiesObj
       }
     }
-    catch (error: unknown) {
-      logger.auth.withError(error as Error).error('Error exporting cookies')
-      return format === 'string' ? '' : {}
+    catch (error) {
+      logger.auth.withError(error as Error).error('Failed to export cookies')
+      if (format === 'string') {
+        return ''
+      }
+      return {}
     }
   }
 
@@ -202,7 +259,7 @@ export class TwitterAuthService {
 
     try {
       // Navigate to a Twitter page
-      await this.browser.navigate('https://twitter.com')
+      await this.page.goto('https://twitter.com')
 
       // Convert cookies object to array format required by setCookies
       const cookieArray = Object.entries(cookies).map(([name, value]) => ({
@@ -213,12 +270,12 @@ export class TwitterAuthService {
       }))
 
       // Set cookies using the browser adapter's API that can set HTTP_ONLY cookies
-      await this.browser.setCookies(cookieArray)
+      await this.context.addCookies(cookieArray)
 
       logger.auth.log(`Set ${cookieArray.length} cookies via browser API`)
 
       // Refresh page to apply cookies
-      await this.browser.navigate('https://twitter.com/home')
+      await this.page.goto('https://twitter.com/home')
 
       // Verify if login was successful - try multiple times with longer timeout
       logger.auth.log('Cookies set, verifying login status...')
@@ -239,7 +296,7 @@ export class TwitterAuthService {
           else if (attempt < verificationAttempts) {
             // If not successful but not last attempt, refresh page and wait
             logger.auth.log('Refreshing page and trying again...')
-            await this.browser.navigate('https://twitter.com/home')
+            await this.page.goto('https://twitter.com/home')
             await new Promise(resolve => setTimeout(resolve, 3000))
           }
         }
@@ -275,85 +332,94 @@ export class TwitterAuthService {
   }
 
   /**
-   * Checks if there's an existing login session and retrieves it
-   * This should be called before initiateManualLogin
+   * Attempt to login with an existing session if available
    */
   async checkExistingSession(): Promise<boolean> {
-    logger.auth.log('Checking for existing Twitter session')
-
     try {
-      // Navigate to home page to check session
-      await this.browser.navigate('https://twitter.com/home')
+      // Get the session data
+      const sessionData = await sessionManager.loadStorageState()
 
-      // Verify if login is active
-      const loginSuccess = await this.verifyLogin()
-
-      if (loginSuccess) {
-        logger.auth.log('Existing session found and valid')
-        this.isLoggedIn = true
-
-        // Export and save cookies
-        try {
-          const cookies = await this.exportCookies('object')
-          logger.auth.log(`✅ Exported ${typeof cookies === 'string' ? cookies.length : Object.keys(cookies).length} cookies from existing session`)
-
-          // Save the current session to file
-          await this.saveCurrentSession()
-          logger.auth.log('✅ Session saved to file')
-        }
-        catch (error) {
-          logger.auth.withError(error as Error).error('Error exporting cookies from existing session')
-        }
-      }
-      else {
-        logger.auth.log('No valid session found')
+      if (!sessionData || !sessionData.cookies || sessionData.cookies.length === 0) {
+        logger.auth.log('No valid session data found')
+        return false
       }
 
-      return loginSuccess
+      logger.auth.log(`Found session file with ${sessionData.cookies.length} cookies, attempting login`)
+
+      // Login with the session data
+      return await this.loginWithSessionData(sessionData)
     }
     catch (error) {
-      logger.auth.withError(error as Error).error('Error checking session status')
-      this.isLoggedIn = false
+      logger.auth.withError(error as Error).warn('Error checking existing session')
       return false
     }
   }
 
   /**
-   * Initiates the manual login process by navigating to Twitter login page
-   * and waits for user to complete the login process
+   * Initiate manual login process with username and password
+   * @param username Twitter username or email
+   * @param password Twitter password
    */
-  async initiateManualLogin(): Promise<boolean> {
-    logger.auth.log('Opening Twitter login page for manual login')
+  async initiateManualLogin(username?: string, password?: string): Promise<boolean> {
+    logger.auth.log('Initiating manual login process')
 
     try {
-      // Store the current URL to detect navigation
-      const initialUrl = await this.browser.executeScript<string>(`
+      // Navigate to login page
+      await this.page.goto('https://twitter.com/login')
+
+      // Wait for login form to appear and enter credentials
+      try {
+        // Wait for username input
+        await this.page.waitForSelector(SELECTORS.LOGIN.USERNAME_INPUT, { timeout: 10000 })
+
+        // Use provided credentials if available, otherwise fall back to env vars
+        const loginUsername = username || process.env.TWITTER_USERNAME
+        const loginPassword = password || process.env.TWITTER_PASSWORD
+
+        if (!loginUsername || !loginPassword) {
+          logger.auth.warn('Missing Twitter credentials, manual login cannot proceed')
+          return false
+        }
+
+        // Enter username
+        await this.page.fill(SELECTORS.LOGIN.USERNAME_INPUT, loginUsername)
+        logger.auth.debug('Username entered')
+
+        // Click next button
+        await this.page.click(SELECTORS.LOGIN.NEXT_BUTTON)
+        logger.auth.debug('Next button clicked')
+
+        // Wait for password input
+        await this.page.waitForSelector(SELECTORS.LOGIN.PASSWORD_INPUT, { timeout: 10000 })
+
+        // Enter password
+        await this.page.fill(SELECTORS.LOGIN.PASSWORD_INPUT, loginPassword)
+        logger.auth.debug('Password entered')
+
+        // Click login button
+        await this.page.click(SELECTORS.LOGIN.LOGIN_BUTTON)
+        logger.auth.debug('Login button clicked')
+      }
+      catch (error) {
+        logger.auth.withError(error as Error).error('Error during manual login process')
+        return false
+      }
+
+      // Wait for login success at intervals
+      let attempts = 0
+      const maxAttempts = 60 // 10 minutes (10 seconds * 60)
+      let lastUrl = await this.page.evaluate<string>(`
         (() => {
           return window.location.href;
         })()
       `)
-
-      // Navigate to login page
-      await this.browser.navigate('https://twitter.com/i/flow/login')
-
-      // Wait for user to manually log in (detected by timeline presence)
-      logger.auth.log('==============================================')
-      logger.auth.log('Please log in to Twitter in the opened browser window')
-      logger.auth.log('The system will wait for you to complete the login process')
-      logger.auth.log('Cookies will be automatically saved after login')
-      logger.auth.log('==============================================')
-
-      // Poll for login success at intervals
-      let attempts = 0
-      const maxAttempts = 60 // 10 minutes (10 seconds * 60)
-      let lastUrl = initialUrl
 
       while (attempts < maxAttempts) {
         attempts++
 
         try {
           // Get current URL to detect page changes
-          const currentUrl = await this.browser.executeScript<string>(`
+          const currentUrl = await this.page.evaluate<string>(`
             (() => {
               return window.location.href;
             })()
@@ -365,7 +431,7 @@ export class TwitterAuthService {
             logger.auth.log('Attempting to navigate to home page and verify login status')
 
             // URL changed - try navigating to home to verify
-            await this.browser.navigate('https://twitter.com/home')
+            await this.page.goto('https://twitter.com/home')
 
             // Check if login was successful
             const isLoggedIn = await this.verifyLogin()
@@ -439,114 +505,92 @@ export class TwitterAuthService {
   }
 
   /**
-   * Save the current session to a file for future use.
-   * This includes cookies and authentication details.
+   * Save the current session to a file
    */
   async saveCurrentSession(): Promise<void> {
     try {
-      // Export cookies in object format
+      // Get the cookies from the browser
       const cookies = await this.exportCookies('object')
 
-      if (!cookies || (typeof cookies === 'object' && Object.keys(cookies).length === 0)) {
-        logger.auth.warn('No cookies available to save')
-        return
+      // Format the cookies for the session manager
+      // We need to convert Record<string, string> to the Cookie[] format
+      const cookieArray = Object.entries(cookies).map(([name, value]) => ({
+        name,
+        value, // This will be a string now
+        domain: '.twitter.com',
+        path: '/',
+        expires: -1, // Session cookie
+      }))
+
+      // Get the storage state from the browser
+      const storageState = await this.context.storageState()
+
+      // Create a new session data object with proper type cast
+      const sessionData: StorageState = {
+        cookies: cookieArray.map(cookie => ({
+          ...cookie,
+          sameSite: 'Lax' as const,
+          secure: true,
+          httpOnly: true,
+        })),
+        origins: storageState.origins,
+        // Don't include path property here as it's not needed for saving
       }
 
-      // Create a session data object
-      const sessionData: SessionData = {
-        cookies: typeof cookies === 'string' ? {} : cookies,
-        timestamp: new Date().toISOString(),
-        userAgent: await this.browser.executeScript<string>(`
-          (() => {
-            return navigator.userAgent;
-          })()
-        `),
-      }
-
-      // Get the session manager and save the session
-      const sessionManager = getSessionManager()
-      await sessionManager.saveSession(sessionData)
+      // Save the session
+      await sessionManager.saveStorageState(sessionData)
 
       logger.auth.log(`Session saved with ${typeof cookies === 'object' ? Object.keys(cookies).length : 0} cookies`)
     }
-    catch (error: unknown) {
-      logger.auth.withError(error as Error).error('Failed to save session')
+    catch (error) {
+      logger.auth.withError(error as Error).warn('Failed to save session')
     }
   }
 
   /**
-   * Login with a saved session data object
-   * @param sessionData The session data with cookies to use for login
+   * Login with stored session data
    */
-  private async loginWithSessionData(sessionData: SessionData): Promise<boolean> {
-    logger.auth.log(`Attempting to login using session with ${Object.keys(sessionData.cookies).length} cookies`)
-
+  private async loginWithSessionData(sessionData: StorageState): Promise<boolean> {
     try {
-      // Navigate to a Twitter page
-      await this.browser.navigate('https://twitter.com')
+      // Extract cookies from session data
+      const { cookies } = sessionData
 
-      // Convert cookies object to array format required by setCookies
-      const cookieArray = Object.entries(sessionData.cookies).map(([name, value]) => ({
-        name,
-        value,
-        domain: '.twitter.com',
-        path: '/',
+      // Create array of cookie objects for the browser
+      const cookieArray = cookies.map(cookie => ({
+        name: cookie.name,
+        value: cookie.value,
+        domain: cookie.domain,
+        path: cookie.path,
       }))
 
       // Set cookies using the browser adapter's API
-      await this.browser.setCookies(cookieArray)
+      await this.context.addCookies(cookieArray)
       logger.auth.log(`Set ${cookieArray.length} cookies from session file`)
 
-      // Continue with similar verification logic as loginWithCookies
-      await this.browser.navigate('https://twitter.com/home')
-
-      // Verify login status - try multiple times
-      logger.auth.log('Cookies set from session file, verifying login status...')
-
-      let loginSuccess = false
-      const verificationAttempts = 3
-
-      for (let attempt = 1; attempt <= verificationAttempts; attempt++) {
-        try {
-          logger.auth.log(`Verification attempt ${attempt}/${verificationAttempts}`)
-          loginSuccess = await this.verifyLogin()
-
-          if (loginSuccess) {
-            break
-          }
-          else if (attempt < verificationAttempts) {
-            logger.auth.log('Refreshing page and trying again...')
-            await this.browser.navigate('https://twitter.com/home')
-            await new Promise(resolve => setTimeout(resolve, 3000))
-          }
-        }
-        catch (error: unknown) {
-          logger.auth.withError(error as Error).debug(`Verification attempt ${attempt} failed`)
-        }
+      // Set localStorage if available
+      if (sessionData.origins && sessionData.origins.length > 0) {
+        await this.context.storageState(sessionData)
+        logger.auth.log(`Set localStorage for ${sessionData.origins.length} origins`)
       }
+
+      // Navigate to home to verify login
+      await this.page.goto('https://twitter.com/home')
+
+      // Verify if login was successful
+      const loginSuccess = await this.verifyLogin()
 
       if (loginSuccess) {
-        logger.auth.log('Login with session data successful')
         this.isLoggedIn = true
-
-        // Try to refresh cookies to ensure they're up to date
-        try {
-          await this.saveCurrentSession()
-          logger.auth.log('✅ Session refreshed and saved to file')
-        }
-        catch (error: unknown) {
-          logger.auth.withError(error as Error).debug('Failed to update cookies, but login was successful')
-        }
+        logger.auth.log('✅ Successfully logged in with session data')
       }
       else {
-        logger.auth.warn('Login with session data verification failed, cookies may be expired')
+        logger.auth.warn('⚠️ Session data login failed verification')
       }
 
       return loginSuccess
     }
-    catch (error: unknown) {
-      logger.auth.withError(error as Error).error('Error during session data login process')
-      this.isLoggedIn = false
+    catch (error) {
+      logger.auth.withError(error as Error).error('Failed to login with session data')
       return false
     }
   }
