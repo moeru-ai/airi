@@ -2,15 +2,6 @@
 import { storeToRefs } from 'pinia'
 import { ref } from 'vue'
 
-import {
-  EmotionAngryMotionName,
-  EmotionAwkwardMotionName,
-  EmotionHappyMotionName,
-  EmotionQuestionMotionName,
-  EmotionSadMotionName,
-  EmotionSurpriseMotionName,
-  EmotionThinkMotionName,
-} from '../../constants/emotions'
 import { useSettings } from '../../stores'
 import Live2DCanvas from '../Live2D/Canvas.vue'
 import Live2DModel from '../Live2D/Model.vue'
@@ -62,43 +53,43 @@ const { live2dCurrentMotion } = storeToRefs(useSettings())
             <div flex="~ row" flex-wrap gap-2>
               <button
                 rounded-lg bg="zinc-100/70 dark:zinc-800/50" px-2 py-1 backdrop-blur-sm
-                @click="live2dCurrentMotion = EmotionSurpriseMotionName"
+                @click="live2dCurrentMotion = { group: 'Surprise', index: 0 }"
               >
                 {{ $t('stage.viewers.debug-menu.emotions-btn.surprised') }}
               </button>
               <button
                 rounded-lg bg="zinc-100/70 dark:zinc-800/50" px-2 py-1 backdrop-blur-sm
-                @click="live2dCurrentMotion = EmotionSadMotionName"
+                @click="live2dCurrentMotion = { group: 'Sad', index: 0 }"
               >
                 {{ $t('stage.viewers.debug-menu.emotions-btn.sad') }}
               </button>
               <button
                 rounded-lg bg="zinc-100/70 dark:zinc-800/50" px-2 py-1 backdrop-blur-sm
-                @click="live2dCurrentMotion = EmotionAngryMotionName"
+                @click="live2dCurrentMotion = { group: 'Angry', index: 0 }"
               >
                 {{ $t('stage.viewers.debug-menu.emotions-btn.angry') }}
               </button>
               <button
                 rounded-lg bg="zinc-100/70 dark:zinc-800/50" px-2 py-1 backdrop-blur-sm
-                @click="live2dCurrentMotion = EmotionHappyMotionName"
+                @click="live2dCurrentMotion = { group: 'Happy', index: 0 }"
               >
                 {{ $t('stage.viewers.debug-menu.emotions-btn.happy') }}
               </button>
               <button
                 rounded-lg bg="zinc-100/70 dark:zinc-800/50" px-2 py-1 backdrop-blur-sm
-                @click="live2dCurrentMotion = EmotionAwkwardMotionName"
+                @click="live2dCurrentMotion = { group: 'Awkward', index: 0 }"
               >
                 {{ $t('stage.viewers.debug-menu.emotions-btn.awkward') }}
               </button>
               <button
                 rounded-lg bg="zinc-100/70 dark:zinc-800/50" px-2 py-1 backdrop-blur-sm
-                @click="live2dCurrentMotion = EmotionQuestionMotionName"
+                @click="live2dCurrentMotion = { group: 'Question', index: 0 }"
               >
                 {{ $t('stage.viewers.debug-menu.emotions-btn.question') }}
               </button>
               <button
                 rounded-lg bg="zinc-100/70 dark:zinc-800/50" px-2 py-1 backdrop-blur-sm
-                @click="live2dCurrentMotion = EmotionThinkMotionName"
+                @click="live2dCurrentMotion = { group: 'Think', index: 0 }"
               >
                 {{ $t('stage.viewers.debug-menu.emotions-btn.think') }}
               </button>

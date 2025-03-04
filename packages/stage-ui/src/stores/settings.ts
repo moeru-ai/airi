@@ -2,6 +2,7 @@ import { useDevicesList, useLocalStorage } from '@vueuse/core'
 import { defineStore } from 'pinia'
 import { computed, onMounted, ref, watch } from 'vue'
 
+import { Emotion } from '../constants'
 import { Voice } from '../constants/elevenlabs'
 
 export const useSettings = defineStore('settings', () => {
@@ -27,7 +28,18 @@ export const useSettings = defineStore('settings', () => {
   const live2dModel = ref<File | string>('./assets/live2d/models/hiyori_pro_zh.zip')
   const live2dPosition = useLocalStorage('settings/live2d/position', { x: 0, y: 0 }) // position is relative to the center of the screen
   const loadingLive2dModel = ref(false)
-  const live2dCurrentMotion = ref<string>('motion_idle')
+  const live2dCurrentMotion = ref<{ group: string, index: number }>({ group: 'Idle', index: 0 })
+  const availableLive2dMotions = ref<{ motionName: string, motionIndex: number, fileName: string }[]>([])
+  const live2dMotionMap = useLocalStorage<Record<Emotion, string[]>>('settings/live2d/motion-map', {
+    [Emotion.Neutral]: [],
+    [Emotion.Happy]: [],
+    [Emotion.Sad]: [],
+    [Emotion.Angry]: [],
+    [Emotion.Think]: [],
+    [Emotion.Surprise]: [],
+    [Emotion.Awkward]: [],
+    [Emotion.Question]: [],
+  })
 
   watch(isAudioInputOn, (value) => {
     if (value === 'false') {
@@ -58,6 +70,8 @@ export const useSettings = defineStore('settings', () => {
     live2dModel,
     live2dCurrentMotion,
     live2dPosition,
+    availableLive2dMotions,
+    live2dMotionMap,
     loadingLive2dModel,
     language,
     stageView,
