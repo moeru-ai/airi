@@ -160,6 +160,22 @@ export class TwitterService implements ITwitterService {
   }
 
   /**
+   * Get current page URL
+   * @returns Current URL of the Twitter page
+   */
+  async getCurrentUrl(): Promise<string> {
+    try {
+      // We need to access the page from one of our services
+      // AuthService has direct access to the page object
+      const currentUrl = await this.authService.getCurrentUrl()
+      return currentUrl
+    }
+    catch (error) {
+      throw new Error(`Failed to get current URL: ${error}`)
+    }
+  }
+
+  /**
    * Check login status and save session if logged in
    * @private
    */

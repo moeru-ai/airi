@@ -97,6 +97,8 @@ Additionally, it provides tools for interaction:
 - **Post Tweet Tool**: Create and publish new tweets
 - **Like Tweet Tool**: Like a tweet by its ID
 - **Retweet Tool**: Retweet a tweet by its ID
+- **Refresh Timeline Tool**: Refresh the timeline with the latest tweets, with options to control the count and whether to include replies and retweets.
+- **Get My Profile Tool**: Get information about a user's profile. It can extract the username from the current URL or accept a specific username as a parameter.
 
 The adapter uses internationalized messages (Chinese/English) to provide clear feedback to users about login status and session management.
 
@@ -335,6 +337,15 @@ async function connectToTwitterService() {
   // Use simplified login tool without parameters
   const loginResult = await client.useTool('login', {})
   console.log('Login result:', loginResult.content[0].text)
+
+  // Use refresh timeline tool to get latest tweets
+  const refreshResult = await client.useTool('refresh-timeline', { count: 15, includeReplies: false })
+  console.log('Refresh result:', refreshResult.content[0].text)
+  console.log('New tweets:', refreshResult.resources)
+
+  // Get user profile information
+  const profileResult = await client.useTool('get-my-profile', { username: 'twitter' })
+  console.log('Profile info:', profileResult.content[0].text)
 
   // Use tool to send tweet
   const result = await client.useTool('post-tweet', { content: 'Hello from MCP!' })

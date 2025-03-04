@@ -237,8 +237,27 @@ export class TwitterAuthService {
   }
 
   /**
-   * Export current cookies
-   * @param format Export format, either 'object' or 'string'
+   * Get current page URL
+   * @returns Current URL of the Twitter page
+   */
+  async getCurrentUrl(): Promise<string> {
+    try {
+      const currentUrl = await this.page.evaluate<string>(`
+        (() => {
+          return window.location.href;
+        })()
+      `)
+      return currentUrl
+    }
+    catch (error) {
+      logger.auth.withError(error as Error).error('Error getting current URL')
+      throw new Error('Failed to get current URL')
+    }
+  }
+
+  /**
+   * Export cookies from the browser context
+   * @param format - The format of the returned cookies ('object' or 'string')
    */
   async exportCookies(format: 'object' | 'string' = 'object'): Promise<Record<string, string> | string> {
     try {

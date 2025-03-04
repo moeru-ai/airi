@@ -98,4 +98,5 @@ export interface TwitterService {
   postTweet: (content: string, options?: PostOptions) => Promise<string>
   saveSession: () => Promise<boolean>
   startSessionMonitor: (interval?: number) => void
+  getCurrentUrl: () => Promise<string>
 }
