@@ -85,6 +85,21 @@ Provides integration with the Airi LLM platform, handling event-driven communica
 
 Implements the Model Context Protocol interface, providing communication based on HTTP. Currently using the official MCP SDK implementation, providing high-performance HTTP server and SSE communication through H3.js.
 
+The MCP adapter exposes several tools and resources:
+
+- **Timeline Resource**: Access tweets from the user's timeline
+- **Tweet Details Resource**: Get detailed information about a specific tweet
+- **User Profile Resource**: Retrieve user profile information
+
+Additionally, it provides tools for interaction:
+
+- **Login Tool**: Simplified authentication tool that provides clear feedback on session status. It attempts to load existing sessions, and clearly communicates whether a session was loaded successfully or if manual login is required. The tool no longer requires username/password parameters, as it relies on the enhanced session management system.
+- **Post Tweet Tool**: Create and publish new tweets
+- **Like Tweet Tool**: Like a tweet by its ID
+- **Retweet Tool**: Retweet a tweet by its ID
+
+The adapter uses internationalized messages (Chinese/English) to provide clear feedback to users about login status and session management.
+
 #### 5.1.3 Development Server
 
 Using listhen for optimized development experience, including automatic browser opening, real-time logging, and debugging tools.
@@ -100,6 +115,7 @@ The Authentication Service has been significantly enhanced to improve reliabilit
 3. **Timeout Optimization**: Adjusted timeouts for various operations to enhance stability during network fluctuations
 4. **Enhanced Cookie Management**: Improved cookie storage and loading mechanisms to reduce the need for manual login
 5. **Session Validation**: Added comprehensive session validation to verify the integrity of saved sessions
+6. **Simplified API**: Removed the need for explicit username/password in the login method, relying instead on session files and browser session detection
 
 The service follows a multi-stage authentication approach:
 
@@ -107,7 +123,7 @@ The service follows a multi-stage authentication approach:
 2. **Existing Session Detection**: Checks if the browser already has a valid Twitter session
 3. **Manual Login Process**: If necessary, guides through the Twitter login page
 
-After successful authentication through any method, sessions are automatically persisted for future use.
+After successful authentication through any method, sessions are automatically persisted for future use. The system provides clear feedback to users about the current login state and automatically monitors and saves sessions when changes are detected.
 
 #### 5.2.2 Timeline Service (Timeline Service)
 
@@ -152,6 +168,7 @@ Stagehand processes the DOM in chunks to optimize LLM performance and provides f
 2. **Response Flow**: Twitter → BrowserBase API → Browser Adapter Layer → Core Service → Data Parsing → Adapter → Application Layer
 3. **Authentication Flow**:
    - Load Session → Check Existing Session → Manual Login → Session Validation → Session Storage
+   - Clear feedback is provided at each step of the authentication process
 
 ## 7. Configuration System
 
@@ -254,7 +271,7 @@ async function main() {
   const twitter = new TwitterService(browser)
 
   // Authenticate - will try multi-stage approach
-  const loggedIn = await twitter.login({})
+  const loggedIn = await twitter.login()
 
   if (loggedIn) {
     console.log('Login successful')
@@ -315,6 +332,10 @@ async function connectToTwitterService() {
   const timeline = await client.get('twitter://timeline/10')
   console.log('Timeline:', timeline.contents)
 
+  // Use simplified login tool without parameters
+  const loginResult = await client.useTool('login', {})
+  console.log('Login result:', loginResult.content[0].text)
+
   // Use tool to send tweet
   const result = await client.useTool('post-tweet', { content: 'Hello from MCP!' })
   console.log('Result:', result.content)
@@ -347,6 +368,7 @@ For example, adding "Get Tweets from a Specific User" functionality:
 - **Selector Updates**: Regularly validate and update selector configurations
 - **Session Management**: Use the built-in session management system to improve stability and reduce manual login requirements. Consider implementing session rotation and validation.
 - **Cookie Management**: The system now automatically manages cookie storage via the SessionManager, but consider adding encrypted storage for production environments.
+- **User Feedback**: Maintain clear, internationalized feedback messages for authentication status to improve user experience.
 
 ### 11.4 Stagehand Maintenance
 
