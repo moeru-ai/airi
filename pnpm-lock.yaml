@@ -707,6 +707,9 @@ importers:
       '@shikijs/markdown-it':
         specifier: ^3.1.0
         version: 3.1.0(markdown-it-async@2.0.0)
+      '@types/json-schema':
+        specifier: ^7.0.15
+        version: 7.0.15
       '@types/markdown-it-link-attributes':
         specifier: ^3.0.5
         version: 3.0.5
@@ -926,6 +929,19 @@ importers:
       elevenlabs:
         specifier: ^1.52.0
         version: 1.52.0(encoding@0.1.13)
+
+  packages/gpuu:
+    dependencies:
+      defu:
+        specifier: ^6.1.4
+        version: 6.1.4
+    devDependencies:
+      '@types/node':
+        specifier: ^22.13.8
+        version: 22.13.8
+      '@webgpu/types':
+        specifier: ^0.1.54
+        version: 0.1.54
 
   packages/hfup:
     dependencies:
