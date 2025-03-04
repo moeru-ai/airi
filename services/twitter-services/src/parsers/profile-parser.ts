@@ -1,144 +1,293 @@
-import type { Element, Node, Root } from 'hast'
+import type { Page } from 'playwright'
 import type { UserLink, UserProfile, UserStats } from '../types/twitter'
 
-import { select } from 'hast-util-select'
-
+import { logger } from '../utils/logger'
 import { SELECTORS } from '../utils/selectors'
-import { HtmlParser } from './html-parser'
 
 /**
  * Profile Parser
- * Extracts user profile information from HTML
+ * Extracts user profile information directly from the page DOM using Playwright
  */
 export class ProfileParser {
   /**
-   * Parse user profile from HTML
-   * @param html HTML string
-   * @returns User profile
+   * Parse user profile from a Twitter profile page
+   * @param page Playwright page instance
+   * @returns Promise resolving to UserProfile object
    */
-  static parseUserProfile(html: string): UserProfile {
-    const tree = HtmlParser.parse(html)
+  static async parseUserProfile(page: Page): Promise<UserProfile> {
+    try {
+      // Extract basic profile info
+      const displayNameElement = await page.$(SELECTORS.PROFILE.DISPLAY_NAME)
+      const displayName = await displayNameElement?.textContent() || 'Unknown User'
 
-    // Extract username and display name
-    const displayNameElement = HtmlParser.select(tree, SELECTORS.PROFILE.DISPLAY_NAME)[0]
-    const displayName = this.extractTextContent(displayNameElement) || 'Unknown User'
+      // Get username from URL or profile elements
+      let username = ''
+      const url = page.url()
+      const urlUsername = this.extractUsernameFromUrl(url)
 
-    // Extract username from URL or DOM
-    const username = this.extractUsername(tree) || 'unknown'
+      if (urlUsername) {
+        username = urlUsername
+      }
+      else {
+        // Try to find username in the DOM
+        const usernameElement = await page.$('[data-testid="UserName"] span:has-text("@")')
+        const usernameText = await usernameElement?.textContent()
+        username = usernameText?.replace('@', '') || 'unknown'
+      }
 
-    // Extract user bio
-    const bioElement = HtmlParser.select(tree, SELECTORS.PROFILE.BIO)[0]
-    const bio = this.extractTextContent(bioElement)
+      // Get bio
+      const bioElement = await page.$(SELECTORS.PROFILE.BIO)
+      const bio = await bioElement?.textContent()
 
-    // Extract user stats
-    const stats = this.extractProfileStats(tree)
+      // Get profile images
+      const avatarUrl = await this.extractAvatarUrl(page)
+      const bannerUrl = await this.extractBannerUrl(page)
 
-    // Extract avatar and banner URL
-    const avatarUrl = this.extractAvatarUrl(tree)
-    const bannerUrl = this.extractBannerUrl(tree)
+      // Get statistics
+      const stats = await this.extractUserStats(page)
 
-    return {
-      username,
-      displayName,
-      bio,
-      avatarUrl,
-      bannerUrl,
-      ...stats,
+      // Get join date
+      const joinDate = await this.extractJoinDate(page)
+
+      // Get user links
+      // const _links = await this.extractUserLinks(page)
+
+      const profile: UserProfile = {
+        username,
+        displayName,
+      }
+
+      // Add optional fields if they exist
+      if (bio)
+        profile.bio = bio
+      if (avatarUrl)
+        profile.avatarUrl = avatarUrl
+      if (bannerUrl)
+        profile.bannerUrl = bannerUrl
+      if (stats.followers)
+        profile.followersCount = stats.followers
+      if (stats.following)
+        profile.followingCount = stats.following
+      if (stats.tweets)
+        profile.tweetCount = stats.tweets
+      if (joinDate)
+        profile.joinDate = joinDate
+
+      // Check for verification badge
+      const isVerified = await page.$('[data-testid="icon-verified"]') !== null
+      if (isVerified)
+        profile.isVerified = true
+
+      return profile
+    }
+    catch (error) {
+      logger.parser.error('Error parsing user profile:', (error as Error).message)
+
+      // Return minimal profile to avoid breaking
+      return {
+        username: 'unknown',
+        displayName: 'Unknown User',
+      }
     }
   }
 
   /**
-   * Extract text content
+   * Extract username from Twitter profile URL
+   * @param url Twitter profile URL
+   * @returns Username or null if not found
    */
-  private static extractTextContent(element?: Element): string {
-    if (!element)
-      return ''
-
-    let text = ''
-    HtmlParser.visit(element, 'text', (node) => {
-      text += node.value
-    })
-
-    return text.trim()
-  }
-
-  /**
-   * Extract username from page
-   */
-  private static extractUsername(_tree: Root): string {
-    // TODO: Can be extracted from URL or specific DOM element
-    return ''
-  }
-
-  /**
-   * Extract user stats
-   */
-  private static extractProfileStats(tree: Root) {
-    // TODO: Extract followers, following, tweet count, etc.
-    const _statsElement = HtmlParser.select(tree, SELECTORS.PROFILE.STATS)[0]
-
-    return {
-      followersCount: undefined,
-      followingCount: undefined,
-      tweetCount: undefined,
-      isVerified: false,
-      joinDate: undefined,
+  private static extractUsernameFromUrl(url: string): string | null {
+    try {
+      const match = url.match(/twitter\.com\/([^/]+)/)
+      if (match && match[1] && !['home', 'explore', 'notifications', 'messages'].includes(match[1])) {
+        return match[1]
+      }
+      return null
+    }
+    catch {
+      return null
     }
   }
 
   /**
-   * Extract avatar URL
+   * Extract user statistics (followers, following, tweets)
+   * @param page Playwright page instance
+   * @returns Promise resolving to UserStats object
    */
-  private static extractAvatarUrl(_tree: Root): string | undefined {
-    // TODO: Extract avatar image URL
-    return undefined
-  }
-
-  /**
-   * Extract banner URL
-   */
-  private static extractBannerUrl(_tree: Root): string | undefined {
-    // TODO: Extract banner image URL
-    return undefined
-  }
-
-  /**
-   * Extract user stats
-   */
-  static extractUserStats(_html: string, _tree?: Node): UserStats {
-    // Parse HTML to get stats
+  private static async extractUserStats(page: Page): Promise<UserStats> {
     const stats: UserStats = {
-      tweets: 0,
-      following: 0,
       followers: 0,
+      following: 0,
+      tweets: 0,
     }
 
     try {
-      // Find stats container
-      const _statsElement = _tree ? select('[data-testid="userProfileStats"]', _tree as Root) : null
+      // Get stats container
+      const statsContainer = await page.$(SELECTORS.PROFILE.STATS)
+      if (!statsContainer)
+        return stats
 
-      // TODO: Not implemented yet
+      // Get all stat items
+      const statItems = await statsContainer.$$('a')
+
+      for (const statItem of statItems) {
+        const text = await statItem.textContent() || ''
+
+        if (text.includes('Following')) {
+          const countText = text.replace(/Following.*/, '').trim()
+          stats.following = this.parseStatNumber(countText)
+        }
+        else if (text.includes('Followers')) {
+          const countText = text.replace(/Followers.*/, '').trim()
+          stats.followers = this.parseStatNumber(countText)
+        }
+        else if (text.includes('posts') || text.includes('Posts')) {
+          const countText = text.replace(/posts|Posts.*/, '').trim()
+          stats.tweets = this.parseStatNumber(countText)
+        }
+      }
 
       return stats
+    }
+    catch (error) {
+      logger.parser.error('Error extracting user stats:', (error as Error).message)
+      return stats
+    }
+  }
+
+  /**
+   * Extract profile avatar URL
+   * @param page Playwright page instance
+   * @returns Promise resolving to avatar URL or undefined
+   */
+  private static async extractAvatarUrl(page: Page): Promise<string | undefined> {
+    try {
+      const avatarElement = await page.$('img[src*="profile_images"]')
+      const src = await avatarElement?.getAttribute('src')
+      return src || undefined
+    }
+    catch (error) {
+      logger.parser.error('Error extracting avatar URL:', (error as Error).message)
+      return undefined
+    }
+  }
+
+  /**
+   * Extract profile banner URL
+   * @param page Playwright page instance
+   * @returns Promise resolving to banner URL or undefined
+   */
+  private static async extractBannerUrl(page: Page): Promise<string | undefined> {
+    try {
+      const bannerElement = await page.$('img[src*="profile_banners"]')
+      const src = await bannerElement?.getAttribute('src')
+      return src || undefined
+    }
+    catch (error) {
+      logger.parser.error('Error extracting banner URL:', (error as Error).message)
+      return undefined
+    }
+  }
+
+  /**
+   * Extract join date from profile
+   * @param page Playwright page instance
+   * @returns Promise resolving to join date string or undefined
+   */
+  private static async extractJoinDate(page: Page): Promise<string | undefined> {
+    try {
+      // Try to find join date text that usually appears as "Joined Month Year"
+      const joinedText = await page.$('span:has-text("Joined")')
+      if (!joinedText)
+        return undefined
+
+      const fullText = await joinedText.textContent()
+      if (fullText && fullText.includes('Joined')) {
+        // Extract just the date part
+        const datePart = fullText.replace('Joined', '').trim()
+        return datePart || undefined
+      }
+
+      return undefined
+    }
+    catch (error) {
+      logger.parser.error('Error extracting join date:', (error as Error).message)
+      return undefined
+    }
+  }
+
+  /**
+   * Extract user links (website, location)
+   * @param page Playwright page instance
+   * @returns Promise resolving to array of user links
+   */
+  private static async extractUserLinks(page: Page): Promise<UserLink[]> {
+    const links: UserLink[] = []
+
+    try {
+      // Find all link elements in profile
+      const linkElements = await page.$$('a[href^="https"]:not([href*="twitter.com"])')
+
+      for (const linkElement of linkElements) {
+        // Extract href and title
+        const href = await linkElement.getAttribute('href')
+        const title = await linkElement.textContent()
+
+        if (href && title) {
+          links.push({
+            type: 'url',
+            url: href,
+            title,
+          })
+        }
+      }
+
+      // Try to find location
+      const locationElement = await page.$('span:has-text("Location")')
+      if (locationElement) {
+        const locationText = await locationElement.textContent()
+        if (locationText) {
+          links.push({
+            type: 'location',
+            url: '',
+            title: locationText.replace('Location', '').trim(),
+          })
+        }
+      }
+
+      return links
+    }
+    catch (error) {
+      logger.parser.error('Error extracting user links:', (error as Error).message)
+      return links
+    }
+  }
+
+  /**
+   * Parse stat number with K, M suffixes
+   * @param text Number text (e.g., "10.5K")
+   * @returns Parsed number
+   */
+  private static parseStatNumber(text: string): number {
+    try {
+      text = text.trim()
+
+      if (!text)
+        return 0
+
+      if (text.includes('K')) {
+        return Math.round(Number.parseFloat(text.replace('K', '')) * 1000)
+      }
+      else if (text.includes('M')) {
+        return Math.round(Number.parseFloat(text.replace('M', '')) * 1000000)
+      }
+
+      // Handle other formats like 1,234
+      const normalized = text.replace(/,/g, '')
+      return Number.parseInt(normalized, 10) || 0
     }
     catch {
-      return stats
+      return 0
     }
-  }
-
-  /**
-   * Extract user links
-   */
-  static extractUserLinks(_html: string, _tree?: Node): UserLink[] {
-    // TODO: Not implemented yet
-    return []
-  }
-
-  /**
-   * Extract user join date
-   */
-  static extractJoinDate(_html: string, _tree?: Node): string | null {
-    // TODO: Not implemented yet
-    return null
   }
 }

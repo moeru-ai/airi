@@ -1,24 +1,13 @@
-import type {
-  TwitterService as ITwitterService,
-  PostOptions,
-  SearchOptions,
-  TimelineOptions,
-  Tweet,
-  TweetDetail,
-  UserProfile,
-} from '../types/twitter'
+import type { PostOptions, SearchOptions, TimelineOptions, Tweet, TweetDetail, UserProfile } from '../types/twitter'
 import type { TwitterAuthService } from './auth-service'
 import type { TwitterTimelineService } from './timeline-service'
 
-import process from 'node:process'
+import { logger } from '../utils/logger'
 
-/**
- * Twitter service implementation
- * Integrates various service components, providing a unified interface
- */
-export class TwitterService implements ITwitterService {
+export class TwitterService {
   private authService: TwitterAuthService
   private timelineService: TwitterTimelineService
+  private sessionMonitorInterval: NodeJS.Timeout | null = null
 
   constructor(authService: TwitterAuthService, timelineService: TwitterTimelineService) {
     this.authService = authService
@@ -26,10 +15,31 @@ export class TwitterService implements ITwitterService {
   }
 
   /**
-   * Log in to Twitter
+   * Login to Twitter
+   * Attempts to restore session from saved cookies first
+   * If that fails, will need manual login in the browser
    */
   async login(): Promise<boolean> {
-    return await this.authService.login()
+    try {
+      // Try to restore session from cookies
+      const success = await this.authService.login()
+
+      if (success) {
+        logger.main.log('Successfully restored Twitter session from cookies')
+        return true
+      }
+
+      logger.main.log('No saved session found, waiting for manual login')
+
+      // Set up session monitoring to detect when user has manually logged in
+      this.startSessionMonitor()
+
+      return false
+    }
+    catch (error) {
+      logger.main.error('Error during login:', (error as Error).message)
+      return false
+    }
   }
 
   /**
@@ -37,15 +47,15 @@ export class TwitterService implements ITwitterService {
    */
   async getTimeline(options?: TimelineOptions): Promise<Tweet[]> {
     this.ensureAuthenticated()
-    return await this.timelineService.getTimeline(options)
+    return this.timelineService.getTimeline(options)
   }
 
   /**
-   * Get tweet details (not implemented in MVP)
+   * Get tweet details
    */
   async getTweetDetails(tweetId: string): Promise<TweetDetail> {
     this.ensureAuthenticated()
-    // In MVP stage, return a basic structure
+    // This is a stub implementation
     return {
       id: tweetId,
       text: 'Tweet details feature not yet implemented',
@@ -94,100 +104,119 @@ export class TwitterService implements ITwitterService {
   }
 
   /**
-   * Post tweet
+   * Post a tweet
    */
   async postTweet(_content: string, _options?: PostOptions): Promise<string> {
     throw new Error('Post tweet feature not yet implemented')
   }
 
   /**
-   * Save current browser session to file
-   * This allows users to manually save their session after logging in
+   * Manually trigger a session save
+   * Typically this is handled by the session monitor
    */
   async saveSession(): Promise<boolean> {
     try {
+      if (!this.authService.isAuthenticated()) {
+        logger.main.warn('Cannot save session when not authenticated')
+        return false
+      }
+
       await this.authService.saveCurrentSession()
+      logger.main.log('Successfully saved Twitter session')
       return true
     }
-    catch {
+    catch (error) {
+      logger.main.error('Error saving session:', (error as Error).message)
       return false
     }
   }
 
   /**
-   * Ensure authenticated
+   * Ensure the user is authenticated before performing operations
+   * @private
    */
   private ensureAuthenticated(): void {
     if (!this.authService.isAuthenticated()) {
-      throw new Error('Not authenticated. Call login() first.')
+      throw new Error('You must be logged in to perform this action. Please call login() first.')
     }
   }
 
   /**
-   * Export current session cookies
-   * @param format - The format of the returned cookies ('object' or 'string')
+   * Export the current session cookies
+   * @param format The format to export cookies in
    */
   async exportCookies(format: 'object' | 'string' = 'object'): Promise<Record<string, string> | string> {
-    return await this.authService.exportCookies(format)
+    this.ensureAuthenticated()
+    return this.authService.exportCookies(format)
   }
 
   /**
-   * Start automatic session monitoring
-   * Checks login status at regular intervals and saves the session if login is detected
-   * @param interval Interval in milliseconds, defaults to 30 seconds
+   * Start monitoring for session changes
+   * This will periodically check if the user is logged in
+   * and save the session if they are
+   * @param interval Time in ms between checks
    */
   startSessionMonitor(interval: number = 30000): void {
-    // Check immediately in case we're already logged in
-    this.checkAndSaveSession()
+    // Clear any existing monitor
+    if (this.sessionMonitorInterval) {
+      clearInterval(this.sessionMonitorInterval)
+    }
 
-    // Set interval for regular checks
-    const timer = setInterval(() => {
-      this.checkAndSaveSession()
+    logger.main.log(`Starting Twitter session monitor with ${interval}ms interval`)
+
+    this.sessionMonitorInterval = setInterval(async () => {
+      try {
+        await this.checkAndSaveSession()
+      }
+      catch (error) {
+        logger.main.error('Error in session monitor:', (error as Error).message)
+      }
     }, interval)
-
-    // Clean up timer on process exit
-    process.on('exit', () => {
-      clearInterval(timer)
-    })
-
-    process.on('SIGINT', () => {
-      clearInterval(timer)
-    })
-
-    process.on('SIGTERM', () => {
-      clearInterval(timer)
-    })
   }
 
   /**
-   * Get current page URL
-   * @returns Current URL of the Twitter page
+   * Get the current page URL
+   * Useful for debugging and checking the current state
    */
   async getCurrentUrl(): Promise<string> {
     try {
-      // We need to access the page from one of our services
-      // AuthService has direct access to the page object
-      const currentUrl = await this.authService.getCurrentUrl()
-      return currentUrl
+      return await this.authService.getCurrentUrl()
     }
     catch (error) {
-      throw new Error(`Failed to get current URL: ${error}`)
+      logger.main.error('Error getting current URL:', (error as Error).message)
+      return 'unknown'
     }
   }
 
   /**
-   * Check login status and save session if logged in
+   * Stop the session monitor
+   */
+  stopSessionMonitor(): void {
+    if (this.sessionMonitorInterval) {
+      clearInterval(this.sessionMonitorInterval)
+      this.sessionMonitorInterval = null
+      logger.main.log('Stopped Twitter session monitor')
+    }
+  }
+
+  /**
+   * Check and save the session if logged in
    * @private
    */
   private async checkAndSaveSession(): Promise<void> {
     try {
-      const isLoggedIn = this.authService.isAuthenticated() || await this.authService.checkLoginStatus()
-      if (isLoggedIn) {
+      const isLoggedIn = await this.authService.checkLoginStatus()
+
+      if (isLoggedIn && !this.authService.isAuthenticated()) {
+        logger.main.log('User has logged in manually, saving session')
         await this.saveSession()
       }
+      else if (!isLoggedIn && this.authService.isAuthenticated()) {
+        logger.main.warn('User appears to be logged out, updating state')
+      }
     }
-    catch {
-      // Silently handle errors - don't disrupt the application flow
+    catch (error) {
+      logger.main.error('Error checking session status:', (error as Error).message)
     }
   }
 }

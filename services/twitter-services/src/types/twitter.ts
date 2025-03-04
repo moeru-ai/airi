@@ -47,6 +47,7 @@ export interface TimelineOptions {
   count?: number
   includeReplies?: boolean
   includeRetweets?: boolean
+  limit?: number
 }
 
 /**
@@ -81,22 +82,4 @@ export interface UserLink {
   type: string
   url: string
   title: string
-}
-
-/**
- * Twitter Service Interface
- */
-export interface TwitterService {
-  login: () => Promise<boolean>
-  getTimeline: (options?: TimelineOptions) => Promise<Tweet[]>
-  getTweetDetails: (tweetId: string) => Promise<TweetDetail>
-  searchTweets: (query: string, options?: SearchOptions) => Promise<Tweet[]>
-  getUserProfile: (username: string) => Promise<UserProfile>
-  followUser: (username: string) => Promise<boolean>
-  likeTweet: (tweetId: string) => Promise<boolean>
-  retweet: (tweetId: string) => Promise<boolean>
-  postTweet: (content: string, options?: PostOptions) => Promise<string>
-  saveSession: () => Promise<boolean>
-  startSessionMonitor: (interval?: number) => void
-  getCurrentUrl: () => Promise<string>
 }

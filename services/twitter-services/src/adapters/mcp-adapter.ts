@@ -1,4 +1,4 @@
-import type { TwitterService } from '../types/twitter'
+import type { TwitterService } from '../core/twitter-service'
 
 import { Buffer } from 'node:buffer'
 import { createServer } from 'node:http'
@@ -388,7 +388,7 @@ export class MCPAdapter {
   private extractUsernameFromUrl(url: string): string | undefined {
     try {
       const parsedUrl = new URL(url)
-      if (parsedUrl.hostname === 'twitter.com' || parsedUrl.hostname === 'x.com') {
+      if (parsedUrl.hostname === 'x.com') {
         const pathParts = parsedUrl.pathname.split('/').filter(Boolean)
         if (pathParts.length > 0 && !['search', 'explore', 'home', 'notifications', 'messages'].includes(pathParts[0])) {
           return pathParts[0]

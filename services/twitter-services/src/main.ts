@@ -30,7 +30,7 @@ async function initBrowser(config: Config): Promise<{ browser: Browser, context:
   const page = await context.newPage()
 
   // Navigate to Twitter login page by default
-  await page.goto('https://twitter.com/login')
+  await page.goto('https://x.com/login')
 
   logger.main.log('Browser initialized')
   return { browser, context, page }
@@ -53,12 +53,12 @@ async function initTwitterService(page: Page, context: BrowserContext, _config: 
     else {
       // Instead of automatic login, navigate to login page
       logger.main.log('No valid session found, navigating to login page for manual login')
-      await page.goto('https://twitter.com/login')
+      await page.goto('https://x.com/login')
     }
   }
   catch (error) {
     logger.main.withError(error as Error).warn('Error checking session, navigating to login page')
-    await page.goto('https://twitter.com/login')
+    await page.goto('https://x.com/login')
   }
 
   // Start session monitoring to automatically save session when user logs in
@@ -74,19 +74,19 @@ async function initTwitterService(page: Page, context: BrowserContext, _config: 
 async function initAdapters(twitterService: TwitterService, config: Config): Promise<{ airi?: AiriAdapter, mcp?: MCPAdapter }> {
   const adapters: { airi?: AiriAdapter, mcp?: MCPAdapter } = {}
 
-  if (config.adapters.airi?.enabled) {
-    logger.main.log('Starting Airi adapter...')
-    const { AiriAdapter } = await import('./adapters/airi-adapter')
+  // if (config.adapters.airi?.enabled) {
+  //   logger.main.log('Starting Airi adapter...')
+  //   const { AiriAdapter } = await import('./adapters/airi-adapter')
 
-    adapters.airi = new AiriAdapter(twitterService, {
-      url: config.adapters.airi.url,
-      token: config.adapters.airi.token,
-      credentials: {},
-    })
+  //   adapters.airi = new AiriAdapter(twitterService, {
+  //     url: config.adapters.airi.url,
+  //     token: config.adapters.airi.token,
+  //     credentials: {},
+  //   })
 
-    await adapters.airi.start()
-    logger.main.log('Airi adapter started')
-  }
+  //   await adapters.airi.start()
+  //   logger.main.log('Airi adapter started')
+  // }
 
   if (config.adapters.mcp?.enabled) {
     logger.main.log('Starting MCP adapter...')

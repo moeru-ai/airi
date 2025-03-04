@@ -465,7 +465,7 @@ importers:
         version: 0.8.2
       '@gcornut/valibot-json-schema':
         specifier: ^0.42.0
-        version: 0.42.0(esbuild@0.25.0)(typescript@5.8.2)
+        version: 0.42.0(esbuild@0.19.12)(typescript@5.8.2)
       '@huggingface/transformers':
         specifier: ^3.3.3
         version: 3.3.3
@@ -537,7 +537,7 @@ importers:
         version: 2.10.3
       '@typeschema/valibot':
         specifier: ^0.14.0
-        version: 0.14.0(@gcornut/valibot-json-schema@0.42.0(esbuild@0.25.0)(typescript@5.8.2))(@types/json-schema@7.0.15)(valibot@1.0.0-beta.9(typescript@5.8.2))
+        version: 0.14.0(@gcornut/valibot-json-schema@0.42.0(esbuild@0.19.12)(typescript@5.8.2))(@types/json-schema@7.0.15)(valibot@1.0.0-beta.9(typescript@5.8.2))
       '@unhead/vue':
         specifier: ^2.0.0-beta.2
         version: 2.0.0-beta.2(vue@3.5.13(typescript@5.8.2))
@@ -739,7 +739,7 @@ importers:
         version: 28.4.1(@babel/parser@7.26.7)(@nuxt/kit@3.14.1592(magicast@0.3.5)(rollup@4.34.9))(vue@3.5.13(typescript@5.8.2))
       unplugin-vue-macros:
         specifier: ^2.14.5
-        version: 2.14.5(@vueuse/core@12.7.0(typescript@5.8.2))(esbuild@0.25.0)(rollup@4.34.9)(typescript@5.8.2)(vite@6.2.0(@types/node@22.13.8)(jiti@2.4.2)(less@4.2.1)(terser@5.17.6)(tsx@4.19.3)(yaml@2.7.0))(vue-tsc@2.2.6(typescript@5.8.2))(vue@3.5.13(typescript@5.8.2))
+        version: 2.14.5(@vueuse/core@12.7.0(typescript@5.8.2))(esbuild@0.19.12)(rollup@4.34.9)(typescript@5.8.2)(vite@6.2.0(@types/node@22.13.8)(jiti@2.4.2)(less@4.2.1)(terser@5.17.6)(tsx@4.19.3)(yaml@2.7.0))(vue-tsc@2.2.6(typescript@5.8.2))(vue@3.5.13(typescript@5.8.2))
       unplugin-vue-markdown:
         specifier: ^28.3.1
         version: 28.3.1(vite@6.2.0(@types/node@22.13.8)(jiti@2.4.2)(less@4.2.1)(terser@5.17.6)(tsx@4.19.3)(yaml@2.7.0))
@@ -1311,9 +1311,6 @@ importers:
       '@proj-airi/server-sdk':
         specifier: ^0.1.0
         version: 0.1.4
-      '@types/hast':
-        specifier: ^3.0.1
-        version: 3.0.4
       defu:
         specifier: ^6.1.4
         version: 6.1.4
@@ -1323,15 +1320,6 @@ importers:
       h3:
         specifier: ^1.11.0
         version: 1.15.1
-      hast-util-is-element:
-        specifier: ^3.0.0
-        version: 3.0.0
-      hast-util-select:
-        specifier: ^6.0.4
-        version: 6.0.4
-      hast-util-to-text:
-        specifier: ^4.0.2
-        version: 4.0.2
       listhen:
         specifier: ^1.6.0
         version: 1.9.0
@@ -1341,15 +1329,6 @@ importers:
       playwright:
         specifier: ^1.50.1
         version: 1.50.1
-      rehype-parse:
-        specifier: ^9.0.0
-        version: 9.0.1
-      unified:
-        specifier: ^11.0.3
-        version: 11.0.5
-      unist-util-visit:
-        specifier: ^5.0.0
-        version: 5.0.0
       zod:
         specifier: ^3.24.2
         version: 3.24.2
@@ -7709,9 +7688,6 @@ packages:
   hast-util-select@6.0.3:
     resolution: {integrity: sha512-OVRQlQ1XuuLP8aFVLYmC2atrfWHS5UD3shonxpnyrjcCkwtvmt/+N6kYJdcY4mkMJhxp4kj2EFIxQ9kvkkt/eQ==}
 
-  hast-util-select@6.0.4:
-    resolution: {integrity: sha512-RqGS1ZgI0MwxLaKLDxjprynNzINEkRHY2i8ln4DDjgv9ZhcYVIHN9rlpiYsqtFwrgpYU361SyWDQcGNIBVu3lw==}
-
   hast-util-to-estree@3.1.1:
     resolution: {integrity: sha512-IWtwwmPskfSmma9RpzCappDUitC8t5jhAynHhc1m2+5trOgsrp7txscUSavc5Ic8PATyAjfrCK1wgtxh2cICVQ==}
 
@@ -13634,6 +13610,16 @@ snapshots:
 
   '@formkit/auto-animate@0.8.2': {}
 
+  '@gcornut/valibot-json-schema@0.42.0(esbuild@0.19.12)(typescript@5.8.2)':
+    dependencies:
+      valibot: 0.42.1(typescript@5.8.2)
+    optionalDependencies:
+      '@types/json-schema': 7.0.15
+      esbuild-runner: 2.2.2(esbuild@0.19.12)
+    transitivePeerDependencies:
+      - esbuild
+      - typescript
+
   '@gcornut/valibot-json-schema@0.42.0(esbuild@0.25.0)(typescript@5.8.2)':
     dependencies:
       valibot: 0.42.1(typescript@5.8.2)
@@ -15392,8 +15378,17 @@ snapshots:
     dependencies:
       '@typeschema/core': 0.14.0(@types/json-schema@7.0.15)
     optionalDependencies:
-      '@typeschema/valibot': 0.14.0(@gcornut/valibot-json-schema@0.42.0(esbuild@0.25.0)(typescript@5.8.2))(@types/json-schema@7.0.15)(valibot@1.0.0-beta.9(typescript@5.8.2))
+      '@typeschema/valibot': 0.14.0(@gcornut/valibot-json-schema@0.42.0(esbuild@0.19.12)(typescript@5.8.2))(@types/json-schema@7.0.15)(valibot@1.0.0-beta.9(typescript@5.8.2))
       '@typeschema/zod': 0.14.0(@types/json-schema@7.0.15)(zod-to-json-schema@3.24.3(zod@3.24.2))(zod@3.24.2)
+    transitivePeerDependencies:
+      - '@types/json-schema'
+
+  '@typeschema/valibot@0.14.0(@gcornut/valibot-json-schema@0.42.0(esbuild@0.19.12)(typescript@5.8.2))(@types/json-schema@7.0.15)(valibot@1.0.0-beta.9(typescript@5.8.2))':
+    dependencies:
+      '@typeschema/core': 0.14.0(@types/json-schema@7.0.15)
+    optionalDependencies:
+      '@gcornut/valibot-json-schema': 0.42.0(esbuild@0.19.12)(typescript@5.8.2)
+      valibot: 1.0.0-beta.9(typescript@5.8.2)
     transitivePeerDependencies:
       - '@types/json-schema'
 
@@ -18245,6 +18240,13 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
+  esbuild-runner@2.2.2(esbuild@0.19.12):
+    dependencies:
+      esbuild: 0.19.12
+      source-map-support: 0.5.21
+      tslib: 2.4.0
+    optional: true
+
   esbuild-runner@2.2.2(esbuild@0.25.0):
     dependencies:
       esbuild: 0.25.0
@@ -19547,24 +19549,6 @@ snapshots:
       hast-util-whitespace: 3.0.0
       nth-check: 2.1.1
       property-information: 6.5.0
-      space-separated-tokens: 2.0.2
-      unist-util-visit: 5.0.0
-      zwitch: 2.0.4
-
-  hast-util-select@6.0.4:
-    dependencies:
-      '@types/hast': 3.0.4
-      '@types/unist': 3.0.0
-      bcp-47-match: 2.0.3
-      comma-separated-tokens: 2.0.3
-      css-selector-parser: 3.0.5
-      devlop: 1.1.0
-      direction: 2.0.1
-      hast-util-has-property: 3.0.0
-      hast-util-to-string: 3.0.1
-      hast-util-whitespace: 3.0.0
-      nth-check: 2.1.1
-      property-information: 7.0.0
       space-separated-tokens: 2.0.2
       unist-util-visit: 5.0.0
       zwitch: 2.0.4
@@ -24036,17 +24020,17 @@ snapshots:
       '@nuxt/kit': 3.14.1592(magicast@0.3.5)(rollup@4.34.9)
       '@vueuse/core': 12.7.0(typescript@5.8.2)
 
+  unplugin-combine@1.2.0(esbuild@0.19.12)(rollup@4.34.9)(unplugin@1.16.1)(vite@6.2.0(@types/node@22.13.8)(jiti@2.4.2)(less@4.2.1)(terser@5.17.6)(tsx@4.19.3)(yaml@2.7.0)):
+    optionalDependencies:
+      esbuild: 0.19.12
+      rollup: 4.34.9
+      unplugin: 1.16.1
+      vite: 6.2.0(@types/node@22.13.8)(jiti@2.4.2)(less@4.2.1)(terser@5.17.6)(tsx@4.19.3)(yaml@2.7.0)
+
   unplugin-combine@1.2.0(esbuild@0.25.0)(rollup@2.79.1)(unplugin@1.16.1)(vite@6.2.0(@types/node@22.13.8)(jiti@2.4.2)(less@4.2.1)(terser@5.17.6)(tsx@4.19.3)(yaml@2.7.0)):
     optionalDependencies:
       esbuild: 0.25.0
       rollup: 2.79.1
-      unplugin: 1.16.1
-      vite: 6.2.0(@types/node@22.13.8)(jiti@2.4.2)(less@4.2.1)(terser@5.17.6)(tsx@4.19.3)(yaml@2.7.0)
-
-  unplugin-combine@1.2.0(esbuild@0.25.0)(rollup@4.34.9)(unplugin@1.16.1)(vite@6.2.0(@types/node@22.13.8)(jiti@2.4.2)(less@4.2.1)(terser@5.17.6)(tsx@4.19.3)(yaml@2.7.0)):
-    optionalDependencies:
-      esbuild: 0.25.0
-      rollup: 4.34.9
       unplugin: 1.16.1
       vite: 6.2.0(@types/node@22.13.8)(jiti@2.4.2)(less@4.2.1)(terser@5.17.6)(tsx@4.19.3)(yaml@2.7.0)
 
@@ -24097,6 +24081,52 @@ snapshots:
     transitivePeerDependencies:
       - vue
 
+  unplugin-vue-macros@2.14.5(@vueuse/core@12.7.0(typescript@5.8.2))(esbuild@0.19.12)(rollup@4.34.9)(typescript@5.8.2)(vite@6.2.0(@types/node@22.13.8)(jiti@2.4.2)(less@4.2.1)(terser@5.17.6)(tsx@4.19.3)(yaml@2.7.0))(vue-tsc@2.2.6(typescript@5.8.2))(vue@3.5.13(typescript@5.8.2)):
+    dependencies:
+      '@vue-macros/better-define': 1.11.4(vue@3.5.13(typescript@5.8.2))
+      '@vue-macros/boolean-prop': 0.5.5(vue@3.5.13(typescript@5.8.2))
+      '@vue-macros/chain-call': 0.4.5(vue@3.5.13(typescript@5.8.2))
+      '@vue-macros/common': 1.16.1(vue@3.5.13(typescript@5.8.2))
+      '@vue-macros/config': 0.6.1(vue@3.5.13(typescript@5.8.2))
+      '@vue-macros/define-emit': 0.5.4(vue@3.5.13(typescript@5.8.2))
+      '@vue-macros/define-models': 1.3.5(@vueuse/core@12.7.0(typescript@5.8.2))(vue@3.5.13(typescript@5.8.2))
+      '@vue-macros/define-prop': 0.6.5(vue@3.5.13(typescript@5.8.2))
+      '@vue-macros/define-props': 4.0.6(@vue-macros/reactivity-transform@1.1.6(vue@3.5.13(typescript@5.8.2)))(vue@3.5.13(typescript@5.8.2))
+      '@vue-macros/define-props-refs': 1.3.5(vue@3.5.13(typescript@5.8.2))
+      '@vue-macros/define-render': 1.6.6(vue@3.5.13(typescript@5.8.2))
+      '@vue-macros/define-slots': 1.2.6(vue@3.5.13(typescript@5.8.2))
+      '@vue-macros/define-stylex': 0.2.3(vue@3.5.13(typescript@5.8.2))
+      '@vue-macros/devtools': 0.4.1(typescript@5.8.2)(vite@6.2.0(@types/node@22.13.8)(jiti@2.4.2)(less@4.2.1)(terser@5.17.6)(tsx@4.19.3)(yaml@2.7.0))
+      '@vue-macros/export-expose': 0.3.5(vue@3.5.13(typescript@5.8.2))
+      '@vue-macros/export-props': 0.6.5(vue@3.5.13(typescript@5.8.2))
+      '@vue-macros/export-render': 0.3.5(vue@3.5.13(typescript@5.8.2))
+      '@vue-macros/hoist-static': 1.7.0(vue@3.5.13(typescript@5.8.2))
+      '@vue-macros/jsx-directive': 0.10.6(typescript@5.8.2)
+      '@vue-macros/named-template': 0.5.5(vue@3.5.13(typescript@5.8.2))
+      '@vue-macros/reactivity-transform': 1.1.6(vue@3.5.13(typescript@5.8.2))
+      '@vue-macros/script-lang': 0.2.5(vue@3.5.13(typescript@5.8.2))
+      '@vue-macros/setup-block': 0.4.5(vue@3.5.13(typescript@5.8.2))
+      '@vue-macros/setup-component': 0.18.5(vue@3.5.13(typescript@5.8.2))
+      '@vue-macros/setup-sfc': 0.18.5(vue@3.5.13(typescript@5.8.2))
+      '@vue-macros/short-bind': 1.1.5(vue@3.5.13(typescript@5.8.2))
+      '@vue-macros/short-emits': 1.6.5(vue@3.5.13(typescript@5.8.2))
+      '@vue-macros/short-vmodel': 1.5.5(vue@3.5.13(typescript@5.8.2))
+      '@vue-macros/volar': 0.30.15(rollup@4.34.9)(typescript@5.8.2)(vue-tsc@2.2.6(typescript@5.8.2))(vue@3.5.13(typescript@5.8.2))
+      unplugin: 1.16.1
+      unplugin-combine: 1.2.0(esbuild@0.19.12)(rollup@4.34.9)(unplugin@1.16.1)(vite@6.2.0(@types/node@22.13.8)(jiti@2.4.2)(less@4.2.1)(terser@5.17.6)(tsx@4.19.3)(yaml@2.7.0))
+      unplugin-vue-define-options: 1.5.5(vue@3.5.13(typescript@5.8.2))
+      vue: 3.5.13(typescript@5.8.2)
+    transitivePeerDependencies:
+      - '@rspack/core'
+      - '@vueuse/core'
+      - esbuild
+      - rolldown
+      - rollup
+      - typescript
+      - vite
+      - vue-tsc
+      - webpack
+
   unplugin-vue-macros@2.14.5(@vueuse/core@12.7.0(typescript@5.8.2))(esbuild@0.25.0)(rollup@2.79.1)(typescript@5.8.2)(vite@6.2.0(@types/node@22.13.8)(jiti@2.4.2)(less@4.2.1)(terser@5.17.6)(tsx@4.19.3)(yaml@2.7.0))(vue-tsc@2.2.6(typescript@5.8.2))(vue@3.5.13(typescript@5.8.2)):
     dependencies:
       '@vue-macros/better-define': 1.11.4(vue@3.5.13(typescript@5.8.2))
@@ -24130,52 +24160,6 @@ snapshots:
       '@vue-macros/volar': 0.30.15(rollup@2.79.1)(typescript@5.8.2)(vue-tsc@2.2.6(typescript@5.8.2))(vue@3.5.13(typescript@5.8.2))
       unplugin: 1.16.1
       unplugin-combine: 1.2.0(esbuild@0.25.0)(rollup@2.79.1)(unplugin@1.16.1)(vite@6.2.0(@types/node@22.13.8)(jiti@2.4.2)(less@4.2.1)(terser@5.17.6)(tsx@4.19.3)(yaml@2.7.0))
-      unplugin-vue-define-options: 1.5.5(vue@3.5.13(typescript@5.8.2))
-      vue: 3.5.13(typescript@5.8.2)
-    transitivePeerDependencies:
-      - '@rspack/core'
-      - '@vueuse/core'
-      - esbuild
-      - rolldown
-      - rollup
-      - typescript
-      - vite
-      - vue-tsc
-      - webpack
-
-  unplugin-vue-macros@2.14.5(@vueuse/core@12.7.0(typescript@5.8.2))(esbuild@0.25.0)(rollup@4.34.9)(typescript@5.8.2)(vite@6.2.0(@types/node@22.13.8)(jiti@2.4.2)(less@4.2.1)(terser@5.17.6)(tsx@4.19.3)(yaml@2.7.0))(vue-tsc@2.2.6(typescript@5.8.2))(vue@3.5.13(typescript@5.8.2)):
-    dependencies:
-      '@vue-macros/better-define': 1.11.4(vue@3.5.13(typescript@5.8.2))
-      '@vue-macros/boolean-prop': 0.5.5(vue@3.5.13(typescript@5.8.2))
-      '@vue-macros/chain-call': 0.4.5(vue@3.5.13(typescript@5.8.2))
-      '@vue-macros/common': 1.16.1(vue@3.5.13(typescript@5.8.2))
-      '@vue-macros/config': 0.6.1(vue@3.5.13(typescript@5.8.2))
-      '@vue-macros/define-emit': 0.5.4(vue@3.5.13(typescript@5.8.2))
-      '@vue-macros/define-models': 1.3.5(@vueuse/core@12.7.0(typescript@5.8.2))(vue@3.5.13(typescript@5.8.2))
-      '@vue-macros/define-prop': 0.6.5(vue@3.5.13(typescript@5.8.2))
-      '@vue-macros/define-props': 4.0.6(@vue-macros/reactivity-transform@1.1.6(vue@3.5.13(typescript@5.8.2)))(vue@3.5.13(typescript@5.8.2))
-      '@vue-macros/define-props-refs': 1.3.5(vue@3.5.13(typescript@5.8.2))
-      '@vue-macros/define-render': 1.6.6(vue@3.5.13(typescript@5.8.2))
-      '@vue-macros/define-slots': 1.2.6(vue@3.5.13(typescript@5.8.2))
-      '@vue-macros/define-stylex': 0.2.3(vue@3.5.13(typescript@5.8.2))
-      '@vue-macros/devtools': 0.4.1(typescript@5.8.2)(vite@6.2.0(@types/node@22.13.8)(jiti@2.4.2)(less@4.2.1)(terser@5.17.6)(tsx@4.19.3)(yaml@2.7.0))
-      '@vue-macros/export-expose': 0.3.5(vue@3.5.13(typescript@5.8.2))
-      '@vue-macros/export-props': 0.6.5(vue@3.5.13(typescript@5.8.2))
-      '@vue-macros/export-render': 0.3.5(vue@3.5.13(typescript@5.8.2))
-      '@vue-macros/hoist-static': 1.7.0(vue@3.5.13(typescript@5.8.2))
-      '@vue-macros/jsx-directive': 0.10.6(typescript@5.8.2)
-      '@vue-macros/named-template': 0.5.5(vue@3.5.13(typescript@5.8.2))
-      '@vue-macros/reactivity-transform': 1.1.6(vue@3.5.13(typescript@5.8.2))
-      '@vue-macros/script-lang': 0.2.5(vue@3.5.13(typescript@5.8.2))
-      '@vue-macros/setup-block': 0.4.5(vue@3.5.13(typescript@5.8.2))
-      '@vue-macros/setup-component': 0.18.5(vue@3.5.13(typescript@5.8.2))
-      '@vue-macros/setup-sfc': 0.18.5(vue@3.5.13(typescript@5.8.2))
-      '@vue-macros/short-bind': 1.1.5(vue@3.5.13(typescript@5.8.2))
-      '@vue-macros/short-emits': 1.6.5(vue@3.5.13(typescript@5.8.2))
-      '@vue-macros/short-vmodel': 1.5.5(vue@3.5.13(typescript@5.8.2))
-      '@vue-macros/volar': 0.30.15(rollup@4.34.9)(typescript@5.8.2)(vue-tsc@2.2.6(typescript@5.8.2))(vue@3.5.13(typescript@5.8.2))
-      unplugin: 1.16.1
-      unplugin-combine: 1.2.0(esbuild@0.25.0)(rollup@4.34.9)(unplugin@1.16.1)(vite@6.2.0(@types/node@22.13.8)(jiti@2.4.2)(less@4.2.1)(terser@5.17.6)(tsx@4.19.3)(yaml@2.7.0))
       unplugin-vue-define-options: 1.5.5(vue@3.5.13(typescript@5.8.2))
       vue: 3.5.13(typescript@5.8.2)
     transitivePeerDependencies:
