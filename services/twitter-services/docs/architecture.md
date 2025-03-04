@@ -300,7 +300,7 @@ async function startAiriModule() {
 
 ```typescript
 // Use MCP SDK to interact with Twitter service
-import { McpClient } from '@modelcontextprotocol/sdk/client/mcp.js'
+import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { SSEClientTransport } from '@modelcontextprotocol/sdk/client/sse.js'
 
 async function connectToTwitterService() {
@@ -308,7 +308,7 @@ async function connectToTwitterService() {
   const transport = new SSEClientTransport('http://localhost:8080/sse', 'http://localhost:8080/messages')
 
   // Create client
-  const client = new McpClient()
+  const client = new Client()
   await client.connect(transport)
 
   // Get timeline
