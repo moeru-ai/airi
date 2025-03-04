@@ -97,25 +97,13 @@ export default defineConfig({
           includeAssets: ['favicon.svg', 'apple-touch-icon.png'],
           manifest: {
             name: 'Airi',
-            short_name: appName,
+            short_name: 'Airi',
             theme_color: '#ffc6cb',
             icons: [
               {
                 purpose: 'maskable',
-                sizes: '128x128',
-                src: '/maskable_icon_x128.png',
-                type: 'image/png',
-              },
-              {
-                purpose: 'maskable',
                 sizes: '192x192',
                 src: '/maskable_icon_x192.png',
-                type: 'image/png',
-              },
-              {
-                purpose: 'maskable',
-                sizes: '384x384',
-                src: '/maskable_icon_x384.png',
                 type: 'image/png',
               },
               {
