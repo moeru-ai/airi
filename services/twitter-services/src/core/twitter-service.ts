@@ -5,11 +5,12 @@ import type {
   TimelineOptions,
   Tweet,
   TweetDetail,
-  TwitterCredentials,
   UserProfile,
 } from '../types/twitter'
 import type { TwitterAuthService } from './auth-service'
 import type { TwitterTimelineService } from './timeline-service'
+
+import process from 'node:process'
 
 /**
  * Twitter service implementation
@@ -27,8 +28,8 @@ export class TwitterService implements ITwitterService {
   /**
    * Log in to Twitter
    */
-  async login(credentials: TwitterCredentials): Promise<boolean> {
-    return await this.authService.login(credentials)
+  async login(): Promise<boolean> {
+    return await this.authService.login()
   }
 
   /**
@@ -100,6 +101,20 @@ export class TwitterService implements ITwitterService {
   }
 
   /**
+   * Save current browser session to file
+   * This allows users to manually save their session after logging in
+   */
+  async saveSession(): Promise<boolean> {
+    try {
+      await this.authService.saveCurrentSession()
+      return true
+    }
+    catch {
+      return false
+    }
+  }
+
+  /**
    * Ensure authenticated
    */
   private ensureAuthenticated(): void {
@@ -114,5 +129,49 @@ export class TwitterService implements ITwitterService {
    */
   async exportCookies(format: 'object' | 'string' = 'object'): Promise<Record<string, string> | string> {
     return await this.authService.exportCookies(format)
+  }
+
+  /**
+   * Start automatic session monitoring
+   * Checks login status at regular intervals and saves the session if login is detected
+   * @param interval Interval in milliseconds, defaults to 30 seconds
+   */
+  startSessionMonitor(interval: number = 30000): void {
+    // Check immediately in case we're already logged in
+    this.checkAndSaveSession()
+
+    // Set interval for regular checks
+    const timer = setInterval(() => {
+      this.checkAndSaveSession()
+    }, interval)
+
+    // Clean up timer on process exit
+    process.on('exit', () => {
+      clearInterval(timer)
+    })
+
+    process.on('SIGINT', () => {
+      clearInterval(timer)
+    })
+
+    process.on('SIGTERM', () => {
+      clearInterval(timer)
+    })
+  }
+
+  /**
+   * Check login status and save session if logged in
+   * @private
+   */
+  private async checkAndSaveSession(): Promise<void> {
+    try {
+      const isLoggedIn = this.authService.isAuthenticated() || await this.authService.checkLoginStatus()
+      if (isLoggedIn) {
+        await this.saveSession()
+      }
+    }
+    catch {
+      // Silently handle errors - don't disrupt the application flow
+    }
   }
 }

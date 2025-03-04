@@ -59,9 +59,6 @@ export class ConfigManager {
     if (configPath) {
       this.loadFromFile(configPath)
     }
-
-    // Validate configuration
-    this.validateConfig()
   }
 
   /**
@@ -84,20 +81,6 @@ export class ConfigManager {
   }
 
   /**
-   * Validate configuration validity
-   */
-  private validateConfig(): void {
-    // Validate Twitter credentials
-    if (!this.config.twitter.credentials?.username || !this.config.twitter.credentials?.password) {
-      logger.config.warn('Twitter credentials not set!')
-    }
-
-    logger.config.withFields({
-      config: this.config,
-    }).log('Configuration validation complete')
-  }
-
-  /**
    * Get complete configuration
    */
   getConfig(): Config {
@@ -110,7 +93,6 @@ export class ConfigManager {
   updateConfig(newConfig: Partial<Config>): void {
     // Use defu to merge new configuration
     this.config = defu(newConfig, this.config)
-    this.validateConfig()
   }
 }
 

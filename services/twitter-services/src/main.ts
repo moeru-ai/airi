@@ -1,6 +1,7 @@
-import type { Browser, BrowserContext } from 'playwright'
+import type { Browser, BrowserContext, Page } from 'playwright'
 import type { AiriAdapter } from './adapters/airi-adapter'
 import type { MCPAdapter } from './adapters/mcp-adapter'
+import type { Config } from './config/types'
 
 import process from 'node:process'
 import { chromium } from 'playwright'
@@ -14,7 +15,7 @@ import { initLogger, logger } from './utils/logger'
 /**
  * Initialize browser and create page
  */
-async function initBrowser(config: any): Promise<{ browser: Browser, context: BrowserContext, page: any }> {
+async function initBrowser(config: Config): Promise<{ browser: Browser, context: BrowserContext, page: Page }> {
   const browser = await chromium.launch({
     headless: config.browser.headless,
   })
@@ -28,6 +29,9 @@ async function initBrowser(config: any): Promise<{ browser: Browser, context: Br
   context.setDefaultTimeout(config.browser.timeout || 30000)
   const page = await context.newPage()
 
+  // Navigate to Twitter login page by default
+  await page.goto('https://twitter.com/login')
+
   logger.main.log('Browser initialized')
   return { browser, context, page }
 }
@@ -35,20 +39,31 @@ async function initBrowser(config: any): Promise<{ browser: Browser, context: Br
 /**
  * Initialize Twitter service and login
  */
-async function initTwitterService(page: any, context: BrowserContext, config: any): Promise<TwitterService> {
+async function initTwitterService(page: Page, context: BrowserContext, _config: Config): Promise<TwitterService> {
   const authService = new TwitterAuthService(page, context)
   const timelineService = new TwitterTimelineService(page)
   const twitterService = new TwitterService(authService, timelineService)
 
-  if (config.twitter.credentials) {
-    const success = await twitterService.login(config.twitter.credentials)
-    if (success) {
-      logger.main.log('Successfully logged into Twitter')
+  // Check if we have a saved session
+  try {
+    const sessionSuccess = await authService.checkExistingSession()
+    if (sessionSuccess) {
+      logger.main.log('Successfully loaded existing Twitter session')
     }
     else {
-      logger.main.error('Twitter login failed!')
+      // Instead of automatic login, navigate to login page
+      logger.main.log('No valid session found, navigating to login page for manual login')
+      await page.goto('https://twitter.com/login')
     }
   }
+  catch (error) {
+    logger.main.withError(error as Error).warn('Error checking session, navigating to login page')
+    await page.goto('https://twitter.com/login')
+  }
+
+  // Start session monitoring to automatically save session when user logs in
+  twitterService.startSessionMonitor()
+  logger.main.log('Started automatic session monitoring')
 
   return twitterService
 }
@@ -56,7 +71,7 @@ async function initTwitterService(page: any, context: BrowserContext, config: an
 /**
  * Initialize adapters
  */
-async function initAdapters(twitterService: TwitterService, config: any): Promise<{ airi?: AiriAdapter, mcp?: MCPAdapter }> {
+async function initAdapters(twitterService: TwitterService, config: Config): Promise<{ airi?: AiriAdapter, mcp?: MCPAdapter }> {
   const adapters: { airi?: AiriAdapter, mcp?: MCPAdapter } = {}
 
   if (config.adapters.airi?.enabled) {
@@ -66,7 +81,7 @@ async function initAdapters(twitterService: TwitterService, config: any): Promis
     adapters.airi = new AiriAdapter(twitterService, {
       url: config.adapters.airi.url,
       token: config.adapters.airi.token,
-      credentials: config.twitter.credentials!,
+      credentials: {},
     })
 
     await adapters.airi.start()

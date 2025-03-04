@@ -1,5 +1,5 @@
 import type { BrowserConfig } from '../types/browser'
-import type { SearchOptions, TimelineOptions, TwitterCredentials } from '../types/twitter'
+import type { SearchOptions, TimelineOptions } from '../types/twitter'
 
 import process from 'node:process'
 
@@ -15,7 +15,6 @@ export interface Config {
 
   // Twitter configuration
   twitter: {
-    credentials?: TwitterCredentials
     defaultOptions?: {
       timeline?: TimelineOptions
       search?: SearchOptions
@@ -64,11 +63,6 @@ export function getDefaultConfig(): Config {
       requestRetries: Number.parseInt(process.env.BROWSER_REQUEST_RETRIES || '2'),
     },
     twitter: {
-      credentials: {
-        username: process.env.TWITTER_USERNAME || '',
-        password: process.env.TWITTER_PASSWORD || '',
-        // Don't include cookies here, they will be loaded from session file
-      },
       defaultOptions: {
         timeline: {
           count: 20,

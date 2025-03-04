@@ -1,13 +1,4 @@
 /**
- * Twitter Credentials
- */
-export interface TwitterCredentials {
-  username?: string
-  password?: string
-  cookies?: Record<string, string>
-}
-
-/**
  * Tweet Interface
  */
 export interface Tweet {
@@ -96,7 +87,7 @@ export interface UserLink {
  * Twitter Service Interface
  */
 export interface TwitterService {
-  login: (credentials: TwitterCredentials) => Promise<boolean>
+  login: () => Promise<boolean>
   getTimeline: (options?: TimelineOptions) => Promise<Tweet[]>
   getTweetDetails: (tweetId: string) => Promise<TweetDetail>
   searchTweets: (query: string, options?: SearchOptions) => Promise<Tweet[]>
@@ -105,4 +96,6 @@ export interface TwitterService {
   likeTweet: (tweetId: string) => Promise<boolean>
   retweet: (tweetId: string) => Promise<boolean>
   postTweet: (content: string, options?: PostOptions) => Promise<string>
+  saveSession: () => Promise<boolean>
+  startSessionMonitor: (interval?: number) => void
 }

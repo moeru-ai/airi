@@ -36,4 +36,4 @@ coverage/
 
 **/temp/
 
-*.session.json
+twitter-session.json

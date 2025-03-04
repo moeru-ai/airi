@@ -124,24 +124,23 @@ export class MCPAdapter {
     // Add login tool
     this.mcpServer.tool(
       'login',
-      {
-        username: z.string(),
-        password: z.string(),
-      },
-      async ({ username, password }) => {
+      {},
+      async () => {
         try {
-          const success = await this.twitterService.login({ username, password })
+          const success = await this.twitterService.login()
 
           return {
             content: [{
               type: 'text',
-              text: success ? 'Successfully logged into Twitter' : 'Login failed, please check credentials',
+              text: success
+                ? '成功从会话文件加载登录状态！如果您是手动登录，系统已设置自动监控来保存您的会话。'
+                : '没有找到有效的会话文件。请在浏览器中手动登录，系统会自动保存您的会话。',
             }],
           }
         }
         catch (error) {
           return {
-            content: [{ type: 'text', text: `Login failed: ${errorToMessage(error)}` }],
+            content: [{ type: 'text', text: `检查登录状态失败: ${errorToMessage(error)}` }],
             isError: true,
           }
         }
@@ -221,6 +220,32 @@ export class MCPAdapter {
         catch (error) {
           return {
             content: [{ type: 'text', text: `Failed to retweet: ${errorToMessage(error)}` }],
+            isError: true,
+          }
+        }
+      },
+    )
+
+    // Add save session tool
+    this.mcpServer.tool(
+      'save-session',
+      {},
+      async () => {
+        try {
+          const success = await this.twitterService.saveSession()
+
+          return {
+            content: [{
+              type: 'text',
+              text: success
+                ? 'Successfully saved browser session to file. This session will be loaded automatically next time.'
+                : 'Failed to save browser session',
+            }],
+          }
+        }
+        catch (error) {
+          return {
+            content: [{ type: 'text', text: `Failed to save session: ${errorToMessage(error)}` }],
             isError: true,
           }
         }
