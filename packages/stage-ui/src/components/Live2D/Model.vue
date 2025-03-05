@@ -7,7 +7,6 @@ import { extensions } from '@pixi/extensions'
 import { InteractionManager } from '@pixi/interaction'
 import { Ticker, TickerPlugin } from '@pixi/ticker'
 import { breakpointsTailwind, useBreakpoints, useDark, useDebounceFn, watchDebounced } from '@vueuse/core'
-import JSZip from 'jszip'
 import localforage from 'localforage'
 import { storeToRefs } from 'pinia'
 import { DropShadowFilter } from 'pixi-filters'
@@ -59,10 +58,17 @@ function setScale(model: Ref<Live2DModel<InternalModel> | undefined>) {
   model.value.scale.set(scale, scale)
 }
 
-const { live2dModel, loadingLive2dModel, live2dCurrentMotion, availableLive2dMotions, live2dMotionMap } = storeToRefs(useSettings())
+const {
+  live2dModelFile,
+  loadingLive2dModel,
+  live2dCurrentMotion,
+  availableLive2dMotions,
+  live2dLoadSource,
+  live2dModelUrl,
+} = storeToRefs(useSettings())
 const currentMotion = ref<{ group: string, index: number }>({ group: 'Idle', index: 0 })
 
-async function loadModel(source: string | File, patchMotionMap = false) {
+async function loadModel() {
   if (!pixiApp.value)
     return
 
@@ -72,43 +78,13 @@ async function loadModel(source: string | File, patchMotionMap = false) {
     model.value = undefined
   }
 
-  // patch the motion map to model3.json
-  if (source instanceof Blob && patchMotionMap) {
-    const jsZip = new JSZip()
-    const zip = await jsZip.loadAsync(source)
-    const fileName = Object.keys(zip.files).find(key => key.endsWith('model3.json'))
-    if (!fileName) {
-      throw new Error('model3.json not found')
-    }
-
-    const model3Json = await zip.file(fileName)!.async('string')
-    const model3JsonObject = JSON.parse(model3Json)
-
-    const motionMap = Object.entries(live2dMotionMap.value).reduce((acc, [key, value]) => { // only convert when patch, otherwise should use map { fileName, emotion, originalMotionName, motionIndex }
-      acc[key] = value.map(motion => ({ File: motion }))
-      return acc
-    }, {} as Record<string, { File: string }[]>)
-    model3JsonObject.FileReferences.Motions = motionMap
-
-    zip.file(fileName, JSON.stringify(model3JsonObject, null, 2))
-    const zipBlob = await zip.generateAsync({ type: 'blob' })
-    source = new File([zipBlob], source.name, {
-      type: source.type,
-      lastModified: source.lastModified,
-    })
-  }
-
-  // load the model
-
-  loadingLive2dModel.value = true
-
   const modelInstance = new Live2DModel()
 
-  if (source instanceof Blob) {
-    await Live2DFactory.setupLive2DModel(modelInstance, [source])
+  if (live2dLoadSource.value === 'file') {
+    await Live2DFactory.setupLive2DModel(modelInstance, [live2dModelFile.value])
   }
-  else {
-    await Live2DFactory.setupLive2DModel(modelInstance, source)
+  else if (live2dLoadSource.value === 'url') {
+    await Live2DFactory.setupLive2DModel(modelInstance, live2dModelUrl.value)
   }
 
   model.value = modelInstance
@@ -174,7 +150,9 @@ async function loadModel(source: string | File, patchMotionMap = false) {
   })
 
   // save to indexdb
-  await localforage.setItem('live2dModel', source)
+  if (live2dModelFile.value) {
+    await localforage.setItem('live2dModel', live2dModelFile.value)
+  }
 
   loadingLive2dModel.value = false
 }
@@ -189,13 +167,21 @@ async function initLive2DPixiStage() {
   extensions.add(InteractionManager)
 
   // load indexdb model first
-  const live2dModelBlob = await localforage.getItem<File>('live2dModel')
-  if (live2dModelBlob) {
-    await loadModel(live2dModelBlob, true)
+  const live2dModelFromIndexedDB = await localforage.getItem<File>('live2dModel')
+  if (live2dModelFromIndexedDB) {
+    live2dModelFile.value = live2dModelFromIndexedDB
+    live2dLoadSource.value = 'file'
+    loadingLive2dModel.value = true
     return
   }
 
-  await loadModel(live2dModel.value)
+  if (live2dModelUrl.value) {
+    live2dLoadSource.value = 'url'
+    loadingLive2dModel.value = true
+    return
+  }
+
+  loadingLive2dModel.value = false
 }
 
 async function setMotion(motionName: string, index: number) {
@@ -231,15 +217,12 @@ watch(live2dCurrentMotion, value => setMotion(value.group, value.index))
 watch(paused, (value) => {
   value ? pixiApp.value?.stop() : pixiApp.value?.start()
 })
-// watch(live2dMotionMap, (value) => {
-// need to patch the model3.json, then reload the model
-// })
 
-watchDebounced(live2dModel, (value) => {
+watchDebounced(loadingLive2dModel, (value) => {
   if (!value)
     return
 
-  loadModel(value, true)
+  loadModel()
 }, { debounce: 1000 })
 
 onMounted(updateDropShadowFilter)

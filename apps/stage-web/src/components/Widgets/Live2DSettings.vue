@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { Collapsable } from '@proj-airi/stage-ui/components'
-import { Emotion } from '@proj-airi/stage-ui/constants'
+import { Emotion, EmotionNeutralMotionName } from '@proj-airi/stage-ui/constants'
 import { useSettings } from '@proj-airi/stage-ui/stores'
-import { useFileDialog } from '@vueuse/core'
-import { computed, ref } from 'vue'
+import { useFileDialog, useObjectUrl } from '@vueuse/core'
+import JSZip from 'jszip'
+import localforage from 'localforage'
+import { ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 const { t } = useI18n()
@@ -13,43 +15,76 @@ const modelFile = useFileDialog({
 })
 
 const settings = useSettings()
-const modelUrl = ref(settings.live2dModel)
-
-const motionFileMap = computed(() => { // reverse the motion map
-  const map: Record<string, Emotion> = {} // { fileName: Emotion }
-  for (const [emotion, motions] of Object.entries(settings.live2dMotionMap)) {
-    motions.forEach((motion) => {
-      map[motion] = emotion as Emotion
-    })
-  }
-
-  // motion not in the map should be neutral
-  settings.availableLive2dMotions.forEach((motion) => {
-    if (!map[motion.fileName]) {
-      map[motion.fileName] = Emotion.Neutral
-    }
-  })
-
-  return map
-})
+const modelUrl = ref(settings.live2dModelUrl)
 
 modelFile.onChange((files) => {
   if (files && files.length > 0) {
-    settings.live2dModel = files[0]
+    settings.live2dMotionMap = {}
+    settings.live2dModelFile = files[0]
+    settings.live2dLoadSource = 'file'
+    settings.loadingLive2dModel = true
   }
 })
 
-function handleMotionChange(e: Event, fileName: string) {
-  const emotion = (e.target as HTMLSelectElement).value as Emotion
-  // remove the file name from the map
-  Object.entries(settings.live2dMotionMap).forEach(([emotion, motions]) => {
-    if (motions.includes(fileName)) {
-      settings.live2dMotionMap[emotion as Emotion] = motions.filter(motion => motion !== fileName)
+watch(() => settings.loadingLive2dModel, (value) => {
+  if (value) {
+    return
+  }
+
+  settings.availableLive2dMotions.forEach((motion) => {
+    if (!settings.live2dMotionMap[motion.fileName]) {
+      settings.live2dMotionMap[motion.fileName] = EmotionNeutralMotionName
     }
   })
+})
 
-  settings.live2dMotionMap[emotion].push(fileName)
+async function patchMotionMap(source: File, motionMap: Record<string, string>): Promise<File> {
+  if (!Object.keys(motionMap).length)
+    return source
+
+  const jsZip = new JSZip()
+  const zip = await jsZip.loadAsync(source)
+  const fileName = Object.keys(zip.files).find(key => key.endsWith('model3.json'))
+  if (!fileName) {
+    throw new Error('model3.json not found')
+  }
+
+  const model3Json = await zip.file(fileName)!.async('string')
+  const model3JsonObject = JSON.parse(model3Json)
+
+  const motions: Record<string, { File: string }[]> = {}
+  Object.entries(motionMap).forEach(([key, value]) => {
+    if (motions[value]) {
+      motions[value].push({ File: key })
+      return
+    }
+    motions[value] = [{ File: key }]
+  })
+
+  model3JsonObject.FileReferences.Motions = motions
+
+  zip.file(fileName, JSON.stringify(model3JsonObject, null, 2))
+  const zipBlob = await zip.generateAsync({ type: 'blob' })
+
+  return new File([zipBlob], source.name, {
+    type: source.type,
+    lastModified: source.lastModified,
+  })
 }
+
+async function saveMotionMap() {
+  const fileFromIndexedDB = await localforage.getItem<File>('live2dModel')
+  if (!fileFromIndexedDB) {
+    return
+  }
+
+  const patchedFile = await patchMotionMap(fileFromIndexedDB, settings.live2dMotionMap)
+  settings.live2dModelFile = patchedFile
+  settings.live2dLoadSource = 'file'
+  settings.loadingLive2dModel = true
+}
+
+const exportObjectUrl = useObjectUrl(settings.live2dModelFile)
 </script>
 
 <template>
@@ -102,7 +137,7 @@ function handleMotionChange(e: Event, fileName: string) {
               hover="bg-zinc-200 dark:bg-zinc-700"
               transition="all ease-in-out duration-250"
               ml-2 rounded px-2 py-1 text-sm outline-none
-              @click="settings.live2dModel = modelUrl"
+              @click="settings.live2dModelUrl = modelUrl"
             >
               {{ t('settings.live2d.change-model.from-url-confirm') }}
             </button>
@@ -141,7 +176,7 @@ function handleMotionChange(e: Event, fileName: string) {
       >
         <div flex="~ row 1" items-center gap-1.5>
           <div
-            i-solar:magic-stick-3-bold-duotone class="provider-icon size-6"
+            i-solar:face-scan-circle-bold-duotone class="provider-icon size-6"
             transition="filter duration-250 ease-in-out"
           />
           <div>
@@ -154,30 +189,59 @@ function handleMotionChange(e: Event, fileName: string) {
       </button>
     </template>
     <div p-4>
-      <div class="space-y-4">
+      <div v-if="settings.live2dLoadSource === 'file'" class="space-y-4">
         <div v-for="motion in settings.availableLive2dMotions" :key="motion.fileName" class="flex items-center justify-between">
           <div class="flex items-center gap-1 text-sm font-medium">
             {{ motion.fileName }}
           </div>
 
-          <select :value="motionFileMap[motion.fileName]" @change="handleMotionChange($event, motion.fileName)">
-            <option v-for="emotion in Object.values(Emotion)" :key="emotion">
-              {{ emotion }}
-            </option>
-          </select>
+          <div flex gap-2>
+            <select v-model="settings.live2dMotionMap[motion.fileName]">
+              <option v-for="emotion in Object.keys(Emotion)" :key="emotion">
+                {{ emotion }}
+              </option>
+            </select>
 
+            <button
+              :disabled="settings.loadingLive2dModel"
+              rounded
+              bg="zinc-100 dark:zinc-800"
+              hover="bg-zinc-200 dark:bg-zinc-700"
+              transition="all ease-in-out duration-250"
+              px-2 py-1 text-sm outline-none
+              @click="settings.live2dCurrentMotion = { group: motion.motionName, index: motion.motionIndex }"
+            >
+              Play
+            </button>
+          </div>
+        </div>
+        <button
+          :disabled="settings.loadingLive2dModel"
+          w-full rounded
+          bg="zinc-100 dark:zinc-800"
+          hover="bg-zinc-200 dark:bg-zinc-700"
+          transition="all ease-in-out duration-250"
+          @click="saveMotionMap"
+        >
+          Save and patch
+        </button>
+        <a
+          mt-2 block :href="exportObjectUrl"
+          :download="`${settings.live2dModelFile?.name}-motion-edited.zip`"
+        >
           <button
             :disabled="settings.loadingLive2dModel"
-            rounded
+            w-full rounded
             bg="zinc-100 dark:zinc-800"
             hover="bg-zinc-200 dark:bg-zinc-700"
             transition="all ease-in-out duration-250"
-            px-2 py-1 text-sm outline-none
-            @click="settings.live2dCurrentMotion = { group: motion.motionName, index: motion.motionIndex }"
           >
-            Play
+            Export
           </button>
-        </div>
+        </a>
+      </div>
+      <div v-else>
+        Not available for URL model
       </div>
     </div>
   </Collapsable>
