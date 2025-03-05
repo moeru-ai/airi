@@ -7,6 +7,29 @@ publish = "/apps/stage-web/dist"
 NODE_VERSION = "23"
 
 [[redirects]]
+from = "/docs/*"
+to = "https://airi-docs.netlify.app/:splat"
+status = 200
+force = true
+
+# Plausible.io analytics
+#
+# Proxying Plausible through Netlify | Plausible docs
+# https://plausible.io/docs/proxy/guides/netlify
+
+[[redirects]]
+from = "/remote-assets/page-external-data/js/script.js"
+to = "https://plausible.io/js/script.js"
+status = 200
+force = true
+
+[[redirects]]
+from = "/api/v1/page-external-data/submit"
+to = "https://plausible.io/api/event"
+status = 200
+force = true
+
+[[redirects]]
 from = "/assets/*"
 to = "/assets/:splat"
 status = 200
