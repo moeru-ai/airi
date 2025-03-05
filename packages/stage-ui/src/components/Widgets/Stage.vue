@@ -34,7 +34,6 @@ const db = ref<DuckDBWasmDrizzleDatabase>()
 // const transformersProvider = createTransformers({ embedWorkerURL })
 
 const vrmViewerRef = ref<{ setExpression: (expression: string) => void }>()
-const motion = ref<string>('')
 
 const { stageView, elevenLabsApiKey, elevenlabsVoiceEnglish, elevenlabsVoiceJapanese } = storeToRefs(useSettings())
 const { mouthOpenSize } = storeToRefs(useSpeakingStore())
@@ -116,6 +115,8 @@ ttsQueue.on('add', (content) => {
 
 const messageContentQueue = useMessageContentQueue(ttsQueue)
 
+const { live2dCurrentMotion } = storeToRefs(useSettings())
+
 const emotionsQueue = useQueue<Emotion>({
   handlers: [
     async (ctx) => {
@@ -127,7 +128,7 @@ const emotionsQueue = useQueue<Emotion>({
         await vrmViewerRef.value!.setExpression(value)
       }
       else if (stageView.value === '2d') {
-        motion.value = EMOTION_EmotionMotionName_value[ctx.data]
+        live2dCurrentMotion.value = EMOTION_EmotionMotionName_value[ctx.data]
       }
     },
   ],
@@ -172,7 +173,7 @@ onBeforeMessageComposed(async () => {
 })
 
 onBeforeSend(async () => {
-  motion.value = EmotionThinkMotionName
+  live2dCurrentMotion.value = EmotionThinkMotionName
 })
 
 onTokenLiteral(async (literal) => {
@@ -211,13 +212,13 @@ onMounted(() => {
   const extendedWindow = window as Window & typeof globalThis & { electron?: ElectronAPI }
 
   extendedWindow.electron?.ipcRenderer.on('before-hide', () => {
-    motion.value = EmotionAngryMotionName
+    live2dCurrentMotion.value = EmotionAngryMotionName
   })
   extendedWindow.electron?.ipcRenderer.on('after-show', () => {
-    motion.value = EmotionHappyMotionName
+    live2dCurrentMotion.value = EmotionHappyMotionName
   })
   extendedWindow.electron?.ipcRenderer.on('before-quit', () => {
-    motion.value = EmotionThinkMotionName
+    live2dCurrentMotion.value = EmotionThinkMotionName
   })
 })
 
@@ -232,7 +233,6 @@ onMounted(async () => {
     <div h-full w-full>
       <Live2DScene
         v-if="stageView === '2d'"
-        :motion="motion"
         :mouth-open-size="mouthOpenSize"
         min-w="50% <lg:full" min-h="100 sm:100" h-full w-full flex-1
         :paused="paused"

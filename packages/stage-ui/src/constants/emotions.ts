@@ -7,6 +7,7 @@ export const EMOTION_AWKWARD = '<|EMOTE_AWKWARD|>'
 export const EMOTION_QUESTION = '<|EMOTE_QUESTION|>'
 
 export enum Emotion {
+  Idle = '<|EMOTE_NEUTRAL|>',
   Happy = '<|EMOTE_HAPPY|>',
   Sad = '<|EMOTE_SAD|>',
   Angry = '<|EMOTE_ANGRY|>',
@@ -18,14 +19,14 @@ export enum Emotion {
 
 export const EMOTION_VALUES = Object.values(Emotion)
 
-// FIXME: need a editor to remap the motion
-export const EmotionHappyMotionName = 'Tap'
-export const EmotionSadMotionName = 'EmotionSad'
-export const EmotionAngryMotionName = 'Tap@Body'
-export const EmotionAwkwardMotionName = 'FlickDown'
-export const EmotionThinkMotionName = 'Flick'
-export const EmotionSurpriseMotionName = 'Flick'
-export const EmotionQuestionMotionName = 'Flick@Body'
+export const EmotionHappyMotionName = 'Happy'
+export const EmotionSadMotionName = 'Sad'
+export const EmotionAngryMotionName = 'Angry'
+export const EmotionAwkwardMotionName = 'Awkward'
+export const EmotionThinkMotionName = 'Think'
+export const EmotionSurpriseMotionName = 'Surprise'
+export const EmotionQuestionMotionName = 'Question'
+export const EmotionNeutralMotionName = 'Idle'
 
 export const EMOTION_EmotionMotionName_value = {
   [Emotion.Happy]: EmotionHappyMotionName,
@@ -35,6 +36,7 @@ export const EMOTION_EmotionMotionName_value = {
   [Emotion.Surprise]: EmotionSurpriseMotionName,
   [Emotion.Awkward]: EmotionAwkwardMotionName,
   [Emotion.Question]: EmotionQuestionMotionName,
+  [Emotion.Idle]: EmotionNeutralMotionName,
 }
 
 export const EMOTION_VRMExpressionName_value = {
@@ -45,4 +47,5 @@ export const EMOTION_VRMExpressionName_value = {
   [Emotion.Surprise]: 'surprised',
   [Emotion.Awkward]: undefined,
   [Emotion.Question]: undefined,
+  [Emotion.Idle]: undefined,
 } satisfies Record<Emotion, string | undefined>

@@ -21,11 +21,9 @@ const props = withDefaults(defineProps<{
   mouthOpenSize?: number
   width: number
   height: number
-  motion?: string
   paused: boolean
 }>(), {
   mouthOpenSize: 0,
-  motion: '',
 })
 
 const pixiApp = toRef(() => props.app)
@@ -60,10 +58,17 @@ function setScale(model: Ref<Live2DModel<InternalModel> | undefined>) {
   model.value.scale.set(scale, scale)
 }
 
-const { live2dModel, loadingLive2dModel } = storeToRefs(useSettings())
+const {
+  live2dModelFile,
+  loadingLive2dModel,
+  live2dCurrentMotion,
+  availableLive2dMotions,
+  live2dLoadSource,
+  live2dModelUrl,
+} = storeToRefs(useSettings())
+const currentMotion = ref<{ group: string, index: number }>({ group: 'Idle', index: 0 })
 
-// FIXME: it cannot blink if loading other model
-async function loadModel(source: string | Blob) {
+async function loadModel() {
   if (!pixiApp.value)
     return
 
@@ -73,15 +78,13 @@ async function loadModel(source: string | Blob) {
     model.value = undefined
   }
 
-  loadingLive2dModel.value = true
-
   const modelInstance = new Live2DModel()
 
-  if (source instanceof Blob) {
-    await Live2DFactory.setupLive2DModel(modelInstance, [source])
+  if (live2dLoadSource.value === 'file') {
+    await Live2DFactory.setupLive2DModel(modelInstance, [live2dModelFile.value])
   }
-  else {
-    await Live2DFactory.setupLive2DModel(modelInstance, source)
+  else if (live2dLoadSource.value === 'url') {
+    await Live2DFactory.setupLive2DModel(modelInstance, live2dModelUrl.value)
   }
 
   model.value = modelInstance
@@ -106,8 +109,20 @@ async function loadModel(source: string | Blob) {
   const motionManager = internalModel.motionManager
   coreModel.setParameterValueById('ParamMouthOpenY', mouthOpenSize.value)
 
+  availableLive2dMotions.value = Object.entries(motionManager.definitions).flatMap(([motionName, definition]) => {
+    if (!definition)
+      return []
+
+    return definition.map((motion: any, index: number) => ({
+      motionName,
+      motionIndex: index,
+      fileName: motion.File,
+    }))
+  }).filter(Boolean)
+
   // Remove eye ball movements from idle motion group to prevent conflicts
   // This is too hacky
+  // FIXME: it cannot blink if loading a model only have idle motion
   if (motionManager.groups.idle) {
     motionManager.motionGroups[motionManager.groups.idle]?.forEach((motion) => {
       motion._motionData.curves.forEach((curve: any) => {
@@ -130,8 +145,14 @@ async function loadModel(source: string | Blob) {
     return true
   }
 
+  motionManager.on('motionStart', (group, index) => {
+    currentMotion.value = { group, index }
+  })
+
   // save to indexdb
-  await localforage.setItem('live2dModel', source)
+  if (live2dModelFile.value) {
+    await localforage.setItem('live2dModel', live2dModelFile.value)
+  }
 
   loadingLive2dModel.value = false
 }
@@ -146,17 +167,25 @@ async function initLive2DPixiStage() {
   extensions.add(InteractionManager)
 
   // load indexdb model first
-  const live2dModelBlob = await localforage.getItem<Blob>('live2dModel')
-  if (live2dModelBlob) {
-    await loadModel(live2dModelBlob)
+  const live2dModelFromIndexedDB = await localforage.getItem<File>('live2dModel')
+  if (live2dModelFromIndexedDB) {
+    live2dModelFile.value = live2dModelFromIndexedDB
+    live2dLoadSource.value = 'file'
+    loadingLive2dModel.value = true
     return
   }
 
-  await loadModel(live2dModel.value)
+  if (live2dModelUrl.value) {
+    live2dLoadSource.value = 'url'
+    loadingLive2dModel.value = true
+    return
+  }
+
+  loadingLive2dModel.value = false
 }
 
-async function setMotion(motionName: string) {
-  await model.value!.motion(motionName, undefined, MotionPriority.FORCE)
+async function setMotion(motionName: string, index: number) {
+  await model.value!.motion(motionName, index, MotionPriority.FORCE)
 }
 
 const handleResize = useDebounceFn(() => {
@@ -184,16 +213,16 @@ watch(dark, updateDropShadowFilter, { immediate: true })
 watch(model, updateDropShadowFilter)
 watch(mouthOpenSize, value => getCoreModel().setParameterValueById('ParamMouthOpenY', value))
 watch(pixiApp, initLive2DPixiStage)
-watch(() => props.motion, () => props.motion && setMotion(props.motion))
+watch(live2dCurrentMotion, value => setMotion(value.group, value.index))
 watch(paused, (value) => {
   value ? pixiApp.value?.stop() : pixiApp.value?.start()
 })
 
-watchDebounced(live2dModel, (value) => {
+watchDebounced(loadingLive2dModel, (value) => {
   if (!value)
     return
 
-  loadModel(value)
+  loadModel()
 }, { debounce: 1000 })
 
 onMounted(updateDropShadowFilter)
