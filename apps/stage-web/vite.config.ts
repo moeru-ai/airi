@@ -126,6 +126,11 @@ export default defineConfig({
           },
           workbox: {
             maximumFileSizeToCacheInBytes: 64 * 1024 * 1024,
+            navigateFallbackDenylist: [
+              /^\/docs\//,
+              /^\/remote-assets\//,
+              /^\/api\//,
+            ],
           },
         })]),
 
