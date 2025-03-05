@@ -707,9 +707,6 @@ importers:
       '@shikijs/markdown-it':
         specifier: ^3.1.0
         version: 3.1.0(markdown-it-async@2.0.0)
-      '@types/json-schema':
-        specifier: ^7.0.15
-        version: 7.0.15
       '@types/markdown-it-link-attributes':
         specifier: ^3.0.5
         version: 3.0.5
