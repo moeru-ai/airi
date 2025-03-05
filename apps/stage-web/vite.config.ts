@@ -113,12 +113,6 @@ export default defineConfig({
                 type: 'image/png',
               },
               {
-                purpose: 'maskable',
-                sizes: '1024x1024',
-                src: '/maskable_icon.png',
-                type: 'image/png',
-              },
-              {
                 src: '/web-app-manifest-192x192.png',
                 sizes: '192x192',
                 type: 'image/png',

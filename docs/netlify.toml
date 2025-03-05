@@ -1,0 +1,13 @@
+[build]
+base = "/"
+command = "pnpm -F @proj-airi/docs... run build"
+publish = "/docs/dist"
+
+[build.environment]
+NODE_VERSION = "23"
+
+[[headers]]
+for = "/site.webmanifest"
+
+[headers.values]
+Content-Type = "application/manifest+json"
