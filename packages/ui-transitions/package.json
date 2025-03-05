@@ -1,0 +1,44 @@
+{
+  "name": "@proj-airi/ui-transitions",
+  "type": "module",
+  "private": true,
+  "description": "A collection of transition animations that used by Project Airi",
+  "author": {
+    "name": "Neko Ayaka",
+    "email": "neko@ayaka.moe",
+    "url": "https://github.com/nekomeowww"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/moeru-ai/airi.git",
+    "directory": "packages/ui-transitions"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs"
+    }
+  },
+  "scripts": {
+    "dev": "pnpm run stub && pnpm run play:dev",
+    "stub": "unbuild --stub",
+    "build": "unbuild && pnpm run play:build",
+    "play:dev": "vite",
+    "play:build": "vite build",
+    "play:preview": "vite preview",
+    "typecheck": "vue-tsc --noEmit"
+  },
+  "dependencies": {
+    "@vueuse/core": "^12.7.0",
+    "vue": "^3.5.13"
+  },
+  "devDependencies": {
+    "@unocss/reset": "^66.1.0-beta.3",
+    "@vitejs/plugin-vue": "^5.2.1",
+    "unplugin-vue-router": "^0.11.2",
+    "vite-plugin-vue-devtools": "^7.7.2",
+    "vue-router": "^4.5.0",
+    "vue-tsc": "^2.2.6"
+  }
+}

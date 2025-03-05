@@ -1,0 +1,13 @@
+[build]
+base = "/"
+command = "pnpm -F @proj-airi/ui-transitions... run build"
+publish = "/packages/ui-transitions/playground/dist"
+
+[build.environment]
+NODE_VERSION = "23"
+
+[[redirects]]
+from = "/*"
+to = "/index.html"
+status = 200
+force = false
