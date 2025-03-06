@@ -17,9 +17,9 @@ watch(settings.language, () => {
 <template>
   <StageTransitionGroup
     primary-color="#FF57C8"
-    secondary-color="#60C7FF"
+    secondary-color="#946BFF"
     tertiary-color="#121212"
-    :colors="['#FF57C8', '#60C7FF', '#936AFF', '#121212']"
+    :colors="['#FF57C8', '#946BFF', '#64BCFF', '#121212']"
     :z-index="100"
   >
     <RouterView />

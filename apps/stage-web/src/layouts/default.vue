@@ -1,19 +1,16 @@
 <script setup lang="ts">
-import { useScreenSafeArea } from '@vueuse/core'
+import { RouterView } from 'vue-router'
 
-const { top, right, bottom, left } = useScreenSafeArea()
+import HeaderLink from '../components/Layouts/HeaderLink.vue'
 </script>
 
 <template>
-  <main
-    text="gray-700 dark:gray-200" h-full font-cuteen
-    :style="{
-      paddingTop: `${top}px`,
-      paddingRight: `${right}px`,
-      paddingBottom: `${bottom}px`,
-      paddingLeft: `${left}px`,
-    }"
-  >
-    <RouterView />
-  </main>
+  <div p-2>
+    <div mb-1 w-full gap-2 p-2>
+      <HeaderLink />
+    </div>
+    <div p-5 flex="~ col gap-4">
+      <RouterView />
+    </div>
+  </div>
 </template>

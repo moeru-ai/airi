@@ -40,5 +40,7 @@ function handleSettingsOpen(open: boolean) {
 
 <route lang="yaml">
 meta:
-  layout: default
+  layout: stage
+  stageTransition:
+    name: bubble-wave-out
 </route>
