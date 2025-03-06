@@ -7,6 +7,7 @@ definePage({
   meta: {
     stageTransition: {
       name: 'fantasy-fall',
+      direction: 'down',
     },
   },
 })
