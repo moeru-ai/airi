@@ -7,12 +7,12 @@ import { useI18n } from 'vue-i18n'
 import IconItem from '../../components/Menu/IconItem.vue'
 
 const { t } = useI18n()
-const settings = storeToRefs(useSettings())
+const { language, disableTransitions } = storeToRefs(useSettings())
 const dark = useDark()
 
 function handleLanguageChange(event: Event) {
   const target = event.target as HTMLSelectElement
-  settings.language.value = target.value
+  language.value = target.value
 }
 </script>
 
@@ -87,6 +87,41 @@ function handleLanguageChange(event: Event) {
             <Transition name="slide-away" mode="out-in">
               <div
                 v-if="dark"
+                i-solar:moon-stars-bold-duotone
+                transition="all ease-in-out duration-250"
+              />
+              <div
+                v-else
+                i-solar:sun-fog-bold-duotone
+                transition="all ease-in-out duration-250"
+              />
+            </Transition>
+          </div>
+        </div>
+      </label>
+      <!-- Developer Settings -->
+      <label
+        bg="neutral-100 dark:neutral-800"
+        hover="bg-neutral-200 dark:bg-neutral-700"
+        transition="all ease-in-out duration-250"
+        w-full flex cursor-pointer rounded-lg px-4 py-3
+      >
+        <input
+          v-model="disableTransitions"
+          text="neutral-800 dark:neutral-100"
+          :checked="disableTransitions"
+          :aria-checked="disableTransitions"
+          type="checkbox"
+          hidden appearance-none outline-none
+        >
+        <div flex="~ row" w-full items-center gap-1.5>
+          <div text="sm" w-full flex-1>
+            <span>Disable Transitions (for debugging)</span>
+          </div>
+          <div select-none>
+            <Transition name="slide-away" mode="out-in">
+              <div
+                v-if="disableTransitions"
                 i-solar:moon-stars-bold-duotone
                 transition="all ease-in-out duration-250"
               />
