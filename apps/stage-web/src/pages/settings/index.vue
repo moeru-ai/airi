@@ -25,6 +25,7 @@ function handleLanguageChange(event: Event) {
   <div flex="~ col gap-4">
     <div flex="~ col gap-4">
       <IconItem title="Modules" description="Thinking, vision, speech synthesis, gaming, etc." icon="i-lucide:blocks" to="/settings/modules" />
+      <IconItem title="Models" description="Live2D, VRM, etc." icon="i-lucide:person-standing" to="/settings/models" />
       <IconItem title="Providers" description="LLMs, speech providers, etc." icon="i-lucide:brain" to="/settings/providers" />
       <IconItem title="Themes" description="Customize your stage!" icon="i-lucide:paintbrush" to="/settings/themes" />
     </div>

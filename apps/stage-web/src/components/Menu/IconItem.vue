@@ -2,7 +2,8 @@
 defineProps<{
   title: string
   description: string
-  icon: string
+  icon?: string
+  iconTemplate?: boolean
   to: string
 }>()
 </script>
@@ -15,19 +16,26 @@ defineProps<{
     :to="to"
   >
     <div z-1 flex-1>
-      <div text-lg font-semibold>
+      <div text-lg font-bold>
         {{ title }}
       </div>
-      <div text="sm neutral-600 dark:neutral-400">
+      <div text="sm neutral-500 dark:neutral-400">
         <span>{{ description }}</span>
       </div>
     </div>
-    <div
-      class="settings-section-icon"
-      transition="all ease-in-out duration-500"
-      absolute right-0 size-24 translate-y-4
-      text="neutral-400/50 dark:neutral-600/50"
-      :class="[icon]"
-    />
+    <template v-if="typeof icon === 'string'">
+      <div
+        class="settings-section-icon"
+        transition="all ease-in-out duration-500"
+        absolute right-0 size-24 translate-y-4
+        text="neutral-400/50 dark:neutral-600/50"
+        :class="[icon]"
+      />
+    </template>
+    <template v-if="iconTemplate">
+      <slot
+        name="icon"
+      />
+    </template>
   </RouterLink>
 </template>
