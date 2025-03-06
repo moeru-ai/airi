@@ -31,8 +31,8 @@ onMounted(() => {
   position: absolute;
   top: 50%;
   left: 50%;
-  width: 100%;
-  height: 100%;
+  width: 150%;
+  aspect-ratio: 1 / 1;
   pointer-events: none;
   transform: translate(-50%, -50%);
 }
