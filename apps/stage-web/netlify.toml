@@ -1,6 +1,6 @@
 [build]
 base = "/"
-command = "pnpm -F @proj-airi/stage-web... run build && BASE_URL=/docs pnpm -F @proj-airi/docs... run build && ls -la && mv ./docs/dist ./apps/stage-web/dist/docs"
+command = "pnpm -F @proj-airi/stage-web... run build && pnpm -F @proj-airi/docs... run build:base && ls -la && mv ./docs/dist ./apps/stage-web/dist/docs"
 publish = "/apps/stage-web/dist"
 
 [build.environment]

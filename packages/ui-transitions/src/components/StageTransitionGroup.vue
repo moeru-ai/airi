@@ -122,6 +122,12 @@ async function triggerHooks(stage: TransitionStage, data: any = {}) {
 }
 
 async function triggerTransitionAsyncFn(params: StageTransitionCommonParams, next: NavigationCallback, resolve: (value: void | PromiseLike<void>) => void) {
+  if (params.name === 'none' || !params.name) {
+    next()
+    resolve()
+    return
+  }
+
   const transition = transitions.value[params.name]
   if (!transition) {
     console.error(`Transition ${params.name} not found`)
