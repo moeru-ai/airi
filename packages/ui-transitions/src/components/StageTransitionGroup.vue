@@ -3,6 +3,7 @@ import { ref, shallowRef } from 'vue'
 import { useRouter } from 'vue-router'
 
 import ArrowTransition from './ArrowTransition.vue'
+import BubbleWaveOutTransition from './BubbleWaveOutTransition.vue'
 import FantasyFallTransition from './FantasyFallTransition.vue'
 import MultipleBlocksRevealTransition from './MultipleBlocksRevealTransition.vue'
 import RectanglesRotateTransition from './RectanglesRotateTransition.vue'
@@ -24,15 +25,35 @@ type TransitionComponent =
   | typeof MultipleBlocksRevealTransition
   | typeof FantasyFallTransition
   | typeof RectanglesRotateTransition
+  | typeof BubbleWaveOutTransition
 
 const router = useRouter()
 const showTransition = ref(false)
 const activeTransitionName = ref('')
+const transitionStage = ref<TransitionStage | null>(null)
 
-const transitions = shallowRef<Record<string, {
+// Define transition lifecycle events
+export type TransitionStage =
+  | 'before-enter' // Just before animation starts
+  | 'enter-active' // Animation has started
+  | 'navigation' // Time to navigate (component still decides when)
+  | 'after-enter' // Entry animation completed
+  | 'before-leave' // Before exit animation starts
+  | 'leave-active' // Exit animation has started
+  | 'after-leave' // Complete animation cycle finished
+
+// Define hook types
+type TransitionHook = (stage: TransitionStage, data: any) => void | Promise<void>
+type NavigationCallback = () => void
+
+interface TransitionOptions {
   component: TransitionComponent
   duration: number
-}>>({
+  exitDuration?: number
+  nextDelay?: number
+}
+
+const transitions = shallowRef<Record<string, TransitionOptions>>({
   'slide': {
     component: SlideTransition,
     duration: 2700,
@@ -57,47 +78,154 @@ const transitions = shallowRef<Record<string, {
     component: RectanglesRotateTransition,
     duration: 2700,
   },
+  'bubble-wave-out': {
+    component: BubbleWaveOutTransition,
+    duration: 2700,
+  },
 })
 
-function triggerTransition(name: string) {
-  return new Promise<void>((resolve) => {
-    const transition = transitions.value[name]
-    if (!transition) {
-      console.error(`Transition ${name} not found`)
-      resolve()
-      return
-    }
+// Hook system
+const lifecycleHooks = ref<TransitionHook[]>([])
 
+// Add a hook
+function addTransitionHook(hook: TransitionHook): () => void {
+  lifecycleHooks.value.push(hook)
+
+  // Return function to remove the hook
+  return () => {
+    const index = lifecycleHooks.value.indexOf(hook)
+    if (index >= 0) {
+      lifecycleHooks.value.splice(index, 1)
+    }
+  }
+}
+
+// Trigger all hooks for a stage
+async function triggerHooks(stage: TransitionStage, data: any = {}) {
+  transitionStage.value = stage
+
+  // Execute all hooks and wait for them to complete
+  for (const hook of lifecycleHooks.value) {
+    try {
+      await Promise.resolve(hook(stage, data))
+    }
+    catch (error) {
+      console.error(`Error in transition hook at stage "${stage}":`, error)
+    }
+  }
+}
+
+async function triggerTransitionAsyncFn(name: string, next: NavigationCallback, resolve: (value: void | PromiseLike<void>) => void) {
+  const transition = transitions.value[name]
+  if (!transition) {
+    console.error(`Transition ${name} not found`)
+    next()
+    resolve()
+    return
+  }
+
+  // Get navigation timing from configuration, with fallback
+  const navTiming = transition.nextDelay !== undefined
+    ? transition.nextDelay
+    : transition.duration / 3 // Fallback, but configurable
+
+  let hasNavigated = false
+
+  // Hook specifically for determining when to navigate
+  const navigationHook = (stage: TransitionStage) => {
+    if (stage === 'navigation' && !hasNavigated) {
+      hasNavigated = true
+      next()
+    }
+  }
+
+  // Add this hook temporarily
+  const removeNavHook = addTransitionHook(navigationHook)
+
+  try {
+    // Before enter
+    await triggerHooks('before-enter', { transitionName: name })
+
+    // Handle resetting current transition if needed
     if (showTransition.value) {
+      // Fast track to exit if a transition is already active
+      await triggerHooks('before-leave', { transitionName: activeTransitionName.value })
       activeTransitionName.value = ''
       showTransition.value = false
+      await triggerHooks('after-leave', { transitionName: activeTransitionName.value })
 
-      setTimeout(() => {
-        activeTransitionName.value = name
-        showTransition.value = true
-
-        setTimeout(() => {
-          showTransition.value = false
-          activeTransitionName.value = ''
-          resolve()
-        }, transition.duration)
-      }, 50)
+      // Short delay before starting new transition
+      await new Promise(r => setTimeout(r, 50))
     }
-    else {
-      activeTransitionName.value = name
-      showTransition.value = true
 
-      setTimeout(() => {
-        showTransition.value = false
-        activeTransitionName.value = ''
-        resolve()
-      }, transition.duration)
-    }
+    // Start new transition
+    activeTransitionName.value = name
+    showTransition.value = true
+
+    // Enter active phase
+    await triggerHooks('enter-active', { transitionName: name })
+
+    // Trigger navigation phase at the configured time
+    setTimeout(async () => {
+      await triggerHooks('navigation', {
+        transitionName: name,
+        config: transition, // Pass full config to hooks
+      })
+
+      // Ensure navigation happens even if no hook handled it
+      if (!hasNavigated) {
+        hasNavigated = true
+        next()
+      }
+    }, navTiming)
+
+    // After enter - entry phase complete
+    setTimeout(async () => {
+      await triggerHooks('after-enter', { transitionName: name })
+    }, transition.duration)
+
+    // Before leave - start exit phase
+    setTimeout(async () => {
+      await triggerHooks('before-leave', { transitionName: name })
+    }, transition.duration + 10) // Small offset after enter completes
+
+    // Leave active - exit animation running
+    setTimeout(async () => {
+      await triggerHooks('leave-active', { transitionName: name })
+    }, transition.duration + 20) // Small offset
+
+    // After leave - completely finished
+    const totalDuration = transition.exitDuration ?? 0
+    setTimeout(async () => {
+      showTransition.value = false
+      activeTransitionName.value = ''
+      await triggerHooks('after-leave', { transitionName: name })
+      resolve()
+    }, transition.duration + totalDuration)
+  }
+  finally {
+    // Always remove the navigation hook
+    removeNavHook()
+
+    // Safety - ensure navigation happens no matter what
+    setTimeout(() => {
+      if (!hasNavigated) {
+        hasNavigated = true
+        next()
+      }
+    }, transition.duration * 2) // Conservative timeout
+  }
+}
+
+// Improved transition trigger with navigation callback
+function triggerTransition(name: string, next: NavigationCallback) {
+  return new Promise<void>((resolve) => {
+    triggerTransitionAsyncFn(name, next, resolve)
   })
 }
 
 router.beforeEach((to, _from, next) => {
-  triggerTransition(to.meta.stageTransition as string).then(next)
+  triggerTransition(to.meta.stageTransition as string, next)
 })
 </script>
 

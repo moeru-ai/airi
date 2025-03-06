@@ -1,4 +1,5 @@
 export { default as ArrowTransition } from './ArrowTransition.vue'
+export { default as CircleExpansionTransition } from './CircleExpansionTransition.vue'
 export { default as FantasyFallTransition } from './FantasyFallTransition.vue'
 export { default as MultipleBlocksRevealTransition } from './MultipleBlocksRevealTransition.vue'
 export { default as SlideTransition } from './SlideTransition.vue'
