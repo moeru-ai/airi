@@ -17,7 +17,11 @@ So, unless opacity is part of the typography design, please try to pick a best s
 
 Another great tool we use is called [Radix Colors](https://www.radix-ui.com/colors), it's kind of the building blocks of our interactive UI elements, since they built great color palettes with nice color theory backed, you can pick the suitable color from the palette as well.
 
-You may already learned that a _complementary color_ is, it was useful for the color contrast, [Color wheel - color theory and calculator | Canva Colors](https://www.canva.com/colors/color-wheel/) is one of the tool that can help you find the complementary color quickly and interactively.
+You may already learned that a _complementary color_ is, it was useful for the color contrast, here are several nice tools can help you choose the complementary color quickly and interactively:
+
+- [Color wheel - Figma](https://www.figma.com/color-wheel/)
+- [Color wheel - Canva Colors](https://www.canva.com/colors/color-wheel/)
+- [Paletton](https://paletton.com/#uid=55v1e0kk-p26VFOfrvbqEdSDDbg)
 
 ## Backgrounds & Patterns
 

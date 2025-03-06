@@ -8,7 +8,11 @@ const isDark = useDark()
 
 <template>
   <div class="app-container" h-full>
-    <StageTransitionGroup :primary-color="!isDark ? '#E9649C' : '#E02B77'" :secondary-color="!isDark ? '#64E9B1' : '#2BE094'">
+    <!-- https://paletton.com/#uid=54h1e0kl1++bM++qIEfl0f+Er8y -->
+    <StageTransitionGroup
+      :primary-color="!isDark ? '#FFA1B3' : '#FF5778'"
+      :secondary-color="!isDark ? '#A1FFD7' : '#57FFB7'"
+    >
       <router-view v-slot="{ Component, route: r }">
         <component :is="Component" :key="r.path" />
       </router-view>
