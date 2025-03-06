@@ -30,5 +30,17 @@ const route = useRoute()
     >
       4
     </RouterLink>
+    <RouterLink
+      rounded-lg px-7 py-3 transition="all duration-250 ease-in-out" to="/transition-5"
+      :class="[route.path === '/transition-5' ? 'bg-neutral-200 dark:bg-neutral-500' : 'bg-neutral-100 dark:bg-neutral-700']"
+    >
+      5
+    </RouterLink>
+    <RouterLink
+      rounded-lg px-7 py-3 transition="all duration-250 ease-in-out" to="/transition-6"
+      :class="[route.path === '/transition-6' ? 'bg-neutral-200 dark:bg-neutral-500' : 'bg-neutral-100 dark:bg-neutral-700']"
+    >
+      6
+    </RouterLink>
   </div>
 </template>

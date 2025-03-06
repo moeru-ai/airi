@@ -3,7 +3,9 @@ import { ref, shallowRef } from 'vue'
 import { useRouter } from 'vue-router'
 
 import ArrowTransition from './ArrowTransition.vue'
+import FantasyFallTransition from './FantasyFallTransition.vue'
 import MultipleBlocksRevealTransition from './MultipleBlocksRevealTransition.vue'
+import RectanglesRotateTransition from './RectanglesRotateTransition.vue'
 import SlideTransition from './SlideTransition.vue'
 import SlopeSlideTransition from './SlopeSlideTransition.vue'
 
@@ -20,6 +22,8 @@ type TransitionComponent =
   | typeof SlopeSlideTransition
   | typeof ArrowTransition
   | typeof MultipleBlocksRevealTransition
+  | typeof FantasyFallTransition
+  | typeof RectanglesRotateTransition
 
 const router = useRouter()
 const showTransition = ref(false)
@@ -44,6 +48,14 @@ const transitions = shallowRef<Record<string, {
   'multiple-blocks-reveal': {
     component: MultipleBlocksRevealTransition,
     duration: 2800,
+  },
+  'fantasy-fall': {
+    component: FantasyFallTransition,
+    duration: 2700,
+  },
+  'rectangles-rotate': {
+    component: RectanglesRotateTransition,
+    duration: 2700,
   },
 })
 
