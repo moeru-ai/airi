@@ -13,13 +13,19 @@ import SlopeSlideTransition from './SlopeSlideTransition.vue'
 const props = defineProps<{
   primaryColor?: string
   secondaryColor?: string
+  tertiaryColor?: string
+  colors?: string[]
+  zIndex?: number
 }>()
 
 interface StageTransitionCommonParams {
   name: string
   primaryColor?: string
   secondaryColor?: string
+  tertiaryColor?: string
   direction?: 'top' | 'bottom' | 'left' | 'right'
+  colors?: string[]
+  zIndex?: number
 }
 
 type TransitionComponent =
@@ -251,6 +257,15 @@ router.beforeEach((to, _from, next) => {
   }
   if (typeof props.secondaryColor !== 'undefined') {
     stageTransition.secondaryColor = props.secondaryColor
+  }
+  if (typeof props.tertiaryColor !== 'undefined') {
+    stageTransition.tertiaryColor = props.tertiaryColor
+  }
+  if (typeof props.colors !== 'undefined') {
+    stageTransition.colors = props.colors
+  }
+  if (typeof props.zIndex !== 'undefined') {
+    stageTransition.zIndex = props.zIndex
   }
 
   triggerTransition(stageTransition, next)

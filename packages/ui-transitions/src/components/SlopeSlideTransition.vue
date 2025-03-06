@@ -1,17 +1,13 @@
 <script setup lang="ts">
 import { computed, onMounted } from 'vue'
 
-const props = withDefaults(defineProps<{
+const props = defineProps<{
   stageTransition?: {
     primaryColor?: string
     secondaryColor?: string
+    zIndex?: number
   }
-}>(), {
-  stageTransition: () => ({
-    primaryColor: '#666',
-    secondaryColor: '#ccc',
-  }),
-})
+}>()
 
 const stageTransition = computed(() => props.stageTransition)
 const overlayColor1 = computed(() => stageTransition.value.primaryColor || '#666')
@@ -24,7 +20,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="stage-transition-2" />
+  <div class="stage-transition-2" :style="{ zIndex: stageTransition.zIndex || 100 }" />
 </template>
 
 <style scoped>

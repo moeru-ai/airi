@@ -6,6 +6,7 @@ const props = defineProps<{
     colors?: string[]
     delay?: number
     duration?: number
+    zIndex?: number
   }
 }>()
 
@@ -21,7 +22,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="circle-expansion-transition">
+  <div class="circle-expansion-transition" :style="{ zIndex: stageTransition.zIndex || 100 }">
     <div v-for="(_, index) in colors" :key="index" />
   </div>
 </template>

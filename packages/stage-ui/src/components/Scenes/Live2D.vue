@@ -6,6 +6,7 @@ import { useSettings } from '../../stores'
 import Live2DCanvas from '../Live2D/Canvas.vue'
 import Live2DModel from '../Live2D/Model.vue'
 import Screen from '../Screen.vue'
+import TransitionVertical from '../TransitionVertical.vue'
 
 withDefaults(defineProps<{
   paused: boolean

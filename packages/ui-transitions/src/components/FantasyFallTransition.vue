@@ -12,6 +12,7 @@ const props = defineProps <{
       md?: string
       lg?: string
     }
+    zIndex?: number
   }
 }>()
 
@@ -29,7 +30,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="fantasy-fall-transition" :class="directionClass" />
+  <div class="fantasy-fall-transition" :class="directionClass" :style="{ zIndex: stageTransition.zIndex || 100 }" />
 </template>
 
 <style scoped>

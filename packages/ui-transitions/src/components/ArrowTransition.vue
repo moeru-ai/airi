@@ -5,6 +5,7 @@ const props = withDefaults(defineProps<{
   stageTransition?: {
     primaryColor?: string
     secondaryColor?: string
+    zIndex?: number
   }
 }>(), {
   stageTransition: () => ({
@@ -24,7 +25,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="stage-transition-3" />
+  <div class="stage-transition-3" :style="{ zIndex: stageTransition.zIndex || 100 }" />
 </template>
 
 <style scoped>

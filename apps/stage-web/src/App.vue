@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useSettings } from '@proj-airi/stage-ui/stores/settings'
+import { StageTransitionGroup } from '@proj-airi/ui-transitions'
 import { storeToRefs } from 'pinia'
 import { watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -14,5 +15,13 @@ watch(settings.language, () => {
 </script>
 
 <template>
-  <RouterView />
+  <StageTransitionGroup
+    primary-color="#FF57C8"
+    secondary-color="#60C7FF"
+    tertiary-color="#121212"
+    :colors="['#FF57C8', '#60C7FF', '#936AFF', '#121212']"
+    :z-index="100"
+  >
+    <RouterView />
+  </StageTransitionGroup>
 </template>

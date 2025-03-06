@@ -10,6 +10,7 @@ const props = defineProps<{
     delay?: number
     rotation?: number
     staggerDelay?: number
+    zIndex?: number
   }
 }>()
 
@@ -26,7 +27,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="rectangle-rotate-transition">
+  <div class="rectangle-rotate-transition" :style="{ zIndex: stageTransition.zIndex || 100 }">
     <!-- First rectangle (top-left) -->
     <div class="rectangle rectangle-rotate-1">
       <div />
