@@ -113,14 +113,27 @@ const modulesList = computed<Module[]>(() => [
       bg="neutral-300/50 dark:neutral-600" w-full of-hidden rounded-xl
       flex="~ col 1"
     >
-      <template v-if="typeof module.icon === 'string'">
+      <template v-if="typeof module.icon === 'string' && module.id !== 'game-minecraft'">
         <IconItem :title="module.name" :description="module.description" :icon="module.icon" :to="module.to" />
       </template>
-      <template v-else>
+      <template v-else-if="typeof module.icon === 'string' && module.id === 'game-minecraft'">
+        <IconItem :title="module.name" :description="module.description" icon-template :to="module.to">
+          <template #icon>
+            <div
+              class="settings-section-icon op-30 grayscale-100 filter hover:grayscale-0"
+              transition="all ease-in-out duration-500"
+              absolute right-0 size-24 translate-y-4
+              :class="module.icon"
+            />
+          </template>
+        </IconItem>
+      </template>
+      <template v-else-if="typeof module.icon === 'object'">
         <IconItem :title="module.name" :description="module.description" icon-template :to="module.to">
           <template #icon>
             <img
               :src="module.icon.imagePath"
+              class="settings-section-icon op-30 grayscale-100 filter hover:grayscale-0"
               transition="all ease-in-out duration-500"
               absolute right-0 size-24 translate-y-4
             >
