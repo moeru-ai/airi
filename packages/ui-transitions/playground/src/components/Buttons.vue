@@ -14,13 +14,16 @@ const routes = [
 </script>
 
 <template>
-  <div flex="~ row gap-2" h-full items-center justify-center>
-    <RouterLink
-      v-for="route in routes" :key="route.number" :to="route.path" rounded-lg px-7 py-3
-      transition="all duration-250 ease-in-out"
-      class="bg-neutral-100 [&.router-link-active]:bg-neutral-300 dark:bg-neutral-700 hover:bg-neutral-200 [&.router-link-active]:dark:bg-neutral-600 [&.router-link-active]:hover:bg-neutral-400 hover:dark:bg-neutral-600 [&.router-link-active]:hover:dark:bg-neutral-500"
-    >
-      {{ route.number }}
-    </RouterLink>
+  <div h-full w-full flex items-center justify-center>
+    <div class="grid grid-cols-3 gap-2 sm:(flex flex-row gap-2)" w="full sm:fit">
+      <RouterLink
+        v-for="route in routes" :key="route.number" :to="route.path"
+        transition="all duration-250 ease-in-out" w="auto" aspect-ratio="square sm:unset"
+        bg="neutral-100 [&.router-link-active]:neutral-300 dark:neutral-700 hover:neutral-200 [&.router-link-active]:dark:neutral-600 [&.router-link-active]:hover:neutral-400 hover:dark:neutral-600 [&.router-link-active]:hover:dark:neutral-500"
+        flex items-center justify-center rounded-lg px-7 py-3
+      >
+        <span>{{ route.number }}</span>
+      </RouterLink>
+    </div>
   </div>
 </template>

@@ -7,7 +7,7 @@ const isDark = useDark()
 </script>
 
 <template>
-  <div class="app-container" h-full>
+  <div class="app-container" h-full p-4>
     <!-- https://paletton.com/#uid=54h1e0kl1++bM++qIEfl0f+Er8y -->
     <StageTransitionGroup
       :primary-color="!isDark ? '#FFA1B3' : '#FF5778'"
