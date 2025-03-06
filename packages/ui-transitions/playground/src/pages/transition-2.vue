@@ -5,7 +5,9 @@ import Buttons from '../components/Buttons.vue'
 
 definePage({
   meta: {
-    stageTransition: 'slope-slide',
+    stageTransition: {
+      name: 'slope-slide',
+    },
   },
 })
 </script>

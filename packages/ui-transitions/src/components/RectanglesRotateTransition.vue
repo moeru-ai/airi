@@ -1,33 +1,27 @@
 <script setup lang="ts">
 import { onMounted } from 'vue'
 
-const props = withDefaults(defineProps<{
-  primaryColor?: string
-  secondaryColor?: string
-  tertiaryColor?: string
-  duration?: number
-  delay?: number
-  rotation?: number
-  staggerDelay?: number
-}>(), {
-  primaryColor: '#ebcb8b', // First circle (top-left)
-  secondaryColor: '#c56370', // Second circle (bottom-right)
-  tertiaryColor: '#43445b', // Third circle (center)
-  duration: 0.6,
-  delay: 0,
-  rotation: 270,
-  staggerDelay: 0.1, // Delay between each circle animation
-})
+const props = defineProps<{
+  stageTransition?: {
+    primaryColor?: string
+    secondaryColor?: string
+    tertiaryColor?: string
+    duration?: number
+    delay?: number
+    rotation?: number
+    staggerDelay?: number
+  }
+}>()
 
 onMounted(() => {
   // Set CSS variables for all three circles
-  document.documentElement.style.setProperty('--rectangle-rotate-1-color', props.primaryColor)
-  document.documentElement.style.setProperty('--rectangle-rotate-2-color', props.secondaryColor)
-  document.documentElement.style.setProperty('--rectangle-rotate-3-color', props.tertiaryColor)
-  document.documentElement.style.setProperty('--rectangle-rotate-duration', `${props.duration}s`)
-  document.documentElement.style.setProperty('--rectangle-rotate-delay', `${props.delay}s`)
-  document.documentElement.style.setProperty('--rectangle-rotate-stagger', `${props.staggerDelay}s`)
-  document.documentElement.style.setProperty('--rectangle-rotate-rotation', `${props.rotation}deg`)
+  document.documentElement.style.setProperty('--rectangle-rotate-1-color', props.stageTransition.primaryColor || '#ebcb8b')
+  document.documentElement.style.setProperty('--rectangle-rotate-2-color', props.stageTransition.secondaryColor || '#c56370')
+  document.documentElement.style.setProperty('--rectangle-rotate-3-color', props.stageTransition.tertiaryColor || '#43445b')
+  document.documentElement.style.setProperty('--rectangle-rotate-duration', `${props.stageTransition.duration || 0.6}s`)
+  document.documentElement.style.setProperty('--rectangle-rotate-delay', `${props.stageTransition.delay || 0}s`)
+  document.documentElement.style.setProperty('--rectangle-rotate-stagger', `${props.stageTransition.staggerDelay || 0.1}s`)
+  document.documentElement.style.setProperty('--rectangle-rotate-rotation', `${props.stageTransition.rotation || 270}deg`)
 })
 </script>
 

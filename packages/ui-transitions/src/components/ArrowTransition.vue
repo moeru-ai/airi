@@ -2,15 +2,20 @@
 import { computed, onMounted } from 'vue'
 
 const props = withDefaults(defineProps<{
-  primaryColor?: string
-  secondaryColor?: string
+  stageTransition?: {
+    primaryColor?: string
+    secondaryColor?: string
+  }
 }>(), {
-  primaryColor: '#666',
-  secondaryColor: '#ccc',
+  stageTransition: () => ({
+    primaryColor: '#666',
+    secondaryColor: '#ccc',
+  }),
 })
 
-const overlayColor1 = computed(() => props.primaryColor || '#666')
-const overlayColor2 = computed(() => props.secondaryColor || '#ccc')
+const stageTransition = computed(() => props.stageTransition)
+const overlayColor1 = computed(() => stageTransition.value.primaryColor || '#666')
+const overlayColor2 = computed(() => stageTransition.value.secondaryColor || '#ccc')
 
 onMounted(() => {
   document.documentElement.style.setProperty('--stage-transition-3-overlay-color-1', overlayColor1.value)

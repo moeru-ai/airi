@@ -10,13 +10,17 @@ import RectanglesRotateTransition from './RectanglesRotateTransition.vue'
 import SlideTransition from './SlideTransition.vue'
 import SlopeSlideTransition from './SlopeSlideTransition.vue'
 
-withDefaults(defineProps<{
+const props = defineProps<{
   primaryColor?: string
   secondaryColor?: string
-}>(), {
-  primaryColor: '#666',
-  secondaryColor: '#ccc',
-})
+}>()
+
+interface StageTransitionCommonParams {
+  name: string
+  primaryColor?: string
+  secondaryColor?: string
+  direction?: 'top' | 'bottom' | 'left' | 'right'
+}
 
 type TransitionComponent =
   | typeof SlideTransition
@@ -29,8 +33,10 @@ type TransitionComponent =
 
 const router = useRouter()
 const showTransition = ref(false)
+const transitionStage = ref<TransitionStage>()
+
 const activeTransitionName = ref('')
-const transitionStage = ref<TransitionStage | null>(null)
+const activeStageTransitionParams = ref<StageTransitionCommonParams>()
 
 // Define transition lifecycle events
 export type TransitionStage =
@@ -115,10 +121,10 @@ async function triggerHooks(stage: TransitionStage, data: any = {}) {
   }
 }
 
-async function triggerTransitionAsyncFn(name: string, next: NavigationCallback, resolve: (value: void | PromiseLike<void>) => void) {
-  const transition = transitions.value[name]
+async function triggerTransitionAsyncFn(params: StageTransitionCommonParams, next: NavigationCallback, resolve: (value: void | PromiseLike<void>) => void) {
+  const transition = transitions.value[params.name]
   if (!transition) {
-    console.error(`Transition ${name} not found`)
+    console.error(`Transition ${params.name} not found`)
     next()
     resolve()
     return
@@ -144,13 +150,14 @@ async function triggerTransitionAsyncFn(name: string, next: NavigationCallback, 
 
   try {
     // Before enter
-    await triggerHooks('before-enter', { transitionName: name })
+    await triggerHooks('before-enter', { transitionName: params.name })
 
     // Handle resetting current transition if needed
     if (showTransition.value) {
       // Fast track to exit if a transition is already active
       await triggerHooks('before-leave', { transitionName: activeTransitionName.value })
       activeTransitionName.value = ''
+      activeStageTransitionParams.value = undefined
       showTransition.value = false
       await triggerHooks('after-leave', { transitionName: activeTransitionName.value })
 
@@ -159,7 +166,8 @@ async function triggerTransitionAsyncFn(name: string, next: NavigationCallback, 
     }
 
     // Start new transition
-    activeTransitionName.value = name
+    activeTransitionName.value = params.name
+    activeStageTransitionParams.value = params
     showTransition.value = true
 
     // Enter active phase
@@ -167,10 +175,7 @@ async function triggerTransitionAsyncFn(name: string, next: NavigationCallback, 
 
     // Trigger navigation phase at the configured time
     setTimeout(async () => {
-      await triggerHooks('navigation', {
-        transitionName: name,
-        config: transition, // Pass full config to hooks
-      })
+      await triggerHooks('navigation', { transitionName: params.name, config: transition })
 
       // Ensure navigation happens even if no hook handled it
       if (!hasNavigated) {
@@ -181,17 +186,17 @@ async function triggerTransitionAsyncFn(name: string, next: NavigationCallback, 
 
     // After enter - entry phase complete
     setTimeout(async () => {
-      await triggerHooks('after-enter', { transitionName: name })
+      await triggerHooks('after-enter', { transitionName: params.name })
     }, transition.duration)
 
     // Before leave - start exit phase
     setTimeout(async () => {
-      await triggerHooks('before-leave', { transitionName: name })
+      await triggerHooks('before-leave', { transitionName: params.name })
     }, transition.duration + 10) // Small offset after enter completes
 
     // Leave active - exit animation running
     setTimeout(async () => {
-      await triggerHooks('leave-active', { transitionName: name })
+      await triggerHooks('leave-active', { transitionName: params.name })
     }, transition.duration + 20) // Small offset
 
     // After leave - completely finished
@@ -199,9 +204,13 @@ async function triggerTransitionAsyncFn(name: string, next: NavigationCallback, 
     setTimeout(async () => {
       showTransition.value = false
       activeTransitionName.value = ''
-      await triggerHooks('after-leave', { transitionName: name })
+      activeStageTransitionParams.value = undefined
+      await triggerHooks('after-leave', { transitionName: params.name })
       resolve()
     }, transition.duration + totalDuration)
+  }
+  catch (error) {
+    console.error(error)
   }
   finally {
     // Always remove the navigation hook
@@ -218,14 +227,27 @@ async function triggerTransitionAsyncFn(name: string, next: NavigationCallback, 
 }
 
 // Improved transition trigger with navigation callback
-function triggerTransition(name: string, next: NavigationCallback) {
+function triggerTransition(params: StageTransitionCommonParams, next: NavigationCallback) {
   return new Promise<void>((resolve) => {
-    triggerTransitionAsyncFn(name, next, resolve)
+    triggerTransitionAsyncFn(params, next, resolve)
   })
 }
 
 router.beforeEach((to, _from, next) => {
-  triggerTransition(to.meta.stageTransition as string, next)
+  if (typeof to.meta.stageTransition !== 'object') {
+    next()
+    return
+  }
+
+  const stageTransition = to.meta.stageTransition as StageTransitionCommonParams
+  if (typeof props.primaryColor !== 'undefined') {
+    stageTransition.primaryColor = props.primaryColor
+  }
+  if (typeof props.secondaryColor !== 'undefined') {
+    stageTransition.secondaryColor = props.secondaryColor
+  }
+
+  triggerTransition(stageTransition, next)
 })
 </script>
 
@@ -233,7 +255,7 @@ router.beforeEach((to, _from, next) => {
   <slot />
   <template v-if="showTransition">
     <template v-if="transitions[activeTransitionName]">
-      <component :is="transitions[activeTransitionName].component" :primary-color="primaryColor" :secondary-color="secondaryColor" />
+      <component :is="transitions[activeTransitionName].component" :stage-transition="activeStageTransitionParams" />
     </template>
   </template>
 </template>

@@ -5,7 +5,9 @@ import Buttons from '../components/Buttons.vue'
 
 definePage({
   meta: {
-    stageTransition: 'bubble-wave-out',
+    stageTransition: {
+      name: 'bubble-wave-out',
+    },
   },
 })
 </script>

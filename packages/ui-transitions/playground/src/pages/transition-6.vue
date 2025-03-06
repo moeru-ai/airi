@@ -5,7 +5,9 @@ import Buttons from '../components/Buttons.vue'
 
 definePage({
   meta: {
-    stageTransition: 'rectangles-rotate',
+    stageTransition: {
+      name: 'rectangles-rotate',
+    },
   },
 })
 </script>

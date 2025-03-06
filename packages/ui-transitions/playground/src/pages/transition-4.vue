@@ -5,7 +5,9 @@ import Buttons from '../components/Buttons.vue'
 
 definePage({
   meta: {
-    stageTransition: 'multiple-blocks-reveal',
+    stageTransition: {
+      name: 'multiple-blocks-reveal',
+    },
   },
 })
 </script>
