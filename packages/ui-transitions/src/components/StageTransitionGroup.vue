@@ -16,10 +16,10 @@ withDefaults(defineProps<{
 })
 
 type TransitionComponent =
-  | InstanceType<typeof SlideTransition>
-  | InstanceType<typeof SlopeSlideTransition>
-  | InstanceType<typeof ArrowTransition>
-  | InstanceType<typeof MultipleBlocksRevealTransition>
+  | typeof SlideTransition
+  | typeof SlopeSlideTransition
+  | typeof ArrowTransition
+  | typeof MultipleBlocksRevealTransition
 
 const router = useRouter()
 const showTransition = ref(false)
