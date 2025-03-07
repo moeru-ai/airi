@@ -43,7 +43,6 @@
     "@tresjs/cientos": "^4.1.0",
     "@tresjs/core": "^4.3.3",
     "@types/yauzl": "^2.10.3",
-    "@typeschema/valibot": "^0.14.0",
     "@unhead/vue": "^2.0.0-beta.2",
     "@unocss/reset": "^66.1.0-beta.3",
     "@valibot/to-json-schema": "1.0.0-rc.0",
@@ -53,7 +52,6 @@
     "@xsai/generate-speech": "catalog:",
     "@xsai/generate-text": "catalog:",
     "@xsai/model": "catalog:",
-    "@xsai/providers": "catalog:",
     "@xsai/shared-chat": "catalog:",
     "@xsai/stream-text": "catalog:",
     "@xsai/utils-chat": "catalog:",
@@ -81,6 +79,7 @@
     "vue-demi": "^0.14.10",
     "vue-i18n": "^11.1.1",
     "vue-router": "^4.5.0",
+    "xsschema": "catalog:",
     "yauzl": "^3.2.0",
     "zod": "^3.24.2"
   },

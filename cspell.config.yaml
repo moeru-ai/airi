@@ -153,6 +153,7 @@ words:
   - worklet
   - Xenova
   - xsai
+  - xsschema
   - zhipu
 ignoreWords: []
 import: []

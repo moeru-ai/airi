@@ -6,6 +6,9 @@ settings:
 
 catalogs:
   default:
+    '@xsai-ext/providers-cloud':
+      specifier: ^0.1.2
+      version: 0.1.2
     '@xsai-ext/shared-providers':
       specifier: ^0.1.2
       version: 0.1.2
@@ -24,9 +27,6 @@ catalogs:
     '@xsai/model':
       specifier: ^0.1.2
       version: 0.1.2
-    '@xsai/providers':
-      specifier: ^0.1.0-beta.5
-      version: 0.1.0-beta.5
     '@xsai/shared':
       specifier: ^0.1.2
       version: 0.1.2
@@ -40,6 +40,9 @@ catalogs:
       specifier: ^0.1.2
       version: 0.1.2
     '@xsai/utils-chat':
+      specifier: ^0.1.2
+      version: 0.1.2
+    xsschema:
       specifier: ^0.1.2
       version: 0.1.2
 
@@ -246,9 +249,6 @@ importers:
       '@types/yauzl':
         specifier: ^2.10.3
         version: 2.10.3
-      '@typeschema/valibot':
-        specifier: ^0.14.0
-        version: 0.14.0(@gcornut/valibot-json-schema@0.42.0(esbuild@0.25.0)(typescript@5.8.2))(@types/json-schema@7.0.15)(valibot@1.0.0-beta.9(typescript@5.8.2))
       '@unhead/vue':
         specifier: ^2.0.0-beta.2
         version: 2.0.0-beta.2(vue@3.5.13(typescript@5.8.2))
@@ -273,9 +273,6 @@ importers:
       '@xsai/model':
         specifier: 'catalog:'
         version: 0.1.2
-      '@xsai/providers':
-        specifier: 'catalog:'
-        version: 0.1.0-beta.5
       '@xsai/shared-chat':
         specifier: 'catalog:'
         version: 0.1.2
@@ -535,9 +532,6 @@ importers:
       '@types/yauzl':
         specifier: ^2.10.3
         version: 2.10.3
-      '@typeschema/valibot':
-        specifier: ^0.14.0
-        version: 0.14.0(@gcornut/valibot-json-schema@0.42.0(esbuild@0.19.12)(typescript@5.8.2))(@types/json-schema@7.0.15)(valibot@1.0.0-beta.9(typescript@5.8.2))
       '@unhead/vue':
         specifier: ^2.0.0-beta.2
         version: 2.0.0-beta.2(vue@3.5.13(typescript@5.8.2))
@@ -565,9 +559,6 @@ importers:
       '@xsai/model':
         specifier: 'catalog:'
         version: 0.1.2
-      '@xsai/providers':
-        specifier: 'catalog:'
-        version: 0.1.0-beta.5
       '@xsai/shared-chat':
         specifier: 'catalog:'
         version: 0.1.2
@@ -649,6 +640,9 @@ importers:
       vue-router:
         specifier: ^4.5.0
         version: 4.5.0(vue@3.5.13(typescript@5.8.2))
+      xsschema:
+        specifier: 'catalog:'
+        version: 0.1.2(@valibot/to-json-schema@1.0.0-rc.0(valibot@1.0.0-beta.9(typescript@5.8.2)))(zod-to-json-schema@3.24.3(zod@3.24.2))
       yauzl:
         specifier: ^3.2.0
         version: 3.2.0
@@ -1164,6 +1158,9 @@ importers:
       '@proj-airi/server-shared':
         specifier: workspace:^
         version: link:../../packages/server-shared
+      '@xsai-ext/providers-cloud':
+        specifier: 'catalog:'
+        version: 0.1.2
       '@xsai/generate-speech':
         specifier: 'catalog:'
         version: 0.1.2
@@ -1173,9 +1170,6 @@ importers:
       '@xsai/generate-transcription':
         specifier: 'catalog:'
         version: 0.1.2
-      '@xsai/providers':
-        specifier: 'catalog:'
-        version: 0.1.0-beta.5
       '@xsai/shared-chat':
         specifier: 'catalog:'
         version: 0.1.2
@@ -1203,9 +1197,6 @@ importers:
       '@proj-airi/server-sdk':
         specifier: ^0.3.6
         version: 0.3.6
-      '@typeschema/zod':
-        specifier: ^0.14.0
-        version: 0.14.0(@types/json-schema@7.0.15)(zod-to-json-schema@3.24.3(zod@3.24.2))(zod@3.24.2)
       awilix:
         specifier: ^12.0.4
         version: 12.0.4
@@ -1294,15 +1285,12 @@ importers:
       '@guiiai/logg':
         specifier: ^1.0.7
         version: 1.0.7
-      '@typeschema/valibot':
-        specifier: ^0.14.0
-        version: 0.14.0(@gcornut/valibot-json-schema@0.42.0(esbuild@0.25.0)(typescript@5.8.2))(@types/json-schema@7.0.15)(valibot@1.0.0-beta.9(typescript@5.8.2))
+      '@xsai-ext/providers-cloud':
+        specifier: 'catalog:'
+        version: 0.1.2
       '@xsai/generate-text':
         specifier: 'catalog:'
         version: 0.1.2
-      '@xsai/providers':
-        specifier: 'catalog:'
-        version: 0.1.0-beta.5
       '@xsai/shared-chat':
         specifier: 'catalog:'
         version: 0.1.2
@@ -5292,6 +5280,9 @@ packages:
   '@xmldom/xmldom@0.8.10':
     resolution: {integrity: sha512-2WALfTl4xo2SkGCYRt6rDTFfk9R1czmBvUQy12gK2KuRKIpWEhcbbzy8EZXtz/jkRqHX8bFEc6FC1HjX4TUWYw==}
     engines: {node: '>=10.0.0'}
+
+  '@xsai-ext/providers-cloud@0.1.2':
+    resolution: {integrity: sha512-8NoheGXX3QhUeqKCv/urTHIdJRwwaAhCDWFWWjcmqT6M70wDcoqmXPZoyscCiLLTCazpWHMAz5X0tUGT2pdURQ==}
 
   '@xsai-ext/shared-providers@0.1.2':
     resolution: {integrity: sha512-8EPnYzJuK0AKQl/gp33R9BpULvjxeicdQl0sAT128F7as0de4yIYEPY/q8BZNY/NgY5XCv0qw023ijODXCnvxw==}
@@ -15447,28 +15438,19 @@ snapshots:
     dependencies:
       '@typeschema/core': 0.14.0(@types/json-schema@7.0.15)
     optionalDependencies:
-      '@typeschema/valibot': 0.14.0(@gcornut/valibot-json-schema@0.42.0(esbuild@0.25.0)(typescript@5.8.2))(@types/json-schema@7.0.15)(valibot@1.0.0-beta.9(typescript@5.8.2))
+      '@typeschema/valibot': 0.14.0(@types/json-schema@7.0.15)(valibot@1.0.0-beta.9(typescript@5.8.2))
       '@typeschema/zod': 0.14.0(@types/json-schema@7.0.15)(zod-to-json-schema@3.24.3(zod@3.24.2))(zod@3.24.2)
     transitivePeerDependencies:
       - '@types/json-schema'
 
-  '@typeschema/valibot@0.14.0(@gcornut/valibot-json-schema@0.42.0(esbuild@0.19.12)(typescript@5.8.2))(@types/json-schema@7.0.15)(valibot@1.0.0-beta.9(typescript@5.8.2))':
+  '@typeschema/valibot@0.14.0(@types/json-schema@7.0.15)(valibot@1.0.0-beta.9(typescript@5.8.2))':
     dependencies:
       '@typeschema/core': 0.14.0(@types/json-schema@7.0.15)
     optionalDependencies:
-      '@gcornut/valibot-json-schema': 0.42.0(esbuild@0.19.12)(typescript@5.8.2)
       valibot: 1.0.0-beta.9(typescript@5.8.2)
     transitivePeerDependencies:
       - '@types/json-schema'
-
-  '@typeschema/valibot@0.14.0(@gcornut/valibot-json-schema@0.42.0(esbuild@0.25.0)(typescript@5.8.2))(@types/json-schema@7.0.15)(valibot@1.0.0-beta.9(typescript@5.8.2))':
-    dependencies:
-      '@typeschema/core': 0.14.0(@types/json-schema@7.0.15)
-    optionalDependencies:
-      '@gcornut/valibot-json-schema': 0.42.0(esbuild@0.25.0)(typescript@5.8.2)
-      valibot: 1.0.0-beta.9(typescript@5.8.2)
-    transitivePeerDependencies:
-      - '@types/json-schema'
+    optional: true
 
   '@typeschema/zod@0.14.0(@types/json-schema@7.0.15)(zod-to-json-schema@3.24.3(zod@3.24.2))(zod@3.24.2)':
     dependencies:
@@ -15478,6 +15460,7 @@ snapshots:
       zod-to-json-schema: 3.24.3(zod@3.24.2)
     transitivePeerDependencies:
       - '@types/json-schema'
+    optional: true
 
   '@typescript-eslint/eslint-plugin@8.24.1(@typescript-eslint/parser@8.24.1(eslint@9.21.0(jiti@2.4.2))(typescript@5.8.2))(eslint@9.21.0(jiti@2.4.2))(typescript@5.8.2)':
     dependencies:
@@ -16374,6 +16357,11 @@ snapshots:
       - debug
 
   '@xmldom/xmldom@0.8.10': {}
+
+  '@xsai-ext/providers-cloud@0.1.2':
+    dependencies:
+      '@xsai-ext/shared-providers': 0.1.2
+      '@xsai/shared': 0.1.2
 
   '@xsai-ext/shared-providers@0.1.2':
     dependencies:

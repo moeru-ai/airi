@@ -4,8 +4,8 @@ import type { Buffer } from 'node:buffer'
 import { env } from 'node:process'
 import { useLogg } from '@guiiai/logg'
 import { pipeline } from '@huggingface/transformers'
+import { createOpenAI } from '@xsai-ext/providers-cloud'
 import { generateTranscription } from '@xsai/generate-transcription'
-import { createOpenAI } from '@xsai/providers'
 import wavefile from 'wavefile'
 
 import { pcmToWav } from '../utils/audio'
@@ -74,10 +74,7 @@ export async function openaiTranscribe(wavBuffer: Buffer) {
   log.log('Transcribing audio...')
 
   const wavFile = new Blob([wavBuffer], { type: 'audio/wav' })
-  const openai = createOpenAI({
-    baseURL: env.OPENAI_STT_API_BASE_URL,
-    apiKey: env.OPENAI_STT_API_KEY,
-  })
+  const openai = createOpenAI(env.OPENAI_STT_API_KEY, env.OPENAI_STT_API_BASE_URL)
 
   try {
     const result = await generateTranscription({
