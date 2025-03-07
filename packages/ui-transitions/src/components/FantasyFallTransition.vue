@@ -16,21 +16,21 @@ const props = defineProps <{
   }
 }>()
 
-const direction = computed(() => props.stageTransition.direction || 'up')
+const direction = computed(() => props.stageTransition?.direction || 'up')
 const directionClass = computed(() => `fantasy-fall-${direction.value}`)
 
 onMounted(() => {
-  document.documentElement.style.setProperty('--fantasy-fall-color', props.stageTransition.primaryColor || '#eee')
-  document.documentElement.style.setProperty('--fantasy-fall-duration', `${props.stageTransition.duration || 0.6}s`)
-  document.documentElement.style.setProperty('--fantasy-fall-delay', `${props.stageTransition.delay || 0}s`)
-  document.documentElement.style.setProperty('--fantasy-fall-radius-sm', `${props.stageTransition.borderRadius?.sm || '14rem'}`)
-  document.documentElement.style.setProperty('--fantasy-fall-radius-md', `${props.stageTransition.borderRadius?.md || '14rem'}`)
-  document.documentElement.style.setProperty('--fantasy-fall-radius-lg', `${props.stageTransition.borderRadius?.lg || '50%'}`)
+  document.documentElement.style.setProperty('--fantasy-fall-color', props.stageTransition?.primaryColor || '#eee')
+  document.documentElement.style.setProperty('--fantasy-fall-duration', `${props.stageTransition?.duration || 0.6}s`)
+  document.documentElement.style.setProperty('--fantasy-fall-delay', `${props.stageTransition?.delay || 0}s`)
+  document.documentElement.style.setProperty('--fantasy-fall-radius-sm', `${props.stageTransition?.borderRadius?.sm || '14rem'}`)
+  document.documentElement.style.setProperty('--fantasy-fall-radius-md', `${props.stageTransition?.borderRadius?.md || '14rem'}`)
+  document.documentElement.style.setProperty('--fantasy-fall-radius-lg', `${props.stageTransition?.borderRadius?.lg || '50%'}`)
 })
 </script>
 
 <template>
-  <div class="fantasy-fall-transition" :class="directionClass" :style="{ zIndex: stageTransition.zIndex || 100 }" />
+  <div class="fantasy-fall-transition" :class="directionClass" :style="{ zIndex: stageTransition?.zIndex ?? 100 }" />
 </template>
 
 <style scoped>
