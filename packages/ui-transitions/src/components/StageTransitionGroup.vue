@@ -92,7 +92,7 @@ const transitions = shallowRef<Record<string, TransitionOptions>>({
   },
   'bubble-wave-out': {
     component: BubbleWaveOutTransition,
-    duration: 850,
+    duration: 1000,
   },
 })
 

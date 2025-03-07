@@ -109,37 +109,29 @@ const modulesList = computed<Module[]>(() => [
   </div>
   <div grid="~ cols-1 gap-2">
     <div
-      v-for="module in modulesList" :key="module.id"
-      bg="neutral-300/50 dark:neutral-600" w-full of-hidden rounded-xl
+      v-for="module in modulesList" :key="module.id" bg="neutral-300/50 dark:neutral-600" w-full of-hidden rounded-xl
       flex="~ col 1"
     >
-      <template v-if="typeof module.icon === 'string' && module.id !== 'game-minecraft'">
-        <IconItem :title="module.name" :description="module.description" :icon="module.icon" :to="module.to" />
-      </template>
-      <template v-else-if="typeof module.icon === 'string' && module.id === 'game-minecraft'">
-        <IconItem :title="module.name" :description="module.description" icon-template :to="module.to">
-          <template #icon>
-            <div
-              class="settings-section-icon op-30 grayscale-100 filter hover:grayscale-0"
-              transition="all ease-in-out duration-500"
-              absolute right-0 size-24 translate-y-4
-              :class="module.icon"
-            />
-          </template>
-        </IconItem>
-      </template>
-      <template v-else-if="typeof module.icon === 'object'">
-        <IconItem :title="module.name" :description="module.description" icon-template :to="module.to">
-          <template #icon>
-            <img
-              :src="module.icon.imagePath"
-              class="settings-section-icon op-30 grayscale-100 filter hover:grayscale-0"
-              transition="all ease-in-out duration-500"
-              absolute right-0 size-24 translate-y-4
-            >
-          </template>
-        </IconItem>
-      </template>
+      <RouterLink
+        :to="module.to" bg="neutral-100 dark:neutral-800" hover="bg-neutral-200 dark:bg-neutral-700"
+        transition="all ease-in-out duration-250" h-full w-full flex items-center gap-1.5 rounded-lg px-4 py-5
+        outline-none class="[&_.provider-icon]:grayscale-100 [&_.provider-icon]:hover:grayscale-0"
+      >
+        <div flex="~ col 1" gap-1.5>
+          <div
+            v-if="typeof module.icon === 'string'" :class="module.icon" class="provider-icon size-10"
+            transition="filter duration-250 ease-in-out"
+          />
+          <img
+            v-else
+            :src="module.icon.imagePath" class="settings-section-icon op-30 grayscale-100 filter hover:grayscale-0"
+            transition="all ease-in-out duration-500" absolute right-0 size-24 translate-y-4
+          >
+          <div>
+            {{ module.name }}
+          </div>
+        </div>
+      </RouterLink>
       <div p-2>
         <div v-if="module.configured" size-3 bg="green-500 dark:green-600" rounded-full />
         <div v-else size-3 bg="neutral-400 dark:neutral-500" rounded-full />
