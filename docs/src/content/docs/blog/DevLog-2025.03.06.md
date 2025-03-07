@@ -70,7 +70,7 @@ by myself almost a year ago, but it still looks great and feel calm when
 looking at it. Please leave comments in the chat for any suggestions, really
 appreciated.
 
-![](../../../assets/images/blog/DevLog-2025.03.06/live-stream-layout-update.png)
+![](../../../assets/images/blog/DevLog-2025.03.06/live-stream-layout-update.jpeg)
 
 During the DevStream of today, I was trying to integrate the stage transition
 animation component into Airi's website main stage, it wasn't that smooth,
