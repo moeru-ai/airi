@@ -29,7 +29,7 @@ export const useSettings = defineStore('settings', () => {
   const live2dLoadSource = ref<'file' | 'url'>('url')
   const loadingLive2dModel = ref(false) // if set to true, the model will be loaded
   const live2dPosition = useLocalStorage('settings/live2d/position', { x: 0, y: 0 }) // position is relative to the center of the screen
-  const live2dCurrentMotion = ref<{ group: string, index: number }>({ group: 'Idle', index: 0 })
+  const live2dCurrentMotion = ref<{ group: string, index?: number }>({ group: 'Idle', index: 0 })
   const availableLive2dMotions = ref<{ motionName: string, motionIndex: number, fileName: string }[]>([])
   const live2dMotionMap = useLocalStorage<Record<string, string>>('settings/live2d/motion-map', {})
 
