@@ -16,18 +16,6 @@ jobs:
           lfs: true
 
       - run: |-
-          git clone https://$HF_USERNAME:$HF_TOKEN@huggingface.co/spaces/moeru-ai/moonshine-web-vue --depth 1 apps/moonshine-web/dist
-        env:
-          HF_TOKEN: ${{ secrets.HF_TOKEN }}
-          HF_USERNAME: ${{ secrets.HF_USERNAME }}
-
-      - run: |-
-          git clone https://$HF_USERNAME:$HF_TOKEN@huggingface.co/spaces/moeru-ai/whisper-webgpu-vue --depth 1 apps/whisper-webgpu/dist
-        env:
-          HF_TOKEN: ${{ secrets.HF_TOKEN }}
-          HF_USERNAME: ${{ secrets.HF_USERNAME }}
-
-      - run: |-
           git clone https://$HF_USERNAME:$HF_TOKEN@huggingface.co/spaces/moeru-ai/airi --depth 1 apps/stage-web/dist
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
@@ -44,48 +32,6 @@ jobs:
         env:
           TARGET_HUGGINGFACE_SPACE: 'true'
           VITE_APP_TARGET_HUGGINGFACE_SPACE: 'true'
-
-      - id: moonshine_web_diff
-        working-directory: ./apps/moonshine-web/dist
-        run: |-
-          git lfs ls-files --all
-          git add .
-          if [[ -n $(git status --porcelain) ]]; then
-              echo "changes=true" >> "$GITHUB_OUTPUT";
-          fi
-
-      - if: steps.moonshine_web_diff.outputs.changes == 'true'
-        working-directory: ./apps/moonshine-web/dist
-        env:
-          HF_TOKEN: ${{ secrets.HF_TOKEN }}
-          HF_USERNAME: ${{ secrets.HF_USERNAME }}
-        run: |-
-          git config --local user.email "neko@ayaka.moe"
-          git config --local user.name "Neko Ayaka"
-          git commit -m "release: build ${{ github.sha }}"
-          git lfs push origin main --all
-          git push -f
-
-      - id: whisper_webgpu_diff
-        working-directory: ./apps/whisper-webgpu/dist
-        run: |-
-          git lfs ls-files --all
-          git add .
-          if [[ -n $(git status --porcelain) ]]; then
-              echo "changes=true" >> "$GITHUB_OUTPUT";
-          fi
-
-      - if: steps.whisper_webgpu_diff.outputs.changes == 'true'
-        working-directory: ./apps/whisper-webgpu/dist
-        env:
-          HF_TOKEN: ${{ secrets.HF_TOKEN }}
-          HF_USERNAME: ${{ secrets.HF_USERNAME }}
-        run: |-
-          git config --local user.email "neko@ayaka.moe"
-          git config --local user.name "Neko Ayaka"
-          git commit -m "release: build ${{ github.sha }}"
-          git lfs push origin main --all
-          git push -f
 
       - id: airi_diff
         working-directory: ./apps/stage-web/dist

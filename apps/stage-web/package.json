@@ -97,7 +97,7 @@
     "@intlify/unplugin-vue-i18n": "^6.0.3",
     "@proj-airi/drizzle-duckdb-wasm": "workspace:^",
     "@proj-airi/elevenlabs": "workspace:^",
-    "@proj-airi/lobe-icons": "workspace:^",
+    "@proj-airi/lobe-icons": "^0.3.6",
     "@proj-airi/provider-transformers": "workspace:^",
     "@proj-airi/ui-transitions": "workspace:^",
     "@proj-airi/unplugin-download": "workspace:^",
