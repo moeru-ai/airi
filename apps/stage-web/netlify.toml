@@ -6,12 +6,6 @@ publish = "/apps/stage-web/dist"
 [build.environment]
 NODE_VERSION = "23"
 
-[[redirects]]
-from = "/docs/*"
-to = "https://airi-docs.netlify.app/:splat"
-status = 200
-force = true
-
 # Plausible.io analytics
 #
 # Proxying Plausible through Netlify | Plausible docs
