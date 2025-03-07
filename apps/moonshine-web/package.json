@@ -19,19 +19,19 @@
   "dependencies": {
     "@tresjs/core": "^4.3.3",
     "@unocss/reset": "^66.1.0-beta.3",
-    "@vueuse/core": "^12.7.0",
+    "@vueuse/core": "^12.8.2",
     "@vueuse/motion": "^2.2.6",
     "ofetch": "^1.4.1",
     "three": "^0.174.0",
     "vue": "^3.5.13"
   },
   "devDependencies": {
-    "@huggingface/transformers": "^3.3.3",
+    "@huggingface/transformers": "^3.4.0",
     "@types/audioworklet": "^0.0.71",
     "@types/three": "^0.174.0",
     "@vitejs/plugin-vue": "^5.2.1",
-    "@webgpu/types": "^0.1.54",
+    "@webgpu/types": "^0.1.55",
     "hfup": "workspace:^",
-    "vue-tsc": "^2.2.6"
+    "vue-tsc": "^2.2.8"
   }
 }

@@ -20,7 +20,7 @@
     "db:push": "drizzle-kit push"
   },
   "dependencies": {
-    "@dotenvx/dotenvx": "^1.38.3",
+    "@dotenvx/dotenvx": "^1.38.4",
     "@grammyjs/files": "^1.1.1",
     "@guiiai/logg": "^1.0.7",
     "@xsai-ext/providers-cloud": "catalog:",
