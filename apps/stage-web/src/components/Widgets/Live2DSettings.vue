@@ -96,7 +96,7 @@ const exportObjectUrl = useObjectUrl(settings.live2dModelFile)
 
 <template>
   <div>
-    <Collapsable w-full>
+    <Collapsable w-full :default="true">
       <template #trigger="slotProps">
         <button
           bg="zinc-100 dark:zinc-800"
@@ -172,7 +172,7 @@ const exportObjectUrl = useObjectUrl(settings.live2dModelFile)
         </div>
       </div>
     </Collapsable>
-    <Collapsable mt-4 w-full>
+    <Collapsable mt-4 w-full :default="true">
       <template #trigger="slotProps">
         <button
           bg="zinc-100 dark:zinc-800"

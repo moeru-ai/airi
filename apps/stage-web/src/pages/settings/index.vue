@@ -122,12 +122,12 @@ function handleLanguageChange(event: Event) {
             <Transition name="slide-away" mode="out-in">
               <div
                 v-if="disableTransitions"
-                i-solar:moon-stars-bold-duotone
+                i-solar:people-nearby-bold-duotone
                 transition="all ease-in-out duration-250"
               />
               <div
                 v-else
-                i-solar:sun-fog-bold-duotone
+                i-solar:running-2-line-duotone
                 transition="all ease-in-out duration-250"
               />
             </Transition>
