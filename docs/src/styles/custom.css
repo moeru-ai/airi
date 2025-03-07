@@ -27,3 +27,8 @@
   --sl-color-gray-7: #f7f6f6;
   --sl-color-black: #ffffff;
 }
+
+.sl-markdown-content img {
+  width: 100%;
+  height: auto;
+}

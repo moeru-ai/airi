@@ -22,6 +22,10 @@ export default defineConfig({
           label: 'References',
           autogenerate: { directory: 'references' },
         },
+        {
+          label: 'Blog',
+          autogenerate: { directory: 'blog' },
+        },
       ],
       head: [
         { tag: 'link', attrs: { rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg', sizes: 'any' } },
