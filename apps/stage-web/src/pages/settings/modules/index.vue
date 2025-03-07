@@ -10,11 +10,13 @@ interface Module {
   id: string
   name: string
   description: string
-  icon: string | { imagePath: string }
+  icon?: string
+  iconImage?: string
   to: string
   configured: boolean
 }
 
+// TODO: categorize modules, such as essential, messaging, gaming, etc.
 const modulesList = computed<Module[]>(() => [
   {
     id: 'consciousness',
@@ -84,9 +86,7 @@ const modulesList = computed<Module[]>(() => [
     id: 'game-factorio',
     name: 'Factorio',
     description: 'Playing Factorio with you, etc.',
-    icon: {
-      imagePath: FactorioIcon,
-    },
+    iconImage: FactorioIcon,
     to: '',
     configured: false,
   },
@@ -107,30 +107,50 @@ const modulesList = computed<Module[]>(() => [
       </div>
     </h1>
   </div>
-  <div grid="~ cols-1 gap-2">
+  <div grid="~ cols-1 sm:cols-2 gap-4">
     <div
-      v-for="module in modulesList" :key="module.id" bg="neutral-300/50 dark:neutral-600" w-full of-hidden rounded-xl
+      v-for="module in modulesList" :key="module.id"
+      bg="neutral-200/50 dark:neutral-700"
+      border="neutral-100 dark:neutral-700 hover:pink-300 dark:hover:pink-300/40 solid 2"
+      drop-shadow="none hover:[0px_4px_4px_rgba(220,220,220,0.4)] active:[0px_0px_0px_rgba(220,220,220,0.25)] dark:hover:none"
+      class="[&_.settings-section-icon]:hover:scale-120 [&_.settings-section-description]:hover:text-pink-400/80 [&_.settings-section-icon]:hover:text-pink-200 [&_.settings-section-icon]:hover:grayscale-0 dark:[&_.settings-section-icon]:hover:text-pink-200/40 dark:[&_.settings-section-title]:hover:text-pink-400"
+      w-full of-hidden rounded-xl
       flex="~ col 1"
     >
       <RouterLink
-        :to="module.to" bg="neutral-100 dark:neutral-800" hover="bg-neutral-200 dark:bg-neutral-700"
-        transition="all ease-in-out duration-250" h-full w-full flex items-center gap-1.5 rounded-lg px-4 py-5
-        outline-none class="[&_.provider-icon]:grayscale-100 [&_.provider-icon]:hover:grayscale-0"
+        flex="~ row" bg="neutral-50 dark:neutral-800"
+        transition="all ease-in-out duration-200" relative w-full items-center overflow-hidden rounded-lg p-5 text-left
+        :to="module.to"
       >
-        <div flex="~ col 1" gap-1.5>
-          <div
-            v-if="typeof module.icon === 'string'" :class="module.icon" class="provider-icon size-10"
-            transition="filter duration-250 ease-in-out"
-          />
-          <img
-            v-else
-            :src="module.icon.imagePath" class="settings-section-icon op-30 grayscale-100 filter hover:grayscale-0"
-            transition="all ease-in-out duration-500" absolute right-0 size-24 translate-y-4
-          >
-          <div>
+        <div z-1 flex-1>
+          <div text-lg font-bold class="settings-section-title" transition="all ease-in-out duration-200">
             {{ module.name }}
           </div>
+          <div
+            text="sm neutral-500 dark:neutral-400" class="settings-section-description"
+            transition="all ease-in-out duration-200"
+          >
+            <span>{{ module.description }}</span>
+          </div>
         </div>
+        <template v-if="typeof module.icon === 'string'">
+          <div
+            class="settings-section-icon"
+            transition="all ease-in-out duration-500"
+            absolute right-0 size-16 translate-y-2
+            text="neutral-400/50 dark:neutral-600/50" grayscale-100
+            :class="[module.icon]"
+          />
+        </template>
+        <template v-if="module.iconImage">
+          <img
+            :src="module.iconImage"
+            class="settings-section-icon grayscale-100"
+            transition="all ease-in-out duration-500"
+            absolute right-0 size-16 translate-y-2
+            text="neutral-400/50 dark:neutral-600/50"
+          >
+        </template>
       </RouterLink>
       <div p-2>
         <div v-if="module.configured" size-3 bg="green-500 dark:green-600" rounded-full />
