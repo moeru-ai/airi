@@ -118,7 +118,7 @@ const providersList = computed<ModelProvider[]>(() => [
     </button>
     <h1 relative>
       <div absolute left-0 top-0 translate-y="[-80%]">
-        <span text="neutral-300 dark:neutral-800">Settings</span>
+        <span text="neutral-300 dark:neutral-500">Settings</span>
       </div>
       <div text-3xl font-semibold>
         Providers
