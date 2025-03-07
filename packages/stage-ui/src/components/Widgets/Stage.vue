@@ -82,10 +82,7 @@ const ttsQueue = useQueue<string>({
 
       const now = Date.now()
 
-      const elevenlabs = createUnElevenLabs({
-        apiKey: elevenLabsApiKey.value,
-        baseURL: 'https://unspeech.hyp3r.link/v1/',
-      })
+      const elevenlabs = createUnElevenLabs(elevenLabsApiKey.value, 'https://unspeech.hyp3r.link/v1/')
       const res = await generateSpeech({
         ...elevenlabs.speech('eleven_multilingual_v2', {
           voiceSettings: {
