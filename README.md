@@ -1,5 +1,17 @@
 <p align="center">
-  <img src="./docs/public/readme-image-pc-preview.png" width="50%">
+  <picture>
+    <source
+      width="250"
+      srcset="./docs/public/logo-dark.png"
+      media="(prefers-color-scheme: dark)"
+    />
+    <source
+      width="250"
+      srcset="./docs/public/logo-light.png"
+      media="(prefers-color-scheme: light), (prefers-color-scheme: no-preference)"
+    />
+    <img width="250" src="./docs/public/logo-light.png" />
+  </picture>
 </p>
 
 <h1 align="center">アイリ VTuber</h1>
@@ -9,6 +21,8 @@
 </p>
 
 > Heavily inspired by [Neuro-sama](https://www.youtube.com/@Neurosama)
+
+<img src="./docs/public/readme-image-pc-preview.png">
 
 Unlike the other AI driven VTuber open source projects, アイリ VTuber was built with many support of Web technologies such as [WebGPU](https://www.w3.org/TR/webgpu/), [WebAudio](https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API), [Web Workers](https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API/Using_web_workers), [WebAssembly](https://webassembly.org/), [WebSocket](https://developer.mozilla.org/en-US/docs/Web/API/WebSocket), etc. from the first day.
 
@@ -49,6 +63,10 @@ Capable of
   - [x] Play [Factorio](https://www.factorio.com) (WIP, but [PoC and demo available](https://github.com/moeru-ai/airi-factorio))
   - [x] Chat in [Telegram](https://telegram.org)
   - [x] Chat in [Discord](https://discord.com)
+  - [ ] Memory
+    - [x] Pure in-browser database support (DuckDB WASM | `pglite`)
+    - [ ] Memory Alaya (WIP)
+  - [ ] Pure in-browser local (WebGPU) inference
 - [x] Ears
   - [x] Audio input from browser
   - [x] Audio input from [Discord](https://discord.com)
