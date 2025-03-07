@@ -30,12 +30,11 @@ onMounted(() => {
 <style scoped>
 .circle-expansion-transition {
   position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 150%;
-  aspect-ratio: 1 / 1;
+  top: calc(50% - 75vmax);
+  left: calc(50% - 75vmax);
+  width: 150vmax;
+  height: 150vmax;
   pointer-events: none;
-  transform: translate(-50%, -50%);
 }
 
 .circle-expansion-transition div {
