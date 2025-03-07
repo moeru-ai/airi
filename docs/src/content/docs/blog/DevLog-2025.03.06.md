@@ -30,16 +30,17 @@ flexible for other pages to use.
 
 ## Day time
 
-I experimented with the definePage macro hook from unplugging-vue-router,
+I experimented with the [`definePage`](https://uvr.esm.is/guide/extending-routes.html#definepage)
+macro hook from [`unplugin-vue-router`](https://github.com/posva/unplugin-vue-router),
 found it quite worked well for my scenario and decided the path to follow
 on.
 
-And I ported 3 new animation transitions from
+And I ported 3 extra new animation transitions from
 [https://cowardly-witch.netlify.app/](https://cowardly-witch.netlify.app/),
 they were already available on
 [https://proj-airi-packages-ui-transitions.netlify.app/#/](https://proj-airi-packages-ui-transitions.netlify.app/#/) .
 
-I deployed the official documentation site onto https://airi.build yesterday,
+I deployed the official documentation site onto [https://airi.build](https://airi.build) yesterday,
 [@kwaa](https://github.com/kwaa) commented that he would suggest me try
 the `https://airi.more.ai/docs` approach instead, but I couldn't figure out
 a way to make a 200 redirect proxy for /docs.

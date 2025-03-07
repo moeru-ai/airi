@@ -67,7 +67,7 @@ So this is what we get finally:
 
 Later on today, I was working on publishing the
 [documentation site](https://airi.build) of Project Airi online, for me,
-and other developers, artists to use it as a reference and guidelines,
+and other developers, artists to use it as a reference and guidelines.
 
 I did it! And the newly designed logo has been put into the
 [documentation site](https://airi.build) along with the color palette:
