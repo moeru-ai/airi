@@ -24,7 +24,6 @@
     "@electron-toolkit/preload": "^3.0.1",
     "@electron-toolkit/utils": "^3.0.0",
     "@formkit/auto-animate": "^0.8.2",
-    "@gcornut/valibot-json-schema": "^0.42.0",
     "@huggingface/transformers": "^3.3.3",
     "@pixi/app": "6",
     "@pixi/constants": "6",

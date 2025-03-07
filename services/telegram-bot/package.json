@@ -21,7 +21,6 @@
   },
   "dependencies": {
     "@dotenvx/dotenvx": "^1.38.3",
-    "@gcornut/valibot-json-schema": "^0.42.0",
     "@grammyjs/files": "^1.1.1",
     "@guiiai/logg": "^1.0.7",
     "@xsai-ext/providers-cloud": "catalog:",
