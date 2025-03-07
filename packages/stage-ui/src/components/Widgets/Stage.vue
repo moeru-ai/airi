@@ -128,7 +128,7 @@ const emotionsQueue = useQueue<Emotion>({
         await vrmViewerRef.value!.setExpression(value)
       }
       else if (stageView.value === '2d') {
-        live2dCurrentMotion.value = EMOTION_EmotionMotionName_value[ctx.data]
+        live2dCurrentMotion.value = { group: EMOTION_EmotionMotionName_value[ctx.data] }
       }
     },
   ],
@@ -173,7 +173,7 @@ onBeforeMessageComposed(async () => {
 })
 
 onBeforeSend(async () => {
-  live2dCurrentMotion.value = EmotionThinkMotionName
+  live2dCurrentMotion.value = { group: EmotionThinkMotionName }
 })
 
 onTokenLiteral(async (literal) => {
@@ -212,13 +212,13 @@ onMounted(() => {
   const extendedWindow = window as Window & typeof globalThis & { electron?: ElectronAPI }
 
   extendedWindow.electron?.ipcRenderer.on('before-hide', () => {
-    live2dCurrentMotion.value = EmotionAngryMotionName
+    live2dCurrentMotion.value = { group: EmotionAngryMotionName }
   })
   extendedWindow.electron?.ipcRenderer.on('after-show', () => {
-    live2dCurrentMotion.value = EmotionHappyMotionName
+    live2dCurrentMotion.value = { group: EmotionHappyMotionName }
   })
   extendedWindow.electron?.ipcRenderer.on('before-quit', () => {
-    live2dCurrentMotion.value = EmotionThinkMotionName
+    live2dCurrentMotion.value = { group: EmotionThinkMotionName }
   })
 })
 

@@ -10,11 +10,11 @@ const props = defineProps<{
   }
 }>()
 
-const colors = computed(() => props.stageTransition.colors || ['#eee', '#ebcb8b', '#c56370', '#3f3b52'])
+const colors = computed(() => props.stageTransition?.colors || ['#eee', '#ebcb8b', '#c56370', '#3f3b52'])
 
 onMounted(() => {
-  document.documentElement.style.setProperty('--circle-expansion-delay', `${props.stageTransition.delay || 0}s`)
-  document.documentElement.style.setProperty('--circle-expansion-duration', `${props.stageTransition.duration || 0.4}s`)
+  document.documentElement.style.setProperty('--circle-expansion-delay', `${props.stageTransition?.delay || 0}s`)
+  document.documentElement.style.setProperty('--circle-expansion-duration', `${props.stageTransition?.duration || 0.4}s`)
   colors.value.forEach((color, index) => {
     document.documentElement.style.setProperty(`--circle-expansion-color-${index + 1}`, color)
   })
@@ -22,7 +22,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="circle-expansion-transition" :style="{ zIndex: stageTransition.zIndex || 100 }">
+  <div class="circle-expansion-transition" :style="{ zIndex: stageTransition?.zIndex || 100 }">
     <div v-for="(_, index) in colors" :key="index" />
   </div>
 </template>

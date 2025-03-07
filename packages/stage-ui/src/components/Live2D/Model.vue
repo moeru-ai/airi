@@ -184,7 +184,7 @@ async function initLive2DPixiStage() {
   loadingLive2dModel.value = false
 }
 
-async function setMotion(motionName: string, index: number) {
+async function setMotion(motionName: string, index?: number) {
   await model.value!.motion(motionName, index, MotionPriority.FORCE)
 }
 

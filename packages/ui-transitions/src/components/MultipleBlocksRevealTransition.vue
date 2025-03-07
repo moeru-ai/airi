@@ -10,8 +10,8 @@ const props = defineProps<{
 }>()
 
 const stageTransition = computed(() => props.stageTransition)
-const overlayColor1 = computed(() => stageTransition.value.primaryColor || '#666')
-const overlayColor2 = computed(() => stageTransition.value.secondaryColor || '#ccc')
+const overlayColor1 = computed(() => stageTransition.value?.primaryColor || '#666')
+const overlayColor2 = computed(() => stageTransition.value?.secondaryColor || '#ccc')
 
 onMounted(() => {
   document.documentElement.style.setProperty('--stage-transition-4-overlay-color-1', overlayColor1.value)
@@ -20,7 +20,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="stage-transition-4" :style="{ zIndex: stageTransition.zIndex || 100 }">
+  <div class="stage-transition-4" :style="{ zIndex: stageTransition?.zIndex ?? 100 }">
     <div class="stage-transition-4__block" />
     <div class="stage-transition-4__block" />
     <div class="stage-transition-4__block" />
