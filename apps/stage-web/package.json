@@ -49,6 +49,7 @@
     "@vueuse/core": "^12.7.0",
     "@vueuse/head": "^2.0.0",
     "@vueuse/shared": "^12.7.0",
+    "@xsai-ext/providers-local": "catalog:",
     "@xsai/generate-speech": "catalog:",
     "@xsai/generate-text": "catalog:",
     "@xsai/model": "catalog:",
