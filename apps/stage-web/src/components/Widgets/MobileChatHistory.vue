@@ -40,14 +40,14 @@ onTokenLiteral(async () => {
         <div v-if="message.role === 'assistant'" flex mr="12">
           <div
             flex="~ col"
-            border="4 solid pink-200/50 dark:pink-500/50"
-            shadow="md pink-200/50 dark:none"
+            border="4 solid primary-200/50 dark:primary-500/50"
+            shadow="md primary-200/50 dark:none"
             min-w-20 rounded-lg px-2 py-1
             h="unset <sm:fit"
-            bg="<md:pink-500/25"
+            bg="<md:primary-500/25"
           >
             <div>
-              <span text-xs text="pink-400/90 dark:pink-600/90" font-semibold class="inline <sm:hidden">{{ $t('stage.chat.message.character-name.airi') }}</span>
+              <span text-xs text="primary-400/90 dark:primary-600/90" font-semibold class="inline <sm:hidden">{{ $t('stage.chat.message.character-name.airi') }}</span>
             </div>
             <div v-if="message.content" class="markdown-content" text="base <sm:xs" v-html="process(message.content as string)" />
             <div v-else i-eos-icons:three-dots-loading />

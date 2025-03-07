@@ -11,9 +11,9 @@ defineProps<{
 <template>
   <RouterLink
     flex="~ row" bg="neutral-50 dark:neutral-800"
-    border="neutral-100 dark:neutral-700 hover:pink-300 dark:hover:pink-300/40 solid 2"
+    border="neutral-100 dark:neutral-700 hover:primary-300 dark:hover:primary-300/40 solid 2"
     drop-shadow="none hover:[0px_4px_4px_rgba(220,220,220,0.4)] active:[0px_0px_0px_rgba(220,220,220,0.25)] dark:hover:none"
-    class="after:mask-[linear-gradient(165deg,white_30%,transparent_50%)] after:bg-dotted-[neutral-200] after:hover:bg-dotted-[pink-300/50] dark:after:bg-dotted-[neutral-700/80] dark:after:hover:bg-dotted-[pink-200/20] after:absolute after:left-0 after:top-0 after:z--1 after:h-full after:w-full after:bg-[size:10px_10px] after:content-empty [&_.settings-section-icon]:hover:scale-120 [&_.settings-section-description]:hover:text-pink-400/80 [&_.settings-section-icon]:hover:text-pink-200 [&_.settings-section-title]:hover:text-pink-500 dark:[&_.settings-section-icon]:hover:text-pink-200/40 dark:[&_.settings-section-title]:hover:text-pink-400"
+    class="after:mask-[linear-gradient(165deg,white_30%,transparent_50%)] after:bg-dotted-[neutral-200] after:hover:bg-dotted-[primary-300/50] dark:after:bg-dotted-[neutral-700/80] [&_.settings-section-description]:hover:text-primary-400/80 [&_.settings-section-icon]:hover:text-primary-200 [&_.settings-section-title]:hover:text-primary-500 dark:after:hover:bg-dotted-[primary-200/20] dark:[&_.settings-section-icon]:hover:text-primary-200/40 dark:[&_.settings-section-title]:hover:text-primary-400 after:absolute after:left-0 after:top-0 after:z--1 after:h-full after:w-full after:bg-[size:10px_10px] after:content-empty [&_.settings-section-icon]:hover:scale-120"
     transition="all ease-in-out duration-200" relative w-full items-center overflow-hidden rounded-lg p-5 text-left
     :to="to"
   >

@@ -100,9 +100,9 @@ onMounted(() => {
         <BasicTextarea
           v-model="messageInput"
           :placeholder="t('stage.message')"
-          border="solid 2 pink-100 dark:pink-400/20"
-          text="pink-400 hover:pink-600 dark:[#905073] dark:hover:pink-600 placeholder:pink-400 placeholder:hover:pink-600 placeholder:dark:[#905073] placeholder:dark:hover:pink-600"
-          bg="pink-50 dark:[#3c2632]" max-h="[10lh]" min-h="[1lh]"
+          border="solid 2 primary-100 dark:primary-400/20"
+          text="primary-400 hover:primary-600 dark:[#905073] dark:hover:primary-600 placeholder:primary-400 placeholder:hover:primary-600 placeholder:dark:[#905073] placeholder:dark:hover:primary-600"
+          bg="primary-50 dark:[#3c2632]" max-h="[10lh]" min-h="[1lh]"
           w-full resize-none overflow-y-scroll rounded-l-xl p-2 font-medium outline-none
           transition="all duration-250 ease-in-out placeholder:all placeholder:duration-250 placeholder:ease-in-out"
           @submit="handleSend"
@@ -111,9 +111,9 @@ onMounted(() => {
       <DrawerRoot should-scale-background @update:open="handleSettingsOpen">
         <DrawerTrigger
           class="px-4 py-2.5"
-          border="solid 2 pink-100 dark:pink-400/20"
-          text="lg pink-400 hover:pink-600 dark:[#905073] dark:hover:pink-600 placeholder:pink-400 placeholder:hover:pink-600 placeholder:dark:[#905073] placeholder:dark:hover:pink-600"
-          bg="pink-50 dark:[#3c2632]" max-h="[10lh]" min-h="[1lh]" rounded-r-xl
+          border="solid 2 primary-100 dark:primary-400/20"
+          text="lg primary-400 hover:primary-600 dark:[#905073] dark:hover:primary-600 placeholder:primary-400 placeholder:hover:primary-600 placeholder:dark:[#905073] placeholder:dark:hover:primary-600"
+          bg="primary-50 dark:[#3c2632]" max-h="[10lh]" min-h="[1lh]" rounded-r-xl
         >
           <div i-solar:settings-bold-duotone />
         </DrawerTrigger>

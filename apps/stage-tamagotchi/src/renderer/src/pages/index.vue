@@ -64,7 +64,7 @@ const modeIndicatorClass = computed(() => {
     >
       <div class="absolute h-32 w-full flex items-center justify-center b-2 b-pink bg-white">
         <div class="wall absolute top-0 h-8" />
-        <div class="absolute left-0 top-0 h-full w-full flex animate-flash animate-duration-5s animate-count-infinite items-center justify-center text-1.5rem text-pink-300 font-bold">
+        <div class="text-primary-300 absolute left-0 top-0 h-full w-full flex animate-flash animate-duration-5s animate-count-infinite items-center justify-center text-1.5rem font-bold">
           DRAG HERE TO MOVE
         </div>
         <div class="wall absolute bottom-0 h-8" />
@@ -113,7 +113,7 @@ const modeIndicatorClass = computed(() => {
 }
 
 .wall {
-  @apply text-pink-200;
+  @apply text-primary-200;
 
   --wall-width: 8px;
   animation: wall-move 1s linear infinite;

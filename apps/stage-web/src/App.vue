@@ -3,7 +3,7 @@ import { useSettings } from '@proj-airi/stage-ui/stores/settings'
 import { StageTransitionGroup } from '@proj-airi/ui-transitions'
 import { useDark } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { watch } from 'vue'
+import { onMounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterView } from 'vue-router'
 
@@ -13,6 +13,14 @@ const isDark = useDark()
 
 watch(settings.language, () => {
   i18n.locale.value = settings.language.value
+})
+
+watch(settings.themeColorsHue, () => {
+  document.documentElement.style.setProperty('--theme-colors-hue', settings.themeColorsHue.value.toString())
+})
+
+onMounted(() => {
+  document.documentElement.style.setProperty('--theme-colors-hue', settings.themeColorsHue.value.toString())
 })
 </script>
 

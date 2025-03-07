@@ -111,9 +111,9 @@ const modulesList = computed<Module[]>(() => [
     <div
       v-for="module in modulesList" :key="module.id"
       bg="neutral-200/50 dark:neutral-700"
-      border="neutral-100 dark:neutral-700 hover:pink-300 dark:hover:pink-300/40 solid 2"
+      border="neutral-100 dark:neutral-700 hover:primary-300 dark:hover:primary-300/40 solid 2"
       drop-shadow="none hover:[0px_4px_4px_rgba(220,220,220,0.4)] active:[0px_0px_0px_rgba(220,220,220,0.25)] dark:hover:none"
-      class="[&_.settings-section-icon]:hover:scale-120 [&_.settings-section-description]:hover:text-pink-400/80 [&_.settings-section-icon]:hover:text-pink-200 [&_.settings-section-icon]:hover:grayscale-0 dark:[&_.settings-section-icon]:hover:text-pink-200/40 dark:[&_.settings-section-title]:hover:text-pink-400"
+      class="[&_.settings-section-description]:hover:text-primary-400/80 [&_.settings-section-icon]:hover:text-primary-200 dark:[&_.settings-section-icon]:hover:text-primary-200/40 dark:[&_.settings-section-title]:hover:text-primary-400 [&_.settings-section-icon]:hover:scale-120 [&_.settings-section-icon]:hover:grayscale-0"
       w-full of-hidden rounded-xl
       flex="~ col 1"
     >

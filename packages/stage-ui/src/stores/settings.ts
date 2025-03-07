@@ -35,6 +35,8 @@ export const useSettings = defineStore('settings', () => {
 
   const disableTransitions = useLocalStorage('settings/disable-transitions', false)
 
+  const themeColorsHue = useLocalStorage('settings/theme/colors/hue', 354.31)
+
   watch(isAudioInputOn, (value) => {
     if (value === 'false') {
       selectedAudioDevice.value = undefined
@@ -72,6 +74,7 @@ export const useSettings = defineStore('settings', () => {
     disableTransitions,
     language,
     stageView,
+    themeColorsHue,
     isAudioInputOn,
     selectedAudioDevice,
     selectedAudioDeviceId,

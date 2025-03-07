@@ -252,11 +252,11 @@ onMounted(async () => {
       bottom="20%"
       z="20"
       rounded-2xl
-      text="pink-600"
+      text="primary-600"
       px-2 py-2
       transform="translate-x--1/2"
     >
-      <div bg="pink-50" rounded-xl px-10 py-6>
+      <div bg="primary-50" rounded-xl px-10 py-6>
         <div class="markdown-content" v-html="process(streamingMessage.content as string)" />
       </div>
     </div>

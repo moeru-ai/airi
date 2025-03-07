@@ -153,9 +153,9 @@ function isConflict(shortcut: typeof shortcuts.value[0]) {
     <div>
       <div
         grid="~ cols-[140px_1fr]" my-2 items-center gap-1.5 rounded-lg
-        bg="[#fff6fc]" px-2 py-1 text="pink-400"
+        bg="[#fff6fc]" px-2 py-1 text="primary-400"
       >
-        <div text="xs pink-500">
+        <div text="xs primary-500">
           <span>{{ t('settings.openai-base-url.label') }}</span>
         </div>
         <div flex="~ row" w-full text="xs">
@@ -166,7 +166,7 @@ function isConflict(shortcut: typeof shortcuts.value[0]) {
             h-6 w-full rounded-md bg-transparent px-2 py-1 text-right font-mono outline-none
           >
         </div>
-        <div text="xs pink-500">
+        <div text="xs primary-500">
           <span>{{ t('settings.openai-api-key.label') }}</span>
         </div>
         <div flex="~ row" w-full text="xs">
@@ -177,7 +177,7 @@ function isConflict(shortcut: typeof shortcuts.value[0]) {
             h-6 w-full rounded-md bg-transparent px-2 py-1 text-right font-mono outline-none
           >
         </div>
-        <div text="xs pink-500">
+        <div text="xs primary-500">
           <span>{{ t('settings.elevenlabs-api-key.label') }}</span>
         </div>
         <div flex="~ row" w-full text="xs">
@@ -188,7 +188,7 @@ function isConflict(shortcut: typeof shortcuts.value[0]) {
             h-6 w-full rounded-md bg-transparent px-2 py-1 text-right font-mono outline-none
           >
         </div>
-        <div text="xs pink-500">
+        <div text="xs primary-500">
           <span>{{ t('settings.language.title') }}</span>
         </div>
         <div flex="~ row" w-full text="xs">
@@ -204,7 +204,7 @@ function isConflict(shortcut: typeof shortcuts.value[0]) {
             </option>
           </select>
         </div>
-        <div text="xs pink-500">
+        <div text="xs primary-500">
           <span>{{ t('settings.models') }}</span>
         </div>
         <div flex="~ row" w-full text="xs">
@@ -223,7 +223,7 @@ function isConflict(shortcut: typeof shortcuts.value[0]) {
             </option>
           </select>
         </div>
-        <div text="xs pink-500">
+        <div text="xs primary-500">
           <span>{{ t('settings.voices') }}</span>
         </div>
         <div flex="~ row" w-full text="xs">
@@ -257,9 +257,9 @@ function isConflict(shortcut: typeof shortcuts.value[0]) {
     <div>
       <div
         grid="~ cols-[140px_1fr]" my-2 items-center gap-1.5 rounded-lg
-        bg="[#fff6fc]" px-2 py-1 text="pink-400"
+        bg="[#fff6fc]" px-2 py-1 text="primary-400"
       >
-        <div text="xs pink-500">
+        <div text="xs primary-500">
           <span>{{ t('settings.viewer') }}</span>
         </div>
         <select
@@ -281,16 +281,16 @@ function isConflict(shortcut: typeof shortcuts.value[0]) {
     <div pb-2>
       <div
         grid="~ cols-[140px_1fr]" my-2 items-center gap-1.5 rounded-lg
-        bg="[#fff6fc]" p-2 text="pink-400"
+        bg="[#fff6fc]" p-2 text="primary-400"
       >
         <template v-for="shortcut in shortcuts" :key="shortcut.type">
-          <span text="xs pink-500">
+          <span text="xs primary-500">
             {{ t(shortcut.name) }}
           </span>
           <div
             class="shortcut-item flex items-center justify-end gap-x-2 px-2 py-0.5"
             :class="{ recording: recordingFor === shortcut.type }"
-            text="xs pink-500"
+            text="xs primary-500"
             cursor-pointer
             @click="startRecording(shortcut)"
           >
@@ -300,7 +300,7 @@ function isConflict(shortcut: typeof shortcuts.value[0]) {
             <div v-else class="pointer-events-none">
               {{ shortcut.shortcut }}
             </div>
-            <div v-if="isConflict(shortcut)" text="xs pink-500" i-solar:danger-square-bold w-4 />
+            <div v-if="isConflict(shortcut)" text="xs primary-500" i-solar:danger-square-bold w-4 />
           </div>
         </template>
       </div>
@@ -311,14 +311,14 @@ function isConflict(shortcut: typeof shortcuts.value[0]) {
     <div pb-2>
       <div
         grid="~ cols-[140px_1fr]" my-2 items-center gap-1.5 rounded-lg
-        bg="[#fff6fc]" p-2 text="pink-400" @click="handleQuit"
+        bg="[#fff6fc]" p-2 text="primary-400" @click="handleQuit"
       >
-        <div text="xs pink-500">
+        <div text="xs primary-500">
           <span>
             {{ t('settings.quit') }}
           </span>
         </div>
-        <div text="sm pink-500" text-right>
+        <div text="sm primary-500" text-right>
           <div i-solar:exit-bold-duotone ml-auto />
         </div>
       </div>
