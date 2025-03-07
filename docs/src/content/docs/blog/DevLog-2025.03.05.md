@@ -16,7 +16,7 @@ It feels like this:
 import { check } from '@proj-airi/gpuu/webgpu'
 import { onMounted } from 'vue'
 
-onMounted(() => {
+onMounted(async () => {
   const result = await check()
   console.log(result)
 
