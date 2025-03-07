@@ -7,41 +7,41 @@ settings:
 catalogs:
   default:
     '@xsai-ext/shared-providers':
-      specifier: ^0.1.0-beta.9
-      version: 0.1.0-beta.9
+      specifier: ^0.1.2
+      version: 0.1.2
     '@xsai/embed':
-      specifier: ^0.1.0-beta.9
-      version: 0.1.0-beta.9
+      specifier: ^0.1.2
+      version: 0.1.2
     '@xsai/generate-speech':
-      specifier: ^0.1.0-beta.9
-      version: 0.1.0-beta.9
+      specifier: ^0.1.2
+      version: 0.1.2
     '@xsai/generate-text':
-      specifier: ^0.1.0-beta.9
-      version: 0.1.0-beta.9
+      specifier: ^0.1.2
+      version: 0.1.2
     '@xsai/generate-transcription':
-      specifier: ^0.1.0-beta.9
-      version: 0.1.0-beta.9
+      specifier: ^0.1.2
+      version: 0.1.2
     '@xsai/model':
-      specifier: ^0.1.0-beta.9
-      version: 0.1.0-beta.9
+      specifier: ^0.1.2
+      version: 0.1.2
     '@xsai/providers':
       specifier: ^0.1.0-beta.5
       version: 0.1.0-beta.5
     '@xsai/shared':
-      specifier: ^0.1.0-beta.9
-      version: 0.1.0-beta.9
+      specifier: ^0.1.2
+      version: 0.1.2
     '@xsai/shared-chat':
-      specifier: ^0.1.0-beta.9
-      version: 0.1.0-beta.9
+      specifier: ^0.1.2
+      version: 0.1.2
     '@xsai/stream-text':
-      specifier: ^0.1.0-beta.9
-      version: 0.1.0-beta.9
+      specifier: ^0.1.2
+      version: 0.1.2
     '@xsai/tool':
-      specifier: ^0.1.0-beta.9
-      version: 0.1.0-beta.9
+      specifier: ^0.1.2
+      version: 0.1.2
     '@xsai/utils-chat':
-      specifier: ^0.1.0-beta.9
-      version: 0.1.0-beta.9
+      specifier: ^0.1.2
+      version: 0.1.2
 
 importers:
 
@@ -266,25 +266,25 @@ importers:
         version: 12.7.0(typescript@5.8.2)
       '@xsai/generate-speech':
         specifier: 'catalog:'
-        version: 0.1.0-beta.9
+        version: 0.1.2
       '@xsai/generate-text':
         specifier: 'catalog:'
-        version: 0.1.0-beta.9
+        version: 0.1.2
       '@xsai/model':
         specifier: 'catalog:'
-        version: 0.1.0-beta.9
+        version: 0.1.2
       '@xsai/providers':
         specifier: 'catalog:'
         version: 0.1.0-beta.5
       '@xsai/shared-chat':
         specifier: 'catalog:'
-        version: 0.1.0-beta.9
+        version: 0.1.2
       '@xsai/stream-text':
         specifier: 'catalog:'
-        version: 0.1.0-beta.9
+        version: 0.1.2
       '@xsai/utils-chat':
-        specifier: ^0.1.0-beta.9
-        version: 0.1.0-beta.9
+        specifier: 'catalog:'
+        version: 0.1.2
       defu:
         specifier: ^6.1.4
         version: 6.1.4
@@ -558,25 +558,25 @@ importers:
         version: 12.7.0(typescript@5.8.2)
       '@xsai/generate-speech':
         specifier: 'catalog:'
-        version: 0.1.0-beta.9
+        version: 0.1.2
       '@xsai/generate-text':
         specifier: 'catalog:'
-        version: 0.1.0-beta.9
+        version: 0.1.2
       '@xsai/model':
         specifier: 'catalog:'
-        version: 0.1.0-beta.9
+        version: 0.1.2
       '@xsai/providers':
         specifier: 'catalog:'
         version: 0.1.0-beta.5
       '@xsai/shared-chat':
         specifier: 'catalog:'
-        version: 0.1.0-beta.9
+        version: 0.1.2
       '@xsai/stream-text':
         specifier: 'catalog:'
-        version: 0.1.0-beta.9
+        version: 0.1.2
       '@xsai/utils-chat':
         specifier: 'catalog:'
-        version: 0.1.0-beta.9
+        version: 0.1.2
       defu:
         specifier: ^6.1.4
         version: 6.1.4
@@ -983,13 +983,13 @@ importers:
         version: 0.1.54
       '@xsai-ext/shared-providers':
         specifier: 'catalog:'
-        version: 0.1.0-beta.9
+        version: 0.1.2
       '@xsai/embed':
         specifier: 'catalog:'
-        version: 0.1.0-beta.9
+        version: 0.1.2
       '@xsai/shared':
         specifier: 'catalog:'
-        version: 0.1.0-beta.9
+        version: 0.1.2
       defu:
         specifier: ^6.1.4
         version: 6.1.4
@@ -1080,7 +1080,7 @@ importers:
         version: link:../utils-transformers
       '@xsai/embed':
         specifier: 'catalog:'
-        version: 0.1.0-beta.9
+        version: 0.1.2
 
   packages/ui-transitions:
     dependencies:
@@ -1166,19 +1166,19 @@ importers:
         version: link:../../packages/server-shared
       '@xsai/generate-speech':
         specifier: 'catalog:'
-        version: 0.1.0-beta.9
+        version: 0.1.2
       '@xsai/generate-text':
         specifier: 'catalog:'
-        version: 0.1.0-beta.9
+        version: 0.1.2
       '@xsai/generate-transcription':
         specifier: 'catalog:'
-        version: 0.1.0-beta.9
+        version: 0.1.2
       '@xsai/providers':
         specifier: 'catalog:'
         version: 0.1.0-beta.5
       '@xsai/shared-chat':
         specifier: 'catalog:'
-        version: 0.1.0-beta.9
+        version: 0.1.2
       discord.js:
         specifier: ^14.18.0
         version: 14.18.0(bufferutil@4.0.9)(utf-8-validate@5.0.10)
@@ -1241,7 +1241,7 @@ importers:
         version: 1.2.0(encoding@0.1.13)
       neuri:
         specifier: ^0.0.22
-        version: 0.0.22(@types/json-schema@7.0.15)(@typeschema/valibot@0.14.0(@types/json-schema@7.0.15)(valibot@1.0.0-beta.9(typescript@5.8.2)))(@typeschema/zod@0.14.0(@types/json-schema@7.0.15)(zod-to-json-schema@3.24.3(zod@3.24.2))(zod@3.24.2))(encoding@0.1.13)(vitest@3.0.7)(ws@8.18.1(bufferutil@4.0.9)(utf-8-validate@5.0.10))(zod-to-json-schema@3.24.3(zod@3.24.2))(zod@3.24.2)
+        version: 0.0.22(@types/json-schema@7.0.15)(@typeschema/valibot@0.14.0(@types/json-schema@7.0.15)(valibot@1.0.0-beta.9(typescript@5.8.2)))(@typeschema/zod@0.14.0(@types/json-schema@7.0.15)(zod-to-json-schema@3.24.3(zod@3.24.2))(zod@3.24.2))(@valibot/to-json-schema@1.0.0-rc.0(valibot@1.0.0-beta.9(typescript@5.8.2)))(encoding@0.1.13)(vitest@3.0.7)(ws@8.18.1(bufferutil@4.0.9)(utf-8-validate@5.0.10))(zod-to-json-schema@3.24.3(zod@3.24.2))(zod@3.24.2)
       prismarine-block:
         specifier: ^1.21.0
         version: 1.21.0
@@ -1299,16 +1299,16 @@ importers:
         version: 0.14.0(@gcornut/valibot-json-schema@0.42.0(esbuild@0.25.0)(typescript@5.8.2))(@types/json-schema@7.0.15)(valibot@1.0.0-beta.9(typescript@5.8.2))
       '@xsai/generate-text':
         specifier: 'catalog:'
-        version: 0.1.0-beta.9
+        version: 0.1.2
       '@xsai/providers':
         specifier: 'catalog:'
         version: 0.1.0-beta.5
       '@xsai/shared-chat':
         specifier: 'catalog:'
-        version: 0.1.0-beta.9
+        version: 0.1.2
       '@xsai/tool':
         specifier: 'catalog:'
-        version: 0.1.0-beta.9(@valibot/to-json-schema@1.0.0-rc.0(valibot@1.0.0-beta.9(typescript@5.8.2)))(zod-to-json-schema@3.24.3(zod@3.24.2))
+        version: 0.1.2(@valibot/to-json-schema@1.0.0-rc.0(valibot@1.0.0-beta.9(typescript@5.8.2)))(zod-to-json-schema@3.24.3(zod@3.24.2))
       dotenv:
         specifier: ^16.4.7
         version: 16.4.7
@@ -3280,6 +3280,10 @@ packages:
 
   '@intlify/shared@11.1.1':
     resolution: {integrity: sha512-2kGiWoXaeV8HZlhU/Nml12oTbhv7j2ufsJ5vQaa0VTjzUmZVdd/nmKFRAOJ/FtjO90Qba5AnZDwsrY7ZND5udA==}
+    engines: {node: '>= 16'}
+
+  '@intlify/shared@11.1.2':
+    resolution: {integrity: sha512-dF2iMMy8P9uKVHV/20LA1ulFLL+MKSbfMiixSmn6fpwqzvix38OIc7ebgnFbBqElvghZCW9ACtzKTGKsTGTWGA==}
     engines: {node: '>= 16'}
 
   '@intlify/unplugin-vue-i18n@6.0.3':
@@ -5289,23 +5293,26 @@ packages:
     resolution: {integrity: sha512-2WALfTl4xo2SkGCYRt6rDTFfk9R1czmBvUQy12gK2KuRKIpWEhcbbzy8EZXtz/jkRqHX8bFEc6FC1HjX4TUWYw==}
     engines: {node: '>=10.0.0'}
 
-  '@xsai-ext/shared-providers@0.1.0-beta.9':
-    resolution: {integrity: sha512-HuefnMPQPugz3GPDDZtQS8d4bv7YIDzI6tAIqpzYFxNzRy5Dwp899hjaAsMavWXoGWcm6+tkU/Nwe3tEm6CmPg==}
+  '@xsai-ext/shared-providers@0.1.2':
+    resolution: {integrity: sha512-8EPnYzJuK0AKQl/gp33R9BpULvjxeicdQl0sAT128F7as0de4yIYEPY/q8BZNY/NgY5XCv0qw023ijODXCnvxw==}
 
-  '@xsai/embed@0.1.0-beta.9':
-    resolution: {integrity: sha512-4sV/4rYcHEgw8+md4KZ5uLvxZ+pgbKOmblVL6Nbv9ebZu/BzD89ZRFOgf+qJUcQ4pQS5InSSTpMqN49aArBo/g==}
+  '@xsai/embed@0.1.2':
+    resolution: {integrity: sha512-rg1CkEKRZqeDpjgDG+gwqBD4iD5eNbFu7ymPL7PIFpPlZdrxPkyEWJ+sXM7vM7nL/aO2f665csNGfD7T+n9wSw==}
 
-  '@xsai/generate-speech@0.1.0-beta.9':
-    resolution: {integrity: sha512-rChlti9YQ9TV0Tj5pyBlWH1Qz7ICGUSEEKNulaYuTm8PU9eHTPyFlfqGLOE1C4Lf4s7TV5gox9bA/guGHZ04wQ==}
+  '@xsai/generate-speech@0.1.2':
+    resolution: {integrity: sha512-EUFwnexVne3d33PcRU6h3IqFK997umo8dYwyFCN04MI8q+WlERVJAEP9AwzNh0SZAV3B0w5KqOcv46G92WoVvQ==}
 
   '@xsai/generate-text@0.1.0-beta.9':
     resolution: {integrity: sha512-jmdXrbE0HgK9Ozr+mRcq2pmmLaz8JaIC1FQnG+vKX1cp7+9CawSW+t9nx4uXVqJ6+TEvCOF/V9tOjVK12Iuxrg==}
 
-  '@xsai/generate-transcription@0.1.0-beta.9':
-    resolution: {integrity: sha512-C0P0lciD3I79c1RJrTDJyCl2UBmsatex1ozCHFejC+/xsQpPZDL3GeFhxYLvbhNVEmI4OYFXjsn8SA2oWaB+Qg==}
+  '@xsai/generate-text@0.1.2':
+    resolution: {integrity: sha512-xTwXN2Z+iaENxfiNacReZJws2ciUHyS0+DTYA7GobJ9xQ2d7tCmAVRTCwvWY65qTFIHHh/fODBeiBj2cql98mA==}
 
-  '@xsai/model@0.1.0-beta.9':
-    resolution: {integrity: sha512-CeQBL78nDUEi/yAbfYxGIUByNdaZ/GDxyntYM5pd2gCYHFpdSTl/pI/l/RUpdqaty0iLu8yzp6+opnEHXGjgEw==}
+  '@xsai/generate-transcription@0.1.2':
+    resolution: {integrity: sha512-dwjoH/5H7X17wg07rwi7+u312CcWpFTuBjQc14o48iHdUcWA0JzZ7qQmsD6wTY9rlY0HwJMfKGgJuy+YMOclVQ==}
+
+  '@xsai/model@0.1.2':
+    resolution: {integrity: sha512-cP2B0zudyfEzPi/fUHZ8wJtJonMOSkSUnodwT7VwntRIVOy0u90IhGmqB3eyyAUftupTNzXlGc/bJs+3hLXUvA==}
 
   '@xsai/providers@0.1.0-beta.5':
     resolution: {integrity: sha512-jx630mUblMSUcDcXa+BNiFB7deQy1lp0XcJHQokfo/+QvYOpgaPrIRH6oUcjwLio0+8gJXqQmQfEY3+fl9Tjew==}
@@ -5313,23 +5320,29 @@ packages:
   '@xsai/shared-chat@0.1.0':
     resolution: {integrity: sha512-LGF11CBDEWGs5NsCtQ85k9q/jHPzEEFFtScZR9gd7Nxpui5g/TTrgcDMW9Tz0oLHQBPGK31sqQcLYbC7KXjkOw==}
 
-  '@xsai/shared-chat@0.1.0-beta.9':
-    resolution: {integrity: sha512-ctb5LV0oig/8ZsjVVSSYcR64CMXtsSYZ3gnVwLGGkBhKpD3UB5a55FFPaHoZA9Iqucnkw/AhWz3xwgWhOJbvqA==}
+  '@xsai/shared-chat@0.1.2':
+    resolution: {integrity: sha512-jR+McjnvK1Crp8Sdnt6/4yRZV11E5kDvxui3I3HRYxA8si4dboL0fravXu2cYLScXWNMO/ZK1XPDp3oVAju/uA==}
 
   '@xsai/shared@0.1.0':
     resolution: {integrity: sha512-Amr/+IAFqdWei2ec0uy4a8vpSl3QA3J+dvC7nX+oENokU2+204l7WIkT8l2iUabw0mJjjQ8SlMMh/7YSe0vVxg==}
 
-  '@xsai/shared@0.1.0-beta.9':
-    resolution: {integrity: sha512-1QIL042SdDcuZt+tJQmK9VbW62KOHKKC3N9aYNE3ZXu+3dRiYgMUewpW0os7u/H1RPb9BzLLB/5r0cN5G8ijNA==}
+  '@xsai/shared@0.1.2':
+    resolution: {integrity: sha512-E8jYNT55XrNhGvy42nwTBRm8htLE3w8byhm+yCVGJNjdcZuypxO00VNJfM/idmHvus8TTA0HzN12dAcWi3kxwQ==}
 
   '@xsai/stream-text@0.1.0-beta.9':
     resolution: {integrity: sha512-00l2eHDN0TmYjAXGaeJwYvRE8y/bhdies+EUA92Urg/9DI0XHdgnC1r2+jgr5BnqTA3SDRT02DMmYEweqx6Mvw==}
 
+  '@xsai/stream-text@0.1.2':
+    resolution: {integrity: sha512-N54zqn+7+OoDQKMAlFSVL53FNa86WmtAsDJHpEoV3xuvm1hF9YesEunPz20pnSxRNUf36HDtHUs8DIpx/+zVcg==}
+
   '@xsai/tool@0.1.0-beta.9':
     resolution: {integrity: sha512-kLpt63qupvpFJTeXwAxhi3QtRSvwX+JVHDl1X0gC+htoboUtbpTYnujhmrMZawe6m0VVJ7OHKFMEdVLMJE5R6w==}
 
-  '@xsai/utils-chat@0.1.0-beta.9':
-    resolution: {integrity: sha512-+RYeeO8fy5b9+tEb37qGLLCtWoc5Oxl7CV/+EKxjQyWdLl66YcieYVHi4knvXCXR2LV1Gfian0fYN7GALIT4jA==}
+  '@xsai/tool@0.1.2':
+    resolution: {integrity: sha512-bsc32oWVXYFhiM1lD/IFsYiVjT94pkgrfpMIdKl9lNfQH9IAatxod+mwbDrJZPHoaCYq47mZzGdCCDVnLrIr7A==}
+
+  '@xsai/utils-chat@0.1.2':
+    resolution: {integrity: sha512-lwXTDNN88QeoDuiDAAsfkXaeyessB89PM9FRolejjLlwthRAlNOSWXGOsOPzpJGWF9q7fKwxoy+ENWdQ8NJnDg==}
 
   abbrev@1.1.1:
     resolution: {integrity: sha512-nne9/IiQ/hzIhY6pdDnbBtz7DjPTKrY00P/zvPSm5pOFkl6xuGrGnXn/VtTNNfNtAfZ9/1RtehkszU9qcTii0Q==}
@@ -11848,8 +11861,8 @@ packages:
     resolution: {integrity: sha512-TEU+nJVUUnA4CYJFLvK5X9AOeH4KvDvhIfm0vV1GaQRtchnG0hgK5p8hw/xjv8cunWYCsiPCSDzObPyhEwq3KQ==}
     engines: {node: '>=0.4.0'}
 
-  xsschema@0.1.0:
-    resolution: {integrity: sha512-AZY7cxEBJHq4YioVsRQnvcAdUQ5it6ZoqEUaY4TqcuKtY5VEsdx4pX0/XFiMyx0eWdpfGt3TQCPiV9TaQM3EAw==}
+  xsschema@0.1.2:
+    resolution: {integrity: sha512-BCu09Hu3cVQkRG1Kjp6GH3lgg+04z0x1X6oSomVotHVewhrW6tKT7J/Xe1EsJETOQfbdvt7J5m8Pxd5Sn9ib3w==}
     peerDependencies:
       '@valibot/to-json-schema': ^1.0.0-rc.0
       arktype: ^2.0.4
@@ -13916,12 +13929,14 @@ snapshots:
 
   '@intlify/shared@11.1.1': {}
 
+  '@intlify/shared@11.1.2': {}
+
   '@intlify/unplugin-vue-i18n@6.0.3(@vue/compiler-dom@3.5.13)(eslint@9.21.0(jiti@2.4.2))(rollup@2.79.1)(typescript@5.8.2)(vue-i18n@11.1.1(vue@3.5.13(typescript@5.8.2)))(vue@3.5.13(typescript@5.8.2))':
     dependencies:
       '@eslint-community/eslint-utils': 4.4.1(eslint@9.21.0(jiti@2.4.2))
       '@intlify/bundle-utils': 10.0.0(vue-i18n@11.1.1(vue@3.5.13(typescript@5.8.2)))
-      '@intlify/shared': 11.1.1
-      '@intlify/vue-i18n-extensions': 8.0.0(@intlify/shared@11.1.1)(@vue/compiler-dom@3.5.13)(vue-i18n@11.1.1(vue@3.5.13(typescript@5.8.2)))(vue@3.5.13(typescript@5.8.2))
+      '@intlify/shared': 11.1.2
+      '@intlify/vue-i18n-extensions': 8.0.0(@intlify/shared@11.1.2)(@vue/compiler-dom@3.5.13)(vue-i18n@11.1.1(vue@3.5.13(typescript@5.8.2)))(vue@3.5.13(typescript@5.8.2))
       '@rollup/pluginutils': 5.1.4(rollup@2.79.1)
       '@typescript-eslint/scope-manager': 8.24.1
       '@typescript-eslint/typescript-estree': 8.24.1(typescript@5.8.2)
@@ -13947,8 +13962,8 @@ snapshots:
     dependencies:
       '@eslint-community/eslint-utils': 4.4.1(eslint@9.21.0(jiti@2.4.2))
       '@intlify/bundle-utils': 10.0.0(vue-i18n@11.1.1(vue@3.5.13(typescript@5.8.2)))
-      '@intlify/shared': 11.1.1
-      '@intlify/vue-i18n-extensions': 8.0.0(@intlify/shared@11.1.1)(@vue/compiler-dom@3.5.13)(vue-i18n@11.1.1(vue@3.5.13(typescript@5.8.2)))(vue@3.5.13(typescript@5.8.2))
+      '@intlify/shared': 11.1.2
+      '@intlify/vue-i18n-extensions': 8.0.0(@intlify/shared@11.1.2)(@vue/compiler-dom@3.5.13)(vue-i18n@11.1.1(vue@3.5.13(typescript@5.8.2)))(vue@3.5.13(typescript@5.8.2))
       '@rollup/pluginutils': 5.1.4(rollup@4.34.9)
       '@typescript-eslint/scope-manager': 8.24.1
       '@typescript-eslint/typescript-estree': 8.24.1(typescript@5.8.2)
@@ -13970,11 +13985,11 @@ snapshots:
       - supports-color
       - typescript
 
-  '@intlify/vue-i18n-extensions@8.0.0(@intlify/shared@11.1.1)(@vue/compiler-dom@3.5.13)(vue-i18n@11.1.1(vue@3.5.13(typescript@5.8.2)))(vue@3.5.13(typescript@5.8.2))':
+  '@intlify/vue-i18n-extensions@8.0.0(@intlify/shared@11.1.2)(@vue/compiler-dom@3.5.13)(vue-i18n@11.1.1(vue@3.5.13(typescript@5.8.2)))(vue@3.5.13(typescript@5.8.2))':
     dependencies:
       '@babel/parser': 7.26.7
     optionalDependencies:
-      '@intlify/shared': 11.1.1
+      '@intlify/shared': 11.1.2
       '@vue/compiler-dom': 3.5.13
       vue: 3.5.13(typescript@5.8.2)
       vue-i18n: 11.1.1(vue@3.5.13(typescript@5.8.2))
@@ -16360,29 +16375,33 @@ snapshots:
 
   '@xmldom/xmldom@0.8.10': {}
 
-  '@xsai-ext/shared-providers@0.1.0-beta.9':
+  '@xsai-ext/shared-providers@0.1.2':
     dependencies:
-      '@xsai/shared': 0.1.0
+      '@xsai/shared': 0.1.2
 
-  '@xsai/embed@0.1.0-beta.9':
+  '@xsai/embed@0.1.2':
     dependencies:
-      '@xsai/shared': 0.1.0
+      '@xsai/shared': 0.1.2
 
-  '@xsai/generate-speech@0.1.0-beta.9':
+  '@xsai/generate-speech@0.1.2':
     dependencies:
-      '@xsai/shared': 0.1.0
+      '@xsai/shared': 0.1.2
 
   '@xsai/generate-text@0.1.0-beta.9':
     dependencies:
-      '@xsai/shared-chat': 0.1.0
+      '@xsai/shared-chat': 0.1.2
 
-  '@xsai/generate-transcription@0.1.0-beta.9':
+  '@xsai/generate-text@0.1.2':
     dependencies:
-      '@xsai/shared': 0.1.0
+      '@xsai/shared-chat': 0.1.2
 
-  '@xsai/model@0.1.0-beta.9':
+  '@xsai/generate-transcription@0.1.2':
     dependencies:
-      '@xsai/shared': 0.1.0
+      '@xsai/shared': 0.1.2
+
+  '@xsai/model@0.1.2':
+    dependencies:
+      '@xsai/shared': 0.1.2
 
   '@xsai/providers@0.1.0-beta.5':
     dependencies:
@@ -16390,33 +16409,47 @@ snapshots:
 
   '@xsai/shared-chat@0.1.0':
     dependencies:
-      '@xsai/shared': 0.1.0
+      '@xsai/shared': 0.1.2
 
-  '@xsai/shared-chat@0.1.0-beta.9':
+  '@xsai/shared-chat@0.1.2':
     dependencies:
-      '@xsai/shared': 0.1.0
+      '@xsai/shared': 0.1.2
 
   '@xsai/shared@0.1.0': {}
 
-  '@xsai/shared@0.1.0-beta.9': {}
+  '@xsai/shared@0.1.2': {}
 
   '@xsai/stream-text@0.1.0-beta.9':
     dependencies:
-      '@xsai/shared-chat': 0.1.0
+      '@xsai/shared-chat': 0.1.2
+
+  '@xsai/stream-text@0.1.2':
+    dependencies:
+      '@xsai/shared-chat': 0.1.2
 
   '@xsai/tool@0.1.0-beta.9(@valibot/to-json-schema@1.0.0-rc.0(valibot@1.0.0-beta.9(typescript@5.8.2)))(zod-to-json-schema@3.24.3(zod@3.24.2))':
     dependencies:
-      '@xsai/shared': 0.1.0
-      '@xsai/shared-chat': 0.1.0
-      xsschema: 0.1.0(@valibot/to-json-schema@1.0.0-rc.0(valibot@1.0.0-beta.9(typescript@5.8.2)))(zod-to-json-schema@3.24.3(zod@3.24.2))
+      '@xsai/shared': 0.1.2
+      '@xsai/shared-chat': 0.1.2
+      xsschema: 0.1.2(@valibot/to-json-schema@1.0.0-rc.0(valibot@1.0.0-beta.9(typescript@5.8.2)))(zod-to-json-schema@3.24.3(zod@3.24.2))
     transitivePeerDependencies:
       - '@valibot/to-json-schema'
       - arktype
       - zod-to-json-schema
 
-  '@xsai/utils-chat@0.1.0-beta.9':
+  '@xsai/tool@0.1.2(@valibot/to-json-schema@1.0.0-rc.0(valibot@1.0.0-beta.9(typescript@5.8.2)))(zod-to-json-schema@3.24.3(zod@3.24.2))':
     dependencies:
-      '@xsai/shared-chat': 0.1.0
+      '@xsai/shared': 0.1.2
+      '@xsai/shared-chat': 0.1.2
+      xsschema: 0.1.2(@valibot/to-json-schema@1.0.0-rc.0(valibot@1.0.0-beta.9(typescript@5.8.2)))(zod-to-json-schema@3.24.3(zod@3.24.2))
+    transitivePeerDependencies:
+      - '@valibot/to-json-schema'
+      - arktype
+      - zod-to-json-schema
+
+  '@xsai/utils-chat@0.1.2':
+    dependencies:
+      '@xsai/shared-chat': 0.1.2
 
   abbrev@1.1.1:
     optional: true
@@ -21296,17 +21329,17 @@ snapshots:
 
   neotraverse@0.6.18: {}
 
-  neuri@0.0.22(@types/json-schema@7.0.15)(@typeschema/valibot@0.14.0(@types/json-schema@7.0.15)(valibot@1.0.0-beta.9(typescript@5.8.2)))(@typeschema/zod@0.14.0(@types/json-schema@7.0.15)(zod-to-json-schema@3.24.3(zod@3.24.2))(zod@3.24.2))(encoding@0.1.13)(vitest@3.0.7)(ws@8.18.1(bufferutil@4.0.9)(utf-8-validate@5.0.10))(zod-to-json-schema@3.24.3(zod@3.24.2))(zod@3.24.2):
+  neuri@0.0.22(@types/json-schema@7.0.15)(@typeschema/valibot@0.14.0(@types/json-schema@7.0.15)(valibot@1.0.0-beta.9(typescript@5.8.2)))(@typeschema/zod@0.14.0(@types/json-schema@7.0.15)(zod-to-json-schema@3.24.3(zod@3.24.2))(zod@3.24.2))(@valibot/to-json-schema@1.0.0-rc.0(valibot@1.0.0-beta.9(typescript@5.8.2)))(encoding@0.1.13)(vitest@3.0.7)(ws@8.18.1(bufferutil@4.0.9)(utf-8-validate@5.0.10))(zod-to-json-schema@3.24.3(zod@3.24.2))(zod@3.24.2):
     dependencies:
       '@fetch-mock/vitest': 0.2.8(vitest@3.0.7)
       '@guiiai/logg': 1.0.7
       '@typeschema/main': 0.14.1(@types/json-schema@7.0.15)(@typeschema/valibot@0.14.0(@types/json-schema@7.0.15)(valibot@1.0.0-beta.9(typescript@5.8.2)))(@typeschema/zod@0.14.0(@types/json-schema@7.0.15)(zod-to-json-schema@3.24.3(zod@3.24.2))(zod@3.24.2))
       '@xsai/generate-text': 0.1.0-beta.9
       '@xsai/providers': 0.1.0-beta.5
-      '@xsai/shared-chat': 0.1.0-beta.9
+      '@xsai/shared-chat': 0.1.0
       '@xsai/stream-text': 0.1.0-beta.9
       '@xsai/tool': 0.1.0-beta.9(@valibot/to-json-schema@1.0.0-rc.0(valibot@1.0.0-beta.9(typescript@5.8.2)))(zod-to-json-schema@3.24.3(zod@3.24.2))
-      '@xsai/utils-chat': 0.1.0-beta.9
+      '@xsai/utils-chat': 0.1.2
       defu: 6.1.4
       fetch-mock: 12.3.0
       nanoid: 5.0.9
@@ -24969,7 +25002,7 @@ snapshots:
 
   xmlhttprequest-ssl@2.1.2: {}
 
-  xsschema@0.1.0(@valibot/to-json-schema@1.0.0-rc.0(valibot@1.0.0-beta.9(typescript@5.8.2)))(zod-to-json-schema@3.24.3(zod@3.24.2)):
+  xsschema@0.1.2(@valibot/to-json-schema@1.0.0-rc.0(valibot@1.0.0-beta.9(typescript@5.8.2)))(zod-to-json-schema@3.24.3(zod@3.24.2)):
     optionalDependencies:
       '@valibot/to-json-schema': 1.0.0-rc.0(valibot@1.0.0-beta.9(typescript@5.8.2))
       zod-to-json-schema: 3.24.3(zod@3.24.2)

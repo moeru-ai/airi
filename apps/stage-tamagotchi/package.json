@@ -59,7 +59,7 @@
     "@xsai/providers": "catalog:",
     "@xsai/shared-chat": "catalog:",
     "@xsai/stream-text": "catalog:",
-    "@xsai/utils-chat": "^0.1.0-beta.9",
+    "@xsai/utils-chat": "catalog:",
     "defu": "^6.1.4",
     "nprogress": "^0.2.0",
     "ofetch": "^1.4.1",
