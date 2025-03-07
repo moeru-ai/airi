@@ -17,6 +17,7 @@ catalog:
   '@xsai/tool': *xsai
   '@xsai/utils-chat': *xsai
   '@xsai/embed': *xsai
+  '@xsai-ext/providers-cloud': *xsai
+  '@xsai-ext/providers-local': *xsai
   '@xsai-ext/shared-providers': *xsai
-  # TODO: remove deprecated package
-  '@xsai/providers': ^0.1.0-beta.5
+  xsschema: *xsai

@@ -4,11 +4,11 @@ import type { DuckDBWasmDrizzleDatabase } from '@proj-airi/drizzle-duckdb-wasm'
 import type { Emotion } from '../../constants/emotions'
 
 import { drizzle } from '@proj-airi/drizzle-duckdb-wasm'
+import { createUnElevenLabs } from '@xsai-ext/providers-local'
 // import { createTransformers } from '@proj-airi/provider-transformers'
 // import embedWorkerURL from '@proj-airi/provider-transformers/worker?worker&url'
 // import { embed } from '@xsai/embed'
 import { generateSpeech } from '@xsai/generate-speech'
-import { createUnElevenLabs } from '@xsai/providers'
 import { sql } from 'drizzle-orm'
 import { storeToRefs } from 'pinia'
 import { onMounted, onUnmounted, ref } from 'vue'
@@ -82,10 +82,7 @@ const ttsQueue = useQueue<string>({
 
       const now = Date.now()
 
-      const elevenlabs = createUnElevenLabs({
-        apiKey: elevenLabsApiKey.value,
-        baseURL: 'https://unspeech.hyp3r.link/v1/',
-      })
+      const elevenlabs = createUnElevenLabs(elevenLabsApiKey.value, 'https://unspeech.hyp3r.link/v1/')
       const res = await generateSpeech({
         ...elevenlabs.speech('eleven_multilingual_v2', {
           voiceSettings: {

@@ -50,7 +50,6 @@ words:
   - elevenlabs
   - Factorio
   - formkit
-  - gcornut
   - giteeai
   - gltf
   - gpuu
@@ -138,7 +137,6 @@ words:
   - taze
   - tolist
   - tresjs
-  - typeschema
   - unhead
   - unocss
   - unplugin
@@ -153,6 +151,7 @@ words:
   - worklet
   - Xenova
   - xsai
+  - xsschema
   - zhipu
 ignoreWords: []
 import: []
