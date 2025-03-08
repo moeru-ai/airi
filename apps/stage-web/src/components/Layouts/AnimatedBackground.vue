@@ -19,7 +19,7 @@ const props = withDefaults(defineProps<WaveProps>(), {
   waveLength: 250,
   fillColor: '#f8e8f2',
   direction: 'down',
-  animationSpeed: 0.5,
+  animationSpeed: 50,
 })
 
 // Use either provided waves or defaults
@@ -111,17 +111,20 @@ function handleResize() {
 
 // Animation Variables
 let animationFrameId: number
+let animationLastTime: number
+let animationPosition = 0
 const animationSpeed = ref(props.animationSpeed)
-const animationPosition = ref(0)
 
 // Function to animate the wave
-function animateWave() {
-  animationPosition.value -= animationSpeed.value
-  if (Math.abs(animationPosition.value) >= waveLength.value) {
-    animationPosition.value += waveLength.value
+function animateWave(nowMs: DOMHighResTimeStamp) {
+  const delta = animationLastTime ? nowMs - animationLastTime : 0
+  animationLastTime = nowMs
+  animationPosition -= animationSpeed.value * (delta / 1000)
+  if (Math.abs(animationPosition) >= waveLength.value) {
+    animationPosition += waveLength.value
   }
   if (svg.value) {
-    svg.value.style.transform = `translateX(${animationPosition.value}px)`
+    svg.value.style.transform = `translateX(${animationPosition}px)`
   }
   animationFrameId = requestAnimationFrame(animateWave)
 }
@@ -144,7 +147,7 @@ useEventListener('resize', handleResize)
 // Setup on mount
 onMounted(() => {
   handleResize() // Initial wave generation
-  animateWave() // Start animation for wave1
+  requestAnimationFrame(animateWave) // Start animation for wave1
 })
 
 // Cleanup on unmount
@@ -164,7 +167,7 @@ onUnmounted(() => {
         :height="waveHeight"
         :viewBox="`0 0 ${waveLength * Math.ceil((svgWidth * 2) / waveLength)} ${waveHeight}`"
         xmlns="http://www.w3.org/2000/svg"
-        h="[100%]" w="[200%]"
+        h="[100%]" w="auto"
         :style="{ willChange: 'transform' }"
       >
         <path :d="wavePath" :fill="waveFillColor" />
