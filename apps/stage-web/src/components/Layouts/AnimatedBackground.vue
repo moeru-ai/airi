@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useEventListener } from '@vueuse/core'
-import { onMounted, onUnmounted, ref, watch } from 'vue'
+import { onMounted, ref, watch } from 'vue'
 
 interface WaveProps {
   verticalOffset?: number // Vertical offset of the wave in pixels
@@ -9,7 +9,7 @@ interface WaveProps {
   waveLength?: number // Length of one wave cycle in pixels
   fillColor?: string // Fill color of the wave
   direction?: 'up' | 'down'// Direction of the wave: 'up' or 'down'
-  animationSpeed?: number // Speed of the wave animation in pixels per frame
+  animationSpeed?: number // Speed of the wave animation in pixels per second
 }
 
 const props = withDefaults(defineProps<WaveProps>(), {
@@ -109,26 +109,6 @@ function handleResize() {
   }
 }
 
-// Animation Variables
-let animationFrameId: number
-let animationLastTime: number
-let animationPosition = 0
-const animationSpeed = ref(props.animationSpeed)
-
-// Function to animate the wave
-function animateWave(nowMs: DOMHighResTimeStamp) {
-  const delta = animationLastTime ? nowMs - animationLastTime : 0
-  animationLastTime = nowMs
-  animationPosition -= animationSpeed.value * (delta / 1000)
-  if (Math.abs(animationPosition) >= waveLength.value) {
-    animationPosition += waveLength.value
-  }
-  if (svg.value) {
-    svg.value.style.transform = `translateX(${animationPosition}px)`
-  }
-  animationFrameId = requestAnimationFrame(animateWave)
-}
-
 watch(
   () => [props.height, props.amplitude, props.waveLength, props.fillColor, props.direction],
   () => {
@@ -147,12 +127,6 @@ useEventListener('resize', handleResize)
 // Setup on mount
 onMounted(() => {
   handleResize() // Initial wave generation
-  requestAnimationFrame(animateWave) // Start animation for wave1
-})
-
-// Cleanup on unmount
-onUnmounted(() => {
-  cancelAnimationFrame(animationFrameId)
 })
 </script>
 
@@ -168,7 +142,12 @@ onUnmounted(() => {
         :viewBox="`0 0 ${waveLength * Math.ceil((svgWidth * 2) / waveLength)} ${waveHeight}`"
         xmlns="http://www.w3.org/2000/svg"
         h="[100%]" w="auto"
-        :style="{ willChange: 'transform' }"
+        :style="{
+          'willChange': 'transform',
+          '--wave-translate': `${-waveLength}px`,
+          '--animation-duration': `${waveLength / animationSpeed}s`,
+        }"
+        class="wave"
       >
         <path :d="wavePath" :fill="waveFillColor" />
       </svg>
@@ -176,3 +155,18 @@ onUnmounted(() => {
     </div>
   </div>
 </template>
+
+<style scoped>
+@keyframes wave-animation {
+  from {
+    transform: translate(0);
+  }
+  to {
+    transform: translate(var(--wave-translate, -250px));
+  }
+}
+
+.wave {
+  animation: wave-animation var(--animation-duration, 5s) linear infinite;
+}
+</style>
