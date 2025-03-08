@@ -58,6 +58,7 @@ function handleLanguageChange(event: Event) {
             text="sm right neutral-800 dark:neutral-100"
             transition="all ease-in-out duration-250"
             outline="none"
+            cursor-pointer
             @change="handleLanguageChange"
           >
             <option value="en-US">
@@ -140,7 +141,7 @@ function handleLanguageChange(event: Event) {
         </div>
       </label>
     </div>
-    <div fixed bottom-0 right-0 text="neutral-100/50 dark:neutral-500/20">
+    <div text="neutral-100/50 dark:neutral-500/20" pointer-events-none fixed bottom-0 right-0>
       <div text="40" i-lucide:cog translate-x-10 translate-y-10 />
     </div>
   </div>
