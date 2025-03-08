@@ -51,7 +51,7 @@ const settings = useSettings()
           Primary color
         </div>
 
-        <input v-model="settings.themeColorsHue" type="range" min="0" max="360" step="1" class="theme-hue-slider flex-1">
+        <input v-model="settings.themeColorsHue" type="range" min="0" max="360" step="1" class="theme-hue-slider">
       </div>
       <div mt-4 h-10 w-full flex overflow-hidden rounded-lg>
         <div bg="primary-50" class="primary-color-bar">
@@ -113,16 +113,16 @@ const settings = useSettings()
 }
 
 .theme-hue-slider {
-  @apply w-32 h-2 rounded-full appearance-none;
+  @apply flex-1 w-32 h-2 rounded-full appearance-none;
   background: linear-gradient(
     to right,
-    hsl(0, 100%, 50%),
-    hsl(60, 100%, 50%),
-    hsl(120, 100%, 50%),
-    hsl(180, 100%, 50%),
-    hsl(240, 100%, 50%),
-    hsl(300, 100%, 50%),
-    hsl(360, 100%, 50%)
+    oklch(54% 0.23 0),
+    oklch(54% 0.23 60),
+    oklch(54% 0.23 120),
+    oklch(54% 0.23 180),
+    oklch(54% 0.23 240),
+    oklch(54% 0.23 300),
+    oklch(54% 0.23 360)
   );
 }
 </style>
