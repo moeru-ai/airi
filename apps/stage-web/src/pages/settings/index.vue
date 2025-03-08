@@ -3,9 +3,11 @@ import { useSettings } from '@proj-airi/stage-ui/stores'
 import { useDark } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { useI18n } from 'vue-i18n'
+import { useRouter } from 'vue-router'
 
 import IconItem from '../../components/Menu/IconItem.vue'
 
+const router = useRouter()
 const { t } = useI18n()
 const settings = storeToRefs(useSettings())
 const dark = useDark()
@@ -17,7 +19,10 @@ function handleLanguageChange(event: Event) {
 </script>
 
 <template>
-  <div>
+  <div flex="~ row" items-center gap-2>
+    <button @click="router.back()">
+      <div i-solar:alt-arrow-left-line-duotone text-2xl />
+    </button>
     <h1 text-3xl>
       Settings
     </h1>
