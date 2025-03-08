@@ -28,7 +28,8 @@
     "typecheck": "pnpm -rF=\"./packages/*\" -F=\"./apps/*\" -F run --parallel typecheck",
     "sizecheck": "npx vite-bundle-visualizer",
     "up": "taze major -I",
-    "changelogithub": "changelogithub"
+    "changelogithub": "changelogithub",
+    "nolyfill": "pnpm dlx nolyfill"
   },
   "devDependencies": {
     "@antfu/eslint-config": "^4.7.0",
@@ -63,7 +64,16 @@
     "apps/**"
   ],
   "pnpm": {
-    "neverBuiltDependencies": []
+    "neverBuiltDependencies": [],
+    "overrides": {
+      "array-flatten": "npm:@nolyfill/array-flatten@^1",
+      "is-core-module": "npm:@nolyfill/is-core-module@^1",
+      "isarray": "npm:@nolyfill/isarray@^1",
+      "safe-buffer": "npm:@nolyfill/safe-buffer@^1",
+      "safer-buffer": "npm:@nolyfill/safer-buffer@^1",
+      "side-channel": "npm:@nolyfill/side-channel@^1",
+      "string.prototype.matchall": "npm:@nolyfill/string.prototype.matchall@^1"
+    }
   },
   "simple-git-hooks": {
     "pre-commit": "pnpm lint-staged"
