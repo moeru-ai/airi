@@ -46,12 +46,12 @@ const settings = useSettings()
       </button>
     </template>
     <div p-4>
-      <div class="flex items-center justify-between">
+      <div class="flex items-center gap-8">
         <div class="flex items-center gap-1 text-sm font-medium">
           Primary color
         </div>
 
-        <input v-model="settings.themeColorsHue" type="range" min="0" max="360" step="1">
+        <input v-model="settings.themeColorsHue" type="range" min="0" max="360" step="1" class="theme-hue-slider">
       </div>
       <div mt-4 h-10 w-full flex overflow-hidden rounded-lg>
         <div bg="primary-50" class="primary-color-bar">
@@ -110,6 +110,20 @@ const settings = useSettings()
 <style>
 .primary-color-bar {
   @apply w-full h-full flex-1 flex items-center justify-center;
+}
+
+.theme-hue-slider {
+  @apply flex-1 w-32 h-2 rounded-full appearance-none;
+  background: linear-gradient(
+    to right,
+    oklch(85% 0.2 0),
+    oklch(85% 0.2 60),
+    oklch(85% 0.2 120),
+    oklch(85% 0.2 180),
+    oklch(85% 0.2 240),
+    oklch(85% 0.2 300),
+    oklch(85% 0.2 360)
+  );
 }
 </style>
 
