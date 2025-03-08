@@ -54,28 +54,28 @@ const settings = useSettings()
         <input v-model="settings.themeColorsHue" type="range" min="0" max="360" step="1" class="theme-hue-slider">
       </div>
       <div mt-4 h-10 w-full flex overflow-hidden rounded-lg>
-        <div bg="primary-50" class="primary-color-bar">
+        <div bg="primary-50" class="primary-color-bar" text-black>
           50
         </div>
-        <div bg="primary-100" class="primary-color-bar">
+        <div bg="primary-100" class="primary-color-bar" text-black>
           100
         </div>
-        <div bg="primary-200" class="primary-color-bar">
+        <div bg="primary-200" class="primary-color-bar" text-black>
           200
         </div>
-        <div bg="primary-300" class="primary-color-bar">
+        <div bg="primary-300" class="primary-color-bar" text-black>
           300
         </div>
-        <div bg="primary-400" class="primary-color-bar">
+        <div bg="primary-400" class="primary-color-bar" text-black>
           400
         </div>
-        <div bg="primary-500" class="primary-color-bar">
+        <div bg="primary-500" class="primary-color-bar" text-black>
           500
         </div>
-        <div bg="primary-600" class="primary-color-bar">
+        <div bg="primary-600" class="primary-color-bar" text-black>
           600
         </div>
-        <div bg="primary-700" class="primary-color-bar">
+        <div bg="primary-700" class="primary-color-bar" text-black>
           700
         </div>
         <div bg="primary-800" class="primary-color-bar" text-white>
