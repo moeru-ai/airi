@@ -33,6 +33,10 @@ export const useSettings = defineStore('settings', () => {
   const availableLive2dMotions = ref<{ motionName: string, motionIndex: number, fileName: string }[]>([])
   const live2dMotionMap = useLocalStorage<Record<string, string>>('settings/live2d/motion-map', {})
 
+  const disableTransitions = useLocalStorage('settings/disable-transitions', false)
+
+  const themeColorsHue = useLocalStorage('settings/theme/colors/hue', 354.31)
+
   watch(isAudioInputOn, (value) => {
     if (value === 'false') {
       selectedAudioDevice.value = undefined
@@ -67,8 +71,10 @@ export const useSettings = defineStore('settings', () => {
     availableLive2dMotions,
     live2dMotionMap,
     loadingLive2dModel,
+    disableTransitions,
     language,
     stageView,
+    themeColorsHue,
     isAudioInputOn,
     selectedAudioDevice,
     selectedAudioDeviceId,

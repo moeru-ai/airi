@@ -20,7 +20,7 @@ function handleSettingsOpen(open: boolean) {
 
 <template>
   <Cross>
-    <AnimatedBackground :fill-color="dark ? '#563544' : '#f8e8f2'">
+    <AnimatedBackground :fill-color="dark ? 'oklch(95% 0.20 var(--theme-colors-hue))' : 'oklch(99% 0.10 var(--theme-colors-hue))'">
       <div relative flex="~ col" z-2 h-100vh w-100vw of-hidden>
         <!-- header -->
         <div>

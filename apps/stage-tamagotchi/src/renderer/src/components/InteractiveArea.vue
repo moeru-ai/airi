@@ -104,9 +104,9 @@ onMounted(() => {
         <BasicTextarea
           v-model="messageInput"
           :placeholder="t('stage.message')"
-          border="solid 2 pink-100"
-          text="pink-400 hover:pink-600  placeholder:pink-400 placeholder:hover:pink-600"
-          bg="pink-50 dark:[#3c2632]" max-h="[10lh]" min-h="[1lh]"
+          border="solid 2 primary-100"
+          text="primary-400 hover:primary-600  placeholder:primary-400 placeholder:hover:primary-600"
+          bg="primary-50 dark:[#3c2632]" max-h="[10lh]" min-h="[1lh]"
           w-full resize-none overflow-y-scroll rounded-l-xl p-2 font-medium outline-none
           transition="all duration-250 ease-in-out placeholder:all placeholder:duration-250 placeholder:ease-in-out"
           @submit="handleSend"
@@ -114,9 +114,9 @@ onMounted(() => {
       </div>
       <div
         class="px-4 py-2.5"
-        border="solid 2 pink-100 "
-        text="lg pink-400 hover:pink-600  placeholder:pink-400 placeholder:hover:pink-600"
-        bg="pink-50 dark:[#3c2632]" max-h="[10lh]" min-h="[1lh]"
+        border="solid 2 primary-100 "
+        text="lg primary-400 hover:primary-600  placeholder:primary-400 placeholder:hover:primary-600"
+        bg="primary-50 dark:[#3c2632]" max-h="[10lh]" min-h="[1lh]"
         flex items-center justify-center rounded-r-xl
         @click="openSettings"
       >

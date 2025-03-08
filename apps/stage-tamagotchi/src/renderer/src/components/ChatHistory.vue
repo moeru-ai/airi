@@ -36,7 +36,7 @@ onTokenLiteral(async () => {
     <div flex-1 /> <!-- spacer -->
     <div
       ref="chatHistoryRef" v-auto-animate max-h="30vh" flex="~ col"
-      scrollbar="~ w-2 track-color-transparent thumb-color-pink-300 rounded" h-full w-full overflow-scroll
+      scrollbar="~ w-2 track-color-transparent thumb-color-primary-300 rounded" h-full w-full overflow-scroll
     >
       <div flex-1 /> <!-- spacer -->
       <div v-for="(message, index) in messages" :key="index" mb-2>
@@ -61,14 +61,14 @@ onTokenLiteral(async () => {
         </div>
         <div v-if="message.role === 'assistant'" flex mr="12">
           <div
-            flex="~ col" border="4 solid pink-200" shadow="md pink-200/50" min-w-20 rounded-lg px-2 py-1 h="fit"
-            bg="pink-100"
+            flex="~ col" border="4 solid primary-200" shadow="md primary-200/50" min-w-20 rounded-lg px-2 py-1 h="fit"
+            bg="primary-100"
           >
             <div>
-              <span text-xs text="pink-400/90" font-semibold class="inline hidden">Airi</span>
+              <span text-xs text="primary-400/90" font-semibold class="inline hidden">Airi</span>
             </div>
             <div
-              v-if="message.content" class="markdown-content" text="xs pink-400"
+              v-if="message.content" class="markdown-content" text="xs primary-400"
               v-html="process(message.content as string)"
             />
             <div v-else i-eos-icons:three-dots-loading />

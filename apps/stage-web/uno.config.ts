@@ -69,4 +69,26 @@ export default defineConfig({
       }
     }],
   ],
+  theme: {
+    colors: {
+      primary: {
+        DEFAULT: 'oklch(62% 0.20 var(--theme-colors-hue))',
+        50: 'color-mix(in srgb, oklch(95% 0.10 var(--theme-colors-hue)) 30%, oklch(100% 0 360))',
+        100: 'color-mix(in srgb, oklch(95% 0.10 var(--theme-colors-hue)) 80%, oklch(100% 0 360))',
+        200: 'oklch(90% 0.12 var(--theme-colors-hue))',
+        300: 'oklch(85% 0.20 var(--theme-colors-hue))',
+        400: 'oklch(74% 0.20 var(--theme-colors-hue))',
+        500: 'oklch(62% 0.20 var(--theme-colors-hue))',
+        600: 'oklch(54% 0.23 var(--theme-colors-hue))',
+        700: 'oklch(49% 0.21 var(--theme-colors-hue))',
+        800: 'oklch(42% 0.17 var(--theme-colors-hue))',
+        900: 'oklch(37% 0.14 var(--theme-colors-hue))',
+        950: 'oklch(29% 0.09 var(--theme-colors-hue))',
+        960: 'oklch(23% 0.09 var(--theme-colors-hue))',
+        970: 'oklch(17% 0.09 var(--theme-colors-hue))',
+        980: 'oklch(11% 0.09 var(--theme-colors-hue))',
+        990: 'oklch(6% 0.09 var(--theme-colors-hue))',
+      },
+    },
+  },
 })

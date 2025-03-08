@@ -16,6 +16,7 @@ const props = defineProps<{
   tertiaryColor?: string
   colors?: string[]
   zIndex?: number
+  disableTransitions?: boolean
 }>()
 
 interface StageTransitionCommonParams {
@@ -266,6 +267,11 @@ router.beforeEach((to, _from, next) => {
   }
   if (typeof props.zIndex !== 'undefined') {
     stageTransition.zIndex = props.zIndex
+  }
+
+  if (props.disableTransitions) {
+    next()
+    return
   }
 
   triggerTransition(stageTransition, next)

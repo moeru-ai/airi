@@ -11,11 +11,12 @@ https://www.magicpattern.design/tools/css-backgrounds
 */
 .cross-background-container {
   background-color: #ffffff;
+  --cross-color: oklch(0.95 0.06 var(--theme-colors-hue));
   background:
     radial-gradient(circle, transparent 20%, #ffffff 20%, #ffffff 80%, transparent 80%, transparent),
     radial-gradient(circle, transparent 20%, #ffffff 20%, #ffffff 80%, transparent 80%, transparent) 25px 25px,
-    linear-gradient(#f4ebf1 2px, transparent 2px) 0 -1px,
-    linear-gradient(90deg, #f4ebf1 2px, #ffffff 2px) -1px 0;
+    linear-gradient(var(--cross-color) 2px, transparent 2px) 0 -1px,
+    linear-gradient(90deg, var(--cross-color) 2px, #ffffff 2px) -1px 0;
   background-size:
     50px 50px,
     50px 50px,

@@ -17,7 +17,7 @@ const props = withDefaults(defineProps<WaveProps>(), {
   height: 40,
   amplitude: 14,
   waveLength: 250,
-  fillColor: '#f8e8f2',
+  fillColor: 'oklch(95% 0.10 var(--theme-colors-hue))',
   direction: 'down',
   animationSpeed: 50,
 })
