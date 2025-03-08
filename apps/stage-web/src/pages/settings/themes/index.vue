@@ -116,13 +116,13 @@ const settings = useSettings()
   @apply flex-1 w-32 h-2 rounded-full appearance-none;
   background: linear-gradient(
     to right,
-    oklch(54% 0.23 0),
-    oklch(54% 0.23 60),
-    oklch(54% 0.23 120),
-    oklch(54% 0.23 180),
-    oklch(54% 0.23 240),
-    oklch(54% 0.23 300),
-    oklch(54% 0.23 360)
+    oklch(85% 0.2 0),
+    oklch(85% 0.2 60),
+    oklch(85% 0.2 120),
+    oklch(85% 0.2 180),
+    oklch(85% 0.2 240),
+    oklch(85% 0.2 300),
+    oklch(85% 0.2 360)
   );
 }
 </style>
