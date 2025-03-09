@@ -2,12 +2,17 @@
 import { useProvidersStore } from '@proj-airi/stage-ui/stores'
 import { storeToRefs } from 'pinia'
 import { computed } from 'vue'
-import { RouterLink, useRouter } from 'vue-router'
+import { useRouter } from 'vue-router'
+
+import IconStatusItem from '../../../components/Menu/IconStatusItem.vue'
 
 interface ModelProvider {
   id: string
   name: string
+  description: string
   icon?: string
+  iconColor?: string
+  iconImage?: string
   to: string
   configured: boolean
 }
@@ -20,6 +25,7 @@ const providersList = computed<ModelProvider[]>(() => [
   {
     id: 'openrouter-ai',
     name: 'OpenRouter',
+    description: 'openrouter.ai',
     icon: 'i-lobe-icons:openrouter',
     to: '/settings/providers/openrouter',
     configured: configuredForOpenRouter.value,
@@ -27,6 +33,7 @@ const providersList = computed<ModelProvider[]>(() => [
   {
     id: 'openai',
     name: 'OpenAI',
+    description: 'openai.com',
     icon: 'i-lobe-icons:openai',
     to: '/settings/providers/openai',
     configured: false,
@@ -34,6 +41,7 @@ const providersList = computed<ModelProvider[]>(() => [
   {
     id: 'ollama-ai',
     name: 'Ollama',
+    description: 'ollama.com',
     icon: 'i-lobe-icons:ollama',
     to: '/settings/providers/ollama',
     configured: false,
@@ -41,13 +49,15 @@ const providersList = computed<ModelProvider[]>(() => [
   {
     id: 'vllm',
     name: 'vLLM',
-    icon: 'i-lobe-icons:vllm-color',
+    description: 'vllm.ai',
+    iconColor: 'i-lobe-icons:vllm-color',
     to: '/settings/providers/vllm',
     configured: false,
   },
   {
     id: 'elevenlabs',
     name: 'ElevenLabs',
+    description: 'elevenlabs.io',
     icon: 'i-simple-icons:elevenlabs',
     to: '/settings/providers/elevenlabs',
     configured: false,
@@ -55,6 +65,7 @@ const providersList = computed<ModelProvider[]>(() => [
   {
     id: 'xai',
     name: 'xAI',
+    description: 'x.ai',
     icon: 'i-lobe-icons:xai',
     to: '/settings/providers/xai',
     configured: false,
@@ -62,27 +73,31 @@ const providersList = computed<ModelProvider[]>(() => [
   {
     id: 'deepseek',
     name: 'DeepSeek',
-    icon: 'i-lobe-icons:deepseek-color',
+    description: 'deepseek.com',
+    iconColor: 'i-lobe-icons:deepseek-color',
     to: '/settings/providers/deepseek',
     configured: false,
   },
   {
     id: 'together-ai',
     name: 'Together.ai',
-    icon: 'i-lobe-icons:together-color',
+    description: 'together.ai',
+    iconColor: 'i-lobe-icons:together-color',
     to: '/settings/providers/together',
     configured: false,
   },
   {
     id: 'novita-ai',
     name: 'Novita',
-    icon: 'i-lobe-icons:novita-color',
+    description: 'novita.ai',
+    iconColor: 'i-lobe-icons:novita-color',
     to: '/settings/providers/novita',
     configured: false,
   },
   {
     id: 'fireworks-ai',
     name: 'Fireworks.ai',
+    description: 'fireworks.ai',
     icon: 'i-lobe-icons:fireworks',
     to: '/settings/providers/fireworks',
     configured: false,
@@ -90,20 +105,23 @@ const providersList = computed<ModelProvider[]>(() => [
   {
     id: 'cloudflare-workers-ai',
     name: 'Cloudflare Workers AI',
-    icon: 'i-lobe-icons:cloudflare-color',
+    description: 'cloudflare.com',
+    iconColor: 'i-lobe-icons:cloudflare-color',
     to: '/settings/providers/cloudflare',
     configured: false,
   },
   {
     id: 'mistral-ai',
     name: 'Mistral',
-    icon: 'i-lobe-icons:mistral-color',
+    description: 'mistral.ai',
+    iconColor: 'i-lobe-icons:mistral-color',
     to: '/settings/providers/mistral',
     configured: false,
   },
   {
     id: 'moonshot-ai',
     name: 'Moonshot AI',
+    description: 'moonshot.ai',
     icon: 'i-lobe-icons:moonshot',
     to: '/settings/providers/moonshot',
     configured: false,
@@ -125,35 +143,18 @@ const providersList = computed<ModelProvider[]>(() => [
       </div>
     </h1>
   </div>
-  <div grid="~ cols-3 gap-2">
-    <div
-      v-for="provider in providersList" :key="provider.id"
-      bg="neutral-300/50 dark:neutral-600" w-full of-hidden rounded-xl
-      flex="~ col 1"
-    >
-      <RouterLink
-        :to="provider.to"
-        bg="neutral-100 dark:neutral-800"
-        hover="bg-neutral-200 dark:bg-neutral-700"
-        transition="all ease-in-out duration-250"
-        h-full w-full flex items-center gap-1.5 rounded-lg px-4 py-5 outline-none
-        class="[&_.provider-icon]:grayscale-100 [&_.provider-icon]:hover:grayscale-0"
-      >
-        <div flex="~ col 1" gap-1.5>
-          <div
-            :class="provider.icon" class="provider-icon size-10"
-            transition="filter duration-250 ease-in-out"
-          />
-          <div>
-            {{ provider.name }}
-          </div>
-        </div>
-      </RouterLink>
-      <div p-2>
-        <div v-if="provider.configured" size-3 bg="green-500 dark:green-600" rounded-full />
-        <div v-else size-3 bg="neutral-400 dark:neutral-500" rounded-full />
-      </div>
-    </div>
+  <div grid="~ cols-2 gap-2">
+    <IconStatusItem
+      v-for="provider in providersList"
+      :key="provider.id"
+      :title="provider.name"
+      :description="provider.description"
+      :icon="provider.icon"
+      :icon-color="provider.iconColor"
+      :icon-image="provider.iconImage"
+      :to="provider.to"
+      :configured="provider.configured"
+    />
   </div>
   <div fixed bottom-0 right-0 z--1 text="neutral-100/80 dark:neutral-500/20">
     <div text="40" i-lucide:brain translate-x-10 translate-y-10 />
