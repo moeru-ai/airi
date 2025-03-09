@@ -538,6 +538,9 @@ importers:
       '@xsai/utils-chat':
         specifier: 'catalog:'
         version: 0.1.2
+      culori:
+        specifier: ^4.0.1
+        version: 4.0.1
       defu:
         specifier: ^6.1.4
         version: 6.1.4
@@ -6064,6 +6067,10 @@ packages:
 
   csstype@3.1.3:
     resolution: {integrity: sha512-M1uQkMl8rQK/szD0LNhtqxIPLpimGm8sOBwU7lLnCpSbTyY3yeU1Vc7l4KT5zT4s/yOxHH5O7tIuuLOCnLADRw==}
+
+  culori@4.0.1:
+    resolution: {integrity: sha512-LSnjA6HuIUOlkfKVbzi2OlToZE8OjFi667JWN9qNymXVXzGDmvuP60SSgC+e92sd7B7158f7Fy3Mb6rXS5EDPw==}
+    engines: {node: ^12.20.0 || ^14.13.1 || >=16.0.0}
 
   d3-array@3.2.4:
     resolution: {integrity: sha512-tdQAmyA18i4J7wprpYq8ClcxZy3SC31QMeByyCFyRt7BVHdREQZ5lpzoe5mFEYZUWe+oq8HBvk9JjpibyEV4Jg==}
@@ -17104,6 +17111,8 @@ snapshots:
     optional: true
 
   csstype@3.1.3: {}
+
+  culori@4.0.1: {}
 
   d3-array@3.2.4:
     dependencies:

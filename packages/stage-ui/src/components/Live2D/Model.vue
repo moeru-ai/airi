@@ -7,6 +7,7 @@ import { extensions } from '@pixi/extensions'
 import { InteractionManager } from '@pixi/interaction'
 import { Ticker, TickerPlugin } from '@pixi/ticker'
 import { breakpointsTailwind, useBreakpoints, useDark, useDebounceFn, watchDebounced } from '@vueuse/core'
+import { formatHex } from 'culori'
 import localforage from 'localforage'
 import { storeToRefs } from 'pinia'
 import { DropShadowFilter } from 'pixi-filters'
@@ -65,6 +66,7 @@ const {
   availableLive2dMotions,
   live2dLoadSource,
   live2dModelUrl,
+  themeColorsHue,
 } = storeToRefs(useSettings())
 const currentMotion = ref<{ group: string, index: number }>({ group: 'Idle', index: 0 })
 
@@ -196,11 +198,17 @@ const handleResize = useDebounceFn(() => {
   }
 }, 100)
 
+const dropShadowColorComputer = ref<HTMLDivElement>()
+
 function updateDropShadowFilter() {
   if (model.value) {
+    let color = getComputedStyle(dropShadowColorComputer.value!).backgroundColor
+    if (color.startsWith('oklch')) {
+      color = formatHex(color).replace('#', '0x')
+    }
     model.value.filters = [new DropShadowFilter({
-      color: dark.value ? 0x99667F : 0xDFB9D2,
-      alpha: 0.3,
+      color,
+      alpha: 0.2,
       blur: 0,
       distance: 20,
       rotation: 45,
@@ -210,7 +218,7 @@ function updateDropShadowFilter() {
 
 watch([() => props.width, () => props.height], () => handleResize())
 watch(dark, updateDropShadowFilter, { immediate: true })
-watch(model, updateDropShadowFilter)
+watch([model, themeColorsHue], updateDropShadowFilter)
 watch(mouthOpenSize, value => getCoreModel().setParameterValueById('ParamMouthOpenY', value))
 watch(pixiApp, initLive2DPixiStage)
 watch(live2dCurrentMotion, value => setMotion(value.group, value.index))
@@ -232,5 +240,6 @@ onUnmounted(() => {
 </script>
 
 <template>
+  <div ref="dropShadowColorComputer" hidden bg="primary-400 dark:primary-500" />
   <slot />
 </template>
