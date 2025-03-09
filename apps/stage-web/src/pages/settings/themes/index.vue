@@ -72,10 +72,10 @@ const settings = useSettings()
         <div bg="primary-500" class="primary-color-bar" text-black>
           500
         </div>
-        <div bg="primary-600" class="primary-color-bar" text-black>
+        <div bg="primary-600" class="primary-color-bar" text-white>
           600
         </div>
-        <div bg="primary-700" class="primary-color-bar" text-black>
+        <div bg="primary-700" class="primary-color-bar" text-white>
           700
         </div>
         <div bg="primary-800" class="primary-color-bar" text-white>
@@ -87,17 +87,41 @@ const settings = useSettings()
         <div bg="primary-950" class="primary-color-bar" text-white>
           950
         </div>
-        <div bg="primary-960" class="primary-color-bar" text-white>
-          960
+      </div>
+
+      <div mt-4 h-10 w-full flex overflow-hidden rounded-lg class="transparency-grid">
+        <div bg="primary-500/5" class="primary-color-bar" text-black>
+          500/5
         </div>
-        <div bg="primary-970" class="primary-color-bar" text-white>
-          970
+        <div bg="primary-500/10" class="primary-color-bar" text-black>
+          500/10
         </div>
-        <div bg="primary-980" class="primary-color-bar" text-white>
-          980
+        <div bg="primary-500/20" class="primary-color-bar" text-black>
+          500/20
         </div>
-        <div bg="primary-990" class="primary-color-bar" text-white>
-          990
+        <div bg="primary-500/30" class="primary-color-bar" text-black>
+          500/30
+        </div>
+        <div bg="primary-500/40" class="primary-color-bar" text-black>
+          500/40
+        </div>
+        <div bg="primary-500/50" class="primary-color-bar" text-black>
+          500/50
+        </div>
+        <div bg="primary-500/60" class="primary-color-bar" text-black>
+          500/60
+        </div>
+        <div bg="primary-500/70" class="primary-color-bar" text-black>
+          500/70
+        </div>
+        <div bg="primary-500/80" class="primary-color-bar" text-black>
+          500/80
+        </div>
+        <div bg="primary-500/90" class="primary-color-bar" text-black>
+          500/90
+        </div>
+        <div bg="primary-500" class="primary-color-bar" text-black>
+          500
         </div>
       </div>
     </div>
@@ -124,6 +148,19 @@ const settings = useSettings()
     oklch(85% 0.2 300),
     oklch(85% 0.2 360)
   );
+}
+
+.transparency-grid {
+  background-image: linear-gradient(45deg, #ccc 25%, transparent 25%),
+    linear-gradient(-45deg, #ccc 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #ccc 75%),
+    linear-gradient(-45deg, transparent 75%, #ccc 75%);
+  background-size: 20px 20px;
+  background-position:
+    0 0,
+    0 10px,
+    10px -10px,
+    -10px 0px;
+  background-color: #fff;
 }
 </style>
 
