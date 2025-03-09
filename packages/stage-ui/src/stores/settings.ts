@@ -4,6 +4,8 @@ import { computed, onMounted, ref, watch } from 'vue'
 
 import { Voice } from '../constants/elevenlabs'
 
+export const DEFAULT_THEME_COLORS_HUE = 354.31
+
 export const useSettings = defineStore('settings', () => {
   const selectedAudioDevice = ref<MediaDeviceInfo>()
 
@@ -35,7 +37,8 @@ export const useSettings = defineStore('settings', () => {
 
   const disableTransitions = useLocalStorage('settings/disable-transitions', false)
 
-  const themeColorsHue = useLocalStorage('settings/theme/colors/hue', 354.31)
+  const themeColorsHue = useLocalStorage('settings/theme/colors/hue', DEFAULT_THEME_COLORS_HUE)
+  const themeColorsHueDynamic = useLocalStorage('settings/theme/colors/hue-dynamic', false)
 
   watch(isAudioInputOn, (value) => {
     if (value === 'false') {
@@ -75,6 +78,7 @@ export const useSettings = defineStore('settings', () => {
     language,
     stageView,
     themeColorsHue,
+    themeColorsHueDynamic,
     isAudioInputOn,
     selectedAudioDevice,
     selectedAudioDeviceId,
