@@ -87,21 +87,9 @@ const settings = useSettings()
         <div bg="primary-950" class="primary-color-bar" text-white>
           950
         </div>
-        <div bg="primary-960" class="primary-color-bar" text-white>
-          960
-        </div>
-        <div bg="primary-970" class="primary-color-bar" text-white>
-          970
-        </div>
-        <div bg="primary-980" class="primary-color-bar" text-white>
-          980
-        </div>
-        <div bg="primary-990" class="primary-color-bar" text-white>
-          990
-        </div>
       </div>
 
-      <div mt-4 h-10 w-full flex overflow-hidden rounded-lg>
+      <div mt-4 h-10 w-full flex overflow-hidden rounded-lg class="transparency-grid">
         <div bg="primary-500/5" class="primary-color-bar" text-black>
           500/5
         </div>
@@ -160,6 +148,19 @@ const settings = useSettings()
     oklch(85% 0.2 300),
     oklch(85% 0.2 360)
   );
+}
+
+.transparency-grid {
+  background-image: linear-gradient(45deg, #ccc 25%, transparent 25%),
+    linear-gradient(-45deg, #ccc 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #ccc 75%),
+    linear-gradient(-45deg, transparent 75%, #ccc 75%);
+  background-size: 20px 20px;
+  background-position:
+    0 0,
+    0 10px,
+    10px -10px,
+    -10px 0px;
+  background-color: #fff;
 }
 </style>
 
