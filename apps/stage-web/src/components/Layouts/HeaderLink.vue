@@ -10,7 +10,7 @@ const dark = useDark()
 
 <template>
   <RouterLink
-    to="/" flex="~ 1" w-full items-center
+    to="/" flex="~" items-center
     gap-2 px-2 text-nowrap text-2xl outline-none
   >
     <template v-if="dark">

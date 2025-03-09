@@ -21,7 +21,7 @@ const router = useRouter()
   <div bg="neutral-100 dark:[rgba(0,0,0,0.3)]" rounded-xl p-4>
     <div flex="~ col gap-4">
       <div>
-        <h2 text-2xl>
+        <h2 class="text-lg md:text-2xl">
           Provider
         </h2>
         <div text="neutral-400 dark:neutral-400">
@@ -36,66 +36,18 @@ const router = useRouter()
         -->
         <fieldset flex="~ row gap-4" :style="{ 'scrollbar-width': 'none' }" min-w-0 of-x-scroll scroll-smooth>
           <label
-            bg="neutral-200 dark:neutral-800"
+            v-for="(_, index) in 10"
+            :key="index"
+            border="2px solid"
+            :class="[
+              index === 0 ? 'bg-primary-50/50 dark:bg-primary-900' : 'bg-white dark:bg-neutral-900',
+              index === 0 ? 'border-primary-300 dark:border-primary-800' : 'border-neutral-200 dark:border-neutral-800',
+            ]"
             flex="~ col" block min-w-50 w-fit cursor-pointer items-start rounded-lg p-3 text-left
           >
             <input type="radio" name="provider" value="provider-1">
             <div flex="~ col" min-h-16 w-full items-center justify-center>
-              Provider 1
-            </div>
-          </label>
-          <label
-            bg="neutral-200 dark:neutral-800"
-            flex="~ col" block min-w-50 w-fit cursor-pointer items-start rounded-lg p-3 text-left
-          >
-            <input type="radio" name="provider" value="provider-1">
-            <div flex="~ col" min-h-16 w-full items-center justify-center>
-              Provider 1
-            </div>
-          </label>
-          <label
-            bg="neutral-200 dark:neutral-800"
-            flex="~ col" block min-w-50 w-fit cursor-pointer items-start rounded-lg p-3 text-left
-          >
-            <input type="radio" name="provider" value="provider-1">
-            <div flex="~ col" min-h-16 w-full items-center justify-center>
-              Provider 1
-            </div>
-          </label>
-          <label
-            bg="neutral-200 dark:neutral-800"
-            flex="~ col" block min-w-50 w-fit cursor-pointer items-start rounded-lg p-3 text-left
-          >
-            <input type="radio" name="provider" value="provider-1">
-            <div flex="~ col" min-h-16 w-full items-center justify-center>
-              Provider 1
-            </div>
-          </label>
-          <label
-            bg="neutral-200 dark:neutral-800"
-            flex="~ col" block min-w-50 w-fit cursor-pointer items-start rounded-lg p-3 text-left
-          >
-            <input type="radio" name="provider" value="provider-1">
-            <div flex="~ col" min-h-16 w-full items-center justify-center>
-              Provider 1
-            </div>
-          </label>
-          <label
-            bg="neutral-200 dark:neutral-800"
-            flex="~ col" block min-w-50 w-fit cursor-pointer items-start rounded-lg p-3 text-left
-          >
-            <input type="radio" name="provider" value="provider-1">
-            <div flex="~ col" min-h-16 w-full items-center justify-center>
-              Provider 1
-            </div>
-          </label>
-          <label
-            bg="neutral-200 dark:neutral-800"
-            flex="~ col" block min-w-50 w-fit cursor-pointer items-start rounded-lg p-3 text-left
-          >
-            <input type="radio" name="provider" value="provider-1">
-            <div flex="~ col" min-h-16 w-full items-center justify-center>
-              Provider 1
+              Provider {{ index + 1 }}
             </div>
           </label>
         </fieldset>

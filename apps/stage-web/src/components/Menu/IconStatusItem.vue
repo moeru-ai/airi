@@ -25,7 +25,7 @@ const props = defineProps<{
       class="menu-icon-status-item-link"
       bg="neutral-50 dark:neutral-800"
       transition="all ease-in-out duration-200"
-      relative w-full items-center overflow-hidden rounded-lg p-5 text-left
+      relative h-full w-full items-center overflow-hidden rounded-lg p-5 text-left
       :to=" props.to"
     >
       <div z-1 flex-1>
