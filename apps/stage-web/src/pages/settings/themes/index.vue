@@ -100,6 +100,42 @@ const settings = useSettings()
           990
         </div>
       </div>
+
+      <div mt-4 h-10 w-full flex overflow-hidden rounded-lg>
+        <div bg="primary-500/5" class="primary-color-bar" text-black>
+          500/5
+        </div>
+        <div bg="primary-500/10" class="primary-color-bar" text-black>
+          500/10
+        </div>
+        <div bg="primary-500/20" class="primary-color-bar" text-black>
+          500/20
+        </div>
+        <div bg="primary-500/30" class="primary-color-bar" text-black>
+          500/30
+        </div>
+        <div bg="primary-500/40" class="primary-color-bar" text-black>
+          500/40
+        </div>
+        <div bg="primary-500/50" class="primary-color-bar" text-black>
+          500/50
+        </div>
+        <div bg="primary-500/60" class="primary-color-bar" text-black>
+          500/60
+        </div>
+        <div bg="primary-500/70" class="primary-color-bar" text-black>
+          500/70
+        </div>
+        <div bg="primary-500/80" class="primary-color-bar" text-black>
+          500/80
+        </div>
+        <div bg="primary-500/90" class="primary-color-bar" text-black>
+          500/90
+        </div>
+        <div bg="primary-500" class="primary-color-bar" text-black>
+          500
+        </div>
+      </div>
     </div>
   </Collapsable>
   <div fixed bottom-0 right-0 z--1 text="neutral-100/80 dark:neutral-500/20">
