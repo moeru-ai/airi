@@ -72,10 +72,10 @@ const settings = useSettings()
         <div bg="primary-500" class="primary-color-bar" text-black>
           500
         </div>
-        <div bg="primary-600" class="primary-color-bar" text-black>
+        <div bg="primary-600" class="primary-color-bar" text-white>
           600
         </div>
-        <div bg="primary-700" class="primary-color-bar" text-black>
+        <div bg="primary-700" class="primary-color-bar" text-white>
           700
         </div>
         <div bg="primary-800" class="primary-color-bar" text-white>
