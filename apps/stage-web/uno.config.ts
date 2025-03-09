@@ -73,8 +73,8 @@ export default defineConfig({
     colors: {
       primary: {
         DEFAULT: 'oklch(62% 0.20 var(--theme-colors-hue))',
-        50: 'color-mix(in srgb, oklch(95% 0.10 var(--theme-colors-hue)) 30%, oklch(100% 0 360))',
-        100: 'color-mix(in srgb, oklch(95% 0.10 var(--theme-colors-hue)) 80%, oklch(100% 0 360))',
+        50: 'color-mix(in srgb, oklch(95% 0.10 var(--theme-colors-hue) / %alpha) 30%, oklch(100% 0 360 / %alpha))',
+        100: 'color-mix(in srgb, oklch(95% 0.10 var(--theme-colors-hue) / %alpha) 80%, oklch(100% 0 360 / %alpha))',
         200: 'oklch(90% 0.12 var(--theme-colors-hue))',
         300: 'oklch(85% 0.20 var(--theme-colors-hue))',
         400: 'oklch(74% 0.20 var(--theme-colors-hue))',
