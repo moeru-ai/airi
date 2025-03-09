@@ -202,12 +202,10 @@ const dropShadowColorComputer = ref<HTMLDivElement>()
 
 function updateDropShadowFilter() {
   if (model.value) {
-    let color = getComputedStyle(dropShadowColorComputer.value!).backgroundColor
-    if (color.startsWith('oklch')) {
-      color = formatHex(color).replace('#', '0x')
-    }
+    const color = getComputedStyle(dropShadowColorComputer.value!).backgroundColor
+    const colorNumber = Number(formatHex(color)!.replace('#', '0x'))
     model.value.filters = [new DropShadowFilter({
-      color,
+      color: colorNumber,
       alpha: 0.2,
       blur: 0,
       distance: 20,
