@@ -12,7 +12,7 @@ import localforage from 'localforage'
 import { storeToRefs } from 'pinia'
 import { DropShadowFilter } from 'pixi-filters'
 import { Live2DFactory, Live2DModel, MotionPriority } from 'pixi-live2d-display/cubism4'
-import { computed, onMounted, onUnmounted, ref, toRef, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref, shallowRef, toRef, watch } from 'vue'
 
 import { useLive2DIdleEyeFocus } from '../../composables/live2d'
 import { useSettings } from '../../stores'
@@ -38,7 +38,7 @@ const dark = useDark()
 const breakpoints = useBreakpoints(breakpointsTailwind)
 const isMobile = computed(() => breakpoints.between('sm', 'md').value || breakpoints.smaller('sm').value)
 const idleEyeFocus = useLive2DIdleEyeFocus()
-const dropShadowFilter = ref<DropShadowFilter>(new DropShadowFilter({
+const dropShadowFilter = shallowRef(new DropShadowFilter({
   alpha: 0.2,
   blur: 0,
   distance: 20,
