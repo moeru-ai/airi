@@ -38,6 +38,12 @@ const dark = useDark()
 const breakpoints = useBreakpoints(breakpointsTailwind)
 const isMobile = computed(() => breakpoints.between('sm', 'md').value || breakpoints.smaller('sm').value)
 const idleEyeFocus = useLive2DIdleEyeFocus()
+const dropShadowFilter = ref<DropShadowFilter>(new DropShadowFilter({
+  alpha: 0.2,
+  blur: 0,
+  distance: 20,
+  rotation: 45,
+}))
 
 function getCoreModel() {
   return model.value!.internalModel.coreModel as any
@@ -67,6 +73,7 @@ const {
   live2dLoadSource,
   live2dModelUrl,
   themeColorsHue,
+  themeColorsHueDynamic,
 } = storeToRefs(useSettings())
 const currentMotion = ref<{ group: string, index: number }>({ group: 'Idle', index: 0 })
 
@@ -199,24 +206,36 @@ const handleResize = useDebounceFn(() => {
 }, 100)
 
 const dropShadowColorComputer = ref<HTMLDivElement>()
+const dropShadowAnimationId = ref(0)
 
 function updateDropShadowFilter() {
   if (model.value) {
     const color = getComputedStyle(dropShadowColorComputer.value!).backgroundColor
-    const colorNumber = Number(formatHex(color)!.replace('#', '0x'))
-    model.value.filters = [new DropShadowFilter({
-      color: colorNumber,
-      alpha: 0.2,
-      blur: 0,
-      distance: 20,
-      rotation: 45,
-    })]
+    dropShadowFilter.value.color = Number(formatHex(color)!.replace('#', '0x'))
+    model.value.filters = [dropShadowFilter.value]
   }
 }
 
 watch([() => props.width, () => props.height], () => handleResize())
 watch(dark, updateDropShadowFilter, { immediate: true })
 watch([model, themeColorsHue], updateDropShadowFilter)
+
+// TODO: This is hacky!
+function updateDropShadowFilterLoop() {
+  updateDropShadowFilter()
+  dropShadowAnimationId.value = requestAnimationFrame(updateDropShadowFilterLoop)
+}
+
+watch(themeColorsHueDynamic, () => {
+  if (themeColorsHueDynamic.value) {
+    dropShadowAnimationId.value = requestAnimationFrame(updateDropShadowFilterLoop)
+  }
+  else {
+    cancelAnimationFrame(dropShadowAnimationId.value)
+    dropShadowAnimationId.value = 0
+  }
+}, { immediate: true })
+
 watch(mouthOpenSize, value => getCoreModel().setParameterValueById('ParamMouthOpenY', value))
 watch(pixiApp, initLive2DPixiStage)
 watch(live2dCurrentMotion, value => setMotion(value.group, value.index))
@@ -233,6 +252,7 @@ watchDebounced(loadingLive2dModel, (value) => {
 
 onMounted(updateDropShadowFilter)
 onUnmounted(() => {
+  cancelAnimationFrame(dropShadowAnimationId.value)
   model.value && pixiApp.value?.stage.removeChild(model.value)
 })
 </script>

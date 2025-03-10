@@ -18,6 +18,10 @@ watch(settings.language, () => {
 watch(settings.themeColorsHue, () => {
   document.documentElement.style.setProperty('--theme-colors-hue', settings.themeColorsHue.value.toString())
 }, { immediate: true })
+
+watch(settings.themeColorsHueDynamic, () => {
+  document.documentElement.classList.toggle('dynamic-hue', settings.themeColorsHueDynamic.value)
+}, { immediate: true })
 </script>
 
 <template>
@@ -32,3 +36,25 @@ watch(settings.themeColorsHue, () => {
     <RouterView />
   </StageTransitionGroup>
 </template>
+
+<style>
+/* We need this to properly animate the CSS variable */
+@property --theme-colors-hue {
+  syntax: '<number>';
+  initial-value: 0;
+  inherits: true;
+}
+
+@keyframes hue-anim {
+  from {
+    --theme-colors-hue: 0;
+  }
+  to {
+    --theme-colors-hue: 360;
+  }
+}
+
+.dynamic-hue {
+  animation: hue-anim 10s linear infinite;
+}
+</style>

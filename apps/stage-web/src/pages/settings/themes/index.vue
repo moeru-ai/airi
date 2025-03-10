@@ -1,10 +1,15 @@
 <script setup lang="ts">
 import { Collapsable } from '@proj-airi/stage-ui/components'
-import { useSettings } from '@proj-airi/stage-ui/stores'
+import { DEFAULT_THEME_COLORS_HUE, useSettings } from '@proj-airi/stage-ui/stores'
 import { useRouter } from 'vue-router'
 
 const router = useRouter()
 const settings = useSettings()
+
+function resetToDefault() {
+  settings.themeColorsHue = DEFAULT_THEME_COLORS_HUE
+  settings.themeColorsHueDynamic = false
+}
 </script>
 
 <template>
@@ -51,7 +56,16 @@ const settings = useSettings()
           Primary color
         </div>
 
-        <input v-model="settings.themeColorsHue" type="range" min="0" max="360" step="1" class="theme-hue-slider">
+        <input
+          v-model="settings.themeColorsHue"
+          type="range"
+          min="0"
+          max="360"
+          step="0.01"
+          class="theme-hue-slider"
+          :disabled="settings.themeColorsHueDynamic"
+          :class="{ 'opacity-25 cursor-not-allowed': settings.themeColorsHueDynamic }"
+        >
       </div>
       <div mt-4 h-10 w-full flex overflow-hidden rounded-lg>
         <div bg="primary-50" class="primary-color-bar" text-black>
@@ -123,6 +137,26 @@ const settings = useSettings()
         <div bg="primary-500" class="primary-color-bar" text-black>
           500
         </div>
+      </div>
+      <div mt-4 class="flex items-center justify-end gap-4">
+        <label class="relative inline-flex cursor-pointer items-center">
+          <input
+            v-model="settings.themeColorsHueDynamic"
+            type="checkbox"
+            class="peer sr-only"
+          >
+          <div
+            class="peer-checked:bg-primary-500 h-6 w-11 rounded-full bg-neutral-200 after:absolute after:left-[2px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:bg-white dark:bg-neutral-600 after:transition-all after:content-[''] peer-checked:after:translate-x-full peer-checked:after:border-white"
+          />
+          <span class="ml-2 text-sm font-medium">I Want It Dynamic!</span>
+        </label>
+
+        <button
+          class="rounded-md bg-neutral-100 px-3 py-1.5 text-sm transition-colors dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700"
+          @click="resetToDefault"
+        >
+          Reset to Default
+        </button>
       </div>
     </div>
   </Collapsable>
