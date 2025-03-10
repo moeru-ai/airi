@@ -38,7 +38,7 @@ const dark = useDark()
 const breakpoints = useBreakpoints(breakpointsTailwind)
 const isMobile = computed(() => breakpoints.between('sm', 'md').value || breakpoints.smaller('sm').value)
 const idleEyeFocus = useLive2DIdleEyeFocus()
-const dropShadowFilter = ref(new DropShadowFilter({
+const dropShadowFilter = ref<DropShadowFilter>(new DropShadowFilter({
   alpha: 0.2,
   blur: 0,
   distance: 20,
