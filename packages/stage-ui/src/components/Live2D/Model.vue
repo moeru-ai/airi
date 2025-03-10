@@ -206,7 +206,7 @@ const handleResize = useDebounceFn(() => {
 }, 100)
 
 const dropShadowColorComputer = ref<HTMLDivElement>()
-const dropShadowAnimationId = ref<number>()
+const dropShadowAnimationId = ref(0)
 
 function updateDropShadowFilter() {
   if (model.value) {
@@ -232,7 +232,7 @@ watch(themeColorsHueDynamic, () => {
   }
   else {
     cancelAnimationFrame(dropShadowAnimationId.value)
-    dropShadowAnimationId.value = undefined
+    dropShadowAnimationId.value = 0
   }
 }, { immediate: true })
 
