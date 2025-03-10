@@ -203,9 +203,9 @@ onAfterSend(async () => {
     </div>
     <div flex="~ row" gap-2>
       <button
-        bg="cyan-100 hover:cyan-200 dark:cyan-800 dark:hover:cyan-700"
+        bg="complementary-100 hover:complementary-200 dark:complementary-800 dark:hover:complementary-700"
         transition="all duration-250 ease-in-out"
-        text="cyan-400"
+        text="complementary-400"
         mb-6 flex cursor-pointer items-center justify-center gap-2 rounded-full px-4 py-2
         @click="handleLoadWhisper"
       >
@@ -248,9 +248,9 @@ onAfterSend(async () => {
           </fieldset>
         </TransitionVertical>
         <label
-          bg="cyan-100 hover:cyan-200 dark:cyan-800 dark:hover:cyan-700"
+          bg="complementary-100 hover:complementary-200 dark:complementary-800 dark:hover:complementary-700"
           transition="all duration-250 ease-in-out"
-          text="cyan-400"
+          text="complementary-400"
           mb-6 flex cursor-pointer items-center justify-center gap-2 rounded-full px-4 py-2
         >
           <input v-model="showMicrophoneSelect" type="checkbox" hidden>
