@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { RadioCardDetail, RadioCardSimple } from '@proj-airi/stage-ui/components'
-import { useProvidersStore } from '@proj-airi/stage-ui/stores'
-import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/settings/modules'
+import { useConsciousnessStore, useProvidersStore } from '@proj-airi/stage-ui/stores'
 import { storeToRefs } from 'pinia'
 import { onMounted, ref } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
@@ -229,10 +228,10 @@ onMounted(async () => {
                 <button
                   w-full
                   flex items-center justify-center gap-2 rounded-lg py-2 transition="all duration-200 ease-in-out"
-                  @click="isModelListExpanded = !isModelListExpanded"
                   :class="[
                     isModelListExpanded ? 'bg-primary-500 hover:bg-primary-600 text-white' : 'bg-neutral-200 dark:bg-neutral-800 hover:bg-neutral-300 dark:hover:bg-neutral-700',
                   ]"
+                  @click="isModelListExpanded = !isModelListExpanded"
                 >
                   <span>{{ isModelListExpanded ? $t('settings.modules.consciousness.provider-model-selection.collapse') : $t('settings.modules.consciousness.provider-model-selection.expand') }}</span>
                   <div
