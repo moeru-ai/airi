@@ -35,7 +35,7 @@ onMounted(() => {
 
 <style scoped>
 .fantasy-fall-transition {
-  position: absolute;
+  position: fixed;
   inset: 0;
   overflow: hidden;
 }

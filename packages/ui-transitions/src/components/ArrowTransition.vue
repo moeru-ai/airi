@@ -38,7 +38,7 @@ onMounted(() => {
   --delay: 0s;
   --sharpness: 40%;
 
-  position: absolute;
+  position: fixed;
   inset: 0;
   overflow: hidden;
 

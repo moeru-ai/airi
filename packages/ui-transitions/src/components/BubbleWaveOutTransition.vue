@@ -29,7 +29,7 @@ onMounted(() => {
 
 <style scoped>
 .circle-expansion-transition {
-  position: absolute;
+  position: fixed;
   top: calc(50% - 75vmax);
   left: calc(50% - 75vmax);
   width: 150vmax;

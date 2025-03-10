@@ -33,7 +33,7 @@ onMounted(() => {
   --delay: 0s;
   --skew-x: 100%;
 
-  position: absolute;
+  position: fixed;
   inset: 0;
   overflow: hidden;
 
