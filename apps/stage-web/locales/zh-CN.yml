@@ -65,6 +65,28 @@ settings:
   theme: 主题颜色
   title: 设置
   voices: 声线
+  modules:
+    consciousness:
+      provider-model-selection:
+        title: 模型
+        subtitle: 选择一个模型
+        loading: 获取模型中...
+        error: 获取出错啦
+        no_models: 没有任何可用的模型
+        no_models_description: 该提供商的模型列表没有返回任何的数据
+        not_supported: 无法列出模型
+        not_supported_description: 此提供商不支持列出模型的功能
+        custom_model_placeholder: 输入自订模型名字
+        manual_model_name: 模型名字
+        manual_model_placeholder: 输入与该提供商一起使用的模型名字
+        show_more: Show more
+        show_less: Show less
+        search_placeholder: Search models...
+        search_results: 'Found {count} of {total} models'
+        no_search_results: No matching models
+        no_search_results_description: "No models match '{query}'. Try a different search term."
+        expand: Expand
+        collapse: Collapse
 stage:
   chat:
     message:
@@ -89,3 +111,43 @@ stage:
     debug-menu:
       emotions: 表情
   waiting: 等待中
+providers:
+  openrouter:
+    name: OpenRouter
+    description: openrouter.ai
+  openai:
+    name: OpenAI
+    description: openai.com
+  ollama:
+    name: Ollama
+    description: ollama.ai
+  vllm:
+    name: vLLM
+    description: vllm.ai
+  elevenlabs:
+    name: ElevenLabs
+    description: elevenlabs.io
+  xai:
+    name: xAI
+    description: x.ai
+  deepseek:
+    name: DeepSeek
+    description: deepseek.com
+  together:
+    name: Together.ai
+    description: together.ai
+  novita:
+    name: Novita
+    description: novita.ai
+  fireworks:
+    name: Fireworks.ai
+    description: fireworks.ai
+  cloudflare:
+    name: Cloudflare Workers AI
+    description: cloudflare.com
+  mistral:
+    name: Mistral
+    description: mistral.ai
+  moonshot:
+    name: Moonshot AI
+    description: moonshot.ai

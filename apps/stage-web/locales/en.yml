@@ -78,6 +78,28 @@ settings:
   theme: Theme
   title: Settings
   voices: Voice
+  modules:
+    consciousness:
+      provider-model-selection:
+        title: Model
+        subtitle: Select a model from the provider
+        loading: Loading available models...
+        error: Error loading models
+        no_models: No models available
+        no_models_description: No models were found for this provider
+        not_supported: Model listing not supported
+        not_supported_description: This provider doesn't support model listing functionality
+        custom_model_placeholder: Enter custom model name...
+        manual_model_name: Model Name
+        manual_model_placeholder: Enter the model name to use with this provider
+        show_more: Show more
+        show_less: Show less
+        search_placeholder: Search models...
+        search_results: 'Found {count} of {total} models'
+        no_search_results: No matching models
+        no_search_results_description: "No models match '{query}'. Try a different search term."
+        expand: Expand
+        collapse: Collapse
 stage:
   chat:
     message:
@@ -115,3 +137,43 @@ stage:
         model:
           title: Model
   waiting: Waiting
+providers:
+  openrouter:
+    name: OpenRouter
+    description: openrouter.ai
+  openai:
+    name: OpenAI
+    description: openai.com
+  ollama:
+    name: Ollama
+    description: ollama.ai
+  vllm:
+    name: vLLM
+    description: vllm.ai
+  elevenlabs:
+    name: ElevenLabs
+    description: elevenlabs.io
+  xai:
+    name: xAI
+    description: x.ai
+  deepseek:
+    name: DeepSeek
+    description: deepseek.com
+  together:
+    name: Together.ai
+    description: together.ai
+  novita:
+    name: Novita
+    description: novita.ai
+  fireworks:
+    name: Fireworks.ai
+    description: fireworks.ai
+  cloudflare:
+    name: Cloudflare Workers AI
+    description: cloudflare.com
+  mistral:
+    name: Mistral
+    description: mistral.ai
+  moonshot:
+    name: Moonshot AI
+    description: moonshot.ai

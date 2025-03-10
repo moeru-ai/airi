@@ -59,15 +59,17 @@ defineProps<{
   position: absolute;
   inset: 0;
   z-index: -1;
-  width: 0%;
+  width: 25%;
   height: 100%;
   transition: all 0.35s ease-in-out;
   mask-image: linear-gradient(120deg, white 30%, transparent 50%);
+  opacity: 0;
 }
 
 .menu-icon-item:hover::before {
   --at-apply: 'bg-gradient-to-r from-primary-500/20 via-primary-500/10 to-transparent dark:from-primary-400/20 dark:via-primary-400/10 dark:to-transparent';
   width: 85%;
+  opacity: 1;
 }
 
 .menu-icon-item::after {

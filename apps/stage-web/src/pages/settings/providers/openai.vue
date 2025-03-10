@@ -3,35 +3,31 @@ import { Collapsable } from '@proj-airi/stage-ui/components'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores'
 import { useToggle } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { computed, onMounted, ref, watch } from 'vue'
+import { onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 
 const router = useRouter()
 const providersStore = useProvidersStore()
 const { providers } = storeToRefs(providersStore)
 
-// Get provider metadata
-const providerId = 'openrouter-ai'
-const providerMetadata = computed(() => providersStore.getProviderMetadata(providerId))
-
-const apiKey = ref(providers.value[providerId]?.apiKey || '')
-const baseUrl = ref(providers.value[providerId]?.baseUrl || '')
+const apiKey = ref(providers.value.openai?.apiKey || '')
+const baseUrl = ref(providers.value.openai?.baseUrl || '')
 
 const advancedVisible = ref(false)
 const toggleAdvancedVisible = useToggle(advancedVisible)
 
 onMounted(() => {
-  providersStore.initializeProvider(providerId)
-
-  // Initialize refs with current values
-  apiKey.value = providers.value[providerId]?.apiKey || ''
-  baseUrl.value = providers.value[providerId]?.baseUrl || providerMetadata.value?.baseUrlDefault || ''
+  if (!providers.value.openai) {
+    providers.value.openai = {
+      baseUrl: 'https://api.openai.com/v1/',
+    }
+  }
 })
 
 watch([apiKey, baseUrl], () => {
-  providers.value[providerId] = {
+  providers.value.openai = {
     apiKey: apiKey.value,
-    baseUrl: baseUrl.value || providerMetadata.value?.baseUrlDefault || '',
+    baseUrl: baseUrl.value || 'https://api.openai.com/v1/',
   }
 })
 </script>
@@ -46,7 +42,7 @@ watch([apiKey, baseUrl], () => {
         <span text="neutral-300 dark:neutral-500">Provider</span>
       </div>
       <div text-3xl font-semibold>
-        {{ providerMetadata?.localizedName }}
+        OpenAI
       </div>
     </h1>
   </div>
@@ -64,7 +60,7 @@ watch([apiKey, baseUrl], () => {
             <span class="text-red-500">*</span>
           </div>
           <div class="text-xs text-zinc-500 dark:text-zinc-400" text-nowrap>
-            API Key for {{ providerMetadata?.localizedName }}
+            API Key for OpenAI
           </div>
         </div>
         <input
@@ -72,7 +68,7 @@ watch([apiKey, baseUrl], () => {
           border="zinc-300 dark:zinc-800 solid 1 focus:zinc-400 dark:focus:zinc-600"
           transition="border duration-250 ease-in-out"
           w-full rounded px-2 py-1 text-nowrap text-sm outline-none
-          placeholder="sk-or-..."
+          placeholder="sk-..."
         >
       </label>
     </div>
@@ -107,13 +103,13 @@ watch([apiKey, baseUrl], () => {
             border="zinc-300 dark:zinc-800 solid 1 focus:zinc-400 dark:focus:zinc-600"
             transition="border duration-250 ease-in-out"
             w-full rounded px-2 py-1 text-nowrap text-sm outline-none
-            :placeholder="providerMetadata?.baseUrlDefault"
+            placeholder="https://api.openai.com/v1/"
           >
         </label>
       </div>
     </Collapsable>
   </form>
   <div fixed bottom-0 right-0 text="neutral-100/80 dark:neutral-500/20">
-    <div text="40" :class="providerMetadata?.icon" translate-x-10 translate-y-10 />
+    <div text="40" i-lobe-icons:openai translate-x-10 translate-y-10 />
   </div>
 </template>
