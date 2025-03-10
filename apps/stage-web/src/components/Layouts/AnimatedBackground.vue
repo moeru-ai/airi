@@ -1,12 +1,16 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 
+type WaveDirection = 'up' | 'down'
+type MovementDirection = 'left' | 'right'
+
 interface WaveProps {
   height?: number // Height of the wave in pixels
   amplitude?: number // Wave height variation in pixels
   waveLength?: number // Length of one wave cycle in pixels
   fillColor?: string // Fill color of the wave
-  direction?: 'up' | 'down'// Direction of the wave: 'up' or 'down'
+  direction?: WaveDirection // Direction of the wave: 'up' or 'down'
+  movementDirection?: MovementDirection // Direction of the wave movement: 'left' or 'right'
   animationSpeed?: number // Speed of the wave animation in pixels per second
 }
 
@@ -17,6 +21,7 @@ const props = withDefaults(defineProps<WaveProps>(), {
   waveLength: 250,
   fillColor: 'oklch(95% 0.10 var(--theme-colors-hue))',
   direction: 'down',
+  movementDirection: 'left',
   animationSpeed: 50,
 })
 
@@ -25,7 +30,8 @@ const waveHeight = ref(props.height)
 const waveAmplitude = ref(props.amplitude)
 const waveLength = ref(props.waveLength)
 const waveFillColor = ref(props.fillColor)
-const direction = ref<'up' | 'down'>(props.direction)
+const direction = ref<WaveDirection>(props.direction)
+const movementDirection = ref<MovementDirection>(props.movementDirection)
 
 // Function to generate the SVG sine wave path
 function generateSineWavePath(
@@ -33,7 +39,7 @@ function generateSineWavePath(
   height: number,
   amplitude: number,
   waveLength: number,
-  direction: 'up' | 'down',
+  direction: WaveDirection,
 ): string {
   const points: string[] = []
 
@@ -79,13 +85,14 @@ const maskImage = computed(() => {
 })
 
 watch(
-  () => [props.height, props.amplitude, props.waveLength, props.fillColor, props.direction],
+  () => [props.height, props.amplitude, props.waveLength, props.fillColor, props.direction, props.movementDirection],
   () => {
     waveHeight.value = props.height!
     waveAmplitude.value = props.amplitude!
     waveLength.value = props.waveLength!
     waveFillColor.value = props.fillColor!
     direction.value = props.direction!
+    movementDirection.value = props.movementDirection!
   },
   { immediate: true },
 )
@@ -104,6 +111,7 @@ watch(
           'WebkitMaskImage': maskImage,
           '--wave-translate': `${-waveLength}px`,
           '--animation-duration': `${waveLength / animationSpeed}s`,
+          'animation-direction': movementDirection === 'left' ? 'normal' : 'reverse',
         }"
       />
     </div>
