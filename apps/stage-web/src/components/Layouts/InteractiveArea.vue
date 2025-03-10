@@ -203,10 +203,10 @@ onAfterSend(async () => {
     </div>
     <div flex="~ row" gap-2>
       <button
-        bg="primary-100 hover:primary-200 dark:primary-800 dark:hover:primary-700"
+        bg="complementary-100 hover:complementary-200 dark:complementary-800 dark:hover:complementary-700"
         transition="all duration-250 ease-in-out"
-        text="primary-400/70"
-        mb-6 flex cursor-pointer items-center justify-center gap-2 rounded-full px-4 py-2 brightness-105 hue-rotate-240 saturate-125
+        text="complementary-400"
+        mb-6 flex cursor-pointer items-center justify-center gap-2 rounded-full px-4 py-2
         @click="handleLoadWhisper"
       >
         <Transition mode="out-in">
@@ -248,10 +248,10 @@ onAfterSend(async () => {
           </fieldset>
         </TransitionVertical>
         <label
-          bg="primary-100 hover:primary-200 dark:primary-800 dark:hover:primary-700"
+          bg="complementary-100 hover:complementary-200 dark:complementary-800 dark:hover:complementary-700"
           transition="all duration-250 ease-in-out"
-          text="primary-400/70"
-          mb-6 flex cursor-pointer items-center justify-center gap-2 rounded-full px-4 py-2 brightness-105 hue-rotate-240 saturate-125
+          text="complementary-400"
+          mb-6 flex cursor-pointer items-center justify-center gap-2 rounded-full px-4 py-2
         >
           <input v-model="showMicrophoneSelect" type="checkbox" hidden>
           <div i-solar:microphone-2-bold-duotone />
