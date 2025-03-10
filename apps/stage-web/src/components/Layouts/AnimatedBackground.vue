@@ -1,41 +1,37 @@
 <script setup lang="ts">
-import { useEventListener } from '@vueuse/core'
-import { onMounted, ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
+
+type WaveDirection = 'up' | 'down'
+type MovementDirection = 'left' | 'right'
 
 interface WaveProps {
-  verticalOffset?: number // Vertical offset of the wave in pixels
   height?: number // Height of the wave in pixels
   amplitude?: number // Wave height variation in pixels
   waveLength?: number // Length of one wave cycle in pixels
   fillColor?: string // Fill color of the wave
-  direction?: 'up' | 'down'// Direction of the wave: 'up' or 'down'
+  direction?: WaveDirection // Direction of the wave: 'up' or 'down'
+  movementDirection?: MovementDirection // Direction of the wave movement: 'left' or 'right'
   animationSpeed?: number // Speed of the wave animation in pixels per second
 }
 
+// Use either provided wave props or defaults
 const props = withDefaults(defineProps<WaveProps>(), {
-  verticalOffset: 20,
   height: 40,
   amplitude: 14,
   waveLength: 250,
   fillColor: 'oklch(95% 0.10 var(--theme-colors-hue))',
   direction: 'down',
+  movementDirection: 'left',
   animationSpeed: 50,
 })
 
-// Use either provided waves or defaults
-
-// Refs
-const container = ref<HTMLElement | null>(null)
-const svg = ref<SVGSVGElement | null>(null)
-
 // Reactive Variables
-const svgWidth = ref(0)
 const waveHeight = ref(props.height)
 const waveAmplitude = ref(props.amplitude)
 const waveLength = ref(props.waveLength)
-const wavePath = ref('')
 const waveFillColor = ref(props.fillColor)
-const direction = ref<'up' | 'down'>(props.direction)
+const direction = ref<WaveDirection>(props.direction)
+const movementDirection = ref<MovementDirection>(props.movementDirection)
 
 // Function to generate the SVG sine wave path
 function generateSineWavePath(
@@ -43,7 +39,7 @@ function generateSineWavePath(
   height: number,
   amplitude: number,
   waveLength: number,
-  direction: 'up' | 'down',
+  direction: WaveDirection,
 ): string {
   const points: string[] = []
 
@@ -57,101 +53,67 @@ function generateSineWavePath(
   const step = 1
 
   // Determine base Y position based on direction
-  const baseY = direction === 'up' ? height - amplitude : amplitude
+  const baseY = direction === 'up' ? amplitude : height - amplitude
 
   // Start the path at the base Y position
   points.push(`M 0 ${baseY}`)
 
   // Generate points for the sine wave
+  const factor = Math.PI * 2 / waveLength
   for (let x = 0; x <= totalWavesWidth; x += step) {
-    const y = direction === 'up'
-      ? baseY - amplitude * Math.sin((2 * Math.PI * x) / waveLength)
-      : baseY + amplitude * Math.sin((2 * Math.PI * x) / waveLength)
+    const deltaY = amplitude * Math.sin(factor * x)
+    const y = direction === 'up' ? baseY - deltaY : baseY + deltaY
     points.push(`L ${x} ${y}`)
   }
 
   // Close the path for filling
-  if (direction === 'up') {
-    points.push(`L ${totalWavesWidth} ${height}`)
-    points.push(`L 0 ${height} Z`)
-  }
-  else {
-    points.push(`L ${totalWavesWidth} 0`)
-    points.push(`L 0 0 Z`)
-  }
+  const closeY = direction === 'up' ? height : 0
+  points.push(`L ${totalWavesWidth} ${closeY}`)
+  points.push(`L 0 ${closeY} Z`)
 
   return points.join(' ')
 }
 
-// Function to handle container resize
-function handleResize() {
-  if (container.value) {
-    const width = container.value.clientWidth
-    svgWidth.value = width
+const fullHeight = computed(() => waveHeight.value + waveAmplitude.value * 2)
 
-    // Calculate the number of waves needed to cover twice the container width
-    const numberOfWaves = Math.ceil((width * 2) / waveLength.value)
-
-    // Total width is exact multiple of waveLength
-    const totalWavesWidth = numberOfWaves * waveLength.value
-
-    // Generate wave path based on the exact total width
-    wavePath.value = generateSineWavePath(
-      totalWavesWidth,
-      waveHeight.value,
-      waveAmplitude.value,
-      waveLength.value,
-      direction.value,
-    )
-
-    // Update SVG width to match the exact multiple
-    svg.value?.setAttribute('width', totalWavesWidth.toString())
-  }
-}
+// Using `mask-image` rather than `background-image` here as we cannot directly control SVG's fill color
+const maskImage = computed(() => {
+  const svg = `<svg width="${waveLength.value}" height="${fullHeight.value}" xmlns="http://www.w3.org/2000/svg">
+    <path d="${generateSineWavePath(waveLength.value, fullHeight.value, waveAmplitude.value, waveLength.value, direction.value)}"/>
+  </svg>`
+  return `url(data:image/svg+xml;base64,${btoa(svg)})`
+})
 
 watch(
-  () => [props.height, props.amplitude, props.waveLength, props.fillColor, props.direction],
+  () => [props.height, props.amplitude, props.waveLength, props.fillColor, props.direction, props.movementDirection],
   () => {
     waveHeight.value = props.height!
     waveAmplitude.value = props.amplitude!
     waveLength.value = props.waveLength!
     waveFillColor.value = props.fillColor!
     direction.value = props.direction!
-    handleResize() // Regenerate wave path on prop changes
+    movementDirection.value = props.movementDirection!
   },
   { immediate: true },
 )
-
-useEventListener('resize', handleResize)
-
-// Setup on mount
-onMounted(() => {
-  handleResize() // Initial wave generation
-})
 </script>
 
 <template>
   <div class="relative">
     <slot />
-    <div ref="container" absolute left-0 right-0 top-0 w-full overflow-hidden>
-      <div v-if="direction === 'down'" :style="{ backgroundColor: waveFillColor, height: `${waveHeight}px` }" w-full />
-      <svg
-        ref="svg"
-        :width="waveLength * Math.ceil((svgWidth * 2) / waveLength)"
-        :height="waveHeight"
-        :viewBox="`0 0 ${waveLength * Math.ceil((svgWidth * 2) / waveLength)} ${waveHeight}`"
-        xmlns="http://www.w3.org/2000/svg"
-        h="[100%]" w="auto"
+    <div absolute left-0 right-0 top-0 w-full overflow-hidden>
+      <div
+        class="wave"
         :style="{
-          'willChange': 'transform',
+          'background': waveFillColor,
+          'height': `${fullHeight}px`,
+          maskImage,
+          'WebkitMaskImage': maskImage,
           '--wave-translate': `${-waveLength}px`,
           '--animation-duration': `${waveLength / animationSpeed}s`,
+          'animation-direction': movementDirection === 'left' ? 'normal' : 'reverse',
         }"
-        class="wave"
-      >
-        <path :d="wavePath" :fill="waveFillColor" />
-      </svg>
-      <div v-if="direction === 'up'" :style="{ backgroundColor: waveFillColor, height: `${waveHeight}px` }" w-full />
+      />
     </div>
   </div>
 </template>
@@ -167,6 +129,10 @@ onMounted(() => {
 }
 
 .wave {
+  width: 200vw;
+  mask-repeat: repeat-x;
+  -webkit-mask-repeat: repeat-x;
+  will-change: transform;
   animation: wave-animation var(--animation-duration, 5s) linear infinite;
 }
 </style>
