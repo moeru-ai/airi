@@ -1,6 +1,6 @@
 export * from './audio'
 export * from './chat'
 export * from './llm'
+export * from './modules'
 export * from './providers'
 export * from './settings'
-export * from './settings/index'
