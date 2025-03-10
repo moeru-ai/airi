@@ -37,7 +37,7 @@ onMounted(() => {
 .stage-transition-1 {
   --delay: 0s;
 
-  position: absolute;
+  position: fixed;
   inset: 0;
   overflow: hidden;
 

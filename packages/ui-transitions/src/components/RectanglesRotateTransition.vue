@@ -47,7 +47,7 @@ onMounted(() => {
 
 <style scoped>
 .rectangle-rotate-transition {
-  position: absolute;
+  position: fixed;
   inset: 0;
   overflow: hidden;
 }
