@@ -216,6 +216,7 @@ flowchart TD
 
 ## Similar Projects
 
+- [kimjammer/Neuro: A recreation of Neuro-Sama originally created in 7 days.](https://github.com/kimjammer/Neuro): very well completed implementation.
 - [SugarcaneDefender/z-waif](https://github.com/SugarcaneDefender/z-waif): Great at gaming, autonomous, and prompt engineering
 - [semperai/amica](https://github.com/semperai/amica/): Great at VRM, WebXR
 - [elizaOS/eliza](https://github.com/elizaOS/eliza): Great examples and software engineering on how to integrate agent into various of systems and APIs
