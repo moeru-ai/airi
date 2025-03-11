@@ -75,9 +75,9 @@ I did it! And the newly designed logo has been put into the
 ![](../../../assets/images/blog/DevLog-2025.03.05/airi-build-light.png)
 ![](../../../assets/images/blog/DevLog-2025.03.05/airi-build-dark.png)
 
-[Basic guide](guides/),
-[contribution guidelines](references/contributing/guide/),
-and [designing guidelines](references/design-guidelines/)
+[Basic guide](../guides/),
+[contribution guidelines](../references/contributing/guide/),
+and [designing guidelines](../references/design-guidelines/)
 were all included from this moment.
 
 I spent a whole noon to get a feel of the Text PV animations on YouTube,
