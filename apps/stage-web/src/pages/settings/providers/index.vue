@@ -1,9 +1,8 @@
 <script setup lang="ts">
+import { IconStatusItem } from '@proj-airi/stage-ui/components'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores'
 import { storeToRefs } from 'pinia'
 import { useRouter } from 'vue-router'
-
-import IconStatusItem from '../../../components/Menu/IconStatusItem.vue'
 
 const router = useRouter()
 const providersStore = useProvidersStore()

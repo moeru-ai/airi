@@ -17,12 +17,15 @@ defineEmits<{
   <label
     :key="id"
     border="2px solid"
-    class="relative"
+    class="form_radio-card-simple relative"
     transition="all duration-200 ease-in-out"
     :class="[
       modelValue === value
-        ? 'bg-primary-50 dark:bg-primary-900/20 border-primary-100 dark:border-primary-900'
-        : 'bg-white dark:bg-neutral-900/20 border-neutral-200 dark:border-neutral-700 hover:border-primary-500/30 dark:hover:border-primary-400/30',
+        ? 'bg-primary-50 dark:bg-primary-900/20 border-primary-100 dark:border-primary-900 hover:border-primary-500/30 dark:hover:border-primary-400/30'
+        : 'bg-white dark:bg-neutral-900/20 border-neutral-100 dark:border-neutral-700 hover:border-primary-500/30 dark:hover:border-primary-400/30',
+      modelValue === value
+        ? 'form_radio-card-simple-active'
+        : '',
     ]"
     flex="~ col"
     block min-w-50 w-fit cursor-pointer items-start rounded-xl p-4 text-left
@@ -79,3 +82,35 @@ defineEmits<{
     />
   </label>
 </template>
+
+<style scoped>
+.form_radio-card-simple {
+  position: relative;
+  overflow: hidden;
+}
+
+.form_radio-card-simple::before {
+  --at-apply: 'bg-gradient-to-r from-primary-500/0 to-primary-500/0 dark:from-primary-400/0 dark:to-primary-400/0';
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  width: 25%;
+  height: 100%;
+  transition: all 0.35s ease-in-out;
+  mask-image: linear-gradient(120deg, white 100%);
+  opacity: 0;
+}
+
+.form_radio-card-simple:hover::before {
+  --at-apply: 'bg-gradient-to-r from-primary-500/20 via-primary-500/10 to-transparent dark:from-primary-400/20 dark:via-primary-400/10 dark:to-transparent';
+  width: 85%;
+  opacity: 1;
+}
+
+.form_radio-card-simple-active::before {
+  --at-apply: 'bg-gradient-to-r from-primary-500/20 via-primary-500/10 to-transparent dark:from-primary-400/20 dark:via-primary-400/10 dark:to-transparent';
+  width: 85%;
+  opacity: 0.5;
+}
+</style>

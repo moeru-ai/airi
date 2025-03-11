@@ -1,11 +1,10 @@
 <script setup lang="ts">
+import { IconItem } from '@proj-airi/stage-ui/components'
 import { useSettings } from '@proj-airi/stage-ui/stores'
 import { useDark } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
-
-import IconItem from '../../components/Menu/IconItem.vue'
 
 const router = useRouter()
 const { t } = useI18n()

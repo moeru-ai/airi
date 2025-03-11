@@ -1,8 +1,7 @@
 <script setup lang="ts">
+import { IconStatusItem } from '@proj-airi/stage-ui/components'
 import { computed } from 'vue'
 import { useRouter } from 'vue-router'
-
-import IconStatusItem from '../../../components/Menu/IconStatusItem.vue'
 
 const router = useRouter()
 
