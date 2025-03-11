@@ -1,3 +1,4 @@
+import type { ChatProvider } from '@xsai-ext/shared-providers'
 import type { Message } from '@xsai/shared-chat'
 
 import { listModels } from '@xsai/model'
@@ -5,11 +6,9 @@ import { streamText } from '@xsai/stream-text'
 import { defineStore } from 'pinia'
 
 export const useLLM = defineStore('llm', () => {
-  async function stream(apiUrl: string, apiKey: string, model: string, messages: Message[]) {
+  async function stream(model: string, chatProvider: ChatProvider, messages: Message[]) {
     return await streamText({
-      baseURL: (apiUrl.endsWith('/') ? apiUrl : `${apiUrl}/`) as `${string}/`,
-      apiKey,
-      model,
+      ...chatProvider.chat(model),
       messages,
       streamOptions: {
         usage: true,

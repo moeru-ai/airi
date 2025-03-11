@@ -50,6 +50,7 @@
     "@vueuse/shared": "^12.8.2",
     "@xsai-ext/providers-cloud": "catalog:",
     "@xsai-ext/providers-local": "catalog:",
+    "@xsai-ext/shared-providers": "catalog:",
     "@xsai/generate-speech": "catalog:",
     "@xsai/generate-text": "catalog:",
     "@xsai/model": "catalog:",

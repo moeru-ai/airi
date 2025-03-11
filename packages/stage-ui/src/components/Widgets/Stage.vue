@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import type { ElectronAPI } from '@electron-toolkit/preload'
 import type { DuckDBWasmDrizzleDatabase } from '@proj-airi/drizzle-duckdb-wasm'
+import type { SpeechProvider } from '@xsai-ext/shared-providers'
 import type { Emotion } from '../../constants/emotions'
 
 import { drizzle } from '@proj-airi/drizzle-duckdb-wasm'
-import { createUnElevenLabs } from '@xsai-ext/providers-local'
 // import { createTransformers } from '@proj-airi/provider-transformers'
 // import embedWorkerURL from '@proj-airi/provider-transformers/worker?worker&url'
 // import { embed } from '@xsai/embed'
@@ -12,20 +12,19 @@ import { generateSpeech } from '@xsai/generate-speech'
 import { sql } from 'drizzle-orm'
 import { storeToRefs } from 'pinia'
 import { onMounted, onUnmounted, ref } from 'vue'
-import { useI18n } from 'vue-i18n'
 
 import { useMarkdown } from '../../composables/markdown'
 import { useQueue } from '../../composables/queue'
 import { useDelayMessageQueue, useEmotionsMessageQueue, useMessageContentQueue } from '../../composables/queues'
 import { llmInferenceEndToken } from '../../constants'
-import { Voice, voiceMap } from '../../constants/elevenlabs'
 import { EMOTION_EmotionMotionName_value, EMOTION_VRMExpressionName_value, EmotionAngryMotionName, EmotionHappyMotionName, EmotionThinkMotionName } from '../../constants/emotions'
 import { useAudioContext, useSpeakingStore } from '../../stores/audio'
 import { useChatStore } from '../../stores/chat'
+import { useSpeechStore } from '../../stores/modules/speech'
+import { useProvidersStore } from '../../stores/providers'
 import { useSettings } from '../../stores/settings'
 import Live2DScene from '../Scenes/Live2D.vue'
 import VRMScene from '../Scenes/VRM.vue'
-
 import '../../utils/live2d-zip-loader'
 
 withDefaults(defineProps<{ paused?: boolean }>(), { paused: false })
@@ -35,12 +34,12 @@ const db = ref<DuckDBWasmDrizzleDatabase>()
 
 const vrmViewerRef = ref<{ setExpression: (expression: string) => void }>()
 
-const { stageView, elevenLabsApiKey, elevenlabsVoiceEnglish, elevenlabsVoiceJapanese } = storeToRefs(useSettings())
+const { stageView } = storeToRefs(useSettings())
 const { mouthOpenSize } = storeToRefs(useSpeakingStore())
 const { audioContext, calculateVolume } = useAudioContext()
 const { onBeforeMessageComposed, onBeforeSend, onTokenLiteral, onTokenSpecial, onStreamEnd, streamingMessage, onAssistantResponseEnd } = useChatStore()
 const { process } = useMarkdown()
-const { locale } = useI18n()
+const providersStore = useProvidersStore()
 
 const audioAnalyser = ref<AnalyserNode>()
 const nowSpeaking = ref(false)
@@ -71,37 +70,47 @@ const audioQueue = useQueue<{ audioBuffer: AudioBuffer, text: string }>({
   ],
 })
 
+const speechStore = useSpeechStore()
+
+async function handleSpeechGeneration(ctx: { data: string }) {
+  try {
+    if (!speechStore.activeSpeechProvider) {
+      console.warn('No active speech provider configured')
+      return
+    }
+
+    const provider = providersStore.getProviderInstance(speechStore.activeSpeechProvider) as SpeechProvider
+    if (!provider) {
+      console.error('Failed to initialize speech provider')
+      return
+    }
+
+    const res = await generateSpeech({
+      ...provider.speech(speechStore.activeSpeechModel),
+      input: ctx.data,
+      voice: speechStore.voiceId,
+      // Optional: Add SSML wrapping if enabled
+      ...(speechStore.ssmlEnabled && {
+        input: speechStore.generateSSML(ctx.data),
+      }),
+      voiceSettings: {
+        stability: 0.4,
+        similarityBoost: 0.5,
+      },
+    })
+
+    // Decode the ArrayBuffer into an AudioBuffer
+    const audioBuffer = await audioContext.decodeAudioData(res)
+    await audioQueue.add({ audioBuffer, text: ctx.data })
+  }
+  catch (error) {
+    console.error('Speech generation failed:', error)
+  }
+}
+
 const ttsQueue = useQueue<string>({
   handlers: [
-    async (ctx) => {
-      let voice = Voice.Camilla_KM
-      if (locale.value === 'jp' || locale.value === 'jp-JP')
-        voice = elevenlabsVoiceJapanese.value
-      else
-        voice = elevenlabsVoiceEnglish.value
-
-      const now = Date.now()
-
-      const elevenlabs = createUnElevenLabs(elevenLabsApiKey.value, 'https://unspeech.hyp3r.link/v1/')
-      const res = await generateSpeech({
-        ...elevenlabs.speech('eleven_multilingual_v2', {
-          voiceSettings: {
-            stability: 0.4,
-            similarityBoost: 0.5,
-          },
-        }),
-        input: ctx.data,
-        voice: voiceMap[voice],
-      })
-      const elapsed = Date.now() - now
-
-      // eslint-disable-next-line no-console
-      console.debug('TTS took', elapsed, 'ms')
-
-      // Decode the ArrayBuffer into an AudioBuffer
-      const audioBuffer = await audioContext.decodeAudioData(res)
-      await audioQueue.add({ audioBuffer, text: ctx.data })
-    },
+    handleSpeechGeneration,
   ],
 })
 

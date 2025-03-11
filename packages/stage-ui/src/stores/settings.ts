@@ -12,12 +12,6 @@ export const useSettings = defineStore('settings', () => {
   const language = useLocalStorage('settings/language', 'en-US')
   const stageView = useLocalStorage('settings/stage/view/model-renderer', '2d')
 
-  const openAiApiKey = useLocalStorage('settings/credentials/openai-api-key', '')
-  const openAiApiBaseURL = useLocalStorage('settings/credentials/openai-api-base-url', '')
-  const elevenLabsApiKey = useLocalStorage('settings/credentials/elevenlabs-api-key', '')
-
-  const openAiModel = useLocalStorage<{ id: string, name?: string }>('settings/llm/openai/model', { id: 'openai/gpt-3.5-turbo', name: 'OpenAI GPT3.5 Turbo' })
-
   const isAudioInputOn = useLocalStorage('settings/audio/input', 'true')
   const selectedAudioDeviceId = computed(() => selectedAudioDevice.value?.deviceId)
   const { audioInputs } = useDevicesList({ constraints: { audio: true }, requestPermissions: true })
@@ -62,10 +56,6 @@ export const useSettings = defineStore('settings', () => {
   })
 
   return {
-    openAiApiKey,
-    openAiApiBaseURL,
-    openAiModel,
-    elevenLabsApiKey,
     live2dModelFile,
     live2dModelUrl,
     live2dLoadSource,

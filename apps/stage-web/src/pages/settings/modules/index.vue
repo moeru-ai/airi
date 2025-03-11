@@ -2,7 +2,6 @@
 import { computed } from 'vue'
 import { useRouter } from 'vue-router'
 
-import FactorioIcon from '../../../assets/icons/modules/games/factorio.png'
 import IconStatusItem from '../../../components/Menu/IconStatusItem.vue'
 
 const router = useRouter()
@@ -28,70 +27,70 @@ const modulesList = computed<Module[]>(() => [
     to: '/settings/modules/consciousness',
     configured: false,
   },
-  {
-    id: 'hearing',
-    name: 'Hearing',
-    description: 'Hearing, speech recognition, etc.',
-    icon: 'i-lucide:ear',
-    to: '',
-    configured: false,
-  },
-  {
-    id: 'messaging-discord',
-    name: 'Discord',
-    description: 'Messaging, notifications, etc.',
-    icon: 'i-simple-icons:discord',
-    to: '',
-    configured: false,
-  },
+  // {
+  //   id: 'hearing',
+  //   name: 'Hearing',
+  //   description: 'Hearing, speech recognition, etc.',
+  //   icon: 'i-lucide:ear',
+  //   to: '',
+  //   configured: false,
+  // },
+  // {
+  //   id: 'messaging-discord',
+  //   name: 'Discord',
+  //   description: 'Messaging, notifications, etc.',
+  //   icon: 'i-simple-icons:discord',
+  //   to: '',
+  //   configured: false,
+  // },
   {
     id: 'speech',
     name: 'Speech',
     description: 'Speech synthesis, etc.',
     icon: 'i-lucide:mic',
-    to: '',
+    to: '/settings/modules/speech',
     configured: false,
   },
-  {
-    id: 'memory-short-term',
-    name: 'Short-Term Memory',
-    description: 'Short-term memory, etc.',
-    icon: 'i-lucide:book',
-    to: '',
-    configured: false,
-  },
-  {
-    id: 'memory-long-term',
-    name: 'Long-Term Memory',
-    description: 'Long-term memory, etc.',
-    icon: 'i-lucide:book-copy',
-    to: '',
-    configured: false,
-  },
-  {
-    id: 'vision',
-    name: 'Vision',
-    description: 'Vision, etc.',
-    icon: 'i-lucide:eye',
-    to: '',
-    configured: false,
-  },
-  {
-    id: 'game-minecraft',
-    name: 'Minecraft',
-    description: 'Playing Minecraft with you, etc.',
-    iconColor: 'i-vscode-icons:file-type-minecraft',
-    to: '',
-    configured: false,
-  },
-  {
-    id: 'game-factorio',
-    name: 'Factorio',
-    description: 'Playing Factorio with you, etc.',
-    iconImage: FactorioIcon,
-    to: '',
-    configured: false,
-  },
+  // {
+  //   id: 'memory-short-term',
+  //   name: 'Short-Term Memory',
+  //   description: 'Short-term memory, etc.',
+  //   icon: 'i-lucide:book',
+  //   to: '',
+  //   configured: false,
+  // },
+  // {
+  //   id: 'memory-long-term',
+  //   name: 'Long-Term Memory',
+  //   description: 'Long-term memory, etc.',
+  //   icon: 'i-lucide:book-copy',
+  //   to: '',
+  //   configured: false,
+  // },
+  // {
+  //   id: 'vision',
+  //   name: 'Vision',
+  //   description: 'Vision, etc.',
+  //   icon: 'i-lucide:eye',
+  //   to: '',
+  //   configured: false,
+  // },
+  // {
+  //   id: 'game-minecraft',
+  //   name: 'Minecraft',
+  //   description: 'Playing Minecraft with you, etc.',
+  //   iconColor: 'i-vscode-icons:file-type-minecraft',
+  //   to: '',
+  //   configured: false,
+  // },
+  // {
+  //   id: 'game-factorio',
+  //   name: 'Factorio',
+  //   description: 'Playing Factorio with you, etc.',
+  //   iconImage: FactorioIcon,
+  //   to: '',
+  //   configured: false,
+  // },
 ])
 </script>
 

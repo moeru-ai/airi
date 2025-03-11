@@ -1,4 +1,6 @@
 /* eslint-disable no-case-declarations */
+import type { ChatProvider, EmbedProvider, SpeechProvider, TranscriptionProvider } from '@xsai-ext/shared-providers'
+
 import { useLocalStorage } from '@vueuse/core'
 import {
   createDeepSeek,
@@ -8,6 +10,7 @@ import {
   createNovita,
   createOpenAI,
   createOpenRouter,
+  createPerplexity,
   createTogetherAI,
   createWorkersAI,
   createXAI,
@@ -28,7 +31,7 @@ export interface ProviderMetadata {
   iconColor?: string
   iconImage?: string
   baseUrlDefault?: string
-  createProvider?: (config: Record<string, unknown>) => any
+  createProvider: (config: Record<string, unknown>) => ChatProvider | EmbedProvider | SpeechProvider | TranscriptionProvider
   modelSelectionType: 'dynamic' | 'manual' | 'hardcoded'
   fetchModelsManually?: (config: Record<string, unknown>) => Promise<ModelInfo[]>
   hardcodedModels?: ModelInfo[]
@@ -45,10 +48,7 @@ export interface ModelInfo {
 }
 
 export const useProvidersStore = defineStore('providers', () => {
-  const providers = useLocalStorage<Record<string, Record<string, unknown>>>('settings/credentials/providers', {})
-
-  const coreControllerProvider = useLocalStorage<string>('settings/credentials/coreControllerProvider', 'openai')
-  const audioSynthesisProvider = useLocalStorage<string>('settings/credentials/audioSynthesisProvider', 'elevenlabs')
+  const providerCredentials = useLocalStorage<Record<string, Record<string, unknown>>>('settings/credentials/providers', {})
 
   // Helper function to fetch OpenRouter models manually
   async function fetchOpenRouterModels(config: Record<string, unknown>): Promise<ModelInfo[]> {
@@ -178,10 +178,7 @@ export const useProvidersStore = defineStore('providers', () => {
       description: 'perplexity.ai',
       icon: 'i-lobe-icons:perplexity',
       baseUrlDefault: 'https://api.perplexity.ai',
-      createProvider: config => ({
-        apiKey: config.apiKey as string,
-        baseUrl: config.baseUrl as string,
-      }),
+      createProvider: config => createPerplexity(config.apiKey as string, config.baseUrl as string),
       modelSelectionType: 'hardcoded',
       hardcodedModels: [
         {
@@ -325,7 +322,7 @@ export const useProvidersStore = defineStore('providers', () => {
 
   // Configuration validation functions
   function validateProvider(providerId: string): boolean {
-    const config = providers.value[providerId]
+    const config = providerCredentials.value[providerId]
     if (!config)
       return false
 
@@ -366,9 +363,9 @@ export const useProvidersStore = defineStore('providers', () => {
 
   // Initialize provider configurations
   function initializeProvider(providerId: string) {
-    if (!providers.value[providerId]) {
+    if (!providerCredentials.value[providerId]) {
       const metadata = providerMetadata[providerId]
-      providers.value[providerId] = {
+      providerCredentials.value[providerId] = {
         baseUrl: metadata.baseUrlDefault || '',
       }
     }
@@ -386,7 +383,7 @@ export const useProvidersStore = defineStore('providers', () => {
 
   // Call initially and watch for changes
   updateConfigurationStatus()
-  watch(providers, updateConfigurationStatus, { deep: true })
+  watch(providerCredentials, updateConfigurationStatus, { deep: true })
 
   // Available providers (only those that are properly configured)
   const availableProviders = computed(() => {
@@ -413,7 +410,7 @@ export const useProvidersStore = defineStore('providers', () => {
 
   // Function to fetch models for a specific provider
   async function fetchModelsForProvider(providerId: string) {
-    const config = providers.value[providerId]
+    const config = providerCredentials.value[providerId]
     if (!config)
       return []
 
@@ -531,10 +528,31 @@ export const useProvidersStore = defineStore('providers', () => {
     }))
   })
 
+  // Function to get provider object by provider id
+  function getProviderInstance(providerId: string) {
+    const config = providerCredentials.value[providerId]
+    if (!config)
+      throw new Error(`Provider credentials for ${providerId} not found`)
+
+    const metadata = providerMetadata[providerId]
+    if (!metadata)
+      throw new Error(`Provider metadata for ${providerId} not found`)
+
+    try {
+      return metadata.createProvider(config)
+    }
+    catch (error) {
+      console.error(`Error creating provider instance for ${providerId}:`, error)
+      throw error
+    }
+  }
+
+  const availableProvidersMetadata = computed(() => {
+    return availableProviders.value.map(id => getProviderMetadata(id))
+  })
+
   return {
-    providers,
-    coreControllerProvider,
-    audioSynthesisProvider,
+    providers: providerCredentials,
     availableProviders,
     configuredProviders,
     providerMetadata,
@@ -550,5 +568,7 @@ export const useProvidersStore = defineStore('providers', () => {
     allAvailableModels,
     loadModelsForConfiguredProviders,
     supportsModelListing,
+    getProviderInstance,
+    availableProvidersMetadata,
   }
 })

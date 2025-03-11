@@ -1,13 +1,13 @@
+import type { ChatProvider } from '@xsai-ext/shared-providers'
 import type { AssistantMessage, Message } from '@xsai/shared-chat'
 
-import { defineStore, storeToRefs } from 'pinia'
+import { defineStore } from 'pinia'
 import { ref, toRaw } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { useLlmmarkerParser } from '../composables/llmmarkerParser'
 import SystemPromptV2 from '../constants/prompts/system-v2'
 import { useLLM } from '../stores/llm'
-import { useProvidersStore } from '../stores/providers'
 import { asyncIteratorFromReadableStream } from '../utils/iterator'
 
 export interface ErrorMessage {
@@ -18,7 +18,6 @@ export interface ErrorMessage {
 export const useChatStore = defineStore('chat', () => {
   const { stream } = useLLM()
   const { t } = useI18n()
-  const { providers: providerValues } = storeToRefs(useProvidersStore())
 
   const sending = ref(false)
 
@@ -72,11 +71,7 @@ export const useChatStore = defineStore('chat', () => {
 
   const streamingMessage = ref<AssistantMessage>({ role: 'assistant', content: '' })
 
-  async function send(sendingMessage: string, options?: {
-    baseUrl?: string
-    apiKey?: string
-    model?: { id: string }
-  }) {
+  async function send(sendingMessage: string, options: { model: string, chatProvider: ChatProvider }) {
     try {
       sending.value = true
 
@@ -86,12 +81,6 @@ export const useChatStore = defineStore('chat', () => {
       for (const hook of onBeforeMessageComposedHooks.value) {
         await hook(sendingMessage)
       }
-
-      const {
-        baseUrl = providerValues.value['openrouter-ai']?.baseUrl as string | undefined || '',
-        apiKey = providerValues.value['openrouter-ai']?.apiKey as string | undefined || '',
-        model = providerValues.value['openrouter-ai']?.model as { id: string } | undefined || { id: 'openai/gpt-4o-mini' },
-      } = options ?? { }
 
       streamingMessage.value = { role: 'assistant', content: '' }
       messages.value.push({ role: 'user', content: sendingMessage })
@@ -106,7 +95,7 @@ export const useChatStore = defineStore('chat', () => {
         await hook(sendingMessage)
       }
 
-      const res = await stream(baseUrl, apiKey, model.id, newMessages as Message[])
+      const res = await stream(options.model, options.chatProvider, newMessages as Message[])
 
       for (const hook of onAfterSendHooks.value) {
         await hook(sendingMessage)

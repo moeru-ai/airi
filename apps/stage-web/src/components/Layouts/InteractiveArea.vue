@@ -1,8 +1,10 @@
 <script setup lang="ts">
+import type { ChatProvider } from '@xsai-ext/shared-providers'
+
 import { BasicTextarea, TransitionVertical } from '@proj-airi/stage-ui/components'
 import { useMicVAD, useWhisper } from '@proj-airi/stage-ui/composables'
 import WhisperWorker from '@proj-airi/stage-ui/libs/workers/worker?worker&url'
-import { useAudioContext, useChatStore, useSettings } from '@proj-airi/stage-ui/stores'
+import { useAudioContext, useChatStore, useConsciousnessStore, useProvidersStore, useSettings } from '@proj-airi/stage-ui/stores'
 import { useDevicesList } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { ref, watch } from 'vue'
@@ -15,6 +17,9 @@ const messageInput = ref('')
 const listening = ref(false)
 const tab = ref<'chat' | 'custom' | 'clothes'>('chat')
 const showMicrophoneSelect = ref(false)
+
+const providersStore = useProvidersStore()
+const { activeProvider, activeModel } = storeToRefs(useConsciousnessStore())
 
 const { audioInputs } = useDevicesList({ constraints: { audio: true }, requestPermissions: true })
 const { selectedAudioDevice, isAudioInputOn, selectedAudioDeviceId } = storeToRefs(useSettings())
@@ -29,7 +34,7 @@ const { transcribe: generate, load: loadWhisper, status: whisperStatus, terminat
       return
     }
 
-    await send(res)
+    await send(res, { chatProvider: providersStore.getProviderInstance(activeProvider.value) as ChatProvider, model: activeModel.value })
   },
 })
 
@@ -39,7 +44,7 @@ async function handleSend() {
   }
 
   try {
-    await send(messageInput.value)
+    await send(messageInput.value, { chatProvider: providersStore.getProviderInstance(activeProvider.value) as ChatProvider, model: activeModel.value })
   }
   catch (error) {
     messages.value.pop()

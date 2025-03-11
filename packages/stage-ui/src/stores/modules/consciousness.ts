@@ -15,10 +15,6 @@ export const useConsciousnessStore = defineStore('consciousness', () => {
   const modelSearchQuery = ref('')
 
   // Computed properties
-  const availableProvidersMetadata = computed(() => {
-    return providersStore.availableProviders.map(id => providersStore.getProviderMetadata(id))
-  })
-
   const supportsModelListing = computed(() => {
     return providersStore.supportsModelListing(activeProvider.value)
   })
@@ -94,7 +90,6 @@ export const useConsciousnessStore = defineStore('consciousness', () => {
     modelSearchQuery,
 
     // Computed
-    availableProvidersMetadata,
     supportsModelListing,
     providerModels,
     isLoadingActiveProviderModels,

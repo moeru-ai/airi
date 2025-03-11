@@ -81,6 +81,7 @@ words:
   - lobehub
   - logg
   - lucide
+  - magnifer
   - Maru
   - matchall
   - micvad
@@ -160,5 +161,6 @@ words:
   - xsai
   - xsschema
   - zhipu
+  - ssml
 ignoreWords: []
 import: []

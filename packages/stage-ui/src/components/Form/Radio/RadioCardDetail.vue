@@ -48,11 +48,12 @@ function updateCustomInput(event: Event) {
 <template>
   <label
     :key="id"
-    class="relative flex cursor-pointer items-start rounded-lg p-3 pr-[20px] transition-all duration-200 ease-in-out"
+    class="relative flex cursor-pointer items-start rounded-xl p-3 pr-[20px]"
+    transition="all duration-200 ease-in-out"
     border="2 solid"
     :class="[
       modelValue === value
-        ? 'bg-primary-50 dark:bg-primary-900/20 border-primary-500 dark:border-primary-400'
+        ? 'bg-primary-50 dark:bg-primary-900/20 border-primary-100 dark:border-primary-900'
         : 'bg-white dark:bg-neutral-900/20 border-neutral-200 dark:border-neutral-700 hover:border-primary-500/30 dark:hover:border-primary-400/30',
       deprecated ? 'opacity-60' : '',
     ]"

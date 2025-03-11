@@ -1,26 +1,22 @@
 <script setup lang="ts">
-import { RadioCardDetail, RadioCardSimple } from '@proj-airi/stage-ui/components'
+import { RadioCardDetailManySelect, RadioCardSimple } from '@proj-airi/stage-ui/components'
 import { useConsciousnessStore, useProvidersStore } from '@proj-airi/stage-ui/stores'
 import { storeToRefs } from 'pinia'
-import { onMounted, ref } from 'vue'
+import { onMounted } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
-
-const isModelListExpanded = ref(false)
 
 const providersStore = useProvidersStore()
 const consciousnessStore = useConsciousnessStore()
-const { availableProviders } = storeToRefs(providersStore)
+const { availableProviders, availableProvidersMetadata } = storeToRefs(providersStore)
 const {
   activeProvider,
   activeModel,
   customModelName,
   modelSearchQuery,
-  availableProvidersMetadata,
   supportsModelListing,
   providerModels,
   isLoadingActiveProviderModels,
   activeProviderModelError,
-  filteredModels,
 } = storeToRefs(consciousnessStore)
 
 const router = useRouter()
@@ -28,6 +24,10 @@ const router = useRouter()
 onMounted(async () => {
   await consciousnessStore.loadModelsForProvider(activeProvider.value)
 })
+
+function updateCustomModelName(value: string) {
+  customModelName.value = value
+}
 </script>
 
 <template>
@@ -44,11 +44,11 @@ onMounted(async () => {
       </div>
     </h1>
   </div>
-  <div bg="neutral-100 dark:[rgba(0,0,0,0.3)]" rounded-xl p-4 flex="~ col gap-4">
+  <div bg="neutral-50 dark:[rgba(0,0,0,0.3)]" rounded-xl p-4 flex="~ col gap-4">
     <div>
       <div flex="~ col gap-4">
         <div>
-          <h2 class="text-lg md:text-2xl">
+          <h2 class="text-lg text-neutral-500 md:text-2xl dark:text-neutral-500">
             Provider
           </h2>
           <div text="neutral-400 dark:neutral-400">
@@ -62,19 +62,30 @@ onMounted(async () => {
           See also: https://stackoverflow.com/a/33737340
         -->
           <fieldset
-            v-if="availableProviders.length > 0" flex="~ row gap-4" :style="{ 'scrollbar-width': 'none' }"
-            min-w-0 of-x-scroll scroll-smooth role="radiogroup"
+            v-if="availableProviders.length > 0"
+            flex="~ row gap-4"
+            :style="{ 'scrollbar-width': 'none' }"
+            min-w-0 of-x-scroll scroll-smooth
+            role="radiogroup"
           >
             <RadioCardSimple
-              v-for="metadata in availableProvidersMetadata" :id="metadata.id" :key="metadata.id"
-              v-model="activeProvider" name="provider" :value="metadata.id"
-              :title="metadata.localizedName" :description="metadata.localizedDescription"
+              v-for="metadata in availableProvidersMetadata"
+              :id="metadata.id"
+              :key="metadata.id"
+              v-model="activeProvider"
+              name="provider"
+              :value="metadata.id"
+              :title="metadata.localizedName"
+              :description="metadata.localizedDescription"
             />
           </fieldset>
           <div v-else>
             <RouterLink
-              class="flex items-center gap-3 rounded-lg p-4" border="2 dashed neutral-200 dark:neutral-800"
-              bg="neutral-50 dark:neutral-800" transition="colors duration-200 ease-in-out" to="/settings/providers"
+              class="flex items-center gap-3 rounded-lg p-4"
+              border="2 dashed neutral-200 dark:neutral-800"
+              bg="neutral-50 dark:neutral-800"
+              transition="colors duration-200 ease-in-out"
+              to="/settings/providers"
             >
               <div i-solar:warning-circle-line-duotone class="text-2xl text-amber-500 dark:text-amber-400" />
               <div class="flex flex-col">
@@ -135,114 +146,22 @@ onMounted(async () => {
           </div>
         </div>
 
-        <!-- Search bar (only show if we have models) -->
+        <!-- Using the new RadioCardDetailManySelect component -->
         <template v-else-if="providerModels.length > 0">
-          <div class="relative">
-            <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-              <div i-solar:magnifer-line-duotone class="text-neutral-500 dark:text-neutral-400" />
-            </div>
-            <input
-              v-model="modelSearchQuery" type="search" class="w-full rounded-lg p-2.5 pl-10 text-sm outline-none"
-              border="focus:primary-500 dark:focus:primary-400 ~ neutral-300 dark:neutral-700 2"
-              transition="all duration-200 ease-in-out"
-              ring="focus:primary-500 dark:focus:primary-400 0 focus:2 focus:offset-0 focus:opacity-50"
-              bg="white dark:neutral-900"
-              :placeholder="$t('settings.modules.consciousness.provider-model-selection.search_placeholder')"
-            >
-            <button
-              v-if="modelSearchQuery" type="button" class="absolute inset-y-0 right-0 flex items-center pr-3"
-              @click="modelSearchQuery = ''"
-            >
-              <div
-                i-solar:close-circle-line-duotone
-                class="text-neutral-500 dark:text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200"
-              />
-            </button>
-          </div>
-
-          <!-- Models list with search results info -->
-          <div class="space-y-2">
-            <!-- Search results info -->
-            <div v-if="modelSearchQuery" class="text-sm text-neutral-500 dark:text-neutral-400">
-              {{ $t('settings.modules.consciousness.provider-model-selection.search_results', {
-                count: filteredModels.length,
-                total: providerModels.length,
-              }) }}
-            </div>
-
-            <!-- No search results -->
-            <div
-              v-if="modelSearchQuery && filteredModels.length === 0"
-              class="flex items-center gap-3 border border-amber-200 rounded-lg bg-amber-50 p-4 dark:border-amber-800 dark:bg-amber-900/20"
-            >
-              <div i-solar:info-circle-line-duotone class="text-2xl text-amber-500 dark:text-amber-400" />
-              <div class="flex flex-col">
-                <span class="font-medium">{{
-                  $t('settings.modules.consciousness.provider-model-selection.no_search_results') }}</span>
-                <span class="text-sm text-amber-600 dark:text-amber-400">
-                  {{ $t('settings.modules.consciousness.provider-model-selection.no_search_results_description', {
-                    query: modelSearchQuery }) }}
-                </span>
-              </div>
-            </div>
-
-            <!-- Models grid -->
-            <div class="relative">
-              <!-- Horizontally scrollable container -->
-              <div
-                class="scrollbar-hide grid auto-cols-[350px] grid-flow-col gap-4 overflow-x-auto pb-4"
-                :class="[
-                  isModelListExpanded ? 'md:grid-cols-2 md:grid-flow-row md:auto-cols-auto' : '',
-                ]"
-                transition="all duration-200 ease-in-out"
-                style="scroll-snap-type: x mandatory;"
-              >
-                <RadioCardDetail
-                  v-for="model in filteredModels"
-                  :id="model.id"
-                  :key="model.id"
-                  v-model="activeModel"
-                  :value="model.id"
-                  :title="model.name"
-                  :description="model.description"
-                  :deprecated="model.deprecated"
-                  :show-expand-collapse="true"
-                  :expand-collapse-threshold="100"
-                  :show-custom-input="model.id === 'custom'"
-                  :custom-input-value="customModelName"
-                  :custom-input-placeholder="$t('settings.modules.consciousness.provider-model-selection.custom_model_placeholder')"
-                  name="model"
-                  class="scroll-snap-align-start"
-                  @update:custom-input-value="customModelName = $event"
-                />
-              </div>
-
-              <!-- Expand/collapse handle -->
-              <div
-                bg="neutral-100 dark:[rgba(0,0,0,0.3)]"
-                rounded-xl
-                :class="[
-                  isModelListExpanded ? 'fixed bottom-4 left-1/2 translate-x--1/2 z-10 w-[calc(100%-16px-40px-16px)]' : 'mt-0 w-full rounded-lg',
-                ]"
-              >
-                <button
-                  w-full
-                  flex items-center justify-center gap-2 rounded-lg py-2 transition="all duration-200 ease-in-out"
-                  :class="[
-                    isModelListExpanded ? 'bg-primary-500 hover:bg-primary-600 text-white' : 'bg-neutral-200 dark:bg-neutral-800 hover:bg-neutral-300 dark:hover:bg-neutral-700',
-                  ]"
-                  @click="isModelListExpanded = !isModelListExpanded"
-                >
-                  <span>{{ isModelListExpanded ? $t('settings.modules.consciousness.provider-model-selection.collapse') : $t('settings.modules.consciousness.provider-model-selection.expand') }}</span>
-                  <div
-                    :class="isModelListExpanded ? 'rotate-180' : ''"
-                    i-solar:alt-arrow-down-bold-duotone transition="transform duration-200 ease-in-out"
-                    class="text-lg"
-                  />
-                </button>
-              </div>
-            </div>
-          </div>
+          <RadioCardDetailManySelect
+            v-model="activeModel"
+            v-model:search-query="modelSearchQuery"
+            :items="providerModels"
+            :searchable="true"
+            :search-placeholder="$t('settings.modules.consciousness.provider-model-selection.search_placeholder')"
+            :search-no-results-title="$t('settings.modules.consciousness.provider-model-selection.no_search_results')"
+            :search-no-results-description="$t('settings.modules.consciousness.provider-model-selection.no_search_results_description', { query: modelSearchQuery })"
+            :search-results-text="$t('settings.modules.consciousness.provider-model-selection.search_results', { count: '{count}', total: '{total}' })"
+            :custom-input-placeholder="$t('settings.modules.consciousness.provider-model-selection.custom_model_placeholder')"
+            :expand-button-text="$t('settings.modules.consciousness.provider-model-selection.expand')"
+            :collapse-button-text="$t('settings.modules.consciousness.provider-model-selection.collapse')"
+            @update:custom-value="updateCustomModelName"
+          />
         </template>
       </div>
     </div>
@@ -251,10 +170,10 @@ onMounted(async () => {
     <div v-else-if="activeProvider && !supportsModelListing">
       <div flex="~ col gap-4">
         <div>
-          <h2 class="text-lg md:text-2xl">
+          <h2 class="text-lg text-neutral-500 md:text-2xl dark:text-neutral-400">
             {{ $t('settings.modules.consciousness.provider-model-selection.title') }}
           </h2>
-          <div text="neutral-400 dark:neutral-400">
+          <div text="neutral-400 dark:neutral-500">
             <span>{{ $t('settings.modules.consciousness.provider-model-selection.subtitle') }}</span>
           </div>
         </div>
