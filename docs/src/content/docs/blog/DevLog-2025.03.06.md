@@ -12,7 +12,7 @@ into a reusable Vue component for any of the Vue project to be able to use it.
 
 > Details of yui540 and referenced libraries and work already were included
 > at the newly deployed documentation site at
-> [https://airi.build/references/design-guidelines/resources/](https://airi.build/references/design-guidelines/resources/).
+> [https://airi.build/references/design-guidelines/resources/](../references/design-guidelines/resources/).
 
 The result is quite good, already deployed to
 [https://proj-airi-packages-ui-transitions.netlify.app/#/](https://proj-airi-packages-ui-transitions.netlify.app/#/).
