@@ -1,7 +1,9 @@
 <script setup lang="ts">
+import type { ChatProvider } from '@xsai-ext/shared-providers'
+
 import { BasicTextarea } from '@proj-airi/stage-ui/components'
 import { useMicVAD } from '@proj-airi/stage-ui/composables'
-import { useChatStore, useSettings } from '@proj-airi/stage-ui/stores'
+import { useChatStore, useConsciousnessStore, useProvidersStore, useSettings } from '@proj-airi/stage-ui/stores'
 import { storeToRefs } from 'pinia'
 import { DrawerContent, DrawerOverlay, DrawerPortal, DrawerRoot, DrawerTrigger } from 'vaul-vue'
 import { onMounted, ref, watch } from 'vue'
@@ -17,6 +19,9 @@ const emit = defineEmits<{
 const messageInput = ref('')
 const listening = ref(false)
 
+const providersStore = useProvidersStore()
+const { activeProvider, activeModel } = storeToRefs(useConsciousnessStore())
+
 // const { audioInputs } = useDevicesList({ constraints: { audio: true }, requestPermissions: true })
 // const { selectedAudioDevice, isAudioInputOn, selectedAudioDeviceId } = storeToRefs(useSettings())
 const { isAudioInputOn, selectedAudioDeviceId } = storeToRefs(useSettings())
@@ -28,7 +33,7 @@ async function handleSend() {
     return
   }
 
-  await send(messageInput.value)
+  await send(messageInput.value, { chatProvider: providersStore.getProviderInstance(activeProvider.value) as ChatProvider, model: activeModel.value })
 }
 
 const { destroy, start } = useMicVAD(selectedAudioDeviceId, {

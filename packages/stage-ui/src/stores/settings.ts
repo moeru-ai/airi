@@ -2,8 +2,6 @@ import { useDevicesList, useLocalStorage } from '@vueuse/core'
 import { defineStore } from 'pinia'
 import { computed, onMounted, ref, watch } from 'vue'
 
-import { Voice } from '../constants/elevenlabs'
-
 export const DEFAULT_THEME_COLORS_HUE = 354.31
 
 export const useSettings = defineStore('settings', () => {
@@ -15,9 +13,6 @@ export const useSettings = defineStore('settings', () => {
   const isAudioInputOn = useLocalStorage('settings/audio/input', 'true')
   const selectedAudioDeviceId = computed(() => selectedAudioDevice.value?.deviceId)
   const { audioInputs } = useDevicesList({ constraints: { audio: true }, requestPermissions: true })
-
-  const elevenlabsVoiceEnglish = useLocalStorage<Voice>('settings/llm/elevenlabs/voice/en', Voice.Myriam)
-  const elevenlabsVoiceJapanese = useLocalStorage<Voice>('settings/llm/elevenlabs/voice/ja', Voice.Morioki)
 
   // TODO: extract to a separate store, use a single page to do this
   const live2dModelFile = ref<File>()
@@ -72,7 +67,5 @@ export const useSettings = defineStore('settings', () => {
     isAudioInputOn,
     selectedAudioDevice,
     selectedAudioDeviceId,
-    elevenlabsVoiceEnglish,
-    elevenlabsVoiceJapanese,
   }
 })

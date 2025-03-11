@@ -1,7 +1,9 @@
 <script setup lang="ts">
+import type { ChatProvider } from '@xsai-ext/shared-providers'
+
 import { BasicTextarea } from '@proj-airi/stage-ui/components'
 import { useMicVAD } from '@proj-airi/stage-ui/composables'
-import { useChatStore, useSettings } from '@proj-airi/stage-ui/stores'
+import { useChatStore, useConsciousnessStore, useProvidersStore, useSettings } from '@proj-airi/stage-ui/stores'
 import { storeToRefs } from 'pinia'
 import { onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -17,6 +19,8 @@ const { isAudioInputOn, selectedAudioDeviceId } = storeToRefs(useSettings())
 const { send, onAfterSend } = useChatStore()
 const { messages } = storeToRefs(useChatStore())
 const { t } = useI18n()
+const providersStore = useProvidersStore()
+const { activeModel } = storeToRefs(useConsciousnessStore())
 
 async function handleSend() {
   if (!messageInput.value.trim()) {
@@ -24,7 +28,10 @@ async function handleSend() {
   }
 
   try {
-    await send(messageInput.value)
+    await send(messageInput.value, {
+      model: activeModel.value,
+      chatProvider: providersStore.getProviderInstance('openrouter-ai') as ChatProvider,
+    })
   }
   catch (error) {
     messages.value.pop()

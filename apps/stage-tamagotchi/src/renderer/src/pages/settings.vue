@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import type { Voice } from '@proj-airi/stage-ui/constants'
 
-import { voiceList } from '@proj-airi/stage-ui/constants'
-import { useLLM, useSettings } from '@proj-airi/stage-ui/stores'
+import { voiceMap } from '@proj-airi/stage-ui/constants'
+import { useConsciousnessStore, useLLM, useProvidersStore, useSettings, useSpeechStore } from '@proj-airi/stage-ui/stores'
 import { useShortcutsStore } from '@renderer/stores/shortcuts'
 import { useEventListener } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
@@ -15,7 +15,18 @@ const settings = useSettings()
 const { shortcuts } = storeToRefs(useShortcutsStore())
 const supportedModels = ref<{ id: string, name?: string }[]>([])
 const { models } = useLLM()
-const { openAiModel, openAiApiBaseURL, openAiApiKey, elevenlabsVoiceEnglish, elevenlabsVoiceJapanese, language } = storeToRefs(settings)
+const { language } = storeToRefs(settings)
+const consciousnessStore = useConsciousnessStore()
+const speechStore = useSpeechStore()
+const providersStore = useProvidersStore()
+
+const { activeModel } = storeToRefs(consciousnessStore)
+const { voiceId } = storeToRefs(speechStore)
+const { providers } = storeToRefs(providersStore)
+
+const apiKey = ref<string>(providers.value['openrouter-ai']?.apiKey as string || '')
+const baseUrl = ref<string>(providers.value['openrouter-ai']?.baseUrl as string || '')
+const elevenLabsApiKey = ref<string>(providers.value.elevenlabs?.apiKey as string || '')
 
 const recordingFor = ref<string | null>(null)
 const recordingKeys = ref<{
@@ -30,11 +41,11 @@ function handleModelChange(event: Event) {
   const target = event.target as HTMLSelectElement
   const found = supportedModels.value.find(m => m.id === target.value)
   if (!found) {
-    openAiModel.value = undefined
+    activeModel.value = ''
     return
   }
 
-  openAiModel.value = found
+  activeModel.value = found.id
 }
 
 function handleViewChange(event: Event) {
@@ -47,22 +58,22 @@ function handleVoiceChange(event: Event) {
   switch (locale.value) {
     case 'en':
     case 'en-US':
-      elevenlabsVoiceEnglish.value = value
+      voiceId.value = value
       break
     case 'zh':
     case 'zh-CN':
     case 'zh-TW':
     case 'zh-HK':
-      elevenlabsVoiceEnglish.value = value
+      voiceId.value = value
       break
     case 'jp':
     case 'jp-JP':
-      elevenlabsVoiceJapanese.value = value
+      voiceId.value = value
       break
   }
 }
 
-watch([openAiApiBaseURL, openAiApiKey], async ([baseUrl, apiKey]) => {
+watch([baseUrl, apiKey], async ([baseUrl, apiKey]) => {
   if (!baseUrl || !apiKey) {
     supportedModels.value = []
     return
@@ -72,10 +83,10 @@ watch([openAiApiBaseURL, openAiApiKey], async ([baseUrl, apiKey]) => {
 })
 
 onMounted(async () => {
-  if (!openAiApiBaseURL.value || !openAiApiKey.value)
+  if (!baseUrl.value || !apiKey.value)
     return
 
-  supportedModels.value = await models(openAiApiBaseURL.value, openAiApiKey.value)
+  supportedModels.value = await models(baseUrl.value, apiKey.value)
 })
 
 function handleQuit() {
@@ -151,19 +162,14 @@ function isConflict(shortcut: typeof shortcuts.value[0]) {
       Settings
     </h2>
     <div>
-      <div
-        grid="~ cols-[140px_1fr]" my-2 items-center gap-1.5 rounded-lg
-        bg="[#fff6fc]" px-2 py-1 text="primary-400"
-      >
+      <div grid="~ cols-[140px_1fr]" my-2 items-center gap-1.5 rounded-lg bg="[#fff6fc]" px-2 py-1 text="primary-400">
         <div text="xs primary-500">
           <span>{{ t('settings.openai-base-url.label') }}</span>
         </div>
         <div flex="~ row" w-full text="xs">
           <input
-            v-model="settings.openAiApiBaseURL"
-            type="text"
-            :placeholder="t('settings.openai-base-url.placeholder_mobile')"
-            h-6 w-full rounded-md bg-transparent px-2 py-1 text-right font-mono outline-none
+            v-model="baseUrl" type="text" :placeholder="t('settings.openai-base-url.placeholder_mobile')" h-6
+            w-full rounded-md bg-transparent px-2 py-1 text-right font-mono outline-none
           >
         </div>
         <div text="xs primary-500">
@@ -171,10 +177,8 @@ function isConflict(shortcut: typeof shortcuts.value[0]) {
         </div>
         <div flex="~ row" w-full text="xs">
           <input
-            v-model="settings.openAiApiKey"
-            type="text"
-            :placeholder="t('settings.openai-api-key.placeholder_mobile')"
-            h-6 w-full rounded-md bg-transparent px-2 py-1 text-right font-mono outline-none
+            v-model="apiKey" type="text" :placeholder="t('settings.openai-api-key.placeholder_mobile')" h-6 w-full
+            rounded-md bg-transparent px-2 py-1 text-right font-mono outline-none
           >
         </div>
         <div text="xs primary-500">
@@ -182,20 +186,16 @@ function isConflict(shortcut: typeof shortcuts.value[0]) {
         </div>
         <div flex="~ row" w-full text="xs">
           <input
-            v-model="settings.elevenLabsApiKey"
-            type="text"
-            :placeholder="t('settings.elevenlabs-api-key.placeholder_mobile')"
-            h-6 w-full rounded-md bg-transparent px-2 py-1 text-right font-mono outline-none
+            v-model="elevenLabsApiKey" type="text"
+            :placeholder="t('settings.elevenlabs-api-key.placeholder_mobile')" h-6 w-full rounded-md bg-transparent px-2
+            py-1 text-right font-mono outline-none
           >
         </div>
         <div text="xs primary-500">
           <span>{{ t('settings.language.title') }}</span>
         </div>
         <div flex="~ row" w-full text="xs">
-          <select
-            v-model="language"
-            h-6 w-full rounded-md bg-transparent px-2 py-1 text-right font-mono outline-none
-          >
+          <select v-model="language" h-6 w-full rounded-md bg-transparent px-2 py-1 text-right font-mono outline-none>
             <option value="en-US">
               English
             </option>
@@ -215,8 +215,8 @@ function isConflict(shortcut: typeof shortcuts.value[0]) {
             <option disabled class="bg-white">
               {{ t('stage.select-a-model') }}
             </option>
-            <option v-if="settings.openAiModel" :value="settings.openAiModel.id">
-              {{ 'name' in settings.openAiModel ? `${settings.openAiModel.name} (${settings.openAiModel.id})` : settings.openAiModel.id }}
+            <option v-if="providersStore.getModelsForProvider('openrouter-ai')" :value="activeModel">
+              {{ activeModel }}
             </option>
             <option v-for="m in supportedModels" :key="m.id" :value="m.id">
               {{ 'name' in m ? `${m.name} (${m.id})` : m.id }}
@@ -234,18 +234,8 @@ function isConflict(shortcut: typeof shortcuts.value[0]) {
             <option disabled class="bg-white">
               {{ t('stage.select-a-voice') }}
             </option>
-            <option v-if="['en', 'en-US'].includes(locale) && elevenlabsVoiceEnglish" :value="elevenlabsVoiceEnglish">
-              {{ elevenlabsVoiceEnglish }}
-            </option>
-            <!-- TODO -->
-            <option v-if="['zh', 'zh-CN', 'zh-TW', 'zh-HK'].includes(locale) && elevenlabsVoiceEnglish" :value="elevenlabsVoiceEnglish">
-              {{ elevenlabsVoiceEnglish }}
-            </option>
-            <option v-if="['jp', 'jp-JP'].includes(locale) && elevenlabsVoiceJapanese" :value="elevenlabsVoiceJapanese">
-              {{ elevenlabsVoiceJapanese }}
-            </option>
-            <option v-for="(m, index) in voiceList[locale]" :key="index" :value="m">
-              {{ m }}
+            <option v-for="(voice, index) of Object.entries(voiceMap)" :key="index" :value="voice[1]">
+              {{ voice[0] }}
             </option>
           </select>
         </div>
@@ -255,10 +245,7 @@ function isConflict(shortcut: typeof shortcuts.value[0]) {
       View
     </h2>
     <div>
-      <div
-        grid="~ cols-[140px_1fr]" my-2 items-center gap-1.5 rounded-lg
-        bg="[#fff6fc]" px-2 py-1 text="primary-400"
-      >
+      <div grid="~ cols-[140px_1fr]" my-2 items-center gap-1.5 rounded-lg bg="[#fff6fc]" px-2 py-1 text="primary-400">
         <div text="xs primary-500">
           <span>{{ t('settings.viewer') }}</span>
         </div>
@@ -279,19 +266,14 @@ function isConflict(shortcut: typeof shortcuts.value[0]) {
       {{ t('settings.shortcuts.title') }}
     </h2>
     <div pb-2>
-      <div
-        grid="~ cols-[140px_1fr]" my-2 items-center gap-1.5 rounded-lg
-        bg="[#fff6fc]" p-2 text="primary-400"
-      >
+      <div grid="~ cols-[140px_1fr]" my-2 items-center gap-1.5 rounded-lg bg="[#fff6fc]" p-2 text="primary-400">
         <template v-for="shortcut in shortcuts" :key="shortcut.type">
           <span text="xs primary-500">
             {{ t(shortcut.name) }}
           </span>
           <div
             class="shortcut-item flex items-center justify-end gap-x-2 px-2 py-0.5"
-            :class="{ recording: recordingFor === shortcut.type }"
-            text="xs primary-500"
-            cursor-pointer
+            :class="{ recording: recordingFor === shortcut.type }" text="xs primary-500" cursor-pointer
             @click="startRecording(shortcut)"
           >
             <div v-if="recordingFor === shortcut.type" class="pointer-events-none animate-flash animate-count-infinite">
@@ -310,8 +292,8 @@ function isConflict(shortcut: typeof shortcuts.value[0]) {
     </h2>
     <div pb-2>
       <div
-        grid="~ cols-[140px_1fr]" my-2 items-center gap-1.5 rounded-lg
-        bg="[#fff6fc]" p-2 text="primary-400" @click="handleQuit"
+        grid="~ cols-[140px_1fr]" my-2 items-center gap-1.5 rounded-lg bg="[#fff6fc]" p-2 text="primary-400"
+        @click="handleQuit"
       >
         <div text="xs primary-500">
           <span>
