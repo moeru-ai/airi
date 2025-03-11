@@ -1,5 +1,6 @@
 import { createExternalPackageIconLoader } from '@iconify/utils/lib/loader/external-pkg'
 import { colorToString } from '@unocss/preset-mini/utils'
+import { createLocalFontProcessor } from '@unocss/preset-web-fonts/local'
 import {
   defineConfig,
   presetAttributify,
@@ -43,6 +44,9 @@ export default defineConfig({
         cute: 'Kiwi Maru',
         cuteen: 'Sniglet',
       },
+      // Web fonts preset
+      // https://unocss.dev/presets/web-fonts#serve-fonts-locally
+      processors: createLocalFontProcessor(),
     }),
     presetIcons({
       scale: 1.2,

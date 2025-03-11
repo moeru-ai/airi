@@ -127,3 +127,8 @@ const modeIndicatorClass = computed(() => {
   width: calc(100% + 4 * var(--wall-width));
 }
 </style>
+
+<route lang="yaml">
+meta:
+  layout: stage
+</route>

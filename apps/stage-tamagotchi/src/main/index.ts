@@ -116,7 +116,7 @@ function createSettingsWindow() {
     return { action: 'deny' }
   })
 
-  settingsWindow.on('close', () => {
+  settingsWindow.on('closed', () => {
     settingsWindow = null
   })
 
@@ -152,6 +152,12 @@ app.whenReady().then(() => {
   ipcMain.on('quit', showQuitDialog)
 
   ipcMain.on('open-settings', () => createSettingsWindow())
+
+  ipcMain.on('close-settings', () => {
+    if (settingsWindow) {
+      settingsWindow.close()
+    }
+  })
 
   createWindow()
 

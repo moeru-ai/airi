@@ -14,7 +14,13 @@
       "@proj-airi/stage-ui/*": [
         "../../packages/stage-ui/src/*"
       ]
-    }
+    },
+    "types": [
+      "vite/client",
+      "vite-plugin-vue-layouts/client",
+      "unplugin-vue-macros/macros-global",
+      "unplugin-vue-router/client"
+    ]
   },
   "include": [
     "src/renderer/src/shims.ts",
