@@ -268,6 +268,10 @@ function applyPrimaryColorFromHex(color: string) {
       </div>
     </Collapsable>
   </div>
+
+  <div fixed bottom-0 right-0 z--1 text="neutral-100/80 dark:neutral-500/20">
+    <div text="40" i-lucide:paintbrush translate-x-10 translate-y-10 />
+  </div>
 </template>
 
 <style>
