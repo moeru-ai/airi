@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { ElectronAPI } from '@electron-toolkit/preload'
 import type { DuckDBWasmDrizzleDatabase } from '@proj-airi/drizzle-duckdb-wasm'
-import type { SpeechProvider } from '@xsai-ext/shared-providers'
+import type { SpeechProviderWithExtraOptions } from '@xsai-ext/shared-providers'
 import type { Emotion } from '../../constants/emotions'
 
 import { drizzle } from '@proj-airi/drizzle-duckdb-wasm'
@@ -80,24 +80,26 @@ async function handleSpeechGeneration(ctx: { data: string }) {
       return
     }
 
-    const provider = providersStore.getProviderInstance(activeSpeechProvider.value) as SpeechProvider
+    // TODO: UnElevenLabsOptions
+    const provider = providersStore.getProviderInstance(activeSpeechProvider.value) as SpeechProviderWithExtraOptions<string, any>
     if (!provider) {
       console.error('Failed to initialize speech provider')
       return
     }
 
     const res = await generateSpeech({
-      ...provider.speech(activeSpeechModel.value),
+      ...provider.speech(activeSpeechModel.value, {
+        // Optional: Add SSML wrapping if enabled
+        ...(ssmlEnabled.value && {
+          input: speechStore.generateSSML(ctx.data),
+        }),
+        voiceSettings: {
+          stability: 0.4,
+          similarityBoost: 0.5,
+        },
+      }),
       input: ctx.data,
       voice: voiceId.value,
-      // Optional: Add SSML wrapping if enabled
-      ...(ssmlEnabled.value && {
-        input: speechStore.generateSSML(ctx.data),
-      }),
-      voiceSettings: {
-        stability: 0.4,
-        similarityBoost: 0.5,
-      },
     })
 
     // Decode the ArrayBuffer into an AudioBuffer

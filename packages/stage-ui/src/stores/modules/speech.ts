@@ -12,7 +12,6 @@ export const useSpeechStore = defineStore('speech', () => {
   const activeSpeechProvider = useLocalStorage('settings/speech/active-provider', '')
   const activeSpeechModel = useLocalStorage('settings/speech/active-model', 'eleven_multilingual_v2')
   const voiceName = useLocalStorage('settings/speech/voice-name', '')
-  const voiceId = useLocalStorage('settings/speech/voice-id', '')
   const pitch = useLocalStorage('settings/speech/pitch', 0)
   const rate = useLocalStorage('settings/speech/rate', 1)
   const ssmlEnabled = useLocalStorage('settings/speech/ssml-enabled', false)
@@ -81,27 +80,11 @@ export const useSpeechStore = defineStore('speech', () => {
 
   function setVoiceName(name: string) {
     voiceName.value = name
-
-    // If this is a preset voice, also set the voiceId
-    for (const voiceEnum in voiceMap) {
-      if (voiceEnum === name) {
-        voiceId.value = voiceMap[voiceEnum as Voice]
-        break
-      }
-    }
   }
 
-  function setVoiceId(id: string) {
-    voiceId.value = id
-
-    // Try to find the corresponding voice name
-    for (const voiceEnum in voiceMap) {
-      if (voiceMap[voiceEnum as Voice] === id) {
-        voiceName.value = voiceEnum
-        break
-      }
-    }
-  }
+  const voiceId = computed(() => {
+    return voiceMap[voiceName.value as Voice]
+  })
 
   function setPitch(value: number) {
     pitch.value = value
@@ -121,7 +104,6 @@ export const useSpeechStore = defineStore('speech', () => {
 
   function resetVoiceSettings() {
     voiceName.value = ''
-    voiceId.value = ''
     pitch.value = 0
     rate.value = 1
     ssmlEnabled.value = false
@@ -286,7 +268,6 @@ export const useSpeechStore = defineStore('speech', () => {
     setActiveSpeechProvider,
     setActiveSpeechModel,
     setVoiceName,
-    setVoiceId,
     setPitch,
     setRate,
     setSSMLEnabled,
