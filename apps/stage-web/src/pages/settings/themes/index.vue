@@ -2,6 +2,7 @@
 import { Collapsable } from '@proj-airi/stage-ui/components'
 import { DEFAULT_THEME_COLORS_HUE, useSettings } from '@proj-airi/stage-ui/stores'
 import { converter } from 'culori'
+import { TooltipArrow, TooltipContent, TooltipPortal, TooltipProvider, TooltipRoot, TooltipTrigger } from 'radix-vue'
 import { useRouter } from 'vue-router'
 
 const router = useRouter()
@@ -10,29 +11,82 @@ const settings = useSettings()
 interface ColorPreset {
   name: string
   description: string
-  colors: string[]
+  colors: Array<{
+    hex: string
+    name: string
+  }>
 }
 
 const colorPresets: ColorPreset[] = [
   {
     name: 'Morandi Colors',
     description: 'Soft, muted tones inspired by Giorgio Morandi\'s paintings',
-    colors: ['#A5978B', '#D8CAAF', '#B8B4A7', '#C4BCB1', '#E5DED8', '#9A8F7D', '#BEB5A7', '#C9C0B6'],
+    colors: [
+      { hex: '#A5978B', name: 'Taupe' },
+      { hex: '#D8CAAF', name: 'Beige' },
+      { hex: '#B8B4A7', name: 'Ash Grey' },
+      { hex: '#C4BCB1', name: 'Light Taupe' },
+      { hex: '#E5DED8', name: 'Ivory' },
+      { hex: '#9A8F7D', name: 'Olive Grey' },
+      { hex: '#BEB5A7', name: 'Sand' },
+      { hex: '#C9C0B6', name: 'Warm Grey' },
+    ],
   },
   {
     name: 'Monet Colors',
     description: 'Impressionist palette inspired by Claude Monet\'s works',
-    colors: ['#7A9EAF', '#B8C7CC', '#D4B79C', '#8B9D77', '#C7D5CB', '#E6D0B1', '#94A7B1', '#B4C8C3'],
+    colors: [
+      { hex: '#7A9EAF', name: 'Sky Blue' },
+      { hex: '#B8C7CC', name: 'Mist' },
+      { hex: '#D4B79C', name: 'Sand' },
+      { hex: '#8B9D77', name: 'Moss Green' },
+      { hex: '#C7D5CB', name: 'Water Lily' },
+      { hex: '#E6D0B1', name: 'Wheat' },
+      { hex: '#94A7B1', name: 'Slate Blue' },
+      { hex: '#B4C8C3', name: 'Sage' },
+    ],
   },
   {
     name: 'Japanese Colors',
     description: 'Traditional Japanese color palette',
-    colors: ['#D9B48F', '#B5917A', '#8C7A6B', '#A17F5F', '#B98C46', '#C7A252', '#DAB300', '#D19826'],
+    colors: [
+      { hex: '#D9B48F', name: 'Tan' },
+      { hex: '#B5917A', name: 'Warm Taupe' },
+      { hex: '#8C7A6B', name: 'Umber' },
+      { hex: '#A17F5F', name: 'Coffee' },
+      { hex: '#B98C46', name: 'Bronze' },
+      { hex: '#C7A252', name: 'Gold' },
+      { hex: '#DAB300', name: 'Mustard' },
+      { hex: '#D19826', name: 'Amber' },
+    ],
   },
   {
     name: 'Nordic Colors',
     description: 'Scandinavian minimalist color scheme',
-    colors: ['#9BA7B0', '#C1CBD4', '#A5ADB6', '#8B959E', '#D4DCE4', '#7F8A94', '#B3BCC6', '#98A4AE'],
+    colors: [
+      { hex: '#9BA7B0', name: 'Nordic Blue' },
+      { hex: '#C1CBD4', name: 'Ice' },
+      { hex: '#A5ADB6', name: 'Fjord' },
+      { hex: '#8B959E', name: 'Steel' },
+      { hex: '#D4DCE4', name: 'Glacier' },
+      { hex: '#7F8A94', name: 'Slate' },
+      { hex: '#B3BCC6', name: 'Cloud' },
+      { hex: '#98A4AE', name: 'Stone' },
+    ],
+  },
+  {
+    name: 'Chinese Traditional Colors',
+    description: 'Traditional Chinese colors, derived from ancient textiles, porcelain and paintings',
+    colors: [
+      { hex: '#E4C6D0', name: '霞光红 (Rosy Dawn)' },
+      { hex: '#A61B29', name: '枣红 (Chinese Red)' },
+      { hex: '#5D513C', name: '黄栌 (Smoky Brown)' },
+      { hex: '#789262', name: '竹青 (Bamboo Green)' },
+      { hex: '#1C0D1A', name: '乌梅紫 (Dark Purple)' },
+      { hex: '#F7C242', name: '缃色 (Golden Yellow)' },
+      { hex: '#62A9DD', name: '青冥 (Azure Blue)' },
+      { hex: '#8C4B3C', name: '赭石 (Ochre)' },
+    ],
   },
 ]
 
@@ -57,6 +111,26 @@ function applyPrimaryColorFromHex(color: string) {
   // Update theme settings
   settings.themeColorsHue = h
   settings.themeColorsHueDynamic = false
+}
+
+/**
+ * Check if a color is currently selected based on its hue value
+ * @param hexColor Hex color code to check
+ * @returns True if the color's hue matches the current theme hue
+ */
+function isColorSelected(hexColor: string): boolean {
+  // If dynamic coloring is enabled, no preset color is manually selected
+  if (settings.themeColorsHueDynamic)
+    return false
+
+  // Convert hex color to OKLCH
+  const oklch = converter('oklch')(hexColor)
+  if (!oklch || !oklch.h)
+    return false
+
+  // Compare hue values with a small tolerance for floating point comparison
+  const hueDifference = Math.abs(oklch.h - settings.themeColorsHue)
+  return hueDifference < 0.01 || hueDifference > 359.99
 }
 </script>
 
@@ -92,7 +166,7 @@ function applyPrimaryColorFromHex(color: string) {
               transition="filter duration-250 ease-in-out"
             />
             <div>
-              Colors
+              Custom Colors
             </div>
           </div>
           <div transform transition="transform duration-250" :class="{ 'rotate-180': slotProps.visible }">
@@ -255,14 +329,27 @@ function applyPrimaryColorFromHex(color: string) {
             </div>
           </div>
           <div flex="~ row" gap-2>
-            <div
-              v-for="color in preset.colors"
-              :key="color"
-              :style="{ backgroundColor: color }"
-              size-6 cursor-pointer rounded-full hover="scale-110"
-              transition="transform duration-250 ease-in-out"
-              @click="applyPrimaryColorFromHex(color)"
-            />
+            <TooltipProvider v-for="color in preset.colors" :key="color.hex">
+              <TooltipRoot>
+                <TooltipTrigger>
+                  <div
+                    :style="{ backgroundColor: color.hex }"
+                    class="size-6 cursor-pointer rounded-full transition-all duration-250 ease-in-out" :class="[
+                      isColorSelected(color.hex)
+                        ? 'scale-150 z-10 mx-1'
+                        : 'hover:scale-110',
+                    ]"
+                    @click="applyPrimaryColorFromHex(color.hex)"
+                  />
+                </TooltipTrigger>
+                <TooltipPortal>
+                  <TooltipContent class="rounded-lg bg-white px-3 py-1.5 text-sm shadow-md dark:bg-neutral-800">
+                    {{ color.name }}
+                    <TooltipArrow class="fill-white dark:fill-neutral-800" />
+                  </TooltipContent>
+                </TooltipPortal>
+              </TooltipRoot>
+            </TooltipProvider>
           </div>
         </div>
       </div>
