@@ -1,5 +1,5 @@
 /* eslint-disable no-case-declarations */
-import type { ChatProvider, EmbedProvider, SpeechProvider, TranscriptionProvider } from '@xsai-ext/shared-providers'
+import type { ChatProvider, EmbedProvider, SpeechProviderWithExtraOptions, TranscriptionProvider } from '@xsai-ext/shared-providers'
 
 import { useLocalStorage } from '@vueuse/core'
 import {
@@ -31,7 +31,7 @@ export interface ProviderMetadata {
   iconColor?: string
   iconImage?: string
   baseUrlDefault?: string
-  createProvider: (config: Record<string, unknown>) => ChatProvider | EmbedProvider | SpeechProvider | TranscriptionProvider
+  createProvider: (config: Record<string, unknown>) => ChatProvider | EmbedProvider | SpeechProviderWithExtraOptions | TranscriptionProvider
   modelSelectionType: 'dynamic' | 'manual' | 'hardcoded'
   fetchModelsManually?: (config: Record<string, unknown>) => Promise<ModelInfo[]>
   hardcodedModels?: ModelInfo[]
@@ -226,7 +226,8 @@ export const useProvidersStore = defineStore('providers', () => {
       description: 'elevenlabs.io',
       icon: 'i-simple-icons:elevenlabs',
       baseUrlDefault: 'https://unspeech.hyp3r.link/v1/',
-      createProvider: config => createUnElevenLabs(config.apiKey as string, config.baseUrl as string),
+      // TODO: UnElevenLabsOptions
+      createProvider: config => createUnElevenLabs(config.apiKey as string, config.baseUrl as string) as SpeechProviderWithExtraOptions<string, any>,
       modelSelectionType: 'hardcoded',
       hardcodedModels: [
         {
