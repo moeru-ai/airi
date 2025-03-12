@@ -4,11 +4,11 @@ import { useDark } from '@vueuse/core'
 import { ref } from 'vue'
 
 import Cross from '../components/Backgrounds/Cross.vue'
-import AnimatedBackground from '../components/Layouts/AnimatedBackground.vue'
 import Header from '../components/Layouts/Header.vue'
 import InteractiveArea from '../components/Layouts/InteractiveArea.vue'
 import MobileHeader from '../components/Layouts/MobileHeader.vue'
 import MobileInteractiveArea from '../components/Layouts/MobileInteractiveArea.vue'
+import AnimatedWave from '../components/Widgets/AnimatedWave.vue'
 
 const dark = useDark()
 const paused = ref(false)
@@ -20,7 +20,11 @@ function handleSettingsOpen(open: boolean) {
 
 <template>
   <Cross>
-    <AnimatedBackground :fill-color="dark ? 'oklch(29% var(--theme-colors-chroma) var(--theme-colors-hue))' : 'color-mix(in srgb, oklch(95% var(--theme-colors-chroma-50) var(--theme-colors-hue)) 80%, oklch(100% 0 360))'">
+    <AnimatedWave
+      :fill-color="dark
+        ? 'oklch(35% calc(var(--theme-colors-chroma) * 0.6) var(--theme-colors-hue))'
+        : 'color-mix(in srgb, oklch(95% calc(var(--theme-colors-chroma-50) * 0.5) var(--theme-colors-hue)) 80%, oklch(100% 0 360))'"
+    >
       <div relative flex="~ col" z-2 h-100vh w-100vw of-hidden>
         <!-- header -->
         <div>
@@ -34,7 +38,7 @@ function handleSettingsOpen(open: boolean) {
           <MobileInteractiveArea class="hidden <md:block" mx2 mb2 @settings-open="handleSettingsOpen" />
         </div>
       </div>
-    </AnimatedBackground>
+    </AnimatedWave>
   </Cross>
 </template>
 
