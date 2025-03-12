@@ -26,17 +26,17 @@
 
 与其他 AI 和 LLM 驱动的 VTuber 开源项目不同，アイリ VTuber 从开始开发的第一天开始就支持多种 Web 技术，涵盖诸如 [WebGPU](https://www.w3.org/TR/webgpu/)、[WebAudio](https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API)、[Web Workers](https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API/Using_web_workers)、[WebAssembly](https://webassembly.org/)、[WebSocket](https://developer.mozilla.org/en-US/docs/Web/API/WebSocket) 等已经广泛应用或仍在大量实验的 API。
 
-这意味着 **アイリ VTuber 能够在现代浏览器和设备上运行**，甚至能够在移动设备上运行（已经通过 PWA 支持），这为我们（贡献者们）带来了更多的可能性，使我们能够构建和扩展 アイリ VTuber 的外部功能，使其更上一层楼，而与此同时也依然给予用户灵活配置的可能性，可以选择性地在不同设备上启用会需要 TCP 连接或其他非 Web 技术的功能，例如连接到 Discord 的语音频道一起开黑，或是和你和你的朋友们一起玩 Minecraft（我的世界）、Factorio（异星工厂）。
+这意味着 **アイリ VTuber 能够在现代浏览器和设备上运行**，甚至能够在移动设备上运行（已经完成了 PWA 支持），这为我们（贡献者们）带来了更多的可能性，让我们得以更进一步构建和扩展 アイリ VTuber 的外部功能，而与此同时也不失配置的灵活性——可以有选择地在不同设备上启用会需要 TCP 连接或其他非 Web 技术的功能，例如连接到 Discord 的语音频道一起开黑，或是和朋友们一起玩 Minecraft（我的世界）、Factorio（异星工厂）。
 
 > [!NOTE]
 >
-> 我们仍处于早期开发阶段，正在寻求有才华的开发人员加入我们，帮助我们将 アイリ VTuber 变为现实。
+> アイリ VTuber 仍处于早期开发阶段，我们欢迎优秀的开发者加入我们，一起将它变为现实。
 >
-> 如果你不熟悉 Vue.js、TypeScript 和这个项目所需的开发工具，也没关系，你可以作为艺术家、设计师、运营策划加入我们，甚至帮助我们启动我们的第一个直播。
+> 即使不熟悉 Vue.js、TypeScript 和所需的其他开发工具也没关系，我们也欢迎艺术家、设计师、运营策划的加入，你甚至可以成为第一个用 アイリ VTuber 直播的博主。
 >
-> 即使您是 React 或 Svelte，甚至是 Solid 的忠实粉丝也没关系，我们也欢迎您的加入，您可以自己创建一个子目录，添加您希望在 アイリ VTuber 中看到的功能，或想实验性支持的功能。
+> 如果你使用的是 React、 Svelte，甚至 Solid 也没关系，您可以自己创建一个子目录，添加您希望在 アイリ VTuber 中看到的功能，或者想实验的功能。
 >
-> 我们正在寻找的领域（和相关项目）：
+> 我们非常期待以下领域的朋友加入：
 >
 > - Live2D 模型师
 > - VRM 模型师
@@ -56,21 +56,23 @@
 
 ## 当前进度
 
-能够
-
-- [x] 大脑
+- [x] 思维能力
   - [x] 玩 [Minecraft](https://www.minecraft.net)
   - [x] 玩 [Factorio](https://www.factorio.com)
   - [x] 在 [Telegram](https://telegram.org) 聊天
   - [x] 在 [Discord](https://discord.com) 聊天
-- [x] 耳朵
+  - [ ] 记忆
+    - [x] 纯浏览器内数据库支持（基于 DuckDB WASM 或者 `sqlite`）
+    - [ ] Alaya 记忆层（施工中）
+  - [ ] 纯浏览器的本地推理（基于 WebGPU）
+- [x] 语音理解
   - [x] 浏览器音频输入
   - [x] [Discord](https://discord.com) 音频输入
-  - [x] 客户端端语音识别
-  - [x] 客户端端说话检测
-- [x] 嘴巴
-  - [x] ElevenLabs 语音合成
-- [x] 身体
+  - [x] 客户端语音识别
+  - [x] 客户端说话检测
+- [x] 语言能力
+  - [x] [ElevenLabs](https://elevenlabs.io/) 语音合成
+- [x] 身体动作
   - [x] VRM 支持
     - [x] 控制 VRM 模型
   - [x] VRM 模型动画
@@ -129,10 +131,10 @@ pnpm dev
 - [`unspeech`](https://github.com/moeru-ai/unspeech): 用于代理 `/audio/transcriptions` 和 `/audio/speech` 的代理服务器实现，类似 LiteLLM 但面向任何 ASR 和 TTS
 - [`hfup`](https://github.com/moeru-ai/airi/tree/main/packages/hfup): 帮助部署、打包到 HuggingFace Spaces 的工具集
 - [`@proj-airi/drizzle-duckdb-wasm`](https://github.com/moeru-ai/airi/tree/main/packages/drizzle-duckdb-wasm/README.md): DuckDB WASM 的 Drizzle ORM driver 驱动
-- [`@proj-airi/duckdb-wasm`](https://github.com/moeru-ai/airi/tree/main/packages/duckdb-wasm/README.md): 让 `@duckdb/duckdb-wasm` 更好用的封装
+- [`@proj-airi/duckdb-wasm`](https://github.com/moeru-ai/airi/tree/main/packages/duckdb-wasm/README.md): 易于使用的 `@duckdb/duckdb-wasm` 封装
 - [`@proj-airi/lobe-icons`](https://github.com/moeru-ai/airi/tree/main/packages/lobe-icons): 为 [lobe-icons](https://github.com/lobehub/lobe-icons) 漂亮的 AI & LLM 图标制作的 Iconify JSON 封装，支持 Tailwind 和 UnoCSS
 - [`@proj-airi/elevenlabs`](https://github.com/moeru-ai/airi/tree/main/packages/elevenlabs): ElevenLabs API 的 TypeScript 定义
-- [Airi Factorio](https://github.com/moeru-ai/airi-factorio): 允许 Airi 玩耍 Factorio
+- [Airi Factorio](https://github.com/moeru-ai/airi-factorio): 让 Airi 玩 Factorio
 - [Factorio RCON API](https://github.com/nekomeowww/factorio-rcon-api): Factorio 无头服务器控制台的 RESTful API 封装
 - [`autorio`](https://github.com/moeru-ai/airi-factorio/tree/main/packages/autorio): Factorio 自动化库
 - [`tstl-plugin-reload-factorio-mod](https://github.com/moeru-ai/airi-factorio/tree/main/packages/tstl-plugin-reload-factorio-mod): 开发时支持热重载 Factorio 模组
@@ -211,17 +213,24 @@ flowchart TD
 
 - [onnx-community/whisper-large-v3-turbo · Hugging Face](https://huggingface.co/onnx-community/whisper-large-v3-turbo)
 
-## 类似项目
+## 同类项目
 
-- [kimjammer/Neuro: A recreation of Neuro-Sama originally created in 7 days.](https://github.com/kimjammer/Neuro): very well completed implementation.
-- [SugarcaneDefender/z-waif](https://github.com/SugarcaneDefender/z-waif): Great at gaming, autonomous, and prompt engineering
-- [semperai/amica](https://github.com/semperai/amica/): Great at VRM, WebXR
-- [elizaOS/eliza](https://github.com/elizaOS/eliza): Great examples and software engineering on how to integrate agent into various of systems and APIs
-- [ardha27/AI-Waifu-Vtuber](https://github.com/ardha27/AI-Waifu-Vtuber): Great about Twitch API integrations
-- [InsanityLabs/AIVTuber](https://github.com/InsanityLabs/AIVTuber): Nice UI and UX
+### 开源项目
+
+- [kimjammer/Neuro: A recreation of Neuro-Sama originally created in 7 days.](https://github.com/kimjammer/Neuro)：非常完善的 Neuro-Sama 实现
+- [SugarcaneDefender/z-waif](https://github.com/SugarcaneDefender/z-waif)：以游戏、自主代理和提示词工程见长
+- [semperai/amica](https://github.com/semperai/amica/)：适配 VRM, WebXR
+- [elizaOS/eliza](https://github.com/elizaOS/eliza)：将 AI 智能体集成至各类系统和API中的一个软件工程实践
+- [ardha27/AI-Waifu-Vtuber](https://github.com/ardha27/AI-Waifu-Vtuber)：Twitch API 集成
+- [InsanityLabs/AIVTuber](https://github.com/InsanityLabs/AIVTuber)：优秀的 UI/UX 设计
 - [IRedDragonICY/vixevia](https://github.com/IRedDragonICY/vixevia)
 - [t41372/Open-LLM-VTuber](https://github.com/t41372/Open-LLM-VTuber)
 - [PeterH0323/Streamer-Sales](https://github.com/PeterH0323/Streamer-Sales)
+
+### 非开源项目
+
+- https://clips.twitch.tv/WanderingCaringDeerDxCat-Qt55xtiGDSoNmDDr https://www.youtube.com/watch?v=8Giv5mupJNE
+- https://clips.twitch.tv/TriangularAthleticBunnySoonerLater-SXpBk1dFso21VcWD
 
 ## 项目状态
 
