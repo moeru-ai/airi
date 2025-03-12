@@ -1,9 +1,8 @@
 <script setup lang="ts">
 import { Collapsable } from '@proj-airi/stage-ui/components'
 import { DEFAULT_THEME_COLORS_HUE, useSettings } from '@proj-airi/stage-ui/stores'
+import { converter } from 'culori'
 import { useRouter } from 'vue-router'
-
-import { hexToOklch } from '../../../utils/color'
 
 const router = useRouter()
 const settings = useSettings()
@@ -43,7 +42,19 @@ function resetToDefault() {
 }
 
 function applyPrimaryColorFromHex(color: string) {
-  const { h } = hexToOklch(color)
+  // Convert hex color to OKLCH using culori's converter
+  const oklch = converter('oklch')(color)
+
+  if (!oklch)
+    return
+
+  // Extract hue from OKLCH color
+  const { h } = oklch
+
+  if (!h)
+    return
+
+  // Update theme settings
   settings.themeColorsHue = h
   settings.themeColorsHueDynamic = false
 }
