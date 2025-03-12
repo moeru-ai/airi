@@ -64,6 +64,7 @@ words:
   - hfup
   - higress
   - histoire
+  - histoire
   - hiyori
   - huggingface
   - huggingspace
@@ -138,6 +139,7 @@ words:
   - sizecheck
   - smallserial
   - Sniglet
+  - ssml
   - stepfun
   - supergroup
   - superjson
@@ -161,6 +163,5 @@ words:
   - xsai
   - xsschema
   - zhipu
-  - ssml
 ignoreWords: []
 import: []

@@ -10,6 +10,7 @@ defineProps<{
 
 <template>
   <RouterLink
+    box="border"
     flex="~ row"
     bg="neutral-50 dark:neutral-800"
     border="neutral-100 dark:neutral-700 hover:primary-500/30 dark:hover:primary-400/30 solid 2"
@@ -17,6 +18,7 @@ defineProps<{
     class="menu-icon-item"
     transition="all ease-in-out duration-200"
     relative w-full items-center overflow-hidden rounded-lg p-5 text-left
+    cursor="pointer"
     :to="to"
   >
     <div z-1 flex-1>

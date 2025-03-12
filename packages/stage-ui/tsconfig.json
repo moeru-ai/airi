@@ -30,6 +30,11 @@
       "@vue-macros/volar/define-slots"
     ]
   },
+  "include": [
+    "env.d.ts",
+    "**/*.vue",
+    "**/*.story.vue"
+  ],
   "exclude": [
     "dist",
     "node_modules"
