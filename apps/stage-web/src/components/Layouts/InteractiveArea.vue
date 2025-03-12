@@ -193,7 +193,7 @@ onAfterSend(async () => {
             :placeholder="t('stage.message')"
             text="primary-300 hover:primary-500 dark:primary-300/50 dark:hover:primary-500 placeholder:primary-300 placeholder:hover:primary-500 placeholder:dark:primary-300/50 placeholder:dark:hover:primary-500"
             bg="primary-100 dark:primary-400/20"
-            min-h="[100px]" w-full
+            min-h="[100px]" max-h="[300px]" w-full
             rounded-t-xl p-4 font-medium
             outline-none transition="all duration-250 ease-in-out placeholder:all placeholder:duration-250 placeholder:ease-in-out"
             @submit="handleSend"
