@@ -71,26 +71,27 @@ const audioQueue = useQueue<{ audioBuffer: AudioBuffer, text: string }>({
 })
 
 const speechStore = useSpeechStore()
+const { voiceId, ssmlEnabled, activeSpeechProvider, activeSpeechModel } = storeToRefs(speechStore)
 
 async function handleSpeechGeneration(ctx: { data: string }) {
   try {
-    if (!speechStore.activeSpeechProvider) {
+    if (!activeSpeechProvider.value) {
       console.warn('No active speech provider configured')
       return
     }
 
-    const provider = providersStore.getProviderInstance(speechStore.activeSpeechProvider) as SpeechProvider
+    const provider = providersStore.getProviderInstance(activeSpeechProvider.value) as SpeechProvider
     if (!provider) {
       console.error('Failed to initialize speech provider')
       return
     }
 
     const res = await generateSpeech({
-      ...provider.speech(speechStore.activeSpeechModel),
+      ...provider.speech(activeSpeechModel.value),
       input: ctx.data,
-      voice: speechStore.voiceId,
+      voice: voiceId.value,
       // Optional: Add SSML wrapping if enabled
-      ...(speechStore.ssmlEnabled && {
+      ...(ssmlEnabled.value && {
         input: speechStore.generateSSML(ctx.data),
       }),
       voiceSettings: {
