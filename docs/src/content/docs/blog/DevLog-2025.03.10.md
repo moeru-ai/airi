@@ -85,6 +85,7 @@ colors for the entire stage! (I never thought this could be done within hours...
 - https://github.com/moeru-ai/airi/pull/53
 - https://github.com/moeru-ai/airi/pull/60
 - https://github.com/moeru-ai/airi/pull/61
+- https://github.com/moeru-ai/airi/pull/63
 
 They even made it possible for the logo to follow the customizable colors 🤯.
 
