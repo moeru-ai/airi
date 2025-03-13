@@ -383,11 +383,11 @@ function isColorSelected(hexColor: string): boolean {
 }
 
 .theme-hue-slider::-webkit-slider-thumb {
-  @apply w-5 h-8 appearance-none rounded-md bg-neutral-500/80 dark:bg-neutral-400/80 cursor-pointer shadow-md border-2 border-white hover:bg-neutral-500 dark:hover:bg-neutral-400 transition-colors duration-200;
+  @apply w-2 h-12 appearance-none rounded-md bg-neutral-500/80 dark:bg-neutral-400/80 cursor-pointer shadow-md border-2 border-white hover:bg-neutral-500 dark:hover:bg-neutral-400 transition-colors duration-200;
 }
 
 .theme-hue-slider::-moz-range-thumb {
-  @apply w-5 h-8 bg-neutral-500/80 rounded-md  dark:bg-neutral-400/80 cursor-pointer shadow-md border-2 border-white border-box hover:bg-neutral-500 dark:hover:bg-neutral-400 transition-colors duration-200;
+  @apply w-2 h-12 bg-neutral-500/80 rounded-md  dark:bg-neutral-400/80 cursor-pointer shadow-md border-2 border-white border-box hover:bg-neutral-500 dark:hover:bg-neutral-400 transition-colors duration-200;
 }
 
 .transparency-grid {
