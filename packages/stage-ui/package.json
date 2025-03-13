@@ -52,6 +52,7 @@
     "typecheck": "vue-tsc --noEmit",
     "story:dev": "histoire dev",
     "story:build": "histoire build",
+    "story:build-base": "histoire build --base /ui",
     "story:preview": "histoire preview"
   },
   "devDependencies": {

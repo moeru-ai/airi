@@ -25,15 +25,16 @@ node_modules
 **/.netlify/functions-serve/*
 
 coverage/
+**/temp/
+
 **/public/assets/js/*
 **/public/assets/live2d/models/*
 **/public/assets/vrm/models/*
+packages/stage-ui/public/assets/fonts/
 
 *.pcm
 *.wav
 *.ogg
 *.mp3
-
-**/temp/
 
 twitter-session.json
