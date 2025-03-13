@@ -184,7 +184,8 @@ function updateCustomInput(event: Event) {
   opacity: 0;
 }
 
-.form_radio-card-detail:hover::before {
+.form_radio-card-detail:hover::before,
+.form_radio-card-detail._hover::before {
   --at-apply: 'bg-gradient-to-r from-primary-500/20 via-primary-500/10 to-transparent dark:from-primary-400/20 dark:via-primary-400/10 dark:to-transparent';
   width: 85%;
   opacity: 1;
