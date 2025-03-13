@@ -130,6 +130,7 @@ export default defineConfig({
             maximumFileSizeToCacheInBytes: 64 * 1024 * 1024,
             navigateFallbackDenylist: [
               /^\/docs\//,
+              /^\/ui\//,
               /^\/remote-assets\//,
               /^\/api\//,
             ],
