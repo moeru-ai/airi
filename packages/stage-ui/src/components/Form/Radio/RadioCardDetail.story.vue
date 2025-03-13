@@ -7,7 +7,10 @@ const modelValue = ref('test')
 </script>
 
 <template>
-  <Story :layout="{ type: 'grid', width: 500 }">
+  <Story
+    title="Radio Card (detail)"
+    :layout="{ type: 'grid', width: 500 }"
+  >
     <Variant id="default" title="Default">
       <RadioCardDetail
         id="test"

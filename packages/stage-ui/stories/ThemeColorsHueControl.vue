@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { onMounted, ref, watch } from 'vue'
 
-const DEFAULT_THEME_COLORS_HUE = 354.31
+const DEFAULT_THEME_COLORS_HUE = 178.17
 
 const themeColorsHue = ref(DEFAULT_THEME_COLORS_HUE)
 
@@ -21,7 +21,7 @@ watch(themeColorsHue, () => {
 </script>
 
 <template>
-  <div px-4 py-2>
+  <div px-4 py-2 flex="~ col">
     <input
       v-model="themeColorsHue"
       type="range"
@@ -32,7 +32,9 @@ watch(themeColorsHue, () => {
     >
 
     <button
-      class="mt-2 rounded-md bg-neutral-100 px-2 py-1 text-xs transition-colors dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700"
+      class="mt-2 rounded-md px-2 py-1 text-xs transition-colors"
+      bg="neutral-200 dark:neutral-800 hover:neutral-200 dark:hover:neutral-700"
+      text="neutral-700 dark:neutral-300"
       @click="resetToDefault"
     >
       Reset to Default

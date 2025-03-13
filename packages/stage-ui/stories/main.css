@@ -41,11 +41,12 @@ html.htw-dark {
 }
 
 .primary-color-bar {
-  @apply w-full h-full flex-1 flex items-center justify-center;
+  --at-apply: w-full h-full flex-1 flex items-center justify-center;
 }
 
 .theme-hue-slider {
-  @apply flex-1 w-full h-2 rounded-full appearance-none;
+  outline: none;
+  --at-apply: rounded-lg appearance-none h-10;
   background: linear-gradient(
     to right,
     oklch(85% 0.2 0),
@@ -56,4 +57,24 @@ html.htw-dark {
     oklch(85% 0.2 300),
     oklch(85% 0.2 360)
   );
+}
+
+.theme-hue-slider::-webkit-slider-thumb {
+  --at-apply: w-1 h-12 appearance-none rounded-md bg-neutral-600 cursor-pointer shadow-lg border-2 border-neutral-500
+    hover: bg-neutral-800 transition-colors duration-200;
+}
+
+.htw-dark .theme-hue-slider::-webkit-slider-thumb {
+  --at-apply: w-1 h-12 appearance-none rounded-md bg-neutral-200 cursor-pointer shadow-md border-2 border-white
+    hover: bg-neutral-300 transition-colors duration-200;
+}
+
+.theme-hue-slider::-moz-range-thumb {
+  --at-apply: w-1 h-12 appearance-none rounded-md bg-neutral-100 cursor-pointer shadow-lg border-2 border-neutral-500
+    hover: bg-neutral-800 transition-colors duration-200;
+}
+
+.htw-dark .theme-hue-slider::-moz-range-thumb {
+  --at-apply: w-1 h-12 appearance-none rounded-md bg-neutral-600 cursor-pointer shadow-md border-2 border-white
+    hover: bg-neutral-300 transition-colors duration-200;
 }

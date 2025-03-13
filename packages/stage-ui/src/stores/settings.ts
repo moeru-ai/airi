@@ -2,7 +2,7 @@ import { useDevicesList, useLocalStorage } from '@vueuse/core'
 import { defineStore } from 'pinia'
 import { computed, onMounted, ref, watch } from 'vue'
 
-export const DEFAULT_THEME_COLORS_HUE = 354.31
+export const DEFAULT_THEME_COLORS_HUE = 178.17
 
 export const useSettings = defineStore('settings', () => {
   const selectedAudioDevice = ref<MediaDeviceInfo>()
