@@ -86,14 +86,6 @@ export const useSpeechStore = defineStore('speech', () => {
     return voiceMap[voiceName.value as Voice]
   })
 
-  function setPitch(value: number) {
-    pitch.value = value
-  }
-
-  function setRate(value: number) {
-    rate.value = value
-  }
-
   function setSSMLEnabled(enabled: boolean) {
     ssmlEnabled.value = enabled
   }
@@ -268,8 +260,6 @@ export const useSpeechStore = defineStore('speech', () => {
     setActiveSpeechProvider,
     setActiveSpeechModel,
     setVoiceName,
-    setPitch,
-    setRate,
     setSSMLEnabled,
     setLanguage,
     resetVoiceSettings,

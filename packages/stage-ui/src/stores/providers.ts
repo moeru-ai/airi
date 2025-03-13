@@ -1,5 +1,13 @@
-/* eslint-disable no-case-declarations */
-import type { ChatProvider, EmbedProvider, SpeechProviderWithExtraOptions, TranscriptionProvider } from '@xsai-ext/shared-providers'
+import type {
+  ChatProvider,
+  ChatProviderWithExtraOptions,
+  EmbedProvider,
+  EmbedProviderWithExtraOptions,
+  SpeechProvider,
+  SpeechProviderWithExtraOptions,
+  TranscriptionProvider,
+  TranscriptionProviderWithExtraOptions,
+} from '@xsai-ext/shared-providers'
 
 import { useLocalStorage } from '@vueuse/core'
 import {
@@ -30,11 +38,20 @@ export interface ProviderMetadata {
   icon?: string
   iconColor?: string
   iconImage?: string
-  baseUrlDefault?: string
-  createProvider: (config: Record<string, unknown>) => ChatProvider | EmbedProvider | SpeechProviderWithExtraOptions | TranscriptionProvider
-  modelSelectionType: 'dynamic' | 'manual' | 'hardcoded'
-  fetchModelsManually?: (config: Record<string, unknown>) => Promise<ModelInfo[]>
-  hardcodedModels?: ModelInfo[]
+  defaultOptions?: Record<string, unknown>
+  createProvider: (config: Record<string, unknown>) =>
+    | ChatProvider
+    | ChatProviderWithExtraOptions
+    | EmbedProvider
+    | EmbedProviderWithExtraOptions
+    | SpeechProvider
+    | SpeechProviderWithExtraOptions
+    | TranscriptionProvider
+    | TranscriptionProviderWithExtraOptions
+  capabilities: {
+    listModels?: (config: Record<string, unknown>) => Promise<ModelInfo[]>
+    listVoices?: (config: Record<string, unknown>) => Promise<VoiceInfo[]>
+  }
 }
 
 export interface ModelInfo {
@@ -44,6 +61,16 @@ export interface ModelInfo {
   description?: string
   capabilities?: string[]
   contextLength?: number
+  deprecated?: boolean
+}
+
+export interface VoiceInfo {
+  id: string
+  name: string
+  provider: string
+  description?: string
+  gender?: string
+  language?: string
   deprecated?: boolean
 }
 
@@ -89,10 +116,15 @@ export const useProvidersStore = defineStore('providers', () => {
       descriptionKey: 'providers.openrouter.description',
       description: 'openrouter.ai',
       icon: 'i-lobe-icons:openrouter',
-      baseUrlDefault: 'https://openrouter.ai/api/v1/',
+      defaultOptions: {
+        baseUrl: 'https://openrouter.ai/api/v1/',
+      },
       createProvider: config => createOpenRouter(config.apiKey as string, config.baseUrl as string),
-      modelSelectionType: 'manual',
-      fetchModelsManually: fetchOpenRouterModels,
+      capabilities: {
+        listModels: async (config) => {
+          return fetchOpenRouterModels(config)
+        },
+      },
     },
     'openai': {
       id: 'openai',
@@ -101,9 +133,26 @@ export const useProvidersStore = defineStore('providers', () => {
       descriptionKey: 'providers.openai.description',
       description: 'openai.com',
       icon: 'i-lobe-icons:openai',
-      baseUrlDefault: 'https://api.openai.com/v1/',
+      defaultOptions: {
+        baseUrl: 'https://api.openai.com/v1/',
+      },
       createProvider: config => createOpenAI(config.apiKey as string, config.baseUrl as string),
-      modelSelectionType: 'dynamic',
+      capabilities: {
+        listModels: async (config) => {
+          return (await listModels({
+            ...createOpenAI(config.apiKey as string, config.baseUrl as string).model(),
+          })).map((model) => {
+            return {
+              id: model.id,
+              name: model.id,
+              provider: 'openai',
+              description: '',
+              contextLength: 0,
+              deprecated: false,
+            } satisfies ModelInfo
+          })
+        },
+      },
     },
     'ollama-ai': {
       id: 'ollama-ai',
@@ -112,9 +161,26 @@ export const useProvidersStore = defineStore('providers', () => {
       descriptionKey: 'providers.ollama.description',
       description: 'ollama.com',
       icon: 'i-lobe-icons:ollama',
-      baseUrlDefault: 'http://localhost:11434/api/',
+      defaultOptions: {
+        baseUrl: 'http://localhost:11434/api/',
+      },
       createProvider: config => createOllama(config.baseUrl as string),
-      modelSelectionType: 'dynamic',
+      capabilities: {
+        listModels: async (config) => {
+          return (await listModels({
+            ...createOllama(config.baseUrl as string).model(),
+          })).map((model) => {
+            return {
+              id: model.id,
+              name: model.id,
+              provider: 'ollama-ai',
+              description: '',
+              contextLength: 0,
+              deprecated: false,
+            } satisfies ModelInfo
+          })
+        },
+      },
     },
     'vllm': {
       id: 'vllm',
@@ -124,51 +190,54 @@ export const useProvidersStore = defineStore('providers', () => {
       description: 'vllm.ai',
       iconColor: 'i-lobe-icons:vllm-color',
       createProvider: config => createOllama(config.baseUrl as string),
-      modelSelectionType: 'hardcoded',
-      hardcodedModels: [
-        {
-          id: 'llama-2-7b',
-          name: 'Llama 2 (7B)',
-          provider: 'vllm',
-          description: 'Meta\'s Llama 2 7B parameter model',
-          contextLength: 4096,
+      capabilities: {
+        listModels: async () => {
+          return [
+            {
+              id: 'llama-2-7b',
+              name: 'Llama 2 (7B)',
+              provider: 'vllm',
+              description: 'Meta\'s Llama 2 7B parameter model',
+              contextLength: 4096,
+            },
+            {
+              id: 'llama-2-13b',
+              name: 'Llama 2 (13B)',
+              provider: 'vllm',
+              description: 'Meta\'s Llama 2 13B parameter model',
+              contextLength: 4096,
+            },
+            {
+              id: 'llama-2-70b',
+              name: 'Llama 2 (70B)',
+              provider: 'vllm',
+              description: 'Meta\'s Llama 2 70B parameter model',
+              contextLength: 4096,
+            },
+            {
+              id: 'mistral-7b',
+              name: 'Mistral (7B)',
+              provider: 'vllm',
+              description: 'Mistral AI\'s 7B parameter model',
+              contextLength: 8192,
+            },
+            {
+              id: 'mixtral-8x7b',
+              name: 'Mixtral (8x7B)',
+              provider: 'vllm',
+              description: 'Mistral AI\'s Mixtral 8x7B MoE model',
+              contextLength: 32768,
+            },
+            {
+              id: 'custom',
+              name: 'Custom Model',
+              provider: 'vllm',
+              description: 'Specify a custom model name',
+              contextLength: 0,
+            },
+          ]
         },
-        {
-          id: 'llama-2-13b',
-          name: 'Llama 2 (13B)',
-          provider: 'vllm',
-          description: 'Meta\'s Llama 2 13B parameter model',
-          contextLength: 4096,
-        },
-        {
-          id: 'llama-2-70b',
-          name: 'Llama 2 (70B)',
-          provider: 'vllm',
-          description: 'Meta\'s Llama 2 70B parameter model',
-          contextLength: 4096,
-        },
-        {
-          id: 'mistral-7b',
-          name: 'Mistral (7B)',
-          provider: 'vllm',
-          description: 'Mistral AI\'s 7B parameter model',
-          contextLength: 8192,
-        },
-        {
-          id: 'mixtral-8x7b',
-          name: 'Mixtral (8x7B)',
-          provider: 'vllm',
-          description: 'Mistral AI\'s Mixtral 8x7B MoE model',
-          contextLength: 32768,
-        },
-        {
-          id: 'custom',
-          name: 'Custom Model',
-          provider: 'vllm',
-          description: 'Specify a custom model name',
-          contextLength: 0,
-        },
-      ],
+      },
     },
     'perplexity-ai': {
       id: 'perplexity-ai',
@@ -177,46 +246,51 @@ export const useProvidersStore = defineStore('providers', () => {
       descriptionKey: 'providers.perplexity.description',
       description: 'perplexity.ai',
       icon: 'i-lobe-icons:perplexity',
-      baseUrlDefault: 'https://api.perplexity.ai',
+      defaultOptions: {
+        baseUrl: 'https://api.perplexity.ai',
+      },
       createProvider: config => createPerplexity(config.apiKey as string, config.baseUrl as string),
-      modelSelectionType: 'hardcoded',
-      hardcodedModels: [
-        {
-          id: 'sonar-small-online',
-          name: 'Sonar Small (Online)',
-          provider: 'perplexity-ai',
-          description: 'Efficient model with online search capabilities',
-          contextLength: 12000,
+      capabilities: {
+        listModels: async () => {
+          return [
+            {
+              id: 'sonar-small-online',
+              name: 'Sonar Small (Online)',
+              provider: 'perplexity-ai',
+              description: 'Efficient model with online search capabilities',
+              contextLength: 12000,
+            },
+            {
+              id: 'sonar-medium-online',
+              name: 'Sonar Medium (Online)',
+              provider: 'perplexity-ai',
+              description: 'Balanced model with online search capabilities',
+              contextLength: 12000,
+            },
+            {
+              id: 'sonar-large-online',
+              name: 'Sonar Large (Online)',
+              provider: 'perplexity-ai',
+              description: 'Powerful model with online search capabilities',
+              contextLength: 12000,
+            },
+            {
+              id: 'codey-small',
+              name: 'Codey Small',
+              provider: 'perplexity-ai',
+              description: 'Specialized for code generation and understanding',
+              contextLength: 12000,
+            },
+            {
+              id: 'codey-large',
+              name: 'Codey Large',
+              provider: 'perplexity-ai',
+              description: 'Advanced code generation and understanding',
+              contextLength: 12000,
+            },
+          ]
         },
-        {
-          id: 'sonar-medium-online',
-          name: 'Sonar Medium (Online)',
-          provider: 'perplexity-ai',
-          description: 'Balanced model with online search capabilities',
-          contextLength: 12000,
-        },
-        {
-          id: 'sonar-large-online',
-          name: 'Sonar Large (Online)',
-          provider: 'perplexity-ai',
-          description: 'Powerful model with online search capabilities',
-          contextLength: 12000,
-        },
-        {
-          id: 'codey-small',
-          name: 'Codey Small',
-          provider: 'perplexity-ai',
-          description: 'Specialized for code generation and understanding',
-          contextLength: 12000,
-        },
-        {
-          id: 'codey-large',
-          name: 'Codey Large',
-          provider: 'perplexity-ai',
-          description: 'Advanced code generation and understanding',
-          contextLength: 12000,
-        },
-      ],
+      },
     },
     'elevenlabs': {
       id: 'elevenlabs',
@@ -225,19 +299,19 @@ export const useProvidersStore = defineStore('providers', () => {
       descriptionKey: 'providers.elevenlabs.description',
       description: 'elevenlabs.io',
       icon: 'i-simple-icons:elevenlabs',
-      baseUrlDefault: 'https://unspeech.hyp3r.link/v1/',
+      defaultOptions: {
+        baseUrl: 'https://unspeech.hyp3r.link/v1/',
+      },
       // TODO: UnElevenLabsOptions
       createProvider: config => createUnElevenLabs(config.apiKey as string, config.baseUrl as string) as SpeechProviderWithExtraOptions<string, any>,
-      modelSelectionType: 'hardcoded',
-      hardcodedModels: [
-        {
-          id: 'sonar-small-online',
-          name: 'Sonar Small (Online)',
-          provider: 'perplexity-ai',
-          description: 'Efficient model with online search capabilities',
-          contextLength: 12000,
+      capabilities: {
+        listModels: async () => {
+          return []
         },
-      ],
+        listVoices: async () => {
+          return []
+        },
+      },
     },
     'xai': {
       id: 'xai',
@@ -247,7 +321,22 @@ export const useProvidersStore = defineStore('providers', () => {
       description: 'x.ai',
       icon: 'i-lobe-icons:xai',
       createProvider: config => createXAI(config.apiKey as string, config.baseUrl as string),
-      modelSelectionType: 'dynamic',
+      capabilities: {
+        listModels: async (config) => {
+          return (await listModels({
+            ...createXAI(config.apiKey as string, config.baseUrl as string).model(),
+          })).map((model) => {
+            return {
+              id: model.id,
+              name: model.id,
+              provider: 'xai',
+              description: '',
+              contextLength: 0,
+              deprecated: false,
+            } satisfies ModelInfo
+          })
+        },
+      },
     },
     'deepseek': {
       id: 'deepseek',
@@ -257,7 +346,22 @@ export const useProvidersStore = defineStore('providers', () => {
       description: 'deepseek.com',
       iconColor: 'i-lobe-icons:deepseek-color',
       createProvider: config => createDeepSeek(config.apiKey as string, config.baseUrl as string),
-      modelSelectionType: 'dynamic',
+      capabilities: {
+        listModels: async (config) => {
+          return (await listModels({
+            ...createDeepSeek(config.apiKey as string, config.baseUrl as string).model(),
+          })).map((model) => {
+            return {
+              id: model.id,
+              name: model.id,
+              provider: 'deepseek',
+              description: '',
+              contextLength: 0,
+              deprecated: false,
+            } satisfies ModelInfo
+          })
+        },
+      },
     },
     'together-ai': {
       id: 'together-ai',
@@ -267,7 +371,22 @@ export const useProvidersStore = defineStore('providers', () => {
       description: 'together.ai',
       iconColor: 'i-lobe-icons:together-color',
       createProvider: config => createTogetherAI(config.apiKey as string, config.baseUrl as string),
-      modelSelectionType: 'dynamic',
+      capabilities: {
+        listModels: async (config) => {
+          return (await listModels({
+            ...createTogetherAI(config.apiKey as string, config.baseUrl as string).model(),
+          })).map((model) => {
+            return {
+              id: model.id,
+              name: model.id,
+              provider: 'together-ai',
+              description: '',
+              contextLength: 0,
+              deprecated: false,
+            } satisfies ModelInfo
+          })
+        },
+      },
     },
     'novita-ai': {
       id: 'novita-ai',
@@ -277,7 +396,22 @@ export const useProvidersStore = defineStore('providers', () => {
       description: 'novita.ai',
       iconColor: 'i-lobe-icons:novita-color',
       createProvider: config => createNovita(config.apiKey as string, config.baseUrl as string),
-      modelSelectionType: 'dynamic',
+      capabilities: {
+        listModels: async (config) => {
+          return (await listModels({
+            ...createNovita(config.apiKey as string, config.baseUrl as string).model(),
+          })).map((model) => {
+            return {
+              id: model.id,
+              name: model.id,
+              provider: 'novita-ai',
+              description: '',
+              contextLength: 0,
+              deprecated: false,
+            } satisfies ModelInfo
+          })
+        },
+      },
     },
     'fireworks-ai': {
       id: 'fireworks-ai',
@@ -287,7 +421,22 @@ export const useProvidersStore = defineStore('providers', () => {
       description: 'fireworks.ai',
       icon: 'i-lobe-icons:fireworks',
       createProvider: config => createFireworks(config.apiKey as string, config.baseUrl as string),
-      modelSelectionType: 'dynamic',
+      capabilities: {
+        listModels: async (config) => {
+          return (await listModels({
+            ...createFireworks(config.apiKey as string, config.baseUrl as string).model(),
+          })).map((model) => {
+            return {
+              id: model.id,
+              name: model.id,
+              provider: 'fireworks-ai',
+              description: '',
+              contextLength: 0,
+              deprecated: false,
+            } satisfies ModelInfo
+          })
+        },
+      },
     },
     'cloudflare-workers-ai': {
       id: 'cloudflare-workers-ai',
@@ -297,7 +446,11 @@ export const useProvidersStore = defineStore('providers', () => {
       description: 'cloudflare.com',
       iconColor: 'i-lobe-icons:cloudflare-color',
       createProvider: config => createWorkersAI(config.apiKey as string, config.accountId as string),
-      modelSelectionType: 'dynamic',
+      capabilities: {
+        listModels: async () => {
+          return []
+        },
+      },
     },
     'mistral-ai': {
       id: 'mistral-ai',
@@ -307,7 +460,22 @@ export const useProvidersStore = defineStore('providers', () => {
       description: 'mistral.ai',
       iconColor: 'i-lobe-icons:mistral-color',
       createProvider: config => createMistral(config.apiKey as string, config.baseUrl as string),
-      modelSelectionType: 'dynamic',
+      capabilities: {
+        listModels: async (config) => {
+          return (await listModels({
+            ...createMistral(config.apiKey as string, config.baseUrl as string).model(),
+          })).map((model) => {
+            return {
+              id: model.id,
+              name: model.id,
+              provider: 'mistral-ai',
+              description: '',
+              contextLength: 0,
+              deprecated: false,
+            } satisfies ModelInfo
+          })
+        },
+      },
     },
     'moonshot-ai': {
       id: 'moonshot-ai',
@@ -317,7 +485,22 @@ export const useProvidersStore = defineStore('providers', () => {
       description: 'moonshot.ai',
       icon: 'i-lobe-icons:moonshot',
       createProvider: config => createMoonshot(config.apiKey as string, config.baseUrl as string),
-      modelSelectionType: 'dynamic',
+      capabilities: {
+        listModels: async (config) => {
+          return (await listModels({
+            ...createMoonshot(config.apiKey as string, config.baseUrl as string).model(),
+          })).map((model) => {
+            return {
+              id: model.id,
+              name: model.id,
+              provider: 'moonshot-ai',
+              description: '',
+              contextLength: 0,
+              deprecated: false,
+            } satisfies ModelInfo
+          })
+        },
+      },
     },
   }
 
@@ -367,7 +550,7 @@ export const useProvidersStore = defineStore('providers', () => {
     if (!providerCredentials.value[providerId]) {
       const metadata = providerMetadata[providerId]
       providerCredentials.value[providerId] = {
-        baseUrl: metadata.baseUrlDefault || '',
+        baseUrl: metadata.defaultOptions?.baseUrl || '',
       }
     }
   }
@@ -398,17 +581,6 @@ export const useProvidersStore = defineStore('providers', () => {
   const isLoadingModels = ref<Record<string, boolean>>({})
   const modelLoadError = ref<Record<string, string | null>>({})
 
-  // Check if a provider supports model listing (any type)
-  function supportsModelListing(providerId: string): boolean {
-    const metadata = providerMetadata[providerId]
-    if (!metadata)
-      return false
-
-    return metadata.modelSelectionType === 'dynamic'
-      || metadata.modelSelectionType === 'manual'
-      || (metadata.modelSelectionType === 'hardcoded' && !!metadata.hardcodedModels?.length)
-  }
-
   // Function to fetch models for a specific provider
   async function fetchModelsForProvider(providerId: string) {
     const config = providerCredentials.value[providerId]
@@ -423,49 +595,14 @@ export const useProvidersStore = defineStore('providers', () => {
     modelLoadError.value[providerId] = null
 
     try {
-      // Handle different model selection types
-      switch (metadata.modelSelectionType) {
-        case 'dynamic':
-          if (!metadata.createProvider) {
-            throw new Error(`Provider ${providerId} has no createProvider function`)
-          }
+      const models = metadata.capabilities.listModels ? await metadata.capabilities.listModels(config) : []
 
-          const providerInstance = metadata.createProvider(config)
-
-          // Check if provider supports model listing
-          if (!('model' in providerInstance && typeof providerInstance.model === 'function')) {
-            throw new Error(`Provider ${providerId} does not support model listing`)
-          }
-
-          // Get models using the provider's model() function
-          const models = await listModels(providerInstance.model())
-
-          // Transform and store the models
-          availableModels.value[providerId] = models.map(model => ({
-            id: model.id,
-            name: model.id,
-            provider: providerId,
-          }))
-          break
-
-        case 'manual':
-          if (!metadata.fetchModelsManually) {
-            throw new Error(`Provider ${providerId} has no fetchModelsManually function`)
-          }
-
-          // Use custom fetch function
-          availableModels.value[providerId] = await metadata.fetchModelsManually(config)
-          break
-
-        case 'hardcoded':
-          if (!metadata.hardcodedModels) {
-            throw new Error(`Provider ${providerId} has no hardcodedModels defined`)
-          }
-
-          // Use hardcoded models
-          availableModels.value[providerId] = metadata.hardcodedModels
-          break
-      }
+      // Transform and store the models
+      availableModels.value[providerId] = models.map(model => ({
+        id: model.id,
+        name: model.id,
+        provider: providerId,
+      }))
 
       return availableModels.value[providerId]
     }
@@ -496,7 +633,7 @@ export const useProvidersStore = defineStore('providers', () => {
   // Load models for all configured providers
   async function loadModelsForConfiguredProviders() {
     for (const providerId of availableProviders.value) {
-      if (supportsModelListing(providerId)) {
+      if (providerMetadata[providerId].capabilities.listModels) {
         await fetchModelsForProvider(providerId)
       }
     }
@@ -568,7 +705,6 @@ export const useProvidersStore = defineStore('providers', () => {
     getModelsForProvider,
     allAvailableModels,
     loadModelsForConfiguredProviders,
-    supportsModelListing,
     getProviderInstance,
     availableProvidersMetadata,
   }

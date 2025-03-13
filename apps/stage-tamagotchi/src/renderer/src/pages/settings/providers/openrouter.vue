@@ -25,13 +25,13 @@ onMounted(() => {
 
   // Initialize refs with current values
   apiKey.value = providers.value[providerId]?.apiKey || ''
-  baseUrl.value = providers.value[providerId]?.baseUrl || providerMetadata.value?.baseUrlDefault || ''
+  baseUrl.value = providers.value[providerId]?.baseUrl || providerMetadata.value?.defaultOptions?.baseUrl || ''
 })
 
 watch([apiKey, baseUrl], () => {
   providers.value[providerId] = {
     apiKey: apiKey.value,
-    baseUrl: baseUrl.value || providerMetadata.value?.baseUrlDefault || '',
+    baseUrl: baseUrl.value || providerMetadata.value?.defaultOptions?.baseUrl || '',
   }
 })
 </script>
@@ -115,7 +115,7 @@ watch([apiKey, baseUrl], () => {
               border="zinc-300 dark:zinc-800 solid 1 focus:zinc-400 dark:focus:zinc-600"
               transition="border duration-250 ease-in-out"
               w-full rounded px-2 py-1 text-nowrap text-sm outline-none
-              :placeholder="providerMetadata?.baseUrlDefault"
+              :placeholder="providerMetadata?.defaultOptions?.baseUrl as string || ''"
             >
           </label>
         </div>
