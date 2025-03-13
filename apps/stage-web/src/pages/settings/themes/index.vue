@@ -175,93 +175,95 @@ function isColorSelected(hexColor: string): boolean {
         </button>
       </template>
       <div p-4>
-        <div class="flex items-center gap-8">
-          <div class="flex items-center gap-1 text-sm font-medium">
-            Primary color
-          </div>
+        <div class="mb-2 text-sm font-medium">
+          Primary color
+        </div>
 
+        <div flex="~ col gap-4">
           <input
             v-model="settings.themeColorsHue"
             type="range"
             min="0"
             max="360"
             step="0.01"
-            class="theme-hue-slider"
+            class="theme-hue-slider h-10 w-full"
             :disabled="settings.themeColorsHueDynamic"
             :class="{ 'opacity-25 cursor-not-allowed': settings.themeColorsHueDynamic }"
           >
-        </div>
-        <div mt-4 h-10 w-full flex overflow-hidden rounded-lg>
-          <div bg="primary-50" class="primary-color-bar" text-black>
-            50
+
+          <div h-10 w-full flex overflow-hidden rounded-lg>
+            <div bg="primary-50" class="primary-color-bar" text-black>
+              50
+            </div>
+            <div bg="primary-100" class="primary-color-bar" text-black>
+              100
+            </div>
+            <div bg="primary-200" class="primary-color-bar" text-black>
+              200
+            </div>
+            <div bg="primary-300" class="primary-color-bar" text-black>
+              300
+            </div>
+            <div bg="primary-400" class="primary-color-bar" text-black>
+              400
+            </div>
+            <div bg="primary-500" class="primary-color-bar" text-black>
+              500
+            </div>
+            <div bg="primary-600" class="primary-color-bar" text-white>
+              600
+            </div>
+            <div bg="primary-700" class="primary-color-bar" text-white>
+              700
+            </div>
+            <div bg="primary-800" class="primary-color-bar" text-white>
+              800
+            </div>
+            <div bg="primary-900" class="primary-color-bar" text-white>
+              900
+            </div>
+            <div bg="primary-950" class="primary-color-bar" text-white>
+              950
+            </div>
           </div>
-          <div bg="primary-100" class="primary-color-bar" text-black>
-            100
-          </div>
-          <div bg="primary-200" class="primary-color-bar" text-black>
-            200
-          </div>
-          <div bg="primary-300" class="primary-color-bar" text-black>
-            300
-          </div>
-          <div bg="primary-400" class="primary-color-bar" text-black>
-            400
-          </div>
-          <div bg="primary-500" class="primary-color-bar" text-black>
-            500
-          </div>
-          <div bg="primary-600" class="primary-color-bar" text-white>
-            600
-          </div>
-          <div bg="primary-700" class="primary-color-bar" text-white>
-            700
-          </div>
-          <div bg="primary-800" class="primary-color-bar" text-white>
-            800
-          </div>
-          <div bg="primary-900" class="primary-color-bar" text-white>
-            900
-          </div>
-          <div bg="primary-950" class="primary-color-bar" text-white>
-            950
+
+          <div h-10 w-full flex overflow-hidden rounded-lg class="transparency-grid">
+            <div bg="primary-500/5" class="primary-color-bar" text-black>
+              500/5
+            </div>
+            <div bg="primary-500/10" class="primary-color-bar" text-black>
+              500/10
+            </div>
+            <div bg="primary-500/20" class="primary-color-bar" text-black>
+              500/20
+            </div>
+            <div bg="primary-500/30" class="primary-color-bar" text-black>
+              500/30
+            </div>
+            <div bg="primary-500/40" class="primary-color-bar" text-black>
+              500/40
+            </div>
+            <div bg="primary-500/50" class="primary-color-bar" text-black>
+              500/50
+            </div>
+            <div bg="primary-500/60" class="primary-color-bar" text-black>
+              500/60
+            </div>
+            <div bg="primary-500/70" class="primary-color-bar" text-black>
+              500/70
+            </div>
+            <div bg="primary-500/80" class="primary-color-bar" text-black>
+              500/80
+            </div>
+            <div bg="primary-500/90" class="primary-color-bar" text-black>
+              500/90
+            </div>
+            <div bg="primary-500" class="primary-color-bar" text-black>
+              500
+            </div>
           </div>
         </div>
 
-        <div mt-4 h-10 w-full flex overflow-hidden rounded-lg class="transparency-grid">
-          <div bg="primary-500/5" class="primary-color-bar" text-black>
-            500/5
-          </div>
-          <div bg="primary-500/10" class="primary-color-bar" text-black>
-            500/10
-          </div>
-          <div bg="primary-500/20" class="primary-color-bar" text-black>
-            500/20
-          </div>
-          <div bg="primary-500/30" class="primary-color-bar" text-black>
-            500/30
-          </div>
-          <div bg="primary-500/40" class="primary-color-bar" text-black>
-            500/40
-          </div>
-          <div bg="primary-500/50" class="primary-color-bar" text-black>
-            500/50
-          </div>
-          <div bg="primary-500/60" class="primary-color-bar" text-black>
-            500/60
-          </div>
-          <div bg="primary-500/70" class="primary-color-bar" text-black>
-            500/70
-          </div>
-          <div bg="primary-500/80" class="primary-color-bar" text-black>
-            500/80
-          </div>
-          <div bg="primary-500/90" class="primary-color-bar" text-black>
-            500/90
-          </div>
-          <div bg="primary-500" class="primary-color-bar" text-black>
-            500
-          </div>
-        </div>
         <div mt-4 class="flex items-center justify-end gap-4">
           <label class="relative inline-flex cursor-pointer items-center">
             <input
@@ -367,7 +369,7 @@ function isColorSelected(hexColor: string): boolean {
 }
 
 .theme-hue-slider {
-  @apply flex-1 w-32 h-2 rounded-full appearance-none;
+  @apply rounded-lg appearance-none;
   background: linear-gradient(
     to right,
     oklch(85% 0.2 0),
@@ -378,6 +380,14 @@ function isColorSelected(hexColor: string): boolean {
     oklch(85% 0.2 300),
     oklch(85% 0.2 360)
   );
+}
+
+.theme-hue-slider::-webkit-slider-thumb {
+  @apply w-5 h-8 appearance-none rounded-md bg-neutral-500/80 dark:bg-neutral-400/80 cursor-pointer shadow-md border-2 border-white hover:bg-neutral-500 dark:hover:bg-neutral-400 transition-colors duration-200;
+}
+
+.theme-hue-slider::-moz-range-thumb {
+  @apply w-5 h-8 bg-neutral-500/80 rounded-md  dark:bg-neutral-400/80 cursor-pointer shadow-md border-2 border-white border-box hover:bg-neutral-500 dark:hover:bg-neutral-400 transition-colors duration-200;
 }
 
 .transparency-grid {
