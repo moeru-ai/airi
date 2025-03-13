@@ -68,7 +68,8 @@ defineProps<{
   opacity: 0;
 }
 
-.menu-icon-item:hover::before {
+.menu-icon-item:hover::before,
+.menu-icon-item._hover::before {
   --at-apply: 'bg-gradient-to-r from-primary-500/20 via-primary-500/10 to-transparent dark:from-primary-400/20 dark:via-primary-400/10 dark:to-transparent';
   width: 85%;
   opacity: 1;
@@ -87,31 +88,37 @@ defineProps<{
   transition: all 0.35s ease-in-out;
 }
 
-.menu-icon-item:hover .menu-icon-item-title {
+.menu-icon-item:hover .menu-icon-item-title,
+.menu-icon-item._hover .menu-icon-item-title {
   --at-apply: text-primary-600;
 }
 
-.menu-icon-item:hover .menu-icon-item-description {
+.menu-icon-item:hover .menu-icon-item-description,
+.menu-icon-item._hover .menu-icon-item-description {
   --at-apply: text-primary-600;
   opacity: 0.8;
 }
 
-.menu-icon-item:hover .menu-icon-item-icon {
+.menu-icon-item:hover .menu-icon-item-icon,
+.menu-icon-item._hover .menu-icon-item-icon {
   --at-apply: text-primary-500;
   scale: 1.2;
   opacity: 0.2;
 }
 
-.dark .menu-icon-item:hover .menu-icon-item-title {
+.dark .menu-icon-item:hover .menu-icon-item-title,
+.dark .menu-icon-item._hover .menu-icon-item-title {
   --at-apply: text-primary-300;
 }
 
-.dark .menu-icon-item:hover .menu-icon-item-description {
+.dark .menu-icon-item:hover .menu-icon-item-description,
+.dark .menu-icon-item._hover .menu-icon-item-description {
   --at-apply: text-primary-300;
   opacity: 0.8;
 }
 
-.dark .menu-icon-item:hover .menu-icon-item-icon {
+.dark .menu-icon-item:hover .menu-icon-item-icon,
+.dark .menu-icon-item._hover .menu-icon-item-icon {
   --at-apply: text-primary-400;
   opacity: 0.2;
 }

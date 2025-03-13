@@ -55,6 +55,23 @@ export default defineConfig({
       },
     }),
     presetScrollbar(),
+    {
+      name: 'story-mock-hover',
+      variants: [
+        (matcher) => {
+          if (!matcher.includes('hover')) {
+            return matcher
+          }
+
+          return {
+            matcher,
+            selector: (s) => {
+              return `${s}, ${s.replace(/:hover$/, '')}._hover`
+            },
+          }
+        },
+      ],
+    },
   ],
   transformers: [
     transformerDirectives({

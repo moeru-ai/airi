@@ -100,7 +100,8 @@ const props = defineProps<{
   opacity: 0;
 }
 
-.menu-icon-status-item:hover::before {
+.menu-icon-status-item:hover::before,
+.menu-icon-status-item._hover::before {
   --at-apply: 'bg-gradient-to-r from-primary-500/20 via-primary-500/10 to-transparent dark:from-primary-400/20 dark:via-primary-400/10 dark:to-transparent';
   width: 50%;
   opacity: 1;
@@ -119,31 +120,37 @@ const props = defineProps<{
   transition: all 0.35s ease-in-out;
 }
 
-.menu-icon-status-item:hover .menu-icon-status-item-title {
+.menu-icon-status-item:hover .menu-icon-status-item-title,
+.menu-icon-status-item._hover .menu-icon-status-item-title {
   --at-apply: text-primary-600;
 }
 
-.menu-icon-status-item:hover .menu-icon-status-item-description {
+.menu-icon-status-item:hover .menu-icon-status-item-description,
+.menu-icon-status-item._hover .menu-icon-status-item-description {
   --at-apply: text-primary-600;
   opacity: 0.8;
 }
 
-.menu-icon-status-item:hover .menu-icon-status-item-icon {
+.menu-icon-status-item:hover .menu-icon-status-item-icon,
+.menu-icon-status-item._hover .menu-icon-status-item-icon {
   --at-apply: text-primary-500;
   scale: 1.2;
   opacity: 0.2;
 }
 
-.dark .menu-icon-status-item:hover .menu-icon-status-item-title {
+.dark .menu-icon-status-item:hover .menu-icon-status-item-title,
+.dark .menu-icon-status-item._hover .menu-icon-status-item-title {
   --at-apply: text-primary-300;
 }
 
-.dark .menu-icon-status-item:hover .menu-icon-status-item-description {
+.dark .menu-icon-status-item:hover .menu-icon-status-item-description,
+.dark .menu-icon-status-item._hover .menu-icon-status-item-description {
   --at-apply: text-primary-300;
   opacity: 0.8;
 }
 
-.dark .menu-icon-status-item:hover .menu-icon-status-item-icon {
+.dark .menu-icon-status-item:hover .menu-icon-status-item-icon,
+.dark .menu-icon-status-item._hover .menu-icon-status-item-icon {
   --at-apply: text-primary-400;
   opacity: 0.2;
 }

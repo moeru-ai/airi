@@ -135,7 +135,7 @@ pnpm install
 ### Documentation site
 
 ```shell
-pnpm -F @proj-airi/docs... dev
+pnpm -F @proj-airi/docs... --parallel dev
 ```
 
 > [!NOTE]
@@ -143,13 +143,13 @@ pnpm -F @proj-airi/docs... dev
 > For [@antfu/ni](https://github.com/antfu-collective/ni) users, you can
 >
 > ```shell
-> nr -F @proj-airi/docs... dev
+> nr -F @proj-airi/docs... --parallel dev
 > ```
 
 ### Stage web (Frontend for [airi.moeru.ai](https://airi.moeru.ai), or [airi.ayaka.io](https://airi.ayaka.io))
 
 ```shell
-pnpm -F @proj-airi/stage-web... dev
+pnpm -F @proj-airi/stage-web... --parallel dev
 ```
 
 > [!NOTE]
@@ -157,13 +157,13 @@ pnpm -F @proj-airi/stage-web... dev
 > For [@antfu/ni](https://github.com/antfu-collective/ni) users, you can
 >
 > ```shell
-> nr -F @proj-airi/stage-web... dev
+> nr -F @proj-airi/stage-web... --parallel dev
 > ```
 
 ### Stage Tamagotchi (Electron app for アイリ VTuber)
 
 ```shell
-pnpm -F @proj-airi/stage-tamagotchi... dev
+pnpm -F @proj-airi/stage-tamagotchi... --parallel dev
 ```
 
 > [!NOTE]
@@ -171,7 +171,7 @@ pnpm -F @proj-airi/stage-tamagotchi... dev
 > For [@antfu/ni](https://github.com/antfu-collective/ni) users, you can
 >
 > ```shell
-> nr -F @proj-airi/stage-tamagotchi... dev
+> nr -F @proj-airi/stage-tamagotchi... --parallel dev
 > ```
 
 ### Telegram bot integration
@@ -215,7 +215,7 @@ pnpm -F @proj-airi/telegram-bot start
 > For [@antfu/ni](https://github.com/antfu-collective/ni) users, you can
 >
 > ```shell
-> nr -F @proj-airi/telegram-bot... dev
+> nr -F @proj-airi/telegram-bot... --parallel dev
 > ```
 
 ### Discord bot integration

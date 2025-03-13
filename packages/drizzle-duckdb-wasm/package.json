@@ -48,8 +48,8 @@
     "package.json"
   ],
   "scripts": {
-    "dev": "pnpm run stub && pnpm run play:dev",
-    "stub": "unbuild --stub",
+    "dev": "pnpm run stub",
+    "stub": "unbuild",
     "build": "unbuild && pnpm run play:build",
     "play:dev": "vite",
     "play:build": "vite build",

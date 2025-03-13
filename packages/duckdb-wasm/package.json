@@ -49,7 +49,7 @@
   ],
   "scripts": {
     "dev": "pnpm run stub",
-    "stub": "unbuild --stub",
+    "stub": "unbuild",
     "build": "unbuild",
     "typecheck": "tsc --noEmit"
   },

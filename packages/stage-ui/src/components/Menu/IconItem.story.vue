@@ -15,7 +15,25 @@ import IconItem from './IconItem.vue'
       id="global"
       title="IconItem"
     >
-      <IconItem title="Modules" description="Thinking, vision, speech synthesis, gaming, etc." icon="i-lucide:blocks" to="/settings/modules" />
+      <IconItem
+        title="Modules"
+        description="Thinking, vision, speech synthesis, gaming, etc."
+        icon="i-lucide:blocks"
+        to="/settings/modules"
+      />
+    </Variant>
+
+    <Variant
+      id="global-hover"
+      title="IconItem"
+    >
+      <IconItem
+        title="Modules"
+        description="Thinking, vision, speech synthesis, gaming, etc."
+        icon="i-lucide:blocks"
+        to="/settings/modules"
+        class="_hover"
+      />
     </Variant>
   </Story>
 </template>
