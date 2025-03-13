@@ -42,8 +42,11 @@ they were already available on
 
 I deployed the official documentation site onto [https://airi.build](https://airi.build) yesterday,
 [@kwaa](https://github.com/kwaa) commented that he would suggest me try
-the `https://airi.more.ai/docs` approach instead, but I couldn't figure out
-a way to make a 200 redirect proxy for /docs.
+the `https://airi.more.ai/docs` approach instead, ~~but I couldn't figure out~~
+~~a way to make a 200 redirect proxy for /docs.~~
+
+EDIT: Finally learned. How to do this, will include the details in the future
+DevLogs.
 
 I experimented it a little with like ten commits fighting against CI/CD
 pipeline (yes fighting against again), but still not made it work.
