@@ -59,24 +59,6 @@ const opacities = [5, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100]
 </template>
 
 <style>
-.primary-color-bar {
-  @apply w-full h-full flex-1 flex items-center justify-center;
-}
-
-.theme-hue-slider {
-  @apply flex-1 w-full h-2 rounded-full appearance-none;
-  background: linear-gradient(
-    to right,
-    oklch(85% 0.2 0),
-    oklch(85% 0.2 60),
-    oklch(85% 0.2 120),
-    oklch(85% 0.2 180),
-    oklch(85% 0.2 240),
-    oklch(85% 0.2 300),
-    oklch(85% 0.2 360)
-  );
-}
-
 .transparency-grid::before {
   content: '';
   grid-area: 2 / 2 / span 11 / span 11;
