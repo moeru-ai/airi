@@ -15,6 +15,14 @@ export default defineConfig({
         id: 'design-system',
         title: 'Design System',
       },
+      {
+        id: 'form',
+        title: 'Form',
+      },
+      {
+        id: 'menu',
+        title: 'Menu',
+      },
     ],
   },
 })

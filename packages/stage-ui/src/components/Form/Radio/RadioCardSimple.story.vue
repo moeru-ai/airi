@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 
+import ThemeColorsHueControl from '../../../../stories/ThemeColorsHueControl.vue'
 import RadioCardSimple from './RadioCardSimple.vue'
 
 const modelValue = ref('test')
@@ -9,8 +10,13 @@ const modelValue = ref('test')
 <template>
   <Story
     title="Radio Card (simple)"
+    group="form"
     :layout="{ type: 'grid', width: 500 }"
   >
+    <template #controls>
+      <ThemeColorsHueControl />
+    </template>
+
     <Variant id="default" title="Default">
       <RadioCardSimple
         id="test"

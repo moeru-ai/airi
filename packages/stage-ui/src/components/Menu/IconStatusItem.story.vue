@@ -6,6 +6,7 @@ import IconStatusItem from './IconStatusItem.vue'
 <template>
   <Story
     title="Menu Icon Item (with Status)"
+    group="menu"
     :layout="{ type: 'grid', width: 500 }"
   >
     <template #controls>

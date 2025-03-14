@@ -6,6 +6,7 @@ import IconItem from './IconItem.vue'
 <template>
   <Story
     title="Menu Icon Item"
+    group="menu"
     :layout="{ type: 'grid', width: 500 }"
   >
     <template #controls>
