@@ -68,7 +68,7 @@
     "date-fns": "^4.1.0",
     "defu": "^6.1.4",
     "drizzle-orm": "^0.40.0",
-    "es-toolkit": "^1.32.0"
+    "es-toolkit": "^1.33.0"
   },
   "devDependencies": {
     "drizzle-kit": "^0.30.5"

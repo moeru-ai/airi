@@ -33,9 +33,9 @@
   },
   "dependencies": {
     "@huggingface/transformers": "^3.4.0",
-    "onnxruntime-common": "^1.20.1"
+    "onnxruntime-common": "^1.21.0"
   },
   "devDependencies": {
-    "@iconify-json/simple-icons": "^1.2.27"
+    "@iconify-json/simple-icons": "^1.2.28"
   }
 }
