@@ -9,7 +9,7 @@ const maxValue = ref(100)
 </script>
 
 <template>
-  <Story title="Range" group="data-gui" :layout="{ type: 'grid', width: 500 }">
+  <Story title="Range" group="form" :layout="{ type: 'grid', width: 500 }">
     <template #controls>
       <ThemeColorsHueControl />
     </template>
