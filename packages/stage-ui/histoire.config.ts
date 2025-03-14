@@ -23,6 +23,10 @@ export default defineConfig({
         id: 'menu',
         title: 'Menu',
       },
+      {
+        id: 'data-gui',
+        title: 'Data GUI',
+      },
     ],
   },
 })

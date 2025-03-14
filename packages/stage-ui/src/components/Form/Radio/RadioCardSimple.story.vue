@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 
-import ThemeColorsHueControl from '../../../../stories/ThemeColorsHueControl.vue'
 import RadioCardSimple from './RadioCardSimple.vue'
 
 const modelValue = ref('test')

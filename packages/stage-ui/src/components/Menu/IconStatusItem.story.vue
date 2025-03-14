@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import ThemeColorsHueControl from '../../../stories/ThemeColorsHueControl.vue'
 import IconStatusItem from './IconStatusItem.vue'
 </script>
 
