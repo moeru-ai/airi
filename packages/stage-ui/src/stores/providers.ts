@@ -1,3 +1,4 @@
+import type { UnElevenLabsOptions } from '@xsai-ext/providers-local'
 import type {
   ChatProvider,
   ChatProviderWithExtraOptions,
@@ -303,7 +304,7 @@ export const useProvidersStore = defineStore('providers', () => {
         baseUrl: 'https://unspeech.hyp3r.link/v1/',
       },
       // TODO: UnElevenLabsOptions
-      createProvider: config => createUnElevenLabs(config.apiKey as string, config.baseUrl as string) as SpeechProviderWithExtraOptions<string, any>,
+      createProvider: config => createUnElevenLabs(config.apiKey as string, config.baseUrl as string) as SpeechProviderWithExtraOptions<string, UnElevenLabsOptions>,
       capabilities: {
         listModels: async () => {
           return []

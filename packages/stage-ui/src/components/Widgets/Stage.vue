@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { ElectronAPI } from '@electron-toolkit/preload'
 import type { DuckDBWasmDrizzleDatabase } from '@proj-airi/drizzle-duckdb-wasm'
+import type { UnElevenLabsOptions } from '@xsai-ext/providers-local'
 import type { SpeechProviderWithExtraOptions } from '@xsai-ext/shared-providers'
 import type { Emotion } from '../../constants/emotions'
 
@@ -81,7 +82,7 @@ async function handleSpeechGeneration(ctx: { data: string }) {
     }
 
     // TODO: UnElevenLabsOptions
-    const provider = providersStore.getProviderInstance(activeSpeechProvider.value) as SpeechProviderWithExtraOptions<string, any>
+    const provider = providersStore.getProviderInstance(activeSpeechProvider.value) as SpeechProviderWithExtraOptions<string, UnElevenLabsOptions>
     if (!provider) {
       console.error('Failed to initialize speech provider')
       return

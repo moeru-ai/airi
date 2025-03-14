@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { Voice } from '@proj-airi/stage-ui/constants'
+import type { UnElevenLabsOptions } from '@xsai-ext/providers-local'
 import type { SpeechProviderWithExtraOptions } from '@xsai-ext/shared-providers'
 
 import { Collapsable, Range } from '@proj-airi/stage-ui/components'
@@ -96,7 +97,7 @@ async function generateTestSpeech() {
   if (!testText.value.trim())
     return
 
-  const provider = providersStore.getProviderInstance(providerId) as SpeechProviderWithExtraOptions<string, any>
+  const provider = providersStore.getProviderInstance(providerId) as SpeechProviderWithExtraOptions<string, UnElevenLabsOptions>
   if (!provider) {
     console.error('Failed to initialize speech provider')
     return
@@ -116,6 +117,7 @@ async function generateTestSpeech() {
         voiceSettings: {
           stability: stability.value,
           similarityBoost: similarityBoost.value,
+          // @ts-expect-error -- missing type
           speed: speed.value,
           style: style.value,
           useSpeakerBoost: useSpeakerBoost.value,
