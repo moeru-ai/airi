@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { RadioCardSimple } from '@proj-airi/stage-ui/components'
+import { RadioCardSimple, Range } from '@proj-airi/stage-ui/components'
 import { useProvidersStore, useSpeechStore } from '@proj-airi/stage-ui/stores'
 import { storeToRefs } from 'pinia'
 import { onMounted, ref } from 'vue'
@@ -35,16 +35,6 @@ onMounted(async () => {
 
 function updateVoiceName(value: string) {
   voiceName.value = value
-  updateSSMLExample()
-}
-
-function updatePitch(value: number) {
-  pitch.value = value
-  updateSSMLExample()
-}
-
-function updateRate(value: number) {
-  rate.value = value
   updateSSMLExample()
 }
 
@@ -201,11 +191,10 @@ function updateSSMLExample() {
                 Pitch Adjustment (%)
               </label>
               <div class="flex items-center gap-3">
-                <input
-                  v-model="pitch" type="range" min="-50" max="50" step="5"
+                <Range
+                  v-model="pitch" :min="-50" :max="50" :step="5"
                   class="w-full"
-                  @input="(event) => updatePitch(parseInt((event.target as HTMLInputElement).value))"
-                >
+                />
                 <span class="w-12 text-center">{{ pitch }}%</span>
               </div>
             </div>
@@ -214,11 +203,10 @@ function updateSSMLExample() {
                 Speech Rate
               </label>
               <div class="flex items-center gap-3">
-                <input
-                  v-model="rate" type="range" min="0.5" max="2" step="0.1"
+                <Range
+                  v-model="rate" :min="0.5" :max="2" :step="0.1"
                   class="w-full"
-                  @input="(event) => updateRate(parseFloat((event.target as HTMLInputElement).value))"
-                >
+                />
                 <span class="w-12 text-center">{{ rate }}x</span>
               </div>
             </div>
@@ -265,9 +253,3 @@ function updateSSMLExample() {
     <div text="40" i-lucide:volume-2 translate-x-10 translate-y-10 />
   </div>
 </template>
-
-<route lang="yaml">
-meta:
-  stageTransition:
-    name: slide
-</route>

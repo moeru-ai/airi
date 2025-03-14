@@ -53,7 +53,7 @@ function updateTrackColor() {
 <template>
   <input
     ref="sliderRef"
-    v-model="sliderValue"
+    v-model.number="sliderValue"
     type="range"
     :min="scaledMin"
     :max="scaledMax"
