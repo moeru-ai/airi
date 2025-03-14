@@ -2,7 +2,7 @@
 import type { Voice } from '@proj-airi/stage-ui/constants'
 import type { SpeechProviderWithExtraOptions } from '@xsai-ext/shared-providers'
 
-import { Collapsable } from '@proj-airi/stage-ui/components'
+import { Collapsable, Range } from '@proj-airi/stage-ui/components'
 import { voiceMap } from '@proj-airi/stage-ui/constants'
 import { useProvidersStore, useSpeechStore } from '@proj-airi/stage-ui/stores'
 import { useToggle } from '@vueuse/core'
@@ -229,7 +229,7 @@ onUnmounted(() => {
               </div>
             </div>
             <div flex="~ row" items-center gap-2>
-              <input v-model="similarityBoost" type="range" min="0" max="1" step="0.01" w-full>
+              <Range v-model="similarityBoost" :min="0" :max="1" :step="0.01" w-full />
               <span class="text-xs">{{ similarityBoost.toFixed(2) }}</span>
             </div>
           </label>
@@ -244,7 +244,7 @@ onUnmounted(() => {
               </div>
             </div>
             <div flex="~ row" items-center gap-2>
-              <input v-model="stability" type="range" min="0" max="1" step="0.01" w-full>
+              <Range v-model="stability" :min="0" :max="1" :step="0.01" w-full />
               <span class="text-xs">{{ stability.toFixed(2) }}</span>
             </div>
           </label>
@@ -259,7 +259,7 @@ onUnmounted(() => {
               </div>
             </div>
             <div flex="~ row" items-center gap-2>
-              <input v-model="speed" type="range" min="0.7" max="1.2" step="0.01" w-full>
+              <Range v-model="speed" :min="0.7" :max="1.2" :step="0.01" w-full />
               <span class="text-xs">{{ speed.toFixed(2) }}</span>
             </div>
           </label>
@@ -274,7 +274,7 @@ onUnmounted(() => {
               </div>
             </div>
             <div flex="~ row" items-center gap-2>
-              <input v-model="style" type="range" min="0" max="1" step="0.01" w-full>
+              <Range v-model="style" :min="0" :max="1" :step="0.01" w-full />
               <span class="text-xs">{{ style.toFixed(2) }}</span>
             </div>
           </label>

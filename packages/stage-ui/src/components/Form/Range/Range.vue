@@ -69,33 +69,35 @@ function updateTrackColor() {
 /*generated with Input range slider CSS style generator (version 20211225)
 https://toughengineer.github.io/demo/slider-styler*/
 .data-gui-range {
-  --total-height: 3em;
+  --height: 2em;
 
-  min-height: var(--total-height);
+  min-height: var(--height);
   appearance: none;
   background: transparent;
-  border-radius: 0.5em;
+  border-radius: 4px;
   transition: background-color 0.2s ease;
 
   --thumb-width: 4px;
-  --thumb-height: var(--total-height);
-  --thumb-box-shadow: 0 0 2px #8d8d8d;
+  --thumb-height: var(--height);
+  --thumb-box-shadow: 0 0 0px #e6e6e6;
   --thumb-border: none;
   --thumb-border-radius: 999px;
-  --thumb-background: #e2e2e2;
+  --thumb-background: #939393;
   --thumb-background-hover: #ffffff;
   --thumb-background-active: #d7d7d7;
 
-  --track-height: 2em;
-  --track-border-radius: 0.5em;
+  --track-height: calc(var(--height) - var(--track-value-padding) * 2);
   --track-box-shadow: none;
-  --track-background: rgb(144, 144, 144);
-  --track-background-hover: rgb(144, 144, 144);
-  --track-background-active: rgb(144, 144, 144);
+  --track-border: solid 2px rgb(238, 238, 238);
+  --track-border-radius: 4px;
+  --track-background: rgb(255, 255, 255);
+  --track-background-hover: rgb(255, 255, 255);
+  --track-background-active: rgb(255, 255, 255);
 
-  --track-value-background: rgb(255, 255, 255);
-  --track-value-background-hover: rgb(255, 255, 255);
-  --track-value-background-active: rgb(255, 255, 255);
+  --track-value-background: rgb(212, 212, 212);
+  --track-value-background-hover: rgb(212, 212, 212);
+  --track-value-background-active: rgb(212, 212, 212);
+  --track-value-padding: 2px;
 }
 
 .dark .data-gui-range {
@@ -103,13 +105,14 @@ https://toughengineer.github.io/demo/slider-styler*/
   --thumb-background-hover: #ffffff;
   --thumb-background-active: #d7d7d7;
 
+  --track-border: solid 2px rgb(44, 44, 44);
   --track-background: rgb(44, 44, 44);
   --track-background-hover: rgb(44, 44, 44);
   --track-background-active: rgb(44, 44, 44);
 
-  --track-value-background: rgb(219, 219, 219);
-  --track-value-background-hover: rgb(219, 219, 219);
-  --track-value-background-active: rgb(219, 219, 219);
+  --track-value-background: rgb(164, 164, 164);
+  --track-value-background-hover: rgb(164, 164, 164);
+  --track-value-background-active: rgb(164, 164, 164);
 }
 
 /*progress support*/
@@ -132,7 +135,8 @@ https://toughengineer.github.io/demo/slider-styler*/
   background: var(--thumb-background);
   border: var(--thumb-border);
   box-shadow: var(--thumb-box-shadow);
-  transform: translateY(calc(((var(--track-height)) - var(--thumb-height)) / 2));
+  margin-top: calc(var(--track-height) * 0.5 - var(--thumb-height) * 0.5 - 2px);
+  margin-left: calc(0 - var(--track-value-padding));
   cursor: col-resize;
   transition:
     background 0.2s ease-in-out,
@@ -143,7 +147,7 @@ https://toughengineer.github.io/demo/slider-styler*/
 
 .data-gui-range::-webkit-slider-runnable-track {
   height: var(--track-height);
-  border: none;
+  border: var(--track-border);
   border-radius: var(--track-border-radius);
   background: var(--track-background);
   box-shadow: var(--track-box-shadow);
@@ -171,6 +175,8 @@ https://toughengineer.github.io/demo/slider-styler*/
 }
 
 .data-gui-range.slider-progress::-webkit-slider-runnable-track {
+  margin-left: var(--track-value-padding);
+  margin-right: calc(0 - var(--track-value-padding));
   background:
     linear-gradient(var(--track-value-background), var(--track-value-background)) 0 / var(--sx) 100% no-repeat,
     var(--track-background);
@@ -198,17 +204,19 @@ https://toughengineer.github.io/demo/slider-styler*/
   background: var(--thumb-background);
   border: none;
   box-shadow: var(--thumb-box-shadow);
-  transform: translateY(calc(((var(--track-height)) - var(--thumb-height)) / 2));
   cursor: col-resize;
+  margin-left: calc(0 - var(--track-value-padding));
 }
 
 .data-gui-range::-moz-range-track {
   height: var(--track-height);
-  border: none;
+  border: var(--track-border);
   border-radius: var(--track-border-radius);
   background: var(--track-background);
   box-shadow: var(--track-box-shadow);
   cursor: col-resize;
+  /* Trim left and right paddings of track */
+  width: calc(100% - var(--track-value-padding) * 2);
 }
 
 .data-gui-range::-moz-range-thumb:hover {
@@ -263,9 +271,12 @@ https://toughengineer.github.io/demo/slider-styler*/
   height: var(--thumb-height);
   border-radius: var(--thumb-border-radius);
   background: var(--thumb-background);
-  border: none;
+  border: var(--thumb-border);
   box-shadow: var(--thumb-box-shadow);
-  transform: translateY(calc(((var(--track-height)) - var(--thumb-height)) / 2));
+  /** Center thumb */
+  margin-top: 0;
+  /** Shift left thumb */
+  margin-left: calc(0 - var(--track-value-padding));
   box-sizing: border-box;
   cursor: col-resize;
 }
@@ -274,7 +285,7 @@ https://toughengineer.github.io/demo/slider-styler*/
   height: var(--track-height);
   border-radius: var(--track-border-radius);
   background: var(--track-background);
-  border: none;
+  border: var(--track-border);
   box-shadow: var(--track-box-shadow);
   box-sizing: border-box;
   cursor: col-resize;
@@ -303,6 +314,10 @@ https://toughengineer.github.io/demo/slider-styler*/
   background: var(--track-value-background);
   border: none;
   border-right-width: 0;
+  /** Shift left thumb */
+  margin-left: calc(var(--track-value-padding));
+  /** Shift right thumb */
+  margin-right: calc(0 - var(--track-value-padding));
 }
 
 .data-gui-range.slider-progress:hover::-ms-fill-lower {
