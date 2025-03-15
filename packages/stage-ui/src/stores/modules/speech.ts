@@ -1,8 +1,10 @@
+import type { Voice } from '../fix/voice'
+
 import { useLocalStorage } from '@vueuse/core'
 import { defineStore } from 'pinia'
 import { computed, ref, watch } from 'vue'
 
-import { Voice, voiceList, voiceMap } from '../../constants/elevenlabs'
+import { voiceList, voiceMap } from '../../constants/elevenlabs'
 import { useProvidersStore } from '../providers'
 
 export const useSpeechStore = defineStore('speech', () => {
@@ -17,19 +19,8 @@ export const useSpeechStore = defineStore('speech', () => {
   const ssmlEnabled = useLocalStorage('settings/speech/ssml-enabled', false)
   const isLoadingSpeechProviderVoices = ref(false)
   const speechProviderError = ref<string | null>(null)
-  const availableVoices = ref<Record<string, VoiceInfo[]>>({})
+  const availableVoices = ref<Record<string, Voice[]>>({})
   const selectedLanguage = useLocalStorage('settings/speech/language', 'en-US')
-
-  // Voice info interface
-  interface VoiceInfo {
-    id: string
-    name: string
-    provider: string
-    description?: string
-    gender?: string
-    previewUrl?: string
-    language?: string
-  }
 
   // Computed properties
   const availableSpeechProvidersMetadata = computed(() => {
@@ -69,31 +60,6 @@ export const useSpeechStore = defineStore('speech', () => {
     return ['elevenlabs', 'microsoft', 'google', 'amazon'].includes(providerId)
   }
 
-  // Actions
-  function setActiveSpeechProvider(provider: string) {
-    activeSpeechProvider.value = provider
-  }
-
-  function setActiveSpeechModel(model: string) {
-    activeSpeechModel.value = model
-  }
-
-  function setVoiceName(name: string) {
-    voiceName.value = name
-  }
-
-  const voiceId = computed(() => {
-    return voiceMap[voiceName.value as Voice]
-  })
-
-  function setSSMLEnabled(enabled: boolean) {
-    ssmlEnabled.value = enabled
-  }
-
-  function setLanguage(language: string) {
-    selectedLanguage.value = language
-  }
-
   function resetVoiceSettings() {
     voiceName.value = ''
     pitch.value = 0
@@ -110,56 +76,7 @@ export const useSpeechStore = defineStore('speech', () => {
     speechProviderError.value = null
 
     try {
-      // In a real implementation, you would fetch voices from the provider
-      // For now, we'll use our predefined voices for ElevenLabs
-      await new Promise(resolve => setTimeout(resolve, 500))
-
-      if (provider === 'elevenlabs') {
-        // Use the predefined voices from elevenlabs.ts
-        const allVoices: VoiceInfo[] = []
-
-        for (const language in voiceList) {
-          const voices = voiceList[language]
-          for (const voice of voices) {
-            allVoices.push({
-              id: voiceMap[voice],
-              name: voice,
-              provider: 'elevenlabs',
-              language,
-              description: getVoiceDescription(voice),
-              gender: getVoiceGender(voice),
-            })
-          }
-        }
-
-        availableVoices.value[provider] = allVoices
-      }
-      else if (provider === 'microsoft') {
-        availableVoices.value[provider] = [
-          {
-            id: 'en-US-AriaNeural',
-            name: 'Aria',
-            provider: 'microsoft',
-            description: 'Microsoft neural voice (female)',
-            gender: 'female',
-            language: 'en-US',
-          },
-          {
-            id: 'en-US-GuyNeural',
-            name: 'Guy',
-            provider: 'microsoft',
-            description: 'Microsoft neural voice (male)',
-            gender: 'male',
-            language: 'en-US',
-          },
-        ]
-      }
-      else {
-        // For other providers, return an empty array for now
-        availableVoices.value[provider] = []
-      }
-
-      return availableVoices.value[provider]
+      return await providersStore.getProviderMetadata(provider).capabilities.listVoices?.(providersStore.getProviderConfig(provider)) || []
     }
     catch (error) {
       console.error(`Error fetching voices for ${provider}:`, error)
@@ -169,27 +86,6 @@ export const useSpeechStore = defineStore('speech', () => {
     finally {
       isLoadingSpeechProviderVoices.value = false
     }
-  }
-
-  // Helper function to get voice descriptions
-  function getVoiceDescription(voice: string): string {
-    const descriptions: Record<string, string> = {
-      [Voice.Myriam]: 'Professional female voice with clear articulation',
-      [Voice.Beatrice]: 'Mature and sophisticated female voice',
-      [Voice.Camilla_KM]: 'Friendly and approachable female voice',
-      [Voice.SallySunshine]: 'Cheerful and upbeat female voice',
-      [Voice.Annie]: 'Young and energetic female voice',
-      [Voice.KawaiiAerisita]: 'Cute and playful female voice',
-      [Voice.Morioki]: 'Deep and authoritative Japanese male voice',
-    }
-
-    return descriptions[voice as Voice] || 'ElevenLabs voice'
-  }
-
-  // Helper function to get voice gender
-  function getVoiceGender(voice: string): string {
-    const maleVoices = [Voice.Morioki]
-    return maleVoices.includes(voice as Voice) ? 'male' : 'female'
   }
 
   // Get voices for a specific provider
@@ -241,7 +137,6 @@ export const useSpeechStore = defineStore('speech', () => {
     activeSpeechProvider,
     activeSpeechModel,
     voiceName,
-    voiceId,
     pitch,
     rate,
     ssmlEnabled,
@@ -256,12 +151,6 @@ export const useSpeechStore = defineStore('speech', () => {
     availableLanguages,
     availableVoicesForLanguage,
 
-    // Actions
-    setActiveSpeechProvider,
-    setActiveSpeechModel,
-    setVoiceName,
-    setSSMLEnabled,
-    setLanguage,
     resetVoiceSettings,
     loadVoicesForProvider,
     getVoicesForProvider,

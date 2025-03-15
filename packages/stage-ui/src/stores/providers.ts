@@ -709,8 +709,13 @@ export const useProvidersStore = defineStore('providers', () => {
     return availableProviders.value.map(id => getProviderMetadata(id))
   })
 
+  function getProviderConfig(providerId: string) {
+    return providerCredentials.value[providerId]
+  }
+
   return {
     providers: providerCredentials,
+    getProviderConfig,
     availableProviders,
     configuredProviders,
     providerMetadata,

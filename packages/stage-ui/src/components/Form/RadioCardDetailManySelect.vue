@@ -105,7 +105,7 @@ function updateCustomValue(value: string) {
       <!-- No search results -->
       <div
         v-if="searchQuery && filteredItems.length === 0"
-        class="flex items-center gap-3 border border-amber-200 rounded-xl bg-amber-50 p-4 dark:border-amber-800 dark:bg-amber-900/20"
+        class="flex items-center gap-3 border border-2 border-amber-200 rounded-xl bg-amber-50 p-4 dark:border-amber-800 dark:bg-amber-900/20"
       >
         <div i-solar:info-circle-line-duotone class="text-2xl text-amber-500 dark:text-amber-400" />
         <div class="flex flex-col">
@@ -122,7 +122,7 @@ function updateCustomValue(value: string) {
         <div
           class="scrollbar-hide grid auto-cols-[350px] grid-flow-col gap-4 overflow-x-auto pb-4"
           :class="[
-            isListExpanded ? 'md:grid-cols-2 md:grid-flow-row md:auto-cols-auto' : '',
+            isListExpanded ? 'grid-cols-1 md:grid-cols-2 grid-flow-row auto-cols-auto' : '',
           ]"
           transition="all duration-200 ease-in-out"
           style="scroll-snap-type: x mandatory;"
@@ -153,7 +153,7 @@ function updateCustomValue(value: string) {
           bg="neutral-100 dark:[rgba(0,0,0,0.3)]"
           rounded-xl
           :class="[
-            isListExpanded ? 'fixed bottom-4 left-1/2 translate-x--1/2 z-10 w-[calc(100%-16px-40px-16px)]' : 'mt-0 w-full rounded-lg',
+            isListExpanded ? 'fixed bottom-4 left-1/2 translate-x--1/2 z-10 w-full px-9 max-w-screen-lg' : 'mt-0 w-full rounded-lg',
           ]"
         >
           <button
