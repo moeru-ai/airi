@@ -308,6 +308,10 @@ export const useProvidersStore = defineStore('providers', () => {
       icon: 'i-simple-icons:elevenlabs',
       defaultOptions: {
         baseUrl: 'https://unspeech.hyp3r.link/v1/',
+        voiceSettings: {
+          similarityBoost: 0.75,
+          stability: 0.5,
+        },
       },
       // TODO: UnElevenLabsOptions
       createProvider: config => createUnElevenLabs(config.apiKey as string, config.baseUrl as string) as SpeechProviderWithExtraOptions<string, UnElevenLabsOptions>,

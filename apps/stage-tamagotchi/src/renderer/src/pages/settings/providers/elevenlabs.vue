@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { Voice } from '@proj-airi/stage-ui/constants'
+import type { RemovableRef } from '@vueuse/core'
 import type { UnElevenLabsOptions } from '@xsai-ext/providers-local'
 import type { SpeechProviderWithExtraOptions } from '@xsai-ext/shared-providers'
 
@@ -15,7 +16,7 @@ import { useRouter } from 'vue-router'
 const router = useRouter()
 const providersStore = useProvidersStore()
 const speechStore = useSpeechStore()
-const { providers } = storeToRefs(providersStore)
+const { providers } = storeToRefs(providersStore) as { providers: RemovableRef<Record<string, any>> }
 
 // For playground
 const testText = ref('Hello! This is a test of the ElevenLabs voice synthesis.')
@@ -28,15 +29,86 @@ const audioPlayer = ref<HTMLAudioElement | null>(null)
 const providerId = 'elevenlabs'
 const providerMetadata = computed(() => providersStore.getProviderMetadata(providerId))
 
-const apiKey = ref(providers.value[providerId]?.apiKey || '')
-const baseUrl = ref(providers.value[providerId]?.baseUrl || '')
+const apiKey = computed({
+  get: () => providers.value[providerId]?.apiKey || '',
+  set: (value) => {
+    if (!providers.value[providerId])
+      providers.value[providerId] = {}
 
-// Voice settings as individual refs
-const similarityBoost = ref((providers.value[providerId]?.voiceSettings as any)?.similarityBoost || 0.75)
-const stability = ref((providers.value[providerId]?.voiceSettings as any)?.stability || 0.5)
-const speed = ref((providers.value[providerId]?.voiceSettings as any)?.speed || 1.0)
-const style = ref((providers.value[providerId]?.voiceSettings as any)?.style || 0)
-const useSpeakerBoost = ref((providers.value[providerId]?.voiceSettings as any)?.useSpeakerBoost !== false)
+    providers.value[providerId].apiKey = value
+  },
+})
+
+const baseUrl = computed({
+  get: () => providers.value[providerId]?.baseUrl || providerMetadata.value?.defaultOptions?.baseUrl || '',
+  set: (value) => {
+    if (!providers.value[providerId])
+      providers.value[providerId] = {}
+
+    providers.value[providerId].baseUrl = value
+  },
+})
+
+// Voice settings as individual computed properties
+const similarityBoost = computed({
+  get: () => (providers.value[providerId]?.voiceSettings as any)?.similarityBoost ?? 0.75,
+  set: (value) => {
+    if (!providers.value[providerId])
+      providers.value[providerId] = {}
+    if (!providers.value[providerId].voiceSettings)
+      providers.value[providerId].voiceSettings = {}
+
+    providers.value[providerId].voiceSettings.similarityBoost = value
+  },
+})
+
+const stability = computed({
+  get: () => (providers.value[providerId]?.voiceSettings as any)?.stability ?? 0.5,
+  set: (value) => {
+    if (!providers.value[providerId])
+      providers.value[providerId] = {}
+    if (!providers.value[providerId].voiceSettings)
+      providers.value[providerId].voiceSettings = {}
+
+    providers.value[providerId].voiceSettings.stability = value
+  },
+})
+
+const speed = computed({
+  get: () => (providers.value[providerId]?.voiceSettings as any)?.speed ?? 1.0,
+  set: (value) => {
+    if (!providers.value[providerId])
+      providers.value[providerId] = {}
+    if (!providers.value[providerId].voiceSettings)
+      providers.value[providerId].voiceSettings = {}
+
+    providers.value[providerId].voiceSettings.speed = value
+  },
+})
+
+const style = computed({
+  get: () => (providers.value[providerId]?.voiceSettings as any)?.style ?? 0,
+  set: (value) => {
+    if (!providers.value[providerId])
+      providers.value[providerId] = {}
+    if (!providers.value[providerId].voiceSettings)
+      providers.value[providerId].voiceSettings = {}
+
+    providers.value[providerId].style = value
+  },
+})
+
+const useSpeakerBoost = computed({
+  get: () => (providers.value[providerId]?.voiceSettings as any)?.useSpeakerBoost !== false,
+  set: (value) => {
+    if (!providers.value[providerId])
+      providers.value[providerId] = {}
+    if (!providers.value[providerId].voiceSettings)
+      providers.value[providerId].voiceSettings = {}
+
+    providers.value[providerId].voiceSettings.useSpeakerBoost = value
+  },
+})
 
 // Speech settings
 const selectedLanguage = ref(speechStore.selectedLanguage)
@@ -166,6 +238,12 @@ onUnmounted(() => {
     URL.revokeObjectURL(audioUrl.value)
   }
 })
+
+function handleResetVoiceSettings() {
+  providers.value[providerId] = {
+    ...(providerMetadata.value?.defaultOptions as any),
+  }
+}
 </script>
 
 <template>
@@ -206,12 +284,13 @@ onUnmounted(() => {
                 </div>
               </div>
               <input
-                v-model="apiKey" type="password"
+                v-model="apiKey"
+                type="password"
                 border="neutral-300 dark:neutral-800 solid 2 focus:neutral-400 dark:focus:neutral-600"
                 transition="border duration-250 ease-in-out"
                 w-full rounded-lg px-2 py-1 text-nowrap text-sm outline-none
                 bg="neutral-200 dark:neutral-800"
-                placeholder="..."
+                placeholder="sk-"
               >
             </label>
           </div>
@@ -314,7 +393,8 @@ onUnmounted(() => {
         <Collapsable w-full>
           <template #trigger="slotProps">
             <button
-              transition="all ease-in-out duration-250" w-full flex items-center gap-1.5 outline-none
+              transition="all ease-in-out duration-250"
+              w-full flex items-center gap-1.5 outline-none
               class="[&_.provider-icon]:grayscale-100 [&_.provider-icon]:hover:grayscale-0"
               @click="() => slotProps.setVisible(!slotProps.visible) && toggleAdvancedVisible()"
             >
@@ -338,7 +418,7 @@ onUnmounted(() => {
                 </div>
               </div>
               <input
-                v-model="apiKey" type="password"
+                v-model="baseUrl"
                 border="neutral-300 dark:neutral-800 solid 2 focus:neutral-400 dark:focus:neutral-600"
                 transition="border duration-250 ease-in-out"
                 w-full rounded-lg px-2 py-1 text-nowrap text-sm outline-none
@@ -349,8 +429,10 @@ onUnmounted(() => {
 
             <div mt-4>
               <button
-                border="neutral-300 dark:neutral-800 solid 1" transition="border duration-250 ease-in-out" rounded
-                px-4 py-2 text-sm @click="speechStore.resetVoiceSettings"
+                border="neutral-300 dark:neutral-800 solid 1"
+                transition="border duration-250 ease-in-out" rounded
+                px-4 py-2 text-sm
+                @click="handleResetVoiceSettings"
               >
                 Reset Voice Settings
               </button>
