@@ -23,7 +23,7 @@ const { allProvidersMetadata } = storeToRefs(providersStore)
       </div>
     </h1>
   </div>
-  <div grid="~ cols-2 gap-2">
+  <div grid="~ cols-2 gap-4">
     <IconStatusItem
       v-for="provider in allProvidersMetadata"
       :key="provider.id"

@@ -20,7 +20,7 @@ const { top, right, bottom, left } = useScreenSafeArea()
     <div mb-4 w-full gap-2 class="px-0 py-1 md:px-3 md:py-3">
       <HeaderLink />
     </div>
-    <div class="px-3 py-2 md:px-5 md:py-5" flex="~ col gap-4">
+    <div class="px-3 py-2 md:px-5 md:py-5" flex="~ col gap-4" mx-auto max-w-screen-lg>
       <RouterView />
     </div>
   </div>
