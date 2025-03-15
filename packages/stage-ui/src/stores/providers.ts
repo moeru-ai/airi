@@ -82,6 +82,7 @@ export interface VoiceInfo {
 
 export const useProvidersStore = defineStore('providers', () => {
   const providerCredentials = useLocalStorage<Record<string, Record<string, unknown>>>('settings/credentials/providers', {})
+  const { t } = useI18n()
 
   // Helper function to fetch OpenRouter models manually
   async function fetchOpenRouterModels(config: Record<string, unknown>): Promise<ModelInfo[]> {
@@ -659,7 +660,6 @@ export const useProvidersStore = defineStore('providers', () => {
 
   // Function to get localized provider metadata
   function getProviderMetadata(providerId: string) {
-    const { t } = useI18n()
     const metadata = providerMetadata[providerId]
 
     if (!metadata)
@@ -674,8 +674,6 @@ export const useProvidersStore = defineStore('providers', () => {
 
   // Get all providers metadata (for settings page)
   const allProvidersMetadata = computed(() => {
-    const { t } = useI18n()
-
     return Object.values(providerMetadata).map(metadata => ({
       ...metadata,
       localizedName: t(metadata.nameKey, metadata.name),
