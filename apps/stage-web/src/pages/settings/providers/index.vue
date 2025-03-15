@@ -32,7 +32,7 @@ const { allProvidersMetadata } = storeToRefs(providersStore)
       :icon="provider.icon"
       :icon-color="provider.iconColor"
       :icon-image="provider.iconImage"
-      :to="`/settings/providers/${provider.id.replace('-ai', '')}`"
+      :to="`/settings/providers/${provider.id}`"
       :configured="provider.configured"
     />
   </div>

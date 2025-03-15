@@ -17,14 +17,14 @@ const props = defineProps<{
     border="neutral-100 dark:neutral-700 hover:primary-500/30 dark:hover:primary-400/30 solid 2"
     drop-shadow="none hover:[0px_4px_4px_rgba(220,220,220,0.4)] active:[0px_0px_0px_rgba(220,220,220,0.25)] dark:hover:none"
     class="menu-icon-status-item"
-    transition="all ease-in-out duration-200"
+    transition="all ease-in-out duration-400"
     w-full of-hidden rounded-xl
   >
     <RouterLink
       flex="~ row"
       class="menu-icon-status-item-link"
       bg="neutral-50 dark:neutral-800"
-      transition="all ease-in-out duration-200"
+      transition="all ease-in-out duration-400"
       relative h-full w-full items-center overflow-hidden rounded-lg p-5 text-left
       :to=" props.to"
     >
@@ -32,14 +32,14 @@ const props = defineProps<{
         <div
           text-lg font-bold
           class="menu-icon-status-item-title"
-          transition="all ease-in-out duration-200"
+          transition="all ease-in-out duration-400"
         >
           {{ props.title }}
         </div>
         <div
           text="sm neutral-500 dark:neutral-400"
           class="menu-icon-status-item-description"
-          transition="all ease-in-out duration-200"
+          transition="all ease-in-out duration-400"
         >
           <span>{{ props.description }}</span>
         </div>
@@ -47,7 +47,7 @@ const props = defineProps<{
       <template v-if=" props.icon">
         <div
           class="menu-icon-status-item-icon"
-          transition="all ease-in-out duration-500"
+          transition="all ease-in-out duration-400"
           absolute right-0 size-16 translate-y-2
           text="neutral-400/50 dark:neutral-600/50"
           grayscale-100
@@ -57,7 +57,7 @@ const props = defineProps<{
       <template v-if=" props.iconColor">
         <div
           class="menu-icon-status-item-icon-color"
-          transition="all ease-in-out duration-500"
+          transition="all ease-in-out duration-400"
           absolute right-0 size-16 translate-y-2
           text="neutral-400/50 dark:neutral-600/50"
           grayscale-100
@@ -68,7 +68,7 @@ const props = defineProps<{
         <img
           :src=" props.iconImage"
           class="menu-icon-status-item-icon-image"
-          transition="all ease-in-out duration-500"
+          transition="all ease-in-out duration-400"
           absolute right-0 size-16 translate-y-2
           grayscale-100
         >
@@ -95,7 +95,7 @@ const props = defineProps<{
   z-index: 0;
   width: 25%;
   height: 100%;
-  transition: all 0.35s ease-in-out;
+  transition: all 0.4s ease-in-out;
   mask-image: linear-gradient(120deg, white 100%);
   opacity: 0;
 }
@@ -117,7 +117,11 @@ const props = defineProps<{
   background-size: 10px 10px;
   content: '';
   mask-image: linear-gradient(165deg, white 30%, transparent 50%);
-  transition: all 0.35s ease-in-out;
+  transition: all 0.4s ease-in-out;
+}
+
+.menu-icon-status-item-icon-color {
+  opacity: 0.5;
 }
 
 .menu-icon-status-item:hover .menu-icon-status-item-title,
@@ -132,10 +136,11 @@ const props = defineProps<{
 }
 
 .menu-icon-status-item:hover .menu-icon-status-item-icon,
-.menu-icon-status-item._hover .menu-icon-status-item-icon {
+.menu-icon-status-item._hover .menu-icon-status-item-icon,
+.menu-icon-status-item:hover .menu-icon-status-item-icon-color,
+.menu-icon-status-item._hover .menu-icon-status-item-icon-color {
   --at-apply: text-primary-500;
   scale: 1.2;
-  opacity: 0.2;
 }
 
 .dark .menu-icon-status-item:hover .menu-icon-status-item-title,
@@ -150,8 +155,9 @@ const props = defineProps<{
 }
 
 .dark .menu-icon-status-item:hover .menu-icon-status-item-icon,
-.dark .menu-icon-status-item._hover .menu-icon-status-item-icon {
+.dark .menu-icon-status-item._hover .menu-icon-status-item-icon,
+.dark .menu-icon-status-item:hover .menu-icon-status-item-icon-color,
+.dark .menu-icon-status-item._hover .menu-icon-status-item-icon-color {
   --at-apply: text-primary-400;
-  opacity: 0.2;
 }
 </style>
