@@ -175,7 +175,7 @@ https://toughengineer.github.io/demo/slider-styler*/
 }
 
 .data-gui-range.slider-progress::-webkit-slider-runnable-track {
-  margin-left: var(--track-value-padding);
+  /* margin-left: var(--track-value-padding); */
   margin-right: calc(0 - var(--track-value-padding));
   background:
     linear-gradient(var(--track-value-background), var(--track-value-background)) 0 / var(--sx) 100% no-repeat,

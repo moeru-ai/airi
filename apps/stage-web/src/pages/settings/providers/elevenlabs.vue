@@ -195,20 +195,22 @@ onUnmounted(() => {
             </div>
           </div>
           <div max-w-full>
-            <label grid="~ cols-2 gap-4">
+            <label flex="~ col gap-4">
               <div>
                 <div class="flex items-center gap-1 text-sm font-medium">
                   API Key
                   <span class="text-red-500">*</span>
                 </div>
-                <div class="text-xs text-zinc-500 dark:text-zinc-400" text-nowrap>
+                <div class="text-xs text-neutral-500 dark:text-neutral-400" text-nowrap>
                   API Key for {{ providerMetadata?.localizedName }}
                 </div>
               </div>
               <input
                 v-model="apiKey" type="password"
-                border="zinc-300 dark:zinc-800 solid 1 focus:zinc-400 dark:focus:zinc-600"
-                transition="border duration-250 ease-in-out" w-full rounded px-2 py-1 text-nowrap text-sm outline-none
+                border="neutral-300 dark:neutral-800 solid 2 focus:neutral-400 dark:focus:neutral-600"
+                transition="border duration-250 ease-in-out"
+                w-full rounded-lg px-2 py-1 text-nowrap text-sm outline-none
+                bg="neutral-200 dark:neutral-800"
                 placeholder="..."
               >
             </label>
@@ -220,79 +222,89 @@ onUnmounted(() => {
         <h2 class="text-lg text-neutral-500 md:text-2xl dark:text-neutral-400">
           Voice Settings
         </h2>
-        <div flex="~ col gap-6">
-          <label grid="~ cols-2 gap-4">
-            <div>
-              <div class="flex items-center gap-1 text-sm font-medium">
-                Similarity Boost
+        <div flex="~ col gap-4">
+          <label flex="~ col gap-2">
+            <div flex="~ row" items-center gap-2>
+              <div flex="1">
+                <div class="flex items-center gap-1 text-sm font-medium">
+                  Similarity Boost
+                </div>
+                <div class="text-xs text-neutral-500 dark:text-neutral-400">
+                  Voice similarity adherence
+                </div>
               </div>
-              <div class="text-xs text-zinc-500 dark:text-zinc-400">
-                Voice similarity adherence
-              </div>
+              <span font-mono>{{ similarityBoost.toFixed(2) }}</span>
             </div>
             <div flex="~ row" items-center gap-2>
               <Range v-model="similarityBoost" :min="0" :max="1" :step="0.01" w-full />
-              <span class="text-xs">{{ similarityBoost.toFixed(2) }}</span>
             </div>
           </label>
 
-          <label grid="~ cols-2 gap-4">
-            <div>
-              <div class="flex items-center gap-1 text-sm font-medium">
-                Stability
+          <label flex="~ col gap-4">
+            <div flex="~ row" items-center gap-2>
+              <div flex="1">
+                <div class="flex items-center gap-1 text-sm font-medium">
+                  Stability
+                </div>
+                <div class="text-xs text-neutral-500 dark:text-neutral-400">
+                  Voice stability and randomness
+                </div>
               </div>
-              <div class="text-xs text-zinc-500 dark:text-zinc-400">
-                Voice stability and randomness
-              </div>
+              <span font-mono>{{ stability.toFixed(2) }}</span>
             </div>
             <div flex="~ row" items-center gap-2>
               <Range v-model="stability" :min="0" :max="1" :step="0.01" w-full />
-              <span class="text-xs">{{ stability.toFixed(2) }}</span>
             </div>
           </label>
 
-          <label grid="~ cols-2 gap-4">
-            <div>
-              <div class="flex items-center gap-1 text-sm font-medium">
-                Speed
+          <label flex="~ col gap-4">
+            <div flex="~ row" items-center gap-2>
+              <div flex="1">
+                <div class="flex items-center gap-1 text-sm font-medium">
+                  Speed
+                </div>
+                <div class="text-xs text-neutral-500 dark:text-neutral-400">
+                  Speech generation speed
+                </div>
               </div>
-              <div class="text-xs text-zinc-500 dark:text-zinc-400">
-                Speech generation speed
-              </div>
+              <span font-mono>{{ speed.toFixed(2) }}</span>
             </div>
             <div flex="~ row" items-center gap-2>
               <Range v-model="speed" :min="0.7" :max="1.2" :step="0.01" w-full />
-              <span class="text-xs">{{ speed.toFixed(2) }}</span>
             </div>
           </label>
 
-          <label grid="~ cols-2 gap-4">
-            <div>
-              <div class="flex items-center gap-1 text-sm font-medium">
-                Style
+          <label flex="~ col gap-4">
+            <div flex="~ row" items-center gap-2>
+              <div flex="1">
+                <div class="flex items-center gap-1 text-sm font-medium">
+                  Style
+                </div>
+                <div class="text-xs text-neutral-500 dark:text-neutral-400">
+                  Voice style exaggeration
+                </div>
               </div>
-              <div class="text-xs text-zinc-500 dark:text-zinc-400">
-                Voice style exaggeration
-              </div>
+              <span font-mono>{{ style.toFixed(2) }}</span>
             </div>
             <div flex="~ row" items-center gap-2>
               <Range v-model="style" :min="0" :max="1" :step="0.01" w-full />
-              <span class="text-xs">{{ style.toFixed(2) }}</span>
             </div>
           </label>
 
-          <label grid="~ cols-2 gap-4">
-            <div>
-              <div class="flex items-center gap-1 text-sm font-medium">
-                Speaker Boost
+          <label flex="~ col gap-4">
+            <div flex="~ row" items-center gap-2>
+              <div flex="1">
+                <div class="flex items-center gap-1 text-sm font-medium">
+                  Speaker Boost
+                </div>
+                <div class="text-xs text-neutral-500 dark:text-neutral-400">
+                  Enhance speaker similarity
+                </div>
               </div>
-              <div class="text-xs text-zinc-500 dark:text-zinc-400">
-                Enhance speaker similarity
-              </div>
+              <span font-mono>{{ useSpeakerBoost ? 'On' : 'Off' }}</span>
             </div>
             <div flex="~ row" items-center gap-2>
               <input v-model="useSpeakerBoost" type="checkbox">
-              <span class="text-xs">{{ useSpeakerBoost ? 'Enabled' : 'Disabled' }}</span>
             </div>
           </label>
         </div>
@@ -315,27 +327,30 @@ onUnmounted(() => {
             </button>
           </template>
           <div mt-4>
-            <label grid="~ cols-2 gap-4">
+            <label flex="~ col gap-4">
               <div>
                 <div class="flex items-center gap-1 text-sm font-medium">
                   Base URL
-                </div>
-                <div class="text-xs text-zinc-500 dark:text-zinc-400">
+                  <span class="text-red-500">*</span>
+                </div>Base URL
+                <div class="text-xs text-neutral-500 dark:text-neutral-400" text-nowrap>
                   Custom base URL (optional)
                 </div>
               </div>
               <input
-                v-model="baseUrl" type="text"
-                border="zinc-300 dark:zinc-800 solid 1 focus:zinc-400 dark:focus:zinc-600"
-                transition="border duration-250 ease-in-out" w-full rounded px-2 py-1 text-nowrap text-sm outline-none
+                v-model="apiKey" type="password"
+                border="neutral-300 dark:neutral-800 solid 2 focus:neutral-400 dark:focus:neutral-600"
+                transition="border duration-250 ease-in-out"
+                w-full rounded-lg px-2 py-1 text-nowrap text-sm outline-none
+                bg="neutral-200 dark:neutral-800"
                 :placeholder="providerMetadata?.defaultOptions?.baseUrl as string || ''"
               >
             </label>
 
             <div mt-4>
               <button
-                border="zinc-300 dark:zinc-800 solid 1" transition="border duration-250 ease-in-out" rounded px-4
-                py-2 text-sm @click="speechStore.resetVoiceSettings"
+                border="neutral-300 dark:neutral-800 solid 1" transition="border duration-250 ease-in-out" rounded
+                px-4 py-2 text-sm @click="speechStore.resetVoiceSettings"
               >
                 Reset Voice Settings
               </button>
@@ -352,8 +367,10 @@ onUnmounted(() => {
         <div flex="~ col gap-4">
           <textarea
             v-model="testText" placeholder="Enter text to test the voice..."
-            border="zinc-300 dark:zinc-800 solid 1 focus:zinc-400 dark:focus:zinc-600"
-            transition="border duration-250 ease-in-out" h-24 w-full rounded px-3 py-2 text-sm outline-none
+            border="neutral-300 dark:neutral-800 solid 2 focus:neutral-400 dark:focus:neutral-600"
+            transition="border duration-250 ease-in-out"
+            h-24 w-full rounded-lg px-3 py-2 text-sm outline-none
+            bg="neutral-200 dark:neutral-800"
           />
           <div flex="~ col gap-6">
             <label grid="~ cols-2 gap-4">
@@ -361,14 +378,14 @@ onUnmounted(() => {
                 <div class="flex items-center gap-1 text-sm font-medium">
                   Language
                 </div>
-                <div class="text-xs text-zinc-500 dark:text-zinc-400">
+                <div class="text-xs text-neutral-500 dark:text-neutral-400">
                   Select voice language
                 </div>
               </div>
               <select
                 v-model="selectedLanguage"
-                border="zinc-300 dark:zinc-800 solid 1 focus:zinc-400 dark:focus:zinc-600"
-                transition="border duration-250 ease-in-out" w-full rounded px-2 py-1 text-nowrap text-sm outline-none
+                border="neutral-300 dark:neutral-800 solid 2 focus:neutral-400 dark:focus:neutral-600"
+                transition="border duration-250 ease-in-out" w-full rounded-lg px-2 py-1 text-nowrap text-sm outline-none
               >
                 <option v-for="language in speechStore.availableLanguages" :key="language" :value="language">
                   {{ language }}
@@ -381,13 +398,14 @@ onUnmounted(() => {
                 <div class="flex items-center gap-1 text-sm font-medium">
                   Voice
                 </div>
-                <div class="text-xs text-zinc-500 dark:text-zinc-400">
+                <div class="text-xs text-neutral-500 dark:text-neutral-400">
                   Select preferred voice
                 </div>
               </div>
               <select
-                v-model="selectedVoice" border="zinc-300 dark:zinc-800 solid 1 focus:zinc-400 dark:focus:zinc-600"
-                transition="border duration-250 ease-in-out" w-full rounded px-2 py-1 text-nowrap text-sm outline-none
+                v-model="selectedVoice"
+                border="neutral-300 dark:neutral-800 solid 2 focus:neutral-400 dark:focus:neutral-600"
+                transition="border duration-250 ease-in-out" w-full rounded-lg px-2 py-1 text-nowrap text-sm outline-none
               >
                 <option v-for="voice in availableVoices" :key="voice.id" :value="voice.name">
                   {{ voice.name }}
@@ -397,10 +415,12 @@ onUnmounted(() => {
           </div>
           <div flex="~ row" gap-4>
             <button
-              border="zinc-300 dark:zinc-800 solid 1" transition="border duration-250 ease-in-out" rounded px-4
+              border="neutral-800 dark:neutral-200 solid 2"
+              transition="border duration-250 ease-in-out" rounded-lg px-4
+              text="neutral-100 dark:neutral-900"
               py-2 text-sm :disabled="isGenerating || !testText.trim() || !apiKey"
               :class="{ 'opacity-50 cursor-not-allowed': isGenerating || !testText.trim() || !apiKey }"
-              @click="generateTestSpeech"
+              bg="neutral-700 dark:neutral-300" @click="generateTestSpeech"
             >
               <div flex="~ row" items-center gap-2>
                 <div i-solar:play-circle-bold-duotone />
@@ -408,8 +428,8 @@ onUnmounted(() => {
               </div>
             </button>
             <button
-              v-if="audioUrl" border="zinc-300 dark:zinc-800 solid 1" transition="border duration-250 ease-in-out"
-              rounded px-4 py-2 text-sm @click="stopTestAudio"
+              v-if="audioUrl" border="primary-300 dark:primary-800 solid 2"
+              transition="border duration-250 ease-in-out" rounded-lg px-4 py-2 text-sm @click="stopTestAudio"
             >
               <div flex="~ row" items-center gap-2>
                 <div i-solar:stop-circle-bold-duotone />
