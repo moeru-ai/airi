@@ -1,12 +1,11 @@
 import { useLocalStorage } from '@vueuse/core'
-import { defineStore, storeToRefs } from 'pinia'
+import { defineStore } from 'pinia'
 import { computed, ref, watch } from 'vue'
 
 import { useProvidersStore } from '../providers'
 
 export const useConsciousnessStore = defineStore('consciousness', () => {
   const providersStore = useProvidersStore()
-  const { providerMetadata } = storeToRefs(providersStore)
 
   // State
   const activeProvider = useLocalStorage('settings/consciousness/active-provider', '')
@@ -17,7 +16,7 @@ export const useConsciousnessStore = defineStore('consciousness', () => {
 
   // Computed properties
   const supportsModelListing = computed(() => {
-    return providerMetadata.value[activeProvider.value]?.capabilities.listModels !== undefined
+    return providersStore.getProviderMetadata(activeProvider.value)?.capabilities.listModels !== undefined
   })
 
   const providerModels = computed(() => {
@@ -70,7 +69,7 @@ export const useConsciousnessStore = defineStore('consciousness', () => {
   }
 
   async function loadModelsForProvider(provider: string) {
-    if (provider && providerMetadata.value[activeProvider.value]?.capabilities.listModels !== undefined
+    if (provider && providersStore.getProviderMetadata(activeProvider.value)?.capabilities.listModels !== undefined
       && providersStore.getModelsForProvider(provider).length === 0) {
       await providersStore.fetchModelsForProvider(provider)
     }
