@@ -140,8 +140,8 @@ function handleLanguageChange(event: Event) {
         </div>
       </label>
     </div>
-    <div text="neutral-100/50 dark:neutral-500/20" pointer-events-none fixed bottom-0 right-0>
-      <div text="40" i-lucide:cog translate-x-10 translate-y-10 />
+    <div text="neutral-100/50 dark:neutral-500/20" pointer-events-none fixed bottom-0 right-0 translate-x-10 translate-y-10>
+      <div v-motion text="40" i-lucide:cog />
     </div>
   </div>
 </template>

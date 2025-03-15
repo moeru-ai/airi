@@ -32,11 +32,17 @@ const { allProvidersMetadata } = storeToRefs(providersStore)
       :icon="provider.icon"
       :icon-color="provider.iconColor"
       :icon-image="provider.iconImage"
-      :to="`/settings/providers/${provider.id.replace('-ai', '')}`"
+      :to="`/settings/providers/${provider.id}`"
       :configured="provider.configured"
     />
   </div>
-  <div fixed bottom-0 right-0 z--1 text="neutral-100/80 dark:neutral-500/20">
-    <div text="40" i-lucide:brain translate-x-10 translate-y-10 />
+  <div text="neutral-100/50 dark:neutral-500/20" pointer-events-none fixed bottom-0 right-0 translate-x-10 translate-y-10>
+    <div text="40" i-lucide:brain />
   </div>
 </template>
+
+<route lang="yaml">
+meta:
+  stageTransition:
+    name: slide
+</route>

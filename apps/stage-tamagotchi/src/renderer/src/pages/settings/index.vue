@@ -4,7 +4,9 @@ import { useSettings } from '@proj-airi/stage-ui/stores'
 import { useDark } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { useI18n } from 'vue-i18n'
+import { useRouter } from 'vue-router'
 
+const router = useRouter()
 const { t } = useI18n()
 const { language, disableTransitions } = storeToRefs(useSettings())
 const dark = useDark()
@@ -12,19 +14,12 @@ const dark = useDark()
 function handleLanguageChange(event: Event) {
   const target = event.target as HTMLSelectElement
   language.value = target.value
-  // Send IPC message to main process for locale change
-  window.electron?.ipcRenderer.send('locale-changed', target.value)
-}
-
-// Handle window close
-function handleClose() {
-  window.electron?.ipcRenderer.send('close-settings')
 }
 </script>
 
 <template>
   <div flex="~ row" items-center gap-2>
-    <button @click="handleClose">
+    <button @click="router.back()">
       <div i-solar:alt-arrow-left-line-duotone text-2xl />
     </button>
     <h1 text-3xl>
@@ -34,7 +29,7 @@ function handleClose() {
   <div flex="~ col gap-4">
     <div flex="~ col gap-4">
       <IconItem title="Modules" description="Thinking, vision, speech synthesis, gaming, etc." icon="i-lucide:blocks" to="/settings/modules" />
-      <!-- <IconItem title="Models" description="Live2D, VRM, etc." icon="i-lucide:person-standing" to="/settings/models" /> -->
+      <IconItem title="Models" description="Live2D, VRM, etc." icon="i-lucide:person-standing" to="/settings/models" />
       <IconItem title="Providers" description="LLMs, speech providers, etc." icon="i-lucide:brain" to="/settings/providers" />
       <IconItem title="Themes" description="Customize your stage!" icon="i-lucide:paintbrush" to="/settings/themes" />
     </div>
@@ -145,8 +140,14 @@ function handleClose() {
         </div>
       </label>
     </div>
-    <div text="neutral-100/50 dark:neutral-500/20" pointer-events-none fixed bottom-0 right-0>
-      <div text="40" i-lucide:cog translate-x-10 translate-y-10 />
+    <div text="neutral-100/50 dark:neutral-500/20" pointer-events-none fixed bottom-0 right-0 translate-x-10 translate-y-10>
+      <div v-motion text="40" i-lucide:cog />
     </div>
   </div>
 </template>
+
+<route lang="yaml">
+meta:
+  stageTransition:
+    name: slide
+</route>
