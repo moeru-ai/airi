@@ -385,12 +385,12 @@ importers:
       '@proj-airi/ui-transitions':
         specifier: workspace:^
         version: link:../../packages/ui-transitions
-      '@proj-airi/unplugin-download':
-        specifier: workspace:^
-        version: link:../../packages/unplugin-download
+      '@proj-airi/unplugin-fetch':
+        specifier: ^0.1.4
+        version: 0.1.4(@types/node@22.13.10)(jiti@2.4.2)(less@4.2.2)(terser@5.17.6)(tsx@4.19.3)(yaml@2.7.0)
       '@proj-airi/unplugin-live2d-sdk':
-        specifier: workspace:^
-        version: link:../../packages/unplugin-live2d-sdk
+        specifier: ^0.1.2
+        version: 0.1.2(@types/node@22.13.10)(jiti@2.4.2)(less@4.2.2)(terser@5.17.6)(tsx@4.19.3)(yaml@2.7.0)
       '@shikijs/markdown-it':
         specifier: ^3.2.1
         version: 3.2.1
@@ -719,12 +719,12 @@ importers:
       '@proj-airi/ui-transitions':
         specifier: workspace:^
         version: link:../../packages/ui-transitions
-      '@proj-airi/unplugin-download':
-        specifier: workspace:^
-        version: link:../../packages/unplugin-download
+      '@proj-airi/unplugin-fetch':
+        specifier: ^0.1.4
+        version: 0.1.4(@types/node@22.13.10)(jiti@2.4.2)(less@4.2.2)(terser@5.17.6)(tsx@4.19.3)(yaml@2.7.0)
       '@proj-airi/unplugin-live2d-sdk':
-        specifier: workspace:^
-        version: link:../../packages/unplugin-live2d-sdk
+        specifier: ^0.1.2
+        version: 0.1.2(@types/node@22.13.10)(jiti@2.4.2)(less@4.2.2)(terser@5.17.6)(tsx@4.19.3)(yaml@2.7.0)
       '@shikijs/markdown-it':
         specifier: ^3.2.1
         version: 3.2.1
@@ -1111,27 +1111,6 @@ importers:
       vue-tsc:
         specifier: ^2.2.8
         version: 2.2.8(typescript@5.8.2)
-
-  packages/unplugin-download:
-    dependencies:
-      ofetch:
-        specifier: ^1.4.1
-        version: 1.4.1
-      vite:
-        specifier: ^6.2.2
-        version: 6.2.2(@types/node@22.13.10)(jiti@2.4.2)(less@4.2.2)(terser@5.17.6)(tsx@4.19.3)(yaml@2.7.0)
-
-  packages/unplugin-live2d-sdk:
-    dependencies:
-      ofetch:
-        specifier: ^1.4.1
-        version: 1.4.1
-      vite:
-        specifier: ^6.2.2
-        version: 6.2.2(@types/node@22.13.10)(jiti@2.4.2)(less@4.2.2)(terser@5.17.6)(tsx@4.19.3)(yaml@2.7.0)
-      yauzl:
-        specifier: ^3.2.0
-        version: 3.2.0
 
   packages/utils-transformers:
     dependencies:
@@ -4068,6 +4047,12 @@ packages:
 
   '@proj-airi/server-shared@0.3.6':
     resolution: {integrity: sha512-VVGhVHDrZojH2RQIC6w4znmA/QlWrxFL3UI1N/pQU20vpRN23r4NaG/XvxdlzxQOYuXkyHvdc6/gn1b+qJnBpA==}
+
+  '@proj-airi/unplugin-fetch@0.1.4':
+    resolution: {integrity: sha512-COL9bzbT9wNv+yyueIvC6tcd3EuiAHMuMGpZNJlCn1qsThpi5mIvak2KZH5HYiDo7wusDVLBnye1fG92r1hYTA==}
+
+  '@proj-airi/unplugin-live2d-sdk@0.1.2':
+    resolution: {integrity: sha512-zmpjfQ64le+NTzWrM7eXIVUtSicsyYDuJeYBXPK8Z0eW3S7oMoGHrlcm0oPqPROpRoem4PHgHLhB6T1LLQqitw==}
 
   '@protobufjs/aspromise@1.1.2':
     resolution: {integrity: sha512-j+gKExEuLmKwvz3OgROXtrJ2UG2x8Ch2YZUxahh+s1F2HZ+wAceUNLkvy6zKCPVRkU++ZWQrdxsUeQXmcg4uoQ==}
@@ -14590,6 +14575,41 @@ snapshots:
   '@proj-airi/server-shared@0.3.6':
     dependencies:
       crossws: 0.3.4
+
+  '@proj-airi/unplugin-fetch@0.1.4(@types/node@22.13.10)(jiti@2.4.2)(less@4.2.2)(terser@5.17.6)(tsx@4.19.3)(yaml@2.7.0)':
+    dependencies:
+      ofetch: 1.4.1
+      vite: 6.2.2(@types/node@22.13.10)(jiti@2.4.2)(less@4.2.2)(terser@5.17.6)(tsx@4.19.3)(yaml@2.7.0)
+    transitivePeerDependencies:
+      - '@types/node'
+      - jiti
+      - less
+      - lightningcss
+      - sass
+      - sass-embedded
+      - stylus
+      - sugarss
+      - terser
+      - tsx
+      - yaml
+
+  '@proj-airi/unplugin-live2d-sdk@0.1.2(@types/node@22.13.10)(jiti@2.4.2)(less@4.2.2)(terser@5.17.6)(tsx@4.19.3)(yaml@2.7.0)':
+    dependencies:
+      ofetch: 1.4.1
+      vite: 6.2.2(@types/node@22.13.10)(jiti@2.4.2)(less@4.2.2)(terser@5.17.6)(tsx@4.19.3)(yaml@2.7.0)
+      yauzl: 3.2.0
+    transitivePeerDependencies:
+      - '@types/node'
+      - jiti
+      - less
+      - lightningcss
+      - sass
+      - sass-embedded
+      - stylus
+      - sugarss
+      - terser
+      - tsx
+      - yaml
 
   '@protobufjs/aspromise@1.1.2': {}
 
