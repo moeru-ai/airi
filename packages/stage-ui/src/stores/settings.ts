@@ -16,7 +16,7 @@ export const useSettings = defineStore('settings', () => {
 
   // TODO: extract to a separate store, use a single page to do this
   const live2dModelFile = ref<File>()
-  const live2dModelUrl = ref<string>('./assets/live2d/models/hiyori_pro_zh.zip')
+  const live2dModelUrl = ref<string>('/assets/live2d/models/hiyori_pro_zh.zip')
   const live2dLoadSource = ref<'file' | 'url'>('url')
   const loadingLive2dModel = ref(false) // if set to true, the model will be loaded
   const live2dPosition = useLocalStorage('settings/live2d/position', { x: 0, y: 0 }) // position is relative to the center of the screen
