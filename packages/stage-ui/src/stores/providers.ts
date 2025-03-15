@@ -9,6 +9,7 @@ import type {
   TranscriptionProvider,
   TranscriptionProviderWithExtraOptions,
 } from '@xsai-ext/shared-providers'
+import type { VoiceProviderWithExtraOptions } from './fix/voice'
 
 import { useLocalStorage } from '@vueuse/core'
 import {
@@ -24,11 +25,15 @@ import {
   createWorkersAI,
   createXAI,
 } from '@xsai-ext/providers-cloud'
-import { createOllama, createUnElevenLabs } from '@xsai-ext/providers-local'
+import { createOllama } from '@xsai-ext/providers-local'
 import { listModels } from '@xsai/model'
 import { defineStore } from 'pinia'
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+
+import { createUnElevenLabs } from './fix/elevenlabs'
+import { listVoices } from './fix/list-voices'
+// import { createUnMicrosoft } from './fix/microsoft'
 
 export interface ProviderMetadata {
   id: string
@@ -309,8 +314,20 @@ export const useProvidersStore = defineStore('providers', () => {
         listModels: async () => {
           return []
         },
-        listVoices: async () => {
-          return []
+        listVoices: async (config) => {
+          const provider = createUnElevenLabs(config.apiKey as string, config.baseUrl as string) as VoiceProviderWithExtraOptions<UnElevenLabsOptions>
+
+          const voices = await listVoices({
+            ...provider.voice(),
+          })
+
+          return voices.map((voice) => {
+            return {
+              id: voice.id,
+              name: voice.name,
+              provider: 'elevenlabs',
+            }
+          })
         },
       },
     },
