@@ -14,6 +14,7 @@ export const useSpeechStore = defineStore('speech', () => {
   const activeSpeechProvider = useLocalStorage('settings/speech/active-provider', '')
   const activeSpeechModel = useLocalStorage('settings/speech/active-model', 'eleven_multilingual_v2')
   const voiceName = useLocalStorage('settings/speech/voice-name', '')
+  const voiceId = useLocalStorage('settings/speech/voice-id', '')
   const pitch = useLocalStorage('settings/speech/pitch', 0)
   const rate = useLocalStorage('settings/speech/rate', 1)
   const ssmlEnabled = useLocalStorage('settings/speech/ssml-enabled', false)
@@ -137,6 +138,7 @@ export const useSpeechStore = defineStore('speech', () => {
     activeSpeechProvider,
     activeSpeechModel,
     voiceName,
+    voiceId,
     pitch,
     rate,
     ssmlEnabled,

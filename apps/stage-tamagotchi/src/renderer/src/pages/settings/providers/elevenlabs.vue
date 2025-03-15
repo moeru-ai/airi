@@ -156,14 +156,6 @@ watch([apiKey, baseUrl, similarityBoost, stability, speed, style, useSpeakerBoos
   }
 })
 
-watch(selectedLanguage, (newLanguage) => {
-  speechStore.setLanguage(newLanguage)
-})
-
-watch(selectedVoice, (newVoice) => {
-  speechStore.setVoiceName(newVoice)
-})
-
 // Function to generate speech
 async function generateTestSpeech() {
   if (!testText.value.trim())

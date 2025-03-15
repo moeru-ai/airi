@@ -14,7 +14,7 @@ const {
 const {
   activeSpeechProvider,
   activeSpeechModel,
-  voiceName,
+  voiceId,
   pitch,
   rate,
   isLoadingSpeechProviderVoices,
@@ -26,7 +26,7 @@ const {
 
 const router = useRouter()
 const ssmlExample = ref(`<speak>
-  Hello, my name is <voice name="${voiceName.value || 'Default'}">
+  Hello, my name is <voice name="${voiceId.value || 'Default'}">
     <prosody pitch="+${pitch.value || 0}%" rate="${rate.value || 1}">
       AI Assistant
     </prosody>
@@ -40,18 +40,18 @@ onMounted(async () => {
 })
 
 function updateVoiceName(value: string) {
-  voiceName.value = value
+  voiceId.value = value
   updateSSMLExample()
 }
 
 function updateCustomVoiceName(value: string) {
-  voiceName.value = value
+  voiceId.value = value
   updateSSMLExample()
 }
 
 function updateSSMLExample() {
   ssmlExample.value = `<speak>
-  Hello, my name is <voice name="${voiceName.value || 'Default'}">
+  Hello, my name is <voice name="${voiceId.value || 'Default'}">
     <prosody pitch="+${pitch.value || 0}%" rate="${rate.value || 1}">
       AI Assistant
     </prosody>
@@ -159,7 +159,7 @@ function updateSSMLExample() {
         <!-- Voice selection with RadioCardDetailManySelect -->
         <div v-else-if="availableVoices[activeSpeechProvider] && availableVoices[activeSpeechProvider].length > 0" class="space-y-6">
           <RadioCardDetailManySelect
-            v-model="voiceName"
+            v-model="voiceId"
             v-model:search-query="voiceSearchQuery"
             :items="availableVoices[activeSpeechProvider]?.map(voice => ({
               id: voice.name,
@@ -284,7 +284,8 @@ function updateSSMLExample() {
               Voice Name
             </label>
             <input
-              v-model="voiceName" type="text"
+              v-model="voiceId"
+              type="text"
               class="w-full border border-neutral-300 rounded bg-white px-3 py-2 dark:border-neutral-700 dark:bg-neutral-900"
               placeholder="Enter voice name (e.g., 'Rachel', 'Josh')"
               @input="(event) => updateVoiceName((event.target as HTMLInputElement).value)"
