@@ -3,13 +3,35 @@ import { useSettings } from '@proj-airi/stage-ui/stores/settings'
 import { StageTransitionGroup } from '@proj-airi/ui-transitions'
 import { useDark } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { watch } from 'vue'
+import { computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterView } from 'vue-router'
 
 const i18n = useI18n()
 const settings = storeToRefs(useSettings())
 const isDark = useDark()
+
+const primaryColor = computed(() => {
+  return isDark.value
+    ? `color-mix(in srgb, oklch(95% var(--theme-colors-chroma-900) calc(var(--theme-colors-hue) + ${0})) 70%, oklch(50% 0 360))`
+    : `color-mix(in srgb, oklch(95% var(--theme-colors-chroma-900) calc(var(--theme-colors-hue) + ${0})) 90%, oklch(90% 0 360))`
+})
+
+const secondaryColor = computed(() => {
+  return isDark.value
+    ? `color-mix(in srgb, oklch(95% var(--theme-colors-chroma-900) calc(var(--theme-colors-hue) + ${180})) 70%, oklch(50% 0 360))`
+    : `color-mix(in srgb, oklch(95% var(--theme-colors-chroma-900) calc(var(--theme-colors-hue) + ${180})) 90%, oklch(90% 0 360))`
+})
+
+const tertiaryColor = computed(() => {
+  return isDark.value
+    ? `color-mix(in srgb, oklch(95% var(--theme-colors-chroma-900) calc(var(--theme-colors-hue) + ${60})) 70%, oklch(50% 0 360))`
+    : `color-mix(in srgb, oklch(95% var(--theme-colors-chroma-900) calc(var(--theme-colors-hue) + ${60})) 90%, oklch(90% 0 360))`
+})
+
+const colors = computed(() => {
+  return [primaryColor.value, secondaryColor.value, tertiaryColor.value, isDark.value ? '#121212' : '#FFFFFF']
+})
 
 watch(settings.language, () => {
   i18n.locale.value = settings.language.value
@@ -26,10 +48,10 @@ watch(settings.themeColorsHueDynamic, () => {
 
 <template>
   <StageTransitionGroup
-    primary-color="#FF57C8"
-    secondary-color="#946BFF"
-    tertiary-color="#121212"
-    :colors="!isDark ? ['#FF57C8', '#946BFF', '#64BCFF', '#FFFFFF'] : ['#FF57C8', '#946BFF', '#64BCFF', '#121212']"
+    :primary-color="primaryColor"
+    :secondary-color="secondaryColor"
+    :tertiary-color="tertiaryColor"
+    :colors="colors"
     :z-index="100"
     :disable-transitions="settings.disableTransitions.value"
   >
