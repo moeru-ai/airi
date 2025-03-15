@@ -5,6 +5,7 @@ import { useSettings } from '@proj-airi/stage-ui/stores'
 import { useFileDialog, useObjectUrl } from '@vueuse/core'
 import JSZip from 'jszip'
 import localforage from 'localforage'
+import { storeToRefs } from 'pinia'
 import { ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
@@ -15,14 +16,15 @@ const modelFile = useFileDialog({
 })
 
 const settings = useSettings()
-const modelUrl = ref(settings.live2dModelUrl)
+const { live2dModelFile, live2dMotionMap, live2dLoadSource, loadingLive2dModel, availableLive2dMotions, live2dModelUrl } = storeToRefs(settings)
+const localModelUrl = ref(live2dModelUrl.value)
 
 modelFile.onChange((files) => {
   if (files && files.length > 0) {
-    settings.live2dMotionMap = {}
-    settings.live2dModelFile = files[0]
-    settings.live2dLoadSource = 'file'
-    settings.loadingLive2dModel = true
+    live2dMotionMap.value = {}
+    live2dModelFile.value = files[0]
+    live2dLoadSource.value = 'file'
+    loadingLive2dModel.value = true
   }
 })
 
@@ -31,16 +33,16 @@ watch(() => settings.loadingLive2dModel, (value) => {
     return
   }
 
-  if (settings.live2dLoadSource !== 'file') {
+  if (live2dLoadSource.value !== 'file') {
     return
   }
 
-  settings.availableLive2dMotions.forEach((motion) => {
+  availableLive2dMotions.value.forEach((motion) => {
     if (motion.motionName in Emotion) {
-      settings.live2dMotionMap[motion.fileName] = motion.motionName
+      live2dMotionMap.value[motion.fileName] = motion.motionName
     }
     else {
-      settings.live2dMotionMap[motion.fileName] = EmotionNeutralMotionName
+      live2dMotionMap.value[motion.fileName] = EmotionNeutralMotionName
     }
   })
 })
@@ -85,13 +87,13 @@ async function saveMotionMap() {
     return
   }
 
-  const patchedFile = await patchMotionMap(fileFromIndexedDB, settings.live2dMotionMap)
-  settings.live2dModelFile = patchedFile
-  settings.live2dLoadSource = 'file'
-  settings.loadingLive2dModel = true
+  const patchedFile = await patchMotionMap(fileFromIndexedDB, live2dMotionMap.value)
+  live2dModelFile.value = patchedFile
+  live2dLoadSource.value = 'file'
+  loadingLive2dModel.value = true
 }
 
-const exportObjectUrl = useObjectUrl(settings.live2dModelFile)
+const exportObjectUrl = useObjectUrl(live2dModelFile)
 </script>
 
 <template>
@@ -130,7 +132,7 @@ const exportObjectUrl = useObjectUrl(settings.live2dModelFile)
             </div>
             <div>
               <input
-                v-model="modelUrl"
+                v-model="localModelUrl"
                 :disabled="settings.loadingLive2dModel"
                 type="text"
                 rounded
@@ -145,7 +147,7 @@ const exportObjectUrl = useObjectUrl(settings.live2dModelFile)
                 hover="bg-zinc-200 dark:bg-zinc-700"
                 transition="all ease-in-out duration-250"
                 ml-2 rounded px-2 py-1 text-sm outline-none
-                @click="settings.live2dModelUrl = modelUrl"
+                @click="live2dModelUrl = localModelUrl"
               >
                 {{ t('settings.live2d.change-model.from-url-confirm') }}
               </button>

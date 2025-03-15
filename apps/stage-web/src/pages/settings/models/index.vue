@@ -1,10 +1,15 @@
 <script setup lang="ts">
-import { WidgetStage } from '@proj-airi/stage-ui/components'
+import Live2DCanvas from '@proj-airi/stage-ui/components/Live2D/Canvas.vue'
+import Live2DModel from '@proj-airi/stage-ui/components/Live2D/Model.vue'
+import { useElementBounding } from '@vueuse/core'
+import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 
 import Live2DSettings from '../../../components/Widgets/Live2DSettings.vue'
 
 const router = useRouter()
+const live2dContainerRef = ref<HTMLDivElement>()
+const { width, height } = useElementBounding(live2dContainerRef)
 </script>
 
 <template>
@@ -22,7 +27,11 @@ const router = useRouter()
     </h1>
   </div>
   <div flex>
-    <WidgetStage w="50%" h="80vh" />
+    <div ref="live2dContainerRef" w="50%" h="80vh">
+      <Live2DCanvas v-slot="{ app }" :width="width" :height="height">
+        <Live2DModel :app="app" :mouth-open-size="0" :width="width" :height="height" :paused="false" />
+      </Live2DCanvas>
+    </div>
     <Live2DSettings w="50%" h="80vh" />
   </div>
 
