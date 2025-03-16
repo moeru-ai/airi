@@ -18,7 +18,7 @@ const props = defineProps<{
     drop-shadow="none hover:[0px_4px_4px_rgba(220,220,220,0.4)] active:[0px_0px_0px_rgba(220,220,220,0.25)] dark:hover:none"
     class="menu-icon-status-item"
     transition="all ease-in-out duration-400"
-    w-full of-hidden rounded-xl
+    w-full cursor-pointer of-hidden rounded-xl
   >
     <RouterLink
       flex="~ row"
