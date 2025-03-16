@@ -1,35 +1,72 @@
 <script setup lang="ts">
+import type { RemovableRef } from '@vueuse/core'
+
 import { Collapsable } from '@proj-airi/stage-ui/components'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores'
 import { useToggle } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { onMounted, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 
 const router = useRouter()
 const providersStore = useProvidersStore()
-const { providers } = storeToRefs(providersStore)
+const { providers } = storeToRefs(providersStore) as { providers: RemovableRef<Record<string, any>> }
 
-const apiKey = ref(providers.value.openai?.apiKey || '')
-const baseUrl = ref(providers.value.openai?.baseUrl || '')
+// Get provider metadata
+const providerId = 'openai'
+const providerMetadata = computed(() => providersStore.getProviderMetadata(providerId))
+
+// Use computed properties for settings
+const apiKey = computed({
+  get: () => providers.value[providerId]?.apiKey || '',
+  set: (value) => {
+    if (!providers.value[providerId])
+      providers.value[providerId] = {}
+
+    providers.value[providerId].apiKey = value
+  },
+})
+
+const baseUrl = computed({
+  get: () => providers.value[providerId]?.baseUrl || 'https://api.openai.com/v1/',
+  set: (value) => {
+    if (!providers.value[providerId])
+      providers.value[providerId] = {}
+
+    providers.value[providerId].baseUrl = value
+  },
+})
 
 const advancedVisible = ref(false)
 const toggleAdvancedVisible = useToggle(advancedVisible)
 
 onMounted(() => {
-  if (!providers.value.openai) {
-    providers.value.openai = {
+  // Initialize provider if it doesn't exist
+  if (!providers.value[providerId]) {
+    providers.value[providerId] = {
       baseUrl: 'https://api.openai.com/v1/',
     }
   }
+
+  // Initialize refs with current values
+  apiKey.value = providers.value[providerId]?.apiKey || ''
+  baseUrl.value = providers.value[providerId]?.baseUrl || 'https://api.openai.com/v1/'
 })
 
+// Watch settings and update the provider configuration
 watch([apiKey, baseUrl], () => {
-  providers.value.openai = {
+  providers.value[providerId] = {
+    ...providers.value[providerId],
     apiKey: apiKey.value,
     baseUrl: baseUrl.value || 'https://api.openai.com/v1/',
   }
 })
+
+function handleResetSettings() {
+  providers.value[providerId] = {
+    baseUrl: 'https://api.openai.com/v1/',
+  }
+}
 </script>
 
 <template>
@@ -49,37 +86,51 @@ watch([apiKey, baseUrl], () => {
         <span text="neutral-300 dark:neutral-500">Provider</span>
       </div>
       <div text-3xl font-semibold>
-        OpenAI
+        {{ providerMetadata?.localizedName || 'OpenAI' }}
       </div>
     </h1>
   </div>
-  <div bg="neutral-50 dark:[rgba(0,0,0,0.3)]" rounded-xl p-4 flex="~ col gap-4">
+  <div bg="neutral-50 dark:[rgba(0,0,0,0.3)]" rounded-xl p-4 flex="~ col gap-6">
     <div>
       <div flex="~ col gap-6">
-        <div>
-          <h2 class="text-lg text-neutral-500 md:text-2xl dark:text-neutral-400">
-            Basic
-          </h2>
-          <div text="neutral-400 dark:neutral-500">
-            <span>Essential settings</span>
+        <div flex="~ row" items-center justify-between>
+          <div>
+            <h2 class="text-lg text-neutral-500 md:text-2xl dark:text-neutral-400">
+              Basic
+            </h2>
+            <div text="neutral-400 dark:neutral-500">
+              <span>Essential settings</span>
+            </div>
           </div>
+          <button
+            title="Reset settings"
+            flex items-center justify-center rounded-full p-2
+            transition="all duration-250 ease-in-out"
+            text="neutral-500 dark:neutral-400"
+            bg="transparent dark:transparent hover:neutral-200 dark:hover:neutral-800 active:neutral-300 dark:active:neutral-700"
+            @click="handleResetSettings"
+          >
+            <div i-solar:refresh-bold-duotone text-xl />
+          </button>
         </div>
         <div max-w-full>
-          <label grid="~ cols-2 gap-4">
+          <label flex="~ col gap-4">
             <div>
               <div class="flex items-center gap-1 text-sm font-medium">
                 API Key
                 <span class="text-red-500">*</span>
               </div>
-              <div class="text-xs text-zinc-500 dark:text-zinc-400" text-nowrap>
-                API Key for OpenAI
+              <div class="text-xs text-neutral-500 dark:text-neutral-400" text-nowrap>
+                API Key for {{ providerMetadata?.localizedName || 'OpenAI' }}
               </div>
             </div>
             <input
-              v-model="apiKey" type="password"
-              border="zinc-300 dark:zinc-800 solid 1 focus:zinc-400 dark:focus:zinc-600"
-              transition="border duration-250 ease-in-out"
-              w-full rounded px-2 py-1 text-nowrap text-sm outline-none
+              v-model="apiKey"
+              type="password"
+              border="neutral-200 dark:neutral-800 solid 2 focus:neutral-400 dark:focus:neutral-600"
+              transition="all duration-250 ease-in-out"
+              w-full rounded-lg px-2 py-1 text-nowrap text-sm outline-none
+              bg="neutral-100 dark:neutral-800 focus:white dark:focus:neutral-700"
               placeholder="sk-..."
             >
           </label>
@@ -104,20 +155,22 @@ watch([apiKey, baseUrl], () => {
           </button>
         </template>
         <div mt-4>
-          <label grid="~ cols-2 gap-4">
+          <label flex="~ col gap-4">
             <div>
               <div class="flex items-center gap-1 text-sm font-medium">
                 Base URL
               </div>
-              <div class="text-xs text-zinc-500 dark:text-zinc-400">
+              <div class="text-xs text-neutral-500 dark:text-neutral-400" text-nowrap>
                 Custom base URL (optional)
               </div>
             </div>
             <input
-              v-model="baseUrl" type="text"
-              border="zinc-300 dark:zinc-800 solid 1 focus:zinc-400 dark:focus:zinc-600"
-              transition="border duration-250 ease-in-out"
-              w-full rounded px-2 py-1 text-nowrap text-sm outline-none
+              v-model="baseUrl"
+              type="text"
+              border="neutral-200 dark:neutral-800 solid 2 focus:neutral-400 dark:focus:neutral-600"
+              transition="all duration-250 ease-in-out"
+              w-full rounded-lg px-2 py-1 text-nowrap text-sm outline-none
+              bg="neutral-100 dark:neutral-800 focus:white dark:focus:neutral-700"
               placeholder="https://api.openai.com/v1/"
             >
           </label>

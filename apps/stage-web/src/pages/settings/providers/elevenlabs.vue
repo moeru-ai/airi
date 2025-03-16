@@ -263,13 +263,25 @@ function handleResetVoiceSettings() {
     <div bg="neutral-50 dark:[rgba(0,0,0,0.3)]" rounded-xl p-4 flex="~ col gap-6" w="full md:40%">
       <div>
         <div flex="~ col gap-6">
-          <div>
-            <h2 class="text-lg text-neutral-500 md:text-2xl dark:text-neutral-400">
-              Basic
-            </h2>
-            <div text="neutral-400 dark:neutral-500">
-              <span>Essential settings</span>
+          <div flex="~ row" items-center justify-between>
+            <div>
+              <h2 class="text-lg text-neutral-500 md:text-2xl dark:text-neutral-400">
+                Basic
+              </h2>
+              <div text="neutral-400 dark:neutral-500">
+                <span>Essential settings</span>
+              </div>
             </div>
+            <button
+              title="Reset settings"
+              flex items-center justify-center rounded-full p-2
+              transition="all duration-250 ease-in-out"
+              text="neutral-500 dark:neutral-400"
+              bg="transparent dark:transparent hover:neutral-200 dark:hover:neutral-800 active:neutral-300 dark:active:neutral-700"
+              @click="handleResetVoiceSettings"
+            >
+              <div i-solar:refresh-bold-duotone text-xl />
+            </button>
           </div>
           <div max-w-full>
             <label flex="~ col gap-4">
@@ -285,10 +297,10 @@ function handleResetVoiceSettings() {
               <input
                 v-model="apiKey"
                 type="password"
-                border="neutral-300 dark:neutral-800 solid 2 focus:neutral-400 dark:focus:neutral-600"
-                transition="border duration-250 ease-in-out"
+                border="neutral-200 dark:neutral-800 solid 2 focus:neutral-400 dark:focus:neutral-600"
+                transition="all duration-250 ease-in-out"
                 w-full rounded-lg px-2 py-1 text-nowrap text-sm outline-none
-                bg="neutral-200 dark:neutral-800"
+                bg="neutral-100 dark:neutral-800 focus:white dark:focus:neutral-700"
                 placeholder="sk-"
               >
             </label>
@@ -411,31 +423,20 @@ function handleResetVoiceSettings() {
                 <div class="flex items-center gap-1 text-sm font-medium">
                   Base URL
                   <span class="text-red-500">*</span>
-                </div>Base URL
+                </div>
                 <div class="text-xs text-neutral-500 dark:text-neutral-400" text-nowrap>
                   Custom base URL (optional)
                 </div>
               </div>
               <input
                 v-model="baseUrl"
-                border="neutral-300 dark:neutral-800 solid 2 focus:neutral-400 dark:focus:neutral-600"
-                transition="border duration-250 ease-in-out"
+                border="neutral-200 dark:neutral-800 solid 2 focus:neutral-400 dark:focus:neutral-600"
+                transition="all duration-250 ease-in-out"
                 w-full rounded-lg px-2 py-1 text-nowrap text-sm outline-none
-                bg="neutral-200 dark:neutral-800"
+                bg="neutral-100 dark:neutral-800 focus:white dark:focus:neutral-700"
                 :placeholder="providerMetadata?.defaultOptions?.baseUrl as string || ''"
               >
             </label>
-
-            <div mt-4>
-              <button
-                border="neutral-300 dark:neutral-800 solid 1"
-                transition="border duration-250 ease-in-out" rounded
-                px-4 py-2 text-sm
-                @click="handleResetVoiceSettings"
-              >
-                Reset Voice Settings
-              </button>
-            </div>
           </div>
         </Collapsable>
       </div>
@@ -448,10 +449,10 @@ function handleResetVoiceSettings() {
         <div flex="~ col gap-4">
           <textarea
             v-model="testText" placeholder="Enter text to test the voice..."
-            border="neutral-300 dark:neutral-800 solid 2 focus:neutral-400 dark:focus:neutral-600"
-            transition="border duration-250 ease-in-out"
+            border="neutral-200 dark:neutral-800 solid 2 focus:neutral-400 dark:focus:neutral-600"
+            transition="all duration-250 ease-in-out"
             h-24 w-full rounded-lg px-3 py-2 text-sm outline-none
-            bg="neutral-200 dark:neutral-800"
+            bg="neutral-100 dark:neutral-800 focus:white dark:focus:neutral-700"
           />
           <div flex="~ col gap-6">
             <label grid="~ cols-2 gap-4">
@@ -466,7 +467,8 @@ function handleResetVoiceSettings() {
               <select
                 v-model="selectedLanguage"
                 border="neutral-300 dark:neutral-800 solid 2 focus:neutral-400 dark:focus:neutral-600"
-                transition="border duration-250 ease-in-out" w-full rounded-lg px-2 py-1 text-nowrap text-sm outline-none
+                transition="border duration-250 ease-in-out"
+                w-full rounded-lg px-2 py-1 text-nowrap text-sm outline-none
               >
                 <option v-for="language in speechStore.availableLanguages" :key="language" :value="language">
                   {{ language }}
@@ -486,7 +488,8 @@ function handleResetVoiceSettings() {
               <select
                 v-model="selectedVoice"
                 border="neutral-300 dark:neutral-800 solid 2 focus:neutral-400 dark:focus:neutral-600"
-                transition="border duration-250 ease-in-out" w-full rounded-lg px-2 py-1 text-nowrap text-sm outline-none
+                transition="border duration-250 ease-in-out"
+                w-full rounded-lg px-2 py-1 text-nowrap text-sm outline-none
               >
                 <option v-for="voice in availableVoices" :key="voice.id" :value="voice.name">
                   {{ voice.name }}
