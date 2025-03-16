@@ -7,6 +7,9 @@
     "apps/stage-tamagotchi/src/main/locales"
   ],
   "i18n-ally.sortKeys": true,
+  "i18n-ally.enabledFrameworks": [
+    "vue"
+  ],
 
   // Disable the default formatter
   "prettier.enable": false,
