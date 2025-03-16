@@ -34,7 +34,13 @@ const { transcribe: generate, load: loadWhisper, status: whisperStatus, terminat
       return
     }
 
-    await send(res, { chatProvider: providersStore.getProviderInstance(activeProvider.value) as ChatProvider, model: activeModel.value })
+    const providerConfig = providersStore.getProviderConfig(activeProvider.value)
+
+    await send(res, {
+      chatProvider: providersStore.getProviderInstance(activeProvider.value) as ChatProvider,
+      model: activeModel.value,
+      providerConfig,
+    })
   },
 })
 
@@ -44,7 +50,13 @@ async function handleSend() {
   }
 
   try {
-    await send(messageInput.value, { chatProvider: providersStore.getProviderInstance(activeProvider.value) as ChatProvider, model: activeModel.value })
+    const providerConfig = providersStore.getProviderConfig(activeProvider.value)
+
+    await send(messageInput.value, {
+      chatProvider: providersStore.getProviderInstance(activeProvider.value) as ChatProvider,
+      model: activeModel.value,
+      providerConfig,
+    })
   }
   catch (error) {
     messages.value.pop()

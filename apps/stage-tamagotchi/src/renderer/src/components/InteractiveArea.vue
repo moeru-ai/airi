@@ -20,7 +20,7 @@ const { send, onAfterSend } = useChatStore()
 const { messages } = storeToRefs(useChatStore())
 const { t } = useI18n()
 const providersStore = useProvidersStore()
-const { activeModel } = storeToRefs(useConsciousnessStore())
+const { activeModel, activeProvider } = storeToRefs(useConsciousnessStore())
 
 async function handleSend() {
   if (!messageInput.value.trim()) {
@@ -28,9 +28,11 @@ async function handleSend() {
   }
 
   try {
+    const providerConfig = providersStore.getProviderConfig(activeProvider.value)
     await send(messageInput.value, {
       model: activeModel.value,
-      chatProvider: providersStore.getProviderInstance('openrouter-ai') as ChatProvider,
+      chatProvider: providersStore.getProviderInstance(activeProvider.value) as ChatProvider,
+      providerConfig,
     })
   }
   catch (error) {

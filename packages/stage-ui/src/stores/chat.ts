@@ -71,7 +71,7 @@ export const useChatStore = defineStore('chat', () => {
 
   const streamingMessage = ref<AssistantMessage>({ role: 'assistant', content: '' })
 
-  async function send(sendingMessage: string, options: { model: string, chatProvider: ChatProvider }) {
+  async function send(sendingMessage: string, options: { model: string, chatProvider: ChatProvider, providerConfig?: Record<string, unknown> }) {
     try {
       sending.value = true
 
@@ -95,7 +95,16 @@ export const useChatStore = defineStore('chat', () => {
         await hook(sendingMessage)
       }
 
-      const res = await stream(options.model, options.chatProvider, newMessages as Message[])
+      const headersArray = options.providerConfig?.headers as { key: string, value: string }[] | undefined
+
+      const headers = headersArray
+        ?.filter(h => h.key && h.value)
+        .reduce((acc, curr) => {
+          acc[curr.key] = curr.value
+          return acc
+        }, {} as Record<string, string>)
+
+      const res = await stream(options.model, options.chatProvider, newMessages as Message[], { headers })
 
       for (const hook of onAfterSendHooks.value) {
         await hook(sendingMessage)

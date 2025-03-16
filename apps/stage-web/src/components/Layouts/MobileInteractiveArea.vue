@@ -27,7 +27,13 @@ async function handleSend() {
     return
   }
 
-  await send(messageInput.value, { chatProvider: providersStore.getProviderInstance(activeProvider.value) as ChatProvider, model: activeModel.value })
+  const providerConfig = providersStore.getProviderConfig(activeProvider.value)
+
+  await send(messageInput.value, {
+    chatProvider: providersStore.getProviderInstance(activeProvider.value) as ChatProvider,
+    model: activeModel.value,
+    providerConfig,
+  })
 }
 
 const { destroy, start } = useMicVAD(selectedAudioDeviceId, {

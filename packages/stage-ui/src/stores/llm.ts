@@ -6,13 +6,18 @@ import { streamText } from '@xsai/stream-text'
 import { defineStore } from 'pinia'
 
 export const useLLM = defineStore('llm', () => {
-  async function stream(model: string, chatProvider: ChatProvider, messages: Message[]) {
+  async function stream(model: string, chatProvider: ChatProvider, messages: Message[], options?: {
+    headers?: Record<string, string>
+  }) {
+    const headers = options?.headers
+
     return await streamText({
       ...chatProvider.chat(model),
       messages,
       streamOptions: {
         usage: true,
       },
+      headers,
     })
   }
 
