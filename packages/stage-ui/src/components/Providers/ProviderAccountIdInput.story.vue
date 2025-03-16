@@ -21,7 +21,7 @@ const filledAccountId = ref('1234567890abcdef1234567890abcdef')
       id="empty"
       title="Empty"
     >
-      <div class="bg-white p-4 dark:bg-neutral-900">
+      <div>
         <ProviderAccountIdInput
           v-model="emptyAccountId"
           placeholder="Your Cloudflare Account ID"
@@ -33,7 +33,7 @@ const filledAccountId = ref('1234567890abcdef1234567890abcdef')
       id="filled"
       title="Filled"
     >
-      <div class="bg-white p-4 dark:bg-neutral-900">
+      <div>
         <ProviderAccountIdInput
           v-model="filledAccountId"
           placeholder="Your Cloudflare Account ID"
@@ -45,7 +45,7 @@ const filledAccountId = ref('1234567890abcdef1234567890abcdef')
       id="custom-label"
       title="Custom Label"
     >
-      <div class="bg-white p-4 dark:bg-neutral-900">
+      <div>
         <ProviderAccountIdInput
           v-model="emptyAccountId"
           label="Cloudflare Account ID"
@@ -59,7 +59,7 @@ const filledAccountId = ref('1234567890abcdef1234567890abcdef')
       id="not-required"
       title="Not Required"
     >
-      <div class="bg-white p-4 dark:bg-neutral-900">
+      <div>
         <ProviderAccountIdInput
           v-model="emptyAccountId"
           :required="false"

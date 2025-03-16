@@ -56,7 +56,9 @@
     "story:preview": "histoire preview"
   },
   "dependencies": {
-    "reka-ui": "^2.1.0"
+    "@vueuse/motion": "^3.0.3",
+    "reka-ui": "^2.1.0",
+    "vue": "link:@formkit/auto-animate/vue"
   },
   "devDependencies": {
     "@electron-toolkit/preload": "^3.0.1",

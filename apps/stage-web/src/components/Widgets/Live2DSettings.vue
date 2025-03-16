@@ -3,11 +3,20 @@ import { Collapsable } from '@proj-airi/stage-ui/components'
 import { Emotion, EmotionNeutralMotionName } from '@proj-airi/stage-ui/constants'
 import { useSettings } from '@proj-airi/stage-ui/stores'
 import { useFileDialog, useObjectUrl } from '@vueuse/core'
+import { converter } from 'culori'
 import JSZip from 'jszip'
 import localforage from 'localforage'
 import { storeToRefs } from 'pinia'
 import { ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+
+defineProps<{
+  palette: string[]
+}>()
+
+const emit = defineEmits<{
+  (e: 'extractColorsFromModel'): void
+}>()
 
 const { t } = useI18n()
 
@@ -16,7 +25,7 @@ const modelFile = useFileDialog({
 })
 
 const settings = useSettings()
-const { live2dModelFile, live2dMotionMap, live2dLoadSource, loadingLive2dModel, availableLive2dMotions, live2dModelUrl } = storeToRefs(settings)
+const { live2dModelFile, live2dMotionMap, live2dLoadSource, loadingLive2dModel, availableLive2dMotions, live2dModelUrl, themeColorsHue } = storeToRefs(settings)
 const localModelUrl = ref(live2dModelUrl.value)
 
 modelFile.onChange((files) => {
@@ -94,6 +103,10 @@ async function saveMotionMap() {
 }
 
 const exportObjectUrl = useObjectUrl(live2dModelFile)
+
+function handleHueClick(color: string) {
+  themeColorsHue.value = converter('oklch')(color)?.h ?? 0
+}
 </script>
 
 <template>
@@ -170,6 +183,18 @@ const exportObjectUrl = useObjectUrl(live2dModelFile)
             >
               {{ t('settings.live2d.change-model.from-file-select') }}
             </button>
+          </div>
+          <button
+            bg="zinc-100 dark:zinc-800" hover="bg-zinc-200 dark:bg-zinc-700" w-full
+            transition="all ease-in-out duration-250"
+            rounded px-2 py-1 text-sm outline-none @click="emit('extractColorsFromModel')"
+          >
+            Extract colors from model
+          </button>
+          <div v-if="palette" flex gap-2>
+            <div v-for="color in palette" :key="color" class="flex items-center gap-1" @click="handleHueClick(color)">
+              <div size-6 rounded-full :style="{ backgroundColor: color }" />
+            </div>
           </div>
         </div>
       </div>

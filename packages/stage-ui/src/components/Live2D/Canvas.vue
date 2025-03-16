@@ -23,6 +23,7 @@ async function initLive2DPixiStage(parent: HTMLDivElement) {
     width: props.width,
     height: props.height,
     backgroundAlpha: 0,
+    preserveDrawingBuffer: true,
   })
 
   pixiAppCanvas.value = pixiApp.value.view
@@ -44,6 +45,22 @@ watch([() => props.width, () => props.height], () => handleResize())
 
 onMounted(async () => containerRef.value && await initLive2DPixiStage(containerRef.value))
 onUnmounted(() => pixiApp.value?.destroy())
+
+async function captureFrame() {
+  const frame = new Promise<Blob | null>((resolve) => {
+    if (!pixiAppCanvas.value || !pixiApp.value)
+      return resolve(null)
+
+    pixiApp.value.render()
+    pixiAppCanvas.value.toBlob(resolve)
+  })
+
+  return frame
+}
+
+defineExpose({
+  captureFrame,
+})
 </script>
 
 <template>

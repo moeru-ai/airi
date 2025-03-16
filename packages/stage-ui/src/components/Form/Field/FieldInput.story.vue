@@ -22,7 +22,7 @@ const emailValue = ref('user@example.com')
       id="text-empty"
       title="Text Input (Empty)"
     >
-      <div class="bg-white p-4 dark:bg-neutral-900">
+      <div>
         <ProviderInput
           v-model="textValue"
           label="Text Input"
@@ -36,7 +36,7 @@ const emailValue = ref('user@example.com')
       id="password"
       title="Password Input"
     >
-      <div class="bg-white p-4 dark:bg-neutral-900">
+      <div>
         <ProviderInput
           v-model="passwordValue"
           label="Password"
@@ -51,7 +51,7 @@ const emailValue = ref('user@example.com')
       id="email"
       title="Email Input"
     >
-      <div class="bg-white p-4 dark:bg-neutral-900">
+      <div>
         <ProviderInput
           v-model="emailValue"
           label="Email Address"
@@ -66,7 +66,7 @@ const emailValue = ref('user@example.com')
       id="required"
       title="Required Input"
     >
-      <div class="bg-white p-4 dark:bg-neutral-900">
+      <div>
         <ProviderInput
           v-model="textValue"
           label="Required Field"
@@ -81,7 +81,7 @@ const emailValue = ref('user@example.com')
       id="not-required"
       title="Optional Input"
     >
-      <div class="bg-white p-4 dark:bg-neutral-900">
+      <div>
         <ProviderInput
           v-model="textValue"
           label="Optional Field"

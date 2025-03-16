@@ -161,8 +161,8 @@ export const useProvidersStore = defineStore('providers', () => {
         },
       },
     },
-    'ollama-ai': {
-      id: 'ollama-ai',
+    'ollama': {
+      id: 'ollama',
       nameKey: 'providers.ollama.name',
       name: 'Ollama',
       descriptionKey: 'providers.ollama.description',
@@ -180,7 +180,7 @@ export const useProvidersStore = defineStore('providers', () => {
             return {
               id: model.id,
               name: model.id,
-              provider: 'ollama-ai',
+              provider: 'ollama',
               description: '',
               contextLength: 0,
               deprecated: false,
@@ -538,7 +538,7 @@ export const useProvidersStore = defineStore('providers', () => {
         return !!config.apiKey && !!config.baseUrl
       case 'openai':
         return !!config.apiKey
-      case 'ollama-ai':
+      case 'ollama':
         return !!config.baseUrl
       case 'vllm':
         return !!config.baseUrl
