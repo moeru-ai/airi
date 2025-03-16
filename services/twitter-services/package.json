@@ -6,8 +6,9 @@
   "author": "RainbowBird <rbxin2003@outlook.com>",
   "license": "MIT",
   "scripts": {
-    "dev": "playwright install chromium && tsx src/main.ts",
-    "mcp:ui": "pnpx @modelcontextprotocol/inspector"
+    "dev": "tsx src/main.ts",
+    "mcp:ui": "pnpx @modelcontextprotocol/inspector",
+    "preinstall": "playwright install chromium"
   },
   "dependencies": {
     "@browserbasehq/stagehand": "^1.14.0",

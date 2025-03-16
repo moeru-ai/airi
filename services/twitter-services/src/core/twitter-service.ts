@@ -1,3 +1,4 @@
+import type { Page } from 'playwright'
 import type { PostOptions, SearchOptions, TimelineOptions, Tweet, TweetDetail, UserProfile } from '../types/twitter'
 import type { TwitterAuthService } from './auth-service'
 import type { TwitterTimelineService } from './timeline-service'
@@ -8,10 +9,12 @@ export class TwitterService {
   private authService: TwitterAuthService
   private timelineService: TwitterTimelineService
   private sessionMonitorInterval: NodeJS.Timeout | null = null
+  private page: Page
 
-  constructor(authService: TwitterAuthService, timelineService: TwitterTimelineService) {
+  constructor(page: Page, authService: TwitterAuthService, timelineService: TwitterTimelineService) {
     this.authService = authService
     this.timelineService = timelineService
+    this.page = page
   }
 
   /**
@@ -75,10 +78,57 @@ export class TwitterService {
   }
 
   /**
-   * Get user profile
+   * Get user profile information for a Twitter user
+   * @param username Twitter username to fetch profile for
+   * @returns Promise resolving to user profile data
    */
-  async getUserProfile(_username: string): Promise<UserProfile> {
-    throw new Error('Get user profile feature not yet implemented')
+  async getUserProfile(username: string): Promise<UserProfile> {
+    this.ensureAuthenticated()
+
+    try {
+      // Navigate to user profile page
+      await this.page.goto(`https://twitter.com/${username}`)
+
+      // Wait for profile elements to load
+      await this.page.waitForSelector('[data-testid="UserName"]')
+
+      // Get display name
+      const displayNameElement = await this.page.$('[data-testid="UserName"] div span')
+      const displayName = displayNameElement ? await displayNameElement.textContent() || username : username
+
+      // Get bio
+      const bioElement = await this.page.$('[data-testid="UserDescription"]')
+      const bio = bioElement ? await bioElement.textContent() : undefined
+
+      // Get avatar URL
+      const avatarElement = await this.page.$('img[src*="/profile_images/"]')
+      const avatarUrl = avatarElement ? await avatarElement.getAttribute('src') : undefined
+
+      // Get follower/following counts
+      const followElement = await this.page.$('[href$="/followers"]')
+      const followingElement = await this.page.$('[href$="/following"]')
+
+      const followerCount = followElement
+        ? Number.parseInt((await followElement.textContent() || '0').replace(/\D/g, ''))
+        : undefined
+
+      const followingCount = followingElement
+        ? Number.parseInt((await followingElement.textContent() || '0').replace(/\D/g, ''))
+        : undefined
+
+      return {
+        username,
+        displayName,
+        bio: bio || undefined,
+        avatarUrl: avatarUrl || undefined,
+        followersCount: followerCount || undefined,
+        followingCount: followingCount || undefined,
+      }
+    }
+    catch (error) {
+      logger.main.error('Error fetching user profile:', (error as Error).message)
+      throw new Error(`Failed to fetch profile for @${username}`)
+    }
   }
 
   /**

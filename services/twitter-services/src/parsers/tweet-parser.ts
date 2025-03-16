@@ -133,9 +133,9 @@ export class TweetParser {
       const displayName = displayNameElement ? await displayNameElement.textContent() || 'Unknown User' : 'Unknown User'
 
       // Get username
-      const usernameElement = await authorElement.$('span a[href^="/"]')
-      let username = usernameElement ? await usernameElement.textContent() : 'unknown'
-      username = username?.replace('@', '') || 'unknown'
+      const usernameElement = await authorElement.$('a[href^="/"]')
+      let username = usernameElement ? await usernameElement.getAttribute('href') : 'unknown'
+      username = username?.replace('/', '') || 'unknown'
 
       // Get avatar URL
       const avatarElement = await tweetElement.$('img[src*="/profile_images/"]')

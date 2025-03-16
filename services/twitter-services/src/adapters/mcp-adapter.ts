@@ -74,6 +74,7 @@ export class MCPAdapter {
           })
 
           logger.mcp.withField('tweetCount', tweets.length).debug('Successfully retrieved timeline tweets')
+          logger.mcp.withFields({ tweets }).debug('Tweets')
 
           return {
             contents: tweets.map(tweet => ({

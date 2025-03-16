@@ -126,7 +126,7 @@ export class TwitterAuthService {
   /**
    * Verify if login was successful
    */
-  private async verifyLogin(): Promise<boolean> {
+  private async verifyLoginWithSelectors(): Promise<boolean> {
     try {
       // Try multiple selectors to determine login status
       // First check for timeline which is definitive proof of being logged in
@@ -203,11 +203,41 @@ export class TwitterAuthService {
   }
 
   /**
+   * Verify login with cookies
+   */
+  private async verifyLogin(): Promise<boolean> {
+    try {
+      // Convert cookies object to array format required by setCookies
+      const cookies = await this.exportCookies('object')
+      const cookieArray = Object.entries(cookies).map(([name, value]) => ({
+        name,
+        value,
+        domain: '.x.com',
+        path: '/',
+      }))
+      // Set cookies in the browser
+      await this.page.context().addCookies(cookieArray)
+
+      // Check for auth_token cookie which indicates login state
+      const authCookie = cookieArray.find(cookie => cookie.name === 'auth_token')
+      if (!authCookie) {
+        logger.auth.warn('No auth_token cookie found')
+        return false
+      }
+
+      return true
+    }
+    catch (error) {
+      logger.auth.withError(error as Error).error('Error verifying login with cookies')
+      return false
+    }
+  }
+
+  /**
    * Check current login status
    */
   async checkLoginStatus(): Promise<boolean> {
     try {
-      await this.page.goto('https://x.com/home')
       const isLoggedIn = await this.verifyLogin()
 
       // If already logged in, update state and automatically save session

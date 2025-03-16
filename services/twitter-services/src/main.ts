@@ -42,7 +42,7 @@ async function initBrowser(config: Config): Promise<{ browser: Browser, context:
 async function initTwitterService(page: Page, context: BrowserContext, _config: Config): Promise<TwitterService> {
   const authService = new TwitterAuthService(page, context)
   const timelineService = new TwitterTimelineService(page)
-  const twitterService = new TwitterService(authService, timelineService)
+  const twitterService = new TwitterService(page, authService, timelineService)
 
   // Check if we have a saved session
   try {
