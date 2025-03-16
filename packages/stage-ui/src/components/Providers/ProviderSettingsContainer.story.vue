@@ -18,7 +18,7 @@ import ProviderSettingsContainer from './ProviderSettingsContainer.vue'
       id="empty"
       title="Empty"
     >
-      <div class="bg-white p-4 dark:bg-neutral-900">
+      <div>
         <ProviderSettingsContainer>
           <div class="p-4">
             <p>Container content goes here</p>
@@ -31,7 +31,7 @@ import ProviderSettingsContainer from './ProviderSettingsContainer.vue'
       id="with-sections"
       title="With Sections"
     >
-      <div class="bg-white p-4 dark:bg-neutral-900">
+      <div>
         <ProviderSettingsContainer>
           <ProviderBasicSettings
             title="Basic"

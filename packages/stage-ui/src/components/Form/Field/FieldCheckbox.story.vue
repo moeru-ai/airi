@@ -21,7 +21,7 @@ const uncheckedValue = ref(false)
       id="checked"
       title="Checked"
     >
-      <div class="bg-white p-4 dark:bg-neutral-900">
+      <div>
         <FieldCheckbox
           v-model="checkedValue"
           label="Speaker Boost"
@@ -34,7 +34,7 @@ const uncheckedValue = ref(false)
       id="unchecked"
       title="Unchecked"
     >
-      <div class="bg-white p-4 dark:bg-neutral-900">
+      <div>
         <FieldCheckbox
           v-model="uncheckedValue"
           label="Use High Quality"
@@ -47,7 +47,7 @@ const uncheckedValue = ref(false)
       id="interactive"
       title="Interactive"
     >
-      <div class="bg-white p-4 dark:bg-neutral-900">
+      <div>
         <FieldCheckbox
           v-model="checkedValue"
           label="Toggle Me"

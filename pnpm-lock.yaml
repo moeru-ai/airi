@@ -1053,9 +1053,15 @@ importers:
 
   packages/stage-ui:
     dependencies:
+      '@vueuse/motion':
+        specifier: ^3.0.3
+        version: 3.0.3(magicast@0.3.5)(rollup@4.35.0)(vue@3.5.13(typescript@5.8.2))
       reka-ui:
         specifier: ^2.1.0
         version: 2.1.0(typescript@5.8.2)(vue@3.5.13(typescript@5.8.2))
+      vue:
+        specifier: link:@formkit/auto-animate/vue
+        version: 3.5.13(typescript@5.8.2)
     devDependencies:
       '@electron-toolkit/preload':
         specifier: ^3.0.1

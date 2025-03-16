@@ -16,7 +16,7 @@ import ProviderAdvancedSettings from './ProviderAdvancedSettings.vue'
       id="collapsed"
       title="Collapsed (Default)"
     >
-      <div class="bg-white p-4 dark:bg-neutral-900">
+      <div>
         <ProviderAdvancedSettings>
           <div class="border border-neutral-200 rounded p-4 dark:border-neutral-800">
             <p>Advanced settings content (initially hidden)</p>
@@ -29,7 +29,7 @@ import ProviderAdvancedSettings from './ProviderAdvancedSettings.vue'
       id="expanded"
       title="Expanded"
     >
-      <div class="bg-white p-4 dark:bg-neutral-900">
+      <div>
         <ProviderAdvancedSettings :initial-visible="true">
           <div class="border border-neutral-200 rounded p-4 dark:border-neutral-800">
             <p>Advanced settings content (initially visible)</p>
@@ -42,7 +42,7 @@ import ProviderAdvancedSettings from './ProviderAdvancedSettings.vue'
       id="custom-title"
       title="Custom Title"
     >
-      <div class="bg-white p-4 dark:bg-neutral-900">
+      <div>
         <ProviderAdvancedSettings title="Expert Settings">
           <div class="border border-neutral-200 rounded p-4 dark:border-neutral-800">
             <p>Expert settings content</p>

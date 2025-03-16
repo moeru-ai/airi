@@ -21,7 +21,7 @@ const filledApiKey = ref('sk-1234567890abcdefghijklmnopqrstuvwxyz')
       id="empty"
       title="Empty"
     >
-      <div class="bg-white p-4 dark:bg-neutral-900">
+      <div>
         <ProviderApiKeyInput
           v-model="apiKey"
           provider-name="OpenAI"
@@ -34,7 +34,7 @@ const filledApiKey = ref('sk-1234567890abcdefghijklmnopqrstuvwxyz')
       id="filled"
       title="Filled"
     >
-      <div class="bg-white p-4 dark:bg-neutral-900">
+      <div>
         <ProviderApiKeyInput
           v-model="filledApiKey"
           provider-name="OpenAI"
@@ -47,7 +47,7 @@ const filledApiKey = ref('sk-1234567890abcdefghijklmnopqrstuvwxyz')
       id="custom-label"
       title="Custom Label"
     >
-      <div class="bg-white p-4 dark:bg-neutral-900">
+      <div>
         <ProviderApiKeyInput
           v-model="apiKey"
           provider-name="OpenAI"
@@ -62,7 +62,7 @@ const filledApiKey = ref('sk-1234567890abcdefghijklmnopqrstuvwxyz')
       id="not-required"
       title="Not Required"
     >
-      <div class="bg-white p-4 dark:bg-neutral-900">
+      <div>
         <ProviderApiKeyInput
           v-model="apiKey"
           provider-name="OpenAI"

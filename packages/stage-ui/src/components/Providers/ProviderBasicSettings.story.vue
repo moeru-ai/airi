@@ -16,7 +16,7 @@ import ProviderBasicSettings from './ProviderBasicSettings.vue'
       id="default"
       title="Default"
     >
-      <div class="bg-white p-4 dark:bg-neutral-900">
+      <div>
         <ProviderBasicSettings>
           <div class="border border-neutral-200 rounded p-4 dark:border-neutral-800">
             <p>Settings content goes here</p>
@@ -29,7 +29,7 @@ import ProviderBasicSettings from './ProviderBasicSettings.vue'
       id="with-title-description"
       title="With Title & Description"
     >
-      <div class="bg-white p-4 dark:bg-neutral-900">
+      <div>
         <ProviderBasicSettings
           title="Custom Title"
           description="Custom description for this section"
@@ -45,7 +45,7 @@ import ProviderBasicSettings from './ProviderBasicSettings.vue'
       id="with-reset"
       title="With Reset Button"
     >
-      <div class="bg-white p-4 dark:bg-neutral-900">
+      <div>
         <ProviderBasicSettings
           title="Basic Settings"
           description="Essential settings for this provider"

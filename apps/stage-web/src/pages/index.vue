@@ -6,7 +6,6 @@ import { ref } from 'vue'
 import Cross from '../components/Backgrounds/Cross.vue'
 import Header from '../components/Layouts/Header.vue'
 import InteractiveArea from '../components/Layouts/InteractiveArea.vue'
-import MobileHeader from '../components/Layouts/MobileHeader.vue'
 import MobileInteractiveArea from '../components/Layouts/MobileInteractiveArea.vue'
 import AnimatedWave from '../components/Widgets/AnimatedWave.vue'
 
@@ -28,8 +27,7 @@ function handleSettingsOpen(open: boolean) {
       <div relative flex="~ col" z-2 h-100vh w-100vw of-hidden>
         <!-- header -->
         <div>
-          <Header class="flex <md:hidden" p2 />
-          <MobileHeader class="hidden <md:block" />
+          <Header class="flex" p2 />
         </div>
         <!-- page -->
         <div relative flex="~ 1 row gap-y-0 gap-x-2 <md:col">

@@ -25,7 +25,7 @@ const urlValue = ref('https://example.com')
       id="text-empty"
       title="Text Input (Empty)"
     >
-      <div class="bg-white p-4 dark:bg-neutral-900">
+      <div>
         <Input
           v-model="textValue"
           placeholder="Enter text..."
@@ -37,7 +37,7 @@ const urlValue = ref('https://example.com')
       id="text-filled"
       title="Text Input (Filled)"
     >
-      <div class="bg-white p-4 dark:bg-neutral-900">
+      <div>
         <Input
           v-model="filledTextValue"
           placeholder="Enter text..."
@@ -49,7 +49,7 @@ const urlValue = ref('https://example.com')
       id="password"
       title="Password Input"
     >
-      <div class="bg-white p-4 dark:bg-neutral-900">
+      <div>
         <Input
           v-model="passwordValue"
           type="password"
@@ -62,7 +62,7 @@ const urlValue = ref('https://example.com')
       id="email"
       title="Email Input"
     >
-      <div class="bg-white p-4 dark:bg-neutral-900">
+      <div>
         <Input
           v-model="emailValue"
           type="email"
@@ -75,7 +75,7 @@ const urlValue = ref('https://example.com')
       id="number"
       title="Number Input"
     >
-      <div class="bg-white p-4 dark:bg-neutral-900">
+      <div>
         <Input
           v-model="numberValue"
           type="number"
@@ -88,7 +88,7 @@ const urlValue = ref('https://example.com')
       id="url"
       title="URL Input"
     >
-      <div class="bg-white p-4 dark:bg-neutral-900">
+      <div>
         <Input
           v-model="urlValue"
           type="url"
@@ -101,7 +101,7 @@ const urlValue = ref('https://example.com')
       id="disabled"
       title="Disabled Input"
     >
-      <div class="bg-white p-4 dark:bg-neutral-900">
+      <div>
         <Input
           v-model="filledTextValue"
           placeholder="This input is disabled"
@@ -114,7 +114,7 @@ const urlValue = ref('https://example.com')
       id="readonly"
       title="Readonly Input"
     >
-      <div class="bg-white p-4 dark:bg-neutral-900">
+      <div>
         <Input
           v-model="filledTextValue"
           placeholder="This input is readonly"
@@ -127,7 +127,7 @@ const urlValue = ref('https://example.com')
       id="with-classes"
       title="With Custom Classes"
     >
-      <div class="bg-white p-4 dark:bg-neutral-900">
+      <div>
         <Input
           v-model="textValue"
           placeholder="Custom styled input"
@@ -140,7 +140,7 @@ const urlValue = ref('https://example.com')
       id="with-autofocus"
       title="With Autofocus"
     >
-      <div class="bg-white p-4 dark:bg-neutral-900">
+      <div>
         <Input
           v-model="textValue"
           placeholder="This input has autofocus"

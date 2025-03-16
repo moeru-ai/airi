@@ -22,7 +22,7 @@ const interactiveValue = ref(false)
       id="checked"
       title="Checked"
     >
-      <div class="bg-white p-4 dark:bg-neutral-900">
+      <div>
         <Checkbox v-model="checkedValue" />
       </div>
     </Variant>
@@ -31,7 +31,7 @@ const interactiveValue = ref(false)
       id="unchecked"
       title="Unchecked"
     >
-      <div class="bg-white p-4 dark:bg-neutral-900">
+      <div>
         <Checkbox v-model="uncheckedValue" />
       </div>
     </Variant>
@@ -40,7 +40,7 @@ const interactiveValue = ref(false)
       id="interactive"
       title="Interactive"
     >
-      <div class="bg-white p-4 dark:bg-neutral-900">
+      <div>
         <div class="flex items-center gap-4">
           <Checkbox v-model="interactiveValue" />
           <div class="text-sm">
@@ -54,7 +54,7 @@ const interactiveValue = ref(false)
       id="sizes"
       title="Different Contexts"
     >
-      <div class="bg-white p-4 dark:bg-neutral-900">
+      <div>
         <div class="flex flex-col gap-4">
           <div class="flex items-center gap-2">
             <Checkbox v-model="checkedValue" />

@@ -22,7 +22,7 @@ const customUrl = ref('https://custom-api.example.com/v1/')
       id="empty"
       title="Empty"
     >
-      <div class="bg-white p-4 dark:bg-neutral-900">
+      <div>
         <ProviderBaseUrlInput
           v-model="emptyUrl"
           placeholder="https://api.example.com/v1/"
@@ -34,7 +34,7 @@ const customUrl = ref('https://custom-api.example.com/v1/')
       id="default-url"
       title="Default URL"
     >
-      <div class="bg-white p-4 dark:bg-neutral-900">
+      <div>
         <ProviderBaseUrlInput
           v-model="defaultUrl"
           placeholder="https://api.openai.com/v1/"
@@ -46,7 +46,7 @@ const customUrl = ref('https://custom-api.example.com/v1/')
       id="custom-url"
       title="Custom URL"
     >
-      <div class="bg-white p-4 dark:bg-neutral-900">
+      <div>
         <ProviderBaseUrlInput
           v-model="customUrl"
           placeholder="https://api.example.com/v1/"
@@ -58,7 +58,7 @@ const customUrl = ref('https://custom-api.example.com/v1/')
       id="required"
       title="Required"
     >
-      <div class="bg-white p-4 dark:bg-neutral-900">
+      <div>
         <ProviderBaseUrlInput
           v-model="emptyUrl"
           placeholder="https://api.example.com/v1/"
@@ -71,7 +71,7 @@ const customUrl = ref('https://custom-api.example.com/v1/')
       id="custom-label"
       title="Custom Label"
     >
-      <div class="bg-white p-4 dark:bg-neutral-900">
+      <div>
         <ProviderBaseUrlInput
           v-model="emptyUrl"
           label="API Endpoint"

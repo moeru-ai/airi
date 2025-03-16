@@ -27,7 +27,7 @@ function formatPercentage(value: number): string {
       id="default-min"
       title="Default (min)"
     >
-      <div class="bg-white p-4 dark:bg-neutral-900">
+      <div>
         <FieldRange
           v-model="minValue"
           label="Minimum Value"
@@ -40,7 +40,7 @@ function formatPercentage(value: number): string {
       id="default-mid"
       title="Default (mid)"
     >
-      <div class="bg-white p-4 dark:bg-neutral-900">
+      <div>
         <FieldRange
           v-model="midValue"
           label="Medium Value"
@@ -53,7 +53,7 @@ function formatPercentage(value: number): string {
       id="default-max"
       title="Default (max)"
     >
-      <div class="bg-white p-4 dark:bg-neutral-900">
+      <div>
         <FieldRange
           v-model="maxValue"
           label="Maximum Value"
@@ -66,7 +66,7 @@ function formatPercentage(value: number): string {
       id="custom-range"
       title="Custom Range"
     >
-      <div class="bg-white p-4 dark:bg-neutral-900">
+      <div>
         <FieldRange
           v-model="customValue"
           label="Custom Range"
@@ -82,7 +82,7 @@ function formatPercentage(value: number): string {
       id="formatted-value"
       title="Formatted Value"
     >
-      <div class="bg-white p-4 dark:bg-neutral-900">
+      <div>
         <FieldRange
           v-model="midValue"
           label="Formatted Value"
