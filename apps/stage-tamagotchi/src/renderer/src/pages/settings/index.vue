@@ -18,7 +18,14 @@ function handleLanguageChange(event: Event) {
 </script>
 
 <template>
-  <div flex="~ row" items-center gap-2>
+  <div
+    v-motion
+    flex="~ row" items-center
+    gap-2
+    :initial="{ opacity: 0, x: 10 }"
+    :enter="{ opacity: 1, x: 0 }"
+    :duration="100"
+  >
     <button @click="router.back()">
       <div i-solar:alt-arrow-left-line-duotone text-2xl />
     </button>
@@ -28,12 +35,57 @@ function handleLanguageChange(event: Event) {
   </div>
   <div flex="~ col gap-4">
     <div flex="~ col gap-4">
-      <IconItem title="Modules" description="Thinking, vision, speech synthesis, gaming, etc." icon="i-lucide:blocks" to="/settings/modules" />
-      <IconItem title="Models" description="Live2D, VRM, etc." icon="i-lucide:person-standing" to="/settings/models" />
-      <IconItem title="Providers" description="LLMs, speech providers, etc." icon="i-lucide:brain" to="/settings/providers" />
-      <IconItem title="Themes" description="Customize your stage!" icon="i-lucide:paintbrush" to="/settings/themes" />
+      <IconItem
+        v-motion
+        :initial="{ opacity: 0, y: 10 }"
+        :enter="{ opacity: 1, y: 0 }"
+        :duration="250"
+        title="Modules"
+        description="Thinking, vision, speech synthesis, gaming, etc."
+        icon="i-lucide:blocks"
+        to="/settings/modules"
+      />
+      <IconItem
+        v-motion
+        :initial="{ opacity: 0, y: 10 }"
+        :enter="{ opacity: 1, y: 0 }"
+        :duration="250"
+        :delay="50"
+        title="Models"
+        description="Live2D, VRM, etc."
+        icon="i-lucide:person-standing"
+        to="/settings/models"
+      />
+      <IconItem
+        v-motion
+        :initial="{ opacity: 0, y: 10 }"
+        :enter="{ opacity: 1, y: 0 }"
+        :duration="250"
+        :delay="100"
+        title="Providers"
+        description="LLMs, speech providers, etc."
+        icon="i-lucide:brain"
+        to="/settings/providers"
+      />
+      <IconItem
+        v-motion
+        :initial="{ opacity: 0, y: 10 }"
+        :enter="{ opacity: 1, y: 0 }"
+        :duration="250"
+        :delay="150"
+        title="Themes"
+        description="Customize your stage!"
+        icon="i-lucide:paintbrush"
+        to="/settings/themes"
+      />
     </div>
-    <div>
+    <div
+      v-motion
+      :initial="{ opacity: 0, y: 10 }"
+      :enter="{ opacity: 1, y: 0 }"
+      :duration="250"
+      :delay="150"
+    >
       <h2 text-2xl>
         General
       </h2>
@@ -41,11 +93,16 @@ function handleLanguageChange(event: Event) {
     <div flex="~ col gap-4">
       <!-- Language Setting -->
       <div
+        v-motion
         grid="~ cols-[150px_1fr]"
         bg="neutral-100 dark:neutral-800"
         hover="bg-neutral-200 dark:bg-neutral-700"
-        transition="all ease-in-out duration-250"
-        items-center gap-1.5 rounded-lg px-4 py-3
+        transition="all ease-in-out duration-250" items-center gap-1.5 rounded-lg px-4
+        py-3
+        :initial="{ opacity: 0, y: 10 }"
+        :enter="{ opacity: 1, y: 0 }"
+        :duration="250"
+        :delay="200"
       >
         <div text="sm">
           <span>{{ t('settings.language.title') }}</span>
@@ -71,10 +128,15 @@ function handleLanguageChange(event: Event) {
       </div>
       <!-- Theme Setting -->
       <label
+        v-motion
         bg="neutral-100 dark:neutral-800"
         hover="bg-neutral-200 dark:bg-neutral-700"
         transition="all ease-in-out duration-250"
         w-full flex cursor-pointer rounded-lg px-4 py-3
+        :initial="{ opacity: 0, y: 10 }"
+        :enter="{ opacity: 1, y: 0 }"
+        :duration="250"
+        :delay="250"
       >
         <input
           v-model="dark"
@@ -106,10 +168,15 @@ function handleLanguageChange(event: Event) {
       </label>
       <!-- Developer Settings -->
       <label
+        v-motion
         bg="neutral-100 dark:neutral-800"
         hover="bg-neutral-200 dark:bg-neutral-700"
         transition="all ease-in-out duration-250"
         w-full flex cursor-pointer rounded-lg px-4 py-3
+        :initial="{ opacity: 0, y: 10 }"
+        :enter="{ opacity: 1, y: 0 }"
+        :duration="250"
+        :delay="300"
       >
         <input
           v-model="disableTransitions"

@@ -37,7 +37,14 @@ watch([apiKey, baseUrl], () => {
 </script>
 
 <template>
-  <div flex="~ row" items-center gap-2>
+  <div
+    v-motion
+    flex="~ row" items-center gap-2
+    :initial="{ opacity: 0, x: 10 }"
+    :enter="{ opacity: 1, x: 0 }"
+    :leave="{ opacity: 0, x: -10 }"
+    :duration="250"
+  >
     <button @click="router.back()">
       <div i-solar:alt-arrow-left-line-duotone text-2xl />
     </button>

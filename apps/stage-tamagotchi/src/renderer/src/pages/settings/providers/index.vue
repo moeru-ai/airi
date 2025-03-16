@@ -10,7 +10,14 @@ const { allProvidersMetadata } = storeToRefs(providersStore)
 </script>
 
 <template>
-  <div flex="~ row" items-center gap-2>
+  <div
+    v-motion
+    flex="~ row" items-center gap-2
+    :initial="{ opacity: 0, x: 10 }"
+    :enter="{ opacity: 1, x: 0 }"
+    :leave="{ opacity: 0, x: -10 }"
+    :duration="250"
+  >
     <button @click="router.back()">
       <div i-solar:alt-arrow-left-line-duotone text-2xl />
     </button>
@@ -25,8 +32,13 @@ const { allProvidersMetadata } = storeToRefs(providersStore)
   </div>
   <div grid="~ cols-2 gap-4">
     <IconStatusItem
-      v-for="provider in allProvidersMetadata"
+      v-for="(provider, index) of allProvidersMetadata"
       :key="provider.id"
+      v-motion
+      :initial="{ opacity: 0, y: 10 }"
+      :enter="{ opacity: 1, y: 0 }"
+      :duration="250 + index * 10"
+      :delay="index * 50"
       :title="provider.localizedName"
       :description="provider.localizedDescription"
       :icon="provider.icon"

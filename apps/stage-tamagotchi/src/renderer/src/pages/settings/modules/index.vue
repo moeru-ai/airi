@@ -26,22 +26,22 @@ const modulesList = computed<Module[]>(() => [
     to: '/settings/modules/consciousness',
     configured: false,
   },
-  // {
-  //   id: 'hearing',
-  //   name: 'Hearing',
-  //   description: 'Hearing, speech recognition, etc.',
-  //   icon: 'i-lucide:ear',
-  //   to: '',
-  //   configured: false,
-  // },
-  // {
-  //   id: 'messaging-discord',
-  //   name: 'Discord',
-  //   description: 'Messaging, notifications, etc.',
-  //   icon: 'i-simple-icons:discord',
-  //   to: '',
-  //   configured: false,
-  // },
+  {
+    id: 'hearing',
+    name: 'Hearing',
+    description: 'Hearing, speech recognition, etc.',
+    icon: 'i-lucide:ear',
+    to: '',
+    configured: false,
+  },
+  {
+    id: 'messaging-discord',
+    name: 'Discord',
+    description: 'Messaging, notifications, etc.',
+    icon: 'i-simple-icons:discord',
+    to: '',
+    configured: false,
+  },
   {
     id: 'speech',
     name: 'Speech',
@@ -50,51 +50,58 @@ const modulesList = computed<Module[]>(() => [
     to: '/settings/modules/speech',
     configured: false,
   },
-  // {
-  //   id: 'memory-short-term',
-  //   name: 'Short-Term Memory',
-  //   description: 'Short-term memory, etc.',
-  //   icon: 'i-lucide:book',
-  //   to: '',
-  //   configured: false,
-  // },
-  // {
-  //   id: 'memory-long-term',
-  //   name: 'Long-Term Memory',
-  //   description: 'Long-term memory, etc.',
-  //   icon: 'i-lucide:book-copy',
-  //   to: '',
-  //   configured: false,
-  // },
-  // {
-  //   id: 'vision',
-  //   name: 'Vision',
-  //   description: 'Vision, etc.',
-  //   icon: 'i-lucide:eye',
-  //   to: '',
-  //   configured: false,
-  // },
-  // {
-  //   id: 'game-minecraft',
-  //   name: 'Minecraft',
-  //   description: 'Playing Minecraft with you, etc.',
-  //   iconColor: 'i-vscode-icons:file-type-minecraft',
-  //   to: '',
-  //   configured: false,
-  // },
-  // {
-  //   id: 'game-factorio',
-  //   name: 'Factorio',
-  //   description: 'Playing Factorio with you, etc.',
-  //   iconImage: FactorioIcon,
-  //   to: '',
-  //   configured: false,
-  // },
+  {
+    id: 'memory-short-term',
+    name: 'Short-Term Memory',
+    description: 'Short-term memory, etc.',
+    icon: 'i-lucide:book',
+    to: '',
+    configured: false,
+  },
+  {
+    id: 'memory-long-term',
+    name: 'Long-Term Memory',
+    description: 'Long-term memory, etc.',
+    icon: 'i-lucide:book-copy',
+    to: '',
+    configured: false,
+  },
+  {
+    id: 'vision',
+    name: 'Vision',
+    description: 'Vision, etc.',
+    icon: 'i-lucide:eye',
+    to: '',
+    configured: false,
+  },
+  {
+    id: 'game-minecraft',
+    name: 'Minecraft',
+    description: 'Playing Minecraft with you, etc.',
+    iconColor: 'i-vscode-icons:file-type-minecraft',
+    to: '',
+    configured: false,
+  },
+  {
+    id: 'game-factorio',
+    name: 'Factorio',
+    description: 'Playing Factorio with you, etc.',
+    iconImage: '',
+    to: '',
+    configured: false,
+  },
 ])
 </script>
 
 <template>
-  <div flex="~ row" items-center gap-2>
+  <div
+    v-motion
+    flex="~ row" items-center gap-2
+    :initial="{ opacity: 0, x: 10 }"
+    :enter="{ opacity: 1, x: 0 }"
+    :leave="{ opacity: 0, x: -10 }"
+    :duration="250"
+  >
     <button @click="router.back()">
       <div i-solar:alt-arrow-left-line-duotone text-2xl />
     </button>
@@ -109,8 +116,13 @@ const modulesList = computed<Module[]>(() => [
   </div>
   <div grid="~ cols-1 sm:cols-2 gap-4">
     <IconStatusItem
-      v-for="module in modulesList"
+      v-for="(module, index) of modulesList"
       :key="module.id"
+      v-motion
+      :initial="{ opacity: 0, y: 10 }"
+      :enter="{ opacity: 1, y: 0 }"
+      :duration="250 + index * 10"
+      :delay="index * 50"
       :title="module.name"
       :description="module.description"
       :icon="module.icon"
