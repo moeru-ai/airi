@@ -1,0 +1,60 @@
+<script setup lang="ts">
+import ProviderBasicSettings from './ProviderBasicSettings.vue'
+</script>
+
+<template>
+  <Story
+    title="Basic Settings"
+    group="providers"
+    :layout="{ type: 'grid', width: 600 }"
+  >
+    <template #controls>
+      <ThemeColorsHueControl />
+    </template>
+
+    <Variant
+      id="default"
+      title="Default"
+    >
+      <div class="bg-white p-4 dark:bg-neutral-900">
+        <ProviderBasicSettings>
+          <div class="border border-neutral-200 rounded p-4 dark:border-neutral-800">
+            <p>Settings content goes here</p>
+          </div>
+        </ProviderBasicSettings>
+      </div>
+    </Variant>
+
+    <Variant
+      id="with-title-description"
+      title="With Title & Description"
+    >
+      <div class="bg-white p-4 dark:bg-neutral-900">
+        <ProviderBasicSettings
+          title="Custom Title"
+          description="Custom description for this section"
+        >
+          <div class="border border-neutral-200 rounded p-4 dark:border-neutral-800">
+            <p>Settings content goes here</p>
+          </div>
+        </ProviderBasicSettings>
+      </div>
+    </Variant>
+
+    <Variant
+      id="with-reset"
+      title="With Reset Button"
+    >
+      <div class="bg-white p-4 dark:bg-neutral-900">
+        <ProviderBasicSettings
+          title="Basic Settings"
+          description="Essential settings for this provider"
+        >
+          <div class="border border-neutral-200 rounded p-4 dark:border-neutral-800">
+            <p>Settings content goes here</p>
+          </div>
+        </ProviderBasicSettings>
+      </div>
+    </Variant>
+  </Story>
+</template>

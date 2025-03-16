@@ -55,6 +55,9 @@
     "story:build-base": "histoire build --base /ui",
     "story:preview": "histoire preview"
   },
+  "dependencies": {
+    "reka-ui": "^2.1.0"
+  },
   "devDependencies": {
     "@electron-toolkit/preload": "^3.0.1",
     "@histoire/plugin-vue": "1.0.0-alpha.2",

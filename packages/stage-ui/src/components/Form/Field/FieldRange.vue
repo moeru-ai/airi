@@ -1,20 +1,16 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import Range from '../Range/Range.vue'
 
 const props = defineProps<{
-  modelValue: boolean
+  min?: number
+  max?: number
+  step?: number
   label?: string
   description?: string
+  formatValue?: (value: number) => string
 }>()
 
-const emit = defineEmits<{
-  (e: 'update:modelValue', value: boolean): void
-}>()
-
-const value = computed({
-  get: () => props.modelValue,
-  set: val => emit('update:modelValue', val),
-})
+const modelValue = defineModel<number>({ required: true })
 </script>
 
 <template>
@@ -28,10 +24,16 @@ const value = computed({
           {{ description }}
         </div>
       </div>
-      <span font-mono>{{ value ? 'On' : 'Off' }}</span>
+      <span font-mono>{{ props.formatValue?.(modelValue) }}</span>
     </div>
     <div flex="~ row" items-center gap-2>
-      <input v-model="value" type="checkbox">
+      <Range
+        v-model="modelValue"
+        :min="min || 0"
+        :max="max || 1"
+        :step="step || 0.01"
+        w-full
+      />
     </div>
   </label>
 </template>

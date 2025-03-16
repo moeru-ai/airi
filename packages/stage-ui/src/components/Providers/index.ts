@@ -3,7 +3,5 @@ export { default as ProviderAdvancedSettings } from './ProviderAdvancedSettings.
 export { default as ProviderApiKeyInput } from './ProviderApiKeyInput.vue'
 export { default as ProviderBaseUrlInput } from './ProviderBaseUrlInput.vue'
 export { default as ProviderBasicSettings } from './ProviderBasicSettings.vue'
-export { default as ProviderCheckboxInput } from './ProviderCheckboxInput.vue'
 export { default as ProviderSettingsContainer } from './ProviderSettingsContainer.vue'
 export { default as ProviderSettingsLayout } from './ProviderSettingsLayout.vue'
-export { default as ProviderSliderInput } from './ProviderSliderInput.vue'

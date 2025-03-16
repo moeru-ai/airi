@@ -5,14 +5,14 @@ import type { UnElevenLabsOptions } from '@xsai-ext/providers-local'
 import type { SpeechProviderWithExtraOptions } from '@xsai-ext/shared-providers'
 
 import {
+  FieldCheckbox,
+  FieldRange,
   ProviderAdvancedSettings,
   ProviderApiKeyInput,
   ProviderBaseUrlInput,
   ProviderBasicSettings,
-  ProviderCheckboxInput,
   ProviderSettingsContainer,
   ProviderSettingsLayout,
-  ProviderSliderInput,
 } from '@proj-airi/stage-ui/components'
 import { voiceMap } from '@proj-airi/stage-ui/constants'
 import { useProvidersStore, useSpeechStore } from '@proj-airi/stage-ui/stores'
@@ -268,7 +268,7 @@ function handleResetVoiceSettings() {
             Voice Settings
           </h2>
           <div flex="~ col gap-4">
-            <ProviderSliderInput
+            <FieldRange
               v-model="similarityBoost"
               label="Similarity Boost"
               description="Voice similarity adherence"
@@ -277,7 +277,7 @@ function handleResetVoiceSettings() {
               :step="0.01"
             />
 
-            <ProviderSliderInput
+            <FieldRange
               v-model="stability"
               label="Stability"
               description="Voice stability and randomness"
@@ -286,7 +286,7 @@ function handleResetVoiceSettings() {
               :step="0.01"
             />
 
-            <ProviderSliderInput
+            <FieldRange
               v-model="speed"
               label="Speed"
               description="Speech generation speed"
@@ -295,7 +295,7 @@ function handleResetVoiceSettings() {
               :step="0.01"
             />
 
-            <ProviderSliderInput
+            <FieldRange
               v-model="style"
               label="Style"
               description="Voice style exaggeration"
@@ -304,7 +304,7 @@ function handleResetVoiceSettings() {
               :step="0.01"
             />
 
-            <ProviderCheckboxInput
+            <FieldCheckbox
               v-model="useSpeakerBoost"
               label="Speaker Boost"
               description="Enhance speaker similarity"
@@ -329,10 +329,10 @@ function handleResetVoiceSettings() {
           <div flex="~ col gap-4">
             <textarea
               v-model="testText" placeholder="Enter text to test the voice..."
-              border="neutral-200 dark:neutral-800 solid 2 focus:neutral-400 dark:focus:neutral-600"
+              border="neutral-100 dark:neutral-800 solid 2 focus:neutral-200 dark:focus:neutral-700"
               transition="all duration-250 ease-in-out"
               h-24 w-full rounded-lg px-3 py-2 text-sm outline-none
-              bg="neutral-100 dark:neutral-800 focus:white dark:focus:neutral-700"
+              bg="neutral-100 dark:neutral-800 focus:neutral-50 dark:focus:neutral-900"
             />
             <div flex="~ col gap-6">
               <label grid="~ cols-2 gap-4">

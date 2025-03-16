@@ -1,3 +1,6 @@
+export * from './Checkbox'
+export * from './Field'
+export * from './Input'
 export * from './Radio'
 export { default as RadioCardDetailManySelect } from './RadioCardDetailManySelect.vue'
-export { default as Range } from './Range/Range.vue'
+export * from './Range'

@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 
+import FieldInput from '../Form/Field/FieldInput.vue'
+
 const props = defineProps<{
-  modelValue: string
   providerName: string
   placeholder?: string
   required?: boolean
@@ -10,37 +11,20 @@ const props = defineProps<{
   description?: string
 }>()
 
-const emit = defineEmits<{
-  (e: 'update:modelValue', value: string): void
-}>()
+const modelValue = defineModel<string>({ required: true })
 
-const value = computed({
-  get: () => props.modelValue,
-  set: val => emit('update:modelValue', val),
+const computedDescription = computed(() => {
+  return props.description || `API Key for ${props.providerName}`
 })
 </script>
 
 <template>
-  <div max-w-full>
-    <label flex="~ col gap-4">
-      <div>
-        <div class="flex items-center gap-1 text-sm font-medium">
-          {{ label || 'API Key' }}
-          <span v-if="required !== false" class="text-red-500">*</span>
-        </div>
-        <div class="text-xs text-neutral-500 dark:text-neutral-400" text-nowrap>
-          {{ description || `API Key for ${providerName}` }}
-        </div>
-      </div>
-      <input
-        v-model="value"
-        type="password"
-        border="neutral-200 dark:neutral-800 solid 2 focus:neutral-400 dark:focus:neutral-600"
-        transition="all duration-250 ease-in-out"
-        w-full rounded-lg px-2 py-1 text-nowrap text-sm outline-none
-        bg="neutral-100 dark:neutral-800 focus:white dark:focus:neutral-700"
-        :placeholder="placeholder"
-      >
-    </label>
-  </div>
+  <FieldInput
+    v-model="modelValue"
+    :label="label || 'API Key'"
+    :description="computedDescription"
+    :placeholder="placeholder"
+    :required="required"
+    type="password"
+  />
 </template>
