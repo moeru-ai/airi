@@ -4,10 +4,18 @@ import type { RemovableRef } from '@vueuse/core'
 import type { UnElevenLabsOptions } from '@xsai-ext/providers-local'
 import type { SpeechProviderWithExtraOptions } from '@xsai-ext/shared-providers'
 
-import { Collapsable, Range } from '@proj-airi/stage-ui/components'
+import {
+  ProviderAdvancedSettings,
+  ProviderApiKeyInput,
+  ProviderBaseUrlInput,
+  ProviderBasicSettings,
+  ProviderCheckboxInput,
+  ProviderSettingsContainer,
+  ProviderSettingsLayout,
+  ProviderSliderInput,
+} from '@proj-airi/stage-ui/components'
 import { voiceMap } from '@proj-airi/stage-ui/constants'
 import { useProvidersStore, useSpeechStore } from '@proj-airi/stage-ui/stores'
-import { useToggle } from '@vueuse/core'
 import { generateSpeech } from '@xsai/generate-speech'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
@@ -114,9 +122,6 @@ const useSpeakerBoost = computed({
 const selectedLanguage = ref(speechStore.selectedLanguage)
 const selectedVoice = ref(speechStore.voiceName)
 const availableVoices = computed(() => speechStore.availableVoicesForLanguage)
-
-const advancedVisible = ref(false)
-const toggleAdvancedVisible = useToggle(advancedVisible)
 
 onMounted(() => {
   providersStore.initializeProvider(providerId)
@@ -239,300 +244,173 @@ function handleResetVoiceSettings() {
 </script>
 
 <template>
-  <div
-    v-motion
-    flex="~ row" items-center gap-2
-    :initial="{ opacity: 0, x: 10 }"
-    :enter="{ opacity: 1, x: 0 }"
-    :leave="{ opacity: 0, x: -10 }"
-    :duration="250"
+  <ProviderSettingsLayout
+    :provider-name="providerMetadata?.localizedName"
+    :provider-icon="providerMetadata?.icon"
+    :on-back="() => router.back()"
   >
-    <button @click="router.back()">
-      <div i-solar:alt-arrow-left-line-duotone text-2xl />
-    </button>
-    <h1 relative>
-      <div absolute left-0 top-0 translate-y="[-80%]">
-        <span text="neutral-300 dark:neutral-500">Provider</span>
-      </div>
-      <div text-3xl font-semibold>
-        {{ providerMetadata?.localizedName }}
-      </div>
-    </h1>
-  </div>
-  <div flex="~ col md:row gap-6">
-    <div bg="neutral-50 dark:[rgba(0,0,0,0.3)]" rounded-xl p-4 flex="~ col gap-6" w="full md:40%">
-      <div>
-        <div flex="~ col gap-6">
-          <div flex="~ row" items-center justify-between>
-            <div>
-              <h2 class="text-lg text-neutral-500 md:text-2xl dark:text-neutral-400">
-                Basic
-              </h2>
-              <div text="neutral-400 dark:neutral-500">
-                <span>Essential settings</span>
-              </div>
-            </div>
-            <button
-              title="Reset settings"
-              flex items-center justify-center rounded-full p-2
-              transition="all duration-250 ease-in-out"
-              text="neutral-500 dark:neutral-400"
-              bg="transparent dark:transparent hover:neutral-200 dark:hover:neutral-800 active:neutral-300 dark:active:neutral-700"
-              @click="handleResetVoiceSettings"
-            >
-              <div i-solar:refresh-bold-duotone text-xl />
-            </button>
-          </div>
-          <div max-w-full>
-            <label flex="~ col gap-4">
-              <div>
-                <div class="flex items-center gap-1 text-sm font-medium">
-                  API Key
-                  <span class="text-red-500">*</span>
-                </div>
-                <div class="text-xs text-neutral-500 dark:text-neutral-400" text-nowrap>
-                  API Key for {{ providerMetadata?.localizedName }}
-                </div>
-              </div>
-              <input
-                v-model="apiKey"
-                type="password"
-                border="neutral-200 dark:neutral-800 solid 2 focus:neutral-400 dark:focus:neutral-600"
-                transition="all duration-250 ease-in-out"
-                w-full rounded-lg px-2 py-1 text-nowrap text-sm outline-none
-                bg="neutral-100 dark:neutral-800 focus:white dark:focus:neutral-700"
-                placeholder="sk-"
-              >
-            </label>
-          </div>
-        </div>
-      </div>
-
-      <div flex="~ col gap-6">
-        <h2 class="text-lg text-neutral-500 md:text-2xl dark:text-neutral-400">
-          Voice Settings
-        </h2>
-        <div flex="~ col gap-4">
-          <label flex="~ col gap-2">
-            <div flex="~ row" items-center gap-2>
-              <div flex="1">
-                <div class="flex items-center gap-1 text-sm font-medium">
-                  Similarity Boost
-                </div>
-                <div class="text-xs text-neutral-500 dark:text-neutral-400">
-                  Voice similarity adherence
-                </div>
-              </div>
-              <span font-mono>{{ similarityBoost.toFixed(2) }}</span>
-            </div>
-            <div flex="~ row" items-center gap-2>
-              <Range v-model="similarityBoost" :min="0" :max="1" :step="0.01" w-full />
-            </div>
-          </label>
-
-          <label flex="~ col gap-4">
-            <div flex="~ row" items-center gap-2>
-              <div flex="1">
-                <div class="flex items-center gap-1 text-sm font-medium">
-                  Stability
-                </div>
-                <div class="text-xs text-neutral-500 dark:text-neutral-400">
-                  Voice stability and randomness
-                </div>
-              </div>
-              <span font-mono>{{ stability.toFixed(2) }}</span>
-            </div>
-            <div flex="~ row" items-center gap-2>
-              <Range v-model="stability" :min="0" :max="1" :step="0.01" w-full />
-            </div>
-          </label>
-
-          <label flex="~ col gap-4">
-            <div flex="~ row" items-center gap-2>
-              <div flex="1">
-                <div class="flex items-center gap-1 text-sm font-medium">
-                  Speed
-                </div>
-                <div class="text-xs text-neutral-500 dark:text-neutral-400">
-                  Speech generation speed
-                </div>
-              </div>
-              <span font-mono>{{ speed.toFixed(2) }}</span>
-            </div>
-            <div flex="~ row" items-center gap-2>
-              <Range v-model="speed" :min="0.7" :max="1.2" :step="0.01" w-full />
-            </div>
-          </label>
-
-          <label flex="~ col gap-4">
-            <div flex="~ row" items-center gap-2>
-              <div flex="1">
-                <div class="flex items-center gap-1 text-sm font-medium">
-                  Style
-                </div>
-                <div class="text-xs text-neutral-500 dark:text-neutral-400">
-                  Voice style exaggeration
-                </div>
-              </div>
-              <span font-mono>{{ style.toFixed(2) }}</span>
-            </div>
-            <div flex="~ row" items-center gap-2>
-              <Range v-model="style" :min="0" :max="1" :step="0.01" w-full />
-            </div>
-          </label>
-
-          <label flex="~ col gap-4">
-            <div flex="~ row" items-center gap-2>
-              <div flex="1">
-                <div class="flex items-center gap-1 text-sm font-medium">
-                  Speaker Boost
-                </div>
-                <div class="text-xs text-neutral-500 dark:text-neutral-400">
-                  Enhance speaker similarity
-                </div>
-              </div>
-              <span font-mono>{{ useSpeakerBoost ? 'On' : 'Off' }}</span>
-            </div>
-            <div flex="~ row" items-center gap-2>
-              <input v-model="useSpeakerBoost" type="checkbox">
-            </div>
-          </label>
-        </div>
-      </div>
-
-      <div>
-        <Collapsable w-full>
-          <template #trigger="slotProps">
-            <button
-              transition="all ease-in-out duration-250"
-              w-full flex items-center gap-1.5 outline-none
-              class="[&_.provider-icon]:grayscale-100 [&_.provider-icon]:hover:grayscale-0"
-              @click="() => slotProps.setVisible(!slotProps.visible) && toggleAdvancedVisible()"
-            >
-              <h2 class="text-lg text-neutral-500 md:text-2xl dark:text-neutral-400">
-                <span>Advanced</span>
-              </h2>
-              <div transform transition="transform duration-250" :class="{ 'rotate-180': slotProps.visible }">
-                <div i-solar:alt-arrow-down-bold-duotone />
-              </div>
-            </button>
-          </template>
-          <div mt-4>
-            <label flex="~ col gap-4">
-              <div>
-                <div class="flex items-center gap-1 text-sm font-medium">
-                  Base URL
-                  <span class="text-red-500">*</span>
-                </div>
-                <div class="text-xs text-neutral-500 dark:text-neutral-400" text-nowrap>
-                  Custom base URL (optional)
-                </div>
-              </div>
-              <input
-                v-model="baseUrl"
-                border="neutral-200 dark:neutral-800 solid 2 focus:neutral-400 dark:focus:neutral-600"
-                transition="all duration-250 ease-in-out"
-                w-full rounded-lg px-2 py-1 text-nowrap text-sm outline-none
-                bg="neutral-100 dark:neutral-800 focus:white dark:focus:neutral-700"
-                :placeholder="providerMetadata?.defaultOptions?.baseUrl as string || ''"
-              >
-            </label>
-          </div>
-        </Collapsable>
-      </div>
-    </div>
-    <div flex="~ col gap-6" w="full md:60%">
-      <div rounded-xl>
-        <h2 class="mb-4 text-lg text-neutral-500 md:text-2xl dark:text-neutral-400">
-          Voice Playground
-        </h2>
-        <div flex="~ col gap-4">
-          <textarea
-            v-model="testText" placeholder="Enter text to test the voice..."
-            border="neutral-200 dark:neutral-800 solid 2 focus:neutral-400 dark:focus:neutral-600"
-            transition="all duration-250 ease-in-out"
-            h-24 w-full rounded-lg px-3 py-2 text-sm outline-none
-            bg="neutral-100 dark:neutral-800 focus:white dark:focus:neutral-700"
+    <div flex="~ col md:row gap-6">
+      <ProviderSettingsContainer class="w-full md:w-[40%]">
+        <ProviderBasicSettings
+          title="Basic"
+          description="Essential settings"
+          :on-reset="handleResetVoiceSettings"
+        >
+          <ProviderApiKeyInput
+            v-model="apiKey"
+            :provider-name="providerMetadata?.localizedName"
+            placeholder="sk-"
           />
-          <div flex="~ col gap-6">
-            <label grid="~ cols-2 gap-4">
-              <div>
-                <div class="flex items-center gap-1 text-sm font-medium">
-                  Language
-                </div>
-                <div class="text-xs text-neutral-500 dark:text-neutral-400">
-                  Select voice language
-                </div>
-              </div>
-              <select
-                v-model="selectedLanguage"
-                border="neutral-300 dark:neutral-800 solid 2 focus:neutral-400 dark:focus:neutral-600"
-                transition="border duration-250 ease-in-out"
-                w-full rounded-lg px-2 py-1 text-nowrap text-sm outline-none
-              >
-                <option v-for="language in speechStore.availableLanguages" :key="language" :value="language">
-                  {{ language }}
-                </option>
-              </select>
-            </label>
+        </ProviderBasicSettings>
 
-            <label grid="~ cols-2 gap-4">
-              <div>
-                <div class="flex items-center gap-1 text-sm font-medium">
-                  Voice
+        <div flex="~ col gap-6">
+          <h2 class="text-lg text-neutral-500 md:text-2xl dark:text-neutral-400">
+            Voice Settings
+          </h2>
+          <div flex="~ col gap-4">
+            <ProviderSliderInput
+              v-model="similarityBoost"
+              label="Similarity Boost"
+              description="Voice similarity adherence"
+              :min="0"
+              :max="1"
+              :step="0.01"
+            />
+
+            <ProviderSliderInput
+              v-model="stability"
+              label="Stability"
+              description="Voice stability and randomness"
+              :min="0"
+              :max="1"
+              :step="0.01"
+            />
+
+            <ProviderSliderInput
+              v-model="speed"
+              label="Speed"
+              description="Speech generation speed"
+              :min="0.7"
+              :max="1.2"
+              :step="0.01"
+            />
+
+            <ProviderSliderInput
+              v-model="style"
+              label="Style"
+              description="Voice style exaggeration"
+              :min="0"
+              :max="1"
+              :step="0.01"
+            />
+
+            <ProviderCheckboxInput
+              v-model="useSpeakerBoost"
+              label="Speaker Boost"
+              description="Enhance speaker similarity"
+            />
+          </div>
+        </div>
+
+        <ProviderAdvancedSettings title="Advanced">
+          <ProviderBaseUrlInput
+            v-model="baseUrl"
+            :placeholder="providerMetadata?.defaultOptions?.baseUrl as string || ''"
+            required
+          />
+        </ProviderAdvancedSettings>
+      </ProviderSettingsContainer>
+
+      <div flex="~ col gap-6" class="w-full md:w-[60%]">
+        <div rounded-xl>
+          <h2 class="mb-4 text-lg text-neutral-500 md:text-2xl dark:text-neutral-400">
+            Voice Playground
+          </h2>
+          <div flex="~ col gap-4">
+            <textarea
+              v-model="testText" placeholder="Enter text to test the voice..."
+              border="neutral-200 dark:neutral-800 solid 2 focus:neutral-400 dark:focus:neutral-600"
+              transition="all duration-250 ease-in-out"
+              h-24 w-full rounded-lg px-3 py-2 text-sm outline-none
+              bg="neutral-100 dark:neutral-800 focus:white dark:focus:neutral-700"
+            />
+            <div flex="~ col gap-6">
+              <label grid="~ cols-2 gap-4">
+                <div>
+                  <div class="flex items-center gap-1 text-sm font-medium">
+                    Language
+                  </div>
+                  <div class="text-xs text-neutral-500 dark:text-neutral-400">
+                    Select voice language
+                  </div>
                 </div>
-                <div class="text-xs text-neutral-500 dark:text-neutral-400">
-                  Select preferred voice
+                <select
+                  v-model="selectedLanguage"
+                  border="neutral-300 dark:neutral-800 solid 2 focus:neutral-400 dark:focus:neutral-600"
+                  transition="border duration-250 ease-in-out"
+                  w-full rounded-lg px-2 py-1 text-nowrap text-sm outline-none
+                >
+                  <option v-for="language in speechStore.availableLanguages" :key="language" :value="language">
+                    {{ language }}
+                  </option>
+                </select>
+              </label>
+
+              <label grid="~ cols-2 gap-4">
+                <div>
+                  <div class="flex items-center gap-1 text-sm font-medium">
+                    Voice
+                  </div>
+                  <div class="text-xs text-neutral-500 dark:text-neutral-400">
+                    Select preferred voice
+                  </div>
                 </div>
-              </div>
-              <select
-                v-model="selectedVoice"
-                border="neutral-300 dark:neutral-800 solid 2 focus:neutral-400 dark:focus:neutral-600"
-                transition="border duration-250 ease-in-out"
-                w-full rounded-lg px-2 py-1 text-nowrap text-sm outline-none
+                <select
+                  v-model="selectedVoice"
+                  border="neutral-300 dark:neutral-800 solid 2 focus:neutral-400 dark:focus:neutral-600"
+                  transition="border duration-250 ease-in-out"
+                  w-full rounded-lg px-2 py-1 text-nowrap text-sm outline-none
+                >
+                  <option v-for="voice in availableVoices" :key="voice.id" :value="voice.name">
+                    {{ voice.name }}
+                  </option>
+                </select>
+              </label>
+            </div>
+            <div flex="~ row" gap-4>
+              <button
+                border="neutral-800 dark:neutral-200 solid 2"
+                transition="border duration-250 ease-in-out" rounded-lg px-4
+                text="neutral-100 dark:neutral-900"
+                py-2 text-sm :disabled="isGenerating || !testText.trim() || !apiKey"
+                :class="{ 'opacity-50 cursor-not-allowed': isGenerating || !testText.trim() || !apiKey }"
+                bg="neutral-700 dark:neutral-300" @click="generateTestSpeech"
               >
-                <option v-for="voice in availableVoices" :key="voice.id" :value="voice.name">
-                  {{ voice.name }}
-                </option>
-              </select>
-            </label>
+                <div flex="~ row" items-center gap-2>
+                  <div i-solar:play-circle-bold-duotone />
+                  <span>{{ isGenerating ? 'Generating...' : 'Test Voice' }}</span>
+                </div>
+              </button>
+              <button
+                v-if="audioUrl" border="primary-300 dark:primary-800 solid 2"
+                transition="border duration-250 ease-in-out" rounded-lg px-4 py-2 text-sm @click="stopTestAudio"
+              >
+                <div flex="~ row" items-center gap-2>
+                  <div i-solar:stop-circle-bold-duotone />
+                  <span>Stop</span>
+                </div>
+              </button>
+            </div>
+            <div v-if="!apiKey" class="mt-2 text-sm text-red-500">
+              Please enter an API key to test the voice.
+            </div>
+            <div v-if="errorMessage" class="mt-2 text-sm text-red-500">
+              {{ errorMessage }}
+            </div>
+            <audio v-if="audioUrl" ref="audioPlayer" :src="audioUrl" controls class="mt-2 w-full" />
           </div>
-          <div flex="~ row" gap-4>
-            <button
-              border="neutral-800 dark:neutral-200 solid 2"
-              transition="border duration-250 ease-in-out" rounded-lg px-4
-              text="neutral-100 dark:neutral-900"
-              py-2 text-sm :disabled="isGenerating || !testText.trim() || !apiKey"
-              :class="{ 'opacity-50 cursor-not-allowed': isGenerating || !testText.trim() || !apiKey }"
-              bg="neutral-700 dark:neutral-300" @click="generateTestSpeech"
-            >
-              <div flex="~ row" items-center gap-2>
-                <div i-solar:play-circle-bold-duotone />
-                <span>{{ isGenerating ? 'Generating...' : 'Test Voice' }}</span>
-              </div>
-            </button>
-            <button
-              v-if="audioUrl" border="primary-300 dark:primary-800 solid 2"
-              transition="border duration-250 ease-in-out" rounded-lg px-4 py-2 text-sm @click="stopTestAudio"
-            >
-              <div flex="~ row" items-center gap-2>
-                <div i-solar:stop-circle-bold-duotone />
-                <span>Stop</span>
-              </div>
-            </button>
-          </div>
-          <div v-if="!apiKey" class="mt-2 text-sm text-red-500">
-            Please enter an API key to test the voice.
-          </div>
-          <div v-if="errorMessage" class="mt-2 text-sm text-red-500">
-            {{ errorMessage }}
-          </div>
-          <audio v-if="audioUrl" ref="audioPlayer" :src="audioUrl" controls class="mt-2 w-full" />
         </div>
       </div>
     </div>
-  </div>
-  <div text="neutral-100/50 dark:neutral-500/20" pointer-events-none fixed bottom-0 right-0 translate-x-10 translate-y-10>
-    <div text="40" :class="providerMetadata?.icon" />
-  </div>
+  </ProviderSettingsLayout>
 </template>

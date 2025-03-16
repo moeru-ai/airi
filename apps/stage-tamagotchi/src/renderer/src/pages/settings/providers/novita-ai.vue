@@ -19,7 +19,7 @@ const providersStore = useProvidersStore()
 const { providers } = storeToRefs(providersStore) as { providers: RemovableRef<Record<string, any>> }
 
 // Get provider metadata
-const providerId = 'openrouter-ai'
+const providerId = 'novita-ai'
 const providerMetadata = computed(() => providersStore.getProviderMetadata(providerId))
 
 // Use computed properties for settings
@@ -34,7 +34,7 @@ const apiKey = computed({
 })
 
 const baseUrl = computed({
-  get: () => providers.value[providerId]?.baseUrl || providerMetadata.value?.defaultOptions?.baseUrl || '',
+  get: () => providers.value[providerId]?.baseUrl || '',
   set: (value) => {
     if (!providers.value[providerId])
       providers.value[providerId] = {}
@@ -44,11 +44,12 @@ const baseUrl = computed({
 })
 
 onMounted(() => {
+  // Initialize provider if it doesn't exist
   providersStore.initializeProvider(providerId)
 
   // Initialize refs with current values
   apiKey.value = providers.value[providerId]?.apiKey || ''
-  baseUrl.value = providers.value[providerId]?.baseUrl || providerMetadata.value?.defaultOptions?.baseUrl || ''
+  baseUrl.value = providers.value[providerId]?.baseUrl || ''
 })
 
 // Watch settings and update the provider configuration
@@ -56,7 +57,7 @@ watch([apiKey, baseUrl], () => {
   providers.value[providerId] = {
     ...providers.value[providerId],
     apiKey: apiKey.value,
-    baseUrl: baseUrl.value || providerMetadata.value?.defaultOptions?.baseUrl || '',
+    baseUrl: baseUrl.value || '',
   }
 })
 
@@ -70,7 +71,7 @@ function handleResetSettings() {
 <template>
   <ProviderSettingsLayout
     :provider-name="providerMetadata?.localizedName"
-    :provider-icon="providerMetadata?.icon"
+    :provider-icon-color="providerMetadata?.iconColor"
     :on-back="() => router.back()"
   >
     <ProviderSettingsContainer>
@@ -82,14 +83,14 @@ function handleResetSettings() {
         <ProviderApiKeyInput
           v-model="apiKey"
           :provider-name="providerMetadata?.localizedName"
-          placeholder="sk-or-..."
+          placeholder="nvt-..."
         />
       </ProviderBasicSettings>
 
       <ProviderAdvancedSettings title="Advanced">
         <ProviderBaseUrlInput
           v-model="baseUrl"
-          :placeholder="providerMetadata?.defaultOptions?.baseUrl as string || ''"
+          placeholder="https://api.novita.ai/v1/"
         />
       </ProviderAdvancedSettings>
     </ProviderSettingsContainer>
