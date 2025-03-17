@@ -13,6 +13,7 @@ onMounted(() => {
   const hue = document.documentElement.style.getPropertyValue('--theme-colors-hue')
   const hueF = Number.parseFloat(hue)
   themeColorsHue.value = hueF >= 0 && hueF <= 360 ? hueF : DEFAULT_THEME_COLORS_HUE
+  document.documentElement.style.setProperty('--theme-colors-hue', themeColorsHue.value.toString())
 })
 
 watch(themeColorsHue, () => {
