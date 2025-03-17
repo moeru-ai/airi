@@ -62,7 +62,7 @@ function getPreviewUrl(voice: Voice): string | undefined {
 
 // Format voice attributes for display
 function formatVoiceAttributes(voice: Voice): string[] {
-  const attributes = []
+  const attributes: string[] = []
 
   // Add gender if available
   if (voice.labels?.gender) {
