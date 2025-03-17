@@ -121,10 +121,9 @@ settings:
         sections:
           section:
             provider-voice-selection:
-              description: Select the suitable speech provider
-              title: Provider
               custom_model_placeholder: Enter custom model name...
               custom_voice_placeholder: Enter custom voice ID...
+              description: Select the suitable speech provider
               no_models: No models available
               no_models_description: No models were found for this provider
               no_voices: No voices available
@@ -135,8 +134,12 @@ settings:
               search_voices_results: Found {count} of {total} voices
               show_less: Show less
               show_more: Show more
+              title: Provider
         title: Speech
       title: Modules
+      x:
+        description: X / Twitter browsing and usage
+        title: X / Twitter
       vision:
         description: Vision
         title: Vision

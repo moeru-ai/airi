@@ -92,6 +92,14 @@ const modulesList = computed<Module[]>(() => [
     to: '',
     configured: false,
   },
+  {
+    id: 'x',
+    name: t('settings.pages.modules.x.title'),
+    description: t('settings.pages.modules.x.description'),
+    icon: 'i-simple-icons:x',
+    to: '',
+    configured: false,
+  },
 ])
 </script>
 

@@ -61,14 +61,12 @@ settings:
     modules:
       consciousness:
         description: 人格设定、使用的模型等配置
-        title: 意识
         sections:
           section:
             provider-model-selection:
-              title: 模型
-              description: 为意识选择合适的 LLM 提供商
               collapse: 折叠
               custom_model_placeholder: 输入自订模型名字
+              description: 为意识选择合适的 LLM 提供商
               error: 获取出错啦
               expand: 展开
               loading: 获取模型中...
@@ -85,6 +83,8 @@ settings:
               show_less: 显示更多
               show_more: 收起
               subtitle: 选择一个模型
+              title: 模型
+        title: 意识
       description: 思维，视觉，言语综合，游戏等
       gaming-factorio:
         description: 一起玩 Factorio！
@@ -106,14 +106,12 @@ settings:
         title: Discord
       speech:
         description: 语音合成
-        title: 发声
         sections:
           section:
             provider-voice-selection:
-              description: 选择合适的语音提供商
-              title: 提供商
               custom_model_placeholder: 输入指定模型名字...
               custom_voice_placeholder: 输入指定声线 ID...
+              description: 选择合适的语音提供商
               no_models: 没有任何可用的模型
               no_models_description: 该提供商的模型列表没有返回任何的数据
               no_voices: 没有任何可用的声线
@@ -124,7 +122,12 @@ settings:
               search_voices_results: 找到 {count} / {total} 个声线
               show_less: 显示更少
               show_more: 显示更多
+              title: 提供商
+        title: 发声
       title: 机体模块
+      x:
+        description: X / Twitter 的浏览和使用
+        title: X / Twitter
       vision:
         description: 视觉
         title: 视觉
