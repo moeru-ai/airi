@@ -2,7 +2,7 @@ import type { Page } from 'playwright'
 import type { UserLink, UserProfile, UserStats } from '../types/twitter'
 
 import { logger } from '../utils/logger'
-import { SELECTORS } from '../utils/selectors'
+import { SELECTORS } from './selectors'
 
 /**
  * Profile Parser
