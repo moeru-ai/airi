@@ -1,4 +1,6 @@
-import type { TwitterService } from '../core/twitter-service'
+import type { Context } from '../core/browser/context'
+import type { Tweet } from '../core/services/tweet'
+import type { TwitterServices } from '../types/services'
 
 import { Buffer } from 'node:buffer'
 import { createServer } from 'node:http'
@@ -7,6 +9,9 @@ import { SSEServerTransport } from '@modelcontextprotocol/sdk/server/sse.js'
 import { createApp, createRouter, defineEventHandler, toNodeListener } from 'h3'
 import { z } from 'zod'
 
+import { useTwitterTimelineServices } from '../core/services/timeline'
+import { useTwitterTweetServices } from '../core/services/tweet'
+import { useTwitterUserServices } from '../core/services/user'
 import { errorToMessage } from '../utils/error'
 import { logger } from '../utils/logger'
 
@@ -16,17 +21,25 @@ import { logger } from '../utils/logger'
  * Implements HTTP server using H3.js
  */
 export class MCPAdapter {
-  private twitterService: TwitterService
   private mcpServer: McpServer
   private app: ReturnType<typeof createApp>
   private server: ReturnType<typeof createServer> | null = null
   private port: number
   private activeTransports: SSEServerTransport[] = []
   private extraResourceInfo: string[] = []
+  private ctx: Context
 
-  constructor(twitterService: TwitterService, port: number = 8080) {
-    this.twitterService = twitterService
+  private twitterServices: TwitterServices
+
+  constructor(port: number = 8080, ctx: Context) {
     this.port = port
+    this.ctx = ctx
+
+    this.twitterServices = {
+      timeline: useTwitterTimelineServices(this.ctx),
+      tweet: useTwitterTweetServices(this.ctx),
+      user: useTwitterUserServices(this.ctx),
+    }
 
     // Create MCP server
     this.mcpServer = new McpServer({
@@ -69,7 +82,7 @@ export class MCPAdapter {
         try {
           logger.mcp.withField('uri', uri.toString()).withField('count', count || 'default').debug('Getting timeline')
 
-          const tweets = await this.twitterService.getTimeline({
+          const tweets = await useTwitterTimelineServices(this.ctx).getTimeline({
             count: count ? Number.parseInt(count) : undefined,
           })
 
@@ -77,7 +90,7 @@ export class MCPAdapter {
           logger.mcp.withFields({ tweets }).debug('Tweets')
 
           return {
-            contents: tweets.map(tweet => ({
+            contents: tweets.map((tweet: Tweet) => ({
               uri: `twitter://tweet/${tweet.id}`,
               text: `Tweet by @${tweet.author.username} (${tweet.author.displayName}):\n${tweet.text}`,
             })),
@@ -96,7 +109,7 @@ export class MCPAdapter {
       new ResourceTemplate('twitter://tweet/{id}', { list: undefined }),
       async (uri: URL, { id }) => {
         try {
-          const tweet = await this.twitterService.getTweetDetails(id as string)
+          const tweet = await this.twitterServices.tweet.getTweetDetails(id as string)
 
           return {
             contents: [{
@@ -118,7 +131,7 @@ export class MCPAdapter {
       new ResourceTemplate('twitter://user/{username}', { list: undefined }),
       async (uri, { username }) => {
         try {
-          const profile = await this.twitterService.getUserProfile(username as string)
+          const profile = await this.twitterServices.user.getUserProfile(username as string)
 
           return {
             contents: [{
@@ -140,7 +153,7 @@ export class MCPAdapter {
       {},
       async () => {
         try {
-          const success = await this.twitterService.login()
+          const success = await this.twitterServices.auth.login()
 
           return {
             content: [{
@@ -170,7 +183,7 @@ export class MCPAdapter {
       },
       async ({ content, replyTo, media }) => {
         try {
-          const tweetId = await this.twitterService.postTweet(content, {
+          const tweetId = await this.twitterServices.tweet.postTweet(content, {
             inReplyTo: replyTo,
             media,
           })
@@ -197,7 +210,7 @@ export class MCPAdapter {
       { tweetId: z.string() },
       async ({ tweetId }) => {
         try {
-          const success = await this.twitterService.likeTweet(tweetId)
+          const success = await this.twitterServices.tweet.likeTweet(tweetId)
 
           return {
             content: [{
@@ -221,7 +234,7 @@ export class MCPAdapter {
       { tweetId: z.string() },
       async ({ tweetId }) => {
         try {
-          const success = await this.twitterService.retweet(tweetId)
+          const success = await this.twitterServices.tweet.retweet(tweetId)
 
           return {
             content: [{
@@ -245,7 +258,7 @@ export class MCPAdapter {
       {},
       async () => {
         try {
-          const success = await this.twitterService.saveSession()
+          const success = await this.twitterServices.auth.saveSession()
 
           return {
             content: [{
@@ -275,14 +288,14 @@ export class MCPAdapter {
       },
       async ({ query, count, filter }) => {
         try {
-          const results = await this.twitterService.searchTweets(query, { count, filter })
+          const results = await this.twitterServices.tweet.searchTweets(query, { count, filter })
 
           return {
             content: [{
               type: 'text',
               text: `Search results: ${results.length} tweets`,
             }],
-            resources: results.map(tweet => `twitter://tweet/${tweet.id}`),
+            resources: results.map((tweet: Tweet) => `twitter://tweet/${tweet.id}`),
           }
         }
         catch (error) {
@@ -304,7 +317,7 @@ export class MCPAdapter {
       },
       async ({ count, includeReplies, includeRetweets }) => {
         try {
-          const tweets = await this.twitterService.getTimeline({
+          const tweets = await this.twitterServices.timeline.getTimeline({
             count,
             includeReplies,
             includeRetweets,
@@ -315,7 +328,7 @@ export class MCPAdapter {
               type: 'text',
               text: `Successfully refreshed timeline, retrieved ${tweets.length} tweets`,
             }],
-            resources: tweets.map(tweet => `twitter://tweet/${tweet.id}`),
+            resources: tweets.map((tweet: Tweet) => `twitter://tweet/${tweet.id}`),
           }
         }
         catch (error) {
@@ -339,7 +352,7 @@ export class MCPAdapter {
 
           // If no username provided, try to get from current URL
           if (!profileUsername) {
-            const currentUrl = await this.twitterService.getCurrentUrl()
+            const currentUrl = await this.twitterServices.auth.getCurrentUrl()
             profileUsername = this.extractUsernameFromUrl(currentUrl)
           }
 
@@ -354,7 +367,7 @@ export class MCPAdapter {
             }
           }
 
-          const profile = await this.twitterService.getUserProfile(profileUsername)
+          const profile = await this.twitterServices.user.getUserProfile(profileUsername)
 
           return {
             content: [{

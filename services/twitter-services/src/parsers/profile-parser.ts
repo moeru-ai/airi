@@ -226,7 +226,7 @@ export class ProfileParser {
 
     try {
       // Find all link elements in profile
-      const linkElements = await page.$$('a[href^="https"]:not([href*="twitter.com"])')
+      const linkElements = await page.$$('a[href^="https"]:not([href*="x.com"])')
 
       for (const linkElement of linkElements) {
         // Extract href and title

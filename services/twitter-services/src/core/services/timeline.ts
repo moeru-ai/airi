@@ -1,43 +1,40 @@
-import type { Page } from 'playwright'
-import type { TimelineOptions, Tweet } from '../types/twitter'
+import type { TwitterService } from '../../types/services'
+import type { Context } from '../browser/context'
+import type { Tweet } from './tweet'
 
-import { TweetParser } from '../parsers/tweet-parser'
-import { logger } from '../utils/logger'
-import { SELECTORS } from '../utils/selectors'
+import { TWITTER_HOME_URL } from '../../../constants'
+import { TweetParser } from '../../parsers/tweet-parser'
+import { logger } from '../../utils/logger'
+import { SELECTORS } from '../../utils/selectors'
 
 /**
- * Twitter Timeline Service
- * Handles fetching and parsing timeline content
+ * Timeline Options
  */
-export class TwitterTimelineService {
-  private page: Page
+export interface TimelineOptions {
+  count?: number
+  includeReplies?: boolean
+  includeRetweets?: boolean
+  limit?: number
+}
 
-  constructor(page: Page) {
-    this.page = page
-  }
-
-  /**
-   * Fetches the Twitter timeline
-   * @param options Configuration options for timeline fetching
-   * @returns Promise resolving to an array of tweets
-   */
-  async getTimeline(options: TimelineOptions = {}): Promise<Tweet[]> {
+export function useTwitterTimelineServices(ctx: Context): TwitterService {
+  async function getTimeline(options: TimelineOptions = {}): Promise<Tweet[]> {
     try {
       logger.timeline.withFields({ options }).log('Fetching timeline')
 
       // Navigate to home page
-      await this.page.goto('https://x.com/home')
+      await ctx.page.goto(TWITTER_HOME_URL)
 
       // Wait for timeline to load
-      await this.page.waitForSelector(SELECTORS.TIMELINE.TWEET, { timeout: 10000 })
+      await ctx.page.waitForSelector(SELECTORS.TIMELINE.TWEET, { timeout: 10000 })
 
       // Optional: scroll to load more tweets if needed
       if (options.count && options.count > 5) {
-        await this.scrollToLoadMoreTweets(Math.min(options.count, 20))
+        await scrollToLoadMoreTweets(Math.min(options.count, 20))
       }
 
       // Parse all tweets directly from the DOM using Playwright
-      const tweets = await TweetParser.parseTimelineTweets(this.page)
+      const tweets = await TweetParser.parseTimelineTweets(ctx.page)
 
       logger.timeline.log(`Found ${tweets.length} tweets in timeline`)
 
@@ -65,15 +62,11 @@ export class TwitterTimelineService {
     }
   }
 
-  /**
-   * Scrolls down the timeline to load more tweets
-   * @param targetCount Approximate number of tweets to load
-   */
-  private async scrollToLoadMoreTweets(targetCount: number): Promise<void> {
+  async function scrollToLoadMoreTweets(targetCount: number): Promise<void> {
     try {
-      // Initial tweet count
+    // Initial tweet count
       let previousTweetCount = 0
-      let currentTweetCount = await this.countVisibleTweets()
+      let currentTweetCount = await countVisibleTweets()
       let scrollAttempts = 0
       const maxScrollAttempts = 10
 
@@ -81,15 +74,15 @@ export class TwitterTimelineService {
 
       // Scroll until we have enough tweets or reach maximum scroll attempts
       while (currentTweetCount < targetCount && scrollAttempts < maxScrollAttempts) {
-        // Scroll down using Playwright's mouse wheel simulation
-        await this.page.mouse.wheel(0, 800)
+      // Scroll down using Playwright's mouse wheel simulation
+        await ctx.page.mouse.wheel(0, 800)
 
         // Wait for new content to load
-        await this.page.waitForTimeout(1000)
+        await ctx.page.waitForTimeout(1000)
 
         // Check if we have new tweets
         previousTweetCount = currentTweetCount
-        currentTweetCount = await this.countVisibleTweets()
+        currentTweetCount = await countVisibleTweets()
 
         // If no new tweets were loaded, we might have reached the end
         if (currentTweetCount === previousTweetCount) {
@@ -107,12 +100,12 @@ export class TwitterTimelineService {
     }
   }
 
-  /**
-   * Counts the number of visible tweets on the page
-   * @returns Promise resolving to the count of visible tweets
-   */
-  private async countVisibleTweets(): Promise<number> {
-    const tweetElements = await this.page.$$(SELECTORS.TIMELINE.TWEET)
+  async function countVisibleTweets(): Promise<number> {
+    const tweetElements = await ctx.page.$$(SELECTORS.TIMELINE.TWEET)
     return tweetElements.length
+  }
+
+  return {
+    getTimeline,
   }
 }
