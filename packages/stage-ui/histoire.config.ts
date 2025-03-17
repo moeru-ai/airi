@@ -1,8 +1,18 @@
 import { HstVue } from '@histoire/plugin-vue'
-import { defineConfig } from 'histoire'
+import { defaultColors, defineConfig } from 'histoire'
 
 export default defineConfig({
   routerMode: 'hash',
+  theme: {
+    title: 'AIRI UI',
+    logo: {
+      dark: './public/logo.svg',
+      light: './public/logo.svg',
+    },
+    colors: {
+      primary: defaultColors.neutral,
+    },
+  },
   plugins: [
     HstVue(),
   ],
