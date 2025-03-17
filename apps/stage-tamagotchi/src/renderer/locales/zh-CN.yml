@@ -122,7 +122,7 @@ settings:
             title: 基础配置
           voice:
             title: 声音配置
-      description: LLM，演讲提供商等
+      description: LLM，语音合成，语音识别提供商等
       provider:
         cloudflare-workers-ai:
           description: Cloudflare.com
@@ -173,7 +173,7 @@ settings:
                 voice:
                   description: 选择首选语音
                   label: 声线
-            title: 调试场地
+            title: 实验平台
             validation:
               error-missing-api-key: 需要填写 API Key 才能用哦！
           title: ElevenLabs (11labs)
