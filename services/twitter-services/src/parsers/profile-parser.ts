@@ -1,5 +1,5 @@
 import type { Page } from 'playwright'
-import type { UserLink, UserProfile, UserStats } from '../types/twitter'
+import type { UserLink, UserProfile, UserStats } from '../core/services/user'
 
 import { logger } from '../utils/logger'
 import { SELECTORS } from './selectors'

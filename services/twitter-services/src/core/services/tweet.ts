@@ -293,10 +293,10 @@ export function useTwitterTweetServices(ctx: Context): TwitterService {
         }
       }
 
-      // Get replies - 使用复用的滚动逻辑加载更多回复
+      // Get replies by scrolling to load more using reusable scroll logic
       const replySelector = '[data-testid="tweet"][aria-labelledby*="reply"]'
 
-      // 尝试加载至少10条回复（如果有的话）
+      // Try to load at least 10 replies (if available)
       await scrollToLoadMoreTweets(page, 10, replySelector)
 
       // Find reply tweets
