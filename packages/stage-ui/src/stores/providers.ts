@@ -78,6 +78,7 @@ export interface VoiceInfo {
   gender?: string
   language?: string
   deprecated?: boolean
+  previewURL?: string
 }
 
 export const useProvidersStore = defineStore('providers', () => {
@@ -326,11 +327,29 @@ export const useProvidersStore = defineStore('providers', () => {
             ...provider.voice(),
           })
 
-          return voices.map((voice) => {
+          // Find indices of Aria and Bill
+          const ariaIndex = voices.findIndex(voice => voice.name.includes('Aria'))
+          const billIndex = voices.findIndex(voice => voice.name.includes('Bill'))
+
+          // Determine the range to move (ensure valid indices and proper order)
+          const startIndex = ariaIndex !== -1 ? ariaIndex : 0
+          const endIndex = billIndex !== -1 ? billIndex : voices.length - 1
+          const lowerIndex = Math.min(startIndex, endIndex)
+          const higherIndex = Math.max(startIndex, endIndex)
+
+          // Rearrange voices: voices outside the range first, then voices within the range
+          const rearrangedVoices = [
+            ...voices.slice(0, lowerIndex),
+            ...voices.slice(higherIndex + 1),
+            ...voices.slice(lowerIndex, higherIndex + 1),
+          ]
+
+          return rearrangedVoices.map((voice) => {
             return {
               id: voice.id,
               name: voice.name,
               provider: 'elevenlabs',
+              previewURL: voice.preview_audio_url,
             }
           })
         },

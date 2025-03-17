@@ -2,8 +2,8 @@
 import {
   FieldCheckbox,
   FieldRange,
-  RadioCardDetailManySelect,
   RadioCardSimple,
+  VoiceCardManySelect,
 } from '@proj-airi/stage-ui/components'
 import { useProvidersStore, useSpeechStore } from '@proj-airi/stage-ui/stores'
 import { storeToRefs } from 'pinia'
@@ -68,6 +68,12 @@ function updateSSMLExample() {
   </voice>
 </speak>`
 }
+
+// Add this function to handle voice selection from the preview player
+function handleVoiceSelection(value: string) {
+  voiceId.value = value
+  updateSSMLExample()
+}
 </script>
 
 <template>
@@ -104,8 +110,13 @@ function updateSSMLExample() {
             min-w-0 of-x-scroll scroll-smooth role="radiogroup"
           >
             <RadioCardSimple
-              v-for="metadata in availableProvidersMetadata" :id="metadata.id" :key="metadata.id"
-              v-model="activeSpeechProvider" name="speech-provider" :value="metadata.id" :title="metadata.localizedName"
+              v-for="metadata in availableProvidersMetadata"
+              :id="metadata.id"
+              :key="metadata.id"
+              v-model="activeSpeechProvider"
+              name="speech-provider"
+              :value="metadata.id"
+              :title="metadata.localizedName"
               :description="metadata.localizedDescription"
             />
           </fieldset>
@@ -164,14 +175,17 @@ function updateSSMLExample() {
           v-else-if="availableVoices[activeSpeechProvider] && availableVoices[activeSpeechProvider].length > 0"
           class="space-y-6"
         >
-          <RadioCardDetailManySelect
-            v-model="voiceId" v-model:search-query="voiceSearchQuery"
-            :items="availableVoices[activeSpeechProvider]?.map(voice => ({
+          <VoiceCardManySelect
+            v-model:search-query="voiceSearchQuery"
+            :voices="availableVoices[activeSpeechProvider]?.map(voice => ({
               id: voice.name,
               name: voice.name,
               description: voice.description,
-              customizable: true,
-            }))" :searchable="true"
+              previewURL: voice.previewURL,
+              customizable: false,
+            }))"
+            :selected-voice-id="voiceId"
+            :searchable="true"
             :search-placeholder="t('settings.pages.modules.speech.sections.section.provider-voice-selection.search_voices_placeholder')"
             :search-no-results-title="t('settings.pages.modules.speech.sections.section.provider-voice-selection.no_voices')"
             :search-no-results-description="t('settings.pages.modules.speech.sections.section.provider-voice-selection.no_voices_description')"
@@ -179,6 +193,9 @@ function updateSSMLExample() {
             :custom-input-placeholder="t('settings.pages.modules.speech.sections.section.provider-voice-selection.custom_voice_placeholder')"
             :expand-button-text="t('settings.pages.modules.speech.sections.section.provider-voice-selection.show_more')"
             :collapse-button-text="t('settings.pages.modules.speech.sections.section.provider-voice-selection.show_less')"
+            :play-button-text="t('settings.pages.modules.speech.sections.section.provider-voice-selection.play_sample')"
+            :pause-button-text="t('settings.pages.modules.speech.sections.section.provider-voice-selection.pause')"
+            @update:selected-voice-id="handleVoiceSelection"
             @update:custom-value="updateCustomVoiceName"
           />
 

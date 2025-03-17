@@ -2,6 +2,7 @@
 import { ref } from 'vue'
 
 import TransitionVertical from '../../TransitionVertical.vue'
+import Input from '../Input/Input.vue'
 
 withDefaults(defineProps<{
   id: string
@@ -9,7 +10,6 @@ withDefaults(defineProps<{
   value: string
   title: string
   description?: string
-  modelValue: string
   deprecated?: boolean
   showExpandCollapse?: boolean
   expandCollapseThreshold?: number
@@ -25,10 +25,7 @@ withDefaults(defineProps<{
   showCustomInput: false,
 })
 
-const emit = defineEmits<{
-  (e: 'update:modelValue', value: string): void
-  (e: 'update:customInputValue', value: string): void
-}>()
+const modelValue = defineModel<string>({ required: true })
 
 // Track if description is expanded
 const isExpanded = ref(false)
@@ -36,12 +33,6 @@ const isExpanded = ref(false)
 // Toggle description expansion
 function toggleExpansion() {
   isExpanded.value = !isExpanded.value
-}
-
-// Update custom input value
-function updateCustomInput(event: Event) {
-  const target = event.target as HTMLInputElement
-  emit('update:customInputValue', target.value)
 }
 </script>
 
@@ -62,12 +53,12 @@ function updateCustomInput(event: Event) {
     ]"
   >
     <input
+      v-model="modelValue"
       :checked="modelValue === value"
       type="radio"
       :name="name"
       :value="value"
       class="absolute opacity-0"
-      @change="$emit('update:modelValue', value)"
     >
     <div class="relative mr-3 mt-0.5 flex-shrink-0">
       <div
@@ -153,13 +144,12 @@ function updateCustomInput(event: Event) {
 
       <!-- Custom model input field -->
       <div v-if="showCustomInput && modelValue === value" class="mt-2">
-        <input
-          :value="customInputValue"
+        <Input
+          v-model="modelValue"
           type="text"
           class="w-full border border-neutral-300 rounded bg-white px-2 py-1 text-sm dark:border-neutral-700 dark:bg-neutral-900"
           :placeholder="customInputPlaceholder"
-          @input="updateCustomInput"
-        >
+        />
       </div>
     </div>
   </label>
@@ -172,6 +162,7 @@ function updateCustomInput(event: Event) {
 }
 
 .form_radio-card-detail::before {
+  pointer-events: none;
   --at-apply: 'bg-gradient-to-r from-primary-500/0 to-primary-500/0 dark:from-primary-400/0 dark:to-primary-400/0';
   content: '';
   position: absolute;

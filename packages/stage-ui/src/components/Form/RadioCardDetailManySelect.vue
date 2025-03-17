@@ -13,7 +13,6 @@ interface Item {
 
 interface Props {
   items: Item[]
-  modelValue: string
   searchable?: boolean
   searchPlaceholder?: string
   searchNoResultsTitle?: string
@@ -36,9 +35,10 @@ const props = withDefaults(defineProps<Props>(), {
 })
 
 const emit = defineEmits<{
-  'update:modelValue': [value: string]
   'update:customValue': [value: string]
 }>()
+
+const modelValue = defineModel<string>({ required: true })
 
 const searchQuery = ref('')
 const isListExpanded = ref(false)
@@ -115,6 +115,7 @@ function updateCustomValue(value: string) {
             v-for="item in filteredItems"
             :id="item.id"
             :key="item.id"
+            v-model="modelValue"
             :value="item.id"
             :title="item.name"
             :description="item.description"
@@ -124,10 +125,8 @@ function updateCustomValue(value: string) {
             :show-custom-input="item.customizable"
             :custom-input-value="customValue"
             :custom-input-placeholder="customInputPlaceholder"
-            :model-value="modelValue"
             name="radio-card-detail-many-select"
             class="scroll-snap-align-start"
-            @update:model-value="emit('update:modelValue', $event)"
             @update:custom-input-value="updateCustomValue($event)"
           />
         </div>

@@ -5,12 +5,9 @@ defineProps<{
   value: string
   title: string
   description?: string
-  modelValue: string
 }>()
 
-defineEmits<{
-  (e: 'update:modelValue', value: string): void
-}>()
+const modelValue = defineModel<string>({ required: true })
 </script>
 
 <template>
@@ -31,12 +28,12 @@ defineEmits<{
     block min-w-50 w-fit cursor-pointer items-start rounded-xl p-4 text-left
   >
     <input
+      v-model="modelValue"
       :checked="modelValue === value"
       type="radio"
       :name="name"
       :value="value"
       class="[&:checked+div]:border-primary-500 dark:[&:checked+div]:border-primary-400 absolute opacity-0 [&:checked+div_.radio-dot]:opacity-100"
-      @change="$emit('update:modelValue', value)"
     >
     <div
       class="radio-circle absolute left-2 top-2 size-5 rounded-full"

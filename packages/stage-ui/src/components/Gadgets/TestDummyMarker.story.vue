@@ -80,7 +80,7 @@ import TestDummyMarkerFlat from './TestDummyMarkerFlat.vue'
       title="Original Implementation"
     >
       <div class="h-40 flex items-center justify-center">
-        <TestDummyMarker :size="40" />
+        <TestDummyMarker />
       </div>
     </Variant>
   </Story>

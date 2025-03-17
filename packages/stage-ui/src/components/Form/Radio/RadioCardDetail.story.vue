@@ -19,6 +19,7 @@ const modelValue = ref('test')
     <Variant id="default" title="Default">
       <RadioCardDetail
         id="test"
+        v-model="modelValue"
         value="non-selected"
         title="Test"
         description="Test description"
@@ -28,7 +29,6 @@ const modelValue = ref('test')
         :show-custom-input="true"
         custom-input-value="Test input value"
         custom-input-placeholder="Test input placeholder"
-        :model-value="modelValue"
         name="radio-card-detail-many-select"
         class="scroll-snap-align-start"
       />
@@ -37,6 +37,7 @@ const modelValue = ref('test')
     <Variant id="hover" title="Hover">
       <RadioCardDetail
         id="test"
+        v-model="modelValue"
         value="non-selected"
         title="Test"
         description="Test description"
@@ -46,7 +47,6 @@ const modelValue = ref('test')
         :show-custom-input="true"
         custom-input-value="Test input value"
         custom-input-placeholder="Test input placeholder"
-        :model-value="modelValue"
         name="radio-card-detail-many-select"
         class="scroll-snap-align-start _hover"
       />
@@ -55,6 +55,7 @@ const modelValue = ref('test')
     <Variant id="default-long-description" title="Long description">
       <RadioCardDetail
         id="test"
+        v-model="modelValue"
         value="non-selected"
         title="Test"
         :description="'Test description'.repeat(10)"
@@ -64,7 +65,6 @@ const modelValue = ref('test')
         :show-custom-input="true"
         custom-input-value="Test input value"
         custom-input-placeholder="Test input placeholder"
-        :model-value="modelValue"
         name="radio-card-detail-many-select"
         class="scroll-snap-align-start"
       />
@@ -73,6 +73,7 @@ const modelValue = ref('test')
     <Variant id="hover-long-description" title="Hover Long description">
       <RadioCardDetail
         id="test"
+        v-model="modelValue"
         value="non-selected"
         title="Test"
         :description="'Test description'.repeat(10)"
@@ -82,7 +83,6 @@ const modelValue = ref('test')
         :show-custom-input="true"
         custom-input-value="Test input value"
         custom-input-placeholder="Test input placeholder"
-        :model-value="modelValue"
         name="radio-card-detail-many-select"
         class="scroll-snap-align-start _hover"
       />
@@ -91,6 +91,7 @@ const modelValue = ref('test')
     <Variant id="default-selected" title="Default Selected">
       <RadioCardDetail
         id="test"
+        v-model="modelValue"
         value="test"
         title="Test"
         description="Test description"
@@ -100,7 +101,6 @@ const modelValue = ref('test')
         :show-custom-input="true"
         custom-input-value="Test input value"
         custom-input-placeholder="Test input placeholder"
-        :model-value="modelValue"
         name="radio-card-detail-many-select"
         class="scroll-snap-align-start"
       />
@@ -109,6 +109,7 @@ const modelValue = ref('test')
     <Variant id="hover-selected" title="Hover Selected">
       <RadioCardDetail
         id="test"
+        v-model="modelValue"
         value="test"
         title="Test"
         description="Test description"
@@ -118,7 +119,6 @@ const modelValue = ref('test')
         :show-custom-input="true"
         custom-input-value="Test input value"
         custom-input-placeholder="Test input placeholder"
-        :model-value="modelValue"
         name="radio-card-detail-many-select"
         class="scroll-snap-align-start _hover"
       />
@@ -127,6 +127,7 @@ const modelValue = ref('test')
     <Variant id="default-selected-long-description" title="Long description Selected">
       <RadioCardDetail
         id="test"
+        v-model="modelValue"
         value="test"
         title="Test"
         :description="'Test description'.repeat(10)"
@@ -136,7 +137,6 @@ const modelValue = ref('test')
         :show-custom-input="true"
         custom-input-value="Test input value"
         custom-input-placeholder="Test input placeholder"
-        :model-value="modelValue"
         name="radio-card-detail-many-select"
         class="scroll-snap-align-start"
       />
@@ -145,6 +145,7 @@ const modelValue = ref('test')
     <Variant id="hover-selected-long-description" title="Hover Long description Selected">
       <RadioCardDetail
         id="test"
+        v-model="modelValue"
         value="test"
         title="Test"
         :description="'Test description'.repeat(10)"
@@ -154,7 +155,6 @@ const modelValue = ref('test')
         :show-custom-input="true"
         custom-input-value="Test input value"
         custom-input-placeholder="Test input placeholder"
-        :model-value="modelValue"
         name="radio-card-detail-many-select"
         class="scroll-snap-align-start _hover"
       />

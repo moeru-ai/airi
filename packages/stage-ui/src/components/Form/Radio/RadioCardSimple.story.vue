@@ -19,22 +19,22 @@ const modelValue = ref('test')
     <Variant id="default" title="Default">
       <RadioCardSimple
         id="test"
+        v-model="modelValue"
         name="radio-card-simple"
         value="non-selected"
         title="Test"
         description="Test description"
-        :model-value="modelValue"
       />
     </Variant>
 
     <Variant id="hover" title="Hover">
       <RadioCardSimple
         id="test"
+        v-model="modelValue"
         name="radio-card-simple"
         value="non-selected"
         title="Test"
         description="Test description"
-        :model-value="modelValue"
         class="_hover"
       />
     </Variant>
@@ -42,22 +42,22 @@ const modelValue = ref('test')
     <Variant id="default-selected" title="Default Selected">
       <RadioCardSimple
         id="test"
+        v-model="modelValue"
         name="radio-card-simple"
         value="test"
         title="Test"
         description="Test description"
-        :model-value="modelValue"
       />
     </Variant>
 
     <Variant id="hover-selected" title="Hover Selected">
       <RadioCardSimple
         id="test"
+        v-model="modelValue"
         name="radio-card-simple"
         value="test"
         title="Test"
         description="Test description"
-        :model-value="modelValue"
         class="_hover"
       />
     </Variant>
