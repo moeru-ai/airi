@@ -17,16 +17,28 @@ export default defineConfig({
         title: 'Design System',
       },
       {
-        id: 'menu',
-        title: 'Menu',
-      },
-      {
         id: 'form',
         title: 'Form',
       },
       {
+        id: 'menu',
+        title: 'Menu',
+      },
+      {
         id: 'providers',
         title: 'Providers',
+      },
+      {
+        id: 'physics',
+        title: 'Physics',
+      },
+      {
+        id: 'graphics',
+        title: 'Graphics',
+      },
+      {
+        id: 'gadgets',
+        title: 'Gadgets',
       },
       {
         id: 'data-gui',

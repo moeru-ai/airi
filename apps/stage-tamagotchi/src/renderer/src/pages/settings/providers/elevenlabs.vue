@@ -13,6 +13,7 @@ import {
   ProviderBasicSettings,
   ProviderSettingsContainer,
   ProviderSettingsLayout,
+  TestDummyMarker,
 } from '@proj-airi/stage-ui/components'
 import { voiceMap } from '@proj-airi/stage-ui/constants'
 import { useProvidersStore, useSpeechStore } from '@proj-airi/stage-ui/stores'
@@ -310,9 +311,14 @@ function handleResetVoiceSettings() {
       </ProviderSettingsContainer>
 
       <div flex="~ col gap-6" class="w-full md:w-[60%]">
-        <div rounded-xl>
-          <h2 class="mb-4 text-lg text-neutral-500 md:text-2xl dark:text-neutral-400">
-            {{ t('settings.pages.providers.provider.elevenlabs.playground.title') }}
+        <div w-full rounded-xl>
+          <h2 class="mb-4 text-lg text-neutral-500 md:text-2xl dark:text-neutral-400" w-full>
+            <div class="inline-flex items-center gap-4">
+              <TestDummyMarker />
+              <div>
+                {{ t('settings.pages.providers.provider.elevenlabs.playground.title') }}
+              </div>
+            </div>
           </h2>
           <div flex="~ col gap-4">
             <textarea
