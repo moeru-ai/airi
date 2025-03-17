@@ -118,9 +118,9 @@ export const useProvidersStore = defineStore('providers', () => {
   const providerMetadata: Record<string, ProviderMetadata> = {
     'openrouter-ai': {
       id: 'openrouter-ai',
-      nameKey: 'providers.openrouter.name',
+      nameKey: 'settings.pages.providers.provider.openrouter.title',
       name: 'OpenRouter',
-      descriptionKey: 'providers.openrouter.description',
+      descriptionKey: 'settings.pages.providers.provider.openrouter.description',
       description: 'openrouter.ai',
       icon: 'i-lobe-icons:openrouter',
       defaultOptions: {
@@ -135,9 +135,9 @@ export const useProvidersStore = defineStore('providers', () => {
     },
     'openai': {
       id: 'openai',
-      nameKey: 'providers.openai.name',
+      nameKey: 'settings.pages.providers.provider.openai.title',
       name: 'OpenAI',
-      descriptionKey: 'providers.openai.description',
+      descriptionKey: 'settings.pages.providers.provider.openai.description',
       description: 'openai.com',
       icon: 'i-lobe-icons:openai',
       defaultOptions: {
@@ -163,9 +163,9 @@ export const useProvidersStore = defineStore('providers', () => {
     },
     'ollama': {
       id: 'ollama',
-      nameKey: 'providers.ollama.name',
+      nameKey: 'settings.pages.providers.provider.ollama.title',
       name: 'Ollama',
-      descriptionKey: 'providers.ollama.description',
+      descriptionKey: 'settings.pages.providers.provider.ollama.description',
       description: 'ollama.com',
       icon: 'i-lobe-icons:ollama',
       defaultOptions: {
@@ -191,9 +191,9 @@ export const useProvidersStore = defineStore('providers', () => {
     },
     'vllm': {
       id: 'vllm',
-      nameKey: 'providers.vllm.name',
+      nameKey: 'settings.pages.providers.provider.vllm.title',
       name: 'vLLM',
-      descriptionKey: 'providers.vllm.description',
+      descriptionKey: 'settings.pages.providers.provider.vllm.description',
       description: 'vllm.ai',
       iconColor: 'i-lobe-icons:vllm-color',
       createProvider: config => createOllama(config.baseUrl as string),
@@ -248,9 +248,9 @@ export const useProvidersStore = defineStore('providers', () => {
     },
     'perplexity-ai': {
       id: 'perplexity-ai',
-      nameKey: 'providers.perplexity.name',
+      nameKey: 'settings.pages.providers.provider.perplexity.title',
       name: 'Perplexity',
-      descriptionKey: 'providers.perplexity.description',
+      descriptionKey: 'settings.pages.providers.provider.perplexity.description',
       description: 'perplexity.ai',
       icon: 'i-lobe-icons:perplexity',
       defaultOptions: {
@@ -301,9 +301,9 @@ export const useProvidersStore = defineStore('providers', () => {
     },
     'elevenlabs': {
       id: 'elevenlabs',
-      nameKey: 'providers.elevenlabs.name',
+      nameKey: 'settings.pages.providers.provider.elevenlabs.title',
       name: 'ElevenLabs',
-      descriptionKey: 'providers.elevenlabs.description',
+      descriptionKey: 'settings.pages.providers.provider.elevenlabs.description',
       description: 'elevenlabs.io',
       icon: 'i-simple-icons:elevenlabs',
       defaultOptions: {
@@ -338,9 +338,9 @@ export const useProvidersStore = defineStore('providers', () => {
     },
     'xai': {
       id: 'xai',
-      nameKey: 'providers.xai.name',
+      nameKey: 'settings.pages.providers.provider.xai.title',
       name: 'xAI',
-      descriptionKey: 'providers.xai.description',
+      descriptionKey: 'settings.pages.providers.provider.xai.description',
       description: 'x.ai',
       icon: 'i-lobe-icons:xai',
       createProvider: config => createXAI(config.apiKey as string, config.baseUrl as string),
@@ -363,9 +363,9 @@ export const useProvidersStore = defineStore('providers', () => {
     },
     'deepseek': {
       id: 'deepseek',
-      nameKey: 'providers.deepseek.name',
+      nameKey: 'settings.pages.providers.provider.deepseek.title',
       name: 'DeepSeek',
-      descriptionKey: 'providers.deepseek.description',
+      descriptionKey: 'settings.pages.providers.provider.deepseek.description',
       description: 'deepseek.com',
       iconColor: 'i-lobe-icons:deepseek-color',
       createProvider: config => createDeepSeek(config.apiKey as string, config.baseUrl as string),
@@ -388,9 +388,9 @@ export const useProvidersStore = defineStore('providers', () => {
     },
     'together-ai': {
       id: 'together-ai',
-      nameKey: 'providers.together.name',
+      nameKey: 'settings.pages.providers.provider.together.title',
       name: 'Together.ai',
-      descriptionKey: 'providers.together.description',
+      descriptionKey: 'settings.pages.providers.provider.together.description',
       description: 'together.ai',
       iconColor: 'i-lobe-icons:together-color',
       createProvider: config => createTogetherAI(config.apiKey as string, config.baseUrl as string),
@@ -413,9 +413,9 @@ export const useProvidersStore = defineStore('providers', () => {
     },
     'novita-ai': {
       id: 'novita-ai',
-      nameKey: 'providers.novita.name',
+      nameKey: 'settings.pages.providers.provider.novita.title',
       name: 'Novita',
-      descriptionKey: 'providers.novita.description',
+      descriptionKey: 'settings.pages.providers.provider.novita.description',
       description: 'novita.ai',
       iconColor: 'i-lobe-icons:novita-color',
       createProvider: config => createNovita(config.apiKey as string, config.baseUrl as string),
@@ -438,9 +438,9 @@ export const useProvidersStore = defineStore('providers', () => {
     },
     'fireworks-ai': {
       id: 'fireworks-ai',
-      nameKey: 'providers.fireworks.name',
+      nameKey: 'settings.pages.providers.provider.fireworks.title',
       name: 'Fireworks.ai',
-      descriptionKey: 'providers.fireworks.description',
+      descriptionKey: 'settings.pages.providers.provider.fireworks.description',
       description: 'fireworks.ai',
       icon: 'i-lobe-icons:fireworks',
       createProvider: config => createFireworks(config.apiKey as string, config.baseUrl as string),
@@ -463,9 +463,9 @@ export const useProvidersStore = defineStore('providers', () => {
     },
     'cloudflare-workers-ai': {
       id: 'cloudflare-workers-ai',
-      nameKey: 'providers.cloudflare.name',
+      nameKey: 'settings.pages.providers.provider.cloudflare-workers-ai.title',
       name: 'Cloudflare Workers AI',
-      descriptionKey: 'providers.cloudflare.description',
+      descriptionKey: 'settings.pages.providers.provider.cloudflare-workers-ai.description',
       description: 'cloudflare.com',
       iconColor: 'i-lobe-icons:cloudflare-color',
       createProvider: config => createWorkersAI(config.apiKey as string, config.accountId as string),
@@ -477,9 +477,9 @@ export const useProvidersStore = defineStore('providers', () => {
     },
     'mistral-ai': {
       id: 'mistral-ai',
-      nameKey: 'providers.mistral.name',
+      nameKey: 'settings.pages.providers.provider.mistral.title',
       name: 'Mistral',
-      descriptionKey: 'providers.mistral.description',
+      descriptionKey: 'settings.pages.providers.provider.mistral.description',
       description: 'mistral.ai',
       iconColor: 'i-lobe-icons:mistral-color',
       createProvider: config => createMistral(config.apiKey as string, config.baseUrl as string),
@@ -502,9 +502,9 @@ export const useProvidersStore = defineStore('providers', () => {
     },
     'moonshot-ai': {
       id: 'moonshot-ai',
-      nameKey: 'providers.moonshot.name',
+      nameKey: 'settings.pages.providers.provider.moonshot.title',
       name: 'Moonshot AI',
-      descriptionKey: 'providers.moonshot.description',
+      descriptionKey: 'settings.pages.providers.provider.moonshot.description',
       description: 'moonshot.ai',
       icon: 'i-lobe-icons:moonshot',
       createProvider: config => createMoonshot(config.apiKey as string, config.baseUrl as string),

@@ -4,9 +4,11 @@ import { useChatStore } from '@proj-airi/stage-ui/stores'
 import { useElementBounding, useScroll } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { nextTick, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 const chatHistoryRef = ref<HTMLDivElement>()
 
+const { t } = useI18n()
 const { messages, sending } = storeToRefs(useChatStore())
 const bounding = useElementBounding(chatHistoryRef, { immediate: true, windowScroll: true, windowResize: true })
 const { y: chatHistoryContainerY } = useScroll(chatHistoryRef)
@@ -48,7 +50,7 @@ onTokenLiteral(async () => {
             <div flex="~ row" gap-2>
               <div flex-1>
                 <span text-xs text="violet-400/90 dark:violet-600/90" font-semibold class="inline <sm:hidden">{{
-                  $t('stage.chat.message.character-name.core-system') }}</span>
+                  t('stage.chat.message.character-name.core-system') }}</span>
               </div>
               <div i-solar:danger-triangle-bold-duotone text-violet-500 />
             </div>

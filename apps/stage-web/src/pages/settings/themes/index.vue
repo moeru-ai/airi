@@ -3,8 +3,11 @@ import { Collapsable } from '@proj-airi/stage-ui/components'
 import { DEFAULT_THEME_COLORS_HUE, useSettings } from '@proj-airi/stage-ui/stores'
 import { converter } from 'culori'
 import { TooltipArrow, TooltipContent, TooltipPortal, TooltipProvider, TooltipRoot, TooltipTrigger } from 'radix-vue'
+import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 
+const { t } = useI18n()
 const router = useRouter()
 const settings = useSettings()
 
@@ -17,10 +20,10 @@ interface ColorPreset {
   }>
 }
 
-const colorPresets: ColorPreset[] = [
+const colorPresets = computed<ColorPreset[]>(() => [
   {
-    name: 'Morandi Colors',
-    description: 'Soft, muted tones inspired by Giorgio Morandi\'s paintings',
+    name: t('settings.pages.themes.sections.section.theme-presets.preset.morandi.title'),
+    description: t('settings.pages.themes.sections.section.theme-presets.preset.morandi.description'),
     colors: [
       { hex: '#A5978B', name: 'Taupe' },
       { hex: '#D8CAAF', name: 'Beige' },
@@ -33,8 +36,8 @@ const colorPresets: ColorPreset[] = [
     ],
   },
   {
-    name: 'Monet Colors',
-    description: 'Impressionist palette inspired by Claude Monet\'s works',
+    name: t('settings.pages.themes.sections.section.theme-presets.preset.monet.title'),
+    description: t('settings.pages.themes.sections.section.theme-presets.preset.monet.description'),
     colors: [
       { hex: '#7A9EAF', name: 'Sky Blue' },
       { hex: '#B8C7CC', name: 'Mist' },
@@ -47,8 +50,8 @@ const colorPresets: ColorPreset[] = [
     ],
   },
   {
-    name: 'Japanese Colors',
-    description: 'Traditional Japanese color palette',
+    name: t('settings.pages.themes.sections.section.theme-presets.preset.japanese.title'),
+    description: t('settings.pages.themes.sections.section.theme-presets.preset.japanese.description'),
     colors: [
       { hex: '#D9B48F', name: 'Tan' },
       { hex: '#B5917A', name: 'Warm Taupe' },
@@ -61,8 +64,8 @@ const colorPresets: ColorPreset[] = [
     ],
   },
   {
-    name: 'Nordic Colors',
-    description: 'Scandinavian minimalist color scheme',
+    name: t('settings.pages.themes.sections.section.theme-presets.preset.nordic.title'),
+    description: t('settings.pages.themes.sections.section.theme-presets.preset.nordic.description'),
     colors: [
       { hex: '#9BA7B0', name: 'Nordic Blue' },
       { hex: '#C1CBD4', name: 'Ice' },
@@ -75,8 +78,8 @@ const colorPresets: ColorPreset[] = [
     ],
   },
   {
-    name: 'Chinese Traditional Colors',
-    description: 'Traditional Chinese colors, derived from ancient textiles, porcelain and paintings',
+    name: t('settings.pages.themes.sections.section.theme-presets.preset.chinese.title'),
+    description: t('settings.pages.themes.sections.section.theme-presets.preset.chinese.description'),
     colors: [
       { hex: '#E4C6D0', name: '霞光红 (Rosy Dawn)' },
       { hex: '#A61B29', name: '枣红 (Chinese Red)' },
@@ -88,7 +91,7 @@ const colorPresets: ColorPreset[] = [
       { hex: '#8C4B3C', name: '赭石 (Ochre)' },
     ],
   },
-]
+])
 
 function resetToDefault() {
   settings.themeColorsHue = DEFAULT_THEME_COLORS_HUE
@@ -148,10 +151,10 @@ function isColorSelected(hexColor: string): boolean {
     </button>
     <h1 relative>
       <div absolute left-0 top-0 translate-y="[-80%]">
-        <span text="neutral-300 dark:neutral-500">Settings</span>
+        <span text="neutral-300 dark:neutral-500">{{ t('settings.title') }}</span>
       </div>
       <div text-3xl font-semibold>
-        Themes
+        {{ t('settings.pages.themes.title') }}
       </div>
     </h1>
   </div>
@@ -173,7 +176,7 @@ function isColorSelected(hexColor: string): boolean {
               transition="filter duration-250 ease-in-out"
             />
             <div>
-              Custom Colors
+              {{ t('settings.pages.themes.sections.section.custom-color.title') }}
             </div>
           </div>
           <div transform transition="transform duration-250" :class="{ 'rotate-180': slotProps.visible }">
@@ -183,7 +186,7 @@ function isColorSelected(hexColor: string): boolean {
       </template>
       <div p-4>
         <div class="mb-2 text-sm font-medium">
-          Primary color
+          {{ t('settings.pages.themes.sections.section.custom-color.fields.field.primary-color.label') }}
         </div>
 
         <div flex="~ col gap-4">
@@ -281,14 +284,14 @@ function isColorSelected(hexColor: string): boolean {
             <div
               class="peer-checked:bg-primary-500 h-6 w-11 rounded-full bg-neutral-200 after:absolute after:left-[2px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:bg-white dark:bg-neutral-600 after:transition-all after:content-[''] peer-checked:after:translate-x-full peer-checked:after:border-white"
             />
-            <span class="ml-2 text-sm font-medium">I Want It Dynamic!</span>
+            <span class="ml-2 text-sm font-medium">{{ t('settings.pages.themes.sections.section.custom-color.fields.field.primary-color.rgb-on.title') }}</span>
           </label>
 
           <button
             class="rounded-md bg-neutral-100 px-3 py-1.5 text-sm transition-colors dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700"
             @click="resetToDefault"
           >
-            Reset to Default
+            {{ t('settings.pages.themes.sections.section.custom-color.fields.field.primary-color.reset.label') }}
           </button>
         </div>
       </div>
@@ -310,7 +313,7 @@ function isColorSelected(hexColor: string): boolean {
               transition="filter duration-250 ease-in-out"
             />
             <div>
-              Theme Presets
+              {{ t('settings.pages.themes.sections.section.theme-presets.title') }}
             </div>
           </div>
           <div transform transition="transform duration-250" :class="{ 'rotate-180': slotProps.visible }">

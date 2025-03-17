@@ -3,8 +3,10 @@ import { RadioCardDetailManySelect, RadioCardSimple, Range } from '@proj-airi/st
 import { useProvidersStore, useSpeechStore } from '@proj-airi/stage-ui/stores'
 import { storeToRefs } from 'pinia'
 import { onMounted, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { RouterLink, useRouter } from 'vue-router'
 
+const { t } = useI18n()
 const providersStore = useProvidersStore()
 const speechStore = useSpeechStore()
 const {
@@ -74,7 +76,7 @@ function updateSSMLExample() {
     </button>
     <h1 relative>
       <div absolute left-0 top-0 translate-y="[-80%]">
-        <span text="neutral-300 dark:neutral-500">Modules</span>
+        <span text="neutral-300 dark:neutral-500">{{ t('settings.pages.modules.title') }}</span>
       </div>
       <div text-3xl font-semibold>
         Speech

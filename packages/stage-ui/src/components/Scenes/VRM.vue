@@ -2,6 +2,7 @@
 import { OrbitControls } from '@tresjs/cientos'
 import { TresCanvas } from '@tresjs/core'
 import { ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import Collapsable from '../Collapsable.vue'
 import DataGuiRange from '../DataGui/Range.vue'
@@ -32,6 +33,8 @@ const vrmModelPositionZ = ref(-0.24)
 const modelRef = ref<{
   setExpression: (expression: string) => void
 }>()
+
+const { t } = useI18n()
 
 defineExpose({
   setExpression: (expression: string) => {
@@ -82,11 +85,11 @@ defineExpose({
         <div v-if="show" min-w="50vw" z="<md:20" class="bottom-11 right-0" absolute m-1 w-full>
           <div bg="zinc-200/20 dark:black/20" flex="~ col" gap-2 rounded-lg p-2 backdrop-blur-sm>
             <div font-mono>
-              <span>{{ $t('stage.viewers.debug-menu.vrm.model.title') }}</span>
+              <span>{{ t('stage.viewers.debug-menu.vrm.model.title') }}</span>
             </div>
             <Collapsable h-fit w-full flex="~ col" border="~ gray/25 rounded-lg" divide="y dashed gray/25" of-clip shadow-sm>
               <template #label>
-                <span font-mono>{{ $t('stage.viewers.debug-menu.vrm.camera') }}</span>
+                <span font-mono>{{ t('stage.viewers.debug-menu.vrm.camera') }}</span>
               </template>
               <div grid="~ cols-[20px_1fr_60px]" w-full gap-1 p-2 text-sm font-mono>
                 <div text="zinc-400 dark:zinc-500">
@@ -122,7 +125,7 @@ defineExpose({
             </Collapsable>
             <Collapsable h-fit w-full flex="~ col" border="~ gray/25 rounded-lg" divide="y dashed gray/25" of-clip shadow-sm>
               <template #label>
-                <span font-mono>{{ $t('stage.viewers.debug-menu.vrm.model.title') }}</span>
+                <span font-mono>{{ t('stage.viewers.debug-menu.vrm.model.title') }}</span>
               </template>
               <div grid="~ cols-[20px_1fr_60px]" w-full gap-1 p-2 text-sm font-mono>
                 <div text="zinc-400 dark:zinc-500">
@@ -158,38 +161,38 @@ defineExpose({
               </div>
             </Collapsable>
             <div font-mono>
-              <span>{{ $t('stage.viewers.debug-menu.emotions') }}</span>
+              <span>{{ t('stage.viewers.debug-menu.emotions') }}</span>
             </div>
             <div flex="~ row" w-full flex-wrap gap-2>
               <button
                 rounded-lg bg="zinc-100/70 dark:zinc-800/50" px-2 py-1 backdrop-blur-sm
                 @click="modelRef?.setExpression('neutral')"
               >
-                {{ $t('stage.viewers.debug-menu.emotions-btn.neutral') }}
+                {{ t('stage.viewers.debug-menu.emotions-btn.neutral') }}
               </button>
               <button
                 rounded-lg bg="zinc-100/70 dark:zinc-800/50" px-2 py-1 backdrop-blur-sm
                 @click="modelRef?.setExpression('surprised')"
               >
-                {{ $t('stage.viewers.debug-menu.emotions-btn.surprised') }}
+                {{ t('stage.viewers.debug-menu.emotions-btn.surprised') }}
               </button>
               <button
                 rounded-lg bg="zinc-100/70 dark:zinc-800/50" px-2 py-1 backdrop-blur-sm
                 @click="modelRef?.setExpression('sad')"
               >
-                {{ $t('stage.viewers.debug-menu.emotions-btn.sad') }}
+                {{ t('stage.viewers.debug-menu.emotions-btn.sad') }}
               </button>
               <button
                 rounded-lg bg="zinc-100/70 dark:zinc-800/50" px-2 py-1 backdrop-blur-sm
                 @click="modelRef?.setExpression('angry')"
               >
-                {{ $t('stage.viewers.debug-menu.emotions-btn.angry') }}
+                {{ t('stage.viewers.debug-menu.emotions-btn.angry') }}
               </button>
               <button
                 rounded-lg bg="zinc-100/70 dark:zinc-800/50" px-2 py-1 backdrop-blur-sm
                 @click="modelRef?.setExpression('happy')"
               >
-                {{ $t('stage.viewers.debug-menu.emotions-btn.happy') }}
+                {{ t('stage.viewers.debug-menu.emotions-btn.happy') }}
               </button>
             </div>
           </div>

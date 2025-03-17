@@ -2,8 +2,10 @@
 import { IconStatusItem } from '@proj-airi/stage-ui/components'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores'
 import { storeToRefs } from 'pinia'
+import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 
+const { t } = useI18n()
 const router = useRouter()
 const providersStore = useProvidersStore()
 const { allProvidersMetadata } = storeToRefs(providersStore)
@@ -23,10 +25,10 @@ const { allProvidersMetadata } = storeToRefs(providersStore)
     </button>
     <h1 relative>
       <div absolute left-0 top-0 translate-y="[-80%]">
-        <span text="neutral-300 dark:neutral-500">Settings</span>
+        <span text="neutral-300 dark:neutral-500">{{ t('settings.title') }}</span>
       </div>
       <div text-3xl font-semibold>
-        Providers
+        {{ t('settings.pages.providers.title') }}
       </div>
     </h1>
   </div>

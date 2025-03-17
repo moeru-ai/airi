@@ -4,9 +4,11 @@ import { useChatStore } from '@proj-airi/stage-ui/stores'
 import { useElementBounding, useScroll } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { nextTick, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 const chatHistoryRef = ref<HTMLDivElement>()
 
+const { t } = useI18n()
 const { messages } = storeToRefs(useChatStore())
 const bounding = useElementBounding(chatHistoryRef, { immediate: true, windowScroll: true, windowResize: true })
 const { y: chatHistoryContainerY } = useScroll(chatHistoryRef)
@@ -47,7 +49,7 @@ onTokenLiteral(async () => {
             bg="<md:primary-500/25"
           >
             <div>
-              <span text-xs text="primary-400/90 dark:primary-600/90" font-semibold class="inline <sm:hidden">{{ $t('stage.chat.message.character-name.airi') }}</span>
+              <span text-xs text="primary-400/90 dark:primary-600/90" font-semibold class="inline <sm:hidden">{{ t('stage.chat.message.character-name.airi') }}</span>
             </div>
             <div v-if="message.content" class="markdown-content" text="base <sm:xs" v-html="process(message.content as string)" />
             <div v-else i-eos-icons:three-dots-loading />
@@ -63,7 +65,7 @@ onTokenLiteral(async () => {
             bg="<md:cyan-500/25"
           >
             <div>
-              <span text-xs text="cyan-400/90 dark:cyan-600/90" font-semibold class="inline <sm:hidden">{{ $t('stage.chat.message.character-name.you') }}</span>
+              <span text-xs text="cyan-400/90 dark:cyan-600/90" font-semibold class="inline <sm:hidden">{{ t('stage.chat.message.character-name.you') }}</span>
             </div>
             <div v-if="message.content" class="markdown-content" text="base <sm:xs" v-html="process(message.content as string)" />
             <div v-else />

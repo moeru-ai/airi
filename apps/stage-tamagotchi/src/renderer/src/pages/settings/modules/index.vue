@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { IconStatusItem } from '@proj-airi/stage-ui/components'
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 
 const router = useRouter()
+const { t } = useI18n()
 
 interface Module {
   id: string
@@ -20,72 +22,72 @@ interface Module {
 const modulesList = computed<Module[]>(() => [
   {
     id: 'consciousness',
-    name: 'Consciousness',
-    description: 'Thinking, vision, speech synthesis, gaming, etc.',
+    name: t('settings.pages.modules.consciousness.title'),
+    description: t('settings.pages.modules.consciousness.description'),
     icon: 'i-lucide:ghost',
     to: '/settings/modules/consciousness',
     configured: false,
   },
   {
     id: 'hearing',
-    name: 'Hearing',
-    description: 'Hearing, speech recognition, etc.',
+    name: t('settings.pages.modules.hearing.title'),
+    description: t('settings.pages.modules.hearing.description'),
     icon: 'i-lucide:ear',
     to: '',
     configured: false,
   },
   {
     id: 'messaging-discord',
-    name: 'Discord',
-    description: 'Messaging, notifications, etc.',
+    name: t('settings.pages.modules.messaging-discord.title'),
+    description: t('settings.pages.modules.messaging-discord.description'),
     icon: 'i-simple-icons:discord',
     to: '',
     configured: false,
   },
   {
     id: 'speech',
-    name: 'Speech',
-    description: 'Speech synthesis, etc.',
+    name: t('settings.pages.modules.speech.title'),
+    description: t('settings.pages.modules.speech.description'),
     icon: 'i-lucide:mic',
     to: '/settings/modules/speech',
     configured: false,
   },
   {
     id: 'memory-short-term',
-    name: 'Short-Term Memory',
-    description: 'Short-term memory, etc.',
+    name: t('settings.pages.modules.memory-short-term.title'),
+    description: t('settings.pages.modules.memory-short-term.description'),
     icon: 'i-lucide:book',
     to: '',
     configured: false,
   },
   {
     id: 'memory-long-term',
-    name: 'Long-Term Memory',
-    description: 'Long-term memory, etc.',
+    name: t('settings.pages.modules.memory-long-term.title'),
+    description: t('settings.pages.modules.memory-long-term.description'),
     icon: 'i-lucide:book-copy',
     to: '',
     configured: false,
   },
   {
     id: 'vision',
-    name: 'Vision',
-    description: 'Vision, etc.',
+    name: t('settings.pages.modules.vision.title'),
+    description: t('settings.pages.modules.vision.description'),
     icon: 'i-lucide:eye',
     to: '',
     configured: false,
   },
   {
     id: 'game-minecraft',
-    name: 'Minecraft',
-    description: 'Playing Minecraft with you, etc.',
+    name: t('settings.pages.modules.gaming-minecraft.title'),
+    description: t('settings.pages.modules.gaming-minecraft.description'),
     iconColor: 'i-vscode-icons:file-type-minecraft',
     to: '',
     configured: false,
   },
   {
     id: 'game-factorio',
-    name: 'Factorio',
-    description: 'Playing Factorio with you, etc.',
+    name: t('settings.pages.modules.gaming-factorio.title'),
+    description: t('settings.pages.modules.gaming-factorio.description'),
     iconImage: '',
     to: '',
     configured: false,
@@ -107,10 +109,10 @@ const modulesList = computed<Module[]>(() => [
     </button>
     <h1 relative>
       <div absolute left-0 top-0 translate-y="[-80%]">
-        <span text="neutral-300 dark:neutral-500">Settings</span>
+        <span text="neutral-300 dark:neutral-500">{{ t('settings.title') }}</span>
       </div>
       <div text-3xl font-semibold>
-        Modules
+        {{ t('settings.pages.modules.title') }}
       </div>
     </h1>
   </div>

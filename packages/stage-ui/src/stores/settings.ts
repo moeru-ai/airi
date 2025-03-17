@@ -24,7 +24,7 @@ export const useSettings = defineStore('settings', () => {
   const availableLive2dMotions = ref<{ motionName: string, motionIndex: number, fileName: string }[]>([])
   const live2dMotionMap = useLocalStorage<Record<string, string>>('settings/live2d/motion-map', {})
 
-  const disableTransitions = useLocalStorage('settings/disable-transitions', false)
+  const disableTransitions = useLocalStorage('settings/disable-transitions', true)
 
   const themeColorsHue = useLocalStorage('settings/theme/colors/hue', DEFAULT_THEME_COLORS_HUE)
   const themeColorsHueDynamic = useLocalStorage('settings/theme/colors/hue-dynamic', false)

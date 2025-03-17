@@ -30,7 +30,7 @@ function handleLanguageChange(event: Event) {
       <div i-solar:alt-arrow-left-line-duotone text-2xl />
     </button>
     <h1 text-3xl>
-      Settings
+      {{ t('settings.title') }}
     </h1>
   </div>
   <div flex="~ col gap-4">
@@ -40,8 +40,8 @@ function handleLanguageChange(event: Event) {
         :initial="{ opacity: 0, y: 10 }"
         :enter="{ opacity: 1, y: 0 }"
         :duration="250"
-        title="Modules"
-        description="Thinking, vision, speech synthesis, gaming, etc."
+        :title="t('settings.pages.modules.title')"
+        :description="t('settings.pages.modules.description')"
         icon="i-lucide:blocks"
         to="/settings/modules"
       />
@@ -51,8 +51,8 @@ function handleLanguageChange(event: Event) {
         :enter="{ opacity: 1, y: 0 }"
         :duration="250"
         :delay="50"
-        title="Models"
-        description="Live2D, VRM, etc."
+        :title="t('settings.pages.models.title')"
+        :description="t('settings.pages.models.description')"
         icon="i-lucide:person-standing"
         to="/settings/models"
       />
@@ -62,8 +62,8 @@ function handleLanguageChange(event: Event) {
         :enter="{ opacity: 1, y: 0 }"
         :duration="250"
         :delay="100"
-        title="Providers"
-        description="LLMs, speech providers, etc."
+        :title="t('settings.pages.providers.title')"
+        :description="t('settings.pages.providers.description')"
         icon="i-lucide:brain"
         to="/settings/providers"
       />
@@ -73,8 +73,8 @@ function handleLanguageChange(event: Event) {
         :enter="{ opacity: 1, y: 0 }"
         :duration="250"
         :delay="150"
-        title="Themes"
-        description="Customize your stage!"
+        :title="t('settings.pages.themes.title')"
+        :description="t('settings.pages.themes.description')"
         icon="i-lucide:paintbrush"
         to="/settings/themes"
       />
@@ -87,7 +87,7 @@ function handleLanguageChange(event: Event) {
       :delay="150"
     >
       <h2 text-2xl>
-        General
+        {{ t('settings.sections.section.general.title') }}
       </h2>
     </div>
     <div flex="~ col gap-4">
@@ -188,7 +188,7 @@ function handleLanguageChange(event: Event) {
         >
         <div flex="~ row" w-full items-center gap-1.5>
           <div text="sm" w-full flex-1>
-            <span>Disable Transitions (for debugging)</span>
+            <span>{{ t('settings.animations.stage-transitions.title') }}</span>
           </div>
           <div select-none>
             <Transition name="slide-away" mode="out-in">

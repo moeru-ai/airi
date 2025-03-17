@@ -4,10 +4,12 @@ import Live2DModel from '@proj-airi/stage-ui/components/Live2D/Model.vue'
 import { useElementBounding } from '@vueuse/core'
 import { Vibrant } from 'node-vibrant/browser'
 import { ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 
 import Live2DSettings from '../../../components/Widgets/Live2DSettings.vue'
 
+const { t } = useI18n()
 const router = useRouter()
 const live2dContainerRef = ref<HTMLDivElement>()
 const live2dCanvasRef = ref<InstanceType<typeof Live2DCanvas>>()
@@ -49,10 +51,10 @@ async function extractColorsFromModel() {
     </button>
     <h1 relative>
       <div absolute left-0 top-0 translate-y="[-80%]">
-        <span text="neutral-300 dark:neutral-500">Settings</span>
+        <span text="neutral-300 dark:neutral-500">{{ t('settings.title') }}</span>
       </div>
       <div text-3xl font-semibold>
-        Models
+        {{ t('settings.pages.models.title') }}
       </div>
     </h1>
   </div>

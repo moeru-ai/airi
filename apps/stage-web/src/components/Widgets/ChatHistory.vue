@@ -4,6 +4,7 @@ import { useChatStore } from '@proj-airi/stage-ui/stores'
 import { useElementBounding, useScroll } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { nextTick, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 const chatHistoryRef = ref<HTMLDivElement>()
 
@@ -11,6 +12,7 @@ const { messages, sending } = storeToRefs(useChatStore())
 const bounding = useElementBounding(chatHistoryRef, { immediate: true, windowScroll: true, windowResize: true })
 const { y: chatHistoryContainerY } = useScroll(chatHistoryRef)
 
+const { t } = useI18n()
 const { process } = useMarkdown()
 const { onBeforeMessageComposed, onTokenLiteral } = useChatStore()
 
@@ -44,8 +46,7 @@ onTokenLiteral(async () => {
           >
             <div flex="~ row" gap-2>
               <div flex-1>
-                <span text-xs text="violet-400/90 dark:violet-600/90" font-semibold class="inline <sm:hidden">{{
-                  $t('stage.chat.message.character-name.core-system') }}</span>
+                <span text-xs text="violet-400/90 dark:violet-600/90" font-semibold class="inline <sm:hidden">{{ t('stage.chat.message.character-name.core-system') }}</span>
               </div>
               <div i-solar:danger-triangle-bold-duotone text-violet-500 />
             </div>
@@ -62,8 +63,7 @@ onTokenLiteral(async () => {
             rounded-lg px-2 py-1 h="unset <sm:fit" bg="<md:primary-500/25"
           >
             <div>
-              <span text-xs text="primary-400/90 dark:primary-600/90" font-semibold class="inline <sm:hidden">{{
-                $t('stage.chat.message.character-name.airi') }}</span>
+              <span text-xs text="primary-400/90 dark:primary-600/90" font-semibold class="inline <sm:hidden">{{ t('stage.chat.message.character-name.airi') }}</span>
             </div>
             <div v-if="sending" i-eos-icons:three-dots-loading />
             <div v-else class="markdown-content" text="base <sm:xs" v-html="process(message.content as string)" />
@@ -75,11 +75,10 @@ onTokenLiteral(async () => {
             h="unset <sm:fit" min-w-20 rounded-lg px-2 py-1 bg="<md:cyan-500/25"
           >
             <div>
-              <span text-xs text="cyan-400/90 dark:cyan-600/90" font-semibold class="inline <sm:hidden">{{
-                $t('stage.chat.message.character-name.you') }}</span>
+              <span text-xs text="cyan-400/90 dark:cyan-600/90" font-semibold class="inline <sm:hidden">{{ t('stage.chat.message.character-name.you') }}</span>
             </div>
-            <div v-if="sending" i-eos-icons:three-dots-loading />
-            <div v-else class="markdown-content" text="base <sm:xs" v-html="process(message.content as string)" />
+            <div v-if="message.content" class="markdown-content" text="base <sm:xs" v-html="process(message.content as string)" />
+            <div v-else />
           </div>
         </div>
       </div>

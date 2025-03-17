@@ -3,6 +3,7 @@ import { RadioCardDetailManySelect, RadioCardSimple } from '@proj-airi/stage-ui/
 import { useConsciousnessStore, useProvidersStore } from '@proj-airi/stage-ui/stores'
 import { storeToRefs } from 'pinia'
 import { onMounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { RouterLink, useRouter } from 'vue-router'
 
 const providersStore = useProvidersStore()
@@ -19,6 +20,7 @@ const {
   activeProviderModelError,
 } = storeToRefs(consciousnessStore)
 
+const { t } = useI18n()
 const router = useRouter()
 
 onMounted(async () => {
@@ -44,10 +46,10 @@ function updateCustomModelName(value: string) {
     </button>
     <h1 relative>
       <div absolute left-0 top-0 translate-y="[-80%]">
-        <span text="neutral-300 dark:neutral-500">Modules</span>
+        <span text="neutral-300 dark:neutral-500">{{ t('settings.pages.modules.title') }}</span>
       </div>
       <div text-3xl font-semibold>
-        Consciousness
+        {{ t('settings.pages.modules.consciousness.title') }}
       </div>
     </h1>
   </div>
@@ -56,10 +58,10 @@ function updateCustomModelName(value: string) {
       <div flex="~ col gap-4">
         <div>
           <h2 class="text-lg text-neutral-500 md:text-2xl dark:text-neutral-500">
-            Provider
+            {{ t('settings.pages.providers.title') }}
           </h2>
           <div text="neutral-400 dark:neutral-400">
-            <span>Select the suitable LLM provider for consciousness</span>
+            <span>{{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.description') }}</span>
           </div>
         </div>
         <div max-w-full>
@@ -112,10 +114,10 @@ function updateCustomModelName(value: string) {
       <div flex="~ col gap-4">
         <div>
           <h2 class="text-lg md:text-2xl">
-            {{ $t('settings.modules.consciousness.provider-model-selection.title') }}
+            {{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.title') }}
           </h2>
           <div text="neutral-400 dark:neutral-400">
-            <span>{{ $t('settings.modules.consciousness.provider-model-selection.subtitle') }}</span>
+            <span>{{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.subtitle') }}</span>
           </div>
         </div>
 
@@ -124,7 +126,7 @@ function updateCustomModelName(value: string) {
           <div class="mr-2 animate-spin">
             <div i-solar:spinner-line-duotone text-xl />
           </div>
-          <span>{{ $t('settings.modules.consciousness.provider-model-selection.loading') }}</span>
+          <span>{{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.loading') }}</span>
         </div>
 
         <!-- Error state -->
@@ -134,7 +136,7 @@ function updateCustomModelName(value: string) {
         >
           <div i-solar:close-circle-line-duotone class="text-2xl text-red-500 dark:text-red-400" />
           <div class="flex flex-col">
-            <span class="font-medium">{{ $t('settings.modules.consciousness.provider-model-selection.error') }}</span>
+            <span class="font-medium">{{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.error') }}</span>
             <span class="text-sm text-red-600 dark:text-red-400">{{ activeProviderModelError }}</span>
           </div>
         </div>
@@ -146,10 +148,10 @@ function updateCustomModelName(value: string) {
         >
           <div i-solar:info-circle-line-duotone class="text-2xl text-amber-500 dark:text-amber-400" />
           <div class="flex flex-col">
-            <span class="font-medium">{{ $t('settings.modules.consciousness.provider-model-selection.no_models')
+            <span class="font-medium">{{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.no_models')
             }}</span>
             <span class="text-sm text-amber-600 dark:text-amber-400">{{
-              $t('settings.modules.consciousness.provider-model-selection.no_models_description') }}</span>
+              t('settings.pages.modules.consciousness.sections.section.provider-model-selection.no_models_description') }}</span>
           </div>
         </div>
 
@@ -160,13 +162,13 @@ function updateCustomModelName(value: string) {
             v-model:search-query="modelSearchQuery"
             :items="providerModels"
             :searchable="true"
-            :search-placeholder="$t('settings.modules.consciousness.provider-model-selection.search_placeholder')"
-            :search-no-results-title="$t('settings.modules.consciousness.provider-model-selection.no_search_results')"
-            :search-no-results-description="$t('settings.modules.consciousness.provider-model-selection.no_search_results_description', { query: modelSearchQuery })"
-            :search-results-text="$t('settings.modules.consciousness.provider-model-selection.search_results', { count: '{count}', total: '{total}' })"
-            :custom-input-placeholder="$t('settings.modules.consciousness.provider-model-selection.custom_model_placeholder')"
-            :expand-button-text="$t('settings.modules.consciousness.provider-model-selection.expand')"
-            :collapse-button-text="$t('settings.modules.consciousness.provider-model-selection.collapse')"
+            :search-placeholder="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.search_placeholder')"
+            :search-no-results-title="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.no_search_results')"
+            :search-no-results-description="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.no_search_results_description', { query: modelSearchQuery })"
+            :search-results-text="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.search_results', { count: '{count}', total: '{total}' })"
+            :custom-input-placeholder="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.custom_model_placeholder')"
+            :expand-button-text="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.expand')"
+            :collapse-button-text="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.collapse')"
             @update:custom-value="updateCustomModelName"
           />
         </template>
@@ -178,10 +180,10 @@ function updateCustomModelName(value: string) {
       <div flex="~ col gap-4">
         <div>
           <h2 class="text-lg text-neutral-500 md:text-2xl dark:text-neutral-400">
-            {{ $t('settings.modules.consciousness.provider-model-selection.title') }}
+            {{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.title') }}
           </h2>
           <div text="neutral-400 dark:neutral-500">
-            <span>{{ $t('settings.modules.consciousness.provider-model-selection.subtitle') }}</span>
+            <span>{{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.subtitle') }}</span>
           </div>
         </div>
 
@@ -190,22 +192,22 @@ function updateCustomModelName(value: string) {
         >
           <div i-solar:info-circle-line-duotone class="text-primary-500 dark:text-primary-400 text-2xl" />
           <div class="flex flex-col">
-            <span class="font-medium">{{ $t('settings.modules.consciousness.provider-model-selection.not_supported')
+            <span class="font-medium">{{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.not_supported')
             }}</span>
             <span class="dark:text-primary-400 text-primary-600 text-sm">{{
-              $t('settings.modules.consciousness.provider-model-selection.not_supported_description') }}</span>
+              t('settings.pages.modules.consciousness.sections.section.provider-model-selection.not_supported_description') }}</span>
           </div>
         </div>
 
         <!-- Manual model input for providers without model listing -->
         <div class="mt-2">
           <label class="mb-1 block text-sm font-medium">
-            {{ $t('settings.modules.consciousness.provider-model-selection.manual_model_name') }}
+            {{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.manual_model_name') }}
           </label>
           <input
             v-model="activeModel" type="text"
             class="w-full border border-neutral-300 rounded bg-white px-3 py-2 dark:border-neutral-700 dark:bg-neutral-900"
-            :placeholder="$t('settings.modules.consciousness.provider-model-selection.manual_model_placeholder')"
+            :placeholder="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.manual_model_placeholder')"
           >
         </div>
       </div>

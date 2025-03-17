@@ -12,8 +12,10 @@ import {
 import { useProvidersStore } from '@proj-airi/stage-ui/stores'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 
+const { t } = useI18n()
 const router = useRouter()
 const providersStore = useProvidersStore()
 const { providers } = storeToRefs(providersStore) as { providers: RemovableRef<Record<string, any>> }
@@ -76,8 +78,8 @@ function handleResetSettings() {
   >
     <ProviderSettingsContainer>
       <ProviderBasicSettings
-        title="Basic"
-        description="Essential settings"
+        :title="t('settings.pages.providers.common.section.basic.title')"
+        :description="t('settings.pages.providers.common.section.basic.description')"
         :on-reset="handleResetSettings"
       >
         <ProviderApiKeyInput
@@ -87,7 +89,7 @@ function handleResetSettings() {
         />
       </ProviderBasicSettings>
 
-      <ProviderAdvancedSettings title="Advanced">
+      <ProviderAdvancedSettings :title="t('settings.pages.providers.common.section.advanced.title')">
         <ProviderBaseUrlInput
           v-model="baseUrl"
           placeholder="https://api.x.ai/v1/"

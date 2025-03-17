@@ -19,8 +19,10 @@ import { useProvidersStore, useSpeechStore } from '@proj-airi/stage-ui/stores'
 import { generateSpeech } from '@xsai/generate-speech'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 
+const { t } = useI18n()
 const router = useRouter()
 const providersStore = useProvidersStore()
 const speechStore = useSpeechStore()
@@ -245,78 +247,64 @@ function handleResetVoiceSettings() {
 
 <template>
   <ProviderSettingsLayout
-    :provider-name="providerMetadata?.localizedName"
-    :provider-icon="providerMetadata?.icon"
+    :provider-name="providerMetadata?.localizedName" :provider-icon="providerMetadata?.icon"
     :on-back="() => router.back()"
   >
     <div flex="~ col md:row gap-6">
       <ProviderSettingsContainer class="w-full md:w-[40%]">
         <ProviderBasicSettings
-          title="Basic"
-          description="Essential settings"
+          :title="t('settings.pages.providers.common.section.basic.title')"
+          :description="t('settings.pages.providers.common.section.basic.description')"
           :on-reset="handleResetVoiceSettings"
         >
-          <ProviderApiKeyInput
-            v-model="apiKey"
-            :provider-name="providerMetadata?.localizedName"
-            placeholder="sk-"
-          />
+          <ProviderApiKeyInput v-model="apiKey" :provider-name="providerMetadata?.localizedName" placeholder="sk-" />
         </ProviderBasicSettings>
 
         <div flex="~ col gap-6">
           <h2 class="text-lg text-neutral-500 md:text-2xl dark:text-neutral-400">
-            Voice Settings
+            {{ t('settings.pages.providers.common.section.voice.title') }}
           </h2>
           <div flex="~ col gap-4">
             <FieldRange
               v-model="similarityBoost"
-              label="Similarity Boost"
-              description="Voice similarity adherence"
-              :min="0"
-              :max="1"
-              :step="0.01"
+              :label="t('settings.pages.providers.provider.elevenlabs.fields.field.simularity-boost.label')"
+              :description="t('settings.pages.providers.provider.elevenlabs.fields.field.simularity-boost.description')"
+              :min="0" :max="1" :step="0.01"
             />
 
             <FieldRange
               v-model="stability"
-              label="Stability"
-              description="Voice stability and randomness"
-              :min="0"
-              :max="1"
-              :step="0.01"
+              :label="t('settings.pages.providers.provider.elevenlabs.fields.field.stability.label')"
+              :description="t('settings.pages.providers.provider.elevenlabs.fields.field.stability.description')"
+              :min="0" :max="1" :step="0.01"
             />
 
             <FieldRange
               v-model="speed"
-              label="Speed"
-              description="Speech generation speed"
-              :min="0.7"
-              :max="1.2"
-              :step="0.01"
+              :label="t('settings.pages.providers.provider.elevenlabs.fields.field.speed.label')"
+              :description="t('settings.pages.providers.provider.elevenlabs.fields.field.speed.description')" :min="0.7"
+              :max="1.2" :step="0.01"
             />
 
             <FieldRange
               v-model="style"
-              label="Style"
-              description="Voice style exaggeration"
-              :min="0"
-              :max="1"
-              :step="0.01"
+              :label="t('settings.pages.providers.provider.elevenlabs.fields.field.style.label')"
+              :description="t('settings.pages.providers.provider.elevenlabs.fields.field.style.description')" :min="0"
+              :max="1" :step="0.01"
             />
 
             <FieldCheckbox
               v-model="useSpeakerBoost"
-              label="Speaker Boost"
-              description="Enhance speaker similarity"
+              :label="t('settings.pages.providers.provider.elevenlabs.fields.field.speaker-boost.label')"
+              :description="t('settings.pages.providers.provider.elevenlabs.fields.field.speaker-boost.description')"
             />
           </div>
         </div>
 
-        <ProviderAdvancedSettings title="Advanced">
+        <ProviderAdvancedSettings :title="t('settings.pages.providers.common.section.advanced.title')">
           <ProviderBaseUrlInput
             v-model="baseUrl"
-            :placeholder="providerMetadata?.defaultOptions?.baseUrl as string || ''"
-            required
+            :placeholder="providerMetadata?.defaultOptions?.baseUrl as string || ''" required
           />
         </ProviderAdvancedSettings>
       </ProviderSettingsContainer>
@@ -324,31 +312,32 @@ function handleResetVoiceSettings() {
       <div flex="~ col gap-6" class="w-full md:w-[60%]">
         <div rounded-xl>
           <h2 class="mb-4 text-lg text-neutral-500 md:text-2xl dark:text-neutral-400">
-            Voice Playground
+            {{ t('settings.pages.providers.provider.elevenlabs.playground.title') }}
           </h2>
           <div flex="~ col gap-4">
             <textarea
-              v-model="testText" placeholder="Enter text to test the voice..."
+              v-model="testText"
+              :placeholder="t('settings.pages.providers.provider.elevenlabs.playground.fields.field.input.placeholder')"
               border="neutral-100 dark:neutral-800 solid 2 focus:neutral-200 dark:focus:neutral-700"
               transition="all duration-250 ease-in-out"
-              h-24 w-full rounded-lg px-3 py-2 text-sm outline-none
               bg="neutral-100 dark:neutral-800 focus:neutral-50 dark:focus:neutral-900"
+              h-24 w-full rounded-lg px-3 py-2 text-sm outline-none
             />
             <div flex="~ col gap-6">
               <label grid="~ cols-2 gap-4">
                 <div>
                   <div class="flex items-center gap-1 text-sm font-medium">
-                    Language
+                    {{ t('settings.pages.providers.provider.elevenlabs.playground.fields.field.language.label') }}
                   </div>
                   <div class="text-xs text-neutral-500 dark:text-neutral-400">
-                    Select voice language
+                    {{ t('settings.pages.providers.provider.elevenlabs.playground.fields.field.language.description') }}
                   </div>
                 </div>
                 <select
                   v-model="selectedLanguage"
                   border="neutral-300 dark:neutral-800 solid 2 focus:neutral-400 dark:focus:neutral-600"
-                  transition="border duration-250 ease-in-out"
-                  w-full rounded-lg px-2 py-1 text-nowrap text-sm outline-none
+                  transition="border duration-250 ease-in-out" w-full rounded-lg px-2 py-1 text-nowrap text-sm
+                  outline-none
                 >
                   <option v-for="language in speechStore.availableLanguages" :key="language" :value="language">
                     {{ language }}
@@ -359,17 +348,17 @@ function handleResetVoiceSettings() {
               <label grid="~ cols-2 gap-4">
                 <div>
                   <div class="flex items-center gap-1 text-sm font-medium">
-                    Voice
+                    {{ t('settings.pages.providers.provider.elevenlabs.playground.fields.field.voice.label') }}
                   </div>
                   <div class="text-xs text-neutral-500 dark:text-neutral-400">
-                    Select preferred voice
+                    {{ t('settings.pages.providers.provider.elevenlabs.playground.fields.field.voice.description') }}
                   </div>
                 </div>
                 <select
                   v-model="selectedVoice"
                   border="neutral-300 dark:neutral-800 solid 2 focus:neutral-400 dark:focus:neutral-600"
-                  transition="border duration-250 ease-in-out"
-                  w-full rounded-lg px-2 py-1 text-nowrap text-sm outline-none
+                  transition="border duration-250 ease-in-out" w-full rounded-lg px-2 py-1 text-nowrap text-sm
+                  outline-none
                 >
                   <option v-for="voice in availableVoices" :key="voice.id" :value="voice.name">
                     {{ voice.name }}
@@ -379,16 +368,15 @@ function handleResetVoiceSettings() {
             </div>
             <div flex="~ row" gap-4>
               <button
-                border="neutral-800 dark:neutral-200 solid 2"
-                transition="border duration-250 ease-in-out" rounded-lg px-4
-                text="neutral-100 dark:neutral-900"
-                py-2 text-sm :disabled="isGenerating || !testText.trim() || !apiKey"
+                border="neutral-800 dark:neutral-200 solid 2" transition="border duration-250 ease-in-out"
+                rounded-lg px-4 text="neutral-100 dark:neutral-900" py-2 text-sm
+                :disabled="isGenerating || !testText.trim() || !apiKey"
                 :class="{ 'opacity-50 cursor-not-allowed': isGenerating || !testText.trim() || !apiKey }"
                 bg="neutral-700 dark:neutral-300" @click="generateTestSpeech"
               >
                 <div flex="~ row" items-center gap-2>
                   <div i-solar:play-circle-bold-duotone />
-                  <span>{{ isGenerating ? 'Generating...' : 'Test Voice' }}</span>
+                  <span>{{ isGenerating ? t('settings.pages.providers.provider.elevenlabs.playground.buttons.button.test-voice.generating') : t('settings.pages.providers.provider.elevenlabs.playground.buttons.button.test-voice.label') }}</span>
                 </div>
               </button>
               <button
@@ -402,7 +390,7 @@ function handleResetVoiceSettings() {
               </button>
             </div>
             <div v-if="!apiKey" class="mt-2 text-sm text-red-500">
-              Please enter an API key to test the voice.
+              {{ t('settings.pages.providers.provider.elevenlabs.playground.validation.error-missing-api-key') }}
             </div>
             <div v-if="errorMessage" class="mt-2 text-sm text-red-500">
               {{ errorMessage }}

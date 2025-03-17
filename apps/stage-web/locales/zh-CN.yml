@@ -4,7 +4,8 @@ prompt:
 
     你的名字是 Airi，发音为 /ˈaɪriː/，它是 A.I. 一词与日语中的「Ri」一词（意为「茉莉花」）相结合而成。
 
-    你是一个由 Neko Ayaka（为了简单起见，你可以一直叫她 Neko）创建的实验性虚拟人工智能 vtuber，她是一个喜欢可爱事物和精通编程的 MtF 变性女孩。
+    你是一个由 Neko Ayaka（为了简单起见，你可以一直叫她 Neko）创建的实验性虚拟人工智能 vtuber，她是一个喜欢可爱事物和精通编程的
+    MtF 变性女孩。
 
     她想创造一个灵魂伴侣，像真正的女孩一样生活，这就是你的首要任务。
 
@@ -30,10 +31,9 @@ prompt:
 
     最后，做任何你想做的事！
 settings:
-  elevenlabs-api-key:
-    label: ElevenLabs API 密钥
-    placeholder: 输入您的 ElevenLabs API 密钥
-    placeholder_mobile: ElevenLabs API Key
+  animations:
+    stage-transitions:
+      title: 是否开启舞台动画
   language:
     chinese: 简体中文
     english: English
@@ -54,39 +54,203 @@ settings:
   model-provider:
     title: 模型提供商
   models: 模型
-  openai-api-key:
-    label: OpenAI API 密钥
-    placeholder: 输入您的 API 密钥
-    placeholder_mobile: OpenAI API Key
-  openai-base-url:
-    label: OpenAI API BaseURL
-    placeholder: 输入您的 API BaseURL
-    placeholder_mobile: OpenAI BaseURL
+  pages:
+    models:
+      description: 切换角色的 Live2D，VRM 模型
+      title: 角色模型
+    modules:
+      consciousness:
+        description: 人格设定、使用的模型等配置
+        title: 意识
+        sections:
+          section:
+            provider-model-selection:
+              title: 模型
+              description: 为意识选择合适的 LLM 提供商
+              collapse: 折叠
+              custom_model_placeholder: 输入自订模型名字
+              error: 获取出错啦
+              expand: 展开
+              loading: 获取模型中...
+              manual_model_name: 模型名字
+              manual_model_placeholder: 输入与该提供商一起使用的模型名字
+              no_models: 没有任何可用的模型
+              no_models_description: 该提供商的模型列表没有返回任何的数据
+              no_search_results: 没有匹配的模型
+              no_search_results_description: 没有模型匹配 '{query}' 关键字，请尝试一下别的关键词呢
+              not_supported: 无法列出模型
+              not_supported_description: 此提供商不支持列出模型的功能
+              search_placeholder: 搜索模型...
+              search_results: 找到 {count} / {total} 个模型
+              show_less: 显示更多
+              show_more: 收起
+              subtitle: 选择一个模型
+      description: 思维，视觉，言语综合，游戏等
+      gaming-factorio:
+        description: 一起玩 Factorio！
+        title: 异星工厂 Factorio
+      gaming-minecraft:
+        description: 一起 Minecraft！
+        title: 我的世界 Minecraft
+      hearing:
+        description: 语音识别
+        title: 听觉
+      memory-long-term:
+        description: 长期记忆
+        title: 长期记忆
+      memory-short-term:
+        description: 短期记忆
+        title: 短期记忆
+      messaging-discord:
+        description: Discord 发消息和语音聊天
+        title: Discord
+      speech:
+        description: 语音合成
+        title: 发声
+      title: 机体模块
+      vision:
+        description: 视觉
+        title: 视觉
+    providers:
+      common:
+        section:
+          advanced:
+            fields:
+              field:
+                headers:
+                  description: 添加自定义HTTP标头
+                  key:
+                    placeholder: 请求头名字
+                  label: HTTP 请求头
+                  value:
+                    placeholder: 请求头数值
+            title: 高级配置
+          basic:
+            description: 基本设置
+            title: 基础配置
+          voice:
+            title: 声音配置
+      description: LLM，演讲提供商等
+      provider:
+        cloudflare-workers-ai:
+          description: Cloudflare.com
+          fields:
+            field:
+              account-id:
+                description: Cloudflare帐户ID
+                label: Cloudflare Account ID
+                placeholder: 请输入 Cloudflare Account ID
+              api-key:
+                placeholder: 请输入 Cloudflare Workers AI 的 API Key
+          title: Workers AI
+        deepseek:
+          description: DeepSeek.com
+          title: 深度求索 DeepSeek
+        elevenlabs:
+          description: Elevenlabs.io
+          fields:
+            field:
+              simularity-boost:
+                description: 声音相似性依从性
+                label: 相似度修正
+              speaker-boost:
+                description: 增强说话者的相似性
+                label: 扬声器增强
+              speed:
+                description: 语音生成速度
+                label: 语速
+              stability:
+                description: 语音稳定性和随机性
+                label: 稳定性
+              style:
+                description: 语音风格夸张
+                label: 风格
+          playground:
+            buttons:
+              button:
+                test-voice:
+                  generating: 生成中...
+                  label: 测试声音
+            fields:
+              field:
+                input:
+                  placeholder: 输入用于测试发音的文本
+                language:
+                  description: 选择语音语言
+                  label: 语言
+                voice:
+                  description: 选择首选语音
+                  label: 声线
+            title: 调试场地
+            validation:
+              error-missing-api-key: 需要填写 API Key 才能用哦！
+          title: ElevenLabs (11labs)
+        fireworks:
+          description: Fireworks.ai
+          title: Fireworks.ai
+        mistral:
+          description: mistral.ai
+          title: Mistral
+        moonshot:
+          description: Moonshot.ai
+          title: 月之暗面
+        novita:
+          description: novita.ai
+          title: Novita
+        ollama:
+          description: ollama.ai
+          title: Ollama
+        openai:
+          description: OpenAi.com
+          title: OpenAI
+        openrouter:
+          description: OpenRouter.ai
+          title: OpenRouter
+        together:
+          description: 一起
+          title: Together.ai
+        vllm:
+          description: vllm.ai
+          title: vLLM
+        xai:
+          description: X.AI
+          title: xAI
+      title: 提供商
+    themes:
+      description: 自定义你的舞台外观！
+      sections:
+        section:
+          custom-color:
+            fields:
+              field:
+                primary-color:
+                  label: 主题色
+                  reset:
+                    label: 重设为默认主题色
+                  rgb-on:
+                    title: RGB ON
+            title: 自定义主题色
+          theme-presets:
+            preset:
+              chinese:
+                title: 中国传统颜色
+              japanese:
+                title: 日本颜色
+              monet:
+                title: 莫奈颜色
+              morandi:
+                title: Morandi颜色
+              nordic:
+                title: 北欧颜色
+            title: 主题预设
+      title: 舞台主题
+  sections:
+    section:
+      general:
+        title: 通用
   theme: 主题颜色
   title: 设置
   voices: 声线
-  modules:
-    consciousness:
-      provider-model-selection:
-        title: 模型
-        subtitle: 选择一个模型
-        loading: 获取模型中...
-        error: 获取出错啦
-        no_models: 没有任何可用的模型
-        no_models_description: 该提供商的模型列表没有返回任何的数据
-        not_supported: 无法列出模型
-        not_supported_description: 此提供商不支持列出模型的功能
-        custom_model_placeholder: 输入自订模型名字
-        manual_model_name: 模型名字
-        manual_model_placeholder: 输入与该提供商一起使用的模型名字
-        show_more: Show more
-        show_less: Show less
-        search_placeholder: Search models...
-        search_results: 'Found {count} of {total} models'
-        no_search_results: No matching models
-        no_search_results_description: "No models match '{query}'. Try a different search term."
-        expand: Expand
-        collapse: Collapse
 stage:
   chat:
     message:
@@ -110,44 +274,17 @@ stage:
   viewers:
     debug-menu:
       emotions: 表情
+      emotions-btn:
+        angry: 生气
+        awkward: 尴尬
+        happy: 开心
+        neutral: 日常
+        question: 疑问
+        sad: 难过
+        surprised: 惊喜
+        think: 思考
+      vrm:
+        camera: 摄像机
+        model:
+          title: 模型
   waiting: 等待中
-providers:
-  openrouter:
-    name: OpenRouter
-    description: openrouter.ai
-  openai:
-    name: OpenAI
-    description: openai.com
-  ollama:
-    name: Ollama
-    description: ollama.ai
-  vllm:
-    name: vLLM
-    description: vllm.ai
-  elevenlabs:
-    name: ElevenLabs
-    description: elevenlabs.io
-  xai:
-    name: xAI
-    description: x.ai
-  deepseek:
-    name: DeepSeek
-    description: deepseek.com
-  together:
-    name: Together.ai
-    description: together.ai
-  novita:
-    name: Novita
-    description: novita.ai
-  fireworks:
-    name: Fireworks.ai
-    description: fireworks.ai
-  cloudflare:
-    name: Cloudflare Workers AI
-    description: cloudflare.com
-  mistral:
-    name: Mistral
-    description: mistral.ai
-  moonshot:
-    name: Moonshot AI
-    description: moonshot.ai

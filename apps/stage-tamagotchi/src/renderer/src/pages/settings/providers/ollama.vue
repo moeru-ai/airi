@@ -12,8 +12,10 @@ import {
 import { useProvidersStore } from '@proj-airi/stage-ui/stores'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, reactive, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 
+const { t } = useI18n()
 const router = useRouter()
 const providersStore = useProvidersStore()
 const { providers } = storeToRefs(providersStore) as { providers: RemovableRef<Record<string, any>> }
@@ -92,8 +94,8 @@ watch(headers, (headers) => {
   >
     <ProviderSettingsContainer>
       <ProviderBasicSettings
-        title="Basic"
-        description="Essential settings"
+        :title="t('settings.pages.providers.common.section.basic.title')"
+        :description="t('settings.pages.providers.common.section.basic.description')"
         :on-reset="handleResetSettings"
       >
         <ProviderBaseUrlInput
@@ -103,13 +105,13 @@ watch(headers, (headers) => {
         />
       </ProviderBasicSettings>
 
-      <ProviderAdvancedSettings title="Advanced">
+      <ProviderAdvancedSettings :title="t('settings.pages.providers.common.section.advanced.title')">
         <FieldKeyValues
           v-model="headers"
-          label="HTTP Headers"
-          description="Add custom HTTP headers"
-          key-placeholder="Key"
-          value-placeholder="Value"
+          :label="t('settings.pages.providers.common.section.advanced.fields.field.headers.label')"
+          :description="t('settings.pages.providers.common.section.advanced.fields.field.headers.description')"
+          :key-placeholder="t('settings.pages.providers.common.section.advanced.fields.field.headers.key.placeholder')"
+          :value-placeholder="t('settings.pages.providers.common.section.advanced.fields.field.headers.value.placeholder')"
           @add="(key, value) => addKeyValue(headers, key, value)"
           @remove="(index) => removeKeyValue(index, headers)"
         />

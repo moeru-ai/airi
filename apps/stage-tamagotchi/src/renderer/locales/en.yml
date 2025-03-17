@@ -43,26 +43,12 @@ prompt:
 
     And the last, do what ever you want!
 settings:
-  elevenlabs-api-key:
-    label: ElevenLabs API Key
-    placeholder: Input your ElevenLabs API key
-    placeholder_mobile: Elevenlabs API Key
   language:
     chinese: 简体中文
     english: English
     title: Language
   microphone: Microphone
   models: Model
-  openai-api-key:
-    label: OpenAI API Key
-    placeholder: Input your API key
-    placeholder_mobile: OpenAI API Key
-  openai-base-url:
-    label: OpenAI API BaseURL
-    placeholder: Input your API base URL
-    placeholder_mobile: OpenAI API BaseURL
-  title: Settings
-  voices: Voice
   quit: Quit
   viewer: Viewer
   shortcuts:
@@ -73,6 +59,210 @@ settings:
       debug: Toggle developer tools
   press_keys: Press keys...
   other: Other
+  pages:
+    models:
+      description: Live2D, VRM, etc.
+      title: Models
+    modules:
+      consciousness:
+        description: Personality, desired model, etc.
+        sections:
+          section:
+            provider-model-selection:
+              title: Model
+              description: Select the suitable LLM provider for consciousness
+              collapse: Collapse
+              custom_model_placeholder: Enter custom model name...
+              error: Error loading models
+              expand: Expand
+              loading: Loading available models...
+              manual_model_name: Model Name
+              manual_model_placeholder: Enter the model name to use with this provider
+              no_models: No models available
+              no_models_description: No models were found for this provider
+              no_search_results: No matching models
+              no_search_results_description: No models match '{query}'. Try a different search term.
+              not_supported: Model listing not supported
+              not_supported_description: This provider doesn't support model listing functionality
+              search_placeholder: Search models...
+              search_results: Found {count} of {total} models
+              show_less: Show less
+              show_more: Show more
+              subtitle: Select a model from the provider
+        title: Consciousness
+      description: Thinking, vision, speech synthesis, gaming, etc.
+      gaming-factorio:
+        description: Playing Factorio!
+        title: Factorio
+      gaming-minecraft:
+        description: Playing Minecraft!
+        title: Minecraft
+      hearing:
+        description: Configure how speech recognition works
+        title: Hearing
+      memory-long-term:
+        description: Long-term memory specific settings and management
+        title: Long-Term Memory
+      memory-short-term:
+        description: Short-term memory specific settings and management
+        title: Short-Term Memory
+      messaging-discord:
+        description: Chat & voice chat over Discord
+        title: Discord
+      speech:
+        description: Speech synthesis
+        title: Speech
+      title: Modules
+      vision:
+        description: Vision
+        title: Vision
+    providers:
+      common:
+        section:
+          advanced:
+            fields:
+              field:
+                headers:
+                  description: Add custom HTTP headers
+                  key:
+                    placeholder: Key
+                  label: HTTP Headers
+                  value:
+                    placeholder: Value
+            title: Advanced
+          basic:
+            description: Essential settings
+            title: Basic
+          voice:
+            title: Voice Settings
+      description: LLMs, speech providers, etc.
+      provider:
+        cloudflare-workers-ai:
+          description: cloudflare.com
+          fields:
+            field:
+              account-id:
+                description: Cloudflare Account ID
+                label: Account ID
+                placeholder: Your Cloudflare Account ID
+              api-key:
+                placeholder: Input Cloudflare Account ID
+          title: Cloudflare Workers AI
+        deepseek:
+          description: deepseek.com
+          title: DeepSeek
+        elevenlabs:
+          description: elevenlabs.io
+          fields:
+            field:
+              simularity-boost:
+                description: Voice similarity adherence
+                label: Similarity Boost
+              speaker-boost:
+                description: Enhance speaker similarity
+                label: Speaker Boost
+              speed:
+                description: Speech generation speed
+                label: Speed
+              stability:
+                description: Voice stability and randomness
+                label: Stability
+              style:
+                description: Voice style exaggeration
+                label: Style
+          playground:
+            buttons:
+              button:
+                test-voice:
+                  generating: Generating...
+                  label: Test Voice
+            fields:
+              field:
+                input:
+                  placeholder: Enter text to test the voice...
+                language:
+                  description: Select voice language
+                  label: Language
+                voice:
+                  description: Select preferred voice
+                  label: Voice
+            title: Voice Playground
+            validation:
+              error-missing-api-key: Please enter an API key to test the voice.
+          title: ElevenLabs
+        fireworks:
+          description: fireworks.ai
+          title: Fireworks.ai
+        mistral:
+          description: mistral.ai
+          title: Mistral
+        moonshot:
+          description: moonshot.ai
+          title: Moonshot AI
+        novita:
+          description: novita.ai
+          title: Novita
+        ollama:
+          description: ollama.ai
+          title: Ollama
+        openai:
+          description: openai.com
+          title: OpenAI
+        openrouter:
+          description: openrouter.ai
+          title: OpenRouter
+        together:
+          description: together.ai
+          title: Together.ai
+        vllm:
+          description: vllm.ai
+          title: vLLM
+        xai:
+          description: x.ai
+          title: xAI
+      title: Providers
+    themes:
+      description: Customize your stage!
+      sections:
+        section:
+          custom-color:
+            fields:
+              field:
+                primary-color:
+                  label: Primary color
+                  reset:
+                    label: Reset to Default
+                  rgb-on:
+                    title: I Want It Dynamic!
+            title: Custom Colors
+          theme-presets:
+            preset:
+              chinese:
+                description: >-
+                  Traditional Chinese colors, derived from ancient textiles,
+                  porcelain and paintings
+                title: Chinese Traditional Colors
+              japanese:
+                description: Traditional Japanese color palette
+                title: Japanese Colors
+              monet:
+                description: Impressionist palette inspired by Claude Monet\'s works
+                title: Monet Colors
+              morandi:
+                description: Soft, muted tones inspired by Giorgio Morandi\'s paintings
+                title: Morandi Colors
+              nordic:
+                description: Scandinavian minimalist color scheme
+                title: Nordic Colors
+            title: Theme Presets
+      title: Themes
+  sections:
+    section:
+      general:
+        title: General
+  theme: Theme
+  title: Settings
+  voices: Voice
 stage:
   chat:
     message:
