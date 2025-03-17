@@ -107,6 +107,23 @@ settings:
       speech:
         description: 语音合成
         title: 发声
+        sections:
+          section:
+            provider-voice-selection:
+              description: 选择合适的语音提供商
+              title: 提供商
+              custom_model_placeholder: 输入指定模型名字...
+              custom_voice_placeholder: 输入指定声线 ID...
+              no_models: 没有任何可用的模型
+              no_models_description: 该提供商的模型列表没有返回任何的数据
+              no_voices: 没有任何可用的声线
+              no_voices_description: 该提供商的声线列表没有返回任何的数据
+              search_models_placeholder: 搜索模型...
+              search_models_results: 找到 {count} / {total} 个模型
+              search_voices_placeholder: 搜索声线...
+              search_voices_results: 找到 {count} / {total} 个声线
+              show_less: 显示更少
+              show_more: 显示更多
       title: 机体模块
       vision:
         description: 视觉

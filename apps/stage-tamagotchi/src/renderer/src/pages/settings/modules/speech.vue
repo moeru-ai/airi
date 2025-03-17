@@ -1,8 +1,13 @@
 <script setup lang="ts">
-import { RadioCardDetailManySelect, RadioCardSimple, Range } from '@proj-airi/stage-ui/components'
+import {
+  FieldCheckbox,
+  FieldRange,
+  RadioCardDetailManySelect,
+  RadioCardSimple,
+} from '@proj-airi/stage-ui/components'
 import { useProvidersStore, useSpeechStore } from '@proj-airi/stage-ui/stores'
 import { storeToRefs } from 'pinia'
-import { onMounted, ref } from 'vue'
+import { onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink, useRouter } from 'vue-router'
 
@@ -21,7 +26,6 @@ const {
   rate,
   isLoadingSpeechProviderVoices,
   speechProviderError,
-  supportsSSML,
   ssmlEnabled,
   availableVoices,
 } = storeToRefs(speechStore)
@@ -38,6 +42,10 @@ const ssmlExample = ref(`<speak>
 const voiceSearchQuery = ref('')
 
 onMounted(async () => {
+  await speechStore.loadVoicesForProvider(activeSpeechProvider.value)
+})
+
+watch(activeSpeechProvider, async () => {
   await speechStore.loadVoicesForProvider(activeSpeechProvider.value)
 })
 
@@ -64,22 +72,18 @@ function updateSSMLExample() {
 
 <template>
   <div
-    v-motion
-    flex="~ row" items-center gap-2
-    :initial="{ opacity: 0, x: 10 }"
-    :enter="{ opacity: 1, x: 0 }"
-    :leave="{ opacity: 0, x: -10 }"
-    :duration="250"
+    v-motion flex="~ row" items-center gap-2 :initial="{ opacity: 0, x: 10 }" :enter="{ opacity: 1, x: 0 }"
+    :leave="{ opacity: 0, x: -10 }" :duration="250"
   >
     <button @click="router.back()">
       <div i-solar:alt-arrow-left-line-duotone text-xl />
     </button>
     <h1 relative>
       <div absolute left-0 top-0 translate-y="[-80%]">
-        <span text="neutral-300 dark:neutral-500">{{ t('settings.pages.modules.title') }}</span>
+        <span text="neutral-300 dark:neutral-500" text-nowrap>{{ t('settings.pages.modules.title') }}</span>
       </div>
-      <div text-3xl font-semibold>
-        Speech
+      <div text-nowrap text-3xl font-semibold>
+        {{ t('settings.pages.modules.speech.title') }}
       </div>
     </h1>
   </div>
@@ -88,37 +92,27 @@ function updateSSMLExample() {
       <div flex="~ col gap-4">
         <div>
           <h2 class="text-lg text-neutral-500 md:text-2xl dark:text-neutral-400">
-            Provider
+            {{ t('settings.pages.modules.speech.sections.section.provider-voice-selection.title') }}
           </h2>
           <div text="neutral-400 dark:neutral-500">
-            <span>Select the suitable speech provider</span>
+            <span>{{ t('settings.pages.modules.speech.sections.section.provider-voice-selection.description') }}</span>
           </div>
         </div>
         <div max-w-full>
           <fieldset
-            v-if="availableProviders.length > 0"
-            flex="~ row gap-4"
-            :style="{ 'scrollbar-width': 'none' }"
-            min-w-0 of-x-scroll scroll-smooth
-            role="radiogroup"
+            v-if="availableProviders.length > 0" flex="~ row gap-4" :style="{ 'scrollbar-width': 'none' }"
+            min-w-0 of-x-scroll scroll-smooth role="radiogroup"
           >
             <RadioCardSimple
-              v-for="metadata in availableProvidersMetadata"
-              :id="metadata.id"
-              :key="metadata.id"
-              v-model="activeSpeechProvider"
-              name="speech-provider"
-              :value="metadata.id"
-              :title="metadata.localizedName"
+              v-for="metadata in availableProvidersMetadata" :id="metadata.id" :key="metadata.id"
+              v-model="activeSpeechProvider" name="speech-provider" :value="metadata.id" :title="metadata.localizedName"
               :description="metadata.localizedDescription"
             />
           </fieldset>
           <div v-else>
             <RouterLink
-              class="flex items-center gap-3 rounded-lg p-4"
-              border="2 dashed neutral-200 dark:neutral-800"
-              bg="neutral-50 dark:neutral-800"
-              transition="colors duration-200 ease-in-out" to="/settings/providers"
+              class="flex items-center gap-3 rounded-lg p-4" border="2 dashed neutral-200 dark:neutral-800"
+              bg="neutral-50 dark:neutral-800" transition="colors duration-200 ease-in-out" to="/settings/providers"
             >
               <div i-solar:warning-circle-line-duotone class="text-2xl text-amber-500 dark:text-amber-400" />
               <div class="flex flex-col">
@@ -166,24 +160,25 @@ function updateSSMLExample() {
         </div>
 
         <!-- Voice selection with RadioCardDetailManySelect -->
-        <div v-else-if="availableVoices[activeSpeechProvider] && availableVoices[activeSpeechProvider].length > 0" class="space-y-6">
+        <div
+          v-else-if="availableVoices[activeSpeechProvider] && availableVoices[activeSpeechProvider].length > 0"
+          class="space-y-6"
+        >
           <RadioCardDetailManySelect
-            v-model="voiceId"
-            v-model:search-query="voiceSearchQuery"
+            v-model="voiceId" v-model:search-query="voiceSearchQuery"
             :items="availableVoices[activeSpeechProvider]?.map(voice => ({
               id: voice.name,
               name: voice.name,
-              description: voice.description || `${voice.labels?.gender || 'Neutral'} voice`,
+              description: voice.description,
               customizable: true,
-            }))"
-            :searchable="true"
-            search-placeholder="Search voices..."
-            search-no-results-title="No voices found"
-            search-no-results-description="Try a different search term or enter a custom voice name"
-            search-results-text="{count} of {total} voices"
-            custom-input-placeholder="Enter custom voice name"
-            expand-button-text="Show more voices"
-            collapse-button-text="Show fewer voices"
+            }))" :searchable="true"
+            :search-placeholder="t('settings.pages.modules.speech.sections.section.provider-voice-selection.search_voices_placeholder')"
+            :search-no-results-title="t('settings.pages.modules.speech.sections.section.provider-voice-selection.no_voices')"
+            :search-no-results-description="t('settings.pages.modules.speech.sections.section.provider-voice-selection.no_voices_description')"
+            :search-results-text="t('settings.pages.modules.speech.sections.section.provider-voice-selection.search_voices_results', { count: 0, total: 0 })"
+            :custom-input-placeholder="t('settings.pages.modules.speech.sections.section.provider-voice-selection.custom_voice_placeholder')"
+            :expand-button-text="t('settings.pages.modules.speech.sections.section.provider-voice-selection.show_more')"
+            :collapse-button-text="t('settings.pages.modules.speech.sections.section.provider-voice-selection.show_less')"
             @update:custom-value="updateCustomVoiceName"
           />
 
@@ -209,66 +204,25 @@ function updateSSMLExample() {
           </div>
 
           <!-- Voice parameters -->
-          <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <div>
-              <label class="mb-1 block text-sm font-medium">
-                Pitch Adjustment (%)
-              </label>
-              <div class="flex items-center gap-3">
-                <Range
-                  v-model="pitch" :min="-50" :max="50" :step="5"
-                  class="w-full"
-                  @change="updateSSMLExample"
-                />
-                <span class="w-12 text-center">{{ pitch }}%</span>
-              </div>
-            </div>
-            <div>
-              <label class="mb-1 block text-sm font-medium">
-                Speech Rate
-              </label>
-              <div class="flex items-center gap-3">
-                <Range
-                  v-model="rate" :min="0.5" :max="2" :step="0.1"
-                  class="w-full"
-                  @change="updateSSMLExample"
-                />
-                <span class="w-12 text-center">{{ rate }}x</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- SSML Support -->
-          <div v-if="supportsSSML" class="border border-2 border-neutral-200 rounded-lg p-4 dark:border-neutral-700">
-            <div class="mb-3 flex items-center justify-between">
-              <label class="font-medium">SSML Support</label>
-              <div class="relative mr-2 inline-block w-10 select-none align-middle">
-                <input
-                  id="ssml-toggle"
-                  v-model="ssmlEnabled"
-                  type="checkbox"
-                  class="sr-only"
-                >
-                <label
-                  for="ssml-toggle"
-                  class="block h-6 cursor-pointer overflow-hidden rounded-full bg-neutral-300 dark:bg-neutral-700"
-                >
-                  <span
-                    :class="{ 'translate-x-4': ssmlEnabled, 'translate-x-0': !ssmlEnabled }"
-                    class="block h-6 w-6 transform rounded-full bg-white shadow transition-transform duration-200 ease-in-out"
-                  />
-                </label>
-              </div>
-            </div>
-            <p class="mb-3 text-sm text-neutral-500">
-              Enable Speech Synthesis Markup Language for more control over speech output
-            </p>
-            <div v-if="ssmlEnabled" class="mt-3">
-              <label class="mb-1 block text-sm font-medium">
-                SSML Example
-              </label>
-              <pre class="overflow-auto rounded bg-neutral-50 p-3 text-xs dark:bg-neutral-800">{{ ssmlExample }}</pre>
-            </div>
+          <div flex="~ col gap-4">
+            <FieldRange
+              v-model="pitch"
+              label="Pitch Adjustment (%)"
+              description="Tune the pitch of the speech"
+              :min="-100" :max="100" :step="0.1"
+            />
+            <FieldRange
+              v-model="rate"
+              label="Speech Rate"
+              description="Adjust the speed of the speech"
+              :min="0.5" :max="2" :step="0.01"
+            />
+            <!-- SSML Support -->
+            <FieldCheckbox
+              v-model="ssmlEnabled"
+              label="Enable SSML"
+              description="Enable Speech Synthesis Markup Language for more control over speech output"
+            />
           </div>
         </div>
 
@@ -287,14 +241,16 @@ function updateSSMLExample() {
         </div>
 
         <!-- Manual voice input when no voices are available -->
-        <div v-if="!availableVoices[activeSpeechProvider] || availableVoices[activeSpeechProvider].length === 0" class="mt-2 space-y-6">
+        <div
+          v-if="!availableVoices[activeSpeechProvider] || availableVoices[activeSpeechProvider].length === 0"
+          class="mt-2 space-y-6"
+        >
           <div>
             <label class="mb-1 block text-sm font-medium">
               Voice Name
             </label>
             <input
-              v-model="voiceId"
-              type="text"
+              v-model="voiceId" type="text"
               class="w-full border border-neutral-300 rounded bg-white px-3 py-2 dark:border-neutral-700 dark:bg-neutral-900"
               placeholder="Enter voice name (e.g., 'Rachel', 'Josh')"
               @input="(event) => updateVoiceName((event.target as HTMLInputElement).value)"
@@ -325,74 +281,35 @@ function updateSSMLExample() {
             </select>
           </div>
 
-          <!-- Voice parameters -->
-          <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <div>
-              <label class="mb-1 block text-sm font-medium">
-                Pitch Adjustment (%)
-              </label>
-              <div class="flex items-center gap-3">
-                <Range
-                  v-model="pitch" :min="-50" :max="50" :step="5"
-                  class="w-full"
-                  @change="updateSSMLExample"
-                />
-                <span class="w-12 text-center">{{ pitch }}%</span>
-              </div>
-            </div>
-            <div>
-              <label class="mb-1 block text-sm font-medium">
-                Speech Rate
-              </label>
-              <div class="flex items-center gap-3">
-                <Range
-                  v-model="rate" :min="0.5" :max="2" :step="0.1"
-                  class="w-full"
-                  @change="updateSSMLExample"
-                />
-                <span class="w-12 text-center">{{ rate }}x</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- SSML Support -->
-          <div v-if="supportsSSML" class="border border-2 border-neutral-200 rounded-lg p-4 dark:border-neutral-700">
-            <div class="mb-3 flex items-center justify-between">
-              <label class="font-medium">SSML Support</label>
-              <div class="relative mr-2 inline-block w-10 select-none align-middle">
-                <input
-                  id="ssml-toggle"
-                  v-model="ssmlEnabled"
-                  type="checkbox"
-                  class="sr-only"
-                >
-                <label
-                  for="ssml-toggle"
-                  class="block h-6 cursor-pointer overflow-hidden rounded-full bg-neutral-300 dark:bg-neutral-700"
-                >
-                  <span
-                    :class="{ 'translate-x-4': ssmlEnabled, 'translate-x-0': !ssmlEnabled }"
-                    class="block h-6 w-6 transform rounded-full bg-white shadow transition-transform duration-200 ease-in-out"
-                  />
-                </label>
-              </div>
-            </div>
-            <p class="mb-3 text-sm text-neutral-500">
-              Enable Speech Synthesis Markup Language for more control over speech output
-            </p>
-            <div v-if="ssmlEnabled" class="mt-3">
-              <label class="mb-1 block text-sm font-medium">
-                SSML Example
-              </label>
-              <pre class="overflow-auto rounded bg-neutral-50 p-3 text-xs dark:bg-neutral-800">{{ ssmlExample }}</pre>
-            </div>
+          <div flex="~ col gap-4">
+            <FieldRange
+              v-model="pitch"
+              label="Pitch Adjustment (%)"
+              description="Tune the pitch of the speech"
+              :min="-100" :max="100" :step="0.1"
+            />
+            <FieldRange
+              v-model="rate"
+              label="Speech Rate"
+              description="Adjust the speed of the speech"
+              :min="0.5" :max="2" :step="0.01"
+            />
+            <!-- SSML Support -->
+            <FieldCheckbox
+              v-model="ssmlEnabled"
+              label="Enable SSML"
+              description="Enable Speech Synthesis Markup Language for more control over speech output"
+            />
           </div>
         </div>
       </div>
     </div>
   </div>
 
-  <div text="neutral-200/50 dark:neutral-500/20" pointer-events-none fixed bottom-0 right-0 z--1 translate-x-10 translate-y-10>
+  <div
+    text="neutral-200/50 dark:neutral-500/20" pointer-events-none fixed bottom-0 right-0 z--1 translate-x-10
+    translate-y-10
+  >
     <div text="40" i-lucide:volume-2 />
   </div>
 </template>

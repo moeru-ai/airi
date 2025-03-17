@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 
-import ProviderInput from './FieldInput.vue'
+import FieldInput from './FieldInput.vue'
 
 const textValue = ref('')
 const passwordValue = ref('secret-password')
@@ -23,7 +23,7 @@ const emailValue = ref('user@example.com')
       title="Text Input (Empty)"
     >
       <div>
-        <ProviderInput
+        <FieldInput
           v-model="textValue"
           label="Text Input"
           description="A basic text input field"
@@ -37,7 +37,7 @@ const emailValue = ref('user@example.com')
       title="Password Input"
     >
       <div>
-        <ProviderInput
+        <FieldInput
           v-model="passwordValue"
           label="Password"
           description="A password input field"
@@ -52,7 +52,7 @@ const emailValue = ref('user@example.com')
       title="Email Input"
     >
       <div>
-        <ProviderInput
+        <FieldInput
           v-model="emailValue"
           label="Email Address"
           description="An email input field"
@@ -67,7 +67,7 @@ const emailValue = ref('user@example.com')
       title="Required Input"
     >
       <div>
-        <ProviderInput
+        <FieldInput
           v-model="textValue"
           label="Required Field"
           description="This field is required"
@@ -82,7 +82,7 @@ const emailValue = ref('user@example.com')
       title="Optional Input"
     >
       <div>
-        <ProviderInput
+        <FieldInput
           v-model="textValue"
           label="Optional Field"
           description="This field is optional"

@@ -623,7 +623,10 @@ export const useProvidersStore = defineStore('providers', () => {
       // Transform and store the models
       availableModels.value[providerId] = models.map(model => ({
         id: model.id,
-        name: model.id,
+        name: model.name,
+        description: model.description,
+        contextLength: model.contextLength,
+        deprecated: model.deprecated,
         provider: providerId,
       }))
 

@@ -55,10 +55,6 @@ const filteredItems = computed(() => {
   )
 })
 
-function clearSearch() {
-  searchQuery.value = ''
-}
-
 function updateCustomValue(value: string) {
   customValue.value = value
   emit('update:customValue', value)
@@ -68,7 +64,7 @@ function updateCustomValue(value: string) {
 <template>
   <div class="radio-card-detail-many-select">
     <!-- Search bar -->
-    <div v-if="searchable" class="relative">
+    <div v-if="searchable" class="relative" inline-flex="~" w-full items-center>
       <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
         <div i-solar:magnifer-line-duotone class="text-neutral-500 dark:text-neutral-400" />
       </div>
@@ -76,23 +72,11 @@ function updateCustomValue(value: string) {
         v-model="searchQuery"
         type="search"
         class="w-full rounded-xl p-2.5 pl-10 text-sm outline-none"
-        border="focus:primary-100 dark:focus:primary-900 ~ neutral-200 dark:neutral-800 2"
+        border="focus:primary-100 dark:focus:primary-400/50 2 solid neutral-200 dark:neutral-800"
         transition="all duration-200 ease-in-out"
-        ring="focus:primary-500 dark:focus:primary-400 0 focus:2 focus:offset-0 focus:opacity-50"
         bg="white dark:neutral-900"
         :placeholder="searchPlaceholder"
       >
-      <button
-        v-if="searchQuery"
-        type="button"
-        class="absolute inset-y-0 right-0 flex items-center pr-3"
-        @click="clearSearch"
-      >
-        <div
-          i-solar:close-circle-line-duotone
-          class="text-neutral-500 dark:text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200"
-        />
-      </button>
     </div>
 
     <!-- Items list with search results info -->
@@ -176,3 +160,9 @@ function updateCustomValue(value: string) {
     </div>
   </div>
 </template>
+
+<style scoped>
+input[type='search']::-webkit-search-cancel-button {
+  display: none;
+}
+</style>

@@ -39,11 +39,10 @@ watch([inputKey, inputValue], () => {
           {{ props.description }}
         </div>
       </div>
-      <div flex="~ col gap-2">
+      <div v-auto-animate flex="~ col gap-2">
         <div
           v-for="(keyValue, index) in keyValues"
           :key="index"
-          v-auto-animate
           w-full flex items-center gap-2
         >
           <InputKeyValue

@@ -1,4 +1,4 @@
-import type { Voice } from '../fix/voice'
+import type { VoiceInfo } from '../providers'
 
 import { useLocalStorage } from '@vueuse/core'
 import { defineStore } from 'pinia'
@@ -20,7 +20,7 @@ export const useSpeechStore = defineStore('speech', () => {
   const ssmlEnabled = useLocalStorage('settings/speech/ssml-enabled', false)
   const isLoadingSpeechProviderVoices = ref(false)
   const speechProviderError = ref<string | null>(null)
-  const availableVoices = ref<Record<string, Voice[]>>({})
+  const availableVoices = ref<Record<string, VoiceInfo[]>>({})
   const selectedLanguage = useLocalStorage('settings/speech/language', 'en-US')
 
   // Computed properties
@@ -77,7 +77,9 @@ export const useSpeechStore = defineStore('speech', () => {
     speechProviderError.value = null
 
     try {
-      return await providersStore.getProviderMetadata(provider).capabilities.listVoices?.(providersStore.getProviderConfig(provider)) || []
+      const voices = await providersStore.getProviderMetadata(provider).capabilities.listVoices?.(providersStore.getProviderConfig(provider)) || []
+      availableVoices.value[provider] = voices
+      return voices
     }
     catch (error) {
       console.error(`Error fetching voices for ${provider}:`, error)

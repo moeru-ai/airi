@@ -24,7 +24,7 @@ const modelValue = defineModel<number>({ required: true })
           {{ description }}
         </div>
       </div>
-      <span font-mono>{{ props.formatValue?.(modelValue) }}</span>
+      <span font-mono>{{ props.formatValue?.(modelValue) || modelValue }}</span>
     </div>
     <div flex="~ row" items-center gap-2>
       <Range

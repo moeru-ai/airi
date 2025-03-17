@@ -21,9 +21,9 @@ defineProps<{
     </button>
     <h1 relative>
       <div absolute left-0 top-0 translate-y="[-80%]">
-        <span text="neutral-300 dark:neutral-500">Provider</span>
+        <span text="neutral-300 dark:neutral-500" text-nowrap>Provider</span>
       </div>
-      <div text-3xl font-semibold>
+      <div text-nowrap text-3xl font-semibold>
         {{ providerName }}
       </div>
     </h1>

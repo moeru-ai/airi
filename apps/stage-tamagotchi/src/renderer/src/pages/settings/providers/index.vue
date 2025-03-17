@@ -25,9 +25,9 @@ const { allProvidersMetadata } = storeToRefs(providersStore)
     </button>
     <h1 relative>
       <div absolute left-0 top-0 translate-y="[-80%]">
-        <span text="neutral-300 dark:neutral-500">{{ t('settings.title') }}</span>
+        <span text="neutral-300 dark:neutral-500" text-nowrap>{{ t('settings.title') }}</span>
       </div>
-      <div text-3xl font-semibold>
+      <div text-nowrap text-3xl font-semibold>
         {{ t('settings.pages.providers.title') }}
       </div>
     </h1>
