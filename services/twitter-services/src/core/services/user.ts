@@ -1,7 +1,7 @@
 import type { TwitterService } from '../../types/services'
 import type { Context } from '../browser/context'
 
-import { TWITTER_BASE_URL } from '../../../constants'
+import { TWITTER_BASE_URL } from '../../constants'
 import { logger } from '../../utils/logger'
 
 /**

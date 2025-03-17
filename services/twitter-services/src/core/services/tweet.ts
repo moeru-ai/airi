@@ -1,6 +1,7 @@
 import type { TwitterService } from '../../types/services'
 import type { Context } from '../browser/context'
 
+import { TWITTER_BASE_URL, TWITTER_HOME_URL, TWITTER_SEARCH_URL } from '../../constants'
 import { SELECTORS } from '../../parsers/selectors'
 import { TweetParser } from '../../parsers/tweet-parser'
 import { scrollToLoadMoreTweets } from '../utils/scroll-helper'
@@ -54,7 +55,7 @@ export function useTwitterTweetServices(ctx: Context): TwitterService {
   async function searchTweets(query: string, options: SearchOptions = {}): Promise<Tweet[]> {
     try {
       const page = ctx.page
-      const searchUrl = new URL('https://twitter.com/search')
+      const searchUrl = new URL(TWITTER_SEARCH_URL)
       searchUrl.searchParams.append('q', query)
 
       if (options.filter) {
@@ -107,7 +108,7 @@ export function useTwitterTweetServices(ctx: Context): TwitterService {
   async function likeTweet(tweetId: string): Promise<boolean> {
     try {
       const page = ctx.page
-      await page.goto(`https://twitter.com/i/status/${tweetId}`)
+      await page.goto(`${TWITTER_BASE_URL}/i/status/${tweetId}`)
       await page.waitForSelector(SELECTORS.TIMELINE.TWEET)
 
       const likeButton = await page.$(SELECTORS.TIMELINE.LIKE_BUTTON)
@@ -144,7 +145,7 @@ export function useTwitterTweetServices(ctx: Context): TwitterService {
   async function retweet(tweetId: string): Promise<boolean> {
     try {
       const page = ctx.page
-      await page.goto(`https://twitter.com/i/status/${tweetId}`)
+      await page.goto(`${TWITTER_BASE_URL}/i/status/${tweetId}`)
       await page.waitForSelector(SELECTORS.TIMELINE.TWEET)
 
       // Click retweet button to open modal
@@ -180,7 +181,7 @@ export function useTwitterTweetServices(ctx: Context): TwitterService {
     try {
       const page = ctx.page
       // Go to home page where you can compose a tweet
-      await page.goto('https://twitter.com/home')
+      await page.goto(TWITTER_HOME_URL)
 
       // Wait for the tweet composer to load
       await page.waitForSelector(SELECTORS.COMPOSE.TWEET_INPUT)
@@ -204,7 +205,7 @@ export function useTwitterTweetServices(ctx: Context): TwitterService {
       // Handle reply case
       if (options.inReplyTo) {
         // For reply, we need to navigate to the tweet first and click reply
-        await page.goto(`https://twitter.com/i/status/${options.inReplyTo}`)
+        await page.goto(`${TWITTER_BASE_URL}/i/status/${options.inReplyTo}`)
         await page.waitForSelector(SELECTORS.TIMELINE.REPLY_BUTTON)
         await page.click(SELECTORS.TIMELINE.REPLY_BUTTON)
 
@@ -268,7 +269,7 @@ export function useTwitterTweetServices(ctx: Context): TwitterService {
   async function getTweetDetails(tweetId: string): Promise<TweetDetail> {
     try {
       const page = ctx.page
-      await page.goto(`https://twitter.com/i/status/${tweetId}`)
+      await page.goto(`${TWITTER_BASE_URL}/i/status/${tweetId}`)
       await page.waitForSelector(SELECTORS.TIMELINE.TWEET)
 
       // Get the main tweet element

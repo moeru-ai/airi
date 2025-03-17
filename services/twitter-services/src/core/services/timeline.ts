@@ -2,7 +2,7 @@ import type { TwitterService } from '../../types/services'
 import type { Context } from '../browser/context'
 import type { Tweet } from './tweet'
 
-import { TWITTER_HOME_URL } from '../../../constants'
+import { TWITTER_HOME_URL } from '../../constants'
 import { SELECTORS } from '../../parsers/selectors'
 import { TweetParser } from '../../parsers/tweet-parser'
 import { logger } from '../../utils/logger'
