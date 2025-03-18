@@ -4,7 +4,7 @@ import type { Config } from '../../config/types'
 import fs from 'node:fs'
 import { chromium } from 'playwright'
 
-import { TWITTER_SESSION_FILE } from '../../../constants'
+import { TWITTER_SESSION_FILE } from '../../constants'
 import { logger } from '../../utils/logger'
 
 export interface Context {

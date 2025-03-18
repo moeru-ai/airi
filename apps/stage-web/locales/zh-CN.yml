@@ -127,6 +127,9 @@ settings:
               title: 提供商
         title: 发声
       title: 机体模块
+      x:
+        description: X / Twitter 的浏览和使用
+        title: X / Twitter
       vision:
         description: 视觉
         title: 视觉

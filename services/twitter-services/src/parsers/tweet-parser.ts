@@ -1,8 +1,8 @@
 import type { ElementHandle, Page } from 'playwright'
-import type { Tweet } from '../types/twitter'
+import type { Tweet } from '../core/services/tweet'
 
 import { logger } from '../utils/logger'
-import { SELECTORS } from '../utils/selectors'
+import { SELECTORS } from './selectors'
 
 /**
  * Tweet Parser

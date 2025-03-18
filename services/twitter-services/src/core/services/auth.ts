@@ -2,7 +2,7 @@ import type { Cookie } from 'playwright'
 import type { TwitterService } from '../../types/services'
 import type { Context } from '../browser/context'
 
-import { TWITTER_LOGIN_URL, TWITTER_SESSION_FILE } from '../../../constants'
+import { TWITTER_LOGIN_URL, TWITTER_SESSION_FILE } from '../../constants'
 import { logger } from '../../utils/logger'
 
 export function useTwitterAuthServices(ctx: Context): TwitterService {
