@@ -39,6 +39,10 @@ export default defineConfig({
         title: 'Providers',
       },
       {
+        id: 'misc',
+        title: 'Misc',
+      },
+      {
         id: 'physics',
         title: 'Physics',
       },
