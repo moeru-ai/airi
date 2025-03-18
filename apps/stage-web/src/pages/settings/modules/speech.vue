@@ -4,6 +4,7 @@ import {
   FieldInput,
   FieldRange,
   RadioCardSimple,
+  Skeleton,
   VoiceCardManySelect,
 } from '@proj-airi/stage-ui/components'
 import { useProvidersStore, useSpeechStore } from '@proj-airi/stage-ui/stores'
@@ -149,53 +150,83 @@ watch(voiceId, updateSSMLExample)
         </div>
 
         <!-- Loading state -->
-        <div v-if="isLoadingSpeechProviderVoices" class="flex items-center justify-center py-4">
-          <div class="mr-2 animate-spin">
-            <div i-solar:spinner-line-duotone text-xl />
+        <TransitionGroup name="fade-slide-in-out">
+          <div v-if="isLoadingSpeechProviderVoices">
+            <div class="flex flex-col gap-4">
+              <Skeleton class="w-full rounded-lg p-2.5 text-sm">
+                <div class="h-1lh" />
+              </Skeleton>
+              <div flex="~ row gap-4">
+                <Skeleton class="w-full rounded-lg p-4 text-sm">
+                  <div class="h-1lh" />
+                </Skeleton>
+                <Skeleton class="w-full rounded-lg p-4 text-sm">
+                  <div class="h-1lh" />
+                </Skeleton>
+                <Skeleton class="w-full rounded-lg p-4 text-sm">
+                  <div class="h-1lh" />
+                </Skeleton>
+              </div>
+              <Skeleton class="w-full rounded-lg p-3 text-sm">
+                <div class="h-1lh" />
+              </Skeleton>
+            </div>
           </div>
-          <span>Loading available voices...</span>
-        </div>
 
-        <!-- Error state -->
-        <div
-          v-else-if="speechProviderError"
-          class="flex items-center gap-3 border border-2 border-red-200 rounded-lg bg-red-50 p-4 dark:border-red-800 dark:bg-red-900/20"
-        >
-          <div i-solar:close-circle-line-duotone class="text-2xl text-red-500 dark:text-red-400" />
-          <div class="flex flex-col">
-            <span class="font-medium">Error loading voices</span>
-            <span class="text-sm text-red-600 dark:text-red-400">{{ speechProviderError }}</span>
+          <!-- Error state -->
+          <!-- Voice selection with RadioCardDetailManySelect -->
+          <div
+            v-else-if="availableVoices[activeSpeechProvider] && availableVoices[activeSpeechProvider].length > 0"
+            class="space-y-6"
+          >
+            <VoiceCardManySelect
+              v-model:search-query="voiceSearchQuery"
+              :voices="availableVoices[activeSpeechProvider]?.map(voice => ({
+                id: voice.name,
+                name: voice.name,
+                description: voice.description,
+                previewURL: voice.previewURL,
+                customizable: false,
+              }))"
+              :selected-voice-id="voiceId"
+              :searchable="true"
+              :search-placeholder="t('settings.pages.modules.speech.sections.section.provider-voice-selection.search_voices_placeholder')"
+              :search-no-results-title="t('settings.pages.modules.speech.sections.section.provider-voice-selection.no_voices')"
+              :search-no-results-description="t('settings.pages.modules.speech.sections.section.provider-voice-selection.no_voices_description')"
+              :search-results-text="t('settings.pages.modules.speech.sections.section.provider-voice-selection.search_voices_results', { count: 0, total: 0 })"
+              :custom-input-placeholder="t('settings.pages.modules.speech.sections.section.provider-voice-selection.custom_voice_placeholder')"
+              :expand-button-text="t('settings.pages.modules.speech.sections.section.provider-voice-selection.show_more')"
+              :collapse-button-text="t('settings.pages.modules.speech.sections.section.provider-voice-selection.show_less')"
+              :play-button-text="t('settings.pages.modules.speech.sections.section.provider-voice-selection.play_sample')"
+              :pause-button-text="t('settings.pages.modules.speech.sections.section.provider-voice-selection.pause')"
+              @update:selected-voice-id="handleVoiceSelection"
+              @update:custom-value="updateCustomVoiceName"
+            />
           </div>
-        </div>
 
-        <!-- Voice selection with RadioCardDetailManySelect -->
-        <div
-          v-else-if="availableVoices[activeSpeechProvider] && availableVoices[activeSpeechProvider].length > 0"
-          class="space-y-6"
-        >
-          <VoiceCardManySelect
-            v-model:search-query="voiceSearchQuery"
-            :voices="availableVoices[activeSpeechProvider]?.map(voice => ({
-              id: voice.name,
-              name: voice.name,
-              description: voice.description,
-              previewURL: voice.previewURL,
-              customizable: false,
-            }))"
-            :selected-voice-id="voiceId"
-            :searchable="true"
-            :search-placeholder="t('settings.pages.modules.speech.sections.section.provider-voice-selection.search_voices_placeholder')"
-            :search-no-results-title="t('settings.pages.modules.speech.sections.section.provider-voice-selection.no_voices')"
-            :search-no-results-description="t('settings.pages.modules.speech.sections.section.provider-voice-selection.no_voices_description')"
-            :search-results-text="t('settings.pages.modules.speech.sections.section.provider-voice-selection.search_voices_results', { count: 0, total: 0 })"
-            :custom-input-placeholder="t('settings.pages.modules.speech.sections.section.provider-voice-selection.custom_voice_placeholder')"
-            :expand-button-text="t('settings.pages.modules.speech.sections.section.provider-voice-selection.show_more')"
-            :collapse-button-text="t('settings.pages.modules.speech.sections.section.provider-voice-selection.show_less')"
-            :play-button-text="t('settings.pages.modules.speech.sections.section.provider-voice-selection.play_sample')"
-            :pause-button-text="t('settings.pages.modules.speech.sections.section.provider-voice-selection.pause')"
-            @update:selected-voice-id="handleVoiceSelection"
-            @update:custom-value="updateCustomVoiceName"
-          />
+          <div
+            v-else-if="speechProviderError"
+            class="flex items-center gap-3 border border-2 border-red-200 rounded-lg bg-red-50 p-4 dark:border-red-800 dark:bg-red-900/20"
+          >
+            <div i-solar:close-circle-line-duotone class="text-2xl text-red-500 dark:text-red-400" />
+            <div class="flex flex-col">
+              <span class="font-medium">Error loading voices</span>
+              <span class="text-sm text-red-600 dark:text-red-400">{{ speechProviderError }}</span>
+            </div>
+          </div>
+          <!-- No voices available -->
+          <div
+            v-else
+            class="flex items-center gap-3 border border-2 border-amber-200 rounded-lg bg-amber-50 p-4 dark:border-amber-800 dark:bg-amber-900/20"
+          >
+            <div i-solar:info-circle-line-duotone class="text-2xl text-amber-500 dark:text-amber-400" />
+            <div class="flex flex-col">
+              <span class="font-medium">No voices available</span>
+              <span class="text-sm text-amber-600 dark:text-amber-400">
+                No voices were found for this provider. You can enter a custom voice name below.
+              </span>
+            </div>
+          </div>
 
           <!-- Model selection for ElevenLabs -->
           <div v-if="activeSpeechProvider === 'elevenlabs'">
@@ -239,21 +270,7 @@ watch(voiceId, updateSSMLExample)
               description="Enable Speech Synthesis Markup Language for more control over speech output"
             />
           </div>
-        </div>
-
-        <!-- No voices available -->
-        <div
-          v-else-if="!isLoadingSpeechProviderVoices && (!availableVoices[activeSpeechProvider] || availableVoices[activeSpeechProvider].length === 0)"
-          class="flex items-center gap-3 border border-2 border-amber-200 rounded-lg bg-amber-50 p-4 dark:border-amber-800 dark:bg-amber-900/20"
-        >
-          <div i-solar:info-circle-line-duotone class="text-2xl text-amber-500 dark:text-amber-400" />
-          <div class="flex flex-col">
-            <span class="font-medium">No voices available</span>
-            <span class="text-sm text-amber-600 dark:text-amber-400">
-              No voices were found for this provider. You can enter a custom voice name below.
-            </span>
-          </div>
-        </div>
+        </TransitionGroup>
 
         <!-- Manual voice input when no voices are available -->
         <div
@@ -327,3 +344,24 @@ meta:
   stageTransition:
     name: slide
 </route>
+
+<style scoped>
+.fade-slide-in-out-enter-active,
+.fade-slide-in-out-leave-active {
+  transition: all 0.2s ease-in-out;
+}
+
+.fade-slide-in-out-enter-from,
+.fade-slide-in-out-leave-to {
+  opacity: 0;
+}
+
+.fade-slide-in-out-leave-active {
+  transition: all 0.2s ease-in-out;
+}
+
+.fade-slide-in-out-leave-from,
+.fade-slide-in-out-enter-to {
+  opacity: 1;
+}
+</style>

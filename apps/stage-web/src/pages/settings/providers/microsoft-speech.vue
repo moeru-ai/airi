@@ -1,13 +1,9 @@
 <script setup lang="ts">
-import type { Voice } from '@proj-airi/stage-ui/constants'
-import type { RemovableRef } from '@vueuse/core'
 import type { UnMicrosoftOptions } from '@xsai-ext/providers-local'
 import type { SpeechProviderWithExtraOptions } from '@xsai-ext/shared-providers'
 
 import {
-  FieldCheckbox,
   FieldInput,
-  FieldRange,
   ProviderAdvancedSettings,
   ProviderApiKeyInput,
   ProviderBaseUrlInput,
@@ -16,8 +12,8 @@ import {
   ProviderSettingsLayout,
   TestDummyMarker,
 } from '@proj-airi/stage-ui/components'
-import { voiceMap } from '@proj-airi/stage-ui/constants'
 import { useProvidersStore, useSpeechStore } from '@proj-airi/stage-ui/stores'
+import { useDebounceFn } from '@vueuse/core'
 import { generateSpeech } from '@xsai/generate-speech'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
@@ -28,10 +24,11 @@ const { t } = useI18n()
 const router = useRouter()
 const providersStore = useProvidersStore()
 const speechStore = useSpeechStore()
-const { providers } = storeToRefs(providersStore) as { providers: RemovableRef<Record<string, any>> }
+const { providers } = storeToRefs(providersStore)
+const { availableVoices } = storeToRefs(speechStore)
 
 // For playground
-const testText = ref('Hello! This is a test of the Microsoft Speech voice synthesis.')
+const testText = ref('Hello! This is a test of the Microsoft Speech synthesis.')
 const isGenerating = ref(false)
 const audioUrl = ref('')
 const errorMessage = ref('')
@@ -42,7 +39,7 @@ const providerId = 'microsoft-speech'
 const providerMetadata = computed(() => providersStore.getProviderMetadata(providerId))
 
 const apiKey = computed({
-  get: () => providers.value[providerId]?.apiKey || '',
+  get: () => providers.value[providerId]?.apiKey as string | undefined || '',
   set: (value) => {
     if (!providers.value[providerId])
       providers.value[providerId] = {}
@@ -51,18 +48,8 @@ const apiKey = computed({
   },
 })
 
-const baseUrl = computed({
-  get: () => providers.value[providerId]?.baseUrl || providerMetadata.value?.defaultOptions?.baseUrl || '',
-  set: (value) => {
-    if (!providers.value[providerId])
-      providers.value[providerId] = {}
-
-    providers.value[providerId].baseUrl = value
-  },
-})
-
 const region = computed({
-  get: () => providers.value[providerId]?.region || providerMetadata.value?.defaultOptions?.region || '',
+  get: () => providers.value[providerId]?.region as string | undefined || providerMetadata.value?.defaultOptions?.region as string | undefined || 'eastasia',
   set: (value) => {
     if (!providers.value[providerId])
       providers.value[providerId] = {}
@@ -71,87 +58,33 @@ const region = computed({
   },
 })
 
-// Voice settings as individual computed properties
-const similarityBoost = computed({
-  get: () => (providers.value[providerId]?.voiceSettings as any)?.similarityBoost ?? 0.75,
+const baseUrl = computed({
+  get: () => providers.value[providerId]?.baseUrl as string | undefined || providerMetadata.value?.defaultOptions?.baseUrl as string | undefined || '',
   set: (value) => {
     if (!providers.value[providerId])
       providers.value[providerId] = {}
-    if (!providers.value[providerId].voiceSettings)
-      providers.value[providerId].voiceSettings = {}
 
-    providers.value[providerId].voiceSettings.similarityBoost = value
-  },
-})
-
-const stability = computed({
-  get: () => (providers.value[providerId]?.voiceSettings as any)?.stability ?? 0.5,
-  set: (value) => {
-    if (!providers.value[providerId])
-      providers.value[providerId] = {}
-    if (!providers.value[providerId].voiceSettings)
-      providers.value[providerId].voiceSettings = {}
-
-    providers.value[providerId].voiceSettings.stability = value
-  },
-})
-
-const speed = computed({
-  get: () => (providers.value[providerId]?.voiceSettings as any)?.speed ?? 1.0,
-  set: (value) => {
-    if (!providers.value[providerId])
-      providers.value[providerId] = {}
-    if (!providers.value[providerId].voiceSettings)
-      providers.value[providerId].voiceSettings = {}
-
-    providers.value[providerId].voiceSettings.speed = value
-  },
-})
-
-const style = computed({
-  get: () => (providers.value[providerId]?.voiceSettings as any)?.style ?? 0,
-  set: (value) => {
-    if (!providers.value[providerId])
-      providers.value[providerId] = {}
-    if (!providers.value[providerId].voiceSettings)
-      providers.value[providerId].voiceSettings = {}
-
-    providers.value[providerId].style = value
-  },
-})
-
-const useSpeakerBoost = computed({
-  get: () => (providers.value[providerId]?.voiceSettings as any)?.useSpeakerBoost !== false,
-  set: (value) => {
-    if (!providers.value[providerId])
-      providers.value[providerId] = {}
-    if (!providers.value[providerId].voiceSettings)
-      providers.value[providerId].voiceSettings = {}
-
-    providers.value[providerId].voiceSettings.useSpeakerBoost = value
+    providers.value[providerId].baseUrl = value
   },
 })
 
 // Speech settings
 const selectedLanguage = ref(speechStore.selectedLanguage)
-const selectedVoice = ref(speechStore.voiceName)
-const availableVoices = computed(() => speechStore.availableVoicesForLanguage)
+const selectedVoice = ref('')
+const availableVoicesForLanguage = computed(() => {
+  if (availableVoices.value[providerId] == null) {
+    return []
+  }
+
+  return availableVoices.value[providerId].filter(voice => voice.languages.filter(language => language.code === selectedLanguage.value).length > 0)
+})
 
 onMounted(() => {
   providersStore.initializeProvider(providerId)
 
   // Initialize refs with current values
-  apiKey.value = providers.value[providerId]?.apiKey || ''
-  baseUrl.value = providers.value[providerId]?.baseUrl || providerMetadata.value?.defaultOptions?.baseUrl || ''
-
-  // Initialize voice settings refs
-  if (providers.value[providerId]?.voiceSettings) {
-    similarityBoost.value = (providers.value[providerId].voiceSettings as any)?.similarityBoost ?? 0.75
-    stability.value = (providers.value[providerId].voiceSettings as any)?.stability ?? 0.5
-    speed.value = (providers.value[providerId].voiceSettings as any)?.speed ?? 1.0
-    style.value = (providers.value[providerId].voiceSettings as any)?.style ?? 0
-    useSpeakerBoost.value = (providers.value[providerId].voiceSettings as any)?.useSpeakerBoost !== false
-  }
+  apiKey.value = providers.value[providerId]?.apiKey as string | undefined || ''
+  baseUrl.value = providers.value[providerId]?.baseUrl as string | undefined || providerMetadata.value?.defaultOptions?.baseUrl as string | undefined || ''
 
   // Load voices if provider is configured
   if (providersStore.configuredProviders[providerId]) {
@@ -159,14 +92,18 @@ onMounted(() => {
   }
 })
 
-// Watch all settings and update the provider configuration
-watch([apiKey, baseUrl, similarityBoost, stability, speed, style, useSpeakerBoost], () => {
+const debouncedUpdate = useDebounceFn(() => {
   providers.value[providerId] = {
     ...providers.value[providerId],
     apiKey: apiKey.value,
-    baseUrl: baseUrl.value || providerMetadata.value?.defaultOptions?.baseUrl || '',
+    baseUrl: baseUrl.value || providerMetadata.value?.defaultOptions?.baseUrl as string | undefined || '',
   }
-})
+
+  speechStore.loadVoicesForProvider(providerId)
+}, 1000)
+
+// Watch all settings and update the provider configuration
+watch([apiKey, baseUrl], debouncedUpdate)
 
 // Function to generate speech
 async function generateTestSpeech() {
@@ -188,10 +125,12 @@ async function generateTestSpeech() {
       stopTestAudio()
     }
 
+    const voice = availableVoicesForLanguage.value.find(voice => voice.name === selectedVoice.value)
+
     const response = await generateSpeech({
-      ...provider.speech('v1'),
+      ...provider.speech('v1', { region: region.value, gender: voice?.gender }),
       input: testText.value,
-      voice: voiceMap[selectedVoice.value as Voice],
+      voice: voice!.id,
     })
 
     // Convert the response to a blob and create an object URL
@@ -268,41 +207,6 @@ function handleResetVoiceSettings() {
           <h2 class="text-lg text-neutral-500 md:text-2xl dark:text-neutral-400">
             {{ t('settings.pages.providers.common.section.voice.title') }}
           </h2>
-          <div flex="~ col gap-4">
-            <FieldRange
-              v-model="similarityBoost"
-              :label="t('settings.pages.providers.provider.elevenlabs.fields.field.simularity-boost.label')"
-              :description="t('settings.pages.providers.provider.elevenlabs.fields.field.simularity-boost.description')"
-              :min="0" :max="1" :step="0.01"
-            />
-
-            <FieldRange
-              v-model="stability"
-              :label="t('settings.pages.providers.provider.elevenlabs.fields.field.stability.label')"
-              :description="t('settings.pages.providers.provider.elevenlabs.fields.field.stability.description')"
-              :min="0" :max="1" :step="0.01"
-            />
-
-            <FieldRange
-              v-model="speed"
-              :label="t('settings.pages.providers.provider.elevenlabs.fields.field.speed.label')"
-              :description="t('settings.pages.providers.provider.elevenlabs.fields.field.speed.description')" :min="0.7"
-              :max="1.2" :step="0.01"
-            />
-
-            <FieldRange
-              v-model="style"
-              :label="t('settings.pages.providers.provider.elevenlabs.fields.field.style.label')"
-              :description="t('settings.pages.providers.provider.elevenlabs.fields.field.style.description')" :min="0"
-              :max="1" :step="0.01"
-            />
-
-            <FieldCheckbox
-              v-model="useSpeakerBoost"
-              :label="t('settings.pages.providers.provider.elevenlabs.fields.field.speaker-boost.label')"
-              :description="t('settings.pages.providers.provider.elevenlabs.fields.field.speaker-boost.description')"
-            />
-          </div>
         </div>
 
         <ProviderAdvancedSettings :title="t('settings.pages.providers.common.section.advanced.title')">
@@ -369,7 +273,10 @@ function handleResetVoiceSettings() {
                   transition="border duration-250 ease-in-out" w-full rounded-lg px-2 py-1 text-nowrap text-sm
                   outline-none
                 >
-                  <option v-for="voice in availableVoices" :key="voice.id" :value="voice.name">
+                  <option value="">
+                    Select a voice
+                  </option>
+                  <option v-for="voice in availableVoicesForLanguage" :key="voice.id" :value="voice.name">
                     {{ voice.name }}
                   </option>
                 </select>

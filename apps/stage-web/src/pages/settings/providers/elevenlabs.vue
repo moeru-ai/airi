@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import type { Voice } from '@proj-airi/stage-ui/constants'
-import type { RemovableRef } from '@vueuse/core'
 import type { UnElevenLabsOptions } from '@xsai-ext/providers-local'
 import type { SpeechProviderWithExtraOptions } from '@xsai-ext/shared-providers'
 
@@ -17,6 +16,7 @@ import {
 } from '@proj-airi/stage-ui/components'
 import { voiceMap } from '@proj-airi/stage-ui/constants'
 import { useProvidersStore, useSpeechStore } from '@proj-airi/stage-ui/stores'
+import { useDebounceFn } from '@vueuse/core'
 import { generateSpeech } from '@xsai/generate-speech'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
@@ -27,7 +27,7 @@ const { t } = useI18n()
 const router = useRouter()
 const providersStore = useProvidersStore()
 const speechStore = useSpeechStore()
-const { providers } = storeToRefs(providersStore) as { providers: RemovableRef<Record<string, any>> }
+const { providers } = storeToRefs(providersStore)
 
 // For playground
 const testText = ref('Hello! This is a test of the ElevenLabs voice synthesis.')
@@ -41,7 +41,7 @@ const providerId = 'elevenlabs'
 const providerMetadata = computed(() => providersStore.getProviderMetadata(providerId))
 
 const apiKey = computed({
-  get: () => providers.value[providerId]?.apiKey || '',
+  get: () => providers.value[providerId]?.apiKey as string | undefined || '',
   set: (value) => {
     if (!providers.value[providerId])
       providers.value[providerId] = {}
@@ -51,7 +51,7 @@ const apiKey = computed({
 })
 
 const baseUrl = computed({
-  get: () => providers.value[providerId]?.baseUrl || providerMetadata.value?.defaultOptions?.baseUrl || '',
+  get: () => providers.value[providerId]?.baseUrl as string | undefined || providerMetadata.value?.defaultOptions?.baseUrl as string | undefined || '',
   set: (value) => {
     if (!providers.value[providerId])
       providers.value[providerId] = {}
@@ -69,7 +69,8 @@ const similarityBoost = computed({
     if (!providers.value[providerId].voiceSettings)
       providers.value[providerId].voiceSettings = {}
 
-    providers.value[providerId].voiceSettings.similarityBoost = value
+    const voiceSettings = providers.value[providerId].voiceSettings as any
+    voiceSettings.similarityBoost = value
   },
 })
 
@@ -81,7 +82,8 @@ const stability = computed({
     if (!providers.value[providerId].voiceSettings)
       providers.value[providerId].voiceSettings = {}
 
-    providers.value[providerId].voiceSettings.stability = value
+    const voiceSettings = providers.value[providerId].voiceSettings as any
+    voiceSettings.stability = value
   },
 })
 
@@ -93,7 +95,8 @@ const speed = computed({
     if (!providers.value[providerId].voiceSettings)
       providers.value[providerId].voiceSettings = {}
 
-    providers.value[providerId].voiceSettings.speed = value
+    const voiceSettings = providers.value[providerId].voiceSettings as any
+    voiceSettings.speed = value
   },
 })
 
@@ -105,7 +108,8 @@ const style = computed({
     if (!providers.value[providerId].voiceSettings)
       providers.value[providerId].voiceSettings = {}
 
-    providers.value[providerId].style = value
+    const voiceSettings = providers.value[providerId].voiceSettings as any
+    voiceSettings.style = value
   },
 })
 
@@ -117,7 +121,8 @@ const useSpeakerBoost = computed({
     if (!providers.value[providerId].voiceSettings)
       providers.value[providerId].voiceSettings = {}
 
-    providers.value[providerId].voiceSettings.useSpeakerBoost = value
+    const voiceSettings = providers.value[providerId].voiceSettings as any
+    voiceSettings.useSpeakerBoost = value
   },
 })
 
@@ -130,8 +135,8 @@ onMounted(() => {
   providersStore.initializeProvider(providerId)
 
   // Initialize refs with current values
-  apiKey.value = providers.value[providerId]?.apiKey || ''
-  baseUrl.value = providers.value[providerId]?.baseUrl || providerMetadata.value?.defaultOptions?.baseUrl || ''
+  apiKey.value = providers.value[providerId]?.apiKey as string | undefined || ''
+  baseUrl.value = providers.value[providerId]?.baseUrl as string | undefined || providerMetadata.value?.defaultOptions?.baseUrl as string | undefined || ''
 
   // Initialize voice settings refs
   if (providers.value[providerId]?.voiceSettings) {
@@ -148,8 +153,7 @@ onMounted(() => {
   }
 })
 
-// Watch all settings and update the provider configuration
-watch([apiKey, baseUrl, similarityBoost, stability, speed, style, useSpeakerBoost], () => {
+const debouncedUpdate = useDebounceFn(() => {
   providers.value[providerId] = {
     ...providers.value[providerId],
     apiKey: apiKey.value,
@@ -162,7 +166,10 @@ watch([apiKey, baseUrl, similarityBoost, stability, speed, style, useSpeakerBoos
       useSpeakerBoost: useSpeakerBoost.value,
     },
   }
-})
+}, 1000)
+
+// Watch all settings and update the provider configuration
+watch([apiKey, baseUrl, similarityBoost, stability, speed, style, useSpeakerBoost], debouncedUpdate)
 
 // Function to generate speech
 async function generateTestSpeech() {
