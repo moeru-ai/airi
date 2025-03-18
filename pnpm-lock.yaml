@@ -122,7 +122,7 @@ importers:
         version: 3.0.0-rc.11(typescript@5.8.2)(vue-tsc@2.2.8(typescript@5.8.2))
       unocss:
         specifier: ^66.1.0-beta.5
-        version: 66.1.0-beta.5(postcss@8.5.3)(vite@6.2.2(@types/node@22.13.10)(jiti@2.4.2)(less@4.2.2)(terser@5.17.6)(tsx@4.19.3)(yaml@2.7.0))(vue@3.5.13(typescript@5.8.2))
+        version: 66.1.0-beta.5(postcss@8.5.3)(vite@6.2.2(@types/node@22.13.10)(jiti@2.4.2)(less@4.2.2)(terser@5.17.6)(tsx@4.19.3)(yaml@2.7.0))
       vite:
         specifier: ^6.2.2
         version: 6.2.2(@types/node@22.13.10)(jiti@2.4.2)(less@4.2.2)(terser@5.17.6)(tsx@4.19.3)(yaml@2.7.0)
@@ -1058,20 +1058,20 @@ importers:
     dependencies:
       '@vueuse/motion':
         specifier: ^3.0.3
-        version: 3.0.3(magicast@0.3.5)(rollup@4.36.0)(vue@3.5.13(typescript@5.8.2))
+        version: 3.0.3(magicast@0.3.5)(rollup@4.36.0)(vue@packages+stage-ui+@formkit+auto-animate+vue)
       reka-ui:
         specifier: ^2.1.0
-        version: 2.1.0(typescript@5.8.2)(vue@3.5.13(typescript@5.8.2))
+        version: 2.1.0(typescript@5.8.2)(vue@packages+stage-ui+@formkit+auto-animate+vue)
       vue:
         specifier: link:@formkit/auto-animate/vue
-        version: 3.5.13(typescript@5.8.2)
+        version: link:@formkit/auto-animate/vue
     devDependencies:
       '@electron-toolkit/preload':
         specifier: ^3.0.1
         version: 3.0.1(electron@34.3.3)
       '@histoire/plugin-vue':
         specifier: 1.0.0-alpha.2
-        version: 1.0.0-alpha.2(histoire@1.0.0-alpha.2(@types/node@22.13.10)(bufferutil@4.0.9)(less@4.2.2)(terser@5.17.6)(utf-8-validate@5.0.10)(vite@6.2.2(@types/node@22.13.10)(jiti@2.4.2)(less@4.2.2)(terser@5.17.6)(tsx@4.19.3)(yaml@2.7.0)))(vite@6.2.2(@types/node@22.13.10)(jiti@2.4.2)(less@4.2.2)(terser@5.17.6)(tsx@4.19.3)(yaml@2.7.0))(vue@3.5.13(typescript@5.8.2))
+        version: 1.0.0-alpha.2(histoire@1.0.0-alpha.2(@types/node@22.13.10)(bufferutil@4.0.9)(less@4.2.2)(terser@5.17.6)(utf-8-validate@5.0.10)(vite@6.2.2(@types/node@22.13.10)(jiti@2.4.2)(less@4.2.2)(terser@5.17.6)(tsx@4.19.3)(yaml@2.7.0)))(vite@6.2.2(@types/node@22.13.10)(jiti@2.4.2)(less@4.2.2)(terser@5.17.6)(tsx@4.19.3)(yaml@2.7.0))(vue@packages+stage-ui+@formkit+auto-animate+vue)
       '@proj-airi/provider-transformers':
         specifier: workspace:^
         version: link:../provider-transformers
@@ -1083,7 +1083,7 @@ importers:
         version: 66.1.0-beta.5
       '@vitejs/plugin-vue':
         specifier: ^5.2.3
-        version: 5.2.3(vite@6.2.2(@types/node@22.13.10)(jiti@2.4.2)(less@4.2.2)(terser@5.17.6)(tsx@4.19.3)(yaml@2.7.0))(vue@3.5.13(typescript@5.8.2))
+        version: 5.2.3(vite@6.2.2(@types/node@22.13.10)(jiti@2.4.2)(less@4.2.2)(terser@5.17.6)(tsx@4.19.3)(yaml@2.7.0))(vue@packages+stage-ui+@formkit+auto-animate+vue)
       '@xsai/embed':
         specifier: 'catalog:'
         version: 0.1.3
@@ -1092,7 +1092,7 @@ importers:
         version: 1.0.0-alpha.2(@types/node@22.13.10)(bufferutil@4.0.9)(less@4.2.2)(terser@5.17.6)(utf-8-validate@5.0.10)(vite@6.2.2(@types/node@22.13.10)(jiti@2.4.2)(less@4.2.2)(terser@5.17.6)(tsx@4.19.3)(yaml@2.7.0))
       unocss:
         specifier: ^66.1.0-beta.5
-        version: 66.1.0-beta.5(postcss@8.5.3)(vite@6.2.2(@types/node@22.13.10)(jiti@2.4.2)(less@4.2.2)(terser@5.17.6)(tsx@4.19.3)(yaml@2.7.0))(vue@3.5.13(typescript@5.8.2))
+        version: 66.1.0-beta.5(postcss@8.5.3)(vite@6.2.2(@types/node@22.13.10)(jiti@2.4.2)(less@4.2.2)(terser@5.17.6)(tsx@4.19.3)(yaml@2.7.0))(vue@packages+stage-ui+@formkit+auto-animate+vue)
       vite:
         specifier: ^6.2.2
         version: 6.2.2(@types/node@22.13.10)(jiti@2.4.2)(less@4.2.2)(terser@5.17.6)(tsx@4.19.3)(yaml@2.7.0)
@@ -4224,19 +4224,9 @@ packages:
       rollup:
         optional: true
 
-  '@rollup/rollup-android-arm-eabi@4.35.0':
-    resolution: {integrity: sha512-uYQ2WfPaqz5QtVgMxfN6NpLD+no0MYHDBywl7itPYd3K5TjjSghNKmX8ic9S8NU8w81NVhJv/XojcHptRly7qQ==}
-    cpu: [arm]
-    os: [android]
-
   '@rollup/rollup-android-arm-eabi@4.36.0':
     resolution: {integrity: sha512-jgrXjjcEwN6XpZXL0HUeOVGfjXhPyxAbbhD0BlXUB+abTOpbPiN5Wb3kOT7yb+uEtATNYF5x5gIfwutmuBA26w==}
     cpu: [arm]
-    os: [android]
-
-  '@rollup/rollup-android-arm64@4.35.0':
-    resolution: {integrity: sha512-FtKddj9XZudurLhdJnBl9fl6BwCJ3ky8riCXjEw3/UIbjmIY58ppWwPEvU3fNu+W7FUsAsB1CdH+7EQE6CXAPA==}
-    cpu: [arm64]
     os: [android]
 
   '@rollup/rollup-android-arm64@4.36.0':
@@ -4244,19 +4234,9 @@ packages:
     cpu: [arm64]
     os: [android]
 
-  '@rollup/rollup-darwin-arm64@4.35.0':
-    resolution: {integrity: sha512-Uk+GjOJR6CY844/q6r5DR/6lkPFOw0hjfOIzVx22THJXMxktXG6CbejseJFznU8vHcEBLpiXKY3/6xc+cBm65Q==}
-    cpu: [arm64]
-    os: [darwin]
-
   '@rollup/rollup-darwin-arm64@4.36.0':
     resolution: {integrity: sha512-JQ1Jk5G4bGrD4pWJQzWsD8I1n1mgPXq33+/vP4sk8j/z/C2siRuxZtaUA7yMTf71TCZTZl/4e1bfzwUmFb3+rw==}
     cpu: [arm64]
-    os: [darwin]
-
-  '@rollup/rollup-darwin-x64@4.35.0':
-    resolution: {integrity: sha512-3IrHjfAS6Vkp+5bISNQnPogRAW5GAV1n+bNCrDwXmfMHbPl5EhTmWtfmwlJxFRUCBZ+tZ/OxDyU08aF6NI/N5Q==}
-    cpu: [x64]
     os: [darwin]
 
   '@rollup/rollup-darwin-x64@4.36.0':
@@ -4264,19 +4244,9 @@ packages:
     cpu: [x64]
     os: [darwin]
 
-  '@rollup/rollup-freebsd-arm64@4.35.0':
-    resolution: {integrity: sha512-sxjoD/6F9cDLSELuLNnY0fOrM9WA0KrM0vWm57XhrIMf5FGiN8D0l7fn+bpUeBSU7dCgPV2oX4zHAsAXyHFGcQ==}
-    cpu: [arm64]
-    os: [freebsd]
-
   '@rollup/rollup-freebsd-arm64@4.36.0':
     resolution: {integrity: sha512-KXVsijKeJXOl8QzXTsA+sHVDsFOmMCdBRgFmBb+mfEb/7geR7+C8ypAml4fquUt14ZyVXaw2o1FWhqAfOvA4sg==}
     cpu: [arm64]
-    os: [freebsd]
-
-  '@rollup/rollup-freebsd-x64@4.35.0':
-    resolution: {integrity: sha512-2mpHCeRuD1u/2kruUiHSsnjWtHjqVbzhBkNVQ1aVD63CcexKVcQGwJ2g5VphOd84GvxfSvnnlEyBtQCE5hxVVw==}
-    cpu: [x64]
     os: [freebsd]
 
   '@rollup/rollup-freebsd-x64@4.36.0':
@@ -4284,18 +4254,8 @@ packages:
     cpu: [x64]
     os: [freebsd]
 
-  '@rollup/rollup-linux-arm-gnueabihf@4.35.0':
-    resolution: {integrity: sha512-mrA0v3QMy6ZSvEuLs0dMxcO2LnaCONs1Z73GUDBHWbY8tFFocM6yl7YyMu7rz4zS81NDSqhrUuolyZXGi8TEqg==}
-    cpu: [arm]
-    os: [linux]
-
   '@rollup/rollup-linux-arm-gnueabihf@4.36.0':
     resolution: {integrity: sha512-bvXVU42mOVcF4le6XSjscdXjqx8okv4n5vmwgzcmtvFdifQ5U4dXFYaCB87namDRKlUL9ybVtLQ9ztnawaSzvg==}
-    cpu: [arm]
-    os: [linux]
-
-  '@rollup/rollup-linux-arm-musleabihf@4.35.0':
-    resolution: {integrity: sha512-DnYhhzcvTAKNexIql8pFajr0PiDGrIsBYPRvCKlA5ixSS3uwo/CWNZxB09jhIapEIg945KOzcYEAGGSmTSpk7A==}
     cpu: [arm]
     os: [linux]
 
@@ -4304,18 +4264,8 @@ packages:
     cpu: [arm]
     os: [linux]
 
-  '@rollup/rollup-linux-arm64-gnu@4.35.0':
-    resolution: {integrity: sha512-uagpnH2M2g2b5iLsCTZ35CL1FgyuzzJQ8L9VtlJ+FckBXroTwNOaD0z0/UF+k5K3aNQjbm8LIVpxykUOQt1m/A==}
-    cpu: [arm64]
-    os: [linux]
-
   '@rollup/rollup-linux-arm64-gnu@4.36.0':
     resolution: {integrity: sha512-KqjYVh3oM1bj//5X7k79PSCZ6CvaVzb7Qs7VMWS+SlWB5M8p3FqufLP9VNp4CazJ0CsPDLwVD9r3vX7Ci4J56A==}
-    cpu: [arm64]
-    os: [linux]
-
-  '@rollup/rollup-linux-arm64-musl@4.35.0':
-    resolution: {integrity: sha512-XQxVOCd6VJeHQA/7YcqyV0/88N6ysSVzRjJ9I9UA/xXpEsjvAgDTgH3wQYz5bmr7SPtVK2TsP2fQ2N9L4ukoUg==}
     cpu: [arm64]
     os: [linux]
 
@@ -4324,19 +4274,9 @@ packages:
     cpu: [arm64]
     os: [linux]
 
-  '@rollup/rollup-linux-loongarch64-gnu@4.35.0':
-    resolution: {integrity: sha512-5pMT5PzfgwcXEwOaSrqVsz/LvjDZt+vQ8RT/70yhPU06PTuq8WaHhfT1LW+cdD7mW6i/J5/XIkX/1tCAkh1W6g==}
-    cpu: [loong64]
-    os: [linux]
-
   '@rollup/rollup-linux-loongarch64-gnu@4.36.0':
     resolution: {integrity: sha512-1ZPyEDWF8phd4FQtTzMh8FQwqzvIjLsl6/84gzUxnMNFBtExBtpL51H67mV9xipuxl1AEAerRBgBwFNpkw8+Lg==}
     cpu: [loong64]
-    os: [linux]
-
-  '@rollup/rollup-linux-powerpc64le-gnu@4.35.0':
-    resolution: {integrity: sha512-c+zkcvbhbXF98f4CtEIP1EBA/lCic5xB0lToneZYvMeKu5Kamq3O8gqrxiYYLzlZH6E3Aq+TSW86E4ay8iD8EA==}
-    cpu: [ppc64]
     os: [linux]
 
   '@rollup/rollup-linux-powerpc64le-gnu@4.36.0':
@@ -4344,19 +4284,9 @@ packages:
     cpu: [ppc64]
     os: [linux]
 
-  '@rollup/rollup-linux-riscv64-gnu@4.35.0':
-    resolution: {integrity: sha512-s91fuAHdOwH/Tad2tzTtPX7UZyytHIRR6V4+2IGlV0Cej5rkG0R61SX4l4y9sh0JBibMiploZx3oHKPnQBKe4g==}
-    cpu: [riscv64]
-    os: [linux]
-
   '@rollup/rollup-linux-riscv64-gnu@4.36.0':
     resolution: {integrity: sha512-ttE6ayb/kHwNRJGYLpuAvB7SMtOeQnVXEIpMtAvx3kepFQeowVED0n1K9nAdraHUPJ5hydEMxBpIR7o4nrm8uA==}
     cpu: [riscv64]
-    os: [linux]
-
-  '@rollup/rollup-linux-s390x-gnu@4.35.0':
-    resolution: {integrity: sha512-hQRkPQPLYJZYGP+Hj4fR9dDBMIM7zrzJDWFEMPdTnTy95Ljnv0/4w/ixFw3pTBMEuuEuoqtBINYND4M7ujcuQw==}
-    cpu: [s390x]
     os: [linux]
 
   '@rollup/rollup-linux-s390x-gnu@4.36.0':
@@ -4364,18 +4294,8 @@ packages:
     cpu: [s390x]
     os: [linux]
 
-  '@rollup/rollup-linux-x64-gnu@4.35.0':
-    resolution: {integrity: sha512-Pim1T8rXOri+0HmV4CdKSGrqcBWX0d1HoPnQ0uw0bdp1aP5SdQVNBy8LjYncvnLgu3fnnCt17xjWGd4cqh8/hA==}
-    cpu: [x64]
-    os: [linux]
-
   '@rollup/rollup-linux-x64-gnu@4.36.0':
     resolution: {integrity: sha512-5KtoW8UWmwFKQ96aQL3LlRXX16IMwyzMq/jSSVIIyAANiE1doaQsx/KRyhAvpHlPjPiSU/AYX/8m+lQ9VToxFQ==}
-    cpu: [x64]
-    os: [linux]
-
-  '@rollup/rollup-linux-x64-musl@4.35.0':
-    resolution: {integrity: sha512-QysqXzYiDvQWfUiTm8XmJNO2zm9yC9P/2Gkrwg2dH9cxotQzunBHYr6jk4SujCTqnfGxduOmQcI7c2ryuW8XVg==}
     cpu: [x64]
     os: [linux]
 
@@ -4384,29 +4304,14 @@ packages:
     cpu: [x64]
     os: [linux]
 
-  '@rollup/rollup-win32-arm64-msvc@4.35.0':
-    resolution: {integrity: sha512-OUOlGqPkVJCdJETKOCEf1mw848ZyJ5w50/rZ/3IBQVdLfR5jk/6Sr5m3iO2tdPgwo0x7VcncYuOvMhBWZq8ayg==}
-    cpu: [arm64]
-    os: [win32]
-
   '@rollup/rollup-win32-arm64-msvc@4.36.0':
     resolution: {integrity: sha512-qbqt4N7tokFwwSVlWDsjfoHgviS3n/vZ8LK0h1uLG9TYIRuUTJC88E1xb3LM2iqZ/WTqNQjYrtmtGmrmmawB6A==}
     cpu: [arm64]
     os: [win32]
 
-  '@rollup/rollup-win32-ia32-msvc@4.35.0':
-    resolution: {integrity: sha512-2/lsgejMrtwQe44glq7AFFHLfJBPafpsTa6JvP2NGef/ifOa4KBoglVf7AKN7EV9o32evBPRqfg96fEHzWo5kw==}
-    cpu: [ia32]
-    os: [win32]
-
   '@rollup/rollup-win32-ia32-msvc@4.36.0':
     resolution: {integrity: sha512-t+RY0JuRamIocMuQcfwYSOkmdX9dtkr1PbhKW42AMvaDQa+jOdpUYysroTF/nuPpAaQMWp7ye+ndlmmthieJrQ==}
     cpu: [ia32]
-    os: [win32]
-
-  '@rollup/rollup-win32-x64-msvc@4.35.0':
-    resolution: {integrity: sha512-PIQeY5XDkrOysbQblSW7v3l1MDZzkTEzAfTPkj5VAu3FW8fS4ynyLg2sINp0fp3SjZ8xkRYpLqoKcYqAkhU1dw==}
-    cpu: [x64]
     os: [win32]
 
   '@rollup/rollup-win32-x64-msvc@4.36.0':
@@ -10105,10 +10010,6 @@ packages:
     resolution: {integrity: sha512-9u/sniCrY3D5WdsERHzHE4G2YCXqoG5FTHUiCC4SIbr6XcLZBY05ya9EKjYek9O5xOAwjGq+1JdGBAS7Q9ScoA==}
     engines: {node: '>= 6'}
 
-  readable-stream@4.5.2:
-    resolution: {integrity: sha512-yjavECdqeZ3GLXNgRXgeQEdz9fvDDkNKyHnbHRFtOr7/LcfgBcmct7t/ET+HaCTqfh06OzoAxrkN/IfjJBVe+g==}
-    engines: {node: ^12.22.0 || ^14.17.0 || >=16.0.0}
-
   readable-stream@4.7.0:
     resolution: {integrity: sha512-oIGGmcpTLwPga8Bn6/Z75SVaH1z5dUut2ibSyAMVhmUggWpmDn2dapB0n7f8nwaSiRtepAsfJyfXIO5DCVAODg==}
     engines: {node: ^12.22.0 || ^14.17.0 || >=16.0.0}
@@ -10277,10 +10178,6 @@ packages:
   responselike@2.0.1:
     resolution: {integrity: sha512-4gl03wn3hj1HP3yzgdI7d3lCkF95F21Pz4BPGvKHinyQzALR5CapwC8yIi0Rh58DEMQ/SguC03wFj2k0M/mHhw==}
 
-  restore-cursor@5.0.0:
-    resolution: {integrity: sha512-Hp93f349DvdEqJFHiPyzNzVjT7lDDFtQJWRotQVQNl3CHr4j7oMHStQB9UH/CJSHTrevAZXFvomgzy8lXjrK0w==}
-    engines: {node: '>=18'}
-
   restore-cursor@5.1.0:
     resolution: {integrity: sha512-oMA2dcrw6u0YfxJQXm342bFKX/E4sG9rbTzO9ptUcR/e8A33cHuvStiYOwH7fszkZlZ1z/ta9AAoPk2F4qIOHA==}
     engines: {node: '>=18'}
@@ -10348,11 +10245,6 @@ packages:
   rollup@2.79.1:
     resolution: {integrity: sha512-uKxbd0IhMZOhjAiD5oAFp7BqvkA4Dv47qpOCtaNvng4HBwdbWtdOh8f5nZNuk2rp51PMGk3bzfWu5oayNEuYnw==}
     engines: {node: '>=10.0.0'}
-    hasBin: true
-
-  rollup@4.35.0:
-    resolution: {integrity: sha512-kg6oI4g+vc41vePJyO6dHt/yl0Rz3Thv0kJeVQ3D1kS3E5XSuKbPc29G4IpT/Kv1KQwgHVcN+HtyS+HYLNSvQg==}
-    engines: {node: '>=18.0.0', npm: '>=8.0.0'}
     hasBin: true
 
   rollup@4.36.0:
@@ -12000,11 +11892,6 @@ packages:
   zip-stream@4.1.1:
     resolution: {integrity: sha512-9qv4rlDiopXg4E69k+vMHjNN63YFMe9sZMrdlvKnCjlCRWeCBswPPMPUfx+ipsAWq1LXHe70RcbaHdJJpS6hyQ==}
     engines: {node: '>= 10'}
-
-  zod-to-json-schema@3.24.3:
-    resolution: {integrity: sha512-HIAfWdYIt1sssHfYZFCXp4rU1w2r8hVVXYIlmoa0r0gABLs5di3RCqPU5DDROogVz1pAdYBaz7HK5n9pSUNs3A==}
-    peerDependencies:
-      zod: ^3.24.1
 
   zod-to-json-schema@3.24.4:
     resolution: {integrity: sha512-0uNlcvgabyrni9Ag8Vghj21drk7+7tp7VTwwR7KxxXXc/3pbXz2PHlDgj3cICahgF1kHm4dExBFj7BXrZJXzig==}
@@ -13769,6 +13656,15 @@ snapshots:
       - '@vue/composition-api'
       - vue
 
+  '@floating-ui/vue@1.1.6(vue@packages+stage-ui+@formkit+auto-animate+vue)':
+    dependencies:
+      '@floating-ui/dom': 1.6.13
+      '@floating-ui/utils': 0.2.9
+      vue-demi: 0.14.10(vue@packages+stage-ui+@formkit+auto-animate+vue)
+    transitivePeerDependencies:
+      - '@vue/composition-api'
+      - vue
+
   '@formkit/auto-animate@0.8.2': {}
 
   '@grammyjs/files@1.1.1(grammy@1.35.0(encoding@0.1.13))':
@@ -13803,7 +13699,7 @@ snapshots:
     transitivePeerDependencies:
       - vite
 
-  '@histoire/plugin-vue@1.0.0-alpha.2(histoire@1.0.0-alpha.2(@types/node@22.13.10)(bufferutil@4.0.9)(less@4.2.2)(terser@5.17.6)(utf-8-validate@5.0.10)(vite@6.2.2(@types/node@22.13.10)(jiti@2.4.2)(less@4.2.2)(terser@5.17.6)(tsx@4.19.3)(yaml@2.7.0)))(vite@6.2.2(@types/node@22.13.10)(jiti@2.4.2)(less@4.2.2)(terser@5.17.6)(tsx@4.19.3)(yaml@2.7.0))(vue@3.5.13(typescript@5.8.2))':
+  '@histoire/plugin-vue@1.0.0-alpha.2(histoire@1.0.0-alpha.2(@types/node@22.13.10)(bufferutil@4.0.9)(less@4.2.2)(terser@5.17.6)(utf-8-validate@5.0.10)(vite@6.2.2(@types/node@22.13.10)(jiti@2.4.2)(less@4.2.2)(terser@5.17.6)(tsx@4.19.3)(yaml@2.7.0)))(vite@6.2.2(@types/node@22.13.10)(jiti@2.4.2)(less@4.2.2)(terser@5.17.6)(tsx@4.19.3)(yaml@2.7.0))(vue@packages+stage-ui+@formkit+auto-animate+vue)':
     dependencies:
       '@histoire/controls': 1.0.0-alpha.2(vite@6.2.2(@types/node@22.13.10)(jiti@2.4.2)(less@4.2.2)(terser@5.17.6)(tsx@4.19.3)(yaml@2.7.0))
       '@histoire/shared': 1.0.0-alpha.2(vite@6.2.2(@types/node@22.13.10)(jiti@2.4.2)(less@4.2.2)(terser@5.17.6)(tsx@4.19.3)(yaml@2.7.0))
@@ -13813,7 +13709,7 @@ snapshots:
       histoire: 1.0.0-alpha.2(@types/node@22.13.10)(bufferutil@4.0.9)(less@4.2.2)(terser@5.17.6)(utf-8-validate@5.0.10)(vite@6.2.2(@types/node@22.13.10)(jiti@2.4.2)(less@4.2.2)(terser@5.17.6)(tsx@4.19.3)(yaml@2.7.0))
       launch-editor: 2.10.0
       pathe: 1.1.2
-      vue: 3.5.13(typescript@5.8.2)
+      vue: link:packages/stage-ui/@formkit/auto-animate/vue
     transitivePeerDependencies:
       - vite
 
@@ -15096,115 +14992,58 @@ snapshots:
     optionalDependencies:
       rollup: 4.36.0
 
-  '@rollup/rollup-android-arm-eabi@4.35.0':
-    optional: true
-
   '@rollup/rollup-android-arm-eabi@4.36.0':
-    optional: true
-
-  '@rollup/rollup-android-arm64@4.35.0':
     optional: true
 
   '@rollup/rollup-android-arm64@4.36.0':
     optional: true
 
-  '@rollup/rollup-darwin-arm64@4.35.0':
-    optional: true
-
   '@rollup/rollup-darwin-arm64@4.36.0':
-    optional: true
-
-  '@rollup/rollup-darwin-x64@4.35.0':
     optional: true
 
   '@rollup/rollup-darwin-x64@4.36.0':
     optional: true
 
-  '@rollup/rollup-freebsd-arm64@4.35.0':
-    optional: true
-
   '@rollup/rollup-freebsd-arm64@4.36.0':
-    optional: true
-
-  '@rollup/rollup-freebsd-x64@4.35.0':
     optional: true
 
   '@rollup/rollup-freebsd-x64@4.36.0':
     optional: true
 
-  '@rollup/rollup-linux-arm-gnueabihf@4.35.0':
-    optional: true
-
   '@rollup/rollup-linux-arm-gnueabihf@4.36.0':
-    optional: true
-
-  '@rollup/rollup-linux-arm-musleabihf@4.35.0':
     optional: true
 
   '@rollup/rollup-linux-arm-musleabihf@4.36.0':
     optional: true
 
-  '@rollup/rollup-linux-arm64-gnu@4.35.0':
-    optional: true
-
   '@rollup/rollup-linux-arm64-gnu@4.36.0':
-    optional: true
-
-  '@rollup/rollup-linux-arm64-musl@4.35.0':
     optional: true
 
   '@rollup/rollup-linux-arm64-musl@4.36.0':
     optional: true
 
-  '@rollup/rollup-linux-loongarch64-gnu@4.35.0':
-    optional: true
-
   '@rollup/rollup-linux-loongarch64-gnu@4.36.0':
-    optional: true
-
-  '@rollup/rollup-linux-powerpc64le-gnu@4.35.0':
     optional: true
 
   '@rollup/rollup-linux-powerpc64le-gnu@4.36.0':
     optional: true
 
-  '@rollup/rollup-linux-riscv64-gnu@4.35.0':
-    optional: true
-
   '@rollup/rollup-linux-riscv64-gnu@4.36.0':
-    optional: true
-
-  '@rollup/rollup-linux-s390x-gnu@4.35.0':
     optional: true
 
   '@rollup/rollup-linux-s390x-gnu@4.36.0':
     optional: true
 
-  '@rollup/rollup-linux-x64-gnu@4.35.0':
-    optional: true
-
   '@rollup/rollup-linux-x64-gnu@4.36.0':
-    optional: true
-
-  '@rollup/rollup-linux-x64-musl@4.35.0':
     optional: true
 
   '@rollup/rollup-linux-x64-musl@4.36.0':
     optional: true
 
-  '@rollup/rollup-win32-arm64-msvc@4.35.0':
-    optional: true
-
   '@rollup/rollup-win32-arm64-msvc@4.36.0':
     optional: true
 
-  '@rollup/rollup-win32-ia32-msvc@4.35.0':
-    optional: true
-
   '@rollup/rollup-win32-ia32-msvc@4.36.0':
-    optional: true
-
-  '@rollup/rollup-win32-x64-msvc@4.35.0':
     optional: true
 
   '@rollup/rollup-win32-x64-msvc@4.36.0':
@@ -15335,6 +15174,11 @@ snapshots:
     dependencies:
       '@tanstack/virtual-core': 3.13.2
       vue: 3.5.13(typescript@5.8.2)
+
+  '@tanstack/vue-virtual@3.13.2(vue@packages+stage-ui+@formkit+auto-animate+vue)':
+    dependencies:
+      '@tanstack/virtual-core': 3.13.2
+      vue: link:packages/stage-ui/@formkit/auto-animate/vue
 
   '@testing-library/dom@10.4.0':
     dependencies:
@@ -15860,11 +15704,31 @@ snapshots:
       unhead: 2.0.0-rc.13
       vue: 3.5.13(typescript@5.8.2)
 
+  '@unocss/astro@66.1.0-beta.5(vite@6.2.2(@types/node@22.13.10)(jiti@2.4.2)(less@4.2.2)(terser@5.17.6)(tsx@4.19.3)(yaml@2.7.0))':
+    dependencies:
+      '@unocss/core': 66.1.0-beta.5
+      '@unocss/reset': 66.1.0-beta.5
+      '@unocss/vite': 66.1.0-beta.5(vite@6.2.2(@types/node@22.13.10)(jiti@2.4.2)(less@4.2.2)(terser@5.17.6)(tsx@4.19.3)(yaml@2.7.0))
+    optionalDependencies:
+      vite: 6.2.2(@types/node@22.13.10)(jiti@2.4.2)(less@4.2.2)(terser@5.17.6)(tsx@4.19.3)(yaml@2.7.0)
+    transitivePeerDependencies:
+      - vue
+
   '@unocss/astro@66.1.0-beta.5(vite@6.2.2(@types/node@22.13.10)(jiti@2.4.2)(less@4.2.2)(terser@5.17.6)(tsx@4.19.3)(yaml@2.7.0))(vue@3.5.13(typescript@5.8.2))':
     dependencies:
       '@unocss/core': 66.1.0-beta.5
       '@unocss/reset': 66.1.0-beta.5
       '@unocss/vite': 66.1.0-beta.5(vite@6.2.2(@types/node@22.13.10)(jiti@2.4.2)(less@4.2.2)(terser@5.17.6)(tsx@4.19.3)(yaml@2.7.0))(vue@3.5.13(typescript@5.8.2))
+    optionalDependencies:
+      vite: 6.2.2(@types/node@22.13.10)(jiti@2.4.2)(less@4.2.2)(terser@5.17.6)(tsx@4.19.3)(yaml@2.7.0)
+    transitivePeerDependencies:
+      - vue
+
+  '@unocss/astro@66.1.0-beta.5(vite@6.2.2(@types/node@22.13.10)(jiti@2.4.2)(less@4.2.2)(terser@5.17.6)(tsx@4.19.3)(yaml@2.7.0))(vue@packages+stage-ui+@formkit+auto-animate+vue)':
+    dependencies:
+      '@unocss/core': 66.1.0-beta.5
+      '@unocss/reset': 66.1.0-beta.5
+      '@unocss/vite': 66.1.0-beta.5(vite@6.2.2(@types/node@22.13.10)(jiti@2.4.2)(less@4.2.2)(terser@5.17.6)(tsx@4.19.3)(yaml@2.7.0))(vue@packages+stage-ui+@formkit+auto-animate+vue)
     optionalDependencies:
       vite: 6.2.2(@types/node@22.13.10)(jiti@2.4.2)(less@4.2.2)(terser@5.17.6)(tsx@4.19.3)(yaml@2.7.0)
     transitivePeerDependencies:
@@ -15924,6 +15788,17 @@ snapshots:
     dependencies:
       '@unocss/core': 66.1.0-beta.5
 
+  '@unocss/inspector@66.1.0-beta.5':
+    dependencies:
+      '@unocss/core': 66.1.0-beta.5
+      '@unocss/rule-utils': 66.1.0-beta.5
+      colorette: 2.0.20
+      gzip-size: 6.0.0
+      sirv: 3.0.1
+      vue-flow-layout: 0.1.1(vue@packages+stage-ui+@formkit+auto-animate+vue)
+    transitivePeerDependencies:
+      - vue
+
   '@unocss/inspector@66.1.0-beta.5(vue@3.5.13(typescript@5.8.2))':
     dependencies:
       '@unocss/core': 66.1.0-beta.5
@@ -15932,6 +15807,17 @@ snapshots:
       gzip-size: 6.0.0
       sirv: 3.0.1
       vue-flow-layout: 0.1.1(vue@3.5.13(typescript@5.8.2))
+    transitivePeerDependencies:
+      - vue
+
+  '@unocss/inspector@66.1.0-beta.5(vue@packages+stage-ui+@formkit+auto-animate+vue)':
+    dependencies:
+      '@unocss/core': 66.1.0-beta.5
+      '@unocss/rule-utils': 66.1.0-beta.5
+      colorette: 2.0.20
+      gzip-size: 6.0.0
+      sirv: 3.0.1
+      vue-flow-layout: 0.1.1(vue@packages+stage-ui+@formkit+auto-animate+vue)
     transitivePeerDependencies:
       - vue
 
@@ -16035,12 +15921,40 @@ snapshots:
     dependencies:
       '@unocss/core': 66.1.0-beta.5
 
+  '@unocss/vite@66.1.0-beta.5(vite@6.2.2(@types/node@22.13.10)(jiti@2.4.2)(less@4.2.2)(terser@5.17.6)(tsx@4.19.3)(yaml@2.7.0))':
+    dependencies:
+      '@ampproject/remapping': 2.3.0
+      '@unocss/config': 66.1.0-beta.5
+      '@unocss/core': 66.1.0-beta.5
+      '@unocss/inspector': 66.1.0-beta.5
+      chokidar: 3.6.0
+      magic-string: 0.30.17
+      tinyglobby: 0.2.12
+      unplugin-utils: 0.2.4
+      vite: 6.2.2(@types/node@22.13.10)(jiti@2.4.2)(less@4.2.2)(terser@5.17.6)(tsx@4.19.3)(yaml@2.7.0)
+    transitivePeerDependencies:
+      - vue
+
   '@unocss/vite@66.1.0-beta.5(vite@6.2.2(@types/node@22.13.10)(jiti@2.4.2)(less@4.2.2)(terser@5.17.6)(tsx@4.19.3)(yaml@2.7.0))(vue@3.5.13(typescript@5.8.2))':
     dependencies:
       '@ampproject/remapping': 2.3.0
       '@unocss/config': 66.1.0-beta.5
       '@unocss/core': 66.1.0-beta.5
       '@unocss/inspector': 66.1.0-beta.5(vue@3.5.13(typescript@5.8.2))
+      chokidar: 3.6.0
+      magic-string: 0.30.17
+      tinyglobby: 0.2.12
+      unplugin-utils: 0.2.4
+      vite: 6.2.2(@types/node@22.13.10)(jiti@2.4.2)(less@4.2.2)(terser@5.17.6)(tsx@4.19.3)(yaml@2.7.0)
+    transitivePeerDependencies:
+      - vue
+
+  '@unocss/vite@66.1.0-beta.5(vite@6.2.2(@types/node@22.13.10)(jiti@2.4.2)(less@4.2.2)(terser@5.17.6)(tsx@4.19.3)(yaml@2.7.0))(vue@packages+stage-ui+@formkit+auto-animate+vue)':
+    dependencies:
+      '@ampproject/remapping': 2.3.0
+      '@unocss/config': 66.1.0-beta.5
+      '@unocss/core': 66.1.0-beta.5
+      '@unocss/inspector': 66.1.0-beta.5(vue@packages+stage-ui+@formkit+auto-animate+vue)
       chokidar: 3.6.0
       magic-string: 0.30.17
       tinyglobby: 0.2.12
@@ -16112,6 +16026,11 @@ snapshots:
     dependencies:
       vite: 6.2.2(@types/node@22.13.10)(jiti@2.4.2)(less@4.2.2)(terser@5.17.6)(tsx@4.19.3)(yaml@2.7.0)
       vue: 3.5.13(typescript@5.8.2)
+
+  '@vitejs/plugin-vue@5.2.3(vite@6.2.2(@types/node@22.13.10)(jiti@2.4.2)(less@4.2.2)(terser@5.17.6)(tsx@4.19.3)(yaml@2.7.0))(vue@packages+stage-ui+@formkit+auto-animate+vue)':
+    dependencies:
+      vite: 6.2.2(@types/node@22.13.10)(jiti@2.4.2)(less@4.2.2)(terser@5.17.6)(tsx@4.19.3)(yaml@2.7.0)
+      vue: link:packages/stage-ui/@formkit/auto-animate/vue
 
   '@vitest/browser@3.0.9(@types/node@22.13.10)(bufferutil@4.0.9)(playwright@1.51.1)(typescript@5.8.2)(utf-8-validate@5.0.10)(vite@6.2.2(@types/node@22.13.10)(jiti@2.4.2)(less@4.2.2)(terser@5.17.6)(tsx@4.19.3)(yaml@2.7.0))(vitest@3.0.9)':
     dependencies:
@@ -16675,6 +16594,13 @@ snapshots:
       '@vueuse/shared': 13.0.0(vue@3.5.13(typescript@5.8.2))
       vue: 3.5.13(typescript@5.8.2)
 
+  '@vueuse/core@13.0.0(vue@packages+stage-ui+@formkit+auto-animate+vue)':
+    dependencies:
+      '@types/web-bluetooth': 0.0.21
+      '@vueuse/metadata': 13.0.0
+      '@vueuse/shared': 13.0.0(vue@packages+stage-ui+@formkit+auto-animate+vue)
+      vue: link:packages/stage-ui/@formkit/auto-animate/vue
+
   '@vueuse/head@2.0.0(vue@3.5.13(typescript@5.8.2))':
     dependencies:
       '@unhead/dom': 1.11.19
@@ -16721,6 +16647,22 @@ snapshots:
       - rollup
       - supports-color
 
+  '@vueuse/motion@3.0.3(magicast@0.3.5)(rollup@4.36.0)(vue@packages+stage-ui+@formkit+auto-animate+vue)':
+    dependencies:
+      '@vueuse/core': 13.0.0(vue@packages+stage-ui+@formkit+auto-animate+vue)
+      '@vueuse/shared': 13.0.0(vue@packages+stage-ui+@formkit+auto-animate+vue)
+      defu: 6.1.4
+      framesync: 6.1.2
+      popmotion: 11.0.5
+      style-value-types: 5.1.2
+      vue: link:packages/stage-ui/@formkit/auto-animate/vue
+    optionalDependencies:
+      '@nuxt/kit': 3.14.1592(magicast@0.3.5)(rollup@4.36.0)
+    transitivePeerDependencies:
+      - magicast
+      - rollup
+      - supports-color
+
   '@vueuse/shared@10.11.1(vue@3.5.13(typescript@5.8.2))':
     dependencies:
       vue-demi: 0.14.10(vue@3.5.13(typescript@5.8.2))
@@ -16737,6 +16679,10 @@ snapshots:
   '@vueuse/shared@13.0.0(vue@3.5.13(typescript@5.8.2))':
     dependencies:
       vue: 3.5.13(typescript@5.8.2)
+
+  '@vueuse/shared@13.0.0(vue@packages+stage-ui+@formkit+auto-animate+vue)':
+    dependencies:
+      vue: link:packages/stage-ui/@formkit/auto-animate/vue
 
   '@webgpu/types@0.1.56': {}
 
@@ -17133,7 +17079,7 @@ snapshots:
       yargs-parser: 21.1.1
       yocto-spinner: 0.2.1
       zod: 3.24.2
-      zod-to-json-schema: 3.24.3(zod@3.24.2)
+      zod-to-json-schema: 3.24.4(zod@3.24.2)
       zod-to-ts: 1.2.0(typescript@5.8.2)(zod@3.24.2)
     optionalDependencies:
       sharp: 0.33.5
@@ -17605,7 +17551,7 @@ snapshots:
 
   cli-cursor@5.0.0:
     dependencies:
-      restore-cursor: 5.0.0
+      restore-cursor: 5.1.0
 
   cli-truncate@2.1.0:
     dependencies:
@@ -18411,7 +18357,7 @@ snapshots:
       formdata-node: 6.0.3
       node-fetch: 2.7.0(encoding@0.1.13)
       qs: 6.14.0
-      readable-stream: 4.5.2
+      readable-stream: 4.7.0
       url-join: 4.0.1
     transitivePeerDependencies:
       - encoding
@@ -21207,7 +21153,7 @@ snapshots:
       prismarine-nbt: 2.7.0
       prismarine-realms: 1.3.2(encoding@0.1.13)
       protodef: 1.18.0
-      readable-stream: 4.5.2
+      readable-stream: 4.7.0
       uuid-1345: 1.0.2
       yggdrasil: 1.7.0(encoding@0.1.13)
     transitivePeerDependencies:
@@ -22516,7 +22462,7 @@ snapshots:
       lodash.get: 4.4.2
       lodash.reduce: 4.6.0
       protodef-validator: 1.4.0
-      readable-stream: 4.5.2
+      readable-stream: 4.7.0
 
   proxy-addr@2.0.7:
     dependencies:
@@ -22660,14 +22606,6 @@ snapshots:
       inherits: 2.0.4
       string_decoder: 1.3.0
       util-deprecate: 1.0.2
-
-  readable-stream@4.5.2:
-    dependencies:
-      abort-controller: 3.0.0
-      buffer: 6.0.3
-      events: 3.3.0
-      process: 0.11.10
-      string_decoder: 1.3.0
 
   readable-stream@4.7.0:
     dependencies:
@@ -22841,6 +22779,23 @@ snapshots:
       - '@vue/composition-api'
       - typescript
 
+  reka-ui@2.1.0(typescript@5.8.2)(vue@packages+stage-ui+@formkit+auto-animate+vue):
+    dependencies:
+      '@floating-ui/dom': 1.6.13
+      '@floating-ui/vue': 1.1.6(vue@packages+stage-ui+@formkit+auto-animate+vue)
+      '@internationalized/date': 3.6.0
+      '@internationalized/number': 3.6.0
+      '@tanstack/vue-virtual': 3.13.2(vue@packages+stage-ui+@formkit+auto-animate+vue)
+      '@vueuse/core': 12.8.2(typescript@5.8.2)
+      '@vueuse/shared': 12.8.2(typescript@5.8.2)
+      aria-hidden: 1.2.4
+      defu: 6.1.4
+      ohash: 1.1.4
+      vue: link:packages/stage-ui/@formkit/auto-animate/vue
+    transitivePeerDependencies:
+      - '@vue/composition-api'
+      - typescript
+
   remark-directive@3.0.1:
     dependencies:
       '@types/mdast': 4.0.4
@@ -22921,11 +22876,6 @@ snapshots:
   responselike@2.0.1:
     dependencies:
       lowercase-keys: 2.0.0
-
-  restore-cursor@5.0.0:
-    dependencies:
-      onetime: 6.0.0
-      signal-exit: 4.1.0
 
   restore-cursor@5.1.0:
     dependencies:
@@ -23014,31 +22964,6 @@ snapshots:
 
   rollup@2.79.1:
     optionalDependencies:
-      fsevents: 2.3.3
-
-  rollup@4.35.0:
-    dependencies:
-      '@types/estree': 1.0.6
-    optionalDependencies:
-      '@rollup/rollup-android-arm-eabi': 4.35.0
-      '@rollup/rollup-android-arm64': 4.35.0
-      '@rollup/rollup-darwin-arm64': 4.35.0
-      '@rollup/rollup-darwin-x64': 4.35.0
-      '@rollup/rollup-freebsd-arm64': 4.35.0
-      '@rollup/rollup-freebsd-x64': 4.35.0
-      '@rollup/rollup-linux-arm-gnueabihf': 4.35.0
-      '@rollup/rollup-linux-arm-musleabihf': 4.35.0
-      '@rollup/rollup-linux-arm64-gnu': 4.35.0
-      '@rollup/rollup-linux-arm64-musl': 4.35.0
-      '@rollup/rollup-linux-loongarch64-gnu': 4.35.0
-      '@rollup/rollup-linux-powerpc64le-gnu': 4.35.0
-      '@rollup/rollup-linux-riscv64-gnu': 4.35.0
-      '@rollup/rollup-linux-s390x-gnu': 4.35.0
-      '@rollup/rollup-linux-x64-gnu': 4.35.0
-      '@rollup/rollup-linux-x64-musl': 4.35.0
-      '@rollup/rollup-win32-arm64-msvc': 4.35.0
-      '@rollup/rollup-win32-ia32-msvc': 4.35.0
-      '@rollup/rollup-win32-x64-msvc': 4.35.0
       fsevents: 2.3.3
 
   rollup@4.36.0:
@@ -24082,6 +24007,34 @@ snapshots:
       '@unocss/preset-mini': 65.5.0
       unocss: 66.1.0-beta.5(postcss@8.5.3)(vite@6.2.2(@types/node@22.13.10)(jiti@2.4.2)(less@4.2.2)(terser@5.17.6)(tsx@4.19.3)(yaml@2.7.0))(vue@3.5.13(typescript@5.8.2))
 
+  unocss@66.1.0-beta.5(postcss@8.5.3)(vite@6.2.2(@types/node@22.13.10)(jiti@2.4.2)(less@4.2.2)(terser@5.17.6)(tsx@4.19.3)(yaml@2.7.0)):
+    dependencies:
+      '@unocss/astro': 66.1.0-beta.5(vite@6.2.2(@types/node@22.13.10)(jiti@2.4.2)(less@4.2.2)(terser@5.17.6)(tsx@4.19.3)(yaml@2.7.0))
+      '@unocss/cli': 66.1.0-beta.5
+      '@unocss/core': 66.1.0-beta.5
+      '@unocss/postcss': 66.1.0-beta.5(postcss@8.5.3)
+      '@unocss/preset-attributify': 66.1.0-beta.5
+      '@unocss/preset-icons': 66.1.0-beta.5
+      '@unocss/preset-mini': 66.1.0-beta.5
+      '@unocss/preset-tagify': 66.1.0-beta.5
+      '@unocss/preset-typography': 66.1.0-beta.5
+      '@unocss/preset-uno': 66.1.0-beta.5
+      '@unocss/preset-web-fonts': 66.1.0-beta.5
+      '@unocss/preset-wind': 66.1.0-beta.5
+      '@unocss/preset-wind3': 66.1.0-beta.5
+      '@unocss/preset-wind4': 66.1.0-beta.5
+      '@unocss/transformer-attributify-jsx': 66.1.0-beta.5
+      '@unocss/transformer-compile-class': 66.1.0-beta.5
+      '@unocss/transformer-directives': 66.1.0-beta.5
+      '@unocss/transformer-variant-group': 66.1.0-beta.5
+      '@unocss/vite': 66.1.0-beta.5(vite@6.2.2(@types/node@22.13.10)(jiti@2.4.2)(less@4.2.2)(terser@5.17.6)(tsx@4.19.3)(yaml@2.7.0))
+    optionalDependencies:
+      vite: 6.2.2(@types/node@22.13.10)(jiti@2.4.2)(less@4.2.2)(terser@5.17.6)(tsx@4.19.3)(yaml@2.7.0)
+    transitivePeerDependencies:
+      - postcss
+      - supports-color
+      - vue
+
   unocss@66.1.0-beta.5(postcss@8.5.3)(vite@6.2.2(@types/node@22.13.10)(jiti@2.4.2)(less@4.2.2)(terser@5.17.6)(tsx@4.19.3)(yaml@2.7.0))(vue@3.5.13(typescript@5.8.2)):
     dependencies:
       '@unocss/astro': 66.1.0-beta.5(vite@6.2.2(@types/node@22.13.10)(jiti@2.4.2)(less@4.2.2)(terser@5.17.6)(tsx@4.19.3)(yaml@2.7.0))(vue@3.5.13(typescript@5.8.2))
@@ -24103,6 +24056,34 @@ snapshots:
       '@unocss/transformer-directives': 66.1.0-beta.5
       '@unocss/transformer-variant-group': 66.1.0-beta.5
       '@unocss/vite': 66.1.0-beta.5(vite@6.2.2(@types/node@22.13.10)(jiti@2.4.2)(less@4.2.2)(terser@5.17.6)(tsx@4.19.3)(yaml@2.7.0))(vue@3.5.13(typescript@5.8.2))
+    optionalDependencies:
+      vite: 6.2.2(@types/node@22.13.10)(jiti@2.4.2)(less@4.2.2)(terser@5.17.6)(tsx@4.19.3)(yaml@2.7.0)
+    transitivePeerDependencies:
+      - postcss
+      - supports-color
+      - vue
+
+  unocss@66.1.0-beta.5(postcss@8.5.3)(vite@6.2.2(@types/node@22.13.10)(jiti@2.4.2)(less@4.2.2)(terser@5.17.6)(tsx@4.19.3)(yaml@2.7.0))(vue@packages+stage-ui+@formkit+auto-animate+vue):
+    dependencies:
+      '@unocss/astro': 66.1.0-beta.5(vite@6.2.2(@types/node@22.13.10)(jiti@2.4.2)(less@4.2.2)(terser@5.17.6)(tsx@4.19.3)(yaml@2.7.0))(vue@packages+stage-ui+@formkit+auto-animate+vue)
+      '@unocss/cli': 66.1.0-beta.5
+      '@unocss/core': 66.1.0-beta.5
+      '@unocss/postcss': 66.1.0-beta.5(postcss@8.5.3)
+      '@unocss/preset-attributify': 66.1.0-beta.5
+      '@unocss/preset-icons': 66.1.0-beta.5
+      '@unocss/preset-mini': 66.1.0-beta.5
+      '@unocss/preset-tagify': 66.1.0-beta.5
+      '@unocss/preset-typography': 66.1.0-beta.5
+      '@unocss/preset-uno': 66.1.0-beta.5
+      '@unocss/preset-web-fonts': 66.1.0-beta.5
+      '@unocss/preset-wind': 66.1.0-beta.5
+      '@unocss/preset-wind3': 66.1.0-beta.5
+      '@unocss/preset-wind4': 66.1.0-beta.5
+      '@unocss/transformer-attributify-jsx': 66.1.0-beta.5
+      '@unocss/transformer-compile-class': 66.1.0-beta.5
+      '@unocss/transformer-directives': 66.1.0-beta.5
+      '@unocss/transformer-variant-group': 66.1.0-beta.5
+      '@unocss/vite': 66.1.0-beta.5(vite@6.2.2(@types/node@22.13.10)(jiti@2.4.2)(less@4.2.2)(terser@5.17.6)(tsx@4.19.3)(yaml@2.7.0))(vue@packages+stage-ui+@formkit+auto-animate+vue)
     optionalDependencies:
       vite: 6.2.2(@types/node@22.13.10)(jiti@2.4.2)(less@4.2.2)(terser@5.17.6)(tsx@4.19.3)(yaml@2.7.0)
     transitivePeerDependencies:
@@ -24659,7 +24640,7 @@ snapshots:
     dependencies:
       esbuild: 0.25.0
       postcss: 8.5.3
-      rollup: 4.35.0
+      rollup: 4.36.0
     optionalDependencies:
       '@types/node': 22.13.10
       fsevents: 2.3.3
@@ -24720,6 +24701,10 @@ snapshots:
     dependencies:
       vue: 3.5.13(typescript@5.8.2)
 
+  vue-demi@0.14.10(vue@packages+stage-ui+@formkit+auto-animate+vue):
+    dependencies:
+      vue: link:packages/stage-ui/@formkit/auto-animate/vue
+
   vue-eslint-parser@10.1.1(eslint@9.22.0(jiti@2.4.2)):
     dependencies:
       debug: 4.4.0
@@ -24736,6 +24721,10 @@ snapshots:
   vue-flow-layout@0.1.1(vue@3.5.13(typescript@5.8.2)):
     dependencies:
       vue: 3.5.13(typescript@5.8.2)
+
+  vue-flow-layout@0.1.1(vue@packages+stage-ui+@formkit+auto-animate+vue):
+    dependencies:
+      vue: link:packages/stage-ui/@formkit/auto-animate/vue
 
   vue-i18n@11.1.2(vue@3.5.13(typescript@5.8.2)):
     dependencies:
@@ -25096,10 +25085,6 @@ snapshots:
       archiver-utils: 3.0.4
       compress-commons: 4.1.2
       readable-stream: 3.6.2
-
-  zod-to-json-schema@3.24.3(zod@3.24.2):
-    dependencies:
-      zod: 3.24.2
 
   zod-to-json-schema@3.24.4(zod@3.24.2):
     dependencies:
