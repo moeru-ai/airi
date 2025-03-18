@@ -20,11 +20,11 @@
     "h3": "^1.15.1",
     "listhen": "^1.9.0",
     "ofetch": "^1.4.1",
-    "playwright": "^1.51.0",
+    "playwright": "^1.51.1",
     "zod": "^3.24.2"
   },
   "devDependencies": {
-    "@types/node": "^18.19.80",
+    "@types/node": "^22.13.10",
     "tsx": "^4.19.3",
     "typescript": "^5.8.2"
   }

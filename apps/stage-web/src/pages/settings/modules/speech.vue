@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import {
   FieldCheckbox,
+  FieldInput,
   FieldRange,
   RadioCardSimple,
   VoiceCardManySelect,
@@ -16,7 +17,7 @@ const providersStore = useProvidersStore()
 const speechStore = useSpeechStore()
 const {
   availableProviders,
-  availableProvidersMetadata,
+  availableAudioSpeechProvidersMetadata,
 } = storeToRefs(providersStore)
 const {
   activeSpeechProvider,
@@ -49,11 +50,6 @@ watch(activeSpeechProvider, async () => {
   await speechStore.loadVoicesForProvider(activeSpeechProvider.value)
 })
 
-function updateVoiceName(value: string) {
-  voiceId.value = value
-  updateSSMLExample()
-}
-
 function updateCustomVoiceName(value: string) {
   voiceId.value = value
   updateSSMLExample()
@@ -74,6 +70,8 @@ function handleVoiceSelection(value: string) {
   voiceId.value = value
   updateSSMLExample()
 }
+
+watch(voiceId, updateSSMLExample)
 </script>
 
 <template>
@@ -110,7 +108,7 @@ function handleVoiceSelection(value: string) {
             min-w-0 of-x-scroll scroll-smooth role="radiogroup"
           >
             <RadioCardSimple
-              v-for="metadata in availableProvidersMetadata"
+              v-for="metadata in availableAudioSpeechProvidersMetadata"
               :id="metadata.id"
               :key="metadata.id"
               v-model="activeSpeechProvider"
@@ -262,20 +260,13 @@ function handleVoiceSelection(value: string) {
           v-if="!availableVoices[activeSpeechProvider] || availableVoices[activeSpeechProvider].length === 0"
           class="mt-2 space-y-6"
         >
-          <div>
-            <label class="mb-1 block text-sm font-medium">
-              Voice Name
-            </label>
-            <input
-              v-model="voiceId" type="text"
-              class="w-full border border-neutral-300 rounded bg-white px-3 py-2 dark:border-neutral-700 dark:bg-neutral-900"
-              placeholder="Enter voice name (e.g., 'Rachel', 'Josh')"
-              @input="(event) => updateVoiceName((event.target as HTMLInputElement).value)"
-            >
-            <p class="mt-1 text-xs text-neutral-500">
-              For ElevenLabs, enter the exact voice name from your account
-            </p>
-          </div>
+          <FieldInput
+            v-model="voiceId"
+            type="text"
+            label="Voice ID"
+            description="Enter the voice ID for your custom voice"
+            placeholder="Enter voice name (e.g., 'Rachel', 'Josh')"
+          />
 
           <!-- Model selection for ElevenLabs -->
           <div v-if="activeSpeechProvider === 'elevenlabs'">

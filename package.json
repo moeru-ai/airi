@@ -2,7 +2,7 @@
   "name": "airi-vtuber",
   "type": "module",
   "private": true,
-  "packageManager": "pnpm@10.6.3",
+  "packageManager": "pnpm@10.6.4",
   "description": "LLM powered virtual character",
   "author": {
     "name": "Neko Ayaka",
@@ -46,15 +46,15 @@
     "eslint-plugin-cypress": "^4.2.0",
     "eslint-plugin-format": "^1.0.1",
     "lint-staged": "^15.5.0",
-    "rollup": "^4.35.0",
+    "rollup": "^4.36.0",
     "simple-git-hooks": "^2.11.1",
-    "taze": "^18.7.1",
+    "taze": "^19.0.2",
     "typescript": "~5.8.2",
     "unbuild": "3.0.0-rc.11",
     "unocss": "^66.1.0-beta.5",
     "vite": "^6.2.2",
     "vite-plugin-inspect": "^11.0.0",
-    "vitest": "^3.0.8"
+    "vitest": "^3.0.9"
   },
   "workspaces": [
     "packages/**",
@@ -66,14 +66,14 @@
   "pnpm": {
     "neverBuiltDependencies": [],
     "overrides": {
-      "array-flatten": "npm:@nolyfill/array-flatten@^1",
+      "array-flatten": "npm:@nolyfill/array-flatten@^1.0.44",
       "axios": "npm:feaxios@^0.0.23",
-      "is-core-module": "npm:@nolyfill/is-core-module@^1",
-      "isarray": "npm:@nolyfill/isarray@^1",
-      "safe-buffer": "npm:@nolyfill/safe-buffer@^1",
-      "safer-buffer": "npm:@nolyfill/safer-buffer@^1",
-      "side-channel": "npm:@nolyfill/side-channel@^1",
-      "string.prototype.matchall": "npm:@nolyfill/string.prototype.matchall@^1"
+      "is-core-module": "npm:@nolyfill/is-core-module@^1.0.39",
+      "isarray": "npm:@nolyfill/isarray@^1.0.44",
+      "safe-buffer": "npm:@nolyfill/safe-buffer@^1.0.44",
+      "safer-buffer": "npm:@nolyfill/safer-buffer@^1.0.44",
+      "side-channel": "npm:@nolyfill/side-channel@^1.0.44",
+      "string.prototype.matchall": "npm:@nolyfill/string.prototype.matchall@^1.0.44"
     }
   },
   "simple-git-hooks": {

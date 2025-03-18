@@ -1,4 +1,3 @@
-import type { UnElevenLabsOptions } from '@xsai-ext/providers-local'
 import type {
   ChatProvider,
   ChatProviderWithExtraOptions,
@@ -9,6 +8,8 @@ import type {
   TranscriptionProvider,
   TranscriptionProviderWithExtraOptions,
 } from '@xsai-ext/shared-providers'
+import type { UnElevenLabsOptions } from './fix/elevenlabs'
+import type { UnMicrosoftOptions } from './fix/microsoft'
 import type { VoiceProviderWithExtraOptions } from './fix/voice'
 
 import { useLocalStorage } from '@vueuse/core'
@@ -33,7 +34,7 @@ import { useI18n } from 'vue-i18n'
 
 import { createUnElevenLabs } from './fix/elevenlabs'
 import { listVoices } from './fix/list-voices'
-// import { createUnMicrosoft } from './fix/microsoft'
+import { createUnMicrosoft } from './fix/microsoft'
 
 export interface ProviderMetadata {
   id: string
@@ -314,7 +315,6 @@ export const useProvidersStore = defineStore('providers', () => {
           stability: 0.5,
         },
       },
-      // TODO: UnElevenLabsOptions
       createProvider: config => createUnElevenLabs(config.apiKey as string, config.baseUrl as string) as SpeechProviderWithExtraOptions<string, UnElevenLabsOptions>,
       capabilities: {
         listModels: async () => {
@@ -480,6 +480,39 @@ export const useProvidersStore = defineStore('providers', () => {
         },
       },
     },
+    'microsoft-speech': {
+      id: 'microsoft-speech',
+      nameKey: 'settings.pages.providers.provider.microsoft-speech.title',
+      name: 'Microsoft / Azure Speech',
+      descriptionKey: 'settings.pages.providers.provider.microsoft-speech.description',
+      description: 'speech.microsoft.com',
+      iconColor: 'i-lobe-icons:microsoft-color',
+      defaultOptions: {
+        baseUrl: 'https://unspeech.hyp3r.link/v1/',
+      },
+      createProvider: config => createUnMicrosoft(config.apiKey as string, config.baseUrl as string) as SpeechProviderWithExtraOptions<string, UnMicrosoftOptions>,
+      capabilities: {
+        listModels: async () => {
+          return []
+        },
+        listVoices: async (config) => {
+          const provider = createUnMicrosoft(config.apiKey as string, config.baseUrl as string) as VoiceProviderWithExtraOptions<UnMicrosoftOptions>
+
+          const voices = await listVoices({
+            ...provider.voice({ region: config.region as string }),
+          })
+
+          return voices.map((voice) => {
+            return {
+              id: voice.id,
+              name: voice.name,
+              provider: 'microsoft-speech',
+              previewURL: voice.preview_audio_url,
+            }
+          })
+        },
+      },
+    },
     'cloudflare-workers-ai': {
       id: 'cloudflare-workers-ai',
       nameKey: 'settings.pages.providers.provider.cloudflare-workers-ai.title',
@@ -573,6 +606,8 @@ export const useProvidersStore = defineStore('providers', () => {
         return !!config.apiKey
       case 'fireworks-ai':
         return !!config.apiKey
+      case 'microsoft-speech':
+        return !!config.apiKey && !!config.region
       case 'cloudflare-workers-ai':
         return !!config.apiKey
       case 'mistral-ai':
@@ -731,6 +766,27 @@ export const useProvidersStore = defineStore('providers', () => {
     return availableProviders.value.map(id => getProviderMetadata(id))
   })
 
+  const availableTextGenerationsProvidersMetadata = computed(() => {
+    return availableProvidersMetadata.value.filter((metadata) => {
+      const provider = getProviderInstance(metadata.id)
+      return 'chat' in provider && typeof provider.chat === 'function'
+    })
+  })
+
+  const availableAudioTranscriptionProvidersMetadata = computed(() => {
+    return availableProvidersMetadata.value.filter((metadata) => {
+      const provider = getProviderInstance(metadata.id)
+      return 'transcription' in provider && typeof provider.transcription === 'function'
+    })
+  })
+
+  const availableAudioSpeechProvidersMetadata = computed(() => {
+    return availableProvidersMetadata.value.filter((metadata) => {
+      const provider = getProviderInstance(metadata.id)
+      return 'speech' in provider && typeof provider.speech === 'function'
+    })
+  })
+
   function getProviderConfig(providerId: string) {
     return providerCredentials.value[providerId]
   }
@@ -754,5 +810,8 @@ export const useProvidersStore = defineStore('providers', () => {
     loadModelsForConfiguredProviders,
     getProviderInstance,
     availableProvidersMetadata,
+    availableTextGenerationsProvidersMetadata,
+    availableAudioSpeechProvidersMetadata,
+    availableAudioTranscriptionProvidersMetadata,
   }
 })

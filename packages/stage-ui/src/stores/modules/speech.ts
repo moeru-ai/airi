@@ -33,7 +33,7 @@ export const useSpeechStore = defineStore('speech', () => {
 
   const supportsSSML = computed(() => {
     // Currently only ElevenLabs and some other providers support SSML
-    return ['elevenlabs', 'microsoft', 'google'].includes(activeSpeechProvider.value)
+    return ['elevenlabs', 'microsoft-speech', 'azure-speech', 'google'].includes(activeSpeechProvider.value)
   })
 
   const availableLanguages = computed(() => {
@@ -58,7 +58,7 @@ export const useSpeechStore = defineStore('speech', () => {
   function isSpeechProvider(providerId: string): boolean {
     // This is a simplified check - in a real implementation, you might have a more robust way
     // to determine if a provider supports speech synthesis
-    return ['elevenlabs', 'microsoft', 'google', 'amazon'].includes(providerId)
+    return ['elevenlabs', 'microsoft-speech', 'azure-speech', 'google', 'amazon'].includes(providerId)
   }
 
   function resetVoiceSettings() {

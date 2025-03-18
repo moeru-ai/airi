@@ -20,7 +20,7 @@
     "db:push": "drizzle-kit push"
   },
   "dependencies": {
-    "@dotenvx/dotenvx": "^1.38.5",
+    "@dotenvx/dotenvx": "^1.39.0",
     "@grammyjs/files": "^1.1.1",
     "@guiiai/logg": "^1.0.7",
     "@xsai-ext/providers-cloud": "catalog:",
@@ -28,10 +28,10 @@
     "@xsai/shared-chat": "catalog:",
     "@xsai/tool": "catalog:",
     "dotenv": "^16.4.7",
-    "drizzle-orm": "^0.40.0",
+    "drizzle-orm": "^0.40.1",
     "es-toolkit": "^1.33.0",
     "grammy": "^1.35.0",
-    "pg": "^8.14.0",
+    "pg": "^8.14.1",
     "sharp": "^0.33.5",
     "telegram": "^2.26.22",
     "valibot": "1.0.0-beta.9"

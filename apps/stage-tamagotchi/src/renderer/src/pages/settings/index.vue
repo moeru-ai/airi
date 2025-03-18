@@ -95,7 +95,7 @@ function handleLanguageChange(event: Event) {
       <div
         v-motion
         grid="~ cols-[150px_1fr]"
-        bg="neutral-100 dark:neutral-800"
+        bg="neutral-50 dark:neutral-800"
         hover="bg-neutral-200 dark:bg-neutral-700"
         transition="all ease-in-out duration-250" items-center gap-1.5 rounded-lg px-4
         py-3
@@ -129,7 +129,7 @@ function handleLanguageChange(event: Event) {
       <!-- Theme Setting -->
       <label
         v-motion
-        bg="neutral-100 dark:neutral-800"
+        bg="neutral-50 dark:neutral-800"
         hover="bg-neutral-200 dark:bg-neutral-700"
         transition="all ease-in-out duration-250"
         w-full flex cursor-pointer rounded-lg px-4 py-3
@@ -169,7 +169,7 @@ function handleLanguageChange(event: Event) {
       <!-- Developer Settings -->
       <label
         v-motion
-        bg="neutral-100 dark:neutral-800"
+        bg="neutral-50 dark:neutral-800"
         hover="bg-neutral-200 dark:bg-neutral-700"
         transition="all ease-in-out duration-250"
         w-full flex cursor-pointer rounded-lg px-4 py-3
@@ -208,7 +208,7 @@ function handleLanguageChange(event: Event) {
       </label>
     </div>
     <div text="neutral-200/50 dark:neutral-500/20" pointer-events-none fixed bottom-0 right-0 z--1 translate-x-10 translate-y-10>
-      <div v-motion text="40" i-lucide:cog />
+      <div v-motion text="60" i-lucide:cog />
     </div>
   </div>
 </template>

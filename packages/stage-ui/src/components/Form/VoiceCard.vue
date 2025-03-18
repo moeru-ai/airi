@@ -145,8 +145,8 @@ function togglePlayback() {
           ]"
           @click="togglePlayback"
         >
-          <div v-if="currentlyPlayingId === voice.id" i-solar:pause-circle-bold-duotone class="text-xl" />
-          <div v-else i-solar:play-circle-bold-duotone class="text-xl" />
+          <div v-if="currentlyPlayingId === voice.id" class="i-solar:pause-circle-bold-duotone text-xl text-neutral-400 dark:text-neutral-500" />
+          <div v-else class="i-solar:play-circle-bold-duotone text-xl text-neutral-400 dark:text-neutral-500" />
         </button>
         <div
           v-else

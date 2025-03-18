@@ -66,7 +66,7 @@
     "@proj-airi/provider-transformers": "workspace:^",
     "@proj-airi/utils-transformers": "workspace:^",
     "@unocss/reset": "^66.1.0-beta.5",
-    "@vitejs/plugin-vue": "^5.2.1",
+    "@vitejs/plugin-vue": "^5.2.3",
     "@xsai/embed": "catalog:",
     "histoire": "1.0.0-alpha.2",
     "unocss": "^66.1.0-beta.5",
