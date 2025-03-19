@@ -2,7 +2,7 @@ import type { VoiceInfo } from '../providers'
 
 import { useLocalStorage } from '@vueuse/core'
 import { defineStore } from 'pinia'
-import { computed, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 
 import { voiceList, voiceMap } from '../../constants/elevenlabs'
 import { useProvidersStore } from '../providers'
@@ -13,8 +13,9 @@ export const useSpeechStore = defineStore('speech', () => {
   // State
   const activeSpeechProvider = useLocalStorage('settings/speech/active-provider', '')
   const activeSpeechModel = useLocalStorage('settings/speech/active-model', 'eleven_multilingual_v2')
-  const voiceName = useLocalStorage('settings/speech/voice-name', '')
-  const voiceId = useLocalStorage('settings/speech/voice-id', '')
+  const activeSpeechVoiceId = useLocalStorage<string>('settings/speech/voice', '')
+  const activeSpeechVoice = ref<VoiceInfo>()
+
   const pitch = useLocalStorage('settings/speech/pitch', 0)
   const rate = useLocalStorage('settings/speech/rate', 1)
   const ssmlEnabled = useLocalStorage('settings/speech/ssml-enabled', false)
@@ -22,6 +23,7 @@ export const useSpeechStore = defineStore('speech', () => {
   const speechProviderError = ref<string | null>(null)
   const availableVoices = ref<Record<string, VoiceInfo[]>>({})
   const selectedLanguage = useLocalStorage('settings/speech/language', 'en-US')
+  const modelSearchQuery = ref('')
 
   // Computed properties
   const availableSpeechProvidersMetadata = computed(() => {
@@ -29,6 +31,36 @@ export const useSpeechStore = defineStore('speech', () => {
     return providersStore.availableProviders
       .filter(id => isSpeechProvider(id))
       .map(id => providersStore.getProviderMetadata(id))
+  })
+
+  // Computed properties
+  const supportsModelListing = computed(() => {
+    return providersStore.getProviderMetadata(activeSpeechProvider.value)?.capabilities.listModels !== undefined
+  })
+
+  const providerModels = computed(() => {
+    return providersStore.getModelsForProvider(activeSpeechProvider.value)
+  })
+
+  const isLoadingActiveProviderModels = computed(() => {
+    return providersStore.isLoadingModels[activeSpeechProvider.value] || false
+  })
+
+  const activeProviderModelError = computed(() => {
+    return providersStore.modelLoadError[activeSpeechProvider.value] || null
+  })
+
+  const filteredModels = computed(() => {
+    if (!modelSearchQuery.value.trim()) {
+      return providerModels.value
+    }
+
+    const query = modelSearchQuery.value.toLowerCase().trim()
+    return providerModels.value.filter(model =>
+      model.name.toLowerCase().includes(query)
+      || model.id.toLowerCase().includes(query)
+      || (model.description && model.description.toLowerCase().includes(query)),
+    )
   })
 
   const supportsSSML = computed(() => {
@@ -59,13 +91,6 @@ export const useSpeechStore = defineStore('speech', () => {
     // This is a simplified check - in a real implementation, you might have a more robust way
     // to determine if a provider supports speech synthesis
     return ['elevenlabs', 'microsoft-speech', 'azure-speech', 'google', 'amazon'].includes(providerId)
-  }
-
-  function resetVoiceSettings() {
-    voiceName.value = ''
-    pitch.value = 0
-    rate.value = 1
-    ssmlEnabled.value = false
   }
 
   async function loadVoicesForProvider(provider: string) {
@@ -104,43 +129,36 @@ export const useSpeechStore = defineStore('speech', () => {
     }
   })
 
-  // Generate SSML for the current configuration
-  function generateSSML(text: string): string {
-    if (!ssmlEnabled.value) {
-      return text
-    }
+  // Generate SSML from plain text and voice settings
+  function generateSSML(text: string, voice: VoiceInfo): string {
+    const pitchValue = pitch.value > 0 ? `+${pitch.value}%` : `${pitch.value}%`
 
-    let ssml = '<speak>'
-
-    if (voiceName.value) {
-      ssml += `<voice name="${voiceName.value}">`
-    }
-
-    if (pitch.value !== 0 || rate.value !== 1) {
-      ssml += `<prosody pitch="+${pitch.value}%" rate="${rate.value}">`
-    }
-
-    ssml += text
-
-    if (pitch.value !== 0 || rate.value !== 1) {
-      ssml += '</prosody>'
-    }
-
-    if (voiceName.value) {
-      ssml += '</voice>'
-    }
-
-    ssml += '</speak>'
-
-    return ssml
+    return `<speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xml:lang="${voice.languages[0].code}">
+  <voice name="${voice.id}" gender="${voice.gender}">
+    <prosody pitch="${pitchValue}">
+      ${text}
+    </prosody>
+  </voice>
+</speak>`
   }
+
+  onMounted(() => {
+    if (activeSpeechVoiceId.value) {
+      activeSpeechVoice.value = availableVoices.value[activeSpeechProvider.value]?.find(voice => voice.id === activeSpeechVoiceId.value)
+    }
+  })
+
+  watch(activeSpeechVoice, (voice) => {
+    if (voice) {
+      activeSpeechVoiceId.value = voice.id
+    }
+  })
 
   return {
     // State
     activeSpeechProvider,
     activeSpeechModel,
-    voiceName,
-    voiceId,
+    activeSpeechVoice,
     pitch,
     rate,
     ssmlEnabled,
@@ -148,14 +166,20 @@ export const useSpeechStore = defineStore('speech', () => {
     isLoadingSpeechProviderVoices,
     speechProviderError,
     availableVoices,
+    modelSearchQuery,
 
     // Computed
     availableSpeechProvidersMetadata,
     supportsSSML,
     availableLanguages,
     availableVoicesForLanguage,
+    supportsModelListing,
+    providerModels,
+    isLoadingActiveProviderModels,
+    activeProviderModelError,
+    filteredModels,
 
-    resetVoiceSettings,
+    // Actions
     loadVoicesForProvider,
     getVoicesForProvider,
     generateSSML,

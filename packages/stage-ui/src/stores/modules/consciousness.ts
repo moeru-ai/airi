@@ -44,23 +44,6 @@ export const useConsciousnessStore = defineStore('consciousness', () => {
     )
   })
 
-  // Actions
-  function setActiveProvider(provider: string) {
-    activeProvider.value = provider
-  }
-
-  function setActiveModel(model: string) {
-    activeModel.value = model
-  }
-
-  function setCustomModelName(name: string) {
-    activeCustomModelName.value = name
-  }
-
-  function setModelSearchQuery(query: string) {
-    modelSearchQuery.value = query
-  }
-
   function resetModelSelection() {
     activeModel.value = ''
     activeCustomModelName.value = ''
@@ -97,10 +80,6 @@ export const useConsciousnessStore = defineStore('consciousness', () => {
     filteredModels,
 
     // Actions
-    setActiveProvider,
-    setActiveModel,
-    setCustomModelName,
-    setModelSearchQuery,
     resetModelSelection,
     loadModelsForProvider,
   }

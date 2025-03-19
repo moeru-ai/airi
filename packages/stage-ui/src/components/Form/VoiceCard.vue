@@ -31,7 +31,7 @@ interface Voice {
 
 interface Props {
   voice: Voice
-  selectedVoiceId: string
+  selectedVoiceId?: string
   currentlyPlayingId?: string
   customInputPlaceholder?: string
   showVisualizer?: boolean

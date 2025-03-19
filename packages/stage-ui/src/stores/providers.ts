@@ -35,6 +35,7 @@ import { useI18n } from 'vue-i18n'
 import { createUnElevenLabs } from './fix/elevenlabs'
 import { listVoices } from './fix/list-voices'
 import { createUnMicrosoft } from './fix/microsoft'
+import { models as elevenLabsModels } from './providers/elevenlabs/list-models'
 
 export interface ProviderMetadata {
   id: string
@@ -321,7 +322,16 @@ export const useProvidersStore = defineStore('providers', () => {
       createProvider: config => createUnElevenLabs((config.apiKey as string).trim(), (config.baseUrl as string).trim()) as SpeechProviderWithExtraOptions<string, UnElevenLabsOptions>,
       capabilities: {
         listModels: async () => {
-          return []
+          return elevenLabsModels.map((model) => {
+            return {
+              id: model.model_id,
+              name: model.name,
+              provider: 'elevenlabs',
+              description: model.description,
+              contextLength: 0,
+              deprecated: false,
+            } satisfies ModelInfo
+          })
         },
         listVoices: async (config) => {
           const provider = createUnElevenLabs((config.apiKey as string).trim(), (config.baseUrl as string).trim()) as VoiceProviderWithExtraOptions<UnElevenLabsOptions>
@@ -497,7 +507,16 @@ export const useProvidersStore = defineStore('providers', () => {
       createProvider: config => createUnMicrosoft((config.apiKey as string).trim(), (config.baseUrl as string).trim()) as SpeechProviderWithExtraOptions<string, UnMicrosoftOptions>,
       capabilities: {
         listModels: async () => {
-          return []
+          return [
+            {
+              id: 'v1',
+              name: 'v1',
+              provider: 'microsoft-speech',
+              description: '',
+              contextLength: 0,
+              deprecated: false,
+            },
+          ]
         },
         listVoices: async (config) => {
           const provider = createUnMicrosoft((config.apiKey as string).trim(), (config.baseUrl as string).trim()) as VoiceProviderWithExtraOptions<UnMicrosoftOptions>

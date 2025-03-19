@@ -28,7 +28,7 @@ interface Voice {
 
 interface Props {
   voices: Voice[]
-  selectedVoiceId: string
+  selectedVoiceId?: string
   searchable?: boolean
   searchPlaceholder?: string
   searchNoResultsTitle?: string
@@ -350,7 +350,7 @@ const customVoiceName = ref('')
       <div class="relative">
         <!-- Horizontally scrollable container -->
         <div
-          class="scrollbar-hide grid auto-cols-[350px] grid-flow-col gap-4 overflow-x-auto pb-4"
+          class="scrollbar-hide grid auto-cols-[350px] grid-flow-col max-h-[calc(100dvh-7lh)] gap-4 overflow-x-auto pb-4"
           :class="[
             isListExpanded ? 'grid-cols-1 md:grid-cols-2 grid-flow-row auto-cols-auto' : '',
           ]"
@@ -378,7 +378,7 @@ const customVoiceName = ref('')
           bg="neutral-100 dark:[rgba(0,0,0,0.3)]"
           rounded-xl
           :class="[
-            isListExpanded ? 'fixed bottom-4 left-1/2 translate-x--1/2 z-10 w-full px-9 max-w-screen-lg' : 'mt-0 w-full rounded-lg',
+            isListExpanded ? 'w-full' : 'mt-4 w-full rounded-lg',
           ]"
         >
           <button

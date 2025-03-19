@@ -72,12 +72,17 @@ const audioQueue = useQueue<{ audioBuffer: AudioBuffer, text: string }>({
 })
 
 const speechStore = useSpeechStore()
-const { voiceId, ssmlEnabled, activeSpeechProvider, activeSpeechModel } = storeToRefs(speechStore)
+const { ssmlEnabled, activeSpeechProvider, activeSpeechModel, activeSpeechVoice } = storeToRefs(speechStore)
 
 async function handleSpeechGeneration(ctx: { data: string }) {
   try {
     if (!activeSpeechProvider.value) {
       console.warn('No active speech provider configured')
+      return
+    }
+
+    if (!activeSpeechVoice.value) {
+      console.warn('No active speech voice configured')
       return
     }
 
@@ -88,19 +93,16 @@ async function handleSpeechGeneration(ctx: { data: string }) {
       return
     }
 
+    const providerConfig = providersStore.getProviderConfig(activeSpeechProvider.value)
+
+    const input = ssmlEnabled.value
+      ? speechStore.generateSSML(ctx.data, activeSpeechVoice.value)
+      : ctx.data
+
     const res = await generateSpeech({
-      ...provider.speech(activeSpeechModel.value, {
-        // Optional: Add SSML wrapping if enabled
-        ...(ssmlEnabled.value && {
-          input: speechStore.generateSSML(ctx.data),
-        }),
-        voiceSettings: {
-          stability: 0.4,
-          similarityBoost: 0.5,
-        },
-      }),
-      input: ctx.data,
-      voice: voiceId.value,
+      ...provider.speech(activeSpeechModel.value, providerConfig),
+      input,
+      voice: activeSpeechVoice.value.id,
     })
 
     // Decode the ArrayBuffer into an AudioBuffer
