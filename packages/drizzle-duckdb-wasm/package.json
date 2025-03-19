@@ -81,7 +81,7 @@
     "@iconify-json/solar": "^1.2.2",
     "@types/d3": "^7.4.3",
     "@types/d3-force": "^3.0.10",
-    "@unocss/reset": "^66.1.0-beta.5",
+    "@unocss/reset": "^66.1.0-beta.6",
     "@vitejs/plugin-vue": "^5.2.3",
     "@vitest/browser": "^3.0.9",
     "@vueuse/core": "^13.0.0",

@@ -56,20 +56,20 @@
     "story:preview": "histoire preview"
   },
   "dependencies": {
+    "@formkit/auto-animate": "^0.8.2",
     "@vueuse/motion": "^3.0.3",
-    "reka-ui": "^2.1.0",
-    "vue": "link:@formkit/auto-animate/vue"
+    "reka-ui": "^2.1.0"
   },
   "devDependencies": {
     "@electron-toolkit/preload": "^3.0.1",
     "@histoire/plugin-vue": "1.0.0-alpha.2",
     "@proj-airi/provider-transformers": "workspace:^",
     "@proj-airi/utils-transformers": "workspace:^",
-    "@unocss/reset": "^66.1.0-beta.5",
+    "@unocss/reset": "^66.1.0-beta.6",
     "@vitejs/plugin-vue": "^5.2.3",
     "@xsai/embed": "catalog:",
     "histoire": "1.0.0-alpha.2",
-    "unocss": "^66.1.0-beta.5",
+    "unocss": "^66.1.0-beta.6",
     "vite": "^6.2.2"
   }
 }

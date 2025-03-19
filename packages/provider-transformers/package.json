@@ -51,7 +51,7 @@
   "dependencies": {
     "@huggingface/transformers": "^3.4.0",
     "@proj-airi/utils-transformers": "workspace:^",
-    "@webgpu/types": "^0.1.56",
+    "@webgpu/types": "^0.1.57",
     "@xsai-ext/shared-providers": "catalog:",
     "@xsai/embed": "catalog:",
     "@xsai/shared": "catalog:",
@@ -62,7 +62,7 @@
   },
   "devDependencies": {
     "@iconify-json/solar": "^1.2.2",
-    "@unocss/reset": "^66.1.0-beta.5",
+    "@unocss/reset": "^66.1.0-beta.6",
     "@vitejs/plugin-vue": "^5.2.3",
     "@vueuse/core": "^13.0.0",
     "vite": "^6.2.2",

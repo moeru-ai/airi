@@ -45,6 +45,6 @@
   },
   "devDependencies": {
     "@types/node": "^22.13.10",
-    "@webgpu/types": "^0.1.56"
+    "@webgpu/types": "^0.1.57"
   }
 }

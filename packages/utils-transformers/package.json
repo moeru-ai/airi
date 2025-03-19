@@ -36,6 +36,6 @@
     "onnxruntime-common": "^1.21.0"
   },
   "devDependencies": {
-    "@iconify-json/simple-icons": "^1.2.28"
+    "@iconify-json/simple-icons": "^1.2.29"
   }
 }
