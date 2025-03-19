@@ -51,8 +51,6 @@ settings:
       title: 映射动作
     title: Live2D 设置
   microphone: 麦克风
-  model-provider:
-    title: 模型提供商
   models: 模型
   pages:
     models:
@@ -108,6 +106,12 @@ settings:
         description: 语音合成
         sections:
           section:
+            playground:
+              buttons:
+                stop:
+                  label: 停止
+              select-voice:
+                required: 请选择声线
             provider-voice-selection:
               custom_model_placeholder: 输入指定模型名字...
               custom_voice_placeholder: 输入指定声线 ID...
@@ -124,17 +128,27 @@ settings:
               search_voices_results: 找到 {count} / {total} 个声线
               show_less: 显示更少
               show_more: 显示更多
-              title: 提供商
+              title: 选择语音合成提供商
+            voice-settings:
+              input-ssml:
+                placeholder: 请输入 SSML 文本
+              use-ssml:
+                description: 启用后可以输入原始 SSML 而不是纯文本
+                label: 选用自定义 SSML
         title: 发声
       title: 机体模块
-      x:
-        description: X / Twitter 的浏览和使用
-        title: X / Twitter
       vision:
         description: 视觉
         title: 视觉
+      x:
+        description: X / Twitter 的浏览和使用
+        title: X / Twitter
     providers:
       common:
+        fields:
+          field:
+            api-key:
+              label: API 密钥
         section:
           advanced:
             fields:
@@ -165,6 +179,18 @@ settings:
               api-key:
                 placeholder: 请输入 Cloudflare Workers AI 的 API Key
           title: Workers AI
+        common:
+          fields:
+            field:
+              pitch:
+                description: 调节合成语音的音高（比如更尖锐或更粗旷）
+                label: 音高
+              speed:
+                description: 调节说话的语速
+                label: 语速
+              volume:
+                description: 调节语音的响度
+                label: 响度
         deepseek:
           description: DeepSeek.com
           title: 深度求索 DeepSeek
@@ -210,6 +236,12 @@ settings:
         fireworks:
           description: Fireworks.ai
           title: Fireworks.ai
+        microsoft-speech:
+          fields:
+            field:
+              region:
+                description: 服务 Endpoint 地区（比如亚太 eastasia 区域）
+                label: Endpoint 地区
         mistral:
           description: mistral.ai
           title: Mistral

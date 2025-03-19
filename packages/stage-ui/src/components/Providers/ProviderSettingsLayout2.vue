@@ -60,7 +60,7 @@ const { t } = useI18n()
 const effectiveTitle = computed(() => props.title || props.providerName || '')
 
 // Compute effective category label
-const effectiveCategoryLabel = computed(() => props.categoryLabel || t('common.provider'))
+const effectiveCategoryLabel = computed(() => props.categoryLabel || t('settings.pages.providers.title'))
 
 // Handle back button click
 function handleBackClick() {

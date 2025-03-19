@@ -130,8 +130,8 @@ defineExpose({
     <div flex="~ col gap-4">
       <FieldCheckbox
         v-model="useSSML"
-        label="Use Custom SSML"
-        description="Enable to input raw SSML instead of plain text"
+        :label="t('settings.pages.modules.speech.sections.section.voice-settings.use-ssml.label')"
+        :description="t('settings.pages.modules.speech.sections.section.voice-settings.use-ssml.description')"
       />
 
       <template v-if="!useSSML">
@@ -147,7 +147,7 @@ defineExpose({
       <template v-else>
         <textarea
           v-model="ssmlText"
-          placeholder="Enter SSML text..."
+          :placeholder="t('settings.pages.modules.speech.sections.section.voice-settings.input-ssml.placeholder')"
           border="neutral-100 dark:neutral-800 solid 2 focus:neutral-200 dark:focus:neutral-700"
           transition="all duration-250 ease-in-out"
           bg="neutral-100 dark:neutral-800 focus:neutral-50 dark:focus:neutral-900"
@@ -218,7 +218,7 @@ defineExpose({
         >
           <div flex="~ row" items-center gap-2>
             <div i-solar:stop-circle-bold-duotone />
-            <span>Stop</span>
+            <span>{{ t('settings.pages.modules.speech.sections.section.playground.buttons.stop.label') }}</span>
           </div>
         </button>
       </div>
@@ -227,7 +227,7 @@ defineExpose({
         {{ t('settings.pages.providers.provider.elevenlabs.playground.validation.error-missing-api-key') }}
       </div>
       <div v-if="!selectedVoice" class="mt-2 text-sm text-red-500">
-        Please select a voice
+        {{ t('settings.pages.modules.speech.sections.section.playground.select-voice.required') }}
       </div>
       <div v-if="errorMessage" class="mt-2 text-sm text-red-500">
         {{ errorMessage }}

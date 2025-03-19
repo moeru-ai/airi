@@ -11,6 +11,9 @@ import {
 import { useProvidersStore, useSpeechStore } from '@proj-airi/stage-ui/stores'
 import { storeToRefs } from 'pinia'
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const providerId = 'microsoft-speech'
 const defaultModel = 'v1'
@@ -109,8 +112,8 @@ async function handleGenerateSpeech(input: string, voiceId: string, useSSML: boo
     <template #basic-settings>
       <FieldInput
         v-model="region"
-        label="Region"
-        description="Speech Service region"
+        :label="t('settings.pages.providers.provider.microsoft-speech.fields.field.region.label')"
+        :description="t('settings.pages.providers.provider.microsoft-speech.fields.field.region.description')"
         placeholder="eastasia"
         required
         type="text"

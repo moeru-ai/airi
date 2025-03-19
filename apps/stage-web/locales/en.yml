@@ -65,8 +65,6 @@ settings:
       title: Map Motions
     title: Live2D Settings
   microphone: Microphone
-  model-provider:
-    title: Model Providers
   models: Model
   pages:
     models:
@@ -122,6 +120,12 @@ settings:
         description: Speech synthesis
         sections:
           section:
+            playground:
+              buttons:
+                stop:
+                  label: Stop
+              select-voice:
+                required: Please select a voice
             provider-voice-selection:
               custom_model_placeholder: Enter custom model name...
               custom_voice_placeholder: Enter custom voice ID...
@@ -137,16 +141,26 @@ settings:
               show_less: Show less
               show_more: Show more
               title: Provider
+            voice-settings:
+              input-ssml:
+                placeholder: Enter SSML text...
+              use-ssml:
+                description: Enable to input raw SSML instead of plain text
+                label: Use Custom SSML
         title: Speech
       title: Modules
-      x:
-        description: X / Twitter browsing and usage
-        title: X / Twitter
       vision:
         description: Vision
         title: Vision
+      x:
+        description: X / Twitter browsing and usage
+        title: X / Twitter
     providers:
       common:
+        fields:
+          field:
+            api-key:
+              label: API Key Input
         section:
           advanced:
             fields:
@@ -177,6 +191,20 @@ settings:
               api-key:
                 placeholder: Input Cloudflare Account ID
           title: Cloudflare Workers AI
+        common:
+          fields:
+            field:
+              pitch:
+                description: >-
+                  Tune the pitch of synthesized speech (e.g., sharper or
+                  coarser)
+                label: Pitch
+              speed:
+                description: Adjust the speed of speech
+                label: Speed
+              volume:
+                description: Adjust the volume of speech
+                label: Volume
         deepseek:
           description: deepseek.com
           title: DeepSeek
@@ -222,6 +250,12 @@ settings:
         fireworks:
           description: fireworks.ai
           title: Fireworks.ai
+        microsoft-speech:
+          fields:
+            field:
+              region:
+                description: Speech Service region
+                label: Region
         mistral:
           description: mistral.ai
           title: Mistral
