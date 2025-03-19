@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import type { Voice } from '@proj-airi/stage-ui/constants'
 import type { UnElevenLabsOptions } from '@xsai-ext/providers-local'
 import type { SpeechProviderWithExtraOptions } from '@xsai-ext/shared-providers'
 
@@ -14,7 +13,6 @@ import {
   ProviderSettingsLayout,
   TestDummyMarker,
 } from '@proj-airi/stage-ui/components'
-import { voiceMap } from '@proj-airi/stage-ui/constants'
 import { useProvidersStore, useSpeechStore } from '@proj-airi/stage-ui/stores'
 import { useDebounceFn } from '@vueuse/core'
 import { generateSpeech } from '@xsai/generate-speech'
@@ -28,6 +26,9 @@ const router = useRouter()
 const providersStore = useProvidersStore()
 const speechStore = useSpeechStore()
 const { providers } = storeToRefs(providersStore)
+
+const selectedLanguage = ref('en-US')
+const activeSpeechVoice = ref('')
 
 // For playground
 const testText = ref('Hello! This is a test of the ElevenLabs voice synthesis.')
@@ -127,8 +128,6 @@ const useSpeakerBoost = computed({
 })
 
 // Speech settings
-const selectedLanguage = ref(speechStore.selectedLanguage)
-const selectedVoice = ref(speechStore.voiceName)
 const availableVoices = computed(() => speechStore.availableVoicesForLanguage)
 
 onMounted(() => {
@@ -182,6 +181,11 @@ async function generateTestSpeech() {
     return
   }
 
+  if (!activeSpeechVoice.value) {
+    console.error('No active speech voice selected')
+    return
+  }
+
   isGenerating.value = true
   errorMessage.value = ''
 
@@ -203,7 +207,7 @@ async function generateTestSpeech() {
         },
       }),
       input: testText.value,
-      voice: voiceMap[selectedVoice.value as Voice],
+      voice: activeSpeechVoice.value,
     })
 
     // Convert the response to a blob and create an object URL
@@ -368,7 +372,7 @@ function handleResetVoiceSettings() {
                   </div>
                 </div>
                 <select
-                  v-model="selectedVoice"
+                  v-model="activeSpeechVoice"
                   border="neutral-300 dark:neutral-800 solid 2 focus:neutral-400 dark:focus:neutral-600"
                   transition="border duration-250 ease-in-out" w-full rounded-lg px-2 py-1 text-nowrap text-sm
                   outline-none
