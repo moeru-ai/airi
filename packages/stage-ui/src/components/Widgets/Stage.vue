@@ -72,7 +72,7 @@ const audioQueue = useQueue<{ audioBuffer: AudioBuffer, text: string }>({
 })
 
 const speechStore = useSpeechStore()
-const { ssmlEnabled, activeSpeechProvider, activeSpeechModel, activeSpeechVoice } = storeToRefs(speechStore)
+const { ssmlEnabled, activeSpeechProvider, activeSpeechModel, activeSpeechVoice, pitch } = storeToRefs(speechStore)
 
 async function handleSpeechGeneration(ctx: { data: string }) {
   try {
@@ -96,7 +96,7 @@ async function handleSpeechGeneration(ctx: { data: string }) {
     const providerConfig = providersStore.getProviderConfig(activeSpeechProvider.value)
 
     const input = ssmlEnabled.value
-      ? speechStore.generateSSML(ctx.data, activeSpeechVoice.value)
+      ? speechStore.generateSSML(ctx.data, activeSpeechVoice.value, { ...providerConfig, pitch: pitch.value })
       : ctx.data
 
     const res = await generateSpeech({

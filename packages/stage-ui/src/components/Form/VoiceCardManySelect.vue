@@ -28,7 +28,6 @@ interface Voice {
 
 interface Props {
   voices: Voice[]
-  selectedVoiceId?: string
   searchable?: boolean
   searchPlaceholder?: string
   searchNoResultsTitle?: string
@@ -56,12 +55,6 @@ const props = withDefaults(defineProps<Props>(), {
   showVisualizer: true,
 })
 
-const emit = defineEmits<{
-  'update:selectedVoiceId': [value: string]
-  'update:searchQuery': [value: string]
-}>()
-
-const searchQuery = ref('')
 const isListExpanded = ref(false)
 const currentlyPlayingId = ref<string>()
 const audioElements = ref<Map<string, HTMLAudioElement>>(new Map())
@@ -80,10 +73,8 @@ function initAudioContext() {
   return sharedAudioContext.value
 }
 
-// Watch for search query changes and emit the value
-watch(searchQuery, (value) => {
-  emit('update:searchQuery', value)
-})
+const searchQuery = defineModel<string>('search-query', { required: false, default: '' })
+const voiceId = defineModel<string>('voice-id', { required: false, default: '' })
 
 // Filter voices based on search query
 const filteredVoices = computed(() => {
@@ -251,10 +242,6 @@ function togglePlayback(voice: Voice) {
   }
 }
 
-function selectVoice(voiceId: string) {
-  emit('update:selectedVoiceId', voiceId)
-}
-
 // Clean up audio elements when component is unmounted
 function cleanup() {
   audioElements.value.forEach((audio) => {
@@ -350,7 +337,7 @@ const customVoiceName = ref('')
       <div class="relative">
         <!-- Horizontally scrollable container -->
         <div
-          class="scrollbar-hide grid auto-cols-[350px] grid-flow-col max-h-[calc(100dvh-7lh)] gap-4 overflow-x-auto pb-4"
+          class="scrollbar-hide grid auto-cols-[350px] grid-flow-col max-h-[calc(100dvh-7lh)] gap-4 overflow-x-auto"
           :class="[
             isListExpanded ? 'grid-cols-1 md:grid-cols-2 grid-flow-row auto-cols-auto' : '',
           ]"
@@ -361,15 +348,15 @@ const customVoiceName = ref('')
           <VoiceCard
             v-for="voice in filteredVoices"
             :key="voice.id"
+            v-model:voice-id="voiceId"
+            v-model:custom-voice-name="customVoiceName"
+            name="voice"
             :voice="voice"
-            :selected-voice-id="selectedVoiceId"
             :currently-playing-id="currentlyPlayingId"
             :custom-input-placeholder="customInputPlaceholder"
             :show-visualizer="showVisualizer"
             :audio-stream="audioStreams.get(voice.id)"
-            @select="selectVoice"
             @toggle-playback="togglePlayback"
-            @update:model-value="customVoiceName = $event"
           />
         </div>
 

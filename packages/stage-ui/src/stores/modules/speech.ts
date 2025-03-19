@@ -134,15 +134,27 @@ export const useSpeechStore = defineStore('speech', () => {
   })
 
   onMounted(() => {
-    if (activeSpeechVoiceId.value) {
-      activeSpeechVoice.value = availableVoices.value[activeSpeechProvider.value]?.find(voice => voice.id === activeSpeechVoiceId.value)
-    }
+    loadVoicesForProvider(activeSpeechProvider.value).then(() => {
+      if (activeSpeechVoiceId.value) {
+        activeSpeechVoice.value = availableVoices.value[activeSpeechProvider.value]?.find(voice => voice.id === activeSpeechVoiceId.value)
+      }
+    })
   })
 
-  watch(activeSpeechVoice, (voice) => {
-    if (voice) {
-      activeSpeechVoiceId.value = voice.id
+  watch(activeSpeechVoiceId, (voiceId) => {
+    if (voiceId) {
+      activeSpeechVoice.value = availableVoices.value[activeSpeechProvider.value]?.find(voice => voice.id === voiceId)
     }
+  }, {
+    immediate: true,
+  })
+
+  watch(availableVoices, (voices) => {
+    if (activeSpeechVoiceId.value) {
+      activeSpeechVoice.value = voices[activeSpeechProvider.value]?.find(voice => voice.id === activeSpeechVoiceId.value)
+    }
+  }, {
+    immediate: true,
   })
 
   /**
@@ -176,19 +188,33 @@ export const useSpeechStore = defineStore('speech', () => {
   function generateSSML(
     text: string,
     voice: VoiceInfo,
-    pitch?: number,
-    speed?: number,
-    volume?: number,
+    providerConfig?: Record<string, any>,
   ): string {
+    const pitch = providerConfig?.pitch
+    const speed = providerConfig?.speed
+    const volume = providerConfig?.volume
+
     const prosody = {
-      pitch: pitch != null ? pitch > 0 ? `+${pitch}%` : `-${pitch}%` : undefined,
-      rate: speed != null ? speed !== 1.0 ? `${speed}` : '1' : undefined,
-      volume: volume != null ? volume > 0 ? `+${volume}%` : `${volume}%` : undefined,
+      pitch: pitch != null
+        ? pitch > 0
+          ? `+${pitch}%`
+          : `-${pitch}%`
+        : undefined,
+      rate: speed != null
+        ? speed !== 1.0
+          ? `${speed}`
+          : '1'
+        : undefined,
+      volume: volume != null
+        ? volume > 0
+          ? `+${volume}%`
+          : `${volume}%`
+        : undefined,
     }
 
     const ssmlXast = x('speak', { 'version': '1.0', 'xmlns': 'http://www.w3.org/2001/10/synthesis', 'xml:lang': voice.languages[0]?.code || 'en-US' }, [
       x('voice', { name: voice.id, gender: voice.gender || 'neutral' }, [
-        Object.entries(prosody).filter(([_, value]) => value !== undefined).length > 0
+        Object.entries(prosody).filter(([_, value]) => value != null).length > 0
           ? x('prosody', {
               pitch: pitch != null ? pitch > 0 ? `+${pitch}%` : `-${pitch}%` : undefined,
               rate: speed != null ? speed !== 1.0 ? `${speed}` : '1' : undefined,
@@ -208,6 +234,7 @@ export const useSpeechStore = defineStore('speech', () => {
     activeSpeechProvider,
     activeSpeechModel,
     activeSpeechVoice,
+    activeSpeechVoiceId,
     pitch,
     rate,
     ssmlEnabled,

@@ -10,7 +10,7 @@ import {
 } from '@proj-airi/stage-ui/components'
 import { useProvidersStore, useSpeechStore } from '@proj-airi/stage-ui/stores'
 import { storeToRefs } from 'pinia'
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 const { t } = useI18n()
@@ -28,6 +28,10 @@ const defaultVoiceSettings = {
 const speechStore = useSpeechStore()
 const providersStore = useProvidersStore()
 const { providers } = storeToRefs(providersStore)
+
+const pitch = ref(0)
+const speed = ref(1.0)
+const volume = ref(0)
 
 // Additional settings specific to Microsoft Speech (region)
 const region = computed({
@@ -80,6 +84,7 @@ async function handleGenerateSpeech(input: string, voiceId: string, useSSML: boo
       const ssml = speechStore.generateSSML(
         input,
         voice,
+        { ...providerConfig, pitch: pitch.value },
       )
       return await speechStore.speech(
         provider,
@@ -123,6 +128,9 @@ async function handleGenerateSpeech(input: string, voiceId: string, useSSML: boo
     <!-- Voice settings specific to Microsoft Speech -->
     <template #voice-settings="{ voiceSettings, updateVoiceSettings }">
       <SpeechVoiceSettings
+        v-model:pitch="pitch"
+        v-model:speed="speed"
+        v-model:volume="volume"
         :settings="voiceSettings"
         :show-pitch="true"
         :show-speed="true"

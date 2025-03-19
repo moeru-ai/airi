@@ -29,6 +29,7 @@ const {
   activeSpeechProvider,
   activeSpeechModel,
   activeSpeechVoice,
+  activeSpeechVoiceId,
   pitch,
   isLoadingSpeechProviderVoices,
   supportsModelListing,
@@ -43,7 +44,6 @@ const {
 
 const router = useRouter()
 
-const voiceId = ref('')
 const voiceSearchQuery = ref('')
 const useSSML = ref(false)
 const testText = ref('Hello, my name is AI Assistant')
@@ -100,7 +100,7 @@ async function generateTestSpeech() {
 
     const input = useSSML.value
       ? ssmlText.value
-      : speechStore.generateSSML(testText.value, activeSpeechVoice.value)
+      : speechStore.generateSSML(testText.value, activeSpeechVoice.value, { ...providerConfig, pitch: pitch.value })
 
     const response = await generateSpeech({
       ...provider.speech(activeSpeechModel.value, providerConfig),
@@ -148,10 +148,6 @@ onUnmounted(() => {
   }
 })
 
-function handleVoiceSelection(value: string) {
-  activeSpeechVoice.value = availableVoices.value[activeSpeechProvider.value].find(voice => voice.id === value)
-}
-
 function updateCustomVoiceName(value: string) {
   activeSpeechVoice.value = {
     id: value,
@@ -167,16 +163,6 @@ function updateCustomVoiceName(value: string) {
 function updateCustomModelName(value: string) {
   activeSpeechModel.value = value
 }
-
-watch(voiceId, (newVoice) => {
-  const foundVoice = availableVoices.value[activeSpeechProvider.value].find(voice => voice.id === newVoice)
-  if (foundVoice) {
-    activeSpeechVoice.value = foundVoice
-  }
-  else {
-    updateCustomVoiceName(newVoice)
-  }
-})
 </script>
 
 <template>
@@ -353,6 +339,7 @@ watch(voiceId, (newVoice) => {
           >
             <VoiceCardManySelect
               v-model:search-query="voiceSearchQuery"
+              v-model:voice-id="activeSpeechVoiceId"
               :voices="availableVoices[activeSpeechProvider]?.map(voice => ({
                 id: voice.id,
                 name: voice.name,
@@ -360,7 +347,6 @@ watch(voiceId, (newVoice) => {
                 previewURL: voice.previewURL,
                 customizable: false,
               }))"
-              :selected-voice-id="activeSpeechVoice?.id"
               :searchable="true"
               :search-placeholder="t('settings.pages.modules.speech.sections.section.provider-voice-selection.search_voices_placeholder')"
               :search-no-results-title="t('settings.pages.modules.speech.sections.section.provider-voice-selection.no_voices')"
@@ -371,7 +357,6 @@ watch(voiceId, (newVoice) => {
               :collapse-button-text="t('settings.pages.modules.speech.sections.section.provider-voice-selection.show_less')"
               :play-button-text="t('settings.pages.modules.speech.sections.section.provider-voice-selection.play_sample')"
               :pause-button-text="t('settings.pages.modules.speech.sections.section.provider-voice-selection.pause')"
-              @update:selected-voice-id="handleVoiceSelection"
               @update:custom-value="updateCustomVoiceName"
             />
           </div>
@@ -423,7 +408,7 @@ watch(voiceId, (newVoice) => {
             class="mt-2 space-y-6"
           >
             <FieldInput
-              v-model="voiceId"
+              v-model="activeSpeechVoiceId"
               type="text"
               label="Voice ID"
               description="Enter the voice ID for your custom voice"

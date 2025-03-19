@@ -47,18 +47,22 @@ settings:
     chinese: 简体中文
     english: English
     title: Language
+  live2d:
+    change-model:
+      from-file: Load from File
+      from-file-select: Select
+      from-url: Load from URL
+      from-url-confirm: Load
+      from-url-placeholder: Enter Live2D model URL
+      title: Change Model
+    edit-motion-map:
+      title: Edit motion map
+    map-motions:
+      play: Play Motion
+      title: Map Motions
+    title: Live2D Settings
   microphone: Microphone
   models: Model
-  quit: Quit
-  viewer: Viewer
-  shortcuts:
-    title: Shortcuts
-    window:
-      move: Move the window
-      resize: Resize the window
-      debug: Toggle developer tools
-  press_keys: Press keys...
-  other: Other
   pages:
     models:
       description: Live2D, VRM, etc.
@@ -69,10 +73,9 @@ settings:
         sections:
           section:
             provider-model-selection:
-              title: Model
-              description: Select the suitable LLM provider for consciousness
               collapse: Collapse
               custom_model_placeholder: Enter custom model name...
+              description: Select the suitable LLM provider for consciousness
               error: Error loading models
               expand: Expand
               loading: Loading available models...
@@ -89,6 +92,7 @@ settings:
               show_less: Show less
               show_more: Show more
               subtitle: Select a model from the provider
+              title: Model
         title: Consciousness
       description: Thinking, vision, speech synthesis, gaming, etc.
       gaming-factorio:
@@ -111,13 +115,49 @@ settings:
         title: Discord
       speech:
         description: Speech synthesis
+        sections:
+          section:
+            playground:
+              buttons:
+                stop:
+                  label: Stop
+              select-voice:
+                required: Please select a voice
+            provider-voice-selection:
+              custom_model_placeholder: Enter custom model name...
+              custom_voice_placeholder: Enter custom voice ID...
+              description: Select the suitable speech provider
+              no_models: No models available
+              no_models_description: No models were found for this provider
+              no_voices: No voices available
+              no_voices_description: No voices were found for this provider
+              search_models_placeholder: Search models...
+              search_models_results: Found {count} of {total} models
+              search_voices_placeholder: Search voices...
+              search_voices_results: Found {count} of {total} voices
+              show_less: Show less
+              show_more: Show more
+              title: Provider
+            voice-settings:
+              input-ssml:
+                placeholder: Enter SSML text...
+              use-ssml:
+                description: Enable to input raw SSML instead of plain text
+                label: Use Custom SSML
         title: Speech
       title: Modules
       vision:
         description: Vision
         title: Vision
+      x:
+        description: X / Twitter browsing and usage
+        title: X / Twitter
     providers:
       common:
+        fields:
+          field:
+            api-key:
+              label: API Key Input
         section:
           advanced:
             fields:
@@ -148,6 +188,20 @@ settings:
               api-key:
                 placeholder: Input Cloudflare Account ID
           title: Cloudflare Workers AI
+        common:
+          fields:
+            field:
+              pitch:
+                description: >-
+                  Tune the pitch of synthesized speech (e.g., sharper or
+                  coarser)
+                label: Pitch
+              speed:
+                description: Adjust the speed of speech
+                label: Speed
+              volume:
+                description: Adjust the volume of speech
+                label: Volume
         deepseek:
           description: deepseek.com
           title: DeepSeek
@@ -193,6 +247,12 @@ settings:
         fireworks:
           description: fireworks.ai
           title: Fireworks.ai
+        microsoft-speech:
+          fields:
+            field:
+              region:
+                description: Speech Service region
+                label: Region
         mistral:
           description: mistral.ai
           title: Mistral
@@ -246,10 +306,10 @@ settings:
                 description: Traditional Japanese color palette
                 title: Japanese Colors
               monet:
-                description: Impressionist palette inspired by Claude Monet\'s works
+                description: Impressionist palette inspired by Claude Monet's works
                 title: Monet Colors
               morandi:
-                description: Soft, muted tones inspired by Giorgio Morandi\'s paintings
+                description: Soft, muted tones inspired by Giorgio Morandi's paintings
                 title: Morandi Colors
               nordic:
                 description: Scandinavian minimalist color scheme
