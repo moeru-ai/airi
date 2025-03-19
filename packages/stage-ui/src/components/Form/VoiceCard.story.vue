@@ -128,11 +128,6 @@ function stopAudio() {
   currentlyPlayingId.value = undefined
 }
 
-// Select voice function
-function selectVoice(voiceId: string) {
-  selectedVoiceId.value = voiceId
-}
-
 // Clean up on unmount
 onBeforeUnmount(() => {
   stopAudio()
@@ -155,13 +150,13 @@ onBeforeUnmount(() => {
     >
       <div class="w-full">
         <VoiceCard
+          v-model:voice-id="selectedVoiceId"
+          v-model:custom-voice-name="customInputValue"
           :voice="voice"
-          :selected-voice-id="selectedVoiceId"
+          name="voice-card"
           :currently-playing-id="currentlyPlayingId"
           :audio-stream="mediaStream"
-          @select="selectVoice"
           @toggle-playback="togglePlayback"
-          @update:model-value="value => customInputValue = value"
         />
 
         <div class="mt-4 text-sm text-neutral-500">
