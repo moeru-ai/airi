@@ -58,7 +58,10 @@
   "dependencies": {
     "@formkit/auto-animate": "^0.8.2",
     "@vueuse/motion": "^3.0.3",
-    "reka-ui": "^2.1.0"
+    "reka-ui": "^2.1.0",
+    "unist-builder": "^4.0.0",
+    "xast-util-to-xml": "^4.0.0",
+    "xastscript": "^4.0.0"
   },
   "devDependencies": {
     "@electron-toolkit/preload": "^3.0.1",

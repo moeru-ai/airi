@@ -3,57 +3,32 @@ import type { UnMicrosoftOptions } from '@xsai-ext/providers-local'
 import type { SpeechProviderWithExtraOptions } from '@xsai-ext/shared-providers'
 
 import {
-  FieldCheckbox,
   FieldInput,
-  FieldRange,
-  ProviderAdvancedSettings,
-  ProviderApiKeyInput,
-  ProviderBaseUrlInput,
-  ProviderBasicSettings,
-  ProviderSettingsContainer,
-  ProviderSettingsLayout,
-  TestDummyMarker,
+  SpeechPlayground,
+  SpeechProviderSettings,
+  SpeechVoiceSettings,
 } from '@proj-airi/stage-ui/components'
 import { useProvidersStore, useSpeechStore } from '@proj-airi/stage-ui/stores'
-import { useDebounceFn } from '@vueuse/core'
-import { generateSpeech } from '@xsai/generate-speech'
 import { storeToRefs } from 'pinia'
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
-import { useI18n } from 'vue-i18n'
-import { useRouter } from 'vue-router'
+import { computed } from 'vue'
 
-const { t } = useI18n()
-const router = useRouter()
-const providersStore = useProvidersStore()
-const speechStore = useSpeechStore()
-const { providers } = storeToRefs(providersStore)
-const { availableVoices } = storeToRefs(speechStore)
-
-// For playground
-const testText = ref('Hello! This is a test of the Microsoft Speech synthesis.')
-const isGenerating = ref(false)
-const audioUrl = ref('')
-const errorMessage = ref('')
-const audioPlayer = ref<HTMLAudioElement | null>(null)
-const useSSML = ref(false)
-const ssmlText = ref('<speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xml:lang="en-US">\n  <voice name="en-US-AvaMultilingualNeural">\n    <prosody rate="+10.00%" pitch="+10.00%">\n      Hello! This is a test of the Microsoft Speech synthesis with SSML.\n    </prosody>\n  </voice>\n</speak>')
-
-// Get provider metadata
 const providerId = 'microsoft-speech'
-const providerMetadata = computed(() => providersStore.getProviderMetadata(providerId))
+const defaultModel = 'v1'
 
-const apiKey = computed({
-  get: () => providers.value[providerId]?.apiKey as string | undefined || '',
-  set: (value) => {
-    if (!providers.value[providerId])
-      providers.value[providerId] = {}
+// Default voice settings specific to Microsoft Speech
+const defaultVoiceSettings = {
+  pitch: 0,
+  speed: 1.0,
+  volume: 0,
+}
 
-    providers.value[providerId].apiKey = value
-  },
-})
+const speechStore = useSpeechStore()
+const providersStore = useProvidersStore()
+const { providers } = storeToRefs(providersStore)
 
+// Additional settings specific to Microsoft Speech (region)
 const region = computed({
-  get: () => providers.value[providerId]?.region as string | undefined || providerMetadata.value?.defaultOptions?.region as string | undefined || 'eastasia',
+  get: () => providers.value[providerId]?.region as string | undefined || 'eastasia',
   set: (value) => {
     if (!providers.value[providerId])
       providers.value[providerId] = {}
@@ -62,359 +37,106 @@ const region = computed({
   },
 })
 
-const baseUrl = computed({
-  get: () => providers.value[providerId]?.baseUrl as string | undefined || providerMetadata.value?.defaultOptions?.baseUrl as string | undefined || '',
-  set: (value) => {
-    if (!providers.value[providerId])
-      providers.value[providerId] = {}
+// Check if API key is configured
+const apiKeyConfigured = computed(() => !!providers.value[providerId]?.apiKey)
 
-    providers.value[providerId].baseUrl = value
-  },
+// Get available voices for Microsoft Speech
+const availableVoices = computed(() => {
+  return speechStore.availableVoices[providerId] || []
 })
 
-// Voice settings as individual computed properties
-const pitch = computed({
-  get: () => (providers.value[providerId]?.voiceSettings as any)?.pitch ?? 0,
-  set: (value) => {
-    if (!providers.value[providerId])
-      providers.value[providerId] = {}
-    if (!providers.value[providerId].voiceSettings)
-      providers.value[providerId].voiceSettings = {}
-
-    const voiceSettings = providers.value[providerId].voiceSettings as any
-    voiceSettings.pitch = value
-  },
+// Get available languages
+const availableLanguages = computed(() => {
+  return speechStore.availableLanguages
 })
 
-const speed = computed({
-  get: () => (providers.value[providerId]?.voiceSettings as any)?.speed ?? 1.0,
-  set: (value) => {
-    if (!providers.value[providerId])
-      providers.value[providerId] = {}
-    if (!providers.value[providerId].voiceSettings)
-      providers.value[providerId].voiceSettings = {}
-
-    const voiceSettings = providers.value[providerId].voiceSettings as any
-    voiceSettings.speed = value
-  },
-})
-
-const volume = computed({
-  get: () => (providers.value[providerId]?.voiceSettings as any)?.volume ?? 0,
-  set: (value) => {
-    if (!providers.value[providerId])
-      providers.value[providerId] = {}
-    if (!providers.value[providerId].voiceSettings)
-      providers.value[providerId].voiceSettings = {}
-
-    const voiceSettings = providers.value[providerId].voiceSettings as any
-    voiceSettings.volume = value
-  },
-})
-
-// Speech settings
-const selectedLanguage = ref(speechStore.selectedLanguage)
-const selectedVoice = ref('')
-const availableVoicesForLanguage = computed(() => {
-  if (availableVoices.value[providerId] == null) {
-    return []
-  }
-
-  return availableVoices.value[providerId].filter(voice => voice.languages.filter(language => language.code === selectedLanguage.value).length > 0)
-})
-
-onMounted(() => {
-  providersStore.initializeProvider(providerId)
-
-  // Initialize refs with current values
-  apiKey.value = providers.value[providerId]?.apiKey as string | undefined || ''
-  baseUrl.value = providers.value[providerId]?.baseUrl as string | undefined || providerMetadata.value?.defaultOptions?.baseUrl as string | undefined || ''
-
-  // Initialize voice settings refs
-  if (providers.value[providerId]?.voiceSettings) {
-    pitch.value = (providers.value[providerId].voiceSettings as any)?.pitch ?? 0
-    speed.value = (providers.value[providerId].voiceSettings as any)?.speed ?? 1.0
-    volume.value = (providers.value[providerId].voiceSettings as any)?.volume ?? 0
-  }
-
-  // Load voices if provider is configured
-  if (providersStore.configuredProviders[providerId]) {
-    speechStore.loadVoicesForProvider(providerId)
-  }
-})
-
-const debouncedUpdate = useDebounceFn(() => {
-  providers.value[providerId] = {
-    ...providers.value[providerId],
-    apiKey: apiKey.value,
-    baseUrl: baseUrl.value || providerMetadata.value?.defaultOptions?.baseUrl as string | undefined || '',
-    voiceSettings: {
-      pitch: pitch.value,
-      speed: speed.value,
-      volume: volume.value,
-    },
-  }
-
-  speechStore.loadVoicesForProvider(providerId)
-}, 1000)
-
-// Watch all settings and update the provider configuration
-watch([apiKey, baseUrl, region], debouncedUpdate)
-
-// Function to generate speech
-async function generateTestSpeech() {
-  if (!testText.value.trim() && !useSSML.value)
-    return
-
-  if (useSSML.value && !ssmlText.value.trim())
-    return
-
+// Generate speech with Microsoft-specific parameters
+async function handleGenerateSpeech(input: string, voiceId: string, useSSML: boolean) {
   const provider = providersStore.getProviderInstance(providerId) as SpeechProviderWithExtraOptions<string, UnMicrosoftOptions>
   if (!provider) {
-    console.error('Failed to initialize speech provider')
-    return
+    throw new Error('Failed to initialize speech provider')
   }
 
-  isGenerating.value = true
-  errorMessage.value = ''
+  // Get provider configuration
+  const providerConfig = providersStore.getProviderConfig(providerId)
 
-  try {
-    // Stop any currently playing audio
-    if (audioUrl.value) {
-      stopTestAudio()
+  // Get model from configuration or use default
+  const model = providerConfig.model as string | undefined || defaultModel
+
+  // For Microsoft Speech, we need to ensure we're using the right region
+  const options = {
+    ...providerConfig,
+    region: region.value,
+    disableSsml: !useSSML, // If useSSML is true, we don't disable SSML
+  }
+
+  // If not using SSML and we have a voice, generate SSML
+  if (!useSSML && voiceId) {
+    const voice = availableVoices.value.find(v => v.id === voiceId)
+    if (voice) {
+      const ssml = speechStore.generateSSML(
+        input,
+        voice,
+      )
+      return await speechStore.speech(
+        provider,
+        model,
+        ssml,
+        voiceId,
+        options,
+      )
     }
-
-    const voice = availableVoicesForLanguage.value.find(voice => voice.name === selectedVoice.value)
-    if (!voice) {
-      throw new Error('Please select a voice')
-    }
-
-    const input = useSSML.value
-      ? ssmlText.value
-      : speechStore.generateSSML(testText.value, voice)
-
-    const response = await generateSpeech({
-      ...provider.speech('v1', {
-        region: region.value,
-        disableSsml: true, // Disable auto SSML conversion since we're handling it ourselves
-      }),
-      input,
-      voice: voice.id,
-    })
-
-    // Convert the response to a blob and create an object URL
-    audioUrl.value = URL.createObjectURL(new Blob([response]))
-
-    // Play the audio
-    setTimeout(() => {
-      if (audioPlayer.value) {
-        audioPlayer.value.play()
-      }
-    }, 100)
-  }
-  catch (error) {
-    console.error('Error generating speech:', error)
-    errorMessage.value = error instanceof Error ? error.message : 'An unknown error occurred'
-  }
-  finally {
-    isGenerating.value = false
-  }
-}
-
-// Function to stop audio playback
-function stopTestAudio() {
-  if (audioPlayer.value) {
-    audioPlayer.value.pause()
-    audioPlayer.value.currentTime = 0
   }
 
-  // Clean up the object URL to prevent memory leaks
-  if (audioUrl.value) {
-    URL.revokeObjectURL(audioUrl.value)
-    audioUrl.value = ''
-  }
-}
-
-// Clean up when component is unmounted
-onUnmounted(() => {
-  if (audioUrl.value) {
-    URL.revokeObjectURL(audioUrl.value)
-  }
-})
-
-function handleResetVoiceSettings() {
-  providers.value[providerId] = {
-    ...(providerMetadata.value?.defaultOptions as any),
-  }
+  // Either using direct SSML or no voice found
+  return await speechStore.speech(
+    provider,
+    model,
+    input,
+    voiceId,
+    options,
+  )
 }
 </script>
 
 <template>
-  <ProviderSettingsLayout
-    :provider-name="providerMetadata?.localizedName" :provider-icon="providerMetadata?.icon"
-    :on-back="() => router.back()"
+  <SpeechProviderSettings
+    :provider-id="providerId"
+    :default-model="defaultModel"
+    :additional-settings="defaultVoiceSettings"
   >
-    <div flex="~ col md:row gap-6">
-      <ProviderSettingsContainer class="w-full md:w-[40%]">
-        <ProviderBasicSettings
-          :title="t('settings.pages.providers.common.section.basic.title')"
-          :description="t('settings.pages.providers.common.section.basic.description')"
-          :on-reset="handleResetVoiceSettings"
-        >
-          <ProviderApiKeyInput v-model="apiKey" :provider-name="providerMetadata?.localizedName" placeholder="sk-" />
-          <FieldInput
-            v-model="region"
-            label="Region"
-            description="Speech Service region"
-            placeholder="eastasia"
-            required
-            type="text"
-          />
-        </ProviderBasicSettings>
+    <!-- Basic settings specific to Microsoft Speech -->
+    <template #basic-settings>
+      <FieldInput
+        v-model="region"
+        label="Region"
+        description="Speech Service region"
+        placeholder="eastasia"
+        required
+        type="text"
+      />
+    </template>
 
-        <div flex="~ col gap-6">
-          <h2 class="text-lg text-neutral-500 md:text-2xl dark:text-neutral-400">
-            {{ t('settings.pages.providers.common.section.voice.title') }}
-          </h2>
-          <div flex="~ col gap-4">
-            <FieldRange
-              v-model="pitch"
-              label="Pitch"
-              description="Adjust the pitch of the voice"
-              :min="-100" :max="100" :step="1"
-              :format-value="value => `${value}%`"
-            />
-          </div>
-        </div>
+    <!-- Voice settings specific to Microsoft Speech -->
+    <template #voice-settings="{ voiceSettings, updateVoiceSettings }">
+      <SpeechVoiceSettings
+        :settings="voiceSettings"
+        :show-pitch="true"
+        :show-speed="true"
+        :show-volume="true"
+        @update="updateVoiceSettings"
+      />
+    </template>
 
-        <ProviderAdvancedSettings :title="t('settings.pages.providers.common.section.advanced.title')">
-          <ProviderBaseUrlInput
-            v-model="baseUrl"
-            :placeholder="providerMetadata?.defaultOptions?.baseUrl as string || ''" required
-          />
-        </ProviderAdvancedSettings>
-      </ProviderSettingsContainer>
-
-      <div flex="~ col gap-6" class="w-full md:w-[60%]">
-        <div w-full rounded-xl>
-          <h2 class="mb-4 text-lg text-neutral-500 md:text-2xl dark:text-neutral-400" w-full>
-            <div class="inline-flex items-center gap-4">
-              <TestDummyMarker />
-              <div>
-                {{ t('settings.pages.providers.provider.elevenlabs.playground.title') }}
-              </div>
-            </div>
-          </h2>
-          <div flex="~ col gap-4">
-            <FieldCheckbox
-              v-model="useSSML"
-              label="Use Custom SSML"
-              description="Enable to input raw SSML instead of plain text"
-            />
-
-            <template v-if="!useSSML">
-              <textarea
-                v-model="testText"
-                :placeholder="t('settings.pages.providers.provider.elevenlabs.playground.fields.field.input.placeholder')"
-                border="neutral-100 dark:neutral-800 solid 2 focus:neutral-200 dark:focus:neutral-700"
-                transition="all duration-250 ease-in-out"
-                bg="neutral-100 dark:neutral-800 focus:neutral-50 dark:focus:neutral-900"
-                h-24 w-full rounded-lg px-3 py-2 text-sm outline-none
-              />
-            </template>
-            <template v-else>
-              <textarea
-                v-model="ssmlText"
-                placeholder="Enter SSML text..."
-                border="neutral-100 dark:neutral-800 solid 2 focus:neutral-200 dark:focus:neutral-700"
-                transition="all duration-250 ease-in-out"
-                bg="neutral-100 dark:neutral-800 focus:neutral-50 dark:focus:neutral-900"
-                h-48 w-full rounded-lg px-3 py-2 text-sm font-mono outline-none
-              />
-            </template>
-
-            <div flex="~ col gap-6">
-              <label grid="~ cols-2 gap-4">
-                <div>
-                  <div class="flex items-center gap-1 text-sm font-medium">
-                    {{ t('settings.pages.providers.provider.elevenlabs.playground.fields.field.language.label') }}
-                  </div>
-                  <div class="text-xs text-neutral-500 dark:text-neutral-400">
-                    {{ t('settings.pages.providers.provider.elevenlabs.playground.fields.field.language.description') }}
-                  </div>
-                </div>
-                <select
-                  v-model="selectedLanguage"
-                  border="neutral-300 dark:neutral-800 solid 2 focus:neutral-400 dark:focus:neutral-600"
-                  transition="border duration-250 ease-in-out" w-full rounded-lg px-2 py-1 text-nowrap text-sm
-                  outline-none
-                >
-                  <option v-for="language in speechStore.availableLanguages" :key="language" :value="language">
-                    {{ language }}
-                  </option>
-                </select>
-              </label>
-
-              <label grid="~ cols-2 gap-4">
-                <div>
-                  <div class="flex items-center gap-1 text-sm font-medium">
-                    {{ t('settings.pages.providers.provider.elevenlabs.playground.fields.field.voice.label') }}
-                  </div>
-                  <div class="text-xs text-neutral-500 dark:text-neutral-400">
-                    {{ t('settings.pages.providers.provider.elevenlabs.playground.fields.field.voice.description') }}
-                  </div>
-                </div>
-                <select
-                  v-model="selectedVoice"
-                  border="neutral-300 dark:neutral-800 solid 2 focus:neutral-400 dark:focus:neutral-600"
-                  transition="border duration-250 ease-in-out" w-full rounded-lg px-2 py-1 text-nowrap text-sm
-                  outline-none
-                >
-                  <option value="">
-                    Select a voice
-                  </option>
-                  <option v-for="voice in availableVoicesForLanguage" :key="voice.id" :value="voice.name">
-                    {{ voice.name }}
-                  </option>
-                </select>
-              </label>
-            </div>
-            <div flex="~ row" gap-4>
-              <button
-                border="neutral-800 dark:neutral-200 solid 2" transition="border duration-250 ease-in-out"
-                rounded-lg px-4 text="neutral-100 dark:neutral-900" py-2 text-sm
-                :disabled="isGenerating || (!testText.trim() && !useSSML) || (useSSML && !ssmlText.trim()) || !apiKey || !selectedVoice"
-                :class="{ 'opacity-50 cursor-not-allowed': isGenerating || (!testText.trim() && !useSSML) || (useSSML && !ssmlText.trim()) || !apiKey || !selectedVoice }"
-                bg="neutral-700 dark:neutral-300" @click="generateTestSpeech"
-              >
-                <div flex="~ row" items-center gap-2>
-                  <div i-solar:play-circle-bold-duotone />
-                  <span>{{ isGenerating ? t('settings.pages.providers.provider.elevenlabs.playground.buttons.button.test-voice.generating') : t('settings.pages.providers.provider.elevenlabs.playground.buttons.button.test-voice.label') }}</span>
-                </div>
-              </button>
-              <button
-                v-if="audioUrl" border="primary-300 dark:primary-800 solid 2"
-                transition="border duration-250 ease-in-out" rounded-lg px-4 py-2 text-sm @click="stopTestAudio"
-              >
-                <div flex="~ row" items-center gap-2>
-                  <div i-solar:stop-circle-bold-duotone />
-                  <span>Stop</span>
-                </div>
-              </button>
-            </div>
-            <div v-if="!apiKey" class="mt-2 text-sm text-red-500">
-              {{ t('settings.pages.providers.provider.elevenlabs.playground.validation.error-missing-api-key') }}
-            </div>
-            <div v-if="!selectedVoice" class="mt-2 text-sm text-red-500">
-              Please select a voice
-            </div>
-            <div v-if="errorMessage" class="mt-2 text-sm text-red-500">
-              {{ errorMessage }}
-            </div>
-            <audio v-if="audioUrl" ref="audioPlayer" :src="audioUrl" controls class="mt-2 w-full" />
-          </div>
-        </div>
-      </div>
-    </div>
-  </ProviderSettingsLayout>
+    <!-- Replace the default playground with our standalone component -->
+    <template #playground>
+      <SpeechPlayground
+        :available-voices="availableVoices"
+        :available-languages="availableLanguages"
+        :generate-speech="handleGenerateSpeech"
+        :api-key-configured="apiKeyConfigured"
+        default-text="Hello! This is a test of the Microsoft Speech synthesis."
+      />
+    </template>
+  </SpeechProviderSettings>
 </template>

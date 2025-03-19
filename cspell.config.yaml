@@ -159,6 +159,8 @@ words:
   - wavefile
   - webgpu
   - worklet
+  - xast
+  - xastscript
   - Xenova
   - xsai
   - xsschema

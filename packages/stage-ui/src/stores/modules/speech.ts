@@ -1,8 +1,12 @@
+import type { SpeechProviderWithExtraOptions } from '@xsai-ext/shared-providers'
 import type { VoiceInfo } from '../providers'
 
 import { useLocalStorage } from '@vueuse/core'
+import { generateSpeech } from '@xsai/generate-speech'
 import { defineStore } from 'pinia'
 import { computed, onMounted, ref, watch } from 'vue'
+import { toXml } from 'xast-util-to-xml'
+import { x } from 'xastscript'
 
 import { voiceList, voiceMap } from '../../constants/elevenlabs'
 import { useProvidersStore } from '../providers'
@@ -129,19 +133,6 @@ export const useSpeechStore = defineStore('speech', () => {
     }
   })
 
-  // Generate SSML from plain text and voice settings
-  function generateSSML(text: string, voice: VoiceInfo): string {
-    const pitchValue = pitch.value > 0 ? `+${pitch.value}%` : `${pitch.value}%`
-
-    return `<speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xml:lang="${voice.languages[0].code}">
-  <voice name="${voice.id}" gender="${voice.gender}">
-    <prosody pitch="${pitchValue}">
-      ${text}
-    </prosody>
-  </voice>
-</speak>`
-  }
-
   onMounted(() => {
     if (activeSpeechVoiceId.value) {
       activeSpeechVoice.value = availableVoices.value[activeSpeechProvider.value]?.find(voice => voice.id === activeSpeechVoiceId.value)
@@ -153,6 +144,64 @@ export const useSpeechStore = defineStore('speech', () => {
       activeSpeechVoiceId.value = voice.id
     }
   })
+
+  /**
+   * Generate speech using the specified provider and settings
+   *
+   * @param provider The speech provider instance
+   * @param model The model to use
+   * @param input The text input to convert to speech
+   * @param voice The voice ID to use
+   * @param providerConfig Additional provider configuration
+   * @returns ArrayBuffer containing the audio data
+   */
+  async function speech(
+    provider: SpeechProviderWithExtraOptions<string, any>,
+    model: string,
+    input: string,
+    voice: string,
+    providerConfig: Record<string, any> = {},
+  ): Promise<ArrayBuffer> {
+    const response = await generateSpeech({
+      ...provider.speech(model, {
+        ...providerConfig,
+      }),
+      input,
+      voice,
+    })
+
+    return response
+  }
+
+  function generateSSML(
+    text: string,
+    voice: VoiceInfo,
+    pitch?: number,
+    speed?: number,
+    volume?: number,
+  ): string {
+    const prosody = {
+      pitch: pitch != null ? pitch > 0 ? `+${pitch}%` : `-${pitch}%` : undefined,
+      rate: speed != null ? speed !== 1.0 ? `${speed}` : '1' : undefined,
+      volume: volume != null ? volume > 0 ? `+${volume}%` : `${volume}%` : undefined,
+    }
+
+    const ssmlXast = x('speak', { 'version': '1.0', 'xmlns': 'http://www.w3.org/2001/10/synthesis', 'xml:lang': voice.languages[0]?.code || 'en-US' }, [
+      x('voice', { name: voice.id, gender: voice.gender || 'neutral' }, [
+        Object.entries(prosody).filter(([_, value]) => value !== undefined).length > 0
+          ? x('prosody', {
+              pitch: pitch != null ? pitch > 0 ? `+${pitch}%` : `-${pitch}%` : undefined,
+              rate: speed != null ? speed !== 1.0 ? `${speed}` : '1' : undefined,
+              volume: volume != null ? volume > 0 ? `+${volume}%` : `${volume}%` : undefined,
+            }, [
+              text,
+            ])
+          : text,
+      ]),
+    ])
+
+    return toXml(ssmlXast)
+  }
 
   return {
     // State
@@ -180,6 +229,7 @@ export const useSpeechStore = defineStore('speech', () => {
     filteredModels,
 
     // Actions
+    speech,
     loadVoicesForProvider,
     getVoicesForProvider,
     generateSSML,
