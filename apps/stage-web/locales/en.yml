@@ -58,6 +58,8 @@ settings:
       from-url-confirm: Load
       from-url-placeholder: Enter Live2D model URL
       title: Change Model
+    edit-motion-map:
+      title: Edit motion map
     map-motions:
       play: Play Motion
       title: Map Motions
@@ -273,10 +275,10 @@ settings:
                 description: Traditional Japanese color palette
                 title: Japanese Colors
               monet:
-                description: Impressionist palette inspired by Claude Monet\'s works
+                description: Impressionist palette inspired by Claude Monet's works
                 title: Monet Colors
               morandi:
-                description: Soft, muted tones inspired by Giorgio Morandi\'s paintings
+                description: Soft, muted tones inspired by Giorgio Morandi's paintings
                 title: Morandi Colors
               nordic:
                 description: Scandinavian minimalist color scheme

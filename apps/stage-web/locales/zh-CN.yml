@@ -140,7 +140,7 @@ settings:
             fields:
               field:
                 headers:
-                  description: 添加自定义HTTP标头
+                  description: 添加自定义 HTTP 标头
                   key:
                     placeholder: 请求头名字
                   label: HTTP 请求头
@@ -159,7 +159,7 @@ settings:
           fields:
             field:
               account-id:
-                description: Cloudflare帐户ID
+                description: Cloudflare 帐户 ID
                 label: Cloudflare Account ID
                 placeholder: 请输入 Cloudflare Account ID
               api-key:
@@ -261,7 +261,7 @@ settings:
               monet:
                 title: 莫奈颜色
               morandi:
-                title: Morandi颜色
+                title: Morandi 颜色
               nordic:
                 title: 北欧颜色
             title: 主题预设

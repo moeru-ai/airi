@@ -24,7 +24,7 @@ function handleSettingsOpen(open: boolean) {
         ? 'oklch(35% calc(var(--theme-colors-chroma) * 0.6) var(--theme-colors-hue))'
         : 'color-mix(in srgb, oklch(95% calc(var(--theme-colors-chroma-50) * 0.5) var(--theme-colors-hue)) 80%, oklch(100% 0 360))'"
     >
-      <div relative flex="~ col" z-2 h-100vh w-100vw of-hidden>
+      <div relative flex="~ col" z-2 h-100dvh w-100vw of-hidden>
         <!-- header -->
         <div>
           <Header class="flex" p2 />

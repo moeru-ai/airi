@@ -28,12 +28,15 @@ async function extractColorsFromModel() {
   }
 
   const frameUrl = URL.createObjectURL(frame)
-  const vibrant = new Vibrant(frameUrl)
+  try {
+    const vibrant = new Vibrant(frameUrl)
 
-  const paletteFromVibrant = await vibrant.getPalette()
-  palette.value = Object.values(paletteFromVibrant).map(color => color?.hex).filter(it => typeof it === 'string')
-
-  URL.revokeObjectURL(frameUrl)
+    const paletteFromVibrant = await vibrant.getPalette()
+    palette.value = Object.values(paletteFromVibrant).map(color => color?.hex).filter(it => typeof it === 'string')
+  }
+  finally {
+    URL.revokeObjectURL(frameUrl)
+  }
 }
 </script>
 
@@ -46,14 +49,12 @@ async function extractColorsFromModel() {
     :leave="{ opacity: 0, x: -10 }"
     :duration="250"
   >
-    <button @click="router.back()">
-      <div i-solar:alt-arrow-left-line-duotone text-2xl />
-    </button>
-    <h1 relative>
-      <div absolute left-0 top-0 translate-y="[-80%]">
-        <span text="neutral-300 dark:neutral-500" text-nowrap>{{ t('settings.title') }}</span>
+    <button i-solar:alt-arrow-left-line-duotone text-2xl @click="router.back()" />
+    <h1 relative text-nowrap>
+      <div absolute left-0 top-0 translate-y="[-80%]" text="neutral-300 dark:neutral-500">
+        {{ t('settings.title') }}
       </div>
-      <div text-nowrap text-3xl font-semibold>
+      <div text-3xl font-semibold>
         {{ t('settings.pages.models.title') }}
       </div>
     </h1>
