@@ -4,7 +4,7 @@ use tauri::{TitleBarStyle, WebviewUrl, WebviewWindowBuilder};
 pub fn run() {
   tauri::Builder::default()
     .setup(|app| {
-      let window = WebviewWindowBuilder::new(app, "main", WebviewUrl::default())
+      let _ = WebviewWindowBuilder::new(app, "main", WebviewUrl::default())
         .title("airi")
         .title_bar_style(TitleBarStyle::Transparent)
         // .decorations(false)

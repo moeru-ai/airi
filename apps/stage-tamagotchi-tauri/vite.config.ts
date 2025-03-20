@@ -18,7 +18,6 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      '@renderer': resolve(join('src', 'renderer', 'src')),
       '@proj-airi/stage-ui': resolve(join(import.meta.dirname, '..', '..', 'packages', 'stage-ui', 'dist')),
       '@proj-airi/stage-ui/stores': resolve(join(import.meta.dirname, '..', '..', 'packages', 'stage-ui', 'dist', 'stores')),
     },
@@ -36,7 +35,7 @@ export default defineConfig({
 
     VueRouter({
       dts: resolve(import.meta.dirname, 'src/typed-router.d.ts'),
-      routesFolder: 'src/renderer/src/pages',
+      routesFolder: 'src/pages',
     }),
 
     // https://github.com/JohnCampionJr/vite-plugin-vue-layouts
@@ -49,7 +48,7 @@ export default defineConfig({
       runtimeOnly: true,
       compositionOnly: true,
       fullInstall: true,
-      include: [resolve(import.meta.dirname, 'src', 'renderer', 'locales/**')],
+      include: [resolve(import.meta.dirname, 'locales/**')],
     }),
 
     DownloadLive2DSDK(),
