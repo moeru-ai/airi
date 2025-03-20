@@ -1,5 +1,4 @@
 import type { WebSocketBaseEvent, WebSocketEvent, WebSocketEvents } from '@proj-airi/server-shared/types'
-import type { Blob } from 'node:buffer'
 
 import WebSocket from 'crossws/websocket'
 import { defu } from 'defu'
@@ -131,7 +130,7 @@ export class Client<C = undefined> {
     this.websocket.send(JSON.stringify(data))
   }
 
-  sendRaw(data: string | ArrayBufferLike | Blob | ArrayBufferView): void {
+  sendRaw(data: string | ArrayBufferLike | ArrayBufferView): void {
     this.websocket.send(data)
   }
 }
