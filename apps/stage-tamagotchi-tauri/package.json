@@ -38,6 +38,7 @@
     "@pixiv/three-vrm-core": "^3.3.6",
     "@proj-airi/stage-ui": "workspace:^",
     "@ricky0123/vad-web": "^0.0.22",
+    "@tauri-apps/api": "^2.4.0",
     "@tresjs/cientos": "^4.2.0",
     "@tresjs/core": "^4.3.3",
     "@unhead/vue": "^2.0.0-rc.13",

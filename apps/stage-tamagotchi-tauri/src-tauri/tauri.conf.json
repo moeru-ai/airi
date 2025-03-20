@@ -10,7 +10,6 @@
     "beforeBuildCommand": "pnpm run build"
   },
   "app": {
-    "windows": [],
     "security": {
       "csp": null
     },

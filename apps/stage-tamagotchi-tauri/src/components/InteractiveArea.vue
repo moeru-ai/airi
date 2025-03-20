@@ -4,6 +4,7 @@ import type { ChatProvider } from '@xsai-ext/shared-providers'
 import { BasicTextarea } from '@proj-airi/stage-ui/components'
 import { useMicVAD } from '@proj-airi/stage-ui/composables'
 import { useChatStore, useConsciousnessStore, useProvidersStore, useSettings } from '@proj-airi/stage-ui/stores'
+import { invoke } from '@tauri-apps/api/core'
 import { storeToRefs } from 'pinia'
 import { onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -87,7 +88,7 @@ function handleTranscription(_buffer: Float32Array) {
 // }
 
 function openSettings() {
-  window.electron.ipcRenderer.send('open-settings')
+  invoke('open_settings_window')
 }
 
 watch(isAudioInputOn, async (value) => {
