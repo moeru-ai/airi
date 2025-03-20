@@ -57,6 +57,7 @@
   },
   "dependencies": {
     "@formkit/auto-animate": "^0.8.2",
+    "@proj-airi/server-sdk": "workspace:^",
     "@vueuse/motion": "^3.0.3",
     "reka-ui": "^2.1.0",
     "unist-builder": "^4.0.0",

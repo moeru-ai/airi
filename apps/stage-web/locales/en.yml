@@ -67,6 +67,8 @@ settings:
   microphone: Microphone
   models: Model
   pages:
+    memory:
+      description: Where memories got stored, and organized
     models:
       description: Live2D, VRM, etc.
       title: Models

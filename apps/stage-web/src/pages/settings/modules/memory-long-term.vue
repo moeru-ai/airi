@@ -1,10 +1,12 @@
 <script setup lang="ts">
-defineProps<{
-  providerName: string
-  providerIcon?: string
-  providerIconColor?: string
-  onBack?: () => void
-}>()
+// import { useServerStore } from '@proj-airi/stage-ui/stores'
+import { useI18n } from 'vue-i18n'
+import { useRouter } from 'vue-router'
+
+const router = useRouter()
+const { t } = useI18n()
+
+// const serverStore = useServerStore()
 </script>
 
 <template>
@@ -16,20 +18,16 @@ defineProps<{
     :leave="{ opacity: 0, x: -10 }"
     :duration="250"
   >
-    <button @click="onBack">
+    <button @click="router.back()">
       <div i-solar:alt-arrow-left-line-duotone text-2xl />
     </button>
     <h1 relative>
       <div absolute left-0 top-0 translate-y="[-80%]">
-        <span text="neutral-300 dark:neutral-500" text-nowrap>Provider</span>
+        <span text="neutral-300 dark:neutral-500" text-nowrap>{{ t('settings.title') }}</span>
       </div>
       <div text-nowrap text-3xl font-semibold>
-        {{ providerName }}
+        {{ t('settings.pages.modules.memory-long-term.title') }}
       </div>
     </h1>
-  </div>
-  <slot />
-  <div text="neutral-200/50 dark:neutral-600/20" pointer-events-none fixed bottom-0 right-0 z--1 translate-x-10 translate-y-10>
-    <div text="40" :class="providerIcon || providerIconColor" />
   </div>
 </template>

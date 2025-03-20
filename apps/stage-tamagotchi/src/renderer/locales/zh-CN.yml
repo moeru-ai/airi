@@ -50,6 +50,9 @@ settings:
   microphone: 麦克风
   models: 模型
   pages:
+    memory:
+      description: 存放记忆的地方，以及策略
+      title: 记忆体
     models:
       description: 切换角色的 Live2D，VRM 模型
       title: 角色模型

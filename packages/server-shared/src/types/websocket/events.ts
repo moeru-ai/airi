@@ -28,7 +28,7 @@ export type WithInputSource<Source extends keyof InputSource> = {
 //
 // A little hack for creating extensible discriminated unions : r/typescript
 // https://www.reddit.com/r/typescript/comments/1064ibt/a_little_hack_for_creating_extensible/
-export interface WebSocketEvents {
+export interface WebSocketEvents<C = undefined> {
   'error': {
     message: string
   }
@@ -40,7 +40,15 @@ export interface WebSocketEvents {
   }
   'module:announce': {
     name: string
-    possibleEvents: Array<(keyof WebSocketEvents)>
+    possibleEvents: Array<(keyof WebSocketEvents<C>)>
+  }
+  'module:configure': {
+    config: C
+  }
+  'ui:configure': {
+    moduleName: string
+    moduleIndex?: number
+    config: C | Record<string, unknown>
   }
   'input:text': {
     text: string
@@ -53,6 +61,6 @@ export interface WebSocketEvents {
   } & Partial<WithInputSource<'browser' | 'discord'>>
 }
 
-export type WebSocketEvent = {
-  [K in keyof WebSocketEvents]: WebSocketBaseEvent<K, WebSocketEvents[K]>;
-}[keyof WebSocketEvents]
+export type WebSocketEvent<C = undefined> = {
+  [K in keyof WebSocketEvents<C>]: WebSocketBaseEvent<K, WebSocketEvents<C>[K]>;
+}[keyof WebSocketEvents<C>]

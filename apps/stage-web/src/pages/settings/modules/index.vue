@@ -57,7 +57,7 @@ const modulesList = computed<Module[]>(() => [
     name: t('settings.pages.modules.memory-short-term.title'),
     description: t('settings.pages.modules.memory-short-term.description'),
     icon: 'i-lucide:book',
-    to: '',
+    to: '/settings/modules/memory-short-term',
     configured: false,
   },
   {
@@ -65,7 +65,7 @@ const modulesList = computed<Module[]>(() => [
     name: t('settings.pages.modules.memory-long-term.title'),
     description: t('settings.pages.modules.memory-long-term.description'),
     icon: 'i-lucide:book-copy',
-    to: '',
+    to: '/settings/modules/memory-long-term',
     configured: false,
   },
   {
@@ -142,7 +142,7 @@ const modulesList = computed<Module[]>(() => [
       :configured="module.configured"
     />
   </div>
-  <div text="neutral-200/50 dark:neutral-500/20" pointer-events-none fixed bottom-0 right-0 z--1 translate-x-10 translate-y-10>
+  <div text="neutral-200/50 dark:neutral-600/20" pointer-events-none fixed bottom-0 right-0 z--1 translate-x-10 translate-y-10>
     <div text="40" i-lucide:blocks />
   </div>
 </template>

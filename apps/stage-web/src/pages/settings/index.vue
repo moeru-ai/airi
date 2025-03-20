@@ -62,6 +62,17 @@ function handleLanguageChange(event: Event) {
         :enter="{ opacity: 1, y: 0 }"
         :duration="250"
         :delay="100"
+        :title="t('settings.pages.memory.title')"
+        :description="t('settings.pages.memory.description')"
+        icon="i-lucide:sprout"
+        to="/settings/memory"
+      />
+      <IconItem
+        v-motion
+        :initial="{ opacity: 0, y: 10 }"
+        :enter="{ opacity: 1, y: 0 }"
+        :duration="250"
+        :delay="100"
         :title="t('settings.pages.providers.title')"
         :description="t('settings.pages.providers.description')"
         icon="i-lucide:brain"
@@ -207,7 +218,7 @@ function handleLanguageChange(event: Event) {
         </div>
       </label>
     </div>
-    <div text="neutral-200/50 dark:neutral-500/20" pointer-events-none fixed bottom-0 right-0 z--1 translate-x-10 translate-y-10>
+    <div text="neutral-200/50 dark:neutral-600/20" pointer-events-none fixed bottom-0 right-0 z--1 translate-x-10 translate-y-10>
       <div v-motion text="60" i-lucide:cog />
     </div>
   </div>

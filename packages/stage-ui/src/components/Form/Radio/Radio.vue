@@ -21,7 +21,7 @@ const modelValue = defineModel<string>({ required: true })
     :class="[
       modelValue === value
         ? 'bg-primary-50 dark:bg-primary-900/20 border-primary-100 dark:border-primary-900 hover:border-primary-500/30 dark:hover:border-primary-400/30'
-        : 'bg-white dark:bg-neutral-900/20 border-neutral-100 dark:border-neutral-700 hover:border-primary-500/30 dark:hover:border-primary-400/30',
+        : 'bg-white dark:bg-neutral-900/20 border-neutral-100 dark:border-neutral-900 hover:border-primary-500/30 dark:hover:border-primary-400/30',
       modelValue === value
         ? 'form_radio-active'
         : '',

@@ -67,6 +67,8 @@ settings:
     models:
       description: Live2D, VRM, etc.
       title: Models
+    memory:
+      description: Where memories got stored, and organized
     modules:
       consciousness:
         description: Personality, desired model, etc.

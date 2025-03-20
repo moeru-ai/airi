@@ -30,11 +30,11 @@ function main() {
     open: (peer) => {
       const token = env.AUTHENTICATION_TOKEN || ''
       if (token) {
-        peers.set(peer.id, { peer, authenticated: false })
+        peers.set(peer.id, { peer, authenticated: false, name: '' })
       }
       else {
         send(peer, { type: 'module:authenticated', data: { authenticated: true } })
-        peers.set(peer.id, { peer, authenticated: true })
+        peers.set(peer.id, { peer, authenticated: true, name: '' })
       }
 
       websocketLogger.withFields({ peer: peer.id, activePeers: peers.size }).log('connected')
@@ -52,7 +52,26 @@ function main() {
           }
 
           send(peer, { type: 'module:authenticated', data: { authenticated: true } })
-          peers.set(peer.id, { peer, authenticated: true })
+          peers.set(peer.id, { peer, authenticated: true, name: '' })
+          return
+        case 'module:announce':
+          peers.set(peer.id, { peer, authenticated: true, name: event.data.name })
+          return
+        case 'ui:configure':
+          peers.forEach((p) => {
+            if (p.name === '') {
+              return
+            }
+            if ((typeof p.index !== 'undefined' && typeof event.data.moduleIndex !== 'undefined' && p.name === event.data.moduleName && p.index === event.data.moduleIndex)) {
+              return
+            }
+            if (p.name !== event.data.moduleName) {
+              return
+            }
+
+            p.peer.send(JSON.stringify({ type: 'module:configure', data: { config: event.data.config } } as WebSocketEvent))
+          })
+
           return
       }
       if (!peers.get(peer.id)?.authenticated) {
