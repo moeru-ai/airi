@@ -18,7 +18,7 @@ const { activeProvider, activeModel } = storeToRefs(useConsciousnessStore())
 
 // const { audioInputs } = useDevicesList({ constraints: { audio: true }, requestPermissions: true })
 // const { selectedAudioDevice, isAudioInputOn, selectedAudioDeviceId } = storeToRefs(useSettings())
-const { isAudioInputOn, selectedAudioDeviceId } = storeToRefs(useSettings())
+const { isAudioInputOn, selectedAudioDeviceId, themeColorsHueDynamic } = storeToRefs(useSettings())
 const { send, onAfterSend } = useChatStore()
 const { t } = useI18n()
 
@@ -96,6 +96,7 @@ onMounted(() => {
           max-h="[10lh]" min-h="[1lh]"
           w-full resize-none overflow-y-scroll rounded-xl p-2 font-medium outline-none
           transition="all duration-250 ease-in-out placeholder:all placeholder:duration-250 placeholder:ease-in-out"
+          :class="{ 'transition-colors-none placeholder:transition-colors-none': themeColorsHueDynamic }"
           @submit="handleSend"
         />
       </div>

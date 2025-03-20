@@ -20,6 +20,7 @@ const showMicrophoneSelect = ref(false)
 
 const providersStore = useProvidersStore()
 const { activeProvider, activeModel } = storeToRefs(useConsciousnessStore())
+const { themeColorsHueDynamic } = storeToRefs(useSettings())
 
 const { audioInputs } = useDevicesList({ constraints: { audio: true }, requestPermissions: true })
 const { selectedAudioDevice, isAudioInputOn, selectedAudioDeviceId } = storeToRefs(useSettings())
@@ -139,6 +140,7 @@ onAfterSend(async () => {
         :class="[
           tab === 'chat' ? 'bg-primary-100 dark:bg-primary-900' : 'bg-white dark:bg-primary-950',
           tab === 'chat' ? 'text-primary-500 dark:text-primary-500' : '',
+          { 'transition-colors-none ': themeColorsHueDynamic },
         ]"
         flex="~ row"
         :checked="tab === 'chat'"
@@ -159,6 +161,7 @@ onAfterSend(async () => {
         :class="[
           tab === 'custom' ? 'bg-primary-100 dark:bg-primary-900' : 'bg-white dark:bg-primary-950',
           tab === 'custom' ? 'text-primary-500 dark:text-primary-500' : '',
+          { 'transition-colors-none ': themeColorsHueDynamic },
         ]"
         flex="~ row"
         :checked="tab === 'custom'"
@@ -179,6 +182,7 @@ onAfterSend(async () => {
         :class="[
           tab === 'clothes' ? 'bg-primary-100 dark:bg-primary-900' : 'bg-white dark:bg-primary-950',
           tab === 'clothes' ? 'text-primary-500 dark:text-primary-500' : '',
+          { 'transition-colors-none ': themeColorsHueDynamic },
         ]"
         flex="~ row"
         :checked="tab === 'clothes'"
@@ -213,6 +217,9 @@ onAfterSend(async () => {
             min-h="[100px]" max-h="[300px]" w-full
             rounded-t-xl p-4 font-medium
             outline-none transition="all duration-250 ease-in-out placeholder:all placeholder:duration-250 placeholder:ease-in-out"
+            :class="{
+              'transition-colors-none placeholder:transition-colors-none': themeColorsHueDynamic,
+            }"
             @submit="handleSend"
           />
         </div>
@@ -222,6 +229,7 @@ onAfterSend(async () => {
       <button
         bg="complementary-100 hover:complementary-200 dark:complementary-800 dark:hover:complementary-700"
         transition="all duration-250 ease-in-out"
+        :class="{ 'transition-colors-none': themeColorsHueDynamic }"
         text="complementary-400"
         mb-6 flex cursor-pointer items-center justify-center gap-2 rounded-full px-4 py-2
         @click="handleLoadWhisper"
@@ -267,6 +275,7 @@ onAfterSend(async () => {
         <label
           bg="complementary-100 hover:complementary-200 dark:complementary-800 dark:hover:complementary-700"
           transition="all duration-250 ease-in-out"
+          :class="{ 'transition-colors-none': themeColorsHueDynamic }"
           text="complementary-400"
           mb-6 flex cursor-pointer items-center justify-center gap-2 rounded-full px-4 py-2
         >

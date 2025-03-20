@@ -87,6 +87,10 @@ export default defineConfig({
         '--un-background-opacity': parsedColor?.cssColor?.alpha ?? parsedColor?.alpha ?? 1,
       }
     }],
+    ['transition-colors-none', {
+      'transition-property': 'color, background-color, border-color, text-color',
+      'transition-duration': '0s',
+    }],
   ],
   theme: {
     colors: {
