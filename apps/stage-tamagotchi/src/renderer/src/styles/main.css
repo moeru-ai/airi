@@ -14,6 +14,14 @@ html {
   transition: all 0.3s ease-in-out;
 }
 
+html.dark {
+  color-scheme: dark;
+}
+
+.dark #app {
+  background: #121212;
+}
+
 #nprogress {
   pointer-events: none;
 }
