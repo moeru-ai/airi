@@ -79,7 +79,7 @@ At the end of March 8th, [@LemonNekoGH](https://github.com/LemonNekoGH) and
 colors for the entire stage! (I never thought this could be done within hours...)
 
 <video controls muted>
-  <source src="../../../assets/images/blog/DevLog-2025.03.10/customizable-theme-colors.mp4">
+  <source src="/static/blog/DevLog-2025.03.10/customizable-theme-colors.mp4">
 </video>
 
 - https://github.com/moeru-ai/airi/pull/53

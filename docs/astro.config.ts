@@ -36,6 +36,7 @@ export default defineConfig({
       ],
       customCss: [
         './src/styles/custom.css',
+        '@fontsource/quicksand/300.css',
       ],
     }),
   ],
