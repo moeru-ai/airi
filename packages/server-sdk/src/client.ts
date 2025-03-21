@@ -19,8 +19,8 @@ export interface ClientOptions<C = undefined> {
 export class Client<C = undefined> {
   private connected = false
   private opts: Required<ClientOptions<C>>
-  private websocket: WebSocket
-  private eventListeners: Map<keyof WebSocketEvents, Array<(data: WebSocketBaseEvent<keyof WebSocketEvents<C>, WebSocketEvents<C>[keyof WebSocketEvents<C>]>) => void | Promise<void>>> = new Map()
+  private websocket: WebSocket | undefined
+  private eventListeners: Map<keyof WebSocketEvents<C>, Array<(data: WebSocketBaseEvent<any, any>) => void | Promise<void>>> = new Map()
 
   private reconnectAttempts = 0
   private shouldClose = false
@@ -189,16 +189,20 @@ export class Client<C = undefined> {
     }
 
     const listeners = this.eventListeners.get(event)
-    listeners.push(callback)
+    if (!listeners) {
+      return
+    }
+
+    listeners.push(callback as unknown as (data: WebSocketBaseEvent<E, WebSocketEvents<C>[E]>) => void | Promise<void>)
     this.eventListeners.set(event, listeners)
   }
 
   send(data: WebSocketEvent<C>): void {
-    this.websocket.send(JSON.stringify(data))
+    this.websocket?.send(JSON.stringify(data))
   }
 
   sendRaw(data: string | ArrayBufferLike | ArrayBufferView): void {
-    this.websocket.send(data)
+    this.websocket?.send(data)
   }
 
   close(): void {
