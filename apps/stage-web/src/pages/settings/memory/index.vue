@@ -1,9 +1,18 @@
 <script setup lang="ts">
+// import { useServerStore } from '@proj-airi/stage-ui/stores'
+// import { storeToRefs } from 'pinia'
+// import { onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 
 const router = useRouter()
 const { t } = useI18n()
+
+// const { server } = storeToRefs(useServerStore())
+
+// onMounted(() => {
+//   server.value?.connect()
+// })
 </script>
 
 <template>

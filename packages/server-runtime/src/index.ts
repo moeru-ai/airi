@@ -9,7 +9,7 @@ import { createApp, createRouter, defineWebSocketHandler } from 'h3'
 setGlobalFormat(Format.Pretty)
 setGlobalLogLevel(LogLevel.Log)
 
-function send(peer: Peer, event: WebSocketEvent) {
+function send(peer: Peer, event: WebSocketEvent<Record<string, unknown>>) {
   peer.send(JSON.stringify(event))
 }
 
@@ -58,20 +58,37 @@ function main() {
           peers.set(peer.id, { peer, authenticated: true, name: event.data.name })
           return
         case 'ui:configure':
-          peers.forEach((p) => {
+          if (event.data.moduleName === '') {
+            send(peer, { type: 'error', data: { message: 'the field \'moduleName\' can\'t be empty for event \'ui:configure\'' } })
+            return
+          }
+          if (typeof event.data.moduleIndex !== 'undefined' && typeof event.data.moduleIndex !== 'number') {
+            send(peer, { type: 'error', data: { message: 'the field \'moduleIndex\' must be a number for event \'ui:configure\'' } })
+            return
+          }
+          if (typeof event.data.moduleIndex !== 'undefined' && event.data.moduleIndex < 0) {
+            send(peer, { type: 'error', data: { message: 'the field \'moduleIndex\' must be a positive number for event \'ui:configure\'' } })
+            return
+          }
+
+          for (const [_id, p] of peers.entries()) {
             if (p.name === '') {
-              return
+              continue
             }
-            if ((typeof p.index !== 'undefined' && typeof event.data.moduleIndex !== 'undefined' && p.name === event.data.moduleName && p.index === event.data.moduleIndex)) {
-              return
-            }
-            if (p.name !== event.data.moduleName) {
+            if (p.name === event.data.moduleName) {
+              if ((typeof p.index !== 'undefined' && typeof event.data.moduleIndex !== 'undefined' && p.index === event.data.moduleIndex)) {
+                send(p.peer, { type: 'module:configure', data: { config: event.data.config } })
+                return
+              }
+
+              send(p.peer, { type: 'module:configure', data: { config: event.data.config } })
               return
             }
 
-            p.peer.send(JSON.stringify({ type: 'module:configure', data: { config: event.data.config } } as WebSocketEvent))
-          })
+            continue
+          }
 
+          send(peer, { type: 'error', data: { message: 'module not found, it haven\'t announced it or the name was wrong' } })
           return
       }
       if (!peers.get(peer.id)?.authenticated) {

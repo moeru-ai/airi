@@ -22,7 +22,8 @@ export class Client<C = undefined> {
   private websocket: WebSocket
   private eventListeners: Map<keyof WebSocketEvents, Array<(data: WebSocketBaseEvent<keyof WebSocketEvents<C>, WebSocketEvents<C>[keyof WebSocketEvents<C>]>) => void | Promise<void>>> = new Map()
 
-  private authenticateAttempts = 0
+  private reconnectAttempts = 0
+  private shouldClose = false
 
   constructor(options: ClientOptions<C>) {
     this.opts = defu<Required<ClientOptions<C>>, Required<Omit<ClientOptions<C>, 'name' | 'token'>>[]>(
@@ -38,53 +39,113 @@ export class Client<C = undefined> {
     )
 
     if (this.opts.autoConnect) {
-      this.connect()
+      try {
+        this.connect()
+      }
+      catch (err) {
+        console.error(err)
+      }
     }
   }
 
-  connect() {
-    if (this.connected)
+  async retryWithExponentialBackoff(fn: () => void | Promise<void>, attempts = 0, maxAttempts = -1) {
+    if (maxAttempts !== -1 && attempts >= maxAttempts) {
+      console.error(`Maximum retry attempts (${maxAttempts}) reached`)
       return
+    }
 
-    this.websocket = new WebSocket(this.opts.url)
+    try {
+      await fn()
+    }
+    catch (err) {
+      console.error('Encountered an error when retrying', err)
+      await sleep(2 ** attempts * 1000)
+      await this.retryWithExponentialBackoff(fn, attempts++, maxAttempts)
+    }
+  }
 
-    this.onEvent('module:authenticated', async (event) => {
-      const auth = event.data.authenticated
-      if (!auth) {
-        this.authenticateAttempts++
-        await sleep(2 ** this.authenticateAttempts * 1000)
-        this.tryAuthenticate()
+  async tryReconnectWithExponentialBackoff() {
+    await this.retryWithExponentialBackoff(() => this._connect(), this.reconnectAttempts)
+  }
+
+  private _connect() {
+    return new Promise<void>((resolve, reject) => {
+      if (this.shouldClose) {
+        resolve()
+        return
       }
-      else {
-        this.tryAnnounce()
+
+      if (this.connected) {
+        resolve()
+        return
+      }
+
+      this.websocket = new WebSocket(this.opts.url)
+
+      this.onEvent('module:authenticated', async (event) => {
+        const auth = event.data.authenticated
+        if (!auth) {
+          this.retryWithExponentialBackoff(() => this.tryAuthenticate())
+        }
+        else {
+          this.tryAnnounce()
+        }
+      })
+
+      this.websocket.onerror = (event) => {
+        this.opts.onError?.(event)
+
+        if ('error' in event && event.error instanceof Error) {
+          if (event.error.message === 'Received network error or non-101 status code.') {
+            this.connected = false
+
+            if (!this.opts.autoReconnect) {
+              this.opts.onError?.(event)
+              this.opts.onClose?.()
+              reject(event.error)
+              return
+            }
+
+            reject(event.error)
+          }
+        }
+      }
+
+      this.websocket.onclose = () => {
+        this.opts.onClose?.()
+        this.connected = false
+
+        if (!this.opts.autoReconnect) {
+          this.opts.onClose?.()
+        }
+        else {
+          this.tryReconnectWithExponentialBackoff()
+        }
+      }
+
+      this.websocket.onmessage = (event) => {
+        this.handleMessage(event)
+      }
+
+      this.websocket.onopen = () => {
+        this.reconnectAttempts = 0
+
+        if (this.opts.token) {
+          this.tryAuthenticate()
+        }
+        else {
+          this.tryAnnounce()
+        }
+
+        this.connected = true
+
+        resolve()
       }
     })
+  }
 
-    this.websocket.onerror = (event) => {
-      this.opts.onError?.(event)
-    }
-
-    this.websocket.onmessage = this.handleMessage.bind(this)
-
-    this.websocket.onopen = () => {
-      if (this.opts.token) {
-        this.tryAuthenticate()
-      }
-      else {
-        this.tryAnnounce()
-      }
-
-      this.connected = true
-    }
-
-    this.websocket.onclose = () => {
-      this.connected = false
-      this.authenticateAttempts = 0
-      this.opts.onClose?.()
-      if (this.opts.autoReconnect) {
-        this.connect()
-      }
-    }
+  async connect() {
+    await this.tryReconnectWithExponentialBackoff()
   }
 
   private tryAnnounce() {
@@ -104,13 +165,19 @@ export class Client<C = undefined> {
   }
 
   private async handleMessage(event: any) {
-    const data = JSON.parse(event.data) as WebSocketEvent<C>
-    const listeners = this.eventListeners.get(data.type)
-    if (!listeners)
-      return
+    try {
+      const data = JSON.parse(event.data) as WebSocketEvent<C>
+      const listeners = this.eventListeners.get(data.type)
+      if (!listeners)
+        return
 
-    for (const listener of listeners)
-      await listener(data)
+      for (const listener of listeners)
+        await listener(data)
+    }
+    catch (err) {
+      console.error('Failed to parse message:', err)
+      this.opts.onError?.(err)
+    }
   }
 
   onEvent<E extends keyof WebSocketEvents<C>>(
@@ -132,5 +199,14 @@ export class Client<C = undefined> {
 
   sendRaw(data: string | ArrayBufferLike | ArrayBufferView): void {
     this.websocket.send(data)
+  }
+
+  close(): void {
+    this.shouldClose = true
+
+    if (this.connected && this.websocket) {
+      this.websocket.close()
+      this.connected = false
+    }
   }
 }
