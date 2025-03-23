@@ -418,7 +418,7 @@ importers:
         version: 2.3.0
       '@intlify/unplugin-vue-i18n':
         specifier: ^6.0.5
-        version: 6.0.5(@vue/compiler-dom@3.5.13)(eslint@9.22.0(jiti@2.4.2))(rollup@2.79.1)(typescript@5.8.2)(vue-i18n@11.1.2(vue@3.5.13(typescript@5.8.2)))(vue@3.5.13(typescript@5.8.2))
+        version: 6.0.5(@vue/compiler-dom@3.5.13)(eslint@9.22.0(jiti@2.4.2))(rollup@4.36.0)(typescript@5.8.2)(vue-i18n@11.1.2(vue@3.5.13(typescript@5.8.2)))(vue@3.5.13(typescript@5.8.2))
       '@proj-airi/drizzle-duckdb-wasm':
         specifier: workspace:^
         version: link:../../packages/drizzle-duckdb-wasm
@@ -469,7 +469,7 @@ importers:
         version: 3.0.0-beta.5(typescript@5.8.2)(vue-tsc@3.0.0-alpha.2(typescript@5.8.2))(vue@3.5.13(typescript@5.8.2))
       '@vueuse/motion':
         specifier: ^3.0.3
-        version: 3.0.3(magicast@0.3.5)(rollup@2.79.1)(vue@3.5.13(typescript@5.8.2))
+        version: 3.0.3(magicast@0.3.5)(rollup@4.36.0)(vue@3.5.13(typescript@5.8.2))
       electron:
         specifier: ^34.3.3
         version: 34.3.3
@@ -490,13 +490,341 @@ importers:
         version: 3.2.0(unocss@66.1.0-beta.6(postcss@8.5.3)(vite@6.2.2(@types/node@22.13.10)(jiti@2.4.2)(less@4.2.2)(terser@5.17.6)(tsx@4.19.3)(yaml@2.7.0))(vue@3.5.13(typescript@5.8.2)))
       unplugin-auto-import:
         specifier: ^19.1.1
+        version: 19.1.1(@nuxt/kit@3.14.1592(magicast@0.3.5)(rollup@4.36.0))(@vueuse/core@13.0.0(vue@3.5.13(typescript@5.8.2)))
+      unplugin-vue-components:
+        specifier: ^28.4.1
+        version: 28.4.1(@babel/parser@7.26.10)(@nuxt/kit@3.14.1592(magicast@0.3.5)(rollup@4.36.0))(vue@3.5.13(typescript@5.8.2))
+      unplugin-vue-macros:
+        specifier: ^2.14.5
+        version: 2.14.5(@vueuse/core@13.0.0(vue@3.5.13(typescript@5.8.2)))(esbuild@0.19.12)(rollup@4.36.0)(typescript@5.8.2)(vite@6.2.2(@types/node@22.13.10)(jiti@2.4.2)(less@4.2.2)(terser@5.17.6)(tsx@4.19.3)(yaml@2.7.0))(vue-tsc@3.0.0-alpha.2(typescript@5.8.2))(vue@3.5.13(typescript@5.8.2))
+      unplugin-vue-markdown:
+        specifier: ^28.3.1
+        version: 28.3.1(vite@6.2.2(@types/node@22.13.10)(jiti@2.4.2)(less@4.2.2)(terser@5.17.6)(tsx@4.19.3)(yaml@2.7.0))
+      unplugin-vue-router:
+        specifier: ^0.12.0
+        version: 0.12.0(vue-router@4.5.0(vue@3.5.13(typescript@5.8.2)))(vue@3.5.13(typescript@5.8.2))
+      vite-bundle-visualizer:
+        specifier: ^1.2.1
+        version: 1.2.1(rollup@4.36.0)
+      vite-plugin-pwa:
+        specifier: ^0.21.1
+        version: 0.21.1(vite@6.2.2(@types/node@22.13.10)(jiti@2.4.2)(less@4.2.2)(terser@5.17.6)(tsx@4.19.3)(yaml@2.7.0))(workbox-build@7.3.0(@types/babel__core@7.20.5))(workbox-window@7.3.0)
+      vite-plugin-vue-devtools:
+        specifier: ^7.7.2
+        version: 7.7.2(@nuxt/kit@3.14.1592(magicast@0.3.5)(rollup@4.36.0))(rollup@4.36.0)(vite@6.2.2(@types/node@22.13.10)(jiti@2.4.2)(less@4.2.2)(terser@5.17.6)(tsx@4.19.3)(yaml@2.7.0))(vue@3.5.13(typescript@5.8.2))
+      vite-plugin-vue-layouts:
+        specifier: ^0.11.0
+        version: 0.11.0(vite@6.2.2(@types/node@22.13.10)(jiti@2.4.2)(less@4.2.2)(terser@5.17.6)(tsx@4.19.3)(yaml@2.7.0))(vue-router@4.5.0(vue@3.5.13(typescript@5.8.2)))(vue@3.5.13(typescript@5.8.2))
+      vue-tsc:
+        specifier: ^3.0.0-alpha.2
+        version: 3.0.0-alpha.2(typescript@5.8.2)
+
+  apps/stage-tamagotchi-tauri:
+    dependencies:
+      '@11labs/client':
+        specifier: ^0.0.8
+        version: 0.0.8
+      '@formkit/auto-animate':
+        specifier: ^0.8.2
+        version: 0.8.2
+      '@huggingface/transformers':
+        specifier: ^3.4.0
+        version: 3.4.0
+      '@pixi/app':
+        specifier: '6'
+        version: 6.5.10(@pixi/core@6.5.10(@pixi/constants@6.5.10)(@pixi/extensions@6.5.10)(@pixi/math@6.5.10)(@pixi/runner@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10))(@pixi/ticker@6.5.10(@pixi/extensions@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10)))(@pixi/utils@6.5.10(@pixi/constants@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10))))(@pixi/display@6.5.10(@pixi/constants@6.5.10)(@pixi/math@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10))(@pixi/utils@6.5.10(@pixi/constants@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10))))(@pixi/math@6.5.10)(@pixi/utils@6.5.10(@pixi/constants@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10)))
+      '@pixi/constants':
+        specifier: '6'
+        version: 6.5.10
+      '@pixi/core':
+        specifier: '6'
+        version: 6.5.10(@pixi/constants@6.5.10)(@pixi/extensions@6.5.10)(@pixi/math@6.5.10)(@pixi/runner@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10))(@pixi/ticker@6.5.10(@pixi/extensions@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10)))(@pixi/utils@6.5.10(@pixi/constants@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10)))
+      '@pixi/display':
+        specifier: '6'
+        version: 6.5.10(@pixi/constants@6.5.10)(@pixi/math@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10))(@pixi/utils@6.5.10(@pixi/constants@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10)))
+      '@pixi/extensions':
+        specifier: '6'
+        version: 6.5.10
+      '@pixi/interaction':
+        specifier: '6'
+        version: 6.5.10(@pixi/core@6.5.10(@pixi/constants@6.5.10)(@pixi/extensions@6.5.10)(@pixi/math@6.5.10)(@pixi/runner@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10))(@pixi/ticker@6.5.10(@pixi/extensions@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10)))(@pixi/utils@6.5.10(@pixi/constants@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10))))(@pixi/display@6.5.10(@pixi/constants@6.5.10)(@pixi/math@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10))(@pixi/utils@6.5.10(@pixi/constants@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10))))(@pixi/math@6.5.10)(@pixi/ticker@6.5.10(@pixi/extensions@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10)))(@pixi/utils@6.5.10(@pixi/constants@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10)))
+      '@pixi/loaders':
+        specifier: '6'
+        version: 6.5.10(@pixi/constants@6.5.10)(@pixi/core@6.5.10(@pixi/constants@6.5.10)(@pixi/extensions@6.5.10)(@pixi/math@6.5.10)(@pixi/runner@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10))(@pixi/ticker@6.5.10(@pixi/extensions@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10)))(@pixi/utils@6.5.10(@pixi/constants@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10))))(@pixi/utils@6.5.10(@pixi/constants@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10)))
+      '@pixi/math':
+        specifier: '6'
+        version: 6.5.10
+      '@pixi/runner':
+        specifier: '6'
+        version: 6.5.10
+      '@pixi/settings':
+        specifier: '6'
+        version: 6.5.10(@pixi/constants@6.5.10)
+      '@pixi/sprite':
+        specifier: '6'
+        version: 6.5.10(@pixi/constants@6.5.10)(@pixi/core@6.5.10(@pixi/constants@6.5.10)(@pixi/extensions@6.5.10)(@pixi/math@6.5.10)(@pixi/runner@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10))(@pixi/ticker@6.5.10(@pixi/extensions@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10)))(@pixi/utils@6.5.10(@pixi/constants@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10))))(@pixi/display@6.5.10(@pixi/constants@6.5.10)(@pixi/math@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10))(@pixi/utils@6.5.10(@pixi/constants@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10))))(@pixi/math@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10))(@pixi/utils@6.5.10(@pixi/constants@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10)))
+      '@pixi/ticker':
+        specifier: '6'
+        version: 6.5.10(@pixi/extensions@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10))
+      '@pixi/utils':
+        specifier: '6'
+        version: 6.5.10(@pixi/constants@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10))
+      '@pixiv/three-vrm':
+        specifier: ^3.3.6
+        version: 3.3.6(three@0.174.0)
+      '@pixiv/three-vrm-animation':
+        specifier: ^3.3.6
+        version: 3.3.6(three@0.174.0)
+      '@pixiv/three-vrm-core':
+        specifier: ^3.3.6
+        version: 3.3.6(three@0.174.0)
+      '@proj-airi/stage-ui':
+        specifier: workspace:^
+        version: link:../../packages/stage-ui
+      '@ricky0123/vad-web':
+        specifier: ^0.0.22
+        version: 0.0.22
+      '@tauri-apps/api':
+        specifier: ^2.4.0
+        version: 2.4.0
+      '@tauri-apps/plugin-os':
+        specifier: '>=2'
+        version: 2.2.1
+      '@tresjs/cientos':
+        specifier: ^4.2.0
+        version: 4.2.0(@tresjs/core@4.3.3(three@0.174.0)(typescript@5.8.2)(vue@3.5.13(typescript@5.8.2)))(@types/three@0.174.0)(react@18.3.1)(three@0.174.0)(typescript@5.8.2)(vue@3.5.13(typescript@5.8.2))
+      '@tresjs/core':
+        specifier: ^4.3.3
+        version: 4.3.3(three@0.174.0)(typescript@5.8.2)(vue@3.5.13(typescript@5.8.2))
+      '@unhead/vue':
+        specifier: ^2.0.0-rc.13
+        version: 2.0.0-rc.13(vue@3.5.13(typescript@5.8.2))
+      '@vueuse/core':
+        specifier: ^13.0.0
+        version: 13.0.0(vue@3.5.13(typescript@5.8.2))
+      '@vueuse/head':
+        specifier: ^2.0.0
+        version: 2.0.0(vue@3.5.13(typescript@5.8.2))
+      '@vueuse/shared':
+        specifier: ^13.0.0
+        version: 13.0.0(vue@3.5.13(typescript@5.8.2))
+      '@xsai-ext/providers-cloud':
+        specifier: 'catalog:'
+        version: 0.1.3
+      '@xsai-ext/providers-local':
+        specifier: 'catalog:'
+        version: 0.1.3
+      '@xsai-ext/shared-providers':
+        specifier: 'catalog:'
+        version: 0.1.3
+      '@xsai/generate-speech':
+        specifier: 'catalog:'
+        version: 0.1.3
+      '@xsai/generate-text':
+        specifier: 'catalog:'
+        version: 0.1.3
+      '@xsai/model':
+        specifier: 'catalog:'
+        version: 0.1.3
+      '@xsai/shared-chat':
+        specifier: 'catalog:'
+        version: 0.1.3
+      '@xsai/stream-text':
+        specifier: 'catalog:'
+        version: 0.1.3
+      '@xsai/utils-chat':
+        specifier: 'catalog:'
+        version: 0.1.3
+      culori:
+        specifier: ^4.0.1
+        version: 4.0.1
+      defu:
+        specifier: ^6.1.4
+        version: 6.1.4
+      drizzle-kit:
+        specifier: ^0.30.5
+        version: 0.30.5
+      drizzle-orm:
+        specifier: ^0.40.1
+        version: 0.40.1(@types/pg@8.11.11)(gel@2.0.0)(pg@8.14.1)(postgres@3.4.5)
+      jszip:
+        specifier: ^3.10.1
+        version: 3.10.1
+      localforage:
+        specifier: ^1.10.0
+        version: 1.10.0
+      nprogress:
+        specifier: ^0.2.0
+        version: 0.2.0
+      ofetch:
+        specifier: ^1.4.1
+        version: 1.4.1
+      onnxruntime-web:
+        specifier: ^1.21.0
+        version: 1.21.0
+      pinia:
+        specifier: ^3.0.1
+        version: 3.0.1(typescript@5.8.2)(vue@3.5.13(typescript@5.8.2))
+      pixi-filters:
+        specifier: ^4.2.0
+        version: 4.2.0(5af797a0b5bd919a06578c24a7479046)
+      pixi-live2d-display:
+        specifier: ^0.4.0
+        version: 0.4.0(0736f5bd67d2e4de7e9fff36ad63fa2e)
+      popmotion:
+        specifier: ^11.0.5
+        version: 11.0.5
+      radix-vue:
+        specifier: ^1.9.17
+        version: 1.9.17(vue@3.5.13(typescript@5.8.2))
+      rehype-stringify:
+        specifier: ^10.0.1
+        version: 10.0.1
+      remark-parse:
+        specifier: ^11.0.0
+        version: 11.0.0
+      remark-rehype:
+        specifier: ^11.1.1
+        version: 11.1.1
+      shiki:
+        specifier: ^3.2.1
+        version: 3.2.1
+      three:
+        specifier: ^0.174.0
+        version: 0.174.0
+      unified:
+        specifier: ^11.0.5
+        version: 11.0.5
+      valibot:
+        specifier: 1.0.0-beta.9
+        version: 1.0.0-beta.9(typescript@5.8.2)
+      vaul-vue:
+        specifier: ^0.4.1
+        version: 0.4.1(reka-ui@2.1.0(typescript@5.8.2)(vue@3.5.13(typescript@5.8.2)))(vue@3.5.13(typescript@5.8.2))
+      vue:
+        specifier: ^3.5.13
+        version: 3.5.13(typescript@5.8.2)
+      vue-demi:
+        specifier: ^0.14.10
+        version: 0.14.10(vue@3.5.13(typescript@5.8.2))
+      vue-i18n:
+        specifier: ^11.1.2
+        version: 11.1.2(vue@3.5.13(typescript@5.8.2))
+      vue-router:
+        specifier: ^4.5.0
+        version: 4.5.0(vue@3.5.13(typescript@5.8.2))
+      xsschema:
+        specifier: 'catalog:'
+        version: 0.1.3(@valibot/to-json-schema@1.0.0-rc.0(valibot@1.0.0-beta.9(typescript@5.8.2)))(zod-to-json-schema@3.24.4(zod@3.24.2))
+      yauzl:
+        specifier: ^3.2.0
+        version: 3.2.0
+      zod:
+        specifier: ^3.24.2
+        version: 3.24.2
+    devDependencies:
+      '@iconify-json/carbon':
+        specifier: ^1.2.8
+        version: 1.2.8
+      '@iconify-json/eos-icons':
+        specifier: ^1.2.2
+        version: 1.2.2
+      '@iconify-json/lucide':
+        specifier: ^1.2.31
+        version: 1.2.31
+      '@iconify-json/mingcute':
+        specifier: ^1.2.3
+        version: 1.2.3
+      '@iconify-json/simple-icons':
+        specifier: ^1.2.29
+        version: 1.2.29
+      '@iconify-json/solar':
+        specifier: ^1.2.2
+        version: 1.2.2
+      '@iconify-json/svg-spinners':
+        specifier: ^1.2.2
+        version: 1.2.2
+      '@iconify-json/vscode-icons':
+        specifier: ^1.2.16
+        version: 1.2.16
+      '@iconify/utils':
+        specifier: ^2.3.0
+        version: 2.3.0
+      '@intlify/unplugin-vue-i18n':
+        specifier: ^6.0.5
+        version: 6.0.5(@vue/compiler-dom@3.5.13)(eslint@9.22.0(jiti@2.4.2))(rollup@2.79.1)(typescript@5.8.2)(vue-i18n@11.1.2(vue@3.5.13(typescript@5.8.2)))(vue@3.5.13(typescript@5.8.2))
+      '@proj-airi/drizzle-duckdb-wasm':
+        specifier: workspace:^
+        version: link:../../packages/drizzle-duckdb-wasm
+      '@proj-airi/elevenlabs':
+        specifier: workspace:^
+        version: link:../../packages/elevenlabs
+      '@proj-airi/lobe-icons':
+        specifier: ^1.0.4
+        version: 1.0.4
+      '@proj-airi/provider-transformers':
+        specifier: workspace:^
+        version: link:../../packages/provider-transformers
+      '@proj-airi/ui-transitions':
+        specifier: workspace:^
+        version: link:../../packages/ui-transitions
+      '@proj-airi/unplugin-fetch':
+        specifier: ^0.1.4
+        version: 0.1.4(@types/node@22.13.10)(jiti@2.4.2)(less@4.2.2)(terser@5.17.6)(tsx@4.19.3)(yaml@2.7.0)
+      '@proj-airi/unplugin-live2d-sdk':
+        specifier: ^0.1.2
+        version: 0.1.2(@types/node@22.13.10)(jiti@2.4.2)(less@4.2.2)(terser@5.17.6)(tsx@4.19.3)(yaml@2.7.0)
+      '@shikijs/markdown-it':
+        specifier: ^3.2.1
+        version: 3.2.1
+      '@tauri-apps/cli':
+        specifier: ^2.3.1
+        version: 2.3.1
+      '@types/culori':
+        specifier: ^2.1.1
+        version: 2.1.1
+      '@types/markdown-it-link-attributes':
+        specifier: ^3.0.5
+        version: 3.0.5
+      '@types/nprogress':
+        specifier: ^0.2.3
+        version: 0.2.3
+      '@types/three':
+        specifier: ^0.174.0
+        version: 0.174.0
+      '@types/yauzl':
+        specifier: ^2.10.3
+        version: 2.10.3
+      '@unocss/reset':
+        specifier: ^66.1.0-beta.6
+        version: 66.1.0-beta.6
+      '@vitejs/plugin-vue':
+        specifier: ^5.2.3
+        version: 5.2.3(vite@6.2.2(@types/node@22.13.10)(jiti@2.4.2)(less@4.2.2)(terser@5.17.6)(tsx@4.19.3)(yaml@2.7.0))(vue@3.5.13(typescript@5.8.2))
+      '@vue-macros/volar':
+        specifier: ^3.0.0-beta.5
+        version: 3.0.0-beta.5(typescript@5.8.2)(vue-tsc@3.0.0-alpha.2(typescript@5.8.2))(vue@3.5.13(typescript@5.8.2))
+      '@vueuse/motion':
+        specifier: ^3.0.3
+        version: 3.0.3(magicast@0.3.5)(rollup@2.79.1)(vue@3.5.13(typescript@5.8.2))
+      less:
+        specifier: ^4.2.2
+        version: 4.2.2
+      markdown-it-link-attributes:
+        specifier: ^4.0.1
+        version: 4.0.1
+      unocss-preset-scrollbar:
+        specifier: ^3.2.0
+        version: 3.2.0(unocss@66.1.0-beta.6(postcss@8.5.3)(vite@6.2.2(@types/node@22.13.10)(jiti@2.4.2)(less@4.2.2)(terser@5.17.6)(tsx@4.19.3)(yaml@2.7.0))(vue@3.5.13(typescript@5.8.2)))
+      unplugin-auto-import:
+        specifier: ^19.1.1
         version: 19.1.1(@nuxt/kit@3.14.1592(magicast@0.3.5)(rollup@2.79.1))(@vueuse/core@13.0.0(vue@3.5.13(typescript@5.8.2)))
       unplugin-vue-components:
         specifier: ^28.4.1
         version: 28.4.1(@babel/parser@7.26.10)(@nuxt/kit@3.14.1592(magicast@0.3.5)(rollup@2.79.1))(vue@3.5.13(typescript@5.8.2))
       unplugin-vue-macros:
         specifier: ^2.14.5
-        version: 2.14.5(@vueuse/core@13.0.0(vue@3.5.13(typescript@5.8.2)))(esbuild@0.19.12)(rollup@2.79.1)(typescript@5.8.2)(vite@6.2.2(@types/node@22.13.10)(jiti@2.4.2)(less@4.2.2)(terser@5.17.6)(tsx@4.19.3)(yaml@2.7.0))(vue-tsc@3.0.0-alpha.2(typescript@5.8.2))(vue@3.5.13(typescript@5.8.2))
+        version: 2.14.5(@vueuse/core@13.0.0(vue@3.5.13(typescript@5.8.2)))(esbuild@0.25.0)(rollup@2.79.1)(typescript@5.8.2)(vite@6.2.2(@types/node@22.13.10)(jiti@2.4.2)(less@4.2.2)(terser@5.17.6)(tsx@4.19.3)(yaml@2.7.0))(vue-tsc@3.0.0-alpha.2(typescript@5.8.2))(vue@3.5.13(typescript@5.8.2))
       unplugin-vue-markdown:
         specifier: ^28.3.1
         version: 28.3.1(vite@6.2.2(@types/node@22.13.10)(jiti@2.4.2)(less@4.2.2)(terser@5.17.6)(tsx@4.19.3)(yaml@2.7.0))
@@ -24161,9 +24489,16 @@ snapshots:
       '@nuxt/kit': 3.14.1592(magicast@0.3.5)(rollup@4.36.0)
       '@vueuse/core': 13.0.0(vue@3.5.13(typescript@5.8.2))
 
-  unplugin-combine@1.2.1(esbuild@0.19.12)(rollup@2.79.1)(unplugin@1.16.1)(vite@6.2.2(@types/node@22.13.10)(jiti@2.4.2)(less@4.2.2)(terser@5.17.6)(tsx@4.19.3)(yaml@2.7.0)):
+  unplugin-combine@1.2.1(esbuild@0.19.12)(rollup@4.36.0)(unplugin@1.16.1)(vite@6.2.2(@types/node@22.13.10)(jiti@2.4.2)(less@4.2.2)(terser@5.17.6)(tsx@4.19.3)(yaml@2.7.0)):
     optionalDependencies:
       esbuild: 0.19.12
+      rollup: 4.36.0
+      unplugin: 1.16.1
+      vite: 6.2.2(@types/node@22.13.10)(jiti@2.4.2)(less@4.2.2)(terser@5.17.6)(tsx@4.19.3)(yaml@2.7.0)
+
+  unplugin-combine@1.2.1(esbuild@0.25.0)(rollup@2.79.1)(unplugin@1.16.1)(vite@6.2.2(@types/node@22.13.10)(jiti@2.4.2)(less@4.2.2)(terser@5.17.6)(tsx@4.19.3)(yaml@2.7.0)):
+    optionalDependencies:
+      esbuild: 0.25.0
       rollup: 2.79.1
       unplugin: 1.16.1
       vite: 6.2.2(@types/node@22.13.10)(jiti@2.4.2)(less@4.2.2)(terser@5.17.6)(tsx@4.19.3)(yaml@2.7.0)
@@ -24222,7 +24557,7 @@ snapshots:
     transitivePeerDependencies:
       - vue
 
-  unplugin-vue-macros@2.14.5(@vueuse/core@13.0.0(vue@3.5.13(typescript@5.8.2)))(esbuild@0.19.12)(rollup@2.79.1)(typescript@5.8.2)(vite@6.2.2(@types/node@22.13.10)(jiti@2.4.2)(less@4.2.2)(terser@5.17.6)(tsx@4.19.3)(yaml@2.7.0))(vue-tsc@3.0.0-alpha.2(typescript@5.8.2))(vue@3.5.13(typescript@5.8.2)):
+  unplugin-vue-macros@2.14.5(@vueuse/core@13.0.0(vue@3.5.13(typescript@5.8.2)))(esbuild@0.19.12)(rollup@4.36.0)(typescript@5.8.2)(vite@6.2.2(@types/node@22.13.10)(jiti@2.4.2)(less@4.2.2)(terser@5.17.6)(tsx@4.19.3)(yaml@2.7.0))(vue-tsc@3.0.0-alpha.2(typescript@5.8.2))(vue@3.5.13(typescript@5.8.2)):
     dependencies:
       '@vue-macros/better-define': 1.11.4(vue@3.5.13(typescript@5.8.2))
       '@vue-macros/boolean-prop': 0.5.5(vue@3.5.13(typescript@5.8.2))
@@ -24254,7 +24589,53 @@ snapshots:
       '@vue-macros/short-vmodel': 1.5.5(vue@3.5.13(typescript@5.8.2))
       '@vue-macros/volar': 0.30.15(typescript@5.8.2)(vue-tsc@3.0.0-alpha.2(typescript@5.8.2))(vue@3.5.13(typescript@5.8.2))
       unplugin: 1.16.1
-      unplugin-combine: 1.2.1(esbuild@0.19.12)(rollup@2.79.1)(unplugin@1.16.1)(vite@6.2.2(@types/node@22.13.10)(jiti@2.4.2)(less@4.2.2)(terser@5.17.6)(tsx@4.19.3)(yaml@2.7.0))
+      unplugin-combine: 1.2.1(esbuild@0.19.12)(rollup@4.36.0)(unplugin@1.16.1)(vite@6.2.2(@types/node@22.13.10)(jiti@2.4.2)(less@4.2.2)(terser@5.17.6)(tsx@4.19.3)(yaml@2.7.0))
+      unplugin-vue-define-options: 1.5.5(vue@3.5.13(typescript@5.8.2))
+      vue: 3.5.13(typescript@5.8.2)
+    transitivePeerDependencies:
+      - '@rspack/core'
+      - '@vueuse/core'
+      - esbuild
+      - rolldown
+      - rollup
+      - typescript
+      - vite
+      - vue-tsc
+      - webpack
+
+  unplugin-vue-macros@2.14.5(@vueuse/core@13.0.0(vue@3.5.13(typescript@5.8.2)))(esbuild@0.25.0)(rollup@2.79.1)(typescript@5.8.2)(vite@6.2.2(@types/node@22.13.10)(jiti@2.4.2)(less@4.2.2)(terser@5.17.6)(tsx@4.19.3)(yaml@2.7.0))(vue-tsc@3.0.0-alpha.2(typescript@5.8.2))(vue@3.5.13(typescript@5.8.2)):
+    dependencies:
+      '@vue-macros/better-define': 1.11.4(vue@3.5.13(typescript@5.8.2))
+      '@vue-macros/boolean-prop': 0.5.5(vue@3.5.13(typescript@5.8.2))
+      '@vue-macros/chain-call': 0.4.5(vue@3.5.13(typescript@5.8.2))
+      '@vue-macros/common': 1.16.1(vue@3.5.13(typescript@5.8.2))
+      '@vue-macros/config': 0.6.1(vue@3.5.13(typescript@5.8.2))
+      '@vue-macros/define-emit': 0.5.4(vue@3.5.13(typescript@5.8.2))
+      '@vue-macros/define-models': 1.3.5(@vueuse/core@13.0.0(vue@3.5.13(typescript@5.8.2)))(vue@3.5.13(typescript@5.8.2))
+      '@vue-macros/define-prop': 0.6.5(vue@3.5.13(typescript@5.8.2))
+      '@vue-macros/define-props': 4.0.6(@vue-macros/reactivity-transform@1.1.6(vue@3.5.13(typescript@5.8.2)))(vue@3.5.13(typescript@5.8.2))
+      '@vue-macros/define-props-refs': 1.3.5(vue@3.5.13(typescript@5.8.2))
+      '@vue-macros/define-render': 1.6.6(vue@3.5.13(typescript@5.8.2))
+      '@vue-macros/define-slots': 1.2.6(vue@3.5.13(typescript@5.8.2))
+      '@vue-macros/define-stylex': 0.2.3(vue@3.5.13(typescript@5.8.2))
+      '@vue-macros/devtools': 0.4.1(typescript@5.8.2)(vite@6.2.2(@types/node@22.13.10)(jiti@2.4.2)(less@4.2.2)(terser@5.17.6)(tsx@4.19.3)(yaml@2.7.0))
+      '@vue-macros/export-expose': 0.3.5(vue@3.5.13(typescript@5.8.2))
+      '@vue-macros/export-props': 0.6.5(vue@3.5.13(typescript@5.8.2))
+      '@vue-macros/export-render': 0.3.5(vue@3.5.13(typescript@5.8.2))
+      '@vue-macros/hoist-static': 1.7.0(vue@3.5.13(typescript@5.8.2))
+      '@vue-macros/jsx-directive': 0.10.6(typescript@5.8.2)
+      '@vue-macros/named-template': 0.5.5(vue@3.5.13(typescript@5.8.2))
+      '@vue-macros/reactivity-transform': 1.1.6(vue@3.5.13(typescript@5.8.2))
+      '@vue-macros/script-lang': 0.2.5(vue@3.5.13(typescript@5.8.2))
+      '@vue-macros/setup-block': 0.4.5(vue@3.5.13(typescript@5.8.2))
+      '@vue-macros/setup-component': 0.18.5(vue@3.5.13(typescript@5.8.2))
+      '@vue-macros/setup-sfc': 0.18.5(vue@3.5.13(typescript@5.8.2))
+      '@vue-macros/short-bind': 1.1.5(vue@3.5.13(typescript@5.8.2))
+      '@vue-macros/short-emits': 1.6.5(vue@3.5.13(typescript@5.8.2))
+      '@vue-macros/short-vmodel': 1.5.5(vue@3.5.13(typescript@5.8.2))
+      '@vue-macros/volar': 0.30.15(typescript@5.8.2)(vue-tsc@3.0.0-alpha.2(typescript@5.8.2))(vue@3.5.13(typescript@5.8.2))
+      unplugin: 1.16.1
+      unplugin-combine: 1.2.1(esbuild@0.25.0)(rollup@2.79.1)(unplugin@1.16.1)(vite@6.2.2(@types/node@22.13.10)(jiti@2.4.2)(less@4.2.2)(terser@5.17.6)(tsx@4.19.3)(yaml@2.7.0))
       unplugin-vue-define-options: 1.5.5(vue@3.5.13(typescript@5.8.2))
       vue: 3.5.13(typescript@5.8.2)
     transitivePeerDependencies:
