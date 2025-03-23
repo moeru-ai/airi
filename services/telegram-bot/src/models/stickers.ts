@@ -7,7 +7,7 @@ export async function findStickerDescription(fileId: string) {
   const sticker = await useDrizzle()
     .select()
     .from(stickersTable)
-    .where(eq(stickersTable.fileId, fileId))
+    .where(eq(stickersTable.file_id, fileId))
     .limit(1)
 
   if (sticker.length === 0) {
@@ -22,9 +22,9 @@ export async function recordSticker(stickerBase64: string, fileId: string, fileP
     .insert(stickersTable)
     .values({
       platform: 'telegram',
-      fileId,
-      imageBase64: stickerBase64,
-      imagePath: filePath,
+      file_id: fileId,
+      image_base64: stickerBase64,
+      image_path: filePath,
       description,
     })
 }

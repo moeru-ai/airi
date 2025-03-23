@@ -14,9 +14,13 @@ export type ExtendedContext = FileFlavor<Context>
 
 export interface BotSelf {
   bot: Bot
-  currentTask: CancellablePromise<any> | null
-  messageQueue: PendingMessage[]
-  unreadMessages: Record<string, Message[]>
+  currentTask: CancellablePromise<Message.TextMessage> | null
+  currentAbortController: AbortController | null
+  messageQueue: Array<{
+    message: Message
+    status: 'pending' | 'interpreting' | 'ready'
+  }>
+  unreadMessages: Record<number, Message[]>
   processedIds: Set<string>
   logger: Logg
   processing: boolean

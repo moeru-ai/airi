@@ -7,7 +7,7 @@ export async function findPhotoDescription(fileId: string) {
   const photo = await useDrizzle()
     .select()
     .from(photosTable)
-    .where(eq(photosTable.fileId, fileId))
+    .where(eq(photosTable.file_id, fileId))
     .limit(1)
 
   if (photo.length === 0) {
@@ -22,9 +22,9 @@ export async function recordPhoto(photoBase64: string, fileId: string, filePath:
     .insert(photosTable)
     .values({
       platform: 'telegram',
-      fileId,
-      imageBase64: photoBase64,
-      imagePath: filePath,
+      file_id: fileId,
+      image_base64: photoBase64,
+      image_path: filePath,
       description,
     })
 }
@@ -33,5 +33,5 @@ export async function findPhotosDescriptions(fileIds: string[]) {
   return await useDrizzle()
     .select()
     .from(photosTable)
-    .where(inArray(photosTable.fileId, fileIds))
+    .where(inArray(photosTable.file_id, fileIds))
 }

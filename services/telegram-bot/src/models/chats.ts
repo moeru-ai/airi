@@ -16,8 +16,8 @@ export async function recordJoinedChat(chatId: string, chatName: string) {
     .insert(joinedChatsTable)
     .values({
       platform: 'telegram',
-      chatId,
-      chatName,
+      chat_id: chatId,
+      chat_name: chatName,
     })
     .onConflictDoNothing()
 }

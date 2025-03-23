@@ -1,8 +1,4 @@
-import { defineWorkspace } from 'vitest/config'
-
-export default defineWorkspace([
+export default [
   'packages/*',
-  'apps/*',
   'services/*',
-  'examples/*',
-])
+]

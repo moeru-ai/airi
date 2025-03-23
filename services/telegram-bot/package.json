@@ -17,20 +17,24 @@
   "scripts": {
     "start": "dotenvx run -f .env -f .env.local --overload --ignore=MISSING_ENV_FILE -- tsx src/index.ts",
     "db:generate": "drizzle-kit generate",
-    "db:push": "drizzle-kit push"
+    "db:push": "dotenvx run -f .env -f .env.local --overload --ignore=MISSING_ENV_FILE -- drizzle-kit push",
+    "script:embed-chat": "dotenvx run -f .env -f .env.local --overload --ignore=MISSING_ENV_FILE -- tsx scripts/embed-all-chat-messages.ts"
   },
   "dependencies": {
     "@dotenvx/dotenvx": "^1.39.0",
     "@grammyjs/files": "^1.1.1",
     "@guiiai/logg": "^1.0.7",
     "@xsai-ext/providers-cloud": "catalog:",
+    "@xsai/embed": "catalog:",
     "@xsai/generate-text": "catalog:",
     "@xsai/shared-chat": "catalog:",
     "@xsai/tool": "catalog:",
+    "best-effort-json-parser": "^1.1.3",
     "dotenv": "^16.4.7",
     "drizzle-orm": "^0.40.1",
     "es-toolkit": "^1.33.0",
     "grammy": "^1.35.0",
+    "p-limit": "^6.2.0",
     "pg": "^8.14.1",
     "sharp": "^0.33.5",
     "telegram": "^2.26.22",
