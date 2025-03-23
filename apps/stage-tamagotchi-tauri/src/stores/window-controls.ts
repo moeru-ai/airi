@@ -14,14 +14,15 @@ export const useWindowControlStore = defineStore('windowControl', () => {
     controlMode.value = mode
 
     if (mode === WindowControlMode.RESIZE) {
-      window.electron.ipcRenderer.send('start-resize-window')
-      return
+      // window.electron.ipcRenderer.send('start-resize-window')
+      // return
     }
 
-    window.electron.ipcRenderer.invoke('stop-move-window').then((p: [number, number]) => {
-      position.value = { x: p[0], y: p[1] }
-    })
-    window.electron.ipcRenderer.send('stop-resize-window')
+    // window.electron.ipcRenderer.invoke('stop-move-window').then((p: [number, number]) => {
+    //   position.value = { x: p[0], y: p[1] }
+    // })
+    // window.electron.ipcRenderer.send('stop-resize-window')
+    // TODO: save position and size
   }
 
   function toggleControl() {

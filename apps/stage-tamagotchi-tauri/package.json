@@ -5,16 +5,14 @@
   "description": "Airi tamagotchi app written in Tauri",
   "author": "LemonNekoGH",
   "scripts": {
-    "typecheck:node": "tsc --noEmit -p tsconfig.node.json --composite false",
-    "typecheck:web": "vue-tsc --noEmit -p tsconfig.web.json --composite false",
-    "typecheck": "pnpm run typecheck:node && pnpm run typecheck:web",
+    "typecheck": "vue-tsc --noEmit --composite false",
     "start": "electron-vite preview",
     "dev": "vite",
-    "build": "pnpm run typecheck && electron-vite build",
-    "build:unpack": "pnpm run build && electron-builder --dir",
-    "build:win": "pnpm run build && electron-builder --win",
-    "build:mac": "pnpm run build && electron-builder --mac",
-    "build:linux": "pnpm run build && electron-builder --linux"
+    "build": "vite build",
+    "build:unpack": "tauri build --no-bundle",
+    "build:win": "tauri build --target x86_64-pc-windows-msvc",
+    "build:mac": "tauri build --target aarch64-apple-darwin",
+    "build:linux": "tauri build --target x86_64-unknown-linux-gnu"
   },
   "dependencies": {
     "@11labs/client": "^0.0.8",
@@ -39,6 +37,7 @@
     "@proj-airi/stage-ui": "workspace:^",
     "@ricky0123/vad-web": "^0.0.22",
     "@tauri-apps/api": "^2.4.0",
+    "@tauri-apps/plugin-os": ">=2",
     "@tresjs/cientos": "^4.2.0",
     "@tresjs/core": "^4.3.3",
     "@unhead/vue": "^2.0.0-rc.13",

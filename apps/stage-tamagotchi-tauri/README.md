@@ -42,8 +42,9 @@ $ pnpm build:linux
 - [ ] Window control: Move, resize, hide, show
 - [ ] Motions follow the cursor
 - [ ] System tray
-- [ ] i18n
+- [ ] tauri i18n
 - [ ] Multi-DPI
+- [ ] CI/CD
 - [ ] Multi monitor
 - [ ] Send message via macOS Spotlight
 - [ ] Steam

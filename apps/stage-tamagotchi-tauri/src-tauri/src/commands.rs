@@ -8,7 +8,7 @@ pub fn open_settings_window(app: tauri::AppHandle) {
     return;
   }
 
-  let window = WebviewWindowBuilder::new(&app, "settings", WebviewUrl::App(Path::new("#/settings").to_path_buf()))
+  let _ = WebviewWindowBuilder::new(&app, "settings", WebviewUrl::App(Path::new("#/settings").to_path_buf()))
     .title("settings")
     .inner_size(600.0, 800.0)
     .build()
