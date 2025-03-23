@@ -295,32 +295,74 @@ settings:
               field:
                 primary-color:
                   label: Primary color
-                  reset:
-                    label: Reset to Default
                   rgb-on:
                     title: I Want It Dynamic!
-            title: Custom Colors
+            title: Color Scheme
+          developer:
+            title: Developer
           theme-presets:
-            preset:
-              chinese:
-                description: >-
-                  Traditional Chinese colors, derived from ancient textiles,
-                  porcelain and paintings
-                title: Chinese Traditional Colors
-              japanese:
-                description: Traditional Japanese color palette
-                title: Japanese Colors
-              monet:
-                description: Impressionist palette inspired by Claude Monet's works
-                title: Monet Colors
-              morandi:
+            presets:
+              - colors:
+                  - Airi Green
+                description: The default greenish theme color, brought by Airi to you!
+                title: Default Color
+              - colors:
+                  - Taupe
+                  - Beige
+                  - Ash Grey
+                  - Light Taupe
+                  - Ivory
+                  - Olive Grey
+                  - Sand
+                  - Warm Grey
                 description: Soft, muted tones inspired by Giorgio Morandi's paintings
                 title: Morandi Colors
-              nordic:
+              - colors:
+                  - Sky Blue
+                  - Mist
+                  - Sand
+                  - Moss Green
+                  - Water Lily
+                  - Wheat
+                  - Slate Blue
+                  - Sage
+                description: Impressionist palette inspired by Claude Monet's works
+                title: Monet Colors
+              - colors:
+                  - Tan
+                  - Warm Taupe
+                  - Umber
+                  - Coffee
+                  - Bronze
+                  - Gold
+                  - Mustard
+                  - Amber
+                description: Traditional Japanese color palette
+                title: Japanese Colors
+              - colors:
+                  - Nordic Blue
+                  - Ice
+                  - Fjord
+                  - Steel
+                  - Glacier
+                  - Slate
+                  - Cloud
+                  - Stone
                 description: Scandinavian minimalist color scheme
                 title: Nordic Colors
-            title: Theme Presets
-      title: Themes
+              - colors:
+                  - Rosy Dawn
+                  - Chinese Red
+                  - Smoky Brown
+                  - Bamboo Green
+                  - Dark Purple
+                  - Golden Yellow
+                  - Azure Blue
+                  - Ochre
+                description: Traditional Chinese colors, derived from ancient textiles, porcelain and paintings
+                title: Chinese Traditional Colors
+            title: Color Scheme Presets
+      title: Appearance
   sections:
     section:
       general:

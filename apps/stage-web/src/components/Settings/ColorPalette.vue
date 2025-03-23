@@ -16,7 +16,7 @@ const settings = useSettings()
 
 <template>
   <div v-if="colors.length" flex gap-2>
-    <TooltipProvider v-for="{ name, hex } in colors" :key="hex || 'default'">
+    <TooltipProvider v-for="{ hex, name } in colors" :key="hex || 'default'">
       <TooltipRoot>
         <TooltipTrigger
           transition="all ease-in-out duration-250"
@@ -28,7 +28,7 @@ const settings = useSettings()
         <TooltipPortal>
           <TooltipContent bg="white dark:neutral-800" rounded-lg px-3 py-1.5 text-sm shadow-md>
             {{ name }}
-            <TooltipArrow class="fill-white dark:fill-neutral-800" />
+            <TooltipArrow fill-white dark:fill-neutral-800 />
           </TooltipContent>
         </TooltipPortal>
       </TooltipRoot>

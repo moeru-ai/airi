@@ -281,31 +281,80 @@ settings:
             fields:
               field:
                 primary-color:
-                  label: 主题色
-                  reset:
-                    label: 重设为默认主题色
+                  label: 强调色
                   rgb-on:
-                    title: RGB ON
-            title: 自定义主题色
+                    title: RGB ON!
+            title: 配色
+          developer:
+            title: 开发者
           theme-presets:
-            preset:
-              chinese:
-                title: 中国传统颜色
-              japanese:
-                title: 日本颜色
-              monet:
-                title: 莫奈颜色
-              morandi:
+            presets:
+              - colors:
+                  - Airi 绿
+                description: The default greenish theme color, brought by Airi to you!
+                title: 默认颜色
+              - colors:
+                  - Taupe
+                  - Beige
+                  - Ash Grey
+                  - Light Taupe
+                  - Ivory
+                  - Olive Grey
+                  - Sand
+                  - Warm Grey
+                description: Soft, muted tones inspired by Giorgio Morandi's paintings
                 title: Morandi 颜色
-              nordic:
+              - colors:
+                  - Sky Blue
+                  - Mist
+                  - Sand
+                  - Moss Green
+                  - Water Lily
+                  - Wheat
+                  - Slate Blue
+                  - Sage
+                description: Impressionist palette inspired by Claude Monet's works
+                title: 莫奈颜色
+              - colors:
+                  - Tan
+                  - Warm Taupe
+                  - Umber
+                  - Coffee
+                  - Bronze
+                  - Gold
+                  - Mustard
+                  - Amber
+                description: Traditional Japanese color palette
+                title: 日本颜色
+              - colors:
+                  - Nordic Blue
+                  - Ice
+                  - Fjord
+                  - Steel
+                  - Glacier
+                  - Slate
+                  - Cloud
+                  - Stone
+                description: Scandinavian minimalist color scheme
                 title: 北欧颜色
-            title: 主题预设
-      title: 舞台主题
+              - colors:
+                  - 霞光红
+                  - 枣红
+                  - 黄栌
+                  - 竹青
+                  - 乌梅紫
+                  - 缃色
+                  - 青冥
+                  - 赭石
+                description: Traditional Chinese colors, derived from ancient textiles, porcelain and paintings
+                title: 中国传统颜色
+            title: 预设
+      title: 外观
   sections:
     section:
       general:
         title: 通用
-  theme: 主题颜色
+  theme: 主题
   title: 设置
   voices: 声线
 stage:
