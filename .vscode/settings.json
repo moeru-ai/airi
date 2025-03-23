@@ -4,7 +4,8 @@
   "i18n-ally.localesPaths": [
     "apps/stage-web/locales",
     "apps/stage-tamagotchi/src/renderer/locales",
-    "apps/stage-tamagotchi/src/main/locales"
+    "apps/stage-tamagotchi/src/main/locales",
+    "apps/stage-tamagotchi-tauri/locales"
   ],
   "i18n-ally.sortKeys": true,
   "i18n-ally.enabledFrameworks": [

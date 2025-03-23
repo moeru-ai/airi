@@ -13,6 +13,7 @@ pub fn run() {
         .inner_size(450.0, 600.0)
         .shadow(false)
         .transparent(true)
+        .always_on_top(true)
         .build()
         .unwrap();
 

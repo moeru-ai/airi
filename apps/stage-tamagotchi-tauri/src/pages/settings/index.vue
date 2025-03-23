@@ -4,9 +4,7 @@ import { useSettings } from '@proj-airi/stage-ui/stores'
 import { useDark } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { useI18n } from 'vue-i18n'
-import { useRouter } from 'vue-router'
 
-const router = useRouter()
 const { t } = useI18n()
 const { language, disableTransitions } = storeToRefs(useSettings())
 const dark = useDark()
@@ -26,9 +24,6 @@ function handleLanguageChange(event: Event) {
     :enter="{ opacity: 1, x: 0 }"
     :duration="100"
   >
-    <button @click="router.back()">
-      <div i-solar:alt-arrow-left-line-duotone text-2xl />
-    </button>
     <h1 text-3xl>
       {{ t('settings.title') }}
     </h1>
@@ -77,6 +72,17 @@ function handleLanguageChange(event: Event) {
         :description="t('settings.pages.themes.description')"
         icon="i-lucide:paintbrush"
         to="/settings/themes"
+      />
+      <IconItem
+        v-motion
+        :initial="{ opacity: 0, y: 10 }"
+        :enter="{ opacity: 1, y: 0 }"
+        :duration="250"
+        :delay="150"
+        :title="t('settings.pages.shortcuts.title')"
+        :description="t('settings.pages.shortcuts.description')"
+        icon="i-lucide:keyboard"
+        to="/settings/shortcuts"
       />
     </div>
     <div
@@ -148,7 +154,7 @@ function handleLanguageChange(event: Event) {
         >
         <div flex="~ row" w-full items-center gap-1.5>
           <div text="sm" w-full flex-1>
-            <span>{{ t('settings.theme') }}</span>
+            <span>{{ t('settings.dark-mode') }}</span>
           </div>
           <div select-none>
             <Transition name="slide-away" mode="out-in">
@@ -188,7 +194,7 @@ function handleLanguageChange(event: Event) {
         >
         <div flex="~ row" w-full items-center gap-1.5>
           <div text="sm" w-full flex-1>
-            <span>{{ t('settings.animations.stage-transitions.title') }}</span>
+            <span>{{ t('settings.stage-transitions') }}</span>
           </div>
           <div select-none>
             <Transition name="slide-away" mode="out-in">

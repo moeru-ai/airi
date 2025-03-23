@@ -316,11 +316,30 @@ settings:
                 title: Nordic Colors
             title: Theme Presets
       title: Themes
+    shortcuts:
+      title: Shortcuts
+      description: Configure the shortcuts for the stage
+      sections:
+        section:
+          window-controls:
+            title: Window Controls
+            press-keys-hint:
+              label: Press Keys...Or Escape to cancel
+            fields:
+              field:
+                toggle-resize:
+                  label: Toggle Resize
+                toggle-move:
+                  label: Toggle Move
+                toggle-ignore-mouse-event: # TODO: Add this feature
+                  label: Toggle Ignore Mouse Event
+
   sections:
     section:
       general:
         title: General
-  theme: Theme
+  dark-mode: Dark mode
+  stage-transitions: Stage Transitions
   title: Settings
   voices: Voice
 stage:

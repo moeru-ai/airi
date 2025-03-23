@@ -38,6 +38,8 @@ export default defineConfig({
       routesFolder: 'src/pages',
     }),
 
+    // TODO: Devtools
+
     // https://github.com/JohnCampionJr/vite-plugin-vue-layouts
     Layouts(),
 

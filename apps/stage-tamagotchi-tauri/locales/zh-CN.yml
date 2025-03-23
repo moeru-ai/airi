@@ -295,11 +295,29 @@ settings:
                 title: 北欧颜色
             title: 主题预设
       title: 舞台主题
+    shortcuts:
+      title: 快捷键
+      description: 配置舞台快捷键
+      sections:
+        section:
+          window-controls:
+            title: 窗口控制
+            press-keys-hint:
+              label: 按下快捷键...或按下 Esc 取消
+            fields:
+              field:
+                toggle-resize:
+                  label: 切换大小
+                toggle-move:
+                  label: 切换移动
+                toggle-ignore-mouse-event: # TODO: Add this feature
+                  label: 切换鼠标穿透
   sections:
     section:
       general:
         title: 通用
-  theme: 主题颜色
+  dark-mode: 暗黑模式
+  stage-transitions: 动画效果
   title: 设置
   voices: 声线
 stage:
