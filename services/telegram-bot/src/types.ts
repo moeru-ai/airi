@@ -2,6 +2,7 @@ import type { FileFlavor } from '@grammyjs/files'
 import type { Logg } from '@guiiai/logg'
 import type { Bot, Context } from 'grammy'
 import type { Message } from 'grammy/types'
+import type { createAttentionHandler } from './bots/telegram/attention-handler'
 import type { CancellablePromise } from './utils/promise'
 
 export interface PendingMessage {
@@ -24,6 +25,7 @@ export interface BotSelf {
   processedIds: Set<string>
   logger: Logg
   processing: boolean
+  attentionHandler: ReturnType<typeof createAttentionHandler>
 }
 
 export interface ContinueAction {
@@ -97,3 +99,32 @@ export interface ReadMessagesAction {
 }
 
 export type Action = ContinueAction | BreakAction | SleepAction | LookupShortTermMemoryAction | LookupLongTermMemoryAction | MemorizeShortMemoryAction | MemorizeLongMemoryAction | ForgetShortTermMemoryAction | ForgetLongTermMemoryAction | ListChatsAction | SendMessageAction | SearchGoogleAction | ReadMessagesAction
+
+export interface AttentionConfig {
+  initialResponseRate: number
+  responseRateMin: number
+  responseRateMax: number
+  cooldownMs: number
+  triggerWords: string[]
+  ignoreWords: string[]
+  decayRatePerMinute: number
+  decayCheckIntervalMs: number
+}
+
+export interface AttentionStats {
+  mentionCount: number
+  triggerWordCount: number
+  lastInteractionTime: number
+}
+
+export interface AttentionState {
+  currentResponseRate: number
+  lastResponseTimes: Map<string, number>
+  stats: AttentionStats
+}
+
+export interface AttentionResponse {
+  shouldAct: boolean
+  reason: string
+  responseRate?: number
+}

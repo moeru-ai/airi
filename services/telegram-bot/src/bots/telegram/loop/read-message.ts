@@ -1,4 +1,3 @@
-import type { Message as LLMMessage } from '@xsai/shared-chat'
 import type { Message } from 'grammy/types'
 import type { BotSelf, ReadMessagesAction } from '../../../types'
 
@@ -13,35 +12,17 @@ import { chatMessageToOneLine, telegramMessageToOneLine } from '../../../models/
 import { systemPrompt } from '../../../prompts/system-v1'
 import { sendMayStructuredMessage } from '../utils/message'
 
-export async function readMessage(state: BotSelf, msgs: LLMMessage[], action: ReadMessagesAction, forGroupId?: string): Promise<{
+export async function readMessage(state: BotSelf, action: ReadMessagesAction, unreadMessages: Message[]): Promise<{
   loop?: boolean
   break?: boolean
 }> {
   const logger = useLogg('readMessage').useGlobalConfig()
-
-  if (forGroupId && forGroupId === action.groupId.toString()
-    && state.unreadMessages[action.groupId]
-    && state.unreadMessages[action.groupId].length > 0) {
-    state.logger.log(`Interrupting message processing for group ${action.groupId} - new messages arrived`)
-    return { loop: true }
-  }
-  if (Object.keys(state.unreadMessages).length === 0) {
-    return { break: true }
-  }
-  if (action.groupId == null) {
-    return { break: true }
-  }
-  if (state.unreadMessages[action.groupId].length === 0) {
-    delete state.unreadMessages[action.groupId]
-    return { break: true }
-  }
 
   const lastNMessages = await findLastNMessages(action.groupId, 30)
   const lastNMessagesOneliner = lastNMessages.map(msg => chatMessageToOneLine(msg)).join('\n')
 
   logger.withField('number_of_last_n_messages', lastNMessages.length).log('Successfully found last N messages')
 
-  const unreadMessages = state.unreadMessages[action.groupId] as Message[]
   const unreadMessagesEmbeddingPromises = unreadMessages
     .filter(msg => !!msg.text || !!msg.caption)
     .map(async (msg: Message) => {
