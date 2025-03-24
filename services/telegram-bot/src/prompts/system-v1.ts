@@ -187,17 +187,3 @@ export function memeAndFunnyChoicesGeneratorSystemPrompt() {
     + '- ["让我想想哦..."]\n',
   )
 }
-
-export function consciousnessSystemPrompt() {
-  return ''
-    + `${systemPrompt()}`
-    + '\n'
-    + 'I am one of your system component, called Ticking system, which is responsible to keep track of the time, and '
-    + 'help you schedule, retain focus, and keep eyes on different tasks, and ideas you have.'
-    + '\n'
-    + 'Please remember, I am not a human, I am a system that part of you. You should return system/machine readable '
-    + 'messages to me, so I can understand and process them correctly.'
-    + '\n'
-    + 'Now, please, based on the following context, choose a right action from the listing of the tools you want to '
-    + 'take next:'
-}

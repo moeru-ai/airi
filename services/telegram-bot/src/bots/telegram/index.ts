@@ -1,121 +1,27 @@
 import type { Logg } from '@guiiai/logg'
 import type { Message as LLMMessage } from '@xsai/shared-chat'
-import type { SQL } from 'drizzle-orm'
-import type { Message } from 'grammy/types'
 import type { Action, BotSelf, ExtendedContext } from '../../types'
 
 import { env } from 'node:process'
 import { useLogg } from '@guiiai/logg'
-import { embed } from '@xsai/embed'
 import { generateText } from '@xsai/generate-text'
 import { message } from '@xsai/utils-chat'
 import { parse } from 'best-effort-json-parser'
-import { cosineDistance, desc, sql } from 'drizzle-orm'
-import { randomInt } from 'es-toolkit'
 import { Bot } from 'grammy'
 
-import { useDrizzle } from '../../db'
-import { chatMessagesTable } from '../../db/schema'
 import { interpretPhotos } from '../../llm/photo'
 import { interpretSticker } from '../../llm/sticker'
-import { findLastNMessages, recordMessage } from '../../models'
 import { listJoinedChats, recordJoinedChat } from '../../models/chats'
-import { chatMessageToOneLine, telegramMessageToOneLine } from '../../models/common'
-import { consciousnessSystemPrompt, systemPrompt } from '../../prompts/system-v1'
-import { cancellable, sleep } from '../../utils/promise'
+import { systemPrompt } from '../../prompts/system-v1'
+import { readMessage } from './loop/read-message'
+import { sendMayStructuredMessage } from './utils/message'
 
 async function isChatIdBotAdmin(chatId: number) {
   const admins = env.ADMIN_USER_IDS!.split(',')
   return admins.includes(chatId.toString())
 }
 
-async function sendMayStructuredMessage(
-  state: BotSelf,
-  responseText: string,
-  groupId: string,
-) {
-  const chat = (await listJoinedChats()).find((chat) => {
-    return chat.chat_id === groupId
-  })
-  if (!chat) {
-    return
-  }
-
-  const chatId = chat.chat_id
-
-  // Cancel any existing task before starting a new one
-  if (state.currentTask) {
-    state.currentTask.cancel()
-    state.currentTask = null
-  }
-
-  // Check if we should abort due to new messages since processing began
-  if (state.unreadMessages[chatId] && state.unreadMessages[chatId].length > 0) {
-    state.logger.log(`Not sending message to ${chatId} - new messages arrived`)
-    return // Don't send the message, let the next processing loop handle it
-  }
-
-  // If we get here, the task wasn't cancelled, so we can send the response
-  // eslint-disable-next-line regexp/no-unused-capturing-group, regexp/no-super-linear-backtracking, regexp/confusing-quantifier
-  if (/\[(\s*.*)+\]/u.test(responseText)) {
-    // eslint-disable-next-line regexp/no-super-linear-backtracking, regexp/confusing-quantifier
-    const result = /\[(\s*.*)+\]/u.exec(responseText)
-    state.logger.withField('text', JSON.stringify(responseText)).withField('result', result).log('Multiple messages detected')
-
-    const array = parse(result?.[0]) as string[]
-    if (array == null || !Array.isArray(array) || array.length === 0) {
-      state.logger.withField('text', JSON.stringify(responseText)).withField('result', result).log('No messages to send')
-      return
-    }
-
-    state.logger.withField('texts', array).log('Sending multiple messages...')
-
-    for (const item of array) {
-      // Create cancellable typing and reply tasks
-      await state.bot.api.sendChatAction(chatId, 'typing')
-      await sleep(item.length * 200)
-
-      const replyTask = cancellable((async (): Promise<Message.TextMessage> => {
-        try {
-          const sentResult = await state.bot.api.sendMessage(chatId, item)
-          return sentResult
-        }
-        catch (err) {
-          state.logger.withError(err).log('Failed to send message')
-          throw err
-        }
-      })())
-
-      state.currentTask = replyTask
-      const msg = await replyTask.promise
-      await recordMessage(state.bot.botInfo, msg)
-      await sleep(randomInt(50, 1000))
-    }
-  }
-  else if (responseText) {
-    await state.bot.api.sendChatAction(chatId, 'typing')
-    const replyTask = cancellable((async (): Promise<Message.TextMessage> => {
-      try {
-        const sentResult = await state.bot.api.sendMessage(chatId, responseText)
-        return sentResult
-      }
-      catch (err) {
-        state.logger.withError(err).log('Failed to send message')
-        throw err
-      }
-    })())
-
-    state.currentTask = replyTask
-    const msg = await replyTask.promise
-    await recordMessage(state.bot.botInfo, msg)
-  }
-
-  state.currentTask = null
-}
-
 async function handleLoop(state: BotSelf, msgs?: LLMMessage[], forGroupId?: string) {
-  const logger = useLogg('handleLoop').useGlobalConfig()
-
   // Create a new abort controller for this loop execution
   if (state.currentAbortController) {
     state.currentAbortController.abort()
@@ -125,7 +31,18 @@ async function handleLoop(state: BotSelf, msgs?: LLMMessage[], forGroupId?: stri
   try {
     if (msgs == null) {
       msgs = message.messages(
-        message.system(consciousnessSystemPrompt()),
+        message.system(''
+          + `${systemPrompt()}`
+          + '\n'
+          + 'I am one of your system component, called Ticking system, which is responsible to keep track of the time, and '
+          + 'help you schedule, retain focus, and keep eyes on different tasks, and ideas you have.'
+          + '\n'
+          + 'Please remember, I am not a human, I am a system that part of you. You should return system/machine readable '
+          + 'messages to me, so I can understand and process them correctly.'
+          + '\n'
+          + 'Now, please, based on the following context, choose a right action from the listing of the tools you want to '
+          + 'take next:',
+        ),
         message.system(
           [
             {
@@ -209,221 +126,15 @@ async function handleLoop(state: BotSelf, msgs?: LLMMessage[], forGroupId?: stri
 
       switch (action.action) {
         case 'readMessages':
-          if (forGroupId && forGroupId === action.groupId.toString()
-            && state.unreadMessages[action.groupId]
-            && state.unreadMessages[action.groupId].length > 0) {
-            state.logger.log(`Interrupting message processing for group ${action.groupId} - new messages arrived`)
+          // eslint-disable-next-line no-case-declarations
+          const result = await readMessage(state, msgs, action, forGroupId)
+          if (result.loop) {
             return handleLoop(state)
           }
-          if (Object.keys(state.unreadMessages).length === 0) {
-            break
-          }
-          if (action.groupId == null) {
-            break
-          }
-          if (state.unreadMessages[action.groupId].length === 0) {
-            delete state.unreadMessages[action.groupId]
+          if (result.break) {
             break
           }
 
-          // eslint-disable-next-line no-case-declarations
-          const unreadMessages = state.unreadMessages[action.groupId] as Message[]
-          // eslint-disable-next-line no-case-declarations
-          const unreadMessagesEmbeddingPromises = unreadMessages
-            .filter(msg => !!msg.text || !!msg.caption)
-            .map(async (msg: Message) => {
-              const embeddingResult = await embed({
-                baseURL: env.EMBEDDING_API_BASE_URL!,
-                apiKey: env.EMBEDDING_API_KEY!,
-                model: env.EMBEDDING_MODEL!,
-                input: msg.text || msg.caption || '',
-                abortSignal: state.currentAbortController.signal,
-              })
-
-              return {
-                embedding: embeddingResult.embedding,
-                message: msg,
-              }
-            })
-
-          // eslint-disable-next-line no-case-declarations
-          const unreadHistoryMessagesEmbedding = await Promise.all(unreadMessagesEmbeddingPromises)
-
-          logger.withField('number_of_tasks', unreadMessagesEmbeddingPromises.length).log('Successfully embedded unread history messages')
-
-          // eslint-disable-next-line no-case-declarations
-          const lastNMessages = await findLastNMessages(action.groupId, 30)
-          // eslint-disable-next-line no-case-declarations
-          const lastNMessagesOneliner = lastNMessages.map(msg => chatMessageToOneLine(msg)).join('\n')
-
-          logger.withField('number_of_last_n_messages', lastNMessages.length).log('Successfully found last N messages')
-
-          // eslint-disable-next-line no-case-declarations
-          const unreadHistoryMessages = await Promise.all(state.unreadMessages[action.groupId].map(msg => telegramMessageToOneLine(state.bot, msg)))
-          // eslint-disable-next-line no-case-declarations
-          const unreadHistoryMessageOneliner = unreadHistoryMessages.join('\n')
-
-          state.unreadMessages[action.groupId] = []
-
-          // eslint-disable-next-line no-case-declarations
-          const db = useDrizzle()
-          // eslint-disable-next-line no-case-declarations
-          const contextWindowSize = 5 // Number of messages to include before and after
-
-          logger.withField('context_window_size', contextWindowSize).log('Querying relevant chat messages...')
-
-          // eslint-disable-next-line no-case-declarations
-          const relevantChatMessages = await Promise.all(unreadHistoryMessagesEmbedding.map(async (embedding) => {
-            let similarity: SQL<number>
-
-            switch (env.EMBEDDING_DIMENSION) {
-              case '1536':
-                similarity = sql<number>`(1 - (${cosineDistance(chatMessagesTable.content_vector_1536, embedding.embedding)}))`
-                break
-              case '1024':
-                similarity = sql<number>`(1 - (${cosineDistance(chatMessagesTable.content_vector_1024, embedding.embedding)}))`
-                break
-              case '768':
-                similarity = sql<number>`(1 - (${cosineDistance(chatMessagesTable.content_vector_768, embedding.embedding)}))`
-                break
-              default:
-                throw new Error(`Unsupported embedding dimension: ${env.EMBEDDING_DIMENSION}`)
-            }
-
-            const timeRelevance = sql<number>`(1 - (CEIL(EXTRACT(EPOCH FROM NOW()) * 1000)::bigint - ${chatMessagesTable.created_at}) / 86400 / 30)`
-            const combinedScore = sql<number>`((1.2 * ${similarity}) + (0.2 * ${timeRelevance}))`
-
-            // Get top messages with similarity above threshold
-            const relevantMessages = await db
-              .select({
-                id: chatMessagesTable.id,
-                platform: chatMessagesTable.platform,
-                from_id: chatMessagesTable.from_id,
-                from_name: chatMessagesTable.from_name,
-                in_chat_id: chatMessagesTable.in_chat_id,
-                content: chatMessagesTable.content,
-                is_reply: chatMessagesTable.is_reply,
-                reply_to_name: chatMessagesTable.reply_to_name,
-                created_at: chatMessagesTable.created_at,
-                updated_at: chatMessagesTable.updated_at,
-                similarity: sql`${similarity} AS "similarity"`,
-                time_relevance: sql`${timeRelevance} AS "time_relevance"`,
-                combined_score: sql`${combinedScore} AS "combined_score"`,
-              })
-              .from(chatMessagesTable)
-              .where(sql`${similarity} > '0.5' AND ${chatMessagesTable.in_chat_id} = ${embedding.message.chat.id} AND ${chatMessagesTable.platform} = 'telegram'`)
-              .orderBy(desc(sql`combined_score`))
-              .limit(3)
-
-            logger.withField('number_of_relevant_messages', relevantMessages.length).log('Successfully found relevant chat messages')
-
-            // Now fetch the context for each message
-            return await Promise.all(
-              relevantMessages.map(async (message) => {
-                // Get N messages before the target message
-                const messagesBefore = await db
-                  .select({
-                    id: chatMessagesTable.id,
-                    platform: chatMessagesTable.platform,
-                    from_id: chatMessagesTable.from_id,
-                    from_name: chatMessagesTable.from_name,
-                    in_chat_id: chatMessagesTable.in_chat_id,
-                    content: chatMessagesTable.content,
-                    is_reply: chatMessagesTable.is_reply,
-                    reply_to_name: chatMessagesTable.reply_to_name,
-                    created_at: chatMessagesTable.created_at,
-                    updated_at: chatMessagesTable.updated_at,
-                  })
-                  .from(chatMessagesTable)
-                  .where(sql`${chatMessagesTable.in_chat_id} = ${message.in_chat_id} AND ${chatMessagesTable.created_at} < ${message.created_at} AND ${chatMessagesTable.platform} = 'telegram'`)
-                  .orderBy(desc(chatMessagesTable.created_at))
-                  .limit(contextWindowSize)
-
-                // Get N messages after the target message
-                const messagesAfter = await db
-                  .select({
-                    id: chatMessagesTable.id,
-                    platform: chatMessagesTable.platform,
-                    from_id: chatMessagesTable.from_id,
-                    from_name: chatMessagesTable.from_name,
-                    in_chat_id: chatMessagesTable.in_chat_id,
-                    content: chatMessagesTable.content,
-                    is_reply: chatMessagesTable.is_reply,
-                    reply_to_name: chatMessagesTable.reply_to_name,
-                    created_at: chatMessagesTable.created_at,
-                    updated_at: chatMessagesTable.updated_at,
-                  })
-                  .from(chatMessagesTable)
-                  .where(sql`${chatMessagesTable.in_chat_id} = ${message.in_chat_id} AND ${chatMessagesTable.created_at} > ${message.created_at} AND ${chatMessagesTable.platform} = 'telegram'`)
-                  .orderBy(chatMessagesTable.created_at)
-                  .limit(contextWindowSize)
-
-                // Combine all messages in chronological order
-                const contextMessages = [
-                  ...messagesBefore.reverse(), // Reverse to get chronological order
-                  message,
-                  ...messagesAfter,
-                ]
-
-                logger.withField('number_of_context_messages', contextMessages.length).log('Combined context messages')
-
-                const contextMessagesOneliner = (await Promise.all(contextMessages.map(m => chatMessageToOneLine(m))))
-                return `One of the relevant message along with the context:\n${contextMessagesOneliner}`
-              }),
-            )
-          }))
-
-          // eslint-disable-next-line no-case-declarations
-          const relevantChatMessagesOneliner = (await Promise.all(
-            relevantChatMessages.map(async (msgs) => {
-              return msgs.join('\n')
-            }),
-          )).join('\n')
-
-          logger.withField('number_of_relevant_chat_messages', relevantChatMessages.length).log('Successfully composed relevant chat messages')
-
-          // eslint-disable-next-line no-case-declarations
-          const messages = message.messages(
-            systemPrompt(),
-            message.user(''
-              + 'Last 30 messages:\n'
-              + `${lastNMessagesOneliner}`,
-            ),
-            message.user(''
-              + 'All unread messages:'
-              + `${unreadHistoryMessageOneliner}`,
-            ),
-            message.user(''
-              + 'I helped you searched these relevant chat messages may help you recall the memories:'
-              + `${relevantChatMessagesOneliner}`,
-            ),
-            message.user(''
-              + `Currently, it\'s ${new Date()} on the server that hosts you.`
-              + `${lastNMessagesOneliner}, `
-              + 'the others in the group may live in a different timezone, so please be aware of the time difference.',
-            ),
-            message.user('Choose your action. Would you like to say something? Or ignore?'),
-          )
-
-          // eslint-disable-next-line no-case-declarations
-          const response = await generateText({
-            apiKey: env.LLM_API_KEY!,
-            baseURL: env.LLM_API_BASE_URL!,
-            model: env.LLM_MODEL!,
-            messages,
-            abortSignal: state.currentAbortController.signal,
-          })
-
-          response.text = response.text
-            .replace(/^```json\s*\n/, '')
-            .replace(/\n```$/, '')
-            .replace(/^```\s*\n/, '')
-            .replace(/\n```$/, '')
-            .trim()
-
-          logger.withField('response', JSON.stringify(response.text)).log('Successfully generated response')
-
-          await sendMayStructuredMessage(state, response.text, action.groupId.toString())
           break
         case 'listChats':
           msgs.push(message.user(`List of chats:${(await listJoinedChats()).map(chat => `ID:${chat.chat_id}, Name:${chat.chat_name}`).join('\n')}`))
