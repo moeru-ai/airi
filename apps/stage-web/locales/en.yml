@@ -69,6 +69,7 @@ settings:
   pages:
     memory:
       description: Where memories got stored, and organized
+      title: Memory
     models:
       description: Live2D, VRM, etc.
       title: Models
@@ -359,7 +360,9 @@ settings:
                   - Golden Yellow
                   - Azure Blue
                   - Ochre
-                description: Traditional Chinese colors, derived from ancient textiles, porcelain and paintings
+                description: >-
+                  Traditional Chinese colors, derived from ancient textiles,
+                  porcelain and paintings
                 title: Chinese Traditional Colors
             title: Color Scheme Presets
       title: Appearance
