@@ -3,6 +3,7 @@ import { defineConfig } from 'astro/config'
 
 // https://astro.build/config
 export default defineConfig({
+  site: 'https://airi.build',
   integrations: [
     starlight({
       title: 'Project Airi',
@@ -12,6 +13,9 @@ export default defineConfig({
       },
       social: {
         github: 'https://github.com/moeru-ai/airi',
+      },
+      components: {
+        Head: './src/components/starlight/Head.astro',
       },
       sidebar: [
         {
