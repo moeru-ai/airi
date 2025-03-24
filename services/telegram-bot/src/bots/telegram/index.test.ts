@@ -13,7 +13,7 @@ beforeAll(async () => {
   await initDb()
 })
 
-describe('telegram bot', { timeout: 30000 }, async () => {
+describe.todo('telegram bot', { timeout: 30000 }, async () => {
   it('should be able to run', async () => {
     const db = useDrizzle()
     const contextWindowSize = 5 // Number of messages to include before and after

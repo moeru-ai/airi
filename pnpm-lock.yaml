@@ -1699,6 +1699,9 @@ importers:
       '@xsai-ext/providers-cloud':
         specifier: 'catalog:'
         version: 0.1.3
+      '@xsai/embed':
+        specifier: 'catalog:'
+        version: 0.1.3
       '@xsai/generate-text':
         specifier: 'catalog:'
         version: 0.1.3
@@ -1708,6 +1711,9 @@ importers:
       '@xsai/tool':
         specifier: 'catalog:'
         version: 0.1.3(@valibot/to-json-schema@1.0.0-rc.0(valibot@1.0.0-beta.9(typescript@5.8.2)))(zod-to-json-schema@3.24.4(zod@3.24.2))
+      best-effort-json-parser:
+        specifier: ^1.1.3
+        version: 1.1.3
       dotenv:
         specifier: ^16.4.7
         version: 16.4.7
@@ -1720,6 +1726,9 @@ importers:
       grammy:
         specifier: ^1.35.0
         version: 1.35.0(encoding@0.1.13)
+      p-limit:
+        specifier: ^6.2.0
+        version: 6.2.0
       pg:
         specifier: ^8.14.1
         version: 8.14.1
@@ -6226,6 +6235,9 @@ packages:
 
   bcp-47@2.1.0:
     resolution: {integrity: sha512-9IIS3UPrvIa1Ej+lVDdDwO7zLehjqsaByECw0bu2RRGP73jALm6FYbzI5gWbgHLvNdkvfXB5YrSbocZdOS0c0w==}
+
+  best-effort-json-parser@1.1.3:
+    resolution: {integrity: sha512-O3LfmiLJ5UQOGqrrl6ynCdfDgK50cd0nxy0JacFZ7ARhfhjdksTfScHAJ0580RNgNejLjRvu/7Yj9znY0sqeFA==}
 
   big-integer@1.6.52:
     resolution: {integrity: sha512-QxD8cf2eVqJOOz63z6JIN9BzvVs/dlySa5HGSBH5xtR8dPteIRQnBxxKqkNTiT6jbDTF6jAfrd4oMcND9RGbQg==}
@@ -17629,6 +17641,8 @@ snapshots:
       is-alphabetical: 2.0.1
       is-alphanumerical: 2.0.1
       is-decimal: 2.0.1
+
+  best-effort-json-parser@1.1.3: {}
 
   big-integer@1.6.52: {}
 

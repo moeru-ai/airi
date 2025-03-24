@@ -56,8 +56,10 @@ async function sendMayStructuredMessage(
   }
 
   // If we get here, the task wasn't cancelled, so we can send the response
-  if (/\[.*\]/u.test(responseText)) {
-    const result = /\[.*?\]/u.exec(responseText)
+  // eslint-disable-next-line regexp/no-unused-capturing-group, regexp/no-super-linear-backtracking, regexp/confusing-quantifier
+  if (/\[(\s*.*)+\]/u.test(responseText)) {
+    // eslint-disable-next-line regexp/no-super-linear-backtracking, regexp/confusing-quantifier
+    const result = /\[(\s*.*)+\]/u.exec(responseText)
     state.logger.withField('text', JSON.stringify(responseText)).withField('result', result).log('Multiple messages detected')
 
     const array = parse(result?.[0]) as string[]
