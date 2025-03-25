@@ -4,20 +4,21 @@
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
-      "default": "./dist/index.js"
-    },
-    "./package.json": "./package.json"
+      "default": "./dist/index.mjs"
+    }
   },
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
   "files": [
     "dist"
   ],
   "scripts": {
-    "build": "pkgroll",
-    "build:watch": "pkgroll --watch",
+    "stub": "unbuild --stub",
+    "build": "unbuild",
     "test": "vitest run",
     "test:watch": "vitest"
   },
-  "devDependencies": {
+  "dependencies": {
     "meta-png": "^1.0.6"
   }
 }
