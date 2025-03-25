@@ -27,6 +27,16 @@ const router = useRouter()
         :initial="{ opacity: 0, y: 10 }"
         :enter="{ opacity: 1, y: 0 }"
         :duration="250"
+        :title="$t('settings.pages.card.title')"
+        :description="$t('settings.pages.card.description')"
+        icon="i-lucide:id-card"
+        to="/settings/airi-card"
+      />
+      <IconItem
+        v-motion
+        :initial="{ opacity: 0, y: 10 }"
+        :enter="{ opacity: 1, y: 0 }"
+        :duration="250"
         :title="$t('settings.pages.modules.title')"
         :description="$t('settings.pages.modules.description')"
         icon="i-lucide:blocks"

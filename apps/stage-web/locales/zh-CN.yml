@@ -53,6 +53,43 @@ settings:
   microphone: 麦克风
   models: 模型
   pages:
+    card:
+      description: 使用 Airi 角色卡片预设
+      title: Airi 卡片
+      upload: 上传卡片
+      dropzone: 点击或拖动文件上传
+      formats: 接受 .json 文件
+      list: 你的卡片
+      empty: 暂无卡片。上传一个开始使用。
+      cannot_delete_default: 无法删除默认卡片
+      active: 当前使用
+      prompt: 系统提示词
+      tags: 标签
+      info: 卡片信息
+      no_description: 无描述
+      version: 版本
+      consciousness_model: 意识模型
+      close: 关闭
+      activate: 使用此卡片
+      scenario: 场景
+      personality: 性格
+      first_message: 首次消息
+      creator_notes: 创建者备注
+      post_instructions: 对话后指令
+      extensions: 扩展属性
+      templates: 替代问候语
+      character_book: 人物百科
+      export: 导出
+      edit: 编辑卡片
+      basic_info: 基本信息
+      name: 名称
+      models: 模型
+      advanced_edit: 高级编辑 (JSON)
+      voice_model: 语音模型
+      nickname: 昵称
+      nickname_placeholder: 角色的备用名称
+      new_card: 新卡片
+      new_card_button: 新建卡片
     memory:
       description: 存放记忆的地方，以及策略
       title: 记忆体
@@ -346,7 +383,9 @@ settings:
                   - 缃色
                   - 青冥
                   - 赭石
-                description: Traditional Chinese colors, derived from ancient textiles, porcelain and paintings
+                description: >-
+                  Traditional Chinese colors, derived from ancient textiles,
+                  porcelain and paintings
                 title: 中国传统颜色
             title: 预设
       title: 外观
