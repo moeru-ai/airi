@@ -85,9 +85,3 @@ onTokenLiteral(async () => {
     </div>
   </div>
 </template>
-
-<!-- <style scoped>
-.markdown-content :deep(p) {
-  word-break: break-word;
-}
-</style> -->
