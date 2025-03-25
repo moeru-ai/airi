@@ -4,18 +4,62 @@ import type { Action } from '../types'
 
 import { env } from 'node:process'
 import { useLogg } from '@guiiai/logg'
+import { embed } from '@xsai/embed'
 import { generateText } from '@xsai/generate-text'
 import { message } from '@xsai/utils-chat'
 import { parse } from 'best-effort-json-parser'
 
+import { chatMessageToOneLine, findLastNMessages, findRelevantMessages } from '../models'
 import { systemPrompt } from '../prompts/system-v1'
+import { div, ul } from '../prompts/utils'
 
-export async function imagineAnAction(unreadMessages: Record<string, Message[]>, currentAbortController: AbortController, agentMessages: LLMMessage[]) {
+export async function imagineAnAction(
+  botId: string,
+  unreadMessages: Record<string, Message[]>,
+  currentAbortController: AbortController,
+  agentMessages: LLMMessage[],
+  lastInteractedNChatIds: string[],
+) {
   const logger = useLogg('imagineAnAction').useGlobalConfig()
 
   if (agentMessages == null) {
     agentMessages = []
   }
+
+  lastInteractedNChatIds.map(async (chatId) => {
+    const lastNMessages = await findLastNMessages(chatId, 15)
+    const lastNMessagesOneliner = lastNMessages.map(msg => chatMessageToOneLine(botId, msg))
+
+    const lastNMessagesEmbeddingPromises = lastNMessages
+      .map(async (msg) => {
+        const embeddingResult = await embed({
+          baseURL: env.EMBEDDING_API_BASE_URL!,
+          apiKey: env.EMBEDDING_API_KEY!,
+          model: env.EMBEDDING_MODEL!,
+          input: chatMessageToOneLine(botId, msg),
+          abortSignal: currentAbortController.signal,
+        })
+
+        return {
+          embedding: embeddingResult.embedding,
+          message: msg,
+        }
+      })
+
+    const lastNMessagesEmbedding = await Promise.all(lastNMessagesEmbeddingPromises)
+    const relevantChatMessages = await findRelevantMessages(botId, chatId, lastNMessagesEmbedding)
+    const relevantChatMessagesOneliner = await Promise.all(relevantChatMessages.map(async msgs => msgs.join('\n')))
+
+    return message.user(
+      div(
+        'Here are a brief list of the recent interacted chat ids\' message review',
+        `Last 15 messages in chat ${chatId}:`,
+        ul(...lastNMessagesOneliner),
+        `Relevant messages in chat ${chatId}:`,
+        ul(...relevantChatMessagesOneliner),
+      ),
+    )
+  })
 
   agentMessages.push(
     message.system(''
@@ -37,12 +81,12 @@ export async function imagineAnAction(unreadMessages: Record<string, Message[]>,
           example: { action: 'listChats' },
         },
         {
-          description: 'Send a message to a specific chat group. If you want to express anything to anyone or your friends in group, you can use this action.',
-          example: { action: 'sendMessage', content: '<content>', groupId: 'id of chat to send to' },
+          description: `Send a message to a specific chat group. If you want to express anything to anyone or your friends in group, you can use this action.${!!env.LLM_RESPONSE_LANGUAGE}` ? `The language of the sending message should be in ${env.LLM_RESPONSE_LANGUAGE}.` : '',
+          example: { action: 'sendMessage', content: '<content>', chatId: 'id of chat to send to' },
         },
         {
           description: 'Read unread messages from a specific chat group. If you want to read the unread messages from a specific chat group, you can use this action.',
-          example: { action: 'readMessages', groupId: 'id of chat to send to' },
+          example: { action: 'readMessages', chatId: 'id of chat to send to' },
         },
         {
           description: 'Continue the current task, which means to keep your current state unchanged, I\'ll ask you again in next tick.',
@@ -83,7 +127,9 @@ export async function imagineAnAction(unreadMessages: Record<string, Message[]>,
       + `${Object.entries(unreadMessages).map(([key, value]) => `ID:${key}, Unread message count:${value.length}`).join('\n')}`
       + '',
     ),
-    message.user('What do you want to do? Respond with the action and parameters you choose in JSON only, without any explanation and markups'),
+    message.user(''
+      + 'What do you want to do? Respond with the action and parameters you choose in JSON only, without any explanation and markups',
+    ),
   )
 
   const res = await generateText({

@@ -62,7 +62,7 @@ export async function interpretPhotos(state: BotSelf, msg: Message, photos: Phot
         input: 'Hello, world!',
       })
 
-      await recordPhoto(base64, msg.sticker.file_id, files[index].file_path, res.text)
+      await recordPhoto(base64, msg.photo[index].file_id, files[index].file_path, res.text)
       state.logger.withField('photo', res.text).log('Interpreted photo')
     }))
   }

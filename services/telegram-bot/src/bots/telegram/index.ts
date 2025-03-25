@@ -14,6 +14,7 @@ import { interpretSticker } from '../../llm/sticker'
 import { recordMessage } from '../../models'
 import { listJoinedChats, recordJoinedChat } from '../../models/chats'
 import { readMessage } from './loop/read-message'
+import { shouldInterruptProcessing } from './utils/interruption'
 import { sendMayStructuredMessage } from './utils/message'
 
 async function isChatIdBotAdmin(chatId: number) {
@@ -21,15 +22,26 @@ async function isChatIdBotAdmin(chatId: number) {
   return admins.includes(chatId.toString())
 }
 
-async function handleLoop(state: BotSelf, msgs?: LLMMessage[], forGroupId?: string) {
+async function handleLoop(state: BotSelf, msgs?: LLMMessage[], chatId?: string) {
   state.logger.log('handleLoop')
+
+  // Set the start time when beginning new processing
+  state.currentProcessingStartTime = Date.now()
 
   // Create a new abort controller for this loop execution
   if (state.currentAbortController) {
     state.currentAbortController.abort()
   }
   state.currentAbortController = new AbortController()
-  const currentController = state.currentAbortController // Store reference to current controller
+  const currentController = state.currentAbortController
+
+  // Track message processing state
+  if (chatId && !state.lastInteractedNChatIds.includes(chatId)) {
+    state.lastInteractedNChatIds.push(chatId)
+  }
+  if (state.lastInteractedNChatIds.length > 5) {
+    state.lastInteractedNChatIds = state.lastInteractedNChatIds.slice(-5)
+  }
 
   if (msgs == null) {
     msgs = []
@@ -37,36 +49,63 @@ async function handleLoop(state: BotSelf, msgs?: LLMMessage[], forGroupId?: stri
 
   try {
     try {
-      const action = await imagineAnAction(state.unreadMessages, currentController, msgs)
+      const action = await imagineAnAction(state.bot.botInfo.id.toString(), state.unreadMessages, currentController, msgs, state.lastInteractedNChatIds)
 
       switch (action.action) {
         case 'readMessages':
-          // eslint-disable-next-line no-case-declarations
-          let unreadMessagesForThisChat: Message[] | undefined = state.unreadMessages[action.groupId]
-
-          if (forGroupId && forGroupId === action.groupId.toString()
-            && unreadMessagesForThisChat
-            && unreadMessagesForThisChat.length > 0) {
-            state.logger.log(`Interrupting message processing for group ${action.groupId} - new messages arrived`)
-            return handleLoop(state)
-          }
           if (Object.keys(state.unreadMessages).length === 0) {
             state.logger.log('No unread messages - deleting all unread messages')
             state.unreadMessages = {}
             break
           }
-          if (action.groupId == null) {
+          if (action.chatId == null) {
             state.logger.log('No group ID - deleting all unread messages')
             state.unreadMessages = {}
             break
           }
+
+          // eslint-disable-next-line no-case-declarations
+          let unreadMessagesForThisChat: Message[] | undefined = state.unreadMessages[action.chatId]
+
+          // Modified interruption logic
+          if (chatId && chatId === action.chatId
+            && unreadMessagesForThisChat
+            && unreadMessagesForThisChat.length > 0) {
+            const processingTime = state.currentProcessingStartTime
+              ? Date.now() - state.currentProcessingStartTime
+              : 0
+
+            const messageCount = unreadMessagesForThisChat.length
+
+            // Factors to consider for interruption:
+            //
+            // 1. How long we've been processing (longer = more likely to finish)
+            // 2. Number of new messages (more = higher chance to interrupt)
+            // 3. Message content importance (could be determined by LLM)
+
+            const shouldInterrupt = await shouldInterruptProcessing({
+              processingTime,
+              messageCount,
+              currentMessages: msgs,
+              newMessages: unreadMessagesForThisChat,
+              chatId: action.chatId,
+            })
+
+            if (shouldInterrupt) {
+              state.logger.log(`Interrupting message processing for chat ${action.chatId} - new messages deemed more important`)
+              return handleLoop(state)
+            }
+            else {
+              state.logger.log(`Continuing current processing despite new messages in chat ${action.chatId}`)
+            }
+          }
           if (!Array.isArray(unreadMessagesForThisChat)) {
-            state.logger.log(`Unread messages for group ${action.groupId} is not an array - converting to array`)
+            state.logger.log(`Unread messages for group ${action.chatId} is not an array - converting to array`)
             unreadMessagesForThisChat = []
           }
           if (unreadMessagesForThisChat.length === 0) {
-            state.logger.log(`No unread messages for group ${action.groupId} - deleting`)
-            delete state.unreadMessages[action.groupId]
+            state.logger.log(`No unread messages for group ${action.chatId} - deleting`)
+            delete state.unreadMessages[action.chatId]
             break
           }
 
@@ -80,7 +119,7 @@ async function handleLoop(state: BotSelf, msgs?: LLMMessage[], forGroupId?: stri
           //   return { break: true }
           // }
 
-          await readMessage(state, action, unreadMessagesForThisChat, currentController)
+          await readMessage(state, state.bot.botInfo.id.toString(), chatId, action, unreadMessagesForThisChat, currentController)
           break
         case 'listChats':
           msgs.push(message.user(`List of chats:${(await listJoinedChats()).map(chat => `ID:${chat.chat_id}, Name:${chat.chat_name}`).join('\n')}`))
@@ -108,9 +147,10 @@ async function handleLoop(state: BotSelf, msgs?: LLMMessage[], forGroupId?: stri
     state.logger.withError(err).log('Error occurred')
   }
   finally {
-    // Only clean up if this is still the current controller
+    // Clean up timing when done
     if (state.currentAbortController === currentController) {
       state.currentAbortController = null
+      state.currentProcessingStartTime = null
     }
   }
 }
@@ -140,6 +180,8 @@ function newBotSelf(bot: Bot, logger: Logg): BotSelf {
     logger,
     processing: false,
     attentionHandler: undefined,
+    lastInteractedNChatIds: [],
+    currentProcessingStartTime: null,
   }
 
   // botSelf.attentionHandler = createAttentionHandler(botSelf, {
@@ -199,14 +241,16 @@ async function processMessageQueue(state: BotSelf) {
 
         unreadMessagesForThisChat.push(nextMsg.message)
 
-        if (unreadMessagesForThisChat.length > 20) {
-          unreadMessagesForThisChat = unreadMessagesForThisChat.slice(-20)
+        if (unreadMessagesForThisChat.length > 100) {
+          unreadMessagesForThisChat = unreadMessagesForThisChat.slice(-100)
         }
 
         state.unreadMessages[nextMsg.message.chat.id] = unreadMessagesForThisChat
 
+        state.logger.withField('chatId', nextMsg.message.chat.id).log('message queue processed, triggering immediate reaction')
+
         // Trigger immediate processing when messages are ready
-        handleLoop(state, [], nextMsg.message.chat.id.toString())
+        await handleLoop(state, [], nextMsg.message.chat.id.toString())
         state.messageQueue.shift()
       }
     }
