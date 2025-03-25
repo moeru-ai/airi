@@ -1,6 +1,7 @@
 {
-  "name": "@moeru-ai/ccc",
+  "name": "@proj-airi/ccc",
   "type": "module",
+  "private": true,
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -16,7 +17,9 @@
     "stub": "unbuild --stub",
     "build": "unbuild",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "lint": "eslint .",
+    "lint:fix": "eslint --fix ."
   },
   "dependencies": {
     "meta-png": "^1.0.6"
