@@ -15,8 +15,8 @@ export function createAttentionHandler(bot: BotSelf, config: AttentionConfig) {
 
   // Private utility functions
   const calculateNewResponseRate = () => {
-    const timeSinceLastInteraction = (Date.now() - state.stats.lastInteractionTime) / 60000
-    const decayFactor = Math.max(0, 1 - timeSinceLastInteraction * config.decayRatePerMinute)
+    const minutesSinceLastInteraction = (Date.now() - state.stats.lastInteractionTime) / 60000
+    const decayFactor = Math.max(0, 1 - minutesSinceLastInteraction * config.decayRatePerMinute)
 
     // Reset to max if at minimum and new interactions occurred
     if (state.currentResponseRate <= config.responseRateMin
@@ -25,8 +25,8 @@ export function createAttentionHandler(bot: BotSelf, config: AttentionConfig) {
     }
 
     let newRate = state.currentResponseRate
-    newRate += state.stats.mentionCount * 0.2 // Mention multiplier
-    newRate += state.stats.triggerWordCount * 0.2 // Trigger word multiplier
+    newRate += state.stats.mentionCount * 100 // Mention multiplier
+    newRate += state.stats.triggerWordCount * 50 // Trigger word multiplier
     newRate *= decayFactor
 
     return Math.min(Math.max(newRate, config.responseRateMin), config.responseRateMax)
