@@ -1200,7 +1200,7 @@ importers:
         version: 2.0.0(@astrojs/starlight@0.32.3(astro@5.5.3(@types/node@22.13.10)(jiti@2.4.2)(less@4.2.2)(rollup@4.36.0)(terser@5.17.6)(tsx@4.19.3)(typescript@5.8.2)(yaml@2.7.0)))(astro@5.5.3(@types/node@22.13.10)(jiti@2.4.2)(less@4.2.2)(rollup@4.36.0)(terser@5.17.6)(tsx@4.19.3)(typescript@5.8.2)(yaml@2.7.0))
 
   packages/ccc:
-    devDependencies:
+    dependencies:
       meta-png:
         specifier: ^1.0.6
         version: 1.0.6
