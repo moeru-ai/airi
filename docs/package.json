@@ -14,6 +14,7 @@
     "@astrojs/starlight": "^0.32.3",
     "@fontsource/quicksand": "^5.2.6",
     "astro": "^5.5.3",
+    "astro-og-canvas": "^0.7.0",
     "sharp": "^0.33.5",
     "starlight-theme-catppuccin": "^2.0.0"
   }

@@ -1189,6 +1189,9 @@ importers:
       astro:
         specifier: ^5.5.3
         version: 5.5.3(@types/node@22.13.10)(jiti@2.4.2)(less@4.2.2)(rollup@4.36.0)(terser@5.17.6)(tsx@4.19.3)(typescript@5.8.2)(yaml@2.7.0)
+      astro-og-canvas:
+        specifier: ^0.7.0
+        version: 0.7.0(astro@5.5.3(@types/node@22.13.10)(jiti@2.4.2)(less@4.2.2)(rollup@4.36.0)(terser@5.17.6)(tsx@4.19.3)(typescript@5.8.2)(yaml@2.7.0))
       sharp:
         specifier: ^0.33.5
         version: 0.33.5
@@ -5894,6 +5897,9 @@ packages:
     peerDependencies:
       vue: ^3.5.0
 
+  '@webgpu/types@0.1.21':
+    resolution: {integrity: sha512-pUrWq3V5PiSGFLeLxoGqReTZmiiXwY3jRkIG5sLLKjyqNxrwm/04b4nw7LSmGWJcKk59XOM/YRTUwOzo4MMlow==}
+
   '@webgpu/types@0.1.57':
     resolution: {integrity: sha512-w8IuWOmgeb9bA9swqSyG6Z/KdKfCdGPxZ75YJUpsJBF4Q/RT5rnPuStzuxOXihcrSjGO4/maH+M9PQgbBVs69A==}
 
@@ -5915,6 +5921,9 @@ packages:
 
   '@xsai-ext/shared-providers@0.1.3':
     resolution: {integrity: sha512-FJufVhv42KTApAsKoic4xvca2dGOguwbQKsSUSfX6wdpP2pydnCjSlGRBYKZ4+msSRx0y6krGYuNgR7mMn9kkQ==}
+
+  '@xsai-ext/shared-providers@0.2.0-beta.1':
+    resolution: {integrity: sha512-94v0JQTC2ivmTU9wrBPzE5IsL5FCZbEHDtKviLZBJ8wU0I0mRz8Llg+AcnqzUCrL9gZoHhWwNkqgI4xVabD7MA==}
 
   '@xsai/embed@0.1.3':
     resolution: {integrity: sha512-knhTsu1jiiVvXZeqeJFIBjMQDIBfS9gVe7ZuBU4jVnd+JbHle8/RUlOfzlZdHTcW0gFb5ekrJePa/HiTyAFRzQ==}
@@ -5938,8 +5947,14 @@ packages:
   '@xsai/shared-chat@0.1.3':
     resolution: {integrity: sha512-vRI7KUf3CUQNXJcNB/fOWIAEAuv48/VeOLQCmiRDbM8EQaWoR6alF4UDz4G5EAYOF4zbu2EngcsUxKqonSxylw==}
 
+  '@xsai/shared-chat@0.2.0-beta.1':
+    resolution: {integrity: sha512-4/HKIJygBo67GzsEa6H47CEHX9CThFJJsyIgJJdqCi7ajjrSnH7wnTtalgRDQxNWdNJwu+TAgfP+j7+1koOgxg==}
+
   '@xsai/shared@0.1.3':
     resolution: {integrity: sha512-PR4QJque+qQufl6YUE0NaH/hhhXIeIomzEuTtOJ1u8pDpdY7aiBJJtYWkwLT6x05nvwRAmDAsBa+c6jyJX8bdQ==}
+
+  '@xsai/shared@0.2.0-beta.1':
+    resolution: {integrity: sha512-GBFHnHeqyTT9bvCBb42nNBvCoLW8cd3+pTxfQqzur9FU/acIWfK2CWrGPHCICNXYVbRSCGzjFKrNmvbTjZUImQ==}
 
   '@xsai/stream-text@0.1.3':
     resolution: {integrity: sha512-NVV1hwS1TTf8T++M9ew0FTH1U08EFk5LymW2HEVMMVmdUHeKvYqkvOXwFicGYhZsMVRXZqA8b8A8usEHFMsBIg==}
@@ -6164,6 +6179,12 @@ packages:
     resolution: {integrity: sha512-dQ47XhgtxuRTiKQrZOJKdebMuxvvTBR89U439EHzLP6KR45IILFlGDihGQp3//1aUjj4nwpbINSzms1heJ7vmQ==}
     peerDependencies:
       astro: ^4.0.0-beta || ^5.0.0-beta || ^3.3.0
+
+  astro-og-canvas@0.7.0:
+    resolution: {integrity: sha512-aamARDNDORPxXlPt+VJakzj4WpNUDjQqUZ06eE82pGMad4aTR/KMm8Ho12qvprgJcM8K7fgSOMg5OHa7KcX0pw==}
+    engines: {node: '>=18.14.1'}
+    peerDependencies:
+      astro: ^3.0.0 || ^4.0.0 || ^5.0.0
 
   astro@5.5.3:
     resolution: {integrity: sha512-FvqIo5jkunP5R6FkY5vuFYElTOqjnazuiN0x/yf1F+nvedsGDemm5K7mS6RTmFVB291mE9WWn1AbuJsFWEcHgg==}
@@ -6413,6 +6434,9 @@ packages:
 
   caniuse-lite@1.0.30001700:
     resolution: {integrity: sha512-2S6XIXwaE7K7erT8dY+kLQcpa5ms63XlRkMkReXjle+kf6c5g38vyMl+Z5y8dSxOFDhcFe+nxnn261PLxBSQsQ==}
+
+  canvaskit-wasm@0.39.1:
+    resolution: {integrity: sha512-Gy3lCmhUdKq+8bvDrs9t8+qf7RvcjuQn+we7vTVVyqgOVO1UVfHpsnBxkTZw+R4ApEJ3D5fKySl9TU11hmjl/A==}
 
   caseless@0.12.0:
     resolution: {integrity: sha512-4tYFyifaFfGacoiObjJegolkwSU4xQNGbVgUiNYVUxbQ2x2lUsFvY4hVgVzGiIe6WLOPqycWXA40l+PWsxthUw==}
@@ -12332,6 +12356,23 @@ packages:
       zod-to-json-schema:
         optional: true
 
+  xsschema@0.2.0-beta.1:
+    resolution: {integrity: sha512-54jKWehz8z0jhPYhoDEA51gZe4xbBD3jJ+BWvyZMuQyUzUPUmsr/QMxIqie3o82vMrFFmzJ3vb5if4b5jHerhA==}
+    peerDependencies:
+      '@valibot/to-json-schema': ^1.0.0
+      arktype: ^2.1.10
+      effect: ^3.14.1
+      zod-to-json-schema: ^3.24.4
+    peerDependenciesMeta:
+      '@valibot/to-json-schema':
+        optional: true
+      arktype:
+        optional: true
+      effect:
+        optional: true
+      zod-to-json-schema:
+        optional: true
+
   xtend@4.0.2:
     resolution: {integrity: sha512-LKYU1iAXJXUgAXn9URjiu+MWhyUXHsvfp7mcuYm9dSUKK0/CjtrUwFAxD82/mCWbtLsGjFIad0wIsod4zrTAEQ==}
     engines: {node: '>=0.4'}
@@ -17143,6 +17184,8 @@ snapshots:
     dependencies:
       vue: 3.5.13(typescript@5.8.2)
 
+  '@webgpu/types@0.1.21': {}
+
   '@webgpu/types@0.1.57': {}
 
   '@xboxreplay/errors@0.1.0': {}
@@ -17156,65 +17199,76 @@ snapshots:
 
   '@xsai-ext/providers-cloud@0.1.3':
     dependencies:
-      '@xsai-ext/shared-providers': 0.1.3
-      '@xsai/shared': 0.1.3
+      '@xsai-ext/shared-providers': 0.2.0-beta.1
+      '@xsai/shared': 0.2.0-beta.1
 
   '@xsai-ext/providers-local@0.1.3':
     dependencies:
-      '@xsai-ext/shared-providers': 0.1.3
-      '@xsai/shared': 0.1.3
+      '@xsai-ext/shared-providers': 0.2.0-beta.1
+      '@xsai/shared': 0.2.0-beta.1
 
   '@xsai-ext/shared-providers@0.1.3':
     dependencies:
-      '@xsai/shared': 0.1.3
+      '@xsai/shared': 0.2.0-beta.1
+
+  '@xsai-ext/shared-providers@0.2.0-beta.1':
+    dependencies:
+      '@xsai/shared': 0.2.0-beta.1
 
   '@xsai/embed@0.1.3':
     dependencies:
-      '@xsai/shared': 0.1.3
+      '@xsai/shared': 0.2.0-beta.1
 
   '@xsai/generate-speech@0.1.3':
     dependencies:
-      '@xsai/shared': 0.1.3
+      '@xsai/shared': 0.2.0-beta.1
 
   '@xsai/generate-text@0.1.3':
     dependencies:
-      '@xsai/shared-chat': 0.1.3
+      '@xsai/shared-chat': 0.2.0-beta.1
 
   '@xsai/generate-transcription@0.1.3':
     dependencies:
-      '@xsai/shared': 0.1.3
+      '@xsai/shared': 0.2.0-beta.1
 
   '@xsai/model@0.1.3':
     dependencies:
-      '@xsai/shared': 0.1.3
+      '@xsai/shared': 0.2.0-beta.1
 
   '@xsai/providers@0.1.0-beta.5':
     dependencies:
-      '@xsai/shared': 0.1.3
+      '@xsai/shared': 0.2.0-beta.1
 
   '@xsai/shared-chat@0.1.3':
     dependencies:
-      '@xsai/shared': 0.1.3
+      '@xsai/shared': 0.2.0-beta.1
+
+  '@xsai/shared-chat@0.2.0-beta.1':
+    dependencies:
+      '@xsai/shared': 0.2.0-beta.1
 
   '@xsai/shared@0.1.3': {}
 
+  '@xsai/shared@0.2.0-beta.1': {}
+
   '@xsai/stream-text@0.1.3':
     dependencies:
-      '@xsai/shared-chat': 0.1.3
+      '@xsai/shared-chat': 0.2.0-beta.1
 
   '@xsai/tool@0.1.3(@valibot/to-json-schema@1.0.0-rc.0(valibot@1.0.0-beta.9(typescript@5.8.2)))(zod-to-json-schema@3.24.4(zod@3.24.2))':
     dependencies:
-      '@xsai/shared': 0.1.3
-      '@xsai/shared-chat': 0.1.3
-      xsschema: 0.1.3(@valibot/to-json-schema@1.0.0-rc.0(valibot@1.0.0-beta.9(typescript@5.8.2)))(zod-to-json-schema@3.24.4(zod@3.24.2))
+      '@xsai/shared': 0.2.0-beta.1
+      '@xsai/shared-chat': 0.2.0-beta.1
+      xsschema: 0.2.0-beta.1(@valibot/to-json-schema@1.0.0-rc.0(valibot@1.0.0-beta.9(typescript@5.8.2)))(zod-to-json-schema@3.24.4(zod@3.24.2))
     transitivePeerDependencies:
       - '@valibot/to-json-schema'
       - arktype
+      - effect
       - zod-to-json-schema
 
   '@xsai/utils-chat@0.1.3':
     dependencies:
-      '@xsai/shared-chat': 0.1.3
+      '@xsai/shared-chat': 0.2.0-beta.1
 
   abbrev@1.1.1:
     optional: true
@@ -17479,6 +17533,13 @@ snapshots:
     dependencies:
       astro: 5.5.3(@types/node@22.13.10)(jiti@2.4.2)(less@4.2.2)(rollup@4.36.0)(terser@5.17.6)(tsx@4.19.3)(typescript@5.8.2)(yaml@2.7.0)
       rehype-expressive-code: 0.40.1
+
+  astro-og-canvas@0.7.0(astro@5.5.3(@types/node@22.13.10)(jiti@2.4.2)(less@4.2.2)(rollup@4.36.0)(terser@5.17.6)(tsx@4.19.3)(typescript@5.8.2)(yaml@2.7.0)):
+    dependencies:
+      astro: 5.5.3(@types/node@22.13.10)(jiti@2.4.2)(less@4.2.2)(rollup@4.36.0)(terser@5.17.6)(tsx@4.19.3)(typescript@5.8.2)(yaml@2.7.0)
+      canvaskit-wasm: 0.39.1
+      deterministic-object-hash: 2.0.2
+      entities: 4.5.0
 
   astro@5.5.3(@types/node@22.13.10)(jiti@2.4.2)(less@4.2.2)(rollup@4.36.0)(terser@5.17.6)(tsx@4.19.3)(typescript@5.8.2)(yaml@2.7.0):
     dependencies:
@@ -17905,6 +17966,10 @@ snapshots:
       lodash.uniq: 4.5.0
 
   caniuse-lite@1.0.30001700: {}
+
+  canvaskit-wasm@0.39.1:
+    dependencies:
+      '@webgpu/types': 0.1.21
 
   caseless@0.12.0:
     optional: true
@@ -21886,6 +21951,7 @@ snapshots:
     transitivePeerDependencies:
       - '@valibot/to-json-schema'
       - arktype
+      - effect
       - zod-to-json-schema
 
   next-tick@1.1.0: {}
@@ -25409,6 +25475,11 @@ snapshots:
   xmlhttprequest-ssl@2.1.2: {}
 
   xsschema@0.1.3(@valibot/to-json-schema@1.0.0-rc.0(valibot@1.0.0-beta.9(typescript@5.8.2)))(zod-to-json-schema@3.24.4(zod@3.24.2)):
+    optionalDependencies:
+      '@valibot/to-json-schema': 1.0.0-rc.0(valibot@1.0.0-beta.9(typescript@5.8.2))
+      zod-to-json-schema: 3.24.4(zod@3.24.2)
+
+  xsschema@0.2.0-beta.1(@valibot/to-json-schema@1.0.0-rc.0(valibot@1.0.0-beta.9(typescript@5.8.2)))(zod-to-json-schema@3.24.4(zod@3.24.2)):
     optionalDependencies:
       '@valibot/to-json-schema': 1.0.0-rc.0(valibot@1.0.0-beta.9(typescript@5.8.2))
       zod-to-json-schema: 3.24.4(zod@3.24.2)

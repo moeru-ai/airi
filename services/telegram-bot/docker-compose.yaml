@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   pgvector:
     image: ghcr.io/tensorchord/pgvecto-rs:pg17-v0.4.0

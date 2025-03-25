@@ -52,7 +52,7 @@ onTokenLiteral(async () => {
             </div>
             <div v-if="sending" i-eos-icons:three-dots-loading />
             <div
-              v-else class="markdown-content text-violet-500" text="base <sm:xs"
+              v-else class="markdown-content break-words text-violet-500" text="base <sm:xs"
               v-html="process(message.content as string)"
             />
           </div>
@@ -66,7 +66,7 @@ onTokenLiteral(async () => {
               <span text-xs text="primary-400/90 dark:primary-600/90" font-semibold class="inline <sm:hidden">{{ t('stage.chat.message.character-name.airi') }}</span>
             </div>
             <div v-if="sending" i-eos-icons:three-dots-loading />
-            <div v-else class="markdown-content" text="base <sm:xs" v-html="process(message.content as string)" />
+            <div v-else class="markdown-content break-words" text="base <sm:xs" v-html="process(message.content as string)" />
           </div>
         </div>
         <div v-else-if="message.role === 'user'" flex="~ row-reverse" ml="12">
@@ -77,7 +77,7 @@ onTokenLiteral(async () => {
             <div>
               <span text-xs text="cyan-400/90 dark:cyan-600/90" font-semibold class="inline <sm:hidden">{{ t('stage.chat.message.character-name.you') }}</span>
             </div>
-            <div v-if="message.content" class="markdown-content" text="base <sm:xs" v-html="process(message.content as string)" />
+            <div v-if="message.content" class="markdown-content break-words" text="base <sm:xs" v-html="process(message.content as string)" />
             <div v-else />
           </div>
         </div>
