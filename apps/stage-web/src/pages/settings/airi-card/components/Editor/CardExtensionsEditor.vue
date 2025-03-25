@@ -18,13 +18,13 @@ const emit = defineEmits<Emits>()
 const { t } = useI18n()
 
 // Create a local copy of the card to avoid direct prop mutation
-const localCard = computed({
+const localCard = computed<AiriCard>({
   get: () => props.card,
-  set: value => emit('update:card', value),
+  set: (value: AiriCard) => emit('update:card', value),
 })
 
 // Ensure extensions object exists
-function ensureExtensions() {
+function ensureExtensions(): Record<string, any> {
   if (!localCard.value.extensions) {
     const updatedCard = { ...localCard.value, extensions: {} }
     emit('update:card', updatedCard)
@@ -34,18 +34,18 @@ function ensureExtensions() {
 }
 
 // Helper functions to safely get and set extension properties
-function getExtensionProp(prop: string) {
-  return localCard.value.extensions?.[prop]
+function getExtensionProp(prop: string): string {
+  return localCard.value.extensions?.[prop] as string || ''
 }
 
-function setExtensionProp(prop: string, value: any) {
+function setExtensionProp(prop: string, value: string): void {
   const extensions = ensureExtensions()
   const updatedExtensions = { ...extensions, [prop]: value }
   emit('update:card', { ...localCard.value, extensions: updatedExtensions })
 }
 
 // Add a new alternate greeting
-function addAlternateGreeting() {
+function addAlternateGreeting(): void {
   const extensions = ensureExtensions()
   const alternateGreetings = Array.isArray(extensions.alternate_greetings)
     ? [...extensions.alternate_greetings, '']
@@ -56,7 +56,7 @@ function addAlternateGreeting() {
 }
 
 // Remove an alternate greeting
-function removeAlternateGreeting(index: number) {
+function removeAlternateGreeting(index: number): void {
   if (!localCard.value.extensions?.alternate_greetings)
     return
 
@@ -68,7 +68,7 @@ function removeAlternateGreeting(index: number) {
 }
 
 // Update an alternate greeting
-function updateAlternateGreeting(index: number, value: string) {
+function updateAlternateGreeting(index: number, value: string): void {
   if (!localCard.value.extensions?.alternate_greetings)
     return
 
@@ -81,16 +81,32 @@ function updateAlternateGreeting(index: number, value: string) {
 </script>
 
 <template>
-  <Collapsable
-    :label="t('settings.pages.card.extensions')"
-    :default="false"
-    bg="white dark:neutral-900"
-    border="~ neutral-200 dark:neutral-800"
-    rounded-xl
-    shadow="sm"
-    overflow="hidden"
-  >
-    <div flex="~ col" gap-5 px-6 py-4>
+  <Collapsable :default="true">
+    <template #trigger="slotProps">
+      <button
+        bg="zinc-100 dark:zinc-800"
+        hover="bg-zinc-200 dark:bg-zinc-700"
+        transition="all ease-in-out duration-250"
+        w-full flex items-center gap-1.5 rounded-lg px-4 py-3 outline-none
+        class="[&_.provider-icon]:grayscale-100 [&_.provider-icon]:hover:grayscale-0"
+        @click="slotProps.setVisible(!slotProps.visible)"
+      >
+        <div flex="~ row 1" items-center gap-1.5>
+          <div
+            i-solar:face-scan-circle-bold-duotone class="provider-icon size-6"
+            transition="filter duration-250 ease-in-out"
+          />
+          <div>
+            {{ t('settings.pages.card.extensions') }}
+          </div>
+        </div>
+        <div transform transition="transform duration-250" :class="{ 'rotate-180': slotProps.visible }">
+          <div i-solar:alt-arrow-down-bold-duotone />
+        </div>
+      </button>
+    </template>
+
+    <div flex="~ col" gap-5 p-4>
       <div flex="~ row" mb-2>
         <span text="sm neutral-500">
           Extension settings allow for more precise control over AI behavior and response patterns
@@ -221,7 +237,7 @@ function updateAlternateGreeting(index: number, value: string) {
         </div>
 
         <div
-          v-if="!localCard.value.extensions?.alternate_greetings?.length"
+          v-if="!localCard.extensions?.alternate_greetings?.length"
           text="center sm neutral-500"
           border="~ dashed neutral-300 dark:neutral-700"
           rounded-lg py-6
@@ -236,7 +252,7 @@ function updateAlternateGreeting(index: number, value: string) {
           max-h-80 gap-3 overflow-y-auto rounded-lg p-3 pr-1
         >
           <div
-            v-for="(greeting, index) in localCard.value.extensions?.alternate_greetings"
+            v-for="(greeting, index) in localCard.extensions?.alternate_greetings"
             :key="index"
             relative
             bg="white dark:neutral-700"

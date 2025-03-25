@@ -81,16 +81,8 @@ function handleCardUpdate(updatedCard: AiriCard) {
 
   <div v-else class="flex flex-col gap-6">
     <!-- Header with sticky save button -->
-    <div flex="~ row" sticky top-0 z-10 items-center justify-between py-4 bg="white dark:neutral-900" border-b="~ neutral-200 dark:neutral-800">
+    <div flex="~ row" items-center justify-between>
       <div flex="~ row" items-center gap-3>
-        <button
-          bg="neutral-100 dark:neutral-800"
-          hover="bg-neutral-200 dark:neutral-700"
-          rounded-full p-2 transition
-          @click="$router.back()"
-        >
-          <div i-solar:arrow-left-linear text-lg />
-        </button>
         <h2 text-xl font-medium>
           {{ t('settings.pages.card.edit') }} - {{ editingCard.name }}
         </h2>
@@ -102,7 +94,7 @@ function handleCardUpdate(updatedCard: AiriCard) {
         flex="~ row" items-center gap-2 rounded-lg px-5 py-2 transition
         @click="saveCardChanges"
       >
-        <div i-solar:disk-linear text-sm />
+        <div i-solar:diskette-bold text-sm />
         {{ t('common.save') }}
       </button>
     </div>
