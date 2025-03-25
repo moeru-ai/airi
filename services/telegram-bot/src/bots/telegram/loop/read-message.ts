@@ -12,14 +12,19 @@ import { chatMessageToOneLine, telegramMessageToOneLine } from '../../../models/
 import { systemPrompt } from '../../../prompts/system-v1'
 import { sendMayStructuredMessage } from '../utils/message'
 
-export async function readMessage(state: BotSelf, action: ReadMessagesAction, unreadMessages: Message[]): Promise<{
-  loop?: boolean
-  break?: boolean
-}> {
+export async function readMessage(
+  state: BotSelf,
+  action: ReadMessagesAction,
+  unreadMessages: Message[],
+  abortController: AbortController,
+): Promise<{
+    loop?: boolean
+    break?: boolean
+  }> {
   const logger = useLogg('readMessage').useGlobalConfig()
 
   const lastNMessages = await findLastNMessages(action.groupId, 30)
-  const lastNMessagesOneliner = lastNMessages.map(msg => chatMessageToOneLine(msg)).join('\n')
+  const lastNMessagesOneliner = lastNMessages.map(msg => chatMessageToOneLine(state.bot, msg)).join('\n')
 
   logger.withField('number_of_last_n_messages', lastNMessages.length).log('Successfully found last N messages')
 
@@ -31,7 +36,7 @@ export async function readMessage(state: BotSelf, action: ReadMessagesAction, un
         apiKey: env.EMBEDDING_API_KEY!,
         model: env.EMBEDDING_MODEL!,
         input: msg.text || msg.caption || '',
-        abortSignal: state.currentAbortController.signal,
+        abortSignal: abortController.signal,
       })
 
       return {
@@ -48,7 +53,7 @@ export async function readMessage(state: BotSelf, action: ReadMessagesAction, un
   const unreadHistoryMessageOneliner = unreadHistoryMessages.join('\n')
   state.unreadMessages[action.groupId] = []
 
-  const relevantChatMessages = await findRelevantMessages(unreadHistoryMessagesEmbedding)
+  const relevantChatMessages = await findRelevantMessages(state.bot, unreadHistoryMessagesEmbedding)
   const relevantChatMessagesOneliner = (await Promise.all(relevantChatMessages.map(async msgs => msgs.join('\n')))).join('\n')
 
   logger.withField('number_of_relevant_chat_messages', relevantChatMessages.length).log('Successfully composed relevant chat messages')
@@ -62,13 +67,18 @@ export async function readMessage(state: BotSelf, action: ReadMessagesAction, un
       + 'Last 30 messages:\n'
       + `${lastNMessagesOneliner || 'No messages'}`
       + '\n'
-      + 'I helped you searched these relevant chat messages may help you recall the memories:'
+      + 'I helped you searched these relevant chat messages may help you recall the memories:\n'
       + `${relevantChatMessagesOneliner || 'No relevant messages'}`
       + '\n'
-      + 'All the messages you requested to read:'
+      + 'All the messages you requested to read:\n'
       + `${unreadHistoryMessageOneliner || 'No messages'}`
       + '\n'
-      + 'Choose your action. Would you like to say something? Or ignore?',
+      + 'Based on your personalities, imaging you have your own choice and interest over the world, '
+      + 'giving the above context and chat history, would you like to participate in the conversation '
+      + 'about the topic? Or will you aggressively diss or piss off about the opinions of others?\n'
+      + 'Feel free to ignore by just sending an empty array (i.e. []).'
+      + '\n'
+      + 'Choose your action.',
     ),
   )
 
@@ -80,7 +90,7 @@ export async function readMessage(state: BotSelf, action: ReadMessagesAction, un
     baseURL: env.LLM_API_BASE_URL!,
     model: env.LLM_MODEL!,
     messages,
-    abortSignal: state.currentAbortController.signal,
+    abortSignal: abortController.signal,
   })
 
   response.text = response.text

@@ -25,7 +25,7 @@ export function parseMayStructuredMessage(responseText: string) {
       return
     }
 
-    return array
+    return array.filter(Boolean)
   }
 
   return [responseText]
@@ -39,6 +39,7 @@ export async function sendMayStructuredMessage(
   const chat = (await listJoinedChats()).find((chat) => {
     return chat.chat_id === groupId
   })
+  state.logger.withField('chat', chat).log('Chat found')
   if (!chat) {
     state.logger.withField('groupId', groupId).log('Chat not found')
     return

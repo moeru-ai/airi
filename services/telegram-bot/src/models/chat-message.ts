@@ -1,5 +1,6 @@
 import type { EmbedResult } from '@xsai/embed'
 import type { SQL } from 'drizzle-orm'
+import type { Bot } from 'grammy'
 import type { Message, UserFromGetMe } from 'grammy/types'
 
 import { env } from 'node:process'
@@ -71,15 +72,17 @@ export async function recordMessage(botInfo: UserFromGetMe, message: Message) {
 }
 
 export async function findLastNMessages(chatId: string, n: number) {
-  return await useDrizzle()
+  const res = await useDrizzle()
     .select()
     .from(chatMessagesTable)
     .where(eq(chatMessagesTable.in_chat_id, chatId))
     .orderBy(desc(chatMessagesTable.created_at))
     .limit(n)
+
+  return res.reverse()
 }
 
-export async function findRelevantMessages(unreadHistoryMessagesEmbedding: { embedding: number[], message: Message }[]) {
+export async function findRelevantMessages(bot: Bot, unreadHistoryMessagesEmbedding: { embedding: number[], message: Message }[]) {
   const db = useDrizzle()
   const contextWindowSize = 5 // Number of messages to include before and after
   const logger = useLogg('findRelevantMessages').useGlobalConfig()
@@ -180,7 +183,7 @@ export async function findRelevantMessages(unreadHistoryMessagesEmbedding: { emb
 
         logger.withField('number_of_context_messages', contextMessages.length).log('Combined context messages')
 
-        const contextMessagesOneliner = (await Promise.all(contextMessages.map(m => chatMessageToOneLine(m))))
+        const contextMessagesOneliner = (await Promise.all(contextMessages.map(m => chatMessageToOneLine(bot, m))))
         return `One of the relevant message along with the context:\n${contextMessagesOneliner}`
       }),
     )
