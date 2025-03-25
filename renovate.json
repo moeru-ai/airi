@@ -1,0 +1,18 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended",
+    ":dependencyDashboard",
+    ":semanticPrefixFixDepsChoreOthers",
+    ":prHourlyLimitNone",
+    ":prConcurrentLimitNone",
+    ":ignoreModulesAndTests",
+    "group:monorepos",
+    "group:recommended",
+    "group:allNonMajor",
+    "replacements:all",
+    "workarounds:all"
+  ],
+  "rangeStrategy": "bump",
+  "labels": ["dependencies"]
+}
