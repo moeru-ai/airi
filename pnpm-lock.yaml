@@ -496,7 +496,7 @@ importers:
         version: 28.4.1(@babel/parser@7.26.10)(@nuxt/kit@3.14.1592(magicast@0.3.5)(rollup@2.79.1))(vue@3.5.13(typescript@5.8.2))
       unplugin-vue-macros:
         specifier: ^2.14.5
-        version: 2.14.5(@vueuse/core@13.0.0(vue@3.5.13(typescript@5.8.2)))(esbuild@0.25.0)(rollup@2.79.1)(typescript@5.8.2)(vite@6.2.2(@types/node@22.13.10)(jiti@2.4.2)(less@4.2.2)(terser@5.17.6)(tsx@4.19.3)(yaml@2.7.0))(vue-tsc@3.0.0-alpha.2(typescript@5.8.2))(vue@3.5.13(typescript@5.8.2))
+        version: 2.14.5(@vueuse/core@13.0.0(vue@3.5.13(typescript@5.8.2)))(esbuild@0.19.12)(rollup@2.79.1)(typescript@5.8.2)(vite@6.2.2(@types/node@22.13.10)(jiti@2.4.2)(less@4.2.2)(terser@5.17.6)(tsx@4.19.3)(yaml@2.7.0))(vue-tsc@3.0.0-alpha.2(typescript@5.8.2))(vue@3.5.13(typescript@5.8.2))
       unplugin-vue-markdown:
         specifier: ^28.3.1
         version: 28.3.1(vite@6.2.2(@types/node@22.13.10)(jiti@2.4.2)(less@4.2.2)(terser@5.17.6)(tsx@4.19.3)(yaml@2.7.0))
@@ -1198,6 +1198,12 @@ importers:
       starlight-theme-catppuccin:
         specifier: ^2.0.0
         version: 2.0.0(@astrojs/starlight@0.32.3(astro@5.5.3(@types/node@22.13.10)(jiti@2.4.2)(less@4.2.2)(rollup@4.36.0)(terser@5.17.6)(tsx@4.19.3)(typescript@5.8.2)(yaml@2.7.0)))(astro@5.5.3(@types/node@22.13.10)(jiti@2.4.2)(less@4.2.2)(rollup@4.36.0)(terser@5.17.6)(tsx@4.19.3)(typescript@5.8.2)(yaml@2.7.0))
+
+  packages/ccc:
+    dependencies:
+      meta-png:
+        specifier: ^1.0.6
+        version: 1.0.6
 
   packages/drizzle-duckdb-wasm:
     dependencies:
@@ -5916,6 +5922,9 @@ packages:
   '@xsai-ext/shared-providers@0.1.3':
     resolution: {integrity: sha512-FJufVhv42KTApAsKoic4xvca2dGOguwbQKsSUSfX6wdpP2pydnCjSlGRBYKZ4+msSRx0y6krGYuNgR7mMn9kkQ==}
 
+  '@xsai-ext/shared-providers@0.2.0-beta.1':
+    resolution: {integrity: sha512-94v0JQTC2ivmTU9wrBPzE5IsL5FCZbEHDtKviLZBJ8wU0I0mRz8Llg+AcnqzUCrL9gZoHhWwNkqgI4xVabD7MA==}
+
   '@xsai/embed@0.1.3':
     resolution: {integrity: sha512-knhTsu1jiiVvXZeqeJFIBjMQDIBfS9gVe7ZuBU4jVnd+JbHle8/RUlOfzlZdHTcW0gFb5ekrJePa/HiTyAFRzQ==}
 
@@ -5938,8 +5947,14 @@ packages:
   '@xsai/shared-chat@0.1.3':
     resolution: {integrity: sha512-vRI7KUf3CUQNXJcNB/fOWIAEAuv48/VeOLQCmiRDbM8EQaWoR6alF4UDz4G5EAYOF4zbu2EngcsUxKqonSxylw==}
 
+  '@xsai/shared-chat@0.2.0-beta.1':
+    resolution: {integrity: sha512-4/HKIJygBo67GzsEa6H47CEHX9CThFJJsyIgJJdqCi7ajjrSnH7wnTtalgRDQxNWdNJwu+TAgfP+j7+1koOgxg==}
+
   '@xsai/shared@0.1.3':
     resolution: {integrity: sha512-PR4QJque+qQufl6YUE0NaH/hhhXIeIomzEuTtOJ1u8pDpdY7aiBJJtYWkwLT6x05nvwRAmDAsBa+c6jyJX8bdQ==}
+
+  '@xsai/shared@0.2.0-beta.1':
+    resolution: {integrity: sha512-GBFHnHeqyTT9bvCBb42nNBvCoLW8cd3+pTxfQqzur9FU/acIWfK2CWrGPHCICNXYVbRSCGzjFKrNmvbTjZUImQ==}
 
   '@xsai/stream-text@0.1.3':
     resolution: {integrity: sha512-NVV1hwS1TTf8T++M9ew0FTH1U08EFk5LymW2HEVMMVmdUHeKvYqkvOXwFicGYhZsMVRXZqA8b8A8usEHFMsBIg==}
@@ -9120,6 +9135,9 @@ packages:
 
   meshoptimizer@0.18.1:
     resolution: {integrity: sha512-ZhoIoL7TNV4s5B6+rx5mC//fw8/POGyNxS/DZyCJeiZ12ScLfVwRE/GfsxwiTkMYYD5DmK2/JXnEVXqL4rF+Sw==}
+
+  meta-png@1.0.6:
+    resolution: {integrity: sha512-eQtEi5E9axqwqA/sDK1dyhX9kYHCUe2m+45aQ3JHrozjGPs+/ab+hdhPp7A3GUNW+ZAbavrsg5xQ4r5jkGDX+A==}
 
   methods@1.1.2:
     resolution: {integrity: sha512-iclAHeNqNm68zFtnZ0e+1L2yUIdvzNoauKU4WBA3VvH/vPFieF7qfRlwUZU+DA9P9bPXIS90ulxoUoCH23sV2w==}
@@ -12334,6 +12352,23 @@ packages:
       '@valibot/to-json-schema':
         optional: true
       arktype:
+        optional: true
+      zod-to-json-schema:
+        optional: true
+
+  xsschema@0.2.0-beta.1:
+    resolution: {integrity: sha512-54jKWehz8z0jhPYhoDEA51gZe4xbBD3jJ+BWvyZMuQyUzUPUmsr/QMxIqie3o82vMrFFmzJ3vb5if4b5jHerhA==}
+    peerDependencies:
+      '@valibot/to-json-schema': ^1.0.0
+      arktype: ^2.1.10
+      effect: ^3.14.1
+      zod-to-json-schema: ^3.24.4
+    peerDependenciesMeta:
+      '@valibot/to-json-schema':
+        optional: true
+      arktype:
+        optional: true
+      effect:
         optional: true
       zod-to-json-schema:
         optional: true
@@ -17164,65 +17199,76 @@ snapshots:
 
   '@xsai-ext/providers-cloud@0.1.3':
     dependencies:
-      '@xsai-ext/shared-providers': 0.1.3
-      '@xsai/shared': 0.1.3
+      '@xsai-ext/shared-providers': 0.2.0-beta.1
+      '@xsai/shared': 0.2.0-beta.1
 
   '@xsai-ext/providers-local@0.1.3':
     dependencies:
-      '@xsai-ext/shared-providers': 0.1.3
-      '@xsai/shared': 0.1.3
+      '@xsai-ext/shared-providers': 0.2.0-beta.1
+      '@xsai/shared': 0.2.0-beta.1
 
   '@xsai-ext/shared-providers@0.1.3':
     dependencies:
-      '@xsai/shared': 0.1.3
+      '@xsai/shared': 0.2.0-beta.1
+
+  '@xsai-ext/shared-providers@0.2.0-beta.1':
+    dependencies:
+      '@xsai/shared': 0.2.0-beta.1
 
   '@xsai/embed@0.1.3':
     dependencies:
-      '@xsai/shared': 0.1.3
+      '@xsai/shared': 0.2.0-beta.1
 
   '@xsai/generate-speech@0.1.3':
     dependencies:
-      '@xsai/shared': 0.1.3
+      '@xsai/shared': 0.2.0-beta.1
 
   '@xsai/generate-text@0.1.3':
     dependencies:
-      '@xsai/shared-chat': 0.1.3
+      '@xsai/shared-chat': 0.2.0-beta.1
 
   '@xsai/generate-transcription@0.1.3':
     dependencies:
-      '@xsai/shared': 0.1.3
+      '@xsai/shared': 0.2.0-beta.1
 
   '@xsai/model@0.1.3':
     dependencies:
-      '@xsai/shared': 0.1.3
+      '@xsai/shared': 0.2.0-beta.1
 
   '@xsai/providers@0.1.0-beta.5':
     dependencies:
-      '@xsai/shared': 0.1.3
+      '@xsai/shared': 0.2.0-beta.1
 
   '@xsai/shared-chat@0.1.3':
     dependencies:
-      '@xsai/shared': 0.1.3
+      '@xsai/shared': 0.2.0-beta.1
+
+  '@xsai/shared-chat@0.2.0-beta.1':
+    dependencies:
+      '@xsai/shared': 0.2.0-beta.1
 
   '@xsai/shared@0.1.3': {}
 
+  '@xsai/shared@0.2.0-beta.1': {}
+
   '@xsai/stream-text@0.1.3':
     dependencies:
-      '@xsai/shared-chat': 0.1.3
+      '@xsai/shared-chat': 0.2.0-beta.1
 
   '@xsai/tool@0.1.3(@valibot/to-json-schema@1.0.0-rc.0(valibot@1.0.0-beta.9(typescript@5.8.2)))(zod-to-json-schema@3.24.4(zod@3.24.2))':
     dependencies:
-      '@xsai/shared': 0.1.3
-      '@xsai/shared-chat': 0.1.3
-      xsschema: 0.1.3(@valibot/to-json-schema@1.0.0-rc.0(valibot@1.0.0-beta.9(typescript@5.8.2)))(zod-to-json-schema@3.24.4(zod@3.24.2))
+      '@xsai/shared': 0.2.0-beta.1
+      '@xsai/shared-chat': 0.2.0-beta.1
+      xsschema: 0.2.0-beta.1(@valibot/to-json-schema@1.0.0-rc.0(valibot@1.0.0-beta.9(typescript@5.8.2)))(zod-to-json-schema@3.24.4(zod@3.24.2))
     transitivePeerDependencies:
       - '@valibot/to-json-schema'
       - arktype
+      - effect
       - zod-to-json-schema
 
   '@xsai/utils-chat@0.1.3':
     dependencies:
-      '@xsai/shared-chat': 0.1.3
+      '@xsai/shared-chat': 0.2.0-beta.1
 
   abbrev@1.1.1:
     optional: true
@@ -21296,6 +21342,8 @@ snapshots:
 
   meshoptimizer@0.18.1: {}
 
+  meta-png@1.0.6: {}
+
   methods@1.1.2: {}
 
   micromark-core-commonmark@2.0.2:
@@ -21903,6 +21951,7 @@ snapshots:
     transitivePeerDependencies:
       - '@valibot/to-json-schema'
       - arktype
+      - effect
       - zod-to-json-schema
 
   next-tick@1.1.0: {}
@@ -24531,9 +24580,9 @@ snapshots:
       '@nuxt/kit': 3.14.1592(magicast@0.3.5)(rollup@4.36.0)
       '@vueuse/core': 13.0.0(vue@3.5.13(typescript@5.8.2))
 
-  unplugin-combine@1.2.1(esbuild@0.25.0)(rollup@2.79.1)(unplugin@1.16.1)(vite@6.2.2(@types/node@22.13.10)(jiti@2.4.2)(less@4.2.2)(terser@5.17.6)(tsx@4.19.3)(yaml@2.7.0)):
+  unplugin-combine@1.2.1(esbuild@0.19.12)(rollup@2.79.1)(unplugin@1.16.1)(vite@6.2.2(@types/node@22.13.10)(jiti@2.4.2)(less@4.2.2)(terser@5.17.6)(tsx@4.19.3)(yaml@2.7.0)):
     optionalDependencies:
-      esbuild: 0.25.0
+      esbuild: 0.19.12
       rollup: 2.79.1
       unplugin: 1.16.1
       vite: 6.2.2(@types/node@22.13.10)(jiti@2.4.2)(less@4.2.2)(terser@5.17.6)(tsx@4.19.3)(yaml@2.7.0)
@@ -24592,7 +24641,7 @@ snapshots:
     transitivePeerDependencies:
       - vue
 
-  unplugin-vue-macros@2.14.5(@vueuse/core@13.0.0(vue@3.5.13(typescript@5.8.2)))(esbuild@0.25.0)(rollup@2.79.1)(typescript@5.8.2)(vite@6.2.2(@types/node@22.13.10)(jiti@2.4.2)(less@4.2.2)(terser@5.17.6)(tsx@4.19.3)(yaml@2.7.0))(vue-tsc@3.0.0-alpha.2(typescript@5.8.2))(vue@3.5.13(typescript@5.8.2)):
+  unplugin-vue-macros@2.14.5(@vueuse/core@13.0.0(vue@3.5.13(typescript@5.8.2)))(esbuild@0.19.12)(rollup@2.79.1)(typescript@5.8.2)(vite@6.2.2(@types/node@22.13.10)(jiti@2.4.2)(less@4.2.2)(terser@5.17.6)(tsx@4.19.3)(yaml@2.7.0))(vue-tsc@3.0.0-alpha.2(typescript@5.8.2))(vue@3.5.13(typescript@5.8.2)):
     dependencies:
       '@vue-macros/better-define': 1.11.4(vue@3.5.13(typescript@5.8.2))
       '@vue-macros/boolean-prop': 0.5.5(vue@3.5.13(typescript@5.8.2))
@@ -24624,7 +24673,7 @@ snapshots:
       '@vue-macros/short-vmodel': 1.5.5(vue@3.5.13(typescript@5.8.2))
       '@vue-macros/volar': 0.30.15(typescript@5.8.2)(vue-tsc@3.0.0-alpha.2(typescript@5.8.2))(vue@3.5.13(typescript@5.8.2))
       unplugin: 1.16.1
-      unplugin-combine: 1.2.1(esbuild@0.25.0)(rollup@2.79.1)(unplugin@1.16.1)(vite@6.2.2(@types/node@22.13.10)(jiti@2.4.2)(less@4.2.2)(terser@5.17.6)(tsx@4.19.3)(yaml@2.7.0))
+      unplugin-combine: 1.2.1(esbuild@0.19.12)(rollup@2.79.1)(unplugin@1.16.1)(vite@6.2.2(@types/node@22.13.10)(jiti@2.4.2)(less@4.2.2)(terser@5.17.6)(tsx@4.19.3)(yaml@2.7.0))
       unplugin-vue-define-options: 1.5.5(vue@3.5.13(typescript@5.8.2))
       vue: 3.5.13(typescript@5.8.2)
     transitivePeerDependencies:
@@ -25426,6 +25475,11 @@ snapshots:
   xmlhttprequest-ssl@2.1.2: {}
 
   xsschema@0.1.3(@valibot/to-json-schema@1.0.0-rc.0(valibot@1.0.0-beta.9(typescript@5.8.2)))(zod-to-json-schema@3.24.4(zod@3.24.2)):
+    optionalDependencies:
+      '@valibot/to-json-schema': 1.0.0-rc.0(valibot@1.0.0-beta.9(typescript@5.8.2))
+      zod-to-json-schema: 3.24.4(zod@3.24.2)
+
+  xsschema@0.2.0-beta.1(@valibot/to-json-schema@1.0.0-rc.0(valibot@1.0.0-beta.9(typescript@5.8.2)))(zod-to-json-schema@3.24.4(zod@3.24.2)):
     optionalDependencies:
       '@valibot/to-json-schema': 1.0.0-rc.0(valibot@1.0.0-beta.9(typescript@5.8.2))
       zod-to-json-schema: 3.24.4(zod@3.24.2)
