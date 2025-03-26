@@ -6,11 +6,14 @@ import { useRouter } from 'vue-router'
 import CheckBar from '../../../components/Settings/CheckBar.vue'
 import ColorPalette from '../../../components/Settings/ColorPalette.vue'
 import Section from '../../../components/Settings/Section.vue'
+import { useIconAnimation } from '../../../composables/useIconAnimation'
 import COLOR_PRESETS from './color-presets.json'
 
 const router = useRouter()
 const settings = useSettings()
 const dark = useDark()
+
+const { showIconAnimation, showAnimationComponent, animationIcon } = useIconAnimation('i-lucide:paintbrush')
 </script>
 
 <template>
@@ -142,9 +145,16 @@ const dark = useDark()
     />
   </Section>
 
-  <div text="neutral-200/50 dark:neutral-600/20" pointer-events-none fixed bottom-0 right-0 z--1 translate-x-10 translate-y-10>
-    <div text="40" i-lucide:paintbrush />
-  </div>
+  <IconAnimation
+    v-if="showAnimationComponent"
+    :duration="1000"
+    :started="showIconAnimation"
+    :is-reverse="true"
+    :icon="animationIcon"
+    :icon-size="12"
+    position="calc(100vw - 9.5rem), calc(100vh - 9.5rem)"
+    text-color="text-neutral-200/50 dark:text-neutral-600/20"
+  />
 </template>
 
 <style scoped>

@@ -8,6 +8,7 @@ import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 
 import Live2DSettings from '../../../components/Widgets/Live2DSettings.vue'
+import { useIconAnimation } from '../../../composables/useIconAnimation'
 
 const { t } = useI18n()
 const router = useRouter()
@@ -38,6 +39,12 @@ async function extractColorsFromModel() {
     URL.revokeObjectURL(frameUrl)
   }
 }
+
+const {
+  showIconAnimation,
+  showAnimationComponent,
+  animationIcon,
+} = useIconAnimation('i-lucide:person-standing')
 </script>
 
 <template>
@@ -68,9 +75,16 @@ async function extractColorsFromModel() {
     <Live2DSettings w="50%" h="80vh" :palette="palette" @extract-colors-from-model="extractColorsFromModel" />
   </div>
 
-  <div text="neutral-200/50 dark:neutral-600/20" pointer-events-none fixed bottom-0 right-0 z--1 translate-x-10 translate-y-10>
-    <div text="40" i-lucide:person-standing />
-  </div>
+  <IconAnimation
+    v-if="showAnimationComponent"
+    :icon="animationIcon"
+    :icon-size="12"
+    :duration="1000"
+    :started="showIconAnimation"
+    :is-reverse="true"
+    position="calc(100vw - 9.5rem), calc(100vh - 9.5rem)"
+    text-color="text-neutral-200/50 dark:text-neutral-600/20"
+  />
 </template>
 
 <route lang="yaml">
