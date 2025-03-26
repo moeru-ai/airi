@@ -26,6 +26,8 @@ export interface BotSelf {
   logger: Logg
   processing: boolean
   attentionHandler: ReturnType<typeof createAttentionHandler>
+  lastInteractedNChatIds: string[]
+  currentProcessingStartTime: number | null
 }
 
 export interface ContinueAction {
@@ -95,7 +97,7 @@ export interface SearchGoogleAction {
 
 export interface ReadMessagesAction {
   action: 'readMessages'
-  groupId: string
+  chatId: string
 }
 
 export type Action = ContinueAction | BreakAction | SleepAction | LookupShortTermMemoryAction | LookupLongTermMemoryAction | MemorizeShortMemoryAction | MemorizeLongMemoryAction | ForgetShortTermMemoryAction | ForgetLongTermMemoryAction | ListChatsAction | SendMessageAction | SearchGoogleAction | ReadMessagesAction

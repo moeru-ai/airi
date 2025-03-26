@@ -10,7 +10,13 @@ import { parse } from 'best-effort-json-parser'
 
 import { systemPrompt } from '../prompts/system-v1'
 
-export async function imagineAnAction(unreadMessages: Record<string, Message[]>, currentAbortController: AbortController, agentMessages: LLMMessage[]) {
+export async function imagineAnAction(
+  _botId: string,
+  unreadMessages: Record<string, Message[]>,
+  currentAbortController: AbortController,
+  agentMessages: LLMMessage[],
+  _lastInteractedNChatIds: string[],
+) {
   const logger = useLogg('imagineAnAction').useGlobalConfig()
 
   if (agentMessages == null) {
@@ -37,12 +43,12 @@ export async function imagineAnAction(unreadMessages: Record<string, Message[]>,
           example: { action: 'listChats' },
         },
         {
-          description: 'Send a message to a specific chat group. If you want to express anything to anyone or your friends in group, you can use this action.',
-          example: { action: 'sendMessage', content: '<content>', groupId: 'id of chat to send to' },
+          description: `Send a message to a specific chat group. If you want to express anything to anyone or your friends in group, you can use this action.${!!env.LLM_RESPONSE_LANGUAGE}` ? `The language of the sending message should be in ${env.LLM_RESPONSE_LANGUAGE}.` : '',
+          example: { action: 'sendMessage', content: '<content>', chatId: 'id of chat to send to', reply_to_message_id: 'id of message to reply to (Optional)' },
         },
         {
           description: 'Read unread messages from a specific chat group. If you want to read the unread messages from a specific chat group, you can use this action.',
-          example: { action: 'readMessages', groupId: 'id of chat to send to' },
+          example: { action: 'readMessages', chatId: 'id of chat to send to' },
         },
         {
           description: 'Continue the current task, which means to keep your current state unchanged, I\'ll ask you again in next tick.',
@@ -83,7 +89,9 @@ export async function imagineAnAction(unreadMessages: Record<string, Message[]>,
       + `${Object.entries(unreadMessages).map(([key, value]) => `ID:${key}, Unread message count:${value.length}`).join('\n')}`
       + '',
     ),
-    message.user('What do you want to do? Respond with the action and parameters you choose in JSON only, without any explanation and markups'),
+    message.user(''
+      + 'What do you want to do? Respond with the action and parameters you choose in JSON only, without any explanation and markups',
+    ),
   )
 
   const res = await generateText({

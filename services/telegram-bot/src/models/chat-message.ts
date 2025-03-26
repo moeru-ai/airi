@@ -1,12 +1,11 @@
 import type { EmbedResult } from '@xsai/embed'
 import type { SQL } from 'drizzle-orm'
-import type { Bot } from 'grammy'
 import type { Message, UserFromGetMe } from 'grammy/types'
 
 import { env } from 'node:process'
 import { useLogg } from '@guiiai/logg'
 import { embed } from '@xsai/embed'
-import { cosineDistance, desc, eq, sql } from 'drizzle-orm'
+import { and, cosineDistance, desc, eq, gt, lt, sql } from 'drizzle-orm'
 
 import { useDrizzle } from '../db'
 import { chatMessagesTable } from '../db/schema'
@@ -45,11 +44,13 @@ export async function recordMessage(botInfo: UserFromGetMe, message: Message) {
   const values: Partial<Omit<typeof chatMessagesTable.$inferSelect, 'id' | 'created_at' | 'updated_at'>> = {
     platform: 'telegram',
     from_id: message.from.id.toString(),
+    platform_message_id: message.message_id.toString(),
     from_name: message.from.first_name,
     in_chat_id: message.chat.id.toString(),
     content: text,
     is_reply: !!message.reply_to_message,
     reply_to_name: replyToName === botInfo.first_name ? 'Yourself' : replyToName,
+    reply_to_id: message.reply_to_message?.message_id.toString() || '',
   }
 
   switch (env.EMBEDDING_DIMENSION) {
@@ -82,10 +83,10 @@ export async function findLastNMessages(chatId: string, n: number) {
   return res.reverse()
 }
 
-export async function findRelevantMessages(bot: Bot, unreadHistoryMessagesEmbedding: { embedding: number[], message: Message }[]) {
+export async function findRelevantMessages(botId: string, chatId: string, unreadHistoryMessagesEmbedding: { embedding: number[] }[]) {
   const db = useDrizzle()
   const contextWindowSize = 5 // Number of messages to include before and after
-  const logger = useLogg('findRelevantMessages').useGlobalConfig()
+  const logger = useLogg('findRelevantMessages').useGlobalConfig().withField('chatId', chatId)
 
   logger.withField('context_window_size', contextWindowSize).log('Querying relevant chat messages...')
 
@@ -114,12 +115,14 @@ export async function findRelevantMessages(bot: Bot, unreadHistoryMessagesEmbedd
       .select({
         id: chatMessagesTable.id,
         platform: chatMessagesTable.platform,
+        platform_message_id: chatMessagesTable.platform_message_id,
         from_id: chatMessagesTable.from_id,
         from_name: chatMessagesTable.from_name,
         in_chat_id: chatMessagesTable.in_chat_id,
         content: chatMessagesTable.content,
         is_reply: chatMessagesTable.is_reply,
         reply_to_name: chatMessagesTable.reply_to_name,
+        reply_to_id: chatMessagesTable.reply_to_id,
         created_at: chatMessagesTable.created_at,
         updated_at: chatMessagesTable.updated_at,
         similarity: sql`${similarity} AS "similarity"`,
@@ -127,31 +130,41 @@ export async function findRelevantMessages(bot: Bot, unreadHistoryMessagesEmbedd
         combined_score: sql`${combinedScore} AS "combined_score"`,
       })
       .from(chatMessagesTable)
-      .where(sql`${similarity} > '0.5' AND ${chatMessagesTable.in_chat_id} = ${embedding.message.chat.id} AND ${chatMessagesTable.platform} = 'telegram'`)
+      .where(and(
+        eq(chatMessagesTable.platform, 'telegram'),
+        eq(chatMessagesTable.in_chat_id, chatId),
+        gt(similarity, 0.5),
+      ))
       .orderBy(desc(sql`combined_score`))
       .limit(3)
 
     logger.withField('number_of_relevant_messages', relevantMessages.length).log('Successfully found relevant chat messages')
 
     // Now fetch the context for each message
-    return await Promise.all(
+    const relevantMessageOneliner = await Promise.all(
       relevantMessages.map(async (message) => {
         // Get N messages before the target message
         const messagesBefore = await db
           .select({
             id: chatMessagesTable.id,
             platform: chatMessagesTable.platform,
+            platform_message_id: chatMessagesTable.platform_message_id,
             from_id: chatMessagesTable.from_id,
             from_name: chatMessagesTable.from_name,
             in_chat_id: chatMessagesTable.in_chat_id,
             content: chatMessagesTable.content,
             is_reply: chatMessagesTable.is_reply,
             reply_to_name: chatMessagesTable.reply_to_name,
+            reply_to_id: chatMessagesTable.reply_to_id,
             created_at: chatMessagesTable.created_at,
             updated_at: chatMessagesTable.updated_at,
           })
           .from(chatMessagesTable)
-          .where(sql`${chatMessagesTable.in_chat_id} = ${message.in_chat_id} AND ${chatMessagesTable.created_at} < ${message.created_at} AND ${chatMessagesTable.platform} = 'telegram'`)
+          .where(and(
+            eq(chatMessagesTable.platform, 'telegram'),
+            eq(chatMessagesTable.in_chat_id, message.in_chat_id),
+            lt(chatMessagesTable.created_at, message.created_at),
+          ))
           .orderBy(desc(chatMessagesTable.created_at))
           .limit(contextWindowSize)
 
@@ -160,17 +173,23 @@ export async function findRelevantMessages(bot: Bot, unreadHistoryMessagesEmbedd
           .select({
             id: chatMessagesTable.id,
             platform: chatMessagesTable.platform,
+            platform_message_id: chatMessagesTable.platform_message_id,
             from_id: chatMessagesTable.from_id,
             from_name: chatMessagesTable.from_name,
             in_chat_id: chatMessagesTable.in_chat_id,
             content: chatMessagesTable.content,
             is_reply: chatMessagesTable.is_reply,
             reply_to_name: chatMessagesTable.reply_to_name,
+            reply_to_id: chatMessagesTable.reply_to_id,
             created_at: chatMessagesTable.created_at,
             updated_at: chatMessagesTable.updated_at,
           })
           .from(chatMessagesTable)
-          .where(sql`${chatMessagesTable.in_chat_id} = ${message.in_chat_id} AND ${chatMessagesTable.created_at} > ${message.created_at} AND ${chatMessagesTable.platform} = 'telegram'`)
+          .where(and(
+            eq(chatMessagesTable.platform, 'telegram'),
+            eq(chatMessagesTable.in_chat_id, message.in_chat_id),
+            gt(chatMessagesTable.created_at, message.created_at),
+          ))
           .orderBy(chatMessagesTable.created_at)
           .limit(contextWindowSize)
 
@@ -181,11 +200,13 @@ export async function findRelevantMessages(bot: Bot, unreadHistoryMessagesEmbedd
           ...messagesAfter,
         ]
 
-        logger.withField('number_of_context_messages', contextMessages.length).log('Combined context messages')
-
-        const contextMessagesOneliner = (await Promise.all(contextMessages.map(m => chatMessageToOneLine(bot, m))))
+        const contextMessagesOneliner = (await Promise.all(contextMessages.map(m => chatMessageToOneLine(botId, m))))
         return `One of the relevant message along with the context:\n${contextMessagesOneliner}`
       }),
     )
+
+    logger.withField('number_of_relevant_messages', relevantMessages.length).log('processed relevant chat messages with contextual messages')
+
+    return relevantMessageOneliner
   }))
 }

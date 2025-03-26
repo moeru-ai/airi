@@ -19,7 +19,7 @@ CREATE TABLE "chat_messages" (
 CREATE TABLE "joined_chats" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"platform" text DEFAULT '' NOT NULL,
-	"chat_id" text DEFAULT '' NOT NULL,
+	"chat_id" text DEFAULT '' UNIQUE NOT NULL,
 	"chat_name" text DEFAULT '' NOT NULL,
 	"created_at" bigint DEFAULT 0 NOT NULL,
 	"updated_at" bigint DEFAULT 0 NOT NULL

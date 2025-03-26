@@ -14,6 +14,8 @@ import { sendMayStructuredMessage } from '../utils/message'
 
 export async function readMessage(
   state: BotSelf,
+  botId: string,
+  chatId: string,
   action: ReadMessagesAction,
   unreadMessages: Message[],
   abortController: AbortController,
@@ -23,8 +25,8 @@ export async function readMessage(
   }> {
   const logger = useLogg('readMessage').useGlobalConfig()
 
-  const lastNMessages = await findLastNMessages(action.groupId, 30)
-  const lastNMessagesOneliner = lastNMessages.map(msg => chatMessageToOneLine(state.bot, msg)).join('\n')
+  const lastNMessages = await findLastNMessages(action.chatId, 30)
+  const lastNMessagesOneliner = lastNMessages.map(msg => chatMessageToOneLine(botId, msg)).join('\n')
 
   logger.withField('number_of_last_n_messages', lastNMessages.length).log('Successfully found last N messages')
 
@@ -39,21 +41,18 @@ export async function readMessage(
         abortSignal: abortController.signal,
       })
 
-      return {
-        embedding: embeddingResult.embedding,
-        message: msg,
-      }
+      return embeddingResult
     })
 
   const unreadHistoryMessagesEmbedding = await Promise.all(unreadMessagesEmbeddingPromises)
 
   logger.withField('number_of_tasks', unreadMessagesEmbeddingPromises.length).log('Successfully embedded unread history messages')
 
-  const unreadHistoryMessages = await Promise.all(state.unreadMessages[action.groupId].map(msg => telegramMessageToOneLine(state.bot, msg)))
+  const unreadHistoryMessages = await Promise.all(state.unreadMessages[action.chatId].map(msg => telegramMessageToOneLine(botId, msg)))
   const unreadHistoryMessageOneliner = unreadHistoryMessages.join('\n')
-  state.unreadMessages[action.groupId] = []
+  state.unreadMessages[action.chatId] = []
 
-  const relevantChatMessages = await findRelevantMessages(state.bot, unreadHistoryMessagesEmbedding)
+  const relevantChatMessages = await findRelevantMessages(botId, chatId, unreadHistoryMessagesEmbedding)
   const relevantChatMessagesOneliner = (await Promise.all(relevantChatMessages.map(async msgs => msgs.join('\n')))).join('\n')
 
   logger.withField('number_of_relevant_chat_messages', relevantChatMessages.length).log('Successfully composed relevant chat messages')
@@ -73,10 +72,16 @@ export async function readMessage(
       + 'All the messages you requested to read:\n'
       + `${unreadHistoryMessageOneliner || 'No messages'}`
       + '\n'
-      + 'Based on your personalities, imaging you have your own choice and interest over the world, '
+      + 'Based on your personalities, imaging you have your own choice and interest over different topics, '
       + 'giving the above context and chat history, would you like to participate in the conversation '
       + 'about the topic? Or will you aggressively diss or piss off about the opinions of others?\n'
-      + 'Feel free to ignore by just sending an empty array (i.e. []).'
+      + 'Feel free to ignore by just sending an empty array within a object with key "messages" (i.e.'
+      + '{ "messages": [] }).'
+      + 'If you would like to participate, send me an array of messages (i.e. { "messages": [] }) you would '
+      + 'like to send without telling you willing to participate.'
+      + 'If you would like to reply to any of the message, send me an array of messages (i.e. { "messages":'
+      + '["message content"], "reply_to_message_id": "1234567890" }) with the message id of the message you '
+      + 'want to reply to.'
       + '\n'
       + 'Choose your action.',
     ),
@@ -102,6 +107,6 @@ export async function readMessage(
 
   logger.withField('response', JSON.stringify(response.text)).log('Successfully generated response')
 
-  await sendMayStructuredMessage(state, response.text, action.groupId.toString())
+  await sendMayStructuredMessage(state, response.text, action.chatId.toString())
   return { break: true }
 }
