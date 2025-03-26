@@ -19,5 +19,11 @@ export async function recordJoinedChat(chatId: string, chatName: string) {
       chat_id: chatId,
       chat_name: chatName,
     })
-    .onConflictDoNothing()
+    .onConflictDoUpdate({
+      target: joinedChatsTable.chat_id,
+      set: {
+        chat_name: chatName,
+        updated_at: Date.now(),
+      },
+    })
 }
