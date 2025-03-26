@@ -15,6 +15,13 @@
       "when": 1742736839659,
       "tag": "0001_next_talkback",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1742980513463,
+      "tag": "0002_calm_magdalene",
+      "breakpoints": true
     }
   ]
 }

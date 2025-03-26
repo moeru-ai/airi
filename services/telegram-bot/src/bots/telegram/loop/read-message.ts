@@ -72,11 +72,16 @@ export async function readMessage(
       + 'All the messages you requested to read:\n'
       + `${unreadHistoryMessageOneliner || 'No messages'}`
       + '\n'
-      + 'Based on your personalities, imaging you have your own choice and interest over different, '
+      + 'Based on your personalities, imaging you have your own choice and interest over different topics, '
       + 'giving the above context and chat history, would you like to participate in the conversation '
       + 'about the topic? Or will you aggressively diss or piss off about the opinions of others?\n'
-      + 'Feel free to ignore by just sending an empty array (i.e. []).'
-      + 'If you would like to participate, send me an array of messages you would like to send without telling you willing to participate.'
+      + 'Feel free to ignore by just sending an empty array within a object with key "messages" (i.e.'
+      + '{ "messages": [] }).'
+      + 'If you would like to participate, send me an array of messages (i.e. { "messages": [] }) you would '
+      + 'like to send without telling you willing to participate.'
+      + 'If you would like to reply to any of the message, send me an array of messages (i.e. { "messages":'
+      + '["message content"], "reply_to_message_id": "1234567890" }) with the message id of the message you '
+      + 'want to reply to.'
       + '\n'
       + 'Choose your action.',
     ),

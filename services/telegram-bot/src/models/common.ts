@@ -12,10 +12,10 @@ export function chatMessageToOneLine(botId: string, message: Omit<typeof chatMes
   }
 
   if (message.is_reply) {
-    return `${new Date(message.created_at).toLocaleString()} ${userDisplayName} replied to ${message.reply_to_name} in same group said: ${message.content}`
+    return `Message ID: ${message.platform_message_id || 'Unknown'} sent on ${new Date(message.created_at).toLocaleString()} ${userDisplayName} replied to ${message.reply_to_name} with id ${message.reply_to_id} in same group said: ${message.content}`
   }
 
-  return `${new Date(message.created_at).toLocaleString()} ${userDisplayName} sent in same group said: ${message.content}`
+  return `Message ID: ${message.platform_message_id || 'Unknown'} sent on ${new Date(message.created_at).toLocaleString()} ${userDisplayName} sent in same group said: ${message.content}`
 }
 
 export async function telegramMessageToOneLine(botId: string, message: Message) {
@@ -23,6 +23,7 @@ export async function telegramMessageToOneLine(botId: string, message: Message) 
     return ''
   }
 
+  const sentOn = new Date(message.date * 1000).toLocaleString()
   let userDisplayName = `User [${message.from.first_name} ${message.from.last_name} (${message.from.username})]`
   if (botId === message.from.id.toString()) {
     userDisplayName = 'Yourself'
@@ -30,20 +31,20 @@ export async function telegramMessageToOneLine(botId: string, message: Message) 
 
   if (message.sticker != null) {
     const description = await findStickerDescription(message.sticker.file_id)
-    return `${new Date(message.date * 1000).toLocaleString()} ${userDisplayName} sent in Group [${message.chat.title}] a sticker, and description of the sticker is ${description}`
+    return `Message ID: ${message.message_id || 'Unknown'} sent on ${sentOn} ${userDisplayName} sent in Group [${message.chat.title}] a sticker, and description of the sticker is ${description}`
   }
   if (message.photo != null) {
     const description = await findPhotoDescription(message.photo[0].file_id)
-    return `${new Date(message.date * 1000).toLocaleString()} ${userDisplayName} sent in Group [${message.chat.title}] a photo, and description of the photo is ${description}`
+    return `Message ID: ${message.message_id || 'Unknown'} sent on ${sentOn} ${userDisplayName} sent in Group [${message.chat.title}] a photo, and description of the photo is ${description}`
   }
   if (message.reply_to_message != null) {
     if (botId === message.reply_to_message.from.id.toString()) {
-      return `${new Date(message.date * 1000).toLocaleString()} ${userDisplayName} replied to your previous message ${message.reply_to_message.text || message.caption} in Group [${message.chat.title}] said: ${message.text}`
+      return `Message ID: ${message.message_id || 'Unknown'} sent on ${sentOn} ${userDisplayName} replied to your previous message ${message.reply_to_message.text || message.caption} in Group [${message.chat.title}] said: ${message.text}`
     }
     else {
-      return `${new Date(message.date * 1000).toLocaleString()} ${userDisplayName} replied to User [${message.reply_to_message.from.first_name} ${message.reply_to_message.from.last_name} (${message.reply_to_message.from.username})] in Group [${message.chat.title}] said: ${message.text}`
+      return `Message ID: ${message.message_id || 'Unknown'} sent on ${sentOn} ${userDisplayName} replied to User [${message.reply_to_message.from.first_name} ${message.reply_to_message.from.last_name} (${message.reply_to_message.from.username})] in Group [${message.chat.title}] said: ${message.text}`
     }
   }
 
-  return `${new Date(message.date * 1000).toLocaleString()} ${userDisplayName} sent in Group [${message.chat.title}] said: ${message.text}`
+  return `Message ID: ${message.message_id || 'Unknown'} sent on ${sentOn} ${userDisplayName} sent in Group [${message.chat.title}] said: ${message.text}`
 }

@@ -12,23 +12,15 @@ import { cancellable, sleep } from '../../../utils/promise'
 export function parseMayStructuredMessage(responseText: string) {
   const logger = useLogg('parseMayStructuredMessage').useGlobalConfig()
 
-  // If we get here, the task wasn't cancelled, so we can send the response
-  // eslint-disable-next-line regexp/no-unused-capturing-group, regexp/no-super-linear-backtracking, regexp/confusing-quantifier
-  if (/\[(\s*.*)+\]/u.test(responseText)) {
-    // eslint-disable-next-line regexp/no-super-linear-backtracking, regexp/confusing-quantifier, regexp/no-unused-capturing-group
-    const result = /\[(\s*.*)+\]/u.exec(responseText)
-    logger.withField('text', JSON.stringify(responseText)).withField('result', result?.[0]).log('Multiple messages detected')
+  // eslint-disable-next-line regexp/no-super-linear-backtracking, regexp/optimal-quantifier-concatenation
+  const result = /^\{(("?)*.*\s*)*\}$/u.exec(responseText)
+  if (result) {
+    logger.withField('text', JSON.stringify(responseText)).withField('result', result).log('Multiple messages detected')
 
-    const array = parse(result?.[0]) as string[]
-    if (array == null || !Array.isArray(array) || array.length === 0) {
-      logger.withField('text', JSON.stringify(responseText)).withField('result', result?.[0]).log('No messages to send')
-      return
-    }
-
-    return array.filter(Boolean)
+    return parse(result?.[0]) as ({ messages?: string[], reply_to_message_id?: string } | undefined)
   }
 
-  return [responseText]
+  return { messages: [responseText], reply_to_message_id: undefined }
 }
 
 export async function sendMayStructuredMessage(
@@ -59,24 +51,34 @@ export async function sendMayStructuredMessage(
     return // Don't send the message, let the next processing loop handle it
   }
 
-  const array = parseMayStructuredMessage(responseText)
-  if (array == null) {
+  const structuredMessage = parseMayStructuredMessage(responseText)
+  if (structuredMessage == null) {
     state.logger.log(`Not sending message to ${chatId} - no messages to send`)
     return
   }
 
-  state.logger.withField('texts', array).log('Sending messages')
+  state.logger.withField('texts', structuredMessage).log('Sending messages')
 
   // If we get here, the task wasn't cancelled, so we can send the response
-  for (const item of array) {
+  for (let i = 0; i < structuredMessage.messages.length; i++) {
+    const item = structuredMessage.messages[i]
+
     // Create cancellable typing and reply tasks
     await state.bot.api.sendChatAction(chatId, 'typing')
-    await sleep(item.length * 200)
+    await sleep(item.length * 50)
 
     const replyTask = cancellable((async (): Promise<Message.TextMessage> => {
       try {
-        const sentResult = await state.bot.api.sendMessage(chatId, item)
-        return sentResult
+        const validReplyToMessageId = structuredMessage.reply_to_message_id ? Number.parseInt(structuredMessage.reply_to_message_id) : undefined
+
+        if (i === 0 && validReplyToMessageId && !Number.isNaN(validReplyToMessageId)) {
+          const sentResult = await state.bot.api.sendMessage(chatId, item, { reply_parameters: { message_id: validReplyToMessageId } })
+          return sentResult
+        }
+        else {
+          const sentResult = await state.bot.api.sendMessage(chatId, item)
+          return sentResult
+        }
       }
       catch (err) {
         state.logger.withError(err).log('Failed to send message')

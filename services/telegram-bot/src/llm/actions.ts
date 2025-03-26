@@ -4,62 +4,24 @@ import type { Action } from '../types'
 
 import { env } from 'node:process'
 import { useLogg } from '@guiiai/logg'
-import { embed } from '@xsai/embed'
 import { generateText } from '@xsai/generate-text'
 import { message } from '@xsai/utils-chat'
 import { parse } from 'best-effort-json-parser'
 
-import { chatMessageToOneLine, findLastNMessages, findRelevantMessages } from '../models'
 import { systemPrompt } from '../prompts/system-v1'
-import { div, ul } from '../prompts/utils'
 
 export async function imagineAnAction(
-  botId: string,
+  _botId: string,
   unreadMessages: Record<string, Message[]>,
   currentAbortController: AbortController,
   agentMessages: LLMMessage[],
-  lastInteractedNChatIds: string[],
+  _lastInteractedNChatIds: string[],
 ) {
   const logger = useLogg('imagineAnAction').useGlobalConfig()
 
   if (agentMessages == null) {
     agentMessages = []
   }
-
-  lastInteractedNChatIds.map(async (chatId) => {
-    const lastNMessages = await findLastNMessages(chatId, 15)
-    const lastNMessagesOneliner = lastNMessages.map(msg => chatMessageToOneLine(botId, msg))
-
-    const lastNMessagesEmbeddingPromises = lastNMessages
-      .map(async (msg) => {
-        const embeddingResult = await embed({
-          baseURL: env.EMBEDDING_API_BASE_URL!,
-          apiKey: env.EMBEDDING_API_KEY!,
-          model: env.EMBEDDING_MODEL!,
-          input: chatMessageToOneLine(botId, msg),
-          abortSignal: currentAbortController.signal,
-        })
-
-        return {
-          embedding: embeddingResult.embedding,
-          message: msg,
-        }
-      })
-
-    const lastNMessagesEmbedding = await Promise.all(lastNMessagesEmbeddingPromises)
-    const relevantChatMessages = await findRelevantMessages(botId, chatId, lastNMessagesEmbedding)
-    const relevantChatMessagesOneliner = await Promise.all(relevantChatMessages.map(async msgs => msgs.join('\n')))
-
-    return message.user(
-      div(
-        'Here are a brief list of the recent interacted chat ids\' message review',
-        `Last 15 messages in chat ${chatId}:`,
-        ul(...lastNMessagesOneliner),
-        `Relevant messages in chat ${chatId}:`,
-        ul(...relevantChatMessagesOneliner),
-      ),
-    )
-  })
 
   agentMessages.push(
     message.system(''
@@ -82,7 +44,7 @@ export async function imagineAnAction(
         },
         {
           description: `Send a message to a specific chat group. If you want to express anything to anyone or your friends in group, you can use this action.${!!env.LLM_RESPONSE_LANGUAGE}` ? `The language of the sending message should be in ${env.LLM_RESPONSE_LANGUAGE}.` : '',
-          example: { action: 'sendMessage', content: '<content>', chatId: 'id of chat to send to' },
+          example: { action: 'sendMessage', content: '<content>', chatId: 'id of chat to send to', reply_to_message_id: 'id of message to reply to (Optional)' },
         },
         {
           description: 'Read unread messages from a specific chat group. If you want to read the unread messages from a specific chat group, you can use this action.',

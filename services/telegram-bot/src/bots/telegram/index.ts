@@ -225,7 +225,17 @@ async function processMessageQueue(state: BotSelf) {
       }
 
       if (nextMsg.status === 'ready') {
-        await recordJoinedChat(nextMsg.message.chat.id.toString(), nextMsg.message.chat.title)
+        switch (nextMsg.message.chat.type) {
+          case 'private':
+            await recordJoinedChat(nextMsg.message.chat.id.toString(), `${nextMsg.message.from.first_name} ${nextMsg.message.from.last_name}`)
+            break
+          case 'channel':
+          case 'group':
+          case 'supergroup':
+            await recordJoinedChat(nextMsg.message.chat.id.toString(), nextMsg.message.chat.title)
+            break
+        }
+
         await recordMessage(state.bot.botInfo, nextMsg.message)
 
         let unreadMessagesForThisChat = state.unreadMessages[nextMsg.message.chat.id]
@@ -250,7 +260,7 @@ async function processMessageQueue(state: BotSelf) {
         state.logger.withField('chatId', nextMsg.message.chat.id).log('message queue processed, triggering immediate reaction')
 
         // Trigger immediate processing when messages are ready
-        await handleLoop(state, [], nextMsg.message.chat.id.toString())
+        handleLoop(state, [], nextMsg.message.chat.id.toString())
         state.messageQueue.shift()
       }
     }

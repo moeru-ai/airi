@@ -44,11 +44,13 @@ export async function recordMessage(botInfo: UserFromGetMe, message: Message) {
   const values: Partial<Omit<typeof chatMessagesTable.$inferSelect, 'id' | 'created_at' | 'updated_at'>> = {
     platform: 'telegram',
     from_id: message.from.id.toString(),
+    platform_message_id: message.message_id.toString(),
     from_name: message.from.first_name,
     in_chat_id: message.chat.id.toString(),
     content: text,
     is_reply: !!message.reply_to_message,
     reply_to_name: replyToName === botInfo.first_name ? 'Yourself' : replyToName,
+    reply_to_id: message.reply_to_message?.message_id.toString() || '',
   }
 
   switch (env.EMBEDDING_DIMENSION) {
@@ -113,12 +115,14 @@ export async function findRelevantMessages(botId: string, chatId: string, unread
       .select({
         id: chatMessagesTable.id,
         platform: chatMessagesTable.platform,
+        platform_message_id: chatMessagesTable.platform_message_id,
         from_id: chatMessagesTable.from_id,
         from_name: chatMessagesTable.from_name,
         in_chat_id: chatMessagesTable.in_chat_id,
         content: chatMessagesTable.content,
         is_reply: chatMessagesTable.is_reply,
         reply_to_name: chatMessagesTable.reply_to_name,
+        reply_to_id: chatMessagesTable.reply_to_id,
         created_at: chatMessagesTable.created_at,
         updated_at: chatMessagesTable.updated_at,
         similarity: sql`${similarity} AS "similarity"`,
@@ -144,12 +148,14 @@ export async function findRelevantMessages(botId: string, chatId: string, unread
           .select({
             id: chatMessagesTable.id,
             platform: chatMessagesTable.platform,
+            platform_message_id: chatMessagesTable.platform_message_id,
             from_id: chatMessagesTable.from_id,
             from_name: chatMessagesTable.from_name,
             in_chat_id: chatMessagesTable.in_chat_id,
             content: chatMessagesTable.content,
             is_reply: chatMessagesTable.is_reply,
             reply_to_name: chatMessagesTable.reply_to_name,
+            reply_to_id: chatMessagesTable.reply_to_id,
             created_at: chatMessagesTable.created_at,
             updated_at: chatMessagesTable.updated_at,
           })
@@ -167,12 +173,14 @@ export async function findRelevantMessages(botId: string, chatId: string, unread
           .select({
             id: chatMessagesTable.id,
             platform: chatMessagesTable.platform,
+            platform_message_id: chatMessagesTable.platform_message_id,
             from_id: chatMessagesTable.from_id,
             from_name: chatMessagesTable.from_name,
             in_chat_id: chatMessagesTable.in_chat_id,
             content: chatMessagesTable.content,
             is_reply: chatMessagesTable.is_reply,
             reply_to_name: chatMessagesTable.reply_to_name,
+            reply_to_id: chatMessagesTable.reply_to_id,
             created_at: chatMessagesTable.created_at,
             updated_at: chatMessagesTable.updated_at,
           })
