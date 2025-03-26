@@ -27,11 +27,32 @@ export interface CharacterCardV2 {
 }
 
 export interface AiriCard extends Card {
-  models?: {
-    consciousness?: string // Example: "gpt-4o"
-    voice?: string // Example: "alloy"
-    vrm?: string // Example: "vrm"
-    live2d?: string // Example: "live2d"
+  modules?: {
+    consciousness?: {
+      model?: string // Example: "gpt-4o"
+    }
+
+    speech?: {
+      model?: string // Example: "eleven_multilingual_v2"
+      voice_id?: string // Example: "alloy"
+
+      pitch?: number
+      rate?: number
+      ssml?: boolean
+      language?: string
+    }
+
+    vrm?: {
+      source?: 'file' | 'url'
+      file?: string // Example: "vrm/model.vrm"
+      url?: string // Example: "https://example.com/vrm/model.vrm"
+    }
+
+    live2d?: {
+      source?: 'file' | 'url'
+      file?: string // Example: "live2d/model.json"
+      url?: string // Example: "https://example.com/live2d/model.json"
+    }
   }
 
   agents?: {

@@ -79,7 +79,7 @@ function handleCardUpdate(updatedCard: AiriCard) {
     {{ t('settings.pages.card.select_to_edit') || 'Select a card to edit' }}
   </div>
 
-  <div v-else class="flex flex-col gap-6">
+  <div v-else class="w-full flex flex-col gap-6">
     <!-- Header with sticky save button -->
     <div flex="~ row" items-center justify-between>
       <div flex="~ row" items-center gap-3>
@@ -99,7 +99,7 @@ function handleCardUpdate(updatedCard: AiriCard) {
       </button>
     </div>
 
-    <div flex="~ col" mx-auto max-w-4xl w-full gap-6 pb-6>
+    <div flex="~ col" mx-auto max-w-4xl w-full gap-6 p-4>
       <CardBasicInfo :card="editingCard" />
 
       <CardPromptEditor :card="editingCard" />

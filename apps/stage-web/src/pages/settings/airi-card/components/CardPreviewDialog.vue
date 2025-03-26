@@ -2,25 +2,22 @@
 import type { AiriCard } from '@proj-airi/stage-ui/stores'
 
 import { Collapsable } from '@proj-airi/stage-ui/components'
-import { useAiriCardStore } from '@proj-airi/stage-ui/stores'
 import { useI18n } from 'vue-i18n'
 
 import { highlightPlaceholders } from '../utils/card-parser'
 
-// Props
-const props = defineProps<{
+defineProps<{
   isOpen: boolean
   cardId: string | null
   card: AiriCard | null
   isActive: boolean
 }>()
-// Emits
+
 const emit = defineEmits<{
   close: []
   activate: []
 }>()
 const { t } = useI18n()
-const cardStore = useAiriCardStore()
 
 function closeDialog() {
   emit('close')

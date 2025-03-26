@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import type { AiriCard } from '@proj-airi/stage-ui/stores'
 
-import { useAiriCardStore } from '@proj-airi/stage-ui/stores'
+import { useAiriCardStore, useConsciousnessStore, useSpeechStore } from '@proj-airi/stage-ui/stores'
 import { storeToRefs } from 'pinia'
-import { computed, reactive } from 'vue'
+import { computed, reactive, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 
@@ -80,6 +80,28 @@ const editingCard = reactive({
 function isActiveCard(id: string): boolean {
   return !!activeCard.value && cards.value.has(id) && cards.value.get(id) === activeCard.value
 }
+
+const consciousnessStore = useConsciousnessStore()
+const speechStore = useSpeechStore()
+
+const {
+  activeModel: activeConsciousnessModel,
+} = storeToRefs(consciousnessStore)
+const {
+  activeSpeechModel,
+  activeSpeechVoiceId,
+} = storeToRefs(speechStore)
+watch(activeCard, (newCard: AiriCard | undefined) => {
+  if (!newCard)
+    return
+
+  // TODO: live2d, vrm
+  // TODO: Minecraft Agent, etc
+
+  activeConsciousnessModel.value = newCard?.models?.consciousness
+  activeSpeechModel.value = newCard?.models?.voice
+  activeSpeechVoiceId.value = newCard?.models?.voice
+})
 </script>
 
 <template>
