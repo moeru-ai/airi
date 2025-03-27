@@ -1,14 +1,23 @@
 <script setup lang="ts">
 import { IconStatusItem } from '@proj-airi/stage-ui/components'
-import { useProvidersStore } from '@proj-airi/stage-ui/stores'
+import { useProvidersStore, useSettings } from '@proj-airi/stage-ui/stores'
 import { storeToRefs } from 'pinia'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
+
+import { useIconAnimation } from '../../../composables/useIconAnimation'
 
 const { t } = useI18n()
 const router = useRouter()
 const providersStore = useProvidersStore()
 const { allProvidersMetadata } = storeToRefs(providersStore)
+const settingsStore = useSettings()
+
+const {
+  iconAnimationStarted,
+  showIconAnimation,
+  animationIcon,
+} = useIconAnimation('i-lucide:brain')
 </script>
 
 <template>
@@ -50,7 +59,18 @@ const { allProvidersMetadata } = storeToRefs(providersStore)
       :configured="provider.configured"
     />
   </div>
-  <div text="neutral-200/50 dark:neutral-600/20" pointer-events-none fixed bottom-0 right-0 z--1 translate-x-10 translate-y-10>
+  <IconAnimation
+    v-if="showIconAnimation"
+    :z-index="-1"
+    :icon="animationIcon"
+    :icon-size="12"
+    :duration="1000"
+    :started="iconAnimationStarted"
+    :is-reverse="true"
+    position="calc(100dvw - 9.5rem), calc(100dvh - 9.5rem)"
+    text-color="text-neutral-200/50 dark:text-neutral-600/20"
+  />
+  <div v-if="!settingsStore.usePageSpecificTransitions" text="neutral-200/50 dark:neutral-500/20" pointer-events-none fixed bottom-0 right-0 z--1 translate-x-10 translate-y-10>
     <div text="40" i-lucide:brain />
   </div>
 </template>
@@ -59,4 +79,5 @@ const { allProvidersMetadata } = storeToRefs(providersStore)
 meta:
   stageTransition:
     name: slide
+    pageSpecificAvailable: true
 </route>

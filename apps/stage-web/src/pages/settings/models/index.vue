@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import Live2DCanvas from '@proj-airi/stage-ui/components/Live2D/Canvas.vue'
 import Live2DModel from '@proj-airi/stage-ui/components/Live2D/Model.vue'
+import { useSettings } from '@proj-airi/stage-ui/stores'
 import { useElementBounding } from '@vueuse/core'
 import { Vibrant } from 'node-vibrant/browser'
 import { ref } from 'vue'
@@ -8,12 +9,14 @@ import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 
 import Live2DSettings from '../../../components/Widgets/Live2DSettings.vue'
+import { useIconAnimation } from '../../../composables/useIconAnimation'
 
 const { t } = useI18n()
 const router = useRouter()
 const live2dContainerRef = ref<HTMLDivElement>()
 const live2dCanvasRef = ref<InstanceType<typeof Live2DCanvas>>()
 const { width, height } = useElementBounding(live2dContainerRef)
+const settingsStore = useSettings()
 
 const palette = ref<string[]>([])
 
@@ -38,6 +41,12 @@ async function extractColorsFromModel() {
     URL.revokeObjectURL(frameUrl)
   }
 }
+
+const {
+  iconAnimationStarted,
+  showIconAnimation,
+  animationIcon,
+} = useIconAnimation('i-lucide:person-standing')
 </script>
 
 <template>
@@ -68,7 +77,18 @@ async function extractColorsFromModel() {
     <Live2DSettings w="50%" h="80vh" :palette="palette" @extract-colors-from-model="extractColorsFromModel" />
   </div>
 
-  <div text="neutral-200/50 dark:neutral-600/20" pointer-events-none fixed bottom-0 right-0 z--1 translate-x-10 translate-y-10>
+  <IconAnimation
+    v-if="showIconAnimation"
+    :z-index="-1"
+    :icon="animationIcon"
+    :icon-size="12"
+    :duration="1000"
+    :started="iconAnimationStarted"
+    :is-reverse="true"
+    position="calc(100dvw - 9.5rem), calc(100dvh - 9.5rem)"
+    text-color="text-neutral-200/50 dark:text-neutral-600/20"
+  />
+  <div v-if="!settingsStore.usePageSpecificTransitions" text="neutral-200/50 dark:neutral-500/20" pointer-events-none fixed bottom-0 right-0 z--1 translate-x-10 translate-y-10>
     <div text="40" i-lucide:person-standing />
   </div>
 </template>
@@ -77,4 +97,5 @@ async function extractColorsFromModel() {
 meta:
   stageTransition:
     name: slide
+    pageSpecificAvailable: true
 </route>
