@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { IconItem } from '@proj-airi/stage-ui/components'
+import { useSettings } from '@proj-airi/stage-ui/stores'
 import { computed, nextTick, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
@@ -15,6 +16,7 @@ const { t } = useI18n()
 const animationIcon = ref('')
 const animationPosition = ref('')
 const showAnimationComponent = ref(false)
+const settingsStore = useSettings()
 
 function handleAnimationEnded() {
   resolveAnimation.value?.()
@@ -45,6 +47,11 @@ async function handleIconItemClick(event: MouseEvent, setting: typeof settings.v
 }
 
 const removeBeforeEach = router.beforeEach(async (_, __, next) => {
+  if (!settingsStore.useIconAnimation) {
+    next()
+    return
+  }
+
   await new Promise<void>((resolve) => {
     resolveAnimation.value = resolve
   })
@@ -124,7 +131,7 @@ const settings = computed(() => [
       <div v-motion text="60" i-lucide:cog />
     </div>
     <IconAnimation
-      v-if="showAnimationComponent"
+      v-if="showAnimationComponent && settingsStore.useIconAnimation"
       ref="iconAnimation"
       :icon="animationIcon"
       :icon-size="6 * 1.2"

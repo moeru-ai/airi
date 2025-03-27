@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { IconStatusItem } from '@proj-airi/stage-ui/components'
-import { useProvidersStore } from '@proj-airi/stage-ui/stores'
+import { useProvidersStore, useSettings } from '@proj-airi/stage-ui/stores'
 import { storeToRefs } from 'pinia'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
@@ -11,6 +11,7 @@ const { t } = useI18n()
 const router = useRouter()
 const providersStore = useProvidersStore()
 const { allProvidersMetadata } = storeToRefs(providersStore)
+const settingsStore = useSettings()
 
 const {
   showIconAnimation,
@@ -59,7 +60,7 @@ const {
     />
   </div>
   <IconAnimation
-    v-if="showAnimationComponent"
+    v-if="showAnimationComponent && settingsStore.useIconAnimation"
     :icon="animationIcon"
     :icon-size="12"
     :duration="1000"

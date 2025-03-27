@@ -46,6 +46,8 @@ settings:
   animations:
     stage-transitions:
       title: Disable Stage Transitions
+    use-icon-animation:
+      title: Use Icon Animation
   language:
     chinese: 简体中文
     english: English

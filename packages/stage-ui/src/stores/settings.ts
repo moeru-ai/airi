@@ -29,6 +29,7 @@ export const useSettings = defineStore('settings', () => {
   const live2dMotionMap = useLocalStorage<Record<string, string>>('settings/live2d/motion-map', {})
 
   const disableTransitions = useLocalStorage('settings/disable-transitions', true)
+  const useIconAnimation = useLocalStorage('settings/use-icon-animation', true)
 
   const themeColorsHue = useLocalStorage('settings/theme/colors/hue', DEFAULT_THEME_COLORS_HUE)
   const themeColorsHueDynamic = useLocalStorage('settings/theme/colors/hue-dynamic', false)
@@ -87,6 +88,7 @@ export const useSettings = defineStore('settings', () => {
     live2dMotionMap,
     loadingLive2dModel,
     disableTransitions,
+    useIconAnimation,
     language,
     stageView,
     themeColorsHue,

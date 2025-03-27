@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useSettings } from '@proj-airi/stage-ui/stores'
 import { useDark } from '@vueuse/core'
+import { watch } from 'vue'
 import { useRouter } from 'vue-router'
 
 import CheckBar from '../../../components/Settings/CheckBar.vue'
@@ -14,6 +15,13 @@ const settings = useSettings()
 const dark = useDark()
 
 const { showIconAnimation, showAnimationComponent, animationIcon } = useIconAnimation('i-lucide:paintbrush')
+
+watch(() => settings.useIconAnimation, (value) => {
+  if (value) {
+    showAnimationComponent.value = false
+    showIconAnimation.value = true
+  }
+})
 </script>
 
 <template>
@@ -143,10 +151,16 @@ const { showIconAnimation, showAnimationComponent, animationIcon } = useIconAnim
       icon-off="i-solar:running-2-line-duotone"
       text="settings.animations.stage-transitions.title"
     />
+    <CheckBar
+      v-model="settings.useIconAnimation"
+      icon-on="i-solar:people-nearby-bold-duotone"
+      icon-off="i-solar:running-2-line-duotone"
+      text="settings.animations.use-icon-animation.title"
+    />
   </Section>
 
   <IconAnimation
-    v-if="showAnimationComponent"
+    v-if="showAnimationComponent && settings.useIconAnimation"
     :duration="1000"
     :started="showIconAnimation"
     :is-reverse="true"

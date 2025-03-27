@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import Live2DCanvas from '@proj-airi/stage-ui/components/Live2D/Canvas.vue'
 import Live2DModel from '@proj-airi/stage-ui/components/Live2D/Model.vue'
+import { useSettings } from '@proj-airi/stage-ui/stores'
 import { useElementBounding } from '@vueuse/core'
 import { Vibrant } from 'node-vibrant/browser'
 import { ref } from 'vue'
@@ -15,6 +16,7 @@ const router = useRouter()
 const live2dContainerRef = ref<HTMLDivElement>()
 const live2dCanvasRef = ref<InstanceType<typeof Live2DCanvas>>()
 const { width, height } = useElementBounding(live2dContainerRef)
+const settingsStore = useSettings()
 
 const palette = ref<string[]>([])
 
@@ -76,7 +78,7 @@ const {
   </div>
 
   <IconAnimation
-    v-if="showAnimationComponent"
+    v-if="showAnimationComponent && settingsStore.useIconAnimation"
     :icon="animationIcon"
     :icon-size="12"
     :duration="1000"

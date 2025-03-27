@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { IconStatusItem } from '@proj-airi/stage-ui/components'
+import { useSettings } from '@proj-airi/stage-ui/stores'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
@@ -9,6 +10,7 @@ import { useIconAnimation } from '../../../composables/useIconAnimation'
 
 const router = useRouter()
 const { t } = useI18n()
+const settingsStore = useSettings()
 
 interface Module {
   id: string
@@ -152,7 +154,7 @@ const {
     />
   </div>
   <IconAnimation
-    v-if="showAnimationComponent"
+    v-if="showAnimationComponent && settingsStore.useIconAnimation"
     :icon="animationIcon"
     :icon-size="12"
     :duration="1000"

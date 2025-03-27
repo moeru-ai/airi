@@ -34,6 +34,8 @@ settings:
   animations:
     stage-transitions:
       title: 是否开启舞台动画
+    use-icon-animation:
+      title: 是否使用图标过场动画
   language:
     chinese: 简体中文
     english: English
