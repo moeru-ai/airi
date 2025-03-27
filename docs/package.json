@@ -11,9 +11,9 @@
     "astro": "astro"
   },
   "dependencies": {
-    "@astrojs/starlight": "^0.32.3",
+    "@astrojs/starlight": "^0.32.5",
     "@fontsource/quicksand": "^5.2.6",
-    "astro": "^5.5.3",
+    "astro": "^5.5.5",
     "astro-og-canvas": "^0.7.0",
     "sharp": "^0.33.5",
     "starlight-theme-catppuccin": "^2.0.0"

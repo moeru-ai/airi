@@ -26,16 +26,16 @@
     "@xsai/shared-chat": "catalog:",
     "@xsai/stream-text": "catalog:",
     "defu": "^6.1.4",
-    "es-toolkit": "^1.33.0",
+    "es-toolkit": "^1.34.1",
     "vue": "^3.5.13"
   },
   "devDependencies": {
     "@iconify-json/solar": "^1.2.2",
-    "@unocss/reset": "^66.1.0-beta.6",
+    "@unocss/reset": "^66.1.0-beta.7",
     "@vitejs/plugin-vue": "^5.2.3",
     "superjson": "^2.2.2",
     "unplugin-vue-router": "^0.12.0",
-    "vite": "^6.2.2",
+    "vite": "^6.2.3",
     "vue-router": "^4.5.0",
     "vue-tsc": "^3.0.0-alpha.2"
   }

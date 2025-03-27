@@ -12,7 +12,7 @@
   "dependencies": {
     "@browserbasehq/stagehand": "^1.14.0",
     "@guiiai/logg": "^1.0.7",
-    "@modelcontextprotocol/sdk": "^1.7.0",
+    "@modelcontextprotocol/sdk": "^1.8.0",
     "@proj-airi/server-sdk": "^0.3.6",
     "defu": "^6.1.4",
     "dotenv": "^16.4.7",
@@ -23,7 +23,7 @@
     "zod": "^3.24.2"
   },
   "devDependencies": {
-    "@types/node": "^22.13.10",
+    "@types/node": "^22.13.14",
     "tsx": "^4.19.3",
     "typescript": "^5.8.2"
   }
