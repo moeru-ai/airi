@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { IconItem } from '@proj-airi/stage-ui/components'
-import { nextTick, ref } from 'vue'
+import { computed, nextTick, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 
@@ -12,18 +12,15 @@ const iconAnimation = ref<InstanceType<typeof IconAnimation>>()
 const resolveAnimation = ref<() => void>()
 const { t } = useI18n()
 
-// 添加动画相关的状态
 const animationIcon = ref('')
 const animationPosition = ref('')
-
-// 添加一个控制组件显示的 ref
 const showAnimationComponent = ref(false)
 
 function handleAnimationEnded() {
   resolveAnimation.value?.()
 }
 
-async function handleIconItemClick(event: MouseEvent, setting: typeof settings[0]) {
+async function handleIconItemClick(event: MouseEvent, setting: typeof settings.value[0]) {
   const target = event.currentTarget as HTMLElement
   const iconElement = target.querySelector('.menu-icon-item-icon') as HTMLElement
   if (!iconElement)
@@ -55,7 +52,7 @@ const removeBeforeEach = router.beforeEach(async (_, __, next) => {
   next()
 })
 
-const settings = [
+const settings = computed(() => [
   {
     title: t('settings.pages.modules.title'),
     description: t('settings.pages.modules.description'),
@@ -86,7 +83,7 @@ const settings = [
     icon: 'i-lucide:paintbrush',
     to: '/settings/appearance',
   },
-]
+])
 </script>
 
 <template>

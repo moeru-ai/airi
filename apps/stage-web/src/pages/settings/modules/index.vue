@@ -159,7 +159,7 @@ const {
     :started="showIconAnimation"
     :is-reverse="true"
     text-color="text-neutral-200/50 dark:text-neutral-600/20"
-    position="calc(100vw - 9.5rem), calc(100vh - 9.5rem)"
+    position="calc(100dvw - 9.5rem), calc(100dvh - 9.5rem)"
   />
 </template>
 
