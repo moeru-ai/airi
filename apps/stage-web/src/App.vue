@@ -54,6 +54,7 @@ watch(settings.themeColorsHueDynamic, () => {
     :colors="colors"
     :z-index="100"
     :disable-transitions="settings.disableTransitions.value"
+    :use-page-specific-transitions="settings.usePageSpecificTransitions.value"
   >
     <RouterView />
   </StageTransitionGroup>

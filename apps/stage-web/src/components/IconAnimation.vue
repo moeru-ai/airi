@@ -9,6 +9,7 @@ const props = defineProps<{
   started: boolean
   textColor: string
   isReverse?: boolean
+  zIndex?: number
 }>()
 
 const emit = defineEmits<{
@@ -25,23 +26,33 @@ watch(() => props.started, (newVal) => {
   }
 })
 
-const centerPosition = computed(() => {
-  const size = props.started ? 25 : props.iconSize
-  return `calc(50dvw - ${size / 2}rem), calc(50dvh - ${size / 2}rem)`
-})
-
 const clsAndProps = computed(() => {
   return {
     opacity: isAnimating.value !== props.isReverse ? 1 : 0, // this equals to opacity: isAnimating.value ? props.isReverse ? 1 : 0 : props.isReverse ? 0 : 1
     size: isAnimating.value !== props.isReverse ? 25 : props.iconSize,
-    position: isAnimating.value !== props.isReverse ? centerPosition.value : props.position,
+    position: isAnimating.value !== props.isReverse ? `calc(50dvw - 12.5rem), calc(50dvh - 12.5rem)` : props.position,
     textColor: isAnimating.value !== props.isReverse ? 'text-white' : props.textColor,
   }
 })
+
+const animationEndProps = ref<string[]>([])
+const animationEnded = ref(false)
+function handleAnimationEnded(e: TransitionEvent) {
+  animationEndProps.value.push(e.propertyName)
+  if (animationEndProps.value.includes('color') && animationEndProps.value.includes('width') && animationEndProps.value.includes('height') && animationEndProps.value.includes('transform')) {
+    animationEnded.value = true
+    emit('animationEnded')
+  }
+}
 </script>
 
 <template>
-  <div pointer-events-none fixed inset-0>
+  <div
+    pointer-events-none fixed w="100dvw" h="100dvh"
+    :style="{
+      zIndex: animationEnded ? zIndex : undefined,
+    }"
+  >
     <div
       bg-primary-500 fixed inset-0 transition-opacity ease-linear :style="{
         opacity: clsAndProps.opacity,
@@ -49,7 +60,7 @@ const clsAndProps = computed(() => {
       }"
     />
     <div
-      fixed inset-0 transition-all ease-in-out :style="{
+      fixed inset-0 ease-in-out :style="{
         width: `${clsAndProps.size}rem`,
         height: `${clsAndProps.size}rem`,
         transform: `translate(${clsAndProps.position})`,
@@ -59,7 +70,7 @@ const clsAndProps = computed(() => {
         props.icon,
         { 'transition-all': isAnimating },
       ]"
-      @transitionend="emit('animationEnded')"
+      @transitionend="handleAnimationEnded"
     />
   </div>
 </template>

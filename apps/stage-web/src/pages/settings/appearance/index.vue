@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useSettings } from '@proj-airi/stage-ui/stores'
 import { useDark } from '@vueuse/core'
-import { watch } from 'vue'
+import { ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 
 import CheckBar from '../../../components/Settings/CheckBar.vue'
@@ -13,14 +13,13 @@ import COLOR_PRESETS from './color-presets.json'
 const router = useRouter()
 const settings = useSettings()
 const dark = useDark()
+const usePageSpecificTransitionsSettingChanged = ref(false)
 
-const { showIconAnimation, showAnimationComponent, animationIcon } = useIconAnimation('i-lucide:paintbrush')
+const { iconAnimationStarted, showIconAnimation, animationIcon } = useIconAnimation('i-lucide:paintbrush')
 
-watch(() => settings.useIconAnimation, (value) => {
-  if (value) {
-    showAnimationComponent.value = false
-    showIconAnimation.value = true
-  }
+// avoid showing the animation component when the page specific transitions are enabled
+watch(() => [settings.usePageSpecificTransitions, settings.disableTransitions], () => {
+  usePageSpecificTransitionsSettingChanged.value = true
 })
 </script>
 
@@ -152,23 +151,29 @@ watch(() => settings.useIconAnimation, (value) => {
       text="settings.animations.stage-transitions.title"
     />
     <CheckBar
-      v-model="settings.useIconAnimation"
-      icon-on="i-solar:people-nearby-bold-duotone"
-      icon-off="i-solar:running-2-line-duotone"
-      text="settings.animations.use-icon-animation.title"
+      v-model="settings.usePageSpecificTransitions"
+      :disabled="settings.disableTransitions"
+      icon-on="i-solar:running-2-line-duotone"
+      icon-off="i-solar:people-nearby-bold-duotone"
+      text="settings.animations.use-page-specific-transitions.title"
+      description="settings.animations.use-page-specific-transitions.description"
     />
   </Section>
 
   <IconAnimation
-    v-if="showAnimationComponent && settings.useIconAnimation"
+    v-if="showIconAnimation && !usePageSpecificTransitionsSettingChanged"
+    :z-index="-1"
     :duration="1000"
-    :started="showIconAnimation"
+    :started="iconAnimationStarted"
     :is-reverse="true"
     :icon="animationIcon"
     :icon-size="12"
     position="calc(100dvw - 9.5rem), calc(100dvh - 9.5rem)"
     text-color="text-neutral-200/50 dark:text-neutral-600/20"
   />
+  <div v-if="!settings.usePageSpecificTransitions" text="neutral-200/50 dark:neutral-500/20" pointer-events-none fixed bottom-0 right-0 z--1 translate-x-10 translate-y-10>
+    <div text="40" i-lucide:paintbrush />
+  </div>
 </template>
 
 <style scoped>
@@ -226,4 +231,5 @@ watch(() => settings.useIconAnimation, (value) => {
 meta:
   stageTransition:
     name: slide
+    pageSpecificAvailable: true
 </route>

@@ -8,7 +8,7 @@ import { useRouter } from 'vue-router'
 import IconAnimation from '../../components/IconAnimation.vue'
 
 const router = useRouter()
-const showIconAnimation = ref(false)
+const iconAnimationStarted = ref(false)
 const iconAnimation = ref<InstanceType<typeof IconAnimation>>()
 const resolveAnimation = ref<() => void>()
 const { t } = useI18n()
@@ -43,11 +43,11 @@ async function handleIconItemClick(event: MouseEvent, setting: typeof settings.v
   await nextTick()
 
   // start the animation
-  showIconAnimation.value = true
+  iconAnimationStarted.value = true
 }
 
 const removeBeforeEach = router.beforeEach(async (_, __, next) => {
-  if (!settingsStore.useIconAnimation) {
+  if (!settingsStore.usePageSpecificTransitions || settingsStore.disableTransitions) {
     next()
     return
   }
@@ -131,14 +131,14 @@ const settings = computed(() => [
       <div v-motion text="60" i-lucide:cog />
     </div>
     <IconAnimation
-      v-if="showAnimationComponent && settingsStore.useIconAnimation"
+      v-if="showAnimationComponent && !settingsStore.disableTransitions && settingsStore.usePageSpecificTransitions"
       ref="iconAnimation"
       :icon="animationIcon"
       :icon-size="6 * 1.2"
       :position="animationPosition"
       :duration="1000"
       text-color="text-neutral-400/50 dark:text-neutral-600/20"
-      :started="showIconAnimation"
+      :started="iconAnimationStarted"
       @animation-ended.once="handleAnimationEnded"
     />
   </div>
