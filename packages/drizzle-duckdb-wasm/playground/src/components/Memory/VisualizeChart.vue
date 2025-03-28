@@ -73,7 +73,7 @@ function renderChart() {
   const containerHeight = containerRect.height || 320
 
   // Set chart margins
-  const margin = { top: 20, right: 0, bottom: 20, left: 30 }
+  const margin = { top: 20, right: 0, bottom: 40, left: 50 }
   const width = containerWidth - margin.left - margin.right
   const height = containerHeight - margin.top - margin.bottom
 
@@ -228,7 +228,7 @@ function addAxesAndGrids(
           .tickFormat(() => ''), // Use a function that returns empty string
       )
       .selectAll('line')
-      .attr('stroke', '#e5e7eb')
+      .attr('stroke', 'red')
       .attr('stroke-opacity', 0.5)
 
     svg.append('g')
@@ -239,7 +239,7 @@ function addAxesAndGrids(
           .tickFormat(() => ''), // Use a function that returns empty string
       )
       .selectAll('line')
-      .attr('stroke', '#e5e7eb')
+      .attr('stroke', 'green')
       .attr('stroke-opacity', 0.5)
   }
   else {
@@ -252,7 +252,7 @@ function addAxesAndGrids(
           .tickFormat(() => ''), // Use a function that returns empty string
       )
       .selectAll('line')
-      .attr('stroke', '#434345')
+      .attr('stroke', 'yellow')
       .attr('stroke-opacity', 0.5)
 
     svg.append('g')
@@ -263,7 +263,7 @@ function addAxesAndGrids(
           .tickFormat(() => ''), // Use a function that returns empty string
       )
       .selectAll('line')
-      .attr('stroke', '#434345')
+      .attr('stroke', 'blue')
       .attr('stroke-opacity', 0.5)
   }
 
@@ -275,7 +275,7 @@ function addAxesAndGrids(
     .append('text')
     .attr('class', 'axis-label')
     .attr('x', width / 2)
-    .attr('y', 20)
+    .attr('y', 36)
     .attr('text-anchor', 'middle')
     .text('Time (days)')
     .attr('fill', 'currentColor')
@@ -286,7 +286,7 @@ function addAxesAndGrids(
     .append('text')
     .attr('class', 'axis-label')
     .attr('transform', 'rotate(-90)')
-    .attr('y', -10)
+    .attr('y', -36)
     .attr('x', -height / 2)
     .attr('text-anchor', 'middle')
     .text('Memory Strength')
@@ -359,7 +359,7 @@ function addDataLines(
   }
 }
 
-function addDataPoints(svg, dataPoints, xScale, yScale) {
+function addDataPoints(svg: d3.Selection<SVGGElement, unknown, null, undefined>, dataPoints: DataPoint[], xScale: d3.ScaleLinear<number, number>, yScale: d3.ScaleLinear<number, number>) {
   svg.selectAll('.point-with-retrievals')
     .data(dataPoints)
     .enter()
@@ -414,7 +414,7 @@ function addDataPoints(svg, dataPoints, xScale, yScale) {
     .text(d => Math.round(d.y))
 }
 
-function addHalfLifeIndicator(svg, halfLife, xScale, height) {
+function addHalfLifeIndicator(svg: d3.Selection<SVGGElement, unknown, null, undefined>, halfLife: number, xScale: d3.ScaleLinear<number, number>, height: number) {
   svg.append('line')
     .attr('class', 'half-life-line')
     .attr('x1', xScale(halfLife))
@@ -436,7 +436,7 @@ function addHalfLifeIndicator(svg, halfLife, xScale, height) {
     .text(`Half-life: ${halfLife.toFixed(1)} days`)
 }
 
-function addTitleAndLegends(svg, storyId, retrievals, ltmFactor, width) {
+function addTitleAndLegends(svg: d3.Selection<SVGGElement, unknown, null, undefined>, storyId: string, retrievals: number, ltmFactor: number, width: number) {
   // Add chart title
   let titleText = `Memory Decay for ${storyId} (${retrievals} retrievals)`
   if (props.longTermMemoryEnabled) {
@@ -494,7 +494,7 @@ function addTitleAndLegends(svg, storyId, retrievals, ltmFactor, width) {
     .text(d => d.label)
 }
 
-function addLTMIndicators(svg, retrievals, threshold, ltmFactor, width) {
+function addLTMIndicators(svg: d3.Selection<SVGGElement, unknown, null, undefined>, retrievals: number, threshold: number, ltmFactor: number, width: number) {
   if (retrievals > 0 && retrievals < threshold) {
     const progress = Math.round((retrievals / threshold) * 100)
     svg.append('g')
@@ -558,15 +558,20 @@ onUnmounted(() => {
   font-size: 12px;
 }
 
+:deep(.y-axis .tick text) {
+  transform: rotate(-90deg) translateY(-20px);
+}
+
 :deep(.x-axis path),
 :deep(.y-axis path),
 :deep(.x-axis line),
-:deep(.y-axis line) {
+:deep(.y-axis line),
+:deep(.domain) {
   stroke: #dce0e3;
 }
 
 :deep(.grid line) {
-  stroke: #2c2d2e;
+  stroke: #2e3032;
   stroke-opacity: 0.5;
 }
 
@@ -574,8 +579,9 @@ onUnmounted(() => {
   :deep(.x-axis path),
   :deep(.y-axis path),
   :deep(.x-axis line),
-  :deep(.y-axis line) {
-    stroke: #1f2831;
+  :deep(.y-axis line),
+  :deep(.domain) {
+    stroke: #2e3032;
   }
 }
 </style>

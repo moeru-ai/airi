@@ -115,8 +115,8 @@ function jumpAhead(amount, unit) {
         class="rounded-lg px-4 py-2 font-medium transition-colors"
         @click="toggleTimeAcceleration"
       >
-        <div v-if="isTimeAccelerated" i-solar:play-bold />
-        <div v-else i-solar:pause-bold />
+        <div v-if="isTimeAccelerated" i-solar:pause-bold />
+        <div v-else i-solar:play-bold />
       </button>
 
       <button

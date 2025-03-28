@@ -223,7 +223,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="mx-auto max-w-7xl p-4">
+  <div class="mx-auto max-w-7xl">
     <!-- Loading state -->
     <div v-if="!isMigrated" class="py-8 text-center">
       <div class="mx-auto h-8 w-8 animate-spin border-4 border-blue-500 border-t-transparent rounded-full" />
@@ -340,11 +340,12 @@ onUnmounted(() => {
       />
 
       <!-- SQL Query Preview -->
-      <div class="max-w-screen-lg overflow-x-scroll rounded-lg bg-neutral-50 p-4 dark:bg-neutral-800">
-        <h2 class="mb-2 text-xl font-semibold">
-          Current SQL Query
-        </h2>
-        <pre class="overflow-x-auto rounded bg-neutral-800 p-4 text-sm text-neutral-200">{{ decayQuery }}</pre>
+      <div class="max-w-full rounded-xl bg-neutral-50 dark:bg-neutral-800">
+        <div class="overflow-x-scroll rounded bg-neutral-800 text-sm text-neutral-200" font-mono>
+          <pre whitespace-pre-wrap>
+            <code>{{ decayQuery }}</code>
+          </pre>
+        </div>
       </div>
     </div>
   </div>
