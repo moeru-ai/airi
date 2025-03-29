@@ -8,6 +8,7 @@ import { generateText } from '@xsai/generate-text'
 import { message } from '@xsai/utils-chat'
 
 import { findLastNMessages, findRelevantMessages } from '../../../models'
+import { recordChatCompletions } from '../../../models/chat-completions-history'
 import { chatMessageToOneLine, telegramMessageToOneLine } from '../../../models/common'
 import { systemPrompt } from '../../../prompts/system-v1'
 import { sendMayStructuredMessage } from '../utils/message'
@@ -25,7 +26,7 @@ export async function readMessage(
   }> {
   const logger = useLogg('readMessage').useGlobalConfig()
 
-  const lastNMessages = await findLastNMessages(action.chatId, 30)
+  const lastNMessages = await findLastNMessages(action.chatId, 10)
   const lastNMessagesOneliner = lastNMessages.map(msg => chatMessageToOneLine(botId, msg)).join('\n')
 
   logger.withField('number_of_last_n_messages', lastNMessages.length).log('Successfully found last N messages')
@@ -52,9 +53,14 @@ export async function readMessage(
   const unreadHistoryMessageOneliner = unreadHistoryMessages.join('\n')
   state.unreadMessages[action.chatId] = []
 
-  const relevantChatMessages = await findRelevantMessages(botId, chatId, unreadHistoryMessagesEmbedding)
-  const relevantChatMessagesOneliner = (await Promise.all(relevantChatMessages.map(async msgs => msgs.join('\n')))).join('\n')
+  const relevantChatMessages = await findRelevantMessages(
+    botId,
+    chatId,
+    unreadHistoryMessagesEmbedding,
+    [...unreadMessages.map(msg => msg.message_id.toString()), ...lastNMessages.map(msg => msg.platform_message_id)],
+  )
 
+  const relevantChatMessagesOneliner = (await Promise.all(relevantChatMessages.map(async msgs => msgs.join('\n')))).join('\n')
   logger.withField('number_of_relevant_chat_messages', relevantChatMessages.length).log('Successfully composed relevant chat messages')
 
   const messages = message.messages(
@@ -87,26 +93,33 @@ export async function readMessage(
     ),
   )
 
-  // eslint-disable-next-line no-console
-  console.log(messages)
+  let responseText = ''
 
-  const response = await generateText({
-    apiKey: env.LLM_API_KEY!,
-    baseURL: env.LLM_API_BASE_URL!,
-    model: env.LLM_MODEL!,
-    messages,
-    abortSignal: abortController.signal,
-  })
+  try {
+    const response = await generateText({
+      apiKey: env.LLM_API_KEY!,
+      baseURL: env.LLM_API_BASE_URL!,
+      model: env.LLM_MODEL!,
+      messages,
+      abortSignal: abortController.signal,
+    })
 
-  response.text = response.text
-    .replace(/^```json\s*\n/, '')
-    .replace(/\n```$/, '')
-    .replace(/^```\s*\n/, '')
-    .replace(/\n```$/, '')
-    .trim()
+    responseText = response.text
+      .replace(/^```json\s*\n/, '')
+      .replace(/\n```$/, '')
+      .replace(/^```\s*\n/, '')
+      .replace(/\n```$/, '')
+      .trim()
+  }
+  catch (err) {
+    logger.withField('error', err).log('Failed to generate response')
+  }
+  finally {
+    recordChatCompletions('readMessage', messages, responseText).then(() => {}).catch(err => logger.withField('error', err).log('Failed to record chat completions'))
+  }
 
-  logger.withField('response', JSON.stringify(response.text)).log('Successfully generated response')
+  logger.withField('response', responseText).log('Successfully generated response')
+  await sendMayStructuredMessage(state, responseText, action.chatId.toString())
 
-  await sendMayStructuredMessage(state, response.text, action.chatId.toString())
   return { break: true }
 }
