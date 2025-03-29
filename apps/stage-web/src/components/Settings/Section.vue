@@ -5,7 +5,7 @@ withDefaults(defineProps<{
   title: string
   icon: string
   innerClass?: string
-  expand: boolean
+  expand?: boolean
 }>(), {
   expand: true,
 })
