@@ -1,14 +1,13 @@
 import type { ChatProvider } from '@xsai-ext/shared-providers'
-import type { AssistantMessage, Message } from '@xsai/shared-chat'
+import type { AssistantMessage, Message, SystemMessage } from '@xsai/shared-chat'
 
-import { defineStore } from 'pinia'
+import { defineStore, storeToRefs } from 'pinia'
 import { ref, toRaw } from 'vue'
-import { useI18n } from 'vue-i18n'
 
 import { useLlmmarkerParser } from '../composables/llmmarkerParser'
-import SystemPromptV2 from '../constants/prompts/system-v2'
 import { useLLM } from '../stores/llm'
 import { asyncIteratorFromReadableStream } from '../utils/iterator'
+import { useAiriCardStore } from './modules'
 
 export interface ErrorMessage {
   role: 'error'
@@ -17,7 +16,7 @@ export interface ErrorMessage {
 
 export const useChatStore = defineStore('chat', () => {
   const { stream } = useLLM()
-  const { t } = useI18n()
+  const { systemPrompt } = storeToRefs(useAiriCardStore())
 
   const sending = ref(false)
 
@@ -63,10 +62,10 @@ export const useChatStore = defineStore('chat', () => {
   }
 
   const messages = ref<Array<Message | ErrorMessage>>([
-    SystemPromptV2(
-      t('prompt.prefix'),
-      t('prompt.suffix'),
-    ),
+    {
+      role: 'system',
+      content: systemPrompt.value.replace(/\{\{user\}\}/g, 'user'),
+    } satisfies SystemMessage,
   ])
 
   const streamingMessage = ref<AssistantMessage>({ role: 'assistant', content: '' })

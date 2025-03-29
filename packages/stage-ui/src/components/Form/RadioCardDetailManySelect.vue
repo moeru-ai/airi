@@ -21,6 +21,7 @@ interface Props {
   customInputPlaceholder?: string
   expandButtonText?: string
   collapseButtonText?: string
+  showMore?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -32,6 +33,7 @@ const props = withDefaults(defineProps<Props>(), {
   customInputPlaceholder: 'Enter custom value',
   expandButtonText: 'Show more',
   collapseButtonText: 'Show less',
+  showMore: true,
 })
 
 const emit = defineEmits<{
@@ -120,7 +122,7 @@ function updateCustomValue(value: string) {
             :title="item.name"
             :description="item.description"
             :deprecated="item.deprecated"
-            :show-expand-collapse="true"
+            :show-expand-collapse="showMore"
             :expand-collapse-threshold="100"
             :show-custom-input="item.customizable"
             :custom-input-value="customValue"

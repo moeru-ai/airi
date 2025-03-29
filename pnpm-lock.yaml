@@ -906,6 +906,9 @@ importers:
       '@pixiv/three-vrm-core':
         specifier: ^3.3.6
         version: 3.3.6(three@0.175.0)
+      '@proj-airi/ccc':
+        specifier: workspace:^
+        version: link:../../packages/ccc
       '@proj-airi/drizzle-duckdb-wasm':
         specifier: workspace:^
         version: link:../../packages/drizzle-duckdb-wasm
@@ -1473,6 +1476,9 @@ importers:
       '@formkit/auto-animate':
         specifier: ^0.8.2
         version: 0.8.2
+      '@proj-airi/ccc':
+        specifier: workspace:^
+        version: link:../ccc
       '@proj-airi/server-sdk':
         specifier: workspace:^
         version: link:../server-sdk
