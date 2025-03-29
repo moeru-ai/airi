@@ -131,7 +131,7 @@ function hightlightTagToHtml(text: string) {
             <AlertDialogTrigger as-child>
               <Button
                 variant="danger"
-                :label="t('Delete')"
+                :label="t('settings.pages.card.delete')"
               />
             </AlertDialogTrigger>
             <AlertDialogPortal>
