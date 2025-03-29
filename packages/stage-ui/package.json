@@ -57,7 +57,7 @@
   },
   "dependencies": {
     "@formkit/auto-animate": "^0.8.2",
-    "@moeru-ai/ccc": "workspace:^",
+    "@proj-airi/ccc": "workspace:^",
     "@proj-airi/server-sdk": "workspace:^",
     "@vueuse/motion": "^3.0.3",
     "reka-ui": "^2.1.0",

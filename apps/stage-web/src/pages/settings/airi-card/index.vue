@@ -1,107 +1,77 @@
 <script setup lang="ts">
-import type { AiriCard } from '@proj-airi/stage-ui/stores'
+import type { ccv3 } from '@proj-airi/ccc'
 
-import { useAiriCardStore, useConsciousnessStore, useSpeechStore } from '@proj-airi/stage-ui/stores'
+import { RadioCardDetailManySelect } from '@proj-airi/stage-ui/components/Form'
+import { useAiriCardStore } from '@proj-airi/stage-ui/stores'
 import { storeToRefs } from 'pinia'
-import { computed, reactive, watch } from 'vue'
+import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 
-import CardEdit from './components/CardEdit.vue'
-import CardList from './components/CardList.vue'
-import CardMetadata from './components/CardMetadata.vue'
-import CardPreviewDialog from './components/CardPreviewDialog.vue'
-import CardUploadDialog from './components/CardUploadDialog.vue'
+import AiriCardView from './components/AiriCardView.vue'
 
-// Core setup
 const router = useRouter()
 const { t } = useI18n()
 const cardStore = useAiriCardStore()
-const { cards, activeCard, cardsRaw } = storeToRefs(cardStore)
-const { setActiveCard } = cardStore
+const { addCard } = cardStore
+const { cards, activeCardId } = storeToRefs(cardStore)
 
-// Card preview dialog state
-const previewDialog = reactive({
-  isOpen: false,
-  cardId: null as string | null,
-  cardData: computed<AiriCard | null>(() => {
-    if (!previewDialog.cardId || !cards.value.has(previewDialog.cardId))
-      return null
-    const card = cards.value.get(previewDialog.cardId)
-    return card as AiriCard
-  }),
-  open(id: string) {
-    if (cards.value.has(id)) {
-      previewDialog.cardId = id
-      previewDialog.isOpen = true
-    }
-  },
-  close() {
-    previewDialog.isOpen = false
-    previewDialog.cardId = null
-  },
-  activate() {
-    if (previewDialog.cardId) {
-      setActiveCard(previewDialog.cardId)
-      previewDialog.close()
-    }
-  },
-})
+// Currently selected card ID (different from active card ID)
+const selectedCardId = ref<string>(activeCardId.value || '')
 
-// Upload dialog state
-const uploadDialog = reactive({
-  isOpen: false,
-  error: null as string | null,
-})
-
-// Card editing state
-const editingCard = reactive({
-  id: 'default' as string | null, // Initialize with default card
-  data: computed<AiriCard | null>(() => {
-    if (!editingCard.id || !cards.value.has(editingCard.id))
-      return null
-    const card = cards.value.get(editingCard.id)
-    return card as AiriCard
-  }),
-  select(id: string) {
-    if (cards.value.has(id))
-      editingCard.id = id
-  },
-  save(cardData: AiriCard) {
-    if (!editingCard.id)
-      return
-
-    cards.value.set(editingCard.id, cardData)
-    cardsRaw.value.set(editingCard.id, JSON.stringify(cardData, null, 2))
-  },
-})
-
-// Helper functions
-function isActiveCard(id: string): boolean {
-  return !!activeCard.value && cards.value.has(id) && cards.value.get(id) === activeCard.value
+// Card list data structure
+interface CardListItem {
+  id: string
+  name: string
+  description?: string
+  deprecated?: boolean
+  customizable?: boolean
 }
 
-const consciousnessStore = useConsciousnessStore()
-const speechStore = useSpeechStore()
+// Transform cards Map to array for display
+const cardsArray = computed<CardListItem[]>(() =>
+  Array.from(cards.value.entries()).map(([id, card]) => ({
+    id,
+    name: card.name,
+    description: card.description,
+  })),
+)
 
-const {
-  activeModel: activeConsciousnessModel,
-} = storeToRefs(consciousnessStore)
-const {
-  activeSpeechModel,
-  activeSpeechVoiceId,
-} = storeToRefs(speechStore)
-watch(activeCard, (newCard: AiriCard | undefined) => {
-  if (!newCard)
-    return
+/**
+ * Handles card file upload and processing
+ */
+async function handleUpload() {
+  const fileInput = document.createElement('input')
+  fileInput.type = 'file'
+  fileInput.accept = '.json'
 
-  // TODO: live2d, vrm
-  // TODO: Minecraft Agent, etc
+  fileInput.onchange = async (event: Event) => {
+    const file = (event.target as HTMLInputElement).files?.[0]
+    if (!file)
+      return
 
-  activeConsciousnessModel.value = newCard?.models?.consciousness
-  activeSpeechModel.value = newCard?.models?.voice
-  activeSpeechVoiceId.value = newCard?.models?.voice
-})
+    try {
+      const content = await file.text()
+      const cardJSON = JSON.parse(content) as ccv3.CharacterCardV3
+
+      // Add card and select it
+      selectedCardId.value = addCard(cardJSON)
+    }
+    catch (error) {
+      console.error('Error processing card file:', error)
+    }
+  }
+
+  fileInput.click()
+}
+
+/**
+ * Sets the selected card as active
+ */
+function activateSelectedCard() {
+  if (selectedCardId.value)
+    activeCardId.value = selectedCardId.value
+}
 </script>
 
 <template>
@@ -126,51 +96,46 @@ watch(activeCard, (newCard: AiriCard | undefined) => {
     </h1>
   </div>
 
-  <div grid="~ cols-1 lg:cols-2 gap-6" mt-6>
+  <div bg="neutral-50 dark:[rgba(0,0,0,0.3)]" rounded-xl p-4 flex="~ col gap-4">
+    <!-- Toolbar -->
     <div flex="~ col" gap-6>
-      <CardUploadDialog
-        :is-open="uploadDialog.isOpen"
-        @close="uploadDialog.isOpen = false"
-        @error="uploadDialog.error = $event"
-      />
+      <div flex="~ row gap-2 flex-wrap">
+        <!-- Upload button -->
+        <button
+          bg="primary-500 hover:primary-600"
+          text="white"
+          rounded-lg px-4 py-2 transition duration-200
+          flex="~ row" items-center gap-2
+          @click="handleUpload"
+        >
+          <div i-solar:upload-line-duotone />
+          {{ t('Upload') }}
+        </button>
+      </div>
 
-      <CardList
-        :upload-error="uploadDialog.error"
-        :selected-card-id="editingCard.id"
-        @open-preview="previewDialog.open"
-        @select-card="editingCard.select"
-      />
+      <!-- Card selection -->
+      <template v-if="cards.size > 0">
+        <RadioCardDetailManySelect
+          v-model="selectedCardId"
+          :items="cardsArray"
+          :expand-button-text="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.expand')"
+          :collapse-button-text="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.collapse')"
+        />
+      </template>
+    </div>
 
-      <CardMetadata
-        v-if="editingCard.id && editingCard.data"
-        :card-id="editingCard.id"
-        :card="editingCard.data"
+    <!-- Card content area -->
+    <div v-if="selectedCardId && cards.size > 0" mt-6>
+      <AiriCardView
+        :card-id="selectedCardId"
+        @activate="activateSelectedCard"
       />
     </div>
 
-    <div
-      rounded-lg p-6
-      border="~ neutral-200 dark:neutral-800"
-      bg="neutral-50 dark:neutral-900"
-    >
-      <CardEdit
-        :card="editingCard.data"
-        @save="editingCard.save"
-      />
+    <!-- Background decoration -->
+    <div text="neutral-200/50 dark:neutral-600/20" pointer-events-none fixed bottom-0 right-0 z--1 translate-x-10 translate-y-10>
+      <div text="40" i-lucide:id-card />
     </div>
-  </div>
-
-  <CardPreviewDialog
-    :is-open="previewDialog.isOpen"
-    :card-id="previewDialog.cardId"
-    :card="previewDialog.cardData"
-    :is-active="!!previewDialog.cardId && isActiveCard(previewDialog.cardId)"
-    @close="previewDialog.close"
-    @activate="previewDialog.activate"
-  />
-
-  <div text="neutral-200/50 dark:neutral-600/20" pointer-events-none fixed bottom-0 right-0 z--1 translate-x-10 translate-y-10>
-    <div text="40" i-lucide:id-card />
   </div>
 </template>
 

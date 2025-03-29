@@ -20,7 +20,7 @@
     "@11labs/client": "^0.0.8",
     "@formkit/auto-animate": "^0.8.2",
     "@huggingface/transformers": "^3.4.0",
-    "@moeru-ai/ccc": "workspace:^",
+    "@proj-airi/ccc": "workspace:^",
     "@pixi/app": "6",
     "@pixi/constants": "6",
     "@pixi/core": "6",

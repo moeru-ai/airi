@@ -74,10 +74,48 @@ interface CardDescription {
   description?: string
 }
 
+interface CardExtra {
+  /**
+   * Character's personality traits and behavioral patterns
+   * Used to define how the character should act and respond
+   */
+  personality?: string
+
+  /**
+   * Background context and setting for the character
+   * Provides the environment and situation the character exists in
+   */
+  scenario?: string
+
+  /**
+   * Core system instructions for the character's behavior
+   * Defines fundamental rules and context for the AI model
+   */
+  systemPrompt?: string
+
+  /**
+   * Instructions to process after chat history
+   * Helps maintain character consistency across conversations
+   */
+  postHistoryInstructions?: string
+
+  /**
+   * Categorization labels for the character
+   * Used for filtering and organization
+   */
+  tags?: string[]
+
+  /**
+   * Sample conversation snippets showing character interactions
+   * Demonstrates expected conversation patterns
+   */
+  messageExample?: Message[][]
+}
+
 /**
  * Moeru-AI Character Card
  */
-export type Card = CardAdditional & CardCore & CardDescription & CardMeta
+export type Card = CardAdditional & CardCore & CardDescription & CardMeta & CardExtra
 
 export type CardFn<T extends Record<string, unknown> = Record<string, unknown>> = (data: T) => Card
 
