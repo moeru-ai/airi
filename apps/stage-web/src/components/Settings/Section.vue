@@ -1,15 +1,18 @@
 <script setup lang="ts">
 import { Collapsable } from '@proj-airi/stage-ui/components'
 
-defineProps<{
+withDefaults(defineProps<{
   title: string
   icon: string
   innerClass?: string
-}>()
+  expand: boolean
+}>(), {
+  expand: true,
+})
 </script>
 
 <template>
-  <Collapsable default>
+  <Collapsable :default="expand">
     <template #trigger="slotProps">
       <button
         class="setting-bar"
