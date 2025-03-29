@@ -1,0 +1,14 @@
+:root {
+  --theme-colors-hue: 255;
+  --theme-colors-chroma: calc(0.18 + (cos(var(--theme-colors-hue) * 3.14159265 / 180) * 0.04));
+  --theme-colors-chroma-50: calc(var(--theme-colors-chroma) * 0.3);
+  --theme-colors-chroma-100: calc(var(--theme-colors-chroma) * 0.5);
+  --theme-colors-chroma-200: calc(var(--theme-colors-chroma) * 0.6);
+  --theme-colors-chroma-300: calc(var(--theme-colors-chroma) * 0.75);
+  --theme-colors-chroma-400: var(--theme-colors-chroma);
+  --theme-colors-chroma-600: calc(var(--theme-colors-chroma) * 1.15);
+  --theme-colors-chroma-700: calc(var(--theme-colors-chroma) * 1.1);
+  --theme-colors-chroma-800: calc(var(--theme-colors-chroma) * 0.85);
+  --theme-colors-chroma-900: calc(var(--theme-colors-chroma) * 0.7);
+  --theme-colors-chroma-950: calc(var(--theme-colors-chroma) * 0.5);
+}

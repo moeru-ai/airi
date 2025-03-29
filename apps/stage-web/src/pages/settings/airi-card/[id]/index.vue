@@ -16,7 +16,8 @@ const { getCard } = cardStore
 const { activeCardId } = storeToRefs(cardStore)
 
 // Get card ID from route params
-const cardId = computed(() => route.params.id as string)
+const routeId = route.params.id
+const cardId = computed(() => (Array.isArray(routeId) ? routeId[0] : String(routeId || '')))
 
 // Get current card
 const card = computed(() => getCard(cardId.value))
@@ -30,6 +31,11 @@ if (!card.value) {
 function activateSelectedCard() {
   if (cardId.value)
     activeCardId.value = cardId.value
+}
+
+// Handle card deletion by going back to card list
+function handleCardDelete() {
+  router.replace('/settings/airi-card')
 }
 </script>
 
@@ -60,6 +66,7 @@ function activateSelectedCard() {
     v-if="card"
     :card-id="cardId"
     @activate="activateSelectedCard"
+    @delete="handleCardDelete"
   />
 </template>
 

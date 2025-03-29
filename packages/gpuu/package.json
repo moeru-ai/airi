@@ -44,7 +44,7 @@
     "defu": "^6.1.4"
   },
   "devDependencies": {
-    "@types/node": "^22.13.10",
-    "@webgpu/types": "^0.1.57"
+    "@types/node": "^22.13.14",
+    "@webgpu/types": "^0.1.60"
   }
 }

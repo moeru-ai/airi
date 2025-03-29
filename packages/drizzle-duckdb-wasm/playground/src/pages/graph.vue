@@ -728,7 +728,7 @@ onUnmounted(() => {
 
           <div class="mb-4">
             <label class="mb-1 block text-sm font-medium">Query Type</label>
-            <select v-model="queryType" class="w-full border rounded p-2">
+            <select v-model="queryType" class="w-full rounded border-none bg-neutral-100 p-2 outline-none dark:bg-neutral-800">
               <option value="recursive">
                 Recursive (All Paths)
               </option>
@@ -743,7 +743,7 @@ onUnmounted(() => {
 
           <div class="mb-4">
             <label class="mb-1 block text-sm font-medium">Start Node</label>
-            <select v-model="selectedStartNode" class="w-full border rounded p-2">
+            <select v-model="selectedStartNode" class="w-full rounded border-none bg-neutral-100 p-2 outline-none dark:bg-neutral-800">
               <option v-for="node in graphData.nodes" :key="`start-${node.id}`" :value="node.id">
                 {{ node.name }} ({{ node.type }})
               </option>
@@ -752,7 +752,7 @@ onUnmounted(() => {
 
           <div v-if="queryType === 'path'" class="mb-4">
             <label class="mb-1 block text-sm font-medium">End Node</label>
-            <select v-model="selectedEndNode" class="w-full border rounded p-2">
+            <select v-model="selectedEndNode" class="w-full rounded border-none bg-neutral-100 p-2 outline-none dark:bg-neutral-800">
               <option v-for="node in graphData.nodes" :key="`end-${node.id}`" :value="node.id">
                 {{ node.name }} ({{ node.type }})
               </option>

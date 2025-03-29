@@ -39,6 +39,20 @@ const toggleDark = useToggle(isDark)
       >
         <h1>Graph</h1>
       </RouterLink>
+      <div bg="neutral-200 dark:neutral-600" h="1lh" w="0.5" />
+      <RouterLink
+        to="/memory-decay" px-3 py-2 bg="hover:neutral-200 dark:hover:neutral-700"
+        transition="all duration-250 ease-in-out"
+      >
+        <h1>Memory Decay</h1>
+      </RouterLink>
+      <div bg="neutral-200 dark:neutral-600" h="1lh" w="0.5" />
+      <RouterLink
+        to="/memory-simulator" px-3 py-2 bg="hover:neutral-200 dark:hover:neutral-700"
+        transition="all duration-250 ease-in-out"
+      >
+        <h1>Memory Simulate</h1>
+      </RouterLink>
     </nav>
     <RouterView />
   </div>

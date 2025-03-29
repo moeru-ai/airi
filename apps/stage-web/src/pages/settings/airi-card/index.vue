@@ -72,6 +72,14 @@ function activateSelectedCard() {
   if (selectedCardId.value)
     activeCardId.value = selectedCardId.value
 }
+
+/**
+ * Handles card deletion
+ */
+function handleCardDelete() {
+  // Reset selected card ID if it's the one being deleted
+  selectedCardId.value = cardsArray.value.length > 0 ? cardsArray.value[0].id : ''
+}
 </script>
 
 <template>
@@ -104,8 +112,8 @@ function activateSelectedCard() {
         <button
           bg="primary-500 hover:primary-600"
           text="white"
-          rounded-lg px-4 py-2 transition duration-200
-          flex="~ row" items-center gap-2
+
+          flex="~ row" items-center gap-2 rounded-lg px-4 py-2 transition duration-200
           @click="handleUpload"
         >
           <div i-solar:upload-line-duotone />
@@ -129,6 +137,7 @@ function activateSelectedCard() {
       <AiriCardView
         :card-id="selectedCardId"
         @activate="activateSelectedCard"
+        @delete="handleCardDelete"
       />
     </div>
 

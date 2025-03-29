@@ -58,7 +58,7 @@ function updateTrackColor() {
     :min="scaledMin"
     :max="scaledMax"
     :step="scaledStep"
-    class="form_input-range slider-progress"
+    class="slider-progress form_input-range"
     @input="(e) => {
       (e.target as HTMLInputElement).style.setProperty('--value', (e.target as HTMLInputElement).value)
     }"

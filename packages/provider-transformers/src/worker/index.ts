@@ -25,6 +25,7 @@ async function load(modelId: string, options?: Omit<PipelineOptionsFrom<typeof p
     self.postMessage({ type: 'info', data: { message: `Using device: "${device}"` } } satisfies WorkerMessageEvent)
     self.postMessage({ type: 'info', data: { message: 'Loading models...' } } satisfies WorkerMessageEvent)
 
+    // @ts-expect-error - TODO: TS2590: Expression produces a union type that is too complex to represent.
     embed = await pipeline('feature-extraction', modelId, opts)
 
     self.postMessage({ type: 'status', data: { status: MessageStatus.Ready, message: 'Ready!' } } satisfies WorkerMessageEvent)

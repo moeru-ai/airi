@@ -60,7 +60,7 @@
     "@proj-airi/ccc": "workspace:^",
     "@proj-airi/server-sdk": "workspace:^",
     "@vueuse/motion": "^3.0.3",
-    "reka-ui": "^2.1.0",
+    "reka-ui": "^2.1.1",
     "unist-builder": "^4.0.0",
     "xast-util-to-xml": "^4.0.0",
     "xastscript": "^4.0.0"
@@ -70,11 +70,11 @@
     "@histoire/plugin-vue": "1.0.0-alpha.2",
     "@proj-airi/provider-transformers": "workspace:^",
     "@proj-airi/utils-transformers": "workspace:^",
-    "@unocss/reset": "^66.1.0-beta.6",
+    "@unocss/reset": "^66.1.0-beta.7",
     "@vitejs/plugin-vue": "^5.2.3",
     "@xsai/embed": "catalog:",
     "histoire": "1.0.0-alpha.2",
-    "unocss": "^66.1.0-beta.6",
-    "vite": "^6.2.2"
+    "unocss": "^66.1.0-beta.7",
+    "vite": "^6.2.3"
   }
 }

@@ -7,7 +7,7 @@ packages:
   - '!**/dist/**'
 
 catalog:
-  '@xsai/shared': &xsai ^0.1.3
+  '@xsai/shared': &xsai ^0.2.0-beta.1
   '@xsai-ext/providers-cloud': *xsai
   '@xsai-ext/providers-local': *xsai
   '@xsai-ext/shared-providers': *xsai

@@ -14,6 +14,7 @@ interface Props {
 
 interface Emits {
   (e: 'activate'): void
+  (e: 'delete'): void
 }
 
 const props = defineProps<Props>()
@@ -21,7 +22,7 @@ const emit = defineEmits<Emits>()
 
 const { t } = useI18n()
 const cardStore = useAiriCardStore()
-const { getCard } = cardStore
+const { getCard, removeCard } = cardStore
 const { activeCardId } = storeToRefs(cardStore)
 
 // Get current card
@@ -69,6 +70,25 @@ function handleActivate() {
     isActivating.value = false
   }, 300)
 }
+
+// Delete card confirmation
+const showDeleteConfirm = ref(false)
+
+function handleDeleteClick() {
+  showDeleteConfirm.value = true
+}
+
+function handleDeleteConfirm() {
+  if (card.value) {
+    removeCard(props.cardId)
+    emit('delete')
+  }
+  showDeleteConfirm.value = false
+}
+
+function handleDeleteCancel() {
+  showDeleteConfirm.value = false
+}
 </script>
 
 <template>
@@ -96,8 +116,26 @@ function handleActivate() {
           </div>
         </div>
 
-        <!-- Activation button -->
-        <div>
+        <!-- Action buttons -->
+        <div flex="~ row" gap-2>
+          <!-- Delete button -->
+          <button
+            v-if="props.cardId !== 'default'"
+            bg="red-500"
+            text="white"
+            rounded-lg px-4 py-2
+            border="~ transparent"
+            shadow="sm"
+            transition="all duration-200"
+            @click="handleDeleteClick"
+          >
+            <div flex="~ row" items-center gap-2>
+              <div i-solar:trash-bin-linear />
+              <span>{{ t('Delete') }}</span>
+            </div>
+          </button>
+
+          <!-- Activation button -->
           <button
             v-if="!isActive"
             bg="primary-500 hover:primary-600"
@@ -129,23 +167,6 @@ function handleActivate() {
         </div>
       </div>
 
-      <div
-        v-if="card.description"
-        bg="white/60 dark:black/30"
-        mb-2 whitespace-pre-line rounded-lg p-4
-        text-neutral-600 dark:text-neutral-300
-        border="~ neutral-200/50 dark:neutral-700/30"
-        transition="all duration-200"
-        hover="bg-white/80 dark:bg-black/40"
-      >
-        <h2 mb-1 text-neutral-500 font-medium dark:text-neutral-400>
-          {{ t('Description') }}
-        </h2>
-        <div>
-          {{ card.description }}
-        </div>
-      </div>
-
       <!-- Creator notes -->
       <div v-if="card.notes" mt-2>
         <h2 flex="~ row" mb-2 items-center gap-2 text-lg font-semibold>
@@ -164,6 +185,20 @@ function handleActivate() {
         </div>
       </div>
     </div>
+
+    <!-- Description section -->
+    <Section v-if="card.description" title="Description" icon="i-solar:document-text-bold-duotone">
+      <div
+        bg="white/60 dark:black/30"
+        whitespace-pre-line rounded-lg p-4
+        text-neutral-600 dark:text-neutral-300
+        border="~ neutral-200/50 dark:neutral-700/30"
+        transition="all duration-200"
+        hover="bg-white/80 dark:bg-black/40"
+      >
+        {{ card.description }}
+      </div>
+    </Section>
 
     <!-- Character settings -->
     <Section title="Character Settings" icon="i-solar:user-rounded-bold-duotone">
@@ -246,6 +281,54 @@ function handleActivate() {
         </div>
       </div>
     </Section>
+
+    <!-- Delete confirmation modal -->
+    <Teleport to="body">
+      <div
+        v-if="showDeleteConfirm"
+        fixed inset-0 z-50 flex items-center justify-center
+        bg-black:50
+        transition="all duration-300 ease-in-out"
+        class="bg-black bg-opacity-50 backdrop-blur-sm"
+      >
+        <div
+          bg="white dark:neutral-800"
+
+          mx-4 max-w-md w-full rounded-xl p-6 shadow-xl
+          border="~ neutral-200 dark:neutral-700"
+        >
+          <h3 mb-4 text-xl font-bold>
+            {{ t('Delete Card') }}
+          </h3>
+          <p mb-6>
+            {{ t('Are you sure you want to delete this card?') }} <b>"{{ card.name }}"</b>
+          </p>
+
+          <div flex="~ row" justify-end gap-3>
+            <button
+              bg="neutral-200 hover:neutral-300 dark:neutral-700 dark:hover:neutral-600"
+              rounded-lg px-4 py-2
+              border="~ transparent"
+              transition="all duration-200"
+              @click="handleDeleteCancel"
+            >
+              {{ t('Cancel') }}
+            </button>
+            <button
+              bg="red-500 hover:red-600"
+              text="white"
+              rounded-lg px-4 py-2
+              border="~ transparent"
+              shadow="hover:lg"
+              transition="all duration-200"
+              @click="handleDeleteConfirm"
+            >
+              {{ t('Delete') }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
   </div>
   <div
     v-else

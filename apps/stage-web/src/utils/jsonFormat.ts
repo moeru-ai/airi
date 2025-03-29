@@ -4,7 +4,7 @@ import type { Infer, Schema } from 'xsschema'
 
 import { generateText } from '@xsai/generate-text'
 import { message } from '@xsai/utils-chat'
-import { toJSONSchema, validate } from 'xsschema'
+import { toJsonSchema, validate } from 'xsschema'
 
 type SchemaOrString<S extends Schema | undefined | unknown> = S extends unknown ? string : S extends Schema ? Infer<S> : never
 
@@ -33,7 +33,7 @@ ${JSON.stringify(content)}
 Error: ${String(parseError)}
 
 Please provide a corrected JSON response that matches the schema:
-${JSON.stringify(await toJSONSchema(schema))}`))
+${JSON.stringify(await toJsonSchema(schema))}`))
 
       const response = await call(options, schema)
       return parseJSONFormat(response, options, schema, content, String(parseError))
@@ -54,7 +54,7 @@ ${JSON.stringify(await toJSONSchema(schema))}`))
 async function call<S extends Schema, R extends SchemaOrString<S>>(options: { messages: Message[], apiKey?: string, baseURL: string, model: string } & Partial<CommonRequestOptions>, schema?: S): Promise<R> {
   if (schema != null) {
     options.messages.push(message.user(`Your response must follow the following schema:
-${JSON.stringify(await toJSONSchema(schema))}
+${JSON.stringify(await toJsonSchema(schema))}
 
 Without any extra markups such as \`\`\` in markdown, or descriptions.`))
   }

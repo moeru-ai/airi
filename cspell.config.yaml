@@ -83,6 +83,7 @@ words:
   - Llmmarker
   - lobehub
   - logg
+  - Lorebook
   - lucide
   - magnifer
   - Maru
@@ -156,12 +157,14 @@ words:
   - unplugin
   - valibot
   - vaul
+  - velin
   - VITE
   - vllm
   - vrma
   - vueuse
   - wavefile
   - webgpu
+  - weeb
   - worklet
   - xast
   - xastscript

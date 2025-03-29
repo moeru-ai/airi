@@ -50,6 +50,9 @@ settings:
   animations:
     stage-transitions:
       title: Disable Stage Transitions
+    use-page-specific-transitions:
+      title: Use Page Specific Transitions
+      description: Some pages will have their own transitions, this will override the stage transitions
   language:
     chinese: 简体中文
     english: English

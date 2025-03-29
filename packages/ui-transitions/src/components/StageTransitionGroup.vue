@@ -17,6 +17,7 @@ const props = defineProps<{
   colors?: string[]
   zIndex?: number
   disableTransitions?: boolean
+  usePageSpecificTransitions?: boolean
 }>()
 
 interface StageTransitionCommonParams {
@@ -27,6 +28,7 @@ interface StageTransitionCommonParams {
   direction?: 'top' | 'bottom' | 'left' | 'right'
   colors?: string[]
   zIndex?: number
+  pageSpecificAvailable?: boolean
 }
 
 type TransitionComponent =
@@ -247,12 +249,21 @@ function triggerTransition(params: StageTransitionCommonParams, next: Navigation
 }
 
 router.beforeEach((to, _from, next) => {
+  if (props.disableTransitions) {
+    next()
+    return
+  }
+
   if (typeof to.meta.stageTransition !== 'object') {
     next()
     return
   }
 
   const stageTransition = to.meta.stageTransition as StageTransitionCommonParams
+  if (props.usePageSpecificTransitions && stageTransition.pageSpecificAvailable) {
+    next()
+    return
+  }
   if (typeof props.primaryColor !== 'undefined') {
     stageTransition.primaryColor = props.primaryColor
   }
@@ -267,11 +278,6 @@ router.beforeEach((to, _from, next) => {
   }
   if (typeof props.zIndex !== 'undefined') {
     stageTransition.zIndex = props.zIndex
-  }
-
-  if (props.disableTransitions) {
-    next()
-    return
   }
 
   triggerTransition(stageTransition, next)

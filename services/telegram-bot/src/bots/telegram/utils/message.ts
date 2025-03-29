@@ -17,7 +17,10 @@ export function parseMayStructuredMessage(responseText: string) {
   if (result) {
     logger.withField('text', JSON.stringify(responseText)).withField('result', result).log('Multiple messages detected')
 
-    return parse(result?.[0]) as ({ messages?: string[], reply_to_message_id?: string } | undefined)
+    const parsedResponse = parse(result?.[0]) as ({ messages?: string[], reply_to_message_id?: string } | undefined)
+    parsedResponse.messages = parsedResponse.messages?.filter(message => message.trim() !== '')
+
+    return parsedResponse
   }
 
   return { messages: [responseText], reply_to_message_id: undefined }
@@ -62,6 +65,10 @@ export async function sendMayStructuredMessage(
   // If we get here, the task wasn't cancelled, so we can send the response
   for (let i = 0; i < structuredMessage.messages.length; i++) {
     const item = structuredMessage.messages[i]
+    if (!item) {
+      state.logger.log(`Not sending message to ${chatId} - no messages to send`)
+      continue
+    }
 
     // Create cancellable typing and reply tasks
     await state.bot.api.sendChatAction(chatId, 'typing')
