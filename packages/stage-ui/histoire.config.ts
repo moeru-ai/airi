@@ -27,6 +27,10 @@ export default defineConfig({
         title: 'Design System',
       },
       {
+        id: 'common',
+        title: 'Common',
+      },
+      {
         id: 'form',
         title: 'Form',
       },
