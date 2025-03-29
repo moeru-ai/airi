@@ -1,8 +1,7 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 
 const props = withDefaults(defineProps<{
-  modelValue: number
   min?: number
   max?: number
   step?: number
@@ -20,20 +19,19 @@ const props = withDefaults(defineProps<{
   trackValueColor: 'red',
 })
 
-const emit = defineEmits<{
-  (e: 'update:modelValue', value: number): void
-}>()
+const modelValue = defineModel<number>('modelValue', { required: true })
 
 const scaledMin = computed(() => props.min * 10000)
 const scaledMax = computed(() => props.max * 10000)
 const scaledStep = computed(() => props.step * 10000)
 
 const sliderRef = ref<HTMLInputElement>()
-const sliderValue = ref(props.modelValue * 10000)
-
-watch(sliderValue, (value) => {
-  emit('update:modelValue', value / 10000)
-  updateTrackColor()
+const sliderValue = computed({
+  get: () => modelValue.value * 10000,
+  set: (value: number) => {
+    modelValue.value = value / 10000
+    updateTrackColor()
+  },
 })
 
 onMounted(() => {

@@ -273,6 +273,15 @@ onUnmounted(() => {
         </p>
       </div>
 
+      <!-- Time Controls -->
+      <TimeControls
+        v-model:simulated-time-offset="simulatedTimeOffset"
+        v-model:is-time-accelerated="isTimeAccelerated"
+        v-model:time-multiplier="timeMultiplier"
+        class="mb-4"
+        @time-jump="handleTimeJump"
+      />
+
       <!-- Interactive Chart Section -->
       <div class="grid grid-cols-1 mb-4 gap-4 lg:grid-cols-3">
         <!-- Chart -->
@@ -298,15 +307,6 @@ onUnmounted(() => {
           @retrieve="handleRetrieval"
         />
       </div>
-
-      <!-- Time Controls -->
-      <TimeControls
-        v-model:simulated-time-offset="simulatedTimeOffset"
-        v-model:is-time-accelerated="isTimeAccelerated"
-        v-model:time-multiplier="timeMultiplier"
-        class="mb-4"
-        @time-jump="handleTimeJump"
-      />
 
       <!-- Memory Model Settings -->
       <MemoryModelSettings
