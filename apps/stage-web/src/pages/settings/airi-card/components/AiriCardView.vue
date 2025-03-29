@@ -237,8 +237,8 @@ function hightlightTagToHtml(text: string) {
             transition="all duration-200"
             hover="bg-white/80 dark:bg-black/40"
           >
-            <span flex="~ row" items-center gap-1 text-sm text-neutral-500 dark:text-neutral-400>
-              <div i-lucide:ghost text-purple-500 />
+            <span flex="~ row" items-center gap-2 text-sm text-neutral-500 dark:text-neutral-400>
+              <div i-lucide:ghost />
               {{ t('settings.pages.modules.consciousness.title') }}
             </span>
             <div truncate font-medium>
@@ -249,13 +249,13 @@ function hightlightTagToHtml(text: string) {
           <div
             flex="~ col"
             bg="white/60 dark:black/30"
-            gap-1 rounded-lg p-3
+            gap-2 rounded-lg p-3
             border="~ neutral-200/50 dark:neutral-700/30"
             transition="all duration-200"
             hover="bg-white/80 dark:bg-black/40"
           >
-            <span flex="~ row" items-center gap-1 text-sm text-neutral-500 dark:text-neutral-400>
-              <div i-lucide:mic text-blue-500 />
+            <span flex="~ row" items-center gap-2 text-sm text-neutral-500 dark:text-neutral-400>
+              <div i-lucide:mic />
               {{ t('settings.pages.modules.speech.title') }}
             </span>
             <div truncate font-medium>
@@ -266,13 +266,13 @@ function hightlightTagToHtml(text: string) {
           <div
             flex="~ col"
             bg="white/60 dark:black/30"
-            gap-1 rounded-lg p-3
+            gap-2 rounded-lg p-3
             border="~ neutral-200/50 dark:neutral-700/30"
             transition="all duration-200"
             hover="bg-white/80 dark:bg-black/40"
           >
-            <span flex="~ row" items-center gap-1 text-sm text-neutral-500 dark:text-neutral-400>
-              <div i-solar:music-notes-bold-duotone text-pink-500 />
+            <span flex="~ row" items-center gap-2 text-sm text-neutral-500 dark:text-neutral-400>
+              <div i-solar:music-notes-bold-duotone />
               {{ t('settings.pages.card.voice_id') }}
             </span>
             <div truncate font-medium>
