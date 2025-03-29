@@ -6,16 +6,16 @@ export async function connectToDatabase() {
   return drizzle(buildDSN({
     scheme: 'duckdb-wasm:',
     bundles: 'import-url',
-    logger: true,
+    logger: false,
   }), { schema })
 }
 
 export async function createSchema(db) {
   await db.execute(`
-    CREATE TABLE IF NOT EXISTS currentscores (
-      storyid VARCHAR,
+    CREATE TABLE IF NOT EXISTS memories_decay_test_table (
+      id VARCHAR,
       score DOUBLE,
-      lastupdate TIMESTAMP,
+      updated_at TIMESTAMP,
       last_retrieved_at TIMESTAMP,
       retrieval_count INTEGER DEFAULT 0
     )
@@ -36,9 +36,9 @@ export async function loadSampleData(db) {
     const score = Math.floor(Math.random() * 900) + 100
 
     sampleData.push({
-      storyid: `story-${i}`,
+      id: `story-${i}`,
       score,
-      lastupdate: lastUpdate.toISOString(),
+      updated_at: lastUpdate.toISOString(),
       last_retrieved_at: lastRetrievedAt.toISOString(),
       retrieval_count: retrievalCount,
     })
@@ -46,8 +46,8 @@ export async function loadSampleData(db) {
 
   for (const item of sampleData) {
     await db.execute(`
-      INSERT INTO currentscores (storyid, score, lastupdate, last_retrieved_at, retrieval_count)
-      VALUES ('${item.storyid}', ${item.score}, '${item.lastupdate}', '${item.last_retrieved_at}', ${item.retrieval_count})
+      INSERT INTO memories_decay_test_table (id, score, updated_at, last_retrieved_at, retrieval_count)
+      VALUES ('${item.id}', ${item.score}, '${item.updated_at}', '${item.last_retrieved_at}', ${item.retrieval_count})
     `)
   }
 }
@@ -80,23 +80,23 @@ export async function generateDecayQuery(db, {
 
   const query = `
   SELECT
-    storyid,
+    id,
     score,
-    lastupdate,
+    updated_at,
     last_retrieved_at,
     retrieval_count,
-    CAST(lastupdate AS VARCHAR) as lastupdate_str,
+    CAST(updated_at AS VARCHAR) as updated_at_str,
     CAST(last_retrieved_at AS VARCHAR) as last_retrieved_str,
-    (EXTRACT(EPOCH FROM (${simulatedTimestamp} - lastupdate))) as age_in_seconds,
+    (EXTRACT(EPOCH FROM (${simulatedTimestamp} - updated_at))) as age_in_seconds,
     (EXTRACT(EPOCH FROM (${simulatedTimestamp} - last_retrieved_at))) as time_since_retrieval,
     ${ltmFactorClause}
     score *
-      exp(-${decayRate} * (EXTRACT(EPOCH FROM (${simulatedTimestamp} - lastupdate)))/(${timeUnitInSeconds}) ${ltmDecayModifier}) *
+      exp(-${decayRate} * (EXTRACT(EPOCH FROM (${simulatedTimestamp} - updated_at)))/(${timeUnitInSeconds}) ${ltmDecayModifier}) *
       (1 + (retrieval_count * ${retrievalBoost} *
             exp(-${decayRate * retrievalDecaySlowdown} *
                 (EXTRACT(EPOCH FROM (${simulatedTimestamp} - last_retrieved_at)))/(${timeUnitInSeconds}))))
     as decayed_score
-  FROM currentscores
+  FROM memories_decay_test_table
   ORDER BY decayed_score DESC
   `
 
@@ -107,9 +107,9 @@ export async function simulateRetrieval(db, storyId, simulatedTime) {
   const simulatedTimestamp = simulatedTime.toISOString()
 
   await db.execute(`
-    UPDATE currentscores
+    UPDATE memories_decay_test_table
     SET last_retrieved_at = '${simulatedTimestamp}',
         retrieval_count = retrieval_count + 1
-    WHERE storyid = '${storyId}'
+    WHERE id = '${storyId}'
   `)
 }

@@ -1,10 +1,12 @@
 <script setup lang="ts">
+import type { MemoryItem } from '../../types/memory/memory-decay'
+
 import { useDark } from '@vueuse/core'
 import * as d3 from 'd3'
 import { onMounted, onUnmounted, ref, watchEffect } from 'vue'
 
 const props = defineProps<{
-  memoryData: MemoryDataItem[]
+  memoryData: MemoryItem[]
   selectedStoryId: string
   decayRate: number
   maxDaysToShow: number
@@ -14,20 +16,6 @@ const props = defineProps<{
   retrievalBoost: number
   retrievalDecaySlowdown: number
 }>()
-
-interface MemoryDataItem {
-  storyid: string
-  score: number
-  lastupdate: string // ISO timestamp
-  last_retrieved_at: string // ISO timestamp
-  retrieval_count: number
-  lastupdate_str: string
-  last_retrieved_str: string
-  age_in_seconds: number
-  time_since_retrieval: number
-  ltm_factor?: number // Optional since it's only present when longTermMemoryEnabled is true
-  decayed_score: number
-}
 
 interface DataPoint {
   x: number
@@ -63,7 +51,7 @@ function renderChart() {
   d3.select(chartContainer.value).selectAll('*').remove()
 
   // Find the selected story
-  const story = props.memoryData.find(s => s.storyid === props.selectedStoryId)
+  const story = props.memoryData.find(s => s.id === props.selectedStoryId)
   if (!story)
     return
 
@@ -194,7 +182,7 @@ function renderChart() {
   addDataPoints(svg, chartData.dataPoints.withRetrievals, xScale, yScale)
 
   // Add chart title and legends
-  addTitleAndLegends(svg, story.storyid, retrievals, ltmFactor, width)
+  addTitleAndLegends(svg, story.id, retrievals, ltmFactor, width)
 
   // Add LTM indicators
   if (props.longTermMemoryEnabled) {

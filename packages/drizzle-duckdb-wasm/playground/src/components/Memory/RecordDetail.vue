@@ -1,21 +1,13 @@
-<!-- src/components/MemoryDetails.vue -->
 <script setup lang="ts">
+import type { MemoryItem } from '../../types/memory/memory-decay'
+
 import { computed } from 'vue'
 
-const props = defineProps({
-  memory: {
-    type: Object,
-    required: true,
-  },
-  longTermMemoryEnabled: {
-    type: Boolean,
-    required: true,
-  },
-  longTermMemoryThreshold: {
-    type: Number,
-    required: true,
-  },
-})
+const props = defineProps<{
+  memory: MemoryItem
+  longTermMemoryEnabled: boolean
+  longTermMemoryThreshold: number
+}>()
 
 const emit = defineEmits(['retrieve'])
 
@@ -59,7 +51,7 @@ const strengthPercentage = computed(() => {
 // Progress percentage for LTM
 const ltmPercentage = computed(() => {
   if (props.memory.retrieval_count >= props.longTermMemoryThreshold) {
-    return Math.round(Number.parseFloat(props.memory.ltm_factor || 0) * 100)
+    return Math.round(Number.parseFloat(String(props.memory.ltm_factor || 0)) * 100)
   }
   else {
     return Math.round((props.memory.retrieval_count / props.longTermMemoryThreshold) * 100)
@@ -67,7 +59,7 @@ const ltmPercentage = computed(() => {
 })
 
 function simulateRetrieval() {
-  emit('retrieve', props.memory.storyid)
+  emit('retrieve', props.memory.id)
 }
 </script>
 
@@ -75,7 +67,7 @@ function simulateRetrieval() {
   <div class="flex flex-col justify-between rounded-lg bg-white p-4 shadow dark:bg-neutral-800/50">
     <div class="flex justify-between">
       <h3 class="font-bold">
-        {{ memory.storyid }}
+        {{ memory.id }}
       </h3>
       <button
         class="rounded-lg bg-blue-100 px-3 py-1 text-xs font-medium dark:bg-blue-900 hover:bg-blue-200 dark:hover:bg-blue-800" h-fit
@@ -119,7 +111,7 @@ function simulateRetrieval() {
           Creation Date:
         </div>
         <div class="font-medium" text-right>
-          {{ new Date(memory.lastupdate).toLocaleDateString() }}
+          {{ new Date(memory.updated_at).toLocaleDateString() }}
         </div>
 
         <div class="text-sm text-neutral-500 dark:text-neutral-400" tracking-tight>
@@ -182,7 +174,7 @@ function simulateRetrieval() {
             {{ memory.retrieval_count }}/{{ longTermMemoryThreshold }} retrievals
           </span>
           <span v-else class="text-sm text-purple-600 font-medium dark:text-purple-400">
-            {{ Math.round(Number.parseFloat(memory.ltm_factor || 0) * 100) }}% stable
+            {{ Math.round(Number.parseFloat(String(memory.ltm_factor || 0)) * 100) }}% stable
           </span>
           <span class="text-xs">Permanent</span>
         </div>

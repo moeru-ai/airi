@@ -1,5 +1,6 @@
-<!-- src/MemoryDecaySimulator.vue -->
 <script setup lang="ts">
+import type { MemoryItem } from '../types/memory/memory-decay'
+
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 
 import MemoryModelSettings from '../components/Memory/DecayModelSettings.vue'
@@ -7,29 +8,21 @@ import TimeControls from '../components/Memory/DecayTimeSettings.vue'
 import MemoryDetails from '../components/Memory/RecordDetail.vue'
 import MemoryChart from '../components/Memory/VisualizeChart.vue'
 import MemoryTable from '../components/Memory/VisualizeTable.vue'
-import { connectToDatabase, createSchema, generateDecayQuery, loadSampleData, simulateRetrieval } from '../composables/memory/db'
-
-interface MemoryDataItem {
-  storyid: string
-  score: number
-  lastupdate: string // ISO timestamp
-  last_retrieved_at: string // ISO timestamp
-  retrieval_count: number
-  lastupdate_str: string
-  last_retrieved_str: string
-  age_in_seconds: number
-  time_since_retrieval: number
-  ltm_factor?: number // Optional since it's only present when longTermMemoryEnabled is true
-  decayed_score: number
-}
+import {
+  connectToDatabase,
+  createSchema,
+  generateDecayQuery,
+  loadSampleData,
+  simulateRetrieval,
+} from '../composables/memory/memory-decay-db'
 
 // Database references
 const db = ref(null)
 const isMigrated = ref(false)
 
 // Data and query results
-const rawData = ref<MemoryDataItem[]>([])
-const decayedResults = ref<MemoryDataItem[]>([])
+const rawData = ref<MemoryItem[]>([])
+const decayedResults = ref<MemoryItem[]>([])
 
 // Parameters for decay function
 const decayRate = ref(0.0990)
@@ -58,7 +51,7 @@ const showInfoPanel = ref(false)
 const selectedMemory = computed(() => {
   if (!selectedStoryId.value || !decayedResults.value.length)
     return null
-  return decayedResults.value.find(s => s.storyid === selectedStoryId.value)
+  return decayedResults.value.find(s => s.id === selectedStoryId.value)
 })
 
 // Time unit in seconds
@@ -91,10 +84,10 @@ async function initialize() {
 // Load data from the database
 async function loadData() {
   rawData.value = await db.value?.execute(`
-    SELECT storyid, score, lastupdate, last_retrieved_at, retrieval_count,
-           CAST(lastupdate AS VARCHAR) as lastupdate_str,
-           CAST(last_retrieved_at AS VARCHAR) as last_retrieved_str
-    FROM currentscores
+    SELECT id, score, updated_at, last_retrieved_at, retrieval_count,
+      CAST(updated_at AS VARCHAR) as updated_at_str,
+      CAST(last_retrieved_at AS VARCHAR) as last_retrieved_str
+    FROM memories_decay_test_table
     ORDER BY score DESC
   `) || []
   await runDecayQuery()
@@ -126,7 +119,7 @@ async function runDecayQuery() {
 
   // Initialize selectedStoryId if not set or update if selection changed
   if (!selectedStoryId.value && decayedResults.value.length) {
-    selectedStoryId.value = decayedResults.value[0].storyid
+    selectedStoryId.value = decayedResults.value[0].id
   }
 }
 

@@ -1,12 +1,12 @@
 <!-- src/components/MemoryTable.vue -->
 <script setup lang="ts">
 interface MemoryDataItem {
-  storyid: string
+  id: string
   score: number
-  lastupdate: string // ISO timestamp
+  updated_at: string // ISO timestamp
   last_retrieved_at: string // ISO timestamp
   retrieval_count: number
-  lastupdate_str: string
+  updated_at_str: string
   last_retrieved_str: string
   age_in_seconds: number
   time_since_retrieval: number
@@ -103,16 +103,16 @@ function getMemoryStatus(memory) {
         </thead>
         <tbody class="bg-white divide-y divide-neutral-200 dark:bg-neutral-900 dark:divide-neutral-800">
           <tr
-            v-for="(item, idx) in memories" :key="item.storyid"
-            :class="{ 'bg-blue-50 dark:bg-blue-900/20': item.storyid === selectedId }"
+            v-for="(item, idx) in memories" :key="item.id"
+            :class="{ 'bg-blue-50 dark:bg-blue-900/20': item.id === selectedId }"
             class="cursor-pointer transition duration-150 hover:bg-neutral-50 dark:hover:bg-neutral-800"
-            @click="selectMemory(item.storyid)"
+            @click="selectMemory(item.id)"
           >
             <td class="whitespace-nowrap px-4 py-2 text-sm font-medium">
               {{ idx + 1 }}
             </td>
             <td class="whitespace-nowrap px-4 py-2 text-sm">
-              {{ item.storyid }}
+              {{ item.id }}
             </td>
             <td class="whitespace-nowrap px-4 py-2 text-sm">
               {{ Math.round(item.score) }}
@@ -154,7 +154,7 @@ function getMemoryStatus(memory) {
             <td class="whitespace-nowrap px-4 py-2 text-right">
               <button
                 class="rounded-lg bg-green-100 px-3 py-1 text-xs font-medium dark:bg-green-900 hover:bg-green-200 dark:hover:bg-green-800"
-                @click="retrieveMemory(item.storyid, $event)"
+                @click="retrieveMemory(item.id, $event)"
               >
                 Retrieve
               </button>
