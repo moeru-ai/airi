@@ -113,7 +113,7 @@ function handleCardDelete() {
         <Button
           variant="primary"
           icon="i-solar:upload-line-duotone"
-          :label="t('Upload')"
+          :label="t('settings.pages.card.upload')"
           @click="handleUpload"
         />
       </div>

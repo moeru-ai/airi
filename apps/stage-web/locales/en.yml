@@ -1,7 +1,3 @@
-common:
-  active: Activated
-  save: Save
-  sync: Sync
 prompt:
   prefix: >
     (from Neko Ayaka) Good morning! You are finally awake.
@@ -75,43 +71,26 @@ settings:
   models: Model
   pages:
     card:
-      activate: Activate
-      active: Active
-      advanced_edit: Advanced Edit (JSON)
-      basic_info: Basic Information
-      cannot_delete_default: Cannot delete the default card
-      character_book: Character Book
-      close: Close
-      consciousness_model: Consciousness Model
-      creator_notes: Creator Notes
-      description: Use Airi chatacter card presets
-      dropzone: Click or drag files to upload
-      edit: Edit Card
-      empty: No cards yet. Upload one to get started.
-      export: Export
-      extensions: Extensions
-      first_message: First Message
-      formats: Accept .json files
-      info: Card Information
-      list: Your Cards
-      model_settings: Model Settings
-      models: Models
-      name: Name
-      new_card: New Card
-      new_card_button: New Card
-      nickname: Nickname
-      nickname_placeholder: Alternative name for the character
-      no_description: No description provided
-      personality: Personality
-      post_instructions: Post Instructions
-      prompt: System Prompt
-      scenario: Scenario
-      tags: Tags
-      templates: Alternate Greetings
       title: Airi Card
-      upload: Upload Card
-      version: Version
-      voice_model: Voice Model
+      description: Use Airi character card presets
+      upload: Upload
+      delete: Delete
+      active: Active
+      activate: Activate
+      delete_card: Delete Card
+      delete_confirmation: Are you sure you want to delete this card?
+      card_not_found: Card not found
+      created_by: created by
+      creator_notes: Creator Notes
+      description_label: Description
+      character: Character
+      personality: Personality
+      scenario: Scenario
+      systemprompt: System Prompt
+      posthistoryinstructions: Post-History Instructions
+      modules: Modules
+      voice_id: Voice ID
+      cancel: Cancel
     memory:
       description: Where memories got stored, and organized
       title: Memory

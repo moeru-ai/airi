@@ -119,7 +119,7 @@ function hightlightTagToHtml(text: string) {
           <div mt-1 text-sm text-neutral-500 dark:text-neutral-400>
             v{{ card.version }}
             <template v-if="card.creator">
-              · {{ t('created by') }} <span font-medium>{{ card.creator }}</span>
+              · {{ t('settings.pages.card.created_by') }} <span font-medium>{{ card.creator }}</span>
             </template>
           </div>
         </div>
@@ -140,24 +140,24 @@ function hightlightTagToHtml(text: string) {
                 class="fixed left-1/2 top-1/2 z-50 max-w-md w-full border border-neutral-200 rounded-xl bg-white p-6 shadow-xl -translate-x-1/2 -translate-y-1/2 dark:border-neutral-700 dark:bg-neutral-800"
               >
                 <AlertDialogTitle class="mb-4 text-xl font-bold">
-                  {{ t('Delete Card') }}
+                  {{ t('settings.pages.card.delete_card') }}
                 </AlertDialogTitle>
                 <AlertDialogDescription class="mb-6">
-                  {{ t('Are you sure you want to delete this card?') }} <b>"{{ card.name }}"</b>
+                  {{ t('settings.pages.card.delete_confirmation') }} <b>"{{ card.name }}"</b>
                 </AlertDialogDescription>
 
                 <div class="flex flex-row justify-end gap-3">
                   <AlertDialogCancel as-child>
                     <Button
                       variant="secondary"
-                      :label="t('Cancel')"
+                      :label="t('settings.pages.card.cancel')"
                       @click="() => showDeleteConfirm = false"
                     />
                   </AlertDialogCancel>
                   <AlertDialogAction as-child>
                     <Button
                       variant="danger"
-                      :label="t('Delete')"
+                      :label="t('settings.pages.card.delete')"
                       @click="handleDeleteConfirm"
                     />
                   </AlertDialogAction>
@@ -169,7 +169,7 @@ function hightlightTagToHtml(text: string) {
           <!-- Activation button -->
           <Button
             variant="primary"
-            :label="isActive ? t('Active') : t('Activate')"
+            :label="isActive ? t('settings.pages.card.active') : t('settings.pages.card.activate')"
             :disabled="isActive"
             :class="{ 'animate-pulse': isActivating }"
             @click="handleActivate"
@@ -178,7 +178,7 @@ function hightlightTagToHtml(text: string) {
       </div>
 
       <!-- Creator notes -->
-      <Section v-if="card.notes" title="Creator Notes" icon="i-solar:notes-bold-duotone">
+      <Section v-if="card.notes" :title="t('settings.pages.card.creator_notes')" icon="i-solar:notes-bold-duotone">
         <div
           bg="white/60 dark:black/30"
           whitespace-pre-line rounded-lg p-4
@@ -191,7 +191,7 @@ function hightlightTagToHtml(text: string) {
       </Section>
 
       <!-- Description section -->
-      <Section v-if="card.description" title="Description" icon="i-solar:document-text-bold-duotone">
+      <Section v-if="card.description" :title="t('settings.pages.card.description_label')" icon="i-solar:document-text-bold-duotone">
         <div
           bg="white/60 dark:black/30"
           whitespace-pre-line
@@ -205,12 +205,12 @@ function hightlightTagToHtml(text: string) {
 
       <!-- Character -->
       <template v-if="Object.values(characterSettings).some(value => !!value)">
-        <Section title="Character" icon="i-solar:user-rounded-bold-duotone">
+        <Section :title="t('settings.pages.card.character')" icon="i-solar:user-rounded-bold-duotone">
           <div flex="~ col" gap-4>
             <template v-for="(value, key) in characterSettings" :key="key">
               <div v-if="value" flex="~ col" gap-2>
                 <h2 text-lg text-neutral-500 font-medium dark:text-neutral-400>
-                  {{ t(key) }}
+                  {{ t(`settings.pages.card.${key.toLowerCase()}`) }}
                 </h2>
                 <div
                   bg="white/60 dark:black/30"
@@ -227,7 +227,7 @@ function hightlightTagToHtml(text: string) {
       </template>
 
       <!-- Modules -->
-      <Section title="Modules" icon="i-solar:tuning-square-bold-duotone">
+      <Section :title="t('settings.pages.card.modules')" icon="i-solar:tuning-square-bold-duotone">
         <div grid="~ cols-1 sm:cols-3" gap-4>
           <div
             flex="~ col"
@@ -273,7 +273,7 @@ function hightlightTagToHtml(text: string) {
           >
             <span flex="~ row" items-center gap-1 text-sm text-neutral-500 dark:text-neutral-400>
               <div i-solar:music-notes-bold-duotone text-pink-500 />
-              {{ t('Voice ID') }}
+              {{ t('settings.pages.card.voice_id') }}
             </span>
             <div truncate font-medium>
               {{ moduleSettings.voice }}
@@ -291,6 +291,6 @@ function hightlightTagToHtml(text: string) {
     shadow="sm"
   >
     <div i-solar:card-search-broken mx-auto mb-3 text-6xl text-neutral-400 />
-    {{ t('Card not found') }}
+    {{ t('settings.pages.card.card_not_found') }}
   </div>
 </template>
