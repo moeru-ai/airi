@@ -128,6 +128,7 @@ function handleCardDelete() {
           :items="cardsArray"
           :expand-button-text="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.expand')"
           :collapse-button-text="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.collapse')"
+          :show-more="false"
         />
       </template>
     </div>

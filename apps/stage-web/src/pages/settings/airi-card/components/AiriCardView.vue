@@ -89,6 +89,10 @@ function handleDeleteConfirm() {
 function handleDeleteCancel() {
   showDeleteConfirm.value = false
 }
+
+const highlightDescriptionHtml = computed(() => {
+  return card.value?.description?.replace(/\{\{(.*?)\}\}/g, '<span class="bg-primary-500/20 inline-block">{{ $1 }}</span>').trim()
+})
 </script>
 
 <template>
@@ -130,7 +134,7 @@ function handleDeleteCancel() {
             @click="handleDeleteClick"
           >
             <div flex="~ row" items-center gap-2>
-              <div i-solar:trash-bin-linear />
+              <div i-solar:trash-bin-2-linear />
               <span>{{ t('Delete') }}</span>
             </div>
           </button>
@@ -156,8 +160,8 @@ function handleDeleteCancel() {
 
           <div
             v-else
-            bg="success-500"
             text="white"
+            bg="primary-500 hover:primary-600"
             flex="~ row" items-center gap-2 rounded-lg px-4 py-2
             shadow="sm"
           >
@@ -168,11 +172,7 @@ function handleDeleteCancel() {
       </div>
 
       <!-- Creator notes -->
-      <div v-if="card.notes" mt-2>
-        <h2 flex="~ row" mb-2 items-center gap-2 text-lg font-semibold>
-          <div i-solar:notes-bold-duotone text-amber-500 />
-          {{ t('Creator Notes') }}
-        </h2>
+      <Section v-if="card.notes" title="Creator Notes" icon="i-solar:notes-bold-duotone">
         <div
           bg="white/60 dark:black/30"
           whitespace-pre-line rounded-lg p-4
@@ -181,154 +181,154 @@ function handleDeleteCancel() {
           transition="all duration-200"
           hover="bg-white/80 dark:bg-black/40"
         >
-          {{ card.notes }}
+          {{ card.notes.trim() }}
         </div>
-      </div>
-    </div>
+      </Section>
 
-    <!-- Description section -->
-    <Section v-if="card.description" title="Description" icon="i-solar:document-text-bold-duotone">
-      <div
-        bg="white/60 dark:black/30"
-        whitespace-pre-line rounded-lg p-4
-        text-neutral-600 dark:text-neutral-300
-        border="~ neutral-200/50 dark:neutral-700/30"
-        transition="all duration-200"
-        hover="bg-white/80 dark:bg-black/40"
-      >
-        {{ card.description }}
-      </div>
-    </Section>
+      <!-- Description section -->
+      <Section v-if="card.description" title="Description" icon="i-solar:document-text-bold-duotone">
+        <div
+          bg="white/60 dark:black/30"
+          whitespace-pre-line
+          rounded-lg
+          p-4
+          text="neutral-600 dark:neutral-300"
+          border="~ neutral-200/50 dark:neutral-700/30"
+          v-html="highlightDescriptionHtml"
+        />
+      </Section>
 
-    <!-- Character settings -->
-    <Section title="Character Settings" icon="i-solar:user-rounded-bold-duotone">
-      <div grid="~ cols-1 md:cols-2" gap-4>
-        <template v-for="(value, key) in characterSettings" :key="key">
-          <div v-if="value" flex="~ col" gap-1>
-            <span flex="~ row" items-center gap-1 text-sm text-neutral-500 font-medium dark:text-neutral-400>
-              <div v-if="key === 'personality'" i-solar:emoji-funny-circle-bold-duotone text-violet-500 />
-              <div v-if="key === 'scenario'" i-solar:stars-bold-duotone text-blue-500 />
-              <div v-if="key === 'systemPrompt'" i-solar:settings-bold-duotone text-green-500 />
-              <div v-if="key === 'postHistoryInstructions'" i-solar:chat-square-code-bold-duotone text-orange-500 />
-              {{ t(key) }}
+      <!-- Character -->
+      <template v-if="Object.values(characterSettings).some(value => !!value)">
+        <Section title="Character" icon="i-solar:user-rounded-bold-duotone">
+          <div grid="~ cols-1 md:cols-2" gap-4>
+            <template v-for="(value, key) in characterSettings" :key="key">
+              <div v-if="value" flex="~ col" gap-1>
+                <span flex="~ row" items-center gap-1 text-sm text-neutral-500 font-medium dark:text-neutral-400>
+                  <div v-if="key === 'personality'" i-solar:emoji-funny-circle-bold-duotone text-violet-500 />
+                  <div v-if="key === 'scenario'" i-solar:stars-bold-duotone text-blue-500 />
+                  <div v-if="key === 'systemPrompt'" i-solar:settings-bold-duotone text-green-500 />
+                  <div v-if="key === 'postHistoryInstructions'" i-solar:chat-square-code-bold-duotone text-orange-500 />
+                  {{ t(key) }}
+                </span>
+                <div
+                  bg="white/60 dark:black/30"
+                  border="~ neutral-200/50 dark:neutral-700/30"
+                  transition="all duration-200"
+                  hover="bg-white/80 dark:bg-black/40"
+                  max-h-60 overflow-auto whitespace-pre-line rounded-lg p-3 text-neutral-700 dark:text-neutral-300
+                >
+                  {{ value }}
+                </div>
+              </div>
+            </template>
+          </div>
+        </Section>
+      </template>
+
+      <!-- Modules -->
+      <Section title="Modules" icon="i-solar:tuning-square-bold-duotone">
+        <div grid="~ cols-1 sm:cols-3" gap-4>
+          <div
+            flex="~ col"
+            bg="white/60 dark:black/30"
+            gap-1 rounded-lg p-3
+            border="~ neutral-200/50 dark:neutral-700/30"
+            transition="all duration-200"
+            hover="bg-white/80 dark:bg-black/40"
+          >
+            <span flex="~ row" items-center gap-1 text-sm text-neutral-500 dark:text-neutral-400>
+              <div i-lucide:ghost text-purple-500 />
+              {{ t('settings.pages.modules.consciousness.title') }}
             </span>
-            <div
-              bg="white/60 dark:black/30"
-              border="~ neutral-200/50 dark:neutral-700/30"
-              transition="all duration-200"
-              hover="bg-white/80 dark:bg-black/40"
-              max-h-60 overflow-auto whitespace-pre-line rounded-lg p-3 text-neutral-700 dark:text-neutral-300
-            >
-              {{ value }}
+            <div truncate font-medium>
+              {{ moduleSettings.consciousness }}
             </div>
           </div>
-        </template>
-      </div>
-    </Section>
 
-    <!-- Module settings -->
-    <Section title="Module Settings" icon="i-solar:tuning-square-bold-duotone">
-      <div grid="~ cols-1 sm:cols-3" gap-4>
-        <div
-          flex="~ col"
-          bg="white/60 dark:black/30"
-          gap-1 rounded-lg p-3
-          border="~ neutral-200/50 dark:neutral-700/30"
-          transition="all duration-200"
-          hover="bg-white/80 dark:bg-black/40"
-        >
-          <span flex="~ row" items-center gap-1 text-sm text-neutral-500 dark:text-neutral-400>
-            <div i-solar:brain-bold-duotone text-purple-500 />
-            {{ t('Consciousness Model') }}
-          </span>
-          <div truncate font-medium>
-            {{ moduleSettings.consciousness }}
+          <div
+            flex="~ col"
+            bg="white/60 dark:black/30"
+            gap-1 rounded-lg p-3
+            border="~ neutral-200/50 dark:neutral-700/30"
+            transition="all duration-200"
+            hover="bg-white/80 dark:bg-black/40"
+          >
+            <span flex="~ row" items-center gap-1 text-sm text-neutral-500 dark:text-neutral-400>
+              <div i-lucide:mic text-blue-500 />
+              {{ t('settings.pages.modules.speech.title') }}
+            </span>
+            <div truncate font-medium>
+              {{ moduleSettings.speech }}
+            </div>
+          </div>
+
+          <div
+            flex="~ col"
+            bg="white/60 dark:black/30"
+            gap-1 rounded-lg p-3
+            border="~ neutral-200/50 dark:neutral-700/30"
+            transition="all duration-200"
+            hover="bg-white/80 dark:bg-black/40"
+          >
+            <span flex="~ row" items-center gap-1 text-sm text-neutral-500 dark:text-neutral-400>
+              <div i-solar:music-notes-bold-duotone text-pink-500 />
+              {{ t('Voice ID') }}
+            </span>
+            <div truncate font-medium>
+              {{ moduleSettings.voice }}
+            </div>
           </div>
         </div>
+      </Section>
 
+      <!-- Delete confirmation modal -->
+      <Teleport to="body">
         <div
-          flex="~ col"
-          bg="white/60 dark:black/30"
-          gap-1 rounded-lg p-3
-          border="~ neutral-200/50 dark:neutral-700/30"
-          transition="all duration-200"
-          hover="bg-white/80 dark:bg-black/40"
+          v-if="showDeleteConfirm"
+          fixed inset-0 z-50 flex items-center justify-center
+          bg-black:50
+          transition="all duration-300 ease-in-out"
+          class="bg-black bg-opacity-50 backdrop-blur-sm"
         >
-          <span flex="~ row" items-center gap-1 text-sm text-neutral-500 dark:text-neutral-400>
-            <div i-solar:microphone-bold-duotone text-blue-500 />
-            {{ t('Speech Model') }}
-          </span>
-          <div truncate font-medium>
-            {{ moduleSettings.speech }}
+          <div
+            bg="white dark:neutral-800"
+            mx-4 max-w-md w-full rounded-xl p-6 shadow-xl
+            border="~ neutral-200 dark:neutral-700"
+          >
+            <h3 mb-4 text-xl font-bold>
+              {{ t('Delete Card') }}
+            </h3>
+            <p mb-6>
+              {{ t('Are you sure you want to delete this card?') }} <b>"{{ card.name }}"</b>
+            </p>
+
+            <div flex="~ row" justify-end gap-3>
+              <button
+                bg="neutral-200 hover:neutral-300 dark:neutral-700 dark:hover:neutral-600"
+                rounded-lg px-4 py-2
+                border="~ transparent"
+                transition="all duration-200"
+                @click="handleDeleteCancel"
+              >
+                {{ t('Cancel') }}
+              </button>
+              <button
+                bg="red-500 hover:red-600"
+                text="white"
+                rounded-lg px-4 py-2
+                border="~ transparent"
+                shadow="hover:lg"
+                transition="all duration-200"
+                @click="handleDeleteConfirm"
+              >
+                {{ t('Delete') }}
+              </button>
+            </div>
           </div>
         </div>
-
-        <div
-          flex="~ col"
-          bg="white/60 dark:black/30"
-          gap-1 rounded-lg p-3
-          border="~ neutral-200/50 dark:neutral-700/30"
-          transition="all duration-200"
-          hover="bg-white/80 dark:bg-black/40"
-        >
-          <span flex="~ row" items-center gap-1 text-sm text-neutral-500 dark:text-neutral-400>
-            <div i-solar:music-notes-bold-duotone text-pink-500 />
-            {{ t('Voice ID') }}
-          </span>
-          <div truncate font-medium>
-            {{ moduleSettings.voice }}
-          </div>
-        </div>
-      </div>
-    </Section>
-
-    <!-- Delete confirmation modal -->
-    <Teleport to="body">
-      <div
-        v-if="showDeleteConfirm"
-        fixed inset-0 z-50 flex items-center justify-center
-        bg-black:50
-        transition="all duration-300 ease-in-out"
-        class="bg-black bg-opacity-50 backdrop-blur-sm"
-      >
-        <div
-          bg="white dark:neutral-800"
-
-          mx-4 max-w-md w-full rounded-xl p-6 shadow-xl
-          border="~ neutral-200 dark:neutral-700"
-        >
-          <h3 mb-4 text-xl font-bold>
-            {{ t('Delete Card') }}
-          </h3>
-          <p mb-6>
-            {{ t('Are you sure you want to delete this card?') }} <b>"{{ card.name }}"</b>
-          </p>
-
-          <div flex="~ row" justify-end gap-3>
-            <button
-              bg="neutral-200 hover:neutral-300 dark:neutral-700 dark:hover:neutral-600"
-              rounded-lg px-4 py-2
-              border="~ transparent"
-              transition="all duration-200"
-              @click="handleDeleteCancel"
-            >
-              {{ t('Cancel') }}
-            </button>
-            <button
-              bg="red-500 hover:red-600"
-              text="white"
-              rounded-lg px-4 py-2
-              border="~ transparent"
-              shadow="hover:lg"
-              transition="all duration-200"
-              @click="handleDeleteConfirm"
-            >
-              {{ t('Delete') }}
-            </button>
-          </div>
-        </div>
-      </div>
-    </Teleport>
+      </Teleport>
+    </div>
   </div>
   <div
     v-else

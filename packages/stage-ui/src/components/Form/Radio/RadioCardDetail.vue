@@ -98,7 +98,7 @@ function toggleExpansion() {
         <!-- Description with ellipsis (limited to 2 lines) -->
         <TransitionVertical>
           <div
-            v-if="!isExpanded"
+            v-if="!isExpanded || !showExpandCollapse"
             class="line-clamp-2 cursor-pointer text-xs"
             :class="[
               modelValue === value
