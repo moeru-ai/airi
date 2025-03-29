@@ -23,8 +23,6 @@ async function isChatIdBotAdmin(chatId: number) {
 }
 
 async function handleLoop(state: BotSelf, msgs?: LLMMessage[], chatId?: string) {
-  state.logger.log('handleLoop')
-
   // Set the start time when beginning new processing
   state.currentProcessingStartTime = Date.now()
 
@@ -48,94 +46,95 @@ async function handleLoop(state: BotSelf, msgs?: LLMMessage[], chatId?: string) 
   }
 
   try {
-    try {
-      const action = await imagineAnAction(state.bot.botInfo.id.toString(), state.unreadMessages, currentController, msgs, state.lastInteractedNChatIds)
+    const action = await imagineAnAction(state.bot.botInfo.id.toString(), state.unreadMessages, currentController, msgs, state.lastInteractedNChatIds)
 
-      switch (action.action) {
-        case 'readMessages':
-          if (Object.keys(state.unreadMessages).length === 0) {
-            state.logger.log('No unread messages - deleting all unread messages')
-            state.unreadMessages = {}
-            break
-          }
-          if (action.chatId == null) {
-            state.logger.log('No group ID - deleting all unread messages')
-            state.unreadMessages = {}
-            break
-          }
-
-          // eslint-disable-next-line no-case-declarations
-          let unreadMessagesForThisChat: Message[] | undefined = state.unreadMessages[action.chatId]
-
-          // Modified interruption logic
-          if (chatId && chatId === action.chatId
-            && unreadMessagesForThisChat
-            && unreadMessagesForThisChat.length > 0) {
-            const processingTime = state.currentProcessingStartTime
-              ? Date.now() - state.currentProcessingStartTime
-              : 0
-
-            const messageCount = unreadMessagesForThisChat.length
-
-            // Factors to consider for interruption:
-            //
-            // 1. How long we've been processing (longer = more likely to finish)
-            // 2. Number of new messages (more = higher chance to interrupt)
-            // 3. Message content importance (could be determined by LLM)
-
-            const shouldInterrupt = await shouldInterruptProcessing({
-              processingTime,
-              messageCount,
-              currentMessages: msgs,
-              newMessages: unreadMessagesForThisChat,
-              chatId: action.chatId,
-            })
-
-            if (shouldInterrupt) {
-              state.logger.log(`Interrupting message processing for chat ${action.chatId} - new messages deemed more important`)
-              return handleLoop(state)
-            }
-            else {
-              state.logger.log(`Continuing current processing despite new messages in chat ${action.chatId}`)
-            }
-          }
-          if (!Array.isArray(unreadMessagesForThisChat)) {
-            state.logger.log(`Unread messages for group ${action.chatId} is not an array - converting to array`)
-            unreadMessagesForThisChat = []
-          }
-          if (unreadMessagesForThisChat.length === 0) {
-            state.logger.log(`No unread messages for group ${action.chatId} - deleting`)
-            delete state.unreadMessages[action.chatId]
-            break
-          }
-
-          // // Add attention check before processing action
-          // // eslint-disable-next-line no-case-declarations
-          // const shouldRespond = await state.attentionHandler.shouldRespond(forGroupId, unreadMessagesForThisChat)
-
-          // if (!shouldRespond.shouldAct) {
-          //   state.logger.withField('reason', shouldRespond.reason).withField('responseRate', shouldRespond.responseRate).log('Skipping message due to attention check')
-          //   state.unreadMessages[action.groupId] = unreadMessagesForThisChat.shift()
-          //   return { break: true }
-          // }
-
-          await readMessage(state, state.bot.botInfo.id.toString(), chatId, action, unreadMessagesForThisChat, currentController)
-          break
-        case 'listChats':
-          msgs.push(message.user(`List of chats:${(await listJoinedChats()).map(chat => `ID:${chat.chat_id}, Name:${chat.chat_name}`).join('\n')}`))
-          await handleLoop(state, msgs)
-          break
-        case 'sendMessage':
-          await sendMayStructuredMessage(state, action.content, action.groupId)
-          break
-        default:
-          msgs.push(message.user(`The action you sent ${action.action} haven't implemented yet by developer.`))
-          await handleLoop(state, msgs)
-          break
-      }
+    // If action generation failed, don't proceed with further processing
+    if (!action || !action.action) {
+      state.logger.log('No valid action returned. Skipping further processing.')
+      return
     }
-    catch (err) {
-      state.logger.withError(err).withField('cause', String(err.cause)).log('Error occurred')
+
+    switch (action.action) {
+      case 'readMessages':
+        if (Object.keys(state.unreadMessages).length === 0) {
+          state.logger.log('No unread messages - deleting all unread messages')
+          state.unreadMessages = {}
+          break
+        }
+        if (action.chatId == null) {
+          state.logger.log('No group ID - deleting all unread messages')
+          state.unreadMessages = {}
+          break
+        }
+
+        // eslint-disable-next-line no-case-declarations
+        let unreadMessagesForThisChat: Message[] | undefined = state.unreadMessages[action.chatId]
+
+        // Modified interruption logic
+        if (chatId && chatId === action.chatId
+          && unreadMessagesForThisChat
+          && unreadMessagesForThisChat.length > 0) {
+          const processingTime = state.currentProcessingStartTime
+            ? Date.now() - state.currentProcessingStartTime
+            : 0
+
+          const messageCount = unreadMessagesForThisChat.length
+
+          // Factors to consider for interruption:
+          //
+          // 1. How long we've been processing (longer = more likely to finish)
+          // 2. Number of new messages (more = higher chance to interrupt)
+          // 3. Message content importance (could be determined by LLM)
+
+          const shouldInterrupt = await shouldInterruptProcessing({
+            processingTime,
+            messageCount,
+            currentMessages: msgs,
+            newMessages: unreadMessagesForThisChat,
+            chatId: action.chatId,
+          })
+
+          if (shouldInterrupt) {
+            state.logger.log(`Interrupting message processing for chat ${action.chatId} - new messages deemed more important`)
+            return handleLoop(state)
+          }
+          else {
+            state.logger.log(`Continuing current processing despite new messages in chat ${action.chatId}`)
+          }
+        }
+        if (!Array.isArray(unreadMessagesForThisChat)) {
+          state.logger.log(`Unread messages for group ${action.chatId} is not an array - converting to array`)
+          unreadMessagesForThisChat = []
+        }
+        if (unreadMessagesForThisChat.length === 0) {
+          state.logger.log(`No unread messages for group ${action.chatId} - deleting`)
+          delete state.unreadMessages[action.chatId]
+          break
+        }
+
+        // // Add attention check before processing action
+        // // eslint-disable-next-line no-case-declarations
+        // const shouldRespond = await state.attentionHandler.shouldRespond(forGroupId, unreadMessagesForThisChat)
+
+        // if (!shouldRespond.shouldAct) {
+        //   state.logger.withField('reason', shouldRespond.reason).withField('responseRate', shouldRespond.responseRate).log('Skipping message due to attention check')
+        //   state.unreadMessages[action.groupId] = unreadMessagesForThisChat.shift()
+        //   return { break: true }
+        // }
+
+        await readMessage(state, state.bot.botInfo.id.toString(), chatId, action, unreadMessagesForThisChat, currentController)
+        break
+      case 'listChats':
+        msgs.push(message.user(`List of chats:${(await listJoinedChats()).map(chat => `ID:${chat.chat_id}, Name:${chat.chat_name}`).join('\n')}`))
+        await handleLoop(state, msgs, chatId)
+        break
+      case 'sendMessage':
+        await sendMayStructuredMessage(state, action.content, action.groupId)
+        break
+      default:
+        msgs.push(message.user(`The action you sent ${action.action} haven't implemented yet by developer.`))
+        await handleLoop(state, msgs, chatId)
+        break
     }
   }
   catch (err) {
@@ -256,9 +255,7 @@ async function processMessageQueue(state: BotSelf) {
         }
 
         state.unreadMessages[nextMsg.message.chat.id] = unreadMessagesForThisChat
-
         state.logger.withField('chatId', nextMsg.message.chat.id).log('message queue processed, triggering immediate reaction')
-
         // Trigger immediate processing when messages are ready
         handleLoop(state, [], nextMsg.message.chat.id.toString())
         state.messageQueue.shift()
@@ -339,7 +336,7 @@ export async function startTelegramBot() {
   await bot.init()
   log.withField('bot_username', bot.botInfo.username).log('bot initialized')
 
-  bot.start()
+  bot.start({ drop_pending_updates: true })
 
   try {
     loop(state)

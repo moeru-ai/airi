@@ -101,31 +101,31 @@ function jumpAhead(amount, unit) {
 
 <template>
   <div class="rounded-lg bg-neutral-100 p-4 dark:bg-neutral-800/50">
-    <h2 class="mb-2 text-lg font-semibold">
-      Time Simulation
-    </h2>
-
-    <div class="flex flex-wrap items-center gap-4">
-      <div class="text-sm font-mono" flex-1>
+    <h2 class="flex items-center text-lg font-semibold" gap-4>
+      <div flex-1>
+        Time Simulation
+      </div>
+      <div class="text-sm font-mono">
         {{ currentSimulatedTime }}
       </div>
+      <div class="flex flex-wrap items-center gap-4">
+        <button
+          :class="{ 'bg-red-100 dark:bg-red-900': isTimeAccelerated, 'bg-green-100 dark:bg-green-900': !isTimeAccelerated }"
+          class="rounded-lg px-4 py-2 font-medium transition-colors"
+          @click="toggleTimeAcceleration"
+        >
+          <div v-if="isTimeAccelerated" i-solar:pause-bold />
+          <div v-else i-solar:play-bold />
+        </button>
 
-      <button
-        :class="{ 'bg-red-100 dark:bg-red-900': isTimeAccelerated, 'bg-green-100 dark:bg-green-900': !isTimeAccelerated }"
-        class="rounded-lg px-4 py-2 font-medium transition-colors"
-        @click="toggleTimeAcceleration"
-      >
-        <div v-if="isTimeAccelerated" i-solar:pause-bold />
-        <div v-else i-solar:play-bold />
-      </button>
-
-      <button
-        class="rounded-lg bg-neutral-200 px-4 py-2 font-medium dark:bg-neutral-700"
-        @click="resetTime"
-      >
-        <div i-solar:restart-line-duotone />
-      </button>
-    </div>
+        <button
+          class="rounded-lg bg-neutral-200 px-4 py-2 font-medium dark:bg-neutral-700"
+          @click="resetTime"
+        >
+          <div i-solar:restart-line-duotone />
+        </button>
+      </div>
+    </h2>
 
     <!-- Time jump shortcuts -->
     <div class="mt-4 flex flex-wrap gap-2">
@@ -158,12 +158,14 @@ function jumpAhead(amount, unit) {
       </button>
     </div>
 
-    <h2 class="mt-4 text-lg font-semibold">
-      Speed
+    <h2 class="mt-4 flex items-center text-lg font-semibold">
+      <div flex-1>
+        Speed
+      </div>
+      <div class="text-sm font-mono">
+        {{ formattedTimeMultiplier }}
+      </div>
     </h2>
-    <div class="mt-4 font-medium">
-      {{ formattedTimeMultiplier }}
-    </div>
 
     <!-- Time multiplier presets -->
     <div class="grid grid-cols-2 mt-4 gap-2 md:grid-cols-6 sm:grid-cols-3">

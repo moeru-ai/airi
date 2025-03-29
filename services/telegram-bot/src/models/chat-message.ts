@@ -5,7 +5,7 @@ import type { Message, UserFromGetMe } from 'grammy/types'
 import { env } from 'node:process'
 import { useLogg } from '@guiiai/logg'
 import { embed } from '@xsai/embed'
-import { and, cosineDistance, desc, eq, gt, lt, sql } from 'drizzle-orm'
+import { and, cosineDistance, desc, eq, gt, lt, notInArray, sql } from 'drizzle-orm'
 
 import { useDrizzle } from '../db'
 import { chatMessagesTable } from '../db/schema'
@@ -83,9 +83,9 @@ export async function findLastNMessages(chatId: string, n: number) {
   return res.reverse()
 }
 
-export async function findRelevantMessages(botId: string, chatId: string, unreadHistoryMessagesEmbedding: { embedding: number[] }[]) {
+export async function findRelevantMessages(botId: string, chatId: string, unreadHistoryMessagesEmbedding: { embedding: number[] }[], excludeMessageIds: string[] = []) {
   const db = useDrizzle()
-  const contextWindowSize = 5 // Number of messages to include before and after
+  const contextWindowSize = 2 // Number of messages to include before and after
   const logger = useLogg('findRelevantMessages').useGlobalConfig().withField('chatId', chatId)
 
   logger.withField('context_window_size', contextWindowSize).log('Querying relevant chat messages...')
@@ -134,6 +134,7 @@ export async function findRelevantMessages(botId: string, chatId: string, unread
         eq(chatMessagesTable.platform, 'telegram'),
         eq(chatMessagesTable.in_chat_id, chatId),
         gt(similarity, 0.5),
+        notInArray(chatMessagesTable.platform_message_id, excludeMessageIds),
       ))
       .orderBy(desc(sql`combined_score`))
       .limit(3)

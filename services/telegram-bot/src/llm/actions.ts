@@ -3,11 +3,12 @@ import type { Message } from 'grammy/types'
 import type { Action } from '../types'
 
 import { env } from 'node:process'
-import { useLogg } from '@guiiai/logg'
+import { Format, useLogg } from '@guiiai/logg'
 import { generateText } from '@xsai/generate-text'
 import { message } from '@xsai/utils-chat'
 import { parse } from 'best-effort-json-parser'
 
+import { recordChatCompletions } from '../models/chat-completions-history'
 import { systemPrompt } from '../prompts/system-v1'
 
 export async function imagineAnAction(
@@ -16,7 +17,7 @@ export async function imagineAnAction(
   currentAbortController: AbortController,
   agentMessages: LLMMessage[],
   _lastInteractedNChatIds: string[],
-) {
+): Promise<Action | undefined> {
   const logger = useLogg('imagineAnAction').useGlobalConfig()
 
   if (agentMessages == null) {
@@ -94,26 +95,38 @@ export async function imagineAnAction(
     ),
   )
 
-  const res = await generateText({
-    apiKey: env.LLM_API_KEY!,
-    baseURL: env.LLM_API_BASE_URL!,
-    model: env.LLM_MODEL!,
-    messages: agentMessages,
-    abortSignal: currentAbortController.signal,
-  })
+  let responseText = ''
 
-  logger.withFields({
-    response: res.text,
-    unreadMessages: Object.fromEntries(Object.entries(unreadMessages).map(([key, value]) => [key, value.length])),
-    now: new Date().toLocaleString(),
-  }).log('Generated action')
+  try {
+    const res = await generateText({
+      apiKey: env.LLM_API_KEY!,
+      baseURL: env.LLM_API_BASE_URL!,
+      model: env.LLM_MODEL!,
+      messages: agentMessages,
+      abortSignal: currentAbortController.signal,
+    })
 
-  res.text = res.text
-    .replace(/^```json\s*\n/, '')
-    .replace(/\n```$/, '')
-    .replace(/^```\s*\n/, '')
-    .replace(/\n```$/, '')
-    .trim()
+    logger.withFields({
+      response: res.text,
+      unreadMessages: Object.fromEntries(Object.entries(unreadMessages).map(([key, value]) => [key, value.length])),
+      now: new Date().toLocaleString(),
+    }).log('Generated action')
 
-  return parse(res.text) as Action
+    responseText = res.text
+      .replace(/^```json\s*\n/, '')
+      .replace(/\n```$/, '')
+      .replace(/^```\s*\n/, '')
+      .replace(/\n```$/, '')
+      .trim()
+
+    return parse(responseText) as Action
+  }
+  catch (err) {
+    logger.withField('error', err).withFormat(Format.JSON).log('Failed to generate action')
+  }
+  finally {
+    recordChatCompletions('imagineAnAction', agentMessages, responseText).then(() => {}).catch(err => logger.withField('error', err).log('Failed to record chat completions'))
+  }
+
+  return undefined
 }
