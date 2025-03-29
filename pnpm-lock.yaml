@@ -496,7 +496,7 @@ importers:
         version: 28.4.1(@babel/parser@7.26.10)(@nuxt/kit@3.14.1592(magicast@0.3.5)(rollup@2.79.1))(vue@3.5.13(typescript@5.8.2))
       unplugin-vue-macros:
         specifier: ^2.14.5
-        version: 2.14.5(@vueuse/core@13.0.0(vue@3.5.13(typescript@5.8.2)))(esbuild@0.19.12)(rollup@2.79.1)(typescript@5.8.2)(vite@6.2.3(@types/node@22.13.14)(jiti@2.4.2)(less@4.2.2)(terser@5.17.6)(tsx@4.19.3)(yaml@2.7.0))(vue-tsc@3.0.0-alpha.2(typescript@5.8.2))(vue@3.5.13(typescript@5.8.2))
+        version: 2.14.5(@vueuse/core@13.0.0(vue@3.5.13(typescript@5.8.2)))(esbuild@0.25.0)(rollup@2.79.1)(typescript@5.8.2)(vite@6.2.3(@types/node@22.13.14)(jiti@2.4.2)(less@4.2.2)(terser@5.17.6)(tsx@4.19.3)(yaml@2.7.0))(vue-tsc@3.0.0-alpha.2(typescript@5.8.2))(vue@3.5.13(typescript@5.8.2))
       unplugin-vue-markdown:
         specifier: ^28.3.1
         version: 28.3.1(vite@6.2.3(@types/node@22.13.14)(jiti@2.4.2)(less@4.2.2)(terser@5.17.6)(tsx@4.19.3)(yaml@2.7.0))
@@ -1738,6 +1738,9 @@ importers:
       grammy:
         specifier: ^1.35.1
         version: 1.35.1(encoding@0.1.13)
+      nanoid:
+        specifier: ^5.1.5
+        version: 5.1.5
       p-limit:
         specifier: ^6.2.0
         version: 6.2.0
@@ -1750,6 +1753,9 @@ importers:
       telegram:
         specifier: ^2.26.22
         version: 2.26.22
+      uuid:
+        specifier: ^11.1.0
+        version: 11.1.0
       valibot:
         specifier: 1.0.0-beta.9
         version: 1.0.0-beta.9(typescript@5.8.2)
@@ -9579,6 +9585,11 @@ packages:
     engines: {node: ^18 || >=20}
     hasBin: true
 
+  nanoid@5.1.5:
+    resolution: {integrity: sha512-Ir/+ZpE9fDsNH0hQ3C68uyThDXzYcim2EqcZ8zn8Chtt1iylPT9xXJB0kPCnqzgcEGikO9RxSrh63MsmVCU7Fw==}
+    engines: {node: ^18 || >=20}
+    hasBin: true
+
   natural-compare@1.4.0:
     resolution: {integrity: sha512-OWND8ei3VtNC9h7V60qff3SVobHr996CTwgxubgyQYEpg290h9J0buyECNNJexkFm5sOajh5G116RYA1c8ZMSw==}
 
@@ -11962,6 +11973,10 @@ packages:
 
   uuid-1345@1.0.2:
     resolution: {integrity: sha512-bA5zYZui+3nwAc0s3VdGQGBfbVsJLVX7Np7ch2aqcEWFi5lsAEcmO3+lx3djM1npgpZI8KY2FITZ2uYTnYUYyw==}
+
+  uuid@11.1.0:
+    resolution: {integrity: sha512-0/A9rDy9P7cJ+8w1c9WD9V//9Wj15Ce2MPz8Ri6032usz+NfePxx5AcN3bN+r6ZL6jEo066/yNYB3tn4pQEx+A==}
+    hasBin: true
 
   uuid@8.3.2:
     resolution: {integrity: sha512-+NYs2QeMWy+GWFOEm9xnn6HCDp0l7QBD7ml8zLUmJ+93Q5NF0NocErnwkTkXVFNiX3/fpC6afS8Dhb/gz7R7eg==}
@@ -22104,6 +22119,8 @@ snapshots:
 
   nanoid@5.1.3: {}
 
+  nanoid@5.1.5: {}
+
   natural-compare@1.4.0: {}
 
   natural-orderby@5.0.0: {}
@@ -24776,9 +24793,9 @@ snapshots:
       '@nuxt/kit': 3.14.1592(magicast@0.3.5)(rollup@4.37.0)
       '@vueuse/core': 13.0.0(vue@3.5.13(typescript@5.8.2))
 
-  unplugin-combine@1.2.1(esbuild@0.19.12)(rollup@2.79.1)(unplugin@1.16.1)(vite@6.2.3(@types/node@22.13.14)(jiti@2.4.2)(less@4.2.2)(terser@5.17.6)(tsx@4.19.3)(yaml@2.7.0)):
+  unplugin-combine@1.2.1(esbuild@0.25.0)(rollup@2.79.1)(unplugin@1.16.1)(vite@6.2.3(@types/node@22.13.14)(jiti@2.4.2)(less@4.2.2)(terser@5.17.6)(tsx@4.19.3)(yaml@2.7.0)):
     optionalDependencies:
-      esbuild: 0.19.12
+      esbuild: 0.25.0
       rollup: 2.79.1
       unplugin: 1.16.1
       vite: 6.2.3(@types/node@22.13.14)(jiti@2.4.2)(less@4.2.2)(terser@5.17.6)(tsx@4.19.3)(yaml@2.7.0)
@@ -24837,7 +24854,7 @@ snapshots:
     transitivePeerDependencies:
       - vue
 
-  unplugin-vue-macros@2.14.5(@vueuse/core@13.0.0(vue@3.5.13(typescript@5.8.2)))(esbuild@0.19.12)(rollup@2.79.1)(typescript@5.8.2)(vite@6.2.3(@types/node@22.13.14)(jiti@2.4.2)(less@4.2.2)(terser@5.17.6)(tsx@4.19.3)(yaml@2.7.0))(vue-tsc@3.0.0-alpha.2(typescript@5.8.2))(vue@3.5.13(typescript@5.8.2)):
+  unplugin-vue-macros@2.14.5(@vueuse/core@13.0.0(vue@3.5.13(typescript@5.8.2)))(esbuild@0.25.0)(rollup@2.79.1)(typescript@5.8.2)(vite@6.2.3(@types/node@22.13.14)(jiti@2.4.2)(less@4.2.2)(terser@5.17.6)(tsx@4.19.3)(yaml@2.7.0))(vue-tsc@3.0.0-alpha.2(typescript@5.8.2))(vue@3.5.13(typescript@5.8.2)):
     dependencies:
       '@vue-macros/better-define': 1.11.4(vue@3.5.13(typescript@5.8.2))
       '@vue-macros/boolean-prop': 0.5.5(vue@3.5.13(typescript@5.8.2))
@@ -24869,7 +24886,7 @@ snapshots:
       '@vue-macros/short-vmodel': 1.5.5(vue@3.5.13(typescript@5.8.2))
       '@vue-macros/volar': 0.30.15(typescript@5.8.2)(vue-tsc@3.0.0-alpha.2(typescript@5.8.2))(vue@3.5.13(typescript@5.8.2))
       unplugin: 1.16.1
-      unplugin-combine: 1.2.1(esbuild@0.19.12)(rollup@2.79.1)(unplugin@1.16.1)(vite@6.2.3(@types/node@22.13.14)(jiti@2.4.2)(less@4.2.2)(terser@5.17.6)(tsx@4.19.3)(yaml@2.7.0))
+      unplugin-combine: 1.2.1(esbuild@0.25.0)(rollup@2.79.1)(unplugin@1.16.1)(vite@6.2.3(@types/node@22.13.14)(jiti@2.4.2)(less@4.2.2)(terser@5.17.6)(tsx@4.19.3)(yaml@2.7.0))
       unplugin-vue-define-options: 1.5.5(vue@3.5.13(typescript@5.8.2))
       vue: 3.5.13(typescript@5.8.2)
     transitivePeerDependencies:
@@ -25063,6 +25080,8 @@ snapshots:
   uuid-1345@1.0.2:
     dependencies:
       macaddress: 0.5.3
+
+  uuid@11.1.0: {}
 
   uuid@8.3.2: {}
 

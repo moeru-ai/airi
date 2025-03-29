@@ -34,10 +34,12 @@
     "drizzle-orm": "^0.41.0",
     "es-toolkit": "^1.34.1",
     "grammy": "^1.35.1",
+    "nanoid": "^5.1.5",
     "p-limit": "^6.2.0",
     "pg": "^8.14.1",
     "sharp": "^0.33.5",
     "telegram": "^2.26.22",
+    "uuid": "^11.1.0",
     "valibot": "1.0.0-beta.9"
   },
   "devDependencies": {
