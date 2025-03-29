@@ -23,9 +23,9 @@ function createCardData(data: Card): CharacterCardV3['data'] {
   return {
     name: data.name,
     nickname: data.nickname,
-    description: data.description ?? '', // TODO: improve description // FIXME: important
-    personality: '', // TODO: add personality
-    scenario: '', // TODO: add scenario
+    description: data.description ?? '',
+    personality: data.personality ?? '',
+    scenario: data.scenario ?? '',
     first_mes: data.greetings?.[0] ?? '',
     alternate_greetings: data.greetings?.slice(1) ?? [],
     group_only_greetings: data.greetingsGroupOnly ?? [],
@@ -33,10 +33,10 @@ function createCardData(data: Card): CharacterCardV3['data'] {
     creator: data.creator ?? '',
     creator_notes: data.notes ?? '',
     creator_notes_multilingual: data.notesMultilingual,
-    system_prompt: '', // TODO: add system_prompt
-    post_history_instructions: '', // TODO: add post_history_instructions
+    system_prompt: data.systemPrompt ?? '',
+    post_history_instructions: data.postHistoryInstructions ?? '',
     mes_example: formatMessageExample(data.messageExample),
-    tags: [], // TODO: add tags
+    tags: data.tags ?? [],
     extensions: createExtensions(data),
   }
 }

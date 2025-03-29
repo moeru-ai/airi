@@ -61,6 +61,12 @@ const removeBeforeEach = router.beforeEach(async (_, __, next) => {
 
 const settings = computed(() => [
   {
+    title: t('settings.pages.card.title'),
+    description: t('settings.pages.card.description'),
+    icon: 'i-lucide:card',
+    to: '/settings/airi-card',
+  },
+  {
     title: t('settings.pages.modules.title'),
     description: t('settings.pages.modules.description'),
     icon: 'i-lucide:blocks',

@@ -70,6 +70,27 @@ settings:
   microphone: Microphone
   models: Model
   pages:
+    card:
+      title: Airi Card
+      description: Use Airi character card presets
+      upload: Upload
+      delete: Delete
+      active: Active
+      activate: Activate
+      delete_card: Delete Card
+      delete_confirmation: Are you sure you want to delete this card?
+      card_not_found: Card not found
+      created_by: created by
+      creator_notes: Creator Notes
+      description_label: Description
+      character: Character
+      personality: Personality
+      scenario: Scenario
+      systemprompt: System Prompt
+      posthistoryinstructions: Post-History Instructions
+      modules: Modules
+      voice_id: Voice ID
+      cancel: Cancel
     memory:
       description: Where memories got stored, and organized
       title: Memory

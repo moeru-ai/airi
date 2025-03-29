@@ -56,6 +56,27 @@ settings:
   microphone: 麦克风
   models: 模型
   pages:
+    card:
+      title: Airi 角色卡
+      description: 使用 Airi 角色卡预设
+      voice_id: 声音 ID
+      upload: 上传
+      delete: 删除
+      active: 已激活
+      activate: 激活
+      delete_card: 删除角色卡
+      delete_confirmation: 确定要删除这张角色卡吗？
+      card_not_found: 未找到角色卡
+      created_by: 创建者
+      creator_notes: 创建者笔记
+      description_label: 描述
+      character: 角色设定
+      personality: 性格
+      scenario: 场景
+      systemprompt: 系统提示词
+      posthistoryinstructions: 历史提示指令
+      modules: 模块
+      cancel: 取消
     memory:
       description: 存放记忆的地方，以及策略
       title: 记忆体
@@ -294,51 +315,51 @@ settings:
             presets:
               - colors:
                   - Airi 绿
-                description: The default greenish theme color, brought by Airi to you!
+                description: 默认的绿色主题，由 Airi 为您带来！
                 title: 默认颜色
               - colors:
-                  - Taupe
-                  - Beige
-                  - Ash Grey
-                  - Light Taupe
-                  - Ivory
-                  - Olive Grey
-                  - Sand
-                  - Warm Grey
-                description: Soft, muted tones inspired by Giorgio Morandi's paintings
+                  - 灰褐色
+                  - 米色
+                  - 灰白色
+                  - 浅灰褐色
+                  - 象牙色
+                  - 橄榄灰
+                  - 沙色
+                  - 暖灰色
+                description: 受乔治·莫兰迪绘画启发的柔和、低调的色调
                 title: Morandi 颜色
               - colors:
-                  - Sky Blue
-                  - Mist
-                  - Sand
-                  - Moss Green
-                  - Water Lily
-                  - Wheat
-                  - Slate Blue
-                  - Sage
-                description: Impressionist palette inspired by Claude Monet's works
+                  - 天蓝色
+                  - 薄雾色
+                  - 沙色
+                  - 苔藓绿
+                  - 睡莲色
+                  - 小麦色
+                  - 板岩蓝
+                  - 鼠尾草色
+                description: 受克劳德·莫奈作品启发的印象派调色板
                 title: 莫奈颜色
               - colors:
-                  - Tan
-                  - Warm Taupe
-                  - Umber
-                  - Coffee
-                  - Bronze
-                  - Gold
-                  - Mustard
-                  - Amber
-                description: Traditional Japanese color palette
+                  - 棕褐色
+                  - 暖灰褐色
+                  - 赭色
+                  - 咖啡色
+                  - 青铜色
+                  - 金色
+                  - 芥末色
+                  - 琥珀色
+                description: 传统日本色彩调色板
                 title: 日本颜色
               - colors:
-                  - Nordic Blue
-                  - Ice
-                  - Fjord
-                  - Steel
-                  - Glacier
-                  - Slate
-                  - Cloud
-                  - Stone
-                description: Scandinavian minimalist color scheme
+                  - 北欧蓝
+                  - 冰色
+                  - 峡湾色
+                  - 钢铁色
+                  - 冰川色
+                  - 板岩色
+                  - 云色
+                  - 石头色
+                description: 北欧极简主义配色方案
                 title: 北欧颜色
               - colors:
                   - 霞光红
@@ -349,7 +370,8 @@ settings:
                   - 缃色
                   - 青冥
                   - 赭石
-                description: Traditional Chinese colors, derived from ancient textiles, porcelain and paintings
+                description: >-
+                  中国传统色彩，源自古代纺织品、瓷器和绘画
                 title: 中国传统颜色
             title: 预设
       title: 外观

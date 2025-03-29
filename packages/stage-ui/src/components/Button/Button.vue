@@ -12,7 +12,6 @@ interface ButtonProps {
   label?: string // Button text label
   disabled?: boolean // Disabled state
   loading?: boolean // Loading state
-  onClick?: () => void // Click handler
   variant?: ButtonVariant // Button style variant
   size?: ButtonSize // Button size variant
   block?: boolean // Full width button
@@ -59,7 +58,6 @@ const baseClasses = computed(() => [
   <button
     :disabled="isDisabled"
     :class="baseClasses"
-    @click="onClick"
   >
     <div class="flex flex-row items-center justify-center gap-2">
       <div v-if="loading" class="i-lucide:loader-circle animate-spin" />

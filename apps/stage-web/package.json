@@ -36,6 +36,7 @@
     "@pixiv/three-vrm": "^3.3.6",
     "@pixiv/three-vrm-animation": "^3.3.6",
     "@pixiv/three-vrm-core": "^3.3.6",
+    "@proj-airi/ccc": "workspace:^",
     "@proj-airi/drizzle-duckdb-wasm": "workspace:^",
     "@proj-airi/elevenlabs": "workspace:^",
     "@proj-airi/provider-transformers": "workspace:^",
