@@ -22,7 +22,8 @@ const memoryStatus = computed(() => {
     return {
       type: 'long-term',
       label: `Long-term`,
-      color: 'text-purple-600 dark:text-purple-400',
+      color: 'text-purple-500 dark:text-purple-400',
+      bgColor: 'bg-purple-500 dark:bg-purple-400',
     }
   }
   else if (props.memory.retrieval_count > 0) {
@@ -31,14 +32,16 @@ const memoryStatus = computed(() => {
       label: props.longTermMemoryEnabled
         ? `Working`
         : 'Working memory',
-      color: 'text-blue-600 dark:text-blue-400',
+      color: 'text-blue-500 dark:text-blue-400',
+      bgColor: 'bg-blue-500 dark:bg-blue-400',
     }
   }
   else {
     return {
       type: 'short-term',
       label: 'Short-term',
-      color: 'text-red-600 dark:text-red-400',
+      color: 'text-red-500 dark:text-red-400',
+      bgColor: 'bg-red-500 dark:bg-red-400',
     }
   }
 })
@@ -146,7 +149,7 @@ function simulateRetrieval() {
         <div class="h-7 overflow-hidden rounded-lg bg-neutral-200 dark:bg-neutral-600">
           <div
             class="h-full max-w-full transition-all duration-500"
-            :class="longTermMemoryEnabled && memory.retrieval_count >= longTermMemoryThreshold ? 'bg-purple-400' : 'bg-blue-500'"
+            :class="longTermMemoryEnabled && memory.retrieval_count >= longTermMemoryThreshold ? 'bg-purple-500 dark:bg-purple-400' : 'bg-blue-500 dark:bg-blue-400'"
             :style="`width: ${strengthPercentage}%`"
           />
         </div>
@@ -164,16 +167,19 @@ function simulateRetrieval() {
         </div>
         <div class="h-7 overflow-hidden rounded-lg bg-neutral-200 dark:bg-neutral-600">
           <div
-            class="h-full max-w-full bg-purple-400 transition-all duration-500"
+            :class="`h-full max-w-full transition-all duration-500 ${memoryStatus.bgColor}`"
             :style="`width: ${ltmPercentage}%`"
           />
         </div>
         <div class="mt-1 flex items-center justify-between">
           <span class="text-xs">Short-term</span>
-          <span v-if="memory.retrieval_count < longTermMemoryThreshold" class="text-sm font-medium">
-            {{ memory.retrieval_count }}/{{ longTermMemoryThreshold }} retrievals
+          <span
+            v-if="memory.retrieval_count < longTermMemoryThreshold"
+            :class="`text-xs font-medium ${memoryStatus.color}`"
+          >
+            Working ({{ memory.retrieval_count }}/{{ longTermMemoryThreshold }})
           </span>
-          <span v-else class="text-sm text-purple-600 font-medium dark:text-purple-400">
+          <span v-else :class="`text-sm font-medium ${memoryStatus.color}`">
             {{ Math.round(Number.parseFloat(String(memory.ltm_factor || 0)) * 100) }}% stable
           </span>
           <span class="text-xs">Permanent</span>

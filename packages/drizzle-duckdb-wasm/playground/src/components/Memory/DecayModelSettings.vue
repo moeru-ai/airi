@@ -46,7 +46,7 @@ const decaySlowdownPercent = computed(() => (retrievalDecaySlowdown.value * 100)
               class="w-full"
               :disabled="!longTermMemoryEnabled"
             />
-            <span class="w-10 text-right font-mono">{{ longTermMemoryEnabled }}</span>
+            <span class="w-10 text-right font-mono">{{ longTermMemoryThreshold }}</span>
           </div>
           <div class="text-xs text-neutral-500">
             Retrievals needed to form stable long-term memory
