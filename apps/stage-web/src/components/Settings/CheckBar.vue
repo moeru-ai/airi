@@ -27,10 +27,3 @@ const model = defineModel<boolean>()
     </Transition>
   </label>
 </template>
-
-<style>
-.setting-bar {
-  --at-apply: transition-all ease-in-out duration-250 w-full flex items-center justify-between rounded-lg px-4 py-3
-    outline-none;
-}
-</style>
