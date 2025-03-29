@@ -51,7 +51,7 @@
   "dependencies": {
     "@huggingface/transformers": "^3.4.1",
     "@proj-airi/utils-transformers": "workspace:^",
-    "@webgpu/types": "^0.1.59",
+    "@webgpu/types": "^0.1.60",
     "@xsai-ext/shared-providers": "catalog:",
     "@xsai/embed": "catalog:",
     "@xsai/shared": "catalog:",
