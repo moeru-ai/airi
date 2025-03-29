@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { ccv3 } from '@proj-airi/ccc'
 
+import { Button } from '@proj-airi/stage-ui/components/Button'
 import { RadioCardDetailManySelect } from '@proj-airi/stage-ui/components/Form'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores'
 import { storeToRefs } from 'pinia'
@@ -109,16 +110,12 @@ function handleCardDelete() {
     <div flex="~ col" gap-6>
       <div flex="~ row gap-2 flex-wrap">
         <!-- Upload button -->
-        <button
-          bg="primary-500 hover:primary-600"
-          text="white"
-
-          flex="~ row" items-center gap-2 rounded-lg px-4 py-2 transition duration-200
+        <Button
+          variant="primary"
+          icon="i-solar:upload-line-duotone"
+          :label="t('Upload')"
           @click="handleUpload"
-        >
-          <div i-solar:upload-line-duotone />
-          {{ t('Upload') }}
-        </button>
+        />
       </div>
 
       <!-- Card selection -->
