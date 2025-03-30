@@ -63,7 +63,7 @@ const settings = computed(() => [
   {
     title: t('settings.pages.card.title'),
     description: t('settings.pages.card.description'),
-    icon: 'i-lucide:card',
+    icon: 'i-lucide:id-card',
     to: '/settings/airi-card',
   },
   {
