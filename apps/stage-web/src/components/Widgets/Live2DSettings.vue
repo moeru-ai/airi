@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { Section } from '@proj-airi/stage-ui/components'
 import { Emotion, EmotionNeutralMotionName } from '@proj-airi/stage-ui/constants'
 import { useSettings } from '@proj-airi/stage-ui/stores'
 import { useFileDialog, useObjectUrl } from '@vueuse/core'
@@ -10,7 +11,6 @@ import { useI18n } from 'vue-i18n'
 
 import ColorPalette from '../Settings/ColorPalette.vue'
 import Button from '../Settings/Live2DModelControlButton.vue'
-import Section from '../Settings/Section.vue'
 
 defineProps<{
   palette: string[]

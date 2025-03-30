@@ -10,7 +10,7 @@ const model = defineModel<boolean>()
 
 <template>
   <label
-    class="setting-bar cursor-pointer text-sm"
+    class="w-full flex cursor-pointer items-center justify-between rounded-lg px-4 py-3 text-sm outline-none transition-all duration-250 ease-in-out"
     bg="neutral-50 dark:neutral-800"
     hover="bg-neutral-200 dark:bg-neutral-700"
   >
