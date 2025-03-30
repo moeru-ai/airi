@@ -239,7 +239,7 @@ function hightlightTagToHtml(text: string) {
           >
             <span flex="~ row" items-center gap-2 text-sm text-neutral-500 dark:text-neutral-400>
               <div i-lucide:ghost />
-              {{ t('settings.pages.modules.consciousness.title') }}
+              {{ t('settings.pages.card.consciousness.model') }}
             </span>
             <div truncate font-medium>
               {{ moduleSettings.consciousness }}
@@ -256,7 +256,7 @@ function hightlightTagToHtml(text: string) {
           >
             <span flex="~ row" items-center gap-2 text-sm text-neutral-500 dark:text-neutral-400>
               <div i-lucide:mic />
-              {{ t('settings.pages.modules.speech.title') }}
+              {{ t('settings.pages.card.speech.model') }}
             </span>
             <div truncate font-medium>
               {{ moduleSettings.speech }}
@@ -273,7 +273,7 @@ function hightlightTagToHtml(text: string) {
           >
             <span flex="~ row" items-center gap-2 text-sm text-neutral-500 dark:text-neutral-400>
               <div i-lucide:music />
-              {{ t('settings.pages.card.voice_id') }}
+              {{ t('settings.pages.card.speech.voice') }}
             </span>
             <div truncate font-medium>
               {{ moduleSettings.voice }}

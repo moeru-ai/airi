@@ -89,7 +89,11 @@ settings:
       systemprompt: System Prompt
       posthistoryinstructions: Post-History Instructions
       modules: Modules
-      voice_id: Voice ID
+      consciousness:
+        model: Consciousness / Model
+      speech:
+        model: Speech / Model
+        voice: Speech / Voice
       cancel: Cancel
     memory:
       description: Where memories got stored, and organized

@@ -59,7 +59,6 @@ settings:
     card:
       title: Airi 角色卡
       description: 使用 Airi 角色卡预设
-      voice_id: 声音 ID
       upload: 上传
       delete: 删除
       active: 已激活
@@ -77,6 +76,11 @@ settings:
       posthistoryinstructions: 历史提示指令
       modules: 模块
       cancel: 取消
+      consciousness:
+        model: 意识 / 模型
+      speech:
+        model: 声音 / 模型
+        voice: 声音 / 声线
     memory:
       description: 存放记忆的地方，以及策略
       title: 记忆体
