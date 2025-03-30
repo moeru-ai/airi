@@ -26,7 +26,7 @@ export async function imagineAnAction(
 
   agentMessages.push(
     message.system(''
-      + `${systemPrompt()}`
+      + `${systemPrompt().content}`
       + '\n'
       + 'I am one of your system component, called Ticking system, which is responsible to keep track of the time, and '
       + 'help you schedule, retain focus, and keep eyes on different tasks, and ideas you have.'

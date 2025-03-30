@@ -5,7 +5,7 @@ import type { Message, UserFromGetMe } from 'grammy/types'
 import { env } from 'node:process'
 import { useLogg } from '@guiiai/logg'
 import { embed } from '@xsai/embed'
-import { and, cosineDistance, desc, eq, gt, lt, notInArray, sql } from 'drizzle-orm'
+import { and, cosineDistance, desc, eq, gt, inArray, lt, notInArray, sql } from 'drizzle-orm'
 
 import { useDrizzle } from '../db'
 import { chatMessagesTable } from '../db/schema'
@@ -142,7 +142,7 @@ export async function findRelevantMessages(botId: string, chatId: string, unread
     logger.withField('number_of_relevant_messages', relevantMessages.length).log('Successfully found relevant chat messages')
 
     // Now fetch the context for each message
-    const relevantMessageOneliner = await Promise.all(
+    const relevantMessagesContext = await Promise.all(
       relevantMessages.map(async (message) => {
         // Get N messages before the target message
         const messagesBefore = await db
@@ -165,6 +165,7 @@ export async function findRelevantMessages(botId: string, chatId: string, unread
             eq(chatMessagesTable.platform, 'telegram'),
             eq(chatMessagesTable.in_chat_id, message.in_chat_id),
             lt(chatMessagesTable.created_at, message.created_at),
+            notInArray(chatMessagesTable.platform_message_id, excludeMessageIds),
           ))
           .orderBy(desc(chatMessagesTable.created_at))
           .limit(contextWindowSize)
@@ -190,24 +191,65 @@ export async function findRelevantMessages(botId: string, chatId: string, unread
             eq(chatMessagesTable.platform, 'telegram'),
             eq(chatMessagesTable.in_chat_id, message.in_chat_id),
             gt(chatMessagesTable.created_at, message.created_at),
+            notInArray(chatMessagesTable.platform_message_id, excludeMessageIds),
           ))
           .orderBy(chatMessagesTable.created_at)
           .limit(contextWindowSize)
 
         // Combine all messages in chronological order
-        const contextMessages = [
+        return [
           ...messagesBefore.reverse(), // Reverse to get chronological order
           message,
           ...messagesAfter,
         ]
-
-        const contextMessagesOneliner = (await Promise.all(contextMessages.map(m => chatMessageToOneLine(botId, m))))
-        return `One of the relevant message along with the context:\n${contextMessagesOneliner}`
       }),
     )
 
+    // Convert from
+    //
+    // [
+    //   [
+    //     { is_reply: true, reply_to_id: '123' },
+    //     { is_reply: false, reply_to_id: '124' }
+    //   ]
+    // ]
+    //
+    // to
+    //
+    // [['123', '124']]
+    const repliedMessageIDsSubset = relevantMessagesContext.map(msgs => msgs.filter(m => m.is_reply).map(m => m.reply_to_id))
+    // Convert from
+    //
+    // [['123', '124']]
+    //
+    // to
+    //
+    // ['123', '124']
+    //
+    // with unique values
+    const repliedMessageIDs = [...new Set(repliedMessageIDsSubset.flat())]
+    const repliedMessages = await findMessagesByIDs(repliedMessageIDs)
+
+    // Queried results
+    //
+    // { '123': { ... }, '124': { ... } }
+    const repliedMessagesSet = new Map(repliedMessages.map(m => [m.platform_message_id, m]))
+
+    // Map into one liners
+    const relevantMessageOneliner = relevantMessagesContext.map(msgs => msgs.map(m => chatMessageToOneLine(botId, m, repliedMessagesSet.get(m.reply_to_id))).join('\n'))
     logger.withField('number_of_relevant_messages', relevantMessages.length).log('processed relevant chat messages with contextual messages')
 
     return relevantMessageOneliner
   }))
+}
+
+export async function findMessagesByIDs(messageIds: string[]) {
+  const db = useDrizzle()
+
+  return await db
+    .select()
+    .from(chatMessagesTable)
+    .where(
+      inArray(chatMessagesTable.platform_message_id, messageIds),
+    )
 }

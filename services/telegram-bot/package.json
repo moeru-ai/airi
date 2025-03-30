@@ -15,7 +15,7 @@
     "directory": "services/telegram-bot"
   },
   "scripts": {
-    "start": "dotenvx run -f .env -f .env.local --overload --ignore=MISSING_ENV_FILE -- tsx src/index.ts",
+    "start": "dotenvx run -f .env -f .env.local --overload --ignore=MISSING_ENV_FILE -- tsx --max-old-space-size=8192 src/index.ts",
     "db:generate": "drizzle-kit generate",
     "db:push": "dotenvx run -f .env -f .env.local --overload --ignore=MISSING_ENV_FILE -- drizzle-kit push",
     "script:embed-chat": "dotenvx run -f .env -f .env.local --overload --ignore=MISSING_ENV_FILE -- tsx scripts/embed-all-chat-messages.ts"

@@ -28,7 +28,6 @@ export async function readMessage(
 
   const lastNMessages = await findLastNMessages(action.chatId, 10)
   const lastNMessagesOneliner = lastNMessages.map(msg => chatMessageToOneLine(botId, msg)).join('\n')
-
   logger.withField('number_of_last_n_messages', lastNMessages.length).log('Successfully found last N messages')
 
   const unreadMessagesEmbeddingPromises = unreadMessages
@@ -44,24 +43,18 @@ export async function readMessage(
 
       return embeddingResult
     })
-
   const unreadHistoryMessagesEmbedding = await Promise.all(unreadMessagesEmbeddingPromises)
-
   logger.withField('number_of_tasks', unreadMessagesEmbeddingPromises.length).log('Successfully embedded unread history messages')
 
   const unreadHistoryMessages = await Promise.all(state.unreadMessages[action.chatId].map(msg => telegramMessageToOneLine(botId, msg)))
   const unreadHistoryMessageOneliner = unreadHistoryMessages.join('\n')
-  state.unreadMessages[action.chatId] = []
 
-  const relevantChatMessages = await findRelevantMessages(
-    botId,
-    chatId,
-    unreadHistoryMessagesEmbedding,
-    [...unreadMessages.map(msg => msg.message_id.toString()), ...lastNMessages.map(msg => msg.platform_message_id)],
-  )
-
-  const relevantChatMessagesOneliner = (await Promise.all(relevantChatMessages.map(async msgs => msgs.join('\n')))).join('\n')
+  const existingKnownMessages = [...unreadMessages.map(msg => msg.message_id.toString()), ...lastNMessages.map(msg => msg.platform_message_id)]
+  const relevantChatMessages = await findRelevantMessages(botId, chatId, unreadHistoryMessagesEmbedding, existingKnownMessages)
+  const relevantChatMessagesOneliner = relevantChatMessages.map(async msgs => msgs.join('\n')).join('\n')
   logger.withField('number_of_relevant_chat_messages', relevantChatMessages.length).log('Successfully composed relevant chat messages')
+
+  state.unreadMessages[action.chatId] = []
 
   const messages = message.messages(
     systemPrompt(),
