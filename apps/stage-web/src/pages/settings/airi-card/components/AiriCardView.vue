@@ -178,7 +178,7 @@ function hightlightTagToHtml(text: string) {
       </div>
 
       <!-- Creator notes -->
-      <Section v-if="card.notes" :title="t('settings.pages.card.creator_notes')" icon="i-solar:notes-bold-duotone">
+      <Section v-if="card.notes" :title="t('settings.pages.card.creator_notes')" icon="i-solar:notes-linear">
         <div
           bg="white/60 dark:black/30"
           whitespace-pre-line rounded-lg p-4
@@ -191,7 +191,7 @@ function hightlightTagToHtml(text: string) {
       </Section>
 
       <!-- Description section -->
-      <Section v-if="card.description" :title="t('settings.pages.card.description_label')" icon="i-solar:document-text-bold-duotone">
+      <Section v-if="card.description" :title="t('settings.pages.card.description_label')" icon="i-solar:document-text-linear">
         <div
           bg="white/60 dark:black/30"
           whitespace-pre-line
@@ -205,7 +205,7 @@ function hightlightTagToHtml(text: string) {
 
       <!-- Character -->
       <template v-if="Object.values(characterSettings).some(value => !!value)">
-        <Section :title="t('settings.pages.card.character')" icon="i-solar:user-rounded-bold-duotone">
+        <Section :title="t('settings.pages.card.character')" icon="i-solar:user-rounded-linear">
           <div flex="~ col" gap-4>
             <template v-for="(value, key) in characterSettings" :key="key">
               <div v-if="value" flex="~ col" gap-2>
@@ -227,7 +227,7 @@ function hightlightTagToHtml(text: string) {
       </template>
 
       <!-- Modules -->
-      <Section :title="t('settings.pages.card.modules')" icon="i-solar:tuning-square-bold-duotone">
+      <Section :title="t('settings.pages.card.modules')" icon="i-solar:tuning-square-linear">
         <div grid="~ cols-1 sm:cols-3" gap-4>
           <div
             flex="~ col"
@@ -272,7 +272,7 @@ function hightlightTagToHtml(text: string) {
             hover="bg-white/80 dark:bg-black/40"
           >
             <span flex="~ row" items-center gap-2 text-sm text-neutral-500 dark:text-neutral-400>
-              <div i-solar:music-notes-bold-duotone />
+              <div i-lucide:music />
               {{ t('settings.pages.card.voice_id') }}
             </span>
             <div truncate font-medium>
