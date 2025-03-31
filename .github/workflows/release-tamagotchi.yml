@@ -15,23 +15,23 @@ jobs:
       matrix:
         include:
           - os: macos-13
-            platform: mac
+            target: x86_64-apple-darwin
             arch: x64
             artifact: dmg
           - os: macos-latest
-            platform: mac
-            arch: arm64
+            target: aarch64-apple-darwin
+            arch: aarch64
             artifact: dmg
           - os: ubuntu-latest
-            platform: linux
+            target: x86_64-unknown-linux-gnu
             arch: x86_64
             artifact: AppImage
           - os: ubuntu-24.04-arm
-            platform: linux
-            arch: arm64
+            target: aarch64-unknown-linux-gnu
+            arch: aarch64
             artifact: AppImage
           - os: windows-latest
-            platform: win
+            target: x86_64-pc-windows-msvc
             arch: x64
             artifact: exe
     runs-on: ${{ matrix.os }}
@@ -51,6 +51,17 @@ jobs:
         name: Install pnpm
         with:
           run_install: false
+
+      - name: Install Rust Stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: install system dependencies (ubuntu only)
+        if: matrix.platform == 'linux' # This must match the platform value defined above.
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.0-dev libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
 
       - name: Get pnpm store directory
         shell: bash
@@ -74,11 +85,16 @@ jobs:
       - name: Build Application
         run: pnpm run -F @proj-airi/stage-tamagotchi build:${{ matrix.platform }}
 
+      - run: |
+          mkdir -p dist
+          mv apps/stage-tamagotchi-tauri/src-tauri/target/${{ matrix.target }}/release/bundle/airi_${{ github.ref_name }}_${{ matrix.arch }}.${{ matrix.artifact }} \
+            tamagotchi-dist/airi-${{ matrix.platform }}-${{ matrix.arch }}-${{ github.ref_name }}.${{ matrix.artifact }}
+
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: airi-${{ matrix.platform }}-${{ matrix.arch }}-${{ github.ref_name }}
-          path: apps/stage-tamagotchi/dist/airi-${{ matrix.platform }}-${{ matrix.arch }}-${{ github.ref_name }}.${{ matrix.artifact }}
+          path: tamagotchi-dist/airi-${{ matrix.platform }}-${{ matrix.arch }}-${{ github.ref_name }}.${{ matrix.artifact }}
 
   release-tamagotchi:
     name: Release Tamagotchi
