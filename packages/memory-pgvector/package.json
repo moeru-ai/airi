@@ -2,6 +2,7 @@
   "name": "@proj-airi/memory-pgvector",
   "type": "module",
   "version": "1.0.0",
+  "private": true,
   "description": "",
   "author": "",
   "license": "MIT",
