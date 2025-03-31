@@ -10,7 +10,7 @@ import { message } from '@xsai/utils-chat'
 import { findLastNMessages, findRelevantMessages } from '../../../models'
 import { recordChatCompletions } from '../../../models/chat-completions-history'
 import { chatMessageToOneLine, telegramMessageToOneLine } from '../../../models/common'
-import { systemPrompt } from '../../../prompts/system-v1'
+import { personality } from '../../../prompts/system-v1'
 import { sendMayStructuredMessage } from '../utils/message'
 
 export async function readMessage(
@@ -57,19 +57,22 @@ export async function readMessage(
   state.unreadMessages[action.chatId] = []
 
   const messages = message.messages(
-    systemPrompt(),
+    personality(),
     message.user(''
       + `Currently, it\'s ${new Date()} on the server that hosts you.`
       + 'The others in the group may live in a different timezone, so please be aware of the time difference.'
       + '\n'
-      + 'Last 30 messages:\n'
-      + `${lastNMessagesOneliner || 'No messages'}`
+      + 'You choose to read the messages from the group (perhaps you are already engaging the topics in the group).'
+      + 'Imaging you are using Telegram app on the mobile phone, and you are reading the messages from the group chat.'
       + '\n'
-      + 'I helped you searched these relevant chat messages may help you recall the memories:\n'
-      + `${relevantChatMessagesOneliner || 'No relevant messages'}`
+      + 'Previous 30 messages (including what you said):\n'
+      + `${lastNMessagesOneliner || 'No messages'}`
       + '\n'
       + 'All the messages you requested to read:\n'
       + `${unreadHistoryMessageOneliner || 'No messages'}`
+      + '\n'
+      + 'Relevant chat messages may help you recall the memories:\n'
+      + `${relevantChatMessagesOneliner || 'No relevant messages'}`
       + '\n'
       + 'Based on your personalities, imaging you have your own choice and interest over different topics, '
       + 'giving the above context and chat history, would you like to participate in the conversation '

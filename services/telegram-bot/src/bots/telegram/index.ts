@@ -22,7 +22,7 @@ async function isChatIdBotAdmin(chatId: number) {
   return admins.includes(chatId.toString())
 }
 
-async function handleLoop(state: BotSelf, msgs?: LLMMessage[], chatId?: string) {
+async function handleLoopStep(state: BotSelf, msgs?: LLMMessage[], chatId?: string): Promise<() => Promise<any> | undefined> {
   // Set the start time when beginning new processing
   state.currentProcessingStartTime = Date.now()
 
@@ -96,7 +96,7 @@ async function handleLoop(state: BotSelf, msgs?: LLMMessage[], chatId?: string) 
 
           if (shouldInterrupt) {
             state.logger.log(`Interrupting message processing for chat ${action.chatId} - new messages deemed more important`)
-            return handleLoop(state)
+            return () => handleLoopStep(state)
           }
           else {
             state.logger.log(`Continuing current processing despite new messages in chat ${action.chatId}`)
@@ -123,18 +123,16 @@ async function handleLoop(state: BotSelf, msgs?: LLMMessage[], chatId?: string) 
         // }
 
         await readMessage(state, state.bot.botInfo.id.toString(), chatId, action, unreadMessagesForThisChat, currentController)
-        break
+        return
       case 'listChats':
         msgs.push(message.user(`List of chats:${(await listJoinedChats()).map(chat => `ID:${chat.chat_id}, Name:${chat.chat_name}`).join('\n')}`))
-        await handleLoop(state, msgs, chatId)
-        break
+        return () => handleLoopStep(state, msgs, chatId)
       case 'sendMessage':
         await sendMayStructuredMessage(state, action.content, action.groupId)
-        break
+        return
       default:
         msgs.push(message.user(`The action you sent ${action.action} haven't implemented yet by developer.`))
-        await handleLoop(state, msgs, chatId)
-        break
+        return () => handleLoopStep(state, msgs, chatId)
     }
   }
   catch (err) {
@@ -152,6 +150,16 @@ async function handleLoop(state: BotSelf, msgs?: LLMMessage[], chatId?: string) 
       state.currentProcessingStartTime = null
     }
   }
+}
+
+async function handleLoop(state: BotSelf, msgs?: LLMMessage[], chatId?: string) {
+  let result = await handleLoopStep(state, msgs, chatId)
+
+  while (typeof result === 'function') {
+    result = await result()
+  }
+
+  return result
 }
 
 function loop(state: BotSelf) {
