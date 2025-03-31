@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { Section } from '@proj-airi/stage-ui/components'
 import { useSettings } from '@proj-airi/stage-ui/stores'
 import { useDark } from '@vueuse/core'
 import { ref, watch } from 'vue'
@@ -6,7 +7,6 @@ import { useRouter } from 'vue-router'
 
 import CheckBar from '../../../components/Settings/CheckBar.vue'
 import ColorPalette from '../../../components/Settings/ColorPalette.vue'
-import Section from '../../../components/Settings/Section.vue'
 import { useIconAnimation } from '../../../composables/useIconAnimation'
 import COLOR_PRESETS from './color-presets.json'
 
@@ -55,7 +55,7 @@ watch(() => [settings.usePageSpecificTransitions, settings.disableTransitions], 
     />
     <!-- Language Setting -->
     <div
-      class="setting-bar text-sm"
+      class="w-full flex items-center justify-between rounded-lg px-4 py-3 text-sm outline-none transition-all duration-250 ease-in-out"
       bg="neutral-50 dark:neutral-800"
       hover="bg-neutral-200 dark:bg-neutral-700"
     >
@@ -129,7 +129,7 @@ watch(() => [settings.usePageSpecificTransitions, settings.disableTransitions], 
   <Section title="settings.pages.themes.sections.section.theme-presets.title" icon="i-solar:magic-stick-2-bold-duotone">
     <div
       v-for="({ title, description, colors }, i) in $tm('settings.pages.themes.sections.section.theme-presets.presets')" :key="i"
-      class="setting-bar"
+      class="w-full flex items-center justify-between rounded-lg px-4 py-3 outline-none transition-all duration-250 ease-in-out"
       bg="neutral-100 dark:neutral-800"
       hover="bg-neutral-200 dark:bg-neutral-700"
     >

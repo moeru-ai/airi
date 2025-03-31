@@ -64,7 +64,7 @@ export const useChatStore = defineStore('chat', () => {
   const messages = ref<Array<Message | ErrorMessage>>([
     {
       role: 'system',
-      content: systemPrompt.value.replace(/\{\{user\}\}/g, 'user'),
+      content: systemPrompt.value, // TODO: compose, replace {{ user }} tag, etc
     } satisfies SystemMessage,
   ])
 

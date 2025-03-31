@@ -5,11 +5,9 @@ import { Button } from '@proj-airi/stage-ui/components/Button'
 import { RadioCardDetailManySelect } from '@proj-airi/stage-ui/components/Form'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores'
 import { storeToRefs } from 'pinia'
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
-
-import AiriCardView from './components/AiriCardView.vue'
 
 const router = useRouter()
 const { t } = useI18n()
@@ -66,21 +64,10 @@ async function handleUpload() {
   fileInput.click()
 }
 
-/**
- * Sets the selected card as active
- */
-function activateSelectedCard() {
-  if (selectedCardId.value)
-    activeCardId.value = selectedCardId.value
-}
-
-/**
- * Handles card deletion
- */
-function handleCardDelete() {
-  // Reset selected card ID if it's the one being deleted
-  selectedCardId.value = cardsArray.value.length > 0 ? cardsArray.value[0].id : ''
-}
+watch(selectedCardId, (cardId) => {
+  if (cardId)
+    router.push(`/settings/airi-card/${cardId}`)
+})
 </script>
 
 <template>
@@ -129,20 +116,11 @@ function handleCardDelete() {
         />
       </template>
     </div>
+  </div>
 
-    <!-- Card content area -->
-    <div v-if="selectedCardId && cards.size > 0" mt-6>
-      <AiriCardView
-        :card-id="selectedCardId"
-        @activate="activateSelectedCard"
-        @delete="handleCardDelete"
-      />
-    </div>
-
-    <!-- Background decoration -->
-    <div text="neutral-200/50 dark:neutral-600/20" pointer-events-none fixed bottom-0 right-0 z--1 translate-x-10 translate-y-10>
-      <div text="40" i-lucide:id-card />
-    </div>
+  <!-- Background decoration -->
+  <div text="neutral-200/50 dark:neutral-600/20" pointer-events-none fixed bottom-0 right-0 z--1 translate-x-10 translate-y-10>
+    <div text="40" i-lucide:id-card />
   </div>
 </template>
 
