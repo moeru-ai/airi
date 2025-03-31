@@ -63,11 +63,6 @@ jobs:
           NODE_AUTH_TOKEN: ${{secrets.NPM_TOKEN}}
           NPM_CONFIG_PROVENANCE: true
 
-      - name: Sync GitHub Release
-        run: pnpm run changelogithub
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
   release-github:
     name: Release to GitHub Packages
     runs-on: ubuntu-24.04
