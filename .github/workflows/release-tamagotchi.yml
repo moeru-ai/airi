@@ -83,10 +83,9 @@ jobs:
         run: pnpm run packages:build
 
       - name: Build Application
-        run: pnpm run -F @proj-airi/stage-tamagotchi build:${{ matrix.platform }}
+        run: pnpm run -F @proj-airi/stage-tamagotchi-tauri tauri build --target ${{ matrix.target }}
 
       - run: |
-          mkdir -p dist
           mv apps/stage-tamagotchi-tauri/src-tauri/target/${{ matrix.target }}/release/bundle/airi_${{ github.ref_name }}_${{ matrix.arch }}.${{ matrix.artifact }} \
             tamagotchi-dist/airi-${{ matrix.platform }}-${{ matrix.arch }}-${{ github.ref_name }}.${{ matrix.artifact }}
 
