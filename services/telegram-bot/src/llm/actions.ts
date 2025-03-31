@@ -9,7 +9,7 @@ import { message } from '@xsai/utils-chat'
 import { parse } from 'best-effort-json-parser'
 
 import { recordChatCompletions } from '../models/chat-completions-history'
-import { systemPrompt } from '../prompts/system-v1'
+import { personality } from '../prompts/system-v1'
 
 export async function imagineAnAction(
   _botId: string,
@@ -26,7 +26,7 @@ export async function imagineAnAction(
 
   agentMessages.push(
     message.system(''
-      + `${systemPrompt().content}`
+      + `${personality().content}`
       + '\n'
       + 'I am one of your system component, called Ticking system, which is responsible to keep track of the time, and '
       + 'help you schedule, retain focus, and keep eyes on different tasks, and ideas you have.'
