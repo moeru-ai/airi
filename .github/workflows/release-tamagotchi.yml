@@ -14,7 +14,7 @@ jobs:
     strategy:
       matrix:
         include:
-          - os: macos-13
+          - os: macos-latest
             target: x86_64-apple-darwin
             arch: x64
             artifact: dmg
@@ -83,7 +83,7 @@ jobs:
         run: pnpm run packages:build
 
       - name: Build Application
-        run: pnpm run -F @proj-airi/stage-tamagotchi-tauri tauri build --target ${{ matrix.target }}
+        run: cd apps/stage-tamagotchi-tauri && pnpm tauri build --target ${{ matrix.target }}
 
       - run: |
           mv apps/stage-tamagotchi-tauri/src-tauri/target/${{ matrix.target }}/release/bundle/airi_${{ github.ref_name }}_${{ matrix.arch }}.${{ matrix.artifact }} \

@@ -9,10 +9,7 @@
     "start": "electron-vite preview",
     "dev": "vite",
     "build": "vite build",
-    "build:unpack": "tauri build --no-bundle",
-    "build:win": "tauri build --target x86_64-pc-windows-msvc",
-    "build:mac": "tauri build --target aarch64-apple-darwin",
-    "build:linux": "tauri build --target x86_64-unknown-linux-gnu"
+    "build:unpack": "tauri build --no-bundle"
   },
   "dependencies": {
     "@11labs/client": "^0.1.0",
