@@ -1,4 +1,6 @@
-use tauri::{TitleBarStyle, WebviewUrl, WebviewWindowBuilder, ActivationPolicy, Manager};
+use tauri::{WebviewUrl, WebviewWindowBuilder, Manager};
+#[cfg(target_os = "macos")]
+use tauri::{ActivationPolicy,TitleBarStyle};
 use tauri::tray::{TrayIconBuilder};
 use tauri::menu::{Menu, MenuItem};
 use std::path::Path;
@@ -10,14 +12,20 @@ pub fn run() {
   tauri::Builder::default()
     .plugin(tauri_plugin_os::init())
     .setup(|app| {
-      let _ = WebviewWindowBuilder::new(app, "main", WebviewUrl::default())
+      let mut builder = WebviewWindowBuilder::new(app, "main", WebviewUrl::default())
         .title("airi")
-        .title_bar_style(TitleBarStyle::Transparent)
         .decorations(false)
         .inner_size(450.0, 600.0)
         .shadow(false)
         .transparent(true)
-        .always_on_top(true)
+        .always_on_top(true);
+
+      #[cfg(target_os = "macos")]
+      {
+        builder = builder.title_bar_style(TitleBarStyle::Transparent);
+      }
+
+      let _ = builder
         .build()
         .unwrap();
 

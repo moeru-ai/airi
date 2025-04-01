@@ -15,22 +15,27 @@ jobs:
       matrix:
         include:
           - os: macos-latest
+            platform: macos
             target: x86_64-apple-darwin
             arch: x64
             artifact: dmg
           - os: macos-latest
+            platform: macos
             target: aarch64-apple-darwin
             arch: aarch64
             artifact: dmg
           - os: ubuntu-latest
+            platform: linux
             target: x86_64-unknown-linux-gnu
             arch: x86_64
             artifact: AppImage
           - os: ubuntu-24.04-arm
+            platform: linux
             target: aarch64-unknown-linux-gnu
             arch: aarch64
             artifact: AppImage
           - os: windows-latest
+            platform: windows
             target: x86_64-pc-windows-msvc
             arch: x64
             artifact: exe
@@ -61,7 +66,7 @@ jobs:
         if: matrix.platform == 'linux' # This must match the platform value defined above.
         run: |
           sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.0-dev libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf libglib2.0-dev
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
 
       - name: Get pnpm store directory
         shell: bash
