@@ -51,6 +51,7 @@ jobs:
           # registry-url required. Learn more at
           # https://docs.github.com/en/actions/publishing-packages/publishing-nodejs-packages
           registry-url: 'https://registry.npmjs.org'
+          cache: pnpm
 
       - uses: pnpm/action-setup@v4
         name: Install pnpm
