@@ -39,6 +39,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - uses: pnpm/action-setup@v4
+        name: Install pnpm
+        with:
+          run_install: false
+
       - name: Install Node.js 23.x
         uses: actions/setup-node@v4
         with:
@@ -47,11 +52,6 @@ jobs:
           # https://docs.github.com/en/actions/publishing-packages/publishing-nodejs-packages
           registry-url: 'https://registry.npmjs.org'
           cache: pnpm
-
-      - uses: pnpm/action-setup@v4
-        name: Install pnpm
-        with:
-          run_install: false
 
       - name: Install Rust Stable
         uses: dtolnay/rust-toolchain@stable
