@@ -31,11 +31,11 @@
   },
   "devDependencies": {
     "@iconify-json/solar": "^1.2.2",
-    "@unocss/reset": "^66.1.0-beta.7",
+    "@unocss/reset": "^66.1.0-beta.8",
     "@vitejs/plugin-vue": "^5.2.3",
     "superjson": "^2.2.2",
     "unplugin-vue-router": "^0.12.0",
-    "vite": "^6.2.3",
+    "vite": "^6.2.4",
     "vue-router": "^4.5.0",
     "vue-tsc": "^3.0.0-alpha.2"
   }
