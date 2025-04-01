@@ -14,9 +14,6 @@ export const useLLM = defineStore('llm', () => {
     return await streamText({
       ...chatProvider.chat(model),
       messages,
-      streamOptions: {
-        usage: true,
-      },
       headers,
     })
   }
