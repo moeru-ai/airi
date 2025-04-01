@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "airi",
-  "version": "0.1.0",
+  "version": "../package.json",
   "identifier": "com.github.moeru-ai.airi-tamagotchi",
   "build": {
     "frontendDist": "../dist",
