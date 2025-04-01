@@ -79,7 +79,7 @@ jobs:
         run: cd apps/stage-tamagotchi-tauri && pnpm tauri build --target ${{ matrix.target }}
 
       - run: |
-          mv apps/stage-tamagotchi-tauri/src-tauri/target/${{ matrix.target }}/release/bundle/airi_${{ github.ref_name }}_${{ matrix.arch }}.${{ matrix.artifact }} \
+          mv apps/stage-tamagotchi-tauri/src-tauri/target/${{ matrix.target }}/release/bundle/${{ matrix.artifact }}/airi_${{ github.ref_name }}_${{ matrix.arch }}.${{ matrix.artifact }} \
             tamagotchi-dist/airi-${{ matrix.platform }}-${{ matrix.arch }}-${{ github.ref_name }}.${{ matrix.artifact }}
 
       - name: Upload Artifacts
