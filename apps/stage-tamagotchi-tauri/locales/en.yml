@@ -67,6 +67,8 @@ settings:
     models:
       description: Live2D, VRM, etc.
       title: Models
+    memory:
+      description: Where memories got stored, and organized
     modules:
       consciousness:
         description: Personality, desired model, etc.
@@ -177,6 +179,9 @@ settings:
             title: Voice Settings
       description: LLMs, speech providers, etc.
       provider:
+        anthropic:
+          description: anthropic.com
+          title: Anthropic | Claude
         cloudflare-workers-ai:
           description: cloudflare.com
           fields:
@@ -248,11 +253,13 @@ settings:
           description: fireworks.ai
           title: Fireworks.ai
         microsoft-speech:
+          description: speech.microsoft.com
           fields:
             field:
               region:
                 description: Speech Service region
                 label: Region
+          title: Microsoft / Azure Speech
         mistral:
           description: mistral.ai
           title: Mistral
@@ -271,6 +278,9 @@ settings:
         openrouter:
           description: openrouter.ai
           title: OpenRouter
+        perplexity:
+          description: perplexity.ai
+          title: Perplexity
         together:
           description: together.ai
           title: Together.ai
@@ -316,30 +326,11 @@ settings:
                 title: Nordic Colors
             title: Theme Presets
       title: Themes
-    shortcuts:
-      title: Shortcuts
-      description: Configure the shortcuts for the stage
-      sections:
-        section:
-          window-controls:
-            title: Window Controls
-            press-keys-hint:
-              label: Press Keys...Or Escape to cancel
-            fields:
-              field:
-                toggle-resize:
-                  label: Toggle Resize
-                toggle-move:
-                  label: Toggle Move
-                toggle-ignore-mouse-event: # TODO: Add this feature
-                  label: Toggle Ignore Mouse Event
-
   sections:
     section:
       general:
         title: General
-  dark-mode: Dark mode
-  stage-transitions: Stage Transitions
+  theme: Theme
   title: Settings
   voices: Voice
 stage:

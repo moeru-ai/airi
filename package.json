@@ -11,7 +11,7 @@
   },
   "license": "MIT",
   "scripts": {
-    "postinstall": "npx simple-git-hooks",
+    "postinstall": "npx simple-git-hooks && pnpm packages:build",
     "dev": "pnpm -rF=\"./packages/*\" -F=\"./apps/*\" run --parallel dev",
     "build": "pnpm -rF=\"./packages/*\" -F=\"./apps/*\" run build",
     "apps:dev": "pnpm packages:stub && pnpm -rF=\"./apps/*\" run --parallel dev",

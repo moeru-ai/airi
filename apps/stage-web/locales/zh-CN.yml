@@ -199,6 +199,9 @@ settings:
             title: 声音配置
       description: LLM，语音合成，语音识别提供商等
       provider:
+        anthropic:
+          description: anthropic.com
+          title: Anthropic | Claude
         cloudflare-workers-ai:
           description: Cloudflare.com
           fields:
@@ -268,11 +271,13 @@ settings:
           description: Fireworks.ai
           title: Fireworks.ai
         microsoft-speech:
+          description: speech.microsoft.com
           fields:
             field:
               region:
                 description: 服务 Endpoint 地区（比如亚太 eastasia 区域）
                 label: Endpoint 地区
+          title: Microsoft / Azure 语音服务
         mistral:
           description: mistral.ai
           title: Mistral
@@ -291,6 +296,9 @@ settings:
         openrouter:
           description: OpenRouter.ai
           title: OpenRouter
+        perplexity:
+          description: perplexity.ai
+          title: Perplexity
         together:
           description: 一起
           title: Together.ai
