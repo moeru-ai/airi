@@ -42,19 +42,10 @@ apps/stage-web/public/assets/fonts/
 
 twitter-session.json
 
-# Devenv
-.devenv*
-devenv.local.nix
-
-# direnv
-.direnv
-
-# pre-commit
-.pre-commit-config.yaml
-
 # Make it easy for devenv users to override their local environment.
 # See: https://github.com/moeru-ai/airi/pull/110#discussion_r2024378953
+.direnv
+.pre-commit-config.yaml
 .envrc
-devenv.lock
-devenv.yaml
-devenv.nix
+.devenv*
+devenv.*
