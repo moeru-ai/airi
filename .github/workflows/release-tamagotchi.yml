@@ -27,7 +27,7 @@ jobs:
           - os: ubuntu-latest
             platform: linux
             target: x86_64-unknown-linux-gnu
-            arch: x86_64
+            arch: amd64
             artifact: AppImage
           - os: ubuntu-24.04-arm
             platform: linux
@@ -80,8 +80,9 @@ jobs:
 
       - run: |
           ref_without_v=$(echo ${{ github.ref_name }} | sed 's/^v//')
+          lowercase_artifact=$(echo ${{ matrix.artifact }} | tr '[:upper:]' '[:lower:]')
           mkdir -p tamagotchi-dist
-          mv apps/stage-tamagotchi-tauri/src-tauri/target/${{ matrix.target }}/release/bundle/${{ matrix.artifact }}/airi_${ref_without_v}_${{ matrix.arch }}.${{ matrix.artifact }} \
+          mv apps/stage-tamagotchi-tauri/src-tauri/target/${{ matrix.target }}/release/bundle/${lowercase_artifact}/airi_${ref_without_v}_${{ matrix.arch }}.${{ matrix.artifact }} \
             tamagotchi-dist/airi-${{ matrix.platform }}-${{ matrix.arch }}-${{ github.ref_name }}.${{ matrix.artifact }}
 
       - name: Upload Artifacts
