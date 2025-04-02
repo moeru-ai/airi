@@ -40,3 +40,12 @@ apps/stage-web/public/assets/fonts/
 *.mp3
 
 twitter-session.json
+# Devenv
+.devenv*
+devenv.local.nix
+
+# direnv
+.direnv
+
+# pre-commit
+.pre-commit-config.yaml
