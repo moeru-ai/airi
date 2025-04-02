@@ -1,7 +1,7 @@
 {
   "name": "@proj-airi/server-runtime",
   "type": "module",
-  "version": "0.4.12",
+  "version": "0.4.13",
   "description": "Server runtime implementation for Airi running in different environments",
   "author": {
     "name": "Neko Ayaka",
