@@ -20,43 +20,51 @@ const emit = defineEmits<{
 
 <template>
   <div
-    class="relative h-full min-h-[120px] flex flex-col cursor-pointer overflow-hidden rounded-xl transition-all duration-300"
+    relative min-h-120px flex="~ col" cursor-pointer overflow-hidden rounded-xl
     :class="[
       isSelected
         ? 'border-2 border-primary-400 dark:border-primary-600'
-        : 'border border-neutral-200/70 dark:border-neutral-700/50',
+        : 'border-2 border-neutral-100 dark:border-neutral-800/25',
     ]"
-    :style="{ transform: isSelected ? 'scale(1)' : 'scale(0.98)', opacity: isSelected ? 1 : 0.95 }"
-    hover="scale-100 opacity-100 shadow-md dark:shadow-xl"
+    bg="neutral-200/50 dark:neutral-800/50"
+    drop-shadow="none hover:[0px_4px_4px_rgba(220,220,220,0.4)] active:[0px_0px_0px_rgba(220,220,220,0.25)] dark:hover:none"
+    transition="all ease-in-out duration-400"
+    before="content-empty absolute inset-0 z-0 w-25% h-full transition-all duration-400 ease-in-out bg-gradient-to-r from-primary-500/0 to-primary-500/0 dark:from-primary-400/0 dark:to-primary-400/0 mask-image-[linear-gradient(120deg,white_100%)] opacity-0"
+    hover="before:(w-50% opacity-100 bg-gradient-to-r from-primary-500/20 via-primary-500/10 to-transparent dark:from-primary-400/20 dark:via-primary-400/10 dark:to-transparent)"
     @click="emit('select')"
   >
     <!-- Card content -->
-    <div class="flex flex-1 flex-col justify-between gap-3 bg-white p-5 dark:bg-neutral-900/90">
+    <div
+      relative flex="~ col 1" justify-between gap-3 overflow-hidden rounded-lg bg="white dark:neutral-900" p-5
+      transition="all ease-in-out duration-400"
+      after="content-empty absolute inset-0 z--2 w-full h-full bg-dotted-[neutral-200/80] bg-size-10px mask-image-[linear-gradient(165deg,white_30%,transparent_50%)] transition-all duration-400 ease-in-out"
+      hover="after:bg-dotted-[primary-300/50] dark:after:bg-dotted-[primary-200/20]"
+    >
       <!-- Card header (name and badge) -->
-      <div class="flex items-start justify-between gap-2">
-        <h3 class="flex-1 truncate text-lg font-bold">
+      <div z-1 flex items-start justify-between gap-2>
+        <h3 flex-1 truncate text-lg font-bold hover="text-primary-600 dark:text-primary-300">
           {{ name }}
         </h3>
-        <div v-if="isActive" class="bg-primary-100 text-primary-600 dark:bg-primary-900/40 dark:text-primary-400 shrink-0 rounded-md p-1">
+        <div v-if="isActive" shrink-0 rounded-md p-1 bg="primary-100 dark:primary-900/40" text="primary-600 dark:primary-400">
           <div i-solar:check-circle-bold-duotone text-sm />
         </div>
       </div>
 
       <!-- Card description -->
-      <p v-if="description" class="line-clamp-3 min-h-[40px] flex-1 text-sm text-neutral-600 dark:text-neutral-400">
+      <p v-if="description" line-clamp-3 min-h-40px flex-1 text-sm text="neutral-500 dark:neutral-400" hover="text-primary-600/80 dark:text-primary-300/80">
         {{ description }}
       </p>
 
       <!-- Card stats -->
-      <div class="flex items-center justify-between text-xs text-neutral-500 dark:text-neutral-400">
+      <div z-1 flex items-center justify-between text-xs text="neutral-500 dark:neutral-400">
         <div>v{{ version }}</div>
-        <div class="flex items-center gap-1.5">
-          <div class="flex items-center gap-0.5">
-            <div i-lucide:ghost class="text-xs" />
+        <div flex items-center gap-1.5>
+          <div flex items-center gap-0.5>
+            <div i-lucide:ghost text-xs />
             <span>{{ consciousnessModel }}</span>
           </div>
-          <div class="flex items-center gap-0.5">
-            <div i-lucide:mic class="text-xs" />
+          <div flex items-center gap-0.5>
+            <div i-lucide:mic text-xs />
             <span>{{ voiceModel }}</span>
           </div>
         </div>
@@ -64,9 +72,9 @@ const emit = defineEmits<{
     </div>
 
     <!-- Card actions -->
-    <div class="flex justify-end gap-1 bg-neutral-50 px-2 py-1.5 dark:bg-neutral-800/50">
+    <div flex items-center justify-end px-2 py-1.5>
       <button
-        class="rounded-lg p-1.5 transition-colors hover:bg-neutral-200 dark:hover:bg-neutral-700/50"
+        rounded-lg p-1.5 transition-colors hover="bg-neutral-200 dark:bg-neutral-700/50"
         :disabled="isActive"
         @click.stop="emit('activate')"
       >
@@ -78,12 +86,13 @@ const emit = defineEmits<{
           ]"
         />
       </button>
+
       <button
         v-if="id !== 'default'"
-        class="rounded-lg p-1.5 transition-colors hover:bg-neutral-200 dark:hover:bg-neutral-700/50"
+        rounded-lg p-1.5 transition-colors hover="bg-neutral-200 dark:bg-neutral-700/50"
         @click.stop="emit('delete')"
       >
-        <div i-solar:trash-bin-trash-linear text-neutral-500 dark:text-neutral-400 />
+        <div i-solar:trash-bin-trash-linear text="neutral-500 dark:neutral-400" />
       </button>
     </div>
   </div>
