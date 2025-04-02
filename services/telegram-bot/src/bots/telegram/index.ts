@@ -50,20 +50,19 @@ async function handleLoopStep(state: BotSelf, msgs?: LLMMessage[], chatId?: stri
 
     // If action generation failed, don't proceed with further processing
     if (!action || !action.action) {
-      state.logger.log('No valid action returned. Skipping further processing.')
+      state.logger.withField('action', action).log('No valid action returned. Skipping further processing.')
       return
     }
 
     switch (action.action) {
       case 'readMessages':
         if (Object.keys(state.unreadMessages).length === 0) {
-          state.logger.log('No unread messages - deleting all unread messages')
+          state.logger.withField('action', action).log('No unread messages - deleting all unread messages')
           state.unreadMessages = {}
           break
         }
         if (action.chatId == null) {
-          state.logger.log('No group ID - deleting all unread messages')
-          state.unreadMessages = {}
+          state.logger.withField('action', action).warn('No group ID - deleting all unread messages')
           break
         }
 
@@ -95,19 +94,19 @@ async function handleLoopStep(state: BotSelf, msgs?: LLMMessage[], chatId?: stri
           })
 
           if (shouldInterrupt) {
-            state.logger.log(`Interrupting message processing for chat ${action.chatId} - new messages deemed more important`)
+            state.logger.withField('action', action).log(`Interrupting message processing for chat - new messages deemed more important`)
             return () => handleLoopStep(state)
           }
           else {
-            state.logger.log(`Continuing current processing despite new messages in chat ${action.chatId}`)
+            state.logger.withField('action', action).log(`Continuing current processing despite new messages in chat`)
           }
         }
         if (!Array.isArray(unreadMessagesForThisChat)) {
-          state.logger.log(`Unread messages for group ${action.chatId} is not an array - converting to array`)
+          state.logger.withField('action', action).log(`Unread messages for group is not an array - converting to array`)
           unreadMessagesForThisChat = []
         }
         if (unreadMessagesForThisChat.length === 0) {
-          state.logger.log(`No unread messages for group ${action.chatId} - deleting`)
+          state.logger.withField('action', action).log(`No unread messages for group - deleting`)
           delete state.unreadMessages[action.chatId]
           break
         }
