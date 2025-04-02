@@ -60,8 +60,11 @@ settings:
       title: Airi 角色卡
       description: 使用 Airi 角色卡预设
       upload: 上传
+      upload_desc: 点击或拖拽文件到此处上传
+      drop_here: 放开以上传文件
       delete: 删除
       active: 已激活
+      active_badge: 当前使用中
       activate: 激活
       delete_card: 删除角色卡
       delete_confirmation: 确定要删除这张角色卡吗？
@@ -76,6 +79,15 @@ settings:
       posthistoryinstructions: 历史提示指令
       modules: 模块
       cancel: 取消
+      close: 关闭
+      search: 搜索角色卡...
+      sort_by: 排序方式
+      name_asc: 名称 (A-Z)
+      name_desc: 名称 (Z-A)
+      recent: 最近添加
+      no_cards: 还没有任何角色卡，点击上方按钮上传一个吧！
+      no_results: 没有找到匹配的角色卡
+      try_different_search: 尝试使用其他关键词搜索
       consciousness:
         model: 意识 / 模型
       speech:

@@ -73,30 +73,42 @@ settings:
   models: Model
   pages:
     card:
-      activate: Activate
+      title: Airi Card
+      description: Use Airi character card presets
+      upload: Upload
+      upload_desc: Click or drag file to upload
+      drop_here: Drop to upload
+      delete: Delete
       active: Active
+      active_badge: Currently Active
+      activate: Activate
       cancel: Cancel
       card_not_found: Card not found
       character: Character
+      personality: Personality
+      scenario: Scenario
+      systemprompt: System Prompt
+      posthistoryinstructions: Post-History Instructions
+      modules: Modules
+      close: Close
+      search: Search cards...
+      sort_by: Sort by
+      name_asc: Name (A-Z)
+      name_desc: Name (Z-A)
+      recent: Recently Added
+      no_cards: No cards yet. Click the button above to upload one!
+      no_results: No matching cards found
+      try_different_search: Try a different search term
       consciousness:
         model: Consciousness / Model
       created_by: created by
       creator_notes: Creator Notes
-      delete: Delete
       delete_card: Delete Card
       delete_confirmation: Are you sure you want to delete this card?
-      description: Use Airi character card presets
       description_label: Description
-      modules: Modules
-      personality: Personality
-      posthistoryinstructions: Post-History Instructions
-      scenario: Scenario
       speech:
         model: Speech / Model
         voice: Speech / Voice
-      systemprompt: System Prompt
-      title: Airi Card
-      upload: Upload
     memory:
       description: Where memories got stored, and organized
       title: Memory
