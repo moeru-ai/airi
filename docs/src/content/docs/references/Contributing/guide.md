@@ -70,19 +70,19 @@ Hello! Thank you for your interest in contributing to this project. This guide w
    corepack prepare pnpm@latest --activate
    ```
 
-> [!NOTE]
->
-> For Nix/NixOS users, a `devenv` profile is included and equipped with the recommended version of Node.js/Corepack.
->
-> If you have `direnv` installed, run `direnv allow` to get started.
+:::tip
+For Nix/NixOS users, a `devenv` profile is included and equipped with the recommended version of Node.js/Corepack.
+
+If you have `direnv` installed, run `direnv allow` to get started.
+:::
 
 </details>
 
 ## If you have already contributed to this project before
 
-> [!WARNING]
->
-> If you haven't clone this repository, skip this section.
+:::caution
+If you haven't clone this repository, skip this section.
+:::
 
 Make sure your local repository is up to date with the upstream repository:
 
@@ -123,21 +123,22 @@ corepack enable
 pnpm install
 ```
 
-> [!NOTE]
->
-> We would recommend to install [@antfu/ni](https://github.com/antfu-collective/ni) to make your script simpler.
->
-> ```shell
-> corepack enable
-> npm i -g @antfu/ni
-> ```
->
-> Once installed, you can
->
-> - use `ni` for `pnpm install`, `npm install` and `yarn install`.
-> - use `nr` for `pnpm run`, `npm run` and `yarn run`.
->
-> You don't need to care about the package manager, `ni` will help you choose the right one.
+:::note
+
+We would recommend to install [@antfu/ni](https://github.com/antfu-collective/ni) to make your script simpler.
+
+```shell
+corepack enable
+npm i -g @antfu/ni
+```
+
+Once installed, you can
+
+- use `ni` for `pnpm install`, `npm install` and `yarn install`.
+- use `nr` for `pnpm run`, `npm run` and `yarn run`.
+
+You don't need to care about the package manager, `ni` will help you choose the right one.
+:::
 
 ## Choose the application you want to develop on
 
@@ -147,13 +148,15 @@ pnpm install
 pnpm -F @proj-airi/docs dev
 ```
 
-> [!NOTE]
->
-> For [@antfu/ni](https://github.com/antfu-collective/ni) users, you can
->
-> ```shell
-> nr -F @proj-airi/docs dev
-> ```
+:::note
+
+For [@antfu/ni](https://github.com/antfu-collective/ni) users, you can
+
+```shell
+nr -F @proj-airi/docs dev
+```
+
+:::
 
 ### Stage web (Frontend for [airi.moeru.ai](https://airi.moeru.ai), or [airi.ayaka.io](https://airi.ayaka.io))
 
@@ -161,13 +164,15 @@ pnpm -F @proj-airi/docs dev
 pnpm -F @proj-airi/stage-web dev
 ```
 
-> [!NOTE]
->
-> For [@antfu/ni](https://github.com/antfu-collective/ni) users, you can
->
-> ```shell
-> nr -F @proj-airi/stage-web dev
-> ```
+:::note
+
+For [@antfu/ni](https://github.com/antfu-collective/ni) users, you can
+
+```shell
+nr -F @proj-airi/stage-web dev
+```
+
+:::
 
 ### Stage Tamagotchi (Electron app for アイリ VTuber)
 
@@ -175,13 +180,15 @@ pnpm -F @proj-airi/stage-web dev
 pnpm -F @proj-airi/stage-tamagotchi dev
 ```
 
-> [!NOTE]
->
-> For [@antfu/ni](https://github.com/antfu-collective/ni) users, you can
->
-> ```shell
-> nr -F @proj-airi/stage-tamagotchi dev
-> ```
+:::note
+
+For [@antfu/ni](https://github.com/antfu-collective/ni) users, you can
+
+```shell
+nr -F @proj-airi/stage-tamagotchi dev
+```
+
+:::
 
 ### Telegram bot integration
 
@@ -219,13 +226,15 @@ Run the bot
 pnpm -F @proj-airi/telegram-bot start
 ```
 
-> [!NOTE]
->
-> For [@antfu/ni](https://github.com/antfu-collective/ni) users, you can
->
-> ```shell
-> nr -F @proj-airi/telegram-bot dev
-> ```
+:::note
+
+For [@antfu/ni](https://github.com/antfu-collective/ni) users, you can
+
+```shell
+nr -F @proj-airi/telegram-bot dev
+```
+
+:::
 
 ### Discord bot integration
 
@@ -253,13 +262,15 @@ Run the bot
 pnpm -F @proj-airi/discord-bot start
 ```
 
-> [!NOTE]
->
-> For [@antfu/ni](https://github.com/antfu-collective/ni) users, you can
->
-> ```shell
-> nr -F @proj-airi/discord-bot dev
-> ```
+:::note
+
+For [@antfu/ni](https://github.com/antfu-collective/ni) users, you can
+
+```shell
+nr -F @proj-airi/discord-bot dev
+```
+
+:::
 
 ### Minecraft agent
 
@@ -289,33 +300,39 @@ Run the bot
 pnpm -F @proj-airi/minecraft-bot start
 ```
 
-> [!NOTE]
->
-> For [@antfu/ni](https://github.com/antfu-collective/ni) users, you can
->
-> ```shell
-> nr -F @proj-airi/minecraft-bot dev
-> ```
+:::note
+
+For [@antfu/ni](https://github.com/antfu-collective/ni) users, you can
+
+```shell
+nr -F @proj-airi/minecraft-bot dev
+```
+
+:::
 
 ## Commit
 
 ### Before commit
 
-> [!CAUTION]
->
-> Please make sure lint (static checkers) and TypeScript compilers are satisfied:
->
-> ```shell
-> pnpm packages:stub && pnpm lint && pnpm typecheck
-> ```
+:::caution
 
-> [!NOTE]
->
-> If you have [@antfu/ni](https://github.com/antfu-collective/ni) installed, you can use `nr` to run the commands:
->
-> ```shell
-> nr packages:stub && nr lint && nr typecheck
-> ```
+Please make sure lint (static checkers) and TypeScript compilers are satisfied:
+
+```shell
+pnpm packages:stub && pnpm lint && pnpm typecheck
+```
+
+:::
+
+:::note
+
+If you have [@antfu/ni](https://github.com/antfu-collective/ni) installed, you can use `nr` to run the commands:
+
+```shell
+nr packages:stub && nr lint && nr typecheck
+```
+
+:::
 
 ### Commit
 
@@ -327,18 +344,20 @@ git commit -m "<your-commit-message>"
 ### Push to your fork repository
 
 ```shell
-git push origin <your-branch-name> -u
+git push origin <your-branch-name-u
 ```
 
 You should be able to browse the branch on your fork repository.
 
-> [!NOTE]
->
-> If this is your first time contributing with this project, you need to add the upstream repository too:
->
-> ```shell
-> git remote add upstream https://github.com/moeru-ai/airi.git
-> ```
+:::note
+
+If this is your first time contributing with this project, you need to add the upstream repository too:
+
+```shell
+git remote add upstream https://github.com/moeru-ai/airi.git
+```
+
+:::
 
 ## Creating Pull Request
 
