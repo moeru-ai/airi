@@ -1,7 +1,7 @@
 {
   "name": "hfup",
   "type": "module",
-  "version": "0.3.6",
+  "version": "0.4.9",
   "description": "A collection of tools to help you deploy, bundle HuggingFace Spaces and related assets with ease.",
   "author": {
     "name": "Neko Ayaka",
@@ -43,6 +43,6 @@
   "dependencies": {
     "defu": "^6.1.4",
     "gray-matter": "^4.0.3",
-    "vite": "^6.2.3"
+    "vite": "^6.2.4"
   }
 }

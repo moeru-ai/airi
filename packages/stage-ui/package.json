@@ -71,11 +71,11 @@
     "@histoire/plugin-vue": "1.0.0-alpha.2",
     "@proj-airi/provider-transformers": "workspace:^",
     "@proj-airi/utils-transformers": "workspace:^",
-    "@unocss/reset": "^66.1.0-beta.7",
+    "@unocss/reset": "^66.1.0-beta.8",
     "@vitejs/plugin-vue": "^5.2.3",
     "@xsai/embed": "catalog:",
     "histoire": "1.0.0-alpha.2",
-    "unocss": "^66.1.0-beta.7",
-    "vite": "^6.2.3"
+    "unocss": "^66.1.0-beta.8",
+    "vite": "^6.2.4"
   }
 }

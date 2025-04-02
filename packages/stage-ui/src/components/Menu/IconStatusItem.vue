@@ -13,8 +13,8 @@ const props = defineProps<{
 <template>
   <div
     flex="~ col"
-    bg="neutral-200/50 dark:neutral-700"
-    border="neutral-100 dark:neutral-700 hover:primary-500/30 dark:hover:primary-400/30 solid 2"
+    bg="neutral-200/50 dark:neutral-800/50"
+    border="neutral-100 dark:neutral-800/25 hover:primary-500/30 dark:hover:primary-400/30 solid 2"
     drop-shadow="none hover:[0px_4px_4px_rgba(220,220,220,0.4)] active:[0px_0px_0px_rgba(220,220,220,0.25)] dark:hover:none"
     class="menu-icon-status-item"
     transition="all ease-in-out duration-400"
@@ -23,7 +23,7 @@ const props = defineProps<{
     <RouterLink
       flex="~ row"
       class="menu-icon-status-item-link"
-      bg="neutral-50 dark:neutral-800"
+      bg="white dark:neutral-900"
       transition="all ease-in-out duration-400"
       relative h-full w-full items-center overflow-hidden rounded-lg p-5 text-left
       :to=" props.to"
@@ -108,7 +108,7 @@ const props = defineProps<{
 }
 
 .menu-icon-status-item-link::after {
-  --at-apply: 'bg-dotted-[neutral-200/80] hover:bg-dotted-[primary-300/50] dark:bg-dotted-[neutral-700/50] dark:hover:bg-dotted-[primary-200/20]';
+  --at-apply: 'bg-dotted-[neutral-200/80] hover:bg-dotted-[primary-300/50] dark:bg-dotted-[neutral-700/40] dark:hover:bg-dotted-[primary-200/20]';
   position: absolute;
   inset: 0;
   z-index: -2;

@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "airi",
-  "version": "0.1.0",
+  "version": "../package.json",
   "identifier": "com.github.moeru-ai.airi-tamagotchi",
   "build": {
     "frontendDist": "../dist",
@@ -17,7 +17,7 @@
   },
   "bundle": {
     "active": true,
-    "targets": "all",
+    "targets": ["dmg", "appimage", "nsis"],
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",

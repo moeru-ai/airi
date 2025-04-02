@@ -5,7 +5,7 @@ import type { Message, UserFromGetMe } from 'grammy/types'
 import { env } from 'node:process'
 import { useLogg } from '@guiiai/logg'
 import { embed } from '@xsai/embed'
-import { and, cosineDistance, desc, eq, gt, inArray, lt, notInArray, sql } from 'drizzle-orm'
+import { and, cosineDistance, desc, eq, gt, inArray, lt, ne, notInArray, sql } from 'drizzle-orm'
 
 import { useDrizzle } from '../db'
 import { chatMessagesTable } from '../db/schema'
@@ -55,7 +55,7 @@ export async function recordMessage(botInfo: UserFromGetMe, message: Message) {
 
   switch (env.EMBEDDING_DIMENSION) {
     case '1536':
-      values.content_vector_1536 = embedding?.embedding
+      values.content_vector_1536 = embedding.embedding
       break
     case '1024':
       values.content_vector_1024 = embedding.embedding
@@ -250,6 +250,10 @@ export async function findMessagesByIDs(messageIds: string[]) {
     .select()
     .from(chatMessagesTable)
     .where(
-      inArray(chatMessagesTable.platform_message_id, messageIds),
+      and(
+        inArray(chatMessagesTable.platform_message_id, messageIds),
+        eq(chatMessagesTable.platform, 'telegram'),
+        ne(chatMessagesTable.platform_message_id, ''),
+      ),
     )
 }

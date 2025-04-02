@@ -12,8 +12,8 @@ defineProps<{
   <RouterLink
     box="border"
     flex="~ row"
-    bg="neutral-50 dark:neutral-800"
-    border="neutral-100 dark:neutral-700 hover:primary-500/30 dark:hover:primary-400/30 solid 2"
+    bg="neutral-50 dark:neutral-800/50"
+    border="neutral-100 dark:neutral-800/25 hover:primary-500/30 dark:hover:primary-400/30 solid 2"
     drop-shadow="none hover:[0px_4px_4px_rgba(220,220,220,0.4)] active:[0px_0px_0px_rgba(220,220,220,0.25)] dark:hover:none"
     class="menu-icon-item"
     transition="all ease-in-out duration-400"
@@ -76,7 +76,7 @@ defineProps<{
 }
 
 .menu-icon-item::after {
-  --at-apply: 'bg-dotted-[neutral-200/80] hover:bg-dotted-[primary-300/50] dark:bg-dotted-[neutral-700/50] dark:hover:bg-dotted-[primary-200/20]';
+  --at-apply: 'bg-dotted-[neutral-200/60] hover:bg-dotted-[primary-300/50] dark:bg-dotted-[neutral-700/25] dark:hover:bg-dotted-[primary-200/20]';
   position: absolute;
   inset: 0;
   z-index: -2;

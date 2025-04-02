@@ -179,6 +179,9 @@ settings:
             title: Voice Settings
       description: LLMs, speech providers, etc.
       provider:
+        anthropic:
+          description: anthropic.com
+          title: Anthropic | Claude
         cloudflare-workers-ai:
           description: cloudflare.com
           fields:
@@ -250,11 +253,13 @@ settings:
           description: fireworks.ai
           title: Fireworks.ai
         microsoft-speech:
+          description: speech.microsoft.com
           fields:
             field:
               region:
                 description: Speech Service region
                 label: Region
+          title: Microsoft / Azure Speech
         mistral:
           description: mistral.ai
           title: Mistral
@@ -273,6 +278,9 @@ settings:
         openrouter:
           description: openrouter.ai
           title: OpenRouter
+        perplexity:
+          description: perplexity.ai
+          title: Perplexity
         together:
           description: together.ai
           title: Together.ai

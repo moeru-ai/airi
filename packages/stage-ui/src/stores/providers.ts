@@ -14,6 +14,7 @@ import type { VoiceProviderWithExtraOptions } from './fix/voice'
 
 import { useLocalStorage } from '@vueuse/core'
 import {
+  createAnthropic,
   createDeepSeek,
   createFireworks,
   createMistral,
@@ -139,34 +140,6 @@ export const useProvidersStore = defineStore('providers', () => {
         },
       },
     },
-    'openai': {
-      id: 'openai',
-      nameKey: 'settings.pages.providers.provider.openai.title',
-      name: 'OpenAI',
-      descriptionKey: 'settings.pages.providers.provider.openai.description',
-      description: 'openai.com',
-      icon: 'i-lobe-icons:openai',
-      defaultOptions: {
-        baseUrl: 'https://api.openai.com/v1/',
-      },
-      createProvider: config => createOpenAI((config.apiKey as string).trim(), (config.baseUrl as string).trim()),
-      capabilities: {
-        listModels: async (config) => {
-          return (await listModels({
-            ...createOpenAI((config.apiKey as string).trim(), (config.baseUrl as string).trim()).model(),
-          })).map((model) => {
-            return {
-              id: model.id,
-              name: model.id,
-              provider: 'openai',
-              description: '',
-              contextLength: 0,
-              deprecated: false,
-            } satisfies ModelInfo
-          })
-        },
-      },
-    },
     'ollama': {
       id: 'ollama',
       nameKey: 'settings.pages.providers.provider.ollama.title',
@@ -175,7 +148,7 @@ export const useProvidersStore = defineStore('providers', () => {
       description: 'ollama.com',
       icon: 'i-lobe-icons:ollama',
       defaultOptions: {
-        baseUrl: 'http://localhost:11434/api/',
+        baseUrl: 'http://localhost:11434/v1/',
       },
       createProvider: config => createOllama((config.baseUrl as string).trim()),
       capabilities: {
@@ -252,56 +225,97 @@ export const useProvidersStore = defineStore('providers', () => {
         },
       },
     },
-    'perplexity-ai': {
-      id: 'perplexity-ai',
-      nameKey: 'settings.pages.providers.provider.perplexity.title',
-      name: 'Perplexity',
-      descriptionKey: 'settings.pages.providers.provider.perplexity.description',
-      description: 'perplexity.ai',
-      icon: 'i-lobe-icons:perplexity',
+    'openai': {
+      id: 'openai',
+      nameKey: 'settings.pages.providers.provider.openai.title',
+      name: 'OpenAI',
+      descriptionKey: 'settings.pages.providers.provider.openai.description',
+      description: 'openai.com',
+      icon: 'i-lobe-icons:openai',
       defaultOptions: {
-        baseUrl: 'https://api.perplexity.ai',
+        baseUrl: 'https://api.openai.com/v1/',
       },
-      createProvider: config => createPerplexity((config.apiKey as string).trim(), (config.baseUrl as string).trim()),
+      createProvider: config => createOpenAI((config.apiKey as string).trim(), (config.baseUrl as string).trim()),
+      capabilities: {
+        listModels: async (config) => {
+          return (await listModels({
+            ...createOpenAI((config.apiKey as string).trim(), (config.baseUrl as string).trim()).model(),
+          })).map((model) => {
+            return {
+              id: model.id,
+              name: model.id,
+              provider: 'openai',
+              description: '',
+              contextLength: 0,
+              deprecated: false,
+            } satisfies ModelInfo
+          })
+        },
+      },
+    },
+    'anthropic': {
+      id: 'anthropic',
+      nameKey: 'settings.pages.providers.provider.anthropic.title',
+      name: 'Anthropic',
+      descriptionKey: 'settings.pages.providers.provider.anthropic.description',
+      description: 'anthropic.com',
+      icon: 'i-lobe-icons:anthropic',
+      defaultOptions: {
+        baseUrl: 'https://api.anthropic.com/v1/',
+      },
+      createProvider: config => createAnthropic((config.apiKey as string).trim(), (config.baseUrl as string).trim()),
       capabilities: {
         listModels: async () => {
           return [
             {
-              id: 'sonar-small-online',
-              name: 'Sonar Small (Online)',
-              provider: 'perplexity-ai',
-              description: 'Efficient model with online search capabilities',
-              contextLength: 12000,
+              id: 'claude-3-7-sonnet-20250219',
+              name: 'Claude 3.7 Sonnet',
+              provider: 'anthropic',
+              description: '',
+              contextLength: 0,
+              deprecated: false,
             },
             {
-              id: 'sonar-medium-online',
-              name: 'Sonar Medium (Online)',
-              provider: 'perplexity-ai',
-              description: 'Balanced model with online search capabilities',
-              contextLength: 12000,
+              id: 'claude-3-5-sonnet-20241022',
+              name: 'Claude 3.5 Sonnet (New)',
+              provider: 'anthropic',
+              description: '',
+              contextLength: 0,
+              deprecated: false,
             },
             {
-              id: 'sonar-large-online',
-              name: 'Sonar Large (Online)',
-              provider: 'perplexity-ai',
-              description: 'Powerful model with online search capabilities',
-              contextLength: 12000,
+              id: 'claude-3-5-haiku-20241022',
+              name: 'Claude 3.5 Haiku',
+              provider: 'anthropic',
+              description: '',
+              contextLength: 0,
+              deprecated: false,
             },
             {
-              id: 'codey-small',
-              name: 'Codey Small',
-              provider: 'perplexity-ai',
-              description: 'Specialized for code generation and understanding',
-              contextLength: 12000,
+              id: 'claude-3-5-sonnet-20240620',
+              name: 'Claude 3.5 Sonnet (Old)',
+              provider: 'anthropic',
+              description: '',
+              contextLength: 0,
+              deprecated: false,
             },
             {
-              id: 'codey-large',
-              name: 'Codey Large',
-              provider: 'perplexity-ai',
-              description: 'Advanced code generation and understanding',
-              contextLength: 12000,
+              id: 'claude-3-haiku-20240307',
+              name: 'Claude 3 Haiku',
+              provider: 'anthropic',
+              description: '',
+              contextLength: 0,
+              deprecated: false,
             },
-          ]
+            {
+              id: 'claude-3-opus-20240229',
+              name: 'Claude 3 Opus',
+              provider: 'anthropic',
+              description: '',
+              contextLength: 0,
+              deprecated: false,
+            },
+          ] satisfies ModelInfo[]
         },
       },
     },
@@ -552,6 +566,59 @@ export const useProvidersStore = defineStore('providers', () => {
         },
       },
     },
+    'perplexity-ai': {
+      id: 'perplexity-ai',
+      nameKey: 'settings.pages.providers.provider.perplexity.title',
+      name: 'Perplexity',
+      descriptionKey: 'settings.pages.providers.provider.perplexity.description',
+      description: 'perplexity.ai',
+      icon: 'i-lobe-icons:perplexity',
+      defaultOptions: {
+        baseUrl: 'https://api.perplexity.ai',
+      },
+      createProvider: config => createPerplexity((config.apiKey as string).trim(), (config.baseUrl as string).trim()),
+      capabilities: {
+        listModels: async () => {
+          return [
+            {
+              id: 'sonar-small-online',
+              name: 'Sonar Small (Online)',
+              provider: 'perplexity-ai',
+              description: 'Efficient model with online search capabilities',
+              contextLength: 12000,
+            },
+            {
+              id: 'sonar-medium-online',
+              name: 'Sonar Medium (Online)',
+              provider: 'perplexity-ai',
+              description: 'Balanced model with online search capabilities',
+              contextLength: 12000,
+            },
+            {
+              id: 'sonar-large-online',
+              name: 'Sonar Large (Online)',
+              provider: 'perplexity-ai',
+              description: 'Powerful model with online search capabilities',
+              contextLength: 12000,
+            },
+            {
+              id: 'codey-small',
+              name: 'Codey Small',
+              provider: 'perplexity-ai',
+              description: 'Specialized for code generation and understanding',
+              contextLength: 12000,
+            },
+            {
+              id: 'codey-large',
+              name: 'Codey Large',
+              provider: 'perplexity-ai',
+              description: 'Advanced code generation and understanding',
+              contextLength: 12000,
+            },
+          ]
+        },
+      },
+    },
     'mistral-ai': {
       id: 'mistral-ai',
       nameKey: 'settings.pages.providers.provider.mistral.title',
@@ -613,12 +680,14 @@ export const useProvidersStore = defineStore('providers', () => {
     switch (providerId) {
       case 'openrouter-ai':
         return !!config.apiKey && !!config.baseUrl
-      case 'openai':
-        return !!config.apiKey
       case 'ollama':
         return !!config.baseUrl
       case 'vllm':
         return !!config.baseUrl
+      case 'openai':
+        return !!config.apiKey
+      case 'anthropic':
+        return !!config.apiKey
       case 'elevenlabs':
         return !!config.apiKey
       case 'xai':
