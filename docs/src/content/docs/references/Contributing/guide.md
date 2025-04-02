@@ -70,12 +70,6 @@ Hello! Thank you for your interest in contributing to this project. This guide w
    corepack prepare pnpm@latest --activate
    ```
 
-:::tip
-For Nix/NixOS users, a `devenv` profile is included and equipped with the recommended version of Node.js/Corepack.
-
-If you have `direnv` installed, run `direnv allow` to get started.
-:::
-
 </details>
 
 ## If you have already contributed to this project before
