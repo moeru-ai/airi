@@ -344,7 +344,7 @@ git commit -m "<your-commit-message>"
 ### Push to your fork repository
 
 ```shell
-git push origin <your-branch-name-u
+git push origin <your-branch-name> -u
 ```
 
 You should be able to browse the branch on your fork repository.
