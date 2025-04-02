@@ -1,7 +1,7 @@
 {
   "name": "@proj-airi/server-shared",
   "type": "module",
-  "version": "0.4.17",
+  "version": "0.4.19",
   "description": "Server shared types, utilities for Airi server components and runtimes",
   "author": {
     "name": "Neko Ayaka",

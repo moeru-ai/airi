@@ -1,5 +1,8 @@
 name: Build Tamagotchi
 
+permissions:
+  contents: write
+
 on:
   workflow_dispatch:
 
@@ -10,30 +13,15 @@ jobs:
       matrix:
         include:
           - os: macos-latest
-            platform: macos
             target: x86_64-apple-darwin
-            arch: x64
-            artifact: dmg
           - os: macos-latest
-            platform: macos
             target: aarch64-apple-darwin
-            arch: aarch64
-            artifact: dmg
           - os: ubuntu-latest
-            platform: linux
             target: x86_64-unknown-linux-gnu
-            arch: x86_64
-            artifact: AppImage
           - os: ubuntu-24.04-arm
-            platform: linux
             target: aarch64-unknown-linux-gnu
-            arch: aarch64
-            artifact: AppImage
           - os: windows-latest
-            platform: windows
             target: x86_64-pc-windows-msvc
-            arch: x64
-            artifact: exe
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout
@@ -59,13 +47,13 @@ jobs:
           targets: ${{ matrix.target }}
 
       - name: install system dependencies (ubuntu only)
-        if: matrix.platform == 'linux' # This must match the platform value defined above.
+        if: matrix.os == 'ubuntu-latest' || matrix.os == 'ubuntu-24.04-arm'
         run: |
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile --loglevel debug
+        run: pnpm install --frozen-lockfile
 
       - name: Build Dependencies
         run: pnpm run packages:build
@@ -73,6 +61,11 @@ jobs:
       - name: Build Application
         run: cd apps/stage-tamagotchi-tauri && pnpm tauri build --target ${{ matrix.target }}
 
-      - run: |
-          mv apps/stage-tamagotchi-tauri/src-tauri/target/${{ matrix.target }}/release/bundle/${{ matrix.artifact }}/airi_${{ github.ref_name }}_${{ matrix.arch }}.${{ matrix.artifact }} \
-            tamagotchi-dist/airi-${{ matrix.platform }}-${{ matrix.arch }}-${{ github.ref_name }}.${{ matrix.artifact }}
+      - name: Rename Artifacts
+        run: node apps/stage-tamagotchi-tauri/scripts/rename-artifacts.js ${{ matrix.target }}
+
+      - name: Upload To GitHub Releases
+        uses: softprops/action-gh-release@v2
+        with:
+          files: apps/stage-tamagotchi-tauri/bundle/airi_*
+          append_body: true
