@@ -8,6 +8,7 @@ import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 
 import CardDetailDialog from './components/CardDetailDialog.vue'
+import CardListItem from './components/CardListItem.vue'
 import DeleteCardDialog from './components/DeleteCardDialog.vue'
 
 const router = useRouter()
@@ -31,7 +32,7 @@ const sortOption = ref('nameAsc')
 const isDragging = ref(false)
 
 // Card list data structure
-interface CardListItem {
+interface CardItem {
   id: string
   name: string
   description?: string
@@ -40,7 +41,7 @@ interface CardListItem {
 }
 
 // Transform cards Map to array for display
-const cardsArray = computed<CardListItem[]>(() =>
+const cardsArray = computed<CardItem[]>(() =>
   Array.from(cards.value.entries()).map(([id, card]) => ({
     id,
     name: card.name,
@@ -49,7 +50,7 @@ const cardsArray = computed<CardListItem[]>(() =>
 )
 
 // Filtered cards based on search query
-const filteredCards = computed<CardListItem[]>(() => {
+const filteredCards = computed<CardItem[]>(() => {
   if (!searchQuery.value)
     return cardsArray.value
 
@@ -61,7 +62,7 @@ const filteredCards = computed<CardListItem[]>(() => {
 })
 
 // Sorted filtered cards based on sort option
-const sortedFilteredCards = computed<CardListItem[]>(() => {
+const sortedFilteredCards = computed<CardItem[]>(() => {
   // Create a new array to avoid mutating the source
   const sorted = [...filteredCards.value]
 
@@ -179,7 +180,7 @@ function getModuleShortName(id: string, module: 'consciousness' | 'voice') {
     </h1>
   </div>
 
-  <div bg="neutral-50 dark:[rgba(0,0,0,0.3)]" rounded-xl p-4 flex="~ col gap-4">
+  <div rounded-xl p-4 flex="~ col gap-4">
     <!-- Toolbar with search and filters -->
     <div flex="~ row" flex-wrap items-center justify-between gap-4>
       <!-- Search bar -->
@@ -225,14 +226,13 @@ function getModuleShortName(id: string, module: 'consciousness' | 'voice') {
     <!-- Masonry card layout -->
     <div
       class="mt-4"
-      :class="{ 'masonry-grid': cards.size > 0 }"
+      :class="{ 'grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-4 grid-auto-rows-[minmax(min-content,max-content)] grid-auto-flow-dense sm:grid-cols-[repeat(auto-fill,minmax(240px,1fr))] sm:gap-5 md:grid-cols-[repeat(auto-fill,minmax(220px,1fr))] lg:grid-cols-[repeat(auto-fill,minmax(250px,1fr))]': cards.size > 0 }"
     >
       <!-- Upload card -->
       <div
-        class="upload-card masonry-item relative flex flex-col cursor-pointer items-center justify-center border-2 rounded-xl border-dashed p-6 transition-all duration-300"
+        class="relative min-h-[120px] flex flex-col cursor-pointer items-center justify-center border-2 rounded-xl border-dashed p-6 transition-all duration-300"
         border="neutral-200 dark:neutral-700 hover:primary-300 dark:hover:primary-700"
         bg="white/60 dark:black/30 hover:white/80 dark:hover:black/40"
-        min-h-220px
         :style="{ transform: 'scale(0.98)', opacity: 0.95 }"
         hover="scale-100 opacity-100 shadow-md dark:shadow-xl"
         @click="handleUpload"
@@ -261,76 +261,21 @@ function getModuleShortName(id: string, module: 'consciousness' | 'voice') {
 
       <!-- Card Items -->
       <template v-if="cards.size > 0">
-        <div
+        <CardListItem
           v-for="item in sortedFilteredCards"
+          :id="item.id"
           :key="item.id"
-          class="masonry-item card-item relative cursor-pointer overflow-hidden rounded-xl transition-all duration-300"
-          :class="[
-            item.id === selectedCardId && isCardDialogOpen
-              ? 'border-2 border-primary-400 dark:border-primary-600'
-              : 'border border-neutral-200/70 dark:border-neutral-700/50',
-          ]"
-          :style="{ transform: item.id === selectedCardId && isCardDialogOpen ? 'scale(1)' : 'scale(0.98)', opacity: item.id === selectedCardId && isCardDialogOpen ? 1 : 0.95 }"
-          hover="scale-100 opacity-100 shadow-md dark:shadow-xl"
-          @click="handleSelectCard(item.id)"
-        >
-          <!-- Card content -->
-          <div class="bg-white p-4 dark:bg-neutral-900/90">
-            <!-- Card header (name and badge) -->
-            <div class="mb-3 flex items-start justify-between">
-              <h3 class="truncate text-lg font-bold" :style="{ maxWidth: '85%' }">
-                {{ item.name }}
-              </h3>
-              <div v-if="item.id === activeCardId" class="bg-primary-100 dark:bg-primary-900/40 rounded-md p-1">
-                <div i-solar:check-circle-bold-duotone text-primary-500 dark:text-primary-400 text-sm />
-              </div>
-            </div>
-
-            <!-- Card description -->
-            <p v-if="item.description" class="line-clamp-3 mb-3 text-sm text-neutral-600 dark:text-neutral-400">
-              {{ item.description }}
-            </p>
-
-            <!-- Card stats -->
-            <div class="mt-2 flex items-center justify-between text-xs text-neutral-500 dark:text-neutral-400">
-              <div>v{{ getVersionNumber(item.id) }}</div>
-              <div class="flex items-center gap-1.5">
-                <div class="flex items-center gap-0.5">
-                  <div i-lucide:ghost class="text-xs" />
-                  <span>{{ getModuleShortName(item.id, 'consciousness') }}</span>
-                </div>
-                <div class="flex items-center gap-0.5">
-                  <div i-lucide:mic class="text-xs" />
-                  <span>{{ getModuleShortName(item.id, 'voice') }}</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Card actions -->
-          <div class="flex justify-end gap-1 bg-neutral-50 p-2 dark:bg-neutral-800/50">
-            <button
-              class="rounded-lg p-1.5 transition-colors hover:bg-neutral-200 dark:hover:bg-neutral-700/50"
-              :disabled="item.id === activeCardId"
-              @click.stop="activateCard(item.id)"
-            >
-              <div
-                :class="[
-                  item.id === activeCardId
-                    ? 'i-solar:check-circle-bold-duotone text-primary-500 dark:text-primary-400'
-                    : 'i-solar:play-circle-broken text-neutral-500 dark:text-neutral-400',
-                ]"
-              />
-            </button>
-            <button
-              v-if="item.id !== 'default'"
-              class="rounded-lg p-1.5 transition-colors hover:bg-neutral-200 dark:hover:bg-neutral-700/50"
-              @click.stop="confirmDelete(item.id)"
-            >
-              <div i-solar:trash-bin-trash-linear text-neutral-500 dark:text-neutral-400 />
-            </button>
-          </div>
-        </div>
+          :name="item.name"
+          :description="item.description"
+          :is-active="item.id === activeCardId"
+          :is-selected="item.id === selectedCardId && isCardDialogOpen"
+          :version="getVersionNumber(item.id)"
+          :consciousness-model="getModuleShortName(item.id, 'consciousness')"
+          :voice-model="getModuleShortName(item.id, 'voice')"
+          @select="handleSelectCard(item.id)"
+          @activate="activateCard(item.id)"
+          @delete="confirmDelete(item.id)"
+        />
       </template>
 
       <!-- No cards message -->
@@ -379,38 +324,6 @@ function getModuleShortName(id: string, module: 'consciousness' | 'voice') {
     <div text="40" i-lucide:id-card />
   </div>
 </template>
-
-<style scoped>
-.masonry-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  grid-gap: 16px;
-}
-
-.masonry-item {
-  break-inside: avoid;
-  margin-bottom: 16px;
-}
-
-@media (min-width: 640px) {
-  .masonry-grid {
-    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-    grid-gap: 20px;
-  }
-}
-
-@media (min-width: 768px) {
-  .masonry-grid {
-    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  }
-}
-
-@media (min-width: 1024px) {
-  .masonry-grid {
-    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-  }
-}
-</style>
 
 <route lang="yaml">
 meta:
