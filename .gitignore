@@ -32,6 +32,7 @@ coverage/
 **/public/assets/vrm/models/*
 packages/stage-ui/public/assets/fonts/
 apps/stage-tamagotchi/public/assets/fonts/
+apps/stage-tamagotchi-tauri/public/assets/fonts/
 apps/stage-web/public/assets/fonts/
 
 *.pcm
@@ -40,3 +41,11 @@ apps/stage-web/public/assets/fonts/
 *.mp3
 
 twitter-session.json
+
+# Make it easy for devenv users to override their local environment.
+# See: https://github.com/moeru-ai/airi/pull/110#discussion_r2024378953
+.direnv
+.pre-commit-config.yaml
+.envrc
+.devenv*
+devenv.*
