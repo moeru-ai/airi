@@ -38,7 +38,6 @@
     "@pixiv/three-vrm-core": "^3.3.6",
     "@proj-airi/ccc": "workspace:^",
     "@proj-airi/drizzle-duckdb-wasm": "workspace:^",
-    "@proj-airi/elevenlabs": "workspace:^",
     "@proj-airi/provider-transformers": "workspace:^",
     "@proj-airi/server-sdk": "workspace:^",
     "@proj-airi/stage-ui": "workspace:^",

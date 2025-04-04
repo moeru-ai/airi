@@ -418,13 +418,10 @@ importers:
         version: 2.3.0
       '@intlify/unplugin-vue-i18n':
         specifier: ^6.0.5
-        version: 6.0.5(@vue/compiler-dom@3.5.13)(eslint@9.23.0(jiti@2.4.2))(rollup@4.38.0)(typescript@5.8.2)(vue-i18n@11.1.2(vue@3.5.13(typescript@5.8.2)))(vue@3.5.13(typescript@5.8.2))
+        version: 6.0.5(@vue/compiler-dom@3.5.13)(eslint@9.23.0(jiti@2.4.2))(rollup@2.79.1)(typescript@5.8.2)(vue-i18n@11.1.2(vue@3.5.13(typescript@5.8.2)))(vue@3.5.13(typescript@5.8.2))
       '@proj-airi/drizzle-duckdb-wasm':
         specifier: workspace:^
         version: link:../../packages/drizzle-duckdb-wasm
-      '@proj-airi/elevenlabs':
-        specifier: workspace:^
-        version: link:../../packages/elevenlabs
       '@proj-airi/lobe-icons':
         specifier: ^1.0.4
         version: 1.0.4
@@ -469,7 +466,7 @@ importers:
         version: 3.0.0-beta.7(typescript@5.8.2)(vue-tsc@3.0.0-alpha.2(typescript@5.8.2))(vue@3.5.13(typescript@5.8.2))
       '@vueuse/motion':
         specifier: ^3.0.3
-        version: 3.0.3(magicast@0.3.5)(rollup@4.38.0)(vue@3.5.13(typescript@5.8.2))
+        version: 3.0.3(magicast@0.3.5)(rollup@2.79.1)(vue@3.5.13(typescript@5.8.2))
       electron:
         specifier: ^34.4.1
         version: 34.4.1
@@ -490,13 +487,13 @@ importers:
         version: 3.2.0(unocss@66.1.0-beta.8(postcss@8.5.3)(vite@6.2.5(@types/node@22.13.16)(jiti@2.4.2)(less@4.2.2)(terser@5.17.6)(tsx@4.19.3)(yaml@2.7.0))(vue@3.5.13(typescript@5.8.2)))
       unplugin-auto-import:
         specifier: ^19.1.2
-        version: 19.1.2(@nuxt/kit@3.14.1592(magicast@0.3.5)(rollup@4.38.0))(@vueuse/core@13.0.0(vue@3.5.13(typescript@5.8.2)))
+        version: 19.1.2(@nuxt/kit@3.14.1592(magicast@0.3.5)(rollup@2.79.1))(@vueuse/core@13.0.0(vue@3.5.13(typescript@5.8.2)))
       unplugin-vue-components:
         specifier: ^28.4.1
-        version: 28.4.1(@babel/parser@7.26.10)(@nuxt/kit@3.14.1592(magicast@0.3.5)(rollup@4.38.0))(vue@3.5.13(typescript@5.8.2))
+        version: 28.4.1(@babel/parser@7.26.10)(@nuxt/kit@3.14.1592(magicast@0.3.5)(rollup@2.79.1))(vue@3.5.13(typescript@5.8.2))
       unplugin-vue-macros:
         specifier: ^2.14.5
-        version: 2.14.5(@vueuse/core@13.0.0(vue@3.5.13(typescript@5.8.2)))(esbuild@0.25.0)(rollup@4.38.0)(typescript@5.8.2)(vite@6.2.5(@types/node@22.13.16)(jiti@2.4.2)(less@4.2.2)(terser@5.17.6)(tsx@4.19.3)(yaml@2.7.0))(vue-tsc@3.0.0-alpha.2(typescript@5.8.2))(vue@3.5.13(typescript@5.8.2))
+        version: 2.14.5(@vueuse/core@13.0.0(vue@3.5.13(typescript@5.8.2)))(esbuild@0.19.12)(rollup@2.79.1)(typescript@5.8.2)(vite@6.2.5(@types/node@22.13.16)(jiti@2.4.2)(less@4.2.2)(terser@5.17.6)(tsx@4.19.3)(yaml@2.7.0))(vue-tsc@3.0.0-alpha.2(typescript@5.8.2))(vue@3.5.13(typescript@5.8.2))
       unplugin-vue-markdown:
         specifier: ^28.3.1
         version: 28.3.1(vite@6.2.5(@types/node@22.13.16)(jiti@2.4.2)(less@4.2.2)(terser@5.17.6)(tsx@4.19.3)(yaml@2.7.0))
@@ -505,13 +502,13 @@ importers:
         version: 0.12.0(vue-router@4.5.0(vue@3.5.13(typescript@5.8.2)))(vue@3.5.13(typescript@5.8.2))
       vite-bundle-visualizer:
         specifier: ^1.2.1
-        version: 1.2.1(rollup@4.38.0)
+        version: 1.2.1(rollup@2.79.1)
       vite-plugin-pwa:
         specifier: ^1.0.0
         version: 1.0.0(vite@6.2.5(@types/node@22.13.16)(jiti@2.4.2)(less@4.2.2)(terser@5.17.6)(tsx@4.19.3)(yaml@2.7.0))(workbox-build@7.3.0(@types/babel__core@7.20.5))(workbox-window@7.3.0)
       vite-plugin-vue-devtools:
         specifier: ^7.7.2
-        version: 7.7.2(@nuxt/kit@3.14.1592(magicast@0.3.5)(rollup@4.38.0))(rollup@4.38.0)(vite@6.2.5(@types/node@22.13.16)(jiti@2.4.2)(less@4.2.2)(terser@5.17.6)(tsx@4.19.3)(yaml@2.7.0))(vue@3.5.13(typescript@5.8.2))
+        version: 7.7.2(@nuxt/kit@3.14.1592(magicast@0.3.5)(rollup@2.79.1))(rollup@2.79.1)(vite@6.2.5(@types/node@22.13.16)(jiti@2.4.2)(less@4.2.2)(terser@5.17.6)(tsx@4.19.3)(yaml@2.7.0))(vue@3.5.13(typescript@5.8.2))
       vite-plugin-vue-layouts:
         specifier: ^0.11.0
         version: 0.11.0(vite@6.2.5(@types/node@22.13.16)(jiti@2.4.2)(less@4.2.2)(terser@5.17.6)(tsx@4.19.3)(yaml@2.7.0))(vue-router@4.5.0(vue@3.5.13(typescript@5.8.2)))(vue@3.5.13(typescript@5.8.2))
@@ -756,9 +753,6 @@ importers:
       '@proj-airi/drizzle-duckdb-wasm':
         specifier: workspace:^
         version: link:../../packages/drizzle-duckdb-wasm
-      '@proj-airi/elevenlabs':
-        specifier: workspace:^
-        version: link:../../packages/elevenlabs
       '@proj-airi/lobe-icons':
         specifier: ^1.0.4
         version: 1.0.4
@@ -912,9 +906,6 @@ importers:
       '@proj-airi/drizzle-duckdb-wasm':
         specifier: workspace:^
         version: link:../../packages/drizzle-duckdb-wasm
-      '@proj-airi/elevenlabs':
-        specifier: workspace:^
-        version: link:../../packages/elevenlabs
       '@proj-airi/provider-transformers':
         specifier: workspace:^
         version: link:../../packages/provider-transformers
@@ -1104,7 +1095,7 @@ importers:
         version: 2.3.0
       '@intlify/unplugin-vue-i18n':
         specifier: ^6.0.5
-        version: 6.0.5(@vue/compiler-dom@3.5.13)(eslint@9.23.0(jiti@2.4.2))(rollup@2.79.1)(typescript@5.8.2)(vue-i18n@11.1.2(vue@3.5.13(typescript@5.8.2)))(vue@3.5.13(typescript@5.8.2))
+        version: 6.0.5(@vue/compiler-dom@3.5.13)(eslint@9.23.0(jiti@2.4.2))(rollup@4.38.0)(typescript@5.8.2)(vue-i18n@11.1.2(vue@3.5.13(typescript@5.8.2)))(vue@3.5.13(typescript@5.8.2))
       '@proj-airi/lobe-icons':
         specifier: ^1.0.4
         version: 1.0.4
@@ -1143,7 +1134,7 @@ importers:
         version: 3.0.0-beta.7(typescript@5.8.2)(vue-tsc@3.0.0-alpha.2(typescript@5.8.2))(vue@3.5.13(typescript@5.8.2))
       '@vueuse/motion':
         specifier: ^3.0.3
-        version: 3.0.3(magicast@0.3.5)(rollup@2.79.1)(vue@3.5.13(typescript@5.8.2))
+        version: 3.0.3(magicast@0.3.5)(rollup@4.38.0)(vue@3.5.13(typescript@5.8.2))
       hfup:
         specifier: ^0.5.0
         version: 0.5.0(@types/node@22.13.16)(jiti@2.4.2)(less@4.2.2)(terser@5.17.6)(tsx@4.19.3)(yaml@2.7.0)
@@ -1155,13 +1146,13 @@ importers:
         version: 4.0.1
       unplugin-auto-import:
         specifier: ^19.1.2
-        version: 19.1.2(@nuxt/kit@3.14.1592(magicast@0.3.5)(rollup@2.79.1))(@vueuse/core@13.0.0(vue@3.5.13(typescript@5.8.2)))
+        version: 19.1.2(@nuxt/kit@3.14.1592(magicast@0.3.5)(rollup@4.38.0))(@vueuse/core@13.0.0(vue@3.5.13(typescript@5.8.2)))
       unplugin-vue-components:
         specifier: ^28.4.1
-        version: 28.4.1(@babel/parser@7.26.10)(@nuxt/kit@3.14.1592(magicast@0.3.5)(rollup@2.79.1))(vue@3.5.13(typescript@5.8.2))
+        version: 28.4.1(@babel/parser@7.26.10)(@nuxt/kit@3.14.1592(magicast@0.3.5)(rollup@4.38.0))(vue@3.5.13(typescript@5.8.2))
       unplugin-vue-macros:
         specifier: ^2.14.5
-        version: 2.14.5(@vueuse/core@13.0.0(vue@3.5.13(typescript@5.8.2)))(esbuild@0.19.12)(rollup@2.79.1)(typescript@5.8.2)(vite@6.2.5(@types/node@22.13.16)(jiti@2.4.2)(less@4.2.2)(terser@5.17.6)(tsx@4.19.3)(yaml@2.7.0))(vue-tsc@3.0.0-alpha.2(typescript@5.8.2))(vue@3.5.13(typescript@5.8.2))
+        version: 2.14.5(@vueuse/core@13.0.0(vue@3.5.13(typescript@5.8.2)))(esbuild@0.25.0)(rollup@4.38.0)(typescript@5.8.2)(vite@6.2.5(@types/node@22.13.16)(jiti@2.4.2)(less@4.2.2)(terser@5.17.6)(tsx@4.19.3)(yaml@2.7.0))(vue-tsc@3.0.0-alpha.2(typescript@5.8.2))(vue@3.5.13(typescript@5.8.2))
       unplugin-vue-markdown:
         specifier: ^28.3.1
         version: 28.3.1(vite@6.2.5(@types/node@22.13.16)(jiti@2.4.2)(less@4.2.2)(terser@5.17.6)(tsx@4.19.3)(yaml@2.7.0))
@@ -1170,13 +1161,13 @@ importers:
         version: 0.12.0(vue-router@4.5.0(vue@3.5.13(typescript@5.8.2)))(vue@3.5.13(typescript@5.8.2))
       vite-bundle-visualizer:
         specifier: ^1.2.1
-        version: 1.2.1(rollup@2.79.1)
+        version: 1.2.1(rollup@4.38.0)
       vite-plugin-pwa:
         specifier: ^1.0.0
         version: 1.0.0(vite@6.2.5(@types/node@22.13.16)(jiti@2.4.2)(less@4.2.2)(terser@5.17.6)(tsx@4.19.3)(yaml@2.7.0))(workbox-build@7.3.0(@types/babel__core@7.20.5))(workbox-window@7.3.0)
       vite-plugin-vue-devtools:
         specifier: ^7.7.2
-        version: 7.7.2(@nuxt/kit@3.14.1592(magicast@0.3.5)(rollup@2.79.1))(rollup@2.79.1)(vite@6.2.5(@types/node@22.13.16)(jiti@2.4.2)(less@4.2.2)(terser@5.17.6)(tsx@4.19.3)(yaml@2.7.0))(vue@3.5.13(typescript@5.8.2))
+        version: 7.7.2(@nuxt/kit@3.14.1592(magicast@0.3.5)(rollup@4.38.0))(rollup@4.38.0)(vite@6.2.5(@types/node@22.13.16)(jiti@2.4.2)(less@4.2.2)(terser@5.17.6)(tsx@4.19.3)(yaml@2.7.0))(vue@3.5.13(typescript@5.8.2))
       vite-plugin-vue-layouts:
         specifier: ^0.11.0
         version: 0.11.0(vite@6.2.5(@types/node@22.13.16)(jiti@2.4.2)(less@4.2.2)(terser@5.17.6)(tsx@4.19.3)(yaml@2.7.0))(vue-router@4.5.0(vue@3.5.13(typescript@5.8.2)))(vue@3.5.13(typescript@5.8.2))
@@ -1324,12 +1315,6 @@ importers:
         specifier: ^0.30.6
         version: 0.30.6
 
-  packages/elevenlabs:
-    devDependencies:
-      elevenlabs:
-        specifier: ^1.55.0
-        version: 1.55.0(encoding@0.1.13)
-
   packages/gpuu:
     dependencies:
       defu:
@@ -1342,18 +1327,6 @@ importers:
       '@webgpu/types':
         specifier: ^0.1.60
         version: 0.1.60
-
-  packages/hfup:
-    dependencies:
-      defu:
-        specifier: ^6.1.4
-        version: 6.1.4
-      gray-matter:
-        specifier: ^4.0.3
-        version: 4.0.3
-      vite:
-        specifier: ^6.2.4
-        version: 6.2.4(@types/node@22.13.16)(jiti@2.4.2)(less@4.2.2)(terser@5.17.6)(tsx@4.19.3)(yaml@2.7.0)
 
   packages/memory-pgvector:
     dependencies:
@@ -6700,9 +6673,6 @@ packages:
   comma-separated-tokens@2.0.3:
     resolution: {integrity: sha512-Fu4hJdvzeylCfQPp9SGWidpzrMs7tTrlu6Vb8XGaRGck8QSNZJJp538Wrb60Lax4fPwR64ViY468OIUTbRlGZg==}
 
-  command-exists@1.2.9:
-    resolution: {integrity: sha512-LTQ/SGc+s0Xc0Fu5WaKnR0YiygZkm9eKFvyS+fRsU7/ZWFF8ykFM6Pc9aCVf1+xasOOZpO3BAVgVrKvsqKHV7w==}
-
   command-line-args@5.2.1:
     resolution: {integrity: sha512-H4UfQhZyakIjC74I9d34fGYDwk3XpSr17QhEd0Q3I9Xq1CETHo4Hcuo87WyWHpAF1aSLjLRf5lD9ZGX2qStUvg==}
     engines: {node: '>=4.0.0'}
@@ -7469,9 +7439,6 @@ packages:
     engines: {node: '>= 12.20.55'}
     hasBin: true
 
-  elevenlabs@1.55.0:
-    resolution: {integrity: sha512-gcLRCBRx0f2PAgd1Lz5oBhg9m8mfwbGrkXrBmEBCgWevwgrFxwBAGmOsWB5qJfoFqiRRCgqH217QRpUFIR+r8w==}
-
   email-addresses@3.1.0:
     resolution: {integrity: sha512-k0/r7GrWVL32kZlGwfPNgB2Y/mMXVTq/decgLczm/j34whdaspNrZO8CnXPf1laaHxI6ptUlsnAxN+UAPw+fzg==}
 
@@ -8110,10 +8077,6 @@ packages:
   form-data-encoder@1.7.2:
     resolution: {integrity: sha512-qfqtYan3rxrnCk1VYaA4H+Ms9xdpPqvLZa6xmMgFvhO32x7/3J/ExcTd6qpxM0vH2GdMI+poehyBZvqfMTto8A==}
 
-  form-data-encoder@4.0.2:
-    resolution: {integrity: sha512-KQVhvhK8ZkWzxKxOr56CPulAhH3dobtuQ4+hNQ+HekH/Wp5gSOafqRAeTphQUJAIk0GBvHZgJ2ZGRWd5kphMuw==}
-    engines: {node: '>= 18'}
-
   form-data@4.0.0:
     resolution: {integrity: sha512-ETEklSGi5t0QMZuiXoA/Q6vcnxcLQP5vdugSpuAyi6SVGi2clPPp+xgEhuMaHC+zGgn31Kd235W35f7Hykkaww==}
     engines: {node: '>= 6'}
@@ -8121,10 +8084,6 @@ packages:
   formdata-node@4.4.1:
     resolution: {integrity: sha512-0iirZp3uVDjVGt9p49aTaqjk84TrglENEDuqfdlZQ1roC9CWlPk6Avf8EEnZNcAqPonwkG35x4n3ww/1THYAeQ==}
     engines: {node: '>= 12.20'}
-
-  formdata-node@6.0.3:
-    resolution: {integrity: sha512-8e1++BCiTzUno9v5IZ2J6bv4RU+3UKDmqWUQD0MIMVCd9AdhWkO1gw57oo1mNEX1dMq2EGI+FbWz4B92pscSQg==}
-    engines: {node: '>= 18'}
 
   forwarded@0.2.0:
     resolution: {integrity: sha512-buRG0fpBtRHSTCOASe6hD258tEubFoRLb4ZNA6NxMVHNw2gOcwHo9wyablzMzOA5z9xA9L1KNjk/Nt6MT9aYow==}
@@ -12004,9 +11963,6 @@ packages:
 
   uri-js@4.4.1:
     resolution: {integrity: sha512-7rKUyy33Q1yc98pQ1DAmLtwX109F7TIfWlW1Ydo8Wl1ii1SeHieeh0HHfPeL2fMXK6z0s8ecKs9frCuLJvndBg==}
-
-  url-join@4.0.1:
-    resolution: {integrity: sha512-jk1+QP6ZJqyOiuEI9AEWQfju/nB2Pw466kbA0LEZljHwKeMgd9WrAEgEGxjPDD2+TNbbb37rTyhEfrCXfuKXnA==}
 
   url-parse@1.5.10:
     resolution: {integrity: sha512-WypcfiRhfeUP9vvF0j6rw0J3hrWrw6iZv3+22h6iRMJ/8z1Tj6XfLP4DsUix5MhMPnXpiHDoKyoZ/bdCkwBCiQ==}
@@ -18473,8 +18429,6 @@ snapshots:
 
   comma-separated-tokens@2.0.3: {}
 
-  command-exists@1.2.9: {}
-
   command-line-args@5.2.1:
     dependencies:
       array-back: 3.1.0
@@ -19212,20 +19166,6 @@ snapshots:
       extract-zip: 2.0.1
     transitivePeerDependencies:
       - supports-color
-
-  elevenlabs@1.55.0(encoding@0.1.13):
-    dependencies:
-      command-exists: 1.2.9
-      execa: 5.1.1
-      form-data: 4.0.0
-      form-data-encoder: 4.0.2
-      formdata-node: 6.0.3
-      node-fetch: 2.7.0(encoding@0.1.13)
-      qs: 6.14.0
-      readable-stream: 4.7.0
-      url-join: 4.0.1
-    transitivePeerDependencies:
-      - encoding
 
   email-addresses@3.1.0: {}
 
@@ -20200,8 +20140,6 @@ snapshots:
 
   form-data-encoder@1.7.2: {}
 
-  form-data-encoder@4.0.2: {}
-
   form-data@4.0.0:
     dependencies:
       asynckit: 0.4.0
@@ -20212,8 +20150,6 @@ snapshots:
     dependencies:
       node-domexception: 1.0.0
       web-streams-polyfill: 4.0.0-beta.3
-
-  formdata-node@6.0.3: {}
 
   forwarded@0.2.0: {}
 
@@ -25303,8 +25239,6 @@ snapshots:
   uri-js@4.4.1:
     dependencies:
       punycode: 2.3.1
-
-  url-join@4.0.1: {}
 
   url-parse@1.5.10:
     dependencies:
