@@ -92,7 +92,7 @@
     "@iconify-json/vscode-icons": "^1.2.18",
     "@iconify/utils": "^2.3.0",
     "@intlify/unplugin-vue-i18n": "^6.0.5",
-    "@proj-airi/drizzle-duckdb-wasm": "workspace:^",
+    "@proj-airi/drizzle-duckdb-wasm": "catalog:",
     "@proj-airi/lobe-icons": "^1.0.5",
     "@proj-airi/provider-transformers": "workspace:^",
     "@proj-airi/ui-transitions": "workspace:^",
