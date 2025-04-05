@@ -10,14 +10,6 @@
     ],
     "module": "ESNext",
     "moduleResolution": "bundler",
-    "paths": {
-      "@proj-airi/duckdb-wasm/*": [
-        "../duckdb-wasm/src/*"
-      ],
-      "@proj-airi/duckdb-wasm": [
-        "../duckdb-wasm/src/index.ts"
-      ]
-    },
     "types": [
       "vite/client",
       "@vitest/browser/providers/playwright",

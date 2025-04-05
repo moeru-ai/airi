@@ -58,6 +58,7 @@
   "dependencies": {
     "@formkit/auto-animate": "^0.8.2",
     "@proj-airi/ccc": "workspace:^",
+    "@proj-airi/drizzle-duckdb-wasm": "catalog:",
     "@proj-airi/server-sdk": "workspace:^",
     "@vueuse/motion": "^3.0.3",
     "radix-vue": "^1.9.17",
