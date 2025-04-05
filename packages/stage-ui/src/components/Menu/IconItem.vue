@@ -12,7 +12,7 @@ defineProps<{
   <RouterLink
     box="border"
     flex="~ row"
-    bg="neutral-50 dark:neutral-800/50"
+    bg="neutral-50 dark:neutral-800"
     border="neutral-100 dark:neutral-800/25 hover:primary-500/30 dark:hover:primary-400/30 solid 2"
     drop-shadow="none hover:[0px_4px_4px_rgba(220,220,220,0.4)] active:[0px_0px_0px_rgba(220,220,220,0.25)] dark:hover:none"
     class="menu-icon-item"
