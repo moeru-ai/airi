@@ -28,7 +28,7 @@ export async function telegramMessageToOneLine(botId: string, message: Message) 
   }
 
   const sentOn = new Date(message.date * 1000).toLocaleString()
-  let userDisplayName = `User [${message.from.first_name} ${message.from.last_name} (${message.from.username})]`
+  let userDisplayName = `User [Display name: ${message.from.first_name}${message.from?.last_name ? ` ${message.from.last_name}` : ''}${message.from?.username ? ` (username: ${message.from.username})` : ''}]`
   if (botId === message.from.id.toString()) {
     userDisplayName = 'Yourself'
   }
