@@ -32,7 +32,6 @@ coverage/
 **/public/assets/vrm/models/*
 packages/stage-ui/public/assets/fonts/
 apps/stage-tamagotchi/public/assets/fonts/
-apps/stage-tamagotchi-tauri/public/assets/fonts/
 apps/stage-web/public/assets/fonts/
 
 *.pcm
