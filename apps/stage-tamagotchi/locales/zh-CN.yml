@@ -46,10 +46,49 @@ settings:
     map-motions:
       play: 播放动作
       title: 映射动作
+    edit-motion-map:
+      title: 编辑动作映射
     title: Live2D 设置
   microphone: 麦克风
   models: 模型
   pages:
+    card:
+      activate: 激活
+      active: 已激活
+      active_badge: 当前使用中
+      cancel: 取消
+      card_not_found: 未找到角色卡
+      character: 角色设定
+      close: 关闭
+      consciousness:
+        model: 意识 / 模型
+      created_by: 创建者
+      creator_notes: 创建者笔记
+      delete: 删除
+      delete_card: 删除角色卡
+      delete_confirmation: 确定要删除这张角色卡吗？
+      description: 使用 Airi 角色卡预设
+      description_label: 描述
+      drop_here: 放开以上传文件
+      modules: 模块
+      name_asc: 名称 (A-Z)
+      name_desc: 名称 (Z-A)
+      no_cards: 还没有任何角色卡，点击上方按钮上传一个吧！
+      no_results: 没有找到匹配的角色卡
+      personality: 性格
+      posthistoryinstructions: 历史提示指令
+      recent: 最近添加
+      scenario: 场景
+      search: 搜索角色卡...
+      sort_by: 排序方式
+      speech:
+        model: 声音 / 模型
+        voice: 声音 / 声线
+      systemprompt: 系统提示词
+      title: Airi 角色卡
+      try_different_search: 尝试使用其他关键词搜索
+      upload: 上传
+      upload_desc: 点击或拖拽文件到此处上传
     memory:
       description: 存放记忆的地方，以及策略
       title: 记忆体

@@ -3,6 +3,7 @@ import { Section } from '@proj-airi/stage-ui/components'
 import { useSettings } from '@proj-airi/stage-ui/stores'
 import { useDark } from '@vueuse/core'
 import { ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 
 import CheckBar from '../../../components/Settings/CheckBar.vue'
@@ -13,6 +14,8 @@ import COLOR_PRESETS from './color-presets.json'
 const router = useRouter()
 const settings = useSettings()
 const dark = useDark()
+const { t } = useI18n()
+
 const usePageSpecificTransitionsSettingChanged = ref(false)
 
 const { iconAnimationStarted, showIconAnimation, animationIcon } = useIconAnimation('i-lucide:paintbrush')
@@ -45,7 +48,7 @@ watch(() => [settings.usePageSpecificTransitions, settings.disableTransitions], 
     </h1>
   </div>
 
-  <Section title="settings.sections.section.general.title" icon="i-solar:filters-bold-duotone">
+  <Section :title="t('settings.sections.section.general.title')" icon="i-solar:filters-bold-duotone">
     <!-- Theme Setting -->
     <CheckBar
       v-model="dark"
@@ -75,7 +78,7 @@ watch(() => [settings.usePageSpecificTransitions, settings.disableTransitions], 
     </div>
   </Section>
 
-  <Section title="settings.pages.themes.sections.section.custom-color.title" icon="i-solar:pallete-2-bold-duotone">
+  <Section :title="t('settings.pages.themes.sections.section.custom-color.title')" icon="i-solar:pallete-2-bold-duotone">
     <div flex items-center justify-between>
       <span text-lg font-semibold>{{ $t('settings.pages.themes.sections.section.custom-color.fields.field.primary-color.label') }}</span>
       <label relative flex cursor-pointer items-center gap-2>

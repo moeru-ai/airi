@@ -35,8 +35,8 @@ settings:
     stage-transitions:
       title: 是否开启舞台动画
     use-page-specific-transitions:
-      title: 是否使用页面特定过场动画
       description: 某些页面会有自己的过场动画，这将覆盖舞台过场动画
+      title: 是否使用页面特定过场动画
   language:
     chinese: 简体中文
     english: English
@@ -49,6 +49,8 @@ settings:
       from-url-confirm: 加载
       from-url-placeholder: 输入 Live2D 模型 URL
       title: 更换模型
+    edit-motion-map:
+      title: 编辑动作映射
     map-motions:
       play: 播放动作
       title: 映射动作
@@ -57,42 +59,42 @@ settings:
   models: 模型
   pages:
     card:
-      title: Airi 角色卡
-      description: 使用 Airi 角色卡预设
-      upload: 上传
-      upload_desc: 点击或拖拽文件到此处上传
-      drop_here: 放开以上传文件
-      delete: 删除
+      activate: 激活
       active: 已激活
       active_badge: 当前使用中
-      activate: 激活
-      delete_card: 删除角色卡
-      delete_confirmation: 确定要删除这张角色卡吗？
-      card_not_found: 未找到角色卡
-      created_by: 创建者
-      creator_notes: 创建者笔记
-      description_label: 描述
-      character: 角色设定
-      personality: 性格
-      scenario: 场景
-      systemprompt: 系统提示词
-      posthistoryinstructions: 历史提示指令
-      modules: 模块
       cancel: 取消
+      card_not_found: 未找到角色卡
+      character: 角色设定
       close: 关闭
-      search: 搜索角色卡...
-      sort_by: 排序方式
-      name_asc: 名称 (A-Z)
-      name_desc: 名称 (Z-A)
-      recent: 最近添加
-      no_cards: 还没有任何角色卡，点击上方按钮上传一个吧！
-      no_results: 没有找到匹配的角色卡
-      try_different_search: 尝试使用其他关键词搜索
       consciousness:
         model: 意识 / 模型
+      created_by: 创建者
+      creator_notes: 创建者笔记
+      delete: 删除
+      delete_card: 删除角色卡
+      delete_confirmation: 确定要删除这张角色卡吗？
+      description: 使用 Airi 角色卡预设
+      description_label: 描述
+      drop_here: 放开以上传文件
+      modules: 模块
+      name_asc: 名称 (A-Z)
+      name_desc: 名称 (Z-A)
+      no_cards: 还没有任何角色卡，点击上方按钮上传一个吧！
+      no_results: 没有找到匹配的角色卡
+      personality: 性格
+      posthistoryinstructions: 历史提示指令
+      recent: 最近添加
+      scenario: 场景
+      search: 搜索角色卡...
+      sort_by: 排序方式
       speech:
         model: 声音 / 模型
         voice: 声音 / 声线
+      systemprompt: 系统提示词
+      title: Airi 角色卡
+      try_different_search: 尝试使用其他关键词搜索
+      upload: 上传
+      upload_desc: 点击或拖拽文件到此处上传
     memory:
       description: 存放记忆的地方，以及策略
       title: 记忆体
@@ -394,8 +396,7 @@ settings:
                   - 缃色
                   - 青冥
                   - 赭石
-                description: >-
-                  中国传统色彩，源自古代纺织品、瓷器和绘画
+                description: 中国传统色彩，源自古代纺织品、瓷器和绘画
                 title: 中国传统颜色
             title: 预设
       title: 外观
