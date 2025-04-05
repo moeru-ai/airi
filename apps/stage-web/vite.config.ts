@@ -24,6 +24,8 @@ export default defineConfig({
   optimizeDeps: {
     exclude: [
       '@proj-airi/stage-ui/*',
+      '@proj-airi/drizzle-duckdb-wasm',
+      '@proj-airi/drizzle-duckdb-wasm/*',
       'public/assets/*',
       '@framework/live2dcubismframework',
       '@framework/math/cubismmatrix44',

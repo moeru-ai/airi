@@ -14,12 +14,14 @@ export default defineConfig({
   optimizeDeps: {
     exclude: [
       '@proj-airi/stage-ui/*',
+      '@proj-airi/drizzle-duckdb-wasm',
+      '@proj-airi/drizzle-duckdb-wasm/*',
     ],
   },
   resolve: {
     alias: {
-      '@proj-airi/stage-ui': resolve(join(import.meta.dirname, '..', '..', 'packages', 'stage-ui', 'dist')),
-      '@proj-airi/stage-ui/stores': resolve(join(import.meta.dirname, '..', '..', 'packages', 'stage-ui', 'dist', 'stores')),
+      '@proj-airi/stage-ui': resolve(join(import.meta.dirname, '..', '..', 'packages', 'stage-ui', 'src')),
+      '@proj-airi/stage-ui/stores': resolve(join(import.meta.dirname, '..', '..', 'packages', 'stage-ui', 'src', 'stores')),
     },
   },
   plugins: [

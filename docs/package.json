@@ -12,7 +12,7 @@
   },
   "devDependencies": {
     "98.css": "^0.1.20",
-    "@astrojs/starlight": "^0.32.5",
+    "@astrojs/starlight": "^0.32.6",
     "@fontsource/fusion-pixel-12px-proportional-sc": "^5.2.5",
     "@fontsource/quicksand": "^5.2.6",
     "astro": "^5.6.1",

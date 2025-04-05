@@ -6,6 +6,7 @@ import type { SpeechProviderWithExtraOptions } from '@xsai-ext/shared-providers'
 import type { Emotion } from '../../constants/emotions'
 
 import { drizzle } from '@proj-airi/drizzle-duckdb-wasm'
+import { getImportUrlBundles } from '@proj-airi/drizzle-duckdb-wasm/bundles/import-url-browser'
 // import { createTransformers } from '@proj-airi/provider-transformers'
 // import embedWorkerURL from '@proj-airi/provider-transformers/worker?worker&url'
 // import { embed } from '@xsai/embed'
@@ -235,7 +236,7 @@ onMounted(() => {
 })
 
 onMounted(async () => {
-  db.value = drizzle('duckdb-wasm://?bundles=import-url')
+  db.value = drizzle({ connection: { bundles: getImportUrlBundles() } })
   await db.value.execute(sql`CREATE TABLE memory_test (vec FLOAT[768]);`)
 })
 </script>

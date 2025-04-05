@@ -62,7 +62,7 @@
   },
   "devDependencies": {
     "@iconify-json/solar": "^1.2.2",
-    "@unocss/reset": "^66.1.0-beta.9",
+    "@unocss/reset": "^66.1.0-beta.10",
     "@vitejs/plugin-vue": "^5.2.3",
     "@vueuse/core": "^13.0.0",
     "vite": "^6.2.5",
