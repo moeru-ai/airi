@@ -552,6 +552,34 @@ export const useProvidersStore = defineStore('providers', () => {
         },
       },
     },
+    'featherless-ai': {
+      id: 'featherless-ai',
+      nameKey: 'settings.pages.providers.provider.featherless.title',
+      name: 'Featherless.ai',
+      descriptionKey: 'settings.pages.providers.provider.featherless.description',
+      description: 'featherless.ai',
+      icon: 'i-lobe-icons:featherless-ai',
+      defaultOptions: {
+        baseUrl: 'https://api.featherless.ai/v1/',
+      },
+      createProvider: config => createOpenAI((config.apiKey as string).trim(), (config.baseUrl as string).trim()),
+      capabilities: {
+        listModels: async (config) => {
+          return (await listModels({
+            ...createOpenAI((config.apiKey as string).trim(), (config.baseUrl as string).trim()).model(),
+          })).map((model) => {
+            return {
+              id: model.id,
+              name: model.id,
+              provider: 'featherless-ai',
+              description: '',
+              contextLength: 0,
+              deprecated: false,
+            } satisfies ModelInfo
+          })
+        },
+      },
+    },
     'cloudflare-workers-ai': {
       id: 'cloudflare-workers-ai',
       nameKey: 'settings.pages.providers.provider.cloudflare-workers-ai.title',
@@ -699,6 +727,8 @@ export const useProvidersStore = defineStore('providers', () => {
       case 'novita-ai':
         return !!config.apiKey
       case 'fireworks-ai':
+        return !!config.apiKey
+      case 'featherless-ai':
         return !!config.apiKey
       case 'microsoft-speech':
         return !!config.apiKey && !!config.region

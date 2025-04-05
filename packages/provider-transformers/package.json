@@ -49,7 +49,7 @@
     }
   },
   "dependencies": {
-    "@huggingface/transformers": "^3.4.1",
+    "@huggingface/transformers": "^3.4.2",
     "@proj-airi/utils-transformers": "workspace:^",
     "@webgpu/types": "^0.1.60",
     "@xsai-ext/shared-providers": "catalog:",
@@ -62,10 +62,10 @@
   },
   "devDependencies": {
     "@iconify-json/solar": "^1.2.2",
-    "@unocss/reset": "^66.1.0-beta.8",
+    "@unocss/reset": "^66.1.0-beta.9",
     "@vitejs/plugin-vue": "^5.2.3",
     "@vueuse/core": "^13.0.0",
-    "vite": "^6.2.4",
+    "vite": "^6.2.5",
     "vue": "^3.5.13",
     "vue-tsc": "^3.0.0-alpha.2"
   }

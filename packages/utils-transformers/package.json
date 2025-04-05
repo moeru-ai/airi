@@ -32,7 +32,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@huggingface/transformers": "^3.4.1",
+    "@huggingface/transformers": "^3.4.2",
     "onnxruntime-common": "^1.21.0"
   },
   "devDependencies": {

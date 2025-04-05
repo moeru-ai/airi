@@ -21,7 +21,7 @@
     "script:embed-chat": "dotenvx run -f .env -f .env.local --overload --ignore=MISSING_ENV_FILE -- tsx scripts/embed-all-chat-messages.ts"
   },
   "dependencies": {
-    "@dotenvx/dotenvx": "^1.39.0",
+    "@dotenvx/dotenvx": "^1.39.1",
     "@grammyjs/files": "^1.1.1",
     "@guiiai/logg": "^1.0.7",
     "@xsai-ext/providers-cloud": "catalog:",
@@ -37,7 +37,7 @@
     "nanoid": "^5.1.5",
     "p-limit": "^6.2.0",
     "pg": "^8.14.1",
-    "sharp": "^0.33.5",
+    "sharp": "^0.34.0",
     "telegram": "^2.26.22",
     "uuid": "^11.1.0",
     "valibot": "1.0.0-beta.9"
