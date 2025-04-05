@@ -40,6 +40,7 @@ export default defineConfig({
       customCss: [
         './src/styles/custom.css',
         '@fontsource/quicksand/300.css',
+        '@fontsource/fusion-pixel-12px-proportional-sc/400.css',
       ],
     }),
   ],
