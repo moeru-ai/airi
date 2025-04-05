@@ -4,7 +4,9 @@
     "jsx": "preserve",
     "lib": [
       "DOM",
-      "ESNext"
+      "ESNext",
+      "DOM.Iterable",
+      "DOM.AsyncIterable"
     ],
     "paths": {
       "@proj-airi/stage-ui/*": [

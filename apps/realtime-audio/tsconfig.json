@@ -12,7 +12,6 @@
     "moduleResolution": "bundler",
     "types": [
       "vite/client",
-      "@vitest/browser/providers/playwright",
       "unplugin-vue-router/client"
     ],
     "esModuleInterop": true,
