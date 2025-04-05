@@ -17,6 +17,7 @@ import {
   createAnthropic,
   createDeepSeek,
   createFireworks,
+  createGoogleGenerativeAI,
   createMistral,
   createMoonshot,
   createNovita,
@@ -319,6 +320,84 @@ export const useProvidersStore = defineStore('providers', () => {
         },
       },
     },
+    'google-generative-ai': {
+      id: 'google-generative-ai',
+      nameKey: 'settings.pages.providers.provider.google-generative-ai.title',
+      name: 'Google Gemini',
+      descriptionKey: 'settings.pages.providers.provider.google-generative-ai.description',
+      description: 'ai.google.dev',
+      icon: 'i-lobe-icons:gemini',
+      defaultOptions: {
+        baseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai/',
+      },
+      createProvider: config => createGoogleGenerativeAI((config.apiKey as string).trim(), (config.baseUrl as string).trim()),
+      capabilities: {
+        listModels: async (config) => {
+          return (await listModels({
+            ...createGoogleGenerativeAI((config.apiKey as string).trim(), (config.baseUrl as string).trim()).model(),
+          })).map((model) => {
+            return {
+              id: model.id,
+              name: model.id,
+              provider: 'google-generative-ai',
+              description: '',
+              contextLength: 0,
+              deprecated: false,
+            } satisfies ModelInfo
+          })
+        },
+      },
+    },
+    'xai': {
+      id: 'xai',
+      nameKey: 'settings.pages.providers.provider.xai.title',
+      name: 'xAI',
+      descriptionKey: 'settings.pages.providers.provider.xai.description',
+      description: 'x.ai',
+      icon: 'i-lobe-icons:xai',
+      createProvider: config => createXAI((config.apiKey as string).trim(), (config.baseUrl as string).trim()),
+      capabilities: {
+        listModels: async (config) => {
+          return (await listModels({
+            ...createXAI((config.apiKey as string).trim(), (config.baseUrl as string).trim()).model(),
+          })).map((model) => {
+            return {
+              id: model.id,
+              name: model.id,
+              provider: 'xai',
+              description: '',
+              contextLength: 0,
+              deprecated: false,
+            } satisfies ModelInfo
+          })
+        },
+      },
+    },
+    'deepseek': {
+      id: 'deepseek',
+      nameKey: 'settings.pages.providers.provider.deepseek.title',
+      name: 'DeepSeek',
+      descriptionKey: 'settings.pages.providers.provider.deepseek.description',
+      description: 'deepseek.com',
+      iconColor: 'i-lobe-icons:deepseek-color',
+      createProvider: config => createDeepSeek((config.apiKey as string).trim(), (config.baseUrl as string).trim()),
+      capabilities: {
+        listModels: async (config) => {
+          return (await listModels({
+            ...createDeepSeek((config.apiKey as string).trim(), (config.baseUrl as string).trim()).model(),
+          })).map((model) => {
+            return {
+              id: model.id,
+              name: model.id,
+              provider: 'deepseek',
+              description: '',
+              contextLength: 0,
+              deprecated: false,
+            } satisfies ModelInfo
+          })
+        },
+      },
+    },
     'elevenlabs': {
       id: 'elevenlabs',
       nameKey: 'settings.pages.providers.provider.elevenlabs.title',
@@ -383,52 +462,46 @@ export const useProvidersStore = defineStore('providers', () => {
         },
       },
     },
-    'xai': {
-      id: 'xai',
-      nameKey: 'settings.pages.providers.provider.xai.title',
-      name: 'xAI',
-      descriptionKey: 'settings.pages.providers.provider.xai.description',
-      description: 'x.ai',
-      icon: 'i-lobe-icons:xai',
-      createProvider: config => createXAI((config.apiKey as string).trim(), (config.baseUrl as string).trim()),
-      capabilities: {
-        listModels: async (config) => {
-          return (await listModels({
-            ...createXAI((config.apiKey as string).trim(), (config.baseUrl as string).trim()).model(),
-          })).map((model) => {
-            return {
-              id: model.id,
-              name: model.id,
-              provider: 'xai',
-              description: '',
-              contextLength: 0,
-              deprecated: false,
-            } satisfies ModelInfo
-          })
-        },
+    'microsoft-speech': {
+      id: 'microsoft-speech',
+      nameKey: 'settings.pages.providers.provider.microsoft-speech.title',
+      name: 'Microsoft / Azure Speech',
+      descriptionKey: 'settings.pages.providers.provider.microsoft-speech.description',
+      description: 'speech.microsoft.com',
+      iconColor: 'i-lobe-icons:microsoft-color',
+      defaultOptions: {
+        baseUrl: 'https://unspeech.hyp3r.link/v1/',
       },
-    },
-    'deepseek': {
-      id: 'deepseek',
-      nameKey: 'settings.pages.providers.provider.deepseek.title',
-      name: 'DeepSeek',
-      descriptionKey: 'settings.pages.providers.provider.deepseek.description',
-      description: 'deepseek.com',
-      iconColor: 'i-lobe-icons:deepseek-color',
-      createProvider: config => createDeepSeek((config.apiKey as string).trim(), (config.baseUrl as string).trim()),
+      createProvider: config => createUnMicrosoft((config.apiKey as string).trim(), (config.baseUrl as string).trim()) as SpeechProviderWithExtraOptions<string, UnMicrosoftOptions>,
       capabilities: {
-        listModels: async (config) => {
-          return (await listModels({
-            ...createDeepSeek((config.apiKey as string).trim(), (config.baseUrl as string).trim()).model(),
-          })).map((model) => {
-            return {
-              id: model.id,
-              name: model.id,
-              provider: 'deepseek',
+        listModels: async () => {
+          return [
+            {
+              id: 'v1',
+              name: 'v1',
+              provider: 'microsoft-speech',
               description: '',
               contextLength: 0,
               deprecated: false,
-            } satisfies ModelInfo
+            },
+          ]
+        },
+        listVoices: async (config) => {
+          const provider = createUnMicrosoft((config.apiKey as string).trim(), (config.baseUrl as string).trim()) as VoiceProviderWithExtraOptions<UnMicrosoftOptions>
+
+          const voices = await listVoices({
+            ...provider.voice({ region: config.region as string }),
+          })
+
+          return voices.map((voice) => {
+            return {
+              id: voice.id,
+              name: voice.name,
+              provider: 'microsoft-speech',
+              previewURL: voice.preview_audio_url,
+              languages: voice.languages,
+              gender: voice.labels?.gender,
+            }
           })
         },
       },
@@ -504,50 +577,6 @@ export const useProvidersStore = defineStore('providers', () => {
               contextLength: 0,
               deprecated: false,
             } satisfies ModelInfo
-          })
-        },
-      },
-    },
-    'microsoft-speech': {
-      id: 'microsoft-speech',
-      nameKey: 'settings.pages.providers.provider.microsoft-speech.title',
-      name: 'Microsoft / Azure Speech',
-      descriptionKey: 'settings.pages.providers.provider.microsoft-speech.description',
-      description: 'speech.microsoft.com',
-      iconColor: 'i-lobe-icons:microsoft-color',
-      defaultOptions: {
-        baseUrl: 'https://unspeech.hyp3r.link/v1/',
-      },
-      createProvider: config => createUnMicrosoft((config.apiKey as string).trim(), (config.baseUrl as string).trim()) as SpeechProviderWithExtraOptions<string, UnMicrosoftOptions>,
-      capabilities: {
-        listModels: async () => {
-          return [
-            {
-              id: 'v1',
-              name: 'v1',
-              provider: 'microsoft-speech',
-              description: '',
-              contextLength: 0,
-              deprecated: false,
-            },
-          ]
-        },
-        listVoices: async (config) => {
-          const provider = createUnMicrosoft((config.apiKey as string).trim(), (config.baseUrl as string).trim()) as VoiceProviderWithExtraOptions<UnMicrosoftOptions>
-
-          const voices = await listVoices({
-            ...provider.voice({ region: config.region as string }),
-          })
-
-          return voices.map((voice) => {
-            return {
-              id: voice.id,
-              name: voice.name,
-              provider: 'microsoft-speech',
-              previewURL: voice.preview_audio_url,
-              languages: voice.languages,
-              gender: voice.labels?.gender,
-            }
           })
         },
       },
