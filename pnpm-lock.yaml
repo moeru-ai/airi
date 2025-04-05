@@ -244,6 +244,9 @@ importers:
       '@pixiv/three-vrm-core':
         specifier: ^3.3.6
         version: 3.3.6(three@0.175.0)
+      '@proj-airi/drizzle-duckdb-wasm':
+        specifier: 'catalog:'
+        version: 0.4.20(@types/pg@8.11.11)(gel@2.0.0)(pg@8.14.1)(postgres@3.4.5)(web-worker@1.5.0)
       '@proj-airi/stage-ui':
         specifier: workspace:^
         version: link:../../packages/stage-ui
@@ -419,9 +422,6 @@ importers:
       '@intlify/unplugin-vue-i18n':
         specifier: ^6.0.5
         version: 6.0.5(@vue/compiler-dom@3.5.13)(eslint@9.24.0(jiti@2.4.2))(rollup@2.79.1)(typescript@5.8.3)(vue-i18n@11.1.2(vue@3.5.13(typescript@5.8.3)))(vue@3.5.13(typescript@5.8.3))
-      '@proj-airi/drizzle-duckdb-wasm':
-        specifier: 'catalog:'
-        version: 0.4.20(@types/pg@8.11.11)(gel@2.0.0)(pg@8.14.1)(postgres@3.4.5)(web-worker@1.5.0)
       '@proj-airi/lobe-icons':
         specifier: ^1.0.5
         version: 1.0.5
@@ -656,6 +656,9 @@ importers:
       drizzle-orm:
         specifier: ^0.41.0
         version: 0.41.0(@types/pg@8.11.11)(gel@2.0.0)(pg@8.14.1)(postgres@3.4.5)
+      fluere:
+        specifier: 0.3.0-beta.1
+        version: 0.3.0-beta.1(@modelcontextprotocol/sdk@1.8.0)(zod@3.24.2)
       jszip:
         specifier: ^3.10.1
         version: 3.10.1
@@ -845,10 +848,16 @@ importers:
         version: 3.0.0-alpha.2(typescript@5.8.3)
 
   docs:
-    dependencies:
+    devDependencies:
+      98.css:
+        specifier: ^0.1.20
+        version: 0.1.20
       '@astrojs/starlight':
         specifier: ^0.32.5
         version: 0.32.5(astro@5.6.1(@types/node@22.14.0)(jiti@2.4.2)(less@4.2.2)(rollup@4.39.0)(terser@5.17.6)(tsx@4.19.3)(typescript@5.8.3)(yaml@2.7.0))
+      '@fontsource/fusion-pixel-12px-proportional-sc':
+        specifier: ^5.2.5
+        version: 5.2.5
       '@fontsource/quicksand':
         specifier: ^5.2.6
         version: 5.2.6
@@ -1358,6 +1367,9 @@ importers:
         version: 5.8.3
 
 packages:
+
+  98.css@0.1.20:
+    resolution: {integrity: sha512-9oM+AZMfxG59Zz+bnAjIxAX2AKnBPkEJjf84ATto0wUNdRPxV+jhov1rHKe/wl6D0giuWwY603RxwrVVG4v2sA==}
 
   '@11labs/client@0.1.0':
     resolution: {integrity: sha512-6fFU25BehyFkzjItt/SeZTBGnm8vBar1yF/fCkuY5kpa7nSEhNmo99brPDaheX6D6/oMqXfKs8C+oTHSUmKvTw==}
@@ -2991,6 +3003,9 @@ packages:
 
   '@floating-ui/vue@1.1.6':
     resolution: {integrity: sha512-XFlUzGHGv12zbgHNk5FN2mUB7ROul3oG2ENdTpWdE+qMFxyNxWSRmsoyhiEnpmabNm6WnUvR1OvJfUfN4ojC1A==}
+
+  '@fontsource/fusion-pixel-12px-proportional-sc@5.2.5':
+    resolution: {integrity: sha512-TMFojLE0JUJUqgoL1pRxohnm11u59BYSkogyN9VbTQp2kh1HkkQ1FSkPboce3GGQXPskNTip9+oRp3ju83U0tw==}
 
   '@fontsource/quicksand@5.2.6':
     resolution: {integrity: sha512-MI1EO6ENXbmAxzwkxhLdCUKLLP6SGQ7IHLktuwOcS7llvK4Ni6QiqFCHZg40wpOfR0Z0FMCOJAqykf3QSqYpFA==}
@@ -7289,6 +7304,26 @@ packages:
   flattie@1.1.1:
     resolution: {integrity: sha512-9UbaD6XdAL97+k/n+N7JwX46K/M6Zc6KcFYskrYL8wbBV/Uyk0CTAMY0VT+qiK5PM7AIc9aTWYtq65U7T+aCNQ==}
     engines: {node: '>=8'}
+
+  fluere@0.3.0-beta.1:
+    resolution: {integrity: sha512-AY9+8ip/ImuC3ixLVc+Yq+YCneWcSkPYNJuRE6c/SAU9ZI8Pcdrhi1vPqJ55L0f8/t9OWbO2AOewT6tPnLAgMA==}
+    peerDependencies:
+      '@modelcontextprotocol/sdk': ^1.7.0
+      hono: ^4.7.4
+      next: ^15.2.2
+      p-retry: ^6.2.1
+      zod: ^3.24.2
+    peerDependenciesMeta:
+      '@modelcontextprotocol/sdk':
+        optional: true
+      hono:
+        optional: true
+      next:
+        optional: true
+      p-retry:
+        optional: true
+      zod:
+        optional: true
 
   foreground-child@3.3.0:
     resolution: {integrity: sha512-Ld2g8rrAyMYFXBhEqMz8ZAHBi4J4uS1i/CxGMDnjyFWddMXLVcDp051DZfu+t7+ab7Wv6SMqpWmyFIj5UbfFvg==}
@@ -11689,6 +11724,8 @@ packages:
 
 snapshots:
 
+  98.css@0.1.20: {}
+
   '@11labs/client@0.1.0': {}
 
   '@aashutoshrathi/word-wrap@1.2.6': {}
@@ -13390,6 +13427,8 @@ snapshots:
     transitivePeerDependencies:
       - '@vue/composition-api'
       - vue
+
+  '@fontsource/fusion-pixel-12px-proportional-sc@5.2.5': {}
 
   '@fontsource/quicksand@5.2.6': {}
 
@@ -18646,6 +18685,11 @@ snapshots:
   flatted@3.3.1: {}
 
   flattie@1.1.1: {}
+
+  fluere@0.3.0-beta.1(@modelcontextprotocol/sdk@1.8.0)(zod@3.24.2):
+    optionalDependencies:
+      '@modelcontextprotocol/sdk': 1.8.0
+      zod: 3.24.2
 
   foreground-child@3.3.0:
     dependencies:

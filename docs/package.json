@@ -10,8 +10,10 @@
     "preview": "astro preview",
     "astro": "astro"
   },
-  "dependencies": {
+  "devDependencies": {
+    "98.css": "^0.1.20",
     "@astrojs/starlight": "^0.32.5",
+    "@fontsource/fusion-pixel-12px-proportional-sc": "^5.2.5",
     "@fontsource/quicksand": "^5.2.6",
     "astro": "^5.6.1",
     "astro-og-canvas": "^0.7.0",
