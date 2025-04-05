@@ -59,13 +59,13 @@ jobs:
         run: pnpm run packages:build
 
       - name: Build Application
-        run: cd apps/stage-tamagotchi-tauri && pnpm tauri build --target ${{ matrix.target }}
+        run: cd apps/stage-tamagotchi && pnpm tauri build --target ${{ matrix.target }}
 
       - name: Rename Artifacts
-        run: node apps/stage-tamagotchi-tauri/scripts/rename-artifacts.js ${{ matrix.target }}
+        run: node apps/stage-tamagotchi/scripts/rename-artifacts.js ${{ matrix.target }}
 
       - name: Upload To GitHub Releases
         uses: softprops/action-gh-release@v2
         with:
-          files: apps/stage-tamagotchi-tauri/bundle/airi_*
+          files: apps/stage-tamagotchi/bundle/airi_*
           append_body: true
