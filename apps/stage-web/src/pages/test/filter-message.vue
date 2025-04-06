@@ -61,15 +61,15 @@ async function onSendMessage() {
       <BasicTextarea
         v-model="messageInput"
         placeholder="Message"
-        p="2" bg="zinc-100 dark:zinc-700"
+        p="2" bg="neutral-100 dark:neutral-700"
         w-full rounded-lg outline-none
         @submit="onSendMessage"
       />
-      <button rounded-lg bg="zinc-100 dark:zinc-700" p-4>
+      <button rounded-lg bg="neutral-100 dark:neutral-700" p-4>
         {{ processing ? 'Processing...' : 'Send' }}
       </button>
     </div>
-    <div w-full rounded-lg bg="zinc-100 dark:zinc-700" p-2>
+    <div w-full rounded-lg bg="neutral-100 dark:neutral-700" p-2>
       <h3 font-semibold>
         Streaming Message
       </h3>

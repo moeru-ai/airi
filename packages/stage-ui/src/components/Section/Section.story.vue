@@ -34,7 +34,7 @@ import Section from './Section.vue'
       id="with-custom-class"
       title="With Custom Inner Class"
     >
-      <Section title="Custom Inner Class" icon="i-solar:star-line-duotone" inner-class="bg-zinc-50 dark:bg-zinc-900 rounded-md">
+      <Section title="Custom Inner Class" icon="i-solar:star-line-duotone" inner-class="bg-neutral-50 dark:bg-neutral-900 rounded-md">
         <div>This section has a custom inner class applied</div>
       </Section>
     </Variant>
@@ -49,7 +49,7 @@ import Section from './Section.vue'
             <div i-solar:info-circle-line-duotone />
             <span>Important information</span>
           </div>
-          <div class="border border-zinc-200 rounded-md p-3 dark:border-zinc-700">
+          <div class="border border-neutral-200 rounded-md p-3 dark:border-neutral-700">
             <p>This is a section with more complex nested content</p>
           </div>
         </div>

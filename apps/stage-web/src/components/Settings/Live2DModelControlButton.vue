@@ -11,8 +11,8 @@ const settings = useSettings()
 <template>
   <button
     :disabled="settings.loadingLive2dModel"
-    bg="zinc-100 dark:zinc-800"
-    hover="bg-zinc-200 dark:bg-zinc-700"
+    bg="neutral-100 dark:neutral-800"
+    hover="bg-neutral-200 dark:bg-neutral-700"
     transition="all ease-in-out duration-250"
     rounded
     @click="$emit('click')"

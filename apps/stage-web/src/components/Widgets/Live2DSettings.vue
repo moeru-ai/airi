@@ -115,7 +115,7 @@ const exportObjectUrl = useObjectUrl(live2dModelFile)
           v-model="localModelUrl"
           :disabled="settings.loadingLive2dModel"
           class="form-control flex-1"
-          border="zinc-300 dark:zinc-800 solid 1 focus:zinc-400 dark:focus:zinc-600"
+          border="neutral-300 dark:neutral-800 solid 1 focus:neutral-400 dark:focus:neutral-600"
           transition="border duration-250 ease-in-out"
           :placeholder="t('settings.live2d.change-model.from-url-placeholder')"
         >

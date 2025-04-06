@@ -63,9 +63,9 @@ defineExpose({
     <div absolute bottom="3" right="3">
       <div flex="~ row" cursor-pointer>
         <label
-          :class="[show ? 'bg-zinc-300 dark:bg-zinc-200' : 'bg-zinc-100 dark:bg-zinc-700']"
+          :class="[show ? 'bg-neutral-300 dark:bg-neutral-200' : 'bg-neutral-100 dark:bg-neutral-700']"
           transition="all ease-in-out duration-500"
-          text="lg zinc-500 dark:zinc-400"
+          text="lg neutral-500 dark:neutral-400"
           m-1 h-fit w-fit cursor-pointer appearance-none gap-1 rounded-lg rounded-md border-none p-2 outline-none
         >
           <input
@@ -83,7 +83,7 @@ defineExpose({
       </div>
       <TransitionVertical>
         <div v-if="show" min-w="50vw" z="<md:20" class="bottom-11 right-0" absolute m-1 w-full>
-          <div bg="zinc-200/20 dark:black/20" flex="~ col" gap-2 rounded-lg p-2 backdrop-blur-sm>
+          <div bg="neutral-200/20 dark:black/20" flex="~ col" gap-2 rounded-lg p-2 backdrop-blur-sm>
             <div font-mono>
               <span>{{ t('stage.viewers.debug-menu.vrm.model.title') }}</span>
             </div>
@@ -92,7 +92,7 @@ defineExpose({
                 <span font-mono>{{ t('stage.viewers.debug-menu.vrm.camera') }}</span>
               </template>
               <div grid="~ cols-[20px_1fr_60px]" w-full gap-1 p-2 text-sm font-mono>
-                <div text="zinc-400 dark:zinc-500">
+                <div text="neutral-400 dark:neutral-500">
                   <span>X</span>
                 </div>
                 <label w-full flex items-center gap-2>
@@ -102,7 +102,7 @@ defineExpose({
                   <span>{{ cameraPositionX }}</span>
                 </div>
 
-                <div text="zinc-400 dark:zinc-500">
+                <div text="neutral-400 dark:neutral-500">
                   <span>Y</span>
                 </div>
                 <label w-full flex items-center gap-2>
@@ -112,7 +112,7 @@ defineExpose({
                   <span>{{ cameraPositionY }}</span>
                 </div>
 
-                <div text="zinc-400 dark:zinc-500">
+                <div text="neutral-400 dark:neutral-500">
                   <span>Z</span>
                 </div>
                 <label w-full flex items-center gap-2>
@@ -128,7 +128,7 @@ defineExpose({
                 <span font-mono>{{ t('stage.viewers.debug-menu.vrm.model.title') }}</span>
               </template>
               <div grid="~ cols-[20px_1fr_60px]" w-full gap-1 p-2 text-sm font-mono>
-                <div text="zinc-400 dark:zinc-500">
+                <div text="neutral-400 dark:neutral-500">
                   <span>X</span>
                 </div>
 
@@ -139,7 +139,7 @@ defineExpose({
                   <span>{{ vrmModelPositionX }}</span>
                 </div>
 
-                <div text="zinc-400 dark:zinc-500">
+                <div text="neutral-400 dark:neutral-500">
                   <span>Y</span>
                 </div>
                 <label w-full flex items-center gap-2>
@@ -149,7 +149,7 @@ defineExpose({
                   <span>{{ vrmModelPositionY }}</span>
                 </div>
 
-                <div text="zinc-400 dark:zinc-500">
+                <div text="neutral-400 dark:neutral-500">
                   <span>Z</span>
                 </div>
                 <label w-full flex items-center gap-2>
@@ -165,31 +165,31 @@ defineExpose({
             </div>
             <div flex="~ row" w-full flex-wrap gap-2>
               <button
-                rounded-lg bg="zinc-100/70 dark:zinc-800/50" px-2 py-1 backdrop-blur-sm
+                rounded-lg bg="neutral-100/70 dark:neutral-800/50" px-2 py-1 backdrop-blur-sm
                 @click="modelRef?.setExpression('neutral')"
               >
                 {{ t('stage.viewers.debug-menu.emotions-btn.neutral') }}
               </button>
               <button
-                rounded-lg bg="zinc-100/70 dark:zinc-800/50" px-2 py-1 backdrop-blur-sm
+                rounded-lg bg="neutral-100/70 dark:neutral-800/50" px-2 py-1 backdrop-blur-sm
                 @click="modelRef?.setExpression('surprised')"
               >
                 {{ t('stage.viewers.debug-menu.emotions-btn.surprised') }}
               </button>
               <button
-                rounded-lg bg="zinc-100/70 dark:zinc-800/50" px-2 py-1 backdrop-blur-sm
+                rounded-lg bg="neutral-100/70 dark:neutral-800/50" px-2 py-1 backdrop-blur-sm
                 @click="modelRef?.setExpression('sad')"
               >
                 {{ t('stage.viewers.debug-menu.emotions-btn.sad') }}
               </button>
               <button
-                rounded-lg bg="zinc-100/70 dark:zinc-800/50" px-2 py-1 backdrop-blur-sm
+                rounded-lg bg="neutral-100/70 dark:neutral-800/50" px-2 py-1 backdrop-blur-sm
                 @click="modelRef?.setExpression('angry')"
               >
                 {{ t('stage.viewers.debug-menu.emotions-btn.angry') }}
               </button>
               <button
-                rounded-lg bg="zinc-100/70 dark:zinc-800/50" px-2 py-1 backdrop-blur-sm
+                rounded-lg bg="neutral-100/70 dark:neutral-800/50" px-2 py-1 backdrop-blur-sm
                 @click="modelRef?.setExpression('happy')"
               >
                 {{ t('stage.viewers.debug-menu.emotions-btn.happy') }}

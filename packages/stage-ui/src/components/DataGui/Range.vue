@@ -114,7 +114,7 @@ onUnmounted(() => {
       role="slider"
       class="slider-thumb"
       :style="{ left: `${((currentValue - min) / (max - min)) * 100}%` }"
-      absolute rounded-sm w="[1px]" h="[14px]" bg="zinc-100 dark:zinc-400" top="50%" transform="translate-x-[50%] translate-y-[-50%]"
+      absolute rounded-sm w="[1px]" h="[14px]" bg="neutral-100 dark:neutral-400" top="50%" transform="translate-x-[50%] translate-y-[-50%]"
     />
   </span>
 </template>

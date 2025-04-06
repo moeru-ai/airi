@@ -11,8 +11,8 @@ const isOpen = ref(false)
   <div flex="~" gap-2>
     <DrawerRoot v-model:open="isOpen" should-scale-background direction="right">
       <DrawerTrigger
-        bg="zinc-100 dark:zinc-800"
-        text="lg zinc-500 dark:zinc-400"
+        bg="neutral-100 dark:neutral-800"
+        text="lg neutral-500 dark:neutral-400"
         max-h="[10lh]" min-h="[1lh]"
         m-1 rounded-lg p-2 outline-none
       >
@@ -23,7 +23,7 @@ const isOpen = ref(false)
         <DrawerContent
           class="max-w-40% min-w-500px w-full"
           flex="~ col"
-          bg="white dark:zinc-900"
+          bg="white dark:neutral-900"
           fixed inset-y-4 right-4 z-50 of-hidden rounded-lg outline-none
         >
           <div flex="~ 1 col gap-2" of-y-scroll rounded-t-lg p-5>

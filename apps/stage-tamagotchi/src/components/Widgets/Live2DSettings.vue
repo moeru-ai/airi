@@ -101,8 +101,8 @@ const exportObjectUrl = useObjectUrl(live2dModelFile)
     <Collapsable w-full :default="true">
       <template #trigger="slotProps">
         <button
-          bg="zinc-100 dark:zinc-800"
-          hover="bg-zinc-200 dark:bg-zinc-700"
+          bg="neutral-100 dark:neutral-800"
+          hover="bg-neutral-200 dark:bg-neutral-700"
           transition="all ease-in-out duration-250"
           w-full flex items-center gap-1.5 rounded-lg px-4 py-3 outline-none
           class="[&_.provider-icon]:grayscale-100 [&_.provider-icon]:hover:grayscale-0"
@@ -136,15 +136,15 @@ const exportObjectUrl = useObjectUrl(live2dModelFile)
                 :disabled="settings.loadingLive2dModel"
                 type="text"
                 rounded
-                border="zinc-300 dark:zinc-800 solid 1 focus:zinc-400 dark:focus:zinc-600"
+                border="neutral-300 dark:neutral-800 solid 1 focus:neutral-400 dark:focus:neutral-600"
                 transition="border duration-250 ease-in-out"
                 px-2 py-1 text-sm outline-none
                 :placeholder="t('settings.live2d.change-model.from-url-placeholder')"
               >
               <button
                 :disabled="settings.loadingLive2dModel"
-                bg="zinc-100 dark:zinc-800"
-                hover="bg-zinc-200 dark:bg-zinc-700"
+                bg="neutral-100 dark:neutral-800"
+                hover="bg-neutral-200 dark:bg-neutral-700"
                 transition="all ease-in-out duration-250"
                 ml-2 rounded px-2 py-1 text-sm outline-none
                 @click="live2dModelUrl = localModelUrl"
@@ -162,8 +162,8 @@ const exportObjectUrl = useObjectUrl(live2dModelFile)
             <button
               :disabled="settings.loadingLive2dModel"
               rounded
-              bg="zinc-100 dark:zinc-800"
-              hover="bg-zinc-200 dark:bg-zinc-700"
+              bg="neutral-100 dark:neutral-800"
+              hover="bg-neutral-200 dark:bg-neutral-700"
               transition="all ease-in-out duration-250"
               px-2 py-1 text-sm outline-none
               @click="modelFile.open()"
@@ -177,8 +177,8 @@ const exportObjectUrl = useObjectUrl(live2dModelFile)
     <Collapsable mt-4 w-full :default="true">
       <template #trigger="slotProps">
         <button
-          bg="zinc-100 dark:zinc-800"
-          hover="bg-zinc-200 dark:bg-zinc-700"
+          bg="neutral-100 dark:neutral-800"
+          hover="bg-neutral-200 dark:bg-neutral-700"
           transition="all ease-in-out duration-250"
           w-full flex items-center gap-1.5 rounded-lg px-4 py-3 outline-none
           class="[&_.provider-icon]:grayscale-100 [&_.provider-icon]:hover:grayscale-0"
@@ -215,8 +215,8 @@ const exportObjectUrl = useObjectUrl(live2dModelFile)
               <button
                 :disabled="settings.loadingLive2dModel"
                 rounded
-                bg="zinc-100 dark:zinc-800"
-                hover="bg-zinc-200 dark:bg-zinc-700"
+                bg="neutral-100 dark:neutral-800"
+                hover="bg-neutral-200 dark:bg-neutral-700"
                 transition="all ease-in-out duration-250"
                 px-2 py-1 text-sm outline-none
                 @click="settings.live2dCurrentMotion = { group: motion.motionName, index: motion.motionIndex }"
@@ -228,8 +228,8 @@ const exportObjectUrl = useObjectUrl(live2dModelFile)
           <button
             :disabled="settings.loadingLive2dModel"
             w-full rounded
-            bg="zinc-100 dark:zinc-800"
-            hover="bg-zinc-200 dark:bg-zinc-700"
+            bg="neutral-100 dark:neutral-800"
+            hover="bg-neutral-200 dark:bg-neutral-700"
             transition="all ease-in-out duration-250"
             @click="saveMotionMap"
           >
@@ -242,8 +242,8 @@ const exportObjectUrl = useObjectUrl(live2dModelFile)
             <button
               :disabled="settings.loadingLive2dModel"
               w-full rounded
-              bg="zinc-100 dark:zinc-800"
-              hover="bg-zinc-200 dark:bg-zinc-700"
+              bg="neutral-100 dark:neutral-800"
+              hover="bg-neutral-200 dark:bg-neutral-700"
               transition="all ease-in-out duration-250"
             >
               Export
