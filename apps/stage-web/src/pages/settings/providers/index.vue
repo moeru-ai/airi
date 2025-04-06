@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { IconStatusItem } from '@proj-airi/stage-ui/components'
-import { useProvidersStore, useSettings } from '@proj-airi/stage-ui/stores'
+import { useProvidersStore } from '@proj-airi/stage-ui/stores'
 import { storeToRefs } from 'pinia'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
@@ -11,7 +11,6 @@ const { t } = useI18n()
 const router = useRouter()
 const providersStore = useProvidersStore()
 const { allProvidersMetadata } = storeToRefs(providersStore)
-const settingsStore = useSettings()
 
 const {
   iconAnimationStarted,
@@ -70,8 +69,15 @@ const {
     position="calc(100dvw - 9.5rem), calc(100dvh - 9.5rem)"
     text-color="text-neutral-200/50 dark:text-neutral-600/20"
   />
-  <div v-if="!settingsStore.usePageSpecificTransitions" text="neutral-200/50 dark:neutral-500/20" pointer-events-none fixed bottom-0 right-0 z--1 translate-x-10 translate-y-10>
-    <div text="40" i-lucide:brain />
+  <div
+    v-motion
+    text="neutral-200/50 dark:neutral-600/20" pointer-events-none
+    fixed top="[70dvh]" right--15 z--1
+    :initial="{ scale: 0.9, opacity: 0 }"
+    :enter="{ scale: 1, opacity: 1 }"
+    :duration="250"
+  >
+    <div text="60" i-lucide:brain />
   </div>
 </template>
 

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import Live2DCanvas from '@proj-airi/stage-ui/components/Live2D/Canvas.vue'
 import Live2DModel from '@proj-airi/stage-ui/components/Live2D/Model.vue'
+import { useSettings } from '@proj-airi/stage-ui/stores'
 import { useElementBounding } from '@vueuse/core'
 import { Vibrant } from 'node-vibrant/browser'
 import { ref } from 'vue'
@@ -8,12 +9,14 @@ import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 
 import Live2DSettings from '../../../components/Widgets/Live2DSettings.vue'
+import { useIconAnimation } from '../../../composables/useIconAnimation'
 
 const { t } = useI18n()
 const router = useRouter()
 const live2dContainerRef = ref<HTMLDivElement>()
 const live2dCanvasRef = ref<InstanceType<typeof Live2DCanvas>>()
 const { width, height } = useElementBounding(live2dContainerRef)
+const settingsStore = useSettings()
 
 const palette = ref<string[]>([])
 
@@ -28,13 +31,22 @@ async function extractColorsFromModel() {
   }
 
   const frameUrl = URL.createObjectURL(frame)
-  const vibrant = new Vibrant(frameUrl)
+  try {
+    const vibrant = new Vibrant(frameUrl)
 
-  const paletteFromVibrant = await vibrant.getPalette()
-  palette.value = Object.values(paletteFromVibrant).map(color => color?.hex).filter(it => typeof it === 'string')
-
-  URL.revokeObjectURL(frameUrl)
+    const paletteFromVibrant = await vibrant.getPalette()
+    palette.value = Object.values(paletteFromVibrant).map(color => color?.hex).filter(it => typeof it === 'string')
+  }
+  finally {
+    URL.revokeObjectURL(frameUrl)
+  }
 }
+
+const {
+  iconAnimationStarted,
+  showIconAnimation,
+  animationIcon,
+} = useIconAnimation('i-lucide:person-standing')
 </script>
 
 <template>
@@ -46,14 +58,12 @@ async function extractColorsFromModel() {
     :leave="{ opacity: 0, x: -10 }"
     :duration="250"
   >
-    <button @click="router.back()">
-      <div i-solar:alt-arrow-left-line-duotone text-2xl />
-    </button>
-    <h1 relative>
-      <div absolute left-0 top-0 translate-y="[-80%]">
-        <span text="neutral-300 dark:neutral-500" text-nowrap>{{ t('settings.title') }}</span>
+    <button i-solar:alt-arrow-left-line-duotone text-2xl @click="router.back()" />
+    <h1 relative text-nowrap>
+      <div absolute left-0 top-0 translate-y="[-80%]" text="neutral-300 dark:neutral-500">
+        {{ t('settings.title') }}
       </div>
-      <div text-nowrap text-3xl font-semibold>
+      <div text-3xl font-semibold>
         {{ t('settings.pages.models.title') }}
       </div>
     </h1>
@@ -67,7 +77,18 @@ async function extractColorsFromModel() {
     <Live2DSettings w="50%" h="80vh" :palette="palette" @extract-colors-from-model="extractColorsFromModel" />
   </div>
 
-  <div text="neutral-200/50 dark:neutral-500/20" pointer-events-none fixed bottom-0 right-0 z--1 translate-x-10 translate-y-10>
+  <IconAnimation
+    v-if="showIconAnimation"
+    :z-index="-1"
+    :icon="animationIcon"
+    :icon-size="12"
+    :duration="1000"
+    :started="iconAnimationStarted"
+    :is-reverse="true"
+    position="calc(100dvw - 9.5rem), calc(100dvh - 9.5rem)"
+    text-color="text-neutral-200/50 dark:text-neutral-600/20"
+  />
+  <div v-if="!settingsStore.usePageSpecificTransitions" text="neutral-200/50 dark:neutral-500/20" pointer-events-none fixed bottom-0 right-0 z--1 translate-x-10 translate-y-10>
     <div text="40" i-lucide:person-standing />
   </div>
 </template>
@@ -76,4 +97,5 @@ async function extractColorsFromModel() {
 meta:
   stageTransition:
     name: slide
+    pageSpecificAvailable: true
 </route>

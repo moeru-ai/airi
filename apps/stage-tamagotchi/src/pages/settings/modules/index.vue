@@ -4,6 +4,9 @@ import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 
+import IconAnimation from '../../../components/IconAnimation.vue'
+import { useIconAnimation } from '../../../composables/useIconAnimation'
+
 const router = useRouter()
 const { t } = useI18n()
 
@@ -29,11 +32,43 @@ const modulesList = computed<Module[]>(() => [
     configured: false,
   },
   {
+    id: 'speech',
+    name: t('settings.pages.modules.speech.title'),
+    description: t('settings.pages.modules.speech.description'),
+    icon: 'i-lucide:mic',
+    to: '/settings/modules/speech',
+    configured: false,
+  },
+  {
     id: 'hearing',
     name: t('settings.pages.modules.hearing.title'),
     description: t('settings.pages.modules.hearing.description'),
     icon: 'i-lucide:ear',
     to: '',
+    configured: false,
+  },
+  {
+    id: 'vision',
+    name: t('settings.pages.modules.vision.title'),
+    description: t('settings.pages.modules.vision.description'),
+    icon: 'i-lucide:eye',
+    to: '',
+    configured: false,
+  },
+  {
+    id: 'memory-short-term',
+    name: t('settings.pages.modules.memory-short-term.title'),
+    description: t('settings.pages.modules.memory-short-term.description'),
+    icon: 'i-lucide:book',
+    to: '/settings/modules/memory-short-term',
+    configured: false,
+  },
+  {
+    id: 'memory-long-term',
+    name: t('settings.pages.modules.memory-long-term.title'),
+    description: t('settings.pages.modules.memory-long-term.description'),
+    icon: 'i-lucide:book-copy',
+    to: '/settings/modules/memory-long-term',
     configured: false,
   },
   {
@@ -45,34 +80,10 @@ const modulesList = computed<Module[]>(() => [
     configured: false,
   },
   {
-    id: 'speech',
-    name: t('settings.pages.modules.speech.title'),
-    description: t('settings.pages.modules.speech.description'),
-    icon: 'i-lucide:mic',
-    to: '/settings/modules/speech',
-    configured: false,
-  },
-  {
-    id: 'memory-short-term',
-    name: t('settings.pages.modules.memory-short-term.title'),
-    description: t('settings.pages.modules.memory-short-term.description'),
-    icon: 'i-lucide:book',
-    to: '',
-    configured: false,
-  },
-  {
-    id: 'memory-long-term',
-    name: t('settings.pages.modules.memory-long-term.title'),
-    description: t('settings.pages.modules.memory-long-term.description'),
-    icon: 'i-lucide:book-copy',
-    to: '',
-    configured: false,
-  },
-  {
-    id: 'vision',
-    name: t('settings.pages.modules.vision.title'),
-    description: t('settings.pages.modules.vision.description'),
-    icon: 'i-lucide:eye',
+    id: 'x',
+    name: t('settings.pages.modules.x.title'),
+    description: t('settings.pages.modules.x.description'),
+    icon: 'i-simple-icons:x',
     to: '',
     configured: false,
   },
@@ -92,15 +103,13 @@ const modulesList = computed<Module[]>(() => [
     to: '',
     configured: false,
   },
-  {
-    id: 'x',
-    name: t('settings.pages.modules.x.title'),
-    description: t('settings.pages.modules.x.description'),
-    icon: 'i-simple-icons:x',
-    to: '',
-    configured: false,
-  },
 ])
+
+const {
+  iconAnimationStarted,
+  showIconAnimation,
+  animationIcon,
+} = useIconAnimation('i-lucide:blocks')
 </script>
 
 <template>
@@ -142,8 +151,26 @@ const modulesList = computed<Module[]>(() => [
       :configured="module.configured"
     />
   </div>
-  <div text="neutral-200/50 dark:neutral-500/20" pointer-events-none fixed bottom-0 right-0 z--1 translate-x-10 translate-y-10>
-    <div text="40" i-lucide:blocks />
+  <IconAnimation
+    v-if="showIconAnimation"
+    :icon="animationIcon"
+    :icon-size="12"
+    :duration="1000"
+    :started="iconAnimationStarted"
+    :is-reverse="true"
+    :z-index="-1"
+    text-color="text-neutral-200/50 dark:text-neutral-600/20"
+    position="calc(100dvw - 9.5rem), calc(100dvh - 9.5rem)"
+  />
+  <div
+    v-motion
+    text="neutral-200/50 dark:neutral-600/20" pointer-events-none
+    fixed top="[72dvh]" right--15 z--1
+    :initial="{ scale: 0.9, opacity: 0, y: 0 }"
+    :enter="{ scale: 1, opacity: 1, y: 10 }"
+    :duration="250"
+  >
+    <div text="60" i-lucide:blocks />
   </div>
 </template>
 
@@ -151,4 +178,5 @@ const modulesList = computed<Module[]>(() => [
 meta:
   stageTransition:
     name: slide
+    pageSpecificAvailable: true
 </route>

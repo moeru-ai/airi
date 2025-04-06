@@ -175,7 +175,7 @@ export const useProvidersStore = defineStore('providers', () => {
       name: 'vLLM',
       descriptionKey: 'settings.pages.providers.provider.vllm.description',
       description: 'vllm.ai',
-      iconColor: 'i-lobe-icons:vllm-color',
+      iconColor: 'i-lobe-icons:vllm',
       createProvider: config => createOllama((config.baseUrl as string).trim()),
       capabilities: {
         listModels: async () => {
@@ -379,7 +379,7 @@ export const useProvidersStore = defineStore('providers', () => {
       name: 'DeepSeek',
       descriptionKey: 'settings.pages.providers.provider.deepseek.description',
       description: 'deepseek.com',
-      iconColor: 'i-lobe-icons:deepseek-color',
+      iconColor: 'i-lobe-icons:deepseek',
       createProvider: config => createDeepSeek((config.apiKey as string).trim(), (config.baseUrl as string).trim()),
       capabilities: {
         listModels: async (config) => {
@@ -468,7 +468,7 @@ export const useProvidersStore = defineStore('providers', () => {
       name: 'Microsoft / Azure Speech',
       descriptionKey: 'settings.pages.providers.provider.microsoft-speech.description',
       description: 'speech.microsoft.com',
-      iconColor: 'i-lobe-icons:microsoft-color',
+      iconColor: 'i-lobe-icons:microsoft',
       defaultOptions: {
         baseUrl: 'https://unspeech.hyp3r.link/v1/',
       },
@@ -512,7 +512,7 @@ export const useProvidersStore = defineStore('providers', () => {
       name: 'Together.ai',
       descriptionKey: 'settings.pages.providers.provider.together.description',
       description: 'together.ai',
-      iconColor: 'i-lobe-icons:together-color',
+      iconColor: 'i-lobe-icons:together',
       createProvider: config => createTogetherAI((config.apiKey as string).trim(), (config.baseUrl as string).trim()),
       capabilities: {
         listModels: async (config) => {
@@ -537,7 +537,7 @@ export const useProvidersStore = defineStore('providers', () => {
       name: 'Novita',
       descriptionKey: 'settings.pages.providers.provider.novita.description',
       description: 'novita.ai',
-      iconColor: 'i-lobe-icons:novita-color',
+      iconColor: 'i-lobe-icons:novita',
       createProvider: config => createNovita((config.apiKey as string).trim(), (config.baseUrl as string).trim()),
       capabilities: {
         listModels: async (config) => {
@@ -615,7 +615,7 @@ export const useProvidersStore = defineStore('providers', () => {
       name: 'Cloudflare Workers AI',
       descriptionKey: 'settings.pages.providers.provider.cloudflare-workers-ai.description',
       description: 'cloudflare.com',
-      iconColor: 'i-lobe-icons:cloudflare-color',
+      iconColor: 'i-lobe-icons:cloudflare',
       createProvider: config => createWorkersAI((config.apiKey as string).trim(), config.accountId as string),
       capabilities: {
         listModels: async () => {
@@ -682,7 +682,7 @@ export const useProvidersStore = defineStore('providers', () => {
       name: 'Mistral',
       descriptionKey: 'settings.pages.providers.provider.mistral.description',
       description: 'mistral.ai',
-      iconColor: 'i-lobe-icons:mistral-color',
+      iconColor: 'i-lobe-icons:mistral',
       createProvider: config => createMistral((config.apiKey as string).trim(), (config.baseUrl as string).trim()),
       capabilities: {
         listModels: async (config) => {

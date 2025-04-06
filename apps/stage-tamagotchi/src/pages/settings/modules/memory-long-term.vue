@@ -1,18 +1,12 @@
 <script setup lang="ts">
 // import { useServerStore } from '@proj-airi/stage-ui/stores'
-// import { storeToRefs } from 'pinia'
-// import { onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 
 const router = useRouter()
 const { t } = useI18n()
 
-// const { server } = storeToRefs(useServerStore())
-
-// onMounted(() => {
-//   server.value?.connect()
-// })
+// const serverStore = useServerStore()
 </script>
 
 <template>
@@ -32,18 +26,8 @@ const { t } = useI18n()
         <span text="neutral-300 dark:neutral-500" text-nowrap>{{ t('settings.title') }}</span>
       </div>
       <div text-nowrap text-3xl font-semibold>
-        {{ t('settings.pages.memory.title') }}
+        {{ t('settings.pages.modules.memory-long-term.title') }}
       </div>
     </h1>
-    <div
-      v-motion
-      text="neutral-200/50 dark:neutral-600/20" pointer-events-none
-      fixed top="[65dvh]" right--15 z--1
-      :initial="{ scale: 0.9, opacity: 0, y: 40 }"
-      :enter="{ scale: 1, opacity: 1, y: 0 }"
-      :duration="250"
-    >
-      <div text="60" i-lucide:sprout />
-    </div>
   </div>
 </template>

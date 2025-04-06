@@ -5,10 +5,18 @@ import { storeToRefs } from 'pinia'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 
+import { useIconAnimation } from '../../../composables/useIconAnimation'
+
 const { t } = useI18n()
 const router = useRouter()
 const providersStore = useProvidersStore()
 const { allProvidersMetadata } = storeToRefs(providersStore)
+
+const {
+  iconAnimationStarted,
+  showIconAnimation,
+  animationIcon,
+} = useIconAnimation('i-lucide:brain')
 </script>
 
 <template>
@@ -50,8 +58,26 @@ const { allProvidersMetadata } = storeToRefs(providersStore)
       :configured="provider.configured"
     />
   </div>
-  <div text="neutral-200/50 dark:neutral-500/20" pointer-events-none fixed bottom-0 right-0 z--1 translate-x-10 translate-y-10>
-    <div text="40" i-lucide:brain />
+  <IconAnimation
+    v-if="showIconAnimation"
+    :z-index="-1"
+    :icon="animationIcon"
+    :icon-size="12"
+    :duration="1000"
+    :started="iconAnimationStarted"
+    :is-reverse="true"
+    position="calc(100dvw - 9.5rem), calc(100dvh - 9.5rem)"
+    text-color="text-neutral-200/50 dark:text-neutral-600/20"
+  />
+  <div
+    v-motion
+    text="neutral-200/50 dark:neutral-600/20" pointer-events-none
+    fixed top="[70dvh]" right--15 z--1
+    :initial="{ scale: 0.9, opacity: 0 }"
+    :enter="{ scale: 1, opacity: 1 }"
+    :duration="250"
+  >
+    <div text="60" i-lucide:brain />
   </div>
 </template>
 
@@ -59,4 +85,5 @@ const { allProvidersMetadata } = storeToRefs(providersStore)
 meta:
   stageTransition:
     name: slide
+    pageSpecificAvailable: true
 </route>

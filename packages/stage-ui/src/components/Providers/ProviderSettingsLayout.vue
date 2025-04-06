@@ -29,7 +29,14 @@ defineProps<{
     </h1>
   </div>
   <slot />
-  <div text="neutral-200/50 dark:neutral-600/20" pointer-events-none fixed bottom-0 right-0 z--1 translate-x-10 translate-y-10>
-    <div text="40" :class="providerIcon || providerIconColor" />
+  <div
+    v-motion
+    text="neutral-200/50 dark:neutral-600/20" pointer-events-none
+    fixed top="[70dvh]" right-0 z--1
+    :initial="{ scale: 0.95, opacity: 0, x: 20 }"
+    :enter="{ scale: 1, opacity: 1, x: 0 }"
+    :duration="250"
+  >
+    <div text="60" :class="providerIcon || providerIconColor" />
   </div>
 </template>
