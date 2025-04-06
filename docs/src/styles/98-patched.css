@@ -12,7 +12,7 @@
   font-display: swap;
 }
 
-body {
+html > body {
   font-family: 'Departure Mono', 'Fusion Pixel 12px Proportional SC', monospace;
   color-scheme: light;
   background: #ddd !important;
