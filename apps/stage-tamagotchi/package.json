@@ -7,6 +7,8 @@
   "author": "LemonNekoGH",
   "scripts": {
     "typecheck": "vue-tsc --noEmit --composite false",
+    "app:dev": "pnpm tauri dev",
+    "app:build": "pnpm tauri build",
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
