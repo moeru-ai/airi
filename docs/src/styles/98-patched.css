@@ -102,11 +102,6 @@ starlight-menu-button button svg {
   }
 }
 
-.main-pane {
-  position: relative;
-  z-index: -1;
-}
-
 .main-pane main {
   display: flex;
   justify-content: center;
@@ -199,7 +194,8 @@ summary .group-label .large {
 
 @media (max-width: 72rem) {
   .right-sidebar-container {
-    display: none;
+    z-index: 1;
+    pointer-events: none;
   }
 }
 
@@ -237,6 +233,10 @@ summary .group-label .large {
     margin-top: 0;
     padding: 0;
   }
+}
+
+.main-pane main .content-panel a {
+  color: blue;
 }
 
 .pagination-links a {
