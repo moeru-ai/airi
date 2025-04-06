@@ -1,10 +1,12 @@
 import starlight from '@astrojs/starlight'
 import { defineConfig } from 'astro/config'
+import UnoCSS from 'unocss/astro'
 
 // https://astro.build/config
 export default defineConfig({
   site: 'https://airi.build',
   integrations: [
+    UnoCSS(),
     starlight({
       title: 'Project Airi',
       logo: {
@@ -37,6 +39,7 @@ export default defineConfig({
         { tag: 'meta', attrs: { name: 'apple-mobile-web-app-title', content: 'Airi' } },
         { tag: 'link', attrs: { ref: 'manifest', href: '/site.webmanifest' } },
       ],
+      tableOfContents: { minHeadingLevel: 2, maxHeadingLevel: 6 },
       customCss: [
         './src/styles/custom.css',
         '@fontsource/quicksand/300.css',

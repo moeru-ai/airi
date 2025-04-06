@@ -239,6 +239,11 @@ summary .group-label .large {
   color: blue;
 }
 
+.main-pane main .content-panel a code {
+  color: white;
+  text-decoration: underline white;
+}
+
 .pagination-links a {
   background: silver;
   border: none;
