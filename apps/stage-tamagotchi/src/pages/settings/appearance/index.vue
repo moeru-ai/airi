@@ -8,7 +8,6 @@ import { useRouter } from 'vue-router'
 
 import CheckBar from '../../../components/Settings/CheckBar.vue'
 import ColorPalette from '../../../components/Settings/ColorPalette.vue'
-import { useIconAnimation } from '../../../composables/useIconAnimation'
 import COLOR_PRESETS from './color-presets.json'
 
 const router = useRouter()
@@ -17,8 +16,6 @@ const dark = useDark()
 const { t } = useI18n()
 
 const usePageSpecificTransitionsSettingChanged = ref(false)
-
-const { iconAnimationStarted, showIconAnimation, animationIcon } = useIconAnimation('i-lucide:paintbrush')
 
 // avoid showing the animation component when the page specific transitions are enabled
 watch(() => [settings.usePageSpecificTransitions, settings.disableTransitions], () => {
@@ -265,17 +262,6 @@ watch(() => [settings.usePageSpecificTransitions, settings.disableTransitions], 
     />
   </Section>
 
-  <IconAnimation
-    v-if="showIconAnimation && !usePageSpecificTransitionsSettingChanged"
-    :z-index="-1"
-    :duration="1000"
-    :started="iconAnimationStarted"
-    :is-reverse="true"
-    :icon="animationIcon"
-    :icon-size="12"
-    position="calc(100dvw - 9.5rem), calc(100dvh - 9.5rem)"
-    text-color="text-neutral-200/50 dark:text-neutral-600/20"
-  />
   <div
     v-motion
     text="neutral-200/50 dark:neutral-600/20" pointer-events-none
