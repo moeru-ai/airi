@@ -130,7 +130,7 @@ const settings = computed(() => [
         :description="setting.description"
         :icon="setting.icon"
         :to="setting.to"
-        @click="(e: Event) => handleIconItemClick(e, setting)"
+        @click="(e: MouseEvent) => handleIconItemClick(e, setting)"
       />
     </div>
     <div

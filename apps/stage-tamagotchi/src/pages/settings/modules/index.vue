@@ -4,9 +4,6 @@ import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 
-import IconAnimation from '../../../components/IconAnimation.vue'
-import { useIconAnimation } from '../../../composables/useIconAnimation'
-
 const router = useRouter()
 const { t } = useI18n()
 
@@ -104,12 +101,6 @@ const modulesList = computed<Module[]>(() => [
     configured: false,
   },
 ])
-
-const {
-  iconAnimationStarted,
-  showIconAnimation,
-  animationIcon,
-} = useIconAnimation('i-lucide:blocks')
 </script>
 
 <template>
@@ -151,17 +142,6 @@ const {
       :configured="module.configured"
     />
   </div>
-  <IconAnimation
-    v-if="showIconAnimation"
-    :icon="animationIcon"
-    :icon-size="12"
-    :duration="1000"
-    :started="iconAnimationStarted"
-    :is-reverse="true"
-    :z-index="-1"
-    text-color="text-neutral-200/50 dark:text-neutral-600/20"
-    position="calc(100dvw - 9.5rem), calc(100dvh - 9.5rem)"
-  />
   <div
     v-motion
     text="neutral-200/50 dark:neutral-600/20" pointer-events-none

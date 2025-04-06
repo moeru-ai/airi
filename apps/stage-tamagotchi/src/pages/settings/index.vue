@@ -5,11 +5,8 @@ import { computed, nextTick, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 
-import IconAnimation from '../../components/IconAnimation.vue'
-
 const router = useRouter()
 const iconAnimationStarted = ref(false)
-const iconAnimation = ref<InstanceType<typeof IconAnimation>>()
 const resolveAnimation = ref<() => void>()
 const { t } = useI18n()
 
@@ -17,10 +14,6 @@ const animationIcon = ref('')
 const animationPosition = ref('')
 const showAnimationComponent = ref(false)
 const settingsStore = useSettings()
-
-function handleAnimationEnded() {
-  resolveAnimation.value?.()
-}
 
 async function handleIconItemClick(event: MouseEvent, setting: typeof settings.value[0]) {
   const target = event.currentTarget as HTMLElement
@@ -130,7 +123,7 @@ const settings = computed(() => [
         :description="setting.description"
         :icon="setting.icon"
         :to="setting.to"
-        @click="(e: Event) => handleIconItemClick(e, setting)"
+        @click="(e: MouseEvent) => handleIconItemClick(e, setting)"
       />
     </div>
     <div
@@ -143,17 +136,6 @@ const settings = computed(() => [
     >
       <div v-motion text="60" i-lucide:cog />
     </div>
-    <IconAnimation
-      v-if="showAnimationComponent && !settingsStore.disableTransitions && settingsStore.usePageSpecificTransitions"
-      ref="iconAnimation"
-      :icon="animationIcon"
-      :icon-size="6 * 1.2"
-      :position="animationPosition"
-      :duration="1000"
-      text-color="text-neutral-400/50 dark:text-neutral-600/20"
-      :started="iconAnimationStarted"
-      @animation-ended.once="handleAnimationEnded"
-    />
   </div>
 </template>
 
