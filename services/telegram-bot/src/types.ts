@@ -87,7 +87,7 @@ export interface ListChatsAction {
 export interface SendMessageAction {
   action: 'sendMessage'
   content: string
-  groupId: string
+  chatId: string
 }
 
 export interface SearchGoogleAction {

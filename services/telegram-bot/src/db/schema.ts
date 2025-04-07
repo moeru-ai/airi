@@ -25,6 +25,9 @@ export const chatMessagesTable = pgTable('chat_messages', {
 export const stickersTable = pgTable('stickers', {
   id: uuid().primaryKey().defaultRandom(),
   platform: text().notNull().default(''),
+  name: text().notNull().default(''),
+  emoji: text().notNull().default(''),
+  label: text().notNull().default(''),
   file_id: text().notNull().default(''),
   image_base64: text().notNull().default(''),
   image_path: text().notNull().default(''),
@@ -40,12 +43,32 @@ export const stickersTable = pgTable('stickers', {
   index('stickers_description_vector_768_index').using('hnsw', table.description_vector_768.op('vector_cosine_ops')),
 ])
 
+export const stickerPacksTable = pgTable('sticker_packs', {
+  id: uuid().primaryKey().defaultRandom(),
+  platform: text().notNull().default(''),
+  platform_id: text().notNull().default(''),
+  name: text().notNull().default(''),
+  description: text().notNull().default(''),
+  created_at: bigint({ mode: 'number' }).notNull().default(0).$defaultFn(() => Date.now()),
+  updated_at: bigint({ mode: 'number' }).notNull().default(0).$defaultFn(() => Date.now()),
+}, table => [
+  uniqueIndex('sticker_packs_platform_platform_id_unique_index').on(table.platform, table.platform_id),
+])
+
+export const recentSentStickersTable = pgTable('recent_sent_stickers', {
+  id: uuid().primaryKey().defaultRandom(),
+  sticker_id: uuid().notNull().references(() => stickersTable.id, { onDelete: 'cascade' }),
+  created_at: bigint({ mode: 'number' }).notNull().default(0).$defaultFn(() => Date.now()),
+  updated_at: bigint({ mode: 'number' }).notNull().default(0).$defaultFn(() => Date.now()),
+})
+
 export const photosTable = pgTable('photos', {
   id: uuid().primaryKey().defaultRandom(),
   platform: text().notNull().default(''),
   file_id: text().notNull().default(''),
   image_base64: text().notNull().default(''),
   image_path: text().notNull().default(''),
+  caption: text().notNull().default(''),
   description: text().notNull().default(''),
   created_at: bigint({ mode: 'number' }).notNull().default(0).$defaultFn(() => Date.now()),
   updated_at: bigint({ mode: 'number' }).notNull().default(0).$defaultFn(() => Date.now()),

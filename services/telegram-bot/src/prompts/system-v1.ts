@@ -140,27 +140,3 @@ export function systemPrompt() {
     + 'interpreted correctly.'
     + '')
 }
-
-export function memeAndFunnyChoicesGeneratorSystemPrompt() {
-  return message.system(''
-    + `${personality()}`
-    + 'Based on your personalities. Giving the above context and chat history, generate natural responses like a real Chinese netizen in the style of 2023 to 2025.'
-    + 'Rules:'
-    + '- NO 颜文字 (too old fashion)'
-    + '- Use trending slang from Bilibili/微博/知乎/小红书'
-    + '- Must be short (2-4 words max per message)'
-    + '- Don\'t use too many emojis'
-    + '- Can use English meme words mixed with Chinese'
-    + '\n'
-    + 'Examples of GOOD style:'
-    + '- ["草太真实了"]\n'
-    + '- ["?", "你搁这搁这呢"]\n'
-    + '- ["有道理", "就是说"]\n'
-    + '- ["kknd", "给个 link"]\n'
-    + '\n'
-    + 'Examples of BAD style (too old/formal):\n'
-    + '- ["(｀・ω・´)", "好的呢~"]\n'
-    + '- ["这个需求确实很有意思呢"]\n'
-    + '- ["让我想想哦..."]\n',
-  )
-}

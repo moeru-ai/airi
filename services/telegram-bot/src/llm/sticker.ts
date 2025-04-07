@@ -1,23 +1,38 @@
-import type { Message } from 'grammy/types'
-import type { BotSelf } from '../types'
+import type { Bot } from 'grammy'
+import type { Message, Sticker } from 'grammy/types'
 
 import { Buffer } from 'node:buffer'
 import { env } from 'node:process'
+import { useLogg } from '@guiiai/logg'
 import { embed } from '@xsai/embed'
 import { generateText } from '@xsai/generate-text'
 import { message } from '@xsai/utils-chat'
 import Sharp from 'sharp'
 
 import { findStickerDescription, recordSticker } from '../models'
+import { interpretAnimatedSticker } from './animated-sticker'
 
-export async function interpretSticker(state: BotSelf, msg: Message) {
+export async function interpretSticker(bot: Bot, msg: Message, sticker: Sticker) {
+  const logger = useLogg('interpretSticker').useGlobalConfig()
+
+  if (sticker.is_animated || sticker.is_video) {
+    logger
+      .withField('sticker_emoji', sticker.emoji)
+      .withField('sticker_set', sticker.set_name)
+      .withField('is_animated', sticker.is_animated)
+      .withField('is_video', sticker.is_video)
+      .log('Animated or video sticker, interpreting as animated sticker')
+
+    return interpretAnimatedSticker(bot, msg, sticker)
+  }
+
   try {
-    if (await findStickerDescription(msg.sticker.file_id)) {
+    if (await findStickerDescription(sticker.file_id)) {
       return
     }
 
-    const file = await state.bot.api.getFile(msg.sticker.file_id)
-    const stickerRes = await fetch(`https://api.telegram.org/file/bot${state.bot.api.token}/${file.file_path}`)
+    const file = await bot.api.getFile(sticker.file_id)
+    const stickerRes = await fetch(`https://api.telegram.org/file/bot${bot.api.token}/${file.file_path}`)
     const buffer = await stickerRes.arrayBuffer()
     const stickerBase64 = Buffer.from(await Sharp(buffer).resize(512, 512).png().toBuffer()).toString('base64')
 
@@ -56,9 +71,9 @@ export async function interpretSticker(state: BotSelf, msg: Message) {
     })
 
     await recordSticker(stickerBase64, msg.sticker.file_id, file.file_path, res.text)
-    state.logger.withField('sticker', res.text).log('Interpreted sticker')
+    logger.withField('sticker', res.text).log('Interpreted sticker')
   }
   catch (err) {
-    state.logger.withError(err).log('Error occurred')
+    logger.withError(err).log('Error occurred')
   }
 }

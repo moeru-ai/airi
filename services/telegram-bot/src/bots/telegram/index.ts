@@ -13,14 +13,10 @@ import { interpretPhotos } from '../../llm/photo'
 import { interpretSticker } from '../../llm/sticker'
 import { recordMessage } from '../../models'
 import { listJoinedChats, recordJoinedChat } from '../../models/chats'
+import { recordStickerPack } from '../../models/sticker-packs'
 import { readMessage } from './loop/read-message'
 import { shouldInterruptProcessing } from './utils/interruption'
 import { sendMayStructuredMessage } from './utils/message'
-
-async function isChatIdBotAdmin(chatId: number) {
-  const admins = env.ADMIN_USER_IDS!.split(',')
-  return admins.includes(chatId.toString())
-}
 
 async function handleLoopStep(state: BotSelf, msgs?: LLMMessage[], chatId?: string): Promise<() => Promise<any> | undefined> {
   // Set the start time when beginning new processing
@@ -56,6 +52,7 @@ async function handleLoopStep(state: BotSelf, msgs?: LLMMessage[], chatId?: stri
 
     switch (action.action) {
       case 'readMessages':
+      {
         if (Object.keys(state.unreadMessages).length === 0) {
           state.logger.withField('action', action).log('No unread messages - deleting all unread messages')
           state.unreadMessages = {}
@@ -66,7 +63,6 @@ async function handleLoopStep(state: BotSelf, msgs?: LLMMessage[], chatId?: stri
           break
         }
 
-        // eslint-disable-next-line no-case-declarations
         let unreadMessagesForThisChat: Message[] | undefined = state.unreadMessages[action.chatId]
 
         // Modified interruption logic
@@ -121,13 +117,21 @@ async function handleLoopStep(state: BotSelf, msgs?: LLMMessage[], chatId?: stri
         //   return { break: true }
         // }
 
-        await readMessage(state, state.bot.botInfo.id.toString(), chatId, action, unreadMessagesForThisChat, currentController)
-        return
+        const result = await readMessage(state, state.bot.botInfo.id.toString(), chatId, action, unreadMessagesForThisChat, currentController)
+        if (result?.result) {
+          msgs.push(message.user(`Reading message of chat ${action.chatId}:\n${result.result}`))
+          return () => handleLoopStep(state, msgs, chatId)
+        }
+        else {
+          return
+        }
+      }
       case 'listChats':
         msgs.push(message.user(`List of chats:${(await listJoinedChats()).map(chat => `ID:${chat.chat_id}, Name:${chat.chat_name}`).join('\n')}`))
         return () => handleLoopStep(state, msgs, chatId)
       case 'sendMessage':
-        await sendMayStructuredMessage(state, action.content, action.groupId)
+        msgs.push(message.user(`Sending message to group ${action.chatId}: ${action.content}`))
+        await sendMayStructuredMessage(state, action.content, action.chatId)
         return
       default:
         msgs.push(message.user(`The action you sent ${action.action} haven't implemented yet by developer.`))
@@ -149,6 +153,19 @@ async function handleLoopStep(state: BotSelf, msgs?: LLMMessage[], chatId?: stri
       state.currentProcessingStartTime = null
     }
   }
+}
+
+async function isChatIdBotAdmin(fromId: number) {
+  if (!env.ADMIN_USER_IDS) {
+    return false
+  }
+
+  const admins = env.ADMIN_USER_IDS.split(',')
+  if (admins.length === 0) {
+    return false
+  }
+
+  return admins.includes(fromId.toString())
 }
 
 async function handleLoop(state: BotSelf, msgs?: LLMMessage[], chatId?: string) {
@@ -217,7 +234,7 @@ async function processMessageQueue(state: BotSelf) {
       if (nextMsg.status === 'pending') {
         if (nextMsg.message.sticker) {
           nextMsg.status = 'interpreting'
-          await interpretSticker(state, nextMsg.message)
+          await interpretSticker(state.bot, nextMsg.message, nextMsg.message.sticker)
           nextMsg.status = 'ready'
         }
         else if (nextMsg.message.photo) {
@@ -283,10 +300,33 @@ export async function startTelegramBot() {
   const bot = new Bot<ExtendedContext>(env.TELEGRAM_BOT_TOKEN!)
   const state = newBotSelf(bot, log)
 
-  bot.on('message:sticker', async (ctx) => {
-    if (ctx.message.sticker.is_animated || ctx.message.sticker.is_video)
+  bot.command('add_sticker_pack', async (ctx) => {
+    if (!(await isChatIdBotAdmin(ctx.message.from.id))) {
+      log.withField('from_id', ctx.message.from.id).log('not an admin - skipping')
       return
+    }
+    if (ctx.message.reply_to_message == null) {
+      await ctx.reply('Please reply to a sticker pack to add it.')
+      return
+    }
 
+    const logger = useLogg('addStickerPack').useGlobalConfig()
+
+    const repliedSticker = ctx.message.reply_to_message.sticker
+    const stickerSet = await bot.api.getStickerSet(repliedSticker.set_name)
+
+    logger.withField('sticker_set', repliedSticker.set_name).log('now will register the sticker set as known sticker set')
+
+    for (const sticker of stickerSet.stickers) {
+      await interpretSticker(state.bot, ctx.message.reply_to_message, sticker)
+      logger.withField('sticker', sticker).log('interpreted sticker')
+    }
+
+    await recordStickerPack(repliedSticker.set_name, stickerSet.name)
+    await ctx.reply('Sticker pack added.')
+  })
+
+  bot.on('message:sticker', async (ctx) => {
     const messageId = `${ctx.message.chat.id}-${ctx.message.message_id}`
     if (!state.processedIds.has(messageId)) {
       state.processedIds.add(messageId)
@@ -325,24 +365,9 @@ export async function startTelegramBot() {
     processMessageQueue(state)
   })
 
-  bot.command('load_sticker_pack', async (ctx) => {
-    if (!(await isChatIdBotAdmin(ctx.chat.id))) {
-      return
-    }
-    if (!ctx.message || !ctx.message.sticker) {
-      return
-    }
-
-    await interpretSticker(state, ctx.message)
-  })
-
-  bot.errorHandler = async (err) => {
-    log.withError(err).log('Error occurred')
-  }
-
+  bot.errorHandler = async err => log.withError(err).log('Error occurred')
   await bot.init()
   log.withField('bot_username', bot.botInfo.username).log('bot initialized')
-
   bot.start({ drop_pending_updates: true })
 
   try {
