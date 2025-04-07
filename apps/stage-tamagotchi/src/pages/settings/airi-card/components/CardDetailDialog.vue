@@ -177,7 +177,7 @@ const activeTab = computed({
                   <DialogTitle text-2xl font-bold class="from-primary-500 to-primary-400 bg-gradient-to-r bg-clip-text text-transparent">
                     {{ selectedCard.name }}
                   </DialogTitle>
-                  <div v-if="isActive" class="dark:text-primary-400 bg-primary-100 text-primary-600 dark:bg-primary-900/40 flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium">
+                  <div v-if="isActive" class="bg-primary-100 text-primary-600 dark:bg-primary-900/40 dark:text-primary-400 flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium">
                     <div i-solar:check-circle-bold-duotone text-xs />
                     {{ t('settings.pages.card.active_badge') }}
                   </div>

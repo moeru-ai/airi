@@ -251,7 +251,7 @@ function getModuleShortName(id: string, module: 'consciousness' | 'voice') {
           class="bg-primary-100/80 border-primary-400 dark:bg-primary-900/80 dark:border-primary-600 absolute inset-0 flex items-center justify-center border-2 rounded-xl"
         >
           <div class="text-center">
-            <div i-solar:upload-minimalistic-bold class="text-primary-500 dark:text-primary-400 mb-2 text-5xl" />
+            <div i-solar:upload-minimalistic-bold class="dark:text-primary-400 text-primary-500 mb-2 text-5xl" />
             <p font-medium text="primary-600 dark:primary-300">
               {{ t('settings.pages.card.drop_here') }}
             </p>

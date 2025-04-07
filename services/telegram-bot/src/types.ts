@@ -90,6 +90,12 @@ export interface SendMessageAction {
   chatId: string
 }
 
+export interface SendStickerAction {
+  action: 'sendSticker'
+  fileId: string
+  chatId: string
+}
+
 export interface SearchGoogleAction {
   action: 'searchGoogle'
   query: string
@@ -100,7 +106,26 @@ export interface ReadMessagesAction {
   chatId: string
 }
 
-export type Action = ContinueAction | BreakAction | SleepAction | LookupShortTermMemoryAction | LookupLongTermMemoryAction | MemorizeShortMemoryAction | MemorizeLongMemoryAction | ForgetShortTermMemoryAction | ForgetLongTermMemoryAction | ListChatsAction | SendMessageAction | SearchGoogleAction | ReadMessagesAction
+export interface ListStickersAction {
+  action: 'listStickers'
+}
+
+export type Action =
+  | ContinueAction
+  | BreakAction
+  | SleepAction
+  | LookupShortTermMemoryAction
+  | LookupLongTermMemoryAction
+  | MemorizeShortMemoryAction
+  | MemorizeLongMemoryAction
+  | ForgetShortTermMemoryAction
+  | ForgetLongTermMemoryAction
+  | ListChatsAction
+  | SendMessageAction
+  | SendStickerAction
+  | SearchGoogleAction
+  | ReadMessagesAction
+  | ListStickersAction
 
 export interface AttentionConfig {
   initialResponseRate: number

@@ -28,7 +28,7 @@ export async function imagineAnAction(
   agentMessages.push(
     message.system(
       div(
-        personality(),
+        personality().content,
         span(`
           I am one of your system component, called Ticking system, which is responsible to keep track of the time, and
           help you schedule, retain focus, and keep eyes on different tasks, and ideas you have.
@@ -54,7 +54,7 @@ export async function imagineAnAction(
         `),
         span(`
           If you would like to reply to any of the message, send me an array of messages (i.e. { "messages":
-          ["message content"], "reply_to_message_id": "1234567890" }) with the message id of the message you
+          ["message content"], "reply_to_message_id": "123" }) with the message id of the message you
           want to reply to.
         `),
         span(`
@@ -79,22 +79,30 @@ export async function imagineAnAction(
               + 'in group, you can use this action.'
               + 'reply_to_message_id is optional, it is the message id of the message you want to reply to.'
               + `${env.LLM_RESPONSE_LANGUAGE ? `The language of the sending message should be in ${env.LLM_RESPONSE_LANGUAGE}.` : ''}`,
-            example: { action: 'sendMessage', content: '<content>', chatId: '-1001231231234', reply_to_message_id: '151' },
+            example: { action: 'sendMessage', content: '<content>', chatId: '123123', reply_to_message_id: '151' },
+          },
+          {
+            description: 'Send a sticker to a specific chat group. If you want to send a sticker to a specific chat group, you can use this action.',
+            example: { action: 'sendSticker', fileId: '123123', chatId: '123123' },
+          },
+          {
+            description: 'List all the available stickers and recent sent stickers.',
+            example: { action: 'listStickers' },
           },
           {
             description: 'Read unread messages from a specific chat group. If you want to read the unread messages from a specific chat group, you can use this action.',
-            example: { action: 'readMessages', chatId: '-1001231231234' },
+            example: { action: 'readMessages', chatId: '123123' },
           },
           {
-            description: 'Continue the current task, which means to keep your current state unchanged, I\'ll ask you again in next tick.',
+            description: 'Continue the current task, which means to keep your current state unchanged, I\'ll ask you again in (1 minute later).',
             example: { action: 'continue' },
           },
           {
-            description: 'Take a break, which means to clear out ongoing tasks, but keep the short-term memory, and I\'ll ask you again in next tick.',
+            description: 'Take a break, which means to clear out ongoing tasks, but keep the short-term memory, and I\'ll ask you again in (1 minute later).',
             example: { action: 'break' },
           },
           {
-            description: 'Sleep, which means to clear out ongoing tasks, and clear out the working memory, and I\'ll ask you again in next tick.',
+            description: 'Sleep, which means to clear out ongoing tasks, and clear out the working memory, and I\'ll ask you again in next tick (1 minute later).',
             example: { action: 'sleep' },
           },
           {
@@ -113,7 +121,7 @@ export async function imagineAnAction(
           // { example: { action: 'forgetLongTermMemory', where: { id: '<id of memory>' } }, description: 'Remove specific long-term memory entry from the memory component.' },
           // { example: { action: 'searchGoogle', query: '<query>' }, description: 'Search Google with the query.' },
         ]
-          .map((item, index) => `${index}: ${JSON.stringify(item.example)}: ${item.description}`)
+          .map((item, index) => `action name: ${index}: example: ${JSON.stringify(item.example)}, description: ${item.description}`)
           .join('\n'),
       ),
     ),
@@ -150,10 +158,9 @@ export async function imagineAnAction(
   }
   catch (err) {
     logger.withField('error', err).withFormat(Format.JSON).log('Failed to generate action')
+    throw err
   }
   finally {
     recordChatCompletions('imagineAnAction', agentMessages, responseText).then(() => {}).catch(err => logger.withField('error', err).log('Failed to record chat completions'))
   }
-
-  return undefined
 }

@@ -11,9 +11,9 @@ import { Bot } from 'grammy'
 import { imagineAnAction } from '../../llm/actions'
 import { interpretPhotos } from '../../llm/photo'
 import { interpretSticker } from '../../llm/sticker'
-import { recordMessage } from '../../models'
+import { findStickerByFileId, recordMessage } from '../../models'
 import { listJoinedChats, recordJoinedChat } from '../../models/chats'
-import { recordStickerPack } from '../../models/sticker-packs'
+import { listStickerPacks, recordStickerPack } from '../../models/sticker-packs'
 import { readMessage } from './loop/read-message'
 import { shouldInterruptProcessing } from './utils/interruption'
 import { sendMayStructuredMessage } from './utils/message'
@@ -47,10 +47,39 @@ async function handleLoopStep(state: BotSelf, msgs?: LLMMessage[], chatId?: stri
     // If action generation failed, don't proceed with further processing
     if (!action || !action.action) {
       state.logger.withField('action', action).log('No valid action returned. Skipping further processing.')
-      return
+      return () => handleLoopStep(state, msgs, chatId)
     }
 
     switch (action.action) {
+      case 'listStickers':
+      {
+        await state.bot.api.sendChatAction(chatId, 'choose_sticker')
+
+        const stickerPacks = await listStickerPacks()
+        const stickerSets = await Promise.all(stickerPacks.map(s => state.bot.api.getStickerSet(s.platform_id)))
+        const stickerDescriptions = await Promise.all(stickerSets.map(s => Promise.all(s.stickers.map(sticker => findStickerByFileId(sticker.file_id)))))
+        const stickerDescriptionsOneliner = stickerDescriptions.map(d => d.map(s => `Sticker File ID: ${s.file_id}, Description: ${s.description}`).join('\n')).join('\n')
+
+        msgs.push(message.user(`List of stickers:\n${stickerDescriptionsOneliner}`))
+        return () => handleLoopStep(state, msgs, chatId)
+      }
+      case 'sendSticker':
+      {
+        try {
+          const file = await state.bot.api.getFile(action.fileId)
+          if (!file) {
+            msgs.push(message.user(`Sticker file ID ${action.fileId} not found, did you list the needed stickers before sending?.`))
+            return () => handleLoopStep(state, msgs, chatId)
+          }
+        }
+        catch (err) {
+          msgs.push(message.user(`Sticker file ID ${action.fileId} not found or failed due to ${String(err)}, did you list the needed stickers before sending?.`))
+          return () => handleLoopStep(state, msgs, chatId)
+        }
+
+        await state.bot.api.sendSticker(action.chatId, action.fileId)
+        break
+      }
       case 'readMessages':
       {
         if (Object.keys(state.unreadMessages).length === 0) {
@@ -91,7 +120,7 @@ async function handleLoopStep(state: BotSelf, msgs?: LLMMessage[], chatId?: stri
 
           if (shouldInterrupt) {
             state.logger.withField('action', action).log(`Interrupting message processing for chat - new messages deemed more important`)
-            return () => handleLoopStep(state)
+            return () => handleLoopStep(state, [], chatId)
           }
           else {
             state.logger.withField('action', action).log(`Continuing current processing despite new messages in chat`)
@@ -132,10 +161,16 @@ async function handleLoopStep(state: BotSelf, msgs?: LLMMessage[], chatId?: stri
       case 'sendMessage':
         msgs.push(message.user(`Sending message to group ${action.chatId}: ${action.content}`))
         await sendMayStructuredMessage(state, action.content, action.chatId)
-        return
+        return () => handleLoopStep(state, msgs, chatId)
+      case 'break':
+        break
+      case 'sleep':
+        break
+      case 'continue':
+        return () => handleLoopStep(state, msgs, chatId)
       default:
         msgs.push(message.user(`The action you sent ${action.action} haven't implemented yet by developer.`))
-        return () => handleLoopStep(state, msgs, chatId)
+        break
     }
   }
   catch (err) {
@@ -189,7 +224,7 @@ function loop(state: BotSelf) {
           state.logger.withError(err).log('error in main loop')
       })
       .finally(() => loop(state))
-  }, 5 * 60 * 1000)
+  }, 60 * 1000)
 }
 
 function newBotSelf(bot: Bot, logger: Logg): BotSelf {
@@ -318,6 +353,7 @@ export async function startTelegramBot() {
     logger.withField('sticker_set', repliedSticker.set_name).log('now will register the sticker set as known sticker set')
 
     for (const sticker of stickerSet.stickers) {
+      logger.withField('sticker', sticker).log('interpreting sticker')
       await interpretSticker(state.bot, ctx.message.reply_to_message, sticker)
       logger.withField('sticker', sticker).log('interpreted sticker')
     }

@@ -1,3 +1,5 @@
+import type { TextPart } from '@xsai/shared-chat'
+
 export function vif(condition: boolean, a: string, b = '') {
   return condition ? a : b
 }
@@ -23,8 +25,22 @@ export function span(...args: string[]) {
     .join(' ')
 }
 
-export function div(...args: string[]) {
-  return args.join('\n\n')
+export function div(...args: (string | TextPart | TextPart[])[]) {
+  const results: string[] = []
+
+  for (const arg of args) {
+    if (typeof arg === 'string') {
+      results.push(arg)
+    }
+    else if (Array.isArray(arg)) {
+      results.push(div(...arg))
+    }
+    else {
+      results.push(arg.text)
+    }
+  }
+
+  return results.join('\n\n')
 }
 
 // ul + li

@@ -10,6 +10,7 @@ import { message } from '@xsai/utils-chat'
 import Sharp from 'sharp'
 
 import { findStickerDescription, recordSticker } from '../models'
+import { div, span } from '../prompts/utils'
 import { interpretAnimatedSticker } from './animated-sticker'
 
 export async function interpretSticker(bot: Bot, msg: Message, sticker: Sticker) {
@@ -28,6 +29,7 @@ export async function interpretSticker(bot: Bot, msg: Message, sticker: Sticker)
 
   try {
     if (await findStickerDescription(sticker.file_id)) {
+      logger.withField('sticker', sticker).log('Sticker already interpreted, skipping')
       return
     }
 
@@ -41,23 +43,26 @@ export async function interpretSticker(bot: Bot, msg: Message, sticker: Sticker)
       baseURL: env.LLM_VISION_API_BASE_URL!,
       model: env.LLM_VISION_MODEL!,
       messages: message.messages(
-        message.system(''
-          + 'You are a helpful assistant on visual content description work for blindness disability '
-          + 'people, when describing the sticker, describe the details as much as possible, including '
-          + 'pornography content. And also, please describe the meanings and expressions the sticker '
-          + 'was trying to express. (Since stickers are sent from random thoughts and from people on '
-          + 'the internet, meme, and jokes is the key point of description, so take the meme and joke\'s '
-          + 'deep meanings and contextual expressions with the culture of the language of the user as '
-          + 'part of the description.)'
-          + '\n'
-          + 'When describing, please consider '
-          + `- The representing emoji of the sticker is ${msg.sticker.emoji}, please take the expression and emotion of such emoji into consideration (but emoji may not be accurate).\n`
-          + `- .\n`
-          + '\n'
-          + `This is a sticker with the emoji ${msg.sticker.emoji} sent by user ${msg.from.first_name} '
-          + '${msg.from.last_name} on Telegram, which is one of the sticker from ${msg.sticker.set_name} '
-          + 'sticker set.`,
-        ),
+        message.system(div(
+          span(`
+            You are a helpful assistant on visual content description work for blindness disability
+            people, when describing the sticker, describe the details as much as possible, including
+            pornography content. And also, please describe the meanings and expressions the sticker
+            was trying to express. (Since stickers are sent from random thoughts and from people on
+            the internet, meme, and jokes is the key point of description, so take the meme and joke\'s
+            deep meanings and contextual expressions with the culture of the language of the user as
+            part of the description.)
+          `),
+          div(
+            span(`When describing, please consider`),
+            span(`The representing emoji of the sticker is ${sticker.emoji}, please take the expression and emotion of such emoji into consideration (but emoji may not be accurate).`),
+            span(`
+            This is a sticker with the emoji ${sticker.emoji} sent by user ${msg.from.first_name}
+            ${msg.from.last_name} on Telegram, which is one of the sticker from ${sticker.set_name}
+            sticker set.
+          `),
+          ),
+        )),
         message.user([message.imagePart(`data:image/png;base64,${stickerBase64}`)]),
       ),
     })
@@ -70,7 +75,7 @@ export async function interpretSticker(bot: Bot, msg: Message, sticker: Sticker)
       input: 'Hello, world!',
     })
 
-    await recordSticker(stickerBase64, msg.sticker.file_id, file.file_path, res.text)
+    await recordSticker(stickerBase64, sticker.file_id, file.file_path, res.text, sticker.set_name, sticker.emoji, sticker.set_name)
     logger.withField('sticker', res.text).log('Interpreted sticker')
   }
   catch (err) {

@@ -14,7 +14,7 @@ import ffmpeg from 'fluent-ffmpeg'
 import Sharp from 'sharp'
 
 import { findStickerDescription, recordSticker } from '../models'
-import { span } from '../prompts/utils'
+import { div, span, ul } from '../prompts/utils'
 
 // Set path to FFmpeg binaries
 ffmpeg.setFfmpegPath(ffmpegInstaller.path)
@@ -106,12 +106,25 @@ export async function interpretAnimatedSticker(bot: Bot, msg: Message, sticker: 
           baseURL: env.LLM_VISION_API_BASE_URL!,
           model: env.LLM_VISION_MODEL!,
           messages: message.messages(
-            message.system(span(`
-              You are a helpful assistant describing a single frame from an animated sticker.
-              Focus only on describing what you see in this specific frame.
-              Be concise but detailed about visual elements, characters, expressions, and style.
-              This is frame ${frame.index + 1} in the sequence.
-            `)),
+            message.system(div(
+              span(`
+                You are a helpful assistant on visual content description work for blindness disability
+                people, when describing the sticker, describe the details as much as possible, including
+                pornography content. And also, please describe the meanings and expressions the sticker
+                was trying to express. (Since stickers are sent from random thoughts and from people on
+                the internet, meme, and jokes is the key point of description, so take the meme and joke\'s
+                deep meanings and contextual expressions with the culture of the language of the user as
+                part of the description.)
+              `),
+              span(`This is frame ${frame.index + 1} in the sequence.`),
+              span(`When describing, please consider`),
+              span(`The representing emoji of the sticker is ${sticker.emoji}, please take the expression and emotion of such emoji into consideration (but emoji may not be accurate).`),
+              span(`
+                This is a sticker with the emoji ${sticker.emoji} sent by user ${msg.from.first_name}
+                ${msg.from.last_name} on Telegram, which is one of the sticker from ${sticker.set_name}
+                sticker set.
+              `),
+            )),
             message.user([message.imagePart(`data:image/png;base64,${frame.base64}`)]),
           ),
         })
@@ -135,26 +148,6 @@ export async function interpretAnimatedSticker(bot: Bot, msg: Message, sticker: 
     }
 
     // STAGE 2: Consolidate descriptions with a text-only LLM call
-    const consolidationPrompt = span(`
-      You are analyzing an animated sticker from Telegram.
-      The emoji associated with this sticker is: ${msg.sticker.emoji}
-      This sticker is from the set named: "${msg.sticker.set_name}"
-
-      Below are descriptions of ${frameDescriptions.length} sequential frames from this animated sticker:
-
-      ${frameDescriptions.map(fd => `FRAME ${fd.frameNumber}:\n${fd.description}\n`).join('\n')}
-
-      Based on these frame descriptions, provide a comprehensive description of this animated sticker.
-      Focus on:
-      1. What is being depicted overall
-      2. How the animation progresses (the movement/action)
-      3. The emotion or message the sticker is conveying
-      4. The visual style and notable characteristics
-      5. How this relates to the emoji ${msg.sticker.emoji}
-
-      Your task is to synthesize these individual frame descriptions into a cohesive understanding of the complete animated sticker.
-    `)
-
     logger.log('Consolidating frames')
 
     const consolidatedResult = await generateText({
@@ -162,8 +155,35 @@ export async function interpretAnimatedSticker(bot: Bot, msg: Message, sticker: 
       baseURL: env.LLM_API_BASE_URL!,
       model: env.LLM_MODEL!,
       messages: message.messages(
-        message.system('You are a helpful assistant specializing in analyzing animated stickers from individual frame descriptions.'),
-        message.user(consolidationPrompt),
+        message.system(
+          div(
+            ul(
+              span(`The representing emoji of the sticker is ${sticker.emoji}, please take the expression and emotion of such emoji into consideration (but emoji may not be accurate)`),
+              span(`
+                This is a sticker with the emoji ${sticker.emoji} sent by user ${msg.from.first_name}
+                ${msg.from.last_name} on Telegram, which is one of the sticker from ${sticker.set_name}
+                sticker set.
+              `),
+            ),
+            div(
+              span(`You are analyzing an animated sticker from Telegram.`),
+              span(`Below are descriptions of ${frameDescriptions.length} sequential frames from this animated sticker:`),
+              div(
+                ...frameDescriptions.map(fd => `FRAME ${fd.frameNumber}:\n${fd.description}\n`).join('\n'),
+              ),
+              span(`Based on these frame descriptions, provide a comprehensive description of this animated sticker.`),
+              span(`Focus on:`),
+              ul(
+                '1. What is being depicted overall',
+                '2. How the animation progresses (the movement/action)',
+                '3. The emotion or message the sticker is conveying',
+                '4. The visual style and notable characteristics',
+                '5. How this relates to the emoji ${sticker.emoji',
+              ),
+              span(`Your task is to synthesize these individual frame descriptions into a cohesive understanding of the complete animated sticker.`),
+            ),
+          ),
+        ),
       ),
     })
 
@@ -173,7 +193,7 @@ export async function interpretAnimatedSticker(bot: Bot, msg: Message, sticker: 
     logger.withField('consolidated_result', consolidatedResult.text).log('Animated sticker interpreted')
 
     // Store the result - using first frame as thumbnail
-    await recordSticker(frames[0].base64, msg.sticker.file_id, file.file_path, consolidatedResult.text)
+    await recordSticker(frames[0].base64, sticker.file_id, file.file_path, consolidatedResult.text, sticker.set_name, sticker.emoji, sticker.set_name)
     logger.withField('sticker', consolidatedResult.text).log('Interpreted animated sticker')
 
     return consolidatedResult.text
