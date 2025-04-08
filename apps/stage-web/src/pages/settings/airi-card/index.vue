@@ -251,7 +251,7 @@ function getModuleShortName(id: string, module: 'consciousness' | 'voice') {
           class="bg-primary-100/80 border-primary-400 dark:bg-primary-900/80 dark:border-primary-600 absolute inset-0 flex items-center justify-center border-2 rounded-xl"
         >
           <div class="text-center">
-            <div i-solar:upload-minimalistic-bold class="dark:text-primary-400 text-primary-500 mb-2 text-5xl" />
+            <div i-solar:upload-minimalistic-bold class="text-primary-500 dark:text-primary-400 mb-2 text-5xl" />
             <p font-medium text="primary-600 dark:primary-300">
               {{ t('settings.pages.card.drop_here') }}
             </p>
@@ -323,10 +323,11 @@ function getModuleShortName(id: string, module: 'consciousness' | 'voice') {
   <div
     v-motion
     text="neutral-200/50 dark:neutral-600/20" pointer-events-none
-    fixed top="[72dvh]" right--15 z--1
+    fixed top="[calc(100dvh-15rem)]" bottom-0 right--5 z--1
     :initial="{ scale: 0.9, opacity: 0, x: 20 }"
     :enter="{ scale: 1, opacity: 1, x: 0 }"
-    :duration="250"
+    :duration="500"
+    size-60
   >
     <div text="60" i-lucide:id-card />
   </div>

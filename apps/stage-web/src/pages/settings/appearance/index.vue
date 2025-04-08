@@ -279,10 +279,11 @@ watch(() => [settings.usePageSpecificTransitions, settings.disableTransitions], 
   <div
     v-motion
     text="neutral-200/50 dark:neutral-600/20" pointer-events-none
-    fixed top="[65dvh]" right--15 z--1
+    fixed top="[calc(100dvh-15rem)]" bottom-0 right--5 z--1
     :initial="{ scale: 0.9, opacity: 0, rotate: 30 }"
     :enter="{ scale: 1, opacity: 1, rotate: 0 }"
-    :duration="250"
+    :duration="500"
+    size-60
   >
     <div text="60" i-lucide:paintbrush />
   </div>

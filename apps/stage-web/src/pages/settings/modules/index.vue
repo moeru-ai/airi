@@ -163,12 +163,14 @@ const {
     position="calc(100dvw - 9.5rem), calc(100dvh - 9.5rem)"
   />
   <div
+    v-else
     v-motion
     text="neutral-200/50 dark:neutral-600/20" pointer-events-none
-    fixed top="[72dvh]" right--15 z--1
-    :initial="{ scale: 0.9, opacity: 0, y: 0 }"
-    :enter="{ scale: 1, opacity: 1, y: 10 }"
-    :duration="250"
+    fixed top="[calc(100dvh-15rem)]" bottom-0 right--5 z--1
+    :initial="{ scale: 0.9, opacity: 0, y: 20 }"
+    :enter="{ scale: 1, opacity: 1, y: 0 }"
+    :duration="500"
+    size-60
   >
     <div text="60" i-lucide:blocks />
   </div>

@@ -133,16 +133,6 @@ const settings = computed(() => [
         @click="(e: MouseEvent) => handleIconItemClick(e, setting)"
       />
     </div>
-    <div
-      v-motion
-      text="neutral-200/50 dark:neutral-600/20" pointer-events-none
-      fixed top="[75dvh]" right--15 z--1
-      :initial="{ scale: 0.9, opacity: 0, rotate: 45 }"
-      :enter="{ scale: 1, opacity: 1, rotate: 0 }"
-      :duration="500"
-    >
-      <div v-motion text="60" i-lucide:cog />
-    </div>
     <IconAnimation
       v-if="showAnimationComponent && !settingsStore.disableTransitions && settingsStore.usePageSpecificTransitions"
       ref="iconAnimation"
@@ -154,6 +144,18 @@ const settings = computed(() => [
       :started="iconAnimationStarted"
       @animation-ended.once="handleAnimationEnded"
     />
+    <div
+      v-else
+      v-motion
+      text="neutral-200/50 dark:neutral-600/20" pointer-events-none
+      fixed top="[calc(100dvh-12rem)]" bottom-0 right--10 z--1
+      :initial="{ scale: 0.9, opacity: 0, rotate: 45 }"
+      :enter="{ scale: 1, opacity: 1, rotate: 0 }"
+      :duration="500"
+      size-60
+    >
+      <div v-motion text="60" i-lucide:cog />
+    </div>
   </div>
 </template>
 
