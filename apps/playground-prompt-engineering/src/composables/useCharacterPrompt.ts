@@ -1,3 +1,4 @@
+import { defineStore } from 'pinia'
 import { computed, reactive, ref } from 'vue'
 
 export interface CoreIdentity {
@@ -53,7 +54,7 @@ function isValidExampleContext(context: string): context is keyof Examples {
   return ['casual', 'tech', 'philosophical', 'anime'].includes(context)
 }
 
-export function useCharacterPrompt() {
+export const useCharacterPromptStore = defineStore('characterPrompt', () => {
   // Core identity
   const coreIdentity = reactive<CoreIdentity>({
     name: 'ReLU (热卤)',
@@ -367,4 +368,4 @@ export function useCharacterPrompt() {
     completePrompt,
     modules,
   }
-}
+})

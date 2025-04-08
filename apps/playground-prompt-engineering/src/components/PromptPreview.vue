@@ -1,9 +1,11 @@
 <script setup lang="ts">
+import { storeToRefs } from 'pinia'
 import { computed, ref, watch } from 'vue'
 
-import { useCharacterPrompt } from '../composables/useCharacterPrompt'
+import { useCharacterPromptStore } from '../composables/useCharacterPrompt'
 
-const characterPrompt = useCharacterPrompt()
+const characterPrompt = useCharacterPromptStore()
+const { modules, completePrompt, includeExample } = storeToRefs(characterPrompt)
 
 type ModuleId = 'core-identity' | 'personality' | 'speech' | 'emotion' | 'context' | 'example' | 'format' | 'complete'
 
@@ -30,48 +32,48 @@ const moduleList = computed(() => {
     {
       id: 'core-identity' as ModuleId,
       title: 'Core Identity',
-      content: characterPrompt.modules.value.coreIdentity || '',
+      content: modules.value.coreIdentity || '',
     },
     {
       id: 'personality' as ModuleId,
       title: 'Personality',
-      content: characterPrompt.modules.value.personality || '',
+      content: modules.value.personality || '',
     },
     {
       id: 'speech' as ModuleId,
       title: 'Speech Patterns',
-      content: characterPrompt.modules.value.speechPatterns || '',
+      content: modules.value.speechPatterns || '',
     },
     {
       id: 'emotion' as ModuleId,
       title: 'Emotional State',
-      content: characterPrompt.modules.value.emotionalState || '',
+      content: modules.value.emotionalState || '',
     },
     {
       id: 'context' as ModuleId,
       title: 'Conversation Context',
-      content: characterPrompt.modules.value.context || '',
+      content: modules.value.context || '',
     },
     {
       id: 'example' as ModuleId,
       title: 'Example',
-      content: characterPrompt.modules.value.example || '',
+      content: modules.value.example || '',
     },
     {
       id: 'format' as ModuleId,
       title: 'Response Format',
-      content: characterPrompt.modules.value.responseFormat || '',
+      content: modules.value.responseFormat || '',
     },
     {
       id: 'complete' as ModuleId,
       title: 'Complete Prompt',
-      content: characterPrompt.completePrompt.value || '',
+      content: completePrompt.value || '',
     },
   ]
 })
 
 // Watch for includeExample changes to hide/show example module
-watch(() => characterPrompt.includeExample.value, (newValue) => {
+watch(() => includeExample.value, (newValue) => {
   // If includeExample is false, hide the example module
   if (!newValue) {
     moduleVisibility.value.example = false
@@ -89,7 +91,7 @@ function estimateTokens(text: string) {
     <div class="panel-header bg-primary flex items-center justify-between rounded-t-lg p-3 text-sm text-white font-semibold">
       Prompt Preview
       <span class="text-xs">
-        Total Tokens: <span class="rounded bg-white/20 px-1.5 py-0.5 font-semibold">{{ estimateTokens(characterPrompt.completePrompt.value || '') }}</span>
+        Total Tokens: <span class="rounded bg-white/20 px-1.5 py-0.5 font-semibold">{{ estimateTokens(completePrompt || '') }}</span>
       </span>
     </div>
 

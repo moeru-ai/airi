@@ -1,11 +1,16 @@
 <script setup lang="ts">
+import { storeToRefs } from 'pinia'
 import { inject, nextTick, onMounted, ref, watch } from 'vue'
 
-import { useCharacterPrompt } from '../composables/useCharacterPrompt'
-import { useChatSimulator } from '../composables/useChatSimulator'
+import { useCharacterPromptStore } from '../composables/useCharacterPrompt'
+import { useChatSimulatorStore } from '../composables/useChatSimulator'
 
-const characterPrompt = useCharacterPrompt()
-const chatSimulator = useChatSimulator()
+const characterPrompt = useCharacterPromptStore()
+const chatSimulator = useChatSimulatorStore()
+
+// Use storeToRefs for reactive store properties
+const { currentContext, currentEmotion, completePrompt, coreIdentity, speechPatterns } = storeToRefs(characterPrompt)
+const { messages } = storeToRefs(chatSimulator)
 
 const activeTab = ref('chat')
 const userInput = ref('')
@@ -36,8 +41,8 @@ async function sendMessage() {
   setTimeout(() => {
     const responses = chatSimulator.simulateResponse(
       userMessage,
-      characterPrompt.currentContext.value,
-      characterPrompt.currentEmotion.value,
+      currentContext.value,
+      currentEmotion.value,
     )
 
     // Add main response
@@ -73,7 +78,7 @@ const showNotification = inject<(duration?: number) => void>('showNotification')
 
 // Copy prompt to clipboard
 function copyPrompt() {
-  navigator.clipboard.writeText(characterPrompt.completePrompt.value || '')
+  navigator.clipboard.writeText(completePrompt.value || '')
     .then(() => {
       if (showNotification) {
         showNotification()
@@ -139,9 +144,9 @@ function addComponent(name: string) {
   const component = personalityComponents[name]
   if (component) {
     characterPrompt.updateCoreIdentity(
-      characterPrompt.coreIdentity.name,
-      characterPrompt.coreIdentity.age,
-      `${characterPrompt.coreIdentity.essence} ${component.content}`,
+      coreIdentity.value.name,
+      coreIdentity.value.age,
+      `${coreIdentity.value.essence} ${component.content}`,
     )
   }
 }
@@ -151,13 +156,13 @@ function addSpeechComponent(name: string) {
   const component = speechComponents[name]
   if (component) {
     characterPrompt.updateSpeechPatterns(
-      `${characterPrompt.speechPatterns.value} ${component.content}`,
+      `${speechPatterns.value} ${component.content}`,
     )
   }
 }
 
 // Watch messages and scroll to bottom when new messages are added
-watch(() => chatSimulator.messages.value.length, () => {
+watch(() => messages.value.length, () => {
   nextTick().then(scrollToBottom)
 })
 </script>
@@ -213,7 +218,7 @@ watch(() => chatSimulator.messages.value.length, () => {
             class="chat-messages mb-4 max-h-60 min-h-[300px] flex flex-1 flex-col gap-3 overflow-y-auto pr-2"
           >
             <div
-              v-for="(message, index) in chatSimulator.messages.value"
+              v-for="(message, index) in chatSimulator.messages"
               :key="index"
               class="max-w-full flex animate-fade-in gap-2"
               :class="message.isUser ? 'justify-end' : ''"

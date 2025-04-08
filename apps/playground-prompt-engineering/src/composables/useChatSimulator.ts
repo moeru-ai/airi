@@ -1,3 +1,4 @@
+import { defineStore } from 'pinia'
 import { ref } from 'vue'
 
 export interface ChatMessage {
@@ -17,7 +18,7 @@ function isValidContext(context: string): boolean {
   return ['casual', 'tech', 'philosophical', 'anime', 'custom'].includes(context)
 }
 
-export function useChatSimulator() {
+export const useChatSimulatorStore = defineStore('chatSimulator', () => {
   const messages = ref<ChatMessage[]>([])
 
   // Add a message to the chat
@@ -177,4 +178,4 @@ export function useChatSimulator() {
     simulateResponse,
     initializeChat,
   }
-}
+})

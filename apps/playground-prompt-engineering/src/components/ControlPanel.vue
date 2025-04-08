@@ -1,59 +1,61 @@
 <script setup lang="ts">
+import { storeToRefs } from 'pinia'
 import { ref } from 'vue'
 
-import { useCharacterPrompt } from '../composables/useCharacterPrompt'
+import { useCharacterPromptStore } from '../composables/useCharacterPrompt'
 
-const characterPrompt = useCharacterPrompt()
+const characterPrompt = useCharacterPromptStore()
+const { currentEmotion, currentContext, emotions, contexts, examples } = storeToRefs(characterPrompt)
 const activeTemplate = ref('default')
 
 // Helper function that safely gets emotion description
 function getEmotionDescription() {
-  const emotion = characterPrompt.currentEmotion.value
+  const emotion = currentEmotion.value
   if (['happy', 'curious', 'thoughtful', 'playful', 'annoyed', 'excited'].includes(emotion)) {
-    return characterPrompt.emotions[emotion as keyof typeof characterPrompt.emotions]
+    return emotions.value[emotion as keyof typeof emotions.value]
   }
   return ''
 }
 
 // Helper function that safely gets context description
 function getContextDescription() {
-  const context = characterPrompt.currentContext.value
+  const context = currentContext.value
   if (['casual', 'tech', 'philosophical', 'anime', 'custom'].includes(context)) {
-    return characterPrompt.contexts[context as keyof typeof characterPrompt.contexts]
+    return contexts.value[context as keyof typeof contexts.value]
   }
   return ''
 }
 
 // Helper function that safely gets example description
 function getExampleDescription() {
-  const context = characterPrompt.currentContext.value
+  const context = currentContext.value
   if (['casual', 'tech', 'philosophical', 'anime'].includes(context)) {
-    return characterPrompt.examples[context as keyof typeof characterPrompt.examples]
+    return examples.value[context as keyof typeof examples.value]
   }
   return ''
 }
 
 // Update emotion description
 function updateEmotionDescription(value: string) {
-  const emotion = characterPrompt.currentEmotion.value
+  const emotion = currentEmotion.value
   if (['happy', 'curious', 'thoughtful', 'playful', 'annoyed', 'excited'].includes(emotion)) {
-    characterPrompt.emotions[emotion as keyof typeof characterPrompt.emotions] = value
+    emotions.value[emotion as keyof typeof emotions.value] = value
   }
 }
 
 // Update context description
 function updateContextDescription(value: string) {
-  const context = characterPrompt.currentContext.value
+  const context = currentContext.value
   if (['casual', 'tech', 'philosophical', 'anime', 'custom'].includes(context)) {
-    characterPrompt.contexts[context as keyof typeof characterPrompt.contexts] = value
+    contexts.value[context as keyof typeof contexts.value] = value
   }
 }
 
 // Update example description
 function updateExampleDescription(value: string) {
-  const context = characterPrompt.currentContext.value
+  const context = currentContext.value
   if (['casual', 'tech', 'philosophical', 'anime'].includes(context)) {
-    characterPrompt.examples[context as keyof typeof characterPrompt.examples] = value
+    examples.value[context as keyof typeof examples.value] = value
   }
 }
 

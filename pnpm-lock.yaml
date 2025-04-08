@@ -141,6 +141,9 @@ importers:
       '@velin-dev/ml':
         specifier: ^1.2.0
         version: 1.2.0(typescript@5.8.3)
+      pinia:
+        specifier: ^3.0.1
+        version: 3.0.1(typescript@5.8.3)(vue@3.5.13(typescript@5.8.3))
       vue:
         specifier: ^3.4.0
         version: 3.5.13(typescript@5.8.3)
