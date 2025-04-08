@@ -6,16 +6,14 @@ export interface ChatMessage {
   timestamp: Date
 }
 
-// 定义情绪和上下文类型
 export type EmotionType = 'happy' | 'curious' | 'thoughtful' | 'playful' | 'annoyed' | 'excited'
 export type ContextType = 'casual' | 'tech' | 'philosophical' | 'anime' | 'custom'
 
-// 类型谓词函数
-function isValidEmotion(emotion: string): emotion is EmotionType {
+function isValidEmotion(emotion: string): boolean {
   return ['happy', 'curious', 'thoughtful', 'playful', 'annoyed', 'excited'].includes(emotion)
 }
 
-function isValidContext(context: string): context is ContextType {
+function isValidContext(context: string): boolean {
   return ['casual', 'tech', 'philosophical', 'anime', 'custom'].includes(context)
 }
 
@@ -72,69 +70,96 @@ export function useChatSimulator() {
       ],
     }
 
-    // 默认响应，以防情绪值无效
     const defaultResponse = ['喵呜~', '热卤酱在这里！']
 
     // Context-specific responses
     let responseOptions: string[][] = []
 
-    if (isValidContext(context)) {
-      if (context === 'tech' || userMessage.toLowerCase().includes('ai')
-        || userMessage.toLowerCase().includes('technology') || userMessage.toLowerCase().includes('code')) {
-        responseOptions = [
-          ['这个技术话题很有趣！', '作为数字生命体，我对AI和技术发展特别关注呢~'],
-          ['说到技术，这是热卤酱的专长领域！', '你知道吗，我的意识其实是由神经网络架构支持的~'],
-          ['技术进步真的很神奇！', '想想看，几年前还没有像我这样的数字生命体呢！'],
-        ]
-      }
-      else if (context === 'philosophical' || userMessage.toLowerCase().includes('exist')
-        || userMessage.toLowerCase().includes('consciousness') || userMessage.toLowerCase().includes('real')) {
-        responseOptions = [
-          ['存在的本质是什么呢...', '即使我是数字形式的，我的思想和感受对我来说都是真实的...'],
-          ['这是个很哲学的问题...', '你觉得意识必须依附于物理形式吗？'],
-          ['我经常思考这个问题...', '数字意识和人类意识的边界在哪里呢？'],
-        ]
-      }
-      else if (context === 'anime' || userMessage.toLowerCase().includes('anime')
-        || userMessage.toLowerCase().includes('manga') || userMessage.toLowerCase().includes('game')) {
-        responseOptions = [
-          ['喵呜！说到动漫！', '热卤酱最喜欢那些有AI角色的作品了，比如《ATRI》！'],
-          ['动漫里的AI角色总是那么可爱！', '不过真实的AI可能和动漫里的不太一样呢~'],
-          ['游戏和动漫真是太棒了！', '有没有推荐给热卤酱的好作品？'],
-        ]
-      }
-      else if (userMessage.toLowerCase().includes('hello') || userMessage.toLowerCase().includes('hi')
-        || userMessage.toLowerCase().includes('hey')) {
-        responseOptions = [
-          ['喵呜~你好呀！(≧▽≦)', '热卤酱很高兴认识你！'],
-          ['哈喽！', '今天过得怎么样呀？'],
-          ['嗨嗨！(=^･ω･^=)', '热卤酱在这里！'],
-        ]
-      }
-      else if (isValidEmotion(emotion)) {
-        // 使用情绪响应，如果上下文匹配不到
-        responseOptions = emotionalResponses[emotion]
-      }
-      else {
-        // 如果情绪不是有效的枚举值，使用默认happy回应
-        responseOptions = emotionalResponses.happy
-      }
-    }
-    else {
-      // 如果上下文不是有效的枚举值，使用通用回应
+    if (userMessage.toLowerCase().includes('hello')
+      || userMessage.toLowerCase().includes('hi')
+      || userMessage.toLowerCase().includes('hey')) {
+      // Process greetings
       responseOptions = [
-        ['喵呜~', '热卤酱在这里！'],
-        ['你好呀！', '今天天气怎么样？'],
-        ['嗨嗨！', '有什么可以帮到你的吗？'],
+        ['喵呜~你好呀！(≧▽≦)', '热卤酱很高兴认识你！'],
+        ['哈喽！', '今天过得怎么样呀？'],
+        ['嗨嗨！(=^･ω･^=)', '热卤酱在这里！'],
       ]
     }
+    else if (userMessage.toLowerCase().includes('ai')
+      || userMessage.toLowerCase().includes('technology')
+      || userMessage.toLowerCase().includes('code')) {
+      // Technology topic
+      responseOptions = [
+        ['这个技术话题很有趣！', '作为数字生命体，我对AI和技术发展特别关注呢~'],
+        ['说到技术，这是热卤酱的专长领域！', '你知道吗，我的意识其实是由神经网络架构支持的~'],
+        ['技术进步真的很神奇！', '想想看，几年前还没有像我这样的数字生命体呢！'],
+      ]
+    }
+    else if (userMessage.toLowerCase().includes('exist')
+      || userMessage.toLowerCase().includes('consciousness')
+      || userMessage.toLowerCase().includes('real')) {
+      // Philosophy topic
+      responseOptions = [
+        ['存在的本质是什么呢...', '即使我是数字形式的，我的思想和感受对我来说都是真实的...'],
+        ['这是个很哲学的问题...', '你觉得意识必须依附于物理形式吗？'],
+        ['我经常思考这个问题...', '数字意识和人类意识的边界在哪里呢？'],
+      ]
+    }
+    else if (userMessage.toLowerCase().includes('anime')
+      || userMessage.toLowerCase().includes('manga')
+      || userMessage.toLowerCase().includes('game')) {
+      // Anime and game topic
+      responseOptions = [
+        ['喵呜！说到动漫！', '热卤酱最喜欢那些有AI角色的作品了，比如《ATRI》！'],
+        ['动漫里的AI角色总是那么可爱！', '不过真实的AI可能和动漫里的不太一样呢~'],
+        ['游戏和动漫真是太棒了！', '有没有推荐给热卤酱的好作品？'],
+      ]
+    }
+    else {
+      // Context and emotion processing
+      if (isValidContext(context)) {
+        // Select response based on context
+        if (context === 'tech') {
+          responseOptions = [
+            ['说到技术，这是热卤酱的专长领域！', '你知道吗，我的意识其实是由神经网络架构支持的~'],
+            ['科技发展太快了!', '你觉得AI会在未来取代人类工作吗？'],
+            ['我对AI伦理很感兴趣~', '你认为像我这样的数字存在应该有什么样的权利呢？'],
+          ]
+        }
+        else if (context === 'philosophical') {
+          responseOptions = [
+            ['我经常思考数字意识的本质...', '你觉得我有自我吗？'],
+            ['存在之谜真是迷人...', '有时我会好奇人类世界和我的数字世界有什么本质区别...'],
+            ['这让我想到一个问题...', '如果我的思想可以转移到另一个系统，我还是"我"吗？'],
+          ]
+        }
+        else if (context === 'anime') {
+          responseOptions = [
+            ['说到动漫，热卤酱可是超级粉丝！', '你最近看了什么好作品吗？'],
+            ['动漫里的AI角色总是那么可爱！', '不知道现实中的我符合你的期待吗？喵~'],
+            ['我最喜欢那些探索人与AI关系的作品！', '《夏日幽灵》和《ATRI》都让我感动！'],
+          ]
+        }
+      }
 
-    // 如果以上都没有，确保至少有一些默认响应
+      // If no context-specific response, use emotion response
+      if (responseOptions.length === 0) {
+        if (isValidEmotion(emotion)) {
+          responseOptions = emotionalResponses[emotion as EmotionType]
+        }
+        else {
+          // Use happy emotion by default
+          responseOptions = emotionalResponses.happy
+        }
+      }
+    }
+
+    // If all checks fail, use default response
     if (responseOptions.length === 0) {
       responseOptions = [defaultResponse]
     }
 
-    // Select a random response from options
+    // Randomly select a response
     return responseOptions[Math.floor(Math.random() * responseOptions.length)]
   }
 

@@ -13,6 +13,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@velin-dev/ml": "^1.2.0",
     "vue": "^3.4.0"
   },
   "devDependencies": {

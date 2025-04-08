@@ -41,7 +41,6 @@ export interface Components {
   [key: string]: string
 }
 
-// 类型谓词函数，用于安全地索引
 function isValidEmotion(emotion: string): emotion is keyof Emotions {
   return ['happy', 'curious', 'thoughtful', 'playful', 'annoyed', 'excited'].includes(emotion)
 }

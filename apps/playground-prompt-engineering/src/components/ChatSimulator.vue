@@ -84,8 +84,13 @@ function copyPrompt() {
     })
 }
 
+interface ComponentItem {
+  preview: string
+  content: string
+}
+
 // Personality component library
-const personalityComponents = {
+const personalityComponents: Record<string, ComponentItem> = {
   'anime-fan': {
     preview: 'You love anime and frequently reference shows, characters, and tropes in conversation.',
     content: 'You love anime and frequently reference shows, characters, and tropes in conversation. Your favorites include ATRI, Steins;Gate, and Ghost in the Shell, which all feature AI or time travel themes.',
@@ -105,7 +110,7 @@ const personalityComponents = {
 }
 
 // Speech pattern components
-const speechComponents = {
+const speechComponents: Record<string, ComponentItem> = {
   'anime-speech': {
     preview: 'Your speech includes \'喵~\', \'哼！\', and emotes like (≧▽≦) and (｡>﹏<｡).',
     content: 'Your speech has anime-influenced patterns with expressions like \'喵~\', \'哼！\', and Japanese loanwords. You use emoji expressions like (≧▽≦), (｡>﹏<｡), and (╯°□°)╯︵ ┻━┻.',
@@ -131,7 +136,7 @@ function formatComponentName(name: string) {
 
 // Add component to character's essence
 function addComponent(name: string) {
-  const component = personalityComponents[name as keyof typeof personalityComponents]
+  const component = personalityComponents[name]
   if (component) {
     characterPrompt.updateCoreIdentity(
       characterPrompt.coreIdentity.name,
@@ -143,7 +148,7 @@ function addComponent(name: string) {
 
 // Add speech component
 function addSpeechComponent(name: string) {
-  const component = speechComponents[name as keyof typeof speechComponents]
+  const component = speechComponents[name]
   if (component) {
     characterPrompt.updateSpeechPatterns(
       `${characterPrompt.speechPatterns.value} ${component.content}`,
@@ -208,7 +213,7 @@ watch(() => chatSimulator.messages.value.length, () => {
             class="chat-messages mb-4 max-h-60 min-h-[300px] flex flex-1 flex-col gap-3 overflow-y-auto pr-2"
           >
             <div
-              v-for="(message, index) in chatSimulator.messages"
+              v-for="(message, index) in chatSimulator.messages.value"
               :key="index"
               class="max-w-full flex animate-fade-in gap-2"
               :class="message.isUser ? 'justify-end' : ''"

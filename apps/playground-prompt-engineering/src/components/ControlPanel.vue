@@ -6,6 +6,57 @@ import { useCharacterPrompt } from '../composables/useCharacterPrompt'
 const characterPrompt = useCharacterPrompt()
 const activeTemplate = ref('default')
 
+// Helper function that safely gets emotion description
+function getEmotionDescription() {
+  const emotion = characterPrompt.currentEmotion.value
+  if (['happy', 'curious', 'thoughtful', 'playful', 'annoyed', 'excited'].includes(emotion)) {
+    return characterPrompt.emotions[emotion as keyof typeof characterPrompt.emotions]
+  }
+  return ''
+}
+
+// Helper function that safely gets context description
+function getContextDescription() {
+  const context = characterPrompt.currentContext.value
+  if (['casual', 'tech', 'philosophical', 'anime', 'custom'].includes(context)) {
+    return characterPrompt.contexts[context as keyof typeof characterPrompt.contexts]
+  }
+  return ''
+}
+
+// Helper function that safely gets example description
+function getExampleDescription() {
+  const context = characterPrompt.currentContext.value
+  if (['casual', 'tech', 'philosophical', 'anime'].includes(context)) {
+    return characterPrompt.examples[context as keyof typeof characterPrompt.examples]
+  }
+  return ''
+}
+
+// Update emotion description
+function updateEmotionDescription(value: string) {
+  const emotion = characterPrompt.currentEmotion.value
+  if (['happy', 'curious', 'thoughtful', 'playful', 'annoyed', 'excited'].includes(emotion)) {
+    characterPrompt.emotions[emotion as keyof typeof characterPrompt.emotions] = value
+  }
+}
+
+// Update context description
+function updateContextDescription(value: string) {
+  const context = characterPrompt.currentContext.value
+  if (['casual', 'tech', 'philosophical', 'anime', 'custom'].includes(context)) {
+    characterPrompt.contexts[context as keyof typeof characterPrompt.contexts] = value
+  }
+}
+
+// Update example description
+function updateExampleDescription(value: string) {
+  const context = characterPrompt.currentContext.value
+  if (['casual', 'tech', 'philosophical', 'anime'].includes(context)) {
+    characterPrompt.examples[context as keyof typeof characterPrompt.examples] = value
+  }
+}
+
 function estimateTokens(text: string) {
   return characterPrompt.estimateTokens(text || '')
 }
@@ -182,13 +233,16 @@ function applyTemplate(template: string) {
           <label for="emotion-description" class="flex justify-between text-sm text-dark">
             <span>Emotion Description</span>
             <span class="text-xs text-gray">
-              Tokens: <span class="rounded bg-gray-100 px-1.5 py-0.5 font-semibold">{{ estimateTokens(characterPrompt.emotions[characterPrompt.currentEmotion]) }}</span>
+              Tokens: <span class="rounded bg-gray-100 px-1.5 py-0.5 font-semibold">
+                {{ estimateTokens(getEmotionDescription()) }}
+              </span>
             </span>
           </label>
           <textarea
             id="emotion-description"
-            v-model="characterPrompt.emotions[characterPrompt.currentEmotion]"
+            :value="getEmotionDescription()"
             class="min-h-16 resize-y border border-gray-200 rounded-md p-2 text-sm font-sans"
+            @input="e => updateEmotionDescription((e.target as HTMLTextAreaElement).value)"
           />
         </div>
       </div>
@@ -228,13 +282,16 @@ function applyTemplate(template: string) {
           <label for="context-description" class="flex justify-between text-sm text-dark">
             <span>Context Description</span>
             <span class="text-xs text-gray">
-              Tokens: <span class="rounded bg-gray-100 px-1.5 py-0.5 font-semibold">{{ estimateTokens(characterPrompt.contexts[characterPrompt.currentContext]) }}</span>
+              Tokens: <span class="rounded bg-gray-100 px-1.5 py-0.5 font-semibold">
+                {{ estimateTokens(getContextDescription()) }}
+              </span>
             </span>
           </label>
           <textarea
             id="context-description"
-            v-model="characterPrompt.contexts[characterPrompt.currentContext]"
+            :value="getContextDescription()"
             class="min-h-16 resize-y border border-gray-200 rounded-md p-2 text-sm font-sans"
+            @input="e => updateContextDescription((e.target as HTMLTextAreaElement).value)"
           />
         </div>
       </div>
@@ -279,13 +336,16 @@ function applyTemplate(template: string) {
           <label for="example-response" class="flex justify-between text-sm text-dark">
             <span>Example</span>
             <span class="text-xs text-gray">
-              Tokens: <span class="rounded bg-gray-100 px-1.5 py-0.5 font-semibold">{{ estimateTokens(characterPrompt.examples[characterPrompt.currentContext]) }}</span>
+              Tokens: <span class="rounded bg-gray-100 px-1.5 py-0.5 font-semibold">
+                {{ estimateTokens(getExampleDescription()) }}
+              </span>
             </span>
           </label>
           <textarea
             id="example-response"
-            v-model="characterPrompt.examples[characterPrompt.currentContext]"
+            :value="getExampleDescription()"
             class="min-h-16 resize-y border border-gray-200 rounded-md p-2 text-sm font-sans"
+            @input="e => updateExampleDescription((e.target as HTMLTextAreaElement).value)"
           />
         </div>
       </div>

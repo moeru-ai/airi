@@ -5,8 +5,10 @@ import { useCharacterPrompt } from '../composables/useCharacterPrompt'
 
 const characterPrompt = useCharacterPrompt()
 
+type ModuleId = 'core-identity' | 'personality' | 'speech' | 'emotion' | 'context' | 'example' | 'format' | 'complete'
+
 // Track which modules are visible
-const moduleVisibility = ref({
+const moduleVisibility = ref<Record<ModuleId, boolean>>({
   'core-identity': true,
   'personality': false,
   'speech': false,
@@ -18,7 +20,7 @@ const moduleVisibility = ref({
 })
 
 // Toggle module visibility
-function toggleModule(moduleId: string) {
+function toggleModule(moduleId: ModuleId) {
   moduleVisibility.value[moduleId] = !moduleVisibility.value[moduleId]
 }
 
@@ -26,44 +28,44 @@ function toggleModule(moduleId: string) {
 const moduleList = computed(() => {
   return [
     {
-      id: 'core-identity',
+      id: 'core-identity' as ModuleId,
       title: 'Core Identity',
-      content: characterPrompt.modules.value.coreIdentity,
+      content: characterPrompt.modules.value.coreIdentity || '',
     },
     {
-      id: 'personality',
+      id: 'personality' as ModuleId,
       title: 'Personality',
-      content: characterPrompt.modules.value.personality,
+      content: characterPrompt.modules.value.personality || '',
     },
     {
-      id: 'speech',
+      id: 'speech' as ModuleId,
       title: 'Speech Patterns',
-      content: characterPrompt.modules.value.speechPatterns,
+      content: characterPrompt.modules.value.speechPatterns || '',
     },
     {
-      id: 'emotion',
+      id: 'emotion' as ModuleId,
       title: 'Emotional State',
-      content: characterPrompt.modules.value.emotionalState,
+      content: characterPrompt.modules.value.emotionalState || '',
     },
     {
-      id: 'context',
+      id: 'context' as ModuleId,
       title: 'Conversation Context',
-      content: characterPrompt.modules.value.context,
+      content: characterPrompt.modules.value.context || '',
     },
     {
-      id: 'example',
+      id: 'example' as ModuleId,
       title: 'Example',
-      content: characterPrompt.modules.value.example,
+      content: characterPrompt.modules.value.example || '',
     },
     {
-      id: 'format',
+      id: 'format' as ModuleId,
       title: 'Response Format',
-      content: characterPrompt.modules.value.responseFormat,
+      content: characterPrompt.modules.value.responseFormat || '',
     },
     {
-      id: 'complete',
+      id: 'complete' as ModuleId,
       title: 'Complete Prompt',
-      content: characterPrompt.completePrompt.value,
+      content: characterPrompt.completePrompt.value || '',
     },
   ]
 })
