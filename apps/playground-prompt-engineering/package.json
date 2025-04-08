@@ -24,6 +24,7 @@
     "typescript": "~5.8.3",
     "unocss": "^66.1.0-beta.10",
     "vite": "^6.2.5",
+    "vite-plugin-vue-devtools": "^7.7.2",
     "vue-tsc": "^2.0.0"
   }
 }
