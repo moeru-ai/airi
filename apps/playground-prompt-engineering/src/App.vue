@@ -1,0 +1,19 @@
+<script setup lang="ts">
+import ChatSimulator from './components/ChatSimulator.vue'
+import ControlPanel from './components/ControlPanel.vue'
+import HeaderComponent from './components/HeaderComponent.vue'
+import Notification from './components/Notification.vue'
+import PromptPreview from './components/PromptPreview.vue'
+</script>
+
+<template>
+  <div class="bg-bg min-h-screen text-dark">
+    <HeaderComponent />
+    <div class="grid grid-cols-1 mx-auto max-w-[1400px] gap-4 p-4 container lg:grid-cols-[350px_1fr_1fr] md:grid-cols-[300px_1fr]">
+      <ControlPanel />
+      <PromptPreview />
+      <ChatSimulator class="lg:col-span-1 md:col-span-2" />
+    </div>
+    <Notification />
+  </div>
+</template>

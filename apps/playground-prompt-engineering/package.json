@@ -1,0 +1,28 @@
+{
+  "name": "@proj-airi/playground-prompt-engineering",
+  "type": "module",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Prompt Engineering Playground for AI Characters",
+  "scripts": {
+    "dev": "vite",
+    "build": "vue-tsc && vite build",
+    "preview": "vite preview",
+    "typecheck": "vue-tsc --noEmit"
+  },
+  "dependencies": {
+    "@velin-dev/ml": "^1.2.0",
+    "pinia": "^3.0.1",
+    "vue": "^3.4.0"
+  },
+  "devDependencies": {
+    "@iconify/vue": "^4.1.1",
+    "@types/node": "^22.14.0",
+    "@vitejs/plugin-vue": "^5.0.0",
+    "typescript": "~5.8.3",
+    "unocss": "^66.1.0-beta.10",
+    "vite": "^6.2.5",
+    "vite-plugin-vue-devtools": "^7.7.2",
+    "vue-tsc": "^2.0.0"
+  }
+}
