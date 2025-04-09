@@ -27,6 +27,7 @@ function handleFileChange(e: Event) {
 
 <template>
   <label
+    relative
     class="min-h-[120px] flex flex-col cursor-pointer items-center justify-center rounded-xl p-6"
     :class="[
       isDraggingDebounced ? 'border-primary-400 dark:border-primary-600 hover:border-primary-300 dark:hover:border-primary-700' : 'border-neutral-200 dark:border-neutral-700 hover:border-primary-300 dark:hover:border-primary-700',
@@ -34,7 +35,7 @@ function handleFileChange(e: Event) {
     ]"
     border="dashed 2"
     transition="all duration-300"
-    opacity-95
+    cursor-pointer opacity-95
     hover="scale-100 opacity-100 shadow-md dark:shadow-lg"
     @dragover="isDragging = true"
     @dragleave="isDragging = false"
@@ -43,6 +44,7 @@ function handleFileChange(e: Event) {
       type="file"
       :accept="accept"
       :multiple="multiple"
+      cursor-pointer
       class="absolute inset-0 h-full w-full opacity-0"
       @change="handleFileChange"
     >
