@@ -34,7 +34,7 @@ function handleFileChange(e: Event) {
     ]"
     border="dashed 2"
     transition="all duration-300"
-    :style="{ transform: 'scale(0.98)', opacity: 0.95 }"
+    opacity-95
     hover="scale-100 opacity-100 shadow-md dark:shadow-lg"
     @dragover="isDragging = true"
     @dragleave="isDragging = false"
