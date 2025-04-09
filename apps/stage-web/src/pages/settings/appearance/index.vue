@@ -8,7 +8,6 @@ import { useRouter } from 'vue-router'
 
 import CheckBar from '../../../components/Settings/CheckBar.vue'
 import ColorPalette from '../../../components/Settings/ColorPalette.vue'
-import { useIconAnimation } from '../../../composables/useIconAnimation'
 import COLOR_PRESETS from './color-presets.json'
 
 const router = useRouter()
@@ -17,8 +16,6 @@ const dark = useDark()
 const { t } = useI18n()
 
 const usePageSpecificTransitionsSettingChanged = ref(false)
-
-const { iconAnimationStarted, showIconAnimation, animationIcon } = useIconAnimation('i-lucide:paintbrush')
 
 // avoid showing the animation component when the page specific transitions are enabled
 watch(() => [settings.usePageSpecificTransitions, settings.disableTransitions], () => {
@@ -265,25 +262,13 @@ watch(() => [settings.usePageSpecificTransitions, settings.disableTransitions], 
     />
   </Section>
 
-  <IconAnimation
-    v-if="showIconAnimation && !usePageSpecificTransitionsSettingChanged"
-    :z-index="-1"
-    :duration="1000"
-    :started="iconAnimationStarted"
-    :is-reverse="true"
-    :icon="animationIcon"
-    :icon-size="12"
-    position="calc(100dvw - 9.5rem), calc(100dvh - 9.5rem)"
-    text-color="text-neutral-200/50 dark:text-neutral-600/20"
-  />
   <div
     v-motion
     text="neutral-200/50 dark:neutral-600/20" pointer-events-none
-    fixed top="[calc(100dvh-15rem)]" bottom-0 right--5 z--1
+    fixed top="[65dvh]" right--15 z--1
     :initial="{ scale: 0.9, opacity: 0, rotate: 30 }"
     :enter="{ scale: 1, opacity: 1, rotate: 0 }"
-    :duration="500"
-    size-60
+    :duration="250"
   >
     <div text="60" i-lucide:paintbrush />
   </div>
@@ -304,13 +289,23 @@ watch(() => [settings.usePageSpecificTransitions, settings.disableTransitions], 
   );
 
   &::-webkit-slider-thumb {
-    --at-apply: appearance-none w-2 h-12 rounded-md bg-neutral-500/80 dark: bg-neutral-400/80 shadow-md border-2
-      border-white hover: bg-neutral-500 dark: hover: bg-neutral-400 transition-colors duration-200;
+    --at-apply: w-1 h-12 appearance-none rounded-md bg-neutral-600 cursor-pointer shadow-lg border-2 border-neutral-500
+      hover: bg-neutral-800 transition-colors duration-200;
+  }
+
+  .dark &::-webkit-slider-thumb {
+    --at-apply: w-1 h-12 appearance-none rounded-md bg-neutral-100 cursor-pointer shadow-md border-2 border-white
+      hover: bg-neutral-300 transition-colors duration-200;
   }
 
   &::-moz-range-thumb {
-    --at-apply: w-2 h-12 rounded-md bg-neutral-500/80 dark: bg-neutral-400/80 shadow-md border-2 border-white border-box
-      hover: bg-neutral-500 dark: hover: bg-neutral-400 transition-colors duration-200;
+    --at-apply: w-1 h-12 appearance-none rounded-md bg-neutral-600 cursor-pointer shadow-lg border-2 border-neutral-500
+      hover: bg-neutral-800 transition-colors duration-200;
+  }
+
+  .dark &::-moz-range-thumb {
+    --at-apply: w-1 h-12 appearance-none rounded-md bg-neutral-100 cursor-pointer shadow-md border-2 border-white
+      hover: bg-neutral-300 transition-colors duration-200;
   }
 }
 

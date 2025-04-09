@@ -289,13 +289,23 @@ watch(() => [settings.usePageSpecificTransitions, settings.disableTransitions], 
   );
 
   &::-webkit-slider-thumb {
-    --at-apply: appearance-none w-2 h-12 rounded-md bg-neutral-500/80 dark: bg-neutral-400/80 shadow-md border-2
-      border-white hover: bg-neutral-500 dark: hover: bg-neutral-400 transition-colors duration-200;
+    --at-apply: w-1 h-12 appearance-none rounded-md bg-neutral-600 cursor-pointer shadow-lg border-2 border-neutral-500
+      hover: bg-neutral-800 transition-colors duration-200;
+  }
+
+  .dark &::-webkit-slider-thumb {
+    --at-apply: w-1 h-12 appearance-none rounded-md bg-neutral-100 cursor-pointer shadow-md border-2 border-white
+      hover: bg-neutral-300 transition-colors duration-200;
   }
 
   &::-moz-range-thumb {
-    --at-apply: w-2 h-12 rounded-md bg-neutral-500/80 dark: bg-neutral-400/80 shadow-md border-2 border-white border-box
-      hover: bg-neutral-500 dark: hover: bg-neutral-400 transition-colors duration-200;
+    --at-apply: w-1 h-12 appearance-none rounded-md bg-neutral-600 cursor-pointer shadow-lg border-2 border-neutral-500
+      hover: bg-neutral-800 transition-colors duration-200;
+  }
+
+  .dark &::-moz-range-thumb {
+    --at-apply: w-1 h-12 appearance-none rounded-md bg-neutral-100 cursor-pointer shadow-md border-2 border-white
+      hover: bg-neutral-300 transition-colors duration-200;
   }
 }
 

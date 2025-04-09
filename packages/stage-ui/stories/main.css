@@ -65,16 +65,16 @@ html.htw-dark {
 }
 
 .htw-dark .theme-hue-slider::-webkit-slider-thumb {
-  --at-apply: w-1 h-12 appearance-none rounded-md bg-neutral-200 cursor-pointer shadow-md border-2 border-white
+  --at-apply: w-1 h-12 appearance-none rounded-md bg-neutral-100 cursor-pointer shadow-md border-2 border-white
     hover: bg-neutral-300 transition-colors duration-200;
 }
 
 .theme-hue-slider::-moz-range-thumb {
-  --at-apply: w-1 h-12 appearance-none rounded-md bg-neutral-100 cursor-pointer shadow-lg border-2 border-neutral-500
+  --at-apply: w-1 h-12 appearance-none rounded-md bg-neutral-600 cursor-pointer shadow-lg border-2 border-neutral-500
     hover: bg-neutral-800 transition-colors duration-200;
 }
 
 .htw-dark .theme-hue-slider::-moz-range-thumb {
-  --at-apply: w-1 h-12 appearance-none rounded-md bg-neutral-600 cursor-pointer shadow-md border-2 border-white
+  --at-apply: w-1 h-12 appearance-none rounded-md bg-neutral-100 cursor-pointer shadow-md border-2 border-white
     hover: bg-neutral-300 transition-colors duration-200;
 }
