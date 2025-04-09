@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import type { ccv3 } from '@proj-airi/ccc'
 
+import { InputFile } from '@proj-airi/stage-ui/components'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores'
 import { storeToRefs } from 'pinia'
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 
@@ -28,8 +29,7 @@ const searchQuery = ref('')
 // Sort option
 const sortOption = ref('nameAsc')
 
-// Drag and drop
-const isDragging = ref(false)
+const inputFiles = ref<File[]>([])
 
 // Card list data structure
 interface CardItem {
@@ -39,6 +39,24 @@ interface CardItem {
   deprecated?: boolean
   customizable?: boolean
 }
+
+watch(inputFiles, async (newFiles) => {
+  const file = newFiles[0]
+  if (!file)
+    return
+
+  try {
+    const content = await file.text()
+    const cardJSON = JSON.parse(content) as ccv3.CharacterCardV3
+
+    // Add card and select it
+    selectedCardId.value = addCard(cardJSON)
+    isCardDialogOpen.value = true
+  }
+  catch (error) {
+    console.error('Error processing card file:', error)
+  }
+})
 
 // Transform cards Map to array for display
 const cardsArray = computed<CardItem[]>(() =>
@@ -92,35 +110,6 @@ function handleDeleteConfirm() {
 function confirmDelete(id: string) {
   cardToDelete.value = id
   showDeleteConfirm.value = true
-}
-
-/**
- * Handles card file upload and processing
- */
-async function handleUpload() {
-  const fileInput = document.createElement('input')
-  fileInput.type = 'file'
-  fileInput.accept = '.json'
-
-  fileInput.onchange = async (event: Event) => {
-    const file = (event.target as HTMLInputElement).files?.[0]
-    if (!file)
-      return
-
-    try {
-      const content = await file.text()
-      const cardJSON = JSON.parse(content) as ccv3.CharacterCardV3
-
-      // Add card and select it
-      selectedCardId.value = addCard(cardJSON)
-      isCardDialogOpen.value = true
-    }
-    catch (error) {
-      console.error('Error processing card file:', error)
-    }
-  }
-
-  fileInput.click()
 }
 
 function handleSelectCard(cardId: string) {
@@ -229,35 +218,29 @@ function getModuleShortName(id: string, module: 'consciousness' | 'voice') {
       :class="{ 'grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-4 grid-auto-rows-[minmax(min-content,max-content)] grid-auto-flow-dense sm:grid-cols-[repeat(auto-fill,minmax(240px,1fr))] sm:gap-5 md:grid-cols-[repeat(auto-fill,minmax(220px,1fr))] lg:grid-cols-[repeat(auto-fill,minmax(250px,1fr))]': cards.size > 0 }"
     >
       <!-- Upload card -->
-      <div
-        class="relative min-h-[120px] flex flex-col cursor-pointer items-center justify-center border-2 rounded-xl border-dashed p-6 transition-all duration-300"
-        border="neutral-200 dark:neutral-700 hover:primary-300 dark:hover:primary-700"
-        bg="white/60 dark:black/30 hover:white/80 dark:hover:black/40"
-        :style="{ transform: 'scale(0.98)', opacity: 0.95 }"
-        hover="scale-100 opacity-100 shadow-md dark:shadow-xl"
-        @click="handleUpload"
-      >
-        <div i-solar:upload-square-line-duotone mb-4 text-5xl text="neutral-400 dark:neutral-500" />
-        <p font-medium text="center neutral-600 dark:neutral-300">
-          {{ t('settings.pages.card.upload') }}
-        </p>
-        <p text="center neutral-500 dark:neutral-400" mt-2 text-sm>
-          {{ t('settings.pages.card.upload_desc') }}
-        </p>
-
-        <!-- Drag overlay -->
-        <div
-          v-if="isDragging"
-          class="bg-primary-100/80 border-primary-400 dark:bg-primary-900/80 dark:border-primary-600 absolute inset-0 flex items-center justify-center border-2 rounded-xl"
-        >
-          <div class="text-center">
-            <div i-solar:upload-minimalistic-bold class="text-primary-500 dark:text-primary-400 mb-2 text-5xl" />
-            <p font-medium text="primary-600 dark:primary-300">
-              {{ t('settings.pages.card.drop_here') }}
-            </p>
-          </div>
-        </div>
-      </div>
+      <InputFile v-model="inputFiles" accept="*.json">
+        <template #default="{ isDragging }">
+          <template v-if="!isDragging">
+            <div flex flex-col items-center>
+              <div i-solar:upload-square-line-duotone mb-4 text-5xl text="neutral-400 dark:neutral-500" />
+              <p font-medium text="neutral-600 dark:neutral-300">
+                {{ t('settings.pages.card.upload') }}
+              </p>
+              <p text="neutral-500 dark:neutral-400" mt-2 text-sm>
+                {{ t('settings.pages.card.upload_desc') }}
+              </p>
+            </div>
+          </template>
+          <template v-else>
+            <div flex flex-col items-center>
+              <div i-solar:upload-minimalistic-bold class="dark:text-primary-400 text-primary-500 mb-2 text-5xl" />
+              <p font-medium text="primary-600 dark:primary-300">
+                {{ t('settings.pages.card.drop_here') }}
+              </p>
+            </div>
+          </template>
+        </template>
+      </InputFile>
 
       <!-- Card Items -->
       <template v-if="cards.size > 0">

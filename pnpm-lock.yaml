@@ -1063,6 +1063,9 @@ importers:
       '@proj-airi/server-sdk':
         specifier: workspace:^
         version: link:../server-sdk
+      '@vueuse/core':
+        specifier: ^13.0.0
+        version: 13.0.0(vue@3.5.13(typescript@5.8.3))
       '@vueuse/motion':
         specifier: ^3.0.3
         version: 3.0.3(magicast@0.3.5)(rollup@4.39.0)(vue@3.5.13(typescript@5.8.3))

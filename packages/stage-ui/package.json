@@ -60,6 +60,7 @@
     "@proj-airi/ccc": "workspace:^",
     "@proj-airi/drizzle-duckdb-wasm": "catalog:",
     "@proj-airi/server-sdk": "workspace:^",
+    "@vueuse/core": "^13.0.0",
     "@vueuse/motion": "^3.0.3",
     "radix-vue": "^1.9.17",
     "reka-ui": "^2.2.0",
