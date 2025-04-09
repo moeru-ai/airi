@@ -14,6 +14,8 @@ import { interpretSticker } from '../../llm/sticker'
 import { findStickerByFileId, recordMessage } from '../../models'
 import { listJoinedChats, recordJoinedChat } from '../../models/chats'
 import { listStickerPacks, recordStickerPack } from '../../models/sticker-packs'
+import { personality, systemTicking } from '../../prompts/system-v1'
+import { div } from '../../prompts/utils'
 import { readMessage } from './loop/read-message'
 import { shouldInterruptProcessing } from './utils/interruption'
 import { sendMayStructuredMessage } from './utils/message'
@@ -37,8 +39,15 @@ async function handleLoopStep(state: BotSelf, msgs?: LLMMessage[], chatId?: stri
     state.lastInteractedNChatIds = state.lastInteractedNChatIds.slice(-5)
   }
 
-  if (msgs == null) {
-    msgs = []
+  if (msgs == null || msgs.length === 0) {
+    msgs = [
+      message.system(
+        div(
+          personality().content,
+          systemTicking(),
+        ),
+      ),
+    ]
   }
 
   try {
@@ -47,11 +56,11 @@ async function handleLoopStep(state: BotSelf, msgs?: LLMMessage[], chatId?: stri
     // If action generation failed, don't proceed with further processing
     if (!action || !action.action) {
       state.logger.withField('action', action).log('No valid action returned. Skipping further processing.')
-      return () => handleLoopStep(state, msgs, chatId)
+      return
     }
 
     switch (action.action) {
-      case 'listStickers':
+      case 'list_stickers':
       {
         await state.bot.api.sendChatAction(chatId, 'choose_sticker')
 
@@ -63,7 +72,7 @@ async function handleLoopStep(state: BotSelf, msgs?: LLMMessage[], chatId?: stri
         msgs.push(message.user(`List of stickers:\n${stickerDescriptionsOneliner}`))
         return () => handleLoopStep(state, msgs, chatId)
       }
-      case 'sendSticker':
+      case 'send_sticker':
       {
         try {
           const file = await state.bot.api.getFile(action.fileId)
@@ -77,10 +86,13 @@ async function handleLoopStep(state: BotSelf, msgs?: LLMMessage[], chatId?: stri
           return () => handleLoopStep(state, msgs, chatId)
         }
 
+        const sticker = await findStickerByFileId(action.fileId)
+        msgs.push(message.user(`Sending sticker ${action.fileId} with (${sticker.emoji} in set ${sticker.name}) to ${action.chatId}`))
         await state.bot.api.sendSticker(action.chatId, action.fileId)
+
         break
       }
-      case 'readMessages':
+      case 'read_messages':
       {
         if (Object.keys(state.unreadMessages).length === 0) {
           state.logger.withField('action', action).log('No unread messages - deleting all unread messages')
@@ -120,7 +132,8 @@ async function handleLoopStep(state: BotSelf, msgs?: LLMMessage[], chatId?: stri
 
           if (shouldInterrupt) {
             state.logger.withField('action', action).log(`Interrupting message processing for chat - new messages deemed more important`)
-            return () => handleLoopStep(state, [], chatId)
+            msgs.push(message.user(`Interrupting message processing for chat - new messages deemed more important`))
+            return () => handleLoopStep(state, msgs, chatId)
           }
           else {
             state.logger.withField('action', action).log(`Continuing current processing despite new messages in chat`)
@@ -155,10 +168,10 @@ async function handleLoopStep(state: BotSelf, msgs?: LLMMessage[], chatId?: stri
           return
         }
       }
-      case 'listChats':
+      case 'list_chats':
         msgs.push(message.user(`List of chats:${(await listJoinedChats()).map(chat => `ID:${chat.chat_id}, Name:${chat.chat_name}`).join('\n')}`))
         return () => handleLoopStep(state, msgs, chatId)
-      case 'sendMessage':
+      case 'send_message':
         msgs.push(message.user(`Sending message to group ${action.chatId}: ${action.content}`))
         await sendMayStructuredMessage(state, action.content, action.chatId)
         return () => handleLoopStep(state, msgs, chatId)

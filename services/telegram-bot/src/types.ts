@@ -42,84 +42,40 @@ export interface SleepAction {
   action: 'sleep'
 }
 
-export interface LookupShortTermMemoryAction {
-  action: 'lookupShortTermMemory'
-  query: string
-  category: 'chat' | 'self'
-}
-
-export interface LookupLongTermMemoryAction {
-  action: 'lookupLongTermMemory'
-  query: string
-  category: 'chat' | 'self'
-}
-
-export interface MemorizeShortMemoryAction {
-  action: 'memorizeShortMemory'
-  content: string
-  tags: string[]
-}
-
-export interface MemorizeLongMemoryAction {
-  action: 'memorizeLongMemory'
-  content: string
-  tags: string[]
-}
-
-export interface ForgetShortTermMemoryAction {
-  action: 'forgetShortTermMemory'
-  where: {
-    id: string
-  }
-}
-
-export interface ForgetLongTermMemoryAction {
-  action: 'forgetLongTermMemory'
-  where: {
-    id: string
-  }
-}
-
 export interface ListChatsAction {
-  action: 'listChats'
+  action: 'list_chats'
 }
 
 export interface SendMessageAction {
-  action: 'sendMessage'
+  action: 'send_message'
   content: string
   chatId: string
 }
 
 export interface SendStickerAction {
-  action: 'sendSticker'
+  action: 'send_sticker'
   fileId: string
   chatId: string
 }
 
 export interface SearchGoogleAction {
-  action: 'searchGoogle'
+  action: 'search_google'
   query: string
 }
 
 export interface ReadMessagesAction {
-  action: 'readMessages'
+  action: 'read_messages'
   chatId: string
 }
 
 export interface ListStickersAction {
-  action: 'listStickers'
+  action: 'list_stickers'
 }
 
 export type Action =
   | ContinueAction
   | BreakAction
   | SleepAction
-  | LookupShortTermMemoryAction
-  | LookupLongTermMemoryAction
-  | MemorizeShortMemoryAction
-  | MemorizeLongMemoryAction
-  | ForgetShortTermMemoryAction
-  | ForgetLongTermMemoryAction
   | ListChatsAction
   | SendMessageAction
   | SendStickerAction

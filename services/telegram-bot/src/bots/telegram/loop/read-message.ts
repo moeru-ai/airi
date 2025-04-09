@@ -22,7 +22,7 @@ export async function readMessage(
   }> {
   const logger = useLogg('readMessage').useGlobalConfig()
 
-  const lastNMessages = await findLastNMessages(action.chatId, 100)
+  const lastNMessages = await findLastNMessages(action.chatId, 50)
   const lastNMessagesOneliner = lastNMessages.map(msg => chatMessageToOneLine(botId, msg)).join('\n')
   logger.withField('number_of_last_n_messages', lastNMessages.length).log('Successfully found last N messages')
 
@@ -47,7 +47,7 @@ export async function readMessage(
 
   const existingKnownMessages = [...unreadMessages.map(msg => msg.message_id.toString()), ...lastNMessages.map(msg => msg.platform_message_id)]
   const relevantChatMessages = await findRelevantMessages(botId, chatId, unreadHistoryMessagesEmbedding, existingKnownMessages)
-  const relevantChatMessagesOneliner = relevantChatMessages.map(async msgs => msgs.join('\n')).join('\n')
+  const relevantChatMessagesOneliner = relevantChatMessages.map(msgs => msgs.join('\n')).join('\n')
   logger.withField('number_of_relevant_chat_messages', relevantChatMessages.length).log('Successfully composed relevant chat messages')
 
   state.unreadMessages[action.chatId] = []
@@ -66,6 +66,18 @@ export async function readMessage(
       + '\n'
       + 'Relevant chat messages may help you recall the memories:\n'
       + `${relevantChatMessagesOneliner || 'No relevant messages'}`
-      + '\n',
+      + '\n'
+      + 'Based on your personalities, imaging you have your own choice and interest over different topics, '
+      + 'giving the above context and chat history, would you like to participate in the conversation '
+      + 'about the topic? Or will you aggressively diss or piss off about the opinions of others?\n'
+      + 'Feel free to ignore by just sending an empty array within a object with key "messages" (i.e.'
+      + '{ "messages": [] }).'
+      + 'If you would like to participate, send me an array of messages (i.e. { "messages": [] }) you would '
+      + 'like to send without telling you willing to participate.'
+      + 'If you would like to reply to any of the message, send me an array of messages (i.e. { "messages":'
+      + '["message content"], "reply_to_message_id": "1234567890" }) with the message id of the message you '
+      + 'want to reply to.'
+      + '\n'
+      + 'Choose your action.',
   }
 }
