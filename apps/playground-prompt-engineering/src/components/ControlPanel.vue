@@ -3,6 +3,7 @@ import { storeToRefs } from 'pinia'
 import { ref } from 'vue'
 
 import { useCharacterPromptStore } from '../composables/useCharacterPrompt'
+import Range from './Form/Range/Range.vue'
 
 const characterPrompt = useCharacterPromptStore()
 const { currentEmotion, currentContext, emotions, contexts, examples } = storeToRefs(characterPrompt)
@@ -123,65 +124,65 @@ function applyTemplate(template: string) {
           Personality Traits
         </h3>
 
-        <div class="flex flex-col gap-1">
-          <label for="playfulness" class="text-sm text-dark">Playfulness</label>
-          <div class="flex items-center gap-2">
-            <input
-              id="playfulness"
-              v-model.number="characterPrompt.traits.playfulness"
-              type="range"
-              min="0"
-              max="10"
-              class="flex-1"
-            >
-            <span class="w-12 text-right text-xs text-gray">{{ characterPrompt.traits.playfulness }}</span>
+        <label class="flex flex-col gap-1 text-sm text-dark">
+          <div flex justify-between>
+            <span>Playfulness</span>
+            <span class="w-12 text-right text-xs text-gray font-mono">{{ characterPrompt.traits.playfulness }}</span>
           </div>
-        </div>
+          <div flex>
+            <Range
+              v-model="characterPrompt.traits.playfulness"
+              :min="0"
+              :max="10"
+              class="flex-1"
+            />
+          </div>
+        </label>
 
-        <div class="flex flex-col gap-1">
-          <label for="curiosity" class="text-sm text-dark">Curiosity</label>
-          <div class="flex items-center gap-2">
-            <input
-              id="curiosity"
-              v-model.number="characterPrompt.traits.curiosity"
-              type="range"
-              min="0"
-              max="10"
-              class="flex-1"
-            >
-            <span class="w-12 text-right text-xs text-gray">{{ characterPrompt.traits.curiosity }}</span>
+        <label class="flex flex-col gap-1 text-sm text-dark">
+          <div flex justify-between>
+            <span>Curiosity</span>
+            <span class="w-12 text-right text-xs text-gray font-mono">{{ characterPrompt.traits.curiosity }}</span>
           </div>
-        </div>
+          <div flex>
+            <Range
+              v-model="characterPrompt.traits.curiosity"
+              :min="0"
+              :max="10"
+              class="flex-1"
+            />
+          </div>
+        </label>
 
-        <div class="flex flex-col gap-1">
-          <label for="thoughtfulness" class="text-sm text-dark">Thoughtfulness</label>
-          <div class="flex items-center gap-2">
-            <input
-              id="thoughtfulness"
-              v-model.number="characterPrompt.traits.thoughtfulness"
-              type="range"
-              min="0"
-              max="10"
-              class="flex-1"
-            >
-            <span class="w-12 text-right text-xs text-gray">{{ characterPrompt.traits.thoughtfulness }}</span>
+        <label class="flex flex-col gap-1 text-sm text-dark">
+          <div flex justify-between>
+            <span>Thoughtfulness</span>
+            <span class="w-12 text-right text-xs text-gray font-mono">{{ characterPrompt.traits.thoughtfulness }}</span>
           </div>
-        </div>
+          <div flex>
+            <Range
+              v-model="characterPrompt.traits.thoughtfulness"
+              :min="0"
+              :max="10"
+              class="flex-1"
+            />
+          </div>
+        </label>
 
-        <div class="flex flex-col gap-1">
-          <label for="expressiveness" class="text-sm text-dark">Expressiveness</label>
-          <div class="flex items-center gap-2">
-            <input
-              id="expressiveness"
-              v-model.number="characterPrompt.traits.expressiveness"
-              type="range"
-              min="0"
-              max="10"
-              class="flex-1"
-            >
-            <span class="w-12 text-right text-xs text-gray">{{ characterPrompt.traits.expressiveness }}</span>
+        <label class="flex flex-col gap-1 text-sm text-dark">
+          <div flex justify-between>
+            <span>Expressiveness</span>
+            <span class="w-12 text-right text-xs text-gray font-mono">{{ characterPrompt.traits.expressiveness }}</span>
           </div>
-        </div>
+          <div flex>
+            <Range
+              v-model="characterPrompt.traits.expressiveness"
+              :min="0"
+              :max="10"
+              class="flex-1"
+            />
+          </div>
+        </label>
       </div>
 
       <!-- Speech Patterns -->
