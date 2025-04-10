@@ -42,6 +42,12 @@ export default defineConfig({
         mono: 'DM Mono',
         cute: 'Kiwi Maru',
         cuteen: 'Sniglet',
+        jura: 'Jura',
+        gugi: 'Gugi',
+      },
+      timeouts: {
+        warning: 5000,
+        failure: 10000,
       },
     }),
     presetIcons({

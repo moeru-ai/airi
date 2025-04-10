@@ -20,6 +20,10 @@ export default defineConfig({
         serif: 'DM Serif Display',
         mono: 'DM Mono',
       },
+      timeouts: {
+        warning: 5000,
+        failure: 10000,
+      },
     }),
     presetIcons({
       scale: 1.2,

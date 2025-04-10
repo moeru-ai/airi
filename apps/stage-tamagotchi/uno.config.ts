@@ -43,10 +43,15 @@ export default defineConfig({
         mono: 'DM Mono',
         cute: 'Kiwi Maru',
         cuteen: 'Sniglet',
+        jura: 'Jura',
       },
       // Web fonts preset
       // https://unocss.dev/presets/web-fonts#serve-fonts-locally
       processors: createLocalFontProcessor(),
+      timeouts: {
+        warning: 5000,
+        failure: 10000,
+      },
     }),
     presetIcons({
       scale: 1.2,
