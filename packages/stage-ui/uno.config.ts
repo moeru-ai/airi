@@ -104,9 +104,6 @@ export default defineConfig({
         '(components|src)/**/*.{js,ts}',
       ],
     },
-    // filesystem: [
-    //   'src/**/*.{vue,ts,js}',
-    // ],
   },
   rules: [
     [/^mask-\[(.*)\]$/, ([, suffix]) => ({ '-webkit-mask-image': suffix.replace(/_/g, ' ') })],
