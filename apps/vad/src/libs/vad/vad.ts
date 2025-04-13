@@ -86,7 +86,7 @@ export class VAD {
       this.emit('status', { type: 'info', message: 'Loading VAD model...' })
 
       this.model = await AutoModel.from_pretrained('onnx-community/silero-vad', {
-        config: { model_type: 'custom' },
+        config: { model_type: 'custom' } as any,
         dtype: 'fp32', // Full-precision
       })
 
