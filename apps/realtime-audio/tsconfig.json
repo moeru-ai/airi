@@ -23,10 +23,6 @@
   "include": [
     "src/**/*.ts",
     "src/**/*.d.ts",
-    "src/**/*.mts",
-    "playground/**/*.ts",
-    "playground/**/*.d.ts",
-    "playground/**/*.mts",
-    "playground/**/*.vue"
+    "src/**/*.mts"
   ]
 }

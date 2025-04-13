@@ -34,3 +34,7 @@ function isInNodejsRuntime() {
     // eslint-disable-next-line node/prefer-global/process
     && 'node' in process.versions && process.versions.node != null
 }
+
+export async function isWebGPUSupported() {
+  return check().then(result => result.supported)
+}
