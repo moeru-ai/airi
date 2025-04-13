@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { filterBrightness, formatRgb, rgb } from 'culori'
 import { computed } from 'vue'
 
 const props = withDefaults(defineProps<{
@@ -6,7 +7,7 @@ const props = withDefaults(defineProps<{
   subtitle: string
   backgroundLabel?: string
   description: string
-  image: string
+  image?: string
   cardHeight?: number
   cardWidth?: number
   primaryColor: string
@@ -14,13 +15,23 @@ const props = withDefaults(defineProps<{
   secondaryColor: string
   backgroundColor?: string
   dividerColor?: string
+  dividerOpacity?: number
   textColor: string
+  textShadowColor?: string
+  textShadowSize?: string
+  descriptionTextColor?: string
+  subtitleTextColor?: string
   barWidth?: number
   barcodeCount?: number
 }>(), {
   backgroundLabel: 'Character',
   cardHeight: 130,
   cardWidth: 80,
+  dividerOpacity: 0.3,
+  textShadowColor: '#71717a',
+  textShadowSize: '0px 0px 3px',
+  descriptionTextColor: '#a1a1aa',
+  subtitleTextColor: '#ffffff',
   barcodeCount: 8,
   barWidth: 10,
 })
@@ -37,32 +48,57 @@ const barcodeLines = computed(() => {
   return lines
 })
 
+const dimmer50 = filterBrightness(0.5)
+
 // CSS variables for the component
 const cssVars = computed(() => {
+  const backgroundLabelColor = dimmer50(rgb(props.primaryColor)!)
+  backgroundLabelColor.alpha = 0.1
+
+  const backgroundMaskBackgroundColor = rgb(props.backgroundColor)!
+  backgroundMaskBackgroundColor.alpha = 1
+
+  const backgroundDotGridColor = dimmer50(rgb(props.primaryColor)!)
+  backgroundDotGridColor.alpha = 0.1
+
+  const backgroundColor = rgb(props.backgroundColor)!
+  backgroundColor.alpha = 1
+
+  const dividerColor = dimmer50(rgb(props.primaryColor)!)
+  dividerColor.alpha = props.dividerOpacity
+
   return {
     '--card-height': `${props.cardHeight * 4}px`,
     '--card-width': `${props.cardWidth * 4}px`,
     '--bar-width': `${props.barWidth * 4}px`,
 
     // RGB values for colors
-    '--primary-rgb': props.primaryColor,
-    '--primary-dark-rgb': props.primaryColorDark || props.primaryColor,
-    '--secondary-rgb': props.secondaryColor,
-    '--background-rgb': props.backgroundColor,
-    '--text-rgb': props.textColor,
+    '--primary-rgb': `${formatRgb(props.primaryColor)}`,
+    '--secondary-rgb': `${formatRgb(props.secondaryColor)}`,
+    '--text-rgb': `${formatRgb(props.textColor)}`,
+    '--text-shadow-color': props.textShadowColor,
+    '--text-shadow-size': props.textShadowSize,
+    '--description-text-color': props.descriptionTextColor,
+    '--subtitle-text-color': props.subtitleTextColor,
 
     // Opacity values
-    '--divider-opacity': props.dividerColor,
+    '--divider-color': `${formatRgb(dividerColor)}`,
+    '--divider-opacity': `${dividerColor.alpha}`,
+
+    // Components
+    '--background-color': `${formatRgb(backgroundColor)}`,
+    '--background-dot-grid-color': `${formatRgb(backgroundDotGridColor)}`,
+    '--background-mask-color': `${formatRgb(backgroundMaskBackgroundColor)}`,
+    '--background-label-color': `${formatRgb(backgroundLabelColor)}`,
   }
 })
 </script>
 
 <template>
   <div
-    class="character-card [&_.gradient-image_img]:hover:translate-y-2 [&_.gradient-image_img]:hover:scale-102"
+    class="character-card [&_.card-cover_img]:hover:translate-y-2 [&_.card-cover_img]:hover:scale-102"
     :style="cssVars"
-    w-fit
-    cursor-pointer
+    w-fit cursor-pointer rounded-xl shadow-sm
   >
     <div flex="~ items-center justify-center" w-fit bg="inherit">
       <div class="card-container">
@@ -79,7 +115,7 @@ const cssVars = computed(() => {
                 rounded-l-xl
               >
                 <span
-                  class="background-label mt-2"
+                  class="background-label mt-2" font-quicksand
                   leading="[1]"
                   absolute
                   inline-block
@@ -91,7 +127,7 @@ const cssVars = computed(() => {
               </div>
               <!-- Title section -->
               <div font-jura relative z-3 pb-4 pl-4 pt-2>
-                <div relative z-4 text-white text-shadow-md text-shadow-color-neutral-500>
+                <div relative z-4 class="subtitle-text">
                   <!-- Subtitle section -->
                   <div text-base font-semibold>
                     <span text-base>{{ subtitle }}</span>
@@ -105,7 +141,6 @@ const cssVars = computed(() => {
                     font-italic
                     text-stroke-1
                     :style="{ paintOrder: 'stroke fill' }"
-                    text-shadow="[0px_0px_1px]"
                     leading="[0.75]"
                   >
                     <span>{{ title }}</span>
@@ -121,14 +156,17 @@ const cssVars = computed(() => {
                 />
               </div>
               <!-- Cover section -->
-              <div absolute bottom-0 left-0 right-0 top--20 z-2 overflow-hidden class="gradient-image">
-                <img :src="image" h="300" object-cover mix-blend-screen transition-all duration-500 ease-in-out>
+              <div absolute bottom-0 left-0 right-0 top--20 z-2 overflow-hidden class="card-cover">
+                <slot name="cover">
+                  <img v-if="image" :src="image" h="300" object-cover mix-blend-screen transition-all duration-500 ease-in-out>
+                  <div v-else h="300" w-full object-cover mix-blend-screen transition-all duration-500 ease-in-out />
+                </slot>
               </div>
             </div>
             <!-- Divider section -->
             <div mx-5 h-0.5 rounded-full class="divider" />
             <!-- Info section -->
-            <div class="description" max-h="[4.5rem]" mx-5 mb-4 mt-2 h-full text="neutral-400">
+            <div class="description" max-h="[4.5rem]" font-quicksand mx-5 mb-4 mt-2 h-full>
               <div h-full text-base>
                 {{ description }}
               </div>
@@ -168,35 +206,44 @@ const cssVars = computed(() => {
 }
 
 .main-container {
-  background-color: rgb(var(--background-rgb));
+  background-color: var(--background-color);
 }
 
 .background-section-container {
-  background-image: linear-gradient(to bottom, rgb(var(--primary-rgb)) 0%, rgba(var(--primary-rgb), 1) 50%);
+  background-image: linear-gradient(to bottom, var(--primary-rgb) 0%, var(--primary-rgb) 50%);
 }
 
 .background-label {
   font-size: 4rem;
-  color: rgba(var(--primary-dark-rgb), 0.1);
+  color: var(--background-label-color);
 }
 
 .title-gradient {
-  background-image: linear-gradient(to bottom, transparent 0%, rgb(var(--background-rgb)) 100%);
+  background-image: linear-gradient(to bottom, transparent 0%, var(--background-mask-color) 100%);
+}
+
+.subtitle-text {
+  color: var(--subtitle-text-color);
+  text-shadow: var(--text-shadow-size) var(--text-shadow-color);
 }
 
 .title-text {
-  color: rgb(var(--text-rgb));
-  text-shadow: 0px 0px 3px rgb(var(--text-rgb));
-  -webkit-text-stroke: 1px rgb(var(--text-rgb));
+  color: var(--text-rgb);
+  text-shadow: var(--text-shadow-size) var(--text-rgb);
+  -webkit-text-stroke: 1px var(--text-rgb);
+}
+
+.description {
+  color: var(--description-text-color);
 }
 
 .divider {
-  background-color: rgba(var(--primary-dark-rgb), var(--divider-opacity));
+  background-color: var(--divider-color);
 }
 
 .bar-container {
   width: var(--bar-width);
-  background-image: linear-gradient(to bottom, rgb(var(--secondary-rgb)) 0%, rgb(var(--primary-rgb)) 100%);
+  background-image: linear-gradient(to bottom, var(--secondary-rgb) 0%, var(--primary-rgb) 100%);
 }
 
 .background-section-container::after {
@@ -206,13 +253,13 @@ const cssVars = computed(() => {
   z-index: 10;
   width: 100%;
   height: 100%;
-  background-image: radial-gradient(circle at 2px 2px, rgba(var(--primary-dark-rgb), 0.1) 2px, transparent 0);
+  background-image: radial-gradient(circle at 2px 2px, var(--background-dot-grid-color) 2px, transparent 0);
   background-size: 10px 10px;
   transition: all 0.4s ease-in-out;
   mask-image: linear-gradient(164deg, white 0%, transparent 24%);
 }
 
-.gradient-image {
+.card-cover {
   mask-image: linear-gradient(11deg, rgba(0, 0, 0, 0) 5%, rgba(0, 0, 0, 1) 13%),
     radial-gradient(#fff 57%, #ffffff00 86%);
 }

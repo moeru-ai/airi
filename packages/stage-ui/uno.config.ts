@@ -44,6 +44,7 @@ export default defineConfig({
         cuteen: 'Sniglet',
         jura: 'Jura',
         gugi: 'Gugi',
+        quicksand: 'Quicksand',
       },
       timeouts: {
         warning: 5000,
