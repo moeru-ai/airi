@@ -31,6 +31,15 @@ const sortOption = ref('nameAsc')
 
 const inputFiles = ref<File[]>([])
 
+// Card list data structure
+interface CardItem {
+  id: string
+  name: string
+  description?: string
+  deprecated?: boolean
+  customizable?: boolean
+}
+
 watch(inputFiles, async (newFiles) => {
   const file = newFiles[0]
   if (!file)
@@ -48,15 +57,6 @@ watch(inputFiles, async (newFiles) => {
     console.error('Error processing card file:', error)
   }
 })
-
-// Card list data structure
-interface CardItem {
-  id: string
-  name: string
-  description?: string
-  deprecated?: boolean
-  customizable?: boolean
-}
 
 // Transform cards Map to array for display
 const cardsArray = computed<CardItem[]>(() =>
@@ -221,16 +221,18 @@ function getModuleShortName(id: string, module: 'consciousness' | 'voice') {
       <InputFile v-model="inputFiles" accept="*.json">
         <template #default="{ isDragging }">
           <template v-if="!isDragging">
-            <div i-solar:upload-square-line-duotone mb-4 text-5xl text="neutral-400 dark:neutral-500" />
-            <p font-medium text="center neutral-600 dark:neutral-300">
-              {{ t('settings.pages.card.upload') }}
-            </p>
-            <p text="center neutral-500 dark:neutral-400" mt-2 text-sm>
-              {{ t('settings.pages.card.upload_desc') }}) }}
-            </p>
+            <div flex flex-col items-center>
+              <div i-solar:upload-square-line-duotone mb-4 text-5xl text="neutral-400 dark:neutral-500" />
+              <p font-medium text="neutral-600 dark:neutral-300">
+                {{ t('settings.pages.card.upload') }}
+              </p>
+              <p text="neutral-500 dark:neutral-400" mt-2 text-sm>
+                {{ t('settings.pages.card.upload_desc') }}
+              </p>
+            </div>
           </template>
           <template v-else>
-            <div class="text-center">
+            <div flex flex-col items-center>
               <div i-solar:upload-minimalistic-bold class="text-primary-500 dark:text-primary-400 mb-2 text-5xl" />
               <p font-medium text="primary-600 dark:primary-300">
                 {{ t('settings.pages.card.drop_here') }}
@@ -304,12 +306,14 @@ function getModuleShortName(id: string, module: 'consciousness' | 'voice') {
   <div
     v-motion
     text="neutral-200/50 dark:neutral-600/20" pointer-events-none
-    fixed top="[72dvh]" right--15 z--1
+    fixed top="[calc(100dvh-15rem)]" bottom-0 right--5 z--1
     :initial="{ scale: 0.9, opacity: 0, x: 20 }"
     :enter="{ scale: 1, opacity: 1, x: 0 }"
-    :duration="250"
+    :duration="500"
+    size-60
+    flex items-center justify-center
   >
-    <div text="60" i-lucide:id-card />
+    <div text="60" i-solar:emoji-funny-square-bold-duotone />
   </div>
 </template>
 

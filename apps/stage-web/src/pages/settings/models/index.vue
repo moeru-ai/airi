@@ -44,7 +44,7 @@ const {
   iconAnimationStarted,
   showIconAnimation,
   animationIcon,
-} = useIconAnimation('i-lucide:person-standing')
+} = useIconAnimation('i-solar:people-nearby-bold-duotone')
 </script>
 
 <template>
@@ -95,8 +95,9 @@ const {
     :enter="{ scale: 1, opacity: 1, y: 0 }"
     :duration="500"
     size-60
+    flex items-center justify-center
   >
-    <div text="60" i-lucide:person-standing />
+    <div text="60" i-solar:people-nearby-bold-duotone />
   </div>
 </template>
 

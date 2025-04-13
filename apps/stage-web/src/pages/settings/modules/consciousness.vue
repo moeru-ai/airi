@@ -222,8 +222,9 @@ function updateCustomModelName(value: string) {
     :enter="{ scale: 1, opacity: 1, x: 0 }"
     :duration="500"
     size-60
+    flex items-center justify-center
   >
-    <div text="60" i-lucide:ghost />
+    <div text="60" i-solar:ghost-bold-duotone />
   </div>
 </template>
 

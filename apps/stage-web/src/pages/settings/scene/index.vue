@@ -1,7 +1,4 @@
 <script setup lang="ts">
-import { IconStatusItem } from '@proj-airi/stage-ui/components'
-import { useProvidersStore } from '@proj-airi/stage-ui/stores'
-import { storeToRefs } from 'pinia'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 
@@ -9,14 +6,12 @@ import { useIconAnimation } from '../../../composables/useIconAnimation'
 
 const { t } = useI18n()
 const router = useRouter()
-const providersStore = useProvidersStore()
-const { allProvidersMetadata } = storeToRefs(providersStore)
 
 const {
   iconAnimationStarted,
   showIconAnimation,
   animationIcon,
-} = useIconAnimation('i-solar:box-minimalistic-bold-duotone')
+} = useIconAnimation('i-solar:armchair-2-bold-duotone')
 </script>
 
 <template>
@@ -36,27 +31,12 @@ const {
         <span text="neutral-300 dark:neutral-500" text-nowrap>{{ t('settings.title') }}</span>
       </div>
       <div text-nowrap text-3xl font-semibold>
-        {{ t('settings.pages.providers.title') }}
+        {{ t('settings.pages.scene.title') }}
       </div>
     </h1>
   </div>
-  <div grid="~ cols-2 gap-4">
-    <IconStatusItem
-      v-for="(provider, index) of allProvidersMetadata"
-      :key="provider.id"
-      v-motion
-      :initial="{ opacity: 0, y: 10 }"
-      :enter="{ opacity: 1, y: 0 }"
-      :duration="250 + index * 10"
-      :delay="index * 50"
-      :title="provider.localizedName"
-      :description="provider.localizedDescription"
-      :icon="provider.icon"
-      :icon-color="provider.iconColor"
-      :icon-image="provider.iconImage"
-      :to="`/settings/providers/${provider.id}`"
-      :configured="provider.configured"
-    />
+  <div>
+    Scene
   </div>
   <IconAnimation
     v-if="showIconAnimation"
@@ -80,7 +60,7 @@ const {
     size-60
     flex items-center justify-center
   >
-    <div text="60" i-solar:box-minimalistic-bold-duotone />
+    <div text="60" i-solar:armchair-2-bold-duotone />
   </div>
 </template>
 

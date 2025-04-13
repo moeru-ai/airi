@@ -16,7 +16,7 @@ const {
   iconAnimationStarted,
   showIconAnimation,
   animationIcon,
-} = useIconAnimation('i-lucide:brain')
+} = useIconAnimation('i-solar:box-minimalistic-bold-duotone')
 </script>
 
 <template>
@@ -78,8 +78,9 @@ const {
     :enter="{ scale: 1, opacity: 1, y: 0 }"
     :duration="500"
     size-60
+    flex items-center justify-center
   >
-    <div text="60" i-lucide:brain />
+    <div text="60" i-solar:box-minimalistic-bold-duotone />
   </div>
 </template>
 

@@ -323,6 +323,9 @@ settings:
           description: X.AI
           title: xAI
       title: 提供商
+    scene:
+      description: 配置角色所在环境
+      title: 场景
     themes:
       description: 自定义你的舞台外观！
       sections:

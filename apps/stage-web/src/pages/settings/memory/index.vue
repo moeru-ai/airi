@@ -43,8 +43,9 @@ const { t } = useI18n()
       :enter="{ scale: 1, opacity: 1, y: 0 }"
       :duration="500"
       size-60
+      flex items-center justify-center
     >
-      <div text="60" i-lucide:sprout />
+      <div text="60" i-solar:leaf-bold-duotone />
     </div>
   </div>
 </template>

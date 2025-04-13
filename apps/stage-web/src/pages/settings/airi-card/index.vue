@@ -311,8 +311,9 @@ function getModuleShortName(id: string, module: 'consciousness' | 'voice') {
     :enter="{ scale: 1, opacity: 1, x: 0 }"
     :duration="500"
     size-60
+    flex items-center justify-center
   >
-    <div text="60" i-lucide:id-card />
+    <div text="60" i-solar:emoji-funny-square-bold-duotone />
   </div>
 </template>
 

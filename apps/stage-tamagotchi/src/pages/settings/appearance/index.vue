@@ -269,8 +269,9 @@ watch(() => [settings.usePageSpecificTransitions, settings.disableTransitions], 
     :initial="{ scale: 0.9, opacity: 0, rotate: 30 }"
     :enter="{ scale: 1, opacity: 1, rotate: 0 }"
     :duration="250"
+    flex items-center justify-center
   >
-    <div text="60" i-lucide:paintbrush />
+    <div text="60" i-solar:filters-bold-duotone />
   </div>
 </template>
 

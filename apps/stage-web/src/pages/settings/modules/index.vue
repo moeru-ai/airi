@@ -27,7 +27,7 @@ const modulesList = computed<Module[]>(() => [
     id: 'consciousness',
     name: t('settings.pages.modules.consciousness.title'),
     description: t('settings.pages.modules.consciousness.description'),
-    icon: 'i-lucide:ghost',
+    icon: 'i-solar:ghost-bold-duotone',
     to: '/settings/modules/consciousness',
     configured: false,
   },
@@ -35,7 +35,7 @@ const modulesList = computed<Module[]>(() => [
     id: 'speech',
     name: t('settings.pages.modules.speech.title'),
     description: t('settings.pages.modules.speech.description'),
-    icon: 'i-lucide:mic',
+    icon: 'i-solar:user-speak-rounded-bold-duotone',
     to: '/settings/modules/speech',
     configured: false,
   },
@@ -43,7 +43,7 @@ const modulesList = computed<Module[]>(() => [
     id: 'hearing',
     name: t('settings.pages.modules.hearing.title'),
     description: t('settings.pages.modules.hearing.description'),
-    icon: 'i-lucide:ear',
+    icon: 'i-solar:microphone-3-bold-duotone',
     to: '',
     configured: false,
   },
@@ -51,7 +51,7 @@ const modulesList = computed<Module[]>(() => [
     id: 'vision',
     name: t('settings.pages.modules.vision.title'),
     description: t('settings.pages.modules.vision.description'),
-    icon: 'i-lucide:eye',
+    icon: 'i-solar:eye-closed-bold-duotone',
     to: '',
     configured: false,
   },
@@ -59,7 +59,7 @@ const modulesList = computed<Module[]>(() => [
     id: 'memory-short-term',
     name: t('settings.pages.modules.memory-short-term.title'),
     description: t('settings.pages.modules.memory-short-term.description'),
-    icon: 'i-lucide:book',
+    icon: 'i-solar:bookmark-bold-duotone',
     to: '/settings/modules/memory-short-term',
     configured: false,
   },
@@ -67,7 +67,7 @@ const modulesList = computed<Module[]>(() => [
     id: 'memory-long-term',
     name: t('settings.pages.modules.memory-long-term.title'),
     description: t('settings.pages.modules.memory-long-term.description'),
-    icon: 'i-lucide:book-copy',
+    icon: 'i-solar:book-bookmark-bold-duotone',
     to: '/settings/modules/memory-long-term',
     configured: false,
   },
@@ -109,7 +109,7 @@ const {
   iconAnimationStarted,
   showIconAnimation,
   animationIcon,
-} = useIconAnimation('i-lucide:blocks')
+} = useIconAnimation('i-solar:layers-bold-duotone')
 </script>
 
 <template>
@@ -171,8 +171,9 @@ const {
     :enter="{ scale: 1, opacity: 1, y: 0 }"
     :duration="500"
     size-60
+    flex items-center justify-center
   >
-    <div text="60" i-lucide:blocks />
+    <div text="60" i-solar:layers-bold-duotone />
   </div>
 </template>
 

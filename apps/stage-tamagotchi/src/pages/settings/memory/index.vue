@@ -38,12 +38,14 @@ const { t } = useI18n()
     <div
       v-motion
       text="neutral-200/50 dark:neutral-600/20" pointer-events-none
-      fixed top="[65dvh]" right--15 z--1
+      fixed top="[calc(100dvh-20rem)]" bottom-0 right--15 z--1
       :initial="{ scale: 0.9, opacity: 0, y: 40 }"
       :enter="{ scale: 1, opacity: 1, y: 0 }"
-      :duration="250"
+      :duration="500"
+      size-60
+      flex items-center justify-center
     >
-      <div text="60" i-lucide:sprout />
+      <div text="60" i-solar:leaf-bold-duotone />
     </div>
   </div>
 </template>

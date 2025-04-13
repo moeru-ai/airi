@@ -4,6 +4,9 @@ import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 
+import IconAnimation from '../../../components/IconAnimation.vue'
+import { useIconAnimation } from '../../../composables/useIconAnimation'
+
 const router = useRouter()
 const { t } = useI18n()
 
@@ -24,7 +27,7 @@ const modulesList = computed<Module[]>(() => [
     id: 'consciousness',
     name: t('settings.pages.modules.consciousness.title'),
     description: t('settings.pages.modules.consciousness.description'),
-    icon: 'i-lucide:ghost',
+    icon: 'i-solar:ghost-bold-duotone',
     to: '/settings/modules/consciousness',
     configured: false,
   },
@@ -32,7 +35,7 @@ const modulesList = computed<Module[]>(() => [
     id: 'speech',
     name: t('settings.pages.modules.speech.title'),
     description: t('settings.pages.modules.speech.description'),
-    icon: 'i-lucide:mic',
+    icon: 'i-solar:user-speak-rounded-bold-duotone',
     to: '/settings/modules/speech',
     configured: false,
   },
@@ -40,7 +43,7 @@ const modulesList = computed<Module[]>(() => [
     id: 'hearing',
     name: t('settings.pages.modules.hearing.title'),
     description: t('settings.pages.modules.hearing.description'),
-    icon: 'i-lucide:ear',
+    icon: 'i-solar:microphone-3-bold-duotone',
     to: '',
     configured: false,
   },
@@ -48,7 +51,7 @@ const modulesList = computed<Module[]>(() => [
     id: 'vision',
     name: t('settings.pages.modules.vision.title'),
     description: t('settings.pages.modules.vision.description'),
-    icon: 'i-lucide:eye',
+    icon: 'i-solar:eye-closed-bold-duotone',
     to: '',
     configured: false,
   },
@@ -56,7 +59,7 @@ const modulesList = computed<Module[]>(() => [
     id: 'memory-short-term',
     name: t('settings.pages.modules.memory-short-term.title'),
     description: t('settings.pages.modules.memory-short-term.description'),
-    icon: 'i-lucide:book',
+    icon: 'i-solar:bookmark-bold-duotone',
     to: '/settings/modules/memory-short-term',
     configured: false,
   },
@@ -64,7 +67,7 @@ const modulesList = computed<Module[]>(() => [
     id: 'memory-long-term',
     name: t('settings.pages.modules.memory-long-term.title'),
     description: t('settings.pages.modules.memory-long-term.description'),
-    icon: 'i-lucide:book-copy',
+    icon: 'i-solar:book-bookmark-bold-duotone',
     to: '/settings/modules/memory-long-term',
     configured: false,
   },
@@ -101,6 +104,12 @@ const modulesList = computed<Module[]>(() => [
     configured: false,
   },
 ])
+
+const {
+  iconAnimationStarted,
+  showIconAnimation,
+  animationIcon,
+} = useIconAnimation('i-solar:layers-bold-duotone')
 </script>
 
 <template>
@@ -142,15 +151,29 @@ const modulesList = computed<Module[]>(() => [
       :configured="module.configured"
     />
   </div>
+  <IconAnimation
+    v-if="showIconAnimation"
+    :icon="animationIcon"
+    :icon-size="12"
+    :duration="1000"
+    :started="iconAnimationStarted"
+    :is-reverse="true"
+    :z-index="-1"
+    text-color="text-neutral-200/50 dark:text-neutral-600/20"
+    position="calc(100dvw - 9.5rem), calc(100dvh - 9.5rem)"
+  />
   <div
+    v-else
     v-motion
     text="neutral-200/50 dark:neutral-600/20" pointer-events-none
-    fixed top="[72dvh]" right--15 z--1
-    :initial="{ scale: 0.9, opacity: 0, y: 0 }"
-    :enter="{ scale: 1, opacity: 1, y: 10 }"
-    :duration="250"
+    fixed top="[calc(100dvh-15rem)]" bottom-0 right--5 z--1
+    :initial="{ scale: 0.9, opacity: 0, y: 20 }"
+    :enter="{ scale: 1, opacity: 1, y: 0 }"
+    :duration="500"
+    size-60
+    flex items-center justify-center
   >
-    <div text="60" i-lucide:blocks />
+    <div text="60" i-solar:layers-bold-duotone />
   </div>
 </template>
 

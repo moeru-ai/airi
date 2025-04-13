@@ -63,37 +63,43 @@ const settings = computed(() => [
   {
     title: t('settings.pages.card.title'),
     description: t('settings.pages.card.description'),
-    icon: 'i-lucide:id-card',
+    icon: 'i-solar:emoji-funny-square-bold-duotone',
     to: '/settings/airi-card',
   },
   {
     title: t('settings.pages.modules.title'),
     description: t('settings.pages.modules.description'),
-    icon: 'i-lucide:blocks',
+    icon: 'i-solar:layers-bold-duotone',
     to: '/settings/modules',
+  },
+  {
+    title: t('settings.pages.scene.title'),
+    description: t('settings.pages.scene.description'),
+    icon: 'i-solar:armchair-2-bold-duotone',
+    to: '/settings/scene',
   },
   {
     title: t('settings.pages.models.title'),
     description: t('settings.pages.models.description'),
-    icon: 'i-lucide:person-standing',
+    icon: 'i-solar:people-nearby-bold-duotone',
     to: '/settings/models',
   },
   {
     title: t('settings.pages.memory.title'),
     description: t('settings.pages.memory.description'),
-    icon: 'i-lucide:sprout',
+    icon: 'i-solar:leaf-bold-duotone',
     to: '/settings/memory',
   },
   {
     title: t('settings.pages.providers.title'),
     description: t('settings.pages.providers.description'),
-    icon: 'i-lucide:brain',
+    icon: 'i-solar:box-minimalistic-bold-duotone',
     to: '/settings/providers',
   },
   {
     title: t('settings.pages.themes.title'),
     description: t('settings.pages.themes.description'),
-    icon: 'i-lucide:paintbrush',
+    icon: 'i-solar:filters-bold-duotone',
     to: '/settings/appearance',
   },
 ])
@@ -149,12 +155,13 @@ const settings = computed(() => [
       v-motion
       text="neutral-200/50 dark:neutral-600/20" pointer-events-none
       fixed top="[calc(100dvh-12rem)]" bottom-0 right--10 z--1
-      :initial="{ scale: 0.9, opacity: 0, rotate: 45 }"
+      :initial="{ scale: 0.9, opacity: 0, rotate: 180 }"
       :enter="{ scale: 1, opacity: 1, rotate: 0 }"
       :duration="500"
       size-60
+      flex items-center justify-center
     >
-      <div v-motion text="60" i-lucide:cog />
+      <div v-motion text="60" i-solar:settings-bold-duotone />
     </div>
   </div>
 </template>

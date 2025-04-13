@@ -339,6 +339,9 @@ settings:
           description: x.ai
           title: xAI
       title: Providers
+    scene:
+      description: Configure the environment where the character lives
+      title: Scene
     themes:
       description: Customize your stage!
       sections:
