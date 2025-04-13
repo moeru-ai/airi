@@ -94,15 +94,7 @@ export const useChatStore = defineStore('chat', () => {
         await hook(sendingMessage)
       }
 
-      const headersArray = options.providerConfig?.headers as { key: string, value: string }[] | undefined
-
-      const headers = headersArray
-        ?.filter(h => h.key && h.value)
-        .reduce((acc, curr) => {
-          acc[curr.key] = curr.value
-          return acc
-        }, {} as Record<string, string>)
-
+      const headers = (options.providerConfig?.headers || {}) as Record<string, string>
       const res = await stream(options.model, options.chatProvider, newMessages as Message[], { headers })
 
       for (const hook of onAfterSendHooks.value) {
@@ -143,6 +135,10 @@ export const useChatStore = defineStore('chat', () => {
 
       // eslint-disable-next-line no-console
       console.debug('LLM output:', fullText)
+    }
+    catch (error) {
+      console.error('Error sending message:', error)
+      throw error
     }
     finally {
       sending.value = false

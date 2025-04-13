@@ -50,7 +50,7 @@ onTokenLiteral(async () => {
               </div>
               <div i-solar:danger-triangle-bold-duotone text-violet-500 />
             </div>
-            <div v-if="sending" i-eos-icons:three-dots-loading />
+            <div v-if="sending && index === messages.length - 1" i-eos-icons:three-dots-loading />
             <div
               v-else class="markdown-content break-words text-violet-500" text="base <sm:xs"
               v-html="process(message.content as string)"
@@ -65,7 +65,7 @@ onTokenLiteral(async () => {
             <div>
               <span text-xs text="primary-400/90 dark:primary-600/90" font-semibold class="inline <sm:hidden">{{ t('stage.chat.message.character-name.airi') }}</span>
             </div>
-            <div v-if="sending" i-eos-icons:three-dots-loading />
+            <div v-if="sending && index === messages.length - 1" i-eos-icons:three-dots-loading />
             <div v-else class="markdown-content break-words" text="base <sm:xs" v-html="process(message.content as string)" />
           </div>
         </div>
