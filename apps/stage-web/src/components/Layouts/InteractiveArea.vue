@@ -22,7 +22,7 @@ const providersStore = useProvidersStore()
 const { activeProvider, activeModel } = storeToRefs(useConsciousnessStore())
 const { themeColorsHueDynamic } = storeToRefs(useSettings())
 
-const { audioInputs } = useDevicesList({ constraints: { audio: true }, requestPermissions: true })
+const { audioInputs, ensurePermissions } = useDevicesList({ constraints: { audio: true } })
 const { selectedAudioDevice, isAudioInputOn, selectedAudioDeviceId } = storeToRefs(useSettings())
 const { send, onAfterSend } = useChatStore()
 const { messages } = storeToRefs(useChatStore())
@@ -128,6 +128,12 @@ watch(isAudioInputOn, async (value) => {
   }
 })
 
+watch(showMicrophoneSelect, async (value) => {
+  if (value) {
+    await ensurePermissions()
+  }
+})
+
 onAfterSend(async () => {
   messageInput.value = ''
 })
@@ -225,7 +231,7 @@ onAfterSend(async () => {
         </div>
       </div>
     </div>
-    <div flex="~ row" gap-2>
+    <div flex="~ row" hidden gap-2>
       <button
         bg="complementary-100 hover:complementary-200 dark:complementary-800 dark:hover:complementary-700"
         transition="all duration-250 ease-in-out"
@@ -252,12 +258,12 @@ onAfterSend(async () => {
         <TransitionVertical>
           <fieldset
             v-if="showMicrophoneSelect"
-            transform="translate-y--100%" right="-50%" bottom="-10" text="cyan-400 dark:white" bg="white dark:cyan-900" border="solid 4 cyan-200 dark:cyan-800"
-            absolute z-30 rounded-2xl px-2 py-2 text-right text-nowrap text-base font-sans
+            right="0" bottom="[calc(100%+8px)]" text="cyan-400 dark:white" bg="white dark:cyan-900"
+            absolute z-30 h-fit rounded-2xl py-3 pl-3 pr-4 text-right text-nowrap text-sm font-sans
           >
             <label v-for="(input, index) in audioInputs" :key="index" class="[&_div_span]:dark:hover:bg-cyan-300 [&_div_span]:dark:hover:bg-cyan-900">
               <input type="radio" name="audioInput" :value="input.deviceId" hidden @change="handleAudioInputChange">
-              <div flex="~ row" cursor-pointer items-center gap-2 grid="cols-2">
+              <div flex="~ row" cursor-pointer items-center grid="cols-2">
                 <div min-w="6">
                   <div v-if="input.deviceId === selectedAudioDeviceId" i-solar:check-circle-line-duotone />
                 </div>
@@ -277,7 +283,7 @@ onAfterSend(async () => {
           transition="all duration-250 ease-in-out"
           :class="{ 'transition-colors-none': themeColorsHueDynamic }"
           text="complementary-400"
-          mb-6 flex cursor-pointer items-center justify-center gap-2 rounded-full px-4 py-2
+          h-fit flex cursor-pointer items-center justify-center gap-2 rounded-full px-4 py-2
         >
           <input v-model="showMicrophoneSelect" type="checkbox" hidden>
           <div i-solar:microphone-2-bold-duotone />

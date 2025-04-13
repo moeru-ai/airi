@@ -14,9 +14,9 @@ export const useSettings = defineStore('settings', () => {
   const language = useLocalStorage('settings/language', 'en-US')
   const stageView = useLocalStorage('settings/stage/view/model-renderer', '2d')
 
-  const isAudioInputOn = useLocalStorage('settings/audio/input', 'true')
+  const isAudioInputOn = useLocalStorage('settings/audio/input', 'false')
   const selectedAudioDeviceId = computed(() => selectedAudioDevice.value?.deviceId)
-  const { audioInputs } = useDevicesList({ constraints: { audio: true }, requestPermissions: true })
+  const { audioInputs, ensurePermissions } = useDevicesList({ constraints: { audio: true } })
 
   // TODO: extract to a separate store, use a single page to do this
   const live2dModelFile = ref<File>()
@@ -68,7 +68,9 @@ export const useSettings = defineStore('settings', () => {
       selectedAudioDevice.value = undefined
     }
     if (value === 'true') {
-      selectedAudioDevice.value = audioInputs.value[0]
+      ensurePermissions().then(() => {
+        selectedAudioDevice.value = audioInputs.value[0]
+      })
     }
   })
 
