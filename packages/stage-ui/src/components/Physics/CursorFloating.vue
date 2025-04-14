@@ -8,7 +8,7 @@ interface Props {
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  intensity: 3,
+  intensity: 1.5,
 })
 
 const cardRef = ref<HTMLElement | null>(null)
