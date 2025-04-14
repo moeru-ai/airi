@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { HoloCard } from '@proj-airi/stage-ui/components'
+import { CursorFloating } from '@proj-airi/stage-ui/components'
 
 interface Props {
   id: string
@@ -21,7 +21,7 @@ const emit = defineEmits<{
 </script>
 
 <template>
-  <HoloCard
+  <CursorFloating
     relative min-h-120px flex="~ col" cursor-pointer overflow-hidden rounded-xl
     :class="[
       isSelected
@@ -97,5 +97,5 @@ const emit = defineEmits<{
         <div i-solar:trash-bin-trash-linear text="neutral-500 dark:neutral-400" />
       </button>
     </div>
-  </HoloCard>
+  </CursorFloating>
 </template>

@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import HoloCard from './HoloCard.vue'
+import CursorFloating from './CursorFloating.vue'
 </script>
 
 <template>
   <Story
-    title="HoloCard"
-    group="misc"
+    title="Cursor Floating"
+    group="physics"
     :layout="{ type: 'grid', width: 600 }"
   >
     <Variant
@@ -13,9 +13,9 @@ import HoloCard from './HoloCard.vue'
       title="Basic"
     >
       <div class="h-40 flex items-center justify-center">
-        <HoloCard>
+        <CursorFloating>
           <div class="bg-primary-500/20 h-20 w-20" />
-        </HoloCard>
+        </CursorFloating>
       </div>
     </Variant>
 
@@ -24,7 +24,7 @@ import HoloCard from './HoloCard.vue'
       title="With Content"
     >
       <div class="h-40 flex items-center justify-center">
-        <HoloCard>
+        <CursorFloating>
           <div class="rounded-lg bg-white p-4 dark:bg-neutral-900">
             <h3 class="text-lg font-bold">
               Card Title
@@ -33,7 +33,7 @@ import HoloCard from './HoloCard.vue'
               Card description goes here
             </p>
           </div>
-        </HoloCard>
+        </CursorFloating>
       </div>
     </Variant>
 
@@ -42,14 +42,14 @@ import HoloCard from './HoloCard.vue'
       title="Interactive"
     >
       <div class="h-40 flex items-center justify-center">
-        <HoloCard>
+        <CursorFloating>
           <div class="cursor-pointer rounded-lg bg-white p-4 dark:bg-neutral-900 hover:bg-neutral-50 dark:hover:bg-neutral-800">
             <div class="flex items-center gap-2">
               <div class="i-solar:check-circle-bold-duotone text-primary-500" />
               <span>Click me!</span>
             </div>
           </div>
-        </HoloCard>
+        </CursorFloating>
       </div>
     </Variant>
   </Story>
