@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { CursorFloating } from '@proj-airi/stage-ui/components'
+
 interface Props {
   id: string
   name: string
@@ -19,7 +21,7 @@ const emit = defineEmits<{
 </script>
 
 <template>
-  <div
+  <CursorFloating
     relative min-h-120px flex="~ col" cursor-pointer overflow-hidden rounded-xl
     :class="[
       isSelected
@@ -38,11 +40,11 @@ const emit = defineEmits<{
       relative flex="~ col 1" justify-between gap-3 overflow-hidden rounded-lg bg="white dark:neutral-900" p-5
       transition="all ease-in-out duration-400"
       after="content-empty absolute inset-0 z--2 w-full h-full bg-dotted-[neutral-200/80] bg-size-10px mask-image-[linear-gradient(165deg,white_30%,transparent_50%)] transition-all duration-400 ease-in-out"
-      hover="after:bg-dotted-[primary-300/50] dark:after:bg-dotted-[primary-200/20]"
+      hover="after:bg-dotted-[primary-300/50] dark:after:bg-dotted-[primary-200/20] text-primary-600/80 dark:text-primary-300/80"
     >
       <!-- Card header (name and badge) -->
       <div z-1 flex items-start justify-between gap-2>
-        <h3 flex-1 truncate text-lg font-bold hover="text-primary-600 dark:text-primary-300">
+        <h3 flex-1 truncate text-lg font-bold>
           {{ name }}
         </h3>
         <div v-if="isActive" shrink-0 rounded-md p-1 bg="primary-100 dark:primary-900/40" text="primary-600 dark:primary-400">
@@ -51,7 +53,7 @@ const emit = defineEmits<{
       </div>
 
       <!-- Card description -->
-      <p v-if="description" line-clamp-3 min-h-40px flex-1 text-sm text="neutral-500 dark:neutral-400" hover="text-primary-600/80 dark:text-primary-300/80">
+      <p v-if="description" line-clamp-3 min-h-40px flex-1 text-sm text="neutral-500 dark:neutral-400">
         {{ description }}
       </p>
 
@@ -95,5 +97,5 @@ const emit = defineEmits<{
         <div i-solar:trash-bin-trash-linear text="neutral-500 dark:neutral-400" />
       </button>
     </div>
-  </div>
+  </CursorFloating>
 </template>
