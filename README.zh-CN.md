@@ -14,7 +14,7 @@
   </picture>
 </p>
 
-<h1 align="center">アイリ VTuber</h1>
+<h1 align="center">Project AIRI</h1>
 
 <p align="center">
   [<a href="https://discord.gg/TgQ3Cu2F7A">加入 Discord</a>] [<a href="https://airi.moeru.ai">试试看</a>] [<a href="https://github.com/moeru-ai/airi">Docs</a>]
