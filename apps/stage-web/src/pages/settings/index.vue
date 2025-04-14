@@ -6,6 +6,7 @@ import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 
 import IconAnimation from '../../components/IconAnimation.vue'
+import PageHeader from '../../components/PageHeader.vue'
 
 const router = useRouter()
 const iconAnimationStarted = ref(false)
@@ -106,20 +107,7 @@ const settings = computed(() => [
 </script>
 
 <template>
-  <div
-    v-motion
-    flex items-center gap-2
-    :initial="{ opacity: 0, x: 10 }"
-    :enter="{ opacity: 1, x: 0 }"
-    :duration="100"
-  >
-    <button @click="router.back()">
-      <div i-solar:alt-arrow-left-line-duotone text-2xl />
-    </button>
-    <h1 text-3xl>
-      {{ $t('settings.title') }}
-    </h1>
-  </div>
+  <PageHeader :title="$t('settings.title')" />
   <div flex="~ col gap-4">
     <div flex="~ col gap-4">
       <IconItem
