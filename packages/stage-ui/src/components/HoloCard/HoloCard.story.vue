@@ -1,0 +1,56 @@
+<script setup lang="ts">
+import HoloCard from './HoloCard.vue'
+</script>
+
+<template>
+  <Story
+    title="HoloCard"
+    group="misc"
+    :layout="{ type: 'grid', width: 600 }"
+  >
+    <Variant
+      id="basic"
+      title="Basic"
+    >
+      <div class="h-40 flex items-center justify-center">
+        <HoloCard>
+          <div class="bg-primary-500/20 h-20 w-20" />
+        </HoloCard>
+      </div>
+    </Variant>
+
+    <Variant
+      id="with-content"
+      title="With Content"
+    >
+      <div class="h-40 flex items-center justify-center">
+        <HoloCard>
+          <div class="rounded-lg bg-white p-4 dark:bg-neutral-900">
+            <h3 class="text-lg font-bold">
+              Card Title
+            </h3>
+            <p class="text-sm text-neutral-500">
+              Card description goes here
+            </p>
+          </div>
+        </HoloCard>
+      </div>
+    </Variant>
+
+    <Variant
+      id="interactive"
+      title="Interactive"
+    >
+      <div class="h-40 flex items-center justify-center">
+        <HoloCard>
+          <div class="cursor-pointer rounded-lg bg-white p-4 dark:bg-neutral-900 hover:bg-neutral-50 dark:hover:bg-neutral-800">
+            <div class="flex items-center gap-2">
+              <div class="i-solar:check-circle-bold-duotone text-primary-500" />
+              <span>Click me!</span>
+            </div>
+          </div>
+        </HoloCard>
+      </div>
+    </Variant>
+  </Story>
+</template>
