@@ -19,8 +19,9 @@ import IconItem from './IconItem.vue'
       <IconItem
         title="Modules"
         description="Thinking, vision, speech synthesis, gaming, etc."
-        icon="i-lucide:blocks"
+        icon="i-solar:layers-bold-duotone"
         to="/settings/modules"
+        class="font-sans"
       />
     </Variant>
 
@@ -31,9 +32,9 @@ import IconItem from './IconItem.vue'
       <IconItem
         title="Modules"
         description="Thinking, vision, speech synthesis, gaming, etc."
-        icon="i-lucide:blocks"
+        icon="i-solar:layers-bold-duotone"
         to="/settings/modules"
-        class="_hover"
+        class="_hover font-sans"
       />
     </Variant>
   </Story>

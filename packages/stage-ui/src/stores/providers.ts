@@ -62,6 +62,9 @@ export interface ProviderMetadata {
     listModels?: (config: Record<string, unknown>) => Promise<ModelInfo[]>
     listVoices?: (config: Record<string, unknown>) => Promise<VoiceInfo[]>
   }
+  validators: {
+    validateProviderConfig: (config: Record<string, unknown>) => Promise<boolean> | boolean
+  }
 }
 
 export interface ModelInfo {
@@ -140,6 +143,11 @@ export const useProvidersStore = defineStore('providers', () => {
           return fetchOpenRouterModels(config)
         },
       },
+      validators: {
+        validateProviderConfig: (config) => {
+          return !!config.apiKey && !!config.baseUrl
+        },
+      },
     },
     'ollama': {
       id: 'ollama',
@@ -166,6 +174,11 @@ export const useProvidersStore = defineStore('providers', () => {
               deprecated: false,
             } satisfies ModelInfo
           })
+        },
+      },
+      validators: {
+        validateProviderConfig: (config) => {
+          return !!config.baseUrl
         },
       },
     },
@@ -225,6 +238,11 @@ export const useProvidersStore = defineStore('providers', () => {
           ]
         },
       },
+      validators: {
+        validateProviderConfig: (config) => {
+          return !!config.baseUrl
+        },
+      },
     },
     'openai': {
       id: 'openai',
@@ -251,6 +269,11 @@ export const useProvidersStore = defineStore('providers', () => {
               deprecated: false,
             } satisfies ModelInfo
           })
+        },
+      },
+      validators: {
+        validateProviderConfig: (config) => {
+          return !!config.apiKey && !!config.baseUrl
         },
       },
     },
@@ -319,6 +342,11 @@ export const useProvidersStore = defineStore('providers', () => {
           ] satisfies ModelInfo[]
         },
       },
+      validators: {
+        validateProviderConfig: (config) => {
+          return !!config.apiKey && !!config.baseUrl
+        },
+      },
     },
     'google-generative-ai': {
       id: 'google-generative-ai',
@@ -347,6 +375,11 @@ export const useProvidersStore = defineStore('providers', () => {
           })
         },
       },
+      validators: {
+        validateProviderConfig: (config) => {
+          return !!config.apiKey && !!config.baseUrl
+        },
+      },
     },
     'xai': {
       id: 'xai',
@@ -372,6 +405,11 @@ export const useProvidersStore = defineStore('providers', () => {
           })
         },
       },
+      validators: {
+        validateProviderConfig: (config) => {
+          return !!config.apiKey && !!config.baseUrl
+        },
+      },
     },
     'deepseek': {
       id: 'deepseek',
@@ -395,6 +433,11 @@ export const useProvidersStore = defineStore('providers', () => {
               deprecated: false,
             } satisfies ModelInfo
           })
+        },
+      },
+      validators: {
+        validateProviderConfig: (config) => {
+          return !!config.apiKey && !!config.baseUrl
         },
       },
     },
@@ -461,6 +504,11 @@ export const useProvidersStore = defineStore('providers', () => {
           })
         },
       },
+      validators: {
+        validateProviderConfig: (config) => {
+          return !!config.apiKey && !!config.baseUrl
+        },
+      },
     },
     'microsoft-speech': {
       id: 'microsoft-speech',
@@ -505,6 +553,11 @@ export const useProvidersStore = defineStore('providers', () => {
           })
         },
       },
+      validators: {
+        validateProviderConfig: (config) => {
+          return !!config.apiKey && !!config.baseUrl
+        },
+      },
     },
     'together-ai': {
       id: 'together-ai',
@@ -528,6 +581,11 @@ export const useProvidersStore = defineStore('providers', () => {
               deprecated: false,
             } satisfies ModelInfo
           })
+        },
+      },
+      validators: {
+        validateProviderConfig: (config) => {
+          return !!config.apiKey && !!config.baseUrl
         },
       },
     },
@@ -555,6 +613,11 @@ export const useProvidersStore = defineStore('providers', () => {
           })
         },
       },
+      validators: {
+        validateProviderConfig: (config) => {
+          return !!config.apiKey && !!config.baseUrl
+        },
+      },
     },
     'fireworks-ai': {
       id: 'fireworks-ai',
@@ -578,6 +641,11 @@ export const useProvidersStore = defineStore('providers', () => {
               deprecated: false,
             } satisfies ModelInfo
           })
+        },
+      },
+      validators: {
+        validateProviderConfig: (config) => {
+          return !!config.apiKey && !!config.baseUrl
         },
       },
     },
@@ -608,6 +676,11 @@ export const useProvidersStore = defineStore('providers', () => {
           })
         },
       },
+      validators: {
+        validateProviderConfig: (config) => {
+          return !!config.apiKey && !!config.baseUrl
+        },
+      },
     },
     'cloudflare-workers-ai': {
       id: 'cloudflare-workers-ai',
@@ -620,6 +693,11 @@ export const useProvidersStore = defineStore('providers', () => {
       capabilities: {
         listModels: async () => {
           return []
+        },
+      },
+      validators: {
+        validateProviderConfig: (config) => {
+          return !!config.apiKey && !!config.accountId
         },
       },
     },
@@ -675,6 +753,11 @@ export const useProvidersStore = defineStore('providers', () => {
           ]
         },
       },
+      validators: {
+        validateProviderConfig: (config) => {
+          return !!config.apiKey && !!config.baseUrl
+        },
+      },
     },
     'mistral-ai': {
       id: 'mistral-ai',
@@ -698,6 +781,11 @@ export const useProvidersStore = defineStore('providers', () => {
               deprecated: false,
             } satisfies ModelInfo
           })
+        },
+      },
+      validators: {
+        validateProviderConfig: (config) => {
+          return !!config.apiKey && !!config.baseUrl
         },
       },
     },
@@ -725,51 +813,25 @@ export const useProvidersStore = defineStore('providers', () => {
           })
         },
       },
+      validators: {
+        validateProviderConfig: (config) => {
+          return !!config.apiKey && !!config.baseUrl
+        },
+      },
     },
   }
 
   // Configuration validation functions
-  function validateProvider(providerId: string): boolean {
+  async function validateProvider(providerId: string): Promise<boolean> {
     const config = providerCredentials.value[providerId]
     if (!config)
       return false
 
-    switch (providerId) {
-      case 'openrouter-ai':
-        return !!config.apiKey && !!config.baseUrl
-      case 'ollama':
-        return !!config.baseUrl
-      case 'vllm':
-        return !!config.baseUrl
-      case 'openai':
-        return !!config.apiKey
-      case 'anthropic':
-        return !!config.apiKey
-      case 'elevenlabs':
-        return !!config.apiKey
-      case 'xai':
-        return !!config.apiKey
-      case 'deepseek':
-        return !!config.apiKey
-      case 'together-ai':
-        return !!config.apiKey
-      case 'novita-ai':
-        return !!config.apiKey
-      case 'fireworks-ai':
-        return !!config.apiKey
-      case 'featherless-ai':
-        return !!config.apiKey
-      case 'microsoft-speech':
-        return !!config.apiKey && !!config.region
-      case 'cloudflare-workers-ai':
-        return !!config.apiKey
-      case 'mistral-ai':
-        return !!config.apiKey
-      case 'moonshot-ai':
-        return !!config.apiKey
-      default:
-        return false
-    }
+    const metadata = providerMetadata[providerId]
+    if (!metadata)
+      return false
+
+    return await metadata.validators.validateProviderConfig(config)
   }
 
   // Create computed properties for each provider's configuration status
@@ -789,10 +851,10 @@ export const useProvidersStore = defineStore('providers', () => {
   Object.keys(providerMetadata).forEach(initializeProvider)
 
   // Update configuration status for all providers
-  function updateConfigurationStatus() {
-    Object.keys(providerMetadata).forEach((providerId) => {
-      configuredProviders.value[providerId] = validateProvider(providerId)
-    })
+  async function updateConfigurationStatus() {
+    await Promise.all(Object.keys(providerMetadata).map(async (providerId) => {
+      configuredProviders.value[providerId] = await validateProvider(providerId)
+    }))
   }
 
   // Call initially and watch for changes

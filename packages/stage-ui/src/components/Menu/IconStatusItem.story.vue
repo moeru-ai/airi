@@ -22,6 +22,7 @@ import IconStatusItem from './IconStatusItem.vue'
         icon=" i-lucide:ghost"
         to="/"
         :configured="false"
+        class="font-sans"
       />
     </Variant>
 
@@ -35,6 +36,7 @@ import IconStatusItem from './IconStatusItem.vue'
         icon=" i-lucide:ghost"
         to="/"
         :configured="true"
+        class="font-sans"
       />
     </Variant>
 
@@ -48,7 +50,7 @@ import IconStatusItem from './IconStatusItem.vue'
         icon=" i-lucide:ghost"
         to="/"
         :configured="false"
-        class="_hover"
+        class="_hover font-sans"
       />
     </Variant>
 
@@ -62,7 +64,7 @@ import IconStatusItem from './IconStatusItem.vue'
         icon=" i-lucide:ghost"
         to="/"
         :configured="true"
-        class="_hover"
+        class="_hover font-sans"
       />
     </Variant>
   </Story>
