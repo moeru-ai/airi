@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import PageHeader from '../../../components/PageHeader.vue'
+import { PageHeader } from '@proj-airi/stage-ui/components'
+
 import { useIconAnimation } from '../../../composables/useIconAnimation'
 
 const {

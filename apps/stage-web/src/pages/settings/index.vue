@@ -1,12 +1,11 @@
 <script setup lang="ts">
-import { IconItem } from '@proj-airi/stage-ui/components'
+import { IconItem, PageHeader } from '@proj-airi/stage-ui/components'
 import { useSettings } from '@proj-airi/stage-ui/stores'
 import { computed, nextTick, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 
 import IconAnimation from '../../components/IconAnimation.vue'
-import PageHeader from '../../components/PageHeader.vue'
 
 const router = useRouter()
 const iconAnimationStarted = ref(false)
@@ -109,6 +108,7 @@ const settings = computed(() => [
 <template>
   <PageHeader :title="$t('settings.title')" />
   <div flex="~ col gap-4">
+    <div />
     <div flex="~ col gap-4">
       <IconItem
         v-for="(setting, index) in settings"

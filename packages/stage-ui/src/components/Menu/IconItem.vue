@@ -63,9 +63,9 @@ defineProps<{
   z-index: -1;
   width: 25%;
   height: 100%;
-  transition: all 0.4s ease-in-out;
   mask-image: linear-gradient(120deg, white 30%, transparent 50%);
   opacity: 0;
+  transition: all 0.4s ease-in-out;
 }
 
 .menu-icon-item:hover::before,

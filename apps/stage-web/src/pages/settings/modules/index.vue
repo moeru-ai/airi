@@ -1,10 +1,9 @@
 <script setup lang="ts">
-import { IconStatusItem } from '@proj-airi/stage-ui/components'
+import { IconStatusItem, PageHeader } from '@proj-airi/stage-ui/components'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import IconAnimation from '../../../components/IconAnimation.vue'
-import PageHeader from '../../../components/PageHeader.vue'
 import { useIconAnimation } from '../../../composables/useIconAnimation'
 
 const { t } = useI18n()

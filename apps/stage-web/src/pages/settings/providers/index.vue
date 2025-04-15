@@ -1,9 +1,8 @@
 <script setup lang="ts">
-import { IconStatusItem } from '@proj-airi/stage-ui/components'
+import { IconStatusItem, PageHeader } from '@proj-airi/stage-ui/components'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores'
 import { storeToRefs } from 'pinia'
 
-import PageHeader from '../../../components/PageHeader.vue'
 import { useIconAnimation } from '../../../composables/useIconAnimation'
 
 const providersStore = useProvidersStore()

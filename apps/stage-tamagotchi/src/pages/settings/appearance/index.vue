@@ -1,16 +1,14 @@
 <script setup lang="ts">
-import { Section } from '@proj-airi/stage-ui/components'
+import { PageHeader, Section } from '@proj-airi/stage-ui/components'
 import { useSettings } from '@proj-airi/stage-ui/stores'
 import { useDark } from '@vueuse/core'
 import { ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useRouter } from 'vue-router'
 
 import CheckBar from '../../../components/Settings/CheckBar.vue'
 import ColorPalette from '../../../components/Settings/ColorPalette.vue'
 import COLOR_PRESETS from './color-presets.json'
 
-const router = useRouter()
 const settings = useSettings()
 const dark = useDark()
 const { t } = useI18n()
@@ -24,26 +22,10 @@ watch(() => [settings.usePageSpecificTransitions, settings.disableTransitions], 
 </script>
 
 <template>
-  <div
-    v-motion
-    flex="~ row" items-center gap-2
-    :initial="{ opacity: 0, x: 10 }"
-    :enter="{ opacity: 1, x: 0 }"
-    :leave="{ opacity: 0, x: -10 }"
-    :duration="250"
-  >
-    <button @click="router.back()">
-      <div i-solar:alt-arrow-left-line-duotone text-2xl />
-    </button>
-    <h1 relative>
-      <div absolute left-0 top-0 translate-y="[-80%]">
-        <span text="neutral-300 dark:neutral-500" text-nowrap>{{ $t('settings.title') }}</span>
-      </div>
-      <div text-nowrap text-3xl font-semibold>
-        {{ $t('settings.pages.themes.title') }}
-      </div>
-    </h1>
-  </div>
+  <PageHeader
+    :title="$t('settings.pages.themes.title')"
+    :subtitle="$t('settings.title')"
+  />
 
   <Section
     v-motion

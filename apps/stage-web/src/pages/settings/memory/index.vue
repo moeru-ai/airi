@@ -3,7 +3,7 @@
 // import { storeToRefs } from 'pinia'
 // import { onMounted } from 'vue'
 
-import PageHeader from '../../../components/PageHeader.vue'
+import { PageHeader } from '@proj-airi/stage-ui/components'
 
 // const { server } = storeToRefs(useServerStore())
 

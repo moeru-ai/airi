@@ -1,6 +1,5 @@
 <script setup lang="ts">
-import Live2DCanvas from '@proj-airi/stage-ui/components/Live2D/Canvas.vue'
-import Live2DModel from '@proj-airi/stage-ui/components/Live2D/Model.vue'
+import { Live2DCanvas, Live2DModel, PageHeader } from '@proj-airi/stage-ui/components'
 import { useElementBounding } from '@vueuse/core'
 import { Vibrant } from 'node-vibrant/browser'
 import { ref } from 'vue'

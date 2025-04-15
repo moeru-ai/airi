@@ -1,13 +1,12 @@
 <script setup lang="ts">
 import type { ccv3 } from '@proj-airi/ccc'
 
-import { InputFile } from '@proj-airi/stage-ui/components'
+import { InputFile, PageHeader } from '@proj-airi/stage-ui/components'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores'
 import { storeToRefs } from 'pinia'
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import PageHeader from '../../../components/PageHeader.vue'
 import CardDetailDialog from './components/CardDetailDialog.vue'
 import CardListItem from './components/CardListItem.vue'
 import DeleteCardDialog from './components/DeleteCardDialog.vue'

@@ -1,11 +1,10 @@
 <script setup lang="ts">
-import { Section } from '@proj-airi/stage-ui/components'
+import { PageHeader, Section } from '@proj-airi/stage-ui/components'
 import { useSettings } from '@proj-airi/stage-ui/stores'
 import { useDark } from '@vueuse/core'
 import { ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import PageHeader from '../../../components/PageHeader.vue'
 import CheckBar from '../../../components/Settings/CheckBar.vue'
 import ColorPalette from '../../../components/Settings/ColorPalette.vue'
 import COLOR_PRESETS from './color-presets.json'

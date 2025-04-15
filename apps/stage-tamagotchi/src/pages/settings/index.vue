@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { IconItem } from '@proj-airi/stage-ui/components'
+import { IconItem, PageHeader } from '@proj-airi/stage-ui/components'
 import { useSettings } from '@proj-airi/stage-ui/stores'
 import { computed, nextTick, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -106,21 +106,9 @@ const settings = computed(() => [
 </script>
 
 <template>
-  <div
-    v-motion
-    flex items-center gap-2
-    :initial="{ opacity: 0, x: 10 }"
-    :enter="{ opacity: 1, x: 0 }"
-    :duration="100"
-  >
-    <button @click="router.back()">
-      <div i-solar:alt-arrow-left-line-duotone text-2xl />
-    </button>
-    <h1 text-3xl>
-      {{ $t('settings.title') }}
-    </h1>
-  </div>
+  <PageHeader :title="$t('settings.title')" />
   <div flex="~ col gap-4">
+    <div />
     <div flex="~ col gap-4">
       <IconItem
         v-for="(setting, index) in settings"

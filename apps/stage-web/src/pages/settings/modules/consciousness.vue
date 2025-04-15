@@ -1,12 +1,10 @@
 <script setup lang="ts">
-import { RadioCardDetailManySelect, RadioCardSimple } from '@proj-airi/stage-ui/components'
+import { PageHeader, RadioCardDetailManySelect, RadioCardSimple } from '@proj-airi/stage-ui/components'
 import { useConsciousnessStore, useProvidersStore } from '@proj-airi/stage-ui/stores'
 import { storeToRefs } from 'pinia'
 import { onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
-
-import PageHeader from '../../../components/PageHeader.vue'
 
 const providersStore = useProvidersStore()
 const consciousnessStore = useConsciousnessStore()

@@ -5,6 +5,7 @@ import {
   FieldCheckbox,
   FieldInput,
   FieldRange,
+  PageHeader,
   RadioCardDetailManySelect,
   RadioCardSimple,
   Skeleton,
@@ -16,7 +17,7 @@ import { generateSpeech } from '@xsai/generate-speech'
 import { storeToRefs } from 'pinia'
 import { onMounted, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { RouterLink, useRouter } from 'vue-router'
+import { RouterLink } from 'vue-router'
 
 const { t } = useI18n()
 const providersStore = useProvidersStore()
@@ -41,8 +42,6 @@ const {
   ssmlEnabled,
   availableVoices,
 } = storeToRefs(speechStore)
-
-const router = useRouter()
 
 const voiceSearchQuery = ref('')
 const useSSML = ref(false)
@@ -166,23 +165,10 @@ function updateCustomModelName(value: string) {
 </script>
 
 <template>
-  <div
-    v-motion flex="~ row" items-center gap-2 :initial="{ opacity: 0, x: 10 }" :enter="{ opacity: 1, x: 0 }"
-    :leave="{ opacity: 0, x: -10 }" :duration="250"
-  >
-    <button @click="router.back()">
-      <div i-solar:alt-arrow-left-line-duotone text-xl />
-    </button>
-    <h1 relative>
-      <div absolute left-0 top-0 translate-y="[-80%]">
-        <span text="neutral-300 dark:neutral-500" text-nowrap>{{ t('settings.pages.modules.title') }}</span>
-      </div>
-      <div text-nowrap text-3xl font-semibold>
-        {{ t('settings.pages.modules.speech.title') }}
-      </div>
-    </h1>
-  </div>
-
+  <PageHeader
+    :title="t('settings.pages.modules.speech.title')"
+    :subtitle="t('settings.pages.modules.title')"
+  />
   <div flex="~ col md:row gap-6">
     <div bg="neutral-100 dark:[rgba(0,0,0,0.3)]" rounded-xl p-4 flex="~ col gap-4" class="w-full md:w-[40%]">
       <div>
