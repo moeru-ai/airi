@@ -6,13 +6,12 @@ import { useAiriCardStore } from '@proj-airi/stage-ui/stores'
 import { storeToRefs } from 'pinia'
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useRouter } from 'vue-router'
 
+import PageHeader from '../../../components/PageHeader.vue'
 import CardDetailDialog from './components/CardDetailDialog.vue'
 import CardListItem from './components/CardListItem.vue'
 import DeleteCardDialog from './components/DeleteCardDialog.vue'
 
-const router = useRouter()
 const { t } = useI18n()
 const cardStore = useAiriCardStore()
 const { addCard, removeCard } = cardStore
@@ -148,26 +147,10 @@ function getModuleShortName(id: string, module: 'consciousness' | 'voice') {
 </script>
 
 <template>
-  <div
-    v-motion
-    flex="~ row" items-center gap-2
-    :initial="{ opacity: 0, x: 10 }"
-    :enter="{ opacity: 1, x: 0 }"
-    :leave="{ opacity: 0, x: -10 }"
-    :duration="250"
-  >
-    <button @click="router.back()">
-      <div i-solar:alt-arrow-left-line-duotone text-2xl />
-    </button>
-    <h1 relative>
-      <div absolute left-0 top-0 translate-y="[-80%]">
-        <span text="neutral-300 dark:neutral-500" text-nowrap>{{ t('settings.title') }}</span>
-      </div>
-      <div text-nowrap text-3xl font-semibold>
-        {{ t('settings.pages.card.title') }}
-      </div>
-    </h1>
-  </div>
+  <PageHeader
+    :title="$t('settings.pages.card.title')"
+    :subtitle="$t('settings.title')"
+  />
 
   <div rounded-xl p-4 flex="~ col gap-4">
     <!-- Toolbar with search and filters -->
@@ -233,7 +216,7 @@ function getModuleShortName(id: string, module: 'consciousness' | 'voice') {
           </template>
           <template v-else>
             <div flex flex-col items-center>
-              <div i-solar:upload-minimalistic-bold class="dark:text-primary-400 text-primary-500 mb-2 text-5xl" />
+              <div i-solar:upload-minimalistic-bold class="text-primary-500 dark:text-primary-400 mb-2 text-5xl" />
               <p font-medium text="primary-600 dark:primary-300">
                 {{ t('settings.pages.card.drop_here') }}
               </p>
