@@ -1,0 +1,46 @@
+{
+  "name": "@proj-airi/vad-asr-chat",
+  "type": "module",
+  "private": true,
+  "description": "Voice Activity Detector & Automatic Speech Recognition & Chat",
+  "author": {
+    "name": "Neko Ayaka",
+    "email": "neko@ayaka.moe",
+    "url": "https://github.com/nekomeowww"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/moeru-ai/airi.git",
+    "directory": "apps/vad-asr-chat"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "typecheck": "vue-tsc --noEmit"
+  },
+  "dependencies": {
+    "@huggingface/transformers": "^3.4.2",
+    "@llama-flow/core": "^0.3.4",
+    "@vueuse/core": "^13.0.0",
+    "@xsai/generate-transcription": "catalog:",
+    "@xsai/shared": "catalog:",
+    "@xsai/shared-chat": "catalog:",
+    "@xsai/stream-text": "catalog:",
+    "defu": "^6.1.4",
+    "es-toolkit": "^1.34.1",
+    "vue": "^3.5.13"
+  },
+  "devDependencies": {
+    "@iconify-json/solar": "^1.2.2",
+    "@iconify-json/svg-spinners": "^1.2.2",
+    "@types/audioworklet": "^0.0.72",
+    "@unocss/reset": "^66.1.0-beta.10",
+    "@vitejs/plugin-vue": "^5.2.3",
+    "unplugin-vue-router": "^0.12.0",
+    "vite": "^6.2.5",
+    "vue-router": "^4.5.0",
+    "vue-tsc": "^3.0.0-alpha.2"
+  }
+}

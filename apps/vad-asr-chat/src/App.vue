@@ -10,7 +10,7 @@ const toggleDark = useToggle(isDark)
   <div mx-auto h-full max-w-screen-lg flex flex-col gap-2 p-4>
     <header flex flex-row items-center justify-between>
       <h1 text-2xl>
-        VAD + ASR Playground
+        VAD + ASR + LLM Chat Playground
       </h1>
       <div flex flex-row items-center gap-2>
         <button text-lg @click="() => toggleDark()">
