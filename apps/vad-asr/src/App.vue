@@ -17,7 +17,7 @@ const toggleDark = useToggle(isDark)
           <div v-if="isDark" i-solar:moon-stars-bold-duotone />
           <div v-else i-solar:sun-bold />
         </button>
-        <a href="https://github.com/moeru-ai/airi/tree/main/apps/vad">
+        <a href="https://github.com/moeru-ai/airi/tree/main/apps/vad-asr">
           <div i-simple-icons:github />
         </a>
       </div>
