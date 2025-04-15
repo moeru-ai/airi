@@ -933,6 +933,55 @@ importers:
         specifier: ^3.0.0-alpha.2
         version: 3.0.0-alpha.2(typescript@5.8.3)
 
+  apps/vad-asr:
+    dependencies:
+      '@huggingface/transformers':
+        specifier: ^3.4.2
+        version: 3.4.2
+      '@vueuse/core':
+        specifier: ^13.0.0
+        version: 13.0.0(vue@3.5.13(typescript@5.8.3))
+      '@xsai/generate-transcription':
+        specifier: 'catalog:'
+        version: 0.2.0-beta.3
+      defu:
+        specifier: ^6.1.4
+        version: 6.1.4
+      es-toolkit:
+        specifier: ^1.34.1
+        version: 1.34.1
+      vue:
+        specifier: ^3.5.13
+        version: 3.5.13(typescript@5.8.3)
+    devDependencies:
+      '@iconify-json/solar':
+        specifier: ^1.2.2
+        version: 1.2.2
+      '@iconify-json/svg-spinners':
+        specifier: ^1.2.2
+        version: 1.2.2
+      '@types/audioworklet':
+        specifier: ^0.0.72
+        version: 0.0.72
+      '@unocss/reset':
+        specifier: ^66.1.0-beta.10
+        version: 66.1.0-beta.10
+      '@vitejs/plugin-vue':
+        specifier: ^5.2.3
+        version: 5.2.3(vite@6.2.5(@types/node@22.14.0)(jiti@2.4.2)(less@4.3.0)(terser@5.17.6)(tsx@4.19.3)(yaml@2.7.0))(vue@3.5.13(typescript@5.8.3))
+      unplugin-vue-router:
+        specifier: ^0.12.0
+        version: 0.12.0(vue-router@4.5.0(vue@3.5.13(typescript@5.8.3)))(vue@3.5.13(typescript@5.8.3))
+      vite:
+        specifier: ^6.2.5
+        version: 6.2.5(@types/node@22.14.0)(jiti@2.4.2)(less@4.3.0)(terser@5.17.6)(tsx@4.19.3)(yaml@2.7.0)
+      vue-router:
+        specifier: ^4.5.0
+        version: 4.5.0(vue@3.5.13(typescript@5.8.3))
+      vue-tsc:
+        specifier: ^3.0.0-alpha.2
+        version: 3.0.0-alpha.2(typescript@5.8.3)
+
   docs:
     devDependencies:
       98.css:
@@ -962,6 +1011,9 @@ importers:
       unocss:
         specifier: ^66.1.0-beta.10
         version: 66.1.0-beta.10(postcss@8.5.3)(vite@6.2.5(@types/node@22.14.0)(jiti@2.4.2)(less@4.3.0)(terser@5.17.6)(tsx@4.19.3)(yaml@2.7.0))(vue@3.5.13(typescript@5.8.3))
+      vue:
+        specifier: ^3.5.13
+        version: 3.5.13(typescript@5.8.3)
 
   packages/ccc:
     dependencies:

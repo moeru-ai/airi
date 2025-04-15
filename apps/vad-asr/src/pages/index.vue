@@ -1,6 +1,8 @@
 <script setup lang="ts">
+import { generateTranscription } from '@xsai/generate-transcription'
 import { ref } from 'vue'
 
+import FieldInput from '../components/FieldInput.vue'
 import { VADAudioManager } from '../libs/vad/manager'
 import workletUrl from '../libs/vad/process.worklet?url'
 import { createVAD } from '../libs/vad/vad'
@@ -11,7 +13,12 @@ interface AudioSegment {
   duration: number
   timestamp: number
   audioSrc: string
+  transcription: string
 }
+
+const asrProviderBaseURL = ref('http://localhost:8000/v1/')
+const asrProviderAPIKey = ref('')
+const asrProviderModel = ref('large-v3-turbo')
 
 const audioManager = ref<VADAudioManager>()
 const isInitialized = ref(false)
@@ -46,12 +53,26 @@ async function setupSpeechDetection() {
       const wavBuffer = toWav(buffer, 16000)
       const audioBlob = new Blob([wavBuffer], { type: 'audio/wav' })
 
-      // Store the segment
-      segments.value.push({
+      const obj = {
         buffer,
         duration: duration / 1000, // Convert to seconds for display
         timestamp: Date.now(),
         audioSrc: URL.createObjectURL(audioBlob),
+        transcription: '',
+      }
+
+      // Store the segment
+      const objIndex = segments.value.push(obj)
+
+      generateTranscription({
+        baseURL: asrProviderBaseURL.value,
+        file: audioBlob,
+        model: asrProviderModel.value,
+        apiKey: asrProviderAPIKey.value,
+      }).then((res) => {
+        segments.value[objIndex - 1].transcription = res.text
+      }).catch((err) => {
+        console.error('Failed to generate transcription:', err)
       })
     })
 
@@ -128,8 +149,16 @@ function toggleListening() {
 </script>
 
 <template>
-  <div mb-6 h-full w-full flex flex-col gap-2>
+  <div mb-6 mt-4 h-full w-full flex flex-col gap-2>
     <div w-full flex-1>
+      <div v-if="!isRunning">
+        <div flex="~ col gap-4">
+          <FieldInput v-model="asrProviderBaseURL" label="ASR Provider Base URL" description="The base URL of the ASR provider. Generally, Speaches is recommended." />
+          <FieldInput v-model="asrProviderAPIKey" label="ASR Provider API Key" description="The API key of the ASR provider" />
+          <FieldInput v-model="asrProviderModel" label="ASR Provider Model" description="The model to use for the ASR provider" />
+        </div>
+      </div>
+
       <div v-if="isModuleLoading" mt-20 flex items-center justify-center text-5xl>
         <div i-svg-spinners:3-dots-move />
       </div>
@@ -138,12 +167,19 @@ function toggleListening() {
         {{ error }}
       </div>
 
-      <div v-if="segments?.length && segments.length > 0" class="segments" w-full flex flex-col gap-2>
+      <div v-if="segments?.length && segments.length > 0" class="segments" my-4 w-full flex flex-col gap-2>
         <h3>Voice Segments ({{ segments.length }})</h3>
         <ul>
           <li v-for="(segment, index) in segments" :key="index" class="segment" flex flex-col gap-2>
-            <div class="segment-info">
-              <span>Duration: {{ segment.duration.toFixed(2) }}s</span>
+            <div class="segment-info" grid="~ cols-[120px_1fr] gap-2">
+              <span text="neutral-400 dark:neutral-500">Duration</span>
+              <span font-mono>
+                {{ segment.duration.toFixed(2) }}s
+              </span>
+              <span text="neutral-400 dark:neutral-500">Transcription</span>
+              <span>
+                {{ segment.transcription }}
+              </span>
             </div>
             <audio :src="segment.audioSrc" controls w-full />
           </li>
@@ -152,7 +188,7 @@ function toggleListening() {
     </div>
 
     <div w-full flex justify-center gap-4>
-      <button aspect-square size-15 flex items-center justify-center rounded-full text-2xl :class="[isRunning ? 'bg-neutral-900 dark:bg-white text-white dark:text-neutral-900' : 'bg-neutral-900 dark:bg-white/20 text-white dark:text-white', isInitialized ? 'opacity-100' : 'opacity-0']" :disabled="!isInitialized" @click="toggleListening">
+      <button aspect-square size-15 flex items-center justify-center rounded-full text-2xl :class="[isRunning ? 'bg-neutral-700 dark:bg-white text-white dark:text-neutral-900' : 'bg-neutral-900 dark:bg-white/20 text-white dark:text-white', isInitialized ? 'opacity-100' : 'opacity-0']" :disabled="!isInitialized" @click="toggleListening">
         <div i-solar:microphone-3-bold />
       </button>
       <button v-if="!isInitialized" bg="green-500 dark:green-500 hover:green-400 dark:hover:green-400 active:green-500 dark:active:green-500" transition="all duration-250 ease-in-out" aspect-square size-15 flex items-center justify-center rounded-full @click="setupSpeechDetection">

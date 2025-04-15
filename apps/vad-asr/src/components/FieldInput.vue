@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import Input from '../Input/Input.vue'
+import Input from './Input.vue'
 
 const props = defineProps<{
   label?: string
@@ -15,7 +15,7 @@ const modelValue = defineModel<string>({ required: true })
 
 <template>
   <div max-w-full>
-    <label flex="~ col gap-4">
+    <label flex="~ col gap-2">
       <div>
         <div class="flex items-center gap-1 text-sm font-medium">
           {{ props.label }}
