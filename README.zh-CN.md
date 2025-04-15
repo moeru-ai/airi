@@ -88,12 +88,28 @@
 
 ## 开发
 
+> 有关开发此项目的具体教程，参见 [CONTRIBUTING.md](./CONTRIBUTING.md)
+
 ```shell
 pnpm i
 ```
 
+### 文档站
+
 ```shell
-pnpm dev
+pnpm -F @proj-airi/docs dev
+```
+
+### 网页端舞台 ([airi.moeru.ai](https://airi.moeru.ai) 的前端页面)
+
+```shell
+pnpm -F @proj-airi/stage-web dev
+```
+
+### 拓麻歌子端舞台 (Electron 桌面 App)
+
+```shell
+pnpm -F @proj-airi/stage-tamagotchi dev
 ```
 
 ## 原生支持的 LLM API 提供商列表（由 [xsai](https://github.com/moeru-ai/xsai) 驱动）

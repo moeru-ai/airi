@@ -90,12 +90,28 @@ Capable of
 
 ## Development
 
+> For detailed instructions to develop this project, follow the [CONTRIBUTING.md](./CONTRIBUTING.md)
+
 ```shell
 pnpm i
 ```
 
+### Documentation site
+
 ```shell
-pnpm dev
+pnpm -F @proj-airi/docs dev
+```
+
+### Stage web (Frontend for [airi.moeru.ai](https://airi.moeru.ai), or [airi.ayaka.io](https://airi.ayaka.io))
+
+```shell
+pnpm -F @proj-airi/stage-web dev
+```
+
+### Stage Tamagotchi (Electron app for アイリ VTuber)
+
+```shell
+pnpm -F @proj-airi/stage-tamagotchi dev
 ```
 
 ## Supported the following LLM API Providers (powered by [xsai](https://github.com/moeru-ai/xsai))
