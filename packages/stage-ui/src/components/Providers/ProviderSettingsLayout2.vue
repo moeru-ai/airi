@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { PageHeader } from '@proj-airi/stage-ui/components'
 import { useI18n } from 'vue-i18n'
+
+import PageHeader from '../../components/Layouts/PageHeader.vue'
 
 defineProps<{
   providerName: string
