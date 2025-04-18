@@ -3,7 +3,6 @@ import type { UnElevenLabsOptions } from '@xsai-ext/providers-local'
 import type { SpeechProviderWithExtraOptions } from '@xsai-ext/shared-providers'
 
 import {
-  FieldCheckbox,
   FieldRange,
   SpeechPlayground,
   SpeechProviderSettings,
@@ -13,25 +12,17 @@ import { storeToRefs } from 'pinia'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-const providerId = 'elevenlabs'
-const defaultModel = 'eleven_multilingual_v2'
+const providerId = 'alibaba-cloud-model-studio'
+const defaultModel = 'cosyvoice-v1'
 
 // Default voice settings specific to ElevenLabs
 const defaultVoiceSettings = {
-  similarityBoost: 0.75,
-  stability: 0.5,
   speed: 1.0,
-  style: 0,
-  useSpeakerBoost: true,
 }
 
 const pitch = ref<number>(0)
 const speed = ref<number>(1.0)
 const volume = ref<number>(0)
-const style = ref<number>(0)
-const stability = ref<number>(0.5)
-const similarityBoost = ref<number>(0.75)
-const useSpeakerBoost = ref<boolean>(false)
 
 const speechStore = useSpeechStore()
 const providersStore = useProvidersStore()
@@ -98,26 +89,6 @@ watch(volume, async () => {
   providerConfig.volume = volume.value
 })
 
-watch(style, async () => {
-  const providerConfig = providersStore.getProviderConfig(providerId)
-  providerConfig.style = style.value
-})
-
-watch(stability, async () => {
-  const providerConfig = providersStore.getProviderConfig(providerId)
-  providerConfig.stability = stability.value
-})
-
-watch(similarityBoost, async () => {
-  const providerConfig = providersStore.getProviderConfig(providerId)
-  providerConfig.similarityBoost = similarityBoost.value
-})
-
-watch(useSpeakerBoost, async () => {
-  const providerConfig = providersStore.getProviderConfig(providerId)
-  providerConfig.useSpeakerBoost = useSpeakerBoost.value
-})
-
 watch(providers, async () => {
   const providerConfig = providersStore.getProviderConfig(providerId)
   const providerMetadata = providersStore.getProviderMetadata(providerId)
@@ -166,40 +137,6 @@ watch(providers, async () => {
           :description="t('settings.pages.providers.provider.common.fields.field.volume.description')"
           :min="-100"
           :max="100" :step="1" :format-value="value => `${value}%`"
-        />
-
-        <!-- Style control - specific to ElevenLabs -->
-        <FieldRange
-          v-model="style"
-          :label="t('settings.pages.providers.provider.elevenlabs.fields.field.style.label')"
-          :description="t('settings.pages.providers.provider.elevenlabs.fields.field.style.description')"
-          :min="0"
-          :max="1" :step="0.01"
-        />
-
-        <!-- Stability control - specific to ElevenLabs -->
-        <FieldRange
-          v-model="stability"
-          :label="t('settings.pages.providers.provider.elevenlabs.fields.field.stability.label')"
-          :description="t('settings.pages.providers.provider.elevenlabs.fields.field.stability.description')"
-          :min="0"
-          :max="1" :step="0.01"
-        />
-
-        <!-- Similarity Boost control - specific to ElevenLabs -->
-        <FieldRange
-          v-model="similarityBoost"
-          :label="t('settings.pages.providers.provider.elevenlabs.fields.field.simularity-boost.label')"
-          :description="t('settings.pages.providers.provider.elevenlabs.fields.field.simularity-boost.description')"
-          :min="0"
-          :max="1" :step="0.01"
-        />
-
-        <!-- Speaker Boost checkbox - specific to ElevenLabs -->
-        <FieldCheckbox
-          v-model="useSpeakerBoost"
-          :label="t('settings.pages.providers.provider.elevenlabs.fields.field.speaker-boost.label')"
-          :description="t('settings.pages.providers.provider.elevenlabs.fields.field.speaker-boost.description')"
         />
       </div>
     </template>

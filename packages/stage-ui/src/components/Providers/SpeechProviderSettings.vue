@@ -29,10 +29,7 @@ const props = defineProps<{
 // Expose slots and emit events to allow customization
 defineSlots<{
   'basic-settings': (props: any) => any
-  'voice-settings': (props: {
-    voiceSettings: Record<string, any>
-    updateVoiceSettings: (key: string, value: any) => void
-  }) => any
+  'voice-settings': (props: any) => any
   'advanced-settings': (props: any) => any
   'playground': (props: {
     isGenerating: boolean

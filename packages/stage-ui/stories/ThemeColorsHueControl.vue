@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { onMounted, ref, watch } from 'vue'
 
-const DEFAULT_THEME_COLORS_HUE = 178.17
+const DEFAULT_THEME_COLORS_HUE = 220.44
 
 const themeColorsHue = ref(DEFAULT_THEME_COLORS_HUE)
 

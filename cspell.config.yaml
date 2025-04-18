@@ -8,6 +8,8 @@ words:
   - airi
   - airi-vtuber
   - Alaya
+  - alibabacloud
+  - aliyun
   - APNG
   - astrojs
   - Attributify
@@ -16,6 +18,7 @@ words:
   - Ayaka
   - baichuan
   - baiducloud
+  - bailian
   - bigserial
   - Bitstream
   - browserbasehq
@@ -26,6 +29,8 @@ words:
   - collectblock
   - composables
   - cooldown
+  - cosyvoice
+  - cozyvoice
   - crossws
   - csmmap
   - csmvector
@@ -158,11 +163,13 @@ words:
   - unhead
   - unocss
   - unplugin
+  - unspeech
   - valibot
   - vaul
   - velin
   - VITE
   - vllm
+  - Volcengine
   - vrma
   - vueuse
   - wavefile

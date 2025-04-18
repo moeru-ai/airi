@@ -8,7 +8,6 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { toXml } from 'xast-util-to-xml'
 import { x } from 'xastscript'
 
-import { voiceList, voiceMap } from '../../constants/elevenlabs'
 import { useProvidersStore } from '../providers'
 
 export const useSpeechStore = defineStore('speech', () => {
@@ -69,32 +68,12 @@ export const useSpeechStore = defineStore('speech', () => {
 
   const supportsSSML = computed(() => {
     // Currently only ElevenLabs and some other providers support SSML
-    return ['elevenlabs', 'microsoft-speech', 'azure-speech', 'google'].includes(activeSpeechProvider.value)
-  })
-
-  const availableLanguages = computed(() => {
-    return Object.keys(voiceList)
-  })
-
-  const availableVoicesForLanguage = computed(() => {
-    const language = selectedLanguage.value
-    if (!language || !voiceList[language]) {
-      return []
-    }
-
-    return voiceList[language].map(voiceEnum => ({
-      id: voiceMap[voiceEnum],
-      name: voiceEnum,
-      provider: 'elevenlabs',
-      language,
-    }))
+    return ['elevenlabs', 'microsoft-speech', 'azure-speech', 'google', 'alibaba-cloud-model-studio', 'volcengine'].includes(activeSpeechProvider.value)
   })
 
   // Helper function to determine if a provider is a speech provider
   function isSpeechProvider(providerId: string): boolean {
-    // This is a simplified check - in a real implementation, you might have a more robust way
-    // to determine if a provider supports speech synthesis
-    return ['elevenlabs', 'microsoft-speech', 'azure-speech', 'google', 'amazon'].includes(providerId)
+    return ['elevenlabs', 'microsoft-speech', 'azure-speech', 'google', 'amazon', 'alibaba-cloud-model-studio', 'volcengine'].includes(providerId)
   }
 
   async function loadVoicesForProvider(provider: string) {
@@ -247,8 +226,6 @@ export const useSpeechStore = defineStore('speech', () => {
     // Computed
     availableSpeechProvidersMetadata,
     supportsSSML,
-    availableLanguages,
-    availableVoicesForLanguage,
     supportsModelListing,
     providerModels,
     isLoadingActiveProviderModels,

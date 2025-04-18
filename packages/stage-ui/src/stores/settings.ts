@@ -3,7 +3,7 @@ import { converter } from 'culori'
 import { defineStore } from 'pinia'
 import { computed, ref, watch } from 'vue'
 
-export const DEFAULT_THEME_COLORS_HUE = 178.17
+export const DEFAULT_THEME_COLORS_HUE = 220.44
 
 const convert = converter('oklch')
 const getHueFrom = (color?: string) => color ? convert(color)?.h : DEFAULT_THEME_COLORS_HUE

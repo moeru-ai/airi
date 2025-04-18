@@ -227,6 +227,9 @@ settings:
             title: Voice Settings
       description: LLMs, speech providers, etc.
       provider:
+        alibaba-cloud-model-studio:
+          description: bailian.console.aliyun.com
+          title: Alibaba Cloud Model Studio
         anthropic:
           description: anthropic.com
           title: Anthropic | Claude
@@ -335,6 +338,14 @@ settings:
         vllm:
           description: vllm.ai
           title: vLLM
+        volcengine:
+          description: volcengine.com
+          fields:
+            field:
+              appId:
+                description: App ID of the project where you can obtain in Console
+                label: App ID
+          title: Volcano Engine
         xai:
           description: x.ai
           title: xAI

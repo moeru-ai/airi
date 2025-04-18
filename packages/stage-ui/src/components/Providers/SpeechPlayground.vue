@@ -10,7 +10,6 @@ const props = defineProps<{
   // Input fields
   defaultText?: string
   availableVoices: VoiceInfo[]
-  availableLanguages: string[]
 
   // Provider-specific handlers (provided from parent)
   generateSpeech: (input: string, voice: string, useSSML: boolean) => Promise<ArrayBuffer>
@@ -29,7 +28,6 @@ const errorMessage = ref('')
 const audioPlayer = ref<HTMLAudioElement | null>(null)
 const useSSML = ref(false)
 const ssmlText = ref('')
-const selectedLanguage = ref(props.availableLanguages[0] || 'en-US')
 const selectedVoice = ref('')
 
 // Watch for changes in available voices
@@ -106,7 +104,6 @@ defineExpose({
   testText,
   ssmlText,
   useSSML,
-  selectedLanguage,
   selectedVoice,
   isGenerating,
   audioUrl,
@@ -156,27 +153,6 @@ defineExpose({
       </template>
 
       <div flex="~ col gap-6">
-        <label grid="~ cols-2 gap-4">
-          <div>
-            <div class="flex items-center gap-1 text-sm font-medium">
-              {{ t('settings.pages.providers.provider.elevenlabs.playground.fields.field.language.label') }}
-            </div>
-            <div class="text-xs text-neutral-500 dark:text-neutral-400">
-              {{ t('settings.pages.providers.provider.elevenlabs.playground.fields.field.language.description') }}
-            </div>
-          </div>
-          <select
-            v-model="selectedLanguage"
-            border="neutral-300 dark:neutral-800 solid 2 focus:neutral-400 dark:focus:neutral-600"
-            transition="border duration-250 ease-in-out" w-full rounded-lg px-2 py-1 text-nowrap text-sm
-            outline-none
-          >
-            <option v-for="language in availableLanguages" :key="language" :value="language">
-              {{ language }}
-            </option>
-          </select>
-        </label>
-
         <label grid="~ cols-2 gap-4">
           <div>
             <div class="flex items-center gap-1 text-sm font-medium">

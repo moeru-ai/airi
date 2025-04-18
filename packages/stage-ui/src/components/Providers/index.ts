@@ -8,6 +8,4 @@ export { default as ProviderSettingsLayout2 } from './ProviderSettingsLayout2.vu
 export { default as ProviderSettingsLayout } from './ProviderSettingsLayout.vue'
 
 export { default as SpeechPlayground } from './SpeechPlayground.vue'
-// New speech provider components
 export { default as SpeechProviderSettings } from './SpeechProviderSettings.vue'
-export { default as SpeechVoiceSettings } from './SpeechVoiceSettings.vue'

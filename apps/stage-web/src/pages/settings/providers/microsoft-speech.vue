@@ -6,7 +6,6 @@ import {
   FieldInput,
   SpeechPlayground,
   SpeechProviderSettings,
-  SpeechVoiceSettings,
 } from '@proj-airi/stage-ui/components'
 import { useProvidersStore, useSpeechStore } from '@proj-airi/stage-ui/stores'
 import { storeToRefs } from 'pinia'
@@ -50,11 +49,6 @@ const apiKeyConfigured = computed(() => !!providers.value[providerId]?.apiKey)
 // Get available voices for Microsoft Speech
 const availableVoices = computed(() => {
   return speechStore.availableVoices[providerId] || []
-})
-
-// Get available languages
-const availableLanguages = computed(() => {
-  return speechStore.availableLanguages
 })
 
 // Generate speech with Microsoft-specific parameters
@@ -143,7 +137,6 @@ async function handleGenerateSpeech(input: string, voiceId: string, useSSML: boo
     <template #playground>
       <SpeechPlayground
         :available-voices="availableVoices"
-        :available-languages="availableLanguages"
         :generate-speech="handleGenerateSpeech"
         :api-key-configured="apiKeyConfigured"
         default-text="Hello! This is a test of the Microsoft Speech synthesis."

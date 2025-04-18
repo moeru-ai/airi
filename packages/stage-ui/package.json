@@ -65,6 +65,7 @@
     "radix-vue": "^1.9.17",
     "reka-ui": "^2.2.0",
     "unist-builder": "^4.0.0",
+    "unspeech": "^0.1.7",
     "xast-util-to-xml": "^4.0.0",
     "xastscript": "^4.0.0"
   },

@@ -207,6 +207,9 @@ settings:
             title: 声音配置
       description: LLM，语音合成，语音识别提供商等
       provider:
+        alibaba-cloud-model-studio:
+          description: bailian.console.aliyun.com
+          title: 阿里百炼
         anthropic:
           description: anthropic.com
           title: Anthropic | Claude
@@ -313,6 +316,14 @@ settings:
         vllm:
           description: vllm.ai
           title: vLLM
+        volcengine:
+          description: volcengine.com
+          fields:
+            field:
+              appId:
+                description: 可在控制台获取的 App ID
+                label: App ID
+          title: 火山引擎
         xai:
           description: X.AI
           title: xAI

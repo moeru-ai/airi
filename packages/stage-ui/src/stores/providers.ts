@@ -8,9 +8,13 @@ import type {
   TranscriptionProvider,
   TranscriptionProviderWithExtraOptions,
 } from '@xsai-ext/shared-providers'
-import type { UnElevenLabsOptions } from './fix/elevenlabs'
-import type { UnMicrosoftOptions } from './fix/microsoft'
-import type { VoiceProviderWithExtraOptions } from './fix/voice'
+import type {
+  UnAlibabaCloudOptions,
+  UnElevenLabsOptions,
+  UnMicrosoftOptions,
+  UnVolcengineOptions,
+  VoiceProviderWithExtraOptions,
+} from 'unspeech'
 
 import { useLocalStorage } from '@vueuse/core'
 import {
@@ -31,12 +35,16 @@ import {
 import { createOllama } from '@xsai-ext/providers-local'
 import { listModels } from '@xsai/model'
 import { defineStore } from 'pinia'
+import {
+  createUnAlibabaCloud,
+  createUnElevenLabs,
+  createUnMicrosoft,
+  createUnVolcengine,
+  listVoices,
+} from 'unspeech'
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import { createUnElevenLabs } from './fix/elevenlabs'
-import { listVoices } from './fix/list-voices'
-import { createUnMicrosoft } from './fix/microsoft'
 import { models as elevenLabsModels } from './providers/elevenlabs/list-models'
 
 export interface ProviderMetadata {
@@ -556,6 +564,112 @@ export const useProvidersStore = defineStore('providers', () => {
       validators: {
         validateProviderConfig: (config) => {
           return !!config.apiKey && !!config.baseUrl
+        },
+      },
+    },
+    'alibaba-cloud-model-studio': {
+      id: 'alibaba-cloud-model-studio',
+      nameKey: 'settings.pages.providers.provider.alibaba-cloud-model-studio.title',
+      name: 'Alibaba Cloud Model Studio',
+      descriptionKey: 'settings.pages.providers.provider.alibaba-cloud-model-studio.description',
+      description: 'bailian.console.aliyun.com',
+      iconColor: 'i-lobe-icons:alibabacloud',
+      defaultOptions: {
+        baseUrl: 'https://unspeech.hyp3r.link/v1/',
+      },
+      createProvider: config => createUnAlibabaCloud((config.apiKey as string).trim(), (config.baseUrl as string).trim()),
+      capabilities: {
+        listVoices: async (config) => {
+          const provider = createUnAlibabaCloud((config.apiKey as string).trim(), (config.baseUrl as string).trim()) as VoiceProviderWithExtraOptions<UnAlibabaCloudOptions>
+
+          const voices = await listVoices({
+            ...provider.voice(),
+          })
+
+          return voices.map((voice) => {
+            return {
+              id: voice.id,
+              name: voice.name,
+              provider: 'alibaba-cloud-model-studio',
+              previewURL: voice.preview_audio_url,
+              languages: voice.languages,
+              gender: voice.labels?.gender,
+            }
+          })
+        },
+        listModels: async () => {
+          return [
+            {
+              id: 'cozyvoice-v1',
+              name: 'CozyVoice',
+              provider: 'alibaba-cloud-model-studio',
+              description: '',
+              contextLength: 0,
+              deprecated: false,
+            },
+            {
+              id: 'cozyvoice-v2',
+              name: 'CozyVoice (New)',
+              provider: 'alibaba-cloud-model-studio',
+              description: '',
+              contextLength: 0,
+              deprecated: false,
+            },
+          ]
+        },
+      },
+      validators: {
+        validateProviderConfig: (config) => {
+          return !!config.apiKey && !!config.baseUrl
+        },
+      },
+    },
+    'volcengine': {
+      id: 'volcengine',
+      nameKey: 'settings.pages.providers.provider.volcengine.title',
+      name: 'settings.pages.providers.provider.volcengine.title',
+      descriptionKey: 'settings.pages.providers.provider.volcengine.description',
+      description: 'volcengine.com',
+      iconColor: 'i-lobe-icons:volcengine',
+      defaultOptions: {
+        baseUrl: 'https://unspeech.hyp3r.link/v1/',
+      },
+      createProvider: config => createUnVolcengine((config.apiKey as string).trim(), (config.baseUrl as string).trim()),
+      capabilities: {
+        listVoices: async (config) => {
+          const provider = createUnVolcengine((config.apiKey as string).trim(), (config.baseUrl as string).trim()) as VoiceProviderWithExtraOptions<UnVolcengineOptions>
+
+          const voices = await listVoices({
+            ...provider.voice(),
+          })
+
+          return voices.map((voice) => {
+            return {
+              id: voice.id,
+              name: voice.name,
+              provider: 'volcano-engine',
+              previewURL: voice.preview_audio_url,
+              languages: voice.languages,
+              gender: voice.labels?.gender,
+            }
+          })
+        },
+        listModels: async () => {
+          return [
+            {
+              id: 'v1',
+              name: 'v1',
+              provider: 'volcano-engine',
+              description: '',
+              contextLength: 0,
+              deprecated: false,
+            },
+          ]
+        },
+      },
+      validators: {
+        validateProviderConfig: (config) => {
+          return !!config.apiKey && !!config.baseUrl && !!config.app && !!(config.app as any).appId
         },
       },
     },
