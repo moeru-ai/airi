@@ -1,7 +1,7 @@
 {
-  "name": "@proj-airi/gpuu",
+  "name": "gpuu",
   "type": "module",
-  "private": true,
+  "version": "1.0.0",
   "description": "A collection of utilities for working with GPUs, especially for WebGPU.",
   "author": {
     "name": "Neko Ayaka",
