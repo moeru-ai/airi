@@ -2,8 +2,8 @@
 import type { PreTrainedModel, Processor } from '@huggingface/transformers'
 
 import { AutoModel, AutoProcessor, env, RawImage } from '@huggingface/transformers'
-import { check } from '@proj-airi/gpuu/webgpu'
 import { InputFile } from '@proj-airi/stage-ui/components'
+import { check } from 'gpuu/webgpu'
 import { computed, onMounted, ref } from 'vue'
 
 const model = ref<PreTrainedModel>()

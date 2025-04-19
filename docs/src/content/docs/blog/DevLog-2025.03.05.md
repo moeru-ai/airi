@@ -13,7 +13,7 @@ we will add more capabilities for it in the future.
 It feels like this:
 
 ```ts
-import { check } from '@proj-airi/gpuu/webgpu'
+import { check } from 'gpuu/webgpu'
 import { onMounted } from 'vue'
 
 onMounted(async () => {

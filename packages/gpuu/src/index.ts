@@ -1,1 +1,1 @@
-console.warn('Please import \'@proj-airi/gpuu\' instead.')
+console.warn('Please import \'gpuu\' instead.')
