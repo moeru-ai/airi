@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { Textarea } from '@proj-airi/stage-ui/components'
 import { ref } from 'vue'
 
 const messageInput = ref<string>('')
@@ -58,7 +59,7 @@ async function onSendMessage() {
 <template>
   <div flex flex-col gap-2 p-2>
     <div flex flex-row gap-2>
-      <BasicTextarea
+      <Textarea
         v-model="messageInput"
         placeholder="Message"
         p="2" bg="neutral-100 dark:neutral-700"

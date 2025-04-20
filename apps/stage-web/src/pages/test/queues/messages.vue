@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { BasicTextarea } from '@proj-airi/stage-ui/components'
+import { Textarea } from '@proj-airi/stage-ui/components'
 import { useQueue } from '@proj-airi/stage-ui/composables/queue'
 import { useMessageContentQueue } from '@proj-airi/stage-ui/composables/queues'
 import { llmInferenceEndToken } from '@proj-airi/stage-ui/constants'
@@ -41,7 +41,7 @@ async function onSendMessage() {
 <template>
   <div flex flex-col gap-2 p-2>
     <div flex flex-row gap-2>
-      <BasicTextarea
+      <Textarea
         v-model="messageInput"
         placeholder="Message"
         p="2" bg="neutral-100 dark:neutral-700"

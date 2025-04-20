@@ -1,4 +1,3 @@
-export { default as BasicTextarea } from './BasicTextarea.vue'
 export * from './Button'
 export { default as Collapsable } from './Collapsable.vue'
 export * from './Form'

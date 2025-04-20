@@ -10,6 +10,7 @@ import {
   RadioCardSimple,
   Skeleton,
   TestDummyMarker,
+  Textarea,
   VoiceCardManySelect,
 } from '@proj-airi/stage-ui/components'
 import { useProvidersStore, useSpeechStore } from '@proj-airi/stage-ui/stores'
@@ -454,13 +455,10 @@ function updateCustomModelName(value: string) {
           />
 
           <template v-if="!useSSML">
-            <textarea
-              v-model="testText"
+            <Textarea
+              v-model="testText" h-24
+              w-full
               :placeholder="t('settings.pages.providers.provider.elevenlabs.playground.fields.field.input.placeholder')"
-              border="neutral-100 dark:neutral-800 solid 2 focus:neutral-200 dark:focus:neutral-700"
-              transition="all duration-250 ease-in-out"
-              bg="neutral-100 dark:neutral-800 focus:neutral-50 dark:focus:neutral-900"
-              h-24 w-full rounded-lg px-3 py-2 text-sm outline-none
             />
           </template>
           <template v-else>
