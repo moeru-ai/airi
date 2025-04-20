@@ -11,7 +11,6 @@ import { getImportUrlBundles } from '@proj-airi/drizzle-duckdb-wasm/bundles/impo
 // import embedWorkerURL from '@proj-airi/provider-transformers/worker?worker&url'
 // import { embed } from '@xsai/embed'
 import { generateSpeech } from '@xsai/generate-speech'
-import { sql } from 'drizzle-orm'
 import { storeToRefs } from 'pinia'
 import { onMounted, onUnmounted, ref } from 'vue'
 
@@ -237,7 +236,7 @@ onMounted(() => {
 
 onMounted(async () => {
   db.value = drizzle({ connection: { bundles: getImportUrlBundles() } })
-  await db.value.execute(sql`CREATE TABLE memory_test (vec FLOAT[768]);`)
+  await db.value.execute(`CREATE TABLE memory_test (vec FLOAT[768]);`)
 })
 </script>
 
