@@ -32,10 +32,10 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@huggingface/transformers": "^3.4.2",
+    "@huggingface/transformers": "^3.5.0",
     "onnxruntime-common": "^1.21.0"
   },
   "devDependencies": {
-    "@iconify-json/simple-icons": "^1.2.31"
+    "@iconify-json/simple-icons": "^1.2.32"
   }
 }

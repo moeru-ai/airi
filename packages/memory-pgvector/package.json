@@ -11,9 +11,9 @@
     "dev": "tsx src/index.ts"
   },
   "dependencies": {
-    "@guiiai/logg": "^1.0.7",
+    "@guiiai/logg": "^1.0.8",
     "@proj-airi/server-sdk": "workspace:^",
-    "drizzle-orm": "^0.41.0",
+    "drizzle-orm": "^0.42.0",
     "postgres": "^3.4.5"
   },
   "devDependencies": {

@@ -73,7 +73,7 @@
     "@proj-airi/ccc": "workspace:^",
     "@proj-airi/drizzle-duckdb-wasm": "catalog:",
     "@proj-airi/server-sdk": "workspace:^",
-    "@vueuse/core": "^13.0.0",
+    "@vueuse/core": "^13.1.0",
     "@vueuse/motion": "^3.0.3",
     "pixi-filters": "^4.2.0",
     "pixi-live2d-display": "^0.4.0",
@@ -85,15 +85,15 @@
     "xastscript": "^4.0.0"
   },
   "devDependencies": {
-    "@electron-toolkit/preload": "^3.0.1",
+    "@electron-toolkit/preload": "^3.0.2",
     "@histoire/plugin-vue": "1.0.0-alpha.2",
     "@proj-airi/provider-transformers": "workspace:^",
     "@proj-airi/utils-transformers": "workspace:^",
-    "@unocss/reset": "^66.1.0-beta.10",
+    "@unocss/reset": "^66.1.0-beta.12",
     "@vitejs/plugin-vue": "^5.2.3",
     "@xsai/embed": "catalog:",
     "histoire": "1.0.0-alpha.2",
-    "unocss": "^66.1.0-beta.10",
-    "vite": "^6.2.5"
+    "unocss": "^66.1.0-beta.12",
+    "vite": "^6.3.2"
   }
 }

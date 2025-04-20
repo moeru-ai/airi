@@ -19,9 +19,9 @@
   },
   "dependencies": {
     "@discordjs/voice": "^0.18.0",
-    "@dotenvx/dotenvx": "^1.39.1",
-    "@guiiai/logg": "^1.0.7",
-    "@huggingface/transformers": "^3.4.2",
+    "@dotenvx/dotenvx": "^1.41.0",
+    "@guiiai/logg": "^1.0.8",
+    "@huggingface/transformers": "^3.5.0",
     "@proj-airi/server-sdk": "workspace:^",
     "@proj-airi/server-shared": "workspace:^",
     "@xsai-ext/providers-cloud": "catalog:",
