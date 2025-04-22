@@ -4,6 +4,8 @@ title: DevLog @ 2025.04.22
 
 ## Day time 日常
 
+大家好，我是 [@LemonNeko](https://github.com/LemonNekoGH)，这次有我来参与撰写 DevLog 和大家分享开发的故事。
+
 在两个月前，我们将 Airi 的网页端移植到了 Electron 上 [#7](https://github.com/moeru-ai/airi/pull/7)（现在已经被我们使用 Tauri 重构 🤣 [#90](https://github.com/moeru-ai/airi/pull/90)），它可以作为桌宠出现在我们的屏幕上，于此同时，我出现了允许 Airi 使用手机的想法，但是迟迟没有动手。
 
 在上个周末（2025.04.20），我花了点时间，做了一个能与 ADB 交互的 MCP 服务器 Demo [airi-android](https://github.com/LemonNekoGH/airi-android)，给 Airi 提供了最基础的与手机交互的能力（事实上大部分 LLM 都可以通过它与手机交互），这是演示视频：
