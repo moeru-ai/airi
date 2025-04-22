@@ -8,14 +8,18 @@ export default defineConfig({
   integrations: [
     UnoCSS(),
     starlight({
-      title: 'Project Airi',
+      title: 'Project AIRI',
       logo: {
         light: './src/assets/logo.svg',
         dark: './src/assets/logo-dark.svg',
       },
-      social: {
-        github: 'https://github.com/moeru-ai/airi',
-      },
+      social: [
+        {
+          icon: 'seti:github',
+          label: 'GitHub',
+          href: 'https://github.com/moeru-ai/airi',
+        },
+      ],
       components: {
         Head: './src/components/starlight/Head.astro',
       },
