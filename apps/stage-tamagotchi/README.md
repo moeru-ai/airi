@@ -39,13 +39,14 @@ $ pnpm build:linux
 
 ## TODO List
 
-- [ ] Window control: Move, resize, hide, show
+- [x] Window control: Move, resize, hide, show
 - [ ] Motions follow the cursor
-- [ ] System tray
+- [x] System tray
 - [ ] tauri i18n
 - [ ] Multi-DPI
-- [ ] CI/CD
+- [x] CI/CD
 - [ ] Multi monitor
 - [ ] Send message via macOS Spotlight
 - [ ] Steam
 - [ ] CSP settings
+- [ ] MCP Client
