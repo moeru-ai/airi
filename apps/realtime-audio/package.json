@@ -35,7 +35,7 @@
     "@vitejs/plugin-vue": "^5.2.3",
     "superjson": "^2.2.2",
     "unplugin-vue-router": "^0.12.0",
-    "vite": "^6.3.2",
+    "vite": "^6.3.3",
     "vue-router": "^4.5.0",
     "vue-tsc": "^3.0.0-alpha.4"
   }

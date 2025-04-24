@@ -15,7 +15,7 @@
     "@astrojs/starlight": "^0.34.0",
     "@fontsource/fusion-pixel-12px-proportional-sc": "^5.2.5",
     "@fontsource/quicksand": "^5.2.6",
-    "astro": "^5.7.4",
+    "astro": "^5.7.5",
     "astro-og-canvas": "^0.7.0",
     "sharp": "^0.34.1",
     "unocss": "^66.1.0-beta.12",

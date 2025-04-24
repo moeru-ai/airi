@@ -94,6 +94,6 @@
     "@xsai/embed": "catalog:",
     "histoire": "1.0.0-alpha.2",
     "unocss": "^66.1.0-beta.12",
-    "vite": "^6.3.2"
+    "vite": "^6.3.3"
   }
 }

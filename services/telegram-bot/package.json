@@ -38,14 +38,14 @@
     "grammy": "^1.36.1",
     "nanoid": "^5.1.5",
     "p-limit": "^6.2.0",
-    "pg": "^8.14.1",
+    "pg": "^8.15.5",
     "sharp": "^0.34.1",
     "telegram": "^2.26.22",
     "uuid": "^11.1.0",
     "valibot": "1.0.0-beta.9"
   },
   "devDependencies": {
-    "@types/pg": "^8.11.13",
+    "@types/pg": "^8.11.14",
     "drizzle-kit": "^0.31.0",
     "tsx": "^4.19.3"
   }
