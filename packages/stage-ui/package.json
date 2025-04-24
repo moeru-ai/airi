@@ -75,6 +75,8 @@
     "@proj-airi/server-sdk": "workspace:^",
     "@vueuse/core": "^13.1.0",
     "@vueuse/motion": "^3.0.3",
+    "@xsai-transformers/embed": "^0.0.5",
+    "@xsai/embed": "catalog:",
     "pixi-filters": "^4.2.0",
     "pixi-live2d-display": "^0.4.0",
     "radix-vue": "^1.9.17",
@@ -87,11 +89,8 @@
   "devDependencies": {
     "@electron-toolkit/preload": "^3.0.2",
     "@histoire/plugin-vue": "1.0.0-alpha.2",
-    "@proj-airi/provider-transformers": "workspace:^",
-    "@proj-airi/utils-transformers": "workspace:^",
     "@unocss/reset": "^66.1.0-beta.12",
     "@vitejs/plugin-vue": "^5.2.3",
-    "@xsai/embed": "catalog:",
     "histoire": "1.0.0-alpha.2",
     "unocss": "^66.1.0-beta.12",
     "vite": "^6.3.3"

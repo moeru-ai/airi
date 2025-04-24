@@ -33,9 +33,6 @@ catalogs:
     '@xsai/model':
       specifier: ^0.2.0-beta.4
       version: 0.2.0-beta.4
-    '@xsai/shared':
-      specifier: ^0.2.0-beta.4
-      version: 0.2.0-beta.4
     '@xsai/shared-chat':
       specifier: ^0.2.0-beta.4
       version: 0.2.0-beta.4
@@ -408,9 +405,6 @@ importers:
       '@proj-airi/lobe-icons':
         specifier: ^1.0.5
         version: 1.0.5
-      '@proj-airi/provider-transformers':
-        specifier: workspace:^
-        version: link:../../packages/provider-transformers
       '@proj-airi/ui-transitions':
         specifier: workspace:^
         version: link:../../packages/ui-transitions
@@ -453,6 +447,9 @@ importers:
       '@vueuse/motion':
         specifier: ^3.0.3
         version: 3.0.3(magicast@0.3.5)(rollup@4.40.0)(vue@3.5.13(typescript@5.8.3))
+      '@xsai-transformers/embed':
+        specifier: ^0.0.5
+        version: 0.0.5(web-worker@1.5.0)
       less:
         specifier: ^4.3.0
         version: 4.3.0
@@ -519,9 +516,6 @@ importers:
       '@proj-airi/drizzle-duckdb-wasm':
         specifier: 'catalog:'
         version: 0.4.21(@types/pg@8.11.14)(gel@2.0.0)(pg@8.15.5)(postgres@3.4.5)(web-worker@1.5.0)
-      '@proj-airi/provider-transformers':
-        specifier: workspace:^
-        version: link:../../packages/provider-transformers
       '@proj-airi/server-sdk':
         specifier: workspace:^
         version: link:../../packages/server-sdk
@@ -567,6 +561,9 @@ importers:
       '@xsai-ext/shared-providers':
         specifier: 'catalog:'
         version: 0.2.0-beta.4
+      '@xsai-transformers/embed':
+        specifier: ^0.0.5
+        version: 0.0.5(web-worker@1.5.0)
       '@xsai/generate-speech':
         specifier: 'catalog:'
         version: 0.2.0-beta.4
@@ -856,64 +853,6 @@ importers:
         specifier: ^4.19.3
         version: 4.19.3
 
-  packages/provider-transformers:
-    dependencies:
-      '@huggingface/transformers':
-        specifier: ^3.5.0
-        version: 3.5.0
-      '@proj-airi/utils-transformers':
-        specifier: workspace:^
-        version: link:../utils-transformers
-      '@webgpu/types':
-        specifier: ^0.1.60
-        version: 0.1.60
-      '@xsai-ext/shared-providers':
-        specifier: 'catalog:'
-        version: 0.2.0-beta.4
-      '@xsai/embed':
-        specifier: 'catalog:'
-        version: 0.2.0-beta.4
-      '@xsai/shared':
-        specifier: 'catalog:'
-        version: 0.2.0-beta.4
-      defu:
-        specifier: ^6.1.4
-        version: 6.1.4
-      es-toolkit:
-        specifier: ^1.35.0
-        version: 1.35.0
-      unplugin-vue-router:
-        specifier: ^0.12.0
-        version: 0.12.0(vue-router@4.5.0(vue@3.5.13(typescript@5.8.3)))(vue@3.5.13(typescript@5.8.3))
-      vue-router:
-        specifier: ^4.5.0
-        version: 4.5.0(vue@3.5.13(typescript@5.8.3))
-      web-worker:
-        specifier: ^1.5.0
-        version: 1.5.0
-    devDependencies:
-      '@iconify-json/solar':
-        specifier: ^1.2.2
-        version: 1.2.2
-      '@unocss/reset':
-        specifier: ^66.1.0-beta.12
-        version: 66.1.0-beta.12
-      '@vitejs/plugin-vue':
-        specifier: ^5.2.3
-        version: 5.2.3(vite@6.3.3(@types/node@22.14.1)(jiti@2.4.2)(less@4.3.0)(terser@5.17.6)(tsx@4.19.3)(yaml@2.7.0))(vue@3.5.13(typescript@5.8.3))
-      '@vueuse/core':
-        specifier: ^13.1.0
-        version: 13.1.0(vue@3.5.13(typescript@5.8.3))
-      vite:
-        specifier: ^6.3.3
-        version: 6.3.3(@types/node@22.14.1)(jiti@2.4.2)(less@4.3.0)(terser@5.17.6)(tsx@4.19.3)(yaml@2.7.0)
-      vue:
-        specifier: ^3.5.13
-        version: 3.5.13(typescript@5.8.3)
-      vue-tsc:
-        specifier: ^3.0.0-alpha.4
-        version: 3.0.0-alpha.4(typescript@5.8.3)
-
   packages/server-runtime:
     dependencies:
       '@guiiai/logg':
@@ -1012,6 +951,12 @@ importers:
       '@vueuse/motion':
         specifier: ^3.0.3
         version: 3.0.3(magicast@0.3.5)(rollup@4.40.0)(vue@3.5.13(typescript@5.8.3))
+      '@xsai-transformers/embed':
+        specifier: ^0.0.5
+        version: 0.0.5(web-worker@1.5.0)
+      '@xsai/embed':
+        specifier: 'catalog:'
+        version: 0.2.0-beta.4
       pixi-filters:
         specifier: ^4.2.0
         version: 4.2.0(5af797a0b5bd919a06578c24a7479046)
@@ -1043,21 +988,12 @@ importers:
       '@histoire/plugin-vue':
         specifier: 1.0.0-alpha.2
         version: 1.0.0-alpha.2(histoire@1.0.0-alpha.2(@types/node@22.14.1)(bufferutil@4.0.9)(less@4.3.0)(terser@5.17.6)(utf-8-validate@5.0.10)(vite@6.3.3(@types/node@22.14.1)(jiti@2.4.2)(less@4.3.0)(terser@5.17.6)(tsx@4.19.3)(yaml@2.7.0)))(vite@6.3.3(@types/node@22.14.1)(jiti@2.4.2)(less@4.3.0)(terser@5.17.6)(tsx@4.19.3)(yaml@2.7.0))(vue@3.5.13(typescript@5.8.3))
-      '@proj-airi/provider-transformers':
-        specifier: workspace:^
-        version: link:../provider-transformers
-      '@proj-airi/utils-transformers':
-        specifier: workspace:^
-        version: link:../utils-transformers
       '@unocss/reset':
         specifier: ^66.1.0-beta.12
         version: 66.1.0-beta.12
       '@vitejs/plugin-vue':
         specifier: ^5.2.3
         version: 5.2.3(vite@6.3.3(@types/node@22.14.1)(jiti@2.4.2)(less@4.3.0)(terser@5.17.6)(tsx@4.19.3)(yaml@2.7.0))(vue@3.5.13(typescript@5.8.3))
-      '@xsai/embed':
-        specifier: 'catalog:'
-        version: 0.2.0-beta.4
       histoire:
         specifier: 1.0.0-alpha.2
         version: 1.0.0-alpha.2(@types/node@22.14.1)(bufferutil@4.0.9)(less@4.3.0)(terser@5.17.6)(utf-8-validate@5.0.10)(vite@6.3.3(@types/node@22.14.1)(jiti@2.4.2)(less@4.3.0)(terser@5.17.6)(tsx@4.19.3)(yaml@2.7.0))
@@ -1095,19 +1031,6 @@ importers:
       vue-tsc:
         specifier: ^3.0.0-alpha.4
         version: 3.0.0-alpha.4(typescript@5.8.3)
-
-  packages/utils-transformers:
-    dependencies:
-      '@huggingface/transformers':
-        specifier: ^3.5.0
-        version: 3.5.0
-      onnxruntime-common:
-        specifier: ^1.21.1
-        version: 1.21.1
-    devDependencies:
-      '@iconify-json/simple-icons':
-        specifier: ^1.2.33
-        version: 1.2.33
 
   services/discord-bot:
     dependencies:
@@ -5293,6 +5216,17 @@ packages:
   '@xsai-ext/shared-providers@0.2.0-beta.4':
     resolution: {integrity: sha512-o7VIAXQ4JVVS4/luqxvAAxhmg5CaaaBlbA+CzbNA2J5oBGkYn0zyHSLXB6dlLAKvZBNevBuyTD90LwgH3eyI/Q==}
 
+  '@xsai-transformers/embed@0.0.5':
+    resolution: {integrity: sha512-lBHSNVPomexFLcl4LKOgt04+j7oprXSvV0QsdMDsx6TXVJL40OnqtBUfZ8/nRNjx2AujkbrueYFSCk8bn5Ljtg==}
+    peerDependencies:
+      web-worker: ^1.5.0
+    peerDependenciesMeta:
+      web-worker:
+        optional: true
+
+  '@xsai-transformers/shared@0.0.5':
+    resolution: {integrity: sha512-hXYGk/sToTdVE+IucOH+JjnrrxR+PHMdllQ/UT5WYhACA7F0HXE1vK9SzkoRBmGecYLBjryIGz8csu28yfsKzw==}
+
   '@xsai/embed@0.2.0-beta.4':
     resolution: {integrity: sha512-NnJrTObQNPH7zJnWeGX+pXuo7xzmkaMlGtwmW909oazdthrVViP1A9HNT/5bwHqaHC+xbAOr77yrgWgwWsumnA==}
 
@@ -7407,6 +7341,9 @@ packages:
   got@11.8.6:
     resolution: {integrity: sha512-6tfZ91bOr7bOXnK7PRDCGBLa1H4U080YHNaAQ2KsMGlLEzRbk44nsZF2E1IeRc3vtJHPVbKCYgdFbaGO2ljd8g==}
     engines: {node: '>=10.19.0'}
+
+  gpuu@1.0.0:
+    resolution: {integrity: sha512-8BpEnSniZsG34B8zZKxl/ZgNuh5VK+3EPzKgLJ4sezMmIkmUHxN2WY7Bj+7aTqvNBgbikP6sfWOIADHo+wAqiA==}
 
   graceful-fs@4.2.11:
     resolution: {integrity: sha512-RbJ5/jmFcNNCcDV5o9eTnBLJ/HszWV0P73bc+Ff4nS/rJj+YaS6IGyiOL0VoBYX+l1Wrl3k63h/KrH+nhJ0XvQ==}
@@ -16310,6 +16247,26 @@ snapshots:
     dependencies:
       '@xsai/shared': 0.2.0-beta.4
 
+  '@xsai-transformers/embed@0.0.5(web-worker@1.5.0)':
+    dependencies:
+      '@huggingface/transformers': 3.5.0
+      '@xsai-ext/shared-providers': 0.2.0-beta.4
+      '@xsai-transformers/shared': 0.0.5
+      '@xsai/embed': 0.2.0-beta.4
+      '@xsai/shared': 0.2.0-beta.4
+      defu: 6.1.4
+      gpuu: 1.0.0
+    optionalDependencies:
+      web-worker: 1.5.0
+
+  '@xsai-transformers/shared@0.0.5':
+    dependencies:
+      '@huggingface/transformers': 3.5.0
+      '@xsai-ext/shared-providers': 0.2.0-beta.4
+      '@xsai/shared': 0.2.0-beta.4
+      defu: 6.1.4
+      onnxruntime-common: 1.21.1
+
   '@xsai/embed@0.2.0-beta.4':
     dependencies:
       '@xsai/shared': 0.2.0-beta.4
@@ -18788,6 +18745,10 @@ snapshots:
       lowercase-keys: 2.0.0
       p-cancelable: 2.1.1
       responselike: 2.0.1
+
+  gpuu@1.0.0:
+    dependencies:
+      defu: 6.1.4
 
   graceful-fs@4.2.11: {}
 
@@ -23999,7 +23960,8 @@ snapshots:
 
   web-streams-polyfill@4.0.0-beta.3: {}
 
-  web-worker@1.5.0: {}
+  web-worker@1.5.0:
+    optional: true
 
   webidl-conversions@3.0.1: {}
 
