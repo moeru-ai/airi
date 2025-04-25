@@ -1,18 +1,17 @@
 <script setup lang="ts">
 import type { SpeechProviderWithExtraOptions } from '@xsai-ext/shared-providers'
 
+import { Skeleton, TestDummyMarker } from '@proj-airi/stage-ui/components'
+import { useProvidersStore, useSpeechStore } from '@proj-airi/stage-ui/stores'
 import {
   FieldCheckbox,
   FieldInput,
   FieldRange,
   RadioCardDetailManySelect,
   RadioCardSimple,
-  Skeleton,
-  TestDummyMarker,
   Textarea,
   VoiceCardManySelect,
-} from '@proj-airi/stage-ui/components'
-import { useProvidersStore, useSpeechStore } from '@proj-airi/stage-ui/stores'
+} from '@proj-airi/ui/Form'
 import { generateSpeech } from '@xsai/generate-speech'
 import { storeToRefs } from 'pinia'
 import { onMounted, onUnmounted, ref, watch } from 'vue'

@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import type { ChatProvider } from '@xsai-ext/shared-providers'
 
-import { BasicTextarea } from '@proj-airi/stage-ui/components'
 import { useMicVAD } from '@proj-airi/stage-ui/composables'
 import { useChatStore, useConsciousnessStore, useProvidersStore, useSettings } from '@proj-airi/stage-ui/stores'
+import { BasicTextarea } from '@proj-airi/ui/Form'
 import { storeToRefs } from 'pinia'
 import { onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'

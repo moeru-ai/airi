@@ -1,0 +1,43 @@
+{
+  "name": "@proj-airi/ui",
+  "type": "module",
+  "private": true,
+  "description": "A collection of UI components that used by Project Airi",
+  "author": {
+    "name": "Neko Ayaka",
+    "email": "neko@ayaka.moe",
+    "url": "https://github.com/nekomeowww"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/moeru-ai/airi.git",
+    "directory": "packages/ui"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs"
+    },
+    "./Form": {
+      "types": "./dist/Form/index.d.ts",
+      "import": "./dist/Form/index.mjs"
+    }
+  },
+  "scripts": {
+    "dev": "pnpm run stub",
+    "stub": "unbuild --stub",
+    "build": "unbuild",
+    "typecheck": "vue-tsc --noEmit"
+  },
+  "dependencies": {
+    "@proj-airi/stage-ui": "workspace:*",
+    "@vueuse/core": "^13.1.0",
+    "vue": "^3.5.13"
+  },
+  "devDependencies": {
+    "@unocss/reset": "^66.1.0-beta.12",
+    "@vitejs/plugin-vue": "^5.2.3",
+    "vue-tsc": "^3.0.0-alpha.4"
+  }
+}
