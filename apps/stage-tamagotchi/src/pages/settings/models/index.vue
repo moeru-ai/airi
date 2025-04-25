@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Live2DCanvas, Live2DModel, PageHeader } from '@proj-airi/stage-ui/components'
+import { Live2DCanvas, Live2DModel } from '@proj-airi/stage-ui/components'
 import { useElementBounding } from '@vueuse/core'
 import { Vibrant } from 'node-vibrant/browser'
 import { ref } from 'vue'
@@ -43,10 +43,6 @@ const {
 </script>
 
 <template>
-  <PageHeader
-    :title="$t('settings.pages.models.title')"
-    :subtitle="$t('settings.title')"
-  />
   <div flex>
     <div ref="live2dContainerRef" w="50%" h="80vh">
       <Live2DCanvas v-slot="{ app }" ref="live2dCanvasRef" :width="width" :height="height">
@@ -84,6 +80,7 @@ const {
 
 <route lang="yaml">
 meta:
+  layout: settings
   stageTransition:
     name: slide
     pageSpecificAvailable: true

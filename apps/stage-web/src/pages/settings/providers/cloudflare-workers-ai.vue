@@ -97,3 +97,10 @@ function handleResetSettings() {
     </ProviderSettingsContainer>
   </ProviderSettingsLayout>
 </template>
+
+<route lang="yaml">
+  meta:
+    layout: settings
+    stageTransition:
+      name: slide
+  </route>

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { ccv3 } from '@proj-airi/ccc'
 
-import { InputFile, PageHeader } from '@proj-airi/stage-ui/components'
+import { InputFile } from '@proj-airi/stage-ui/components'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores'
 import { storeToRefs } from 'pinia'
 import { computed, ref, watch } from 'vue'
@@ -146,11 +146,6 @@ function getModuleShortName(id: string, module: 'consciousness' | 'voice') {
 </script>
 
 <template>
-  <PageHeader
-    :title="$t('settings.pages.card.title')"
-    :subtitle="$t('settings.title')"
-  />
-
   <div rounded-xl p-4 flex="~ col gap-4">
     <!-- Toolbar with search and filters -->
     <div flex="~ row" flex-wrap items-center justify-between gap-4>
@@ -301,6 +296,7 @@ function getModuleShortName(id: string, module: 'consciousness' | 'voice') {
 
 <route lang="yaml">
 meta:
+  layout: settings
   stageTransition:
     name: slide
 </route>

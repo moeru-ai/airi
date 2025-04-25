@@ -142,3 +142,10 @@ watch([providers, appId], async () => {
     </template>
   </SpeechProviderSettings>
 </template>
+
+<route lang="yaml">
+  meta:
+    layout: settings
+    stageTransition:
+      name: slide
+  </route>

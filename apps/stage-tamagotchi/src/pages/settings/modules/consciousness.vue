@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { PageHeader, RadioCardDetailManySelect, RadioCardSimple } from '@proj-airi/stage-ui/components'
+import { RadioCardDetailManySelect, RadioCardSimple } from '@proj-airi/stage-ui/components'
 import { useConsciousnessStore, useProvidersStore } from '@proj-airi/stage-ui/stores'
 import { storeToRefs } from 'pinia'
 import { onMounted } from 'vue'
@@ -32,10 +32,6 @@ function updateCustomModelName(value: string) {
 </script>
 
 <template>
-  <PageHeader
-    :title="$t('settings.pages.modules.consciousness.title')"
-    :subtitle="$t('settings.pages.modules.title')"
-  />
   <div bg="neutral-50 dark:[rgba(0,0,0,0.3)]" rounded-xl p-4 flex="~ col gap-4">
     <div>
       <div flex="~ col gap-4">
@@ -213,6 +209,7 @@ function updateCustomModelName(value: string) {
 
 <route lang="yaml">
 meta:
+  layout: settings
   stageTransition:
     name: slide
 </route>

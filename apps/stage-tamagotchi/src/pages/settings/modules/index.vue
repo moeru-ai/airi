@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { IconStatusItem, PageHeader } from '@proj-airi/stage-ui/components'
+import { IconStatusItem } from '@proj-airi/stage-ui/components'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
@@ -111,10 +111,6 @@ const {
 </script>
 
 <template>
-  <PageHeader
-    :title="$t('settings.pages.modules.title')"
-    :subtitle="$t('settings.title')"
-  />
   <div grid="~ cols-1 sm:cols-2 gap-4">
     <IconStatusItem
       v-for="(module, index) of modulesList"
@@ -161,6 +157,7 @@ const {
 
 <route lang="yaml">
 meta:
+  layout: settings
   stageTransition:
     name: slide
     pageSpecificAvailable: true

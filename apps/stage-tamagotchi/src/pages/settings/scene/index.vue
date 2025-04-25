@@ -1,6 +1,4 @@
 <script setup lang="ts">
-import { PageHeader } from '@proj-airi/stage-ui/components'
-
 import { useIconAnimation } from '../../../composables/useIconAnimation'
 
 const {
@@ -11,10 +9,6 @@ const {
 </script>
 
 <template>
-  <PageHeader
-    :title="$t('settings.pages.scene.title')"
-    :subtitle="$t('settings.title')"
-  />
   <div>
     Scene
   </div>
@@ -46,6 +40,7 @@ const {
 
 <route lang="yaml">
 meta:
+  layout: settings
   stageTransition:
     name: slide
     pageSpecificAvailable: true

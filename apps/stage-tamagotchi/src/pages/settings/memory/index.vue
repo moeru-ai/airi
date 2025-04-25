@@ -3,8 +3,6 @@
 // import { storeToRefs } from 'pinia'
 // import { onMounted } from 'vue'
 
-import { PageHeader } from '@proj-airi/stage-ui/components'
-
 // const { server } = storeToRefs(useServerStore())
 
 // onMounted(() => {
@@ -13,15 +11,11 @@ import { PageHeader } from '@proj-airi/stage-ui/components'
 </script>
 
 <template>
-  <PageHeader
-    :title="$t('settings.pages.memory.title')"
-    :subtitle="$t('settings.title')"
-  />
   <div
     v-motion
     text="neutral-200/50 dark:neutral-600/20" pointer-events-none
-    fixed top="[calc(100dvh-20rem)]" bottom-0 right--15 z--1
-    :initial="{ scale: 0.9, opacity: 0, y: 40 }"
+    fixed top="[calc(100dvh-15rem)]" bottom-0 right--5 z--1
+    :initial="{ scale: 0.9, opacity: 0, y: 15 }"
     :enter="{ scale: 1, opacity: 1, y: 0 }"
     :duration="500"
     size-60
@@ -30,3 +24,10 @@ import { PageHeader } from '@proj-airi/stage-ui/components'
     <div text="60" i-solar:leaf-bold-duotone />
   </div>
 </template>
+
+<route lang="yaml">
+meta:
+  layout: settings
+  stageTransition:
+    name: slide
+</route>

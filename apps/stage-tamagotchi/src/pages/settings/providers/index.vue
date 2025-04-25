@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { IconStatusItem, PageHeader } from '@proj-airi/stage-ui/components'
+import { IconStatusItem } from '@proj-airi/stage-ui/components'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores'
 import { storeToRefs } from 'pinia'
 
@@ -16,10 +16,6 @@ const {
 </script>
 
 <template>
-  <PageHeader
-    :title="$t('settings.pages.providers.title')"
-    :subtitle="$t('settings.title')"
-  />
   <div grid="~ cols-2 gap-4">
     <IconStatusItem
       v-for="(provider, index) of allProvidersMetadata"
@@ -66,6 +62,7 @@ const {
 
 <route lang="yaml">
 meta:
+  layout: settings
   stageTransition:
     name: slide
     pageSpecificAvailable: true

@@ -5,7 +5,6 @@ import {
   FieldCheckbox,
   FieldInput,
   FieldRange,
-  PageHeader,
   RadioCardDetailManySelect,
   RadioCardSimple,
   Skeleton,
@@ -166,10 +165,6 @@ function updateCustomModelName(value: string) {
 </script>
 
 <template>
-  <PageHeader
-    :title="t('settings.pages.modules.speech.title')"
-    :subtitle="t('settings.pages.modules.title')"
-  />
   <div flex="~ col md:row gap-6">
     <div bg="neutral-100 dark:[rgba(0,0,0,0.3)]" rounded-xl p-4 flex="~ col gap-4" class="w-full md:w-[40%]">
       <div>
@@ -517,6 +512,7 @@ function updateCustomModelName(value: string) {
 
 <route lang="yaml">
 meta:
+  layout: settings
   stageTransition:
     name: slide
 </route>

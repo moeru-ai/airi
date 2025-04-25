@@ -8,6 +8,7 @@ import Live2DCanvas from '../Live2D/Canvas.vue'
 import Live2DModel from '../Live2D/Model.vue'
 import Screen from '../Screen.vue'
 import TransitionVertical from '../TransitionVertical.vue'
+import '../../utils/live2d-zip-loader'
 
 withDefaults(defineProps<{
   paused: boolean

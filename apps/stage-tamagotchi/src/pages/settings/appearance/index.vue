@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { PageHeader, Section } from '@proj-airi/stage-ui/components'
+import { Section } from '@proj-airi/stage-ui/components'
 import { useSettings } from '@proj-airi/stage-ui/stores'
 import { useDark } from '@vueuse/core'
 import { ref, watch } from 'vue'
@@ -22,11 +22,6 @@ watch(() => [settings.usePageSpecificTransitions, settings.disableTransitions], 
 </script>
 
 <template>
-  <PageHeader
-    :title="$t('settings.pages.themes.title')"
-    :subtitle="$t('settings.title')"
-  />
-
   <Section
     v-motion
     :title="t('settings.sections.section.general.title')"
@@ -320,6 +315,7 @@ watch(() => [settings.usePageSpecificTransitions, settings.disableTransitions], 
 
 <route lang="yaml">
 meta:
+  layout: settings
   stageTransition:
     name: slide
     pageSpecificAvailable: true

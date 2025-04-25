@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { IconItem, PageHeader } from '@proj-airi/stage-ui/components'
+import { IconItem } from '@proj-airi/stage-ui/components'
 import { useSettings } from '@proj-airi/stage-ui/stores'
 import { computed, nextTick, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -106,7 +106,6 @@ const settings = computed(() => [
 </script>
 
 <template>
-  <PageHeader :title="$t('settings.title')" />
   <div flex="~ col gap-4">
     <div />
     <div flex="~ col gap-4">
@@ -156,6 +155,7 @@ const settings = computed(() => [
 
 <route lang="yaml">
 meta:
+  layout: settings
   stageTransition:
     name: slide
 </route>

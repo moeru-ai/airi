@@ -1,23 +1,13 @@
 <script setup lang="ts">
-import { useI18n } from 'vue-i18n'
-
-import PageHeader from '../../components/Layouts/PageHeader.vue'
-
 defineProps<{
   providerName: string
   providerIcon?: string
   providerIconColor?: string
   onBack?: () => void
 }>()
-
-const { t } = useI18n()
 </script>
 
 <template>
-  <PageHeader
-    :title="providerName"
-    :subtitle="t('settings.pages.providers.title')"
-  />
   <slot />
   <div
     v-motion

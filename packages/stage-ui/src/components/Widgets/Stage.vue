@@ -26,7 +26,6 @@ import { useProvidersStore } from '../../stores/providers'
 import { useSettings } from '../../stores/settings'
 import Live2DScene from '../Scenes/Live2D.vue'
 import VRMScene from '../Scenes/VRM.vue'
-import '../../utils/live2d-zip-loader'
 
 withDefaults(defineProps<{ paused?: boolean }>(), { paused: false })
 
