@@ -236,6 +236,9 @@ importers:
       '@proj-airi/stage-ui':
         specifier: workspace:^
         version: link:../../packages/stage-ui
+      '@proj-airi/ui':
+        specifier: workspace:^
+        version: link:../../packages/ui
       '@ricky0123/vad-web':
         specifier: ^0.0.22
         version: 0.0.22
