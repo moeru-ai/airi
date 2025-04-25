@@ -136,7 +136,7 @@ function togglePlayback() {
         <!-- Audio preview button -->
         <button
           v-if="getPreviewUrl(voice)"
-          absolute right-0 top="0" z-100
+          absolute right-0 top="0" z-3
           class="translate-x-[-50%] translate-y-[50%]"
           :class="[
             currentlyPlayingId === voice.id

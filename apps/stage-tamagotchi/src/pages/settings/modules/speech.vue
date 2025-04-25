@@ -54,13 +54,13 @@ const audioPlayer = ref<HTMLAudioElement | null>(null)
 const errorMessage = ref('')
 
 onMounted(async () => {
-  await speechStore.loadVoicesForProvider(activeSpeechProvider.value)
   await providersStore.loadModelsForConfiguredProviders()
+  await speechStore.loadVoicesForProvider(activeSpeechProvider.value)
 })
 
 watch(activeSpeechProvider, async () => {
-  await speechStore.loadVoicesForProvider(activeSpeechProvider.value)
   await providersStore.loadModelsForConfiguredProviders()
+  await speechStore.loadVoicesForProvider(activeSpeechProvider.value)
 })
 
 // Function to generate speech

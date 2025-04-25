@@ -4,12 +4,13 @@ import type { SpeechProviderWithExtraOptions } from '@xsai-ext/shared-providers'
 
 import {
   FieldInput,
+  FieldRange,
   SpeechPlayground,
   SpeechProviderSettings,
 } from '@proj-airi/stage-ui/components'
 import { useProvidersStore, useSpeechStore } from '@proj-airi/stage-ui/stores'
 import { storeToRefs } from 'pinia'
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 const { t } = useI18n()
@@ -37,7 +38,7 @@ const region = computed({
   get: () => providers.value[providerId]?.region as string | undefined || 'eastasia',
   set: (value) => {
     if (!providers.value[providerId])
-      providers.value[providerId] = {}
+      providers.value[providerId] = { region: 'eastasia' }
 
     providers.value[providerId].region = value
   },
@@ -49,6 +50,14 @@ const apiKeyConfigured = computed(() => !!providers.value[providerId]?.apiKey)
 // Get available voices for Microsoft Speech
 const availableVoices = computed(() => {
   return speechStore.availableVoices[providerId] || []
+})
+
+onMounted(async () => {
+  await speechStore.loadVoicesForProvider(providerId)
+})
+
+watch([apiKeyConfigured, region], async () => {
+  await speechStore.loadVoicesForProvider(providerId)
 })
 
 // Generate speech with Microsoft-specific parameters
@@ -119,18 +128,36 @@ async function handleGenerateSpeech(input: string, voiceId: string, useSSML: boo
       />
     </template>
 
-    <!-- Voice settings specific to Microsoft Speech -->
-    <template #voice-settings="{ voiceSettings, updateVoiceSettings }">
-      <SpeechVoiceSettings
-        v-model:pitch="pitch"
-        v-model:speed="speed"
-        v-model:volume="volume"
-        :settings="voiceSettings"
-        :show-pitch="true"
-        :show-speed="true"
-        :show-volume="true"
-        @update="updateVoiceSettings"
-      />
+    <!-- Voice settings specific to ElevenLabs -->
+    <template #voice-settings>
+      <div flex="~ col gap-4">
+        <!-- Pitch control - common to most providers -->
+        <FieldRange
+          v-model="pitch"
+          :label="t('settings.pages.providers.provider.common.fields.field.pitch.label')"
+          :description="t('settings.pages.providers.provider.common.fields.field.pitch.description')"
+          :min="-100"
+          :max="100" :step="1" :format-value="value => `${value}%`"
+        />
+
+        <!-- Speed control - common to most providers -->
+        <FieldRange
+          v-model="speed"
+          :label="t('settings.pages.providers.provider.common.fields.field.speed.label')"
+          :description="t('settings.pages.providers.provider.common.fields.field.speed.description')"
+          :min="0.5"
+          :max="2.0" :step="0.01"
+        />
+
+        <!-- Volume control - available in some providers -->
+        <FieldRange
+          v-model="volume"
+          :label="t('settings.pages.providers.provider.common.fields.field.volume.label')"
+          :description="t('settings.pages.providers.provider.common.fields.field.volume.description')"
+          :min="-100"
+          :max="100" :step="1" :format-value="value => `${value}%`"
+        />
+      </div>
     </template>
 
     <!-- Replace the default playground with our standalone component -->
