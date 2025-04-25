@@ -5285,9 +5285,6 @@ packages:
   '@xsai/shared@0.2.0-beta.2':
     resolution: {integrity: sha512-IWMv1lO6BqvX7PiqVlFLuVnF1eXjQ4V0ustTADIk21eacVoaS58lPs+XXnqyy354xX+FQohlPNNKD89lpkRlOQ==}
 
-  '@xsai/shared@0.2.0-beta.4':
-    resolution: {integrity: sha512-emGbTxbYlUxYiQciW1XzInY3poosmJSCDCaiJoX/6Q1IFq7PBq5SDH6LkmD8y7IQGvtoBllzwjwYm8+tBCG8Tw==}
-
   '@xsai/shared@0.2.0-beta.5':
     resolution: {integrity: sha512-3Ca5ORn49p5PRdhA156rw0izX1azUnM1K/falv0SEBVQhOEGNNGUQLGWCuh9JHKamoRMfkw47gCR+30Onr6r+g==}
 
@@ -16317,10 +16314,10 @@ snapshots:
   '@xsai-transformers/embed@0.0.5(web-worker@1.5.0)':
     dependencies:
       '@huggingface/transformers': 3.5.0
-      '@xsai-ext/shared-providers': 0.2.0-beta.4
+      '@xsai-ext/shared-providers': 0.2.0-beta.5
       '@xsai-transformers/shared': 0.0.5
       '@xsai/embed': 0.2.0-beta.4
-      '@xsai/shared': 0.2.0-beta.4
+      '@xsai/shared': 0.2.0-beta.5
       defu: 6.1.4
       gpuu: 1.0.0
     optionalDependencies:
@@ -16329,8 +16326,8 @@ snapshots:
   '@xsai-transformers/shared@0.0.5':
     dependencies:
       '@huggingface/transformers': 3.5.0
-      '@xsai-ext/shared-providers': 0.2.0-beta.4
-      '@xsai/shared': 0.2.0-beta.4
+      '@xsai-ext/shared-providers': 0.2.0-beta.5
+      '@xsai/shared': 0.2.0-beta.5
       defu: 6.1.4
       onnxruntime-common: 1.21.1
 
@@ -16364,8 +16361,6 @@ snapshots:
       '@xsai/shared': 0.2.0-beta.5
 
   '@xsai/shared@0.2.0-beta.2': {}
-
-  '@xsai/shared@0.2.0-beta.4': {}
 
   '@xsai/shared@0.2.0-beta.5': {}
 
@@ -20684,13 +20679,13 @@ snapshots:
       '@guiiai/logg': 1.0.8
       '@xsai/generate-text': 0.2.0-beta.4
       '@xsai/shared': 0.2.0-beta.2
-      '@xsai/shared-chat': 0.2.0-beta.4
+      '@xsai/shared-chat': 0.2.0-beta.5
       '@xsai/stream-text': 0.2.0-beta.4
       '@xsai/tool': 0.2.0-beta.4(zod-to-json-schema@3.24.5(zod@3.24.3))(zod@3.24.3)
       '@xsai/utils-chat': 0.2.0-beta.4
       defu: 6.1.4
       nanoid: 5.1.5
-      xsschema: 0.2.0-beta.4(@valibot/to-json-schema@1.0.0-rc.0(valibot@1.0.0-beta.9(typescript@5.8.3)))(zod-to-json-schema@3.24.5(zod@3.24.3))
+      xsschema: 0.2.0-beta.5(zod-to-json-schema@3.24.5(zod@3.24.3))(zod@3.24.3)
     transitivePeerDependencies:
       - '@valibot/to-json-schema'
       - '@zod/mini'
@@ -23582,8 +23577,8 @@ snapshots:
 
   unspeech@0.1.7:
     dependencies:
-      '@xsai-ext/shared-providers': 0.2.0-beta.4
-      '@xsai/shared': 0.2.0-beta.4
+      '@xsai-ext/shared-providers': 0.2.0-beta.5
+      '@xsai/shared': 0.2.0-beta.5
 
   unstorage@1.15.0:
     dependencies:
