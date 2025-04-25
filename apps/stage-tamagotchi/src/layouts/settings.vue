@@ -6,8 +6,6 @@ import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterView, useRoute } from 'vue-router'
 
-import HeaderLink from '../components/Layouts/HeaderLink.vue'
-
 const route = useRoute()
 const { t } = useI18n()
 const providersStore = useProvidersStore()
@@ -99,30 +97,12 @@ const routeHeaderMetadata = computed(() => routeHeaderMetadataMap.value[route.pa
 </script>
 
 <template>
-  <div
-    :style="{
-      paddingBottom: 'env(safe-area-inset-bottom, 0px)',
-      paddingTop: 'env(safe-area-inset-top, 0px)',
-      paddingRight: 'env(safe-area-inset-right, 0px)',
-      paddingLeft: 'env(safe-area-inset-left, 0px)',
-    }"
-  >
-    <!-- Header -->
-    <div
-      class="px-0 py-1 md:px-3 md:py-3"
-      w-full gap-2
-      bg="$bg-color"
-    >
-      <HeaderLink />
-    </div>
-    <!-- Content -->
-    <div class="px-3 py-2 md:px-5 md:py-5" flex="~ col" mx-auto max-w-screen-xl>
-      <PageHeader
-        v-if="routeHeaderMetadata"
-        :title="routeHeaderMetadata.title"
-        :subtitle="routeHeaderMetadata.subtitle"
-      />
-      <RouterView />
-    </div>
+  <div px-4 py-8 flex="~ col gap-4">
+    <PageHeader
+      v-if="routeHeaderMetadata"
+      :title="routeHeaderMetadata.title"
+      :subtitle="routeHeaderMetadata.subtitle"
+    />
+    <RouterView />
   </div>
 </template>
