@@ -42,6 +42,7 @@ export default defineConfig({
         { tag: 'link', attrs: { rel: 'apple-touch-icon', sizes: '180x180', href: '/apple-touch-icon.png' } },
         { tag: 'meta', attrs: { name: 'apple-mobile-web-app-title', content: 'Airi' } },
         { tag: 'link', attrs: { ref: 'manifest', href: '/site.webmanifest' } },
+        { tag: 'script', attrs: { 'defer': true, 'data-domain': 'airi.moeru.ai', 'data-api': '/api/v1/page-external-data/submit', 'src': '/remote-assets/page-external-data/js/script.js' } },
       ],
       tableOfContents: { minHeadingLevel: 2, maxHeadingLevel: 6 },
       customCss: [
