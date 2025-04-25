@@ -11,7 +11,7 @@ export const { getStaticPaths, GET } = OGImageRoute({
   pages,
   getSlug: path => `${path}.webp`,
   getImageOptions: (_id, page: typeof pages[number]) => ({
-    bgGradient: [[101, 99, 109]],
+    bgGradient: [[44, 42, 44]],
     title: page.title,
     description: page.description,
     logo: {
