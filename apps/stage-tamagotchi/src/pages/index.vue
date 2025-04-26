@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { WidgetStage } from '@proj-airi/stage-ui/components'
-import { computed } from 'vue'
+import { invoke } from '@tauri-apps/api/core'
+import { computed, onMounted } from 'vue'
 
 import InteractiveArea from '../components/InteractiveArea.vue'
 import { useWindowShortcuts } from '../composables/window-shortcuts'
@@ -21,6 +22,10 @@ const modeIndicatorClass = computed(() => {
     default:
       return ''
   }
+})
+
+onMounted(async () => {
+  await invoke('connect_server')
 })
 </script>
 
