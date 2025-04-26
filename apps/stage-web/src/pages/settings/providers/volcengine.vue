@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import type { UnElevenLabsOptions } from '@xsai-ext/providers-local'
 import type { SpeechProviderWithExtraOptions } from '@xsai-ext/shared-providers'
+import type { UnElevenLabsOptions } from 'unspeech'
 
 import {
   FieldInput,

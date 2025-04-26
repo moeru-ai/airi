@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import type { ElectronAPI } from '@electron-toolkit/preload'
 import type { DuckDBWasmDrizzleDatabase } from '@proj-airi/drizzle-duckdb-wasm'
-import type { UnElevenLabsOptions } from '@xsai-ext/providers-local'
 import type { SpeechProviderWithExtraOptions } from '@xsai-ext/shared-providers'
+import type { UnElevenLabsOptions } from 'unspeech'
 import type { Emotion } from '../../constants/emotions'
 
 import { drizzle } from '@proj-airi/drizzle-duckdb-wasm'
