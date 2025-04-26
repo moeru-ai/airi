@@ -7,11 +7,11 @@ use tokio::process::Command;
 use super::lib::McpState;
 
 #[tauri::command]
-pub async fn connect_server(state: State<'_, Mutex<McpState>>) -> Result<(), ()> {
+pub async fn connect_server(state: State<'_, Mutex<McpState>>, command: String, args: Vec<String>) -> Result<(), ()> {
   let mut state = state.lock().await;
 
   let child_process = TokioChildProcess::new(
-    Command::new("docker").args(["run", "-i", "--rm", "-e", "ADB_HOST=host.docker.internal", "ghcr.io/lemonnekogh/airi-android:v0.1.0"])
+    Command::new(command).args(args)
   ).unwrap();
 
   let service: RunningService<RoleClient, ()> = ().serve(child_process).await.unwrap();
@@ -56,5 +56,6 @@ pub async fn call_tool(state: State<'_, Mutex<McpState>>, tool_name: String, arg
 
   println!("Tool result: {:?}", call_tool_result);
 
+  // TODO: better response
   Ok(call_tool_result.content.into_iter().map(|content| content.raw.as_text().unwrap().text.clone()).collect::<Vec<String>>())
 }
