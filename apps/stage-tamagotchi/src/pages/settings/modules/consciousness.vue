@@ -1,6 +1,6 @@
 <script setup lang="ts">
+import { RadioCardManySelect, RadioCardSimple } from '@proj-airi/stage-ui/components'
 import { useConsciousnessStore, useProvidersStore } from '@proj-airi/stage-ui/stores'
-import { RadioCardDetailManySelect, RadioCardSimple } from '@proj-airi/ui/Form'
 import { storeToRefs } from 'pinia'
 import { onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -134,9 +134,9 @@ function updateCustomModelName(value: string) {
           </div>
         </div>
 
-        <!-- Using the new RadioCardDetailManySelect component -->
+        <!-- Using the new RadioCardManySelect component -->
         <template v-else-if="providerModels.length > 0">
-          <RadioCardDetailManySelect
+          <RadioCardManySelect
             v-model="activeModel"
             v-model:search-query="modelSearchQuery"
             :items="providerModels"

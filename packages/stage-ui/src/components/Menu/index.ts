@@ -1,3 +1,8 @@
 export { default as CharacterCard } from './CharacterCard.vue'
 export { default as IconItem } from './IconItem.vue'
 export { default as IconStatusItem } from './IconStatusItem.vue'
+export { default as RadioCardDetail } from './RadioCardDetail.vue'
+export { default as RadioCardManySelect } from './RadioCardManySelect.vue'
+export { default as RadioCardSimple } from './RadioCardSimple.vue'
+export { default as VoiceCard } from './VoiceCard.vue'
+export { default as VoiceCardManySelect } from './VoiceCardManySelect.vue'

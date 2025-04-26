@@ -94,6 +94,7 @@
     "@vitejs/plugin-vue": "^5.2.3",
     "histoire": "1.0.0-alpha.2",
     "unocss": "^66.1.0-beta.12",
-    "vite": "^6.3.3"
+    "vite": "^6.3.3",
+    "vue-sfc-transformer": "^0.1.14"
   }
 }

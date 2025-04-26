@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import Collapsable from '../Collapsable.vue'
+import Collapsable from '../Misc/Collapsable.vue'
 
 withDefaults(defineProps<{
   title: string

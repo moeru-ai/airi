@@ -1,11 +1,10 @@
 <script setup lang="ts">
 import type { ChatProvider } from '@xsai-ext/shared-providers'
 
-import { TransitionVertical } from '@proj-airi/stage-ui/components'
 import { useMicVAD, useWhisper } from '@proj-airi/stage-ui/composables'
 import WhisperWorker from '@proj-airi/stage-ui/libs/workers/worker?worker&url'
 import { useAudioContext, useChatStore, useConsciousnessStore, useProvidersStore, useSettings } from '@proj-airi/stage-ui/stores'
-import { BasicTextarea } from '@proj-airi/ui/Form'
+import { BasicTextarea, TransitionVertical } from '@proj-airi/ui'
 import { useDevicesList } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { ref, watch } from 'vue'

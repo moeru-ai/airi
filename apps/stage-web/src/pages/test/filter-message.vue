@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Textarea } from '@proj-airi/ui/Form'
+import { Textarea } from '@proj-airi/ui'
 import { ref } from 'vue'
 
 const messageInput = ref<string>('')

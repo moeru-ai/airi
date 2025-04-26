@@ -3,7 +3,7 @@ import type { ChatProvider } from '@xsai-ext/shared-providers'
 
 import { useMicVAD } from '@proj-airi/stage-ui/composables'
 import { useChatStore, useConsciousnessStore, useProvidersStore, useSettings } from '@proj-airi/stage-ui/stores'
-import { BasicTextarea } from '@proj-airi/ui/Form'
+import { BasicTextarea } from '@proj-airi/ui'
 import { invoke } from '@tauri-apps/api/core'
 import { storeToRefs } from 'pinia'
 import { onMounted, ref, watch } from 'vue'

@@ -8,6 +8,14 @@
     ],
     "module": "ESNext",
     "moduleResolution": "Bundler",
+    "paths": {
+      "@proj-airi/ui": [
+        "../../packages/ui/src/index.ts"
+      ],
+      "@proj-airi/ui/*": [
+        "../../packages/ui/src/*"
+      ]
+    },
     "resolveJsonModule": true,
     "types": [
       "vitest",
@@ -32,8 +40,16 @@
   },
   "include": [
     "env.d.ts",
-    "**/*.vue",
-    "**/*.story.vue"
+    "src/**/*.ts",
+    "src/**/*.d.ts",
+    "src/**/*.mts",
+    "src/**/*.vue",
+    "src/**/*.story.vue",
+    "stories/**/*.ts",
+    "stories/**/*.d.ts",
+    "stories/**/*.mts",
+    "stories/**/*.vue",
+    "stories/**/*.story.vue"
   ],
   "exclude": [
     "dist",

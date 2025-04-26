@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useDelayMessageQueue } from '@proj-airi/stage-ui/composables'
 import { llmInferenceEndToken } from '@proj-airi/stage-ui/constants'
-import { Textarea } from '@proj-airi/ui/Form'
+import { Textarea } from '@proj-airi/ui'
 import { ref } from 'vue'
 
 const messageInput = ref<string>('')

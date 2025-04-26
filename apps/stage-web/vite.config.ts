@@ -55,6 +55,7 @@ export default defineConfig({
   resolve: {
     alias: {
       '@proj-airi/stage-ui': resolve(join(import.meta.dirname, '..', '..', 'packages', 'stage-ui', 'src')),
+      '@proj-airi/ui': resolve(join(import.meta.dirname, '..', '..', 'packages', 'ui', 'src')),
       '@proj-airi/ui-transitions': resolve(join(import.meta.dirname, '..', '..', 'packages', 'ui-transitions', 'src')),
       '@proj-airi/stage-ui/stores': resolve(join(import.meta.dirname, '..', '..', 'packages', 'stage-ui', 'src', 'stores')),
     },

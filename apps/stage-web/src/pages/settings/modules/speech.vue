@@ -1,17 +1,20 @@
 <script setup lang="ts">
 import type { SpeechProviderWithExtraOptions } from '@xsai-ext/shared-providers'
 
-import { Skeleton, TestDummyMarker } from '@proj-airi/stage-ui/components'
+import {
+  RadioCardManySelect,
+  RadioCardSimple,
+  Skeleton,
+  TestDummyMarker,
+  VoiceCardManySelect,
+} from '@proj-airi/stage-ui/components'
 import { useProvidersStore, useSpeechStore } from '@proj-airi/stage-ui/stores'
 import {
   FieldCheckbox,
   FieldInput,
   FieldRange,
-  RadioCardDetailManySelect,
-  RadioCardSimple,
   Textarea,
-  VoiceCardManySelect,
-} from '@proj-airi/ui/Form'
+} from '@proj-airi/ui'
 import { generateSpeech } from '@xsai/generate-speech'
 import { storeToRefs } from 'pinia'
 import { onMounted, onUnmounted, ref, watch } from 'vue'
@@ -255,9 +258,9 @@ function updateCustomModelName(value: string) {
                 </div>
               </div>
 
-              <!-- Using the new RadioCardDetailManySelect component -->
+              <!-- Using the new RadioCardManySelect component -->
               <template v-else-if="providerModels.length > 0">
-                <RadioCardDetailManySelect
+                <RadioCardManySelect
                   v-model="activeSpeechModel"
                   v-model:search-query="modelSearchQuery"
                   :items="providerModels"
@@ -313,7 +316,7 @@ function updateCustomModelName(value: string) {
           </div>
 
           <!-- Error state -->
-          <!-- Voice selection with RadioCardDetailManySelect -->
+          <!-- Voice selection with RadioCardManySelect -->
           <div
             v-else-if="availableVoices[activeSpeechProvider] && availableVoices[activeSpeechProvider].length > 0"
             class="space-y-6"

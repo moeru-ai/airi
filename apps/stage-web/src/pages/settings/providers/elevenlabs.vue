@@ -7,7 +7,7 @@ import {
   SpeechProviderSettings,
 } from '@proj-airi/stage-ui/components'
 import { useProvidersStore, useSpeechStore } from '@proj-airi/stage-ui/stores'
-import { FieldCheckbox, FieldRange } from '@proj-airi/ui/Form'
+import { FieldCheckbox, FieldRange } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'

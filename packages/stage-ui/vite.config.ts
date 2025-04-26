@@ -1,4 +1,4 @@
-import { join } from 'node:path'
+import { join, resolve } from 'node:path'
 import vue from '@vitejs/plugin-vue'
 import Unocss from 'unocss/vite'
 import { defineConfig } from 'vite'
@@ -8,6 +8,11 @@ export default defineConfig({
   server: {
     fs: {
       allow: [join('..', '..')],
+    },
+  },
+  resolve: {
+    alias: {
+      '@proj-airi/ui': resolve(join(import.meta.dirname, '..', '..', 'packages', 'ui', 'src')),
     },
   },
   plugins: [

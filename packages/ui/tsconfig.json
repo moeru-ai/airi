@@ -10,7 +10,6 @@
     "moduleResolution": "Bundler",
     "resolveJsonModule": true,
     "types": [
-      "vitest",
       "vite/client"
     ],
     "allowJs": true,
@@ -31,9 +30,10 @@
     ]
   },
   "include": [
-    "env.d.ts",
-    "**/*.vue",
-    "**/*.story.vue"
+    "src/**/*.ts",
+    "src/**/*.d.ts",
+    "src/**/*.mts",
+    "src/**/*.vue"
   ],
   "exclude": [
     "dist",

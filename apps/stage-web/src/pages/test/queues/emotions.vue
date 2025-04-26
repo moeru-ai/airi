@@ -4,7 +4,7 @@ import type { Emotion } from '@proj-airi/stage-ui/constants/emotions'
 import { useQueue } from '@proj-airi/stage-ui/composables/queue'
 import { useEmotionsMessageQueue } from '@proj-airi/stage-ui/composables/queues'
 import { llmInferenceEndToken } from '@proj-airi/stage-ui/constants'
-import { Textarea } from '@proj-airi/ui/Form'
+import { Textarea } from '@proj-airi/ui'
 import { ref } from 'vue'
 
 const messageInput = ref<string>('')

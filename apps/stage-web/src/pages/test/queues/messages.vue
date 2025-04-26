@@ -2,7 +2,7 @@
 import { useQueue } from '@proj-airi/stage-ui/composables/queue'
 import { useMessageContentQueue } from '@proj-airi/stage-ui/composables/queues'
 import { llmInferenceEndToken } from '@proj-airi/stage-ui/constants'
-import { Textarea } from '@proj-airi/ui/Form'
+import { Textarea } from '@proj-airi/ui'
 import { ref } from 'vue'
 
 const messageInput = ref<string>('')
