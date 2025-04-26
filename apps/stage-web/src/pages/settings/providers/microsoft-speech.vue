@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import type { UnMicrosoftOptions } from '@xsai-ext/providers-local'
 import type { SpeechProviderWithExtraOptions } from '@xsai-ext/shared-providers'
+import type { UnMicrosoftOptions } from 'unspeech'
 
 import {
   SpeechPlayground,
