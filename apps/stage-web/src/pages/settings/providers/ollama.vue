@@ -2,7 +2,6 @@
 import type { RemovableRef } from '@vueuse/core'
 
 import {
-  FieldKeyValues,
   ProviderAdvancedSettings,
   ProviderBaseUrlInput,
   ProviderBasicSettings,
@@ -10,6 +9,7 @@ import {
   ProviderSettingsLayout,
 } from '@proj-airi/stage-ui/components'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores'
+import { FieldKeyValues } from '@proj-airi/ui/Form'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, reactive, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -112,8 +112,8 @@ watch(headers, (headers) => {
           :description="t('settings.pages.providers.common.section.advanced.fields.field.headers.description')"
           :key-placeholder="t('settings.pages.providers.common.section.advanced.fields.field.headers.key.placeholder')"
           :value-placeholder="t('settings.pages.providers.common.section.advanced.fields.field.headers.value.placeholder')"
-          @add="(key, value) => addKeyValue(headers, key, value)"
-          @remove="(index) => removeKeyValue(index, headers)"
+          @add="(key: string, value: string) => addKeyValue(headers, key, value)"
+          @remove="(index: number) => removeKeyValue(index, headers)"
         />
       </ProviderAdvancedSettings>
     </ProviderSettingsContainer>

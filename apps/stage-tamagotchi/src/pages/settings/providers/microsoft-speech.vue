@@ -3,12 +3,11 @@ import type { SpeechProviderWithExtraOptions } from '@xsai-ext/shared-providers'
 import type { UnMicrosoftOptions } from 'unspeech'
 
 import {
-  FieldInput,
-  FieldRange,
   SpeechPlayground,
   SpeechProviderSettings,
 } from '@proj-airi/stage-ui/components'
 import { useProvidersStore, useSpeechStore } from '@proj-airi/stage-ui/stores'
+import { FieldInput, FieldRange } from '@proj-airi/ui/Form'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'

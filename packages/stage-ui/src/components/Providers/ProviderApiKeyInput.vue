@@ -1,8 +1,7 @@
 <script setup lang="ts">
+import { FieldInput } from '@proj-airi/ui/Form'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
-
-import FieldInput from '../Form/Field/FieldInput.vue'
 
 const props = defineProps<{
   providerName: string

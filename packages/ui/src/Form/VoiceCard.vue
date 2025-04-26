@@ -1,7 +1,6 @@
 <script setup lang="ts">
-import AudioSpectrum from '../Gadgets/AudioSpectrum.vue'
-import AudioSpectrumVisualizer from '../Gadgets/AudioSpectrumVisualizer.vue'
-import TransitionVertical from '../TransitionVertical.vue'
+import { AudioSpectrum, AudioSpectrumVisualizer, TransitionVertical } from '@proj-airi/stage-ui/components'
+
 import Input from './Input/Input.vue'
 
 interface VoiceLanguage {

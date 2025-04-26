@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import FieldInput from '../Form/Field/FieldInput.vue'
+import { FieldInput } from '@proj-airi/ui/Form'
 
 const props = defineProps<{
   placeholder?: string

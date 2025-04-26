@@ -1,6 +1,5 @@
 export * from './Button'
 export { default as Collapsable } from './Collapsable.vue'
-export * from './Form'
 export * from './Gadgets'
 export * from './Graphics'
 export * from './Layouts'

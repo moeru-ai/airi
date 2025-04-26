@@ -27,6 +27,7 @@
     "@proj-airi/drizzle-duckdb-wasm": "catalog:",
     "@proj-airi/server-sdk": "workspace:^",
     "@proj-airi/stage-ui": "workspace:^",
+    "@proj-airi/ui": "workspace:^",
     "@proj-airi/ui-transitions": "workspace:^",
     "@ricky0123/vad-web": "^0.0.22",
     "@standard-schema/spec": "^1.0.0",

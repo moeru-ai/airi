@@ -1,7 +1,7 @@
 <script setup lang="ts">
+import { TransitionVertical } from '@proj-airi/stage-ui/components'
 import { ref } from 'vue'
 
-import TransitionVertical from '../../TransitionVertical.vue'
 import Input from '../Input/Input.vue'
 
 withDefaults(defineProps<{

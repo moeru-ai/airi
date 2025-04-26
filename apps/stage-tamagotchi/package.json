@@ -24,6 +24,7 @@
     "@pixiv/three-vrm-core": "^3.4.0",
     "@proj-airi/drizzle-duckdb-wasm": "catalog:",
     "@proj-airi/stage-ui": "workspace:^",
+    "@proj-airi/ui": "workspace:^",
     "@ricky0123/vad-web": "^0.0.22",
     "@tauri-apps/api": "^2.5.0",
     "@tauri-apps/plugin-os": ">=2.2.1",

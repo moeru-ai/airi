@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { RadioCardDetailManySelect, RadioCardSimple } from '@proj-airi/stage-ui/components'
 import { useConsciousnessStore, useProvidersStore } from '@proj-airi/stage-ui/stores'
+import { RadioCardDetailManySelect, RadioCardSimple } from '@proj-airi/ui/Form'
 import { storeToRefs } from 'pinia'
 import { onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
