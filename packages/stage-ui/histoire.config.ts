@@ -27,6 +27,10 @@ export default defineConfig({
         title: 'Design System',
       },
       {
+        id: 'typography',
+        title: 'Typography',
+      },
+      {
         id: 'common',
         title: 'Common',
       },
