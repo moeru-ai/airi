@@ -46,6 +46,11 @@ function updateTrackColor() {
   sliderRef.value.style.setProperty('--min', !sliderRef.value.min ? props.min.toString() : sliderRef.value.min)
   sliderRef.value.style.setProperty('--max', !sliderRef.value.max ? props.max.toString() : sliderRef.value.max)
 }
+
+function handleInput(e: Event) {
+  const target = e.target as HTMLInputElement
+  target.style.setProperty('--value', target.value)
+}
 </script>
 
 <template>
@@ -57,9 +62,7 @@ function updateTrackColor() {
     :max="scaledMax"
     :step="scaledStep"
     class="slider-progress form_input-range"
-    @input="(e) => {
-      (e.target as HTMLInputElement).style.setProperty('--value', (e.target as HTMLInputElement).value)
-    }"
+    @input="handleInput"
   >
 </template>
 
