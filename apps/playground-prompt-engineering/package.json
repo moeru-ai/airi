@@ -1,7 +1,7 @@
 {
   "name": "@proj-airi/playground-prompt-engineering",
   "type": "module",
-  "version": "0.4.22",
+  "version": "0.4.23",
   "private": true,
   "description": "Prompt Engineering Playground for AI Characters",
   "scripts": {
