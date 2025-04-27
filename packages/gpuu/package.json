@@ -1,7 +1,7 @@
 {
   "name": "gpuu",
   "type": "module",
-  "version": "1.0.0",
+  "version": "0.4.23",
   "description": "A collection of utilities for working with GPUs, especially for WebGPU.",
   "author": {
     "name": "Neko Ayaka",
