@@ -5,7 +5,7 @@ title: DevLog @ 2025.03.05
 ## Dejavu
 
 Yesterday I added one extra package called
-[`gpuu` (GPU utilities)](https://github.com/moeru-ai/airi/tree/main/packages/gpuu)
+[`gpuu` (GPU utilities)](https://github.com/moeru-ai/gpuu)
 to help us work with WebGPU, and perhaps we can use it to interact with real
 GPU devices too. There is not that much capabilities it can do right now,
 we will add more capabilities for it in the future.
