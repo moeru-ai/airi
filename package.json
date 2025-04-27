@@ -37,7 +37,7 @@
     "@antfu/eslint-config": "^4.12.0",
     "@antfu/ni": "^24.3.0",
     "@iconify/utils": "^2.3.0",
-    "@types/node": "^22.14.1",
+    "@types/node": "^22.15.2",
     "@unocss/eslint-config": "^66.1.0-beta.12",
     "@unocss/eslint-plugin": "^66.1.0-beta.12",
     "@vitest/coverage-v8": "^3.1.2",

@@ -29,7 +29,7 @@
     "@xsai/generate-text": "catalog:",
     "@xsai/generate-transcription": "catalog:",
     "@xsai/shared-chat": "catalog:",
-    "discord.js": "^14.18.0",
+    "discord.js": "^14.19.1",
     "libsodium-wrappers": "^0.7.15",
     "opusscript": "^0.1.1",
     "tsx": "^4.19.3",

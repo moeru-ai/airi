@@ -13,7 +13,7 @@
   "dependencies": {
     "@guiiai/logg": "^1.0.8",
     "@proj-airi/server-sdk": "workspace:^",
-    "drizzle-orm": "^0.42.0",
+    "drizzle-orm": "^0.43.1",
     "postgres": "^3.4.5"
   },
   "devDependencies": {
