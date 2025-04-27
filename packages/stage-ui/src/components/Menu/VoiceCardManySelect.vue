@@ -337,7 +337,7 @@ const customVoiceName = ref('')
       <div class="relative">
         <!-- Horizontally scrollable container -->
         <div
-          class="scrollbar-hide grid auto-cols-[350px] grid-flow-col max-h-[calc(100dvh-7lh)] gap-4 overflow-x-auto"
+          class="grid auto-cols-[350px] grid-flow-col max-h-[calc(100dvh-7lh)] gap-4 overflow-x-auto scrollbar-none"
           :class="[
             isListExpanded ? 'grid-cols-1 md:grid-cols-2 grid-flow-row auto-cols-auto' : '',
           ]"

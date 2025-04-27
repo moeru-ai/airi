@@ -10,33 +10,49 @@
   },
   "license": "MIT",
   "exports": {
-    "./constants": {
-      "types": "./dist/constants/index.d.ts",
-      "import": "./dist/constants/index.mjs"
+    ".": {
+      "types": "./dist/components/index.d.ts",
+      "import": "./dist/components/index.mjs"
     },
     "./components": {
       "types": "./dist/components/index.d.ts",
       "import": "./dist/components/index.mjs"
     },
-    "./stores": {
-      "types": "./dist/stores/index.d.ts",
-      "import": "./dist/stores/index.mjs"
-    },
-    ".": {
-      "types": "./dist/components/index.d.ts",
-      "import": "./dist/components/index.mjs"
+    "./composables/*": {
+      "types": "./dist/composables/*.d.ts",
+      "import": "./dist/composables/*.mjs"
     },
     "./composables": {
       "types": "./dist/composables/index.d.ts",
       "import": "./dist/composables/index.mjs"
     },
-    "./utils": {
-      "types": "./dist/utils/index.d.ts",
-      "import": "./dist/utils/index.mjs"
+    "./constants/*": {
+      "types": "./dist/constants/*.d.ts",
+      "import": "./dist/constants/*.mjs"
+    },
+    "./constants": {
+      "types": "./dist/constants/index.d.ts",
+      "import": "./dist/constants/index.mjs"
+    },
+    "./libs/*": {
+      "types": "./dist/libs/*.d.ts",
+      "import": "./dist/libs/*.mjs"
     },
     "./libs": {
       "types": "./dist/libs/index.d.ts",
       "import": "./dist/libs/index.mjs"
+    },
+    "./stores/*": {
+      "types": "./dist/stores/*.d.ts",
+      "import": "./dist/stores/*.mjs"
+    },
+    "./stores": {
+      "types": "./dist/stores/index.d.ts",
+      "import": "./dist/stores/index.mjs"
+    },
+    "./utils": {
+      "types": "./dist/utils/index.d.ts",
+      "import": "./dist/utils/index.mjs"
     }
   },
   "module": "./dist/components/index.mjs",
@@ -94,7 +110,6 @@
     "@vitejs/plugin-vue": "^5.2.3",
     "histoire": "1.0.0-alpha.2",
     "unocss": "^66.1.0-beta.12",
-    "vite": "^6.3.3",
-    "vue-sfc-transformer": "^0.1.14"
+    "vite": "^6.3.3"
   }
 }
