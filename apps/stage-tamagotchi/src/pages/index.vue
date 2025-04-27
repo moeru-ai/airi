@@ -25,11 +25,11 @@ const modeIndicatorClass = computed(() => {
 })
 
 onMounted(async () => {
+  window.invoke = invoke
   await invoke('plugin:mcp|connect_server', {
     command: 'docker',
     args: ['run', '-i', '--rm', '-e', 'ADB_HOST=host.docker.internal', 'ghcr.io/lemonnekogh/airi-android:v0.1.0'],
   })
-  // window.invoke = invoke
 })
 </script>
 

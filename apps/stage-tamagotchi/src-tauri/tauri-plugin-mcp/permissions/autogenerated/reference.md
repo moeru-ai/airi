@@ -7,6 +7,7 @@ operations are available from the mcp plugin.
 
 All operations are enabled by default.
 
+
 #### This default permission set includes the following:
 
 - `allow-connect-server`
@@ -20,6 +21,7 @@ All operations are enabled by default.
 <th>Identifier</th>
 <th>Description</th>
 </tr>
+
 
 <tr>
 <td>

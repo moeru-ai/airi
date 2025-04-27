@@ -8,7 +8,6 @@ operations are available from the mcp plugin.
 #### Granted Permissions
 
 All operations are enabled by default.
-
 """
 permissions = [
   "allow-connect-server",
