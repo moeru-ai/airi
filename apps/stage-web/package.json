@@ -90,7 +90,6 @@
     "@iconify-json/solar": "^1.2.2",
     "@iconify-json/svg-spinners": "^1.2.2",
     "@iconify-json/vscode-icons": "^1.2.19",
-    "@iconify/utils": "^2.3.0",
     "@intlify/unplugin-vue-i18n": "^6.0.8",
     "@proj-airi/lobe-icons": "^1.0.5",
     "@proj-airi/unplugin-fetch": "^0.1.4",

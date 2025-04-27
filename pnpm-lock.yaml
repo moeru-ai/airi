@@ -69,6 +69,9 @@ importers:
       '@antfu/ni':
         specifier: ^24.3.0
         version: 24.3.0
+      '@iconify/utils':
+        specifier: ^2.3.0
+        version: 2.3.0
       '@types/node':
         specifier: ^22.14.1
         version: 22.14.1
@@ -114,6 +117,9 @@ importers:
       unocss:
         specifier: ^66.1.0-beta.12
         version: 66.1.0-beta.12(postcss@8.5.3)(vite@6.3.3(@types/node@22.14.1)(jiti@2.4.2)(less@4.3.0)(terser@5.17.6)(tsx@4.19.3)(yaml@2.7.0))(vue@3.5.13(typescript@5.8.3))
+      unocss-preset-scrollbar:
+        specifier: ^3.2.0
+        version: 3.2.0(unocss@66.1.0-beta.12(postcss@8.5.3)(vite@6.3.3(@types/node@22.14.1)(jiti@2.4.2)(less@4.3.0)(terser@5.17.6)(tsx@4.19.3)(yaml@2.7.0))(vue@3.5.13(typescript@5.8.3)))
       vite:
         specifier: ^6.3.3
         version: 6.3.3(@types/node@22.14.1)(jiti@2.4.2)(less@4.3.0)(terser@5.17.6)(tsx@4.19.3)(yaml@2.7.0)
@@ -712,9 +718,6 @@ importers:
       '@iconify-json/vscode-icons':
         specifier: ^1.2.19
         version: 1.2.19
-      '@iconify/utils':
-        specifier: ^2.3.0
-        version: 2.3.0
       '@intlify/unplugin-vue-i18n':
         specifier: ^6.0.8
         version: 6.0.8(@vue/compiler-dom@3.5.13)(eslint@9.25.1(jiti@2.4.2))(rollup@4.40.0)(typescript@5.8.3)(vue-i18n@11.1.3(vue@3.5.13(typescript@5.8.3)))(vue@3.5.13(typescript@5.8.3))
@@ -1018,9 +1021,6 @@ importers:
       vite:
         specifier: ^6.3.3
         version: 6.3.3(@types/node@22.14.1)(jiti@2.4.2)(less@4.3.0)(terser@5.17.6)(tsx@4.19.3)(yaml@2.7.0)
-      vue-sfc-transformer:
-        specifier: ^0.1.14
-        version: 0.1.14(@vue/compiler-core@3.5.13)(esbuild@0.25.2)(vue@3.5.13(typescript@5.8.3))
 
   packages/ui:
     dependencies:
@@ -11966,7 +11966,7 @@ snapshots:
   '@babel/helper-builder-binary-assignment-operator-visitor@7.25.9':
     dependencies:
       '@babel/traverse': 7.25.9
-      '@babel/types': 7.26.10
+      '@babel/types': 7.27.0
     transitivePeerDependencies:
       - supports-color
 
@@ -12059,7 +12059,7 @@ snapshots:
   '@babel/helper-simple-access@7.25.9':
     dependencies:
       '@babel/traverse': 7.25.9
-      '@babel/types': 7.26.10
+      '@babel/types': 7.27.0
     transitivePeerDependencies:
       - supports-color
 
@@ -12084,7 +12084,7 @@ snapshots:
     dependencies:
       '@babel/template': 7.25.9
       '@babel/traverse': 7.25.9
-      '@babel/types': 7.26.10
+      '@babel/types': 7.27.0
     transitivePeerDependencies:
       - supports-color
 
@@ -12100,6 +12100,7 @@ snapshots:
   '@babel/parser@7.27.0':
     dependencies:
       '@babel/types': 7.27.0
+    optional: true
 
   '@babel/plugin-bugfix-firefox-class-in-computed-class-key@7.25.9(@babel/core@7.26.0)':
     dependencies:
@@ -12599,7 +12600,7 @@ snapshots:
     dependencies:
       '@babel/core': 7.26.0
       '@babel/helper-plugin-utils': 7.25.9
-      '@babel/types': 7.26.10
+      '@babel/types': 7.27.0
       esutils: 2.0.3
 
   '@babel/runtime@7.26.7':
@@ -15055,7 +15056,7 @@ snapshots:
   '@types/babel__core@7.20.5':
     dependencies:
       '@babel/parser': 7.27.0
-      '@babel/types': 7.26.10
+      '@babel/types': 7.27.0
       '@types/babel__generator': 7.6.8
       '@types/babel__template': 7.4.4
       '@types/babel__traverse': 7.20.6
@@ -15063,18 +15064,18 @@ snapshots:
 
   '@types/babel__generator@7.6.8':
     dependencies:
-      '@babel/types': 7.26.10
+      '@babel/types': 7.27.0
     optional: true
 
   '@types/babel__template@7.4.4':
     dependencies:
       '@babel/parser': 7.27.0
-      '@babel/types': 7.26.10
+      '@babel/types': 7.27.0
     optional: true
 
   '@types/babel__traverse@7.20.6':
     dependencies:
-      '@babel/types': 7.26.10
+      '@babel/types': 7.27.0
     optional: true
 
   '@types/cacheable-request@6.0.3':
@@ -24087,6 +24088,7 @@ snapshots:
       '@vue/compiler-core': 3.5.13
       esbuild: 0.25.2
       vue: 3.5.13(typescript@5.8.3)
+    optional: true
 
   vue-tsc@2.2.10(typescript@5.8.3):
     dependencies:
