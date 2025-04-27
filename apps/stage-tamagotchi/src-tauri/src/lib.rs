@@ -4,18 +4,13 @@ use tauri::{ActivationPolicy,TitleBarStyle};
 use tauri::tray::TrayIconBuilder;
 use tauri::menu::{Menu, MenuItem};
 use std::path::Path;
-use tokio::sync::Mutex;
 
 mod commands;
-mod plugins;
-
-use plugins::mcp::lib::McpState;
-use plugins::mcp::commands::{connect_server, list_tools, call_tool};
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
   tauri::Builder::default()
-    .manage(Mutex::new(McpState { client: None }))
+    .plugin(tauri_plugin_mcp::Builder::default().build())
     .plugin(tauri_plugin_os::init())
     .setup(|app| {
       let mut builder = WebviewWindowBuilder::new(app, "main", WebviewUrl::default())
@@ -90,7 +85,7 @@ pub fn run() {
 
       Ok(())
     })
-    .invoke_handler(tauri::generate_handler![commands::open_settings_window, connect_server, list_tools, call_tool])
+    .invoke_handler(tauri::generate_handler![commands::open_settings_window])
     .run(tauri::generate_context!())
     .expect("error while running tauri application");
 }

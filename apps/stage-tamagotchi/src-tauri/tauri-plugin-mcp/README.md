@@ -4,17 +4,18 @@ A Tauri plugin for MCP.
 
 ## TODO List
 
+- [ ] Move to a single repository
 - [ ] Server connection
   - [ ] stdio
   - [ ] SSE
-- [ ] Tools
-  - [ ] List tools
-    - [ ] Simple: Names only
+- [x] Tools
+  - [x] List tools
+    - [x] Simple: Names only
     - [ ] With description, parameters, returns
-  - [ ] Call tool
-    - [ ] Simple: Name only
-    - [ ] With parameters
-    - [ ] Returns
+  - [x] Call tool
+    - [x] Simple: Name only
+    - [x] With parameters
+    - [x] Returns
     - [ ] Image returns
 - [ ] Prompts...
 - [ ] Resources...

@@ -1,14 +1,12 @@
 [package]
 name = "app"
 version = "0.1.0"
-description = "A Tauri App"
-authors = [ "you" ]
-license = ""
-repository = ""
+description = "Airi tamagotchi app built with Tauri"
+authors = [ "LemonNekoGH <self@lemonneko.moe>" ]
+license = "MIT"
+repository = "https://github.com/moeru-ai/airi"
 edition = "2021"
 rust-version = "1.77.2"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [lib]
 name = "app_lib"
@@ -19,7 +17,7 @@ crate-type = [
 ]
 
 [build-dependencies]
-tauri-build = { version = "2.0.5", features = [] }
+tauri-build = { version = "2.2.0", features = [] }
 
 [dependencies]
 serde_json = "1.0"
@@ -32,9 +30,4 @@ tauri = { version = "2.3.1", features = [
 ] }
 tauri-plugin-log = "2.0.0-rc"
 tauri-plugin-os = "2"
-rmcp = { version = "0.1", features = [
-  "client",
-  "transport-child-process"
-] }
-tokio = { version = "1", features = [ "full" ] }
-anyhow = "1"
+tauri-plugin-mcp = { path = "./tauri-plugin-mcp" }

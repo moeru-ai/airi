@@ -25,7 +25,7 @@ const modeIndicatorClass = computed(() => {
 })
 
 onMounted(async () => {
-  await invoke('connect_server', {
+  await invoke('plugin:mcp|connect_server', {
     command: 'docker',
     args: ['run', '-i', '--rm', '-e', 'ADB_HOST=host.docker.internal', 'ghcr.io/lemonnekogh/airi-android:v0.1.0'],
   })
@@ -74,7 +74,7 @@ onMounted(async () => {
     >
       <div class="absolute h-32 w-full flex items-center justify-center b-2 b-pink bg-white">
         <div class="wall absolute top-0 h-8" />
-        <div data-tauri-drag-region class="text-primary-300 absolute left-0 top-0 h-full w-full flex animate-flash animate-duration-5s animate-count-infinite items-center justify-center text-1.5rem font-bold">
+        <div data-tauri-drag-region class="absolute left-0 top-0 h-full w-full flex animate-flash animate-duration-5s animate-count-infinite items-center justify-center text-1.5rem text-primary-300 font-bold">
           DRAG HERE TO MOVE
         </div>
         <div data-tauri-drag-region class="wall absolute bottom-0 h-8" />

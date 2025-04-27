@@ -2,3 +2,6 @@
 # will have compiled files and executables
 /target/
 /gen/schemas
+
+# Mcp plugin
+/tauri-plugin-mcp/target/
