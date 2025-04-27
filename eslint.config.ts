@@ -9,6 +9,7 @@ export default antfu(
       '**/assets/js/**',
       '**/assets/live2d/models/**',
       'apps/stage-tamagotchi/out/**',
+      'apps/stage-tamagotchi/src-tauri/**',
       '**/drizzle/**',
       '**/.astro/**',
     ],
