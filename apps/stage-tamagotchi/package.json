@@ -1,7 +1,7 @@
 {
   "name": "@proj-airi/stage-tamagotchi",
   "type": "module",
-  "version": "0.4.24",
+  "version": "0.4.25",
   "private": true,
   "description": "Airi tamagotchi app built with Tauri",
   "author": "LemonNekoGH",
