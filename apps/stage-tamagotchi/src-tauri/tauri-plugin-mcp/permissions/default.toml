@@ -11,6 +11,7 @@ All operations are enabled by default.
 """
 permissions = [
   "allow-connect-server",
+  "allow-disconnect-server",
   "allow-list-tools",
   "allow-call-tool"
 ]

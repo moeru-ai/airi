@@ -1,4 +1,5 @@
-use rmcp::{service::RunningService, transport::TokioChildProcess, RoleClient, ServiceExt};
+use rmcp::{model::{CallToolResult, Tool}, service::RunningService, transport::TokioChildProcess, RoleClient, ServiceExt};
+use serde_json::{Map, Value};
 use tauri::{plugin::{self, TauriPlugin}, Manager, Runtime};
 use tokio::sync::Mutex;
 use rmcp::model::CallToolRequestParam;
@@ -29,7 +30,20 @@ async fn connect_server(state: State<'_, Mutex<McpState>>, command: String, args
 }
 
 #[tauri::command]
-async fn list_tools(state: State<'_, Mutex<McpState>>) -> Result<Vec<String>, String> {
+async fn disconnect_server(state: State<'_, Mutex<McpState>>) -> Result<(), String> {
+  let mut state = state.lock().await;
+  if state.client.is_none() {
+    return Err("Client not connected".to_string());
+  }
+
+  state.client.take().unwrap().cancel().await.unwrap();
+  state.client = None;
+
+  Ok(())
+}
+
+#[tauri::command]
+async fn list_tools(state: State<'_, Mutex<McpState>>) -> Result<Vec<Tool>, String> {
   let state = state.lock().await;
   let client = state.client.as_ref();
   if client.is_none() {
@@ -39,17 +53,13 @@ async fn list_tools(state: State<'_, Mutex<McpState>>) -> Result<Vec<String>, St
   let list_tools_result = client.unwrap().list_tools(Default::default()).await.unwrap();
   let tools = list_tools_result.tools;
 
-  let tool_names = tools.into_iter().map(|tool| tool.name.into()).collect::<Vec<String>>();
-
-  println!("Tools: {:?}", tool_names);
-
-  Ok(tool_names)
+  Ok(tools)
 }
 
 #[tauri::command]
-async fn call_tool(state: State<'_, Mutex<McpState>>, tool_name: String, arguments: String) -> Result<Vec<String>, String> {
-  println!("Calling tool: {:?}", tool_name);
-  println!("Arguments: {:?}", arguments);
+async fn call_tool(state: State<'_, Mutex<McpState>>, name: String, args: Option<Map<String, Value>>) -> Result<CallToolResult, String> {
+  println!("Calling tool: {:?}", name);
+  println!("Arguments: {:?}", args);
 
   let state = state.lock().await;
   let client = state.client.as_ref();
@@ -57,14 +67,11 @@ async fn call_tool(state: State<'_, Mutex<McpState>>, tool_name: String, argumen
     return Err("Client not connected".to_string());
   }
 
-  // json parse to map
-  let arguments = serde_json::from_str(&arguments).unwrap();
-  let call_tool_result = client.unwrap().call_tool(CallToolRequestParam { name: tool_name.into(), arguments: Some(arguments) }).await.unwrap();
+  let call_tool_result = client.unwrap().call_tool(CallToolRequestParam { name: name.into(), arguments: args }).await.unwrap();
 
   println!("Tool result: {:?}", call_tool_result);
 
-  // TODO: better response
-  Ok(call_tool_result.content.into_iter().map(|content| content.raw.as_text().unwrap().text.clone()).collect::<Vec<String>>())
+  Ok(call_tool_result)
 }
 
 pub struct Builder;
@@ -80,7 +87,12 @@ impl Builder {
     println!("Building MCP plugin");
 
     plugin::Builder::new("mcp")
-      .invoke_handler(tauri::generate_handler![connect_server, list_tools, call_tool])
+      .invoke_handler(tauri::generate_handler![
+        connect_server,
+        disconnect_server,
+        list_tools,
+        call_tool
+      ])
       .setup(|app_handle, _| {
         app_handle.manage(Mutex::new(McpState { client: None }));
         Ok(())

@@ -11,6 +11,7 @@ All operations are enabled by default.
 #### This default permission set includes the following:
 
 - `allow-connect-server`
+- `allow-disconnect-server`
 - `allow-list-tools`
 - `allow-call-tool`
 
@@ -71,6 +72,32 @@ Enables the connect_server command without any pre-configured scope.
 <td>
 
 Denies the connect_server command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`mcp:allow-disconnect-server`
+
+</td>
+<td>
+
+Enables the disconnect_server command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`mcp:deny-disconnect-server`
+
+</td>
+<td>
+
+Denies the disconnect_server command without any pre-configured scope.
 
 </td>
 </tr>
