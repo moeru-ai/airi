@@ -152,6 +152,9 @@ settings:
       messaging-discord:
         description: Chat & voice chat over Discord
         title: Discord
+      mcp-server:
+        description: Connect to the MCP server
+        title: MCP Server
       speech:
         description: Speech synthesis
         sections:

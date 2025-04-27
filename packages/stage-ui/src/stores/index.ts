@@ -1,6 +1,7 @@
 export * from './audio'
 export * from './chat'
 export * from './llm'
+export * from './mcp'
 export * from './modules'
 export * from './providers'
 export * from './server'

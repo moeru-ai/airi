@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { WidgetStage } from '@proj-airi/stage-ui/components'
-import { invoke } from '@tauri-apps/api/core'
+import { useMcpStore } from '@proj-airi/stage-ui/stores'
+import { connectServer } from '@proj-airi/stage-ui/utils/tauri-plugin-mcp'
+import { storeToRefs } from 'pinia'
 import { computed, onMounted } from 'vue'
 
 import InteractiveArea from '../components/InteractiveArea.vue'
@@ -10,6 +12,9 @@ import { WindowControlMode } from '../types/window-controls'
 
 const windowStore = useWindowControlStore()
 useWindowShortcuts()
+
+const mcpStore = useMcpStore()
+const { connected, serverCmd, serverArgs } = storeToRefs(mcpStore)
 
 const modeIndicatorClass = computed(() => {
   switch (windowStore.controlMode) {
@@ -25,11 +30,17 @@ const modeIndicatorClass = computed(() => {
 })
 
 onMounted(async () => {
-  window.invoke = invoke
-  await invoke('plugin:mcp|connect_server', {
-    command: 'docker',
-    args: ['run', '-i', '--rm', '-e', 'ADB_HOST=host.docker.internal', 'ghcr.io/lemonnekogh/airi-android:v0.1.0'],
-  })
+  if (connected.value)
+    return
+  if (!serverCmd.value || !serverArgs.value)
+    return
+  try {
+    await connectServer(serverCmd.value, serverArgs.value.split(' '))
+    connected.value = true
+  }
+  catch (error) {
+    console.error(error)
+  }
 })
 </script>
 

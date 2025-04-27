@@ -141,6 +141,9 @@ settings:
       messaging-discord:
         description: Discord 发消息和语音聊天
         title: Discord
+      mcp-server:
+        description: 连接到 MCP 服务器
+        title: MCP 服务器
       speech:
         description: 语音合成
         sections:
