@@ -54,7 +54,7 @@
     "drizzle-kit": "^0.31.0",
     "drizzle-orm": "^0.43.1",
     "fluere": "0.3.0-beta.1",
-    "gpuu": "workspace:^",
+    "gpuu": "^1.0.0",
     "jszip": "^3.10.1",
     "localforage": "^1.10.0",
     "node-vibrant": "^4.0.3",
