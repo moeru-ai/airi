@@ -101,6 +101,14 @@ const modulesList = computed<Module[]>(() => [
     to: '',
     configured: false,
   },
+  {
+    id: 'mcp-server',
+    name: t('settings.pages.modules.mcp-server.title'),
+    description: t('settings.pages.modules.mcp-server.description'),
+    icon: 'i-solar:server-bold-duotone',
+    to: '/settings/modules/mcp',
+    configured: false,
+  },
 ])
 
 const {

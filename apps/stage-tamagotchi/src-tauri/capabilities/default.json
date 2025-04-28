@@ -3,12 +3,13 @@
   "identifier": "default",
   "description": "enables the default permissions",
   "windows": [
-    "main"
+    "main", "settings"
   ],
   "permissions": [
     "core:default",
     "os:default",
     "core:window:default",
-    "core:window:allow-start-dragging"
+    "core:window:allow-start-dragging",
+    "mcp:default"
   ]
 }

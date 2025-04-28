@@ -1,7 +1,7 @@
 use tauri::{WebviewUrl, WebviewWindowBuilder, Manager};
 #[cfg(target_os = "macos")]
 use tauri::{ActivationPolicy,TitleBarStyle};
-use tauri::tray::{TrayIconBuilder};
+use tauri::tray::TrayIconBuilder;
 use tauri::menu::{Menu, MenuItem};
 use std::path::Path;
 
@@ -10,6 +10,7 @@ mod commands;
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
   tauri::Builder::default()
+    .plugin(tauri_plugin_mcp::Builder::default().build())
     .plugin(tauri_plugin_os::init())
     .setup(|app| {
       let mut builder = WebviewWindowBuilder::new(app, "main", WebviewUrl::default())

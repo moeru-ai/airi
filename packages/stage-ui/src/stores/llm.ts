@@ -5,6 +5,8 @@ import { listModels } from '@xsai/model'
 import { streamText } from '@xsai/stream-text'
 import { defineStore } from 'pinia'
 
+import { mcp } from '../tools'
+
 export const useLLM = defineStore('llm', () => {
   async function stream(model: string, chatProvider: ChatProvider, messages: Message[], options?: {
     headers?: Record<string, string>
@@ -13,8 +15,12 @@ export const useLLM = defineStore('llm', () => {
 
     return await streamText({
       ...chatProvider.chat(model),
+      maxSteps: 10,
       messages,
       headers,
+      tools: [
+        ...await mcp(),
+      ],
     })
   }
 

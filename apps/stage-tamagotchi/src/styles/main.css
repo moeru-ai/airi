@@ -18,12 +18,10 @@ body,
 }
 
 html {
-  background: var(--bg-color);
   transition: all 0.3s ease-in-out;
 }
 
 html.dark {
-  --bg-color: var(--bg-color-dark);
   color-scheme: dark;
 }
 

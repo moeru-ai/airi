@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { WidgetStage } from '@proj-airi/stage-ui/components'
-import { computed } from 'vue'
+import { useMcpStore } from '@proj-airi/stage-ui/stores'
+import { connectServer } from '@proj-airi/stage-ui/utils/tauri-plugin-mcp'
+import { storeToRefs } from 'pinia'
+import { computed, onMounted } from 'vue'
 
 import InteractiveArea from '../components/InteractiveArea.vue'
 import { useWindowShortcuts } from '../composables/window-shortcuts'
@@ -9,6 +12,9 @@ import { WindowControlMode } from '../types/window-controls'
 
 const windowStore = useWindowControlStore()
 useWindowShortcuts()
+
+const mcpStore = useMcpStore()
+const { connected, serverCmd, serverArgs } = storeToRefs(mcpStore)
 
 const modeIndicatorClass = computed(() => {
   switch (windowStore.controlMode) {
@@ -20,6 +26,20 @@ const modeIndicatorClass = computed(() => {
       return 'debug-mode'
     default:
       return ''
+  }
+})
+
+onMounted(async () => {
+  if (connected.value)
+    return
+  if (!serverCmd.value || !serverArgs.value)
+    return
+  try {
+    await connectServer(serverCmd.value, serverArgs.value.split(' '))
+    connected.value = true
+  }
+  catch (error) {
+    console.error(error)
   }
 })
 </script>
@@ -65,7 +85,7 @@ const modeIndicatorClass = computed(() => {
     >
       <div class="absolute h-32 w-full flex items-center justify-center b-2 b-pink bg-white">
         <div class="wall absolute top-0 h-8" />
-        <div data-tauri-drag-region class="text-primary-300 absolute left-0 top-0 h-full w-full flex animate-flash animate-duration-5s animate-count-infinite items-center justify-center text-1.5rem font-bold">
+        <div data-tauri-drag-region class="absolute left-0 top-0 h-full w-full flex animate-flash animate-duration-5s animate-count-infinite items-center justify-center text-1.5rem text-primary-300 font-bold">
           DRAG HERE TO MOVE
         </div>
         <div data-tauri-drag-region class="wall absolute bottom-0 h-8" />

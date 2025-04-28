@@ -41,6 +41,10 @@ const routeHeaderMetadataMap = computed(() => {
       subtitle: t('settings.title'),
       title: t('settings.pages.modules.speech.title'),
     },
+    '/settings/modules/mcp': {
+      subtitle: t('settings.title'),
+      title: t('settings.pages.modules.mcp-server.title'),
+    },
     '/settings/modules/hearing': {
       subtitle: t('settings.title'),
       title: t('settings.pages.modules.hearing.title'),

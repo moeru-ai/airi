@@ -1,0 +1,13 @@
+# Automatically generated - DO NOT EDIT!
+
+"$schema" = "../../schemas/schema.json"
+
+[[permission]]
+identifier = "allow-call-tool"
+description = "Enables the call_tool command without any pre-configured scope."
+commands.allow = ["call_tool"]
+
+[[permission]]
+identifier = "deny-call-tool"
+description = "Denies the call_tool command without any pre-configured scope."
+commands.deny = ["call_tool"]
