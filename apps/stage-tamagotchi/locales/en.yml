@@ -43,6 +43,14 @@ prompt:
 
     And the last, do what ever you want!
 settings:
+  animations:
+    stage-transitions:
+      title: Disable Stage Transitions
+    use-page-specific-transitions:
+      description: >-
+        Some pages will have their own transitions, this will override the stage
+        transitions
+      title: Use Page Specific Transitions
   language:
     chinese: 简体中文
     english: English
@@ -101,11 +109,12 @@ settings:
       try_different_search: Try a different search term
       upload: Upload
       upload_desc: Click or drag file to upload
+    memory:
+      description: Where memories got stored, and organized
+      title: Memory
     models:
       description: Live2D, VRM, etc.
       title: Models
-    memory:
-      description: Where memories got stored, and organized
     modules:
       consciousness:
         description: Personality, desired model, etc.
@@ -152,9 +161,6 @@ settings:
       messaging-discord:
         description: Chat & voice chat over Discord
         title: Discord
-      mcp-server:
-        description: Connect to the MCP server
-        title: MCP Server
       speech:
         description: Speech synthesis
         sections:
@@ -356,32 +362,76 @@ settings:
               field:
                 primary-color:
                   label: Primary color
-                  reset:
-                    label: Reset to Default
                   rgb-on:
                     title: I Want It Dynamic!
-            title: Custom Colors
+            title: Color Scheme
+          developer:
+            title: Developer
           theme-presets:
-            preset:
-              chinese:
+            presets:
+              - colors:
+                  - Airi Green
+                description: The default greenish theme color, brought by Airi to you!
+                title: Default Color
+              - colors:
+                  - Taupe
+                  - Beige
+                  - Ash Grey
+                  - Light Taupe
+                  - Ivory
+                  - Olive Grey
+                  - Sand
+                  - Warm Grey
+                description: Soft, muted tones inspired by Giorgio Morandi's paintings
+                title: Morandi Colors
+              - colors:
+                  - Sky Blue
+                  - Mist
+                  - Sand
+                  - Moss Green
+                  - Water Lily
+                  - Wheat
+                  - Slate Blue
+                  - Sage
+                description: Impressionist palette inspired by Claude Monet's works
+                title: Monet Colors
+              - colors:
+                  - Tan
+                  - Warm Taupe
+                  - Umber
+                  - Coffee
+                  - Bronze
+                  - Gold
+                  - Mustard
+                  - Amber
+                description: Traditional Japanese color palette
+                title: Japanese Colors
+              - colors:
+                  - Nordic Blue
+                  - Ice
+                  - Fjord
+                  - Steel
+                  - Glacier
+                  - Slate
+                  - Cloud
+                  - Stone
+                description: Scandinavian minimalist color scheme
+                title: Nordic Colors
+              - colors:
+                  - Rosy Dawn
+                  - Chinese Red
+                  - Smoky Brown
+                  - Bamboo Green
+                  - Dark Purple
+                  - Golden Yellow
+                  - Azure Blue
+                  - Ochre
                 description: >-
                   Traditional Chinese colors, derived from ancient textiles,
                   porcelain and paintings
                 title: Chinese Traditional Colors
-              japanese:
-                description: Traditional Japanese color palette
-                title: Japanese Colors
-              monet:
-                description: Impressionist palette inspired by Claude Monet's works
-                title: Monet Colors
-              morandi:
-                description: Soft, muted tones inspired by Giorgio Morandi's paintings
-                title: Morandi Colors
-              nordic:
-                description: Scandinavian minimalist color scheme
-                title: Nordic Colors
-            title: Theme Presets
-      title: Themes
+            title: Color Scheme Presets
+      title: Appearance
   sections:
     section:
       general:
@@ -394,8 +444,8 @@ stage:
     message:
       character-name:
         airi: Airi
-        you: You
         core-system: Core System
+        you: You
     tabs:
       chat: Chat
       clothes: Clothes
