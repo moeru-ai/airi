@@ -30,9 +30,4 @@ tauri = { version = "2.3.1", features = [
 ] }
 tauri-plugin-log = "2.0.0-rc"
 tauri-plugin-os = "2"
-tauri-plugin-mcp = { path = "./tauri-plugin-mcp" }
-
-[workspace]
-members = [
-  "tauri-plugin-mcp"
-]
+tauri-plugin-mcp = { workspace = true }

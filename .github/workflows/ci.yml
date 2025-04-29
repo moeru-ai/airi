@@ -16,6 +16,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v3
+      - name: Setup Rust
+        run: |
+          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs > rustup-init.sh
+          sh ./rustup-init.sh -y
+          rustup component add rustfmt
+          rustup component add clippy
+
       - uses: actions/setup-node@v4
         with:
           node-version: lts/*
@@ -25,7 +32,9 @@ jobs:
         run: pnpm install
 
       - name: Lint
-        run: pnpm run lint
+        run: |
+          pnpm run lint
+          pnpm run lint:rust
 
   build-test:
     name: Build Test
@@ -45,6 +54,7 @@ jobs:
         run: |
           pnpm run packages:build
           pnpm run apps:build
+          pnpm run crates:build
 
   typecheck:
     name: Type Check

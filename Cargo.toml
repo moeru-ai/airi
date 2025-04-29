@@ -1,0 +1,9 @@
+[workspace]
+members = [
+  "crates/*",
+  "apps/stage-tamagotchi/src-tauri"
+]
+resolver = "2"
+
+[workspace.dependencies]
+tauri-plugin-mcp = { path = "./crates/tauri-plugin-mcp" }

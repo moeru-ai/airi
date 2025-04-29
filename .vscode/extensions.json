@@ -12,6 +12,7 @@
     "antfu.unocss",
     "Vue.volar",
     "vitest.explorer",
-    "redhat.vscode-yaml"
+    "redhat.vscode-yaml",
+    "rust-lang.rust-analyzer"
   ]
 }
