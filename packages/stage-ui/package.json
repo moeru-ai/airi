@@ -88,6 +88,8 @@
     "@pixi/utils": "6",
     "@proj-airi/ccc": "workspace:^",
     "@proj-airi/drizzle-duckdb-wasm": "catalog:",
+    "@proj-airi/font-cjkfonts-allseto": "workspace:^",
+    "@proj-airi/font-xiaolai": "workspace:^",
     "@proj-airi/server-sdk": "workspace:^",
     "@proj-airi/ui": "workspace:^",
     "@vueuse/core": "^13.1.0",

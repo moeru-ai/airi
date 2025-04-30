@@ -6,7 +6,7 @@ import Skeleton from './Skeleton.vue'
   <Story
     title="Skeleton"
     group="misc"
-    :layout="{ type: 'grid', width: 600 }"
+    :layout="{ type: 'grid', width: '100%' }"
   >
     <template #controls>
       <ThemeColorsHueControl />

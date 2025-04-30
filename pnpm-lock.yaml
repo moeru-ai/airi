@@ -836,6 +836,10 @@ importers:
         specifier: ^1.0.6
         version: 1.0.6
 
+  packages/font-cjkfonts-allseto: {}
+
+  packages/font-xiaolai: {}
+
   packages/memory-pgvector:
     dependencies:
       '@guiiai/logg':
@@ -944,6 +948,12 @@ importers:
       '@proj-airi/drizzle-duckdb-wasm':
         specifier: 'catalog:'
         version: 0.4.21(@types/pg@8.11.14)(gel@2.0.0)(pg@8.15.6)(postgres@3.4.5)(web-worker@1.5.0)
+      '@proj-airi/font-cjkfonts-allseto':
+        specifier: workspace:^
+        version: link:../font-cjkfonts-allseto
+      '@proj-airi/font-xiaolai':
+        specifier: workspace:^
+        version: link:../font-xiaolai
       '@proj-airi/server-sdk':
         specifier: workspace:^
         version: link:../server-sdk

@@ -8,7 +8,7 @@ const maxValue = ref(100)
 </script>
 
 <template>
-  <Story title="Range" group="form" :layout="{ type: 'grid', width: 500 }">
+  <Story title="Range" group="form" :layout="{ type: 'grid', width: '100%' }">
     <template #controls>
       <ThemeColorsHueControl />
     </template>

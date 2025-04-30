@@ -9,7 +9,7 @@ const files = ref<File[]>([])
   <Story
     title="Input File"
     group="form"
-    :layout="{ type: 'grid', width: 600 }"
+    :layout="{ type: 'grid', width: 300 }"
   >
     <template #controls>
       <ThemeColorsHueControl />

@@ -9,7 +9,7 @@ import TestDummyMarkerFlat from './TestDummyMarkerFlat.vue'
   <Story
     title="Test Dummy Marker"
     group="gadgets"
-    :layout="{ type: 'grid', width: 600 }"
+    :layout="{ type: 'grid', width: '100%' }"
   >
     <template #controls>
       <ThemeColorsHueControl />

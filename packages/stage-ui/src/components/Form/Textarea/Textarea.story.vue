@@ -9,7 +9,7 @@ const input = ref('')
   <Story
     title="Textarea"
     group="form"
-    :layout="{ type: 'grid', width: 400 }"
+    :layout="{ type: 'grid', width: '100%' }"
   >
     <template #controls>
       <ThemeColorsHueControl />

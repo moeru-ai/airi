@@ -11,7 +11,7 @@ const interactiveValue = ref(false)
   <Story
     title="Checkbox"
     group="form"
-    :layout="{ type: 'grid', width: 600 }"
+    :layout="{ type: 'grid', width: 300 }"
   >
     <template #controls>
       <ThemeColorsHueControl />

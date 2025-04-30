@@ -6,7 +6,7 @@ import CursorFloating from './CursorFloating.vue'
   <Story
     title="Cursor Floating"
     group="physics"
-    :layout="{ type: 'grid', width: 600 }"
+    :layout="{ type: 'grid', width: '100%' }"
   >
     <Variant
       id="basic"
@@ -14,7 +14,7 @@ import CursorFloating from './CursorFloating.vue'
     >
       <div class="h-40 flex items-center justify-center">
         <CursorFloating>
-          <div class="bg-primary-500/20 h-20 w-20" />
+          <div class="h-20 w-20 bg-primary-500/20" />
         </CursorFloating>
       </div>
     </Variant>

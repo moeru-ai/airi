@@ -66,7 +66,7 @@ watch(multipleHeaders, (headers) => {
   <Story
     title="Field Key Values"
     group="form"
-    :layout="{ type: 'grid', width: 600 }"
+    :layout="{ type: 'grid', width: '100%' }"
   >
     <template #controls>
       <ThemeColorsHueControl />

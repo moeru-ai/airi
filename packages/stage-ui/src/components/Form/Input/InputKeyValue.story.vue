@@ -10,7 +10,7 @@ const value = ref('')
   <Story
     title="Input Key Value"
     group="form"
-    :layout="{ type: 'grid', width: 600 }"
+    :layout="{ type: 'grid', width: 300 }"
   >
     <template #controls>
       <ThemeColorsHueControl />

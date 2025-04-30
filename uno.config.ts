@@ -71,6 +71,14 @@ export function sharedUnoConfig() {
           jura: 'Jura',
           gugi: 'Gugi',
           quicksand: 'Quicksand',
+          quanlai: {
+            name: 'cjkfonts AllSeto',
+            provider: 'none',
+          },
+          xiaolai: {
+            name: 'Xiaolai SC',
+            provider: 'none',
+          },
         },
         timeouts: {
           warning: 5000,

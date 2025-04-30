@@ -6,7 +6,7 @@ import Section from './Section.vue'
   <Story
     title="Section"
     group="common"
-    :layout="{ type: 'grid', width: 600 }"
+    :layout="{ type: 'grid', width: '100%' }"
   >
     <template #controls>
       <ThemeColorsHueControl />
