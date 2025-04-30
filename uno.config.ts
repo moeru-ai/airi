@@ -119,6 +119,8 @@ export function sharedUnoConfig() {
           /\.(vue|svelte|[jt]sx|mdx?|astro|elm|php|phtml|html)($|\?)/,
           // include js/ts files
           '(components|src)/**/*.{js,ts,vue}',
+          '**/stage-ui/**/*.{vue,js,ts}',
+          '**/ui/**/*.{vue,js,ts}',
         ],
       },
     },

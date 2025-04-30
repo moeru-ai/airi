@@ -84,10 +84,10 @@ const routeHeaderMetadataMap = computed(() => {
     },
   }
 
-  for (const key in allProvidersMetadata.value) {
-    map[`/settings/providers/${key}`] = {
+  for (const metadata of allProvidersMetadata.value) {
+    map[`/settings/providers/${metadata.id}`] = {
       subtitle: t('settings.title'),
-      title: t(allProvidersMetadata.value[key]?.nameKey),
+      title: t(metadata.nameKey),
     }
   }
 
@@ -118,9 +118,8 @@ const routeHeaderMetadata = computed(() => routeHeaderMetadataMap.value[route.pa
     <!-- Content -->
     <div class="px-3 py-2 md:px-5 md:py-5" flex="~ col" mx-auto max-w-screen-xl>
       <PageHeader
-        v-if="routeHeaderMetadata"
-        :title="routeHeaderMetadata.title"
-        :subtitle="routeHeaderMetadata.subtitle"
+        :title="routeHeaderMetadata?.title"
+        :subtitle="routeHeaderMetadata?.subtitle"
       />
       <RouterView />
     </div>
