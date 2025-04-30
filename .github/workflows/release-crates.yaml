@@ -25,29 +25,13 @@ jobs:
         with:
           fetch-depth: 0
 
-      - uses: pnpm/action-setup@v3
-        name: Install pnpm
-        with:
-          run_install: false
+      - uses: dtolnay/rust-toolchain@stable
 
-      - name: Install Node.js 22.x
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22.x
-          # registry-url required. Learn more at
-          # https://docs.github.com/en/actions/publishing-packages/publishing-nodejs-packages
-          registry-url: 'https://registry.npmjs.org'
-          cache: pnpm
+      - name: Login to crates.io
+        run: |
+          echo ${{ secrets.CRATES_IO_API_TOKEN }} | cargo login
 
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Packages build
-        run: pnpm run packages:build
-
-      - name: Packages publish
-        run: pnpm publish -r --access public --no-git-checks
-        env:
-          NODE_AUTH_TOKEN: ${{secrets.NPM_TOKEN}}
-          NPM_TOKEN: ${{secrets.NPM_TOKEN}}
-          NPM_CONFIG_PROVENANCE: true
+      # TODO: cargo publish --workspace is still experimental
+      - name: Crates publish
+        run: |
+          cargo publish -p tauri-plugin-mcp

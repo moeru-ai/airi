@@ -1,5 +1,7 @@
 # `tauri-plugin-mcp`
 
+![Crates.io Version](https://img.shields.io/crates/v/tauri-plugin-mcp)
+
 A Tauri plugin for interacting with MCP servers.
 
 ## Install
@@ -86,7 +88,7 @@ These files are generated from `tauri-plugin` crate:
 
 - [x] Move to a single repository
 - [ ] Server connection
-  - [ ] stdio
+  - [x] stdio
   - [ ] SSE
 - [x] Tools
   - [x] List tools

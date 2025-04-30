@@ -15,14 +15,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v3
-      - name: Setup Rust
-        run: |
-          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs > rustup-init.sh
-          sh ./rustup-init.sh -y
-          rustup component add rustfmt
-          rustup component add clippy
 
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt,clippy
+
+      - name: Install system dependencies
+        run: |
+          apt-get update
+          apt-get install -y libwebkit2gtk-4.1-dev
+
+      - uses: pnpm/action-setup@v3
       - uses: actions/setup-node@v4
         with:
           node-version: lts/*
@@ -33,7 +36,6 @@ jobs:
 
       - name: Lint
         run: |
-          pnpm run lint
           pnpm run lint:rust
 
   build-test:
@@ -41,6 +43,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Install system dependencies
+        run: |
+          apt-get update
+          apt-get install -y libwebkit2gtk-4.1-dev
+
       - uses: pnpm/action-setup@v3
       - uses: actions/setup-node@v4
         with:

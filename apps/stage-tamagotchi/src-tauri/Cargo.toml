@@ -7,6 +7,7 @@ license = "MIT"
 repository = "https://github.com/moeru-ai/airi"
 edition = "2021"
 rust-version = "1.77.2"
+publish = false
 
 [lib]
 name = "app_lib"
