@@ -1,6 +1,6 @@
 [package]
 name = "tauri-plugin-mcp"
-version = "0.1.0"
+version.workspace = true
 description = "A Tauri plugin for interacting with MCP servers"
 authors = [ "LemonNekoGH <self@lemonneko.moe>" ]
 license = "MIT"

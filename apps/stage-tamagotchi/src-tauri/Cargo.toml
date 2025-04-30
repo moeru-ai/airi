@@ -1,6 +1,6 @@
 [package]
 name = "app"
-version = "0.1.0"
+version.workspace = true
 description = "Airi tamagotchi app built with Tauri"
 authors = [ "LemonNekoGH <self@lemonneko.moe>" ]
 license = "MIT"

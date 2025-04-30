@@ -1,6 +1,81 @@
 # `tauri-plugin-mcp`
 
-A Tauri plugin for MCP.
+A Tauri plugin for interacting with MCP servers.
+
+## Install
+
+This plugin requires a Rust version of at least 1.77.2
+
+`src-tauri/Cargo.toml`
+
+```toml
+[dependencies]
+tauri-plugin-mcp = { version = "0.4.25" }
+# or
+tauri-plugin-mcp = { git = "https://github.com/moeru-ai/airi", tag = "0.4.25" }
+```
+
+You can install the JavaScript Guest bindings using your preferred JavaScript package manager:
+
+```bash
+pnpm add @proj-airi/tauri-plugin-mcp
+# or use @antfu/ni
+ni @proj-airi/tauri-plugin-mcp
+```
+
+## Usage
+
+First, you need to register the plugin with Tauri:
+
+`src-tauri/src/lib.rs`
+
+```rust
+fn main() {
+  tauri::Builder::default()
+    .plugin(tauri_plugin_mcp::Builder.build())
+    .run(tauri::generate_context!())
+    .expect("error while running tauri application");
+}
+```
+
+Afterwards all the plugin's APIs are available through the JavaScript guest bindings:
+
+```ts
+import { callTool, connectServer, disconnectServer, listTools } from '@proj-airi/tauri-plugin-mcp'
+
+// Sample: Connect to a container running Airi Android
+await connectServer('docker', 'run -i --rm -e ADB_HOST=host.docker.internal ghcr.io/lemonnekogh/airi-android:v0.1.0')
+
+console.log(await listTools())
+// [
+//   {
+//     description: 'Get the battery level of the device',
+//     inputSchema: {
+//       required: [],
+//       title: 'battery_level',
+//       type: 'object',
+//     },
+//     name: 'battery_level',
+//   },
+// ]
+
+console.log(await callTool('battery_level', {}))
+// {
+//   content: [
+//     {
+//       type: 'text',
+//       text: '100',
+//     },
+//   ],
+//   isError: false,
+// }
+
+await disconnectServer()
+```
+
+## Development
+
+Source code of JavaScript bindings is located in [packages/tauri-plugin-mcp](../../packages/tauri-plugin-mcp/src/index.ts).
 
 These files are generated from `tauri-plugin` crate:
 
@@ -9,7 +84,7 @@ These files are generated from `tauri-plugin` crate:
 
 ## TODO List
 
-- [ ] Move to a single repository
+- [x] Move to a single repository
 - [ ] Server connection
   - [ ] stdio
   - [ ] SSE
@@ -24,4 +99,4 @@ These files are generated from `tauri-plugin` crate:
     - [ ] Image returns
 - [ ] Prompts...
 - [ ] Resources...
-- [ ] JavaScript package to call commands conveniently
+- [x] JavaScript package to call commands conveniently

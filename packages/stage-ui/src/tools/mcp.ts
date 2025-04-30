@@ -1,7 +1,6 @@
+import { callTool, connectServer, disconnectServer, listTools } from '@proj-airi/tauri-plugin-mcp'
 import { tool } from '@xsai/tool'
 import { z } from 'zod'
-
-import { callTool, connectServer, disconnectServer, listTools } from '../utils/tauri-plugin-mcp'
 
 const tools = [
   tool({

@@ -89,6 +89,7 @@
     "@proj-airi/ccc": "workspace:^",
     "@proj-airi/drizzle-duckdb-wasm": "catalog:",
     "@proj-airi/server-sdk": "workspace:^",
+    "@proj-airi/tauri-plugin-mcp": "workspace:^",
     "@proj-airi/ui": "workspace:^",
     "@vueuse/core": "^13.1.0",
     "@vueuse/motion": "^3.0.3",
