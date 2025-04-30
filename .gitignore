@@ -48,3 +48,6 @@ twitter-session.json
 .envrc
 .devenv*
 devenv.*
+
+target/
+crates/*/target/

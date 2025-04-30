@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { WidgetStage } from '@proj-airi/stage-ui/components'
 import { useMcpStore } from '@proj-airi/stage-ui/stores'
-import { connectServer } from '@proj-airi/stage-ui/utils/tauri-plugin-mcp'
+import { connectServer } from '@proj-airi/tauri-plugin-mcp'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted } from 'vue'
 

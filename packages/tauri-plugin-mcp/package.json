@@ -1,0 +1,46 @@
+{
+  "name": "@proj-airi/tauri-plugin-mcp",
+  "type": "module",
+  "version": "0.4.25",
+  "packageManager": "pnpm@10.9.0",
+  "description": "A Tauri plugin for interacting with MCP servers.",
+  "author": {
+    "name": "LemonNekoGH",
+    "email": "self@lemonnekogh.moe",
+    "url": "https://github.com/LemonNekoGH"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/moeru-ai/airi.git",
+    "directory": "packages/tauri-plugin-mcp"
+  },
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "files": [
+    "README.md",
+    "dist",
+    "package.json"
+  ],
+  "scripts": {
+    "build": "pkgroll"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "^2.0.0"
+  },
+  "devDependencies": {
+    "pkgroll": "^2.12.2"
+  },
+  "publishConfig": {
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "main": "./dist/index.js",
+      "module": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  }
+}

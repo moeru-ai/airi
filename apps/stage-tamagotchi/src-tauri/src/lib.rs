@@ -1,16 +1,16 @@
-use tauri::{WebviewUrl, WebviewWindowBuilder, Manager};
-#[cfg(target_os = "macos")]
-use tauri::{ActivationPolicy,TitleBarStyle};
-use tauri::tray::TrayIconBuilder;
-use tauri::menu::{Menu, MenuItem};
 use std::path::Path;
+use tauri::menu::{Menu, MenuItem};
+use tauri::tray::TrayIconBuilder;
+#[cfg(target_os = "macos")]
+use tauri::{ActivationPolicy, TitleBarStyle};
+use tauri::{Manager, WebviewUrl, WebviewWindowBuilder};
 
 mod commands;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
   tauri::Builder::default()
-    .plugin(tauri_plugin_mcp::Builder::default().build())
+    .plugin(tauri_plugin_mcp::Builder.build())
     .plugin(tauri_plugin_os::init())
     .setup(|app| {
       let mut builder = WebviewWindowBuilder::new(app, "main", WebviewUrl::default())
@@ -26,9 +26,7 @@ pub fn run() {
         builder = builder.title_bar_style(TitleBarStyle::Transparent);
       }
 
-      let _ = builder
-        .build()
-        .unwrap();
+      let _ = builder.build().unwrap();
 
       #[cfg(target_os = "macos")]
       app.set_activation_policy(ActivationPolicy::Accessory); // hide dock icon
@@ -61,11 +59,15 @@ pub fn run() {
               return;
             }
 
-            let _ = WebviewWindowBuilder::new(app, "settings", WebviewUrl::App(Path::new("#/settings").to_path_buf()))
-              .title("settings")
-              .inner_size(600.0, 800.0)
-              .build()
-              .unwrap();
+            let _ = WebviewWindowBuilder::new(
+              app,
+              "settings",
+              WebviewUrl::App(Path::new("#/settings").to_path_buf()),
+            )
+            .title("settings")
+            .inner_size(600.0, 800.0)
+            .build()
+            .unwrap();
           }
           "hide" => {
             if let Some(window) = app.get_webview_window("main") {

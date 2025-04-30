@@ -1,5 +1,3 @@
-// TODO: move to plugin package when it's ready
-
 import { invoke } from '@tauri-apps/api/core'
 
 export interface ToolInputSchema {

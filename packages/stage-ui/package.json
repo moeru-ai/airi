@@ -91,6 +91,7 @@
     "@proj-airi/font-cjkfonts-allseto": "workspace:^",
     "@proj-airi/font-xiaolai": "workspace:^",
     "@proj-airi/server-sdk": "workspace:^",
+    "@proj-airi/tauri-plugin-mcp": "workspace:^",
     "@proj-airi/ui": "workspace:^",
     "@vueuse/core": "^13.1.0",
     "@vueuse/motion": "^3.0.3",

@@ -55,5 +55,9 @@
   "cSpell.words": [
     "appimage",
     "localforage"
-  ]
+  ],
+  "[rust]": {
+    "editor.defaultFormatter": "rust-lang.rust-analyzer",
+    "editor.formatOnSave": true
+  }
 }

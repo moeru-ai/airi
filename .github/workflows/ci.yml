@@ -15,6 +15,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt,clippy
+
+      - name: Install system dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y libwebkit2gtk-4.1-dev
+
       - uses: pnpm/action-setup@v3
       - uses: actions/setup-node@v4
         with:
@@ -25,13 +35,22 @@ jobs:
         run: pnpm install
 
       - name: Lint
-        run: pnpm run lint
+        run: |
+          pnpm run lint
+          pnpm run lint:rust
 
   build-test:
     name: Build Test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Install system dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y libwebkit2gtk-4.1-dev
+
       - uses: pnpm/action-setup@v3
       - uses: actions/setup-node@v4
         with:
@@ -45,6 +64,7 @@ jobs:
         run: |
           pnpm run packages:build
           pnpm run apps:build
+          pnpm run crates:build
 
   typecheck:
     name: Type Check
