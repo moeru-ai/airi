@@ -127,7 +127,7 @@ watch(showMicrophoneSelect, async (value) => {
 })
 
 onMounted(() => {
-  loadWhisper()
+  // loadWhisper()
   start()
 })
 
