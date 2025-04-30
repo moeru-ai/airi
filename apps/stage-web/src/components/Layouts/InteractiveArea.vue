@@ -7,7 +7,7 @@ import { useAudioContext, useChatStore, useConsciousnessStore, useProvidersStore
 import { BasicTextarea, TransitionVertical } from '@proj-airi/ui'
 import { useDevicesList } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { ref, watch } from 'vue'
+import { onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { encodeWAVToBase64 } from '../../utils/binary'
@@ -29,7 +29,7 @@ const { messages } = storeToRefs(useChatStore())
 const { audioContext } = useAudioContext()
 const { t } = useI18n()
 
-const { transcribe: generate, load: loadWhisper, status: whisperStatus, terminate } = useWhisper(WhisperWorker, {
+const { transcribe: generate, terminate } = useWhisper(WhisperWorker, {
   onComplete: async (res) => {
     if (!res || !res.trim()) {
       return
@@ -94,14 +94,6 @@ const { destroy, start } = useMicVAD(selectedAudioDeviceId, {
   auto: false,
 })
 
-function handleLoadWhisper() {
-  if (whisperStatus.value === 'loading')
-    return
-
-  loadWhisper()
-  start()
-}
-
 async function handleTranscription(buffer: Float32Array) {
   await audioContext.resume()
 
@@ -132,6 +124,11 @@ watch(showMicrophoneSelect, async (value) => {
   if (value) {
     await ensurePermissions()
   }
+})
+
+onMounted(() => {
+  // loadWhisper()
+  start()
 })
 
 onAfterSend(async () => {
@@ -231,29 +228,7 @@ onAfterSend(async () => {
         </div>
       </div>
     </div>
-    <div flex="~ row" hidden gap-2>
-      <button
-        bg="complementary-100 hover:complementary-200 dark:complementary-800 dark:hover:complementary-700"
-        transition="all duration-250 ease-in-out"
-        :class="{ 'transition-colors-none': themeColorsHueDynamic }"
-        text="complementary-400"
-        mb-6 flex cursor-pointer items-center justify-center gap-2 rounded-full px-4 py-2
-        @click="handleLoadWhisper"
-      >
-        <Transition mode="out-in">
-          <div v-if="whisperStatus === null" flex="~ row" items-center justify-center space-x-1>
-            {{ t('stage.operations.load-models') }}
-          </div>
-          <div v-else-if="whisperStatus === 'loading'" flex="~ row" items-center justify-center space-x-1>
-            <div i-svg-spinners:bouncing-ball class="text-cyan" />
-            <span>{{ t('stage.operations.load-models-status.loading') }}</span>
-          </div>
-          <div v-else-if="whisperStatus === 'ready'" flex="~ row" items-center justify-center space-x-1>
-            <div i-lucide:check class="text-cyan" />
-            <span>{{ t('stage.operations.load-models-status.ready') }}</span>
-          </div>
-        </Transition>
-      </button>
+    <div flex="~ row" gap-2 hidden>
       <div flex="~ row" relative text-white font-bold>
         <TransitionVertical>
           <fieldset

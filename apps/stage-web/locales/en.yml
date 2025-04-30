@@ -451,11 +451,6 @@ stage:
       clothes: Clothes
       custom: Custom
   message: Message
-  operations:
-    load-models: Load Models
-    load-models-status:
-      loading: Loading
-      ready: Ready
   select-a-audio-input: Select a Audio Input
   select-a-model: Select a model
   select-a-voice: Choose a voice

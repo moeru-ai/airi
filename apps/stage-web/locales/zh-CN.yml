@@ -433,11 +433,6 @@ stage:
       clothes: 换装
       custom: 自定义
   message: 消息
-  operations:
-    load-models: 加载推理模型
-    load-models-status:
-      loading: 加载中
-      ready: 已就绪
   select-a-audio-input: 选择一个音频输入设备
   select-a-model: 选择一个模型
   select-a-voice: 选择一个声线
