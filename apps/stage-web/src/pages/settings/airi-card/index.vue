@@ -3,6 +3,7 @@ import type { ccv3 } from '@proj-airi/ccc'
 
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores'
 import { InputFile } from '@proj-airi/ui'
+import Select from '@proj-airi/ui/components/Form/Select/Select.vue'
 import { storeToRefs } from 'pinia'
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -170,22 +171,16 @@ function getModuleShortName(id: string, module: 'consciousness' | 'voice') {
         <div class="top-[-32px] whitespace-nowrap text-sm text-neutral-500 leading-10 lg:absolute dark:text-neutral-400">
           {{ t('settings.pages.card.sort_by') }}:
         </div>
-        <select
+        <Select
           v-model="sortOption"
-          class="rounded-lg p-1.5 text-sm outline-none"
-          border="focus:primary-100 dark:focus:primary-400/50 2 solid neutral-200 dark:neutral-800"
-          bg="white dark:neutral-900"
-        >
-          <option value="nameAsc">
-            {{ t('settings.pages.card.name_asc') }}
-          </option>
-          <option value="nameDesc">
-            {{ t('settings.pages.card.name_desc') }}
-          </option>
-          <option value="recent">
-            {{ t('settings.pages.card.recent') }}
-          </option>
-        </select>
+          :options="[
+            { value: 'nameAsc', label: t('settings.pages.card.name_asc') },
+            { value: 'nameDesc', label: t('settings.pages.card.name_desc') },
+            { value: 'recent', label: t('settings.pages.card.recent') },
+          ]"
+          placeholder="Select sort option"
+          class="min-w-[150px]"
+        />
       </div>
     </div>
 
