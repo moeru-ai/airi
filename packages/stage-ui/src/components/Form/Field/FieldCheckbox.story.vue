@@ -10,7 +10,7 @@ const uncheckedValue = ref(false)
   <Story
     title="Field Checkbox"
     group="form"
-    :layout="{ type: 'grid', width: 600 }"
+    :layout="{ type: 'grid', width: '100%' }"
   >
     <template #controls>
       <ThemeColorsHueControl />

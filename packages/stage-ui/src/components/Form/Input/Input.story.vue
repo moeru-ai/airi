@@ -14,7 +14,7 @@ const urlValue = ref('https://example.com')
   <Story
     title="Input"
     group="form"
-    :layout="{ type: 'grid', width: 600 }"
+    :layout="{ type: 'grid', width: 300 }"
   >
     <template #controls>
       <ThemeColorsHueControl />

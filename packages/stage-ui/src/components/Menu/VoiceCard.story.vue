@@ -138,7 +138,7 @@ onBeforeUnmount(() => {
   <Story
     title="Voice Card"
     group="menu"
-    :layout="{ type: 'grid', width: 400 }"
+    :layout="{ type: 'grid', width: '100%' }"
   >
     <template #controls>
       <ThemeColorsHueControl />

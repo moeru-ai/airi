@@ -1,0 +1,29 @@
+{
+  "name": "@proj-airi/font-xiaolai",
+  "type": "module",
+  "private": true,
+  "description": "A collection of transition animations that used by Project Airi",
+  "author": {
+    "name": "Neko Ayaka",
+    "email": "neko@ayaka.moe",
+    "url": "https://github.com/nekomeowww"
+  },
+  "license": "SIL Open Font License",
+  "homepage": "https://github.com/lxgw/kose-font",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/moeru-ai/airi.git",
+    "directory": "packages/font-xiaolai"
+  },
+  "exports": {
+    ".": { "default": "./dist/index.css" },
+    "./index.css": { "default": "./dist/index.css" },
+    "./files/*": { "default": "./dist/files/*" },
+    "./files/*.ttf": { "default": "./dist/files/*.ttf" }
+  },
+  "scripts": {
+    "dev": "pnpm run stub",
+    "stub": "unbuild --stub",
+    "build": "unbuild"
+  }
+}

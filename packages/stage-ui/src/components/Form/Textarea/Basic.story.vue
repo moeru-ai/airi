@@ -6,7 +6,7 @@ import { BasicTextarea } from '@proj-airi/ui'
   <Story
     title="Textarea (basic)"
     group="form"
-    :layout="{ type: 'grid', width: 400 }"
+    :layout="{ type: 'grid', width: '100%' }"
   >
     <template #controls>
       <ThemeColorsHueControl />

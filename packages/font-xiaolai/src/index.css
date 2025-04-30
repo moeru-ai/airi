@@ -1,0 +1,7 @@
+/* Xiaolai SC Regular */
+@font-face {
+  font-family: 'Xiaolai SC';
+  font-style: normal;
+  font-display: swap;
+  src: url(./files/XiaolaiSC-Regular.ttf) format('truetype');
+}

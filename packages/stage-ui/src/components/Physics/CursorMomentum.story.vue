@@ -13,7 +13,7 @@ const pulsingCircle = ref(null)
   <Story
     title="Cursor Momentum"
     group="physics"
-    :layout="{ type: 'grid', width: 600 }"
+    :layout="{ type: 'grid', width: '100%' }"
   >
     <template #controls>
       <ThemeColorsHueControl />
@@ -32,7 +32,7 @@ const pulsingCircle = ref(null)
         >
           <div
             ref="rotatingBox"
-            class="bg-primary-500/20 h-20 w-20"
+            class="h-20 w-20 bg-primary-500/20"
             :style="{
               transform: `rotate(${currentValue}deg)`,
             }"
@@ -54,7 +54,7 @@ const pulsingCircle = ref(null)
         >
           <div
             ref="floatingBall"
-            class="bg-primary-500/20 h-10 w-10 rounded-full"
+            class="h-10 w-10 rounded-full bg-primary-500/20"
             :style="{
               transform: `translateY(${Math.sin(momentum * 0.1) * 20}px)`,
             }"
@@ -76,7 +76,7 @@ const pulsingCircle = ref(null)
         >
           <div
             ref="pulsingCircle"
-            class="bg-primary-500/20 h-16 w-16 rounded-full"
+            class="h-16 w-16 rounded-full bg-primary-500/20"
             :style="{
               transform: `scale(${0.8 + (momentum * 0.2)})`,
             }"

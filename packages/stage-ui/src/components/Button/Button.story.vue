@@ -6,7 +6,7 @@ import Button from './Button.vue'
   <Story
     title="Button"
     group="common"
-    :layout="{ type: 'grid', width: 600 }"
+    :layout="{ type: 'grid', width: '100%' }"
   >
     <template #controls>
       <ThemeColorsHueControl />

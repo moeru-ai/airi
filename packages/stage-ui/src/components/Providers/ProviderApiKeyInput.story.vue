@@ -11,7 +11,7 @@ const filledApiKey = ref('sk-1234567890abcdefghijklmnopqrstuvwxyz')
   <Story
     title="API Key Input"
     group="providers"
-    :layout="{ type: 'grid', width: 600 }"
+    :layout="{ type: 'grid', width: '100%' }"
   >
     <template #controls>
       <ThemeColorsHueControl />

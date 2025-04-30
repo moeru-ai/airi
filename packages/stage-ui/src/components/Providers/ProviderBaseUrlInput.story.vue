@@ -12,7 +12,7 @@ const customUrl = ref('https://custom-api.example.com/v1/')
   <Story
     title="Base URL Input"
     group="providers"
-    :layout="{ type: 'grid', width: 600 }"
+    :layout="{ type: 'grid', width: '100%' }"
   >
     <template #controls>
       <ThemeColorsHueControl />

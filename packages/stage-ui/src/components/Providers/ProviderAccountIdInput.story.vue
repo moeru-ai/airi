@@ -11,7 +11,7 @@ const filledAccountId = ref('1234567890abcdef1234567890abcdef')
   <Story
     title="Account ID Input"
     group="providers"
-    :layout="{ type: 'grid', width: 600 }"
+    :layout="{ type: 'grid', width: '100%' }"
   >
     <template #controls>
       <ThemeColorsHueControl />

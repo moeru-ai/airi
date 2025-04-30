@@ -6,7 +6,7 @@ import Volumed from './Volumed.vue'
   <Story
     title="Volumed"
     group="graphics"
-    :layout="{ type: 'grid', width: 600 }"
+    :layout="{ type: 'grid', width: '100%' }"
   >
     <template #controls>
       <ThemeColorsHueControl />
@@ -18,7 +18,7 @@ import Volumed from './Volumed.vue'
     >
       <div class="h-40 flex items-center justify-center">
         <Volumed :perspective="800">
-          <div class="bg-primary-500/20 h-20 w-20" />
+          <div class="h-20 w-20 bg-primary-500/20" />
         </Volumed>
       </div>
     </Variant>
@@ -32,7 +32,7 @@ import Volumed from './Volumed.vue'
           :perspective="800"
           transform="rotateX(45deg) rotateY(45deg)"
         >
-          <div class="bg-primary-500/20 h-20 w-20" />
+          <div class="h-20 w-20 bg-primary-500/20" />
         </Volumed>
       </div>
     </Variant>
@@ -44,7 +44,7 @@ import Volumed from './Volumed.vue'
       <div class="h-40 flex items-center justify-center">
         <Volumed :perspective="800">
           <Volumed transform="rotateX(45deg)">
-            <div class="bg-primary-500/20 h-20 w-20" />
+            <div class="h-20 w-20 bg-primary-500/20" />
           </Volumed>
         </Volumed>
       </div>
