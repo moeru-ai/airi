@@ -166,8 +166,8 @@ function getModuleShortName(id: string, module: 'consciousness' | 'voice') {
       </div>
 
       <!-- Sort options -->
-      <div class="flex items-center gap-2">
-        <div text-sm text-neutral-500 dark:text-neutral-400>
+      <div class="relative flex flex-row justify-start gap-2 lg:flex-col">
+        <div class="top-[-32px] whitespace-nowrap text-sm text-neutral-500 leading-10 lg:absolute dark:text-neutral-400">
           {{ t('settings.pages.card.sort_by') }}:
         </div>
         <select
@@ -210,7 +210,7 @@ function getModuleShortName(id: string, module: 'consciousness' | 'voice') {
           </template>
           <template v-else>
             <div flex flex-col items-center>
-              <div i-solar:upload-minimalistic-bold class="text-primary-500 dark:text-primary-400 mb-2 text-5xl" />
+              <div i-solar:upload-minimalistic-bold class="mb-2 text-5xl text-primary-500 dark:text-primary-400" />
               <p font-medium text="primary-600 dark:primary-300">
                 {{ t('settings.pages.card.drop_here') }}
               </p>

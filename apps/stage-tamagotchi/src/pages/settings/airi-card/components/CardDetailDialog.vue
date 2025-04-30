@@ -166,8 +166,8 @@ const activeTab = computed({
 <template>
   <DialogRoot :open="modelValue" @update:open="emit('update:modelValue', $event)">
     <DialogPortal>
-      <DialogOverlay class="data-[state=open]:animate-fadeIn data-[state=closed]:animate-fadeOut fixed inset-0 z-50 bg-black/50 backdrop-blur-sm" />
-      <DialogContent class="data-[state=open]:animate-contentShow data-[state=closed]:animate-contentHide fixed left-1/2 top-1/2 z-50 m-0 max-h-[90vh] max-w-6xl w-[92vw] flex flex-col overflow-auto border border-neutral-200 rounded-xl bg-white p-5 shadow-xl 2xl:w-[60vw] lg:w-[80vw] md:w-[85vw] xl:w-[70vw] -translate-x-1/2 -translate-y-1/2 dark:border-neutral-700 dark:bg-neutral-800 sm:p-6">
+      <DialogOverlay class="data-[state=open]:animate-fadeIn data-[state=closed]:animate-fadeOut fixed inset-0 z-100 bg-black/50 backdrop-blur-sm" />
+      <DialogContent class="data-[state=open]:animate-contentShow data-[state=closed]:animate-contentHide fixed left-1/2 top-1/2 z-100 m-0 max-h-[90vh] max-w-6xl w-[92vw] flex flex-col overflow-auto border border-neutral-200 rounded-xl bg-white p-5 shadow-xl 2xl:w-[60vw] lg:w-[80vw] md:w-[85vw] xl:w-[70vw] -translate-x-1/2 -translate-y-1/2 dark:border-neutral-700 dark:bg-neutral-800 sm:p-6">
         <div v-if="selectedCard" class="w-full flex flex-col gap-5">
           <!-- Header with status indicator -->
           <div flex="~ col" gap-3>
@@ -177,7 +177,7 @@ const activeTab = computed({
                   <DialogTitle text-2xl font-bold class="from-primary-500 to-primary-400 bg-gradient-to-r bg-clip-text text-transparent">
                     {{ selectedCard.name }}
                   </DialogTitle>
-                  <div v-if="isActive" class="bg-primary-100 text-primary-600 dark:bg-primary-900/40 dark:text-primary-400 flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium">
+                  <div v-if="isActive" class="flex items-center gap-1 rounded-full bg-primary-100 px-2 py-0.5 text-xs text-primary-600 font-medium dark:bg-primary-900/40 dark:text-primary-400">
                     <div i-solar:check-circle-bold-duotone text-xs />
                     {{ t('settings.pages.card.active_badge') }}
                   </div>
