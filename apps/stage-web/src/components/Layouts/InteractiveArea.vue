@@ -29,7 +29,7 @@ const { messages } = storeToRefs(useChatStore())
 const { audioContext } = useAudioContext()
 const { t } = useI18n()
 
-const { transcribe: generate, load: loadWhisper, terminate } = useWhisper(WhisperWorker, {
+const { transcribe: generate, terminate } = useWhisper(WhisperWorker, {
   onComplete: async (res) => {
     if (!res || !res.trim()) {
       return
