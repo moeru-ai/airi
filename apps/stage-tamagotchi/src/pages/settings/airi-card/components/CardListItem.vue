@@ -32,7 +32,7 @@ const emit = defineEmits<{
     drop-shadow="none hover:[0px_4px_4px_rgba(220,220,220,0.4)] active:[0px_0px_0px_rgba(220,220,220,0.25)] dark:hover:none"
     transition="all ease-in-out duration-400"
     before="content-empty absolute inset-0 z-0 w-25% h-full transition-all duration-400 ease-in-out bg-gradient-to-r from-primary-500/0 to-primary-500/0 dark:from-primary-400/0 dark:to-primary-400/0 mask-image-[linear-gradient(120deg,white_100%)] opacity-0"
-    hover="before:(w-50% opacity-100 bg-gradient-to-r from-primary-500/20 via-primary-500/10 to-transparent dark:from-primary-400/20 dark:via-primary-400/10 dark:to-transparent)"
+    hover="before:(opacity-100 bg-gradient-to-r from-primary-500/20 via-primary-500/10 to-transparent dark:from-primary-400/20 dark:via-primary-400/10 dark:to-transparent)"
     @click="emit('select')"
   >
     <!-- Card content -->

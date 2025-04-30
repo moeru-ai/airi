@@ -168,7 +168,7 @@ function getModuleShortName(id: string, module: 'consciousness' | 'voice') {
 
       <!-- Sort options -->
       <div class="relative flex flex-row justify-start gap-2 lg:flex-col">
-        <div class="top-[-32px] z-100 whitespace-nowrap text-sm text-neutral-500 leading-10 lg:absolute dark:text-neutral-400">
+        <div class="top-[-32px] whitespace-nowrap text-sm text-neutral-500 leading-10 lg:absolute dark:text-neutral-400">
           {{ t('settings.pages.card.sort_by') }}:
         </div>
         <Select

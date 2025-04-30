@@ -40,9 +40,9 @@ function handleConfirm() {
 <template>
   <AlertDialogRoot :open="modelValue" @update:open="emit('update:modelValue', $event)">
     <AlertDialogPortal>
-      <AlertDialogOverlay class="data-[state=open]:animate-fadeIn data-[state=closed]:animate-fadeOut fixed inset-0 z-50 bg-black/50" />
+      <AlertDialogOverlay class="data-[state=open]:animate-fadeIn data-[state=closed]:animate-fadeOut fixed inset-0 z-100 bg-black/50" />
       <AlertDialogContent
-        class="data-[state=open]:animate-contentShow data-[state=closed]:animate-contentHide fixed left-1/2 top-1/2 z-50 max-w-md w-full border border-neutral-200 rounded-xl bg-white p-6 shadow-xl -translate-x-1/2 -translate-y-1/2 dark:border-neutral-700 dark:bg-neutral-800"
+        class="data-[state=open]:animate-contentShow data-[state=closed]:animate-contentHide fixed left-1/2 top-1/2 z-100 max-w-md w-full border border-neutral-200 rounded-xl bg-white p-6 shadow-xl -translate-x-1/2 -translate-y-1/2 dark:border-neutral-700 dark:bg-neutral-800"
       >
         <AlertDialogTitle class="mb-4 text-xl font-bold">
           {{ t('settings.pages.card.delete_card') }}
