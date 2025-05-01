@@ -15,7 +15,7 @@ const input = ref('')
       <ThemeColorsHueControl />
     </template>
 
-    <Variant id="default">
+    <Variant id="default" title="Default">
       <Textarea v-model="input" />
     </Variant>
   </Story>

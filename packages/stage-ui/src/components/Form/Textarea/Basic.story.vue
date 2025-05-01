@@ -12,8 +12,10 @@ import { BasicTextarea } from '@proj-airi/ui'
       <ThemeColorsHueControl />
     </template>
 
-    <Variant id="default">
-      <BasicTextarea />
+    <Variant id="default" title="Default">
+      <div class="rounded-lg bg-neutral-200 p-2 dark:bg-neutral-700">
+        <BasicTextarea />
+      </div>
     </Variant>
   </Story>
 </template>

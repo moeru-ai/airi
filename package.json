@@ -14,6 +14,7 @@
     "postinstall": "npx simple-git-hooks && pnpm packages:build",
     "dev": "pnpm -rF=\"./packages/*\" -F=\"./apps/*\" run --parallel dev",
     "build": "pnpm -rF=\"./packages/*\" -F=\"./apps/*\" run build",
+    "ui:dev": "pnpm -rF @proj-airi/stage-ui run story:dev",
     "apps:web:dev": "pnpm -rF @proj-airi/stage-web run dev",
     "apps:web:build": "pnpm -rF @proj-airi/stage-web run build",
     "apps:tamagotchi:dev": "pnpm -rF @proj-airi/stage-tamagotchi run app:dev",
