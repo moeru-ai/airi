@@ -6,7 +6,7 @@ members = [
 resolver = "2"
 
 [workspace.package]
-version = "0.4.26-beta.2"
+version = "0.4.26"
 
 [workspace.dependencies]
 tauri-plugin-mcp = { path = "./crates/tauri-plugin-mcp" }
