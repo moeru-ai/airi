@@ -114,6 +114,14 @@ pnpm -F @proj-airi/stage-web dev
 pnpm -F @proj-airi/stage-tamagotchi dev
 ```
 
+### Publish
+
+Please update the version in `Cargo.toml` after running the `bumpp`:
+
+```shell
+npx bumpp --no-commit --no-tag
+```
+
 ## Supported the following LLM API Providers (powered by [xsai](https://github.com/moeru-ai/xsai))
 
 - [x] [OpenRouter](https://openrouter.ai/)
