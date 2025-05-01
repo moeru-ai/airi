@@ -1,7 +1,7 @@
 {
   "name": "@proj-airi/ui",
   "type": "module",
-  "version": "0.4.26",
+  "version": "0.4.27",
   "description": "A collection of UI components that used by Project AIRI",
   "author": {
     "name": "Neko Ayaka",
