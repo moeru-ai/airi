@@ -35,7 +35,7 @@ implementing this dotted effect for the buttons:
 
 During the development, we found that some of the packages that currently living
 under the `packages/` directory are actually independent packages that were not
-even in the workflow of Project Airi.
+even in the workflow of Project AIRI.
 
 This means we can now move them out to another place to simplify the installation
 sizes and building process for the primary repository

@@ -25,7 +25,7 @@ onMounted(async () => {
 ```
 
 Last week, our corporate designer/artist has submitted our commission for the
-basic/first version of Project Airi logo. The feeling of the logo looks like
+basic/first version of Project AIRI logo. The feeling of the logo looks like
 this:
 
 ![](../../../assets/images/blog/DevLog-2025.03.05/airi-logos-v1.png)
@@ -66,7 +66,7 @@ So this is what we get finally:
 ![](../../../assets/images/blog/DevLog-2025.03.05/airi-logos-final.png)
 
 Later on today, I was working on publishing the
-[documentation site](https://airi.build) of Project Airi online, for me,
+[documentation site](https://airi.build) of Project AIRI online, for me,
 and other developers, artists to use it as a reference and guidelines.
 
 I did it! And the newly designed logo has been put into the

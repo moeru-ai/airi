@@ -1,6 +1,6 @@
 ---
 title: Contributing
-description: Contributing to Project Airi
+description: Contributing to Project AIRI
 ---
 
 Hello! Thank you for your interest in contributing to this project. This guide will help you get started.

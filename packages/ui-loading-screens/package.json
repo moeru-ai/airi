@@ -1,8 +1,8 @@
 {
-  "name": "@proj-airi/ui-transitions",
+  "name": "@proj-airi/ui-loading-screens",
   "type": "module",
   "private": true,
-  "description": "A collection of transition animations that used by Project AIRI",
+  "description": "A collection of loading screens that used by Project AIRI",
   "author": {
     "name": "Neko Ayaka",
     "email": "neko@ayaka.moe",
@@ -12,7 +12,7 @@
   "repository": {
     "type": "git",
     "url": "https://github.com/moeru-ai/airi.git",
-    "directory": "packages/ui-transitions"
+    "directory": "packages/ui-loading-screens"
   },
   "exports": {
     ".": {
