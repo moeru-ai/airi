@@ -33,7 +33,7 @@ const modelValue = defineModel<string>({ required: true })
       type="radio"
       :name="name"
       :value="value"
-      class="[&:checked+div]:border-primary-500 dark:[&:checked+div]:border-primary-400 absolute opacity-0 [&:checked+div_.radio-dot]:opacity-100"
+      class="absolute opacity-0 [&:checked+div]:border-primary-500 [&:checked+div_.radio-dot]:opacity-100 dark:[&:checked+div]:border-primary-400"
     >
     <div
       class="radio-circle absolute left-2 top-2 size-5 rounded-full"

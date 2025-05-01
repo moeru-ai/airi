@@ -167,13 +167,13 @@ function updateCustomModelName(value: string) {
         </div>
 
         <div
-          class="bg-primary-50 border-primary-200 dark:bg-primary-900/20 dark:border-primary-800 flex items-center gap-3 border rounded-lg p-4"
+          class="flex items-center gap-3 border border-primary-200 rounded-lg bg-primary-50 p-4 dark:border-primary-800 dark:bg-primary-900/20"
         >
-          <div i-solar:info-circle-line-duotone class="text-primary-500 dark:text-primary-400 text-2xl" />
+          <div i-solar:info-circle-line-duotone class="text-2xl text-primary-500 dark:text-primary-400" />
           <div class="flex flex-col">
             <span class="font-medium">{{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.not_supported')
             }}</span>
-            <span class="dark:text-primary-400 text-primary-600 text-sm">{{
+            <span class="text-sm text-primary-600 dark:text-primary-400">{{
               t('settings.pages.modules.consciousness.sections.section.provider-model-selection.not_supported_description') }}</span>
           </div>
         </div>

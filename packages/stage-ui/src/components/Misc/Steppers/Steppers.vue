@@ -78,7 +78,7 @@ function goToStep(index: number) {
           <slot name="step" :step="step" :index="index" :is-active="index === value">
             <!-- Default step rendering -->
             <div class="flex flex-col gap-1">
-              <p v-if="typeof step === 'object' && step !== null && 'title' in step" class="text-primary-600 dark:text-primary-300 mb-4 pb-0 pt-0 text-xl font-bold">
+              <p v-if="typeof step === 'object' && step !== null && 'title' in step" class="mb-4 pb-0 pt-0 text-xl text-primary-600 font-bold dark:text-primary-300">
                 {{ step.title }}
               </p>
               <p v-if="typeof step === 'object' && step !== null && 'description' in step" class="text-sm text-neutral-600 dark:text-neutral-300">
@@ -133,7 +133,7 @@ function goToStep(index: number) {
           <slot name="next-button" :next="next" :is-disabled="false" :is-last="isLastStep">
             <!-- Default next/finish button -->
             <button
-              class="bg-primary-500 hover:bg-primary-600 rounded px-3 py-1 text-xs text-white disabled:cursor-not-allowed disabled:opacity-50"
+              class="rounded bg-primary-500 px-3 py-1 text-xs text-white disabled:cursor-not-allowed hover:bg-primary-600 disabled:opacity-50"
               @click="next"
             >
               {{ isLastStep ? 'Finish' : 'Next' }}

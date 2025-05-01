@@ -115,18 +115,17 @@ const cssVars = computed(() => {
                 rounded-l-xl
               >
                 <span
-                  class="background-label mt-2" font-quicksand
+                  class="background-label mt-2"
                   leading="[1]"
-                  absolute
-                  inline-block
-                  font-semibold
+
+                  absolute inline-block font-semibold font-quicksand
                   :style="{ writingMode: 'vertical-rl' }"
                 >
                   {{ backgroundLabel }}
                 </span>
               </div>
               <!-- Title section -->
-              <div font-jura relative z-3 pb-4 pl-4 pt-2>
+              <div relative z-3 pb-4 pl-4 pt-2 font-jura>
                 <div relative z-4 class="subtitle-text">
                   <!-- Subtitle section -->
                   <div text-base font-semibold>
@@ -135,11 +134,8 @@ const cssVars = computed(() => {
                   <!-- Title section -->
                   <div
                     class="title-text"
-                    font-jura
-                    text-6xl
-                    font-bold
-                    font-italic
-                    text-stroke-1
+
+                    text-6xl font-bold font-jura font-italic text-stroke-1
                     :style="{ paintOrder: 'stroke fill' }"
                     leading="[0.75]"
                   >
@@ -166,7 +162,7 @@ const cssVars = computed(() => {
             <!-- Divider section -->
             <div mx-5 h-0.5 rounded-full class="divider" />
             <!-- Info section -->
-            <div class="description" max-h="[4.5rem]" font-quicksand mx-5 mb-4 mt-2 h-full>
+            <div class="description" max-h="[4.5rem]" mx-5 mb-4 mt-2 h-full font-quicksand>
               <div h-full text-base>
                 {{ description }}
               </div>

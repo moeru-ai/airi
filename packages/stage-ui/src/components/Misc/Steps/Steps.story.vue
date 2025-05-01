@@ -188,7 +188,7 @@ function skipTTSSetup() {
               />
               <button
                 v-else-if="stepper8.currentStep.value < stepper8.totalSteps"
-                class="bg-primary-500 hover:bg-primary-600 rounded px-2 py-0.5 text-xs text-white"
+                class="rounded bg-primary-500 px-2 py-0.5 text-xs text-white hover:bg-primary-600"
                 @click.stop="updateStep(stepper8, step.id + 1)"
               >
                 Next
@@ -304,7 +304,7 @@ function skipTTSSetup() {
 
           <!-- Current Step Content -->
           <div class="p-4 space-y-3">
-            <p class="text-primary-600 dark:text-primary-300 text-sm font-medium">
+            <p class="text-sm text-primary-600 font-medium dark:text-primary-300">
               Step {{ setupGuide.currentStep.value }}: {{ setupGuide.steps[setupGuide.currentStep.value - 1]?.title }}
             </p>
             <p class="text-sm text-neutral-600 dark:text-neutral-300">
@@ -313,7 +313,7 @@ function skipTTSSetup() {
             <!-- Special actions for step 6 (TTS decision) -->
             <div v-if="setupGuide.currentStep.value === 6" class="flex gap-2 pt-2">
               <button
-                class="bg-primary-500 hover:bg-primary-600 rounded px-3 py-1 text-xs text-white"
+                class="rounded bg-primary-500 px-3 py-1 text-xs text-white hover:bg-primary-600"
                 @click="nextSetupGuideStep"
               >
                 Yes, setup TTS
@@ -356,7 +356,7 @@ function skipTTSSetup() {
               </button>
               <button
                 :disabled="setupGuide.currentStep.value >= setupGuide.totalSteps"
-                class="bg-primary-500 hover:bg-primary-600 rounded px-3 py-1 text-xs text-white disabled:cursor-not-allowed disabled:opacity-50"
+                class="rounded bg-primary-500 px-3 py-1 text-xs text-white disabled:cursor-not-allowed hover:bg-primary-600 disabled:opacity-50"
                 @click="nextSetupGuideStep"
               >
                 {{ setupGuide.currentStep.value >= setupGuide.totalSteps ? 'Finish' : 'Next' }}

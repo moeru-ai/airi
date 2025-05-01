@@ -72,7 +72,7 @@ function applyTemplate(template: string) {
 
 <template>
   <div class="panel rounded-lg bg-white shadow">
-    <div class="panel-header bg-primary flex items-center justify-between rounded-t-lg p-3 text-sm text-white font-semibold">
+    <div class="panel-header flex items-center justify-between rounded-t-lg bg-primary p-3 text-sm text-white font-semibold">
       Character Configuration
     </div>
 

@@ -54,7 +54,7 @@ function handleAnimationEnded(e: TransitionEvent) {
     }"
   >
     <div
-      bg-primary-500 fixed inset-0 transition-opacity ease-linear :style="{
+      fixed inset-0 bg-primary-500 transition-opacity ease-linear :style="{
         opacity: clsAndProps.opacity,
         transitionDuration: `${duration}ms`,
       }"

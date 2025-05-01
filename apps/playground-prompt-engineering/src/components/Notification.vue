@@ -19,7 +19,7 @@ provide('showNotification', showNotification)
 
 <template>
   <div
-    class="bg-primary fixed bottom-4 right-4 z-50 transform rounded p-3 px-4 text-white shadow-lg transition-transform duration-300"
+    class="fixed bottom-4 right-4 z-50 transform rounded bg-primary p-3 px-4 text-white shadow-lg transition-transform duration-300"
     :class="isActive ? 'translate-y-0' : 'translate-y-24'"
   >
     Prompt copied to clipboard!

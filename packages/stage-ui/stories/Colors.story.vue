@@ -45,7 +45,7 @@ const opacities = [5, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100]
             <div
 
               bg="light op-80"
-              text-primary-700 dark:text-primary-300 rounded-md px-1 py-0.5 text-xs font-mono op-0 dark:bg-dark
+              rounded-md px-1 py-0.5 text-xs text-primary-700 font-mono op-0 dark:bg-dark dark:text-primary-300
               transition="opacity duration-100"
               class="color-label"
             >

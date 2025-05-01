@@ -88,7 +88,7 @@ function estimateTokens(text: string) {
 
 <template>
   <div class="panel flex flex-col rounded-lg bg-white shadow">
-    <div class="panel-header bg-primary flex items-center justify-between rounded-t-lg p-3 text-sm text-white font-semibold">
+    <div class="panel-header flex items-center justify-between rounded-t-lg bg-primary p-3 text-sm text-white font-semibold">
       Prompt Preview
       <span class="text-xs">
         Total Tokens: <span class="rounded bg-white/20 px-1.5 py-0.5 font-semibold">{{ estimateTokens(completePrompt || '') }}</span>
@@ -98,7 +98,7 @@ function estimateTokens(text: string) {
     <div class="panel-body max-h-[calc(100vh-13rem)] flex-1 overflow-y-auto p-4">
       <div v-for="(module, index) in moduleList" :key="index" class="mb-3">
         <div
-          class="hover:text-primary mb-2 flex cursor-pointer items-center justify-between text-sm text-gray font-semibold"
+          class="mb-2 flex cursor-pointer items-center justify-between text-sm text-gray font-semibold hover:text-primary"
           @click="toggleModule(module.id)"
         >
           {{ module.title }}

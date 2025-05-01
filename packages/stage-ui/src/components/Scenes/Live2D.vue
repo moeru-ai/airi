@@ -41,7 +41,7 @@ const { live2dCurrentMotion } = storeToRefs(useSettings())
             :aria-checked="show"
             name="showLive2DViewerInspector"
             type="checkbox"
-            hidden appearance-none outline-none
+            appearance-none outline-none hidden
           >
           <div select-none>
             <div i-solar:bug-bold-duotone />

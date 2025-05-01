@@ -100,7 +100,7 @@ watch(() => [settings.usePageSpecificTransitions, settings.disableTransitions], 
           class="peer sr-only"
         >
         <div
-          class="peer-checked:bg-primary-500 h-6 w-11 rounded-full bg-neutral-200 after:absolute after:left-[2px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:bg-white dark:bg-neutral-600 after:transition-all after:content-[''] peer-checked:after:translate-x-full peer-checked:after:border-white"
+          class="h-6 w-11 rounded-full bg-neutral-200 after:absolute after:left-[2px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:bg-white dark:bg-neutral-600 peer-checked:bg-primary-500 after:transition-all after:content-[''] peer-checked:after:translate-x-full peer-checked:after:border-white"
         />
         {{ $t('settings.pages.themes.sections.section.custom-color.fields.field.primary-color.rgb-on.title') }}
       </label>

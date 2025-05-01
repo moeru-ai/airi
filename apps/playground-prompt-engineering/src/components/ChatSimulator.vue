@@ -169,7 +169,7 @@ watch(() => messages.value.length, () => {
 
 <template>
   <div class="panel flex flex-col rounded-lg bg-white shadow">
-    <div class="panel-header bg-primary flex items-center justify-between rounded-t-lg p-3 text-sm text-white font-semibold">
+    <div class="panel-header flex items-center justify-between rounded-t-lg bg-primary p-3 text-sm text-white font-semibold">
       Chat Simulator
     </div>
 
@@ -257,7 +257,7 @@ watch(() => messages.value.length, () => {
               @keyup.enter="sendMessage"
             >
             <button
-              class="bg-primary hover:bg-primary-dark cursor-pointer rounded-lg border-none px-5 py-3 text-white font-semibold transition"
+              class="hover:bg-primary-dark cursor-pointer rounded-lg border-none bg-primary px-5 py-3 text-white font-semibold transition"
               @click="sendMessage"
             >
               Send
@@ -277,7 +277,7 @@ watch(() => messages.value.length, () => {
             <div
               v-for="(component, name) in personalityComponents"
               :key="name"
-              class="component-card hover:bg-primary-light hover:border-primary cursor-pointer border border-gray-200 rounded p-2 transition"
+              class="component-card hover:bg-primary-light cursor-pointer border border-gray-200 rounded p-2 transition hover:border-primary"
               @click="addComponent(name)"
             >
               <div class="mb-1 text-sm font-semibold">
@@ -296,7 +296,7 @@ watch(() => messages.value.length, () => {
             <div
               v-for="(component, name) in speechComponents"
               :key="name"
-              class="component-card hover:border-primary hover:bg-primary-light cursor-pointer border border-gray-200 rounded p-2 transition"
+              class="component-card hover:bg-primary-light cursor-pointer border border-gray-200 rounded p-2 transition hover:border-primary"
               @click="addSpeechComponent(name)"
             >
               <div class="mb-1 text-sm font-semibold">

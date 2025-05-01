@@ -1,10 +1,9 @@
-// @ts-check
 import antfu from '@antfu/eslint-config'
 
-export default antfu(
+export default await antfu(
   {
     unocss: true,
-    formatters: true,
+    vue: true,
     ignores: [
       '**/assets/js/**',
       '**/assets/live2d/models/**',

@@ -127,7 +127,7 @@ function toggleExpansion() {
         <!-- Expand/collapse button for long descriptions -->
         <button
           v-if="showExpandCollapse && description.length > expandCollapseThreshold"
-          class="text-primary-500 dark:text-primary-600 mt-0.5 inline-flex items-center text-xs"
+          class="mt-0.5 inline-flex items-center text-xs text-primary-500 dark:text-primary-600"
           @click.prevent="toggleExpansion"
         >
           <span>{{ isExpanded ? 'Show less' : 'Show more' }}</span>
