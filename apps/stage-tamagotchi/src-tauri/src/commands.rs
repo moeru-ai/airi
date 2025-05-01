@@ -2,7 +2,7 @@ use std::path::Path;
 use tauri::{Manager, WebviewUrl, WebviewWindowBuilder};
 
 #[tauri::command]
-pub fn open_settings_window(app: tauri::AppHandle) {
+pub async fn open_settings_window(app: tauri::AppHandle) {
   if let Some(window) = app.get_webview_window("settings") {
     let _ = window.show();
     return;
