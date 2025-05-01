@@ -12,9 +12,9 @@ This plugin requires a Rust version of at least 1.77.2
 
 ```toml
 [dependencies]
-tauri-plugin-mcp = { version = "0.4.25" }
+tauri-plugin-mcp = { version = "0.4.26" }
 # or
-tauri-plugin-mcp = { git = "https://github.com/moeru-ai/airi", tag = "0.4.25" }
+tauri-plugin-mcp = { git = "https://github.com/moeru-ai/airi", tag = "0.4.26" }
 ```
 
 You can install the JavaScript Guest bindings using your preferred JavaScript package manager:

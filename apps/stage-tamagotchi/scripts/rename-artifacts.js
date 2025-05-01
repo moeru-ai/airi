@@ -18,10 +18,10 @@ if (!target) {
   process.exit(1)
 }
 
-const srcPrefix = path.join(dirname, '..', 'src-tauri', 'target', target, 'release', 'bundle')
-const bundlePrefix = path.join(dirname, '..', 'bundle')
+const srcPrefix = path.join(dirname, '..', '..', '..', 'target', target, 'release', 'bundle')
+const bundlePrefix = path.join(dirname, '..', '..', '..', 'bundle')
 
-fs.mkdirSync(bundlePrefix)
+fs.mkdirSync(bundlePrefix, { recursive: true })
 
 switch (target) {
   case 'x86_64-pc-windows-msvc':
