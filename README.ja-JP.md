@@ -157,7 +157,7 @@ pnpm -F @proj-airi/stage-tamagotchi dev
 - [Factorio RCON API](https://github.com/nekomeowww/factorio-rcon-api): FactorioヘッドレスサーバーコンソールのRESTful APIラッパー
 - [`autorio`](https://github.com/moeru-ai/airi-factorio/tree/main/packages/autorio): Factorio自動化ライブラリ
 - [`tstl-plugin-reload-factorio-mod`](https://github.com/moeru-ai/airi-factorio/tree/main/packages/tstl-plugin-reload-factorio-mod): Factorioモッドの開発時にリロードをサポート
-- [`@velin-dev/ml`](https://github.com/luoling8192/velin): Vue SFCとMarkdownを使用してLLMのための管理しやすい状態のプロンプトを書く
+- [Velin](https://github.com/luoling8192/velin): Vue SFCとMarkdownを使用してLLMのための管理しやすい状態のプロンプトを書く
 - [`demodel`](https://github.com/moeru-ai/demodel): さまざまな推論ランタイムからモデルやデータセットをデプロイ、バンドルするためのツール
 - [`inventory`](https://github.com/moeru-ai/inventory): 中央集権的なモデルカタログとデフォルトプロバイダー設定のバックエンドサービス
 - [MCP Launcher](https://github.com/moeru-ai/mcp-launcher): すべての可能なMCPサーバーのための簡単に使用できるMCPビルダー＆ランチャー、Ollamaのようにモデルのためのもの！
