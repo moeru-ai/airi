@@ -16,13 +16,13 @@
     "vue": "^3.5.13"
   },
   "devDependencies": {
-    "@iconify/vue": "^4.3.0",
-    "@types/node": "^22.15.2",
+    "@iconify/vue": "^5.0.0",
+    "@types/node": "^22.15.14",
     "@vitejs/plugin-vue": "^5.2.3",
     "typescript": "~5.8.3",
-    "unocss": "^66.1.0-beta.12",
-    "vite": "^6.3.3",
-    "vite-plugin-vue-devtools": "^7.7.5",
+    "unocss": "^66.1.0",
+    "vite": "^6.3.5",
+    "vite-plugin-vue-devtools": "^7.7.6",
     "vue-tsc": "^2.2.10"
   }
 }

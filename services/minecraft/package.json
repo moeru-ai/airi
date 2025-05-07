@@ -12,10 +12,10 @@
     "test": "vitest"
   },
   "dependencies": {
-    "@guiiai/logg": "^1.0.8",
-    "@proj-airi/server-sdk": "^0.4.22",
+    "@guiiai/logg": "^1.0.10",
+    "@proj-airi/server-sdk": "^0.4.27",
     "awilix": "^12.0.5",
-    "es-toolkit": "^1.36.0",
+    "es-toolkit": "^1.37.2",
     "eventemitter3": "^5.0.1",
     "minecraft-data": "^3.85.0",
     "mineflayer": "^4.27.0",
@@ -34,11 +34,11 @@
     "prismarine-windows": "^2.9.0",
     "valibot": "1.0.0-beta.9",
     "vec3": "^0.1.10",
-    "zod": "^3.24.3",
+    "zod": "^3.24.4",
     "zod-to-json-schema": "^3.24.5"
   },
   "devDependencies": {
-    "@dotenvx/dotenvx": "^1.41.0",
+    "@dotenvx/dotenvx": "^1.43.0",
     "dotenv": "^16.5.0"
   }
 }

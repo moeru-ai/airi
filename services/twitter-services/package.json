@@ -11,21 +11,21 @@
     "mcp:ui": "pnpx @modelcontextprotocol/inspector"
   },
   "dependencies": {
-    "@browserbasehq/stagehand": "^2.1.0",
-    "@guiiai/logg": "^1.0.8",
-    "@modelcontextprotocol/sdk": "^1.10.2",
-    "@proj-airi/server-sdk": "^0.4.22",
+    "@browserbasehq/stagehand": "^2.2.1",
+    "@guiiai/logg": "^1.0.10",
+    "@modelcontextprotocol/sdk": "^1.11.0",
+    "@proj-airi/server-sdk": "^0.4.27",
     "defu": "^6.1.4",
     "dotenv": "^16.5.0",
-    "h3": "^1.15.1",
+    "h3": "^1.15.3",
     "listhen": "^1.9.0",
     "ofetch": "^1.4.1",
     "playwright": "^1.52.0",
-    "zod": "^3.24.3"
+    "zod": "^3.24.4"
   },
   "devDependencies": {
-    "@types/node": "^22.15.2",
-    "tsx": "^4.19.3",
+    "@types/node": "^22.15.14",
+    "tsx": "^4.19.4",
     "typescript": "^5.8.3"
   }
 }

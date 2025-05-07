@@ -100,7 +100,7 @@
     "pixi-filters": "^4.2.0",
     "pixi-live2d-display": "^0.4.0",
     "radix-vue": "^1.9.17",
-    "reka-ui": "^2.2.0",
+    "reka-ui": "^2.2.1",
     "unist-builder": "^4.0.0",
     "unspeech": "^0.1.7",
     "xast-util-to-xml": "^4.0.0",
@@ -109,10 +109,10 @@
   "devDependencies": {
     "@electron-toolkit/preload": "^3.0.2",
     "@histoire/plugin-vue": "1.0.0-alpha.2",
-    "@unocss/reset": "^66.1.0-beta.12",
+    "@unocss/reset": "^66.1.0",
     "@vitejs/plugin-vue": "^5.2.3",
     "histoire": "1.0.0-alpha.2",
-    "unocss": "^66.1.0-beta.12",
-    "vite": "^6.3.3"
+    "unocss": "^66.1.0",
+    "vite": "^6.3.5"
   }
 }

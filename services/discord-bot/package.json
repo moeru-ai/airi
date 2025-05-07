@@ -19,9 +19,9 @@
   },
   "dependencies": {
     "@discordjs/voice": "^0.18.0",
-    "@dotenvx/dotenvx": "^1.41.0",
-    "@guiiai/logg": "^1.0.8",
-    "@huggingface/transformers": "^3.5.0",
+    "@dotenvx/dotenvx": "^1.43.0",
+    "@guiiai/logg": "^1.0.10",
+    "@huggingface/transformers": "^3.5.1",
     "@proj-airi/server-sdk": "workspace:^",
     "@proj-airi/server-shared": "workspace:^",
     "@xsai-ext/providers-cloud": "catalog:",
@@ -29,10 +29,10 @@
     "@xsai/generate-text": "catalog:",
     "@xsai/generate-transcription": "catalog:",
     "@xsai/shared-chat": "catalog:",
-    "discord.js": "^14.19.1",
+    "discord.js": "^14.19.3",
     "libsodium-wrappers": "^0.7.15",
     "opusscript": "^0.1.1",
-    "tsx": "^4.19.3",
+    "tsx": "^4.19.4",
     "wavefile": "^11.0.0"
   }
 }

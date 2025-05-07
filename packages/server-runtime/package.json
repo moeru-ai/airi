@@ -35,11 +35,11 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@guiiai/logg": "^1.0.8",
+    "@guiiai/logg": "^1.0.10",
     "@proj-airi/server-shared": "workspace:^",
     "crossws": "^0.3.4",
     "defu": "^6.1.4",
-    "h3": "^1.15.1",
+    "h3": "^1.15.3",
     "listhen": "^1.9.0"
   }
 }

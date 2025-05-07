@@ -2,7 +2,7 @@
   "name": "@proj-airi/tauri-plugin-mcp",
   "type": "module",
   "version": "0.4.27",
-  "packageManager": "pnpm@10.9.0",
+  "packageManager": "pnpm@10.10.0",
   "description": "A Tauri plugin for interacting with MCP servers.",
   "author": {
     "name": "LemonNekoGH",
@@ -27,7 +27,7 @@
     "build": "pkgroll"
   },
   "dependencies": {
-    "@tauri-apps/api": "^2.0.0"
+    "@tauri-apps/api": "^2.5.0"
   },
   "devDependencies": {
     "pkgroll": "^2.12.2"

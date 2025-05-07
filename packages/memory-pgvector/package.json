@@ -11,12 +11,12 @@
     "dev": "tsx src/index.ts"
   },
   "dependencies": {
-    "@guiiai/logg": "^1.0.8",
+    "@guiiai/logg": "^1.0.10",
     "@proj-airi/server-sdk": "workspace:^",
     "drizzle-orm": "^0.43.1",
     "postgres": "^3.4.5"
   },
   "devDependencies": {
-    "tsx": "^4.19.3"
+    "tsx": "^4.19.4"
   }
 }
