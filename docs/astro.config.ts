@@ -40,7 +40,7 @@ export default defineConfig({
       head: [
         { tag: 'link', attrs: { rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg', sizes: 'any' } },
         { tag: 'link', attrs: { rel: 'apple-touch-icon', sizes: '180x180', href: '/apple-touch-icon.png' } },
-        { tag: 'meta', attrs: { name: 'apple-mobile-web-app-title', content: 'Airi' } },
+        { tag: 'meta', attrs: { name: 'apple-mobile-web-app-title', content: 'AIRI' } },
         { tag: 'link', attrs: { ref: 'manifest', href: '/site.webmanifest' } },
         { tag: 'script', attrs: { 'defer': true, 'data-domain': 'airi.moeru.ai', 'data-api': '/api/v1/page-external-data/submit', 'src': '/remote-assets/page-external-data/js/script.js' } },
       ],

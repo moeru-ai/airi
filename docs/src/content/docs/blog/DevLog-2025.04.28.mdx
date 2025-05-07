@@ -9,21 +9,21 @@ import airiMcpArch from '../../../assets/images/blog/DevLog-2025.04.28/airi-mcp-
 
 ## Day time 日常
 
-一周前，我为 Airi 写了用于连接到手机的 MCP 服务器 [Airi-android](https://github.com/LemonNekoGH/Airi-android)，但这只是 Airi 操作安卓手机的前半部分，Airi 还需要能与 MCP 服务器交互才行。
+一周前，我为 AIRI 写了用于连接到手机的 MCP 服务器 [AIRI-android](https://github.com/LemonNekoGH/AIRI-android)，但这只是 AIRI 操作安卓手机的前半部分，AIRI 还需要能与 MCP 服务器交互才行。
 
-这两天我完成了后半部分，给 Tauri 写了一个插件 [#144](https://github.com/moeru-ai/Airi/pull/144)，现在 Airi 可以与 MCP 服务器交互了，可以和现有的所有 MCP 服务器交互。
+这两天我完成了后半部分，给 Tauri 写了一个插件 [#144](https://github.com/moeru-ai/AIRI/pull/144)，现在 AIRI 可以与 MCP 服务器交互了，可以和现有的所有 MCP 服务器交互。
 
-如果有兴趣，可以看看这两个视频，先演示了 Airi 的 MCP 服务器设置，然后演示了 Airi 与安卓手机交互。
+如果有兴趣，可以看看这两个视频，先演示了 AIRI 的 MCP 服务器设置，然后演示了 AIRI 与安卓手机交互。
 
 <details>
-  <summary>Airi 的 MCP 服务器设置</summary>
+  <summary>AIRI 的 MCP 服务器设置</summary>
   <video controls muted style={{ height: '640px' }}>
     <source src="../../static/blog/DevLog-2025.04.28/airi-mcp-settings.mp4"/>
   </video>
 </details>
 
 <details>
-  <summary>Airi 在手机上输入 `Hello World`</summary>
+  <summary>AIRI 在手机上输入 `Hello World`</summary>
   <video controls muted>
     <source src="../../static/blog/DevLog-2025.04.28/airi-mcp-input-text.mp4"/>
   </video>
@@ -31,7 +31,7 @@ import airiMcpArch from '../../../assets/images/blog/DevLog-2025.04.28/airi-mcp-
 
 开发时，为了理清思路，我画了一张图，从 LLM 调用安卓手机：
 
-<Image src={airiMcpArch} alt="Airi 操作手机" style={{ height: '640px', objectFit: 'contain' }} />
+<Image src={airiMcpArch} alt="AIRI 操作手机" style={{ height: '640px', objectFit: 'contain' }} />
 
 接下来和大家分享一下我的开发过程。
 
@@ -171,18 +171,18 @@ invoke("call_tool", { name: "input_swipe", args: { x1: 100, y1: 100, x2: 200, y2
 
 ## 一些问题
 
-1. 从演示视频可以看到，在对话中，我首先是让 Airi 获取了一下工具列表，再让它输入文本的，那我们能不能在初始化的时候就去获取工具列表，然后直接追加到系统提示词中呢？
+1. 从演示视频可以看到，在对话中，我首先是让 AIRI 获取了一下工具列表，再让它输入文本的，那我们能不能在初始化的时候就去获取工具列表，然后直接追加到系统提示词中呢？
    - Cursor 就是这样做的，在我开发 MCP 服务器时，每次我改动了工具列表，都需要重启 Cursor 才能生效。
    - 这样做也许会牺牲灵活性，但普通用户会频繁改动工具列表吗？
 
-2. 要允许 Airi 同时连接到多个手机吗？Airi 可能会想使用多台手机吗？~~她会不会想拿去做电信诈骗？~~
-3. 可以看到现在的 Airi 仓库中已经有了 Tauri 应用和 Tauri 插件，要怎么管理比较好？CI 要怎么配置？如何同步 Tauri 插件的 Rust 侧和 JavaScript 侧的版本号？
+2. 要允许 AIRI 同时连接到多个手机吗？AIRI 可能会想使用多台手机吗？~~她会不会想拿去做电信诈骗？~~
+3. 可以看到现在的 AIRI 仓库中已经有了 Tauri 应用和 Tauri 插件，要怎么管理比较好？CI 要怎么配置？如何同步 Tauri 插件的 Rust 侧和 JavaScript 侧的版本号？
 
 ## 未来想要做的事情
 
-- 支持图片返回值，这样 Airi 就可以像 [上一篇 DevLog](./DevLog-2025.04.22.md) 中展示的 Cursor 那样，直接通过视觉能力看到手机上的内容，然后再决定用什么方式来交互。
-- 让 Airi 自己学习设备的使用方法？如果每种设备我们都要单独写提示词，那工作量是巨大的。
-- 多 MCP 服务器支持，毕竟 MCP 提供了一种通用的接口，可以允许 Airi 做各种各样的事，Airi 应该不会满足于只操作手机吧。
-- SSE 支持，这样浏览器中的 Airi 也可以使用 MCP 服务器了。
+- 支持图片返回值，这样 AIRI 就可以像 [上一篇 DevLog](./DevLog-2025.04.22.md) 中展示的 Cursor 那样，直接通过视觉能力看到手机上的内容，然后再决定用什么方式来交互。
+- 让 AIRI 自己学习设备的使用方法？如果每种设备我们都要单独写提示词，那工作量是巨大的。
+- 多 MCP 服务器支持，毕竟 MCP 提供了一种通用的接口，可以允许 AIRI 做各种各样的事，AIRI 应该不会满足于只操作手机吧。
+- SSE 支持，这样浏览器中的 AIRI 也可以使用 MCP 服务器了。
 
 到这里就结束啦！希望这篇 DevLog 没有那么干巴巴的！之后也希望给大家带来更多好玩的内容！

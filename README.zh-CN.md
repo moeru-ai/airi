@@ -52,7 +52,7 @@
 > - Three.js
 > - WebXR (也可以看看我们在 @moeru-ai 组织下另外的[这个项目](https://github.com/moeru-ai/n3p6))
 >
-> **如果你已经感兴趣了，为什么不来这里和大家打个招呼呢？[Would like to join part of us to build Airi?](https://github.com/moeru-ai/airi/discussions/33)**
+> **如果你已经感兴趣了，为什么不来这里和大家打个招呼呢？[Would like to join part of us to build AIRI?](https://github.com/moeru-ai/airi/discussions/33)**
 
 ## 当前进度
 
@@ -149,7 +149,7 @@ pnpm -F @proj-airi/stage-tamagotchi dev
 - [`@proj-airi/drizzle-duckdb-wasm`](https://github.com/moeru-ai/airi/tree/main/packages/drizzle-duckdb-wasm/README.md): DuckDB WASM 的 Drizzle ORM driver 驱动
 - [`@proj-airi/duckdb-wasm`](https://github.com/moeru-ai/airi/tree/main/packages/duckdb-wasm/README.md): 易于使用的 `@duckdb/duckdb-wasm` 封装
 - [`@proj-airi/lobe-icons`](https://github.com/proj-airi/lobe-icons): 为 [lobe-icons](https://github.com/lobehub/lobe-icons) 漂亮的 AI & LLM 图标制作的 Iconify JSON 封装，支持 Tailwind 和 UnoCSS
-- [Airi Factorio](https://github.com/moeru-ai/airi-factorio): 让 Airi 玩 Factorio
+- [AIRI Factorio](https://github.com/moeru-ai/airi-factorio): 让 AIRI 玩 Factorio
 - [Factorio RCON API](https://github.com/nekomeowww/factorio-rcon-api): Factorio 无头服务器控制台的 RESTful API 封装
 - [`autorio`](https://github.com/moeru-ai/airi-factorio/tree/main/packages/autorio): Factorio 自动化库
 - [`tstl-plugin-reload-factorio-mod`](https://github.com/moeru-ai/airi-factorio/tree/main/packages/tstl-plugin-reload-factorio-mod): 开发时支持热重载 Factorio 模组
@@ -179,7 +179,7 @@ flowchart TD
   MC_AGENT("Minecraft Agent")
   XSAI["xsai"]
 
-  subgraph Airi
+  subgraph AIRI
     DB1 --> DBDriver --> MemoryDriver --> Memory --> Core
     ICONS --> UI --> Stage --> Core
     Core --> STT

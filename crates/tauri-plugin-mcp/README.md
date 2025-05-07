@@ -45,7 +45,7 @@ Afterwards all the plugin's APIs are available through the JavaScript guest bind
 ```ts
 import { callTool, connectServer, disconnectServer, listTools } from '@proj-airi/tauri-plugin-mcp'
 
-// Sample: Connect to a container running Airi Android
+// Sample: Connect to a container running AIRI Android
 await connectServer('docker', 'run -i --rm -e ADB_HOST=host.docker.internal ghcr.io/lemonnekogh/airi-android:v0.1.0')
 
 console.log(await listTools())

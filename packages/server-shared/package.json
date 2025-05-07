@@ -2,7 +2,7 @@
   "name": "@proj-airi/server-shared",
   "type": "module",
   "version": "0.4.27",
-  "description": "Server shared types, utilities for Airi server components and runtimes",
+  "description": "Server shared types, utilities for AIRI server components and runtimes",
   "author": {
     "name": "Neko Ayaka",
     "email": "neko@ayaka.moe",

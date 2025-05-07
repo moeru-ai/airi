@@ -52,7 +52,7 @@ This means that **アイリ VTuber is capable to run on modern browsers and devi
 > - Three.js
 > - WebXR ([checkout the another project](https://github.com/moeru-ai/n3p6) we have under @moeru-ai organization)
 >
-> **If you are interested in, why not introduce yourself here? [Would like to join part of us to build Airi?](https://github.com/moeru-ai/airi/discussions/33)**
+> **If you are interested in, why not introduce yourself here? [Would like to join part of us to build AIRI?](https://github.com/moeru-ai/airi/discussions/33)**
 
 ## Current progress
 
@@ -162,7 +162,7 @@ npx bumpp --no-commit --no-tag
 - [`@proj-airi/drizzle-duckdb-wasm`](https://github.com/moeru-ai/airi/tree/main/packages/drizzle-duckdb-wasm/README.md): Drizzle ORM driver for DuckDB WASM
 - [`@proj-airi/duckdb-wasm`](https://github.com/moeru-ai/airi/tree/main/packages/duckdb-wasm/README.md): Easy to use wrapper for `@duckdb/duckdb-wasm`
 - [`tauri-plugin-mcp`](https://github.com/moeru-ai/airi/blob/main/crates/tauri-plugin-mcp/README.md): A Tauri plugin for interacting with MCP servers.
-- [Airi Factorio](https://github.com/moeru-ai/airi-factorio): Allow Airi to play Factorio
+- [AIRI Factorio](https://github.com/moeru-ai/airi-factorio): Allow AIRI to play Factorio
 - [Factorio RCON API](https://github.com/nekomeowww/factorio-rcon-api): RESTful API wrapper for Factorio headless server console
 - [`autorio`](https://github.com/moeru-ai/airi-factorio/tree/main/packages/autorio): Factorio automation library
 - [`tstl-plugin-reload-factorio-mod`](https://github.com/moeru-ai/airi-factorio/tree/main/packages/tstl-plugin-reload-factorio-mod): Reload Factorio mod when developing
@@ -191,7 +191,7 @@ flowchart TD
   MC_AGENT("Minecraft Agent")
   XSAI["xsai"]
 
-  subgraph Airi
+  subgraph AIRI
     DB1 --> DBDriver --> MemoryDriver --> Memory --> Core
     ICONS --> UI --> Stage --> Core
     Core --> STT

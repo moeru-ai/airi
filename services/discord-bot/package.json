@@ -2,7 +2,7 @@
   "name": "@proj-airi/discord-bot",
   "type": "module",
   "private": true,
-  "description": "Discord bot for Airi",
+  "description": "Discord bot for AIRI",
   "author": {
     "name": "Neko Ayaka",
     "email": "neko@ayaka.moe",

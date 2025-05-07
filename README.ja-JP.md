@@ -52,7 +52,7 @@
 > - Three.js
 > - WebXR（@moeru-ai組織の[別のプロジェクト](https://github.com/moeru-ai/n3p6)もチェックしてください）
 >
-> **興味があるなら、ここで自己紹介してみませんか？ [Would like to join part of us to build Airi?](https://github.com/moeru-ai/airi/discussions/33)**
+> **興味があるなら、ここで自己紹介してみませんか？ [Would like to join part of us to build AIRI?](https://github.com/moeru-ai/airi/discussions/33)**
 
 ## 現在の進捗
 
@@ -153,7 +153,7 @@ pnpm -F @proj-airi/stage-tamagotchi dev
 - [WebAI: Realtime Voice Chat](https://github.com/proj-airi/webai-realtime-voice-chat): VAD + STT + LLM + TTSを使用してChatGPTのリアルタイム音声をゼロから実装する完全な例
 - [`@proj-airi/drizzle-duckdb-wasm`](https://github.com/moeru-ai/airi/tree/main/packages/drizzle-duckdb-wasm/README.md): DuckDB WASMのDrizzle ORMドライバー
 - [`@proj-airi/duckdb-wasm`](https://github.com/moeru-ai/airi/tree/main/packages/duckdb-wasm/README.md): `@duckdb/duckdb-wasm`の使いやすいラッパー
-- [Airi Factorio](https://github.com/moeru-ai/airi-factorio): AiriがFactorioをプレイできるようにする
+- [AIRI Factorio](https://github.com/moeru-ai/airi-factorio): AIRIがFactorioをプレイできるようにする
 - [Factorio RCON API](https://github.com/nekomeowww/factorio-rcon-api): FactorioヘッドレスサーバーコンソールのRESTful APIラッパー
 - [`autorio`](https://github.com/moeru-ai/airi-factorio/tree/main/packages/autorio): Factorio自動化ライブラリ
 - [`tstl-plugin-reload-factorio-mod`](https://github.com/moeru-ai/airi-factorio/tree/main/packages/tstl-plugin-reload-factorio-mod): Factorioモッドの開発時にリロードをサポート
@@ -182,7 +182,7 @@ flowchart TD
   MC_AGENT("Minecraftエージェント")
   XSAI["xsai"]
 
-  subgraph Airi
+  subgraph AIRI
     DB1 --> DBDriver --> MemoryDriver --> Memory --> Core
     ICONS --> UI --> Stage --> Core
     Core --> STT

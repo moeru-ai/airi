@@ -5,7 +5,7 @@ title: DevLog @ 2025.03.10
 ## Dejavu
 
 In the last Friday (March 7th), I was trying to design and manipulate a new
-feeling of the Airi stage UI and settings UI, the idea finally appears
+feeling of the AIRI stage UI and settings UI, the idea finally appears
 in my mind at the ending of the DevStream.
 
 ## Day time

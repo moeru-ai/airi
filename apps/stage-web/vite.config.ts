@@ -101,8 +101,8 @@ export default defineConfig({
           registerType: 'autoUpdate',
           includeAssets: ['favicon.svg', 'apple-touch-icon.png'],
           manifest: {
-            name: 'Airi',
-            short_name: 'Airi',
+            name: 'AIRI',
+            short_name: 'AIRI',
             theme_color: '#ffc6cb',
             icons: [
               {

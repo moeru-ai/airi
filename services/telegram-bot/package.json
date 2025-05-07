@@ -2,7 +2,7 @@
   "name": "@proj-airi/telegram-bot",
   "type": "module",
   "private": true,
-  "description": "Telegram bot for Airi",
+  "description": "Telegram bot for AIRI",
   "author": {
     "name": "Neko Ayaka",
     "email": "neko@ayaka.moe",

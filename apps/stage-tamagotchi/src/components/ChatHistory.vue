@@ -67,7 +67,7 @@ onTokenLiteral(async () => {
             bg="primary-100"
           >
             <div>
-              <span text-xs text="primary-400/90" font-semibold class="inline hidden">Airi</span>
+              <span text-xs text="primary-400/90" font-semibold class="inline hidden">AIRI</span>
             </div>
             <div
               v-if="message.content" class="markdown-content" text="xs primary-400"

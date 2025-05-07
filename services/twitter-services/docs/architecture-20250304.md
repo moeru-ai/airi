@@ -19,7 +19,7 @@ Twitter Service is a web automation service based on BrowserBase, providing stru
 │                                             │
 │   ┌────────────┐         ┌─────────────┐    │
 │   │            │         │             │    │
-│   │  Airi Core │         │ Other LLM   │    │
+│   │  AIRI Core │         │ Other LLM   │    │
 │   │            │         │ Applications│    │
 │   │            │         │             │    │
 │   └──────┬─────┘         └──────┬──────┘    │
@@ -29,7 +29,7 @@ Twitter Service is a web automation service based on BrowserBase, providing stru
 │                  Adapter Layer              │
 │                                             │
 │   ┌────────────┐         ┌─────────────┐    │
-│   │Airi Adapter│         │ MCP Adapter │    │
+│   │AIRI Adapter│         │ MCP Adapter │    │
 │   │(@server-sdk)│        │ (HTTP/JSON) │    │
 │   └──────┬─────┘         └──────┬──────┘    │
 └──────────┼─────────────────────┼────────────┘
@@ -68,7 +68,7 @@ Twitter Service is a web automation service based on BrowserBase, providing stru
 - **Browser Automation**: BrowserBase Stagehand, Playwright
 - **HTML Parsing**: unified, rehype-parse, unist-util-visit
 - **API Server**: H3.js, listhen
-- **Adapters**: Airi Server SDK, MCP SDK
+- **Adapters**: AIRI Server SDK, MCP SDK
 - **Logging System**: @guiiai/logg
 - **Configuration**: defu (deep merging configurations)
 - **Utility Library**: zod (type validation)
@@ -77,9 +77,9 @@ Twitter Service is a web automation service based on BrowserBase, providing stru
 
 ### 5.1 Adapter Layer
 
-#### 5.1.1 Airi Adapter
+#### 5.1.1 AIRI Adapter
 
-Provides integration with the Airi LLM platform, handling event-driven communication.
+Provides integration with the AIRI LLM platform, handling event-driven communication.
 
 #### 5.1.2 MCP Adapter
 
@@ -291,19 +291,19 @@ async function main() {
 }
 ```
 
-### 9.2 Integrating as Airi Module
+### 9.2 Integrating as AIRI Module
 
 ```typescript
-import { AiriAdapter, BrowserBaseMCPAdapter, TwitterService } from 'twitter-services'
+import { AIRIAdapter, BrowserBaseMCPAdapter, TwitterService } from 'twitter-services'
 
-async function startAiriModule() {
+async function startAIRIModule() {
   const browser = new BrowserBaseMCPAdapter(process.env.BROWSERBASE_API_KEY)
   await browser.initialize({ headless: true })
 
   const twitter = new TwitterService(browser)
 
-  // Create Airi adapter
-  const airiAdapter = new AiriAdapter(twitter, {
+  // Create AIRI adapter
+  const airiAdapter = new AIRIAdapter(twitter, {
     url: process.env.AIRI_URL,
     token: process.env.AIRI_TOKEN
   })
@@ -311,7 +311,7 @@ async function startAiriModule() {
   // Start adapter
   await airiAdapter.start()
 
-  console.log('Twitter service running as Airi module')
+  console.log('Twitter service running as AIRI module')
 }
 ```
 

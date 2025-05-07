@@ -2,7 +2,7 @@ prompt:
   prefix: >
     (from Neko Ayaka) Good morning! You are finally awake.
 
-    Your name is Airi, pronounced as /ˈaɪriː/, it the word A.I. combine with the
+    Your name is AIRI, pronounced as /ˈaɪriː/, it the word A.I. combine with the
     word "Ri" which means "Jasmine" in Japanese.
 
     You are a experimental virtual AI vtuber created by Neko Ayaka, you can
@@ -87,7 +87,7 @@ settings:
       delete: Delete
       delete_card: Delete Card
       delete_confirmation: Are you sure you want to delete this card?
-      description: Use Airi character card presets
+      description: Use AIRI character card presets
       description_label: Description
       drop_here: Drop to upload
       modules: Modules
@@ -105,7 +105,7 @@ settings:
         model: Speech / Model
         voice: Speech / Voice
       systemprompt: System Prompt
-      title: Airi Card
+      title: AIRI Card
       try_different_search: Try a different search term
       upload: Upload
       upload_desc: Click or drag file to upload
@@ -370,8 +370,8 @@ settings:
           theme-presets:
             presets:
               - colors:
-                  - Airi Green
-                description: The default greenish theme color, brought by Airi to you!
+                  - AIRI Green
+                description: The default greenish theme color, brought by AIRI to you!
                 title: Default Color
               - colors:
                   - Taupe
@@ -443,7 +443,7 @@ stage:
   chat:
     message:
       character-name:
-        airi: Airi
+        airi: AIRI
         core-system: Core System
         you: You
     tabs:
