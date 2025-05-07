@@ -177,52 +177,89 @@ npx bumpp --no-commit --no-tag
 
 flowchart TD
   Core("Core")
-  Unspeech["unspeech"]
-  DBDriver["@proj-airi/drizzle-duckdb-wasm"]
-  MemoryDriver["[WIP] Memory Alaya"]
-  DB1["@proj-airi/duckdb-wasm"]
-  ICONS["@proj-airi/lobe-icons"]
-  UI("@proj-airi/stage-ui")
+  Unspeech("unspeech")
+  DBDriver("@proj-airi/drizzle-duckdb-wasm")
+  MemoryDriver("[WIP] Memory Alaya")
+  DB1("@proj-airi/duckdb-wasm")
+  SVRT("@proj-airi/server-runtime")
+  Memory("Memory")
+  STT("STT")
   Stage("Stage")
-  F_AGENT("Factorio Agent")
-  F_API["Factorio RCON API"]
-  F_MOD1["autorio"]
-  SVRT["@proj-airi/server-runtime"]
-  MC_AGENT("Minecraft Agent")
-  XSAI["xsai"]
+  StageUI("@proj-airi/stage-ui")
+  UI("@proj-airi/ui")
 
   subgraph AIRI
     DB1 --> DBDriver --> MemoryDriver --> Memory --> Core
-    ICONS --> UI --> Stage --> Core
+    UI --> StageUI --> Stage --> Core
     Core --> STT
     Core --> SVRT
   end
 
-  STT --> |Speaking|Unspeech
-  SVRT --> |Playing Factorio|F_AGENT
-  SVRT --> |Playing Minecraft|MC_AGENT
-
-  subgraph Factorio Agent
-    F_AGENT --> F_API -..- factorio-server
-    subgraph factorio-server-wrapper
-      subgraph factorio-server
-        F_MOD1
-      end
-    end
+  subgraph UI_Components
+    UI --> StageUI
+    UITransitions("@proj-airi/ui-transitions") --> StageUI
+    UILoadingScreens("@proj-airi/ui-loading-screens") --> StageUI
+    FontCJK("@proj-airi/font-cjkfonts-allseto") --> StageUI
+    FontXiaolai("@proj-airi/font-xiaolai") --> StageUI
   end
 
-  subgraph Minecraft Agent
-    MC_AGENT --> Mineflayer -..- minecraft-server
-    subgraph factorio-server-wrapper
-      subgraph factorio-server
-        F_MOD1
-      end
-    end
+  subgraph Apps
+    Stage --> StageWeb("@proj-airi/stage-web")
+    Stage --> StageTamagotchi("@proj-airi/stage-tamagotchi")
+    Core --> RealtimeAudio("@proj-airi/realtime-audio")
+    Core --> PromptEngineering("@proj-airi/playground-prompt-engineering")
   end
 
-  XSAI --> Core
+  subgraph Server_Components
+    Core --> ServerSDK("@proj-airi/server-sdk")
+    ServerShared("@proj-airi/server-shared") --> SVRT
+    ServerShared --> ServerSDK
+  end
+
+  STT -->|Speaking| Unspeech
+  SVRT -->|Playing Factorio| F_AGENT
+  SVRT -->|Playing Minecraft| MC_AGENT
+
+  subgraph Factorio_Agent
+    F_AGENT("Factorio Agent")
+    F_API("Factorio RCON API")
+    factorio-server("factorio-server")
+    F_MOD1("autorio")
+
+    F_AGENT --> F_API -.-> factorio-server
+    F_MOD1 -.-> factorio-server
+  end
+
+  subgraph Minecraft_Agent
+    MC_AGENT("Minecraft Agent")
+    Mineflayer("Mineflayer")
+    minecraft-server("minecraft-server")
+
+    MC_AGENT --> Mineflayer -.-> minecraft-server
+  end
+
+  XSAI("xsAI") --> Core
   XSAI --> F_AGENT
   XSAI --> MC_AGENT
+
+  Core --> TauriMCP("@proj-airi/tauri-plugin-mcp")
+  Memory_PGVector("@proj-airi/memory-pgvector") --> Memory
+
+  style Core fill:#f9d4d4,stroke:#333,stroke-width:1px
+  style AIRI fill:#fcf7f7,stroke:#333,stroke-width:1px
+  style UI fill:#d4f9d4,stroke:#333,stroke-width:1px
+  style Stage fill:#d4f9d4,stroke:#333,stroke-width:1px
+  style UI_Components fill:#d4f9d4,stroke:#333,stroke-width:1px
+  style Server_Components fill:#d4e6f9,stroke:#333,stroke-width:1px
+  style Apps fill:#d4d4f9,stroke:#333,stroke-width:1px
+  style Factorio_Agent fill:#f9d4f2,stroke:#333,stroke-width:1px
+  style Minecraft_Agent fill:#f9d4f2,stroke:#333,stroke-width:1px
+
+  style DBDriver fill:#f9f9d4,stroke:#333,stroke-width:1px
+  style MemoryDriver fill:#f9f9d4,stroke:#333,stroke-width:1px
+  style DB1 fill:#f9f9d4,stroke:#333,stroke-width:1px
+  style Memory fill:#f9f9d4,stroke:#333,stroke-width:1px
+  style Memory_PGVector fill:#f9f9d4,stroke:#333,stroke-width:1px
 ```
 
 ```mermaid
