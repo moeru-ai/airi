@@ -48,7 +48,7 @@ starlight-menu-button button svg {
 .content-panel .sl-container h6 {
   margin-top: 2em;
   color: #000;
-  font-size: 2em;
+  font-size: 1em;
 }
 
 @media (max-width: 72rem) {
