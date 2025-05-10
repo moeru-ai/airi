@@ -78,7 +78,7 @@ export async function openaiTranscribe(wavBuffer: Buffer) {
 
   try {
     const result = await generateTranscription({
-      ...openai.transcription('whisper-1'),
+      ...openai.transcription(env.OPENAI_STT_MODEL),
       file: wavFile,
     })
 
