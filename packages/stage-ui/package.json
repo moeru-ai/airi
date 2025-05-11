@@ -109,10 +109,10 @@
   "devDependencies": {
     "@electron-toolkit/preload": "^3.0.2",
     "@histoire/plugin-vue": "1.0.0-alpha.2",
-    "@unocss/reset": "^66.1.0",
-    "@vitejs/plugin-vue": "^5.2.3",
+    "@unocss/reset": "^66.1.1",
+    "@vitejs/plugin-vue": "^5.2.4",
     "histoire": "1.0.0-alpha.2",
-    "unocss": "^66.1.0",
+    "unocss": "^66.1.1",
     "vite": "^6.3.5"
   }
 }

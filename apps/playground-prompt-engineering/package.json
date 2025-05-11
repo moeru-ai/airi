@@ -17,10 +17,10 @@
   },
   "devDependencies": {
     "@iconify/vue": "^5.0.0",
-    "@types/node": "^22.15.14",
-    "@vitejs/plugin-vue": "^5.2.3",
+    "@types/node": "^22.15.17",
+    "@vitejs/plugin-vue": "^5.2.4",
     "typescript": "~5.8.3",
-    "unocss": "^66.1.0",
+    "unocss": "^66.1.1",
     "vite": "^6.3.5",
     "vite-plugin-vue-devtools": "^7.7.6",
     "vue-tsc": "^2.2.10"

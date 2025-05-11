@@ -42,7 +42,7 @@
   },
   "dependencies": {
     "@proj-airi/server-shared": "workspace:^",
-    "crossws": "^0.3.4",
+    "crossws": "^0.3.5",
     "defu": "^6.1.4"
   }
 }
