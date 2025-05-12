@@ -12,6 +12,7 @@ import MobileChatHistory from '../Widgets/MobileChatHistory.vue'
 
 const messageInput = ref('')
 const listening = ref(false)
+const isComposing = ref(false)
 
 const providersStore = useProvidersStore()
 const { activeProvider, activeModel } = storeToRefs(useConsciousnessStore())
@@ -23,7 +24,7 @@ const { send, onAfterSend } = useChatStore()
 const { t } = useI18n()
 
 async function handleSend() {
-  if (!messageInput.value.trim()) {
+  if (!messageInput.value.trim() || isComposing.value) {
     return
   }
 
@@ -98,6 +99,8 @@ onMounted(() => {
           transition="all duration-250 ease-in-out placeholder:all placeholder:duration-250 placeholder:ease-in-out"
           :class="{ 'transition-colors-none placeholder:transition-colors-none': themeColorsHueDynamic }"
           @submit="handleSend"
+          @compositionstart="isComposing = true"
+          @compositionend="isComposing = false"
         />
       </div>
     </div>
