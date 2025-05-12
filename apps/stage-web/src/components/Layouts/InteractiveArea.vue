@@ -17,6 +17,7 @@ const messageInput = ref('')
 const listening = ref(false)
 const tab = ref<'chat' | 'custom' | 'clothes'>('chat')
 const showMicrophoneSelect = ref(false)
+const isComposing = ref(false)
 
 const providersStore = useProvidersStore()
 const { activeProvider, activeModel } = storeToRefs(useConsciousnessStore())
@@ -46,7 +47,7 @@ const { transcribe: generate, terminate } = useWhisper(WhisperWorker, {
 })
 
 async function handleSend() {
-  if (!messageInput.value.trim()) {
+  if (!messageInput.value.trim() || isComposing.value) {
     return
   }
 
@@ -224,6 +225,8 @@ onAfterSend(async () => {
               'transition-colors-none placeholder:transition-colors-none': themeColorsHueDynamic,
             }"
             @submit="handleSend"
+            @compositionstart="isComposing = true"
+            @compositionend="isComposing = false"
           />
         </div>
       </div>
