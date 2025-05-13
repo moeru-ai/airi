@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import type { ElectronAPI } from '@electron-toolkit/preload'
 import type { DuckDBWasmDrizzleDatabase } from '@proj-airi/drizzle-duckdb-wasm'
 import type { SpeechProviderWithExtraOptions } from '@xsai-ext/shared-providers'
 import type { UnElevenLabsOptions } from 'unspeech'
@@ -18,7 +17,7 @@ import { useMarkdown } from '../../composables/markdown'
 import { useQueue } from '../../composables/queue'
 import { useDelayMessageQueue, useEmotionsMessageQueue, useMessageContentQueue } from '../../composables/queues'
 import { llmInferenceEndToken } from '../../constants'
-import { EMOTION_EmotionMotionName_value, EMOTION_VRMExpressionName_value, EmotionAngryMotionName, EmotionHappyMotionName, EmotionThinkMotionName } from '../../constants/emotions'
+import { EMOTION_EmotionMotionName_value, EMOTION_VRMExpressionName_value, EmotionThinkMotionName } from '../../constants/emotions'
 import { useAudioContext, useSpeakingStore } from '../../stores/audio'
 import { useChatStore } from '../../stores/chat'
 import { useSpeechStore } from '../../stores/modules/speech'
@@ -211,26 +210,6 @@ onAssistantResponseEnd(async (_message) => {
 
 onUnmounted(() => {
   lipSyncStarted.value = false
-
-  const extendedWindow = window as Window & typeof globalThis & { electron?: ElectronAPI }
-
-  extendedWindow.electron?.ipcRenderer.removeAllListeners('before-hide')
-  extendedWindow.electron?.ipcRenderer.removeAllListeners('after-show')
-  extendedWindow.electron?.ipcRenderer.removeAllListeners('before-quit')
-})
-
-onMounted(() => {
-  const extendedWindow = window as Window & typeof globalThis & { electron?: ElectronAPI }
-
-  extendedWindow.electron?.ipcRenderer.on('before-hide', () => {
-    live2dCurrentMotion.value = { group: EmotionAngryMotionName }
-  })
-  extendedWindow.electron?.ipcRenderer.on('after-show', () => {
-    live2dCurrentMotion.value = { group: EmotionHappyMotionName }
-  })
-  extendedWindow.electron?.ipcRenderer.on('before-quit', () => {
-    live2dCurrentMotion.value = { group: EmotionThinkMotionName }
-  })
 })
 
 onMounted(async () => {

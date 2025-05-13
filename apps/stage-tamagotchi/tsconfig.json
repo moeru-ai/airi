@@ -25,7 +25,6 @@
       "vitest",
       "vite/client",
       "vite-plugin-vue-layouts/client",
-      "vite-plugin-pwa/client",
       "unplugin-vue-macros/macros-global",
       "unplugin-vue-router/client"
     ],

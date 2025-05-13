@@ -19,14 +19,10 @@ useEventListener(window, 'resize', () => {
 
 watch(language, (language) => {
   i18n.locale.value = language
-  // window.electron.ipcRenderer.send('locale-changed', language)
 })
 
 // FIXME: store settings to file
 onMounted(() => {
-  // window.electron.ipcRenderer.send('locale-changed', language.value)
-  // window.electron.ipcRenderer.send('window-size-changed', windowControlStore.size.width, windowControlStore.size.height)
-  // window.electron.ipcRenderer.send('window-position-changed', windowControlStore.position.x, windowControlStore.position.y)
 })
 
 watch(themeColorsHue, () => {

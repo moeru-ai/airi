@@ -10,7 +10,6 @@ import Vue from '@vitejs/plugin-vue'
 import { LFS, SpaceCard } from 'hfup/vite'
 import { ofetch } from 'ofetch'
 import Unocss from 'unocss/vite'
-import Components from 'unplugin-vue-components/vite'
 import VueMacros from 'unplugin-vue-macros/vite'
 import VueRouter from 'unplugin-vue-router/vite'
 import { defineConfig } from 'vite'
@@ -80,15 +79,6 @@ export default defineConfig({
 
     // https://github.com/JohnCampionJr/vite-plugin-vue-layouts
     Layouts(),
-
-    // https://github.com/antfu/unplugin-vue-components
-    Components({
-      // allow auto load markdown components under `./src/components/`
-      extensions: ['vue', 'md'],
-      // allow auto import and register components used in markdown
-      include: [/\.vue$/, /\.vue\?vue/, /\.md$/],
-      dts: 'src/components.d.ts',
-    }),
 
     // https://github.com/antfu/unocss
     // see uno.config.ts for config
