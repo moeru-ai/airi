@@ -1,16 +1,4 @@
 :root {
-  --airi-theme-primary-50: #fff0f2;
-  --airi-theme-primary-100: #ffe3e6;
-  --airi-theme-primary-200: #ffcad4;
-  --airi-theme-primary-300: #ff9fb0;
-  --airi-theme-primary-400: #ff6988;
-  --airi-theme-primary-500: #fe456e;
-  --airi-theme-primary-600: #ec124d;
-  --airi-theme-primary-700: #c70941;
-  --airi-theme-primary-800: #a70a3e;
-  --airi-theme-primary-900: #8e0d3b;
-  --airi-theme-primary-950: #50011b;
-
   --theme-colors-hue: 220.31;
   --theme-colors-chroma: calc(0.18 + (cos(var(--theme-colors-hue) * 3.14159265 / 180) * 0.04));
   --theme-colors-chroma-50: calc(var(--theme-colors-chroma) * 0.3);
