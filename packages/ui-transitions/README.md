@@ -19,6 +19,7 @@ First, in your app layout component, wrap your router view with a `StageTransiti
 
 ```vue
 <script setup>
+import { RouterView } from 'vue-router'
 import { StageTransitionGroup } from '@proj-airi/ui-transitions'
 
 const isDark = useDark()
