@@ -43,9 +43,9 @@ const isDark = useDark()
       :z-index="0"
       :disable-transitions="false"
     >
-      <router-view v-slot="{ Component, route: r }">
+      <RouterView v-slot="{ Component, route: r }">
         <component :is="Component" :key="r.path" />
-      </router-view>
+      </RouterView>
     </StageTransitionGroup>
   </div>
 </template>
