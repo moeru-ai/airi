@@ -1,3 +1,5 @@
+use std::process::Stdio;
+
 use rmcp::model::CallToolRequestParam;
 use rmcp::{
   model::{CallToolResult, Tool},
@@ -6,16 +8,34 @@ use rmcp::{
   RoleClient, ServiceExt,
 };
 use serde_json::{Map, Value};
-use tauri::State;
 use tauri::{
   plugin::{self, TauriPlugin},
   Manager, Runtime,
 };
+use tauri::{AppHandle, State};
 use tokio::process::Command;
 use tokio::sync::Mutex;
 
 pub struct McpState {
   pub client: Option<RunningService<RoleClient, ()>>,
+}
+
+pub fn destroy<R: Runtime>(app_handle: &AppHandle<R>) {
+  println!("Destroying MCP plugin");
+  tokio::runtime::Runtime::new().unwrap().block_on(async {
+    let state = app_handle.state::<Mutex<McpState>>();
+    let mut state = state.lock().await;
+    if state.client.is_none() {
+      println!("MCP plugin not connected, no need to disconnect");
+      return;
+    }
+
+    let client = state.client.take().unwrap();
+    client.cancel().await.unwrap();
+    // client.waiting().await.unwrap();
+    state.client = None;
+  });
+  println!("MCP plugin destroyed");
 }
 
 #[tauri::command]
@@ -30,7 +50,13 @@ async fn connect_server(
     return Err("Client already connected".to_string());
   }
 
-  let child_process = TokioChildProcess::new(Command::new(command).args(args)).unwrap();
+  let child_process = TokioChildProcess::new(
+    Command::new(command)
+      .args(args)
+      .stderr(Stdio::inherit())
+      .stdout(Stdio::inherit()),
+  )
+  .unwrap();
 
   let service: RunningService<RoleClient, ()> = ().serve(child_process).await.unwrap();
 
@@ -46,8 +72,12 @@ async fn disconnect_server(state: State<'_, Mutex<McpState>>) -> Result<(), Stri
     return Err("Client not connected".to_string());
   }
 
-  state.client.take().unwrap().cancel().await.unwrap();
+  let cancel_result = state.client.take().unwrap().cancel().await;
+  println!("Cancel result: {:?}", cancel_result);
+  // state.client.take().unwrap().waiting().await.unwrap();
   state.client = None;
+
+  println!("Disconnected from MCP server");
 
   Ok(())
 }
@@ -64,7 +94,7 @@ async fn list_tools(state: State<'_, Mutex<McpState>>) -> Result<Vec<Tool>, Stri
     .unwrap()
     .list_tools(Default::default())
     .await
-    .unwrap();
+    .unwrap(); // TODO: handle error
   let tools = list_tools_result.tools;
 
   Ok(tools)
@@ -116,6 +146,9 @@ impl Builder {
       .setup(|app_handle, _| {
         app_handle.manage(Mutex::new(McpState { client: None }));
         Ok(())
+      })
+      .on_drop(|app_handle: AppHandle<R>| {
+        destroy(&app_handle);
       })
       .build()
   }
