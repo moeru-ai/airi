@@ -18,3 +18,20 @@ pub async fn open_settings_window(app: tauri::AppHandle) {
   .build()
   .unwrap();
 }
+
+#[tauri::command]
+pub async fn open_chat_window(app: tauri::AppHandle) {
+  if let Some(window) = app.get_webview_window("chat") {
+    let _ = window.show();
+    return;
+  }
+
+  let _ = WebviewWindowBuilder::new(
+    &app,
+    "chat",
+    WebviewUrl::App(Path::new("#/chat").to_path_buf()),
+  )
+  .title("chat")
+  .build()
+  .unwrap();
+}

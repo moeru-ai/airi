@@ -1,6 +1,7 @@
 use std::path::Path;
 use tauri::menu::{Menu, MenuItem};
 use tauri::tray::TrayIconBuilder;
+use tauri::RunEvent;
 #[cfg(target_os = "macos")]
 use tauri::{ActivationPolicy, TitleBarStyle};
 use tauri::{Manager, WebviewUrl, WebviewWindowBuilder};
@@ -57,6 +58,7 @@ pub fn run() {
         .menu(&menu)
         .on_menu_event(|app, event| match event.id().as_ref() {
           "quit" => {
+            app.cleanup_before_exit();
             app.exit(0);
           }
           "settings" => {
@@ -90,10 +92,20 @@ pub fn run() {
         .show_menu_on_left_click(true)
         .build(app)
         .unwrap();
-
       Ok(())
     })
-    .invoke_handler(tauri::generate_handler![commands::open_settings_window])
-    .run(tauri::generate_context!())
-    .expect("error while running tauri application");
+    .invoke_handler(tauri::generate_handler![
+      commands::open_settings_window,
+      commands::open_chat_window
+    ])
+    .build(tauri::generate_context!())
+    .expect("error while building tauri application")
+    .run(|app_handle, event| match event {
+      RunEvent::ExitRequested { .. } => {
+        println!("Exiting app");
+        tauri_plugin_mcp::destroy(app_handle);
+        println!("Exited app");
+      }
+      _ => {}
+    });
 }

@@ -60,4 +60,9 @@ export default defineConfig({
     Download('https://dist.ayaka.moe/live2d-models/hiyori_free_zh.zip', 'hiyori_free_zh.zip', 'assets/live2d/models'),
     Download('https://dist.ayaka.moe/live2d-models/hiyori_pro_zh.zip', 'hiyori_pro_zh.zip', 'assets/live2d/models'),
   ],
+  server: {
+    watch: {
+      ignored: ['**/src-tauri/**'],
+    },
+  },
 })
