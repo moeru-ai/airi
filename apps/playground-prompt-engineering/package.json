@@ -11,7 +11,7 @@
     "typecheck": "vue-tsc --noEmit"
   },
   "dependencies": {
-    "@velin-dev/core": "^0.2.2",
+    "@velin-dev/core": "^0.2.3",
     "@velin-dev/vue": "^0.2.2",
     "pinia": "^3.0.2",
     "vue": "^3.5.14"

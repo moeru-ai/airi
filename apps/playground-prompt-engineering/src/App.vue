@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { renderMarkdownString } from '@velin-dev/core'
+import { renderMarkdownString } from '@velin-dev/core/browser'
 import { onMounted } from 'vue'
 
 import ChatSimulator from './components/ChatSimulator.vue'

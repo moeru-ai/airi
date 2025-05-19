@@ -130,8 +130,8 @@ importers:
   apps/playground-prompt-engineering:
     dependencies:
       '@velin-dev/core':
-        specifier: ^0.2.2
-        version: 0.2.2(typescript@5.8.3)
+        specifier: ^0.2.3
+        version: 0.2.3(typescript@5.8.3)
       '@velin-dev/vue':
         specifier: ^0.2.2
         version: 0.2.2(typescript@5.8.3)
@@ -4629,19 +4629,22 @@ packages:
     cpu: [x64]
     os: [win32]
 
-  '@unrteljs/eval@0.0.3':
-    resolution: {integrity: sha512-hqRKVpbB0oe4Dya23+ga+ZA4DJmt5X3rvA5Wrh8kSA0qxKGvIVnLav3l0n+L+V1Q1H40otBjGNKp6CuMT5LQsA==}
+  '@unrteljs/eval@0.0.6':
+    resolution: {integrity: sha512-BPLLMPjncw61/imRKz6J2NN6DLdwhmeHvJQB0hdq4swVh/JTHgZ7Ko7CfRfOhVFxuArA/EqfLjaSsb6r9+BpBw==}
 
   '@valibot/to-json-schema@1.0.0-rc.0':
     resolution: {integrity: sha512-F3WDgnPzcDs9Y8qZwU9qfPnEJBQ6lCMCFjI7VsMjAza6yAixGr4cZ50gOy6zniSCk49GkFvq2a6cBKfZjTpyOw==}
     peerDependencies:
       valibot: ^1.0.0 || ^1.0.0-beta.5 || ^1.0.0-rc
 
-  '@velin-dev/core@0.2.2':
-    resolution: {integrity: sha512-EVQfz4G/MwWBGW7cgYhWID48CJN3cEDoZ39jDKMo3GX+QBIkL1qtBmM2UUamCQuroc+9lCCAkTIRWKYhkKlpvg==}
+  '@velin-dev/core@0.2.3':
+    resolution: {integrity: sha512-971CG7LtYme5XMtwt/tu6mpAL+jfK9zaFZcvZXKstPfWS6PDEMQ0Pg6I0qys2wxXitsSz63x5BiOPSsJacwn9Q==}
 
   '@velin-dev/utils@0.2.2':
     resolution: {integrity: sha512-/RTBe1ni6syrUHl3RrYUajQAmILRmDq6FwGVf9jEFqOptflmXha60OEn3qQ/YCA7G4NYegAMyFaLv9ziWsd+Vw==}
+
+  '@velin-dev/utils@0.2.3':
+    resolution: {integrity: sha512-CdQb0gZNe3hc9nSnRfqS0jv/FJPry204IYosPuqDIIzXRBxX85GdJxpK7Jds85TpPDIs3pWfvQbURqWdp6Xumg==}
 
   '@velin-dev/vue@0.2.2':
     resolution: {integrity: sha512-b5UEPx9liV/ZABPaxkMXywkkwsjMbwr1MOQwnyQezqmVhAUv9Xd/Yp7bUZAGAJV7p8sHLgLWO/76iBZbvO7Ewg==}
@@ -15178,8 +15181,9 @@ snapshots:
   '@unrs/resolver-binding-win32-x64-msvc@1.7.2':
     optional: true
 
-  '@unrteljs/eval@0.0.3':
+  '@unrteljs/eval@0.0.6':
     dependencies:
+      builtin-modules: 5.0.0
       error-stack-parser: 2.1.4
       sucrase: 3.35.0
 
@@ -15187,10 +15191,10 @@ snapshots:
     dependencies:
       valibot: 1.0.0-beta.9(typescript@5.8.3)
 
-  '@velin-dev/core@0.2.2(typescript@5.8.3)':
+  '@velin-dev/core@0.2.3(typescript@5.8.3)':
     dependencies:
-      '@unrteljs/eval': 0.0.3
-      '@velin-dev/utils': 0.2.2
+      '@unrteljs/eval': 0.0.6
+      '@velin-dev/utils': 0.2.3
       '@vue/compiler-sfc': 3.5.14
       '@vue/reactivity': 3.5.14
       '@vue/runtime-core': 3.5.14
@@ -15200,6 +15204,7 @@ snapshots:
       error-stack-parser: 2.1.4
       hast-util-from-html: 2.0.3
       path-browserify-esm: 1.0.6
+      std-env: 3.9.0
       vue: 3.5.14(typescript@5.8.3)
     transitivePeerDependencies:
       - typescript
@@ -15221,9 +15226,26 @@ snapshots:
       unified: 11.0.5
       unist-util-remove: 4.0.0
 
+  '@velin-dev/utils@0.2.3':
+    dependencies:
+      '@vue/compiler-sfc': 3.5.14
+      error-stack-parser: 2.1.4
+      hast-util-from-html: 2.0.3
+      hast-util-select: 6.0.4
+      hast-util-to-html: 9.0.5
+      local-pkg: 1.1.1
+      markdown-it: 14.1.0
+      rehype-parse: 9.0.1
+      rehype-remark: 10.0.1
+      rehype-remove-comments: 6.1.1
+      remark-stringify: 11.0.0
+      sucrase: 3.35.0
+      unified: 11.0.5
+      unist-util-remove: 4.0.0
+
   '@velin-dev/vue@0.2.2(typescript@5.8.3)':
     dependencies:
-      '@velin-dev/core': 0.2.2(typescript@5.8.3)
+      '@velin-dev/core': 0.2.3(typescript@5.8.3)
       '@velin-dev/utils': 0.2.2
       vue: 3.5.14(typescript@5.8.3)
     transitivePeerDependencies:
