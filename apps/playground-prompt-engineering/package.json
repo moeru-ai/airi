@@ -11,16 +11,17 @@
     "typecheck": "vue-tsc --noEmit"
   },
   "dependencies": {
-    "@velin-dev/ml": "^1.3.0",
+    "@velin-dev/core": "^0.2.2",
+    "@velin-dev/vue": "^0.2.2",
     "pinia": "^3.0.2",
-    "vue": "^3.5.13"
+    "vue": "^3.5.14"
   },
   "devDependencies": {
     "@iconify/vue": "^5.0.0",
-    "@types/node": "^22.15.17",
+    "@types/node": "^22.15.19",
     "@vitejs/plugin-vue": "^5.2.4",
     "typescript": "~5.8.3",
-    "unocss": "^66.1.1",
+    "unocss": "^66.1.2",
     "vite": "^6.3.5",
     "vite-plugin-vue-devtools": "^7.7.6",
     "vue-tsc": "^2.2.10"

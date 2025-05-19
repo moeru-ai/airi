@@ -8,7 +8,7 @@ packages:
 
 catalog:
   '@proj-airi/drizzle-duckdb-wasm': ^0.4.24
-  '@xsai/shared': &xsai ^0.2.1
+  '@xsai/shared': &xsai ^0.2.2
   '@xsai-ext/providers-cloud': *xsai
   '@xsai-ext/providers-local': *xsai
   '@xsai-ext/shared-providers': *xsai

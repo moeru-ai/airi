@@ -21,7 +21,7 @@
     "script:embed-chat": "dotenvx run -f .env -f .env.local --overload --ignore=MISSING_ENV_FILE -- tsx scripts/embed-all-chat-messages.ts"
   },
   "dependencies": {
-    "@dotenvx/dotenvx": "^1.43.0",
+    "@dotenvx/dotenvx": "^1.44.0",
     "@ffmpeg-installer/ffmpeg": "^1.1.0",
     "@grammyjs/files": "^1.1.1",
     "@guiiai/logg": "^1.0.10",
@@ -33,19 +33,19 @@
     "best-effort-json-parser": "^1.1.3",
     "dotenv": "^16.5.0",
     "drizzle-orm": "^0.43.1",
-    "es-toolkit": "^1.37.2",
+    "es-toolkit": "^1.38.0",
     "fluent-ffmpeg": "^2.1.3",
     "grammy": "^1.36.1",
     "nanoid": "^5.1.5",
     "p-limit": "^6.2.0",
-    "pg": "^8.15.6",
+    "pg": "^8.16.0",
     "sharp": "^0.34.1",
     "telegram": "^2.26.22",
     "uuid": "^11.1.0",
     "valibot": "1.0.0-beta.9"
   },
   "devDependencies": {
-    "@types/pg": "^8.15.1",
+    "@types/pg": "^8.15.2",
     "drizzle-kit": "^0.31.1",
     "tsx": "^4.19.4"
   }

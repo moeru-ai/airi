@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { processMarkdown } from '@velin-dev/ml'
+import { renderMarkdownString } from '@velin-dev/core'
 import { onMounted } from 'vue'
 
 import ChatSimulator from './components/ChatSimulator.vue'
@@ -10,7 +10,7 @@ import CharacterPrompt from './prompts/CharacterPrompt.md?raw'
 
 onMounted(async () => {
   // eslint-disable-next-line no-console
-  console.log(await processMarkdown(CharacterPrompt))
+  console.log(await renderMarkdownString(CharacterPrompt))
 })
 </script>
 

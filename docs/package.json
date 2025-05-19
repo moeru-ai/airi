@@ -15,10 +15,10 @@
     "@astrojs/starlight": "^0.34.3",
     "@fontsource/fusion-pixel-12px-proportional-sc": "^5.2.5",
     "@fontsource/quicksand": "^5.2.7",
-    "astro": "^5.7.12",
+    "astro": "^5.7.13",
     "astro-og-canvas": "^0.7.0",
     "sharp": "^0.34.1",
-    "unocss": "^66.1.1",
-    "vue": "^3.5.13"
+    "unocss": "^66.1.2",
+    "vue": "^3.5.14"
   }
 }
