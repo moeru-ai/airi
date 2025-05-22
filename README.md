@@ -20,6 +20,9 @@
   [<a href="https://discord.gg/TgQ3Cu2F7A">Join Discord Server</a>] [<a href="https:///airi.moeru.ai">Try it</a>] [<a href="https://github.com/moeru-ai/airi/blob/main/README.zh-CN.md">简体中文</a>] [<a href="https://github.com/moeru-ai/airi/blob/main/README.ja-JP.md">日本語</a>]
 </p>
 
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/moeru-ai/airi)
+[![License][license-src]][license-href]
+
 > Heavily inspired by [Neuro-sama](https://www.youtube.com/@Neurosama)
 
 <img src="./docs/public/readme-image-pc-preview.png">
@@ -315,3 +318,7 @@ flowchart TD
 ## Star History
 
 [![Star History Chart](https://api.star-history.com/svg?repos=moeru-ai/airi&type=Date)](https://www.star-history.com/#moeru-ai/airi&Date)
+
+[license-src]: https://img.shields.io/github/license/moeru-ai/airi.svg?style=flat&colorA=080f12&colorB=1fa669
+[license-href]: https://github.com/moeru-ai/airi/blob/main/LICENSE
+
