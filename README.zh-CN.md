@@ -1,12 +1,14 @@
+<img src="./docs/public/readme-image-pc-preview.png">
+
 <p align="center">
   <picture>
     <source
-      width="250"
+      width="100"
       srcset="./docs/public/logo-dark.png"
       media="(prefers-color-scheme: dark)"
     />
     <source
-      width="250"
+      width="100"
       srcset="./docs/public/logo-light.png"
       media="(prefers-color-scheme: light), (prefers-color-scheme: no-preference)"
     />
@@ -28,8 +30,6 @@
 </p>
 
 > 深受 [Neuro-sama](https://www.youtube.com/@Neurosama) 启发
-
-<img src="./docs/public/readme-image-pc-preview.png">
 
 与其他 AI 和 LLM 驱动的 VTuber 开源项目不同，アイリ VTuber 从开始开发的第一天开始就支持多种 Web 技术，涵盖诸如 [WebGPU](https://www.w3.org/TR/webgpu/)、[WebAudio](https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API)、[Web Workers](https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API/Using_web_workers)、[WebAssembly](https://webassembly.org/)、[WebSocket](https://developer.mozilla.org/en-US/docs/Web/API/WebSocket) 等已经广泛应用或仍在大量实验的 API。
 
