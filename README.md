@@ -1,20 +1,23 @@
-<p align="center">
-  <picture>
-    <source
-      width="250"
-      srcset="./docs/public/logo-dark.png"
-      media="(prefers-color-scheme: dark)"
-    />
-    <source
-      width="250"
-      srcset="./docs/public/logo-light.png"
-      media="(prefers-color-scheme: light), (prefers-color-scheme: no-preference)"
-    />
-    <img width="250" src="./docs/public/logo-light.png" />
-  </picture>
-</p>
+<img src="./docs/public/readme-image-pc-preview.png">
 
-<h1 align="center">Project AIRI</h1>
+<h1 align="center">
+  <p align="center">
+    <picture>
+      <source
+        width="100"
+        srcset="./docs/public/logo-dark.png"
+        media="(prefers-color-scheme: dark)"
+      />
+      <source
+        width="100"
+        srcset="./docs/public/logo-light.png"
+        media="(prefers-color-scheme: light), (prefers-color-scheme: no-preference)"
+      />
+      <img width="250" src="./docs/public/logo-light.png" />
+    </picture>
+  </p>
+  Project AIRI
+</h1>
 
 <p align="center">
   [<a href="https://discord.gg/TgQ3Cu2F7A">Join Discord Server</a>] [<a href="https:///airi.moeru.ai">Try it</a>] [<a href="https://github.com/moeru-ai/airi/blob/main/README.zh-CN.md">简体中文</a>] [<a href="https://github.com/moeru-ai/airi/blob/main/README.ja-JP.md">日本語</a>]
@@ -28,8 +31,6 @@
 </p>
 
 > Heavily inspired by [Neuro-sama](https://www.youtube.com/@Neurosama)
-
-<img src="./docs/public/readme-image-pc-preview.png">
 
 Unlike the other AI driven VTuber open source projects, アイリ VTuber was built with many support of Web technologies such as [WebGPU](https://www.w3.org/TR/webgpu/), [WebAudio](https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API), [Web Workers](https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API/Using_web_workers), [WebAssembly](https://webassembly.org/), [WebSocket](https://developer.mozilla.org/en-US/docs/Web/API/WebSocket), etc. from the first day.
 
