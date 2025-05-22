@@ -1,12 +1,14 @@
+<img src="./docs/public/readme-image-pc-preview.png">
+
 <p align="center">
   <picture>
     <source
-      width="250"
+      width="100"
       srcset="./docs/public/logo-dark.png"
       media="(prefers-color-scheme: dark)"
     />
     <source
-      width="250"
+      width="100"
       srcset="./docs/public/logo-light.png"
       media="(prefers-color-scheme: light), (prefers-color-scheme: no-preference)"
     />
@@ -28,8 +30,6 @@
 </p>
 
 > [Neuro-sama](https://www.youtube.com/@Neurosama) に大きな影響を受けました
-
-<img src="./docs/public/readme-image-pc-preview.png">
 
 他のAI駆動のVTuberオープンソースプロジェクトとは異なり、アイリVTuberは開発初日から[WebGPU](https://www.w3.org/TR/webgpu/)、[WebAudio](https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API)、[Web Workers](https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API/Using_web_workers)、[WebAssembly](https://webassembly.org/)、[WebSocket](https://developer.mozilla.org/en-US/docs/Web/API/WebSocket)などの多くのWeb技術をサポートしています。
 
