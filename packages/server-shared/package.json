@@ -36,6 +36,6 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "crossws": "^0.3.5"
+    "crossws": "^0.4.1"
   }
 }
