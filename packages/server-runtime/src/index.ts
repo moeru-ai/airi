@@ -1,6 +1,5 @@
 import type { WebSocketEvent } from '@proj-airi/server-shared/types'
-import type { Peer } from 'crossws'
-import type { AuthenticatedPeer } from './types'
+import type { AuthenticatedPeer, Peer } from './types'
 
 import { env } from 'node:process'
 import { Format, LogLevel, setGlobalFormat, setGlobalLogLevel, useLogg } from '@guiiai/logg'
