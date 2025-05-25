@@ -48,7 +48,7 @@ const modelValue = defineModel<string>({ required: true })
     </div>
     <div flex="~ col" min-h-16 w-full items-start justify-center pb-2 pl-5 pr-4 pt-2>
       <span
-        class="radio-item-name font-bold"
+        class="radio-item-name font-thin"
         text="md"
         :class="[
           modelValue === value

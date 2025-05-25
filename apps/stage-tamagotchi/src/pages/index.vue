@@ -74,7 +74,7 @@ onMounted(async () => {
         <div
           border="solid 2 primary-100 "
           text="lg primary-400 hover:primary-600  placeholder:primary-400 placeholder:hover:primary-600"
-          bg="primary-50 dark:primary-100" max-h="[10lh]" min-h="[1lh]"
+          bg="primary-50 dark:primary-50" max-h="[10lh]" min-h="[1lh]"
           flex cursor-pointer items-center justify-center rounded-l-xl p-4 transition-colors
           @click="openChat"
         >
@@ -83,7 +83,7 @@ onMounted(async () => {
         <div
           border="solid 2 primary-100 "
           text="lg primary-400 hover:primary-600  placeholder:primary-400 placeholder:hover:primary-600"
-          bg="primary-50 dark:primary-100" max-h="[10lh]" min-h="[1lh]"
+          bg="primary-50 dark:primary-50" max-h="[10lh]" min-h="[1lh]"
           flex cursor-pointer items-center justify-center rounded-r-xl p-4 transition-colors
           @click="openSettings"
         >
@@ -161,7 +161,7 @@ onMounted(async () => {
 }
 
 .wall {
-  @apply text-primary-200;
+  --at-apply: text-primary-200;
 
   --wall-width: 8px;
   animation: wall-move 1s linear infinite;

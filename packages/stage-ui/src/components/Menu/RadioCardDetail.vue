@@ -80,7 +80,7 @@ function toggleExpansion() {
     <div class="w-full flex flex-col gap-2">
       <div class="flex items-center">
         <span
-          class="line-clamp-1 font-medium"
+          class="line-clamp-1 font-thin"
           :class="[
             modelValue === value
               ? 'text-neutral-700 dark:text-neutral-300'
