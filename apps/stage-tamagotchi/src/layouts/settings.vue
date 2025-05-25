@@ -106,6 +106,7 @@ const routeHeaderMetadata = computed(() => routeHeaderMetadataMap.value[route.pa
       v-if="routeHeaderMetadata"
       :title="routeHeaderMetadata.title"
       :subtitle="routeHeaderMetadata.subtitle"
+      :show-back-button="route.path !== '/settings'"
     />
     <RouterView />
   </div>

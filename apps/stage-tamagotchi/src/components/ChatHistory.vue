@@ -34,10 +34,10 @@ onTokenLiteral(async () => {
 </script>
 
 <template>
-  <div py="1" flex="~ col" rounded="lg" overflow-hidden>
+  <div py="1" flex="~ col" h-full rounded="lg" overflow-hidden>
     <div flex-1 /> <!-- spacer -->
     <div
-      ref="chatHistoryRef" v-auto-animate max-h="30vh" flex="~ col"
+      ref="chatHistoryRef" v-auto-animate flex="~ col"
       scrollbar="~ w-2 track-color-transparent thumb-color-primary-300 rounded" h-full w-full overflow-scroll
     >
       <div flex-1 /> <!-- spacer -->

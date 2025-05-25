@@ -32,6 +32,7 @@ pub async fn open_chat_window(app: tauri::AppHandle) {
     WebviewUrl::App(Path::new("#/chat").to_path_buf()),
   )
   .title("chat")
+  .inner_size(600.0, 800.0)
   .build()
   .unwrap();
 }

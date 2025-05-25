@@ -4,7 +4,6 @@ import type { ChatProvider } from '@xsai-ext/shared-providers'
 import { useMicVAD } from '@proj-airi/stage-ui/composables'
 import { useChatStore, useConsciousnessStore, useProvidersStore, useSettings } from '@proj-airi/stage-ui/stores'
 import { BasicTextarea } from '@proj-airi/ui'
-import { invoke } from '@tauri-apps/api/core'
 import { storeToRefs } from 'pinia'
 import { onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -87,10 +86,6 @@ function handleTranscription(_buffer: Float32Array) {
 //   selectedAudioDevice.value = found
 // }
 
-function openSettings() {
-  invoke('open_settings_window')
-}
-
 watch(isAudioInputOn, async (value) => {
   if (value === 'false') {
     destroy()
@@ -108,30 +103,20 @@ onMounted(() => {
 
 <template>
   <div>
-    <div relative w-full flex gap-1>
-      <TamagotchiChatHistory transform="translate-y-[-100%]" absolute left-0 top-0 w-full />
-      <div flex flex-1>
-        <BasicTextarea
-          v-model="messageInput"
-          :placeholder="t('stage.message')"
-          border="solid 2 primary-100"
-          text="primary-400 hover:primary-600  placeholder:primary-400 placeholder:hover:primary-600"
-          bg="primary-50 dark:[#3c2632]" max-h="[10lh]" min-h="[1lh]"
-          w-full resize-none overflow-y-scroll rounded-l-xl p-2 font-medium outline-none
-          transition="all duration-250 ease-in-out placeholder:all placeholder:duration-250 placeholder:ease-in-out"
-          @submit="handleSend"
-        />
+    <div h-full w-full flex="~ col gap-1">
+      <div w-full flex-1>
+        <TamagotchiChatHistory />
       </div>
-      <div
-        class="px-4 py-2.5"
-        border="solid 2 primary-100 "
-        text="lg primary-400 hover:primary-600  placeholder:primary-400 placeholder:hover:primary-600"
+      <BasicTextarea
+        v-model="messageInput"
+        :placeholder="t('stage.message')"
+        border="solid 2 primary-100"
+        text="primary-400 hover:primary-600  placeholder:primary-400 placeholder:hover:primary-600"
         bg="primary-50 dark:[#3c2632]" max-h="[10lh]" min-h="[1lh]"
-        flex items-center justify-center rounded-r-xl
-        @click="openSettings"
-      >
-        <div i-solar:settings-bold-duotone />
-      </div>
+        w-full resize-none overflow-y-scroll rounded-xl p-2 font-medium outline-none
+        transition="all duration-250 ease-in-out placeholder:all placeholder:duration-250 placeholder:ease-in-out"
+        @submit="handleSend"
+      />
     </div>
   </div>
 </template>

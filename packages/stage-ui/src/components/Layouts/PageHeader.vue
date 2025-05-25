@@ -3,10 +3,13 @@ import { useMotion } from '@vueuse/motion'
 import { onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   title: string
   subtitle?: string
-}>()
+  showBackButton?: boolean
+}>(), {
+  showBackButton: true,
+})
 
 const router = useRouter()
 const route = useRoute()
@@ -54,7 +57,10 @@ watch([() => props.title, () => props.subtitle, route], async () => {
     bg="$bg-color"
   >
     <button @click="router.back()">
-      <div i-solar:alt-arrow-left-line-duotone text-2xl />
+      <div
+        i-solar:alt-arrow-left-line-duotone text-2xl
+        :class="{ 'pointer-events-none op-0': !showBackButton }"
+      />
     </button>
     <h1 relative>
       <div v-if="subtitle" absolute left-0 top-0 translate-y="[-80%]">

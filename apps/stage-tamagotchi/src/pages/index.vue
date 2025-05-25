@@ -2,10 +2,10 @@
 import { WidgetStage } from '@proj-airi/stage-ui/components'
 import { useMcpStore } from '@proj-airi/stage-ui/stores'
 import { connectServer } from '@proj-airi/tauri-plugin-mcp'
+import { invoke } from '@tauri-apps/api/core'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted } from 'vue'
 
-import InteractiveArea from '../components/InteractiveArea.vue'
 import { useWindowShortcuts } from '../composables/window-shortcuts'
 import { useWindowControlStore } from '../stores/window-controls'
 import { WindowControlMode } from '../types/window-controls'
@@ -28,6 +28,14 @@ const modeIndicatorClass = computed(() => {
       return ''
   }
 })
+
+function openSettings() {
+  invoke('open_settings_window')
+}
+
+function openChat() {
+  invoke('open_chat_window')
+}
 
 onMounted(async () => {
   if (connected.value)
@@ -58,11 +66,30 @@ onMounted(async () => {
   >
     <div relative h-full w-full items-end gap-2 class="view">
       <WidgetStage h-full w-full flex-1 mb="<md:18" />
-      <InteractiveArea
-        class="interaction-area block"
-        :class="{ 'pointer-events-none': !windowStore.isControlActive }"
-        absolute bottom-0 w-full transition="opacity duration-250" op-0
-      />
+      <div
+        absolute bottom-4 left-4 flex gap-1 op-0 transition="opacity duration-250"
+        class="interaction-area"
+        :class="{ 'pointer-events-none': windowStore.isControlActive }"
+      >
+        <div
+          border="solid 2 primary-100 "
+          text="lg primary-400 hover:primary-600  placeholder:primary-400 placeholder:hover:primary-600"
+          bg="primary-50 dark:[#3c2632]" max-h="[10lh]" min-h="[1lh]"
+          flex cursor-pointer items-center justify-center rounded-l-xl p-4 transition-colors
+          @click="openChat"
+        >
+          <div i-solar:chat-line-bold-duotone />
+        </div>
+        <div
+          border="solid 2 primary-100 "
+          text="lg primary-400 hover:primary-600  placeholder:primary-400 placeholder:hover:primary-600"
+          bg="primary-50 dark:[#3c2632]" max-h="[10lh]" min-h="[1lh]"
+          flex cursor-pointer items-center justify-center rounded-r-xl p-4 transition-colors
+          @click="openSettings"
+        >
+          <div i-solar:settings-bold-duotone />
+        </div>
+      </div>
     </div>
 
     <!-- Debug Mode UI -->
