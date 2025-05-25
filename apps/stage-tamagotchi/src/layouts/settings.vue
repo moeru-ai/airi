@@ -41,10 +41,6 @@ const routeHeaderMetadataMap = computed(() => {
       subtitle: t('settings.title'),
       title: t('settings.pages.modules.speech.title'),
     },
-    '/settings/modules/mcp': {
-      subtitle: t('settings.title'),
-      title: t('settings.pages.modules.mcp-server.title'),
-    },
     '/settings/modules/hearing': {
       subtitle: t('settings.title'),
       title: t('settings.pages.modules.hearing.title'),
@@ -84,12 +80,18 @@ const routeHeaderMetadataMap = computed(() => {
     '/settings': {
       title: t('settings.title'),
     },
+
+    // Tamagotchi specific
+    '/settings/modules/mcp': {
+      subtitle: t('settings.title'),
+      title: t('settings.pages.modules.mcp-server.title'),
+    },
   }
 
-  for (const key in allProvidersMetadata.value) {
-    map[`/settings/providers/${key}`] = {
+  for (const metadata of allProvidersMetadata.value) {
+    map[`/settings/providers/${metadata.id}`] = {
       subtitle: t('settings.title'),
-      title: t(allProvidersMetadata.value[key]?.nameKey),
+      title: t(metadata.nameKey),
     }
   }
 
@@ -101,13 +103,22 @@ const routeHeaderMetadata = computed(() => routeHeaderMetadataMap.value[route.pa
 </script>
 
 <template>
-  <div px-4 py-8 flex="~ col gap-4">
-    <PageHeader
-      v-if="routeHeaderMetadata"
-      :title="routeHeaderMetadata.title"
-      :subtitle="routeHeaderMetadata.subtitle"
-      :show-back-button="route.path !== '/settings'"
-    />
-    <RouterView />
+  <div
+    :style="{
+      paddingBottom: 'env(safe-area-inset-bottom, 0px)',
+      paddingTop: 'env(safe-area-inset-top, 0px)',
+      paddingRight: 'env(safe-area-inset-right, 0px)',
+      paddingLeft: 'env(safe-area-inset-left, 0px)',
+    }"
+  >
+    <!-- Content -->
+    <div class="px-3 py-2 md:px-5 md:py-5" flex="~ col" mx-auto max-w-screen-xl>
+      <PageHeader
+        :title="routeHeaderMetadata?.title"
+        :subtitle="routeHeaderMetadata?.subtitle"
+        :disable-back-button="route.path === '/settings'"
+      />
+      <RouterView />
+    </div>
   </div>
 </template>

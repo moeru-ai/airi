@@ -44,7 +44,7 @@ const emit = defineEmits<{
     >
       <!-- Card header (name and badge) -->
       <div z-1 flex items-start justify-between gap-2>
-        <h3 flex-1 truncate text-lg font-bold>
+        <h3 flex-1 truncate text-lg font-thin>
           {{ name }}
         </h3>
         <div v-if="isActive" shrink-0 rounded-md p-1 bg="primary-100 dark:primary-900/40" text="primary-600 dark:primary-400">

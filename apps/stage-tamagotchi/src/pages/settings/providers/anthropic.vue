@@ -81,7 +81,7 @@ function handleResetSettings() {
     :on-back="() => router.back()"
   >
     <div bg="orange-50 dark:orange-900/20" rounded-xl p-4 flex="~ col gap-3">
-      <h2 text-xl font-bold text="orange-700 dark:orange-500">
+      <h2 text-xl font-semibold text="orange-700 dark:orange-500">
         Before you start
       </h2>
       <p>

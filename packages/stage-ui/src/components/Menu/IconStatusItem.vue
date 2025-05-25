@@ -30,7 +30,7 @@ const props = defineProps<{
     >
       <div z-1 flex-1>
         <div
-          text-lg font-bold
+          text-lg font-thin
           class="menu-icon-status-item-title"
           transition="all ease-in-out duration-400"
         >

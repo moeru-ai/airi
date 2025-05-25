@@ -22,7 +22,7 @@ defineProps<{
     :to="to"
   >
     <div z-1 flex-1>
-      <div text-lg font-bold class="menu-icon-item-title" transition="all ease-in-out duration-400">
+      <div text-lg font-thin class="menu-icon-item-title" transition="all ease-in-out duration-400">
         {{ title }}
       </div>
       <div

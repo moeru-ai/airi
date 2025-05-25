@@ -1,14 +1,16 @@
 <script setup lang="ts">
 import { useMotion } from '@vueuse/motion'
-import { onMounted, onUnmounted, ref, watch } from 'vue'
+import { nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
 const props = withDefaults(defineProps<{
   title: string
   subtitle?: string
   showBackButton?: boolean
+  disableBackButton?: boolean
 }>(), {
   showBackButton: true,
+  disableBackButton: false,
 })
 
 const router = useRouter()
@@ -17,6 +19,7 @@ const route = useRoute()
 const pageHeaderRef = ref<HTMLElement>()
 const title = ref(props.title)
 const subtitle = ref(props.subtitle)
+const finalizedDisableBackButton = ref(props.disableBackButton)
 
 const { apply } = useMotion(pageHeaderRef, {
   initial: { opacity: 0, x: 10, transition: { duration: 250 } },
@@ -31,14 +34,18 @@ onMounted(async () => {
 
 onUnmounted(async () => {
   await apply('leave')
+  finalizedDisableBackButton.value = true
 })
 
 watch([() => props.title, () => props.subtitle, route], async () => {
   await apply('leave')
+  await nextTick()
 
+  finalizedDisableBackButton.value = props.disableBackButton
   title.value = props.title
   subtitle.value = props.subtitle
 
+  await nextTick()
   await apply('initial')
   await apply('enter')
 })
@@ -58,6 +65,7 @@ watch([() => props.title, () => props.subtitle, route], async () => {
   >
     <button @click="router.back()">
       <div
+        v-if="!finalizedDisableBackButton"
         i-solar:alt-arrow-left-line-duotone text-2xl
         :class="{ 'pointer-events-none op-0': !showBackButton }"
       />

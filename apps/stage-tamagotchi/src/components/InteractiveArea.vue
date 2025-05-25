@@ -112,7 +112,7 @@ onMounted(() => {
         :placeholder="t('stage.message')"
         border="solid 2 primary-100"
         text="primary-400 hover:primary-600  placeholder:primary-400 placeholder:hover:primary-600"
-        bg="primary-50 dark:[#3c2632]" max-h="[10lh]" min-h="[1lh]"
+        bg="primary-50 dark:primary-100" max-h="[10lh]" min-h="[1lh]"
         w-full resize-none overflow-y-scroll rounded-xl p-2 font-medium outline-none
         transition="all duration-250 ease-in-out placeholder:all placeholder:duration-250 placeholder:ease-in-out"
         @submit="handleSend"
