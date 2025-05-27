@@ -1046,9 +1046,6 @@ importers:
       unplugin-vue-router:
         specifier: ^0.12.0
         version: 0.12.0(vue-router@4.5.1(vue@3.5.14(typescript@5.8.3)))(vue@3.5.14(typescript@5.8.3))
-      vite:
-        specifier: ^6.3.5
-        version: 6.3.5(@types/node@22.15.21)(jiti@2.4.2)(less@4.3.0)(terser@5.17.6)(tsx@4.19.4)(yaml@2.8.0)
       vite-plugin-vue-devtools:
         specifier: ^7.7.6
         version: 7.7.6(rollup@4.41.1)(vite@6.3.5(@types/node@22.15.21)(jiti@2.4.2)(less@4.3.0)(terser@5.17.6)(tsx@4.19.4)(yaml@2.8.0))(vue@3.5.14(typescript@5.8.3))
