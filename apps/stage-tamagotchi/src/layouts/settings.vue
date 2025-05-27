@@ -103,22 +103,50 @@ const routeHeaderMetadata = computed(() => routeHeaderMetadataMap.value[route.pa
 </script>
 
 <template>
-  <div
-    :style="{
-      paddingBottom: 'env(safe-area-inset-bottom, 0px)',
-      paddingTop: 'env(safe-area-inset-top, 0px)',
-      paddingRight: 'env(safe-area-inset-right, 0px)',
-      paddingLeft: 'env(safe-area-inset-left, 0px)',
-    }"
-  >
-    <!-- Content -->
-    <div class="px-3 py-2 md:px-5 md:py-5" flex="~ col" mx-auto max-w-screen-xl>
-      <PageHeader
-        :title="routeHeaderMetadata?.title"
-        :subtitle="routeHeaderMetadata?.subtitle"
-        :disable-back-button="route.path === '/settings'"
-      />
-      <RouterView />
+  <div h-full w-full mt="44px" overflow-y-scroll>
+    <div
+      bg="neutral-100 dark:neutral-900" w="100dvw"
+      data-tauri-drag-region
+      fixed top="0" z-100 w-full py-2 pl-20 pr-4
+    >
+      <div data-tauri-drag-region flex>
+        <div
+          bg="hover:neutral-200 hover:dark:neutral-800"
+          transition="all duration-200 ease-in-out"
+          flex cursor-pointer items-center gap-2 rounded-md px-1.5 py-0.5
+        >
+          <div i-solar:settings-bold text="neutral-400 dark:neutral-500" text-nowrap />
+          <div><span text-nowrap>Settings</span></div>
+        </div>
+        <div data-tauri-drag-region w-full />
+        <div
+          bg="hover:neutral-200 hover:dark:neutral-800"
+          transition="all duration-200 ease-in-out"
+          flex cursor-pointer items-center gap-2 rounded-md px-1.5 py-0.5
+        >
+          <div i-solar:info-circle-bold text="neutral-400 dark:neutral-500" text-nowrap />
+        </div>
+      </div>
+    </div>
+    <div
+      :style="{
+        paddingBottom: 'env(safe-area-inset-bottom, 0px)',
+        paddingTop: 'env(safe-area-inset-top, 0px)',
+        paddingRight: 'env(safe-area-inset-right, 0px)',
+        paddingLeft: 'env(safe-area-inset-left, 0px)',
+      }"
+    >
+      <div h-full w-full px-4 pb-4>
+        <!-- Content -->
+        <div flex="~ col" mx-auto max-w-screen-xl>
+          <PageHeader
+            :title="routeHeaderMetadata?.title"
+            :subtitle="routeHeaderMetadata?.subtitle"
+            :disable-back-button="route.path === '/settings'"
+          />
+          <RouterView />
+        </div>
+      </div>
     </div>
   </div>
 </template>

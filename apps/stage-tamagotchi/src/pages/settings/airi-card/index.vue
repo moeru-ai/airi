@@ -147,7 +147,7 @@ function getModuleShortName(id: string, module: 'consciousness' | 'voice') {
 </script>
 
 <template>
-  <div rounded-xl p-4 flex="~ col gap-4">
+  <div rounded-xl py-4 flex="~ col gap-4">
     <!-- Toolbar with search and filters -->
     <div flex="~ row" flex-wrap items-center justify-between gap-4>
       <!-- Search bar -->

@@ -1,38 +1,27 @@
-use std::path::Path;
-use tauri::{Manager, WebviewUrl, WebviewWindowBuilder};
+use tauri::Manager;
+
+use crate::windows;
 
 #[tauri::command]
-pub async fn open_settings_window(app: tauri::AppHandle) {
-  if let Some(window) = app.get_webview_window("settings") {
+pub async fn open_settings_window(app: tauri::AppHandle) -> Result<(), tauri::Error> {
+  let window = app.get_webview_window("settings");
+  if let Some(window) = window {
     let _ = window.show();
-    return;
+    return Ok(());
   }
 
-  let _ = WebviewWindowBuilder::new(
-    &app,
-    "settings",
-    WebviewUrl::App(Path::new("#/settings").to_path_buf()),
-  )
-  .title("settings")
-  .inner_size(600.0, 800.0)
-  .build()
-  .unwrap();
+  windows::settings::new_settings_window(&app)?;
+  Ok(())
 }
 
 #[tauri::command]
-pub async fn open_chat_window(app: tauri::AppHandle) {
-  if let Some(window) = app.get_webview_window("chat") {
+pub async fn open_chat_window(app: tauri::AppHandle) -> Result<(), tauri::Error> {
+  let window = app.get_webview_window("chat");
+  if let Some(window) = window {
     let _ = window.show();
-    return;
+    return Ok(());
   }
 
-  let _ = WebviewWindowBuilder::new(
-    &app,
-    "chat",
-    WebviewUrl::App(Path::new("#/chat").to_path_buf()),
-  )
-  .title("chat")
-  .inner_size(600.0, 800.0)
-  .build()
-  .unwrap();
+  windows::chat::new_chat_window(&app)?;
+  Ok(())
 }

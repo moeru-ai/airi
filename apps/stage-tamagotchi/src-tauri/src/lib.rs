@@ -1,13 +1,15 @@
-use std::path::Path;
 use tauri::menu::{Menu, MenuItem};
 use tauri::tray::TrayIconBuilder;
+use tauri::Emitter;
+use tauri::RunEvent;
+
 #[cfg(target_os = "macos")]
 use tauri::{ActivationPolicy, TitleBarStyle};
-use tauri::{Emitter, RunEvent};
 use tauri::{Manager, WebviewUrl, WebviewWindowBuilder};
 use tauri_plugin_prevent_default::Flags;
 
 mod commands;
+mod windows;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -21,7 +23,7 @@ pub fn run() {
     .plugin(tauri_plugin_os::init())
     .setup(|app| {
       let mut builder = WebviewWindowBuilder::new(app, "main", WebviewUrl::default())
-        .title("airi")
+        .title("AIRI")
         .decorations(false)
         .inner_size(450.0, 600.0)
         .shadow(false)
@@ -64,28 +66,23 @@ pub fn run() {
             app.exit(0);
           }
           "settings" => {
-            if let Some(window) = app.get_webview_window("settings") {
+            let window = app.get_webview_window("settings");
+            if let Some(window) = window {
               let _ = window.show();
               return;
             }
 
-            let _ = WebviewWindowBuilder::new(
-              app,
-              "settings",
-              WebviewUrl::App(Path::new("#/settings").to_path_buf()),
-            )
-            .title("settings")
-            .inner_size(600.0, 800.0)
-            .build()
-            .unwrap();
+            windows::settings::new_settings_window(app).unwrap();
           }
           "hide" => {
-            if let Some(window) = app.get_webview_window("main") {
+            let window = app.get_webview_window("settings");
+            if let Some(window) = window {
               let _ = window.hide();
             }
           }
           "show" => {
-            if let Some(window) = app.get_webview_window("main") {
+            let window = app.get_webview_window("settings");
+            if let Some(window) = window {
               let _ = window.show();
             }
           }
@@ -98,11 +95,11 @@ pub fn run() {
     })
     .invoke_handler(tauri::generate_handler![
       commands::open_settings_window,
-      commands::open_chat_window
+      commands::open_chat_window,
     ])
     .build(tauri::generate_context!())
     .expect("error while building tauri application")
-    .run(|app_handle, event| match event {
+    .run(|_, event| match event {
       RunEvent::ExitRequested { .. } => {
         println!("Exiting app");
         println!("Exited app");
