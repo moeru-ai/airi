@@ -57,7 +57,7 @@
 > - vLLM
 > - WebGPU
 > - Three.js
-> - WebXR（@moeru-ai組織の[別のプロジェクト](https://github.com/moeru-ai/n3p6)もチェックしてください）
+> - WebXR（@moeru-ai組織の[別のプロジェクト](https://github.com/moeru-ai/chat)もチェックしてください）
 >
 > **興味があるなら、ここで自己紹介してみませんか？ [Would like to join part of us to build AIRI?](https://github.com/moeru-ai/airi/discussions/33)**
 
