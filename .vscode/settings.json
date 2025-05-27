@@ -10,6 +10,10 @@
     "vue"
   ],
 
+  "rust-analyzer.cargo.extraEnv": {
+    "MACOSX_DEPLOYMENT_TARGET": "10.13"
+  },
+
   // Disable the default formatter
   "prettier.enable": false,
   "editor.formatOnSave": false,
