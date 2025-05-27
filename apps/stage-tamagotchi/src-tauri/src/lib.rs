@@ -1,9 +1,9 @@
 use std::path::Path;
 use tauri::menu::{Menu, MenuItem};
 use tauri::tray::TrayIconBuilder;
-use tauri::RunEvent;
 #[cfg(target_os = "macos")]
 use tauri::{ActivationPolicy, TitleBarStyle};
+use tauri::{Emitter, RunEvent};
 use tauri::{Manager, WebviewUrl, WebviewWindowBuilder};
 use tauri_plugin_prevent_default::Flags;
 
@@ -58,6 +58,8 @@ pub fn run() {
         .menu(&menu)
         .on_menu_event(|app, event| match event.id().as_ref() {
           "quit" => {
+            tauri_plugin_mcp::destroy(app);
+            let _ = app.emit("mcp_plugin_destroyed", ());
             app.cleanup_before_exit();
             app.exit(0);
           }
@@ -103,7 +105,6 @@ pub fn run() {
     .run(|app_handle, event| match event {
       RunEvent::ExitRequested { .. } => {
         println!("Exiting app");
-        tauri_plugin_mcp::destroy(app_handle);
         println!("Exited app");
       }
       _ => {}

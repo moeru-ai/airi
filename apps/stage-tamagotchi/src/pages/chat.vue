@@ -5,7 +5,7 @@ import InteractiveArea from '../components/InteractiveArea.vue'
 <template>
   <InteractiveArea
     class="interaction-area block"
-    h-full w-full transition="opacity duration-250"
+    h-full w-full p-4 transition="opacity duration-250"
   />
 </template>
 
