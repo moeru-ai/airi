@@ -4,11 +4,16 @@
   "private": true,
   "description": "Shared core for stage",
   "author": {
-    "name": "Neko Ayaka",
-    "email": "neko@ayaka.moe",
-    "url": "https://github.com/nekomeowww"
+    "name": "Moeru AI Project AIRI Team",
+    "email": "airi@moeru.ai",
+    "url": "https://github.com/moeru-ai"
   },
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/moeru-ai/airi.git",
+    "directory": "packages/stage-ui"
+  },
   "exports": {
     ".": {
       "types": "./dist/components/index.d.ts",
