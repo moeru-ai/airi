@@ -5,9 +5,9 @@
   "packageManager": "pnpm@10.11.0",
   "description": "A Tauri plugin for interacting with MCP servers.",
   "author": {
-    "name": "LemonNekoGH",
-    "email": "self@lemonnekogh.moe",
-    "url": "https://github.com/LemonNekoGH"
+    "name": "Moeru AI Project AIRI Team",
+    "email": "airi@moeru.ai",
+    "url": "https://github.com/moeru-ai"
   },
   "license": "MIT",
   "repository": {
