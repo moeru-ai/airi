@@ -62,9 +62,9 @@ jobs:
 
       - name: Build
         run: |
-          pnpm run packages:build
-          pnpm run apps:build
-          pnpm run crates:build
+          pnpm run build:packages
+          pnpm run build:apps
+          pnpm run build:crates
 
   typecheck:
     name: Type Check

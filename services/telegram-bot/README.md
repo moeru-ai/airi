@@ -9,7 +9,7 @@ Clone & install dependencies:
 ```shell
 git clone git@github.com:moeru-ai/airi.git
 pnpm i
-pnpm run packages:build
+pnpm run build:packages
 ```
 
 Start Ollama instance for embedding models

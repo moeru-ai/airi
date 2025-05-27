@@ -43,7 +43,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Packages build
-        run: pnpm run packages:build
+        run: pnpm run build:packages
 
       - name: Packages publish
         run: pnpm publish -r --access public --no-git-checks

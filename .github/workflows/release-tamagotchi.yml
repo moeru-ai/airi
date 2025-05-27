@@ -58,7 +58,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Build Dependencies
-        run: pnpm run packages:build
+        run: pnpm run build:packages
 
       - name: Build Application
         run: cd apps/stage-tamagotchi && pnpm tauri build --target ${{ matrix.target }}
