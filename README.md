@@ -58,7 +58,7 @@ This means that **アイリ VTuber is capable to run on modern browsers and devi
 > - vLLM
 > - WebGPU
 > - Three.js
-> - WebXR ([checkout the another project](https://github.com/moeru-ai/n3p6) we have under @moeru-ai organization)
+> - WebXR ([checkout the another project](https://github.com/moeru-ai/chat) we have under @moeru-ai organization)
 >
 > **If you are interested in, why not introduce yourself here? [Would like to join part of us to build AIRI?](https://github.com/moeru-ai/airi/discussions/33)**
 
