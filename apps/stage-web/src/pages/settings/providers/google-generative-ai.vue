@@ -89,7 +89,7 @@ function handleResetSettings() {
         <ProviderApiKeyInput
           v-model="apiKey"
           :provider-name="providerMetadata?.localizedName || 'Google'"
-          placeholder="sk-..."
+          placeholder="GEMINI_API_KEY"
         />
       </ProviderBasicSettings>
 
