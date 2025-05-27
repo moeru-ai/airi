@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { useSettings } from '@proj-airi/stage-ui/stores'
+import { useMcpStore, useSettings } from '@proj-airi/stage-ui/stores'
+import { listen } from '@tauri-apps/api/event'
 import { useEventListener } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { onMounted, watch } from 'vue'
@@ -11,6 +12,7 @@ import { useWindowControlStore } from './stores/window-controls'
 const { language, themeColorsHue, themeColorsHueDynamic } = storeToRefs(useSettings())
 const i18n = useI18n()
 const windowControlStore = useWindowControlStore()
+const mcpStore = useMcpStore()
 
 useEventListener(window, 'resize', () => {
   windowControlStore.size.width = window.innerWidth
@@ -32,6 +34,10 @@ watch(themeColorsHue, () => {
 watch(themeColorsHueDynamic, () => {
   document.documentElement.classList.toggle('dynamic-hue', themeColorsHueDynamic.value)
 }, { immediate: true })
+
+listen('mcp_plugin_destroyed', () => {
+  mcpStore.connected = false
+})
 </script>
 
 <template>

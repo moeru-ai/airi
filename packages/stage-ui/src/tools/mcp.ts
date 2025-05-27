@@ -48,9 +48,9 @@ const tools = [
     },
     parameters: z.object({
       name: z.string().describe('The name of the tool to call'),
-      parameters: z.array(z.object({ // Why LLM cannot understand record type?
+      parameters: z.array(z.object({
         name: z.string().describe('The name of the parameter'),
-        value: z.any().describe('The value of the parameter'),
+        value: z.union([z.string(), z.number(), z.boolean(), z.object({})]).describe('The value of the parameter, it can be a string, a number, a boolean, or an object'),
       })).describe('The parameters to pass to the tool'),
     }),
   }),

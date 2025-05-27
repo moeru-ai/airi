@@ -36,15 +36,16 @@ onTokenLiteral(async () => {
 <template>
   <div py="1" flex="~ col" rounded="lg" overflow-hidden>
     <div flex-1 /> <!-- spacer -->
-    <div ref="chatHistoryRef" v-auto-animate h-full w-full max-h="30vh" flex="~ col" overflow-scroll>
+    <div ref="chatHistoryRef" v-auto-animate h-full w-full max-h="30vh" flex="~ col" overflow-scroll class="chat-history">
       <div flex-1 /> <!-- spacer -->
       <div v-for="(message, index) in messages" :key="index" mb-2>
         <div v-if="message.role === 'assistant'" flex mr="12">
           <div
+
             flex="~ col"
             border="4 solid primary-200/50 dark:primary-500/50"
             shadow="md primary-200/50 dark:none"
-            min-w-20 rounded-lg px-2 py-1
+            min-w-20 rounded-lg px-2 py-1 backdrop-blur-sm
             h="unset <sm:fit"
             bg="<md:primary-500/25"
           >
@@ -61,7 +62,7 @@ onTokenLiteral(async () => {
             border="4 solid cyan-200/50 dark:cyan-500/50"
             shadow="md cyan-200/50 dark:none"
             px="2"
-            h="unset <sm:fit" min-w-20 rounded-lg px-2 py-1
+            h="unset <sm:fit" min-w-20 rounded-lg px-2 py-1 backdrop-blur-sm
             bg="<md:cyan-500/25"
           >
             <div>
@@ -75,3 +76,17 @@ onTokenLiteral(async () => {
     </div>
   </div>
 </template>
+
+<style scoped>
+.chat-history {
+  --gradient: linear-gradient(to bottom, rgba(0,0,0,0), rgba(0,0,0,1));
+  -webkit-mask-image: var(--gradient);
+  mask-image: var(--gradient);
+  -webkit-mask-size: 100% 100%;
+  mask-size: 100% 100%;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: bottom;
+  mask-position: bottom;
+}
+</style>
