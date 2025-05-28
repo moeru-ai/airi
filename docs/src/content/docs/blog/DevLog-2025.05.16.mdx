@@ -56,7 +56,7 @@ Most profoundly appreciated to [@LemonNekoGH](https://github.com/LemonNekoGH) an
 
 :::note[What is Character Card?]
 Well, local-first chat applications like [SillyTavern](https://github.com/SillyTavern/SillyTavern)
-, [RisuAI](https://risuai.net/) or online services like [JanitorAI](https://janitorai.com/) uses a
+, [RisuAI](https://risuai.net/) or online services like [JanitorAI](https://janitorai.com/) uses、 a
 file contains character's background, personality, and other role-playing essential context for
 each individual characters.
 
@@ -104,9 +104,10 @@ It's live in our UI component library, you can play around with it: https://airi
 - Tauri MCP support
 - Connects AIRI to Android devices
 
-These two was major update and try-out, she wrote another two DevLogs about
-these things and shared the technical details behind the scene.
-(Valuable for Tauri developers and users I guess.) You can read them here:
+These two was major update and try-out, and this part was done by [@LemonNekoGH](https://github.com/LemonNekoGH),
+she wrote another two DevLogs about these things and shared the technical
+details behind the scene. (Valuable for Tauri developers and users I guess.)
+You can read them here:
 
 - [Controls Android](./DevLog-2025.04.22.mdx)
 - [MCP in Tauri](./DevLog-2025.04.28.md)
@@ -150,8 +151,11 @@ from ground up and scratch:
 - [VAD + ASR + LLM Chat](https://github.com/proj-airi/webai-example-realtime-voice-chat/tree/8462ff6bcb83bb278bce5388d588d2e3e3dd6dae/apps/vad-asr-chat)
 - [VAD + ASR + LLM Chat + TTS](https://github.com/proj-airi/webai-example-realtime-voice-chat/tree/8462ff6bcb83bb278bce5388d588d2e3e3dd6dae/apps/vad-asr-chat-tts)
 
-We discovered a interesting and powerful repository though, called [k2-fsa/sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx), it
-supports the 18 tasks of speech processing across macOS, Windows, Linux, Android,
+> Hope you could learn some from them.
+
+During this time, we discovered a interesting and powerful repository though,
+called [k2-fsa/sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx), it supports
+18 tasks of speech processing across macOS, Windows, Linux, Android,
 iOS, etc. over 12 languages. Fascinating!
 
 So [@luoling](https://github.com/luoling8192) made another small demo for this too:
@@ -159,13 +163,13 @@ So [@luoling](https://github.com/luoling8192) made another small demo for this t
 
 #### Birth of xsAI 🤗 Transformers.js
 
-This give birth to a new side project called
-[xsAI 🤗 Transformers.js](https://github.com/proj-airi/xsai-transformers)
-to be able to call the WebGPU powered model inference and serving with workers
-while still keep the API compatible to our prior succeeded project called
+Because the work we have done for VAD, ASR, Chat, and TTS demos, this gave the
+birth of a new side project called [xsAI 🤗 Transformers.js](https://github.com/proj-airi/xsai-transformers)
+, enabling the simplicity to call the WebGPU powered model inference and serving with
+workers while still keeping the API compatible to our prior succeeded project called
 [xsAI](https://github.com/moeru-ai/xsai).
 
-We got a playground for that too... play it on https://xsai-transformers.netlify.app
+We got a playground for that too... play it on [https://xsai-transformers.netlify.app](https://xsai-transformers.netlify.app).
 
 You can install it via npm today!
 
@@ -180,6 +184,8 @@ powered models with one if switch.
 This brought us a new possibility to be able to experiment and even achieve
 simple RAG and re-ranking system right in the browser, without the need of
 any server side code, or even a backend server.
+
+Oh, Node.js was supported, too!
 :::
 
 ### Telegram Bot
@@ -201,7 +207,7 @@ one for my own.
 
 I did some small experiments on integrating a WebGPU powered background
 remover right in the system, you can play around with it here in
-https://airi.moeru.ai/devtools/background-remove .
+[https://airi.moeru.ai/devtools/background-remove](https://airi.moeru.ai/devtools/background-remove).
 
 ### xsAI & unSpeech
 
@@ -273,7 +279,7 @@ The slides I used to share was this:
 <Image src={DemoDayHangzhou3} alt="Demo Day @ Hangzhou" />
 
 The slides itself is purely open sourced, you can play around
-it here too: https://talks.ayaka.io/nekoayaka/2025-05-10-airi-how-we-recreated-it/#/1
+it here too: [https://talks.ayaka.io/nekoayaka/2025-05-10-airi-how-we-recreated-it/#/1](https://talks.ayaka.io/nekoayaka/2025-05-10-airi-how-we-recreated-it/#/1)
 
 ## Milestones
 
