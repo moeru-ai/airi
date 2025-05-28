@@ -41,6 +41,10 @@ export default defineConfig({
         cute: 'Kiwi Maru',
         cuteen: 'Sniglet',
       },
+      timeouts: {
+        warning: 5000,
+        failure: 10000,
+      },
     }),
     presetIcons({
       scale: 1.2,
