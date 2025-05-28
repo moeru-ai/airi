@@ -63,22 +63,24 @@ export function sharedUnoConfig() {
       presetTypography(),
       presetWebFonts({
         fonts: {
-          sans: 'DM Sans',
-          serif: 'DM Serif Display',
-          mono: 'DM Mono',
-          cute: 'Kiwi Maru',
-          cuteen: 'Sniglet',
-          jura: 'Jura',
-          gugi: 'Gugi',
-          quicksand: 'Quicksand',
-          quanlai: {
+          'sans': 'DM Sans',
+          'serif': 'DM Serif Display',
+          'mono': 'DM Mono',
+          'cute': 'Kiwi Maru',
+          'cuteen': 'Sniglet',
+          'jura': 'Jura',
+          'gugi': 'Gugi',
+          'quicksand': 'Quicksand',
+          'quanlai': {
             name: 'cjkfonts AllSeto',
             provider: 'none',
           },
-          xiaolai: {
+          'xiaolai': {
             name: 'Xiaolai SC',
             provider: 'none',
           },
+          'urbanist': 'Urbanist',
+          'm-plus-rounded': 'M PLUS Rounded 1c',
         },
         timeouts: {
           warning: 5000,
