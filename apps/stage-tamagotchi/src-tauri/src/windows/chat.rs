@@ -1,5 +1,5 @@
 use std::path::Path;
-use tauri::{LogicalPosition, WebviewUrl, WebviewWindowBuilder};
+use tauri::{WebviewUrl, WebviewWindowBuilder};
 
 #[cfg(target_os = "macos")]
 use tauri::TitleBarStyle;
@@ -13,7 +13,6 @@ pub fn new_chat_window(app: &tauri::AppHandle) -> Result<(), tauri::Error> {
   .title("Chat")
   .inner_size(600.0, 800.0)
   .shadow(true)
-  .hidden_title(true)
   .transparent(false)
   .accept_first_mouse(true);
 
@@ -23,9 +22,10 @@ pub fn new_chat_window(app: &tauri::AppHandle) -> Result<(), tauri::Error> {
     //
     // feat: traffic light position (#12366) · tauri-apps/tauri@30f5a15
     // https://github.com/tauri-apps/tauri/commit/30f5a1553d3c0ce460c9006764200a9210915a44
+    builder = builder.hidden_title(true);
     builder = builder.decorations(true);
     builder = builder.title_bar_style(TitleBarStyle::Overlay);
-    builder = builder.traffic_light_position(LogicalPosition::new(14.0, 20.0));
+    builder = builder.traffic_light_position(tauri::LogicalPosition::new(14.0, 20.0));
   }
 
   builder.build()?;
