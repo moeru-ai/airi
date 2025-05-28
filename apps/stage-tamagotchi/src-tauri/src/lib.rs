@@ -22,7 +22,9 @@ pub fn run() {
     .plugin(tauri_plugin_mcp::Builder.build())
     .plugin(tauri_plugin_os::init())
     .setup(|app| {
-      let mut builder = WebviewWindowBuilder::new(app, "main", WebviewUrl::default())
+      let mut builder = WebviewWindowBuilder::new(app, "main", WebviewUrl::default());
+
+      builder = builder
         .title("AIRI")
         .decorations(false)
         .inner_size(450.0, 600.0)
