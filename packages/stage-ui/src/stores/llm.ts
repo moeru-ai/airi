@@ -1,15 +1,20 @@
 import type { ChatProvider } from '@xsai-ext/shared-providers'
-import type { Message } from '@xsai/shared-chat'
+import type { Message, ToolCall, ToolMessagePart } from '@xsai/shared-chat'
 
 import { listModels } from '@xsai/model'
 import { streamText } from '@xsai/stream-text'
 import { defineStore } from 'pinia'
 
-import { mcp } from '../tools'
+import { debug, mcp } from '../tools'
 
 export const useLLM = defineStore('llm', () => {
   async function stream(model: string, chatProvider: ChatProvider, messages: Message[], options?: {
     headers?: Record<string, string>
+    onToolCall?: (toolCall: ToolCall) => void
+    onToolCallResult?: (toolCallResult: {
+      id: string
+      result?: string | ToolMessagePart[]
+    }) => void
   }) {
     const headers = options?.headers
 
@@ -20,7 +25,16 @@ export const useLLM = defineStore('llm', () => {
       headers,
       tools: [
         ...await mcp(),
+        ...await debug(),
       ],
+      onEvent(event) {
+        if (event.type === 'tool-call') {
+          options?.onToolCall?.(event.toolCall)
+        }
+        else if (event.type === 'tool-call-result') {
+          options?.onToolCallResult?.({ id: event.id, result: event.result })
+        }
+      },
     })
   }
 

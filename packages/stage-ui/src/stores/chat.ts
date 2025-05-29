@@ -1,12 +1,14 @@
 import type { ChatProvider } from '@xsai-ext/shared-providers'
-import type { AssistantMessage, Message, SystemMessage } from '@xsai/shared-chat'
+import type { Message, SystemMessage } from '@xsai/shared-chat'
+import type { ChatAssistantMessage, ChatMessage, ChatSlices } from '../types/chat'
 
 import { defineStore, storeToRefs } from 'pinia'
 import { ref, toRaw } from 'vue'
 
+import { useQueue } from '../composables'
 import { useLlmmarkerParser } from '../composables/llmmarkerParser'
 import { useLLM } from '../stores/llm'
-import { asyncIteratorFromReadableStream } from '../utils/iterator'
+import { asyncIteratorFromReadableStream } from '../utils'
 import { useAiriCardStore } from './modules'
 
 export interface ErrorMessage {
@@ -61,14 +63,14 @@ export const useChatStore = defineStore('chat', () => {
     onAssistantResponseEndHooks.value.push(cb)
   }
 
-  const messages = ref<Array<Message | ErrorMessage>>([
+  const messages = ref<Array<ChatMessage | ErrorMessage>>([
     {
       role: 'system',
       content: systemPrompt.value, // TODO: compose, replace {{ user }} tag, etc
     } satisfies SystemMessage,
   ])
 
-  const streamingMessage = ref<AssistantMessage>({ role: 'assistant', content: '' })
+  const streamingMessage = ref<ChatAssistantMessage>({ role: 'assistant', content: '', slices: [], tool_results: [] })
 
   async function send(sendingMessage: string, options: { model: string, chatProvider: ChatProvider, providerConfig?: Record<string, unknown> }) {
     try {
@@ -81,10 +83,63 @@ export const useChatStore = defineStore('chat', () => {
         await hook(sendingMessage)
       }
 
-      streamingMessage.value = { role: 'assistant', content: '' }
+      const parser = useLlmmarkerParser({
+        onLiteral: async (literal) => {
+          for (const hook of onTokenLiteralHooks.value) {
+            await hook(literal)
+          }
+
+          streamingMessage.value.content += literal
+
+          // merge text slices for markdown
+          const lastSlice = streamingMessage.value.slices.at(-1)
+          if (lastSlice?.type === 'text') {
+            lastSlice.text += literal
+            return
+          }
+
+          streamingMessage.value.slices.push({
+            type: 'text',
+            text: literal,
+          })
+        },
+        onSpecial: async (special) => {
+          for (const hook of onTokenSpecialHooks.value) {
+            await hook(special)
+          }
+        },
+      })
+
+      const slicesQueue = useQueue<ChatSlices>({
+        handlers: [
+          async (ctx) => { // FIXME: it still looks dirty
+            if (ctx.data.type === 'text') {
+              await parser.consume(ctx.data.text)
+              return
+            }
+
+            if (ctx.data.type === 'tool-call') {
+              streamingMessage.value.slices.push(ctx.data)
+              return
+            }
+
+            if (ctx.data.type === 'tool-call-result') {
+              streamingMessage.value.tool_results.push(ctx.data)
+            }
+          },
+        ],
+      })
+
+      streamingMessage.value = { role: 'assistant', content: '', slices: [], tool_results: [] }
       messages.value.push({ role: 'user', content: sendingMessage })
       messages.value.push(streamingMessage.value)
-      const newMessages = messages.value.slice(0, messages.value.length - 1).map(msg => toRaw(msg))
+      const newMessages = messages.value.slice(0, messages.value.length - 1).map((msg) => {
+        if (msg.role === 'assistant') {
+          const { slices: _, ...rest } = msg // exclude slices
+          return toRaw(rest)
+        }
+        return toRaw(msg)
+      })
 
       for (const hook of onAfterMessageComposedHooks.value) {
         await hook(sendingMessage)
@@ -95,7 +150,22 @@ export const useChatStore = defineStore('chat', () => {
       }
 
       const headers = (options.providerConfig?.headers || {}) as Record<string, string>
-      const res = await stream(options.model, options.chatProvider, newMessages as Message[], { headers })
+      const res = await stream(options.model, options.chatProvider, newMessages as Message[], {
+        headers,
+        onToolCall(toolCall) {
+          slicesQueue.add({
+            type: 'tool-call',
+            toolCall,
+          })
+        },
+        onToolCallResult(toolCallResult) {
+          slicesQueue.add({
+            type: 'tool-call-result',
+            id: toolCallResult.id,
+            result: toolCallResult.result,
+          })
+        },
+      })
 
       for (const hook of onAfterSendHooks.value) {
         await hook(sendingMessage)
@@ -103,24 +173,12 @@ export const useChatStore = defineStore('chat', () => {
 
       let fullText = ''
 
-      const parser = useLlmmarkerParser({
-        onLiteral: async (literal) => {
-          for (const hook of onTokenLiteralHooks.value) {
-            await hook(literal)
-          }
-
-          streamingMessage.value.content += literal
-        },
-        onSpecial: async (special) => {
-          for (const hook of onTokenSpecialHooks.value) {
-            await hook(special)
-          }
-        },
-      })
-
       for await (const textPart of asyncIteratorFromReadableStream(res.textStream, async v => v)) {
+        slicesQueue.add({
+          type: 'text',
+          text: textPart,
+        })
         fullText += textPart
-        await parser.consume(textPart)
       }
 
       await parser.end()
