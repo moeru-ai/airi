@@ -18,18 +18,16 @@ const { onBeforeMessageComposed, onTokenLiteral } = useChatStore()
 
 onBeforeMessageComposed(async () => {
   // Scroll down to the new sent message
-  nextTick().then(() => {
-    bounding.update()
-    chatHistoryContainerY.value = bounding.height.value
-  })
+  await nextTick()
+  bounding.update()
+  chatHistoryContainerY.value = bounding.height.value
 })
 
 onTokenLiteral(async () => {
   // Scroll down to the new responding message
-  nextTick().then(() => {
-    bounding.update()
-    chatHistoryContainerY.value = bounding.height.value
-  })
+  await nextTick()
+  bounding.update()
+  chatHistoryContainerY.value = bounding.height.value
 })
 </script>
 
@@ -71,8 +69,19 @@ onTokenLiteral(async () => {
             </div>
             <div
               v-if="message.content" class="markdown-content" text="xs primary-400"
-              v-html="process(message.content as string)"
-            />
+            >
+              <div v-for="(slice, sliceIndex) in message.slices" :key="sliceIndex">
+                <div v-if="slice.type === 'tool-call'">
+                  <div
+                    p="1" border="1 solid primary-200" rounded-lg m="y-1" bg="primary-100"
+                  >
+                    Called {{ slice.toolCall.function.name }}
+                  </div>
+                </div>
+                <div v-else-if="slice.type === 'tool-call-result'" /> <!-- this line should be unreachable -->
+                <div v-else v-html="process(slice.text)" />
+              </div>
+            </div>
             <div v-else i-eos-icons:three-dots-loading />
           </div>
         </div>
