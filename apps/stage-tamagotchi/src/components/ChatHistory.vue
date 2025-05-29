@@ -75,7 +75,7 @@ onTokenLiteral(async () => {
                   <div
                     p="1" border="1 solid primary-200" rounded-lg m="y-1" bg="primary-100"
                   >
-                    Called {{ slice.toolCall.function.name }}
+                    Called: <code>{{ slice.toolCall.function.name }}</code>
                   </div>
                 </div>
                 <div v-else-if="slice.type === 'tool-call-result'" /> <!-- this line should be unreachable -->
