@@ -65,9 +65,7 @@ pub fn is_modifier_pressed() -> bool {
     let flags: u64 = msg_send![event_class, modifierFlags];
 
     // Check for Alt/Option (1 << 19) or Control (1 << 18)
-    
     // let ctrl_pressed = (flags & (1 << 18)) != 0;
-
     // alt_pressed || ctrl_pressed
     (flags & (1 << 19)) != 0
   }

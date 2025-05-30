@@ -21,4 +21,4 @@ use_field_init_shorthand = true
 use_try_shorthand = true
 struct_field_align_threshold = 999
 enum_discrim_align_threshold = 999
-max_width = 265
+max_width = 256
