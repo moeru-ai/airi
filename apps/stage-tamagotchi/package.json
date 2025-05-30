@@ -27,6 +27,7 @@
     "@proj-airi/ui": "workspace:^",
     "@ricky0123/vad-web": "^0.0.24",
     "@tauri-apps/api": "^2.5.0",
+    "@tauri-apps/plugin-global-shortcut": "^2.2.1",
     "@tauri-apps/plugin-os": ">=2.2.1",
     "@tresjs/cientos": "^4.3.1",
     "@tresjs/core": "^4.3.5",

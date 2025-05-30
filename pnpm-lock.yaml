@@ -251,6 +251,9 @@ importers:
       '@tauri-apps/api':
         specifier: ^2.5.0
         version: 2.5.0
+      '@tauri-apps/plugin-global-shortcut':
+        specifier: ^2.2.1
+        version: 2.2.1
       '@tauri-apps/plugin-os':
         specifier: '>=2.2.1'
         version: 2.2.1
@@ -4400,6 +4403,9 @@ packages:
     engines: {node: '>= 10'}
     hasBin: true
 
+  '@tauri-apps/plugin-global-shortcut@2.2.1':
+    resolution: {integrity: sha512-b64/TI1t5LIi2JY4OWlYjZpPRq60T5GVVL/no27sUuxaNUZY8dVtwsMtDUgxUpln2yR+P2PJsYlqY5V8sLSxEw==}
+
   '@tauri-apps/plugin-os@2.2.1':
     resolution: {integrity: sha512-cNYpNri2CCc6BaNeB6G/mOtLvg8dFyFQyCUdf2y0K8PIAKGEWdEcu8DECkydU2B+oj4OJihDPD2de5K6cbVl9A==}
 
@@ -5351,8 +5357,8 @@ packages:
   '@xsai-ext/shared-providers@0.3.0-beta.1':
     resolution: {integrity: sha512-5+AIOYe5moH0svsfjPwA2IhHJflLIEiOI8MIjoVgGL+VSgLEJoxr/KzAumQc4wR1KMdLK9PkBcCew6WRpmjzTw==}
 
-  '@xsai-ext/shared-providers@0.3.0-beta.2':
-    resolution: {integrity: sha512-AwQBwj2e3mxozjN+tF/bUbx9+K6jPM4gOsVnQP2GnYaQwvV1SHR6W8swDWb4ZiexIOoAD7TVzLVe9QaIh/D9PQ==}
+  '@xsai-ext/shared-providers@0.3.0-beta.3':
+    resolution: {integrity: sha512-aSR524BAjy651No425KYgVcLVHE7lDYWvhCE038P1Bk00G05sxxI4hwmZStrJjIOk5nksx/zPb2ZABcdeOaAhg==}
 
   '@xsai-transformers/embed@0.0.6':
     resolution: {integrity: sha512-Ktxl2V1jkInqN8AXB7XetFNluTLlztWu+mOyfvB3BHWBb/+mUDLDO0fDXliMrJsSk5+fNDNYRESZFpG85Joy2w==}
@@ -5392,8 +5398,8 @@ packages:
   '@xsai/shared-chat@0.3.0-beta.1':
     resolution: {integrity: sha512-1lx5+TLxdukM4hHlH8xma7x6WR1rGVDBghVaNDiY1WS7yrTsDyEiphkRrfFR7sOw1/3hRNOX7cZ55W+LBueI2Q==}
 
-  '@xsai/shared-chat@0.3.0-beta.2':
-    resolution: {integrity: sha512-RsUXOewyEiyMkjt68DHC5M+P41M0zq0wjQyA48ydpxrM/fqNQrG2aeTcsV6ylbNyAQaolauhwPG1CPC5A/9xhQ==}
+  '@xsai/shared-chat@0.3.0-beta.3':
+    resolution: {integrity: sha512-LtHGPVog0YjZ+lp7FM7MX0BfuEczSGsWC8EIeucdQ3IrZf9MYn23AUnhKZZNSz4cIkywmNGAF1oQzRrRiT/CoA==}
 
   '@xsai/shared@0.2.0':
     resolution: {integrity: sha512-fFMJ1T/9P4o7iOmLvc4/UIFMy2tYkXUmL8aJWULmV36Ddq/gYYOndBZJZfoy3mNiDtxgDBkmIBMdIOFQu9iamg==}
@@ -5401,8 +5407,8 @@ packages:
   '@xsai/shared@0.2.2':
     resolution: {integrity: sha512-bgalLd3samx36hDRRmu3M75LY5NfWwh3YRaMwY4Woy7X09JQx+vEqVpJcaIeqcmVqztm8NGYzj8hUru7lwPh0w==}
 
-  '@xsai/shared@0.3.0-beta.2':
-    resolution: {integrity: sha512-H9a6K0n8p05qGz9EutqhEXzP86YYMYAiwWv/d4eEVdnjHa51pdxiB93PTNFn3snkCcCG5oahli6am5RDIf23Zg==}
+  '@xsai/shared@0.3.0-beta.3':
+    resolution: {integrity: sha512-oEwhwLeh2xXb5J0Wt/K/4zQrdBxBvFV9v3aG5UOr4AoZpXsUm3F6Hf+XB2aMX0KegFVhV2dhXe00f7XBa2vFeg==}
 
   '@xsai/stream-text@0.2.2':
     resolution: {integrity: sha512-GTVGuKEpYBOglPQ7cjO18/v8jiZxY/lejXMt+KsZqyMQo/WmH6gUkYkRME/cTyxlQEUiF0L/0CqRjQvtaDlB+Q==}
@@ -8761,6 +8767,7 @@ packages:
   node-domexception@1.0.0:
     resolution: {integrity: sha512-/jKZoMpw0F8GRwl4/eLROPA3cfcXtLApP0QzLmUT/HuPCZWyB7IY9ZrMeKw2O/nFIqPQB3PVM9aYm0F312AXDQ==}
     engines: {node: '>=10.5.0'}
+    deprecated: Use your platform's native DOMException instead
 
   node-fetch-native@1.6.6:
     resolution: {integrity: sha512-8Mc2HhqPdlIfedsuZoc3yioPuzp6b+L5jRCRY1QzuWZh2EGJVQrGppC6V6cF0bLdbW0+O2YpqCA25aF/1lvipQ==}
@@ -11619,8 +11626,8 @@ packages:
       zod-to-json-schema:
         optional: true
 
-  xsschema@0.3.0-beta.2:
-    resolution: {integrity: sha512-J3DZQuitaGtYqikylm+cJvlI/aatbWvPj2GIzjeUO03opEG/+nIQMLVdZhUjFFE6eEWYDjgtrBLevkqewVcjqQ==}
+  xsschema@0.3.0-beta.3:
+    resolution: {integrity: sha512-8fKI0Kqxs7npz3ElebNCeGdS0HDuS2qL3IqHK5O53yCdh419hcr3GQillwN39TNFasHjbMLQ+DjSwpY0NONdnQ==}
     peerDependencies:
       '@valibot/to-json-schema': ^1.0.0
       arktype: ^2.1.16
@@ -15120,6 +15127,10 @@ snapshots:
       '@tauri-apps/cli-win32-ia32-msvc': 2.5.0
       '@tauri-apps/cli-win32-x64-msvc': 2.5.0
 
+  '@tauri-apps/plugin-global-shortcut@2.2.1':
+    dependencies:
+      '@tauri-apps/api': 2.5.0
+
   '@tauri-apps/plugin-os@2.2.1':
     dependencies:
       '@tauri-apps/api': 2.5.0
@@ -16478,25 +16489,25 @@ snapshots:
 
   '@xsai-ext/providers-cloud@0.3.0-beta.1':
     dependencies:
-      '@xsai-ext/shared-providers': 0.3.0-beta.2
-      '@xsai/shared': 0.3.0-beta.2
+      '@xsai-ext/shared-providers': 0.3.0-beta.3
+      '@xsai/shared': 0.3.0-beta.3
 
   '@xsai-ext/providers-local@0.3.0-beta.1':
     dependencies:
-      '@xsai-ext/shared-providers': 0.3.0-beta.2
-      '@xsai/shared': 0.3.0-beta.2
+      '@xsai-ext/shared-providers': 0.3.0-beta.3
+      '@xsai/shared': 0.3.0-beta.3
 
   '@xsai-ext/shared-providers@0.2.2':
     dependencies:
-      '@xsai/shared': 0.3.0-beta.2
+      '@xsai/shared': 0.3.0-beta.3
 
   '@xsai-ext/shared-providers@0.3.0-beta.1':
     dependencies:
-      '@xsai/shared': 0.3.0-beta.2
+      '@xsai/shared': 0.3.0-beta.3
 
-  '@xsai-ext/shared-providers@0.3.0-beta.2':
+  '@xsai-ext/shared-providers@0.3.0-beta.3':
     dependencies:
-      '@xsai/shared': 0.3.0-beta.2
+      '@xsai/shared': 0.3.0-beta.3
 
   '@xsai-transformers/embed@0.0.6(web-worker@1.5.0)':
     dependencies:
@@ -16520,65 +16531,65 @@ snapshots:
 
   '@xsai/embed@0.2.2':
     dependencies:
-      '@xsai/shared': 0.3.0-beta.2
+      '@xsai/shared': 0.3.0-beta.3
 
   '@xsai/embed@0.3.0-beta.1':
     dependencies:
-      '@xsai/shared': 0.3.0-beta.2
+      '@xsai/shared': 0.3.0-beta.3
 
   '@xsai/generate-speech@0.3.0-beta.1':
     dependencies:
-      '@xsai/shared': 0.3.0-beta.2
+      '@xsai/shared': 0.3.0-beta.3
 
   '@xsai/generate-text@0.2.2':
     dependencies:
-      '@xsai/shared': 0.3.0-beta.2
-      '@xsai/shared-chat': 0.3.0-beta.2
+      '@xsai/shared': 0.3.0-beta.3
+      '@xsai/shared-chat': 0.3.0-beta.3
 
   '@xsai/generate-text@0.3.0-beta.1':
     dependencies:
-      '@xsai/shared': 0.3.0-beta.2
-      '@xsai/shared-chat': 0.3.0-beta.2
+      '@xsai/shared': 0.3.0-beta.3
+      '@xsai/shared-chat': 0.3.0-beta.3
 
   '@xsai/generate-transcription@0.3.0-beta.1':
     dependencies:
-      '@xsai/shared': 0.3.0-beta.2
+      '@xsai/shared': 0.3.0-beta.3
 
   '@xsai/model@0.3.0-beta.1':
     dependencies:
-      '@xsai/shared': 0.3.0-beta.2
+      '@xsai/shared': 0.3.0-beta.3
 
   '@xsai/shared-chat@0.2.2':
     dependencies:
-      '@xsai/shared': 0.3.0-beta.2
+      '@xsai/shared': 0.3.0-beta.3
 
   '@xsai/shared-chat@0.3.0-beta.1':
     dependencies:
-      '@xsai/shared': 0.3.0-beta.2
+      '@xsai/shared': 0.3.0-beta.3
 
-  '@xsai/shared-chat@0.3.0-beta.2':
+  '@xsai/shared-chat@0.3.0-beta.3':
     dependencies:
-      '@xsai/shared': 0.3.0-beta.2
+      '@xsai/shared': 0.3.0-beta.3
 
   '@xsai/shared@0.2.0': {}
 
   '@xsai/shared@0.2.2': {}
 
-  '@xsai/shared@0.3.0-beta.2': {}
+  '@xsai/shared@0.3.0-beta.3': {}
 
   '@xsai/stream-text@0.2.2':
     dependencies:
-      '@xsai/shared-chat': 0.3.0-beta.2
+      '@xsai/shared-chat': 0.3.0-beta.3
 
   '@xsai/stream-text@0.3.0-beta.1':
     dependencies:
-      '@xsai/shared-chat': 0.3.0-beta.2
+      '@xsai/shared-chat': 0.3.0-beta.3
 
   '@xsai/tool@0.2.2(zod-to-json-schema@3.24.5(zod@3.25.28))(zod@3.25.28)':
     dependencies:
-      '@xsai/shared': 0.3.0-beta.2
-      '@xsai/shared-chat': 0.3.0-beta.2
-      xsschema: 0.3.0-beta.2(zod-to-json-schema@3.24.5(zod@3.25.28))(zod@3.25.28)
+      '@xsai/shared': 0.3.0-beta.3
+      '@xsai/shared-chat': 0.3.0-beta.3
+      xsschema: 0.3.0-beta.3(zod-to-json-schema@3.24.5(zod@3.25.28))(zod@3.25.28)
     transitivePeerDependencies:
       - '@valibot/to-json-schema'
       - arktype
@@ -16589,9 +16600,9 @@ snapshots:
 
   '@xsai/tool@0.3.0-beta.1(zod-to-json-schema@3.24.5(zod@3.25.28))(zod@3.25.28)':
     dependencies:
-      '@xsai/shared': 0.3.0-beta.2
-      '@xsai/shared-chat': 0.3.0-beta.2
-      xsschema: 0.3.0-beta.2(zod-to-json-schema@3.24.5(zod@3.25.28))(zod@3.25.28)
+      '@xsai/shared': 0.3.0-beta.3
+      '@xsai/shared-chat': 0.3.0-beta.3
+      xsschema: 0.3.0-beta.3(zod-to-json-schema@3.24.5(zod@3.25.28))(zod@3.25.28)
     transitivePeerDependencies:
       - '@valibot/to-json-schema'
       - arktype
@@ -16602,11 +16613,11 @@ snapshots:
 
   '@xsai/utils-chat@0.2.2':
     dependencies:
-      '@xsai/shared-chat': 0.3.0-beta.2
+      '@xsai/shared-chat': 0.3.0-beta.3
 
   '@xsai/utils-chat@0.3.0-beta.1':
     dependencies:
-      '@xsai/shared-chat': 0.3.0-beta.2
+      '@xsai/shared-chat': 0.3.0-beta.3
 
   abbrev@1.1.1:
     optional: true
@@ -24434,7 +24445,7 @@ snapshots:
       zod: 3.25.28
       zod-to-json-schema: 3.24.5(zod@3.25.28)
 
-  xsschema@0.3.0-beta.2(zod-to-json-schema@3.24.5(zod@3.25.28))(zod@3.25.28):
+  xsschema@0.3.0-beta.3(zod-to-json-schema@3.24.5(zod@3.25.28))(zod@3.25.28):
     optionalDependencies:
       zod: 3.25.28
       zod-to-json-schema: 3.24.5(zod@3.25.28)
