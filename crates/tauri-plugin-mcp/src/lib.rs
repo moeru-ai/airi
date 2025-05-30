@@ -21,10 +21,13 @@ pub struct McpState {
   pub client: Option<RunningService<RoleClient, ()>>,
 }
 
+#[allow(clippy::missing_panics_doc)]
 pub fn destroy<R: Runtime>(app_handle: &AppHandle<R>) {
   println!("Destroying MCP plugin");
+
   tokio::runtime::Runtime::new().unwrap().block_on(async {
     let state = app_handle.state::<Mutex<McpState>>();
+
     let mut state = state.lock().await;
     if state.client.is_none() {
       println!("MCP plugin not connected, no need to disconnect");
@@ -32,10 +35,12 @@ pub fn destroy<R: Runtime>(app_handle: &AppHandle<R>) {
     }
 
     let client = state.client.take().unwrap();
+    drop(state);
+
     client.cancel().await.unwrap();
     // client.waiting().await.unwrap();
-    state.client = None;
   });
+
   println!("MCP plugin destroyed");
 }
 
@@ -52,6 +57,7 @@ async fn connect_server(state: State<'_, Mutex<McpState>>, command: String, args
   let service: RunningService<RoleClient, ()> = ().serve(child_process).await.unwrap();
 
   state.client = Some(service);
+  drop(state);
 
   Ok(())
 }
@@ -64,9 +70,9 @@ async fn disconnect_server(state: State<'_, Mutex<McpState>>) -> Result<(), Stri
   }
 
   let cancel_result = state.client.take().unwrap().cancel().await;
-  println!("Cancel result: {:?}", cancel_result);
+  println!("Cancel result: {cancel_result:?}");
   // state.client.take().unwrap().waiting().await.unwrap();
-  state.client = None;
+  drop(state);
 
   println!("Disconnected from MCP server");
 
@@ -81,16 +87,17 @@ async fn list_tools(state: State<'_, Mutex<McpState>>) -> Result<Vec<Tool>, Stri
     return Err("Client not connected".to_string());
   }
 
-  let list_tools_result = client.unwrap().list_tools(Default::default()).await.unwrap(); // TODO: handle error
+  let list_tools_result = client.unwrap().list_tools(Option::default()).await.unwrap(); // TODO: handle error
   let tools = list_tools_result.tools;
+  drop(state);
 
   Ok(tools)
 }
 
 #[tauri::command]
 async fn call_tool(state: State<'_, Mutex<McpState>>, name: String, args: Option<Map<String, Value>>) -> Result<CallToolResult, String> {
-  println!("Calling tool: {:?}", name);
-  println!("Arguments: {:?}", args);
+  println!("Calling tool: {name:?}");
+  println!("Arguments: {args:?}");
 
   let state = state.lock().await;
   let client = state.client.as_ref();
@@ -99,8 +106,9 @@ async fn call_tool(state: State<'_, Mutex<McpState>>, name: String, args: Option
   }
 
   let call_tool_result = client.unwrap().call_tool(CallToolRequestParam { name: name.into(), arguments: args }).await.unwrap();
+  drop(state);
 
-  println!("Tool result: {:?}", call_tool_result);
+  println!("Tool result: {call_tool_result:?}");
 
   Ok(call_tool_result)
 }
@@ -109,6 +117,7 @@ async fn call_tool(state: State<'_, Mutex<McpState>>, name: String, args: Option
 pub struct Builder;
 
 impl Builder {
+  #[must_use]
   pub fn build<R: Runtime>(self) -> TauriPlugin<R> {
     println!("Building MCP plugin");
 

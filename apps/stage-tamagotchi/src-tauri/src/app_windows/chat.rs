@@ -20,5 +20,5 @@ pub fn new_chat_window(app: &tauri::AppHandle) -> Result<(), tauri::Error> {
   }
 
   builder.build()?;
-  return Ok(());
+  Ok(())
 }

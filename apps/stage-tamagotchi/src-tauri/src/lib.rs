@@ -16,27 +16,26 @@ mod app_click_through;
 mod app_windows;
 mod commands;
 
-use app_click_through::{
-  native_windows::{is_cursor_in_window, is_modifier_pressed},
-  state::{set_click_through_enabled, set_cursor_inside, WindowClickThroughState},
-};
+#[cfg(target_os = "macos")]
+use app_click_through::native_macos::{is_cursor_in_window, is_modifier_pressed};
+#[cfg(target_os = "windows")]
+use app_click_through::native_windows::{is_cursor_in_window, is_modifier_pressed};
+use app_click_through::state::{set_click_through_enabled, set_cursor_inside, WindowClickThroughState};
 
 #[tauri::command]
 async fn start_monitor_for_clicking_through(window: tauri::Window) -> Result<(), String> {
-  log::info!("Starting monitor for clicking through");
-
-  let window = window.clone();
+  let window = window;
   let state = window.state::<WindowClickThroughState>();
-  let is_click_through_enabled = state.is_click_through_enabled.clone();
-  let is_click_through_monitoring_enabled = state.is_click_through_monitoring_enabled.clone();
+  let enabled = state.enabled.clone();
+  let monitoring_enabled = state.monitoring_enabled.clone();
 
   // Already monitoring?
-  if is_click_through_monitoring_enabled.load(Ordering::Relaxed) {
+  if monitoring_enabled.load(Ordering::Relaxed) {
     return Ok(());
-  } else {
-    // Set to true
-    state.is_click_through_monitoring_enabled.store(true, Ordering::Relaxed);
   }
+
+  // Set to true
+  state.monitoring_enabled.store(true, Ordering::Relaxed);
 
   // Then start interval timer for monitoring
   tauri::async_runtime::spawn(async move {
@@ -44,14 +43,12 @@ async fn start_monitor_for_clicking_through(window: tauri::Window) -> Result<(),
       sleep(Duration::from_millis(32)).await; // ~30FPS check rate
 
       // If monitoring is already stopped, break the loop
-      if !is_click_through_monitoring_enabled.load(Ordering::Relaxed) {
-        log::info!("Monitoring is stopped, breaking loop");
+      if !monitoring_enabled.load(Ordering::Relaxed) {
         break;
       }
 
       // If is disabled already, skip until next check
-      if !is_click_through_enabled.load(Ordering::Relaxed) {
-        log::info!("Click-through is disabled, skipping check");
+      if !enabled.load(Ordering::Relaxed) {
         continue;
       }
 
@@ -60,18 +57,10 @@ async fn start_monitor_for_clicking_through(window: tauri::Window) -> Result<(),
         let cursor_inside = is_cursor_in_window(&window).await;
         let modifier_pressed = is_modifier_pressed();
 
-        log::info!("Cursor inside: {}, Modifier pressed: {}", cursor_inside, modifier_pressed);
-
         // Only allow disabling click-through when:
         // 1. Cursor is OUTSIDE the window AND
         // 2. Modifier key is pressed
-        let should_be_click_through = cursor_inside && !modifier_pressed;
-
-        if should_be_click_through {
-          let _ = set_cursor_inside(&window, true);
-        } else {
-          let _ = set_cursor_inside(&window, false);
-        }
+        let _ = set_cursor_inside(&window, cursor_inside && !modifier_pressed);
       }
 
       #[cfg(target_os = "windows")]
@@ -79,35 +68,25 @@ async fn start_monitor_for_clicking_through(window: tauri::Window) -> Result<(),
         let cursor_inside = is_cursor_in_window(&window).await;
         let modifier_pressed = is_modifier_pressed();
 
-        log::info!("Cursor inside: {}, Modifier pressed: {}", cursor_inside, modifier_pressed);
-
         // Only allow disabling click-through when:
         // 1. Cursor is OUTSIDE the window AND
         // 2. Modifier key is pressed
-        let should_be_click_through = cursor_inside && !modifier_pressed;
-
-        if should_be_click_through {
-          let _ = set_cursor_inside(&window, true);
-        } else {
-          let _ = set_cursor_inside(&window, false);
-        }
+        let _ = set_cursor_inside(&window, cursor_inside && !modifier_pressed);
       }
     }
   });
 
-  return Ok(());
+  Ok(())
 }
 
 #[tauri::command]
 async fn stop_monitor_for_clicking_through(window: tauri::Window) -> Result<(), String> {
-  log::info!("Stopping monitor for clicking through");
-
-  let window = window.clone();
+  let window = window;
   let state = window.state::<WindowClickThroughState>();
 
   // Set to false
   // Termination will be triggered in the next interval check (tick)
-  state.is_click_through_monitoring_enabled.store(false, Ordering::Relaxed);
+  state.monitoring_enabled.store(false, Ordering::Relaxed);
 
   Ok(())
 }
@@ -125,9 +104,11 @@ async fn stop_click_through(window: tauri::Window) -> Result<(), String> {
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
+#[allow(clippy::missing_panics_doc)]
 pub fn run() {
   let prevent_default_plugin = tauri_plugin_prevent_default::Builder::new().with_flags(Flags::RELOAD).build();
 
+  #[allow(clippy::missing_panics_doc)]
   tauri::Builder::default()
     .plugin(prevent_default_plugin)
     .plugin(tauri_plugin_mcp::Builder.build())
@@ -209,11 +190,10 @@ pub fn run() {
     ])
     .build(tauri::generate_context!())
     .expect("error while building tauri application")
-    .run(|_, event| match event {
-      RunEvent::ExitRequested { .. } => {
+    .run(|_, event| {
+      if let RunEvent::ExitRequested { .. } = event {
         println!("Exiting app");
         println!("Exited app");
-      },
-      _ => {},
+      }
     });
 }

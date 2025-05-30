@@ -33,7 +33,7 @@ pub async fn is_cursor_in_window(window: &tauri::Window) -> bool {
     //
     // We need to get the window's frame in macOS coordinates (bottom-left origin)
     // and check if the cursor is inside that frame.
-    let ns_window: *mut objc2::runtime::AnyObject = window.ns_window().unwrap() as *mut _;
+    let ns_window: *mut objc2::runtime::AnyObject = window.ns_window().unwrap().cast();
     let window_frame: NSRect = msg_send![ns_window, frame];
 
     // Log all screens information
@@ -65,10 +65,10 @@ pub fn is_modifier_pressed() -> bool {
     let flags: u64 = msg_send![event_class, modifierFlags];
 
     // Check for Alt/Option (1 << 19) or Control (1 << 18)
-    let alt_pressed = (flags & (1 << 19)) != 0;
+    
     // let ctrl_pressed = (flags & (1 << 18)) != 0;
 
     // alt_pressed || ctrl_pressed
-    alt_pressed
+    (flags & (1 << 19)) != 0
   }
 }
