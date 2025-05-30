@@ -23,6 +23,18 @@ const routeHeaderMetadataMap = computed(() => {
       subtitle: t('settings.title'),
       title: t('settings.pages.themes.title'),
     },
+    '/settings/appearance/general': {
+      subtitle: t('settings.title'),
+      title: t('settings.pages.themes.general.title'),
+    },
+    '/settings/appearance/color-scheme': {
+      subtitle: t('settings.title'),
+      title: t('settings.pages.themes.color-scheme.title'),
+    },
+    '/settings/appearance/developer': {
+      subtitle: t('settings.title'),
+      title: t('settings.pages.themes.developer.title'),
+    },
     '/settings/memory': {
       subtitle: t('settings.title'),
       title: t('settings.pages.memory.title'),
