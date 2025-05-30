@@ -9,6 +9,13 @@ on:
     branches:
       - main
 
+env:
+  # Rust
+  CARGO_TERM_COLOR: always
+  # https://github.com/Mozilla-Actions/sccache-action#rust-code
+  RUSTC_WRAPPER: sccache
+  SCCACHE_GHA_ENABLED: 'true'
+
 jobs:
   lint:
     name: Lint
@@ -16,15 +23,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          components: rustfmt,clippy
+      # Rust
+      - uses: dtolnay/rust-toolchain@nightly
+      - uses: mozilla-actions/sccache-action@v0.0.3
 
       - name: Install system dependencies
         run: |
           sudo apt update
           sudo apt install -y libwebkit2gtk-4.1-dev
 
+      # Node.js
       - uses: pnpm/action-setup@v3
       - uses: actions/setup-node@v4
         with:
@@ -38,13 +46,18 @@ jobs:
         run: |
           pnpm run lint
           pnpm run lint:rust
+          cargo +nightly fmt --all --check
+          cargo clippy -- -W clippy::pedantic -W clippy::nursery -A clippy::missing-errors-doc -A clippy::module_name_repetitions
 
   build-test:
     name: Build Test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+
+      # Rust
+      - uses: dtolnay/rust-toolchain@nightly
+      - uses: mozilla-actions/sccache-action@v0.0.3
 
       - name: Install system dependencies
         run: |
@@ -71,6 +84,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      # Node.js
       - uses: pnpm/action-setup@v3
       - uses: actions/setup-node@v4
         with:

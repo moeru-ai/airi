@@ -15,6 +15,10 @@ Hello! Thank you for your interest in contributing to this project. This guide w
 <details>
 <summary>Windows setup</summary>
 
+0. Download [Visual Studio](https://visualstudio.microsoft.com/downloads/), and follow the instructions here: https://rust-lang.github.io/rustup/installation/windows-msvc.html#walkthrough-installing-visual-studio-2022
+
+   > Make sure to install Windows SDK and C++ build tools when installing Visual Studio.
+
 1. Open PowerShell
 2. Install [`scoop`](https://scoop.sh/)
 
@@ -23,10 +27,17 @@ Hello! Thank you for your interest in contributing to this project. This guide w
    Invoke-RestMethod -Uri https://get.scoop.sh | Invoke-Expression
    ```
 
-3. Install `git`, `node` through `scoop`
+3. Install `git`, Node.js, `rustup`, `msvc` through `scoop`
 
    ```powershell
-   scoop install git nodejs
+   scoop install git nodejs rustup
+
+   # For Rust dependencies
+   # Not required if you are not going to develop on either crates or apps/tamagotchi
+   scoop install main/rust-msvc
+   # Rust & Windows specific
+   rustup toolchain install stable-x86_64-pc-windows-msvc
+   rustup default stable-x86_64-pc-windows-msvc
    ```
 
 4. Install `pnpm` through `corepack`
@@ -115,6 +126,10 @@ git checkout -b <your-branch-name>
 ```shell
 corepack enable
 pnpm install
+
+# For Rust dependencies
+# Not required if you are not going to develop on either crates or apps/tamagotchi
+cargo fetch
 ```
 
 :::note
