@@ -1,5 +1,5 @@
 export enum WindowControlMode {
-  DEFAULT = 'default',
+  NONE = 'none',
   MOVE = 'move',
   RESIZE = 'resize',
   DEBUG = 'debug',

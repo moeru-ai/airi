@@ -5,7 +5,7 @@ import { ref } from 'vue'
 import { WindowControlMode } from '../types/window-controls'
 
 export const useWindowControlStore = defineStore('windowControl', () => {
-  const controlMode = ref<WindowControlMode>(WindowControlMode.DEFAULT)
+  const controlMode = ref<WindowControlMode>(WindowControlMode.NONE)
   const isControlActive = ref(false)
   const size = useLocalStorage('window/control/size', { width: 300 * 1.5, height: 400 * 1.5 })
   const position = useLocalStorage('window/control/position', { x: 0, y: 0 })
@@ -21,7 +21,7 @@ export const useWindowControlStore = defineStore('windowControl', () => {
   function toggleControl() {
     isControlActive.value = !isControlActive.value
     if (!isControlActive.value) {
-      controlMode.value = WindowControlMode.DEFAULT
+      controlMode.value = WindowControlMode.NONE
     }
   }
 

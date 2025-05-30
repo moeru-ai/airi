@@ -3,8 +3,9 @@ import { WidgetStage } from '@proj-airi/stage-ui/components'
 import { useMcpStore } from '@proj-airi/stage-ui/stores'
 import { connectServer } from '@proj-airi/tauri-plugin-mcp'
 import { invoke } from '@tauri-apps/api/core'
+import { listen } from '@tauri-apps/api/event'
 import { storeToRefs } from 'pinia'
-import { computed, onMounted } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 
 import { useWindowShortcuts } from '../composables/window-shortcuts'
 import { useWindowControlStore } from '../stores/window-controls'
@@ -13,6 +14,7 @@ import { WindowControlMode } from '../types/window-controls'
 const windowStore = useWindowControlStore()
 useWindowShortcuts()
 
+const viewRef = ref<HTMLDivElement>()
 const mcpStore = useMcpStore()
 const { connected, serverCmd, serverArgs } = storeToRefs(mcpStore)
 
@@ -29,6 +31,18 @@ const modeIndicatorClass = computed(() => {
   }
 })
 
+onMounted(async () => {
+  await invoke('start_monitor_for_clicking_through')
+  await invoke('start_click_through')
+})
+
+onUnmounted(async () => {
+  await invoke('stop_click_through')
+  await invoke('stop_monitor_for_clicking_through')
+})
+
+const unlisten: (() => void)[] = []
+
 function openSettings() {
   invoke('open_settings_window')
 }
@@ -38,6 +52,19 @@ function openChat() {
 }
 
 onMounted(async () => {
+  // Listen for click-through state changes
+  unlisten.push(await listen('tauri-app:window-click-through:is-inside', (event: { payload: boolean }) => {
+    if (!viewRef.value)
+      return
+
+    if (event.payload) {
+      viewRef.value.style.opacity = '0'
+    }
+    else {
+      viewRef.value.style.opacity = '1'
+    }
+  }))
+
   if (connected.value)
     return
   if (!serverCmd.value || !serverArgs.value)
@@ -50,10 +77,15 @@ onMounted(async () => {
     console.error(error)
   }
 })
+
+onUnmounted(() => {
+  unlisten.forEach(fn => fn?.())
+})
 </script>
 
 <template>
   <div
+    ref="viewRef"
     :class="[modeIndicatorClass]"
     relative
     max-h="[100vh]"
@@ -63,6 +95,7 @@ onMounted(async () => {
     z-2
     h-full
     overflow-hidden
+    transition="opacity duration-500 ease-in-out"
   >
     <div relative h-full w-full items-end gap-2 class="view">
       <WidgetStage h-full w-full flex-1 mb="<md:18" />
@@ -91,7 +124,6 @@ onMounted(async () => {
         </div>
       </div>
     </div>
-
     <!-- Debug Mode UI -->
     <div v-if="windowStore.controlMode === WindowControlMode.DEBUG" class="debug-controls">
       <!-- Add debug controls here -->
@@ -138,12 +170,7 @@ onMounted(async () => {
 
 <style scoped>
 .view {
-  &:hover {
-    .interaction-area {
-      opacity: 1;
-      pointer-events: auto;
-    }
-  }
+  transition: opacity 0.5s ease-in-out;
 }
 
 .drag-region {
