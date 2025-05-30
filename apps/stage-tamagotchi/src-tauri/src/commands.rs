@@ -1,6 +1,6 @@
 use tauri::Manager;
 
-use crate::windows;
+use crate::app_windows;
 
 #[tauri::command]
 pub async fn open_settings_window(app: tauri::AppHandle) -> Result<(), tauri::Error> {
@@ -10,7 +10,7 @@ pub async fn open_settings_window(app: tauri::AppHandle) -> Result<(), tauri::Er
     return Ok(());
   }
 
-  windows::settings::new_settings_window(&app)?;
+  app_windows::settings::new_settings_window(&app)?;
   Ok(())
 }
 
@@ -22,6 +22,6 @@ pub async fn open_chat_window(app: tauri::AppHandle) -> Result<(), tauri::Error>
     return Ok(());
   }
 
-  windows::chat::new_chat_window(&app)?;
+  app_windows::chat::new_chat_window(&app)?;
   Ok(())
 }

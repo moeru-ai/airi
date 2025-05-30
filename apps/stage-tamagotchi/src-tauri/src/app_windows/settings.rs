@@ -1,20 +1,16 @@
 use std::path::Path;
-use tauri::{WebviewUrl, WebviewWindowBuilder};
 
 #[cfg(target_os = "macos")]
 use tauri::TitleBarStyle;
+use tauri::{WebviewUrl, WebviewWindowBuilder};
 
-pub fn new_chat_window(app: &tauri::AppHandle) -> Result<(), tauri::Error> {
-  let mut builder = WebviewWindowBuilder::new(
-    app,
-    "chat",
-    WebviewUrl::App(Path::new("#/chat").to_path_buf()),
-  )
-  .title("Chat")
-  .inner_size(600.0, 800.0)
-  .shadow(true)
-  .transparent(false)
-  .accept_first_mouse(true);
+pub fn new_settings_window(app: &tauri::AppHandle) -> Result<(), tauri::Error> {
+  let mut builder = WebviewWindowBuilder::new(app, "settings", WebviewUrl::App(Path::new("#/settings").to_path_buf()))
+    .title("Settings")
+    .inner_size(450.0, 800.0)
+    .shadow(true)
+    .transparent(false)
+    .accept_first_mouse(true);
 
   #[cfg(target_os = "macos")]
   {
@@ -29,5 +25,5 @@ pub fn new_chat_window(app: &tauri::AppHandle) -> Result<(), tauri::Error> {
   }
 
   builder.build()?;
-  return Ok(());
+  Ok(())
 }
