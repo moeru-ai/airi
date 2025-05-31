@@ -70,8 +70,8 @@ useEventListener('click', (e) => {
 
 const pressKeysMessage = computed(() => {
   if (recordingKeys.value.modifier.length === 0)
-    return t('settings.press_keys')
-  return `${t('settings.press_keys')}: ${recordingKeys.value.modifier.join('+')}+${recordingKeys.value.key}`
+    return t('settings.pages.themes.window-shortcuts.press-keys')
+  return `${t('settings.pages.themes.window-shortcuts.press-keys')}: ${recordingKeys.value.modifier.join('+')}+${recordingKeys.value.key}`
 })
 function isConflict(shortcut: typeof shortcuts.value[0]) {
   return shortcuts.value.some(s => s.type !== shortcut.type && s.shortcut === shortcut.shortcut)
@@ -92,6 +92,8 @@ function isConflict(shortcut: typeof shortcuts.value[0]) {
       :duration="250 + (3 * 10)"
       :delay="3 * 50"
       transition="all ease-in-out duration-250"
+      cursor-pointer
+      @click="startRecording(shortcut)"
     >
       <span text="xs">
         {{ t(shortcut.name) }}
@@ -100,8 +102,6 @@ function isConflict(shortcut: typeof shortcuts.value[0]) {
         class="shortcut-item flex items-center justify-end gap-x-2 px-2 py-0.5"
         :class="{ recording: recordingFor === shortcut.type }"
         text="xs"
-        cursor-pointer
-        @click="startRecording(shortcut)"
       >
         <div v-if="recordingFor === shortcut.type" class="pointer-events-none animate-flash animate-count-infinite">
           {{ pressKeysMessage }}

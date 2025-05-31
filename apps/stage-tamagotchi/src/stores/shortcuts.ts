@@ -66,19 +66,19 @@ function useVersionedLocalStorage<T>(
 export const useShortcutsStore = defineStore('shortcuts', () => {
   const shortcuts = ref([
     {
-      name: 'settings.pages.shortcuts.sections.section.window-controls.fields.field.toggle-move.label',
+      name: 'settings.pages.themes.window-shortcuts.toggle-move.label',
       shortcut: useVersionedLocalStorage('shortcuts/window/move', 'Shift+Alt+˜'), // Shift + Alt + N
       group: 'window',
       type: 'move',
     },
     {
-      name: 'settings.pages.shortcuts.sections.section.window-controls.fields.field.toggle-resize.label',
+      name: 'settings.pages.themes.window-shortcuts.toggle-resize.label',
       shortcut: useVersionedLocalStorage('shortcuts/window/resize', 'Shift+Alt+®'), // Shift + Alt + R
       group: 'window',
       type: 'resize',
     },
     {
-      name: 'settings.pages.shortcuts.sections.section.window-controls.fields.field.toggle-ignore-mouse-event.label',
+      name: 'settings.pages.themes.window-shortcuts.toggle-ignore-mouse-event.label',
       shortcut: useVersionedLocalStorage('shortcuts/window/debug', 'Shift+Alt+ˆ'), // Shift + Alt + I
       group: 'window',
       type: 'debug',
