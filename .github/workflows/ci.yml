@@ -23,8 +23,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # # Rust
-      # - uses: dtolnay/rust-toolchain@nightly
+      # Rust
+      - uses: dtolnay/rust-toolchain@nightly
       # - uses: mozilla-actions/sccache-action@v0.0.3
 
       - name: Install system dependencies
@@ -58,8 +58,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # # Rust
-      # - uses: dtolnay/rust-toolchain@nightly
+      # Rust
+      - uses: dtolnay/rust-toolchain@nightly
       # - uses: mozilla-actions/sccache-action@v0.0.3
 
       - name: Install system dependencies
