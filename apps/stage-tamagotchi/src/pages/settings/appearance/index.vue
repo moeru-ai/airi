@@ -7,10 +7,28 @@ const { t } = useI18n()
 
 const settings = computed(() => [
   {
-    title: t('settings.sections.section.general.title'),
-    description: t('settings.pages.card.description'),
+    title: t('settings.pages.themes.general.title'),
+    description: t('settings.pages.themes.general.description'),
     icon: 'i-solar:emoji-funny-square-bold-duotone',
     to: '/settings/appearance/general',
+  },
+  {
+    title: t('settings.pages.themes.color-scheme.title'),
+    description: t('settings.pages.themes.color-scheme.description'),
+    icon: 'i-solar:pallete-2-bold-duotone',
+    to: '/settings/appearance/color-scheme',
+  },
+  {
+    title: t('settings.pages.themes.window-shortcuts.title'),
+    description: t('settings.pages.themes.window-shortcuts.description'),
+    icon: 'i-solar:keyboard-bold-duotone',
+    to: '/settings/appearance/window-shortcuts',
+  },
+  {
+    title: t('settings.pages.themes.developer.title'),
+    description: t('settings.pages.themes.developer.description'),
+    icon: 'i-solar:code-bold-duotone',
+    to: '/settings/appearance/developer',
   },
 ])
 </script>

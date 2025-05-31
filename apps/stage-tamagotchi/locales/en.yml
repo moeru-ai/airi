@@ -355,11 +355,14 @@ settings:
       title: Scene
     themes:
       color-scheme:
+        description: Change the color scheme of the stage.
         title: Color Scheme
       description: Customize your stage!
       developer:
+        description: Some developer options.
         title: Developers
       general:
+        description: Dark theme, languages, etc.
         title: General
       sections:
         section:
@@ -440,6 +443,9 @@ settings:
           window-shortcuts:
             title: Keyboard Shortcuts
       title: Appearance
+      window-shortcuts:
+        description: Modify the window shortcuts.
+        title: Window Shortcuts
   sections:
     section:
       general:
