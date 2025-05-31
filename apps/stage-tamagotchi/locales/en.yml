@@ -446,6 +446,13 @@ settings:
       window-shortcuts:
         description: Modify the window shortcuts.
         title: Window Shortcuts
+        toggle-move:
+          label: Toggle Move
+        toggle-resize:
+          label: Toggle Resize
+        toggle-ignore-mouse-event:
+          label: Toggle Ignore Mouse Event
+        press-keys: Press Keys...
   sections:
     section:
       general:
