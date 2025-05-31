@@ -47,10 +47,10 @@ jobs:
           pnpm run lint
           pnpm run lint:rust
 
-      # - name: Lint Rust
-      #   run: |
-      #     cargo +nightly fmt --all --check
-      #     cargo clippy -- -W clippy::pedantic -W clippy::nursery -A clippy::missing-errors-doc -A clippy::module_name_repetitions
+      - name: Lint Rust
+        run: |
+          cargo +nightly fmt --all --check
+  #     cargo clippy -- -W clippy::pedantic -W clippy::nursery -A clippy::missing-errors-doc -A clippy::module_name_repetitions
 
   build-test:
     name: Build Test
@@ -58,9 +58,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # # Rust
-      # - uses: dtolnay/rust-toolchain@nightly
-      # - uses: mozilla-actions/sccache-action@v0.0.3
+      # Rust
+      - uses: dtolnay/rust-toolchain@nightly
+      - uses: mozilla-actions/sccache-action@v0.0.3
 
       - name: Install system dependencies
         run: |
@@ -81,9 +81,9 @@ jobs:
           pnpm run build:packages
           pnpm run build:apps
 
-      # - name: Build Rust
-      #   run: |
-      #     pnpm run build:crates
+      - name: Build Rust
+        run: |
+          pnpm run build:crates
 
   typecheck:
     name: Type Check
