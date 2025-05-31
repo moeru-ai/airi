@@ -141,4 +141,84 @@ const { t } = useI18n()
       <ColorPalette :colors="(colors as any[]).map((name, j) => ({ hex: COLOR_PRESETS[i][j], name: $rt(name) }))" />
     </div>
   </Section>
+
+  <div
+    v-motion
+    text="neutral-200/50 dark:neutral-600/20" pointer-events-none
+    fixed top="[65dvh]" right--15 z--1
+    :initial="{ scale: 0.9, opacity: 0, rotate: 30 }"
+    :enter="{ scale: 1, opacity: 1, rotate: 0 }"
+    :duration="250"
+    flex items-center justify-center
+  >
+    <div text="60" i-solar:pallete-2-bold-duotone />
+  </div>
 </template>
+
+<style scoped>
+.theme-hue-slider {
+  --at-apply: appearance-none h-10 rounded-lg;
+  background: linear-gradient(
+    to right,
+    oklch(85% 0.2 0),
+    oklch(85% 0.2 60),
+    oklch(85% 0.2 120),
+    oklch(85% 0.2 180),
+    oklch(85% 0.2 240),
+    oklch(85% 0.2 300),
+    oklch(85% 0.2 360)
+  );
+
+  &::-webkit-slider-thumb {
+    --at-apply: w-1 h-12 appearance-none rounded-md bg-neutral-600 cursor-pointer shadow-lg border-2 border-neutral-500
+      hover: bg-neutral-800 transition-colors duration-200;
+  }
+
+  .dark &::-webkit-slider-thumb {
+    --at-apply: w-1 h-12 appearance-none rounded-md bg-neutral-100 cursor-pointer shadow-md border-2 border-white
+      hover: bg-neutral-300 transition-colors duration-200;
+  }
+
+  &::-moz-range-thumb {
+    --at-apply: w-1 h-12 appearance-none rounded-md bg-neutral-600 cursor-pointer shadow-lg border-2 border-neutral-500
+      hover: bg-neutral-800 transition-colors duration-200;
+  }
+
+  .dark &::-moz-range-thumb {
+    --at-apply: w-1 h-12 appearance-none rounded-md bg-neutral-100 cursor-pointer shadow-md border-2 border-white
+      hover: bg-neutral-300 transition-colors duration-200;
+  }
+}
+
+.color-bar {
+  --at-apply: flex of-hidden rounded-lg lh-10 text-center text-black;
+
+  * {
+    flex: 1;
+  }
+
+  div {
+    display: contents;
+  }
+}
+
+.transparency-grid {
+  background-image: linear-gradient(45deg, #ccc 25%, transparent 25%),
+    linear-gradient(-45deg, #ccc 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #ccc 75%),
+    linear-gradient(-45deg, transparent 75%, #ccc 75%);
+  background-size: 20px 20px;
+  background-position:
+    0 0,
+    0 10px,
+    10px -10px,
+    -10px 0px;
+  background-color: #fff;
+}
+</style>
+
+<route lang="yaml">
+meta:
+  layout: settings
+  stageTransition:
+    name: slide
+</route>
