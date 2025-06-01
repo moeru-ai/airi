@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { useSettings } from '@proj-airi/stage-ui/stores'
+import { getCurrentWindow } from '@tauri-apps/api/window'
 import { useEventListener } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { computed, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { useShortcutsStore } from '../../../stores/shortcuts'
@@ -32,23 +33,34 @@ const recordingKeys = ref<{
 function startRecording(shortcut: typeof shortcuts.value[0]) {
   recordingFor.value = shortcut.type
 }
-function isModifierKey(key: string) {
-  return ['Shift', 'Control', 'Alt', 'Meta'].includes(key)
-}
+
+onMounted(() => {
+  getCurrentWindow().setMinimizable(false) // to avoid the window from being minimized when the shortcut is being recorded
+})
+
+onUnmounted(() => {
+  getCurrentWindow().setMinimizable(true)
+})
+
 // Handle key combinations
 useEventListener('keydown', (e) => {
   if (!recordingFor.value)
     return
-  e.preventDefault()
-  if (isModifierKey(e.key)) {
-    if (recordingKeys.value.modifier.includes(e.key))
-      return
-    recordingKeys.value.modifier.push(e.key)
+  if (!e.code.startsWith('Key')) // ignore non-key events
     return
-  }
+  if (e.metaKey)
+    recordingKeys.value.modifier.push('Meta')
+  if (e.ctrlKey)
+    recordingKeys.value.modifier.push('Control')
+  if (e.altKey)
+    recordingKeys.value.modifier.push('Alt')
+  if (e.shiftKey)
+    recordingKeys.value.modifier.push('Shift')
+
   if (recordingKeys.value.modifier.length === 0)
     return
-  recordingKeys.value.key = e.key.toUpperCase()
+
+  recordingKeys.value.key = e.code.slice(3)
   const shortcut = shortcuts.value.find(s => s.type === recordingFor.value)
   if (shortcut)
     shortcut.shortcut = `${recordingKeys.value.modifier.join('+')}+${recordingKeys.value.key}`
@@ -64,6 +76,10 @@ useEventListener('click', (e) => {
     const target = e.target as HTMLElement
     if (!target.closest('.shortcut-item')) {
       recordingFor.value = null
+      recordingKeys.value = {
+        modifier: [],
+        key: '',
+      }
     }
   }
 })
