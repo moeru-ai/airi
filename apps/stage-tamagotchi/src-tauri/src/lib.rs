@@ -176,7 +176,7 @@ pub fn run() {
           "show-devtools" => {
             let window = app.get_webview_window("main");
             if let Some(window) = window {
-              let _ = window.open_devtools();
+              window.open_devtools();
             }
           }
           _ => {}
