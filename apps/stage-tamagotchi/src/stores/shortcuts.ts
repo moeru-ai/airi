@@ -81,7 +81,7 @@ export const useShortcutsStore = defineStore('shortcuts', () => {
       name: 'settings.pages.themes.window-shortcuts.toggle-ignore-mouse-event.label',
       shortcut: useVersionedLocalStorage('shortcuts/window/debug', 'Shift+Alt+ˆ'), // Shift + Alt + I
       group: 'window',
-      type: 'debug',
+      type: 'ignore-mouse-event',
     },
   ])
 

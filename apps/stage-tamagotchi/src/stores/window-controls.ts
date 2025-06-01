@@ -1,8 +1,10 @@
+import { getCurrentWindow } from '@tauri-apps/api/window'
 import { useLocalStorage } from '@vueuse/core'
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 
 import { WindowControlMode } from '../types/window-controls'
+import { startClickThrough, stopClickThrough } from '../utils/windows'
 
 export const useWindowControlStore = defineStore('windowControl', () => {
   const controlMode = ref<WindowControlMode>(WindowControlMode.NONE)
@@ -12,17 +14,20 @@ export const useWindowControlStore = defineStore('windowControl', () => {
 
   function setMode(mode: WindowControlMode) {
     controlMode.value = mode
-
-    if (mode === WindowControlMode.RESIZE) {
-      // return
-    }
   }
 
   function toggleControl() {
     isControlActive.value = !isControlActive.value
     if (!isControlActive.value) {
       controlMode.value = WindowControlMode.NONE
+      startClickThrough()
+      return
     }
+
+    stopClickThrough()
+
+    const window = getCurrentWindow()
+    window.setFocus()
   }
 
   return {

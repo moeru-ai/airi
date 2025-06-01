@@ -10,11 +10,12 @@ import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useWindowShortcuts } from '../composables/window-shortcuts'
 import { useWindowControlStore } from '../stores/window-controls'
 import { WindowControlMode } from '../types/window-controls'
+import { startClickThrough, stopClickThrough } from '../utils/windows'
 
 const windowStore = useWindowControlStore()
 useWindowShortcuts()
+const isCursorInside = ref(false)
 
-const viewRef = ref<HTMLDivElement>()
 const mcpStore = useMcpStore()
 const { connected, serverCmd, serverArgs } = storeToRefs(mcpStore)
 
@@ -33,11 +34,11 @@ const modeIndicatorClass = computed(() => {
 
 onMounted(async () => {
   await invoke('start_monitor_for_clicking_through')
-  await invoke('start_click_through')
+  await startClickThrough()
 })
 
 onUnmounted(async () => {
-  await invoke('stop_click_through')
+  await stopClickThrough()
   await invoke('stop_monitor_for_clicking_through')
 })
 
@@ -54,15 +55,7 @@ function openChat() {
 onMounted(async () => {
   // Listen for click-through state changes
   unlisten.push(await listen('tauri-app:window-click-through:is-inside', (event: { payload: boolean }) => {
-    if (!viewRef.value)
-      return
-
-    if (event.payload) {
-      viewRef.value.style.opacity = '0'
-    }
-    else {
-      viewRef.value.style.opacity = '1'
-    }
+    isCursorInside.value = event.payload
   }))
 
   if (connected.value)
@@ -85,8 +78,9 @@ onUnmounted(() => {
 
 <template>
   <div
-    ref="viewRef"
-    :class="[modeIndicatorClass]"
+    :class="[modeIndicatorClass, {
+      'op-0': isCursorInside && !windowStore.isControlActive,
+    }]"
     relative
     max-h="[100vh]"
     max-w="[100vw]"
