@@ -17,9 +17,9 @@ mod app_windows;
 mod commands;
 
 #[cfg(target_os = "macos")]
-use app_click_through::native_macos::{is_cursor_in_window, is_modifier_pressed};
+use app_click_through::native_macos::is_cursor_in_window;
 #[cfg(target_os = "windows")]
-use app_click_through::native_windows::{is_cursor_in_window, is_modifier_pressed};
+use app_click_through::native_windows::is_cursor_in_window;
 use app_click_through::state::{set_click_through_enabled, set_cursor_inside, WindowClickThroughState};
 
 #[tauri::command]
@@ -55,23 +55,21 @@ async fn start_monitor_for_clicking_through(window: tauri::Window) -> Result<(),
       #[cfg(target_os = "macos")]
       {
         let cursor_inside = is_cursor_in_window(&window).await;
-        let modifier_pressed = is_modifier_pressed();
 
         // Only allow disabling click-through when:
         // 1. Cursor is OUTSIDE the window AND
         // 2. Modifier key is pressed
-        let _ = set_cursor_inside(&window, cursor_inside && !modifier_pressed);
+        let _ = set_cursor_inside(&window, cursor_inside);
       }
 
       #[cfg(target_os = "windows")]
       {
         let cursor_inside = is_cursor_in_window(&window).await;
-        let modifier_pressed = is_modifier_pressed();
 
         // Only allow disabling click-through when:
         // 1. Cursor is OUTSIDE the window AND
         // 2. Modifier key is pressed
-        let _ = set_cursor_inside(&window, cursor_inside && !modifier_pressed);
+        let _ = set_cursor_inside(&window, cursor_inside);
       }
     }
   });
@@ -113,6 +111,7 @@ pub fn run() {
     .plugin(prevent_default_plugin)
     .plugin(tauri_plugin_mcp::Builder.build())
     .plugin(tauri_plugin_os::init())
+    .plugin(tauri_plugin_global_shortcut::Builder::new().build())
     .manage(WindowClickThroughState::default())
     .setup(|app| {
       let mut builder = WebviewWindowBuilder::new(app, "main", WebviewUrl::default());
@@ -140,7 +139,8 @@ pub fn run() {
       let settings_item = MenuItem::with_id(app, "settings", "Settings", true, None::<&str>)?;
       let hide_item = MenuItem::with_id(app, "hide", "Hide", true, None::<&str>)?;
       let show_item = MenuItem::with_id(app, "show", "Show", true, None::<&str>)?;
-      let menu = Menu::with_items(app, &[&settings_item, &hide_item, &show_item, &quit_item])?;
+      let show_devtools_item = MenuItem::with_id(app, "show-devtools", "Show Devtools", true, None::<&str>)?;
+      let menu = Menu::with_items(app, &[&settings_item, &hide_item, &show_item, &show_devtools_item, &quit_item])?;
 
       let _ = TrayIconBuilder::new()
         .icon(app.default_window_icon().unwrap().clone()) // TODO: use custom icon
@@ -171,6 +171,12 @@ pub fn run() {
             let window = app.get_webview_window("settings");
             if let Some(window) = window {
               let _ = window.show();
+            }
+          }
+          "show-devtools" => {
+            let window = app.get_webview_window("main");
+            if let Some(window) = window {
+              window.open_devtools();
             }
           }
           _ => {}

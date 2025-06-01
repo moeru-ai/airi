@@ -56,17 +56,3 @@ pub async fn is_cursor_in_window(window: &tauri::Window) -> bool {
   }
   false
 }
-
-/// Check if modifier key is pressed (Option/Alt or Control)
-#[cfg(target_os = "macos")]
-pub fn is_modifier_pressed() -> bool {
-  unsafe {
-    let event_class: &'static objc2::runtime::AnyClass = class!(NSEvent);
-    let flags: u64 = msg_send![event_class, modifierFlags];
-
-    // Check for Alt/Option (1 << 19) or Control (1 << 18)
-    // let ctrl_pressed = (flags & (1 << 18)) != 0;
-    // alt_pressed || ctrl_pressed
-    (flags & (1 << 19)) != 0
-  }
-}

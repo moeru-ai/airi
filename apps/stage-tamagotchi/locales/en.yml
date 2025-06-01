@@ -354,7 +354,16 @@ settings:
       description: Configure the environment where the character lives
       title: Scene
     themes:
+      color-scheme:
+        description: Change the color scheme of the stage.
+        title: Color Scheme
       description: Customize your stage!
+      developer:
+        description: Some developer options.
+        title: Developers
+      general:
+        description: Dark theme, languages, etc.
+        title: General
       sections:
         section:
           custom-color:
@@ -431,7 +440,19 @@ settings:
                   porcelain and paintings
                 title: Chinese Traditional Colors
             title: Color Scheme Presets
+          window-shortcuts:
+            title: Keyboard Shortcuts
       title: Appearance
+      window-shortcuts:
+        description: Modify the window shortcuts.
+        title: Window Shortcuts
+        toggle-move:
+          label: Toggle Move
+        toggle-resize:
+          label: Toggle Resize
+        toggle-ignore-mouse-event:
+          label: Toggle Ignore Mouse Event
+        press-keys: Press Keys...
   sections:
     section:
       general:

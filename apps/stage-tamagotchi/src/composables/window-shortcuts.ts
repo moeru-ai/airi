@@ -1,56 +1,88 @@
-import type { EffectScope } from 'vue'
+import type { ShortcutEvent } from '@tauri-apps/plugin-global-shortcut'
 
-import { useMagicKeys, whenever } from '@vueuse/core'
+import { register, unregisterAll } from '@tauri-apps/plugin-global-shortcut'
 import { storeToRefs } from 'pinia'
-import { computed, effectScope, watch } from 'vue'
+import { computed, watch } from 'vue'
 
 import { useShortcutsStore } from '../stores/shortcuts'
 import { useWindowControlStore } from '../stores/window-controls'
 import { WindowControlMode } from '../types/window-controls'
+import { startClickThrough, stopClickThrough } from '../utils/windows'
 
 export function useWindowShortcuts() {
   const windowStore = useWindowControlStore()
-  const magicKeys = useMagicKeys()
 
   const { shortcuts } = storeToRefs(useShortcutsStore())
   const handlers = computed(() => [
     {
-      handle: () => {
+      handle: async (event: ShortcutEvent) => {
+        if (event.state !== 'Pressed') {
+          return
+        }
+
         windowStore.setMode(WindowControlMode.MOVE)
         windowStore.toggleControl()
       },
       shortcut: shortcuts.value.find(shortcut => shortcut.type === 'move')?.shortcut,
     },
     {
-      handle: () => {
+      handle: async (event: ShortcutEvent) => {
+        if (event.state !== 'Pressed') {
+          return
+        }
+
         windowStore.setMode(WindowControlMode.RESIZE)
         windowStore.toggleControl()
       },
       shortcut: shortcuts.value.find(shortcut => shortcut.type === 'resize')?.shortcut,
     },
     {
-      handle: () => {
+      handle: async (event: ShortcutEvent) => {
+        if (event.state !== 'Pressed') {
+          return
+        }
+
         windowStore.setMode(WindowControlMode.DEBUG)
         windowStore.toggleControl()
       },
       shortcut: shortcuts.value.find(shortcut => shortcut.type === 'debug')?.shortcut,
     },
-  ])
-
-  let currentScope: EffectScope | null = null
-  watch(handlers, () => {
-    if (currentScope) {
-      currentScope.stop()
-    }
-
-    currentScope = effectScope()
-    currentScope.run(() => {
-      handlers.value.forEach((handler) => {
-        if (!handler.shortcut) {
+    {
+      handle: async (event: ShortcutEvent) => {
+        if (event.state === 'Pressed') {
+          stopClickThrough()
           return
         }
-        whenever(magicKeys[handler.shortcut], handler.handle)
+
+        startClickThrough()
+      },
+      shortcut: shortcuts.value.find(shortcut => shortcut.type === 'ignore-mouse-event')?.shortcut,
+    },
+  ])
+
+  watch(handlers, async () => {
+    await unregisterAll()
+
+    for (const handler of handlers.value) {
+      if (!handler.shortcut) {
+        return
+      }
+
+      await register(handler.shortcut
+        .replaceAll('Meta', 'CommandOrControl')
+        .replaceAll('meta', 'CommandOrControl')
+        .replaceAll('Ctrl', 'CommandOrControl')
+        .replaceAll('ctrl', 'CommandOrControl')
+        .replaceAll('Option', 'OptionOrAlt')
+        .replaceAll('option', 'OptionOrAlt'), (event: ShortcutEvent) => {
+        if (event.state !== 'Pressed') {
+          return
+        }
+
+        handler.handle(event).catch((error) => {
+          console.error('Error handling shortcut', error)
+        })
       })
-    })
+    }
   }, { immediate: true })
 }
