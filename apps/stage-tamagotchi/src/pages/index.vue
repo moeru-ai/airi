@@ -52,6 +52,10 @@ function openChat() {
   invoke('open_chat_window')
 }
 
+const shouldHideView = computed(() => {
+  return isCursorInside.value && !windowStore.isControlActive && windowStore.isIgnoringMouseEvent
+})
+
 onMounted(async () => {
   // Listen for click-through state changes
   unlisten.push(await listen('tauri-app:window-click-through:is-inside', (event: { payload: boolean }) => {
@@ -79,7 +83,7 @@ onUnmounted(() => {
 <template>
   <div
     :class="[modeIndicatorClass, {
-      'op-0': isCursorInside && !windowStore.isControlActive,
+      'op-0': shouldHideView,
     }]"
     relative
     max-h="[100vh]"
@@ -94,9 +98,11 @@ onUnmounted(() => {
     <div relative h-full w-full items-end gap-2 class="view">
       <WidgetStage h-full w-full flex-1 mb="<md:18" />
       <div
-        absolute bottom-4 left-4 flex gap-1 op-0 transition="opacity duration-250"
-        class="interaction-area"
-        :class="{ 'pointer-events-none': windowStore.isControlActive }"
+        absolute bottom-4 left-4 flex gap-1 op-0 transition="opacity duration-500"
+        :class="{
+          'pointer-events-none': windowStore.isControlActive,
+          'show-on-hover': !windowStore.isIgnoringMouseEvent,
+        }"
       >
         <div
           border="solid 2 primary-100 "
@@ -165,6 +171,12 @@ onUnmounted(() => {
 <style scoped>
 .view {
   transition: opacity 0.5s ease-in-out;
+
+  &:hover {
+    .show-on-hover {
+      opacity: 1;
+    }
+  }
 }
 
 .drag-region {

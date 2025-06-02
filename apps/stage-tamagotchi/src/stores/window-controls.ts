@@ -9,6 +9,7 @@ import { startClickThrough, stopClickThrough } from '../utils/windows'
 export const useWindowControlStore = defineStore('windowControl', () => {
   const controlMode = ref<WindowControlMode>(WindowControlMode.NONE)
   const isControlActive = ref(false)
+  const isIgnoringMouseEvent = ref(true)
   const size = useLocalStorage('window/control/size', { width: 300 * 1.5, height: 400 * 1.5 })
   const position = useLocalStorage('window/control/position', { x: 0, y: 0 })
 
@@ -20,7 +21,9 @@ export const useWindowControlStore = defineStore('windowControl', () => {
     isControlActive.value = !isControlActive.value
     if (!isControlActive.value) {
       controlMode.value = WindowControlMode.NONE
-      startClickThrough()
+      if (isIgnoringMouseEvent.value)
+        startClickThrough()
+
       return
     }
 
@@ -33,6 +36,7 @@ export const useWindowControlStore = defineStore('windowControl', () => {
   return {
     controlMode,
     isControlActive,
+    isIgnoringMouseEvent,
     size,
     position,
     setMode,
