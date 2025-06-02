@@ -1020,6 +1020,9 @@ importers:
         specifier: ^3.5.14
         version: 3.5.14(typescript@5.8.3)
     devDependencies:
+      '@proj-airi/ui':
+        specifier: workspace:^
+        version: link:../ui
       '@unocss/reset':
         specifier: ^66.1.2
         version: 66.1.2

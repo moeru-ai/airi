@@ -27,6 +27,10 @@ interface ConsoleEntry {
   class?: string
 }
 
+defineProps<{
+  barrelDistortion?: boolean
+}>()
+
 const step = ref<string>('')
 const progress = ref<number>(0)
 const done = ref<boolean>(false)
@@ -420,7 +424,7 @@ defineExpose({
         <div w="[min(200px,50dvw)]" h="[min(200px,50dvw)]" mx-auto flex justify-center overflow-hidden filter="blur-0.5px">
           <canvas ref="riveCanvas" object-contain />
         </div>
-        <CRT ref="crtRef" class="text-base <lg:text-base <md:text-sm">
+        <CRT ref="crtRef" :barrel-distortion="barrelDistortion" class="text-base <lg:text-base <md:text-sm">
           <CRTLine v-for="entry in consoleEntries" :key="entry.id" :data-text="entry.content" :class="entry.class">
             {{ !!entry.content ? entry.content : '&nbsp;' }}
           </CRTLine>
