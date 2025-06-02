@@ -805,7 +805,7 @@ export const useProvidersStore = defineStore('providers', () => {
         baseUrl: 'http://localhost:4315/v1/',
       },
       createProvider: (config) => {
-        return merge(createMetadataProvider('player2-api'), createChatProvider({ baseURL: config.baseURL as string }))
+        return merge(createMetadataProvider('player2-api'), createChatProvider({ baseURL: config.baseUrl as string }))
       },
       capabilities: {
         listModels: async () => [],
