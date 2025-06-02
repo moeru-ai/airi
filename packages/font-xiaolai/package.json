@@ -2,11 +2,11 @@
   "name": "@proj-airi/font-xiaolai",
   "type": "module",
   "private": true,
-  "description": "A collection of transition animations that used by Project AIRI",
+  "description": "Essential CSS for Xiaolai (小赖字体 / 小賴字體 / シャオライ / Xiaolai Font)",
   "author": {
-    "name": "Moeru AI Project AIRI Team",
-    "email": "airi@moeru.ai",
-    "url": "https://github.com/moeru-ai"
+    "name": "ʟxɢᴡ",
+    "email": "calxgw2018@gmail.com",
+    "url": "https://github.com/lxgw"
   },
   "license": "SIL Open Font License",
   "homepage": "https://github.com/lxgw/kose-font",

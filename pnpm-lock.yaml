@@ -790,6 +790,8 @@ importers:
 
   packages/font-cjkfonts-allseto: {}
 
+  packages/font-departure-mono: {}
+
   packages/font-xiaolai: {}
 
   packages/memory-pgvector:
@@ -1005,6 +1007,9 @@ importers:
 
   packages/ui-loading-screens:
     dependencies:
+      '@rive-app/canvas-lite':
+        specifier: ^2.29.0
+        version: 2.29.0
       '@vueuse/core':
         specifier: ^13.2.0
         version: 13.2.0(vue@3.5.14(typescript@5.8.3))
@@ -4038,6 +4043,9 @@ packages:
 
   '@ricky0123/vad-web@0.0.24':
     resolution: {integrity: sha512-uv6GWW/kq8BkVErMQzXp3uwSyYMT3w/3QJiUerVaaKp7EwhOTIRY+96EoyFdG2WOFU5RkLk/2CVGbI7nDlxhEg==}
+
+  '@rive-app/canvas-lite@2.29.0':
+    resolution: {integrity: sha512-9wcbuTaz5E2vkHIzQeMDklsdYQvcLoYdJPA99vKr51Hv4skCMk/cbNb4/ekgAqaHiuVpFi6WY+JTrenMAiki5g==}
 
   '@rollup/plugin-alias@5.1.1':
     resolution: {integrity: sha512-PR9zDb+rOzkRb2VD+EuKB7UC41vU5DIwZ5qqCpk0KJudcWAyi8rvYOhS7+L5aZCspw1stTViLgN5v6FF1p5cgQ==}
@@ -14815,6 +14823,8 @@ snapshots:
   '@ricky0123/vad-web@0.0.24':
     dependencies:
       onnxruntime-web: 1.14.0
+
+  '@rive-app/canvas-lite@2.29.0': {}
 
   '@rollup/plugin-alias@5.1.1(rollup@4.41.1)':
     optionalDependencies:

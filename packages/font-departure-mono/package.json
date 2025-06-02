@@ -1,0 +1,31 @@
+{
+  "name": "@proj-airi/font-departure-mono",
+  "type": "module",
+  "private": true,
+  "description": "A collection of transition animations that used by Project AIRI",
+  "author": {
+    "name": "Tobias Fried",
+    "email": "26732044+rektdeckard@users.noreply.github.com",
+    "url": "https://github.com/rektdeckard/departure-mono"
+  },
+  "license": "MIT",
+  "homepage": "https://departuremono.com/",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/moeru-ai/airi.git",
+    "directory": "packages/font-departure-mono"
+  },
+  "exports": {
+    ".": { "default": "./dist/index.css" },
+    "./index.css": { "default": "./dist/index.css" },
+    "./files/*": { "default": "./dist/files/*" },
+    "./files/*.otf": { "default": "./dist/files/*.otf" },
+    "./files/*.woff": { "default": "./dist/files/*.woff" },
+    "./files/*.woff2": { "default": "./dist/files/*.woff2" }
+  },
+  "scripts": {
+    "dev": "pnpm run stub",
+    "stub": "unbuild --stub",
+    "build": "unbuild"
+  }
+}
