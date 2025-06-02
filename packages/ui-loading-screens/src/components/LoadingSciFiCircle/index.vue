@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { Rive } from '@rive-app/canvas-lite'
+import { useDark } from '@vueuse/core'
 import { onMounted, ref, watch } from 'vue'
 
-import CircleFadeInAnimation from './assets/circle_blink_in_bold_-_loading_(@proj-airi).riv?url'
+import CircleFadeInAnimation from './assets/circle_blink_in_-_loading_(@proj-airi).riv?url'
 import CRT from './CRT.vue'
 import CRTLine from './CRTLine.vue'
 
@@ -121,7 +122,10 @@ const bootMessages: BootMessage[] = [
 ]
 
 const riveCanvas = ref<HTMLCanvasElement>()
+const rive = ref<Rive>()
 const crtRef = ref<InstanceType<typeof CRT>>()
+
+const isDark = useDark()
 
 function getTimestamp(): number {
   return performance.now() / 1000 * timeMultiplier.value
@@ -253,10 +257,11 @@ onMounted(async () => {
   riveCanvas.value.width = Math.max(window.innerWidth, 500) * 2
   riveCanvas.value.height = Math.max(window.innerWidth, 500) * 2
 
-  const _ = new Rive({
+  rive.value = new Rive({
     src: CircleFadeInAnimation,
     canvas: riveCanvas.value,
     autoplay: true,
+    artboard: isDark.value ? 'Bold' : 'Bold (Light)',
   })
 
   // Boot sequence
@@ -265,6 +270,15 @@ onMounted(async () => {
   }
 })
 
+watch(isDark, () => {
+  rive.value?.cleanup()
+  rive.value = new Rive({
+    src: CircleFadeInAnimation,
+    canvas: riveCanvas.value,
+    autoplay: true,
+    artboard: isDark.value ? 'Bold' : 'Bold (Light)',
+  })
+})
 watch(consoleEntries, () => crtRef.value && crtRef.value.handleWriteLine(), { deep: true })
 
 defineExpose({
@@ -282,7 +296,7 @@ defineExpose({
   <Transition name="fade-out">
     <div v-if="!done" w="[100dvw]" h="[100dvh]" font-retro-mono absolute inset-0 z-99 flex items-center justify-center>
       <div flex flex-col max-w="800px" w="full" p="4">
-        <div w="[min(200px,50dvw)]" h="[min(200px,50dvw)]" mx-auto flex justify-center overflow-hidden>
+        <div w="[min(200px,50dvw)]" h="[min(200px,50dvw)]" mx-auto flex justify-center overflow-hidden filter="blur-0.5px">
           <canvas ref="riveCanvas" object-contain />
         </div>
         <CRT ref="crtRef">
