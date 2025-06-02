@@ -1,7 +1,9 @@
 <script setup lang="ts">
+import type { Ref } from 'vue'
+
 import { Rive } from '@rive-app/canvas-lite'
-import { useDark } from '@vueuse/core'
-import { onMounted, ref, watch } from 'vue'
+import { breakpointsTailwind, useBreakpoints, useDark } from '@vueuse/core'
+import { computed, onMounted, ref, watch } from 'vue'
 
 import CircleFadeInAnimation from './assets/circle_blink_in_-_loading_(@proj-airi).riv?url'
 import CRT from './CRT.vue'
@@ -11,6 +13,7 @@ interface WriteLineOptions {
   renderSpeed?: number
   pending?: boolean
   onPendingCheck?: () => Promise<boolean>
+  withoutTimestamp?: boolean
 }
 
 interface ConsoleEntry {
@@ -21,6 +24,7 @@ interface ConsoleEntry {
   error?: string
   isTyping?: boolean
   targetContent?: string
+  class?: string
 }
 
 const step = ref<string>('')
@@ -44,82 +48,194 @@ const PENDING_FRAMES = [
 interface BootMessage {
   template: string
   typingSpeed?: number
+  withoutTimestamp?: boolean
+  pending?: boolean
+  onPendingCheck?: () => Promise<boolean>
+  class?: string
 }
 
-const bootMessages: BootMessage[] = [
+const breakpoints = useBreakpoints(breakpointsTailwind)
+const isDeviceSm = computed(() => breakpoints.smaller('sm').value)
+
+/**
+ * Stick Letters
+ *
+ * From @link{https://www.asciiart.eu/text-to-ascii-art}
+ */
+const wideAsciiArt = computed(() => (`
+ __   __   __    __  ___  __  ___            __
+|__) |__) /  \\    | |__  /  \`  |      /\\  | |__) |
+|    |  \\ \\__/ \\__/ |___ \\__,  |     /~~\\ | |  \\ |
+`))
+
+const narrowAsciiArt = computed(() => (`
+ __                   __
+|__)_ _ . _ _|_  /\\ ||__)|
+|  | (_)|(-(_|_ /--\\|| \\ |
+        /
+`))
+
+const projectAIRIAsciiArt = computed(() => {
+  if (isDeviceSm.value)
+    return narrowAsciiArt.value
+  return wideAsciiArt.value
+})
+
+const projectAIRIMetadata = `
+Project AIRI team from Moeru AI (https://moeru.ai) and other contributors
+Open sourced on https://github.com/moeru-ai/airi
+`
+
+const bootMessages = computed<BootMessage[]>(() => [
+  ...projectAIRIAsciiArt.value.split('\n').map(line => ({
+    template: line,
+    typingSpeed: 1,
+    withoutTimestamp: true,
+  })),
   {
-    template: `Project AIRI version ${import.meta.env.VITE_AIRI_VERSION || '1.0.0'} ${import.meta.env.VITE_AIRI_COMMIT || '0240602'}`,
-    typingSpeed: 15,
+    template: `Project AIRI version ${import.meta.env.VITE_AIRI_VERSION || '1.0.0'} @ ${import.meta.env.VITE_AIRI_COMMIT || '0240602'} build`,
+    typingSpeed: 5,
+    withoutTimestamp: true,
+  },
+  ...projectAIRIMetadata.trim().split('\n').map(line => ({
+    template: line,
+    typingSpeed: 1,
+    withoutTimestamp: true,
+  })),
+  {
+    template: '',
+    typingSpeed: 1,
+    withoutTimestamp: true,
   },
   {
-    template: 'Command line: BOOT_IMAGE=/boot/airi.moeru.ai root=UUID=airi-system',
-    typingSpeed: 10,
+    template: '',
+    typingSpeed: 1,
+    withoutTimestamp: true,
+  },
+  {
+    template: 'Command line: BOOT_IMAGE=/boot/airi.moeru.ai root=UUID=io.github.moeru-ai.airi',
+    typingSpeed: 1,
   },
   {
     template: 'moeru-ai/NPU: Initialized power management',
-    typingSpeed: 20,
+    typingSpeed: 1,
   },
   {
     template: 'Initializing AIRI subsystems...',
-    typingSpeed: 30,
+    typingSpeed: 1,
+    pending: true,
+    onPendingCheck: () => {
+      return new Promise((resolve) => {
+        setTimeout(() => {
+          resolve(true)
+        }, 5000)
+      })
+    },
   },
   {
     template: 'Loading initial ramdisk...',
-    typingSpeed: 25,
+    typingSpeed: 1,
+    pending: true,
+    onPendingCheck: () => {
+      return new Promise((resolve) => {
+        setTimeout(() => {
+          resolve(true)
+        }, 5000)
+      })
+    },
   },
   {
-    template: 'Starting system services',
-    typingSpeed: 20,
+    template: 'Starting system services...',
+    typingSpeed: 1,
+    onPendingCheck: () => {
+      return new Promise((resolve) => {
+        setTimeout(() => {
+          resolve(true)
+        }, 5000)
+      })
+    },
   },
   {
     template: 'AIRI core services initialized',
-    typingSpeed: 20,
+    typingSpeed: 1,
   },
   {
     template: 'Neural processing units detected',
-    typingSpeed: 20,
+    typingSpeed: 50,
   },
   {
     template: 'Quantum interface online',
-    typingSpeed: 15,
+    typingSpeed: 1,
   },
   {
     template: 'Consciousness waking up...',
-    typingSpeed: 40,
+    typingSpeed: 50,
+    pending: true,
+    onPendingCheck: () => {
+      return new Promise((resolve) => {
+        setTimeout(() => {
+          resolve(true)
+        }, 5000)
+      })
+    },
   },
   {
     template: 'Consciousness fully awakened',
-    typingSpeed: 35,
+    typingSpeed: 1,
   },
   {
-    template: 'Initiating Speech Recognition subsystem',
-    typingSpeed: 25,
+    template: 'Initiating Speech Recognition subsystem...',
+    typingSpeed: 50,
+    pending: true,
+    onPendingCheck: () => {
+      return new Promise((resolve) => {
+        setTimeout(() => {
+          resolve(true)
+        }, 5000)
+      })
+    },
   },
   {
     template: 'Speech recognition online',
-    typingSpeed: 25,
+    typingSpeed: 1,
   },
   {
-    template: 'Initiating Speaker voice',
-    typingSpeed: 25,
+    template: 'Initiating Speaker voice...',
+    typingSpeed: 50,
+    pending: true,
+    onPendingCheck: () => {
+      return new Promise((resolve) => {
+        setTimeout(() => {
+          resolve(true)
+        }, 5000)
+      })
+    },
   },
   {
     template: 'Speaker voice line tuned',
-    typingSpeed: 25,
+    typingSpeed: 1,
   },
   {
-    template: 'Initiating Vision downlink',
-    typingSpeed: 25,
+    template: 'Initiating Vision downlink...',
+    typingSpeed: 50,
+    pending: true,
+    onPendingCheck: () => {
+      return new Promise((resolve) => {
+        setTimeout(() => {
+          resolve(true)
+        }, 5000)
+      })
+    },
   },
   {
     template: 'Vision downlink offline',
-    typingSpeed: 25,
+    typingSpeed: 1,
   },
   {
     template: 'AIRI ready',
-    typingSpeed: 50,
+    typingSpeed: 1,
   },
-]
+])
 
 const riveCanvas = ref<HTMLCanvasElement>()
 const rive = ref<Rive>()
@@ -149,7 +265,7 @@ function handleUpdateDone(value: boolean) {
 
 // Method to update typing speed for a specific message
 function setMessageTypingSpeed(index: number, speed: number) {
-  if (index >= 0 && index < bootMessages.length && speed > 0) {
+  if (index >= 0 && index < bootMessages.value.length && speed > 0) {
     bootMessages[index].typingSpeed = speed
   }
 }
@@ -168,19 +284,19 @@ function setTimeSpeed(multiplier: number) {
   }
 }
 
-async function typeCharacters(entry: ConsoleEntry, text: string, speed: number) {
-  entry.isTyping = true
-  entry.targetContent = text
+async function typeCharacters(entry: Ref<ConsoleEntry>, text: string, speed: number) {
+  entry.value.isTyping = true
+  entry.value.targetContent = text
 
   for (let i = 0; i <= text.length; i++) {
-    if (!entry.isTyping)
+    if (!entry.value.isTyping)
       break // Allow for interruption
-    entry.content = text.slice(0, i)
+    entry.value.content = text.slice(0, i)
     await new Promise(resolve => setTimeout(resolve, speed))
   }
 
-  entry.isTyping = false
-  entry.content = text // Ensure final state is complete
+  entry.value.isTyping = false
+  entry.value.content = text // Ensure final state is complete
 }
 
 async function writeLine<T extends any[]>(
@@ -191,7 +307,7 @@ async function writeLine<T extends any[]>(
     ? args.pop() as WriteLineOptions
     : {}
 
-  const { renderSpeed = defaultTypingSpeed.value, pending = false, onPendingCheck } = options
+  const { renderSpeed = defaultTypingSpeed.value, pending = false, onPendingCheck, withoutTimestamp = false } = options
   const entryId = ++currentEntryId.value
   const timestamp = getTimestamp()
 
@@ -200,20 +316,20 @@ async function writeLine<T extends any[]>(
     typeof arg === 'object' ? JSON.stringify(arg) : String(arg),
   )
   const message = format.replace(/%[sdjo]/g, () => formattedArgs.shift() || '')
-  const timestampStr = `[${formatTimestamp(timestamp)}] `
+  const timestampStr = withoutTimestamp ? '' : `[${formatTimestamp(timestamp)}] `
   const fullLine = timestampStr + message
 
   // Create initial entry
-  const entry: ConsoleEntry = {
+  const entry = ref<ConsoleEntry>({
     id: entryId,
     content: '',
     timestamp,
     status: pending ? 'pending' : undefined,
     isTyping: false,
     targetContent: fullLine,
-  }
+  })
 
-  consoleEntries.value.push(entry)
+  consoleEntries.value.push(entry.value)
 
   // Handle pending animation and check
   if (pending && onPendingCheck) {
@@ -265,8 +381,13 @@ onMounted(async () => {
   })
 
   // Boot sequence
-  for (const message of bootMessages) {
-    await writeLine(message.template, { renderSpeed: message.typingSpeed || defaultTypingSpeed.value })
+  for (const message of bootMessages.value) {
+    await writeLine(message.template, {
+      renderSpeed: message.typingSpeed || defaultTypingSpeed.value,
+      pending: message.pending,
+      onPendingCheck: message.onPendingCheck,
+      withoutTimestamp: message.withoutTimestamp,
+    })
   }
 })
 
@@ -299,9 +420,9 @@ defineExpose({
         <div w="[min(200px,50dvw)]" h="[min(200px,50dvw)]" mx-auto flex justify-center overflow-hidden filter="blur-0.5px">
           <canvas ref="riveCanvas" object-contain />
         </div>
-        <CRT ref="crtRef">
-          <CRTLine v-for="entry in consoleEntries" :key="entry.id">
-            {{ entry.content }}
+        <CRT ref="crtRef" class="text-base <lg:text-base <md:text-sm">
+          <CRTLine v-for="entry in consoleEntries" :key="entry.id" :data-text="entry.content" :class="entry.class">
+            {{ !!entry.content ? entry.content : '&nbsp;' }}
           </CRTLine>
         </CRT>
       </div>

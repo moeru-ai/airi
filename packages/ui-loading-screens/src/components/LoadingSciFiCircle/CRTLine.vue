@@ -1,5 +1,5 @@
 <template>
-  <div class="glitch-content">
+  <div class="glitch-content" whitespace-pre-wrap>
     <slot />
   </div>
 </template>
@@ -28,13 +28,13 @@
 }
 
 .glitch-content::before {
-  left: calc(var(--glitch-offset) * -0.1);
-  color: rgb(52, 0, 0);
+  left: calc(var(--glitch-offset) * -2);
+  color: rgba(255, 0, 0, 0.05);
 }
 
 .glitch-content::after {
-  left: calc(var(--glitch-offset) * 0.1);
-  color: rgb(0, 56, 56);
+  left: calc(var(--glitch-offset) * 1);
+  color: rgba(0, 0, 255, 0.2);
 }
 
 @keyframes glitch-skew {

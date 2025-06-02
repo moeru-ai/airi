@@ -9,8 +9,8 @@ const props = withDefaults(defineProps<{
   glitchAmplitude?: string
 }>(), {
   blinkSpeed: '2s',
-  flashFrequency: '0.005s',
-  glitchOffset: '4px',
+  flashFrequency: '0.06s',
+  glitchOffset: '1px',
   blurAmount: '0.8px',
   glitchAmplitude: '20deg',
 })
