@@ -30,6 +30,7 @@
     "typecheck": "vue-tsc --noEmit"
   },
   "dependencies": {
+    "@proj-airi/font-departure-mono": "workspace:^",
     "@rive-app/canvas-lite": "^2.29.0",
     "@vueuse/core": "^13.2.0",
     "vue": "^3.5.14"

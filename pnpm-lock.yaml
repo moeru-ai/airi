@@ -1007,6 +1007,9 @@ importers:
 
   packages/ui-loading-screens:
     dependencies:
+      '@proj-airi/font-departure-mono':
+        specifier: workspace:^
+        version: link:../font-departure-mono
       '@rive-app/canvas-lite':
         specifier: ^2.29.0
         version: 2.29.0

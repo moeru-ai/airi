@@ -30,15 +30,15 @@ defineExpose({
       v-if="!done"
       w="[100dvw]" h="[100dvh]"
       absolute inset-0 z-99 flex items-center justify-center
-      bg-neutral-50
+      bg="neutral-50 dark:neutral-950"
     >
-      <div min-w="100">
+      <div min-w="100" flex flex-col gap-2>
         <div
-          h-2 rounded-full bg-neutral-300
+          h-2 rounded-full bg="neutral-400 dark:neutral-600"
           transition="all duration-300 ease-in-out"
           :style="{ width: `${progress}%` }"
         />
-        <div>
+        <div text="neutral-400 dark:neutral-600">
           {{ step }}
         </div>
       </div>
