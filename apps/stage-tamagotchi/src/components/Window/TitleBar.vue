@@ -17,8 +17,8 @@ defineProps<{
         transition="all duration-200 ease-in-out"
         flex cursor-pointer items-center gap-2 rounded-md px-1.5 py-0.5
       >
-        <div :class="icon" text="neutral-400 dark:neutral-500" text-nowrap />
-        <div><span text-nowrap>{{ title }}</span></div>
+        <div :class="icon" text="neutral-400 dark:neutral-500" whitespace-nowrap />
+        <div><span whitespace-nowrap text-sm>{{ title }}</span></div>
       </div>
       <div data-tauri-drag-region w-full />
       <div
@@ -26,7 +26,7 @@ defineProps<{
         transition="all duration-200 ease-in-out"
         flex cursor-pointer items-center gap-2 rounded-md px-1.5 py-0.5
       >
-        <div i-solar:info-circle-bold text="neutral-400 dark:neutral-500" text-nowrap />
+        <div i-solar:info-circle-bold text="neutral-400 dark:neutral-500" whitespace-nowrap />
       </div>
     </div>
   </div>
