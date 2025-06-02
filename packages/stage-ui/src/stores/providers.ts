@@ -1,13 +1,4 @@
-import type {
-  ChatProvider,
-  ChatProviderWithExtraOptions,
-  EmbedProvider,
-  EmbedProviderWithExtraOptions,
-  SpeechProvider,
-  SpeechProviderWithExtraOptions,
-  TranscriptionProvider,
-  TranscriptionProviderWithExtraOptions,
-} from '@xsai-ext/shared-providers'
+import type { ChatProvider, ChatProviderWithExtraOptions, EmbedProvider, EmbedProviderWithExtraOptions, SpeechProvider, SpeechProviderWithExtraOptions, TranscriptionProvider, TranscriptionProviderWithExtraOptions } from '@xsai-ext/shared-providers'
 import type {
   UnAlibabaCloudOptions,
   UnElevenLabsOptions,
@@ -33,6 +24,14 @@ import {
   createXAI,
 } from '@xsai-ext/providers-cloud'
 import { createOllama } from '@xsai-ext/providers-local'
+import {
+
+  createChatProvider,
+  createMetadataProvider,
+
+  merge,
+
+} from '@xsai-ext/shared-providers'
 import { listModels } from '@xsai/model'
 import { defineStore } from 'pinia'
 import {
@@ -793,6 +792,27 @@ export const useProvidersStore = defineStore('providers', () => {
       validators: {
         validateProviderConfig: (config) => {
           return !!config.apiKey && !!config.baseUrl
+        },
+      },
+    },
+    'player2-api': {
+      id: 'player2-api',
+      nameKey: 'settings.pages.providers.provider.player2.title',
+      name: 'Player2 API',
+      descriptionKey: 'settings.pages.providers.provider.player2.description',
+      description: 'player2.game',
+      defaultOptions: {
+        baseUrl: 'http://localhost:4315/v1/',
+      },
+      createProvider: (config) => {
+        return merge(createMetadataProvider('player2-api'), createChatProvider({ baseURL: config.baseURL as string }))
+      },
+      capabilities: {
+        listModels: async () => [],
+      },
+      validators: {
+        validateProviderConfig: (config) => {
+          return !!config.baseUrl
         },
       },
     },
