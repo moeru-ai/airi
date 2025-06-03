@@ -6,7 +6,6 @@ import { streamText } from '@xsai/stream-text'
 import { defineStore } from 'pinia'
 
 import { debug, mcp } from '../tools'
-import { toRawObject } from '../utils'
 
 export const useLLM = defineStore('llm', () => {
   async function stream(model: string, chatProvider: ChatProvider, messages: Message[], options?: {
@@ -22,7 +21,7 @@ export const useLLM = defineStore('llm', () => {
     return await streamText({
       ...chatProvider.chat(model),
       maxSteps: 10,
-      messages: toRawObject(messages),
+      messages,
       headers,
       tools: [
         ...await mcp(),
