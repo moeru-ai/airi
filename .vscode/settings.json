@@ -13,6 +13,7 @@
   "rust-analyzer.cargo.extraEnv": {
     "MACOSX_DEPLOYMENT_TARGET": "10.13"
   },
+  "rust-analyzer.cargo.targetDir": "target/rust-analyzer",
 
   // Disable the default formatter
   "prettier.enable": false,
