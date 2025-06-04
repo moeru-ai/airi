@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { Card } from '@proj-airi/ccc'
 
+import { Button } from '@proj-airi/stage-ui/components'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores'
 import {
   DialogContent,
@@ -21,7 +22,7 @@ const emit = defineEmits<{
 }>()
 
 // const { t } = useI18n()
-const _cardStore = useAiriCardStore()
+const cardStore = useAiriCardStore()
 
 // Get character settings
 /* const characterSettings = computed(() => {
@@ -64,6 +65,12 @@ const activeTab = computed({
     activeTabId.value = value
   },
 })
+
+// Save built Cards :
+function saveCard(card: Card): string {
+  const newId: string = cardStore.addCard(card)
+  return newId
+}
 
 // Cards data holders :
 
@@ -211,6 +218,13 @@ const cardPostHistoryInstructions = computed({
           <div v-else-if="activeTab === 'modules'">
             <p>TODO</p>
           </div>
+          <Button
+            variant="primary"
+            icon="i-solar:check-circle-bold-duotone"
+            label="Create"
+            :disabled="false"
+            @click="saveCard(card)"
+          />
         </div>
       </DialogContent>
     </DialogPortal>
