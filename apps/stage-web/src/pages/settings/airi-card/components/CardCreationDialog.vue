@@ -49,6 +49,7 @@ const activeTabId = ref('')
 // Tabs for card details
 const tabs: Tab[] = [
   { id: 'character', label: 'Character', icon: 'i-solar:emoji-funny-square-bold-duotone' },
+  { id: 'modules', label: 'Modules', icon: 'i-solar:tuning-square-linear' },
 ]
 
 // Active tab state - set to first available tab by default
@@ -206,9 +207,9 @@ const cardPostHistoryInstructions = computed({
               bg="white dark:neutral-900"
             />
           </div>
-          <!-- Other -->
-          <div v-else-if="activeTab === 'other'">
-            <p>other</p>
+          <!-- Modules -->
+          <div v-else-if="activeTab === 'modules'">
+            <p>TODO</p>
           </div>
         </div>
       </DialogContent>
