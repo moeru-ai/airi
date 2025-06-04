@@ -76,6 +76,7 @@ settings:
       description: 使用 Airi 角色卡预设
       description_label: 描述
       drop_here: 放开以上传文件
+      create_card: 创建新角色卡
       modules: 模块
       name_asc: 名称 (A-Z)
       name_desc: 名称 (Z-A)
