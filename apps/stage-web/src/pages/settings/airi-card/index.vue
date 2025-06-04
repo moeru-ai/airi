@@ -8,6 +8,7 @@ import { storeToRefs } from 'pinia'
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import CardCreate from './components/CardCreate.vue'
 import CardDetailDialog from './components/CardDetailDialog.vue'
 import CardListItem from './components/CardListItem.vue'
 import DeleteCardDialog from './components/DeleteCardDialog.vue'
@@ -213,6 +214,9 @@ function getModuleShortName(id: string, module: 'consciousness' | 'voice') {
           </template>
         </template>
       </InputFile>
+
+      <!-- Create card -->
+      <CardCreate />
 
       <!-- Card Items -->
       <template v-if="cards.size > 0">
