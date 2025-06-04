@@ -9,6 +9,7 @@ import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import CardCreate from './components/CardCreate.vue'
+import CardCreationDialog from './components/CardCreationDialog.vue'
 import CardDetailDialog from './components/CardDetailDialog.vue'
 import CardListItem from './components/CardListItem.vue'
 import DeleteCardDialog from './components/DeleteCardDialog.vue'
@@ -22,6 +23,7 @@ const { cards, activeCardId } = storeToRefs(cardStore)
 const selectedCardId = ref<string>('')
 // Dialog state
 const isCardDialogOpen = ref(false)
+const isCardCreationDialogOpen = ref(false)
 
 // Search query
 const searchQuery = ref('')
@@ -115,6 +117,10 @@ function confirmDelete(id: string) {
 function handleSelectCard(cardId: string) {
   selectedCardId.value = cardId
   isCardDialogOpen.value = true
+}
+
+function handleCardCreationDialog() {
+  isCardCreationDialogOpen.value = true
 }
 
 // Card activation
@@ -216,7 +222,7 @@ function getModuleShortName(id: string, module: 'consciousness' | 'voice') {
       </InputFile>
 
       <!-- Create card -->
-      <CardCreate />
+      <CardCreate @click="handleCardCreationDialog" />
 
       <!-- Card Items -->
       <template v-if="cards.size > 0">
@@ -276,6 +282,11 @@ function getModuleShortName(id: string, module: 'consciousness' | 'voice') {
   <CardDetailDialog
     v-model="isCardDialogOpen"
     :card-id="selectedCardId"
+  />
+
+  <!-- Card detail dialog -->
+  <CardCreationDialog
+    v-model="isCardCreationDialogOpen"
   />
 
   <!-- Background decoration -->
