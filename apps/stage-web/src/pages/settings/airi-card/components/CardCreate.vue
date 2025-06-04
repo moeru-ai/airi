@@ -24,7 +24,3 @@ const { t } = useI18n()
     </p>
   </div>
 </template>
-
-<style scoped>
-/* your CSS styles here */
-</style>
