@@ -1,35 +1,45 @@
-/// Get cursor position relative to the window
 #[cfg(target_os = "windows")]
-pub async fn is_cursor_in_window(window: &tauri::Window) -> bool {
-  use windows::Win32::{
-    Foundation::{POINT, RECT},
-    UI::WindowsAndMessaging::{GetCursorPos, GetWindowRect},
-  };
+use super::types::{Point, Size, WindowFrame};
+
+#[cfg(target_os = "windows")]
+pub fn get_window_frame(window: &tauri::Window) -> WindowFrame {
+  use windows::Win32::{Foundation::RECT, UI::WindowsAndMessaging::GetWindowRect};
 
   unsafe {
     let hwnd = window.hwnd().unwrap();
+    let mut rect = RECT::default();
+
+    // Get window rectangle
+    if GetWindowRect(hwnd, &mut rect).is_ok() {
+      // Return the coordinates as (left, top, right, bottom)
+      return WindowFrame {
+        origin: Point { x: rect.left.into(), y: rect.top.into() },
+        size:   Size {
+          width:  (rect.right - rect.left).into(),
+          height: (rect.bottom - rect.top).into(),
+        },
+      };
+    }
+  }
+
+  WindowFrame {
+    origin: Point { x: 0.0, y: 0.0 },
+    size:   Size { width: 0.0, height: 0.0 },
+  } // Default if unable to get window frame
+}
+
+#[cfg(target_os = "windows")]
+pub fn get_mouse_location() -> Point {
+  use windows::Win32::{Foundation::POINT, UI::WindowsAndMessaging::GetCursorPos};
+
+  unsafe {
     let mut cursor_pos = POINT::default();
-    let mut window_rect = RECT::default();
 
     // Get cursor position in screen coordinates
     if GetCursorPos(&mut cursor_pos).is_ok() {
-      // Get window rectangle
-      if GetWindowRect(hwnd, &mut window_rect).is_ok() {
-        // Check if cursor is inside window bounds
-        return cursor_pos.x >= window_rect.left && cursor_pos.x <= window_rect.right && cursor_pos.y >= window_rect.top && cursor_pos.y <= window_rect.bottom;
-      }
+      return Point { x: cursor_pos.x.into(), y: cursor_pos.y.into() };
     }
-
-    false
   }
-}
 
-/// Check if modifier key is pressed (Alt key)
-#[cfg(target_os = "windows")]
-pub fn is_modifier_pressed() -> bool {
-  use windows::Win32::UI::Input::KeyboardAndMouse::{GetAsyncKeyState, VK_MENU};
-  unsafe {
-    // Check if Alt key is pressed (VK_MENU is the virtual key code for Alt)
-    GetAsyncKeyState(VK_MENU.0 as i32) < 0
-  }
+  Point { x: 0.0, y: 0.0 } // Default if unable to get cursor position
 }

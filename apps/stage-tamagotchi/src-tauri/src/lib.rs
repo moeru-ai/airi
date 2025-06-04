@@ -17,10 +17,10 @@ mod app_windows;
 mod commands;
 
 #[cfg(target_os = "macos")]
-use app_click_through::native_macos::is_cursor_in_window;
+use app_click_through::native_macos::{get_mouse_location, get_window_frame};
 #[cfg(target_os = "windows")]
-use app_click_through::native_windows::is_cursor_in_window;
-use app_click_through::state::{set_click_through_enabled, set_cursor_inside, WindowClickThroughState};
+use app_click_through::native_windows::{get_mouse_location, get_window_frame};
+use app_click_through::state::{set_click_through_enabled, WindowClickThroughState};
 
 #[tauri::command]
 async fn start_monitor_for_clicking_through(window: tauri::Window) -> Result<(), String> {
@@ -54,22 +54,12 @@ async fn start_monitor_for_clicking_through(window: tauri::Window) -> Result<(),
 
       #[cfg(target_os = "macos")]
       {
-        let cursor_inside = is_cursor_in_window(&window).await;
-
-        // Only allow disabling click-through when:
-        // 1. Cursor is OUTSIDE the window AND
-        // 2. Modifier key is pressed
-        let _ = set_cursor_inside(&window, cursor_inside);
+        let _ = window.emit("tauri-app:window-click-through:mouse-location-and-window-frame", (get_mouse_location(), get_window_frame(&window)));
       }
 
       #[cfg(target_os = "windows")]
       {
-        let cursor_inside = is_cursor_in_window(&window).await;
-
-        // Only allow disabling click-through when:
-        // 1. Cursor is OUTSIDE the window AND
-        // 2. Modifier key is pressed
-        let _ = set_cursor_inside(&window, cursor_inside);
+        let _ = window.emit("tauri-app:window-click-through:mouse-location-and-window-frame", (get_mouse_location(), get_window_frame(&window)));
       }
     }
   });

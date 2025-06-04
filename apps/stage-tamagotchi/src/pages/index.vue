@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { WidgetStage } from '@proj-airi/stage-ui/components'
 import { useMcpStore } from '@proj-airi/stage-ui/stores'
 import { connectServer } from '@proj-airi/tauri-plugin-mcp'
 import { invoke } from '@tauri-apps/api/core'
@@ -56,10 +55,26 @@ const shouldHideView = computed(() => {
   return isCursorInside.value && !windowStore.isControlActive && windowStore.isIgnoringMouseEvent
 })
 
+interface Point {
+  x: number
+  y: number
+}
+
+interface Size {
+  width: number
+  height: number
+}
+
+interface WindowFrame {
+  origin: Point
+  size: Size
+}
+
 onMounted(async () => {
   // Listen for click-through state changes
-  unlisten.push(await listen('tauri-app:window-click-through:is-inside', (event: { payload: boolean }) => {
-    isCursorInside.value = event.payload
+  unlisten.push(await listen('tauri-app:window-click-through:mouse-location-and-window-frame', (event: { payload: [Point, WindowFrame] }) => {
+    const [mouseLocation, windowFrame] = event.payload
+    isCursorInside.value = mouseLocation.x >= windowFrame.origin.x && mouseLocation.x <= windowFrame.origin.x + windowFrame.size.width && mouseLocation.y >= windowFrame.origin.y && mouseLocation.y <= windowFrame.origin.y + windowFrame.size.height
   }))
 
   if (connected.value)
@@ -96,7 +111,10 @@ onUnmounted(() => {
     transition="opacity duration-500 ease-in-out"
   >
     <div relative h-full w-full items-end gap-2 class="view">
-      <WidgetStage h-full w-full flex-1 mb="<md:18" />
+      <!-- <WidgetStage h-full w-full flex-1 mb="<md:18" /> -->
+      <div h-full w-full flex-1 mb="<md:18">
+        HELLO
+      </div>
       <div
         absolute bottom-4 left-4 flex gap-1 op-0 transition="opacity duration-500"
         :class="{
