@@ -90,6 +90,7 @@ settings:
       description: Use AIRI character card presets
       description_label: Description
       drop_here: Drop to upload
+      create_card: Create a new Card
       modules: Modules
       name_asc: Name (A-Z)
       name_desc: Name (Z-A)
