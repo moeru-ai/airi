@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import type { Card } from '@proj-airi/ccc'
+
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores'
 import {
   DialogContent,
@@ -61,6 +63,69 @@ const activeTab = computed({
     activeTabId.value = value
   },
 })
+
+// Cards data holders :
+
+const card = ref<Card>({
+  name: 'Nameless',
+  version: '1.0',
+  personality: 'Enter here a personality !',
+  scenario: 'Scenario for this card.',
+  systemPrompt: 'System prompt',
+  postHistoryInstructions: 'Post history Instructions',
+  greetings: [],
+  messageExample: [],
+})
+
+const cardName = computed({
+  get: () => card.value.name, // TODO : If user clear the input twice, input will remain blank
+  set: (val: string) => {
+    const input = val.trim()
+    if (input.length > 0)
+      card.value.name = input.charAt(0).toUpperCase() + input.slice(1).toLowerCase()
+    else card.value.name = 'Nameless'
+  },
+})
+
+const cardPersonality = computed({
+  get: () => card.value.personality,
+  set: (val: string) => {
+    const input = val.trim()
+    if (input.length > 0)
+      card.value.personality = input
+    else card.value.personality = 'You are a bit curious about everything, always trying to learn more about your environment.'
+  },
+})
+
+const cardScenario = computed({
+  get: () => card.value.scenario,
+  set: (val: string) => {
+    const input = val.trim()
+    if (input.length > 0)
+      card.value.scenario = input
+    else card.value.scenario = 'You recently woke up without any memories.'
+  },
+})
+
+const cardSysPrompt = computed({
+  get: () => card.value.systemPrompt,
+  set: (val: string) => {
+    const input = val.trim()
+    if (input.length > 0)
+      card.value.systemPrompt = input
+    else card.value.systemPrompt = 'Act and answer like a regular Human.'
+  },
+})
+
+const cardPostHistoryInstructions = computed({
+  get: () => card.value.postHistoryInstructions,
+  set: (val: string) => {
+    const input = val.trim()
+    if (input.length > 0)
+      card.value.postHistoryInstructions = input
+    else card.value.postHistoryInstructions = 'Remember what we did last time and let\'s resume our talk.'
+  },
+})
 </script>
 
 <template>
@@ -101,6 +166,45 @@ const activeTab = computed({
           <!-- Character details -->
           <div v-if="activeTab === 'character'">
             <p>Characters</p>
+            <label>Name:</label><input
+              v-model.lazy="cardName" type="string"
+              class="rounded-xl p-2.5 text-sm outline-none"
+              border="focus:primary-100 dark:focus:primary-400/50 2 solid neutral-200 dark:neutral-800"
+              transition="all duration-200 ease-in-out"
+              bg="white dark:neutral-900"
+            >
+
+            <label>Personality:</label><textarea
+              v-model.lazy="cardPersonality" type="string"
+              class="rounded-xl p-2.5 text-sm outline-none"
+              border="focus:primary-100 dark:focus:primary-400/50 2 solid neutral-200 dark:neutral-800"
+              transition="all duration-200 ease-in-out"
+              bg="white dark:neutral-900"
+            />
+
+            <label>Scenario:</label><textarea
+              v-model.lazy="cardScenario" type="string"
+              class="rounded-xl p-2.5 text-sm outline-none"
+              border="focus:primary-100 dark:focus:primary-400/50 2 solid neutral-200 dark:neutral-800"
+              transition="all duration-200 ease-in-out"
+              bg="white dark:neutral-900"
+            />
+
+            <label>System Prompt:</label><textarea
+              v-model.lazy="cardSysPrompt" type="string"
+              class="rounded-xl p-2.5 text-sm outline-none"
+              border="focus:primary-100 dark:focus:primary-400/50 2 solid neutral-200 dark:neutral-800"
+              transition="all duration-200 ease-in-out"
+              bg="white dark:neutral-900"
+            />
+
+            <label>Post History Instructions:</label><textarea
+              v-model.lazy="cardPostHistoryInstructions" type="string"
+              class="rounded-xl p-2.5 text-sm outline-none"
+              border="focus:primary-100 dark:focus:primary-400/50 2 solid neutral-200 dark:neutral-800"
+              transition="all duration-200 ease-in-out"
+              bg="white dark:neutral-900"
+            />
           </div>
           <!-- Other -->
           <div v-else-if="activeTab === 'other'">
