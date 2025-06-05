@@ -12,6 +12,8 @@ import {
 } from 'radix-vue'
 import { computed, ref } from 'vue'
 
+import TextInput from './moveMeLaterInput.vue'
+
 interface Props {
   modelValue: boolean
 }
@@ -21,21 +23,8 @@ const emit = defineEmits<{
   (e: 'update:modelValue', value: boolean): void
 }>()
 
-// const { t } = useI18n()
+// const { t } = useI18n() //TODO
 const cardStore = useAiriCardStore()
-
-// Get character settings
-/* const characterSettings = computed(() => {
-  if (!selectedCard.value)
-    return {}
-
-  return {
-    personality: selectedCard.value.personality,
-    scenario: selectedCard.value.scenario,
-    systemPrompt: selectedCard.value.systemPrompt,
-    postHistoryInstructions: selectedCard.value.postHistoryInstructions,
-  }
-}) */
 
 // Tab type definition
 interface Tab {
@@ -91,7 +80,7 @@ const cardName = computed({
     const input = val.trim()
     if (input.length > 0)
       card.value.name = input.charAt(0).toUpperCase() + input.slice(1).toLowerCase()
-    else card.value.name = 'Nameless'
+    else card.value.name = ''
   },
 })
 
@@ -172,47 +161,20 @@ const cardPostHistoryInstructions = computed({
 
           <!-- Actual content -->
           <!-- Character details -->
-          <div v-if="activeTab === 'character'">
+          <div v-if="activeTab === 'character'" class="tab-content ml-auto mr-auto">
             <p>Characters</p>
-            <label>Name:</label><input
-              v-model.lazy="cardName" type="string"
-              class="rounded-xl p-2.5 text-sm outline-none"
-              border="focus:primary-100 dark:focus:primary-400/50 2 solid neutral-200 dark:neutral-800"
-              transition="all duration-200 ease-in-out"
-              bg="white dark:neutral-900"
-            >
 
-            <label>Personality:</label><textarea
-              v-model.lazy="cardPersonality" type="string"
-              class="rounded-xl p-2.5 text-sm outline-none"
-              border="focus:primary-100 dark:focus:primary-400/50 2 solid neutral-200 dark:neutral-800"
-              transition="all duration-200 ease-in-out"
-              bg="white dark:neutral-900"
-            />
+            <div class="input-list ml-auto mr-auto w-90% flex flex-row flex-wrap justify-center gap-8">
+              <TextInput v-model="cardName" :long="false" label="My test" :required="true" />
 
-            <label>Scenario:</label><textarea
-              v-model.lazy="cardScenario" type="string"
-              class="rounded-xl p-2.5 text-sm outline-none"
-              border="focus:primary-100 dark:focus:primary-400/50 2 solid neutral-200 dark:neutral-800"
-              transition="all duration-200 ease-in-out"
-              bg="white dark:neutral-900"
-            />
+              <TextInput v-model="cardPersonality" :long="true" label="Personality" />
 
-            <label>System Prompt:</label><textarea
-              v-model.lazy="cardSysPrompt" type="string"
-              class="rounded-xl p-2.5 text-sm outline-none"
-              border="focus:primary-100 dark:focus:primary-400/50 2 solid neutral-200 dark:neutral-800"
-              transition="all duration-200 ease-in-out"
-              bg="white dark:neutral-900"
-            />
+              <TextInput v-model="cardScenario" :long="true" label="Scenario" />
 
-            <label>Post History Instructions:</label><textarea
-              v-model.lazy="cardPostHistoryInstructions" type="string"
-              class="rounded-xl p-2.5 text-sm outline-none"
-              border="focus:primary-100 dark:focus:primary-400/50 2 solid neutral-200 dark:neutral-800"
-              transition="all duration-200 ease-in-out"
-              bg="white dark:neutral-900"
-            />
+              <TextInput v-model="cardSysPrompt" :long="true" label="System prompt" />
+
+              <TextInput v-model="cardPostHistoryInstructions" :long="true" label="History Instructions" />
+            </div>
           </div>
           <!-- Modules -->
           <div v-else-if="activeTab === 'modules'">
@@ -230,3 +192,16 @@ const cardPostHistoryInstructions = computed({
     </DialogPortal>
   </DialogRoot>
 </template>
+
+<style scoped>
+.input-list *{
+    min-width: 45%;
+  }
+
+  @media (max-width: 641px) {
+  .input-list *{
+    min-width: unset;
+    width: 100%;
+  }
+}
+</style>
