@@ -38,8 +38,9 @@ const activeTabId = ref('')
 
 // Tabs for card details
 const tabs: Tab[] = [
-  { id: 'character', label: 'Character', icon: 'i-solar:emoji-funny-square-bold-duotone' },
-  { id: 'modules', label: 'Modules', icon: 'i-solar:tuning-square-linear' },
+  { id: 'identity', label: 'Identity', icon: 'i-solar:emoji-funny-square-bold-duotone' },
+  { id: 'behavior', label: 'Behavior', icon: 'i-solar:chat-round-line-bold-duotone' },
+  { id: 'settings', label: 'Settings', icon: 'i-solar:settings-bold-duotone' },
 ]
 
 // Active tab state - set to first available tab by default
@@ -64,65 +65,51 @@ function saveCard(card: Card): string {
 // Cards data holders :
 
 const card = ref<Card>({
-  name: 'Nameless',
+  name: 'Name',
+  nickname: undefined,
   version: '1.0',
-  personality: 'Enter here a personality !',
-  scenario: 'Scenario for this card.',
+  description: undefined,
+  notes: undefined,
+  personality: undefined,
+  scenario: undefined,
   systemPrompt: 'System prompt',
   postHistoryInstructions: 'Post history Instructions',
   greetings: [],
   messageExample: [],
 })
 
-const cardName = computed({
-  get: () => card.value.name, // TODO : If user clear the input twice, input will remain blank
-  set: (val: string) => {
-    const input = val.trim()
-    if (input.length > 0)
-      card.value.name = input.charAt(0).toUpperCase() + input.slice(1).toLowerCase()
-    else card.value.name = ''
-  },
-})
+function makeComputed<T extends keyof Card>(
+  /*
+  Function used to generate Computed values, with an optional sanitize function
+  */
+  key: T,
+  fallback?: string | string[],
+  transform?: (input: string) => string | string[],
+) {
+  return computed({
+    get: () => {
+      const raw = card.value[key] // We get the value from our card
+      return Array.isArray(raw) // Is it an Array ?
+        ? raw.join('\n') // If yes, we can transform it to String and return
+        : raw ?? fallback ?? '' // Else, that's a String or undefined
+    },
+    set: (val: string) => { // Set,
+      const input = val.trim() // We first trim the value
+      card.value[key] = input.length > 0
+        ? (transform ? transform(input) : input) // then potentially transform it
+        : fallback // or default to fallback value if nothing was given
+    },
+  })
+}
 
-const cardPersonality = computed({
-  get: () => card.value.personality,
-  set: (val: string) => {
-    const input = val.trim()
-    if (input.length > 0)
-      card.value.personality = input
-    else card.value.personality = 'You are a bit curious about everything, always trying to learn more about your environment.'
-  },
-})
+const cardName = makeComputed('name', '', input => input.split(' ').map(e => e.charAt(0).toUpperCase() + e.slice(1).toLowerCase()).join(' '))
+const cardNickname = makeComputed('nickname')
+const cardDescription = makeComputed('description')
+const cardNotes = makeComputed('notes')
 
-const cardScenario = computed({
-  get: () => card.value.scenario,
-  set: (val: string) => {
-    const input = val.trim()
-    if (input.length > 0)
-      card.value.scenario = input
-    else card.value.scenario = 'You recently woke up without any memories.'
-  },
-})
-
-const cardSysPrompt = computed({
-  get: () => card.value.systemPrompt,
-  set: (val: string) => {
-    const input = val.trim()
-    if (input.length > 0)
-      card.value.systemPrompt = input
-    else card.value.systemPrompt = 'Act and answer like a regular Human.'
-  },
-})
-
-const cardPostHistoryInstructions = computed({
-  get: () => card.value.postHistoryInstructions,
-  set: (val: string) => {
-    const input = val.trim()
-    if (input.length > 0)
-      card.value.postHistoryInstructions = input
-    else card.value.postHistoryInstructions = 'Remember what we did last time and let\'s resume our talk.'
-  },
-})
+const cardPersonality = makeComputed('personality', 'You are a regular human, curious about everything.')
+const cardScenario = makeComputed('scenario', 'You recently woke up and forgot everything about your previous life.')
+const cardGreetings = makeComputed('greetings', [], input => input.split('\n'))
 </script>
 
 <template>
@@ -160,25 +147,26 @@ const cardPostHistoryInstructions = computed({
           </div>
 
           <!-- Actual content -->
-          <!-- Character details -->
-          <div v-if="activeTab === 'character'" class="tab-content ml-auto mr-auto">
-            <p>Characters</p>
+          <!-- Identity details -->
+          <div v-if="activeTab === 'identity'" class="tab-content ml-auto mr-auto w-95%">
+            <p>TODO</p>
 
             <div class="input-list ml-auto mr-auto w-90% flex flex-row flex-wrap justify-center gap-8">
-              <TextInput v-model="cardName" :long="false" label="My test" :required="true" />
-
-              <TextInput v-model="cardPersonality" :long="true" label="Personality" />
-
-              <TextInput v-model="cardScenario" :long="true" label="Scenario" />
-
-              <TextInput v-model="cardSysPrompt" :long="true" label="System prompt" />
-
-              <TextInput v-model="cardPostHistoryInstructions" :long="true" label="History Instructions" />
+              <TextInput v-model="cardName" label="Name" :required="true" />
+              <TextInput v-model="cardNickname" label="Nickname" />
+              <TextInput v-model="cardDescription" label="Description" :long="true" />
+              <TextInput v-model="cardNotes" label="Personal notes" :long="true" />
             </div>
           </div>
-          <!-- Modules -->
-          <div v-else-if="activeTab === 'modules'">
+          <!-- Behavior -->
+          <div v-else-if="activeTab === 'behavior'">
             <p>TODO</p>
+
+            <div class="input-list ml-auto mr-auto w-90% flex flex-row flex-wrap justify-center gap-8">
+              <TextInput v-model="cardPersonality" label="Personality" :long="true" />
+              <TextInput v-model="cardScenario" label="Scenario" :long="true" />
+              <TextInput v-model="cardGreetings" label="Greetings, one per line" :long="true" />
+            </div>
           </div>
           <Button
             variant="primary"
