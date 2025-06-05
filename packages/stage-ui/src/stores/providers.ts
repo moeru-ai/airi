@@ -25,10 +25,10 @@ import {
 } from '@xsai-ext/providers-cloud'
 import { createOllama } from '@xsai-ext/providers-local'
 import {
-
   createChatProvider,
   createMetadataProvider,
-
+  createSpeechProvider,
+  createTranscriptionProvider,
   merge,
 
 } from '@xsai-ext/shared-providers'
@@ -805,7 +805,7 @@ export const useProvidersStore = defineStore('providers', () => {
         baseUrl: 'http://localhost:4315/v1/',
       },
       createProvider: (config) => {
-        return merge(createMetadataProvider('player2-api'), createChatProvider({ baseURL: config.baseUrl as string }))
+        return merge(createMetadataProvider('player2-api'), createChatProvider({ baseURL: config.baseUrl as string }), createSpeechProvider({ baseURL: config.baseURL as string }), createTranscriptionProvider({ baseURL: config.baseURL as string }))
       },
       capabilities: {
         listModels: async () => [],
