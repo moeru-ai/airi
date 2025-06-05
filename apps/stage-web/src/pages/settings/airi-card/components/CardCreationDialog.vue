@@ -23,6 +23,8 @@ const emit = defineEmits<{
   (e: 'update:modelValue', value: boolean): void
 }>()
 
+const modelValue = defineModel<boolean>()
+
 // const { t } = useI18n() //TODO
 const cardStore = useAiriCardStore()
 
@@ -59,6 +61,7 @@ const activeTab = computed({
 // Save built Cards :
 function saveCard(card: Card): string {
   const newId: string = cardStore.addCard(card)
+  modelValue.value = false // Close this
   return newId
 }
 
@@ -163,7 +166,7 @@ const cardPostHistoryInstructions = makeComputed('postHistoryInstructions', 'Rem
             </div>
           </div>
           <!-- Behavior -->
-          <div v-else-if="activeTab === 'behavior'">
+          <div v-else-if="activeTab === 'behavior'" class="tab-content ml-auto mr-auto w-95%">
             <p>TODO</p>
 
             <div class="input-list ml-auto mr-auto w-90% flex flex-row flex-wrap justify-center gap-8">
@@ -173,7 +176,7 @@ const cardPostHistoryInstructions = makeComputed('postHistoryInstructions', 'Rem
             </div>
           </div>
           <!-- Settings -->
-          <div v-else-if="activeTab === 'settings'">
+          <div v-else-if="activeTab === 'settings'" class="tab-content ml-auto mr-auto w-95%">
             <p>TODO</p>
 
             <div class="input-list ml-auto mr-auto w-90% flex flex-row flex-wrap justify-center gap-8">
@@ -183,13 +186,22 @@ const cardPostHistoryInstructions = makeComputed('postHistoryInstructions', 'Rem
             </div>
           </div>
 
-          <Button
-            variant="primary"
-            icon="i-solar:check-circle-bold-duotone"
-            label="Create"
-            :disabled="false"
-            @click="saveCard(card)"
-          />
+          <div class="ml-auto mr-1 flex flex-row gap-2">
+            <Button
+              variant="secondary"
+              icon="i-solar:undo-left-bold-duotone"
+              label="Cancel"
+              :disabled="false"
+              @click="modelValue = false"
+            />
+            <Button
+              variant="primary"
+              icon="i-solar:check-circle-bold-duotone"
+              label="Create"
+              :disabled="false"
+              @click="saveCard(card)"
+            />
+          </div>
         </div>
       </DialogContent>
     </DialogPortal>
