@@ -98,14 +98,14 @@
     "@proj-airi/server-sdk": "workspace:^",
     "@proj-airi/tauri-plugin-mcp": "workspace:^",
     "@proj-airi/ui": "workspace:^",
-    "@vueuse/core": "^13.2.0",
+    "@vueuse/core": "^13.3.0",
     "@vueuse/motion": "^3.0.3",
     "@xsai-transformers/embed": "^0.0.6",
     "@xsai/embed": "catalog:",
     "pixi-filters": "4",
     "pixi-live2d-display": "^0.4.0",
     "radix-vue": "^1.9.17",
-    "reka-ui": "^2.2.1",
+    "reka-ui": "^2.3.0",
     "unist-builder": "^4.0.0",
     "unspeech": "^0.1.7",
     "xast-util-to-xml": "^4.0.0",
@@ -113,10 +113,10 @@
   },
   "devDependencies": {
     "@histoire/plugin-vue": "1.0.0-alpha.2",
-    "@unocss/reset": "^66.1.2",
+    "@unocss/reset": "^66.1.3",
     "@vitejs/plugin-vue": "^5.2.4",
     "histoire": "1.0.0-alpha.2",
-    "unocss": "^66.1.2",
+    "unocss": "^66.1.3",
     "vite": "^6.3.5"
   }
 }
