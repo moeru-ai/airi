@@ -67,15 +67,15 @@ function saveCard(card: Card): string {
 // Cards data holders :
 
 const card = ref<Card>({
-  name: '',
+  name: t('settings.pages.card.creation.defaults.name'),
   nickname: undefined,
   version: '1.0',
   description: '',
   notes: undefined,
-  personality: '',
-  scenario: '',
-  systemPrompt: '',
-  postHistoryInstructions: '',
+  personality: t('settings.pages.card.creation.defaults.personality'),
+  scenario: t('settings.pages.card.creation.defaults.scenario'),
+  systemPrompt: t('settings.pages.card.creation.defaults.systemprompt'),
+  postHistoryInstructions: t('settings.pages.card.creation.defaults.posthistoryinstructions'),
   greetings: [],
   messageExample: [],
 })
@@ -85,29 +85,28 @@ function makeComputed<T extends keyof Card>(
   Function used to generate Computed values, with an optional sanitize function
   */
   key: T,
-  fallback?: string,
   transform?: (input: string) => string,
 ) {
   return computed({
     get: () => {
-      return card.value[key] ?? fallback
+      return card.value[key] // Is key is '', undefined or just falsy, fallback is used
     },
     set: (val: string) => { // Set,
       const input = val.trim() // We first trim the value
       card.value[key] = (input.length > 0
         ? (transform ? transform(input) : input) // then potentially transform it
-        : fallback) as Card[T]// or default to fallback value if nothing was given
+        : '') as Card[T]// or default to empty string value if nothing was given
     },
   })
 }
 
-const cardName = makeComputed('name', t('settings.pages.card.creation.defaults.name'), input => input.split(' ').map(e => e.charAt(0).toUpperCase() + e.slice(1).toLowerCase()).join(' '))
+const cardName = makeComputed('name', input => input.split(' ').map(e => e.charAt(0).toUpperCase() + e.slice(1).toLowerCase()).join(' '))
 const cardNickname = makeComputed('nickname')
-const cardDescription = makeComputed('description', '')
+const cardDescription = makeComputed('description')
 const cardNotes = makeComputed('notes')
 
-const cardPersonality = makeComputed('personality', t('settings.pages.card.creation.defaults.personality'))
-const cardScenario = makeComputed('scenario', t('settings.pages.card.creation.defaults.scenario'))
+const cardPersonality = makeComputed('personality')
+const cardScenario = makeComputed('scenario')
 const cardGreetings = computed({
   get: () => (card.value.greetings ?? []).join('\n'),
   set: (val: string) => {
@@ -115,9 +114,9 @@ const cardGreetings = computed({
   },
 })
 
-const cardVersion = makeComputed('version', '1.0')
-const cardSystemPrompt = makeComputed('systemPrompt', t('settings.pages.card.creation.defaults.systemprompt'))
-const cardPostHistoryInstructions = makeComputed('postHistoryInstructions', t('settings.pages.card.creation.defaults.posthistoryinstructions'))
+const cardVersion = makeComputed('version')
+const cardSystemPrompt = makeComputed('systemPrompt')
+const cardPostHistoryInstructions = makeComputed('postHistoryInstructions')
 </script>
 
 <template>
