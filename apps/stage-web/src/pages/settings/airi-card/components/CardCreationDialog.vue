@@ -72,8 +72,8 @@ const card = ref<Card>({
   notes: undefined,
   personality: undefined,
   scenario: undefined,
-  systemPrompt: 'System prompt',
-  postHistoryInstructions: 'Post history Instructions',
+  systemPrompt: undefined,
+  postHistoryInstructions: undefined,
   greetings: [],
   messageExample: [],
 })
@@ -110,6 +110,10 @@ const cardNotes = makeComputed('notes')
 const cardPersonality = makeComputed('personality', 'You are a regular human, curious about everything.')
 const cardScenario = makeComputed('scenario', 'You recently woke up and forgot everything about your previous life.')
 const cardGreetings = makeComputed('greetings', [], input => input.split('\n'))
+
+const cardVersion = makeComputed('version', '1.0')
+const cardSystemPrompt = makeComputed('systemPrompt', 'You will receive messages, answer to them like a real human.')
+const cardPostHistoryInstructions = makeComputed('postHistoryInstructions', 'Remember to imitate an human.')
 </script>
 
 <template>
@@ -168,6 +172,17 @@ const cardGreetings = makeComputed('greetings', [], input => input.split('\n'))
               <TextInput v-model="cardGreetings" label="Greetings, one per line" :long="true" />
             </div>
           </div>
+          <!-- Settings -->
+          <div v-else-if="activeTab === 'settings'">
+            <p>TODO</p>
+
+            <div class="input-list ml-auto mr-auto w-90% flex flex-row flex-wrap justify-center gap-8">
+              <TextInput v-model="cardSystemPrompt" label="System Prompt" :long="true" />
+              <TextInput v-model="cardPostHistoryInstructions" label="Instructions placed after messages history" :long="true" />
+              <TextInput v-model="cardVersion" label="Version" />
+            </div>
+          </div>
+
           <Button
             variant="primary"
             icon="i-solar:check-circle-bold-duotone"
