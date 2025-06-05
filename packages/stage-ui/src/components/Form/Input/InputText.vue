@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { ref } from 'vue'
+
 interface Props {
   label: string
   long?: boolean
@@ -14,6 +16,7 @@ withDefaults(defineProps<Props>(), {
 
 // value is a Ref
 const value = defineModel<string>({ default: '' }) // Linked to v-model when this element is placed somewhere
+const usedInput = ref<boolean>(false)
 </script>
 
 <template>
@@ -23,18 +26,20 @@ const value = defineModel<string>({ default: '' }) // Linked to v-model when thi
       v-if="long"
       v-model="value" type="string"
       class="rounded-xl p-2.5 text-sm outline-none"
-      :class="value.length !== 0 || !required ? 'bg-white dark:bg-neutral-900' : 'bg-red-900'"
+      :class="value.length !== 0 || !required || !usedInput ? 'bg-white dark:bg-neutral-900' : 'bg-red-900'"
       border="focus:primary-100 dark:focus:primary-400/50 2 solid neutral-200 dark:neutral-800"
       transition="all duration-200 ease-in-out"
+      @blur="usedInput = true"
     />
 
     <input
       v-else
       v-model="value" type="string"
       class="rounded-xl p-2.5 text-sm outline-none"
-      :class="value.length !== 0 || !required ? 'bg-white dark:bg-neutral-900' : 'bg-red-900'"
+      :class="value.length !== 0 || !required || !usedInput ? 'bg-white dark:bg-neutral-900' : 'bg-red-900'"
       border="focus:primary-100 dark:focus:primary-400/50 2 solid neutral-200 dark:neutral-800"
       transition="all duration-200 ease-in-out"
+      @blur="usedInput = true"
     >
   </div>
 </template>
