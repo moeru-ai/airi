@@ -7,7 +7,9 @@ import NProgress from 'nprogress'
 import { createPinia } from 'pinia'
 import { setupLayouts } from 'virtual:generated-layouts'
 import { createApp } from 'vue'
+// eslint-disable-next-line import/no-duplicates
 import { createRouter, createWebHashHistory, createWebHistory } from 'vue-router'
+// eslint-disable-next-line import/no-duplicates
 import { routes } from 'vue-router/auto-routes'
 
 import App from './App.vue'
