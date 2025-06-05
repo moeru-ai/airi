@@ -8,11 +8,7 @@ const { t } = useI18n()
   <!-- Style from ui/InputFile component, may be centralized later -->
   <div
     relative
-    class="min-h-[120px] flex flex-col cursor-pointer items-center justify-center rounded-xl p-6"
-    :class="[
-      isDraggingDebounced ? 'border-primary-400 dark:border-primary-600 hover:border-primary-300 dark:hover:border-primary-700' : 'border-neutral-200 dark:border-neutral-700 hover:border-primary-300 dark:hover:border-primary-700',
-      isDraggingDebounced ? 'bg-primary-50/5 dark:bg-primary-900/5' : 'bg-white/60 dark:bg-black/30 hover:bg-white/80 dark:hover:bg-black/40',
-    ]"
+    class="min-h-[120px] flex flex-col cursor-pointer items-center justify-center border-neutral-200 rounded-xl bg-white/60 p-6 dark:border-neutral-700 hover:border-primary-300 dark:bg-black/30 hover:bg-white/80 dark:hover:border-primary-700 dark:hover:bg-black/40"
     border="solid 2"
     transition="all duration-300"
     cursor-pointer opacity-95

@@ -67,15 +67,15 @@ function saveCard(card: Card): string {
 // Cards data holders :
 
 const card = ref<Card>({
-  name: undefined,
+  name: '',
   nickname: undefined,
   version: '1.0',
-  description: undefined,
+  description: '',
   notes: undefined,
-  personality: undefined,
-  scenario: undefined,
-  systemPrompt: undefined,
-  postHistoryInstructions: undefined,
+  personality: '',
+  scenario: '',
+  systemPrompt: '',
+  postHistoryInstructions: '',
   greetings: [],
   messageExample: [],
 })
@@ -85,33 +85,35 @@ function makeComputed<T extends keyof Card>(
   Function used to generate Computed values, with an optional sanitize function
   */
   key: T,
-  fallback?: string | string[],
-  transform?: (input: string) => string | string[],
+  fallback?: string,
+  transform?: (input: string) => string,
 ) {
   return computed({
     get: () => {
-      const raw = card.value[key] // We get the value from our card
-      return Array.isArray(raw) // Is it an Array ?
-        ? raw.join('\n') // If yes, we can transform it to String and return
-        : raw ?? fallback ?? '' // Else, that's a String or undefined
+      return card.value[key] ?? fallback
     },
     set: (val: string) => { // Set,
       const input = val.trim() // We first trim the value
-      card.value[key] = input.length > 0
+      card.value[key] = (input.length > 0
         ? (transform ? transform(input) : input) // then potentially transform it
-        : fallback // or default to fallback value if nothing was given
+        : fallback) as Card[T]// or default to fallback value if nothing was given
     },
   })
 }
 
 const cardName = makeComputed('name', t('settings.pages.card.creation.defaults.name'), input => input.split(' ').map(e => e.charAt(0).toUpperCase() + e.slice(1).toLowerCase()).join(' '))
 const cardNickname = makeComputed('nickname')
-const cardDescription = makeComputed('description')
+const cardDescription = makeComputed('description', '')
 const cardNotes = makeComputed('notes')
 
 const cardPersonality = makeComputed('personality', t('settings.pages.card.creation.defaults.personality'))
 const cardScenario = makeComputed('scenario', t('settings.pages.card.creation.defaults.scenario'))
-const cardGreetings = makeComputed('greetings', [], input => input.split('\n'))
+const cardGreetings = computed({
+  get: () => (card.value.greetings ?? []).join('\n'),
+  set: (val: string) => {
+    card.value.greetings = val.trim().length > 0 ? val.split('\n') : []
+  },
+})
 
 const cardVersion = makeComputed('version', '1.0')
 const cardSystemPrompt = makeComputed('systemPrompt', t('settings.pages.card.creation.defaults.systemprompt'))
@@ -160,7 +162,7 @@ const cardPostHistoryInstructions = makeComputed('postHistoryInstructions', t('s
             <div class="input-list ml-auto mr-auto w-90% flex flex-row flex-wrap justify-center gap-8">
               <InputText v-model="cardName" :label="t('settings.pages.card.creation.name')" :required="true" />
               <InputText v-model="cardNickname" :label="t('settings.pages.card.creation.nickname')" />
-              <InputText v-model="cardDescription" :label="t('settings.pages.card.creation.description')" :long="true" />
+              <InputText v-model="cardDescription" :label="t('settings.pages.card.creation.description')" :long="true" :required="true" />
               <InputText v-model="cardNotes" :label="t('settings.pages.card.creator_notes')" :long="true" />
             </div>
           </div>

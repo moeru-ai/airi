@@ -13,7 +13,7 @@ withDefaults(defineProps<Props>(), {
 })
 
 // value is a Ref
-const value = defineModel<string>() // Linked to v-model when this element is placed somewhere
+const value = defineModel<string>({ default: '' }) // Linked to v-model when this element is placed somewhere
 </script>
 
 <template>
