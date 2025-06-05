@@ -25,3 +25,9 @@ pub async fn open_chat_window(app: tauri::AppHandle) -> Result<(), tauri::Error>
   app_windows::chat::new_chat_window(&app)?;
   Ok(())
 }
+
+#[tauri::command]
+pub fn debug_println(msg: serde_json::Value) -> Result<(), tauri::Error> {
+  println!("{}", msg);
+  Ok(())
+}

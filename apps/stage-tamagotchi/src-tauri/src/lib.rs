@@ -23,7 +23,7 @@ use app_click_through::native_windows::{get_mouse_location, get_window_frame};
 use app_click_through::state::{set_click_through_enabled, WindowClickThroughState};
 
 #[tauri::command]
-async fn start_monitor_for_clicking_through(window: tauri::Window) -> Result<(), String> {
+async fn start_monitor(window: tauri::Window) -> Result<(), String> {
   let window = window;
   let state = window.state::<WindowClickThroughState>();
   let enabled = state.enabled.clone();
@@ -47,11 +47,6 @@ async fn start_monitor_for_clicking_through(window: tauri::Window) -> Result<(),
         break;
       }
 
-      // If is disabled already, skip until next check
-      if !enabled.load(Ordering::Relaxed) {
-        continue;
-      }
-
       #[cfg(target_os = "macos")]
       {
         let _ = window.emit("tauri-app:window-click-through:mouse-location-and-window-frame", (get_mouse_location(), get_window_frame(&window)));
@@ -68,7 +63,7 @@ async fn start_monitor_for_clicking_through(window: tauri::Window) -> Result<(),
 }
 
 #[tauri::command]
-async fn stop_monitor_for_clicking_through(window: tauri::Window) -> Result<(), String> {
+async fn stop_monitor(window: tauri::Window) -> Result<(), String> {
   let window = window;
   let state = window.state::<WindowClickThroughState>();
 
@@ -179,8 +174,9 @@ pub fn run() {
     .invoke_handler(tauri::generate_handler![
       commands::open_settings_window,
       commands::open_chat_window,
-      start_monitor_for_clicking_through,
-      stop_monitor_for_clicking_through,
+      commands::debug_println,
+      start_monitor,
+      stop_monitor,
       start_click_through,
       stop_click_through,
     ])

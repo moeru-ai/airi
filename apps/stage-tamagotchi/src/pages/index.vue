@@ -1,8 +1,10 @@
 <script setup lang="ts">
+import { WidgetStage } from '@proj-airi/stage-ui/components'
 import { useMcpStore } from '@proj-airi/stage-ui/stores'
 import { connectServer } from '@proj-airi/tauri-plugin-mcp'
 import { invoke } from '@tauri-apps/api/core'
 import { listen } from '@tauri-apps/api/event'
+import { platform } from '@tauri-apps/plugin-os'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 
@@ -32,13 +34,13 @@ const modeIndicatorClass = computed(() => {
 })
 
 onMounted(async () => {
-  await invoke('start_monitor_for_clicking_through')
+  await invoke('start_monitor')
   await startClickThrough()
 })
 
 onUnmounted(async () => {
   await stopClickThrough()
-  await invoke('stop_monitor_for_clicking_through')
+  await invoke('stop_monitor')
 })
 
 const unlisten: (() => void)[] = []
@@ -54,6 +56,8 @@ function openChat() {
 const shouldHideView = computed(() => {
   return isCursorInside.value && !windowStore.isControlActive && windowStore.isIgnoringMouseEvent
 })
+
+const live2dFocusAt = ref<Point>({ x: window.innerWidth / 2, y: window.innerHeight / 2 })
 
 interface Point {
   x: number
@@ -75,6 +79,19 @@ onMounted(async () => {
   unlisten.push(await listen('tauri-app:window-click-through:mouse-location-and-window-frame', (event: { payload: [Point, WindowFrame] }) => {
     const [mouseLocation, windowFrame] = event.payload
     isCursorInside.value = mouseLocation.x >= windowFrame.origin.x && mouseLocation.x <= windowFrame.origin.x + windowFrame.size.width && mouseLocation.y >= windowFrame.origin.y && mouseLocation.y <= windowFrame.origin.y + windowFrame.size.height
+
+    if (platform() === 'macos') {
+      live2dFocusAt.value = {
+        x: mouseLocation.x - windowFrame.origin.x,
+        y: windowFrame.size.height - mouseLocation.y + windowFrame.origin.y,
+      }
+      return
+    }
+
+    live2dFocusAt.value = {
+      x: mouseLocation.x - windowFrame.origin.x,
+      y: mouseLocation.y - windowFrame.origin.y,
+    }
   }))
 
   if (connected.value)
@@ -111,10 +128,10 @@ onUnmounted(() => {
     transition="opacity duration-500 ease-in-out"
   >
     <div relative h-full w-full items-end gap-2 class="view">
-      <!-- <WidgetStage h-full w-full flex-1 mb="<md:18" /> -->
-      <div h-full w-full flex-1 mb="<md:18">
+      <WidgetStage h-full w-full flex-1 :focus-at="live2dFocusAt" mb="<md:18" />
+      <!-- <div h-full w-full flex-1 mb="<md:18">
         HELLO
-      </div>
+      </div> -->
       <div
         absolute bottom-4 left-4 flex gap-1 op-0 transition="opacity duration-500"
         :class="{
