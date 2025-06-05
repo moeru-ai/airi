@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { Card } from '@proj-airi/ccc'
 
-import { Button } from '@proj-airi/stage-ui/components'
+import { Button, InputText } from '@proj-airi/stage-ui/components'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores'
 import {
   DialogContent,
@@ -11,8 +11,7 @@ import {
   DialogTitle,
 } from 'radix-vue'
 import { computed, ref } from 'vue'
-
-import TextInput from './moveMeLaterInput.vue'
+import { useI18n } from 'vue-i18n'
 
 interface Props {
   modelValue: boolean
@@ -25,7 +24,7 @@ const emit = defineEmits<{
 
 const modelValue = defineModel<boolean>()
 
-// const { t } = useI18n() //TODO
+const { t } = useI18n()
 const cardStore = useAiriCardStore()
 
 // Tab type definition
@@ -40,9 +39,9 @@ const activeTabId = ref('')
 
 // Tabs for card details
 const tabs: Tab[] = [
-  { id: 'identity', label: 'Identity', icon: 'i-solar:emoji-funny-square-bold-duotone' },
-  { id: 'behavior', label: 'Behavior', icon: 'i-solar:chat-round-line-bold-duotone' },
-  { id: 'settings', label: 'Settings', icon: 'i-solar:settings-bold-duotone' },
+  { id: 'identity', label: t('settings.pages.card.creation.identity'), icon: 'i-solar:emoji-funny-square-bold-duotone' },
+  { id: 'behavior', label: t('settings.pages.card.creation.behavior'), icon: 'i-solar:chat-round-line-bold-duotone' },
+  { id: 'settings', label: t('settings.pages.card.creation.settings'), icon: 'i-solar:settings-bold-duotone' },
 ]
 
 // Active tab state - set to first available tab by default
@@ -68,7 +67,7 @@ function saveCard(card: Card): string {
 // Cards data holders :
 
 const card = ref<Card>({
-  name: 'Name',
+  name: undefined,
   nickname: undefined,
   version: '1.0',
   description: undefined,
@@ -105,18 +104,18 @@ function makeComputed<T extends keyof Card>(
   })
 }
 
-const cardName = makeComputed('name', '', input => input.split(' ').map(e => e.charAt(0).toUpperCase() + e.slice(1).toLowerCase()).join(' '))
+const cardName = makeComputed('name', t('settings.pages.card.creation.defaults.name'), input => input.split(' ').map(e => e.charAt(0).toUpperCase() + e.slice(1).toLowerCase()).join(' '))
 const cardNickname = makeComputed('nickname')
 const cardDescription = makeComputed('description')
 const cardNotes = makeComputed('notes')
 
-const cardPersonality = makeComputed('personality', 'You are a regular human, curious about everything.')
-const cardScenario = makeComputed('scenario', 'You recently woke up and forgot everything about your previous life.')
+const cardPersonality = makeComputed('personality', t('settings.pages.card.creation.defaults.personality'))
+const cardScenario = makeComputed('scenario', t('settings.pages.card.creation.defaults.scenario'))
 const cardGreetings = makeComputed('greetings', [], input => input.split('\n'))
 
 const cardVersion = makeComputed('version', '1.0')
-const cardSystemPrompt = makeComputed('systemPrompt', 'You will receive messages, answer to them like a real human.')
-const cardPostHistoryInstructions = makeComputed('postHistoryInstructions', 'Remember to imitate an human.')
+const cardSystemPrompt = makeComputed('systemPrompt', t('settings.pages.card.creation.defaults.systemprompt'))
+const cardPostHistoryInstructions = makeComputed('postHistoryInstructions', t('settings.pages.card.creation.defaults.posthistoryinstructions'))
 </script>
 
 <template>
@@ -126,7 +125,7 @@ const cardPostHistoryInstructions = makeComputed('postHistoryInstructions', 'Rem
       <DialogContent class="data-[state=open]:animate-contentShow data-[state=closed]:animate-contentHide fixed left-1/2 top-1/2 z-100 m-0 max-h-[90vh] max-w-6xl w-[92vw] flex flex-col overflow-auto border border-neutral-200 rounded-xl bg-white p-5 shadow-xl 2xl:w-[60vw] lg:w-[80vw] md:w-[85vw] xl:w-[70vw] -translate-x-1/2 -translate-y-1/2 dark:border-neutral-700 dark:bg-neutral-800 sm:p-6">
         <div class="w-full flex flex-col gap-5">
           <DialogTitle text-2xl font-bold class="from-primary-500 to-primary-400 bg-gradient-to-r bg-clip-text text-transparent">
-            Create a new Card
+            {{ t("settings.pages.card.create_card") }}
           </DialogTitle>
 
           <!-- Dialog tabs -->
@@ -159,10 +158,10 @@ const cardPostHistoryInstructions = makeComputed('postHistoryInstructions', 'Rem
             <p>TODO</p>
 
             <div class="input-list ml-auto mr-auto w-90% flex flex-row flex-wrap justify-center gap-8">
-              <TextInput v-model="cardName" label="Name" :required="true" />
-              <TextInput v-model="cardNickname" label="Nickname" />
-              <TextInput v-model="cardDescription" label="Description" :long="true" />
-              <TextInput v-model="cardNotes" label="Personal notes" :long="true" />
+              <InputText v-model="cardName" :label="t('settings.pages.card.creation.name')" :required="true" />
+              <InputText v-model="cardNickname" :label="t('settings.pages.card.creation.nickname')" />
+              <InputText v-model="cardDescription" :label="t('settings.pages.card.creation.description')" :long="true" />
+              <InputText v-model="cardNotes" :label="t('settings.pages.card.creator_notes')" :long="true" />
             </div>
           </div>
           <!-- Behavior -->
@@ -170,9 +169,9 @@ const cardPostHistoryInstructions = makeComputed('postHistoryInstructions', 'Rem
             <p>TODO</p>
 
             <div class="input-list ml-auto mr-auto w-90% flex flex-row flex-wrap justify-center gap-8">
-              <TextInput v-model="cardPersonality" label="Personality" :long="true" />
-              <TextInput v-model="cardScenario" label="Scenario" :long="true" />
-              <TextInput v-model="cardGreetings" label="Greetings, one per line" :long="true" />
+              <InputText v-model="cardPersonality" :label="t('settings.pages.card.personality')" :long="true" :required="true" />
+              <InputText v-model="cardScenario" :label="t('settings.pages.card.scenario')" :long="true" :required="true" />
+              <InputText v-model="cardGreetings" :label="t('settings.pages.card.creation.greetings')" :long="true" />
             </div>
           </div>
           <!-- Settings -->
@@ -180,9 +179,9 @@ const cardPostHistoryInstructions = makeComputed('postHistoryInstructions', 'Rem
             <p>TODO</p>
 
             <div class="input-list ml-auto mr-auto w-90% flex flex-row flex-wrap justify-center gap-8">
-              <TextInput v-model="cardSystemPrompt" label="System Prompt" :long="true" />
-              <TextInput v-model="cardPostHistoryInstructions" label="Instructions placed after messages history" :long="true" />
-              <TextInput v-model="cardVersion" label="Version" />
+              <InputText v-model="cardSystemPrompt" :label="t('settings.pages.card.systemprompt')" :long="true" :required="true" />
+              <InputText v-model="cardPostHistoryInstructions" :label="t('settings.pages.card.posthistoryinstructions')" :long="true" :required="true" />
+              <InputText v-model="cardVersion" :label="t('settings.pages.card.creation.version')" :required="true" />
             </div>
           </div>
 
@@ -190,14 +189,14 @@ const cardPostHistoryInstructions = makeComputed('postHistoryInstructions', 'Rem
             <Button
               variant="secondary"
               icon="i-solar:undo-left-bold-duotone"
-              label="Cancel"
+              :label="t('settings.pages.card.cancel')"
               :disabled="false"
               @click="modelValue = false"
             />
             <Button
               variant="primary"
               icon="i-solar:check-circle-bold-duotone"
-              label="Create"
+              :label="t('settings.pages.card.creation.create')"
               :disabled="false"
               @click="saveCard(card)"
             />
