@@ -3,8 +3,6 @@ interface Props {
   label: string
   long?: boolean
   required?: boolean
-  placeholder?: string
-  isActive?: boolean
 }
 
 withDefaults(defineProps<Props>(), {
