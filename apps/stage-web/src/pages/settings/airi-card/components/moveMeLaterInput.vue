@@ -20,7 +20,7 @@ const value = defineModel<string>() // Linked to v-model when this element is pl
 
 <template>
   <div class="flex flex-col gap-1">
-    <label>{{ label }}</label>
+    <label>{{ label }}<span v-if="required" class="ml-2 text-xs color-red-400">Required</span></label>
     <textarea
       v-if="long"
       v-model="value" type="string"
