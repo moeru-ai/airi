@@ -74,25 +74,27 @@ interface WindowFrame {
   size: Size
 }
 
-onMounted(async () => {
-  // Listen for click-through state changes
-  unlisten.push(await listen('tauri-app:window-click-through:mouse-location-and-window-frame', (event: { payload: [Point, WindowFrame] }) => {
-    const [mouseLocation, windowFrame] = event.payload
-    isCursorInside.value = mouseLocation.x >= windowFrame.origin.x && mouseLocation.x <= windowFrame.origin.x + windowFrame.size.width && mouseLocation.y >= windowFrame.origin.y && mouseLocation.y <= windowFrame.origin.y + windowFrame.size.height
+function onTauriMouseLocationAndWindowFrameEvent(event: { payload: [Point, WindowFrame] }) {
+  const [mouseLocation, windowFrame] = event.payload
+  isCursorInside.value = mouseLocation.x >= windowFrame.origin.x && mouseLocation.x <= windowFrame.origin.x + windowFrame.size.width && mouseLocation.y >= windowFrame.origin.y && mouseLocation.y <= windowFrame.origin.y + windowFrame.size.height
 
-    if (platform() === 'macos') {
-      live2dFocusAt.value = {
-        x: mouseLocation.x - windowFrame.origin.x,
-        y: windowFrame.size.height - mouseLocation.y + windowFrame.origin.y,
-      }
-      return
-    }
-
+  if (platform() === 'macos') {
     live2dFocusAt.value = {
       x: mouseLocation.x - windowFrame.origin.x,
-      y: mouseLocation.y - windowFrame.origin.y,
+      y: windowFrame.size.height - mouseLocation.y + windowFrame.origin.y,
     }
-  }))
+    return
+  }
+
+  live2dFocusAt.value = {
+    x: mouseLocation.x - windowFrame.origin.x,
+    y: mouseLocation.y - windowFrame.origin.y,
+  }
+}
+
+onMounted(async () => {
+  // Listen for click-through state changes
+  unlisten.push(await listen('tauri-app:window-click-through:mouse-location-and-window-frame', onTauriMouseLocationAndWindowFrameEvent))
 
   if (connected.value)
     return
@@ -109,7 +111,22 @@ onMounted(async () => {
 
 onUnmounted(() => {
   unlisten.forEach(fn => fn?.())
+  unlisten.length = 0
 })
+
+if (import.meta.hot) { // For better DX
+  import.meta.hot.on('vite:beforeUpdate', () => {
+    unlisten.forEach(fn => fn?.())
+    unlisten.length = 0
+    invoke('stop_monitor')
+  })
+  import.meta.hot.on('vite:afterUpdate', async () => {
+    if (unlisten.length === 0) {
+      unlisten.push(await listen('tauri-app:window-click-through:mouse-location-and-window-frame', onTauriMouseLocationAndWindowFrameEvent))
+    }
+    invoke('start_monitor')
+  })
+}
 </script>
 
 <template>
