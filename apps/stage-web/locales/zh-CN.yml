@@ -77,6 +77,22 @@ settings:
       description_label: 描述
       drop_here: 放开以上传文件
       create_card: 创建新角色卡
+      creation:
+        identity: 身份
+        name: 名字
+        nickname: 昵称
+        description: 描述
+        behavior: 行为
+        greetings: 问候语（每行一个）
+        settings: 设置
+        version: 版本
+        create: 创建
+        defaults:
+          name: Name
+          personality: 你是一个普通人，对一切都充满好奇。
+          scenario: 你最近醒来，忘记了之前的所有生活。
+          systemprompt: 你将收到消息，请像真实人类一样回复。
+          posthistoryinstructions: 记得模仿人类的行为。
       modules: 模块
       name_asc: 名称 (A-Z)
       name_desc: 名称 (Z-A)

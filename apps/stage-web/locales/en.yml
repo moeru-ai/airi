@@ -91,6 +91,22 @@ settings:
       description_label: Description
       drop_here: Drop to upload
       create_card: Create a new Card
+      creation:
+        identity: Identity
+        name: Name
+        nickname: Nickname
+        description: Description
+        behavior: Behavior
+        greetings: Greetings (one per line)
+        settings: Settings
+        version: Version
+        create: Create
+        defaults:
+          name: Name
+          personality: You are a regular human, curious about everything.
+          scenario: You recently woke up and forgot everything about your previous life.
+          systemprompt: You will receive messages, answer to them like a real human.
+          posthistoryinstructions: Remember to imitate an human.
       modules: Modules
       name_asc: Name (A-Z)
       name_desc: Name (Z-A)
