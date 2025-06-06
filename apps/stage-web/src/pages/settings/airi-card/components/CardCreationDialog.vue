@@ -156,7 +156,13 @@ const cardPostHistoryInstructions = makeComputed('postHistoryInstructions')
           <!-- Actual content -->
           <!-- Identity details -->
           <div v-if="activeTab === 'identity'" class="tab-content ml-auto mr-auto w-95%">
-            <p>TODO</p>
+            <p class="mb-3">
+              You can put here some details about the character you are creating, explain his history and context, and how your interactions should be answered :<br>
+              <span class="font-extrabold">{{ t('settings.pages.card.creation.name') }} : </span> is the formal name of this character.<br>
+              <span class="font-extrabold">{{ t('settings.pages.card.creation.nickname') }} : </span> you can also give a nickname that will be used in priority.<br>
+              <span class="font-extrabold">{{ t('settings.pages.card.creation.description') }} : </span> description of this character.<br>
+              <span class="font-extrabold">{{ t('settings.pages.card.creator_notes') }} : </span> if you want to add some personal notes.<br>
+            </p>
 
             <div class="input-list ml-auto mr-auto w-90% flex flex-row flex-wrap justify-center gap-8">
               <InputText v-model="cardName" :label="t('settings.pages.card.creation.name')" :required="true" />
@@ -167,7 +173,11 @@ const cardPostHistoryInstructions = makeComputed('postHistoryInstructions')
           </div>
           <!-- Behavior -->
           <div v-else-if="activeTab === 'behavior'" class="tab-content ml-auto mr-auto w-95%">
-            <p>TODO</p>
+            <p class="mb-3">
+              <span class="font-extrabold">{{ t('settings.pages.card.personality') }} : </span> describe here the personality of your character. Shy ? Curious ? Anything else ? <br>
+              <span class="font-extrabold">{{ t('settings.pages.card.scenario') }} : </span> what are the surroundings ? What is the current situation ?<br>
+              <span class="font-extrabold">{{ t('settings.pages.card.creation.greetings') }} : </span> how your character should say "hello" ?<br>
+            </p>
 
             <div class="input-list ml-auto mr-auto w-90% flex flex-row flex-wrap justify-center gap-8">
               <InputText v-model="cardPersonality" :label="t('settings.pages.card.personality')" :long="true" :required="true" />
@@ -177,8 +187,11 @@ const cardPostHistoryInstructions = makeComputed('postHistoryInstructions')
           </div>
           <!-- Settings -->
           <div v-else-if="activeTab === 'settings'" class="tab-content ml-auto mr-auto w-95%">
-            <p>TODO</p>
-
+            <p class="mb-3">
+              <span class="font-extrabold">{{ t('settings.pages.card.systemprompt') }} : </span> explain here to the AI LLM how it should answer when prompted.<br>
+              <span class="font-extrabold">{{ t('settings.pages.card.posthistoryinstructions') }} : </span> place here anything the AI LLM should read after the messages history.<br>
+              <span class="font-extrabold">{{ t('settings.pages.card.creation.version') }} : </span> card version, you should increase this if you are making changes from a previous card.<br>
+            </p>
             <div class="input-list ml-auto mr-auto w-90% flex flex-row flex-wrap justify-center gap-8">
               <InputText v-model="cardSystemPrompt" :label="t('settings.pages.card.systemprompt')" :long="true" :required="true" />
               <InputText v-model="cardPostHistoryInstructions" :label="t('settings.pages.card.posthistoryinstructions')" :long="true" :required="true" />
