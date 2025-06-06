@@ -157,11 +157,11 @@ const cardPostHistoryInstructions = makeComputed('postHistoryInstructions')
           <!-- Identity details -->
           <div v-if="activeTab === 'identity'" class="tab-content ml-auto mr-auto w-95%">
             <p class="mb-3">
-              You can put here some details about the character you are creating, explain his history and context, and how your interactions should be answered :<br>
-              <span class="font-extrabold">{{ t('settings.pages.card.creation.name') }} : </span> is the formal name of this character.<br>
-              <span class="font-extrabold">{{ t('settings.pages.card.creation.nickname') }} : </span> you can also give a nickname that will be used in priority.<br>
-              <span class="font-extrabold">{{ t('settings.pages.card.creation.description') }} : </span> description of this character.<br>
-              <span class="font-extrabold">{{ t('settings.pages.card.creator_notes') }} : </span> if you want to add some personal notes.<br>
+              {{ t('settings.pages.card.creation.fields_info.subtitle') }}<br>
+              <span class="font-extrabold">{{ t('settings.pages.card.creation.name') }} : </span>{{ t('settings.pages.card.creation.fields_info.name') }}<br>
+              <span class="font-extrabold">{{ t('settings.pages.card.creation.nickname') }} : </span>{{ t('settings.pages.card.creation.fields_info.nickname') }}<br>
+              <span class="font-extrabold">{{ t('settings.pages.card.creation.description') }} : </span>{{ t('settings.pages.card.creation.fields_info.description') }}<br>
+              <span class="font-extrabold">{{ t('settings.pages.card.creator_notes') }} : </span>{{ t('settings.pages.card.creation.fields_info.notes') }}<br>
             </p>
 
             <div class="input-list ml-auto mr-auto w-90% flex flex-row flex-wrap justify-center gap-8">
@@ -174,9 +174,9 @@ const cardPostHistoryInstructions = makeComputed('postHistoryInstructions')
           <!-- Behavior -->
           <div v-else-if="activeTab === 'behavior'" class="tab-content ml-auto mr-auto w-95%">
             <p class="mb-3">
-              <span class="font-extrabold">{{ t('settings.pages.card.personality') }} : </span> describe here the personality of your character. Shy ? Curious ? Anything else ? <br>
-              <span class="font-extrabold">{{ t('settings.pages.card.scenario') }} : </span> what are the surroundings ? What is the current situation ?<br>
-              <span class="font-extrabold">{{ t('settings.pages.card.creation.greetings') }} : </span> how your character should say "hello" ?<br>
+              <span class="font-extrabold">{{ t('settings.pages.card.personality') }} : </span>{{ t('settings.pages.card.creation.fields_info.personality') }}<br>
+              <span class="font-extrabold">{{ t('settings.pages.card.scenario') }} : </span>{{ t('settings.pages.card.creation.fields_info.scenario') }}<br>
+              <span class="font-extrabold">{{ t('settings.pages.card.creation.fields_info.greetings_field') }} : </span>{{ t('settings.pages.card.creation.fields_info.greetings') }}<br>
             </p>
 
             <div class="input-list ml-auto mr-auto w-90% flex flex-row flex-wrap justify-center gap-8">
@@ -188,9 +188,9 @@ const cardPostHistoryInstructions = makeComputed('postHistoryInstructions')
           <!-- Settings -->
           <div v-else-if="activeTab === 'settings'" class="tab-content ml-auto mr-auto w-95%">
             <p class="mb-3">
-              <span class="font-extrabold">{{ t('settings.pages.card.systemprompt') }} : </span> explain here to the AI LLM how it should answer when prompted.<br>
-              <span class="font-extrabold">{{ t('settings.pages.card.posthistoryinstructions') }} : </span> place here anything the AI LLM should read after the messages history.<br>
-              <span class="font-extrabold">{{ t('settings.pages.card.creation.version') }} : </span> card version, you should increase this if you are making changes from a previous card.<br>
+              <span class="font-extrabold">{{ t('settings.pages.card.systemprompt') }} : </span>{{ t('settings.pages.card.creation.fields_info.systemprompt') }}<br>
+              <span class="font-extrabold">{{ t('settings.pages.card.posthistoryinstructions') }} : </span>{{ t('settings.pages.card.creation.fields_info.posthistoryinstructions') }}<br>
+              <span class="font-extrabold">{{ t('settings.pages.card.creation.version') }} : </span>{{ t('settings.pages.card.creation.fields_info.version') }}<br>
             </p>
             <div class="input-list ml-auto mr-auto w-90% flex flex-row flex-wrap justify-center gap-8">
               <InputText v-model="cardSystemPrompt" :label="t('settings.pages.card.systemprompt')" :long="true" :required="true" />
