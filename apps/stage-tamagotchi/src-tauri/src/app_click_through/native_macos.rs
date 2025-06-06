@@ -20,6 +20,14 @@ pub fn get_window_frame(window: &tauri::Window) -> WindowFrame {
     //
     // We need to get the window's frame in macOS coordinates (bottom-left origin)
     // and check if the cursor is inside that frame.
+    //
+    // For multiple-display users,
+    // in macOS, the Native API returns the mouse coordinates relative to the primary
+    // display, for example, if we say the primary display is 1920x1080, another two lies
+    // on both sides of the primary display with the size of 1920x1080 too, mouse coordinates
+    // will be 0 at the left edge of p-display, and 1920 at the right edge of the p-display,
+    // -1080 at the left edge of the left-side display, and 2160 at the right edge of the right-side
+    // display.
     let ns_window: *mut objc2::runtime::AnyObject = window.ns_window().unwrap().cast();
     let window_frame: NSRect = msg_send![ns_window, frame];
     WindowFrame {
