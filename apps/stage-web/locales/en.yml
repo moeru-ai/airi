@@ -332,6 +332,9 @@ settings:
         perplexity:
           description: perplexity.ai
           title: Perplexity
+        player2:
+          description: player2.game
+          title: Player2 API
         together:
           description: together.ai
           title: Together.ai

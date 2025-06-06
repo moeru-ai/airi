@@ -808,7 +808,14 @@ export const useProvidersStore = defineStore('providers', () => {
         return merge(createMetadataProvider('player2-api'), createChatProvider({ baseURL: config.baseUrl as string }), createSpeechProvider({ baseURL: config.baseURL as string }), createTranscriptionProvider({ baseURL: config.baseURL as string }))
       },
       capabilities: {
-        listModels: async () => [],
+        listModels: async () => [
+          {
+            id: 'player2-model',
+            name: 'Player2 Model',
+            provider: 'player2-api',
+          },
+        ],
+        // TODO: list voices
       },
       validators: {
         validateProviderConfig: (config) => {
