@@ -4,7 +4,7 @@ import { ref } from 'vue'
 import ProviderApiKeyInput from './ProviderApiKeyInput.vue'
 
 const apiKey = ref('')
-const filledApiKey = ref('sk-1234567890abcdefghijklmnopqrstuvwxyz')
+const filledApiKey = ref('sk-...')
 </script>
 
 <template>
