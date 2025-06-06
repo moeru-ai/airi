@@ -13,6 +13,7 @@ import '../../utils/live2d-zip-loader'
 withDefaults(defineProps<{
   paused: boolean
   mouthOpenSize?: number
+  focusAt: { x: number, y: number }
 }>(), {
   mouthOpenSize: 0,
 })
@@ -25,7 +26,7 @@ const { live2dCurrentMotion } = storeToRefs(useSettings())
 <template>
   <Screen v-slot="{ width, height }" relative>
     <Live2DCanvas v-slot="{ app }" :width="width" :height="height">
-      <Live2DModel :app="app" :mouth-open-size="mouthOpenSize" :width="width" :height="height" :paused="paused" />
+      <Live2DModel :app="app" :mouth-open-size="mouthOpenSize" :width="width" :height="height" :paused="paused" :focus-at="focusAt" />
     </Live2DCanvas>
     <div absolute bottom="3" right="3">
       <div flex="~ row" cursor-pointer>

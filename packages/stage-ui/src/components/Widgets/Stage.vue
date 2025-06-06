@@ -26,7 +26,10 @@ import { useSettings } from '../../stores/settings'
 import Live2DScene from '../Scenes/Live2D.vue'
 import VRMScene from '../Scenes/VRM.vue'
 
-withDefaults(defineProps<{ paused?: boolean }>(), { paused: false })
+withDefaults(defineProps<{
+  paused?: boolean
+  focusAt: { x: number, y: number }
+}>(), { paused: false })
 
 const db = ref<DuckDBWasmDrizzleDatabase>()
 // const transformersProvider = createTransformers({ embedWorkerURL })
@@ -223,6 +226,7 @@ onMounted(async () => {
     <div h-full w-full>
       <Live2DScene
         v-if="stageView === '2d'"
+        :focus-at="focusAt"
         :mouth-open-size="mouthOpenSize"
         min-w="50% <lg:full" min-h="100 sm:100" h-full w-full flex-1
         :paused="paused"
