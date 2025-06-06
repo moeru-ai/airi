@@ -901,6 +901,8 @@ export const useProvidersStore = defineStore('providers', () => {
     },
     'player2-api': {
       id: 'player2-api',
+      category: 'chat',
+      tasks: ['text-generation'],
       nameKey: 'settings.pages.providers.provider.player2.title',
       name: 'Player2 API',
       descriptionKey: 'settings.pages.providers.provider.player2.description',
@@ -919,11 +921,12 @@ export const useProvidersStore = defineStore('providers', () => {
             provider: 'player2-api',
           },
         ],
-        // TODO: list voices
       },
       validators: {
         validateProviderConfig: (config) => {
-          return !!config.baseUrl
+          const url: string = config.baseUrl ? config.baseUrl as string : 'http://localhost:4315/v1/'
+          // checks if health status is there, so it green if and only if you have the player2 app running
+          return (fetch(`${url}health`).then(r => r.status === 200).catch(() => false))
         },
       },
     },
