@@ -21,7 +21,7 @@ const usedInput = ref<boolean>(false)
 
 <template>
   <div class="flex flex-col gap-1">
-    <label>{{ label }}<span v-if="required" class="ml-2 text-xl color-red-400">*</span></label><!-- * can be replaced by "Required", and text size set to text-xs -->
+    <label>{{ label }}<span v-if="required" class="ml-2 color-red-400">*</span></label><!-- * can be replaced by "Required", and text size set to text-xs -->
     <textarea
       v-if="long"
       v-model="value" type="string"
