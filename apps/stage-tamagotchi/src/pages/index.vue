@@ -74,7 +74,7 @@ interface WindowFrame {
   size: Size
 }
 
-function onTauriMouseLocationAndWindowFrameEvent(event: { payload: [Point, WindowFrame] }) {
+function onTauriPositionCursorAndWindowFrameEvent(event: { payload: [Point, WindowFrame] }) {
   const [mouseLocation, windowFrame] = event.payload
   isCursorInside.value = mouseLocation.x >= windowFrame.origin.x && mouseLocation.x <= windowFrame.origin.x + windowFrame.size.width && mouseLocation.y >= windowFrame.origin.y && mouseLocation.y <= windowFrame.origin.y + windowFrame.size.height
 
@@ -94,7 +94,7 @@ function onTauriMouseLocationAndWindowFrameEvent(event: { payload: [Point, Windo
 
 onMounted(async () => {
   // Listen for click-through state changes
-  unlisten.push(await listen('tauri-app:window-click-through:mouse-location-and-window-frame', onTauriMouseLocationAndWindowFrameEvent))
+  unlisten.push(await listen('tauri-app:window-click-through:position-cursor-and-window-frame', onTauriMouseLocationAndWindowFrameEvent))
 
   if (connected.value)
     return
@@ -122,7 +122,7 @@ if (import.meta.hot) { // For better DX
   })
   import.meta.hot.on('vite:afterUpdate', async () => {
     if (unlisten.length === 0) {
-      unlisten.push(await listen('tauri-app:window-click-through:mouse-location-and-window-frame', onTauriMouseLocationAndWindowFrameEvent))
+      unlisten.push(await listen('tauri-app:window-click-through:position-cursor-and-window-frame', onTauriPositionCursorAndWindowFrameEvent))
     }
     invoke('start_monitor')
   })

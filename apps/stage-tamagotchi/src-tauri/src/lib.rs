@@ -26,7 +26,6 @@ use app_click_through::state::{set_click_through_enabled, WindowClickThroughStat
 async fn start_monitor(window: tauri::Window) -> Result<(), String> {
   let window = window;
   let state = window.state::<WindowClickThroughState>();
-  let enabled = state.enabled.clone();
   let monitoring_enabled = state.monitoring_enabled.clone();
 
   // Already monitoring?
@@ -49,12 +48,12 @@ async fn start_monitor(window: tauri::Window) -> Result<(), String> {
 
       #[cfg(target_os = "macos")]
       {
-        let _ = window.emit("tauri-app:window-click-through:mouse-location-and-window-frame", (get_mouse_location(), get_window_frame(&window)));
+        let _ = window.emit("tauri-app:window-click-through:position-cursor-and-window-frame", (get_mouse_location(), get_window_frame(&window)));
       }
 
       #[cfg(target_os = "windows")]
       {
-        let _ = window.emit("tauri-app:window-click-through:mouse-location-and-window-frame", (get_mouse_location(), get_window_frame(&window)));
+        let _ = window.emit("tauri-app:window-click-through:position-cursor-and-window-frame", (get_mouse_location(), get_window_frame(&window)));
       }
     }
   });
