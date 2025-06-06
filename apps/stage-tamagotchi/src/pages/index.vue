@@ -94,7 +94,7 @@ function onTauriPositionCursorAndWindowFrameEvent(event: { payload: [Point, Wind
 
 onMounted(async () => {
   // Listen for click-through state changes
-  unlisten.push(await listen('tauri-app:window-click-through:position-cursor-and-window-frame', onTauriMouseLocationAndWindowFrameEvent))
+  unlisten.push(await listen('tauri-app:window-click-through:position-cursor-and-window-frame', onTauriPositionCursorAndWindowFrameEvent))
 
   if (connected.value)
     return
