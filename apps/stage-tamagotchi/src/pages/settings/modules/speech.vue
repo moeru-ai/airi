@@ -26,7 +26,7 @@ const providersStore = useProvidersStore()
 const speechStore = useSpeechStore()
 const {
   availableProviders,
-  availableAudioSpeechProvidersMetadata,
+  allAudioSpeechProvidersMetadata,
 } = storeToRefs(providersStore)
 const {
   activeSpeechProvider,
@@ -185,7 +185,7 @@ function updateCustomModelName(value: string) {
               min-w-0 of-x-scroll scroll-smooth role="radiogroup"
             >
               <RadioCardSimple
-                v-for="metadata in availableAudioSpeechProvidersMetadata"
+                v-for="metadata in allAudioSpeechProvidersMetadata"
                 :id="metadata.id"
                 :key="metadata.id"
                 v-model="activeSpeechProvider"
