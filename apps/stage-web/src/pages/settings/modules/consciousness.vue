@@ -8,7 +8,7 @@ import { RouterLink } from 'vue-router'
 
 const providersStore = useProvidersStore()
 const consciousnessStore = useConsciousnessStore()
-const { availableProviders, availableTextGenerationsProvidersMetadata } = storeToRefs(providersStore)
+const { availableProviders, allChatProvidersMetadata } = storeToRefs(providersStore)
 const {
   activeProvider,
   activeModel,
@@ -57,7 +57,7 @@ function updateCustomModelName(value: string) {
             role="radiogroup"
           >
             <RadioCardSimple
-              v-for="metadata in availableTextGenerationsProvidersMetadata"
+              v-for="metadata in allChatProvidersMetadata"
               :id="metadata.id"
               :key="metadata.id"
               v-model="activeProvider"

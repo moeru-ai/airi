@@ -17,16 +17,15 @@ mod app_windows;
 mod commands;
 
 #[cfg(target_os = "macos")]
-use app_click_through::native_macos::is_cursor_in_window;
+use app_click_through::native_macos::{get_mouse_location, get_window_frame};
 #[cfg(target_os = "windows")]
-use app_click_through::native_windows::is_cursor_in_window;
-use app_click_through::state::{set_click_through_enabled, set_cursor_inside, WindowClickThroughState};
+use app_click_through::native_windows::{get_mouse_location, get_window_frame};
+use app_click_through::state::{set_click_through_enabled, WindowClickThroughState};
 
 #[tauri::command]
-async fn start_monitor_for_clicking_through(window: tauri::Window) -> Result<(), String> {
+async fn start_monitor(window: tauri::Window) -> Result<(), String> {
   let window = window;
   let state = window.state::<WindowClickThroughState>();
-  let enabled = state.enabled.clone();
   let monitoring_enabled = state.monitoring_enabled.clone();
 
   // Already monitoring?
@@ -47,29 +46,14 @@ async fn start_monitor_for_clicking_through(window: tauri::Window) -> Result<(),
         break;
       }
 
-      // If is disabled already, skip until next check
-      if !enabled.load(Ordering::Relaxed) {
-        continue;
-      }
-
       #[cfg(target_os = "macos")]
       {
-        let cursor_inside = is_cursor_in_window(&window).await;
-
-        // Only allow disabling click-through when:
-        // 1. Cursor is OUTSIDE the window AND
-        // 2. Modifier key is pressed
-        let _ = set_cursor_inside(&window, cursor_inside);
+        let _ = window.emit("tauri-app:window-click-through:position-cursor-and-window-frame", (get_mouse_location(), get_window_frame(&window)));
       }
 
       #[cfg(target_os = "windows")]
       {
-        let cursor_inside = is_cursor_in_window(&window).await;
-
-        // Only allow disabling click-through when:
-        // 1. Cursor is OUTSIDE the window AND
-        // 2. Modifier key is pressed
-        let _ = set_cursor_inside(&window, cursor_inside);
+        let _ = window.emit("tauri-app:window-click-through:position-cursor-and-window-frame", (get_mouse_location(), get_window_frame(&window)));
       }
     }
   });
@@ -78,7 +62,7 @@ async fn start_monitor_for_clicking_through(window: tauri::Window) -> Result<(),
 }
 
 #[tauri::command]
-async fn stop_monitor_for_clicking_through(window: tauri::Window) -> Result<(), String> {
+async fn stop_monitor(window: tauri::Window) -> Result<(), String> {
   let window = window;
   let state = window.state::<WindowClickThroughState>();
 
@@ -189,8 +173,9 @@ pub fn run() {
     .invoke_handler(tauri::generate_handler![
       commands::open_settings_window,
       commands::open_chat_window,
-      start_monitor_for_clicking_through,
-      stop_monitor_for_clicking_through,
+      commands::debug_println,
+      start_monitor,
+      stop_monitor,
       start_click_through,
       stop_click_through,
     ])

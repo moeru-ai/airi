@@ -136,6 +136,7 @@ export const useChatStore = defineStore('chat', () => {
       const newMessages = messages.value.slice(0, messages.value.length - 1).map((msg) => {
         if (msg.role === 'assistant') {
           const { slices: _, ...rest } = msg // exclude slices
+          rest.tool_results = toRaw(rest.tool_results)
           return toRaw(rest)
         }
         return toRaw(msg)

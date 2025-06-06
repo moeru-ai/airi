@@ -1,8 +1,13 @@
+import type { ShortcutEvent } from '@tauri-apps/plugin-global-shortcut'
 import type { MaybeRefOrGetter, UseStorageOptions } from '@vueuse/core'
 
 import { useLocalStorage } from '@vueuse/core'
 import { defineStore } from 'pinia'
 import { ref, toValue, watch } from 'vue'
+
+import { WindowControlMode } from '../types/window-controls'
+import { startClickThrough, stopClickThrough } from '../utils/windows'
+import { useWindowControlStore } from './window-controls'
 
 interface Versioned<T> { version?: string, data?: T }
 interface UseVersionedStorageOptions<T> {
@@ -64,24 +69,47 @@ function useVersionedLocalStorage<T>(
 }
 
 export const useShortcutsStore = defineStore('shortcuts', () => {
+  const windowStore = useWindowControlStore()
+
   const shortcuts = ref([
     {
       name: 'settings.pages.themes.window-shortcuts.toggle-move.label',
       shortcut: useVersionedLocalStorage('shortcuts/window/move', 'Shift+Alt+N'), // Shift + Alt + N
       group: 'window',
       type: 'move',
+      handle: async (event: ShortcutEvent) => {
+        if (event.state !== 'Pressed') {
+          return
+        }
+
+        windowStore.setMode(WindowControlMode.MOVE)
+        windowStore.toggleControl()
+      },
     },
     {
       name: 'settings.pages.themes.window-shortcuts.toggle-resize.label',
       shortcut: useVersionedLocalStorage('shortcuts/window/resize', 'Shift+Alt+R'), // Shift + Alt + R
       group: 'window',
       type: 'resize',
+      handle: async (_: ShortcutEvent) => {
+        windowStore.setMode(WindowControlMode.RESIZE)
+        windowStore.toggleControl()
+      },
     },
     {
       name: 'settings.pages.themes.window-shortcuts.toggle-ignore-mouse-event.label',
       shortcut: useVersionedLocalStorage('shortcuts/window/debug', 'Shift+Alt+I'), // Shift + Alt + I
       group: 'window',
       type: 'ignore-mouse-event',
+      handle: async (_: ShortcutEvent) => {
+        windowStore.isIgnoringMouseEvent = !windowStore.isIgnoringMouseEvent
+        if (windowStore.isIgnoringMouseEvent) {
+          await startClickThrough()
+          return
+        }
+
+        await stopClickThrough()
+      },
     },
   ])
 

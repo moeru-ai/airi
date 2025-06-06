@@ -23,12 +23,14 @@ const props = withDefaults(defineProps<{
   width: number
   height: number
   paused: boolean
+  focusAt: { x: number, y: number }
 }>(), {
   mouthOpenSize: 0,
 })
 
 const pixiApp = toRef(() => props.app)
 const paused = toRef(() => props.paused)
+const focusAt = toRef(() => props.focusAt)
 const model = ref<Live2DModel>()
 const initialModelWidth = ref<number>(0)
 const initialModelHeight = ref<number>(0)
@@ -90,10 +92,10 @@ async function loadModel() {
   const modelInstance = new Live2DModel()
 
   if (live2dLoadSource.value === 'file') {
-    await Live2DFactory.setupLive2DModel(modelInstance, [live2dModelFile.value])
+    await Live2DFactory.setupLive2DModel(modelInstance, [live2dModelFile.value], { autoInteract: false })
   }
   else if (live2dLoadSource.value === 'url') {
-    await Live2DFactory.setupLive2DModel(modelInstance, live2dModelUrl.value)
+    await Live2DFactory.setupLive2DModel(modelInstance, live2dModelUrl.value, { autoInteract: false })
   }
 
   model.value = modelInstance
@@ -241,6 +243,13 @@ watch(pixiApp, initLive2DPixiStage)
 watch(live2dCurrentMotion, value => setMotion(value.group, value.index))
 watch(paused, (value) => {
   value ? pixiApp.value?.stop() : pixiApp.value?.start()
+})
+
+watch(focusAt, (value) => {
+  if (!model.value)
+    return
+
+  model.value.focus(value.x, value.y)
 })
 
 watchDebounced(loadingLive2dModel, (value) => {

@@ -34,7 +34,7 @@
     "prismarine-windows": "^2.9.0",
     "valibot": "1.0.0-beta.9",
     "vec3": "^0.1.10",
-    "zod": "^3.25.28",
+    "zod": "^3.25.51",
     "zod-to-json-schema": "^3.24.5"
   },
   "devDependencies": {
