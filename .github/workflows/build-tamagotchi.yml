@@ -5,6 +5,11 @@ permissions:
 
 on:
   workflow_dispatch:
+    inputs:
+      tag:
+        description: Attach to a specific tag/commit for the release
+        required: true
+        type: string
 
 jobs:
   build-tamagotchi:
@@ -67,5 +72,6 @@ jobs:
       - name: Upload To GitHub Releases
         uses: softprops/action-gh-release@v2
         with:
-          files: apps/stage-tamagotchi/bundle/airi_*
+          files: bundle/airi_*
           append_body: true
+          tag_name: ${{ github.event.inputs.tag }}
