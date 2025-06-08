@@ -60,14 +60,14 @@ const activeTab = computed({
 
 // Check for errors, and save built Cards :
 
-const showError: Ref<boolean> = ref(false)
-const errorMessage: Ref<string> = ref('')
+const showError = ref<boolean>(false)
+const errorMessage = ref<string>('')
 
 function saveCard(card: Card): boolean {
   // Before saving, let's validate what the user entered :
   const rawCard: Card = toRaw(card)
 
-  if (!rawCard.name.length > 0) {
+  if (!(rawCard.name!.length > 0)) { // ! is used, since a default value is provided, and computed values passed to v-model should never be undefined
     // No name
     showError.value = true
     errorMessage.value = t('settings.pages.card.creation.errors.name')
@@ -79,31 +79,31 @@ function saveCard(card: Card): boolean {
     errorMessage.value = t('settings.pages.card.creation.errors.version')
     return false
   }
-  else if (!rawCard.description.length > 0) {
+  else if (!(rawCard.description!.length > 0)) {
     // No description
     showError.value = true
     errorMessage.value = t('settings.pages.card.creation.errors.description')
     return false
   }
-  else if (!rawCard.personality.length > 0) {
+  else if (!(rawCard.personality!.length > 0)) {
     // No personality
     showError.value = true
     errorMessage.value = t('settings.pages.card.creation.errors.personality')
     return false
   }
-  else if (!rawCard.personality.length > 0) {
+  else if (!(rawCard.scenario!.length > 0)) {
     // No Scenario
     showError.value = true
     errorMessage.value = t('settings.pages.card.creation.errors.scenario')
     return false
   }
-  else if (!rawCard.personality.length > 0) {
+  else if (!(rawCard.systemPrompt!.length > 0)) {
     // No sys prompt
     showError.value = true
     errorMessage.value = t('settings.pages.card.creation.errors.systemprompt')
     return false
   }
-  else if (!rawCard.personality.length > 0) {
+  else if (!(rawCard.postHistoryInstructions!.length > 0)) {
     // No post history prompt
     showError.value = true
     errorMessage.value = t('settings.pages.card.creation.errors.posthistoryinstructions')
@@ -141,7 +141,7 @@ function makeComputed<T extends keyof Card>(
 ) {
   return computed({
     get: () => {
-      return card.value[key] // Is key is '', undefined or just falsy, fallback is used
+      return card.value[key] ?? ''
     },
     set: (val: string) => { // Set,
       const input = val.trim() // We first trim the value

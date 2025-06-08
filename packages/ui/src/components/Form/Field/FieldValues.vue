@@ -43,7 +43,7 @@ function removeItem(index: number) {
 
       <div v-auto-animate class="~ col gap-2">
         <div
-          v-for="(value, index) in items"
+          v-for="(_, index) in items"
           :key="index"
           class="w-full flex items-center gap-2"
         >
