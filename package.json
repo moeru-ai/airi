@@ -49,6 +49,7 @@
     "bumpp": "^10.1.1",
     "changelogithub": "^13.15.0",
     "eslint": "^9.28.0",
+    "execa": "^9.6.0",
     "lint-staged": "^16.1.0",
     "rollup": "^4.41.1",
     "simple-git-hooks": "^2.13.0",

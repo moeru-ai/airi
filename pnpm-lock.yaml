@@ -93,6 +93,9 @@ importers:
       eslint:
         specifier: ^9.28.0
         version: 9.28.0(jiti@2.4.2)
+      execa:
+        specifier: ^9.6.0
+        version: 9.6.0
       lint-staged:
         specifier: ^16.1.0
         version: 16.1.0
