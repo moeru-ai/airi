@@ -3,6 +3,7 @@ import { IconStatusItem } from '@proj-airi/stage-ui/components'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores'
 import { storeToRefs } from 'pinia'
 
+import IconAnimation from '../../../components/IconAnimation.vue'
 import { useIconAnimation } from '../../../composables/useIconAnimation'
 
 const providersStore = useProvidersStore()

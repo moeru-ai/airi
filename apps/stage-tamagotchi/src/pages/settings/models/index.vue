@@ -4,6 +4,7 @@ import { useElementBounding, useMouse } from '@vueuse/core'
 import { Vibrant } from 'node-vibrant/browser'
 import { ref } from 'vue'
 
+import IconAnimation from '../../../components/IconAnimation.vue'
 import Live2DSettings from '../../../components/Widgets/Live2DSettings.vue'
 import { useIconAnimation } from '../../../composables/useIconAnimation'
 
