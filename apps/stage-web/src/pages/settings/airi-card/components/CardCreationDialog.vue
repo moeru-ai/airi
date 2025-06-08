@@ -158,45 +158,30 @@ const cardPostHistoryInstructions = makeComputed('postHistoryInstructions')
           <!-- Identity details -->
           <div v-if="activeTab === 'identity'" class="tab-content ml-auto mr-auto w-95%">
             <p class="mb-3">
-              {{ t('settings.pages.card.creation.fields_info.subtitle') }}<br>
-              <span class="font-extrabold">{{ t('settings.pages.card.creation.name') }} : </span>{{ t('settings.pages.card.creation.fields_info.name') }}<br>
-              <span class="font-extrabold">{{ t('settings.pages.card.creation.nickname') }} : </span>{{ t('settings.pages.card.creation.fields_info.nickname') }}<br>
-              <span class="font-extrabold">{{ t('settings.pages.card.creation.description') }} : </span>{{ t('settings.pages.card.creation.fields_info.description') }}<br>
-              <span class="font-extrabold">{{ t('settings.pages.card.creator_notes') }} : </span>{{ t('settings.pages.card.creation.fields_info.notes') }}<br>
+              {{ t('settings.pages.card.creation.fields_info.subtitle') }}
             </p>
 
             <div class="input-list ml-auto mr-auto w-90% flex flex-row flex-wrap justify-center gap-8">
-              <FieldInput v-model="cardName" :label="t('settings.pages.card.creation.name')" :required="true" />
-              <FieldInput v-model="cardNickname" :label="t('settings.pages.card.creation.nickname')" />
-              <FieldInput v-model="cardDescription" :label="t('settings.pages.card.creation.description')" :single-line="false" :required="true" />
-              <FieldInput v-model="cardNotes" :label="t('settings.pages.card.creator_notes')" :single-line="false" />
+              <FieldInput v-model="cardName" :label="t('settings.pages.card.creation.name')" :description="t('settings.pages.card.creation.fields_info.name')" :required="true" />
+              <FieldInput v-model="cardNickname" :label="t('settings.pages.card.creation.nickname')" :description="t('settings.pages.card.creation.fields_info.nickname')" />
+              <FieldInput v-model="cardDescription" :label="t('settings.pages.card.creation.description')" :single-line="false" :required="true" :description="t('settings.pages.card.creation.fields_info.description')" />
+              <FieldInput v-model="cardNotes" :label="t('settings.pages.card.creator_notes')" :single-line="false" :description="t('settings.pages.card.creation.fields_info.notes')" />
             </div>
           </div>
           <!-- Behavior -->
           <div v-else-if="activeTab === 'behavior'" class="tab-content ml-auto mr-auto w-95%">
-            <p class="mb-3">
-              <span class="font-extrabold">{{ t('settings.pages.card.personality') }} : </span>{{ t('settings.pages.card.creation.fields_info.personality') }}<br>
-              <span class="font-extrabold">{{ t('settings.pages.card.scenario') }} : </span>{{ t('settings.pages.card.creation.fields_info.scenario') }}<br>
-              <span class="font-extrabold">{{ t('settings.pages.card.creation.fields_info.greetings_field') }} : </span>{{ t('settings.pages.card.creation.fields_info.greetings') }}<br>
-            </p>
-
             <div class="input-list ml-auto mr-auto w-90% flex flex-row flex-wrap justify-center gap-8">
-              <FieldInput v-model="cardPersonality" :label="t('settings.pages.card.personality')" :single-line="false" :required="true" />
-              <FieldInput v-model="cardScenario" :label="t('settings.pages.card.scenario')" :single-line="false" :required="true" />
-              <FieldValues v-model="cardGreetings" :label="t('settings.pages.card.creation.greetings')" />
+              <FieldInput v-model="cardPersonality" :label="t('settings.pages.card.personality')" :single-line="false" :required="true" :description="t('settings.pages.card.creation.fields_info.personality')" />
+              <FieldInput v-model="cardScenario" :label="t('settings.pages.card.scenario')" :single-line="false" :required="true" :description="t('settings.pages.card.creation.fields_info.scenario')" />
+              <FieldValues v-model="cardGreetings" :label="t('settings.pages.card.creation.greetings')" :description="t('settings.pages.card.creation.fields_info.greetings')" />
             </div>
           </div>
           <!-- Settings -->
           <div v-else-if="activeTab === 'settings'" class="tab-content ml-auto mr-auto w-95%">
-            <p class="mb-3">
-              <span class="font-extrabold">{{ t('settings.pages.card.systemprompt') }} : </span>{{ t('settings.pages.card.creation.fields_info.systemprompt') }}<br>
-              <span class="font-extrabold">{{ t('settings.pages.card.posthistoryinstructions') }} : </span>{{ t('settings.pages.card.creation.fields_info.posthistoryinstructions') }}<br>
-              <span class="font-extrabold">{{ t('settings.pages.card.creation.version') }} : </span>{{ t('settings.pages.card.creation.fields_info.version') }}<br>
-            </p>
             <div class="input-list ml-auto mr-auto w-90% flex flex-row flex-wrap justify-center gap-8">
-              <FieldInput v-model="cardSystemPrompt" :label="t('settings.pages.card.systemprompt')" :single-line="false" :required="true" />
-              <FieldInput v-model="cardPostHistoryInstructions" :label="t('settings.pages.card.posthistoryinstructions')" :single-line="false" :required="true" />
-              <FieldInput v-model="cardVersion" :label="t('settings.pages.card.creation.version')" :required="true" />
+              <FieldInput v-model="cardSystemPrompt" :label="t('settings.pages.card.systemprompt')" :single-line="false" :required="true" :description="t('settings.pages.card.creation.fields_info.systemprompt')" />
+              <FieldInput v-model="cardPostHistoryInstructions" :label="t('settings.pages.card.posthistoryinstructions')" :single-line="false" :required="true" :description="t('settings.pages.card.creation.fields_info.posthistoryinstructions')" />
+              <FieldInput v-model="cardVersion" :label="t('settings.pages.card.creation.version')" :required="true" :description="t('settings.pages.card.creation.fields_info.version')" />
             </div>
           </div>
 

@@ -109,17 +109,17 @@ settings:
           posthistoryinstructions: Remember to imitate an human.
         fields_info:
           subtitle: You can put here some details about the character you are creating, explain his history and context, and how your interactions should be answered.
-          name: is the formal name of this character.
-          nickname: you can also give a nickname that will be used in priority.
-          description: description of this character.
-          notes: if you want to add some personal notes.
-          personality: describe here the personality of your character. Shy ? Curious ? Anything else ?
-          scenario: what are the surroundings ? What is the current situation ?
+          name: Is the formal name of this character.
+          nickname: You can also give a nickname that will be used in priority.
+          description: Description of this character.
+          notes: If you want to add some personal notes.
+          personality: Describe here the personality of your character. Shy ? Curious ? Anything else ?
+          scenario: What are the surroundings ? What is the current situation ?
           greetings_field: Greetings
-          greetings: how your character should say "hello" ?
-          systemprompt: explain here to the AI LLM how it should answer when prompted.
-          posthistoryinstructions: place here anything the AI LLM should read after the messages history.
-          version: card version, you should increase this if you are making changes from a previous card.
+          greetings: How your character should say "hello" ?
+          systemprompt: Explain here to the AI LLM how it should answer when prompted.
+          posthistoryinstructions: Place here anything the AI LLM should read after the messages history.
+          version: Card version, you should increase this if you are making changes from a previous card.
       modules: Modules
       name_asc: Name (A-Z)
       name_desc: Name (Z-A)
