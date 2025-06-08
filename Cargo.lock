@@ -92,7 +92,7 @@ checksum = "e16d2d3311acee920a9eb8d33b8cbc1787ce4a264e85f964c2404b969bdcd487"
 
 [[package]]
 name = "app"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "log",
  "objc2 0.6.1",
@@ -3765,7 +3765,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-plugin-mcp"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "anyhow",
  "log",
