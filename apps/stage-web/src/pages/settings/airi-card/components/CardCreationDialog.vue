@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import type { Card } from '@proj-airi/ccc'
 
-import { Button, InputText } from '@proj-airi/stage-ui/components'
+import { Button } from '@proj-airi/stage-ui/components'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores'
+import { FieldInput, FieldValues } from '@proj-airi/ui'
 import {
   DialogContent,
   DialogOverlay,
@@ -108,9 +109,9 @@ const cardNotes = makeComputed('notes')
 const cardPersonality = makeComputed('personality')
 const cardScenario = makeComputed('scenario')
 const cardGreetings = computed({
-  get: () => (card.value.greetings ?? []).join('\n'),
-  set: (val: string) => {
-    card.value.greetings = val.trim().length > 0 ? val.split('\n') : []
+  get: () => card.value.greetings ?? [],
+  set: (val: string[]) => {
+    card.value.greetings = val || []
   },
 })
 
@@ -165,10 +166,10 @@ const cardPostHistoryInstructions = makeComputed('postHistoryInstructions')
             </p>
 
             <div class="input-list ml-auto mr-auto w-90% flex flex-row flex-wrap justify-center gap-8">
-              <InputText v-model="cardName" :label="t('settings.pages.card.creation.name')" :required="true" />
-              <InputText v-model="cardNickname" :label="t('settings.pages.card.creation.nickname')" />
-              <InputText v-model="cardDescription" :label="t('settings.pages.card.creation.description')" :long="true" :required="true" />
-              <InputText v-model="cardNotes" :label="t('settings.pages.card.creator_notes')" :long="true" />
+              <FieldInput v-model="cardName" :label="t('settings.pages.card.creation.name')" :required="true" />
+              <FieldInput v-model="cardNickname" :label="t('settings.pages.card.creation.nickname')" />
+              <FieldInput v-model="cardDescription" :label="t('settings.pages.card.creation.description')" :single-line="false" :required="true" />
+              <FieldInput v-model="cardNotes" :label="t('settings.pages.card.creator_notes')" :single-line="false" />
             </div>
           </div>
           <!-- Behavior -->
@@ -180,9 +181,9 @@ const cardPostHistoryInstructions = makeComputed('postHistoryInstructions')
             </p>
 
             <div class="input-list ml-auto mr-auto w-90% flex flex-row flex-wrap justify-center gap-8">
-              <InputText v-model="cardPersonality" :label="t('settings.pages.card.personality')" :long="true" :required="true" />
-              <InputText v-model="cardScenario" :label="t('settings.pages.card.scenario')" :long="true" :required="true" />
-              <InputText v-model="cardGreetings" :label="t('settings.pages.card.creation.greetings')" :long="true" />
+              <FieldInput v-model="cardPersonality" :label="t('settings.pages.card.personality')" :single-line="false" :required="true" />
+              <FieldInput v-model="cardScenario" :label="t('settings.pages.card.scenario')" :single-line="false" :required="true" />
+              <FieldValues v-model="cardGreetings" :label="t('settings.pages.card.creation.greetings')" />
             </div>
           </div>
           <!-- Settings -->
@@ -193,9 +194,9 @@ const cardPostHistoryInstructions = makeComputed('postHistoryInstructions')
               <span class="font-extrabold">{{ t('settings.pages.card.creation.version') }} : </span>{{ t('settings.pages.card.creation.fields_info.version') }}<br>
             </p>
             <div class="input-list ml-auto mr-auto w-90% flex flex-row flex-wrap justify-center gap-8">
-              <InputText v-model="cardSystemPrompt" :label="t('settings.pages.card.systemprompt')" :long="true" :required="true" />
-              <InputText v-model="cardPostHistoryInstructions" :label="t('settings.pages.card.posthistoryinstructions')" :long="true" :required="true" />
-              <InputText v-model="cardVersion" :label="t('settings.pages.card.creation.version')" :required="true" />
+              <FieldInput v-model="cardSystemPrompt" :label="t('settings.pages.card.systemprompt')" :single-line="false" :required="true" />
+              <FieldInput v-model="cardPostHistoryInstructions" :label="t('settings.pages.card.posthistoryinstructions')" :single-line="false" :required="true" />
+              <FieldInput v-model="cardVersion" :label="t('settings.pages.card.creation.version')" :required="true" />
             </div>
           </div>
 

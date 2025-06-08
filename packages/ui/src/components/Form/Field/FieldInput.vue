@@ -1,14 +1,17 @@
 <script setup lang="ts">
 import Input from '../Input/Input.vue'
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   label?: string
   description?: string
   placeholder?: string
   required?: boolean
   type?: string
   inputClass?: string
-}>()
+  singleLine?: boolean
+}>(), {
+  singleLine: true,
+})
 
 const modelValue = defineModel<string>({ required: true })
 </script>
@@ -26,10 +29,25 @@ const modelValue = defineModel<string>({ required: true })
         </div>
       </div>
       <Input
+        v-if="singleLine"
         v-model="modelValue"
         :type="props.type"
         :placeholder="props.placeholder"
         :class="props.inputClass"
+      />
+      <textarea
+        v-else
+        v-model="modelValue"
+        :type="props.type"
+        :placeholder="props.placeholder"
+        :class="props.inputClass"
+        border="focus:primary-300 dark:focus:primary-400/50 2 solid neutral-100 dark:neutral-900"
+        transition="all duration-200 ease-in-out"
+        text="disabled:neutral-400 dark:disabled:neutral-600"
+        cursor="disabled:not-allowed"
+        w-full rounded-lg px-2 py-1 text-sm outline-none
+        shadow="sm"
+        bg="neutral-50 dark:neutral-950 focus:neutral-50 dark:focus:neutral-900"
       />
     </label>
   </div>
