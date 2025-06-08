@@ -12,6 +12,7 @@
   "license": "MIT",
   "scripts": {
     "dev": "pnpm -r -F @proj-airi/stage-web dev",
+    "dev:docs": "pnpm -rF @proj-airi/docs run dev",
     "dev:ui": "pnpm -rF @proj-airi/stage-ui run story:dev",
     "dev:web": "pnpm -rF @proj-airi/stage-web run dev",
     "dev:tamagotchi": "pnpm -rF @proj-airi/stage-tamagotchi run app:dev",
