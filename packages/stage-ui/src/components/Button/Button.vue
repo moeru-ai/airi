@@ -29,9 +29,9 @@ const isDisabled = computed(() => props.disabled || props.loading)
 
 // Extract variant styles for better organization
 const variantClasses: Record<ButtonVariant, string> = {
-  primary: 'bg-primary-500 hover:bg-primary-600 dark:bg-primary-400 dark:hover:bg-primary-500 text-white',
-  secondary: 'bg-neutral-100 hover:bg-neutral-200 dark:bg-neutral-600 dark:hover:bg-neutral-500 text-neutral-900 dark:text-neutral-100',
-  danger: 'bg-red-500 hover:bg-red-600 dark:bg-red-400 dark:hover:bg-red-500 text-white',
+  primary: 'bg-primary-500 hover:bg-primary-600 dark:bg-primary-400 dark:hover:bg-primary-500 focus:ring-primary-500/50 dark:focus:ring-primary-400/50 text-white',
+  secondary: 'bg-neutral-100 hover:bg-neutral-200 dark:bg-neutral-600 dark:hover:bg-neutral-500 focus:ring-neutral-300/50 dark:focus:ring-neutral-600/50 text-neutral-900 dark:text-neutral-100',
+  danger: 'bg-red-500 hover:bg-red-600 dark:bg-red-400 dark:hover:bg-red-500 focus:ring-red-600/50 dark:focus:ring-red-500/50 text-white',
 }
 
 // Extract size styles for better organization
@@ -50,7 +50,6 @@ const baseClasses = computed(() => [
   variantClasses[props.variant],
   { 'opacity-50 cursor-not-allowed': isDisabled.value },
   'focus:ring-2 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-neutral-900',
-  'focus:ring-primary-500/50 dark:focus:ring-primary-400/50',
 ])
 </script>
 
