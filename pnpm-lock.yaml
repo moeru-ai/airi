@@ -102,6 +102,9 @@ importers:
       simple-git-hooks:
         specifier: ^2.13.0
         version: 2.13.0
+      smol-toml:
+        specifier: ^1.3.4
+        version: 1.3.4
       taze:
         specifier: ^19.1.0
         version: 19.1.0
@@ -10226,6 +10229,10 @@ packages:
 
   smol-toml@1.3.1:
     resolution: {integrity: sha512-tEYNll18pPKHroYSmLLrksq233j021G0giwW7P3D24jC54pQ5W5BXMsQ/Mvw1OJCmEYDgY+lrzT+3nNUtoNfXQ==}
+    engines: {node: '>= 18'}
+
+  smol-toml@1.3.4:
+    resolution: {integrity: sha512-UOPtVuYkzYGee0Bd2Szz8d2G3RfMfJ2t3qVdZUAozZyAk+a0Sxa+QKix0YCwjL/A1RR0ar44nCxaoN9FxdJGwA==}
     engines: {node: '>= 18'}
 
   socket.io-adapter@2.5.5:
@@ -22768,6 +22775,8 @@ snapshots:
   smob@1.5.0: {}
 
   smol-toml@1.3.1: {}
+
+  smol-toml@1.3.4: {}
 
   socket.io-adapter@2.5.5(bufferutil@4.0.9)(utf-8-validate@5.0.10):
     dependencies:
