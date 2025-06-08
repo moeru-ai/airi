@@ -50,14 +50,12 @@ function removeItem(index: number) {
           <Input
             v-model="items[index]"
             :placeholder="props.valuePlaceholder"
-            class="w-full"
+            class="w-90%"
           />
-          <button @click="removeItem(index)">
-            <div i-solar:minus-circle-line-duotone size="6" class="text-red-500" />
-          </button>
+          <button i-solar:minus-circle-line-duotone size="6" class="min-w-20px w-10% flex text-red-500" @click="removeItem(index)" />
         </div>
 
-        <div i-solar:add-circle-line-duotone size="6" class="mt-2 text-blue-500" @click="addItem" />
+        <div i-solar:add-circle-line-duotone size="6" class="mt-2 w-4/5 text-blue-500" @click="addItem" />
       </div>
     </label>
   </div>
