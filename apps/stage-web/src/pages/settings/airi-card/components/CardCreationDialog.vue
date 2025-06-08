@@ -11,7 +11,7 @@ import {
   DialogRoot,
   DialogTitle,
 } from 'radix-vue'
-import { computed, ref } from 'vue'
+import { computed, ref, toRaw } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 interface Props {
@@ -58,11 +58,62 @@ const activeTab = computed({
   },
 })
 
-// Save built Cards :
-function saveCard(card: Card): string {
-  const newId: string = cardStore.addCard(card)
+// Check for errors, and save built Cards :
+
+const showError: Ref<boolean> = ref(false)
+const errorMessage: Ref<string> = ref('')
+
+function saveCard(card: Card): boolean {
+  // Before saving, let's validate what the user entered :
+  const rawCard: Card = toRaw(card)
+
+  if (!rawCard.name.length > 0) {
+    // No name
+    showError.value = true
+    errorMessage.value = t('settings.pages.card.creation.errors.name')
+    return false
+  }
+  else if (!/^(?:\d+\.)+\d+$/.test(rawCard.version)) {
+    // Invalid version
+    showError.value = true
+    errorMessage.value = t('settings.pages.card.creation.errors.version')
+    return false
+  }
+  else if (!rawCard.description.length > 0) {
+    // No description
+    showError.value = true
+    errorMessage.value = t('settings.pages.card.creation.errors.description')
+    return false
+  }
+  else if (!rawCard.personality.length > 0) {
+    // No personality
+    showError.value = true
+    errorMessage.value = t('settings.pages.card.creation.errors.personality')
+    return false
+  }
+  else if (!rawCard.personality.length > 0) {
+    // No Scenario
+    showError.value = true
+    errorMessage.value = t('settings.pages.card.creation.errors.scenario')
+    return false
+  }
+  else if (!rawCard.personality.length > 0) {
+    // No sys prompt
+    showError.value = true
+    errorMessage.value = t('settings.pages.card.creation.errors.systemprompt')
+    return false
+  }
+  else if (!rawCard.personality.length > 0) {
+    // No post history prompt
+    showError.value = true
+    errorMessage.value = t('settings.pages.card.creation.errors.posthistoryinstructions')
+    return false
+  }
+  showError.value = false
+
+  cardStore.addCard(rawCard)
   modelValue.value = false // Close this
-  return newId
+  return true
 }
 
 // Cards data holders :
@@ -152,6 +203,13 @@ const cardPostHistoryInstructions = makeComputed('postHistoryInstructions')
                 </button>
               </div>
             </div>
+          </div>
+
+          <!-- Error div -->
+          <div v-if="showError" class="w-full rounded-xl bg-red900">
+            <p class="w-full p-4">
+              {{ errorMessage }}
+            </p>
           </div>
 
           <!-- Actual content -->

@@ -120,6 +120,14 @@ settings:
           systemprompt: Explain here to the AI LLM how it should answer when prompted.
           posthistoryinstructions: Place here anything the AI LLM should read after the messages history.
           version: Card version, you should increase this if you are making changes from a previous card.
+        errors:
+          name: 'Error: You must provide a valid name !'
+          version: 'Error: Invalid version number !'
+          description: 'Error: You must provide a description for this card.'
+          personality: 'Error: A personality must be provided for this character.'
+          scenario: 'Error: A scenario is required.'
+          systemprompt: 'Error: Please, provide a system prompt.'
+          posthistoryinstructions: 'Error: Post history prompt is required.'
       modules: Modules
       name_asc: Name (A-Z)
       name_desc: Name (Z-A)

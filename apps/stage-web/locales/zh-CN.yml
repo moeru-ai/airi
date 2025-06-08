@@ -106,6 +106,14 @@ settings:
           systemprompt: 在这里向 AI LLM 解释当被提示时应该如何回应。
           posthistoryinstructions: 在消息历史之后，放入 AI LLM 应该阅读的内容。
           version: 卡片版本，如果您从之前的卡片做了更改，应当增加此版本号。
+        errors:
+          name: 错误：你必须提供一个有效的名称！
+          version: 错误：版本号无效！
+          description: 错误：你必须为此卡片提供描述。
+          personality: 错误：必须为该角色提供性格描述。
+          scenario: 错误：必须提供一个情境。
+          systemprompt: 错误：请提供系统提示。
+          posthistoryinstructions: 错误：必须提供消息历史后的提示。
       modules: 模块
       name_asc: 名称 (A-Z)
       name_desc: 名称 (Z-A)
