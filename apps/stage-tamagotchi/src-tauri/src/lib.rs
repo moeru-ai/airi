@@ -123,8 +123,12 @@ pub fn run() {
       let settings_item = MenuItem::with_id(app, "settings", "Settings", true, None::<&str>)?;
       let hide_item = MenuItem::with_id(app, "hide", "Hide", true, None::<&str>)?;
       let show_item = MenuItem::with_id(app, "show", "Show", true, None::<&str>)?;
-      let show_devtools_item = MenuItem::with_id(app, "show-devtools", "Show Devtools", true, None::<&str>)?;
-      let menu = Menu::with_items(app, &[&settings_item, &hide_item, &show_item, &show_devtools_item, &quit_item])?;
+      let menu = Menu::with_items(app, &[&settings_item, &hide_item, &show_item, &quit_item])?;
+      #[cfg(debug_assertions)]
+      {
+        let show_devtools_item = MenuItem::with_id(app, "show-devtools", "Show Devtools", true, None::<&str>)?;
+        menu.append_items(&[&show_devtools_item])?;
+      }
 
       let _ = TrayIconBuilder::new()
         .icon(app.default_window_icon().unwrap().clone()) // TODO: use custom icon
@@ -146,17 +150,18 @@ pub fn run() {
             app_windows::settings::new_settings_window(app).unwrap();
           }
           "hide" => {
-            let window = app.get_webview_window("settings");
+            let window = app.get_webview_window("main");
             if let Some(window) = window {
               let _ = window.hide();
             }
           }
           "show" => {
-            let window = app.get_webview_window("settings");
+            let window = app.get_webview_window("main");
             if let Some(window) = window {
               let _ = window.show();
             }
           }
+          #[cfg(debug_assertions)]
           "show-devtools" => {
             let window = app.get_webview_window("main");
             if let Some(window) = window {
