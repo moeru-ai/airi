@@ -528,6 +528,9 @@ importers:
       '@standard-schema/spec':
         specifier: ^1.0.0
         version: 1.0.0
+      '@stdlib/string-base-kebabcase':
+        specifier: ^0.2.2
+        version: 0.2.2
       '@tresjs/cientos':
         specifier: ^4.3.1
         version: 4.3.1(@tresjs/core@4.3.5(three@0.177.0)(typescript@5.8.3)(vue@3.5.16(typescript@5.8.3)))(@types/three@0.177.0)(react@18.3.1)(three@0.177.0)(typescript@5.8.3)(vue@3.5.16(typescript@5.8.3))
@@ -4335,6 +4338,26 @@ packages:
 
   '@standard-schema/spec@1.0.0':
     resolution: {integrity: sha512-m2bOd0f2RT9k8QJx1JN85cZYyH1RqFBdlwtkSlf4tBDYLCiiZnv1fIIwacK6cqwXavOydf0NPToMQgpKq+dVlA==}
+
+  '@stdlib/string-base-kebabcase@0.2.2':
+    resolution: {integrity: sha512-0GysbgtrKhmYAN236mshcDkStL0DOcbAJpr0Ond2E6RBPnGRFnfr1lLYren8AGTKIi6ztzxLMj8fY7TQ+Uawcg==}
+    engines: {node: '>=0.10.0', npm: '>2.7.0'}
+    os: [aix, darwin, freebsd, linux, macos, openbsd, sunos, win32, windows]
+
+  '@stdlib/string-base-lowercase@0.4.0':
+    resolution: {integrity: sha512-IH35Z5e4T+S3b3SfYY39mUhrD2qvJVp4VS7Rn3+jgj4+C3syocuAPsJ8C4OQXWGfblX/N9ymizbpFBCiVvMW8w==}
+    engines: {node: '>=0.10.0', npm: '>2.7.0'}
+    os: [aix, darwin, freebsd, linux, macos, openbsd, sunos, win32, windows]
+
+  '@stdlib/string-base-replace@0.2.2':
+    resolution: {integrity: sha512-Y4jZwRV4Uertw7AlA/lwaYl1HjTefSriN5+ztRcQQyDYmoVN3gzoVKLJ123HPiggZ89vROfC+sk/6AKvly+0CA==}
+    engines: {node: '>=0.10.0', npm: '>2.7.0'}
+    os: [aix, darwin, freebsd, linux, macos, openbsd, sunos, win32, windows]
+
+  '@stdlib/string-base-trim@0.2.2':
+    resolution: {integrity: sha512-1BVoM1XYxPbZ7xQcf4+TNP4dya5KphlkRnj0e0FBrmlYacJITvPgmsywOREivHqF8osH1oQQBZ47J/J/hQ79Eg==}
+    engines: {node: '>=0.10.0', npm: '>2.7.0'}
+    os: [aix, darwin, freebsd, linux, macos, openbsd, sunos, win32, windows]
 
   '@stylistic/eslint-plugin@5.0.0-beta.1':
     resolution: {integrity: sha512-26syM7oRlnfUVoQ58GoPVXAXS3rSknWtD9dAx3XHIYxSQsqmd1Uuw7ILG0E6YSO+VYTlhuOcmikP/dg8Cu9d0Q==}
@@ -15075,6 +15098,20 @@ snapshots:
   '@socket.io/component-emitter@3.1.2': {}
 
   '@standard-schema/spec@1.0.0': {}
+
+  '@stdlib/string-base-kebabcase@0.2.2':
+    dependencies:
+      '@stdlib/string-base-lowercase': 0.4.0
+      '@stdlib/string-base-replace': 0.2.2
+      '@stdlib/string-base-trim': 0.2.2
+
+  '@stdlib/string-base-lowercase@0.4.0': {}
+
+  '@stdlib/string-base-replace@0.2.2': {}
+
+  '@stdlib/string-base-trim@0.2.2':
+    dependencies:
+      '@stdlib/string-base-replace': 0.2.2
 
   '@stylistic/eslint-plugin@5.0.0-beta.1(eslint@9.28.0(jiti@2.4.2))(typescript@5.8.3)':
     dependencies:

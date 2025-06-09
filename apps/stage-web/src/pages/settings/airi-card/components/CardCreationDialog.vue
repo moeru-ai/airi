@@ -4,6 +4,7 @@ import type { Card } from '@proj-airi/ccc'
 import { Button } from '@proj-airi/stage-ui/components'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores'
 import { FieldInput, FieldValues } from '@proj-airi/ui'
+import kebabcase from '@stdlib/string-base-kebabcase'
 import {
   DialogContent,
   DialogOverlay,
@@ -152,7 +153,7 @@ function makeComputed<T extends keyof Card>(
   })
 }
 
-const cardName = makeComputed('name', input => input.split(' ').map(e => e.charAt(0).toUpperCase() + e.slice(1).toLowerCase()).join(' '))
+const cardName = makeComputed('name', input => kebabcase(input))
 const cardNickname = makeComputed('nickname')
 const cardDescription = makeComputed('description')
 const cardNotes = makeComputed('notes')
