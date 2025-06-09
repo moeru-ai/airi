@@ -267,12 +267,12 @@ const cardPostHistoryInstructions = makeComputed('postHistoryInstructions')
 </template>
 
 <style scoped>
-.input-list > *{
+.input-list > * {
     min-width: 45%;
   }
 
   @media (max-width: 641px) {
-  .input-list *{
+  .input-list * {
     min-width: unset;
     width: 100%;
   }

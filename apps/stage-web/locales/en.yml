@@ -121,7 +121,7 @@ settings:
           posthistoryinstructions: Place here anything the AI LLM should read after the messages history.
           version: Card version, you should increase this if you are making changes from a previous card.
         errors:
-          name: 'Error: You must provide a valid name !'
+          name: Name should be valid or non-empty.
           version: 'Error: Invalid version number !'
           description: 'Error: You must provide a description for this card.'
           personality: 'Error: A personality must be provided for this character.'
