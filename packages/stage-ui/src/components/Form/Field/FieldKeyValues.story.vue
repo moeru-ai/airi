@@ -1,14 +1,14 @@
 <script setup lang="ts">
 import { FieldKeyValues } from '@proj-airi/ui'
-import { reactive, watch } from 'vue'
+import { ref, watch } from 'vue'
 
-const emptyHeaders = reactive<{ key: string, value: string }[]>([
+const emptyHeaders = ref<{ key: string, value: string }[]>([
   { key: '', value: '' },
 ])
-const singleHeader = reactive<{ key: string, value: string }[]>([
+const singleHeader = ref<{ key: string, value: string }[]>([
   { key: 'Content-Type', value: 'application/json' },
 ])
-const multipleHeaders = reactive<{ key: string, value: string }[]>([
+const multipleHeaders = ref<{ key: string, value: string }[]>([
   { key: 'Authorization', value: 'Bearer token123' },
   { key: 'Accept', value: 'application/json' },
   { key: 'X-API-Key', value: 'abc123xyz456' },
@@ -36,7 +36,7 @@ function removeKeyValue(index: number, headers: { key: string, value: string }[]
 
 watch(emptyHeaders, (headers) => {
   if (headers.length > 0 && (headers[headers.length - 1].key !== '' || headers[headers.length - 1].value !== '')) {
-    emptyHeaders.push({ key: '', value: '' })
+    emptyHeaders.value.push({ key: '', value: '' })
   }
 }, {
   deep: true,
@@ -45,7 +45,7 @@ watch(emptyHeaders, (headers) => {
 
 watch(singleHeader, (headers) => {
   if (headers.length > 0 && (headers[headers.length - 1].key !== '' || headers[headers.length - 1].value !== '')) {
-    singleHeader.push({ key: '', value: '' })
+    singleHeader.value.push({ key: '', value: '' })
   }
 }, {
   deep: true,
@@ -54,7 +54,7 @@ watch(singleHeader, (headers) => {
 
 watch(multipleHeaders, (headers) => {
   if (headers.length > 0 && (headers[headers.length - 1].key !== '' || headers[headers.length - 1].value !== '')) {
-    multipleHeaders.push({ key: '', value: '' })
+    multipleHeaders.value.push({ key: '', value: '' })
   }
 }, {
   deep: true,

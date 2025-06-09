@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, reactive } from 'vue'
+import { onBeforeUnmount, onMounted, ref } from 'vue'
 
 interface Props {
   petalCount?: number
@@ -26,7 +26,7 @@ const props = withDefaults(defineProps<Props>(), {
   baseColor: '#FFB6C1',
 })
 
-const petals = reactive<Petal[]>([])
+const petals = ref<Petal[]>([])
 let animationInterval: number | null = null
 
 function createPetalStyle() {
@@ -43,9 +43,9 @@ function createPetalStyle() {
 }
 
 function createPetals() {
-  petals.length = 0
+  petals.value.length = 0
   for (let i = 0; i < props.petalCount; i++) {
-    petals.push({
+    petals.value.push({
       id: Date.now() + i,
       style: createPetalStyle(),
     })
