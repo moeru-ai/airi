@@ -76,6 +76,6 @@ jobs:
       - name: Upload To GitHub Releases
         uses: softprops/action-gh-release@v2
         with:
-          files: bundle/airi_*
+          files: bundle/${{ env.PRODUCT_NAME }}_*
           append_body: true
           tag_name: ${{ github.event.inputs.tag }}
