@@ -8,4 +8,5 @@ export default defineConfig({
     { from: 'src/index.css', to: 'dist/index.css' },
   ],
   unbundle: true,
+  fixedExtension: true,
 })

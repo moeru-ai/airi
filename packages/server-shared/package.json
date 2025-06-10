@@ -17,13 +17,13 @@
   "exports": {
     "./types": {
       "types": "./dist/types/index.d.ts",
-      "import": "./dist/types/index.js",
-      "require": "./dist/types/index.js",
-      "default": "./dist/types/index.js"
+      "import": "./dist/types/index.mjs",
+      "require": "./dist/types/index.mjs",
+      "default": "./dist/types/index.mjs"
     }
   },
-  "main": "./dist/types/index.js",
-  "module": "./dist/types/index.js",
+  "main": "./dist/types/index.mjs",
+  "module": "./dist/types/index.mjs",
   "types": "./dist/types/index.d.ts",
   "files": [
     "README.md",
