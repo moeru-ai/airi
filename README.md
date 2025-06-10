@@ -325,6 +325,7 @@ flowchart TD
 
 - https://clips.twitch.tv/WanderingCaringDeerDxCat-Qt55xtiGDSoNmDDr https://www.youtube.com/watch?v=8Giv5mupJNE
 - https://clips.twitch.tv/TriangularAthleticBunnySoonerLater-SXpBk1dFso21VcWD
+- https://www.youtube.com/@NOWA_Mirai
 
 ## Project Status
 
