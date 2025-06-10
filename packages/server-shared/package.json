@@ -17,12 +17,13 @@
   "exports": {
     "./types": {
       "types": "./dist/types/index.d.ts",
-      "import": "./dist/types/index.mjs",
-      "require": "./dist/types/index.cjs"
+      "import": "./dist/types/index.js",
+      "require": "./dist/types/index.js",
+      "default": "./dist/types/index.js"
     }
   },
-  "main": "./dist/types/index.cjs",
-  "module": "./dist/types/index.mjs",
+  "main": "./dist/types/index.js",
+  "module": "./dist/types/index.js",
   "types": "./dist/types/index.d.ts",
   "files": [
     "README.md",
@@ -30,12 +31,9 @@
     "package.json"
   ],
   "scripts": {
-    "dev": "pnpm run stub",
-    "stub": "unbuild --stub",
-    "build": "unbuild",
+    "dev": "pnpm run build",
+    "stub": "pnpm run build",
+    "build": "tsdown",
     "typecheck": "tsc --noEmit"
-  },
-  "dependencies": {
-    "crossws": "^0.4.1"
   }
 }

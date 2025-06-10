@@ -41,6 +41,7 @@
   "devDependencies": {
     "@antfu/eslint-config": "^4.13.3",
     "@antfu/ni": "^25.0.0",
+    "@arethetypeswrong/core": "^0.18.2",
     "@iconify/utils": "^2.3.0",
     "@types/node": "^22.15.29",
     "@unocss/eslint-config": "^66.1.3",
