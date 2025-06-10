@@ -5,7 +5,7 @@ import { Rive } from '@rive-app/canvas-lite'
 import { breakpointsTailwind, useBreakpoints, useDark } from '@vueuse/core'
 import { computed, onMounted, ref, watch } from 'vue'
 
-import CircleFadeInAnimation from './assets/circle_blink_in_-_loading_(@proj-airi).riv?url'
+import CircleFadeInAnimation from './assets/circle_blink_in_-_loading_(@proj-airi).riv'
 import CRT from './CRT.vue'
 import CRTLine from './CRTLine.vue'
 

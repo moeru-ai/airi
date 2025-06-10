@@ -15,23 +15,17 @@
     "directory": "packages/ui"
   },
   "exports": {
-    ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.mjs"
-    },
-    "./components/animations": {
-      "types": "./dist/components/Animations/index.d.ts",
-      "import": "./dist/components/Animations/index.mjs"
-    },
-    "./components/form": {
-      "types": "./dist/components/Form/index.d.ts",
-      "import": "./dist/components/Form/index.mjs"
-    }
+    ".": "./src/index.ts",
+    "./components/animations": "./src/components/Animations/index.ts",
+    "./components/form": "./src/components/Form/index.ts",
+    "./*": "./*"
   },
+  "main": "./dist/index.mjs",
+  "module": "./dist/index.mjs",
   "scripts": {
-    "dev": "pnpm run stub",
-    "stub": "unbuild --stub",
-    "build": "unbuild",
+    "dev": "pnpm run build",
+    "stub": "pnpm run build",
+    "build": "tsdown",
     "typecheck": "vue-tsc --noEmit"
   },
   "dependencies": {
