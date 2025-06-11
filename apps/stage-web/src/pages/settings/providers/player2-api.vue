@@ -1,6 +1,4 @@
 <script setup lang="ts">
-import type { RemovableRef } from '@vueuse/core'
-
 import {
   ProviderBaseUrlInput,
   ProviderSettingsContainer,
@@ -15,7 +13,7 @@ import { useRouter } from 'vue-router'
 const { t } = useI18n()
 const router = useRouter()
 const providersStore = useProvidersStore()
-const { providers } = storeToRefs(providersStore) as { providers: RemovableRef<Record<string, any>> }
+const { providers } = storeToRefs(providersStore)
 
 // Get provider metadata
 const providerId = 'player2-api'
