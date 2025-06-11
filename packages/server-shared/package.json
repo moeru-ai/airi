@@ -16,7 +16,7 @@
   },
   "exports": {
     "./types": {
-      "types": "./dist/types/index.d.ts",
+      "types": "./dist/types/index.d.mts",
       "import": "./dist/types/index.mjs",
       "require": "./dist/types/index.mjs",
       "default": "./dist/types/index.mjs"
@@ -24,7 +24,7 @@
   },
   "main": "./dist/types/index.mjs",
   "module": "./dist/types/index.mjs",
-  "types": "./dist/types/index.d.ts",
+  "types": "./dist/types/index.d.mts",
   "files": [
     "README.md",
     "dist",

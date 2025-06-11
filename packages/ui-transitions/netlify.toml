@@ -1,6 +1,6 @@
 [build]
 base = "/"
-command = "pnpm -F @proj-airi/ui-transitions... run play:build"
+command = "pnpm -F @proj-airi/ui-transitions... run build && pnpm -F @proj-airi/ui-transitions run play:build"
 publish = "/packages/ui-transitions/playground/dist"
 
 [build.environment]
