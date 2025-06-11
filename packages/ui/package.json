@@ -15,33 +15,27 @@
     "directory": "packages/ui"
   },
   "exports": {
-    ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.mjs"
-    },
-    "./components/animations": {
-      "types": "./dist/components/Animations/index.d.ts",
-      "import": "./dist/components/Animations/index.mjs"
-    },
-    "./components/form": {
-      "types": "./dist/components/Form/index.d.ts",
-      "import": "./dist/components/Form/index.mjs"
-    }
+    ".": "./src/index.ts",
+    "./components/animations": "./src/components/Animations/index.ts",
+    "./components/form": "./src/components/Form/index.ts",
+    "./*": "./*"
   },
+  "main": "./dist/index.mjs",
+  "module": "./dist/index.mjs",
   "scripts": {
-    "dev": "pnpm run stub",
-    "stub": "unbuild --stub",
-    "build": "unbuild",
+    "dev": "pnpm run build",
+    "stub": "pnpm run build",
+    "build": "tsdown",
     "typecheck": "vue-tsc --noEmit"
   },
   "dependencies": {
     "@vueuse/core": "^13.3.0",
     "floating-vue": "^5.2.2",
-    "reka-ui": "^2.3.0",
+    "reka-ui": "^2.3.1",
     "vue": "^3.5.16"
   },
   "devDependencies": {
     "@vue-macros/volar": "3.0.0-beta.8",
-    "vue-tsc": "^3.0.0-alpha.8"
+    "vue-tsc": "^3.0.0-alpha.10"
   }
 }

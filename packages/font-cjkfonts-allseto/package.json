@@ -21,8 +21,8 @@
     "./files/*.ttf": { "default": "./dist/files/*.ttf" }
   },
   "scripts": {
-    "dev": "pnpm run stub",
-    "stub": "unbuild --stub",
-    "build": "unbuild"
+    "dev": "pnpm run build",
+    "stub": "pnpm run build",
+    "build": "tsdown"
   }
 }

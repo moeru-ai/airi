@@ -8,14 +8,6 @@
     ],
     "module": "ESNext",
     "moduleResolution": "Bundler",
-    "paths": {
-      "@proj-airi/ui": [
-        "../../packages/ui/src/index.ts"
-      ],
-      "@proj-airi/ui/*": [
-        "../../packages/ui/src/*"
-      ]
-    },
     "resolveJsonModule": true,
     "types": [
       "vitest",
