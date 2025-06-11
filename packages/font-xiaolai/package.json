@@ -1,7 +1,7 @@
 {
   "name": "@proj-airi/font-xiaolai",
   "type": "module",
-  "private": true,
+  "version": "0.6.0",
   "description": "Essential CSS for Xiaolai (小赖字体 / 小賴字體 / シャオライ / Xiaolai Font)",
   "author": {
     "name": "ʟxɢᴡ",
@@ -22,8 +22,8 @@
     "./files/*.ttf": { "default": "./dist/files/*.ttf" }
   },
   "scripts": {
-    "dev": "pnpm run stub",
-    "stub": "unbuild --stub",
-    "build": "unbuild"
+    "dev": "pnpm run build",
+    "stub": "pnpm run build",
+    "build": "tsdown"
   }
 }

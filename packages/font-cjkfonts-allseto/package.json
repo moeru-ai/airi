@@ -1,7 +1,7 @@
 {
   "name": "@proj-airi/font-cjkfonts-allseto",
   "type": "module",
-  "private": true,
+  "version": "0.6.0",
   "description": "Essential CSS for cjkfonts 全瀨體",
   "author": {
     "name": "Creators of cjkFonts",
@@ -21,8 +21,8 @@
     "./files/*.ttf": { "default": "./dist/files/*.ttf" }
   },
   "scripts": {
-    "dev": "pnpm run stub",
-    "stub": "unbuild --stub",
-    "build": "unbuild"
+    "dev": "pnpm run build",
+    "stub": "pnpm run build",
+    "build": "tsdown"
   }
 }

@@ -19,7 +19,7 @@
   },
   "dependencies": {
     "@discordjs/voice": "^0.18.0",
-    "@dotenvx/dotenvx": "^1.44.1",
+    "@dotenvx/dotenvx": "^1.44.2",
     "@guiiai/logg": "^1.0.10",
     "@huggingface/transformers": "^3.5.2",
     "@proj-airi/server-sdk": "workspace:^",
@@ -32,7 +32,7 @@
     "discord.js": "^14.19.3",
     "libsodium-wrappers": "^0.7.15",
     "opusscript": "^0.1.1",
-    "tsx": "^4.19.4",
+    "tsx": "^4.20.0",
     "wavefile": "^11.0.0"
   }
 }

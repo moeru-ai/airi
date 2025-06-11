@@ -14,8 +14,9 @@
     "dist"
   ],
   "scripts": {
-    "stub": "unbuild --stub",
-    "build": "unbuild",
+    "dev": "pnpm run build",
+    "stub": "pnpm run build",
+    "build": "tsdown",
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "eslint .",

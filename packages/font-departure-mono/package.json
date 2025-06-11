@@ -1,7 +1,7 @@
 {
   "name": "@proj-airi/font-departure-mono",
   "type": "module",
-  "private": true,
+  "version": "0.6.0",
   "description": "A collection of transition animations that used by Project AIRI",
   "author": {
     "name": "Tobias Fried",
@@ -24,8 +24,8 @@
     "./files/*.woff2": { "default": "./dist/files/*.woff2" }
   },
   "scripts": {
-    "dev": "pnpm run stub",
-    "stub": "unbuild --stub",
-    "build": "unbuild"
+    "dev": "pnpm run build",
+    "stub": "pnpm run build",
+    "build": "tsdown"
   }
 }

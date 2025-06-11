@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Section } from '@proj-airi/stage-ui/components'
 import { useSettings } from '@proj-airi/stage-ui/stores'
+import { ColorHueRange } from '@proj-airi/ui'
 import { useI18n } from 'vue-i18n'
 
 import ColorPalette from '../../../components/Settings/ColorPalette.vue'
@@ -44,18 +45,15 @@ const { t } = useI18n()
         {{ $t('settings.pages.themes.sections.section.custom-color.fields.field.primary-color.rgb-on.title') }}
       </label>
     </div>
-    <input
+    <ColorHueRange
       v-model="settings.themeColorsHue"
       v-motion
       :initial="{ opacity: 0, y: 10 }"
       :enter="{ opacity: 1, y: 0 }"
       :duration="250 + (6 * 10)"
       :delay="6 * 50"
-      transition="all ease-in-out duration-250"
-      type="range" min="0" max="360" step="0.01" class="theme-hue-slider"
       :disabled="settings.themeColorsHueDynamic"
-      :class="settings.themeColorsHueDynamic ? 'opacity-25 cursor-not-allowed' : 'cursor-pointer'"
-    >
+    />
     <div
       v-motion
       class="color-bar"
@@ -156,40 +154,6 @@ const { t } = useI18n()
 </template>
 
 <style scoped>
-.theme-hue-slider {
-  --at-apply: appearance-none h-10 rounded-lg;
-  background: linear-gradient(
-    to right,
-    oklch(85% 0.2 0),
-    oklch(85% 0.2 60),
-    oklch(85% 0.2 120),
-    oklch(85% 0.2 180),
-    oklch(85% 0.2 240),
-    oklch(85% 0.2 300),
-    oklch(85% 0.2 360)
-  );
-
-  &::-webkit-slider-thumb {
-    --at-apply: w-1 h-12 appearance-none rounded-md bg-neutral-600 cursor-pointer shadow-lg border-2 border-neutral-500
-      hover: bg-neutral-800 transition-colors duration-200;
-  }
-
-  .dark &::-webkit-slider-thumb {
-    --at-apply: w-1 h-12 appearance-none rounded-md bg-neutral-100 cursor-pointer shadow-md border-2 border-white
-      hover: bg-neutral-300 transition-colors duration-200;
-  }
-
-  &::-moz-range-thumb {
-    --at-apply: w-1 h-12 appearance-none rounded-md bg-neutral-600 cursor-pointer shadow-lg border-2 border-neutral-500
-      hover: bg-neutral-800 transition-colors duration-200;
-  }
-
-  .dark &::-moz-range-thumb {
-    --at-apply: w-1 h-12 appearance-none rounded-md bg-neutral-100 cursor-pointer shadow-md border-2 border-white
-      hover: bg-neutral-300 transition-colors duration-200;
-  }
-}
-
 .color-bar {
   --at-apply: flex of-hidden rounded-lg lh-10 text-center text-black;
 

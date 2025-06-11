@@ -5,6 +5,11 @@ permissions:
 
 on:
   workflow_dispatch:
+    inputs:
+      tag:
+        description: Attach to a specific tag/commit for the release
+        required: true
+        type: string
 
 jobs:
   build-tamagotchi:
@@ -26,6 +31,10 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Get Product Name
+        run: |
+          echo "PRODUCT_NAME=$(jq -r '.productName' apps/stage-tamagotchi/src-tauri/tauri.conf.json)" >> $GITHUB_ENV
 
       - name: Install pnpm
         uses: pnpm/action-setup@v4
@@ -67,5 +76,6 @@ jobs:
       - name: Upload To GitHub Releases
         uses: softprops/action-gh-release@v2
         with:
-          files: apps/stage-tamagotchi/bundle/airi_*
+          files: bundle/${{ env.PRODUCT_NAME }}_*
           append_body: true
+          tag_name: ${{ github.event.inputs.tag }}

@@ -11,7 +11,7 @@ import {
 import { useProvidersStore } from '@proj-airi/stage-ui/stores'
 import { FieldKeyValues } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
-import { computed, onMounted, reactive, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 
@@ -52,7 +52,7 @@ function handleResetSettings() {
   }
 }
 
-const headers = reactive<{ key: string, value: string }[]>([
+const headers = ref<{ key: string, value: string }[]>([
   { key: '', value: '' },
 ])
 

@@ -5,9 +5,11 @@ import process from 'node:process'
 
 const require = createRequire(import.meta.url)
 const packageJson = require('../package.json')
+const tauriConfigJson = require('../src-tauri/tauri.conf.json')
 
 const version = packageJson.version
 const target = process.argv[2]
+const productName = tauriConfigJson.productName
 const dirname = import.meta.dirname
 
 console.log('version: ', version)
@@ -26,32 +28,32 @@ fs.mkdirSync(bundlePrefix, { recursive: true })
 switch (target) {
   case 'x86_64-pc-windows-msvc':
     fs.renameSync(
-      path.join(srcPrefix, 'nsis', `airi_${version}_x64-setup.exe`),
-      path.join(bundlePrefix, `airi_${version}_windows_amd64-setup.exe`),
+      path.join(srcPrefix, 'nsis', `${productName}_${version}_x64-setup.exe`),
+      path.join(bundlePrefix, `${productName}_${version}_windows_amd64-setup.exe`),
     )
     break
   case 'x86_64-unknown-linux-gnu':
     fs.renameSync(
-      path.join(srcPrefix, 'appimage', `airi_${version}_amd64.AppImage`),
-      path.join(bundlePrefix, `airi_${version}_linux_amd64.AppImage`),
+      path.join(srcPrefix, 'appimage', `${productName}_${version}_amd64.AppImage`),
+      path.join(bundlePrefix, `${productName}_${version}_linux_amd64.AppImage`),
     )
     break
   case 'aarch64-unknown-linux-gnu':
     fs.renameSync(
-      path.join(srcPrefix, 'appimage', `airi_${version}_aarch64.AppImage`),
-      path.join(bundlePrefix, `airi_${version}_linux_arm64.AppImage`),
+      path.join(srcPrefix, 'appimage', `${productName}_${version}_aarch64.AppImage`),
+      path.join(bundlePrefix, `${productName}_${version}_linux_arm64.AppImage`),
     )
     break
   case 'aarch64-apple-darwin':
     fs.renameSync(
-      path.join(srcPrefix, 'dmg', `airi_${version}_aarch64.dmg`),
-      path.join(bundlePrefix, `airi_${version}_macos_arm64.dmg`),
+      path.join(srcPrefix, 'dmg', `${productName}_${version}_aarch64.dmg`),
+      path.join(bundlePrefix, `${productName}_${version}_macos_arm64.dmg`),
     )
     break
   case 'x86_64-apple-darwin':
     fs.renameSync(
-      path.join(srcPrefix, 'dmg', `airi_${version}_x64.dmg`),
-      path.join(bundlePrefix, `airi_${version}_macos_amd64.dmg`),
+      path.join(srcPrefix, 'dmg', `${productName}_${version}_x64.dmg`),
+      path.join(bundlePrefix, `${productName}_${version}_macos_amd64.dmg`),
     )
     break
   default:

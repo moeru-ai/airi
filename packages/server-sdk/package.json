@@ -1,7 +1,7 @@
 {
   "name": "@proj-airi/server-sdk",
   "type": "module",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "Client-side SDK implementation for connecting to AIRI server components and runtimes",
   "author": {
     "name": "Moeru AI Project AIRI Team",
@@ -18,15 +18,15 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.mjs",
-      "require": "./dist/index.cjs"
+      "require": "./dist/index.mjs"
     },
     "./utils/node": {
       "types": "./dist/utils/node/index.d.ts",
       "import": "./dist/utils/node/index.mjs",
-      "require": "./dist/utils/node/index.cjs"
+      "require": "./dist/utils/node/index.mjs"
     }
   },
-  "main": "./dist/index.cjs",
+  "main": "./dist/index.mjs",
   "module": "./dist/index.mjs",
   "types": "./dist/index.d.ts",
   "files": [
@@ -35,9 +35,9 @@
     "package.json"
   ],
   "scripts": {
-    "dev": "pnpm run stub",
-    "stub": "unbuild --stub",
-    "build": "unbuild",
+    "dev": "pnpm run build",
+    "stub": "pnpm run build",
+    "build": "tsdown",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

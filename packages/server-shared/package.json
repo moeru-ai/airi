@@ -1,7 +1,7 @@
 {
   "name": "@proj-airi/server-shared",
   "type": "module",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "Server shared types, utilities for AIRI server components and runtimes",
   "author": {
     "name": "Moeru AI Project AIRI Team",
@@ -18,10 +18,11 @@
     "./types": {
       "types": "./dist/types/index.d.ts",
       "import": "./dist/types/index.mjs",
-      "require": "./dist/types/index.cjs"
+      "require": "./dist/types/index.mjs",
+      "default": "./dist/types/index.mjs"
     }
   },
-  "main": "./dist/types/index.cjs",
+  "main": "./dist/types/index.mjs",
   "module": "./dist/types/index.mjs",
   "types": "./dist/types/index.d.ts",
   "files": [
@@ -30,12 +31,9 @@
     "package.json"
   ],
   "scripts": {
-    "dev": "pnpm run stub",
-    "stub": "unbuild --stub",
-    "build": "unbuild",
+    "dev": "pnpm run build",
+    "stub": "pnpm run build",
+    "build": "tsdown",
     "typecheck": "tsc --noEmit"
-  },
-  "dependencies": {
-    "crossws": "^0.4.1"
   }
 }
