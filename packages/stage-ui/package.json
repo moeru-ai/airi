@@ -108,6 +108,7 @@
     "reka-ui": "^2.3.1",
     "unist-builder": "^4.0.0",
     "unspeech": "^0.1.7",
+    "wlipsync": "^1.2.1",
     "xast-util-to-xml": "^4.0.0",
     "xastscript": "^4.0.0"
   },
