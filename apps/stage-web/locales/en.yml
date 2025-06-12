@@ -90,6 +90,44 @@ settings:
       description: Use Airi character card presets
       description_label: Description
       drop_here: Drop to upload
+      create_card: Create a new Card
+      creation:
+        identity: Identity
+        name: Name
+        nickname: Nickname
+        description: Description
+        behavior: Behavior
+        greetings: Greetings (one per line)
+        settings: Settings
+        version: Version
+        create: Create
+        defaults:
+          name: Name
+          personality: You are a regular human, curious about everything.
+          scenario: You recently woke up and forgot everything about your previous life.
+          systemprompt: You will receive messages, answer to them like a real human.
+          posthistoryinstructions: Remember to imitate an human.
+        fields_info:
+          subtitle: You can put here some details about the character you are creating, explain his history and context, and how your interactions should be answered.
+          name: Is the formal name of this character.
+          nickname: You can also give a nickname that will be used in priority.
+          description: Description of this character.
+          notes: If you want to add some personal notes.
+          personality: Describe here the personality of your character. Shy ? Curious ? Anything else ?
+          scenario: What are the surroundings ? What is the current situation ?
+          greetings_field: Greetings
+          greetings: How your character should say "hello" ?
+          systemprompt: Explain here to the AI LLM how it should answer when prompted.
+          posthistoryinstructions: Place here anything the AI LLM should read after the messages history.
+          version: Card version, you should increase this if you are making changes from a previous card.
+        errors:
+          name: Name should be valid or non-empty.
+          version: 'Error: Invalid version number !'
+          description: 'Error: You must provide a description for this card.'
+          personality: 'Error: A personality must be provided for this character.'
+          scenario: 'Error: A scenario is required.'
+          systemprompt: 'Error: Please, provide a system prompt.'
+          posthistoryinstructions: 'Error: Post history prompt is required.'
       modules: Modules
       name_asc: Name (A-Z)
       name_desc: Name (Z-A)
