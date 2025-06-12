@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { BidirectionalTransition } from '../Misc'
 
 // Define button variants for better type safety and maintainability
 type ButtonVariant = 'primary' | 'secondary' | 'danger'
@@ -58,9 +59,16 @@ const baseClasses = computed(() => [
     :disabled="isDisabled"
     :class="baseClasses"
   >
-    <div class="flex flex-row items-center justify-center gap-2">
-      <div v-if="loading" class="i-lucide:loader-circle animate-spin" />
-      <div v-else-if="icon" :class="icon" />
+    <div class="flex flex-row items-center justify-center">
+      <BidirectionalTransition
+        from-class="opacity-0 mr-0! w-0!"
+        active-class="transition-[width,margin] ease-in-out overflow-hidden"
+      >
+        <div v-if="loading || icon" class="mr-2 w-4">
+          <div v-if="loading" class="i-svg-spinners:ring-resize w-4 h-4" />
+          <div v-else-if="icon" class="w-4 h-4" :class="icon" />
+        </div>
+      </BidirectionalTransition>
       <span v-if="label">{{ label }}</span>
       <slot v-else />
     </div>
