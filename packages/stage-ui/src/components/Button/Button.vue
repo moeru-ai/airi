@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+
 import { BidirectionalTransition } from '../Misc'
 
 // Define button variants for better type safety and maintainability
@@ -65,8 +66,8 @@ const baseClasses = computed(() => [
         active-class="transition-[width,margin] ease-in-out overflow-hidden"
       >
         <div v-if="loading || icon" class="mr-2 w-4">
-          <div v-if="loading" class="i-svg-spinners:ring-resize w-4 h-4" />
-          <div v-else-if="icon" class="w-4 h-4" :class="icon" />
+          <div v-if="loading" class="i-svg-spinners:ring-resize h-4 w-4" />
+          <div v-else-if="icon" class="h-4 w-4" :class="icon" />
         </div>
       </BidirectionalTransition>
       <span v-if="label">{{ label }}</span>

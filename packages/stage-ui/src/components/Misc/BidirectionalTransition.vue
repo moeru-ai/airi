@@ -1,9 +1,9 @@
 <script setup lang="ts">
 defineProps<{
-  fromClass?: string;
-  activeClass?: string;
-  toClass?: string;
-}>();
+  fromClass?: string
+  activeClass?: string
+  toClass?: string
+}>()
 </script>
 
 <template>
