@@ -4,7 +4,8 @@ command = "pnpm -F @proj-airi/ui-loading-screens... run build && pnpm -F @proj-a
 publish = "/packages/ui-loading-screens/playground/dist"
 
 [build.environment]
-NODE_VERSION = "23"
+NODE_VERSION = "24"
+NODE_OPTIONS = "--max-old-space-size=4096"
 
 [[redirects]]
 from = "/*"

@@ -30,10 +30,10 @@ jobs:
         with:
           run_install: false
 
-      - name: Install Node.js 22.x
+      - name: Install Node.js 24.x
         uses: actions/setup-node@v4
         with:
-          node-version: 22.x
+          node-version: 24.x
           # registry-url required. Learn more at
           # https://docs.github.com/en/actions/publishing-packages/publishing-nodejs-packages
           registry-url: 'https://registry.npmjs.org'

@@ -40,7 +40,7 @@
 
 Have you dreamed about having a cyber living being (cyber waifu / husbando, digital pet), or digital companion that could play with and talk to you?
 
-With the power of modern large langauge models like [ChatGPT](https://chatgpt.com), and famous [Claude](https://claude.ai), asking a virtual being to have role playing and chat with us is already easy enough for everyone. Platforms like [Character.ai (a.k.a. c.ai)](https://character.ai) and [JanitorAI](https://janitorai.com/), and local playgrounds like [SillyTavern](https://github.com/SillyTavern/SillyTavern) is already a well-enough solution for chat based, or visuali adventure game like experience.
+With the power of modern large langauge models like [ChatGPT](https://chatgpt.com), and famous [Claude](https://claude.ai), asking a virtual being able to have role playing and chat with us is already easy enough for everyone. Platforms like [Character.ai (a.k.a. c.ai)](https://character.ai) and [JanitorAI](https://janitorai.com/), and local playgrounds like [SillyTavern](https://github.com/SillyTavern/SillyTavern) is already a well-enough solution for chat based, or visuali adventure game like experience.
 
 > But, what about the abilities to play games? And see what you are coding at? Chatting while playing games, watching videos, and capable of doing many other things.
 
