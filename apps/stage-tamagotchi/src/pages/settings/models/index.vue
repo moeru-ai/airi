@@ -46,18 +46,30 @@ const positionCursor = useMouse()
 </script>
 
 <template>
-  <div flex>
-    <div ref="live2dContainerRef" w="50%" h="80vh">
-      <Live2DCanvas v-slot="{ app }" ref="live2dCanvasRef" :width="width" :height="height">
+  <div flex class="flex-col-reverse sm:flex-row">
+    <div ref="live2dContainerRef" w="100% sm:50%" h="50dvh sm:80dvh">
+      <Live2DCanvas
+        v-slot="{ app }"
+        ref="live2dCanvasRef"
+        :width="width"
+        :height="height"
+        :resolution="2"
+        max-h="100dvh"
+      >
         <Live2DModel
-          :app="app" :mouth-open-size="0" :width="width" :height="height" :paused="false" :focus-at="{
+          :app="app"
+          :mouth-open-size="0"
+          :width="width"
+          :height="height"
+          :paused="false"
+          :focus-at="{
             x: positionCursor.x.value,
             y: positionCursor.y.value,
           }"
         />
       </Live2DCanvas>
     </div>
-    <Live2DSettings w="50%" h="80vh" :palette="palette" @extract-colors-from-model="extractColorsFromModel" />
+    <Live2DSettings w="100% sm:50%" h="50dvh sm:80dvh" :palette="palette" @extract-colors-from-model="extractColorsFromModel" />
   </div>
 
   <IconAnimation
