@@ -43,7 +43,7 @@ onUnmounted(async () => {
   await invoke('stop_monitor')
 })
 
-const unlisten: (() => void)[] = []
+const unListenFuncs: (() => void)[] = []
 
 function openSettings() {
   invoke('open_settings_window')
@@ -94,7 +94,7 @@ function onTauriPositionCursorAndWindowFrameEvent(event: { payload: [Point, Wind
 
 onMounted(async () => {
   // Listen for click-through state changes
-  unlisten.push(await listen('tauri-app:window-click-through:position-cursor-and-window-frame', onTauriPositionCursorAndWindowFrameEvent))
+  unListenFuncs.push(await listen('tauri-app:window-click-through:position-cursor-and-window-frame', onTauriPositionCursorAndWindowFrameEvent))
 
   if (connected.value)
     return
@@ -110,19 +110,19 @@ onMounted(async () => {
 })
 
 onUnmounted(() => {
-  unlisten.forEach(fn => fn?.())
-  unlisten.length = 0
+  unListenFuncs.forEach(fn => fn?.())
+  unListenFuncs.length = 0
 })
 
 if (import.meta.hot) { // For better DX
   import.meta.hot.on('vite:beforeUpdate', () => {
-    unlisten.forEach(fn => fn?.())
-    unlisten.length = 0
+    unListenFuncs.forEach(fn => fn?.())
+    unListenFuncs.length = 0
     invoke('stop_monitor')
   })
   import.meta.hot.on('vite:afterUpdate', async () => {
-    if (unlisten.length === 0) {
-      unlisten.push(await listen('tauri-app:window-click-through:position-cursor-and-window-frame', onTauriPositionCursorAndWindowFrameEvent))
+    if (unListenFuncs.length === 0) {
+      unListenFuncs.push(await listen('tauri-app:window-click-through:position-cursor-and-window-frame', onTauriPositionCursorAndWindowFrameEvent))
     }
     invoke('start_monitor')
   })
@@ -134,21 +134,14 @@ if (import.meta.hot) { // For better DX
     :class="[modeIndicatorClass, {
       'op-0': shouldHideView,
     }]"
-    relative
     max-h="[100vh]"
     max-w="[100vw]"
-    p="2"
     flex="~ col"
-    z-2
-    h-full
-    overflow-hidden
+    relative z-2 h-full overflow-hidden rounded-xl
     transition="opacity duration-500 ease-in-out"
   >
     <div relative h-full w-full items-end gap-2 class="view">
       <WidgetStage h-full w-full flex-1 :focus-at="live2dFocusAt" mb="<md:18" />
-      <!-- <div h-full w-full flex-1 mb="<md:18">
-        HELLO
-      </div> -->
       <div
         absolute bottom-4 left-4 flex gap-1 op-0 transition="opacity duration-500"
         :class="{
@@ -194,7 +187,7 @@ if (import.meta.hot) { // For better DX
       data-tauri-drag-region
       class="drag-region absolute left-0 top-0 z-999 h-full w-full flex items-center justify-center overflow-hidden"
     >
-      <div class="absolute h-32 w-full flex items-center justify-center b-2 b-pink bg-white">
+      <div class="absolute h-32 w-full flex items-center justify-center b-2 b-primary bg-white">
         <div class="wall absolute top-0 h-8" />
         <div data-tauri-drag-region class="absolute left-0 top-0 h-full w-full flex animate-flash animate-duration-5s animate-count-infinite items-center justify-center text-1.5rem text-primary-300 font-bold">
           DRAG HERE TO MOVE
@@ -204,18 +197,18 @@ if (import.meta.hot) { // For better DX
     </div>
   </Transition>
   <Transition
-    enter-active-class="transition-opacity duration-250"
-    enter-from-class="opacity-0"
+    enter-active-class="transition-opacity duration-250 ease-in-out"
+    enter-from-class="opacity-50"
     enter-to-class="opacity-100"
-    leave-active-class="transition-opacity duration-250"
+    leave-active-class="transition-opacity duration-250 ease-in-out"
     leave-from-class="opacity-100"
-    leave-to-class="opacity-0"
+    leave-to-class="opacity-50"
   >
     <div
       v-if="windowStore.controlMode === WindowControlMode.RESIZE"
       class="absolute left-0 top-0 z-999 h-full w-full"
     >
-      <div h-full w-full animate-flash animate-duration-2.5s animate-count-infinite b-8 b-pink rounded-2xl />
+      <div h-full w-full animate-flash animate-duration-2.5s animate-count-infinite b-4 b-primary rounded-2xl />
     </div>
   </Transition>
 </template>

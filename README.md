@@ -1,23 +1,18 @@
-<img src="./docs/public/readme-image-pc-preview.png">
+<picture>
+  <source
+    width="100%"
+    srcset="./docs/public/banner-dark-1280x640.png"
+    media="(prefers-color-scheme: dark)"
+  />
+  <source
+    width="100%"
+    srcset="./docs/public/banner-light-1280x640.png"
+    media="(prefers-color-scheme: light), (prefers-color-scheme: no-preference)"
+  />
+  <img width="250" src="./docs/public/banner-light-1280x640.png" />
+</picture>
 
-<h1 align="center">
-  <p align="center">
-    <picture>
-      <source
-        width="100"
-        srcset="./docs/public/logo-dark.png"
-        media="(prefers-color-scheme: dark)"
-      />
-      <source
-        width="100"
-        srcset="./docs/public/logo-light.png"
-        media="(prefers-color-scheme: light), (prefers-color-scheme: no-preference)"
-      />
-      <img width="250" src="./docs/public/logo-light.png" />
-    </picture>
-  </p>
-  Project AIRI
-</h1>
+<h1 align="center">Project AIRI</h1>
 
 <p align="center">
   [<a href="https://discord.gg/TgQ3Cu2F7A">Join Discord Server</a>] [<a href="https:///airi.moeru.ai">Try it</a>] [<a href="https://github.com/moeru-ai/airi/blob/main/README.zh-CN.md">简体中文</a>] [<a href="https://github.com/moeru-ai/airi/blob/main/README.ja-JP.md">日本語</a>]
@@ -81,6 +76,8 @@ This means that **アイリ VTuber is capable to run on modern browsers and devi
 > **If you are interested in, why not introduce yourself here? [Would like to join part of us to build AIRI?](https://github.com/moeru-ai/airi/discussions/33)**
 
 ## Current progress
+
+<img src="./docs/public/readme-image-pc-preview.png">
 
 Capable of
 

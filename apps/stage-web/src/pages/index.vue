@@ -34,7 +34,9 @@ const positionCursor = useMouse()
         <!-- page -->
         <div relative flex="~ 1 row gap-y-0 gap-x-2 <md:col">
           <WidgetStage
-            flex-1 min-w="1/2" :paused="paused" :focus-at="{
+            flex-1 min-w="1/2"
+            :paused="paused"
+            :focus-at="{
               x: positionCursor.x.value,
               y: positionCursor.y.value,
             }"

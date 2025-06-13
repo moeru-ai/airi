@@ -114,10 +114,10 @@
   },
   "devDependencies": {
     "@histoire/plugin-vue": "1.0.0-alpha.2",
-    "@unocss/reset": "^66.1.4",
+    "@unocss/reset": "^66.2.0",
     "@vitejs/plugin-vue": "^5.2.4",
     "histoire": "1.0.0-alpha.2",
-    "unocss": "^66.1.4",
+    "unocss": "^66.2.0",
     "vite": "^6.3.5"
   }
 }

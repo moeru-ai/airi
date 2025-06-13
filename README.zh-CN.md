@@ -1,20 +1,16 @@
-<img src="./docs/public/readme-image-pc-preview.png">
-
-<p align="center">
-  <picture>
-    <source
-      width="100"
-      srcset="./docs/public/logo-dark.png"
-      media="(prefers-color-scheme: dark)"
-    />
-    <source
-      width="100"
-      srcset="./docs/public/logo-light.png"
-      media="(prefers-color-scheme: light), (prefers-color-scheme: no-preference)"
-    />
-    <img width="250" src="./docs/public/logo-light.png" />
-  </picture>
-</p>
+<picture>
+  <source
+    width="100%"
+    srcset="./docs/public/banner-dark-1280x640.png"
+    media="(prefers-color-scheme: dark)"
+  />
+  <source
+    width="100%"
+    srcset="./docs/public/banner-light-1280x640.png"
+    media="(prefers-color-scheme: light), (prefers-color-scheme: no-preference)"
+  />
+  <img width="250" src="./docs/public/banner-light-1280x640.png" />
+</picture>
 
 <h1 align="center">Project AIRI</h1>
 
@@ -80,6 +76,8 @@
 > **如果你已经感兴趣了，为什么不来这里和大家打个招呼呢？[Would like to join part of us to build AIRI?](https://github.com/moeru-ai/airi/discussions/33)**
 
 ## 当前进度
+
+<img src="./docs/public/readme-image-pc-preview.png">
 
 - [x] 思维能力
   - [x] 玩 [Minecraft](https://www.minecraft.net)

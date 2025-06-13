@@ -20,7 +20,7 @@ const providerId = 'player2-api'
 const providerMetadata = computed(() => providersStore.getProviderMetadata(providerId))
 
 const baseUrl = computed({
-  get: () => providers.value[providerId]?.baseUrl || '',
+  get: () => providers.value[providerId]?.baseUrl as string || '',
   set: (value) => {
     if (!providers.value[providerId])
       providers.value[providerId] = {}
@@ -34,7 +34,7 @@ onMounted(() => {
   providersStore.initializeProvider(providerId)
 
   // Initialize refs with current values
-  baseUrl.value = providers.value[providerId]?.baseUrl || ''
+  baseUrl.value = providers.value[providerId]?.baseUrl as string || ''
 })
 
 // Watch settings and update the provider configuration

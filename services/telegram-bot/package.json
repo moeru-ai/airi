@@ -47,6 +47,6 @@
   "devDependencies": {
     "@types/pg": "^8.15.4",
     "drizzle-kit": "^0.31.1",
-    "tsx": "^4.20.0"
+    "tsx": "^4.20.3"
   }
 }

@@ -12,13 +12,13 @@
   },
   "devDependencies": {
     "98.css": "^0.1.21",
-    "@astrojs/starlight": "^0.34.3",
+    "@astrojs/starlight": "^0.34.4",
     "@fontsource/fusion-pixel-12px-proportional-sc": "^5.2.5",
     "@fontsource/quicksand": "^5.2.8",
-    "astro": "^5.9.2",
+    "astro": "^5.9.3",
     "astro-og-canvas": "^0.7.0",
     "sharp": "^0.34.2",
-    "unocss": "^66.1.4",
+    "unocss": "^66.2.0",
     "vue": "^3.5.16"
   }
 }
