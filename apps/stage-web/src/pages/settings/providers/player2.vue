@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import type { RemovableRef } from '@vueuse/shared'
+
 import {
   ProviderBaseUrlInput,
   ProviderSettingsContainer,
@@ -13,14 +15,14 @@ import { useRouter } from 'vue-router'
 const { t } = useI18n()
 const router = useRouter()
 const providersStore = useProvidersStore()
-const { providers } = storeToRefs(providersStore)
+const { providers } = storeToRefs(providersStore) as { providers: RemovableRef<Record<string, any>> }
 
 // Get provider metadata
-const providerId = 'player2-api'
+const providerId = 'player2'
 const providerMetadata = computed(() => providersStore.getProviderMetadata(providerId))
 
 const baseUrl = computed({
-  get: () => providers.value[providerId]?.baseUrl as string || '',
+  get: () => providers.value[providerId]?.baseUrl || '',
   set: (value) => {
     if (!providers.value[providerId])
       providers.value[providerId] = {}
@@ -34,7 +36,7 @@ onMounted(() => {
   providersStore.initializeProvider(providerId)
 
   // Initialize refs with current values
-  baseUrl.value = providers.value[providerId]?.baseUrl as string || ''
+  baseUrl.value = providers.value[providerId]?.baseUrl || ''
 })
 
 // Watch settings and update the provider configuration

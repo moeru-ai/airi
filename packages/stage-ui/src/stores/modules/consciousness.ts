@@ -64,7 +64,7 @@ export const useConsciousnessStore = defineStore('consciousness', () => {
     await loadModelsForProvider(newProvider)
     resetModelSelection()
 
-    if (newProvider === 'player2-api') {
+    if (newProvider === 'player2') {
       // Ping heal check every 60 seconds if Player2 is being used
       player2Interval = setInterval(() => {
         // eslint-disable-next-line no-console
