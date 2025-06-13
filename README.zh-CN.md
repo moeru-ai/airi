@@ -33,8 +33,6 @@
 >
 > RAG（检索增强生成）、记忆系统、嵌入式数据库、图标、Live2D 实用工具等等！
 
-<img src="./docs/public/readme-image-pc-preview.png">
-
 # 你是否梦想过拥有一个赛博生命（网络老婆/老公、数字桌宠），或者能与你玩耍和交谈的 AI 伴侣？
 
 借助现代大型语言模型的力量，像是 [ChatGPT](https://chatgpt.com) 和著名的 [Claude](https://claude.ai) 所能带来的，想要 LLM（大语言模型）和我们角色扮演、聊天已经超简单了，每个人都能上手。而像 [Character.ai（又称 c.ai）](https://character.ai) 和 [JanitorAI](https://janitorai.com/) 这样的平台，以及本地应用如 [SillyTavern（又称酒馆）](https://github.com/SillyTavern/SillyTavern)，已经是基于聊天或文字冒险游戏体验的相当不错的解决方案。
@@ -78,6 +76,8 @@
 > **如果你已经感兴趣了，为什么不来这里和大家打个招呼呢？[Would like to join part of us to build AIRI?](https://github.com/moeru-ai/airi/discussions/33)**
 
 ## 当前进度
+
+<img src="./docs/public/readme-image-pc-preview.png">
 
 - [x] 思维能力
   - [x] 玩 [Minecraft](https://www.minecraft.net)

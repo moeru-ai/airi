@@ -33,8 +33,6 @@
 >
 > RAG、メモリシステム、組み込みデータベース、アイコン、Live2Dユーティリティなど多数あります！
 
-<img src="./docs/public/readme-image-pc-preview.png">
-
 # サイバー生命体（サイバーワイフ/ハズバンド、デジタルペット）や、あなたと遊んだり話したりできるデジタルコンパニオンを持つことを夢見たことはありますか？
 
 [ChatGPT](https://chatgpt.com)や有名な[Claude](https://claude.ai)のような最新の大規模言語モデルの力を借りて、仮想存在に役割演技やチャットを求めることは、すでに誰にとっても十分簡単になっています。[Character.ai（別名c.ai）](https://character.ai)や[JanitorAI](https://janitorai.com/)のようなプラットフォーム、そして[SillyTavern](https://github.com/SillyTavern/SillyTavern)のようなローカルな遊び場は、チャットベースや視覚的なアドベンチャーゲームのような体験のための十分な解決策となっています。
@@ -78,6 +76,8 @@
 > **興味があるなら、ここで自己紹介してみませんか？ [Would like to join part of us to build AIRI?](https://github.com/moeru-ai/airi/discussions/33)**
 
 ## 現在の進捗
+
+<img src="./docs/public/readme-image-pc-preview.png">
 
 可能なこと
 
