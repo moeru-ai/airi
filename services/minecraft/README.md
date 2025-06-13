@@ -25,7 +25,7 @@ An intelligent Minecraft bot powered by LLM. AIRI can understand natural languag
 
 ### 📋 Prerequisites
 
-- 📦 Node.js 22+
+- 📦 Node.js 23+
 - 🔧 pnpm
 - 🎮 A Minecraft server (1.20+)
 

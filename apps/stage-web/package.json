@@ -30,6 +30,7 @@
     "@proj-airi/ui-transitions": "workspace:^",
     "@ricky0123/vad-web": "^0.0.24",
     "@standard-schema/spec": "^1.0.0",
+    "@stdlib/string-base-kebabcase": "^0.2.2",
     "@tresjs/cientos": "^4.3.1",
     "@tresjs/core": "^4.3.6",
     "@valibot/to-json-schema": "1.0.0-rc.0",

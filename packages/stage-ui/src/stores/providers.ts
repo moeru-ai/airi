@@ -1,13 +1,4 @@
-import type {
-  ChatProvider,
-  ChatProviderWithExtraOptions,
-  EmbedProvider,
-  EmbedProviderWithExtraOptions,
-  SpeechProvider,
-  SpeechProviderWithExtraOptions,
-  TranscriptionProvider,
-  TranscriptionProviderWithExtraOptions,
-} from '@xsai-ext/shared-providers'
+import type { ChatProvider, ChatProviderWithExtraOptions, EmbedProvider, EmbedProviderWithExtraOptions, SpeechProvider, SpeechProviderWithExtraOptions, TranscriptionProvider, TranscriptionProviderWithExtraOptions } from '@xsai-ext/shared-providers'
 import type {
   UnAlibabaCloudOptions,
   UnElevenLabsOptions,
@@ -32,7 +23,7 @@ import {
   createWorkersAI,
   createXAI,
 } from '@xsai-ext/providers-cloud'
-import { createOllama } from '@xsai-ext/providers-local'
+import { createOllama, createPlayer2 } from '@xsai-ext/providers-local'
 import { listModels } from '@xsai/model'
 import { defineStore } from 'pinia'
 import {
@@ -897,6 +888,37 @@ export const useProvidersStore = defineStore('providers', () => {
       validators: {
         validateProviderConfig: (config) => {
           return !!config.apiKey && !!config.baseUrl
+        },
+      },
+    },
+    'player2-api': {
+      id: 'player2-api',
+      category: 'chat',
+      tasks: ['text-generation'],
+      nameKey: 'settings.pages.providers.provider.player2.title',
+      name: 'Player2 API',
+      descriptionKey: 'settings.pages.providers.provider.player2.description',
+      description: 'player2.game',
+      defaultOptions: {
+        baseUrl: 'http://localhost:4315/v1/',
+      },
+      createProvider: (config) => {
+        return createPlayer2((config.baseURL as string).trim())
+      },
+      capabilities: {
+        listModels: async () => [
+          {
+            id: 'player2-model',
+            name: 'Player2 Model',
+            provider: 'player2-api',
+          },
+        ],
+      },
+      validators: {
+        validateProviderConfig: (config) => {
+          const url: string = config.baseUrl ? config.baseUrl as string : 'http://localhost:4315/v1/'
+          // checks if health status is there, so it green if and only if you actually have the player2 app running
+          return (fetch(`${url}health`).then(r => r.status === 200).catch(() => false))
         },
       },
     },

@@ -50,11 +50,6 @@ interface CardAdditional {
    */
   greetingsGroupOnly?: string[]
   /**
-   * Example message.
-   * - mes_example
-   */
-  messageExample?: Message[][]
-  /**
    * creator_notes
    * @see {@link https://github.com/kwaroran/character-card-spec-v3/blob/main/SPEC_V3.md#creator_notes}
    */

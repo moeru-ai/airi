@@ -58,10 +58,25 @@ export const useConsciousnessStore = defineStore('consciousness', () => {
     }
   }
 
+  let player2Interval: ReturnType<typeof setInterval> | undefined
   // Watch for provider changes and load models
   watch(activeProvider, async (newProvider) => {
     await loadModelsForProvider(newProvider)
     resetModelSelection()
+
+    if (newProvider === 'player2-api') {
+      // Ping heal check every 60 seconds if Player2 is being used
+      player2Interval = setInterval(() => {
+        // eslint-disable-next-line no-console
+        console.log('Sending Player2 Health check if it is being used')
+        fetch('http://localhost:4315/v1/health').catch(() => {})
+      }, 60_000)
+    }
+    else {
+      if (player2Interval)
+        clearInterval(player2Interval)
+      player2Interval = undefined
+    }
   })
 
   return {

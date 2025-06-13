@@ -25,8 +25,21 @@ const { live2dCurrentMotion } = storeToRefs(useSettings())
 
 <template>
   <Screen v-slot="{ width, height }" relative>
-    <Live2DCanvas v-slot="{ app }" :width="width" :height="height">
-      <Live2DModel :app="app" :mouth-open-size="mouthOpenSize" :width="width" :height="height" :paused="paused" :focus-at="focusAt" />
+    <Live2DCanvas
+      v-slot="{ app }"
+      :width="width"
+      :height="height"
+      :resolution="2"
+      max-h="100dvh"
+    >
+      <Live2DModel
+        :app="app"
+        :mouth-open-size="mouthOpenSize"
+        :width="width"
+        :height="height"
+        :paused="paused"
+        :focus-at="focusAt"
+      />
     </Live2DCanvas>
     <div absolute bottom="3" right="3">
       <div flex="~ row" cursor-pointer>

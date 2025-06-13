@@ -76,6 +76,44 @@ settings:
       description: 使用 Airi 角色卡预设
       description_label: 描述
       drop_here: 放开以上传文件
+      create_card: 创建新角色卡
+      creation:
+        identity: 身份
+        name: 名字
+        nickname: 昵称
+        description: 描述
+        behavior: 行为
+        greetings: 问候语（每行一个）
+        settings: 设置
+        version: 版本
+        create: 创建
+        defaults:
+          name: 名字
+          personality: 你是一个普通人，对一切都充满好奇。
+          scenario: 你最近醒来，忘记了之前的所有生活。
+          systemprompt: 你将收到消息，请像真实人类一样回复。
+          posthistoryinstructions: 记得模仿人类的行为。
+        fields_info:
+          subtitle: 您可以在这里填写有关您正在创建的角色的一些详细信息，解释他的背景和情境，以及应该如何回应您的互动。
+          name: 是该角色的正式名称。
+          nickname: 您也可以提供一个昵称，它将被优先使用。
+          description: 该角色的描述。
+          notes: 如果您想添加一些个人备注。
+          personality: 在这里描述您的角色的个性。例如：害羞？好奇？其他？
+          scenario: 周围环境是怎样的？当前的情境是什么？
+          greetings_field: 问候语
+          greetings: 您的角色应该如何说“你好”？
+          systemprompt: 在这里向 AI LLM 解释当被提示时应该如何回应。
+          posthistoryinstructions: 在消息历史之后，放入 AI LLM 应该阅读的内容。
+          version: 卡片版本，如果您从之前的卡片做了更改，应当增加此版本号。
+        errors:
+          name: 错误：你必须提供一个有效的名称！
+          version: 错误：版本号无效！
+          description: 错误：你必须为此卡片提供描述。
+          personality: 错误：必须为该角色提供性格描述。
+          scenario: 错误：必须提供一个情境。
+          systemprompt: 错误：请提供系统提示。
+          posthistoryinstructions: 错误：必须提供消息历史后的提示。
       modules: 模块
       name_asc: 名称 (A-Z)
       name_desc: 名称 (Z-A)

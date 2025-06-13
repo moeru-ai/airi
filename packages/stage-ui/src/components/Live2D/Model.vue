@@ -60,8 +60,8 @@ function setScale(model: Ref<Live2DModel<InternalModel> | undefined>) {
     offsetFactor = 2.2
   }
 
-  const heightScale = props.height * 0.95 / initialModelHeight.value * offsetFactor
-  const widthScale = props.width * 0.95 / initialModelWidth.value * offsetFactor
+  const heightScale = (props.height * 0.95 / initialModelHeight.value * offsetFactor)
+  const widthScale = (props.width * 0.95 / initialModelWidth.value * offsetFactor)
   const scale = Math.min(heightScale, widthScale)
 
   model.value.scale.set(scale, scale)
@@ -105,8 +105,6 @@ async function loadModel() {
 
   model.value.x = props.width / 2
   model.value.y = props.height
-  model.value.rotation = Math.PI
-  model.value.skew.x = Math.PI
   model.value.anchor.set(0.5, 0.5)
   setScale(model)
 
@@ -241,9 +239,7 @@ watch(themeColorsHueDynamic, () => {
 watch(mouthOpenSize, value => getCoreModel().setParameterValueById('ParamMouthOpenY', value))
 watch(pixiApp, initLive2DPixiStage)
 watch(live2dCurrentMotion, value => setMotion(value.group, value.index))
-watch(paused, (value) => {
-  value ? pixiApp.value?.stop() : pixiApp.value?.start()
-})
+watch(paused, value => value ? pixiApp.value?.stop() : pixiApp.value?.start())
 
 watch(focusAt, (value) => {
   if (!model.value)

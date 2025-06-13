@@ -1,10 +1,11 @@
 [build]
 base = "/"
-command = "pnpm -F @proj-airi/ui-transitions... run play:build"
+command = "pnpm -F @proj-airi/ui-transitions... run build && pnpm -F @proj-airi/ui-transitions run play:build"
 publish = "/packages/ui-transitions/playground/dist"
 
 [build.environment]
-NODE_VERSION = "23"
+NODE_VERSION = "24"
+NODE_OPTIONS = "--max-old-space-size=4096"
 
 [[redirects]]
 from = "/*"

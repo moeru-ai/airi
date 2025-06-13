@@ -4,7 +4,8 @@ command = "pnpm -F @proj-airi/stage-web... run build && pnpm -F @proj-airi/docs.
 publish = "/apps/stage-web/dist"
 
 [build.environment]
-NODE_VERSION = "23"
+NODE_VERSION = "24"
+NODE_OPTIONS = "--max-old-space-size=4096"
 
 # Plausible.io analytics
 #
