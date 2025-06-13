@@ -1,20 +1,16 @@
-<img src="./docs/public/readme-image-pc-preview.png">
-
-<p align="center">
-  <picture>
-    <source
-      width="100"
-      srcset="./docs/public/logo-dark.png"
-      media="(prefers-color-scheme: dark)"
-    />
-    <source
-      width="100"
-      srcset="./docs/public/logo-light.png"
-      media="(prefers-color-scheme: light), (prefers-color-scheme: no-preference)"
-    />
-    <img width="250" src="./docs/public/logo-light.png" />
-  </picture>
-</p>
+<picture>
+  <source
+    width="100%"
+    srcset="./docs/public/banner-dark-1280x640.png"
+    media="(prefers-color-scheme: dark)"
+  />
+  <source
+    width="100%"
+    srcset="./docs/public/banner-light-1280x640.png"
+    media="(prefers-color-scheme: light), (prefers-color-scheme: no-preference)"
+  />
+  <img width="250" src="./docs/public/banner-light-1280x640.png" />
+</picture>
 
 <h1 align="center">Project AIRI</h1>
 
@@ -36,6 +32,8 @@
 > Project AIRIから生まれたすべてのサブプロジェクト用に、専用の組織[@proj-airi](https://github.com/proj-airi)があります。ぜひチェックしてみてください！
 >
 > RAG、メモリシステム、組み込みデータベース、アイコン、Live2Dユーティリティなど多数あります！
+
+<img src="./docs/public/readme-image-pc-preview.png">
 
 # サイバー生命体（サイバーワイフ/ハズバンド、デジタルペット）や、あなたと遊んだり話したりできるデジタルコンパニオンを持つことを夢見たことはありますか？
 

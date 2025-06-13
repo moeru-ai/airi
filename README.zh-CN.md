@@ -1,20 +1,16 @@
-<img src="./docs/public/readme-image-pc-preview.png">
-
-<p align="center">
-  <picture>
-    <source
-      width="100"
-      srcset="./docs/public/logo-dark.png"
-      media="(prefers-color-scheme: dark)"
-    />
-    <source
-      width="100"
-      srcset="./docs/public/logo-light.png"
-      media="(prefers-color-scheme: light), (prefers-color-scheme: no-preference)"
-    />
-    <img width="250" src="./docs/public/logo-light.png" />
-  </picture>
-</p>
+<picture>
+  <source
+    width="100%"
+    srcset="./docs/public/banner-dark-1280x640.png"
+    media="(prefers-color-scheme: dark)"
+  />
+  <source
+    width="100%"
+    srcset="./docs/public/banner-light-1280x640.png"
+    media="(prefers-color-scheme: light), (prefers-color-scheme: no-preference)"
+  />
+  <img width="250" src="./docs/public/banner-light-1280x640.png" />
+</picture>
 
 <h1 align="center">Project AIRI</h1>
 
@@ -36,6 +32,8 @@
 > 我们有一个专门的组织 [@proj-airi](https://github.com/proj-airi) 用于所有从 Project AIRI 诞生的子项目，快来看看吧！
 >
 > RAG（检索增强生成）、记忆系统、嵌入式数据库、图标、Live2D 实用工具等等！
+
+<img src="./docs/public/readme-image-pc-preview.png">
 
 # 你是否梦想过拥有一个赛博生命（网络老婆/老公、数字桌宠），或者能与你玩耍和交谈的 AI 伴侣？
 

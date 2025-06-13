@@ -1,23 +1,16 @@
-<img src="./docs/public/readme-image-pc-preview.png">
-
-<h1 align="center">
-  <p align="center">
-    <picture>
-      <source
-        width="100"
-        srcset="./docs/public/logo-dark.png"
-        media="(prefers-color-scheme: dark)"
-      />
-      <source
-        width="100"
-        srcset="./docs/public/logo-light.png"
-        media="(prefers-color-scheme: light), (prefers-color-scheme: no-preference)"
-      />
-      <img width="250" src="./docs/public/logo-light.png" />
-    </picture>
-  </p>
-  Project AIRI
-</h1>
+<picture>
+  <source
+    width="100%"
+    srcset="./docs/public/banner-dark-1280x640.png"
+    media="(prefers-color-scheme: dark)"
+  />
+  <source
+    width="100%"
+    srcset="./docs/public/banner-light-1280x640.png"
+    media="(prefers-color-scheme: light), (prefers-color-scheme: no-preference)"
+  />
+  <img width="250" src="./docs/public/banner-light-1280x640.png" />
+</picture>
 
 <p align="center">
   [<a href="https://discord.gg/TgQ3Cu2F7A">Join Discord Server</a>] [<a href="https:///airi.moeru.ai">Try it</a>] [<a href="https://github.com/moeru-ai/airi/blob/main/README.zh-CN.md">简体中文</a>] [<a href="https://github.com/moeru-ai/airi/blob/main/README.ja-JP.md">日本語</a>]
@@ -37,6 +30,8 @@
 > We got a whole dedicated organization [@proj-airi](https://github.com/proj-airi) for all the sub-project that born from Project AIRI, check it out!
 >
 > RAG, memory system, embedded database, icons, Live2D utilities, and more!
+
+<img src="./docs/public/readme-image-pc-preview.png">
 
 Have you dreamed about having a cyber living being (cyber waifu / husbando, digital pet), or digital companion that could play with and talk to you?
 
