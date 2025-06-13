@@ -21,7 +21,8 @@ export const useLLM = defineStore('llm', () => {
     return await streamText({
       ...chatProvider.chat(model),
       maxSteps: 10,
-      messages,
+      // TODO: proper format for other error messages.
+      messages: messages.map(msg => ({ ...msg, content: (msg.role as string === 'error' ? `User encountered error: ${msg.content}` : msg.content), role: (msg.role as string === 'error' ? 'user' : msg.role) } as Message)),
       headers,
       tools: [
         ...await mcp(),

@@ -903,7 +903,7 @@ export const useProvidersStore = defineStore('providers', () => {
         baseUrl: 'http://localhost:4315/v1/',
       },
       createProvider: (config) => {
-        return createPlayer2((config.baseURL as string).trim())
+        return createPlayer2((config.baseUrl as string).trim())
       },
       capabilities: {
         listModels: async () => [
