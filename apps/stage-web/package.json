@@ -76,12 +76,12 @@
     "vue-router": "^4.5.1",
     "xsschema": "catalog:",
     "yauzl": "^3.2.0",
-    "zod": "^3.25.60"
+    "zod": "^3.25.64"
   },
   "devDependencies": {
     "@iconify-json/carbon": "^1.2.9",
     "@iconify-json/eos-icons": "^1.2.2",
-    "@iconify-json/lucide": "^1.2.47",
+    "@iconify-json/lucide": "^1.2.48",
     "@iconify-json/mingcute": "^1.2.3",
     "@iconify-json/simple-icons": "^1.2.38",
     "@iconify-json/solar": "^1.2.2",
@@ -96,7 +96,7 @@
     "@types/nprogress": "^0.2.3",
     "@types/three": "^0.177.0",
     "@types/yauzl": "^2.10.3",
-    "@unocss/reset": "^66.1.4",
+    "@unocss/reset": "^66.2.0",
     "@vitejs/plugin-vue": "^5.2.4",
     "@vue-macros/volar": "^3.0.0-beta.14",
     "@vueuse/motion": "^3.0.3",

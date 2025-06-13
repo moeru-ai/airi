@@ -26,6 +26,6 @@
     "postgres": "^3.4.7"
   },
   "devDependencies": {
-    "tsx": "^4.20.0"
+    "tsx": "^4.20.3"
   }
 }

@@ -31,7 +31,7 @@
   },
   "devDependencies": {
     "@iconify-json/solar": "^1.2.2",
-    "@unocss/reset": "^66.1.4",
+    "@unocss/reset": "^66.2.0",
     "@vitejs/plugin-vue": "^5.2.4",
     "superjson": "^2.2.2",
     "unplugin-vue-router": "^0.12.0",

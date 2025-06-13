@@ -22,10 +22,12 @@ const props = withDefaults(defineProps<{
   mouthOpenSize?: number
   width: number
   height: number
-  paused: boolean
-  focusAt: { x: number, y: number }
+  paused?: boolean
+  focusAt?: { x: number, y: number }
 }>(), {
   mouthOpenSize: 0,
+  paused: false,
+  focusAt: () => ({ x: 0, y: 0 }),
 })
 
 const pixiApp = toRef(() => props.app)

@@ -13,7 +13,7 @@
   "dependencies": {
     "@browserbasehq/stagehand": "^2.3.0",
     "@guiiai/logg": "^1.0.10",
-    "@modelcontextprotocol/sdk": "^1.12.1",
+    "@modelcontextprotocol/sdk": "^1.12.2",
     "@proj-airi/server-sdk": "^0.6.0",
     "defu": "^6.1.4",
     "dotenv": "^16.5.0",
@@ -21,11 +21,11 @@
     "listhen": "^1.9.0",
     "ofetch": "^1.4.1",
     "playwright": "^1.53.0",
-    "zod": "^3.25.60"
+    "zod": "^3.25.64"
   },
   "devDependencies": {
-    "@types/node": "^22.15.31",
-    "tsx": "^4.20.0",
+    "@types/node": "^24.0.1",
+    "tsx": "^4.20.3",
     "typescript": "^5.8.3"
   }
 }

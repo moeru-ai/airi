@@ -32,7 +32,7 @@
     "discord.js": "^14.19.3",
     "libsodium-wrappers": "^0.7.15",
     "opusscript": "^0.1.1",
-    "tsx": "^4.20.0",
+    "tsx": "^4.20.3",
     "wavefile": "^11.0.0"
   }
 }
