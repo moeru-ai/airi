@@ -254,7 +254,7 @@ watch(paused, value => value ? pixiApp.value?.stop() : pixiApp.value?.start())
 watch(focusAt, (value) => {
   if (!model.value)
     return
-  if (!props.disableFocusAt)
+  if (props.disableFocusAt)
     return
 
   model.value.focus(value.x, value.y)
