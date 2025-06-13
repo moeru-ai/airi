@@ -970,6 +970,9 @@ importers:
       unspeech:
         specifier: ^0.1.7
         version: 0.1.7
+      wlipsync:
+        specifier: ^1.2.1
+        version: 1.2.1
       xast-util-to-xml:
         specifier: ^4.0.0
         version: 4.0.0
@@ -11759,6 +11762,9 @@ packages:
   widest-line@5.0.0:
     resolution: {integrity: sha512-c9bZp7b5YtRj2wOe6dlj32MK+Bx/M/d+9VB2SHM1OtsUHR0aV0tdP6DWh/iMt0kWi1t5g1Iudu6hQRNd1A4PVA==}
     engines: {node: '>=18'}
+
+  wlipsync@1.2.1:
+    resolution: {integrity: sha512-kyT1mcuqEyX7mrhYRfhWYg6g5Ymub2v3JRE/aBzhi+JUN6p11NFtz6PxSSUv4lS/h1lt0Sbk981xEuk8aw0p1g==}
 
   wordwrapjs@5.1.0:
     resolution: {integrity: sha512-JNjcULU2e4KJwUNv6CHgI46UvDGitb6dGryHajXTDiLgg1/RiGoPSDw4kZfYnwGtEXf2ZMeIewDQgFGzkCB2Sg==}
@@ -24747,6 +24753,8 @@ snapshots:
   widest-line@5.0.0:
     dependencies:
       string-width: 7.2.0
+
+  wlipsync@1.2.1: {}
 
   wordwrapjs@5.1.0: {}
 
