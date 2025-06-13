@@ -273,22 +273,6 @@ flowchart TD
   style Memory_PGVector fill:#f9f9d4,stroke:#333,stroke-width:1px
 ```
 
-```mermaid
-
-%%{ init: { 'flowchart': { 'curve': 'catmullRom' } } }%%
-
-flowchart TD
-  subgraph deploy&bundle
-    direction LR
-    HFUP["hfup"]
-    HF[/"HuggingFace Spaces"\]
-    HFUP -...- UI -...-> HF
-    HFUP -...- whisper-webgpu -...-> HF
-    HFUP -...- moonshine-web -...-> HF
-  end
-
-```
-
 ## 使用的模型
 
 - [onnx-community/whisper-large-v3-turbo · Hugging Face](https://huggingface.co/onnx-community/whisper-large-v3-turbo)
