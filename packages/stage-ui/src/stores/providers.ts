@@ -918,7 +918,14 @@ export const useProvidersStore = defineStore('providers', () => {
         validateProviderConfig: (config) => {
           const url: string = config.baseUrl ? config.baseUrl as string : 'http://localhost:4315/v1/'
           // checks if health status is there, so it green if and only if you actually have the player2 app running
-          return (fetch(`${url}health`).then(r => r.status === 200).catch(() => false))
+          return fetch(`${url}health`, {
+            method: 'GET',
+            headers: {
+              'player2-game-key': 'airi',
+            },
+          })
+            .then(r => r.status === 200)
+            .catch(() => false)
         },
       },
     },
