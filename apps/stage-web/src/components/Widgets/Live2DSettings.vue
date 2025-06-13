@@ -108,7 +108,7 @@ const exportObjectUrl = useObjectUrl(live2dModelFile)
 </script>
 
 <template>
-  <div flex="~ col gap-4">
+  <div flex="~ col gap-2">
     <Section :title="t('settings.live2d.change-model.title')" icon="i-solar:magic-stick-3-bold-duotone" inner-class="text-sm">
       <div flex items-center gap-2>
         <input
