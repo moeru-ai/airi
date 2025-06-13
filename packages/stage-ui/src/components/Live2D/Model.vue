@@ -24,11 +24,17 @@ const props = withDefaults(defineProps<{
   height: number
   paused?: boolean
   focusAt?: { x: number, y: number }
+  disableFocusAt?: boolean
 }>(), {
   mouthOpenSize: 0,
   paused: false,
   focusAt: () => ({ x: 0, y: 0 }),
+  disableFocusAt: false,
 })
+
+const emits = defineEmits<{
+  (e: 'modelLoaded'): void
+}>()
 
 const pixiApp = toRef(() => props.app)
 const paused = toRef(() => props.paused)
@@ -153,6 +159,7 @@ async function loadModel() {
     if (motionManager.state.currentGroup === motionManager.groups.idle) {
       idleEyeFocus.update(internalModel, now)
     }
+
     return true
   }
 
@@ -165,6 +172,7 @@ async function loadModel() {
     await localforage.setItem('live2dModel', live2dModelFile.value)
   }
 
+  emits('modelLoaded')
   loadingLive2dModel.value = false
 }
 
@@ -246,6 +254,8 @@ watch(paused, value => value ? pixiApp.value?.stop() : pixiApp.value?.start())
 watch(focusAt, (value) => {
   if (!model.value)
     return
+  if (!props.disableFocusAt)
+    return
 
   model.value.focus(value.x, value.y)
 })
@@ -261,6 +271,15 @@ onMounted(updateDropShadowFilter)
 onUnmounted(() => {
   cancelAnimationFrame(dropShadowAnimationId.value)
   model.value && pixiApp.value?.stage.removeChild(model.value)
+})
+
+function listMotionGroups() {
+  return availableLive2dMotions.value
+}
+
+defineExpose({
+  setMotion,
+  listMotionGroups,
 })
 </script>
 

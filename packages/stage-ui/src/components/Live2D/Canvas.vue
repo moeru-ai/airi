@@ -23,11 +23,10 @@ async function initLive2DPixiStage(parent: HTMLDivElement) {
   extensions.add(TickerPlugin)
 
   pixiApp.value = new Application({
-    width: props.width,
-    height: props.height,
+    width: props.width * props.resolution,
+    height: props.height * props.resolution,
     backgroundAlpha: 0,
     preserveDrawingBuffer: true,
-    resolution: props.resolution ?? 1, // Add resolution setting
   })
 
   pixiAppCanvas.value = pixiApp.value.view
@@ -73,8 +72,13 @@ async function captureFrame() {
   return frame
 }
 
+function canvasElement() {
+  return pixiAppCanvas.value
+}
+
 defineExpose({
   captureFrame,
+  canvasElement,
 })
 </script>
 
