@@ -1,21 +1,21 @@
 <picture>
   <source
     width="100%"
-    srcset="./docs/public/banner-dark-1280x640.png"
+    srcset="./public/banner-dark-1280x640.png"
     media="(prefers-color-scheme: dark)"
   />
   <source
     width="100%"
-    srcset="./docs/public/banner-light-1280x640.png"
+    srcset="./public/banner-light-1280x640.png"
     media="(prefers-color-scheme: light), (prefers-color-scheme: no-preference)"
   />
-  <img width="250" src="./docs/public/banner-light-1280x640.png" />
+  <img width="250" src="./public/banner-light-1280x640.png" />
 </picture>
 
 <h1 align="center">Project AIRI</h1>
 
 <p align="center">
-  [<a href="https://discord.gg/TgQ3Cu2F7A">Discordサーバーに参加する</a>] [<a href="https:///airi.moeru.ai">試してみる</a>] [<a href="https://github.com/moeru-ai/airi/blob/main/README.zh-CN.md">文档</a>]
+  [<a href="https://discord.gg/TgQ3Cu2F7A">Discordサーバーに参加する</a>] [<a href="https:///airi.moeru.ai">試してみる</a>] [<a href="https://github.com/moeru-ai/airi/blob/main/README.md">English</a>] [<a href="https://github.com/moeru-ai/airi/blob/main/docs/README.zh-CN.md">简体中文</a>]
 </p>
 
 <p align="center">
