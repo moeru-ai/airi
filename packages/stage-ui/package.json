@@ -136,6 +136,7 @@
     "unspeech": "^0.1.7",
     "vue-i18n": "^11.1.5",
     "vue-router": "^4.5.1",
+    "vue-tsc": "^2.2.10",
     "wlipsync": "^1.2.1",
     "xast-util-to-xml": "^4.0.0",
     "xastscript": "^4.0.0",
