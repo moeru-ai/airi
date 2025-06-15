@@ -32,7 +32,7 @@
     "lint": "eslint --cache .",
     "lint:fix": "eslint --cache --fix .",
     "lint:rust": "cargo fmt --check && cargo clippy --workspace",
-    "typecheck": "pnpm -rF=\"./packages/*\" -F=\"./apps/*\" -F run --parallel typecheck",
+    "typecheck": "pnpm -rF=\"./packages/*\" -F=\"./apps/*\" --parallel typecheck",
     "up": "taze -w -r -I -f && pnpm prune && pnpm dedupe",
     "sizecheck": "npx vite-bundle-visualizer",
     "nolyfill": "pnpm dlx nolyfill"
