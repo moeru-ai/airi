@@ -34,6 +34,7 @@
     "@proj-airi/font-departure-mono": "workspace:^",
     "@rive-app/canvas-lite": "^2.30.0",
     "@vueuse/core": "^13.3.0",
+    "@vueuse/motion": "^3.0.3",
     "vue": "^3.5.16"
   },
   "devDependencies": {

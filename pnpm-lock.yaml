@@ -10,19 +10,19 @@ catalogs:
       specifier: ^0.4.27
       version: 0.4.27
     '@xsai-ext/providers-cloud':
-      specifier: ^0.3.0-beta.4
+      specifier: 0.3.0-beta.4
       version: 0.3.0-beta.4
     '@xsai-ext/providers-local':
-      specifier: ^0.3.0-beta.4
+      specifier: 0.3.0-beta.4
       version: 0.3.0-beta.4
     '@xsai-ext/shared-providers':
-      specifier: ^0.3.0-beta.4
+      specifier: 0.3.0-beta.4
       version: 0.3.0-beta.4
     '@xsai/embed':
       specifier: ^0.3.0-beta.4
       version: 0.3.0-beta.4
     '@xsai/generate-speech':
-      specifier: ^0.3.0-beta.4
+      specifier: 0.3.0-beta.4
       version: 0.3.0-beta.4
     '@xsai/generate-text':
       specifier: ^0.3.0-beta.4
@@ -31,16 +31,19 @@ catalogs:
       specifier: ^0.3.0-beta.4
       version: 0.3.0-beta.4
     '@xsai/model':
-      specifier: ^0.3.0-beta.4
+      specifier: 0.3.0-beta.4
+      version: 0.3.0-beta.4
+    '@xsai/shared':
+      specifier: 0.3.0-beta.4
       version: 0.3.0-beta.4
     '@xsai/shared-chat':
-      specifier: ^0.3.0-beta.4
+      specifier: 0.3.0-beta.4
       version: 0.3.0-beta.4
     '@xsai/stream-text':
-      specifier: ^0.3.0-beta.4
+      specifier: 0.3.0-beta.4
       version: 0.3.0-beta.4
     '@xsai/tool':
-      specifier: ^0.3.0-beta.4
+      specifier: 0.3.0-beta.4
       version: 0.3.0-beta.4
     '@xsai/utils-chat':
       specifier: ^0.3.0-beta.4
@@ -269,6 +272,9 @@ importers:
       '@pixiv/three-vrm-core':
         specifier: ^3.4.1
         version: 3.4.1(three@0.177.0)
+      '@proj-airi/ccc':
+        specifier: workspace:^
+        version: link:../../packages/ccc
       '@proj-airi/drizzle-duckdb-wasm':
         specifier: 'catalog:'
         version: 0.4.27(drizzle-orm@0.44.2(@opentelemetry/api@1.9.0)(@types/pg@8.15.4)(gel@2.0.0)(pg@8.16.0)(postgres@3.4.7))(web-worker@1.5.0)
@@ -350,6 +356,9 @@ importers:
       localforage:
         specifier: ^1.10.0
         version: 1.10.0
+      node-vibrant:
+        specifier: ^4.0.3
+        version: 4.0.3(encoding@0.1.13)
       nprogress:
         specifier: ^0.2.0
         version: 0.2.0
@@ -525,6 +534,9 @@ importers:
       '@huggingface/transformers':
         specifier: ^3.5.2
         version: 3.5.2
+      '@llama-flow/core':
+        specifier: ^0.4.4
+        version: 0.4.4(@modelcontextprotocol/sdk@1.12.2)(zod@3.25.64)
       '@pixiv/three-vrm':
         specifier: ^3.4.1
         version: 3.4.1(three@0.177.0)
@@ -597,6 +609,9 @@ importers:
       '@xsai/model':
         specifier: 'catalog:'
         version: 0.3.0-beta.4
+      '@xsai/shared':
+        specifier: 'catalog:'
+        version: 0.3.0-beta.4
       '@xsai/shared-chat':
         specifier: 'catalog:'
         version: 0.3.0-beta.4
@@ -621,9 +636,6 @@ importers:
       drizzle-orm:
         specifier: ^0.44.2
         version: 0.44.2(@opentelemetry/api@1.9.0)(@types/pg@8.15.4)(gel@2.0.0)(pg@8.16.0)(postgres@3.4.7)
-      fluere:
-        specifier: 0.3.0-beta.1
-        version: 0.3.0-beta.1(@modelcontextprotocol/sdk@1.12.2)(zod@3.25.64)
       gpuu:
         specifier: ^1.0.3
         version: 1.0.3
@@ -892,45 +904,57 @@ importers:
       '@formkit/auto-animate':
         specifier: ^0.8.2
         version: 0.8.2
+      '@huggingface/transformers':
+        specifier: ^3.5.2
+        version: 3.5.2
       '@pixi/app':
-        specifier: '6'
+        specifier: ^6.5.10
         version: 6.5.10(@pixi/core@6.5.10(@pixi/constants@6.5.10)(@pixi/extensions@6.5.10)(@pixi/math@6.5.10)(@pixi/runner@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10))(@pixi/ticker@6.5.10(@pixi/extensions@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10)))(@pixi/utils@6.5.10(@pixi/constants@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10))))(@pixi/display@6.5.10(@pixi/constants@6.5.10)(@pixi/math@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10))(@pixi/utils@6.5.10(@pixi/constants@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10))))(@pixi/math@6.5.10)(@pixi/utils@6.5.10(@pixi/constants@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10)))
       '@pixi/constants':
-        specifier: '6'
+        specifier: ^6.5.10
         version: 6.5.10
       '@pixi/core':
-        specifier: '6'
+        specifier: ^6.5.10
         version: 6.5.10(@pixi/constants@6.5.10)(@pixi/extensions@6.5.10)(@pixi/math@6.5.10)(@pixi/runner@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10))(@pixi/ticker@6.5.10(@pixi/extensions@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10)))(@pixi/utils@6.5.10(@pixi/constants@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10)))
       '@pixi/display':
-        specifier: '6'
+        specifier: ^6.5.10
         version: 6.5.10(@pixi/constants@6.5.10)(@pixi/math@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10))(@pixi/utils@6.5.10(@pixi/constants@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10)))
       '@pixi/extensions':
-        specifier: '6'
+        specifier: ^6.5.10
         version: 6.5.10
       '@pixi/interaction':
-        specifier: '6'
+        specifier: ^6.5.10
         version: 6.5.10(@pixi/core@6.5.10(@pixi/constants@6.5.10)(@pixi/extensions@6.5.10)(@pixi/math@6.5.10)(@pixi/runner@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10))(@pixi/ticker@6.5.10(@pixi/extensions@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10)))(@pixi/utils@6.5.10(@pixi/constants@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10))))(@pixi/display@6.5.10(@pixi/constants@6.5.10)(@pixi/math@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10))(@pixi/utils@6.5.10(@pixi/constants@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10))))(@pixi/math@6.5.10)(@pixi/ticker@6.5.10(@pixi/extensions@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10)))(@pixi/utils@6.5.10(@pixi/constants@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10)))
       '@pixi/loaders':
-        specifier: '6'
+        specifier: ^6.5.10
         version: 6.5.10(@pixi/constants@6.5.10)(@pixi/core@6.5.10(@pixi/constants@6.5.10)(@pixi/extensions@6.5.10)(@pixi/math@6.5.10)(@pixi/runner@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10))(@pixi/ticker@6.5.10(@pixi/extensions@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10)))(@pixi/utils@6.5.10(@pixi/constants@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10))))(@pixi/utils@6.5.10(@pixi/constants@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10)))
       '@pixi/math':
-        specifier: '6'
+        specifier: ^6.5.10
         version: 6.5.10
       '@pixi/runner':
-        specifier: '6'
+        specifier: ^6.5.10
         version: 6.5.10
       '@pixi/settings':
-        specifier: '6'
+        specifier: ^6.5.10
         version: 6.5.10(@pixi/constants@6.5.10)
       '@pixi/sprite':
-        specifier: '6'
+        specifier: ^6.5.10
         version: 6.5.10(@pixi/constants@6.5.10)(@pixi/core@6.5.10(@pixi/constants@6.5.10)(@pixi/extensions@6.5.10)(@pixi/math@6.5.10)(@pixi/runner@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10))(@pixi/ticker@6.5.10(@pixi/extensions@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10)))(@pixi/utils@6.5.10(@pixi/constants@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10))))(@pixi/display@6.5.10(@pixi/constants@6.5.10)(@pixi/math@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10))(@pixi/utils@6.5.10(@pixi/constants@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10))))(@pixi/math@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10))(@pixi/utils@6.5.10(@pixi/constants@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10)))
       '@pixi/ticker':
-        specifier: '6'
+        specifier: ^6.5.10
         version: 6.5.10(@pixi/extensions@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10))
       '@pixi/utils':
         specifier: '6'
         version: 6.5.10(@pixi/constants@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10))
+      '@pixiv/three-vrm':
+        specifier: ^3.4.1
+        version: 3.4.1(three@0.177.0)
+      '@pixiv/three-vrm-animation':
+        specifier: ^3.4.1
+        version: 3.4.1(three@0.177.0)
+      '@pixiv/three-vrm-core':
+        specifier: ^3.4.1
+        version: 3.4.1(three@0.177.0)
       '@proj-airi/ccc':
         specifier: workspace:^
         version: link:../ccc
@@ -952,18 +976,69 @@ importers:
       '@proj-airi/ui':
         specifier: workspace:^
         version: link:../ui
+      '@ricky0123/vad-web':
+        specifier: ^0.0.24
+        version: 0.0.24
+      '@tresjs/cientos':
+        specifier: ^4.3.1
+        version: 4.3.1(@tresjs/core@4.3.6(three@0.177.0)(typescript@5.8.3)(vue@3.5.16(typescript@5.8.3)))(@types/three@0.177.0)(react@18.3.1)(three@0.177.0)(typescript@5.8.3)(vue@3.5.16(typescript@5.8.3))
+      '@tresjs/core':
+        specifier: ^4.3.6
+        version: 4.3.6(three@0.177.0)(typescript@5.8.3)(vue@3.5.16(typescript@5.8.3))
       '@vueuse/core':
         specifier: ^13.3.0
         version: 13.3.0(vue@3.5.16(typescript@5.8.3))
       '@vueuse/motion':
         specifier: ^3.0.3
         version: 3.0.3(magicast@0.3.5)(rollup@4.43.0)(vue@3.5.16(typescript@5.8.3))
+      '@vueuse/shared':
+        specifier: ^13.3.0
+        version: 13.3.0(vue@3.5.16(typescript@5.8.3))
+      '@xsai-ext/providers-cloud':
+        specifier: 'catalog:'
+        version: 0.3.0-beta.4
+      '@xsai-ext/providers-local':
+        specifier: 'catalog:'
+        version: 0.3.0-beta.4
+      '@xsai-ext/shared-providers':
+        specifier: 'catalog:'
+        version: 0.3.0-beta.4
       '@xsai-transformers/embed':
         specifier: ^0.0.6
         version: 0.0.6(web-worker@1.5.0)
       '@xsai/embed':
         specifier: 'catalog:'
         version: 0.3.0-beta.4
+      '@xsai/generate-speech':
+        specifier: 'catalog:'
+        version: 0.3.0-beta.4
+      '@xsai/model':
+        specifier: 'catalog:'
+        version: 0.3.0-beta.4
+      '@xsai/shared-chat':
+        specifier: 'catalog:'
+        version: 0.3.0-beta.4
+      '@xsai/stream-text':
+        specifier: 'catalog:'
+        version: 0.3.0-beta.4
+      '@xsai/tool':
+        specifier: 'catalog:'
+        version: 0.3.0-beta.4(zod-to-json-schema@3.24.5(zod@3.25.64))(zod@3.25.64)
+      culori:
+        specifier: ^4.0.1
+        version: 4.0.1
+      defu:
+        specifier: ^6.1.4
+        version: 6.1.4
+      jszip:
+        specifier: ^3.10.1
+        version: 3.10.1
+      localforage:
+        specifier: ^1.10.0
+        version: 1.10.0
+      pinia:
+        specifier: ^3.0.3
+        version: 3.0.3(typescript@5.8.3)(vue@3.5.16(typescript@5.8.3))
       pixi-filters:
         specifier: '4'
         version: 4.2.0(5af797a0b5bd919a06578c24a7479046)
@@ -973,15 +1048,36 @@ importers:
       radix-vue:
         specifier: ^1.9.17
         version: 1.9.17(vue@3.5.16(typescript@5.8.3))
+      rehype-stringify:
+        specifier: ^10.0.1
+        version: 10.0.1
       reka-ui:
         specifier: ^2.3.1
         version: 2.3.1(typescript@5.8.3)(vue@3.5.16(typescript@5.8.3))
+      remark-parse:
+        specifier: ^11.0.0
+        version: 11.0.0
+      remark-rehype:
+        specifier: ^11.1.2
+        version: 11.1.2
+      three:
+        specifier: ^0.177.0
+        version: 0.177.0
+      unified:
+        specifier: ^11.0.5
+        version: 11.0.5
       unist-builder:
         specifier: ^4.0.0
         version: 4.0.0
       unspeech:
         specifier: ^0.1.7
         version: 0.1.7
+      vue-i18n:
+        specifier: ^11.1.5
+        version: 11.1.5(vue@3.5.16(typescript@5.8.3))
+      vue-router:
+        specifier: ^4.5.1
+        version: 4.5.1(vue@3.5.16(typescript@5.8.3))
       wlipsync:
         specifier: ^1.2.1
         version: 1.2.1
@@ -991,10 +1087,19 @@ importers:
       xastscript:
         specifier: ^4.0.0
         version: 4.0.0
+      zod:
+        specifier: ^3.25.64
+        version: 3.25.64
     devDependencies:
       '@histoire/plugin-vue':
         specifier: 1.0.0-alpha.2
         version: 1.0.0-alpha.2(histoire@1.0.0-alpha.2(@types/node@24.0.1)(bufferutil@4.0.9)(less@4.3.0)(lightningcss@1.30.1)(terser@5.17.6)(utf-8-validate@5.0.10)(vite@6.3.5(@types/node@24.0.1)(jiti@2.4.2)(less@4.3.0)(lightningcss@1.30.1)(terser@5.17.6)(tsx@4.20.3)(yaml@2.8.0)))(vite@6.3.5(@types/node@24.0.1)(jiti@2.4.2)(less@4.3.0)(lightningcss@1.30.1)(terser@5.17.6)(tsx@4.20.3)(yaml@2.8.0))(vue@3.5.16(typescript@5.8.3))
+      '@types/culori':
+        specifier: ^4.0.0
+        version: 4.0.0
+      '@types/three':
+        specifier: ^0.177.0
+        version: 0.177.0
       '@unocss/reset':
         specifier: ^66.2.0
         version: 66.2.0
@@ -1010,6 +1115,9 @@ importers:
       vite:
         specifier: ^6.3.5
         version: 6.3.5(@types/node@24.0.1)(jiti@2.4.2)(less@4.3.0)(lightningcss@1.30.1)(terser@5.17.6)(tsx@4.20.3)(yaml@2.8.0)
+      vue:
+        specifier: ^3.5.16
+        version: 3.5.16(typescript@5.8.3)
 
   packages/tauri-plugin-mcp:
     dependencies:
@@ -1054,6 +1162,9 @@ importers:
       '@vueuse/core':
         specifier: ^13.3.0
         version: 13.3.0(vue@3.5.16(typescript@5.8.3))
+      '@vueuse/motion':
+        specifier: ^3.0.3
+        version: 3.0.3(magicast@0.3.5)(rollup@4.43.0)(vue@3.5.16(typescript@5.8.3))
       vue:
         specifier: ^3.5.16
         version: 3.5.16(typescript@5.8.3)
@@ -1085,6 +1196,9 @@ importers:
       '@vueuse/core':
         specifier: ^13.3.0
         version: 13.3.0(vue@3.5.16(typescript@5.8.3))
+      '@vueuse/motion':
+        specifier: ^3.0.3
+        version: 3.0.3(magicast@0.3.5)(rollup@4.43.0)(vue@3.5.16(typescript@5.8.3))
       vue:
         specifier: ^3.5.16
         version: 3.5.16(typescript@5.8.3)
@@ -3371,6 +3485,29 @@ packages:
 
   '@lezer/lr@1.4.2':
     resolution: {integrity: sha512-pu0K1jCIdnQ12aWNaAVU5bzi7Bd1w54J3ECgANPmYLtQKP0HBj2cE/5coBD66MT10xbtIuUr7tg0Shbsvk0mDA==}
+
+  '@llama-flow/core@0.4.4':
+    resolution: {integrity: sha512-hwK1EQ+atUG/E7XcDV3KsTaA8op29pb8gbpVurpsqbLnGFkdTT4F/6V7Hy1cC2o/yOY+DKc/rxoIsH1uJS0cZg==}
+    peerDependencies:
+      '@modelcontextprotocol/sdk': ^1.7.0
+      hono: ^4.7.4
+      next: ^15.2.2
+      p-retry: ^6.2.1
+      rxjs: ^7.8.2
+      zod: ^3.24.2
+    peerDependenciesMeta:
+      '@modelcontextprotocol/sdk':
+        optional: true
+      hono:
+        optional: true
+      next:
+        optional: true
+      p-retry:
+        optional: true
+      rxjs:
+        optional: true
+      zod:
+        optional: true
 
   '@loaderkit/resolve@1.0.4':
     resolution: {integrity: sha512-rJzYKVcV4dxJv+vW6jlvagF8zvGxHJ2+HTr1e2qOejfmGhAApgJHl8Aog4mMszxceTRiKTTbnpgmTO1bEZHV/A==}
@@ -7395,26 +7532,6 @@ packages:
     resolution: {integrity: sha512-Be3narBNt2s6bsaqP6Jzq91heDgOEaDCJAXcE3qcma/EJBSy5FB4cvO31XBInuAuKBx8Kptf8dkhjK0IOru39Q==}
     engines: {node: '>=18'}
     deprecated: Package no longer supported. Contact Support at https://www.npmjs.com/support for more info.
-
-  fluere@0.3.0-beta.1:
-    resolution: {integrity: sha512-AY9+8ip/ImuC3ixLVc+Yq+YCneWcSkPYNJuRE6c/SAU9ZI8Pcdrhi1vPqJ55L0f8/t9OWbO2AOewT6tPnLAgMA==}
-    peerDependencies:
-      '@modelcontextprotocol/sdk': ^1.7.0
-      hono: ^4.7.4
-      next: ^15.2.2
-      p-retry: ^6.2.1
-      zod: ^3.24.2
-    peerDependenciesMeta:
-      '@modelcontextprotocol/sdk':
-        optional: true
-      hono:
-        optional: true
-      next:
-        optional: true
-      p-retry:
-        optional: true
-      zod:
-        optional: true
 
   fontace@0.3.0:
     resolution: {integrity: sha512-czoqATrcnxgWb/nAkfyIrRp6Q8biYj7nGnL6zfhTcX+JKKpWHFBnb8uNMw/kZr7u++3Y3wYSYoZgHkCcsuBpBg==}
@@ -14294,6 +14411,11 @@ snapshots:
     dependencies:
       '@lezer/common': 1.2.3
 
+  '@llama-flow/core@0.4.4(@modelcontextprotocol/sdk@1.12.2)(zod@3.25.64)':
+    optionalDependencies:
+      '@modelcontextprotocol/sdk': 1.12.2
+      zod: 3.25.64
+
   '@loaderkit/resolve@1.0.4':
     dependencies:
       '@braidai/lang': 1.1.1
@@ -19072,11 +19194,6 @@ snapshots:
     dependencies:
       async: 0.2.10
       which: 1.3.1
-
-  fluere@0.3.0-beta.1(@modelcontextprotocol/sdk@1.12.2)(zod@3.25.64):
-    optionalDependencies:
-      '@modelcontextprotocol/sdk': 1.12.2
-      zod: 3.25.64
 
   fontace@0.3.0:
     dependencies:

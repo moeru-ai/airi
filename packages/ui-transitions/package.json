@@ -32,6 +32,7 @@
   },
   "dependencies": {
     "@vueuse/core": "^13.3.0",
+    "@vueuse/motion": "^3.0.3",
     "vue": "^3.5.16"
   },
   "devDependencies": {

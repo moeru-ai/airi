@@ -19,6 +19,7 @@
   "dependencies": {
     "@formkit/auto-animate": "^0.8.2",
     "@huggingface/transformers": "^3.5.2",
+    "@llama-flow/core": "^0.4.4",
     "@pixiv/three-vrm": "^3.4.1",
     "@pixiv/three-vrm-animation": "^3.4.1",
     "@pixiv/three-vrm-core": "^3.4.1",
@@ -43,6 +44,7 @@
     "@xsai/generate-speech": "catalog:",
     "@xsai/generate-text": "catalog:",
     "@xsai/model": "catalog:",
+    "@xsai/shared": "catalog:",
     "@xsai/shared-chat": "catalog:",
     "@xsai/stream-text": "catalog:",
     "@xsai/utils-chat": "catalog:",
@@ -51,7 +53,6 @@
     "driver.js": "^1.3.6",
     "drizzle-kit": "^0.31.1",
     "drizzle-orm": "^0.44.2",
-    "fluere": "0.3.0-beta.1",
     "gpuu": "^1.0.3",
     "jszip": "^3.10.1",
     "localforage": "^1.10.0",

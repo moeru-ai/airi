@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import type { AssistantMessage, Message } from '@xsai/shared-chat'
 
+import { createWorkflow, workflowEvent } from '@llama-flow/core'
+import { withValidation } from '@llama-flow/core/middleware/validation'
+import { runWorkflow } from '@llama-flow/core/stream/run'
 import { useLocalStorage } from '@vueuse/core'
 import { streamText } from '@xsai/stream-text'
-import { createWorkflow, workflowEvent } from 'fluere'
-import { promiseHandler } from 'fluere/interrupter/promise'
-import { withValidation } from 'fluere/middleware/validation'
 import { ref, toRaw } from 'vue'
 
 const baseUrl = useLocalStorage('settings/llm/baseUrl', 'https://openrouter.ai/api/v1/')
@@ -32,7 +32,9 @@ async function handleChatSendMessage() {
       [[textEvent], [sentenceEvent]],
     ])
 
-    streamWorkflow.handle([sendingEvent], async (sendEvent) => {
+    streamWorkflow.handle([sendingEvent], async () => {
+      const { sendEvent } = streamWorkflow.createContext()
+
       streamingMessage.value = { role: 'assistant', content: '' }
       messages.value.push({ role: 'user', content: sendingMessage.value })
       messages.value.push(streamingMessage.value)
@@ -50,14 +52,14 @@ async function handleChatSendMessage() {
       return doneEvent.with()
     })
 
-    streamWorkflow.handle([tokenEvent], async (_sendEvent, token) => {
+    streamWorkflow.handle([tokenEvent], async (token) => {
       if (!streamingMessage.value.content)
         streamingMessage.value.content = token.data
       else
         streamingMessage.value.content += token.data
     })
 
-    await promiseHandler(streamWorkflow, sendingEvent.with(), doneEvent)
+    await runWorkflow(streamWorkflow, sendingEvent.with(), doneEvent)
   }
   catch (err) {
     console.error(err)
