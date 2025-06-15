@@ -103,6 +103,7 @@ export function sharedUnoConfig() {
     ],
     safelist: [
       ...'prose prose-sm m-auto text-left'.split(' '),
+      ...safelistAllPrimaryBackgrounds(),
     ],
     // hyoban/unocss-preset-shadcn: Use shadcn ui with UnoCSS
     // https://github.com/hyoban/unocss-preset-shadcn
@@ -150,9 +151,6 @@ export function histoireUnoConfig() {
   return defineConfig({
     presets: [
       presetStoryMockHover(),
-    ],
-    safelist: [
-      ...safelistAllPrimaryBackgrounds(),
     ],
   })
 }

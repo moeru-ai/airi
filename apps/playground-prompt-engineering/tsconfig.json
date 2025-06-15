@@ -11,9 +11,6 @@
     "paths": {
       "@proj-airi/stage-ui/*": [
         "../../packages/stage-ui/src/*"
-      ],
-      "@proj-airi/ui-transitions": [
-        "../../packages/ui-transitions/src/index.ts"
       ]
     },
     "resolveJsonModule": true,
