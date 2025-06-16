@@ -50,6 +50,18 @@ export default defineConfig({
         '@fontsource/quicksand/300.css',
         '@fontsource/fusion-pixel-12px-proportional-sc/400.css',
       ],
+      // Set English as the default language for this site.
+      defaultLocale: 'root',
+      locales: {
+        'root': {
+          label: 'English',
+          lang: 'en',
+        },
+        'zh-cn': {
+          label: '简体中文',
+          lang: 'zh-CN',
+        },
+      },
     }),
   ],
 })
