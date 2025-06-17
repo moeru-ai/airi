@@ -98,7 +98,6 @@ async function generateTestSpeech() {
     if (audioUrl.value) {
       stopTestAudio()
     }
-
     const input = useSSML.value
       ? ssmlText.value
       : speechStore.generateSSML(testText.value, activeSpeechVoice.value, { ...providerConfig, pitch: pitch.value })

@@ -128,6 +128,106 @@ export const useProvidersStore = defineStore('providers', () => {
 
   // Centralized provider metadata with provider factory functions
   const providerMetadata: Record<string, ProviderMetadata> = {
+    'player2': {
+      id: 'player2',
+      category: 'chat',
+      tasks: ['text-generation'],
+      nameKey: 'settings.pages.providers.provider.player2.title',
+      name: 'Player2 API',
+      descriptionKey: 'settings.pages.providers.provider.player2.description',
+      description: 'player2.game',
+      defaultOptions: {
+        baseUrl: 'http://localhost:4315/v1/',
+      },
+      createProvider: config => createPlayer2((config.baseUrl as string).trim(), 'airi'),
+      capabilities: {
+        listModels: async () => [
+          {
+            id: 'player2-model',
+            name: 'Player2 Model',
+            provider: 'player2',
+          },
+        ],
+      },
+      validators: {
+        validateProviderConfig: async (config: any) => {
+          return !!config.baseUrl
+        },
+      },
+    },
+    'player2-speech': {
+      id: 'player2-speech',
+      category: 'speech',
+      tasks: ['text-to-speech'],
+      nameKey: 'settings.pages.providers.provider.player2.title',
+      name: 'Player2 Speech',
+      descriptionKey: 'settings.pages.providers.provider.player2.description',
+      description: 'player2.game',
+      icon: 'i-lobe-icons:player2',
+      defaultOptions: {
+        baseUrl: 'http://localhost:4315/v1/',
+      },
+      createProvider: config => createPlayer2((config.baseUrl as string).trim(), 'airi'),
+      capabilities: {
+        listVoices: async () => {
+          return await fetch('http://localhost:4315/v1/tts/voices').then(res => res.json()).then(({ voices }) => (voices as { id: string, language: 'american_english' | 'british_english' | 'japanese' | 'mandarin_chinese' | 'spanish' | 'french' | 'hindi' | 'italian' | 'brazilian_portuguese', name: string, gender: string }[]).map(({ id, language, name, gender }) => (
+            {
+
+              id,
+              name,
+              provider: 'player2-speech',
+              gender,
+              languages: [{
+                american_english: {
+                  code: 'en',
+                  title: 'English',
+                },
+                british_english: {
+                  code: 'en',
+                  title: 'English',
+                },
+                japanese: {
+                  code: 'ja',
+                  title: 'Japanese',
+                },
+                mandarin_chinese: {
+                  code: 'zh',
+                  title: 'Chinese',
+                },
+                spanish: {
+                  code: 'es',
+                  title: 'Spanish',
+                },
+                french: {
+                  code: 'fr',
+                  title: 'French',
+                },
+                hindi: {
+                  code: 'hi',
+                  title: 'Hindi',
+                },
+
+                italian: {
+                  code: 'it',
+                  title: 'Italian',
+                },
+                brazilian_portuguese:
+                {
+                  code: 'pt',
+                  title: 'Portuguese',
+                },
+
+              }[language]],
+            }
+          )))
+        },
+      },
+      validators: {
+        validateProviderConfig: (config: any) => {
+          return !!config.baseUrl
+        },
+      },
+    },
     'openrouter-ai': {
       id: 'openrouter-ai',
       category: 'chat',
@@ -891,44 +991,7 @@ export const useProvidersStore = defineStore('providers', () => {
         },
       },
     },
-    'player2': {
-      id: 'player2',
-      category: 'chat',
-      tasks: ['text-generation'],
-      nameKey: 'settings.pages.providers.provider.player2.title',
-      name: 'Player2 API',
-      descriptionKey: 'settings.pages.providers.provider.player2.description',
-      description: 'player2.game',
-      defaultOptions: {
-        baseUrl: 'http://localhost:4315/v1/',
-      },
-      createProvider: (config) => {
-        return createPlayer2((config.baseUrl as string).trim())
-      },
-      capabilities: {
-        listModels: async () => [
-          {
-            id: 'player2-model',
-            name: 'Player2 Model',
-            provider: 'player2',
-          },
-        ],
-      },
-      validators: {
-        validateProviderConfig: (config) => {
-          const url: string = config.baseUrl ? config.baseUrl as string : 'http://localhost:4315/v1/'
-          // checks if health status is there, so it green if and only if you actually have the player2 app running
-          return fetch(`${url}health`, {
-            method: 'GET',
-            headers: {
-              'player2-game-key': 'airi',
-            },
-          })
-            .then(r => r.status === 200)
-            .catch(() => false)
-        },
-      },
-    },
+
     'cloudflare-workers-ai': {
       id: 'cloudflare-workers-ai',
       category: 'chat',
