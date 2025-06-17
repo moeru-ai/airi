@@ -1,5 +1,6 @@
 import type { Bot } from 'mineflayer'
 import type { Block } from 'prismarine-block'
+
 import type { Mineflayer } from '../../libs/mineflayer'
 
 import pathfinder from 'mineflayer-pathfinder'

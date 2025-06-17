@@ -1,4 +1,5 @@
 import type { Bot, BotOptions, Plugin } from 'mineflayer'
+
 import type { Mineflayer } from '.'
 
 export interface MineflayerPlugin {

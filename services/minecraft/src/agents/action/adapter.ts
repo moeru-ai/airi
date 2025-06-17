@@ -1,5 +1,6 @@
 import type { Agent } from 'neuri'
 import type { Message } from 'neuri/openai'
+
 import type { Mineflayer } from '../../libs/mineflayer'
 import type { PlanStep } from '../planning/adapter'
 

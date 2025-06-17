@@ -1,4 +1,5 @@
 import process from 'node:process'
+
 import { Format, LogLevel, setGlobalFormat, setGlobalLogLevel, useLogg } from '@guiiai/logg'
 
 import { startTelegramBot } from './bots/telegram'

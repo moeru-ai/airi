@@ -1,4 +1,5 @@
 import type { Context } from 'node:vm'
+
 import type { AiriAdapter } from './adapters/airi-adapter'
 import type { MCPAdapter } from './adapters/mcp-adapter'
 

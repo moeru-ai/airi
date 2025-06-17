@@ -1,7 +1,9 @@
 import type { Browser, BrowserContext, Page } from 'playwright'
+
 import type { Config } from '../../config/types'
 
 import fs from 'node:fs'
+
 import { chromium } from 'playwright'
 
 import { TWITTER_SESSION_FILE } from '../../constants'

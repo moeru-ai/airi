@@ -1,5 +1,6 @@
 import type { Logg } from '@guiiai/logg'
 import type { Bot, BotOptions } from 'mineflayer'
+
 import type { MineflayerPlugin } from './plugin'
 import type { TickEvents, TickEventsHandler } from './ticker'
 import type { EventHandlers, EventsHandler } from './types'

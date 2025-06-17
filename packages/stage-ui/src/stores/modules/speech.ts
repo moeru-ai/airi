@@ -1,4 +1,5 @@
 import type { SpeechProviderWithExtraOptions } from '@xsai-ext/shared-providers'
+
 import type { VoiceInfo } from '../providers'
 
 import { useLocalStorage } from '@vueuse/core'

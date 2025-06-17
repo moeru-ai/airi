@@ -1,4 +1,5 @@
 import type { Agent } from 'neuri'
+
 import type { Action } from '../../libs/mineflayer/action'
 
 import { agent } from 'neuri'

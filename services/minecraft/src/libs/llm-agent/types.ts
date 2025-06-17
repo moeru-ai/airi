@@ -1,5 +1,6 @@
 import type { Client } from '@proj-airi/server-sdk'
 import type { Neuri } from 'neuri'
+
 import type { Mineflayer } from '../mineflayer'
 import type { ActionAgent, ChatAgent, PlanningAgent } from '../mineflayer/base-agent'
 

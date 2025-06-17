@@ -18,7 +18,8 @@
     "start": "dotenvx run -f .env -f .env.local --overload --ignore=MISSING_ENV_FILE -- tsx --max-old-space-size=8192 src/index.ts",
     "db:generate": "drizzle-kit generate",
     "db:push": "dotenvx run -f .env -f .env.local --overload --ignore=MISSING_ENV_FILE -- drizzle-kit push",
-    "script:embed-chat": "dotenvx run -f .env -f .env.local --overload --ignore=MISSING_ENV_FILE -- tsx scripts/embed-all-chat-messages.ts"
+    "script:embed-chat": "dotenvx run -f .env -f .env.local --overload --ignore=MISSING_ENV_FILE -- tsx scripts/embed-all-chat-messages.ts",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@dotenvx/dotenvx": "^1.44.2",
@@ -30,6 +31,7 @@
     "@xsai/generate-text": "catalog:",
     "@xsai/shared-chat": "catalog:",
     "@xsai/tool": "catalog:",
+    "@xsai/utils-chat": "catalog:",
     "best-effort-json-parser": "^1.1.3",
     "dotenv": "^16.5.0",
     "drizzle-orm": "^0.44.2",

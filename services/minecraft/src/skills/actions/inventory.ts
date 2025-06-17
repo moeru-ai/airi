@@ -1,4 +1,5 @@
 import type { Item } from 'prismarine-item'
+
 import type { Mineflayer } from '../../libs/mineflayer'
 
 import { useLogger } from '../../utils/logger'

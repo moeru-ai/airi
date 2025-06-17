@@ -1,4 +1,5 @@
 import type { z } from 'zod'
+
 import type { Mineflayer } from './core'
 
 type ActionResult = string | Promise<string>

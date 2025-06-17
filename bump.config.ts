@@ -1,6 +1,7 @@
 import { readFile, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { cwd } from 'node:process'
+
 import { defineConfig } from 'bumpp'
 import { execa } from 'execa'
 import { parse, stringify } from 'smol-toml'

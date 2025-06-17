@@ -3,6 +3,7 @@ import type { Message, Sticker } from 'grammy/types'
 
 import { Buffer } from 'node:buffer'
 import { env } from 'node:process'
+
 import { useLogg } from '@guiiai/logg'
 import { embed } from '@xsai/embed'
 import { generateText } from '@xsai/generate-text'

@@ -1,4 +1,5 @@
 import path from 'node:path'
+
 import { createLogg, Format, LogLevel, setGlobalFormat, setGlobalLogLevel } from '@guiiai/logg'
 
 import { useConfigManager } from '../config'

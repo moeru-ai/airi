@@ -12,6 +12,7 @@ import { routes } from 'vue-router/auto-routes'
 
 import App from './App.vue'
 import { i18n } from './modules/i18n'
+
 import '@unocss/reset/tailwind.css'
 import './styles/main.css'
 import 'uno.css'

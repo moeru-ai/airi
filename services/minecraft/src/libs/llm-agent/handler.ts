@@ -1,5 +1,6 @@
 import type { NeuriContext } from 'neuri'
 import type { ChatCompletion, Message } from 'neuri/openai'
+
 import type { Logger } from '../../utils/logger'
 import type { LLMConfig, LLMResponse } from './types'
 

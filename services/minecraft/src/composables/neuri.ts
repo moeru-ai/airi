@@ -1,4 +1,5 @@
 import type { Agent, Neuri } from 'neuri'
+
 import type { Mineflayer } from '../libs/mineflayer'
 
 import { neuri } from 'neuri'

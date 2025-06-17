@@ -1,4 +1,5 @@
 import type { Page } from 'playwright'
+
 import type { UserLink, UserProfile, UserStats } from '../core/services/user'
 
 import { logger } from '../utils/logger'

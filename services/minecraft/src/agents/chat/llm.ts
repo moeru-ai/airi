@@ -1,4 +1,5 @@
 import type { Agent, Neuri } from 'neuri'
+
 import type { ChatHistory } from './types'
 
 import { agent } from 'neuri'

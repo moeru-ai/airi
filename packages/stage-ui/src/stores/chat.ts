@@ -1,5 +1,6 @@
 import type { ChatProvider } from '@xsai-ext/shared-providers'
 import type { Message, SystemMessage } from '@xsai/shared-chat'
+
 import type { ChatAssistantMessage, ChatMessage, ChatSlices } from '../types/chat'
 
 import { defineStore, storeToRefs } from 'pinia'

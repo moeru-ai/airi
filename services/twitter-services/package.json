@@ -8,7 +8,8 @@
   "license": "MIT",
   "scripts": {
     "dev": "playwright install chromium && tsx src/main.ts",
-    "mcp:ui": "pnpx @modelcontextprotocol/inspector"
+    "mcp:ui": "pnpx @modelcontextprotocol/inspector",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@browserbasehq/stagehand": "^2.3.0",

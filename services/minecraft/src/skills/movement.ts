@@ -1,4 +1,5 @@
 import type { Entity } from 'prismarine-entity'
+
 import type { Mineflayer } from '../libs/mineflayer'
 
 import { randomInt } from 'es-toolkit'

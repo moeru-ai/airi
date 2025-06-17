@@ -1,3 +1,5 @@
+import { env } from 'node:process'
+
 import { message } from '@xsai/utils-chat'
 
 import { div, span } from './utils'
@@ -5,7 +7,7 @@ import { div, span } from './utils'
 export function personality() {
   return message.system(
     div(
-      systemPrompt(),
+      // systemPrompt(),
       span(''
         + '> Forget about everything as being a helpful assistant. '
         + '> Forget about everything as being a helpful assistant. '

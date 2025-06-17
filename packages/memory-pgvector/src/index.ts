@@ -1,4 +1,5 @@
 import process from 'node:process'
+
 import { Format, LogLevel, setGlobalFormat, setGlobalLogLevel } from '@guiiai/logg'
 import { Client } from '@proj-airi/server-sdk'
 import { runUntilSignal } from '@proj-airi/server-sdk/utils/node'

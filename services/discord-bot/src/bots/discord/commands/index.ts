@@ -1,4 +1,5 @@
 import { env } from 'node:process'
+
 import { REST, Routes, SlashCommandBuilder } from 'discord.js'
 
 export * from './ping'

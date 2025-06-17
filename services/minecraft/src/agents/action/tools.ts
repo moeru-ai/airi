@@ -2,12 +2,13 @@ import type { Action } from '../../libs/mineflayer'
 
 import { z } from 'zod'
 
-import * as skills from '../../skills'
 import { collectBlock } from '../../skills/actions/collect-block'
 import { discard, equip, putInChest, takeFromChest, viewChest } from '../../skills/actions/inventory'
 import { activateNearestBlock, placeBlock } from '../../skills/actions/world-interactions'
-import * as world from '../../skills/world'
 import { useLogger } from '../../utils/logger'
+
+import * as skills from '../../skills'
+import * as world from '../../skills/world'
 
 // Utils
 const pad = (str: string): string => `\n${str}\n`

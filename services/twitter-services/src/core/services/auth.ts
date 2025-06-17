@@ -1,4 +1,5 @@
 import type { Cookie } from 'playwright'
+
 import type { TwitterService } from '../../types/services'
 import type { Context } from '../browser/context'
 

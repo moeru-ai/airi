@@ -1,3 +1,5 @@
+import type { Readable } from 'node:stream'
+
 import type { AudioPlayer, VoiceConnection, VoiceConnectionState } from '@discordjs/voice'
 import type { Logg } from '@guiiai/logg'
 import type { Client as AiriClient } from '@proj-airi/server-sdk'
@@ -9,11 +11,11 @@ import type {
   Client as DiscordClient,
   GuildMember,
 } from 'discord.js'
-import type { Readable } from 'node:stream'
 
 import { Buffer } from 'node:buffer'
 import { EventEmitter } from 'node:events'
 import { pipeline } from 'node:stream'
+
 import {
   createAudioPlayer,
   createAudioResource,

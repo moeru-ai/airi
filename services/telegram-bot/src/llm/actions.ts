@@ -1,8 +1,10 @@
 import type { Message as LLMMessage } from '@xsai/shared-chat'
 import type { Message } from 'grammy/types'
+
 import type { Action } from '../types'
 
 import { env } from 'node:process'
+
 import { Format, useLogg } from '@guiiai/logg'
 import { generateText } from '@xsai/generate-text'
 import { message } from '@xsai/utils-chat'

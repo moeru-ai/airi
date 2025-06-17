@@ -1,4 +1,5 @@
 import type { SafeBlock } from 'mineflayer-pathfinder'
+
 import type { Mineflayer } from '../libs/mineflayer'
 import type { BlockFace } from './base'
 

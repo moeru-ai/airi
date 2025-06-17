@@ -1,4 +1,5 @@
 import type { Neuri, NeuriContext } from 'neuri'
+
 import type { Logger } from '../../utils/logger'
 import type { MineflayerWithAgents } from './types'
 

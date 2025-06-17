@@ -1,4 +1,5 @@
 import type { Neuri } from 'neuri'
+
 import type { Logger } from '../../utils/logger'
 
 import { useLogg } from '@guiiai/logg'

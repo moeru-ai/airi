@@ -2,6 +2,7 @@ import type { Block } from 'prismarine-block'
 import type { Entity } from 'prismarine-entity'
 import type { Item } from 'prismarine-item'
 import type { Vec3 } from 'vec3'
+
 import type { Mineflayer } from '../libs/mineflayer'
 
 import pf from 'mineflayer-pathfinder'

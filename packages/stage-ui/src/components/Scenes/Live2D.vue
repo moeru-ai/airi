@@ -8,6 +8,7 @@ import { useSettings } from '../../stores'
 import Live2DCanvas from '../Live2D/Canvas.vue'
 import Live2DModel from '../Live2D/Model.vue'
 import Screen from '../Screen.vue'
+
 import '../../utils/live2d-zip-loader'
 
 withDefaults(defineProps<{

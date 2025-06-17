@@ -1,4 +1,5 @@
 import { join, resolve } from 'node:path'
+
 import VueI18n from '@intlify/unplugin-vue-i18n/vite'
 import { Download } from '@proj-airi/unplugin-fetch'
 import { DownloadLive2DSDK } from '@proj-airi/unplugin-live2d-sdk'

@@ -1,4 +1,5 @@
 import type { Neuri } from 'neuri'
+
 import type { Action } from '../../libs/mineflayer/action'
 import type { ActionAgent, AgentConfig, MemoryAgent, Plan, PlanningAgent } from '../../libs/mineflayer/base-agent'
 import type { PlanStep } from './adapter'

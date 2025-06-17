@@ -1,4 +1,5 @@
 import type { ElementHandle, Page } from 'playwright'
+
 import type { Tweet } from '../core/services/tweet'
 
 import { logger } from '../utils/logger'

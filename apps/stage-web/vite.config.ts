@@ -2,6 +2,7 @@ import { Buffer } from 'node:buffer'
 import { cp, mkdir, writeFile } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
 import { env } from 'node:process'
+
 import VueI18n from '@intlify/unplugin-vue-i18n/vite'
 import { Download } from '@proj-airi/unplugin-fetch/vite'
 import { DownloadLive2DSDK } from '@proj-airi/unplugin-live2d-sdk/vite'

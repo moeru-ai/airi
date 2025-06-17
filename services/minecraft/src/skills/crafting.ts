@@ -1,6 +1,7 @@
 import type { Block } from 'prismarine-block'
 import type { Item } from 'prismarine-item'
 import type { Recipe } from 'prismarine-recipe'
+
 import type { Mineflayer } from '../libs/mineflayer'
 
 import { useLogger } from '../utils/logger'

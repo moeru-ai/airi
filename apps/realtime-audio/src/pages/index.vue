@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { AssistantMessage, Message } from '@xsai/shared-chat'
+
 import type {
   ElevenLabsWebSocketEventAudioOutput,
   ElevenLabsWebSocketEventCloseConnection,

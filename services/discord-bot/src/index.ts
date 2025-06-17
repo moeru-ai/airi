@@ -1,4 +1,5 @@
 import { env } from 'node:process'
+
 import { Format, LogLevel, setGlobalFormat, setGlobalLogLevel, useLogg } from '@guiiai/logg'
 import { Client as AiriClient } from '@proj-airi/server-sdk'
 import { Client, Events, GatewayIntentBits } from 'discord.js'

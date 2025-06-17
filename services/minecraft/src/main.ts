@@ -1,4 +1,5 @@
 import process, { exit } from 'node:process'
+
 import { Client } from '@proj-airi/server-sdk'
 import MineflayerArmorManager from 'mineflayer-armor-manager'
 import { loader as MineflayerAutoEat } from 'mineflayer-auto-eat'

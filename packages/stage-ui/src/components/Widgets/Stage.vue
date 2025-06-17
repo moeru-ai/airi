@@ -2,6 +2,7 @@
 import type { DuckDBWasmDrizzleDatabase } from '@proj-airi/drizzle-duckdb-wasm'
 import type { SpeechProviderWithExtraOptions } from '@xsai-ext/shared-providers'
 import type { UnElevenLabsOptions } from 'unspeech'
+
 import type { Emotion } from '../../constants/emotions'
 
 import { drizzle } from '@proj-airi/drizzle-duckdb-wasm'

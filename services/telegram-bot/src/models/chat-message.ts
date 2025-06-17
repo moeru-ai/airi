@@ -3,6 +3,7 @@ import type { SQL } from 'drizzle-orm'
 import type { Message, UserFromGetMe } from 'grammy/types'
 
 import { env } from 'node:process'
+
 import { useLogg } from '@guiiai/logg'
 import { embed } from '@xsai/embed'
 import { and, cosineDistance, desc, eq, gt, inArray, lt, ne, notInArray, sql } from 'drizzle-orm'

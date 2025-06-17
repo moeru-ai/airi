@@ -1,5 +1,6 @@
 import { Buffer } from 'node:buffer'
 import { Transform } from 'node:stream'
+
 import OpusScript from 'opusscript'
 
 export class OpusDecoder extends Transform {

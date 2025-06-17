@@ -20,5 +20,5 @@ catalog:
   '@xsai/shared-chat': 0.3.0-beta.4
   '@xsai/stream-text': 0.3.0-beta.4
   '@xsai/tool': 0.3.0-beta.4
-  '@xsai/utils-chat': ^0.3.0-beta.4
+  '@xsai/utils-chat': 0.3.0-beta.4
   xsschema: ^0.3.0-beta.4
