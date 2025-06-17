@@ -112,8 +112,8 @@ watch(headers, (headers) => {
           :description="t('settings.pages.providers.common.section.advanced.fields.field.headers.description')"
           :key-placeholder="t('settings.pages.providers.common.section.advanced.fields.field.headers.key.placeholder')"
           :value-placeholder="t('settings.pages.providers.common.section.advanced.fields.field.headers.value.placeholder')"
-          @add="(key, value) => addKeyValue(headers, key, value)"
-          @remove="(index) => removeKeyValue(index, headers)"
+          @add="(key: string, value: string) => addKeyValue(headers, key, value)"
+          @remove="(index: number) => removeKeyValue(index, headers)"
         />
       </ProviderAdvancedSettings>
     </ProviderSettingsContainer>

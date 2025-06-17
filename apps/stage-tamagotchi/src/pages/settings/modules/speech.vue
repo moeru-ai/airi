@@ -24,10 +24,7 @@ import { RouterLink } from 'vue-router'
 const { t } = useI18n()
 const providersStore = useProvidersStore()
 const speechStore = useSpeechStore()
-const {
-  availableProviders,
-  allAudioSpeechProvidersMetadata,
-} = storeToRefs(providersStore)
+const { configuredSpeechProvidersMetadata } = storeToRefs(providersStore)
 const {
   activeSpeechProvider,
   activeSpeechModel,
@@ -181,11 +178,11 @@ function updateCustomModelName(value: string) {
           </div>
           <div max-w-full>
             <fieldset
-              v-if="availableProviders.length > 0" flex="~ row gap-4" :style="{ 'scrollbar-width': 'none' }"
+              v-if="configuredSpeechProvidersMetadata.length > 0" flex="~ row gap-4" :style="{ 'scrollbar-width': 'none' }"
               min-w-0 of-x-scroll scroll-smooth role="radiogroup"
             >
               <RadioCardSimple
-                v-for="metadata in allAudioSpeechProvidersMetadata"
+                v-for="metadata in configuredSpeechProvidersMetadata"
                 :id="metadata.id"
                 :key="metadata.id"
                 v-model="activeSpeechProvider"

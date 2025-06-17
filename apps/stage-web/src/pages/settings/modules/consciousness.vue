@@ -8,7 +8,7 @@ import { RouterLink } from 'vue-router'
 
 const providersStore = useProvidersStore()
 const consciousnessStore = useConsciousnessStore()
-const { availableProviders, allChatProvidersMetadata } = storeToRefs(providersStore)
+const { configuredChatProvidersMetadata } = storeToRefs(providersStore)
 const {
   activeProvider,
   activeModel,
@@ -50,14 +50,14 @@ function updateCustomModelName(value: string) {
           See also: https://stackoverflow.com/a/33737340
         -->
           <fieldset
-            v-if="availableProviders.length > 0"
+            v-if="configuredChatProvidersMetadata.length > 0"
             flex="~ row gap-4"
             :style="{ 'scrollbar-width': 'none' }"
             min-w-0 of-x-scroll scroll-smooth
             role="radiogroup"
           >
             <RadioCardSimple
-              v-for="metadata in allChatProvidersMetadata"
+              v-for="metadata in configuredChatProvidersMetadata"
               :id="metadata.id"
               :key="metadata.id"
               v-model="activeProvider"

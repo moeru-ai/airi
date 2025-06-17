@@ -8,6 +8,8 @@ import { storeToRefs } from 'pinia'
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import CardCreate from './components/CardCreate.vue'
+import CardCreationDialog from './components/CardCreationDialog.vue'
 import CardDetailDialog from './components/CardDetailDialog.vue'
 import CardListItem from './components/CardListItem.vue'
 import DeleteCardDialog from './components/DeleteCardDialog.vue'
@@ -21,6 +23,7 @@ const { cards, activeCardId } = storeToRefs(cardStore)
 const selectedCardId = ref<string>('')
 // Dialog state
 const isCardDialogOpen = ref(false)
+const isCardCreationDialogOpen = ref(false)
 
 // Search query
 const searchQuery = ref('')
@@ -116,6 +119,10 @@ function handleSelectCard(cardId: string) {
   isCardDialogOpen.value = true
 }
 
+function handleCardCreationDialog() {
+  isCardCreationDialogOpen.value = true
+}
+
 // Card activation
 function activateCard(id: string) {
   activeCardId.value = id
@@ -147,7 +154,7 @@ function getModuleShortName(id: string, module: 'consciousness' | 'voice') {
 </script>
 
 <template>
-  <div rounded-xl py-4 flex="~ col gap-4">
+  <div rounded-xl p-4 flex="~ col gap-4">
     <!-- Toolbar with search and filters -->
     <div flex="~ row" flex-wrap items-center justify-between gap-4>
       <!-- Search bar -->
@@ -214,6 +221,9 @@ function getModuleShortName(id: string, module: 'consciousness' | 'voice') {
         </template>
       </InputFile>
 
+      <!-- Create card -->
+      <CardCreate @click="handleCardCreationDialog" />
+
       <!-- Card Items -->
       <template v-if="cards.size > 0">
         <CardListItem
@@ -272,6 +282,11 @@ function getModuleShortName(id: string, module: 'consciousness' | 'voice') {
   <CardDetailDialog
     v-model="isCardDialogOpen"
     :card-id="selectedCardId"
+  />
+
+  <!-- Card detail dialog -->
+  <CardCreationDialog
+    v-model="isCardCreationDialogOpen"
   />
 
   <!-- Background decoration -->
