@@ -1,7 +1,7 @@
 {
   "name": "@proj-airi/server-shared",
   "type": "module",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "description": "Server shared types, utilities for AIRI server components and runtimes",
   "author": {
     "name": "Moeru AI Project AIRI Team",
