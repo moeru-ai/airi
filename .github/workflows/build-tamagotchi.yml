@@ -36,6 +36,12 @@ jobs:
         run: |
           echo "PRODUCT_NAME=$(jq -r '.productName' apps/stage-tamagotchi/src-tauri/tauri.conf.json)" >> $GITHUB_ENV
 
+      - name: Debug Environment
+        run: |
+          echo "PRODUCT_NAME: '${{ env.PRODUCT_NAME }}'"
+          ls -la bundle/ || echo "bundle directory doesn't exist"
+          find . -name "*setup.exe" -o -name "*.AppImage" -o -name "*.dmg" || echo "No artifacts found"
+
       - name: Install pnpm
         uses: pnpm/action-setup@v4
         with:
@@ -72,6 +78,10 @@ jobs:
 
       - name: Rename Artifacts
         run: node apps/stage-tamagotchi/scripts/rename-artifacts.js ${{ matrix.target }}
+
+      - name: Debug After Rename
+        run: |
+          ls -la bundle/ || echo "bundle directory doesn't exist after rename"
 
       - name: Upload To GitHub Releases
         uses: softprops/action-gh-release@v2
