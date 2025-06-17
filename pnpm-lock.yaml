@@ -287,6 +287,9 @@ importers:
       '@ricky0123/vad-web':
         specifier: ^0.0.24
         version: 0.0.24
+      '@stdlib/string-base-kebabcase':
+        specifier: ^0.2.2
+        version: 0.2.2
       '@tauri-apps/api':
         specifier: ^2.5.0
         version: 2.5.0
