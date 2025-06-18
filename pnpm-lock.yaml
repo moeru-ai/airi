@@ -1009,6 +1009,9 @@ importers:
       '@xsai-transformers/embed':
         specifier: ^0.0.6
         version: 0.0.6(web-worker@1.5.0)
+      '@xsai-transformers/shared':
+        specifier: ^0.0.6
+        version: 0.0.6
       '@xsai/embed':
         specifier: 'catalog:'
         version: 0.3.0-beta.4
@@ -1033,6 +1036,9 @@ importers:
       defu:
         specifier: ^6.1.4
         version: 6.1.4
+      gpuu:
+        specifier: ^1.0.3
+        version: 1.0.3
       jszip:
         specifier: ^3.10.1
         version: 3.10.1
