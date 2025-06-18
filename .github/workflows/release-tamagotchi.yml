@@ -52,7 +52,7 @@ jobs:
         with:
           targets: ${{ matrix.target }}
 
-      - name: install system dependencies (ubuntu only)
+      - name: Install system dependencies (Ubuntu Only)
         if: matrix.os == 'ubuntu-latest' || matrix.os == 'ubuntu-24.04-arm'
         run: |
           sudo apt-get update
