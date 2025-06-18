@@ -175,6 +175,7 @@ words:
   - tolist
   - tresjs
   - tsdown
+  - turborepo
   - unbundle
   - unhead
   - unocss
