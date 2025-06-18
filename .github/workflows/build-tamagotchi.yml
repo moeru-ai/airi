@@ -32,10 +32,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Get Product Name
-        run: |
-          echo "PRODUCT_NAME=$(node -p 'require("./apps/stage-tamagotchi/src-tauri/tauri.conf.json").productName')" >> $GITHUB_ENV
-
       - name: Install pnpm
         uses: pnpm/action-setup@v4
         with:
@@ -49,6 +45,15 @@ jobs:
           # registry-url required. Learn more at
           # https://docs.github.com/en/actions/publishing-packages/publishing-nodejs-packages
           registry-url: https://registry.npmjs.org
+      - name: Get Product Name (Windows Only)
+        if: matrix.os == 'windows-latest'
+        run: |
+          $productName = node -p 'require("./apps/stage-tamagotchi/src-tauri/tauri.conf.json").productName'
+          echo "PRODUCT_NAME=$productName" >> $env:GITHUB_ENV
+      - name: Get Product Name
+        if: matrix.os != 'windows-latest'
+        run: |
+          echo "PRODUCT_NAME=$(node -p 'require("./apps/stage-tamagotchi/src-tauri/tauri.conf.json").productName')" >> $GITHUB_ENV
 
       - name: Install Rust Stable
         uses: dtolnay/rust-toolchain@stable
