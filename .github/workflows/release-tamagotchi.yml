@@ -31,7 +31,7 @@ jobs:
 
       - name: Get Product Name
         run: |
-          echo "PRODUCT_NAME=$(jq -r '.productName' apps/stage-tamagotchi/src-tauri/tauri.conf.json)" >> $GITHUB_ENV
+          echo "PRODUCT_NAME=$(node -p 'require("./apps/stage-tamagotchi/src-tauri/tauri.conf.json").productName')" >> $GITHUB_ENV
 
       - name: Install pnpm
         uses: pnpm/action-setup@v4
