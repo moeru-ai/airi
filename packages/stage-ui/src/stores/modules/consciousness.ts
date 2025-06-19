@@ -1,6 +1,6 @@
 import { useLocalStorage } from '@vueuse/core'
 import { defineStore } from 'pinia'
-import { computed, ref, watch } from 'vue'
+import { computed, onUnmounted, ref, watch } from 'vue'
 
 import { useProvidersStore } from '../providers'
 
@@ -63,26 +63,46 @@ export const useConsciousnessStore = defineStore('consciousness', () => {
     await loadModelsForProvider(newProvider)
     resetModelSelection()
   })
+
+  // every 60 seconds, if there is no active provider, and player2 is available, check if player2 is running if so set it as default:
+  let player2Interval: number | null = null
+
   watch(
     () => providersStore.availableProviders,
-    async (providers) => {
-      if (
-        !activeProvider.value.length
-        && providers.includes('player2-api')
-      ) {
-        // console.log('No provider configured, checking Player2 Health')
-        try {
-          const res = await fetch('http://localhost:4315/v1/health')
-          if (res.ok) {
-            activeProvider.value = 'player2-api'
+    (providers) => {
+      if (player2Interval === null && providers.length > 0) {
+        player2Interval = window.setInterval(async () => {
+          if (
+            providers.includes('player2')
+            && activeProvider.value !== 'player2'
+          ) {
+            try {
+              const res = await fetch('http://localhost:4315/v1/health')
+              if (res.ok) {
+                // eslint-disable-next-line no-console
+                console.log('No provider selected & player2 is running, setting player2 as provider')
+                activeProvider.value = 'player2'
+                if (player2Interval !== null) {
+                  clearInterval(player2Interval)
+                  player2Interval = null
+                }
+              }
+            }
+            catch {}
           }
-        }
-        catch {
-        }
+        }, 5000) // check every 5 seconds
       }
     },
     { immediate: true },
   )
+
+  onUnmounted(() => {
+    // cleans up the player2 interval
+    if (player2Interval !== null) {
+      clearInterval(player2Interval)
+      player2Interval = null
+    }
+  })
 
   return {
     // State

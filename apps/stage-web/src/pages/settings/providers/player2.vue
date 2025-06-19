@@ -16,7 +16,7 @@ const providersStore = useProvidersStore()
 const { providers } = storeToRefs(providersStore)
 
 // Get provider metadata
-const providerId = 'player2-api'
+const providerId = 'player2'
 const providerMetadata = computed(() => providersStore.getProviderMetadata(providerId))
 
 const baseUrl = computed({

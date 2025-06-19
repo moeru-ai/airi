@@ -898,8 +898,8 @@ export const useProvidersStore = defineStore('providers', () => {
         },
       },
     },
-    'player2-api': {
-      id: 'player2-api',
+    'player2': {
+      id: 'player2',
       category: 'chat',
       tasks: ['text-generation'],
       nameKey: 'settings.pages.providers.provider.player2.title',
@@ -917,20 +917,12 @@ export const useProvidersStore = defineStore('providers', () => {
           {
             id: 'player2-model',
             name: 'Player2 Model',
-            provider: 'player2-api',
+            provider: 'player2',
           },
         ],
       },
       validators: {
-        validateProviderConfig: (config) => {
-          if (!config.baseUrl)
-            return false
-
-          // Check if the Player2 API server is reachable
-          return fetch(`${(config.baseUrl as string).trim()}health`)
-            .then(response => response.ok)
-            .catch(() => false)
-        },
+        validateProviderConfig: config => !!config.baseUrl,
       },
     },
     'cloudflare-workers-ai': {
