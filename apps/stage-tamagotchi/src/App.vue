@@ -28,7 +28,7 @@ onMounted(() => {
 })
 
 watch(themeColorsHue, () => {
-  document.documentElement.style.setProperty('--theme-colors-hue', themeColorsHue.value.toString())
+  document.documentElement.style.setProperty('--chromatic-hue', themeColorsHue.value.toString())
 }, { immediate: true })
 
 watch(themeColorsHueDynamic, () => {
@@ -46,7 +46,7 @@ listen('mcp_plugin_destroyed', () => {
 
 <style>
 /* We need this to properly animate the CSS variable */
-@property --theme-colors-hue {
+@property --chromatic-hue {
   syntax: '<number>';
   initial-value: 0;
   inherits: true;
@@ -54,10 +54,10 @@ listen('mcp_plugin_destroyed', () => {
 
 @keyframes hue-anim {
   from {
-    --theme-colors-hue: 0;
+    --chromatic-hue: 0;
   }
   to {
-    --theme-colors-hue: 360;
+    --chromatic-hue: 360;
   }
 }
 

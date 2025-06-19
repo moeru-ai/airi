@@ -46,6 +46,11 @@ function updateTrackColor() {
   sliderRef.value.style.setProperty('--min', !sliderRef.value.min ? props.min.toString() : sliderRef.value.min)
   sliderRef.value.style.setProperty('--max', !sliderRef.value.max ? props.max.toString() : sliderRef.value.max)
 }
+
+function handleInput(e: Event) {
+  const target = e.target as HTMLInputElement
+  target.style.setProperty('--value', target.value)
+}
 </script>
 
 <template>
@@ -57,9 +62,7 @@ function updateTrackColor() {
     :max="scaledMax"
     :step="scaledStep"
     class="slider-progress form_input-range"
-    @input="(e) => {
-      (e.target as HTMLInputElement).style.setProperty('--value', (e.target as HTMLInputElement).value)
-    }"
+    @input="handleInput"
   >
 </template>
 
@@ -80,9 +83,9 @@ https://toughengineer.github.io/demo/slider-styler*/
   --thumb-box-shadow: 0 0 0px #e6e6e6;
   --thumb-border: none;
   --thumb-border-radius: 999px;
-  --thumb-background: oklch(80% var(--theme-colors-chroma-200) calc(var(--theme-colors-hue) + 0));
-  --thumb-background-hover: oklch(90% var(--theme-colors-chroma-200) calc(var(--theme-colors-hue) + 0));
-  --thumb-background-active: oklch(70% var(--theme-colors-chroma-200) calc(var(--theme-colors-hue) + 0));
+  --thumb-background: oklch(80% var(--chromatic-chroma-200) calc(var(--chromatic-hue) + 0));
+  --thumb-background-hover: oklch(90% var(--chromatic-chroma-200) calc(var(--chromatic-hue) + 0));
+  --thumb-background-active: oklch(70% var(--chromatic-chroma-200) calc(var(--chromatic-hue) + 0));
 
   --track-height: calc(var(--height) - var(--track-value-padding) * 2);
   --track-box-shadow: none;
@@ -99,9 +102,9 @@ https://toughengineer.github.io/demo/slider-styler*/
 }
 
 .dark .form_input-range {
-  --thumb-background: oklch(70% var(--theme-colors-chroma-200) calc(var(--theme-colors-hue) + 0));
-  --thumb-background-hover: oklch(90% var(--theme-colors-chroma-200) calc(var(--theme-colors-hue) + 0));
-  --thumb-background-active: oklch(80% var(--theme-colors-chroma-200) calc(var(--theme-colors-hue) + 0));
+  --thumb-background: oklch(70% var(--chromatic-chroma-200) calc(var(--chromatic-hue) + 0));
+  --thumb-background-hover: oklch(90% var(--chromatic-chroma-200) calc(var(--chromatic-hue) + 0));
+  --thumb-background-active: oklch(80% var(--chromatic-chroma-200) calc(var(--chromatic-hue) + 0));
 
   --track-border: solid 2px rgb(44, 44, 44);
   --track-background: rgb(44, 44, 44);

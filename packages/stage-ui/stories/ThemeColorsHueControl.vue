@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { VAR_HUE } from '@proj-airi/unocss-preset-chromatic'
 import { onMounted, ref, watch } from 'vue'
 
 const DEFAULT_THEME_COLORS_HUE = 220.44
@@ -10,14 +11,14 @@ function resetToDefault() {
 }
 
 onMounted(() => {
-  const hue = document.documentElement.style.getPropertyValue('--theme-colors-hue')
+  const hue = document.documentElement.style.getPropertyValue(VAR_HUE)
   const hueF = Number.parseFloat(hue)
   themeColorsHue.value = hueF >= 0 && hueF <= 360 ? hueF : DEFAULT_THEME_COLORS_HUE
-  document.documentElement.style.setProperty('--theme-colors-hue', themeColorsHue.value.toString())
+  document.documentElement.style.setProperty(VAR_HUE, themeColorsHue.value.toString())
 })
 
 watch(themeColorsHue, () => {
-  document.documentElement.style.setProperty('--theme-colors-hue', themeColorsHue.value.toString())
+  document.documentElement.style.setProperty(VAR_HUE, themeColorsHue.value.toString())
 })
 </script>
 

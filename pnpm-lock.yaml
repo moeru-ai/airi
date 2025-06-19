@@ -78,6 +78,9 @@ importers:
       '@iconify/utils':
         specifier: ^2.3.0
         version: 2.3.0
+      '@proj-airi/unocss-preset-chromatic':
+        specifier: ^0.0.3
+        version: 0.0.3
       '@types/node':
         specifier: ^24.0.1
         version: 24.0.1
@@ -4216,6 +4219,9 @@ packages:
 
   '@proj-airi/server-shared@0.6.0':
     resolution: {integrity: sha512-2CLQc7BufGvQGmLrtFYy5XWGw0jdeteXAht/5QvvhlWW8GhJ5edLqPZsETE5R+goa0OFWcLJgPUki3xdJAvfVQ==}
+
+  '@proj-airi/unocss-preset-chromatic@0.0.3':
+    resolution: {integrity: sha512-IPUQRaguvVNQemifVEAVem2yAJi9GxNb1M2Izl0P3Z9ObGk4BPMdh86Gkb52NTwcOmEWjy5eEKgTbXasP0Ekhg==}
 
   '@proj-airi/unplugin-fetch@0.1.6':
     resolution: {integrity: sha512-p/7qK+MeXyzTEdvXANQmQy0PzW0/EsSApOFln0Sl5JWmPAdFPkTr1+kNAMuS/7rLRLgZYKmbbSVCM3ZPrWj8pg==}
@@ -14717,6 +14723,8 @@ snapshots:
       crossws: 0.4.1
     transitivePeerDependencies:
       - srvx
+
+  '@proj-airi/unocss-preset-chromatic@0.0.3': {}
 
   '@proj-airi/unplugin-fetch@0.1.6(@types/node@24.0.1)(jiti@2.4.2)(less@4.3.0)(lightningcss@1.30.1)(terser@5.17.6)(tsx@4.20.3)(yaml@2.8.0)':
     dependencies:
