@@ -15,61 +15,19 @@
     "directory": "packages/stage-ui"
   },
   "exports": {
-    ".": {
-      "types": "./dist/components/index.d.ts",
-      "import": "./dist/components/index.mjs"
-    },
-    "./components": {
-      "types": "./dist/components/index.d.ts",
-      "import": "./dist/components/index.mjs"
-    },
-    "./composables/*": {
-      "types": "./dist/composables/*.d.ts",
-      "import": "./dist/composables/*.mjs"
-    },
-    "./composables": {
-      "types": "./dist/composables/index.d.ts",
-      "import": "./dist/composables/index.mjs"
-    },
-    "./constants/*": {
-      "types": "./dist/constants/*.d.ts",
-      "import": "./dist/constants/*.mjs"
-    },
-    "./constants": {
-      "types": "./dist/constants/index.d.ts",
-      "import": "./dist/constants/index.mjs"
-    },
-    "./libs/*": {
-      "types": "./dist/libs/*.d.ts",
-      "import": "./dist/libs/*.mjs"
-    },
-    "./libs": {
-      "types": "./dist/libs/index.d.ts",
-      "import": "./dist/libs/index.mjs"
-    },
-    "./stores/*": {
-      "types": "./dist/stores/*.d.ts",
-      "import": "./dist/stores/*.mjs"
-    },
-    "./stores": {
-      "types": "./dist/stores/index.d.ts",
-      "import": "./dist/stores/index.mjs"
-    },
-    "./utils": {
-      "types": "./dist/utils/index.d.ts",
-      "import": "./dist/utils/index.mjs"
-    }
+    ".": "./src/components/index.ts",
+    "./components": "./src/components/index.ts",
+    "./composables/*": "./src/composables/*.ts",
+    "./composables": "./src/composables/index.ts",
+    "./constants/*": "./src/constants/*.ts",
+    "./constants": "./src/constants/index.ts",
+    "./libs/*": "./src/libs/*.ts",
+    "./libs": "./src/libs/index.ts",
+    "./stores/*": "./src/stores/*.ts",
+    "./stores": "./src/stores/index.ts",
+    "./utils": "./src/utils/index.ts"
   },
-  "module": "./dist/components/index.mjs",
-  "types": "./dist/components/index.d.ts",
-  "files": [
-    "dist",
-    "package.json"
-  ],
   "scripts": {
-    "dev": "pnpm run stub",
-    "stub": "unbuild --stub",
-    "build": "unbuild",
     "typecheck": "vue-tsc --noEmit",
     "story:dev": "histoire dev",
     "story:build": "histoire build",
