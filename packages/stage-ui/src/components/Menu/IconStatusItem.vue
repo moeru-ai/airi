@@ -1,12 +1,12 @@
 <script setup lang="ts">
 const props = defineProps<{
   title: string
-  description: string
+  description?: string
   icon?: string
   iconColor?: string
   iconImage?: string
   to: string
-  configured: boolean
+  configured?: boolean
 }>()
 </script>
 
@@ -41,7 +41,7 @@ const props = defineProps<{
           class="menu-icon-status-item-description"
           transition="all ease-in-out duration-400"
         >
-          <span>{{ props.description }}</span>
+          <span>{{ props.description || '' }}</span>
         </div>
       </div>
       <template v-if=" props.icon">
@@ -75,7 +75,7 @@ const props = defineProps<{
       </template>
     </RouterLink>
     <div p-2>
-      <div v-if=" props.configured" size-3 bg="green-500 dark:green-600" rounded-full />
+      <div v-if="!!props.configured" size-3 bg="green-500 dark:green-600" rounded-full />
       <div v-else size-3 bg="neutral-400 dark:neutral-500" rounded-full />
     </div>
   </div>

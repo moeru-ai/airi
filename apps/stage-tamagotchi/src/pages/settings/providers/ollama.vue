@@ -25,7 +25,7 @@ const providerId = 'ollama'
 const providerMetadata = computed(() => providersStore.getProviderMetadata(providerId))
 
 const baseUrl = computed({
-  get: () => providers.value[providerId]?.baseUrl || providerMetadata.value?.defaultOptions?.baseUrl || '',
+  get: () => providers.value[providerId]?.baseUrl || providerMetadata.value?.defaultOptions?.().baseUrl || '',
   set: (value) => {
     if (!providers.value[providerId])
       providers.value[providerId] = {}
@@ -38,7 +38,7 @@ onMounted(() => {
   providersStore.initializeProvider(providerId)
 
   // Initialize refs with current values
-  baseUrl.value = providers.value[providerId]?.baseUrl || providerMetadata.value?.defaultOptions?.baseUrl || ''
+  baseUrl.value = providers.value[providerId]?.baseUrl || providerMetadata.value?.defaultOptions?.().baseUrl || ''
 
   // Initialize headers if not already set
   if (!providers.value[providerId]?.headers) {
@@ -100,7 +100,7 @@ watch(headers, (headers) => {
       >
         <ProviderBaseUrlInput
           v-model="baseUrl"
-          :placeholder="providerMetadata?.defaultOptions?.baseUrl as string || ''"
+          :placeholder="providerMetadata?.defaultOptions?.().baseUrl as string || ''"
           required
         />
       </ProviderBasicSettings>

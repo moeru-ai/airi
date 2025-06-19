@@ -91,6 +91,8 @@ export interface ProviderMetadata {
   validators: {
     validateProviderConfig: (config: Record<string, unknown>) => Promise<boolean> | boolean
   }
+  localizedName?: string
+  localizedDescription?: string
   configured?: boolean
 }
 
@@ -1388,11 +1390,7 @@ export const useProvidersStore = defineStore('providers', () => {
   watch(providerCredentials, updateConfigurationStatus, { deep: true })
 
   // Available providers (only those that are properly configured)
-  const availableProviders = computed(() => {
-    return Object.keys(providerMetadata).filter(providerId =>
-      configuredProviders.value[providerId],
-    )
-  })
+  const availableProviders = computed(() => Object.keys(providerMetadata).filter(providerId => configuredProviders.value[providerId]))
 
   // Store available models for each provider
   const availableModels = ref<Record<string, ModelInfo[]>>({})
