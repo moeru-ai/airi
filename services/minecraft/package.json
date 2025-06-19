@@ -13,11 +13,11 @@
   },
   "dependencies": {
     "@guiiai/logg": "^1.0.10",
-    "@proj-airi/server-sdk": "^0.6.0",
+    "@proj-airi/server-sdk": "^0.6.1",
     "awilix": "^12.0.5",
     "es-toolkit": "^1.39.3",
     "eventemitter3": "^5.0.1",
-    "minecraft-data": "^3.89.0",
+    "minecraft-data": "^3.90.0",
     "mineflayer": "^4.29.0",
     "mineflayer-armor-manager": "^2.0.1",
     "mineflayer-auto-eat": "^5.0.1",
@@ -34,7 +34,7 @@
     "prismarine-windows": "^2.9.0",
     "valibot": "1.0.0-beta.9",
     "vec3": "^0.1.10",
-    "zod": "^3.25.64",
+    "zod": "^3.25.67",
     "zod-to-json-schema": "^3.24.5"
   },
   "devDependencies": {

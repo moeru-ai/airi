@@ -63,9 +63,9 @@
     "@ricky0123/vad-web": "^0.0.24",
     "@tresjs/cientos": "^4.3.1",
     "@tresjs/core": "^4.3.6",
-    "@vueuse/core": "^13.3.0",
+    "@vueuse/core": "^13.4.0",
     "@vueuse/motion": "^3.0.3",
-    "@vueuse/shared": "^13.3.0",
+    "@vueuse/shared": "^13.4.0",
     "@xsai-ext/providers-cloud": "catalog:",
     "@xsai-ext/providers-local": "catalog:",
     "@xsai-ext/shared-providers": "catalog:",
@@ -79,7 +79,7 @@
     "@xsai/tool": "catalog:",
     "culori": "^4.0.1",
     "defu": "^6.1.4",
-    "gpuu": "^1.0.3",
+    "gpuu": "^1.0.4",
     "jszip": "^3.10.1",
     "localforage": "^1.10.0",
     "pinia": "^3.0.3",
@@ -94,23 +94,23 @@
     "unified": "^11.0.5",
     "unist-builder": "^4.0.0",
     "unspeech": "^0.1.7",
-    "vue-i18n": "^11.1.5",
+    "vue-i18n": "^11.1.6",
     "vue-router": "^4.5.1",
     "vue-tsc": "^2.2.10",
     "wlipsync": "^1.2.1",
     "xast-util-to-xml": "^4.0.0",
     "xastscript": "^4.0.0",
-    "zod": "^3.25.64"
+    "zod": "^3.25.67"
   },
   "devDependencies": {
     "@histoire/plugin-vue": "1.0.0-alpha.2",
     "@types/culori": "^4.0.0",
     "@types/three": "^0.177.0",
-    "@unocss/reset": "^66.2.0",
+    "@unocss/reset": "^66.2.3",
     "@vitejs/plugin-vue": "^5.2.4",
     "histoire": "1.0.0-alpha.2",
-    "unocss": "^66.2.0",
+    "unocss": "^66.2.3",
     "vite": "^6.3.5",
-    "vue": "^3.5.16"
+    "vue": "^3.5.17"
   }
 }

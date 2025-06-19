@@ -21,22 +21,22 @@
     "typecheck": "vue-tsc --noEmit"
   },
   "dependencies": {
-    "@vueuse/core": "^13.3.0",
+    "@vueuse/core": "^13.4.0",
     "@xsai/generate-text": "catalog:",
     "@xsai/shared-chat": "catalog:",
     "@xsai/stream-text": "catalog:",
     "defu": "^6.1.4",
     "es-toolkit": "^1.39.3",
-    "vue": "^3.5.16"
+    "vue": "^3.5.17"
   },
   "devDependencies": {
     "@iconify-json/solar": "^1.2.2",
-    "@unocss/reset": "^66.2.0",
+    "@unocss/reset": "^66.2.3",
     "@vitejs/plugin-vue": "^5.2.4",
     "superjson": "^2.2.2",
     "unplugin-vue-router": "^0.12.0",
     "vite": "catalog:rolldown-vite",
     "vue-router": "^4.5.1",
-    "vue-tsc": "^3.0.0-alpha.10"
+    "vue-tsc": "^3.0.0-beta.2"
   }
 }
