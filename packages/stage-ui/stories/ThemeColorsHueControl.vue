@@ -29,9 +29,8 @@ watch(themeColorsHue, () => {
       min="0"
       max="360"
       step="0.01"
-      class="theme-hue-slider"
+      class="chromatic-hue-slider"
     >
-
     <button
       class="mt-2 rounded-md px-2 py-1 text-xs transition-colors"
       bg="neutral-200 dark:neutral-800 hover:neutral-200 dark:hover:neutral-700"
@@ -42,3 +41,40 @@ watch(themeColorsHue, () => {
     </button>
   </div>
 </template>
+
+<style>
+.chromatic-hue-slider {
+  outline: none;
+  --at-apply: rounded-lg appearance-none h-10;
+  background: linear-gradient(
+    to right,
+    oklch(85% 0.2 0),
+    oklch(85% 0.2 60),
+    oklch(85% 0.2 120),
+    oklch(85% 0.2 180),
+    oklch(85% 0.2 240),
+    oklch(85% 0.2 300),
+    oklch(85% 0.2 360)
+  );
+}
+
+.chromatic-hue-slider::-webkit-slider-thumb {
+  --at-apply: w-1 h-12 appearance-none rounded-md bg-neutral-600 cursor-pointer shadow-lg border-2 border-neutral-500
+    hover: bg-neutral-800 transition-colors duration-200;
+}
+
+.htw-dark .chromatic-hue-slider::-webkit-slider-thumb {
+  --at-apply: w-1 h-12 appearance-none rounded-md bg-neutral-100 cursor-pointer shadow-md border-2 border-white
+    hover: bg-neutral-300 transition-colors duration-200;
+}
+
+.chromatic-hue-slider::-moz-range-thumb {
+  --at-apply: w-1 h-12 appearance-none rounded-md bg-neutral-600 cursor-pointer shadow-lg border-2 border-neutral-500
+    hover: bg-neutral-800 transition-colors duration-200;
+}
+
+.htw-dark .chromatic-hue-slider::-moz-range-thumb {
+  --at-apply: w-1 h-12 appearance-none rounded-md bg-neutral-100 cursor-pointer shadow-md border-2 border-white
+    hover: bg-neutral-300 transition-colors duration-200;
+}
+</style>
