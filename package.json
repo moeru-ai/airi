@@ -58,7 +58,6 @@
     "tsdown": "^0.12.7",
     "turbo": "^2.5.4",
     "typescript": "~5.8.3",
-    "unbuild": "^3.5.0",
     "unocss": "^66.2.0",
     "unocss-preset-scrollbar": "^3.2.0",
     "unplugin-lightningcss": "^0.4.1",
