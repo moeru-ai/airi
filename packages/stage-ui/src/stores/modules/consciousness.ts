@@ -58,24 +58,27 @@ export const useConsciousnessStore = defineStore('consciousness', () => {
     }
   }
 
+  // used for health check and to check if player2 is running
   let player2Interval: number | null = null
-  // Watch for provider changes and load models
-  watch(activeProvider, async (newProvider) => {
-    await loadModelsForProvider(newProvider)
-    resetModelSelection()
+
+  function updatePlayer2HealthCheck(newProvider: string) {
     if (newProvider === 'player2') {
-      // Ping heal check every 60 seconds if Player2 is being used
       player2Interval = window.setInterval(async () => {
-        // eslint-disable-next-line no-console
-        console.log('Sending Player2 Health check if it is being used')
         fetch('http://localhost:4315/v1/health').catch(() => {})
-      }, 60000)
+      }, 6000)
     }
     else {
       if (player2Interval)
         clearInterval(player2Interval)
       player2Interval = null
     }
+  }
+
+  // Watch for provider changes and load models
+  watch(activeProvider, async (newProvider) => {
+    await loadModelsForProvider(newProvider)
+    resetModelSelection()
+    updatePlayer2HealthCheck(newProvider)
   })
 
   // every 60 seconds, if there is no active provider, and player2 is available, check if player2 is running if so set it as default:
@@ -115,6 +118,9 @@ export const useConsciousnessStore = defineStore('consciousness', () => {
       player2Interval = null
     }
   })
+
+  // if new provider is player2 but from local storage, then health check will not run. This does it manually:
+  updatePlayer2HealthCheck(activeProvider.value)
 
   return {
     // State
