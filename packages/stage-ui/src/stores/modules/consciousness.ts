@@ -74,7 +74,7 @@ export const useConsciousnessStore = defineStore('consciousness', () => {
         player2Interval = window.setInterval(async () => {
           if (
             providers.includes('player2')
-            && activeProvider.value !== 'player2'
+            && !activeProvider.value.length
           ) {
             try {
               const res = await fetch('http://localhost:4315/v1/health')
