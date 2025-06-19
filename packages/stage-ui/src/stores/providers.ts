@@ -1,4 +1,13 @@
-import type { ChatProvider, ChatProviderWithExtraOptions, EmbedProvider, EmbedProviderWithExtraOptions, SpeechProvider, SpeechProviderWithExtraOptions, TranscriptionProvider, TranscriptionProviderWithExtraOptions } from '@xsai-ext/shared-providers'
+import type {
+  ChatProvider,
+  ChatProviderWithExtraOptions,
+  EmbedProvider,
+  EmbedProviderWithExtraOptions,
+  SpeechProvider,
+  SpeechProviderWithExtraOptions,
+  TranscriptionProvider,
+  TranscriptionProviderWithExtraOptions,
+} from '@xsai-ext/shared-providers'
 import type { ProgressInfo } from '@xsai-transformers/shared/types'
 import type {
   UnAlibabaCloudOptions,
@@ -47,8 +56,11 @@ export interface ProviderMetadata {
   tasks: string[]
   nameKey: string // i18n key for provider name
   name: string // Default name (fallback)
+  localizedName?: string
   descriptionKey: string // i18n key for description
   description: string // Default description (fallback)
+  localizedDescription?: string
+  configured?: boolean
   /**
    * Indicates whether the provider is available.
    * If not specified, the provider is always available.
@@ -70,8 +82,16 @@ export interface ProviderMetadata {
    *   non-WebGPU supported environments.
    */
   isAvailableBy?: () => Promise<boolean> | boolean
+  /**
+   * Iconify JSON icon name for the provider.
+   *
+   * Icons are available for most of the AI provides under @proj-airi/lobe-icons.
+   */
   icon?: string
   iconColor?: string
+  /**
+   * In case of having image instead of icon, you can specify the image URL here.
+   */
   iconImage?: string
   defaultOptions?: () => Record<string, unknown>
   createProvider: (config: Record<string, unknown>) =>
@@ -91,9 +111,6 @@ export interface ProviderMetadata {
   validators: {
     validateProviderConfig: (config: Record<string, unknown>) => Promise<boolean> | boolean
   }
-  localizedName?: string
-  localizedDescription?: string
-  configured?: boolean
 }
 
 export interface ModelInfo {
