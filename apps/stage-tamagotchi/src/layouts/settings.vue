@@ -121,7 +121,7 @@ const routeHeaderMetadata = computed(() => routeHeaderMetadataMap.value[route.pa
 </script>
 
 <template>
-  <div h-full w-full mt="44px" overflow-y-scroll>
+  <div h-full w-full overflow-y-scroll scrollbar-none>
     <WindowTitleBar
       :title="routeHeaderMetadata?.title"
       icon="i-solar:settings-bold"
@@ -134,13 +134,14 @@ const routeHeaderMetadata = computed(() => routeHeaderMetadataMap.value[route.pa
         paddingLeft: 'env(safe-area-inset-left, 0px)',
       }"
     >
-      <div h-full w-full px-4 pb-4>
+      <div relative h-full w-full px-4 pb-4 top="44px">
         <!-- Content -->
         <div flex="~ col" mx-auto max-w-screen-xl>
           <PageHeader
             :title="routeHeaderMetadata?.title"
             :subtitle="routeHeaderMetadata?.subtitle"
             :disable-back-button="route.path === '/settings'"
+            top="44px!"
           />
           <RouterView />
         </div>
