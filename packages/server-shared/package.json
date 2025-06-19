@@ -32,7 +32,6 @@
   ],
   "scripts": {
     "dev": "pnpm run build",
-    "stub": "pnpm run build",
     "build": "tsdown",
     "typecheck": "tsc --noEmit"
   }

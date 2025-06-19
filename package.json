@@ -20,7 +20,6 @@
     "dev:tamagotchi": "pnpm -rF @proj-airi/stage-tamagotchi run app:dev",
     "dev:apps": "pnpm -rF=\"./apps/*\" run --parallel dev",
     "dev:packages": "pnpm -rF=\"./packages/*\" --parallel run dev",
-    "stub:packages": "pnpm -rF=\"./packages/*\" run --parallel stub",
     "build": "turbo run build -F=\"./packages/*\" -F=\"./apps/*\"",
     "build:web": "turbo run build -F @proj-airi/stage-web",
     "build:tamagotchi": "pnpm -rF @proj-airi/stage-tamagotchi run app:build",
