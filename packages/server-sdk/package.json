@@ -17,17 +17,14 @@
   "exports": {
     ".": {
       "types": "./dist/index.d.mts",
-      "import": "./dist/index.mjs",
-      "require": "./dist/index.mjs"
+      "default": "./dist/index.mjs"
     },
     "./utils/node": {
       "types": "./dist/utils/node/index.d.mts",
-      "import": "./dist/utils/node/index.mjs",
-      "require": "./dist/utils/node/index.mjs"
+      "default": "./dist/utils/node/index.mjs"
     }
   },
   "main": "./dist/index.mjs",
-  "module": "./dist/index.mjs",
   "types": "./dist/index.d.mts",
   "files": [
     "README.md",
