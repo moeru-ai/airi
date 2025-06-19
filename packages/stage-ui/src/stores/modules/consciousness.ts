@@ -58,15 +58,27 @@ export const useConsciousnessStore = defineStore('consciousness', () => {
     }
   }
 
+  let player2Interval: number | null = null
   // Watch for provider changes and load models
   watch(activeProvider, async (newProvider) => {
     await loadModelsForProvider(newProvider)
     resetModelSelection()
+    if (newProvider === 'player2') {
+      // Ping heal check every 60 seconds if Player2 is being used
+      player2Interval = window.setInterval(async () => {
+        // eslint-disable-next-line no-console
+        console.log('Sending Player2 Health check if it is being used')
+        fetch('http://localhost:4315/v1/health').catch(() => {})
+      }, 60000)
+    }
+    else {
+      if (player2Interval)
+        clearInterval(player2Interval)
+      player2Interval = null
+    }
   })
 
   // every 60 seconds, if there is no active provider, and player2 is available, check if player2 is running if so set it as default:
-  let player2Interval: number | null = null
-
   watch(
     () => providersStore.availableProviders,
     (providers) => {
@@ -81,11 +93,11 @@ export const useConsciousnessStore = defineStore('consciousness', () => {
               if (res.ok) {
                 // eslint-disable-next-line no-console
                 console.log('No provider selected & player2 is running, setting player2 as provider')
-                activeProvider.value = 'player2'
                 if (player2Interval !== null) {
                   clearInterval(player2Interval)
                   player2Interval = null
                 }
+                activeProvider.value = 'player2'
               }
             }
             catch {}
