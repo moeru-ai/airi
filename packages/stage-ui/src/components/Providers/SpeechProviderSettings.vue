@@ -64,7 +64,7 @@ const apiKey = computed({
 })
 
 const baseUrl = computed({
-  get: () => providers.value[props.providerId]?.baseUrl as string | undefined || providerMetadata.value?.defaultOptions?.baseUrl as string | undefined || '',
+  get: () => providers.value[props.providerId]?.baseUrl as string | undefined || providerMetadata.value?.defaultOptions?.().baseUrl as string | undefined || '',
   set: (value) => {
     if (!providers.value[props.providerId])
       providers.value[props.providerId] = {}
@@ -108,7 +108,7 @@ onMounted(() => {
 
   // Initialize refs with current values
   apiKey.value = providers.value[props.providerId]?.apiKey as string | undefined || ''
-  baseUrl.value = providers.value[props.providerId]?.baseUrl as string | undefined || providerMetadata.value?.defaultOptions?.baseUrl as string | undefined || ''
+  baseUrl.value = providers.value[props.providerId]?.baseUrl as string | undefined || providerMetadata.value?.defaultOptions?.().baseUrl as string | undefined || ''
 
   // Initialize voice settings
   initializeVoiceSettings()
@@ -123,7 +123,7 @@ const debouncedUpdate = useDebounceFn(() => {
   providers.value[props.providerId] = {
     ...providers.value[props.providerId],
     apiKey: apiKey.value,
-    baseUrl: baseUrl.value || providerMetadata.value?.defaultOptions?.baseUrl || '',
+    baseUrl: baseUrl.value || providerMetadata.value?.defaultOptions?.().baseUrl || '',
     voiceSettings: { ...voiceSettings.value },
   }
 }, 1000)
@@ -218,7 +218,7 @@ onUnmounted(() => {
 })
 
 function handleResetVoiceSettings() {
-  voiceSettings.value = { ...(providerMetadata.value?.defaultOptions?.voiceSettings || {}) }
+  voiceSettings.value = { ...(providerMetadata.value?.defaultOptions?.().voiceSettings || {}) }
   debouncedUpdate()
 }
 
@@ -277,7 +277,7 @@ const slotData = computed(() => ({
         <ProviderAdvancedSettings :title="t('settings.pages.providers.common.section.advanced.title')">
           <ProviderBaseUrlInput
             v-model="baseUrl"
-            :placeholder="providerMetadata?.defaultOptions?.baseUrl as string || ''" required
+            :placeholder="providerMetadata?.defaultOptions?.().baseUrl as string || ''" required
           />
           <!-- Slot for provider-specific advanced settings -->
           <slot name="advanced-settings" />
