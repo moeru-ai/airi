@@ -27,6 +27,6 @@ const dark = useDark()
 
 <style scoped>
 .theme-colored {
-  filter: hue-rotate(calc(var(--theme-colors-hue, 0) * 1deg));
+  filter: hue-rotate(calc(var(--chromatic-hue, 0) * 1deg));
 }
 </style>

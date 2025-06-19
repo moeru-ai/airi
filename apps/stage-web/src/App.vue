@@ -13,20 +13,20 @@ const isDark = useDark()
 
 const primaryColor = computed(() => {
   return isDark.value
-    ? `color-mix(in srgb, oklch(95% var(--theme-colors-chroma-900) calc(var(--theme-colors-hue) + ${0})) 70%, oklch(50% 0 360))`
-    : `color-mix(in srgb, oklch(95% var(--theme-colors-chroma-900) calc(var(--theme-colors-hue) + ${0})) 90%, oklch(90% 0 360))`
+    ? `color-mix(in srgb, oklch(95% var(--chromatic-chroma-900) calc(var(--chromatic-hue) + ${0})) 70%, oklch(50% 0 360))`
+    : `color-mix(in srgb, oklch(95% var(--chromatic-chroma-900) calc(var(--chromatic-hue) + ${0})) 90%, oklch(90% 0 360))`
 })
 
 const secondaryColor = computed(() => {
   return isDark.value
-    ? `color-mix(in srgb, oklch(95% var(--theme-colors-chroma-900) calc(var(--theme-colors-hue) + ${180})) 70%, oklch(50% 0 360))`
-    : `color-mix(in srgb, oklch(95% var(--theme-colors-chroma-900) calc(var(--theme-colors-hue) + ${180})) 90%, oklch(90% 0 360))`
+    ? `color-mix(in srgb, oklch(95% var(--chromatic-chroma-900) calc(var(--chromatic-hue) + ${180})) 70%, oklch(50% 0 360))`
+    : `color-mix(in srgb, oklch(95% var(--chromatic-chroma-900) calc(var(--chromatic-hue) + ${180})) 90%, oklch(90% 0 360))`
 })
 
 const tertiaryColor = computed(() => {
   return isDark.value
-    ? `color-mix(in srgb, oklch(95% var(--theme-colors-chroma-900) calc(var(--theme-colors-hue) + ${60})) 70%, oklch(50% 0 360))`
-    : `color-mix(in srgb, oklch(95% var(--theme-colors-chroma-900) calc(var(--theme-colors-hue) + ${60})) 90%, oklch(90% 0 360))`
+    ? `color-mix(in srgb, oklch(95% var(--chromatic-chroma-900) calc(var(--chromatic-hue) + ${60})) 70%, oklch(50% 0 360))`
+    : `color-mix(in srgb, oklch(95% var(--chromatic-chroma-900) calc(var(--chromatic-hue) + ${60})) 90%, oklch(90% 0 360))`
 })
 
 const colors = computed(() => {
@@ -38,7 +38,7 @@ watch(settings.language, () => {
 })
 
 watch(settings.themeColorsHue, () => {
-  document.documentElement.style.setProperty('--theme-colors-hue', settings.themeColorsHue.value.toString())
+  document.documentElement.style.setProperty('--chromatic-hue', settings.themeColorsHue.value.toString())
 }, { immediate: true })
 
 watch(settings.themeColorsHueDynamic, () => {
@@ -62,7 +62,7 @@ watch(settings.themeColorsHueDynamic, () => {
 
 <style>
 /* We need this to properly animate the CSS variable */
-@property --theme-colors-hue {
+@property --chromatic-hue {
   syntax: '<number>';
   initial-value: 0;
   inherits: true;
@@ -70,10 +70,10 @@ watch(settings.themeColorsHueDynamic, () => {
 
 @keyframes hue-anim {
   from {
-    --theme-colors-hue: 0;
+    --chromatic-hue: 0;
   }
   to {
-    --theme-colors-hue: 360;
+    --chromatic-hue: 360;
   }
 }
 

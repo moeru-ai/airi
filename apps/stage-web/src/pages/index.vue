@@ -23,8 +23,8 @@ const positionCursor = useMouse()
   <Cross>
     <AnimatedWave
       :fill-color="dark
-        ? 'oklch(35% calc(var(--theme-colors-chroma) * 0.6) var(--theme-colors-hue))'
-        : 'color-mix(in srgb, oklch(95% calc(var(--theme-colors-chroma-50) * 0.5) var(--theme-colors-hue)) 80%, oklch(100% 0 360))'"
+        ? 'oklch(35% calc(var(--chromatic-chroma) * 0.6) var(--chromatic-hue))'
+        : 'color-mix(in srgb, oklch(95% calc(var(--chromatic-chroma-50) * 0.5) var(--chromatic-hue)) 80%, oklch(100% 0 360))'"
     >
       <div relative flex="~ col" z-2 h-100dvh w-100vw of-hidden>
         <!-- header -->
