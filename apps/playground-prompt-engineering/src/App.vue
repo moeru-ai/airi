@@ -16,7 +16,7 @@ onMounted(async () => {
 
 <template>
   <div class="bg-bg min-h-screen text-dark">
-    <div class="grid grid-cols-1 mx-auto max-w-[1400px] gap-4 p-4 container lg:grid-cols-[350px_1fr_1fr] md:grid-cols-[300px_1fr]">
+    <div class="container grid grid-cols-1 mx-auto max-w-[1400px] gap-4 p-4 lg:grid-cols-[350px_1fr_1fr] md:grid-cols-[300px_1fr]">
       <ControlPanel />
       <PromptPreview />
       <ChatSimulator class="lg:col-span-1 md:col-span-2" />

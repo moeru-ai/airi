@@ -31,14 +31,14 @@ interface StageTransitionCommonParams {
   pageSpecificAvailable?: boolean
 }
 
-type TransitionComponent =
-  | typeof SlideTransition
-  | typeof SlopeSlideTransition
-  | typeof ArrowTransition
-  | typeof MultipleBlocksRevealTransition
-  | typeof FantasyFallTransition
-  | typeof RectanglesRotateTransition
-  | typeof BubbleWaveOutTransition
+type TransitionComponent
+  = | typeof SlideTransition
+    | typeof SlopeSlideTransition
+    | typeof ArrowTransition
+    | typeof MultipleBlocksRevealTransition
+    | typeof FantasyFallTransition
+    | typeof RectanglesRotateTransition
+    | typeof BubbleWaveOutTransition
 
 const router = useRouter()
 const showTransition = ref(false)
@@ -48,14 +48,14 @@ const activeTransitionName = ref('')
 const activeStageTransitionParams = ref<StageTransitionCommonParams>()
 
 // Define transition lifecycle events
-export type TransitionStage =
-  | 'before-enter' // Just before animation starts
-  | 'enter-active' // Animation has started
-  | 'navigation' // Time to navigate (component still decides when)
-  | 'after-enter' // Entry animation completed
-  | 'before-leave' // Before exit animation starts
-  | 'leave-active' // Exit animation has started
-  | 'after-leave' // Complete animation cycle finished
+export type TransitionStage
+  = | 'before-enter' // Just before animation starts
+    | 'enter-active' // Animation has started
+    | 'navigation' // Time to navigate (component still decides when)
+    | 'after-enter' // Entry animation completed
+    | 'before-leave' // Before exit animation starts
+    | 'leave-active' // Exit animation has started
+    | 'after-leave' // Complete animation cycle finished
 
 // Define hook types
 type TransitionHook = (stage: TransitionStage, data: any) => void | Promise<void>
