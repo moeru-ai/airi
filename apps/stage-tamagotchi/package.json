@@ -104,6 +104,7 @@
     "unocss-preset-scrollbar": "^3.2.0",
     "unplugin-vue-macros": "^2.14.5",
     "unplugin-vue-router": "^0.12.0",
+    "vite": "catalog:rolldown-vite",
     "vite-bundle-visualizer": "^1.2.1",
     "vite-plugin-vue-devtools": "^7.7.6",
     "vite-plugin-vue-layouts": "^0.11.0",

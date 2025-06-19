@@ -22,3 +22,7 @@ catalog:
   '@xsai/tool': 0.3.0-beta.4
   '@xsai/utils-chat': 0.3.0-beta.4
   xsschema: ^0.3.0-beta.4
+
+catalogs:
+  rolldown-vite:
+    vite: npm:rolldown-vite@^6.3.21
