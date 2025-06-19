@@ -223,12 +223,6 @@ pnpm -F @proj-airi/telegram-bot db:generate
 pnpm -F @proj-airi/telegram-bot db:push
 ```
 
-Generate bundles for Monorepo packages
-
-```shell
-pnpm stub:packages
-```
-
 Run the bot
 
 ```shell
@@ -258,12 +252,6 @@ cp .env .env.local
 ```
 
 Edit the credentials in `.env.local`.
-
-Generate bundles for Monorepo packages
-
-```shell
-pnpm stub:packages
-```
 
 Run the bot
 
@@ -297,12 +285,6 @@ cp .env .env.local
 
 Edit the credentials in `.env.local`.
 
-Generate bundles for Monorepo packages
-
-```shell
-pnpm stub:packages
-```
-
 Run the bot
 
 ```shell
@@ -328,7 +310,7 @@ nr -F @proj-airi/minecraft-bot dev
 Please make sure lint (static checkers) and TypeScript compilers are satisfied:
 
 ```shell
-pnpm stub:packages && pnpm lint && pnpm typecheck
+pnpm lint && pnpm typecheck
 ```
 
 :::
@@ -338,7 +320,7 @@ pnpm stub:packages && pnpm lint && pnpm typecheck
 If you have [@antfu/ni](https://github.com/antfu-collective/ni) installed, you can use `nr` to run the commands:
 
 ```shell
-nr stub:packages && nr lint && nr typecheck
+nr lint && nr typecheck
 ```
 
 :::
