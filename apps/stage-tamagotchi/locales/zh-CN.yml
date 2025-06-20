@@ -226,6 +226,9 @@ settings:
       x:
         description: X / Twitter 的浏览和使用
         title: X / Twitter
+      mcp-server:
+        description: 连接和管理 MCP 服务器及工具
+        title: MCP 服务器
     providers:
       common:
         fields:

@@ -187,6 +187,9 @@ settings:
       gaming-minecraft:
         description: Playing Minecraft!
         title: Minecraft
+      mcp-server:
+        description: Connect and manage MCP server and tools
+        title: MCP Server
       hearing:
         description: Configure how speech recognition works
         title: Hearing
