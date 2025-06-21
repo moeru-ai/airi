@@ -41,6 +41,9 @@ settings:
     chinese: 简体中文
     english: English
     title: 语言
+  allow-visible-on-all-workspaces:
+    title: 跨桌面可见性
+    description: 允许窗口在所有虚拟桌面中可见，仅限 macOS。
   live2d:
     change-model:
       from-file: 从文件加载
