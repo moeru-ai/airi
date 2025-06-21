@@ -55,6 +55,9 @@ settings:
     chinese: 简体中文
     english: English
     title: Language
+  allow-visible-on-all-workspaces:
+    title: Cross-Space Visibility
+    description: Allow the window to be visible on all workspaces, macOS only.
   live2d:
     change-model:
       from-file: Load from File

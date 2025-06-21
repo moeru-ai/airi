@@ -14,6 +14,7 @@
     "core:window:allow-start-dragging",
     "core:window:allow-set-focus",
     "core:window:allow-set-minimizable",
+    "core:window:allow-set-visible-on-all-workspaces",
     "mcp:default",
     "global-shortcut:allow-is-registered",
     "global-shortcut:allow-register",

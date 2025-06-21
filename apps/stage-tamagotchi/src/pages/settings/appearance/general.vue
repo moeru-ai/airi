@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import { useSettings } from '@proj-airi/stage-ui/stores'
 import { useDark } from '@vueuse/core'
+import { storeToRefs } from 'pinia'
 
 import CheckBar from '../../../components/Settings/CheckBar.vue'
 
 const settings = useSettings()
+const { allowVisibleOnAllWorkspaces } = storeToRefs(settings)
 
 const dark = useDark()
 </script>
@@ -21,6 +23,19 @@ const dark = useDark()
     icon-on="i-solar:moon-stars-bold-duotone"
     icon-off="i-solar:sun-fog-bold-duotone"
     text="settings.theme"
+    transition="all ease-in-out duration-250"
+  />
+  <CheckBar
+    v-model="allowVisibleOnAllWorkspaces"
+    v-motion
+    mb-2
+    :initial="{ opacity: 0, y: 10 }"
+    :enter="{ opacity: 1, y: 0 }"
+    :duration="250 + (2 * 10)"
+    :delay="2 * 50"
+    icon-on="i-solar:check-circle-bold"
+    icon-off="i-solar:close-circle-bold"
+    text="settings.allow-visible-on-all-workspaces.title"
     transition="all ease-in-out duration-250"
   />
   <!-- Language Setting -->
