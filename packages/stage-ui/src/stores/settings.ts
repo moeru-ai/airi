@@ -34,7 +34,7 @@ export const useSettings = defineStore('settings', () => {
   const themeColorsHue = useLocalStorage('settings/theme/colors/hue', DEFAULT_THEME_COLORS_HUE)
   const themeColorsHueDynamic = useLocalStorage('settings/theme/colors/hue-dynamic', false)
 
-  const allowVisibleOnAllWorkspaces = useLocalStorage('settings/allow-visible-on-all-workspaces', false)
+  const allowVisibleOnAllWorkspaces = useLocalStorage('settings/allow-visible-on-all-workspaces', true)
 
   function setThemeColorsHue(hue = DEFAULT_THEME_COLORS_HUE) {
     themeColorsHue.value = hue
