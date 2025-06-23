@@ -20,6 +20,7 @@
     "@formkit/auto-animate": "^0.8.2",
     "@huggingface/transformers": "^3.5.2",
     "@llama-flow/core": "^0.4.4",
+    "@moeru/std": "0.1.0-beta.1",
     "@pixiv/three-vrm": "^3.4.1",
     "@pixiv/three-vrm-animation": "^3.4.1",
     "@pixiv/three-vrm-core": "^3.4.1",

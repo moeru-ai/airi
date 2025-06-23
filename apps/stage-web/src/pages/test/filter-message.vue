@@ -1,14 +1,11 @@
 <script setup lang="ts">
+import { sleep } from '@moeru/std'
 import { Textarea } from '@proj-airi/ui'
 import { ref } from 'vue'
 
 const messageInput = ref<string>('')
 const processing = ref<boolean>(false)
 const streamingMessage = ref({ content: '' })
-
-async function sleep(ms: number) {
-  return new Promise(resolve => setTimeout(resolve, ms))
-}
 
 async function onSendMessage() {
   processing.value = true

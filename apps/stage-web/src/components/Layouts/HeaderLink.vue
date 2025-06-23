@@ -19,8 +19,8 @@ const dark = useDark()
     <template v-else>
       <img :src="Logo" h-8 w-8 class="theme-colored">
     </template>
-    <div font-cute>
-      <span>アイリ</span>
+    <div translate-y="[2px]" font-semibold font-quicksand>
+      <span>AIRI</span>
     </div>
   </RouterLink>
 </template>

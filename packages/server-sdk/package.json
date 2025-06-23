@@ -40,5 +40,8 @@
     "@proj-airi/server-shared": "workspace:^",
     "crossws": "^0.4.1",
     "defu": "^6.1.4"
+  },
+  "devDependencies": {
+    "@moeru/std": "0.1.0-beta.1"
   }
 }

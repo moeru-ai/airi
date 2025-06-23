@@ -1,5 +1,3 @@
-import { Buffer } from 'node:buffer'
-import { cp, mkdir, writeFile } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
 import { env } from 'node:process'
 
@@ -9,7 +7,6 @@ import { DownloadLive2DSDK } from '@proj-airi/unplugin-live2d-sdk/vite'
 import { templateCompilerOptions } from '@tresjs/core'
 import Vue from '@vitejs/plugin-vue'
 import { LFS, SpaceCard } from 'hfup/vite'
-import { ofetch } from 'ofetch'
 import Unocss from 'unocss/vite'
 import VueMacros from 'unplugin-vue-macros/vite'
 import VueRouter from 'unplugin-vue-router/vite'
@@ -18,15 +15,18 @@ import { VitePWA } from 'vite-plugin-pwa'
 import VueDevTools from 'vite-plugin-vue-devtools'
 import Layouts from 'vite-plugin-vue-layouts'
 
-import { exists } from '../../scripts/fs'
-
 export default defineConfig({
   optimizeDeps: {
     exclude: [
+      // Internal Packages
       '@proj-airi/stage-ui/*',
       '@proj-airi/drizzle-duckdb-wasm',
       '@proj-airi/drizzle-duckdb-wasm/*',
+
+      // Static Assets: Models, Images, etc.
       'public/assets/*',
+
+      // Live2D SDK
       '@framework/live2dcubismframework',
       '@framework/math/cubismmatrix44',
       '@framework/type/csmvector',
@@ -74,6 +74,7 @@ export default defineConfig({
     VueRouter({
       extensions: ['.vue', '.md'],
       dts: resolve(import.meta.dirname, 'src/typed-router.d.ts'),
+      importMode: 'async',
     }),
 
     // https://github.com/JohnCampionJr/vite-plugin-vue-layouts
@@ -143,79 +144,11 @@ export default defineConfig({
     DownloadLive2DSDK(),
     Download('https://dist.ayaka.moe/live2d-models/hiyori_free_zh.zip', 'hiyori_free_zh.zip', 'assets/live2d/models'),
     Download('https://dist.ayaka.moe/live2d-models/hiyori_pro_zh.zip', 'hiyori_pro_zh.zip', 'assets/live2d/models'),
-
-    {
-      name: 'vrm-models-sample-a',
-      async configResolved(config) {
-        const cacheDir = resolve(join(config.root, '.cache'))
-        const publicDir = resolve(join(config.root, 'public'))
-
-        try {
-          if (!(await exists(resolve(join(cacheDir, 'assets/vrm/models/AvatarSample-A'))))) {
-            await mkdir(join(cacheDir, 'assets/vrm/models/AvatarSample-A'), { recursive: true })
-
-            console.log('Downloading VRM Model - Avatar Sample A...')
-            const res = await ofetch('https://dist.ayaka.moe/vrm-models/VRoid-Hub/AvatarSample-A/AvatarSample_A.vrm', { responseType: 'arrayBuffer' })
-
-            console.log('Saving VRM Model - Avatar Sample A...')
-            await writeFile(join(cacheDir, 'assets/vrm/models/AvatarSample-A/AvatarSample_A.vrm'), Buffer.from(res))
-
-            console.log('VRM Model - Avatar Sample A downloaded and saved.')
-          }
-
-          if (!(await exists(resolve(join(publicDir, 'assets/vrm/models/AvatarSample-A'))))) {
-            await mkdir(join(publicDir, 'assets/vrm/models/AvatarSample-A'), { recursive: true }).catch(() => { })
-            await cp(join(cacheDir, 'assets/vrm/models/AvatarSample-A'), join(publicDir, 'assets/vrm/models/AvatarSample-A'), { recursive: true })
-          }
-        }
-        catch (err) {
-          console.error(err)
-          throw err
-        }
-      },
-    },
-    {
-      name: 'vrm-models-sample-b',
-      async configResolved(config) {
-        const cacheDir = resolve(join(config.root, '.cache'))
-        const publicDir = resolve(join(config.root, 'public'))
-
-        try {
-          if (!(await exists(resolve(join(cacheDir, 'assets/vrm/models/AvatarSample-B'))))) {
-            await mkdir(join(cacheDir, 'assets/vrm/models/AvatarSample-B'), { recursive: true })
-
-            console.log('Downloading VRM Model - Avatar Sample B...')
-            const res = await ofetch('https://dist.ayaka.moe/vrm-models/VRoid-Hub/AvatarSample-B/AvatarSample_B.vrm', { responseType: 'arrayBuffer' })
-
-            console.log('Saving VRM Model - Avatar Sample B...')
-            await writeFile(join(cacheDir, 'assets/vrm/models/AvatarSample-B/AvatarSample_B.vrm'), Buffer.from(res))
-          }
-
-          if (!(await exists(resolve(join(publicDir, 'assets/vrm/models/AvatarSample-B'))))) {
-            await mkdir(join(publicDir, 'assets/vrm/models/AvatarSample-B'), { recursive: true }).catch(() => { })
-            await cp(join(cacheDir, 'assets/vrm/models/AvatarSample-B'), join(publicDir, 'assets/vrm/models/AvatarSample-B'), { recursive: true })
-          }
-        }
-        catch (err) {
-          console.error(err)
-          throw err
-        }
-      },
-    },
+    Download('https://dist.ayaka.moe/vrm-models/VRoid-Hub/AvatarSample-A/AvatarSample_A.vrm', 'AvatarSample_A.vrm', 'assets/vrm/models/AvatarSample-A'),
+    Download('https://dist.ayaka.moe/vrm-models/VRoid-Hub/AvatarSample-B/AvatarSample_B.vrm', 'AvatarSample_B.vrm', 'assets/vrm/models/AvatarSample-B'),
 
     // HuggingFace Spaces
-    LFS({
-      extraGlobs: [
-        '*.vrm',
-        '*.cmo3',
-        '*.png',
-        '*.jpg',
-        '*.jpeg',
-        '*.gif',
-        '*.webp',
-        '*.bmp',
-      ],
-    }),
+    LFS({ extraGlobs: ['*.vrm', '*.cmo3', '*.png', '*.jpg', '*.jpeg', '*.gif', '*.webp', '*.bmp'] }),
     SpaceCard({
       title: 'アイリ VTuber',
       emoji: '🧸',
@@ -224,7 +157,10 @@ export default defineConfig({
       sdk: 'static',
       pinned: false,
       license: 'mit',
-      models: ['onnx-community/whisper-base'],
+      models: [
+        'onnx-community/whisper-base',
+        'onnx-community/silero-vad',
+      ],
       short_description: 'アイリ VTuber. LLM powered Live2D/VRM living character.',
     }),
   ],

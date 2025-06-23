@@ -547,6 +547,9 @@ importers:
       '@llama-flow/core':
         specifier: ^0.4.4
         version: 0.4.4(@modelcontextprotocol/sdk@1.13.0)(zod@3.25.67)
+      '@moeru/std':
+        specifier: 0.1.0-beta.1
+        version: 0.1.0-beta.1
       '@pixiv/three-vrm':
         specifier: ^3.4.1
         version: 3.4.1(three@0.177.0)
@@ -909,6 +912,10 @@ importers:
       defu:
         specifier: ^6.1.4
         version: 6.1.4
+    devDependencies:
+      '@moeru/std':
+        specifier: 0.1.0-beta.1
+        version: 0.1.0-beta.1
 
   packages/server-shared: {}
 
@@ -1116,6 +1123,9 @@ importers:
       '@histoire/plugin-vue':
         specifier: 1.0.0-alpha.2
         version: 1.0.0-alpha.2(histoire@1.0.0-alpha.2(@types/node@24.0.3)(bufferutil@4.0.9)(less@4.3.0)(lightningcss@1.30.1)(terser@5.17.6)(utf-8-validate@5.0.10)(vite@6.3.5(@types/node@24.0.3)(jiti@2.4.2)(less@4.3.0)(lightningcss@1.30.1)(terser@5.17.6)(tsx@4.20.3)(yaml@2.8.0)))(vite@6.3.5(@types/node@24.0.3)(jiti@2.4.2)(less@4.3.0)(lightningcss@1.30.1)(terser@5.17.6)(tsx@4.20.3)(yaml@2.8.0))(vue@3.5.17(typescript@5.8.3))
+      '@moeru/std':
+        specifier: 0.1.0-beta.1
+        version: 0.1.0-beta.1
       '@types/culori':
         specifier: ^4.0.0
         version: 4.0.0
@@ -1300,6 +1310,9 @@ importers:
       '@guiiai/logg':
         specifier: ^1.0.10
         version: 1.0.10
+      '@moeru/std':
+        specifier: 0.1.0-beta.1
+        version: 0.1.0-beta.1
       '@proj-airi/server-sdk':
         specifier: ^0.6.1
         version: 0.6.1
@@ -1391,6 +1404,9 @@ importers:
       '@guiiai/logg':
         specifier: ^1.0.10
         version: 1.0.10
+      '@moeru/std':
+        specifier: 0.1.0-beta.1
+        version: 0.1.0-beta.1
       '@xsai-ext/providers-cloud':
         specifier: 'catalog:'
         version: 0.3.0-beta.4

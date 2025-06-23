@@ -1,4 +1,4 @@
-export const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
+import { sleep } from '@moeru/std'
 
 /**
  * Returns a retirable anonymous function with configured retryLimit and delayInterval

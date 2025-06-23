@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@guiiai/logg": "^1.0.10",
+    "@moeru/std": "0.1.0-beta.1",
     "@proj-airi/server-sdk": "^0.6.1",
     "awilix": "^12.0.5",
     "es-toolkit": "^1.39.3",

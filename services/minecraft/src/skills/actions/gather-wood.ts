@@ -1,6 +1,7 @@
 import type { Mineflayer } from '../../libs/mineflayer'
 
-import { sleep } from '../../utils/helper'
+import { sleep } from '@moeru/std'
+
 import { useLogger } from '../../utils/logger'
 import { breakBlockAt } from '../blocks'
 import { goToPosition, moveAway } from '../movement'

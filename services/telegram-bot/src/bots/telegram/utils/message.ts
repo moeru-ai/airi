@@ -3,12 +3,13 @@ import type { Message } from 'grammy/types'
 import type { BotSelf } from '../../../types'
 
 import { useLogg } from '@guiiai/logg'
+import { sleep } from '@moeru/std'
 import { parse } from 'best-effort-json-parser'
 import { randomInt } from 'es-toolkit'
 
 import { recordMessage } from '../../../models'
 import { listJoinedChats } from '../../../models/chats'
-import { cancellable, sleep } from '../../../utils/promise'
+import { cancellable } from '../../../utils/promise'
 
 export function parseMayStructuredMessage(responseText: string) {
   const logger = useLogg('parseMayStructuredMessage').useGlobalConfig()

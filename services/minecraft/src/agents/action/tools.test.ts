@@ -1,3 +1,4 @@
+import { sleep } from '@moeru/std'
 import { messages, system, user } from 'neuri/openai'
 import { beforeAll, describe, expect, it } from 'vitest'
 
@@ -5,7 +6,6 @@ import { initBot, useBot } from '../../composables/bot'
 import { config, initEnv } from '../../composables/config'
 import { createNeuriAgent } from '../../composables/neuri'
 import { generateActionAgentPrompt } from '../../libs/llm-agent/prompt'
-import { sleep } from '../../utils/helper'
 import { initLogger } from '../../utils/logger'
 
 describe('actions agent', { timeout: 0 }, () => {
