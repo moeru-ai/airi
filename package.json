@@ -3,7 +3,7 @@
   "type": "module",
   "version": "0.6.1",
   "private": true,
-  "packageManager": "pnpm@10.12.1",
+  "packageManager": "pnpm@10.12.2",
   "description": "LLM powered virtual character",
   "author": {
     "name": "Moeru AI Project AIRI Team",
@@ -31,13 +31,13 @@
     "lint": "eslint --cache .",
     "lint:fix": "eslint --cache --fix .",
     "lint:rust": "cargo fmt --check && cargo clippy --workspace",
-    "typecheck": "pnpm -rF=\"./packages/*\" -F=\"./apps/*\" --parallel typecheck",
+    "typecheck": "pnpm -rF=\"./packages/*\" -F=\"./apps/*\" -F=\"./docs\" --parallel typecheck",
     "up": "taze -w -r -I -f && pnpm prune && pnpm dedupe",
     "sizecheck": "npx vite-bundle-visualizer",
     "nolyfill": "pnpm dlx nolyfill"
   },
   "devDependencies": {
-    "@antfu/eslint-config": "^4.15.0",
+    "@antfu/eslint-config": "^4.16.1",
     "@antfu/ni": "^25.0.0",
     "@arethetypeswrong/core": "^0.18.2",
     "@iconify/utils": "^2.3.0",

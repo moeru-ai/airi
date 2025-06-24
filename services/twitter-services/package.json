@@ -14,7 +14,7 @@
   "dependencies": {
     "@browserbasehq/stagehand": "^2.3.1",
     "@guiiai/logg": "^1.0.10",
-    "@modelcontextprotocol/sdk": "^1.13.0",
+    "@modelcontextprotocol/sdk": "^1.13.1",
     "@proj-airi/server-sdk": "^0.6.1",
     "defu": "^6.1.4",
     "dotenv": "^16.5.0",

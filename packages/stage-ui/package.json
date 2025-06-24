@@ -94,7 +94,7 @@
     "unified": "^11.0.5",
     "unist-builder": "^4.0.0",
     "unspeech": "^0.1.7",
-    "vue-i18n": "^11.1.6",
+    "vue-i18n": "^11.1.7",
     "vue-router": "^4.5.1",
     "vue-tsc": "^2.2.10",
     "wlipsync": "^1.2.1",

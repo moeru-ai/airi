@@ -1,57 +1,46 @@
 <script setup lang="ts">
-import { WidgetStage } from '@proj-airi/stage-ui/components'
-import { useDark, useMouse } from '@vueuse/core'
-import { ref } from 'vue'
 
-import Cross from '../components/Backgrounds/Cross.vue'
-import Header from '../components/Layouts/Header.vue'
-import InteractiveArea from '../components/Layouts/InteractiveArea.vue'
-import MobileInteractiveArea from '../components/Layouts/MobileInteractiveArea.vue'
-import AnimatedWave from '../components/Widgets/AnimatedWave.vue'
-
-const dark = useDark()
-const paused = ref(false)
-
-function handleSettingsOpen(open: boolean) {
-  paused.value = open
-}
-
-const positionCursor = useMouse()
 </script>
 
 <template>
-  <Cross>
-    <AnimatedWave
-      :fill-color="dark
-        ? 'oklch(35% calc(var(--chromatic-chroma) * 0.6) var(--chromatic-hue))'
-        : 'color-mix(in srgb, oklch(95% calc(var(--chromatic-chroma-50) * 0.5) var(--chromatic-hue)) 80%, oklch(100% 0 360))'"
-    >
-      <div relative flex="~ col" z-2 h-100dvh w-100vw of-hidden>
-        <!-- header -->
-        <div>
-          <Header class="flex" p2 />
+  <div mx-10 h-full w-full flex items-center>
+    <div class="title-wrapper" w="40%">
+      <div class="title-container">
+        <div bg="primary-300 dark:primary-700" mb-12 rounded-xl py-4 pl-5 pr-8 text-nowrap text-5xl text-white font-semibold font-quicksand>
+          Project AIRI
         </div>
-        <!-- page -->
-        <div relative flex="~ 1 row gap-y-0 gap-x-2 <md:col">
-          <WidgetStage
-            flex-1 min-w="1/2"
-            :paused="paused"
-            :focus-at="{
-              x: positionCursor.x.value,
-              y: positionCursor.y.value,
-            }"
-          />
-          <InteractiveArea class="flex <md:hidden" flex-1 max-w="500px" min-w="30%" />
-          <MobileInteractiveArea class="hidden <md:block" mx2 mb2 @settings-open="handleSettingsOpen" />
+        <div flex flex-col gap-3>
+          <div rounded-full px-5 py-4 border="3 solid primary-300 dark:primary-700" bg="primary-300/50 dark:primary-700/50" text-2xl>
+            <div>Start</div>
+          </div>
+          <div rounded-full px-5 py-4 border="3 solid primary-300 dark:primary-700" bg="primary-300/50 dark:primary-700/50" text-2xl>
+            <div>Settings</div>
+          </div>
+          <div rounded-full px-5 py-4 border="3 solid primary-300 dark:primary-700" bg="primary-300/50 dark:primary-700/50" text-2xl>
+            <div>About</div>
+          </div>
         </div>
       </div>
-    </AnimatedWave>
-  </Cross>
+    </div>
+  </div>
 </template>
+
+<style>
+.debug .title-wrapper div {
+  box-shadow: 0 0 0 2px #ffffff24;
+}
+
+.title-wrapper {
+  perspective: 800px;
+  perspective-origin: 50% 50%;
+}
+
+.title-container {
+  transform: rotateY(30deg);
+}
+</style>
 
 <route lang="yaml">
 meta:
-  layout: stage
-  stageTransition:
-    name: bubble-wave-out
+  layout: home
 </route>

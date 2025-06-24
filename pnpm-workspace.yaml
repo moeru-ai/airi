@@ -11,17 +11,17 @@ catalog:
   '@xsai-ext/providers-cloud': 0.3.0-beta.4
   '@xsai-ext/providers-local': 0.3.0-beta.4
   '@xsai-ext/shared-providers': 0.3.0-beta.4
-  '@xsai/embed': ^0.3.0-beta.4
+  '@xsai/embed': ^0.3.0-beta.5
   '@xsai/generate-speech': 0.3.0-beta.4
-  '@xsai/generate-text': ^0.3.0-beta.4
-  '@xsai/generate-transcription': ^0.3.0-beta.4
+  '@xsai/generate-text': ^0.3.0-beta.5
+  '@xsai/generate-transcription': ^0.3.0-beta.5
   '@xsai/model': 0.3.0-beta.4
   '@xsai/shared': 0.3.0-beta.4
   '@xsai/shared-chat': 0.3.0-beta.4
   '@xsai/stream-text': 0.3.0-beta.4
   '@xsai/tool': 0.3.0-beta.4
   '@xsai/utils-chat': 0.3.0-beta.4
-  xsschema: ^0.3.0-beta.4
+  xsschema: ^0.3.0-beta.5
 
 catalogs:
   rolldown-vite:
