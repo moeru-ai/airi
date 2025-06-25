@@ -56,11 +56,11 @@
     "yaml"
   ],
 
+  "eslint.nodePath": "",
+  "eslint.runtime": "node",
+  "eslint.options": { "flags": ["unstable_native_nodejs_ts_config"] },
+
   "typescript.tsdk": "node_modules/typescript/lib",
-  "cSpell.words": [
-    "appimage",
-    "localforage"
-  ],
   "[rust]": {
     "editor.defaultFormatter": "rust-lang.rust-analyzer",
     "editor.formatOnSave": true
