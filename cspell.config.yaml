@@ -1,4 +1,4 @@
-version: '0.2'
+version: "0.2"
 ignorePaths: []
 dictionaryDefinitions: []
 dictionaries: []
@@ -97,8 +97,8 @@ words:
   - live2dcubismcore
   - live2dcubismframework
   - Llmmarker
-  - localforage
   - lobehub
+  - localforage
   - logg
   - Lorebook
   - lucide
@@ -138,6 +138,7 @@ words:
   - opentype
   - OPFS
   - opusscript
+  - oxlint
   - pglite
   - pgvector
   - picklist
