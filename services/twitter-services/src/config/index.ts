@@ -4,7 +4,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import process from 'node:process'
 
-import { defu } from 'defu'
+import { merge } from '@moeru/std'
 import { config as configDotenv } from 'dotenv'
 
 import { logger } from '../utils/logger'
@@ -72,7 +72,7 @@ export class ConfigManager {
 
       // Use defu to deeply merge configurations
       // Values in fileConfig take precedence over this.config
-      this.config = defu(fileConfig, this.config)
+      this.config = merge(this.config, fileConfig)
 
       logger.config.log(`Configuration loaded from ${filePath}`)
     }
@@ -93,7 +93,7 @@ export class ConfigManager {
    */
   updateConfig(newConfig: Partial<Config>): void {
     // Use defu to merge new configuration
-    this.config = defu(newConfig, this.config)
+    this.config = merge(this.config, newConfig)
   }
 }
 

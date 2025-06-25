@@ -45,7 +45,6 @@
     "@xsai/stream-text": "catalog:",
     "@xsai/utils-chat": "catalog:",
     "culori": "^4.0.1",
-    "defu": "^6.1.4",
     "drizzle-kit": "^0.31.2",
     "drizzle-orm": "^0.44.2",
     "jszip": "^3.10.1",

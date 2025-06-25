@@ -78,7 +78,6 @@
     "@xsai/stream-text": "catalog:",
     "@xsai/tool": "catalog:",
     "culori": "^4.0.1",
-    "defu": "^6.1.4",
     "gpuu": "^1.0.4",
     "jszip": "^3.10.1",
     "localforage": "^1.10.0",
