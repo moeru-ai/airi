@@ -138,6 +138,7 @@ const routeHeaderMetadata = computed(() => routeHeaderMetadataMap.value[route.pa
         <!-- Content -->
         <div flex="~ col" mx-auto max-w-screen-xl>
           <PageHeader
+            bg="bg-neutral-50 dark:bg-neutral-800"
             :title="routeHeaderMetadata?.title"
             :subtitle="routeHeaderMetadata?.subtitle"
             :disable-back-button="route.path === '/settings'"
