@@ -10,20 +10,20 @@ catalogs:
       specifier: ^0.4.28
       version: 0.4.28
     '@xsai-ext/providers-cloud':
-      specifier: 0.3.0-beta.4
-      version: 0.3.0-beta.4
+      specifier: ^0.3.0-beta.5
+      version: 0.3.0-beta.5
     '@xsai-ext/providers-local':
-      specifier: 0.3.0-beta.4
-      version: 0.3.0-beta.4
+      specifier: ^0.3.0-beta.5
+      version: 0.3.0-beta.5
     '@xsai-ext/shared-providers':
-      specifier: 0.3.0-beta.4
-      version: 0.3.0-beta.4
+      specifier: ^0.3.0-beta.5
+      version: 0.3.0-beta.5
     '@xsai/embed':
       specifier: ^0.3.0-beta.5
       version: 0.3.0-beta.5
     '@xsai/generate-speech':
-      specifier: 0.3.0-beta.4
-      version: 0.3.0-beta.4
+      specifier: ^0.3.0-beta.5
+      version: 0.3.0-beta.5
     '@xsai/generate-text':
       specifier: ^0.3.0-beta.5
       version: 0.3.0-beta.5
@@ -31,23 +31,23 @@ catalogs:
       specifier: ^0.3.0-beta.5
       version: 0.3.0-beta.5
     '@xsai/model':
-      specifier: 0.3.0-beta.4
-      version: 0.3.0-beta.4
+      specifier: ^0.3.0-beta.5
+      version: 0.3.0-beta.5
     '@xsai/shared':
-      specifier: 0.3.0-beta.4
-      version: 0.3.0-beta.4
+      specifier: ^0.3.0-beta.5
+      version: 0.3.0-beta.5
     '@xsai/shared-chat':
-      specifier: 0.3.0-beta.4
-      version: 0.3.0-beta.4
+      specifier: ^0.3.0-beta.5
+      version: 0.3.0-beta.5
     '@xsai/stream-text':
-      specifier: 0.3.0-beta.4
-      version: 0.3.0-beta.4
+      specifier: ^0.3.0-beta.5
+      version: 0.3.0-beta.5
     '@xsai/tool':
-      specifier: 0.3.0-beta.4
-      version: 0.3.0-beta.4
+      specifier: ^0.3.0-beta.5
+      version: 0.3.0-beta.5
     '@xsai/utils-chat':
-      specifier: 0.3.0-beta.4
-      version: 0.3.0-beta.4
+      specifier: ^0.3.0-beta.5
+      version: 0.3.0-beta.5
     xsschema:
       specifier: ^0.3.0-beta.5
       version: 0.3.0-beta.5
@@ -223,10 +223,10 @@ importers:
         version: 0.3.0-beta.5
       '@xsai/shared-chat':
         specifier: 'catalog:'
-        version: 0.3.0-beta.4
+        version: 0.3.0-beta.5
       '@xsai/stream-text':
         specifier: 'catalog:'
-        version: 0.3.0-beta.4
+        version: 0.3.0-beta.5
       defu:
         specifier: ^6.1.4
         version: 6.1.4
@@ -323,31 +323,31 @@ importers:
         version: 13.4.0(vue@3.5.17(typescript@5.8.3))
       '@xsai-ext/providers-cloud':
         specifier: 'catalog:'
-        version: 0.3.0-beta.4
+        version: 0.3.0-beta.5
       '@xsai-ext/providers-local':
         specifier: 'catalog:'
-        version: 0.3.0-beta.4
+        version: 0.3.0-beta.5
       '@xsai-ext/shared-providers':
         specifier: 'catalog:'
-        version: 0.3.0-beta.4
+        version: 0.3.0-beta.5
       '@xsai/generate-speech':
         specifier: 'catalog:'
-        version: 0.3.0-beta.4
+        version: 0.3.0-beta.5
       '@xsai/generate-text':
         specifier: 'catalog:'
         version: 0.3.0-beta.5
       '@xsai/model':
         specifier: 'catalog:'
-        version: 0.3.0-beta.4
+        version: 0.3.0-beta.5
       '@xsai/shared-chat':
         specifier: 'catalog:'
-        version: 0.3.0-beta.4
+        version: 0.3.0-beta.5
       '@xsai/stream-text':
         specifier: 'catalog:'
-        version: 0.3.0-beta.4
+        version: 0.3.0-beta.5
       '@xsai/utils-chat':
         specifier: 'catalog:'
-        version: 0.3.0-beta.4
+        version: 0.3.0-beta.5
       culori:
         specifier: ^4.0.1
         version: 4.0.1
@@ -606,37 +606,37 @@ importers:
         version: 13.4.0(vue@3.5.17(typescript@5.8.3))
       '@xsai-ext/providers-cloud':
         specifier: 'catalog:'
-        version: 0.3.0-beta.4
+        version: 0.3.0-beta.5
       '@xsai-ext/providers-local':
         specifier: 'catalog:'
-        version: 0.3.0-beta.4
+        version: 0.3.0-beta.5
       '@xsai-ext/shared-providers':
         specifier: 'catalog:'
-        version: 0.3.0-beta.4
+        version: 0.3.0-beta.5
       '@xsai-transformers/embed':
         specifier: ^0.0.6
         version: 0.0.6(web-worker@1.5.0)
       '@xsai/generate-speech':
         specifier: 'catalog:'
-        version: 0.3.0-beta.4
+        version: 0.3.0-beta.5
       '@xsai/generate-text':
         specifier: 'catalog:'
         version: 0.3.0-beta.5
       '@xsai/model':
         specifier: 'catalog:'
-        version: 0.3.0-beta.4
+        version: 0.3.0-beta.5
       '@xsai/shared':
         specifier: 'catalog:'
-        version: 0.3.0-beta.4
+        version: 0.3.0-beta.5
       '@xsai/shared-chat':
         specifier: 'catalog:'
-        version: 0.3.0-beta.4
+        version: 0.3.0-beta.5
       '@xsai/stream-text':
         specifier: 'catalog:'
-        version: 0.3.0-beta.4
+        version: 0.3.0-beta.5
       '@xsai/utils-chat':
         specifier: 'catalog:'
-        version: 0.3.0-beta.4
+        version: 0.3.0-beta.5
       culori:
         specifier: ^4.0.1
         version: 4.0.1
@@ -1019,13 +1019,13 @@ importers:
         version: 13.4.0(vue@3.5.17(typescript@5.8.3))
       '@xsai-ext/providers-cloud':
         specifier: 'catalog:'
-        version: 0.3.0-beta.4
+        version: 0.3.0-beta.5
       '@xsai-ext/providers-local':
         specifier: 'catalog:'
-        version: 0.3.0-beta.4
+        version: 0.3.0-beta.5
       '@xsai-ext/shared-providers':
         specifier: 'catalog:'
-        version: 0.3.0-beta.4
+        version: 0.3.0-beta.5
       '@xsai-transformers/embed':
         specifier: ^0.0.6
         version: 0.0.6(web-worker@1.5.0)
@@ -1037,19 +1037,19 @@ importers:
         version: 0.3.0-beta.5
       '@xsai/generate-speech':
         specifier: 'catalog:'
-        version: 0.3.0-beta.4
+        version: 0.3.0-beta.5
       '@xsai/model':
         specifier: 'catalog:'
-        version: 0.3.0-beta.4
+        version: 0.3.0-beta.5
       '@xsai/shared-chat':
         specifier: 'catalog:'
-        version: 0.3.0-beta.4
+        version: 0.3.0-beta.5
       '@xsai/stream-text':
         specifier: 'catalog:'
-        version: 0.3.0-beta.4
+        version: 0.3.0-beta.5
       '@xsai/tool':
         specifier: 'catalog:'
-        version: 0.3.0-beta.4(zod-to-json-schema@3.24.5(zod@3.25.67))(zod@3.25.67)
+        version: 0.3.0-beta.5(zod-to-json-schema@3.24.5(zod@3.25.67))(zod@3.25.67)
       culori:
         specifier: ^4.0.1
         version: 4.0.1
@@ -1279,10 +1279,10 @@ importers:
         version: link:../../packages/server-shared
       '@xsai-ext/providers-cloud':
         specifier: 'catalog:'
-        version: 0.3.0-beta.4
+        version: 0.3.0-beta.5
       '@xsai/generate-speech':
         specifier: 'catalog:'
-        version: 0.3.0-beta.4
+        version: 0.3.0-beta.5
       '@xsai/generate-text':
         specifier: 'catalog:'
         version: 0.3.0-beta.5
@@ -1291,7 +1291,7 @@ importers:
         version: 0.3.0-beta.5
       '@xsai/shared-chat':
         specifier: 'catalog:'
-        version: 0.3.0-beta.4
+        version: 0.3.0-beta.5
       discord.js:
         specifier: ^14.20.0
         version: 14.20.0(bufferutil@4.0.9)(utf-8-validate@5.0.10)
@@ -1412,7 +1412,7 @@ importers:
         version: 0.1.0-beta.1
       '@xsai-ext/providers-cloud':
         specifier: 'catalog:'
-        version: 0.3.0-beta.4
+        version: 0.3.0-beta.5
       '@xsai/embed':
         specifier: 'catalog:'
         version: 0.3.0-beta.5
@@ -1421,13 +1421,13 @@ importers:
         version: 0.3.0-beta.5
       '@xsai/shared-chat':
         specifier: 'catalog:'
-        version: 0.3.0-beta.4
+        version: 0.3.0-beta.5
       '@xsai/tool':
         specifier: 'catalog:'
-        version: 0.3.0-beta.4(zod-to-json-schema@3.24.5(zod@3.25.67))(zod@3.25.67)
+        version: 0.3.0-beta.5(zod-to-json-schema@3.24.5(zod@3.25.67))(zod@3.25.67)
       '@xsai/utils-chat':
         specifier: 'catalog:'
-        version: 0.3.0-beta.4
+        version: 0.3.0-beta.5
       best-effort-json-parser:
         specifier: ^1.1.3
         version: 1.1.3
@@ -5664,17 +5664,14 @@ packages:
   '@xboxreplay/xboxlive-auth@3.3.3':
     resolution: {integrity: sha512-j0AU8pW10LM8O68CTZ5QHnvOjSsnPICy0oQcP7zyM7eWkDQ/InkiQiirQKsPn1XRYDl4ccNu0WM582s3UKwcBg==}
 
-  '@xsai-ext/providers-cloud@0.3.0-beta.4':
-    resolution: {integrity: sha512-LeeDPOtgJT8QsfrVdq11y9aMbG3/lNsLUIW/XhrssqgT5G12C0hsK3x/Oha4m9xUfIQea/0oGV+qQNjEABrb4Q==}
+  '@xsai-ext/providers-cloud@0.3.0-beta.5':
+    resolution: {integrity: sha512-LJMUv32+jWbpP1jJLljELcbV4KDWZrdaWw9k3az4Mg1nLj088FDLYrlgPMRUedIcoiS/IbBPXLKfng6q47kFGA==}
 
-  '@xsai-ext/providers-local@0.3.0-beta.4':
-    resolution: {integrity: sha512-Bfhm1+yvJc/oYxZO/u/e/rFKITh2mu3qwP/fygtNj1G2ukb+wG+aU4sc9IHbH2OAvTPhkrqfSldTx1RVR6Zjig==}
+  '@xsai-ext/providers-local@0.3.0-beta.5':
+    resolution: {integrity: sha512-FcPY3CVU9TVQbGWF6dSWSQeWd34kLQMgoX6gTlaOzfXE/raOJrIurE1xEnfncFKwG6dqwm+g4677hM1RAHAe3g==}
 
   '@xsai-ext/shared-providers@0.2.2':
     resolution: {integrity: sha512-yHQ3RQf3yb/xD5neQGFKmY/9+TmNFDZmH2aOSiS11rqAZwd6wPr/Wkvo/Ls1yiVGYVfZpzZGYp9Q+0iELt5MhA==}
-
-  '@xsai-ext/shared-providers@0.3.0-beta.4':
-    resolution: {integrity: sha512-QZ/o1AUY2lyPJ7J6cfEZKO6Rz9OM9wT46VNkl9qSaiyaqir6bYre0bzgE5+W88AubJQQTKNbw6Fnys0STGgdTA==}
 
   '@xsai-ext/shared-providers@0.3.0-beta.5':
     resolution: {integrity: sha512-/o+s7hX5MDW9QudPBjeyxmCTvF25E86ct6X0RUfcJTg/EAgi75qfuGxtVFJkaRDfmn78tcU6JWE8+EYTHEmWxA==}
@@ -5696,8 +5693,8 @@ packages:
   '@xsai/embed@0.3.0-beta.5':
     resolution: {integrity: sha512-OK82udN5tuP1gumLRqchKzrYW+eNFtXtzDm/RgRCLgoRrqONRrnYa+aMnBYhJBxIBs3xA66lTohXC6c0rcesgQ==}
 
-  '@xsai/generate-speech@0.3.0-beta.4':
-    resolution: {integrity: sha512-vcUzRBAyi9IiW9rZ5eYvGpN9zsSA3DfdoIti2xtO7Wv37QDPMfo43cUYv+3N6tZfcWdyrhM0wW2HXbRUgJspuA==}
+  '@xsai/generate-speech@0.3.0-beta.5':
+    resolution: {integrity: sha512-VCDOhSVZh7Co2rChCqk5dzmXUHZQ8HSyXeukfN4h5FiZvYc7VPffFY9EuUgF7WP3Ms4L00JSYrU+SjYA3mnSDw==}
 
   '@xsai/generate-text@0.3.0-beta.5':
     resolution: {integrity: sha512-EQTrpCWE8sfWIOKUhMjy0HhADWQGBUEW7D6Fmw85cw6Sygh3vbIHx05Bd5ylNK+UD5itXkLx3bBJA8l3R5Wm+Q==}
@@ -5705,11 +5702,8 @@ packages:
   '@xsai/generate-transcription@0.3.0-beta.5':
     resolution: {integrity: sha512-hb9IOGCaoLxFOZAbOFNnl+i+ariSkh46KsycO+vnMNgbW3/t42WBAJAH8sjtx2VGpSMoYxyuAgvR7l7wsSht1g==}
 
-  '@xsai/model@0.3.0-beta.4':
-    resolution: {integrity: sha512-t0H8EaY8jpyR7Buzr70bZAQasRkVe9VtZIc+HY7jcmeXafBEP/3AM2nSUmJkIj4SDjbiNLPqpP3LzB5cQ0u8RA==}
-
-  '@xsai/shared-chat@0.3.0-beta.4':
-    resolution: {integrity: sha512-7vD3XLl5I3RKntFGJTPRe5fGner+49KwRj7MQAUSjykvQGtJ6CoEGcZcQdhnqrsRZga8b2urpiMRZZCHL4avzg==}
+  '@xsai/model@0.3.0-beta.5':
+    resolution: {integrity: sha512-gvKLJHFDxCRaj82bBqnGy88L+VYspgV9aqqKgVxhdgAuK2dxS3213tEmordq+WDzBIdTJXThLDvQjZuCe1e14A==}
 
   '@xsai/shared-chat@0.3.0-beta.5':
     resolution: {integrity: sha512-5c1IgLfGgi9OQER/uyZsLuw0vtwvrpUYdMDl0lHrfiJ7t/KA076BoNHYD2hK7oBtkKwwvzvo9KKvxo+Z4zjMDA==}
@@ -5717,20 +5711,23 @@ packages:
   '@xsai/shared@0.2.2':
     resolution: {integrity: sha512-bgalLd3samx36hDRRmu3M75LY5NfWwh3YRaMwY4Woy7X09JQx+vEqVpJcaIeqcmVqztm8NGYzj8hUru7lwPh0w==}
 
-  '@xsai/shared@0.3.0-beta.4':
-    resolution: {integrity: sha512-Jf/AMvk/MAZu1prsr67mCXwfjjXyDaKgkL/a/3oJ1PKub0VLrtu7W7J8ZE1YOTqPhfiuSjaDxKMoUJe+BY++QA==}
-
   '@xsai/shared@0.3.0-beta.5':
     resolution: {integrity: sha512-0vDW0fkEcFhfd3uG2OEMkoqq/ghh62KJUokMUwaAPKLNcVNAVcFRoslH9lKjdHJziSZ/b59f5rpUEjU3DHooZQ==}
 
   '@xsai/stream-text@0.3.0-beta.4':
     resolution: {integrity: sha512-sH9l6/2Hb3DkaZILRi+kSW4V2AjYRW+YQ3tVFzqR6b/4TriHQaAxYNblSydBTcU7E9E+RgjT8eNeEJ3L3yetjw==}
 
-  '@xsai/tool@0.3.0-beta.4':
-    resolution: {integrity: sha512-2c6jZMjlBYym+gbT9+qgXi3KW93bo5A8jst42VlUpWYZCiudPBiy9puliFG48GkOZlemsfQ072MkNP94WxmMOQ==}
+  '@xsai/stream-text@0.3.0-beta.5':
+    resolution: {integrity: sha512-o0SxwzCA2F1zKcONZJX7qrk+PnKhzldV0jRqQ+NdBzaFLmg/clfqeENlbuwmfIrV5ck0BfPEMTo4gNBfxhsGSQ==}
+
+  '@xsai/tool@0.3.0-beta.5':
+    resolution: {integrity: sha512-+sRCpHtDJ+c3X/53BlbTLZe+XJeg1hjSksP+COKjg7JhzDXyIDtHNOo7i3a0P/Y46JtsQAk9sje9f9eBSPbhpQ==}
 
   '@xsai/utils-chat@0.3.0-beta.4':
     resolution: {integrity: sha512-SPjmQJiHl3FrIlWB69oRe+LNXqnGBeN9xC87e0a3SF3vOqIP6aiZt/Ng4bQEB9ABke7eSYMav9IBVuZyDh+bGg==}
+
+  '@xsai/utils-chat@0.3.0-beta.5':
+    resolution: {integrity: sha512-nDzlC4Da++AK/MGzwmfyREKvXrQqfhGCNTv+WZFQi5digPCDWueWThaFwA0A7PdD+mDrvoD9YMBaOCY3Aow+Tw==}
 
   abbrev@1.1.1:
     resolution: {integrity: sha512-nne9/IiQ/hzIhY6pdDnbBtz7DjPTKrY00P/zvPSm5pOFkl6xuGrGnXn/VtTNNfNtAfZ9/1RtehkszU9qcTii0Q==}
@@ -16683,21 +16680,17 @@ snapshots:
       '@xboxreplay/errors': 0.1.0
       axios: feaxios@0.0.23
 
-  '@xsai-ext/providers-cloud@0.3.0-beta.4':
+  '@xsai-ext/providers-cloud@0.3.0-beta.5':
     dependencies:
       '@xsai-ext/shared-providers': 0.3.0-beta.5
       '@xsai/shared': 0.3.0-beta.5
 
-  '@xsai-ext/providers-local@0.3.0-beta.4':
+  '@xsai-ext/providers-local@0.3.0-beta.5':
     dependencies:
       '@xsai-ext/shared-providers': 0.3.0-beta.5
       '@xsai/shared': 0.3.0-beta.5
 
   '@xsai-ext/shared-providers@0.2.2':
-    dependencies:
-      '@xsai/shared': 0.3.0-beta.5
-
-  '@xsai-ext/shared-providers@0.3.0-beta.4':
     dependencies:
       '@xsai/shared': 0.3.0-beta.5
 
@@ -16733,7 +16726,7 @@ snapshots:
     dependencies:
       '@xsai/shared': 0.3.0-beta.5
 
-  '@xsai/generate-speech@0.3.0-beta.4':
+  '@xsai/generate-speech@0.3.0-beta.5':
     dependencies:
       '@xsai/shared': 0.3.0-beta.5
 
@@ -16746,11 +16739,7 @@ snapshots:
     dependencies:
       '@xsai/shared': 0.3.0-beta.5
 
-  '@xsai/model@0.3.0-beta.4':
-    dependencies:
-      '@xsai/shared': 0.3.0-beta.5
-
-  '@xsai/shared-chat@0.3.0-beta.4':
+  '@xsai/model@0.3.0-beta.5':
     dependencies:
       '@xsai/shared': 0.3.0-beta.5
 
@@ -16760,15 +16749,17 @@ snapshots:
 
   '@xsai/shared@0.2.2': {}
 
-  '@xsai/shared@0.3.0-beta.4': {}
-
   '@xsai/shared@0.3.0-beta.5': {}
 
   '@xsai/stream-text@0.3.0-beta.4':
     dependencies:
       '@xsai/shared-chat': 0.3.0-beta.5
 
-  '@xsai/tool@0.3.0-beta.4(zod-to-json-schema@3.24.5(zod@3.25.67))(zod@3.25.67)':
+  '@xsai/stream-text@0.3.0-beta.5':
+    dependencies:
+      '@xsai/shared-chat': 0.3.0-beta.5
+
+  '@xsai/tool@0.3.0-beta.5(zod-to-json-schema@3.24.5(zod@3.25.67))(zod@3.25.67)':
     dependencies:
       '@xsai/shared': 0.3.0-beta.5
       '@xsai/shared-chat': 0.3.0-beta.5
@@ -16782,6 +16773,10 @@ snapshots:
       - zod-to-json-schema
 
   '@xsai/utils-chat@0.3.0-beta.4':
+    dependencies:
+      '@xsai/shared-chat': 0.3.0-beta.5
+
+  '@xsai/utils-chat@0.3.0-beta.5':
     dependencies:
       '@xsai/shared-chat': 0.3.0-beta.5
 
