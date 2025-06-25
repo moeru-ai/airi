@@ -2,6 +2,8 @@ import { defineConfig } from '@moeru/eslint-config'
 
 export default defineConfig({
   oxlint: true,
+  // TODO: enable this
+  preferArrow: false,
   preferLet: false,
   typescript: true,
   unocss: true,
