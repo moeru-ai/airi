@@ -104,7 +104,7 @@
   },
   "devDependencies": {
     "@histoire/plugin-vue": "1.0.0-alpha.2",
-    "@moeru/std": "0.1.0-beta.1",
+    "@moeru/std": "catalog:",
     "@types/culori": "^4.0.0",
     "@types/three": "^0.177.0",
     "@unocss/reset": "^66.2.3",

@@ -6,6 +6,9 @@ settings:
 
 catalogs:
   default:
+    '@moeru/std':
+      specifier: ^0.1.0-beta.4
+      version: 0.1.0-beta.4
     '@proj-airi/drizzle-duckdb-wasm':
       specifier: ^0.4.28
       version: 0.4.28
@@ -551,8 +554,8 @@ importers:
         specifier: ^0.4.4
         version: 0.4.4(@modelcontextprotocol/sdk@1.13.1)(zod@3.25.67)
       '@moeru/std':
-        specifier: 0.1.0-beta.1
-        version: 0.1.0-beta.1
+        specifier: 'catalog:'
+        version: 0.1.0-beta.4
       '@pixiv/three-vrm':
         specifier: ^3.4.1
         version: 3.4.1(three@0.177.0)
@@ -917,8 +920,8 @@ importers:
         version: 6.1.4
     devDependencies:
       '@moeru/std':
-        specifier: 0.1.0-beta.1
-        version: 0.1.0-beta.1
+        specifier: 'catalog:'
+        version: 0.1.0-beta.4
 
   packages/server-shared: {}
 
@@ -1127,8 +1130,8 @@ importers:
         specifier: 1.0.0-alpha.2
         version: 1.0.0-alpha.2(histoire@1.0.0-alpha.2(@types/node@24.0.3)(bufferutil@4.0.9)(less@4.3.0)(lightningcss@1.30.1)(terser@5.43.1)(utf-8-validate@5.0.10)(vite@6.3.5(@types/node@24.0.3)(jiti@2.4.2)(less@4.3.0)(lightningcss@1.30.1)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)))(vite@6.3.5(@types/node@24.0.3)(jiti@2.4.2)(less@4.3.0)(lightningcss@1.30.1)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0))(vue@3.5.17(typescript@5.8.3))
       '@moeru/std':
-        specifier: 0.1.0-beta.1
-        version: 0.1.0-beta.1
+        specifier: 'catalog:'
+        version: 0.1.0-beta.4
       '@types/culori':
         specifier: ^4.0.0
         version: 4.0.0
@@ -1314,8 +1317,8 @@ importers:
         specifier: ^1.0.10
         version: 1.0.10
       '@moeru/std':
-        specifier: 0.1.0-beta.1
-        version: 0.1.0-beta.1
+        specifier: 'catalog:'
+        version: 0.1.0-beta.4
       '@proj-airi/server-sdk':
         specifier: ^0.6.1
         version: 0.6.1
@@ -1408,8 +1411,8 @@ importers:
         specifier: ^1.0.10
         version: 1.0.10
       '@moeru/std':
-        specifier: 0.1.0-beta.1
-        version: 0.1.0-beta.1
+        specifier: 'catalog:'
+        version: 0.1.0-beta.4
       '@xsai-ext/providers-cloud':
         specifier: 'catalog:'
         version: 0.3.0-beta.5
@@ -3557,6 +3560,9 @@ packages:
 
   '@moeru/std@0.1.0-beta.1':
     resolution: {integrity: sha512-ImfoMBchZP+F4aos2nFmlcipcgIhT+ZkUUVWB/bBHEqyB/w/nbI/xgA8a1ibJUtG7RcQnQH+SKom0r4/1xCWqA==}
+
+  '@moeru/std@0.1.0-beta.4':
+    resolution: {integrity: sha512-L2EPYM0x83MyOP96r80VJmd2BoK/VUlyUtkv3ybCLinIbOOvyYxi4BUxLBcDSxAxoRqp5YsfPniUN+xMPuToFg==}
 
   '@mswjs/interceptors@0.37.6':
     resolution: {integrity: sha512-wK+5pLK5XFmgtH3aQ2YVvA3HohS3xqV/OxuVOdNx9Wpnz7VE/fnC+e1A7ln6LFYeck7gOJ/dsZV6OLplOtAJ2w==}
@@ -14151,6 +14157,8 @@ snapshots:
       - supports-color
 
   '@moeru/std@0.1.0-beta.1': {}
+
+  '@moeru/std@0.1.0-beta.4': {}
 
   '@mswjs/interceptors@0.37.6':
     dependencies:

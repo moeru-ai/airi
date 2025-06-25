@@ -26,7 +26,7 @@
     "@ffmpeg-installer/ffmpeg": "^1.1.0",
     "@grammyjs/files": "^1.1.1",
     "@guiiai/logg": "^1.0.10",
-    "@moeru/std": "0.1.0-beta.1",
+    "@moeru/std": "catalog:",
     "@xsai-ext/providers-cloud": "catalog:",
     "@xsai/embed": "catalog:",
     "@xsai/generate-text": "catalog:",

@@ -42,6 +42,6 @@
     "defu": "^6.1.4"
   },
   "devDependencies": {
-    "@moeru/std": "0.1.0-beta.1"
+    "@moeru/std": "catalog:"
   }
 }

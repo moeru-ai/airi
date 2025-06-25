@@ -7,6 +7,7 @@ packages:
   - '!**/dist/**'
 
 catalog:
+  '@moeru/std': ^0.1.0-beta.4
   '@proj-airi/drizzle-duckdb-wasm': ^0.4.28
   '@xsai-ext/providers-cloud': &xsai ^0.3.0-beta.5
   '@xsai-ext/providers-local': *xsai
