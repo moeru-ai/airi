@@ -4,8 +4,9 @@ import type { ChatCompletion, Message } from 'neuri/openai'
 import type { Logger } from '../../utils/logger'
 import type { LLMConfig, LLMResponse } from './types'
 
+import { withRetry } from '@moeru/std'
+
 import { config } from '../../composables/config'
-import { toRetriable } from '../../utils/helper'
 import { useLogger } from '../../utils/logger'
 
 export abstract class BaseLLMHandler {
@@ -39,10 +40,9 @@ export abstract class BaseLLMHandler {
   }
 
   protected createRetryHandler<T>(handler: (context: NeuriContext) => Promise<T>) {
-    return toRetriable<NeuriContext, T>(
-      this.config.retryLimit ?? 3,
-      this.config.delayInterval ?? 1000,
-      handler,
-    )
+    return withRetry<NeuriContext, T>(handler, {
+      retry: this.config.retryLimit ?? 3,
+      retryDelay: this.config.delayInterval ?? 1000,
+    })
   }
 }
