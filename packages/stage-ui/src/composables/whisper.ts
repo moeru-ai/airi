@@ -1,7 +1,7 @@
 import type { MessageEvents, MessageGenerate, ProgressMessageEvents } from '../libs/workers/types'
 
+import { merge } from '@moeru/std'
 import { useWebWorker } from '@vueuse/core'
-import { defu } from 'defu'
 import { onUnmounted, ref, watch } from 'vue'
 
 export interface UseWhisperOptions {
@@ -16,7 +16,7 @@ export interface UseWhisperOptions {
 }
 
 export function useWhisper(url: string, options?: Partial<UseWhisperOptions>) {
-  const opts = defu<Partial<UseWhisperOptions>, UseWhisperOptions[]>(options, {
+  const opts = merge<UseWhisperOptions>({
     onLoading: () => {},
     onInitiate: () => {},
     onProgress: () => {},
@@ -25,7 +25,7 @@ export function useWhisper(url: string, options?: Partial<UseWhisperOptions>) {
     onStart: () => {},
     onUpdate: () => {},
     onComplete: () => {},
-  })
+  }, options)
 
   const {
     post: whisperPost,

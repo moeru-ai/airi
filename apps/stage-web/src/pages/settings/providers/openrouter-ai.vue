@@ -36,7 +36,7 @@ const apiKey = computed({
 })
 
 const baseUrl = computed({
-  get: () => providers.value[providerId]?.baseUrl || providerMetadata.value?.defaultOptions?.baseUrl || '',
+  get: () => providers.value[providerId]?.baseUrl || providerMetadata.value?.defaultOptions?.().baseUrl || '',
   set: (value) => {
     if (!providers.value[providerId])
       providers.value[providerId] = {}
@@ -50,7 +50,7 @@ onMounted(() => {
 
   // Initialize refs with current values
   apiKey.value = providers.value[providerId]?.apiKey || ''
-  baseUrl.value = providers.value[providerId]?.baseUrl || providerMetadata.value?.defaultOptions?.baseUrl || ''
+  baseUrl.value = providers.value[providerId]?.baseUrl || providerMetadata.value?.defaultOptions?.().baseUrl || ''
 })
 
 // Watch settings and update the provider configuration
@@ -58,7 +58,7 @@ watch([apiKey, baseUrl], () => {
   providers.value[providerId] = {
     ...providers.value[providerId],
     apiKey: apiKey.value,
-    baseUrl: baseUrl.value || providerMetadata.value?.defaultOptions?.baseUrl || '',
+    baseUrl: baseUrl.value || providerMetadata.value?.defaultOptions?.().baseUrl || '',
   }
 })
 
@@ -91,7 +91,7 @@ function handleResetSettings() {
       <ProviderAdvancedSettings :title="t('settings.pages.providers.common.section.advanced.title')">
         <ProviderBaseUrlInput
           v-model="baseUrl"
-          :placeholder="providerMetadata?.defaultOptions?.baseUrl as string || ''"
+          :placeholder="providerMetadata?.defaultOptions?.().baseUrl as string || ''"
         />
       </ProviderAdvancedSettings>
     </ProviderSettingsContainer>

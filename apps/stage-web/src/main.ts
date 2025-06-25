@@ -1,3 +1,4 @@
+import type { Plugin } from 'vue'
 import type { Router } from 'vue-router'
 
 import { autoAnimatePlugin } from '@formkit/auto-animate/vue'
@@ -48,7 +49,8 @@ router.isReady()
 
 createApp(App)
   .use(MotionPlugin)
-  .use(autoAnimatePlugin)
+  // TODO: Fix autoAnimatePlugin type error
+  .use(autoAnimatePlugin as unknown as Plugin)
   .use(router)
   .use(pinia)
   .use(i18n)

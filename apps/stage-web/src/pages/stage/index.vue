@@ -3,11 +3,11 @@ import { WidgetStage } from '@proj-airi/stage-ui/components'
 import { useDark, useMouse } from '@vueuse/core'
 import { ref } from 'vue'
 
-import Cross from '../components/Backgrounds/Cross.vue'
-import Header from '../components/Layouts/Header.vue'
-import InteractiveArea from '../components/Layouts/InteractiveArea.vue'
-import MobileInteractiveArea from '../components/Layouts/MobileInteractiveArea.vue'
-import AnimatedWave from '../components/Widgets/AnimatedWave.vue'
+import Cross from '../../components/Backgrounds/Cross.vue'
+import Header from '../../components/Layouts/Header.vue'
+import InteractiveArea from '../../components/Layouts/InteractiveArea.vue'
+import MobileInteractiveArea from '../../components/Layouts/MobileInteractiveArea.vue'
+import AnimatedWave from '../../components/Widgets/AnimatedWave.vue'
 
 const dark = useDark()
 const paused = ref(false)

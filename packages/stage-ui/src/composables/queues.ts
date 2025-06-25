@@ -1,6 +1,7 @@
 import type { Emotion } from '../constants/emotions'
 import type { UseQueueReturn } from './queue'
 
+import { sleep } from '@moeru/std'
 import { ref } from 'vue'
 
 import { llmInferenceEndToken } from '../constants'
@@ -84,10 +85,6 @@ export function useDelayMessageQueue() {
       ok: true,
       delay: delaySeconds,
     }
-  }
-
-  function sleep(ms: number) {
-    return new Promise(resolve => setTimeout(resolve, ms))
   }
 
   return useQueue<string>({

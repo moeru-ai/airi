@@ -88,6 +88,7 @@ words:
   - iconify
   - intlify
   - Kawaii
+  - kebabcase
   - kwaa
   - lemonnekogh
   - libsodium
@@ -175,6 +176,7 @@ words:
   - tolist
   - tresjs
   - tsdown
+  - turborepo
   - unbundle
   - unhead
   - unocss
@@ -184,6 +186,7 @@ words:
   - vaul
   - velin
   - VITE
+  - vitepress
   - vllm
   - Volcengine
   - vrma

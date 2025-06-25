@@ -67,6 +67,15 @@ jobs:
           sudo apt update
           sudo apt install -y libwebkit2gtk-4.1-dev
 
+      # Turborepo
+      - name: Cache turbo build setup
+        uses: actions/cache@v4
+        with:
+          path: .turbo
+          key: ${{ runner.os }}-turbo-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-turbo-
+
       - uses: pnpm/action-setup@v3
       - uses: actions/setup-node@v4
         with:

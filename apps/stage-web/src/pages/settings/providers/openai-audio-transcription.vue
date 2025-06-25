@@ -21,7 +21,7 @@ const providersStore = useProvidersStore()
 const { providers } = storeToRefs(providersStore) as { providers: RemovableRef<Record<string, any>> }
 
 // Get provider metadata
-const providerId = 'openrouter-ai'
+const providerId = 'openai'
 const providerMetadata = computed(() => providersStore.getProviderMetadata(providerId))
 
 // Use computed properties for settings
@@ -36,7 +36,7 @@ const apiKey = computed({
 })
 
 const baseUrl = computed({
-  get: () => providers.value[providerId]?.baseUrl || providerMetadata.value?.defaultOptions?.().baseUrl || '',
+  get: () => providers.value[providerId]?.baseUrl || 'https://api.openai.com/v1/',
   set: (value) => {
     if (!providers.value[providerId])
       providers.value[providerId] = {}
@@ -46,11 +46,16 @@ const baseUrl = computed({
 })
 
 onMounted(() => {
-  providersStore.initializeProvider(providerId)
+  // Initialize provider if it doesn't exist
+  if (!providers.value[providerId]) {
+    providers.value[providerId] = {
+      baseUrl: 'https://api.openai.com/v1/',
+    }
+  }
 
   // Initialize refs with current values
   apiKey.value = providers.value[providerId]?.apiKey || ''
-  baseUrl.value = providers.value[providerId]?.baseUrl || providerMetadata.value?.defaultOptions?.().baseUrl || ''
+  baseUrl.value = providers.value[providerId]?.baseUrl || 'https://api.openai.com/v1/'
 })
 
 // Watch settings and update the provider configuration
@@ -58,20 +63,20 @@ watch([apiKey, baseUrl], () => {
   providers.value[providerId] = {
     ...providers.value[providerId],
     apiKey: apiKey.value,
-    baseUrl: baseUrl.value || providerMetadata.value?.defaultOptions?.().baseUrl || '',
+    baseUrl: baseUrl.value || 'https://api.openai.com/v1/',
   }
 })
 
 function handleResetSettings() {
   providers.value[providerId] = {
-    ...(providerMetadata.value?.defaultOptions as any),
+    baseUrl: 'https://api.openai.com/v1/',
   }
 }
 </script>
 
 <template>
   <ProviderSettingsLayout
-    :provider-name="providerMetadata?.localizedName"
+    :provider-name="providerMetadata?.localizedName || 'OpenAI'"
     :provider-icon="providerMetadata?.icon"
     :on-back="() => router.back()"
   >
@@ -83,15 +88,15 @@ function handleResetSettings() {
       >
         <ProviderApiKeyInput
           v-model="apiKey"
-          :provider-name="providerMetadata?.localizedName"
-          placeholder="sk-or-..."
+          :provider-name="providerMetadata?.localizedName || 'OpenAI'"
+          placeholder="sk-..."
         />
       </ProviderBasicSettings>
 
       <ProviderAdvancedSettings :title="t('settings.pages.providers.common.section.advanced.title')">
         <ProviderBaseUrlInput
           v-model="baseUrl"
-          :placeholder="providerMetadata?.defaultOptions?.().baseUrl as string || ''"
+          placeholder="https://api.openai.com/v1/"
         />
       </ProviderAdvancedSettings>
     </ProviderSettingsContainer>

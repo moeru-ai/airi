@@ -2,11 +2,11 @@ import type { Agent, Neuri } from 'neuri'
 
 import type { ChatHistory } from './types'
 
+import { withRetry } from '@moeru/std'
 import { agent } from 'neuri'
 import { system, user } from 'neuri/openai'
 
 import { config as appConfig } from '../../composables/config'
-import { toRetriable } from '../../utils/helper'
 import { useLogger } from '../../utils/logger'
 import { generateChatAgentPrompt } from './adapter'
 
@@ -56,13 +56,12 @@ export async function generateChatResponse(
       return content
     }
 
-    const retriableHandler = toRetriable<any, string>(
-      config.retryLimit ?? 3,
-      config.delayInterval ?? 1000,
-      handleCompletion,
-    )
+    const retryHandler = withRetry<any, string>(handleCompletion, {
+      retry: config.retryLimit ?? 3,
+      retryDelay: config.delayInterval ?? 1000,
+    })
 
-    return await retriableHandler(c)
+    return await retryHandler(c)
   })
 
   if (!content) {

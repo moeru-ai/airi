@@ -3,9 +3,9 @@ import type { Neuri, NeuriContext } from 'neuri'
 import type { Logger } from '../../utils/logger'
 import type { MineflayerWithAgents } from './types'
 
+import { withRetry } from '@moeru/std'
 import { system, user } from 'neuri/openai'
 
-import { toRetriable } from '../../utils/helper'
 import { handleLLMCompletion } from './completion'
 import { generateStatusPrompt } from './prompt'
 
@@ -29,11 +29,13 @@ export async function handleChatMessage(username: string, message: string, bot: 
       [...bot.memory.chatHistory, system(statusPrompt)],
       async (c: NeuriContext) => {
         logger.log('handling response...')
-        return toRetriable<NeuriContext, string>(
-          3,
-          1000,
+        return withRetry<NeuriContext, string>(
           ctx => handleLLMCompletion(ctx, bot, logger),
-          { onError: err => logger.withError(err).log('error occurred') },
+          {
+            retry: 3,
+            retryDelay: 1000,
+            onError: err => logger.withError(err).log('error occurred'),
+          },
         )(c)
       },
     )

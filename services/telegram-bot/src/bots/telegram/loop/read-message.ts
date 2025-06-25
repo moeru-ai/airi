@@ -18,10 +18,10 @@ export async function readMessage(
   unreadMessages: Message[],
   abortController: AbortController,
 ): Promise<{
-    loop?: boolean
-    break?: boolean
-    result: string
-  }> {
+  loop?: boolean
+  break?: boolean
+  result: string
+}> {
   const logger = useLogg('readMessage').useGlobalConfig()
 
   const lastNMessages = await findLastNMessages(action.chatId, 50)

@@ -9,10 +9,6 @@ const messageInput = ref<string>('')
 const ttsProcessed = ref<string[]>([])
 const processing = ref<boolean>(false)
 
-// async function sleep(ms: number) {
-//   return new Promise(resolve => setTimeout(resolve, ms))
-// }
-
 const ttsQueue = useQueue<string>({
   handlers: [
     async (ctx) => {

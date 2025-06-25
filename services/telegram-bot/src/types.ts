@@ -73,16 +73,16 @@ export interface ListStickersAction {
   action: 'list_stickers'
 }
 
-export type Action =
-  | ContinueAction
-  | BreakAction
-  | SleepAction
-  | ListChatsAction
-  | SendMessageAction
-  | SendStickerAction
-  | SearchGoogleAction
-  | ReadMessagesAction
-  | ListStickersAction
+export type Action
+  = | ContinueAction
+    | BreakAction
+    | SleepAction
+    | ListChatsAction
+    | SendMessageAction
+    | SendStickerAction
+    | SearchGoogleAction
+    | ReadMessagesAction
+    | ListStickersAction
 
 export interface AttentionConfig {
   initialResponseRate: number

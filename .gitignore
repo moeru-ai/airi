@@ -51,3 +51,6 @@ devenv.*
 
 target/
 crates/*/target/
+
+# turborepo
+.turbo

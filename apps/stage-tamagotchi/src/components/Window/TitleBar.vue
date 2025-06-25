@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { platform } from '@tauri-apps/plugin-os'
+
 defineProps<{
   title: string
   icon: string
@@ -9,7 +11,10 @@ defineProps<{
   <div
     bg="neutral-100 dark:neutral-900" w="100dvw"
     top="0"
-    data-tauri-drag-region fixed z-100 w-full select-none py-2 pl-20 pr-4
+    data-tauri-drag-region fixed z-100 w-full select-none py-2 pr-4
+    :class="[
+      platform() === 'macos' ? 'pl-20' : 'pl-4',
+    ]"
   >
     <div data-tauri-drag-region flex>
       <div

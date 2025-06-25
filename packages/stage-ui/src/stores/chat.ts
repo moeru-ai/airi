@@ -3,13 +3,13 @@ import type { Message, SystemMessage } from '@xsai/shared-chat'
 
 import type { ChatAssistantMessage, ChatMessage, ChatSlices } from '../types/chat'
 
+import { readableStreamToAsyncIterator } from '@moeru/std'
 import { defineStore, storeToRefs } from 'pinia'
 import { ref, toRaw } from 'vue'
 
 import { useQueue } from '../composables'
 import { useLlmmarkerParser } from '../composables/llmmarkerParser'
 import { useLLM } from '../stores/llm'
-import { asyncIteratorFromReadableStream } from '../utils'
 import { useAiriCardStore } from './modules'
 
 export interface ErrorMessage {
@@ -175,7 +175,7 @@ export const useChatStore = defineStore('chat', () => {
 
       let fullText = ''
 
-      for await (const textPart of asyncIteratorFromReadableStream(res.textStream, async v => v)) {
+      for await (const textPart of readableStreamToAsyncIterator(res.textStream, async v => v)) {
         slicesQueue.add({
           type: 'text',
           text: textPart,

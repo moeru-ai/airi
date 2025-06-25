@@ -1,3 +1,5 @@
+import type { Plugin } from 'vue'
+
 import { autoAnimatePlugin } from '@formkit/auto-animate/vue'
 import Tres from '@tresjs/core'
 import { MotionPlugin } from '@vueuse/motion'
@@ -23,7 +25,8 @@ const router = createRouter({
 
 createApp(App)
   .use(MotionPlugin)
-  .use(autoAnimatePlugin)
+  // TODO: Fix autoAnimatePlugin type error
+  .use(autoAnimatePlugin as unknown as Plugin)
   .use(router)
   .use(pinia)
   .use(i18n)

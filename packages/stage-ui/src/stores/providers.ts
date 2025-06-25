@@ -1,4 +1,14 @@
-import type { ChatProvider, ChatProviderWithExtraOptions, EmbedProvider, EmbedProviderWithExtraOptions, SpeechProvider, SpeechProviderWithExtraOptions, TranscriptionProvider, TranscriptionProviderWithExtraOptions } from '@xsai-ext/shared-providers'
+import type {
+  ChatProvider,
+  ChatProviderWithExtraOptions,
+  EmbedProvider,
+  EmbedProviderWithExtraOptions,
+  SpeechProvider,
+  SpeechProviderWithExtraOptions,
+  TranscriptionProvider,
+  TranscriptionProviderWithExtraOptions,
+} from '@xsai-ext/shared-providers'
+import type { ProgressInfo } from '@xsai-transformers/shared/types'
 import type {
   UnAlibabaCloudOptions,
   UnElevenLabsOptions,
@@ -7,7 +17,7 @@ import type {
   VoiceProviderWithExtraOptions,
 } from 'unspeech'
 
-import { useLocalStorage } from '@vueuse/core'
+import { computedAsync, useLocalStorage } from '@vueuse/core'
 import {
   createAnthropic,
   createDeepSeek,
@@ -25,6 +35,7 @@ import {
 } from '@xsai-ext/providers-cloud'
 import { createOllama, createPlayer2 } from '@xsai-ext/providers-local'
 import { listModels } from '@xsai/model'
+import { isWebGPUSupported } from 'gpuu/webgpu'
 import { defineStore } from 'pinia'
 import {
   createUnAlibabaCloud,
@@ -40,16 +51,49 @@ import { models as elevenLabsModels } from './providers/elevenlabs/list-models'
 
 export interface ProviderMetadata {
   id: string
+  order?: number
   category: 'chat' | 'embed' | 'speech' | 'transcription'
   tasks: string[]
   nameKey: string // i18n key for provider name
   name: string // Default name (fallback)
+  localizedName?: string
   descriptionKey: string // i18n key for description
   description: string // Default description (fallback)
+  localizedDescription?: string
+  configured?: boolean
+  /**
+   * Indicates whether the provider is available.
+   * If not specified, the provider is always available.
+   *
+   * May be specified when any of the following criteria is required:
+   *
+   * Platform requirements:
+   *
+   * - app-* providers are only available on desktop, this is responsible for Tauri runtime checks
+   * - web-* providers are only available on web, this means Node.js and Tauri should not be imported or used
+   *
+   * System spec requirements:
+   *
+   * - may requires WebGPU / NVIDIA / other types of GPU,
+   *   on Web, WebGPU will automatically compiled to use targeting GPU hardware
+   * - may requires significant amount of GPU memory to run, especially for
+   *   using of small language models within browser or Tauri app
+   * - may requires significant amount of memory to run, especially for those
+   *   non-WebGPU supported environments.
+   */
+  isAvailableBy?: () => Promise<boolean> | boolean
+  /**
+   * Iconify JSON icon name for the provider.
+   *
+   * Icons are available for most of the AI provides under @proj-airi/lobe-icons.
+   */
   icon?: string
   iconColor?: string
+  /**
+   * In case of having image instead of icon, you can specify the image URL here.
+   */
   iconImage?: string
-  defaultOptions?: Record<string, unknown>
+  defaultOptions?: () => Record<string, unknown>
   createProvider: (config: Record<string, unknown>) =>
     | ChatProvider
     | ChatProviderWithExtraOptions
@@ -62,11 +106,11 @@ export interface ProviderMetadata {
   capabilities: {
     listModels?: (config: Record<string, unknown>) => Promise<ModelInfo[]>
     listVoices?: (config: Record<string, unknown>) => Promise<VoiceInfo[]>
+    loadModel?: (config: Record<string, unknown>, hooks?: { onProgress?: (progress: ProgressInfo) => Promise<void> | void }) => Promise<void>
   }
   validators: {
     validateProviderConfig: (config: Record<string, unknown>) => Promise<boolean> | boolean
   }
-  configured?: boolean
 }
 
 export interface ModelInfo {
@@ -238,9 +282,9 @@ export const useProvidersStore = defineStore('providers', () => {
       descriptionKey: 'settings.pages.providers.provider.openrouter.description',
       description: 'openrouter.ai',
       icon: 'i-lobe-icons:openrouter',
-      defaultOptions: {
+      defaultOptions: () => ({
         baseUrl: 'https://openrouter.ai/api/v1/',
-      },
+      }),
       createProvider: config => createOpenRouter((config.apiKey as string).trim(), (config.baseUrl as string).trim()),
       capabilities: {
         listModels: async (config) => {
@@ -253,6 +297,212 @@ export const useProvidersStore = defineStore('providers', () => {
         },
       },
     },
+    'app-local-audio-speech': {
+      id: 'app-local-audio-speech',
+      category: 'speech',
+      tasks: ['text-to-speech', 'tts'],
+      isAvailableBy: async () => {
+        if ('window' in globalThis && globalThis.window != null) {
+          if ('__TAURI__' in globalThis.window && globalThis.window.__TAURI__ != null) {
+            return true
+          }
+        }
+
+        return false
+      },
+      nameKey: 'settings.pages.providers.provider.app-local-audio-speech.title',
+      name: 'App (Local)',
+      descriptionKey: 'settings.pages.providers.provider.app-local-audio-speech.description',
+      description: 'https://github.com/huggingface/candle',
+      icon: 'i-lobe-icons:huggingface',
+      defaultOptions: () => ({}),
+      createProvider: config => createOpenAI((config.baseUrl as string).trim()),
+      capabilities: {
+        listModels: async (config) => {
+          return (await listModels({
+            ...createOpenAI((config.baseUrl as string).trim()).model(),
+          })).map((model) => {
+            return {
+              id: model.id,
+              name: model.id,
+              provider: 'app-local-candle',
+              description: '',
+              contextLength: 0,
+              deprecated: false,
+            } satisfies ModelInfo
+          })
+        },
+      },
+      validators: {
+        validateProviderConfig: (config) => {
+          if (!config.baseUrl)
+            return false
+
+          // Check if the Ollama server is reachable
+          return fetch(`${(config.baseUrl as string).trim()}models`)
+            .then(response => response.ok)
+            .catch(() => false)
+        },
+      },
+    },
+    'app-local-audio-transcription': {
+      id: 'app-local-audio-transcription',
+      category: 'transcription',
+      tasks: ['speech-to-text', 'automatic-speech-recognition', 'asr', 'stt'],
+      isAvailableBy: async () => {
+        if ('window' in globalThis && globalThis.window != null) {
+          if ('__TAURI__' in globalThis.window && globalThis.window.__TAURI__ != null) {
+            return true
+          }
+        }
+
+        return false
+      },
+      nameKey: 'settings.pages.providers.provider.app-local-audio-transcription.title',
+      name: 'App (Local)',
+      descriptionKey: 'settings.pages.providers.provider.app-local-audio-transcription.description',
+      description: 'https://github.com/huggingface/candle',
+      icon: 'i-lobe-icons:huggingface',
+      defaultOptions: () => ({}),
+      createProvider: config => createOpenAI((config.baseUrl as string).trim()),
+      capabilities: {
+        listModels: async (config) => {
+          return (await listModels({
+            ...createOpenAI((config.baseUrl as string).trim()).model(),
+          })).map((model) => {
+            return {
+              id: model.id,
+              name: model.id,
+              provider: 'app-local-candle',
+              description: '',
+              contextLength: 0,
+              deprecated: false,
+            } satisfies ModelInfo
+          })
+        },
+      },
+      validators: {
+        validateProviderConfig: (config) => {
+          if (!config.baseUrl)
+            return false
+
+          // Check if the Ollama server is reachable
+          return fetch(`${(config.baseUrl as string).trim()}models`)
+            .then(response => response.ok)
+            .catch(() => false)
+        },
+      },
+    },
+    'browser-local-audio-speech': {
+      id: 'browser-local-audio-speech',
+      category: 'speech',
+      tasks: ['text-to-speech', 'tts'],
+      isAvailableBy: async () => {
+        const webGPUAvailable = await isWebGPUSupported()
+        if (webGPUAvailable) {
+          return true
+        }
+
+        if ('navigator' in globalThis && globalThis.navigator != null && 'deviceMemory' in globalThis.navigator && typeof globalThis.navigator.deviceMemory === 'number') {
+          const memory = globalThis.navigator.deviceMemory
+          // Check if the device has at least 8GB of RAM
+          if (memory >= 8) {
+            return true
+          }
+        }
+
+        return false
+      },
+      nameKey: 'settings.pages.providers.provider.browser-local-audio-speech.title',
+      name: 'Browser (Local)',
+      descriptionKey: 'settings.pages.providers.provider.browser-local-audio-speech.description',
+      description: 'https://github.com/moeru-ai/xsai-transformers',
+      icon: 'i-lobe-icons:huggingface',
+      defaultOptions: () => ({}),
+      createProvider: config => createOpenAI((config.baseUrl as string).trim()),
+      capabilities: {
+        listModels: async (config) => {
+          return (await listModels({
+            ...createOpenAI((config.baseUrl as string).trim()).model(),
+          })).map((model) => {
+            return {
+              id: model.id,
+              name: model.id,
+              provider: 'browser-local-transformers',
+              description: '',
+              contextLength: 0,
+              deprecated: false,
+            } satisfies ModelInfo
+          })
+        },
+      },
+      validators: {
+        validateProviderConfig: (config) => {
+          if (!config.baseUrl)
+            return false
+
+          // Check if the Ollama server is reachable
+          return fetch(`${(config.baseUrl as string).trim()}models`)
+            .then(response => response.ok)
+            .catch(() => false)
+        },
+      },
+    },
+    'browser-local-audio-transcription': {
+      id: 'browser-local-audio-transcription',
+      category: 'transcription',
+      tasks: ['speech-to-text', 'automatic-speech-recognition', 'asr', 'stt'],
+      isAvailableBy: async () => {
+        const webGPUAvailable = await isWebGPUSupported()
+        if (webGPUAvailable) {
+          return true
+        }
+
+        if ('navigator' in globalThis && globalThis.navigator != null && 'deviceMemory' in globalThis.navigator && typeof globalThis.navigator.deviceMemory === 'number') {
+          const memory = globalThis.navigator.deviceMemory
+          // Check if the device has at least 8GB of RAM
+          if (memory >= 8) {
+            return true
+          }
+        }
+
+        return false
+      },
+      nameKey: 'settings.pages.providers.provider.browser-local-audio-transcription.title',
+      name: 'Browser (Local)',
+      descriptionKey: 'settings.pages.providers.provider.browser-local-audio-transcription.description',
+      description: 'https://github.com/moeru-ai/xsai-transformers',
+      icon: 'i-lobe-icons:huggingface',
+      defaultOptions: () => ({}),
+      createProvider: config => createOpenAI((config.baseUrl as string).trim()),
+      capabilities: {
+        listModels: async (config) => {
+          return (await listModels({
+            ...createOpenAI((config.baseUrl as string).trim()).model(),
+          })).map((model) => {
+            return {
+              id: model.id,
+              name: model.id,
+              provider: 'browser-local-transformers',
+              description: '',
+              contextLength: 0,
+              deprecated: false,
+            } satisfies ModelInfo
+          })
+        },
+      },
+      validators: {
+        validateProviderConfig: (config) => {
+          if (!config.baseUrl)
+            return false
+
+          // Check if the Ollama server is reachable
+          return fetch(`${(config.baseUrl as string).trim()}models`)
+            .then(response => response.ok)
+            .catch(() => false)
+        },
+      },
+    },
     'ollama': {
       id: 'ollama',
       category: 'chat',
@@ -262,9 +512,9 @@ export const useProvidersStore = defineStore('providers', () => {
       descriptionKey: 'settings.pages.providers.provider.ollama.description',
       description: 'ollama.com',
       icon: 'i-lobe-icons:ollama',
-      defaultOptions: {
+      defaultOptions: () => ({
         baseUrl: 'http://localhost:11434/v1/',
-      },
+      }),
       createProvider: config => createOllama((config.baseUrl as string).trim()),
       capabilities: {
         listModels: async (config) => {
@@ -303,9 +553,9 @@ export const useProvidersStore = defineStore('providers', () => {
       descriptionKey: 'settings.pages.providers.provider.ollama.description',
       description: 'ollama.com',
       icon: 'i-lobe-icons:ollama',
-      defaultOptions: {
+      defaultOptions: () => ({
         baseUrl: 'http://localhost:11434/v1/',
-      },
+      }),
       createProvider: config => createOllama((config.baseUrl as string).trim()),
       capabilities: {
         listModels: async (config) => {
@@ -402,9 +652,9 @@ export const useProvidersStore = defineStore('providers', () => {
       descriptionKey: 'settings.pages.providers.provider.openai.description',
       description: 'openai.com',
       icon: 'i-lobe-icons:openai',
-      defaultOptions: {
+      defaultOptions: () => ({
         baseUrl: 'https://api.openai.com/v1/',
-      },
+      }),
       createProvider: config => createOpenAI((config.apiKey as string).trim(), (config.baseUrl as string).trim()),
       capabilities: {
         listModels: async (config) => {
@@ -437,9 +687,44 @@ export const useProvidersStore = defineStore('providers', () => {
       descriptionKey: 'settings.pages.providers.provider.openai.description',
       description: 'openai.com',
       icon: 'i-lobe-icons:openai',
-      defaultOptions: {
+      defaultOptions: () => ({
         baseUrl: 'https://api.openai.com/v1/',
+      }),
+      createProvider: config => createOpenAI((config.apiKey as string).trim(), (config.baseUrl as string).trim()),
+      capabilities: {
+        listModels: async (config) => {
+          return (await listModels({
+            ...createOpenAI((config.apiKey as string).trim(), (config.baseUrl as string).trim()).model(),
+          })).map((model) => {
+            return {
+              id: model.id,
+              name: model.id,
+              provider: 'openai',
+              description: '',
+              contextLength: 0,
+              deprecated: false,
+            } satisfies ModelInfo
+          })
+        },
       },
+      validators: {
+        validateProviderConfig: (config) => {
+          return !!config.apiKey && !!config.baseUrl
+        },
+      },
+    },
+    'openai-audio-transcription': {
+      id: 'openai-audio-transcription',
+      category: 'transcription',
+      tasks: ['speech-to-text', 'automatic-speech-recognition', 'asr', 'stt'],
+      nameKey: 'settings.pages.providers.provider.openai.title',
+      name: 'OpenAI',
+      descriptionKey: 'settings.pages.providers.provider.openai.description',
+      description: 'openai.com',
+      icon: 'i-lobe-icons:openai',
+      defaultOptions: () => ({
+        baseUrl: 'https://api.openai.com/v1/',
+      }),
       createProvider: config => createOpenAI((config.apiKey as string).trim(), (config.baseUrl as string).trim()),
       capabilities: {
         listModels: async (config) => {
@@ -472,9 +757,9 @@ export const useProvidersStore = defineStore('providers', () => {
       descriptionKey: 'settings.pages.providers.provider.anthropic.description',
       description: 'anthropic.com',
       icon: 'i-lobe-icons:anthropic',
-      defaultOptions: {
+      defaultOptions: () => ({
         baseUrl: 'https://api.anthropic.com/v1/',
-      },
+      }),
       createProvider: config => createAnthropic((config.apiKey as string).trim(), (config.baseUrl as string).trim()),
       capabilities: {
         listModels: async () => {
@@ -545,9 +830,9 @@ export const useProvidersStore = defineStore('providers', () => {
       descriptionKey: 'settings.pages.providers.provider.google-generative-ai.description',
       description: 'ai.google.dev',
       icon: 'i-lobe-icons:gemini',
-      defaultOptions: {
+      defaultOptions: () => ({
         baseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai/',
-      },
+      }),
       createProvider: config => createGoogleGenerativeAI((config.apiKey as string).trim(), (config.baseUrl as string).trim()),
       capabilities: {
         listModels: async (config) => {
@@ -604,9 +889,9 @@ export const useProvidersStore = defineStore('providers', () => {
       },
     },
     'deepseek': {
+      id: 'deepseek',
       category: 'chat',
       tasks: ['text-generation'],
-      id: 'deepseek',
       nameKey: 'settings.pages.providers.provider.deepseek.title',
       name: 'DeepSeek',
       descriptionKey: 'settings.pages.providers.provider.deepseek.description',
@@ -644,13 +929,13 @@ export const useProvidersStore = defineStore('providers', () => {
       descriptionKey: 'settings.pages.providers.provider.elevenlabs.description',
       description: 'elevenlabs.io',
       icon: 'i-simple-icons:elevenlabs',
-      defaultOptions: {
+      defaultOptions: () => ({
         baseUrl: 'https://unspeech.hyp3r.link/v1/',
         voiceSettings: {
           similarityBoost: 0.75,
           stability: 0.5,
         },
-      },
+      }),
       createProvider: config => createUnElevenLabs((config.apiKey as string).trim(), (config.baseUrl as string).trim()) as SpeechProviderWithExtraOptions<string, UnElevenLabsOptions>,
       capabilities: {
         listModels: async () => {
@@ -715,9 +1000,9 @@ export const useProvidersStore = defineStore('providers', () => {
       descriptionKey: 'settings.pages.providers.provider.microsoft-speech.description',
       description: 'speech.microsoft.com',
       iconColor: 'i-lobe-icons:microsoft',
-      defaultOptions: {
+      defaultOptions: () => ({
         baseUrl: 'https://unspeech.hyp3r.link/v1/',
-      },
+      }),
       createProvider: config => createUnMicrosoft((config.apiKey as string).trim(), (config.baseUrl as string).trim()) as SpeechProviderWithExtraOptions<string, UnMicrosoftOptions>,
       capabilities: {
         listModels: async () => {
@@ -766,9 +1051,9 @@ export const useProvidersStore = defineStore('providers', () => {
       descriptionKey: 'settings.pages.providers.provider.alibaba-cloud-model-studio.description',
       description: 'bailian.console.aliyun.com',
       iconColor: 'i-lobe-icons:alibabacloud',
-      defaultOptions: {
+      defaultOptions: () => ({
         baseUrl: 'https://unspeech.hyp3r.link/v1/',
-      },
+      }),
       createProvider: config => createUnAlibabaCloud((config.apiKey as string).trim(), (config.baseUrl as string).trim()),
       capabilities: {
         listVoices: async (config) => {
@@ -825,9 +1110,9 @@ export const useProvidersStore = defineStore('providers', () => {
       descriptionKey: 'settings.pages.providers.provider.volcengine.description',
       description: 'volcengine.com',
       iconColor: 'i-lobe-icons:volcengine',
-      defaultOptions: {
+      defaultOptions: () => ({
         baseUrl: 'https://unspeech.hyp3r.link/v1/',
-      },
+      }),
       createProvider: config => createUnVolcengine((config.apiKey as string).trim(), (config.baseUrl as string).trim()),
       capabilities: {
         listVoices: async (config) => {
@@ -972,9 +1257,9 @@ export const useProvidersStore = defineStore('providers', () => {
       descriptionKey: 'settings.pages.providers.provider.featherless.description',
       description: 'featherless.ai',
       icon: 'i-lobe-icons:featherless-ai',
-      defaultOptions: {
+      defaultOptions: () => ({
         baseUrl: 'https://api.featherless.ai/v1/',
-      },
+      }),
       createProvider: config => createOpenAI((config.apiKey as string).trim(), (config.baseUrl as string).trim()),
       capabilities: {
         listModels: async (config) => {
@@ -1029,9 +1314,9 @@ export const useProvidersStore = defineStore('providers', () => {
       descriptionKey: 'settings.pages.providers.provider.perplexity.description',
       description: 'perplexity.ai',
       icon: 'i-lobe-icons:perplexity',
-      defaultOptions: {
+      defaultOptions: () => ({
         baseUrl: 'https://api.perplexity.ai',
-      },
+      }),
       createProvider: config => createPerplexity((config.apiKey as string).trim(), (config.baseUrl as string).trim()),
       capabilities: {
         listModels: async () => {
@@ -1166,8 +1451,9 @@ export const useProvidersStore = defineStore('providers', () => {
   function initializeProvider(providerId: string) {
     if (!providerCredentials.value[providerId]) {
       const metadata = providerMetadata[providerId]
+      const defaultOptions = metadata.defaultOptions?.() || {}
       providerCredentials.value[providerId] = {
-        baseUrl: metadata.defaultOptions?.baseUrl || '',
+        baseUrl: defaultOptions.baseUrl || '',
       }
     }
   }
@@ -1187,11 +1473,7 @@ export const useProvidersStore = defineStore('providers', () => {
   watch(providerCredentials, updateConfigurationStatus, { deep: true })
 
   // Available providers (only those that are properly configured)
-  const availableProviders = computed(() => {
-    return Object.keys(providerMetadata).filter(providerId =>
-      configuredProviders.value[providerId],
-    )
-  })
+  const availableProviders = computed(() => Object.keys(providerMetadata).filter(providerId => configuredProviders.value[providerId]))
 
   // Store available models for each provider
   const availableModels = ref<Record<string, ModelInfo[]>>({})
@@ -1302,20 +1584,32 @@ export const useProvidersStore = defineStore('providers', () => {
     }
   }
 
-  const availableProvidersMetadata = computed(() => {
-    return availableProviders.value.map(id => getProviderMetadata(id))
-  })
+  const availableProvidersMetadata = computedAsync<ProviderMetadata[]>(async () => {
+    const providers: ProviderMetadata[] = []
+
+    for (const provider of allProvidersMetadata.value) {
+      const p = getProviderMetadata(provider.id)
+      const isAvailableBy = p.isAvailableBy || (() => true)
+
+      const isAvailable = await isAvailableBy()
+      if (isAvailable) {
+        providers.push(provider)
+      }
+    }
+
+    return providers
+  }, [])
 
   const allChatProvidersMetadata = computed(() => {
-    return allProvidersMetadata.value.filter(metadata => metadata.category === 'chat')
+    return availableProvidersMetadata.value.filter(metadata => metadata.category === 'chat')
   })
 
   const allAudioSpeechProvidersMetadata = computed(() => {
-    return allProvidersMetadata.value.filter(metadata => metadata.category === 'speech')
+    return availableProvidersMetadata.value.filter(metadata => metadata.category === 'speech')
   })
 
   const allAudioTranscriptionProvidersMetadata = computed(() => {
-    return allProvidersMetadata.value.filter(metadata => metadata.category === 'transcription')
+    return availableProvidersMetadata.value.filter(metadata => metadata.category === 'transcription')
   })
 
   const configuredChatProvidersMetadata = computed(() => {

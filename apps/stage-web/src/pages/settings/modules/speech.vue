@@ -188,7 +188,7 @@ function updateCustomModelName(value: string) {
                 v-model="activeSpeechProvider"
                 name="speech-provider"
                 :value="metadata.id"
-                :title="metadata.localizedName"
+                :title="metadata.localizedName || 'Unknown'"
                 :description="metadata.localizedDescription"
               />
             </fieldset>

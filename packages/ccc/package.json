@@ -2,21 +2,8 @@
   "name": "@proj-airi/ccc",
   "type": "module",
   "private": true,
-  "exports": {
-    ".": {
-      "types": "./dist/index.d.mts",
-      "default": "./dist/index.mjs"
-    }
-  },
-  "module": "./dist/index.mjs",
-  "types": "./dist/index.d.mts",
-  "files": [
-    "dist"
-  ],
+  "exports": "./src/index.ts",
   "scripts": {
-    "dev": "pnpm run build",
-    "stub": "pnpm run build",
-    "build": "tsdown",
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "eslint .",

@@ -11,7 +11,7 @@ https://www.magicpattern.design/tools/css-backgrounds
 */
 .cross-background-container {
   background-color: #ffffff;
-  --cross-color: oklch(0.85 calc(var(--theme-colors-chroma) * 0.3) var(--theme-colors-hue) / 0.2);
+  --cross-color: oklch(0.85 calc(var(--chromatic-chroma) * 0.3) var(--chromatic-hue) / 0.2);
   background:
     radial-gradient(circle, transparent 20%, #ffffff 20%, #ffffff 80%, transparent 80%, transparent),
     radial-gradient(circle, transparent 20%, #ffffff 20%, #ffffff 80%, transparent 80%, transparent) 25px 25px,
@@ -26,7 +26,7 @@ https://www.magicpattern.design/tools/css-backgrounds
 
 .dark .cross-background-container {
   background-color: #121212;
-  --cross-color: oklch(0.2 calc(var(--theme-colors-chroma) * 0.3) var(--theme-colors-hue));
+  --cross-color: oklch(0.2 calc(var(--chromatic-chroma) * 0.3) var(--chromatic-hue));
   background:
     radial-gradient(circle, transparent 20%, #121212 20%, #121212 80%, transparent 80%, transparent),
     radial-gradient(circle, transparent 20%, #121212 20%, #121212 80%, transparent 80%, transparent) 25px 25px,

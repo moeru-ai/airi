@@ -1,15 +1,17 @@
 <script setup lang="ts">
 import { useMcpStore, useSettings } from '@proj-airi/stage-ui/stores'
 import { listen } from '@tauri-apps/api/event'
+import { Window } from '@tauri-apps/api/window'
+import { platform } from '@tauri-apps/plugin-os'
 import { useEventListener } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { onMounted, watch } from 'vue'
+import { computed, onMounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterView } from 'vue-router'
 
 import { useWindowControlStore } from './stores/window-controls'
 
-const { language, themeColorsHue, themeColorsHueDynamic } = storeToRefs(useSettings())
+const { language, themeColorsHue, themeColorsHueDynamic, allowVisibleOnAllWorkspaces } = storeToRefs(useSettings())
 const i18n = useI18n()
 const windowControlStore = useWindowControlStore()
 const mcpStore = useMcpStore()
@@ -28,7 +30,7 @@ onMounted(() => {
 })
 
 watch(themeColorsHue, () => {
-  document.documentElement.style.setProperty('--theme-colors-hue', themeColorsHue.value.toString())
+  document.documentElement.style.setProperty('--chromatic-hue', themeColorsHue.value.toString())
 }, { immediate: true })
 
 watch(themeColorsHueDynamic, () => {
@@ -38,6 +40,20 @@ watch(themeColorsHueDynamic, () => {
 listen('mcp_plugin_destroyed', () => {
   mcpStore.connected = false
 })
+
+const isMac = computed(() => platform() === 'macos')
+
+if (isMac.value) {
+  watch(allowVisibleOnAllWorkspaces, async (value) => {
+    const window = await Window.getByLabel('main')
+
+    if (!window) {
+      return
+    }
+
+    window.setVisibleOnAllWorkspaces(value)
+  })
+}
 </script>
 
 <template>
@@ -46,7 +62,7 @@ listen('mcp_plugin_destroyed', () => {
 
 <style>
 /* We need this to properly animate the CSS variable */
-@property --theme-colors-hue {
+@property --chromatic-hue {
   syntax: '<number>';
   initial-value: 0;
   inherits: true;
@@ -54,10 +70,10 @@ listen('mcp_plugin_destroyed', () => {
 
 @keyframes hue-anim {
   from {
-    --theme-colors-hue: 0;
+    --chromatic-hue: 0;
   }
   to {
-    --theme-colors-hue: 360;
+    --chromatic-hue: 360;
   }
 }
 
