@@ -276,10 +276,6 @@ flowchart TD
   style Memory_PGVector fill:#f9f9d4,stroke:#333,stroke-width:1px
 ```
 
-## 使用されているモデル
-
-- [onnx-community/whisper-large-v3-turbo · Hugging Face](https://huggingface.co/onnx-community/whisper-large-v3-turbo)
-
 ## 類似プロジェクト
 
 ### オープンソースのもの
