@@ -18,29 +18,4 @@ export default defineConfig({
     '**/drizzle/**',
     '**/.astro/**',
   ],
-}, {
-  rules: {
-    'antfu/import-dedupe': 'error',
-    'import/order': 'off',
-    'perfectionist/sort-imports': [
-      'error',
-      {
-        groups: [
-          'type-builtin',
-          'type-import',
-          'type-internal',
-          ['type-parent', 'type-sibling', 'type-index'],
-          'value-builtin',
-          'value-external',
-          'value-internal',
-          ['value-parent', 'value-sibling', 'value-index'],
-          ['wildcard-value-parent', 'wildcard-value-sibling', 'wildcard-value-index'],
-          'side-effect',
-          'style',
-        ],
-        newlinesBetween: 'always',
-      },
-    ],
-    'style/padding-line-between-statements': 'error',
-  },
 })
