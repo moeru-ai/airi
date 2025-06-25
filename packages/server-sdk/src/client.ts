@@ -2,7 +2,6 @@ import type { WebSocketBaseEvent, WebSocketEvent, WebSocketEvents } from '@proj-
 
 import { sleep } from '@moeru/std'
 import WebSocket from 'crossws/websocket'
-import { defu } from 'defu'
 
 export interface ClientOptions<C = undefined> {
   url?: string
@@ -17,7 +16,7 @@ export interface ClientOptions<C = undefined> {
 
 export class Client<C = undefined> {
   private connected = false
-  private opts: Required<ClientOptions<C>>
+  private opts: Required<Omit<ClientOptions<C>, 'token'>> & Pick<ClientOptions<C>, 'token'>
   private websocket: WebSocket | undefined
   private eventListeners: Map<keyof WebSocketEvents<C>, Array<(data: WebSocketBaseEvent<any, any>) => void | Promise<void>>> = new Map()
 
@@ -25,17 +24,15 @@ export class Client<C = undefined> {
   private shouldClose = false
 
   constructor(options: ClientOptions<C>) {
-    this.opts = defu<Required<ClientOptions<C>>, Required<Omit<ClientOptions<C>, 'name' | 'token'>>[]>(
-      options,
-      {
-        url: 'ws://localhost:6121/ws',
-        possibleEvents: [],
-        onError: () => { },
-        onClose: () => { },
-        autoConnect: true,
-        autoReconnect: true,
-      },
-    )
+    this.opts = {
+      url: 'ws://localhost:6121/ws',
+      possibleEvents: [],
+      onError: () => { },
+      onClose: () => { },
+      autoConnect: true,
+      autoReconnect: true,
+      ...options,
+    }
 
     if (this.opts.autoConnect) {
       try {

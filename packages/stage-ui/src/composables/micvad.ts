@@ -1,21 +1,21 @@
 import type { RealTimeVADOptions } from '@ricky0123/vad-web'
 import type { MaybeRef } from '@vueuse/shared'
 
+import { merge } from '@moeru/std'
 import { getDefaultRealTimeVADOptions, MicVAD } from '@ricky0123/vad-web'
 import { usePermission } from '@vueuse/core'
 import { tryOnMounted } from '@vueuse/shared'
-import { defu } from 'defu'
 import { onUnmounted, ref, toRef, unref, watch } from 'vue'
 
-export function useMicVAD(deviceId: MaybeRef<ConstrainDOMString | undefined>, options?: Partial<RealTimeVADOptions> & { auto?: boolean }) {
-  const opts = defu<Partial<RealTimeVADOptions> & { auto?: boolean }, Array<Omit<RealTimeVADOptions, 'stream'> & { auto?: boolean }>>(options ?? {}, {
+export function useMicVAD(deviceId: MaybeRef<ConstrainDOMString | undefined>, options: Partial<RealTimeVADOptions> & { auto?: boolean } = {}) {
+  const opts = merge<Omit<RealTimeVADOptions, 'stream'> & { auto?: boolean }, Partial<RealTimeVADOptions> & { auto?: boolean }>({
     ...getDefaultRealTimeVADOptions('v5'),
     preSpeechPadFrames: 30,
     positiveSpeechThreshold: 0.5, // default is 0.5
     negativeSpeechThreshold: 0.5 - 0.15, // default is 0.5 - 0.15
     minSpeechFrames: 30, // default is 9
     auto: true,
-  })
+  }, options)
 
   const micVad = ref<MicVAD>()
   const microphoneAccess = usePermission('microphone')
