@@ -6,14 +6,14 @@
   "description": "Airi tamagotchi app built with Tauri",
   "author": "LemonNekoGH",
   "scripts": {
-    "app:build": "pnpm tauri build",
+    "typecheck": "vue-tsc --noEmit --composite false",
     "app:dev": "pnpm tauri dev",
-    "build": "vite build",
-    "build:unpack": "tauri build --no-bundle",
+    "app:build": "pnpm tauri build",
     "dev": "vite",
+    "build": "vite build",
     "preview": "vite preview",
     "tauri": "tauri",
-    "typecheck": "vue-tsc --noEmit --composite false"
+    "build:unpack": "tauri build --no-bundle"
   },
   "dependencies": {
     "@formkit/auto-animate": "^0.8.2",
@@ -28,9 +28,9 @@
     "@proj-airi/ui": "workspace:^",
     "@ricky0123/vad-web": "^0.0.24",
     "@stdlib/string-base-kebabcase": "^0.2.2",
-    "@tauri-apps/api": "^2.6.0",
-    "@tauri-apps/plugin-global-shortcut": "^2.3.0",
-    "@tauri-apps/plugin-os": "~2.3.0",
+    "@tauri-apps/api": "^2.5.0",
+    "@tauri-apps/plugin-global-shortcut": "^2.2.1",
+    "@tauri-apps/plugin-os": "~2.2.2",
     "@tresjs/cientos": "^4.3.1",
     "@tresjs/core": "^4.3.6",
     "@vueuse/core": "^13.4.0",
@@ -76,9 +76,9 @@
   "devDependencies": {
     "@iconify-json/carbon": "^1.2.10",
     "@iconify-json/eos-icons": "^1.2.2",
-    "@iconify-json/lucide": "^1.2.52",
+    "@iconify-json/lucide": "^1.2.51",
     "@iconify-json/mingcute": "^1.2.3",
-    "@iconify-json/simple-icons": "^1.2.40",
+    "@iconify-json/simple-icons": "^1.2.39",
     "@iconify-json/solar": "^1.2.2",
     "@iconify-json/svg-spinners": "^1.2.2",
     "@iconify-json/vscode-icons": "^1.2.23",
@@ -89,13 +89,13 @@
     "@proj-airi/unplugin-fetch": "^0.1.6",
     "@proj-airi/unplugin-live2d-sdk": "^0.1.5",
     "@shikijs/markdown-it": "^3.7.0",
-    "@tauri-apps/cli": "^2.6.0",
+    "@tauri-apps/cli": "^2.5.0",
     "@types/culori": "^4.0.0",
     "@types/nprogress": "^0.2.3",
     "@types/three": "^0.177.0",
     "@types/yauzl": "^2.10.3",
-    "@unocss/reset": "^66.3.2",
-    "@vitejs/plugin-vue": "^6.0.0",
+    "@unocss/reset": "^66.2.3",
+    "@vitejs/plugin-vue": "^5.2.4",
     "@vue-macros/volar": "^3.0.0-beta.14",
     "@vueuse/motion": "^3.0.3",
     "@xsai-transformers/embed": "^0.0.6",
@@ -107,6 +107,6 @@
     "vite-bundle-visualizer": "^1.2.1",
     "vite-plugin-vue-devtools": "^7.7.7",
     "vite-plugin-vue-layouts": "^0.11.0",
-    "vue-tsc": "^3.0.0-beta.4"
+    "vue-tsc": "^3.0.0-beta.3"
   }
 }

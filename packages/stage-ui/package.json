@@ -28,11 +28,11 @@
     "./utils": "./src/utils/index.ts"
   },
   "scripts": {
+    "typecheck": "vue-tsc --noEmit",
+    "story:dev": "histoire dev",
     "story:build": "histoire build",
     "story:build-base": "histoire build --base /ui",
-    "story:dev": "histoire dev",
-    "story:preview": "histoire preview",
-    "typecheck": "vue-tsc --noEmit"
+    "story:preview": "histoire preview"
   },
   "dependencies": {
     "@formkit/auto-animate": "^0.8.2",
@@ -106,10 +106,10 @@
     "@moeru/std": "catalog:",
     "@types/culori": "^4.0.0",
     "@types/three": "^0.177.0",
-    "@unocss/reset": "^66.3.2",
-    "@vitejs/plugin-vue": "^6.0.0",
+    "@unocss/reset": "^66.2.3",
+    "@vitejs/plugin-vue": "^5.2.4",
     "histoire": "1.0.0-alpha.2",
-    "unocss": "^66.3.2",
+    "unocss": "^66.2.3",
     "vite": "^6.3.5",
     "vue": "^3.5.17"
   }
