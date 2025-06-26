@@ -3,22 +3,23 @@
   "type": "module",
   "private": true,
   "scripts": {
-    "dev": "astro dev",
-    "start": "astro dev",
+    "astro": "astro",
     "build": "astro build",
     "build:base": "astro build --base /docs",
+    "dev": "astro dev",
     "preview": "astro preview",
-    "astro": "astro"
+    "start": "astro dev"
   },
   "devDependencies": {
     "98.css": "^0.1.21",
     "@astrojs/starlight": "^0.34.4",
     "@fontsource/fusion-pixel-12px-proportional-sc": "^5.2.5",
     "@fontsource/quicksand": "^5.2.8",
-    "astro": "^5.9.4",
+    "astro": "^5.10.1",
     "astro-og-canvas": "^0.7.0",
+    "canvaskit-wasm": "^0.40.0",
     "sharp": "^0.34.2",
-    "unocss": "^66.2.3",
+    "unocss": "^66.3.2",
     "vue": "^3.5.17"
   }
 }
