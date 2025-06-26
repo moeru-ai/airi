@@ -1,4 +1,4 @@
-version: '0.2'
+version: "0.2"
 ignorePaths: []
 dictionaryDefinitions: []
 dictionaries: []
@@ -12,6 +12,7 @@ words:
   - aliyun
   - allseto
   - APNG
+  - appimage
   - astrojs
   - Attributify
   - attw
@@ -97,6 +98,7 @@ words:
   - live2dcubismframework
   - Llmmarker
   - lobehub
+  - localforage
   - logg
   - Lorebook
   - lucide
@@ -136,6 +138,7 @@ words:
   - opentype
   - OPFS
   - opusscript
+  - oxlint
   - pglite
   - pgvector
   - picklist
