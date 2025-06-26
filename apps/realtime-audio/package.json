@@ -25,17 +25,17 @@
     "@xsai/generate-text": "catalog:",
     "@xsai/shared-chat": "catalog:",
     "@xsai/stream-text": "catalog:",
-    "es-toolkit": "^1.39.4",
+    "es-toolkit": "^1.39.5",
     "vue": "^3.5.17"
   },
   "devDependencies": {
     "@iconify-json/solar": "^1.2.2",
-    "@unocss/reset": "^66.2.3",
-    "@vitejs/plugin-vue": "^5.2.4",
+    "@unocss/reset": "^66.3.2",
+    "@vitejs/plugin-vue": "^6.0.0",
     "superjson": "^2.2.2",
     "unplugin-vue-router": "^0.12.0",
     "vite": "catalog:rolldown-vite",
     "vue-router": "^4.5.1",
-    "vue-tsc": "^3.0.0-beta.3"
+    "vue-tsc": "^3.0.0-beta.4"
   }
 }

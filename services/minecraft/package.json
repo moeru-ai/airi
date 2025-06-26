@@ -16,7 +16,7 @@
     "@moeru/std": "catalog:",
     "@proj-airi/server-sdk": "^0.6.1",
     "awilix": "^12.0.5",
-    "es-toolkit": "^1.39.4",
+    "es-toolkit": "^1.39.5",
     "eventemitter3": "^5.0.1",
     "minecraft-data": "^3.90.0",
     "mineflayer": "^4.29.0",
@@ -36,7 +36,7 @@
     "valibot": "1.0.0-beta.9",
     "vec3": "^0.1.10",
     "zod": "^3.25.67",
-    "zod-to-json-schema": "^3.24.5"
+    "zod-to-json-schema": "^3.24.6"
   },
   "devDependencies": {
     "@dotenvx/dotenvx": "^1.45.1",

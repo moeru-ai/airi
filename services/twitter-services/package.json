@@ -12,7 +12,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@browserbasehq/stagehand": "^2.3.1",
+    "@browserbasehq/stagehand": "^2.4.0",
     "@guiiai/logg": "^1.0.10",
     "@modelcontextprotocol/sdk": "^1.13.1",
     "@moeru/std": "catalog:",
@@ -25,7 +25,7 @@
     "zod": "^3.25.67"
   },
   "devDependencies": {
-    "@types/node": "^24.0.3",
+    "@types/node": "^24.0.4",
     "tsx": "^4.20.3",
     "typescript": "^5.8.3"
   }
