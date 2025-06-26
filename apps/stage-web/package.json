@@ -82,9 +82,9 @@
   "devDependencies": {
     "@iconify-json/carbon": "^1.2.10",
     "@iconify-json/eos-icons": "^1.2.2",
-    "@iconify-json/lucide": "^1.2.52",
+    "@iconify-json/lucide": "^1.2.51",
     "@iconify-json/mingcute": "^1.2.3",
-    "@iconify-json/simple-icons": "^1.2.40",
+    "@iconify-json/simple-icons": "^1.2.39",
     "@iconify-json/solar": "^1.2.2",
     "@iconify-json/svg-spinners": "^1.2.2",
     "@iconify-json/vscode-icons": "^1.2.23",
@@ -97,8 +97,8 @@
     "@types/nprogress": "^0.2.3",
     "@types/three": "^0.177.0",
     "@types/yauzl": "^2.10.3",
-    "@unocss/reset": "^66.3.2",
-    "@vitejs/plugin-vue": "^6.0.0",
+    "@unocss/reset": "^66.2.3",
+    "@vitejs/plugin-vue": "^5.2.4",
     "@vue-macros/volar": "^3.0.0-beta.14",
     "@vueuse/motion": "^3.0.3",
     "hfup": "^0.5.0",
@@ -110,6 +110,6 @@
     "vite-plugin-pwa": "^1.0.0",
     "vite-plugin-vue-devtools": "^7.7.7",
     "vite-plugin-vue-layouts": "^0.11.0",
-    "vue-tsc": "^3.0.0-beta.4"
+    "vue-tsc": "^3.0.0-beta.3"
   }
 }
