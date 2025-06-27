@@ -5,7 +5,11 @@ use candle_core::{Device, IndexOp, Tensor};
 use candle_nn::VarBuilder;
 use candle_transformers::models::whisper::{self as whisper_model, Config, audio};
 use clap::ValueEnum;
-use hf_hub::{Repo, RepoType, api::sync::Api};
+use hf_hub::{
+  Repo,
+  RepoType,
+  api::sync::{Api, ApiBuilder},
+};
 use tokenizers::Tokenizer;
 
 pub enum WhisperModel {
@@ -97,18 +101,58 @@ pub struct WhisperProcessor {
   pub device:      Device,
 }
 
+pub struct WhisperProgressEmitter {
+  filename: String,
+}
+
+impl WhisperProgressEmitter {
+  fn new(filename: &str) -> Self {
+    Self {
+      filename: filename.to_string(),
+    }
+  }
+}
+
+impl hf_hub::api::Progress for WhisperProgressEmitter {
+  fn init(
+    &mut self,
+    size: usize,
+    filename: &str,
+  ) {
+    todo!();
+  }
+
+  fn update(
+    &mut self,
+    size: usize,
+  ) {
+    todo!();
+  }
+
+  fn finish(&mut self) {
+    todo!();
+  }
+}
+
 impl WhisperProcessor {
   pub fn new(
     model: WhichWhisperModel,
     device: Device,
   ) -> Result<Self> {
     // Load the Whisper model based on the provided model type
-    let api = Api::new()?;
+    let api = ApiBuilder::new().with_progress(false).build()?;
     let (model_id, revision) = model.model_and_revision();
-    let repo = api.repo(Repo::with_revision(model_id.to_string(), RepoType::Model, revision.to_string()));
+    let repo = api.repo(Repo::with_revision(
+      model_id.to_string(),
+      RepoType::Model,
+      revision.to_string(),
+    ));
 
-    let config_filename = repo.get("config.json")?;
+    let config_filename =
+      repo.download_with_progress("config.json", WhisperProgressEmitter::new("config.json"))?;
+    // TODO: for RainbowBird
     let tokenizer_filename = repo.get("tokenizer.json")?;
+    // TODO: for RainbowBird
     let model_filename = repo.get("model.safetensors")?;
 
     let config: Config = serde_json::from_str(&std::fs::read_to_string(config_filename)?)?;
@@ -116,10 +160,15 @@ impl WhisperProcessor {
 
     println!("Loading Whisper model from: {:?}", model_filename.display());
 
-// SAFETY: This is safe because we are using a mmaped file and the safetensors library guarantees that the data is valid.
-    let var_builder = unsafe { VarBuilder::from_mmaped_safetensors(&[model_filename], whisper_model::DTYPE, &device)? };
+    // SAFETY: This is safe because we are using a mmaped file and the safetensors library guarantees that the data is valid.
+    let var_builder = unsafe {
+      VarBuilder::from_mmaped_safetensors(&[model_filename], whisper_model::DTYPE, &device)?
+    };
 
-    let model = WhisperModel::Normal(whisper_model::model::Whisper::load(&var_builder, config.clone())?);
+    let model = WhisperModel::Normal(whisper_model::model::Whisper::load(
+      &var_builder,
+      config.clone(),
+    )?);
 
     let mel_bytes = match config.num_mel_bins {
       80 => include_bytes!("./melfilters.bytes").as_slice(),
@@ -130,7 +179,13 @@ impl WhisperProcessor {
     let mut mel_filters = vec![0f32; mel_bytes.len() / 4];
     <LittleEndian as ByteOrder>::read_f32_into(mel_bytes, &mut mel_filters);
 
-    Ok(Self { model, tokenizer, config, mel_filters, device })
+    Ok(Self {
+      model,
+      tokenizer,
+      config,
+      mel_filters,
+      device,
+    })
   }
 
   pub fn transcribe(
@@ -140,7 +195,15 @@ impl WhisperProcessor {
     // Convert PCM to mel spectrogram
     let mel = audio::pcm_to_mel(&self.config, audio, &self.mel_filters);
     let mel_len = mel.len();
-    let mel = Tensor::from_vec(mel, (1, self.config.num_mel_bins, mel_len / self.config.num_mel_bins), &self.device)?;
+    let mel = Tensor::from_vec(
+      mel,
+      (
+        1,
+        self.config.num_mel_bins,
+        mel_len / self.config.num_mel_bins,
+      ),
+      &self.device,
+    )?;
 
     // Run inference
     let audio_features = self.model.encoder_forward(&mel, true)?;
@@ -159,7 +222,11 @@ impl WhisperProcessor {
     &mut self,
     audio_features: &Tensor,
   ) -> Result<Vec<u32>> {
-    let mut tokens = vec![self.token_id(whisper_model::SOT_TOKEN)?, self.token_id(whisper_model::TRANSCRIBE_TOKEN)?, self.token_id(whisper_model::NO_TIMESTAMPS_TOKEN)?];
+    let mut tokens = vec![
+      self.token_id(whisper_model::SOT_TOKEN)?,
+      self.token_id(whisper_model::TRANSCRIBE_TOKEN)?,
+      self.token_id(whisper_model::NO_TIMESTAMPS_TOKEN)?,
+    ];
 
     let max_len = 50; // Short sequence for real-time processing
 
