@@ -1,5 +1,6 @@
 use std::process::Stdio;
 
+use log::info;
 use rmcp::{
   model::{CallToolRequestParam, CallToolResult, Tool},
   service::RunningService,
@@ -23,7 +24,7 @@ pub struct McpState {
 
 #[allow(clippy::missing_panics_doc)]
 pub fn destroy<R: Runtime>(app_handle: &AppHandle<R>) {
-  println!("Destroying MCP plugin");
+  info!("Destroying MCP plugin");
 
   tokio::runtime::Runtime::new()
     .unwrap()
@@ -32,7 +33,7 @@ pub fn destroy<R: Runtime>(app_handle: &AppHandle<R>) {
 
       let mut state = state.lock().await;
       if state.client.is_none() {
-        println!("MCP plugin not connected, no need to disconnect");
+        info!("MCP plugin not connected, no need to disconnect");
         return;
       }
 
@@ -43,7 +44,7 @@ pub fn destroy<R: Runtime>(app_handle: &AppHandle<R>) {
       // client.waiting().await.unwrap();
     });
 
-  println!("MCP plugin destroyed");
+  info!("MCP plugin destroyed");
 }
 
 #[tauri::command]
@@ -82,11 +83,11 @@ async fn disconnect_server(state: State<'_, Mutex<McpState>>) -> Result<(), Stri
   }
 
   let cancel_result = state.client.take().unwrap().cancel().await;
-  println!("Cancel result: {cancel_result:?}");
+  info!("Cancel result: {cancel_result:?}");
   // state.client.take().unwrap().waiting().await.unwrap();
   drop(state);
 
-  println!("Disconnected from MCP server");
+  info!("Disconnected from MCP server");
 
   Ok(())
 }
@@ -116,8 +117,8 @@ async fn call_tool(
   name: String,
   args: Option<Map<String, Value>>,
 ) -> Result<CallToolResult, String> {
-  println!("Calling tool: {name:?}");
-  println!("Arguments: {args:?}");
+  info!("Calling tool: {name:?}");
+  info!("Arguments: {args:?}");
 
   let state = state.lock().await;
   let client = state.client.as_ref();
@@ -135,7 +136,7 @@ async fn call_tool(
     .unwrap();
   drop(state);
 
-  println!("Tool result: {call_tool_result:?}");
+  info!("Tool result: {call_tool_result:?}");
 
   Ok(call_tool_result)
 }
@@ -146,7 +147,7 @@ pub struct Builder;
 impl Builder {
   #[must_use]
   pub fn build<R: Runtime>(self) -> TauriPlugin<R> {
-    println!("Building MCP plugin");
+    info!("Building MCP plugin");
 
     plugin::Builder::new("mcp")
       .invoke_handler(tauri::generate_handler![
