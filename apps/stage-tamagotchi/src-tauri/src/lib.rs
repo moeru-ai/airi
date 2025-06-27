@@ -1,4 +1,5 @@
 use std::{sync::atomic::Ordering, time::Duration};
+use log::info;
 
 use tauri::{
   Emitter,
@@ -235,8 +236,8 @@ pub fn run() {
     .expect("error while building tauri application")
     .run(|_, event| {
       if let RunEvent::ExitRequested { .. } = event {
-        println!("Exiting app");
-        println!("Exited app");
+        info!("Exiting app");
+        info!("Exited app");
       }
     });
 }
