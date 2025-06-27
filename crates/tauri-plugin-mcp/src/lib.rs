@@ -25,34 +25,46 @@ pub struct McpState {
 pub fn destroy<R: Runtime>(app_handle: &AppHandle<R>) {
   println!("Destroying MCP plugin");
 
-  tokio::runtime::Runtime::new().unwrap().block_on(async {
-    let state = app_handle.state::<Mutex<McpState>>();
+  tokio::runtime::Runtime::new()
+    .unwrap()
+    .block_on(async {
+      let state = app_handle.state::<Mutex<McpState>>();
 
-    let mut state = state.lock().await;
-    if state.client.is_none() {
-      println!("MCP plugin not connected, no need to disconnect");
-      return;
-    }
+      let mut state = state.lock().await;
+      if state.client.is_none() {
+        println!("MCP plugin not connected, no need to disconnect");
+        return;
+      }
 
-    let client = state.client.take().unwrap();
-    drop(state);
+      let client = state.client.take().unwrap();
+      drop(state);
 
-    client.cancel().await.unwrap();
-    // client.waiting().await.unwrap();
-  });
+      client.cancel().await.unwrap();
+      // client.waiting().await.unwrap();
+    });
 
   println!("MCP plugin destroyed");
 }
 
 #[tauri::command]
-async fn connect_server(state: State<'_, Mutex<McpState>>, command: String, args: Vec<String>) -> Result<(), String> {
+async fn connect_server(
+  state: State<'_, Mutex<McpState>>,
+  command: String,
+  args: Vec<String>,
+) -> Result<(), String> {
   let mut state = state.lock().await;
 
   if state.client.is_some() {
     return Err("Client already connected".to_string());
   }
 
-  let child_process = TokioChildProcess::new(Command::new(command).args(args).stderr(Stdio::inherit()).stdout(Stdio::inherit())).unwrap();
+  let child_process = TokioChildProcess::new(
+    Command::new(command)
+      .args(args)
+      .stderr(Stdio::inherit())
+      .stdout(Stdio::inherit()),
+  )
+  .unwrap();
 
   let service: RunningService<RoleClient, ()> = ().serve(child_process).await.unwrap();
 
@@ -87,7 +99,11 @@ async fn list_tools(state: State<'_, Mutex<McpState>>) -> Result<Vec<Tool>, Stri
     return Err("Client not connected".to_string());
   }
 
-  let list_tools_result = client.unwrap().list_tools(Option::default()).await.unwrap(); // TODO: handle error
+  let list_tools_result = client
+    .unwrap()
+    .list_tools(Option::default())
+    .await
+    .unwrap(); // TODO: handle error
   let tools = list_tools_result.tools;
   drop(state);
 
@@ -95,7 +111,11 @@ async fn list_tools(state: State<'_, Mutex<McpState>>) -> Result<Vec<Tool>, Stri
 }
 
 #[tauri::command]
-async fn call_tool(state: State<'_, Mutex<McpState>>, name: String, args: Option<Map<String, Value>>) -> Result<CallToolResult, String> {
+async fn call_tool(
+  state: State<'_, Mutex<McpState>>,
+  name: String,
+  args: Option<Map<String, Value>>,
+) -> Result<CallToolResult, String> {
   println!("Calling tool: {name:?}");
   println!("Arguments: {args:?}");
 
@@ -105,7 +125,14 @@ async fn call_tool(state: State<'_, Mutex<McpState>>, name: String, args: Option
     return Err("Client not connected".to_string());
   }
 
-  let call_tool_result = client.unwrap().call_tool(CallToolRequestParam { name: name.into(), arguments: args }).await.unwrap();
+  let call_tool_result = client
+    .unwrap()
+    .call_tool(CallToolRequestParam {
+      name:      name.into(),
+      arguments: args,
+    })
+    .await
+    .unwrap();
   drop(state);
 
   println!("Tool result: {call_tool_result:?}");
@@ -122,7 +149,12 @@ impl Builder {
     println!("Building MCP plugin");
 
     plugin::Builder::new("mcp")
-      .invoke_handler(tauri::generate_handler![connect_server, disconnect_server, list_tools, call_tool])
+      .invoke_handler(tauri::generate_handler![
+        connect_server,
+        disconnect_server,
+        list_tools,
+        call_tool
+      ])
       .setup(|app_handle, _| {
         app_handle.manage(Mutex::new(McpState { client: None }));
         Ok(())

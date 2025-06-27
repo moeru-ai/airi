@@ -13,7 +13,10 @@ pub fn get_window_frame(window: &tauri::Window) -> WindowFrame {
     if GetWindowRect(hwnd, &mut rect).is_ok() {
       // Return the coordinates as (left, top, right, bottom)
       return WindowFrame {
-        origin: Point { x: rect.left.into(), y: rect.top.into() },
+        origin: Point {
+          x: rect.left.into(),
+          y: rect.top.into(),
+        },
         size:   Size {
           width:  (rect.right - rect.left).into(),
           height: (rect.bottom - rect.top).into(),
@@ -24,7 +27,10 @@ pub fn get_window_frame(window: &tauri::Window) -> WindowFrame {
 
   WindowFrame {
     origin: Point { x: 0.0, y: 0.0 },
-    size:   Size { width: 0.0, height: 0.0 },
+    size:   Size {
+      width:  0.0,
+      height: 0.0,
+    },
   } // Default if unable to get window frame
 }
 
@@ -37,7 +43,10 @@ pub fn get_mouse_location() -> Point {
 
     // Get cursor position in screen coordinates
     if GetCursorPos(&mut cursor_pos).is_ok() {
-      return Point { x: cursor_pos.x.into(), y: cursor_pos.y.into() };
+      return Point {
+        x: cursor_pos.x.into(),
+        y: cursor_pos.y.into(),
+      };
     }
   }
 
