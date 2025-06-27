@@ -106,7 +106,7 @@ const settings = computed(() => [
 </script>
 
 <template>
-  <div flex="~ col gap-4" font-thin>
+  <div flex="~ col gap-4" font-normal>
     <div />
     <div flex="~ col gap-4">
       <IconItem
