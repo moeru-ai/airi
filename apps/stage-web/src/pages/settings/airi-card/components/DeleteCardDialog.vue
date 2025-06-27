@@ -44,7 +44,7 @@ function handleConfirm() {
       <AlertDialogContent
         class="data-[state=open]:animate-contentShow data-[state=closed]:animate-contentHide fixed left-1/2 top-1/2 z-100 max-w-md w-full border border-neutral-200 rounded-xl bg-white p-6 shadow-xl -translate-x-1/2 -translate-y-1/2 dark:border-neutral-700 dark:bg-neutral-800"
       >
-        <AlertDialogTitle class="mb-4 text-xl font-bold">
+        <AlertDialogTitle class="mb-4 text-xl font-normal">
           {{ t('settings.pages.card.delete_card') }}
         </AlertDialogTitle>
         <AlertDialogDescription class="mb-6">

@@ -78,7 +78,7 @@ function goToStep(index: number) {
           <slot name="step" :step="step" :index="index" :is-active="index === value">
             <!-- Default step rendering -->
             <div class="flex flex-col gap-1">
-              <p v-if="typeof step === 'object' && step !== null && 'title' in step" class="mb-4 pb-0 pt-0 text-xl text-primary-600 font-bold dark:text-primary-300">
+              <p v-if="typeof step === 'object' && step !== null && 'title' in step" class="mb-4 pb-0 pt-0 text-xl text-primary-600 font-normal dark:text-primary-300">
                 {{ step.title }}
               </p>
               <p v-if="typeof step === 'object' && step !== null && 'description' in step" class="text-sm text-neutral-600 dark:text-neutral-300">

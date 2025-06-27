@@ -232,7 +232,7 @@ onAfterSend(async () => {
       </div>
     </div>
     <div flex="~ row" gap-2 hidden>
-      <div flex="~ row" relative text-white font-bold>
+      <div flex="~ row" relative text-white font-normal>
         <TransitionVertical>
           <fieldset
             v-if="showMicrophoneSelect"

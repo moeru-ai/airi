@@ -836,6 +836,9 @@ importers:
       astro-og-canvas:
         specifier: ^0.7.0
         version: 0.7.0(astro@5.10.1(@types/node@24.0.4)(encoding@0.1.13)(jiti@2.4.2)(less@4.3.0)(lightningcss@1.30.1)(rollup@4.44.1)(terser@5.43.1)(tsx@4.20.3)(typescript@5.8.3)(yaml@2.8.0))
+      canvaskit-wasm:
+        specifier: ^0.40.0
+        version: 0.40.0
       sharp:
         specifier: ^0.34.2
         version: 0.34.2
@@ -6175,6 +6178,9 @@ packages:
 
   canvaskit-wasm@0.39.1:
     resolution: {integrity: sha512-Gy3lCmhUdKq+8bvDrs9t8+qf7RvcjuQn+we7vTVVyqgOVO1UVfHpsnBxkTZw+R4ApEJ3D5fKySl9TU11hmjl/A==}
+
+  canvaskit-wasm@0.40.0:
+    resolution: {integrity: sha512-Od2o+ZmoEw9PBdN/yCGvzfu0WVqlufBPEWNG452wY7E9aT8RBE+ChpZF526doOlg7zumO4iCS+RAeht4P0Gbpw==}
 
   caseless@0.12.0:
     resolution: {integrity: sha512-4tYFyifaFfGacoiObjJegolkwSU4xQNGbVgUiNYVUxbQ2x2lUsFvY4hVgVzGiIe6WLOPqycWXA40l+PWsxthUw==}
@@ -17473,6 +17479,10 @@ snapshots:
   caniuse-lite@1.0.30001724: {}
 
   canvaskit-wasm@0.39.1:
+    dependencies:
+      '@webgpu/types': 0.1.21
+
+  canvaskit-wasm@0.40.0:
     dependencies:
       '@webgpu/types': 0.1.21
 

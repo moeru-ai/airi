@@ -189,7 +189,7 @@ if (import.meta.hot) { // For better DX
     >
       <div class="absolute h-32 w-full flex items-center justify-center b-2 b-primary bg-white">
         <div class="wall absolute top-0 h-8" />
-        <div data-tauri-drag-region class="absolute left-0 top-0 h-full w-full flex animate-flash animate-duration-5s animate-count-infinite items-center justify-center text-1.5rem text-primary-300 font-bold">
+        <div data-tauri-drag-region class="absolute left-0 top-0 h-full w-full flex animate-flash animate-duration-5s animate-count-infinite items-center justify-center text-1.5rem text-primary-300 font-normal">
           DRAG HERE TO MOVE
         </div>
         <div data-tauri-drag-region class="wall absolute bottom-0 h-8" />
