@@ -17,6 +17,7 @@
     "@fontsource/quicksand": "^5.2.8",
     "astro": "^5.10.1",
     "astro-og-canvas": "^0.7.0",
+    "canvaskit-wasm": "^0.40.0",
     "sharp": "^0.34.2",
     "unocss": "^66.3.2",
     "vue": "^3.5.17"
