@@ -2,7 +2,6 @@
 
 edition = "2024"
 tab_spaces = 2
-newline_style = "Unix"
 imports_indent = "Block" # nightly
 match_arm_leading_pipes = "Preserve"
 # empty_item_single_line = true # nightly
@@ -16,9 +15,12 @@ match_block_trailing_comma = true
 # overflow_delimited_expr = true # nightly
 # reorder_impl_items = true # nightly
 # spaces_around_ranges = true # nightly
-# unstable_features = true # nightly
+unstable_features = true # nightly
 use_field_init_shorthand = true
 use_try_shorthand = true
 struct_field_align_threshold = 999
 enum_discrim_align_threshold = 999
-max_width = 256
+# max_width = 512
+chain_width = 50
+fn_params_layout = "Vertical"
+single_line_if_else_max_width = 25

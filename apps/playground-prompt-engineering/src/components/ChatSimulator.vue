@@ -169,7 +169,7 @@ watch(() => messages.value.length, () => {
 
 <template>
   <div class="panel flex flex-col rounded-lg bg-white shadow">
-    <div class="panel-header flex items-center justify-between rounded-t-lg bg-primary p-3 text-sm text-white font-semibold">
+    <div class="panel-header flex items-center justify-between rounded-t-lg bg-primary p-3 text-sm text-white font-normal">
       Chat Simulator
     </div>
 
@@ -225,7 +225,7 @@ watch(() => messages.value.length, () => {
             >
               <div
                 v-if="!message.isUser"
-                class="bg-secondary-light text-secondary h-8 w-8 flex flex-shrink-0 items-center justify-center rounded-full text-sm font-semibold"
+                class="bg-secondary-light text-secondary h-8 w-8 flex flex-shrink-0 items-center justify-center rounded-full text-sm font-normal"
               >
                 R
               </div>
@@ -241,7 +241,7 @@ watch(() => messages.value.length, () => {
 
               <div
                 v-if="message.isUser"
-                class="bg-primary-light text-primary-dark h-8 w-8 flex flex-shrink-0 items-center justify-center rounded-full text-sm font-semibold"
+                class="bg-primary-light text-primary-dark h-8 w-8 flex flex-shrink-0 items-center justify-center rounded-full text-sm font-normal"
               >
                 U
               </div>
@@ -257,7 +257,7 @@ watch(() => messages.value.length, () => {
               @keyup.enter="sendMessage"
             >
             <button
-              class="hover:bg-primary-dark cursor-pointer rounded-lg border-none bg-primary px-5 py-3 text-white font-semibold transition"
+              class="hover:bg-primary-dark cursor-pointer rounded-lg border-none bg-primary px-5 py-3 text-white font-normal transition"
               @click="sendMessage"
             >
               Send
@@ -280,7 +280,7 @@ watch(() => messages.value.length, () => {
               class="component-card hover:bg-primary-light cursor-pointer border border-gray-200 rounded p-2 transition hover:border-primary"
               @click="addComponent(name)"
             >
-              <div class="mb-1 text-sm font-semibold">
+              <div class="mb-1 text-sm font-normal">
                 {{ formatComponentName(name) }}
               </div>
               <div class="line-clamp-2 overflow-hidden text-ellipsis text-xs text-gray">
@@ -299,7 +299,7 @@ watch(() => messages.value.length, () => {
               class="component-card hover:bg-primary-light cursor-pointer border border-gray-200 rounded p-2 transition hover:border-primary"
               @click="addSpeechComponent(name)"
             >
-              <div class="mb-1 text-sm font-semibold">
+              <div class="mb-1 text-sm font-normal">
                 {{ formatComponentName(name) }}
               </div>
               <div class="line-clamp-2 overflow-hidden text-ellipsis text-xs text-gray">

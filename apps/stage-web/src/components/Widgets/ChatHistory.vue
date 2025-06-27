@@ -46,7 +46,7 @@ onTokenLiteral(async () => {
           >
             <div flex="~ row" gap-2>
               <div flex-1>
-                <span text-xs text="violet-400/90 dark:violet-600/90" font-semibold class="inline <sm:hidden">{{ t('stage.chat.message.character-name.core-system') }}</span>
+                <span text-xs text="violet-400/90 dark:violet-600/90" font-normal class="inline <sm:hidden">{{ t('stage.chat.message.character-name.core-system') }}</span>
               </div>
               <div i-solar:danger-triangle-bold-duotone text-violet-500 />
             </div>
@@ -63,7 +63,7 @@ onTokenLiteral(async () => {
             rounded-lg px-2 py-1 h="unset <sm:fit" bg="<md:primary-500/25"
           >
             <div>
-              <span text-xs text="primary-400/90 dark:primary-600/90" font-semibold class="inline <sm:hidden">{{ t('stage.chat.message.character-name.airi') }}</span>
+              <span text-xs text="primary-400/90 dark:primary-600/90" font-normal class="inline <sm:hidden">{{ t('stage.chat.message.character-name.airi') }}</span>
             </div>
             <div v-if="sending && index === messages.length - 1" i-eos-icons:three-dots-loading />
             <div v-else class="markdown-content break-words" text="base <sm:xs" v-html="process(message.content as string)" />
@@ -75,7 +75,7 @@ onTokenLiteral(async () => {
             h="unset <sm:fit" min-w-20 rounded-lg px-2 py-1 bg="<md:cyan-500/25"
           >
             <div>
-              <span text-xs text="cyan-400/90 dark:cyan-600/90" font-semibold class="inline <sm:hidden">{{ t('stage.chat.message.character-name.you') }}</span>
+              <span text-xs text="cyan-400/90 dark:cyan-600/90" font-normal class="inline <sm:hidden">{{ t('stage.chat.message.character-name.you') }}</span>
             </div>
             <div v-if="message.content" class="markdown-content break-words" text="base <sm:xs" v-html="process(message.content as string)" />
             <div v-else />

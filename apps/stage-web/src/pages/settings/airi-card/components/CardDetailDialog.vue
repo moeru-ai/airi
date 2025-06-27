@@ -174,7 +174,7 @@ const activeTab = computed({
             <div flex="~ row" items-center justify-between>
               <div>
                 <div flex="~ row" items-center gap-2>
-                  <DialogTitle text-2xl font-bold class="from-primary-500 to-primary-400 bg-gradient-to-r bg-clip-text text-transparent">
+                  <DialogTitle text-2xl font-normal class="from-primary-500 to-primary-400 bg-gradient-to-r bg-clip-text text-transparent">
                     {{ selectedCard.name }}
                   </DialogTitle>
                   <div v-if="isActive" class="flex items-center gap-1 rounded-full bg-primary-100 px-2 py-0.5 text-xs text-primary-600 font-medium dark:bg-primary-900/40 dark:text-primary-400">

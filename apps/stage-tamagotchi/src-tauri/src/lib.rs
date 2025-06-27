@@ -34,7 +34,9 @@ async fn start_monitor(window: tauri::Window) -> Result<(), String> {
   }
 
   // Set to true
-  state.monitoring_enabled.store(true, Ordering::Relaxed);
+  state
+    .monitoring_enabled
+    .store(true, Ordering::Relaxed);
 
   // Then start interval timer for monitoring
   tauri::async_runtime::spawn(async move {
@@ -48,12 +50,18 @@ async fn start_monitor(window: tauri::Window) -> Result<(), String> {
 
       #[cfg(target_os = "macos")]
       {
-        let _ = window.emit("tauri-app:window-click-through:position-cursor-and-window-frame", (get_mouse_location(), get_window_frame(&window)));
+        let _ = window.emit(
+          "tauri-app:window-click-through:position-cursor-and-window-frame",
+          (get_mouse_location(), get_window_frame(&window)),
+        );
       }
 
       #[cfg(target_os = "windows")]
       {
-        let _ = window.emit("tauri-app:window-click-through:position-cursor-and-window-frame", (get_mouse_location(), get_window_frame(&window)));
+        let _ = window.emit(
+          "tauri-app:window-click-through:position-cursor-and-window-frame",
+          (get_mouse_location(), get_window_frame(&window)),
+        );
       }
     }
   });
@@ -68,7 +76,9 @@ async fn stop_monitor(window: tauri::Window) -> Result<(), String> {
 
   // Set to false
   // Termination will be triggered in the next interval check (tick)
-  state.monitoring_enabled.store(false, Ordering::Relaxed);
+  state
+    .monitoring_enabled
+    .store(false, Ordering::Relaxed);
 
   Ok(())
 }
@@ -88,7 +98,9 @@ async fn stop_click_through(window: tauri::Window) -> Result<(), String> {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 #[allow(clippy::missing_panics_doc)]
 pub fn run() {
-  let prevent_default_plugin = tauri_plugin_prevent_default::Builder::new().with_flags(Flags::RELOAD).build();
+  let prevent_default_plugin = tauri_plugin_prevent_default::Builder::new()
+    .with_flags(Flags::RELOAD)
+    .build();
 
   #[allow(clippy::missing_panics_doc)]
   tauri::Builder::default()
@@ -100,7 +112,13 @@ pub fn run() {
     .setup(|app| {
       let mut builder = WebviewWindowBuilder::new(app, "main", WebviewUrl::default());
 
-      builder = builder.title("AIRI").decorations(false).inner_size(450.0, 600.0).shadow(false).transparent(true).always_on_top(true);
+      builder = builder
+        .title("AIRI")
+        .decorations(false)
+        .inner_size(450.0, 600.0)
+        .shadow(false)
+        .transparent(true)
+        .always_on_top(true);
 
       #[cfg(target_os = "macos")]
       {
@@ -115,7 +133,11 @@ pub fn run() {
       }
 
       if cfg!(debug_assertions) {
-        app.handle().plugin(tauri_plugin_log::Builder::default().level(log::LevelFilter::Info).build())?;
+        app.handle().plugin(
+          tauri_plugin_log::Builder::default()
+            .level(log::LevelFilter::Info)
+            .build(),
+        )?;
       }
 
       // TODO: i18n
@@ -126,7 +148,8 @@ pub fn run() {
       let menu = Menu::with_items(app, &[&settings_item, &hide_item, &show_item, &quit_item])?;
       #[cfg(debug_assertions)]
       {
-        let show_devtools_item = MenuItem::with_id(app, "show-devtools", "Show Devtools", true, None::<&str>)?;
+        let show_devtools_item =
+          MenuItem::with_id(app, "show-devtools", "Show Devtools", true, None::<&str>)?;
         menu.append_items(&[&show_devtools_item])?;
       }
 

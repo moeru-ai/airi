@@ -32,7 +32,7 @@ const { t } = useI18n()
       :delay="5 * 50"
       transition="all ease-in-out duration-250"
     >
-      <span text-lg font-semibold>{{ $t('settings.pages.themes.sections.section.custom-color.fields.field.primary-color.label') }}</span>
+      <span text-lg font-normal>{{ $t('settings.pages.themes.sections.section.custom-color.fields.field.primary-color.label') }}</span>
       <label relative flex cursor-pointer items-center gap-2>
         <input
           v-model="settings.themeColorsHueDynamic"

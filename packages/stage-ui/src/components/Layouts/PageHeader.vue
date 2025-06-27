@@ -74,7 +74,7 @@ watch([() => props.title, () => props.subtitle, route], async () => {
       <div v-if="subtitle" absolute left-0 top-0 translate-y="[-80%]">
         <span text="neutral-300 dark:neutral-500" text-nowrap>{{ subtitle }}</span>
       </div>
-      <div text-nowrap text-3xl font-semibold>
+      <div text-nowrap text-3xl font-normal>
         {{ title }}
       </div>
     </h1>

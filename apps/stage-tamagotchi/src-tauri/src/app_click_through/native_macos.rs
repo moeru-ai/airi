@@ -50,6 +50,9 @@ pub fn get_mouse_location() -> Point {
   unsafe {
     // Get cursor position in screen coordinates (macOS coordinates - origin at bottom left)
     let mouse_location: NSPoint = msg_send![class!(NSEvent), mouseLocation];
-    Point { x: mouse_location.x, y: mouse_location.y }
+    Point {
+      x: mouse_location.x,
+      y: mouse_location.y,
+    }
   }
 }

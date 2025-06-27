@@ -50,7 +50,7 @@ function onSendMessage() {
     </div>
     <div w-full flex flex-row gap-4>
       <div w-full rounded-lg bg="neutral-100 dark:neutral-700" p-2>
-        <h3 font-semibold>
+        <h3 font-normal>
           Emotion Message
         </h3>
         <div v-for="message in emotionMessageContentProcessed" :key="message">
@@ -58,7 +58,7 @@ function onSendMessage() {
         </div>
       </div>
       <div w-full rounded-lg bg="neutral-100 dark:neutral-700" p-2>
-        <h3 font-semibold>
+        <h3 font-normal>
           Delays
         </h3>
         <div v-for="message in delaysProcessed" :key="message">
