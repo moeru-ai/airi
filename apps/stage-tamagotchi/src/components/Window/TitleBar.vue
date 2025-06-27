@@ -1,10 +1,12 @@
 <script setup lang="ts">
-import { platform } from '@tauri-apps/plugin-os'
+import { useAppRuntime } from '@proj-airi/stage-ui/composables'
 
 defineProps<{
   title: string
   icon: string
 }>()
+
+const { platform } = useAppRuntime()
 </script>
 
 <template>
@@ -13,7 +15,7 @@ defineProps<{
     top="0"
     data-tauri-drag-region fixed z-100 w-full select-none py-2 pr-4
     :class="[
-      platform() === 'macos' ? 'pl-20' : 'pl-4',
+      platform === 'macos' ? 'pl-20' : 'pl-4',
     ]"
   >
     <div data-tauri-drag-region flex>

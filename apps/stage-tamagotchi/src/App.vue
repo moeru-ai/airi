@@ -1,8 +1,8 @@
 <script setup lang="ts">
+import { useAppRuntime } from '@proj-airi/stage-ui/composables'
 import { useMcpStore, useSettings } from '@proj-airi/stage-ui/stores'
 import { listen } from '@tauri-apps/api/event'
 import { Window } from '@tauri-apps/api/window'
-import { platform } from '@tauri-apps/plugin-os'
 import { useEventListener } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, watch } from 'vue'
@@ -15,6 +15,7 @@ const { language, themeColorsHue, themeColorsHueDynamic, allowVisibleOnAllWorksp
 const i18n = useI18n()
 const windowControlStore = useWindowControlStore()
 const mcpStore = useMcpStore()
+const { platform } = useAppRuntime()
 
 useEventListener(window, 'resize', () => {
   windowControlStore.size.width = window.innerWidth
@@ -41,7 +42,7 @@ listen('mcp_plugin_destroyed', () => {
   mcpStore.connected = false
 })
 
-const isMac = computed(() => platform() === 'macos')
+const isMac = computed(() => platform.value === 'macos')
 
 if (isMac.value) {
   watch(allowVisibleOnAllWorkspaces, async (value) => {
