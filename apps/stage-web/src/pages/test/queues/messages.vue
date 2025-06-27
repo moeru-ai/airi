@@ -50,7 +50,7 @@ async function onSendMessage() {
     </div>
     <div w-full flex flex-row gap-4>
       <div w-full rounded-lg bg="neutral-100 dark:neutral-700" p-2>
-        <h3 font-semibold>
+        <h3 font-normal>
           TTS Message
         </h3>
         <div v-for="message in ttsProcessed" :key="message">

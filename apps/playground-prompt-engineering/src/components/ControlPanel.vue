@@ -72,14 +72,14 @@ function applyTemplate(template: string) {
 
 <template>
   <div class="panel rounded-lg bg-white shadow">
-    <div class="panel-header flex items-center justify-between rounded-t-lg bg-primary p-3 text-sm text-white font-semibold">
+    <div class="panel-header flex items-center justify-between rounded-t-lg bg-primary p-3 text-sm text-white font-normal">
       Character Configuration
     </div>
 
     <div class="panel-body max-h-[calc(100vh-13rem)] overflow-y-auto p-4">
       <!-- Core Identity -->
       <div class="mb-6 flex flex-col gap-3">
-        <h3 class="text-sm text-gray font-semibold">
+        <h3 class="text-sm text-gray font-normal">
           Core Identity
         </h3>
 
@@ -107,7 +107,7 @@ function applyTemplate(template: string) {
           <label for="char-essence" class="flex justify-between text-sm text-dark">
             <span>Essence</span>
             <span class="text-xs text-gray">
-              Tokens: <span class="rounded bg-gray-100 px-1.5 py-0.5 font-semibold">{{ estimateTokens(characterPrompt.coreIdentity.essence) }}</span>
+              Tokens: <span class="rounded bg-gray-100 px-1.5 py-0.5 font-normal">{{ estimateTokens(characterPrompt.coreIdentity.essence) }}</span>
             </span>
           </label>
           <textarea
@@ -120,7 +120,7 @@ function applyTemplate(template: string) {
 
       <!-- Personality Traits -->
       <div class="mb-6 flex flex-col gap-3">
-        <h3 class="text-sm text-gray font-semibold">
+        <h3 class="text-sm text-gray font-normal">
           Personality Traits
         </h3>
 
@@ -187,7 +187,7 @@ function applyTemplate(template: string) {
 
       <!-- Speech Patterns -->
       <div class="mb-6 flex flex-col gap-3">
-        <h3 class="text-sm text-gray font-semibold">
+        <h3 class="text-sm text-gray font-normal">
           Speech Patterns
         </h3>
 
@@ -195,7 +195,7 @@ function applyTemplate(template: string) {
           <label for="speech-patterns" class="flex justify-between text-sm text-dark">
             <span>Expression Style</span>
             <span class="text-xs text-gray">
-              Tokens: <span class="rounded bg-gray-100 px-1.5 py-0.5 font-semibold">{{ estimateTokens(characterPrompt.speechPatterns) }}</span>
+              Tokens: <span class="rounded bg-gray-100 px-1.5 py-0.5 font-normal">{{ estimateTokens(characterPrompt.speechPatterns) }}</span>
             </span>
           </label>
           <textarea
@@ -208,7 +208,7 @@ function applyTemplate(template: string) {
 
       <!-- Emotional State -->
       <div class="mb-6 flex flex-col gap-3">
-        <h3 class="text-sm text-gray font-semibold">
+        <h3 class="text-sm text-gray font-normal">
           Current Emotional State
         </h3>
 
@@ -217,7 +217,7 @@ function applyTemplate(template: string) {
             v-for="emotion in ['happy', 'curious', 'thoughtful', 'playful', 'annoyed', 'excited']"
             :key="emotion"
             class="flex flex-col cursor-pointer items-center justify-center gap-1 border border-gray-200 rounded-md bg-white p-2 text-sm transition-colors"
-            :class="{ 'bg-primary-light border-primary font-semibold shadow': characterPrompt.currentEmotion === emotion }"
+            :class="{ 'bg-primary-light border-primary font-normal shadow': characterPrompt.currentEmotion === emotion }"
             @click="characterPrompt.updateEmotion(emotion)"
           >
             <span class="text-lg">
@@ -236,7 +236,7 @@ function applyTemplate(template: string) {
           <label for="emotion-description" class="flex justify-between text-sm text-dark">
             <span>Emotion Description</span>
             <span class="text-xs text-gray">
-              Tokens: <span class="rounded bg-gray-100 px-1.5 py-0.5 font-semibold">
+              Tokens: <span class="rounded bg-gray-100 px-1.5 py-0.5 font-normal">
                 {{ estimateTokens(getEmotionDescription()) }}
               </span>
             </span>
@@ -252,7 +252,7 @@ function applyTemplate(template: string) {
 
       <!-- Conversation Context -->
       <div class="mb-6 flex flex-col gap-3">
-        <h3 class="text-sm text-gray font-semibold">
+        <h3 class="text-sm text-gray font-normal">
           Conversation Context
         </h3>
 
@@ -285,7 +285,7 @@ function applyTemplate(template: string) {
           <label for="context-description" class="flex justify-between text-sm text-dark">
             <span>Context Description</span>
             <span class="text-xs text-gray">
-              Tokens: <span class="rounded bg-gray-100 px-1.5 py-0.5 font-semibold">
+              Tokens: <span class="rounded bg-gray-100 px-1.5 py-0.5 font-normal">
                 {{ estimateTokens(getContextDescription()) }}
               </span>
             </span>
@@ -301,7 +301,7 @@ function applyTemplate(template: string) {
 
       <!-- Response Format -->
       <div class="mb-6 flex flex-col gap-3">
-        <h3 class="text-sm text-gray font-semibold">
+        <h3 class="text-sm text-gray font-normal">
           Response Format
         </h3>
 
@@ -309,7 +309,7 @@ function applyTemplate(template: string) {
           <label for="response-format" class="flex justify-between text-sm text-dark">
             <span>Format Instructions</span>
             <span class="text-xs text-gray">
-              Tokens: <span class="rounded bg-gray-100 px-1.5 py-0.5 font-semibold">{{ estimateTokens(characterPrompt.responseFormat) }}</span>
+              Tokens: <span class="rounded bg-gray-100 px-1.5 py-0.5 font-normal">{{ estimateTokens(characterPrompt.responseFormat) }}</span>
             </span>
           </label>
           <textarea
@@ -322,7 +322,7 @@ function applyTemplate(template: string) {
 
       <!-- Example Response -->
       <div class="mb-6 flex flex-col gap-3">
-        <h3 class="text-sm text-gray font-semibold">
+        <h3 class="text-sm text-gray font-normal">
           Example Response
         </h3>
 
@@ -339,7 +339,7 @@ function applyTemplate(template: string) {
           <label for="example-response" class="flex justify-between text-sm text-dark">
             <span>Example</span>
             <span class="text-xs text-gray">
-              Tokens: <span class="rounded bg-gray-100 px-1.5 py-0.5 font-semibold">
+              Tokens: <span class="rounded bg-gray-100 px-1.5 py-0.5 font-normal">
                 {{ estimateTokens(getExampleDescription()) }}
               </span>
             </span>
@@ -355,7 +355,7 @@ function applyTemplate(template: string) {
 
       <!-- Preset Templates -->
       <div class="mt-4">
-        <h3 class="mb-2 text-sm text-gray font-semibold">
+        <h3 class="mb-2 text-sm text-gray font-normal">
           Preset Templates
         </h3>
         <div class="flex flex-wrap gap-2">
@@ -363,7 +363,7 @@ function applyTemplate(template: string) {
             v-for="template in ['default', 'minimal', 'anime-lover', 'philosophical', 'tech-nerd']"
             :key="template"
             class="cursor-pointer border border-gray-200 rounded-md bg-white p-1.5 px-3 text-sm transition-colors"
-            :class="{ 'bg-primary text-white border-primary-dark font-semibold': activeTemplate === template }"
+            :class="{ 'bg-primary text-white border-primary-dark font-normal': activeTemplate === template }"
             @click="applyTemplate(template)"
           >
             {{ template.charAt(0).toUpperCase() + template.slice(1).replace('-', ' ') }}
