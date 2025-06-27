@@ -26,6 +26,7 @@ words:
   - browserbasehq
   - bumpp
   - catppuccin
+  - cdylib
   - cientos
   - cjkfonts
   - clippy
@@ -47,6 +48,7 @@ words:
   - cubismmotionqueuemanager
   - cubismusermodel
   - cubismviewmatrix
+  - cuda
   - culori
   - cuteen
   - dataurl
@@ -151,6 +153,8 @@ words:
   - qwen
   - rehype
   - reka
+  - resampler
+  - rlib
   - rmcp
   - rolldown
   - rushstack
@@ -158,6 +162,7 @@ words:
   - saccades
   - SAVEPOINT
   - sensenova
+  - serde
   - Shadcn
   - shiki
   - shikijs
@@ -167,6 +172,7 @@ words:
   - smallserial
   - Sniglet
   - ssml
+  - staticlib
   - stepfun
   - supergroup
   - superjson
