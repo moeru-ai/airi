@@ -137,6 +137,7 @@ pnpm -F @proj-airi/stage-tamagotchi dev
 
 ## 原生支持的 LLM API 提供商列表（由 [xsai](https://github.com/moeru-ai/xsai) 驱动）
 
+- [x] [Player2](https://player2.game/)
 - [x] [OpenRouter](https://openrouter.ai/)
 - [x] [vLLM](https://github.com/vllm-project/vllm)
 - [x] [SGLang](https://github.com/sgl-project/sglang)

@@ -74,7 +74,7 @@ export const useSpeechStore = defineStore('speech', () => {
 
   // Helper function to determine if a provider is a speech provider
   function isSpeechProvider(providerId: string): boolean {
-    return ['elevenlabs', 'microsoft-speech', 'azure-speech', 'google', 'amazon', 'alibaba-cloud-model-studio', 'volcengine'].includes(providerId)
+    return ['elevenlabs', 'microsoft-speech', 'azure-speech', 'google', 'amazon', 'alibaba-cloud-model-studio', 'volcengine', 'player2-speech'].includes(providerId)
   }
 
   async function loadVoicesForProvider(provider: string) {
