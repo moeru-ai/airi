@@ -1,4 +1,4 @@
-use log::info;
+use log::debug;
 use tauri::Manager;
 
 use crate::app_windows;
@@ -29,6 +29,6 @@ pub async fn open_chat_window(app: tauri::AppHandle) -> Result<(), tauri::Error>
 
 #[tauri::command]
 pub fn debug_println(msg: serde_json::Value) -> Result<(), tauri::Error> {
-  info!("{msg}");
+  debug!("{msg}");
   Ok(())
 }
