@@ -1,13 +1,13 @@
 use std::{sync::atomic::Ordering, time::Duration};
 
 use tauri::{
-  menu::{Menu, MenuItem},
-  tray::TrayIconBuilder,
   Emitter,
   Manager,
   RunEvent,
   WebviewUrl,
   WebviewWindowBuilder,
+  menu::{Menu, MenuItem},
+  tray::TrayIconBuilder,
 };
 use tauri_plugin_prevent_default::Flags;
 use tokio::time::sleep;
@@ -15,12 +15,13 @@ use tokio::time::sleep;
 mod app_click_through;
 mod app_windows;
 mod commands;
+mod whisper;
 
 #[cfg(target_os = "macos")]
 use app_click_through::native_macos::{get_mouse_location, get_window_frame};
 #[cfg(target_os = "windows")]
 use app_click_through::native_windows::{get_mouse_location, get_window_frame};
-use app_click_through::state::{set_click_through_enabled, WindowClickThroughState};
+use app_click_through::state::{WindowClickThroughState, set_click_through_enabled};
 
 #[tauri::command]
 async fn start_monitor(window: tauri::Window) -> Result<(), String> {
@@ -95,6 +96,26 @@ async fn stop_click_through(window: tauri::Window) -> Result<(), String> {
   Ok(())
 }
 
+fn load_whisper_model() -> Result<whisper::WhisperProcessor, anyhow::Error> {
+  // Determine device to use
+  let device = if candle_core::utils::cuda_is_available() {
+    candle_core::Device::new_cuda(0)?
+  } else if candle_core::utils::metal_is_available() {
+    candle_core::Device::new_metal(0)?
+  } else {
+    candle_core::Device::Cpu
+  };
+
+  println!("Using device: {device:?}");
+
+  let whisper_model = whisper::WhichWhisperModel::Tiny;
+
+  println!("Loading whisper model: {:?}", whisper_model);
+
+  let model = whisper::WhisperProcessor::new(whisper_model, device.clone())?;
+  Ok(model)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 #[allow(clippy::missing_panics_doc)]
 pub fn run() {
@@ -139,6 +160,9 @@ pub fn run() {
             .build(),
         )?;
       }
+
+      // Load whisper model
+      load_whisper_model()?;
 
       // TODO: i18n
       let quit_item = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
