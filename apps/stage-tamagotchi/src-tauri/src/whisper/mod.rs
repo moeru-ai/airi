@@ -105,7 +105,11 @@ impl WhisperProcessor {
     // Load the Whisper model based on the provided model type
     let api = Api::new()?;
     let (model_id, revision) = model.model_and_revision();
-    let repo = api.repo(Repo::with_revision(model_id.to_string(), RepoType::Model, revision.to_string()));
+    let repo = api.repo(Repo::with_revision(
+      model_id.to_string(),
+      RepoType::Model,
+      revision.to_string(),
+    ));
 
     let config_filename = repo.get("config.json")?;
     let tokenizer_filename = repo.get("tokenizer.json")?;
@@ -116,10 +120,15 @@ impl WhisperProcessor {
 
     println!("Loading Whisper model from: {:?}", model_filename.display());
 
-// SAFETY: This is safe because we are using a mmaped file and the safetensors library guarantees that the data is valid.
-    let var_builder = unsafe { VarBuilder::from_mmaped_safetensors(&[model_filename], whisper_model::DTYPE, &device)? };
+    // SAFETY: This is safe because we are using a mmaped file and the safetensors library guarantees that the data is valid.
+    let var_builder = unsafe {
+      VarBuilder::from_mmaped_safetensors(&[model_filename], whisper_model::DTYPE, &device)?
+    };
 
-    let model = WhisperModel::Normal(whisper_model::model::Whisper::load(&var_builder, config.clone())?);
+    let model = WhisperModel::Normal(whisper_model::model::Whisper::load(
+      &var_builder,
+      config.clone(),
+    )?);
 
     let mel_bytes = match config.num_mel_bins {
       80 => include_bytes!("./melfilters.bytes").as_slice(),
@@ -130,7 +139,13 @@ impl WhisperProcessor {
     let mut mel_filters = vec![0f32; mel_bytes.len() / 4];
     <LittleEndian as ByteOrder>::read_f32_into(mel_bytes, &mut mel_filters);
 
-    Ok(Self { model, tokenizer, config, mel_filters, device })
+    Ok(Self {
+      model,
+      tokenizer,
+      config,
+      mel_filters,
+      device,
+    })
   }
 
   pub fn transcribe(
@@ -140,7 +155,15 @@ impl WhisperProcessor {
     // Convert PCM to mel spectrogram
     let mel = audio::pcm_to_mel(&self.config, audio, &self.mel_filters);
     let mel_len = mel.len();
-    let mel = Tensor::from_vec(mel, (1, self.config.num_mel_bins, mel_len / self.config.num_mel_bins), &self.device)?;
+    let mel = Tensor::from_vec(
+      mel,
+      (
+        1,
+        self.config.num_mel_bins,
+        mel_len / self.config.num_mel_bins,
+      ),
+      &self.device,
+    )?;
 
     // Run inference
     let audio_features = self.model.encoder_forward(&mel, true)?;
@@ -159,7 +182,11 @@ impl WhisperProcessor {
     &mut self,
     audio_features: &Tensor,
   ) -> Result<Vec<u32>> {
-    let mut tokens = vec![self.token_id(whisper_model::SOT_TOKEN)?, self.token_id(whisper_model::TRANSCRIBE_TOKEN)?, self.token_id(whisper_model::NO_TIMESTAMPS_TOKEN)?];
+    let mut tokens = vec![
+      self.token_id(whisper_model::SOT_TOKEN)?,
+      self.token_id(whisper_model::TRANSCRIBE_TOKEN)?,
+      self.token_id(whisper_model::NO_TIMESTAMPS_TOKEN)?,
+    ];
 
     let max_len = 50; // Short sequence for real-time processing
 

@@ -106,11 +106,11 @@ fn load_whisper_model() -> Result<whisper::WhisperProcessor, anyhow::Error> {
     candle_core::Device::Cpu
   };
 
-  println!("Using device: {device:?}");
+  info!("Using device: {device:?}");
 
   let whisper_model = whisper::WhichWhisperModel::Tiny;
 
-  println!("Loading whisper model: {:?}", whisper_model);
+  info!("Loading whisper model: {:?}", whisper_model);
 
   let model = whisper::WhisperProcessor::new(whisper_model, device.clone())?;
   Ok(model)
