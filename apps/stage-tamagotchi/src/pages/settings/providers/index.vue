@@ -23,12 +23,12 @@ const {
 <template>
   <div flex flex-col gap-5>
     <div bg="primary-500/10 dark:primary-800/25" rounded-lg p-4>
-      <div mb-2 text-xl font-semibold text="primary-800 dark:primary-100">
+      <div mb-2 text-xl font-normal text="primary-800 dark:primary-100">
         First time here?
       </div>
       <div text="primary-700 dark:primary-300">
         AIRI requires at least one <div bg="primary-500/10 dark:primary-800/25" inline-flex items-center gap-1 rounded-lg px-2 py-0.5 translate-y="[0.25lh]">
-          <div i-solar:chat-square-like-bold-duotone /><strong font-semibold>Chat</strong>
+          <div i-solar:chat-square-like-bold-duotone /><strong font-normal>Chat</strong>
         </div> provider to be configured to think, and behave properly. You could think of
         it as the brain of the characters living in AIRI system.
       </div>
@@ -39,7 +39,7 @@ const {
         <div>
           <span text="neutral-300 dark:neutral-500">Text generation model providers. e.g. OpenRouter, OpenAI, Ollama.</span>
         </div>
-        <div flex text-nowrap text-3xl font-semibold>
+        <div flex text-nowrap text-3xl font-normal>
           <div>
             Chat
           </div>
@@ -70,7 +70,7 @@ const {
         <div>
           <span text="neutral-300 dark:neutral-500">Speech (text-to-speech) model providers. e.g. ElevenLabs, Azure Speech.</span>
         </div>
-        <div flex text-nowrap text-3xl font-semibold>
+        <div flex text-nowrap text-3xl font-normal>
           <div>
             Speech
           </div>
@@ -101,7 +101,7 @@ const {
         <div>
           <span text="neutral-300 dark:neutral-500">Transcription (speech-to-text) model providers. e.g. Whisper.cpp, OpenAI, Azure Speech</span>
         </div>
-        <div flex text-nowrap text-3xl font-semibold>
+        <div flex text-nowrap text-3xl font-normal>
           <div>
             Transcription
           </div>
