@@ -116,6 +116,7 @@ impl WhisperProcessor {
 
     println!("Loading Whisper model from: {:?}", model_filename.display());
 
+// SAFETY: This is safe because we are using a mmaped file and the safetensors library guarantees that the data is valid.
     let var_builder = unsafe { VarBuilder::from_mmaped_safetensors(&[model_filename], whisper_model::DTYPE, &device)? };
 
     let model = WhisperModel::Normal(whisper_model::model::Whisper::load(&var_builder, config.clone())?);
