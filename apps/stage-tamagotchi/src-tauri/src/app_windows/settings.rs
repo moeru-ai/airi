@@ -5,12 +5,16 @@ use tauri::TitleBarStyle;
 use tauri::{WebviewUrl, WebviewWindowBuilder};
 
 pub fn new_settings_window(app: &tauri::AppHandle) -> Result<(), tauri::Error> {
-  let mut builder = WebviewWindowBuilder::new(app, "settings", WebviewUrl::App(Path::new("#/settings").to_path_buf()))
-    .title("Settings")
-    .inner_size(450.0, 800.0)
-    .shadow(true)
-    .transparent(false)
-    .accept_first_mouse(true);
+  let mut builder = WebviewWindowBuilder::new(
+    app,
+    "settings",
+    WebviewUrl::App(Path::new("#/settings").to_path_buf()),
+  )
+  .title("Settings")
+  .inner_size(450.0, 800.0)
+  .shadow(true)
+  .transparent(false)
+  .accept_first_mouse(true);
 
   #[cfg(target_os = "macos")]
   {
