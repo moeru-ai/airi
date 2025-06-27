@@ -1,6 +1,6 @@
 use std::{sync::atomic::Ordering, time::Duration};
-use log::info;
 
+use log::info;
 use tauri::{
   Emitter,
   Manager,
