@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { WidgetStage } from '@proj-airi/stage-ui/components'
+import { useAppRuntime } from '@proj-airi/stage-ui/composables'
 import { useMcpStore } from '@proj-airi/stage-ui/stores'
 import { connectServer } from '@proj-airi/tauri-plugin-mcp'
 import { invoke } from '@tauri-apps/api/core'
 import { listen } from '@tauri-apps/api/event'
-import { platform } from '@tauri-apps/plugin-os'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 
@@ -13,6 +13,7 @@ import { useWindowControlStore } from '../stores/window-controls'
 import { WindowControlMode } from '../types/window-controls'
 import { startClickThrough, stopClickThrough } from '../utils/windows'
 
+const { platform } = useAppRuntime()
 const windowStore = useWindowControlStore()
 useWindowShortcuts()
 const isCursorInside = ref(false)
@@ -78,7 +79,7 @@ function onTauriPositionCursorAndWindowFrameEvent(event: { payload: [Point, Wind
   const [mouseLocation, windowFrame] = event.payload
   isCursorInside.value = mouseLocation.x >= windowFrame.origin.x && mouseLocation.x <= windowFrame.origin.x + windowFrame.size.width && mouseLocation.y >= windowFrame.origin.y && mouseLocation.y <= windowFrame.origin.y + windowFrame.size.height
 
-  if (platform() === 'macos') {
+  if (platform.value === 'macos') {
     live2dFocusAt.value = {
       x: mouseLocation.x - windowFrame.origin.x,
       y: windowFrame.size.height - mouseLocation.y + windowFrame.origin.y,
