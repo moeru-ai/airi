@@ -4,7 +4,7 @@ import { useProvidersStore } from '@proj-airi/stage-ui/stores'
 import { storeToRefs } from 'pinia'
 
 import IconAnimation from '../../../components/IconAnimation.vue'
-import { useIconAnimation } from '../../../composables/useIconAnimation'
+import { useIconAnimation } from '../../../composables/icon-animation'
 
 const providersStore = useProvidersStore()
 const {
