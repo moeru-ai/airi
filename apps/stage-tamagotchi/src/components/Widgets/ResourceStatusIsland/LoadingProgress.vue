@@ -20,8 +20,32 @@ const totalProgress = computed(() => {
     shadow-md bg="white/80 dark:neutral-900/80"
     backdrop-blur="md"
     w="[calc(100%-1.5rem)]"
+    space-y-3
   >
-    <div mb-3 flex items-center gap-2>
+    <div>
+      <div flex items-center gap-2>
+        <div i-solar:danger-triangle-bold-duotone text="orange" />
+        <div>
+          Some modules are not available yet...
+        </div>
+      </div>
+      <ul ml-4 mt-3>
+        <li>
+          <RouterLink to="/settings/modules/hearing">
+            <div flex items-center gap-1>
+              <div flex items-center gap-1>
+                <div i-solar:microphone-3-bold-duotone />
+                <span decoration-underline decoration-dashed>Hearing</span>
+              </div>
+              <div text="neutral-500 dark:neutral-400">
+                due to loading inference models...
+              </div>
+            </div>
+          </RouterLink>
+        </li>
+      </ul>
+    </div>
+    <div flex items-center gap-2>
       <div v-if="totalProgress < 100" i-svg-spinners:pulse-ring />
       <div v-else i-solar:check-circle-bold />
       <div>
