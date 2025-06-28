@@ -478,6 +478,9 @@ importers:
       '@tauri-apps/cli':
         specifier: ^2.6.0
         version: 2.6.0
+      '@tauri-apps/plugin-os':
+        specifier: ^2.3.0
+        version: 2.3.0
       '@types/culori':
         specifier: ^4.0.0
         version: 4.0.0
@@ -4789,6 +4792,9 @@ packages:
 
   '@tauri-apps/plugin-global-shortcut@2.3.0':
     resolution: {integrity: sha512-WbAz0ElhpP+0kzQZRScdCC7UQ7OPH8PAn//fsBNu7+ywihsnVSVOg1L9YhieAtLNtAlnmFI69Yl5AGaA3ge5IQ==}
+
+  '@tauri-apps/plugin-os@2.3.0':
+    resolution: {integrity: sha512-dm3bDsMuUngpIQdJ1jaMkMfyQpHyDcaTIKTFaAMHoKeUd+Is3UHO2uzhElr6ZZkfytIIyQtSVnCWdW2Kc58f3g==}
 
   '@tokenizer/token@0.3.0':
     resolution: {integrity: sha512-OvjF+z51L3ov0OyAU0duzsYuvO01PH7x4t6DJx+guahgTnBHkhJdG7soQeTSFLWN3efnHyibZ4Z8l2EuWwJN3A==}
@@ -15356,6 +15362,10 @@ snapshots:
       '@tauri-apps/cli-win32-x64-msvc': 2.6.0
 
   '@tauri-apps/plugin-global-shortcut@2.3.0':
+    dependencies:
+      '@tauri-apps/api': 2.6.0
+
+  '@tauri-apps/plugin-os@2.3.0':
     dependencies:
       '@tauri-apps/api': 2.6.0
 
