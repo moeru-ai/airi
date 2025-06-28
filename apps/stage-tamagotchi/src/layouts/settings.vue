@@ -117,7 +117,9 @@ const routeHeaderMetadataMap = computed(() => {
 })
 
 // const activeSettingsTutorial = ref('default')
-const routeHeaderMetadata = computed(() => routeHeaderMetadataMap.value[route.path])
+const routeHeaderMetadata = computed(() => {
+  return routeHeaderMetadataMap.value[route.path] || routeHeaderMetadataMap.value[`${route.path}/`]
+})
 </script>
 
 <template>

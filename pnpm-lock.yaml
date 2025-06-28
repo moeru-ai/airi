@@ -270,6 +270,9 @@ importers:
       '@huggingface/transformers':
         specifier: ^3.5.2
         version: 3.5.2
+      '@moeru/std':
+        specifier: 'catalog:'
+        version: 0.1.0-beta.4
       '@pixiv/three-vrm':
         specifier: ^3.4.1
         version: 3.4.1(three@0.177.0)
@@ -387,6 +390,9 @@ importers:
       rehype-stringify:
         specifier: ^10.0.1
         version: 10.0.1
+      reka-ui:
+        specifier: ^2.3.1
+        version: 2.3.1(typescript@5.8.3)(vue@3.5.17(typescript@5.8.3))
       remark-parse:
         specifier: ^11.0.0
         version: 11.0.0

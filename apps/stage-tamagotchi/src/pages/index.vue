@@ -1,26 +1,29 @@
 <script setup lang="ts">
+import type { AiriTamagotchiEvents, Point, WindowFrame } from '../composables/tauri'
+
 import { WidgetStage } from '@proj-airi/stage-ui/components'
 import { useMcpStore } from '@proj-airi/stage-ui/stores'
 import { connectServer } from '@proj-airi/tauri-plugin-mcp'
 import { invoke } from '@tauri-apps/api/core'
-import { listen } from '@tauri-apps/api/event'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 
 import ResourceStatusIsland from '../components/Widgets/ResourceStatusIsland/index.vue'
 import { useAppRuntime } from '../composables/runtime'
+import { useTauriEvent } from '../composables/tauri'
 import { useWindowShortcuts } from '../composables/window-shortcuts'
 import { useResourcesStore } from '../stores/resources'
 import { useWindowControlStore } from '../stores/window-controls'
 import { WindowControlMode } from '../types/window-controls'
 import { startClickThrough, stopClickThrough } from '../utils/windows'
 
+useWindowShortcuts()
 const { platform } = useAppRuntime()
 const windowStore = useWindowControlStore()
-useWindowShortcuts()
-const isCursorInside = ref(false)
-
 const mcpStore = useMcpStore()
+const { listen } = useTauriEvent<AiriTamagotchiEvents>()
+
+const isCursorInside = ref(false)
 const { connected, serverCmd, serverArgs } = storeToRefs(mcpStore)
 
 const modeIndicatorClass = computed(() => {
@@ -61,21 +64,6 @@ const shouldHideView = computed(() => {
 })
 
 const live2dFocusAt = ref<Point>({ x: window.innerWidth / 2, y: window.innerHeight / 2 })
-
-interface Point {
-  x: number
-  y: number
-}
-
-interface Size {
-  width: number
-  height: number
-}
-
-interface WindowFrame {
-  origin: Point
-  size: Size
-}
 
 function onTauriPositionCursorAndWindowFrameEvent(event: { payload: [Point, WindowFrame] }) {
   const [mouseLocation, windowFrame] = event.payload
@@ -195,9 +183,12 @@ if (import.meta.hot) { // For better DX
       data-tauri-drag-region
       class="drag-region absolute left-0 top-0 z-999 h-full w-full flex items-center justify-center overflow-hidden"
     >
-      <div class="absolute h-32 w-full flex items-center justify-center b-2 b-primary bg-white">
+      <div
+        class="absolute h-32 w-full flex items-center justify-center overflow-hidden rounded-xl"
+        bg="white/85 dark:neutral-900/95" backdrop-blur="md"
+      >
         <div class="wall absolute top-0 h-8" />
-        <div data-tauri-drag-region class="absolute left-0 top-0 h-full w-full flex animate-flash animate-duration-5s animate-count-infinite items-center justify-center text-1.5rem text-primary-300 font-normal">
+        <div data-tauri-drag-region class="absolute left-0 top-0 h-full w-full flex animate-flash animate-duration-5s animate-count-infinite items-center justify-center text-1.5rem text-primary-400 font-normal">
           DRAG HERE TO MOVE
         </div>
         <div data-tauri-drag-region class="wall absolute bottom-0 h-8" />
@@ -247,7 +238,7 @@ if (import.meta.hot) { // For better DX
 }
 
 .wall {
-  --at-apply: text-primary-200;
+  --at-apply: text-primary-300;
 
   --wall-width: 8px;
   animation: wall-move 1s linear infinite;

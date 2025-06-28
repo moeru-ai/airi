@@ -15,18 +15,12 @@ const totalProgress = computed(() => {
 </script>
 
 <template>
-  <div
-    left="0" fixed top-0 m-3 rounded-xl p-3
-    shadow-md bg="white/80 dark:neutral-900/80"
-    backdrop-blur="md"
-    w="[calc(100%-1.5rem)]"
-    space-y-3
-  >
+  <div flex flex-col gap-3>
     <div>
-      <div flex items-center gap-2>
-        <div i-solar:danger-triangle-bold-duotone text="orange" />
+      <div flex items-center gap-2 text="sm orange-600 dark:orange-400">
+        <div i-solar:danger-triangle-bold-duotone />
         <div>
-          Some modules are not available yet...
+          Some modules haven't been available yet...
         </div>
       </div>
       <ul ml-4 mt-3>
@@ -45,23 +39,23 @@ const totalProgress = computed(() => {
         </li>
       </ul>
     </div>
-    <div flex items-center gap-2>
+    <div flex items-center gap-2 text-sm>
       <div v-if="totalProgress < 100" i-svg-spinners:pulse-ring />
-      <div v-else i-solar:check-circle-bold />
+      <div v-else i-solar:check-circle-bold-duotone />
       <div>
         Preparing external resources...
       </div>
     </div>
-    <div w-full flex flex-col gap-2>
+    <div v-if="props.progressInfo.size > 0" w-full flex flex-col gap-2>
       <div
         v-for="file in Array.from(progressInfo.values())"
         :key="file.value.filename"
         max-w-full flex flex-col gap="1 sm:2"
       >
-        <div flex justify-between text="xs sm:sm neutral-500 dark:neutral-400">
+        <div flex justify-between text="xs sm:sm neutral-600 dark:neutral-400">
           <div flex items-center gap-1>
             <div v-if="file.value.progress < 100" i-svg-spinners:pulse-ring />
-            <div v-else i-solar:check-circle-bold text="green-600 dark:green-400" />
+            <div v-else i-solar:check-circle-bold-duotone text="green-600 dark:green-400" />
             <div>
               {{ file.value.filename }}
             </div>
@@ -73,7 +67,7 @@ const totalProgress = computed(() => {
         </div>
         <div relative>
           <div
-            bg="primary-300 dark:primary-400"
+            bg="primary-300 dark:primary-300/50"
             absolute h-4 rounded-md will-change-width
             :style="{ width: `${file.value.progress}%` }"
             transition="width duration-500 ease-in-out"

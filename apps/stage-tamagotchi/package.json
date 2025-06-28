@@ -18,6 +18,7 @@
   "dependencies": {
     "@formkit/auto-animate": "^0.8.2",
     "@huggingface/transformers": "^3.5.2",
+    "@moeru/std": "catalog:",
     "@pixiv/three-vrm": "^3.4.1",
     "@pixiv/three-vrm-animation": "^3.4.1",
     "@pixiv/three-vrm-core": "^3.4.1",
@@ -57,6 +58,7 @@
     "popmotion": "^11.0.5",
     "radix-vue": "^1.9.17",
     "rehype-stringify": "^10.0.1",
+    "reka-ui": "^2.3.1",
     "remark-parse": "^11.0.0",
     "remark-rehype": "^11.1.2",
     "shiki": "^3.7.0",
