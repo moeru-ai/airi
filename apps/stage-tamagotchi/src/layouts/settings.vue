@@ -134,17 +134,18 @@ const routeHeaderMetadata = computed(() => routeHeaderMetadataMap.value[route.pa
         paddingLeft: 'env(safe-area-inset-left, 0px)',
       }"
     >
-      <div relative h-full w-full px-4 pb-4 top="44px">
+      <div relative h-full w-full pb-4 top="44px">
         <!-- Content -->
         <div flex="~ col" mx-auto max-w-screen-xl>
           <PageHeader
-            bg="neutral-50 dark:neutral-800"
             :title="routeHeaderMetadata?.title"
             :subtitle="routeHeaderMetadata?.subtitle"
             :disable-back-button="route.path === '/settings'"
-            top="44px!"
+            top="44px!" px-4
           />
-          <RouterView />
+          <div px-4>
+            <RouterView />
+          </div>
         </div>
       </div>
     </div>
