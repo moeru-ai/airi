@@ -4,13 +4,12 @@ import type { AiriTamagotchiEvents, Point, WindowFrame } from '../composables/ta
 import { WidgetStage } from '@proj-airi/stage-ui/components'
 import { useMcpStore } from '@proj-airi/stage-ui/stores'
 import { connectServer } from '@proj-airi/tauri-plugin-mcp'
-import { invoke } from '@tauri-apps/api/core'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 
 import ResourceStatusIsland from '../components/Widgets/ResourceStatusIsland/index.vue'
 import { useAppRuntime } from '../composables/runtime'
-import { useTauriEvent } from '../composables/tauri'
+import { useTauriCore, useTauriEvent } from '../composables/tauri'
 import { useWindowShortcuts } from '../composables/window-shortcuts'
 import { useResourcesStore } from '../stores/resources'
 import { useWindowControlStore } from '../stores/window-controls'
@@ -22,6 +21,7 @@ const { platform } = useAppRuntime()
 const windowStore = useWindowControlStore()
 const mcpStore = useMcpStore()
 const { listen } = useTauriEvent<AiriTamagotchiEvents>()
+const { invoke } = useTauriCore()
 
 const isCursorInside = ref(false)
 const { connected, serverCmd, serverArgs } = storeToRefs(mcpStore)

@@ -1,7 +1,10 @@
+import type { InvokeArgs, InvokeOptions } from '@tauri-apps/api/core'
 import type { EventCallback, EventName, UnlistenFn } from '@tauri-apps/api/event'
 
 import { withRetry } from '@moeru/std'
 import { computedAsync, until } from '@vueuse/core'
+
+import { useAppRuntime } from './runtime'
 
 async function untilNoError<T>(fn: () => Promise<T>, onError?: (err?: unknown | null) => void): Promise<T> {
   const fnRetry = withRetry(fn, { retryDelay: 5000, retry: Number.MAX_SAFE_INTEGER - 2, onError })
@@ -50,14 +53,20 @@ export interface AiriTamagotchiEvents extends Events {
   'mcp_plugin_destroyed': undefined
 }
 
-export type Event<E extends { [key: string]: any }> = {
-  [K in keyof E]: E[K];
-}[keyof E]
-
 export function useTauriEvent<ES = Events>() {
-  const tauriEventApi = computedAsync(() => untilImported(() => import('@tauri-apps/api/event'), console.warn))
+  const { platform } = useAppRuntime()
+
+  const tauriEventApi = computedAsync(() => {
+    if (platform.value !== 'web') {
+      return untilImported(() => import('@tauri-apps/api/event'), console.warn)
+    }
+  })
 
   async function _listen<E extends keyof ES>(event: E, callback: EventCallback<ES[E]>) {
+    if (platform.value === 'web') {
+      return () => {}
+    }
+
     await until(tauriEventApi).toBeTruthy()
     const imported = await tauriEventApi.value
     if (!imported) {
@@ -68,6 +77,11 @@ export function useTauriEvent<ES = Events>() {
   }
 
   async function listen<E extends keyof ES>(event: E, callback: EventCallback<ES[E]>) {
+    if (platform.value === 'web') {
+      console.warn(`Attempted to listen to Tauri event "${String(event)}" in web platform, however, currently we are not in a Tauri environment.`)
+      return () => {}
+    }
+
     let cleanupListener: UnlistenFn | undefined
 
     _listen(event, callback).then((listener) => {
@@ -81,5 +95,56 @@ export function useTauriEvent<ES = Events>() {
 
   return {
     listen,
+  }
+}
+
+export interface InvokeMethods {
+  open_settings_window: { args: undefined, options: undefined, returns: void }
+  start_monitor: { args: undefined, options: undefined, returns: void }
+  stop_monitor: { args: undefined, options: undefined, returns: void }
+  open_chat_window: { args: undefined, options: undefined, returns: void }
+  load_models: { args: undefined, options: undefined, returns: void }
+  stop_click_through: { args: undefined, options: undefined, returns: void }
+  start_click_through: { args: undefined, options: undefined, returns: void }
+}
+
+interface InvokeMethodShape {
+  args: InvokeArgs | undefined
+  options: InvokeOptions | undefined
+  returns: any
+}
+
+export function useTauriCore<IM extends Record<keyof IM, InvokeMethodShape> = InvokeMethods>() {
+  const { platform } = useAppRuntime()
+
+  const tauriCoreApi = computedAsync(() => {
+    if (platform.value !== 'web') {
+      return untilImported(() => import('@tauri-apps/api/core'), console.warn)
+    }
+  })
+
+  async function invoke<
+    C extends keyof IM,
+  >(
+    command: C,
+    args?: IM[C]['args'],
+    options?: IM[C]['options'],
+  ): Promise<IM[C]['returns'] | undefined> {
+    if (platform.value === 'web') {
+      console.warn(`Attempted to invoke Tauri command "${String(command)}" in web platform, however, currently we are not in a Tauri environment.`)
+      return
+    }
+
+    await until(tauriCoreApi).toBeTruthy()
+    const imported = await tauriCoreApi.value
+    if (!imported) {
+      throw new Error('Tauri core API not available')
+    }
+
+    return await untilNoError(() => imported.invoke(command as string, args as InvokeArgs | undefined, options as InvokeOptions | undefined), console.warn)
+  }
+
+  return {
+    invoke,
   }
 }
