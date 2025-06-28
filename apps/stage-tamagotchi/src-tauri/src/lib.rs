@@ -97,7 +97,9 @@ async fn stop_click_through(window: tauri::Window) -> Result<(), String> {
   Ok(())
 }
 
-fn load_whisper_model() -> Result<whisper::WhisperProcessor, anyhow::Error> {
+fn load_whisper_model(window: tauri::Window) -> anyhow::Result<()> {
+  let progress_manager = crate::whisper::progress::ModelLoadProgressEmitterManager::new(window);
+
   // Determine device to use
   let device = if candle_core::utils::cuda_is_available() {
     candle_core::Device::new_cuda(0)?
@@ -109,12 +111,19 @@ fn load_whisper_model() -> Result<whisper::WhisperProcessor, anyhow::Error> {
 
   info!("Using device: {device:?}");
 
-  let whisper_model = whisper::WhichWhisperModel::Tiny;
+  let whisper_model = whisper::whisper::WhichWhisperModel::Tiny;
 
   info!("Loading whisper model: {:?}", whisper_model);
 
-  let model = whisper::WhisperProcessor::new(whisper_model, device.clone())?;
-  Ok(model)
+  let _ = whisper::whisper::WhisperProcessor::new(whisper_model, device.clone(), progress_manager)?;
+  Ok(())
+}
+
+#[tauri::command]
+async fn load_models(window: tauri::Window) -> Result<(), String> {
+  println!("load_models");
+  load_whisper_model(window).unwrap();
+  Ok(())
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -161,9 +170,6 @@ pub fn run() {
             .build(),
         )?;
       }
-
-      // Load whisper model
-      load_whisper_model()?;
 
       // TODO: i18n
       let quit_item = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
@@ -231,6 +237,7 @@ pub fn run() {
       stop_monitor,
       start_click_through,
       stop_click_through,
+      load_models,
     ])
     .build(tauri::generate_context!())
     .expect("error while building tauri application")
