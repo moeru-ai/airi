@@ -66,9 +66,7 @@
     "unplugin-vue": "^6.2.0",
     "vite": "^7.0.0",
     "vite-plugin-inspect": "^11.2.0",
-    "vitest": "^3.2.4",
-    "@moeru/std": "^0.0.1",
-    "crossws": "^0.0.1"
+    "vitest": "^3.2.4"
   },
   "workspaces": [
     "packages/**",
