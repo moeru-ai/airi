@@ -306,6 +306,9 @@ importers:
       '@tauri-apps/plugin-global-shortcut':
         specifier: ^2.3.0
         version: 2.3.0
+      '@tauri-apps/plugin-os':
+        specifier: ^2.3.0
+        version: 2.3.0
       '@tresjs/cientos':
         specifier: ^4.3.1
         version: 4.3.1(@tresjs/core@4.3.6(three@0.177.0)(typescript@5.8.3)(vue@3.5.17(typescript@5.8.3)))(@types/three@0.177.0)(react@18.3.1)(three@0.177.0)(typescript@5.8.3)(vue@3.5.17(typescript@5.8.3))
@@ -478,9 +481,6 @@ importers:
       '@tauri-apps/cli':
         specifier: ^2.6.0
         version: 2.6.0
-      '@tauri-apps/plugin-os':
-        specifier: ^2.3.0
-        version: 2.3.0
       '@types/culori':
         specifier: ^4.0.0
         version: 4.0.0
