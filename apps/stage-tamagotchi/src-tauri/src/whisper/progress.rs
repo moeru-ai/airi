@@ -21,6 +21,7 @@ impl ModelLoadProgressEmitterManager {
 
 pub struct ModelLoadProgressEmitter {
   filename:   String,
+  size:       usize,
   total_size: usize,
   progress:   f32,
   window:     tauri::Window,
@@ -33,6 +34,7 @@ impl ModelLoadProgressEmitter {
   ) -> Self {
     Self {
       filename: filename.to_string(),
+      size: 0,
       total_size: 0,
       progress: 0.0,
       window,
@@ -64,7 +66,8 @@ impl hf_hub::api::Progress for ModelLoadProgressEmitter {
     &mut self,
     size: usize,
   ) {
-    self.progress = size as f32 / self.total_size as f32 * 100.0;
+    self.size += size;
+    self.progress = if self.total_size > 0 { (self.size as f32 / self.total_size as f32 * 100.0).min(100.0) } else { 100.0 };
     self
       .window
       .emit(
