@@ -56,7 +56,7 @@ export class Client<C = undefined> {
     catch (err) {
       console.error('Encountered an error when retrying', err)
       await sleep(2 ** attempts * 1000)
-      await this.retryWithExponentialBackoff(fn, attempts++, maxAttempts)
+      await this.retryWithExponentialBackoff(fn, attempts + 1, maxAttempts)
     }
   }
 
@@ -190,7 +190,6 @@ export class Client<C = undefined> {
     }
 
     listeners.push(callback as unknown as (data: WebSocketBaseEvent<E, WebSocketEvents<C>[E]>) => void | Promise<void>)
-    this.eventListeners.set(event, listeners)
   }
 
   send(data: WebSocketEvent<C>): void {
