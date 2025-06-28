@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { WidgetStage } from '@proj-airi/stage-ui/components'
-import { useAppRuntime } from '@proj-airi/stage-ui/composables'
 import { useMcpStore } from '@proj-airi/stage-ui/stores'
 import { connectServer } from '@proj-airi/tauri-plugin-mcp'
 import { invoke } from '@tauri-apps/api/core'
@@ -8,6 +7,7 @@ import { listen } from '@tauri-apps/api/event'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 
+import { useAppRuntime } from '../composables/runtime'
 import { useWindowShortcuts } from '../composables/window-shortcuts'
 import { useWindowControlStore } from '../stores/window-controls'
 import { WindowControlMode } from '../types/window-controls'
@@ -96,6 +96,9 @@ function onTauriPositionCursorAndWindowFrameEvent(event: { payload: [Point, Wind
 onMounted(async () => {
   // Listen for click-through state changes
   unListenFuncs.push(await listen('tauri-app:window-click-through:position-cursor-and-window-frame', onTauriPositionCursorAndWindowFrameEvent))
+  invoke('load_models')
+  // eslint-disable-next-line no-console
+  unListenFuncs.push(await listen('tauri-app:model-load-progress', console.log))
 
   if (connected.value)
     return
