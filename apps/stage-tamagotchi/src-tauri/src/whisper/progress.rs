@@ -67,7 +67,7 @@ impl hf_hub::api::Progress for ModelLoadProgressEmitter {
     size: usize,
   ) {
     self.size += size;
-    self.progress = self.size as f32 / self.total_size as f32 * 100.0;
+    self.progress = if self.total_size > 0 { (self.size as f32 / self.total_size as f32 * 100.0).min(100.0) } else { 100.0 };
     self
       .window
       .emit(
