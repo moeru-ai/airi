@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useAppRuntime } from '@proj-airi/stage-ui/composables'
+import { useAppRuntime } from '../../composables/runtime'
 
 defineProps<{
   title: string

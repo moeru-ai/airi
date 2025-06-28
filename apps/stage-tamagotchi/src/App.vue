@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { useAppRuntime } from '@proj-airi/stage-ui/composables'
 import { useMcpStore, useSettings } from '@proj-airi/stage-ui/stores'
 import { listen } from '@tauri-apps/api/event'
 import { Window } from '@tauri-apps/api/window'
@@ -9,6 +8,7 @@ import { computed, onMounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterView } from 'vue-router'
 
+import { useAppRuntime } from './composables/runtime'
 import { useWindowControlStore } from './stores/window-controls'
 
 const { language, themeColorsHue, themeColorsHueDynamic, allowVisibleOnAllWorkspaces } = storeToRefs(useSettings())
