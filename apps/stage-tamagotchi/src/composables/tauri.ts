@@ -7,7 +7,7 @@ import { computedAsync, until } from '@vueuse/core'
 import { useAppRuntime } from './runtime'
 
 async function untilNoError<T>(fn: () => Promise<T>, onError?: (err?: unknown | null) => void): Promise<T> {
-  const fnRetry = withRetry(fn, { retryDelay: 5000, retry: Number.MAX_SAFE_INTEGER - 2, onError })
+  const fnRetry = withRetry(fn, { retryDelay: 5000, retry: 5, onError })
   return await fnRetry()
 }
 
@@ -54,7 +54,7 @@ export interface AiriTamagotchiEvents extends Events {
 }
 
 export function useTauriEvent<ES = Events>() {
-  const { platform } = useAppRuntime()
+  const { platform, isInitialized } = useAppRuntime()
 
   const tauriEventApi = computedAsync(() => {
     if (platform.value !== 'web') {
@@ -63,6 +63,8 @@ export function useTauriEvent<ES = Events>() {
   })
 
   async function _listen<E extends keyof ES>(event: E, callback: EventCallback<ES[E]>) {
+    await until(isInitialized).toBeTruthy()
+
     if (platform.value === 'web') {
       return () => {}
     }
@@ -106,6 +108,13 @@ export interface InvokeMethods {
   load_models: { args: undefined, options: undefined, returns: void }
   stop_click_through: { args: undefined, options: undefined, returns: void }
   start_click_through: { args: undefined, options: undefined, returns: void }
+
+  // WindowLink.vue
+  open_route_in_window: {
+    args: { route: string, windowLabel?: string } | undefined
+    options: undefined
+    returns: void
+  }
 }
 
 interface InvokeMethodShape {
@@ -115,7 +124,7 @@ interface InvokeMethodShape {
 }
 
 export function useTauriCore<IM extends Record<keyof IM, InvokeMethodShape> = InvokeMethods>() {
-  const { platform } = useAppRuntime()
+  const { platform, isInitialized } = useAppRuntime()
 
   const tauriCoreApi = computedAsync(() => {
     if (platform.value !== 'web') {
@@ -123,15 +132,15 @@ export function useTauriCore<IM extends Record<keyof IM, InvokeMethodShape> = In
     }
   })
 
-  async function invoke<
-    C extends keyof IM,
-  >(
+  async function invoke<C extends keyof IM>(
     command: C,
     args?: IM[C]['args'],
     options?: IM[C]['options'],
   ): Promise<IM[C]['returns'] | undefined> {
+    await until(isInitialized).toBeTruthy()
+
     if (platform.value === 'web') {
-      console.warn(`Attempted to invoke Tauri command "${String(command)}" in web platform, however, currently we are not in a Tauri environment.`)
+      console.warn(`Attempted to invoke Tauri command "${String(command)}" in web platform`)
       return
     }
 

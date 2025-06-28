@@ -4,7 +4,7 @@ use std::path::Path;
 use tauri::TitleBarStyle;
 use tauri::{WebviewUrl, WebviewWindowBuilder};
 
-pub fn new_chat_window(app: &tauri::AppHandle) -> Result<(), tauri::Error> {
+pub fn new_chat_window(app: &tauri::AppHandle) -> Result<tauri::WebviewWindow, tauri::Error> {
   let mut builder = WebviewWindowBuilder::new(
     app,
     "chat",
@@ -28,6 +28,5 @@ pub fn new_chat_window(app: &tauri::AppHandle) -> Result<(), tauri::Error> {
     builder = builder.traffic_light_position(tauri::LogicalPosition::new(14.0, 20.0));
   }
 
-  builder.build()?;
-  Ok(())
+  return builder.build();
 }

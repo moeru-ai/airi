@@ -1,5 +1,5 @@
 import { computedAsync } from '@vueuse/core'
-import { onMounted, ref } from 'vue'
+import { computed, ref } from 'vue'
 
 async function getTauri() {
   try {
@@ -11,27 +11,25 @@ async function getTauri() {
   }
 }
 
-async function getTauriOSPluginInternal() {
-  const os = await import('@tauri-apps/plugin-os')
-  return os
-}
-
 export function useAppRuntime() {
-  const isTauri = ref<boolean>(false)
+  const isInitialized = ref(false)
 
   const platform = computedAsync(async () => {
-    if (!isTauri.value) {
-      return 'web'
+    const res = (await getTauri())?.platform?.() || 'web'
+    if (!isInitialized.value) {
+      isInitialized.value = true
     }
 
-    return (await getTauriOSPluginInternal())?.platform?.() || 'web'
-  })
+    return res
+  }, 'web')
 
-  onMounted(async () => {
-    isTauri.value = (await getTauri()) != null
+  const isTauri = computed(() => {
+    return platform.value !== 'web'
   })
 
   return {
     platform,
+    isInitialized,
+    isTauri,
   }
 }

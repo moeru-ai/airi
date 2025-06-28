@@ -1,11 +1,9 @@
-import { useTauriCore } from '../composables/tauri'
+import { invoke } from '@tauri-apps/api/core'
 
 export async function startClickThrough() {
-  const { invoke } = useTauriCore()
   await invoke('start_click_through')
 }
 
 export async function stopClickThrough() {
-  const { invoke } = useTauriCore()
   await invoke('stop_click_through')
 }

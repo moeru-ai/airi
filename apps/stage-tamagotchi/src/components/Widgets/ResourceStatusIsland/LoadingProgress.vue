@@ -3,6 +3,8 @@ import type { ProgressInfo } from '../../../stores/resources'
 
 import { computed } from 'vue'
 
+import WindowLink from '../../Tauri/WindowLink.vue'
+
 const props = defineProps<{
   progressInfo: ProgressInfo
 }>()
@@ -25,7 +27,7 @@ const totalProgress = computed(() => {
       </div>
       <ul ml-4 mt-3>
         <li>
-          <RouterLink to="/settings/modules/hearing">
+          <WindowLink to="/settings/modules/hearing" label="settings">
             <div flex items-center gap-1>
               <div flex items-center gap-1>
                 <div i-solar:microphone-3-bold-duotone />
@@ -35,7 +37,7 @@ const totalProgress = computed(() => {
                 due to loading inference models...
               </div>
             </div>
-          </RouterLink>
+          </WindowLink>
         </li>
       </ul>
     </div>

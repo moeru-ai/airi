@@ -206,6 +206,7 @@ dependencies = [
  "tauri-plugin-prevent-default",
  "tokenizers",
  "tokio",
+ "url",
  "windows 0.61.3",
 ]
 
