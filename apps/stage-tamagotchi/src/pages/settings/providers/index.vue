@@ -37,16 +37,16 @@ const {
       <div i-solar:chat-square-like-bold-duotone text="neutral-500 dark:neutral-400 4xl" />
       <div>
         <div>
-          <span text="neutral-300 dark:neutral-500">Text generation model providers. e.g. OpenRouter, OpenAI, Ollama.</span>
+          <span text="neutral-300 dark:neutral-500 sm sm:base">Text generation model providers. e.g. OpenRouter, OpenAI, Ollama.</span>
         </div>
-        <div flex text-nowrap text-3xl font-normal>
+        <div flex text-nowrap text="2xl sm:3xl" font-normal>
           <div>
             Chat
           </div>
         </div>
       </div>
     </div>
-    <div grid="~ cols-2 gap-4">
+    <div grid="~ cols-1 md:cols-2 gap-4">
       <IconStatusItem
         v-for="(provider, index) of allChatProvidersMetadata"
         :key="provider.id"
@@ -68,16 +68,16 @@ const {
       <div i-solar:user-speak-rounded-bold-duotone text="neutral-500 dark:neutral-400 4xl" />
       <div>
         <div>
-          <span text="neutral-300 dark:neutral-500">Speech (text-to-speech) model providers. e.g. ElevenLabs, Azure Speech.</span>
+          <span text="neutral-300 dark:neutral-500 sm sm:base">Speech (text-to-speech) model providers. e.g. ElevenLabs, Azure Speech.</span>
         </div>
-        <div flex text-nowrap text-3xl font-normal>
+        <div flex text-nowrap text="2xl sm:3xl" font-normal>
           <div>
             Speech
           </div>
         </div>
       </div>
     </div>
-    <div grid="~ cols-2 gap-4">
+    <div grid="~ cols-1 md:cols-2 gap-4">
       <IconStatusItem
         v-for="(provider, index) of allAudioSpeechProvidersMetadata"
         :key="provider.id"
@@ -99,16 +99,16 @@ const {
       <div i-solar:microphone-3-bold-duotone text="neutral-500 dark:neutral-400 4xl" />
       <div>
         <div>
-          <span text="neutral-300 dark:neutral-500">Transcription (speech-to-text) model providers. e.g. Whisper.cpp, OpenAI, Azure Speech</span>
+          <span text="neutral-300 dark:neutral-500 sm sm:base">Transcription (speech-to-text) model providers. e.g. Whisper.cpp, OpenAI, Azure Speech</span>
         </div>
-        <div flex text-nowrap text-3xl font-normal>
+        <div flex text-nowrap text="2xl sm:3xl" font-normal>
           <div>
             Transcription
           </div>
         </div>
       </div>
     </div>
-    <div grid="~ cols-2 gap-4">
+    <div grid="~ cols-1 md:cols-2 gap-4">
       <IconStatusItem
         v-for="(provider, index) of allAudioTranscriptionProvidersMetadata"
         :key="provider.id"
@@ -141,7 +141,7 @@ const {
   <div
     v-else
     v-motion
-    text="neutral-500/50 dark:neutral-600/20" pointer-events-none
+    text="neutral-500/5 dark:neutral-600/20" pointer-events-none
     fixed top="[calc(100dvh-15rem)]" bottom-0 right--5 z--1
     :initial="{ scale: 0.9, opacity: 0, y: 20 }"
     :enter="{ scale: 1, opacity: 1, y: 0 }"
