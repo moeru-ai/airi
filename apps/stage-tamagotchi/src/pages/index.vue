@@ -7,6 +7,7 @@ import { listen } from '@tauri-apps/api/event'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 
+import ResourceStatusIsland from '../components/Widgets/ResourceStatusIsland/index.vue'
 import { useAppRuntime } from '../composables/runtime'
 import { useWindowShortcuts } from '../composables/window-shortcuts'
 import { useWindowControlStore } from '../stores/window-controls'
@@ -146,6 +147,7 @@ if (import.meta.hot) { // For better DX
   >
     <div relative h-full w-full items-end gap-2 class="view">
       <WidgetStage h-full w-full flex-1 :focus-at="live2dFocusAt" mb="<md:18" />
+      <ResourceStatusIsland />
       <div
         absolute bottom-4 left-4 flex gap-1 op-0 transition="opacity duration-500"
         :class="{
