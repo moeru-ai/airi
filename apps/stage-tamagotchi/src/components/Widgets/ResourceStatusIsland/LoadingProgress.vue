@@ -1,70 +1,16 @@
 <script setup lang="ts">
-import type { Ref } from 'vue'
+import type { ProgressInfo } from '../../../stores/resources'
 
-import { onMounted, ref } from 'vue'
+import { computed } from 'vue'
 
-interface ProgressInfoItem {
-  filename: string
-  progress: number
-  currentSize: number
-  totalSize: number
-}
+const props = defineProps<{
+  progressInfo: ProgressInfo
+}>()
 
-interface ProgressInfo {
-  files: Ref<ProgressInfoItem>[]
-  totalProgress: number
-}
-
-const progressInfo = ref<ProgressInfo>({
-  files: [],
-  totalProgress: 0,
-})
-
-const simulatingProgressFiles = [
-  { filename: 'model.safetensors', totalSize: 1000000 },
-  { filename: 'config.json', totalSize: 500000 },
-  { filename: 'metadata.json', totalSize: 200000 },
-]
-
-function simulateProgressForItem(totalSize: number, item: Ref<ProgressInfoItem>) {
-  const interval = setInterval(() => {
-    if (item.value.progress >= 100) {
-      item.value.progress = 100
-      clearInterval(interval)
-      return
-    }
-
-    item.value.currentSize += 8192
-    item.value.progress = (item.value.currentSize / totalSize) * 100
-  }, 100)
-}
-
-function simulateProgress() {
-  for (const file of simulatingProgressFiles) {
-    const item = ref<ProgressInfoItem>({
-      filename: file.filename,
-      progress: 0,
-      currentSize: 0,
-      totalSize: file.totalSize,
-    })
-
-    progressInfo.value.files.push(item)
-    simulateProgressForItem(file.totalSize, item)
-
-    const interval = setInterval(() => {
-      const totalProgress = progressInfo.value.files.reduce((acc, file) => acc + file.value.progress, 0) / progressInfo.value.files.length
-      progressInfo.value.totalProgress = totalProgress
-
-      if (totalProgress >= 100) {
-        clearInterval(interval)
-      }
-    }, 100)
-  }
-}
-
-onMounted(() => {
-  // Simulate progress for demonstration purposes
-  simulateProgress()
+const totalProgress = computed(() => {
+  return Array.from(
+    props.progressInfo.values(),
+  ).reduce((acc, file) => acc + file.value.progress, 0) / props.progressInfo.size
 })
 </script>
 
@@ -76,7 +22,7 @@ onMounted(() => {
     w="[calc(100%-1.5rem)]"
   >
     <div mb-3 flex items-center gap-2>
-      <div v-if="progressInfo.totalProgress < 100" i-svg-spinners:pulse-ring />
+      <div v-if="totalProgress < 100" i-svg-spinners:pulse-ring />
       <div v-else i-solar:check-circle-bold />
       <div>
         Preparing external resources...
@@ -84,7 +30,7 @@ onMounted(() => {
     </div>
     <div w-full flex flex-col gap-2>
       <div
-        v-for="file in progressInfo.files"
+        v-for="file in Array.from(progressInfo.values())"
         :key="file.value.filename"
         max-w-full flex flex-col gap="1 sm:2"
       >

@@ -10,6 +10,7 @@ import { computed, onMounted, onUnmounted, ref } from 'vue'
 import ResourceStatusIsland from '../components/Widgets/ResourceStatusIsland/index.vue'
 import { useAppRuntime } from '../composables/runtime'
 import { useWindowShortcuts } from '../composables/window-shortcuts'
+import { useResourcesStore } from '../stores/resources'
 import { useWindowControlStore } from '../stores/window-controls'
 import { WindowControlMode } from '../types/window-controls'
 import { startClickThrough, stopClickThrough } from '../utils/windows'
@@ -97,9 +98,10 @@ function onTauriPositionCursorAndWindowFrameEvent(event: { payload: [Point, Wind
 onMounted(async () => {
   // Listen for click-through state changes
   unListenFuncs.push(await listen('tauri-app:window-click-through:position-cursor-and-window-frame', onTauriPositionCursorAndWindowFrameEvent))
+
+  // Load models
   invoke('load_models')
-  // eslint-disable-next-line no-console
-  unListenFuncs.push(await listen('tauri-app:model-load-progress', console.log))
+  unListenFuncs.push(await listen('tauri-app:model-load-progress', useResourcesStore().appendResource))
 
   if (connected.value)
     return
