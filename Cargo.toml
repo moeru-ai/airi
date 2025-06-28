@@ -12,3 +12,12 @@ version = "0.6.1"
 
 [workspace.dependencies.tauri-plugin-mcp]
 path = "./crates/tauri-plugin-mcp"
+
+[profile.dev]
+incremental = true
+opt-level = 0
+debug = true
+
+[profile.dev.package."*"]
+opt-level = 1
+debug = false
