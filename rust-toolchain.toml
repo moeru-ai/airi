@@ -1,7 +1,7 @@
 # https://rust-lang.github.io/rustup/overrides.html#the-toolchain-file
 
 [toolchain]
-channel = "nightly"
+channel = "nightly-2025-05-25"
 # https://rust-lang.github.io/rustup/concepts/components.html
 components = [
   "rustc",
