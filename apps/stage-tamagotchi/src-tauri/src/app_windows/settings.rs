@@ -1,10 +1,11 @@
 use std::path::Path;
 
+use anyhow::{Ok, Result};
 #[cfg(target_os = "macos")]
 use tauri::TitleBarStyle;
 use tauri::{WebviewUrl, WebviewWindowBuilder};
 
-pub fn new_settings_window(app: &tauri::AppHandle) -> Result<tauri::WebviewWindow, tauri::Error> {
+pub fn new_settings_window(app: &tauri::AppHandle) -> Result<tauri::WebviewWindow> {
   let mut builder = WebviewWindowBuilder::new(
     app,
     "settings",
@@ -28,5 +29,7 @@ pub fn new_settings_window(app: &tauri::AppHandle) -> Result<tauri::WebviewWindo
     builder = builder.traffic_light_position(tauri::LogicalPosition::new(14.0, 20.0));
   }
 
-  return builder.build();
+  let window = builder.build()?;
+
+  Ok(window)
 }

@@ -1,15 +1,16 @@
 <script setup lang="ts">
-import type { AiriTamagotchiEvents, Point, WindowFrame } from '../composables/tauri'
+import type { AiriTamagotchiEvents, Point } from '../composables/tauri'
 
 import { WidgetStage } from '@proj-airi/stage-ui/components'
 import { useMcpStore } from '@proj-airi/stage-ui/stores'
 import { connectServer } from '@proj-airi/tauri-plugin-mcp'
-import { invoke } from '@tauri-apps/api/core'
+import { useWindowSize } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 
 import ResourceStatusIsland from '../components/Widgets/ResourceStatusIsland/index.vue'
-// import { useWindowPersistence } from '../composables/window-persistence'
+import { useTauriCore, useTauriEvent } from '../composables/tauri'
+import { useTauriWindowClickThrough } from '../composables/tauri-click-through'
 import { useWindowShortcuts } from '../composables/window-shortcuts'
 import { useResourcesStore } from '../stores/resources'
 import { useWindowControlStore } from '../stores/window-controls'
@@ -17,14 +18,23 @@ import { WindowControlMode } from '../types/window-controls'
 import { startClickThrough, stopClickThrough } from '../utils/windows'
 
 useWindowShortcuts()
-const { platform } = useAppRuntime()
 const windowStore = useWindowControlStore()
-const mcpStore = useMcpStore()
-const { listen } = useTauriEvent<AiriTamagotchiEvents>()
-// const { invoke: wrappedInvoke } = useTauriCore()
+const { width, height } = useWindowSize()
+
+const centerPos = computed(() => ({ x: width.value / 2, y: height.value / 2 }))
+const live2dFocusAt = ref<Point>(centerPos.value)
 
 const isCursorInside = ref(false)
+const shouldHideView = computed(() => isCursorInside.value && !windowStore.isControlActive && windowStore.isIgnoringMouseEvent)
+
+const { listen } = useTauriEvent<AiriTamagotchiEvents>()
+const { invoke } = useTauriCore()
+const { live2dLookAtX, live2dLookAtY } = useTauriWindowClickThrough(centerPos)
+
+const mcpStore = useMcpStore()
 const { connected, serverCmd, serverArgs } = storeToRefs(mcpStore)
+
+watch([live2dLookAtX, live2dLookAtY], ([x, y]) => live2dFocusAt.value = { x, y }, { immediate: true })
 
 // // Initialize window persistence system
 // const windowPersistence = useWindowPersistence({
@@ -52,9 +62,6 @@ const modeIndicatorClass = computed(() => {
 onMounted(async () => {
   await invoke('start_monitor')
   await startClickThrough()
-
-  // Initialize window persistence
-  // await windowPersistence.initialize()
 })
 
 onUnmounted(async () => {
@@ -72,33 +79,8 @@ function openChat() {
   invoke('open_chat_window')
 }
 
-const shouldHideView = computed(() => {
-  return isCursorInside.value && !windowStore.isControlActive && windowStore.isIgnoringMouseEvent
-})
-
-const live2dFocusAt = ref<Point>({ x: window.innerWidth / 2, y: window.innerHeight / 2 })
-
-function onTauriPositionCursorAndWindowFrameEvent(event: { payload: [Point, WindowFrame] }) {
-  const [mouseLocation, windowFrame] = event.payload
-  isCursorInside.value = mouseLocation.x >= windowFrame.origin.x && mouseLocation.x <= windowFrame.origin.x + windowFrame.size.width && mouseLocation.y >= windowFrame.origin.y && mouseLocation.y <= windowFrame.origin.y + windowFrame.size.height
-
-  if (platform.value === 'macos') {
-    live2dFocusAt.value = {
-      x: mouseLocation.x - windowFrame.origin.x,
-      y: windowFrame.size.height - mouseLocation.y + windowFrame.origin.y,
-    }
-    return
-  }
-
-  live2dFocusAt.value = {
-    x: mouseLocation.x - windowFrame.origin.x,
-    y: mouseLocation.y - windowFrame.origin.y,
-  }
-}
-
 onMounted(async () => {
-  unListenFuncs.push(await listen('tauri-app:window-click-through:position-cursor-and-window-frame', onTauriPositionCursorAndWindowFrameEvent))
-  unListenFuncs.push(await listen('tauri-app:model-load-progress', useResourcesStore().appendResource))
+  unListenFuncs.push(await listen('tauri-app:model-load-progress', event => useResourcesStore().appendResource(event)))
 
   // Load models
   invoke('load_models')
@@ -129,10 +111,6 @@ if (import.meta.hot) { // For better DX
     invoke('stop_monitor')
   })
   import.meta.hot.on('vite:afterUpdate', async () => {
-    if (unListenFuncs.length === 0) {
-      unListenFuncs.push(await listen('tauri-app:window-click-through:position-cursor-and-window-frame', onTauriPositionCursorAndWindowFrameEvent))
-    }
-
     invoke('start_monitor')
   })
 }
@@ -195,7 +173,7 @@ if (import.meta.hot) { // For better DX
     <div
       v-if="windowStore.controlMode === WindowControlMode.MOVE"
       data-tauri-drag-region
-      class="drag-region absolute left-0 top-0 z-999 h-full w-full flex items-center justify-center overflow-hidden"
+      class="absolute left-0 top-0 z-999 h-full w-full flex cursor-grab items-center justify-center overflow-hidden"
     >
       <div
         class="absolute h-32 w-full flex items-center justify-center overflow-hidden rounded-xl"
@@ -235,11 +213,6 @@ if (import.meta.hot) { // For better DX
       opacity: 1;
     }
   }
-}
-
-.drag-region {
-  app-region: drag;
-  cursor: grab !important;
 }
 
 @keyframes wall-move {

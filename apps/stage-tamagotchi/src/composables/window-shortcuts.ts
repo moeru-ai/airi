@@ -1,15 +1,23 @@
 import type { ShortcutEvent } from '@tauri-apps/plugin-global-shortcut'
 
 import { register, unregisterAll } from '@tauri-apps/plugin-global-shortcut'
+import { until } from '@vueuse/shared'
 import { storeToRefs } from 'pinia'
 import { watch } from 'vue'
 
 import { useShortcutsStore } from '../stores/shortcuts'
+import { useAppRuntime } from './runtime'
 
 export function useWindowShortcuts() {
   const { shortcuts } = storeToRefs(useShortcutsStore())
+  const { platform, isInitialized } = useAppRuntime()
 
   watch(shortcuts, async () => {
+    await until(isInitialized).toBeTruthy()
+    if (platform.value === 'web') {
+      return
+    }
+
     await unregisterAll()
 
     for (const handler of shortcuts.value) {
