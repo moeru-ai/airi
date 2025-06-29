@@ -12,6 +12,7 @@ import HeaderLink from '../components/Layouts/HeaderLink.vue'
       paddingRight: 'env(safe-area-inset-right, 0px)',
       paddingLeft: 'env(safe-area-inset-left, 0px)',
     }"
+    h-full
   >
     <!-- Header -->
     <div
@@ -22,7 +23,7 @@ import HeaderLink from '../components/Layouts/HeaderLink.vue'
       <HeaderLink />
     </div>
     <!-- Content -->
-    <div class="px-3 py-2 md:px-5 md:py-5" flex="~ col" mx-auto max-w-screen-xl>
+    <div class="px-3 py-2 md:px-5 md:py-5" flex="~ col" mx-auto h-full max-w-screen-xl>
       <RouterView />
     </div>
   </div>
