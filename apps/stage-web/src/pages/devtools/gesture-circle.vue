@@ -79,7 +79,7 @@ watch(pointDebounced, () => {
     canvasContext.value.reset()
   }
 
-  // Use least squares method to determine if points form a circle
+  // Use standard deviation of radii to check for circularity to determine if points form a circle
   if (lastPoints.value.length >= 6) {
     // Calculate mean center point
     const meanX = lastPoints.value.reduce((sum, p) => sum + p.x, 0) / lastPoints.value.length
