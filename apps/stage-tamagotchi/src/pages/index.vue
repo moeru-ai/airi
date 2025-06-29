@@ -9,8 +9,7 @@ import { storeToRefs } from 'pinia'
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 
 import ResourceStatusIsland from '../components/Widgets/ResourceStatusIsland/index.vue'
-import { useAppRuntime } from '../composables/runtime'
-import { useTauriEvent } from '../composables/tauri'
+// import { useWindowPersistence } from '../composables/window-persistence'
 import { useWindowShortcuts } from '../composables/window-shortcuts'
 import { useResourcesStore } from '../stores/resources'
 import { useWindowControlStore } from '../stores/window-controls'
@@ -26,6 +25,16 @@ const { listen } = useTauriEvent<AiriTamagotchiEvents>()
 
 const isCursorInside = ref(false)
 const { connected, serverCmd, serverArgs } = storeToRefs(mcpStore)
+
+// // Initialize window persistence system
+// const windowPersistence = useWindowPersistence({
+//   autoSave: true,
+//   autoRestore: true,
+//   constrainToDisplays: true,
+//   centerPointConstraint: true,
+//   scaleAware: true,
+//   monitorDisplayChanges: true
+// })
 
 const modeIndicatorClass = computed(() => {
   switch (windowStore.controlMode) {
@@ -43,6 +52,9 @@ const modeIndicatorClass = computed(() => {
 onMounted(async () => {
   await invoke('start_monitor')
   await startClickThrough()
+
+  // Initialize window persistence
+  // await windowPersistence.initialize()
 })
 
 onUnmounted(async () => {

@@ -16,6 +16,7 @@ use tokio::time::sleep;
 mod app_click_through;
 mod app_windows;
 mod commands;
+mod plugins;
 mod whisper;
 
 #[cfg(target_os = "macos")]
