@@ -146,19 +146,19 @@ settings:
           section:
             provider-model-selection:
               collapse: 折叠
-              custom_model_placeholder: 输入自订模型名字
-              description: 为意识选择合适的 LLM 提供商
+              custom_model_placeholder: 输入自订模型名称
+              description: 为意识选择合适的 LLM 服务来源
               error: 获取出错啦
               expand: 展开
               loading: 获取模型中...
               manual_model_name: 模型名字
-              manual_model_placeholder: 输入与该提供商一起使用的模型名字
+              manual_model_placeholder: 输入与该服务来源一起使用的模型名称
               no_models: 没有任何可用的模型
-              no_models_description: 该提供商的模型列表没有返回任何的数据
+              no_models_description: 该服务来源的模型列表没有返回任何的数据
               no_search_results: 没有匹配的模型
               no_search_results_description: 没有模型匹配 '{query}' 关键字，请尝试一下别的关键词呢
               not_supported: 无法列出模型
-              not_supported_description: 此提供商不支持列出模型的功能
+              not_supported_description: 此服务来源不支持列出模型的功能
               search_placeholder: 搜索模型...
               search_results: 找到 {count} / {total} 个模型
               show_less: 显示更多
@@ -171,7 +171,7 @@ settings:
         description: 一起玩 Factorio！
         title: 异星工厂 Factorio
       gaming-minecraft:
-        description: 一起 Minecraft！
+        description: 一起玩 Minecraft！
         title: 我的世界 Minecraft
       hearing:
         description: 语音识别
@@ -196,13 +196,13 @@ settings:
               select-voice:
                 required: 请选择声线
             provider-voice-selection:
-              custom_model_placeholder: 输入指定模型名字...
+              custom_model_placeholder: 输入指定模型名称...
               custom_voice_placeholder: 输入指定声线 ID...
-              description: 选择合适的语音提供商
+              description: 选择合适的语音服务来源
               no_models: 没有任何可用的模型
-              no_models_description: 该提供商的模型列表没有返回任何的数据
+              no_models_description: 该服务来源的模型列表没有返回任何的数据
               no_voices: 没有任何可用的声线
-              no_voices_description: 该提供商的声线列表没有返回任何的数据
+              no_voices_description: 该服务来源的声线列表没有返回任何的数据
               pause: Pause
               play_sample: Play
               search_models_placeholder: 搜索模型...
@@ -211,7 +211,7 @@ settings:
               search_voices_results: 找到 {count} / {total} 个声线
               show_less: 显示更少
               show_more: 显示更多
-              title: 选择语音合成提供商
+              title: 选择语音合成服务来源
             voice-settings:
               input-ssml:
                 placeholder: 请输入 SSML 文本
@@ -230,6 +230,14 @@ settings:
         description: 连接和管理 MCP 服务器及工具
         title: MCP 服务器
     providers:
+      explained:
+        chat: 文本生成模型服务来源，例如 OpenRouter, OpenAI, Ollama
+        Speech: 语音（文本转语音）模型服务来源，例如 ElevenLabs, Azure Speech
+        Transcription: 转录（语音转文本）模型服务来源，例如 Whisper.cpp, OpenAI, Azure Speech
+      helpinfo:
+        title: 第一次使用？
+        description: >
+          AIRI 需要配置至少一个 {chat} 服务来源，才能正常思考和运作。你可以把它看作是 AIRI 系统中角色的大脑。
       common:
         fields:
           field:
@@ -252,14 +260,29 @@ settings:
             title: 基础配置
           voice:
             title: 声音配置
-      description: LLM，语音合成，语音识别提供商等
+      description: LLM，语音合成，语音识别服务来源等
       provider:
+        app-local-audio-speech:
+          title: 浏览器内（本地）
+          description: https://github.com/moeru-ai/xsai-transformers
+        browser-local-audio-speech:
+          title: 浏览器内（本地）
+          description: https://github.com/moeru-ai/xsai-transformers
         alibaba-cloud-model-studio:
           description: bailian.console.aliyun.com
           title: 阿里百炼
         anthropic:
           description: anthropic.com
           title: Anthropic | Claude
+          helpinfo:
+            title: 开始之前
+            description:
+              part1: 虽然 Anthropic 最近宣布他们正在提供对 OpenAI SDK 兼容性的 Beta 版支持
+              part2: （您可以在此处阅读更多信息）
+              part3: 但由于实现细节附带
+              part4: 与 OpenAI SDK 不一致，目前无法在浏览器中使用此提供程序。
+              part5: 如果您确实需要使用此提供程序，则需要一个专用的代理后端，例如在
+              part6: 上运行的Serverless Function，或者一些绕过 CORS 的服务，以绕过 CORS 限制。
         cloudflare-workers-ai:
           description: Cloudflare.com
           fields:
@@ -275,7 +298,7 @@ settings:
           fields:
             field:
               pitch:
-                description: 调节合成语音的音高（比如更尖锐或更粗旷）
+                description: 调节合成语音的音高（比如更尖锐或者更粗旷）
                 label: 音高
               speed:
                 description: 调节说话的语速
@@ -291,7 +314,7 @@ settings:
           fields:
             field:
               simularity-boost:
-                description: 声音相似性依从性
+                description: 声音相似性与依从性
                 label: 相似度修正
               speaker-boost:
                 description: 增强说话者的相似性
@@ -303,7 +326,7 @@ settings:
                 description: 语音稳定性和随机性
                 label: 稳定性
               style:
-                description: 语音风格夸张
+                description: 夸张的语音风格
                 label: 风格
           playground:
             buttons:
@@ -357,9 +380,18 @@ settings:
         perplexity:
           description: perplexity.ai
           title: Perplexity
+        player2:
+          description: player2.game
+          title: Player2 API
         together:
-          description: 一起
+          description: together.ai
           title: Together.ai
+        google-generative-ai:
+          description: gemini.google.com
+          title: Google Gemini
+        featherless:
+          description: featherless.ai
+          title: Featherless AI
         vllm:
           description: vllm.ai
           title: vLLM
@@ -374,11 +406,20 @@ settings:
         xai:
           description: X.AI
           title: xAI
-      title: 提供商
+      title: 服务来源
     scene:
       description: 配置角色所在环境
       title: 场景
     themes:
+      color-scheme:
+        description: 更改舞台的配色方案
+        title: 配色方案
+      developer:
+        description: 为开发者提供的选项
+        title: 开发者
+      general:
+        description: 深色主题、语言等选项
+        title: 通用
       description: 自定义你的舞台外观！
       sections:
         section:

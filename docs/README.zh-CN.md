@@ -135,7 +135,7 @@ pnpm -F @proj-airi/stage-web dev
 pnpm -F @proj-airi/stage-tamagotchi dev
 ```
 
-## 原生支持的 LLM API 提供商列表（由 [xsai](https://github.com/moeru-ai/xsai) 驱动）
+## 原生支持的 LLM API 服务来源列表（由 [xsai](https://github.com/moeru-ai/xsai) 驱动）
 
 - [x] [OpenRouter](https://openrouter.ai/)
 - [x] [vLLM](https://github.com/vllm-project/vllm)
@@ -179,7 +179,7 @@ pnpm -F @proj-airi/stage-tamagotchi dev
 - [🥺 SAD](https://github.com/moeru-ai/sad): 自托管和浏览器运行 LLM 的文档和说明
 - [Velin](https://github.com/luoling8192/velin): 用 Vue SFC 和 Markdown 文件来为 LLM 书写简单好用的提示词
 - [`demodel`](https://github.com/moeru-ai/demodel): 轻松加速各种推理引擎和模型下载器拉/下载模型或数据集的速度
-- [`inventory`](https://github.com/moeru-ai/inventory): 中心化模型目录和默认提供商配置的公开 API 服务
+- [`inventory`](https://github.com/moeru-ai/inventory): 中心化模型目录和默认服务来源配置的公开 API 服务
 - [MCP Launcher](https://github.com/moeru-ai/mcp-launcher): 易于使用的 MCP 启动器，适用于所有可能的 MCP Server，就像用于模型推理的 Ollama 一样！
 - ~~[`@proj-airi/elevenlabs`](https://github.com/moeru-ai/airi/tree/main/packages/elevenlabs): ElevenLabs API 的类型定义~~
 
