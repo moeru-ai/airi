@@ -47,9 +47,6 @@ watch(canvasContainerRef, (el) => {
 
   canvasRef.value = canvas
   canvasContainerRef.value?.appendChild(canvas)
-
-  const anyWindow = window as any
-  anyWindow.testCanvasRef = canvasRef
 })
 
 const pointThrottled = refThrottled(pointComputed, 50)
