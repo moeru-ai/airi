@@ -80,7 +80,9 @@ function openChat() {
 }
 
 onMounted(async () => {
-  unListenFuncs.push(await listen('tauri-app:model-load-progress', event => useResourcesStore().appendResource(event)))
+  unListenFuncs.push(await listen('tauri-app:model-load-progress', (event) => {
+    useResourcesStore().appendResource(event)
+  }))
 
   // Load models
   invoke('load_models')
