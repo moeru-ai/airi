@@ -185,7 +185,7 @@ if (import.meta.hot) { // For better DX
     >
       <div
         class="absolute h-32 w-full flex items-center justify-center overflow-hidden rounded-xl"
-        bg="white/85 dark:neutral-900/95" backdrop-blur="md"
+        bg="white/80 dark:neutral-950/80" backdrop-blur="md"
       >
         <div class="wall absolute top-0 h-8" />
         <div data-tauri-drag-region class="absolute left-0 top-0 h-full w-full flex animate-flash animate-duration-5s animate-count-infinite items-center justify-center text-1.5rem text-primary-400 font-normal">

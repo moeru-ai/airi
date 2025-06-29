@@ -30,7 +30,7 @@ const totalProgress = computed(() => {
           <WindowLink to="/settings/modules/hearing" label="settings">
             <div flex items-center gap-1>
               <div flex items-center gap-1>
-                <div i-solar:microphone-3-bold-duotone />
+                <div i-solar:microphone-3-bold-duotone text="neutral-500 dark:neutral-400" />
                 <span decoration-underline decoration-dashed>Hearing</span>
               </div>
               <div text="neutral-500 dark:neutral-400">
@@ -43,7 +43,7 @@ const totalProgress = computed(() => {
     </div>
     <div flex items-center gap-2 text-sm>
       <div v-if="totalProgress < 100" i-svg-spinners:pulse-ring />
-      <div v-else i-solar:check-circle-bold-duotone />
+      <div v-else i-solar:check-circle-bold-duotone text="neutral-500 dark:neutral-400" />
       <div>
         Preparing external resources...
       </div>
