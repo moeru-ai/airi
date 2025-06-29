@@ -2,6 +2,8 @@
 import { refDebounced, refThrottled, useElementBounding, usePointer, useResizeObserver } from '@vueuse/core'
 import { computed, ref, watch } from 'vue'
 
+const minimumDataPoints = 6
+
 interface Point {
   x: number
   y: number
