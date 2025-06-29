@@ -1,10 +1,11 @@
 <script setup lang="ts">
+import JSZip from 'jszip'
+import localforage from 'localforage'
+
 import { Section } from '@proj-airi/stage-ui/components'
 import { Emotion, EmotionNeutralMotionName } from '@proj-airi/stage-ui/constants'
 import { useSettings } from '@proj-airi/stage-ui/stores'
 import { useFileDialog, useObjectUrl } from '@vueuse/core'
-import JSZip from 'jszip'
-import localforage from 'localforage'
 import { storeToRefs } from 'pinia'
 import { ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'

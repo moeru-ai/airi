@@ -1,16 +1,17 @@
 import { join, resolve } from 'node:path'
 
 import VueI18n from '@intlify/unplugin-vue-i18n/vite'
-import { Download } from '@proj-airi/unplugin-fetch'
-import { DownloadLive2DSDK } from '@proj-airi/unplugin-live2d-sdk'
-import { templateCompilerOptions } from '@tresjs/core'
 import Vue from '@vitejs/plugin-vue'
 import UnoCss from 'unocss/vite'
 import VueMacros from 'unplugin-vue-macros/vite'
 import VueRouter from 'unplugin-vue-router/vite'
-import { defineConfig } from 'vite'
 import VitePluginVueDevTools from 'vite-plugin-vue-devtools'
 import Layouts from 'vite-plugin-vue-layouts'
+
+import { Download } from '@proj-airi/unplugin-fetch'
+import { DownloadLive2DSDK } from '@proj-airi/unplugin-live2d-sdk'
+import { templateCompilerOptions } from '@tresjs/core'
+import { defineConfig } from 'vite'
 
 export default defineConfig({
   optimizeDeps: {

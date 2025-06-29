@@ -4,11 +4,12 @@ import type { PipelineType } from '@huggingface/transformers'
 
 import { env } from 'node:process'
 
+import wavefile from 'wavefile'
+
 import { useLogg } from '@guiiai/logg'
 import { pipeline } from '@huggingface/transformers'
 import { createOpenAI } from '@xsai-ext/providers-cloud'
 import { generateTranscription } from '@xsai/generate-transcription'
-import wavefile from 'wavefile'
 
 import { pcmToWav } from '../utils/audio'
 

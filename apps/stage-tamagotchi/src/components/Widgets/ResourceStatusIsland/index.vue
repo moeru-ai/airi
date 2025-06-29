@@ -4,8 +4,9 @@ import { storeToRefs } from 'pinia'
 import { TooltipContent, TooltipPortal, TooltipProvider, TooltipRoot, TooltipTrigger } from 'reka-ui'
 import { ref } from 'vue'
 
-import { useResourcesStore } from '../../../stores/resources'
 import LoadingProgress from './LoadingProgress.vue'
+
+import { useResourcesStore } from '../../../stores/resources'
 
 const { resources } = storeToRefs(useResourcesStore())
 

@@ -5,10 +5,11 @@ import type { BotSelf } from '../types'
 import { Buffer } from 'node:buffer'
 import { env } from 'node:process'
 
+import Sharp from 'sharp'
+
 import { embed } from '@xsai/embed'
 import { generateText } from '@xsai/generate-text'
 import { message } from '@xsai/utils-chat'
-import Sharp from 'sharp'
 
 import { findPhotosDescriptions, recordPhoto } from '../models'
 

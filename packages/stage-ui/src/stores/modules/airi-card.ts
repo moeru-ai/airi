@@ -6,6 +6,7 @@ import { computed, onMounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import SystemPromptV2 from '../../constants/prompts/system-v2'
+
 import { useConsciousnessStore } from './consciousness'
 import { useSpeechStore } from './speech'
 

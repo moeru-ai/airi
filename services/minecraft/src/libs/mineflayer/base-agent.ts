@@ -2,8 +2,9 @@ import type { PlanStep } from '../../agents/planning/adapter'
 import type { Logger } from '../../utils/logger'
 import type { Action } from './action'
 
-import { useLogg } from '@guiiai/logg'
 import EventEmitter3 from 'eventemitter3'
+
+import { useLogg } from '@guiiai/logg'
 
 export type AgentType = 'action' | 'memory' | 'planning' | 'chat'
 

@@ -8,7 +8,7 @@ import { watch } from 'vue'
 import { useShortcutsStore } from '../stores/shortcuts'
 import { useAppRuntime } from './runtime'
 
-export function useWindowShortcuts() {
+export function useTauriGlobalShortcuts() {
   const { shortcuts } = storeToRefs(useShortcutsStore())
   const { platform, isInitialized } = useAppRuntime()
 

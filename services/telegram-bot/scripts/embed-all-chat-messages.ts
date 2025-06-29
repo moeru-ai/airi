@@ -1,9 +1,10 @@
 import { env } from 'node:process'
 
+import pLimit from 'p-limit'
+
 import { embed } from '@xsai/embed'
 import { eq, isNull } from 'drizzle-orm'
 import { chunk } from 'es-toolkit'
-import pLimit from 'p-limit'
 
 import { initDb, useDrizzle } from '../src/db'
 import { chatMessagesTable } from '../src/db/schema'

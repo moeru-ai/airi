@@ -6,6 +6,7 @@ import { ref } from 'vue'
 
 import IconAnimation from '../../../components/IconAnimation.vue'
 import Live2DSettings from '../../../components/Widgets/Live2DSettings.vue'
+
 import { useIconAnimation } from '../../../composables/icon-animation'
 
 const live2dContainerRef = ref<HTMLDivElement>()

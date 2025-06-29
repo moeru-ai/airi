@@ -4,10 +4,11 @@ import { storeToRefs } from 'pinia'
 import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import { useSettings } from '../../stores'
 import Live2DCanvas from '../Live2D/Canvas.vue'
 import Live2DModel from '../Live2D/Model.vue'
 import Screen from '../Screen.vue'
+
+import { useSettings } from '../../stores'
 
 import '../../utils/live2d-zip-loader'
 

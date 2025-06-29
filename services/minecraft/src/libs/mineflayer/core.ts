@@ -5,9 +5,10 @@ import type { MineflayerPlugin } from './plugin'
 import type { TickEvents, TickEventsHandler } from './ticker'
 import type { EventHandlers, EventsHandler } from './types'
 
-import { useLogg } from '@guiiai/logg'
 import EventEmitter from 'eventemitter3'
 import mineflayer from 'mineflayer'
+
+import { useLogg } from '@guiiai/logg'
 
 import { parseCommand } from './command'
 import { Components } from './components'

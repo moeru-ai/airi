@@ -4,6 +4,7 @@ import type { Mineflayer } from '../libs/mineflayer'
 import type { BlockFace } from './base'
 
 import pathfinderModel from 'mineflayer-pathfinder'
+
 import { Vec3 } from 'vec3'
 
 import { getBlockId, makeItem } from '../utils/mcdata'

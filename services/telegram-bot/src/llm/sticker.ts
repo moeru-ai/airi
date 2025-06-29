@@ -4,11 +4,12 @@ import type { Message, Sticker } from 'grammy/types'
 import { Buffer } from 'node:buffer'
 import { env } from 'node:process'
 
+import Sharp from 'sharp'
+
 import { useLogg } from '@guiiai/logg'
 import { embed } from '@xsai/embed'
 import { generateText } from '@xsai/generate-text'
 import { message } from '@xsai/utils-chat'
-import Sharp from 'sharp'
 
 import { findStickerDescription, recordSticker } from '../models'
 import { div, span } from '../prompts/utils'

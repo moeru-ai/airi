@@ -3,8 +3,9 @@ import type { Block } from 'prismarine-block'
 
 import type { Mineflayer } from '../../libs/mineflayer'
 
-import { sleep } from '@moeru/std'
 import pathfinder from 'mineflayer-pathfinder'
+
+import { sleep } from '@moeru/std'
 import { Vec3 } from 'vec3'
 
 import { useLogger } from '../../utils/logger'

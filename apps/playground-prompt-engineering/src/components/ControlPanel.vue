@@ -2,8 +2,9 @@
 import { storeToRefs } from 'pinia'
 import { ref } from 'vue'
 
-import { useCharacterPromptStore } from '../composables/useCharacterPrompt'
 import Range from './Form/Range/Range.vue'
+
+import { useCharacterPromptStore } from '../composables/useCharacterPrompt'
 
 const characterPrompt = useCharacterPromptStore()
 const { currentEmotion, currentContext, emotions, contexts, examples } = storeToRefs(characterPrompt)

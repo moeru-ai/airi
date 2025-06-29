@@ -8,6 +8,8 @@ import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 
+import ProviderSettingsLayout2 from './ProviderSettingsLayout2.vue'
+
 import { useProvidersStore, useSpeechStore } from '../../stores'
 import {
   ProviderAdvancedSettings,
@@ -16,7 +18,6 @@ import {
   ProviderBasicSettings,
   ProviderSettingsContainer,
 } from '../index'
-import ProviderSettingsLayout2 from './ProviderSettingsLayout2.vue'
 
 const props = defineProps<{
   providerId: string

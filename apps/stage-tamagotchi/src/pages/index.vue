@@ -9,16 +9,17 @@ import { storeToRefs } from 'pinia'
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 
 import ResourceStatusIsland from '../components/Widgets/ResourceStatusIsland/index.vue'
+
 import { useTauriCore, useTauriEvent } from '../composables/tauri'
 import { useTauriWindowClickThrough } from '../composables/tauri-click-through'
+import { useTauriGlobalShortcuts } from '../composables/tauri-global-shortcuts'
 import { useWindowPersistence } from '../composables/tauri-window-persistence'
-import { useWindowShortcuts } from '../composables/window-shortcuts'
 import { useResourcesStore } from '../stores/resources'
 import { useWindowControlStore } from '../stores/window-controls'
 import { WindowControlMode } from '../types/window-controls'
 import { startClickThrough, stopClickThrough } from '../utils/windows'
 
-useWindowShortcuts()
+useTauriGlobalShortcuts()
 const windowStore = useWindowControlStore()
 const { width, height } = useWindowSize()
 
@@ -41,7 +42,6 @@ const windowPersistence = useWindowPersistence({
   constrainToDisplays: true,
   centerPointConstraint: true,
   monitorDisplayChanges: true,
-
 })
 
 const modeIndicatorClass = computed(() => {

@@ -1,18 +1,20 @@
 import type { Bot } from 'grammy'
 import type { Message, Sticker } from 'grammy/types'
 
-import { Buffer } from 'node:buffer'
-import { promises as fs } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
+
+import { Buffer } from 'node:buffer'
+import { promises as fs } from 'node:fs'
 import { env } from 'node:process'
 
 import ffmpegInstaller from '@ffmpeg-installer/ffmpeg'
+import ffmpeg from 'fluent-ffmpeg'
+import Sharp from 'sharp'
+
 import { useLogg } from '@guiiai/logg'
 import { generateText } from '@xsai/generate-text'
 import { message } from '@xsai/utils-chat'
-import ffmpeg from 'fluent-ffmpeg'
-import Sharp from 'sharp'
 
 import { findStickerDescription, recordSticker } from '../models'
 import { div, span, ul } from '../prompts/utils'

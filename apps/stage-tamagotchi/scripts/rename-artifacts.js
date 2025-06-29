@@ -1,7 +1,8 @@
 import fs from 'node:fs'
-import { createRequire } from 'node:module'
 import path from 'node:path'
 import process from 'node:process'
+
+import { createRequire } from 'node:module'
 
 const require = createRequire(import.meta.url)
 const packageJson = require('../package.json')

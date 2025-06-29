@@ -1,10 +1,11 @@
 import type { Plugin } from 'vue'
 import type { Router } from 'vue-router'
 
-import { autoAnimatePlugin } from '@formkit/auto-animate/vue'
 import Tres from '@tresjs/core'
-import { MotionPlugin } from '@vueuse/motion'
 import NProgress from 'nprogress'
+
+import { autoAnimatePlugin } from '@formkit/auto-animate/vue'
+import { MotionPlugin } from '@vueuse/motion'
 import { createPinia } from 'pinia'
 import { setupLayouts } from 'virtual:generated-layouts'
 import { createApp } from 'vue'
@@ -12,6 +13,7 @@ import { createRouter, createWebHashHistory, createWebHistory } from 'vue-router
 import { routes } from 'vue-router/auto-routes'
 
 import App from './App.vue'
+
 import { i18n } from './modules/i18n'
 
 import '@unocss/reset/tailwind.css'

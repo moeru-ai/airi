@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import type { ChatProvider } from '@xsai-ext/shared-providers'
 
-import { useMicVAD, useWhisper } from '@proj-airi/stage-ui/composables'
 import WhisperWorker from '@proj-airi/stage-ui/libs/workers/worker?worker&url'
+
+import { useMicVAD, useWhisper } from '@proj-airi/stage-ui/composables'
 import { useAudioContext, useChatStore, useConsciousnessStore, useProvidersStore, useSettings } from '@proj-airi/stage-ui/stores'
 import { BasicTextarea, TransitionVertical } from '@proj-airi/ui'
 import { useDevicesList } from '@vueuse/core'
@@ -10,8 +11,9 @@ import { storeToRefs } from 'pinia'
 import { onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import { encodeWAVToBase64 } from '../../utils/binary'
 import ChatHistory from '../Widgets/ChatHistory.vue'
+
+import { encodeWAVToBase64 } from '../../utils/binary'
 
 const messageInput = ref('')
 const listening = ref(false)

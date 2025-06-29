@@ -6,6 +6,7 @@ import { onUnmounted, watch } from 'vue'
 import { createWLipSyncNode } from 'wlipsync'
 
 import profile from '../../assets/lip-sync-profile.json' with { type: 'json' }
+
 import { useAudioContext } from '../../stores/audio'
 
 export function useVRMLipSync(audioNode: AudioNode) {

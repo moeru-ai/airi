@@ -2,18 +2,19 @@ import { join, resolve } from 'node:path'
 import { env } from 'node:process'
 
 import VueI18n from '@intlify/unplugin-vue-i18n/vite'
-import { Download } from '@proj-airi/unplugin-fetch/vite'
-import { DownloadLive2DSDK } from '@proj-airi/unplugin-live2d-sdk/vite'
-import { templateCompilerOptions } from '@tresjs/core'
 import Vue from '@vitejs/plugin-vue'
-import { LFS, SpaceCard } from 'hfup/vite'
 import Unocss from 'unocss/vite'
 import VueMacros from 'unplugin-vue-macros/vite'
 import VueRouter from 'unplugin-vue-router/vite'
-import { defineConfig } from 'vite'
-import { VitePWA } from 'vite-plugin-pwa'
 import VueDevTools from 'vite-plugin-vue-devtools'
 import Layouts from 'vite-plugin-vue-layouts'
+
+import { Download } from '@proj-airi/unplugin-fetch/vite'
+import { DownloadLive2DSDK } from '@proj-airi/unplugin-live2d-sdk/vite'
+import { templateCompilerOptions } from '@tresjs/core'
+import { LFS, SpaceCard } from 'hfup/vite'
+import { defineConfig } from 'vite'
+import { VitePWA } from 'vite-plugin-pwa'
 
 export default defineConfig({
   optimizeDeps: {

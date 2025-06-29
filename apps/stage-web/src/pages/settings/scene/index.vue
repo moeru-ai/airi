@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import IconAnimation from '../../../components/IconAnimation.vue'
+
 import { useIconAnimation } from '../../../composables/useIconAnimation'
 
 const {

@@ -14,6 +14,9 @@ import { generateSpeech } from '@xsai/generate-speech'
 import { storeToRefs } from 'pinia'
 import { onMounted, onUnmounted, ref } from 'vue'
 
+import Live2DScene from '../Scenes/Live2D.vue'
+import VRMScene from '../Scenes/VRM.vue'
+
 import { useMarkdown } from '../../composables/markdown'
 import { useQueue } from '../../composables/queue'
 import { useDelayMessageQueue, useEmotionsMessageQueue, useMessageContentQueue } from '../../composables/queues'
@@ -24,8 +27,6 @@ import { useChatStore } from '../../stores/chat'
 import { useSpeechStore } from '../../stores/modules/speech'
 import { useProvidersStore } from '../../stores/providers'
 import { useSettings } from '../../stores/settings'
-import Live2DScene from '../Scenes/Live2D.vue'
-import VRMScene from '../Scenes/VRM.vue'
 
 withDefaults(defineProps<{
   paused?: boolean

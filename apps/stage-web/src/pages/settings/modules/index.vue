@@ -4,6 +4,7 @@ import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import IconAnimation from '../../../components/IconAnimation.vue'
+
 import { useIconAnimation } from '../../../composables/useIconAnimation'
 
 const { t } = useI18n()

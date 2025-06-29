@@ -1,7 +1,8 @@
 import type { WebSocketBaseEvent, WebSocketEvent, WebSocketEvents } from '@proj-airi/server-shared/types'
 
-import { sleep } from '@moeru/std'
 import WebSocket from 'crossws/websocket'
+
+import { sleep } from '@moeru/std'
 
 export interface ClientOptions<C = undefined> {
   url?: string

@@ -3,8 +3,9 @@ import type { Item } from 'prismarine-item'
 
 import type { Mineflayer } from '../libs/mineflayer'
 
-import { sleep } from '@moeru/std'
 import pathfinderModel from 'mineflayer-pathfinder'
+
+import { sleep } from '@moeru/std'
 
 import { isHostile } from '../utils/mcdata'
 import { log } from './base'
