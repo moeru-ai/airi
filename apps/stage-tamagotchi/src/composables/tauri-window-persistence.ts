@@ -5,8 +5,8 @@ import type {
   Size,
 } from './tauri'
 
-import { useDebounceFn } from '@vueuse/core'
-import { computed, nextTick, onUnmounted, readonly, ref, watch } from 'vue'
+import { useThrottleFn, watchThrottled } from '@vueuse/core'
+import { computed, readonly, ref } from 'vue'
 
 import { useAppRuntime } from './runtime'
 import { useTauriCore } from './tauri'
@@ -18,7 +18,6 @@ export interface WindowPersistenceConfig {
   savePeriod?: number // milliseconds
   constrainToDisplays?: boolean
   centerPointConstraint?: boolean // Use center point for boundary checks
-  monitorDisplayChanges?: boolean
 }
 
 export interface WindowBoundaryConstraints {
@@ -40,7 +39,6 @@ export function useWindowPersistence(config: WindowPersistenceConfig = {}) {
     savePeriod = 10000,
     constrainToDisplays = true,
     centerPointConstraint = true,
-    monitorDisplayChanges = true,
   } = config
 
   const { platform } = useAppRuntime()
@@ -48,7 +46,7 @@ export function useWindowPersistence(config: WindowPersistenceConfig = {}) {
   const { windowFrame } = useTauriPointAndWindowFrame()
 
   // Debounced save function (declare early to avoid usage before definition)
-  const debouncedSave = useDebounceFn(() => savePosition(), savePeriod)
+  const throttledSave = useThrottleFn(() => savePosition(), savePeriod)
 
   // Reactive state
   const displayInfo = ref<DisplayInfo>()
@@ -59,8 +57,6 @@ export function useWindowPersistence(config: WindowPersistenceConfig = {}) {
 
   // State tracking (using Tauri plugins only)
   const isStateRestored = ref<boolean>(false)
-
-  const primaryMonitor = computed(() => displayInfo.value?.primaryMonitor)
 
   const currentMonitor = computed(() => {
     if (!currentWindowPosition.value || !displayInfo.value)
@@ -90,26 +86,23 @@ export function useWindowPersistence(config: WindowPersistenceConfig = {}) {
     return calculateBoundaryConstraints(allMonitors, windowSize, centerPointConstraint)
   })
 
-  const isWindowInValidPosition = computed(() => {
-    if (!currentWindowPosition.value || !boundaryConstraints.value)
+  const isWindowOutOfBounds = computed(() => {
+    if (!currentWindowPosition.value || !displayInfo.value)
       return false
 
-    const center = getWindowCenterPoint({
-      x: currentWindowPosition.value.x,
-      y: currentWindowPosition.value.y,
-    }, {
-      width: currentWindowSize.value.width,
-      height: currentWindowSize.value.height,
+    // Check if window center is within any monitor's work area
+    const center = getWindowCenterPoint(currentWindowPosition.value, currentWindowSize.value)
+    const isInAnyMonitor = displayInfo.value.monitors.some((monitor) => {
+      const workArea = monitor.workArea
+      return (
+        center.x >= workArea.position.x
+        && center.x <= workArea.position.x + workArea.size.width
+        && center.y >= workArea.position.y
+        && center.y <= workArea.position.y + workArea.size.height
+      )
     })
 
-    const constraints = boundaryConstraints.value
-
-    return (
-      center.x >= constraints.minCenterX
-      && center.x <= constraints.maxCenterX
-      && center.y >= constraints.minCenterY
-      && center.y <= constraints.maxCenterY
-    )
+    return !isInAnyMonitor
   })
 
   // Initialize the system
@@ -129,11 +122,6 @@ export function useWindowPersistence(config: WindowPersistenceConfig = {}) {
         restorePosition()
       }
 
-      // Set up display change monitoring
-      if (monitorDisplayChanges) {
-        setupDisplayMonitoring()
-      }
-
       // Success - using console.warn to comply with linting rules
     }
     catch (error) {
@@ -142,75 +130,21 @@ export function useWindowPersistence(config: WindowPersistenceConfig = {}) {
   }
 
   function setupEventListeners() {
-    watch(windowFrame, () => {
-      if (!isPositioning.value && !isRestoring.value) {
-        if (autoSave) {
-          debouncedSave()
-        }
+    watchThrottled(windowFrame, () => {
+      if (!isPositioning.value && !isRestoring.value && autoSave) {
+        throttledSave()
       }
-    }, {
-      deep: true,
-    })
-  }
-
-  function setupDisplayMonitoring() {
-    // Monitor for display configuration changes
-    // This would typically be handled by the Rust backend emitting display-changed events
-    // For now, we'll poll periodically as a fallback
-    const monitorInterval = setInterval(async () => {
-      try {
-        const [monitors, primaryMonitor] = (await invoke('plugin_window_get_display_info'))!
-
-        const newDisplayInfo = {
-          monitors,
-          primaryMonitor,
-        }
-
-        // Check for significant display changes using detailed comparison
-        if (displayInfo.value && hasSignificantDisplayChange(displayInfo.value, newDisplayInfo)) {
-          handleDisplayChange(newDisplayInfo)
-        }
-      }
-      catch (error) {
-        console.error('[WindowPersistence] Failed to monitor display changes:', error)
-      }
-    }, 10000) // Check every 10 seconds
-
-    onUnmounted(() => {
-      clearInterval(monitorInterval)
-    })
-  }
-
-  async function handleDisplayChange(newDisplayInfo: DisplayInfo) {
-    // Display configuration changed
-
-    const oldDisplayInfo = displayInfo.value
-    displayInfo.value = newDisplayInfo
-
-    // Check if current window position is still valid
-    if (currentWindowPosition.value && constrainToDisplays) {
-      await nextTick()
-
-      if (!isWindowInValidPosition.value) {
-        console.warn('[WindowPersistence] Window is outside valid area after display change, repositioning...')
-        await ensureWindowInBounds()
-      }
-    }
-
-    // For significant display changes, the plugin will handle state invalidation
-    if (oldDisplayInfo && hasSignificantDisplayChange(oldDisplayInfo, newDisplayInfo)) {
-      console.warn('[WindowPersistence] Significant display change detected')
-    }
+    }, { deep: true, throttle: savePeriod })
   }
 
   // Core positioning functions
-  async function savePosition(): Promise<boolean> {
-    if (!currentWindowPosition.value || !displayInfo.value)
+  function savePosition(): boolean {
+    if (!currentWindowPosition.value || !displayInfo.value) {
       return false
+    }
 
     try {
-      console.warn('[WindowPersistence] Saving position:', currentWindowPosition.value, currentWindowSize.value)
-      await invoke('plugins_window_persistence_save')
+      invoke('plugins_window_persistence_save')
 
       return true
     }
@@ -233,9 +167,9 @@ export function useWindowPersistence(config: WindowPersistenceConfig = {}) {
 
       // Ensure the restored position is within bounds
       if (constrainToDisplays && currentWindowPosition.value) {
-        if (!isWindowInValidPosition.value) {
+        if (isWindowOutOfBounds.value) {
           console.warn('[WindowPersistence] Restored position is not valid for current displays')
-          await centerOnPrimaryMonitor()
+          await moveToNearestValidPosition()
           return false
         }
       }
@@ -297,7 +231,7 @@ export function useWindowPersistence(config: WindowPersistenceConfig = {}) {
       await invoke('plugins_window_set_position', { x: pos.x, y: pos.y })
 
       if (autoSave) {
-        debouncedSave()
+        throttledSave()
       }
 
       return true
@@ -311,22 +245,63 @@ export function useWindowPersistence(config: WindowPersistenceConfig = {}) {
     }
   }
 
-  async function centerOnPrimaryMonitor(): Promise<boolean> {
-    if (!primaryMonitor.value || !currentWindowSize.value)
+  async function centerOnNearestMonitor(): Promise<boolean> {
+    if (!displayInfo.value || !currentWindowPosition.value || !currentWindowSize.value)
       return false
 
-    const monitor = primaryMonitor.value
-    const windowSize = {
-      width: currentWindowSize.value.width,
-      height: currentWindowSize.value.height,
-    }
+    // Find the nearest monitor to current window center
+    const currentCenter = getWindowCenterPoint(currentWindowPosition.value, currentWindowSize.value)
+    let nearestMonitor = displayInfo.value.monitors[0]
+    let shortestDistance = Infinity
 
+    displayInfo.value.monitors.forEach((monitor) => {
+      const monitorCenter = {
+        x: monitor.workArea.position.x + monitor.workArea.size.width / 2,
+        y: monitor.workArea.position.y + monitor.workArea.size.height / 2,
+      }
+
+      const distance = Math.sqrt(
+        (currentCenter.x - monitorCenter.x) ** 2
+        + (currentCenter.y - monitorCenter.y) ** 2,
+      )
+
+      if (distance < shortestDistance) {
+        shortestDistance = distance
+        nearestMonitor = monitor
+      }
+    })
+
+    // Center window on the nearest monitor
     const centerPosition: Point = {
-      x: monitor.workArea.position.x + (monitor.workArea.size.width - windowSize.width) / 2,
-      y: monitor.workArea.position.y + (monitor.workArea.size.height - windowSize.height) / 2,
+      x: nearestMonitor.workArea.position.x + (nearestMonitor.workArea.size.width - currentWindowSize.value.width) / 2,
+      y: nearestMonitor.workArea.position.y + (nearestMonitor.workArea.size.height - currentWindowSize.value.height) / 2,
     }
 
     return await applyPosition(centerPosition)
+  }
+
+  async function moveToNearestValidPosition(): Promise<boolean> {
+    if (!displayInfo.value || !currentWindowPosition.value || !currentWindowSize.value)
+      return false
+
+    // If window is already in bounds, no need to move
+    if (!isWindowOutOfBounds.value)
+      return true
+
+    // First try to constrain to nearest valid position
+    const constrainedPosition = constrainPositionToBounds(
+      currentWindowPosition.value,
+      currentWindowSize.value,
+    )
+
+    // If constraining worked, apply the position
+    if (constrainedPosition.x !== currentWindowPosition.value.x
+      || constrainedPosition.y !== currentWindowPosition.value.y) {
+      return await applyPosition(constrainedPosition)
+    }
+
+    // If constraining didn't work, center on nearest monitor
+    return await centerOnNearestMonitor()
   }
 
   // Utility functions
@@ -426,53 +401,6 @@ export function useWindowPersistence(config: WindowPersistenceConfig = {}) {
     }
   }
 
-  function isPositionValidForCurrentDisplays(pos: Point, size: Size): boolean {
-    if (!displayInfo.value)
-      return false
-
-    const center = getWindowCenterPoint(pos, size)
-    return displayInfo.value.monitors.some((monitor) => {
-      const workArea = monitor.workArea
-      return (
-        center.x >= workArea.position.x
-        && center.x <= workArea.position.x + workArea.size.width
-        && center.y >= workArea.position.y
-        && center.y <= workArea.position.y + workArea.size.height
-      )
-    })
-  }
-
-  function hasSignificantDisplayChange(oldInfo: DisplayInfo, newInfo: DisplayInfo): boolean {
-    // Check if the number of monitors changed
-    if (oldInfo.monitors.length !== newInfo.monitors.length)
-      return true
-
-    // Check if primary monitor changed
-    if (oldInfo.primaryMonitor.name !== newInfo.primaryMonitor.name)
-      return true
-
-    // Check if any monitor resolution/position changed significantly
-    for (const oldMonitor of oldInfo.monitors) {
-      const newMonitor = newInfo.monitors.find(m => m.name === oldMonitor.name)
-      if (!newMonitor)
-        return true
-
-      const oldWorkArea = oldMonitor.workArea
-      const newWorkArea = newMonitor.workArea
-
-      if (
-        Math.abs(oldWorkArea.size.width - newWorkArea.size.width) > 50
-        || Math.abs(oldWorkArea.size.height - newWorkArea.size.height) > 50
-        || Math.abs(oldWorkArea.position.x - newWorkArea.position.x) > 50
-        || Math.abs(oldWorkArea.position.y - newWorkArea.position.y) > 50
-      ) {
-        return true
-      }
-    }
-
-    return false
-  }
-
   function positionsEqual(a: (Point & Size), b: (Point & Size)): boolean {
     if (!a || !b)
       return a === b
@@ -501,51 +429,29 @@ export function useWindowPersistence(config: WindowPersistenceConfig = {}) {
     }
   }
 
-  // Manual control functions
-  async function manualSave(): Promise<boolean> {
-    return await savePosition()
-  }
-
-  async function manualRestore(): Promise<boolean> {
-    return await restorePosition()
-  }
-
-  function clearPersistedState(): void {
-    isStateRestored.value = false
-    // Plugin will handle clearing persisted state internally
-    console.warn('[WindowPersistence] State marked as cleared locally')
-  }
-
   return {
     // State
     displayInfo: readonly(displayInfo),
-    currentWindowPosition: readonly(currentWindowPosition),
-    windowFrame: readonly(windowFrame),
-    isPositioning: readonly(isPositioning),
-    isRestoring: readonly(isRestoring),
-    isStateRestored: readonly(isStateRestored),
 
-    // Computed
-    primaryMonitor,
+    // Computed properties for external use
+    isWindowOutOfBounds,
     currentMonitor,
     boundaryConstraints,
-    isWindowInValidPosition,
 
     // Core functions
     initialize,
-    savePosition: manualSave,
-    restorePosition: manualRestore,
+
+    // Position correction functions
+    moveToNearestValidPosition,
+    centerOnNearestMonitor,
     ensureWindowInBounds,
     applyPosition,
-    centerOnPrimaryMonitor,
 
     // Utilities
     refreshDisplayInfo,
-    clearPersistedState,
-    getWindowCenterPoint,
 
-    // Internal utilities (exposed for debugging)
-    constrainPositionToBounds,
-    isPositionValidForCurrentDisplays,
+    // Manual control functions
+    manualSave: () => savePosition(),
+    manualRestore: () => restorePosition(),
   }
 }

@@ -41,7 +41,6 @@ const windowPersistence = useWindowPersistence({
   autoRestore: true,
   constrainToDisplays: true,
   centerPointConstraint: true,
-  monitorDisplayChanges: true,
 })
 
 const modeIndicatorClass = computed(() => {

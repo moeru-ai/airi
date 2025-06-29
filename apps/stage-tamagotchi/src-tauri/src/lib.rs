@@ -11,6 +11,7 @@ use tauri::{
   tray::TrayIconBuilder,
 };
 use tauri_plugin_prevent_default::Flags;
+use tauri_plugin_window_state::{AppHandleExt, WindowExt};
 use tokio::time::sleep;
 
 mod app_click_through;
@@ -173,7 +174,7 @@ pub fn run() {
         builder = builder.title_bar_style(tauri::TitleBarStyle::Transparent);
       }
 
-      let _ = builder.build().unwrap();
+      let window = builder.build().unwrap();
 
       #[cfg(target_os = "macos")]
       {
@@ -187,6 +188,13 @@ pub fn run() {
             .build(),
         )?;
       }
+
+      window
+        .restore_state(tauri_plugin_window_state::StateFlags::all())
+        .map_err(|e| format!("Failed to restore window state: {}", e))
+        .unwrap_or_else(|err| {
+          info!("Failed to restore window state: {}", err);
+        });
 
       // TODO: i18n
       let quit_item = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
@@ -267,10 +275,30 @@ pub fn run() {
     ])
     .build(tauri::generate_context!())
     .expect("error while building tauri application")
-    .run(|_, event| {
-      if let RunEvent::ExitRequested { .. } = event {
+    .run(|app, event| match event {
+      RunEvent::Exit { .. } => {
         info!("Exiting app");
         info!("Exited app");
-      }
-    });
+
+        // Save window state on exit
+        app
+          .save_window_state(tauri_plugin_window_state::StateFlags::all())
+          .map_err(|e| format!("Failed to save window state: {}", e))
+          .unwrap_or_else(|err| {
+            info!("Failed to save window state on exit: {}", err);
+          });
+      },
+      RunEvent::ExitRequested { .. } => {
+        info!("Requested Exiting app");
+        info!("Requested Exited app");
+
+        app
+          .save_window_state(tauri_plugin_window_state::StateFlags::all())
+          .map_err(|e| format!("Failed to save window state: {}", e))
+          .unwrap_or_else(|err| {
+            info!("Failed to save window state on exit: {}", err);
+          });
+      },
+      _ => {},
+    })
 }
