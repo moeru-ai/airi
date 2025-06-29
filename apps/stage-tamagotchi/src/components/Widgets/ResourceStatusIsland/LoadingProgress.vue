@@ -70,12 +70,12 @@ const totalProgress = computed(() => {
         <div relative overflow-hidden rounded-md>
           <div
             bg="primary-300 dark:primary-300/50"
-            absolute h-4 will-change-width
-            :style="{ width: `${Math.min(file.value.progress, 0.5)}%` }"
+            absolute h-4 min-w-2 rounded-md will-change-width
+            :style="{ width: `${file.value.progress}%` }"
             transition="width duration-500 ease-in-out"
           />
           <div
-            bg="neutral-100 dark:neutral-900" h-4 w-full
+            bg="neutral-100 dark:neutral-900" h-4 w-full rounded-md
           />
         </div>
       </div>
