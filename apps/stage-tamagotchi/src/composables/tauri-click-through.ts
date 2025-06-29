@@ -80,7 +80,9 @@ export function useTauriWindowClickThrough(live2DLookAtDefault: MaybeRefOrGetter
     live2dLookAtY.value = mousePos.value.y - windowFrame.value.origin.y
   }
 
-  watch(mousePos, () => updateLive2DLookAt())
+  watch(mousePos, () => {
+    updateLive2DLookAt()
+  })
 
   function updateIsCursorInside() {
     isCursorInside.value
@@ -89,6 +91,10 @@ export function useTauriWindowClickThrough(live2DLookAtDefault: MaybeRefOrGetter
       && mousePos.value.y >= windowFrame.value.origin.y
       && mousePos.value.y <= windowFrame.value.origin.y + windowFrame.value.size.height
   }
+
+  watch([mousePos, windowFrame], () => {
+    updateIsCursorInside()
+  })
 
   watch(isInitialized, async (initialized) => {
     if (initialized) {

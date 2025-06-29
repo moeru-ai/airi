@@ -24,12 +24,10 @@ const { width, height } = useWindowSize()
 const centerPos = computed(() => ({ x: width.value / 2, y: height.value / 2 }))
 const live2dFocusAt = ref<Point>(centerPos.value)
 
-const isCursorInside = ref(false)
-const shouldHideView = computed(() => isCursorInside.value && !windowStore.isControlActive && windowStore.isIgnoringMouseEvent)
-
 const { listen } = useTauriEvent<AiriTamagotchiEvents>()
 const { invoke } = useTauriCore()
-const { live2dLookAtX, live2dLookAtY } = useTauriWindowClickThrough(centerPos)
+const { live2dLookAtX, live2dLookAtY, isCursorInside } = useTauriWindowClickThrough(centerPos)
+const shouldHideView = computed(() => isCursorInside.value && !windowStore.isControlActive && windowStore.isIgnoringMouseEvent)
 
 const mcpStore = useMcpStore()
 const { connected, serverCmd, serverArgs } = storeToRefs(mcpStore)
