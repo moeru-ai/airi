@@ -80,7 +80,7 @@ watch(pointDebounced, () => {
   }
 
   // Use standard deviation of radii to check for circularity to determine if points form a circle
-  if (lastPoints.value.length >= 6) {
+  if (lastPoints.value.length >= minimumDataPoints) {
     // Calculate mean center point
     const meanX = lastPoints.value.reduce((sum, p) => sum + p.x, 0) / lastPoints.value.length
     const meanY = lastPoints.value.reduce((sum, p) => sum + p.y, 0) / lastPoints.value.length
