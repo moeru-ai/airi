@@ -81,18 +81,18 @@ function handleResetSettings() {
     :on-back="() => router.back()"
   >
     <div bg="orange-50 dark:orange-900/20" rounded-xl p-4 flex="~ col gap-3">
-      <h2 text-xl font-normal text="orange-700 dark:orange-500">
-        Before you start
+      <h2 text-xl font-semibold text="orange-700 dark:orange-500">
+        {{ t('settings.pages.providers.provider.anthropic.helpinfo.title') }}
       </h2>
       <p>
-        While Anthropic recently did announce that they are having a beta support for
-        OpenAI SDK compatibility <a underline href="https://docs.anthropic.com/en/api/openai-sdk">(you can read more here)</a>,
-        but due to the implementation details comes with <a underline href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/CORS">CORS</a>
-        restrictions which not aligned with the OpenAI SDK, it's currently not possible to use this provider in the browser.
+        {{ t('settings.pages.providers.provider.anthropic.helpinfo.description.part1') }}
+        <a underline href="https://docs.anthropic.com/en/api/openai-sdk">{{ t('settings.pages.providers.provider.anthropic.helpinfo.description.part2') }}</a>,
+        {{ t('settings.pages.providers.provider.anthropic.helpinfo.description.part3') }} <a underline href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/CORS">CORS</a>
+        {{ t('settings.pages.providers.provider.anthropic.helpinfo.description.part4') }}
       </p>
       <p>
-        If you do need to use this provider, you will need a dedicated proxy backend like a Serverless Function running on
-        <a underline href="https://workers.cloudflare.com/">Cloudflare Workers</a> or some CORS bypassing services to bypass the CORS restrictions.
+        {{ t('settings.pages.providers.provider.anthropic.helpinfo.description.part5') }}
+        <a underline href="https://workers.cloudflare.com/">Cloudflare Workers</a> {{ t('settings.pages.providers.provider.anthropic.helpinfo.description.part6') }}
       </p>
     </div>
     <ProviderSettingsContainer>

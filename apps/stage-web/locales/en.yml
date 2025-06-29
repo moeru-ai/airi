@@ -244,6 +244,14 @@ settings:
         description: Connect and manage MCP server and tools
         title: MCP Server
     providers:
+      explained:
+        chat: Text generation model providers. e.g. OpenRouter, OpenAI, Ollama.
+        Speech: Speech (text-to-speech) model providers. e.g. ElevenLabs, Azure Speech.
+        Transcription: Transcription (speech-to-text) model providers. e.g. Whisper.cpp, OpenAI, Azure Speech
+      helpinfo:
+        title: First time here?
+        description: >
+          AIRI requires at least one {chat} provider to be configured to think, and behave properly. You could think of it as the brain of the characters living in AIRI system.
       common:
         fields:
           field:
@@ -268,12 +276,27 @@ settings:
             title: Voice Settings
       description: LLMs, speech providers, etc.
       provider:
+        app-local-audio-speech:
+          title: Browser (Local)
+          description: https://github.com/moeru-ai/xsai-transformers
+        browser-local-audio-speech:
+          title: Browser (Local)
+          description: https://github.com/moeru-ai/xsai-transformers
         alibaba-cloud-model-studio:
           description: bailian.console.aliyun.com
           title: Alibaba Cloud Model Studio
         anthropic:
           description: anthropic.com
           title: Anthropic | Claude
+          helpinfo:
+            title: Before you start
+            description:
+              part1: While Anthropic recently did announce that they are having a beta support for OpenAI SDK compatibility
+              part2: (you can read more here)
+              part3: but due to the implementation details comes with
+              part4: restrictions which not aligned with the OpenAI SDK, it's currently not possible to use this provider in the browser.
+              part5: If you do need to use this provider, you will need a dedicated proxy backend like a Serverless Function running on
+              part6: or some CORS bypassing services to bypass the CORS restrictions.
         cloudflare-workers-ai:
           description: cloudflare.com
           fields:
@@ -379,6 +402,12 @@ settings:
         together:
           description: together.ai
           title: Together.ai
+        google-generative-ai:
+          description: gemini.google.com
+          title: Google Gemini
+        featherless:
+          description: featherless.ai
+          title: Featherless AI
         vllm:
           description: vllm.ai
           title: vLLM
