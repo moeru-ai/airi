@@ -97,28 +97,12 @@ async fn stop_click_through(window: tauri::Window) -> Result<(), String> {
   Ok(())
 }
 
-fn load_whisper_model(window: tauri::Window) -> anyhow::Result<()> {
-  let progress_manager = crate::whisper::progress::ModelLoadProgressEmitterManager::new(window);
-
-  // Determine device to use
-  let device = if candle_core::utils::cuda_is_available() {
-    candle_core::Device::new_cuda(0)?
-  } else if candle_core::utils::metal_is_available() {
-    candle_core::Device::new_metal(0)?
-  } else {
-    candle_core::Device::Cpu
-  };
-
-  let whisper_model = whisper::whisper::WhichWhisperModel::Tiny;
-  let _ = whisper::whisper::WhisperProcessor::new(whisper_model, device.clone(), progress_manager)?;
-
-  Ok(())
-}
-
 #[tauri::command]
 async fn load_models(window: tauri::Window) -> Result<(), String> {
-  let _ = load_whisper_model(window);
+  let device = whisper::model_manager::load_device().unwrap();
 
+  whisper::model_manager::load_whisper_model(window.clone(), device.clone()).unwrap();
+  whisper::model_manager::load_vad_model(window.clone(), candle_core::Device::Cpu).unwrap();
   Ok(())
 }
 
