@@ -52,33 +52,23 @@ interface Events {
 export interface AiriTamagotchiEvents extends Events {
   'tauri-app:window-click-through:position-cursor-and-window-frame': [Point, WindowFrame]
   'tauri-app:model-load-progress': [string, number]
-  'tauri-app:window-position-changed': WindowPosition
-  'tauri-app:window-state-saved': undefined
-  'tauri-app:window-state-restored': undefined
-  'tauri-app:display-changed': DisplayInfo
   'mcp_plugin_destroyed': undefined
-  'tauri-app:invoke-returns:plugins-window-get-display-info': [[number, number], [number, number]]
 }
 
 export interface Monitor {
-  id: number
   name: string
-  is_primary: boolean
-  bounds: WindowFrame
-  work_area: WindowFrame
+  size: { width: number, height: number }
+  position: { x: number, y: number }
+  workArea: {
+    position: { x: number, y: number }
+    size: { width: number, height: number }
+  }
   scale_factor: number
 }
 
 export interface DisplayInfo {
   monitors: Monitor[]
-  primary_monitor_id: number
-}
-
-export interface WindowPosition {
-  x: number
-  y: number
-  width: number
-  height: number
+  primaryMonitor: Monitor
 }
 
 export enum PlacementStrategy {
@@ -99,7 +89,7 @@ export interface WindowPlacementRequest {
 }
 
 export interface WindowPlacementResult {
-  position: WindowPosition
+  position: Point
   target_monitor_id: number
   is_constrained: boolean
 }
@@ -149,13 +139,18 @@ export function useTauriEvent<ES = Events>() {
 }
 
 export interface InvokeMethods {
-  open_settings_window: { args: undefined, options: undefined, returns: void }
+  // Model related
+  load_models: { args: undefined, options: undefined, returns: void }
+
+  // Click Through
   start_monitor: { args: undefined, options: undefined, returns: void }
   stop_monitor: { args: undefined, options: undefined, returns: void }
-  open_chat_window: { args: undefined, options: undefined, returns: void }
-  load_models: { args: undefined, options: undefined, returns: void }
   stop_click_through: { args: undefined, options: undefined, returns: void }
   start_click_through: { args: undefined, options: undefined, returns: void }
+
+  // Windows
+  open_settings_window: { args: undefined, options: undefined, returns: void }
+  open_chat_window: { args: undefined, options: undefined, returns: void }
 
   // WindowLink.vue
   open_route_in_window: {
@@ -165,35 +160,30 @@ export interface InvokeMethods {
   }
 
   // Window positioning methods
-  plugins_window_get_display_info: {
+  plugin_window_get_display_info: {
     args: undefined
     options: undefined
-    returns: DisplayInfo
-  }
-  plugins_window_calculate_window_placement: {
-    args: { request: WindowPlacementRequest }
-    options: undefined
-    returns: WindowPlacementResult
-  }
-  plugins_window_apply_window_position: {
-    args: { position: WindowPosition }
-    options: undefined
-    returns: void
-  }
-  plugins_window_save_window_state: {
-    args: undefined
-    options: undefined
-    returns: void
-  }
-  plugins_window_restore_window_state: {
-    args: undefined
-    options: undefined
-    returns: void
+    returns: [Monitor[], Monitor]
   }
   plugins_window_get_current_window_info: {
     args: undefined
     options: undefined
-    returns: WindowPosition
+    returns: [[number, number], [number, number]]
+  }
+  plugins_window_set_position: {
+    args: { x: number, y: number }
+    options: undefined
+    returns: void
+  }
+  plugins_window_persistence_save: {
+    args: undefined
+    options: undefined
+    returns: void
+  }
+  plugins_window_persistence_restore: {
+    args: undefined
+    options: undefined
+    returns: void
   }
 }
 

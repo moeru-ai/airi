@@ -16,6 +16,7 @@ use tokio::time::sleep;
 mod app_click_through;
 mod app_windows;
 mod commands;
+mod plugins;
 mod whisper;
 
 #[cfg(target_os = "macos")]
@@ -253,6 +254,11 @@ pub fn run() {
       commands::open_chat_window,
       commands::debug_println,
       start_monitor,
+      plugins::window::plugins_window_get_current_window_info,
+      plugins::window::plugin_window_get_display_info,
+      plugins::window::plugins_window_set_position,
+      plugins::window_persistence::plugins_window_persistence_save,
+      plugins::window_persistence::plugins_window_persistence_restore,
       stop_monitor,
       start_click_through,
       stop_click_through,

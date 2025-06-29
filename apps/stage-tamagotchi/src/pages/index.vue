@@ -11,6 +11,7 @@ import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import ResourceStatusIsland from '../components/Widgets/ResourceStatusIsland/index.vue'
 import { useTauriCore, useTauriEvent } from '../composables/tauri'
 import { useTauriWindowClickThrough } from '../composables/tauri-click-through'
+import { useWindowPersistence } from '../composables/tauri-window-persistence'
 import { useWindowShortcuts } from '../composables/window-shortcuts'
 import { useResourcesStore } from '../stores/resources'
 import { useWindowControlStore } from '../stores/window-controls'
@@ -34,15 +35,14 @@ const { connected, serverCmd, serverArgs } = storeToRefs(mcpStore)
 
 watch([live2dLookAtX, live2dLookAtY], ([x, y]) => live2dFocusAt.value = { x, y }, { immediate: true })
 
-// // Initialize window persistence system
-// const windowPersistence = useWindowPersistence({
-//   autoSave: true,
-//   autoRestore: true,
-//   constrainToDisplays: true,
-//   centerPointConstraint: true,
-//   scaleAware: true,
-//   monitorDisplayChanges: true
-// })
+const windowPersistence = useWindowPersistence({
+  autoSave: true,
+  autoRestore: true,
+  constrainToDisplays: true,
+  centerPointConstraint: true,
+  monitorDisplayChanges: true,
+
+})
 
 const modeIndicatorClass = computed(() => {
   switch (windowStore.controlMode) {
@@ -60,6 +60,7 @@ const modeIndicatorClass = computed(() => {
 onMounted(async () => {
   await invoke('start_monitor')
   await startClickThrough()
+  await windowPersistence.initialize()
 })
 
 onUnmounted(async () => {
