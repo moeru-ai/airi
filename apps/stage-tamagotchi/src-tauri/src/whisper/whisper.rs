@@ -115,16 +115,14 @@ impl WhisperProcessor {
     ));
 
     let config_filename =
-      repo.download_with_progress("config.json", manager.clone().new_processor("config.json"))?;
+      repo.download_with_progress("config.json", manager.clone().new_for("config.json"))?;
     println!("config_filename: {:?}", config_filename.display());
-    let tokenizer_filename = repo.download_with_progress(
-      "tokenizer.json",
-      manager.clone().new_processor("tokenizer.json"),
-    )?;
+    let tokenizer_filename =
+      repo.download_with_progress("tokenizer.json", manager.clone().new_for("tokenizer.json"))?;
     println!("tokenizer_filename: {:?}", tokenizer_filename.display());
     let model_filename = repo.download_with_progress(
       "model.safetensors",
-      manager.clone().new_processor("model.safetensors"),
+      manager.clone().new_for("model.safetensors"),
     )?;
     println!("model_filename: {:?}", model_filename.display());
 

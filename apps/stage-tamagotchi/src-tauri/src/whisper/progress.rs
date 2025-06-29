@@ -11,7 +11,7 @@ impl ModelLoadProgressEmitterManager {
     Self { window }
   }
 
-  pub fn new_processor(
+  pub fn new_for(
     self,
     filename: &str,
   ) -> ModelLoadProgressEmitter {
@@ -67,7 +67,11 @@ impl hf_hub::api::Progress for ModelLoadProgressEmitter {
     size: usize,
   ) {
     self.size += size;
-    self.progress = if self.total_size > 0 { (self.size as f32 / self.total_size as f32 * 100.0).min(100.0) } else { 100.0 };
+    self.progress = if self.total_size > 0 {
+      (self.size as f32 / self.total_size as f32 * 100.0).min(100.0)
+    } else {
+      100.0
+    };
     self
       .window
       .emit(
