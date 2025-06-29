@@ -74,6 +74,7 @@ watch([x, y], () => {
 })
 
 watch(pointDebounced, () => {
+  isCircle.value = false
   if (canvasContext.value) {
     canvasContext.value.reset()
   }
