@@ -312,6 +312,12 @@ importers:
       '@tauri-apps/plugin-os':
         specifier: ^2.3.0
         version: 2.3.0
+      '@tauri-apps/plugin-positioner':
+        specifier: ^2.3.0
+        version: 2.3.0
+      '@tauri-apps/plugin-window-state':
+        specifier: ^2.3.0
+        version: 2.3.0
       '@tresjs/cientos':
         specifier: ^4.3.1
         version: 4.3.1(@tresjs/core@4.3.6(three@0.177.0)(typescript@5.8.3)(vue@3.5.17(typescript@5.8.3)))(@types/three@0.177.0)(react@18.3.1)(three@0.177.0)(typescript@5.8.3)(vue@3.5.17(typescript@5.8.3))
@@ -4807,6 +4813,12 @@ packages:
 
   '@tauri-apps/plugin-os@2.3.0':
     resolution: {integrity: sha512-dm3bDsMuUngpIQdJ1jaMkMfyQpHyDcaTIKTFaAMHoKeUd+Is3UHO2uzhElr6ZZkfytIIyQtSVnCWdW2Kc58f3g==}
+
+  '@tauri-apps/plugin-positioner@2.3.0':
+    resolution: {integrity: sha512-YMRcvA+WcULnAS+UjqGLP9ekWAgmBCgvkzT2OTkE8TWcu9jVo/Z79K0nEJhDuhZO/O0b77X0Opd+wDkEDYPeDw==}
+
+  '@tauri-apps/plugin-window-state@2.3.0':
+    resolution: {integrity: sha512-BfhM0gm6jsF+VyYeOZ3eNqDfRJ2YPMh0a5qesD8AizVGv7wVB3cGLqh6EaeMpGl7y6kP9lvEMYkDRHuqKbcsgw==}
 
   '@tokenizer/token@0.3.0':
     resolution: {integrity: sha512-OvjF+z51L3ov0OyAU0duzsYuvO01PH7x4t6DJx+guahgTnBHkhJdG7soQeTSFLWN3efnHyibZ4Z8l2EuWwJN3A==}
@@ -15382,6 +15394,14 @@ snapshots:
       '@tauri-apps/api': 2.6.0
 
   '@tauri-apps/plugin-os@2.3.0':
+    dependencies:
+      '@tauri-apps/api': 2.6.0
+
+  '@tauri-apps/plugin-positioner@2.3.0':
+    dependencies:
+      '@tauri-apps/api': 2.6.0
+
+  '@tauri-apps/plugin-window-state@2.3.0':
     dependencies:
       '@tauri-apps/api': 2.6.0
 

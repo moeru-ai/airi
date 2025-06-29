@@ -1,4 +1,4 @@
-use std::{str::FromStr, sync::atomic::Ordering, time::Duration};
+use std::{sync::atomic::Ordering, time::Duration};
 
 use log::info;
 use tauri::{
@@ -109,20 +109,16 @@ fn load_whisper_model(window: tauri::Window) -> anyhow::Result<()> {
     candle_core::Device::Cpu
   };
 
-  info!("Using device: {device:?}");
-
   let whisper_model = whisper::whisper::WhichWhisperModel::Tiny;
-
-  info!("Loading whisper model: {:?}", whisper_model);
-
   let _ = whisper::whisper::WhisperProcessor::new(whisper_model, device.clone(), progress_manager)?;
+
   Ok(())
 }
 
 #[tauri::command]
 async fn load_models(window: tauri::Window) -> Result<(), String> {
-  println!("load_models");
-  load_whisper_model(window).unwrap();
+  let _ = load_whisper_model(window);
+
   Ok(())
 }
 
@@ -175,11 +171,11 @@ pub fn run() {
     .plugin(tauri_plugin_mcp::Builder.build())
     .plugin(tauri_plugin_os::init())
     .plugin(tauri_plugin_global_shortcut::Builder::new().build())
+    .plugin(tauri_plugin_window_state::Builder::default().build())
+    .plugin(tauri_plugin_positioner::init())
     .manage(WindowClickThroughState::default())
     .setup(|app| {
-      let mut builder = WebviewWindowBuilder::new(app, "main", WebviewUrl::default());
-
-      builder = builder
+      let mut builder = WebviewWindowBuilder::new(app, "main", WebviewUrl::default())
         .title("AIRI")
         .decorations(false)
         .inner_size(450.0, 600.0)
@@ -212,7 +208,9 @@ pub fn run() {
       let settings_item = MenuItem::with_id(app, "settings", "Settings", true, None::<&str>)?;
       let hide_item = MenuItem::with_id(app, "hide", "Hide", true, None::<&str>)?;
       let show_item = MenuItem::with_id(app, "show", "Show", true, None::<&str>)?;
+
       let menu = Menu::with_items(app, &[&settings_item, &hide_item, &show_item, &quit_item])?;
+
       #[cfg(debug_assertions)]
       {
         let show_devtools_item =
@@ -257,12 +255,13 @@ pub fn run() {
             if let Some(window) = window {
               window.open_devtools();
             }
-          }
+          },
           _ => {}
         })
         .show_menu_on_left_click(true)
         .build(app)
         .unwrap();
+
       Ok(())
     })
     .invoke_handler(tauri::generate_handler![

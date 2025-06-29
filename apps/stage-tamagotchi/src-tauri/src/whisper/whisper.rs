@@ -6,6 +6,7 @@ use candle_nn::VarBuilder;
 use candle_transformers::models::whisper::{self as whisper_model, Config, audio};
 use clap::ValueEnum;
 use hf_hub::{Repo, RepoType, api::sync::ApiBuilder};
+use log::info;
 use tokenizers::Tokenizer;
 
 use crate::whisper::progress;
@@ -116,20 +117,20 @@ impl WhisperProcessor {
 
     let config_filename =
       repo.download_with_progress("config.json", manager.clone().new_for("config.json"))?;
-    println!("config_filename: {:?}", config_filename.display());
+    info!("config_filename: {:?}", config_filename.display());
     let tokenizer_filename =
       repo.download_with_progress("tokenizer.json", manager.clone().new_for("tokenizer.json"))?;
-    println!("tokenizer_filename: {:?}", tokenizer_filename.display());
+    info!("tokenizer_filename: {:?}", tokenizer_filename.display());
     let model_filename = repo.download_with_progress(
       "model.safetensors",
       manager.clone().new_for("model.safetensors"),
     )?;
-    println!("model_filename: {:?}", model_filename.display());
+    info!("model_filename: {:?}", model_filename.display());
 
     let config: Config = serde_json::from_str(&std::fs::read_to_string(config_filename)?)?;
     let tokenizer = Tokenizer::from_file(tokenizer_filename).map_err(anyhow::Error::msg)?;
 
-    println!("Loading Whisper model from: {:?}", model_filename.display());
+    info!("Loading Whisper model from: {:?}", model_filename.display());
 
     // SAFETY: This is safe because we are using a mmaped file and the safetensors library guarantees that the data is valid.
     let var_builder = unsafe {
