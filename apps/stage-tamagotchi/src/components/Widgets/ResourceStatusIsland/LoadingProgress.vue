@@ -48,7 +48,7 @@ const totalProgress = computed(() => {
         Preparing external resources...
       </div>
     </div>
-    <div v-if="props.progressInfo.size > 0" w-full flex flex-col gap-2>
+    <div v-if="Array(props.progressInfo.values()).length > 0" w-full flex flex-col gap-2>
       <div
         v-for="file in Array.from(progressInfo.values())"
         :key="file.value.filename"
@@ -67,15 +67,15 @@ const totalProgress = computed(() => {
           </div>
           <div>{{ file.value.progress.toFixed(2) }}%</div>
         </div>
-        <div relative>
+        <div relative overflow-hidden rounded-md>
           <div
             bg="primary-300 dark:primary-300/50"
-            absolute h-4 rounded-md will-change-width
-            :style="{ width: `${file.value.progress}%` }"
+            absolute h-4 will-change-width
+            :style="{ width: `${Math.min(file.value.progress, 0.5)}%` }"
             transition="width duration-500 ease-in-out"
           />
           <div
-            bg="neutral-100 dark:neutral-900" h-4 w-full rounded-md
+            bg="neutral-100 dark:neutral-900" h-4 w-full
           />
         </div>
       </div>

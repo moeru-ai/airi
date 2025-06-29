@@ -79,11 +79,6 @@ export function useTauriEvent<ES = Events>() {
   }
 
   async function listen<E extends keyof ES>(event: E, callback: EventCallback<ES[E]>) {
-    if (platform.value === 'web') {
-      console.warn(`Attempted to listen to Tauri event "${String(event)}" in web platform, however, currently we are not in a Tauri environment.`)
-      return () => {}
-    }
-
     let cleanupListener: UnlistenFn | undefined
 
     _listen(event, callback).then((listener) => {

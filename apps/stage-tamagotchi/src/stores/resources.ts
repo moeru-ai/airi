@@ -17,12 +17,14 @@ export const useResourcesStore = defineStore('resources', () => {
 
   const appendResource = (event: { payload: [string, number] }) => {
     const [filename, progress] = event.payload
+
     const fileRef = ref<ProgressInfoItem>({
       filename,
       progress,
       currentSize: 0,
       totalSize: 100,
     })
+
     resources.value.set(filename, fileRef)
   }
 

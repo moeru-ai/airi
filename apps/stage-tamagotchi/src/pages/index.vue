@@ -85,12 +85,11 @@ function onTauriPositionCursorAndWindowFrameEvent(event: { payload: [Point, Wind
 }
 
 onMounted(async () => {
-  // Listen for click-through state changes
   unListenFuncs.push(await listen('tauri-app:window-click-through:position-cursor-and-window-frame', onTauriPositionCursorAndWindowFrameEvent))
+  unListenFuncs.push(await listen('tauri-app:model-load-progress', useResourcesStore().appendResource))
 
   // Load models
   invoke('load_models')
-  unListenFuncs.push(await listen('tauri-app:model-load-progress', useResourcesStore().appendResource))
 
   if (connected.value)
     return
@@ -114,12 +113,14 @@ if (import.meta.hot) { // For better DX
   import.meta.hot.on('vite:beforeUpdate', () => {
     unListenFuncs.forEach(fn => fn?.())
     unListenFuncs.length = 0
+
     invoke('stop_monitor')
   })
   import.meta.hot.on('vite:afterUpdate', async () => {
     if (unListenFuncs.length === 0) {
       unListenFuncs.push(await listen('tauri-app:window-click-through:position-cursor-and-window-frame', onTauriPositionCursorAndWindowFrameEvent))
     }
+
     invoke('start_monitor')
   })
 }
