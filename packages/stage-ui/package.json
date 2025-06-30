@@ -36,7 +36,7 @@
   },
   "dependencies": {
     "@formkit/auto-animate": "^0.8.2",
-    "@huggingface/transformers": "^3.5.2",
+    "@huggingface/transformers": "^3.6.0",
     "@pixi/app": "^6.5.10",
     "@pixi/constants": "^6.5.10",
     "@pixi/core": "^6.5.10",
@@ -69,15 +69,15 @@
     "@xsai-ext/providers-cloud": "catalog:",
     "@xsai-ext/providers-local": "catalog:",
     "@xsai-ext/shared-providers": "catalog:",
-    "@xsai-transformers/embed": "^0.0.6",
-    "@xsai-transformers/shared": "^0.0.6",
+    "@xsai-transformers/embed": "^0.0.7",
+    "@xsai-transformers/shared": "^0.0.7",
     "@xsai/embed": "catalog:",
     "@xsai/generate-speech": "catalog:",
     "@xsai/model": "catalog:",
     "@xsai/shared-chat": "catalog:",
     "@xsai/stream-text": "catalog:",
     "@xsai/tool": "catalog:",
-    "culori": "^4.0.1",
+    "culori": "^4.0.2",
     "gpuu": "^1.0.4",
     "jszip": "^3.10.1",
     "localforage": "^1.10.0",
@@ -109,8 +109,6 @@
     "@unocss/reset": "^66.3.2",
     "@vitejs/plugin-vue": "^6.0.0",
     "histoire": "1.0.0-alpha.2",
-    "unocss": "^66.3.2",
-    "vite": "^6.3.5",
     "vue": "^3.5.17"
   }
 }

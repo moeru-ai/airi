@@ -58,6 +58,7 @@ words:
   - demodel
   - devlogs
   - dotenvx
+  - DownloadLive2DSDK
   - dtolnay
   - dtype
   - dtypes
@@ -95,6 +96,7 @@ words:
   - kwaa
   - lemonnekogh
   - libsodium
+  - lightningcss
   - listhen
   - live2dcubismcore
   - live2dcubismframework
@@ -212,5 +214,6 @@ words:
   - xsai
   - xsschema
   - zhipu
-ignoreWords: []
+ignoreWords:
+  - smol-toml
 import: []

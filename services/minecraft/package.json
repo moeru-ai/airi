@@ -18,7 +18,7 @@
     "awilix": "^12.0.5",
     "es-toolkit": "^1.39.5",
     "eventemitter3": "^5.0.1",
-    "minecraft-data": "^3.90.0",
+    "minecraft-data": "^3.91.0",
     "mineflayer": "^4.29.0",
     "mineflayer-armor-manager": "^2.0.1",
     "mineflayer-auto-eat": "^5.0.1",
@@ -40,6 +40,6 @@
   },
   "devDependencies": {
     "@dotenvx/dotenvx": "^1.45.1",
-    "dotenv": "^16.5.0"
+    "dotenv": "^16.6.1"
   }
 }
