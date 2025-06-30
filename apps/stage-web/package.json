@@ -103,6 +103,7 @@
     "less": "^4.3.0",
     "unplugin-vue-macros": "^2.14.5",
     "unplugin-vue-router": "^0.14.0",
+    "unplugin-yaml": "^3.0.0",
     "vite": "catalog:rolldown-vite",
     "vite-bundle-visualizer": "^1.2.1",
     "vite-plugin-pwa": "^1.0.0",

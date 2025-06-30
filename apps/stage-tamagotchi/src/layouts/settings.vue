@@ -123,7 +123,7 @@ const routeHeaderMetadata = computed(() => {
 </script>
 
 <template>
-  <div h-full w-full overflow-y-scroll scrollbar-none>
+  <div h-full w-full overflow-y-scroll scrollbar-none bg="$bg-color">
     <WindowTitleBar
       :title="routeHeaderMetadata?.title"
       icon="i-solar:settings-bold"
