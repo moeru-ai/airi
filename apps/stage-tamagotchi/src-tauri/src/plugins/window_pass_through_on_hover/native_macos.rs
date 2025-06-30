@@ -1,11 +1,13 @@
 #[cfg(target_os = "macos")]
 use objc2::{class, msg_send};
+#[cfg(target_os = "macos")]
+use tauri::Runtime;
 
 #[cfg(target_os = "macos")]
 use super::types::{Point, Size, WindowFrame};
 
 #[cfg(target_os = "macos")]
-pub fn get_window_frame(window: &tauri::Window) -> WindowFrame {
+pub fn get_window_frame<R: Runtime>(window: &tauri::Window<R>) -> WindowFrame {
   use objc2_foundation::NSRect;
 
   unsafe {

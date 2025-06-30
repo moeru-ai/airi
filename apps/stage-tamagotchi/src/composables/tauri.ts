@@ -50,7 +50,9 @@ interface Events {
 }
 
 export interface AiriTamagotchiEvents extends Events {
-  'tauri-app:window-click-through:position-cursor-and-window-frame': [Point, WindowFrame]
+  'tauri-app:proj-airi:window-pass-through-on-hover:cursor-position': Point
+  'tauri-app:proj-airi:window-pass-through-on-hover:window-frame': WindowFrame
+  'tauri-app:proj-airi:window-pass-through-on-hover:pass-through-enabled': boolean
   'tauri-app:model-load-progress': [string, number]
   'mcp_plugin_destroyed': undefined
 }
@@ -140,51 +142,53 @@ export function useTauriEvent<ES = Events>() {
 
 export interface InvokeMethods {
   // Model related
-  load_models: { args: undefined, options: undefined, returns: void }
+  'load_models': { args: undefined, options: undefined, returns: void }
 
-  // Click Through
-  start_monitor: { args: undefined, options: undefined, returns: void }
-  stop_monitor: { args: undefined, options: undefined, returns: void }
-  stop_click_through: { args: undefined, options: undefined, returns: void }
-  start_click_through: { args: undefined, options: undefined, returns: void }
+  // app windows
+  'open_settings_window': { args: undefined, options: undefined, returns: void }
+  'open_chat_window': { args: undefined, options: undefined, returns: void }
 
-  // Windows
-  open_settings_window: { args: undefined, options: undefined, returns: void }
-  open_chat_window: { args: undefined, options: undefined, returns: void }
-
-  // WindowLink.vue
-  open_route_in_window: {
+  // Plugin - WindowRouterLink
+  'open_route_in_window': {
     args: { route: string, windowLabel?: string } | undefined
     options: undefined
     returns: void
   }
 
-  // Window positioning methods
-  plugin_window_get_display_info: {
+  // Plugin - Window Pass through on hover
+  'plugin:proj-airi-tauri-plugin-window-pass-through-on-hover|start_monitor': { args: undefined, options: undefined, returns: void }
+  'plugin:proj-airi-tauri-plugin-window-pass-through-on-hover|stop_monitor': { args: undefined, options: undefined, returns: void }
+  'plugin:proj-airi-tauri-plugin-window-pass-through-on-hover|start_pass_through': { args: undefined, options: undefined, returns: void }
+  'plugin:proj-airi-tauri-plugin-window-pass-through-on-hover|stop_pass_through': { args: undefined, options: undefined, returns: void }
+
+  // Plugin - Window
+  'plugin:proj-airi-tauri-plugin-window|get_display_info': {
     args: undefined
     options: undefined
     returns: [Monitor[], Monitor]
   }
-  plugins_window_get_current_window_info: {
+  'plugin:proj-airi-tauri-plugin-window|get_current_window_info': {
     args: undefined
     options: undefined
     returns: [[number, number], [number, number]]
   }
-  plugins_window_set_position: {
+  'plugin:proj-airi-tauri-plugin-window|set_position': {
     args: { x: number, y: number }
     options: undefined
     returns: void
   }
-  plugins_window_persistence_save: {
-    args: undefined
-    options: undefined
-    returns: void
-  }
-  plugins_window_persistence_restore: {
-    args: undefined
-    options: undefined
-    returns: void
-  }
+
+  // // Plugin - Window Persistence
+  // 'plugin:proj-airi-tauri-plugin-window-persistence|save': {
+  //   args: undefined
+  //   options: undefined
+  //   returns: void
+  // }
+  // 'plugin:proj-airi-tauri-plugin-window-persistence|restore': {
+  //   args: undefined
+  //   options: undefined
+  //   returns: void
+  // }
 }
 
 interface InvokeMethodShape {

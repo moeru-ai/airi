@@ -50,7 +50,6 @@ tokenizers = "0.21.2"
 url = "2.5.4"
 tauri-plugin-window-state = "2.3.0"
 tauri-plugin-positioner = "2.3.0"
-xcap = "0.6.1"
 
 [target.'cfg(target_os = "macos")'.dependencies]
 objc2 = "0.6.1"

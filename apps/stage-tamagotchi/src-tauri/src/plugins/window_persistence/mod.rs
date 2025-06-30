@@ -1,12 +1,19 @@
 use log::info;
-use tauri::Window;
+use tauri::{
+  Manager,
+  Result,
+  Runtime,
+  Window,
+  plugin::{Builder, TauriPlugin},
+};
 use tauri_plugin_window_state::{AppHandleExt, WindowExt};
 
 #[tauri::command]
-pub async fn plugins_window_persistence_save(app: tauri::AppHandle) -> Result<(), String> {
+pub async fn save<R: Runtime>(window: Window<R>) -> Result<()> {
   info!("Saving window state...");
 
-  app
+  window
+    .app_handle()
     .save_window_state(tauri_plugin_window_state::StateFlags::all())
     .map_err(|e| format!("Failed to save window state: {}", e))
     .unwrap_or_else(|err| {
@@ -17,7 +24,7 @@ pub async fn plugins_window_persistence_save(app: tauri::AppHandle) -> Result<()
 }
 
 #[tauri::command]
-pub async fn plugins_window_persistence_restore(window: Window) -> Result<(), String> {
+pub async fn restore<R: Runtime>(window: Window<R>) -> Result<()> {
   info!("Restoring window state...");
 
   window
@@ -28,4 +35,10 @@ pub async fn plugins_window_persistence_restore(window: Window) -> Result<(), St
     });
 
   Ok(())
+}
+
+pub fn init<R: Runtime>() -> TauriPlugin<R> {
+  Builder::new("proj-airi-tauri-plugin-window-persistence")
+    .invoke_handler(tauri::generate_handler![save, restore,])
+    .build()
 }

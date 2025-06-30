@@ -19,37 +19,42 @@ export function useTauriPointAndWindowFrame() {
     size: { width: 0, height: 0 },
   })
 
-  function _on(event: { payload: [Point, WindowFrame] }) {
-    const [pos, frame] = event.payload
-
-    mousePos.value = pos
-    windowFrame.value = frame
+  function _onCursorPosition(event: { payload: Point }) {
+    mousePos.value = event.payload
   }
 
-  onMounted(() => {
-    listen('tauri-app:window-click-through:position-cursor-and-window-frame', (event) => {
-      _on(event)
+  function _onWindowFrame(event: { payload: WindowFrame }) {
+    windowFrame.value = event.payload
+  }
+
+  function addListeners() {
+    listen('tauri-app:proj-airi:window-pass-through-on-hover:cursor-position', (event) => {
+      _onCursorPosition(event)
     }).then((fn) => {
       unListenFuncs.value.push(fn)
     })
-  })
+
+    listen('tauri-app:proj-airi:window-pass-through-on-hover:window-frame', (event) => {
+      _onWindowFrame(event)
+    }).then((fn) => {
+      unListenFuncs.value.push(fn)
+    })
+  }
+
+  onMounted(() => addListeners())
 
   if (import.meta.hot) { // For better DX
     import.meta.hot.on('vite:beforeUpdate', () => {
       unListenFuncs.value.forEach(fn => fn?.())
       unListenFuncs.value.length = 0
 
-      invoke('stop_monitor')
+      invoke('plugin:proj-airi-tauri-plugin-window-pass-through-on-hover|stop_monitor')
     })
 
-    import.meta.hot.on('vite:afterUpdate', async () => {
-      if (unListenFuncs.value.length === 0) {
-        unListenFuncs.value.push(await listen('tauri-app:window-click-through:position-cursor-and-window-frame', (event) => {
-          _on(event)
-        }))
-      }
+    import.meta.hot.on('vite:afterUpdate', () => {
+      unListenFuncs.value.length === 0 && addListeners()
 
-      invoke('start_monitor')
+      invoke('plugin:proj-airi-tauri-plugin-window-pass-through-on-hover|start_monitor')
     })
   }
 
