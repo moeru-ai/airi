@@ -151,10 +151,42 @@ You don't need to care about the package manager, `ni` will help you choose the 
 
 ## Choose the application you want to develop on
 
+### Stage Tamagotchi (Desktop version)
+
+```shell
+pnpm dev:tamagotchi
+```
+
+:::note
+
+For [@antfu/ni](https://github.com/antfu-collective/ni) users, you can
+
+```shell
+nr dev:tamagotchi
+```
+
+:::
+
+### Stage Web (Browser version for [airi.moeru.ai](https://airi.moeru.ai))
+
+```shell
+pnpm dev
+```
+
+:::note
+
+For [@antfu/ni](https://github.com/antfu-collective/ni) users, you can
+
+```shell
+nr dev
+```
+
+:::
+
 ### Documentation site
 
 ```shell
-pnpm -F @proj-airi/docs dev
+pnpm dev:docs
 ```
 
 :::note
@@ -162,39 +194,7 @@ pnpm -F @proj-airi/docs dev
 For [@antfu/ni](https://github.com/antfu-collective/ni) users, you can
 
 ```shell
-nr -F @proj-airi/docs dev
-```
-
-:::
-
-### Stage web (Frontend for [airi.moeru.ai](https://airi.moeru.ai), or [airi.ayaka.io](https://airi.ayaka.io))
-
-```shell
-pnpm -F @proj-airi/stage-web dev
-```
-
-:::note
-
-For [@antfu/ni](https://github.com/antfu-collective/ni) users, you can
-
-```shell
-nr -F @proj-airi/stage-web dev
-```
-
-:::
-
-### Stage Tamagotchi (Electron app for アイリ VTuber)
-
-```shell
-pnpm -F @proj-airi/stage-tamagotchi dev
-```
-
-:::note
-
-For [@antfu/ni](https://github.com/antfu-collective/ni) users, you can
-
-```shell
-nr -F @proj-airi/stage-tamagotchi dev
+nr dev:docs
 ```
 
 :::

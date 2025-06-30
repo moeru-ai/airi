@@ -1,4 +1,4 @@
-# Start contributing to [airi](https://github.com/moeru-ai/airi)
+# Start contributing to [Project AIRI](https://github.com/moeru-ai/airi)
 
 Hello! Thank you for your interest in contributing to this project. This guide will help you get started.
 
@@ -149,10 +149,38 @@ cargo fetch
 
 ## Choose the application you want to develop on
 
+### Stage Tamagotchi (Desktop version)
+
+```shell
+pnpm dev:tamagotchi
+```
+
+> [!NOTE]
+>
+> For [@antfu/ni](https://github.com/antfu-collective/ni) users, you can
+>
+> ```shell
+> nr dev:tamagotchi
+> ```
+
+### Stage Web (Browser version for [airi.moeru.ai](https://airi.moeru.ai))
+
+```shell
+pnpm dev
+```
+
+> [!NOTE]
+>
+> For [@antfu/ni](https://github.com/antfu-collective/ni) users, you can
+>
+> ```shell
+> nr dev
+> ```
+
 ### Documentation site
 
 ```shell
-pnpm -F @proj-airi/docs dev
+pnpm dev:docs
 ```
 
 > [!NOTE]
@@ -160,35 +188,7 @@ pnpm -F @proj-airi/docs dev
 > For [@antfu/ni](https://github.com/antfu-collective/ni) users, you can
 >
 > ```shell
-> nr -F @proj-airi/docs dev
-> ```
-
-### Stage web (Frontend for [airi.moeru.ai](https://airi.moeru.ai), or [airi.ayaka.io](https://airi.ayaka.io))
-
-```shell
-pnpm -F @proj-airi/stage-web dev
-```
-
-> [!NOTE]
->
-> For [@antfu/ni](https://github.com/antfu-collective/ni) users, you can
->
-> ```shell
-> nr -F @proj-airi/stage-web dev
-> ```
-
-### Stage Tamagotchi (Electron app for アイリ VTuber)
-
-```shell
-pnpm -F @proj-airi/stage-tamagotchi dev
-```
-
-> [!NOTE]
->
-> For [@antfu/ni](https://github.com/antfu-collective/ni) users, you can
->
-> ```shell
-> nr -F @proj-airi/stage-tamagotchi dev
+> nr dev:docs
 > ```
 
 ### Telegram bot integration
