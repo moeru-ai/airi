@@ -86,8 +86,8 @@ useEventListener('click', (e) => {
 
 const pressKeysMessage = computed(() => {
   if (recordingKeys.value.modifier.length === 0)
-    return t('settings.pages.themes.window-shortcuts.press-keys')
-  return `${t('settings.pages.themes.window-shortcuts.press-keys')}: ${recordingKeys.value.modifier.join('+')}+${recordingKeys.value.key}`
+    return t('tamagotchi.settings.pages.themes.window-shortcuts.press-keys')
+  return `${t('tamagotchi.settings.pages.themes.window-shortcuts.press-keys')}: ${recordingKeys.value.modifier.join('+')}+${recordingKeys.value.key}`
 })
 function isConflict(shortcut: typeof shortcuts.value[0]) {
   return shortcuts.value.some(s => s.type !== shortcut.type && s.shortcut === shortcut.shortcut)

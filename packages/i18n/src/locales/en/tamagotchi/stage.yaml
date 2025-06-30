@@ -1,0 +1,5 @@
+operations:
+  load-models: Load Models
+  load-models-status:
+    loading: Loading
+    ready: Ready

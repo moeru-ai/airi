@@ -279,6 +279,9 @@ importers:
       '@proj-airi/drizzle-duckdb-wasm':
         specifier: 'catalog:'
         version: 0.4.28(drizzle-orm@0.44.2(@opentelemetry/api@1.9.0)(@types/pg@8.15.4)(gel@2.0.0)(pg@8.16.3)(postgres@3.4.7))(web-worker@1.5.0)
+      '@proj-airi/i18n':
+        specifier: workspace:*
+        version: link:../../packages/i18n
       '@proj-airi/stage-ui':
         specifier: workspace:^
         version: link:../../packages/stage-ui
@@ -562,6 +565,9 @@ importers:
       '@proj-airi/drizzle-duckdb-wasm':
         specifier: 'catalog:'
         version: 0.4.28(drizzle-orm@0.44.2(@opentelemetry/api@1.9.0)(@types/pg@8.15.4)(gel@2.0.0)(pg@8.16.3)(postgres@3.4.7))(web-worker@1.5.0)
+      '@proj-airi/i18n':
+        specifier: workspace:*
+        version: link:../../packages/i18n
       '@proj-airi/server-sdk':
         specifier: workspace:^
         version: link:../../packages/server-sdk
@@ -858,6 +864,12 @@ importers:
 
   packages/font-xiaolai: {}
 
+  packages/i18n:
+    devDependencies:
+      unplugin-yaml:
+        specifier: ^3.0.0
+        version: 3.0.0(@nuxt/kit@3.14.1592(magicast@0.3.5)(rollup@4.44.1))(@nuxt/schema@3.14.1592(magicast@0.3.5)(rollup@4.44.1))(astro@5.10.1(@types/node@24.0.7)(encoding@0.1.13)(jiti@2.4.2)(less@4.3.0)(lightningcss@1.30.1)(rollup@4.44.1)(terser@5.43.1)(tsx@4.20.3)(typescript@5.8.3)(yaml@2.8.0))(esbuild@0.25.5)(rolldown@1.0.0-beta.20)(rollup@4.44.1)(vite@7.0.0(@types/node@24.0.7)(jiti@2.4.2)(less@4.3.0)(lightningcss@1.30.1)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0))
+
   packages/memory-pgvector:
     dependencies:
       '@guiiai/logg':
@@ -981,6 +993,9 @@ importers:
       '@proj-airi/font-xiaolai':
         specifier: workspace:^
         version: link:../font-xiaolai
+      '@proj-airi/i18n':
+        specifier: workspace:*
+        version: link:../i18n
       '@proj-airi/server-sdk':
         specifier: workspace:^
         version: link:../server-sdk
@@ -11116,6 +11131,39 @@ packages:
     engines: {node: '>=18.0.0'}
     peerDependencies:
       vue: ^3.2.25
+
+  unplugin-yaml@3.0.0:
+    resolution: {integrity: sha512-x9amyI6Cp1l6DKpGiVEclRJsWcmfUTGBqffO3pQLx9RBEIZjoftFQDdqo2unnRedxZkXiytRTFxnUuyy762GGQ==}
+    engines: {node: '>=20'}
+    peerDependencies:
+      '@nuxt/kit': '>=3'
+      '@nuxt/schema': '>=3'
+      '@rspack/core': ^1.0.13
+      astro: '>=3'
+      esbuild: '*'
+      rolldown: '>=0.14.0'
+      rollup: '>=3'
+      vite: '>=3'
+      webpack: ^4 || ^5
+    peerDependenciesMeta:
+      '@nuxt/kit':
+        optional: true
+      '@nuxt/schema':
+        optional: true
+      '@rspack/core':
+        optional: true
+      astro:
+        optional: true
+      esbuild:
+        optional: true
+      rolldown:
+        optional: true
+      rollup:
+        optional: true
+      vite:
+        optional: true
+      webpack:
+        optional: true
 
   unplugin@1.16.1:
     resolution: {integrity: sha512-4/u/j4FrCKdi17jaxuJA0jClGxB1AvU2hw/IuayPc4ay1XGaJs/rbb4v5WKwAjNifjmXK9PIFyuPiaK8azyR9w==}
@@ -23775,6 +23823,20 @@ snapshots:
       - terser
       - tsx
       - yaml
+
+  unplugin-yaml@3.0.0(@nuxt/kit@3.14.1592(magicast@0.3.5)(rollup@4.44.1))(@nuxt/schema@3.14.1592(magicast@0.3.5)(rollup@4.44.1))(astro@5.10.1(@types/node@24.0.7)(encoding@0.1.13)(jiti@2.4.2)(less@4.3.0)(lightningcss@1.30.1)(rollup@4.44.1)(terser@5.43.1)(tsx@4.20.3)(typescript@5.8.3)(yaml@2.8.0))(esbuild@0.25.5)(rolldown@1.0.0-beta.20)(rollup@4.44.1)(vite@7.0.0(@types/node@24.0.7)(jiti@2.4.2)(less@4.3.0)(lightningcss@1.30.1)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)):
+    dependencies:
+      '@rollup/pluginutils': 5.2.0(rollup@4.44.1)
+      unplugin: 2.3.5
+      yaml: 2.8.0
+    optionalDependencies:
+      '@nuxt/kit': 3.14.1592(magicast@0.3.5)(rollup@4.44.1)
+      '@nuxt/schema': 3.14.1592(magicast@0.3.5)(rollup@4.44.1)
+      astro: 5.10.1(@types/node@24.0.7)(encoding@0.1.13)(jiti@2.4.2)(less@4.3.0)(lightningcss@1.30.1)(rollup@4.44.1)(terser@5.43.1)(tsx@4.20.3)(typescript@5.8.3)(yaml@2.8.0)
+      esbuild: 0.25.5
+      rolldown: 1.0.0-beta.20
+      rollup: 4.44.1
+      vite: 7.0.0(@types/node@24.0.7)(jiti@2.4.2)(less@4.3.0)(lightningcss@1.30.1)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
 
   unplugin@1.16.1:
     dependencies:

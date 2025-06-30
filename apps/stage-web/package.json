@@ -23,6 +23,7 @@
     "@moeru/std": "catalog:",
     "@proj-airi/ccc": "workspace:^",
     "@proj-airi/drizzle-duckdb-wasm": "catalog:",
+    "@proj-airi/i18n": "workspace:*",
     "@proj-airi/server-sdk": "workspace:^",
     "@proj-airi/stage-ui": "workspace:^",
     "@proj-airi/ui": "workspace:^",

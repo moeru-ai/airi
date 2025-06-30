@@ -1,0 +1,472 @@
+animations:
+  stage-transitions:
+    title: 是否开启舞台动画
+  use-page-specific-transitions:
+    description: 某些页面会有自己的过场动画，这将覆盖舞台过场动画
+    title: 是否使用页面特定过场动画
+language:
+  chinese: 简体中文
+  english: English
+  title: 语言
+live2d:
+  change-model:
+    from-file: 从文件加载
+    from-file-select: 选择
+    from-url: 从 URL 加载
+    from-url-confirm: 加载
+    from-url-placeholder: 输入 Live2D 模型 URL
+    title: 更换模型
+  edit-motion-map:
+    title: 编辑动作映射
+  map-motions:
+    play: 播放动作
+    title: 映射动作
+  title: Live2D 设置
+microphone: 麦克风
+models: 模型
+pages:
+  card:
+    activate: 激活
+    active: 已激活
+    active_badge: 当前使用中
+    cancel: 取消
+    card_not_found: 未找到角色卡
+    character: 角色设定
+    close: 关闭
+    consciousness:
+      model: 意识 / 模型
+    created_by: 创建者
+    creator_notes: 创建者笔记
+    delete: 删除
+    delete_card: 删除角色卡
+    delete_confirmation: 确定要删除这张角色卡吗？
+    description: 使用 AIRI 角色卡预设
+    description_label: 描述
+    drop_here: 放开以上传文件
+    create_card: 创建新角色卡
+    creation:
+      identity: 身份
+      name: 名字
+      nickname: 昵称
+      description: 描述
+      behavior: 行为
+      greetings: 问候语（每行一个）
+      settings: 设置
+      version: 版本
+      create: 创建
+      defaults:
+        name: 名字
+        personality: 你是一个普通人，对一切都充满好奇。
+        scenario: 你最近醒来，忘记了之前的所有生活。
+        systemprompt: 你将收到消息，请像真实人类一样回复。
+        posthistoryinstructions: 记得模仿人类的行为。
+      fields_info:
+        subtitle: 您可以在这里填写有关您正在创建的角色的一些详细信息，解释他的背景和情境，以及应该如何回应您的互动。
+        name: 是该角色的正式名称。
+        nickname: 您也可以提供一个昵称，它将被优先使用。
+        description: 该角色的描述。
+        notes: 如果您想添加一些个人备注。
+        personality: 在这里描述您的角色的个性。例如：害羞？好奇？其他？
+        scenario: 周围环境是怎样的？当前的情境是什么？
+        greetings_field: 问候语
+        greetings: 您的角色应该如何说“你好”？
+        systemprompt: 在这里向 AI LLM 解释当被提示时应该如何回应。
+        posthistoryinstructions: 在消息历史之后，放入 AI LLM 应该阅读的内容。
+        version: 卡片版本，如果您从之前的卡片做了更改，应当增加此版本号。
+      errors:
+        name: 错误：你必须提供一个有效的名称！
+        version: 错误：版本号无效！
+        description: 错误：你必须为此卡片提供描述。
+        personality: 错误：必须为该角色提供性格描述。
+        scenario: 错误：必须提供一个情境。
+        systemprompt: 错误：请提供系统提示。
+        posthistoryinstructions: 错误：必须提供消息历史后的提示。
+    modules: 模块
+    name_asc: 名称 (A-Z)
+    name_desc: 名称 (Z-A)
+    no_cards: 还没有任何角色卡，点击上方按钮上传一个吧！
+    no_results: 没有找到匹配的角色卡
+    personality: 性格
+    posthistoryinstructions: 历史提示指令
+    recent: 最近添加
+    scenario: 场景
+    search: 搜索角色卡...
+    sort_by: 排序方式
+    speech:
+      model: 声音 / 模型
+      voice: 声音 / 声线
+    systemprompt: 系统提示词
+    title: AIRI 角色卡
+    try_different_search: 尝试使用其他关键词搜索
+    upload: 上传
+    upload_desc: 点击或拖拽文件到此处上传
+  memory:
+    description: 存放记忆的地方，以及策略
+    title: 记忆体
+  models:
+    description: 切换角色的 Live2D，VRM 模型
+    title: 角色模型
+  modules:
+    consciousness:
+      description: 人格设定、使用的模型等配置
+      sections:
+        section:
+          provider-model-selection:
+            collapse: 折叠
+            custom_model_placeholder: 输入自订模型名称
+            description: 为意识选择合适的 LLM 服务来源
+            error: 获取出错啦
+            expand: 展开
+            loading: 获取模型中...
+            manual_model_name: 模型名字
+            manual_model_placeholder: 输入与该服务来源一起使用的模型名称
+            no_models: 没有任何可用的模型
+            no_models_description: 该服务来源的模型列表没有返回任何的数据
+            no_search_results: 没有匹配的模型
+            no_search_results_description: 没有模型匹配 '{query}' 关键字，请尝试一下别的关键词呢
+            not_supported: 无法列出模型
+            not_supported_description: 此服务来源不支持列出模型的功能
+            search_placeholder: 搜索模型...
+            search_results: 找到 {count} / {total} 个模型
+            show_less: 显示更多
+            show_more: 收起
+            subtitle: 选择一个模型
+            title: 模型
+      title: 意识
+    description: 思维，视觉，言语综合，游戏等
+    gaming-factorio:
+      description: 一起玩 Factorio！
+      title: 异星工厂 Factorio
+    gaming-minecraft:
+      description: 一起玩 Minecraft！
+      title: 我的世界 Minecraft
+    hearing:
+      description: 语音识别
+      title: 听觉
+    memory-long-term:
+      description: 长期记忆
+      title: 长期记忆
+    memory-short-term:
+      description: 短期记忆
+      title: 短期记忆
+    messaging-discord:
+      description: Discord 发消息和语音聊天
+      title: Discord
+    speech:
+      description: 语音合成
+      sections:
+        section:
+          playground:
+            buttons:
+              stop:
+                label: 停止
+            select-voice:
+              required: 请选择声线
+          provider-voice-selection:
+            custom_model_placeholder: 输入指定模型名称...
+            custom_voice_placeholder: 输入指定声线 ID...
+            description: 选择合适的语音服务来源
+            no_models: 没有任何可用的模型
+            no_models_description: 该服务来源的模型列表没有返回任何的数据
+            no_voices: 没有任何可用的声线
+            no_voices_description: 该服务来源的声线列表没有返回任何的数据
+            pause: Pause
+            play_sample: Play
+            search_models_placeholder: 搜索模型...
+            search_models_results: 找到 {count} / {total} 个模型
+            search_voices_placeholder: 搜索声线...
+            search_voices_results: 找到 {count} / {total} 个声线
+            show_less: 显示更少
+            show_more: 显示更多
+            title: 选择语音合成服务来源
+          voice-settings:
+            input-ssml:
+              placeholder: 请输入 SSML 文本
+            use-ssml:
+              description: 启用后可以输入原始 SSML 而不是纯文本
+              label: 选用自定义 SSML
+      title: 发声
+    title: 机体模块
+    vision:
+      description: 视觉
+      title: 视觉
+    x:
+      description: X / Twitter 的浏览和使用
+      title: X / Twitter
+    mcp-server:
+      description: 连接和管理 MCP 服务器及工具
+      title: MCP 服务器
+  providers:
+    explained:
+      chat: 文本生成模型服务来源，例如 OpenRouter, OpenAI, Ollama
+      Speech: 语音（文本转语音）模型服务来源，例如 ElevenLabs, Azure Speech
+      Transcription: 转录（语音转文本）模型服务来源，例如 Whisper.cpp, OpenAI, Azure Speech
+    helpinfo:
+      title: 第一次使用？
+      description: >
+        AIRI 需要配置至少一个 {chat} 服务来源，才能正常思考和运作。你可以把它看作是 AIRI 系统中角色的大脑。
+    common:
+      fields:
+        field:
+          api-key:
+            label: API 密钥
+      section:
+        advanced:
+          fields:
+            field:
+              headers:
+                description: 添加自定义 HTTP 标头
+                key:
+                  placeholder: 请求头名字
+                label: HTTP 请求头
+                value:
+                  placeholder: 请求头数值
+          title: 高级配置
+        basic:
+          description: 基本设置
+          title: 基础配置
+        voice:
+          title: 声音配置
+    description: LLM，语音合成，语音识别服务来源等
+    provider:
+      app-local-audio-speech:
+        title: 浏览器内（本地）
+        description: https://github.com/moeru-ai/xsai-transformers
+      browser-local-audio-speech:
+        title: 浏览器内（本地）
+        description: https://github.com/moeru-ai/xsai-transformers
+      alibaba-cloud-model-studio:
+        description: bailian.console.aliyun.com
+        title: 阿里百炼
+      anthropic:
+        description: anthropic.com
+        title: Anthropic | Claude
+        helpinfo:
+          title: 开始之前
+          description:
+            part1: 虽然 Anthropic 最近宣布他们正在提供对 OpenAI SDK 兼容性的 Beta 版支持
+            part2: （您可以在此处阅读更多信息）
+            part3: 但由于实现细节附带
+            part4: 与 OpenAI SDK 不一致，目前无法在浏览器中使用此提供程序。
+            part5: 如果您确实需要使用此提供程序，则需要一个专用的代理后端，例如在
+            part6: 上运行的Serverless Function，或者一些绕过 CORS 的服务，以绕过 CORS 限制。
+      cloudflare-workers-ai:
+        description: Cloudflare.com
+        fields:
+          field:
+            account-id:
+              description: Cloudflare 帐户 ID
+              label: Cloudflare Account ID
+              placeholder: 请输入 Cloudflare Account ID
+            api-key:
+              placeholder: 请输入 Cloudflare Workers AI 的 API Key
+        title: Workers AI
+      common:
+        fields:
+          field:
+            pitch:
+              description: 调节合成语音的音高（比如更尖锐或者更粗旷）
+              label: 音高
+            speed:
+              description: 调节说话的语速
+              label: 语速
+            volume:
+              description: 调节语音的响度
+              label: 响度
+      deepseek:
+        description: DeepSeek.com
+        title: 深度求索 DeepSeek
+      elevenlabs:
+        description: Elevenlabs.io
+        fields:
+          field:
+            simularity-boost:
+              description: 声音相似性与依从性
+              label: 相似度修正
+            speaker-boost:
+              description: 增强说话者的相似性
+              label: 扬声器增强
+            speed:
+              description: 语音生成速度
+              label: 语速
+            stability:
+              description: 语音稳定性和随机性
+              label: 稳定性
+            style:
+              description: 夸张的语音风格
+              label: 风格
+        playground:
+          buttons:
+            button:
+              test-voice:
+                generating: 生成中...
+                label: 测试声音
+          fields:
+            field:
+              input:
+                placeholder: 输入用于测试发音的文本
+              language:
+                description: 选择语音语言
+                label: 语言
+              voice:
+                description: 选择首选语音
+                label: 声线
+          title: 实验平台
+          validation:
+            error-missing-api-key: 需要填写 API Key 才能用哦！
+        title: ElevenLabs (11labs)
+      fireworks:
+        description: Fireworks.ai
+        title: Fireworks.ai
+      microsoft-speech:
+        description: speech.microsoft.com
+        fields:
+          field:
+            region:
+              description: 服务 Endpoint 地区（比如亚太 eastasia 区域）
+              label: Endpoint 地区
+        title: Microsoft / Azure 语音服务
+      mistral:
+        description: mistral.ai
+        title: Mistral
+      moonshot:
+        description: Moonshot.ai
+        title: 月之暗面
+      novita:
+        description: novita.ai
+        title: Novita
+      ollama:
+        description: ollama.ai
+        title: Ollama
+      openai:
+        description: OpenAi.com
+        title: OpenAI
+      openrouter:
+        description: OpenRouter.ai
+        title: OpenRouter
+      perplexity:
+        description: perplexity.ai
+        title: Perplexity
+      player2:
+        description: player2.game
+        title: Player2 API
+      together:
+        description: together.ai
+        title: Together.ai
+      google-generative-ai:
+        description: gemini.google.com
+        title: Google Gemini
+      featherless:
+        description: featherless.ai
+        title: Featherless AI
+      vllm:
+        description: vllm.ai
+        title: vLLM
+      volcengine:
+        description: volcengine.com
+        fields:
+          field:
+            appId:
+              description: 可在控制台获取的 App ID
+              label: App ID
+        title: 火山引擎
+      xai:
+        description: X.AI
+        title: xAI
+    title: 服务来源
+  scene:
+    description: 配置角色所在环境
+    title: 场景
+  themes:
+    color-scheme:
+      description: 更改舞台的配色方案
+      title: 配色方案
+    developer:
+      description: 为开发者提供的选项
+      title: 开发者
+    general:
+      description: 深色主题、语言等选项
+      title: 通用
+    description: 自定义你的舞台外观！
+    sections:
+      section:
+        custom-color:
+          fields:
+            field:
+              primary-color:
+                label: 强调色
+                rgb-on:
+                  title: RGB ON!
+          title: 配色
+        developer:
+          title: 开发者
+        theme-presets:
+          presets:
+            - colors:
+                - AIRI 绿
+              description: 默认的绿色主题，由 AIRI 为您带来！
+              title: 默认颜色
+            - colors:
+                - 灰褐色
+                - 米色
+                - 灰白色
+                - 浅灰褐色
+                - 象牙色
+                - 橄榄灰
+                - 沙色
+                - 暖灰色
+              description: 受乔治·莫兰迪绘画启发的柔和、低调的色调
+              title: Morandi 颜色
+            - colors:
+                - 天蓝色
+                - 薄雾色
+                - 沙色
+                - 苔藓绿
+                - 睡莲色
+                - 小麦色
+                - 板岩蓝
+                - 鼠尾草色
+              description: 受克劳德·莫奈作品启发的印象派调色板
+              title: 莫奈颜色
+            - colors:
+                - 棕褐色
+                - 暖灰褐色
+                - 赭色
+                - 咖啡色
+                - 青铜色
+                - 金色
+                - 芥末色
+                - 琥珀色
+              description: 传统日本色彩调色板
+              title: 日本颜色
+            - colors:
+                - 北欧蓝
+                - 冰色
+                - 峡湾色
+                - 钢铁色
+                - 冰川色
+                - 板岩色
+                - 云色
+                - 石头色
+              description: 北欧极简主义配色方案
+              title: 北欧颜色
+            - colors:
+                - 霞光红
+                - 枣红
+                - 黄栌
+                - 竹青
+                - 乌梅紫
+                - 缃色
+                - 青冥
+                - 赭石
+              description: 中国传统色彩，源自古代纺织品、瓷器和绘画
+              title: 中国传统颜色
+          title: 预设
+    title: 外观
+sections:
+  section:
+    general:
+      title: 通用
+theme: 主题
+title: 设置
+voices: 声线

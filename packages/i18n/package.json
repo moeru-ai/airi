@@ -1,0 +1,53 @@
+{
+  "name": "@proj-airi/i18n",
+  "type": "module",
+  "private": true,
+  "description": "Internationalization (i18n) locales and utilities for Project AIRI",
+  "author": {
+    "name": "Moeru AI Project AIRI Team",
+    "email": "airi@moeru.ai",
+    "url": "https://github.com/moeru-ai"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/moeru-ai/airi.git",
+    "directory": "packages/i18n"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.mts",
+      "default": "./dist/index.mjs"
+    },
+    "./locales": {
+      "types": "./dist/locales/index.d.mts",
+      "default": "./dist/locales/index.mjs"
+    },
+    "./locales/en": {
+      "types": "./dist/locales/en/index.d.mts",
+      "default": "./dist/locales/en/index.mjs"
+    },
+    "./locales/zh-Hans": {
+      "types": "./dist/locales/zh-Hans/index.d.mts",
+      "default": "./dist/locales/zh-Hans/index.mjs"
+    },
+    "./locales/*.yaml": {
+      "default": "./dist/locales/*.yaml"
+    }
+  },
+  "main": "./dist/index.mjs",
+  "types": "./dist/index.d.mts",
+  "files": [
+    "README.md",
+    "dist",
+    "package.json"
+  ],
+  "scripts": {
+    "dev": "pnpm run build",
+    "build": "tsdown",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "unplugin-yaml": "^3.0.0"
+  }
+}

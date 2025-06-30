@@ -2,9 +2,11 @@
 import { useSettings } from '@proj-airi/stage-ui/stores'
 import { useDark } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
+import { useI18n } from 'vue-i18n'
 
 import CheckBar from '../../../components/Settings/CheckBar.vue'
 
+const { t } = useI18n()
 const settings = useSettings()
 const { allowVisibleOnAllWorkspaces } = storeToRefs(settings)
 
@@ -35,7 +37,7 @@ const dark = useDark()
     :delay="2 * 50"
     icon-on="i-solar:check-circle-bold"
     icon-off="i-solar:close-circle-bold"
-    text="settings.allow-visible-on-all-workspaces.title"
+    :text="t('tamagotchi.settings.allow-visible-on-all-workspaces.title')"
     transition="all ease-in-out duration-250"
   />
   <!-- Language Setting -->
