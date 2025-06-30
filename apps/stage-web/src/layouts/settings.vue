@@ -1,15 +1,12 @@
 <script setup lang="ts">
-import type { ProgressInfoItem } from '../components/LoadingProgress.vue'
-
 import { PageHeader } from '@proj-airi/stage-ui/components'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores'
 import { storeToRefs } from 'pinia'
-import { computed, ref } from 'vue'
+import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useRoute } from 'vue-router'
+import { RouterView, useRoute } from 'vue-router'
 
 import HeaderLink from '../components/Layouts/HeaderLink.vue'
-import LoadingProgress from '../components/LoadingProgress.vue'
 
 const route = useRoute()
 const { t } = useI18n()
@@ -111,18 +108,6 @@ const routeHeaderMetadataMap = computed(() => {
 
 // const activeSettingsTutorial = ref('default')
 const routeHeaderMetadata = computed(() => routeHeaderMetadataMap.value[route.path])
-
-const resources = new Map(
-  [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100].map((progress, i) => [
-    `Progress ${progress}%`,
-    ref({
-      filename: `Neko #${i}`,
-      progress,
-      currentSize: progress,
-      totalSize: 100,
-    } satisfies ProgressInfoItem),
-  ] as const),
-)
 </script>
 
 <template>
@@ -148,12 +133,7 @@ const resources = new Map(
         :title="routeHeaderMetadata?.title"
         :subtitle="routeHeaderMetadata?.subtitle"
       />
-      <LoadingProgress
-        w="[calc(100%-1.5rem)]" max-w="500px sm:600px md:700px"
-        bg="white/80 dark:neutral-900/80"
-        mx-3 rounded-xl p-3 shadow-md backdrop-blur-md will-change-transform
-        :progress-info="resources"
-      />
+      <RouterView />
     </div>
   </div>
 </template>
