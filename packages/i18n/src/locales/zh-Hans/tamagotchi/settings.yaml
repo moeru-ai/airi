@@ -5,7 +5,7 @@ pages:
   modules:
     mcp-server:
       description: 连接与管理 MCP 服务器和工具
-      title: MCP 服务
+      title: MCP 服务器
   themes:
     sections:
       section:
@@ -20,4 +20,4 @@ pages:
         label: 调整大小
       toggle-ignore-mouse-event:
         label: 忽略鼠标事件
-      press-keys: 按下的键是...
+      press-keys: 请按下按键...
