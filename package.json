@@ -64,7 +64,7 @@
     "unplugin-raw": "^0.5.0",
     "unplugin-unused": "^0.5.1",
     "unplugin-vue": "^6.2.0",
-    "vite": "^7.0.0",
+    "vite": "^6.3.5",
     "vite-plugin-inspect": "^11.3.0",
     "vitest": "^3.2.4"
   },
