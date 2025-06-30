@@ -73,7 +73,13 @@ const totalProgress = computed(() => {
             absolute h-4 min-w-2 rounded-md will-change-width
             :style="{ width: `${file.value.progress}%` }"
             transition="width duration-500 ease-in-out"
-          />
+          >
+            <div
+              v-if="file.value.progress < 100"
+              absolute inset-0 origin-left rounded-md bg-white
+              class="progress-shine-animation"
+            />
+          </div>
           <div
             bg="neutral-100 dark:neutral-900" h-4 w-full rounded-md
           />
@@ -82,3 +88,21 @@ const totalProgress = computed(() => {
     </div>
   </div>
 </template>
+
+<style scoped>
+.progress-shine-animation {
+  animation: progress-shine 2s linear infinite;
+  will-change: transform, opacity;
+}
+
+@keyframes progress-shine {
+  0% {
+    opacity: 0.4;
+    transform: scale(0, 1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1, 1);
+  }
+}
+</style>
