@@ -8,6 +8,7 @@ import VueDevTools from 'vite-plugin-vue-devtools'
 import { defineConfig } from 'vite'
 
 export default defineConfig({
+  assetsInclude: ['**/*.riv'],
   build: {
     outDir: resolve(import.meta.dirname, 'playground', 'dist'),
   },

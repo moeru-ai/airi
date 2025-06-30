@@ -85,8 +85,7 @@
       "safe-buffer": "npm:@nolyfill/safe-buffer@^1.0.44",
       "safer-buffer": "npm:@nolyfill/safer-buffer@^1.0.44",
       "side-channel": "npm:@nolyfill/side-channel@^1.0.44",
-      "string.prototype.matchall": "npm:@nolyfill/string.prototype.matchall@^1.0.44",
-      "vite": "npm:vite@^6.3.5"
+      "string.prototype.matchall": "npm:@nolyfill/string.prototype.matchall@^1.0.44"
     }
   },
   "simple-git-hooks": {
