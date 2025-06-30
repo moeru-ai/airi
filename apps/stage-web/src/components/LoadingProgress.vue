@@ -1,9 +1,16 @@
 <script setup lang="ts">
-import type { ProgressInfo } from '../../../stores/resources'
+import type { Ref } from 'vue'
 
 import { computed } from 'vue'
 
-import WindowRouterLink from '../../Tauri/WindowRouterLink.vue'
+export interface ProgressInfoItem {
+  filename: string
+  progress: number
+  currentSize: number
+  totalSize: number
+}
+
+export type ProgressInfo = Map<string, Ref<ProgressInfoItem>>
 
 const props = defineProps<{
   progressInfo: ProgressInfo
@@ -27,7 +34,7 @@ const totalProgress = computed(() => {
       </div>
       <ul ml-4 mt-3>
         <li>
-          <WindowRouterLink to="/settings/modules/hearing" label="settings">
+          <RouterLink to="/settings/modules/hearing" label="settings">
             <div flex items-center gap-1>
               <div flex items-center gap-1>
                 <div i-solar:microphone-3-bold-duotone text="neutral-500 dark:neutral-400" />
@@ -37,7 +44,7 @@ const totalProgress = computed(() => {
                 due to loading inference models...
               </div>
             </div>
-          </WindowRouterLink>
+          </RouterLink>
         </li>
       </ul>
     </div>
