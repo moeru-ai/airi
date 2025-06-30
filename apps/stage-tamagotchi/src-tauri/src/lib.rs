@@ -16,14 +16,30 @@ mod commands;
 mod plugins;
 mod whisper;
 
-#[tauri::command]
-async fn load_models(window: tauri::Window) -> Result<(), String> {
-  let device = whisper::model_manager::load_device().unwrap();
+fn load_whisper_model(window: tauri::Window) -> anyhow::Result<()> {
+  let device = whisper::model_manager::load_device()?;
 
-  // whisper::model_manager::load_whisper_model(window.clone(), device.clone()).unwrap();
-  // whisper::model_manager::load_vad_model(window.clone(), candle_core::Device::Cpu).unwrap();
+  whisper::model_manager::load_whisper_model(window.clone(), device.clone())?;
+  whisper::model_manager::load_vad_model(window.clone(), candle_core::Device::Cpu)?;
 
   Ok(())
+}
+
+#[tauri::command]
+async fn load_models(window: tauri::Window) -> Result<(), String> {
+  info!("Loading models...");
+
+  load_whisper_model(window).map_or_else(
+    |e| {
+      let error_message = format!("Failed to load models: {}", e);
+      info!("{}", error_message);
+      Err(error_message)
+    },
+    |_| {
+      info!("Models loaded successfully");
+      Ok(())
+    },
+  )
 }
 
 #[tauri::command]
@@ -31,7 +47,7 @@ async fn open_route_in_window(
   window: tauri::Window,
   route: String,
   window_label: String,
-) -> Result<(), String> {
+) -> std::result::Result<(), String> {
   let app = window.app_handle();
 
   let target_window = match window_label.as_str() {
@@ -78,7 +94,7 @@ pub fn run() {
     .plugin(tauri_plugin_window_state::Builder::default().build())
     .plugin(tauri_plugin_positioner::init())
     .plugin(plugins::window::init())
-    // .plugin(plugins::window_persistence::init())
+    .plugin(plugins::window_persistence::init())
     .plugin(plugins::window_pass_through_on_hover::init())
     .setup(|app| {
       let mut builder = WebviewWindowBuilder::new(app, "main", WebviewUrl::default())

@@ -29,5 +29,5 @@ fn main() {
           .default_permission(tauri_build::DefaultPermissionRule::AllowAllCommands),
       ),
   )
-  .expect("Failed to build Tauri");
+  .expect("Failed to build Tauri application");
 }
