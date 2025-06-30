@@ -33,7 +33,7 @@ const routeHeaderMetadataMap = computed(() => {
     },
     '/settings/appearance/window-shortcuts': {
       subtitle: t('settings.title'),
-      title: t('settings.pages.themes.window-shortcuts.title'),
+      title: t('tamagotchi.settings.pages.themes.window-shortcuts.title'),
     },
     '/settings/appearance/developer': {
       subtitle: t('settings.title'),

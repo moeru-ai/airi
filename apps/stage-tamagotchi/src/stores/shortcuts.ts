@@ -73,7 +73,7 @@ export const useShortcutsStore = defineStore('shortcuts', () => {
 
   const shortcuts = ref([
     {
-      name: 'settings.pages.themes.window-shortcuts.toggle-move.label',
+      name: 'tamagotchi.settings.pages.themes.window-shortcuts.toggle-move.label',
       shortcut: useVersionedLocalStorage('shortcuts/window/move', 'Shift+Alt+N'), // Shift + Alt + N
       group: 'window',
       type: 'move',
@@ -87,7 +87,7 @@ export const useShortcutsStore = defineStore('shortcuts', () => {
       },
     },
     {
-      name: 'settings.pages.themes.window-shortcuts.toggle-resize.label',
+      name: 'tamagotchi.settings.pages.themes.window-shortcuts.toggle-resize.label',
       shortcut: useVersionedLocalStorage('shortcuts/window/resize', 'Shift+Alt+R'), // Shift + Alt + R
       group: 'window',
       type: 'resize',
@@ -97,7 +97,7 @@ export const useShortcutsStore = defineStore('shortcuts', () => {
       },
     },
     {
-      name: 'settings.pages.themes.window-shortcuts.toggle-ignore-mouse-event.label',
+      name: 'tamagotchi.settings.pages.themes.window-shortcuts.toggle-ignore-mouse-event.label',
       shortcut: useVersionedLocalStorage('shortcuts/window/debug', 'Shift+Alt+I'), // Shift + Alt + I
       group: 'window',
       type: 'ignore-mouse-event',

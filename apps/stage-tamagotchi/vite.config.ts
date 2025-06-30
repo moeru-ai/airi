@@ -55,7 +55,6 @@ export default defineConfig({
       runtimeOnly: true,
       compositionOnly: true,
       fullInstall: true,
-      include: [resolve(import.meta.dirname, 'locales/**')],
     }),
 
     DownloadLive2DSDK(),

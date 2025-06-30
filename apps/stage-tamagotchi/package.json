@@ -3,7 +3,7 @@
   "type": "module",
   "version": "0.6.1",
   "private": true,
-  "description": "Airi tamagotchi app built with Tauri",
+  "description": "AIRI tamagotchi app built with Tauri",
   "author": "LemonNekoGH",
   "scripts": {
     "typecheck": "vue-tsc --noEmit --composite false",
@@ -21,6 +21,7 @@
     "@moeru/std": "catalog:",
     "@proj-airi/ccc": "workspace:^",
     "@proj-airi/drizzle-duckdb-wasm": "catalog:",
+    "@proj-airi/i18n": "workspace:*",
     "@proj-airi/stage-ui": "workspace:^",
     "@proj-airi/tauri-plugin-mcp": "workspace:^",
     "@proj-airi/ui": "workspace:^",

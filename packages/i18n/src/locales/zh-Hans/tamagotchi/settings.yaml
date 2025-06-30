@@ -1,0 +1,23 @@
+allow-visible-on-all-workspaces:
+  title: 跨桌面可见性
+  description: 允许窗口在所有虚拟桌面中可见，仅限 macOS。
+pages:
+  modules:
+    mcp-server:
+      description: Connect and manage MCP server and tools
+      title: MCP Server
+  themes:
+    sections:
+      section:
+        window-shortcuts:
+          title: Keyboard Shortcuts
+    window-shortcuts:
+      description: Modify the window shortcuts.
+      title: Window Shortcuts
+      toggle-move:
+        label: Toggle Move
+      toggle-resize:
+        label: Toggle Resize
+      toggle-ignore-mouse-event:
+        label: Toggle Ignore Mouse Event
+      press-keys: Press Keys...
