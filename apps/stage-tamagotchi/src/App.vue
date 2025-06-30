@@ -25,8 +25,8 @@ useEventListener(window, 'resize', () => {
   windowControlStore.size.height = window.innerHeight
 })
 
-watch(language, (language) => {
-  i18n.locale.value = language
+watch(language, () => {
+  i18n.locale.value = language.value
 })
 
 // FIXME: store settings to file

@@ -11,7 +11,7 @@ const getHueFrom = (color?: string) => color ? convert(color)?.h : DEFAULT_THEME
 export const useSettings = defineStore('settings', () => {
   const selectedAudioDevice = ref<MediaDeviceInfo>()
 
-  const language = useLocalStorage('settings/language', 'en-US')
+  const language = useLocalStorage('settings/language', 'en')
   const stageView = useLocalStorage('settings/stage/view/model-renderer', '2d')
 
   const isAudioInputOn = useLocalStorage('settings/audio/input', 'false')

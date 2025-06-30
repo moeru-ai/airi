@@ -41,10 +41,10 @@ const dark = useDark()
       transition="all ease-in-out duration-250"
       cursor-pointer bg-transparent text-right outline-none
     >
-      <option value="en-US">
+      <option value="en">
         {{ $t('settings.language.english') }}
       </option>
-      <option value="zh-CN">
+      <option value="zh-Hans">
         {{ $t('settings.language.chinese') }}
       </option>
     </select>
