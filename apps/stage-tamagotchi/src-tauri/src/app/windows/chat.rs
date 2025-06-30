@@ -3,9 +3,9 @@ use std::path::Path;
 use anyhow::{Ok, Result};
 #[cfg(target_os = "macos")]
 use tauri::TitleBarStyle;
-use tauri::{WebviewUrl, WebviewWindowBuilder};
+use tauri::{Runtime, WebviewUrl, WebviewWindowBuilder};
 
-pub fn new_chat_window(app: &tauri::AppHandle) -> Result<tauri::WebviewWindow> {
+pub fn new_chat_window<R: Runtime>(app: &tauri::AppHandle<R>) -> Result<tauri::WebviewWindow<R>> {
   let mut builder = WebviewWindowBuilder::new(
     app,
     "chat",

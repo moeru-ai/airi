@@ -2,17 +2,14 @@ use log::info;
 use tauri::{
   Emitter,
   Manager,
-  RunEvent,
   WebviewUrl,
   WebviewWindowBuilder,
   menu::{Menu, MenuItem},
   tray::TrayIconBuilder,
 };
 use tauri_plugin_prevent_default::Flags;
-use tauri_plugin_window_state::{AppHandleExt, WindowExt};
 
-mod app_windows;
-mod commands;
+mod app;
 mod plugins;
 mod whisper;
 
@@ -40,42 +37,6 @@ async fn load_models(window: tauri::Window) -> Result<(), String> {
       Ok(())
     },
   )
-}
-
-#[tauri::command]
-async fn open_route_in_window(
-  window: tauri::Window,
-  route: String,
-  window_label: String,
-) -> std::result::Result<(), String> {
-  let app = window.app_handle();
-
-  let target_window = match window_label.as_str() {
-    "chat" => match app.get_webview_window("chat") {
-      Some(window) => window,
-      None => app_windows::chat::new_chat_window(app)
-        .map_err(|e| format!("Failed to create chat window: {}", e))?,
-    },
-    "settings" => match app.get_webview_window("settings") {
-      Some(window) => window,
-      None => app_windows::settings::new_settings_window(app)
-        .map_err(|e| format!("Failed to create settings window: {}", e))?,
-    },
-    _ => {
-      return Err(format!("Unknown window label: {}", window_label));
-    },
-  };
-
-  let mut current_url = target_window
-    .url()
-    .map_err(|e| format!("Failed to get current URL: {}", e))?;
-  let route: String = "/".to_string() + route.trim_start_matches('/');
-  current_url.set_fragment(Some(route.to_string().as_str()));
-
-  let _ = target_window.show();
-  let _ = target_window.navigate(current_url);
-
-  Ok(())
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -110,7 +71,7 @@ pub fn run() {
         builder = builder.title_bar_style(tauri::TitleBarStyle::Transparent);
       }
 
-      let window = builder.build().unwrap();
+      let _ = builder.build().unwrap();
 
       #[cfg(target_os = "macos")]
       {
@@ -124,13 +85,6 @@ pub fn run() {
             .build(),
         )?;
       }
-
-      window
-        .restore_state(tauri_plugin_window_state::StateFlags::all())
-        .map_err(|e| format!("Failed to restore window state: {}", e))
-        .unwrap_or_else(|err| {
-          info!("Failed to restore window state: {}", err);
-        });
 
       // TODO: i18n
       let quit_item = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
@@ -164,7 +118,7 @@ pub fn run() {
               return;
             }
 
-            app_windows::settings::new_settings_window(app).unwrap();
+            app::windows::settings::new_settings_window(app).unwrap();
           }
           "hide" => {
             let window = app.get_webview_window("main");
@@ -194,38 +148,13 @@ pub fn run() {
       Ok(())
     })
     .invoke_handler(tauri::generate_handler![
-      commands::open_settings_window,
-      commands::open_chat_window,
-      commands::debug_println,
+      app::commands::open_settings_window,
+      app::commands::open_chat_window,
+      app::commands::debug_println,
       load_models,
       open_route_in_window,
     ])
     .build(tauri::generate_context!())
     .expect("error while building tauri application")
-    .run(|app, event| match event {
-      RunEvent::Exit { .. } => {
-        info!("Exiting app");
-        info!("Exited app");
-
-        // Save window state on exit
-        app
-          .save_window_state(tauri_plugin_window_state::StateFlags::all())
-          .map_err(|e| format!("Failed to save window state: {}", e))
-          .unwrap_or_else(|err| {
-            info!("Failed to save window state on exit: {}", err);
-          });
-      },
-      RunEvent::ExitRequested { .. } => {
-        info!("Requested Exiting app");
-        info!("Requested Exited app");
-
-        app
-          .save_window_state(tauri_plugin_window_state::StateFlags::all())
-          .map_err(|e| format!("Failed to save window state: {}", e))
-          .unwrap_or_else(|err| {
-            info!("Failed to save window state on exit: {}", err);
-          });
-      },
-      _ => {},
-    })
+    .run(|_, _| {});
 }

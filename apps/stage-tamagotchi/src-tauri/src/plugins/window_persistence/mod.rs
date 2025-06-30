@@ -2,6 +2,7 @@ use log::info;
 use tauri::{
   Manager,
   Result,
+  RunEvent,
   Runtime,
   Window,
   plugin::{Builder, TauriPlugin},
@@ -40,5 +41,39 @@ pub async fn restore<R: Runtime>(window: Window<R>) -> Result<()> {
 pub fn init<R: Runtime>() -> TauriPlugin<R> {
   Builder::new("proj-airi-tauri-plugin-window-persistence")
     .invoke_handler(tauri::generate_handler![save, restore,])
+    .on_window_ready(|window| {
+      window
+        .restore_state(tauri_plugin_window_state::StateFlags::all())
+        .map_err(|e| format!("Failed to restore window state: {}", e))
+        .unwrap_or_else(|err| {
+          info!("Failed to restore window state: {}", err);
+        });
+    })
+    .on_event(|app, event| match event {
+      RunEvent::Exit { .. } => {
+        info!("Exiting app");
+        info!("Exited app");
+
+        // Save window state on exit
+        app
+          .save_window_state(tauri_plugin_window_state::StateFlags::all())
+          .map_err(|e| format!("Failed to save window state: {}", e))
+          .unwrap_or_else(|err| {
+            info!("Failed to save window state on exit: {}", err);
+          });
+      },
+      RunEvent::ExitRequested { .. } => {
+        info!("Requested Exiting app");
+        info!("Requested Exited app");
+
+        app
+          .save_window_state(tauri_plugin_window_state::StateFlags::all())
+          .map_err(|e| format!("Failed to save window state: {}", e))
+          .unwrap_or_else(|err| {
+            info!("Failed to save window state on exit: {}", err);
+          });
+      },
+      _ => {},
+    })
     .build()
 }
