@@ -1113,7 +1113,7 @@ importers:
     devDependencies:
       '@histoire/plugin-vue':
         specifier: 1.0.0-alpha.2
-        version: 1.0.0-alpha.2(histoire@1.0.0-alpha.2(@types/node@24.0.7)(bufferutil@4.0.9)(less@4.3.0)(lightningcss@1.30.1)(rolldown-vite@6.3.21(@types/node@24.0.7)(esbuild@0.25.5)(jiti@2.4.2)(less@4.3.0)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0))(terser@5.43.1)(utf-8-validate@5.0.10))(rolldown-vite@6.3.21(@types/node@24.0.7)(esbuild@0.25.5)(jiti@2.4.2)(less@4.3.0)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0))(vue@3.5.17(typescript@5.8.3))
+        version: 1.0.0-alpha.2(histoire@1.0.0-alpha.2(@types/node@24.0.7)(bufferutil@4.0.9)(less@4.3.0)(lightningcss@1.30.1)(terser@5.43.1)(utf-8-validate@5.0.10)(vite@6.3.5(@types/node@24.0.7)(jiti@2.4.2)(less@4.3.0)(lightningcss@1.30.1)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)))(vite@6.3.5(@types/node@24.0.7)(jiti@2.4.2)(less@4.3.0)(lightningcss@1.30.1)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0))(vue@3.5.17(typescript@5.8.3))
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.4
@@ -1128,13 +1128,13 @@ importers:
         version: 66.3.2
       '@vitejs/plugin-vue':
         specifier: ^6.0.0
-        version: 6.0.0(rolldown-vite@6.3.21(@types/node@24.0.7)(esbuild@0.25.5)(jiti@2.4.2)(less@4.3.0)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0))(vue@3.5.17(typescript@5.8.3))
+        version: 6.0.0(vite@6.3.5(@types/node@24.0.7)(jiti@2.4.2)(less@4.3.0)(lightningcss@1.30.1)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0))(vue@3.5.17(typescript@5.8.3))
       histoire:
         specifier: 1.0.0-alpha.2
-        version: 1.0.0-alpha.2(@types/node@24.0.7)(bufferutil@4.0.9)(less@4.3.0)(lightningcss@1.30.1)(rolldown-vite@6.3.21(@types/node@24.0.7)(esbuild@0.25.5)(jiti@2.4.2)(less@4.3.0)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0))(terser@5.43.1)(utf-8-validate@5.0.10)
+        version: 1.0.0-alpha.2(@types/node@24.0.7)(bufferutil@4.0.9)(less@4.3.0)(lightningcss@1.30.1)(terser@5.43.1)(utf-8-validate@5.0.10)(vite@6.3.5(@types/node@24.0.7)(jiti@2.4.2)(less@4.3.0)(lightningcss@1.30.1)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0))
       vite:
-        specifier: catalog:rolldown-vite
-        version: rolldown-vite@6.3.21(@types/node@24.0.7)(esbuild@0.25.5)(jiti@2.4.2)(less@4.3.0)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
+        specifier: ^6.3.5
+        version: 6.3.5(@types/node@24.0.7)(jiti@2.4.2)(less@4.3.0)(lightningcss@1.30.1)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       vue:
         specifier: ^3.5.17
         version: 3.5.17(typescript@5.8.3)
@@ -13590,17 +13590,17 @@ snapshots:
 
   '@guiiai/logg@1.0.10': {}
 
-  '@histoire/app@1.0.0-alpha.2(rolldown-vite@6.3.21(@types/node@24.0.7)(esbuild@0.25.5)(jiti@2.4.2)(less@4.3.0)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0))':
+  '@histoire/app@1.0.0-alpha.2(vite@6.3.5(@types/node@24.0.7)(jiti@2.4.2)(less@4.3.0)(lightningcss@1.30.1)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0))':
     dependencies:
-      '@histoire/controls': 1.0.0-alpha.2(rolldown-vite@6.3.21(@types/node@24.0.7)(esbuild@0.25.5)(jiti@2.4.2)(less@4.3.0)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0))
-      '@histoire/shared': 1.0.0-alpha.2(rolldown-vite@6.3.21(@types/node@24.0.7)(esbuild@0.25.5)(jiti@2.4.2)(less@4.3.0)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0))
+      '@histoire/controls': 1.0.0-alpha.2(vite@6.3.5(@types/node@24.0.7)(jiti@2.4.2)(less@4.3.0)(lightningcss@1.30.1)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0))
+      '@histoire/shared': 1.0.0-alpha.2(vite@6.3.5(@types/node@24.0.7)(jiti@2.4.2)(less@4.3.0)(lightningcss@1.30.1)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0))
       '@histoire/vendors': 1.0.0-alpha.2
       fuse.js: 7.1.0
       shiki: 3.7.0
     transitivePeerDependencies:
       - vite
 
-  '@histoire/controls@1.0.0-alpha.2(rolldown-vite@6.3.21(@types/node@24.0.7)(esbuild@0.25.5)(jiti@2.4.2)(less@4.3.0)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0))':
+  '@histoire/controls@1.0.0-alpha.2(vite@6.3.5(@types/node@24.0.7)(jiti@2.4.2)(less@4.3.0)(lightningcss@1.30.1)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0))':
     dependencies:
       '@codemirror/commands': 6.8.0
       '@codemirror/lang-json': 6.0.1
@@ -13609,26 +13609,26 @@ snapshots:
       '@codemirror/state': 6.5.2
       '@codemirror/theme-one-dark': 6.1.2
       '@codemirror/view': 6.36.4
-      '@histoire/shared': 1.0.0-alpha.2(rolldown-vite@6.3.21(@types/node@24.0.7)(esbuild@0.25.5)(jiti@2.4.2)(less@4.3.0)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0))
+      '@histoire/shared': 1.0.0-alpha.2(vite@6.3.5(@types/node@24.0.7)(jiti@2.4.2)(less@4.3.0)(lightningcss@1.30.1)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0))
       '@histoire/vendors': 1.0.0-alpha.2
     transitivePeerDependencies:
       - vite
 
-  '@histoire/plugin-vue@1.0.0-alpha.2(histoire@1.0.0-alpha.2(@types/node@24.0.7)(bufferutil@4.0.9)(less@4.3.0)(lightningcss@1.30.1)(rolldown-vite@6.3.21(@types/node@24.0.7)(esbuild@0.25.5)(jiti@2.4.2)(less@4.3.0)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0))(terser@5.43.1)(utf-8-validate@5.0.10))(rolldown-vite@6.3.21(@types/node@24.0.7)(esbuild@0.25.5)(jiti@2.4.2)(less@4.3.0)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0))(vue@3.5.17(typescript@5.8.3))':
+  '@histoire/plugin-vue@1.0.0-alpha.2(histoire@1.0.0-alpha.2(@types/node@24.0.7)(bufferutil@4.0.9)(less@4.3.0)(lightningcss@1.30.1)(terser@5.43.1)(utf-8-validate@5.0.10)(vite@6.3.5(@types/node@24.0.7)(jiti@2.4.2)(less@4.3.0)(lightningcss@1.30.1)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)))(vite@6.3.5(@types/node@24.0.7)(jiti@2.4.2)(less@4.3.0)(lightningcss@1.30.1)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0))(vue@3.5.17(typescript@5.8.3))':
     dependencies:
-      '@histoire/controls': 1.0.0-alpha.2(rolldown-vite@6.3.21(@types/node@24.0.7)(esbuild@0.25.5)(jiti@2.4.2)(less@4.3.0)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0))
-      '@histoire/shared': 1.0.0-alpha.2(rolldown-vite@6.3.21(@types/node@24.0.7)(esbuild@0.25.5)(jiti@2.4.2)(less@4.3.0)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0))
+      '@histoire/controls': 1.0.0-alpha.2(vite@6.3.5(@types/node@24.0.7)(jiti@2.4.2)(less@4.3.0)(lightningcss@1.30.1)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0))
+      '@histoire/shared': 1.0.0-alpha.2(vite@6.3.5(@types/node@24.0.7)(jiti@2.4.2)(less@4.3.0)(lightningcss@1.30.1)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0))
       '@histoire/vendors': 1.0.0-alpha.2
       change-case: 5.4.4
       globby: 14.0.2
-      histoire: 1.0.0-alpha.2(@types/node@24.0.7)(bufferutil@4.0.9)(less@4.3.0)(lightningcss@1.30.1)(rolldown-vite@6.3.21(@types/node@24.0.7)(esbuild@0.25.5)(jiti@2.4.2)(less@4.3.0)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0))(terser@5.43.1)(utf-8-validate@5.0.10)
+      histoire: 1.0.0-alpha.2(@types/node@24.0.7)(bufferutil@4.0.9)(less@4.3.0)(lightningcss@1.30.1)(terser@5.43.1)(utf-8-validate@5.0.10)(vite@6.3.5(@types/node@24.0.7)(jiti@2.4.2)(less@4.3.0)(lightningcss@1.30.1)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0))
       launch-editor: 2.10.0
       pathe: 1.1.2
       vue: 3.5.17(typescript@5.8.3)
     transitivePeerDependencies:
       - vite
 
-  '@histoire/shared@1.0.0-alpha.2(rolldown-vite@6.3.21(@types/node@24.0.7)(esbuild@0.25.5)(jiti@2.4.2)(less@4.3.0)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0))':
+  '@histoire/shared@1.0.0-alpha.2(vite@6.3.5(@types/node@24.0.7)(jiti@2.4.2)(less@4.3.0)(lightningcss@1.30.1)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0))':
     dependencies:
       '@histoire/vendors': 1.0.0-alpha.2
       '@types/fs-extra': 11.0.4
@@ -13636,7 +13636,7 @@ snapshots:
       chokidar: 4.0.3
       pathe: 1.1.2
       picocolors: 1.1.1
-      vite: rolldown-vite@6.3.21(@types/node@24.0.7)(esbuild@0.25.5)(jiti@2.4.2)(less@4.3.0)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
+      vite: 6.3.5(@types/node@24.0.7)(jiti@2.4.2)(less@4.3.0)(lightningcss@1.30.1)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
 
   '@histoire/vendors@1.0.0-alpha.2': {}
 
@@ -16055,6 +16055,12 @@ snapshots:
     dependencies:
       '@rolldown/pluginutils': 1.0.0-beta.19
       vite: rolldown-vite@6.3.21(@types/node@24.0.7)(esbuild@0.25.5)(jiti@2.4.2)(less@4.3.0)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
+      vue: 3.5.17(typescript@5.8.3)
+
+  '@vitejs/plugin-vue@6.0.0(vite@6.3.5(@types/node@24.0.7)(jiti@2.4.2)(less@4.3.0)(lightningcss@1.30.1)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0))(vue@3.5.17(typescript@5.8.3))':
+    dependencies:
+      '@rolldown/pluginutils': 1.0.0-beta.19
+      vite: 6.3.5(@types/node@24.0.7)(jiti@2.4.2)(less@4.3.0)(lightningcss@1.30.1)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       vue: 3.5.17(typescript@5.8.3)
 
   '@vitest/coverage-v8@3.2.4(vitest@3.2.4(@types/debug@4.1.12)(@types/node@24.0.7)(jiti@2.4.2)(jsdom@25.0.1(bufferutil@4.0.9)(utf-8-validate@5.0.10))(less@4.3.0)(lightningcss@1.30.1)(msw@2.7.3(@types/node@24.0.7)(typescript@5.8.3))(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0))':
@@ -19399,12 +19405,12 @@ snapshots:
       - tsx
       - yaml
 
-  histoire@1.0.0-alpha.2(@types/node@24.0.7)(bufferutil@4.0.9)(less@4.3.0)(lightningcss@1.30.1)(rolldown-vite@6.3.21(@types/node@24.0.7)(esbuild@0.25.5)(jiti@2.4.2)(less@4.3.0)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0))(terser@5.43.1)(utf-8-validate@5.0.10):
+  histoire@1.0.0-alpha.2(@types/node@24.0.7)(bufferutil@4.0.9)(less@4.3.0)(lightningcss@1.30.1)(terser@5.43.1)(utf-8-validate@5.0.10)(vite@6.3.5(@types/node@24.0.7)(jiti@2.4.2)(less@4.3.0)(lightningcss@1.30.1)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)):
     dependencies:
       '@akryum/tinypool': 0.3.1
-      '@histoire/app': 1.0.0-alpha.2(rolldown-vite@6.3.21(@types/node@24.0.7)(esbuild@0.25.5)(jiti@2.4.2)(less@4.3.0)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0))
-      '@histoire/controls': 1.0.0-alpha.2(rolldown-vite@6.3.21(@types/node@24.0.7)(esbuild@0.25.5)(jiti@2.4.2)(less@4.3.0)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0))
-      '@histoire/shared': 1.0.0-alpha.2(rolldown-vite@6.3.21(@types/node@24.0.7)(esbuild@0.25.5)(jiti@2.4.2)(less@4.3.0)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0))
+      '@histoire/app': 1.0.0-alpha.2(vite@6.3.5(@types/node@24.0.7)(jiti@2.4.2)(less@4.3.0)(lightningcss@1.30.1)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0))
+      '@histoire/controls': 1.0.0-alpha.2(vite@6.3.5(@types/node@24.0.7)(jiti@2.4.2)(less@4.3.0)(lightningcss@1.30.1)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0))
+      '@histoire/shared': 1.0.0-alpha.2(vite@6.3.5(@types/node@24.0.7)(jiti@2.4.2)(less@4.3.0)(lightningcss@1.30.1)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0))
       '@histoire/vendors': 1.0.0-alpha.2
       '@types/markdown-it': 14.1.2
       birpc: 0.2.19
@@ -19429,7 +19435,7 @@ snapshots:
       sade: 1.8.1
       shiki: 3.7.0
       sirv: 3.0.1
-      vite: rolldown-vite@6.3.21(@types/node@24.0.7)(esbuild@0.25.5)(jiti@2.4.2)(less@4.3.0)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
+      vite: 6.3.5(@types/node@24.0.7)(jiti@2.4.2)(less@4.3.0)(lightningcss@1.30.1)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       vite-node: 0.34.7(@types/node@24.0.7)(less@4.3.0)(lightningcss@1.30.1)(terser@5.43.1)
     transitivePeerDependencies:
       - '@types/node'
