@@ -229,7 +229,13 @@ pages:
           title: 声音配置
     description: LLM，语音合成，语音识别服务来源等
     provider:
+      app-local-audio-transcription:
+        title: 应用内（本地）
+        description: https://github.com/moeru-ai/xsai-transformers
       app-local-audio-speech:
+        title: 应用内（本地）
+        description: https://github.com/moeru-ai/xsai-transformers
+      browser-local-audio-transcription:
         title: 浏览器内（本地）
         description: https://github.com/moeru-ai/xsai-transformers
       browser-local-audio-speech:

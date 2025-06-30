@@ -4,20 +4,20 @@ allow-visible-on-all-workspaces:
 pages:
   modules:
     mcp-server:
-      description: Connect and manage MCP server and tools
-      title: MCP Server
+      description: 连接与管理 MCP 服务器和工具
+      title: MCP 服务器
   themes:
     sections:
       section:
         window-shortcuts:
-          title: Keyboard Shortcuts
+          title: 键盘快捷键
     window-shortcuts:
-      description: Modify the window shortcuts.
-      title: Window Shortcuts
+      description: 修改窗口快捷方式
+      title: 窗口快捷方式
       toggle-move:
-        label: Toggle Move
+        label: 切换移动状态
       toggle-resize:
-        label: Toggle Resize
+        label: 调整大小
       toggle-ignore-mouse-event:
-        label: Toggle Ignore Mouse Event
-      press-keys: Press Keys...
+        label: 忽略鼠标事件
+      press-keys: 请按下按键...

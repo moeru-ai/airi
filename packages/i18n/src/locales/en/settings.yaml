@@ -231,7 +231,13 @@ pages:
           title: Voice Settings
     description: LLMs, speech providers, etc.
     provider:
+      app-local-audio-transcription:
+        title: App (Local)
+        description: https://github.com/moeru-ai/xsai-transformers
       app-local-audio-speech:
+        title: App (Local)
+        description: https://github.com/moeru-ai/xsai-transformers
+      browser-local-audio-transcription:
         title: Browser (Local)
         description: https://github.com/moeru-ai/xsai-transformers
       browser-local-audio-speech:
