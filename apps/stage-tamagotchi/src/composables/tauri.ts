@@ -148,13 +148,6 @@ export interface InvokeMethods {
   'open_settings_window': { args: undefined, options: undefined, returns: void }
   'open_chat_window': { args: undefined, options: undefined, returns: void }
 
-  // Plugin - WindowRouterLink
-  'open_route_in_window': {
-    args: { route: string, windowLabel?: string } | undefined
-    options: undefined
-    returns: void
-  }
-
   // Plugin - Window Pass through on hover
   'plugin:proj-airi-tauri-plugin-window-pass-through-on-hover|start_monitor': { args: undefined, options: undefined, returns: void }
   'plugin:proj-airi-tauri-plugin-window-pass-through-on-hover|stop_monitor': { args: undefined, options: undefined, returns: void }
@@ -174,6 +167,13 @@ export interface InvokeMethods {
   }
   'plugin:proj-airi-tauri-plugin-window|set_position': {
     args: { x: number, y: number }
+    options: undefined
+    returns: void
+  }
+
+  // Plugin - WindowRouterLink
+  'plugin:proj-airi-tauri-plugin-window-router-link|go': {
+    args: { route: string, windowLabel?: string } | undefined
     options: undefined
     returns: void
   }

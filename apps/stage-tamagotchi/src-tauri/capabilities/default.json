@@ -22,6 +22,7 @@
     "global-shortcut:allow-unregister-all",
     "proj-airi-tauri-plugin-window-pass-through-on-hover:default",
     "proj-airi-tauri-plugin-window-persistence:default",
-    "proj-airi-tauri-plugin-window:default"
+    "proj-airi-tauri-plugin-window:default",
+    "proj-airi-tauri-plugin-window-router-link:default"
   ]
 }

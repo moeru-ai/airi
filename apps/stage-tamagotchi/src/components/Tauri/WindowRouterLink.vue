@@ -9,7 +9,7 @@ const props = defineProps<{
 const { invoke } = useTauriCore()
 
 function handleClick() {
-  invoke('open_route_in_window', {
+  invoke('plugin:proj-airi-tauri-plugin-window-router-link|go', {
     route: props.to,
     windowLabel: props.label,
   })

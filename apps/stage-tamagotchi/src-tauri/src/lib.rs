@@ -57,6 +57,7 @@ pub fn run() {
     .plugin(plugins::window::init())
     .plugin(plugins::window_persistence::init())
     .plugin(plugins::window_pass_through_on_hover::init())
+    .plugin(plugins::window_router_link::init())
     .setup(|app| {
       let mut builder = WebviewWindowBuilder::new(app, "main", WebviewUrl::default())
         .title("AIRI")
@@ -152,7 +153,6 @@ pub fn run() {
       app::commands::open_chat_window,
       app::commands::debug_println,
       load_models,
-      open_route_in_window,
     ])
     .build(tauri::generate_context!())
     .expect("error while building tauri application")
