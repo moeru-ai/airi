@@ -84,7 +84,7 @@ const totalProgress = computed(() => {
             <div
               v-if="file.value.progress < 100"
               absolute inset-0 origin-left rounded-md bg-white
-              class="animate-[progress-shine_2s_linear_infinite]"
+              class="progress-shine-animation"
             />
           </div>
           <div
@@ -96,7 +96,12 @@ const totalProgress = computed(() => {
   </div>
 </template>
 
-<style>
+<style scoped>
+.progress-shine-animation {
+  animation: progress-shine 2s linear infinite;
+  will-change: transform, opacity;
+}
+
 @keyframes progress-shine {
   0% {
     opacity: 0.4;
