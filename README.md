@@ -115,26 +115,32 @@ Capable of
 
 > For detailed instructions to develop this project, follow the [CONTRIBUTING.md](./CONTRIBUTING.md)
 
+> [!NOTE]
+> By default, `pnpm dev` will start the development server for the Stage Web (browser version), if you would
+> like to try developing the desktop version, please make sure you read [CONTRIBUTING.md](./CONTRIBUTING.md)
+> to setup the environment correctly.
+
 ```shell
 pnpm i
+pnpm dev
+```
+
+### Stage Web (Browser version for [airi.moeru.ai](https://airi.moeru.ai))
+
+```shell
+pnpm dev
+```
+
+### Stage Tamagotchi (Desktop version)
+
+```shell
+pnpm dev:tamagotchi
 ```
 
 ### Documentation site
 
 ```shell
-pnpm -F @proj-airi/docs dev
-```
-
-### Stage web (Frontend for [airi.moeru.ai](https://airi.moeru.ai), or [airi.ayaka.io](https://airi.ayaka.io))
-
-```shell
-pnpm -F @proj-airi/stage-web dev
-```
-
-### Stage Tamagotchi (Electron app for アイリ VTuber)
-
-```shell
-pnpm -F @proj-airi/stage-tamagotchi dev
+pnpm dev:docs
 ```
 
 ### Publish

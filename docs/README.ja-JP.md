@@ -115,26 +115,32 @@
 
 > このプロジェクトの詳細な開発手順については、[CONTRIBUTING.md](./CONTRIBUTING.md)を参照してください
 
+> [!NOTE]
+> デフォルトでは `pnpm dev`はステージウェブ（ブラウザ版）の開発サーバーを起動します。
+> デスクトップ版の開発を試したい場合は、[CONTRIBUTING.md](./CONTRIBUTING.md)を読んで環境を正し
+> くセットアップしてください。
+
 ```shell
 pnpm i
+pnpm dev
+```
+
+### ステージウェブ（ブラウザ版）
+
+```shell
+pnpm dev
+```
+
+### ステージたまごっち（デスクトップアプリ）
+
+```shell
+pnpm dev:tamagotchi
 ```
 
 ### ドキュメントサイト
 
 ```shell
-pnpm -F @proj-airi/docs dev
-```
-
-### ステージウェブ（[airi.moeru.ai](https://airi.moeru.ai)のフロントエンド）
-
-```shell
-pnpm -F @proj-airi/stage-web dev
-```
-
-### ステージたまごっち（アイリVTuberのElectronアプリ）
-
-```shell
-pnpm -F @proj-airi/stage-tamagotchi dev
+pnpm dev:docs
 ```
 
 ## サポートされているLLM APIプロバイダー（[xsai](https://github.com/moeru-ai/xsai)によって提供）

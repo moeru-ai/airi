@@ -115,24 +115,25 @@
 
 ```shell
 pnpm i
+pnpm dev
+```
+
+### 网页版 (也就是 [airi.moeru.ai](https://airi.moeru.ai) 的版本)
+
+```shell
+pnpm dev:web
+```
+
+### 桌面版（也叫拓麻歌子，aka 电子宠物）
+
+```shell
+pnpm dev:tamagotchi
 ```
 
 ### 文档站
 
 ```shell
 pnpm -F @proj-airi/docs dev
-```
-
-### 网页端舞台 ([airi.moeru.ai](https://airi.moeru.ai) 的前端页面)
-
-```shell
-pnpm -F @proj-airi/stage-web dev
-```
-
-### 拓麻歌子端舞台 (Electron 桌面 App)
-
-```shell
-pnpm -F @proj-airi/stage-tamagotchi dev
 ```
 
 ## 原生支持的 LLM API 服务来源列表（由 [xsai](https://github.com/moeru-ai/xsai) 驱动）
