@@ -3,7 +3,7 @@ use std::sync::{
   atomic::{AtomicBool, Ordering},
 };
 
-use tauri::{Emitter, Manager};
+use tauri::{Emitter, Manager, Runtime};
 
 #[derive(Default)]
 pub struct WindowClickThroughState {
@@ -11,8 +11,8 @@ pub struct WindowClickThroughState {
   pub enabled:            Arc<AtomicBool>,
 }
 
-pub fn set_click_through_enabled(
-  window: &tauri::Window,
+pub fn set_pass_through_enabled<R: Runtime>(
+  window: &tauri::Window<R>,
   enabled: bool,
 ) -> Result<(), String> {
   let state = window.state::<WindowClickThroughState>();
@@ -21,9 +21,12 @@ pub fn set_click_through_enabled(
 
   window
     .set_ignore_cursor_events(enabled)
-    .map_err(|e| format!("Failed to set click-through state: {e}"))?;
+    .map_err(|e| format!("Failed to set pass-through state: {e}"))?;
 
-  let _ = window.emit("tauri-app:window-click-through:enabled", enabled);
+  let _ = window.emit(
+    "tauri-app:proj-airi:window-pass-through-on-hover:pass-through-enabled",
+    enabled,
+  );
 
   Ok(())
 }

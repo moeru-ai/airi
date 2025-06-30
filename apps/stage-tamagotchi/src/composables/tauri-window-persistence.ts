@@ -10,7 +10,7 @@ import { computed, readonly, ref } from 'vue'
 
 import { useAppRuntime } from './runtime'
 import { useTauriCore } from './tauri'
-import { useTauriPointAndWindowFrame } from './tauri-click-through'
+import { useTauriPointAndWindowFrame } from './tauri-window-pass-through-on-hover'
 
 export interface WindowPersistenceConfig {
   autoSave?: boolean
@@ -144,7 +144,7 @@ export function useWindowPersistence(config: WindowPersistenceConfig = {}) {
     }
 
     try {
-      invoke('plugins_window_persistence_save')
+      // invoke('plugin:proj-airi-tauri-plugin-window-persistence|save')
 
       return true
     }
@@ -163,7 +163,7 @@ export function useWindowPersistence(config: WindowPersistenceConfig = {}) {
       isRestoring.value = true
 
       // Restore window state using Tauri plugin
-      await invoke('plugins_window_persistence_restore')
+      // await invoke('plugin:proj-airi-tauri-plugin-window-persistence|restore')
 
       // Ensure the restored position is within bounds
       if (constrainToDisplays && currentWindowPosition.value) {
@@ -228,7 +228,7 @@ export function useWindowPersistence(config: WindowPersistenceConfig = {}) {
 
     try {
       isPositioning.value = true
-      await invoke('plugins_window_set_position', { x: pos.x, y: pos.y })
+      await invoke('plugin:proj-airi-tauri-plugin-window|set_position', { x: pos.x, y: pos.y })
 
       if (autoSave) {
         throttledSave()
@@ -418,7 +418,7 @@ export function useWindowPersistence(config: WindowPersistenceConfig = {}) {
       return
 
     try {
-      const [monitors, primaryMonitor] = (await invoke('plugin_window_get_display_info'))!
+      const [monitors, primaryMonitor] = (await invoke('plugin:proj-airi-tauri-plugin-window|get_display_info'))!
       displayInfo.value = {
         monitors,
         primaryMonitor,

@@ -11,8 +11,8 @@ import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import ResourceStatusIsland from '../components/Widgets/ResourceStatusIsland/index.vue'
 
 import { useTauriCore, useTauriEvent } from '../composables/tauri'
-import { useTauriWindowClickThrough } from '../composables/tauri-click-through'
 import { useTauriGlobalShortcuts } from '../composables/tauri-global-shortcuts'
+import { useTauriWindowClickThrough } from '../composables/tauri-window-pass-through-on-hover'
 import { useWindowPersistence } from '../composables/tauri-window-persistence'
 import { useResourcesStore } from '../stores/resources'
 import { useWindowControlStore } from '../stores/window-controls'
@@ -57,14 +57,14 @@ const modeIndicatorClass = computed(() => {
 })
 
 onMounted(async () => {
-  await invoke('start_monitor')
+  await invoke('plugin:proj-airi-tauri-plugin-window-pass-through-on-hover|start_monitor')
   await startClickThrough()
   await windowPersistence.initialize()
 })
 
 onUnmounted(async () => {
   await stopClickThrough()
-  await invoke('stop_monitor')
+  await invoke('plugin:proj-airi-tauri-plugin-window-pass-through-on-hover|stop_monitor')
 })
 
 const unListenFuncs: (() => void)[] = []
@@ -108,10 +108,10 @@ if (import.meta.hot) { // For better DX
     unListenFuncs.forEach(fn => fn?.())
     unListenFuncs.length = 0
 
-    invoke('stop_monitor')
+    invoke('plugin:proj-airi-tauri-plugin-window-pass-through-on-hover|stop_monitor')
   })
   import.meta.hot.on('vite:afterUpdate', async () => {
-    invoke('start_monitor')
+    invoke('plugin:proj-airi-tauri-plugin-window-pass-through-on-hover|start_monitor')
   })
 }
 </script>
