@@ -83,7 +83,8 @@ onMounted(async () => {
   }))
 
   // Load models
-  invoke('load_models')
+  invoke('plugin:proj-airi-tauri-plugin-audio-transcription|load_model_whisper')
+  invoke('plugin:proj-airi-tauri-plugin-audio-vad|load_model_silero_vad')
 
   if (connected.value)
     return

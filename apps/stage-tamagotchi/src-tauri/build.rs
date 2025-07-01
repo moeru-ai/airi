@@ -2,6 +2,18 @@ fn main() {
   tauri_build::try_build(
     tauri_build::Attributes::new()
       .plugin(
+        "proj-airi-tauri-plugin-audio-transcription",
+        tauri_build::InlinedPlugin::new()
+          .commands(&["load_model_whisper"])
+          .default_permission(tauri_build::DefaultPermissionRule::AllowAllCommands),
+      )
+      .plugin(
+        "proj-airi-tauri-plugin-audio-vad",
+        tauri_build::InlinedPlugin::new()
+          .commands(&["load_model_silero_vad"])
+          .default_permission(tauri_build::DefaultPermissionRule::AllowAllCommands),
+      )
+      .plugin(
         "proj-airi-tauri-plugin-window",
         tauri_build::InlinedPlugin::new()
           .commands(&[

@@ -1,4 +1,3 @@
-use log::info;
 use tauri::{
   Emitter,
   Manager,
@@ -10,54 +9,30 @@ use tauri::{
 use tauri_plugin_prevent_default::Flags;
 
 mod app;
+mod helpers;
 mod plugins;
-mod whisper;
-
-fn load_whisper_model(window: tauri::Window) -> anyhow::Result<()> {
-  let device = whisper::model_manager::load_device()?;
-
-  whisper::model_manager::load_whisper_model(window.clone(), device.clone())?;
-  whisper::model_manager::load_vad_model(window.clone(), candle_core::Device::Cpu)?;
-
-  Ok(())
-}
-
-#[tauri::command]
-async fn load_models(window: tauri::Window) -> Result<(), String> {
-  info!("Loading models...");
-
-  load_whisper_model(window).map_or_else(
-    |e| {
-      let error_message = format!("Failed to load models: {}", e);
-      info!("{}", error_message);
-      Err(error_message)
-    },
-    |_| {
-      info!("Models loaded successfully");
-      Ok(())
-    },
-  )
-}
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
-#[allow(clippy::missing_panics_doc)]
 pub fn run() {
   let prevent_default_plugin = tauri_plugin_prevent_default::Builder::new()
     .with_flags(Flags::RELOAD)
     .build();
 
-  #[allow(clippy::missing_panics_doc)]
   tauri::Builder::default()
+    // External plugins
     .plugin(prevent_default_plugin)
     .plugin(tauri_plugin_mcp::Builder.build())
     .plugin(tauri_plugin_os::init())
     .plugin(tauri_plugin_global_shortcut::Builder::new().build())
     .plugin(tauri_plugin_window_state::Builder::default().build())
     .plugin(tauri_plugin_positioner::init())
+    // Internal plugins
     .plugin(plugins::window::init())
     .plugin(plugins::window_persistence::init())
     .plugin(plugins::window_pass_through_on_hover::init())
     .plugin(plugins::window_router_link::init())
+    .plugin(plugins::audio_transcription::init())
+    .plugin(plugins::audio_vad::init())
     .setup(|app| {
       let mut builder = WebviewWindowBuilder::new(app, "main", WebviewUrl::default())
         .title("AIRI")
@@ -152,9 +127,7 @@ pub fn run() {
       app::commands::open_settings_window,
       app::commands::open_chat_window,
       app::commands::debug_println,
-      load_models,
     ])
-    .build(tauri::generate_context!())
-    .expect("error while building tauri application")
-    .run(|_, _| {});
+    .run(tauri::generate_context!())
+    .expect("error while running tauri application");
 }

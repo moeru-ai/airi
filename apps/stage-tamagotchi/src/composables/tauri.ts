@@ -141,12 +141,15 @@ export function useTauriEvent<ES = Events>() {
 }
 
 export interface InvokeMethods {
-  // Model related
-  'load_models': { args: undefined, options: undefined, returns: void }
-
   // app windows
   'open_settings_window': { args: undefined, options: undefined, returns: void }
   'open_chat_window': { args: undefined, options: undefined, returns: void }
+
+  // Plugin - Audio Transcription
+  'plugin:proj-airi-tauri-plugin-audio-transcription|load_model_whisper': { args: undefined, options: undefined, returns: void }
+
+  // Plugin - Audio VAD
+  'plugin:proj-airi-tauri-plugin-audio-vad|load_model_silero_vad': { args: undefined, options: undefined, returns: void }
 
   // Plugin - Window Pass through on hover
   'plugin:proj-airi-tauri-plugin-window-pass-through-on-hover|start_monitor': { args: undefined, options: undefined, returns: void }

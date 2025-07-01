@@ -7,9 +7,10 @@ use candle_transformers::models::whisper::{self as whisper_model, Config, audio}
 use clap::ValueEnum;
 use hf_hub::{Repo, RepoType, api::sync::ApiBuilder};
 use log::info;
+use tauri::Runtime;
 use tokenizers::Tokenizer;
 
-use crate::whisper::progress;
+use crate::helpers::huggingface::create_progress_emitter;
 
 pub enum WhisperModel {
   Normal(whisper_model::model::Whisper),
@@ -101,10 +102,10 @@ pub struct WhisperProcessor {
 }
 
 impl WhisperProcessor {
-  pub fn new(
+  pub fn new<R: Runtime>(
     model: WhichWhisperModel,
     device: Device,
-    manager: progress::ModelLoadProgressEmitterManager,
+    window: tauri::WebviewWindow<R>,
   ) -> Result<Self> {
     // Load the Whisper model based on the provided model type
     let api = ApiBuilder::new().with_progress(false).build()?;
@@ -115,15 +116,19 @@ impl WhisperProcessor {
       revision.to_string(),
     ));
 
-    let config_filename =
-      repo.download_with_progress("config.json", manager.clone().new_for("config.json"))?;
+    let config_filename = repo.download_with_progress(
+      "config.json",
+      create_progress_emitter(window.clone(), "config.json".to_string()),
+    )?;
     info!("config_filename: {:?}", config_filename.display());
-    let tokenizer_filename =
-      repo.download_with_progress("tokenizer.json", manager.clone().new_for("tokenizer.json"))?;
+    let tokenizer_filename = repo.download_with_progress(
+      "tokenizer.json",
+      create_progress_emitter(window.clone(), "tokenizer.json".to_string()),
+    )?;
     info!("tokenizer_filename: {:?}", tokenizer_filename.display());
     let model_filename = repo.download_with_progress(
       "model.safetensors",
-      manager.clone().new_for("model.safetensors"),
+      create_progress_emitter(window.clone(), "model.safetensors".to_string()),
     )?;
     info!("model_filename: {:?}", model_filename.display());
 
