@@ -990,6 +990,9 @@ importers:
       '@proj-airi/ccc':
         specifier: workspace:^
         version: link:../ccc
+      '@proj-airi/chromatic':
+        specifier: ^0.0.7
+        version: 0.0.7
       '@proj-airi/drizzle-duckdb-wasm':
         specifier: 'catalog:'
         version: 0.4.28(drizzle-orm@0.44.2(@opentelemetry/api@1.9.0)(@types/pg@8.15.4)(gel@2.0.0)(pg@8.16.3)(postgres@3.4.7))(web-worker@1.5.0)
@@ -4234,6 +4237,9 @@ packages:
   '@polka/url@1.0.0-next.24':
     resolution: {integrity: sha512-2LuNTFBIO0m7kKIQvvPHN6UE63VjpmL9rnEEaOOaiSPbZK+zUOYIzBAWcED+3XYzhYsd/0mD57VdxAEqqV52CQ==}
 
+  '@proj-airi/chromatic@0.0.7':
+    resolution: {integrity: sha512-4uxJhnbdJ6vRWeivuVy4z20cTwHbH+armAHqZNJozaspCtwCyN1AMkvJmj6+4BuuQO1iwQ6KvSHrNcNUGkOtZg==}
+
   '@proj-airi/drizzle-duckdb-wasm@0.4.28':
     resolution: {integrity: sha512-1Y+7YdFbVgY9vUUAzm+a5QfSLnJkyhqxTENqZQbFmfCRn3rQO4KPLvu/l6HBg7GtLtlIYVIIOG37QiRexuofGw==}
     peerDependencies:
@@ -5768,6 +5774,9 @@ packages:
 
   '@xsai/shared@0.3.0-beta.5':
     resolution: {integrity: sha512-0vDW0fkEcFhfd3uG2OEMkoqq/ghh62KJUokMUwaAPKLNcVNAVcFRoslH9lKjdHJziSZ/b59f5rpUEjU3DHooZQ==}
+
+  '@xsai/shared@0.3.0-beta.6':
+    resolution: {integrity: sha512-EeqkD4+ijKKbxr9Jy9kRnJOcPBErWL8TK2wOdxwhVQuh7VbrYQwaheGjOz9g5OWwM6A0vCje/+TyHz+tURhhqw==}
 
   '@xsai/stream-text@0.3.0-beta.5':
     resolution: {integrity: sha512-o0SxwzCA2F1zKcONZJX7qrk+PnKhzldV0jRqQ+NdBzaFLmg/clfqeENlbuwmfIrV5ck0BfPEMTo4gNBfxhsGSQ==}
@@ -14880,6 +14889,10 @@ snapshots:
 
   '@polka/url@1.0.0-next.24': {}
 
+  '@proj-airi/chromatic@0.0.7':
+    dependencies:
+      culori: 4.0.2
+
   '@proj-airi/drizzle-duckdb-wasm@0.4.28(drizzle-orm@0.44.2(@opentelemetry/api@1.9.0)(@types/pg@8.15.4)(gel@2.0.0)(pg@8.16.3)(postgres@3.4.7))(web-worker@1.5.0)':
     dependencies:
       '@date-fns/tz': 1.2.0
@@ -16826,7 +16839,7 @@ snapshots:
 
   '@xsai-ext/shared-providers@0.2.2':
     dependencies:
-      '@xsai/shared': 0.3.0-beta.5
+      '@xsai/shared': 0.3.0-beta.6
 
   '@xsai-ext/shared-providers@0.3.0-beta.5':
     dependencies:
@@ -16879,6 +16892,8 @@ snapshots:
   '@xsai/shared@0.2.2': {}
 
   '@xsai/shared@0.3.0-beta.5': {}
+
+  '@xsai/shared@0.3.0-beta.6': {}
 
   '@xsai/stream-text@0.3.0-beta.5':
     dependencies:

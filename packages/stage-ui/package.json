@@ -54,6 +54,7 @@
     "@pixiv/three-vrm-animation": "^3.4.1",
     "@pixiv/three-vrm-core": "^3.4.1",
     "@proj-airi/ccc": "workspace:^",
+    "@proj-airi/chromatic": "^0.0.7",
     "@proj-airi/drizzle-duckdb-wasm": "catalog:",
     "@proj-airi/font-cjkfonts-allseto": "workspace:^",
     "@proj-airi/font-xiaolai": "workspace:^",

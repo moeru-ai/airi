@@ -3,3 +3,4 @@ export { default as AudioSpectrumVisualizer } from './AudioSpectrumVisualizer.vu
 export { default as LevelMeter } from './LevelMeter.vue'
 export { default as TestDummyMarker } from './TestDummyMarker.vue'
 export { default as ThresholdMeter } from './ThresholdMeter.vue'
+export { default as TimeSeriesChart } from './TimeSeriesChart.vue'
