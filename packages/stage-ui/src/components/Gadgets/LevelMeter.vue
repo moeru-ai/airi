@@ -41,7 +41,7 @@ const levelBars = computed(() => {
   }))
 })
 
-function getBarColor(index: number, barLevel: number): string {
+function getBarColor(_index: number, barLevel: number): string {
   const thresholds = [...props.colorThresholds].sort((a, b) => a.value - b.value)
 
   for (const threshold of thresholds) {
@@ -65,7 +65,7 @@ function getBarColor(index: number, barLevel: number): string {
 
     <!-- Level Bars -->
     <div
-      class="flex items-end gap-1 rounded bg-neutral-200 p-1 dark:bg-neutral-700"
+      class="flex items-end gap-1 rounded bg-neutral-200/45 p-1 dark:bg-neutral-700"
       :style="{ height: `${height}px` }"
     >
       <div
@@ -73,7 +73,7 @@ function getBarColor(index: number, barLevel: number): string {
         :key="index"
         class="flex-1 rounded-sm transition-all"
         :class="[
-          bar.active ? getBarColor(index, bar.level) : 'bg-neutral-300 dark:bg-neutral-600',
+          bar.active ? getBarColor(index, bar.level) : 'bg-neutral-200 dark:bg-neutral-600',
           `duration-${animationSpeed}`,
         ]"
         :style="{ height: bar.active ? '100%' : '20%' }"

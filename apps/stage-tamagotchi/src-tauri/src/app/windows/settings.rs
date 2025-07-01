@@ -14,7 +14,7 @@ pub fn new_settings_window<R: Runtime>(
     WebviewUrl::App(Path::new("#/settings").to_path_buf()),
   )
   .title("Settings")
-  .inner_size(450.0, 800.0)
+  .inner_size(550.0, 900.0)
   .shadow(true)
   .transparent(false)
   .accept_first_mouse(true);

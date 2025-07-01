@@ -57,7 +57,7 @@ const formatScore = (value: number) => `${value.toFixed(3)}`
       <div class="p-2 space-y-6">
         <div class="grid grid-cols-1 gap-6 lg:grid-cols-3 md:grid-cols-2">
           <!-- Detection Confidence -->
-          <div class="rounded-xl bg-white p-6 shadow-md dark:bg-neutral-800">
+          <div class="rounded-xl bg-white px-3 py-2 shadow-md dark:bg-neutral-800">
             <h3 class="mb-4 text-lg text-neutral-700 font-medium dark:text-neutral-300">
               Detection Confidence
             </h3>
@@ -72,7 +72,7 @@ const formatScore = (value: number) => `${value.toFixed(3)}`
           </div>
 
           <!-- Quality Check -->
-          <div class="rounded-xl bg-white p-6 shadow-md dark:bg-neutral-800">
+          <div class="rounded-xl bg-white px-3 py-2 shadow-md dark:bg-neutral-800">
             <h3 class="mb-4 text-lg text-neutral-700 font-medium dark:text-neutral-300">
               Quality Threshold
             </h3>
@@ -87,7 +87,7 @@ const formatScore = (value: number) => `${value.toFixed(3)}`
           </div>
 
           <!-- Real-time Monitoring -->
-          <div class="rounded-xl bg-white p-6 shadow-md dark:bg-neutral-800">
+          <div class="rounded-xl bg-white px-3 py-2 shadow-md dark:bg-neutral-800">
             <h3 class="mb-4 text-lg text-neutral-700 font-medium dark:text-neutral-300">
               Real-time Monitoring
             </h3>
@@ -112,7 +112,7 @@ const formatScore = (value: number) => `${value.toFixed(3)}`
       <div class="p-2 space-y-6">
         <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
           <!-- Model Confidence -->
-          <div class="rounded-xl bg-white p-6 shadow-md dark:bg-neutral-800">
+          <div class="rounded-xl bg-white px-3 py-2 shadow-md dark:bg-neutral-800">
             <h3 class="mb-4 text-lg text-neutral-700 font-medium dark:text-neutral-300">
               ML Model Confidence
             </h3>
@@ -130,7 +130,7 @@ const formatScore = (value: number) => `${value.toFixed(3)}`
           </div>
 
           <!-- Anomaly Detection -->
-          <div class="rounded-xl bg-white p-6 shadow-md dark:bg-neutral-800">
+          <div class="rounded-xl bg-white px-3 py-2 shadow-md dark:bg-neutral-800">
             <h3 class="mb-4 text-lg text-neutral-700 font-medium dark:text-neutral-300">
               Anomaly Detection
             </h3>
@@ -157,7 +157,7 @@ const formatScore = (value: number) => `${value.toFixed(3)}`
       <div class="p-2 space-y-6">
         <div class="grid grid-cols-1 gap-6 md:grid-cols-3">
           <!-- Response Time -->
-          <div class="rounded-xl bg-white p-6 shadow-md dark:bg-neutral-800">
+          <div class="rounded-xl bg-white px-3 py-2 shadow-md dark:bg-neutral-800">
             <h3 class="mb-4 text-lg text-neutral-700 font-medium dark:text-neutral-300">
               Response Time
             </h3>
@@ -175,7 +175,7 @@ const formatScore = (value: number) => `${value.toFixed(3)}`
           </div>
 
           <!-- Success Rate -->
-          <div class="rounded-xl bg-white p-6 shadow-md dark:bg-neutral-800">
+          <div class="rounded-xl bg-white px-3 py-2 shadow-md dark:bg-neutral-800">
             <h3 class="mb-4 text-lg text-neutral-700 font-medium dark:text-neutral-300">
               Success Rate
             </h3>
@@ -191,7 +191,7 @@ const formatScore = (value: number) => `${value.toFixed(3)}`
           </div>
 
           <!-- Load Factor -->
-          <div class="rounded-xl bg-white p-6 shadow-md dark:bg-neutral-800">
+          <div class="rounded-xl bg-white px-3 py-2 shadow-md dark:bg-neutral-800">
             <h3 class="mb-4 text-lg text-neutral-700 font-medium dark:text-neutral-300">
               Load Factor
             </h3>
@@ -217,7 +217,7 @@ const formatScore = (value: number) => `${value.toFixed(3)}`
       <div class="p-2 space-y-6">
         <div class="grid grid-cols-1 gap-6 lg:grid-cols-3 md:grid-cols-2">
           <!-- No Legend -->
-          <div class="rounded-xl bg-white p-6 shadow-md dark:bg-neutral-800">
+          <div class="rounded-xl bg-white px-3 py-2 shadow-md dark:bg-neutral-800">
             <h3 class="mb-4 text-lg text-neutral-700 font-medium dark:text-neutral-300">
               Minimal Display
             </h3>
@@ -234,7 +234,7 @@ const formatScore = (value: number) => `${value.toFixed(3)}`
           </div>
 
           <!-- High Resolution -->
-          <div class="rounded-xl bg-white p-6 shadow-md dark:bg-neutral-800">
+          <div class="rounded-xl bg-white px-3 py-2 shadow-md dark:bg-neutral-800">
             <h3 class="mb-4 text-lg text-neutral-700 font-medium dark:text-neutral-300">
               High Precision
             </h3>
@@ -252,7 +252,7 @@ const formatScore = (value: number) => `${value.toFixed(3)}`
           </div>
 
           <!-- Custom Range -->
-          <div class="rounded-xl bg-white p-6 shadow-md dark:bg-neutral-800">
+          <div class="rounded-xl bg-white px-3 py-2 shadow-md dark:bg-neutral-800">
             <h3 class="mb-4 text-lg text-neutral-700 font-medium dark:text-neutral-300">
               Custom Range
             </h3>
@@ -278,7 +278,7 @@ const formatScore = (value: number) => `${value.toFixed(3)}`
       title="Interactive Demo"
     >
       <div class="p-2 space-y-6">
-        <div class="rounded-xl bg-white p-6 shadow-md dark:bg-neutral-800">
+        <div class="rounded-xl bg-white px-3 py-2 shadow-md dark:bg-neutral-800">
           <h3 class="mb-4 text-lg text-neutral-700 font-medium dark:text-neutral-300">
             Adjustable Parameters
           </h3>
@@ -333,7 +333,7 @@ const formatScore = (value: number) => `${value.toFixed(3)}`
       title="Dashboard Example"
     >
       <div class="p-2 space-y-6">
-        <div class="rounded-xl bg-white p-6 shadow-md dark:bg-neutral-800">
+        <div class="rounded-xl bg-white px-3 py-2 shadow-md dark:bg-neutral-800">
           <h3 class="mb-6 text-lg text-neutral-700 font-medium dark:text-neutral-300">
             System Health Dashboard
           </h3>
