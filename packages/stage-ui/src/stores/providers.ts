@@ -181,6 +181,7 @@ export const useProvidersStore = defineStore('providers', () => {
       name: 'Player2 API',
       descriptionKey: 'settings.pages.providers.provider.player2.description',
       description: 'player2.game',
+      icon: 'i-lobe-icons:player2',
       defaultOptions: () => ({
         baseUrl: 'http://localhost:4315/v1/',
       }),
