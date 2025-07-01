@@ -91,6 +91,7 @@
     "@proj-airi/unplugin-fetch": "^0.1.6",
     "@proj-airi/unplugin-live2d-sdk": "^0.1.5",
     "@shikijs/markdown-it": "^3.7.0",
+    "@types/audioworklet": "^0.0.77",
     "@types/culori": "^4.0.0",
     "@types/nprogress": "^0.2.3",
     "@types/three": "^0.177.0",
