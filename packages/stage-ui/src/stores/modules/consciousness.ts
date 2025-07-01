@@ -69,7 +69,13 @@ export const useConsciousnessStore = defineStore('consciousness', () => {
       player2Interval = setInterval(() => {
         // eslint-disable-next-line no-console
         console.log('Sending Player2 Health check if it is being used')
-        fetch('http://localhost:4315/v1/health').catch(() => {})
+        fetch(`localhost:4315/v1/health`, {
+          method: 'GET',
+          headers: {
+            'player2-game-key': 'airi',
+          },
+        })
+          .catch(() => { })
       }, 60_000)
     }
     else {
