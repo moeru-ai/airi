@@ -4,13 +4,13 @@ fn main() {
       .plugin(
         "proj-airi-tauri-plugin-audio-transcription",
         tauri_build::InlinedPlugin::new()
-          .commands(&["load_model_whisper"])
+          .commands(&["load_model_whisper", "audio_transcription"])
           .default_permission(tauri_build::DefaultPermissionRule::AllowAllCommands),
       )
       .plugin(
         "proj-airi-tauri-plugin-audio-vad",
         tauri_build::InlinedPlugin::new()
-          .commands(&["load_model_silero_vad"])
+          .commands(&["load_model_silero_vad", "audio_vad"])
           .default_permission(tauri_build::DefaultPermissionRule::AllowAllCommands),
       )
       .plugin(

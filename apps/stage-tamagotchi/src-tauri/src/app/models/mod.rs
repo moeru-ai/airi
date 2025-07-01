@@ -4,26 +4,21 @@ pub mod whisper;
 use log::info;
 use tauri::Runtime;
 
-use crate::app::models::{
-  silero_vad::VADProcessor,
-  whisper::{WhichWhisperModel, WhisperProcessor},
-};
+use crate::{app::models::whisper::WhichWhisperModel, helpers::huggingface::load_device};
 
-pub fn load_whisper_model<R: Runtime>(
-  device: candle_core::Device,
-  window: tauri::WebviewWindow<R>,
-) -> anyhow::Result<()> {
+pub fn new_whisper_processor<R: Runtime>(
+  window: tauri::WebviewWindow<R>
+) -> anyhow::Result<whisper::Processor> {
+  let device = load_device().map_err(|err| anyhow::anyhow!("Failed to load device: {}", err))?;
   let whisper_model = WhichWhisperModel::Tiny;
   info!("Loading whisper model: {:?}", whisper_model);
-  let _ = WhisperProcessor::new(whisper_model, device.clone(), window)?;
-  Ok(())
+  whisper::Processor::new(whisper_model, device.clone(), window)
 }
 
-pub fn load_vad_model<R: Runtime>(
-  device: candle_core::Device,
-  window: tauri::WebviewWindow<R>,
-) -> anyhow::Result<()> {
+pub fn new_silero_vad_processor<R: Runtime>(
+  window: tauri::WebviewWindow<R>
+) -> anyhow::Result<silero_vad::Processor> {
+  let device = load_device().map_err(|err| anyhow::anyhow!("Failed to load device: {}", err))?;
   info!("Loading VAD model");
-  let _ = VADProcessor::new(device.clone(), 0.3, window)?;
-  Ok(())
+  silero_vad::Processor::new(device.clone(), 0.3, window)
 }

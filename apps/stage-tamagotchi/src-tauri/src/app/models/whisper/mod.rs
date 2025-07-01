@@ -93,7 +93,7 @@ impl WhichWhisperModel {
   }
 }
 
-pub struct WhisperProcessor {
+pub struct Processor {
   pub model:       WhisperModel,
   pub tokenizer:   Tokenizer,
   pub config:      Config,
@@ -101,7 +101,7 @@ pub struct WhisperProcessor {
   pub device:      Device,
 }
 
-impl WhisperProcessor {
+impl Processor {
   pub fn new<R: Runtime>(
     model: WhichWhisperModel,
     device: Device,

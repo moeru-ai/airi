@@ -8,7 +8,7 @@ use tauri::Runtime;
 
 use crate::helpers::huggingface::create_progress_emitter;
 
-pub struct VADProcessor {
+pub struct Processor {
   model:        candle_onnx::onnx::ModelProto,
   frame_size:   usize,
   context_size: usize,
@@ -19,7 +19,7 @@ pub struct VADProcessor {
   threshold:    f32,
 }
 
-impl VADProcessor {
+impl Processor {
   pub fn new<R: Runtime>(
     device: Device,
     threshold: f32,
