@@ -1,6 +1,7 @@
 pub mod silero_vad;
 pub mod whisper;
 
+use candle_core::Device;
 use log::info;
 use tauri::Runtime;
 
@@ -18,7 +19,6 @@ pub fn new_whisper_processor<R: Runtime>(
 pub fn new_silero_vad_processor<R: Runtime>(
   window: tauri::WebviewWindow<R>
 ) -> anyhow::Result<silero_vad::Processor> {
-  let device = load_device().map_err(|err| anyhow::anyhow!("Failed to load device: {}", err))?;
   info!("Loading VAD model");
-  silero_vad::Processor::new(device.clone(), 0.3, window)
+  silero_vad::Processor::new(Device::Cpu, 0.3, window)
 }
