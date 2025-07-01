@@ -44,8 +44,6 @@ pub async fn audio_vad<R: Runtime>(
   app: tauri::AppHandle<R>,
   chunk: Vec<f32>,
 ) -> Result<f32, String> {
-  info!("Processing audio VAD...");
-
   let data = app.state::<Mutex<AppDataSileroVadProcessor>>();
 
   // Check if processor exists first
