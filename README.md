@@ -43,6 +43,13 @@ Perhaps you know [Neuro-sama](https://www.youtube.com/@Neurosama) already, she i
 
 Therefore, this project, AIRI, offers another possibilty here: **let you own yours digital life, cyber living, easily, anywhere, anytime**.
 
+## DevLogs we posted & Recent updates
+
+- [DreamLog 0x1](https://airi.moeru.ai/docs/blog/dreamlog-0x1/) on June 16, 2025
+- [DevLog @ 2025.06.08](https://airi.moeru.ai/docs/blog/devlog-20250608/) on June 8, 2025
+- [DevLog @ 2025.05.16](https://airi.moeru.ai/docs/blog/devlog-20250516/) on May 16, 2025
+- ...more on [documentation site](https://airi.moeru.ai/docs)
+
 ## What's so special for this project?
 
 Unlike the other AI driven VTuber open source projects, アイリ VTuber was built with many support of Web technologies such as [WebGPU](https://www.w3.org/TR/webgpu/), [WebAudio](https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API), [Web Workers](https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API/Using_web_workers), [WebAssembly](https://webassembly.org/), [WebSocket](https://developer.mozilla.org/en-US/docs/Web/API/WebSocket), etc. from the first day.
