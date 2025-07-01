@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { ProgressInfo } from '../../../stores/resources'
 
-import { Progress } from '@proj-airi/stage-ui'
+import { Progress } from '@proj-airi/stage-ui/components'
 import { computed } from 'vue'
 
 import WindowRouterLink from '../../Tauri/WindowRouterLink.vue'
