@@ -1,16 +1,14 @@
-import type {
-  DisplayInfo,
-  Monitor,
-  Point,
-  Size,
-} from './tauri'
+import type { Monitor } from '@tauri-apps/api/window'
+
+import type { DisplayInfo, Point, Size } from './tauri'
 
 import { useThrottleFn, watchThrottled } from '@vueuse/core'
 import { computed, readonly, ref } from 'vue'
 
 import { useAppRuntime } from './runtime'
-import { useTauriCore } from './tauri'
+import { useTauriWindow } from './tauri'
 import { useTauriPointAndWindowFrame } from './tauri-window-pass-through-on-hover'
+import { useTauriWindowState } from './tauri-window-state'
 
 export interface WindowPersistenceConfig {
   autoSave?: boolean
@@ -42,8 +40,9 @@ export function useWindowPersistence(config: WindowPersistenceConfig = {}) {
   } = config
 
   const { platform } = useAppRuntime()
-  const { invoke } = useTauriCore()
   const { windowFrame } = useTauriPointAndWindowFrame()
+  const { saveWindowState, restoreStateCurrent } = useTauriWindowState()
+  const { setPosition, getAvailableMonitors, getPrimaryMonitor } = useTauriWindow()
 
   // Debounced save function (declare early to avoid usage before definition)
   const throttledSave = useThrottleFn(() => savePosition(), savePeriod)
@@ -144,7 +143,7 @@ export function useWindowPersistence(config: WindowPersistenceConfig = {}) {
     }
 
     try {
-      // invoke('plugin:proj-airi-tauri-plugin-window-persistence|save')
+      saveWindowState()
 
       return true
     }
@@ -163,7 +162,7 @@ export function useWindowPersistence(config: WindowPersistenceConfig = {}) {
       isRestoring.value = true
 
       // Restore window state using Tauri plugin
-      // await invoke('plugin:proj-airi-tauri-plugin-window-persistence|restore')
+      await restoreStateCurrent()
 
       // Ensure the restored position is within bounds
       if (constrainToDisplays && currentWindowPosition.value) {
@@ -228,7 +227,7 @@ export function useWindowPersistence(config: WindowPersistenceConfig = {}) {
 
     try {
       isPositioning.value = true
-      await invoke('plugin:proj-airi-tauri-plugin-window|set_position', { x: pos.x, y: pos.y })
+      await setPosition(pos.x, pos.y)
 
       if (autoSave) {
         throttledSave()
@@ -418,7 +417,18 @@ export function useWindowPersistence(config: WindowPersistenceConfig = {}) {
       return
 
     try {
-      const [monitors, primaryMonitor] = (await invoke('plugin:proj-airi-tauri-plugin-window|get_display_info'))!
+      const monitors = await getAvailableMonitors()
+      if (!monitors || monitors.length === 0) {
+        console.warn('[WindowPersistence] Failed to get available monitors')
+        return
+      }
+
+      const primaryMonitor = await getPrimaryMonitor()
+      if (!primaryMonitor) {
+        console.warn('[WindowPersistence] Failed to get primary monitor')
+        return
+      }
+
       displayInfo.value = {
         monitors,
         primaryMonitor,

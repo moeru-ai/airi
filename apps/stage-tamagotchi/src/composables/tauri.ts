@@ -1,19 +1,18 @@
 import type { InvokeArgs, InvokeOptions } from '@tauri-apps/api/core'
 import type { EventCallback, EventName, UnlistenFn } from '@tauri-apps/api/event'
-import type { Position } from '@tauri-apps/plugin-positioner'
-import type { StateFlags } from '@tauri-apps/plugin-window-state'
+import type { Monitor } from '@tauri-apps/api/window'
 
 import { withRetry } from '@moeru/std'
 import { computedAsync, until } from '@vueuse/core'
 
 import { useAppRuntime } from './runtime'
 
-async function untilNoError<T>(fn: () => Promise<T>, onError?: (err?: unknown | null) => void): Promise<T> {
+export async function untilNoError<T>(fn: () => Promise<T>, onError?: (err?: unknown | null) => void): Promise<T> {
   const fnRetry = withRetry(fn, { retryDelay: 5000, retry: 5, onError })
   return await fnRetry()
 }
 
-async function untilImported<T>(fn: () => Promise<T>, onError?: (err?: unknown | null) => void): Promise<T> {
+export async function untilImported<T>(fn: () => Promise<T>, onError?: (err?: unknown | null) => void): Promise<T> {
   return await untilNoError(fn, onError)
 }
 
@@ -55,17 +54,6 @@ export interface AiriTamagotchiEvents extends Events {
   'tauri-app:proj-airi:window-pass-through-on-hover:pass-through-enabled': boolean
   'tauri-app:model-load-progress': [string, number]
   'mcp_plugin_destroyed': undefined
-}
-
-export interface Monitor {
-  name: string
-  size: { width: number, height: number }
-  position: { x: number, y: number }
-  workArea: {
-    position: { x: number, y: number }
-    size: { width: number, height: number }
-  }
-  scale_factor: number
 }
 
 export interface DisplayInfo {
@@ -157,41 +145,12 @@ export interface InvokeMethods {
   'plugin:proj-airi-tauri-plugin-window-pass-through-on-hover|start_pass_through': { args: undefined, options: undefined, returns: void }
   'plugin:proj-airi-tauri-plugin-window-pass-through-on-hover|stop_pass_through': { args: undefined, options: undefined, returns: void }
 
-  // Plugin - Window
-  'plugin:proj-airi-tauri-plugin-window|get_display_info': {
-    args: undefined
-    options: undefined
-    returns: [Monitor[], Monitor]
-  }
-  'plugin:proj-airi-tauri-plugin-window|get_current_window_info': {
-    args: undefined
-    options: undefined
-    returns: [[number, number], [number, number]]
-  }
-  'plugin:proj-airi-tauri-plugin-window|set_position': {
-    args: { x: number, y: number }
-    options: undefined
-    returns: void
-  }
-
   // Plugin - WindowRouterLink
   'plugin:proj-airi-tauri-plugin-window-router-link|go': {
     args: { route: string, windowLabel?: string } | undefined
     options: undefined
     returns: void
   }
-
-  // // Plugin - Window Persistence
-  // 'plugin:proj-airi-tauri-plugin-window-persistence|save': {
-  //   args: undefined
-  //   options: undefined
-  //   returns: void
-  // }
-  // 'plugin:proj-airi-tauri-plugin-window-persistence|restore': {
-  //   args: undefined
-  //   options: undefined
-  //   returns: void
-  // }
 }
 
 interface InvokeMethodShape {
@@ -234,89 +193,107 @@ export function useTauriCore<IM extends Record<keyof IM, InvokeMethodShape> = In
 
   return {
     invoke,
+    core: tauriCoreApi,
   }
 }
 
-export function useTauriPositioner() {
+export function useTauriDpi() {
   const { platform, isInitialized } = useAppRuntime()
 
-  const tauriPositionerApi = computedAsync(async () => {
+  const tauriDpiApi = computedAsync(async () => {
     await until(isInitialized).toBeTruthy()
 
     if (platform.value !== 'web') {
-      return untilImported(() => import('@tauri-apps/plugin-positioner'), console.warn)
+      return untilImported(() => import('@tauri-apps/api/window'), console.warn)
     }
   })
 
-  async function ensureImported() {
-    await until(isInitialized).toBeTruthy()
-
-    if (platform.value === 'web') {
-      console.warn('Attempted to use Tauri positioner in web platform')
-      return
-    }
-
-    await until(tauriPositionerApi).toBeTruthy()
-    const imported = await tauriPositionerApi.value
+  async function createLogicalPosition(x: number, y: number) {
+    const imported = await tauriDpiApi.value
     if (!imported) {
-      throw new Error('Tauri positioner API not available')
+      throw new Error('Tauri DPI API not available')
     }
-  }
 
-  async function moveWindow(to: Position) {
-    await ensureImported()
-    return tauriPositionerApi.value?.moveWindow(to)
+    return new imported.LogicalPosition(x, y)
   }
 
   return {
-    moveWindow,
+    createLogicalPosition,
   }
 }
 
-export function useTauriWindowState() {
+export function useTauriWindow() {
   const { platform, isInitialized } = useAppRuntime()
+  const { createLogicalPosition } = useTauriDpi()
 
-  const tauriWindowStateApi = computedAsync(async () => {
+  const tauriWindowApi = computedAsync(async () => {
     await until(isInitialized).toBeTruthy()
 
     if (platform.value !== 'web') {
-      return untilImported(() => import('@tauri-apps/plugin-window-state'), console.warn)
+      return untilImported(() => import('@tauri-apps/api/window'), console.warn)
     }
   })
 
-  async function ensureImported() {
+  async function _ensureImported() {
     await until(isInitialized).toBeTruthy()
-
     if (platform.value === 'web') {
-      console.warn('Attempted to save window state in web platform')
-      return
+      throw new Error('Tauri Window API is not available in web platform')
     }
 
-    await until(tauriWindowStateApi).toBeTruthy()
-    const imported = await tauriWindowStateApi.value
+    await until(tauriWindowApi).toBeTruthy()
+    const imported = await tauriWindowApi.value
     if (!imported) {
-      throw new Error('Tauri window state API not available')
+      throw new Error('Tauri Window API not available')
+    }
+
+    return imported
+  }
+
+  async function getCurrentMonitor() {
+    try {
+      return await _ensureImported().then(imported => imported.currentMonitor())
+    }
+    catch (error) {
+      console.error('Failed to get current monitor:', error)
+      return undefined
     }
   }
 
-  async function saveWindowState(stateFlag: StateFlags) {
-    await ensureImported()
-    return tauriWindowStateApi.value?.saveWindowState(stateFlag)
+  async function getAvailableMonitors() {
+    try {
+      return await _ensureImported().then(imported => imported.availableMonitors())
+    }
+    catch (error) {
+      console.error('Failed to get available monitors:', error)
+      return []
+    }
   }
 
-  async function restoreState(stateFlag: StateFlags, windowLabel = 'main') {
-    await ensureImported()
-    return tauriWindowStateApi.value?.restoreState(windowLabel, stateFlag)
+  async function getPrimaryMonitor() {
+    try {
+      return await _ensureImported().then(imported => imported.primaryMonitor())
+    }
+    catch (error) {
+      console.error('Failed to get primary monitor:', error)
+      return undefined
+    }
   }
 
-  async function restoreStateCurrent(stateFlag: StateFlags) {
-    await ensureImported()
-    return tauriWindowStateApi.value?.restoreStateCurrent(stateFlag)
+  async function setPosition(x: number, y: number) {
+    try {
+      const imported = await _ensureImported()
+      const window = imported.getCurrentWindow()
+      return await window.setPosition(await createLogicalPosition(x, y))
+    }
+    catch (error) {
+      console.error('Failed to set window position:', error)
+    }
   }
 
   return {
-    saveWindowState,
-    restoreState,
-    restoreStateCurrent,
+    getAvailableMonitors,
+    getCurrentMonitor,
+    getPrimaryMonitor,
+    setPosition,
   }
 }

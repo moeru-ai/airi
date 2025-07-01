@@ -27,8 +27,6 @@ pub fn run() {
     .plugin(tauri_plugin_window_state::Builder::default().build())
     .plugin(tauri_plugin_positioner::init())
     // Internal plugins
-    .plugin(plugins::window::init())
-    .plugin(plugins::window_persistence::init())
     .plugin(plugins::window_pass_through_on_hover::init())
     .plugin(plugins::window_router_link::init())
     .plugin(plugins::audio_transcription::init())
