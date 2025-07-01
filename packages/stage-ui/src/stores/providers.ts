@@ -178,7 +178,7 @@ export const useProvidersStore = defineStore('providers', () => {
       category: 'chat',
       tasks: ['text-generation'],
       nameKey: 'settings.pages.providers.provider.player2.title',
-      name: 'Player2 API',
+      name: 'Player2',
       descriptionKey: 'settings.pages.providers.provider.player2.description',
       description: 'player2.game',
       icon: 'i-lobe-icons:player2',
@@ -199,13 +199,7 @@ export const useProvidersStore = defineStore('providers', () => {
       },
       validators: {
         validateProviderConfig: (config) => {
-          if (!config.baseUrl)
-            return false
-
-          // Check if the Player2 API server is reachable
-          return fetch(`${(config.baseUrl as string).trim()}health`)
-            .then(response => response.ok)
-            .catch(() => false)
+          return !!config.baseUrl
         },
       },
     },

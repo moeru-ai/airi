@@ -355,7 +355,7 @@ pages:
         title: Perplexity
       player2:
         description: player2.game
-        title: Player2 API
+        title: Player2
       together:
         description: together.ai
         title: Together.ai
