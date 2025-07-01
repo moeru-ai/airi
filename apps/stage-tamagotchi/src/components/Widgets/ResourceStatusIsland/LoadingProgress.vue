@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { ProgressInfo } from '../../../stores/resources'
 
+import { Progress } from '@proj-airi/stage-ui'
 import { computed } from 'vue'
 
 import WindowRouterLink from '../../Tauri/WindowRouterLink.vue'
@@ -67,23 +68,10 @@ const totalProgress = computed(() => {
           </div>
           <div>{{ file.value.progress.toFixed(2) }}%</div>
         </div>
-        <div relative overflow-hidden rounded-md>
-          <div
-            bg="primary-300 dark:primary-300/50"
-            absolute h-4 min-w-2 rounded-md will-change-width
-            :style="{ width: `${file.value.progress}%` }"
-            transition="width duration-500 ease-in-out"
-          >
-            <div
-              v-if="file.value.progress < 100"
-              absolute inset-0 origin-left rounded-md bg-white
-              class="progress-shine-animation"
-            />
-          </div>
-          <div
-            bg="neutral-100 dark:neutral-900" h-4 w-full rounded-md
-          />
-        </div>
+        <Progress
+          :progress="file.value.progress"
+          bar-class="bg-primary-300 dark:bg-primary-300/50"
+        />
       </div>
     </div>
   </div>
