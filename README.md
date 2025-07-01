@@ -165,6 +165,7 @@ npx bumpp --no-commit --no-tag
 
 ## Supported the following LLM API Providers (powered by [xsai](https://github.com/moeru-ai/xsai))
 
+- [x] [Player2](https://player2.game/)
 - [x] [OpenRouter](https://openrouter.ai/)
 - [x] [vLLM](https://github.com/vllm-project/vllm)
 - [x] [SGLang](https://github.com/sgl-project/sglang)
