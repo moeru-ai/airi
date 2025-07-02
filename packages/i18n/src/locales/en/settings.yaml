@@ -6,6 +6,22 @@ animations:
       Some pages will have their own transitions, this will override the stage
       transitions
     title: Use Page Specific Transitions
+firstTimeSetup:
+  title: Welcome to AIRI!
+  description: Let's set up your first AI provider to get started.
+  selectProvider: Choose an AI Provider
+  configureProvider: Configure {provider}
+  apiKey: API Key
+  apiKeyHelp: Get your API key from {provider} and paste it here
+  baseUrl: Base URL
+  baseUrlHelp: API endpoint URL (use default if unsure)
+  accountId: Account ID
+  validating: Validating configuration...
+  validationSuccess: ✓ Configuration is valid!
+  validationFailed: ✗ Configuration validation failed
+  validationError: 'Validation error: {error}'
+  skipForNow: Skip for now
+  saveAndContinue: Save and Continue
 language:
   chinese: 简体中文
   english: English
