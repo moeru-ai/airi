@@ -1,5 +1,6 @@
 use std::sync::Mutex;
 
+use clap::ValueEnum;
 use log::info;
 use tauri::{
   Manager,
@@ -7,7 +8,7 @@ use tauri::{
   plugin::{Builder as PluginBuilder, TauriPlugin},
 };
 
-use crate::app::models::new_whisper_processor;
+use crate::app::models::{new_whisper_processor, whisper::WhichWhisperModel};
 
 #[derive(Default)]
 struct AppDataWhisperProcessor {
@@ -18,6 +19,7 @@ struct AppDataWhisperProcessor {
 pub async fn load_model_whisper<R: Runtime>(
   app: tauri::AppHandle<R>,
   window: tauri::WebviewWindow<R>,
+  model_type: Option<String>,
 ) -> Result<(), String> {
   info!("Loading models...");
 
@@ -31,7 +33,15 @@ pub async fn load_model_whisper<R: Runtime>(
   }
 
   // Load the traditional whisper models first
-  match new_whisper_processor(window) {
+  match new_whisper_processor(
+    window,
+    Some(WhichWhisperModel::from_str(
+      model_type
+        .unwrap_or_else(|| "medium".to_string())
+        .as_str(),
+      true,
+    )?),
+  ) {
     Ok(p) => {
       let data = app.state::<Mutex<AppDataWhisperProcessor>>();
       let mut data = data.lock().unwrap();

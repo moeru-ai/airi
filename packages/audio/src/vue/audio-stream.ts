@@ -158,6 +158,11 @@ export function useAudioStream(cfg: MaybeRefOrGetter<AudioStreamConfig | undefin
           console.error('Audio chunk callback error:', err)
         }
       })
+
+      // Only continue if still active
+      if (isActive.value) {
+        requestAnimationFrame(analyze)
+      }
     }
 
     analyze()
@@ -172,6 +177,10 @@ export function useAudioStream(cfg: MaybeRefOrGetter<AudioStreamConfig | undefin
   function addChunkCallback(callback: AudioChunkCallback) {
     chunkCallbacks.add(callback)
     return () => chunkCallbacks.delete(callback)
+  }
+
+  function stop() {
+    mediaStream.value?.getTracks().forEach(track => track.stop())
   }
 
   // Cleanup

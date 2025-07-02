@@ -71,7 +71,7 @@ const thresholdBars = computed(() => {
 
     <!-- Threshold Bars -->
     <div
-      class="flex items-end gap-1 rounded bg-neutral-200 p-1 dark:bg-neutral-700"
+      class="flex items-end gap-1 rounded bg-neutral-200/45 p-1 p-1 dark:bg-neutral-700"
       :style="{ height: `${height}px` }"
     >
       <div
@@ -94,15 +94,15 @@ const thresholdBars = computed(() => {
 
     <div v-if="showLegend" class="mt-1 flex gap-3 text-xs text-neutral-500">
       <span class="flex items-center gap-1">
-        <div :class="`inline-block h-1 w-2 ${belowThresholdClass}`" />
+        <div :class="`inline-block h-0.5lh w-1lh rounded-full ${belowThresholdClass}`" />
         {{ belowLabel }}
       </span>
       <span class="flex items-center gap-1">
-        <div :class="`inline-block h-1 w-2 border border-neutral-400 ${thresholdBarClass}`" />
+        <div :class="`inline-block h-0.5lh w-1lh rounded-full border border-neutral-400 ${thresholdBarClass}`" />
         {{ thresholdLabel }}
       </span>
       <span class="flex items-center gap-1">
-        <div :class="`inline-block h-1 w-2 ${aboveThresholdClass}`" />
+        <div :class="`inline-block h-0.5lh w-1lh rounded-full ${aboveThresholdClass}`" />
         {{ aboveLabel }}
       </span>
     </div>

@@ -9,7 +9,7 @@ import { chromaticHue as hue } from '../../constants'
 import { chromaticHueDefault as hueDefault } from '../../constants/theme'
 
 interface Props {
-  history: number[] // Array of values (normalized 0-1)
+  history: Readonly<number[]> // Array of values (normalized 0-1)
   currentValue: number // Current value (0-1)
   threshold?: number | null // Threshold value (0-1)
   isActive: boolean // Whether current state is "active"

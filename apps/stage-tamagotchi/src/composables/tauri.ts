@@ -134,8 +134,8 @@ export interface InvokeMethods {
   'open_chat_window': { args: undefined, options: undefined, returns: void }
 
   // Plugin - Audio Transcription
-  'plugin:proj-airi-tauri-plugin-audio-transcription|load_model_whisper': { args: undefined, options: undefined, returns: void }
-  'plugin:proj-airi-tauri-plugin-audio-transcription|audio_transcription': { args: { chunk: number[] }, options: undefined, returns: string }
+  'plugin:proj-airi-tauri-plugin-audio-transcription|load_model_whisper': { args: { modelType: 'base' | 'largev3' | 'tiny' | 'medium' }, options: undefined, returns: void }
+  'plugin:proj-airi-tauri-plugin-audio-transcription|audio_transcription': { args: { chunk: number[], language: string }, options: undefined, returns: [string, string] }
 
   // Plugin - Audio VAD
   'plugin:proj-airi-tauri-plugin-audio-vad|load_model_silero_vad': { args: undefined, options: undefined, returns: void }
