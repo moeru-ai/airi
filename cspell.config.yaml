@@ -25,6 +25,7 @@ words:
   - Bitstream
   - browserbasehq
   - bumpp
+  - byteorder
   - catppuccin
   - cdylib
   - cientos
@@ -33,6 +34,7 @@ words:
   - collectblock
   - composables
   - cooldown
+  - coreml
   - cosyvoice
   - cozyvoice
   - crossws
@@ -57,6 +59,7 @@ words:
   - demi
   - demodel
   - devlogs
+  - directml
   - dotenvx
   - DownloadLive2DSDK
   - dtolnay
@@ -118,6 +121,7 @@ words:
   - moeru
   - Morioki
   - Myriam
+  - ndarray
   - Neko
   - nekomeowww
   - neuri
@@ -205,6 +209,7 @@ words:
   - wavefile
   - webgpu
   - weeb
+  - wgpu
   - wlipsync
   - worklet
   - xast
