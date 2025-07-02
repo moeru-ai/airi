@@ -21,6 +21,15 @@ pub async fn load_model_silero_vad<R: Runtime>(
 ) -> Result<(), String> {
   info!("Loading models...");
 
+  {
+    let data = app.state::<Mutex<AppDataSileroVadProcessor>>();
+    let data = data.lock().unwrap();
+    if data.silero_vad_processor.is_some() {
+      info!("Silero VAD model already loaded, skipping...");
+      return Ok(());
+    }
+  }
+
   match new_silero_vad_processor(window) {
     Ok(p) => {
       let data = app.state::<Mutex<AppDataSileroVadProcessor>>();

@@ -21,6 +21,15 @@ pub async fn load_model_whisper<R: Runtime>(
 ) -> Result<(), String> {
   info!("Loading models...");
 
+  {
+    let data = app.state::<Mutex<AppDataWhisperProcessor>>();
+    let data = data.lock().unwrap();
+    if data.whisper_processor.is_some() {
+      info!("Whisper model already loaded, skipping...");
+      return Ok(());
+    }
+  }
+
   // Load the traditional whisper models first
   match new_whisper_processor(window) {
     Ok(p) => {
@@ -44,7 +53,8 @@ pub async fn load_model_whisper<R: Runtime>(
 pub async fn audio_transcription<R: Runtime>(
   app: tauri::AppHandle<R>,
   chunk: Vec<f32>,
-) -> Result<String, String> {
+  language: Option<String>,
+) -> Result<(String, String), String> {
   info!("Processing audio transcription...");
 
   let data = app.state::<Mutex<AppDataWhisperProcessor>>();
@@ -61,11 +71,13 @@ pub async fn audio_transcription<R: Runtime>(
   let mut data = data.lock().unwrap();
   let processor = data.whisper_processor.as_mut().unwrap();
 
-  let transcription = processor
-    .transcribe(chunk.as_slice())
+  let (transcription, language) = processor
+    .transcribe(chunk.as_slice(), language.as_deref())
     .map_err(|e| e.to_string())?;
 
-  Ok(transcription)
+  info!("Transcription completed: {}", transcription);
+
+  Ok((transcription, language))
 }
 
 pub fn init<R: Runtime>() -> TauriPlugin<R> {

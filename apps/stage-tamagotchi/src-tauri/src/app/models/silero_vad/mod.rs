@@ -1,7 +1,8 @@
 use std::path::PathBuf;
 
 use anyhow::Result;
-use log::{debug, info};
+use hf_hub::Repo;
+use log::info;
 use ndarray::{Array2, Array3};
 use ort::{
   execution_providers::{
@@ -33,17 +34,30 @@ impl Processor {
     _device: candle_core::Device,
     window: tauri::WebviewWindow<R>,
   ) -> Result<Self> {
-    let api = hf_hub::api::sync::ApiBuilder::new().build()?;
-    let repo = api.repo(hf_hub::Repo::with_revision(
-      "onnx-community/silero-vad".into(),
+    let model_id = "onnx-community/silero-vad";
+    let revision = "main";
+
+    let cache_api = hf_hub::Cache::from_env();
+    let cache_repo = cache_api.repo(Repo::with_revision(
+      model_id.into(),
       hf_hub::RepoType::Model,
-      "main".into(),
+      revision.into(),
     ));
 
-    let model_path = repo.download_with_progress(
-      "onnx/model.onnx",
-      create_progress_emitter(window.clone(), "onnx/model.onnx".to_string()),
-    )?;
+    let api = hf_hub::api::sync::ApiBuilder::new().build()?;
+    let repo = api.repo(hf_hub::Repo::with_revision(
+      model_id.into(),
+      hf_hub::RepoType::Model,
+      revision.into(),
+    ));
+
+    let model_path = match cache_repo.get("model.onnx") {
+      Some(path) => path,
+      None => repo.download_with_progress(
+        "onnx/model.onnx",
+        create_progress_emitter(window.clone(), "onnx/model.onnx".to_string()),
+      )?,
+    };
 
     let session = Self::create_optimized_session(model_path.clone())?;
     let (frame_size, context_size) = (512, 64);
