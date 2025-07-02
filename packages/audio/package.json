@@ -1,0 +1,62 @@
+{
+  "name": "@proj-airi/audio",
+  "type": "module",
+  "private": true,
+  "description": "Audio processing utilities for Project AIRI",
+  "author": {
+    "name": "Moeru AI Project AIRI Team",
+    "email": "airi@moeru.ai",
+    "url": "https://github.com/moeru-ai"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/moeru-ai/airi.git",
+    "directory": "packages/audio"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.mts",
+      "default": "./dist/index.mjs"
+    },
+    "./audio-context": {
+      "types": "./dist/audio-context/index.d.mts",
+      "default": "./dist/audio-context/index.mjs"
+    },
+    "./audio-context/processor.worklet": {
+      "types": "./dist/audio-context/processor.worklet.d.mts",
+      "default": "./dist/audio-context/processor.worklet.mjs"
+    },
+    "./vue": {
+      "types": "./dist/vue/index.d.mts",
+      "default": "./dist/vue/index.mjs"
+    }
+  },
+  "main": "./dist/index.mjs",
+  "types": "./dist/index.d.mts",
+  "files": [
+    "README.md",
+    "dist",
+    "package.json"
+  ],
+  "scripts": {
+    "dev": "pnpm run build",
+    "build": "tsdown",
+    "typecheck": "tsc --noEmit"
+  },
+  "peerDependencies": {
+    "vue": ">=3"
+  },
+  "peerDependenciesMeta": {
+    "vue": {
+      "optional": true
+    }
+  },
+  "dependencies": {
+    "@alexanderolsen/libsamplerate-js": "^2.1.2"
+  },
+  "devDependencies": {
+    "@types/audioworklet": "^0.0.77",
+    "vite": "^7.0.0"
+  }
+}

@@ -19,6 +19,7 @@
     "@formkit/auto-animate": "^0.8.2",
     "@huggingface/transformers": "^3.6.0",
     "@moeru/std": "catalog:",
+    "@proj-airi/audio": "workspace:^",
     "@proj-airi/ccc": "workspace:^",
     "@proj-airi/drizzle-duckdb-wasm": "catalog:",
     "@proj-airi/i18n": "workspace:*",

@@ -21,6 +21,7 @@
     "@huggingface/transformers": "^3.6.0",
     "@llama-flow/core": "^0.4.4",
     "@moeru/std": "catalog:",
+    "@proj-airi/audio": "workspace:^",
     "@proj-airi/ccc": "workspace:^",
     "@proj-airi/drizzle-duckdb-wasm": "catalog:",
     "@proj-airi/i18n": "workspace:*",
