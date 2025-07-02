@@ -38,9 +38,10 @@ const vadProbability = ref(0) // Raw VAD probability from Tauri
 const vadThreshold = ref(0.5) // VAD probability threshold for speech detection
 
 // Audio chunk buffering for Tauri VAD
-const audioChunkBuffer = ref<Float32Array | null>(null)
-const chunkSize = 512 // 32ms at 16kHz
+const audioChunkBuffer = ref<Float32Array>(new Float32Array(0))
+const chunkSize = 512 // Exactly 512 samples for 16kHz as expected by VAD model
 const vadProcessingInterval = ref<number | null>(null)
+const sampleRate = 16000 // Fixed sample rate for VAD
 
 // VAD visualization
 const vadHistory = ref<number[]>([]) // History for chart visualization
@@ -72,10 +73,17 @@ async function processAudioChunkWithVAD(audioData: Float32Array) {
     return
 
   try {
+    // Ensure we have exactly 512 samples as expected by the VAD model
+    if (audioData.length !== chunkSize) {
+      console.warn(`VAD received ${audioData.length} samples, expected ${chunkSize}`)
+      return
+    }
+
     // Convert Float32Array to regular array for Tauri
     const chunk = Array.from(audioData)
     const probability = await invoke('plugin:proj-airi-tauri-plugin-audio-vad|audio_vad', { chunk })
-    if (probability != null) {
+
+    if (probability != null && typeof probability === 'number') {
       vadProbability.value = probability
 
       // Update VAD history for visualization
@@ -83,17 +91,18 @@ async function processAudioChunkWithVAD(audioData: Float32Array) {
       if (vadHistory.value.length > maxVadHistory) {
         vadHistory.value.shift()
       }
-    }
 
-    // Update speaking detection based on VAD
-    if (useVADModel.value) {
-      isSpeaking.value = vadProbability.value > vadThreshold.value
+      // Update speaking detection based on VAD
+      if (useVADModel.value) {
+        isSpeaking.value = vadProbability.value > vadThreshold.value
+      }
     }
   }
   catch (error) {
     console.error('VAD processing error:', error)
-    // Fall back to volume-based detection
-    if (!useVADModel.value) {
+    vadModelError.value = error as string
+    // Fall back to volume-based detection on error
+    if (useVADModel.value) {
       isSpeaking.value = volumeLevel.value > speakingThreshold.value
     }
   }
@@ -103,9 +112,10 @@ function startVADProcessing() {
   if (vadProcessingInterval.value)
     return
 
+  // Process chunks immediately when buffer has enough samples
   vadProcessingInterval.value = window.setInterval(async () => {
-    if (audioChunkBuffer.value && audioChunkBuffer.value.length >= chunkSize) {
-      // Process the chunk with Tauri VAD
+    if (audioChunkBuffer.value.length >= chunkSize) {
+      // Process the chunk with Tauri VAD (exactly 512 samples)
       const chunk = audioChunkBuffer.value.slice(0, chunkSize)
       await processAudioChunkWithVAD(chunk)
 
@@ -113,7 +123,7 @@ function startVADProcessing() {
       const remaining = audioChunkBuffer.value.slice(chunkSize)
       audioChunkBuffer.value = remaining.length > 0 ? remaining : new Float32Array(0)
     }
-  }, 32) // 32ms intervals (chunkSize / sampleRate * 1000)
+  }, 10) // Check every 10ms for available chunks
 }
 
 function stopVADProcessing() {
@@ -121,7 +131,7 @@ function stopVADProcessing() {
     clearInterval(vadProcessingInterval.value)
     vadProcessingInterval.value = null
   }
-  audioChunkBuffer.value = null
+  audioChunkBuffer.value = new Float32Array(0)
   vadProbability.value = 0
   vadHistory.value = []
 }
@@ -144,17 +154,18 @@ async function setupAudioMonitoring() {
         echoCancellation: true,
         noiseSuppression: true,
         autoGainControl: true,
+        sampleRate, // Explicitly request 16kHz
       },
     })
 
-    // Create audio context
-    audioContext.value = new AudioContext()
+    // Create audio context with fixed sample rate for VAD
+    audioContext.value = new AudioContext({ sampleRate })
     const source = audioContext.value.createMediaStreamSource(mediaStream.value)
 
     // Create analyser for volume detection
     analyser.value = audioContext.value.createAnalyser()
-    analyser.value.fftSize = 256
-    analyser.value.smoothingTimeConstant = 0.3
+    analyser.value.fftSize = 512 // Match our chunk size for better alignment
+    analyser.value.smoothingTimeConstant = 0.1 // Less smoothing for better real-time response
 
     // Create gain node for playback volume control
     gainNode.value = audioContext.value.createGain()
@@ -178,8 +189,10 @@ async function setupAudioMonitoring() {
     // Load VAD model and start VAD processing if enabled
     if (useVADModel.value) {
       await loadVADModel()
-      startVADProcessing()
-      audioChunkBuffer.value = new Float32Array(0)
+      if (isVADModelLoaded.value) {
+        audioChunkBuffer.value = new Float32Array(0)
+        startVADProcessing()
+      }
     }
   }
   catch (error) {
@@ -238,9 +251,11 @@ function startAudioAnalysis() {
     }
 
     // Collect audio samples for VAD processing
-    if (useVADModel.value && isVADModelLoaded.value && audioChunkBuffer.value !== null) {
+    if (useVADModel.value && isVADModelLoaded.value) {
       // Get time domain data for VAD (raw audio samples)
-      const timeDataArray = new Float32Array(analyser.value.fftSize)
+      // Use smaller buffer size for more frequent updates
+      const bufferSize = 128 // Smaller chunks for better real-time processing
+      const timeDataArray = new Float32Array(bufferSize)
       analyser.value.getFloatTimeDomainData(timeDataArray)
 
       // Append new samples to buffer

@@ -20,5 +20,5 @@ pub fn new_silero_vad_processor<R: Runtime>(
   window: tauri::WebviewWindow<R>
 ) -> anyhow::Result<silero_vad::Processor> {
   info!("Loading VAD model");
-  silero_vad::Processor::new(Device::Cpu, 0.3, window)
+  silero_vad::Processor::new(Device::Cpu, window)
 }

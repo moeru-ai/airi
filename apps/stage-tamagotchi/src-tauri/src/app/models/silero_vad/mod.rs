@@ -16,13 +16,11 @@ pub struct Processor {
   state:        Tensor,
   context:      Tensor,
   device:       Device,
-  threshold:    f32,
 }
 
 impl Processor {
   pub fn new<R: Runtime>(
     device: Device,
-    threshold: f32,
     window: tauri::WebviewWindow<R>,
   ) -> Result<Self> {
     let api = hf_hub::api::sync::Api::new()?;
@@ -50,7 +48,6 @@ impl Processor {
       state: Tensor::zeros((2, 1, 128), DType::F32, &device)?,
       context: Tensor::zeros((1, context_size), DType::F32, &device)?,
       device,
-      threshold,
     })
   }
 
@@ -94,12 +91,5 @@ impl Processor {
 
     let speech_prob = output.flatten_all()?.to_vec1::<f32>()?[0];
     Ok(speech_prob)
-  }
-
-  pub fn is_speech(
-    &self,
-    prob: f32,
-  ) -> bool {
-    prob >= self.threshold
   }
 }
