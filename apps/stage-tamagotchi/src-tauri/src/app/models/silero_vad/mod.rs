@@ -51,11 +51,12 @@ impl Processor {
       revision.into(),
     ));
 
-    let model_path = match cache_repo.get("model.onnx") {
+    let model_path_sub_name = "onnx/model.onnx";
+    let model_path = match cache_repo.get(model_path_sub_name) {
       Some(path) => path,
       None => repo.download_with_progress(
-        "onnx/model.onnx",
-        create_progress_emitter(window.clone(), "onnx/model.onnx".to_string()),
+        model_path_sub_name,
+        create_progress_emitter(window.clone(), model_path_sub_name.to_string()),
       )?,
     };
 

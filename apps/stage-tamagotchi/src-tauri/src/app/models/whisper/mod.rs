@@ -154,28 +154,31 @@ impl Processor {
       revision.to_string(),
     ));
 
-    let config_filename = match cache_repo.get("config.json") {
+    let config_filename_sub_name = "config.json";
+    let config_filename = match cache_repo.get(config_filename_sub_name) {
       None => repo.download_with_progress(
-        "config.json",
-        create_progress_emitter(window.clone(), "config.json".to_string()),
+        config_filename_sub_name,
+        create_progress_emitter(window.clone(), config_filename_sub_name.to_string()),
       )?,
       Some(p) => p,
     };
     info!("config_filename: {:?}", config_filename.display());
 
-    let tokenizer_filename = match cache_repo.get("tokenizer.json") {
+    let tokenizer_filename_sub_name = "tokenizer.json";
+    let tokenizer_filename = match cache_repo.get(tokenizer_filename_sub_name) {
       None => repo.download_with_progress(
-        "tokenizer.json",
-        create_progress_emitter(window.clone(), "tokenizer.json".to_string()),
+        tokenizer_filename_sub_name,
+        create_progress_emitter(window.clone(), tokenizer_filename_sub_name.to_string()),
       )?,
       Some(p) => p,
     };
     info!("tokenizer_filename: {:?}", tokenizer_filename.display());
 
-    let model_filename = match cache_repo.get("model.safetensors") {
+    let model_filename_sub_name = "model.safetensors";
+    let model_filename = match cache_repo.get(model_filename_sub_name) {
       None => repo.download_with_progress(
-        "model.safetensors",
-        create_progress_emitter(window.clone(), "model.safetensors".to_string()),
+        model_filename_sub_name,
+        create_progress_emitter(window.clone(), model_filename_sub_name.to_string()),
       )?,
       Some(p) => p,
     };
