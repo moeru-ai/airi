@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Live2DCanvas, Live2DModel } from '@proj-airi/stage-ui/components'
+import { Live2DCanvas, Live2DModel } from '@proj-airi/stage-ui/components/scenes'
 import { useElementBounding, useMouse } from '@vueuse/core'
 import { Vibrant } from 'node-vibrant/browser'
 import { ref } from 'vue'

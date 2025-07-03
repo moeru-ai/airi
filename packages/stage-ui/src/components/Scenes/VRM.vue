@@ -7,8 +7,8 @@ import { useI18n } from 'vue-i18n'
 
 import DataGuiRange from '../DataGui/Range.vue'
 import Collapsable from '../Misc/Collapsable.vue'
-import Screen from '../Screen.vue'
-import VRMModel from '../VRM/Model.vue'
+import Screen from '../Misc/Screen.vue'
+import VRMModel from './VRM/Model.vue'
 
 const props = defineProps<{
   model: string
