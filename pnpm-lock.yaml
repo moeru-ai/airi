@@ -876,6 +876,9 @@ importers:
         specifier: '>=3'
         version: 3.5.17(typescript@5.8.3)
     devDependencies:
+      '@moeru/std':
+        specifier: 'catalog:'
+        version: 0.1.0-beta.4
       '@types/audioworklet':
         specifier: ^0.0.77
         version: 0.0.77
@@ -1311,6 +1314,9 @@ importers:
       '@huggingface/transformers':
         specifier: ^3.6.0
         version: 3.6.0
+      '@proj-airi/audio':
+        specifier: workspace:^
+        version: link:../../packages/audio
       '@proj-airi/server-sdk':
         specifier: workspace:^
         version: link:../../packages/server-sdk

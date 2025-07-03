@@ -1,12 +1,14 @@
+import { encodeBase64 } from '@moeru/std/base64'
+
 function writeString(dataView: DataView, offset: number, string: string) {
   for (let i = 0; i < string.length; i++) {
     dataView.setUint8(offset + i, string.charCodeAt(i))
   }
 }
 
-export function toWav(buffer: Float32Array, sampleRate: number) {
-  const numChannels = 1
-  const numSamples = buffer.length
+export function toWav(buffer: ArrayBufferLike, sampleRate: number, channel = 1) {
+  const numChannels = channel
+  const numSamples = buffer.byteLength
 
   // Create the WAV file container
   const arrayBuffer = new ArrayBuffer(44 + numSamples * 2)
@@ -25,6 +27,7 @@ export function toWav(buffer: Float32Array, sampleRate: number) {
   dataView.setUint32(24, sampleRate, true)
   dataView.setUint32(28, sampleRate * numChannels * 2, true) // byte rate
   dataView.setUint16(32, numChannels * 2, true) // block align
+
   dataView.setUint16(34, 16, true) // bits per sample
 
   // data sub-chunk
@@ -40,4 +43,8 @@ export function toWav(buffer: Float32Array, sampleRate: number) {
   }
 
   return arrayBuffer
+}
+
+export function toWAVBase64(buffer: ArrayBufferLike, sampleRate: number) {
+  return encodeBase64(toWav(buffer, sampleRate))
 }

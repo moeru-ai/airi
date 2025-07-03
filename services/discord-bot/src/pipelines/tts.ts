@@ -8,10 +8,9 @@ import wavefile from 'wavefile'
 
 import { useLogg } from '@guiiai/logg'
 import { pipeline } from '@huggingface/transformers'
+import { toWav } from '@proj-airi/audio'
 import { createOpenAI } from '@xsai-ext/providers-cloud'
 import { generateTranscription } from '@xsai/generate-transcription'
-
-import { pcmToWav } from '../utils/audio'
 
 export class WhisperLargeV3Pipeline {
   static task: PipelineType = 'automatic-speech-recognition'
@@ -49,13 +48,13 @@ export function textFromResult(result: Array<{ text: string }> | { text: string 
 export async function transcribe(pcmBuffer: Buffer) {
   const log = useLogg('Memory:Transcribe').useGlobalConfig()
 
-  const pcmConvertedWav = pcmToWav(pcmBuffer, 48000, 2)
+  const pcmConvertedWav = toWav(pcmBuffer.buffer, 48000, 2)
   log.withFields({ from: pcmBuffer.byteLength, to: pcmConvertedWav.byteLength }).log('Audio data received')
 
   const transcriber = await WhisperLargeV3Pipeline.getInstance() as (audio: Float32Array | Float64Array) => Promise<Array<{ text: string }> | { text: string }>
   log.log('Transcribing audio')
 
-  const wav = new wavefile.WaveFile(pcmConvertedWav)
+  const wav = new wavefile.WaveFile(new Uint8Array(pcmConvertedWav))
   wav.toBitDepth('32f') // Pipeline expects input as a Float32Array
   wav.toSampleRate(16000) // Whisper expects audio with a sampling rate of 16000
   const audioData = wav.getSamples()
