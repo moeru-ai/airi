@@ -169,6 +169,7 @@ pnpm dev:docs
 - [x] [Baichuan](https://platform.baichuan-ai.com)
 - [x] [Minimax](https://api.minimax.chat/)
 - [x] [Moonshot AI](https://platform.moonshot.cn/)
+- [x] [Player2](https://player2.game/)
 - [x] [Tencent Cloud](https://cloud.tencent.com/document/product/1729)
 - [ ] [Sparks](https://www.xfyun.cn/doc/spark/Web.html)（PR歓迎）
 - [ ] [Volcano Engine](https://www.volcengine.com/experience/ark?utm_term=202502dsinvite&ac=DSASUQY5&rc=2QXCA1VI)（PR歓迎）
