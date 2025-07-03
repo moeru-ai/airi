@@ -225,17 +225,17 @@ onMounted(() => {
           </div>
         </div>
         <h1 class="mb-2 text-3xl text-neutral-800 font-bold dark:text-neutral-100">
-          {{ t('firstTimeSetup.title') }}
+          {{ t('In the beginning') }}
         </h1>
         <p class="text-lg text-neutral-600 dark:text-neutral-400">
-          {{ t('firstTimeSetup.description') }}
+          {{ t('Enter your API key and let us start the conversation.') }}
         </p>
       </div>
 
       <!-- Provider Selection -->
       <div class="mb-6">
         <h2 class="mb-4 text-xl text-neutral-800 font-semibold dark:text-neutral-100">
-          {{ t('firstTimeSetup.selectProvider') }}
+          {{ t('Please select an API') }}
         </h2>
         <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <button
@@ -349,7 +349,7 @@ onMounted(() => {
           class="border border-neutral-300 rounded-lg bg-white px-6 py-3 text-neutral-700 font-medium transition-colors dark:border-neutral-600 dark:bg-neutral-800 hover:bg-neutral-50 dark:text-neutral-300 dark:hover:bg-neutral-700"
           @click="handleSkip"
         >
-          {{ t('firstTimeSetup.skipForNow') }}
+          {{ t('Skip now') }}
         </button>
         <button
           :disabled="!canSave"
@@ -360,7 +360,7 @@ onMounted(() => {
           ]"
           @click="handleSave"
         >
-          {{ t('firstTimeSetup.saveAndContinue') }}
+          {{ t('Save and Continue') }}
         </button>
       </div>
     </div>
