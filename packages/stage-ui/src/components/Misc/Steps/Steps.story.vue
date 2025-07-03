@@ -183,7 +183,7 @@ function skipTTSSetup() {
               </div>
               <div
                 v-if="!isStepActive(stepper8, step.id)"
-                class="i-solar:alt-arrow-down-bold-duotone text-sm text-neutral-400 transition-transform duration-300 dark:text-neutral-600"
+                class="i-solar:alt-arrow-down-linear text-sm text-neutral-400 transition-transform duration-300 dark:text-neutral-600"
                 :class="{ 'rotate-180': isStepActive(stepper8, step.id) }"
               />
               <button

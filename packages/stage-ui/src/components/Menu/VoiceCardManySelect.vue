@@ -379,7 +379,7 @@ const customVoiceName = ref('')
             <span>{{ isListExpanded ? collapseButtonText : expandButtonText }}</span>
             <div
               :class="isListExpanded ? 'rotate-180' : ''"
-              i-solar:alt-arrow-down-bold-duotone transition="transform duration-200 ease-in-out"
+              i-solar:alt-arrow-down-linear transition="transform duration-200 ease-in-out"
               class="text-lg"
             />
           </button>
