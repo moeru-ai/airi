@@ -1096,6 +1096,9 @@ importers:
       '@xsai/tool':
         specifier: 'catalog:'
         version: 0.3.0-beta.6(zod-to-json-schema@3.24.6(zod@3.25.67))(zod@3.25.67)
+      animejs:
+        specifier: ^4.0.2
+        version: 4.0.2
       culori:
         specifier: ^4.0.2
         version: 4.0.2
@@ -5933,6 +5936,9 @@ packages:
 
   alien-signals@2.0.5:
     resolution: {integrity: sha512-PdJB6+06nUNAClInE3Dweq7/2xVAYM64vvvS1IHVHSJmgeOtEdrAGyp7Z2oJtYm0B342/Exd2NT0uMJaThcjLQ==}
+
+  animejs@4.0.2:
+    resolution: {integrity: sha512-f0L/kSya2RF23iMSF/VO01pMmLwlAFoiQeNAvBXhEyLzIPd2/QTBRatwGUqkVCC6seaAJYzAkGir55N4SL+h3A==}
 
   ansi-align@3.0.1:
     resolution: {integrity: sha512-IOfwwBF5iczOjp/WeY4YxyjqAFMQoZufdQWDd19SEExbVLNXqvpzSJ/M7Za4/sCPmQ0+GRquoA7bGcINcxew6w==}
@@ -17159,6 +17165,8 @@ snapshots:
   alien-signals@1.0.3: {}
 
   alien-signals@2.0.5: {}
+
+  animejs@4.0.2: {}
 
   ansi-align@3.0.1:
     dependencies:

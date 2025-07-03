@@ -17,6 +17,7 @@
   "exports": {
     ".": "./src/components/index.ts",
     "./components": "./src/components/index.ts",
+    "./components/scenes/*": "./src/components/Scenes/index.ts",
     "./composables/*": "./src/composables/*.ts",
     "./composables": "./src/composables/index.ts",
     "./constants/*": "./src/constants/*.ts",
@@ -79,6 +80,7 @@
     "@xsai/shared-chat": "catalog:",
     "@xsai/stream-text": "catalog:",
     "@xsai/tool": "catalog:",
+    "animejs": "^4.0.2",
     "culori": "^4.0.2",
     "gpuu": "^1.0.4",
     "jszip": "^3.10.1",
