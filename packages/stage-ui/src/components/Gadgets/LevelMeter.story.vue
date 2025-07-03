@@ -72,7 +72,7 @@ const performanceThresholds = [
       id="basic-examples"
       title="Basic Examples"
     >
-      <div class="space-y-6">
+      <div class="p-2 space-y-6">
         <div class="grid grid-cols-1 gap-6 lg:grid-cols-3 md:grid-cols-2">
           <!-- Audio Level -->
           <div class="rounded-xl bg-white px-3 py-2 shadow-md dark:bg-neutral-800">
@@ -119,7 +119,7 @@ const performanceThresholds = [
       id="custom-styling"
       title="Custom Styling"
     >
-      <div class="space-y-6">
+      <div class="p-2 space-y-6">
         <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
           <!-- Temperature (Custom Colors) -->
           <div class="rounded-xl bg-white px-3 py-2 shadow-md dark:bg-neutral-800">
@@ -162,7 +162,7 @@ const performanceThresholds = [
       id="configuration-options"
       title="Configuration Options"
     >
-      <div class="space-y-6">
+      <div class="p-2 space-y-6">
         <div class="grid grid-cols-1 gap-6 lg:grid-cols-3 md:grid-cols-2">
           <!-- Compact (No Header) -->
           <div class="rounded-xl bg-white px-3 py-2 shadow-md dark:bg-neutral-800">
@@ -218,7 +218,7 @@ const performanceThresholds = [
       id="dashboard-example"
       title="Dashboard Example"
     >
-      <div class="space-y-6">
+      <div class="p-2 space-y-6">
         <div class="rounded-xl bg-white px-3 py-2 shadow-md dark:bg-neutral-800">
           <h3 class="mb-6 text-lg text-neutral-700 font-medium dark:text-neutral-300">
             System Monitor Dashboard
@@ -271,7 +271,7 @@ const performanceThresholds = [
       id="interactive-demo"
       title="Interactive Demo"
     >
-      <div class="space-y-6">
+      <div class="p-2 space-y-6">
         <div class="rounded-xl bg-white px-3 py-2 shadow-md dark:bg-neutral-800">
           <h3 class="mb-4 text-lg text-neutral-700 font-medium dark:text-neutral-300">
             Adjustable Level
