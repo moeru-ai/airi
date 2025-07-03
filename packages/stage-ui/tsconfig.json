@@ -28,7 +28,8 @@
     "plugins": [
       "@vue-macros/volar/define-models",
       "@vue-macros/volar/define-slots"
-    ]
+    ],
+    "skipTemplateCodegen": false
   },
   "include": [
     "env.d.ts",

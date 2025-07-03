@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import type { AiriTamagotchiEvents } from './composables/tauri'
 
-import { useMcpStore, useSettings } from '@proj-airi/stage-ui/stores'
+import { FirstTimeSetupDialog } from '@proj-airi/stage-ui/components'
+import { useFirstTimeSetupStore, useMcpStore, useSettings } from '@proj-airi/stage-ui/stores'
 import { Window } from '@tauri-apps/api/window'
 import { useEventListener } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
@@ -17,6 +18,8 @@ const { language, themeColorsHue, themeColorsHueDynamic, allowVisibleOnAllWorksp
 const i18n = useI18n()
 const windowControlStore = useWindowControlStore()
 const mcpStore = useMcpStore()
+const firstTimeSetupStore = useFirstTimeSetupStore()
+const { shouldShowSetup } = storeToRefs(firstTimeSetupStore)
 const { platform } = useAppRuntime()
 const { listen } = useTauriEvent<AiriTamagotchiEvents>()
 
@@ -31,6 +34,8 @@ watch(language, () => {
 
 // FIXME: store settings to file
 onMounted(() => {
+  // Initialize first-time setup check
+  firstTimeSetupStore.initializeSetupCheck()
 })
 
 watch(themeColorsHue, () => {
@@ -46,6 +51,15 @@ onMounted(() => {
     mcpStore.connected = false
   })
 })
+
+// Handle first-time setup events
+function handleSetupConfigured() {
+  firstTimeSetupStore.markSetupCompleted()
+}
+
+function handleSetupSkipped() {
+  firstTimeSetupStore.markSetupSkipped()
+}
 
 const isMac = computed(() => platform.value === 'macos')
 
@@ -64,6 +78,13 @@ if (isMac.value) {
 
 <template>
   <RouterView />
+
+  <!-- First Time Setup Dialog -->
+  <FirstTimeSetupDialog
+    v-model="shouldShowSetup"
+    @configured="handleSetupConfigured"
+    @skipped="handleSetupSkipped"
+  />
 </template>
 
 <style>

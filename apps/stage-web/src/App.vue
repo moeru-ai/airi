@@ -1,14 +1,17 @@
 <script setup lang="ts">
-import { useSettings } from '@proj-airi/stage-ui/stores/settings'
+import { FirstTimeSetupDialog } from '@proj-airi/stage-ui/components'
+import { useFirstTimeSetupStore, useSettings } from '@proj-airi/stage-ui/stores'
 import { StageTransitionGroup } from '@proj-airi/ui-transitions'
 import { useDark } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { computed, watch } from 'vue'
+import { computed, onMounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterView } from 'vue-router'
 
 const i18n = useI18n()
 const settings = storeToRefs(useSettings())
+const firstTimeSetupStore = useFirstTimeSetupStore()
+const { shouldShowSetup } = storeToRefs(firstTimeSetupStore)
 const isDark = useDark()
 
 const primaryColor = computed(() => {
@@ -44,6 +47,20 @@ watch(settings.themeColorsHue, () => {
 watch(settings.themeColorsHueDynamic, () => {
   document.documentElement.classList.toggle('dynamic-hue', settings.themeColorsHueDynamic.value)
 }, { immediate: true })
+
+// Initialize first-time setup check when app mounts
+onMounted(() => {
+  firstTimeSetupStore.initializeSetupCheck()
+})
+
+// Handle first-time setup events
+function handleSetupConfigured() {
+  firstTimeSetupStore.markSetupCompleted()
+}
+
+function handleSetupSkipped() {
+  firstTimeSetupStore.markSetupSkipped()
+}
 </script>
 
 <template>
@@ -58,6 +75,13 @@ watch(settings.themeColorsHueDynamic, () => {
   >
     <RouterView />
   </StageTransitionGroup>
+
+  <!-- First Time Setup Dialog -->
+  <FirstTimeSetupDialog
+    v-model="shouldShowSetup"
+    @configured="handleSetupConfigured"
+    @skipped="handleSetupSkipped"
+  />
 </template>
 
 <style>
