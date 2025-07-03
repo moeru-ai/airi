@@ -16,8 +16,8 @@
   },
   "exports": {
     ".": "./src/components/index.ts",
+    "./components/scenes": "./src/components/Scenes/index.ts",
     "./components": "./src/components/index.ts",
-    "./components/scenes/*": "./src/components/Scenes/index.ts",
     "./composables/*": "./src/composables/*.ts",
     "./composables": "./src/composables/index.ts",
     "./constants/*": "./src/constants/*.ts",
