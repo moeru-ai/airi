@@ -7,7 +7,10 @@ use tauri::{
   plugin::{Builder as PluginBuilder, TauriPlugin},
 };
 
-use crate::app::models::new_silero_vad_processor;
+use crate::app::models::{
+  new_silero_vad_processor,
+  silero_vad::{VADInferenceInput, VADInferenceResult},
+};
 
 #[derive(Default)]
 struct AppDataSileroVadProcessor {
@@ -51,27 +54,18 @@ pub async fn load_model_silero_vad<R: Runtime>(
 #[tauri::command]
 pub async fn audio_vad<R: Runtime>(
   app: tauri::AppHandle<R>,
-  chunk: Vec<f32>,
-) -> Result<f32, String> {
+  input_data: VADInferenceInput,
+) -> Result<VADInferenceResult, String> {
   let data = app.state::<Mutex<AppDataSileroVadProcessor>>();
+  let data = data.lock().unwrap();
 
-  // Check if processor exists first
-  {
-    let data = data.lock().unwrap();
-    if data.silero_vad_processor.is_none() {
-      return Err("Silero VAD model is not loaded".to_string());
-    }
+  if let Some(processor) = &data.silero_vad_processor {
+    processor
+      .inference(input_data)
+      .map_err(|e| e.to_string())
+  } else {
+    Err("Silero VAD model is not loaded".to_string())
   }
-
-  // Then mutable borrow
-  let mut data = data.lock().unwrap();
-  let processor = data.silero_vad_processor.as_mut().unwrap();
-
-  let speech_prob = processor
-    .process_chunk(chunk.as_slice())
-    .map_err(|e| e.to_string())?;
-
-  Ok(speech_prob)
 }
 
 pub fn init<R: Runtime>() -> TauriPlugin<R> {

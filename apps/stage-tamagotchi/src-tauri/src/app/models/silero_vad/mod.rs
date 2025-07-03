@@ -1,9 +1,8 @@
-use std::path::PathBuf;
+use std::{path::PathBuf, sync::Arc};
 
 use anyhow::Result;
 use hf_hub::Repo;
 use log::info;
-use ndarray::{Array2, Array3};
 use ort::{
   execution_providers::{
     CPUExecutionProvider,
@@ -12,28 +11,33 @@ use ort::{
     DirectMLExecutionProvider,
   },
   session::{Session, builder::GraphOptimizationLevel},
+  util::Mutex,
   value::Tensor,
 };
+use serde::{Deserialize, Serialize};
 use tauri::Runtime;
 
 use crate::helpers::huggingface::create_progress_emitter;
 
-/// Main Silero VAD model wrapper with hardware acceleration support
+#[derive(Serialize, Deserialize, Clone)]
+pub struct VADInferenceResult {
+  pub output: Vec<f32>, // Speech probability output
+  pub state:  Vec<f32>, // Updated state for next inference
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct VADInferenceInput {
+  pub input: Vec<f32>, // Audio input buffer
+  pub sr:    i64,      // Sample rate
+  pub state: Vec<f32>, // Current state
+}
+
 pub struct Processor {
-  session:         Session,
-  context:         Array2<f32>,
-  state:           ndarray::Array3<f32>,
-  last_batch_size: usize,
-  frame_size:      usize,
-  context_size:    usize,
-  sample_rate:     i64,
+  session: Arc<Mutex<Session>>,
 }
 
 impl Processor {
-  pub fn new<R: Runtime>(
-    _device: candle_core::Device,
-    window: tauri::WebviewWindow<R>,
-  ) -> Result<Self> {
+  pub fn new<R: Runtime>(window: tauri::WebviewWindow<R>) -> Result<Self> {
     let model_id = "onnx-community/silero-vad";
     let revision = "main";
 
@@ -61,16 +65,9 @@ impl Processor {
     };
 
     let session = Self::create_optimized_session(model_path.clone())?;
-    let (frame_size, context_size) = (512, 64);
 
     Ok(Self {
-      session,
-      context: Array2::zeros((1, context_size)),
-      state: Array3::zeros((2, 1, 128)),
-      last_batch_size: 0,
-      frame_size,
-      context_size,
-      sample_rate: 16000,
+      session: Arc::new(Mutex::new(session)),
     })
   }
 
@@ -97,87 +94,52 @@ impl Processor {
     Ok(session)
   }
 
-  /// Reset the model's internal state
-  fn reset_states(
-    &mut self,
-    batch_size: usize,
-  ) {
-    self.context = Array2::zeros((batch_size, self.context_size));
-    self.state = Array3::zeros((2, batch_size, 128));
-  }
-
-  /// Validate input audio chunk
-  fn validate_input(
+  /// Stateless inference that matches JavaScript interface
+  /// Returns both output and updated state like the JS version
+  pub fn inference(
     &self,
-    x: &[f32],
-  ) -> Result<()> {
-    if x.len() != self.frame_size {
+    input_data: VADInferenceInput,
+  ) -> Result<VADInferenceResult> {
+    // Validate input dimensions
+    if input_data.state.len() != 2 * 1 * 128 {
       return Err(anyhow::anyhow!(
-        "Input chunk must be {} samples, got {}",
-        self.frame_size,
-        x.len()
+        "State must have 256 elements (2*1*128), got {}",
+        input_data.state.len()
       ));
     }
-    Ok(())
-  }
-
-  /// Process a single audio chunk and return speech probability
-  /// This is the main API used by hearing.vue via the audio_vad plugin function
-  pub fn process_chunk(
-    &mut self,
-    chunk: &[f32],
-  ) -> Result<f32> {
-    self.validate_input(chunk)?;
-
-    let batch_size = 1;
-    if self.last_batch_size != batch_size {
-      self.reset_states(batch_size);
-    }
-
-    // Prepare input tensor by concatenating context and new audio data
-    let mut input_data = Vec::with_capacity(self.context_size + chunk.len());
-    input_data.extend_from_slice(self.context.row(0).as_slice().unwrap());
-    input_data.extend_from_slice(chunk);
-
-    let input_shape = vec![batch_size, input_data.len()];
 
     // Create input tensors for the ONNX model
-    // Silero VAD requires audio input, sample rate, and state
     let inputs = vec![
       (
         "input",
-        Tensor::from_array((input_shape.clone(), input_data.clone()))?.into_dyn(),
+        Tensor::from_array((vec![1, input_data.input.len()], input_data.input.clone()))?.into_dyn(),
       ),
       (
         "sr",
-        Tensor::from_array(([1], vec![self.sample_rate]))?.into_dyn(),
+        Tensor::from_array(([1], vec![input_data.sr]))?.into_dyn(),
       ),
       (
         "state",
-        Tensor::from_array((vec![2, 1, 128], self.state.as_slice().unwrap().to_vec()))?.into_dyn(),
+        Tensor::from_array((vec![2, 1, 128], input_data.state.clone()))?.into_dyn(),
       ),
     ];
 
-    // Run inference
-    let outputs = self.session.run(inputs)?;
+    // Run inference and extract data while session is still locked
+    let (state_data, speech_data) = {
+      let mut session = self.session.lock();
+      let outputs = session.run(inputs)?;
 
-    // Update context from the last portion of the input
-    let context_start = input_data.len() - self.context_size;
-    let new_context_data = input_data[context_start..].to_vec();
-    self.context = Array2::from_shape_vec((batch_size, self.context_size), new_context_data)
-      .map_err(|e| anyhow::anyhow!("Failed to update context: {}", e))?;
+      // Extract and clone the data immediately while session is locked
+      let (_state_shape, state_slice) = outputs[1].try_extract_tensor::<f32>()?;
+      let (_speech_shape, speech_slice) = outputs[0].try_extract_tensor::<f32>()?;
 
-    // Update state from model output
-    let (_state_shape, state_data) = outputs[1].try_extract_tensor::<f32>()?;
-    self.state = Array3::from_shape_vec((2, 1, 128), state_data.to_vec())
-      .map_err(|e| anyhow::anyhow!("Failed to update state: {}", e))?;
+      // Clone the data to owned vectors before the session lock is released
+      (state_slice.to_vec(), speech_slice.to_vec())
+    };
 
-    self.last_batch_size = batch_size;
-
-    // Extract speech probability
-    let (_shape, data) = outputs[0].try_extract_tensor::<f32>()?;
-    let speech_prob = data[0];
-
-    Ok(speech_prob)
+    Ok(VADInferenceResult {
+      output: speech_data,
+      state:  state_data,
+    })
   }
 }

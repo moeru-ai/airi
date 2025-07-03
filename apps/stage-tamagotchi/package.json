@@ -35,6 +35,7 @@
     "@tauri-apps/plugin-window-state": "^2.3.0",
     "@tresjs/cientos": "^4.3.1",
     "@tresjs/core": "^4.3.6",
+    "@types/audioworklet": "^0.0.77",
     "@vueuse/core": "^13.4.0",
     "@vueuse/shared": "^13.4.0",
     "@xsai-ext/providers-cloud": "catalog:",

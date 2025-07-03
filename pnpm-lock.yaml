@@ -321,6 +321,9 @@ importers:
       '@tresjs/core':
         specifier: ^4.3.6
         version: 4.3.6(three@0.177.0)(typescript@5.8.3)(vue@3.5.17(typescript@5.8.3))
+      '@types/audioworklet':
+        specifier: ^0.0.77
+        version: 0.0.77
       '@vueuse/core':
         specifier: ^13.4.0
         version: 13.4.0(vue@3.5.17(typescript@5.8.3))

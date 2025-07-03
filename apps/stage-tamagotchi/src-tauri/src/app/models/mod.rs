@@ -1,7 +1,6 @@
 pub mod silero_vad;
 pub mod whisper;
 
-use candle_core::Device;
 use log::info;
 use tauri::Runtime;
 
@@ -29,5 +28,5 @@ pub fn new_silero_vad_processor<R: Runtime>(
   window: tauri::WebviewWindow<R>
 ) -> anyhow::Result<silero_vad::Processor> {
   info!("Loading VAD model");
-  silero_vad::Processor::new(Device::Cpu, window)
+  silero_vad::Processor::new(window)
 }
