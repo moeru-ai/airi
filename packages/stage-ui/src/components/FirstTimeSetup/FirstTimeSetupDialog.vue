@@ -136,15 +136,15 @@ async function validateConfiguration() {
     isValid.value = await metadata.validators.validateProviderConfig(config)
 
     if (isValid.value) {
-      validationMessage.value = t('firstTimeSetup.validationSuccess')
+      validationMessage.value = t('Success')
     }
     else {
-      validationMessage.value = t('firstTimeSetup.validationFailed')
+      validationMessage.value = t('Failed')
     }
   }
   catch (error) {
     isValid.value = false
-    validationMessage.value = t('firstTimeSetup.validationError', {
+    validationMessage.value = t('validationError', {
       error: error instanceof Error ? error.message : String(error),
     })
   }
@@ -268,14 +268,14 @@ onMounted(() => {
       <!-- Configuration Form -->
       <div v-if="selectedProvider" class="mb-8">
         <h3 class="mb-4 text-lg text-neutral-800 font-medium dark:text-neutral-100">
-          {{ t('firstTimeSetup.configureProvider', { provider: selectedProvider.localizedName }) }}
+          {{ t('configureProvider', { provider: selectedProvider.localizedName }) }}
         </h3>
 
         <div class="space-y-4">
           <!-- API Key Input -->
           <div v-if="needsApiKey">
             <label class="mb-2 block text-sm text-neutral-700 font-medium dark:text-neutral-300">
-              {{ t('firstTimeSetup.apiKey') }}
+              {{ t('API Key Input') }}
             </label>
             <input
               v-model="apiKey"
@@ -284,14 +284,14 @@ onMounted(() => {
               class="w-full border border-neutral-300 rounded-lg bg-white px-4 py-3 text-neutral-900 transition-colors dark:border-neutral-600 focus:border-blue-500 dark:bg-neutral-800 dark:text-neutral-100 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:focus:border-blue-400 placeholder-neutral-500 dark:placeholder-neutral-400"
             >
             <p class="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
-              {{ t('firstTimeSetup.apiKeyHelp', { provider: selectedProvider.localizedName }) }}
+              {{ t('apiKey', { provider: selectedProvider.localizedName }) }}
             </p>
           </div>
 
           <!-- Base URL Input -->
           <div v-if="needsBaseUrl">
             <label class="mb-2 block text-sm text-neutral-700 font-medium dark:text-neutral-300">
-              {{ t('firstTimeSetup.baseUrl') }}
+              {{ t('Base URL') }}
             </label>
             <input
               v-model="baseUrl"
@@ -300,14 +300,14 @@ onMounted(() => {
               class="w-full border border-neutral-300 rounded-lg bg-white px-4 py-3 text-neutral-900 transition-colors dark:border-neutral-600 focus:border-blue-500 dark:bg-neutral-800 dark:text-neutral-100 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:focus:border-blue-400 placeholder-neutral-500 dark:placeholder-neutral-400"
             >
             <p class="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
-              {{ t('firstTimeSetup.baseUrlHelp') }}
+              {{ t('Custom base URL (optional)') }}
             </p>
           </div>
 
           <!-- Account ID for Cloudflare -->
           <div v-if="selectedProvider.id === 'cloudflare-workers-ai'">
             <label class="mb-2 block text-sm text-neutral-700 font-medium dark:text-neutral-300">
-              {{ t('firstTimeSetup.accountId') }}
+              {{ t('Account ID') }}
             </label>
             <input
               v-model="accountId"
