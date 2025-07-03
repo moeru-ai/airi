@@ -154,7 +154,7 @@ export default defineConfig({
     Download('https://dist.ayaka.moe/vrm-models/VRoid-Hub/AvatarSample-B/AvatarSample_B.vrm', 'AvatarSample_B.vrm', 'assets/vrm/models/AvatarSample-B'),
 
     // HuggingFace Spaces
-    LFS({ extraGlobs: ['*.vrm', '*.cmo3', '*.png', '*.jpg', '*.jpeg', '*.gif', '*.webp', '*.bmp'] }),
+    LFS({ extraGlobs: ['*.vrm', '*.cmo3', '*.png', '*.jpg', '*.jpeg', '*.gif', '*.webp', '*.bmp', '*.ttf'] }),
     SpaceCard({
       title: 'アイリ VTuber',
       emoji: '🧸',
