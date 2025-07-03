@@ -5,7 +5,7 @@ import Button from './Button.vue'
 <template>
   <Story
     title="Button"
-    group="common"
+    group="misc"
     :layout="{ type: 'grid', width: '100%' }"
   >
     <template #controls>
@@ -16,7 +16,7 @@ import Button from './Button.vue'
       id="basic"
       title="Basic Button"
     >
-      <div class="flex flex-row gap-4">
+      <div class="flex flex-row gap-4 p-2">
         <Button label="Primary Button" />
         <Button label="Secondary Button" variant="secondary" />
         <Button label="Danger Button" variant="danger" />
@@ -27,7 +27,7 @@ import Button from './Button.vue'
       id="disabled"
       title="Disabled State"
     >
-      <div class="flex flex-row gap-4">
+      <div class="flex flex-row gap-4 p-2">
         <Button label="Disabled Primary" disabled />
         <Button label="Disabled Secondary" variant="secondary" disabled />
         <Button label="Disabled Danger" variant="danger" disabled />
@@ -38,7 +38,7 @@ import Button from './Button.vue'
       id="loading"
       title="Loading State"
     >
-      <div class="flex flex-row gap-4">
+      <div class="flex flex-row gap-4 p-2">
         <Button label="Loading Primary" loading />
         <Button label="Loading Secondary" variant="secondary" loading />
         <Button label="Loading Danger" variant="danger" loading />
@@ -49,7 +49,7 @@ import Button from './Button.vue'
       id="with-icon"
       title="With Icon"
     >
-      <div class="flex flex-row gap-4">
+      <div class="flex flex-row gap-4 p-2">
         <Button label="Add Item" icon="i-solar:add-circle-line-duotone" />
         <Button label="Delete Item" variant="danger" icon="i-solar:trash-bin-trash-line-duotone" />
         <Button label="Settings" variant="secondary" icon="i-solar:settings-line-duotone" />
@@ -60,7 +60,7 @@ import Button from './Button.vue'
       id="icon-only"
       title="Icon Only"
     >
-      <div class="flex gap-4">
+      <div class="flex gap-4 p-2">
         <Button icon="i-solar:add-circle-line-duotone" />
         <Button variant="secondary" icon="i-solar:settings-line-duotone" />
         <Button variant="danger" icon="i-solar:trash-bin-trash-line-duotone" />
@@ -71,7 +71,7 @@ import Button from './Button.vue'
       id="sizes"
       title="Button Sizes"
     >
-      <div class="flex items-center gap-4">
+      <div class="flex items-center gap-4 p-2">
         <Button label="Small" size="sm" />
         <Button label="Medium" size="md" />
         <Button label="Large" size="lg" />
@@ -82,7 +82,7 @@ import Button from './Button.vue'
       id="block"
       title="Block Button"
     >
-      <div class="flex flex-col gap-4">
+      <div class="flex flex-col gap-4 p-2">
         <Button label="Block Primary" block />
         <Button label="Block Secondary" variant="secondary" block />
         <Button label="Block Danger" variant="danger" block />
@@ -93,7 +93,7 @@ import Button from './Button.vue'
       id="slot"
       title="Using Slot Content"
     >
-      <div class="flex flex-row gap-4">
+      <div class="flex flex-row gap-4 p-2">
         <Button>Custom Content</Button>
         <Button variant="secondary">
           <div class="flex items-center gap-2">
