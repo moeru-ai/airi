@@ -4,17 +4,17 @@ import { Select } from '@proj-airi/ui'
 const props = defineProps<{
   label: string
   description?: string
-  options: { label: string, value: string | number }[]
+  options?: { label: string, value: string | number }[]
   placeholder?: string
   disabled?: boolean
 }>()
 
-const modelValue = defineModel<string>({ required: true })
+const modelValue = defineModel<string>({ required: false })
 </script>
 
 <template>
   <label flex="~ col gap-4">
-    <div flex="~ row col" justify-center gap-2>
+    <div flex="~ row" items-center gap-2>
       <div flex="1">
         <div class="flex items-center gap-1 text-sm font-medium">
           {{ props.label }}
@@ -23,13 +23,15 @@ const modelValue = defineModel<string>({ required: true })
           {{ props.description }}
         </div>
       </div>
-      <Select
-        v-model="modelValue"
-        :options="props.options"
-        :placeholder="props.placeholder"
-        :disabled="props.disabled"
-        :title="label"
-      />
+      <slot>
+        <Select
+          v-model="modelValue"
+          :options="props.options"
+          :placeholder="props.placeholder"
+          :disabled="props.disabled"
+          :title="label"
+        />
+      </slot>
     </div>
   </label>
 </template>

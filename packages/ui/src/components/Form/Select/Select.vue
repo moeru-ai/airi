@@ -1,24 +1,29 @@
 <script setup lang="ts">
 import { Dropdown as VDropdown } from 'floating-vue'
-import { computed } from 'vue'
+import { provide, ref } from 'vue'
+
+import UIOption from './Option.vue'
 
 const props = defineProps<{
-  options: { label: string, value: string | number }[]
+  options?: { label: string, value: string | number }[]
   placeholder?: string
   disabled?: boolean
   title?: string
 }>()
 
-const modelValue = defineModel<string | number>({ required: true })
-
-const selectedLabel = computed(() => {
-  const selected = props.options.find(opt => opt.value === modelValue.value)
-  return selected ? selected.label : props.placeholder
-})
+const show = ref(false)
+const modelValue = defineModel<string | number>({ required: false })
 
 function selectOption(value: string | number) {
   modelValue.value = value
 }
+
+function handleHide() {
+  show.value = false
+}
+
+provide('selectOption', selectOption)
+provide('hide', handleHide)
 </script>
 
 <template>
@@ -31,27 +36,24 @@ function selectOption(value: string | number) {
       :class="{ 'pointer-events-none': props.disabled }"
     >
       <div class="flex-1 truncate">
-        <slot :label="selectedLabel">
-          {{ selectedLabel }}
-        </slot>
+        <slot :value="modelValue" />
       </div>
-      <div i-solar:alt-arrow-down-bold-duotone class="h-3.5 w-3.5 text-neutral-500 dark:text-neutral-400" />
+      <div i-solar:alt-arrow-down-linear class="h-3.5 w-3.5 text-neutral-500 dark:text-neutral-400" />
     </div>
 
     <template #popper="{ hide }">
       <div class="min-w-[160px] flex flex-col gap-0.5 border border-neutral-200 rounded-lg bg-white p-1 shadow-lg dark:border-neutral-800 dark:bg-neutral-900">
-        <div
-          v-for="option of props.options"
-          v-bind="{ ...$attrs, class: null, style: null }"
-          :key="option.value"
-          class="cursor-pointer rounded px-2 py-1.5 text-sm text-neutral-700 hover:bg-neutral-100 dark:text-neutral-200 dark:hover:bg-neutral-800"
-          :class="{
-            'bg-neutral-100 dark:bg-neutral-800': modelValue === option.value,
-          }"
-          @click="selectOption(option.value); hide()"
-        >
-          {{ option.label }}
-        </div>
+        <slot name="options" :hide="hide">
+          <template v-if="props.options && props.options.length">
+            <UIOption
+              v-for="option of props.options"
+              :key="option.value"
+              :value="option.value"
+              :label="option.label"
+              :active="modelValue === option.value"
+            />
+          </template>
+        </slot>
       </div>
     </template>
   </VDropdown>
