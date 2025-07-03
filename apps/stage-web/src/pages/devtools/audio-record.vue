@@ -3,8 +3,8 @@ import { Button } from '@proj-airi/stage-ui/components'
 import { Option, Select } from '@proj-airi/ui'
 import { onMounted, onUnmounted } from 'vue'
 
-import { useAudioInput } from '../../composables/use-audio-input'
-import { useAudioRecord } from '../../composables/use-audio-record'
+import { useAudioInput } from '../../composables/audio-input'
+import { useAudioRecord } from '../../composables/audio-record'
 
 const { audioInputs, selectedAudioInputId, start, stop, media, request } = useAudioInput()
 const { startRecord, stopRecord } = useAudioRecord(media.stream, start)
