@@ -1,3 +1,5 @@
+import type { PreTrainedModel } from '@huggingface/transformers'
+
 import { AutoModel, Tensor } from '@huggingface/transformers'
 
 // Default configuration parameters
@@ -41,7 +43,7 @@ export type VADEventCallback<K extends keyof VADEvents>
  */
 export class VAD {
   private config: VADConfig
-  private model: any
+  private model: PreTrainedModel | undefined
   private state: Tensor
   private sampleRateTensor: Tensor
   private buffer: Float32Array
@@ -68,14 +70,9 @@ export class VAD {
 
     this.config = { ...defaultConfig, ...userConfig }
 
-    // Create buffer based on max duration
     this.buffer = new Float32Array(this.config.maxBufferDuration * this.config.sampleRate)
-
-    // Initialize state tensor for VAD model
-    this.state = new Tensor('float32', new Float32Array(2 * 1 * 128), [2, 1, 128])
-
-    // Sample rate tensor for the model
     this.sampleRateTensor = new Tensor('int64', [this.config.sampleRate], [])
+    this.state = new Tensor('float32', new Float32Array(2 * 1 * 128), [2, 1, 128])
   }
 
   /**
@@ -215,7 +212,7 @@ export class VAD {
     const input = new Tensor('float32', buffer, [1, buffer.length])
 
     const { stateN, output } = await (this.inferenceChain = this.inferenceChain.then(() =>
-      this.model({
+      this.model?.({
         input,
         sr: this.sampleRateTensor,
         state: this.state,

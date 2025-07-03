@@ -4,9 +4,9 @@ import { FieldCheckbox, FieldRange, FieldSelect } from '@proj-airi/ui'
 import { useDevicesList } from '@vueuse/core'
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 
-import workletUrl from '../../../utils/vad/process.worklet?worker&url'
+import workletUrl from '../../../workers/vad/process.worklet?worker&url'
 
-import { createVAD, VADAudioManager } from '../../../utils/vad'
+import { createVAD, VADAudioManager } from '../../../workers/vad'
 
 const devices = useDevicesList({ constraints: { audio: true } })
 const audioInputs = computed(() => devices.audioInputs.value)
