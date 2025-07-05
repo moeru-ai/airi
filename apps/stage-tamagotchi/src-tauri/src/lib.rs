@@ -6,8 +6,9 @@ use tauri::{
   menu::{Menu, MenuItem, Submenu},
   tray::TrayIconBuilder,
 };
+use tauri_plugin_positioner::WindowExt;
 use tauri_plugin_prevent_default::Flags;
-use tauri_plugin_positioner::{WindowExt};
+use tauri_plugin_window_state::AppHandleExt;
 
 mod app;
 mod helpers;
@@ -33,8 +34,9 @@ pub fn run() {
     .plugin(plugins::audio_transcription::init())
     .plugin(plugins::audio_vad::init())
     .setup(|app| {
-      let mut builder = WebviewWindowBuilder::new(app, "main", WebviewUrl::default())
-        .title("AIRI")
+      let mut builder = WebviewWindowBuilder::new(app, "main", WebviewUrl::default());
+
+      builder = builder.title("AIRI")
         .decorations(false)
         .inner_size(450.0, 600.0)
         .shadow(false)
@@ -103,13 +105,6 @@ pub fn run() {
         menu.append_items(&[&show_devtools_item])?;
       }
 
-      #[cfg(debug_assertions)]
-      {
-        let show_devtools_item =
-          MenuItem::with_id(app, "show-devtools", "Show Devtools", true, None::<&str>)?;
-        menu.append_items(&[&show_devtools_item])?;
-      }
-
       let _ = TrayIconBuilder::new()
         .icon(app.default_window_icon().unwrap().clone()) // TODO: use custom icon
         .menu(&menu)
@@ -130,22 +125,25 @@ pub fn run() {
             app::windows::settings::new_settings_window(app).unwrap();
           }
           "center" => {
-            let window = app.get_webview_window("main");
-            if let Some(window) = window {
-              let _ = window.move_window(tauri_plugin_positioner::Position::Center);
-            }
+            let _ = app.get_webview_window("main")
+              .ok_or(())
+              .and_then(|window| window.move_window(tauri_plugin_positioner::Position::Center)
+              .map_err(|_| ()))
+              .map(|_| app.save_window_state(StateFlags::POSITION));
           }
           "bottom-left" => {
-            let window = app.get_webview_window("main");
-            if let Some(window) = window {
-              let _ = window.move_window(tauri_plugin_positioner::Position::BottomLeft);
-            }
+            let _ = app.get_webview_window("main")
+              .ok_or(())
+              .and_then(|window| window.move_window(tauri_plugin_positioner::Position::BottomLeft)
+              .map_err(|_| ()))
+              .map(|_| app.save_window_state(StateFlags::POSITION));
           }
           "bottom-right" => {
-            let window = app.get_webview_window("main");
-            if let Some(window) = window {
-              let _ = window.move_window(tauri_plugin_positioner::Position::BottomRight);
-            }
+            let _ = app.get_webview_window("main")
+              .ok_or(())
+              .and_then(|window| window.move_window(tauri_plugin_positioner::Position::BottomRight)
+              .map_err(|_| ()))
+              .map(|_| app.save_window_state(StateFlags::POSITION));
           }
           "hide" => {
             let window = app.get_webview_window("main");
