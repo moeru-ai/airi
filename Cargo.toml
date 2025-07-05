@@ -22,5 +22,5 @@ debug = true
 opt-level = 1
 debug = false
 
-[target.'cfg(target_os = "windows")']
-patch = { crates-io = { esaxx-rs = { path = "apps/stage-tamagotchi/src-tauri/libs/esaxx-rs" } } }
+[patch.crates-io]
+esaxx-rs = { path = "apps/stage-tamagotchi/src-tauri/libs/esaxx-rs" }
