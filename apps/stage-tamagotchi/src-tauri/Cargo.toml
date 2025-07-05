@@ -34,7 +34,6 @@ tauri-plugin-prevent-default = "1.3"
 serde = { version = "1.0.219", features = ["derive"] }
 serde_json = "1.0.140"
 tokio = "1.45.1"
-ort = { version = "2.0.0-rc.10", features = ["ndarray", "copy-dylibs"] }
 ndarray = "0.16.1"
 candle-core = { version = "0.9.1" }
 candle-nn = { version = "0.9.1" }
@@ -52,24 +51,27 @@ tokenizers = "0.21.2"
 url = "2.5.4"
 tauri-plugin-window-state = "2.3.0"
 tauri-plugin-positioner = "2.3.0"
+specta = "=2.0.0-rc.22"
+specta-typescript = "0.0.9"
+tauri-specta = { version = "=2.0.0-rc.21", features = ["derive", "typescript"] }
 
 [target.'cfg(target_os = "macos")'.dependencies]
 objc2 = "0.6.1"
 objc2-foundation = "0.3.1"
-ort = { version = "2.0.0-rc.10", features = ["ndarray", "coreml", "copy-dylibs"] }
+ort = { version = "2.0.0-rc.10", features = ["ndarray", "coreml"] }
 candle-core = { version = "0.9.1", features = ["metal"] }
 candle-nn = { version = "0.9.1", features = ["metal"] }
 candle-transformers = { version = "0.9.1", features = ["metal"] }
 
 [target.'cfg(target_os = "windows")'.dependencies]
 windows = { version = "0.61.1", features = ["Win32_UI_WindowsAndMessaging", "Win32_Foundation"] }
-ort = { version = "2.0.0-rc.10", features = ["ndarray", "directml", "cuda", "copy-dylibs"] }
+ort = { version = "2.0.0-rc.10", features = ["ndarray", "directml", "cuda"] }
 candle-core = { version = "0.9.1", features = ["cuda"] }
 candle-nn = { version = "0.9.1", features = ["cuda"] }
 candle-transformers = { version = "0.9.1", features = ["cuda"] }
 
 [target.'cfg(target_os = "linux")'.dependencies]
-ort = { version = "2.0.0-rc.10", features = ["ndarray", "cuda", "copy-dylibs"] }
+ort = { version = "2.0.0-rc.10", features = ["ndarray", "cuda"] }
 candle-core = { version = "0.9.1", features = ["cuda"] }
 candle-nn = { version = "0.9.1", features = ["cuda"] }
 candle-transformers = { version = "0.9.1", features = ["cuda"] }

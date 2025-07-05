@@ -1,0 +1,37 @@
+{
+  "name": "@proj-airi/unocss-preset-fonts",
+  "type": "module",
+  "version": "0.6.1",
+  "description": "Fonts that are not included by Google Fonts, FontSource but open-source used by Project AIRI",
+  "author": {
+    "name": "Moeru AI Project AIRI Team",
+    "email": "airi@moeru.ai",
+    "url": "https://github.com/moeru-ai"
+  },
+  "license": "MIT",
+  "homepage": "https://github.com/moeru-ai/airi",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/moeru-ai/airi.git",
+    "directory": "packages/unocss-preset-fonts"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.mts",
+      "default": "./dist/index.mjs"
+    }
+  },
+  "scripts": {
+    "dev": "pnpm run build",
+    "build": "tsdown"
+  },
+  "peerDependencies": {
+    "@unocss/core": ">=66",
+    "@unocss/preset-web-fonts": ">=66"
+  },
+  "dependencies": {
+    "@proj-airi/font-cjkfonts-allseto": "workspace:^",
+    "@proj-airi/font-departure-mono": "workspace:^",
+    "@proj-airi/font-xiaolai": "workspace:^"
+  }
+}

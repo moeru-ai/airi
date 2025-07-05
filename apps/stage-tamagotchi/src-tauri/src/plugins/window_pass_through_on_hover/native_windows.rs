@@ -1,8 +1,11 @@
 #[cfg(target_os = "windows")]
+use tauri::Runtime;
+
+#[cfg(target_os = "windows")]
 use super::types::{Point, Size, WindowFrame};
 
 #[cfg(target_os = "windows")]
-pub fn get_window_frame(window: &tauri::Window) -> WindowFrame {
+pub fn get_window_frame<R: Runtime>(window: &tauri::Window<R>) -> WindowFrame {
   use windows::Win32::{Foundation::RECT, UI::WindowsAndMessaging::GetWindowRect};
 
   unsafe {

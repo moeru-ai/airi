@@ -130,6 +130,9 @@ importers:
       tsdown:
         specifier: ^0.12.9
         version: 0.12.9(@arethetypeswrong/core@0.18.2)(typescript@5.8.3)(unplugin-lightningcss@0.4.1)(unplugin-unused@0.5.1)(vue-tsc@2.2.10(typescript@5.8.3))
+      tsx:
+        specifier: ^4.20.3
+        version: 4.20.3
       turbo:
         specifier: ^2.5.4
         version: 2.5.4
@@ -529,6 +532,12 @@ importers:
       '@xsai-transformers/embed':
         specifier: ^0.0.7
         version: 0.0.7(web-worker@1.5.0)
+      cac:
+        specifier: ^6.7.14
+        version: 6.7.14
+      execa:
+        specifier: ^9.6.0
+        version: 9.6.0
       less:
         specifier: ^4.3.0
         version: 4.3.0
@@ -1344,6 +1353,24 @@ importers:
       vue-tsc:
         specifier: ^3.0.0-beta.5
         version: 3.0.0-beta.5(typescript@5.8.3)
+
+  packages/unocss-preset-fonts:
+    dependencies:
+      '@proj-airi/font-cjkfonts-allseto':
+        specifier: workspace:^
+        version: link:../font-cjkfonts-allseto
+      '@proj-airi/font-departure-mono':
+        specifier: workspace:^
+        version: link:../font-departure-mono
+      '@proj-airi/font-xiaolai':
+        specifier: workspace:^
+        version: link:../font-xiaolai
+      '@unocss/core':
+        specifier: '>=66'
+        version: 66.3.2
+      '@unocss/preset-web-fonts':
+        specifier: '>=66'
+        version: 66.3.2
 
   services/discord-bot:
     dependencies:
@@ -5868,6 +5895,9 @@ packages:
 
   '@xsai/shared@0.3.0-beta.6':
     resolution: {integrity: sha512-EeqkD4+ijKKbxr9Jy9kRnJOcPBErWL8TK2wOdxwhVQuh7VbrYQwaheGjOz9g5OWwM6A0vCje/+TyHz+tURhhqw==}
+
+  '@xsai/shared@0.3.0-beta.7':
+    resolution: {integrity: sha512-V2zLH7NKAzp5dT+4fxhed+05svN5vtyxvuLcY/E+K/A+XrAHQW1epRuqXBHwXWcjGoSVGWbhHYe8MzW0PT1t6Q==}
 
   '@xsai/stream-text@0.3.0-beta.5':
     resolution: {integrity: sha512-o0SxwzCA2F1zKcONZJX7qrk+PnKhzldV0jRqQ+NdBzaFLmg/clfqeENlbuwmfIrV5ck0BfPEMTo4gNBfxhsGSQ==}
@@ -17006,7 +17036,7 @@ snapshots:
 
   '@xsai-ext/shared-providers@0.2.2':
     dependencies:
-      '@xsai/shared': 0.3.0-beta.6
+      '@xsai/shared': 0.3.0-beta.7
 
   '@xsai-ext/shared-providers@0.3.0-beta.6':
     dependencies:
@@ -17074,6 +17104,8 @@ snapshots:
   '@xsai/shared@0.3.0-beta.5': {}
 
   '@xsai/shared@0.3.0-beta.6': {}
+
+  '@xsai/shared@0.3.0-beta.7': {}
 
   '@xsai/stream-text@0.3.0-beta.5':
     dependencies:

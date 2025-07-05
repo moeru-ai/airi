@@ -1,11 +1,9 @@
-import { useTauriCore } from '../composables/tauri'
+import { WindowPassThroughOnHover } from '../commands'
 
 export async function startClickThrough() {
-  const { invoke } = useTauriCore()
-  await invoke('plugin:proj-airi-tauri-plugin-window-pass-through-on-hover|start_pass_through')
+  await WindowPassThroughOnHover.commands.startPassThrough()
 }
 
 export async function stopClickThrough() {
-  const { invoke } = useTauriCore()
-  await invoke('plugin:proj-airi-tauri-plugin-window-pass-through-on-hover|stop_pass_through')
+  await WindowPassThroughOnHover.commands.stopPassThrough()
 }

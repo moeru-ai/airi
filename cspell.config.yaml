@@ -72,6 +72,7 @@ words:
   - DuckDBWASMQ
   - DuckDBWASMQuery
   - elevenlabs
+  - esaxx
   - Factorio
   - feaxios
   - formkit
@@ -156,6 +157,8 @@ words:
   - pixi
   - pixiv
   - popmotion
+  - PREFLIGHTS
+  - prereleased
   - pretrained
   - prismarine
   - pthread
@@ -182,6 +185,7 @@ words:
   - sizecheck
   - smallserial
   - Sniglet
+  - specta
   - ssml
   - staticlib
   - stepfun
