@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useProvidersStore } from '@proj-airi/stage-ui/stores'
 import { Input } from '@proj-airi/ui'
+import { useDebounceFn } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import {
   DialogContent,
@@ -152,10 +153,10 @@ async function validateConfiguration() {
     isValid.value = await metadata.validators.validateProviderConfig(config)
 
     if (isValid.value) {
-      validationMessage.value = t('Success')
+      validationMessage.value = t('firstTimeSetup.validationSuccess')
     }
     else {
-      validationMessage.value = t('Failed')
+      validationMessage.value = t('firstTimeSetup.validationFailed')
     }
   }
   catch (error) {
@@ -169,20 +170,24 @@ async function validateConfiguration() {
   }
 }
 
+// Debounced validation function
+const debouncedValidateConfiguration = useDebounceFn(() => {
+  if (!selectedProvider.value)
+    return
+  if (needsApiKey.value && !apiKey.value.trim())
+    return
+  if (needsBaseUrl.value && !baseUrl.value.trim())
+    return
+  if (selectedProvider.value.id === 'cloudflare-workers-ai' && !accountId.value.trim())
+    return
+
+  validateConfiguration()
+}, 500)
+
 // Watch for changes and validate
 watch([apiKey, baseUrl, accountId], () => {
   if (selectedProvider.value && (apiKey.value || baseUrl.value || accountId.value)) {
-    // Debounce validation
-    setTimeout(() => {
-      if (needsApiKey.value && !apiKey.value.trim())
-        return
-      if (needsBaseUrl.value && !baseUrl.value.trim())
-        return
-      if (selectedProvider.value?.id === 'cloudflare-workers-ai' && !accountId.value.trim())
-        return
-
-      validateConfiguration()
-    }, 500)
+    debouncedValidateConfiguration()
   }
 }, { deep: true })
 
@@ -237,17 +242,17 @@ onMounted(() => {
             </div>
           </div>
           <DialogTitle class="mb-2 text-3xl text-neutral-800 font-bold dark:text-neutral-100">
-            {{ t('In the beginning') }}
+            {{ t('firstTimeSetup.title') }}
           </DialogTitle>
           <p class="text-lg text-neutral-600 dark:text-neutral-400">
-            {{ t('Enter your API key and let us start the conversation.') }}
+            {{ t('firstTimeSetup.description') }}
           </p>
         </div>
 
         <!-- Provider Selection -->
         <div class="mb-6">
           <h2 class="mb-4 text-xl text-neutral-800 font-semibold dark:text-neutral-100">
-            {{ t('Please select an API') }}
+            {{ t('firstTimeSetup.selectProvider') }}
           </h2>
           <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <RadioCardDetail
@@ -344,13 +349,13 @@ onMounted(() => {
         <div class="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
           <Button
             variant="secondary"
-            :label="t('Skip now')"
+            :label="t('firstTimeSetup.skipForNow')"
             @click="handleSkip"
           />
           <Button
             variant="primary"
             :disabled="!canSave"
-            :label="t('Save and Continue')"
+            :label="t('firstTimeSetup.saveAndContinue')"
             @click="handleSave"
           />
         </div>
