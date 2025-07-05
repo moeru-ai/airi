@@ -8,7 +8,7 @@ use tauri::{
 };
 use tauri_plugin_positioner::WindowExt;
 use tauri_plugin_prevent_default::Flags;
-use tauri_plugin_window_state::AppHandleExt;
+use tauri_plugin_window_state::{AppHandleExt, StateFlags};
 
 mod app;
 mod helpers;
