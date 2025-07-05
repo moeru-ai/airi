@@ -1354,6 +1354,24 @@ importers:
         specifier: ^3.0.0-beta.5
         version: 3.0.0-beta.5(typescript@5.8.3)
 
+  packages/unocss-preset-fonts:
+    dependencies:
+      '@proj-airi/font-cjkfonts-allseto':
+        specifier: workspace:^
+        version: link:../font-cjkfonts-allseto
+      '@proj-airi/font-departure-mono':
+        specifier: workspace:^
+        version: link:../font-departure-mono
+      '@proj-airi/font-xiaolai':
+        specifier: workspace:^
+        version: link:../font-xiaolai
+      '@unocss/core':
+        specifier: '>=66'
+        version: 66.3.2
+      '@unocss/preset-web-fonts':
+        specifier: '>=66'
+        version: 66.3.2
+
   services/discord-bot:
     dependencies:
       '@discordjs/voice':
