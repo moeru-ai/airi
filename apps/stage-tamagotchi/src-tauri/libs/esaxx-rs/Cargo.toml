@@ -1,0 +1,33 @@
+[package]
+name = "esaxx-rs"
+version = "0.1.10"
+authors = ["Nicolas Patry <patry.nicolas@protonmail.com>"]
+edition = "2018"
+description = "Wrapping around sentencepiece's esaxxx library."
+license = "Apache-2.0"
+homepage = "https://github.com/Narsil/esaxx-rs"
+documentation = "https://docs.rs/esaxx-rs"
+repository = "https://github.com/Narsil/esaxx-rs"
+readme = "README.md"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+
+[build-dependencies]
+cc = { version = "1.0", optional = true}
+
+[dev-dependencies]
+criterion = "0.5"
+
+[features]
+default = ["cpp"]
+cpp = ["cc"]
+
+[[bench]]
+name = "bench_suffix"
+harness = false
+
+[[example]]
+name = "esaxx"
+required-features = ["cpp"]
