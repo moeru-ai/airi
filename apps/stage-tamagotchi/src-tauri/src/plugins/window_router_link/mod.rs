@@ -56,9 +56,6 @@ const PLUGIN_NAME: &str = "proj-airi-tauri-plugin-window-router-link";
 pub fn init<R: Runtime>() -> TauriPlugin<R> {
   let builder = tauri_specta::Builder::<R>::new()
     .plugin_name(PLUGIN_NAME)
-    // ↓ HACKY WARNING
-    // ↓ Below is a modified version from the expansion of `tauri_specta::collect_commands!`,
-    // ↓ as the original macro does not accept a mix of commands with and without `#[specta::specta]`
     .commands(tauri_specta::collect_commands![go::<tauri::Wry>]);
 
   #[cfg(debug_assertions)]
