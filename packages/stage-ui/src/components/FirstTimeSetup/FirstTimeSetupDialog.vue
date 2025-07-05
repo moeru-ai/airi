@@ -241,10 +241,11 @@ onMounted(() => {
           <button
             v-for="provider in popularProviders"
             :key="provider.id"
-            class="flex items-center border-2 rounded-xl p-4 text-left transition-all duration-200" :class="[
+            class="flex items-center border-2 rounded-xl border-solid p-4 text-left transition-all duration-200 ease-in-out"
+            :class="[
               selectedProvider?.id === provider.id
-                ? 'border-blue-500 bg-blue-50 dark:border-blue-400 dark:bg-blue-900/30'
-                : 'border-neutral-200 bg-neutral-50 hover:border-neutral-300 dark:border-neutral-700 dark:bg-neutral-800 dark:hover:border-neutral-600',
+                ? 'border-primary-300 dark:border-primary-400/50 bg-primary-50 dark:bg-primary-900/30'
+                : 'border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 hover:border-neutral-300 dark:hover:border-neutral-600',
             ]"
             @click="selectProvider(provider)"
           >
@@ -281,7 +282,7 @@ onMounted(() => {
               v-model="apiKey"
               type="password"
               :placeholder="getApiKeyPlaceholder(selectedProvider.id)"
-              class="w-full border border-neutral-300 rounded-lg bg-white px-4 py-3 text-neutral-900 transition-colors dark:border-neutral-600 focus:border-blue-500 dark:bg-neutral-800 dark:text-neutral-100 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:focus:border-blue-400 placeholder-neutral-500 dark:placeholder-neutral-400"
+              class="w-full border-2 border-neutral-200 rounded-lg border-solid bg-white px-4 py-3 text-sm text-neutral-900 shadow-sm outline-none transition-all duration-200 ease-in-out dark:border-neutral-800 focus:border-primary-300 dark:bg-neutral-900 focus:bg-neutral-50 dark:text-neutral-100 dark:focus:border-primary-400/50 dark:focus:bg-neutral-900 placeholder-neutral-500 dark:placeholder-neutral-400"
             >
             <p class="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
               {{ t('apiKey', { provider: selectedProvider.localizedName }) }}
@@ -297,7 +298,7 @@ onMounted(() => {
               v-model="baseUrl"
               type="url"
               :placeholder="getBaseUrlPlaceholder(selectedProvider.id)"
-              class="w-full border border-neutral-300 rounded-lg bg-white px-4 py-3 text-neutral-900 transition-colors dark:border-neutral-600 focus:border-blue-500 dark:bg-neutral-800 dark:text-neutral-100 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:focus:border-blue-400 placeholder-neutral-500 dark:placeholder-neutral-400"
+              class="w-full border-2 border-neutral-200 rounded-lg border-solid bg-white px-4 py-3 text-sm text-neutral-900 shadow-sm outline-none transition-all duration-200 ease-in-out dark:border-neutral-800 focus:border-primary-300 dark:bg-neutral-900 focus:bg-neutral-50 dark:text-neutral-100 dark:focus:border-primary-400/50 dark:focus:bg-neutral-900 placeholder-neutral-500 dark:placeholder-neutral-400"
             >
             <p class="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
               {{ t('Custom base URL (optional)') }}
@@ -313,7 +314,7 @@ onMounted(() => {
               v-model="accountId"
               type="text"
               placeholder="Account ID"
-              class="w-full border border-neutral-300 rounded-lg bg-white px-4 py-3 text-neutral-900 transition-colors dark:border-neutral-600 focus:border-blue-500 dark:bg-neutral-800 dark:text-neutral-100 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:focus:border-blue-400 placeholder-neutral-500 dark:placeholder-neutral-400"
+              class="w-full border-2 border-neutral-200 rounded-lg border-solid bg-white px-4 py-3 text-sm text-neutral-900 shadow-sm outline-none transition-all duration-200 ease-in-out dark:border-neutral-800 focus:border-primary-300 dark:bg-neutral-900 focus:bg-neutral-50 dark:text-neutral-100 dark:focus:border-primary-400/50 dark:focus:bg-neutral-900 placeholder-neutral-500 dark:placeholder-neutral-400"
             >
           </div>
         </div>
@@ -346,16 +347,17 @@ onMounted(() => {
       <!-- Action Buttons -->
       <div class="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
         <button
-          class="border border-neutral-300 rounded-lg bg-white px-6 py-3 text-neutral-700 font-medium transition-colors dark:border-neutral-600 dark:bg-neutral-800 hover:bg-neutral-50 dark:text-neutral-300 dark:hover:bg-neutral-700"
+          class="border-2 border-neutral-200 rounded-lg border-solid bg-white px-6 py-3 text-neutral-700 font-medium transition-all duration-200 ease-in-out dark:border-neutral-800 dark:bg-neutral-900 hover:bg-neutral-50 dark:text-neutral-300 dark:hover:bg-neutral-700"
           @click="handleSkip"
         >
           {{ t('Skip now') }}
         </button>
         <button
           :disabled="!canSave"
-          class="rounded-lg px-6 py-3 font-medium transition-colors" :class="[
+          class="rounded-lg px-6 py-3 font-medium transition-all duration-200 ease-in-out"
+          :class="[
             canSave
-              ? 'bg-blue-600 text-white hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600'
+              ? 'bg-primary-600 text-white hover:bg-primary-700 dark:bg-primary-500 dark:hover:bg-primary-600'
               : 'cursor-not-allowed bg-neutral-300 text-neutral-500 dark:bg-neutral-700 dark:text-neutral-400',
           ]"
           @click="handleSave"

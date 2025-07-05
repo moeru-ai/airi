@@ -1,6 +1,5 @@
 export * from './DataGui'
 export * from './FirstTimeSetup'
-export * from './Form'
 export * from './Gadgets'
 export * from './Graphics'
 export * from './Layouts'
