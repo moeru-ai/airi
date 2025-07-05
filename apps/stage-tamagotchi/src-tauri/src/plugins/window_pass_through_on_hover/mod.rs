@@ -130,7 +130,7 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
       specta::function::collect_functions![
         start_pass_through::<tauri::Wry>,
         //                   ^^^^^^^^^^
-        // We have to specify the runtime type here. This is a known issue:
+        // TODO: We have to specify the runtime type here. This is a known issue:
         // - https://github.com/specta-rs/tauri-specta/issues/70
         // - https://github.com/specta-rs/tauri-specta/issues/162
         stop_pass_through::<tauri::Wry>,
