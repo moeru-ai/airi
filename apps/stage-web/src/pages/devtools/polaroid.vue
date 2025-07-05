@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Screen } from '@proj-airi/stage-ui/components'
-import { Live2DCanvas, Live2DModel } from '@proj-airi/stage-ui/components/scenes'
+import { Live2DCanvas, Live2DModel } from '@proj-airi/stage-ui/components/Scenes'
 import { ref, watch } from 'vue'
 
 const live2dCanvasRef = ref<InstanceType<typeof Live2DCanvas>>()

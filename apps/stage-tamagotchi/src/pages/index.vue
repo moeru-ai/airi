@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { AiriTamagotchiEvents, Point } from '../composables/tauri'
 
-import { WidgetStage } from '@proj-airi/stage-ui/components/scenes'
+import { WidgetStage } from '@proj-airi/stage-ui/components/Scenes'
 import { useMcpStore } from '@proj-airi/stage-ui/stores'
 import { connectServer } from '@proj-airi/tauri-plugin-mcp'
 import { useWindowSize } from '@vueuse/core'
