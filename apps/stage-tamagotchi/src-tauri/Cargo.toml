@@ -51,6 +51,9 @@ tokenizers = "0.21.2"
 url = "2.5.4"
 tauri-plugin-window-state = "2.3.0"
 tauri-plugin-positioner = "2.3.0"
+specta = "=2.0.0-rc.22"
+specta-typescript = "0.0.9"
+tauri-specta = { version = "=2.0.0-rc.21", features = ["derive", "typescript"] }
 
 [target.'cfg(target_os = "macos")'.dependencies]
 objc2 = "0.6.1"
