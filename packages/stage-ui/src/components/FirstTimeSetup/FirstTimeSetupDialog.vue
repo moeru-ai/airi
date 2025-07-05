@@ -1,10 +1,19 @@
 <script setup lang="ts">
 import { useProvidersStore } from '@proj-airi/stage-ui/stores'
+import { Input } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
+import {
+  DialogContent,
+  DialogOverlay,
+  DialogPortal,
+  DialogRoot,
+  DialogTitle,
+} from 'radix-vue'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import { ProviderAccountIdInput, ProviderApiKeyInput, ProviderBaseUrlInput } from '../Providers'
+import { RadioCardDetail } from '../Menu'
+import { Button } from '../Misc'
 
 interface Props {
   modelValue: boolean
@@ -38,10 +47,15 @@ const popularProviders = computed(() => {
 })
 
 // Selected provider and form data
-const selectedProvider = ref<typeof popularProviders.value[0] | null>(null)
+const selectedProviderId = ref('')
 const apiKey = ref('')
 const baseUrl = ref('')
 const accountId = ref('')
+
+// Computed selected provider
+const selectedProvider = computed(() => {
+  return allChatProvidersMetadata.value.find(p => p.id === selectedProviderId.value) || null
+})
 
 // Validation state
 const isValidating = ref(false)
@@ -77,7 +91,7 @@ const canSave = computed(() => {
 
 // Provider selection
 function selectProvider(provider: typeof popularProviders.value[0]) {
-  selectedProvider.value = provider
+  selectedProviderId.value = provider.id
 
   // Set default values
   const defaultOptions = provider.defaultOptions?.() || {}
@@ -204,152 +218,143 @@ async function handleSave() {
 // Initialize with first popular provider
 onMounted(() => {
   if (popularProviders.value.length > 0) {
+    selectedProviderId.value = popularProviders.value[0].id
     selectProvider(popularProviders.value[0])
   }
 })
 </script>
 
 <template>
-  <div
-    v-if="showDialog"
-    class="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm transition-opacity duration-200 ease-in-out"
-    @click.self="handleSkip"
-  >
-    <div
-      class="mx-4 max-w-2xl w-full transform rounded-lg bg-white p-8 shadow-xl transition-all duration-300 ease-in-out dark:bg-neutral-900"
-      @click.stop
-    >
-      <!-- Header -->
-      <div class="mb-8 text-center">
-        <div class="mb-4 flex justify-center">
-          <div class="rounded-full from-blue-500 to-purple-600 bg-gradient-to-br p-4">
-            <div class="i-mdi:rocket-launch text-4xl text-white" />
-          </div>
-        </div>
-        <h1 class="mb-2 text-3xl text-neutral-800 font-bold dark:text-neutral-100">
-          {{ t('In the beginning') }}
-        </h1>
-        <p class="text-lg text-neutral-600 dark:text-neutral-400">
-          {{ t('Enter your API key and let us start the conversation.') }}
-        </p>
-      </div>
-
-      <!-- Provider Selection -->
-      <div class="mb-6">
-        <h2 class="mb-4 text-xl text-neutral-800 font-semibold dark:text-neutral-100">
-          {{ t('Please select an API') }}
-        </h2>
-        <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <button
-            v-for="provider in popularProviders"
-            :key="provider.id"
-            class="flex items-center border rounded-md border-solid p-3 text-left transition-all duration-150 ease-in-out"
-            :class="[
-              selectedProvider?.id === provider.id
-                ? 'border-primary-400 bg-primary-50 dark:border-primary-500 dark:bg-primary-900/30'
-                : 'border-neutral-200 bg-white hover:border-primary-300 dark:border-neutral-700 dark:bg-neutral-900 dark:hover:border-primary-400',
-            ]"
-            @click="selectProvider(provider)"
-          >
-            <div
-              :class="provider.icon || 'i-mdi:cloud'"
-              class="mr-3 text-2xl"
-              :style="provider.iconColor ? { color: provider.iconColor } : {}"
-            />
-            <div class="flex-1">
-              <div class="text-neutral-800 font-medium dark:text-neutral-100">
-                {{ provider.localizedName }}
-              </div>
-              <div class="text-sm text-neutral-600 dark:text-neutral-400">
-                {{ provider.localizedDescription }}
-              </div>
+  <DialogRoot :open="showDialog" @update:open="value => showDialog = value">
+    <DialogPortal>
+      <DialogOverlay class="data-[state=open]:animate-fadeIn data-[state=closed]:animate-fadeOut fixed inset-0 z-[9999] bg-black/50 backdrop-blur-sm" />
+      <DialogContent class="data-[state=open]:animate-contentShow data-[state=closed]:animate-contentHide fixed left-1/2 top-1/2 z-[9999] mx-4 max-w-2xl w-[92vw] transform rounded-lg bg-white p-8 shadow-xl -translate-x-1/2 -translate-y-1/2 dark:bg-neutral-900">
+        <!-- Header -->
+        <div class="mb-8 text-center">
+          <div class="mb-4 flex justify-center">
+            <div class="rounded-full from-blue-500 to-purple-600 bg-gradient-to-br p-4">
+              <div class="i-mdi:rocket-launch text-4xl text-white" />
             </div>
-          </button>
+          </div>
+          <DialogTitle class="mb-2 text-3xl text-neutral-800 font-bold dark:text-neutral-100">
+            {{ t('In the beginning') }}
+          </DialogTitle>
+          <p class="text-lg text-neutral-600 dark:text-neutral-400">
+            {{ t('Enter your API key and let us start the conversation.') }}
+          </p>
         </div>
-      </div>
 
-      <!-- Configuration Form -->
-      <div v-if="selectedProvider" class="mb-6">
-        <h3 class="mb-4 text-lg text-neutral-800 font-medium dark:text-neutral-100">
-          {{ t('configureProvider', { provider: selectedProvider.localizedName }) }}
-        </h3>
-
-        <div class="space-y-3">
-          <!-- API Key Input -->
-          <div v-if="needsApiKey">
-            <ProviderApiKeyInput
-              v-model="apiKey"
-              :provider-name="selectedProvider.localizedName || selectedProvider.id"
-              :placeholder="getApiKeyPlaceholder(selectedProvider.id)"
-              :required="true"
-            />
-          </div>
-
-          <!-- Base URL Input -->
-          <div v-if="needsBaseUrl">
-            <ProviderBaseUrlInput
-              v-model="baseUrl"
-              :placeholder="getBaseUrlPlaceholder(selectedProvider.id)"
-              :required="false"
-            />
-          </div>
-
-          <!-- Account ID for Cloudflare -->
-          <div v-if="selectedProvider.id === 'cloudflare-workers-ai'">
-            <ProviderAccountIdInput
-              v-model="accountId"
-              placeholder="Account ID"
-              :required="true"
+        <!-- Provider Selection -->
+        <div class="mb-6">
+          <h2 class="mb-4 text-xl text-neutral-800 font-semibold dark:text-neutral-100">
+            {{ t('Please select an API') }}
+          </h2>
+          <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <RadioCardDetail
+              v-for="provider in popularProviders"
+              :id="provider.id"
+              :key="provider.id"
+              v-model="selectedProviderId"
+              name="provider-selection"
+              :value="provider.id"
+              :title="provider.localizedName || provider.id"
+              :description="provider.localizedDescription || ''"
+              @click="selectProvider(provider)"
             />
           </div>
         </div>
 
-        <!-- Validation Status -->
-        <div v-if="validationMessage" class="mt-4">
-          <div
-            class="flex items-center rounded-lg p-3" :class="[
-              isValidating
-                ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
-                : isValid
-                  ? 'bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-300'
-                  : 'bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-300',
-            ]"
-          >
+        <!-- Configuration Form -->
+        <div v-if="selectedProvider" class="mb-6">
+          <h3 class="mb-4 text-lg text-neutral-800 font-medium dark:text-neutral-100">
+            {{ t('configureProvider', { provider: selectedProvider.localizedName }) }}
+          </h3>
+
+          <div class="space-y-4">
+            <!-- API Key Input -->
+            <div v-if="needsApiKey">
+              <label class="mb-2 block text-sm text-neutral-700 font-medium dark:text-neutral-300">
+                API Key
+                <span class="text-red-500">*</span>
+              </label>
+              <Input
+                v-model="apiKey"
+                type="password"
+                :placeholder="getApiKeyPlaceholder(selectedProvider.id)"
+                class="w-full"
+                :required="true"
+              />
+            </div>
+
+            <!-- Base URL Input -->
+            <div v-if="needsBaseUrl">
+              <label class="mb-2 block text-sm text-neutral-700 font-medium dark:text-neutral-300">
+                Base URL
+              </label>
+              <Input
+                v-model="baseUrl"
+                type="url"
+                :placeholder="getBaseUrlPlaceholder(selectedProvider.id)"
+                class="w-full"
+              />
+            </div>
+
+            <!-- Account ID for Cloudflare -->
+            <div v-if="selectedProvider.id === 'cloudflare-workers-ai'">
+              <label class="mb-2 block text-sm text-neutral-700 font-medium dark:text-neutral-300">
+                Account ID
+                <span class="text-red-500">*</span>
+              </label>
+              <Input
+                v-model="accountId"
+                type="text"
+                placeholder="Account ID"
+                class="w-full"
+                :required="true"
+              />
+            </div>
+          </div>
+
+          <!-- Validation Status -->
+          <div v-if="validationMessage" class="mt-4">
             <div
-              class="mr-2 text-lg" :class="[
+              class="flex items-center rounded-lg p-3" :class="[
                 isValidating
-                  ? 'i-mdi:loading animate-spin'
+                  ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
                   : isValid
-                    ? 'i-mdi:check-circle'
-                    : 'i-mdi:alert-circle',
+                    ? 'bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-300'
+                    : 'bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-300',
               ]"
-            />
-            {{ validationMessage }}
+            >
+              <div
+                class="mr-2 text-lg" :class="[
+                  isValidating
+                    ? 'i-mdi:loading animate-spin'
+                    : isValid
+                      ? 'i-mdi:check-circle'
+                      : 'i-mdi:alert-circle',
+                ]"
+              />
+              {{ validationMessage }}
+            </div>
           </div>
         </div>
-      </div>
 
-      <!-- Action Buttons -->
-      <div class="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-        <button
-          class="border border-neutral-300 rounded-md border-solid bg-white px-5 py-2.5 text-neutral-700 font-medium transition-all duration-150 ease-in-out dark:border-neutral-600 dark:bg-neutral-800 hover:bg-neutral-50 dark:text-neutral-300 dark:hover:bg-neutral-700"
-          @click="handleSkip"
-        >
-          {{ t('Skip now') }}
-        </button>
-        <button
-          :disabled="!canSave"
-          class="rounded-md px-5 py-2.5 font-medium transition-all duration-150 ease-in-out"
-          :class="[
-            canSave
-              ? 'bg-primary-600 text-white hover:bg-primary-700 dark:bg-primary-500 dark:hover:bg-primary-600'
-              : 'cursor-not-allowed bg-neutral-300 text-neutral-500 dark:bg-neutral-700 dark:text-neutral-400',
-          ]"
-          @click="handleSave"
-        >
-          {{ t('Save and Continue') }}
-        </button>
-      </div>
-    </div>
-  </div>
+        <!-- Action Buttons -->
+        <div class="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+          <Button
+            variant="secondary"
+            :label="t('Skip now')"
+            @click="handleSkip"
+          />
+          <Button
+            variant="primary"
+            :disabled="!canSave"
+            :label="t('Save and Continue')"
+            @click="handleSave"
+          />
+        </div>
+      </DialogContent>
+    </DialogPortal>
+  </DialogRoot>
 </template>
