@@ -61,7 +61,7 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
   #[cfg(debug_assertions)]
   builder
     .export(
-      Typescript::default(),
+      Typescript::default().header("// @ts-nocheck\n"),
       "../src/commands/bindings/window-router-link.ts",
     )
     .expect("Failed to export typescript bindings");
