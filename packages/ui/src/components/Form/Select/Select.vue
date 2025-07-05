@@ -36,8 +36,8 @@ provide('hide', handleHide)
     <div
       min-w="[160px]" p="2.5" w-full
       class="focus:ring-2 focus:ring-black/10"
-      border="~ dark:border-neutral-800"
-      text="xs dark:neutral-200 disabled:neutral-400 dark:disabled:text-neutral-600 text-neutral-700"
+      border="~ 2 solid dark:neutral-800"
+      text="xs dark:neutral-200 disabled:neutral-400 dark:disabled:neutral-600 neutral-700"
       bg="white dark:neutral-900 disabled:neutral-100 hover:neutral-50 dark:disabled:neutral-800 dark:hover:neutral-800 "
       cursor="disabled:not-allowed pointer"
       flex items-center gap-2 rounded-lg shadow-sm outline-none transition-colors duration-150 ease-in-out
@@ -52,7 +52,7 @@ provide('hide', handleHide)
     </div>
 
     <template #popper="{ hide }">
-      <div class="min-w-[160px] flex flex-col gap-0.5 border border-neutral-200 rounded-lg bg-white p-1 shadow-lg dark:border-neutral-800 dark:bg-neutral-900">
+      <div class="min-w-[160px] flex flex-col gap-0.5 border border-neutral-200 rounded-lg bg-white p-1 shadow-lg dark:border-neutral-800 dark:bg-neutral-900 dark:bg-neutral-900">
         <slot name="options" :hide="hide">
           <template v-if="props.options && props.options.length">
             <UIOption
