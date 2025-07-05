@@ -4,6 +4,8 @@ import { storeToRefs } from 'pinia'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import { ProviderAccountIdInput, ProviderApiKeyInput, ProviderBaseUrlInput } from '../Providers'
+
 interface Props {
   modelValue: boolean
 }
@@ -210,11 +212,11 @@ onMounted(() => {
 <template>
   <div
     v-if="showDialog"
-    class="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm"
+    class="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm transition-opacity duration-200 ease-in-out"
     @click.self="handleSkip"
   >
     <div
-      class="mx-4 max-w-2xl w-full rounded-2xl bg-white p-8 shadow-2xl dark:bg-neutral-900"
+      class="mx-4 max-w-2xl w-full transform rounded-lg bg-white p-8 shadow-xl transition-all duration-300 ease-in-out dark:bg-neutral-900"
       @click.stop
     >
       <!-- Header -->
@@ -241,11 +243,11 @@ onMounted(() => {
           <button
             v-for="provider in popularProviders"
             :key="provider.id"
-            class="flex items-center border-2 rounded-xl border-solid p-4 text-left transition-all duration-200 ease-in-out"
+            class="flex items-center border rounded-md border-solid p-3 text-left transition-all duration-150 ease-in-out"
             :class="[
               selectedProvider?.id === provider.id
-                ? 'border-primary-300 dark:border-primary-400/50 bg-primary-50 dark:bg-primary-900/30'
-                : 'border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 hover:border-neutral-300 dark:hover:border-neutral-600',
+                ? 'border-primary-400 bg-primary-50 dark:border-primary-500 dark:bg-primary-900/30'
+                : 'border-neutral-200 bg-white hover:border-primary-300 dark:border-neutral-700 dark:bg-neutral-900 dark:hover:border-primary-400',
             ]"
             @click="selectProvider(provider)"
           >
@@ -267,55 +269,38 @@ onMounted(() => {
       </div>
 
       <!-- Configuration Form -->
-      <div v-if="selectedProvider" class="mb-8">
+      <div v-if="selectedProvider" class="mb-6">
         <h3 class="mb-4 text-lg text-neutral-800 font-medium dark:text-neutral-100">
           {{ t('configureProvider', { provider: selectedProvider.localizedName }) }}
         </h3>
 
-        <div class="space-y-4">
+        <div class="space-y-3">
           <!-- API Key Input -->
           <div v-if="needsApiKey">
-            <label class="mb-2 block text-sm text-neutral-700 font-medium dark:text-neutral-300">
-              {{ t('API Key Input') }}
-            </label>
-            <input
+            <ProviderApiKeyInput
               v-model="apiKey"
-              type="password"
+              :provider-name="selectedProvider.localizedName || selectedProvider.id"
               :placeholder="getApiKeyPlaceholder(selectedProvider.id)"
-              class="w-full border-2 border-neutral-200 rounded-lg border-solid bg-white px-4 py-3 text-sm text-neutral-900 shadow-sm outline-none transition-all duration-200 ease-in-out dark:border-neutral-800 focus:border-primary-300 dark:bg-neutral-900 focus:bg-neutral-50 dark:text-neutral-100 dark:focus:border-primary-400/50 dark:focus:bg-neutral-900 placeholder-neutral-500 dark:placeholder-neutral-400"
-            >
-            <p class="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
-              {{ t('apiKey', { provider: selectedProvider.localizedName }) }}
-            </p>
+              :required="true"
+            />
           </div>
 
           <!-- Base URL Input -->
           <div v-if="needsBaseUrl">
-            <label class="mb-2 block text-sm text-neutral-700 font-medium dark:text-neutral-300">
-              {{ t('Base URL') }}
-            </label>
-            <input
+            <ProviderBaseUrlInput
               v-model="baseUrl"
-              type="url"
               :placeholder="getBaseUrlPlaceholder(selectedProvider.id)"
-              class="w-full border-2 border-neutral-200 rounded-lg border-solid bg-white px-4 py-3 text-sm text-neutral-900 shadow-sm outline-none transition-all duration-200 ease-in-out dark:border-neutral-800 focus:border-primary-300 dark:bg-neutral-900 focus:bg-neutral-50 dark:text-neutral-100 dark:focus:border-primary-400/50 dark:focus:bg-neutral-900 placeholder-neutral-500 dark:placeholder-neutral-400"
-            >
-            <p class="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
-              {{ t('Custom base URL (optional)') }}
-            </p>
+              :required="false"
+            />
           </div>
 
           <!-- Account ID for Cloudflare -->
           <div v-if="selectedProvider.id === 'cloudflare-workers-ai'">
-            <label class="mb-2 block text-sm text-neutral-700 font-medium dark:text-neutral-300">
-              {{ t('Account ID') }}
-            </label>
-            <input
+            <ProviderAccountIdInput
               v-model="accountId"
-              type="text"
               placeholder="Account ID"
-              class="w-full border-2 border-neutral-200 rounded-lg border-solid bg-white px-4 py-3 text-sm text-neutral-900 shadow-sm outline-none transition-all duration-200 ease-in-out dark:border-neutral-800 focus:border-primary-300 dark:bg-neutral-900 focus:bg-neutral-50 dark:text-neutral-100 dark:focus:border-primary-400/50 dark:focus:bg-neutral-900 placeholder-neutral-500 dark:placeholder-neutral-400"
-            >
+              :required="true"
+            />
           </div>
         </div>
 
@@ -347,14 +332,14 @@ onMounted(() => {
       <!-- Action Buttons -->
       <div class="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
         <button
-          class="border-2 border-neutral-200 rounded-lg border-solid bg-white px-6 py-3 text-neutral-700 font-medium transition-all duration-200 ease-in-out dark:border-neutral-800 dark:bg-neutral-900 hover:bg-neutral-50 dark:text-neutral-300 dark:hover:bg-neutral-700"
+          class="border border-neutral-300 rounded-md border-solid bg-white px-5 py-2.5 text-neutral-700 font-medium transition-all duration-150 ease-in-out dark:border-neutral-600 dark:bg-neutral-800 hover:bg-neutral-50 dark:text-neutral-300 dark:hover:bg-neutral-700"
           @click="handleSkip"
         >
           {{ t('Skip now') }}
         </button>
         <button
           :disabled="!canSave"
-          class="rounded-lg px-6 py-3 font-medium transition-all duration-200 ease-in-out"
+          class="rounded-md px-5 py-2.5 font-medium transition-all duration-150 ease-in-out"
           :class="[
             canSave
               ? 'bg-primary-600 text-white hover:bg-primary-700 dark:bg-primary-500 dark:hover:bg-primary-600'
