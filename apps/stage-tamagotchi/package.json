@@ -13,7 +13,8 @@
     "build": "vite build",
     "preview": "vite preview",
     "tauri": "tauri",
-    "build:unpack": "tauri build --no-bundle"
+    "build:unpack": "tauri build --no-bundle",
+    "rename-artifacts": "tsx scripts/rename-artifacts.ts"
   },
   "dependencies": {
     "@formkit/auto-animate": "^0.8.2",
@@ -106,6 +107,8 @@
     "@vue-macros/volar": "^3.0.0-beta.15",
     "@vueuse/motion": "^3.0.3",
     "@xsai-transformers/embed": "^0.0.7",
+    "cac": "^6.7.14",
+    "execa": "^9.6.0",
     "less": "^4.3.0",
     "unocss-preset-scrollbar": "^3.2.0",
     "unplugin-vue-macros": "^2.14.5",
