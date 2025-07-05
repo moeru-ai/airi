@@ -7,6 +7,14 @@ on:
   release:
     types:
       - prereleased
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Attach to a specific tag/commit for the release (leave empty to auto-detect latest tag)
+        required: false
+        type: string
+  schedule:
+    - cron: '0 0 * * *'
 
 jobs:
   build-tamagotchi:
@@ -73,10 +81,35 @@ jobs:
       - name: Build Application
         run: cd apps/stage-tamagotchi && pnpm tauri build --target ${{ matrix.target }}
 
-      - name: Rename Artifacts
-        run: node apps/stage-tamagotchi/scripts/rename-artifacts.js ${{ matrix.target }}
+      - name: Rename Artifacts (Nightly)
+        if: ${{ github.event_name == 'schedule' }}
+        run: pnpm run -F @proj-airi/stage-tamagotchi rename-artifacts ${{ matrix.target }}
 
-      - name: Upload To GitHub Releases
+      - name: Rename Artifacts (Manual)
+        if: ${{ github.event_name == 'workflow_dispatch' }}
+        run: pnpm run -F @proj-airi/stage-tamagotchi rename-artifacts ${{ matrix.target }} --release --tag ${{ github.event.inputs.tag }} --auto-tag
+
+      - name: Rename Artifacts (Automatic)
+        if: ${{ github.event_name == 'release' }}
+        run: pnpm run -F @proj-airi/stage-tamagotchi rename-artifacts ${{ matrix.target }} --release
+
+      - name: Upload Artifacts
+        if: ${{ github.event_name == 'schedule' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: Artifacts
+          path: bundle/${{ env.PRODUCT_NAME }}_*
+
+      - name: Upload To GitHub Releases (Manual)
+        if: ${{ github.event_name == 'workflow_dispatch' }}
+        uses: softprops/action-gh-release@v2
+        with:
+          files: bundle/${{ env.PRODUCT_NAME }}_*
+          append_body: true
+          tag_name: ${{ github.event.inputs.tag }}
+
+      - name: Upload To GitHub Releases (Automatic)
+        if: ${{ github.event_name == 'release' }}
         uses: softprops/action-gh-release@v2
         with:
           files: bundle/${{ env.PRODUCT_NAME }}_*
