@@ -25,7 +25,7 @@ const props = withDefaults(defineProps<{
 
 /* Pulse animation */
 .skeleton-pulse {
-  animation: skeleton-pulse 1.5s ease-in-out 0.5s infinite;
+  animation: skeleton-pulse 2s ease-in-out 0.5s infinite;
 }
 
 @keyframes skeleton-pulse {
@@ -50,7 +50,7 @@ const props = withDefaults(defineProps<{
   left: 0;
   transform: translateX(-100%);
   background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
-  animation: skeleton-wave 1.5s infinite;
+  animation: skeleton-wave 2s ease-in-out infinite;
   border-radius: inherit;
 }
 
@@ -61,12 +61,15 @@ const props = withDefaults(defineProps<{
 @keyframes skeleton-wave {
   0% {
     transform: translateX(-100%);
+    opacity: 0;
   }
   60% {
     transform: translateX(100%);
+    opacity: 1;
   }
   100% {
     transform: translateX(100%);
+    opacity: 0;
   }
 }
 </style>

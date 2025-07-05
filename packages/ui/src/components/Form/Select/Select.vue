@@ -1,57 +1,70 @@
 <script setup lang="ts">
 import { Dropdown as VDropdown } from 'floating-vue'
-import { computed } from 'vue'
+import { provide, ref } from 'vue'
+
+import UIOption from './Option.vue'
 
 const props = defineProps<{
-  options: { label: string, value: string | number }[]
+  options?: { label: string, value: string | number }[]
   placeholder?: string
   disabled?: boolean
   title?: string
+  layout?: 'horizontal' | 'vertical'
 }>()
 
-const modelValue = defineModel<string | number>({ required: true })
-
-const selectedLabel = computed(() => {
-  const selected = props.options.find(opt => opt.value === modelValue.value)
-  return selected ? selected.label : props.placeholder
-})
+const show = ref(false)
+const modelValue = defineModel<string | number>({ required: false })
 
 function selectOption(value: string | number) {
   modelValue.value = value
 }
+
+function handleHide() {
+  show.value = false
+}
+
+provide('selectOption', selectOption)
+provide('hide', handleHide)
 </script>
 
 <template>
   <VDropdown
     auto-size
     auto-boundary-max-size
+    w-full
   >
     <div
-      class="min-w-[160px] flex cursor-pointer items-center justify-between gap-2 border rounded-lg bg-white p-2.5 text-xs text-neutral-700 shadow-sm outline-none transition-colors disabled:cursor-not-allowed dark:border-neutral-800 dark:bg-neutral-900 disabled:bg-neutral-100 hover:bg-neutral-50 dark:text-neutral-200 disabled:text-neutral-400 focus:ring-2 focus:ring-black/10 dark:disabled:bg-neutral-800 dark:hover:bg-neutral-800 dark:disabled:text-neutral-600"
-      :class="{ 'pointer-events-none': props.disabled }"
+      min-w="[160px]" p="2.5" w-full
+      class="focus:ring-2 focus:ring-black/10"
+      border="~ dark:border-neutral-800"
+      text="xs dark:neutral-200 disabled:neutral-400 dark:disabled:text-neutral-600 text-neutral-700"
+      bg="white dark:neutral-900 disabled:neutral-100 hover:neutral-50 dark:disabled:neutral-800 dark:hover:neutral-800 "
+      cursor="disabled:not-allowed pointer"
+      flex items-center gap-2 rounded-lg shadow-sm outline-none transition-colors duration-150 ease-in-out
+      :class="[
+        props.disabled ? 'pointer-events-none' : '',
+      ]"
     >
       <div class="flex-1 truncate">
-        <slot :label="selectedLabel">
-          {{ selectedLabel }}
-        </slot>
+        <slot :value="modelValue" />
       </div>
-      <div i-solar:alt-arrow-down-bold-duotone class="h-3.5 w-3.5 text-neutral-500 dark:text-neutral-400" />
+      <div i-solar:alt-arrow-down-linear class="h-3.5 w-3.5 text-neutral-500 dark:text-neutral-400" />
     </div>
 
     <template #popper="{ hide }">
       <div class="min-w-[160px] flex flex-col gap-0.5 border border-neutral-200 rounded-lg bg-white p-1 shadow-lg dark:border-neutral-800 dark:bg-neutral-900">
-        <div
-          v-for="option of props.options"
-          v-bind="{ ...$attrs, class: null, style: null }"
-          :key="option.value"
-          class="cursor-pointer rounded px-2 py-1.5 text-sm text-neutral-700 hover:bg-neutral-100 dark:text-neutral-200 dark:hover:bg-neutral-800"
-          :class="{
-            'bg-neutral-100 dark:bg-neutral-800': modelValue === option.value,
-          }"
-          @click="selectOption(option.value); hide()"
-        >
-          {{ option.label }}
-        </div>
+        <slot name="options" :hide="hide">
+          <template v-if="props.options && props.options.length">
+            <UIOption
+              v-for="option of props.options"
+              :key="option.value"
+              :value="option.value"
+              :label="option.label"
+              :active="modelValue === option.value"
+              @click="selectOption(option.value); hide()"
+            />
+          </template>
+        </slot>
       </div>
     </template>
   </VDropdown>

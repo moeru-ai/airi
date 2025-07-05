@@ -25,7 +25,7 @@ withDefaults(defineProps<{
           {{ title }}
         </div>
         <div
-          i-solar:alt-arrow-down-bold-duotone
+          i-solar:alt-arrow-down-linear
           transition="transform duration-250"
           :class="{ 'rotate-180': slotProps.visible }"
         />

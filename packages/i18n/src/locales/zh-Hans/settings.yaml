@@ -371,7 +371,7 @@ pages:
         title: Perplexity
       player2:
         description: player2.game
-        title: Player2 API
+        title: Player2
       together:
         description: together.ai
         title: Together.ai
@@ -489,6 +489,9 @@ sections:
   section:
     general:
       title: 通用
-theme: 主题
+theme:
+  title: 主题
+  description: >
+    切换 AIRI 的基础主题，亮色模式或暗色模式。
 title: 设置
 voices: 声线

@@ -24,6 +24,8 @@
     "@proj-airi/audio": "workspace:^",
     "@proj-airi/ccc": "workspace:^",
     "@proj-airi/drizzle-duckdb-wasm": "catalog:",
+    "@proj-airi/font-cjkfonts-allseto": "workspace:^",
+    "@proj-airi/font-xiaolai": "workspace:^",
     "@proj-airi/i18n": "workspace:*",
     "@proj-airi/server-sdk": "workspace:^",
     "@proj-airi/stage-ui": "workspace:^",

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Live2DCanvas, Live2DModel } from '@proj-airi/stage-ui/components'
+import { Live2DCanvas, Live2DModel } from '@proj-airi/stage-ui/components/scenes'
 import { useElementBounding, useMouse } from '@vueuse/core'
 import { Vibrant } from 'node-vibrant/browser'
 import { ref } from 'vue'
@@ -7,7 +7,7 @@ import { ref } from 'vue'
 import IconAnimation from '../../../components/IconAnimation.vue'
 import Live2DSettings from '../../../components/Widgets/Live2DSettings.vue'
 
-import { useIconAnimation } from '../../../composables/useIconAnimation'
+import { useIconAnimation } from '../../../composables/icon-animation'
 
 const live2dContainerRef = ref<HTMLDivElement>()
 const live2dCanvasRef = ref<InstanceType<typeof Live2DCanvas>>()

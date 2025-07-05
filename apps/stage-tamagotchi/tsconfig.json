@@ -17,7 +17,8 @@
       "vite/client",
       "vite-plugin-vue-layouts/client",
       "unplugin-vue-macros/macros-global",
-      "unplugin-vue-router/client"
+      "unplugin-vue-router/client",
+      "@types/audioworklet"
     ],
     "allowJs": true,
     "strict": true,

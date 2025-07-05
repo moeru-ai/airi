@@ -23,6 +23,7 @@
     "@dotenvx/dotenvx": "^1.45.1",
     "@guiiai/logg": "^1.0.10",
     "@huggingface/transformers": "^3.6.0",
+    "@proj-airi/audio": "workspace:^",
     "@proj-airi/server-sdk": "workspace:^",
     "@proj-airi/server-shared": "workspace:^",
     "@xsai-ext/providers-cloud": "catalog:",

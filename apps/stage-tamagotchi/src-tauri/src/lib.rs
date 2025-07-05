@@ -3,10 +3,11 @@ use tauri::{
   Manager,
   WebviewUrl,
   WebviewWindowBuilder,
-  menu::{Menu, MenuItem},
+  menu::{Menu, MenuItem, Submenu},
   tray::TrayIconBuilder,
 };
 use tauri_plugin_prevent_default::Flags;
+use tauri_plugin_positioner::{WindowExt};
 
 mod app;
 mod helpers;
@@ -60,13 +61,47 @@ pub fn run() {
         )?;
       }
 
-      // TODO: i18n
+      let show_item = MenuItem::with_id(app, "show", "Show", true, None::<&str>)?;
+
       let quit_item = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
       let settings_item = MenuItem::with_id(app, "settings", "Settings", true, None::<&str>)?;
       let hide_item = MenuItem::with_id(app, "hide", "Hide", true, None::<&str>)?;
-      let show_item = MenuItem::with_id(app, "show", "Show", true, None::<&str>)?;
 
-      let menu = Menu::with_items(app, &[&settings_item, &hide_item, &show_item, &quit_item])?;
+      let position_center_item = MenuItem::with_id(app, "center", "Center", true, None::<&str>)?;
+      let position_bottom_left_item =
+        MenuItem::with_id(app, "bottom-left", "Bottom Left", true, None::<&str>)?;
+      let position_bottom_right_item =
+        MenuItem::with_id(app, "bottom-right", "Bottom Right", true, None::<&str>)?;
+
+      let position_sub_menu = Submenu::with_id_and_items(
+        app,
+        "position",
+        "Position",
+        true,
+        &[
+          &position_center_item,
+          &position_bottom_left_item,
+          &position_bottom_right_item,
+        ],
+      )?;
+
+      let menu = Menu::with_items(
+        app,
+        &[
+          &settings_item,
+          &position_sub_menu,
+          &hide_item,
+          &show_item,
+          &quit_item,
+        ],
+      )?;
+
+      #[cfg(debug_assertions)]
+      {
+        let show_devtools_item =
+          MenuItem::with_id(app, "show-devtools", "Show Devtools", true, None::<&str>)?;
+        menu.append_items(&[&show_devtools_item])?;
+      }
 
       #[cfg(debug_assertions)]
       {
@@ -93,6 +128,24 @@ pub fn run() {
             }
 
             app::windows::settings::new_settings_window(app).unwrap();
+          }
+          "center" => {
+            let window = app.get_webview_window("main");
+            if let Some(window) = window {
+              let _ = window.move_window(tauri_plugin_positioner::Position::Center);
+            }
+          }
+          "bottom-left" => {
+            let window = app.get_webview_window("main");
+            if let Some(window) = window {
+              let _ = window.move_window(tauri_plugin_positioner::Position::BottomLeft);
+            }
+          }
+          "bottom-right" => {
+            let window = app.get_webview_window("main");
+            if let Some(window) = window {
+              let _ = window.move_window(tauri_plugin_positioner::Position::BottomRight);
+            }
           }
           "hide" => {
             let window = app.get_webview_window("main");

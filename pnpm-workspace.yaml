@@ -9,20 +9,20 @@ packages:
 catalog:
   '@moeru/std': 0.1.0-beta.4
   '@proj-airi/drizzle-duckdb-wasm': ^0.4.28
-  '@xsai-ext/providers-cloud': ^0.3.0-beta.5
-  '@xsai-ext/providers-local': ^0.3.0-beta.5
-  '@xsai-ext/shared-providers': ^0.3.0-beta.5
-  '@xsai/embed': ^0.3.0-beta.5
-  '@xsai/generate-speech': ^0.3.0-beta.5
-  '@xsai/generate-text': ^0.3.0-beta.5
-  '@xsai/generate-transcription': ^0.3.0-beta.5
-  '@xsai/model': ^0.3.0-beta.5
-  '@xsai/shared': ^0.3.0-beta.5
-  '@xsai/shared-chat': ^0.3.0-beta.5
-  '@xsai/stream-text': ^0.3.0-beta.5
-  '@xsai/tool': ^0.3.0-beta.5
-  '@xsai/utils-chat': ^0.3.0-beta.5
-  xsschema: ^0.3.0-beta.5
+  '@xsai-ext/providers-cloud': ^0.3.0-beta.6
+  '@xsai-ext/providers-local': ^0.3.0-beta.6
+  '@xsai-ext/shared-providers': ^0.3.0-beta.6
+  '@xsai/embed': ^0.3.0-beta.6
+  '@xsai/generate-speech': ^0.3.0-beta.6
+  '@xsai/generate-text': ^0.3.0-beta.6
+  '@xsai/generate-transcription': ^0.3.0-beta.6
+  '@xsai/model': ^0.3.0-beta.6
+  '@xsai/shared': ^0.3.0-beta.6
+  '@xsai/shared-chat': ^0.3.0-beta.6
+  '@xsai/stream-text': ^0.3.0-beta.6
+  '@xsai/tool': ^0.3.0-beta.6
+  '@xsai/utils-chat': ^0.3.0-beta.6
+  xsschema: ^0.3.0-beta.6
 
 catalogs:
   rolldown-vite:

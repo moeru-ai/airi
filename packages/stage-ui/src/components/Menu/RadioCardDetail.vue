@@ -135,7 +135,7 @@ function toggleExpansion() {
             :class="{ 'rotate-180': isExpanded }"
             class="transition-transform duration-200"
           >
-            <div i-solar:alt-arrow-down-bold-duotone ml-0.5 text-xs />
+            <div i-solar:alt-arrow-down-linear ml-0.5 text-xs />
           </div>
         </button>
       </div>

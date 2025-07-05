@@ -28,7 +28,7 @@ function toggleVisible() {
           <span>{{ title || 'Advanced' }}</span>
         </h2>
         <div transform transition="transform duration-250" :class="{ 'rotate-180': slotProps.visible }">
-          <div i-solar:alt-arrow-down-bold-duotone />
+          <div i-solar:alt-arrow-down-linear />
         </div>
       </button>
     </template>

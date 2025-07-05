@@ -14,8 +14,8 @@ import { generateSpeech } from '@xsai/generate-speech'
 import { storeToRefs } from 'pinia'
 import { onMounted, onUnmounted, ref } from 'vue'
 
-import Live2DScene from '../Scenes/Live2D.vue'
-import VRMScene from '../Scenes/VRM.vue'
+import Live2DScene from './Live2D.vue'
+import VRMScene from './VRM.vue'
 
 import { useMarkdown } from '../../composables/markdown'
 import { useQueue } from '../../composables/queue'

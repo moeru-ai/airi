@@ -162,6 +162,7 @@ pnpm -F @proj-airi/docs dev
 - [x] [百川](https://platform.baichuan-ai.com)
 - [x] [Minimax](https://api.minimax.chat/)
 - [x] [月之暗面](https://platform.moonshot.cn/)
+- [x] [Player2](https://player2.game/)
 - [x] [腾讯混元](https://cloud.tencent.com/document/product/1729)
 - [ ] [讯飞星火](https://www.xfyun.cn/doc/spark/Web.html)
 - [ ] [火山引擎（豆包）](https://www.volcengine.com/experience/ark?utm_term=202502dsinvite&ac=DSASUQY5&rc=2QXCA1VI)

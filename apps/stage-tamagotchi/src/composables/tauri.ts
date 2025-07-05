@@ -2,6 +2,8 @@ import type { InvokeArgs, InvokeOptions } from '@tauri-apps/api/core'
 import type { EventCallback, EventName, UnlistenFn } from '@tauri-apps/api/event'
 import type { Monitor } from '@tauri-apps/api/window'
 
+import type { InvokeMethods, InvokeMethodShape } from '../tauri/invoke'
+
 import { withRetry } from '@moeru/std'
 import { computedAsync, until } from '@vueuse/core'
 
@@ -128,39 +130,6 @@ export function useTauriEvent<ES = Events>() {
   }
 }
 
-export interface InvokeMethods {
-  // app windows
-  'open_settings_window': { args: undefined, options: undefined, returns: void }
-  'open_chat_window': { args: undefined, options: undefined, returns: void }
-
-  // Plugin - Audio Transcription
-  'plugin:proj-airi-tauri-plugin-audio-transcription|load_model_whisper': { args: { modelType: 'base' | 'largev3' | 'tiny' | 'medium' }, options: undefined, returns: void }
-  'plugin:proj-airi-tauri-plugin-audio-transcription|audio_transcription': { args: { chunk: number[], language: string }, options: undefined, returns: [string, string] }
-
-  // Plugin - Audio VAD
-  'plugin:proj-airi-tauri-plugin-audio-vad|load_model_silero_vad': { args: undefined, options: undefined, returns: void }
-  'plugin:proj-airi-tauri-plugin-audio-vad|audio_vad': { args: { chunk: number[] }, options: undefined, returns: number }
-
-  // Plugin - Window Pass through on hover
-  'plugin:proj-airi-tauri-plugin-window-pass-through-on-hover|start_monitor': { args: undefined, options: undefined, returns: void }
-  'plugin:proj-airi-tauri-plugin-window-pass-through-on-hover|stop_monitor': { args: undefined, options: undefined, returns: void }
-  'plugin:proj-airi-tauri-plugin-window-pass-through-on-hover|start_pass_through': { args: undefined, options: undefined, returns: void }
-  'plugin:proj-airi-tauri-plugin-window-pass-through-on-hover|stop_pass_through': { args: undefined, options: undefined, returns: void }
-
-  // Plugin - WindowRouterLink
-  'plugin:proj-airi-tauri-plugin-window-router-link|go': {
-    args: { route: string, windowLabel?: string } | undefined
-    options: undefined
-    returns: void
-  }
-}
-
-interface InvokeMethodShape {
-  args: InvokeArgs | undefined
-  options: InvokeOptions | undefined
-  returns: any
-}
-
 export function useTauriCore<IM extends Record<keyof IM, InvokeMethodShape> = InvokeMethods>() {
   const { platform, isInitialized } = useAppRuntime()
 
@@ -169,6 +138,14 @@ export function useTauriCore<IM extends Record<keyof IM, InvokeMethodShape> = In
 
     if (platform.value !== 'web') {
       return untilImported(() => import('@tauri-apps/api/core'), console.warn)
+    }
+  })
+
+  const tauriCoreApiInvoke = computedAsync(async () => {
+    await until(isInitialized).toBeTruthy()
+
+    if (platform.value !== 'web') {
+      return untilImported(() => import('../tauri/invoke'), console.warn)
     }
   })
 
@@ -184,13 +161,13 @@ export function useTauriCore<IM extends Record<keyof IM, InvokeMethodShape> = In
       return
     }
 
-    await until(tauriCoreApi).toBeTruthy()
-    const imported = await tauriCoreApi.value
+    await until(tauriCoreApiInvoke).toBeTruthy()
+    const imported = await tauriCoreApiInvoke.value
     if (!imported) {
       throw new Error('Tauri core API not available')
     }
 
-    return await imported.invoke(command as string, args as InvokeArgs | undefined, options as InvokeOptions | undefined)
+    return await imported.invoke<C, IM>(command, args as InvokeArgs | undefined, options as InvokeOptions | undefined)
   }
 
   return {

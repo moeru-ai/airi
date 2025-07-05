@@ -1,1 +1,1 @@
-export { default as WidgetStage } from './Stage.vue'
+export { default as PoppingSubtitles } from './PoppingSubtitles.web.vue'

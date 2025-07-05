@@ -30,6 +30,10 @@
     "./vue": {
       "types": "./dist/vue/index.d.mts",
       "default": "./dist/vue/index.mjs"
+    },
+    "./encoding": {
+      "types": "./dist/encoding/index.d.mts",
+      "default": "./dist/encoding/index.mjs"
     }
   },
   "main": "./dist/index.mjs",
@@ -56,6 +60,7 @@
     "@alexanderolsen/libsamplerate-js": "^2.1.2"
   },
   "devDependencies": {
+    "@moeru/std": "catalog:",
     "@types/audioworklet": "^0.0.77",
     "vite": "^7.0.0"
   }

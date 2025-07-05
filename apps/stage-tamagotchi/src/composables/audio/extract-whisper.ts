@@ -1,5 +1,3 @@
-import type { VADSegment } from './analysis-vad'
-
 import { computed, readonly, ref } from 'vue'
 
 import { useTauriCore } from '../tauri'
@@ -11,6 +9,15 @@ export interface WhisperConfig {
   temperature: number
   beamSize: number
   bestOf: number
+}
+
+export interface VADSegment {
+  id: string
+  audioData: Float32Array
+  startTime: number
+  endTime: number
+  probability: number
+  isComplete: boolean
 }
 
 export interface TranscriptionResult {

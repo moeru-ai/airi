@@ -15,8 +15,8 @@ import { DropShadowFilter } from 'pixi-filters'
 import { Live2DFactory, Live2DModel, MotionPriority } from 'pixi-live2d-display/cubism4'
 import { computed, onMounted, onUnmounted, ref, shallowRef, toRef, watch } from 'vue'
 
-import { useLive2DIdleEyeFocus } from '../../composables/live2d'
-import { useSettings } from '../../stores'
+import { useLive2DIdleEyeFocus } from '../../../composables/live2d'
+import { useSettings } from '../../../stores'
 
 const props = withDefaults(defineProps<{
   app?: Application

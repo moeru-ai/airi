@@ -19,7 +19,15 @@ export default defineConfig({
   vite: {
     base: '/ui/',
   },
-  setupFile: 'stories/setup.ts',
+  setupFile: {
+    browser: 'stories/setup.ts',
+    server: 'stories/setup.server.ts',
+  },
+  viteNodeTransformMode: {
+    web: [
+      /\.web\.vue$/,
+    ],
+  },
   tree: {
     groups: [
       {
@@ -45,6 +53,10 @@ export default defineConfig({
       {
         id: 'misc',
         title: 'Misc',
+      },
+      {
+        id: 'widgets',
+        title: 'Widgets',
       },
       {
         id: 'physics',
