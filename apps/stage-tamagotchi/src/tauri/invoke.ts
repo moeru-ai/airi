@@ -18,15 +18,17 @@ export interface InvokeMethods {
   // Plugin - Window Pass through on hover
   'plugin:proj-airi-tauri-plugin-window-pass-through-on-hover|start_monitor': { args: undefined, options: undefined, returns: void }
   'plugin:proj-airi-tauri-plugin-window-pass-through-on-hover|stop_monitor': { args: undefined, options: undefined, returns: void }
-  'plugin:proj-airi-tauri-plugin-window-pass-through-on-hover|start_pass_through': { args: undefined, options: undefined, returns: void }
-  'plugin:proj-airi-tauri-plugin-window-pass-through-on-hover|stop_pass_through': { args: undefined, options: undefined, returns: void }
+  // Handled by tauri-specta codegen
+  // 'plugin:proj-airi-tauri-plugin-window-pass-through-on-hover|start_pass_through': { args: undefined, options: undefined, returns: void }
+  // 'plugin:proj-airi-tauri-plugin-window-pass-through-on-hover|stop_pass_through': { args: undefined, options: undefined, returns: void }
 
   // Plugin - WindowRouterLink
-  'plugin:proj-airi-tauri-plugin-window-router-link|go': {
-    args: { route: string, windowLabel?: string } | undefined
-    options: undefined
-    returns: void
-  }
+  // Handled by tauri-specta codegen
+  // 'plugin:proj-airi-tauri-plugin-window-router-link|go': {
+  //   args: { route: string, windowLabel?: string } | undefined
+  //   options: undefined
+  //   returns: void
+  // }
 }
 
 export interface InvokeMethodShape {
