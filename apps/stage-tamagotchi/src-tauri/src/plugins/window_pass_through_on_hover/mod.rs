@@ -9,6 +9,8 @@ use std::{sync::atomic::Ordering, time::Duration};
 use native_macos::{get_mouse_location, get_window_frame};
 #[cfg(target_os = "windows")]
 use native_windows::{get_mouse_location, get_window_frame};
+#[cfg(debug_assertions)]
+use specta_typescript::Typescript;
 use state::{WindowClickThroughState, set_pass_through_enabled};
 use tauri::{
   Emitter,
@@ -89,34 +91,65 @@ async fn stop_monitor<R: Runtime>(window: tauri::Window<R>) -> Result<()> {
 }
 
 #[tauri::command]
-async fn start_pass_through<R: Runtime>(window: tauri::Window<R>) -> Result<()> {
-  set_pass_through_enabled(&window, true).unwrap_or_else(|e| {
+#[specta::specta]
+async fn start_pass_through<R: Runtime>(
+  window: tauri::Window<R>
+) -> std::result::Result<(), String> {
+  set_pass_through_enabled(&window, true).map_err(|e| {
     log::error!("Failed to enable click-through: {e}");
-  });
-
-  Ok(())
+    e
+  })
 }
 
 #[tauri::command]
-async fn stop_pass_through<R: Runtime>(window: tauri::Window<R>) -> Result<()> {
-  set_pass_through_enabled(&window, false).unwrap_or_else(|e| {
+#[specta::specta]
+async fn stop_pass_through<R: Runtime>(
+  window: tauri::Window<R>
+) -> std::result::Result<(), String> {
+  set_pass_through_enabled(&window, false).map_err(|e| {
     log::error!("Failed to disable click-through: {e}");
-  });
-
-  Ok(())
+    e
+  })
 }
 
+const PLUGIN_NAME: &str = "proj-airi-tauri-plugin-window-pass-through-on-hover";
+
 pub fn init<R: Runtime>() -> TauriPlugin<R> {
-  PluginBuilder::new("proj-airi-tauri-plugin-window-pass-through-on-hover")
+  let builder = tauri_specta::Builder::<R>::new()
+    .plugin_name(PLUGIN_NAME)
+    // ↓ HACKY WARNING
+    // ↓ Below is a modified version from the expansion of `tauri_specta::collect_commands!`,
+    // ↓ as the original macro does not accept a mix of commands with and without `#[specta::specta]`
+    .commands(tauri_specta::internal::command(
+      tauri::generate_handler![
+        start_monitor,
+        stop_monitor,
+        start_pass_through,
+        stop_pass_through
+      ],
+      specta::function::collect_functions![
+        start_pass_through::<tauri::Wry>,
+        //                   ^^^^^^^^^^
+        // TODO: We have to specify the runtime type here. This is a known issue:
+        // - https://github.com/specta-rs/tauri-specta/issues/70
+        // - https://github.com/specta-rs/tauri-specta/issues/162
+        stop_pass_through::<tauri::Wry>,
+      ]
+    ));
+
+  #[cfg(debug_assertions)]
+  builder
+    .export(
+      Typescript::default().header("// @ts-nocheck\n"),
+      "../src/commands/bindings/window-pass-through-on-hover.ts",
+    )
+    .expect("Failed to export typescript bindings");
+
+  PluginBuilder::new(PLUGIN_NAME)
     .setup(|app, _| {
       app.manage(WindowClickThroughState::default());
       Ok(())
     })
-    .invoke_handler(tauri::generate_handler![
-      start_monitor,
-      stop_monitor,
-      start_pass_through,
-      stop_pass_through,
-    ])
+    .invoke_handler(builder.invoke_handler())
     .build()
 }
