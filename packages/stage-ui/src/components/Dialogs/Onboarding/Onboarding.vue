@@ -217,10 +217,10 @@ onMounted(() => {
     <div class="mb-1 flex justify-center md:mb-4">
       <img :src="onboardingLogo" w="20 md:25">
     </div>
-    <h2 class="mb-0 text-lg text-neutral-800 font-bold md:mb-2 md:text-3xl dark:text-neutral-100">
+    <h2 class="mb-0 text-lg text-neutral-800 font-bold md:mb-2 md:text-2xl dark:text-neutral-100">
       {{ t('settings.dialogs.onboarding.title') }}
     </h2>
-    <p class="text-sm text-neutral-600 md:text-lg dark:text-neutral-400">
+    <p class="text-sm text-neutral-600 md:text-base dark:text-neutral-400">
       {{ t('settings.dialogs.onboarding.description') }}
     </p>
   </div>

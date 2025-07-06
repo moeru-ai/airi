@@ -20,7 +20,7 @@ const isDesktop = useMediaQuery('(min-width: 768px)')
   <DialogRoot v-if="isDesktop" :open="showDialog" @update:open="value => showDialog = value">
     <DialogPortal>
       <DialogOverlay class="data-[state=open]:animate-fadeIn data-[state=closed]:animate-fadeOut fixed inset-0 z-[9999] bg-black/50 backdrop-blur-sm" />
-      <DialogContent class="data-[state=open]:animate-contentShow data-[state=closed]:animate-contentHide fixed left-1/2 top-1/2 z-[9999] mx-0 max-w-2xl w-[92vw] transform rounded-lg bg-white p-4 shadow-xl backdrop-blur-md md:mx-4 -translate-x-1/2 -translate-y-1/2 dark:bg-neutral-900 md:p-8">
+      <DialogContent class="data-[state=open]:animate-contentShow data-[state=closed]:animate-contentHide fixed left-1/2 top-1/2 z-[9999] mx-0 my-4 max-h-[calc(100%-4rem)] max-w-2xl w-[92vw] transform overflow-y-scroll rounded-lg bg-white p-4 shadow-xl backdrop-blur-md scrollbar-none md:mx-4 -translate-x-1/2 -translate-y-1/2 dark:bg-neutral-900 md:p-8">
         <Onboarding @configured="emit('configured')" @skipped="emit('skipped')" />
       </DialogContent>
     </DialogPortal>

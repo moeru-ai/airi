@@ -8,6 +8,7 @@ import { useI18n } from 'vue-i18n'
 
 import onboardingLogo from '../../../assets/onboarding.png'
 
+import { Callout } from '../../Layouts'
 import { RadioCardDetail } from '../../Menu'
 import { Button } from '../../Misc'
 import { ProviderAccountIdInput } from '../../Providers'
@@ -306,12 +307,7 @@ onMounted(() => {
             <div h-5 w-5 />
           </div>
           <div v-if="selectedProvider" h-full flex-1>
-            <div
-              class="relative mb-4 flex flex-col gap-1 overflow-hidden rounded-lg bg-violet-50/10 py-2 pl-4 pr-3 text-sm text-neutral-900/80 backdrop-blur-md before-position-absolute before:inset-0 before:h-full before:w-1 before:rounded-full before:bg-violet-50 dark:bg-violet-900/10 dark:text-neutral-100/80 before:content-[''] before:dark:bg-violet-900"
-            >
-              <div text="violet-500 dark:violet-400 font-semibold">
-                Keep your API keys and credentials safe!
-              </div>
+            <Callout label="Keep your API keys and credentials safe!" theme="violet">
               <div>
                 <div>
                   AIRI is running pure locally in your browser, and we will never steal your credentials for AI / LLM providers. But keep in mind that your API keys are sensitive information. Make sure to keep them safe and do not share them with anyone.
@@ -322,7 +318,7 @@ onMounted(() => {
                   </div>, if you want to check how we handle your credentials, feel free to inspect our code.
                 </div>
               </div>
-            </div>
+            </Callout>
             <div class="space-y-4">
               <!-- API Key Input -->
               <div v-if="needsApiKey">
