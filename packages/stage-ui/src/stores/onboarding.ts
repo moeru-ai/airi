@@ -24,11 +24,13 @@ export const useOnboardingStore = defineStore('onboarding', () => {
   const needsOnboarding = computed(() => {
     // Don't show if already completed or skipped
     if (hasCompletedSetup.value || hasSkippedSetup.value) {
+      console.warn('Onboarding already completed or skipped')
       return false
     }
 
     // Don't show if user already has essential providers configured
     if (hasEssentialProviderConfigured.value) {
+      console.warn('Essential provider already configured, no onboarding needed')
       return false
     }
 
