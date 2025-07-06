@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { WidgetStage } from '@proj-airi/stage-ui/components/Scenes'
+import { WidgetStage } from '@proj-airi/stage-ui/components/scenes'
 import { useDark, useMouse } from '@vueuse/core'
 import { ref } from 'vue'
 
