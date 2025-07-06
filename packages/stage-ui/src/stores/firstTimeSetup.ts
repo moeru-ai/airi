@@ -36,12 +36,11 @@ export const useFirstTimeSetupStore = defineStore('firstTimeSetup', () => {
   })
 
   // Initialize setup check
-  function initializeSetupCheck() {
+   async function initializeSetupCheck() {
     if (needsFirstTimeSetup.value) {
-      // Delay showing the dialog to ensure the app is fully loaded
-      setTimeout(() => {
-        shouldShowSetup.value = true
-      }, 1000)
+      // Use nextTick to ensure the app is fully rendered before showing dialog
+      await nextTick()
+      shouldShowSetup.value = true
     }
   }
 
