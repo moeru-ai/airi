@@ -251,7 +251,7 @@ onMounted(() => {
           </div>
           <Button
             variant="secondary"
-            :label="t('settings.dialogs.onboarding.next')"
+            :label="t('settings.dialogs.onboarding.start')"
             @click="handleNextStep"
           />
         </div>

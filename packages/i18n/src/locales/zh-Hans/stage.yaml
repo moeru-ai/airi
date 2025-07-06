@@ -29,3 +29,8 @@ viewers:
       model:
         title: 模型
 waiting: 等待中
+operations:
+  load-models: 加载模型
+  load-models-status:
+    loading: 模型加载中
+    ready: 已就绪

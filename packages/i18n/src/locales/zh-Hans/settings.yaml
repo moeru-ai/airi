@@ -18,13 +18,20 @@ dialogs:
     validating: 正在验证配置...
     validationSuccess: 配置有效！
     validationFailed: 配置验证失败
-    validationError: '验证错误：{error}'
+    validationError: 验证错误：{error}
     skipForNow: 暂时跳过
     saveAndContinue: 保存并继续
+    next: 下一步
+    start: 开始吧！
 language:
   chinese: 简体中文
   english: English
   title: 语言
+  zh-Hans: 简体中文
+  zh-CN: 中文
+  en-US: English (US)
+  en: English
+  description: 切换显示界面的语言
 live2d:
   change-model:
     from-file: 从文件加载
@@ -220,7 +227,7 @@ pages:
       Transcription: 转录（语音转文本）模型服务来源，例如 Whisper.cpp, OpenAI, Azure Speech
     helpinfo:
       title: 第一次使用？
-      description: >
+      description: |
         AIRI 需要配置至少一个 {chat} 服务来源，才能正常思考和运作。你可以把它看作是 AIRI 系统中角色的大脑。
     common:
       fields:
@@ -492,7 +499,7 @@ sections:
       title: 通用
 theme:
   title: 主题
-  description: >
+  description: |
     切换 AIRI 的基础主题，亮色模式或暗色模式。
 title: 设置
 voices: 声线

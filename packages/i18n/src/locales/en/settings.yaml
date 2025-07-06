@@ -23,6 +23,8 @@ dialogs:
     validationError: 'Validation error: {error}'
     skipForNow: Skip for now
     saveAndContinue: Save and Continue
+    next: Next
+    start: Let's do it!
 language:
   chinese: 简体中文
   zh-CN: 简体中文
@@ -87,18 +89,25 @@ pages:
         systemprompt: You will receive messages, answer to them like a real human.
         posthistoryinstructions: Remember to imitate an human.
       fields_info:
-        subtitle: You can put here some details about the character you are creating, explain his history and context, and how your interactions should be answered.
+        subtitle: >-
+          You can put here some details about the character you are creating,
+          explain his history and context, and how your interactions should be
+          answered.
         name: Is the formal name of this character.
         nickname: You can also give a nickname that will be used in priority.
         description: Description of this character.
         notes: If you want to add some personal notes.
-        personality: Describe here the personality of your character. Shy ? Curious ? Anything else ?
+        personality: >-
+          Describe here the personality of your character. Shy ? Curious ?
+          Anything else ?
         scenario: What are the surroundings ? What is the current situation ?
         greetings_field: Greetings
         greetings: How your character should say "hello" ?
         systemprompt: Explain here to the AI LLM how it should answer when prompted.
         posthistoryinstructions: Place here anything the AI LLM should read after the messages history.
-        version: Card version, you should increase this if you are making changes from a previous card.
+        version: >-
+          Card version, you should increase this if you are making changes from
+          a previous card.
       errors:
         name: Name should be valid or non-empty.
         version: 'Error: Invalid version number !'
@@ -226,11 +235,15 @@ pages:
     explained:
       chat: Text generation model providers. e.g. OpenRouter, OpenAI, Ollama.
       Speech: Speech (text-to-speech) model providers. e.g. ElevenLabs, Azure Speech.
-      Transcription: Transcription (speech-to-text) model providers. e.g. Whisper.cpp, OpenAI, Azure Speech
+      Transcription: >-
+        Transcription (speech-to-text) model providers. e.g. Whisper.cpp,
+        OpenAI, Azure Speech
     helpinfo:
       title: First time here?
       description: >
-        AIRI requires at least one {chat} provider to be configured to think, and behave properly. You could think of it as the brain of the characters living in AIRI system.
+        AIRI requires at least one {chat} provider to be configured to think,
+        and behave properly. You could think of it as the brain of the
+        characters living in AIRI system.
     common:
       fields:
         field:
@@ -276,11 +289,17 @@ pages:
         helpinfo:
           title: Before you start
           description:
-            part1: While Anthropic recently did announce that they are having a beta support for OpenAI SDK compatibility
+            part1: >-
+              While Anthropic recently did announce that they are having a beta
+              support for OpenAI SDK compatibility
             part2: (you can read more here)
             part3: but due to the implementation details comes with
-            part4: restrictions which not aligned with the OpenAI SDK, it's currently not possible to use this provider in the browser.
-            part5: If you do need to use this provider, you will need a dedicated proxy backend like a Serverless Function running on
+            part4: >-
+              restrictions which not aligned with the OpenAI SDK, it's currently
+              not possible to use this provider in the browser.
+            part5: >-
+              If you do need to use this provider, you will need a dedicated
+              proxy backend like a Serverless Function running on
             part6: or some CORS bypassing services to bypass the CORS restrictions.
       cloudflare-workers-ai:
         description: cloudflare.com
@@ -297,9 +316,7 @@ pages:
         fields:
           field:
             pitch:
-              description: >-
-                Tune the pitch of synthesized speech (e.g., sharper or
-                coarser)
+              description: Tune the pitch of synthesized speech (e.g., sharper or coarser)
               label: Pitch
             speed:
               description: Adjust the speed of speech
@@ -505,7 +522,7 @@ sections:
       title: General
 theme:
   title: Theme
-  description: >
+  description: |
     Switch the base theme of AIRI, Light mode or Dark mode.
 title: Settings
 voices: Voice
