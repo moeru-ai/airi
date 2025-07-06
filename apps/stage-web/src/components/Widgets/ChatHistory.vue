@@ -8,11 +8,11 @@ import { useI18n } from 'vue-i18n'
 
 const chatHistoryRef = ref<HTMLDivElement>()
 
+const { t } = useI18n()
 const { messages, sending } = storeToRefs(useChatStore())
 const bounding = useElementBounding(chatHistoryRef, { immediate: true, windowScroll: true, windowResize: true })
 const { y: chatHistoryContainerY } = useScroll(chatHistoryRef)
 
-const { t } = useI18n()
 const { process } = useMarkdown()
 const { onBeforeMessageComposed, onTokenLiteral } = useChatStore()
 

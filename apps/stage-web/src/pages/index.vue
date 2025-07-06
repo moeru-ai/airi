@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { WidgetStage } from '@proj-airi/stage-ui/components/scenes'
-import { useDark, useMouse } from '@vueuse/core'
+import { breakpointsTailwind, useBreakpoints, useDark, useMouse } from '@vueuse/core'
 import { ref } from 'vue'
 
 import Cross from '../components/Backgrounds/Cross.vue'
@@ -17,6 +17,8 @@ function handleSettingsOpen(open: boolean) {
 }
 
 const positionCursor = useMouse()
+const breakpoints = useBreakpoints(breakpointsTailwind)
+const isMobile = breakpoints.smaller('md')
 </script>
 
 <template>
@@ -28,10 +30,7 @@ const positionCursor = useMouse()
     >
       <div relative flex="~ col" z-2 h-100dvh w-100vw of-hidden>
         <!-- header -->
-        <div
-          class="px-0 py-1 hidden sm:block md:px-3 md:py-3"
-          w-full gap-2
-        >
+        <div class="px-0 py-1 md:px-3 md:py-3" w-full gap-2>
           <Header class="flex" />
         </div>
         <!-- page -->
@@ -43,7 +42,7 @@ const positionCursor = useMouse()
               x: positionCursor.x.value,
               y: positionCursor.y.value,
             }"
-            x-offset="-10%"
+            :x-offset="isMobile ? undefined : '-10%'"
           />
           <InteractiveArea class="flex <md:hidden" absolute h="85dvh" right-4 flex-1 max-w="500px" min-w="30%" />
           <MobileInteractiveArea class="hidden <md:block" mx2 mb2 @settings-open="handleSettingsOpen" />

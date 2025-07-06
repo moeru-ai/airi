@@ -230,7 +230,8 @@ async function initLive2DPixiStage() {
 }
 
 async function setMotion(motionName: string, index?: number) {
-  await model.value!.motion(motionName, index, MotionPriority.FORCE)
+  // TODO: motion? Not every Live2D model has motion, we do need to help users to set motion
+  await model.value?.motion(motionName, index, MotionPriority.FORCE)
 }
 
 const handleResize = useDebounceFn(() => {

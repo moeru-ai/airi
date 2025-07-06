@@ -1168,6 +1168,9 @@ importers:
       unspeech:
         specifier: ^0.1.7
         version: 0.1.7
+      vaul-vue:
+        specifier: ^0.4.1
+        version: 0.4.1(reka-ui@2.3.2(typescript@5.8.3)(vue@3.5.17(typescript@5.8.3)))(vue@3.5.17(typescript@5.8.3))
       vue-i18n:
         specifier: ^11.1.9
         version: 11.1.9(vue@3.5.17(typescript@5.8.3))

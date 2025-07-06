@@ -32,7 +32,7 @@ watch(live2dModelRef, (model) => {
 
 function handleModelLoaded() {
   if (live2dModelRef.value) {
-    live2dModelRef.value.setMotion(motion.value)
+    live2dModelRef.value?.setMotion(motion.value)
     motionGroupsList.value = live2dModelRef.value.listMotionGroups()
   }
 }

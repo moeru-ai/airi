@@ -36,21 +36,39 @@ onTokenLiteral(async () => {
 <template>
   <div py="1" flex="~ col" rounded="lg" overflow-hidden>
     <div flex-1 /> <!-- spacer -->
-    <div ref="chatHistoryRef" v-auto-animate h-full w-full max-h="30vh" flex="~ col" overflow-scroll class="chat-history">
+    <div ref="chatHistoryRef" v-auto-animate h-full w-full max-h="40%" flex="~ col" overflow-scroll class="chat-history">
       <div flex-1 /> <!-- spacer -->
       <div v-for="(message, index) in messages" :key="index" mb-2>
+        <div v-if="message.role === 'error'" flex mr="12">
+          <div
+            flex="~ col"
+            shadow="md violet-200/20 dark:none"
+            min-w-20 rounded-lg px-3 py-2
+            h="unset <sm:fit"
+            bg="violet-500 dark:violet-800"
+            backdrop-blur-sm
+          >
+            <div flex="~ row" gap-2>
+              <div flex-1>
+                <span text-xs text="violet-400/90 dark:violet-600/90" font-normal class="inline <sm:hidden">{{ t('stage.chat.message.character-name.core-system') }}</span>
+              </div>
+              <div i-solar:danger-triangle-bold-duotone text-violet-500 />
+            </div>
+            <div v-if="message.content" class="markdown-content" text="base <sm:xs" v-html="process(message.content as string)" />
+            <div v-else i-eos-icons:three-dots-loading />
+          </div>
+        </div>
         <div v-if="message.role === 'assistant'" flex mr="12">
           <div
-
             flex="~ col"
-            border="4 solid primary-200/50 dark:primary-500/50"
-            shadow="md primary-200/50 dark:none"
-            min-w-20 rounded-lg px-2 py-1 backdrop-blur-sm
+            shadow="md primary-200/20 dark:none"
+            min-w-20 rounded-lg px-3 py-2
             h="unset <sm:fit"
-            bg="<md:primary-500/25"
+            bg="primary-100 dark:primary-800"
+            backdrop-blur-md
           >
             <div>
-              <span text-xs text="primary-400/90 dark:primary-600/90" font-normal class="inline <sm:hidden">{{ t('stage.chat.message.character-name.airi') }}</span>
+              <span text="primary-400/90 dark:primary-600/90" text-xs font-normal class="inline <sm:hidden">{{ t('stage.chat.message.character-name.airi') }}</span>
             </div>
             <div v-if="message.content" class="markdown-content" text="base <sm:xs" v-html="process(message.content as string)" />
             <div v-else i-eos-icons:three-dots-loading />
@@ -59,11 +77,11 @@ onTokenLiteral(async () => {
         <div v-else-if="message.role === 'user'" flex="~">
           <div
             flex="~ col"
-            border="4 solid cyan-200/50 dark:cyan-500/50"
-            shadow="md cyan-200/50 dark:none"
+            shadow="md cyan-200/20 dark:none"
             px="2"
-            h="unset <sm:fit" min-w-20 rounded-lg px-2 py-1 backdrop-blur-sm
-            bg="<md:cyan-500/25"
+            h="unset <sm:fit" min-w-20 rounded-lg px-3 py-2
+            bg="white dark:neutral-800"
+            backdrop-blur-md
           >
             <div>
               <span text-xs text="cyan-400/90 dark:cyan-600/90" font-normal class="inline <sm:hidden">{{ t('stage.chat.message.character-name.you') }}</span>
@@ -78,8 +96,14 @@ onTokenLiteral(async () => {
 </template>
 
 <style scoped>
+/*
+DO NOT ATTEMPT TO USE backdrop-filter TOGETHER WITH mask-image.
+
+html - Why doesn't blur backdrop-filter work together with mask-image? - Stack Overflow
+https://stackoverflow.com/questions/72780266/why-doesnt-blur-backdrop-filter-work-together-with-mask-image
+*/
 .chat-history {
-  --gradient: linear-gradient(to bottom, rgba(0,0,0,0), rgba(0,0,0,1));
+  --gradient: linear-gradient(to bottom, rgba(0,0,0,0) 0%, rgba(0,0,0,1) 20%);
   -webkit-mask-image: var(--gradient);
   mask-image: var(--gradient);
   -webkit-mask-size: 100% 100%;
