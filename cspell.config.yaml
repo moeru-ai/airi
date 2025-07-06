@@ -166,6 +166,7 @@ words:
   - qwen
   - rehype
   - reka
+  - Replayable
   - resampler
   - rlib
   - rmcp
@@ -213,6 +214,7 @@ words:
   - Volcengine
   - vrma
   - vueuse
+  - waapi
   - wavefile
   - webgpu
   - weeb
