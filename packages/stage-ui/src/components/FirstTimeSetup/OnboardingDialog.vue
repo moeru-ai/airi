@@ -135,7 +135,7 @@ async function validateConfiguration() {
     return
 
   isValidating.value = true
-  validationMessage.value = t('firstTimeSetup.validating')
+  validationMessage.value = t('settings.firstTimeSetup.validating')
 
   try {
     // Prepare config object
@@ -153,10 +153,10 @@ async function validateConfiguration() {
     isValid.value = await metadata.validators.validateProviderConfig(config)
 
     if (isValid.value) {
-      validationMessage.value = t('firstTimeSetup.validationSuccess')
+      validationMessage.value = t('settings.firstTimeSetup.validationSuccess')
     }
     else {
-      validationMessage.value = t('firstTimeSetup.validationFailed')
+      validationMessage.value = t('settings.firstTimeSetup.validationFailed')
     }
   }
   catch (error) {
@@ -349,13 +349,13 @@ onMounted(() => {
         <div class="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
           <Button
             variant="secondary"
-            :label="t('firstTimeSetup.skipForNow')"
+            :label="t('settings.firstTimeSetup.skipForNow')"
             @click="handleSkip"
           />
           <Button
             variant="primary"
             :disabled="!canSave"
-            :label="t('firstTimeSetup.saveAndContinue')"
+            :label="t('settings.firstTimeSetup.saveAndContinue')"
             @click="handleSave"
           />
         </div>
