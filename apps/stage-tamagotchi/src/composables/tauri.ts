@@ -54,8 +54,9 @@ export interface AiriTamagotchiEvents extends Events {
   'tauri-app:proj-airi:window-pass-through-on-hover:cursor-position': Point
   'tauri-app:proj-airi:window-pass-through-on-hover:window-frame': WindowFrame
   'tauri-app:proj-airi:window-pass-through-on-hover:pass-through-enabled': boolean
-  'tauri-app:model-load-progress': [string, number]
   'mcp_plugin_destroyed': undefined
+  'tauri-tamagotchi://plugins:proj-airi:audio-vad:load-model-silero-vad-progress': [boolean, string, number, number, number]
+  'tauri-tamagotchi://plugins:proj-airi:audio-transcription:load-model-whisper-progress': [boolean, string, number, number, number]
 }
 
 export interface DisplayInfo {

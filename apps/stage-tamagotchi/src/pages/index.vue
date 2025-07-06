@@ -31,6 +31,7 @@ const { invoke } = useTauriCore()
 const { live2dLookAtX, live2dLookAtY, isCursorInside } = useTauriWindowClickThrough(centerPos)
 const shouldHideView = computed(() => isCursorInside.value && !windowStore.isControlActive && windowStore.isIgnoringMouseEvent)
 
+const resourcesStore = useResourcesStore()
 const mcpStore = useMcpStore()
 const { connected, serverCmd, serverArgs } = storeToRefs(mcpStore)
 
@@ -78,13 +79,19 @@ function openChat() {
 }
 
 onMounted(async () => {
-  unListenFuncs.push(await listen('tauri-app:model-load-progress', (event) => {
-    useResourcesStore().appendResource(event)
+  // VAD
+  unListenFuncs.push(await listen('tauri-tamagotchi://plugins:proj-airi:audio-vad:load-model-silero-vad-progress', (event) => {
+    const [_, filename, progress, totalSize, currentSize] = event.payload
+    resourcesStore.updateResourceProgress('hearing', 'vad', { filename, progress, totalSize, currentSize })
   }))
-
-  // Load models
-  invoke('plugin:proj-airi-tauri-plugin-audio-transcription|load_model_whisper', { modelType: 'medium' })
   invoke('plugin:proj-airi-tauri-plugin-audio-vad|load_model_silero_vad')
+
+  // Whisper
+  unListenFuncs.push(await listen('tauri-tamagotchi://plugins:proj-airi:audio-transcription:load-model-whisper-progress', (event) => {
+    const [_, filename, progress, totalSize, currentSize] = event.payload
+    resourcesStore.updateResourceProgress('hearing', 'whisper', { filename, progress, totalSize, currentSize })
+  }))
+  invoke('plugin:proj-airi-tauri-plugin-audio-transcription|load_model_whisper', { modelType: 'medium' })
 
   if (connected.value)
     return
