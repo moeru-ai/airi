@@ -1,5 +1,5 @@
 export * from './DataGui'
-export * from './FirstTimeSetup'
+export * from './Dialogs'
 export * from './Gadgets'
 export * from './Graphics'
 export * from './Layouts'

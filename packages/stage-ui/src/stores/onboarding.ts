@@ -1,15 +1,15 @@
 import { useLocalStorage } from '@vueuse/core'
 import { defineStore } from 'pinia'
-import { computed, ref, nextTick } from 'vue'
+import { computed, nextTick, ref } from 'vue'
 
 import { useProvidersStore } from './providers'
 
-export const useFirstTimeSetupStore = defineStore('firstTimeSetup', () => {
+export const useOnboardingStore = defineStore('onboarding', () => {
   const providersStore = useProvidersStore()
 
   // Track if first-time setup has been completed or skipped
-  const hasCompletedSetup = useLocalStorage('firstTimeSetup/completed', false)
-  const hasSkippedSetup = useLocalStorage('firstTimeSetup/skipped', false)
+  const hasCompletedSetup = useLocalStorage('onboarding/completed', false)
+  const hasSkippedSetup = useLocalStorage('onboarding/skipped', false)
 
   // Track if we should show the setup dialog
   const shouldShowSetup = ref(false)
@@ -21,7 +21,7 @@ export const useFirstTimeSetupStore = defineStore('firstTimeSetup', () => {
   })
 
   // Check if first-time setup should be shown
-  const needsFirstTimeSetup = computed(() => {
+  const needsOnboarding = computed(() => {
     // Don't show if already completed or skipped
     if (hasCompletedSetup.value || hasSkippedSetup.value) {
       return false
@@ -36,8 +36,8 @@ export const useFirstTimeSetupStore = defineStore('firstTimeSetup', () => {
   })
 
   // Initialize setup check
-   async function initializeSetupCheck() {
-    if (needsFirstTimeSetup.value) {
+  async function initializeSetupCheck() {
+    if (needsOnboarding.value) {
       // Use nextTick to ensure the app is fully rendered before showing dialog
       await nextTick()
       shouldShowSetup.value = true
@@ -74,7 +74,7 @@ export const useFirstTimeSetupStore = defineStore('firstTimeSetup', () => {
     hasSkippedSetup,
     shouldShowSetup,
     hasEssentialProviderConfigured,
-    needsFirstTimeSetup,
+    needsOnboarding,
     initializeSetupCheck,
     markSetupCompleted,
     markSetupSkipped,

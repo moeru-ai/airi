@@ -4,22 +4,23 @@ animations:
   use-page-specific-transitions:
     description: 某些页面会有自己的过场动画，这将覆盖舞台过场动画
     title: 是否使用页面特定过场动画
-firstTimeSetup:
-  title: 欢迎来到 AIRI！
-  description: 让我们设置您的第一个服务来源来开始使用。
-  selectProvider: 选择服务来源
-  configureProvider: 配置 {provider}
-  apiKey: API 密钥
-  apiKeyHelp: 从 {provider} 获取您的 API 密钥并粘贴到这里
-  baseUrl: 基础 URL
-  baseUrlHelp: API 端点 URL（如果不确定请使用默认值）
-  accountId: 账户 ID
-  validating: 正在验证配置...
-  validationSuccess: ✓ 配置有效！
-  validationFailed: ✗ 配置验证失败
-  validationError: '验证错误：{error}'
-  skipForNow: 暂时跳过
-  saveAndContinue: 保存并继续
+dialogs:
+  onboarding:
+    title: 欢迎来到 AIRI！
+    description: 让我们设置您的第一个服务来源来开始使用。
+    selectProvider: 选择服务来源
+    configureProvider: 配置 {provider}
+    apiKey: API 密钥
+    apiKeyHelp: 从 {provider} 获取您的 API 密钥并粘贴到这里
+    baseUrl: 基础 URL
+    baseUrlHelp: API 端点 URL（如果不确定请使用默认值）
+    accountId: 账户 ID
+    validating: 正在验证配置...
+    validationSuccess: ✓ 配置有效！
+    validationFailed: ✗ 配置验证失败
+    validationError: '验证错误：{error}'
+    skipForNow: 暂时跳过
+    saveAndContinue: 保存并继续
 language:
   chinese: 简体中文
   english: English

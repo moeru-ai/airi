@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { FirstTimeSetupDialog } from '@proj-airi/stage-ui/components'
-import { useFirstTimeSetupStore, useSettings } from '@proj-airi/stage-ui/stores'
+import { OnboardingDialog } from '@proj-airi/stage-ui/components'
+import { useOnboardingStore, useSettings } from '@proj-airi/stage-ui/stores'
 import { StageTransitionGroup } from '@proj-airi/ui-transitions'
 import { useDark } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
@@ -10,8 +10,8 @@ import { RouterView } from 'vue-router'
 
 const i18n = useI18n()
 const settings = storeToRefs(useSettings())
-const firstTimeSetupStore = useFirstTimeSetupStore()
-const { shouldShowSetup } = storeToRefs(firstTimeSetupStore)
+const onboardingStore = useOnboardingStore()
+const { shouldShowSetup } = storeToRefs(onboardingStore)
 const isDark = useDark()
 
 const primaryColor = computed(() => {
@@ -50,16 +50,16 @@ watch(settings.themeColorsHueDynamic, () => {
 
 // Initialize first-time setup check when app mounts
 onMounted(() => {
-  firstTimeSetupStore.initializeSetupCheck()
+  onboardingStore.initializeSetupCheck()
 })
 
 // Handle first-time setup events
 function handleSetupConfigured() {
-  firstTimeSetupStore.markSetupCompleted()
+  onboardingStore.markSetupCompleted()
 }
 
 function handleSetupSkipped() {
-  firstTimeSetupStore.markSetupSkipped()
+  onboardingStore.markSetupSkipped()
 }
 </script>
 
@@ -77,7 +77,7 @@ function handleSetupSkipped() {
   </StageTransitionGroup>
 
   <!-- First Time Setup Dialog -->
-  <FirstTimeSetupDialog
+  <OnboardingDialog
     v-model="shouldShowSetup"
     @configured="handleSetupConfigured"
     @skipped="handleSetupSkipped"

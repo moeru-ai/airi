@@ -13,8 +13,10 @@ import {
 import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import { RadioCardDetail } from '../Menu'
-import { Button } from '../Misc'
+import onboardingLogo from '../../../assets/onboarding.png'
+
+import { RadioCardDetail } from '../../Menu'
+import { Button } from '../../Misc'
 
 interface Props {
   modelValue: boolean
@@ -67,7 +69,7 @@ const validationMessage = ref('')
 const needsApiKey = computed(() => {
   if (!selectedProvider.value)
     return false
-  return selectedProvider.value.id !== 'ollama' && selectedProvider.value.id !== 'player2-api'
+  return selectedProvider.value.id !== 'ollama' && selectedProvider.value.id !== 'player2'
 })
 
 const needsBaseUrl = computed(() => {
@@ -121,6 +123,7 @@ function getApiKeyPlaceholder(_providerId: string): string {
     'featherless-ai': 'fw-...',
     'novita-ai': 'nvt-...',
   }
+
   return placeholders[_providerId] || 'API Key'
 }
 
@@ -135,7 +138,7 @@ async function validateConfiguration() {
     return
 
   isValidating.value = true
-  validationMessage.value = t('settings.firstTimeSetup.validating')
+  validationMessage.value = t('settings.dialogs.onboarding.validating')
 
   try {
     // Prepare config object
@@ -153,15 +156,15 @@ async function validateConfiguration() {
     isValid.value = await metadata.validators.validateProviderConfig(config)
 
     if (isValid.value) {
-      validationMessage.value = t('settings.firstTimeSetup.validationSuccess')
+      validationMessage.value = t('settings.dialogs.onboarding.validationSuccess')
     }
     else {
-      validationMessage.value = t('settings.firstTimeSetup.validationFailed')
+      validationMessage.value = t('settings.dialogs.onboarding.validationFailed')
     }
   }
   catch (error) {
     isValid.value = false
-    validationMessage.value = t('validationError', {
+    validationMessage.value = t('settings.dialogs.onboarding.validationError', {
       error: error instanceof Error ? error.message : String(error),
     })
   }
@@ -233,28 +236,26 @@ onMounted(() => {
   <DialogRoot :open="showDialog" @update:open="value => showDialog = value">
     <DialogPortal>
       <DialogOverlay class="data-[state=open]:animate-fadeIn data-[state=closed]:animate-fadeOut fixed inset-0 z-[9999] bg-black/50 backdrop-blur-sm" />
-      <DialogContent class="data-[state=open]:animate-contentShow data-[state=closed]:animate-contentHide fixed left-1/2 top-1/2 z-[9999] mx-4 max-w-2xl w-[92vw] transform rounded-lg bg-white p-8 shadow-xl -translate-x-1/2 -translate-y-1/2 dark:bg-neutral-900">
+      <DialogContent class="data-[state=open]:animate-contentShow data-[state=closed]:animate-contentHide fixed left-1/2 top-1/2 z-[9999] mx-0 max-w-2xl w-[92vw] transform rounded-lg bg-white p-4 shadow-xl backdrop-blur-md md:mx-4 -translate-x-1/2 -translate-y-1/2 dark:bg-neutral-900 md:p-8">
         <!-- Header -->
-        <div class="mb-8 text-center">
-          <div class="mb-4 flex justify-center">
-            <div class="rounded-full from-primary to-primary-600 bg-gradient-to-br p-4">
-              <div class="i-solar:ghost-smile-bold-duotone text-4xl text-white" />
-            </div>
+        <div class="mb-2 text-center md:mb-8">
+          <div class="mb-1 flex justify-center md:mb-4">
+            <img :src="onboardingLogo" w="20 md:25">
           </div>
-          <DialogTitle class="mb-2 text-3xl text-neutral-800 font-bold dark:text-neutral-100">
-            {{ t('settings.firstTimeSetup.title') }}
+          <DialogTitle class="mb-0 text-lg text-neutral-800 font-bold md:mb-2 md:text-3xl dark:text-neutral-100">
+            {{ t('settings.dialogs.onboarding.title') }}
           </DialogTitle>
-          <p class="text-lg text-neutral-600 dark:text-neutral-400">
-            {{ t('settings.firstTimeSetup.description') }}
+          <p class="text-sm text-neutral-600 md:text-lg dark:text-neutral-400">
+            {{ t('settings.dialogs.onboarding.description') }}
           </p>
         </div>
 
         <!-- Provider Selection -->
-        <div class="mb-6">
-          <h2 class="mb-4 text-xl text-neutral-800 font-semibold dark:text-neutral-100">
-            {{ t('settings.firstTimeSetup.selectProvider') }}
+        <div class="mb-2 md:mb-8">
+          <h2 class="mb-4 text-center text-lg text-neutral-800 font-semibold md:text-left md:text-2xl dark:text-neutral-100">
+            {{ t('settings.dialogs.onboarding.selectProvider') }}
           </h2>
-          <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <div class="grid grid-cols-1 max-h-[25dvh] gap-3 overflow-y-scroll sm:grid-cols-2 md:max-h-full">
             <RadioCardDetail
               v-for="provider in popularProviders"
               :id="provider.id"
@@ -270,9 +271,9 @@ onMounted(() => {
         </div>
 
         <!-- Configuration Form -->
-        <div v-if="selectedProvider" class="mb-6">
+        <div v-if="selectedProvider" class="mb-2 md:mb-8">
           <h3 class="mb-4 text-lg text-neutral-800 font-medium dark:text-neutral-100">
-            {{ t('settings.configureProvider', { provider: selectedProvider.localizedName }) }}
+            {{ t('settings.dialogs.onboarding.configureProvider', { provider: selectedProvider.localizedName }) }}
           </h3>
 
           <div class="space-y-4">
@@ -336,8 +337,8 @@ onMounted(() => {
                   isValidating
                     ? 'i-svg-spinners:3-dots-fade'
                     : isValid
-                      ? 'i-mdi:check-circle'
-                      : 'i-mdi:alert-circle',
+                      ? 'i-solar:check-circle-bold-duotone'
+                      : 'i-solar:danger-circle-bold-duotone',
                 ]"
               />
               {{ validationMessage }}
@@ -346,16 +347,16 @@ onMounted(() => {
         </div>
 
         <!-- Action Buttons -->
-        <div class="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+        <div class="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end md:gap-3">
           <Button
             variant="secondary"
-            :label="t('settings.firstTimeSetup.skipForNow')"
+            :label="t('settings.dialogs.onboarding.skipForNow')"
             @click="handleSkip"
           />
           <Button
             variant="primary"
             :disabled="!canSave"
-            :label="t('settings.firstTimeSetup.saveAndContinue')"
+            :label="t('settings.dialogs.onboarding.saveAndContinue')"
             @click="handleSave"
           />
         </div>
