@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useProvidersStore } from '@proj-airi/stage-ui/stores'
-import { Input } from '@proj-airi/ui'
+import { FieldInput } from '@proj-airi/ui'
 import { useDebounceFn } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, ref, watch } from 'vue'
@@ -254,45 +254,30 @@ onMounted(() => {
     <div class="space-y-4">
       <!-- API Key Input -->
       <div v-if="needsApiKey">
-        <label class="mb-2 block text-sm text-neutral-700 font-medium dark:text-neutral-300">
-          API Key
-          <span class="text-red-500">*</span>
-        </label>
-        <Input
+        <FieldInput
           v-model="apiKey"
-          type="password"
           :placeholder="getApiKeyPlaceholder(selectedProvider.id)"
-          class="w-full"
-          :required="true"
+          type="password"
+          label="API Key"
+          description="Enter your API key for the selected provider."
+          required
         />
       </div>
 
       <!-- Base URL Input -->
       <div v-if="needsBaseUrl">
-        <label class="mb-2 block text-sm text-neutral-700 font-medium dark:text-neutral-300">
-          Base URL
-        </label>
-        <Input
+        <FieldInput
           v-model="baseUrl"
-          type="url"
           :placeholder="getBaseUrlPlaceholder(selectedProvider.id)"
-          class="w-full"
+          type="text"
+          label="Base URL"
+          description="Enter the base URL for the provider's API."
         />
       </div>
 
       <!-- Account ID for Cloudflare -->
       <div v-if="selectedProvider.id === 'cloudflare-workers-ai'">
-        <label class="mb-2 block text-sm text-neutral-700 font-medium dark:text-neutral-300">
-          Account ID
-          <span class="text-red-500">*</span>
-        </label>
-        <Input
-          v-model="accountId"
-          type="text"
-          placeholder="Account ID"
-          class="w-full"
-          :required="true"
-        />
+        <ProviderAccountIdInput v-model="accountId" />
       </div>
     </div>
 
