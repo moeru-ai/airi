@@ -1,6 +1,7 @@
 import autoprefixer from 'autoprefixer'
 import anchor from 'markdown-it-anchor'
 import unocss from 'unocss/vite'
+
 import { defineConfig, postcssIsolateStyles } from 'vitepress'
 
 import { version } from '../../package.json'
@@ -18,9 +19,7 @@ import {
   rekaShortName,
   releases,
 } from './meta'
-import ComponentPreviewPlugin from './plugins/ComponentPreview'
 import { createHoverTransformer } from './plugins/HoverTransformer'
-import InstallationTabsPlugin from './plugins/InstallationTabs'
 
 function BadgeHTML(text: string, translucent = false) {
   return `<div class="inline-flex items-center rounded-full border border-muted px-2 py-[1px] ml-2 text-[11px] transition-colors bg-primary/30 ${translucent ? '!bg-transparent' : ''} text-foreground">
@@ -400,11 +399,6 @@ export default defineConfig({
           }
         },
       }),
-    },
-
-    preConfig(md) {
-      md.use(ComponentPreviewPlugin)
-      md.use(InstallationTabsPlugin)
     },
     codeTransformers: [createHoverTransformer()],
   },
