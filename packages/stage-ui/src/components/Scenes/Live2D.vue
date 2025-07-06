@@ -16,6 +16,8 @@ withDefaults(defineProps<{
   paused: boolean
   mouthOpenSize?: number
   focusAt: { x: number, y: number }
+  xOffset?: number | string
+  yOffset?: number | string
 }>(), {
   mouthOpenSize: 0,
 })
@@ -41,6 +43,8 @@ const { live2dCurrentMotion } = storeToRefs(useSettings())
         :height="height"
         :paused="paused"
         :focus-at="focusAt"
+        :x-offset="xOffset"
+        :y-offset="yOffset"
       />
     </Live2DCanvas>
     <div absolute bottom="3" right="3">

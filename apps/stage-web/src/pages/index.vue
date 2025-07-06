@@ -40,8 +40,9 @@ const positionCursor = useMouse()
               x: positionCursor.x.value,
               y: positionCursor.y.value,
             }"
+            x-offset="-10%"
           />
-          <InteractiveArea class="flex <md:hidden" flex-1 max-w="500px" min-w="30%" />
+          <InteractiveArea class="flex <md:hidden" absolute h="85dvh" right-4 flex-1 max-w="500px" min-w="30%" />
           <MobileInteractiveArea class="hidden <md:block" mx2 mb2 @settings-open="handleSettingsOpen" />
         </div>
       </div>

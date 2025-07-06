@@ -162,12 +162,12 @@ onAfterSend(async () => {
         </div>
       </label>
     </fieldset>
-    <div h-full max-h="[85vh]" w-full px="12 <md:0" py="4">
+    <div h-full max-h="[85vh]" w-full py="4">
       <div
         flex="~ col"
-        border="solid 4 primary-50 dark:primary-400/20"
+        border="solid 4 primary-200/20 dark:primary-400/20"
         h-full w-full overflow-scroll rounded-xl
-        bg="white dark:primary-950"
+        bg="primary-50/50 dark:primary-950/70" backdrop-blur-md
       >
         <ChatHistory h-full flex-1 p-4 w="full" max-h="<md:[60%]" />
         <div h="<md:full" flex gap-2>
@@ -175,7 +175,7 @@ onAfterSend(async () => {
             v-model="messageInput"
             :placeholder="t('stage.message')"
             text="primary-500 hover:primary-600 dark:primary-300/50 dark:hover:primary-500 placeholder:primary-400 placeholder:hover:primary-500 placeholder:dark:primary-300/50 placeholder:dark:hover:primary-500"
-            bg="primary-50 dark:primary-400/20"
+            bg="primary-200/20 dark:primary-400/20"
             min-h="[100px]" max-h="[300px]" w-full
             rounded-t-xl p-4 font-medium
             outline-none transition="all duration-250 ease-in-out placeholder:all placeholder:duration-250 placeholder:ease-in-out"

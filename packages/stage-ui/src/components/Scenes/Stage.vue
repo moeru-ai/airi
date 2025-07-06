@@ -30,6 +30,8 @@ import { useSettings } from '../../stores/settings'
 withDefaults(defineProps<{
   paused?: boolean
   focusAt: { x: number, y: number }
+  xOffset?: number | string
+  yOffset?: number | string
 }>(), { paused: false })
 
 const db = ref<DuckDBWasmDrizzleDatabase>()
@@ -230,6 +232,8 @@ onMounted(async () => {
         :mouth-open-size="mouthOpenSize"
         min-w="50% <lg:full" min-h="100 sm:100" h-full w-full flex-1
         :paused="paused"
+        :x-offset="xOffset"
+        :y-offset="yOffset"
       />
       <VRMScene
         v-else-if="stageView === '3d'"

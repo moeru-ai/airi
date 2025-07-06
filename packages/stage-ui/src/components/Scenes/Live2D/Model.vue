@@ -26,6 +26,8 @@ const props = withDefaults(defineProps<{
   paused?: boolean
   focusAt?: { x: number, y: number }
   disableFocusAt?: boolean
+  xOffset?: number | string
+  yOffset?: number | string
 }>(), {
   mouthOpenSize: 0,
   paused: false,
@@ -88,6 +90,27 @@ const {
 } = storeToRefs(useSettings())
 const currentMotion = ref<{ group: string, index: number }>({ group: 'Idle', index: 0 })
 
+function parsePropsOffset() {
+  let xOffset = Number.parseFloat(String(props.xOffset)) || 0
+  let yOffset = Number.parseFloat(String(props.yOffset)) || 0
+
+  if (String(props.xOffset).endsWith('%')) {
+    xOffset = (Number.parseFloat(String(props.xOffset).replace('%', '')) / 100) * props.width
+  }
+  if (String(props.yOffset).endsWith('%')) {
+    yOffset = (Number.parseFloat(String(props.yOffset).replace('%', '')) / 100) * props.height
+  }
+  if (Number.isNaN(xOffset))
+    xOffset = 0
+  if (Number.isNaN(yOffset))
+    yOffset = 0
+
+  return {
+    xOffset,
+    yOffset,
+  }
+}
+
 async function loadModel() {
   if (!pixiApp.value)
     return
@@ -112,8 +135,10 @@ async function loadModel() {
   initialModelWidth.value = model.value.width
   initialModelHeight.value = model.value.height
 
-  model.value.x = props.width / 2
-  model.value.y = props.height
+  const { xOffset, yOffset } = parsePropsOffset()
+
+  model.value.x = (props.width / 2) + (xOffset || 0)
+  model.value.y = props.height + (yOffset || 0)
   model.value.anchor.set(0.5, 0.5)
   setScale(model)
 
@@ -210,8 +235,11 @@ async function setMotion(motionName: string, index?: number) {
 
 const handleResize = useDebounceFn(() => {
   if (model.value) {
-    model.value.x = props.width / 2
-    model.value.y = props.height
+    const { xOffset, yOffset } = parsePropsOffset()
+
+    model.value.x = props.width / 2 + xOffset
+    model.value.y = props.height + yOffset
+
     setScale(model)
   }
 }, 100)
