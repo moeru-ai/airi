@@ -38,7 +38,6 @@ ndarray = "0.16.1"
 candle-core = { version = "0.9.1" }
 candle-nn = { version = "0.9.1" }
 candle-transformers = { version = "0.9.1" }
-candle-onnx = { version = "0.9.1" }
 cpal = "0.16.0"
 crossbeam-channel = "0.5.15"
 anyhow = "1.0.98"
