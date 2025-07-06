@@ -6,8 +6,8 @@ animations:
     title: 是否使用页面特定过场动画
 firstTimeSetup:
   title: 欢迎来到 AIRI！
-  description: 让我们设置您的第一个 AI 提供商来开始使用。
-  selectProvider: 选择 AI 提供商
+  description: 让我们设置您的第一个服务来源来开始使用。
+  selectProvider: 选择服务来源
   configureProvider: 配置 {provider}
   apiKey: API 密钥
   apiKeyHelp: 从 {provider} 获取您的 API 密钥并粘贴到这里
