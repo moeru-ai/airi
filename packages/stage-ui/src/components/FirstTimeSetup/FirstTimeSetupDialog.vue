@@ -237,7 +237,7 @@ onMounted(() => {
         <!-- Header -->
         <div class="mb-8 text-center">
           <div class="mb-4 flex justify-center">
-            <div class="rounded-full from-blue-500 to-purple-600 bg-gradient-to-br p-4">
+            <div class="rounded-full from-primary to-primary-600 bg-gradient-to-br p-4">
               <div class="i-mdi:rocket-launch text-4xl text-white" />
             </div>
           </div>
