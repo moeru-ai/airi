@@ -272,7 +272,7 @@ onMounted(() => {
         <!-- Configuration Form -->
         <div v-if="selectedProvider" class="mb-6">
           <h3 class="mb-4 text-lg text-neutral-800 font-medium dark:text-neutral-100">
-            {{ t('configureProvider', { provider: selectedProvider.localizedName }) }}
+            {{ t('settings.configureProvider', { provider: selectedProvider.localizedName }) }}
           </h3>
 
           <div class="space-y-4">
