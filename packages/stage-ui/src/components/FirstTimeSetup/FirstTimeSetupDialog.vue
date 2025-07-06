@@ -334,7 +334,7 @@ onMounted(() => {
               <div
                 class="mr-2 text-lg" :class="[
                   isValidating
-                    ? 'i-mdi:loading animate-spin'
+                    ? 'i-svg-spinners:3-dots-fade'
                     : isValid
                       ? 'i-mdi:check-circle'
                       : 'i-mdi:alert-circle',
