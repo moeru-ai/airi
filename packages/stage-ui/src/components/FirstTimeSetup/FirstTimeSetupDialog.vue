@@ -245,7 +245,7 @@ onMounted(() => {
             {{ t('settings.firstTimeSetup.title') }}
           </DialogTitle>
           <p class="text-lg text-neutral-600 dark:text-neutral-400">
-            {{ t('firstTimeSetup.description') }}
+            {{ t('settings.firstTimeSetup.description') }}
           </p>
         </div>
 
