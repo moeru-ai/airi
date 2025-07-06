@@ -121,14 +121,14 @@ const routeHeaderMetadata = computed(() => routeHeaderMetadataMap.value[route.pa
   >
     <!-- Header -->
     <div
-      class="px-0 py-1 md:px-3 md:py-3"
+      class="px-0 py-1 hidden sm:block md:px-3 md:py-3"
       w-full gap-2
       bg="$bg-color"
     >
       <HeaderLink />
     </div>
     <!-- Content -->
-    <div class="px-3 py-2 md:px-5 md:py-5" flex="~ col" mx-auto max-w-screen-xl>
+    <div class="px-3 py-0 md:px-5 md:py-5" flex="~ col" mx-auto max-w-screen-xl>
       <PageHeader
         :title="routeHeaderMetadata?.title"
         :subtitle="routeHeaderMetadata?.subtitle"

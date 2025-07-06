@@ -154,54 +154,12 @@ onAfterSend(async () => {
         bg="hover:primary-100 dark:hover:primary-900"
         text="primary-300 hover:primary-500 dark:primary-300/50 dark:hover:primary-500"
         transition="all duration-250 ease-in-out"
-        cursor-pointer items-center gap-1 rounded-l-lg px-2
+        cursor-pointer items-center gap-1 rounded-lg px-2
       >
         <input v-model="tab" type="radio" name="tab" value="chat" hidden>
         <div i-solar:dialog-2-bold-duotone text="2xl" transform="translate-y--2" />
         <div flex="~ row" items-center>
           <span min-w="3em">{{ t('stage.chat.tabs.chat') }}</span>
-        </div>
-      </label>
-      <label
-        :class="[
-          tab === 'custom' ? 'bg-primary-100 dark:bg-primary-900' : 'bg-white dark:bg-primary-950',
-          tab === 'custom' ? 'text-primary-500 dark:text-primary-500' : '',
-          { 'transition-colors-none ': themeColorsHueDynamic },
-        ]"
-        flex="~ row"
-        :checked="tab === 'custom'"
-        :aria-checked="tab === 'custom'"
-        border="solid t-2 b-2 primary-100 dark:primary-900"
-        bg="hover:primary-100 dark:hover:primary-900"
-        text="primary-300 hover:primary-500 dark:primary-300/50 dark:hover:primary-500"
-        transition="all duration-250 ease-in-out"
-        cursor-pointer items-center gap-1 px-2
-      >
-        <input v-model="tab" type="radio" name="tab" value="custom" hidden>
-        <div i-solar:star-fall-2-bold-duotone text="2xl" transform="translate-y--2" />
-        <div flex="~ row" items-center>
-          <span>{{ t('stage.chat.tabs.custom') }}</span>
-        </div>
-      </label>
-      <label
-        :class="[
-          tab === 'clothes' ? 'bg-primary-100 dark:bg-primary-900' : 'bg-white dark:bg-primary-950',
-          tab === 'clothes' ? 'text-primary-500 dark:text-primary-500' : '',
-          { 'transition-colors-none ': themeColorsHueDynamic },
-        ]"
-        flex="~ row"
-        :checked="tab === 'clothes'"
-        :aria-checked="tab === 'clothes'"
-        border="solid r-2 t-2 b-2 primary-100 dark:primary-900"
-        bg="hover:primary-100 dark:hover:primary-900"
-        text="primary-300 hover:primary-500 dark:primary-300/50 dark:hover:primary-500"
-        transition="all duration-250 ease-in-out"
-        cursor-pointer items-center gap-1 rounded-r-lg px-2
-      >
-        <input v-model="tab" type="radio" name="tab" value="clothes" hidden>
-        <div i-solar:magic-stick-3-bold-duotone text="2xl" transform="translate-y--2" />
-        <div flex="~ row" items-center>
-          <span>{{ t('stage.chat.tabs.clothes') }}</span>
         </div>
       </label>
     </fieldset>
