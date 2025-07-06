@@ -1,5 +1,6 @@
 export * from './audio'
 export * from './chat'
+export * from './onboarding-setup'
 export * from './llm'
 export * from './mcp'
 export * from './modules'
