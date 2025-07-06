@@ -17,7 +17,6 @@ import { onMounted, onUnmounted, ref } from 'vue'
 import Live2DScene from './Live2D.vue'
 import VRMScene from './VRM.vue'
 
-import { useMarkdown } from '../../composables/markdown'
 import { useQueue } from '../../composables/queue'
 import { useDelayMessageQueue, useEmotionsMessageQueue, useMessageContentQueue } from '../../composables/queues'
 import { llmInferenceEndToken } from '../../constants'
@@ -41,8 +40,7 @@ const vrmViewerRef = ref<{ setExpression: (expression: string) => void }>()
 const { stageView } = storeToRefs(useSettings())
 const { mouthOpenSize } = storeToRefs(useSpeakingStore())
 const { audioContext, calculateVolume } = useAudioContext()
-const { onBeforeMessageComposed, onBeforeSend, onTokenLiteral, onTokenSpecial, onStreamEnd, streamingMessage, onAssistantResponseEnd } = useChatStore()
-const { process } = useMarkdown()
+const { onBeforeMessageComposed, onBeforeSend, onTokenLiteral, onTokenSpecial, onStreamEnd, onAssistantResponseEnd } = useChatStore()
 const providersStore = useProvidersStore()
 
 const audioAnalyser = ref<AnalyserNode>()
@@ -243,68 +241,5 @@ onMounted(async () => {
         @error="console.error"
       />
     </div>
-    <div
-      v-if="streamingMessage.content !== ''"
-      class="animate-stripe"
-      absolute
-      left="1/2"
-      bottom="20%"
-      z="20"
-      rounded-2xl
-      text="primary-600"
-      px-2 py-2
-      transform="translate-x--1/2"
-    >
-      <div bg="primary-50" rounded-xl px-10 py-6>
-        <div class="markdown-content" v-html="process(streamingMessage.content as string)" />
-      </div>
-    </div>
   </div>
 </template>
-
-<style lang="css" scoped>
-/**
-  Plunker - Untitled
-  https://plnkr.co/edit/4wPv1ogKNMfJ6rQPhZdJ?p=preview&preview
-
-  by https://stackoverflow.com/a/31547711/19954520
- */
-.animate-stripe {
-  background-image: repeating-linear-gradient(-45deg, #f472b6, #f472b6 25px, #f9a8d4 25px, #f9a8d4 50px);
-  animation: progress 2s linear infinite;
-  background-size: 150% 100%;
-}
-
-@-webkit-keyframes progress {
-  0% {
-    background-position: 0 0;
-  }
-  100% {
-    background-position: -75px 0px;
-  }
-}
-@-moz-keyframes progress {
-  0% {
-    background-position: 0 0;
-  }
-  100% {
-    background-position: -75px 0px;
-  }
-}
-@-ms-keyframes progress {
-  0% {
-    background-position: 0 0;
-  }
-  100% {
-    background-position: -75px 0px;
-  }
-}
-@keyframes progress {
-  0% {
-    background-position: 0 0;
-  }
-  100% {
-    background-position: -70px 0px;
-  }
-}
-</style>
