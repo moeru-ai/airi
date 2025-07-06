@@ -238,7 +238,7 @@ onMounted(() => {
         <div class="mb-8 text-center">
           <div class="mb-4 flex justify-center">
             <div class="rounded-full from-primary to-primary-600 bg-gradient-to-br p-4">
-              <div class="i-mdi:rocket-launch text-4xl text-white" />
+              <div class="i-solar:ghost-smile-bold-duotone text-4xl text-white" />
             </div>
           </div>
           <DialogTitle class="mb-2 text-3xl text-neutral-800 font-bold dark:text-neutral-100">
