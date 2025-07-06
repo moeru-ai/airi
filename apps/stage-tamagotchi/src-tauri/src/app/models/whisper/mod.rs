@@ -158,7 +158,11 @@ impl Processor {
     let config_filename = match cache_repo.get(config_filename_sub_name) {
       None => repo.download_with_progress(
         config_filename_sub_name,
-        create_progress_emitter(window.clone(), config_filename_sub_name.to_string()),
+        create_progress_emitter(
+          window.clone(),
+          "tauri-tamagotchi://plugins:proj-airi:audio-transcription:load-model-whisper-progress",
+          config_filename_sub_name.to_string(),
+        ),
       )?,
       Some(p) => p,
     };
@@ -168,7 +172,11 @@ impl Processor {
     let tokenizer_filename = match cache_repo.get(tokenizer_filename_sub_name) {
       None => repo.download_with_progress(
         tokenizer_filename_sub_name,
-        create_progress_emitter(window.clone(), tokenizer_filename_sub_name.to_string()),
+        create_progress_emitter(
+          window.clone(),
+          "tauri-tamagotchi://plugins:proj-airi:audio-transcription:load-model-whisper-progress",
+          tokenizer_filename_sub_name.to_string(),
+        ),
       )?,
       Some(p) => p,
     };
@@ -178,7 +186,11 @@ impl Processor {
     let model_filename = match cache_repo.get(model_filename_sub_name) {
       None => repo.download_with_progress(
         model_filename_sub_name,
-        create_progress_emitter(window.clone(), model_filename_sub_name.to_string()),
+        create_progress_emitter(
+          window.clone(),
+          "tauri-tamagotchi://plugins:proj-airi:audio-transcription:load-model-whisper-progress",
+          model_filename_sub_name.to_string(),
+        ),
       )?,
       Some(p) => p,
     };

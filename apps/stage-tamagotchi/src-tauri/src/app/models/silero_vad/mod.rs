@@ -60,7 +60,11 @@ impl Processor {
       Some(path) => path,
       None => repo.download_with_progress(
         model_path_sub_name,
-        create_progress_emitter(window.clone(), model_path_sub_name.to_string()),
+        create_progress_emitter(
+          window.clone(),
+          "tauri-tamagotchi://plugins:proj-airi:audio-vad:load-model-silero-vad-progress",
+          model_path_sub_name.to_string(),
+        ),
       )?,
     };
 

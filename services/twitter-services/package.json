@@ -12,20 +12,20 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@browserbasehq/stagehand": "^2.4.0",
+    "@browserbasehq/stagehand": "^2.4.1",
     "@guiiai/logg": "^1.0.10",
-    "@modelcontextprotocol/sdk": "^1.13.2",
+    "@modelcontextprotocol/sdk": "^1.15.0",
     "@moeru/std": "catalog:",
     "@proj-airi/server-sdk": "^0.6.1",
-    "dotenv": "^16.6.1",
+    "dotenv": "^17.0.1",
     "h3": "^1.15.3",
     "listhen": "^1.9.0",
     "ofetch": "^1.4.1",
-    "playwright": "^1.53.1",
-    "zod": "^3.25.67"
+    "playwright": "^1.53.2",
+    "zod": "^3.25.74"
   },
   "devDependencies": {
-    "@types/node": "^24.0.7",
+    "@types/node": "^24.0.10",
     "tsx": "^4.20.3",
     "typescript": "^5.8.3"
   }

@@ -28,18 +28,18 @@
   "dependencies": {
     "@proj-airi/font-departure-mono": "workspace:^",
     "@rive-app/canvas-lite": "^2.30.1",
-    "@vueuse/core": "^13.4.0",
+    "@vueuse/core": "^13.5.0",
     "@vueuse/motion": "^3.0.3",
     "vue": "^3.5.17"
   },
   "devDependencies": {
     "@proj-airi/ui": "workspace:^",
-    "@unocss/reset": "^66.3.2",
+    "@unocss/reset": "^66.3.3",
     "@vitejs/plugin-vue": "^6.0.0",
     "unplugin-vue-router": "^0.14.0",
     "vite": "catalog:rolldown-vite",
     "vite-plugin-vue-devtools": "^7.7.7",
     "vue-router": "^4.5.1",
-    "vue-tsc": "^3.0.0-beta.5"
+    "vue-tsc": "^3.0.1"
   }
 }

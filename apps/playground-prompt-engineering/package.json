@@ -18,16 +18,16 @@
   },
   "devDependencies": {
     "@iconify/vue": "^5.0.0",
-    "@types/node": "^24.0.7",
-    "@unocss/reset": "^66.3.2",
+    "@types/node": "^24.0.10",
+    "@unocss/reset": "^66.3.3",
     "@vitejs/plugin-vue": "^6.0.0",
     "typescript": "~5.8.3",
-    "unocss": "^66.3.2",
+    "unocss": "^66.3.3",
     "unplugin-vue-macros": "^2.14.5",
     "unplugin-vue-router": "^0.14.0",
     "vite": "catalog:rolldown-vite",
     "vite-plugin-vue-devtools": "^7.7.7",
     "vite-plugin-vue-layouts": "^0.11.0",
-    "vue-tsc": "^2.2.10"
+    "vue-tsc": "^2.2.12"
   }
 }

@@ -1,4 +1,4 @@
-import type { PresetOrFactoryAwaitable } from 'unocss'
+import type { Preset, PresetOrFactoryAwaitable } from 'unocss'
 
 import { createExternalPackageIconLoader } from '@iconify/utils/lib/loader/external-pkg'
 import { presetChromatic } from '@proj-airi/unocss-preset-chromatic'
@@ -84,7 +84,7 @@ export function sharedUnoConfig() {
           primary: 0,
           complementary: 180,
         },
-      }),
+      }) as Preset,
     ],
     transformers: [
       transformerDirectives({
