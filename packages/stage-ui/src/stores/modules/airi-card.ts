@@ -180,13 +180,14 @@ export const useAiriCardStore = defineStore('airi-card', () => {
 
   onMounted(() => {
     const { t } = useI18n()
+
     cards.value.set('default', newAiriCard({
       name: 'ReLU',
       version: '1.0.0',
       // description: 'ReLU is a simple and effective activation function that is used in many neural networks.',
       description: SystemPromptV2(
-        t('prompt.prefix'),
-        t('prompt.suffix'),
+        t('base.prompt.prefix'),
+        t('base.prompt.suffix'),
       ).content,
     }))
   })

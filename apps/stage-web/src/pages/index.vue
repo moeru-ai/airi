@@ -28,8 +28,11 @@ const positionCursor = useMouse()
     >
       <div relative flex="~ col" z-2 h-100dvh w-100vw of-hidden>
         <!-- header -->
-        <div>
-          <Header class="flex" p2 />
+        <div
+          class="px-0 py-1 hidden sm:block md:px-3 md:py-3"
+          w-full gap-2
+        >
+          <Header class="flex" />
         </div>
         <!-- page -->
         <div relative flex="~ 1 row gap-y-0 gap-x-2 <md:col">

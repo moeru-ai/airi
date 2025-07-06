@@ -150,7 +150,7 @@ onAfterSend(async () => {
         flex="~ row"
         :checked="tab === 'chat'"
         :aria-checked="tab === 'chat'"
-        border="solid 2 primary-50 dark:primary-900"
+        border="solid 2 primary-100 dark:primary-900"
         text="primary-300 hover:primary-500 dark:primary-300/50 dark:hover:primary-500"
         transition="all duration-250 ease-in-out"
         cursor-pointer items-center gap-1 rounded-lg px-2
@@ -232,53 +232,3 @@ onAfterSend(async () => {
     </div>
   </div>
 </template>
-
-<style lang="css" scoped>
-/**
-  Plunker - Untitled
-  https://plnkr.co/edit/4wPv1ogKNMfJ6rQPhZdJ?p=preview&preview
-
-  by https://stackoverflow.com/a/31547711/19954520
- */
-.animate-stripe {
-  background-image: repeating-linear-gradient(-45deg, #a16207, #a16207 25px, #eab308 25px, #eab308 50px);
-  background-size: 175% 100%;
-}
-
-.animate-stripe:hover {
-  animation: progress 2s linear infinite;
-}
-
-@-webkit-keyframes progress {
-  0% {
-    background-position: 0 0;
-  }
-  100% {
-    background-position: -75px 0px;
-  }
-}
-@-moz-keyframes progress {
-  0% {
-    background-position: 0 0;
-  }
-  100% {
-    background-position: -75px 0px;
-  }
-}
-@-ms-keyframes progress {
-  0% {
-    background-position: 0 0;
-  }
-  100% {
-    background-position: -75px 0px;
-  }
-}
-@keyframes progress {
-  0% {
-    background-position: 0 0;
-  }
-  100% {
-    background-position: -70px 0px;
-  }
-}
-</style>
