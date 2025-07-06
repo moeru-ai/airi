@@ -1,1 +1,1 @@
-export { default as FirstTimeSetupDialog } from './FirstTimeSetupDialog.vue'
+export { default as FirstTimeSetupDialog } from './OnboardingDialog.vue'
