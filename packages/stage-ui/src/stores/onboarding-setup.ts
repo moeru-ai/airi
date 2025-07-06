@@ -1,6 +1,6 @@
 import { useLocalStorage } from '@vueuse/core'
 import { defineStore } from 'pinia'
-import { computed, ref } from 'vue'
+import { computed, ref, nextTick } from 'vue'
 
 import { useProvidersStore } from './providers'
 
