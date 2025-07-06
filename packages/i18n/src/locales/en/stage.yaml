@@ -8,7 +8,7 @@ chat:
     chat: Chat
     clothes: Clothes
     custom: Custom
-message: Message
+message: Say something...
 operations:
   load-models: Load Models
   load-models-status:

@@ -19,7 +19,7 @@ const dark = useDark()
     <template v-else>
       <img :src="Logo" h-8 w-8 class="theme-colored">
     </template>
-    <div translate-y="[2px]" font-normal font-quicksand>
+    <div translate-y="[2px]" font-bold font-quicksand text-stroke-sm style="paint-order: stroke fill;">
       <span>AIRI</span>
     </div>
   </RouterLink>

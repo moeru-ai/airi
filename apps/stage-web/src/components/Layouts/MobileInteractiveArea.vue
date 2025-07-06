@@ -84,15 +84,15 @@ onMounted(() => {
 </script>
 
 <template>
-  <div fixed bottom-0 w-full flex gap-1>
+  <div fixed bottom-0 w-full flex gap-1 max-w="[calc(100dvw-1rem)]">
     <MobileChatHistory absolute left-0 top-0 transform="translate-y-[-100%]" w-full />
     <div flex flex-1>
       <BasicTextarea
         v-model="messageInput"
         :placeholder="t('stage.message')"
-        border="solid 2 primary-100 dark:primary-400/20"
+        border="solid 2 primary-200 dark:primary-400/20"
         text="primary-300 hover:primary-500 dark:primary-300/50 dark:hover:primary-500 placeholder:primary-300 placeholder:hover:primary-500 placeholder:dark:primary-300/50 placeholder:dark:hover:primary-500"
-        bg="primary-100 dark:primary-400/20"
+        bg="primary-50 dark:primary-400/20"
         max-h="[10lh]" min-h="[1lh]"
         w-full resize-none overflow-y-scroll rounded-xl p-2 font-medium outline-none
         transition="all duration-250 ease-in-out placeholder:all placeholder:duration-250 placeholder:ease-in-out"
