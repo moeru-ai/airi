@@ -252,7 +252,7 @@ onMounted(() => {
         <!-- Provider Selection -->
         <div class="mb-6">
           <h2 class="mb-4 text-xl text-neutral-800 font-semibold dark:text-neutral-100">
-            {{ t('firstTimeSetup.selectProvider') }}
+            {{ t('settings.firstTimeSetup.selectProvider') }}
           </h2>
           <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <RadioCardDetail
