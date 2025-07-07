@@ -26,7 +26,7 @@ watch([graphemeClusters, () => props.animator], ([_, animator]) => {
 </script>
 
 <template>
-  <div class="relative overflow-hidden">
+  <div class="relative overflow-hidden whitespace-nowrap">
     <span
       v-for="(cluster, index) in graphemeClusters"
       :key="index"

@@ -3,9 +3,9 @@ import { ref } from 'vue'
 
 import PoppinText from './PoppinText.web.vue'
 
-import { popupAnimator } from './animators'
+import { fadeAnimator, popupAnimator } from './animators'
 
-const text = ref('キラキラドキドキ')
+const text = ref('キラキラドキドキキラキラドキドキキラキラドキドキキラキラドキドキ')
 </script>
 
 <template>
@@ -19,11 +19,20 @@ const text = ref('キラキラドキドキ')
     </template>
 
     <Variant
-      id="basic-english"
-      title="English Text"
+      id="popup"
+      title="Popup"
     >
-      <div h-50 w-50 p-4>
+      <div h-auto w-full p-4>
         <PoppinText :text="text" :animator="popupAnimator" />
+      </div>
+    </Variant>
+
+    <Variant
+      id="fade"
+      title="Fade"
+    >
+      <div h-auto w-full p-4>
+        <PoppinText :text="text" :animator="fadeAnimator" />
       </div>
     </Variant>
   </Story>
