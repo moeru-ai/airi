@@ -21,18 +21,18 @@ import { defineConfig } from 'vite'
 import { VitePWA } from 'vite-plugin-pwa'
 
 function getHttps(): ServerOptions | undefined {
-  const cert = resolve(join(import.meta.dirname, '..', '..', 'localhost.crt'))
-  const key = resolve(join(import.meta.dirname, '..', '..', 'localhost.pem'))
+  const rootDir = resolve(import.meta.dirname, '..', '..')
+  const certPath = join(rootDir, 'localhost.crt')
+  const keyPath = join(rootDir, 'localhost.pem')
 
-  if (existsSync(cert) && existsSync(key)) {
+  if (existsSync(certPath) && existsSync(keyPath)) {
     return {
-      cert: readFileSync(cert),
-      key: readFileSync(key),
+      cert: readFileSync(certPath),
+      key: readFileSync(keyPath),
     }
   }
-  else {
-    return undefined
-  }
+
+  return undefined
 }
 
 export default defineConfig({
