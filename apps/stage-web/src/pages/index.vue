@@ -1,7 +1,9 @@
 <script setup lang="ts">
+import Color from 'colorjs.io'
+
 import { WidgetStage } from '@proj-airi/stage-ui/components/scenes'
 import { breakpointsTailwind, useBreakpoints, useDark, useMouse } from '@vueuse/core'
-import { ref } from 'vue'
+import { onMounted, ref } from 'vue'
 
 import Cross from '../components/Backgrounds/Cross.vue'
 import Header from '../components/Layouts/Header.vue'
@@ -19,11 +21,26 @@ function handleSettingsOpen(open: boolean) {
 const positionCursor = useMouse()
 const breakpoints = useBreakpoints(breakpointsTailwind)
 const isMobile = breakpoints.smaller('md')
+
+onMounted(() => {
+  if (!('document' in globalThis && globalThis.document != null))
+    return
+  if (!('window' in globalThis && globalThis.window != null))
+    return
+
+  const widgets = document.querySelector('.widgets.top-widgets .colored-area') as HTMLDivElement | undefined
+  if (!widgets)
+    return
+
+  const backgroundColor = window.getComputedStyle(widgets).getPropertyValue('background-color')
+  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', new Color(backgroundColor).to('srgb').toString({ format: 'hex' }))
+})
 </script>
 
 <template>
   <Cross>
     <AnimatedWave
+      class="widgets top-widgets"
       :fill-color="dark
         ? 'oklch(35% calc(var(--chromatic-chroma) * 0.6) var(--chromatic-hue))'
         : 'color-mix(in srgb, oklch(95% calc(var(--chromatic-chroma-50) * 0.5) var(--chromatic-hue)) 80%, oklch(100% 0 360))'"

@@ -8,7 +8,16 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" sizes="any" />
     <link rel="shortcut icon" href="/favicon.ico" />
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <meta name="theme-color" content="rgb(18,18,18)" id="themeColor" />
     <meta name="apple-mobile-web-app-title" content="AIRI" />
+    <script>
+      ;(function () {
+        const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
+        const setting = localStorage.getItem('vueuse-color-scheme') || 'auto'
+        if (setting === 'light' || (prefersDark && setting !== 'dark'))
+          document.querySelector('#themeColor').setAttribute('content', 'rgb(255,255,255)')
+      })()
+    </script>
     <script>
       ;(function () {
         const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches

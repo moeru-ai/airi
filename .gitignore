@@ -39,6 +39,14 @@ apps/stage-web/public/assets/fonts/
 *.ogg
 *.mp3
 
+# Credentials
+cert*/
+*.pem
+*.crt
+*.cer
+*.key
+*.p12
+
 twitter-session.json
 
 # Make it easy for devenv users to override their local environment.

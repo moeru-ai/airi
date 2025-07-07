@@ -103,7 +103,7 @@ watch(
     <slot />
     <div absolute left-0 right-0 top-0 w-full overflow-hidden>
       <div
-        class="wave"
+        class="colored-area wave"
         :style="{
           'background': waveFillColor,
           'height': `${fullHeight}px`,

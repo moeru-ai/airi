@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { env } from 'node:process'
 
@@ -63,6 +64,13 @@ export default defineConfig({
     },
   },
 
+  server: {
+    https: {
+      key: readFileSync(resolve(join(import.meta.dirname, '..', '..', 'localhost.pem'))),
+      cert: readFileSync(resolve(join(import.meta.dirname, '..', '..', 'localhost.crt'))),
+    },
+  },
+
   plugins: [
     Yaml(),
 
@@ -100,7 +108,6 @@ export default defineConfig({
           manifest: {
             name: 'AIRI',
             short_name: 'AIRI',
-            theme_color: '#ffc6cb',
             icons: [
               {
                 purpose: 'maskable',

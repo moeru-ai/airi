@@ -34,6 +34,7 @@ words:
   - cjkfonts
   - clippy
   - collectblock
+  - colorjs
   - composables
   - cooldown
   - coreml
