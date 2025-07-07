@@ -1,20 +1,26 @@
-import type { Animator } from '.'
+import type { Animator, CreateAnimatorOptions } from '.'
 
 import { createTimeline } from 'animejs'
 
-export const fadeAnimator: Animator = (elements: HTMLElement[]) => {
-  const timeline = createTimeline({ loop: true })
-    .set(elements, {
-      opacity: 0,
-    })
-    .add(elements, {
-      opacity: [0, 1],
-      easing: 'easeInOutQuad',
-      duration: 2250,
-      delay: (_, i) => 150 * (i + 1),
-    })
+export function createFadeAnimator(options: CreateAnimatorOptions): Animator {
+  return (elements: HTMLElement[]) => {
+    if (elements.length === 0) {
+      // NO DIV0
+      return () => {}
+    }
 
-  return () => {
-    timeline.remove(elements)
+    const timeline = createTimeline({ loop: true })
+      .set(elements, {
+        opacity: 0,
+      })
+      .add(elements, {
+        opacity: [0, 1],
+        ...options,
+        delay: (_, i) => options.duration / elements.length * (i + 1),
+      })
+
+    return () => {
+      timeline.remove(elements)
+    }
   }
 }

@@ -26,12 +26,13 @@ watch([graphemeClusters, () => props.animator], ([_, animator]) => {
 </script>
 
 <template>
-  <div class="relative overflow-hidden whitespace-nowrap">
+  <div class="relative overflow-hidden whitespace-nowrap text-2xl font-bold font-m-plus-rounded">
     <span
       v-for="(cluster, index) in graphemeClusters"
       :key="index"
       ref="elements"
-      class="inline-block"
+      class="inline-block color-primary-400"
+      :style="{ '--chromatic-hue': index * 360 / graphemeClusters.length }"
     >
       {{ cluster }}
     </span>

@@ -1,11 +1,13 @@
 <script setup lang="ts">
+import { FieldRange } from '@proj-airi/ui'
 import { ref } from 'vue'
 
 import PoppinText from './PoppinText.web.vue'
 
-import { fadeAnimator, popupAnimator } from './animators'
+import { createFadeAnimator, createFloatAnimator, createPopupAnimator } from './animators'
 
-const text = ref('キラキラドキドキキラキラドキドキキラキラドキドキキラキラドキドキ')
+const text = ref('行こう、七色のキラキラドキドキに向かって！')
+const duration = ref(750)
 </script>
 
 <template>
@@ -15,7 +17,13 @@ const text = ref('キラキラドキドキキラキラドキドキキラキラ�
     :layout="{ type: 'grid', width: '100%' }"
   >
     <template #controls>
-      <ThemeColorsHueControl />
+      <FieldRange
+        v-model.number="duration"
+        :min="50"
+        :max="3000"
+        :step="50"
+        label="Duration"
+      />
     </template>
 
     <Variant
@@ -23,7 +31,7 @@ const text = ref('キラキラドキドキキラキラドキドキキラキラ�
       title="Popup"
     >
       <div h-auto w-full p-4>
-        <PoppinText :text="text" :animator="popupAnimator" />
+        <PoppinText :text="text" :animator="createPopupAnimator({ duration })" />
       </div>
     </Variant>
 
@@ -32,7 +40,16 @@ const text = ref('キラキラドキドキキラキラドキドキキラキラ�
       title="Fade"
     >
       <div h-auto w-full p-4>
-        <PoppinText :text="text" :animator="fadeAnimator" />
+        <PoppinText :text="text" :animator="createFadeAnimator({ duration })" />
+      </div>
+    </Variant>
+
+    <Variant
+      id="float"
+      title="Float"
+    >
+      <div h-auto w-full p-4>
+        <PoppinText :text="text" :animator="createFloatAnimator({ duration })" />
       </div>
     </Variant>
   </Story>
