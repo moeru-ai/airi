@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import Color from 'colorjs.io'
 
+import { withRetry } from '@moeru/std'
 import { WidgetStage } from '@proj-airi/stage-ui/components/scenes'
 import { breakpointsTailwind, useBreakpoints, useDark, useMouse } from '@vueuse/core'
-import { onMounted, ref } from 'vue'
+import { onMounted, ref, watch } from 'vue'
 
 import Cross from '../components/Backgrounds/Cross.vue'
 import Header from '../components/Layouts/Header.vue'
@@ -22,19 +23,27 @@ const positionCursor = useMouse()
 const breakpoints = useBreakpoints(breakpointsTailwind)
 const isMobile = breakpoints.smaller('md')
 
-onMounted(() => {
+async function updateThemeColor() {
   if (!('document' in globalThis && globalThis.document != null))
     return
   if (!('window' in globalThis && globalThis.window != null))
     return
 
-  const widgets = document.querySelector('.widgets.top-widgets .colored-area') as HTMLDivElement | undefined
-  if (!widgets)
-    return
+  const fetchUntilWidgetMounted = withRetry(() => {
+    const widgets = document.querySelector('.widgets.top-widgets .colored-area') as HTMLDivElement | undefined
+    if (!widgets)
+      throw new Error('Widgets element not found')
 
+    return widgets
+  }, { retry: 10, retryDelay: 1000 })
+
+  const widgets = await fetchUntilWidgetMounted()
   const backgroundColor = window.getComputedStyle(widgets).getPropertyValue('background-color')
   document.querySelector('meta[name="theme-color"]')?.setAttribute('content', new Color(backgroundColor).to('srgb').toString({ format: 'hex' }))
-})
+}
+
+watch(dark, () => updateThemeColor(), { immediate: true })
+onMounted(() => updateThemeColor())
 </script>
 
 <template>
