@@ -1,4 +1,3 @@
-import { readFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { env } from 'node:process'
 
@@ -65,10 +64,6 @@ export default defineConfig({
   },
 
   server: {
-    https: {
-      key: readFileSync(resolve(join(import.meta.dirname, '..', '..', 'localhost.pem'))),
-      cert: readFileSync(resolve(join(import.meta.dirname, '..', '..', 'localhost.crt'))),
-    },
   },
 
   plugins: [
