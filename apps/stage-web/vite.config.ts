@@ -64,7 +64,6 @@ export default defineConfig({
   },
 
   server: {
-    https: getHttps(),
   },
 
   plugins: [
