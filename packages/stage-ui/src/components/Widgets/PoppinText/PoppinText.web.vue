@@ -10,7 +10,13 @@ const props = defineProps<{
   animator?: Animator
 }>()
 
-const graphemeClusters = computed(() => [...props.text]) // Safely split text into grapheme clusters with UTF-8 awareness
+// Safely split text (some effort) into grapheme clusters with UTF-8 awareness
+const graphemeClusters = computed(() => {
+  const segmenter = new Intl.Segmenter('en-US', { granularity: 'grapheme' })
+  const segments = segmenter.segment(props.text)
+  return Array.from(segments).map(s => s.segment)
+})
+
 const elements = ref<HTMLElement[]>([])
 
 const animatorCleanupFn = shallowRef<() => void>()
