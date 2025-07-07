@@ -251,7 +251,6 @@ onMounted(() => {
             </p>
           </div>
           <Button
-            variant="secondary"
             :label="t('settings.dialogs.onboarding.start')"
             @click="handleNextStep"
           />
@@ -286,7 +285,6 @@ onMounted(() => {
             </div>
           </div>
           <Button
-            variant="secondary"
             :label="t('settings.dialogs.onboarding.next')"
             :disabled="!selectedProviderId"
             @click="handleNextStep"

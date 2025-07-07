@@ -10,6 +10,7 @@ import onboardingLogo from '../../../assets/onboarding.png'
 
 import { RadioCardDetail } from '../../Menu'
 import { Button } from '../../Misc'
+import { ProviderAccountIdInput } from '../../Providers'
 
 interface Emits {
   (e: 'configured'): void
