@@ -1,14 +1,18 @@
 <script setup lang="ts">
 import { PageHeader } from '@proj-airi/stage-ui/components'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores'
+import { useDark } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { computed } from 'vue'
+import { computed, onMounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterView, useRoute } from 'vue-router'
 
 import HeaderLink from '../components/Layouts/HeaderLink.vue'
 
+import { themeColorFromValue, useThemeColor } from '../composables/theme-color'
+
 const route = useRoute()
+const dark = useDark()
 const { t } = useI18n()
 const providersStore = useProvidersStore()
 const { allProvidersMetadata } = storeToRefs(providersStore)
@@ -108,6 +112,11 @@ const routeHeaderMetadataMap = computed(() => {
 
 // const activeSettingsTutorial = ref('default')
 const routeHeaderMetadata = computed(() => routeHeaderMetadataMap.value[route.path])
+
+const { updateThemeColor } = useThemeColor(themeColorFromValue({ light: 'rgb(255 255 255)', dark: 'rgb(18 18 18)' }))
+watch(dark, () => updateThemeColor(), { immediate: true })
+watch(route, () => updateThemeColor(), { immediate: true })
+onMounted(() => updateThemeColor())
 </script>
 
 <template>
