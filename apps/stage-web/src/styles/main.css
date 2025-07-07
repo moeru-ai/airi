@@ -3,7 +3,6 @@
 :root {
   --bg-color-light: rgb(255 255 255);
   --bg-color-dark: rgb(18 18 18);
-  --progress-bar-color: rgb(244 114 182);
   --bg-color: var(--bg-color-light);
 }
 
@@ -31,7 +30,7 @@ html.dark {
 }
 
 #nprogress .bar {
-  background: var(--progress-bar-color);
+  background: color-mix(in srgb, oklch(95% var(--chromatic-chroma-900) calc(var(--chromatic-hue) + ${0})) 70%, oklch(50% 0 360));
   opacity: 0.75;
   position: fixed;
   z-index: 1031;
@@ -39,4 +38,17 @@ html.dark {
   left: 0;
   width: 100%;
   height: 2px;
+}
+
+.dark #nprogress .bar {
+  background: `color-mix(in srgb, oklch(95% var(--chromatic-chroma-900) calc(var(--chromatic-hue) + ${0})) 90%, oklch(90% 0 360))`;
+}
+
+@media (display-mode: standalone) {
+  #nprogress {
+    display: none;
+  }
+  #nprogress .bar {
+    display: none;
+  }
 }
