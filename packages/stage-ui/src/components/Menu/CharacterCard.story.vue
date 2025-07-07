@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 
-import CharacterCardColorControls from '../../../stories/CharacterCardColorControls.vue'
 import CharacterCard from './CharacterCard.vue'
 import characterImage from './relu.png'
 
