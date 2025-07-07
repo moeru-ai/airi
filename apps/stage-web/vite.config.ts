@@ -1,4 +1,6 @@
-import { readFileSync } from 'node:fs'
+import type { ServerOptions } from 'node:https'
+
+import { existsSync, readFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { env } from 'node:process'
 
@@ -17,6 +19,21 @@ import { templateCompilerOptions } from '@tresjs/core'
 import { LFS, SpaceCard } from 'hfup/vite'
 import { defineConfig } from 'vite'
 import { VitePWA } from 'vite-plugin-pwa'
+
+function getHttps(): ServerOptions | undefined {
+  const cert = resolve(join(import.meta.dirname, '..', '..', 'localhost.crt'))
+  const key = resolve(join(import.meta.dirname, '..', '..', 'localhost.pem'))
+
+  if (existsSync(cert) && existsSync(key)) {
+    return {
+      cert: readFileSync(cert),
+      key: readFileSync(key),
+    }
+  }
+  else {
+    return undefined
+  }
+}
 
 export default defineConfig({
   optimizeDeps: {
@@ -65,10 +82,7 @@ export default defineConfig({
   },
 
   server: {
-    https: {
-      key: readFileSync(resolve(join(import.meta.dirname, '..', '..', 'localhost.pem'))),
-      cert: readFileSync(resolve(join(import.meta.dirname, '..', '..', 'localhost.crt'))),
-    },
+    https: getHttps(),
   },
 
   plugins: [
