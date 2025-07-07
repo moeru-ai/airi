@@ -8,9 +8,9 @@ import { useI18n } from 'vue-i18n'
 
 import onboardingLogo from '../../../assets/onboarding.png'
 
-import { RadioCardDetail } from '../../Menu'
-import { Button } from '../../Misc'
-import { ProviderAccountIdInput } from '../../Providers'
+import { RadioCardDetail } from '../../../Menu'
+import { Button } from '../../../Misc'
+import { ProviderAccountIdInput } from '../../../Providers'
 
 interface Emits {
   (e: 'configured'): void
@@ -215,8 +215,8 @@ onMounted(() => {
 <template>
   <!-- Header -->
   <div class="mb-2 text-center md:mb-8">
-    <div class="mb-1 flex justify-center md:mb-4">
-      <img :src="onboardingLogo" w="20 md:25">
+    <div class="my-0 mb-1 flex justify-center lg:mb-8 lg:mt-8 md:mb-4">
+      <img :src="onboardingLogo" w="20 md:25 lg:50">
     </div>
     <h2 class="mb-0 text-lg text-neutral-800 font-bold md:mb-2 md:text-2xl dark:text-neutral-100">
       {{ t('settings.dialogs.onboarding.title') }}

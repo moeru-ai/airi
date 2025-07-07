@@ -7,6 +7,9 @@ import { storeToRefs } from 'pinia'
 import { computed, onMounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterView } from 'vue-router'
+import { Toaster } from 'vue-sonner'
+
+import 'vue-sonner/style.css'
 
 const i18n = useI18n()
 const settings = storeToRefs(useSettings())
@@ -75,6 +78,8 @@ function handleSetupSkipped() {
   >
     <RouterView />
   </StageTransitionGroup>
+
+  <Toaster position="top-right" />
 
   <!-- First Time Setup Dialog -->
   <OnboardingDialog

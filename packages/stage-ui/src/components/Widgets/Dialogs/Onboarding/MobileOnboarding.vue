@@ -8,10 +8,10 @@ import { useI18n } from 'vue-i18n'
 
 import onboardingLogo from '../../../assets/onboarding.png'
 
-import { Callout } from '../../Layouts'
-import { RadioCardDetail } from '../../Menu'
-import { Button } from '../../Misc'
-import { ProviderAccountIdInput } from '../../Providers'
+import { Callout } from '../../../Layouts'
+import { RadioCardDetail } from '../../../Menu'
+import { Button } from '../../../Misc'
+import { ProviderAccountIdInput } from '../../../Providers'
 
 interface Emits {
   (e: 'configured'): void

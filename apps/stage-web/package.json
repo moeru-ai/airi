@@ -77,6 +77,7 @@
     "vue-demi": "^0.14.10",
     "vue-i18n": "^11.1.9",
     "vue-router": "^4.5.1",
+    "vue-sonner": "^2.0.1",
     "xsschema": "catalog:",
     "yauzl": "^3.2.0",
     "zod": "^3.25.74"
