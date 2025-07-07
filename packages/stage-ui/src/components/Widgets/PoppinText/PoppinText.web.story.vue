@@ -4,7 +4,7 @@ import { ref } from 'vue'
 
 import PoppinText from './PoppinText.web.vue'
 
-import { createFadeAnimator, createFloatAnimator, createPopupAnimator } from './animators'
+import { createFadeAnimator, createFloatAnimator, createPopupAnimator, createStackAnimator } from './animators'
 
 const text = ref('行こう、七色のキラキラドキドキに向かって！')
 const duration = ref(750)
@@ -50,6 +50,15 @@ const duration = ref(750)
     >
       <div h-auto w-full p-4>
         <PoppinText :text="text" :animator="createFloatAnimator({ duration })" />
+      </div>
+    </Variant>
+
+    <Variant
+      id="stack"
+      title="Stack"
+    >
+      <div h-auto w-full p-4>
+        <PoppinText :text="text" :animator="createStackAnimator({ duration })" />
       </div>
     </Variant>
   </Story>
