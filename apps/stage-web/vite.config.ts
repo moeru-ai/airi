@@ -1,6 +1,3 @@
-import type { ServerOptions } from 'node:https'
-
-import { existsSync, readFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { env } from 'node:process'
 
