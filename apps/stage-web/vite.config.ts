@@ -17,21 +17,6 @@ import { LFS, SpaceCard } from 'hfup/vite'
 import { defineConfig } from 'vite'
 import { VitePWA } from 'vite-plugin-pwa'
 
-function getHttps(): ServerOptions | undefined {
-  const rootDir = resolve(import.meta.dirname, '..', '..')
-  const certPath = join(rootDir, 'localhost.crt')
-  const keyPath = join(rootDir, 'localhost.pem')
-
-  if (existsSync(certPath) && existsSync(keyPath)) {
-    return {
-      cert: readFileSync(certPath),
-      key: readFileSync(keyPath),
-    }
-  }
-
-  return undefined
-}
-
 export default defineConfig({
   optimizeDeps: {
     exclude: [
