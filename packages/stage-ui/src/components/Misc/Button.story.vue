@@ -16,10 +16,22 @@ import Button from './Button.vue'
       id="basic"
       title="Basic Button"
     >
-      <div class="flex flex-row gap-4 p-2">
-        <Button label="Primary Button" />
-        <Button label="Secondary Button" variant="secondary" />
-        <Button label="Danger Button" variant="danger" />
+      <div flex flex-col>
+        <div class="flex flex-row gap-4 p-2">
+          <Button label="Primary Button" />
+          <Button label="Secondary Button" variant="secondary" />
+          <Button label="Danger Button" variant="danger" />
+        </div>
+        <!-- <div class="flex flex-row gap-4 p-2">
+          <Button label="Primary Button" theme="dimmed" />
+          <Button label="Secondary Button" variant="secondary" theme="dimmed" />
+          <Button label="Danger Button" variant="danger" theme="dimmed" />
+        </div> -->
+        <!-- <div class="flex flex-row gap-4 p-2">
+          <Button label="Primary Button" theme="lightened" />
+          <Button label="Secondary Button" variant="secondary" theme="lightened" />
+          <Button label="Danger Button" variant="danger" theme="lightened" />
+        </div> -->
       </div>
     </Variant>
 

@@ -6,6 +6,11 @@ import { BidirectionalTransition } from '../Misc'
 // Define button variants for better type safety and maintainability
 type ButtonVariant = 'primary' | 'secondary' | 'danger'
 
+type ButtonTheme
+  = | 'default'
+// | 'dimmed'
+// | 'lightened'
+
 // Define size options for better flexibility
 type ButtonSize = 'sm' | 'md' | 'lg'
 
@@ -16,6 +21,7 @@ interface ButtonProps {
   loading?: boolean // Loading state
   variant?: ButtonVariant // Button style variant
   size?: ButtonSize // Button size variant
+  theme?: ButtonTheme // Button theme
   block?: boolean // Full width button
 }
 
@@ -24,16 +30,27 @@ const props = withDefaults(defineProps<ButtonProps>(), {
   disabled: false,
   loading: false,
   size: 'md',
+  theme: 'default',
   block: false,
 })
 
 const isDisabled = computed(() => props.disabled || props.loading)
 
 // Extract variant styles for better organization
-const variantClasses: Record<ButtonVariant, string> = {
-  primary: 'bg-primary-400 hover:bg-primary-500 active:bg-primary-600 dark:bg-primary-700 dark:hover:bg-primary-500 dark:active:bg-primary-700 focus:ring-primary-300/50 dark:focus:ring-primary-600/50 text-white',
-  secondary: 'bg-neutral-100 hover:bg-neutral-200 active:bg-neutral-300 dark:bg-neutral-700 dark:hover:bg-neutral-500 dark:active:bg-neutral-700 focus:ring-neutral-300/50 dark:focus:ring-neutral-600/50 text-neutral-900 dark:text-neutral-100',
-  danger: 'bg-red-400 hover:bg-red-500 active:bg-red-600 dark:bg-red-700 dark:hover:bg-red-500 dark:active:bg-red-700 focus:ring-red-300/50 dark:focus:ring-red-600/50 text-white',
+const variantClasses: Record<ButtonVariant, {
+  default: string
+  // dimmed: string
+  // lightened: string
+}> = {
+  primary: {
+    default: 'bg-primary-100 hover:bg-primary-200 active:bg-primary-300 dark:bg-primary-900/40 dark:hover:bg-primary-900/60 dark:active:bg-primary-900/40 focus:ring-primary-300/60 dark:focus:ring-primary-600/30 border-2 border-solid border-primary-200/30 dark:border-primary-900/40 text-primary-950 dark:text-primary-100',
+  },
+  secondary: {
+    default: 'bg-neutral-50 hover:bg-neutral-200 active:bg-neutral-300 dark:bg-neutral-600/40 dark:hover:bg-neutral-600/60 dark:active:bg-neutral-600/40 focus:ring-neutral-300/60 dark:focus:ring-neutral-600/30 border-2 border-solid border-neutral-300/50 dark:border-neutral-600/50 text-neutral-950 dark:text-neutral-100',
+  },
+  danger: {
+    default: 'bg-red-100 hover:bg-red-400 active:bg-red-500 dark:bg-red-900/40 dark:hover:bg-red-900/60 dark:active:bg-red-900/40 focus:ring-red-300/30 dark:focus:ring-red-600/60 dark:focus:ring-red-600/30 border-2 border-solid border-red-200/30 dark:border-red-900/30 text-red-950 dark:text-red-100',
+  },
 }
 
 // Extract size styles for better organization
@@ -49,7 +66,7 @@ const baseClasses = computed(() => [
   'disabled:cursor-not-allowed disabled:opacity-50',
   props.block ? 'w-full' : '',
   sizeClasses[props.size],
-  variantClasses[props.variant],
+  variantClasses[props.variant][props.theme],
   { 'opacity-50 cursor-not-allowed': isDisabled.value },
   'focus:ring-2 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-neutral-900',
 ])
