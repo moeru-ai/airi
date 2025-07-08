@@ -27,7 +27,7 @@ const isDesktop = useMediaQuery('(min-width: 768px)')
   </DialogRoot>
   <DrawerRoot v-else :open="showDialog" should-scale-background @update:open="value => showDialog = value">
     <DrawerPortal>
-      <DrawerOverlay class="fixed inset-0 bg-black/40" />
+      <DrawerOverlay class="fixed inset-0" />
       <DrawerContent class="fixed bottom-0 left-0 right-0 z-1000 mt-20 h-full max-h-[96%] flex flex-col rounded-t-[10px] bg-neutral-50 outline-none backdrop-blur-md dark:bg-neutral-900/95">
         <div class="flex-1 rounded-t-[10px] px-4 py-1">
           <DrawerHandle class="my-2" />
