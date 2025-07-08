@@ -46,7 +46,9 @@ provide('hide', handleHide)
       ]"
     >
       <div class="flex-1 truncate">
-        <slot :value="modelValue" />
+        <slot :value="modelValue">
+          {{ props.options?.find(item => item.value === modelValue)?.label || modelValue }}
+        </slot>
       </div>
       <div i-solar:alt-arrow-down-linear class="h-3.5 w-3.5 text-neutral-500 dark:text-neutral-400" />
     </div>

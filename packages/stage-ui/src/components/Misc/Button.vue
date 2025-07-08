@@ -49,7 +49,7 @@ const variantClasses: Record<ButtonVariant, {
     default: 'bg-neutral-50 hover:bg-neutral-200 active:bg-neutral-300 dark:bg-neutral-600/40 dark:hover:bg-neutral-600/60 dark:active:bg-neutral-600/40 focus:ring-neutral-300/60 dark:focus:ring-neutral-600/30 border-2 border-solid border-neutral-300/50 dark:border-neutral-600/50 text-neutral-950 dark:text-neutral-100',
   },
   danger: {
-    default: 'bg-red-100 hover:bg-red-400 active:bg-red-500 dark:bg-red-900/40 dark:hover:bg-red-900/60 dark:active:bg-red-900/40 focus:ring-red-300/30 dark:focus:ring-red-600/60 dark:focus:ring-red-600/30 border-2 border-solid border-red-200/30 dark:border-red-900/30 text-red-950 dark:text-red-100',
+    default: 'bg-red-100 hover:bg-red-200 active:bg-red-300 dark:bg-red-900/40 dark:hover:bg-red-900/60 dark:active:bg-red-900/40 focus:ring-red-300/30 dark:focus:ring-red-600/60 dark:focus:ring-red-600/30 border-2 border-solid border-red-200/30 dark:border-red-900/30 text-red-950 dark:text-red-100',
   },
 }
 
