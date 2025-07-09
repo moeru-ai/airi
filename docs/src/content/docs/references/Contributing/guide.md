@@ -80,6 +80,15 @@ Hello! Thank you for your interest in contributing to this project. This guide w
    corepack enable
    corepack prepare pnpm@latest --activate
    ```
+4. If you would love to help to develop the desktop version, you will need those dependencies:
+   ```
+   sudo apt install \
+      libssl-dev \
+      libglib2.0-dev \
+      libgtk-3-dev \
+      libjavascriptcoregtk-4.1-dev \
+      libwebkit2gtk-4.1-dev
+   ```
 
 </details>
 
