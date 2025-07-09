@@ -81,7 +81,8 @@ jobs:
         uses: Jimver/cuda-toolkit@v0.2.24
         if: matrix.os == 'ubuntu-latest' || matrix.os == 'ubuntu-24.04-arm' || matrix.os == 'windows-latest'
         with:
-          cuda: 12.5.0
+          cuda: '12.5.0'
+          log-file-suffix: ${{matrix.os}}.txt
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile

@@ -15,6 +15,7 @@ export default await antfu(
       '**/.astro/**',
     ],
     rules: {
+      'yaml/plain-scalar': 'off',
       'import/order': 'off',
       'antfu/import-dedupe': 'error',
       'style/padding-line-between-statements': 'error',
