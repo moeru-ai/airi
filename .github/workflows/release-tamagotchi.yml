@@ -56,6 +56,14 @@ jobs:
           # https://docs.github.com/en/actions/publishing-packages/publishing-nodejs-packages
           registry-url: https://registry.npmjs.org
 
+      # Why?
+      #
+      # failed to build archive at `/home/runner/work/airi/airi/target/x86_64-unknown-linux-gnu/release/deps/libapp_lib.rlib`:
+      # No space left on device (os error 28)
+      - name: Free Disk Space
+        if: matrix.os == 'ubuntu-latest' || matrix.os == 'ubuntu-24.04-arm'
+        uses: jlumbroso/free-disk-space@main
+
       - name: Get Product Name (Windows Only)
         if: matrix.os == 'windows-latest'
         run: |
