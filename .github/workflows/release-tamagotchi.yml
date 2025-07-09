@@ -77,11 +77,11 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
 
-      # - name: Install CUDA Toolkit (Linux and Windows Only)
-      #   uses: Jimver/cuda-toolkit@v0.2.24
-      #   if: matrix.os == 'ubuntu-latest' || matrix.os == 'ubuntu-24.04-arm' || matrix.os == 'windows-latest'
-      #   with:
-      #     cuda: 12.5.0
+      - name: Install CUDA Toolkit (Linux and Windows Only)
+        uses: Jimver/cuda-toolkit@v0.2.24
+        if: matrix.os == 'ubuntu-latest' || matrix.os == 'ubuntu-24.04-arm' || matrix.os == 'windows-latest'
+        with:
+          cuda: 12.5.0
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -95,8 +95,43 @@ jobs:
 
       - name: Build Application (Linux and Windows Only)
         if: matrix.os == 'ubuntu-latest' || matrix.os == 'ubuntu-24.04-arm' || matrix.os == 'windows-latest'
-        # run: cd apps/stage-tamagotchi && pnpm tauri build --target ${{ matrix.target }} --features cuda
-        run: cd apps/stage-tamagotchi && pnpm tauri build --target ${{ matrix.target }}
+        run: cd apps/stage-tamagotchi && pnpm tauri build --target ${{ matrix.target }} --features cuda
+        env:
+          # Call to `nvcc` (which part of the CUDA Toolkit) doesn't require a physical GPU, yet bindgen_cuda requires `nvidia-smi`
+          # to be available in order to determine the compute capability of the GPU.[^1]
+          #
+          # And bindgen_cuda is what candle depends on, to bypass the Compute compatibility here,
+          # we need to explicitly setting CUDA_COMPUTE_CAP as one of the environment varaible in order to
+          # build without any actual physical GPUs inside of the GitHub Actions runner.[^2]
+          #
+          # About how bindgen_cuda depends on nvidia-smi, check the actual source code here:
+          # https://github.com/Narsil/bindgen_cuda/blob/a6b0c891be8ebefb55600d46d8a77a358adc3913/src/lib.rs#L477-L500
+          #
+          # Similar information were seen from TEI (text-embedding-inference) documentations
+          # https://huggingface.co/docs/text-embeddings-inference/en/custom_container
+          #
+          # To understand what compute capability is required, visit [CUDA GPU Compute Capability](https://developer.nvidia.com/cuda-gpus)
+          #
+          # In short:
+          # | Compute Capability | GeForce / RTX   |
+          # |---------------------|----------------|
+          # | 7.5                 | GeForce GTX 1650 Ti, NVIDIA TITAN RTX, GeForce RTX 2000 series... |
+          # | 8.6                 | RTX A series, GeForce RTX 3000 series                             |
+          # | 8.9                 | GeForce RTX 4000 series, RTX A Ada series                         |
+          # | 9.0                 | GeForce RTX 5000 series, RTX Pro Blackwell series                 |
+          #
+          # Also, the meaning of how the different ranges of numeric values will impact on which compilers, dependencies, to be used,
+          # TEI (text-embedding-inference) got a Dockerfile specified that well
+          # https://github.com/huggingface/text-embeddings-inference/blob/6e900afba71821fdf250e380d7da1f5a6e5e7e27/Dockerfile-cuda#L50-L63
+          #
+          # Thanks
+          # - https://github.com/Narsil/bindgen_cuda/issues/4
+          # - https://github.com/Narsil/bindgen_cuda/issues/8
+          # - https://github.com/huggingface/candle/issues/1516#issuecomment-1875440701
+          #
+          # [^1]: compilation - Can I compile a cuda program without having a cuda device - Stack Overflow https://stackoverflow.com/a/20196425
+          # [^2]: https://huggingface.github.io/candle/guide/installation.html
+          CUDA_COMPUTE_CAP: '75'
 
       - name: Rename Artifacts (Nightly)
         if: ${{ github.event_name == 'schedule' }}
