@@ -9,7 +9,7 @@ export function createStackAnimator(options: CreateAnimatorOptions): Animator {
       return () => {}
     }
 
-    const timeline = createTimeline({ loop: true })
+    const timeline = createTimeline({ loop: options.loop })
       .set(elements, {
         opacity: 0,
         translateX: 40,

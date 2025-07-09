@@ -3,6 +3,7 @@ import type { EasingParam } from 'animejs'
 export interface CreateAnimatorOptions {
   duration: number
   ease?: EasingParam
+  loop?: boolean
 }
 
 export type Animator = (elements: HTMLElement[]) => (() => void)

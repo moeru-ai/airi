@@ -8,6 +8,29 @@ import { createFadeAnimator, createFloatAnimator, createPopupAnimator, createSta
 
 const text = ref('行こう、七色のキラキラドキドキに向かって！')
 const duration = ref(750)
+
+function createStream(text: string) {
+  return new ReadableStream<Uint8Array>({
+    start(controller) {
+      const bytes = new TextEncoder().encode(text)
+      let index = 0
+      const interval = setInterval(() => {
+        if (index < bytes.length) {
+          controller.enqueue(bytes.subarray(index, index + 1))
+          index++
+        }
+        else {
+          clearInterval(interval)
+          controller.close()
+        }
+      }, 50 + 100 * Math.random())
+    },
+  })
+}
+
+const textStream = createStream('行こう、七色のキラキラドキドキに向かって！')
+const emojiStream = createStream('🧑‍🧒🤾‍♀️🚵👨‍🚀👩‍🚀')
+const mixedLanguageStream = createStream('g̈각நிกำषिक्षि')
 </script>
 
 <template>
@@ -59,6 +82,33 @@ const duration = ref(750)
     >
       <div h-auto w-full p-4>
         <PoppinText :text="text" :animator="createStackAnimator({ duration })" />
+      </div>
+    </Variant>
+
+    <Variant
+      id="stream"
+      title="Stream"
+    >
+      <div h-auto w-full p-4>
+        <PoppinText :text="textStream" :animator="createFloatAnimator({ duration })" />
+      </div>
+    </Variant>
+
+    <Variant
+      id="emoji-stream"
+      title="Emoji stream"
+    >
+      <div h-auto w-full p-4>
+        <PoppinText :text="emojiStream" :animator="createFloatAnimator({ duration })" />
+      </div>
+    </Variant>
+
+    <Variant
+      id="mixed-language-stream"
+      title="Mixed language stream"
+    >
+      <div h-auto w-full p-4>
+        <PoppinText :text="mixedLanguageStream" :animator="createFloatAnimator({ duration })" />
       </div>
     </Variant>
   </Story>
