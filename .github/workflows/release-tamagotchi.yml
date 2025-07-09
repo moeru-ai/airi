@@ -77,14 +77,23 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
 
+      - name: Install CUDA Toolkit (Linux and Windows Only)
+        uses: Jimver/cuda-toolkit@v0.2.24
+        if: matrix.os == 'ubuntu-latest' || matrix.os == 'ubuntu-24.04-arm' || matrix.os == 'windows-latest'
+        with:
+          cuda: 12.5.0
+
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
       - name: Build Dependencies
         run: pnpm run build:packages
 
-      - name: Build Application
+      - name: Build Application (macOS Only)
         run: cd apps/stage-tamagotchi && pnpm tauri build --target ${{ matrix.target }}
+
+      - name: Build Application (Linux and Windows Only)
+        run: cd apps/stage-tamagotchi && pnpm tauri build --target ${{ matrix.target }} --features cuda
 
       - name: Rename Artifacts (Nightly)
         if: ${{ github.event_name == 'schedule' }}
