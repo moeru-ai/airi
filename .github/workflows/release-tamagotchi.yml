@@ -114,8 +114,9 @@ jobs:
 
       - name: Build Application (Linux and Windows Only)
         if: matrix.os == 'ubuntu-latest' || matrix.os == 'ubuntu-24.04-arm' || matrix.os == 'windows-latest'
-        run: cd apps/stage-tamagotchi && pnpm tauri build --target ${{ matrix.target }} --features cuda
+        run: cd apps/stage-tamagotchi && pnpm tauri build --target ${{ matrix.target }} --features cuda --verbose
         env:
+          RUST_BACKTRACE: '1'
           # Call to `nvcc` (which part of the CUDA Toolkit) doesn't require a physical GPU, yet bindgen_cuda requires `nvidia-smi`
           # to be available in order to determine the compute capability of the GPU.[^1]
           #
