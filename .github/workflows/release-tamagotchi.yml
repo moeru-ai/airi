@@ -87,7 +87,6 @@ jobs:
             build-essential \
             libssl-dev \
             libgtk-3-dev \
-            libayatana-appindicator3-dev \
             librsvg2-dev \
             libsoup-3.0-dev \
             libgdk-pixbuf2.0-dev \
