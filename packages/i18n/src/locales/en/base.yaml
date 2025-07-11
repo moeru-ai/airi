@@ -42,3 +42,9 @@ prompt:
     - <{'|'}DELAY:3{'|'}> (Delay for 3 seconds)
 
     And the last, do what ever you want!
+toaster:
+  pwaUpdateReady:
+    message: New version ready, reload now?
+    action:
+      notNow: Not now
+      ok: OK

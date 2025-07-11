@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { OnboardingDialog } from '@proj-airi/stage-ui/components'
+import { OnboardingDialog, ToasterRoot } from '@proj-airi/stage-ui/components'
 import { useOnboardingStore, useSettings } from '@proj-airi/stage-ui/stores'
 import { StageTransitionGroup } from '@proj-airi/ui-transitions'
 import { useDark } from '@vueuse/core'
@@ -7,10 +7,13 @@ import { storeToRefs } from 'pinia'
 import { computed, onMounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterView } from 'vue-router'
-import { Toaster } from 'vue-sonner'
+import { toast, Toaster } from 'vue-sonner'
+
+import { usePWAStore } from './stores/pwa'
 
 import 'vue-sonner/style.css'
 
+usePWAStore()
 const i18n = useI18n()
 const settings = storeToRefs(useSettings())
 const onboardingStore = useOnboardingStore()
@@ -79,7 +82,9 @@ function handleSetupSkipped() {
     <RouterView />
   </StageTransitionGroup>
 
-  <Toaster position="top-right" />
+  <ToasterRoot @close="id => toast.dismiss(id)">
+    <Toaster />
+  </ToasterRoot>
 
   <!-- First Time Setup Dialog -->
   <OnboardingDialog

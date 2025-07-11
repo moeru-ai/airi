@@ -42,11 +42,14 @@ router.afterEach(() => {
 
 router.isReady()
   .then(async () => {
+    if (import.meta.env.SSR) {
+      return
+    }
     if (import.meta.env.VITE_APP_TARGET_HUGGINGFACE_SPACE) {
       return
     }
 
-    const { registerSW } = await import('virtual:pwa-register')
+    const { registerSW } = await import('./modules/pwa')
     registerSW({ immediate: true })
   })
   .catch(() => {})

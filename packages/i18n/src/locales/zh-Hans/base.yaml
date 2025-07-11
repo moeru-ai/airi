@@ -30,3 +30,9 @@ prompt:
     - <{'|'}DELAY:3{'|'}> (延迟 3 秒)
 
     最后，做任何你想做的事！
+toaster:
+  pwaUpdateReady:
+    message: 新版本就绪，现在更新？
+    action:
+      notNow: 稍后
+      ok: 好的
