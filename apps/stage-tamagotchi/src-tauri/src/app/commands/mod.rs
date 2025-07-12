@@ -1,7 +1,7 @@
 use log::debug;
 use tauri::Manager;
 
-use crate::app::windows::{chat, settings};
+use crate::app::windows::{chat, onboarding, settings};
 
 #[tauri::command]
 pub async fn open_settings_window(app: tauri::AppHandle) -> Result<(), tauri::Error> {
@@ -24,6 +24,18 @@ pub async fn open_chat_window(app: tauri::AppHandle) -> Result<(), tauri::Error>
   }
 
   chat::new_chat_window(&app)?;
+  Ok(())
+}
+
+#[tauri::command]
+pub async fn open_onboarding_window(app: tauri::AppHandle) -> Result<(), tauri::Error> {
+  let window = app.get_webview_window("onboarding");
+  if let Some(window) = window {
+    let _ = window.show();
+    return Ok(());
+  }
+
+  onboarding::new_onboarding_window(&app)?;
   Ok(())
 }
 

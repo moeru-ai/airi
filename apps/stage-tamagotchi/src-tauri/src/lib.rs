@@ -175,6 +175,7 @@ pub fn run() {
     .invoke_handler(tauri::generate_handler![
       app::commands::open_settings_window,
       app::commands::open_chat_window,
+      app::commands::open_onboarding_window,
       app::commands::debug_println,
     ])
     .run(tauri::generate_context!())

@@ -5,12 +5,14 @@
   "windows": [
     "main",
     "settings",
-    "chat"
+    "chat",
+    "onboarding"
   ],
   "permissions": [
     "core:default",
     "os:default",
     "core:window:default",
+    "core:window:allow-close",
     "core:window:allow-start-dragging",
     "core:window:allow-set-focus",
     "core:window:allow-set-minimizable",

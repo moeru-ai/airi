@@ -9,6 +9,7 @@ import { computed, onMounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterView } from 'vue-router'
 
+import { WindowRouterLink } from './commands'
 import { useAppRuntime } from './composables/runtime'
 import { useTauriEvent } from './composables/tauri'
 import { useWindowControlStore } from './stores/window-controls'
@@ -18,6 +19,7 @@ const i18n = useI18n()
 const windowControlStore = useWindowControlStore()
 const mcpStore = useMcpStore()
 const onboardingStore = useOnboardingStore()
+const { shouldShowSetup } = storeToRefs(onboardingStore)
 const { platform } = useAppRuntime()
 const { listen } = useTauriEvent<AiriTamagotchiEvents>()
 
@@ -43,6 +45,12 @@ watch(themeColorsHue, () => {
 watch(themeColorsHueDynamic, () => {
   document.documentElement.classList.toggle('dynamic-hue', themeColorsHueDynamic.value)
 }, { immediate: true })
+
+watch(shouldShowSetup, () => {
+  if (shouldShowSetup.value) {
+    WindowRouterLink.commands.go('/onboarding', 'onboarding')
+  }
+})
 
 onMounted(() => {
   listen('mcp_plugin_destroyed', () => {

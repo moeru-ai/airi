@@ -13,7 +13,6 @@ import ResourceStatusIsland from '../components/Widgets/ResourceStatusIsland/ind
 import { useTauriCore, useTauriEvent } from '../composables/tauri'
 import { useTauriGlobalShortcuts } from '../composables/tauri-global-shortcuts'
 import { useTauriWindowClickThrough } from '../composables/tauri-window-pass-through-on-hover'
-import { useWindowPersistence } from '../composables/tauri-window-persistence'
 import { useResourcesStore } from '../stores/resources'
 import { useWindowControlStore } from '../stores/window-controls'
 import { WindowControlMode } from '../types/window-controls'
@@ -37,13 +36,6 @@ const { connected, serverCmd, serverArgs } = storeToRefs(mcpStore)
 
 watch([live2dLookAtX, live2dLookAtY], ([x, y]) => live2dFocusAt.value = { x, y }, { immediate: true })
 
-const windowPersistence = useWindowPersistence({
-  autoSave: true,
-  autoRestore: true,
-  constrainToDisplays: true,
-  centerPointConstraint: true,
-})
-
 const modeIndicatorClass = computed(() => {
   switch (windowStore.controlMode) {
     case WindowControlMode.MOVE:
@@ -60,7 +52,6 @@ const modeIndicatorClass = computed(() => {
 onMounted(async () => {
   await invoke('plugin:proj-airi-tauri-plugin-window-pass-through-on-hover|start_monitor')
   await startClickThrough()
-  await windowPersistence.initialize()
 })
 
 onUnmounted(async () => {

@@ -6,7 +6,7 @@ use tauri::{
   plugin::{Builder, TauriPlugin},
 };
 
-use crate::app::windows::{chat, settings};
+use crate::app::windows::{chat, onboarding, settings};
 
 #[tauri::command]
 #[specta::specta]
@@ -31,6 +31,11 @@ async fn go<R: Runtime>(
       None => settings::new_settings_window(app)
         .map_err(|e| format!("Failed to create settings window: {}", e))?,
     },
+    Some("onboarding") => match app.get_webview_window("onboarding") {
+      Some(window) => window,
+      None => onboarding::new_onboarding_window(app)
+        .map_err(|e| format!("Failed to create onboarding window: {}", e))?,
+    },
     Some(label) => {
       return Err(format!("Unknown window label: {}", label));
     },
@@ -46,7 +51,14 @@ async fn go<R: Runtime>(
   current_url.set_fragment(Some(route.to_string().as_str()));
 
   let _ = target_window.show();
-  let _ = target_window.navigate(current_url);
+  if let Ok(url) = target_window.url() {
+    if url == current_url {
+      // If the URL is already the same, we don't need to navigate again.
+      return Ok(());
+    }
+
+    let _ = target_window.navigate(current_url);
+  }
 
   Ok(())
 }

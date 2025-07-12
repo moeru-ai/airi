@@ -270,10 +270,34 @@ export function useTauriWindow() {
     }
   }
 
+  async function closeWindow(label?: string) {
+    try {
+      const imported = await _ensureImported()
+      if (!label) {
+        const window = imported.getCurrentWindow()
+        return await window.close()
+      }
+      else {
+        const windows = await imported.getAllWindows()
+        const targetWindow = windows.find(win => win.label === label)
+        if (targetWindow) {
+          return await targetWindow.close()
+        }
+        else {
+          console.warn(`No window found with label: ${label}`)
+        }
+      }
+    }
+    catch (error) {
+      console.error('Failed to close window:', error)
+    }
+  }
+
   return {
     getAvailableMonitors,
     getCurrentMonitor,
     getPrimaryMonitor,
     setPosition,
+    closeWindow,
   }
 }
