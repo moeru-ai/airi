@@ -3,6 +3,7 @@ import type { Preset, PresetOrFactoryAwaitable } from 'unocss'
 import { createExternalPackageIconLoader } from '@iconify/utils/lib/loader/external-pkg'
 import { presetChromatic } from '@proj-airi/unocss-preset-chromatic'
 import { colorToString } from '@unocss/preset-mini/utils'
+import { createLocalFontProcessor } from '@unocss/preset-web-fonts/local'
 import { defineConfig, mergeConfigs, presetAttributify, presetIcons, presetTypography, presetWebFonts, presetWind3, transformerDirectives, transformerVariantGroup } from 'unocss'
 import { presetScrollbar } from 'unocss-preset-scrollbar'
 import { parseColor } from 'unocss/preset-mini'
@@ -70,6 +71,7 @@ export function sharedUnoConfig() {
           warning: 5000,
           failure: 10000,
         },
+        processors: createLocalFontProcessor(),
       }),
       presetIcons({
         scale: 1.2,
