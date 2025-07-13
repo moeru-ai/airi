@@ -79,7 +79,11 @@ function handleSetupSkipped() {
     :disable-transitions="settings.disableTransitions.value"
     :use-page-specific-transitions="settings.usePageSpecificTransitions.value"
   >
-    <RouterView />
+    <RouterView v-slot="{ Component }">
+      <KeepAlive :include="/IndexScenePage|StageScenePage/">
+        <component :is="Component" />
+      </KeepAlive>
+    </RouterView>
   </StageTransitionGroup>
 
   <ToasterRoot @close="id => toast.dismiss(id)">
