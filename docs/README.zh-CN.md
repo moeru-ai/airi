@@ -111,7 +111,7 @@
 
 ## 开发
 
-> 有关开发此项目的具体教程，参见 [CONTRIBUTING.md](./CONTRIBUTING.md)
+> 有关开发此项目的具体教程，参见 [CONTRIBUTING.md](../.github/CONTRIBUTING.md)
 
 ```shell
 pnpm i
