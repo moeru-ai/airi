@@ -125,11 +125,11 @@ Capable of
 
 ## Development
 
-> For detailed instructions to develop this project, follow the [CONTRIBUTING.md](./CONTRIBUTING.md)
+> For detailed instructions to develop this project, follow the [CONTRIBUTING.md](./.github/CONTRIBUTING.md)
 
 > [!NOTE]
 > By default, `pnpm dev` will start the development server for the Stage Web (browser version), if you would
-> like to try developing the desktop version, please make sure you read [CONTRIBUTING.md](./CONTRIBUTING.md)
+> like to try developing the desktop version, please make sure you read [CONTRIBUTING.md](./.github/CONTRIBUTING.md)
 > to setup the environment correctly.
 
 ```shell

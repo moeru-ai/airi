@@ -113,11 +113,11 @@
 
 ## 開発
 
-> このプロジェクトの詳細な開発手順については、[CONTRIBUTING.md](./CONTRIBUTING.md)を参照してください
+> このプロジェクトの詳細な開発手順については、[CONTRIBUTING.md](../.github/CONTRIBUTING.md)を参照してください
 
 > [!NOTE]
 > デフォルトでは `pnpm dev`はステージウェブ（ブラウザ版）の開発サーバーを起動します。
-> デスクトップ版の開発を試したい場合は、[CONTRIBUTING.md](./CONTRIBUTING.md)を読んで環境を正し
+> デスクトップ版の開発を試したい場合は、[CONTRIBUTING.md](../.github/CONTRIBUTING.md)を読んで環境を正し
 > くセットアップしてください。
 
 ```shell
