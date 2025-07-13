@@ -72,7 +72,7 @@ async function scrollToBottom() {
   <div ref="chatBubbleContainerRef">
     <div
       ref="chatBubbleRef"
-      transition="max-height max-width duration-500 ease-in-out"
+      transition="max-height,max-width,colors duration-500 ease-in-out"
       relative overflow-y-auto will-change-max-height will-change-max-width scrollbar-none
       :class="[
         props.side === 'left' ? 'rounded-tr-2xl rounded-br-2xl rounded-tl-2xl rounded-bl-sm' : 'rounded-tl-2xl rounded-bl-2xl rounded-tr-2xl rounded-br-sm',
