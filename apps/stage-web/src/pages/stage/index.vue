@@ -50,6 +50,7 @@ const positionCursor = useMouse()
 </template>
 
 <route lang="yaml">
+name: StageScenePage
 meta:
   layout: stage
   stageTransition:

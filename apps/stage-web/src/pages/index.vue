@@ -60,6 +60,7 @@ onMounted(() => updateThemeColor())
 </template>
 
 <route lang="yaml">
+name: IndexScenePage
 meta:
   layout: stage
   stageTransition:
