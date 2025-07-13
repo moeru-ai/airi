@@ -11,4 +11,5 @@ export type Animator = (elements: HTMLElement[]) => (() => void)
 export * from './fade'
 export * from './float'
 export * from './popup'
+export * from './scale-popup'
 export * from './stack'
