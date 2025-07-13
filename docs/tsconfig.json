@@ -1,10 +1,40 @@
 {
-  "extends": "astro/tsconfigs/strict",
+  // This tsconfig is for development. Allowing *.story.vue, and __test__/*.vue to have types support
+  "extends": "@vue/tsconfig/tsconfig.dom.json",
+  "compilerOptions": {
+    "target": "esnext",
+    "jsx": "preserve",
+    "lib": [
+      "esnext",
+      "dom"
+    ],
+    "baseUrl": ".",
+    "module": "esnext",
+    "moduleResolution": "node",
+    "paths": {
+      "@/*": ["./src/*"]
+    },
+    "resolveJsonModule": true,
+    "types": [
+      "vitepress/client",
+      "vue"
+    ],
+    "strict": true,
+    "declaration": false,
+    "outDir": "dist",
+    "sourceMap": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true
+  },
   "include": [
-    ".astro/types.d.ts",
-    "**/*"
+    "/**/*.vue",
+    "components/**/*.vue",
+    ".vitepress/**/*.vue",
+    "/**/*.ts",
+    ".vitepress/**/*.ts",
+    ".vitepress/**/*.vue"
   ],
   "exclude": [
-    "dist"
+    "node_modules"
   ]
 }
