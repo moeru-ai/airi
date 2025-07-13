@@ -48,14 +48,38 @@ export function sharedUnoConfig() {
       presetTypography(),
       presetWebFonts({
         fonts: {
-          'sans': 'DM Sans',
-          'serif': 'DM Serif Display',
-          'mono': 'DM Mono',
-          'cute': 'Kiwi Maru',
-          'cuteen': 'Sniglet',
-          'jura': 'Jura',
-          'gugi': 'Gugi',
-          'quicksand': 'Quicksand',
+          'sans': {
+            name: 'DM Sans',
+            provider: 'fontsource',
+          },
+          'serif': {
+            name: 'DM Serif Display',
+            provider: 'fontsource',
+          },
+          'mono': {
+            name: 'DM Mono',
+            provider: 'fontsource',
+          },
+          'cute': {
+            name: 'Kiwi Maru',
+            provider: 'fontsource',
+          },
+          'cuteen': {
+            name: 'Sniglet',
+            provider: 'fontsource',
+          },
+          'jura': {
+            name: 'Jura',
+            provider: 'fontsource',
+          },
+          'gugi': {
+            name: 'Gugi',
+            provider: 'fontsource',
+          },
+          'quicksand': {
+            name: 'Quicksand',
+            provider: 'fontsource',
+          },
           'quanlai': {
             name: 'cjkfonts AllSeto',
             provider: 'none',
@@ -64,8 +88,14 @@ export function sharedUnoConfig() {
             name: 'Xiaolai SC',
             provider: 'none',
           },
-          'urbanist': 'Urbanist',
-          'm-plus-rounded': 'M PLUS Rounded 1c',
+          'urbanist': {
+            name: 'Urbanist',
+            provider: 'fontsource',
+          },
+          'm-plus-rounded': {
+            name: 'M PLUS Rounded 1c',
+            provider: 'fontsource',
+          },
         },
         timeouts: {
           warning: 5000,
