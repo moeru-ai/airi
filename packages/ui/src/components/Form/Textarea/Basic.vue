@@ -1,6 +1,10 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
 
+const props = defineProps<{
+  defaultHeight?: string
+}>()
+
 const events = defineEmits<{
   (event: 'submit', message: string): void
 }>()
@@ -26,6 +30,10 @@ watch(input, () => {
   requestAnimationFrame(() => {
     if (!textareaRef.value)
       return
+    if (input.value === '') {
+      textareaHeight.value = props.defaultHeight || 'fit-content'
+      return
+    }
 
     textareaHeight.value = `${textareaRef.value.scrollHeight}px`
   })
