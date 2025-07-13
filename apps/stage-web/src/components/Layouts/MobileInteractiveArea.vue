@@ -96,21 +96,32 @@ onMounted(() => {
 <template>
   <div fixed bottom-0 w-full flex gap-1 max-w="[calc(100dvw-1rem)]">
     <MobileChatHistory absolute left-0 top-0 transform="translate-y-[-100%]" h="80dvh" w-full />
-    <div flex flex-1>
+    <div flex flex-1 gap-1>
       <BasicTextarea
         v-model="messageInput"
         :placeholder="t('stage.message')"
         border="solid 2 primary-50 dark:primary-950/10"
         text="primary-500 hover:primary-600 dark:primary-100 dark:hover:primary-200 placeholder:primary-400 placeholder:hover:primary-500 placeholder:dark:primary-300 placeholder:dark:hover:primary-400"
-        bg="primary-50/50 dark:primary-950/70"
-        max-h="[10lh]" min-h="[2lh]"
-        w-full resize-none overflow-y-scroll rounded-xl p-3 font-medium outline-none backdrop-blur-md
+        bg="primary-50/80 dark:primary-950/80"
+        max-h="[10lh]" min-h="[calc(1lh+4px+4px)]"
+        w-full resize-none overflow-y-scroll rounded="[1lh]" px-4 py-0.5 outline-none backdrop-blur-md scrollbar-none
         transition="all duration-250 ease-in-out placeholder:all placeholder:duration-250 placeholder:ease-in-out"
-        :class="{ 'transition-colors-none placeholder:transition-colors-none': themeColorsHueDynamic }"
+        :class="[themeColorsHueDynamic ? 'transition-colors-none placeholder:transition-colors-none' : '']"
+        default-height="1lh"
         @submit="handleSend"
         @compositionstart="isComposing = true"
         @compositionend="isComposing = false"
       />
+      <button
+
+        v-if="messageInput.trim() || isComposing"
+        w="[calc(1lh+4px+4px)]" h="[calc(1lh+4px+4px)]" aspect-square flex items-center self-end justify-center rounded-full outline-none backdrop-blur-md
+        text="primary-500 hover:primary-600 dark:primary-100 dark:hover:primary-200 placeholder:primary-400 placeholder:hover:primary-500 placeholder:dark:primary-300 placeholder:dark:hover:primary-400"
+        bg="primary-50/80 dark:primary-950/80"
+        @click="handleSend"
+      >
+        <div i-solar:arrow-up-outline />
+      </button>
     </div>
   </div>
 </template>
