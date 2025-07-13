@@ -60,14 +60,13 @@ async function handleOnTextSplit(_: string) {
 
 async function scrollToBottom() {
   if (chatBubbleRef.value) {
-    const borderHeight = 4 + 1 // TODO: not sure where 1px comes from
+    const borderHeight = 4 + 1 // 4px from border-2 class (top and bottom), 1px mystery addition
     chatBubbleRef.value.style.maxHeight = `${chatBubbleRef.value.scrollHeight + borderHeight}px`
     await nextTick()
   }
 }
 </script>
 
-.value
 <template>
   <div ref="chatBubbleContainerRef">
     <div
