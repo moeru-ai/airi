@@ -6,8 +6,13 @@ import type { Animator } from './animators'
 import { onMounted, ref, shallowRef, watch } from 'vue'
 
 const props = defineProps<{
-  text: string | ReadableStream<Uint8Array>
+  text?: string | ReadableStream<Uint8Array>
+  textClass?: string | string[]
   animator?: Animator
+}>()
+
+const emits = defineEmits<{
+  (e: 'textSplit', grapheme: string): void
 }>()
 
 const targets = ref<string[]>([])
@@ -74,6 +79,8 @@ function readGraphemeClusters(stream: ReadableStream<Uint8Array>, options?: { si
 }
 
 watch(() => props.text, async (text) => {
+  if (!text)
+    return
   if (typeof text === 'string') {
     targets.value = [...segmenter.segment(text)].map(seg => seg.segment)
   }
@@ -84,6 +91,7 @@ watch(() => props.text, async (text) => {
       targets.value = []
       for await (const cluster of readGraphemeClusters(text, { signal: abortController.value.signal })) {
         targets.value.push(cluster)
+        emits('textSplit', cluster)
       }
     }
     catch (error) {
@@ -119,13 +127,13 @@ watch([targets, () => props.animator], ([targets, animator]) => {
 </script>
 
 <template>
-  <div class="relative overflow-hidden whitespace-nowrap text-2xl font-bold font-m-plus-rounded">
+  <div>
     <span
       v-for="(grapheme, index) in targets"
       :key="index"
       ref="elements"
-      class="inline-block color-primary-400"
-      :style="{ '--chromatic-hue': index * 360 / targets.length }"
+      class="inline-block color-primary-400 dark:color-primary-100"
+      :class="[...(typeof props.textClass === 'string' ? [props.textClass] : (props.textClass || []))]"
     >
       {{ grapheme }}
     </span>

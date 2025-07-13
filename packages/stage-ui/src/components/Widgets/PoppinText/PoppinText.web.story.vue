@@ -4,7 +4,13 @@ import { ref } from 'vue'
 
 import PoppinText from './PoppinText.web.vue'
 
-import { createFadeAnimator, createFloatAnimator, createPopupAnimator, createStackAnimator } from './animators'
+import {
+  createCutePopupAnimator,
+  createFadeAnimator,
+  createFloatAnimator,
+  createPopupAnimator,
+  createStackAnimator,
+} from './animators'
 
 const text = ref('行こう、七色のキラキラドキドキに向かって！')
 const duration = ref(750)
@@ -40,48 +46,26 @@ const mixedLanguageStream = createStream('g̈각நிกำषिक्षि')
     :layout="{ type: 'grid', width: '100%' }"
   >
     <template #controls>
-      <FieldRange
-        v-model.number="duration"
-        :min="50"
-        :max="3000"
-        :step="50"
-        label="Duration"
-      />
-    </template>
-
-    <Variant
-      id="popup"
-      title="Popup"
-    >
-      <div h-auto w-full p-4>
-        <PoppinText :text="text" :animator="createPopupAnimator({ duration })" />
+      <div px-2>
+        <FieldRange
+          v-model.number="duration"
+          :min="50"
+          :max="3000"
+          :step="50"
+          label="Duration"
+        />
       </div>
-    </Variant>
+    </template>
 
     <Variant
       id="fade"
       title="Fade"
     >
       <div h-auto w-full p-4>
-        <PoppinText :text="text" :animator="createFadeAnimator({ duration })" />
-      </div>
-    </Variant>
-
-    <Variant
-      id="float"
-      title="Float"
-    >
-      <div h-auto w-full p-4>
-        <PoppinText :text="text" :animator="createFloatAnimator({ duration })" />
-      </div>
-    </Variant>
-
-    <Variant
-      id="stack"
-      title="Stack"
-    >
-      <div h-auto w-full p-4>
-        <PoppinText :text="text" :animator="createStackAnimator({ duration })" />
+        <PoppinText
+          :text="text" :animator="createFadeAnimator({ duration })"
+          text-2xl font-bold font-m-plus-rounded
+        />
       </div>
     </Variant>
 
@@ -90,7 +74,11 @@ const mixedLanguageStream = createStream('g̈각நிกำषिक्षि')
       title="Stream"
     >
       <div h-auto w-full p-4>
-        <PoppinText :text="textStream" :animator="createFloatAnimator({ duration })" />
+        <PoppinText
+          :text="textStream"
+          :animator="createFloatAnimator({ duration })"
+          text-2xl font-bold font-m-plus-rounded
+        />
       </div>
     </Variant>
 
@@ -99,7 +87,11 @@ const mixedLanguageStream = createStream('g̈각நிกำषिक्षि')
       title="Emoji stream"
     >
       <div h-auto w-full p-4>
-        <PoppinText :text="emojiStream" :animator="createFloatAnimator({ duration })" />
+        <PoppinText
+          :text="emojiStream"
+          :animator="createFloatAnimator({ duration })"
+          text-2xl font-bold font-m-plus-rounded
+        />
       </div>
     </Variant>
 
@@ -108,7 +100,58 @@ const mixedLanguageStream = createStream('g̈각நிกำषिक्षि')
       title="Mixed language stream"
     >
       <div h-auto w-full p-4>
-        <PoppinText :text="mixedLanguageStream" :animator="createFloatAnimator({ duration })" />
+        <PoppinText
+          :text="mixedLanguageStream"
+          :animator="createFloatAnimator({ duration })"
+        />
+      </div>
+    </Variant>
+
+    <Variant
+      id="popup"
+      title="Popup"
+    >
+      <div h-auto w-full p-4>
+        <PoppinText
+          :text="text"
+          :animator="createPopupAnimator({ duration })"
+        />
+      </div>
+    </Variant>
+
+    <Variant
+      id="cute-popup"
+      title="Cute Popup"
+    >
+      <div h-auto w-full p-4>
+        <PoppinText
+          :text="text"
+          :animator="createCutePopupAnimator({ duration })"
+        />
+      </div>
+    </Variant>
+
+    <Variant
+      id="float"
+      title="Float"
+    >
+      <div h-auto w-full p-4>
+        <PoppinText
+          :text="text"
+          :animator="createFloatAnimator({ duration })"
+        />
+      </div>
+    </Variant>
+
+    <Variant
+      id="stack"
+      title="Stack"
+    >
+      <div h-auto w-full p-4>
+        <PoppinText
+          :text="text"
+          :animator="createStackAnimator({ duration })"
+        />
       </div>
     </Variant>
   </Story>
