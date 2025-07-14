@@ -30,9 +30,9 @@ coverage/
 **/public/assets/js/*
 **/public/assets/live2d/models/*
 **/public/assets/vrm/models/*
-packages/stage-ui/public/assets/fonts/
-apps/stage-tamagotchi/public/assets/fonts/
-apps/stage-web/public/assets/fonts/
+
+**/public/assets/fonts/
+**/public/assets/static-fonts/
 
 *.pcm
 *.wav

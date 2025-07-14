@@ -129,7 +129,10 @@ export function sharedUnoConfig() {
           warning: 5000,
           failure: 10000,
         },
-        processors: createLocalFontProcessor(),
+        processors: createLocalFontProcessor({
+          fontAssetsDir: 'public/assets/static-fonts',
+          fontServeBaseUrl: '/assets/static-fonts',
+        }),
       }),
       presetIcons({
         scale: 1.2,
