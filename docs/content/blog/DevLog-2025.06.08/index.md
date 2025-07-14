@@ -1,6 +1,7 @@
 ---
 title: DevLog @ 2025.06.08
 category: DevLog
+date: 2025-06-08
 ---
 
 Hello everyone, here's LemonNeko, one of maintainer of AIRI. Today's DevLog is talking about: Let Live2D model of AIRI Tamagotchi to focus position.

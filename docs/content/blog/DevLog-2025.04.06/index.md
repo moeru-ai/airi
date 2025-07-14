@@ -2,6 +2,7 @@
 title: DevLog @ 2025.04.06
 layout: "../../../layouts/98.astro"
 category: DevLog
+date: 2025-04-06
 ---
 
 <script setup>
@@ -13,8 +14,6 @@ import MoreThemeColors from './assets/more-theme-colors.png'
 import AwesomeAIVTuber from './assets/awesome-ai-vtuber-logo-light.png'
 import ReLUStickerWow from './assets/relu-sticker-wow.png'
 </script>
-
-# DevLog @ 2025.04.06
 
 ## Before all the others 在其他东西之前
 

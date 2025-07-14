@@ -1,9 +1,8 @@
 ---
 title: DevLog @ 2025.04.28
 category: DevLog
+date: 2025-04-28
 ---
-
-# DevLog @ 2025.04.28
 
 <script setup>
 import airiMcpArch from './assets/airi-mcp-arch.jpg'

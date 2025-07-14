@@ -7,7 +7,7 @@ interface Contributor {
 async function fetchContributors(page = 1) {
   const collaborators: string[] = []
 
-  const res = await fetch(`https://api.github.com/repos/unovue/reka-ui/contributors?per_page=100&page=${page}`, {
+  const res = await fetch(`https://api.github.com/repos/moeru-ai/airi/contributors?per_page=100&page=${page}`, {
     headers: {
       Accept: 'application/vnd.github+json',
     },

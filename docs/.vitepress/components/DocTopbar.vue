@@ -75,6 +75,7 @@ watch(path, () => {
         <DialogTrigger
           aria-label="Menu button"
           class="hover:bg-muted flex items-center rounded-lg p-2"
+          transition-colors duration-200 ease-in-out
         >
           <Icon
             icon="lucide:menu"
@@ -97,7 +98,7 @@ watch(path, () => {
               <div
                 v-for="group in theme.sidebar"
                 :key="group.text"
-                class="border-muted mb-4 border-b px-4 pb-4"
+                class="border-muted mb-4 flex flex-col gap-1 border-b px-4 pb-4"
               >
                 <div class="mb-2 ml-2 flex items-center">
                   <Icon

@@ -2,8 +2,6 @@
 title: Neuro-sama
 ---
 
-# About Neuro-sama
-
 Hypes and thoughts:
 
 - [r/VirtualYoutubers --- Someone help me understand Neuro-sama : r/VirtualYoutubers](https://www.reddit.com/r/VirtualYoutubers/comments/1gi5ra0/someone_help_me_understand_neurosama/)

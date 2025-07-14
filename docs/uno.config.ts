@@ -52,10 +52,25 @@ export default defineConfig({
     }),
   ],
   content: {
-    filesystem: ['.vitepress/**/*.{js,ts,vue}', './docs/**/*.md', './components/**/*.{vue,js}'],
+    filesystem: [
+      '.vitepress/**/*.{js,ts,vue}',
+      'content/**/*.md',
+    ],
   },
   safelist: [
     '-ml-8',
+    'top-0',
+    'hidden',
+    'border-0',
+    'opacity-0',
+    'group-hover:opacity-100',
+    'focus:opacity-100',
+    'lg:flex',
+    'transition-opacity',
+    'duration-200',
+    'ease-in-out',
+    '[&_span]:focus:opacity-100',
+    '[&_span_>_span]:focus:outline',
   ],
   theme: {
     colors: {

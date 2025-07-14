@@ -89,7 +89,8 @@ watch(path, () => {
                 v-if="nav.link"
                 as="a"
                 :href="nav.link"
-                class="text-muted-foreground h-full inline-flex items-center rounded p-2 text-sm font-semibold hover:bg-primary/10 hover:text-primary"
+                class="text-muted-foreground h-full inline-flex items-center rounded-lg p-2 text-sm font-semibold hover:bg-primary/10 hover:text-primary"
+                transition="colors duration-200 ease-in-out"
               >
                 {{ nav.text }}
               </DropdownMenuItem>
@@ -166,6 +167,7 @@ watch(path, () => {
                 :aria-label="link.icon"
                 target="_blank"
                 class="text-muted-foreground hover:text-foreground hover:bg-muted h-9 w-9 flex items-center justify-center rounded-lg bg-transparent text-xl"
+                transition="colors duration-200 ease-in-out"
               >
                 <Icon :icon="`simple-icons:${link.icon}`" />
               </DropdownMenuItem>

@@ -1,9 +1,8 @@
 ---
 title: DevLog @ 2025.05.16
 category: DevLog
+date: 2025-05-16
 ---
-
-# DevLog @ 2025.05.16
 
 <script setup>
 import VelinLight from './assets/velin-light.png'

@@ -1,9 +1,8 @@
 ---
 title: DevLog @ 2025.04.14
 category: DevLog
+date: 2025-04-14
 ---
-
-# DevLog @ 2025.04.14
 
 ## 引子
 

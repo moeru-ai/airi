@@ -1,9 +1,7 @@
 ---
-title: Resources
+title: Artists & Developers
 description: Resources for referencing and taking inspiration from
 ---
-
-## Artists & Developers
 
 ### yui540
 

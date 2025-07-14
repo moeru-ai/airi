@@ -1,9 +1,8 @@
 ---
 title: DevLog @ 2025.04.22
 category: DevLog
+date: 2025-04-22
 ---
-
-# DevLog @ 2025.04.22
 
 ## Day time 日常
 

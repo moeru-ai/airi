@@ -14,11 +14,33 @@ import DocTopbar from '../components/DocTopbar.vue'
 
 import { flatten } from '../functions/flatten'
 
-const { theme } = useData()
+const { theme, frontmatter } = useData()
 const { path } = toRefs(useRoute())
 
 const sidebar = computed(() => theme.value.sidebar as DefaultTheme.SidebarItem[])
 const activeSection = computed(() => sidebar.value.find(section => flatten(section.items ?? [], 'items')?.find(item => item.link === path.value.replace('.html', ''))))
+
+const isSidebarEnabled = computed(() => {
+  if (frontmatter.value.sidebar === false) {
+    return false
+  }
+
+  return true
+})
+const isOutlineEnabled = computed(() => {
+  if (frontmatter.value.outline === false) {
+    return false
+  }
+
+  return true
+})
+const isCommunityEnabled = computed(() => {
+  if (frontmatter.value.community === false) {
+    return false
+  }
+
+  return true
+})
 
 const isExamplePage = computed(() => path.value.includes('examples'))
 </script>
@@ -41,10 +63,9 @@ const isExamplePage = computed(() => path.value.includes('examples'))
     <DocTopbar />
 
     <main class="flex">
-      <aside class="sticky top-[7.25rem] h-full max-h-[calc(100vh-7.25rem)] w-[17rem] flex-shrink-0 overflow-y-auto py-4 pl-4 pr-4 hidden md:block">
+      <aside v-if="isSidebarEnabled" class="sticky top-[7.25rem] h-full max-h-[calc(100vh-7.25rem)] w-[17rem] flex-shrink-0 overflow-y-auto py-4 pl-4 pr-4 hidden md:block">
         <div
-          v-if="activeSection"
-          class="h-full flex flex-col gap-1"
+          v-if="activeSection" class="h-full flex flex-col gap-1"
         >
           <DocSidebar :items="activeSection.items ?? []" />
         </div>
@@ -53,6 +74,7 @@ const isExamplePage = computed(() => path.value.includes('examples'))
 
       <div class="flex-1 overflow-x-hidden px-6 py-6 md:px-24 md:py-12">
         <CollapsibleRoot
+          v-if="isOutlineEnabled"
           :key="path"
           class="mb-4 block xl:hidden"
         >
@@ -69,6 +91,10 @@ const isExamplePage = computed(() => path.value.includes('examples'))
           {{ activeSection?.text }}
         </div>
         <article class="max-w-none w-full font-sans prose prose-slate dark:prose-invert">
+          <h1>
+            {{ frontmatter.title || '' }}
+          </h1>
+
           <Content />
         </article>
 
@@ -76,11 +102,11 @@ const isExamplePage = computed(() => path.value.includes('examples'))
       </div>
 
       <div
-        v-if="!isExamplePage"
+        v-if="!isExamplePage && (isOutlineEnabled || isCommunityEnabled)"
         class="no-scrollbar sticky top-[7.25rem] h-[calc(100vh-7.25rem)] w-64 flex-shrink-0 flex-col overflow-y-auto py-12 pl-2 hidden xl:flex space-y-6 md:overflow-x-hidden"
       >
-        <DocOutline />
-        <DocCommunity />
+        <DocOutline v-if="isOutlineEnabled" />
+        <DocCommunity v-if="isCommunityEnabled" />
         <div class="grow" />
         <!-- <DocCarbonAds /> -->
 

@@ -95,24 +95,6 @@ export default defineConfig({
           },
         ],
       },
-      // {
-      //   text: 'References',
-      //   icon: 'lucide:wrench',
-      //   items: [
-      //     {
-      //       text: 'Component',
-      //       items: [
-      //         { text: 'Config Provider', link: '/docs/utilities/config-provider' },
-      //         { text: 'Focus Scope', link: '/docs/utilities/focus-scope' },
-      //         { text: 'Presence', link: '/docs/utilities/presence' },
-      //         { text: 'Primitive', link: '/docs/utilities/primitive' },
-      //         { text: 'Roving Focus', link: '/docs/utilities/roving-focus' },
-      //         { text: 'Slot', link: '/docs/utilities/slot' },
-      //         { text: 'Visually Hidden', link: '/docs/utilities/visually-hidden' },
-      //       ],
-      //     },
-      //   ],
-      // },
       {
         text: 'Examples',
         icon: 'lucide:square-dashed-mouse-pointer',
@@ -165,7 +147,7 @@ export default defineConfig({
       permalink: anchor.permalink.linkInsideHeader({
         class:
           'header-anchor [&_span]:focus:opacity-100 [&_span_>_span]:focus:outline',
-        symbol: `<span class="absolute top-0 -ml-8 hidden items-center border-0 opacity-0 group-hover:opacity-100 focus:opacity-100 lg:flex">&ZeroWidthSpace;<span class="flex h-6 w-6 items-center justify-center rounded-md outline-2 outline-primary text-green-400 shadow-sm  hover:text-green-700 hover:shadow dark:bg-primary/20 dark:text-primary/80 dark:shadow-none  dark:hover:bg-primary/40 dark:hover:text-primary"><svg width="12" height="12" fill="none" aria-hidden="true"><path d="M3.75 1v10M8.25 1v10M1 3.75h10M1 8.25h10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path></svg></span></span>`,
+        symbol: `<span class="absolute top-0 -ml-8 hidden items-center border-0 opacity-0 group-hover:opacity-100 focus:opacity-100 lg:flex" style="transition: all 0.2s ease-in-out;">&ZeroWidthSpace;<span class="flex h-6 w-6 items-center justify-center rounded-md outline-2 outline-primary text-green-400 shadow-sm  hover:text-green-700 hover:shadow dark:bg-primary/20 dark:text-primary/80 dark:shadow-none dark:hover:bg-primary/40 dark:hover:text-primary"><svg width="12" height="12" fill="none" aria-hidden="true"><path d="M3.75 1v10M8.25 1v10M1 3.75h10M1 8.25h10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path></svg></span></span>`,
         renderAttrs: (slug, state) => {
           // From: https://github.com/vuejs/vitepress/blob/256d742b733bfb62d54c78168b0e867b8eb829c9/src/node/markdown/markdown.ts#L263
           // Find `heading_open` with the id identical to slug

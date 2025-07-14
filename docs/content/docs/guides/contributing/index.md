@@ -3,8 +3,6 @@ title: Contributing
 description: Contributing to Project AIRI
 ---
 
-# Contributing
-
 Hello! Thank you for your interest in contributing to this project. This guide will help you get started.
 
 ## Prerequisites

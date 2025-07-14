@@ -1,10 +1,9 @@
 ---
 title: 'DreamLog 0x1'
 description: 'Backstory of Project AIRI!'
-category: DevLog
+category: DreamLog
+date: 2025-06-16
 ---
-
-# DreamLog 0x1
 
 <script setup>
 import EMOSYSLogo from './assets/emosys-logo.png';

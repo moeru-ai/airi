@@ -1,9 +1,8 @@
 ---
 title: DevLog @ 2025.03.10
 category: DevLog
+date: 2025-03-10
 ---
-
-# DevLog @ 2025.03.10
 
 ## Dejavu
 
