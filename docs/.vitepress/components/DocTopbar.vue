@@ -35,7 +35,7 @@ watch(path, () => {
     <div class="h-full items-center justify-between hidden md:flex">
       <div class="h-full flex items-center">
         <a
-          v-for="tab in sectionTabs.filter(i => i.label !== 'Examples')"
+          v-for="tab in sectionTabs.filter(i => i.label !== 'Characters')"
           :key="tab.label"
           :href="tab.link"
           :class="{ '!after:bg-primary !text-foreground': `/${page.relativePath}`.includes(tab.link?.split('/').slice(0, -1).join('/') || '') }"
@@ -53,7 +53,7 @@ watch(path, () => {
 
       <div class="h-full flex items-center">
         <a
-          v-for="tab in sectionTabs.filter(i => i.label === 'Examples')"
+          v-for="tab in sectionTabs.filter(i => i.label === 'Characters')"
           :key="tab.label"
           :href="tab.link"
           :class="{ '!after:bg-primary !text-foreground': page.relativePath.includes(tab.label?.toLowerCase() ?? '') }"
@@ -141,15 +141,15 @@ watch(path, () => {
 
       <div class="h-full flex items-center">
         <a
-          href="/examples"
-          :class="{ '!border-b-primary !font-semibold !text-foreground': page.relativePath.includes('examples') }"
+          href="/characters/"
+          :class="{ '!border-b-primary !font-semibold !text-foreground': page.relativePath.includes('characters') }"
           class="text-muted-foreground hover:border-b-muted hover:text-foreground mx-4 h-full inline-flex items-center gap-2 border-b border-b-transparent py-2 text-sm font-medium"
         >
           <Icon
-            icon="lucide:square-dashed-mouse-pointer"
+            icon="lucide:scan-face"
             class="text-lg"
           />
-          Examples
+          Characters
         </a>
       </div>
     </div>

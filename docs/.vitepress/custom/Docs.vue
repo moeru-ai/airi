@@ -42,7 +42,7 @@ const isCommunityEnabled = computed(() => {
   return true
 })
 
-const isExamplePage = computed(() => path.value.includes('examples'))
+const isCharactersPage = computed(() => path.value.includes('characters'))
 </script>
 
 <template>
@@ -96,11 +96,11 @@ const isExamplePage = computed(() => path.value.includes('examples'))
           <Content />
         </article>
 
-        <DocFooter v-if="!isExamplePage" />
+        <DocFooter v-if="!isCharactersPage" />
       </div>
 
       <div
-        v-if="!isExamplePage && (isOutlineEnabled || isCommunityEnabled)"
+        v-if="!isCharactersPage && (isOutlineEnabled || isCommunityEnabled)"
         class="no-scrollbar sticky top-[7.25rem] h-[calc(100vh-7.25rem)] w-64 flex-shrink-0 flex-col overflow-y-auto py-12 pl-2 hidden xl:flex space-y-6 md:overflow-x-hidden"
       >
         <DocOutline v-if="isOutlineEnabled" />
