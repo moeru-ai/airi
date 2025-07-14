@@ -1,0 +1,31 @@
+[build]
+base = "/"
+command = "pnpm -F @proj-airi/docs run build"
+publish = "/docs/.vitepress/dist"
+
+[build.environment]
+NODE_VERSION = "24.3.0"
+NODE_OPTIONS = "--max-old-space-size=4096"
+
+# Plausible.io analytics
+#
+# Proxying Plausible through Netlify | Plausible docs
+# https://plausible.io/docs/proxy/guides/netlify
+
+[[redirects]]
+from = "/remote-assets/page-external-data/js/script.js"
+to = "https://plausible.io/js/script.js"
+status = 200
+force = true
+
+[[redirects]]
+from = "/api/v1/page-external-data/submit"
+to = "https://plausible.io/api/event"
+status = 200
+force = true
+
+[[headers]]
+for = "/site.webmanifest"
+
+[headers.values]
+Content-Type = "application/manifest+json"

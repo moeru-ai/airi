@@ -15,7 +15,7 @@ const { path } = toRefs(useRoute())
 const { page, theme } = useData()
 
 const isSidebarOpen = ref(false)
-const sidebar = computed(() => (theme.value.sidebar as DefaultTheme.SidebarItem[]))
+const sidebar = computed(() => (theme.value.sidebar as (DefaultTheme.SidebarItem & { icon?: string })[]))
 
 const sectionTabs = computed(() => sidebar.value.map(val => ({ label: val.text, link: flatten(val.items ?? [], 'items').filter(i => !!i.link)?.[0].link, icon: val.icon })))
 
@@ -38,7 +38,7 @@ watch(path, () => {
           v-for="tab in sectionTabs.filter(i => i.label !== 'Examples')"
           :key="tab.label"
           :href="tab.link"
-          :class="{ '!after:bg-primary !text-foreground': `/${page.relativePath}`.includes(tab.link.split('/').slice(0, -1).join('/')) }"
+          :class="{ '!after:bg-primary !text-foreground': `/${page.relativePath}`.includes(tab.link?.split('/').slice(0, -1).join('/') || '') }"
           class="text-muted-foreground hover:text-foreground hover:border-b-muted relative mx-4 h-full inline-flex items-center py-2 text-sm font-semibold after:absolute after:bottom-0 after:h-0.5 after:w-full after:rounded-t-full after:bg-transparent after:content-['']"
           transition-colors duration-200 ease-in-out
         >

@@ -17,7 +17,6 @@ import {
   rekaShortName,
   releases,
 } from './meta'
-import { createHoverTransformer } from './plugins/HoverTransformer'
 
 // function BadgeHTML(text: string, translucent = false) {
 //   return `<div class="inline-flex items-center rounded-full border border-muted px-2 py-[1px] ml-2 text-[11px] transition-colors bg-primary/30 ${translucent ? '!bg-transparent' : ''} text-foreground">
@@ -29,6 +28,7 @@ import { createHoverTransformer } from './plugins/HoverTransformer'
 // https://vitepress.dev/reference/site-config
 export default defineConfig({
   cleanUrls: true,
+  ignoreDeadLinks: true,
   title: rekaName,
   description: rekaDescription,
   titleTemplate: rekaShortName,
@@ -113,8 +113,8 @@ export default defineConfig({
             ],
           },
         ],
-      } as DefaultTheme.SidebarItem,
-    ] as DefaultTheme.SidebarItem[],
+      },
+    ] as (DefaultTheme.SidebarItem & { icon?: string })[],
 
     socialLinks: [
       { icon: 'discord', link: discord },
@@ -163,7 +163,6 @@ export default defineConfig({
         },
       }),
     },
-    codeTransformers: [createHoverTransformer()],
   },
   transformPageData(pageData) {
     if (pageData.frontmatter.sidebar != null)

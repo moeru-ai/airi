@@ -35,6 +35,7 @@
     "shiki": "^3.7.0",
     "tsx": "^4.20.3",
     "vitepress": "^2.0.0-alpha.8",
-    "vue-component-meta": "^2.2.12"
+    "vue-component-meta": "^2.2.12",
+    "vue-tsc": "^3.0.1"
   }
 }

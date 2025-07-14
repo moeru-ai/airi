@@ -5,7 +5,7 @@ import { CollapsibleContent, CollapsibleRoot, CollapsibleTrigger } from 'reka-ui
 import { Content, useData, useRoute } from 'vitepress'
 import { computed, toRefs } from 'vue'
 
-import DocCarbonAds from '../components/DocCarbonAds.vue'
+// import DocCarbonAds from '../components/DocCarbonAds.vue'
 import DocCommunity from '../components/DocCommunity.vue'
 import DocFooter from '../components/DocFooter.vue'
 import DocOutline from '../components/DocOutline.vue'
@@ -82,7 +82,7 @@ const isExamplePage = computed(() => path.value.includes('examples'))
         <DocOutline />
         <DocCommunity />
         <div class="grow" />
-        <DocCarbonAds />
+        <!-- <DocCarbonAds /> -->
 
         <div class="to-background fixed bottom-0 z-10 h-12 w-64 from-transparent bg-gradient-to-b" />
       </div>
