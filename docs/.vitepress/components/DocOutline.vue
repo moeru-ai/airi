@@ -42,7 +42,7 @@ useActiveAnchor(container, marker)
       On this page
     </div>
 
-    <div class="border-muted border-l">
+    <div class="border-muted border-l font-sans">
       <DocOutlineItem
         :headers="page.headers"
         :root="true"

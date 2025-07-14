@@ -3,6 +3,8 @@ import type { DefaultTheme } from 'vitepress'
 import anchor from 'markdown-it-anchor'
 import unocss from 'unocss/vite'
 
+import { footnote } from '@mdit/plugin-footnote'
+import { tasklist } from '@mdit/plugin-tasklist'
 import { defineConfig, postcssIsolateStyles } from 'vitepress'
 
 import { version } from '../../package.json'
@@ -54,7 +56,7 @@ export default defineConfig({
   themeConfig: {
     // https://vitepress.dev/reference/default-theme-config
     nav: [
-      { text: 'Docs', link: '/docs/overview/getting-started' },
+      { text: 'Docs', link: '/docs/overview/' },
       { text: 'Blog', link: '/blog/' },
       {
         text: `v${version}`,
@@ -74,33 +76,43 @@ export default defineConfig({
         icon: 'lucide:rocket',
         items: [
           { text: 'Introduction', link: '/docs/overview/' },
+          { text: 'About AI Vtuber', link: '/docs/overview/about-ai-vtuber' },
+          { text: 'About Neuro-sama', link: '/docs/overview/about-neuro-sama' },
         ],
       },
       {
         text: 'Guides',
         icon: 'lucide:book-open',
         items: [
-          { text: 'Styling', link: '/docs/guides/styling' },
-        ],
-      },
-      {
-        text: 'References',
-        icon: 'lucide:wrench',
-        items: [
+          { text: 'Contributing', link: '/docs/guides/contributing/' },
           {
-            text: 'Component',
+            text: 'Design Guidelines',
+            link: '/docs/guides/design-guidelines/',
             items: [
-              { text: 'Config Provider', link: '/docs/utilities/config-provider' },
-              { text: 'Focus Scope', link: '/docs/utilities/focus-scope' },
-              { text: 'Presence', link: '/docs/utilities/presence' },
-              { text: 'Primitive', link: '/docs/utilities/primitive' },
-              { text: 'Roving Focus', link: '/docs/utilities/roving-focus' },
-              { text: 'Slot', link: '/docs/utilities/slot' },
-              { text: 'Visually Hidden', link: '/docs/utilities/visually-hidden' },
+              { text: 'Resources', link: '/docs/guides/contributing/design-guidelines/resources' },
+              { text: 'Tools', link: '/docs/guides/contributing/design-guidelines/tools' },
             ],
           },
         ],
       },
+      // {
+      //   text: 'References',
+      //   icon: 'lucide:wrench',
+      //   items: [
+      //     {
+      //       text: 'Component',
+      //       items: [
+      //         { text: 'Config Provider', link: '/docs/utilities/config-provider' },
+      //         { text: 'Focus Scope', link: '/docs/utilities/focus-scope' },
+      //         { text: 'Presence', link: '/docs/utilities/presence' },
+      //         { text: 'Primitive', link: '/docs/utilities/primitive' },
+      //         { text: 'Roving Focus', link: '/docs/utilities/roving-focus' },
+      //         { text: 'Slot', link: '/docs/utilities/slot' },
+      //         { text: 'Visually Hidden', link: '/docs/utilities/visually-hidden' },
+      //       ],
+      //     },
+      //   ],
+      // },
       {
         text: 'Examples',
         icon: 'lucide:square-dashed-mouse-pointer',
@@ -131,16 +143,23 @@ export default defineConfig({
   srcDir: 'content',
   appearance: 'dark',
   markdown: {
-    theme: 'catppuccin-mocha',
+    theme: {
+      light: 'catppuccin-latte',
+      dark: 'catppuccin-mocha',
+    },
     headers: {
       level: [2, 3, 4, 5, 6],
+    },
+    config(md) {
+      md.use(tasklist)
+      md.use(footnote)
     },
     anchor: {
       callback(token) {
         // set tw `group` modifier to heading element
         token.attrSet(
           'class',
-          'group relative border-none mb-4 lg:-ml-2 lg:pl-2 lg:pr-2 w-max',
+          'group relative border-none mb-4 lg:-ml-2 lg:pl-2 lg:pr-2',
         )
       },
       permalink: anchor.permalink.linkInsideHeader({

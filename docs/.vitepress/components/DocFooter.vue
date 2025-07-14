@@ -73,7 +73,7 @@ const showFooter = computed(
       <div class="group w-full">
         <a
           v-if="control.prev?.link"
-          class="w-full inline-flex flex-col items-end border-2 border-neutral-200/40 rounded-lg border-solid bg-white/30 px-4 py-6 shadow-md shadow-transparent backdrop-blur-md transition-all duration-200 ease-in-out dark:border-2 dark:border-neutral-800/40 dark:border-solid dark:bg-neutral-800/30 hover:bg-white/50 dark:shadow-none hover:shadow-black/5"
+          class="w-full inline-flex flex-col items-end border-2 border-neutral-200/40 rounded-lg border-solid bg-white/30 px-4 py-6 shadow-md shadow-transparent backdrop-blur-md transition-all duration-200 ease-in-out dark:border-2 dark:border-neutral-800/40 dark:border-solid dark:bg-neutral-800/30 hover:bg-white/50 dark:shadow-none hover:shadow-black/5 dark:hover:bg-neutral-800/50"
           :href="control.prev.link"
         >
           <span
@@ -92,7 +92,7 @@ const showFooter = computed(
       <div class="group w-full">
         <a
           v-if="control.next?.link"
-          class="w-full inline-flex flex-col items-end border-2 border-neutral-200/40 rounded-lg border-solid bg-white/30 px-4 py-6 shadow-md shadow-transparent backdrop-blur-md transition-all duration-200 ease-in-out dark:border-2 dark:border-neutral-800/40 dark:border-solid dark:bg-neutral-800/30 hover:bg-white/50 dark:shadow-none hover:shadow-black/5"
+          class="w-full inline-flex flex-col items-end border-2 border-neutral-200/40 rounded-lg border-solid bg-white/30 px-4 py-6 shadow-md shadow-transparent backdrop-blur-md transition-all duration-200 ease-in-out dark:border-2 dark:border-neutral-800/40 dark:border-solid dark:bg-neutral-800/30 hover:bg-white/50 dark:shadow-none hover:shadow-black/5 dark:hover:bg-neutral-800/50"
           :href="control.next.link"
         >
           <span

@@ -3,6 +3,8 @@ title: Contributing
 description: Contributing to Project AIRI
 ---
 
+# Contributing
+
 Hello! Thank you for your interest in contributing to this project. This guide will help you get started.
 
 ## Prerequisites
@@ -94,8 +96,10 @@ Hello! Thank you for your interest in contributing to this project. This guide w
 
 ## If you have already contributed to this project before
 
-:::caution
+::: warning
+
 If you haven't clone this repository, skip this section.
+
 :::
 
 Make sure your local repository is up to date with the upstream repository:
@@ -141,7 +145,7 @@ pnpm install
 cargo fetch
 ```
 
-:::note
+::: tip
 
 We would recommend to install [@antfu/ni](https://github.com/antfu-collective/ni) to make your script simpler.
 
@@ -166,7 +170,7 @@ You don't need to care about the package manager, `ni` will help you choose the 
 pnpm dev:tamagotchi
 ```
 
-:::note
+::: tip
 
 For [@antfu/ni](https://github.com/antfu-collective/ni) users, you can
 
@@ -182,7 +186,7 @@ nr dev:tamagotchi
 pnpm dev
 ```
 
-:::note
+::: tip
 
 For [@antfu/ni](https://github.com/antfu-collective/ni) users, you can
 
@@ -198,7 +202,7 @@ nr dev
 pnpm dev:docs
 ```
 
-:::note
+::: tip
 
 For [@antfu/ni](https://github.com/antfu-collective/ni) users, you can
 
@@ -238,7 +242,7 @@ Run the bot
 pnpm -F @proj-airi/telegram-bot start
 ```
 
-:::note
+::: tip
 
 For [@antfu/ni](https://github.com/antfu-collective/ni) users, you can
 
@@ -268,7 +272,7 @@ Run the bot
 pnpm -F @proj-airi/discord-bot start
 ```
 
-:::note
+::: tip
 
 For [@antfu/ni](https://github.com/antfu-collective/ni) users, you can
 
@@ -300,7 +304,7 @@ Run the bot
 pnpm -F @proj-airi/minecraft-bot start
 ```
 
-:::note
+::: tip
 
 For [@antfu/ni](https://github.com/antfu-collective/ni) users, you can
 
@@ -314,7 +318,7 @@ nr -F @proj-airi/minecraft-bot dev
 
 ### Before commit
 
-:::caution
+::: warning
 
 Please make sure lint (static checkers) and TypeScript compilers are satisfied:
 
@@ -324,7 +328,7 @@ pnpm lint && pnpm typecheck
 
 :::
 
-:::note
+::: tip
 
 If you have [@antfu/ni](https://github.com/antfu-collective/ni) installed, you can use `nr` to run the commands:
 
@@ -349,7 +353,7 @@ git push origin <your-branch-name> -u
 
 You should be able to browse the branch on your fork repository.
 
-:::note
+::: tip
 
 If this is your first time contributing with this project, you need to add the upstream repository too:
 

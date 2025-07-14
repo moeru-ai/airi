@@ -3,6 +3,8 @@ title: DevLog @ 2025.03.10
 category: DevLog
 ---
 
+# DevLog @ 2025.03.10
+
 ## Dejavu
 
 In the last Friday (March 7th), I was trying to design and manipulate a new

@@ -3,6 +3,8 @@ title: DevLog @ 2025.03.05
 category: DevLog
 ---
 
+# DevLog @ 2025.03.05
+
 ## Dejavu
 
 Yesterday I added one extra package called

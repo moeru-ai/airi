@@ -3,6 +3,8 @@ title: DevLog @ 2025.03.06
 category: DevLog
 ---
 
+# DevLog @ 2025.03.06
+
 ## Dejavu
 
 Previous day, I was on DevStream to show the progress of making the

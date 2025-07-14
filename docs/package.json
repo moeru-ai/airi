@@ -20,6 +20,8 @@
   "devDependencies": {
     "@babel/traverse": "^7.27.4",
     "@iconify/vue": "^5.0.0",
+    "@mdit/plugin-footnote": "^0.22.2",
+    "@mdit/plugin-tasklist": "^0.22.1",
     "@radix-ui/colors": "^3.0.0",
     "@types/hast": "^3.0.4",
     "@types/markdown-it": "^14.1.2",

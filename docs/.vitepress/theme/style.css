@@ -156,10 +156,91 @@ html {
   }
 }
 
-
-
 .custom-block {
-  @apply rounded-xl p-6 border border-muted;
+  @apply rounded-xl px-4 py-3 border border-muted relative overflow-hidden;
+
+  &::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 4px;
+    height: 100%;
+    border-radius: 999px;
+  }
+
+  & .custom-block-title {
+    margin: 0 0 8px 0;
+  }
+
+  & > p:nth-child(2) {
+    margin: 0;
+    display: block;
+  }
+}
+
+.custom-block.info {
+  @apply bg-slate-200/20 dark:bg-slate-900/80 border-none;
+
+  &::before {
+    @apply bg-slate-500/20 dark:bg-slate-400/20;
+  }
+
+  & .custom-block-title {
+    @apply text-slate-800 dark:text-slate-300 font-semibold;
+  }
+
+  &> p:nth-child(2) {
+    @apply dark:text-slate-50;
+  }
+}
+
+.custom-block.tip {
+  @apply bg-violet-50 dark:bg-violet-900/20 border-none;
+
+  &::before {
+    @apply bg-violet-500/20 dark:bg-violet-400/20;
+  }
+
+  & .custom-block-title {
+    @apply text-violet-800 dark:text-violet-300 font-semibold;
+  }
+
+  & > p:nth-child(2) {
+    @apply dark:text-violet-50;
+  }
+}
+
+.custom-block.warning {
+  @apply bg-yellow-50 dark:bg-yellow-900/20 border-none;
+
+  &::before {
+    @apply bg-yellow-500/20 dark:bg-yellow-400/20;
+  }
+
+  & .custom-block-title {
+    @apply text-yellow-800 dark:text-yellow-300 font-semibold;
+  }
+
+  &> p:nth-child(2) {
+    @apply dark:text-yellow-50;
+  }
+}
+
+.custom-block.danger {
+  @apply bg-neutral-100 dark:bg-neutral-900/20 border-none;
+
+  &::before {
+    @apply bg-neutral-500/20 dark:bg-neutral-400/20;
+  }
+
+  & .custom-block-title {
+    @apply text-neutral-800 dark:text-neutral-300 font-semibold;
+  }
+
+  & > p:nth-child(2) {
+    @apply dark:text-neutral-50;
+  }
 }
 
 input {
@@ -306,14 +387,14 @@ mark {
 }
 
 .step {
-		counter-increment: step;
-	}
+	counter-increment: step;
+}
 
-	.step:before {
-		@apply absolute w-9 h-9 bg-muted rounded-lg font-mono font-medium text-center text-base inline-flex items-center justify-center -indent-px border-4 border-background;
-		@apply -ml-[50px] -mt-1;
-		content: counter(step);
-	}
+.step:before {
+  @apply absolute w-9 h-9 bg-muted rounded-lg font-mono font-medium text-center text-base inline-flex items-center justify-center -indent-px border-4 border-background;
+  @apply -ml-[50px] -mt-1;
+  content: counter(step);
+}
 
 .image-bg {
   @apply scale-75 !transform !-translate-x-1/2 !-translate-y-1/2;
@@ -333,4 +414,44 @@ mark {
 .fade-enter-from,
 .fade-leave-to {
   opacity: 0;
+}
+
+main .prose :where(details):not(:where(.not-prose,.not-prose *)) {
+  background-color:rgba(131, 186, 231, 0.1);
+
+  padding: 1.2rem 1.2rem;
+  border-radius: 12px;
+}
+
+.dark main .prose :where(details):not(:where(.not-prose,.not-prose *)) {
+  background-color:rgba(88, 112, 132, 0.06);
+}
+
+pre.shiki {
+  border-radius: 12px;
+  background-color: var(--shiki-light-bg);
+}
+
+.dark pre.shiki {
+  background-color: var(--shiki-dark-bg);
+}
+
+pre.shiki code span {
+  color: var(--shiki-light);
+}
+
+.dark pre.shiki code span {
+  color: var(--shiki-dark);
+}
+
+html.dark img.light {
+  display: none;
+}
+
+html:not(.dark) img.dark {
+  display: none;
+}
+
+video {
+  border-radius: 8px;
 }

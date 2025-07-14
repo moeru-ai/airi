@@ -3,6 +3,21 @@ title: DevLog @ 2025.03.20
 category: DevLog
 ---
 
+<script setup>
+import Gelbana from './assets/steins-gate-gelnana-from-elpsycongrooblog.webp'
+import NewUIV3 from '../DevLog-2025.03.10/assets/new-ui-v3.png'
+import NewUIV3Dark from '../DevLog-2025.03.10/assets/new-ui-v3-dark.png'
+import HistoireColorSlider from './assets/histoire-color-slider.png'
+import HistoireColorSliderDark from './assets/histoire-color-slider-dark.png'
+import HistoireLogo from './assets/histoire-logo.png'
+import HistoireLogoDark from './assets/histoire-logo-dark.png'
+import NewUIV4Speech from './assets/new-ui-v4-speech.png'
+import NewUIV4SpeechDark from './assets/new-ui-v4-speech-dark.png'
+import SteinsGateMayori from './assets/steins-gate-mayori.webp'
+</script>
+
+# DevLog @ 2025.03.20
+
 Hello again! It has been 10 days since the [last post of DevLog](../references/contributing/guide/).
 
 We made a lot of improvements to our user interface, we made it possible

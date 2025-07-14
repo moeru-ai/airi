@@ -3,6 +3,8 @@ title: DevLog @ 2025.04.14
 category: DevLog
 ---
 
+# DevLog @ 2025.04.14
+
 ## 引子
 
 [上次](../Devlog-2025.04.06/#memory-system-记忆系统)我们聊到了 AIRI 的记忆系统，这次我们再深入聊聊，如何实现一个这么复杂的记忆系统，以及对未来的展望。

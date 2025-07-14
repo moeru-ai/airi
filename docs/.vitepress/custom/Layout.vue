@@ -24,7 +24,7 @@ const { top } = toRefs(arrivedState)
 
 <template>
   <TooltipProvider>
-    <div class="h-full min-h-screen flex flex-col items-center">
+    <div class="h-full min-h-screen flex flex-col items-center font-sans-rounded">
       <header
         class="sticky top-0 z-20 h-[68px] w-full py-4 transition-all duration-500 md:h-full"
         :class="[top ? 'bg-transparent backdrop-blur-0' : 'bg-background/90 backdrop-blur supports-[backdrop-filter]:bg-background/90']"
@@ -40,7 +40,7 @@ const { top } = toRefs(arrivedState)
                 alt="Reka UI logo"
                 :src="logo"
               >
-              <span class="text-xl font-bold font-sans-rounded md:text-2xl">{{ title }}</span>
+              <span class="translate-y-1 text-xl font-bold font-sans-rounded md:text-2xl">{{ title }}</span>
             </a>
             <SearchTrigger />
           </div>
@@ -55,12 +55,7 @@ const { top } = toRefs(arrivedState)
       >
         <main>
           <Home />
-          <!-- <Content /> -->
         </main>
-
-      <!-- <footer class="py-4">
-        footer
-      </footer> -->
       </div>
 
       <div

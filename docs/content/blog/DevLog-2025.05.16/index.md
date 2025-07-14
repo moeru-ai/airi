@@ -3,26 +3,28 @@ title: DevLog @ 2025.05.16
 category: DevLog
 ---
 
-import { Image } from 'astro:assets';
+# DevLog @ 2025.05.16
 
-import VelinLight from '../../../assets/images/blog/DevLog-2025.05.16/velin-light.png'
-import VelinDark from '../../../assets/images/blog/DevLog-2025.05.16/velin-dark.png'
+<script setup>
+import VelinLight from './assets/velin-light.png'
+import VelinDark from './assets/velin-dark.png'
 
-import CharacterCardMenuLight from '../../../assets/images/blog/DevLog-2025.05.16/character-card-menu-light.png'
-import CharacterCardMenuDark from '../../../assets/images/blog/DevLog-2025.05.16/character-card-menu-dark.png'
+import CharacterCardMenuLight from './assets/character-card-menu-light.png'
+import CharacterCardMenuDark from './assets/character-card-menu-dark.png'
 
-import CharacterCardSettingsLight from '../../../assets/images/blog/DevLog-2025.05.16/character-card-settings-light.png'
-import CharacterCardSettingsDark from '../../../assets/images/blog/DevLog-2025.05.16/character-card-settings-dark.png'
+import CharacterCardSettingsLight from './assets/character-card-settings-light.png'
+import CharacterCardSettingsDark from './assets/character-card-settings-dark.png'
 
-import CharacterCardShowcaseLight from '../../../assets/images/blog/DevLog-2025.05.16/character-card-showcase-light.png'
-import CharacterCardShowcaseDark from '../../../assets/images/blog/DevLog-2025.05.16/character-card-showcase-dark.png'
+import CharacterCardShowcaseLight from './assets/character-card-showcase-light.png'
+import CharacterCardShowcaseDark from './assets/character-card-showcase-dark.png'
 
-import VelinPlaygroundLight from '../../../assets/images/blog/DevLog-2025.05.16/velin-playground-light.png'
-import VelinPlaygroundDark from '../../../assets/images/blog/DevLog-2025.05.16/velin-playground-dark.png'
+import VelinPlaygroundLight from './assets/velin-playground-light.png'
+import VelinPlaygroundDark from './assets/velin-playground-dark.png'
 
-import DemoDayHangzhou1 from '../../../assets/images/blog/DevLog-2025.05.16/demo-day-hangzhou-1.jpeg'
-import DemoDayHangzhou2 from '../../../assets/images/blog/DevLog-2025.05.16/demo-day-hangzhou-2.jpeg'
-import DemoDayHangzhou3 from '../../../assets/images/blog/DevLog-2025.05.16/demo-day-hangzhou-3.jpeg'
+import DemoDayHangzhou1 from './assets/demo-day-hangzhou-1.jpeg'
+import DemoDayHangzhou2 from './assets/demo-day-hangzhou-2.jpeg'
+import DemoDayHangzhou3 from './assets/demo-day-hangzhou-3.jpeg'
+</script>
 
 Hello again! Here's [Neko](https://github.com/nekomeowww), the girl who started
 the [Project AIRI](https://github.com/moeru-ai/airi)!
@@ -55,7 +57,7 @@ Most profoundly appreciated to [@LemonNekoGH](https://github.com/LemonNekoGH) an
 
 - Character Card support
 
-:::note[What is Character Card?]
+::: tip What is Character Card?
 Well, local-first chat applications like [SillyTavern](https://github.com/SillyTavern/SillyTavern)
 , [RisuAI](https://risuai.net/) or online services like [JanitorAI](https://janitorai.com/) uses、 a
 file contains character's background, personality, and other role-playing essential context for
@@ -80,19 +82,19 @@ documentation to share, for now, try read [Void's Lorebook Types](https://rentry
 > corner of the app, or hovering Gear icon in desktop app),
 > Find and click the "Airi Card" button.
 
-<Image className="light" src={CharacterCardMenuLight} alt="screenshot of a menu offers Airi Card menu button" />
-<Image className="dark" src={CharacterCardMenuDark} alt="screenshot of a menu offers Airi Card menu button" />
+<img class="light" :src="CharacterCardMenuLight" alt="screenshot of a menu offers Airi Card menu button" />
+<img class="dark" :src="CharacterCardMenuDark" alt="screenshot of a menu offers Airi Card menu button" />
 
 > This will bring you to the "Airi Card editor screen", where you can upload and
 > edit your character card for persona customization.
 
-<Image className="light" src={CharacterCardSettingsLight} alt="screenshot of a menu offers Airi Card menu button" />
-<Image className="dark" src={CharacterCardSettingsDark} alt="screenshot of a menu offers Airi Card menu button" />
+<img class="light" :src="CharacterCardSettingsLight" alt="screenshot of a menu offers Airi Card menu button" />
+<img class="dark" :src="CharacterCardSettingsDark" alt="screenshot of a menu offers Airi Card menu button" />
 
 For Character Card showcases, we tried some approaches too...
 
-<Image className="light" src={CharacterCardShowcaseLight} alt="a card like user interface design for a blue hair character called ReLU" />
-<Image className="dark" src={CharacterCardShowcaseDark} alt="a card like user interface design for a blue hair character called ReLU" />
+<img class="light" :src="CharacterCardShowcaseLight" alt="a card like user interface design for a blue hair character called ReLU" />
+<img class="dark" :src="CharacterCardShowcaseDark" alt="a card like user interface design for a blue hair character called ReLU" />
 
 It's live in our UI component library, you can play around with it: https://airi.moeru.ai/ui/#/story/src-components-menu-charactercard-story-vue .
 
@@ -139,8 +141,8 @@ Eventually, I got this:
 which I managed to proof the work can be done on Web browser within one single
 300 ~ 500 lines of TypeScript code to achieve ChatGPT voice chat system.
 
-<video controls muted style={{ height: '640px' }}>
-  <source src="../../static/blog/DevLog-2025.05.16/webai-examples-demo.MP4"/>
+<video controls muted style="{ height: '640px' }">
+  <source src="./assets/webai-examples-demo.MP4"/>
 </video>
 
 I tried my best to split all the possible steps into small and reusable pieces
@@ -178,7 +180,7 @@ You can install it via npm today!
 npm install xsai-transformers
 ```
 
-:::note[What does this mean?]
+::: tip What does this mean?
 This means you can swap between cloud LLM and speech providers and local WebGPU
 powered models with one if switch.
 
@@ -245,14 +247,14 @@ So why don't we make a tool to write LLM prompts with frontend frameworks like V
 
 This is what we got: [**Velin**](https://github.com/luoling8192/velin).
 
-<Image className="light" src={VelinLight} alt="tool to write LLM prompts with Vue.js" />
-<Image className="dark" src={VelinDark} alt="tool to write LLM prompts with Vue.js" />
+<img class="light" :src="VelinLight" alt="tool to write LLM prompts with Vue.js" />
+<img class="dark" :src="VelinDark" alt="tool to write LLM prompts with Vue.js" />
 
 We even made a playground for editing it and render it on-the-fly,
 while enjoying the ecosystem of npm packages (yes you can import any!).
 
-<Image className="light" src={VelinPlaygroundLight} alt="tool to write LLM prompts with Vue.js" />
-<Image className="dark" src={VelinPlaygroundDark} alt="tool to write LLM prompts with Vue.js" />
+<img class="light" :src="VelinPlaygroundLight" alt="tool to write LLM prompts with Vue.js" />
+<img class="dark" :src="VelinPlaygroundDark" alt="tool to write LLM prompts with Vue.js" />
 
 Try it here: https://velin-dev.netlify.app
 
@@ -267,7 +269,7 @@ Well... that's all for today, I hope you enjoy reading this DevLog.
 
 Let's end with DevLog with more images from the recent event we attended in Hangzhou, China: The **Demo Day @ Hangzhou**.
 
-<Image src={DemoDayHangzhou1} alt="Demo Day @ Hangzhou" />
+<img :src="DemoDayHangzhou1" alt="Demo Day @ Hangzhou" />
 
 This is me, I shared the AIRI project with other attendees, and we had a great time
 there! Meet so many of the talented developers, product designers, and entrepreneurs.
@@ -276,8 +278,8 @@ Introduced almost everything I shared today in this DevLog, and also the beloved
 
 The slides I used to share was this:
 
-<Image src={DemoDayHangzhou2} alt="Demo Day @ Hangzhou" />
-<Image src={DemoDayHangzhou3} alt="Demo Day @ Hangzhou" />
+<img :src="DemoDayHangzhou2" alt="Demo Day @ Hangzhou" />
+<img :src="DemoDayHangzhou3" alt="Demo Day @ Hangzhou" />
 
 The slides itself is purely open sourced, you can play around
 it here too: [https://talks.ayaka.io/nekoayaka/2025-05-10-airi-how-we-recreated-it/#/1](https://talks.ayaka.io/nekoayaka/2025-05-10-airi-how-we-recreated-it/#/1)

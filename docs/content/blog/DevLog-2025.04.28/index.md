@@ -3,8 +3,11 @@ title: DevLog @ 2025.04.28
 category: DevLog
 ---
 
-import { Image } from 'astro:assets';
-import airiMcpArch from '../../../assets/images/blog/DevLog-2025.04.28/airi-mcp-arch.jpg';
+# DevLog @ 2025.04.28
+
+<script setup>
+import airiMcpArch from './assets/airi-mcp-arch.jpg'
+</script>
 
 大家好，这里是 [@LemonNeko](https://github.com/LemonNekoGH)，今天由我来和大家一起分享开发故事。
 
@@ -18,21 +21,21 @@ import airiMcpArch from '../../../assets/images/blog/DevLog-2025.04.28/airi-mcp-
 
 <details>
   <summary>AIRI 的 MCP 服务器设置</summary>
-  <video controls muted style={{ height: '640px' }}>
-    <source src="../../static/blog/DevLog-2025.04.28/airi-mcp-settings.mp4"/>
+  <video controls muted style="{ height: '640px' }">
+    <source src="./assets/airi-mcp-settings.mp4"/>
   </video>
 </details>
 
 <details>
   <summary>AIRI 在手机上输入 `Hello World`</summary>
   <video controls muted>
-    <source src="../../static/blog/DevLog-2025.04.28/airi-mcp-input-text.mp4"/>
+    <source src="./assets/airi-mcp-input-text.mp4"/>
   </video>
 </details>
 
 开发时，为了理清思路，我画了一张图，从 LLM 调用安卓手机：
 
-<Image src={airiMcpArch} alt="AIRI 操作手机" style={{ height: '640px', objectFit: 'contain' }} />
+<img :src="airiMcpArch" alt="AIRI 操作手机" :style="{ height: '640px', objectFit: 'contain' }" />
 
 接下来和大家分享一下我的开发过程。
 
@@ -52,12 +55,12 @@ fn list_tools() -> Vec<String> {
 ```javascript
 import { invoke } from '@Tauri-apps/api/core'
 
-export mcp = [
+export const mcp = [
   {
-    name: "list_tools",
-    description: "List all tools",
+    name: 'list_tools',
+    description: 'List all tools',
     execute: async () => {
-      return await invoke("list_tools")
+      return await invoke('list_tools')
     }
   }
 ]
@@ -159,7 +162,7 @@ async fn call_tool(state: State<'_, Mutex<Option<McpClient>>>, name: String, arg
 ```javascript
 import { invoke } from '@Tauri-apps/api/core'
 
-invoke("call_tool", { name: "input_swipe", args: { x1: 100, y1: 100, x2: 200, y2: 200, duration: 500 } })
+invoke('call_tool', { name: 'input_swipe', args: { x1: 100, y1: 100, x2: 200, y2: 200, duration: 500 } })
 ```
 
 超方便！

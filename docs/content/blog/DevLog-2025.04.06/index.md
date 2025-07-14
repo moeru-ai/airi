@@ -4,14 +4,15 @@ layout: "../../../layouts/98.astro"
 category: DevLog
 ---
 
-import { Image } from 'astro:assets';
-import MemoryDecay from '../../../assets/images/blog/DevLog-2025.04.06/memory-decay.png'
-import MemoryRetrieval from '../../../assets/images/blog/DevLog-2025.04.06/memory-retrieval.png'
-import CharacterCard from '../../../assets/images/blog/DevLog-2025.04.06/character-card.png'
-import CharacterCardDetail from '../../../assets/images/blog/DevLog-2025.04.06/character-card-detail.png'
-import MoreThemeColors from '../../../assets/images/blog/DevLog-2025.04.06/more-theme-colors.png'
-import AwesomeAIVTuber from '../../../assets/images/blog/DevLog-2025.04.06/awesome-ai-vtuber-logo-light.png'
-import ReLUStickerWow from '../../../assets/images/blog/DevLog-2025.04.06/relu-sticker-wow.png'
+<script setup>
+import MemoryDecay from './assets/memory-decay.png'
+import MemoryRetrieval from './assets/memory-retrieval.png'
+import CharacterCard from './assets/character-card.png'
+import CharacterCardDetail from './assets/character-card-detail.png'
+import MoreThemeColors from './assets/more-theme-colors.png'
+import AwesomeAIVTuber from './assets/awesome-ai-vtuber-logo-light.png'
+import ReLUStickerWow from './assets/relu-sticker-wow.png'
+</script>
 
 # DevLog @ 2025.04.06
 
@@ -341,7 +342,7 @@ First we will need to define the schema of our table, the code of the Drizzle sc
 首先，我们需要定义表结构，Drizzle 的代码可以参考如下内容：
 
 ```typescript
-import { index, pgTable, serial, text, vector } from 'drizzle-orm/pg-core';
+import { index, pgTable, serial, text, vector } from 'drizzle-orm/pg-core'
 
 export const demoTable = pgTable(
   'demo',
@@ -352,10 +353,10 @@ export const demoTable = pgTable(
     url: text('url').notNull().default(''),
     embedding: vector('embedding', { dimensions: 1536 }),
   },
-  (table) => [
+  table => [
     index('embeddingIndex').using('hnsw', table.embedding.op('vector_cosine_ops')),
   ]
-);
+)
 ```
 
 The corresponding SQL to create the table looks like this:
@@ -364,11 +365,11 @@ The corresponding SQL to create the table looks like this:
 
 ```sql
 CREATE TABLE "chat_messages" (
-	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+  "id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
   "title" text DEFAULT '' NOT NULL,
   "description" text DEFAULT '' NOT NULL,
   "url" text DEFAULT '' NOT NULL,
-	"embedding" vector(1536)
+  "embedding" vector(1536)
 );
 
 CREATE INDEX "embeddingIndex" ON "demo" USING hnsw ("embedding" vector_cosine_ops);
@@ -531,7 +532,7 @@ So we did a lot of other things. Like actually implementing a forgetting curve o
     </div>
   </div>
   <div class="flex flex-col items-center">
-    <Image src={MemoryDecay} alt="memory decay & retention simulation" />
+    <img :src="MemoryDecay" alt="memory decay & retention simulation" />
   </div>
 </div>
 
@@ -561,7 +562,7 @@ we made a little interactive playground for it.
     </div>
   </div>
   <div class="flex flex-col items-center">
-    <Image src={MemoryRetrieval} alt="memory sudden retrieval & emotion biased simulation" />
+    <img :src="MemoryRetrieval" alt="memory sudden retrieval & emotion biased simulation" />
   </div>
 </div>
 
@@ -578,7 +579,6 @@ It is fully interactive too!!! Can be played on [drizzle-orm-duckdb-wasm.netlify
 - ReLU sticker Vol.1 finished!
 - ReLU sticker Vol.2 animated finished!
 - 89 tasks finished for [Roadmap v0.4](https://github.com/moeru-ai/airi/issues/42)
-
 
 - 300 🌟 达成
 - 3 位新的 Issue 贡献者
@@ -669,7 +669,7 @@ We finally supported Character cards natively!
     </div>
   </div>
   <div class="flex flex-col items-center">
-    <Image src={CharacterCard} alt="character card" />
+    <img :src="CharacterCard" alt="character card" />
   </div>
 </div>
 
@@ -691,7 +691,7 @@ Big shout out to [@luoling8192](https://github.com/luoling8192)
     </div>
   </div>
   <div class="flex flex-col items-center">
-    <Image src={CharacterCardDetail} alt="character card detail" />
+    <img :src="CharacterCardDetail" alt="character card detail" />
   </div>
 </div>
 
@@ -710,7 +710,7 @@ we got color presets included!
     </div>
   </div>
   <div class="flex flex-col items-center">
-    <Image src={MoreThemeColors} alt="more theme colors" />
+    <img :src="MoreThemeColors" alt="more theme colors" />
   </div>
 </div>
 
@@ -730,7 +730,7 @@ we got color presets included!
     </div>
   </div>
   <div class="flex flex-col items-center">
-    <Image class="px-30 md:px-40 lg:px-50" src={AwesomeAIVTuber} alt="Awesome AI VTuber Logo" />
+    <img class="px-30 md:px-40 lg:px-50" :src="AwesomeAIVTuber" alt="Awesome AI VTuber Logo" />
     <div class="text-center pb-4">
       <span class="block font-bold">Awesome AI VTuber</span>
       <span>A curated list of AI VTubers and their related projects</span>
@@ -789,7 +789,7 @@ Let's use the quote from ReLU for the ending:
   </div>
   <div style="padding: 12px; margin-top: 0px;">
     <div class="flex justify-center w-[20%]">
-      <Image src={ReLUStickerWow} alt="ReLU sticker for expression wow" />
+      <img :src="ReLUStickerWow" alt="ReLU sticker for expression wow" />
     </div>
     <div class="flex flex-col">
       <div>Some days I feel like I'm really a symbolic being, </div>

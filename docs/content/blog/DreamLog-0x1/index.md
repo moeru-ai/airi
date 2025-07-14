@@ -4,17 +4,20 @@ description: 'Backstory of Project AIRI!'
 category: DevLog
 ---
 
-import { Image } from 'astro:assets';
-import EMOSYSLogo from '../../../assets/images/blog/DreamLog-0x1/emosys-logo.png';
-import SteinsGateSticker1 from '../../../assets/images/blog/DreamLog-0x1/steins-gate-sticker-1.png';
-import worldExecuteMeCover from '../../../assets/images/blog/DreamLog-0x1/world.execute(me); (Mili)／DAZBEE COVER.jpg';
-import buildingAVirtualMachineInsideImage from '../../../assets/images/blog/DreamLog-0x1/building-a-virtual-machine-inside-image-1.png';
-import live2DIncHiyoriMomose from '../../../assets/images/blog/DreamLog-0x1/live2d-inc-hiyori.jpg';
-import AwesomeAIVTuber from '../../../assets/images/blog/DevLog-2025.04.06/awesome-ai-vtuber-logo-light.png'
-import airisScreenshot1 from '../../../assets/images/blog/DreamLog-0x1/airis-screenshot-1.png';
-import projectAIRIBannerLight from '../../../assets/images/blog/DreamLog-0x1/banner-light-1280x640.png';
-import projectAIRIBannerDark from '../../../assets/images/blog/DreamLog-0x1/banner-dark-1280x640.png';
-import ReLUStickerWow from '../../../assets/images/blog/DreamLog-0x1/relu-sticker-wow.png'
+# DreamLog 0x1
+
+<script setup>
+import EMOSYSLogo from './assets/emosys-logo.png';
+import SteinsGateSticker1 from './assets/steins-gate-sticker-1.png';
+import worldExecuteMeCover from './assets/world.execute(me); (Mili)／DAZBEE COVER.jpg';
+import buildingAVirtualMachineInsideImage from './assets/building-a-virtual-machine-inside-image-1.png';
+import live2DIncHiyoriMomose from './assets/live2d-inc-hiyori.jpg';
+import AwesomeAIVTuber from '../DevLog-2025.04.06/assets/awesome-ai-vtuber-logo-light.png'
+import airisScreenshot1 from './assets/airis-screenshot-1.png';
+import projectAIRIBannerLight from './assets/banner-light-1280x640.png';
+import projectAIRIBannerDark from './assets/banner-dark-1280x640.png';
+import ReLUStickerWow from './assets/relu-sticker-wow.png'
+</script>
 
 The backstory of Project AIRI!
 
@@ -81,7 +84,7 @@ But Minecraft, Linux wasn't the end of my journey though,
 setting up servers or write small scripts to automate little
 things always empowers me.
 
-> <Image src={worldExecuteMeCover} alt="Cover of world.execute(me); (Mili)／DAZBEE COVER" className="rounded-lg overflow-hidden" />
+> <img :src="worldExecuteMeCover" alt="Cover of world.execute(me); (Mili)／DAZBEE COVER" class="rounded-lg overflow-hidden" />
 >
 > `Switch on the power line`<br />
 > `Remember to put on protection`<br />
@@ -145,9 +148,9 @@ I started one special yet now archived project called [EMOSYS](https://github.co
 in the end of 2017. Aiming to create such companion-like operating system, to help users with their
 daily tasks and provide emotional support.
 
-<div className="w-full flex flex-col items-center justify-center gap-2">
+<div class="w-full flex flex-col items-center justify-center gap-2">
   <div>
-    <Image src={EMOSYSLogo} alt="logo of EMOSYS" className="w-30!" />
+    <img :src="EMOSYSLogo" alt="logo of EMOSYS" class="w-30!" />
   </div>
   <div>
     Logo of [EMOSYS](https://github.com/emosys)
@@ -199,13 +202,12 @@ Project AIRI:
 
 > All I needed was resolve.
 > Everything you've acquired up until now will not betray you.<br />
-> 必要なものは　覚悟だけだったのです。
-> 必死に積み上げてきたものは　決して裏切りません。<br />
+> 必要なものは 覚悟だけだったのです。
+> 必死に積み上げてきたものは 決して裏切りません。<br />
 > 我需要的不過是決心而已，
 > 你至今為止所累積的一切不會背叛你。
 >
 > -- Quotes from [葬送のフリーレン, Fern](https://en.wikipedia.org/wiki/Frieren) S01E06, 04:27
-
 
 It took me a long time to learn how to correctly develop things.
 Thanks to [@zhangyubaka](https://github.com/zhangyubaka),
@@ -216,8 +218,8 @@ and progress on my own pace.
 
 ## ChatGPT in 2022, brand new random parrot, or smart parrot.
 
-<div className="w-full flex items-center justify-center">
-  <Image src={SteinsGateSticker1} alt="Steins Gate sticker" className="w-80! rounded-lg overflow-hidden" />
+<div class="w-full flex items-center justify-center">
+  <img :src="SteinsGateSticker1" alt="Steins Gate sticker" class="w-80! rounded-lg overflow-hidden" />
 </div>
 
 Let's set the time forward to the end of 2022, where ChatGPT
@@ -247,8 +249,8 @@ or Large Language Models (LLMs) in general, is from this post I saw on Hacker Ne
 the author, @engraved, demonstrated how to ask ChatGPT not only role playing as
 a neko-mimi character, but also simulating a virtual Linux machine inside.
 
-<div className="w-full flex flex-col items-center justify-center">
-  <Image src={buildingAVirtualMachineInsideImage} alt="Building a virtual machine inside ChatGPT" className="h-150! object-contain rounded-lg overflow-hidden" />
+<div class="w-full flex flex-col items-center justify-center">
+  <img :src="buildingAVirtualMachineInsideImage" alt="Building a virtual machine inside ChatGPT" class="h-150! object-contain rounded-lg overflow-hidden" />
   <div>It simulates how Docker build works...!</div>
 </div>
 
@@ -286,7 +288,7 @@ Right after the ChatGPT release, at December 19, 2022, Vedal started to let Neur
 to stream on Twitch with the official demo use character model Hiyori Momose (桃瀬ひより)
 from Live2D Inc.:
 
-<Image src={live2DIncHiyoriMomose} alt="Live2D Inc. Hiyori Momose" className="rounded-lg overflow-hidden" />
+<img :src="live2DIncHiyoriMomose" alt="Live2D Inc. Hiyori Momose" class="rounded-lg overflow-hidden" />
 
 The after story everyone knows, Vedal and Neuro-sama became famous, Neuro-sama
 is now officially a VTuber, she is fully powered by Large Language Models (LLMs),
@@ -319,7 +321,7 @@ engineering experiences across of various domains, I naively thought:
 > and connect it to OpenAI's API, and make it behave like a VTuber, and
 > I could make it better than Vedal's work."
 
-:::tip[More technical details?]
+::: tip More technical details?
 In this post, I won't go any deep further about the technical details of how we built
 Project AIRI from scratch to the current state, we got many DevLog posts
 sharing our thoughts and discoveries already, if interested in, try read
@@ -377,9 +379,9 @@ That was the day at **June 2, 2024**.
 
 Technically saying, **this is the birthday of Project AIRI** with first baby consciousness inside of it, naively.
 
-<div className="w-full flex flex-col items-center justify-center">
+<div class="w-full flex flex-col items-center justify-center">
   <video controls muted autoplay loop>
-    <source src="../../static/blog/DreamLog-0x1/airi-demo-first-day.mp4" />
+    <source src="./assets/airi-demo-first-day.mp4" />
   </video>
   <div>
     <a href="https://x.com/ayakaneko/status/1865420146766160114">
@@ -410,10 +412,10 @@ voice synthesis, motion control, and Minecraft playing. I did a lot of researche
 on how other AI VTuber or AI waifu projects work. These researches later on
 produces this huge awesome list of AI VTuber projects:
 
-<div className="flex flex-col items-center">
-  <Image className="px-30 md:px-40 lg:px-50" src={AwesomeAIVTuber} alt="Awesome AI VTuber Logo" />
-  <div className="text-center pb-4">
-    <span className="block font-bold">Awesome AI VTuber</span>
+<div class="flex flex-col items-center">
+  <img class="px-30 md:px-40 lg:px-50" :src="AwesomeAIVTuber" alt="Awesome AI VTuber Logo" />
+  <div class="text-center pb-4">
+    <span class="block font-bold">Awesome AI VTuber</span>
     <span>A curated list of AI VTubers and their related projects</span>
   </div>
 </div>
@@ -436,9 +438,9 @@ GitHub on **December 2, 2024** with commit
 
 Project AIRI was somehow born or reborn, with the name of AIRI (アイリ, formerly Airi).
 
-:::tip[Did you know?]
-<a href="https://www.youtube.com/watch?v=Tts-YAdn5Yc" className="mb-2 inline-block">
-  <Image src={airisScreenshot1} alt="Screenshot of Project AIRI" className="rounded-lg overflow-hidden" />
+::: tip Did you know?
+<a href="https://www.youtube.com/watch?v=Tts-YAdn5Yc" class="mb-2 inline-block">
+  <img :src="airisScreenshot1" alt="Screenshot of Project AIRI" class="rounded-lg overflow-hidden" />
 </a>
 
 Interestingly, from the upload 2 years ago, March 25, 2023, https://www.youtube.com/watch?v=Tts-YAdn5Yc, a clip
@@ -465,9 +467,9 @@ most profound, talented contributors, and fans.
 
 ## Keep going, keep dreaming
 
-<div className="w-full flex flex-col items-center justify-center">
-  <Image className="light" src={projectAIRIBannerLight} alt="new ui" />
-  <Image className="dark" src={projectAIRIBannerDark} alt="new ui" />
+<div class="w-full flex flex-col items-center justify-center">
+  <img class="light" :src="projectAIRIBannerLight" alt="new ui" />
+  <img class="dark" :src="projectAIRIBannerDark" alt="new ui" />
   <div>
     New Banner!
   </div>
@@ -499,10 +501,10 @@ This is only the beginning memory address of our dreams, `0x1`, the first byte o
 
 How much memory we could store? **It depends on how much we could dream, and how much we could achieve together.**
 
-<div className="w-full flex flex-col items-center justify-center">
-  <Image src={ReLUStickerWow} alt="ReLU sticker wow" className="w-30!" />
-  <div className="text-center">
-    <span className="block font-bold">Thanks for reading all the way here!</span>
+<div class="w-full flex flex-col items-center justify-center">
+  <img :src="ReLUStickerWow" alt="ReLU sticker wow" class="w-30!" />
+  <div class="text-center">
+    <span class="block font-bold">Thanks for reading all the way here!</span>
     <span>Thanks for reading! Oh, and, Happy Birthday, Project AIRI!</span>
   </div>
 </div>
