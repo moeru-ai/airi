@@ -2,7 +2,7 @@
   "name": "@proj-airi/font-departure-mono",
   "type": "module",
   "version": "0.6.1",
-  "description": "A collection of transition animations that used by Project AIRI",
+  "description": "Essential CSS for font, Departure Mono, used by Project AIRI",
   "author": {
     "name": "Tobias Fried",
     "email": "26732044+rektdeckard@users.noreply.github.com",

@@ -40,7 +40,7 @@ const { top } = toRefs(arrivedState)
                 alt="Reka UI logo"
                 :src="logo"
               >
-              <span class="text-xl font-bold md:text-2xl">{{ title }}</span>
+              <span class="text-xl font-bold font-sans-rounded md:text-2xl">{{ title }}</span>
             </a>
             <SearchTrigger />
           </div>

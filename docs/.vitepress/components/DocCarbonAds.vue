@@ -49,7 +49,7 @@ if (carbonOptions) {
 
 <style scoped>
 .carbon-ads {
-  @apply w-full flex justify-center items-center p-2 rounded-xl min-h-[256px] text-center leading-[18px] text-xs font-medium bg-card/50 border border-muted;
+  @apply w-full flex justify-center items-center p-2 rounded-xl min-h-[256px] text-center leading-[18px] text-xs font-medium bg-white/30 dark:bg-neutral-900/30 backdrop-blur-md border border-muted;
 }
 
 .carbon-ads :deep(img) {

@@ -38,6 +38,7 @@ const showFooter = computed(
       <div
         v-if="hasEditLink"
         class="text-muted-foreground hover:text-foreground text-sm"
+        transition-colors duration-200 ease-in-out
       >
         <a
           :href="editLink.url"
@@ -72,11 +73,11 @@ const showFooter = computed(
       <div class="group w-full">
         <a
           v-if="control.prev?.link"
-          class="border-muted w-full inline-flex flex-col border rounded-lg bg-transparent px-4 py-6 hover:border-primary"
+          class="w-full inline-flex flex-col items-end border-2 border-neutral-200/40 rounded-lg border-solid bg-white/30 px-4 py-6 shadow-md shadow-transparent backdrop-blur-md transition-all duration-200 ease-in-out dark:border-2 dark:border-neutral-800/40 dark:border-solid dark:bg-neutral-800/30 hover:bg-white/50 dark:shadow-none hover:shadow-black/5"
           :href="control.prev.link"
         >
           <span
-            class="text-muted-foreground group-hover:text-foreground text-xs"
+            class="text-muted-foreground group-hover:text-foreground text-xs transition-all duration-200 ease-in-out"
             v-html="theme.docFooter?.prev || 'Previous page'"
           />
           <p class="mt-2 inline-flex items-center gap-1">
@@ -91,11 +92,11 @@ const showFooter = computed(
       <div class="group w-full">
         <a
           v-if="control.next?.link"
-          class="border-muted w-full inline-flex flex-col items-end border rounded-lg bg-transparent px-4 py-6 hover:border-primary"
+          class="w-full inline-flex flex-col items-end border-2 border-neutral-200/40 rounded-lg border-solid bg-white/30 px-4 py-6 shadow-md shadow-transparent backdrop-blur-md transition-all duration-200 ease-in-out dark:border-2 dark:border-neutral-800/40 dark:border-solid dark:bg-neutral-800/30 hover:bg-white/50 dark:shadow-none hover:shadow-black/5"
           :href="control.next.link"
         >
           <span
-            class="text-muted-foreground group-hover:text-foreground text-xs"
+            class="text-muted-foreground group-hover:text-foreground text-xs transition-all duration-200 ease-in-out"
             v-html="theme.docFooter?.next || 'Next page'"
           />
 

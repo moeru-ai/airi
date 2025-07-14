@@ -38,8 +38,9 @@ watch(path, () => {
           v-for="tab in sectionTabs.filter(i => i.label !== 'Examples')"
           :key="tab.label"
           :href="tab.link"
-          :class="{ '!border-b-primary !text-foreground': `/${page.relativePath}`.includes(tab.link.split('/').slice(0, -1).join('/')) }"
-          class="text-muted-foreground hover:text-foreground hover:border-b-muted mx-4 h-full inline-flex items-center border-b border-b-transparent py-2 text-sm font-semibold"
+          :class="{ '!after:bg-primary !text-foreground': `/${page.relativePath}`.includes(tab.link.split('/').slice(0, -1).join('/')) }"
+          class="text-muted-foreground hover:text-foreground hover:border-b-muted relative mx-4 h-full inline-flex items-center py-2 text-sm font-semibold after:absolute after:bottom-0 after:h-0.5 after:w-full after:rounded-t-full after:bg-transparent after:content-['']"
+          transition-colors duration-200 ease-in-out
         >
           <Icon
             v-if="tab.icon"
@@ -55,8 +56,9 @@ watch(path, () => {
           v-for="tab in sectionTabs.filter(i => i.label === 'Examples')"
           :key="tab.label"
           :href="tab.link"
-          :class="{ '!border-b-primary !text-foreground': page.relativePath.includes(tab.label?.toLowerCase() ?? '') }"
-          class="text-muted-foreground hover:border-b-muted hover:text-foreground mx-4 h-full inline-flex items-center border-b border-b-transparent py-2 text-sm font-semibold"
+          :class="{ '!after:bg-primary !text-foreground': page.relativePath.includes(tab.label?.toLowerCase() ?? '') }"
+          class="text-muted-foreground hover:text-foreground hover:border-b-muted relative mx-4 h-full inline-flex items-center py-2 text-sm font-semibold after:absolute after:bottom-0 after:h-0.5 after:w-full after:rounded-t-full after:bg-transparent after:content-['']"
+          transition-colors duration-200 ease-in-out
         >
           <Icon
             v-if="tab.icon"
@@ -83,7 +85,7 @@ watch(path, () => {
 
         <DialogPortal>
           <DialogOverlay class="data-[state=open]:animate-fadeIn data-[state=closed]:animate-fadeOut fixed inset-0 z-50 bg-black/80" />
-          <DialogContent class="border-muted bg-background data-[state=closed]:slide-out-to-left data-[state=open]:slide-in-from-left data-[state=open]:animate-enterFromLeft data-[state=closed]:animate-exitToLeft fixed inset-y-0 left-0 z-50 h-full w-3/4 gap-4 border-r pr-0 shadow-lg transition ease-in-out sm:max-w-sm">
+          <DialogContent class="bg-background border-muted data-[state=closed]:slide-out-to-left data-[state=open]:slide-in-from-left data-[state=open]:animate-enterFromLeft data-[state=closed]:animate-exitToLeft fixed inset-y-0 left-0 z-50 h-full w-3/4 gap-4 border-r pr-0 shadow-lg transition ease-in-out sm:max-w-sm">
             <DialogTitle class="sr-only">
               Sidebar menu
             </DialogTitle>

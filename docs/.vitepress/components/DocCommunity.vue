@@ -29,6 +29,7 @@ const links = computed(() => [
           :href="link.url"
           target="_blank"
           class="text-muted-foreground hover:text-foreground inline-flex items-center gap-2 text-sm font-medium"
+          transition-colors duration-200 ease-in-out
         >
           <Icon
             class="text-xl"

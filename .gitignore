@@ -31,8 +31,8 @@ coverage/
 **/public/assets/live2d/models/*
 **/public/assets/vrm/models/*
 
+# Serving fonts locally
 **/public/assets/fonts/
-**/public/assets/static-fonts/
 
 *.pcm
 *.wav

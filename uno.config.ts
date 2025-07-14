@@ -79,6 +79,10 @@ export function sharedUnoConfig() {
             name: 'DM Sans',
             provider: 'fontsource',
           },
+          'sans-rounded': {
+            name: 'Comfortaa',
+            provider: 'fontsource',
+          },
           'serif': {
             name: 'DM Serif Display',
             provider: 'fontsource',

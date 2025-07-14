@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { Icon } from '@iconify/vue'
+import { AnimatePresence, Motion } from 'motion-v'
 import { DropdownMenuContent, DropdownMenuItem, DropdownMenuPortal, DropdownMenuRoot, DropdownMenuTrigger } from 'reka-ui'
 
 defineProps<{
@@ -22,36 +23,45 @@ defineProps<{
     </DropdownMenuTrigger>
 
     <DropdownMenuPortal>
-      <DropdownMenuContent
-        position="popper"
-        align="end"
-        :side-offset="2"
-        class="bg-card border-muted z-10 border rounded-lg p-2 shadow-sm"
-      >
-        <DropdownMenuItem
-          v-for="item in items"
-          :key="item.text"
-          :value="item.text"
+      <AnimatePresence>
+        <DropdownMenuContent
+          position="popper"
+          align="end"
+          :side-offset="2"
           as-child
-          class="text-muted-foreground h-full flex items-center rounded px-2 py-2 text-sm font-semibold focus:bg-primary/10 focus:text-primary"
         >
-          <a
-            v-if="item.link"
-            :href="item.link"
-            target="_blank"
+          <Motion
+            :initial="{ opacity: 0, y: -10 }"
+            :animate="{ opacity: 1, y: 0 }"
+            :exit="{ opacity: 0, y: -10 }"
+            class="border-muted z-10 border rounded-lg bg-white/30 p-2 shadow-sm backdrop-blur-md dark:bg-neutral-800/30"
           >
-            <span>{{ item.text }}</span>
-            <Icon
-              icon="lucide:arrow-up-right"
-              class="ml-2 text-base"
-            />
+            <DropdownMenuItem
+              v-for="item in items"
+              :key="item.text"
+              :value="item.text"
+              as-child
+              class="text-muted-foreground h-full flex items-center rounded px-2 py-2 text-sm font-semibold transition-colors duration-200 ease-in-out hover:text-primary"
+            >
+              <a
+                v-if="item.link"
+                :href="item.link"
+                target="_blank"
+              >
+                <span>{{ item.text }}</span>
+                <Icon
+                  icon="lucide:arrow-up-right"
+                  class="ml-2 text-base"
+                />
 
-          </a>
-          <div v-else>
-            {{ item.text }}
-          </div>
-        </DropdownMenuItem>
-      </DropdownMenuContent>
+              </a>
+              <div v-else>
+                {{ item.text }}
+              </div>
+            </DropdownMenuItem>
+          </Motion>
+        </DropdownMenuContent>
+      </AnimatePresence>
     </DropdownMenuPortal>
   </DropdownMenuRoot>
 </template>

@@ -4,12 +4,26 @@ import { defineConfig, presetAttributify, presetTypography, presetWebFonts, pres
 export default defineConfig({
   presets: [
     presetAttributify(),
+    presetTypography(),
     presetWind3(),
     presetWebFonts({
       fonts: {
-        inter: 'Inter',
-        sans: 'Geist',
-        mono: 'Geist Mono',
+        'sans': {
+          name: 'DM Sans',
+          provider: 'fontsource',
+        },
+        'serif': {
+          name: 'DM Serif Display',
+          provider: 'fontsource',
+        },
+        'mono': {
+          name: 'DM Mono',
+          provider: 'fontsource',
+        },
+        'sans-rounded': {
+          name: 'Comfortaa',
+          provider: 'fontsource',
+        },
       },
     }),
     presetTypography({
@@ -40,6 +54,9 @@ export default defineConfig({
   content: {
     filesystem: ['.vitepress/**/*.{js,ts,vue}', './docs/**/*.md', './components/**/*.{vue,js}'],
   },
+  safelist: [
+    '-ml-8',
+  ],
   theme: {
     colors: {
       border: 'hsl(var(--border))',
@@ -184,14 +201,14 @@ html,:host {
     -moz-tab-size: 4;
     -o-tab-size: 4;
     tab-size: 4;
-    font-family: var(--font-geist-sans),ui-sans-serif,system-ui,sans-serif,"Apple Color Emoji","Segoe UI Emoji","Segoe UI Symbol","Noto Color Emoji";
+    font-family: 'DM Sans', ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
     font-feature-settings: normal;
     font-variation-settings: normal;
     -webkit-tap-highlight-color: transparent
 }
 
 code,kbd,samp,pre {
-    font-family: var(--font-geist-mono),ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;
+    font-family: 'DM Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
     font-feature-settings: normal;
     font-variation-settings: normal;
     font-size: 1em

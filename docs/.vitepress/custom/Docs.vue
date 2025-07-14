@@ -44,7 +44,7 @@ const isExamplePage = computed(() => path.value.includes('examples'))
       <aside class="sticky top-[7.25rem] h-full max-h-[calc(100vh-7.25rem)] w-[17rem] flex-shrink-0 overflow-y-auto py-4 pl-4 pr-4 hidden md:block">
         <div
           v-if="activeSection"
-          class="h-full"
+          class="h-full flex flex-col gap-1"
         >
           <DocSidebar :items="activeSection.items ?? []" />
         </div>

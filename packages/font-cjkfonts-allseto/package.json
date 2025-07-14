@@ -2,7 +2,7 @@
   "name": "@proj-airi/font-cjkfonts-allseto",
   "type": "module",
   "version": "0.6.1",
-  "description": "Essential CSS for cjkfonts 全瀨體",
+  "description": "Essential CSS for font, cjkfonts 全瀨體, used by Project AIRI",
   "author": {
     "name": "Creators of cjkFonts",
     "url": "https://cjkfonts.io/"

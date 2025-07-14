@@ -137,10 +137,10 @@ function formMarkRegex(terms: Set<string>) {
 
 <template>
   <ListboxRoot ref="listboxRef">
-    <div class="w-full flex items-center px-6">
+    <div class="list-box w-full flex items-center px-6">
       <ListboxFilter
         v-model="filterText"
-        class="placeholder:text-muted-foreground h-12 w-full flex-1 bg-transparent text-sm outline-none md:h-14"
+        class="placeholder:text-muted-foreground h-12 w-full flex-1 bg-transparent text-sm outline-none md:h-14 focus:outline-none"
         placeholder="Search documentation"
         auto-focus
       />
@@ -205,24 +205,20 @@ function formMarkRegex(terms: Set<string>) {
       </li>
     </ListboxContent>
 
-    <div class="items-center gap-4 px-6 py-4 text-sm hidden prose prose-stone md:flex dark:prose-invert">
+    <div class="list-box-tips items-center gap-4 px-6 py-4 text-sm hidden md:flex">
       <span class="inline-flex items-center gap-1 leading-4">
-        <kbd aria-label="Up arrow">
-          <Icon icon="lucide:arrow-up" />
-        </kbd>
-        <kbd aria-label="Down arrow">
-          <Icon icon="lucide:arrow-down" />
-        </kbd>
+        <kbd aria-label="Up arrow" data-keyboard-key="up-arrow" mr-1 inline-block />
+        <kbd aria-label="Down arrow" data-keyboard-key="down-arrow" />
         to navigate
       </span>
       <span class="inline-flex items-center gap-1 leading-4">
-        <kbd aria-label="Enter">
+        <kbd aria-label="Enter" data-keyboard-key="enter">
           enter
         </kbd>
         to select
       </span>
       <span class="inline-flex items-center gap-1 leading-4">
-        <kbd aria-label="Escape">esc</kbd>
+        <kbd aria-label="Escape" data-keyboard-key="esc">esc</kbd>
         to close
       </span>
     </div>

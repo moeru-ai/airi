@@ -26,7 +26,8 @@ watch(path, () => {
       <a
         v-if="nav.link"
         :href="nav.link"
-        class="text-muted-foreground hover:text-foreground mx-3 h-full inline-flex items-center py-2 text-sm font-semibold"
+        class="text-muted-foreground hover:text-foreground mx-3 h-full inline-flex items-center py-2 text-nowrap text-sm font-semibold"
+        transition-colors duration-200 ease-in-out
         :class="{ '!text-primary': path.includes(nav.text.toLowerCase()) }"
       >
         {{ nav.text }}
@@ -77,7 +78,7 @@ watch(path, () => {
           side="bottom"
           :side-offset="5"
           align="end"
-          class="bg-card border-muted will-change-[transform,opacity] data-[state=open]:data-[side=bottom]:animate-slideUpAndFade z-10 w-[180px] border rounded-xl p-2 shadow-[0_10px_38px_-10px_hsla(206,22%,7%,.35),0_10px_20px_-15px_hsla(206,22%,7%,.2)] focus:shadow-[0_10px_38px_-10px_hsla(206,22%,7%,.35),0_10px_20px_-15px_hsla(206,22%,7%,.2),0_0_0_2px_green7]"
+          class="border-muted bg-card will-change-[transform,opacity] data-[state=open]:data-[side=bottom]:animate-slideUpAndFade z-10 w-[180px] border rounded-xl p-2 shadow-[0_10px_38px_-10px_hsla(206,22%,7%,.35),0_10px_20px_-15px_hsla(206,22%,7%,.2)] focus:shadow-[0_10px_38px_-10px_hsla(206,22%,7%,.35),0_10px_20px_-15px_hsla(206,22%,7%,.2),0_0_0_2px_green7]"
         >
           <nav class="flex flex-col">
             <template
