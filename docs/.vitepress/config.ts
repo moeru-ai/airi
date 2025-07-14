@@ -96,17 +96,9 @@ export default defineConfig({
         ],
       },
       {
-        text: 'Examples',
-        icon: 'lucide:square-dashed-mouse-pointer',
-        link: '/examples/checkbox-group',
-        items: [
-          {
-            text: 'Checkbox',
-            items: [
-              { text: 'Checkbox Group', link: '/examples/checkbox-group' },
-            ],
-          },
-        ],
+        text: 'Characters',
+        icon: 'lucide:scan-face',
+        link: '/characters/',
       },
     ] as (DefaultTheme.SidebarItem & { icon?: string })[],
 
