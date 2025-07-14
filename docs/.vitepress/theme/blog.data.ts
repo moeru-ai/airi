@@ -15,6 +15,8 @@ declare const data: Post[]
 export { data }
 
 export default createContentLoader('**/blog/**/*.md', {
+  includeSrc: true,
+  render: true,
   excerpt: true,
   transform(raw): Post[] {
     return raw

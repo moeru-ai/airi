@@ -3,6 +3,7 @@ title: 'DreamLog 0x1'
 description: 'Backstory of Project AIRI!'
 category: DreamLog
 date: 2025-06-16
+excerpt: 'The backstory of Project AIRI! Why this project?'
 ---
 
 <script setup>

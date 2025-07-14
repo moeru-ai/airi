@@ -33,9 +33,9 @@ const categories = computed(() => {
 
 const posts = computed(() => {
   if (category.value && category.value !== 'All') {
-    return props.data.filter(post => post.frontmatter?.category === category.value)
+    return props.data.filter(post => post.frontmatter?.category === category.value).filter(post => !!(post.frontmatter as any)?.title)
   }
-  return props.data as Post[]
+  return (props.data as Post[]).filter(post => !!(post.frontmatter as any)?.title)
 })
 
 async function stringToSeed(str: string) {
@@ -175,10 +175,12 @@ const svgArts = computedAsync(async () => {
         v-for="(post, index) of posts"
         :key="post.url"
         :href="post.url"
-        class="block flex flex-col overflow-hidden border-transparent rounded-xl border-solid bg-white/50 decoration-none shadow-sm outline-2 outline-transparent outline-offset-0 outline transition-all transition-all duration-200 duration-300 ease-in-out dark:bg-black/20 dark:shadow-slate-600/5 hover:shadow-lg hover:outline-primary/5 hover:outline-offset-2 [&_.post-card-title]:hover:text-primary dark:hover:outline-primary/25"
+        class="block flex flex-col overflow-hidden border-transparent rounded-xl border-solid bg-white/50 decoration-none shadow-sm outline-2 outline-transparent outline-offset-0 outline transition-all transition-all duration-200 duration-300 ease-in-out dark:bg-black/20 dark:shadow-slate-600/5 hover:shadow-md hover:outline-primary/5 hover:outline-offset-2 [&_.post-card-title]:hover:text-primary dark:hover:outline-primary/25"
       >
-        <div class="rounded-t-xl">
-          <div h-28 blur-2xl v-html="isDark ? svgArts?.[index].dark : svgArts?.[index].light" />
+        <div class="h-28 rounded-t-xl">
+          <ClientOnly>
+            <div h-full blur-2xl v-html="isDark ? svgArts?.[index].dark : svgArts?.[index].light" />
+          </ClientOnly>
         </div>
         <div class="flex-grow p-6">
           <h2 class="post-card-title text-card-foreground text-2xl font-bold transition-colors duration-200">

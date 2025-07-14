@@ -59,6 +59,7 @@ watch(path, () => {
       :aria-label="link.icon"
       target="_blank"
       class="text-muted-foreground hover:text-foreground hover:bg-muted h-9 w-9 flex flex-shrink-0 items-center justify-center rounded-lg bg-transparent text-xl"
+      transition="colors duration-200 ease-in-out"
     >
       <Icon :icon="`simple-icons:${link.icon}`" />
     </a>
@@ -78,7 +79,7 @@ watch(path, () => {
           side="bottom"
           :side-offset="5"
           align="end"
-          class="border-muted bg-card will-change-[transform,opacity] data-[state=open]:data-[side=bottom]:animate-slideUpAndFade z-10 w-[180px] border rounded-xl p-2 shadow-[0_10px_38px_-10px_hsla(206,22%,7%,.35),0_10px_20px_-15px_hsla(206,22%,7%,.2)] focus:shadow-[0_10px_38px_-10px_hsla(206,22%,7%,.35),0_10px_20px_-15px_hsla(206,22%,7%,.2),0_0_0_2px_green7]"
+          class="bg-card will-change-[transform,opacity] border-muted data-[state=open]:data-[side=bottom]:animate-slideUpAndFade z-10 w-[180px] border rounded-xl p-2 shadow-[0_10px_38px_-10px_hsla(206,22%,7%,.35),0_10px_20px_-15px_hsla(206,22%,7%,.2)] focus:shadow-[0_10px_38px_-10px_hsla(206,22%,7%,.35),0_10px_20px_-15px_hsla(206,22%,7%,.2),0_0_0_2px_green7]"
         >
           <nav class="flex flex-col">
             <template

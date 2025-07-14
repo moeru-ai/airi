@@ -26,7 +26,7 @@ const { top } = toRefs(arrivedState)
   <TooltipProvider>
     <div class="h-full min-h-screen flex flex-col items-center font-sans-rounded">
       <header
-        class="sticky top-0 z-20 h-[68px] w-full py-4 transition-all duration-500 md:h-full"
+        class="sticky top-0 z-20 h-[68px] w-full py-4 transition-all duration-500"
         :class="[top ? 'bg-transparent backdrop-blur-0' : 'bg-background/90 backdrop-blur supports-[backdrop-filter]:bg-background/90']"
       >
         <div class="mx-auto max-w-[1440px] flex items-center justify-between px-6">
@@ -49,26 +49,17 @@ const { top } = toRefs(arrivedState)
         </div>
       </header>
 
-      <div
-        v-if="layout === 'home'"
-        class="h-full w-full flex flex-1 flex-col justify-between"
-      >
-        <main>
+      <div v-if="layout === 'home'" class="w-full flex flex-1 flex-col justify-between">
+        <main h-full w-full flex flex-1 flex-col justify-between>
           <Home />
         </main>
       </div>
 
-      <div
-        v-else-if="layout === 'showcase'"
-        class="h-full max-w-[1440px] w-full grow"
-      >
+      <div v-else-if="layout === 'showcase'" class="h-full max-w-[1440px] w-full grow">
         <Showcase />
       </div>
 
-      <div
-        v-else
-        class="h-full max-w-[1440px] w-full grow"
-      >
+      <div v-else class="h-full max-w-[1440px] w-full grow">
         <Docs />
       </div>
     </div>

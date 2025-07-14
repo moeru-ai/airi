@@ -1,6 +1,5 @@
 ---
 title: DevLog @ 2025.04.06
-layout: "../../../layouts/98.astro"
 category: DevLog
 date: 2025-04-06
 ---
