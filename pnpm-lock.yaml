@@ -460,6 +460,36 @@ importers:
         specifier: ^3.25.74
         version: 3.25.74
     devDependencies:
+      '@fontsource-variable/dm-sans':
+        specifier: ^5.2.6
+        version: 5.2.6
+      '@fontsource-variable/jura':
+        specifier: ^5.2.6
+        version: 5.2.6
+      '@fontsource-variable/quicksand':
+        specifier: ^5.2.8
+        version: 5.2.8
+      '@fontsource-variable/urbanist':
+        specifier: ^5.2.6
+        version: 5.2.6
+      '@fontsource/dm-mono':
+        specifier: ^5.2.6
+        version: 5.2.6
+      '@fontsource/dm-serif-display':
+        specifier: ^5.2.6
+        version: 5.2.6
+      '@fontsource/gugi':
+        specifier: ^5.2.6
+        version: 5.2.6
+      '@fontsource/kiwi-maru':
+        specifier: ^5.2.6
+        version: 5.2.6
+      '@fontsource/m-plus-rounded-1c':
+        specifier: ^5.2.8
+        version: 5.2.8
+      '@fontsource/sniglet':
+        specifier: ^5.2.6
+        version: 5.2.6
       '@iconify-json/carbon':
         specifier: ^1.2.10
         version: 1.2.10
@@ -1214,6 +1244,36 @@ importers:
         specifier: ^3.25.74
         version: 3.25.74
     devDependencies:
+      '@fontsource-variable/dm-sans':
+        specifier: ^5.2.6
+        version: 5.2.6
+      '@fontsource-variable/jura':
+        specifier: ^5.2.6
+        version: 5.2.6
+      '@fontsource-variable/quicksand':
+        specifier: ^5.2.8
+        version: 5.2.8
+      '@fontsource-variable/urbanist':
+        specifier: ^5.2.6
+        version: 5.2.6
+      '@fontsource/dm-mono':
+        specifier: ^5.2.6
+        version: 5.2.6
+      '@fontsource/dm-serif-display':
+        specifier: ^5.2.6
+        version: 5.2.6
+      '@fontsource/gugi':
+        specifier: ^5.2.6
+        version: 5.2.6
+      '@fontsource/kiwi-maru':
+        specifier: ^5.2.6
+        version: 5.2.6
+      '@fontsource/m-plus-rounded-1c':
+        specifier: ^5.2.8
+        version: 5.2.8
+      '@fontsource/sniglet':
+        specifier: ^5.2.6
+        version: 5.2.6
       '@histoire/plugin-vue':
         specifier: 1.0.0-alpha.2
         version: 1.0.0-alpha.2(histoire@1.0.0-alpha.2(@types/node@24.0.10)(bufferutil@4.0.9)(less@4.3.0)(lightningcss@1.30.1)(terser@5.43.1)(utf-8-validate@5.0.10)(vite@6.3.5(@types/node@24.0.10)(jiti@2.4.2)(less@4.3.0)(lightningcss@1.30.1)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)))(vite@6.3.5(@types/node@24.0.10)(jiti@2.4.2)(less@4.3.0)(lightningcss@1.30.1)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0))(vue@3.5.17(typescript@5.8.3))
@@ -3192,11 +3252,41 @@ packages:
   '@floating-ui/vue@1.1.6':
     resolution: {integrity: sha512-XFlUzGHGv12zbgHNk5FN2mUB7ROul3oG2ENdTpWdE+qMFxyNxWSRmsoyhiEnpmabNm6WnUvR1OvJfUfN4ojC1A==}
 
+  '@fontsource-variable/dm-sans@5.2.6':
+    resolution: {integrity: sha512-edr+wGsc9d7/5aMB8ty1z0Zb0fqzJtBZ5+c2FhtrJwYhefcLEOL4r66EBqeyEFhVTMhCGIjhtxmigrRbPN0mUw==}
+
+  '@fontsource-variable/jura@5.2.6':
+    resolution: {integrity: sha512-jCiXOt9JBBXY4p25QqDKbUlrLz5zlADjEpZWGte0oWI4waUzlzKMWhyr4qrk8ttSSzl4PD9lv+2ZZto7ZylRVQ==}
+
+  '@fontsource-variable/quicksand@5.2.8':
+    resolution: {integrity: sha512-vCbNpMbsogGxCkKOuDaH+Gxvdu8mMc1jHRyW+LrG4kKC+Dq+ZJgXAuhVKY4zpEFSOLZUeNxwDSEfTfX09N6W3A==}
+
+  '@fontsource-variable/urbanist@5.2.6':
+    resolution: {integrity: sha512-Nbsl4I8Tw547BA61PX1EtSpuaTgtejRT/CzNUTWHp2RE+8P5iGouvsvOOigukkTDIU/znKAplQysGB3NwhsYzA==}
+
+  '@fontsource/dm-mono@5.2.6':
+    resolution: {integrity: sha512-d38urf08wZ/UcAM13kmuPkhr9xGEo0S9undlZ/99nBb7dK5+w1uqriP6VVJ8T7pYiNtRtZq7NxV/2KI/6Obsog==}
+
+  '@fontsource/dm-serif-display@5.2.6':
+    resolution: {integrity: sha512-V/JaidjpfZu8TD9rGM3bIhDMCzS79C/mMWHPK9EtJT8S2qghXahDFZdlfria5T+OGpffGuHKL4st4UIFMdTM4A==}
+
   '@fontsource/fusion-pixel-12px-proportional-sc@5.2.5':
     resolution: {integrity: sha512-TMFojLE0JUJUqgoL1pRxohnm11u59BYSkogyN9VbTQp2kh1HkkQ1FSkPboce3GGQXPskNTip9+oRp3ju83U0tw==}
 
+  '@fontsource/gugi@5.2.6':
+    resolution: {integrity: sha512-mDdbyLBuGuBH0WcKR6a4DxG5vc+EylJG5J9uT0J+Hn/pwhIxg/8QJPYNGsRzk51Sad7egRct4y3uhjrHX8Dvkg==}
+
+  '@fontsource/kiwi-maru@5.2.6':
+    resolution: {integrity: sha512-DlyZ32ColaAlR+gnKrA5ERz2QIf3kMINPvUMN3L/qSQF7Rm7nnRIf4++GHcWlJ8J+SY3wuzLonCuWul/kFKNdg==}
+
+  '@fontsource/m-plus-rounded-1c@5.2.8':
+    resolution: {integrity: sha512-XBW1hHdfvVlcohcUtvihWVprqtQJgDJWzsml0zU0l01qU7y6Ryu/mVnMfqMgzNGRqlrRgYGqytKOZFQZsG7H/w==}
+
   '@fontsource/quicksand@5.2.8':
     resolution: {integrity: sha512-YRgnt2eQfNrk5OWqYJZmFoi6B6sioRIbjKJj3/l5CnezeE0TzD8XL35Q4fRNfHLpOzLi/ckNvTZySBHVVP1G6w==}
+
+  '@fontsource/sniglet@5.2.6':
+    resolution: {integrity: sha512-tYtYJEvHwBHIAspZJ7AsiFHAPcL31EVTMktf6cVNsGIHlhKW1Ea9Z0vb0/jL8TY65HVTvAK0s3zez8hEg1hHDQ==}
 
   '@formkit/auto-animate@0.8.2':
     resolution: {integrity: sha512-SwPWfeRa5veb1hOIBMdzI+73te5puUBHmqqaF1Bu7FjvxlYSz/kJcZKSa9Cg60zL0uRNeJL2SbRxV6Jp6Q1nFQ==}
@@ -6004,6 +6094,9 @@ packages:
 
   '@xsai/shared@0.3.0-beta.8':
     resolution: {integrity: sha512-S7BYvluU7aA2Ti7HEblV3ISDZbF89VP2dDC5WCrylYlQIYoFlZjlhJhJL5c/+KwX+og0pvh5Y0iSPKdcoMmLmw==}
+
+  '@xsai/shared@0.3.0-beta.9':
+    resolution: {integrity: sha512-vZoXmWuTaS0SbPc6U9IeGJzzHCNVzBiLfNHQnLPrQeXT5r8edjGx8fEUIPO8cvlPsBlvPYT8lfEaqvZrdWTUww==}
 
   '@xsai/stream-text@0.3.0-beta.6':
     resolution: {integrity: sha512-w1aQEqa1yGXjSckZzZcpFgRf3JzUuqHDB4tc3UZaKa4DLGmslr3e4xXpOXWuqgIeDMdj2YWI9163GC/bfF0zBA==}
@@ -14048,9 +14141,29 @@ snapshots:
       - '@vue/composition-api'
       - vue
 
+  '@fontsource-variable/dm-sans@5.2.6': {}
+
+  '@fontsource-variable/jura@5.2.6': {}
+
+  '@fontsource-variable/quicksand@5.2.8': {}
+
+  '@fontsource-variable/urbanist@5.2.6': {}
+
+  '@fontsource/dm-mono@5.2.6': {}
+
+  '@fontsource/dm-serif-display@5.2.6': {}
+
   '@fontsource/fusion-pixel-12px-proportional-sc@5.2.5': {}
 
+  '@fontsource/gugi@5.2.6': {}
+
+  '@fontsource/kiwi-maru@5.2.6': {}
+
+  '@fontsource/m-plus-rounded-1c@5.2.8': {}
+
   '@fontsource/quicksand@5.2.8': {}
+
+  '@fontsource/sniglet@5.2.6': {}
 
   '@formkit/auto-animate@0.8.2': {}
 
@@ -17314,7 +17427,7 @@ snapshots:
 
   '@xsai-ext/shared-providers@0.2.2':
     dependencies:
-      '@xsai/shared': 0.3.0-beta.8
+      '@xsai/shared': 0.3.0-beta.9
 
   '@xsai-ext/shared-providers@0.3.0-beta.8':
     dependencies:
@@ -17384,6 +17497,8 @@ snapshots:
   '@xsai/shared@0.3.0-beta.7': {}
 
   '@xsai/shared@0.3.0-beta.8': {}
+
+  '@xsai/shared@0.3.0-beta.9': {}
 
   '@xsai/stream-text@0.3.0-beta.6':
     dependencies:

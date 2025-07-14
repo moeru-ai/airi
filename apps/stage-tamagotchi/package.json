@@ -81,6 +81,16 @@
     "zod": "^3.25.74"
   },
   "devDependencies": {
+    "@fontsource-variable/dm-sans": "^5.2.6",
+    "@fontsource-variable/jura": "^5.2.6",
+    "@fontsource-variable/quicksand": "^5.2.8",
+    "@fontsource-variable/urbanist": "^5.2.6",
+    "@fontsource/dm-mono": "^5.2.6",
+    "@fontsource/dm-serif-display": "^5.2.6",
+    "@fontsource/gugi": "^5.2.6",
+    "@fontsource/kiwi-maru": "^5.2.6",
+    "@fontsource/m-plus-rounded-1c": "^5.2.8",
+    "@fontsource/sniglet": "^5.2.6",
     "@iconify-json/carbon": "^1.2.10",
     "@iconify-json/eos-icons": "^1.2.2",
     "@iconify-json/lucide": "^1.2.55",
