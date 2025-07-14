@@ -4,7 +4,7 @@ command = "pnpm -F @proj-airi/docs... run build"
 publish = "/docs/dist"
 
 [build.environment]
-NODE_VERSION = "23"
+NODE_VERSION = "24.3.0"
 
 # Plausible.io analytics
 #
