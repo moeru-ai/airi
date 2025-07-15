@@ -22,18 +22,34 @@ const languages = computed(() => {
 </script>
 
 <template>
+  <!-- eslint-disable vue/prefer-separate-static-class -->
   <DropdownMenuSub>
-    <DropdownMenuSubTrigger class="text-muted-foreground h-full w-full inline-flex items-center justify-between rounded p-2 text-sm font-semibold hover:bg-primary/10 hover:text-primary">
+    <DropdownMenuSubTrigger
+      class="text-muted-foreground h-full w-full inline-flex cursor-pointer items-center justify-between rounded-lg p-2 text-sm font-semibold hover:bg-primary/10 hover:text-primary"
+      :class="[
+        'transition-all duration-200 ease-in-out',
+      ]"
+    >
       <span>{{ t('docs.theme.navbar.language.title') }}</span>
       <Icon icon="lucide:chevron-down" class="ml-1 text-lg" />
     </DropdownMenuSubTrigger>
 
     <DropdownMenuPortal>
-      <DropdownMenuSubContent class="border-muted bg-card will-change-[transform,opacity] data-[state=open]:data-[side=bottom]:animate-slideUpAndFade z-10 w-[180px] border rounded-xl p-2 shadow-[0_10px_38px_-10px_hsla(206,22%,7%,.35),0_10px_20px_-15px_hsla(206,22%,7%,.2)] focus:shadow-[0_10px_38px_-10px_hsla(206,22%,7%,.35),0_10px_20px_-15px_hsla(206,22%,7%,.2),0_0_0_2px_green7]">
+      <DropdownMenuSubContent
+        class="will-change-[transform,opacity] data-[state=open]:data-[side=bottom]:animate-slideUpAndFade z-10 w-[180px] border rounded-xl p-2 shadow-md backdrop-blur-md"
+        :class="[
+          'bg-white/20 dark:border-white/5 dark:bg-black/70',
+          'transition-all duration-200 ease-in-out',
+        ]"
+      >
         <DropdownMenuItem
           v-for="item in languages"
           :key="item.text"
-          class="text-muted-foreground h-full w-full inline-flex items-center rounded p-2 text-sm font-semibold hover:bg-primary/10 hover:text-primary"
+          class="text-muted-foreground h-full w-full inline-flex items-center rounded-lg p-2 text-sm font-semibold hover:text-primary"
+          :class="[
+            'hover:bg-primary/10',
+            'transition-all duration-200 ease-in-out',
+          ]"
         >
           <a
             v-if="item.link"

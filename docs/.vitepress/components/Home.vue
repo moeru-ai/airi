@@ -22,13 +22,34 @@ const { t } = useI18n()
         <div class="relative z-10 w-full flex justify-center gap-4">
           <a
             href="https://github.com/moeru-ai/airi/releases/latest"
-            class="rounded-lg bg-primary/60 px-4 py-2 text-slate-100 font-extrabold outline-none backdrop-blur-md dark:bg-primary/30 dark:text-cyan-200 focus:outline-none"
+            :class="[
+              'rounded-xl px-5 py-3 font-extrabold outline-none backdrop-blur-md active:scale-95 focus:outline-none',
+              'text-slate-700 dark:text-cyan-200',
+            ]"
+            bg="primary/20 dark:primary/30 dark:hover:primary/40"
+            transition="colors,transform duration-200 ease-in-out"
+          >
+            {{ t('docs.theme.home.try-live.title') }}
+          </a>
+          <a
+            href="https://github.com/moeru-ai/airi/releases/latest"
+            :class="[
+              'rounded-xl px-5 py-3 font-extrabold outline-none backdrop-blur-md active:scale-95 focus:outline-none',
+              'text-slate-700 dark:text-slate-100',
+            ]"
+            bg="black/4 dark:white/20 dark:hover:white/30"
+            transition="colors,transform duration-200 ease-in-out"
           >
             {{ t('docs.theme.home.download.title') }}
           </a>
           <a
-            href="./overview/"
-            class="rounded-lg bg-white/60 px-4 py-2 text-slate-900 font-extrabold outline-none backdrop-blur-md dark:bg-white/20 dark:text-slate-100 focus:outline-none"
+            href="./docs/overview/"
+            :class="[
+              'rounded-xl px-5 py-3 font-extrabold outline-none backdrop-blur-md active:scale-95 focus:outline-none',
+              'text-slate-700 dark:text-slate-100',
+            ]"
+            bg="black/4 dark:white/20 dark:hover:white/30"
+            transition="colors,transform duration-200 ease-in-out"
           >
             {{ t('docs.theme.home.get-started.title') }}
           </a>

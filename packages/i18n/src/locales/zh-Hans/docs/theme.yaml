@@ -4,6 +4,8 @@ home:
     title: 下载
   get-started:
     title: 教程
+  try-live:
+    title: 网页版
 doc:
   outline:
     title: 本页大纲

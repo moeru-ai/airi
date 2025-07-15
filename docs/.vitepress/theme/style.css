@@ -30,6 +30,10 @@
   --radius: 0.5rem;
 }
 
+[data-reka-popper-content-wrapper=""] {
+  z-index: 9999 !important;
+}
+
 .dark {
   --background: 207 15% 5%;
   --foreground: 0 0% 95%;

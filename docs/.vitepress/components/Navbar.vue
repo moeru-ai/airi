@@ -31,6 +31,7 @@ function isNavLinkActive(link: string, path: string) {
 </script>
 
 <template>
+  <!-- eslint-disable vue/prefer-separate-static-class -->
   <nav class="items-center hidden lg:flex">
     <template
       v-for="nav in theme.nav"
@@ -92,7 +93,11 @@ function isNavLinkActive(link: string, path: string) {
           side="bottom"
           :side-offset="5"
           align="end"
-          class="bg-card will-change-[transform,opacity] border-muted data-[state=open]:data-[side=bottom]:animate-slideUpAndFade z-10 w-[180px] border rounded-xl p-2 shadow-sm focus:shadow-lg"
+          class="will-change-[transform,opacity] data-[state=open]:data-[side=bottom]:animate-slideUpAndFade z-10 w-[180px] border rounded-xl p-2 shadow-md backdrop-blur-md"
+          :class="[
+            'bg-white/20 dark:border-white/5 dark:bg-black/20',
+          ]"
+          transition="colors duration-200 ease-in-out"
         >
           <nav class="flex flex-col">
             <template
@@ -110,19 +115,32 @@ function isNavLinkActive(link: string, path: string) {
               </DropdownMenuItem>
 
               <DropdownMenuSub v-else-if="nav.items">
-                <DropdownMenuSubTrigger class="text-muted-foreground h-full w-full inline-flex items-center justify-between rounded p-2 text-sm font-semibold hover:bg-primary/10 hover:text-primary">
+                <DropdownMenuSubTrigger
+                  class="text-muted-foreground h-full w-full inline-flex cursor-pointer items-center justify-between rounded-lg p-2 text-sm font-semibold hover:bg-primary/10 hover:text-primary"
+                  :class="[
+                    'transition-all duration-200 ease-in-out',
+                  ]"
+                >
                   <span>{{ nav.text }}</span>
                   <Icon icon="lucide:chevron-down" class="ml-1 text-lg" />
                 </DropdownMenuSubTrigger>
 
                 <DropdownMenuPortal>
                   <DropdownMenuSubContent
-                    class="border-muted will-change-[transform,opacity] data-[state=open]:data-[side=bottom]:animate-slideUpAndFade z-10 w-[180px] border rounded-xl bg-white/60 p-2 shadow-sm backdrop-blur-md transition-shadow duration-200 ease-in-out dark:bg-neutral-800/30 focus:shadow-lg"
+                    class="will-change-[transform,opacity] data-[state=open]:data-[side=bottom]:animate-slideUpAndFade z-10 w-[180px] border rounded-xl p-2 shadow-md backdrop-blur-md"
+                    :class="[
+                      'bg-white/20 dark:border-white/5 dark:bg-black/70',
+                      'transition-all duration-200 ease-in-out',
+                    ]"
                   >
                     <DropdownMenuItem
                       v-for="item in nav.items"
                       :key="item.text"
-                      class="text-muted-foreground h-full w-full inline-flex items-center rounded p-2 text-sm font-semibold hover:bg-primary/10 hover:text-primary"
+                      class="text-muted-foreground h-full w-full inline-flex items-center rounded-lg p-2 text-sm font-semibold hover:text-primary"
+                      :class="[
+                        'hover:bg-primary/10',
+                        'transition-all duration-200 ease-in-out',
+                      ]"
                     >
                       <a
                         v-if="item.link"

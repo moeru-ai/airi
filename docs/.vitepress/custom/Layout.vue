@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useScroll } from '@vueuse/core'
 import { TooltipProvider } from 'reka-ui'
-import { useData } from 'vitepress'
+import { useData, withBase } from 'vitepress'
 import { computed, toRefs, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
@@ -36,7 +36,7 @@ watch(lang, () => locale.value = lang.value, { immediate: true })
         <div class="mx-auto max-w-[1440px] flex items-center justify-between px-6">
           <div class="w-full flex items-center justify-between gap-8 md:justify-normal">
             <a
-              href="/"
+              :href="withBase(`/${lang}/`)"
               class="flex items-center gap-2"
             >
               <img

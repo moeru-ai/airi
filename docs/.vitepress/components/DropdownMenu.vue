@@ -13,6 +13,7 @@ defineProps<{
 </script>
 
 <template>
+  <!-- eslint-disable vue/prefer-separate-static-class -->
   <DropdownMenuRoot>
     <DropdownMenuTrigger class="text-muted-foreground hover:text-foreground data-[state=open]:text-foreground mx-0 h-full inline-flex items-center justify-between px-2 py-2 text-nowrap text-sm font-semibold md:mx-3 md:px-0">
       <slot name="trigger">
@@ -36,7 +37,11 @@ defineProps<{
             :initial="{ opacity: 0, y: -10 }"
             :animate="{ opacity: 1, y: 0 }"
             :exit="{ opacity: 0, y: -10 }"
-            class="border-muted z-10 border rounded-lg bg-white/60 p-2 shadow-sm backdrop-blur-md transition-shadow duration-200 ease-in-out dark:bg-neutral-800/30 focus:shadow-lg hover:shadow-lg"
+            class="z-20 border rounded-xl p-2 shadow-md backdrop-blur-md"
+            :class="[
+              'bg-white/20 dark:border-white/5 dark:bg-black/20',
+              'transition-colors duration-200 ease-in-out',
+            ]"
           >
             <DropdownMenuItem
               v-for="item in items"

@@ -23,6 +23,8 @@ home:
     title: Download
   get-started:
     title: Get Started
+  try-live:
+    title: Try Live
 search:
   title: Search
   placeholder: Search documentation...
