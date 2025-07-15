@@ -34,3 +34,15 @@ navbar:
 pages:
   characters:
     title: Characters
+blog:
+  title: Blog & DevLogs
+  subtitle: Follow our journey and get the latest updates from the development team.
+  card:
+    post:
+      read-more:
+        title: Read more
+  no-posts: No posts found in this category.
+  categories:
+    all: All
+    devlog: DevLog
+    dreamlog: DreamLog

@@ -27,3 +27,20 @@ search:
 navbar:
   appearance:
     title: 主题
+  language:
+    title: 语言
+pages:
+  characters:
+    title: 角色
+blog:
+  card:
+    post:
+      read-more:
+        title: 阅读更多
+  no-posts: 该分类下没有找到任何文章
+  subtitle: 和我们一起旅行！阅读从开发团队发布的最新进展
+  title: 文章 & 开发日志
+  categories:
+    all: All
+    devlog: DevLog
+    dreamlog: DreamLog

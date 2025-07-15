@@ -5,6 +5,7 @@ import { computedAsync } from '@vueuse/core'
 import { subtle } from 'uncrypto'
 import { useData } from 'vitepress'
 import { computed, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 interface Post {
   title: string
@@ -24,17 +25,19 @@ const props = defineProps<{
   data: Post[]
 }>()
 
+const { t } = useI18n()
 const { isDark } = useData()
-const category = ref('All')
+const category = ref('all')
 const categories = computed(() => {
-  const allCategories = props.data.map(post => post.frontmatter?.category).filter(Boolean)
-  return ['All', ...new Set(allCategories as string[])]
+  const allCategories = props.data.map(post => post.frontmatter?.category).filter(Boolean).map(post => post?.toLowerCase())
+  return ['all', ...new Set(allCategories as string[])]
 })
 
 const posts = computed(() => {
-  if (category.value && category.value !== 'All') {
-    return props.data.filter(post => post.frontmatter?.category === category.value).filter(post => !!(post.frontmatter as any)?.title)
+  if (category.value && category.value !== 'all') {
+    return props.data.filter(post => post.frontmatter?.category?.toLowerCase() === category.value).filter(post => !!(post.frontmatter as any)?.title)
   }
+
   return (props.data as Post[]).filter(post => !!(post.frontmatter as any)?.title)
 })
 
@@ -131,6 +134,7 @@ ${patternElements}
 const svgArts = computedAsync(async () => {
   return Promise.all(posts.value.map(async (post) => {
     const generator = await createTileGenerator(post.title)
+
     return {
       light: generator.generate({ dark: false }),
       dark: generator.generate({ dark: true }),
@@ -143,29 +147,29 @@ const svgArts = computedAsync(async () => {
   <div class="w-full">
     <div>
       <h1 class="text-foreground text-4xl font-extrabold tracking-tight font-sans-rounded sm:text-5xl">
-        Blog & DevLogs
+        {{ t('docs.theme.blog.title') }}
       </h1>
       <p class="text-muted-foreground mt-4 text-xl">
-        Follow our journey and get the latest updates from the development team.
+        {{ t('docs.theme.blog.subtitle') }}
       </p>
     </div>
 
     <div class="mb-16">
       <div class="flex flex-wrap items-center gap-2 font-sans-rounded">
         <label
-          v-for="cat in categories"
-          :key="cat"
+          v-for="item in categories"
+          :key="item"
           class="cursor-pointer text-base font-semibold transition-colors duration-200 ease-in-out"
-          :class="[category === cat ? 'text-slate-900 dark:text-slate-100' : 'text-slate-900/50 dark:text-slate-100/50']"
+          :class="[category === item ? 'text-slate-900 dark:text-slate-100' : 'text-slate-900/50 dark:text-slate-100/50']"
         >
           <input
             v-model="category"
             type="radio"
-            :value="cat"
+            :value="item"
             name="category"
             class="sr-only"
           >
-          <span>{{ cat }}</span>
+          <span>{{ t(`docs.theme.blog.categories.${item}`) }}</span>
         </label>
       </div>
     </div>
@@ -200,7 +204,7 @@ const svgArts = computedAsync(async () => {
         </div>
         <div class="mt-auto p-6 pt-0">
           <a :href="post.url" class="inline-flex items-center text-primary font-semibold hover:underline">
-            Read more
+            {{ t('docs.theme.blog.card.post.read-more.title') }}
             <Icon icon="lucide:arrow-right" class="ml-2" />
           </a>
         </div>
@@ -208,7 +212,7 @@ const svgArts = computedAsync(async () => {
     </div>
     <div v-if="posts.length === 0" class="py-16 text-center">
       <p class="text-muted-foreground text-lg">
-        No posts found in this category.
+        {{ t('docs.theme.blog.no-posts') }}
       </p>
     </div>
   </div>
