@@ -17,7 +17,14 @@ const { page, theme } = useData()
 const isSidebarOpen = ref(false)
 const sidebar = computed(() => (theme.value.sidebar as (DefaultTheme.SidebarItem & { icon?: string })[]))
 
-const sectionTabs = computed(() => sidebar.value.map(val => ({ label: val.text, link: flatten(val.items ?? [], 'items').filter(i => !!i.link)?.[0].link, icon: val.icon })))
+const sectionTabs = computed(() => sidebar.value
+  .map(val => ({
+    label: val.text,
+    link: flatten(val.items ?? [], 'items').filter(i => !!i?.link)?.[0]?.link,
+    icon: val.icon,
+  }))
+  .filter(i => !!i?.link),
+)
 
 const { arrivedState } = useScroll(globalThis.window)
 const { top } = toRefs(arrivedState)
