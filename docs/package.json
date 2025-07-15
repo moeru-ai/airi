@@ -4,7 +4,7 @@
   "version": "2.3.1",
   "scripts": {
     "build": "vitepress build",
-    "build:base": "vitepress build --base /docs/",
+    "build:base": "BASE_URL=/docs/ vitepress build",
     "dev": "vitepress dev",
     "preview": "vitepress preview",
     "typecheck": "vue-tsc --noEmit",

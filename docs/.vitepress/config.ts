@@ -1,5 +1,7 @@
 import type { DefaultTheme } from 'vitepress'
 
+import { env } from 'node:process'
+
 import anchor from 'markdown-it-anchor'
 import unocss from 'unocss/vite'
 
@@ -51,6 +53,7 @@ export default defineConfig({
     ['meta', { name: 'twitter:card', content: 'summary_large_image' }],
     ['link', { rel: 'mask-icon', href: '/logo.svg', color: '#ffffff' }],
   ],
+  base: env.BASE_URL || '/',
   lastUpdated: true,
   sitemap: { hostname: ogUrl },
   themeConfig: {
