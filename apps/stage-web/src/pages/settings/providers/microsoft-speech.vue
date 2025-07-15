@@ -65,7 +65,7 @@ watch([apiKeyConfigured, region], async () => {
 
 // Generate speech with Microsoft-specific parameters
 async function handleGenerateSpeech(input: string, voiceId: string, useSSML: boolean) {
-  const provider = providersStore.getProviderInstance(providerId) as SpeechProviderWithExtraOptions<string, UnMicrosoftOptions>
+  const provider = await providersStore.getProviderInstance(providerId) as SpeechProviderWithExtraOptions<string, UnMicrosoftOptions>
   if (!provider) {
     throw new Error('Failed to initialize speech provider')
   }
