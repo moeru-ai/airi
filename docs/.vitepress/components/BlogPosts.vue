@@ -3,7 +3,7 @@ import { Icon } from '@iconify/vue'
 import { chromaticPaletteFrom } from '@proj-airi/chromatic'
 import { computedAsync } from '@vueuse/core'
 import { subtle } from 'uncrypto'
-import { useData } from 'vitepress'
+import { useData, withBase } from 'vitepress'
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
@@ -34,11 +34,15 @@ const categories = computed(() => {
 })
 
 const posts = computed(() => {
+  let postsData = props.data as Post[]
+
   if (category.value && category.value !== 'all') {
-    return props.data.filter(post => post.frontmatter?.category?.toLowerCase() === category.value).filter(post => !!(post.frontmatter as any)?.title)
+    postsData = props.data.filter(post => post.frontmatter?.category?.toLowerCase() === category.value)
   }
 
-  return (props.data as Post[]).filter(post => !!(post.frontmatter as any)?.title)
+  return postsData
+    .map(post => ({ ...post, url: withBase(post.url) }))
+    .filter(post => !!(post.frontmatter as any)?.title)
 })
 
 async function stringToSeed(str: string) {
