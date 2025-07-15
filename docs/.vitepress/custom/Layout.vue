@@ -17,6 +17,7 @@ const { site, theme, frontmatter } = useData<{
 const logo = computed(() => theme.value.logo)
 const title = computed(() => site.value.title)
 const layout = computed(() => frontmatter.value.layout)
+const isHome = computed(() => layout.value === 'home')
 
 const { arrivedState } = useScroll(globalThis.window)
 const { top } = toRefs(arrivedState)
@@ -27,7 +28,9 @@ const { top } = toRefs(arrivedState)
     <div class="h-full min-h-screen flex flex-col items-center font-sans-rounded">
       <header
         class="sticky top-0 z-20 h-[68px] w-full py-4 transition-all duration-500"
-        :class="[top ? 'bg-transparent backdrop-blur-0' : 'bg-background/90 backdrop-blur supports-[backdrop-filter]:bg-background/90']"
+        :class="[
+          top && !isHome ? 'bg-transparent backdrop-blur-0' : 'bg-background/90 backdrop-blur supports-[backdrop-filter]:bg-background/90',
+        ]"
       >
         <div class="mx-auto max-w-[1440px] flex items-center justify-between px-6">
           <div class="w-full flex items-center justify-between gap-8 md:justify-normal">
@@ -37,7 +40,7 @@ const { top } = toRefs(arrivedState)
             >
               <img
                 class="w-6 md:w-9"
-                alt="Reka UI logo"
+                alt="Project AIRI logo"
                 :src="logo"
               >
               <span class="translate-y-1 text-xl font-bold font-sans-rounded md:text-2xl">{{ title }}</span>

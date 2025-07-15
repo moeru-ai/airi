@@ -1,37 +1,46 @@
 <script setup lang="ts">
+import homeCover from '../assets/home-cover-2025-07-15.png'
 </script>
 
 <template>
-  <section h-full w-full flex flex-1 flex-col>
-    <div h-full w-full flex flex-1 flex-col items-start justify-center gap-4 p-16>
-      <div bg="transparent" font-extrabold font-sans-rounded class="w-full text-center sm:w-fit sm:text-left" text="4xl md:5xl">
-        Project AIRI
+  <div relative h-full w-full flex flex-1 flex-col>
+    <section h-full w-full flex flex-1 flex-col class="mx-auto max-w-[1440px]">
+      <div class="items-center justify-start pt-20 lg:items-start lg:justify-center lg:pt-16 md:pt-36" h-full w-full flex flex-1 flex-col gap-4 overflow-hidden px-16 pb-16>
+        <div bg="transparent" font-extrabold font-sans-rounded class="relative z-3 w-full flex justify-center lg:w-fit lg:justify-start" text="4xl md:5xl">
+          <div>
+            Project AIRI
+          </div>
+        </div>
+        <div max-w="120 md:150 lg:200" text-wrap class="relative z-3 text-center text-slate-900 lg:text-left dark:text-white">
+          A container of souls of AI waifu / virtual characters to bring them into our worlds.
+        </div>
+        <div class="relative z-3 justify-center lg:justify-start" w-full flex gap-2>
+          <a
+            href="https://github.com/moeru-ai/airi/releases/latest"
+            bg="primary/10 dark:primary/10" class="text-primary"
+            rounded-lg px-4 py-2 font-extrabold outline-none backdrop-blur-md focus:outline-none
+          >
+            Download
+          </a>
+          <a
+            href="./docs/overview/"
+            class="bg-white/60 text-slate-900 dark:bg-white/10 dark:text-slate-400"
+            rounded-lg px-4 py-2 font-extrabold outline-none backdrop-blur-md focus:outline-none
+          >
+            Get Started
+          </a>
+        </div>
+        <div class="z-1 max-h-[calc(100dvh-9.5rem)] max-w-100dvw min-h-[calc(100dvh-9.5rem)] min-w-100dvw lg:max-h-[calc(100dvh-4.3rem)] lg:min-h-[calc(100dvh-4.3rem)]" absolute overflow-hidden>
+          <div class="absolute left-0 top-16 z-2 block h-1/2 w-full scale-120 from-transparent to-white bg-gradient-to-t md:top-0 lg:scale-80 dark:to-black lg:hidden" />
+          <img :src="homeCover" alt="Project AIRI Cover Image" class="absolute translate-y-90 rotate--20 scale-160 object-cover object-cover lg:translate-x-90 lg:translate-y--15 md:translate-y-60 lg:rotate--50 lg:scale-80 md:scale-120">
+        </div>
       </div>
-      <div max-w-200 text-wrap class="text-center sm:text-left">
-        A container of souls of AI waifu / virtual characters to bring them into our worlds.
-      </div>
-      <div class="justify-center sm:justify-start" w-full flex gap-2>
-        <a
-          href="https://github.com/moeru-ai/airi/releases/latest"
-          bg="primary/10 dark:primary/10" class="text-primary"
-          rounded-lg px-4 py-2 font-extrabold outline-none backdrop-blur-md focus:outline-none
-        >
-          Download
-        </a>
-        <a
-          href="./docs/overview/"
-          class="text-slate"
-          rounded-lg px-4 py-2 font-extrabold outline-none backdrop-blur-md focus:outline-none
-        >
-          Get Started
-        </a>
-      </div>
-    </div>
-  </section>
+    </section>
 
-  <footer class="mx-auto max-w-screen-xl flex justify-end px-4 py-8 md:px-6">
-    <div class="text-muted-foreground text-sm">
-      Since 2024 @ <a href="https://github.com/proj-airi">Project AIRI</a> × <a href="https://github.com/moeru-ai">萌える AI 研究会</a>
-    </div>
-  </footer>
+    <footer class="fixed bottom-3 left-50% z-4 flex translate-x--1/2 justify-end">
+      <div class="text-muted-foreground rounded-full px-3 py-2 text-sm backdrop-blur-md" bg="white/80 dark:white/20" text="slate-400 dark:slate-900 nowrap">
+        Since 2024 @ <a href="https://github.com/proj-airi">Project AIRI</a> × <a href="https://github.com/moeru-ai">萌える AI 研究会</a>
+      </div>
+    </footer>
+  </div>
 </template>
