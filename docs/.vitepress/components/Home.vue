@@ -30,8 +30,8 @@ import homeCover from '../assets/home-cover-2025-07-15.png'
             Get Started
           </a>
         </div>
-        <div class="z-1 max-h-[calc(100dvh-9.5rem)] max-w-100dvw min-h-[calc(100dvh-9.5rem)] min-w-100dvw" absolute overflow-hidden>
-          <div class="absolute left-0 top-16 z-2 block h-1/2 w-full scale-120 from-transparent to-white bg-gradient-to-t md:top-0 dark:to-black" />
+        <div class="z-1 max-h-[calc(100dvh-9.3rem)] max-w-100dvw min-h-[calc(100dvh-9.3rem)] min-w-100dvw lg:max-h-[calc(100dvh-13.25rem)] lg:min-h-[calc(100dvh-13.25rem)]" absolute overflow-hidden>
+          <div class="absolute left-0 top-16 z-2 block h-1/2 w-full scale-120 from-transparent to-white bg-gradient-to-t md:top-0 dark:to-[hsl(207_15%_5%)]" />
           <img :src="homeCover" alt="Project AIRI Cover Image" class="absolute translate-y-90 rotate--20 scale-160 object-cover object-cover lg:translate-y--10 md:translate-y-60 lg:scale-90 md:scale-120">
         </div>
       </div>
