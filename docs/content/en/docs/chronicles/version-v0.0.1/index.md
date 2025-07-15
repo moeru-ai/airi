@@ -9,7 +9,7 @@ title: Chronicle v0.0.1
   - [x] Model download
     - [x] Momose Hiyori (Neuro first version model) Pro version (free for commercial use by small and medium enterprises)
 
-![](../../../zh-Hans/chronicles/version-v0.0.1/assets/screenshot-1.png)
+![](../../../../zh-Hans/docs/chronicles/version-v0.0.1/assets/screenshot-1.png)
 
 - [x] Integrate GPT-4o through Vercel AI SDK (June 7, 2024)
   - [x] `@ai-sdk/openai`
@@ -63,7 +63,7 @@ Now can:
 - ✅ Live2D lip sync (thanks to itorr's GitHub explanation)
 - ✅ Basic Prompt
 
-![](../../../zh-Hans/chronicles/version-v0.0.1/assets/screenshot-2.png)
+![](../../../../zh-Hans/docs/chronicles/version-v0.0.1/assets/screenshot-2.png)
 
 ## Multimodal
 
@@ -470,7 +470,7 @@ And the last, do what ever you want!
 
 #### Expression Prompt
 
-![](../../../zh-Hans/chronicles/version-v0.0.1/assets/screenshot-3.png)
+![](../../../../zh-Hans/docs/chronicles/version-v0.0.1/assets/screenshot-3.png)
 
 #### Continuous Inference Prompt
 
