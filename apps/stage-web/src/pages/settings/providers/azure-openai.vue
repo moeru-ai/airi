@@ -104,7 +104,7 @@ function handleResetSettings() {
           v-model="resourceName"
           label="Resouce name"
           placeholder="..."
-          description="Prefix in https://<prefix>.openai.azure.com/"
+          description="Prefix used in https://<prefix>.services.ai.azure.com"
           required
         />
       </ProviderBasicSettings>
