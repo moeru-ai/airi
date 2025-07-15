@@ -2,7 +2,7 @@ import type { DefaultTheme } from 'vitepress/theme'
 import type { ComputedRef, Ref } from 'vue'
 
 import { useMediaQuery } from '@vueuse/core'
-import { useData } from 'vitepress'
+import { useData, withBase } from 'vitepress'
 import {
   computed,
 
@@ -123,7 +123,7 @@ export function useSidebarControl(
 
   const isActiveLink = ref(false)
   const updateIsActiveLink = () => {
-    isActiveLink.value = isActive(page.value.relativePath, item.value.link)
+    isActiveLink.value = isActive(withBase(`/${page.value.relativePath}`), item.value.link)
   }
 
   watch([page, item, hash], updateIsActiveLink)
@@ -135,7 +135,7 @@ export function useSidebarControl(
     }
 
     return item.value.items
-      ? containsActiveLink(page.value.relativePath, item.value.items)
+      ? containsActiveLink(withBase(`/${page.value.relativePath}`), item.value.items)
       : false
   })
 
@@ -184,7 +184,12 @@ export function isActive(
     return false
   }
 
-  currentPath = normalize(`/${currentPath}`)
+  if (currentPath.startsWith('/')) {
+    currentPath = normalize(`${currentPath}`)
+  }
+  else {
+    currentPath = normalize(`/${currentPath}`)
+  }
 
   if (asRegex) {
     return new RegExp(matchPath).test(currentPath)

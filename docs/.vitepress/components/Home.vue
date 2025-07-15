@@ -58,7 +58,8 @@ const { t } = useI18n()
     </section>
 
     <div class="absolute inset-0 overflow-hidden -z-10">
-      <div class="absolute bottom-0 left-0 right-0 top-10 z-2 h-full from-transparent to-white bg-gradient-to-t dark:to-[hsl(207_15%_5%)]" />
+      <!-- Flickering red (even within the color space range) if to top in oklch (UnoCSS or tailwind css default), have to force to use srgb color space to prevent this -->
+      <div class="absolute bottom-0 left-0 right-0 top-10 z-2 h-full from-transparent to-white bg-gradient-to-t dark:to-[hsl(207_15%_5%)]" style="--un-gradient-shape: to top in srgb;" />
       <img
         :src="homeCover"
         alt="Project AIRI Cover Image"
