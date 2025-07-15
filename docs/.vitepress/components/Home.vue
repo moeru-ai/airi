@@ -23,7 +23,7 @@ import homeCover from '../assets/home-cover-2025-07-15.png'
             Download
           </a>
           <a
-            href="./docs/overview/"
+            href="./overview/"
             class="rounded-lg bg-white/60 px-4 py-2 text-slate-900 font-extrabold outline-none backdrop-blur-md dark:bg-white/20 dark:text-slate-100 focus:outline-none"
           >
             Get Started

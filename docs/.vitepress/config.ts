@@ -1,5 +1,6 @@
 import type { DefaultTheme } from 'vitepress'
 
+import { posix } from 'node:path'
 import { env } from 'node:process'
 
 import anchor from 'markdown-it-anchor'
@@ -28,6 +29,14 @@ import {
 // </div>
 // `
 // }
+
+function withBase(url: string) {
+  return env.BASE_URL
+    ? env.BASE_URL.endsWith('/')
+      ? posix.join(env.BASE_URL.replace(/\/$/, ''), url)
+      : posix.join(env.BASE_URL, url)
+    : url
+}
 
 // https://vitepress.dev/reference/site-config
 export default defineConfig({
@@ -59,8 +68,8 @@ export default defineConfig({
   themeConfig: {
     // https://vitepress.dev/reference/default-theme-config
     nav: [
-      { text: 'Docs', link: '/docs/overview/' },
-      { text: 'Blog', link: '/blog/' },
+      { text: 'Docs', link: withBase('/overview/') },
+      { text: 'Blog', link: withBase('/blog/') },
       {
         text: `v${version}`,
         items: [
@@ -78,22 +87,22 @@ export default defineConfig({
         text: 'Overview',
         icon: 'lucide:rocket',
         items: [
-          { text: 'Introduction', link: '/docs/overview/' },
-          { text: 'About AI Vtuber', link: '/docs/overview/about-ai-vtuber' },
-          { text: 'About Neuro-sama', link: '/docs/overview/about-neuro-sama' },
+          { text: 'Introduction', link: withBase('/overview/') },
+          { text: 'About AI Vtuber', link: withBase('/overview/about-ai-vtuber') },
+          { text: 'About Neuro-sama', link: withBase('/overview/about-neuro-sama') },
         ],
       },
       {
         text: 'Guides',
         icon: 'lucide:book-open',
         items: [
-          { text: 'Contributing', link: '/docs/guides/contributing/' },
+          { text: 'Contributing', link: withBase('/guides/contributing/') },
           {
             text: 'Design Guidelines',
-            link: '/docs/guides/design-guidelines/',
+            link: withBase('/guides/design-guidelines/'),
             items: [
-              { text: 'Resources', link: '/docs/guides/contributing/design-guidelines/resources' },
-              { text: 'Tools', link: '/docs/guides/contributing/design-guidelines/tools' },
+              { text: 'Resources', link: withBase('/guides/contributing/design-guidelines/resources') },
+              { text: 'Tools', link: withBase('/guides/contributing/design-guidelines/tools') },
             ],
           },
         ],
@@ -101,7 +110,7 @@ export default defineConfig({
       {
         text: 'Characters',
         icon: 'lucide:scan-face',
-        link: '/characters/',
+        link: withBase('/characters/'),
       },
     ] as (DefaultTheme.SidebarItem & { icon?: string })[],
 
