@@ -3,6 +3,7 @@ import type { DefaultTheme } from 'vitepress'
 import { join, posix, resolve } from 'node:path'
 import { env } from 'node:process'
 
+import i18n from '@intlify/unplugin-vue-i18n/vite'
 import anchor from 'markdown-it-anchor'
 import unocss from 'unocss/vite'
 import yaml from 'unplugin-yaml/vite'
@@ -244,6 +245,8 @@ export default defineConfig({
       },
     },
     plugins: [
+      // Thanks https://github.com/intlify/vue-i18n/issues/1205#issuecomment-2707075660
+      i18n({ runtimeOnly: true, compositionOnly: true, fullInstall: true, ssr: true }),
       unocss(),
       yaml(),
     ],
