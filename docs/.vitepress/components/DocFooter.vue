@@ -29,6 +29,7 @@ const showFooter = computed(
 </script>
 
 <template>
+  <!-- eslint-disable vue/prefer-separate-static-class -->
   <footer
     v-if="showFooter"
     class="my-28"
@@ -75,7 +76,14 @@ const showFooter = computed(
       <div class="group w-full">
         <a
           v-if="control.prev?.link"
-          class="w-full inline-flex flex-col items-end border-2 border-neutral-200/40 rounded-lg border-solid bg-white/30 px-4 py-6 shadow-md shadow-transparent backdrop-blur-md transition-all duration-200 ease-in-out dark:border-2 dark:border-neutral-800/40 dark:border-solid dark:bg-neutral-800/30 hover:bg-white/50 dark:shadow-none hover:shadow-black/5 dark:hover:bg-neutral-800/50"
+          class="w-full inline-flex flex-col items-end rounded-lg px-4 py-6 backdrop-blur-md"
+          :class="[
+            'shadow-md shadow-transparent dark:shadow-none hover:shadow-black/5',
+            'border-2 border-neutral-200/40 border-solid dark:border-2 dark:border-neutral-800/40 dark:border-solid',
+            'bg-white/30 dark:bg-neutral-800/30 hover:bg-white/50 dark:hover:bg-neutral-800/50',
+            'active:scale-98',
+            'transition-all duration-200 ease-in-out',
+          ]"
           :href="control.prev.link"
         >
           <span
@@ -94,7 +102,14 @@ const showFooter = computed(
       <div class="group w-full">
         <a
           v-if="control.next?.link"
-          class="w-full inline-flex flex-col items-end border-2 border-neutral-200/40 rounded-lg border-solid bg-white/30 px-4 py-6 shadow-md shadow-transparent backdrop-blur-md transition-all duration-200 ease-in-out dark:border-2 dark:border-neutral-800/40 dark:border-solid dark:bg-neutral-800/30 hover:bg-white/50 dark:shadow-none hover:shadow-black/5 dark:hover:bg-neutral-800/50"
+          class="w-full inline-flex flex-col items-end rounded-lg px-4 py-6 backdrop-blur-md"
+          :class="[
+            'shadow-md shadow-transparent dark:shadow-none hover:shadow-black/5',
+            'border-2 border-neutral-200/40 border-solid dark:border-2 dark:border-neutral-800/40 dark:border-solid',
+            'bg-white/30 dark:bg-neutral-800/30 hover:bg-white/50 dark:hover:bg-neutral-800/50',
+            'active:scale-98',
+            'transition-all duration-200 ease-in-out',
+          ]"
           :href="control.next.link"
         >
           <span

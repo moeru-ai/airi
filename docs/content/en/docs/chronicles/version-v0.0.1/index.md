@@ -72,40 +72,40 @@ Now can:
 - [x] TTS integration (June 8, 2024)
   - [x] Integrated 11Labs
 - [ ] Research
-  - [ ] <span class="text-sm px-1 py-0.5 border border-solid border-purple-500/30 text-purple-400 bg-purple-500/20 rounded-lg">Experiment</span> [Deepgram Voice AI: Text to Speech + Speech to Text APIs | Deepgram](https://deepgram.com/)
-  - [ ] <span class="text-sm px-1 py-0.5 border border-solid border-purple-500/30 text-purple-400 bg-purple-500/20 rounded-lg">Experiment</span> Try GPT-SoVITS
-  - [x] <span class="text-sm px-1 py-0.5 border border-solid border-purple-500/30 text-purple-400 bg-purple-500/20 rounded-lg">Experiment</span> Try fish-speech (July 6, 2024 ~ July 7, 2024)
-    - <span class="i-icon-park-outline:up-one translate-y-0.5 text-green-400 text-lg"></span> Can indeed do few-shot direct copying, I tried copying Gura's voice, can maintain very high quality in the first 4s
-    - <span class="i-icon-park-outline:up-one translate-y-0.5 text-green-400 text-lg"></span> fish audio's audio processing tools are very comprehensive, audio processor can cover most needs (including labeling and auto-labeling)
-    - <span class="i-icon-park-outline:down-one translate-y-0.5 text-red-400 text-lg"></span> Effect is very unstable, often swallows words, sounds, or suddenly makes random noises
-    - <span class="i-icon-park-outline:down-one translate-y-0.5 text-red-400 text-lg"></span> Even running on RTX 4090 devices, in streaming audio mode, still takes up to 2s to output inference results
-  - [x] <span class="text-sm px-1 py-0.5 border border-solid border-purple-500/30 text-purple-400 bg-purple-500/20 rounded-lg">Experiment</span> Try ChatTTS (July 6, 2024 ~ July 7, 2024)
-    - <span class="i-icon-park-outline:up-one translate-y-0.5 text-green-400 text-lg"></span> Can indeed do few-shot direct copying, I tried copying Gura's voice, but effect is not as good as fish-speech
-    - <span class="i-icon-park-outline:up-one translate-y-0.5 text-green-400 text-lg"></span> Emotion control is much better than fish-speech, but in English environments, tokens like `[uv_break]` are also pronounced, people in WeChat groups are also discussing and asking about this
-    - <span class="i-icon-park-outline:down-one translate-y-0.5 text-red-400 text-lg"></span> Even running on RTX 4090 devices, in streaming audio mode, it takes several minutes... 🤯 Really ridiculous, it appears to run an llm first locally to convert plain / normalized text to text with action tokens, then it seems there's no caching or model size consideration when starting the llm
-   - [x] <span class="text-sm px-1 py-0.5 border border-solid border-purple-500/30 text-purple-400 bg-purple-500/20 rounded-lg">Experiment</span> Try other models mentioned in [TTS Arena - a Hugging Face Space by TTS-AGI](https://huggingface.co/spaces/TTS-AGI/TTS-Arena) (July 8, 2024)
-     - [x] <span class="text-sm px-1 py-0.5 border border-solid border-purple-500/30 text-purple-400 bg-purple-500/20 rounded-lg">Experiment</span> Try XTTSv2
-       - <span class="i-icon-park-outline:down-one translate-y-0.5 text-red-400 text-lg"></span> Used huggingface directly, poor effect, more stable than fish speech and chatts but tone too plain, might need lora for anime tones
-     - [x] <span class="text-sm px-1 py-0.5 border border-solid border-purple-500/30 text-purple-400 bg-purple-500/20 rounded-lg">Experiment</span> Try StyleTTS 2
-       - <span class="i-icon-park-outline:down-one translate-y-0.5 text-red-400 text-lg"></span> Used huggingface directly, poor effect, more stable than fish speech and chatts but tone too plain, might need lora for anime tones
-   - [ ] <span class="text-sm px-1 py-0.5 border border-solid border-purple-500/30 text-purple-400 bg-purple-500/20 rounded-lg">Experiment</span> Try CosyVoice (Alibaba's)
-   - [ ] <span class="text-sm px-1 py-0.5 border border-solid border-purple-500/30 text-purple-400 bg-purple-500/20 rounded-lg">Experiment</span> [Koemotion](https://koemotion.rinna.co.jp/)
-   - [ ] <span class="text-sm px-1 py-0.5 border border-solid border-purple-500/30 text-purple-400 bg-purple-500/20 rounded-lg">Experiment</span> [Seed-TTS](https://bytedancespeech.github.io/seedtts_tech_report/)
+  - [ ] <span class="text-sm px-1 py-0.5 border border-solid border-purple-500/30 text-purple-800 dark:text-purple-400 bg-purple-500/20 rounded-lg">Experiment</span> [Deepgram Voice AI: Text to Speech + Speech to Text APIs | Deepgram](https://deepgram.com/)
+  - [ ] <span class="text-sm px-1 py-0.5 border border-solid border-purple-500/30 text-purple-800 dark:text-purple-400 bg-purple-500/20 rounded-lg">Experiment</span> Try GPT-SoVITS
+  - [x] <span class="text-sm px-1 py-0.5 border border-solid border-purple-500/30 text-purple-800 dark:text-purple-400 bg-purple-500/20 rounded-lg">Experiment</span> Try fish-speech (July 6, 2024 ~ July 7, 2024)
+    - <span class="i-icon-park-outline:up-one translate-y-0.5 text-green-800 dark:text-green-400 text-lg"></span> Can indeed do few-shot direct copying, I tried copying Gura's voice, can maintain very high quality in the first 4s
+    - <span class="i-icon-park-outline:up-one translate-y-0.5 text-green-800 dark:text-green-400 text-lg"></span> fish audio's audio processing tools are very comprehensive, audio processor can cover most needs (including labeling and auto-labeling)
+    - <span class="i-icon-park-outline:down-one translate-y-0.5 text-red-800 dark:text-red-400 text-lg"></span> Effect is very unstable, often swallows words, sounds, or suddenly makes random noises
+    - <span class="i-icon-park-outline:down-one translate-y-0.5 text-red-800 dark:text-red-400 text-lg"></span> Even running on RTX 4090 devices, in streaming audio mode, still takes up to 2s to output inference results
+  - [x] <span class="text-sm px-1 py-0.5 border border-solid border-purple-500/30 text-purple-800 dark:text-purple-400 bg-purple-500/20 rounded-lg">Experiment</span> Try ChatTTS (July 6, 2024 ~ July 7, 2024)
+    - <span class="i-icon-park-outline:up-one translate-y-0.5 text-green-800 dark:text-green-400 text-lg"></span> Can indeed do few-shot direct copying, I tried copying Gura's voice, but effect is not as good as fish-speech
+    - <span class="i-icon-park-outline:up-one translate-y-0.5 text-green-800 dark:text-green-400 text-lg"></span> Emotion control is much better than fish-speech, but in English environments, tokens like `[uv_break]` are also pronounced, people in WeChat groups are also discussing and asking about this
+    - <span class="i-icon-park-outline:down-one translate-y-0.5 text-red-800 dark:text-red-400 text-lg"></span> Even running on RTX 4090 devices, in streaming audio mode, it takes several minutes... 🤯 Really ridiculous, it appears to run an llm first locally to convert plain / normalized text to text with action tokens, then it seems there's no caching or model size consideration when starting the llm
+   - [x] <span class="text-sm px-1 py-0.5 border border-solid border-purple-500/30 text-purple-800 dark:text-purple-400 bg-purple-500/20 rounded-lg">Experiment</span> Try other models mentioned in [TTS Arena - a Hugging Face Space by TTS-AGI](https://huggingface.co/spaces/TTS-AGI/TTS-Arena) (July 8, 2024)
+     - [x] <span class="text-sm px-1 py-0.5 border border-solid border-purple-500/30 text-purple-800 dark:text-purple-400 bg-purple-500/20 rounded-lg">Experiment</span> Try XTTSv2
+       - <span class="i-icon-park-outline:down-one translate-y-0.5 text-red-800 dark:text-red-400 text-lg"></span> Used huggingface directly, poor effect, more stable than fish speech and chatts but tone too plain, might need lora for anime tones
+     - [x] <span class="text-sm px-1 py-0.5 border border-solid border-purple-500/30 text-purple-800 dark:text-purple-400 bg-purple-500/20 rounded-lg">Experiment</span> Try StyleTTS 2
+       - <span class="i-icon-park-outline:down-one translate-y-0.5 text-red-800 dark:text-red-400 text-lg"></span> Used huggingface directly, poor effect, more stable than fish speech and chatts but tone too plain, might need lora for anime tones
+   - [ ] <span class="text-sm px-1 py-0.5 border border-solid border-purple-500/30 text-purple-800 dark:text-purple-400 bg-purple-500/20 rounded-lg">Experiment</span> Try CosyVoice (Alibaba's)
+   - [ ] <span class="text-sm px-1 py-0.5 border border-solid border-purple-500/30 text-purple-800 dark:text-purple-400 bg-purple-500/20 rounded-lg">Experiment</span> [Koemotion](https://koemotion.rinna.co.jp/)
+   - [ ] <span class="text-sm px-1 py-0.5 border border-solid border-purple-500/30 text-purple-800 dark:text-purple-400 bg-purple-500/20 rounded-lg">Experiment</span> [Seed-TTS](https://bytedancespeech.github.io/seedtts_tech_report/)
 
 ### Expression (July 9, 2024)
 
-- [x] <span class="text-sm px-1 py-0.5 border border-solid border-purple-500/30 text-purple-400 bg-purple-500/20 rounded-lg">Experiment</span> Discussed with GPT how to quickly process expressions in real-time through embed instruction https://poe.com/s/vu7foBWJHtnPmWzJNeAy (July 7, 2024)
+- [x] <span class="text-sm px-1 py-0.5 border border-solid border-purple-500/30 text-purple-800 dark:text-purple-400 bg-purple-500/20 rounded-lg">Experiment</span> Discussed with GPT how to quickly process expressions in real-time through embed instruction https://poe.com/s/vu7foBWJHtnPmWzJNeAy (July 7, 2024)
 - [x] Frontend Live2D expression control (July 9, 2024)
   - [x] Implement through encoding `<|EMOTE_HAPPY|>`
   - [x] Additional support for delay syntax like `<|DELAY:1|>`
-  - [x] <span class="text-sm px-1 py-0.5 border border-solid border-green-500/30 text-green-400 bg-green-500/20 rounded-lg">Feat</span> Encapsulate emotion token `<|EMOTE_.*|>` parser and tokenizer
-    - [x] <span class="text-sm px-1 py-0.5 border border-solid border-green-500/30 text-green-400 bg-green-500/20 rounded-lg">Feat</span> Support queued streaming processing, encapsulate `useEmotionMessagesQueue` and `useEmotionsQueue`
-    - [x] <span class="text-sm px-1 py-0.5 border border-solid border-green-500/30 text-green-400 bg-green-500/20 rounded-lg">Feat</span> Support calling Live2D to process motion expressions
-    - [x] <span class="text-sm px-1 py-0.5 border border-solid border-green-500/30 text-green-400 bg-green-500/20 rounded-lg">Feat</span> Test debug page
-  - [x] <span class="text-sm px-1 py-0.5 border border-solid border-green-500/30 text-green-400 bg-green-500/20 rounded-lg">Feat</span> Encapsulate delay token `<|DELAY:.*|>` parser and tokenizer to dynamically control the delay of the entire streaming process
-    - [x] <span class="text-sm px-1 py-0.5 border border-solid border-green-500/30 text-green-400 bg-green-500/20 rounded-lg">Feat</span> Support queued streaming processing, encapsulate `useDelaysQueue`
-    - [x] <span class="text-sm px-1 py-0.5 border border-solid border-green-500/30 text-green-400 bg-green-500/20 rounded-lg">Feat</span> Test debug page
-  - [x] <span class="text-sm px-1 py-0.5 border border-solid border-green-500/30 text-green-400 bg-green-500/20 rounded-lg">Feat</span> Display layer encapsulation supports pre-tokenizing and parsing stream text to exclude `<|...|>` syntax
+  - [x] <span class="text-sm px-1 py-0.5 border border-solid border-green-500/30 text-green-800 dark:text-green-400 bg-green-500/20 rounded-lg">Feat</span> Encapsulate emotion token `<|EMOTE_.*|>` parser and tokenizer
+    - [x] <span class="text-sm px-1 py-0.5 border border-solid border-green-500/30 text-green-800 dark:text-green-400 bg-green-500/20 rounded-lg">Feat</span> Support queued streaming processing, encapsulate `useEmotionMessagesQueue` and `useEmotionsQueue`
+    - [x] <span class="text-sm px-1 py-0.5 border border-solid border-green-500/30 text-green-800 dark:text-green-400 bg-green-500/20 rounded-lg">Feat</span> Support calling Live2D to process motion expressions
+    - [x] <span class="text-sm px-1 py-0.5 border border-solid border-green-500/30 text-green-800 dark:text-green-400 bg-green-500/20 rounded-lg">Feat</span> Test debug page
+  - [x] <span class="text-sm px-1 py-0.5 border border-solid border-green-500/30 text-green-800 dark:text-green-400 bg-green-500/20 rounded-lg">Feat</span> Encapsulate delay token `<|DELAY:.*|>` parser and tokenizer to dynamically control the delay of the entire streaming process
+    - [x] <span class="text-sm px-1 py-0.5 border border-solid border-green-500/30 text-green-800 dark:text-green-400 bg-green-500/20 rounded-lg">Feat</span> Support queued streaming processing, encapsulate `useDelaysQueue`
+    - [x] <span class="text-sm px-1 py-0.5 border border-solid border-green-500/30 text-green-800 dark:text-green-400 bg-green-500/20 rounded-lg">Feat</span> Test debug page
+  - [x] <span class="text-sm px-1 py-0.5 border border-solid border-green-500/30 text-green-800 dark:text-green-400 bg-green-500/20 rounded-lg">Feat</span> Display layer encapsulation supports pre-tokenizing and parsing stream text to exclude `<|...|>` syntax
 
 ### Actions
 
@@ -230,10 +230,10 @@ Now can:
 - [ ] Auto determine context size
 - [ ] Support microphone selection
 - [ ] Implement hotkey listening (avoid streaming accidents)
-- [x] <span class="text-sm px-1 py-0.5 border border-solid border-green-500/30 text-green-400 bg-green-500/20 rounded-lg">Feat</span> Listen button (June 9, 2024)
-- [x] <span class="text-sm px-1 py-0.5 border border-solid border-red-500/30 text-red-400 bg-red-500/20 rounded-lg">Bug</span> Delay from not preloading all motions during Live2D motion control (July 10, 2024)
-- [x] <span class="text-sm px-1 py-0.5 border border-solid border-red-500/30 text-red-400 bg-red-500/20 rounded-lg">Bug</span> Frame skipping delay from not forcefully overriding current playing motion during Live2D motion control (July 10, 2024)
-- [x] <span class="text-sm px-1 py-0.5 border border-solid border-red-500/30 text-red-400 bg-red-500/20 rounded-lg">Bug</span> Playback anomalies from not awaiting `.motion(motionName)` calls during Live2D motion control (July 10, 2024)
+- [x] <span class="text-sm px-1 py-0.5 border border-solid border-green-500/30 text-green-800 dark:text-green-400 bg-green-500/20 rounded-lg">Feat</span> Listen button (June 9, 2024)
+- [x] <span class="text-sm px-1 py-0.5 border border-solid border-red-500/30 text-red-800 dark:text-red-400 bg-red-500/20 rounded-lg">Bug</span> Delay from not preloading all motions during Live2D motion control (July 10, 2024)
+- [x] <span class="text-sm px-1 py-0.5 border border-solid border-red-500/30 text-red-800 dark:text-red-400 bg-red-500/20 rounded-lg">Bug</span> Frame skipping delay from not forcefully overriding current playing motion during Live2D motion control (July 10, 2024)
+- [x] <span class="text-sm px-1 py-0.5 border border-solid border-red-500/30 text-red-800 dark:text-red-400 bg-red-500/20 rounded-lg">Bug</span> Playback anomalies from not awaiting `.motion(motionName)` calls during Live2D motion control (July 10, 2024)
 
 ### Interface optimization
 
@@ -263,24 +263,24 @@ Now can:
 
 ### Inference optimization
 
-- [x] <span class="text-sm px-1 py-0.5 border border-solid border-green-500/30 text-green-400 bg-green-500/20 rounded-lg">Feat</span> Support directly switching to thinking emote when sending messages for feedback (July 9, 2024)
-- [ ] <span class="text-sm px-1 py-0.5 border border-solid border-green-500/30 text-green-400 bg-green-500/20 rounded-lg">Feat</span> Emotion detection
+- [x] <span class="text-sm px-1 py-0.5 border border-solid border-green-500/30 text-green-800 dark:text-green-400 bg-green-500/20 rounded-lg">Feat</span> Support directly switching to thinking emote when sending messages for feedback (July 9, 2024)
+- [ ] <span class="text-sm px-1 py-0.5 border border-solid border-green-500/30 text-green-800 dark:text-green-400 bg-green-500/20 rounded-lg">Feat</span> Emotion detection
   - [ ] Currently wasting extra tokens to process emotion tokens, could consider trying sentiment for traditional NLP emotion detection
     - [ ] But traditional sentiment only has positive and negative, need to consider how to support other emotions
-- [ ] <span class="text-sm px-1 py-0.5 border border-solid border-green-500/30 text-green-400 bg-green-500/20 rounded-lg">Feat</span> Emotion token embedding
-  - [ ] <span class="text-sm px-1 py-0.5 border border-solid border-green-500/30 text-green-400 bg-green-500/20 rounded-lg">Feat</span> Current `<|EMOTE_.*|>` pattern tokens aren't managed by tokenizer, need to write many streaming-compatible tokenizers separately during inference
-  - [ ] <span class="text-sm px-1 py-0.5 border border-solid border-green-500/30 text-green-400 bg-green-500/20 rounded-lg">Feat</span> Current `<|EMOTE_.*|>` pattern tokens aren't managed by tokenizer, need to write many streaming-compatible tokenizers separately during inference
-- [x] <span class="text-sm px-1 py-0.5 border border-solid border-red-500/30 text-red-400 bg-red-500/20 rounded-lg">Bug</span> `useQueue` doesn't consider queue items separated by `isProcessing` lock during processing (July 9, 2024)
-- [x] <span class="text-sm px-1 py-0.5 border border-solid border-red-500/30 text-red-400 bg-red-500/20 rounded-lg">Bug</span> Models stored in Local Storage not aligned with required data causes `computed` infinite loop freezing interface (July 9, 2024)
-- [x] <span class="text-sm px-1 py-0.5 border border-solid border-red-500/30 text-red-400 bg-red-500/20 rounded-lg">Bug</span> Live2DViewer frame's automatic size detection capability has issues (July 9, 2024)
-- [x] <span class="text-sm px-1 py-0.5 border border-solid border-red-500/30 text-red-400 bg-red-500/20 rounded-lg">Bug</span> Issues from isolating empty text to avoid infinite loops during streamSpeech (July 9, 2024)
-- [x] <span class="text-sm px-1 py-0.5 border border-solid border-green-500/30 text-green-400 bg-green-500/20 rounded-lg">Feat</span> `useQueue` supports custom events within `handler` (July 9, 2024)
-- [ ] <span class="text-sm px-1 py-0.5 border border-solid border-green-500/30 text-green-400 bg-green-500/20 rounded-lg">Feat</span> Synchronize text output and voice output timing
-  - [ ] <span class="text-sm px-1 py-0.5 border border-solid border-green-500/30 text-green-400 bg-green-500/20 rounded-lg">Feat</span> `ttsQueue` and `audioPlaybackQueue` can store a corresponding timestamp
-  - [ ] <span class="text-sm px-1 py-0.5 border border-solid border-green-500/30 text-green-400 bg-green-500/20 rounded-lg">Feat</span> When completing `audioPlaybackQueue` processing and playback, calculate audio duration
-  - [ ] <span class="text-sm px-1 py-0.5 border border-solid border-green-500/30 text-green-400 bg-green-500/20 rounded-lg">Feat</span> Split text by spaces to get `['hello ', 'this ', 'is ', 'neuro ']`
-  - [ ] <span class="text-sm px-1 py-0.5 border border-solid border-green-500/30 text-green-400 bg-green-500/20 rounded-lg">Feat</span> Audio duration divided by text character count = delay per token group output
-  - [ ] <span class="text-sm px-1 py-0.5 border border-solid border-green-500/30 text-green-400 bg-green-500/20 rounded-lg">Feat</span> Output text according to delay instruction (or could use a delay queue)
+- [ ] <span class="text-sm px-1 py-0.5 border border-solid border-green-500/30 text-green-800 dark:text-green-400 bg-green-500/20 rounded-lg">Feat</span> Emotion token embedding
+  - [ ] <span class="text-sm px-1 py-0.5 border border-solid border-green-500/30 text-green-800 dark:text-green-400 bg-green-500/20 rounded-lg">Feat</span> Current `<|EMOTE_.*|>` pattern tokens aren't managed by tokenizer, need to write many streaming-compatible tokenizers separately during inference
+  - [ ] <span class="text-sm px-1 py-0.5 border border-solid border-green-500/30 text-green-800 dark:text-green-400 bg-green-500/20 rounded-lg">Feat</span> Current `<|EMOTE_.*|>` pattern tokens aren't managed by tokenizer, need to write many streaming-compatible tokenizers separately during inference
+- [x] <span class="text-sm px-1 py-0.5 border border-solid border-red-500/30 text-red-800 dark:text-red-400 bg-red-500/20 rounded-lg">Bug</span> `useQueue` doesn't consider queue items separated by `isProcessing` lock during processing (July 9, 2024)
+- [x] <span class="text-sm px-1 py-0.5 border border-solid border-red-500/30 text-red-800 dark:text-red-400 bg-red-500/20 rounded-lg">Bug</span> Models stored in Local Storage not aligned with required data causes `computed` infinite loop freezing interface (July 9, 2024)
+- [x] <span class="text-sm px-1 py-0.5 border border-solid border-red-500/30 text-red-800 dark:text-red-400 bg-red-500/20 rounded-lg">Bug</span> Live2DViewer frame's automatic size detection capability has issues (July 9, 2024)
+- [x] <span class="text-sm px-1 py-0.5 border border-solid border-red-500/30 text-red-800 dark:text-red-400 bg-red-500/20 rounded-lg">Bug</span> Issues from isolating empty text to avoid infinite loops during streamSpeech (July 9, 2024)
+- [x] <span class="text-sm px-1 py-0.5 border border-solid border-green-500/30 text-green-800 dark:text-green-400 bg-green-500/20 rounded-lg">Feat</span> `useQueue` supports custom events within `handler` (July 9, 2024)
+- [ ] <span class="text-sm px-1 py-0.5 border border-solid border-green-500/30 text-green-800 dark:text-green-400 bg-green-500/20 rounded-lg">Feat</span> Synchronize text output and voice output timing
+  - [ ] <span class="text-sm px-1 py-0.5 border border-solid border-green-500/30 text-green-800 dark:text-green-400 bg-green-500/20 rounded-lg">Feat</span> `ttsQueue` and `audioPlaybackQueue` can store a corresponding timestamp
+  - [ ] <span class="text-sm px-1 py-0.5 border border-solid border-green-500/30 text-green-800 dark:text-green-400 bg-green-500/20 rounded-lg">Feat</span> When completing `audioPlaybackQueue` processing and playback, calculate audio duration
+  - [ ] <span class="text-sm px-1 py-0.5 border border-solid border-green-500/30 text-green-800 dark:text-green-400 bg-green-500/20 rounded-lg">Feat</span> Split text by spaces to get `['hello ', 'this ', 'is ', 'neuro ']`
+  - [ ] <span class="text-sm px-1 py-0.5 border border-solid border-green-500/30 text-green-800 dark:text-green-400 bg-green-500/20 rounded-lg">Feat</span> Audio duration divided by text character count = delay per token group output
+  - [ ] <span class="text-sm px-1 py-0.5 border border-solid border-green-500/30 text-green-800 dark:text-green-400 bg-green-500/20 rounded-lg">Feat</span> Output text according to delay instruction (or could use a delay queue)
 - [ ] Neuro Sama's inference speed is really very fast, even counting vector db recall + re-inference + task allocation, shouldn't be this quick
 - [x] Neuro Sama's TTS is also very fast, faster than any TTS I know
   - [x] Seems very fast after integrating MicVAD and Whisper, much simpler than imagined
@@ -297,8 +297,8 @@ Now can:
     - [ ] Ask Neuro what she wants to do next, prevent Neuro from being bored
     - [ ] 24 hours enters 1, otherwise GPT easily loses perception of numbers
 - [ ] Continuous inference
-  - [x] <span class="text-sm px-1 py-0.5 border border-solid border-purple-500/30 text-purple-400 bg-purple-500/20 rounded-lg">Experiment</span> Discussion with Perplexity https://www.perplexity.ai/search/I-want-to-jKXpnx6hT6uvhm0qbu6ofA#0 (June 8, 2024)
-  - [x] <span class="text-sm px-1 py-0.5 border border-solid border-purple-500/30 text-purple-400 bg-purple-500/20 rounded-lg">Experiment</span> Experiment on Poe [https://poe.com/s/PqQfwNd2V2wFpmR0YUke](https://poe.com/s/PqQfwNd2V2wFpmR0YUke) (July 8, 2024)
+  - [x] <span class="text-sm px-1 py-0.5 border border-solid border-purple-500/30 text-purple-800 dark:text-purple-400 bg-purple-500/20 rounded-lg">Experiment</span> Discussion with Perplexity https://www.perplexity.ai/search/I-want-to-jKXpnx6hT6uvhm0qbu6ofA#0 (June 8, 2024)
+  - [x] <span class="text-sm px-1 py-0.5 border border-solid border-purple-500/30 text-purple-800 dark:text-purple-400 bg-purple-500/20 rounded-lg">Experiment</span> Experiment on Poe [https://poe.com/s/PqQfwNd2V2wFpmR0YUke](https://poe.com/s/PqQfwNd2V2wFpmR0YUke) (July 8, 2024)
   - [ ] Build a loop
     - [ ] what do you want to do
       - [ ] We can generate an actions map

@@ -9,6 +9,10 @@ import Layout from '../custom/Layout.vue'
 import '@unocss/reset/tailwind.css'
 import 'uno.css'
 import './style.css'
+import '@fontsource-variable/dm-sans'
+import '@fontsource/dm-mono'
+import '@fontsource/dm-serif-display'
+import '@fontsource-variable/comfortaa'
 
 export default {
   Layout,

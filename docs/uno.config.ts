@@ -4,25 +4,32 @@ import { defineConfig, presetAttributify, presetTypography, presetWebFonts, pres
 export default defineConfig({
   presets: [
     presetAttributify(),
-    presetTypography(),
+    presetTypography({
+      cssExtend: {
+        a: {
+          'text-decoration': 'underline',
+          'text-decoration-style': 'dotted',
+        },
+      },
+    }),
     presetWind3(),
     presetWebFonts({
       fonts: {
         'sans': {
-          name: 'DM Sans',
-          provider: 'fontsource',
+          name: 'DM Sans Variable',
+          provider: 'none',
         },
         'serif': {
           name: 'DM Serif Display',
-          provider: 'fontsource',
+          provider: 'none',
         },
         'mono': {
           name: 'DM Mono',
-          provider: 'fontsource',
+          provider: 'none',
         },
         'sans-rounded': {
-          name: 'Comfortaa',
-          provider: 'fontsource',
+          name: 'Comfortaa Variable',
+          provider: 'none',
         },
       },
     }),

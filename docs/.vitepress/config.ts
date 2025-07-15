@@ -118,8 +118,8 @@ export default defineConfig({
             icon: 'lucide:calendar-days',
             link: withBase('/en/docs/chronicles/'),
             items: [
-              { text: 'Before Story v0.0.1', link: withBase('/en/docs/chronicles/version-v0.0.1/') },
               { text: 'Initial Publish v0.1.0', link: withBase('/en/docs/chronicles/version-v0.1.0/') },
+              { text: 'Before Story v0.0.1', link: withBase('/en/docs/chronicles/version-v0.0.1/') },
             ],
           },
           {
@@ -180,8 +180,8 @@ export default defineConfig({
             icon: 'lucide:calendar-days',
             link: withBase('/zh-Hans/docs/chronicles/'),
             items: [
-              { text: '先前的故事 v0.0.1', link: withBase('/zh-Hans/docs/chronicles/version-v0.0.1/') },
               { text: '首次公开 v0.1.0', link: withBase('/zh-Hans/docs/chronicles/version-v0.1.0/') },
+              { text: '先前的故事 v0.0.1', link: withBase('/zh-Hans/docs/chronicles/version-v0.0.1/') },
             ],
           },
           {

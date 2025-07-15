@@ -905,6 +905,18 @@ importers:
 
   docs:
     dependencies:
+      '@fontsource-variable/comfortaa':
+        specifier: ^5.2.6
+        version: 5.2.6
+      '@fontsource-variable/dm-sans':
+        specifier: ^5.2.6
+        version: 5.2.6
+      '@fontsource/dm-mono':
+        specifier: ^5.2.6
+        version: 5.2.6
+      '@fontsource/dm-serif-display':
+        specifier: ^5.2.6
+        version: 5.2.6
       '@internationalized/date':
         specifier: ^3.8.2
         version: 3.8.2
@@ -3385,6 +3397,9 @@ packages:
 
   '@floating-ui/vue@1.1.6':
     resolution: {integrity: sha512-XFlUzGHGv12zbgHNk5FN2mUB7ROul3oG2ENdTpWdE+qMFxyNxWSRmsoyhiEnpmabNm6WnUvR1OvJfUfN4ojC1A==}
+
+  '@fontsource-variable/comfortaa@5.2.6':
+    resolution: {integrity: sha512-uWjgXWmfUhpsax7Y6lUcWNOveIgtYYw4ZPbCkvMWjGPU2aYtTUa1Q8etT3zaDmmWXJOgv677Cgchj8Fh1304EA==}
 
   '@fontsource-variable/dm-sans@5.2.6':
     resolution: {integrity: sha512-edr+wGsc9d7/5aMB8ty1z0Zb0fqzJtBZ5+c2FhtrJwYhefcLEOL4r66EBqeyEFhVTMhCGIjhtxmigrRbPN0mUw==}
@@ -6254,6 +6269,9 @@ packages:
   '@xsai/shared@0.2.2':
     resolution: {integrity: sha512-bgalLd3samx36hDRRmu3M75LY5NfWwh3YRaMwY4Woy7X09JQx+vEqVpJcaIeqcmVqztm8NGYzj8hUru7lwPh0w==}
 
+  '@xsai/shared@0.3.0':
+    resolution: {integrity: sha512-fUtZY+P2uedrxg3oU/Jdv9K/v+K9SiS3DmZ/iO5WFqC3NK/fvU/eJMJARpPCqLhPiDbv0+5eHZ/Ok/WXdIWLqg==}
+
   '@xsai/shared@0.3.0-beta.5':
     resolution: {integrity: sha512-0vDW0fkEcFhfd3uG2OEMkoqq/ghh62KJUokMUwaAPKLNcVNAVcFRoslH9lKjdHJziSZ/b59f5rpUEjU3DHooZQ==}
 
@@ -6262,9 +6280,6 @@ packages:
 
   '@xsai/shared@0.3.0-beta.8':
     resolution: {integrity: sha512-S7BYvluU7aA2Ti7HEblV3ISDZbF89VP2dDC5WCrylYlQIYoFlZjlhJhJL5c/+KwX+og0pvh5Y0iSPKdcoMmLmw==}
-
-  '@xsai/shared@0.3.0-beta.9':
-    resolution: {integrity: sha512-vZoXmWuTaS0SbPc6U9IeGJzzHCNVzBiLfNHQnLPrQeXT5r8edjGx8fEUIPO8cvlPsBlvPYT8lfEaqvZrdWTUww==}
 
   '@xsai/stream-text@0.3.0-beta.6':
     resolution: {integrity: sha512-w1aQEqa1yGXjSckZzZcpFgRf3JzUuqHDB4tc3UZaKa4DLGmslr3e4xXpOXWuqgIeDMdj2YWI9163GC/bfF0zBA==}
@@ -14275,6 +14290,8 @@ snapshots:
       - '@vue/composition-api'
       - vue
 
+  '@fontsource-variable/comfortaa@5.2.6': {}
+
   '@fontsource-variable/dm-sans@5.2.6': {}
 
   '@fontsource-variable/jura@5.2.6': {}
@@ -17590,7 +17607,7 @@ snapshots:
 
   '@xsai-ext/shared-providers@0.2.2':
     dependencies:
-      '@xsai/shared': 0.3.0-beta.9
+      '@xsai/shared': 0.3.0
 
   '@xsai-ext/shared-providers@0.3.0-beta.8':
     dependencies:
@@ -17655,13 +17672,13 @@ snapshots:
 
   '@xsai/shared@0.2.2': {}
 
+  '@xsai/shared@0.3.0': {}
+
   '@xsai/shared@0.3.0-beta.5': {}
 
   '@xsai/shared@0.3.0-beta.7': {}
 
   '@xsai/shared@0.3.0-beta.8': {}
-
-  '@xsai/shared@0.3.0-beta.9': {}
 
   '@xsai/stream-text@0.3.0-beta.6':
     dependencies:

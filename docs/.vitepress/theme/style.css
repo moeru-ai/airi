@@ -364,6 +364,15 @@ https://apple.stackexchange.com/a/123577
   vertical-align: top;
 }
 
+ul.task-list-container {
+  list-style-type: none;
+}
+
+ul.task-list-container li input.task-list-item-checkbox {
+  display: inline-block;
+  margin: 0 0.25rem 0 0;
+}
+
 mark {
   @apply bg-transparent text-foreground font-semibold;
 }
