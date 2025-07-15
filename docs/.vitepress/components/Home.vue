@@ -5,16 +5,16 @@ import homeCover from '../assets/home-cover-2025-07-15.png'
 <template>
   <div relative h-full w-full flex flex-1 flex-col>
     <section h-full w-full flex flex-1 flex-col class="mx-auto max-w-[1440px]">
-      <div class="items-center justify-start pt-20 lg:items-start lg:justify-center lg:pt-16 md:pt-36" h-full w-full flex flex-1 flex-col gap-4 overflow-hidden px-16 pb-16>
-        <div bg="transparent" font-extrabold font-sans-rounded class="relative z-3 w-full flex justify-center lg:w-fit lg:justify-start" text="4xl md:5xl">
+      <div class="items-center justify-start pt-20 md:pt-36" h-full w-full flex flex-1 flex-col gap-4 overflow-hidden px-16 pb-16>
+        <div bg="transparent" font-extrabold font-sans-rounded class="relative z-3 w-full flex justify-center" text="4xl md:5xl">
           <div>
             Project AIRI
           </div>
         </div>
-        <div max-w="120 md:150 lg:200" text-wrap class="relative z-3 text-center text-slate-900 lg:text-left dark:text-white">
+        <div max-w="120 md:150 lg:200" text-wrap class="relative z-3 text-center text-slate-900 dark:text-white">
           A container of souls of AI waifu / virtual characters to bring them into our worlds.
         </div>
-        <div class="relative z-3 justify-center lg:justify-start" w-full flex gap-2>
+        <div class="relative z-3 justify-center" w-full flex gap-2>
           <a
             href="https://github.com/moeru-ai/airi/releases/latest"
             bg="primary/10 dark:primary/10" class="text-primary"
@@ -30,9 +30,9 @@ import homeCover from '../assets/home-cover-2025-07-15.png'
             Get Started
           </a>
         </div>
-        <div class="z-1 max-h-[calc(100dvh-9.5rem)] max-w-100dvw min-h-[calc(100dvh-9.5rem)] min-w-100dvw lg:max-h-[calc(100dvh-4.3rem)] lg:min-h-[calc(100dvh-4.3rem)]" absolute overflow-hidden>
-          <div class="absolute left-0 top-16 z-2 block h-1/2 w-full scale-120 from-transparent to-white bg-gradient-to-t md:top-0 lg:scale-80 dark:to-black lg:hidden" />
-          <img :src="homeCover" alt="Project AIRI Cover Image" class="absolute translate-y-90 rotate--20 scale-160 object-cover object-cover lg:translate-x-90 lg:translate-y--15 md:translate-y-60 lg:rotate--50 lg:scale-80 md:scale-120">
+        <div class="z-1 max-h-[calc(100dvh-9.5rem)] max-w-100dvw min-h-[calc(100dvh-9.5rem)] min-w-100dvw" absolute overflow-hidden>
+          <div class="absolute left-0 top-16 z-2 block h-1/2 w-full scale-120 from-transparent to-white bg-gradient-to-t md:top-0 dark:to-black" />
+          <img :src="homeCover" alt="Project AIRI Cover Image" class="absolute translate-y-90 rotate--20 scale-160 object-cover object-cover lg:translate-y--10 md:translate-y-60 lg:scale-90 md:scale-120">
         </div>
       </div>
     </section>
