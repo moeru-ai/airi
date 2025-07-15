@@ -42,7 +42,7 @@ const posts = computed(() => {
 
   return postsData
     .map(post => ({ ...post, url: withBase(post.url) }))
-    .filter(post => !!(post.frontmatter as any)?.title)
+    .filter(post => !!post.title)
 })
 
 async function stringToSeed(str: string) {
