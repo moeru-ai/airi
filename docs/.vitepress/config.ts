@@ -74,7 +74,7 @@ export default defineConfig({
       themeConfig: {
         // https://vitepress.dev/reference/default-theme-config
         nav: [
-          { text: 'Docs', link: withBase('/en/overview/') },
+          { text: 'Docs', link: withBase('/en/docs/overview/') },
           { text: 'Blog', link: withBase('/en/blog/') },
           {
             text: `v${version}`,
@@ -93,22 +93,22 @@ export default defineConfig({
             text: 'Overview',
             icon: 'lucide:rocket',
             items: [
-              { text: 'Introduction', link: withBase('/en/overview/') },
-              { text: 'About AI VTuber', link: withBase('/en/overview/about-ai-vtuber') },
-              { text: 'About Neuro-sama', link: withBase('/en/overview/about-neuro-sama') },
+              { text: 'Introduction', link: withBase('/en/docs/overview/') },
+              { text: 'About AI VTuber', link: withBase('/en/docs/overview/about-ai-vtuber') },
+              { text: 'About Neuro-sama', link: withBase('/en/docs/overview/about-neuro-sama') },
             ],
           },
           {
             text: 'Guides',
             icon: 'lucide:book-open',
             items: [
-              { text: 'Contributing', link: withBase('/en/guides/contributing/') },
+              { text: 'Contributing', link: withBase('/en/docs/guides/contributing/') },
               {
                 text: 'Design Guidelines',
-                link: withBase('/en/guides/design-guidelines/'),
+                link: withBase('/en/docs/guides/design-guidelines/'),
                 items: [
-                  { text: 'Resources', link: withBase('/en/guides/contributing/design-guidelines/resources') },
-                  { text: 'Tools', link: withBase('/en/guides/contributing/design-guidelines/tools') },
+                  { text: 'Resources', link: withBase('/en/docs/guides/contributing/design-guidelines/resources') },
+                  { text: 'Tools', link: withBase('/en/docs/guides/contributing/design-guidelines/tools') },
                 ],
               },
             ],
@@ -116,10 +116,10 @@ export default defineConfig({
           {
             text: 'Chronicles',
             icon: 'lucide:calendar-days',
-            link: withBase('/en/chronicles/'),
+            link: withBase('/en/docs/chronicles/'),
             items: [
-              { text: 'Before Story v0.0.1', link: withBase('/en/chronicles/version-v0.0.1/') },
-              { text: 'Initial Publish v0.1.0', link: withBase('/en/chronicles/version-v0.1.0/') },
+              { text: 'Before Story v0.0.1', link: withBase('/en/docs/chronicles/version-v0.0.1/') },
+              { text: 'Initial Publish v0.1.0', link: withBase('/en/docs/chronicles/version-v0.1.0/') },
             ],
           },
           {
@@ -136,7 +136,7 @@ export default defineConfig({
       themeConfig: {
         // https://vitepress.dev/reference/default-theme-config
         nav: [
-          { text: '文档', link: withBase('/zh-Hans/overview/') },
+          { text: '文档', link: withBase('/zh-Hans/docs/overview/') },
           { text: '博客 / 开发日志', link: withBase('/zh-Hans/blog/') },
           {
             text: `v${version}`,
@@ -155,22 +155,22 @@ export default defineConfig({
             text: '概览',
             icon: 'lucide:rocket',
             items: [
-              { text: '介绍', link: withBase('/zh-Hans/overview/') },
-              { text: '有关 AI VTuber', link: withBase('/zh-Hans/overview/about-ai-vtuber') },
-              { text: '有关 Neuro-sama', link: withBase('/zh-Hans/overview/about-neuro-sama') },
+              { text: '介绍', link: withBase('/zh-Hans/docs/overview/') },
+              { text: '有关 AI VTuber', link: withBase('/zh-Hans/docs/overview/about-ai-vtuber') },
+              { text: '有关 Neuro-sama', link: withBase('/zh-Hans/docs/overview/about-neuro-sama') },
             ],
           },
           {
             text: '指南',
             icon: 'lucide:book-open',
             items: [
-              { text: '贡献指南', link: withBase('/zh-Hans/guides/contributing/') },
+              { text: '贡献指南', link: withBase('/zh-Hans/docs/guides/contributing/') },
               {
                 text: '设计指引',
-                link: withBase('/zh-Hans/guides/design-guidelines/'),
+                link: withBase('/zh-Hans/docs/guides/design-guidelines/'),
                 items: [
-                  { text: '参考资源', link: withBase('/zh-Hans/guides/contributing/design-guidelines/resources') },
-                  { text: '工具', link: withBase('/zh-Hans/guides/contributing/design-guidelines/tools') },
+                  { text: '参考资源', link: withBase('/zh-Hans/docs/guides/contributing/design-guidelines/resources') },
+                  { text: '工具', link: withBase('/zh-Hans/docs/guides/contributing/design-guidelines/tools') },
                 ],
               },
             ],
@@ -178,10 +178,10 @@ export default defineConfig({
           {
             text: '编年史',
             icon: 'lucide:calendar-days',
-            link: withBase('/zh-Hans/chronicles/'),
+            link: withBase('/zh-Hans/docs/chronicles/'),
             items: [
-              { text: '先前的故事 v0.0.1', link: withBase('/zh-Hans/chronicles/version-v0.0.1/') },
-              { text: '首次公开 v0.1.0', link: withBase('/zh-Hans/chronicles/version-v0.1.0/') },
+              { text: '先前的故事 v0.0.1', link: withBase('/zh-Hans/docs/chronicles/version-v0.0.1/') },
+              { text: '首次公开 v0.1.0', link: withBase('/zh-Hans/docs/chronicles/version-v0.1.0/') },
             ],
           },
           {

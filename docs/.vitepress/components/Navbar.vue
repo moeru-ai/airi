@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { Icon } from '@iconify/vue'
+import { dirname, sep } from 'pathe'
 import { DropdownMenuContent, DropdownMenuItem, DropdownMenuPortal, DropdownMenuRoot, DropdownMenuSub, DropdownMenuSubContent, DropdownMenuSubTrigger, DropdownMenuTrigger, Separator } from 'reka-ui'
 import { useData, useRoute } from 'vitepress'
 import { ref, toRefs, watch } from 'vue'
@@ -19,6 +20,14 @@ const isPopoverOpen = ref(false)
 watch(path, () => {
   isPopoverOpen.value = false
 })
+
+function isNavLinkActive(link: string, path: string) {
+  let normalizedLink = link.toLowerCase()
+  normalizedLink = normalizedLink.split(sep).filter(Boolean).length > 2 ? `${dirname(normalizedLink)}/` : normalizedLink
+
+  const normalizedPath = path.toLowerCase()
+  return normalizedPath.includes(normalizedLink)
+}
 </script>
 
 <template>
@@ -32,7 +41,7 @@ watch(path, () => {
         :href="nav.link"
         class="text-muted-foreground hover:text-foreground mx-3 h-full inline-flex items-center py-2 text-nowrap text-sm font-semibold"
         transition-colors duration-200 ease-in-out
-        :class="{ '!text-primary': path.includes(nav.text.toLowerCase()) }"
+        :class="{ '!text-primary': isNavLinkActive(nav.link, path) }"
       >
         {{ nav.text }}
       </a>

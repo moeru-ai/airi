@@ -37,15 +37,17 @@ const { t } = useI18n()
     </section>
 
     <div class="absolute inset-0 overflow-hidden -z-10">
-      <div class="absolute bottom-0 left-0 right-0 z-2 h-full from-transparent to-white bg-gradient-to-t dark:to-[hsl(207_15%_5%)]" />
+      <div class="absolute bottom-0 left-0 right-0 top-10 z-2 h-full from-transparent to-white bg-gradient-to-t dark:to-[hsl(207_15%_5%)]" />
       <img
         :src="homeCover"
         alt="Project AIRI Cover Image"
         :class="[
-          'absolute top-2rem md:top-8dvh lg:top-32dvh xl:top-20dvh left-1/2 -translate-x-1/2 max-w-none object-cover z-1',
-          'w-[160%] translate-y-[25%] -rotate-20',
-          'md:w-[120%] md:translate-y-[20%] md:rotate-[-15deg]',
-          'lg:w-[95%] lg:translate-y-[5%] lg:rotate-[-10deg]',
+          'absolute left-1/2 -translate-x-1/2 max-w-none object-cover z-1',
+          'w-[160%] translate-y-[25%] -rotate-20 top-8rem',
+          'md:w-[120%] md:translate-y-[20%] md:rotate-[-15deg] md:top-8dvh',
+          'lg:w-[95%] lg:translate-y-[5%] lg:rotate-[-10deg] lg:top-32dvh',
+          'xl:top-18dvh',
+          '2xl:top-16dvh',
         ]"
       >
     </div>
