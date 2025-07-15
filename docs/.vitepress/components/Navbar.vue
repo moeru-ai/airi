@@ -12,7 +12,7 @@ import NavbarLanguageSubMenu from './NavbarLanguageSubMenu.vue'
 import ThemeToggle from './ThemeToggle.vue'
 
 const { path } = toRefs(useRoute())
-const { theme } = useData()
+const { theme, site } = useData()
 const { t } = useI18n()
 
 const isPopoverOpen = ref(false)
@@ -23,7 +23,7 @@ watch(path, () => {
 
 function isNavLinkActive(link: string, path: string) {
   let normalizedLink = link.toLowerCase()
-  normalizedLink = normalizedLink.split(sep).filter(Boolean).length > 2 ? `${dirname(normalizedLink)}/` : normalizedLink
+  normalizedLink = normalizedLink.split(sep).filter(Boolean).length > (site.value.base !== '' ? 3 : 2) ? `${dirname(normalizedLink)}/` : normalizedLink
 
   const normalizedPath = path.toLowerCase()
   return normalizedPath.includes(normalizedLink)

@@ -4,7 +4,7 @@ import type { DefaultTheme } from 'vitepress'
 import { Icon } from '@iconify/vue'
 import { useScroll } from '@vueuse/core'
 import { DialogContent, DialogDescription, DialogOverlay, DialogPortal, DialogRoot, DialogTitle, DialogTrigger } from 'reka-ui'
-import { useData, useRoute } from 'vitepress'
+import { useData, useRoute, withBase } from 'vitepress'
 import { computed, ref, toRefs, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
@@ -53,7 +53,7 @@ watch(path, () => {
           v-for="tab in sectionTabs.filter(i => !isCharacterPage(i.link))"
           :key="tab.label"
           :href="tab.link"
-          :class="{ '!after:bg-primary !text-foreground': `/${page.relativePath}`.includes(tab.link?.split('/').slice(0, -1).join('/') || '') }"
+          :class="{ '!after:bg-primary !text-foreground': withBase(`/${page.relativePath}`).includes(tab.link?.split('/').slice(0, -1).join('/') || '') }"
           class="text-muted-foreground hover:text-foreground hover:border-b-muted relative mx-4 h-full inline-flex items-center py-2 text-sm font-semibold after:absolute after:bottom-0 after:h-0.5 after:w-full after:rounded-t-full after:bg-transparent after:content-['']"
           transition-colors duration-200 ease-in-out
         >
@@ -71,7 +71,7 @@ watch(path, () => {
           v-for="tab in sectionTabs.filter(i => isCharacterPage(i.link))"
           :key="tab.label"
           :href="tab.link"
-          :class="{ '!after:bg-primary !text-foreground': page.relativePath.includes(tab.label?.toLowerCase() ?? '') }"
+          :class="{ '!after:bg-primary !text-foreground': withBase(page.relativePath).includes(tab.label?.toLowerCase() ?? '') }"
           class="text-muted-foreground hover:text-foreground hover:border-b-muted relative mx-4 h-full inline-flex items-center py-2 text-sm font-semibold after:absolute after:bottom-0 after:h-0.5 after:w-full after:rounded-t-full after:bg-transparent after:content-['']"
           transition-colors duration-200 ease-in-out
         >
@@ -101,7 +101,7 @@ watch(path, () => {
 
         <DialogPortal>
           <DialogOverlay class="data-[state=open]:animate-fadeIn data-[state=closed]:animate-fadeOut fixed inset-0 z-50 bg-black/80" />
-          <DialogContent class="border-muted bg-background data-[state=closed]:slide-out-to-left data-[state=open]:slide-in-from-left data-[state=open]:animate-enterFromLeft data-[state=closed]:animate-exitToLeft fixed inset-y-0 left-0 z-50 h-full w-3/4 gap-4 border-r pr-0 shadow-lg transition ease-in-out sm:max-w-sm">
+          <DialogContent class="bg-background border-muted data-[state=closed]:slide-out-to-left data-[state=open]:slide-in-from-left data-[state=open]:animate-enterFromLeft data-[state=closed]:animate-exitToLeft fixed inset-y-0 left-0 z-50 h-full w-3/4 gap-4 border-r pr-0 shadow-lg transition ease-in-out sm:max-w-sm">
             <DialogTitle class="sr-only">
               Sidebar menu
             </DialogTitle>
@@ -157,7 +157,7 @@ watch(path, () => {
       <div class="h-full flex items-center">
         <a
           href="/characters/"
-          :class="{ '!border-b-primary !font-semibold !text-foreground': page.relativePath.includes('characters') }"
+          :class="{ '!border-b-primary !font-semibold !text-foreground': withBase(page.relativePath).includes('characters') }"
           class="text-muted-foreground hover:border-b-muted hover:text-foreground mx-4 h-full inline-flex items-center gap-2 border-b border-b-transparent py-2 text-sm font-medium"
         >
           <Icon
