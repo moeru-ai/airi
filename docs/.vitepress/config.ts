@@ -114,6 +114,15 @@ export default defineConfig({
             ],
           },
           {
+            text: 'Chronicles',
+            icon: 'lucide:calendar-days',
+            link: withBase('/en/chronicles/'),
+            items: [
+              { text: 'Before Story v0.0.1', link: withBase('/en/chronicles/version-v0.0.1/') },
+              { text: 'Initial Publish v0.1.0', link: withBase('/en/chronicles/version-v0.1.0/') },
+            ],
+          },
+          {
             text: 'Characters',
             icon: 'lucide:scan-face',
             link: withBase('/en/characters/'),
@@ -164,6 +173,15 @@ export default defineConfig({
                   { text: '工具', link: withBase('/zh-Hans/guides/contributing/design-guidelines/tools') },
                 ],
               },
+            ],
+          },
+          {
+            text: '编年史',
+            icon: 'lucide:calendar-days',
+            link: withBase('/zh-Hans/chronicles/'),
+            items: [
+              { text: '先前的故事 v0.0.1', link: withBase('/zh-Hans/chronicles/version-v0.0.1/') },
+              { text: '首次公开 v0.1.0', link: withBase('/zh-Hans/chronicles/version-v0.1.0/') },
             ],
           },
           {
