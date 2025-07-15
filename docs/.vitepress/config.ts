@@ -25,13 +25,6 @@ import {
   releases,
 } from './meta'
 
-// function BadgeHTML(text: string, translucent = false) {
-//   return `<div class="inline-flex items-center rounded-full border border-muted px-2 py-[1px] ml-2 text-[11px] transition-colors bg-primary/30 ${translucent ? '!bg-transparent' : ''} text-foreground">
-// ${text}
-// </div>
-// `
-// }
-
 function withBase(url: string) {
   return env.BASE_URL
     ? env.BASE_URL.endsWith('/')
@@ -63,6 +56,14 @@ export default defineConfig({
     ['meta', { name: 'twitter:image', content: ogImage }],
     ['meta', { name: 'twitter:card', content: 'summary_large_image' }],
     ['link', { rel: 'mask-icon', href: '/logo.svg', color: '#ffffff' }],
+    // Proxying Plausible through Netlify | Plausible docs
+    // https://plausible.io/docs/proxy/guides/netlify
+    ['script', {
+      'defer': 'true',
+      'data-domain': 'airi.moeru.ai',
+      'data-api': 'https://airi.moeru.ai/api/v1/page-external-data/submit',
+      'src': 'https://airi.moeru.ai/remote-assets/page-external-data/js/script.js',
+    }],
   ],
   base: env.BASE_URL || '/',
   lastUpdated: true,
