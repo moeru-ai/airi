@@ -35,6 +35,7 @@ words:
   - clippy
   - collectblock
   - colorjs
+  - Comfortaa
   - composables
   - cooldown
   - coreml
@@ -78,6 +79,7 @@ words:
   - Factorio
   - feaxios
   - formkit
+  - frontmatter
   - giteeai
   - gltf
   - gpuu
@@ -124,6 +126,7 @@ words:
   - mineflayer
   - mingcute
   - minimizable
+  - minisearch
   - mkdist
   - modelcontextprotocol
   - modnet
@@ -168,6 +171,7 @@ words:
   - prereleased
   - pretrained
   - prismarine
+  - prng
   - pthread
   - quanlai
   - qwen
@@ -210,6 +214,7 @@ words:
   - tsdown
   - turborepo
   - unbundle
+  - uncrypto
   - unhead
   - Unlisten
   - unocss
@@ -223,6 +228,7 @@ words:
   - vllm
   - Volcengine
   - vrma
+  - vtuber
   - vueuse
   - waapi
   - wavefile
