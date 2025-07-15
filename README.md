@@ -1,15 +1,15 @@
 <picture>
   <source
     width="100%"
-    srcset="./docs/public/banner-dark-1280x640.png"
+    srcset="./docs/content/public/banner-dark-1280x640.png"
     media="(prefers-color-scheme: dark)"
   />
   <source
     width="100%"
-    srcset="./docs/public/banner-light-1280x640.png"
+    srcset="./docs/content/public/banner-light-1280x640.png"
     media="(prefers-color-scheme: light), (prefers-color-scheme: no-preference)"
   />
-  <img width="250" src="./docs/public/banner-light-1280x640.png" />
+  <img width="250" src="./docs/content/public/banner-light-1280x640.png" />
 </picture>
 
 <h1 align="center">Project AIRI</h1>
@@ -89,7 +89,7 @@ This means that **アイリ VTuber is capable to run on modern browsers and devi
 
 ## Current progress
 
-<img src="./docs/public/readme-image-pc-preview.png">
+<img src="./docs/content/public/readme-image-pc-preview.png">
 
 Capable of
 
