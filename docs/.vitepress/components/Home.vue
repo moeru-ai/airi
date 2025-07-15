@@ -17,14 +17,14 @@ import homeCover from '../assets/home-cover-2025-07-15.png'
         <div class="relative z-3 justify-center" w-full flex gap-2>
           <a
             href="https://github.com/moeru-ai/airi/releases/latest"
-            bg="primary/10 dark:primary/10" class="text-primary"
+            bg="primary/60 dark:primary/30" class="text-slate-100 dark:text-cyan-200"
             rounded-lg px-4 py-2 font-extrabold outline-none backdrop-blur-md focus:outline-none
           >
             Download
           </a>
           <a
             href="./docs/overview/"
-            class="bg-white/60 text-slate-900 dark:bg-white/10 dark:text-slate-400"
+            class="bg-white/60 text-slate-900 dark:bg-white/20 dark:text-slate-100"
             rounded-lg px-4 py-2 font-extrabold outline-none backdrop-blur-md focus:outline-none
           >
             Get Started
