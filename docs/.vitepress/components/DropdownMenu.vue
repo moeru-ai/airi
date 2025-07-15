@@ -15,11 +15,13 @@ defineProps<{
 <template>
   <DropdownMenuRoot>
     <DropdownMenuTrigger class="text-muted-foreground hover:text-foreground data-[state=open]:text-foreground mx-0 h-full inline-flex items-center justify-between px-2 py-2 text-nowrap text-sm font-semibold md:mx-3 md:px-0">
-      <span>{{ label }}</span>
-      <Icon
-        icon="lucide:chevron-down"
-        class="ml-1 text-lg"
-      />
+      <slot name="trigger">
+        <span>{{ label }}</span>
+        <Icon
+          icon="lucide:chevron-down"
+          class="ml-1 text-lg"
+        />
+      </slot>
     </DropdownMenuTrigger>
 
     <DropdownMenuPortal>
@@ -34,7 +36,7 @@ defineProps<{
             :initial="{ opacity: 0, y: -10 }"
             :animate="{ opacity: 1, y: 0 }"
             :exit="{ opacity: 0, y: -10 }"
-            class="border-muted z-10 border rounded-lg bg-white/30 p-2 shadow-sm backdrop-blur-md dark:bg-neutral-800/30"
+            class="border-muted z-10 border rounded-lg bg-white/60 p-2 shadow-sm backdrop-blur-md transition-shadow duration-200 ease-in-out dark:bg-neutral-800/30 focus:shadow-lg hover:shadow-lg"
           >
             <DropdownMenuItem
               v-for="item in items"
@@ -46,10 +48,11 @@ defineProps<{
               <a
                 v-if="item.link"
                 :href="item.link"
-                target="_blank"
+                :target="item.link.startsWith('http') || item.link.startsWith('https') ? '_blank' : undefined"
               >
                 <span>{{ item.text }}</span>
                 <Icon
+                  v-if="item.link.startsWith('http') || item.link.startsWith('https')"
                   icon="lucide:arrow-up-right"
                   class="ml-2 text-base"
                 />

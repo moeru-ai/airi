@@ -6,6 +6,7 @@ import { useScroll } from '@vueuse/core'
 import { DialogContent, DialogDescription, DialogOverlay, DialogPortal, DialogRoot, DialogTitle, DialogTrigger } from 'reka-ui'
 import { useData, useRoute } from 'vitepress'
 import { computed, ref, toRefs, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import DocSidebarItem from '../components/DocSidebarItem.vue'
 
@@ -13,6 +14,7 @@ import { flatten } from '../functions/flatten'
 
 const { path } = toRefs(useRoute())
 const { page, theme } = useData()
+const { t } = useI18n()
 
 const isSidebarOpen = ref(false)
 const sidebar = computed(() => (theme.value.sidebar as (DefaultTheme.SidebarItem & { icon?: string })[]))
@@ -25,6 +27,12 @@ const sectionTabs = computed(() => sidebar.value
   }))
   .filter(i => !!i?.link),
 )
+
+function isCharacterPage(link?: string) {
+  if (!link)
+    return false
+  return link.includes('/characters') || link.includes('/characters/')
+}
 
 const { arrivedState } = useScroll(globalThis.window)
 const { top } = toRefs(arrivedState)
@@ -42,7 +50,7 @@ watch(path, () => {
     <div class="h-full items-center justify-between hidden md:flex">
       <div class="h-full flex items-center">
         <a
-          v-for="tab in sectionTabs.filter(i => i.label !== 'Characters')"
+          v-for="tab in sectionTabs.filter(i => !isCharacterPage(i.link))"
           :key="tab.label"
           :href="tab.link"
           :class="{ '!after:bg-primary !text-foreground': `/${page.relativePath}`.includes(tab.link?.split('/').slice(0, -1).join('/') || '') }"
@@ -60,7 +68,7 @@ watch(path, () => {
 
       <div class="h-full flex items-center">
         <a
-          v-for="tab in sectionTabs.filter(i => i.label === 'Characters')"
+          v-for="tab in sectionTabs.filter(i => isCharacterPage(i.link))"
           :key="tab.label"
           :href="tab.link"
           :class="{ '!after:bg-primary !text-foreground': page.relativePath.includes(tab.label?.toLowerCase() ?? '') }"
@@ -93,7 +101,7 @@ watch(path, () => {
 
         <DialogPortal>
           <DialogOverlay class="data-[state=open]:animate-fadeIn data-[state=closed]:animate-fadeOut fixed inset-0 z-50 bg-black/80" />
-          <DialogContent class="bg-background border-muted data-[state=closed]:slide-out-to-left data-[state=open]:slide-in-from-left data-[state=open]:animate-enterFromLeft data-[state=closed]:animate-exitToLeft fixed inset-y-0 left-0 z-50 h-full w-3/4 gap-4 border-r pr-0 shadow-lg transition ease-in-out sm:max-w-sm">
+          <DialogContent class="border-muted bg-background data-[state=closed]:slide-out-to-left data-[state=open]:slide-in-from-left data-[state=open]:animate-enterFromLeft data-[state=closed]:animate-exitToLeft fixed inset-y-0 left-0 z-50 h-full w-3/4 gap-4 border-r pr-0 shadow-lg transition ease-in-out sm:max-w-sm">
             <DialogTitle class="sr-only">
               Sidebar menu
             </DialogTitle>
@@ -156,7 +164,7 @@ watch(path, () => {
             icon="lucide:scan-face"
             class="text-lg"
           />
-          Characters
+          {{ t('docs.theme.pages.characters.title') }}
         </a>
       </div>
     </div>

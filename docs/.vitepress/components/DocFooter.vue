@@ -2,6 +2,7 @@
 import { Icon } from '@iconify/vue'
 import { useData } from 'vitepress'
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import DocFooterLastUpdated from './DocFooterLastUpdated.vue'
 
@@ -9,6 +10,7 @@ import { useEditLink } from '../composables/edit-link'
 import { usePrevNext } from '../composables/prev-next'
 
 const { theme, page, frontmatter } = useData()
+const { t } = useI18n()
 
 const editLink = useEditLink()
 const control = usePrevNext()
@@ -78,7 +80,7 @@ const showFooter = computed(
         >
           <span
             class="text-muted-foreground group-hover:text-foreground text-xs transition-all duration-200 ease-in-out"
-            v-html="theme.docFooter?.prev || 'Previous page'"
+            v-html="theme.docFooter?.prev || t('docs.theme.doc.previous-page.title')"
           />
           <p class="mt-2 inline-flex items-center gap-1">
             <Icon icon="lucide:arrow-left" />
@@ -97,7 +99,7 @@ const showFooter = computed(
         >
           <span
             class="text-muted-foreground group-hover:text-foreground text-xs transition-all duration-200 ease-in-out"
-            v-html="theme.docFooter?.next || 'Next page'"
+            v-html="theme.docFooter?.next || t('docs.theme.doc.next-page.title')"
           />
 
           <p class="mt-2 inline-flex items-center gap-1">

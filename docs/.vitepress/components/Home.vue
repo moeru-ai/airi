@@ -1,5 +1,9 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
+
 import homeCover from '../assets/home-cover-2025-07-15.png'
+
+const { t } = useI18n()
 </script>
 
 <template>
@@ -13,20 +17,20 @@ import homeCover from '../assets/home-cover-2025-07-15.png'
           </div>
         </div>
         <div class="relative max-w-prose text-center text-slate-900 dark:text-white">
-          A container of souls of AI waifu / virtual characters to bring them into our worlds.
+          {{ t('docs.theme.home.subtitle') }}
         </div>
         <div class="relative z-10 w-full flex justify-center gap-4">
           <a
             href="https://github.com/moeru-ai/airi/releases/latest"
             class="rounded-lg bg-primary/60 px-4 py-2 text-slate-100 font-extrabold outline-none backdrop-blur-md dark:bg-primary/30 dark:text-cyan-200 focus:outline-none"
           >
-            Download
+            {{ t('docs.theme.home.download.title') }}
           </a>
           <a
             href="./overview/"
             class="rounded-lg bg-white/60 px-4 py-2 text-slate-900 font-extrabold outline-none backdrop-blur-md dark:bg-white/20 dark:text-slate-100 focus:outline-none"
           >
-            Get Started
+            {{ t('docs.theme.home.get-started.title') }}
           </a>
         </div>
       </div>

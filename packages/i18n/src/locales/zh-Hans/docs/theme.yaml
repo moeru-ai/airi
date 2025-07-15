@@ -1,0 +1,29 @@
+home:
+  subtitle: 开源的 Neuro-sama 复刻，给予 AI 伴侣和虚拟角色在我们世界存活的灵魂容器
+  download:
+    title: 下载
+  get-started:
+    title: 教程
+doc:
+  outline:
+    title: 本页大纲
+  community:
+    discord:
+      title: Discord 服务器
+    edit:
+      title: 编辑此页面
+    star-github:
+      title: 给 GitHub 点个 Star
+    support:
+      title: 支持我们
+    title: 社群
+  next-page:
+    title: 下一页
+  previous-page:
+    title: 前一页
+search:
+  title: 搜索
+  placeholder: 搜索文档...
+navbar:
+  appearance:
+    title: 主题

@@ -12,6 +12,7 @@ import { computedAsync, debouncedWatch } from '@vueuse/core'
 import { DialogClose, ListboxContent, ListboxFilter, ListboxItem, ListboxRoot } from 'reka-ui'
 import { useData } from 'vitepress'
 import { markRaw, nextTick, onMounted, ref, shallowRef, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import { LRUCache } from '../functions/cache'
 
@@ -20,6 +21,7 @@ const emits = defineEmits<{
 }>()
 
 const { localeIndex } = useData()
+const { t } = useI18n()
 
 const filterText = ref('')
 const enableNoResults = ref(false)
@@ -141,7 +143,7 @@ function formMarkRegex(terms: Set<string>) {
       <ListboxFilter
         v-model="filterText"
         class="placeholder:text-muted-foreground h-12 w-full flex-1 bg-transparent text-sm outline-none md:h-14 focus:outline-none"
-        placeholder="Search documentation"
+        :placeholder="t('docs.theme.search.placeholder')"
         auto-focus
       />
       <DialogClose>

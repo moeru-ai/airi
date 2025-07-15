@@ -3,3 +3,8 @@ operations:
   load-models-status:
     loading: Loading
     ready: Ready
+docs:
+  theme:
+    navbar:
+      appearance:
+        title: Appearance

@@ -4,11 +4,13 @@ import { useMagicKeys, whenever } from '@vueuse/core'
 import { AnimatePresence, Motion } from 'motion-v'
 import { DialogContent, DialogDescription, DialogOverlay, DialogPortal, DialogRoot, DialogTitle, DialogTrigger } from 'reka-ui'
 import { defineAsyncComponent, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 const SearchCommandBox = defineAsyncComponent(() => import('./SearchCommandBox.vue'))
 
 const open = ref(false)
 const { meta_k } = useMagicKeys()
+const { t } = useI18n()
 
 whenever(meta_k, (n) => {
   if (n)
@@ -26,7 +28,7 @@ function handleClose() {
   <DialogRoot v-model:open="open">
     <DialogTrigger class="border-muted hover:bg-muted text-muted-foreground text-md md:bg-card flex items-center rounded-lg px-3 py-[7px] transition-colors duration-200 ease-in-out space-x-2 md:border md:text-sm">
       <Icon icon="lucide:search" />
-      <span class="w-24 text-left hidden lg:w-40 md:inline-flex">Search</span>
+      <span class="w-24 text-left hidden lg:w-40 md:inline-flex">{{ t('docs.theme.search.title') }}</span>
       <span class="text-xs hidden md:inline-flex">
         <kbd>⌘ K</kbd>
       </span>

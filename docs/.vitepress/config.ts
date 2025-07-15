@@ -1,10 +1,11 @@
 import type { DefaultTheme } from 'vitepress'
 
-import { posix } from 'node:path'
+import { join, posix, resolve } from 'node:path'
 import { env } from 'node:process'
 
 import anchor from 'markdown-it-anchor'
 import unocss from 'unocss/vite'
+import yaml from 'unplugin-yaml/vite'
 
 import { footnote } from '@mdit/plugin-footnote'
 import { tasklist } from '@mdit/plugin-tasklist'
@@ -65,55 +66,115 @@ export default defineConfig({
   base: env.BASE_URL || '/',
   lastUpdated: true,
   sitemap: { hostname: ogUrl },
-  themeConfig: {
-    // https://vitepress.dev/reference/default-theme-config
-    nav: [
-      { text: 'Docs', link: withBase('/overview/') },
-      { text: 'Blog', link: withBase('/blog/') },
-      {
-        text: `v${version}`,
-        items: [
-          { text: 'Release Notes ', link: releases },
-        ],
-      },
-    ],
-    outline: {
-      level: 'deep',
-    },
-    logo: '/favicon.svg',
-
-    sidebar: [
-      {
-        text: 'Overview',
-        icon: 'lucide:rocket',
-        items: [
-          { text: 'Introduction', link: withBase('/overview/') },
-          { text: 'About AI Vtuber', link: withBase('/overview/about-ai-vtuber') },
-          { text: 'About Neuro-sama', link: withBase('/overview/about-neuro-sama') },
-        ],
-      },
-      {
-        text: 'Guides',
-        icon: 'lucide:book-open',
-        items: [
-          { text: 'Contributing', link: withBase('/guides/contributing/') },
+  locales: {
+    'root': {
+      label: 'English',
+      lang: 'en',
+      themeConfig: {
+        // https://vitepress.dev/reference/default-theme-config
+        nav: [
+          { text: 'Docs', link: withBase('/en/overview/') },
+          { text: 'Blog', link: withBase('/en/blog/') },
           {
-            text: 'Design Guidelines',
-            link: withBase('/guides/design-guidelines/'),
+            text: `v${version}`,
             items: [
-              { text: 'Resources', link: withBase('/guides/contributing/design-guidelines/resources') },
-              { text: 'Tools', link: withBase('/guides/contributing/design-guidelines/tools') },
+              { text: 'Release Notes ', link: releases },
             ],
           },
         ],
-      },
-      {
-        text: 'Characters',
-        icon: 'lucide:scan-face',
-        link: withBase('/characters/'),
-      },
-    ] as (DefaultTheme.SidebarItem & { icon?: string })[],
+        outline: {
+          level: 'deep',
+        },
+        logo: '/favicon.svg',
 
+        sidebar: [
+          {
+            text: 'Overview',
+            icon: 'lucide:rocket',
+            items: [
+              { text: 'Introduction', link: withBase('/en/overview/') },
+              { text: 'About AI VTuber', link: withBase('/en/overview/about-ai-vtuber') },
+              { text: 'About Neuro-sama', link: withBase('/en/overview/about-neuro-sama') },
+            ],
+          },
+          {
+            text: 'Guides',
+            icon: 'lucide:book-open',
+            items: [
+              { text: 'Contributing', link: withBase('/en/guides/contributing/') },
+              {
+                text: 'Design Guidelines',
+                link: withBase('/en/guides/design-guidelines/'),
+                items: [
+                  { text: 'Resources', link: withBase('/en/guides/contributing/design-guidelines/resources') },
+                  { text: 'Tools', link: withBase('/en/guides/contributing/design-guidelines/tools') },
+                ],
+              },
+            ],
+          },
+          {
+            text: 'Characters',
+            icon: 'lucide:scan-face',
+            link: withBase('/en/characters/'),
+          },
+        ] as (DefaultTheme.SidebarItem & { icon?: string })[],
+      },
+    },
+    'zh-Hans': {
+      label: '简体中文',
+      lang: 'zh-Hans',
+      themeConfig: {
+        // https://vitepress.dev/reference/default-theme-config
+        nav: [
+          { text: '文档', link: withBase('/zh-Hans/overview/') },
+          { text: '博客 / 开发日志', link: withBase('/zh-Hans/blog/') },
+          {
+            text: `v${version}`,
+            items: [
+              { text: '发布说明 ', link: releases },
+            ],
+          },
+        ],
+        outline: {
+          level: 'deep',
+        },
+        logo: '/favicon.svg',
+
+        sidebar: [
+          {
+            text: '概览',
+            icon: 'lucide:rocket',
+            items: [
+              { text: '介绍', link: withBase('/zh-Hans/overview/') },
+              { text: '有关 AI VTuber', link: withBase('/zh-Hans/overview/about-ai-vtuber') },
+              { text: '有关 Neuro-sama', link: withBase('/zh-Hans/overview/about-neuro-sama') },
+            ],
+          },
+          {
+            text: '指南',
+            icon: 'lucide:book-open',
+            items: [
+              { text: '贡献指南', link: withBase('/zh-Hans/guides/contributing/') },
+              {
+                text: '设计指引',
+                link: withBase('/zh-Hans/guides/design-guidelines/'),
+                items: [
+                  { text: '参考资源', link: withBase('/zh-Hans/guides/contributing/design-guidelines/resources') },
+                  { text: '工具', link: withBase('/zh-Hans/guides/contributing/design-guidelines/tools') },
+                ],
+              },
+            ],
+          },
+          {
+            text: '角色',
+            icon: 'lucide:scan-face',
+            link: withBase('/zh-Hans/characters/'),
+          },
+        ] as (DefaultTheme.SidebarItem & { icon?: string })[],
+      },
+    },
+  },
+  themeConfig: {
     socialLinks: [
       { icon: 'discord', link: discord },
       { icon: 'github', link: github },
@@ -177,8 +238,14 @@ export default defineConfig({
     pageData.frontmatter.sidebar = pageData.frontmatter.layout !== 'showcase'
   },
   vite: {
+    resolve: {
+      alias: {
+        '@proj-airi/i18n': resolve(join(import.meta.dirname, '..', '..', 'packages', 'i18n', 'src')),
+      },
+    },
     plugins: [
       unocss(),
+      yaml(),
     ],
     css: {
       postcss: {

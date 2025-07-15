@@ -2,25 +2,26 @@
 import { useScroll } from '@vueuse/core'
 import { TooltipProvider } from 'reka-ui'
 import { useData } from 'vitepress'
-import { computed, toRefs } from 'vue'
+import { computed, toRefs, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 
-// import HomePageDemo from '../components/HomePageDemo.vue'
 import Home from '../components/Home.vue'
 import Navbar from '../components/Navbar.vue'
 import SearchTrigger from '../components/SearchTrigger.vue'
 import Docs from './Docs.vue'
 import Showcase from './Showcase.vue'
 
-const { site, theme, frontmatter } = useData<{
-  logo: string
-}>()
+const { site, theme, frontmatter, lang } = useData<{ logo: string }>()
+const { locale } = useI18n()
+const { arrivedState } = useScroll(globalThis.window)
+
+const { top } = toRefs(arrivedState)
 const logo = computed(() => theme.value.logo)
 const title = computed(() => site.value.title)
 const layout = computed(() => frontmatter.value.layout)
 const isHome = computed(() => layout.value === 'home')
 
-const { arrivedState } = useScroll(globalThis.window)
-const { top } = toRefs(arrivedState)
+watch(lang, () => locale.value = lang.value, { immediate: true })
 </script>
 
 <template>

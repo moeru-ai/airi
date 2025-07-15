@@ -1,5 +1,9 @@
 import type { Theme } from 'vitepress'
 
+import messages from '@proj-airi/i18n/locales'
+
+import { createI18n } from 'vue-i18n'
+
 import Layout from '../custom/Layout.vue'
 
 import '@unocss/reset/tailwind.css'
@@ -8,6 +12,14 @@ import './style.css'
 
 export default {
   Layout,
-  enhanceApp(_ctx) {
+  enhanceApp({ app }) {
+    const i18n = createI18n({
+      legacy: false,
+      locale: 'en',
+      fallbackLocale: 'en',
+      messages,
+    })
+
+    app.use(i18n)
   },
 } satisfies Theme

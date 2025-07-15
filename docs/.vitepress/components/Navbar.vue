@@ -3,12 +3,16 @@ import { Icon } from '@iconify/vue'
 import { DropdownMenuContent, DropdownMenuItem, DropdownMenuPortal, DropdownMenuRoot, DropdownMenuSub, DropdownMenuSubContent, DropdownMenuSubTrigger, DropdownMenuTrigger, Separator } from 'reka-ui'
 import { useData, useRoute } from 'vitepress'
 import { ref, toRefs, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 
-import DropdownMenu from '../components/DropdownMenu.vue'
-import ThemeToggle from '../components/ThemeToggle.vue'
+import DropdownMenu from './DropdownMenu.vue'
+import NavbarLanguage from './NavbarLanguage.vue'
+import NavbarLanguageSubMenu from './NavbarLanguageSubMenu.vue'
+import ThemeToggle from './ThemeToggle.vue'
 
 const { path } = toRefs(useRoute())
 const { theme } = useData()
+const { t } = useI18n()
 
 const isPopoverOpen = ref(false)
 
@@ -40,10 +44,13 @@ watch(path, () => {
     </template>
 
     <Separator
-      class="bg-muted mx-4 h-4 w-px"
+      class="bg-muted ml-2 mr-2 h-4 w-px"
       decorative
       orientation="vertical"
     />
+
+    <NavbarLanguage />
+
     <ThemeToggle />
 
     <Separator
@@ -68,10 +75,7 @@ watch(path, () => {
   <div class="lg:hidden">
     <DropdownMenuRoot v-model:open="isPopoverOpen">
       <DropdownMenuTrigger class="rounded-lg p-2">
-        <Icon
-          icon="lucide:ellipsis"
-          class="text-lg"
-        />
+        <Icon icon="lucide:ellipsis" class="text-lg" />
       </DropdownMenuTrigger>
 
       <DropdownMenuPortal>
@@ -79,7 +83,7 @@ watch(path, () => {
           side="bottom"
           :side-offset="5"
           align="end"
-          class="bg-card will-change-[transform,opacity] border-muted data-[state=open]:data-[side=bottom]:animate-slideUpAndFade z-10 w-[180px] border rounded-xl p-2 shadow-[0_10px_38px_-10px_hsla(206,22%,7%,.35),0_10px_20px_-15px_hsla(206,22%,7%,.2)] focus:shadow-[0_10px_38px_-10px_hsla(206,22%,7%,.35),0_10px_20px_-15px_hsla(206,22%,7%,.2),0_0_0_2px_green7]"
+          class="bg-card will-change-[transform,opacity] border-muted data-[state=open]:data-[side=bottom]:animate-slideUpAndFade z-10 w-[180px] border rounded-xl p-2 shadow-sm focus:shadow-lg"
         >
           <nav class="flex flex-col">
             <template
@@ -99,14 +103,13 @@ watch(path, () => {
               <DropdownMenuSub v-else-if="nav.items">
                 <DropdownMenuSubTrigger class="text-muted-foreground h-full w-full inline-flex items-center justify-between rounded p-2 text-sm font-semibold hover:bg-primary/10 hover:text-primary">
                   <span>{{ nav.text }}</span>
-                  <Icon
-                    icon="lucide:chevron-down"
-                    class="ml-1 text-lg"
-                  />
+                  <Icon icon="lucide:chevron-down" class="ml-1 text-lg" />
                 </DropdownMenuSubTrigger>
 
                 <DropdownMenuPortal>
-                  <DropdownMenuSubContent class="bg-card border-muted will-change-[transform,opacity] data-[state=open]:data-[side=bottom]:animate-slideUpAndFade z-10 w-[180px] border rounded-xl p-2 shadow-[0_10px_38px_-10px_hsla(206,22%,7%,.35),0_10px_20px_-15px_hsla(206,22%,7%,.2)] focus:shadow-[0_10px_38px_-10px_hsla(206,22%,7%,.35),0_10px_20px_-15px_hsla(206,22%,7%,.2),0_0_0_2px_green7]">
+                  <DropdownMenuSubContent
+                    class="border-muted will-change-[transform,opacity] data-[state=open]:data-[side=bottom]:animate-slideUpAndFade z-10 w-[180px] border rounded-xl bg-white/60 p-2 shadow-sm backdrop-blur-md transition-shadow duration-200 ease-in-out dark:bg-neutral-800/30 focus:shadow-lg"
+                  >
                     <DropdownMenuItem
                       v-for="item in nav.items"
                       :key="item.text"
@@ -119,11 +122,7 @@ watch(path, () => {
                         class="w-full flex items-center justify-between"
                       >
                         <span>{{ item.text }}</span>
-                        <Icon
-                          icon="lucide:arrow-up-right"
-                          class="ml-2 text-base"
-                        />
-
+                        <Icon icon="lucide:arrow-up-right" class="ml-2 text-base" />
                       </a>
                       <div v-else>
                         {{ item.text }}
@@ -144,12 +143,21 @@ watch(path, () => {
               <label
                 for="theme-toggle"
                 class="text-muted-foreground font-semibold"
-              >Appearance</label>
+              >{{ t('docs.theme.navbar.appearance.title') }}</label>
               <DropdownMenuItem
                 as-child
                 @select.prevent
               >
                 <ThemeToggle />
+              </DropdownMenuItem>
+            </div>
+
+            <div class="mt-2 flex items-center justify-between text-sm">
+              <DropdownMenuItem
+                as-child
+                @select.prevent
+              >
+                <NavbarLanguageSubMenu hide-icon />
               </DropdownMenuItem>
             </div>
 

@@ -911,6 +911,9 @@ importers:
       '@proj-airi/chromatic':
         specifier: ^0.0.7
         version: 0.0.7
+      '@proj-airi/i18n':
+        specifier: workspace:^
+        version: link:../packages/i18n
       '@vueuse/core':
         specifier: ^12.8.2
         version: 12.8.2(typescript@5.8.3)
@@ -923,6 +926,9 @@ importers:
       vue:
         specifier: ^3.5.13
         version: 3.5.17(typescript@5.8.3)
+      vue-i18n:
+        specifier: ^11.1.9
+        version: 11.1.9(vue@3.5.17(typescript@5.8.3))
       vue-sonner:
         specifier: ^1.3.2
         version: 1.3.2
@@ -984,6 +990,9 @@ importers:
       uncrypto:
         specifier: ^0.1.3
         version: 0.1.3
+      unplugin-yaml:
+        specifier: ^3.0.1
+        version: 3.0.1(@nuxt/kit@3.14.1592(magicast@0.3.5)(rollup@4.44.2))(@nuxt/schema@3.14.1592(magicast@0.3.5)(rollup@4.44.2))(astro@5.10.1(@types/node@24.0.13)(encoding@0.1.13)(jiti@2.4.2)(less@4.3.0)(lightningcss@1.30.1)(rollup@4.44.2)(terser@5.43.1)(tsx@4.20.3)(typescript@5.8.3)(yaml@2.8.0))(esbuild@0.25.5)(rolldown@1.0.0-beta.20)(rollup@4.44.2)(vite@7.0.4(@types/node@24.0.13)(jiti@2.4.2)(less@4.3.0)(lightningcss@1.30.1)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0))
       vitepress:
         specifier: ^2.0.0-alpha.8
         version: 2.0.0-alpha.8(@algolia/client-search@5.32.0)(@types/node@24.0.13)(change-case@5.4.4)(fuse.js@7.1.0)(jiti@2.4.2)(less@4.3.0)(lightningcss@1.30.1)(nprogress@0.2.0)(postcss@8.5.6)(react@18.3.1)(search-insights@2.17.3)(terser@5.43.1)(tsx@4.20.3)(typescript@5.8.3)(yaml@2.8.0)
@@ -14633,7 +14642,7 @@ snapshots:
   '@intlify/bundle-utils@10.0.1(vue-i18n@11.1.9(vue@3.5.17(typescript@5.8.3)))':
     dependencies:
       '@intlify/message-compiler': 11.1.7
-      '@intlify/shared': 11.1.7
+      '@intlify/shared': 11.1.9
       acorn: 8.15.0
       escodegen: 2.1.0
       estree-walker: 2.0.2

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onContentUpdated, useData } from 'vitepress'
 import { ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import DocOutlineItem from '../components/DocOutlineItem.vue'
 
@@ -11,6 +12,7 @@ defineProps<{
 }>()
 
 const { page, frontmatter, theme } = useData()
+const { t } = useI18n()
 
 onContentUpdated(() => {
   getHeaders(frontmatter.value.outline ?? theme.value.outline)
@@ -39,7 +41,7 @@ useActiveAnchor(container, marker)
       class="trunc mb-2 text-sm font-bold"
       role="heading"
     >
-      On this page
+      {{ t('docs.theme.doc.outline.title') }}
     </div>
 
     <div class="border-muted border-l font-sans">
