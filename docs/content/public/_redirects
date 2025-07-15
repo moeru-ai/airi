@@ -1,4 +1,4 @@
 # i18n
-/*  /docs/en/:splat       301
-/*  /docs/zh-Hans/:splat  301  Language=zh-CN
-/*  /docs/zh-Hans/:splat  301  Language=zh-Hans
+/*  /en/:splat       301
+/*  /zh-Hans/:splat  301  Language=zh-CN
+/*  /zh-Hans/:splat  301  Language=zh-Hans
