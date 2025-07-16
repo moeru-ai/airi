@@ -1,6 +1,7 @@
 ---
 title: 'DreamLog 0x1'
 description: 'Project AIRI 的幕后故事！'
+date: '2025-06-16'
 ---
 
 <script setup>

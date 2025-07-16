@@ -10,6 +10,8 @@ import { useI18n } from 'vue-i18n'
 interface Post {
   title: string
   url: string
+  urlWithoutLang: string
+  lang: string
   date: {
     time: number
     string: string
@@ -26,7 +28,7 @@ const props = defineProps<{
 }>()
 
 const { t } = useI18n()
-const { isDark } = useData()
+const { isDark, lang } = useData()
 const category = ref('all')
 const categories = computed(() => {
   const allCategories = props.data.map(post => post.frontmatter?.category).filter(Boolean).map(post => post?.toLowerCase())
@@ -40,9 +42,20 @@ const posts = computed(() => {
     postsData = props.data.filter(post => post.frontmatter?.category?.toLowerCase() === category.value)
   }
 
-  return postsData
+  const transformedPostsData = postsData
     .map(post => ({ ...post, url: withBase(post.url) }))
     .filter(post => !!post.title)
+
+  const currentLanguagePostsData = [...transformedPostsData].filter(post => post.lang === lang.value)
+  const fallbackLanguagePostsData = [...transformedPostsData].filter(post => post.lang === 'en')
+
+  const setCurrentLanguagePostsData = new Set(currentLanguagePostsData.map(post => post.urlWithoutLang))
+  const diffFallbackLanguagePostsData = fallbackLanguagePostsData.filter(post => !setCurrentLanguagePostsData.has(post.urlWithoutLang))
+
+  return [
+    ...currentLanguagePostsData,
+    ...diffFallbackLanguagePostsData,
+  ]
 })
 
 async function stringToSeed(str: string) {
