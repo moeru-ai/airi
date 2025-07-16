@@ -106,7 +106,6 @@ export default defineConfig({
               { text: 'Contributing', link: withBase('/en/docs/guides/contributing/') },
               {
                 text: 'Design Guidelines',
-                link: withBase('/en/docs/guides/design-guidelines/'),
                 items: [
                   { text: 'Resources', link: withBase('/en/docs/guides/contributing/design-guidelines/resources') },
                   { text: 'Tools', link: withBase('/en/docs/guides/contributing/design-guidelines/tools') },
@@ -168,7 +167,6 @@ export default defineConfig({
               { text: '贡献指南', link: withBase('/zh-Hans/docs/guides/contributing/') },
               {
                 text: '设计指引',
-                link: withBase('/zh-Hans/docs/guides/design-guidelines/'),
                 items: [
                   { text: '参考资源', link: withBase('/zh-Hans/docs/guides/contributing/design-guidelines/resources') },
                   { text: '工具', link: withBase('/zh-Hans/docs/guides/contributing/design-guidelines/tools') },
