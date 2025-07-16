@@ -1,39 +1,27 @@
 .Trash/
 .trash/
 .DS_Store
-**/.obsidian/
-.postgres
+
+# Node.js
+node_modules
+
+# Logs
+*.log
+*.logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
 
 .idea
-.nuxt
 .temp
-.vite-inspect
-*.local
-*.log
-components.d.ts
-**/typed-router.d.ts
-dist
-out/
-node_modules
-.eslintcache
-**/.cache/**
-**/.vitepress/docsMetadata.json
-**/.vitepress/cache/
-**/tsconfig.tsbuildinfo
-
-**/.netlify/*
-**/.netlify/functions-serve/*
-
-coverage/
 **/temp/
 
-**/public/assets/js/*
-**/public/assets/live2d/models/*
-**/public/assets/vrm/models/*
+# Anything .local, especially for .env.local
+*.local
 
-# Serving fonts locally
-**/public/assets/fonts/
-
+# Audio binaries
 *.pcm
 *.wav
 *.ogg
@@ -47,7 +35,41 @@ cert*/
 *.key
 *.p12
 
-twitter-session.json
+# Test coverage
+coverage/
+
+# Build
+out/
+# WXT specified this too
+*.output
+
+# Vite
+dist
+# Nuxt
+.nuxt
+# vite-plugin-inspect
+.vite-inspect
+
+# auto import & auto fs based router
+components.d.ts
+**/typed-router.d.ts
+
+# Cache
+.eslintcache
+**/.cache/**
+**/.vitepress/cache/
+**/tsconfig.tsbuildinfo
+
+# Netlify
+**/.netlify/*
+**/.netlify/functions-serve/*
+
+**/public/assets/js/*
+**/public/assets/live2d/models/*
+**/public/assets/vrm/models/*
+
+# Serving fonts locally
+**/public/assets/fonts/
 
 # Make it easy for devenv users to override their local environment.
 # See: https://github.com/moeru-ai/airi/pull/110#discussion_r2024378953
@@ -57,8 +79,19 @@ twitter-session.json
 .devenv*
 devenv.*
 
+# Rust
 target/
 crates/*/target/
 
 # turborepo
 .turbo
+
+# WXT
+.wxt
+stats.html
+stats-*.json
+web-ext.config.ts
+
+# Data
+.postgres
+twitter-session.json

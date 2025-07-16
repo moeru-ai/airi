@@ -58,8 +58,6 @@
   "typescript.tsdk": "node_modules/typescript/lib",
   "typescript.preferences.includePackageJsonAutoImports": "off",
   "typescript.suggest.autoImports": false,
-  "vue.server.hybridMode": true,
-  "vue.server.maxFileSize": 20971520,
   "cSpell.words": [
     "appimage",
     "localforage"
@@ -68,5 +66,6 @@
     "editor.defaultFormatter": "rust-lang.rust-analyzer",
     "editor.formatOnSave": true
   },
-  "rust-analyzer.checkOnSave": true
+  "rust-analyzer.checkOnSave": true,
+  "vitest.disableWorkspaceWarning": true
 }
