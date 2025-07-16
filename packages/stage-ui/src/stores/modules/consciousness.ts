@@ -52,10 +52,17 @@ export const useConsciousnessStore = defineStore('consciousness', () => {
   }
 
   async function loadModelsForProvider(provider: string) {
-    if (provider && providersStore.getProviderMetadata(activeProvider.value)?.capabilities.listModels !== undefined
-      && providersStore.getModelsForProvider(provider).length === 0) {
+    if (provider && providersStore.getProviderMetadata(provider)?.capabilities.listModels !== undefined) {
       await providersStore.fetchModelsForProvider(provider)
     }
+  }
+
+  async function getModelsForProvider(provider: string) {
+    if (provider && providersStore.getProviderMetadata(provider)?.capabilities.listModels !== undefined) {
+      return providersStore.getModelsForProvider(provider)
+    }
+
+    return []
   }
 
   let player2Interval: ReturnType<typeof setInterval> | undefined
@@ -103,5 +110,6 @@ export const useConsciousnessStore = defineStore('consciousness', () => {
     // Actions
     resetModelSelection,
     loadModelsForProvider,
+    getModelsForProvider,
   }
 })
