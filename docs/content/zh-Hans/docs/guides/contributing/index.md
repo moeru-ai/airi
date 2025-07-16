@@ -1,11 +1,11 @@
 ---
-title: Contributing
-description: Contributing to Project AIRI
+title: 参与项目指南
+description: 参与并贡献 Project AIRI
 ---
 
-Hello! Thank you for your interest in contributing to this project. This guide will help you get started.
+你好呀！感谢你有兴趣参与这个项目。本指南将帮助你快速上手
 
-## Prerequisites
+## 前置准备
 
 - [Git](https://git-scm.com/downloads)
 - [Node.js 23+](https://nodejs.org/en/download/)
@@ -13,34 +13,34 @@ Hello! Thank you for your interest in contributing to this project. This guide w
 - [pnpm](https://pnpm.io/installation)
 
 <details>
-<summary>Windows setup</summary>
+<summary>Windows 平台相关设置</summary>
 
-0. Download [Visual Studio](https://visualstudio.microsoft.com/downloads/), and follow the instructions here: https://rust-lang.github.io/rustup/installation/windows-msvc.html#walkthrough-installing-visual-studio-2022
+0. 下载 [Visual Studio](https://visualstudio.microsoft.com/downloads/), and follow the instructions here: https://rust-lang.github.io/rustup/installation/windows-msvc.html#walkthrough-installing-visual-studio-2022
 
-   > Make sure to install Windows SDK and C++ build tools when installing Visual Studio.
+   > 安装时请确保勾选了 Windows SDK 和 C++ build tools
 
-1. Open PowerShell
-2. Install [`scoop`](https://scoop.sh/)
+1. 打开 PowerShell
+2. 安装 [`scoop`](https://scoop.sh/)
 
    ```powershell
    Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
    Invoke-RestMethod -Uri https://get.scoop.sh | Invoke-Expression
    ```
 
-3. Install `git`, Node.js, `rustup`, `msvc` through `scoop`
+3. 通过 `scoop` 安装 `git`, Node.js, `rustup` 和 `msvc`
 
    ```powershell
    scoop install git nodejs rustup
 
-   # For Rust dependencies
-   # Not required if you are not going to develop on either crates or apps/tamagotchi
+   # Rust 相关依赖
+   # 如果你不打算涉及 crates 或者 apps/tamagotchi 的开发，该步骤可跳过
    scoop install main/rust-msvc
-   # Rust & Windows specific
+   # Windows平台所需内容
    rustup toolchain install stable-x86_64-pc-windows-msvc
    rustup default stable-x86_64-pc-windows-msvc
    ```
 
-4. Install `pnpm` through `corepack`
+4. 通过 `corepack` 安装 `pnpm`
 
    ```powershell
    corepack enable
@@ -52,14 +52,14 @@ Hello! Thank you for your interest in contributing to this project. This guide w
 <details>
 <summary>macOS setup</summary>
 
-0. Open Terminal, (or iTerm2, Ghostty, Kitty, etc.)
-1. Install `git`, `node` through `brew`
+0. 打开 Terminal, (或者 iTerm2, Ghostty, Kitty, etc.)
+1. 通过 `brew` 安装 `git`, `node`
 
    ```shell
    brew install git node
    ```
 
-2. Install `pnpm` through `corepack`
+2. 通过 `corepack` 安装 `pnpm`
 
    ```shell
    corepack enable
@@ -71,16 +71,16 @@ Hello! Thank you for your interest in contributing to this project. This guide w
 <details>
 <summary>Linux setup</summary>
 
-0. Open Terminal
-1. Follow [nodesource/distributions: NodeSource Node.js Binary Distributions](https://github.com/nodesource/distributions?tab=readme-ov-file#table-of-contents) to install `node`
-2. Follow [Git](https://git-scm.com/downloads/linux) to install `git`
-3. Install `pnpm` through `corepack`
+0. 打开 Terminal
+1. 请按照该说明的内容 [nodesource/distributions: NodeSource Node.js Binary Distributions](https://github.com/nodesource/distributions?tab=readme-ov-file#table-of-contents) 安装 `node`
+2. 请参考该页面 [Git](https://git-scm.com/downloads/linux) 安装 `git`
+3. 通过 `corepack` 安装 `pnpm`
 
    ```shell
    corepack enable
    corepack prepare pnpm@latest --activate
    ```
-4. If you would love to help to develop the desktop version, you will need those dependencies:
+4. 如果你想进行桌面端的开发，你还需要下载如下依赖：
    ```
    sudo apt install \
       libssl-dev \
@@ -92,15 +92,15 @@ Hello! Thank you for your interest in contributing to this project. This guide w
 
 </details>
 
-## If you have already contributed to this project before
+## 如果你之前已经参与并贡献过本项目
 
-::: warning
+::: 注意
 
-If you haven't clone this repository, skip this section.
+如果你并未克隆过该项目仓库，本步骤可跳过
 
 :::
 
-Make sure your local repository is up to date with the upstream repository:
+请确保你的本地仓库与主仓库保持最新同步：
 
 ```shell
 git fetch -all
@@ -108,61 +108,61 @@ git checkout main
 git pull upstream main --rebase
 ```
 
-If you have a working branch, to make your branch up to date with the upstream repository:
+如果你有自己的开发/工作分支，请按照如下方式同步至主分支：
 
 ```shell
 git checkout <your-branch-name>
 git rebase main
 ```
 
-## Fork this project
+## Fork 本项目
 
-Click on the **Fork** button on the top right corner of the [moeru-ai/airi](https://github.com/moeru-ai/airi) page.
+请点击 [moeru-ai/airi](https://github.com/moeru-ai/airi) 页面右上角的 **Fork** 按钮来fork本项目。
 
-## Clone
+## 克隆本项目
 
 ```shell
 git clone https://github.com/<your-github-username>/airi.git
 cd airi
 ```
 
-## Create your working branch
+## 创建你自己的工作分支
 
 ```shell
 git checkout -b <your-branch-name>
 ```
 
-## Install dependencies
+## 安装依赖项
 
 ```shell
 corepack enable
 pnpm install
 
-# For Rust dependencies
-# Not required if you are not going to develop on either crates or apps/tamagotchi
+# Rust相关依赖
+# 如果你不打算涉及 crates 或者 apps/tamagotchi 的开发，该步骤可跳过
 cargo fetch
 ```
 
 ::: tip
 
-We would recommend to install [@antfu/ni](https://github.com/antfu-collective/ni) to make your script simpler.
+推荐安装 [@antfu/ni](https://github.com/antfu-collective/ni) 来简化脚本命令
 
 ```shell
 corepack enable
 npm i -g @antfu/ni
 ```
 
-Once installed, you can
+安装后，你可以：
 
-- use `ni` for `pnpm install`, `npm install` and `yarn install`.
-- use `nr` for `pnpm run`, `npm run` and `yarn run`.
+- 用 `ni` 来替代 `pnpm install`, `npm install` 和 `yarn install` 命令。
+- 用 `nr` 来替代 `pnpm run`, `npm run` 和 `yarn run`命令
 
-You don't need to care about the package manager, `ni` will help you choose the right one.
+你无需费心使用何种包管理器，`ni` 会自动适配。
 :::
 
-## Choose the application you want to develop on
+## 选择你要开发的应用
 
-### Stage Tamagotchi (Desktop version)
+### Stage Tamagotchi (桌面端)
 
 ```shell
 pnpm dev:tamagotchi
@@ -170,7 +170,7 @@ pnpm dev:tamagotchi
 
 ::: tip
 
-For [@antfu/ni](https://github.com/antfu-collective/ni) users, you can
+如果你使用 [@antfu/ni](https://github.com/antfu-collective/ni)，你可以：
 
 ```shell
 nr dev:tamagotchi
@@ -178,7 +178,7 @@ nr dev:tamagotchi
 
 :::
 
-### Stage Web (Browser version for [airi.moeru.ai](https://airi.moeru.ai))
+### 网页端 ([airi.moeru.ai](https://airi.moeru.ai))
 
 ```shell
 pnpm dev
@@ -186,7 +186,7 @@ pnpm dev
 
 ::: tip
 
-For [@antfu/ni](https://github.com/antfu-collective/ni) users, you can
+如果你使用 [@antfu/ni](https://github.com/antfu-collective/ni)，你可以：
 
 ```shell
 nr dev
@@ -194,7 +194,7 @@ nr dev
 
 :::
 
-### Documentation site
+### 文档站点
 
 ```shell
 pnpm dev:docs
@@ -202,7 +202,7 @@ pnpm dev:docs
 
 ::: tip
 
-For [@antfu/ni](https://github.com/antfu-collective/ni) users, you can
+如果你使用 [@antfu/ni](https://github.com/antfu-collective/ni)，你可以：
 
 ```shell
 nr dev:docs
@@ -210,31 +210,31 @@ nr dev:docs
 
 :::
 
-### Telegram bot integration
+### Telegram 机器人
 
-A Postgres database is required.
+需要使用Postgres数据库。
 
 ```shell
 cd services/telegram-bot
 docker compose up -d
 ```
 
-Configure `.env`
+配置 `.env` 文件：
 
 ```shell
 cp .env .env.local
 ```
 
-Edit the credentials in `.env.local`.
+编辑 `.env.local` 中的 credentials。
 
-Migrate the database
+执行数据库迁移：
 
 ```shell
 pnpm -F @proj-airi/telegram-bot db:generate
 pnpm -F @proj-airi/telegram-bot db:push
 ```
 
-Run the bot
+启动机器人：
 
 ```shell
 pnpm -F @proj-airi/telegram-bot start
@@ -242,7 +242,7 @@ pnpm -F @proj-airi/telegram-bot start
 
 ::: tip
 
-For [@antfu/ni](https://github.com/antfu-collective/ni) users, you can
+如果你使用 [@antfu/ni](https://github.com/antfu-collective/ni)，你可以：
 
 ```shell
 nr -F @proj-airi/telegram-bot dev
@@ -250,21 +250,21 @@ nr -F @proj-airi/telegram-bot dev
 
 :::
 
-### Discord bot integration
+### Discord 机器人
 
 ```shell
 cd services/discord-bot
 ```
 
-Configure `.env`
+配置 `.env` 文件：
 
 ```shell
 cp .env .env.local
 ```
 
-Edit the credentials in `.env.local`.
+编辑 `.env.local` 中的 credentials。
 
-Run the bot
+启动机器人：
 
 ```shell
 pnpm -F @proj-airi/discord-bot start
@@ -272,7 +272,7 @@ pnpm -F @proj-airi/discord-bot start
 
 ::: tip
 
-For [@antfu/ni](https://github.com/antfu-collective/ni) users, you can
+如果你使用 [@antfu/ni](https://github.com/antfu-collective/ni)，你可以：
 
 ```shell
 nr -F @proj-airi/discord-bot dev
@@ -280,23 +280,23 @@ nr -F @proj-airi/discord-bot dev
 
 :::
 
-### Minecraft agent
+### 我的世界 Agent
 
 ```shell
 cd services/minecraft
 ```
 
-Start a Minecraft client, export your world with desired port, and fill-in the port number in `.env.local`.
+启动Minecraft客户端并导出世界到指定的端口。请在 `.env.local` 中配置端口。
 
-Configure `.env`
+配置 `.env` 文件：
 
 ```shell
 cp .env .env.local
 ```
 
-Edit the credentials in `.env.local`.
+编辑 `.env.local` 中的 credentials。
 
-Run the bot
+启动机器人：
 
 ```shell
 pnpm -F @proj-airi/minecraft-bot start
@@ -304,7 +304,7 @@ pnpm -F @proj-airi/minecraft-bot start
 
 ::: tip
 
-For [@antfu/ni](https://github.com/antfu-collective/ni) users, you can
+如果你使用 [@antfu/ni](https://github.com/antfu-collective/ni)，你可以：
 
 ```shell
 nr -F @proj-airi/minecraft-bot dev
@@ -312,13 +312,13 @@ nr -F @proj-airi/minecraft-bot dev
 
 :::
 
-## Commit
+## 提交代码（Commit）
 
-### Before commit
+### 提交前请检查
 
-::: warning
+::: 注意
 
-Please make sure lint (static checkers) and TypeScript compilers are satisfied:
+提交前请确保代码已通过Lint（静态分析器）和TypeScript检查：
 
 ```shell
 pnpm lint && pnpm typecheck
@@ -328,7 +328,7 @@ pnpm lint && pnpm typecheck
 
 ::: tip
 
-If you have [@antfu/ni](https://github.com/antfu-collective/ni) installed, you can use `nr` to run the commands:
+如果你安装了 [@antfu/ni](https://github.com/antfu-collective/ni)，你可以通过 `nr` 来运行命令：
 
 ```shell
 nr lint && nr typecheck
@@ -336,24 +336,24 @@ nr lint && nr typecheck
 
 :::
 
-### Commit
+### 提交你的代码
 
 ```shell
 git add .
 git commit -m "<your-commit-message>"
 ```
 
-### Push to your fork repository
+### 将你的代码推送（push）至你的fork仓库
 
 ```shell
 git push origin <your-branch-name> -u
 ```
 
-You should be able to browse the branch on your fork repository.
+现在，你应该可以在 GitHub 上看到你的分支。
 
 ::: tip
 
-If this is your first time contributing with this project, you need to add the upstream repository too:
+如果这是你第一次贡献本项目，请添加upstream源：
 
 ```shell
 git remote add upstream https://github.com/moeru-ai/airi.git
@@ -361,12 +361,17 @@ git remote add upstream https://github.com/moeru-ai/airi.git
 
 :::
 
-## Creating Pull Request
+## 创建拉取请求（Pull Request）
 
-Navigate to [moeru-ai/airi](https://github.com/moeru-ai/airi) page, click on the **Pull requests** tab, and click on the **New pull request** button, click on the **Compare across forks** link, and select your fork repository.
+请前往 [moeru-ai/airi](https://github.com/moeru-ai/airi) 页面：
 
-Review the changes, and click on the **Create pull request** button.
+* 点击 **Pull requests** 按钮；
+* 再点击 **New pull request** 按钮；
+* 选择 **Compare across forks** 链接；
+* 然后选择你自己fork的代码仓库。
 
-## Whooo-ya! You made it!
+请检查并确认你的改动，最后点击 **Create pull request** 按钮完成拉取请求创建。
 
-Congratulations! You made your first contribution to this project. You can now wait for the maintainers to review your pull request.
+## 好欸！搞定了~
+
+恭喜你成功地为本项目提交了首次贡献！现在可以等待项目的维护人员来审核你的拉取请求啦~
