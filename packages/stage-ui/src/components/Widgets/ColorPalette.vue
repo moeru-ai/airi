@@ -20,7 +20,7 @@ const settings = useSettings()
       <TooltipRoot>
         <TooltipTrigger
           transition="all ease-in-out duration-250"
-          size-6 cursor-pointer rounded-full bg-primary-500
+          size-8 cursor-pointer rounded-full bg-primary-500
           :style="hex ? { background: hex } : { '--chromatic-hue': DEFAULT_THEME_COLORS_HUE }"
           :class="settings.isColorSelectedForPrimary(hex) ? 'scale-150 mx-1' : 'hover:scale-110'"
           @click="settings.applyPrimaryColorFrom(hex)"

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 
-import Collapsable from '../Misc/Collapsable.vue'
+import Collapsable from '../../Misc/Collapsable.vue'
 
 const props = defineProps<{
   title?: string

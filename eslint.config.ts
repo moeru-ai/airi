@@ -15,6 +15,7 @@ export default await antfu(
       '**/.astro/**',
     ],
     rules: {
+      'vue/prefer-separate-static-class': 'off',
       'yaml/plain-scalar': 'off',
       'import/order': 'off',
       'antfu/import-dedupe': 'error',

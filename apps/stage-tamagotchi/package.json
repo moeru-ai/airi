@@ -50,6 +50,7 @@
     "@xsai/shared-chat": "catalog:",
     "@xsai/stream-text": "catalog:",
     "@xsai/utils-chat": "catalog:",
+    "colorjs.io": "^0.5.2",
     "culori": "^4.0.2",
     "drizzle-kit": "^0.31.4",
     "drizzle-orm": "^0.44.2",

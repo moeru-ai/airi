@@ -10,14 +10,14 @@ import { useRouter } from 'vue-router'
 
 import ProviderSettingsLayout2 from './ProviderSettingsLayout2.vue'
 
-import { useProvidersStore, useSpeechStore } from '../../stores'
 import {
   ProviderAdvancedSettings,
   ProviderApiKeyInput,
   ProviderBaseUrlInput,
   ProviderBasicSettings,
   ProviderSettingsContainer,
-} from '../index'
+} from '.'
+import { useProvidersStore, useSpeechStore } from '../../../stores'
 
 const props = defineProps<{
   providerId: string

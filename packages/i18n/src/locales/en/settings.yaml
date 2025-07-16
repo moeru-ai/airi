@@ -55,6 +55,10 @@ live2d:
     scale: Scale
     x: X
     'y': 'Y'
+  theme-color-from-model:
+    title: Extract colors from model
+    button-extract:
+      title: Extract
 microphone: Microphone
 models: Model
 pages:
