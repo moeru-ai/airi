@@ -15,12 +15,13 @@ withDefaults(defineProps<{
   <Collapsable :default="expand">
     <template #trigger="slotProps">
       <button
-        class="w-full flex items-center justify-between rounded-lg px-4 py-3 outline-none transition-all duration-250 ease-in-out"
+        class="w-full flex items-center justify-between rounded-lg px-3 py-2 outline-none transition-all duration-250 ease-in-out sm:px-4 sm:py-3"
+        text="neutral-600 dark:neutral-400 sm sm:base"
         bg="neutral-100 dark:neutral-800"
         hover="bg-neutral-200 dark:bg-neutral-700"
         @click="slotProps.setVisible(!slotProps.visible)"
       >
-        <div flex gap-1.5>
+        <div flex items-center gap-1.5>
           <div :class="icon" size-6 />
           {{ title }}
         </div>
