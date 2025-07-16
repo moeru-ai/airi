@@ -39,23 +39,23 @@ const colorValue = defineModel<string>('colorValue', {
   );
 
   &::-webkit-slider-thumb {
-    --at-apply: w-1 h-12 appearance-none rounded-md bg-neutral-600 cursor-pointer shadow-lg border-2 border-neutral-500
-      hover: bg-neutral-800 transition-colors duration-200;
+    --at-apply: w-1 h-12 hover:w-2 hover:h-13 appearance-none rounded-md bg-neutral-600 cursor-pointer shadow-lg border-2 border-neutral-500
+      hover: bg-neutral-800 transition-colors,transform,width,height duration-200 cursor-col-resize;
   }
 
   .dark &::-webkit-slider-thumb {
-    --at-apply: w-1 h-12 appearance-none rounded-md bg-neutral-100 cursor-pointer shadow-md border-2 border-white
-      hover: bg-neutral-300 transition-colors duration-200;
+    --at-apply: w-1 h-12 hover:w-2 hover:h-13 appearance-none rounded-md bg-neutral-100 cursor-pointer shadow-md border-2 border-white
+      hover: bg-neutral-300 transition-colors,transform,width,height duration-200 cursor-col-resize;
   }
 
   &::-moz-range-thumb {
-    --at-apply: w-1 h-12 appearance-none rounded-md bg-neutral-600 cursor-pointer shadow-lg border-2 border-neutral-500
-      hover: bg-neutral-800 transition-colors duration-200;
+    --at-apply: w-1 h-12 hover:w-2 hover:h-13 appearance-none rounded-md bg-neutral-600 cursor-pointer shadow-lg border-2 border-neutral-500
+      hover: bg-neutral-800 transition-colors,transform,width,height duration-200 cursor-col-resize;
   }
 
   .dark &::-moz-range-thumb {
-    --at-apply: w-1 h-12 appearance-none rounded-md bg-neutral-100 cursor-pointer shadow-md border-2 border-white
-      hover: bg-neutral-300 transition-colors duration-200;
+    --at-apply: w-1 h-12 hover:w-2 hover:h-13 appearance-none rounded-md bg-neutral-100 cursor-pointer shadow-md border-2 border-white
+      hover: bg-neutral-300 transition-colors,transform,width,height duration-200 cursor-col-resize;
   }
 }
 </style>

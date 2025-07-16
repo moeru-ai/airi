@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 
 const props = withDefaults(defineProps<{
   min?: number
@@ -19,7 +19,7 @@ const props = withDefaults(defineProps<{
   trackValueColor: 'red',
 })
 
-const modelValue = defineModel<number>('modelValue', { required: true })
+const modelValue = defineModel<number>({ required: true })
 
 const scaledMin = computed(() => props.min * 10000)
 const scaledMax = computed(() => props.max * 10000)
@@ -34,15 +34,16 @@ const sliderValue = computed({
   },
 })
 
-onMounted(() => {
-  updateTrackColor()
-})
+onMounted(() => updateTrackColor())
+watch(sliderValue, () => updateTrackColor(), { immediate: true })
+watch([scaledMin, scaledMax, scaledStep], () => updateTrackColor(), { immediate: true })
 
 function updateTrackColor() {
-  if (!sliderRef.value)
+  if (!sliderRef.value) {
     return
+  }
 
-  sliderRef.value.style.setProperty('--value', sliderRef.value.value)
+  sliderRef.value.style.setProperty('--value', sliderValue.value.toString())
   sliderRef.value.style.setProperty('--min', !sliderRef.value.min ? props.min.toString() : sliderRef.value.min)
   sliderRef.value.style.setProperty('--max', !sliderRef.value.max ? props.max.toString() : sliderRef.value.max)
 }
@@ -91,9 +92,9 @@ https://toughengineer.github.io/demo/slider-styler*/
   --track-box-shadow: none;
   --track-border: solid 2px rgb(238, 238, 238);
   --track-border-radius: 6px;
-  --track-background: rgb(238, 238, 238);
-  --track-background-hover: rgb(238, 238, 238);
-  --track-background-active: rgb(238, 238, 238);
+  --track-background: rgba(238, 238, 238, 0.6);
+  --track-background-hover: rgba(238, 238, 238, 0.6);
+  --track-background-active: rgba(238, 238, 238, 0.6);
 
   --track-value-background: rgb(255, 255, 255);
   --track-value-background-hover: rgb(255, 255, 255);
@@ -107,9 +108,9 @@ https://toughengineer.github.io/demo/slider-styler*/
   --thumb-background-active: oklch(80% var(--chromatic-chroma-200) calc(var(--chromatic-hue) + 0));
 
   --track-border: solid 2px rgb(44, 44, 44);
-  --track-background: rgb(44, 44, 44);
-  --track-background-hover: rgb(44, 44, 44);
-  --track-background-active: rgb(44, 44, 44);
+  --track-background: rgba(44, 44, 44, 0.7);
+  --track-background-hover: rgba(44, 44, 44, 0.7);
+  --track-background-active: rgba(44, 44, 44, 0.7);
 
   --track-value-background: rgb(164, 164, 164);
   --track-value-background-hover: rgb(164, 164, 164);
@@ -143,7 +144,8 @@ https://toughengineer.github.io/demo/slider-styler*/
     background 0.2s ease-in-out,
     box-shadow 0.2s ease-in-out,
     border-color 0.2s ease-in-out,
-    transform 0.2s ease-in-out;
+    transform 0.2s cubic-bezier(0.165, 0.84, 0.44, 1),
+    width 0.2s cubic-bezier(0.165, 0.84, 0.44, 1);
 }
 
 .form_input-range::-webkit-slider-runnable-track {
@@ -161,6 +163,9 @@ https://toughengineer.github.io/demo/slider-styler*/
 
 .form_input-range::-webkit-slider-thumb:hover {
   background: var(--thumb-background-hover);
+
+  width: calc(var(--thumb-width) * 1.6);
+  transform: scaleY(1.2);
 }
 
 .form_input-range:hover::-webkit-slider-runnable-track {
@@ -207,6 +212,12 @@ https://toughengineer.github.io/demo/slider-styler*/
   box-shadow: var(--thumb-box-shadow);
   cursor: col-resize;
   margin-left: calc(0 - var(--track-value-padding));
+  transition:
+    background 0.2s ease-in-out,
+    box-shadow 0.2s ease-in-out,
+    border-color 0.2s ease-in-out,
+    transform 0.2s cubic-bezier(0.165, 0.84, 0.44, 1),
+    width 0.2s cubic-bezier(0.165, 0.84, 0.44, 1);
 }
 
 .form_input-range::-moz-range-track {
@@ -222,6 +233,9 @@ https://toughengineer.github.io/demo/slider-styler*/
 
 .form_input-range::-moz-range-thumb:hover {
   background: var(--thumb-background-hover);
+
+  width: calc(var(--thumb-width) * 1.6);
+  transform: scaleY(1.2);
 }
 
 .form_input-range:hover::-moz-range-track {
@@ -280,6 +294,13 @@ https://toughengineer.github.io/demo/slider-styler*/
   margin-left: calc(0 - var(--track-value-padding));
   box-sizing: border-box;
   cursor: col-resize;
+
+  transition:
+    background 0.2s ease-in-out,
+    box-shadow 0.2s ease-in-out,
+    border-color 0.2s ease-in-out,
+    transform 0.2s cubic-bezier(0.165, 0.84, 0.44, 1),
+    width 0.2s cubic-bezier(0.165, 0.84, 0.44, 1);
 }
 
 .form_input-range::-ms-track {
@@ -294,6 +315,9 @@ https://toughengineer.github.io/demo/slider-styler*/
 
 .form_input-range::-ms-thumb:hover {
   background: var(--thumb-background-hover);
+
+  width: calc(var(--thumb-width) * 1.6);
+  transform: scaleY(1.2);
 }
 
 .form_input-range:hover::-ms-track {
