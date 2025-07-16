@@ -92,8 +92,13 @@ export const useConsciousnessStore = defineStore('consciousness', () => {
     }
   })
 
+  const configured = computed(() => {
+    return !!activeProvider.value && !!activeModel.value
+  })
+
   return {
     // State
+    configured,
     activeProvider,
     activeModel,
     customModelName: activeCustomModelName,
