@@ -25,6 +25,10 @@
   <a href="https://t.me/+7M_ZKO3zUHFlOThh"><img src="https://img.shields.io/badge/Telegram-%235AA9E6?logo=telegram&labelColor=FFFFFF"></a>
 </p>
 
+<p align="center">
+  <a href="https://www.producthunt.com/products/airi?embed=true&utm_source=badge-featured&utm_medium=badge&utm_source=badge-airi" target="_blank"><img src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=993524&theme=neutral&t=1752696535380" alt="AIRI - A&#0032;container&#0032;of&#0032;cyber&#0032;living&#0032;souls&#0044;&#0032;re&#0045;creation&#0032;of&#0032;Neuro&#0045;sama | Product Hunt" style="width: 250px; height: 54px;" width="250" height="54" /></a>
+</p>
+
 > [Neuro-sama](https://www.youtube.com/@Neurosama) に大きな影響を受けました
 
 > [!NOTE]
@@ -308,6 +312,7 @@ flowchart TD
 
 ## 謝辞
 
+- [Reka UI](https://github.com/unovue/reka-ui): ドキュメントサイトのデザイン、新しいランディングページはこれに基づいており、また膨大な量のUIコンポーネントを実装してくれたことに感謝します。（shadcn-vueはReka UIをヘッドレスとして使用していますので、ぜひチェックしてください！）
 - [pixiv/ChatVRM](https://github.com/pixiv/ChatVRM)
 - [josephrocca/ChatVRM-js: A JS conversion/adaptation of parts of the ChatVRM (TypeScript) code for standalone use in OpenCharacters and elsewhere](https://github.com/josephrocca/ChatVRM-js)
 - UIとスタイルのデザインは、[Cookard](https://store.steampowered.com/app/2919650/Cookard/)、[UNBEATABLE](https://store.steampowered.com/app/2240620/UNBEATABLE/)、および[Sensei! I like you so much!](https://store.steampowered.com/app/2957700/_/)の作品、[Ayame by Mercedes Bazan](https://dribbble.com/shots/22157656-Ayame)と[Wish by Mercedes Bazan](https://dribbble.com/shots/24501019-Wish)のアートワークに触発されました
