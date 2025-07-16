@@ -154,8 +154,8 @@ npm i -g @antfu/ni
 
 安装后，你可以：
 
-- 用 `ni` 来替代 `pnpm install`, `npm install` 和 `yarn install` 命令。
-- 用 `nr` 来替代 `pnpm run`, `npm run` 和 `yarn run`命令
+- 用 `ni` 来替代 `pnpm install`、`npm install` 和 `yarn install` 命令。
+- 用 `nr` 来替代 `pnpm run`、`npm run` 和 `yarn run` 命令。
 
 你无需费心使用何种包管理器，`ni` 会自动适配。
 :::
