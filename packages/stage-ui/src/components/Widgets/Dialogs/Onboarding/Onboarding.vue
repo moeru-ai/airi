@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useProvidersStore } from '@proj-airi/stage-ui/stores'
+import { useConsciousnessStore, useProvidersStore } from '@proj-airi/stage-ui/stores'
 import { FieldInput } from '@proj-airi/ui'
 import { useDebounceFn } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
@@ -9,7 +9,7 @@ import { useI18n } from 'vue-i18n'
 import onboardingLogo from '../../../../assets/onboarding.png'
 
 import { Callout } from '../../../Layouts'
-import { RadioCardDetail } from '../../../Menu'
+import { RadioCardDetail, RadioCardManySelect } from '../../../Menu'
 import { Button } from '../../../Misc'
 import { ProviderAccountIdInput } from '../../../Scenarios/Providers'
 
@@ -26,6 +26,14 @@ const direction = ref<'next' | 'previous'>('next')
 const { t } = useI18n()
 const providersStore = useProvidersStore()
 const { providers, allChatProvidersMetadata } = storeToRefs(providersStore)
+const consciousnessStore = useConsciousnessStore()
+const {
+  activeModel,
+  activeProvider,
+  modelSearchQuery,
+  providerModels,
+  isLoadingActiveProviderModels,
+} = storeToRefs(consciousnessStore)
 
 // Popular providers for first-time setup
 const popularProviders = computed(() => {
@@ -73,6 +81,8 @@ const canSave = computed(() => {
   if (needsBaseUrl.value && !baseUrl.value.trim())
     return false
   if (selectedProvider.value.id === 'cloudflare-workers-ai' && !accountId.value.trim())
+    return false
+  if (!activeModel.value)
     return false
 
   return isValid.value
@@ -180,8 +190,25 @@ watch([apiKey, baseUrl, accountId], () => {
   }
 }, { deep: true })
 
-async function handleSave() {
-  if (!selectedProvider.value || !canSave.value)
+function handlePreviousStep() {
+  if (step.value > 1) {
+    direction.value = 'previous'
+    step.value--
+  }
+}
+
+function handleNextStep() {
+  if (step.value < 4) {
+    direction.value = 'next'
+    step.value++
+  }
+  else {
+    handleSave()
+  }
+}
+
+async function handleFinishProviderConfiguration() {
+  if (!selectedProvider.value)
     return
 
   // Save configuration to providers store
@@ -199,25 +226,15 @@ async function handleSave() {
     ...config,
   }
 
+  activeProvider.value = selectedProvider.value.id
   await nextTick()
+  await consciousnessStore.loadModelsForProvider(selectedProvider.value.id)
+
+  handleNextStep()
+}
+
+async function handleSave() {
   emit('configured')
-}
-
-function handlePreviousStep() {
-  if (step.value > 1) {
-    direction.value = 'previous'
-    step.value--
-  }
-}
-
-function handleNextStep() {
-  if (step.value < 3) {
-    direction.value = 'next'
-    step.value++
-  }
-  else {
-    handleSave()
-  }
 }
 
 // Initialize with first popular provider
@@ -390,6 +407,47 @@ onMounted(() => {
                 {{ validationMessage }}
               </div>
             </div>
+          </div>
+
+          <!-- Action Buttons -->
+          <Button
+            :label="t('settings.dialogs.onboarding.next')"
+            :disabled="!selectedProviderId"
+            :loading="isLoadingActiveProviderModels"
+            @click="handleFinishProviderConfiguration"
+          />
+        </div>
+      </template>
+
+      <!-- Models Configuration Form -->
+      <template v-else-if="step === 4 && selectedProvider">
+        <div h-full flex flex-col gap-4>
+          <div bg="white dark:#181818" sticky top-0 z-100 flex flex-shrink-0 items-center gap-2>
+            <button outline-none @click="handlePreviousStep">
+              <div i-solar:alt-arrow-left-line-duotone h-5 w-5 />
+            </button>
+            <h2 class="flex-1 text-center text-xl text-neutral-800 font-semibold md:text-left md:text-2xl dark:text-neutral-100">
+              {{ t('settings.dialogs.onboarding.select-model') }}
+            </h2>
+            <div h-5 w-5 />
+          </div>
+
+          <!-- Using the new RadioCardManySelect component -->
+          <div flex-1>
+            <RadioCardManySelect
+              v-model="activeModel"
+              v-model:search-query="modelSearchQuery"
+              :items="providerModels.sort((a, b) => a.id === activeModel ? -1 : b.id === activeModel ? 1 : 0)"
+              :searchable="true"
+              :search-placeholder="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.search_placeholder')"
+              :search-no-results-title="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.no_search_results')"
+              :search-no-results-description="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.no_search_results_description', { query: modelSearchQuery })"
+              :search-results-text="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.search_results', { count: '{count}', total: '{total}' })"
+              :custom-input-placeholder="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.custom_model_placeholder')"
+              :expand-button-text="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.expand')"
+              :collapse-button-text="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.collapse')"
+              list-class="max-h-[calc(100dvh-17rem)] sm:max-h-120"
+            />
           </div>
 
           <!-- Action Buttons -->

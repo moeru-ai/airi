@@ -23,6 +23,7 @@ dialogs:
     saveAndContinue: 保存并继续
     next: 下一步
     start: 开始吧！
+    select-model: 选择模型
 language:
   chinese: 简体中文
   english: English

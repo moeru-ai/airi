@@ -54,7 +54,7 @@ const {
         </div>
       </div>
     </div>
-    <div grid="~ cols-2 gap-4">
+    <div grid="~ cols-1 sm:cols-2 xl:cols-3 gap-4">
       <IconStatusItem
         v-for="(provider, index) of allChatProvidersMetadata" :key="provider.id" v-motion
         :initial="{ opacity: 0, y: 10 }" :enter="{ opacity: 1, y: 0 }" :duration="250 + index * 10" :delay="index * 50"
@@ -76,7 +76,7 @@ const {
         </div>
       </div>
     </div>
-    <div grid="~ cols-2 gap-4">
+    <div grid="~ cols-1 sm:cols-2 xl:cols-3 gap-4">
       <IconStatusItem
         v-for="(provider, index) of allAudioSpeechProvidersMetadata" :key="provider.id" v-motion
         :initial="{ opacity: 0, y: 10 }" :enter="{ opacity: 1, y: 0 }" :duration="250 + index * 10"
@@ -98,7 +98,7 @@ const {
         </div>
       </div>
     </div>
-    <div grid="~ cols-2 gap-4">
+    <div grid="~ cols-1 sm:cols-2 xl:cols-3 gap-4">
       <IconStatusItem
         v-for="(provider, index) of allAudioTranscriptionProvidersMetadata" :key="provider.id" v-motion
         :initial="{ opacity: 0, y: 10 }" :enter="{ opacity: 1, y: 0 }" :duration="250 + index * 10"

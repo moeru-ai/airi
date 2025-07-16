@@ -39,6 +39,7 @@ interface Props {
   playButtonText?: string
   pauseButtonText?: string
   showVisualizer?: boolean
+  listClass?: string
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -53,6 +54,7 @@ const props = withDefaults(defineProps<Props>(), {
   playButtonText: 'Play sample',
   pauseButtonText: 'Pause',
   showVisualizer: true,
+  listClass: '',
 })
 
 const isListExpanded = ref(false)
@@ -337,9 +339,16 @@ const customVoiceName = ref('')
       <div class="relative">
         <!-- Horizontally scrollable container -->
         <div
-          class="grid auto-cols-[350px] grid-flow-col max-h-[calc(100dvh-7lh)] gap-4 overflow-x-auto scrollbar-none"
+          class="grid auto-cols-[350px] grid-flow-col gap-4 overflow-x-auto scrollbar-none"
           :class="[
             isListExpanded ? 'grid-cols-1 md:grid-cols-2 grid-flow-row auto-cols-auto' : '',
+            ...(props.listClass
+              ? (typeof props.listClass === 'string'
+                ? [props.listClass]
+                : props.listClass
+              )
+              : ['max-h-[calc(100dvh-7lh)]']
+            ),
           ]"
           transition="all duration-200 ease-in-out"
           style="scroll-snap-type: x mandatory;"

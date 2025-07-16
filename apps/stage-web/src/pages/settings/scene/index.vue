@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { Callout } from '@proj-airi/stage-ui/components'
+
 import IconAnimation from '../../../components/IconAnimation.vue'
 
 import { useIconAnimation } from '../../../composables/icon-animation'
@@ -12,7 +14,15 @@ const {
 
 <template>
   <div>
-    Scene
+    <Callout
+      label="In development, needs your help!"
+      theme="orange"
+    >
+      <div>
+        This functionality is still under development. If you have any suggestions or would like to contribute, please reach out to us on our <a underline decoration-dotted href="https://github.com/moeru-ai/airi/issues">GitHub issues page</a>.
+        The source code of this page is located at <a underline decoration-dotted href="https://github.com/moeru-ai/airi/tree/main/apps/stage-web/src/pages/settings/scene/index.vue">here</a>.
+      </div>
+    </Callout>
   </div>
   <IconAnimation
     v-if="showIconAnimation"

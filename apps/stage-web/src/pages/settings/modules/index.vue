@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { IconStatusItem } from '@proj-airi/stage-ui/components'
+import { useConsciousnessStore, useSpeechStore } from '@proj-airi/stage-ui/stores'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
@@ -28,7 +29,7 @@ const modulesList = computed<Module[]>(() => [
     description: t('settings.pages.modules.consciousness.description'),
     icon: 'i-solar:ghost-bold-duotone',
     to: '/settings/modules/consciousness',
-    configured: false,
+    configured: useConsciousnessStore().configured,
   },
   {
     id: 'speech',
@@ -36,7 +37,7 @@ const modulesList = computed<Module[]>(() => [
     description: t('settings.pages.modules.speech.description'),
     icon: 'i-solar:user-speak-rounded-bold-duotone',
     to: '/settings/modules/speech',
-    configured: false,
+    configured: useSpeechStore().configured,
   },
   {
     id: 'hearing',

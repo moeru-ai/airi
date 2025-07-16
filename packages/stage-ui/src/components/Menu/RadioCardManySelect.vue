@@ -22,6 +22,7 @@ interface Props {
   expandButtonText?: string
   collapseButtonText?: string
   showMore?: boolean
+  listClass?: string
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -34,6 +35,7 @@ const props = withDefaults(defineProps<Props>(), {
   expandButtonText: 'Show more',
   collapseButtonText: 'Show less',
   showMore: true,
+  listClass: '',
 })
 
 const emit = defineEmits<{
@@ -106,9 +108,16 @@ function updateCustomValue(value: string) {
       <div class="relative">
         <!-- Horizontally scrollable container -->
         <div
-          class="grid auto-cols-[350px] grid-flow-col max-h-[calc(100dvh-7lh)] gap-4 overflow-x-auto pb-4 scrollbar-none"
+          class="grid auto-cols-[350px] grid-flow-col gap-4 overflow-x-auto pb-4 scrollbar-none"
           :class="[
             isListExpanded ? 'grid-cols-1 md:grid-cols-2 grid-flow-row auto-cols-auto' : '',
+            ...(props.listClass
+              ? (typeof props.listClass === 'string'
+                ? [props.listClass]
+                : props.listClass
+              )
+              : ['max-h-[calc(100dvh-7lh)]']
+            ),
           ]"
           transition="all duration-200 ease-in-out"
           style="scroll-snap-type: x mandatory;"

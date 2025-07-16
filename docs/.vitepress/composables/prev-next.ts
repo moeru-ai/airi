@@ -1,4 +1,4 @@
-import { useData } from 'vitepress'
+import { useData, withBase } from 'vitepress'
 import { computed } from 'vue'
 
 import { getFlatSideBarLinks, getSidebar, isActive } from './sidebar'
@@ -14,7 +14,12 @@ export function usePrevNext() {
     const candidates = uniqBy(links, link => link.link.replace(/[?#].*$/, ''))
 
     const index = candidates.findIndex((link) => {
-      return isActive(page.value.relativePath, link.link)
+      let path = page.value.relativePath
+      if (path.startsWith('/')) {
+        path = path.slice(1)
+      }
+
+      return isActive(withBase(`/${path}`), link.link)
     })
 
     const hidePrev
