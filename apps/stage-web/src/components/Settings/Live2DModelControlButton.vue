@@ -1,16 +1,16 @@
 <script setup lang="ts">
-import { useSettings } from '@proj-airi/stage-ui/stores'
+import { useLive2d } from '@proj-airi/stage-ui/stores'
 
 defineEmits<{
   (e: 'click'): void
 }>()
 
-const settings = useSettings()
+const live2d = useLive2d()
 </script>
 
 <template>
   <button
-    :disabled="settings.loadingLive2dModel"
+    :disabled="live2d.loadingModel"
     bg="neutral-100 dark:neutral-800"
     hover="bg-neutral-200 dark:bg-neutral-700"
     transition="all ease-in-out duration-250"

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { WidgetStage } from '@proj-airi/stage-ui/components/scenes'
-import { useSettings } from '@proj-airi/stage-ui/stores'
+import { useLive2d } from '@proj-airi/stage-ui/stores'
 import { breakpointsTailwind, useBreakpoints, useDark, useMouse } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { onMounted, ref, watch } from 'vue'
@@ -21,7 +21,7 @@ function handleSettingsOpen(open: boolean) {
 }
 
 const positionCursor = useMouse()
-const { live2dScale, live2dPosition, live2dPositionInPercentageString } = storeToRefs(useSettings())
+const { scale, position, positionInPercentageString } = storeToRefs(useLive2d())
 const breakpoints = useBreakpoints(breakpointsTailwind)
 const isMobile = breakpoints.smaller('md')
 
@@ -52,9 +52,9 @@ onMounted(() => updateThemeColor())
               x: positionCursor.x.value,
               y: positionCursor.y.value,
             }"
-            :x-offset="`${isMobile ? live2dPosition.x : live2dPosition.x - 10}%`"
-            :y-offset="live2dPositionInPercentageString.y"
-            :scale="live2dScale"
+            :x-offset="`${isMobile ? position.x : position.x - 10}%`"
+            :y-offset="positionInPercentageString.y"
+            :scale="scale"
           />
           <InteractiveArea class="flex <md:hidden" absolute h="85dvh" right-4 flex-1 max-w="500px" min-w="30%" />
           <MobileInteractiveArea class="hidden <md:block" mx2 mb2 @settings-open="handleSettingsOpen" />

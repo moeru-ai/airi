@@ -21,6 +21,7 @@ import { useQueue } from '../../composables/queue'
 import { useDelayMessageQueue, useEmotionsMessageQueue, useMessageContentQueue } from '../../composables/queues'
 import { llmInferenceEndToken } from '../../constants'
 import { EMOTION_EmotionMotionName_value, EMOTION_VRMExpressionName_value, EmotionThinkMotionName } from '../../constants/emotions'
+import { useLive2d } from '../../stores'
 import { useAudioContext, useSpeakingStore } from '../../stores/audio'
 import { useChatStore } from '../../stores/chat'
 import { useSpeechStore } from '../../stores/modules/speech'
@@ -131,7 +132,7 @@ ttsQueue.on('add', (content) => {
 
 const messageContentQueue = useMessageContentQueue(ttsQueue)
 
-const { live2dCurrentMotion } = storeToRefs(useSettings())
+const { currentMotion } = storeToRefs(useLive2d())
 
 const emotionsQueue = useQueue<Emotion>({
   handlers: [
@@ -144,7 +145,7 @@ const emotionsQueue = useQueue<Emotion>({
         await vrmViewerRef.value!.setExpression(value)
       }
       else if (stageView.value === '2d') {
-        live2dCurrentMotion.value = { group: EMOTION_EmotionMotionName_value[ctx.data] }
+        currentMotion.value = { group: EMOTION_EmotionMotionName_value[ctx.data] }
       }
     },
   ],
@@ -189,7 +190,7 @@ onBeforeMessageComposed(async () => {
 })
 
 onBeforeSend(async () => {
-  live2dCurrentMotion.value = { group: EmotionThinkMotionName }
+  currentMotion.value = { group: EmotionThinkMotionName }
 })
 
 onTokenLiteral(async (literal) => {

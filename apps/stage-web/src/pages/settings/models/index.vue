@@ -1,20 +1,20 @@
 <script setup lang="ts">
 import { Live2DCanvas, Live2DModel } from '@proj-airi/stage-ui/components/scenes'
-import { useSettings } from '@proj-airi/stage-ui/stores'
+import { Live2DSettings } from '@proj-airi/stage-ui/components'
+import { useLive2d } from '@proj-airi/stage-ui/stores'
 import { useElementBounding, useMouse } from '@vueuse/core'
 import { Vibrant } from 'node-vibrant/browser'
 import { storeToRefs } from 'pinia'
 import { ref } from 'vue'
 
 import IconAnimation from '../../../components/IconAnimation.vue'
-import Live2DSettings from '../../../components/Widgets/Live2DSettings.vue'
 
 import { useIconAnimation } from '../../../composables/icon-animation'
 
 const live2dContainerRef = ref<HTMLDivElement>()
 const live2dCanvasRef = ref<InstanceType<typeof Live2DCanvas>>()
 const { width, height } = useElementBounding(live2dContainerRef)
-const { live2dPositionInPercentageString, live2dScale } = storeToRefs(useSettings())
+const { positionInPercentageString, scale } = storeToRefs(useLive2d())
 
 const palette = ref<string[]>([])
 
@@ -70,9 +70,9 @@ const positionCursor = useMouse()
             x: positionCursor.x.value,
             y: positionCursor.y.value,
           }"
-          :x-offset="live2dPositionInPercentageString.x"
-          :y-offset="live2dPositionInPercentageString.y"
-          :scale="live2dScale"
+          :x-offset="positionInPercentageString.x"
+          :y-offset="positionInPercentageString.y"
+          :scale="scale"
         />
       </Live2DCanvas>
     </div>

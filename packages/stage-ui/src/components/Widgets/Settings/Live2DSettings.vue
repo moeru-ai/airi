@@ -1,19 +1,18 @@
-<!-- TODO: merge to stage-ui -->
 <script setup lang="ts">
 import JSZip from 'jszip'
 import localforage from 'localforage'
 
-import { Section } from '@proj-airi/stage-ui/components'
 import { Emotion, EmotionNeutralMotionName } from '@proj-airi/stage-ui/constants'
-import { useSettings } from '@proj-airi/stage-ui/stores'
+import { useLive2d } from '@proj-airi/stage-ui/stores'
 import { FieldRange } from '@proj-airi/ui'
 import { useFileDialog, useObjectUrl } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import ColorPalette from '../Settings/ColorPalette.vue'
-import Button from '../Settings/Live2DModelControlButton.vue'
+import Section from '../../Layouts/Section.vue'
+import Button from '../../Misc/Button.vue'
+import ColorPalette from './ColorPalette.vue'
 
 defineProps<{
   palette: string[]
@@ -25,38 +24,48 @@ defineEmits<{
 
 const { t } = useI18n()
 
-const modelFile = useFileDialog({
+const modelFileDialog = useFileDialog({
   accept: 'application/zip',
 })
 
-const settings = useSettings()
-const { live2dModelFile, live2dMotionMap, live2dLoadSource, loadingLive2dModel, availableLive2dMotions, live2dModelUrl } = storeToRefs(settings)
-const localModelUrl = ref(live2dModelUrl.value)
+const live2d = useLive2d()
+const {
+  modelFile,
+  motionMap,
+  loadSource,
+  loadingModel,
+  availableMotions,
+  modelUrl,
+  currentMotion,
+  scale,
+  position,
+} = storeToRefs(live2d)
+const localModelUrl = ref(modelUrl.value)
 
-modelFile.onChange((files) => {
+modelFileDialog.onChange((files) => {
   if (files && files.length > 0) {
-    live2dMotionMap.value = {}
-    live2dModelFile.value = files[0]
-    live2dLoadSource.value = 'file'
-    loadingLive2dModel.value = true
+    motionMap.value = {}
+    modelFile.value = files[0]
+    loadSource.value = 'file'
+    loadingModel.value = true
   }
 })
 
-watch(() => settings.loadingLive2dModel, (value) => {
+watch(loadingModel, (value) => {
   if (value) {
     return
   }
 
-  if (live2dLoadSource.value !== 'file') {
+  if (loadSource.value !== 'file') {
     return
   }
 
-  availableLive2dMotions.value.forEach((motion) => {
+  availableMotions.value.forEach((motion) => {
     if (motion.motionName in Emotion) {
-      live2dMotionMap.value[motion.fileName] = motion.motionName
+      motionMap.value[motion.fileName] = motion.motionName
     }
     else {
-      live2dMotionMap.value[motion.fileName] = EmotionNeutralMotionName
+      motionMap.value[motion.fileName] = EmotionNeutralMotionName
     }
   })
 })
@@ -101,13 +110,13 @@ async function saveMotionMap() {
     return
   }
 
-  const patchedFile = await patchMotionMap(fileFromIndexedDB, live2dMotionMap.value)
-  live2dModelFile.value = patchedFile
-  live2dLoadSource.value = 'file'
-  loadingLive2dModel.value = true
+  const patchedFile = await patchMotionMap(fileFromIndexedDB, motionMap.value)
+  modelFile.value = patchedFile
+  loadSource.value = 'file'
+  loadingModel.value = true
 }
 
-const exportObjectUrl = useObjectUrl(live2dModelFile)
+const exportObjectUrl = useObjectUrl(modelFile)
 </script>
 
 <template>
@@ -116,61 +125,62 @@ const exportObjectUrl = useObjectUrl(live2dModelFile)
       <div flex items-center gap-2>
         <input
           v-model="localModelUrl"
-          :disabled="settings.loadingLive2dModel"
+          :disabled="loadingModel"
           class="form-control flex-1"
           border="neutral-300 dark:neutral-800 solid 1 focus:neutral-400 dark:focus:neutral-600"
           transition="border duration-250 ease-in-out"
           :placeholder="t('settings.live2d.change-model.from-url-placeholder')"
         >
-        <Button class="form-control" @click="live2dModelUrl = localModelUrl">
+        <Button class="form-control" size="sm" @click="modelUrl = localModelUrl">
           {{ t('settings.live2d.change-model.from-url') }}
         </Button>
       </div>
-      <Button class="form-control place-self-end" @click="modelFile.open()">
+      <Button class="form-control place-self-end" size="sm" @click="modelFileDialog.open()">
         {{ t('settings.live2d.change-model.from-file') }}...
       </Button>
-      <Button class="form-control" @click="$emit('extractColorsFromModel')">
+      <Button class="form-control" size="sm" @click="$emit('extractColorsFromModel')">
         Extract colors from model
       </Button>
       <ColorPalette :colors="palette.map(hex => ({ hex, name: hex }))" />
     </Section>
     <Section
-      v-if="settings.live2dLoadSource === 'file'"
+      v-if="loadSource === 'file'"
       :title="t('settings.live2d.edit-motion-map.title')"
       icon="i-solar:face-scan-circle-bold-duotone"
     >
-      <div v-for="motion in settings.availableLive2dMotions" :key="motion.fileName" flex items-center justify-between text-sm>
+      <div v-for="motion in availableMotions" :key="motion.fileName" flex items-center justify-between text-sm>
         <span font-medium font-mono>{{ motion.fileName }}</span>
 
         <div flex gap-2>
-          <select v-model="settings.live2dMotionMap[motion.fileName]">
+          <select v-model="motionMap[motion.fileName]">
             <option v-for="emotion in Object.keys(Emotion)" :key="emotion">
               {{ emotion }}
             </option>
           </select>
 
           <Button
+            size="sm"
             class="form-control"
-            @click="settings.live2dCurrentMotion = { group: motion.motionName, index: motion.motionIndex }"
+            @click="currentMotion = { group: motion.motionName, index: motion.motionIndex }"
           >
             Play
           </Button>
         </div>
       </div>
-      <Button @click="saveMotionMap">
+      <Button size="sm" @click="saveMotionMap">
         Save and patch
       </Button>
       <a
         mt-2 block :href="exportObjectUrl"
-        :download="`${settings.live2dModelFile?.name || 'live2d'}-motion-edited.zip`"
+        :download="`${modelFile?.name || 'live2d'}-motion-edited.zip`"
       >
-        <Button w-full>Export</button>
+        <Button w-full size="sm">Export</button>
       </a>
     </Section>
     <Section :title="t('settings.live2d.scale-and-position.title')" icon="i-solar:scale-bold-duotone">
-      <FieldRange v-model="settings.live2dScale" :min="0.5" :max="2" :step="0.01" :label="t('settings.live2d.scale-and-position.scale')" />
-      <FieldRange v-model="settings.live2dPosition.x" :min="-100" :max="100" :step="1" :label="t('settings.live2d.scale-and-position.x')" />
-      <FieldRange v-model="settings.live2dPosition.y" :min="-100" :max="100" :step="1" :label="t('settings.live2d.scale-and-position.y')" />
+      <FieldRange v-model="scale" :min="0.5" :max="2" :step="0.01" :label="t('settings.live2d.scale-and-position.scale')" />
+      <FieldRange v-model="position.x" :min="-100" :max="100" :step="1" :label="t('settings.live2d.scale-and-position.x')" />
+      <FieldRange v-model="position.y" :min="-100" :max="100" :step="1" :label="t('settings.live2d.scale-and-position.y')" />
     </Section>
   </div>
 </template>

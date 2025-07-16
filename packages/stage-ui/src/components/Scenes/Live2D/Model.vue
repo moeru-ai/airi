@@ -14,7 +14,7 @@ import { Live2DFactory, Live2DModel, MotionPriority } from 'pixi-live2d-display/
 import { computed, onMounted, onUnmounted, ref, shallowRef, toRef, watch } from 'vue'
 
 import { useLive2DIdleEyeFocus } from '../../../composables/live2d'
-import { useSettings } from '../../../stores'
+import { useLive2d, useSettings } from '../../../stores'
 
 const props = withDefaults(defineProps<{
   app?: Application
@@ -101,16 +101,20 @@ function setScaleAndPosition() {
 }
 
 const {
-  live2dModelFile,
-  loadingLive2dModel,
-  live2dCurrentMotion,
-  availableLive2dMotions,
-  live2dLoadSource,
-  live2dModelUrl,
+  modelFile,
+  loadingModel,
+  currentMotion,
+  availableMotions,
+  loadSource,
+  modelUrl,
+} = storeToRefs(useLive2d())
+
+const {
   themeColorsHue,
   themeColorsHueDynamic,
 } = storeToRefs(useSettings())
-const currentMotion = ref<{ group: string, index: number }>({ group: 'Idle', index: 0 })
+
+const localCurrentMotion = ref<{ group: string, index: number }>({ group: 'Idle', index: 0 })
 
 async function loadModel() {
   if (!pixiApp.value)
@@ -124,11 +128,11 @@ async function loadModel() {
 
   const modelInstance = new Live2DModel()
 
-  if (live2dLoadSource.value === 'file') {
-    await Live2DFactory.setupLive2DModel(modelInstance, [live2dModelFile.value], { autoInteract: false })
+  if (loadSource.value === 'file') {
+    await Live2DFactory.setupLive2DModel(modelInstance, [modelFile.value], { autoInteract: false })
   }
-  else if (live2dLoadSource.value === 'url') {
-    await Live2DFactory.setupLive2DModel(modelInstance, live2dModelUrl.value, { autoInteract: false })
+  else if (loadSource.value === 'url') {
+    await Live2DFactory.setupLive2DModel(modelInstance, modelUrl.value, { autoInteract: false })
   }
 
   model.value = modelInstance
@@ -149,7 +153,7 @@ async function loadModel() {
   const motionManager = internalModel.motionManager
   coreModel.setParameterValueById('ParamMouthOpenY', mouthOpenSize.value)
 
-  availableLive2dMotions.value = Object.entries(motionManager.definitions).flatMap(([motionName, definition]) => {
+  availableMotions.value = Object.entries(motionManager.definitions).flatMap(([motionName, definition]) => {
     if (!definition)
       return []
 
@@ -187,16 +191,16 @@ async function loadModel() {
   }
 
   motionManager.on('motionStart', (group, index) => {
-    currentMotion.value = { group, index }
+    localCurrentMotion.value = { group, index }
   })
 
   // save to indexdb
-  if (live2dModelFile.value) {
-    await localforage.setItem('live2dModel', live2dModelFile.value)
+  if (modelFile.value) {
+    await localforage.setItem('live2dModel', modelFile.value)
   }
 
   emits('modelLoaded')
-  loadingLive2dModel.value = false
+  loadingModel.value = false
 }
 
 async function initLive2DPixiStage() {
@@ -211,19 +215,19 @@ async function initLive2DPixiStage() {
   // load indexdb model first
   const live2dModelFromIndexedDB = await localforage.getItem<File>('live2dModel')
   if (live2dModelFromIndexedDB) {
-    live2dModelFile.value = live2dModelFromIndexedDB
-    live2dLoadSource.value = 'file'
-    loadingLive2dModel.value = true
+    modelFile.value = live2dModelFromIndexedDB
+    loadSource.value = 'file'
+    loadingModel.value = true
     return
   }
 
-  if (live2dModelUrl.value) {
-    live2dLoadSource.value = 'url'
-    loadingLive2dModel.value = true
+  if (modelUrl.value) {
+    loadSource.value = 'url'
+    loadingModel.value = true
     return
   }
 
-  loadingLive2dModel.value = false
+  loadingModel.value = false
 }
 
 async function setMotion(motionName: string, index?: number) {
@@ -268,7 +272,7 @@ watch(themeColorsHueDynamic, () => {
 
 watch(mouthOpenSize, value => getCoreModel().setParameterValueById('ParamMouthOpenY', value))
 watch(pixiApp, initLive2DPixiStage)
-watch(live2dCurrentMotion, value => setMotion(value.group, value.index))
+watch(currentMotion, value => setMotion(value.group, value.index))
 watch(paused, value => value ? pixiApp.value?.stop() : pixiApp.value?.start())
 
 watch(focusAt, (value) => {
@@ -280,7 +284,7 @@ watch(focusAt, (value) => {
   model.value.focus(value.x, value.y)
 })
 
-watchDebounced(loadingLive2dModel, (value) => {
+watchDebounced(loadingModel, (value) => {
   if (!value)
     return
 
@@ -294,7 +298,7 @@ onUnmounted(() => {
 })
 
 function listMotionGroups() {
-  return availableLive2dMotions.value
+  return availableMotions.value
 }
 
 defineExpose({
