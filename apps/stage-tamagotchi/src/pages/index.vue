@@ -2,7 +2,7 @@
 import type { AiriTamagotchiEvents, Point } from '../composables/tauri'
 
 import { WidgetStage } from '@proj-airi/stage-ui/components/scenes'
-import { useMcpStore } from '@proj-airi/stage-ui/stores'
+import { useMcpStore, useSettings } from '@proj-airi/stage-ui/stores'
 import { connectServer } from '@proj-airi/tauri-plugin-mcp'
 import { useWindowSize } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
@@ -33,6 +33,8 @@ const shouldHideView = computed(() => isCursorInside.value && !windowStore.isCon
 const resourcesStore = useResourcesStore()
 const mcpStore = useMcpStore()
 const { connected, serverCmd, serverArgs } = storeToRefs(mcpStore)
+
+const { live2dScale, live2dPositionInPercentageString } = storeToRefs(useSettings())
 
 watch([live2dLookAtX, live2dLookAtY], ([x, y]) => live2dFocusAt.value = { x, y }, { immediate: true })
 
@@ -127,7 +129,12 @@ if (import.meta.hot) { // For better DX
     transition="opacity duration-500 ease-in-out"
   >
     <div relative h-full w-full items-end gap-2 class="view">
-      <WidgetStage h-full w-full flex-1 :focus-at="live2dFocusAt" mb="<md:18" />
+      <WidgetStage
+        h-full w-full flex-1
+        :focus-at="live2dFocusAt" :scale="live2dScale"
+        :x-offset="live2dPositionInPercentageString.x"
+        :y-offset="live2dPositionInPercentageString.y" mb="<md:18"
+      />
       <ResourceStatusIsland />
       <div
         absolute bottom-4 left-4 flex gap-1 op-0 transition="opacity duration-500"

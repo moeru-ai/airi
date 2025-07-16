@@ -46,6 +46,11 @@ live2d:
     play: 播放动作
     title: 映射动作
   title: Live2D 设置
+  scale-and-position:
+    title: 缩放与位置
+    scale: 缩放
+    x: X
+    'y': 'Y'
 microphone: 麦克风
 models: 模型
 pages:

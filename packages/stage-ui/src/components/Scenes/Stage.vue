@@ -32,7 +32,8 @@ withDefaults(defineProps<{
   focusAt: { x: number, y: number }
   xOffset?: number | string
   yOffset?: number | string
-}>(), { paused: false })
+  scale?: number
+}>(), { paused: false, scale: 1 })
 
 const db = ref<DuckDBWasmDrizzleDatabase>()
 // const transformersProvider = createTransformers({ embedWorkerURL })
@@ -234,6 +235,7 @@ onMounted(async () => {
         :paused="paused"
         :x-offset="xOffset"
         :y-offset="yOffset"
+        :scale="scale"
       />
       <VRMScene
         v-else-if="stageView === '3d'"

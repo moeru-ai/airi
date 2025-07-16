@@ -1,7 +1,5 @@
 <script setup lang="ts">
 import type { Application } from '@pixi/app'
-import type { InternalModel } from 'pixi-live2d-display/cubism4'
-import type { Ref } from 'vue'
 
 import localforage from 'localforage'
 
@@ -28,16 +26,37 @@ const props = withDefaults(defineProps<{
   disableFocusAt?: boolean
   xOffset?: number | string
   yOffset?: number | string
+  scale?: number
 }>(), {
   mouthOpenSize: 0,
   paused: false,
   focusAt: () => ({ x: 0, y: 0 }),
   disableFocusAt: false,
+  scale: 1,
 })
 
 const emits = defineEmits<{
   (e: 'modelLoaded'): void
 }>()
+
+function parsePropsOffset() {
+  let xOffset = Number.parseFloat(String(props.xOffset)) || 0
+  let yOffset = Number.parseFloat(String(props.yOffset)) || 0
+
+  if (String(props.xOffset).endsWith('%')) {
+    xOffset = (Number.parseFloat(String(props.xOffset).replace('%', '')) / 100) * props.width
+  }
+  if (String(props.yOffset).endsWith('%')) {
+    yOffset = (Number.parseFloat(String(props.yOffset).replace('%', '')) / 100) * props.height
+  }
+
+  return {
+    xOffset,
+    yOffset,
+  }
+}
+
+const offset = computed(() => parsePropsOffset())
 
 const pixiApp = toRef(() => props.app)
 const paused = toRef(() => props.paused)
@@ -62,7 +81,7 @@ function getCoreModel() {
   return model.value!.internalModel.coreModel as any
 }
 
-function setScale(model: Ref<Live2DModel<InternalModel> | undefined>) {
+function setScaleAndPosition() {
   if (!model.value)
     return
 
@@ -75,7 +94,10 @@ function setScale(model: Ref<Live2DModel<InternalModel> | undefined>) {
   const widthScale = (props.width * 0.95 / initialModelWidth.value * offsetFactor)
   const scale = Math.min(heightScale, widthScale)
 
-  model.value.scale.set(scale, scale)
+  model.value.scale.set(scale * props.scale, scale * props.scale)
+
+  model.value.x = (props.width / 2) + offset.value.xOffset
+  model.value.y = props.height + offset.value.yOffset
 }
 
 const {
@@ -89,27 +111,6 @@ const {
   themeColorsHueDynamic,
 } = storeToRefs(useSettings())
 const currentMotion = ref<{ group: string, index: number }>({ group: 'Idle', index: 0 })
-
-function parsePropsOffset() {
-  let xOffset = Number.parseFloat(String(props.xOffset)) || 0
-  let yOffset = Number.parseFloat(String(props.yOffset)) || 0
-
-  if (String(props.xOffset).endsWith('%')) {
-    xOffset = (Number.parseFloat(String(props.xOffset).replace('%', '')) / 100) * props.width
-  }
-  if (String(props.yOffset).endsWith('%')) {
-    yOffset = (Number.parseFloat(String(props.yOffset).replace('%', '')) / 100) * props.height
-  }
-  if (Number.isNaN(xOffset))
-    xOffset = 0
-  if (Number.isNaN(yOffset))
-    yOffset = 0
-
-  return {
-    xOffset,
-    yOffset,
-  }
-}
 
 async function loadModel() {
   if (!pixiApp.value)
@@ -135,12 +136,8 @@ async function loadModel() {
   initialModelWidth.value = model.value.width
   initialModelHeight.value = model.value.height
 
-  const { xOffset, yOffset } = parsePropsOffset()
-
-  model.value.x = (props.width / 2) + (xOffset || 0)
-  model.value.y = props.height + (yOffset || 0)
   model.value.anchor.set(0.5, 0.5)
-  setScale(model)
+  setScaleAndPosition()
 
   model.value.on('hit', (hitAreas) => {
     if (model.value && hitAreas.includes('body'))
@@ -234,16 +231,7 @@ async function setMotion(motionName: string, index?: number) {
   await model.value?.motion(motionName, index, MotionPriority.FORCE)
 }
 
-const handleResize = useDebounceFn(() => {
-  if (model.value) {
-    const { xOffset, yOffset } = parsePropsOffset()
-
-    model.value.x = props.width / 2 + xOffset
-    model.value.y = props.height + yOffset
-
-    setScale(model)
-  }
-}, 100)
+const handleResize = useDebounceFn(setScaleAndPosition, 100)
 
 const dropShadowColorComputer = ref<HTMLDivElement>()
 const dropShadowAnimationId = ref(0)
@@ -259,6 +247,8 @@ function updateDropShadowFilter() {
 watch([() => props.width, () => props.height], () => handleResize())
 watch(dark, updateDropShadowFilter, { immediate: true })
 watch([model, themeColorsHue], updateDropShadowFilter)
+watch(offset, setScaleAndPosition)
+watch(() => props.scale, setScaleAndPosition)
 
 // TODO: This is hacky!
 function updateDropShadowFilterLoop() {
