@@ -1,3 +1,4 @@
+<!-- TODO: merge to stage-ui -->
 <script setup lang="ts">
 import JSZip from 'jszip'
 import localforage from 'localforage'
@@ -5,6 +6,7 @@ import localforage from 'localforage'
 import { Section } from '@proj-airi/stage-ui/components'
 import { Emotion, EmotionNeutralMotionName } from '@proj-airi/stage-ui/constants'
 import { useSettings } from '@proj-airi/stage-ui/stores'
+import { FieldRange } from '@proj-airi/ui'
 import { useFileDialog, useObjectUrl } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { ref, watch } from 'vue'
@@ -164,6 +166,11 @@ const exportObjectUrl = useObjectUrl(live2dModelFile)
       >
         <Button w-full>Export</button>
       </a>
+    </Section>
+    <Section :title="t('settings.live2d.scale-and-position.title')" icon="i-solar:scale-bold-duotone">
+      <FieldRange v-model="settings.live2dScale" :min="0.5" :max="2" :step="0.01" :label="t('settings.live2d.scale-and-position.scale')" />
+      <FieldRange v-model="settings.live2dPosition.x" :min="-100" :max="100" :step="1" :label="t('settings.live2d.scale-and-position.x')" />
+      <FieldRange v-model="settings.live2dPosition.y" :min="-100" :max="100" :step="1" :label="t('settings.live2d.scale-and-position.y')" />
     </Section>
   </div>
 </template>

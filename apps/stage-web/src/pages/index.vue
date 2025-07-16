@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { WidgetStage } from '@proj-airi/stage-ui/components/scenes'
+import { useSettings } from '@proj-airi/stage-ui/stores'
 import { breakpointsTailwind, useBreakpoints, useDark, useMouse } from '@vueuse/core'
+import { storeToRefs } from 'pinia'
 import { onMounted, ref, watch } from 'vue'
 
 import Cross from '../components/Backgrounds/Cross.vue'
@@ -19,6 +21,7 @@ function handleSettingsOpen(open: boolean) {
 }
 
 const positionCursor = useMouse()
+const { live2dScale, live2dPosition, live2dPositionInPercentageString } = storeToRefs(useSettings())
 const breakpoints = useBreakpoints(breakpointsTailwind)
 const isMobile = breakpoints.smaller('md')
 
@@ -49,7 +52,9 @@ onMounted(() => updateThemeColor())
               x: positionCursor.x.value,
               y: positionCursor.y.value,
             }"
-            :x-offset="isMobile ? undefined : '-10%'"
+            :x-offset="`${isMobile ? live2dPosition.x : live2dPosition.x - 10}%`"
+            :y-offset="live2dPositionInPercentageString.y"
+            :scale="live2dScale"
           />
           <InteractiveArea class="flex <md:hidden" absolute h="85dvh" right-4 flex-1 max-w="500px" min-w="30%" />
           <MobileInteractiveArea class="hidden <md:block" mx2 mb2 @settings-open="handleSettingsOpen" />

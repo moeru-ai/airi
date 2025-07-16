@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { Live2DCanvas, Live2DModel } from '@proj-airi/stage-ui/components/scenes'
+import { useSettings } from '@proj-airi/stage-ui/stores'
 import { useElementBounding, useMouse } from '@vueuse/core'
 import { Vibrant } from 'node-vibrant/browser'
+import { storeToRefs } from 'pinia'
 import { ref } from 'vue'
 
 import IconAnimation from '../../../components/IconAnimation.vue'
@@ -12,6 +14,7 @@ import { useIconAnimation } from '../../../composables/icon-animation'
 const live2dContainerRef = ref<HTMLDivElement>()
 const live2dCanvasRef = ref<InstanceType<typeof Live2DCanvas>>()
 const { width, height } = useElementBounding(live2dContainerRef)
+const { live2dPositionInPercentageString, live2dScale } = storeToRefs(useSettings())
 
 const palette = ref<string[]>([])
 
@@ -47,8 +50,8 @@ const positionCursor = useMouse()
 </script>
 
 <template>
-  <div flex class="flex-col-reverse sm:flex-row">
-    <div ref="live2dContainerRef" w="100% sm:50%" h="50dvh sm:80dvh">
+  <div flex class="h-[calc(100dvh-8rem)] flex-col-reverse sm:flex-row">
+    <div ref="live2dContainerRef" w="100% sm:50%" h="50% sm:80%">
       <Live2DCanvas
         v-slot="{ app }"
         ref="live2dCanvasRef"
@@ -67,10 +70,13 @@ const positionCursor = useMouse()
             x: positionCursor.x.value,
             y: positionCursor.y.value,
           }"
+          :x-offset="live2dPositionInPercentageString.x"
+          :y-offset="live2dPositionInPercentageString.y"
+          :scale="live2dScale"
         />
       </Live2DCanvas>
     </div>
-    <Live2DSettings w="100% sm:50%" h="50dvh sm:80dvh" :palette="palette" @extract-colors-from-model="extractColorsFromModel" />
+    <Live2DSettings w="100% sm:50%" h="50% sm:80%" overflow-y-scroll :palette="palette" @extract-colors-from-model="extractColorsFromModel" />
   </div>
 
   <IconAnimation

@@ -18,8 +18,10 @@ withDefaults(defineProps<{
   focusAt: { x: number, y: number }
   xOffset?: number | string
   yOffset?: number | string
+  scale?: number
 }>(), {
   mouthOpenSize: 0,
+  scale: 1,
 })
 
 const { t } = useI18n()
@@ -45,6 +47,7 @@ const { live2dCurrentMotion } = storeToRefs(useSettings())
         :focus-at="focusAt"
         :x-offset="xOffset"
         :y-offset="yOffset"
+        :scale="scale"
       />
     </Live2DCanvas>
     <div absolute bottom="3" right="3">

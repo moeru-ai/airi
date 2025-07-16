@@ -50,6 +50,11 @@ live2d:
     play: Play Motion
     title: Map Motions
   title: Live2D Settings
+  scale-and-position:
+    title: Scale And Position
+    scale: Scale
+    x: X
+    'y': 'Y'
 microphone: Microphone
 models: Model
 pages:
