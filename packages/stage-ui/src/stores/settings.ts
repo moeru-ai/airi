@@ -18,21 +18,6 @@ export const useSettings = defineStore('settings', () => {
   const selectedAudioDeviceId = computed(() => selectedAudioDevice.value?.deviceId)
   const { audioInputs, ensurePermissions } = useDevicesList({ constraints: { audio: true } })
 
-  // TODO: extract to a separate store, use a single page to do this
-  const live2dModelFile = ref<File>()
-  const live2dModelUrl = ref<string>('/assets/live2d/models/hiyori_pro_zh.zip')
-  const live2dLoadSource = ref<'file' | 'url'>('url')
-  const loadingLive2dModel = ref(false) // if set to true, the model will be loaded
-  const live2dPosition = useLocalStorage('settings/live2d/position', { x: 0, y: 0 }) // position is relative to the center of the screen, units are %
-  const live2dPositionInPercentageString = computed(() => ({
-    x: `${live2dPosition.value.x}%`,
-    y: `${live2dPosition.value.y}%`,
-  }))
-  const live2dCurrentMotion = ref<{ group: string, index?: number }>({ group: 'Idle', index: 0 })
-  const availableLive2dMotions = ref<{ motionName: string, motionIndex: number, fileName: string }[]>([])
-  const live2dMotionMap = useLocalStorage<Record<string, string>>('settings/live2d/motion-map', {})
-  const live2dScale = useLocalStorage('settings/live2d/scale', 1)
-
   const disableTransitions = useLocalStorage('settings/disable-transitions', true)
   const usePageSpecificTransitions = useLocalStorage('settings/use-page-specific-transitions', true)
 
@@ -88,16 +73,6 @@ export const useSettings = defineStore('settings', () => {
   }, { immediate: true })
 
   return {
-    live2dModelFile,
-    live2dModelUrl,
-    live2dLoadSource,
-    live2dCurrentMotion,
-    live2dPosition,
-    live2dPositionInPercentageString,
-    live2dScale,
-    availableLive2dMotions,
-    live2dMotionMap,
-    loadingLive2dModel,
     disableTransitions,
     usePageSpecificTransitions,
     language,

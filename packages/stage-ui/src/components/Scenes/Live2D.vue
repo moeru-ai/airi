@@ -8,7 +8,7 @@ import Screen from '../Misc/Screen.vue'
 import Live2DCanvas from './Live2D/Canvas.vue'
 import Live2DModel from './Live2D/Model.vue'
 
-import { useSettings } from '../../stores'
+import { useLive2d } from '../../stores'
 
 import '../../utils/live2d-zip-loader'
 
@@ -26,7 +26,7 @@ withDefaults(defineProps<{
 
 const { t } = useI18n()
 const show = ref(false)
-const { live2dCurrentMotion } = storeToRefs(useSettings())
+const { currentMotion } = storeToRefs(useLive2d())
 </script>
 
 <template>
@@ -80,43 +80,43 @@ const { live2dCurrentMotion } = storeToRefs(useSettings())
             <div flex="~ row" flex-wrap gap-2>
               <button
                 rounded-lg bg="neutral-100/70 dark:neutral-800/50" px-2 py-1 backdrop-blur-sm
-                @click="live2dCurrentMotion = { group: 'Surprise', index: 0 }"
+                @click="currentMotion = { group: 'Surprise', index: 0 }"
               >
                 {{ t('stage.viewers.debug-menu.emotions-btn.surprised') }}
               </button>
               <button
                 rounded-lg bg="neutral-100/70 dark:neutral-800/50" px-2 py-1 backdrop-blur-sm
-                @click="live2dCurrentMotion = { group: 'Sad', index: 0 }"
+                @click="currentMotion = { group: 'Sad', index: 0 }"
               >
                 {{ t('stage.viewers.debug-menu.emotions-btn.sad') }}
               </button>
               <button
                 rounded-lg bg="neutral-100/70 dark:neutral-800/50" px-2 py-1 backdrop-blur-sm
-                @click="live2dCurrentMotion = { group: 'Angry', index: 0 }"
+                @click="currentMotion = { group: 'Angry', index: 0 }"
               >
                 {{ t('stage.viewers.debug-menu.emotions-btn.angry') }}
               </button>
               <button
                 rounded-lg bg="neutral-100/70 dark:neutral-800/50" px-2 py-1 backdrop-blur-sm
-                @click="live2dCurrentMotion = { group: 'Happy', index: 0 }"
+                @click="currentMotion = { group: 'Happy', index: 0 }"
               >
                 {{ t('stage.viewers.debug-menu.emotions-btn.happy') }}
               </button>
               <button
                 rounded-lg bg="neutral-100/70 dark:neutral-800/50" px-2 py-1 backdrop-blur-sm
-                @click="live2dCurrentMotion = { group: 'Awkward', index: 0 }"
+                @click="currentMotion = { group: 'Awkward', index: 0 }"
               >
                 {{ t('stage.viewers.debug-menu.emotions-btn.awkward') }}
               </button>
               <button
                 rounded-lg bg="neutral-100/70 dark:neutral-800/50" px-2 py-1 backdrop-blur-sm
-                @click="live2dCurrentMotion = { group: 'Question', index: 0 }"
+                @click="currentMotion = { group: 'Question', index: 0 }"
               >
                 {{ t('stage.viewers.debug-menu.emotions-btn.question') }}
               </button>
               <button
                 rounded-lg bg="neutral-100/70 dark:neutral-800/50" px-2 py-1 backdrop-blur-sm
-                @click="live2dCurrentMotion = { group: 'Think', index: 0 }"
+                @click="currentMotion = { group: 'Think', index: 0 }"
               >
                 {{ t('stage.viewers.debug-menu.emotions-btn.think') }}
               </button>
