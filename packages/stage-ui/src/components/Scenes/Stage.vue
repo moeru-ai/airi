@@ -92,7 +92,7 @@ async function handleSpeechGeneration(ctx: { data: string }) {
     }
 
     // TODO: UnElevenLabsOptions
-    const provider = providersStore.getProviderInstance(activeSpeechProvider.value) as SpeechProviderWithExtraOptions<string, UnElevenLabsOptions>
+    const provider = await providersStore.getProviderInstance(activeSpeechProvider.value) as SpeechProviderWithExtraOptions<string, UnElevenLabsOptions>
     if (!provider) {
       console.error('Failed to initialize speech provider')
       return

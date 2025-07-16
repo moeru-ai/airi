@@ -20,6 +20,7 @@ import type {
 import { computedAsync, useLocalStorage } from '@vueuse/core'
 import {
   createAnthropic,
+  createAzure,
   createDeepSeek,
   createFireworks,
   createGoogleGenerativeAI,
@@ -94,7 +95,7 @@ export interface ProviderMetadata {
    */
   iconImage?: string
   defaultOptions?: () => Record<string, unknown>
-  createProvider: (config: Record<string, unknown>) =>
+  createProvider: (config: Record<string, unknown>) => Promise<
     | ChatProvider
     | ChatProviderWithExtraOptions
     | EmbedProvider
@@ -103,6 +104,7 @@ export interface ProviderMetadata {
     | SpeechProviderWithExtraOptions
     | TranscriptionProvider
     | TranscriptionProviderWithExtraOptions
+  >
   capabilities: {
     listModels?: (config: Record<string, unknown>) => Promise<ModelInfo[]>
     listVoices?: (config: Record<string, unknown>) => Promise<VoiceInfo[]>
@@ -185,7 +187,7 @@ export const useProvidersStore = defineStore('providers', () => {
       defaultOptions: () => ({
         baseUrl: 'https://openrouter.ai/api/v1/',
       }),
-      createProvider: config => createOpenRouter((config.apiKey as string).trim(), (config.baseUrl as string).trim()),
+      createProvider: async config => createOpenRouter((config.apiKey as string).trim(), (config.baseUrl as string).trim()),
       capabilities: {
         listModels: async (config) => {
           return fetchOpenRouterModels(config)
@@ -216,7 +218,7 @@ export const useProvidersStore = defineStore('providers', () => {
       description: 'https://github.com/huggingface/candle',
       icon: 'i-lobe-icons:huggingface',
       defaultOptions: () => ({}),
-      createProvider: config => createOpenAI((config.baseUrl as string).trim()),
+      createProvider: async config => createOpenAI((config.baseUrl as string).trim()),
       capabilities: {
         listModels: async (config) => {
           return (await listModels({
@@ -264,7 +266,7 @@ export const useProvidersStore = defineStore('providers', () => {
       description: 'https://github.com/huggingface/candle',
       icon: 'i-lobe-icons:huggingface',
       defaultOptions: () => ({}),
-      createProvider: config => createOpenAI((config.baseUrl as string).trim()),
+      createProvider: async config => createOpenAI((config.baseUrl as string).trim()),
       capabilities: {
         listModels: async (config) => {
           return (await listModels({
@@ -319,7 +321,7 @@ export const useProvidersStore = defineStore('providers', () => {
       description: 'https://github.com/moeru-ai/xsai-transformers',
       icon: 'i-lobe-icons:huggingface',
       defaultOptions: () => ({}),
-      createProvider: config => createOpenAI((config.baseUrl as string).trim()),
+      createProvider: async config => createOpenAI((config.baseUrl as string).trim()),
       capabilities: {
         listModels: async (config) => {
           return (await listModels({
@@ -374,7 +376,7 @@ export const useProvidersStore = defineStore('providers', () => {
       description: 'https://github.com/moeru-ai/xsai-transformers',
       icon: 'i-lobe-icons:huggingface',
       defaultOptions: () => ({}),
-      createProvider: config => createOpenAI((config.baseUrl as string).trim()),
+      createProvider: async config => createOpenAI((config.baseUrl as string).trim()),
       capabilities: {
         listModels: async (config) => {
           return (await listModels({
@@ -415,7 +417,7 @@ export const useProvidersStore = defineStore('providers', () => {
       defaultOptions: () => ({
         baseUrl: 'http://localhost:11434/v1/',
       }),
-      createProvider: config => createOllama((config.baseUrl as string).trim()),
+      createProvider: async config => createOllama((config.baseUrl as string).trim()),
       capabilities: {
         listModels: async (config) => {
           return (await listModels({
@@ -456,7 +458,7 @@ export const useProvidersStore = defineStore('providers', () => {
       defaultOptions: () => ({
         baseUrl: 'http://localhost:11434/v1/',
       }),
-      createProvider: config => createOllama((config.baseUrl as string).trim()),
+      createProvider: async config => createOllama((config.baseUrl as string).trim()),
       capabilities: {
         listModels: async (config) => {
           return (await listModels({
@@ -488,7 +490,7 @@ export const useProvidersStore = defineStore('providers', () => {
       descriptionKey: 'settings.pages.providers.provider.vllm.description',
       description: 'vllm.ai',
       iconColor: 'i-lobe-icons:vllm',
-      createProvider: config => createOllama((config.baseUrl as string).trim()),
+      createProvider: async config => createOllama((config.baseUrl as string).trim()),
       capabilities: {
         listModels: async () => {
           return [
@@ -555,7 +557,7 @@ export const useProvidersStore = defineStore('providers', () => {
       defaultOptions: () => ({
         baseUrl: 'https://api.openai.com/v1/',
       }),
-      createProvider: config => createOpenAI((config.apiKey as string).trim(), (config.baseUrl as string).trim()),
+      createProvider: async config => createOpenAI((config.apiKey as string).trim(), (config.baseUrl as string).trim()),
       capabilities: {
         listModels: async (config) => {
           return (await listModels({
@@ -590,7 +592,7 @@ export const useProvidersStore = defineStore('providers', () => {
       defaultOptions: () => ({
         baseUrl: 'https://api.openai.com/v1/',
       }),
-      createProvider: config => createOpenAI((config.apiKey as string).trim(), (config.baseUrl as string).trim()),
+      createProvider: async config => createOpenAI((config.apiKey as string).trim(), (config.baseUrl as string).trim()),
       capabilities: {
         listModels: async (config) => {
           return (await listModels({
@@ -625,7 +627,7 @@ export const useProvidersStore = defineStore('providers', () => {
       defaultOptions: () => ({
         baseUrl: 'https://api.openai.com/v1/',
       }),
-      createProvider: config => createOpenAI((config.apiKey as string).trim(), (config.baseUrl as string).trim()),
+      createProvider: async config => createOpenAI((config.apiKey as string).trim(), (config.baseUrl as string).trim()),
       capabilities: {
         listModels: async (config) => {
           return (await listModels({
@@ -648,6 +650,47 @@ export const useProvidersStore = defineStore('providers', () => {
         },
       },
     },
+    'azure-openai': {
+      id: 'azure-openai',
+      category: 'chat',
+      tasks: ['text-generation'],
+      nameKey: 'settings.pages.providers.provider.azure_openai.title',
+      name: 'Azure OpenAI',
+      descriptionKey: 'settings.pages.providers.provider.azure_openai.description',
+      description: 'oai.azure.com',
+      icon: 'i-lobe-icons:microsoft',
+      defaultOptions: () => ({}),
+      createProvider: async (config) => {
+        return await createAzure({
+          apiKey: (config.apiKey as string).trim(),
+          resourceName: config.resourceName as string,
+        })
+      },
+      capabilities: {
+        listModels: async (config) => {
+          return (await listModels({
+            ...(await createAzure({
+              apiKey: (config.apiKey as string).trim(),
+              resourceName: config.resourceName as string,
+            })).model(),
+          })).map((model) => {
+            return {
+              id: model.id,
+              name: model.id,
+              provider: 'azure-openai',
+              description: '',
+              contextLength: 0,
+              deprecated: false,
+            } satisfies ModelInfo
+          })
+        },
+      },
+      validators: {
+        validateProviderConfig: (config) => {
+          return !!config.apiKey && !!config.resourceName
+        },
+      },
+    },
     'anthropic': {
       id: 'anthropic',
       category: 'chat',
@@ -660,7 +703,7 @@ export const useProvidersStore = defineStore('providers', () => {
       defaultOptions: () => ({
         baseUrl: 'https://api.anthropic.com/v1/',
       }),
-      createProvider: config => createAnthropic((config.apiKey as string).trim(), (config.baseUrl as string).trim()),
+      createProvider: async config => createAnthropic((config.apiKey as string).trim(), (config.baseUrl as string).trim()),
       capabilities: {
         listModels: async () => {
           return [
@@ -733,7 +776,7 @@ export const useProvidersStore = defineStore('providers', () => {
       defaultOptions: () => ({
         baseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai/',
       }),
-      createProvider: config => createGoogleGenerativeAI((config.apiKey as string).trim(), (config.baseUrl as string).trim()),
+      createProvider: async config => createGoogleGenerativeAI((config.apiKey as string).trim(), (config.baseUrl as string).trim()),
       capabilities: {
         listModels: async (config) => {
           return (await listModels({
@@ -765,7 +808,7 @@ export const useProvidersStore = defineStore('providers', () => {
       descriptionKey: 'settings.pages.providers.provider.xai.description',
       description: 'x.ai',
       icon: 'i-lobe-icons:xai',
-      createProvider: config => createXAI((config.apiKey as string).trim(), (config.baseUrl as string).trim()),
+      createProvider: async config => createXAI((config.apiKey as string).trim(), (config.baseUrl as string).trim()),
       capabilities: {
         listModels: async (config) => {
           return (await listModels({
@@ -797,7 +840,7 @@ export const useProvidersStore = defineStore('providers', () => {
       descriptionKey: 'settings.pages.providers.provider.deepseek.description',
       description: 'deepseek.com',
       iconColor: 'i-lobe-icons:deepseek',
-      createProvider: config => createDeepSeek((config.apiKey as string).trim(), (config.baseUrl as string).trim()),
+      createProvider: async config => createDeepSeek((config.apiKey as string).trim(), (config.baseUrl as string).trim()),
       capabilities: {
         listModels: async (config) => {
           return (await listModels({
@@ -836,7 +879,7 @@ export const useProvidersStore = defineStore('providers', () => {
           stability: 0.5,
         },
       }),
-      createProvider: config => createUnElevenLabs((config.apiKey as string).trim(), (config.baseUrl as string).trim()) as SpeechProviderWithExtraOptions<string, UnElevenLabsOptions>,
+      createProvider: async config => createUnElevenLabs((config.apiKey as string).trim(), (config.baseUrl as string).trim()) as SpeechProviderWithExtraOptions<string, UnElevenLabsOptions>,
       capabilities: {
         listModels: async () => {
           return elevenLabsModels.map((model) => {
@@ -903,7 +946,7 @@ export const useProvidersStore = defineStore('providers', () => {
       defaultOptions: () => ({
         baseUrl: 'https://unspeech.hyp3r.link/v1/',
       }),
-      createProvider: config => createUnMicrosoft((config.apiKey as string).trim(), (config.baseUrl as string).trim()) as SpeechProviderWithExtraOptions<string, UnMicrosoftOptions>,
+      createProvider: async config => createUnMicrosoft((config.apiKey as string).trim(), (config.baseUrl as string).trim()) as SpeechProviderWithExtraOptions<string, UnMicrosoftOptions>,
       capabilities: {
         listModels: async () => {
           return [
@@ -954,7 +997,7 @@ export const useProvidersStore = defineStore('providers', () => {
       defaultOptions: () => ({
         baseUrl: 'https://unspeech.hyp3r.link/v1/',
       }),
-      createProvider: config => createUnAlibabaCloud((config.apiKey as string).trim(), (config.baseUrl as string).trim()),
+      createProvider: async config => createUnAlibabaCloud((config.apiKey as string).trim(), (config.baseUrl as string).trim()),
       capabilities: {
         listVoices: async (config) => {
           const provider = createUnAlibabaCloud((config.apiKey as string).trim(), (config.baseUrl as string).trim()) as VoiceProviderWithExtraOptions<UnAlibabaCloudOptions>
@@ -1013,7 +1056,7 @@ export const useProvidersStore = defineStore('providers', () => {
       defaultOptions: () => ({
         baseUrl: 'https://unspeech.hyp3r.link/v1/',
       }),
-      createProvider: config => createUnVolcengine((config.apiKey as string).trim(), (config.baseUrl as string).trim()),
+      createProvider: async config => createUnVolcengine((config.apiKey as string).trim(), (config.baseUrl as string).trim()),
       capabilities: {
         listVoices: async (config) => {
           const provider = createUnVolcengine((config.apiKey as string).trim(), (config.baseUrl as string).trim()) as VoiceProviderWithExtraOptions<UnVolcengineOptions>
@@ -1061,7 +1104,7 @@ export const useProvidersStore = defineStore('providers', () => {
       descriptionKey: 'settings.pages.providers.provider.together.description',
       description: 'together.ai',
       iconColor: 'i-lobe-icons:together',
-      createProvider: config => createTogetherAI((config.apiKey as string).trim(), (config.baseUrl as string).trim()),
+      createProvider: async config => createTogetherAI((config.apiKey as string).trim(), (config.baseUrl as string).trim()),
       capabilities: {
         listModels: async (config) => {
           return (await listModels({
@@ -1093,7 +1136,7 @@ export const useProvidersStore = defineStore('providers', () => {
       descriptionKey: 'settings.pages.providers.provider.novita.description',
       description: 'novita.ai',
       iconColor: 'i-lobe-icons:novita',
-      createProvider: config => createNovita((config.apiKey as string).trim(), (config.baseUrl as string).trim()),
+      createProvider: async config => createNovita((config.apiKey as string).trim(), (config.baseUrl as string).trim()),
       capabilities: {
         listModels: async (config) => {
           return (await listModels({
@@ -1125,7 +1168,7 @@ export const useProvidersStore = defineStore('providers', () => {
       descriptionKey: 'settings.pages.providers.provider.fireworks.description',
       description: 'fireworks.ai',
       icon: 'i-lobe-icons:fireworks',
-      createProvider: config => createFireworks((config.apiKey as string).trim(), (config.baseUrl as string).trim()),
+      createProvider: async config => createFireworks((config.apiKey as string).trim(), (config.baseUrl as string).trim()),
       capabilities: {
         listModels: async (config) => {
           return (await listModels({
@@ -1160,7 +1203,7 @@ export const useProvidersStore = defineStore('providers', () => {
       defaultOptions: () => ({
         baseUrl: 'https://api.featherless.ai/v1/',
       }),
-      createProvider: config => createOpenAI((config.apiKey as string).trim(), (config.baseUrl as string).trim()),
+      createProvider: async config => createOpenAI((config.apiKey as string).trim(), (config.baseUrl as string).trim()),
       capabilities: {
         listModels: async (config) => {
           return (await listModels({
@@ -1193,7 +1236,7 @@ export const useProvidersStore = defineStore('providers', () => {
       descriptionKey: 'settings.pages.providers.provider.cloudflare-workers-ai.description',
       description: 'cloudflare.com',
       iconColor: 'i-lobe-icons:cloudflare',
-      createProvider: config => createWorkersAI((config.apiKey as string).trim(), config.accountId as string),
+      createProvider: async config => createWorkersAI((config.apiKey as string).trim(), config.accountId as string),
       capabilities: {
         listModels: async () => {
           return []
@@ -1217,7 +1260,7 @@ export const useProvidersStore = defineStore('providers', () => {
       defaultOptions: () => ({
         baseUrl: 'https://api.perplexity.ai',
       }),
-      createProvider: config => createPerplexity((config.apiKey as string).trim(), (config.baseUrl as string).trim()),
+      createProvider: async config => createPerplexity((config.apiKey as string).trim(), (config.baseUrl as string).trim()),
       capabilities: {
         listModels: async () => {
           return [
@@ -1274,7 +1317,7 @@ export const useProvidersStore = defineStore('providers', () => {
       descriptionKey: 'settings.pages.providers.provider.mistral.description',
       description: 'mistral.ai',
       iconColor: 'i-lobe-icons:mistral',
-      createProvider: config => createMistral((config.apiKey as string).trim(), (config.baseUrl as string).trim()),
+      createProvider: async config => createMistral((config.apiKey as string).trim(), (config.baseUrl as string).trim()),
       capabilities: {
         listModels: async (config) => {
           return (await listModels({
@@ -1306,7 +1349,7 @@ export const useProvidersStore = defineStore('providers', () => {
       descriptionKey: 'settings.pages.providers.provider.moonshot.description',
       description: 'moonshot.ai',
       icon: 'i-lobe-icons:moonshot',
-      createProvider: config => createMoonshot((config.apiKey as string).trim(), (config.baseUrl as string).trim()),
+      createProvider: async config => createMoonshot((config.apiKey as string).trim(), (config.baseUrl as string).trim()),
       capabilities: {
         listModels: async (config) => {
           return (await listModels({
@@ -1371,7 +1414,7 @@ export const useProvidersStore = defineStore('providers', () => {
       defaultOptions: () => ({
         baseUrl: 'http://localhost:4315/v1/',
       }),
-      createProvider: config => createPlayer2((config.baseUrl as string).trim(), 'airi'),
+      createProvider: async config => createPlayer2((config.baseUrl as string).trim(), 'airi'),
       capabilities: {
         listVoices: async () => {
           return await fetch('http://localhost:4315/v1/tts/voices').then(res => res.json()).then(({ voices }) => (voices as { id: string, language: 'american_english' | 'british_english' | 'japanese' | 'mandarin_chinese' | 'spanish' | 'french' | 'hindi' | 'italian' | 'brazilian_portuguese', name: string, gender: string }[]).map(({ id, language, name, gender }) => (
@@ -1569,7 +1612,7 @@ export const useProvidersStore = defineStore('providers', () => {
   })
 
   // Function to get provider object by provider id
-  function getProviderInstance(providerId: string) {
+  async function getProviderInstance(providerId: string) {
     const config = providerCredentials.value[providerId]
     if (!config)
       throw new Error(`Provider credentials for ${providerId} not found`)
@@ -1579,7 +1622,7 @@ export const useProvidersStore = defineStore('providers', () => {
       throw new Error(`Provider metadata for ${providerId} not found`)
 
     try {
-      return metadata.createProvider(config)
+      return await metadata.createProvider(config)
     }
     catch (error) {
       console.error(`Error creating provider instance for ${providerId}:`, error)

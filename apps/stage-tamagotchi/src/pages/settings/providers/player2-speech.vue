@@ -23,7 +23,7 @@ const availableVoices = computed(() => {
 })
 // Generate speech with Player2-specific parameters
 async function handleGenerateSpeech(input: string, voiceId: string, _useSSML: boolean) {
-  const provider = providersStore.getProviderInstance(providerId) as SpeechProviderWithExtraOptions<string, UnElevenLabsOptions>
+  const provider = await providersStore.getProviderInstance(providerId) as SpeechProviderWithExtraOptions<string, UnElevenLabsOptions>
   if (!provider) {
     throw new Error('Failed to initialize speech provider')
   }

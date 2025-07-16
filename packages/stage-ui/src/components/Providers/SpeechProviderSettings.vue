@@ -143,7 +143,7 @@ async function generateTestSpeech() {
   if (useSSML.value && !ssmlText.value.trim())
     return
 
-  const provider = providersStore.getProviderInstance(props.providerId) as SpeechProviderWithExtraOptions<string, any>
+  const provider = await providersStore.getProviderInstance(props.providerId) as SpeechProviderWithExtraOptions<string, any>
   if (!provider) {
     console.error('Failed to initialize speech provider')
     return
