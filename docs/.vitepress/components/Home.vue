@@ -21,7 +21,7 @@ const { t } = useI18n()
         </div>
         <div class="relative z-10 w-full flex justify-center gap-4">
           <a
-            href="https://github.com/moeru-ai/airi/releases/latest"
+            href="https://airi.moeru.ai/"
             :class="[
               'rounded-xl px-5 py-3 font-extrabold outline-none backdrop-blur-md active:scale-95 focus:outline-none',
               'text-slate-700 dark:text-cyan-200',
