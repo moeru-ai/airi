@@ -47,7 +47,7 @@ const {
         </div>
       </div>
     </div>
-    <div grid="~ cols-1 md:cols-2 gap-4">
+    <div grid="~ cols-1 sm:cols-2 xl:cols-3 gap-4">
       <IconStatusItem
         v-for="(provider, index) of allChatProvidersMetadata"
         :key="provider.id"
@@ -78,7 +78,7 @@ const {
         </div>
       </div>
     </div>
-    <div grid="~ cols-1 md:cols-2 gap-4">
+    <div grid="~ cols-1 sm:cols-2 xl:cols-3 gap-4">
       <IconStatusItem
         v-for="(provider, index) of allAudioSpeechProvidersMetadata"
         :key="provider.id"
@@ -109,7 +109,7 @@ const {
         </div>
       </div>
     </div>
-    <div grid="~ cols-1 md:cols-2 gap-4">
+    <div grid="~ cols-1 sm:cols-2 xl:cols-3 gap-4">
       <IconStatusItem
         v-for="(provider, index) of allAudioTranscriptionProvidersMetadata"
         :key="provider.id"
