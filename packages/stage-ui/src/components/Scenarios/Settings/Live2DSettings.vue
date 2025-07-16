@@ -12,7 +12,8 @@ import { useI18n } from 'vue-i18n'
 
 import Section from '../../Layouts/Section.vue'
 import Button from '../../Misc/Button.vue'
-import ColorPalette from './ColorPalette.vue'
+
+import { ColorPalette } from '../../Widgets'
 
 defineProps<{
   palette: string[]
