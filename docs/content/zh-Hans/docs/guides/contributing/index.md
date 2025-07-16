@@ -336,7 +336,7 @@ nr lint && nr typecheck
 
 :::
 
-### 提交你的代码
+### 执行提交
 
 ```shell
 git add .
