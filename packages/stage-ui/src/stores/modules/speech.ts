@@ -209,8 +209,13 @@ export const useSpeechStore = defineStore('speech', () => {
     return toXml(ssmlXast)
   }
 
+  const configured = computed(() => {
+    return !!activeSpeechProvider.value && !!activeSpeechModel.value && !!activeSpeechVoiceId.value
+  })
+
   return {
     // State
+    configured,
     activeSpeechProvider,
     activeSpeechModel,
     activeSpeechVoice,

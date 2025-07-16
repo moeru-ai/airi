@@ -25,6 +25,7 @@ dialogs:
     saveAndContinue: Save and Continue
     next: Next
     start: Let's do it!
+    select-model: Choose model
 language:
   chinese: 简体中文
   zh-CN: 简体中文
