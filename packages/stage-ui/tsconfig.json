@@ -42,8 +42,7 @@
     "stories/**/*.d.ts",
     "stories/**/*.mts",
     "stories/**/*.vue",
-    "stories/**/*.story.vue",
-    "../../apps/stage-tamagotchi/src/components/Widgets/Live2DSettings.vue"
+    "stories/**/*.story.vue"
   ],
   "exclude": [
     "dist",
