@@ -1,27 +1,34 @@
 <script setup lang="ts">
 import Range from '../Range/Range.vue'
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   min?: number
   max?: number
   step?: number
   label?: string
   description?: string
   formatValue?: (value: number) => string
-}>()
+  as?: 'label' | 'div'
+}>(), {
+  as: 'label',
+})
 
 const modelValue = defineModel<number>({ required: true })
 </script>
 
 <template>
-  <label flex="~ col gap-4">
+  <props.as flex="~ col gap-4">
     <div flex="~ row" items-center gap-2>
       <div flex="1">
         <div class="flex items-center gap-1 text-sm font-medium">
-          {{ label }}
+          <slot name="label">
+            {{ label }}
+          </slot>
         </div>
         <div class="text-xs text-neutral-500 dark:text-neutral-400">
-          {{ description }}
+          <slot name="description">
+            {{ description }}
+          </slot>
         </div>
       </div>
       <span font-mono>{{ props.formatValue?.(modelValue) || modelValue }}</span>
@@ -35,5 +42,5 @@ const modelValue = defineModel<number>({ required: true })
         w-full
       />
     </div>
-  </label>
+  </props.as>
 </template>

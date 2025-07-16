@@ -22,10 +22,14 @@ const modelValue = defineModel<string>({ required: false })
     >
       <div flex="1">
         <div class="flex items-center gap-1 text-sm font-medium">
-          {{ props.label }}
+          <slot name="label">
+            {{ props.label }}
+          </slot>
         </div>
         <div class="text-xs text-neutral-500 dark:text-neutral-400">
-          {{ props.description }}
+          <slot name="description">
+            {{ props.description }}
+          </slot>
         </div>
       </div>
       <slot>

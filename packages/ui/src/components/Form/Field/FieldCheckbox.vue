@@ -14,10 +14,14 @@ const modelValue = defineModel<boolean>({ required: true })
     <div flex="~ row" items-center gap-2>
       <div flex="1">
         <div class="flex items-center gap-1 text-sm font-medium">
-          {{ props.label }}
+          <slot name="label">
+            {{ props.label }}
+          </slot>
         </div>
         <div class="text-xs text-neutral-500 dark:text-neutral-400">
-          {{ props.description }}
+          <slot name="description">
+            {{ props.description }}
+          </slot>
         </div>
       </div>
       <Checkbox v-model="modelValue" />

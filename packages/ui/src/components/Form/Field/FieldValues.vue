@@ -33,11 +33,15 @@ function removeItem(index: number) {
     <label class="flex flex-col gap-2">
       <div>
         <div class="flex items-center gap-1 text-sm font-medium">
-          {{ props.label }}
+          <slot name="label">
+            {{ props.label }}
+          </slot>
           <span v-if="props.required !== false" class="text-red-500">*</span>
         </div>
         <div class="text-nowrap text-xs text-neutral-500 dark:text-neutral-400">
-          {{ props.description }}
+          <slot name="description">
+            {{ props.description }}
+          </slot>
         </div>
       </div>
 
