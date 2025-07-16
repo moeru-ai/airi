@@ -37,7 +37,7 @@ watch(lang, () => locale.value = lang.value, { immediate: true })
           <div class="w-full flex items-center justify-between gap-8 md:justify-normal">
             <a
               :href="withBase(`/${lang}/`)"
-              class="flex items-center gap-2"
+              class="flex translate-y--1 items-center gap-2"
             >
               <img
                 class="w-6 md:w-9"

@@ -57,7 +57,6 @@ const themeClasses: Record<ThemeVariant, {
     flex flex-col gap-1
     overflow-hidden rounded-lg
     py-2 pl-4 pr-3
-    text-sm
     :class="[
       ...themeClasses[props.theme || 'violet'].container,
       // eslint-disable-next-line vue/prefer-separate-static-class

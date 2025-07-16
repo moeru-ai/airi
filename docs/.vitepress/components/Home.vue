@@ -4,6 +4,10 @@ import { useI18n } from 'vue-i18n'
 import homeCover from '../assets/home-cover-2025-07-15.png'
 
 const { t } = useI18n()
+
+function handleClickTryLive() {
+  window.location.replace('https://airi.moeru.ai/')
+}
 </script>
 
 <template>
@@ -21,13 +25,13 @@ const { t } = useI18n()
         </div>
         <div class="relative z-10 w-full flex justify-center gap-4">
           <a
-            href="https://airi.moeru.ai/"
             :class="[
               'rounded-xl px-5 py-3 font-extrabold outline-none backdrop-blur-md active:scale-95 focus:outline-none',
               'text-slate-700 dark:text-cyan-200',
             ]"
             bg="primary/20 dark:primary/30 dark:hover:primary/40"
             transition="colors,transform duration-200 ease-in-out"
+            @click="() => handleClickTryLive()"
           >
             {{ t('docs.theme.home.try-live.title') }}
           </a>

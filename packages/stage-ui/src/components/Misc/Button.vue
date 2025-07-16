@@ -43,13 +43,13 @@ const variantClasses: Record<ButtonVariant, {
   // lightened: string
 }> = {
   primary: {
-    default: 'bg-primary-100 hover:bg-primary-200 active:bg-primary-300 dark:bg-primary-900/40 dark:hover:bg-primary-900/60 dark:active:bg-primary-900/40 focus:ring-primary-300/60 dark:focus:ring-primary-600/30 border-2 border-solid border-primary-200/30 dark:border-primary-900/40 text-primary-950 dark:text-primary-100',
+    default: 'bg-primary-500/15 hover:bg-primary-500/20 active:bg-primary-500/30 dark:bg-primary-700/30 dark:hover:bg-primary-700/40 dark:active:bg-primary-700/30 focus:ring-primary-300/60 dark:focus:ring-primary-600/30 border-2 border-solid border-primary-500/5 dark:border-primary-900/40 text-primary-950 dark:text-primary-100',
   },
   secondary: {
-    default: 'bg-neutral-50 hover:bg-neutral-200 active:bg-neutral-300 dark:bg-neutral-600/40 dark:hover:bg-neutral-600/60 dark:active:bg-neutral-600/40 focus:ring-neutral-300/60 dark:focus:ring-neutral-600/30 border-2 border-solid border-neutral-200/50 dark:border-neutral-700/50 text-neutral-950 dark:text-neutral-100',
+    default: 'bg-neutral-400/15 hover:bg-neutral-400/20 active:bg-neutral-400/30 dark:bg-neutral-600/30 dark:hover:bg-neutral-600/40 dark:active:bg-neutral-600/30 focus:ring-neutral-300/30 dark:focus:ring-neutral-600/60 dark:focus:ring-neutral-600/30 border-2 border-solid border-neutral-300/30 dark:border-neutral-700/30 text-neutral-950 dark:text-neutral-100',
   },
   danger: {
-    default: 'bg-red-100 hover:bg-red-200 active:bg-red-300 dark:bg-red-900/40 dark:hover:bg-red-900/60 dark:active:bg-red-900/40 focus:ring-red-300/30 dark:focus:ring-red-600/60 dark:focus:ring-red-600/30 border-2 border-solid border-red-200/30 dark:border-red-900/30 text-red-950 dark:text-red-100',
+    default: 'bg-red-500/15 hover:bg-red-500/20 active:bg-red-500/30 dark:bg-red-700/30 dark:hover:bg-red-700/40 dark:active:bg-red-700/30 focus:ring-red-300/30 dark:focus:ring-red-600/60 dark:focus:ring-red-600/30 border-2 border-solid border-red-200/30 dark:border-red-900/30 text-red-950 dark:text-red-100',
   },
 }
 
@@ -62,7 +62,8 @@ const sizeClasses: Record<ButtonSize, string> = {
 
 // Base classes that are always applied
 const baseClasses = computed(() => [
-  'rounded-lg font-medium outline-none transition-all duration-150 ease-in-out',
+  'rounded-lg font-medium outline-none',
+  'transition-all duration-200 ease-in-out',
   'disabled:cursor-not-allowed disabled:opacity-50',
   props.block ? 'w-full' : '',
   sizeClasses[props.size],
