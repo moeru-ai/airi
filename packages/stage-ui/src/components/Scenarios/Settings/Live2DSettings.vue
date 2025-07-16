@@ -2,17 +2,16 @@
 import JSZip from 'jszip'
 import localforage from 'localforage'
 
-import { Emotion, EmotionNeutralMotionName } from '@proj-airi/stage-ui/constants'
-import { useLive2d } from '@proj-airi/stage-ui/stores'
-import { FieldRange } from '@proj-airi/ui'
+import { FieldRange, Input } from '@proj-airi/ui'
 import { useFileDialog, useObjectUrl } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import Section from '../../Layouts/Section.vue'
-import Button from '../../Misc/Button.vue'
-
+import { Emotion, EmotionNeutralMotionName } from '../../../constants'
+import { useLive2d } from '../../../stores'
+import { Section } from '../../Layouts'
+import { Button } from '../../Misc'
 import { ColorPalette } from '../../Widgets'
 
 defineProps<{
@@ -122,32 +121,55 @@ const exportObjectUrl = useObjectUrl(modelFile)
 
 <template>
   <div flex="~ col gap-2">
-    <Section :title="t('settings.live2d.change-model.title')" icon="i-solar:magic-stick-3-bold-duotone" inner-class="text-sm">
+    <Section
+      :title="t('settings.live2d.change-model.title')"
+      icon="i-solar:magic-stick-3-bold-duotone"
+      inner-class="text-sm"
+      :class="[
+        'rounded-xl',
+        'bg-white/80  dark:bg-black/75',
+        'backdrop-blur-lg',
+      ]"
+    >
+      <Button variant="secondary" @click="modelFileDialog.open()">
+        {{ t('settings.live2d.change-model.from-file') }}...
+      </Button>
       <div flex items-center gap-2>
-        <input
+        <Input
           v-model="localModelUrl"
           :disabled="loadingModel"
-          class="form-control flex-1"
-          border="neutral-300 dark:neutral-800 solid 1 focus:neutral-400 dark:focus:neutral-600"
-          transition="border duration-250 ease-in-out"
+          class="flex-1"
           :placeholder="t('settings.live2d.change-model.from-url-placeholder')"
-        >
-        <Button class="form-control" size="sm" @click="modelUrl = localModelUrl">
+        />
+        <Button size="sm" variant="secondary" @click="modelUrl = localModelUrl">
           {{ t('settings.live2d.change-model.from-url') }}
         </Button>
       </div>
-      <Button class="form-control place-self-end" size="sm" @click="modelFileDialog.open()">
-        {{ t('settings.live2d.change-model.from-file') }}...
+    </Section>
+    <Section
+      :title="t('settings.live2d.theme-color-from-model.title')"
+      icon="i-solar:magic-stick-3-bold-duotone"
+      inner-class="text-sm"
+      :class="[
+        'rounded-xl',
+        'bg-white/80  dark:bg-black/75',
+        'backdrop-blur-lg',
+      ]"
+    >
+      <ColorPalette class="mb-4 mt-2" :colors="palette.map(hex => ({ hex, name: hex }))" mx-auto />
+      <Button variant="secondary" @click="$emit('extractColorsFromModel')">
+        {{ t('settings.live2d.theme-color-from-model.button-extract.title') }}
       </Button>
-      <Button class="form-control" size="sm" @click="$emit('extractColorsFromModel')">
-        Extract colors from model
-      </Button>
-      <ColorPalette :colors="palette.map(hex => ({ hex, name: hex }))" />
     </Section>
     <Section
       v-if="loadSource === 'file'"
       :title="t('settings.live2d.edit-motion-map.title')"
       icon="i-solar:face-scan-circle-bold-duotone"
+      :class="[
+        'rounded-xl',
+        'bg-white/80  dark:bg-black/75',
+        'backdrop-blur-lg',
+      ]"
     >
       <div v-for="motion in availableMotions" :key="motion.fileName" flex items-center justify-between text-sm>
         <span font-medium font-mono>{{ motion.fileName }}</span>
@@ -160,7 +182,6 @@ const exportObjectUrl = useObjectUrl(modelFile)
           </select>
 
           <Button
-            size="sm"
             class="form-control"
             @click="currentMotion = { group: motion.motionName, index: motion.motionIndex }"
           >
@@ -168,26 +189,55 @@ const exportObjectUrl = useObjectUrl(modelFile)
           </Button>
         </div>
       </div>
-      <Button size="sm" @click="saveMotionMap">
+      <Button @click="saveMotionMap">
         Save and patch
       </Button>
       <a
         mt-2 block :href="exportObjectUrl"
         :download="`${modelFile?.name || 'live2d'}-motion-edited.zip`"
       >
-        <Button w-full size="sm">Export</button>
+        <Button w-full>Export</button>
       </a>
     </Section>
-    <Section :title="t('settings.live2d.scale-and-position.title')" icon="i-solar:scale-bold-duotone">
-      <FieldRange v-model="scale" :min="0.5" :max="2" :step="0.01" :label="t('settings.live2d.scale-and-position.scale')" />
-      <FieldRange v-model="position.x" :min="-100" :max="100" :step="1" :label="t('settings.live2d.scale-and-position.x')" />
-      <FieldRange v-model="position.y" :min="-100" :max="100" :step="1" :label="t('settings.live2d.scale-and-position.y')" />
+    <Section
+      :title="t('settings.live2d.scale-and-position.title')"
+      icon="i-solar:scale-bold-duotone"
+      :class="[
+        'rounded-xl',
+        'bg-white/80  dark:bg-black/75',
+        'backdrop-blur-lg',
+      ]"
+    >
+      <FieldRange v-model="scale" as="div" :min="0.5" :max="2" :step="0.01" :label="t('settings.live2d.scale-and-position.scale')">
+        <template #label>
+          <div flex items-center>
+            <div>{{ t('settings.live2d.scale-and-position.scale') }}</div>
+            <button px-2 text-xs outline-none title="Reset value to default" @click="() => scale = 1">
+              <div i-solar:forward-linear transform-scale-x--100 text="neutral-500 dark:neutral-400" />
+            </button>
+          </div>
+        </template>
+      </FieldRange>
+      <FieldRange v-model="position.x" as="div" :min="-100" :max="100" :step="1" :label="t('settings.live2d.scale-and-position.x')">
+        <template #label>
+          <div flex items-center>
+            <div>{{ t('settings.live2d.scale-and-position.x') }}</div>
+            <button px-2 text-xs outline-none title="Reset value to default" @click="() => position.x = 0">
+              <div i-solar:forward-linear transform-scale-x--100 text="neutral-500 dark:neutral-400" />
+            </button>
+          </div>
+        </template>
+      </FieldRange>
+      <FieldRange v-model="position.y" as="div" :min="-100" :max="100" :step="1" :label="t('settings.live2d.scale-and-position.y')">
+        <template #label>
+          <div flex items-center>
+            <div>{{ t('settings.live2d.scale-and-position.y') }}</div>
+            <button px-2 text-xs outline-none title="Reset value to default" @click="() => position.y = 0">
+              <div i-solar:forward-linear transform-scale-x--100 text="neutral-500 dark:neutral-400" />
+            </button>
+          </div>
+        </template>
+      </FieldRange>
     </Section>
   </div>
 </template>
-
-<style scoped>
-.form-control {
-  --at-apply: rounded px-2 py-1 outline-none;
-}
-</style>

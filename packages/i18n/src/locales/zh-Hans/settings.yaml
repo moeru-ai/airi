@@ -51,6 +51,9 @@ live2d:
     scale: 缩放
     x: X
     'y': 'Y'
+  theme-color-from-model:
+    button-extract:
+      title: 提取
 microphone: 麦克风
 models: 模型
 pages:

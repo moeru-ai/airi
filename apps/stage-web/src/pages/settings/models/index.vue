@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { Live2DCanvas, Live2DModel } from '@proj-airi/stage-ui/components/scenes'
 import { Live2DSettings } from '@proj-airi/stage-ui/components'
+import { Live2DCanvas, Live2DModel } from '@proj-airi/stage-ui/components/scenes'
 import { useLive2d } from '@proj-airi/stage-ui/stores'
 import { useElementBounding, useMouse } from '@vueuse/core'
 import { Vibrant } from 'node-vibrant/browser'
@@ -50,8 +50,8 @@ const positionCursor = useMouse()
 </script>
 
 <template>
-  <div flex class="h-[calc(100dvh-8rem)] flex-col-reverse sm:flex-row">
-    <div ref="live2dContainerRef" w="100% sm:50%" h="50% sm:80%">
+  <div flex class="relative h-full flex-col-reverse md:flex-row">
+    <div ref="live2dContainerRef" w="100%" h="100%">
       <Live2DCanvas
         v-slot="{ app }"
         ref="live2dCanvasRef"
@@ -76,7 +76,7 @@ const positionCursor = useMouse()
         />
       </Live2DCanvas>
     </div>
-    <Live2DSettings w="100% sm:50%" h="50% sm:80%" overflow-y-scroll :palette="palette" @extract-colors-from-model="extractColorsFromModel" />
+    <Live2DSettings w="100% md:30%" h-fit overflow-y-scroll class="absolute bottom-0 right-0 top-0" :palette="palette" @extract-colors-from-model="extractColorsFromModel" />
   </div>
 
   <IconAnimation

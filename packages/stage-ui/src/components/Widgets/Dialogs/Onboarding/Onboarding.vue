@@ -11,7 +11,7 @@ import onboardingLogo from '../../../../assets/onboarding.png'
 import { Callout } from '../../../Layouts'
 import { RadioCardDetail } from '../../../Menu'
 import { Button } from '../../../Misc'
-import { ProviderAccountIdInput } from '../../../Providers'
+import { ProviderAccountIdInput } from '../../../Scenarios/Providers'
 
 interface Emits {
   (e: 'configured'): void
