@@ -49,10 +49,6 @@ function parsePropsOffset() {
   if (String(props.yOffset).endsWith('%')) {
     yOffset = (Number.parseFloat(String(props.yOffset).replace('%', '')) / 100) * props.height
   }
-  if (Number.isNaN(xOffset))
-    xOffset = 0
-  if (Number.isNaN(yOffset))
-    yOffset = 0
 
   return {
     xOffset,
