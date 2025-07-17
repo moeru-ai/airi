@@ -12,7 +12,7 @@ date: 2025-07-18
 
 - 使用 TypeScript 编写 Factorio Mod：使用 [tstl](https://github.com/TypeScriptToLua/TypeScriptToLua) 来将 TypeScript 代码编译成 Lua 代码。
 - 使用 RCON 与 Factorio Mod 进行交互：使用 [factorio-rcon-api](https://github.com/nekomeowww/factorio-rcon-api) 来与 Factorio 通信，调用 `/c` 命令来执行 Mod 注册的函数。很感谢 [@nekomeowww](https://github.com/nekomeowww)。
-- 使用 LLM 进行决策并且生成 Lua 代码来操作玩家：通过提示词工程来告诉 LLM 如何操作游戏，如何进行规划，并且把与 RCON 交互的代码封装成工具（tool），让 LLM 可以调用。
+- 使用 LLM 进行决策并生成 Lua 代码来操作玩家：通过提示词工程来告诉 LLM 如何操作游戏、如何进行规划，并把与 RCON 交互的代码封装成工具（tool），让 LLM 可以调用。
 - 在游戏内置的聊天系统中与 LLM 进行交互：通过读取游戏的标准输出，使用正则表达式来解析游戏中玩家的聊天内容，发送给 LLM 来处理。
 - Factorio Mod 的热重载：通过为 tstl 写插件的形式来实时监测代码变化，并把新的 Mod 内容通过 RCON 发送给游戏，在收到新的 Mod 代码时卸载所有的接口并且执行一遍 Mod 的代码来实现热重载。但是，如何正确处理 Mod 已经有的状态成了大难题。
 - 在 DevContainer 中进行开发：使环境变得更可控，项目启动也会变得更简单。
