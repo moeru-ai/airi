@@ -318,7 +318,7 @@ nr -F @proj-airi/minecraft-bot dev
 
 ::: 注意
 
-提交前请确保代码已通过Lint（静态分析器）和TypeScript检查：
+提交前请确保代码已通过 Lint（静态分析器）和 类型安全检查：
 
 ```shell
 pnpm lint && pnpm typecheck
