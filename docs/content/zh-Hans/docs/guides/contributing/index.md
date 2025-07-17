@@ -353,7 +353,7 @@ git push origin <your-branch-name> -u
 
 ::: tip
 
-如果这是你第一次贡献本项目，请添加upstream源：
+如果这是你第一次贡献本项目，请添加上游（upstream，指向本项目）：
 
 ```shell
 git remote add upstream https://github.com/moeru-ai/airi.git
