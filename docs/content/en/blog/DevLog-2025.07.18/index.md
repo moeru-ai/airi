@@ -73,6 +73,6 @@ Alright, we've basically overturned all the previous designs again. Time to star
 
 ## Conclusion
 
-Thank you for reading. If you're interested, you can read through FLE's paper and [code](https://github.com/JackHopkins/factorio-learning-environment). Maybe my understanding is incorrect, welcome corrections! This reading might not be deep enough, but when I follow my ideas to improve `airi-factorio` next, I'll need to read repeatedly and update when there's progress.
+Thank you for reading. If you're interested, you can read through FLE's paper and [code](https://github.com/JackHopkins/factorio-learning-environment). Maybe my understanding is incorrect; corrections are welcome! This reading might not be deep enough, but when I follow my ideas to improve `airi-factorio` next, I'll need to read repeatedly and update when there's progress.
 
 That's it for this DevLog. Have a great weekend!
