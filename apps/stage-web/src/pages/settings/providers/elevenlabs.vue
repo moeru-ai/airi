@@ -203,7 +203,6 @@ watch(providers, async () => {
       </div>
     </template>
 
-    <!-- Replace the default playground with our standalone component -->
     <template #playground>
       <SpeechPlayground
         :available-voices="availableVoices"

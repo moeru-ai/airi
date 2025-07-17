@@ -606,6 +606,76 @@ export const useProvidersStore = defineStore('providers', () => {
             } satisfies ModelInfo
           })
         },
+        listVoices: async () => {
+          return [
+            {
+              id: 'alloy',
+              name: 'Alloy',
+              provider: 'openai-audio-speech',
+              languages: [],
+            },
+            {
+              id: 'ash',
+              name: 'Ash',
+              provider: 'openai-audio-speech',
+              languages: [],
+            },
+            {
+              id: 'ballad',
+              name: 'Ballad',
+              provider: 'openai-audio-speech',
+              languages: [],
+            },
+            {
+              id: 'coral',
+              name: 'Coral',
+              provider: 'openai-audio-speech',
+              languages: [],
+            },
+            {
+              id: 'echo',
+              name: 'Echo',
+              provider: 'openai-audio-speech',
+              languages: [],
+            },
+            {
+              id: 'fable',
+              name: 'Fable',
+              provider: 'openai-audio-speech',
+              languages: [],
+            },
+            {
+              id: 'onyx',
+              name: 'Onyx',
+              provider: 'openai-audio-speech',
+              languages: [],
+            },
+            {
+              id: 'nova',
+              name: 'Nova',
+              provider: 'openai-audio-speech',
+              languages: [],
+            },
+            {
+              id: 'sage',
+              name: 'Sage',
+              provider: 'openai-audio-speech',
+              languages: [],
+            },
+            {
+              id: 'shimmer',
+              name: 'Shimmer',
+              provider: 'openai-audio-speech',
+              languages: [],
+            },
+            {
+              id: 'verse',
+              name: 'Verse',
+              provider: 'openai-audio-speech',
+              languages: [],
+            },
+          ] satisfies VoiceInfo[]
+        },
       },
       validators: {
         validateProviderConfig: (config) => {
