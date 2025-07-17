@@ -35,7 +35,7 @@ description: 参与并贡献 Project AIRI
    # Rust 相关依赖
    # 如果你不打算涉及 crates 或者 apps/tamagotchi 的开发，该步骤可跳过
    scoop install main/rust-msvc
-   # Windows平台所需内容
+   # Windows 平台所需内容
    rustup toolchain install stable-x86_64-pc-windows-msvc
    rustup default stable-x86_64-pc-windows-msvc
    ```
