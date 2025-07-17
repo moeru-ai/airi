@@ -45,7 +45,7 @@ With the power of modern large language models like [ChatGPT](https://chatgpt.co
 
 Perhaps you know [Neuro-sama](https://www.youtube.com/@Neurosama) already, she is currently the best companion capable of playing games, chatting, and interacting with you and the participants (in VTuber community), some call this kind of being, "digital human" too. **Sadly, it's not open sourced, you cannot interact with her after she went offline from live stream**.
 
-Therefore, this project, AIRI, offers another possibility here: **let you own yours digital life, cyber living, easily, anywhere, anytime**.
+Therefore, this project, AIRI, offers another possibility here: **let you own your digital life, cyber living, easily, anywhere, anytime**.
 
 ## DevLogs we posted & Recent updates
 
