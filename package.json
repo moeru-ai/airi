@@ -73,6 +73,7 @@
   },
   "workspaces": [
     "packages/**",
+    "plugins/**",
     "services/**",
     "examples/**",
     "docs/**",

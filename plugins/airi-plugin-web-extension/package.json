@@ -1,0 +1,26 @@
+{
+  "name": "@proj-airi/airi-plugin-web-extension",
+  "type": "module",
+  "version": "0.0.0",
+  "private": true,
+  "description": "manifest.json description",
+  "scripts": {
+    "dev": "wxt",
+    "dev:firefox": "wxt -b firefox",
+    "build": "wxt build",
+    "build:firefox": "wxt build -b firefox",
+    "zip": "wxt zip",
+    "zip:firefox": "wxt zip -b firefox",
+    "compile": "vue-tsc --noEmit",
+    "postinstall": "wxt prepare"
+  },
+  "dependencies": {
+    "vue": "^3.5.13"
+  },
+  "devDependencies": {
+    "@unocss/reset": "^66.3.3",
+    "@wxt-dev/module-vue": "^1.0.2",
+    "vue-tsc": "^2.2.10",
+    "wxt": "^0.20.6"
+  }
+}
