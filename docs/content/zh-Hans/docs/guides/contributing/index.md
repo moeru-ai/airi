@@ -250,7 +250,7 @@ nr -F @proj-airi/telegram-bot dev
 
 :::
 
-### Discord 机器人
+### Discord Bot / 机器人
 
 ```shell
 cd services/discord-bot
