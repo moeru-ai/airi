@@ -1,6 +1,6 @@
 import process from 'node:process'
 
-import { mkdirSync, renameSync } from 'node:fs'
+import { mkdirSync, readdirSync, renameSync } from 'node:fs'
 import { join } from 'node:path'
 
 import { cac } from 'cac'
@@ -32,6 +32,9 @@ let version = packageJSON.version
 const target = args.args[0]
 const productName = tauriConfigJSON.productName
 const dirname = import.meta.dirname
+
+const beforeVersion = version
+const beforeProductName = productName
 
 const argOptions = args.options as {
   release: boolean
@@ -71,9 +74,9 @@ else {
   version = `nightly-${date}-${String(res.stdout.replace(/"/g, '')).trim().substring(0, 7)}`
 }
 
-console.log('version:', version)
+console.log('version:', beforeVersion, version)
 console.log('target:', target)
-console.log('productName:', productName)
+console.log('productName:', beforeProductName, productName)
 console.log('dirname:', dirname)
 
 if (!target) {
@@ -85,37 +88,38 @@ const bundlePrefix = join(dirname, '..', '..', '..', 'bundle')
 
 console.log('srcPrefix:', srcPrefix)
 console.log('bundlePrefix:', bundlePrefix)
+console.log(readdirSync(srcPrefix))
 
 mkdirSync(bundlePrefix, { recursive: true })
 
 switch (target) {
   case 'x86_64-pc-windows-msvc':
     renameSync(
-      join(srcPrefix, 'nsis', `${productName}_${version}_x64-setup.exe`),
+      join(srcPrefix, 'nsis', `${beforeProductName}_${beforeVersion}_x64-setup.exe`),
       join(bundlePrefix, `${productName}_${version}_windows_amd64-setup.exe`),
     )
     break
   case 'x86_64-unknown-linux-gnu':
     renameSync(
-      join(srcPrefix, 'appimage', `${productName}_${version}_amd64.AppImage`),
+      join(srcPrefix, 'appimage', `${beforeProductName}_${beforeVersion}_amd64.AppImage`),
       join(bundlePrefix, `${productName}_${version}_linux_amd64.AppImage`),
     )
     break
   case 'aarch64-unknown-linux-gnu':
     renameSync(
-      join(srcPrefix, 'appimage', `${productName}_${version}_aarch64.AppImage`),
+      join(srcPrefix, 'appimage', `${beforeProductName}_${beforeVersion}_aarch64.AppImage`),
       join(bundlePrefix, `${productName}_${version}_linux_arm64.AppImage`),
     )
     break
   case 'aarch64-apple-darwin':
     renameSync(
-      join(srcPrefix, 'dmg', `${productName}_${version}_aarch64.dmg`),
+      join(srcPrefix, 'dmg', `${beforeProductName}_${beforeVersion}_aarch64.dmg`),
       join(bundlePrefix, `${productName}_${version}_macos_arm64.dmg`),
     )
     break
   case 'x86_64-apple-darwin':
     renameSync(
-      join(srcPrefix, 'dmg', `${productName}_${version}_x64.dmg`),
+      join(srcPrefix, 'dmg', `${beforeProductName}_${beforeVersion}_x64.dmg`),
       join(bundlePrefix, `${productName}_${version}_macos_amd64.dmg`),
     )
     break
