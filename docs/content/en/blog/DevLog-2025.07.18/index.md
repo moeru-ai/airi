@@ -39,7 +39,7 @@ FLE has two modes:
 
 They evaluated mainstream LLMs like Claude 3.5 Sonnet, GPT-4o, Deepseek-v3, Gemini-2, etc., but in Lab-play, even the strongest Claude 3.5 at the time only completed 7 levels.
 
-Reading this, I became curious. Their evaluation was so complex, so they must have also ensured maintainability technically. How did they achieve this? Continuing to read, I found that their implementation method was very similar to `airi-factorio`, but had many advantages compared to `airi-factorio`:
+Reading this, I became curious. Their evaluation was so complex, so they must have also ensured technical maintainability. How did they achieve this? Continuing to read, I found that their implementation method was very similar to `airi-factorio`, but had many advantages compared to `airi-factorio`:
 
 - Written in Python, the LLM generates Python code and executes it directly in a Python REPL, and can read results directly from standard output. Since Python has far more datasets than Lua, the generation accuracy is higher and can generate more complex code.
 - The Lua mod only contains primitive operations for execution, such as place_entity for placing entities. More complex logic is written in Python, which can reduce the possibility of bugs in the Lua mod, so we don't need to restart the game so frequently.
