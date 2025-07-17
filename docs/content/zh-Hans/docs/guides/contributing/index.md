@@ -212,7 +212,7 @@ nr dev:docs
 
 ### Telegram Bot / 机器人
 
-需要使用Postgres数据库。
+需要使用 pgvector（基于 Postgres）数据库。
 
 ```shell
 cd services/telegram-bot
