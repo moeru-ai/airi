@@ -53,7 +53,7 @@ They also posted their [system prompt](https://arxiv.org/html/2503.09617v1#A8.SS
 
 Compared to FLE, our implementation seems quite naive. So how should we improve `airi-factorio`?
 
-I don't want to write Python, I'm only familiar with TypeScript and Golang. Coincidentally, we recently also wrote [mcp-launcher](https://github.com/moeru-ai/mcp-launcher), a builder suitable for all possible MCP servers. We can use it with Golang to implement an MCP server, then let the LLM call it.
+I don't want to write Python, I'm familiar with TypeScript and Golang, only. Coincidentally, we made [mcp-launcher](https://github.com/moeru-ai/mcp-launcher) just a few ago, a builder suitable for all possible MCP servers. We can use it with Golang to implement an MCP server, then let the LLM call it.
 
 So the structure diagram has changed:
 
