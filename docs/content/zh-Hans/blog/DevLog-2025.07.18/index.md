@@ -39,7 +39,7 @@ FLE 分为两种模式：
 
 他们评测了 Claude 3.5 Sonnet、GPT-4o、Deepseek-v3、Gemini-2 等多款主流 LLM，但是在 Lab-play 中当时最强的 Claude 3.5 也只完成了 7 个关卡。
 
-读到这里，我开始好奇，他们的评测如此复杂，那在技术上也需要保证可维护性，他们是怎么做到的呢？继续阅读发现，他们的实现方式与 `airi-factorio` 非常相似，但是相对 `airi-factorio` 来说有很多优点：
+读到这里，我开始好奇，他们的评测如此复杂，那么在技术实现上是如何保证可维护性的呢？继续阅读发现，他们的实现方式与 `airi-factorio` 非常相似，但是相对 `airi-factorio` 来说有很多优点：
 
 - 使用 Python 编写，LLM 生成 Python 代码并直接在 Python REPL 中执行，可以直接在标准输出中读取结果。由于 Python 的数据集远远多于 Lua，所以生成的准确性更高，也能生成更复杂的代码。
 - Lua mod 中只包含执行操作的原语，比如 place_entity 放置实体，更复杂的逻辑放到 Python 中写，可以减少 Lua mod 出现 bug 的可能，就不用那么频繁的重启游戏。
