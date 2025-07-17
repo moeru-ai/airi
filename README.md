@@ -341,5 +341,5 @@ flowchart TD
 [![Star History Chart](https://api.star-history.com/svg?repos=moeru-ai/airi&type=Date)](https://www.star-history.com/#moeru-ai/airi&Date)
 
 ---
-
-<sup>**Disclaimer:** We do not have any officially minted cryptocurrency or token associated with this project. Please proceed with caution.</sup>
+> [!WARNING]
+> **Disclaimer:** We do not have any officially minted cryptocurrency or token associated with this project. Please proceed with caution.
