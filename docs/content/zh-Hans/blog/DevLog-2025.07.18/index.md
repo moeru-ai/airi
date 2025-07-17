@@ -30,7 +30,7 @@ date: 2025-07-18
 
 时间回到现在，我打算好好理一理这个项目，但是我不知道从哪里开始，刚好有人提到了一篇论文 [Factorio Learning Environment](https://arxiv.org/abs/2503.09617)，我来带你简单读一读它。
 
-在这篇论文中，作者提出了一个名为 Factorio Learning Environment (FLE) 的框架，他们在这个环境中测试AI在长期规划、程序合成、资源管理与空间推理方面的能力。
+在这篇论文中，作者提出了一个名为 Factorio Learning Environment (FLE) 的框架，他们在这个环境中测试 AI 在长期规划、程序合成、资源管理与空间推理方面的能力。
 
 FLE 分为两种模式：
 
