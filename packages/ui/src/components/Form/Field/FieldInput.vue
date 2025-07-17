@@ -13,7 +13,7 @@ const props = withDefaults(defineProps<{
   singleLine: true,
 })
 
-const modelValue = defineModel<string>({ required: true })
+const modelValue = defineModel<string>({ required: false })
 </script>
 
 <template>

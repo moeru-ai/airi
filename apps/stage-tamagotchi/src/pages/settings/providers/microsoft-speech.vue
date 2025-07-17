@@ -52,6 +52,10 @@ const availableVoices = computed(() => {
 })
 
 onMounted(async () => {
+  if (!region.value) {
+    region.value = 'eastasia' // Default region
+  }
+
   await speechStore.loadVoicesForProvider(providerId)
 })
 

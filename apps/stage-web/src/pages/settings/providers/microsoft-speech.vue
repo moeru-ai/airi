@@ -34,7 +34,7 @@ const volume = ref(0)
 
 // Additional settings specific to Microsoft Speech (region)
 const region = computed({
-  get: () => providers.value[providerId]?.region as string | undefined || 'eastasia',
+  get: () => providers.value[providerId]?.region as string | undefined,
   set: (value) => {
     if (!providers.value[providerId])
       providers.value[providerId] = { region: 'eastasia' }
@@ -52,6 +52,10 @@ const availableVoices = computed(() => {
 })
 
 onMounted(async () => {
+  if (!region.value) {
+    region.value = 'eastasia' // Default region
+  }
+
   await speechStore.loadVoicesForProvider(providerId)
 })
 
