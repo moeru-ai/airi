@@ -262,7 +262,7 @@ cd services/discord-bot
 cp .env .env.local
 ```
 
-编辑 `.env.local` 中的 credentials。
+编辑 `.env.local` 中的各类密钥和配置信息。
 
 启动机器人：
 
