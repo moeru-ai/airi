@@ -65,7 +65,7 @@ With that, the structure diagram has changed:
 
 </div>
 
-Player chat content is no longer pushed to the LLM, but stored in the [RconChat](https://gitlab.com/FishBus/rconchat) mod. The LLM reads this content through the MCP server. With the MCP server, we don't need to let the LLM generate Lua code anymore.
+Player chat content will no longer be sent to the LLM, rather stored in the [RconChat](https://gitlab.com/FishBus/rconchat) mod, while LLM reads this content through the MCP server. With the potential MCP server approach, we don't need to let the LLM generate Lua code anymore.
 
 Regarding system prompts, currently our prompts are AI-generated, but they're still not clear enough, with unclear priorities. I plan to improve them by referencing FLE's system prompt.
 
