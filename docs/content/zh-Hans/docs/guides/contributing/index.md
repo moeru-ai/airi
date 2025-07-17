@@ -280,7 +280,7 @@ nr -F @proj-airi/discord-bot dev
 
 :::
 
-### 我的世界 Agent
+### Minecraft（我的世界）Agent / NPC
 
 ```shell
 cd services/minecraft
