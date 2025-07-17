@@ -40,6 +40,7 @@ coverage/
 
 # Build
 out/
+bundle/
 # WXT specified this too
 *.output
 
