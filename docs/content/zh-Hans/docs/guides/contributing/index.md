@@ -210,7 +210,7 @@ nr dev:docs
 
 :::
 
-### Telegram 机器人
+### Telegram Bot / 机器人
 
 需要使用Postgres数据库。
 
