@@ -44,7 +44,7 @@ const {
 
 <template>
   <div flex class="relative h-[calc(100dvh-8rem)] flex-col-reverse md:flex-row">
-    <ModelSettings w="100% md:30%" h-fit overflow-y-scroll class="absolute bottom-0 right-0 top-0" :palette="palette" @extract-colors-from-model="extractColorsFromModel" />
+    <ModelSettings live-2d-settings-class="w-100% md:w-40% lg:w-30% xl:w-30% 2xl:w-30% h-fit overflow-y-scroll absolute bottom-0 right-0 top-0" :palette="palette" @extract-colors-from-model="extractColorsFromModel" />
   </div>
 
   <IconAnimation
