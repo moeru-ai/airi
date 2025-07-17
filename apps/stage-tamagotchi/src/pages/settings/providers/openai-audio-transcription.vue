@@ -1,106 +1,60 @@
 <script setup lang="ts">
-import type { RemovableRef } from '@vueuse/core'
+import type { TranscriptionProvider } from '@xsai-ext/shared-providers'
 
 import {
-  ProviderAdvancedSettings,
-  ProviderApiKeyInput,
-  ProviderBaseUrlInput,
-  ProviderBasicSettings,
-  ProviderSettingsContainer,
-  ProviderSettingsLayout,
+  TranscriptionPlayground,
+  TranscriptionProviderSettings,
 } from '@proj-airi/stage-ui/components'
-import { useProvidersStore } from '@proj-airi/stage-ui/stores'
+import { useHearingStore, useProvidersStore } from '@proj-airi/stage-ui/stores'
 import { storeToRefs } from 'pinia'
-import { computed, onMounted, watch } from 'vue'
-import { useI18n } from 'vue-i18n'
-import { useRouter } from 'vue-router'
+import { computed } from 'vue'
 
-const { t } = useI18n()
-const router = useRouter()
+const hearingStore = useHearingStore()
 const providersStore = useProvidersStore()
-const { providers } = storeToRefs(providersStore) as { providers: RemovableRef<Record<string, any>> }
+const { providers } = storeToRefs(providersStore)
 
 // Get provider metadata
-const providerId = 'openai'
-const providerMetadata = computed(() => providersStore.getProviderMetadata(providerId))
+const providerId = 'openai-audio-transcription'
+const defaultModel = 'whisper-1'
 
-// Use computed properties for settings
-const apiKey = computed({
-  get: () => providers.value[providerId]?.apiKey || '',
-  set: (value) => {
-    if (!providers.value[providerId])
-      providers.value[providerId] = {}
+// Check if API key is configured
+const apiKeyConfigured = computed(() => !!providers.value[providerId]?.apiKey)
 
-    providers.value[providerId].apiKey = value
-  },
-})
-
-const baseUrl = computed({
-  get: () => providers.value[providerId]?.baseUrl || 'https://api.openai.com/v1/',
-  set: (value) => {
-    if (!providers.value[providerId])
-      providers.value[providerId] = {}
-
-    providers.value[providerId].baseUrl = value
-  },
-})
-
-onMounted(() => {
-  // Initialize provider if it doesn't exist
-  if (!providers.value[providerId]) {
-    providers.value[providerId] = {
-      baseUrl: 'https://api.openai.com/v1/',
-    }
+// Generate speech with ElevenLabs-specific parameters
+async function handleGenerateTranscription(file: File) {
+  const provider = providersStore.getProviderInstance(providerId) as TranscriptionProvider<string>
+  if (!provider) {
+    throw new Error('Failed to initialize speech provider')
   }
 
-  // Initialize refs with current values
-  apiKey.value = providers.value[providerId]?.apiKey || ''
-  baseUrl.value = providers.value[providerId]?.baseUrl || 'https://api.openai.com/v1/'
-})
+  // Get provider configuration
+  const providerConfig = providersStore.getProviderConfig(providerId)
 
-// Watch settings and update the provider configuration
-watch([apiKey, baseUrl], () => {
-  providers.value[providerId] = {
-    ...providers.value[providerId],
-    apiKey: apiKey.value,
-    baseUrl: baseUrl.value || 'https://api.openai.com/v1/',
-  }
-})
+  // Get model from configuration or use default
+  const model = providerConfig.model as string | undefined || defaultModel
 
-function handleResetSettings() {
-  providers.value[providerId] = {
-    baseUrl: 'https://api.openai.com/v1/',
-  }
+  // ElevenLabs doesn't need SSML conversion, but if SSML is provided, use it directly
+  return await hearingStore.transcription(
+    provider,
+    model,
+    file,
+    'json',
+  )
 }
 </script>
 
 <template>
-  <ProviderSettingsLayout
-    :provider-name="providerMetadata?.localizedName || 'OpenAI'"
-    :provider-icon="providerMetadata?.icon"
-    :on-back="() => router.back()"
+  <TranscriptionProviderSettings
+    :provider-id="providerId"
+    :default-model="defaultModel"
   >
-    <ProviderSettingsContainer>
-      <ProviderBasicSettings
-        :title="t('settings.pages.providers.common.section.basic.title')"
-        :description="t('settings.pages.providers.common.section.basic.description')"
-        :on-reset="handleResetSettings"
-      >
-        <ProviderApiKeyInput
-          v-model="apiKey"
-          :provider-name="providerMetadata?.localizedName || 'OpenAI'"
-          placeholder="sk-..."
-        />
-      </ProviderBasicSettings>
-
-      <ProviderAdvancedSettings :title="t('settings.pages.providers.common.section.advanced.title')">
-        <ProviderBaseUrlInput
-          v-model="baseUrl"
-          placeholder="https://api.openai.com/v1/"
-        />
-      </ProviderAdvancedSettings>
-    </ProviderSettingsContainer>
-  </ProviderSettingsLayout>
+    <template #playground>
+      <TranscriptionPlayground
+        :generate-transcription="handleGenerateTranscription"
+        :api-key-configured="apiKeyConfigured"
+      />
+    </template>
+  </TranscriptionProviderSettings>
 </template>
 
 <route lang="yaml">

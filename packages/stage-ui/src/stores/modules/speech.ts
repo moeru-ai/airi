@@ -4,7 +4,7 @@ import type { VoiceInfo } from '../providers'
 
 import { useLocalStorage } from '@vueuse/core'
 import { generateSpeech } from '@xsai/generate-speech'
-import { defineStore } from 'pinia'
+import { defineStore, storeToRefs } from 'pinia'
 import { computed, onMounted, ref, watch } from 'vue'
 import { toXml } from 'xast-util-to-xml'
 import { x } from 'xastscript'
@@ -13,6 +13,7 @@ import { useProvidersStore } from '../providers'
 
 export const useSpeechStore = defineStore('speech', () => {
   const providersStore = useProvidersStore()
+  const { allAudioSpeechProvidersMetadata } = storeToRefs(providersStore)
 
   // State
   const activeSpeechProvider = useLocalStorage('settings/speech/active-provider', '')
@@ -30,12 +31,7 @@ export const useSpeechStore = defineStore('speech', () => {
   const modelSearchQuery = ref('')
 
   // Computed properties
-  const availableSpeechProvidersMetadata = computed(() => {
-    // Filter only speech providers from all available providers
-    return providersStore.availableProviders
-      .filter(id => isSpeechProvider(id))
-      .map(id => providersStore.getProviderMetadata(id))
-  })
+  const availableSpeechProvidersMetadata = computed(() => allAudioSpeechProvidersMetadata.value)
 
   // Computed properties
   const supportsModelListing = computed(() => {
@@ -72,13 +68,8 @@ export const useSpeechStore = defineStore('speech', () => {
     return ['elevenlabs', 'microsoft-speech', 'azure-speech', 'google', 'alibaba-cloud-model-studio', 'volcengine'].includes(activeSpeechProvider.value)
   })
 
-  // Helper function to determine if a provider is a speech provider
-  function isSpeechProvider(providerId: string): boolean {
-    return ['openai-audio-speech', 'elevenlabs', 'microsoft-speech', 'azure-speech', 'google', 'amazon', 'alibaba-cloud-model-studio', 'volcengine', 'player2-speech'].includes(providerId)
-  }
-
   async function loadVoicesForProvider(provider: string) {
-    if (!provider || !isSpeechProvider(provider)) {
+    if (!provider) {
       return []
     }
 
@@ -243,6 +234,5 @@ export const useSpeechStore = defineStore('speech', () => {
     loadVoicesForProvider,
     getVoicesForProvider,
     generateSSML,
-    isSpeechProvider,
   }
 })

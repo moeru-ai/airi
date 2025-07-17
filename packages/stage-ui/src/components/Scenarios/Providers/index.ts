@@ -9,3 +9,6 @@ export { default as ProviderSettingsLayout } from './ProviderSettingsLayout.vue'
 
 export { default as SpeechPlayground } from './SpeechPlayground.vue'
 export { default as SpeechProviderSettings } from './SpeechProviderSettings.vue'
+
+export { default as TranscriptionPlayground } from './TranscriptionPlayground.vue'
+export { default as TranscriptionProviderSettings } from './TranscriptionProviderSettings.vue'

@@ -31,7 +31,7 @@ catalogs:
       specifier: ^0.3.0-beta.8
       version: 0.3.0-beta.8
     '@xsai/generate-transcription':
-      specifier: ^0.3.0-beta.8
+      specifier: 0.3.0-beta.8
       version: 0.3.0-beta.8
     '@xsai/model':
       specifier: ^0.3.0-beta.8
@@ -1236,6 +1236,9 @@ importers:
         specifier: 'catalog:'
         version: 0.3.0-beta.8
       '@xsai/generate-speech':
+        specifier: 'catalog:'
+        version: 0.3.0-beta.8
+      '@xsai/generate-transcription':
         specifier: 'catalog:'
         version: 0.3.0-beta.8
       '@xsai/model':
@@ -17659,7 +17662,7 @@ snapshots:
 
   '@xsai/generate-transcription@0.3.0-beta.8':
     dependencies:
-      '@xsai/shared': 0.3.0-beta.8
+      '@xsai/shared': 0.3.0
 
   '@xsai/model@0.3.0-beta.8':
     dependencies:
