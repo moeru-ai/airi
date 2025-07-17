@@ -343,7 +343,7 @@ git add .
 git commit -m "<your-commit-message>"
 ```
 
-### 将你的代码推送（push）至你的fork仓库
+### 将你的代码推送（push）至先前 fork 或者拥有写入权限的 AIRI 仓库
 
 ```shell
 git push origin <your-branch-name> -u
