@@ -55,7 +55,7 @@ Compared to FLE, our implementation seems quite naive. So how should we improve 
 
 I don't want to write Python, I'm familiar with TypeScript and Golang, only. Coincidentally, we made [mcp-launcher](https://github.com/moeru-ai/mcp-launcher) just a few ago, a builder suitable for all possible MCP servers. We can use it with Golang to implement an MCP server, then let the LLM call it.
 
-So the structure diagram has changed:
+With that, the structure diagram has changed:
 
 <div class="flex flex-row gap-4">
 
