@@ -65,7 +65,7 @@ FLE 分为两种模式：
 
 </div>
 
-玩家的聊天的内容不再被推送给 LLM，而是储存在 [RconChat](https://gitlab.com/FishBus/rconchat) mod 中，LLM 通过 MCP 服务器来读取这些内容。用上了 MCP 服务器，就不需要让 LLM 来生成 Lua 代码了。
+玩家的聊天内容不再被推送给 LLM，而是储存在 [RconChat](https://gitlab.com/FishBus/rconchat) mod 中，LLM 通过 MCP 服务器来读取这些内容。用上了 MCP 服务器，就不需要让 LLM 来生成 Lua 代码了。
 
 系统提示词方面，目前我们的提示词虽然是 AI 生成的，但依然不够清晰，主次不明确，我打算参考 FLE 的系统提示词来改进一下。
 
