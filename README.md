@@ -49,9 +49,10 @@ Therefore, this project, AIRI, offers another possibility here: **let you own yo
 
 ## DevLogs we posted & Recent updates
 
+- [DevLog @ 2025.07.18](https://airi.moeru.ai/docs/blog/DevLog-2025.07.18/) on July 18, 2025
 - [DreamLog 0x1](https://airi.moeru.ai/docs/blog/dreamlog-0x1/) on June 16, 2025
-- [DevLog @ 2025.06.08](https://airi.moeru.ai/docs/blog/devlog-20250608/) on June 8, 2025
-- [DevLog @ 2025.05.16](https://airi.moeru.ai/docs/blog/devlog-20250516/) on May 16, 2025
+- [DevLog @ 2025.06.08](https://airi.moeru.ai/docs/blog/DevLog-2025.06.08/) on June 8, 2025
+- [DevLog @ 2025.05.16](https://airi.moeru.ai/docs/blog/DevLog-2025.05.16/) on May 16, 2025
 - ...more on [documentation site](https://airi.moeru.ai/docs)
 
 ## What's so special for this project?
