@@ -16,6 +16,7 @@
   },
   "exports": {
     ".": "./src/components/index.ts",
+    "./components/scenarios/settings/model-settings": "./src/components/Scenarios/Settings/ModelSettings/index.ts",
     "./components/scenes": "./src/components/Scenes/index.ts",
     "./components": "./src/components/index.ts",
     "./composables/*": "./src/composables/*.ts",

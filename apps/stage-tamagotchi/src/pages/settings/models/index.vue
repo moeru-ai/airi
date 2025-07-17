@@ -1,20 +1,15 @@
 <script setup lang="ts">
-import { Live2DSettings } from '@proj-airi/stage-ui/components'
-import { Live2DCanvas, Live2DModel } from '@proj-airi/stage-ui/components/scenes'
-import { useLive2d } from '@proj-airi/stage-ui/stores'
-import { useElementBounding, useMouse } from '@vueuse/core'
+import type { Live2DCanvas } from '@proj-airi/stage-ui/components/scenes'
+
+import { ModelSettings } from '@proj-airi/stage-ui/components/scenarios/settings/model-settings'
 import { Vibrant } from 'node-vibrant/browser'
-import { storeToRefs } from 'pinia'
 import { ref } from 'vue'
 
 import IconAnimation from '../../../components/IconAnimation.vue'
 
 import { useIconAnimation } from '../../../composables/icon-animation'
 
-const live2dContainerRef = ref<HTMLDivElement>()
 const live2dCanvasRef = ref<InstanceType<typeof Live2DCanvas>>()
-const { width, height } = useElementBounding(live2dContainerRef)
-const { positionInPercentageString, scale } = storeToRefs(useLive2d())
 
 const palette = ref<string[]>([])
 
@@ -45,38 +40,11 @@ const {
   showIconAnimation,
   animationIcon,
 } = useIconAnimation('i-solar:people-nearby-bold-duotone')
-
-const positionCursor = useMouse()
 </script>
 
 <template>
   <div flex class="relative h-[calc(100dvh-8rem)] flex-col-reverse md:flex-row">
-    <div ref="live2dContainerRef" w="100%" h="100%">
-      <Live2DCanvas
-        v-slot="{ app }"
-        ref="live2dCanvasRef"
-        :width="width"
-        :height="height"
-        :resolution="2"
-        max-h="100dvh"
-      >
-        <Live2DModel
-          :app="app"
-          :mouth-open-size="0"
-          :width="width"
-          :height="height"
-          :paused="false"
-          :focus-at="{
-            x: positionCursor.x.value,
-            y: positionCursor.y.value,
-          }"
-          :x-offset="positionInPercentageString.x"
-          :y-offset="positionInPercentageString.y"
-          :scale="scale"
-        />
-      </Live2DCanvas>
-    </div>
-    <Live2DSettings w="100% md:30%" h-fit overflow-y-scroll class="absolute bottom-0 right-0 top-0" :palette="palette" @extract-colors-from-model="extractColorsFromModel" />
+    <ModelSettings w="100% md:30%" h-fit overflow-y-scroll class="absolute bottom-0 right-0 top-0" :palette="palette" @extract-colors-from-model="extractColorsFromModel" />
   </div>
 
   <IconAnimation
