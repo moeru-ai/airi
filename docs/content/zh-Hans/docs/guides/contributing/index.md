@@ -117,7 +117,7 @@ git rebase main
 
 ## Fork 本项目
 
-请点击 [moeru-ai/airi](https://github.com/moeru-ai/airi) 页面右上角的 **Fork** 按钮来fork本项目。
+请点击 [moeru-ai/airi](https://github.com/moeru-ai/airi) 页面右上角的 **Fork** 按钮来 fork（分叉一个归属于你的账户的副本）本项目。
 
 ## 克隆本项目
 
