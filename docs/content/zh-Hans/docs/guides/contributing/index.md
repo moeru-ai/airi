@@ -286,7 +286,7 @@ nr -F @proj-airi/discord-bot dev
 cd services/minecraft
 ```
 
-启动Minecraft客户端并导出世界到指定的端口。请在 `.env.local` 中配置端口。
+启动 Minecraft（我的世界）客户端并导出世界到指定的端口。请在 `.env.local` 中配置端口。
 
 配置 `.env` 文件：
 
