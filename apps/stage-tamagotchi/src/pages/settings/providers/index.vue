@@ -22,7 +22,7 @@ const {
 </script>
 
 <template>
-  <div flex flex-col gap-5>
+  <div mb-6 flex flex-col gap-5>
     <div bg="primary-500/10 dark:primary-800/25" rounded-lg p-4>
       <div mb-2 text-xl font-normal text="primary-800 dark:primary-100">
         First time here?

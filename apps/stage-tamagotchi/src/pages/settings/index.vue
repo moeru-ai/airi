@@ -108,7 +108,7 @@ const settings = computed(() => [
 <template>
   <div flex="~ col gap-4" font-normal>
     <div />
-    <div flex="~ col gap-4">
+    <div flex="~ col gap-4" pb-12>
       <IconItem
         v-for="(setting, index) in settings"
         :key="setting.to"

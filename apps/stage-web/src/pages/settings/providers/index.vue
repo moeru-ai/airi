@@ -25,7 +25,7 @@ const {
 </script>
 
 <template>
-  <div flex flex-col gap-5>
+  <div flex flex-col gap-5 pb-12>
     <div class="rounded-lg bg-primary-500/10 p-4 dark:bg-primary-800/25">
       <div class="mb-2 text-xl text-primary-800 font-semibold dark:text-primary-100">
         {{ $t('settings.pages.providers.helpinfo.title') }}

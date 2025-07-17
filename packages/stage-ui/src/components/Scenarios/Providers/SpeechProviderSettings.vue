@@ -25,6 +25,7 @@ const props = defineProps<{
   defaultModel?: string
   // Additional provider-specific settings
   additionalSettings?: Record<string, any>
+  placeholder?: string
 }>()
 
 // Expose slots and emit events to allow customization
@@ -258,7 +259,7 @@ const slotData = computed(() => ({
           :description="t('settings.pages.providers.common.section.basic.description')"
           :on-reset="handleResetVoiceSettings"
         >
-          <ProviderApiKeyInput v-model="apiKey" :provider-name="providerMetadata?.localizedName" placeholder="sk-" />
+          <ProviderApiKeyInput v-model="apiKey" :provider-name="providerMetadata?.localizedName" :placeholder="props.placeholder || 'API Key'" />
           <!-- Slot for provider-specific basic settings -->
           <slot name="basic-settings" />
         </ProviderBasicSettings>
