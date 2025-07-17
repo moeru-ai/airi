@@ -194,7 +194,7 @@ nr dev
 
 :::
 
-### 文档站点
+### 文档站
 
 ```shell
 pnpm dev:docs
