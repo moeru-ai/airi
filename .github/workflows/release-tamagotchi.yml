@@ -98,6 +98,12 @@ jobs:
             librsvg2-dev \
             patchelf
 
+      - name: Setup MSVC (Windows Only)
+        if: matrix.os == 'windows-latest'
+        uses: TheMrMilchmann/setup-msvc-dev@v3
+        with:
+          arch: x64
+
       - name: Install CUDA Toolkit (Linux and Windows Only)
         uses: Jimver/cuda-toolkit@v0.2.24
         if: matrix.os == 'ubuntu-latest' || matrix.os == 'ubuntu-24.04-arm' || matrix.os == 'windows-latest'
