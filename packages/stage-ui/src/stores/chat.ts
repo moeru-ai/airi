@@ -18,7 +18,7 @@ export interface ErrorMessage {
 }
 
 export const useChatStore = defineStore('chat', () => {
-  const { stream } = useLLM()
+  const { stream, discoverToolsCompatibility } = useLLM()
   const { systemPrompt } = storeToRefs(useAiriCardStore())
 
   const sending = ref(false)
@@ -209,7 +209,11 @@ export const useChatStore = defineStore('chat', () => {
     sending,
     messages,
     streamingMessage,
+
+    discoverToolsCompatibility,
+
     send,
+
     onBeforeMessageComposed,
     onAfterMessageComposed,
     onBeforeSend,

@@ -20,7 +20,7 @@ const { activeProvider, activeModel } = storeToRefs(useConsciousnessStore())
 // const { audioInputs } = useDevicesList({ constraints: { audio: true }, requestPermissions: true })
 // const { selectedAudioDevice, isAudioInputOn, selectedAudioDeviceId } = storeToRefs(useSettings())
 const { isAudioInputOn, selectedAudioDeviceId, themeColorsHueDynamic } = storeToRefs(useSettings())
-const { send, onAfterSend } = useChatStore()
+const { send, onAfterSend, discoverToolsCompatibility } = useChatStore()
 const { messages } = storeToRefs(useChatStore())
 const { t } = useI18n()
 
@@ -86,6 +86,12 @@ watch(isAudioInputOn, async (value) => {
 
 onAfterSend(async () => {
   messageInput.value = ''
+})
+
+watch([activeProvider, activeModel], async () => {
+  if (activeProvider.value && activeModel.value) {
+    await discoverToolsCompatibility(activeModel.value, providersStore.getProviderInstance(activeProvider.value) as ChatProvider, [])
+  }
 })
 
 onMounted(() => {
