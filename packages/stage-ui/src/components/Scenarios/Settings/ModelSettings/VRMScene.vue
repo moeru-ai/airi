@@ -14,7 +14,7 @@ const emit = defineEmits<{
 }>()
 const VRMContainerRef = ref<HTMLDivElement>()
 const { width, height } = useElementBounding(VRMContainerRef)
-const { modelFile, modelUrl, loadSource } = storeToRefs(useVRM())
+const { modelFile, modelUrl, loadSource, selectedModel } = storeToRefs(useVRM())
 
 const cameraPositionX = ref(-0.17)
 const cameraPositionY = ref(0)
