@@ -545,22 +545,17 @@ vrm:
     from-file-select: Select
     from-url: Load from URL
     from-url-confirm: Load
-    from-url-placeholder: Enter Live2D model URL
+    from-url-placeholder: Enter VRM model URL
     title: Change Model
-  edit-motion-map:
-    title: Edit motion map
-  map-motions:
-    play: Play Motion
-    title: Map Motions
-  title: Live2D Settings
+  title: VRM Settings
   scale-and-position:
     title: Scale And Position
     scale: Scale
     x: X
     'y': 'Y'
   switch-to-vrm:
-    title: Switch to Live2D Avator?
-    change-to-vrm: Click here to switch to the Live2D avator setting
+    title: Switch to Live2D Avatar?
+    change-to-vrm: Click here to switch to the Live2D avatar setting
   theme-color-from-model:
     title: Extract colors from model
     button-extract:
