@@ -14,7 +14,11 @@ const emit = defineEmits<{
 }>()
 const VRMContainerRef = ref<HTMLDivElement>()
 const { width, height } = useElementBounding(VRMContainerRef)
+<<<<<<< HEAD
 const { selectedModel } = storeToRefs(useVRM())
+=======
+const { modelFile, modelUrl, loadSource, selectedModel } = storeToRefs(useVRM())
+>>>>>>> c98a2f83 (Update packages/stage-ui/src/components/Scenarios/Settings/ModelSettings/VRMScene.vue)
 
 const cameraPositionX = ref(-0.17)
 const cameraPositionY = ref(0)
