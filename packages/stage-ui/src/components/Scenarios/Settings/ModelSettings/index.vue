@@ -3,6 +3,8 @@ import { storeToRefs } from 'pinia'
 
 import Live2D from './Live2D.vue'
 import Live2DScene from './Live2DScene.vue'
+import VRM from './VRM.vue'
+import VRMScene from './VRMScene.vue'
 
 import { useSettings } from '../../../../stores/settings'
 
@@ -36,8 +38,14 @@ const { stageView } = storeToRefs(useSettings())
           : []),
       ]"
     >
-      <Live2D :palette="palette" @extract-colors-from-model="$emit('extractColorsFromModel')" />
+      <Live2D :palette="palette" @extract-colors-from-model="$emit('extractColorsFromModel')" @switch-to-v-r-m="stageView = '3d'" />
     </div>
   </template>
-  <!-- TODO: VRM component for 3D stage view -->
+  <!-- VRM component for 3D stage view -->
+  <template v-if="stageView === '3d'">
+    <VRMScene />
+    <div flex="~ col gap-2">
+      <VRM :palette="palette" @extract-colors-from-model="$emit('extractColorsFromModel')" @switch-to-live-2-d="stageView = '2d'" />
+    </div>
+  </template>
 </template>

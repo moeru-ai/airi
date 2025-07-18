@@ -56,6 +56,9 @@ live2d:
     scale: Scale
     x: X
     'y': 'Y'
+  switch-to-vrm:
+    title: Switch to 3D Avator?
+    change-to-vrm: Click here to switch to the 3D avator setting (VRM)
   theme-color-from-model:
     title: Extract colors from model
     button-extract:
@@ -536,3 +539,29 @@ theme:
     Switch the base theme of AIRI, Light mode or Dark mode.
 title: Settings
 voices: Voice
+vrm:
+  change-model:
+    from-file: Load from File
+    from-file-select: Select
+    from-url: Load from URL
+    from-url-confirm: Load
+    from-url-placeholder: Enter Live2D model URL
+    title: Change Model
+  edit-motion-map:
+    title: Edit motion map
+  map-motions:
+    play: Play Motion
+    title: Map Motions
+  title: Live2D Settings
+  scale-and-position:
+    title: Scale And Position
+    scale: Scale
+    x: X
+    'y': 'Y'
+  switch-to-vrm:
+    title: Switch to Live2D Avator?
+    change-to-vrm: Click here to switch to the Live2D avator setting
+  theme-color-from-model:
+    title: Extract colors from model
+    button-extract:
+      title: Extract
