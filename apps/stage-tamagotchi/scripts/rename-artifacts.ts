@@ -92,38 +92,34 @@ console.log(readdirSync(srcPrefix))
 
 mkdirSync(bundlePrefix, { recursive: true })
 
+let renameFrom = ''
+let renameTo = ''
+
 switch (target) {
   case 'x86_64-pc-windows-msvc':
-    renameSync(
-      join(srcPrefix, 'nsis', `${beforeProductName}_${beforeVersion}_x64-setup.exe`),
-      join(bundlePrefix, `${productName}_${version}_windows_amd64-setup.exe`),
-    )
+    renameFrom = join(srcPrefix, 'nsis', `${beforeProductName}_${beforeVersion}_x64-setup.exe`)
+    renameTo = join(bundlePrefix, `${productName}_${version}_windows_amd64-setup.exe`)
     break
   case 'x86_64-unknown-linux-gnu':
-    renameSync(
-      join(srcPrefix, 'appimage', `${beforeProductName}_${beforeVersion}_amd64.AppImage`),
-      join(bundlePrefix, `${productName}_${version}_linux_amd64.AppImage`),
-    )
+    renameFrom = join(srcPrefix, 'appimage', `${beforeProductName}_${beforeVersion}_amd64.AppImage`)
+    renameTo = join(bundlePrefix, `${productName}_${version}_linux_amd64.AppImage`)
     break
   case 'aarch64-unknown-linux-gnu':
-    renameSync(
-      join(srcPrefix, 'appimage', `${beforeProductName}_${beforeVersion}_aarch64.AppImage`),
-      join(bundlePrefix, `${productName}_${version}_linux_arm64.AppImage`),
-    )
+    renameFrom = join(srcPrefix, 'appimage', `${beforeProductName}_${beforeVersion}_aarch64.AppImage`)
+    renameTo = join(bundlePrefix, `${productName}_${version}_linux_arm64.AppImage`)
     break
   case 'aarch64-apple-darwin':
-    renameSync(
-      join(srcPrefix, 'dmg', `${beforeProductName}_${beforeVersion}_aarch64.dmg`),
-      join(bundlePrefix, `${productName}_${version}_macos_arm64.dmg`),
-    )
+    renameFrom = join(srcPrefix, 'dmg', `${beforeProductName}_${beforeVersion}_aarch64.dmg`)
+    renameTo = join(bundlePrefix, `${productName}_${version}_macos_arm64.dmg`)
     break
   case 'x86_64-apple-darwin':
-    renameSync(
-      join(srcPrefix, 'dmg', `${beforeProductName}_${beforeVersion}_x64.dmg`),
-      join(bundlePrefix, `${productName}_${version}_macos_amd64.dmg`),
-    )
+    renameFrom = join(srcPrefix, 'dmg', `${beforeProductName}_${beforeVersion}_x64.dmg`)
+    renameTo = join(bundlePrefix, `${productName}_${version}_macos_amd64.dmg`)
     break
   default:
     console.error('Target is not supported')
     process.exit(1)
 }
+
+console.log('renaming, from:', renameFrom, 'to:', renameTo)
+renameSync(renameFrom, renameTo)

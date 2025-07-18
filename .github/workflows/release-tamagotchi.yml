@@ -17,6 +17,11 @@ on:
         required: false
         default: false
         type: boolean
+      artifacts_only:
+        description: Upload artifacts without uploading to GitHub Releases
+        required: false
+        default: false
+        type: boolean
       tag:
         description: Attach to a specific tag/commit for the release (leave empty to auto-detect latest tag)
         required: false
@@ -167,7 +172,7 @@ jobs:
         run: pnpm run -F @proj-airi/stage-tamagotchi rename-artifacts ${{ matrix.target }}
 
       - name: Rename Artifacts (Manual)
-        if: ${{ github.event_name == 'workflow_dispatch' && !github.event.inputs.build_only }}
+        if: ${{ github.event_name == 'workflow_dispatch' }}
         run: pnpm run -F @proj-airi/stage-tamagotchi rename-artifacts ${{ matrix.target }} --release --tag ${{ github.event.inputs.tag }} --auto-tag
 
       - name: Rename Artifacts (Automatic)
@@ -180,9 +185,18 @@ jobs:
         with:
           name: Artifacts
           path: bundle/${{ env.PRODUCT_NAME }}_*
+          overwrite: true
 
-      - name: Upload To GitHub Releases (Manual)
-        if: ${{ github.event_name == 'workflow_dispatch' && !github.event.inputs.build_only }}
+      - name: Upload Artifacts (Manual + Non-Release)
+        if: ${{ github.event_name == 'workflow_dispatch' && !github.event.inputs.build_only && github.event.inputs.artifacts_only }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: Artifacts
+          path: bundle/${{ env.PRODUCT_NAME }}_*
+          overwrite: true
+
+      - name: Upload To GitHub Releases (Manual + Release)
+        if: ${{ github.event_name == 'workflow_dispatch' && !github.event.inputs.build_only && !github.event.inputs.artifacts_only }}
         uses: softprops/action-gh-release@v2
         with:
           files: bundle/${{ env.PRODUCT_NAME }}_*
