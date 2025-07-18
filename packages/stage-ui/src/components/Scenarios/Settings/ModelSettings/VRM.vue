@@ -77,7 +77,7 @@ modelFileDialog.onChange((files) => {
         class="flex-1"
         :placeholder="t('settings.vrm.change-model.from-url-placeholder')"
       />
-      <Button size="sm" variant="secondary" @click="modelUrl = localModelUrl">
+      <Button size="sm" variant="secondary" @click="() => { modelUrl = localModelUrl; loadSource = 'url'; loadingModel = true }">
         {{ t('settings.vrm.change-model.from-url') }}
       </Button>
     </div>
