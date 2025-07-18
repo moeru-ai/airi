@@ -320,7 +320,7 @@ pages:
               label: Account ID
               placeholder: Your Cloudflare Account ID
             api-key:
-              placeholder: Input Cloudflare Account ID
+              placeholder: Input Cloudflare API Key
         title: Cloudflare Workers AI
       common:
         fields:

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { LevelMeter, ThresholdMeter, TimeSeriesChart } from '@proj-airi/stage-ui/components'
+import { ErrorContainer, LevelMeter, ThresholdMeter, TimeSeriesChart } from '@proj-airi/stage-ui/components'
 import { FieldCheckbox, FieldRange, FieldSelect } from '@proj-airi/ui'
 import { useDevicesList } from '@vueuse/core'
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
@@ -430,10 +430,11 @@ onUnmounted(() => {
                 <span class="text-sm">Loading...</span>
               </div>
 
-              <div v-else-if="vadModelError" class="flex items-center gap-2 text-red-600 dark:text-red-400">
-                <div class="text-sm" i-solar:close-circle-bold-duotone />
-                <span class="text-sm">Inference error: {{ vadModelError }}</span>
-              </div>
+              <ErrorContainer
+                v-else-if="vadModelError"
+                title="Inference error"
+                :error="vadModelError"
+              />
 
               <div v-else-if="isVADModelLoaded" class="flex items-center gap-2 text-green-600 dark:text-green-400">
                 <div class="text-sm" i-solar:check-circle-bold-duotone />

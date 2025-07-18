@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { ccv3 } from '@proj-airi/ccc'
 
+import { Alert } from '@proj-airi/stage-ui/components'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores'
 import { InputFile } from '@proj-airi/ui'
 import { Select } from '@proj-airi/ui/components/form'
@@ -255,18 +256,18 @@ function getModuleShortName(id: string, module: 'consciousness' | 'voice') {
       </div>
 
       <!-- No search results -->
-      <div
+      <Alert
         v-if="searchQuery && sortedFilteredCards.length === 0"
-        class="col-span-full flex items-center gap-3 border-2 border-amber-200 rounded-xl bg-amber-50/80 p-4 dark:border-amber-800 dark:bg-amber-900/30"
+        type="warning"
+        class="col-span-full"
       >
-        <div i-solar:info-circle-line-duotone class="text-2xl text-amber-500 dark:text-amber-400" />
-        <div class="flex flex-col">
-          <span class="font-medium">{{ t('settings.pages.card.no_results') }}</span>
-          <span class="text-sm text-amber-600 dark:text-amber-400">
-            {{ t('settings.pages.card.try_different_search') }}
-          </span>
-        </div>
-      </div>
+        <template #title>
+          {{ t('settings.pages.card.no_results') }}
+        </template>
+        <template #content>
+          {{ t('settings.pages.card.try_different_search') }}
+        </template>
+      </Alert>
     </div>
   </div>
 
