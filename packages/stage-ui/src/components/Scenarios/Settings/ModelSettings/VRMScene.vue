@@ -29,6 +29,10 @@ defineExpose({
     modelRef.value?.setExpression(expression)
   },
 })
+<<<<<<< HEAD
+=======
+
+>>>>>>> aa2b05ce (Update packages/stage-ui/src/components/Scenarios/Settings/ModelSettings/VRMScene.vue)
 </script>
 
 <template>
