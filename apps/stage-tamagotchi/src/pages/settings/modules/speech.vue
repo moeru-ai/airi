@@ -2,6 +2,8 @@
 import type { SpeechProviderWithExtraOptions } from '@xsai-ext/shared-providers'
 
 import {
+  Alert,
+  ErrorContainer,
   RadioCardManySelect,
   RadioCardSimple,
   Skeleton,
@@ -230,30 +232,24 @@ function updateCustomModelName(value: string) {
               </div>
 
               <!-- Error state -->
-              <div
+              <ErrorContainer
                 v-else-if="activeProviderModelError"
-                class="flex items-center gap-3 border border-red-200 rounded-lg bg-red-50 p-4 dark:border-red-800 dark:bg-red-900/20"
-              >
-                <div i-solar:close-circle-line-duotone class="text-2xl text-red-500 dark:text-red-400" />
-                <div class="flex flex-col">
-                  <span class="font-medium">{{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.error') }}</span>
-                  <span class="text-sm text-red-600 dark:text-red-400">{{ activeProviderModelError }}</span>
-                </div>
-              </div>
+                :title="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.error')"
+                :error="activeProviderModelError"
+              />
 
               <!-- No models available -->
-              <div
+              <Alert
                 v-else-if="providerModels.length === 0 && !isLoadingActiveProviderModels"
-                class="flex items-center gap-3 border border-amber-200 rounded-lg bg-amber-50 p-4 dark:border-amber-800 dark:bg-amber-900/20"
+                type="warning"
               >
-                <div i-solar:info-circle-line-duotone class="text-2xl text-amber-500 dark:text-amber-400" />
-                <div class="flex flex-col">
-                  <span class="font-medium">{{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.no_models')
-                  }}</span>
-                  <span class="text-sm text-amber-600 dark:text-amber-400">{{
-                    t('settings.pages.modules.consciousness.sections.section.provider-model-selection.no_models_description') }}</span>
-                </div>
-              </div>
+                <template #title>
+                  {{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.no_models') }}
+                </template>
+                <template #content>
+                  {{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.no_models_description') }}
+                </template>
+              </Alert>
 
               <!-- Using the new RadioCardManySelect component -->
               <template v-else-if="providerModels.length > 0">
@@ -342,29 +338,21 @@ function updateCustomModelName(value: string) {
             />
           </div>
 
-          <div
+          <ErrorContainer
             v-else-if="speechProviderError"
-            class="flex items-center gap-3 border border-2 border-red-200 rounded-lg bg-red-50 p-4 dark:border-red-800 dark:bg-red-900/20"
-          >
-            <div i-solar:close-circle-line-duotone class="text-2xl text-red-500 dark:text-red-400" />
-            <div class="flex flex-col">
-              <span class="font-medium">Error loading voices</span>
-              <span class="text-sm text-red-600 dark:text-red-400">{{ speechProviderError }}</span>
-            </div>
-          </div>
+            title="Error loading voices"
+            :error="speechProviderError"
+          />
+
           <!-- No voices available -->
-          <div
-            v-else
-            class="flex items-center gap-3 border border-2 border-amber-200 rounded-lg bg-amber-50 p-4 dark:border-amber-800 dark:bg-amber-900/20"
-          >
-            <div i-solar:info-circle-line-duotone class="text-2xl text-amber-500 dark:text-amber-400" />
-            <div class="flex flex-col">
-              <span class="font-medium">No voices available</span>
-              <span class="text-sm text-amber-600 dark:text-amber-400">
-                No voices were found for this provider. You can enter a custom voice name below.
-              </span>
-            </div>
-          </div>
+          <Alert v-else type="warning">
+            <template #title>
+              No voices available
+            </template>
+            <template #content>
+              No voices were found for this provider. You can enter a custom voice name below.
+            </template>
+          </Alert>
 
           <!-- Voice parameters -->
           <div flex="~ col gap-4">

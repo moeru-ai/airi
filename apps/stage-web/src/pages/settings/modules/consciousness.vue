@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { RadioCardManySelect, RadioCardSimple } from '@proj-airi/stage-ui/components'
+import { Alert, ErrorContainer, RadioCardManySelect, RadioCardSimple } from '@proj-airi/stage-ui/components'
 import { useConsciousnessStore, useProvidersStore } from '@proj-airi/stage-ui/stores'
 import { storeToRefs } from 'pinia'
 import { onMounted } from 'vue'
@@ -109,30 +109,24 @@ function updateCustomModelName(value: string) {
         </div>
 
         <!-- Error state -->
-        <div
+        <ErrorContainer
           v-else-if="activeProviderModelError"
-          class="flex items-center gap-3 border border-red-200 rounded-lg bg-red-50 p-4 dark:border-red-800 dark:bg-red-900/20"
-        >
-          <div i-solar:close-circle-line-duotone class="text-2xl text-red-500 dark:text-red-400" />
-          <div class="flex flex-col">
-            <span class="font-medium">{{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.error') }}</span>
-            <span class="text-sm text-red-600 dark:text-red-400">{{ activeProviderModelError }}</span>
-          </div>
-        </div>
+          :title="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.error')"
+          :error="activeProviderModelError"
+        />
 
         <!-- No models available -->
-        <div
+        <Alert
           v-else-if="providerModels.length === 0 && !isLoadingActiveProviderModels"
-          class="flex items-center gap-3 border border-amber-200 rounded-lg bg-amber-50 p-4 dark:border-amber-800 dark:bg-amber-900/20"
+          type="warning"
         >
-          <div i-solar:info-circle-line-duotone class="text-2xl text-amber-500 dark:text-amber-400" />
-          <div class="flex flex-col">
-            <span class="font-medium">{{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.no_models')
-            }}</span>
-            <span class="text-sm text-amber-600 dark:text-amber-400">{{
-              t('settings.pages.modules.consciousness.sections.section.provider-model-selection.no_models_description') }}</span>
-          </div>
-        </div>
+          <template #title>
+            {{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.no_models') }}
+          </template>
+          <template #content>
+            {{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.no_models_description') }}
+          </template>
+        </Alert>
 
         <!-- Using the new RadioCardManySelect component -->
         <template v-else-if="providerModels.length > 0">

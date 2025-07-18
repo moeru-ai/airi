@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 
+import Alert from '../Misc/Alert.vue'
 import VoiceCard from './VoiceCard.vue'
 
 interface VoiceLanguage {
@@ -322,18 +323,14 @@ const customVoiceName = ref('')
       </div>
 
       <!-- No search results -->
-      <div
-        v-if="searchQuery && filteredVoices.length === 0"
-        class="flex items-center gap-3 border border-2 border-amber-200 rounded-xl bg-amber-50 p-4 dark:border-amber-800 dark:bg-amber-900/20"
-      >
-        <div i-solar:info-circle-line-duotone class="text-2xl text-amber-500 dark:text-amber-400" />
-        <div class="flex flex-col">
-          <span class="font-medium">{{ searchNoResultsTitle }}</span>
-          <span class="text-sm text-amber-600 dark:text-amber-400">
-            {{ searchNoResultsDescription.replace('{query}', searchQuery) }}
-          </span>
-        </div>
-      </div>
+      <Alert v-if="searchQuery && filteredVoices.length === 0" type="warning">
+        <template #title>
+          {{ searchNoResultsTitle }}
+        </template>
+        <template #content>
+          {{ searchNoResultsDescription.replace('{query}', searchQuery) }}
+        </template>
+      </Alert>
 
       <!-- Voices grid -->
       <div class="relative">
