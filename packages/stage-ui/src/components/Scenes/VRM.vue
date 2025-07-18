@@ -44,18 +44,6 @@ defineExpose({
     modelRef.value?.setExpression(expression)
   },
 })
-
-const selectedModel = computed(() => {
-  if (loadSource.value === 'file' && modelFile.value) {
-    return URL.createObjectURL(modelFile.value)
-  }
-  else if (loadSource.value === 'url' && modelUrl.value) {
-    return modelUrl.value
-  }
-  else {
-    return '/assets/vrm/models/AvatarSample-B/AvatarSample_B.vrm'
-  }
-})
 </script>
 
 <template>
