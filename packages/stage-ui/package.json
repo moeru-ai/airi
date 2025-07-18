@@ -135,6 +135,7 @@
     "@types/three": "^0.178.1",
     "@unocss/reset": "^66.3.3",
     "@vitejs/plugin-vue": "^6.0.0",
+    "clustr": "^0.0.3",
     "histoire": "1.0.0-alpha.2",
     "unocss": "^66.3.3",
     "unplugin-yaml": "^3.0.1",

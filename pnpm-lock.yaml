@@ -1407,6 +1407,9 @@ importers:
       '@vitejs/plugin-vue':
         specifier: ^6.0.0
         version: 6.0.0(vite@6.3.5(@types/node@24.0.13)(jiti@2.4.2)(less@4.3.0)(lightningcss@1.30.1)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0))(vue@3.5.17(typescript@5.8.3))
+      clustr:
+        specifier: ^0.0.3
+        version: 0.0.3
       histoire:
         specifier: 1.0.0-alpha.2
         version: 1.0.0-alpha.2(@types/node@24.0.13)(bufferutil@4.0.9)(less@4.3.0)(lightningcss@1.30.1)(terser@5.43.1)(utf-8-validate@5.0.10)(vite@6.3.5(@types/node@24.0.13)(jiti@2.4.2)(less@4.3.0)(lightningcss@1.30.1)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0))
@@ -6813,6 +6816,10 @@ packages:
   clsx@2.1.1:
     resolution: {integrity: sha512-eYm0QWBtUrBWZWG0d386OGAw16Z995PiOVo2B7bjWSbHedGl5e0ZWaq65kOGgUSNesEIDkB9ISbTg/JK9dhCZA==}
     engines: {node: '>=6'}
+
+  clustr@0.0.3:
+    resolution: {integrity: sha512-nGJZKUSi2K83migJ7sJj/JYNVbT0L81b7fFNcQ3XIgkXqkeG1tpO1NtISDjr3Unnjqsztzvp/p+8JgBhpAc87g==}
+    engines: {node: '>=22.10.0'}
 
   color-convert@2.0.1:
     resolution: {integrity: sha512-RRECPsj7iu/xb5oKYcsFHSppFNnsj/52OVTRKb4zP5onXwVF3zVmmToNcOfGC+CRDpfK/U584fMg38ZHCaElKQ==}
@@ -18490,6 +18497,8 @@ snapshots:
 
   clsx@2.1.1:
     optional: true
+
+  clustr@0.0.3: {}
 
   color-convert@2.0.1:
     dependencies:
