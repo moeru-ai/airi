@@ -59,7 +59,6 @@ defineExpose({
       <TresPerspectiveCamera :position="[cameraPositionX, cameraPositionY, cameraPositionZ]" />
       <TresDirectionalLight :color="0xFFFFFF" :intensity="1.2" :position="[1, 1, 1]" />
       <TresAmbientLight :color="0xFFFFFF" :intensity="1.5" />
-      <!-- vrma animation import still need to be done -->
       <VRMModel
         ref="modelRef"
         :key="selectedModel"
