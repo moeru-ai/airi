@@ -20,7 +20,7 @@ const modelValue = defineModel<string>({ required: false })
         props.layout === 'horizontal' ? 'flex flex-row items-center justify-between gap-2' : 'flex flex-col items-start justify-center gap-2',
       ]"
     >
-      <div flex="1">
+      <div class="min-w-[max-content] flex-1">
         <div class="flex items-center gap-1 text-sm font-medium">
           <slot name="label">
             {{ props.label }}

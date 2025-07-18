@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import type { VoiceInfo } from '../../../stores'
 
-import { FieldCheckbox } from '@proj-airi/ui'
-import { onUnmounted, ref, watch } from 'vue'
+import { FieldCheckbox, FieldSelect } from '@proj-airi/ui'
+import { computed, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { TestDummyMarker } from '../../Gadgets'
@@ -41,6 +41,13 @@ watch(
   },
   { immediate: true },
 )
+
+const voiceOptions = computed(() => {
+  return props.availableVoices.map(voice => ({
+    value: voice.id,
+    label: voice.name,
+  }))
+})
 
 // Function to generate speech
 async function handleGenerateTestSpeech() {
@@ -153,28 +160,15 @@ defineExpose({
         />
       </template>
 
-      <div flex="~ col gap-6">
-        <label grid="~ cols-2 gap-4">
-          <div>
-            <div class="flex items-center gap-1 text-sm font-medium">
-              {{ t('settings.pages.providers.provider.elevenlabs.playground.fields.field.voice.label') }}
-            </div>
-            <div class="text-xs text-neutral-500 dark:text-neutral-400">
-              {{ t('settings.pages.providers.provider.elevenlabs.playground.fields.field.voice.description') }}
-            </div>
-          </div>
-          <select
-            v-model="selectedVoice"
-            border="neutral-300 dark:neutral-800 solid 2 focus:neutral-400 dark:focus:neutral-600"
-            transition="border duration-250 ease-in-out" w-full rounded-lg px-2 py-1 text-nowrap text-sm
-            outline-none
-          >
-            <option v-for="voice in availableVoices" :key="voice.id" :value="voice.id">
-              {{ voice.name }}
-            </option>
-          </select>
-        </label>
-      </div>
+      <FieldSelect
+        v-model="selectedVoice"
+        class="[&>div]:grid [&>div]:grid-cols-[4fr_2fr]"
+        :options="voiceOptions"
+        :label="t('settings.pages.providers.provider.elevenlabs.playground.fields.field.voice.label')"
+        :description="t('settings.pages.providers.provider.elevenlabs.playground.fields.field.voice.description')"
+        layout="horizontal"
+      />
+
       <!-- Playground actions -->
       <div flex="~ row" gap-4>
         <button
