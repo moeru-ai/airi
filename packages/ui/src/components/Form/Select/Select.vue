@@ -66,6 +66,10 @@ provide('hide', handleHide)
               @click="selectOption(option.value); hide()"
             />
           </template>
+
+          <p v-else class="my-3 text-center text-neutral-500 dark:text-neutral-400">
+            No data
+          </p>
         </slot>
       </div>
     </template>
