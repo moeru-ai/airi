@@ -432,7 +432,7 @@ onUnmounted(() => {
                 <span class="text-sm">Loading...</span>
               </div>
 
-              <ErrorContainer v-else-if="vadModelError" :error="vadModelError" />
+              <ErrorContainer v-else-if="vadModelError" title="Inference error" :error="vadModelError" />
 
               <div v-else-if="isVADModelLoaded" class="flex items-center gap-2 text-green-600 dark:text-green-400">
                 <div class="text-sm" i-solar:check-circle-bold-duotone />
