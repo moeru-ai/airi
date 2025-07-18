@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import { useVRM } from '@proj-airi/stage-ui/stores'
 import { OrbitControls } from '@tresjs/cientos'
 import { TresCanvas } from '@tresjs/core'
 import { useElementBounding } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { computed, ref } from 'vue'
+import { ref } from 'vue'
 
+import { useVRM } from '../../../../stores'
 import { VRMModel } from '../../../Scenes'
 
 const emit = defineEmits<{
@@ -14,7 +14,7 @@ const emit = defineEmits<{
 }>()
 const VRMContainerRef = ref<HTMLDivElement>()
 const { width, height } = useElementBounding(VRMContainerRef)
-const { modelFile, modelUrl, loadSource, selectedModel } = storeToRefs(useVRM())
+const { selectedModel } = storeToRefs(useVRM())
 
 const cameraPositionX = ref(-0.17)
 const cameraPositionY = ref(0)
@@ -32,7 +32,6 @@ defineExpose({
     modelRef.value?.setExpression(expression)
   },
 })
-
 </script>
 
 <template>

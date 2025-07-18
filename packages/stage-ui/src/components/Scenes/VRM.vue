@@ -3,7 +3,7 @@ import { TransitionVertical } from '@proj-airi/ui'
 import { OrbitControls } from '@tresjs/cientos'
 import { TresCanvas } from '@tresjs/core'
 import { storeToRefs } from 'pinia'
-import { computed, ref } from 'vue'
+import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import DataGuiRange from '../DataGui/Range.vue'
@@ -24,7 +24,7 @@ const emit = defineEmits<{
 
 const show = ref(false)
 
-const { modelFile, modelUrl, loadSource, selectedModel } = storeToRefs(useVRM())
+const { selectedModel } = storeToRefs(useVRM())
 
 const cameraPositionX = ref(-0.17)
 const cameraPositionY = ref(0)

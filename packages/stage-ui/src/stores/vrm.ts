@@ -48,4 +48,3 @@ export const useVRM = defineStore('vrm', () => {
     selectedModel, // Expose the new computed property
   }
 })
-

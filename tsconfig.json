@@ -9,7 +9,7 @@
     "noUnusedParameters": true,
     "noEmit": true,
     "esModuleInterop": true,
-    "forceConsistentCasingInFileNames": true,
+    "forceConsistentCasingInFileNames": false,
     "isolatedModules": true,
     "verbatimModuleSyntax": true,
     "skipLibCheck": true

@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import { Screen } from '@proj-airi/stage-ui/components'
-import { useLive2d } from '@proj-airi/stage-ui/stores'
 import { useMouse } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { ref } from 'vue'
 
+import { useLive2d } from '../../../../stores'
+import { Screen } from '../../../Misc'
 import { Live2DCanvas, Live2DModel } from '../../../Scenes'
 
 const live2dCanvasRef = ref<InstanceType<typeof Live2DCanvas>>()
