@@ -2,8 +2,8 @@
 import Alert from './Alert.vue'
 
 defineProps<{
-  title: string
-  error: any
+  title?: string
+  error?: any
 }>()
 </script>
 
