@@ -111,7 +111,7 @@ function updateCustomModelName(value: string) {
         <!-- Error state -->
         <ErrorContainer
           v-else-if="activeProviderModelError"
-          title="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.error')"
+          :title="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.error')"
           :error="activeProviderModelError"
         />
 
