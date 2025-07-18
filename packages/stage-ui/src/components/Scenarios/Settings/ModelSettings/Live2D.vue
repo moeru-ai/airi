@@ -20,6 +20,7 @@ defineProps<{
 
 defineEmits<{
   (e: 'extractColorsFromModel'): void
+  (e: 'switchToVRM'): void
 }>()
 
 const { t } = useI18n()
@@ -120,6 +121,19 @@ const exportObjectUrl = useObjectUrl(modelFile)
 </script>
 
 <template>
+  <Section
+    :title="t('settings.live2d.switch-to-vrm.title')"
+    icon="i-solar:magic-stick-3-bold-duotone"
+    :class="[
+      'rounded-xl',
+      'bg-white/80  dark:bg-black/75',
+      'backdrop-blur-lg',
+    ]"
+  >
+    <Button variant="secondary" @click="$emit('switchToVRM')">
+      {{ t('settings.live2d.switch-to-vrm.change-to-vrm') }}
+    </Button>
+  </Section>
   <Section
     :title="t('settings.live2d.change-model.title')"
     icon="i-solar:magic-stick-3-bold-duotone"

@@ -52,6 +52,9 @@ live2d:
     scale: 缩放
     x: X
     'y': 'Y'
+  switch-to-vrm:
+    title: 想切换至3D虚拟形象？
+    change-to-vrm: 切换至3D虚拟形象设定页面（VRM）
   theme-color-from-model:
     button-extract:
       title: 提取
@@ -512,3 +515,23 @@ theme:
     切换 AIRI 的基础主题，亮色模式或暗色模式。
 title: 设置
 voices: 声线
+vrm:
+  change-model:
+    from-file: 从文件加载
+    from-file-select: 选择
+    from-url: 从 URL 加载
+    from-url-confirm: 加载
+    from-url-placeholder: 输入 VRM 模型 URL
+    title: 更换模型
+  title: VRM 设置
+  scale-and-position:
+    title: 缩放与位置
+    scale: 缩放
+    x: X
+    'y': 'Y'
+  switch-to-vrm:
+    title: 想切换至Live2D虚拟形象？
+    change-to-vrm: 切换至Live2D虚拟形象设定页面
+  theme-color-from-model:
+    button-extract:
+      title: 提取
