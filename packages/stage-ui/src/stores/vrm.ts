@@ -7,10 +7,18 @@ export const useVRM = defineStore('vrm', () => {
   const modelUrl = ref<string>('/assets/vrm/models/AvatarSample-B/AvatarSample_B.vrm')
   const loadSource = ref<'file' | 'url'>('url')
   const loadingModel = ref(false)
-  const position = useLocalStorage('settings/vrm/position', { x: 0, y: 0 })
+  const modelSize = useLocalStorage('settings/vrm/modelSize', { x: 0, y: 0, z: 0 })
+  const modelOrigin = useLocalStorage('settings/vrm/modelOrigin', { x: 0, y: 0, z: 0 })
+  const modelOffset = useLocalStorage('settings/vrm/modelOffset', { x: 0, y: 0, z: 0 })
+  const modelPosition = computed(() => ({
+    x: modelOrigin.value.x + modelOffset.value.x,
+    y: modelOrigin.value.y + modelOffset.value.y,
+    z: modelOrigin.value.z + modelOffset.value.z,
+  }))
   const positionInPercentageString = computed(() => ({
-    x: `${position.value.x}%`,
-    y: `${position.value.y}%`,
+    x: `${modelPosition.value.x}%`,
+    y: `${modelPosition.value.y}%`,
+    z: `${modelPosition.value.z}%`,
   }))
 
   const modelObjectUrl = ref<string>()
@@ -43,9 +51,11 @@ export const useVRM = defineStore('vrm', () => {
     modelUrl,
     loadSource,
     loadingModel,
-    position,
+    modelSize,
+    modelOrigin,
+    modelOffset,
+    modelPosition,
     positionInPercentageString,
     selectedModel, // Expose the new computed property
   }
 })
-
