@@ -14,7 +14,8 @@
     "preview": "vite preview",
     "tauri": "tauri",
     "build:unpack": "tauri build --no-bundle",
-    "rename-artifacts": "tsx scripts/rename-artifacts.ts"
+    "rename-artifacts": "tsx scripts/rename-artifacts.ts",
+    "name-of-artifacts": "tsx scripts/name-of-artifacts.ts"
   },
   "dependencies": {
     "@formkit/auto-animate": "^0.8.2",

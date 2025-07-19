@@ -169,11 +169,19 @@ jobs:
 
       - name: Rename Artifacts (Nightly)
         if: ${{ github.event_name == 'schedule' }}
-        run: pnpm run -F @proj-airi/stage-tamagotchi rename-artifacts ${{ matrix.target }}
+        id: rename_artifacts_nightly
+        run: |
+          pnpm -F @proj-airi/stage-tamagotchi name-of-artifacts ${{ matrix.target }} --out bundle_name
+          echo "bundle_name=$(node -p "require('node:fs').readFileSync(require('node:path').join('apps', 'stage-tamagotchi', 'bundle_name')).toString('utf-8')")" > $GITHUB_ENV
+          pnpm run -F @proj-airi/stage-tamagotchi rename-artifacts ${{ matrix.target }}
 
       - name: Rename Artifacts (Manual)
         if: ${{ github.event_name == 'workflow_dispatch' }}
-        run: pnpm run -F @proj-airi/stage-tamagotchi rename-artifacts ${{ matrix.target }} --release --tag ${{ github.event.inputs.tag }} --auto-tag
+        id: rename_artifacts_manual
+        run:
+          pnpm -F @proj-airi/stage-tamagotchi name-of-artifacts ${{ matrix.target }} --out bundle_name
+          echo "bundle_name=$(node -p "require('node:fs').readFileSync(require('node:path').join('apps', 'stage-tamagotchi', 'bundle_name')).toString('utf-8')")" > $GITHUB_ENV
+          pnpm run -F @proj-airi/stage-tamagotchi rename-artifacts ${{ matrix.target }} --release --tag ${{ github.event.inputs.tag }} --auto-tag
 
       - name: Rename Artifacts (Automatic)
         if: ${{ github.event_name == 'release' }}
@@ -183,17 +191,15 @@ jobs:
         if: ${{ github.event_name == 'schedule' }}
         uses: actions/upload-artifact@v4
         with:
-          name: Artifacts
+          name: ${{ steps.rename_artifacts_nightly.outputs.bundle_name }}
           path: bundle/${{ env.PRODUCT_NAME }}_*
-          overwrite: true
 
       - name: Upload Artifacts (Manual + Non-Release)
         if: ${{ github.event_name == 'workflow_dispatch' && !github.event.inputs.build_only && github.event.inputs.artifacts_only }}
         uses: actions/upload-artifact@v4
         with:
-          name: Artifacts
+          name: ${{ steps.rename_artifacts_manual.outputs.bundle_name }}
           path: bundle/${{ env.PRODUCT_NAME }}_*
-          overwrite: true
 
       - name: Upload To GitHub Releases (Manual + Release)
         if: ${{ github.event_name == 'workflow_dispatch' && !github.event.inputs.build_only && !github.event.inputs.artifacts_only }}
