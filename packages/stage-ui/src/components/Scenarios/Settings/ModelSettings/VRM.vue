@@ -97,4 +97,54 @@ modelFileDialog.onChange((files) => {
       {{ t('settings.vrm.theme-color-from-model.button-extract.title') }}
     </Button>
   </Section>
+  <!-- <Section
+    :title="t('settings.vrm.scale-and-position.title')"
+    icon="i-solar:scale-bold-duotone"
+    :class="[
+      'rounded-xl',
+      'bg-white/80  dark:bg-black/75',
+      'backdrop-blur-lg',
+    ]"
+  >
+    <FieldRange v-model="scale" as="div" :min="0.5" :max="2" :step="0.01" :label="t('settings.vrm.scale-and-position.scale')">
+      <template #label>
+        <div flex items-center>
+          <div>{{ t('settings.vrm.scale-and-position.scale') }}</div>
+          <button px-2 text-xs outline-none title="Reset value to default" @click="() => scale = 1">
+            <div i-solar:forward-linear transform-scale-x--100 text="neutral-500 dark:neutral-400" />
+          </button>
+        </div>
+      </template>
+    </FieldRange>
+    <FieldRange v-model="modelOffset.x" as="div" :min="-2*modelSize.x" :max="2*modelSize.x" :step="1" :label="t('settings.vrm.scale-and-position.x')">
+      <template #label>
+        <div flex items-center>
+          <div>{{ t('settings.vrm.scale-and-position.x') }}</div>
+          <button px-2 text-xs outline-none title="Reset value to default" @click="() => modelOffset.x = 0">
+            <div i-solar:forward-linear transform-scale-x--100 text="neutral-500 dark:neutral-400" />
+          </button>
+        </div>
+      </template>
+    </FieldRange>
+    <FieldRange v-model="modelOffset.y" as="div" :min="-2*modelSize.y" :max="2*modelSize.y" :step="1" :label="t('settings.vrm.scale-and-position.y')">
+      <template #label>
+        <div flex items-center>
+          <div>{{ t('settings.vrm.scale-and-position.y') }}</div>
+          <button px-2 text-xs outline-none title="Reset value to default" @click="() => modelOffset.y = 0">
+            <div i-solar:forward-linear transform-scale-x--100 text="neutral-500 dark:neutral-400" />
+          </button>
+        </div>
+      </template>
+    </FieldRange>
+    <FieldRange v-model="modelOffset.z" as="div" :min="-2*modelSize.z" :max="2*modelSize.z" :step="1" :label="t('settings.vrm.scale-and-position.z')">
+      <template #label>
+        <div flex items-center>
+          <div>{{ t('settings.vrm.scale-and-position.z') }}</div>
+          <button px-2 text-xs outline-none title="Reset value to default" @click="() => modelOffset.z = 0">
+            <div i-solar:forward-linear transform-scale-x--100 text="neutral-500 dark:neutral-400" />
+          </button>
+        </div>
+      </template>
+    </FieldRange>
+  </Section> -->
 </template>

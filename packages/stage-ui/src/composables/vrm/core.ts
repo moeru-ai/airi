@@ -3,6 +3,7 @@ import type { Object3D, Scene } from 'three'
 
 import { VRMUtils } from '@pixiv/three-vrm'
 import { VRMLookAtQuaternionProxy } from '@pixiv/three-vrm-animation'
+import { Box3, Box3Helper, Vector3 } from 'three'
 
 import { useVRMLoader } from './loader'
 
@@ -11,11 +12,11 @@ interface GLTFUserdata extends Record<string, any> {
 }
 
 export async function loadVrm(model: string, options?: {
-  position?: [number, number, number]
+  positionOffset?: [number, number, number]
   scene?: Scene
   lookAt?: boolean
   onProgress?: (progress: ProgressEvent<EventTarget>) => void | Promise<void>
-}): Promise<VRMCore | undefined> {
+}): Promise<{ _vrm: VRMCore, modelCenter: Vector3, modelSize: Vector3 } | undefined> {
   const loader = useVRMLoader()
   const gltf = await loader.loadAsync(model, progress => options?.onProgress?.(progress))
 
@@ -46,9 +47,34 @@ export async function loadVrm(model: string, options?: {
   if (options?.scene)
     options.scene.add(_vrm.scene)
 
-  // Set position
-  if (options?.position)
-    _vrm.scene.position.set(...options.position)
+  // Move the VRM model centre to the (0, 0, 0)
+  const box = new Box3().setFromObject(_vrm.scene)
+  const modelSize = new Vector3()
+  const modelCenter = new Vector3()
+  box.getSize(modelSize)
+  box.getCenter(modelCenter)
+  modelCenter.negate()
+  modelCenter.y -= modelSize.y / 8
+  // visualise the bounding box for debugging
+  const boxHelper = new Box3Helper(box, 0xFFFF00)
+  _vrm.scene.add(boxHelper)
 
-  return _vrm
+  // Set position
+  if (options?.positionOffset) {
+    _vrm.scene.position.set(
+      modelCenter.x + options.positionOffset[0],
+      modelCenter.y + options.positionOffset[1],
+      modelCenter.z + options.positionOffset[2],
+    )
+  }
+  else {
+    _vrm.scene.position.set(modelCenter.x, modelCenter.y, modelCenter.z)
+  }
+  // _vrm.scene.position.set(0, 0, 0)
+
+  return {
+    _vrm,
+    modelCenter,
+    modelSize,
+  }
 }
