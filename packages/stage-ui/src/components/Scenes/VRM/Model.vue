@@ -9,8 +9,8 @@ import { storeToRefs } from 'pinia'
 import { AnimationMixer } from 'three'
 import { onMounted, onUnmounted, ref, watch } from 'vue'
 
-import { loadVrm } from '../../../composables/vrm/core'
 import { clipFromVRMAnimation, loadVRMAnimation, useBlink, useIdleEyeSaccades } from '../../../composables/vrm/animation'
+import { loadVrm } from '../../../composables/vrm/core'
 import { useVRMEmote } from '../../../composables/vrm/expression'
 
 const props = defineProps<{
@@ -63,7 +63,7 @@ onMounted(async () => {
       scene: scene.value,
       lookAt: true,
       positionOffset: [modelOffset.value.x, modelOffset.value.y, modelOffset.value.z],
-      onProgress: progress => emit('loadModelProgress', Number.parseFloat((100.0 * (progress.loaded / progress.total)).toFixed(2))),
+      onProgress: progress => emit('loadModelProgress', Number((100 * progress.loaded / progress.total).toFixed(2))),
     })
     if (!_vrmInfo) {
       console.warn('No VRM model loaded')
