@@ -15,7 +15,7 @@ const modelValue = defineModel<string>({ required: true })
   <FieldInput
     v-model="modelValue"
     :label="props.label || 'Base URL'"
-    :description="props.description || 'Custom base URL (optional)'"
+    :description="props.description || (props.required ? 'Base URL' : 'Custom base URL (optional)')"
     :placeholder="props.placeholder"
     :required="props.required"
     type="text"
