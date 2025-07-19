@@ -19,7 +19,7 @@ export interface CoreTeam extends DefaultTheme.TeamMember {
 const contributorsAvatars: Record<string, string> = {}
 
 function getAvatarUrl(name: string) {
-  return `https://github.com/${name}.avif`
+  return `https://github.com/${name}.png`
 }
 
 export const contributors = (contributorNames as string[]).reduce((acc, name) => {
