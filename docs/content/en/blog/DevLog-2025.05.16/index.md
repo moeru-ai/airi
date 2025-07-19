@@ -20,9 +20,9 @@ import CharacterCardShowcaseDark from './assets/character-card-showcase-dark.avi
 import VelinPlaygroundLight from './assets/velin-playground-light.avif'
 import VelinPlaygroundDark from './assets/velin-playground-dark.avif'
 
-import DemoDayHangzhou1 from './assets/demo-day-hangzhou-1.jpeg'
-import DemoDayHangzhou2 from './assets/demo-day-hangzhou-2.jpeg'
-import DemoDayHangzhou3 from './assets/demo-day-hangzhou-3.jpeg'
+import DemoDayHangzhou1 from './assets/demo-day-hangzhou-1.avif'
+import DemoDayHangzhou2 from './assets/demo-day-hangzhou-2.avif'
+import DemoDayHangzhou3 from './assets/demo-day-hangzhou-3.avif'
 </script>
 
 Hello again! Here's [Neko](https://github.com/nekomeowww), the girl who started

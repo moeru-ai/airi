@@ -9,9 +9,9 @@ excerpt: 'The backstory of Project AIRI! Why this project?'
 <script setup>
 import EMOSYSLogo from './assets/emosys-logo.avif';
 import SteinsGateSticker1 from './assets/steins-gate-sticker-1.avif';
-import worldExecuteMeCover from './assets/world.execute(me); (Mili)／DAZBEE COVER.jpg';
+import worldExecuteMeCover from './assets/world.execute(me); (Mili)／DAZBEE COVER.avif';
 import buildingAVirtualMachineInsideImage from './assets/building-a-virtual-machine-inside-image-1.avif';
-import live2DIncHiyoriMomose from './assets/live2d-inc-hiyori.jpg';
+import live2DIncHiyoriMomose from './assets/live2d-inc-hiyori.avif';
 import AwesomeAIVTuber from '../DevLog-2025.04.06/assets/awesome-ai-vtuber-logo-light.avif'
 import airisScreenshot1 from './assets/airis-screenshot-1.avif';
 import projectAIRIBannerLight from './assets/banner-light-1280x640.avif';

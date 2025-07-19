@@ -102,21 +102,21 @@ RAG 现在会流行一个新的流程，就是 reranking model，相当于是**�
 
 [Project AIRI Memory Driver @duckdb/duckdb-wasm Playground](https://drizzle-orm-duckdb-wasm.netlify.app/#/memory-decay)
 
-![](./assets/memory-driver.jpg)
+![](./assets/memory-driver.avif)
 
 左边这个高亮的 half life 就是记忆的半衰期。
 
 默认情况下时间流逝速度是 1s 1 天，所以 7s 后，记忆的分数就会减半。
 
 什么是记忆分数？记忆分数基本上是由这个控制的：
-![](./assets/memory-controler.jpg)
+![](./assets/memory-controler.avif)
 
 得出的分数就是 current score
 
 什么是 original 呢，就是初始化的时候的分数。
 
 例子：原始分数为 523，它的当前分数实际上是在慢慢变少的：
-![](./assets/memory-decay.jpg)
+![](./assets/memory-decay.avif)
 
 在继续介绍之前，解释一下，这个遗忘曲线的 SQL 是无状态的。
 
@@ -160,17 +160,17 @@ RAG 现在会流行一个新的流程，就是 reranking model，相当于是**�
 
 我们可以再来回顾一下 DevLog 中提到的排序表达式，应该会能帮助理解。
 
-![](./assets/review-1.jpg)
+![](./assets/review-1.avif)
 
 余弦距离就是「相关度」，是最基本的粗排：
-![](./assets/review-2.jpg)
+![](./assets/review-2.avif)
 
 现在需要时间参与进去，那我们多加一个字段拿来存储时间距离就好了，然后再弄一个单独的字段存合并分数 `(1.2 * similarity) + (0.2 * time_relevance)` ，其中 语义相关度 占 1.2 倍权重（倍率因子，不要求小于 1），时间距离相关度占 0.2 倍权重。
 
 这样我们就很巧妙地把无状态的多字段相关度排序 SQL 实现出来了，还让它可以调节参数（1.2 和 0.2）。
 
 在记忆详情卡上，可以点击 simulate retrieval，这可以主动触发一次记忆召回。
-![](./assets/memory-retrieval.jpg)
+![](./assets/memory-retrieval.avif)
 
 现在的 demo 里面是直接给原本的表里的 retrieval count（召回次数）字段用 UPDATE 语句写了 +1 来实现的。
 
@@ -185,7 +185,7 @@ RAG 现在会流行一个新的流程，就是 reranking model，相当于是**�
 https://drizzle-orm-duckdb-wasm.netlify.app/#/memory-simulator
 
 这个新的 simulator 里面就有情绪相关的模拟：
-![](./assets/memory-emotional-simulator.jpg)
+![](./assets/memory-emotional-simulator.avif)
 
 ### 情绪和记忆相关吗？
 
@@ -196,7 +196,7 @@ https://drizzle-orm-duckdb-wasm.netlify.app/#/memory-simulator
 如果对「某段过去的记忆开心，并且希望再次体验它」，但是由于「暂时没办法实现这个记忆里面的场景」，所以觉得「得不到就难过」。
 
 可以在记忆数据库中存储「欢欣」和「厌恶」的分数：
-![](./assets/memory-emotional-score.jpg)
+![](./assets/memory-emotional-score.avif)
 
 ### PTSD？
 
@@ -206,7 +206,7 @@ PTSD 通常会涉及到两个词「trigger」和「闪回」，很明显 PTSD �
 
 可以参考一下 https://yutsuki.moe/2019/09/a0d0fa1b/ 里面的情绪模型。
 
-![](./assets/memory-emotional-model.jpg)
+![](./assets/memory-emotional-model.avif)
 
 ## 还有很多事情要做……
 

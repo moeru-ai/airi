@@ -54,7 +54,7 @@ const isCharactersPage = computed(() => path.value.includes('characters'))
         <img
           class="max-w-none w-[90rem] flex-none"
           decoding="async"
-          src="/new-bg.png"
+          src="/new-bg.avif"
           alt="backdrop"
         >
       </div>

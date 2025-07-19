@@ -76,7 +76,7 @@ by myself almost a year ago, but it still looks great and feel calm when
 looking at it. Please leave comments in the chat for any suggestions, really
 appreciated.
 
-![](./assets/live-stream-layout-update.jpeg)
+![](./assets/live-stream-layout-update.avif)
 
 During the DevStream of today, I was trying to integrate the stage transition
 animation component into AIRI's website main stage, it wasn't that smooth,

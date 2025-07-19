@@ -2,7 +2,7 @@
 import { ref } from 'vue'
 
 import CharacterCard from './CharacterCard.vue'
-import characterImage from './relu.png'
+import characterImage from './relu.avif'
 
 const primaryColor = ref('#f0f9fe')
 const secondaryColor = ref('#fef1c9')

@@ -6,7 +6,7 @@ import { storeToRefs } from 'pinia'
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import onboardingLogo from '../../../../assets/onboarding.png'
+import onboardingLogo from '../../../../assets/onboarding.avif'
 
 import { Callout } from '../../../Layouts'
 import { RadioCardDetail, RadioCardManySelect } from '../../../Menu'
