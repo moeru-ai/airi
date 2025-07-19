@@ -7,7 +7,7 @@ import sharp from 'sharp'
 
 const SOURCE_EXTENSIONS = ['.png', '.jpg', '.jpeg', '.webp']
 
-async function transform(filePath: string) {
+async function transform(filePath: string): Promise<any> {
   if ((await stat(filePath)).isDirectory()) {
     return await Promise.allSettled(
       (await readdir(filePath)).map(file => transform(path.join(filePath, file))),
