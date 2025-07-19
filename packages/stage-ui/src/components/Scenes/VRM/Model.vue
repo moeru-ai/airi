@@ -1,8 +1,11 @@
 <script setup lang="ts">
 import type { VRMCore } from '@pixiv/three-vrm-core'
+import type { AnimationClip } from 'three'
 
 import { VRMUtils } from '@pixiv/three-vrm'
+import { useVRM } from '../../../stores'
 import { useLoop, useTresContext } from '@tresjs/core'
+import { storeToRefs } from 'pinia'
 import { AnimationMixer } from 'three'
 import { onMounted, onUnmounted, ref, watch } from 'vue'
 
@@ -14,7 +17,6 @@ const props = defineProps<{
   model: string
   idleAnimation: string
   loadAnimations?: string[]
-  position: [number, number, number]
   paused: boolean
 }>()
 
@@ -33,11 +35,23 @@ const blink = useBlink()
 const idleEyeSaccades = useIdleEyeSaccades()
 const vrmEmote = ref<ReturnType<typeof useVRMEmote>>()
 
-watch(() => props.position, ([x, y, z]) => {
+const vrmStore = useVRM()
+const {
+  modelOffset,
+  modelOrigin,
+  modelSize,
+  modelPosition,
+} = storeToRefs(vrmStore)
+
+watch(modelOffset, () => {
   if (vrm.value) {
-    vrm.value.scene.position.set(x, y, z)
+    vrm.value.scene.position.set(
+      modelPosition.value.x,
+      modelPosition.value.y,
+      modelPosition.value.z,
+    )
   }
-})
+}, { deep: true })
 
 onMounted(async () => {
   if (!scene.value) {
@@ -45,15 +59,35 @@ onMounted(async () => {
   }
 
   try {
-    const _vrm = await loadVrm(props.model, {
+    const _vrmInfo = await loadVrm(props.model, {
       scene: scene.value,
       lookAt: true,
-      position: props.position,
-      onProgress: progress => emit('loadModelProgress', Number.parseFloat((100.0 * (progress.loaded / progress.total)).toFixed(2))),
+      positionOffset: [modelOffset.value.x, modelOffset.value.y, modelOffset.value.z],
+      onProgress: progress => emit('loadModelProgress', Number((100 * progress.loaded / progress.total).toFixed(2))),
     })
-    if (!_vrm) {
+    if (!_vrmInfo) {
       console.warn('No VRM model loaded')
       return
+    }
+    const { _vrm, modelCenter: vrmModelCenter, modelSize: vrmModelSize } = _vrmInfo
+
+    // Set initial postions for model
+    modelOrigin.value = {
+      x: vrmModelCenter.x,
+      y: vrmModelCenter.y,
+      z: vrmModelCenter.z,
+    }
+    modelSize.value = {
+      x: vrmModelSize.x,
+      y: vrmModelSize.y,
+      z: vrmModelSize.z,
+    }
+
+    // Set initial positons for animation
+    function removeRootPositionTrack(clip: AnimationClip) {
+      clip.tracks = clip.tracks.filter((track) => {
+        return !track.name.endsWith('.position')
+      })
     }
 
     const animation = await loadVRMAnimation(props.idleAnimation)
@@ -62,6 +96,7 @@ onMounted(async () => {
       console.warn('No VRM animation loaded')
       return
     }
+    removeRootPositionTrack(clip)
 
     // play animation
     vrmAnimationMixer.value = new AnimationMixer(_vrm.scene)

@@ -57,7 +57,6 @@ defineExpose({
         ref="modelRef"
         :model="selectedModel"
         idle-animation="/assets/vrm/animations/idle_loop.vrma"
-        :position="[vrmModelPositionX, vrmModelPositionY, vrmModelPositionZ]"
         :paused="props.paused"
         @load-model-progress="(val) => emit('loadModelProgress', val)"
         @error="(val) => emit('error', val)"

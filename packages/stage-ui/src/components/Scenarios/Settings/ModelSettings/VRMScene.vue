@@ -16,12 +16,9 @@ const VRMContainerRef = ref<HTMLDivElement>()
 const { width, height } = useElementBounding(VRMContainerRef)
 const { selectedModel } = storeToRefs(useVRM())
 
-const cameraPositionX = ref(-0.17)
-const cameraPositionY = ref(0)
+const cameraPositionX = ref(0.17)
+const cameraPositionY = ref(0.5)
 const cameraPositionZ = ref(-1)
-const vrmModelPositionX = ref(-0.18)
-const vrmModelPositionY = ref(-1.32)
-const vrmModelPositionZ = ref(-0.24)
 
 const modelRef = ref<{
   setExpression: (expression: string) => void
@@ -38,6 +35,7 @@ defineExpose({
   <div ref="VRMContainerRef" w="100%" h="100%">
     <TresCanvas :alpha="true" :antialias="true" :width="width" :height="height">
       <OrbitControls />
+      <TresAxesHelper :size="1" />
       <TresPerspectiveCamera :position="[cameraPositionX, cameraPositionY, cameraPositionZ]" />
       <TresDirectionalLight :color="0xFFFFFF" :intensity="1.2" :position="[1, 1, 1]" />
       <TresAmbientLight :color="0xFFFFFF" :intensity="1.5" />
@@ -46,7 +44,6 @@ defineExpose({
         :key="selectedModel"
         :model="selectedModel"
         idle-animation="/assets/vrm/animations/idle_loop.vrma"
-        :position="[vrmModelPositionX, vrmModelPositionY, vrmModelPositionZ]"
         :paused="false"
         @load-model-progress="(val) => emit('loadModelProgress', val)"
         @error="(val) => emit('error', val)"
