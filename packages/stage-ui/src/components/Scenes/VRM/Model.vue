@@ -9,8 +9,8 @@ import { storeToRefs } from 'pinia'
 import { AnimationMixer } from 'three'
 import { onMounted, onUnmounted, ref, watch } from 'vue'
 
-import { clipFromVRMAnimation, loadVRMAnimation, useBlink, useIdleEyeSaccades } from '../../../composables/vrm/animation'
 import { loadVrm } from '../../../composables/vrm/core'
+import { clipFromVRMAnimation, loadVRMAnimation, useBlink, useIdleEyeSaccades } from '../../../composables/vrm/animation'
 import { useVRMEmote } from '../../../composables/vrm/expression'
 
 const props = defineProps<{
