@@ -54,7 +54,7 @@ export async function loadVrm(model: string, options?: {
   box.getSize(modelSize)
   box.getCenter(modelCenter)
   modelCenter.negate()
-modelCenter.y -= modelSize.y / 8 // Adjust pivot to align chest with the origin
+  modelCenter.y -= modelSize.y / 8 // Adjust pivot to align chest with the origin
 
   // Set position
   if (options?.positionOffset) {
