@@ -1,8 +1,12 @@
 import type { SiteConfig } from 'vitepress'
 
+import { env } from 'node:process'
+
+import { dirname, join } from 'pathe'
 import { createContentLoader } from 'vitepress'
 
 const config: SiteConfig = (globalThis as any).VITEPRESS_CONFIG
+const base = config.userConfig.base || env.BASE_URL || '/'
 
 interface Post {
   title: string
@@ -20,6 +24,29 @@ interface Post {
 declare const data: Post[]
 export { data }
 
+function cwdFromUrl(url: string): string {
+  if (url.endsWith('/')) {
+    return url
+  }
+
+  return dirname(url)
+}
+
+function withBase(url?: string, base?: string, cwd?: string) {
+  if (!url) {
+    return url
+  }
+
+  if (url.startsWith('/') && base) {
+    return join(base, url)
+  }
+  if (!url.startsWith('/') && base && cwd) {
+    return join(base, cwd, url)
+  }
+
+  return url
+}
+
 export default createContentLoader('**/blog/**/*.md', {
   includeSrc: true,
   render: true,
@@ -36,15 +63,23 @@ export default createContentLoader('**/blog/**/*.md', {
           return url.startsWith(normalizedLanguagePrefix)
         })
 
-        return {
+        const res = {
           title: frontmatter.title,
           url,
           urlWithoutLang: url.replace(`/${foundLanguage?.lang || 'en'}`, ''),
           excerpt,
           date: formatDate(frontmatter.date),
           lang: foundLanguage?.lang || 'en',
-          frontmatter,
+          frontmatter: {
+            ...frontmatter,
+            'preview-cover': {
+              light: withBase(frontmatter['preview-cover']?.light, base, cwdFromUrl(url)),
+              dark: withBase(frontmatter['preview-cover']?.dark, base, cwdFromUrl(url)),
+            },
+          },
         }
+
+        return res
       })
       .sort((a, b) => b.date.time - a.date.time)
   },
