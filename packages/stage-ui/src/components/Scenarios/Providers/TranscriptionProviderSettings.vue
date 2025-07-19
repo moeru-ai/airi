@@ -10,6 +10,7 @@ import {
   ProviderBaseUrlInput,
   ProviderBasicSettings,
   ProviderSettingsContainer,
+  ProviderSettingsLayout2,
 } from '.'
 import { useProvidersStore } from '../../../stores'
 

@@ -437,6 +437,9 @@ pages:
       xai:
         description: x.ai
         title: xAI
+      transcriptions:
+        playground:
+          title: Transcription Playground
     title: Providers
   scene:
     description: Configure the environment where the character lives

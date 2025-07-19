@@ -415,6 +415,9 @@ pages:
       xai:
         description: X.AI
         title: xAI
+      transcriptions:
+        playground:
+          title: 实验平台
     title: 服务来源
   scene:
     description: 配置角色所在环境
