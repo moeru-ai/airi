@@ -559,7 +559,7 @@ vrm:
     title: Scale And Position
     scale: Scale
     x: X Offset
-    'y': Y Offset
+    y: Y Offset
     z: Z Offset
   switch-to-vrm:
     title: Switch to Live2D Avatar?
