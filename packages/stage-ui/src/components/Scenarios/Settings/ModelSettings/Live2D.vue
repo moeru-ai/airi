@@ -2,14 +2,14 @@
 import JSZip from 'jszip'
 import localforage from 'localforage'
 
-import { FieldRange, Input } from '@proj-airi/ui'
+import { Checkbox, FieldRange, Input } from '@proj-airi/ui'
 import { useFileDialog, useObjectUrl } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { Emotion, EmotionNeutralMotionName } from '../../../../constants'
-import { useLive2d } from '../../../../stores'
+import { useLive2d, useSettings } from '../../../../stores'
 import { Section } from '../../../Layouts'
 import { Button } from '../../../Misc'
 import { ColorPalette } from '../../../Widgets'
@@ -28,6 +28,9 @@ const { t } = useI18n()
 const modelFileDialog = useFileDialog({
   accept: 'application/zip',
 })
+
+const settings = useSettings()
+const { live2dDisableFocus } = storeToRefs(settings)
 
 const live2d = useLive2d()
 const {
@@ -251,5 +254,19 @@ const exportObjectUrl = useObjectUrl(modelFile)
         </div>
       </template>
     </FieldRange>
+  </Section>
+  <Section
+    :title="t('settings.live2d.focus.title')"
+    icon="i-solar:eye-scan-bold-duotone"
+    :class="[
+      'rounded-xl',
+      'bg-white/80  dark:bg-black/75',
+      'backdrop-blur-lg',
+    ]"
+  >
+    <Checkbox
+      v-model="live2dDisableFocus"
+      :label="t('settings.live2d.focus.disable-focus')"
+    />
   </Section>
 </template>

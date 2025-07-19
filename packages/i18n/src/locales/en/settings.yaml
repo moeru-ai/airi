@@ -63,6 +63,10 @@ live2d:
     title: Extract colors from model
     button-extract:
       title: Extract
+  focus:
+    title: Disable model mouse tracking
+    button-disable:
+      title: Disable
 microphone: Microphone
 models: Model
 pages:
