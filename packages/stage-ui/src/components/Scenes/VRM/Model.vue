@@ -3,7 +3,7 @@ import type { VRMCore } from '@pixiv/three-vrm-core'
 import type { AnimationClip } from 'three'
 
 import { VRMUtils } from '@pixiv/three-vrm'
-import { useVRM } from '@proj-airi/stage-ui/stores'
+import { useVRM } from '../../../stores'
 import { useLoop, useTresContext } from '@tresjs/core'
 import { storeToRefs } from 'pinia'
 import { AnimationMixer } from 'three'
