@@ -54,7 +54,7 @@ const isCharactersPage = computed(() => path.value.includes('characters'))
         <img
           class="max-w-none w-[90rem] flex-none"
           decoding="async"
-          src="/new-bg.png"
+          src="/new-bg.avif"
           alt="backdrop"
         >
       </div>
@@ -76,7 +76,7 @@ const isCharactersPage = computed(() => path.value.includes('characters'))
           :key="path"
           class="mb-4 block xl:hidden"
         >
-          <CollapsibleTrigger class="border-muted bg-card data-[state=open]:bg-muted mb-2 border rounded-lg px-4 py-2 text-sm">
+          <CollapsibleTrigger class="bg-card border-muted data-[state=open]:bg-muted mb-2 border rounded-lg px-4 py-2 text-sm">
             On this page
           </CollapsibleTrigger>
 

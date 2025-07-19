@@ -8,6 +8,7 @@
     "dev": "vitepress dev",
     "preview": "vitepress preview",
     "typecheck": "vue-tsc --noEmit",
+    "to-avif": "tsx scripts/avif.ts",
     "contributors": "tsx scripts/update-contributors.ts"
   },
   "dependencies": {
@@ -44,6 +45,7 @@
     "markdown-it-anchor": "^9.2.0",
     "minisearch": "^7.1.2",
     "postcss": "^8.5.6",
+    "sharp": "^0.34.2",
     "shiki": "^3.7.0",
     "tsx": "^4.20.3",
     "uncrypto": "^0.1.3",

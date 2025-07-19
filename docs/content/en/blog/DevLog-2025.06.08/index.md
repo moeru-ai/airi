@@ -34,7 +34,7 @@ For example, we have a screen like this:
 
 假设这是我们的屏幕：
 
-![](./assets/screen.png)
+![](./assets/screen.avif)
 
 The blue box is the screen, the pink box is the AIRI window, the purple arrow is the cursor, we define:
 

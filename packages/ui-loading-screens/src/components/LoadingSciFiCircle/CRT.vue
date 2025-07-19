@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { nextTick, ref } from 'vue'
 
-import BarrelDistortionMap from './assets/barrel_distortion_map.png'
+import BarrelDistortionMap from './assets/barrel_distortion_map.avif'
 
 const props = withDefaults(defineProps<{
   blinkSpeed?: string

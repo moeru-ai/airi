@@ -5,24 +5,24 @@ date: 2025-05-16
 ---
 
 <script setup>
-import VelinLight from './assets/velin-light.png'
-import VelinDark from './assets/velin-dark.png'
+import VelinLight from './assets/velin-light.avif'
+import VelinDark from './assets/velin-dark.avif'
 
-import CharacterCardMenuLight from './assets/character-card-menu-light.png'
-import CharacterCardMenuDark from './assets/character-card-menu-dark.png'
+import CharacterCardMenuLight from './assets/character-card-menu-light.avif'
+import CharacterCardMenuDark from './assets/character-card-menu-dark.avif'
 
-import CharacterCardSettingsLight from './assets/character-card-settings-light.png'
-import CharacterCardSettingsDark from './assets/character-card-settings-dark.png'
+import CharacterCardSettingsLight from './assets/character-card-settings-light.avif'
+import CharacterCardSettingsDark from './assets/character-card-settings-dark.avif'
 
-import CharacterCardShowcaseLight from './assets/character-card-showcase-light.png'
-import CharacterCardShowcaseDark from './assets/character-card-showcase-dark.png'
+import CharacterCardShowcaseLight from './assets/character-card-showcase-light.avif'
+import CharacterCardShowcaseDark from './assets/character-card-showcase-dark.avif'
 
-import VelinPlaygroundLight from './assets/velin-playground-light.png'
-import VelinPlaygroundDark from './assets/velin-playground-dark.png'
+import VelinPlaygroundLight from './assets/velin-playground-light.avif'
+import VelinPlaygroundDark from './assets/velin-playground-dark.avif'
 
-import DemoDayHangzhou1 from './assets/demo-day-hangzhou-1.jpeg'
-import DemoDayHangzhou2 from './assets/demo-day-hangzhou-2.jpeg'
-import DemoDayHangzhou3 from './assets/demo-day-hangzhou-3.jpeg'
+import DemoDayHangzhou1 from './assets/demo-day-hangzhou-1.avif'
+import DemoDayHangzhou2 from './assets/demo-day-hangzhou-2.avif'
+import DemoDayHangzhou3 from './assets/demo-day-hangzhou-3.avif'
 </script>
 
 Hello again! Here's [Neko](https://github.com/nekomeowww), the girl who started

@@ -8,7 +8,7 @@ An intelligent Minecraft bot powered by LLM. AIRI can understand natural languag
 
 ## 🎥 Preview
 
-![demo](./docs/preview.png)
+![demo](./docs/preview.avif)
 
 ## ✨ Features
 

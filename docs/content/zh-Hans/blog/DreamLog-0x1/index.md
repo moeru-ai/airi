@@ -5,16 +5,16 @@ date: '2025-06-16'
 ---
 
 <script setup>
-import EMOSYSLogo from '../../../en/blog/DreamLog-0x1/assets/emosys-logo.png';
-import SteinsGateSticker1 from '../../../en/blog/DreamLog-0x1/assets/steins-gate-sticker-1.png';
-import worldExecuteMeCover from '../../../en/blog/DreamLog-0x1/assets/world.execute(me); (Mili)／DAZBEE COVER.jpg';
-import buildingAVirtualMachineInsideImage from '../../../en/blog/DreamLog-0x1/assets/building-a-virtual-machine-inside-image-1.png';
-import live2DIncHiyoriMomose from '../../../en/blog/DreamLog-0x1/assets/live2d-inc-hiyori.jpg';
-import AwesomeAIVTuber from '../../../en/blog/DevLog-2025.04.06/assets/awesome-ai-vtuber-logo-light.png'
-import airisScreenshot1 from '../../../en/blog/DreamLog-0x1/assets/airis-screenshot-1.png';
-import projectAIRIBannerLight from '../../../en/blog/DreamLog-0x1/assets/banner-light-1280x640.png';
-import projectAIRIBannerDark from '../../../en/blog/DreamLog-0x1/assets/banner-dark-1280x640.png';
-import ReLUStickerWow from '../../../en/blog/DreamLog-0x1/assets/relu-sticker-wow.png'
+import EMOSYSLogo from '../../../en/blog/DreamLog-0x1/assets/emosys-logo.avif';
+import SteinsGateSticker1 from '../../../en/blog/DreamLog-0x1/assets/steins-gate-sticker-1.avif';
+import worldExecuteMeCover from '../../../en/blog/DreamLog-0x1/assets/world.execute(me); (Mili)／DAZBEE COVER.avif';
+import buildingAVirtualMachineInsideImage from '../../../en/blog/DreamLog-0x1/assets/building-a-virtual-machine-inside-image-1.avif';
+import live2DIncHiyoriMomose from '../../../en/blog/DreamLog-0x1/assets/live2d-inc-hiyori.avif';
+import AwesomeAIVTuber from '../../../en/blog/DevLog-2025.04.06/assets/awesome-ai-vtuber-logo-light.avif'
+import airisScreenshot1 from '../../../en/blog/DreamLog-0x1/assets/airis-screenshot-1.avif';
+import projectAIRIBannerLight from '../../../en/blog/DreamLog-0x1/assets/banner-light-1280x640.avif';
+import projectAIRIBannerDark from '../../../en/blog/DreamLog-0x1/assets/banner-dark-1280x640.avif';
+import ReLUStickerWow from '../../../en/blog/DreamLog-0x1/assets/relu-sticker-wow.avif'
 </script>
 
 Project AIRI 的幕后故事！

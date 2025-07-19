@@ -5,7 +5,7 @@ date: 2025-04-28
 ---
 
 <script setup>
-import airiMcpArch from './assets/airi-mcp-arch.jpg'
+import airiMcpArch from './assets/airi-mcp-arch.avif'
 </script>
 
 大家好，这里是 [@LemonNeko](https://github.com/LemonNekoGH)，今天由我来和大家一起分享开发故事。

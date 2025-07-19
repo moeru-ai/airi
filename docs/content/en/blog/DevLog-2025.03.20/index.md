@@ -6,14 +6,14 @@ date: 2025-03-20
 
 <script setup>
 import Gelbana from './assets/steins-gate-gelnana-from-elpsycongrooblog.webp'
-import NewUIV3 from '../DevLog-2025.03.10/assets/new-ui-v3.png'
-import NewUIV3Dark from '../DevLog-2025.03.10/assets/new-ui-v3-dark.png'
-import HistoireColorSlider from './assets/histoire-color-slider.png'
-import HistoireColorSliderDark from './assets/histoire-color-slider-dark.png'
-import HistoireLogo from './assets/histoire-logo.png'
-import HistoireLogoDark from './assets/histoire-logo-dark.png'
-import NewUIV4Speech from './assets/new-ui-v4-speech.png'
-import NewUIV4SpeechDark from './assets/new-ui-v4-speech-dark.png'
+import NewUIV3 from '../DevLog-2025.03.10/assets/new-ui-v3.avif'
+import NewUIV3Dark from '../DevLog-2025.03.10/assets/new-ui-v3-dark.avif'
+import HistoireColorSlider from './assets/histoire-color-slider.avif'
+import HistoireColorSliderDark from './assets/histoire-color-slider-dark.avif'
+import HistoireLogo from './assets/histoire-logo.avif'
+import HistoireLogoDark from './assets/histoire-logo-dark.avif'
+import NewUIV4Speech from './assets/new-ui-v4-speech.avif'
+import NewUIV4SpeechDark from './assets/new-ui-v4-speech-dark.avif'
 import SteinsGateMayori from './assets/steins-gate-mayori.webp'
 </script>
 
