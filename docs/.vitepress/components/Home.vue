@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
 
-import homeCover from '../assets/home-cover-2025-07-15.png'
+import homeCover from '../assets/home-cover-2025-07-15.avif'
 
 const { t } = useI18n()
 

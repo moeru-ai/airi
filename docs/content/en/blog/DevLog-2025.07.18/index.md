@@ -59,9 +59,9 @@ With that, the structure diagram has changed:
 
 <div class="flex flex-row gap-4">
 
-![Before](./assets/structure-before.png)
+![Before](./assets/structure-before.avif)
 
-![After](./assets/structure-after.png)
+![After](./assets/structure-after.avif)
 
 </div>
 

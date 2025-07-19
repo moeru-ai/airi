@@ -43,7 +43,7 @@ export default defineConfig({
   head: [
     ['meta', { name: 'theme-color', content: '#00C38A' }],
     ['link', { rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg', sizes: 'any' }],
-    ['link', { rel: 'apple-touch-icon', href: '/apple-touch-icon.png', sizes: '180x180' }],
+    ['link', { rel: 'apple-touch-icon', href: '/apple-touch-icon.avif', sizes: '180x180' }],
     ['meta', { name: 'apple-mobile-web-app-title', content: rekaName }],
     ['meta', { name: 'author', content: `${teamMembers.map(c => c.name).join(', ')} and ${rekaName} contributors` }],
     ['meta', { name: 'keywords', content: '' }],

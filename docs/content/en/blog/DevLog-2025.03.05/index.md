@@ -30,42 +30,42 @@ Last week, our corporate designer/artist has submitted our commission for the
 basic/first version of Project AIRI logo. The feeling of the logo looks like
 this:
 
-![](./assets/airi-logos-v1.png)
+![](./assets/airi-logos-v1.avif)
 
 ## Daytime
 
 From the perspective of designing, these were so complex and user unfriendly
 when scaled down to Home Screen app sizes. Therefore I added this version:
 
-![](./assets/airi-logo-v2.png)
+![](./assets/airi-logo-v2.avif)
 
 And edited with other variants:
 
-![](./assets/airi-logos-v2.png)
+![](./assets/airi-logos-v2.avif)
 
 All of those were only suitable for dark theme, "we need a dark theme version
 logo as well!" I thought, so I did this:
 
-![](./assets/airi-logo-v2-dark.png)
+![](./assets/airi-logo-v2-dark.avif)
 
 [@kwaa](https://github.com/kwaa) said that we can try to swap the color schemes
 for both themes:
 
-![](./assets/airi-logos-v3.png)
+![](./assets/airi-logos-v3.avif)
 
 This indeed looks better.
 
 We updated the Typography too:
 
-![](./assets/airi-logos-v4.png)
+![](./assets/airi-logos-v4.avif)
 
 And optimized the background colors:
 
-![](./assets/airi-logos-v5.png)
+![](./assets/airi-logos-v5.avif)
 
 So this is what we get finally:
 
-![](./assets/airi-logos-final.png)
+![](./assets/airi-logos-final.avif)
 
 Later on today, I was working on publishing the
 [documentation site](https://airi.build) of Project AIRI online, for me,
@@ -74,8 +74,8 @@ and other developers, artists to use it as a reference and guidelines.
 I did it! And the newly designed logo has been put into the
 [documentation site](https://airi.build) along with the color palette:
 
-![](./assets/airi-build-light.png)
-![](./assets/airi-build-dark.png)
+![](./assets/airi-build-light.avif)
+![](./assets/airi-build-dark.avif)
 
 [Basic guide](../guides/),
 [contribution guidelines](../references/contributing/guide/),

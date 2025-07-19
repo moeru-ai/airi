@@ -5,13 +5,13 @@ date: 2025-04-06
 ---
 
 <script setup>
-import MemoryDecay from './assets/memory-decay.png'
-import MemoryRetrieval from './assets/memory-retrieval.png'
-import CharacterCard from './assets/character-card.png'
-import CharacterCardDetail from './assets/character-card-detail.png'
-import MoreThemeColors from './assets/more-theme-colors.png'
-import AwesomeAIVTuber from './assets/awesome-ai-vtuber-logo-light.png'
-import ReLUStickerWow from './assets/relu-sticker-wow.png'
+import MemoryDecay from './assets/memory-decay.avif'
+import MemoryRetrieval from './assets/memory-retrieval.avif'
+import CharacterCard from './assets/character-card.avif'
+import CharacterCardDetail from './assets/character-card-detail.avif'
+import MoreThemeColors from './assets/more-theme-colors.avif'
+import AwesomeAIVTuber from './assets/awesome-ai-vtuber-logo-light.avif'
+import ReLUStickerWow from './assets/relu-sticker-wow.avif'
 </script>
 
 ## Before all the others 在其他东西之前

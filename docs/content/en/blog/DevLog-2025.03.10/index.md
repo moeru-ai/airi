@@ -24,14 +24,14 @@ Including [@LemonNekoGH](https://github.com/LemonNekoGH),
 It was me that first finished the basic version of the settings' design, it feels
 like this:
 
-![](./assets/new-ui-v1.png)
+![](./assets/new-ui-v1.avif)
 
-![](./assets/new-ui-v1-dark.png)
+![](./assets/new-ui-v1-dark.avif)
 
 And later on [@sumimakito](https://github.com/sumimakito) went up online helped me
 implementing this dotted effect for the buttons:
 
-![](./assets/new-ui-v2.png)
+![](./assets/new-ui-v2.avif)
 
 > We can now feels more beats from the menu, isn't it?!
 
@@ -97,9 +97,9 @@ They even made it possible for the logo to follow the customizable colors 🤯.
 
 This was the final result we got, give it a try!
 
-![](./assets/new-ui-v3.png)
+![](./assets/new-ui-v3.avif)
 
-![](./assets/new-ui-v3-dark.png)
+![](./assets/new-ui-v3-dark.avif)
 
 And as always, feel free to come and contribute to us! We are absolutely here open and
 friendly to everyone, even for those not familiar with programming and coding!
