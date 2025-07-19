@@ -3,7 +3,6 @@ import type { VRMCore } from '@pixiv/three-vrm-core'
 import type { AnimationClip } from 'three'
 
 import { VRMUtils } from '@pixiv/three-vrm'
-import { useVRM } from '../../../stores'
 import { useLoop, useTresContext } from '@tresjs/core'
 import { storeToRefs } from 'pinia'
 import { AnimationMixer } from 'three'
@@ -12,6 +11,7 @@ import { onMounted, onUnmounted, ref, watch } from 'vue'
 import { clipFromVRMAnimation, loadVRMAnimation, useBlink, useIdleEyeSaccades } from '../../../composables/vrm/animation'
 import { loadVrm } from '../../../composables/vrm/core'
 import { useVRMEmote } from '../../../composables/vrm/expression'
+import { useVRM } from '../../../stores'
 
 const props = defineProps<{
   model: string
