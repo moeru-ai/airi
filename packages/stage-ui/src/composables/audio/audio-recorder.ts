@@ -3,15 +3,6 @@ import type { MaybeRefOrGetter } from 'vue'
 import { until } from '@vueuse/core'
 import { ref, shallowRef, toRef, watch } from 'vue'
 
-export function useDownload(url: string, fileName: string) {
-  const link = document.createElement('a')
-  link.href = url
-  link.download = fileName
-  document.body.appendChild(link)
-  link.click()
-  document.body.removeChild(link)
-}
-
 export function useAudioRecorder(
   media: MaybeRefOrGetter<MediaStream | undefined>,
 ) {
@@ -20,7 +11,7 @@ export function useAudioRecorder(
   const recordingChunk = shallowRef<Blob[]>([])
   const recording = ref<Blob>()
 
-  const onStopHooks = ref<Array<(recording: Blob | undefined) => Promise<void>>>([])
+  const onStopRecordHooks = ref<Array<(recording: Blob | undefined) => Promise<void>>>([])
 
   async function startRecord() {
     await until(mediaRef).toBeTruthy()
@@ -42,16 +33,12 @@ export function useAudioRecorder(
       if (recordingChunk.value.length > 0) {
         const blob = new Blob(recordingChunk.value, { type: audioRecorder.value?.mimeType })
         recording.value = blob
-
-        if (blob.size > 0) {
-          useDownload(URL.createObjectURL(blob), `recording-${Date.now()}.webm`)
-        }
       }
       else {
         recording.value = undefined
       }
 
-      for (const hook of onStopHooks.value) {
+      for (const hook of onStopRecordHooks.value) {
         hook(recording.value)
       }
     }
@@ -61,8 +48,8 @@ export function useAudioRecorder(
     }
   }
 
-  function onStop(callback: (recording: Blob | undefined) => Promise<void>) {
-    onStopHooks.value.push(callback)
+  function onStopRecord(callback: (recording: Blob | undefined) => Promise<void>) {
+    onStopRecordHooks.value.push(callback)
   }
 
   async function stopRecord() {
@@ -89,7 +76,7 @@ export function useAudioRecorder(
   return {
     startRecord,
     stopRecord,
-    onStop,
+    onStopRecord,
     recordingChunk,
     recording,
   }

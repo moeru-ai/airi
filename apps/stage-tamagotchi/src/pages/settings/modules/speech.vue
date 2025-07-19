@@ -167,7 +167,7 @@ function updateCustomModelName(value: string) {
 
 <template>
   <div flex="~ col md:row gap-6">
-    <div bg="neutral-100 dark:[rgba(0,0,0,0.3)]" rounded-xl p-4 flex="~ col gap-4" class="w-full md:w-[40%]">
+    <div bg="neutral-100 dark:[rgba(0,0,0,0.3)]" rounded-xl p-4 flex="~ col gap-4" class="h-fit w-full md:w-[40%]">
       <div>
         <div flex="~ col gap-4">
           <div>

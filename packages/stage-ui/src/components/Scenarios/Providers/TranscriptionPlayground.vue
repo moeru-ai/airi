@@ -47,7 +47,7 @@ const audioURLs = computed(() => {
 })
 const transcriptions = ref<string[]>([])
 
-const { startRecord, stopRecord, onStop } = useAudioRecorder(stream)
+const { startRecord, stopRecord, onStopRecord } = useAudioRecorder(stream)
 
 // Audio monitoring
 async function setupAudioMonitoring() {
@@ -158,7 +158,7 @@ async function toggleMonitoring() {
   else {
     await stopAudioMonitoring()
 
-    onStop(async (recording) => {
+    onStopRecord(async (recording) => {
       try {
         if (recording) {
           audios.value.push(recording)
