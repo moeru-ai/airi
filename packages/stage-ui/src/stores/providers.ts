@@ -867,6 +867,9 @@ export const useProvidersStore = defineStore('providers', () => {
       descriptionKey: 'settings.pages.providers.provider.deepseek.description',
       description: 'deepseek.com',
       iconColor: 'i-lobe-icons:deepseek',
+      defaultOptions: () => ({
+        baseUrl: 'https://api.deepseek.com/',
+      }),
       createProvider: config => createDeepSeek((config.apiKey as string).trim(), (config.baseUrl as string).trim()),
       capabilities: {
         listModels: async (config) => {

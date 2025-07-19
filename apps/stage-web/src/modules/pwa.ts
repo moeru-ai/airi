@@ -1,3 +1,1 @@
-import { registerSW } from 'virtual:pwa-register'
-
-export { registerSW }
+export { registerSW } from 'virtual:pwa-register'
