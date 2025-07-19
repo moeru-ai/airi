@@ -1,12 +1,12 @@
 <script setup lang="ts">
-import { Input } from '@proj-airi/ui'
+import { FieldRange, Input } from '@proj-airi/ui'
 import { useFileDialog } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { useVRM } from '../../../../stores'
-import { Section } from '../../../Layouts'
+import { Callout, Section } from '../../../Layouts'
 import { Button } from '../../../Misc'
 import { ColorPalette } from '../../../Widgets'
 
@@ -31,6 +31,8 @@ const {
   loadSource,
   loadingModel,
   modelUrl,
+  modelSize,
+  modelOffset,
 } = storeToRefs(vrm)
 const localModelUrl = ref(modelUrl.value)
 
@@ -97,7 +99,7 @@ modelFileDialog.onChange((files) => {
       {{ t('settings.vrm.theme-color-from-model.button-extract.title') }}
     </Button>
   </Section>
-  <!-- <Section
+  <Section
     :title="t('settings.vrm.scale-and-position.title')"
     icon="i-solar:scale-bold-duotone"
     :class="[
@@ -106,27 +108,61 @@ modelFileDialog.onChange((files) => {
       'backdrop-blur-lg',
     ]"
   >
-    <FieldRange v-model="scale" as="div" :min="0.5" :max="2" :step="0.01" :label="t('settings.vrm.scale-and-position.scale')">
-      <template #label>
-        <div flex items-center>
-          <div>{{ t('settings.vrm.scale-and-position.scale') }}</div>
-          <button px-2 text-xs outline-none title="Reset value to default" @click="() => scale = 1">
-            <div i-solar:forward-linear transform-scale-x--100 text="neutral-500 dark:neutral-400" />
-          </button>
+    <Callout :label="t('settings.vrm.scale-and-position.model-info-title')">
+      <div>
+        <div class="text-sm text-neutral-600 space-y-1">
+          <div class="flex justify-between">
+            <span>{{ t('settings.vrm.scale-and-position.model-info-x') }}</span>
+            <span>{{ modelSize.x.toFixed(4) }}</span>
+          </div>
+          <div class="flex justify-between">
+            <span>{{ t('settings.vrm.scale-and-position.model-info-y') }}</span>
+            <span>{{ modelSize.y.toFixed(4) }}</span>
+          </div>
+          <div class="flex justify-between">
+            <span>{{ t('settings.vrm.scale-and-position.model-info-z') }}</span>
+            <span>{{ modelSize.z.toFixed(4) }}</span>
+          </div>
         </div>
-      </template>
-    </FieldRange>
-    <FieldRange v-model="modelOffset.x" as="div" :min="-2*modelSize.x" :max="2*modelSize.x" :step="1" :label="t('settings.vrm.scale-and-position.x')">
+      </div>
+    </Callout>
+    <Callout
+      theme="lime"
+      label="Tips!"
+    >
+      <div class="text-sm text-neutral-600 space-y-1">
+        {{ t('settings.vrm.scale-and-position.tips') }}
+      </div>
+    </Callout>
+    <FieldRange
+      :model-value="Number(modelOffset.x.toFixed(4))"
+      as="div"
+      :min="-modelSize.x"
+      :max="modelSize.x"
+      :step="modelSize.x / 100"
+      :label="t('settings.vrm.scale-and-position.x')"
+      @update:model-value="val => modelOffset.x = val"
+    >
       <template #label>
         <div flex items-center>
-          <div>{{ t('settings.vrm.scale-and-position.x') }}</div>
+          <div>
+            {{ t('settings.vrm.scale-and-position.x') }}
+          </div>
           <button px-2 text-xs outline-none title="Reset value to default" @click="() => modelOffset.x = 0">
             <div i-solar:forward-linear transform-scale-x--100 text="neutral-500 dark:neutral-400" />
           </button>
         </div>
       </template>
     </FieldRange>
-    <FieldRange v-model="modelOffset.y" as="div" :min="-2*modelSize.y" :max="2*modelSize.y" :step="1" :label="t('settings.vrm.scale-and-position.y')">
+    <FieldRange
+      :model-value="Number(modelOffset.y.toFixed(4))"
+      as="div"
+      :min="-modelSize.y"
+      :max="modelSize.y"
+      :step="modelSize.y / 100"
+      :label="t('settings.vrm.scale-and-position.y')"
+      @update:model-value="val => modelOffset.y = val"
+    >
       <template #label>
         <div flex items-center>
           <div>{{ t('settings.vrm.scale-and-position.y') }}</div>
@@ -136,7 +172,15 @@ modelFileDialog.onChange((files) => {
         </div>
       </template>
     </FieldRange>
-    <FieldRange v-model="modelOffset.z" as="div" :min="-2*modelSize.z" :max="2*modelSize.z" :step="1" :label="t('settings.vrm.scale-and-position.z')">
+    <FieldRange
+      :model-value="Number(modelOffset.z.toFixed(4))"
+      as="div"
+      :min="-modelSize.z"
+      :max="modelSize.z"
+      :step="modelSize.z / 100"
+      :label="t('settings.vrm.scale-and-position.z')"
+      @update:model-value="val => modelOffset.z = val"
+    >
       <template #label>
         <div flex items-center>
           <div>{{ t('settings.vrm.scale-and-position.z') }}</div>
@@ -146,5 +190,5 @@ modelFileDialog.onChange((files) => {
         </div>
       </template>
     </FieldRange>
-  </Section> -->
+  </Section>
 </template>

@@ -3,7 +3,7 @@ import type { Object3D, Scene } from 'three'
 
 import { VRMUtils } from '@pixiv/three-vrm'
 import { VRMLookAtQuaternionProxy } from '@pixiv/three-vrm-animation'
-import { Box3, Box3Helper, Vector3 } from 'three'
+import { Box3, Vector3 } from 'three'
 
 import { useVRMLoader } from './loader'
 
@@ -55,9 +55,6 @@ export async function loadVrm(model: string, options?: {
   box.getCenter(modelCenter)
   modelCenter.negate()
   modelCenter.y -= modelSize.y / 8
-  // visualise the bounding box for debugging
-  const boxHelper = new Box3Helper(box, 0xFFFF00)
-  _vrm.scene.add(boxHelper)
 
   // Set position
   if (options?.positionOffset) {
@@ -70,7 +67,6 @@ export async function loadVrm(model: string, options?: {
   else {
     _vrm.scene.position.set(modelCenter.x, modelCenter.y, modelCenter.z)
   }
-  // _vrm.scene.position.set(0, 0, 0)
 
   return {
     _vrm,

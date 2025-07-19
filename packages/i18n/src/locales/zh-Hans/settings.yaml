@@ -525,6 +525,13 @@ vrm:
     title: 更换模型
   title: VRM 设置
   scale-and-position:
+    model-info-title: 模型尺寸信息
+    model-info-x: 宽度（X轴）
+    model-info-y: 高度（Y轴）
+    model-info-z: 深度（Z轴）
+    tips: |
+      设定模型放置的空间坐标。
+      坐标轴已被可视化。
     title: 缩放与位置
     scale: 缩放
     x: X

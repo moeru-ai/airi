@@ -1,15 +1,17 @@
 <script setup lang="ts">
 import type { VRMCore } from '@pixiv/three-vrm-core'
-
-import type { useVRMEmote } from '../../../composables/vrm/expression'
+import type { AnimationClip } from 'three'
 
 import { VRMUtils } from '@pixiv/three-vrm'
 import { useVRM } from '@proj-airi/stage-ui/stores'
 import { useLoop, useTresContext } from '@tresjs/core'
 import { storeToRefs } from 'pinia'
+import { AnimationMixer } from 'three'
 import { onMounted, onUnmounted, ref, watch } from 'vue'
 
+import { clipFromVRMAnimation, loadVRMAnimation, useBlink, useIdleEyeSaccades } from '../../../composables/vrm/animation'
 import { loadVrm } from '../../../composables/vrm/core'
+import { useVRMEmote } from '../../../composables/vrm/expression'
 
 const props = defineProps<{
   model: string
@@ -26,11 +28,11 @@ const emit = defineEmits<{
 let disposeBeforeRenderLoop: (() => void | undefined)
 
 const vrm = ref<VRMCore>()
-// const vrmAnimationMixer = ref<AnimationMixer>()
+const vrmAnimationMixer = ref<AnimationMixer>()
 const { scene } = useTresContext()
 const { onBeforeRender } = useLoop()
-// const blink = useBlink()
-// const idleEyeSaccades = useIdleEyeSaccades()
+const blink = useBlink()
+const idleEyeSaccades = useIdleEyeSaccades()
 const vrmEmote = ref<ReturnType<typeof useVRMEmote>>()
 
 const vrmStore = useVRM()
@@ -38,18 +40,18 @@ const {
   modelOffset,
   modelOrigin,
   modelSize,
-  // modelPosition
+  modelPosition,
 } = storeToRefs(vrmStore)
 
-// watch(modelOffset, () => {
-//   if (vrm.value) {
-//     vrm.value.scene.position.set(
-//       modelPosition.value.x,
-//       modelPosition.value.y,
-//       modelPosition.value.z
-//     )
-//   }
-// })
+watch(modelOffset, () => {
+  if (vrm.value) {
+    vrm.value.scene.position.set(
+      modelPosition.value.x,
+      modelPosition.value.y,
+      modelPosition.value.z,
+    )
+  }
+}, { deep: true })
 
 onMounted(async () => {
   if (!scene.value) {
@@ -68,6 +70,8 @@ onMounted(async () => {
       return
     }
     const { _vrm, modelCenter: vrmModelCenter, modelSize: vrmModelSize } = _vrmInfo
+
+    // Set initial postions for model
     modelOrigin.value = {
       x: vrmModelCenter.x,
       y: vrmModelCenter.y,
@@ -79,27 +83,35 @@ onMounted(async () => {
       z: vrmModelSize.z,
     }
 
-    // const animation = await loadVRMAnimation(props.idleAnimation)
-    // const clip = await clipFromVRMAnimation(_vrm, animation)
-    // if (!clip) {
-    //   console.warn('No VRM animation loaded')
-    //   return
-    // }
+    // Set initial positons for animation
+    function removeRootPositionTrack(clip: AnimationClip) {
+      clip.tracks = clip.tracks.filter((track) => {
+        return !track.name.endsWith('.position')
+      })
+    }
 
-    // // play animation
-    // vrmAnimationMixer.value = new AnimationMixer(_vrm.scene)
-    // vrmAnimationMixer.value.clipAction(clip).play()
+    const animation = await loadVRMAnimation(props.idleAnimation)
+    const clip = await clipFromVRMAnimation(_vrm, animation)
+    if (!clip) {
+      console.warn('No VRM animation loaded')
+      return
+    }
+    removeRootPositionTrack(clip)
 
-    // vrmEmote.value = useVRMEmote(_vrm)
+    // play animation
+    vrmAnimationMixer.value = new AnimationMixer(_vrm.scene)
+    vrmAnimationMixer.value.clipAction(clip).play()
+
+    vrmEmote.value = useVRMEmote(_vrm)
 
     vrm.value = _vrm
 
     disposeBeforeRenderLoop = onBeforeRender(({ delta }) => {
-      // vrmAnimationMixer.value?.update(delta)
+      vrmAnimationMixer.value?.update(delta)
       vrm.value?.update(delta)
-      // blink.update(vrm.value, delta)
-      // idleEyeSaccades.update(vrm.value, delta)
-      // vrmEmote.value?.update(delta)
+      blink.update(vrm.value, delta)
+      idleEyeSaccades.update(vrm.value, delta)
+      vrmEmote.value?.update(delta)
     }).off
   }
   catch (err) {
