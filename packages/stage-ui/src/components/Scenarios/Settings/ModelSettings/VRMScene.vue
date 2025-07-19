@@ -53,4 +53,21 @@ defineExpose({
       />
     </TresCanvas>
   </div>
+  <div ref="VRMContainerRef" w="100%" h="100%">
+    <TresCanvas :alpha="true" :antialias="true" :width="width" :height="height">
+      <OrbitControls />
+      <TresPerspectiveCamera :position="[cameraPositionX, cameraPositionY, cameraPositionZ]" />
+      <TresDirectionalLight :color="0xFFFFFF" :intensity="1.2" :position="[1, 1, 1]" />
+      <TresAmbientLight :color="0xFFFFFF" :intensity="1.5" />
+      <VRMModel
+        ref="modelRef"
+        :key="selectedModel"
+        :model="selectedModel"
+        idle-animation="/assets/vrm/animations/idle_loop.vrma"
+        :paused="false"
+        @load-model-progress="(val) => emit('loadModelProgress', val)"
+        @error="(val) => emit('error', val)"
+      />
+    </TresCanvas>
+  </div>
 </template>

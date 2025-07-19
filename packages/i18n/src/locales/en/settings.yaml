@@ -57,8 +57,8 @@ live2d:
     x: X
     'y': 'Y'
   switch-to-vrm:
-    title: Switch to 3D Avator?
-    change-to-vrm: Click here to switch to the 3D avator setting (VRM)
+    title: Switch to 3D Avatar?
+    change-to-vrm: Click here to switch to the 3D avatar setting (VRM)
   theme-color-from-model:
     title: Extract colors from model
     button-extract:

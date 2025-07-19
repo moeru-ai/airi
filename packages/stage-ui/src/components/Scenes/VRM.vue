@@ -24,15 +24,7 @@ const emit = defineEmits<{
 
 const show = ref(false)
 
-<<<<<<< HEAD
-<<<<<<< HEAD
 const { selectedModel } = storeToRefs(useVRM())
-=======
-const { modelFile, modelUrl, loadSource, selectedModel } = storeToRefs(useVRM())
->>>>>>> d45f4131 (Update packages/stage-ui/src/components/Scenes/VRM.vue)
-=======
-const { selectedModel } = storeToRefs(useVRM())
->>>>>>> c355570f (a breakpoint for vrm viewer feat 19 July 3:46)
 
 const cameraPositionX = ref(-0.17)
 const cameraPositionY = ref(0)
