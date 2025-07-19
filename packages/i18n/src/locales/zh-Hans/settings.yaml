@@ -534,8 +534,9 @@ vrm:
       坐标轴已被可视化。
     title: 缩放与位置
     scale: 缩放
-    x: X
-    'y': 'Y'
+    x: X轴偏移
+    'y': Y轴偏移
+    z: Z轴偏移
   switch-to-vrm:
     title: 想切换至Live2D虚拟形象？
     change-to-vrm: 切换至Live2D虚拟形象设定页面
