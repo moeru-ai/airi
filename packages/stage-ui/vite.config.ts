@@ -1,3 +1,5 @@
+import type { Plugin } from 'vite'
+
 import { join, resolve } from 'node:path'
 
 import Vue from '@vitejs/plugin-vue'
@@ -20,9 +22,13 @@ export default defineConfig({
     },
   },
   plugins: [
-    Yaml(),
+    // TODO: Type wrong for `unplugin-yaml` in Histoire required
+    // Vite version, wait until Histoire updates to support Vite 7
+    Yaml() as Plugin,
     Vue(),
     Unocss(),
-    Inspect(),
+    // TODO: Type wrong for `unplugin-yaml` in Histoire required
+    // Vite version, wait until Histoire updates to support Vite 7
+    Inspect() as Plugin,
   ],
 })

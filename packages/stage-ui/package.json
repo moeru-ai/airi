@@ -34,7 +34,9 @@
     "story:dev": "histoire dev",
     "story:build": "histoire build",
     "story:build-base": "histoire build --base /ui",
-    "story:preview": "histoire preview"
+    "story:preview": "histoire preview",
+    "test": "vitest",
+    "test:run": "vitest run"
   },
   "dependencies": {
     "@formkit/auto-animate": "^0.8.2",
@@ -79,6 +81,7 @@
     "@xsai/generate-speech": "catalog:",
     "@xsai/generate-transcription": "catalog:",
     "@xsai/model": "catalog:",
+    "@xsai/shared": "catalog:",
     "@xsai/shared-chat": "catalog:",
     "@xsai/stream-text": "catalog:",
     "@xsai/tool": "catalog:",

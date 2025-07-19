@@ -26,7 +26,7 @@ const { themeColorsHueDynamic } = storeToRefs(useSettings())
 
 const { audioInputs, ensurePermissions } = useDevicesList({ constraints: { audio: true } })
 const { selectedAudioDevice, isAudioInputOn, selectedAudioDeviceId } = storeToRefs(useSettings())
-const { send, onAfterSend } = useChatStore()
+const { send, onAfterSend, discoverToolsCompatibility } = useChatStore()
 const { messages } = storeToRefs(useChatStore())
 const { audioContext } = useAudioContext()
 const { t } = useI18n()
@@ -125,6 +125,12 @@ watch(isAudioInputOn, async (value) => {
 watch(showMicrophoneSelect, async (value) => {
   if (value) {
     await ensurePermissions()
+  }
+})
+
+watch([activeProvider, activeModel], async () => {
+  if (activeProvider.value && activeModel.value) {
+    await discoverToolsCompatibility(activeModel.value, providersStore.getProviderInstance(activeProvider.value) as ChatProvider, [])
   }
 })
 

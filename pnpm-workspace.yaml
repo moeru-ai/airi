@@ -17,7 +17,7 @@ catalog:
   '@xsai/generate-text': ^0.3.0-beta.8
   '@xsai/generate-transcription': 0.3.0-beta.8
   '@xsai/model': ^0.3.0-beta.8
-  '@xsai/shared': ^0.3.0-beta.8
+  '@xsai/shared': 0.3.0-beta.8
   '@xsai/shared-chat': ^0.3.0-beta.8
   '@xsai/stream-text': ^0.3.0-beta.8
   '@xsai/tool': ^0.3.0-beta.8
