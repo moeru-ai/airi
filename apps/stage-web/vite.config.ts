@@ -46,14 +46,6 @@ export default defineConfig({
     ],
   },
 
-  build: {
-    rollupOptions: {
-      external: [
-        'virtual:pwa-register',
-      ],
-    },
-  },
-
   resolve: {
     alias: {
       '@proj-airi/stage-ui/components/scenarios/settings/model-settings': resolve(join(import.meta.dirname, '..', '..', 'packages', 'stage-ui', 'src', 'components', 'Scenarios', 'Settings', 'ModelSettings')),
@@ -62,9 +54,6 @@ export default defineConfig({
       '@proj-airi/stage-ui': resolve(join(import.meta.dirname, '..', '..', 'packages', 'stage-ui', 'src')),
       '@proj-airi/i18n': resolve(join(import.meta.dirname, '..', '..', 'packages', 'i18n', 'src')),
     },
-  },
-
-  server: {
   },
 
   plugins: [
