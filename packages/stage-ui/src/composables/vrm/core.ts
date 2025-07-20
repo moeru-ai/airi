@@ -3,7 +3,7 @@ import type { Object3D, Scene } from 'three'
 
 import { VRMUtils } from '@pixiv/three-vrm'
 import { VRMLookAtQuaternionProxy } from '@pixiv/three-vrm-animation'
-import { Box3, Vector3 } from 'three'
+import { Box3, Group, Vector3 } from 'three'
 
 import { useVRMLoader } from './loader'
 
@@ -13,11 +13,10 @@ interface GLTFUserdata extends Record<string, any> {
 
 export async function loadVrm(model: string, options?: {
   positionOffset?: [number, number, number]
-  fov?: number
   scene?: Scene
   lookAt?: boolean
   onProgress?: (progress: ProgressEvent<EventTarget>) => void | Promise<void>
-}): Promise<{ _vrm: VRMCore, modelCenter: Vector3, modelSize: Vector3, initialCameraPosition: Vector3 } | undefined> {
+}): Promise<{ _vrm: VRMCore, _vrmGroup: Group, modelCenter: Vector3, modelSize: Vector3, initialCameraPosition: Vector3 } | undefined> {
   const loader = useVRMLoader()
   const gltf = await loader.loadAsync(model, progress => options?.onProgress?.(progress))
 
@@ -44,9 +43,13 @@ export async function loadVrm(model: string, options?: {
     _vrm.scene.add(lookAtQuatProxy)
   }
 
+  const _vrmGroup = new Group()
+  _vrmGroup.add(_vrm.scene)
   // Add to scene
-  if (options?.scene)
+  if (options?.scene) {
     options.scene.add(_vrm.scene)
+    options.scene.add(_vrmGroup)
+  }
 
   // Move the VRM model centre to the (0, 0, 0)
   const box = new Box3().setFromObject(_vrm.scene)
@@ -71,7 +74,7 @@ export async function loadVrm(model: string, options?: {
 
   // Compute the initial camera position (once per loaded model)
   // In order to see the up-2/3 part fo the model, z = (y/3) / tan(fov/2)
-  const fov = options?.fov ?? 40 // default fov = 40 degrees
+  const fov = 40 // default fov = 40 degrees
   const radians = (fov / 2 * Math.PI) / 180
   const initialCameraPosition = new Vector3(
     modelSize.x / 16,
@@ -81,6 +84,7 @@ export async function loadVrm(model: string, options?: {
 
   return {
     _vrm,
+    _vrmGroup,
     modelCenter,
     modelSize,
     initialCameraPosition,
