@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import type { VRMCore } from '@pixiv/three-vrm-core'
-import type { AnimationClip } from 'three'
+import type { AnimationClip, Group } from 'three'
 
 import { VRMUtils } from '@pixiv/three-vrm'
 import { useLoop, useTresContext } from '@tresjs/core'
 import { storeToRefs } from 'pinia'
-import { AnimationMixer } from 'three'
+import { AnimationMixer, MathUtils, Quaternion, Vector3 } from 'three'
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 
 import { clipFromVRMAnimation, loadVRMAnimation, useBlink, useIdleEyeSaccades } from '../../../composables/vrm/animation'
@@ -40,11 +40,12 @@ const {
   modelOffset,
   modelOrigin,
   modelSize,
-  modelPosition,
-  cameraFOV,
+  position,
   initialCameraPosition,
   loadingModel,
+  modelRotationY,
 } = storeToRefs(vrmStore)
+const vrmGroup = ref<Group>()
 
 watch(modelOffset, () => {
   if (vrm.value) {
@@ -63,9 +64,7 @@ onMounted(async () => {
   }
 
   try {
-    cameraFOV.value = 40 // set default values 50mm full frame camera
     const _vrmInfo = await loadVrm(props.model, {
-      fov: cameraFOV.value,
       scene: scene.value,
       lookAt: true,
       positionOffset: [modelOffset.value.x, modelOffset.value.y, modelOffset.value.z],
@@ -77,11 +76,13 @@ onMounted(async () => {
     }
     const {
       _vrm,
+      _vrmGroup,
       modelCenter: vrmModelCenter,
       modelSize: vrmModelSize,
       initialCameraPosition: vrmInitialCameraPosition,
     } = _vrmInfo
 
+    vrmGroup.value = _vrmGroup
     // Set initial camera position
     initialCameraPosition.value = vrmInitialCameraPosition
 
@@ -96,6 +97,22 @@ onMounted(async () => {
       y: vrmModelSize.y,
       z: vrmModelSize.z,
     }
+
+    // Set model facing direction
+    const targetDirection = new Vector3(0, 0, -1) // Default facing direction
+    const lookAtTarget = _vrm.lookAt
+    if (lookAtTarget) {
+      const facingDirection = lookAtTarget.faceFront
+      const quaternion = new Quaternion()
+      quaternion.setFromUnitVectors(facingDirection.normalize(), targetDirection.normalize())
+      _vrm.scene.quaternion.premultiply(quaternion)
+      _vrm.scene.updateMatrixWorld(true)
+    }
+    else {
+      console.warn('No look-at target found in VRM model')
+    }
+    // Reset model rotation Y
+    modelRotationY.value = 0
 
     // Set initial positions for animation
     function removeRootPositionTrack(clip: AnimationClip) {
@@ -138,6 +155,12 @@ onMounted(async () => {
   }
 })
 
+watch(modelRotationY, (newRotationY) => {
+  if (vrm.value && vrmGroup.value) {
+    vrmGroup.value.rotation.y = MathUtils.degToRad(newRotationY)
+  }
+})
+
 onUnmounted(() => {
   disposeBeforeRenderLoop?.()
   if (vrm.value) {
@@ -158,12 +181,6 @@ const { pause, resume } = useLoop()
 watch(() => props.paused, (value) => {
   value ? pause() : resume()
 })
-
-watch(scale, () => {
-  if (vrm.value) {
-    vrm.value.scene.scale.set(scale.value, scale.value, scale.value)
-  }
-}, { immediate: true })
 </script>
 
 <template>

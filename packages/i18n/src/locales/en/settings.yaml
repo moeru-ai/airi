@@ -565,6 +565,7 @@ vrm:
     'y': Y Offset
     z: Z Offset
     fov: FOV (degree)
+    rotation-y: Rotation (Y-axis)
   switch-to-vrm:
     title: Switch to Live2D Avatar?
     change-to-vrm: Click here to switch to the Live2D avatar setting
