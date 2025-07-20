@@ -4,7 +4,11 @@ import { computed, ref, watch } from 'vue'
 
 export const useVRM = defineStore('vrm', () => {
   const modelFile = ref<File>()
-  const modelUrl = ref<string>('/assets/vrm/models/AvatarSample-B/AvatarSample_B.vrm')
+  const modelUrl = ref<string>()
+  const defaultModelUrl = useLocalStorage(
+    'settings/vrm/defaultURL',
+    '/assets/vrm/models/AvatarSample-B/AvatarSample_B.vrm',
+  )
   const loadSource = ref<'file' | 'url'>('url')
   const loadingModel = ref(false)
 
@@ -23,6 +27,8 @@ export const useVRM = defineStore('vrm', () => {
     y: `${position.value.y}%`,
     z: `${position.value.z}%`,
   }))
+  const cameraFOV = useLocalStorage('settings/vrm/cameraFOV', 40)
+  const initialCameraPosition = useLocalStorage('settings/vrm/initialCameraPosition', { x: 0, y: 0, z: -1 })
 
   const modelObjectUrl = ref<string>()
 
@@ -46,11 +52,12 @@ export const useVRM = defineStore('vrm', () => {
       return modelUrl.value
     }
     // Fallback model
-    return '/assets/vrm/models/AvatarSample-B/AvatarSample_B.vrm'
+    return defaultModelUrl.value
   })
 
   return {
     modelFile,
+    defaultModelUrl,
     modelUrl,
     loadSource,
     loadingModel,
@@ -60,6 +67,8 @@ export const useVRM = defineStore('vrm', () => {
     modelOffset,
     position,
     positionInPercentageString,
-    selectedModel, // Expose the new computed property
+    selectedModel,
+    cameraFOV,
+    initialCameraPosition,
   }
 })

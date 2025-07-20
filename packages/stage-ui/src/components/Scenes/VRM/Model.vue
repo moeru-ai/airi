@@ -6,7 +6,7 @@ import { VRMUtils } from '@pixiv/three-vrm'
 import { useLoop, useTresContext } from '@tresjs/core'
 import { storeToRefs } from 'pinia'
 import { AnimationMixer } from 'three'
-import { onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 
 import { clipFromVRMAnimation, loadVRMAnimation, useBlink, useIdleEyeSaccades } from '../../../composables/vrm/animation'
 import { loadVrm } from '../../../composables/vrm/core'
@@ -40,8 +40,10 @@ const {
   modelOffset,
   modelOrigin,
   modelSize,
-  position,
-  scale,
+  modelPosition,
+  cameraFOV,
+  initialCameraPosition,
+  loadingModel,
 } = storeToRefs(vrmStore)
 
 watch(modelOffset, () => {
@@ -56,22 +58,32 @@ watch(modelOffset, () => {
 
 onMounted(async () => {
   if (!scene.value) {
+    console.warn('Scene is not ready, cannot load VRM model.')
     return
   }
 
   try {
+    cameraFOV.value = 40 // set default values 50mm full frame camera
     const _vrmInfo = await loadVrm(props.model, {
+      fov: cameraFOV.value,
       scene: scene.value,
       lookAt: true,
       positionOffset: [modelOffset.value.x, modelOffset.value.y, modelOffset.value.z],
       onProgress: progress => emit('loadModelProgress', Number((100 * progress.loaded / progress.total).toFixed(2))),
     })
-    if (!_vrmInfo) {
+    if (!_vrmInfo || !_vrmInfo._vrm) {
       console.warn('No VRM model loaded')
       return
     }
+    const {
+      _vrm,
+      modelCenter: vrmModelCenter,
+      modelSize: vrmModelSize,
+      initialCameraPosition: vrmInitialCameraPosition,
+    } = _vrmInfo
 
-    const { _vrm, modelCenter: vrmModelCenter, modelSize: vrmModelSize } = _vrmInfo
+    // Set initial camera position
+    initialCameraPosition.value = vrmInitialCameraPosition
 
     // Set initial positions for model
     modelOrigin.value = {
@@ -108,7 +120,8 @@ onMounted(async () => {
     vrmEmote.value = useVRMEmote(_vrm)
 
     vrm.value = _vrm
-    vrm.value.scene.scale.set(scale.value, scale.value, scale.value)
+
+    loadingModel.value = false
 
     disposeBeforeRenderLoop = onBeforeRender(({ delta }) => {
       vrmAnimationMixer.value?.update(delta)
@@ -119,6 +132,8 @@ onMounted(async () => {
     }).off
   }
   catch (err) {
+    // This is needed otherwise the URL input will be locked forever...
+    loadingModel.value = false
     emit('error', err)
   }
 })
@@ -135,6 +150,7 @@ defineExpose({
   setExpression(expression: string) {
     vrmEmote.value?.setEmotionWithResetAfter(expression, 1000)
   },
+  scene: computed(() => vrm.value?.scene),
 })
 
 const { pause, resume } = useLoop()
