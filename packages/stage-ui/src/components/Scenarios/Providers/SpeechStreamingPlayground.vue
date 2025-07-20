@@ -18,7 +18,6 @@ const props = defineProps<{
 
 const { audioContext } = useAudioContext()
 const nowSpeaking = ref(false)
-const audioAnalyser = ref<AnalyserNode>()
 const ttsInputChunks = ref<TTSInputChunk[]>([])
 const speechGenerationIndex = ref(-1)
 
@@ -32,8 +31,6 @@ const audioQueue = useQueue<{ audioBuffer: AudioBuffer, text: string }>({
 
         // Connect the source to the AudioContext's destination (the speakers)
         source.connect(audioContext.destination)
-        // Connect the source to the analyzer
-        source.connect(audioAnalyser.value!)
 
         // Start playing the audio
         nowSpeaking.value = true
@@ -46,11 +43,6 @@ const audioQueue = useQueue<{ audioBuffer: AudioBuffer, text: string }>({
     },
   ],
 })
-
-function setupAnalyser() {
-  if (!audioAnalyser.value)
-    audioAnalyser.value = audioContext.createAnalyser()
-}
 
 async function handleSpeechGeneration(ctx: { data: string }) {
   speechGenerationIndex.value++
@@ -77,7 +69,7 @@ const ttsQueue = useQueue<string>({
 const messageContentQueue = useMessageContentQueue(ttsQueue)
 
 onMounted(() => {
-  setupAnalyser()
+  // setupAnalyser()
 })
 
 async function testStreaming() {
