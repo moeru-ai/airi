@@ -36,8 +36,15 @@ export async function getVersion(options: { release: boolean, autoTag: boolean, 
 
   // Now, only auto-tag & release && non-specific tag is the only possibility,
   // fetch the latest git ref
-  const res = await execa('git', ['describe', '--tags', '--abbrev=0'])
-  return String(res.stdout).replace(/^v/, '').trim()
+  try {
+    const res = await execa('git', ['describe', '--tags', '--abbrev=0'])
+    return String(res.stdout).replace(/^v/, '').trim()
+  }
+  catch {
+    // If no tags exist, fall back to package.json version
+    console.warn('No git tags found, falling back to package.json version')
+    return packageJSON.version
+  }
 }
 
 export async function getFilename(target: string, options: { release: boolean, autoTag: boolean, tag: string[] }) {

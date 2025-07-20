@@ -1,3 +1,4 @@
+export * from './audio'
 export * from './llmmarkerParser'
 export * from './markdown'
 export * from './micvad'

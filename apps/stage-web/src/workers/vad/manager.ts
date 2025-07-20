@@ -80,7 +80,7 @@ export class VADAudioManager {
   /**
    * Start capturing audio from the microphone
    */
-  public async startMicrophone(): Promise<void> {
+  public async start(mediaStream: MediaStream): Promise<void> {
     if (!this.audioContext || !this.audioWorkletNode) {
       throw new Error('Audio system not initialized. Call initialize() first.')
     }
@@ -91,14 +91,7 @@ export class VADAudioManager {
       }
 
       // Request microphone access
-      this.mediaStream = await navigator.mediaDevices.getUserMedia({
-        audio: {
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: true,
-          sampleRate: this.audioContext.sampleRate,
-        },
-      })
+      this.mediaStream = mediaStream
 
       // Create source node and connect to worklet
       this.sourceNode = this.audioContext.createMediaStreamSource(this.mediaStream)
@@ -115,21 +108,6 @@ export class VADAudioManager {
       console.error('Failed to start microphone:', error)
       throw error
     }
-  }
-
-  public async stopMicrophone(): Promise<void> {
-    if (this.mediaStream) {
-      this.mediaStream.getTracks().forEach(track => track.stop())
-      this.mediaStream = null
-    }
-
-    if (this.sourceNode) {
-      this.sourceNode.disconnect()
-      this.sourceNode = null
-    }
-
-    this.audioContext?.suspend()
-    this.audioWorkletNode?.disconnect()
   }
 
   /**
@@ -155,6 +133,7 @@ export class VADAudioManager {
     }
 
     this.sourceNode = null
+    this.audioWorkletNode?.disconnect()
     this.audioWorkletNode = null
   }
 

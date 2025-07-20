@@ -57,8 +57,8 @@ live2d:
     x: X
     'y': 'Y'
   switch-to-vrm:
-    title: Switch to 3D Avator?
-    change-to-vrm: Click here to switch to the 3D avator setting (VRM)
+    title: Switch to 3D Avatar?
+    change-to-vrm: Click here to switch to the 3D avatar setting (VRM)
   theme-color-from-model:
     title: Extract colors from model
     button-extract:
@@ -441,6 +441,9 @@ pages:
       xai:
         description: x.ai
         title: xAI
+      transcriptions:
+        playground:
+          title: Transcription Playground
     title: Providers
   scene:
     description: Configure the environment where the character lives
@@ -553,10 +556,18 @@ vrm:
     title: Change Model
   title: VRM Settings
   scale-and-position:
+    model-info-title: Model Size Information
+    model-info-x: Width (X)
+    model-info-y: Height (Y)
+    model-info-z: Depth (Z)
+    tips: |
+      Edit the initial position the VRM model.
+      Coordinate axes are visualised.
     title: Scale And Position
     scale: Scale
-    x: X
-    'y': 'Y'
+    x: X Offset
+    y: Y Offset
+    z: Z Offset
   switch-to-vrm:
     title: Switch to Live2D Avatar?
     change-to-vrm: Click here to switch to the Live2D avatar setting

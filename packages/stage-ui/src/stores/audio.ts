@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { computed, ref } from 'vue'
+import { computed, onUnmounted, ref } from 'vue'
 
 function calculateVolumeWithLinearNormalize(analyser: AnalyserNode) {
   const dataBuffer = new Uint8Array(analyser.frequencyBinCount)
@@ -64,8 +64,15 @@ function calculateVolume(analyser: AnalyserNode, mode: 'linear' | 'minmax' = 'li
   }
 }
 
-export const useAudioContext = defineStore('AudioContext', () => {
+export const useAudioContext = defineStore('audio-context', () => {
   const audioContext = new AudioContext()
+
+  onUnmounted(async () => {
+  // Close audio context
+    if (audioContext) {
+      await audioContext.close()
+    }
+  })
 
   return {
     audioContext,
@@ -73,7 +80,7 @@ export const useAudioContext = defineStore('AudioContext', () => {
   }
 })
 
-export const useSpeakingStore = defineStore('SpeakingStore', () => {
+export const useSpeakingStore = defineStore('character-speaking', () => {
   const nowSpeakingAvatarBorderOpacityMin = 30
   const nowSpeakingAvatarBorderOpacityMax = 100
   const mouthOpenSize = ref(0)

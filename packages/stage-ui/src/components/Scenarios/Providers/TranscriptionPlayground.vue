@@ -2,11 +2,12 @@
 import type { GenerateTranscriptionResult } from '@xsai/generate-transcription'
 
 import { FieldRange, FieldSelect } from '@proj-airi/ui'
-import { useDevicesList } from '@vueuse/core'
+import { until, useDevicesList, useUserMedia } from '@vueuse/core'
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import { useAudioRecorder } from '../../../composables/audio/audio-recorder'
-import { LevelMeter, ThresholdMeter } from '../../Gadgets'
+import { LevelMeter, TestDummyMarker, ThresholdMeter } from '../../Gadgets'
 import { Button } from '../../Misc'
 
 const props = defineProps<{
@@ -16,25 +17,24 @@ const props = defineProps<{
   apiKeyConfigured?: boolean
 }>()
 
+const { t } = useI18n()
 const devices = useDevicesList({ constraints: { audio: true }, requestPermissions: true })
-
+const selectedAudioInput = ref<string>(devices.audioInputs.value[0]?.deviceId || '')
+const deviceConstraints = computed<MediaStreamConstraints>(() => ({ audio: { deviceId: { exact: selectedAudioInput.value } } }))
+const { stream, stop, start, enabled } = useUserMedia({ constraints: deviceConstraints, enabled: false, autoSwitch: false })
 const audioInputs = computed(() => devices.audioInputs.value)
 
-const selectedAudioInput = ref<string>(devices.audioInputs.value[0]?.deviceId || '')
 const speakingThreshold = ref(25) // 0-100 (for volume-based fallback)
-
-const errorMessage = ref<string>('')
-
-const volumeLevel = ref(0) // 0-100
-
 const isMonitoring = ref(false)
 const isSpeaking = ref(false)
 
+const errorMessage = ref<string>('')
+
 const audioContext = ref<AudioContext>()
-const mediaStream = ref<MediaStream>()
 const analyser = ref<AnalyserNode>()
 const dataArray = ref<Uint8Array>()
 const animationFrame = ref<number>()
+const volumeLevel = ref(0) // 0-100
 
 const audios = ref<Blob[]>([])
 const audioCleanups = ref<(() => void)[]>([])
@@ -47,32 +47,21 @@ const audioURLs = computed(() => {
 })
 const transcriptions = ref<string[]>([])
 
-const { startRecord, stopRecord } = useAudioRecorder(mediaStream)
+const { startRecord, stopRecord, onStopRecord } = useAudioRecorder(stream)
 
 // Audio monitoring
 async function setupAudioMonitoring() {
   try {
-    if (!selectedAudioInput.value) {
-      console.warn('No audio input device selected')
-      return
-    }
-
     // Clean up existing connections
     await stopAudioMonitoring()
 
-    // Get user media with selected device
-    mediaStream.value = await navigator.mediaDevices.getUserMedia({
-      audio: {
-        deviceId: selectedAudioInput.value,
-        echoCancellation: true,
-        noiseSuppression: true,
-        autoGainControl: true,
-      },
-    })
+    enabled.value = true
+    await start()
+    await until(stream).toBeTruthy()
 
     // Create audio context
     audioContext.value = new AudioContext()
-    const source = audioContext.value.createMediaStreamSource(mediaStream.value)
+    const source = audioContext.value.createMediaStreamSource(stream.value!)
 
     // Create analyser for volume detection
     analyser.value = audioContext.value.createAnalyser()
@@ -103,9 +92,9 @@ async function stopAudioMonitoring() {
   }
 
   // Stop media stream
-  if (mediaStream.value) {
-    mediaStream.value.getTracks().forEach(track => track.stop())
-    mediaStream.value = undefined
+  if (stream.value) {
+    stream.value.getTracks().forEach(track => track.stop())
+    stream.value = undefined
   }
 
   // Close audio context
@@ -113,6 +102,9 @@ async function stopAudioMonitoring() {
     await audioContext.value.close()
     audioContext.value = undefined
   }
+
+  await stopRecord()
+  await stop()
 
   analyser.value = undefined
   dataArray.value = undefined
@@ -152,7 +144,7 @@ watch(selectedAudioInput, async () => {
 
 watch(audioInputs, () => {
   if (!selectedAudioInput.value && audioInputs.value.length > 0) {
-    selectedAudioInput.value = audioInputs.value[0]?.deviceId
+    selectedAudioInput.value = audioInputs.value.find(input => input.deviceId === 'default')?.deviceId || audioInputs.value[0].deviceId
   }
 })
 
@@ -165,11 +157,22 @@ async function toggleMonitoring() {
   }
   else {
     await stopAudioMonitoring()
-    const audio = await stopRecord()
-    audios.value.push(audio)
 
-    const res = await props.generateTranscription(new File([audio], 'audio.wav', { type: 'audio/wav' }))
-    transcriptions.value.push(res.text)
+    onStopRecord(async (recording) => {
+      try {
+        if (recording) {
+          audios.value.push(recording)
+          const res = await props.generateTranscription(new File([recording], 'recording.wav'))
+          transcriptions.value.push(res.text)
+        }
+      }
+      catch (err) {
+        errorMessage.value = err instanceof Error ? err.message : String(err)
+        console.error('Error generating transcription:', errorMessage.value)
+      }
+    })
+
+    await stopRecord()
 
     isMonitoring.value = false
   }
@@ -187,7 +190,7 @@ const speakingIndicatorClass = computed(() => {
 onMounted(() => {
   devices.ensurePermissions().then(() => nextTick()).then(() => {
     if (audioInputs.value.length > 0 && !selectedAudioInput.value) {
-      selectedAudioInput.value = audioInputs.value[0]?.deviceId
+      selectedAudioInput.value = audioInputs.value.find(input => input.deviceId === 'default')?.deviceId || audioInputs.value[0].deviceId
     }
   })
 })
@@ -199,6 +202,15 @@ onUnmounted(() => {
 
 <template>
   <div w-full pt-1>
+    <h2 class="mb-4 text-lg text-neutral-500 md:text-2xl dark:text-neutral-400" w-full>
+      <div class="inline-flex items-center gap-4">
+        <TestDummyMarker />
+        <div>
+          {{ t('settings.pages.providers.provider.transcriptions.playground.title') }}
+        </div>
+      </div>
+    </h2>
+
     <!-- Audio Input Selection -->
     <div mb-2>
       <FieldSelect
@@ -215,21 +227,8 @@ onUnmounted(() => {
       />
     </div>
 
-    <Button class="mb-4" w-full @click="toggleMonitoring">
-      {{ isMonitoring ? 'Stop Monitoring' : 'Start Monitoring' }}
-    </Button>
-
-    <div>
-      <div v-for="(audio, index) in audioURLs" :key="index" class="mb-2">
-        <audio :src="audio" controls class="w-full" />
-        <div v-if="transcriptions[index]" class="mt-2 text-sm text-neutral-500 dark:text-neutral-400">
-          {{ transcriptions[index] }}
-        </div>
-      </div>
-    </div>
-
     <!-- Audio Level Visualization -->
-    <div v-if="isMonitoring" class="space-y-3">
+    <div class="space-y-3">
       <!-- Volume Meter -->
       <LevelMeter :level="volumeLevel" label="Input Level" />
 
@@ -264,6 +263,19 @@ onUnmounted(() => {
         <span class="text-sm font-medium">
           {{ isSpeaking ? 'Speaking Detected' : 'Silence' }}
         </span>
+      </div>
+    </div>
+
+    <Button class="my-4" w-full @click="toggleMonitoring">
+      {{ isMonitoring ? 'Stop Monitoring' : 'Start Monitoring' }}
+    </Button>
+
+    <div>
+      <div v-for="(audio, index) in audioURLs" :key="index" class="mb-2">
+        <audio :src="audio" controls class="w-full" />
+        <div v-if="transcriptions[index]" class="mt-2 text-sm text-neutral-500 dark:text-neutral-400">
+          {{ transcriptions[index] }}
+        </div>
       </div>
     </div>
   </div>
