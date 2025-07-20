@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { storeToRefs } from 'pinia'
 
+import Live2DScene from '../../../Scenes/Live2D.vue'
+import VRMScene from '../../../Scenes/VRM.vue'
 import Live2D from './Live2D.vue'
-import Live2DScene from './Live2DScene.vue'
 import VRM from './VRM.vue'
-import VRMScene from './VRMScene.vue'
 
 import { useSettings } from '../../../../stores/settings'
 
@@ -12,6 +12,8 @@ const props = defineProps<{
   palette: string[]
   live2dSceneClass?: string | string[]
   live2dSettingsClass?: string | string[]
+  vrmSceneClass?: string | string[]
+  vrmSettingsClass?: string | string[]
 }>()
 
 defineEmits<{
@@ -24,13 +26,15 @@ const { stageView } = storeToRefs(useSettings())
 <template>
   <!-- Live2D component for 2D stage view -->
   <template v-if="stageView === '2d'">
-    <Live2DScene
+    <div
       :class="[
         ...(props.live2dSceneClass
           ? (typeof props.live2dSceneClass === 'string' ? [props.live2dSceneClass] : props.live2dSceneClass)
           : []),
       ]"
-    />
+    >
+      <Live2DScene />
+    </div>
     <div
       flex="~ col gap-2" :class="[
         ...(props.live2dSettingsClass
@@ -43,9 +47,26 @@ const { stageView } = storeToRefs(useSettings())
   </template>
   <!-- VRM component for 3D stage view -->
   <template v-if="stageView === '3d'">
-    <VRMScene />
-    <div flex="~ col gap-2">
-      <VRM :palette="palette" @extract-colors-from-model="$emit('extractColorsFromModel')" @switch-to-live-2-d="stageView = '2d'" />
+    <div
+      :class="[
+        ...(props.vrmSceneClass
+          ? (typeof props.vrmSceneClass === 'string' ? [props.vrmSceneClass] : props.vrmSceneClass)
+          : []),
+      ]"
+    >
+      <VRMScene />
+    </div>
+    <div h-full w-full p-2>
+      <div
+        flex="~ col gap-2"
+        :class="[
+          ...(props.vrmSettingsClass
+            ? (typeof props.vrmSettingsClass === 'string' ? [props.vrmSettingsClass] : props.vrmSettingsClass)
+            : []),
+        ]"
+      >
+        <VRM :palette="palette" @extract-colors-from-model="$emit('extractColorsFromModel')" @switch-to-live-2-d="stageView = '2d'" />
+      </div>
     </div>
   </template>
 </template>

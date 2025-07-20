@@ -138,7 +138,7 @@ onMounted(() => updateThemeColor())
       <HeaderLink />
     </div>
     <!-- Content -->
-    <div class="h-full px-3 py-0 sm:h-[calc(100%-4rem)] md:py-0 xl:px-0" flex="~ col" mx-auto max-w-screen-xl>
+    <div class="h-[calc(100%-40px)] px-3 py-0 2xl:max-w-[2160px] sm:h-[calc(100%-56px)] md:py-0 xl:px-4" flex="~ col" mx-auto>
       <PageHeader
         :title="routeHeaderMetadata?.title"
         :subtitle="routeHeaderMetadata?.subtitle"

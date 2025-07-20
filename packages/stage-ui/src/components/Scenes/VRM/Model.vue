@@ -40,15 +40,16 @@ const {
   modelOffset,
   modelOrigin,
   modelSize,
-  modelPosition,
+  position,
+  scale,
 } = storeToRefs(vrmStore)
 
 watch(modelOffset, () => {
   if (vrm.value) {
     vrm.value.scene.position.set(
-      modelPosition.value.x,
-      modelPosition.value.y,
-      modelPosition.value.z,
+      position.value.x,
+      position.value.y,
+      position.value.z,
     )
   }
 }, { deep: true })
@@ -69,9 +70,10 @@ onMounted(async () => {
       console.warn('No VRM model loaded')
       return
     }
+
     const { _vrm, modelCenter: vrmModelCenter, modelSize: vrmModelSize } = _vrmInfo
 
-    // Set initial postions for model
+    // Set initial positions for model
     modelOrigin.value = {
       x: vrmModelCenter.x,
       y: vrmModelCenter.y,
@@ -83,7 +85,7 @@ onMounted(async () => {
       z: vrmModelSize.z,
     }
 
-    // Set initial positons for animation
+    // Set initial positions for animation
     function removeRootPositionTrack(clip: AnimationClip) {
       clip.tracks = clip.tracks.filter((track) => {
         return !track.name.endsWith('.position')
@@ -96,6 +98,7 @@ onMounted(async () => {
       console.warn('No VRM animation loaded')
       return
     }
+
     removeRootPositionTrack(clip)
 
     // play animation
@@ -105,6 +108,7 @@ onMounted(async () => {
     vrmEmote.value = useVRMEmote(_vrm)
 
     vrm.value = _vrm
+    vrm.value.scene.scale.set(scale.value, scale.value, scale.value)
 
     disposeBeforeRenderLoop = onBeforeRender(({ delta }) => {
       vrmAnimationMixer.value?.update(delta)
@@ -138,6 +142,12 @@ const { pause, resume } = useLoop()
 watch(() => props.paused, (value) => {
   value ? pause() : resume()
 })
+
+watch(scale, () => {
+  if (vrm.value) {
+    vrm.value.scene.scale.set(scale.value, scale.value, scale.value)
+  }
+}, { immediate: true })
 </script>
 
 <template>

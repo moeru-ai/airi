@@ -13,6 +13,7 @@ export const useSettings = defineStore('settings', () => {
 
   const language = useLocalStorage('settings/language', 'en')
   const stageView = useLocalStorage('settings/stage/view/model-renderer', '2d')
+  const stageViewControlsEnabled = ref(false)
 
   const isAudioInputOn = useLocalStorage('settings/audio/input', 'false')
   const selectedAudioDeviceId = computed(() => selectedAudioDevice.value?.deviceId)
@@ -77,6 +78,7 @@ export const useSettings = defineStore('settings', () => {
     usePageSpecificTransitions,
     language,
     stageView,
+    stageViewControlsEnabled,
     themeColorsHue,
     themeColorsHueDynamic,
     isAudioInputOn,

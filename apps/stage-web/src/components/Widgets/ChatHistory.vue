@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { useMarkdown } from '@proj-airi/stage-ui/composables'
 import { useChatStore } from '@proj-airi/stage-ui/stores'
-import { useElementBounding, useScroll } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { nextTick, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -10,8 +9,6 @@ const chatHistoryRef = ref<HTMLDivElement>()
 
 const { t } = useI18n()
 const { messages, sending } = storeToRefs(useChatStore())
-const bounding = useElementBounding(chatHistoryRef, { immediate: true, windowScroll: true, windowResize: true })
-const { y: chatHistoryContainerY } = useScroll(chatHistoryRef)
 
 const { process } = useMarkdown()
 const { onBeforeMessageComposed, onTokenLiteral } = useChatStore()
@@ -19,16 +16,20 @@ const { onBeforeMessageComposed, onTokenLiteral } = useChatStore()
 onBeforeMessageComposed(async () => {
   // Scroll down to the new sent message
   nextTick().then(() => {
-    bounding.update()
-    chatHistoryContainerY.value = bounding.height.value
+    if (!chatHistoryRef.value)
+      return
+
+    chatHistoryRef.value.scrollTop = chatHistoryRef.value.scrollHeight
   })
 })
 
 onTokenLiteral(async () => {
   // Scroll down to the new responding message
   nextTick().then(() => {
-    bounding.update()
-    chatHistoryContainerY.value = bounding.height.value
+    if (!chatHistoryRef.value)
+      return
+
+    chatHistoryRef.value.scrollTop = chatHistoryRef.value.scrollHeight
   })
 })
 </script>

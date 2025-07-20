@@ -8,6 +8,7 @@ import { onMounted, ref, watch } from 'vue'
 import Cross from '../components/Backgrounds/Cross.vue'
 import Header from '../components/Layouts/Header.vue'
 import InteractiveArea from '../components/Layouts/InteractiveArea.vue'
+import MobileHeader from '../components/Layouts/MobileHeader.vue'
 import MobileInteractiveArea from '../components/Layouts/MobileInteractiveArea.vue'
 import AnimatedWave from '../components/Widgets/AnimatedWave.vue'
 
@@ -41,7 +42,8 @@ onMounted(() => updateThemeColor())
       <div relative flex="~ col" z-2 h-100dvh w-100vw of-hidden>
         <!-- header -->
         <div class="px-0 py-1 md:px-3 md:py-3" w-full gap-2>
-          <Header class="flex" />
+          <Header class="hidden md:flex" />
+          <MobileHeader class="flex md:hidden" />
         </div>
         <!-- page -->
         <div relative flex="~ 1 row gap-y-0 gap-x-2 <md:col">
@@ -56,8 +58,8 @@ onMounted(() => updateThemeColor())
             :y-offset="positionInPercentageString.y"
             :scale="scale"
           />
-          <InteractiveArea class="flex <md:hidden" absolute h="85dvh" right-4 flex-1 max-w="500px" min-w="30%" />
-          <MobileInteractiveArea class="hidden <md:block" mx2 mb2 @settings-open="handleSettingsOpen" />
+          <InteractiveArea v-if="!isMobile" h="85dvh" absolute right-4 flex flex-1 flex-col max-w="500px" min-w="30%" />
+          <MobileInteractiveArea v-if="isMobile" @settings-open="handleSettingsOpen" />
         </div>
       </div>
     </AnimatedWave>

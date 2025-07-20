@@ -14,7 +14,7 @@ const themeClasses: Record<ThemeVariant, {
 }> = {
   primary: {
     container: [
-      'bg-primary-400/10 dark:bg-primary-50/10 text-neutral-900/80 backdrop-blur-md',
+      'bg-primary-100/60 dark:bg-primary-50/10 text-neutral-900/80 backdrop-blur-md',
       `before:bg-primary-400 dark:bg-primary-900/10 dark:text-neutral-100/80 before:content-[''] before:dark:bg-primary-900`,
     ],
     label: [
@@ -23,7 +23,7 @@ const themeClasses: Record<ThemeVariant, {
   },
   lime: {
     container: [
-      'bg-lime-400/10 dark:bg-lime-50/10 text-neutral-900/80 backdrop-blur-md',
+      'bg-lime-100/60 dark:bg-lime-50/10 text-neutral-900/80 backdrop-blur-md',
       `before:bg-lime-400 dark:bg-lime-900/10 dark:text-neutral-100/80 before:content-[''] before:dark:bg-lime-900`,
     ],
     label: [
@@ -32,7 +32,7 @@ const themeClasses: Record<ThemeVariant, {
   },
   violet: {
     container: [
-      'bg-violet-400/10 dark:bg-violet-50/10 text-neutral-900/80 backdrop-blur-md',
+      'bg-violet-100/60 dark:bg-violet-50/10 text-neutral-900/80 backdrop-blur-md',
       `before:bg-violet-400 dark:bg-violet-900/10 dark:text-neutral-100/80 before:content-[''] before:dark:bg-violet-900`,
     ],
     label: [
@@ -41,7 +41,7 @@ const themeClasses: Record<ThemeVariant, {
   },
   orange: {
     container: [
-      'bg-orange-400/10 dark:bg-orange-50/10 text-neutral-900/80 backdrop-blur-md',
+      'bg-orange-100/60 dark:bg-orange-50/10 text-neutral-900/80 backdrop-blur-md',
       `before:bg-orange-400 dark:bg-orange-900/10 dark:text-neutral-100/80 before:content-[''] before:dark:bg-orange-900`,
     ],
     label: [

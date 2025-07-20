@@ -7,18 +7,21 @@ export const useVRM = defineStore('vrm', () => {
   const modelUrl = ref<string>('/assets/vrm/models/AvatarSample-B/AvatarSample_B.vrm')
   const loadSource = ref<'file' | 'url'>('url')
   const loadingModel = ref(false)
+
+  const scale = useLocalStorage('settings/live2d/cameraScale', 1)
   const modelSize = useLocalStorage('settings/vrm/modelSize', { x: 0, y: 0, z: 0 })
   const modelOrigin = useLocalStorage('settings/vrm/modelOrigin', { x: 0, y: 0, z: 0 })
   const modelOffset = useLocalStorage('settings/vrm/modelOffset', { x: 0, y: 0, z: 0 })
-  const modelPosition = computed(() => ({
+
+  const position = computed(() => ({
     x: modelOrigin.value.x + modelOffset.value.x,
     y: modelOrigin.value.y + modelOffset.value.y,
     z: modelOrigin.value.z + modelOffset.value.z,
   }))
   const positionInPercentageString = computed(() => ({
-    x: `${modelPosition.value.x}%`,
-    y: `${modelPosition.value.y}%`,
-    z: `${modelPosition.value.z}%`,
+    x: `${position.value.x}%`,
+    y: `${position.value.y}%`,
+    z: `${position.value.z}%`,
   }))
 
   const modelObjectUrl = ref<string>()
@@ -52,9 +55,10 @@ export const useVRM = defineStore('vrm', () => {
     loadSource,
     loadingModel,
     modelSize,
+    scale,
     modelOrigin,
     modelOffset,
-    modelPosition,
+    position,
     positionInPercentageString,
     selectedModel, // Expose the new computed property
   }

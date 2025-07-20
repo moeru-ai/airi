@@ -1,4 +1,5 @@
 @import './transitions.css';
+@import './vue-transitions.css';
 
 :root {
   --bg-color-light: rgb(255 255 255);

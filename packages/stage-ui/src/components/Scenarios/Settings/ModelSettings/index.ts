@@ -1,5 +1,1 @@
 export { default as ModelSettings } from './index.vue'
-export { default as ModelSettingsLive2D } from './Live2D.vue'
-export { default as ModelSettingsLive2DScene } from './Live2DScene.vue'
-export { default as ModelSettingsVRM } from './VRM.vue'
-export { default as ModelSettingsVRMScene } from './VRMScene.vue'
