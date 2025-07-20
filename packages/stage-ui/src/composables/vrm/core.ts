@@ -47,7 +47,6 @@ export async function loadVrm(model: string, options?: {
   _vrmGroup.add(_vrm.scene)
   // Add to scene
   if (options?.scene) {
-    options.scene.add(_vrm.scene)
     options.scene.add(_vrmGroup)
   }
 
@@ -62,14 +61,14 @@ export async function loadVrm(model: string, options?: {
 
   // Set position
   if (options?.positionOffset) {
-    _vrm.scene.position.set(
+    _vrmGroup.position.set(
       modelCenter.x + options.positionOffset[0],
       modelCenter.y + options.positionOffset[1],
       modelCenter.z + options.positionOffset[2],
     )
   }
   else {
-    _vrm.scene.position.set(modelCenter.x, modelCenter.y, modelCenter.z)
+    _vrmGroup.position.set(modelCenter.x, modelCenter.y, modelCenter.z)
   }
 
   // Compute the initial camera position (once per loaded model)

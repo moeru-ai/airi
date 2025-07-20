@@ -47,16 +47,6 @@ const {
 } = storeToRefs(vrmStore)
 const vrmGroup = ref<Group>()
 
-watch(modelOffset, () => {
-  if (vrm.value) {
-    vrm.value.scene.position.set(
-      position.value.x,
-      position.value.y,
-      position.value.z,
-    )
-  }
-}, { deep: true })
-
 onMounted(async () => {
   if (!scene.value) {
     console.warn('Scene is not ready, cannot load VRM model.')
@@ -154,6 +144,16 @@ onMounted(async () => {
     emit('error', err)
   }
 })
+
+watch(modelOffset, () => {
+  if (vrmGroup.value) {
+    vrmGroup.value.position.set(
+      position.value.x,
+      position.value.y,
+      position.value.z,
+    )
+  }
+}, { deep: true })
 
 watch(modelRotationY, (newRotationY) => {
   if (vrm.value && vrmGroup.value) {
