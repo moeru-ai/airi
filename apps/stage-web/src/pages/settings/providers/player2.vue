@@ -2,7 +2,9 @@
 import type { RemovableRef } from '@vueuse/shared'
 
 import {
+  Callout,
   ProviderBaseUrlInput,
+  ProviderBasicSettings,
   ProviderSettingsContainer,
   ProviderSettingsLayout,
 } from '@proj-airi/stage-ui/components'
@@ -43,6 +45,7 @@ onMounted(async () => {
         'player2-game-key': 'airi',
       },
     })
+
     hasPlayer2.value = res.status === 200
   }
   catch (e) {
@@ -67,20 +70,25 @@ function handleResetSettings() {
 </script>
 
 <template>
-  <div v-if="!hasPlayer2" style="color: red; margin-bottom: 1rem;">
-    <div>
-      Please download and run the Player2 App:
-      <a href="https://player2.game" target="_blank" rel="noopener noreferrer">
-        https://player2.game
-      </a>
-
+  <div v-if="!hasPlayer2" mb-1>
+    <Callout theme="orange">
+      <template #label>
+        Player 2 is not running
+      </template>
       <div>
-        After downloading, if you still are having trouble, please reach out to us on Discord:
-        <a href="https://player2.game/discord" target="_blank" rel="noopener noreferrer">
-          https://player2.game/discord
-        </a>.
+        Please download and run the Player2 App:
+        <a href="https://player2.game" target="_blank" rel="noopener noreferrer">
+          https://player2.game
+        </a>
+
+        <div>
+          After downloading, if you still are having trouble, please reach out to us on Discord:
+          <a href="https://player2.game/discord" target="_blank" rel="noopener noreferrer">
+            https://player2.game/discord
+          </a>.
+        </div>
       </div>
-    </div>
+    </Callout>
   </div>
 
   <ProviderSettingsLayout

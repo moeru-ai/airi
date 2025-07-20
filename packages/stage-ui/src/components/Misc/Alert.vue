@@ -8,9 +8,9 @@ const props = defineProps<{
 const containerClass = computed(() => {
   switch (props.type) {
     case 'error':
-      return 'border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-900/20'
+      return 'border-solid border-2 border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-900/20'
     case 'warning':
-      return 'border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-900/20'
+      return 'border-solid border-2 border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-900/20'
   }
   return ''
 })
@@ -27,7 +27,7 @@ const iconClass = computed(() => {
 </script>
 
 <template>
-  <div class="flex flex-col gap-3 border rounded-lg p-4" :class="containerClass">
+  <div class="flex flex-col gap-3 rounded-lg p-4" :class="containerClass">
     <div class="flex items-center gap-1 font-medium">
       <div class="text-2xl" :class="iconClass" />
       <slot name="title" />
