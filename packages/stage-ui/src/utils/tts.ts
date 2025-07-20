@@ -135,7 +135,7 @@ export async function* chunkTTSInput(input: string | ReaderLike, options?: TTSIn
     const text = (chunk + buffer).trim()
     yield {
       text,
-      words: chunkWordsCount,
+      words: chunkWordsCount + [...segmenter.segment(buffer)].filter(w => w.isWordLike).length,
       reason: 'flush',
     }
   }
