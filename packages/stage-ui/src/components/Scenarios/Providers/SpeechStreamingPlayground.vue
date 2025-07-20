@@ -2,7 +2,7 @@
 import type { TTSInputChunk } from '../../../utils/tts'
 
 import { animate } from 'animejs'
-import { onMounted, ref } from 'vue'
+import { ref } from 'vue'
 
 import { useQueue } from '../../../composables/queue'
 import { useMessageContentQueue } from '../../../composables/queues'
@@ -68,10 +68,6 @@ const ttsQueue = useQueue<string>({
 
 const messageContentQueue = useMessageContentQueue(ttsQueue)
 
-onMounted(() => {
-  // setupAnalyser()
-})
-
 async function testStreaming() {
   await messageContentQueue.add(props.text)
 }
@@ -117,7 +113,7 @@ async function testChunking() {
   <div flex="~ col gap-2 items-start" py-4>
     <div
       v-for="(chunk, i) in ttsInputChunks"
-      :key="chunk.text"
+      :key="i"
       flex="~ row gap-2 items-center"
     >
       <div
