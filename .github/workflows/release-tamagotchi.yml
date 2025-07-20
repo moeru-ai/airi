@@ -13,17 +13,17 @@ on:
   workflow_dispatch:
     inputs:
       build_only:
-        description: Build only without uploading to GitHub Releases
+        description: Build only
         required: false
         default: false
         type: boolean
       artifacts_only:
-        description: Upload artifacts without uploading to GitHub Releases
+        description: Build and upload artifacts only
         required: false
         default: false
         type: boolean
       tag:
-        description: Attach to a specific tag/commit for the release (leave empty to auto-detect latest tag)
+        description: Specific tag/commit for the release (leave empty to auto-detect latest tag)
         required: false
         type: string
   schedule:
@@ -45,6 +45,7 @@ jobs:
           #   target: aarch64-unknown-linux-gnu
           - os: windows-latest
             target: x86_64-pc-windows-msvc
+
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout
@@ -174,8 +175,7 @@ jobs:
           pnpm -F @proj-airi/stage-tamagotchi name-of-artifacts ${{ matrix.target }} --out bundle_name
           echo "bundle_name=$(node -p "require('node:fs').readFileSync(require('node:path').join('apps', 'stage-tamagotchi', 'bundle_name')).toString('utf-8')")" > $GITHUB_ENV
           pnpm run -F @proj-airi/stage-tamagotchi rename-artifacts ${{ matrix.target }}
-          ls -la bundle
-          ls -la bundle/${{ env.PRODUCT_NAME }}_*
+          ls bundle
 
       - name: Rename Artifacts (Manual)
         if: ${{ github.event_name == 'workflow_dispatch' }}
@@ -184,15 +184,13 @@ jobs:
           pnpm -F @proj-airi/stage-tamagotchi name-of-artifacts ${{ matrix.target }} --out bundle_name
           echo "bundle_name=$(node -p "require('node:fs').readFileSync(require('node:path').join('apps', 'stage-tamagotchi', 'bundle_name')).toString('utf-8')")" > $GITHUB_ENV
           pnpm run -F @proj-airi/stage-tamagotchi rename-artifacts ${{ matrix.target }} --release --tag ${{ github.event.inputs.tag }} --auto-tag
-          ls -la bundle
-          ls -la bundle/${{ env.PRODUCT_NAME }}_*
+          ls bundle
 
       - name: Rename Artifacts (Automatic)
         if: ${{ github.event_name == 'release' }}
         run: |
           pnpm run -F @proj-airi/stage-tamagotchi rename-artifacts ${{ matrix.target }} --release
-          ls -la bundle
-          ls -la bundle/${{ env.PRODUCT_NAME }}_*
+          ls bundle
 
       - name: Upload Artifacts
         if: ${{ github.event_name == 'schedule' }}
@@ -206,7 +204,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ steps.rename_artifacts_manual.outputs.bundle_name }}
-          path: bundle/${{ steps.rename_artifacts_nightly.outputs.bundle_name }}
+          path: bundle/${{ steps.rename_artifacts_manual.outputs.bundle_name }}
 
       - name: Upload To GitHub Releases (Manual + Release)
         if: ${{ github.event_name == 'workflow_dispatch' && !github.event.inputs.build_only && !github.event.inputs.artifacts_only }}
