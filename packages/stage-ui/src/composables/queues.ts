@@ -117,8 +117,7 @@ export function useMessageContentQueue(ttsQueue: UseQueueReturn<string>) {
           return
         }
 
-        processed.value += ctx.data
-        for await (const chunk of chunkTTSInput(processed.value)) {
+        for await (const chunk of chunkTTSInput(ctx.data)) {
           await ttsQueue.add(chunk.text)
         }
       },
