@@ -13,10 +13,11 @@ interface GLTFUserdata extends Record<string, any> {
 
 export async function loadVrm(model: string, options?: {
   positionOffset?: [number, number, number]
+  fov?: number
   scene?: Scene
   lookAt?: boolean
   onProgress?: (progress: ProgressEvent<EventTarget>) => void | Promise<void>
-}): Promise<{ _vrm: VRMCore, modelCenter: Vector3, modelSize: Vector3 } | undefined> {
+}): Promise<{ _vrm: VRMCore, modelCenter: Vector3, modelSize: Vector3, initialCameraPosition: Vector3 } | undefined> {
   const loader = useVRMLoader()
   const gltf = await loader.loadAsync(model, progress => options?.onProgress?.(progress))
 
@@ -54,7 +55,7 @@ export async function loadVrm(model: string, options?: {
   box.getSize(modelSize)
   box.getCenter(modelCenter)
   modelCenter.negate()
-  modelCenter.y -= modelSize.y / 8 // Adjust pivot to align chest with the origin
+  modelCenter.y -= modelSize.y / 5 // Adjust pivot to align chest with the origin
 
   // Set position
   if (options?.positionOffset) {
@@ -68,9 +69,20 @@ export async function loadVrm(model: string, options?: {
     _vrm.scene.position.set(modelCenter.x, modelCenter.y, modelCenter.z)
   }
 
+  // Compute the initial camera position (once per loaded model)
+  // In order to see the up-2/3 part fo the model, z = (y/3) / tan(fov/2)
+  const fov = options?.fov ?? 40 // default fov = 40 degrees
+  const radians = (fov / 2 * Math.PI) / 180
+  const initialCameraPosition = new Vector3(
+    modelSize.x / 16,
+    modelSize.y / 6,
+    -(modelSize.y / 3) / Math.tan(radians), // default z value
+  )
+
   return {
     _vrm,
     modelCenter,
     modelSize,
+    initialCameraPosition,
   }
 }
