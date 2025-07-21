@@ -73,6 +73,11 @@ watch(() => controlsRef.value?.getDistance(), (newDistance) => {
     // we can check if the distance has changed significantly.
     if (Math.abs(cameraDistance.value - newDistance) > 1e-6) {
       cameraDistance.value = newDistance
+      initialCameraPosition.value = {
+        x: camera.value.position.x,
+        y: camera.value.position.y,
+        z: camera.value.position.z,
+      }
     }
   }
 })
@@ -85,8 +90,12 @@ watch(cameraDistance, (newDistance) => {
       newPosition.y,
       newPosition.z,
     )
-    camera.value.updateProjectionMatrix()
     controlsRef.value.update()
+    initialCameraPosition.value = {
+      x: newPosition.x,
+      y: newPosition.y,
+      z: newPosition.z,
+    }
   }
 })
 
