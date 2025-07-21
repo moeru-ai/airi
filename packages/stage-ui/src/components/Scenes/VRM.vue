@@ -14,7 +14,7 @@ const emit = defineEmits<{
   (e: 'error', value: unknown): void
 }>()
 const vrmContainerRef = ref<HTMLDivElement>()
-const { width, height } = useElementBounding(VRMContainerRef)
+const { width, height } = useElementBounding(vrmContainerRef)
 const {
   selectedModel,
   cameraFOV,
@@ -26,7 +26,7 @@ const modelRef = ref<InstanceType<typeof VRMModel>>()
 const camera = shallowRef(new THREE.PerspectiveCamera())
 
 onMounted(() => {
-  if (VRMContainerRef.value) {
+  if (vrmContainerRef.value) {
     camera.value.aspect = width.value / height.value
     camera.value.fov = cameraFOV.value
     camera.value.position.set(
@@ -72,7 +72,7 @@ defineExpose({
 </script>
 
 <template>
-  <div ref="VRMContainerRef" w="100%" h="100%">
+  <div ref="vrmContainerRef" w="100%" h="100%">
     <TresCanvas v-if="camera" :camera="camera" :alpha="true" :antialias="true" :width="width" :height="height">
       <TresAxesHelper :size="1" />
       <TresDirectionalLight :color="0xFFFFFF" :intensity="1.2" :position="[1, 1, 1]" />
