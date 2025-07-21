@@ -1,7 +1,7 @@
 {
   "name": "@proj-airi/docs",
   "type": "module",
-  "version": "2.3.1",
+  "version": "0.7.0-alpha.1",
   "scripts": {
     "build": "vitepress build",
     "build:base": "BASE_URL=/docs/ vitepress build",
