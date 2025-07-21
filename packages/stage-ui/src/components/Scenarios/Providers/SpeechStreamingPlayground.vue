@@ -139,7 +139,7 @@ async function testChunking() {
           {{ chunk.reason }}
         </span>
       </div>
-      <transition
+      <Transition
         :css="false"
         @enter="(el) => animate(el, {
           opacity: [0, 1],
@@ -157,7 +157,7 @@ async function testChunking() {
           <div i-solar-check-circle-line-duotone />
           <div>Queued</div>
         </div>
-      </transition>
+      </Transition>
     </div>
   </div>
 </template>
