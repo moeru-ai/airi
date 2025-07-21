@@ -202,7 +202,7 @@ jobs:
       - name: Rename Artifacts (Manual)
         if: ${{ github.event_name == 'workflow_dispatch' }}
         run: |
-          pnpm run -F @proj-airi/stage-tamagotchi rename-artifacts ${{ matrix.target }} --release --tag ${{ github.event.inputs.tag }} --auto-tag
+          pnpm run -F @proj-airi/stage-tamagotchi rename-artifacts ${{ matrix.target }} --release --tag ${{ inputs.tag }} --auto-tag
 
       - name: Rename Artifacts (Automatic)
         if: ${{ github.event_name == 'release' }}
@@ -216,25 +216,20 @@ jobs:
           name: ${{ env.BUNDLE_NAME }}
           path: bundle/${{ env.BUNDLE_NAME }}
 
-      - name: Debug
-        run:
-          echo ${{ fromJson(github.event.inputs) }}
-          echo ${{ fromJson(env) }}
-
       - name: Upload Artifacts (Manual + Non-Release)
-        if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.build_only == false && github.event.inputs.artifacts_only == true }}
+        if: ${{ github.event_name == 'workflow_dispatch' && !inputs.build_only && inputs.artifacts_only }}
         uses: actions/upload-artifact@v4
         with:
           name: ${{ env.BUNDLE_NAME }}
           path: bundle/${{ env.BUNDLE_NAME }}
 
       - name: Upload To GitHub Releases (Manual + Release)
-        if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.build_only == false && github.event.inputs.artifacts_only == false }}
+        if: ${{ github.event_name == 'workflow_dispatch' && !inputs.build_only && !inputs.artifacts_only }}
         uses: softprops/action-gh-release@v2
         with:
           files: bundle/${{ env.PRODUCT_NAME }}_*
           append_body: true
-          tag_name: ${{ github.event.inputs.tag }}
+          tag_name: ${{ inputs.tag }}
 
       - name: Upload To GitHub Releases (Automatic)
         if: ${{ github.event_name == 'release' }}
