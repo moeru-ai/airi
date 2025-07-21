@@ -200,14 +200,14 @@ jobs:
           path: bundle/${{ steps.rename_artifacts_nightly.outputs.bundle_name }}
 
       - name: Upload Artifacts (Manual + Non-Release)
-        if: ${{ github.event_name == 'workflow_dispatch' && !github.event.inputs.build_only && !!github.event.inputs.artifacts_only }}
+        if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.build_only == false && github.event.inputs.artifacts_only == true }}
         uses: actions/upload-artifact@v4
         with:
           name: ${{ steps.rename_artifacts_manual.outputs.bundle_name }}
           path: bundle/${{ steps.rename_artifacts_manual.outputs.bundle_name }}
 
       - name: Upload To GitHub Releases (Manual + Release)
-        if: ${{ github.event_name == 'workflow_dispatch' && !github.event.inputs.build_only && !github.event.inputs.artifacts_only }}
+        if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.build_only == false && github.event.inputs.artifacts_only == false }}
         uses: softprops/action-gh-release@v2
         with:
           files: bundle/${{ env.PRODUCT_NAME }}_*
