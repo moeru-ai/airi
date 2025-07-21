@@ -68,7 +68,13 @@ watch(selectedModel, () => {
 
 // Bidirectional watch between slider and OrbitControls
 watch(() => controlsRef.value?.getDistance(), (newDistance) => {
-  cameraDistance.value = newDistance
+  if (newDistance !== undefined) {
+    // To avoid floating point inaccuracies causing a feedback loop with the other watcher,
+    // we can check if the distance has changed significantly.
+    if (Math.abs(cameraDistance.value - newDistance) > 1e-6) {
+      cameraDistance.value = newDistance
+    }
+  }
 })
 watch(cameraDistance, (newDistance) => {
   if (camera.value && controlsRef.value) {
