@@ -4,8 +4,8 @@ import { computed, ref, watch } from 'vue'
 
 export const useVRM = defineStore('vrm', () => {
   const modelFile = ref<File>()
-  const modelUrl = ref<string>()
-  const defaultModelUrl = useLocalStorage(
+  
+  const modelUrl = useLocalStorage(
     'settings/vrm/defaultURL',
     '/assets/vrm/models/AvatarSample-B/AvatarSample_B.vrm',
   )
