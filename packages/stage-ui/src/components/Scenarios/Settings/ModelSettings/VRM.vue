@@ -31,9 +31,11 @@ const {
   loadSource,
   loadingModel,
   modelUrl,
-  scale,
   modelSize,
   modelOffset,
+  cameraFOV,
+  selectedModel,
+  modelRotationY,
 } = storeToRefs(vrm)
 const localModelUrl = ref(modelUrl.value)
 
@@ -42,8 +44,28 @@ modelFileDialog.onChange((files) => {
     modelFile.value = files[0]
     loadSource.value = 'file'
     loadingModel.value = true
+    localModelUrl.value = ''
   }
 })
+
+function urlUploadClick() {
+  modelUrl.value = localModelUrl.value
+  // same URL will let the loader be lazy and forgot to reset loading state
+  // If the loading state is still true, then the URL input will be locked
+  if (modelUrl.value === selectedModel.value) {
+    console.warn('Model URL is the same as the selected model, no need to reload.')
+    return
+  }
+  // Can't let the default model URL be reentered into the loader, otherwise it will still be too lazy to reset the loading state
+  if (!modelUrl.value && selectedModel.value === vrm.defaultModelUrl) {
+    localModelUrl.value = vrm.defaultModelUrl
+    return
+  }
+  // Only when real different URL is entered, then the loader will be triggered
+  loadSource.value = 'url'
+  loadingModel.value = true
+  localModelUrl.value = selectedModel.value
+}
 </script>
 
 <template>
@@ -61,6 +83,96 @@ modelFileDialog.onChange((files) => {
     </Button>
   </Section>
   <Section
+    :title="t('settings.vrm.change-model.title')"
+    icon="i-solar:magic-stick-3-bold-duotone"
+    inner-class="text-sm"
+    :class="[
+      'rounded-xl',
+      'bg-white/80  dark:bg-black/75',
+      'backdrop-blur-lg',
+    ]"
+  >
+    <Button
+      variant="secondary" @click=" () => {
+        modelFileDialog.reset()
+        modelFileDialog.open()
+      }"
+    >
+      {{ t('settings.vrm.change-model.from-file') }}...
+    </Button>
+    <div flex items-center gap-2>
+      <Input
+        v-model="localModelUrl"
+        :disabled="loadingModel"
+        class="flex-1"
+        :placeholder="t('settings.vrm.change-model.from-url-placeholder')"
+      />
+      <Button size="sm" variant="secondary" @click="urlUploadClick">
+        {{ t('settings.vrm.change-model.from-url') }}
+      </Button>
+    </div>
+  </Section>
+  <Section
+    :title="t('settings.vrm.theme-color-from-model.title')"
+    icon="i-solar:magic-stick-3-bold-duotone"
+    inner-class="text-sm"
+    :class="[
+      'rounded-xl',
+      'bg-white/80  dark:bg-black/75',
+      'backdrop-blur-lg',
+    ]"
+  >
+    <ColorPalette class="mb-4 mt-2" :colors="palette.map(hex => ({ hex, name: hex }))" mx-auto />
+    <Button variant="secondary" @click="$emit('extractColorsFromModel')">
+      {{ t('settings.vrm.theme-color-from-model.button-extract.title') }}
+    </Button>
+  </Section>
+  <Section
+    :title="t('settings.vrm.change-model.title')"
+    icon="i-solar:magic-stick-3-bold-duotone"
+    inner-class="text-sm"
+    :class="[
+      'rounded-xl',
+      'bg-white/80  dark:bg-black/75',
+      'backdrop-blur-lg',
+    ]"
+  >
+    <Button
+      variant="secondary" @click=" () => {
+        modelFileDialog.reset()
+        modelFileDialog.open()
+      }"
+    >
+      {{ t('settings.vrm.change-model.from-file') }}...
+    </Button>
+    <div flex items-center gap-2>
+      <Input
+        v-model="localModelUrl"
+        :disabled="loadingModel"
+        class="flex-1"
+        :placeholder="t('settings.vrm.change-model.from-url-placeholder')"
+      />
+      <Button size="sm" variant="secondary" @click="urlUploadClick">
+        {{ t('settings.vrm.change-model.from-url') }}
+      </Button>
+    </div>
+  </Section>
+  <Section
+    :title="t('settings.vrm.theme-color-from-model.title')"
+    icon="i-solar:magic-stick-3-bold-duotone"
+    inner-class="text-sm"
+    :class="[
+      'rounded-xl',
+      'bg-white/80  dark:bg-black/75',
+      'backdrop-blur-lg',
+    ]"
+  >
+    <ColorPalette class="mb-4 mt-2" :colors="palette.map(hex => ({ hex, name: hex }))" mx-auto />
+    <Button variant="secondary" @click="$emit('extractColorsFromModel')">
+      {{ t('settings.vrm.theme-color-from-model.button-extract.title') }}
+    </Button>
+  </Section>
+  <Section
     :title="t('settings.vrm.scale-and-position.title')"
     icon="i-solar:scale-bold-duotone"
     :class="[
@@ -69,10 +181,7 @@ modelFileDialog.onChange((files) => {
       'backdrop-blur-lg',
     ]"
   >
-    <Callout
-      :label="t('settings.vrm.scale-and-position.model-info-title')"
-      w-full
-    >
+    <Callout :label="t('settings.vrm.scale-and-position.model-info-title')">
       <div>
         <div class="text-sm text-neutral-600 space-y-1">
           <div class="flex justify-between">
@@ -93,37 +202,16 @@ modelFileDialog.onChange((files) => {
     <Callout
       theme="lime"
       label="Tips!"
-      w-full
     >
       <div class="text-sm text-neutral-600 space-y-1">
         {{ t('settings.vrm.scale-and-position.tips') }}
       </div>
     </Callout>
     <FieldRange
-      v-model="scale"
-      as="div"
-      :min="0"
-      :max="5"
-      :step="scale / 100"
-      :label="t('settings.vrm.scale-and-position.x')"
-      :format-value="val => val.toFixed(4)"
-    >
-      <template #label>
-        <div flex items-center>
-          <div>
-            {{ t('settings.vrm.scale-and-position.scale') }}
-          </div>
-          <button px-2 text-xs outline-none title="Reset value to default" @click="() => scale = 1">
-            <div i-solar:forward-linear transform-scale-x--100 text="neutral-500 dark:neutral-400" />
-          </button>
-        </div>
-      </template>
-    </FieldRange>
-    <FieldRange
       v-model="modelOffset.x"
       as="div"
-      :min="-modelSize.x - 10"
-      :max="modelSize.x + 10"
+      :min="-modelSize.x * 2"
+      :max="modelSize.x * 2"
       :step="modelSize.x / 100"
       :label="t('settings.vrm.scale-and-position.x')"
       :format-value="val => val.toFixed(4)"
@@ -142,8 +230,8 @@ modelFileDialog.onChange((files) => {
     <FieldRange
       v-model="modelOffset.y"
       as="div"
-      :min="-modelSize.y - 10"
-      :max="modelSize.y + 10"
+      :min="-modelSize.y * 2"
+      :max="modelSize.y * 2"
       :step="modelSize.y / 100"
       :label="t('settings.vrm.scale-and-position.y')"
       :format-value="val => val.toFixed(4)"
@@ -158,10 +246,10 @@ modelFileDialog.onChange((files) => {
       </template>
     </FieldRange>
     <FieldRange
-      v-model="modelOffset.z"
+      v-model="modelOffset.y"
       as="div"
-      :min="-modelSize.z - 10"
-      :max="modelSize.z + 10"
+      :min="-modelSize.z * 2"
+      :max="modelSize.z * 2"
       :step="modelSize.z / 100"
       :label="t('settings.vrm.scale-and-position.z')"
       :format-value="val => val.toFixed(4)"
@@ -175,45 +263,41 @@ modelFileDialog.onChange((files) => {
         </div>
       </template>
     </FieldRange>
-  </Section>
-  <Section
-    :title="t('settings.vrm.change-model.title')"
-    icon="i-solar:magic-stick-3-bold-duotone"
-    inner-class="text-sm"
-    :class="[
-      'rounded-xl',
-      'bg-white/80  dark:bg-black/75',
-      'backdrop-blur-lg',
-    ]"
-  >
-    <Button variant="secondary" @click="modelFileDialog.open()">
-      {{ t('settings.vrm.change-model.from-file') }}...
-    </Button>
-    <div flex items-center gap-2>
-      <Input
-        v-model="localModelUrl"
-        :disabled="loadingModel"
-        class="flex-1"
-        :placeholder="t('settings.vrm.change-model.from-url-placeholder')"
-      />
-      <Button size="sm" variant="secondary" @click="() => { modelUrl = localModelUrl; loadSource = 'url'; loadingModel = true }">
-        {{ t('settings.vrm.change-model.from-url') }}
-      </Button>
-    </div>
-  </Section>
-  <Section
-    :title="t('settings.vrm.theme-color-from-model.title')"
-    icon="i-solar:magic-stick-3-bold-duotone"
-    inner-class="text-sm"
-    :class="[
-      'rounded-xl',
-      'bg-white/80  dark:bg-black/75',
-      'backdrop-blur-lg',
-    ]"
-  >
-    <ColorPalette class="mb-4 mt-2" :colors="palette.map(hex => ({ hex, name: hex }))" mx-auto />
-    <Button variant="secondary" @click="$emit('extractColorsFromModel')">
-      {{ t('settings.vrm.theme-color-from-model.button-extract.title') }}
-    </Button>
+    <FieldRange
+      :model-value="cameraFOV"
+      as="div"
+      :min="1"
+      :max="180"
+      :step="1"
+      :label="t('settings.vrm.scale-and-position.fov')"
+      @update:model-value="val => cameraFOV = val"
+    >
+      <template #label>
+        <div flex items-center>
+          <div>{{ t('settings.vrm.scale-and-position.fov') }}</div>
+          <button px-2 text-xs outline-none title="Reset value to default" @click="() => cameraFOV = 40">
+            <div i-solar:forward-linear transform-scale-x--100 text="neutral-500 dark:neutral-400" />
+          </button>
+        </div>
+      </template>
+    </FieldRange>
+    <FieldRange
+      :model-value="modelRotationY"
+      as="div"
+      :min="-180"
+      :max="180"
+      :step="1"
+      :label="t('settings.vrm.scale-and-position.rotation-y')"
+      @update:model-value="val => modelRotationY = val"
+    >
+      <template #label>
+        <div flex items-center>
+          <div>{{ t('settings.vrm.scale-and-position.rotation-y') }}</div>
+          <button px-2 text-xs outline-none title="Reset value to default" @click="() => modelRotationY = 0">
+            <div i-solar:forward-linear transform-scale-x--100 text="neutral-500 dark:neutral-400" />
+          </button>
+        </div>
+      </template>
+    </FieldRange>
   </Section>
 </template>

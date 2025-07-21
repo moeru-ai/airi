@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import type { VRMCore } from '@pixiv/three-vrm-core'
-import type { AnimationClip } from 'three'
+import type { AnimationClip, Group } from 'three'
 
 import { VRMUtils } from '@pixiv/three-vrm'
 import { useLoop, useTresContext } from '@tresjs/core'
 import { storeToRefs } from 'pinia'
-import { AnimationMixer } from 'three'
-import { onMounted, onUnmounted, ref, watch } from 'vue'
+import { AnimationMixer, MathUtils, Quaternion, Vector3 } from 'three'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 
 import { clipFromVRMAnimation, loadVRMAnimation, useBlink, useIdleEyeSaccades } from '../../../composables/vrm/animation'
 import { loadVrm } from '../../../composables/vrm/core'
@@ -41,21 +41,15 @@ const {
   modelOrigin,
   modelSize,
   position,
-  scale,
+  initialCameraPosition,
+  loadingModel,
+  modelRotationY,
 } = storeToRefs(vrmStore)
-
-watch(modelOffset, () => {
-  if (vrm.value) {
-    vrm.value.scene.position.set(
-      position.value.x,
-      position.value.y,
-      position.value.z,
-    )
-  }
-}, { deep: true })
+const vrmGroup = ref<Group>()
 
 onMounted(async () => {
   if (!scene.value) {
+    console.warn('Scene is not ready, cannot load VRM model.')
     return
   }
 
@@ -66,12 +60,21 @@ onMounted(async () => {
       positionOffset: [modelOffset.value.x, modelOffset.value.y, modelOffset.value.z],
       onProgress: progress => emit('loadModelProgress', Number((100 * progress.loaded / progress.total).toFixed(2))),
     })
-    if (!_vrmInfo) {
+    if (!_vrmInfo || !_vrmInfo._vrm) {
       console.warn('No VRM model loaded')
       return
     }
+    const {
+      _vrm,
+      _vrmGroup,
+      modelCenter: vrmModelCenter,
+      modelSize: vrmModelSize,
+      initialCameraPosition: vrmInitialCameraPosition,
+    } = _vrmInfo
 
-    const { _vrm, modelCenter: vrmModelCenter, modelSize: vrmModelSize } = _vrmInfo
+    vrmGroup.value = _vrmGroup
+    // Set initial camera position
+    initialCameraPosition.value = vrmInitialCameraPosition
 
     // Set initial positions for model
     modelOrigin.value = {
@@ -84,6 +87,22 @@ onMounted(async () => {
       y: vrmModelSize.y,
       z: vrmModelSize.z,
     }
+
+    // Set model facing direction
+    const targetDirection = new Vector3(0, 0, -1) // Default facing direction
+    const lookAtTarget = _vrm.lookAt
+    if (lookAtTarget) {
+      const facingDirection = lookAtTarget.faceFront
+      const quaternion = new Quaternion()
+      quaternion.setFromUnitVectors(facingDirection.normalize(), targetDirection.normalize())
+      _vrm.scene.quaternion.premultiply(quaternion)
+      _vrm.scene.updateMatrixWorld(true)
+    }
+    else {
+      console.warn('No look-at target found in VRM model')
+    }
+    // Reset model rotation Y
+    modelRotationY.value = 0
 
     // Set initial positions for animation
     function removeRootPositionTrack(clip: AnimationClip) {
@@ -108,7 +127,8 @@ onMounted(async () => {
     vrmEmote.value = useVRMEmote(_vrm)
 
     vrm.value = _vrm
-    vrm.value.scene.scale.set(scale.value, scale.value, scale.value)
+
+    loadingModel.value = false
 
     disposeBeforeRenderLoop = onBeforeRender(({ delta }) => {
       vrmAnimationMixer.value?.update(delta)
@@ -119,7 +139,25 @@ onMounted(async () => {
     }).off
   }
   catch (err) {
+    // This is needed otherwise the URL input will be locked forever...
+    loadingModel.value = false
     emit('error', err)
+  }
+})
+
+watch(modelOffset, () => {
+  if (vrmGroup.value) {
+    vrmGroup.value.position.set(
+      position.value.x,
+      position.value.y,
+      position.value.z,
+    )
+  }
+}, { deep: true })
+
+watch(modelRotationY, (newRotationY) => {
+  if (vrm.value && vrmGroup.value) {
+    vrmGroup.value.rotation.y = MathUtils.degToRad(newRotationY)
   }
 })
 
@@ -135,6 +173,7 @@ defineExpose({
   setExpression(expression: string) {
     vrmEmote.value?.setEmotionWithResetAfter(expression, 1000)
   },
+  scene: computed(() => vrm.value?.scene),
 })
 
 const { pause, resume } = useLoop()
@@ -142,12 +181,6 @@ const { pause, resume } = useLoop()
 watch(() => props.paused, (value) => {
   value ? pause() : resume()
 })
-
-watch(scale, () => {
-  if (vrm.value) {
-    vrm.value.scene.scale.set(scale.value, scale.value, scale.value)
-  }
-}, { immediate: true })
 </script>
 
 <template>
