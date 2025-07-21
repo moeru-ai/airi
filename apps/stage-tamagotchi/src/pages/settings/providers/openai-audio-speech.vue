@@ -35,7 +35,7 @@ const availableVoices = computed(() => {
 
 // Generate speech with ElevenLabs-specific parameters
 async function handleGenerateSpeech(input: string, voiceId: string, _useSSML: boolean) {
-  const provider = providersStore.getProviderInstance(providerId) as SpeechProvider<string>
+  const provider = await providersStore.getProviderInstance<SpeechProvider<string>>(providerId)
   if (!provider) {
     throw new Error('Failed to initialize speech provider')
   }

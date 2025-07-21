@@ -95,7 +95,9 @@ export interface ProviderMetadata {
    */
   iconImage?: string
   defaultOptions?: () => Record<string, unknown>
-  createProvider: (config: Record<string, unknown>) => Promise<
+  createProvider: (
+    config: Record<string, unknown>
+  ) =>
     | ChatProvider
     | ChatProviderWithExtraOptions
     | EmbedProvider
@@ -104,7 +106,14 @@ export interface ProviderMetadata {
     | SpeechProviderWithExtraOptions
     | TranscriptionProvider
     | TranscriptionProviderWithExtraOptions
-  >
+    | Promise<ChatProvider>
+    | Promise<ChatProviderWithExtraOptions>
+    | Promise<EmbedProvider>
+    | Promise<EmbedProviderWithExtraOptions>
+    | Promise<SpeechProvider>
+    | Promise<SpeechProviderWithExtraOptions>
+    | Promise<TranscriptionProvider>
+    | Promise<TranscriptionProviderWithExtraOptions>
   capabilities: {
     listModels?: (config: Record<string, unknown>) => Promise<ModelInfo[]>
     listVoices?: (config: Record<string, unknown>) => Promise<VoiceInfo[]>
@@ -1689,7 +1698,16 @@ export const useProvidersStore = defineStore('providers', () => {
   })
 
   // Function to get provider object by provider id
-  async function getProviderInstance(providerId: string) {
+  async function getProviderInstance<R extends
+  | ChatProvider
+  | ChatProviderWithExtraOptions
+  | EmbedProvider
+  | EmbedProviderWithExtraOptions
+  | SpeechProvider
+  | SpeechProviderWithExtraOptions
+  | TranscriptionProvider
+  | TranscriptionProviderWithExtraOptions,
+  >(providerId: string): Promise<R> {
     const config = providerCredentials.value[providerId]
     if (!config)
       throw new Error(`Provider credentials for ${providerId} not found`)
@@ -1699,7 +1717,7 @@ export const useProvidersStore = defineStore('providers', () => {
       throw new Error(`Provider metadata for ${providerId} not found`)
 
     try {
-      return await metadata.createProvider(config)
+      return await metadata.createProvider(config) as R
     }
     catch (error) {
       console.error(`Error creating provider instance for ${providerId}:`, error)

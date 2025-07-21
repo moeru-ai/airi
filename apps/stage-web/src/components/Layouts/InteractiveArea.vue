@@ -119,7 +119,7 @@ watch(showMicrophoneSelect, async (value) => {
 
 watch([activeProvider, activeModel], async () => {
   if (activeProvider.value && activeModel.value) {
-    await discoverToolsCompatibility(activeModel.value, providersStore.getProviderInstance(activeProvider.value) as ChatProvider, [])
+    await discoverToolsCompatibility(activeModel.value, await providersStore.getProviderInstance<ChatProvider>(activeProvider.value), [])
   }
 })
 

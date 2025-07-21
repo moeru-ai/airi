@@ -31,7 +31,7 @@ async function handleSend() {
     const providerConfig = providersStore.getProviderConfig(activeProvider.value)
     await send(messageInput.value, {
       model: activeModel.value,
-      chatProvider: await providersStore.getProviderInstance(activeProvider.value) as ChatProvider,
+      chatProvider: await providersStore.getProviderInstance<ChatProvider>(activeProvider.value),
       providerConfig,
     })
   }
@@ -94,7 +94,7 @@ watch(isAudioInputOn, async (value) => {
 
 watch([activeProvider, activeModel], async () => {
   if (activeProvider.value && activeModel.value) {
-    await discoverToolsCompatibility(activeModel.value, providersStore.getProviderInstance(activeProvider.value) as ChatProvider, [])
+    await discoverToolsCompatibility(activeModel.value, await providersStore.getProviderInstance<ChatProvider>(activeProvider.value), [])
   }
 })
 

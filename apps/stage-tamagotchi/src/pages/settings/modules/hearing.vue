@@ -163,7 +163,7 @@ async function setupAudioMonitoring() {
         if (recording) {
           audios.value.push(recording)
 
-          const provider = providersStore.getProviderInstance(activeTranscriptionProvider.value) as TranscriptionProvider<string>
+          const provider = await providersStore.getProviderInstance<TranscriptionProvider<string>>(activeTranscriptionProvider.value)
           if (!provider) {
             throw new Error('Failed to initialize speech provider')
           }
