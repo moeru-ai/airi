@@ -13,7 +13,7 @@ const emit = defineEmits<{
   (e: 'loadModelProgress', value: number): void
   (e: 'error', value: unknown): void
 }>()
-const VRMContainerRef = ref<HTMLDivElement>()
+const vrmContainerRef = ref<HTMLDivElement>()
 const { width, height } = useElementBounding(VRMContainerRef)
 const {
   selectedModel,
