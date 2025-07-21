@@ -6,7 +6,7 @@ export const useVRM = defineStore('vrm', () => {
   const modelFile = ref<File>()
 
   const defaultModelUrl = '/assets/vrm/models/AvatarSample-B/AvatarSample_B.vrm'
-  const modelUrl = useLocalStorage('settings/vrm/modelURL', '')
+  const modelUrl = useLocalStorage('settings/vrm/modelURL', defaultModelUrl)
 
   const loadSource = ref<'file' | 'url'>('url')
   const loadingModel = ref(false)
