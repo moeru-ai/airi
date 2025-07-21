@@ -81,7 +81,7 @@ async function generateTestSpeech() {
     return
   }
 
-  const provider = providersStore.getProviderInstance(activeSpeechProvider.value) as SpeechProviderWithExtraOptions<string, any>
+  const provider = await providersStore.getProviderInstance(activeSpeechProvider.value) as SpeechProviderWithExtraOptions<string, any>
   if (!provider) {
     console.error('Failed to initialize speech provider')
     return
