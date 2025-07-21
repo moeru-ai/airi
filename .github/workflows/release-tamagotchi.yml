@@ -216,6 +216,11 @@ jobs:
           name: ${{ env.BUNDLE_NAME }}
           path: bundle/${{ env.BUNDLE_NAME }}
 
+      - name: Debug
+        run:
+          echo ${{ fromJson(github.event.inputs) }}
+          echo ${{ fromJson(env) }}
+
       - name: Upload Artifacts (Manual + Non-Release)
         if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.build_only == false && github.event.inputs.artifacts_only == true }}
         uses: actions/upload-artifact@v4
