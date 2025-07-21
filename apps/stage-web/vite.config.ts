@@ -4,6 +4,7 @@ import { env } from 'node:process'
 import VueI18n from '@intlify/unplugin-vue-i18n/vite'
 import Vue from '@vitejs/plugin-vue'
 import Unocss from 'unocss/vite'
+import Info from 'unplugin-info/vite'
 import VueMacros from 'unplugin-vue-macros/vite'
 import VueRouter from 'unplugin-vue-router/vite'
 import Yaml from 'unplugin-yaml/vite'
@@ -57,6 +58,8 @@ export default defineConfig({
   },
 
   plugins: [
+    Info(),
+
     Yaml(),
 
     VueMacros({

@@ -11,6 +11,7 @@ import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
 
 import MobileChatHistory from '../Widgets/MobileChatHistory.vue'
+import ActionAbout from './InteractiveArea/Actions/About.vue'
 import ActionViewControls from './InteractiveArea/Actions/ViewControls.vue'
 import ViewControlInputs from './ViewControls/Inputs.vue'
 
@@ -125,9 +126,7 @@ onMounted(() => {
       </div>
       <div translate-y="[-100%]" absolute right-0 w-full px-3 pb-3 font-sans>
         <div flex="~ col" w-full gap-1>
-          <button border="2 solid neutral-100/60 dark:neutral-800/30" bg="neutral-50/70 dark:neutral-800/70" w-fit flex items-center self-end justify-center rounded-xl p-2 backdrop-blur-md title="About">
-            <div i-solar:info-circle-outline size-5 text="neutral-500 dark:neutral-400" />
-          </button>
+          <ActionAbout />
           <button border="2 solid neutral-100/60 dark:neutral-800/30" bg="neutral-50/70 dark:neutral-800/70" w-fit flex items-center self-end justify-center rounded-xl p-2 backdrop-blur-md title="Theme" @click="isDark = !isDark">
             <Transition name="fade" mode="out-in">
               <div v-if="isDark" i-solar:moon-outline size-5 text="neutral-500 dark:neutral-400" />

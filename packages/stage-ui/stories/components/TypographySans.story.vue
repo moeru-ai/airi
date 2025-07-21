@@ -25,7 +25,7 @@
 
     <Variant title="Quanlai Sans">
       <div flex flex-col gap-1>
-        <div mb-3 text-4xl font-bold tracking-wide font-quanlai>
+        <div font-quanlai mb-3 text-4xl font-bold tracking-wide>
           <span text="neutral-500 dark:neutral-400">Project</span> <span text-pink>AIRI</span>
         </div>
         <div flex flex-col gap-1>
@@ -44,7 +44,7 @@
 
     <Variant title="Xiaolai Sans">
       <div flex flex-col gap-1>
-        <div mb-3 text-4xl font-bold tracking-wide font-xiaolai>
+        <div font-xiaolai mb-3 text-4xl font-bold tracking-wide>
           <span text="neutral-500 dark:neutral-400">Project</span> <span text-pink>AIRI</span>
         </div>
         <div flex flex-col gap-1>
@@ -63,17 +63,17 @@
 
     <Variant title="Cute Sans">
       <div flex flex-col gap-1>
-        <div mb-3 text-4xl font-bold tracking-wide font-cuteen>
+        <div font-cuteen mb-3 text-4xl font-bold tracking-wide>
           <span text="neutral-500 dark:neutral-400">Project</span> <span text-pink>AIRI</span>
         </div>
         <div flex flex-col gap-1>
           <div font-cuteen>
             Hello, world!
           </div>
-          <div font-cute>
+          <div font-cutejp>
             こんにちは、世界！
           </div>
-          <div font-cute>
+          <div font-cutejp>
             你好，世界！
           </div>
         </div>
@@ -82,17 +82,17 @@
 
     <Variant title="Jura Sans">
       <div flex flex-col gap-1>
-        <div mb-3 text-4xl font-bold tracking-wide font-jura>
+        <div font-jura mb-3 text-4xl font-bold tracking-wide>
           <span text="neutral-500 dark:neutral-400">Project</span> <span text-pink>AIRI</span>
         </div>
         <div flex flex-col gap-1>
           <div font-jura>
             Hello, world!
           </div>
-          <div bg="red-100 dark:red-900" w-fit font-jura>
+          <div bg="red-100 dark:red-900" font-jura w-fit>
             こんにちは、世界！
           </div>
-          <div bg="red-100 dark:red-900" w-fit font-jura>
+          <div bg="red-100 dark:red-900" font-jura w-fit>
             你好，世界！
           </div>
         </div>
@@ -101,17 +101,17 @@
 
     <Variant title="Tech Sans">
       <div flex flex-col gap-1>
-        <div mb-3 text-4xl font-bold tracking-wide font-quicksand>
+        <div font-quicksand mb-3 text-4xl font-bold tracking-wide>
           <span text="neutral-500 dark:neutral-400">Project</span> <span text-pink>AIRI</span>
         </div>
         <div flex flex-col gap-1>
           <div font-quicksand>
             Hello, world!
           </div>
-          <div bg="red-100 dark:red-900" w-fit font-quicksand>
+          <div bg="red-100 dark:red-900" font-quicksand w-fit>
             こんにちは、世界！
           </div>
-          <div bg="red-100 dark:red-900" w-fit font-quicksand>
+          <div bg="red-100 dark:red-900" font-quicksand w-fit>
             你好，世界！
           </div>
         </div>
@@ -120,17 +120,17 @@
 
     <Variant title="Urbanist">
       <div flex flex-col gap-1>
-        <div mb-3 text-4xl font-bold tracking-wide font-urbanist>
+        <div font-urbanist mb-3 text-4xl font-bold tracking-wide>
           <span text="neutral-500 dark:neutral-400">Project</span> <span text-pink>AIRI</span>
         </div>
         <div flex flex-col gap-1>
           <div font-urbanist>
             Hello, world!
           </div>
-          <div bg="red-100 dark:red-900" w-fit font-quicksand>
+          <div bg="red-100 dark:red-900" font-quicksand w-fit>
             こんにちは、世界！
           </div>
-          <div bg="red-100 dark:red-900" w-fit font-quicksand>
+          <div bg="red-100 dark:red-900" font-quicksand w-fit>
             你好，世界！
           </div>
         </div>
@@ -139,7 +139,7 @@
 
     <Variant title="M PLUS Rounded 1c">
       <div flex flex-col gap-1>
-        <div mb-3 text-4xl font-bold tracking-wide font-m-plus-rounded>
+        <div font-m-plus-rounded mb-3 text-4xl font-bold tracking-wide>
           <span text="neutral-500 dark:neutral-400">Project</span> <span text-pink>AIRI</span>
         </div>
         <div flex flex-col gap-1>

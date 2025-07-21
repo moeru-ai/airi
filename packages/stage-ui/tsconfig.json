@@ -11,7 +11,8 @@
     "resolveJsonModule": true,
     "types": [
       "vitest",
-      "vite/client"
+      "vite/client",
+      "unplugin-info/client"
     ],
     "allowJs": true,
     "strict": true,

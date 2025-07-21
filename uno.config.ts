@@ -82,7 +82,7 @@ export function presetWebFontsFonts(provider: 'fontsource' | 'none'): Record<str
       name: 'DM Mono',
       provider,
     },
-    'cute': {
+    'cutejp': {
       name: 'Kiwi Maru',
       provider,
     },
@@ -104,6 +104,10 @@ export function presetWebFontsFonts(provider: 'fontsource' | 'none'): Record<str
     },
     'urbanist': {
       name: provider === 'fontsource' ? 'Urbanist' : 'Urbanist Variable',
+      provider,
+    },
+    'comfortaa': {
+      name: provider === 'fontsource' ? 'Comfortaa' : 'Comfortaa Variable',
       provider,
     },
     'm-plus-rounded': {

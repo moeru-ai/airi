@@ -123,6 +123,7 @@
     "execa": "^9.6.0",
     "less": "^4.3.0",
     "unocss-preset-scrollbar": "^3.2.0",
+    "unplugin-info": "^1.2.2",
     "unplugin-vue-macros": "^2.14.5",
     "unplugin-vue-router": "^0.14.0",
     "unplugin-yaml": "^3.0.1",
