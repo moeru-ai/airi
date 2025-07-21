@@ -240,7 +240,7 @@ jobs:
       - name: Rename Artifacts (Automatic)
         if: ${{ github.event_name == 'release' }}
         run: |
-          pnpm run -F @proj-airi/stage-tamagotchi rename-artifacts ${{ matrix.target }} --release
+          pnpm run -F @proj-airi/stage-tamagotchi rename-artifacts ${{ matrix.target }} --release --auto-tag
 
       - name: Upload To GitHub Releases (Automatic)
         if: ${{ github.event_name == 'release' }}
