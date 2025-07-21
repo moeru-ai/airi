@@ -36,6 +36,7 @@ const {
   cameraFOV,
   selectedModel,
   modelRotationY,
+  cameraDistance,
 } = storeToRefs(vrm)
 const localModelUrl = ref(modelUrl.value)
 
@@ -66,6 +67,11 @@ function urlUploadClick() {
   loadingModel.value = true
   localModelUrl.value = selectedModel.value
 }
+
+function resetCameraDistance() {
+  const radians = (cameraFOV.value / 2 * Math.PI) / 180
+  cameraDistance.value = (modelSize.value.y / 3) / Math.tan(radians)
+}
 </script>
 
 <template>
@@ -80,51 +86,6 @@ function urlUploadClick() {
   >
     <Button variant="secondary" @click="$emit('switchToLive2D')">
       {{ t('settings.vrm.switch-to-vrm.change-to-vrm') }}
-    </Button>
-  </Section>
-  <Section
-    :title="t('settings.vrm.change-model.title')"
-    icon="i-solar:magic-stick-3-bold-duotone"
-    inner-class="text-sm"
-    :class="[
-      'rounded-xl',
-      'bg-white/80  dark:bg-black/75',
-      'backdrop-blur-lg',
-    ]"
-  >
-    <Button
-      variant="secondary" @click=" () => {
-        modelFileDialog.reset()
-        modelFileDialog.open()
-      }"
-    >
-      {{ t('settings.vrm.change-model.from-file') }}...
-    </Button>
-    <div flex items-center gap-2>
-      <Input
-        v-model="localModelUrl"
-        :disabled="loadingModel"
-        class="flex-1"
-        :placeholder="t('settings.vrm.change-model.from-url-placeholder')"
-      />
-      <Button size="sm" variant="secondary" @click="urlUploadClick">
-        {{ t('settings.vrm.change-model.from-url') }}
-      </Button>
-    </div>
-  </Section>
-  <Section
-    :title="t('settings.vrm.theme-color-from-model.title')"
-    icon="i-solar:magic-stick-3-bold-duotone"
-    inner-class="text-sm"
-    :class="[
-      'rounded-xl',
-      'bg-white/80  dark:bg-black/75',
-      'backdrop-blur-lg',
-    ]"
-  >
-    <ColorPalette class="mb-4 mt-2" :colors="palette.map(hex => ({ hex, name: hex }))" mx-auto />
-    <Button variant="secondary" @click="$emit('extractColorsFromModel')">
-      {{ t('settings.vrm.theme-color-from-model.button-extract.title') }}
     </Button>
   </Section>
   <Section
@@ -276,6 +237,23 @@ function urlUploadClick() {
         <div flex items-center>
           <div>{{ t('settings.vrm.scale-and-position.fov') }}</div>
           <button px-2 text-xs outline-none title="Reset value to default" @click="() => cameraFOV = 40">
+            <div i-solar:forward-linear transform-scale-x--100 text="neutral-500 dark:neutral-400" />
+          </button>
+        </div>
+      </template>
+    </FieldRange>
+    <FieldRange
+      v-model="cameraDistance"
+      as="div"
+      :min="modelSize.z"
+      :max="modelSize.z * 19"
+      :step="modelSize.z / 100"
+      :label="t('settings.vrm.scale-and-position.camera-distance')"
+    >
+      <template #label>
+        <div flex items-center>
+          <div>{{ t('settings.vrm.scale-and-position.camera-distance') }}</div>
+          <button px-2 text-xs outline-none title="Reset value to default" @click="resetCameraDistance">
             <div i-solar:forward-linear transform-scale-x--100 text="neutral-500 dark:neutral-400" />
           </button>
         </div>

@@ -542,6 +542,7 @@ vrm:
     z: Z轴偏移
     fov: 视角调整（度）
     rotation-y: 模型朝向（Y轴旋转）
+    camera-distance: 相机距离（画面缩放）
   switch-to-vrm:
     title: 想切换至Live2D虚拟形象？
     change-to-vrm: 切换至Live2D虚拟形象设定页面
