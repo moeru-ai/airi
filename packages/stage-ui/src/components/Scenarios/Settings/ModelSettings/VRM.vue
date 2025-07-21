@@ -246,7 +246,7 @@ function resetCameraDistance() {
       v-model="cameraDistance"
       as="div"
       :min="modelSize.z"
-      :max="modelSize.z * 19"
+      :max="modelSize.z * 20"
       :step="modelSize.z / 100"
       :label="t('settings.vrm.scale-and-position.camera-distance')"
     >
