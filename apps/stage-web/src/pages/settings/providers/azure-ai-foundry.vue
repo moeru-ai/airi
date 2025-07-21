@@ -21,7 +21,7 @@ const providersStore = useProvidersStore()
 const { providers } = storeToRefs(providersStore) as { providers: RemovableRef<Record<string, any>> }
 
 // Get provider metadata
-const providerId = 'azure-openai'
+const providerId = 'azure-ai-foundry'
 const providerMetadata = computed(() => providersStore.getProviderMetadata(providerId))
 
 // Use computed properties for settings
@@ -55,6 +55,16 @@ const apiVersion = computed({
   },
 })
 
+const modelId = computed({
+  get: () => providers.value[providerId]?.modelId || '',
+  set: (value) => {
+    if (!providers.value[providerId])
+      providers.value[providerId] = {}
+
+    providers.value[providerId].modelId = value
+  },
+})
+
 onMounted(() => {
   // Initialize provider if it doesn't exist
   if (!providers.value[providerId]) {
@@ -65,15 +75,17 @@ onMounted(() => {
   apiKey.value = providers.value[providerId]?.apiKey || ''
   resourceName.value = providers.value[providerId]?.resourceName || ''
   apiVersion.value = providers.value[providerId]?.apiVersion || ''
+  modelId.value = providers.value[providerId]?.modelId || ''
 })
 
 // Watch settings and update the provider configuration
-watch([apiKey, resourceName, apiVersion], () => {
+watch([apiKey, resourceName, apiVersion, modelId], () => {
   providers.value[providerId] = {
     ...providers.value[providerId],
     apiKey: apiKey.value,
     resourceName: resourceName.value,
     apiVersion: apiVersion.value,
+    modelId: modelId.value,
   }
 })
 
@@ -105,6 +117,13 @@ function handleResetSettings() {
           label="Resouce name"
           placeholder="..."
           description="Prefix used in https://<prefix>.services.ai.azure.com"
+          required
+        />
+        <ProviderAccountIdInput
+          v-model="modelId"
+          label="Model id"
+          placeholder="..."
+          description="Model ID on Azure AI Foundry"
           required
         />
       </ProviderBasicSettings>

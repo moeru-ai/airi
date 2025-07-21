@@ -720,34 +720,30 @@ export const useProvidersStore = defineStore('providers', () => {
         },
       },
     },
-    'azure-openai': {
-      id: 'azure-openai',
+    'azure-ai-foundry': {
+      id: 'azure-ai-foundry',
       category: 'chat',
       tasks: ['text-generation'],
-      nameKey: 'settings.pages.providers.provider.azure_openai.title',
-      name: 'Azure OpenAI',
-      descriptionKey: 'settings.pages.providers.provider.azure_openai.description',
-      description: 'oai.azure.com',
+      nameKey: 'settings.pages.providers.provider.azure_ai_foundry.title',
+      name: 'Azure AI Foundry',
+      descriptionKey: 'settings.pages.providers.provider.azure_ai_foundry.description',
+      description: 'azure.com',
       icon: 'i-lobe-icons:microsoft',
       defaultOptions: () => ({}),
       createProvider: async (config) => {
         return await createAzure({
-          apiKey: (config.apiKey as string).trim(),
+          apiKey: async () => (config.apiKey as string).trim(),
           resourceName: config.resourceName as string,
+          apiVersion: config.apiVersion as string,
         })
       },
       capabilities: {
         listModels: async (config) => {
-          return (await listModels({
-            ...(await createAzure({
-              apiKey: (config.apiKey as string).trim(),
-              resourceName: config.resourceName as string,
-            })).model(),
-          })).map((model) => {
+          return [{ id: config.modelId }].map((model) => {
             return {
-              id: model.id,
-              name: model.id,
-              provider: 'azure-openai',
+              id: model.id as string,
+              name: model.id as string,
+              provider: 'azure-ai-foundry',
               description: '',
               contextLength: 0,
               deprecated: false,
@@ -757,7 +753,7 @@ export const useProvidersStore = defineStore('providers', () => {
       },
       validators: {
         validateProviderConfig: (config) => {
-          return !!config.apiKey && !!config.resourceName
+          return !!config.apiKey && !!config.resourceName && !!config.modelId
         },
       },
     },
