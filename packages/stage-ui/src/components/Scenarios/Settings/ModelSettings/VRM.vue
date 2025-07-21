@@ -34,7 +34,6 @@ const {
   modelSize,
   modelOffset,
   cameraFOV,
-  defaultModelUrl,
   selectedModel,
   modelRotationY,
 } = storeToRefs(vrm)
@@ -58,8 +57,8 @@ function urlUploadClick() {
     return
   }
   // Can't let the default model URL be reentered into the loader, otherwise it will still be too lazy to reset the loading state
-  if (!modelUrl.value && selectedModel.value === defaultModelUrl.value) {
-    localModelUrl.value = defaultModelUrl.value
+  if (!modelUrl.value && selectedModel.value === vrm.defaultModelUrl) {
+    localModelUrl.value = vrm.defaultModelUrl
     return
   }
   // Only when real different URL is entered, then the loader will be triggered

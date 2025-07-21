@@ -4,11 +4,10 @@ import { computed, ref, watch } from 'vue'
 
 export const useVRM = defineStore('vrm', () => {
   const modelFile = ref<File>()
-  
-  const modelUrl = useLocalStorage(
-    'settings/vrm/defaultURL',
-    '/assets/vrm/models/AvatarSample-B/AvatarSample_B.vrm',
-  )
+
+  const defaultModelUrl = '/assets/vrm/models/AvatarSample-B/AvatarSample_B.vrm'
+  const modelUrl = useLocalStorage('settings/vrm/modelURL', '')
+
   const loadSource = ref<'file' | 'url'>('url')
   const loadingModel = ref(false)
 
@@ -44,7 +43,6 @@ export const useVRM = defineStore('vrm', () => {
     }
   })
 
-  // Centralized computed property for the model source
   const selectedModel = computed(() => {
     if (loadSource.value === 'file' && modelObjectUrl.value) {
       return modelObjectUrl.value
@@ -53,7 +51,7 @@ export const useVRM = defineStore('vrm', () => {
       return modelUrl.value
     }
     // Fallback model
-    return defaultModelUrl.value
+    return defaultModelUrl
   })
 
   return {
