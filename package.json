@@ -33,7 +33,6 @@
     "lint:rust": "cargo fmt --check && cargo clippy --workspace",
     "typecheck": "pnpm -rF=\"./packages/*\" -F=\"./apps/*\" -F=\"./docs\" --parallel typecheck",
     "up": "taze -w -r -I -f && pnpm prune && pnpm dedupe",
-    "sizecheck": "npx vite-bundle-visualizer",
     "nolyfill": "pnpm dlx nolyfill"
   },
   "devDependencies": {
@@ -73,6 +72,7 @@
   },
   "workspaces": [
     "packages/**",
+    "plugins/**",
     "services/**",
     "examples/**",
     "docs/**",

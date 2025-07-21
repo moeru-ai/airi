@@ -5,7 +5,7 @@ community: false
 ---
 
 <script setup>
-import { data } from '../../../.vitepress/theme/blog.data'
+import { data } from '../../../.vitepress/functions/blog.data'
 import BlogPosts from '../../../.vitepress/components/BlogPosts.vue'
 </script>
 

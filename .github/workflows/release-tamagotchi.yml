@@ -5,6 +5,7 @@ permissions:
 
 env:
   PRODUCT_NAME: 'AIRI'
+  BUNDLE_NAME: ''
 
 on:
   release:
@@ -78,6 +79,7 @@ jobs:
         run: |
           $productName = node -p 'require("./apps/stage-tamagotchi/src-tauri/tauri.conf.json").productName'
           echo "PRODUCT_NAME=$productName" >> $env:GITHUB_ENV
+
       - name: Get Product Name
         if: matrix.os != 'windows-latest'
         run: |
@@ -168,51 +170,77 @@ jobs:
           # [^2]: https://huggingface.github.io/candle/guide/installation.html
           CUDA_COMPUTE_CAP: '75'
 
-      - name: Rename Artifacts (Nightly)
-        if: ${{ github.event_name == 'schedule' }}
-        id: rename_artifacts_nightly
+        # ---------
+        # Nightly (schedule) builds only
+        # ---------
+      - name: Get Name of Artifacts (Nightly + Windows Only)
+        if: ${{ github.event_name == 'schedule' && matrix.os == 'windows-latest' }}
         run: |
           pnpm -F @proj-airi/stage-tamagotchi name-of-artifacts ${{ matrix.target }} --out bundle_name
-          echo "bundle_name=$(node -p "require('node:fs').readFileSync(require('node:path').join('apps', 'stage-tamagotchi', 'bundle_name')).toString('utf-8')")" > $GITHUB_ENV
+          echo "BUNDLE_NAME=$(node -p "require('node:fs').readFileSync(require('node:path').join('apps', 'stage-tamagotchi', 'bundle_name')).toString('utf-8')")" >> $env:GITHUB_ENV
+
+      - name: Get Name of Artifacts (Nightly)
+        if: ${{ github.event_name == 'schedule' && matrix.os != 'windows-latest' }}
+        run: |
+          pnpm -F @proj-airi/stage-tamagotchi name-of-artifacts ${{ matrix.target }} --out bundle_name
+          echo "BUNDLE_NAME=$(node -p "require('node:fs').readFileSync(require('node:path').join('apps', 'stage-tamagotchi', 'bundle_name')).toString('utf-8')")" >> $GITHUB_ENV
+
+      - name: Rename Artifacts (Nightly)
+        if: ${{ github.event_name == 'schedule' }}
+        run:
           pnpm run -F @proj-airi/stage-tamagotchi rename-artifacts ${{ matrix.target }}
-          ls bundle
+
+      - name: Upload Artifacts (Nightly)
+        if: ${{ github.event_name == 'schedule' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.BUNDLE_NAME }}
+          path: bundle/${{ env.BUNDLE_NAME }}
+
+        # ---------
+        # Workflow Dispatch only
+        # ---------
+
+      - name: Get Name of Artifacts (Manual + Windows Only)
+        if: ${{ github.event_name == 'workflow_dispatch' && matrix.os == 'windows-latest' }}
+        run: |
+          pnpm -F @proj-airi/stage-tamagotchi name-of-artifacts ${{ matrix.target }} --out bundle_name --release ${{ !inputs.build_only && !inputs.artifacts_only }} --tag ${{ inputs.tag }} --auto-tag ${{ !inputs.build_only }}
+          echo "BUNDLE_NAME=$(node -p "require('node:fs').readFileSync(require('node:path').join('apps', 'stage-tamagotchi', 'bundle_name')).toString('utf-8')")" >> $env:GITHUB_ENV
+
+      - name: Get Name of Artifacts (Manual)
+        if: ${{ github.event_name == 'workflow_dispatch' && matrix.os != 'windows-latest' }}
+        run: |
+          pnpm -F @proj-airi/stage-tamagotchi name-of-artifacts ${{ matrix.target }} --out bundle_name --release ${{ !inputs.build_only && !inputs.artifacts_only }} --tag ${{ inputs.tag }} --auto-tag ${{ !inputs.build_only }}
+          echo "BUNDLE_NAME=$(node -p "require('node:fs').readFileSync(require('node:path').join('apps', 'stage-tamagotchi', 'bundle_name')).toString('utf-8')")" >> $GITHUB_ENV
 
       - name: Rename Artifacts (Manual)
         if: ${{ github.event_name == 'workflow_dispatch' }}
-        id: rename_artifacts_manual
         run: |
-          pnpm -F @proj-airi/stage-tamagotchi name-of-artifacts ${{ matrix.target }} --out bundle_name
-          echo "bundle_name=$(node -p "require('node:fs').readFileSync(require('node:path').join('apps', 'stage-tamagotchi', 'bundle_name')).toString('utf-8')")" > $GITHUB_ENV
-          pnpm run -F @proj-airi/stage-tamagotchi rename-artifacts ${{ matrix.target }} --release --tag ${{ github.event.inputs.tag }} --auto-tag
-          ls bundle
+          pnpm run -F @proj-airi/stage-tamagotchi rename-artifacts ${{ matrix.target }} --release ${{ !inputs.build_only && !inputs.artifacts_only }} --tag ${{ inputs.tag }} --auto-tag ${{ !inputs.build_only }}
+
+      - name: Upload Artifacts (Manual + Non-Release)
+        if: ${{ github.event_name == 'workflow_dispatch' && !inputs.build_only && inputs.artifacts_only }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.BUNDLE_NAME }}
+          path: bundle/${{ env.BUNDLE_NAME }}
+
+      - name: Upload To GitHub Releases (Manual + Overwrite Release)
+        if: ${{ github.event_name == 'workflow_dispatch' && !inputs.build_only && !inputs.artifacts_only }}
+        uses: softprops/action-gh-release@v2
+        with:
+          files: bundle/${{ env.PRODUCT_NAME }}_*
+          append_body: true
+          tag_name: ${{ inputs.tag }}
+
+        # ---------
+        # Version push
+        # ---------
 
       - name: Rename Artifacts (Automatic)
         if: ${{ github.event_name == 'release' }}
         run: |
           pnpm run -F @proj-airi/stage-tamagotchi rename-artifacts ${{ matrix.target }} --release
-          ls bundle
-
-      - name: Upload Artifacts
-        if: ${{ github.event_name == 'schedule' }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ steps.rename_artifacts_nightly.outputs.bundle_name }}
-          path: bundle/${{ steps.rename_artifacts_nightly.outputs.bundle_name }}
-
-      - name: Upload Artifacts (Manual + Non-Release)
-        if: ${{ github.event_name == 'workflow_dispatch' && !github.event.inputs.build_only && !!github.event.inputs.artifacts_only }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ steps.rename_artifacts_manual.outputs.bundle_name }}
-          path: bundle/${{ steps.rename_artifacts_manual.outputs.bundle_name }}
-
-      - name: Upload To GitHub Releases (Manual + Release)
-        if: ${{ github.event_name == 'workflow_dispatch' && !github.event.inputs.build_only && !github.event.inputs.artifacts_only }}
-        uses: softprops/action-gh-release@v2
-        with:
-          files: bundle/${{ env.PRODUCT_NAME }}_*
-          append_body: true
-          tag_name: ${{ github.event.inputs.tag }}
 
       - name: Upload To GitHub Releases (Automatic)
         if: ${{ github.event_name == 'release' }}

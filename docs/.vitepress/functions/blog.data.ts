@@ -2,6 +2,8 @@ import type { SiteConfig } from 'vitepress'
 
 import { createContentLoader } from 'vitepress'
 
+import { formatDate } from './utils'
+
 const config: SiteConfig = (globalThis as any).VITEPRESS_CONFIG
 
 interface Post {
@@ -9,10 +11,7 @@ interface Post {
   url: string
   urlWithoutLang: string
   lang: string
-  date: {
-    time: number
-    string: string
-  }
+  date: ReturnType<typeof formatDate>
   excerpt: string | undefined
   frontmatter?: Record<string, any>
 }
@@ -49,17 +48,3 @@ export default createContentLoader('**/blog/**/*.md', {
       .sort((a, b) => b.date.time - a.date.time)
   },
 })
-
-function formatDate(raw: string): Post['date'] {
-  const date = new Date(raw)
-  date.setUTCHours(12)
-
-  return {
-    time: +date,
-    string: date.toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-    }),
-  }
-}

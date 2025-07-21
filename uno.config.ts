@@ -1,3 +1,4 @@
+import type { WebFontMeta } from '@unocss/preset-web-fonts'
 import type { Preset, PresetOrFactoryAwaitable } from 'unocss'
 
 import { setDefaultAutoSelectFamilyAttemptTimeout } from 'node:net'
@@ -5,7 +6,7 @@ import { setDefaultAutoSelectFamilyAttemptTimeout } from 'node:net'
 import { createExternalPackageIconLoader } from '@iconify/utils/lib/loader/external-pkg'
 import { presetChromatic } from '@proj-airi/unocss-preset-chromatic'
 import { colorToString } from '@unocss/preset-mini/utils'
-import { defineConfig, mergeConfigs, presetAttributify, presetIcons, presetTypography, presetWebFonts, presetWind3, transformerDirectives, transformerVariantGroup } from 'unocss'
+import { defineConfig, mergeConfigs, presetAttributify, presetIcons, presetTypography, presetWind3, transformerDirectives, transformerVariantGroup } from 'unocss'
 import { presetScrollbar } from 'unocss-preset-scrollbar'
 import { parseColor } from 'unocss/preset-mini'
 
@@ -67,72 +68,65 @@ export function safelistAllPrimaryBackgrounds(): string[] {
   ]
 }
 
+export function presetWebFontsFonts(provider: 'fontsource' | 'none'): Record<string, string | WebFontMeta | (string | WebFontMeta)[]> {
+  return {
+    'sans': {
+      name: provider === 'fontsource' ? 'DM Sans' : 'DM Sans Variable',
+      provider,
+    },
+    'serif': {
+      name: 'DM Serif Display',
+      provider,
+    },
+    'mono': {
+      name: 'DM Mono',
+      provider,
+    },
+    'cute': {
+      name: 'Kiwi Maru',
+      provider,
+    },
+    'cuteen': {
+      name: 'Sniglet',
+      provider,
+    },
+    'jura': {
+      name: provider === 'fontsource' ? 'Jura' : 'Jura Variable',
+      provider,
+    },
+    'gugi': {
+      name: 'Gugi',
+      provider,
+    },
+    'quicksand': {
+      name: provider === 'fontsource' ? 'Quicksand' : 'Quicksand Variable',
+      provider,
+    },
+    'urbanist': {
+      name: provider === 'fontsource' ? 'Urbanist' : 'Urbanist Variable',
+      provider,
+    },
+    'm-plus-rounded': {
+      name: 'M PLUS Rounded 1c',
+      provider,
+    },
+    'quanlai': {
+      name: 'cjkfonts AllSeto',
+      provider: 'none',
+    },
+    'xiaolai': {
+      name: 'Xiaolai SC',
+      provider: 'none',
+    },
+  }
+}
+
 export function sharedUnoConfig() {
   return defineConfig({
     presets: [
       presetWind3(),
       presetAttributify(),
       presetTypography(),
-      presetWebFonts({
-        fonts: {
-          'sans': {
-            name: 'DM Sans',
-            provider: 'fontsource',
-          },
-          'sans-rounded': {
-            name: 'Comfortaa',
-            provider: 'fontsource',
-          },
-          'serif': {
-            name: 'DM Serif Display',
-            provider: 'fontsource',
-          },
-          'mono': {
-            name: 'DM Mono',
-            provider: 'fontsource',
-          },
-          'cute': {
-            name: 'Kiwi Maru',
-            provider: 'fontsource',
-          },
-          'cuteen': {
-            name: 'Sniglet',
-            provider: 'fontsource',
-          },
-          'jura': {
-            name: 'Jura',
-            provider: 'fontsource',
-          },
-          'gugi': {
-            name: 'Gugi',
-            provider: 'fontsource',
-          },
-          'quicksand': {
-            name: 'Quicksand',
-            provider: 'fontsource',
-          },
-          'quanlai': {
-            name: 'cjkfonts AllSeto',
-            provider: 'none',
-          },
-          'xiaolai': {
-            name: 'Xiaolai SC',
-            provider: 'none',
-          },
-          'urbanist': {
-            name: 'Urbanist',
-            provider: 'fontsource',
-          },
-          'm-plus-rounded': {
-            name: 'M PLUS Rounded 1c',
-            provider: 'fontsource',
-          },
-        },
-        timeouts: {
-          warning: 5000,
-          failure: 10000,
-        },
-      }),
       presetIcons({
         scale: 1.2,
         collections: {

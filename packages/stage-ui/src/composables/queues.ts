@@ -6,6 +6,7 @@ import { ref } from 'vue'
 
 import { llmInferenceEndToken } from '../constants'
 import { EMOTION_VALUES } from '../constants/emotions'
+import { chunkTTSInput } from '../utils/tts'
 import { useQueue } from './queue'
 
 export function useEmotionsMessageQueue(emotionsQueue: UseQueueReturn<Emotion>) {
@@ -116,19 +117,8 @@ export function useMessageContentQueue(ttsQueue: UseQueueReturn<string>) {
           return
         }
 
-        const endMarker = /[.?!]/
-        processed.value += ctx.data
-
-        while (processed.value) {
-          const endMarkerExecArray = endMarker.exec(processed.value)
-          if (!endMarkerExecArray || typeof endMarkerExecArray.index === 'undefined')
-            break
-
-          const before = processed.value.slice(0, endMarkerExecArray.index + 1)
-          const after = processed.value.slice(endMarkerExecArray.index + 1)
-
-          await ttsQueue.add(before)
-          processed.value = after
+        for await (const chunk of chunkTTSInput(ctx.data)) {
+          await ttsQueue.add(chunk.text)
         }
       },
     ],

@@ -22,7 +22,7 @@ const apiKeyConfigured = computed(() => !!providers.value[providerId]?.apiKey)
 
 // Generate speech with ElevenLabs-specific parameters
 async function handleGenerateTranscription(file: File) {
-  const provider = providersStore.getProviderInstance(providerId) as TranscriptionProvider<string>
+  const provider = await providersStore.getProviderInstance<TranscriptionProvider<string>>(providerId)
   if (!provider) {
     throw new Error('Failed to initialize speech provider')
   }
