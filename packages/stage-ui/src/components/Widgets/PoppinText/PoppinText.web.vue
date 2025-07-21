@@ -7,6 +7,10 @@ import { readGraphemeClusters } from 'clustr'
 import { onMounted, ref, shallowRef, watch } from 'vue'
 
 const props = defineProps<{
+  /**
+   * A plain string or a ReadableStream of bytes from text in UTF-8 encoding.
+   * If a stream is provided, the stream **SHOULD NOT** be reused. (i.e. You should not set a same stream twice.)
+   */
   text?: string | ReadableStream<Uint8Array>
   textClass?: string | string[]
   animator?: Animator
