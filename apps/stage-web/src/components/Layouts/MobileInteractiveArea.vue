@@ -4,7 +4,7 @@ import type { ChatProvider } from '@xsai-ext/shared-providers'
 import { useMicVAD } from '@proj-airi/stage-ui/composables'
 import { useChatStore, useConsciousnessStore, useProvidersStore, useSettings } from '@proj-airi/stage-ui/stores'
 import { BasicTextarea } from '@proj-airi/ui'
-import { useDark } from '@vueuse/core'
+import { useDark, useResizeObserver, useScreenSafeArea } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { onMounted, ref, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -23,8 +23,11 @@ const messageInput = ref('')
 const listening = ref(false)
 const isComposing = ref(false)
 
+const screenSafeArea = useScreenSafeArea()
 const providersStore = useProvidersStore()
 const { activeProvider, activeModel } = storeToRefs(useConsciousnessStore())
+
+useResizeObserver(document.documentElement, () => screenSafeArea.update())
 
 // const { audioInputs } = useDevicesList({ constraints: { audio: true }, requestPermissions: true })
 // const { selectedAudioDevice, isAudioInputOn, selectedAudioDeviceId } = storeToRefs(useSettings())
@@ -105,6 +108,7 @@ watch([activeProvider, activeModel], async () => {
 
 onMounted(() => {
   start()
+  screenSafeArea.update()
 })
 </script>
 
@@ -112,14 +116,14 @@ onMounted(() => {
   <div fixed bottom-0 w-full flex flex-col>
     <KeepAlive>
       <Transition name="fade">
-        <MobileChatHistory v-if="!stageViewControlsEnabled" max-w="[calc(100%-3.5rem)]" w-full self-start pl-2 />
+        <MobileChatHistory v-if="!stageViewControlsEnabled" max-w="[calc(100%-3.5rem)]" w-full self-start pl-3 />
       </Transition>
     </KeepAlive>
     <div relative w-full self-end>
-      <div top="50%" translate-y="[-50%]" fixed z-15 px-2>
+      <div top="50%" translate-y="[-50%]" fixed z-15 px-3>
         <ViewControlInputs ref="viewControlsInputs" :mode="viewControlsActiveMode" />
       </div>
-      <div translate-y="[-100%]" absolute right-0 w-full px-2 pb-2 font-sans>
+      <div translate-y="[-100%]" absolute right-0 w-full px-3 pb-3 font-sans>
         <div flex="~ col" w-full gap-1>
           <button border="2 solid neutral-100/60 dark:neutral-800/30" bg="neutral-50/70 dark:neutral-800/70" w-fit flex items-center self-end justify-center rounded-xl p-2 backdrop-blur-md title="About">
             <div i-solar:info-circle-outline size-5 text="neutral-500 dark:neutral-400" />
@@ -150,11 +154,11 @@ onMounted(() => {
           <ActionViewControls v-model="viewControlsActiveMode" @reset="() => viewControlsInputsRef?.resetOnMode()" />
         </div>
       </div>
-      <div bg="white dark:neutral-800" w-full flex gap-1 px-2 py-2>
+      <div bg="white dark:neutral-800" max-h-100dvh max-w-100dvw w-full flex gap-1 overflow-auto px-3 pt-2 :style="{ paddingBottom: `${Math.max(Number.parseFloat(screenSafeArea.bottom.value.replace('px', '')), 12)}px` }">
         <BasicTextarea
           v-model="messageInput"
           :placeholder="t('stage.message')"
-          border="solid 2 primary-50 dark:primary-950/10"
+          border="solid 2 neutral-200/60 dark:neutral-700/60"
           text="neutral-500 hover:neutral-600 dark:neutral-100 dark:hover:neutral-200 placeholder:neutral-400 placeholder:hover:neutral-500 placeholder:dark:neutral-300 placeholder:dark:hover:neutral-400"
           bg="neutral-100/80 dark:neutral-950/80"
           max-h="[10lh]" min-h="[calc(1lh+4px+4px)]"

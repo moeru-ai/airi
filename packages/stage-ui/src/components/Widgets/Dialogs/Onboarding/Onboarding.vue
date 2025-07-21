@@ -297,7 +297,7 @@ onMounted(() => {
       <!-- Provider Selection -->
       <template v-else-if="step === 2">
         <div h-full flex flex-col gap-4>
-          <div bg="white dark:#181818" sticky top-0 z-100 flex flex-shrink-0 items-center gap-2>
+          <div sticky top-0 z-100 flex flex-shrink-0 items-center gap-2>
             <button outline-none @click="handlePreviousStep">
               <div class="i-solar:alt-arrow-left-line-duotone h-5 w-5" />
             </button>
@@ -332,7 +332,7 @@ onMounted(() => {
       <!-- Configuration Form -->
       <template v-else-if="step === 3 && selectedProvider">
         <div h-full flex flex-col gap-4>
-          <div bg="white dark:#181818" sticky top-0 z-100 flex flex-shrink-0 items-center gap-2>
+          <div sticky top-0 z-100 flex flex-shrink-0 items-center gap-2>
             <button outline-none @click="handlePreviousStep">
               <div i-solar:alt-arrow-left-line-duotone h-5 w-5 />
             </button>
@@ -422,7 +422,7 @@ onMounted(() => {
       <!-- Models Configuration Form -->
       <template v-else-if="step === 4 && selectedProvider">
         <div h-full flex flex-col gap-4>
-          <div bg="white dark:#181818" sticky top-0 z-100 flex flex-shrink-0 items-center gap-2>
+          <div sticky top-0 z-100 flex flex-shrink-0 items-center gap-2>
             <button outline-none @click="handlePreviousStep">
               <div i-solar:alt-arrow-left-line-duotone h-5 w-5 />
             </button>
