@@ -208,13 +208,13 @@ function urlUploadClick() {
       </div>
     </Callout>
     <FieldRange
-      :model-value="Number(modelOffset.x.toFixed(4))"
+      v-model="modelOffset.x"
       as="div"
-      :min="-modelSize.x"
-      :max="modelSize.x"
+      :min="-modelSize.x * 2"
+      :max="modelSize.x * 2"
       :step="modelSize.x / 100"
       :label="t('settings.vrm.scale-and-position.x')"
-      @update:model-value="val => modelOffset.x = val"
+      :format-value="val => val.toFixed(4)"
     >
       <template #label>
         <div flex items-center>
@@ -228,13 +228,13 @@ function urlUploadClick() {
       </template>
     </FieldRange>
     <FieldRange
-      :model-value="Number(modelOffset.y.toFixed(4))"
+      v-model="modelOffset.y"
       as="div"
-      :min="-modelSize.y"
-      :max="modelSize.y"
+      :min="-modelSize.y * 2"
+      :max="modelSize.y * 2"
       :step="modelSize.y / 100"
       :label="t('settings.vrm.scale-and-position.y')"
-      @update:model-value="val => modelOffset.y = val"
+      :format-value="val => val.toFixed(4)"
     >
       <template #label>
         <div flex items-center>
@@ -246,13 +246,13 @@ function urlUploadClick() {
       </template>
     </FieldRange>
     <FieldRange
-      :model-value="Number(modelOffset.z.toFixed(4))"
+      v-model="modelOffset.y"
       as="div"
-      :min="-modelSize.z"
-      :max="modelSize.z"
+      :min="-modelSize.z * 2"
+      :max="modelSize.z * 2"
       :step="modelSize.z / 100"
       :label="t('settings.vrm.scale-and-position.z')"
-      @update:model-value="val => modelOffset.z = val"
+      :format-value="val => val.toFixed(4)"
     >
       <template #label>
         <div flex items-center>
