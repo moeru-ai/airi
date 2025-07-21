@@ -49,6 +49,7 @@ async function handleSpeechGeneration(ctx: { data: string }) {
 
   try {
     const input = ctx.data
+
     const res = await props.generateSpeech(input, props.voice, false)
 
     // Decode the ArrayBuffer into an AudioBuffer
@@ -60,11 +61,7 @@ async function handleSpeechGeneration(ctx: { data: string }) {
   }
 }
 
-const ttsQueue = useQueue<string>({
-  handlers: [
-    handleSpeechGeneration,
-  ],
-})
+const ttsQueue = useQueue<string>({ handlers: [handleSpeechGeneration] })
 
 const messageContentQueue = useMessageContentQueue(ttsQueue)
 
@@ -77,6 +74,7 @@ async function testChunking() {
   for await (const chunk of chunkTTSInput(props.text, { boost: 1, minimumWords: 4, maximumWords: 12 })) {
     chunks.push(chunk)
   }
+
   ttsInputChunks.value = chunks
 }
 </script>
