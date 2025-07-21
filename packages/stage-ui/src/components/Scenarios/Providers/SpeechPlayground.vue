@@ -5,6 +5,8 @@ import { FieldCheckbox, FieldSelect } from '@proj-airi/ui'
 import { computed, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import SpeechStreamingPlayground from './SpeechStreamingPlayground.vue'
+
 import { TestDummyMarker } from '../../Gadgets'
 
 const props = defineProps<{
@@ -204,6 +206,12 @@ defineExpose({
         {{ errorMessage }}
       </div>
       <audio v-if="audioUrl" ref="audioPlayer" :src="audioUrl" controls class="mt-2 w-full" />
+
+      <SpeechStreamingPlayground
+        :text="testText"
+        :voice="selectedVoice"
+        :generate-speech="generateSpeech"
+      />
     </div>
     <!-- Slot for additional provider-specific UI in the playground -->
     <slot />
