@@ -116,7 +116,7 @@ onMounted(() => {
       </Transition>
     </KeepAlive>
     <div relative w-full self-end>
-      <div fixed top="50%" translate-y="[-50%]" px-2>
+      <div top="50%" translate-y="[-50%]" fixed z-15 px-2>
         <ViewControlInputs ref="viewControlsInputs" :mode="viewControlsActiveMode" />
       </div>
       <div translate-y="[-100%]" absolute right-0 w-full px-2 pb-2 font-sans>

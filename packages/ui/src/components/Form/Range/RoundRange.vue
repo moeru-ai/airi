@@ -74,11 +74,11 @@ https://toughengineer.github.io/demo/slider-styler*/
   transition: background-color 0.2s ease;
 
   --thumb-width: var(--height);
-  --thumb-height: 0px;
+  --thumb-height: var(--height);
   --thumb-box-shadow: none;
   --thumb-border: none;
   --thumb-border-radius: 0px;
-  --thumb-background: rgb(255, 255, 255);
+  --thumb-background: transparent;
 
   --track-height: calc(var(--height) - var(--track-value-padding) * 2);
   --track-box-shadow: 0 0 12px -2px rgb(0 0 0 / 22%);
