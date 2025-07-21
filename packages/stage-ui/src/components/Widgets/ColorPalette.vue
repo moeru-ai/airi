@@ -22,7 +22,7 @@ const settings = useSettings()
           transition="all ease-in-out duration-250"
           size-8 cursor-pointer rounded-full bg-primary-500
           :style="hex ? { background: hex } : { '--chromatic-hue': DEFAULT_THEME_COLORS_HUE }"
-          :class="settings.isColorSelectedForPrimary(hex) ? 'scale-150 mx-1' : 'hover:scale-110'"
+          :class="settings.isColorSelectedForPrimary(hex) ? 'scale-120 md:scale-150 mx-1' : 'hover:scale-110'"
           @click="settings.applyPrimaryColorFrom(hex)"
         />
         <TooltipPortal>

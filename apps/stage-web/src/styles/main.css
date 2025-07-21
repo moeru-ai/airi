@@ -7,6 +7,16 @@
   --bg-color: var(--bg-color-light);
 }
 
+/**
+  Disable double-tap "zoom" option in browser on touch devices
+
+  https://stackoverflow.com/a/54207844
+  https://stackoverflow.com/questions/10614481/disable-double-tap-zoom-option-in-browser-on-touch-devices
+ */
+* {
+  touch-action: manipulation;
+}
+
 html,
 body,
 #app {
