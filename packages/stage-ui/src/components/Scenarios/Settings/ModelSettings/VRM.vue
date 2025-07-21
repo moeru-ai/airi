@@ -69,6 +69,7 @@ function urlUploadClick() {
 }
 
 function resetCameraDistance() {
+  // Calculate the camera distance that can fit the up-2/3 part of the model in the view
   const radians = (cameraFOV.value / 2 * Math.PI) / 180
   cameraDistance.value = (modelSize.value.y / 3) / Math.tan(radians)
 }
