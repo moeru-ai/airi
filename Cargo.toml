@@ -6,21 +6,29 @@ members = [
 resolver = "2"
 
 [workspace.package]
-version = "0.6.1"
+version = "0.7.0-alpha.1"
 
 [workspace.dependencies]
 
 [workspace.dependencies.tauri-plugin-mcp]
 path = "./crates/tauri-plugin-mcp"
 
+[profile]
+
 [profile.dev]
 incremental = true
 opt-level = 0
 debug = true
 
+[profile.dev.package]
+
 [profile.dev.package."*"]
 opt-level = 1
 debug = false
 
+[patch]
+
 [patch.crates-io]
-esaxx-rs = { path = "apps/stage-tamagotchi/src-tauri/libs/esaxx-rs" }
+
+[patch.crates-io.esaxx-rs]
+path = "apps/stage-tamagotchi/src-tauri/libs/esaxx-rs"
