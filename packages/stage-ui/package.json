@@ -39,6 +39,7 @@
     "test:run": "vitest run"
   },
   "dependencies": {
+    "@date-fns/utc": "^2.1.0",
     "@formkit/auto-animate": "^0.8.2",
     "@huggingface/transformers": "^3.6.1",
     "@pixi/app": "^6.5.10",
@@ -87,6 +88,7 @@
     "@xsai/tool": "catalog:",
     "animejs": "^4.0.2",
     "culori": "^4.0.2",
+    "date-fns": "^4.1.0",
     "gpuu": "^1.0.4",
     "jszip": "^3.10.1",
     "localforage": "^1.10.0",

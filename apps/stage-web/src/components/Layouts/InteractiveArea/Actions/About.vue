@@ -1,9 +1,12 @@
 <script setup lang="ts">
+import { UTCDate } from '@date-fns/utc'
 import { AboutDialog } from '@proj-airi/stage-ui/components'
 import { abbreviatedSha, branch, committerDate } from '~build/git'
+import { formatISO9075 } from 'date-fns'
 import { ref } from 'vue'
 
 const show = ref(false)
+const localDate = formatISO9075(new UTCDate(committerDate))
 </script>
 
 <template>
@@ -13,7 +16,7 @@ const show = ref(false)
   <AboutDialog v-model="show">
     <div max-w="calc[100%-2rem]" mx-auto h-full flex flex-col pt-14>
       <div font-sans-rounded mb-14 text-center text-5xl>
-        <span text="neutral-100/65">Project</span> <span text="pink-300/90">AIRI</span>
+        <span text="neutral-400 dark:neutral-100/65">Project</span> <span text="pink-400 dark:pink-300/90">AIRI</span>
         <div mt-2 text-base>
           Web ver.
         </div>
@@ -36,10 +39,10 @@ const show = ref(false)
             {{ abbreviatedSha.substring(0, 7) }}
           </div>
           <div text="neutral-500 dark:neutral-400">
-            Updated
+            Built on
           </div>
           <div font-mono>
-            {{ new Date(committerDate).toISOString() }}
+            {{ localDate }}
           </div>
         </div>
       </div>
@@ -57,6 +60,7 @@ const show = ref(false)
             bg="black/4 dark:black/10 dark:hover:white/30"
             transition="colors,transform duration-200 ease-in-out"
             href="https://airi.moeru.ai/docs/"
+            target="_blank"
           >
             <div i-solar:home-smile-outline /><div>Home</div>
           </a>
@@ -69,6 +73,7 @@ const show = ref(false)
             ]"
             bg="black/4 dark:black/10 dark:hover:white/30"
             transition="colors,transform duration-200 ease-in-out"
+            target="_blank"
           >
             <div i-solar:document-add-outline /><div>Documentations</div>
           </a>
@@ -81,6 +86,7 @@ const show = ref(false)
             ]"
             bg="black/4 dark:black/10 dark:hover:white/30"
             transition="colors,transform duration-200 ease-in-out"
+            target="_blank"
           >
             <div i-simple-icons:github /><div>GitHub</div>
           </a>

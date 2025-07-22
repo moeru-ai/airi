@@ -273,6 +273,9 @@ importers:
 
   apps/stage-tamagotchi:
     dependencies:
+      '@date-fns/utc':
+        specifier: ^2.1.0
+        version: 2.1.0
       '@formkit/auto-animate':
         specifier: ^0.8.2
         version: 0.8.2
@@ -378,6 +381,9 @@ importers:
       culori:
         specifier: ^4.0.2
         version: 4.0.2
+      date-fns:
+        specifier: ^4.1.0
+        version: 4.1.0
       drizzle-kit:
         specifier: ^0.31.4
         version: 0.31.4
@@ -613,6 +619,9 @@ importers:
 
   apps/stage-web:
     dependencies:
+      '@date-fns/utc':
+        specifier: ^2.1.0
+        version: 2.1.0
       '@formkit/auto-animate':
         specifier: ^0.8.2
         version: 0.8.2
@@ -718,6 +727,9 @@ importers:
       culori:
         specifier: ^4.0.2
         version: 4.0.2
+      date-fns:
+        specifier: ^4.1.0
+        version: 4.1.0
       driver.js:
         specifier: ^1.3.6
         version: 1.3.6
@@ -1136,6 +1148,9 @@ importers:
 
   packages/stage-ui:
     dependencies:
+      '@date-fns/utc':
+        specifier: ^2.1.0
+        version: 2.1.0
       '@formkit/auto-animate':
         specifier: ^0.8.2
         version: 0.8.2
@@ -1280,6 +1295,9 @@ importers:
       culori:
         specifier: ^4.0.2
         version: 4.0.2
+      date-fns:
+        specifier: ^4.1.0
+        version: 4.1.0
       gpuu:
         specifier: ^1.0.4
         version: 1.0.4
@@ -2803,6 +2821,9 @@ packages:
 
   '@date-fns/tz@1.2.0':
     resolution: {integrity: sha512-LBrd7MiJZ9McsOgxqWX7AaxrDjcFVjWH/tIKJd7pnR7McaslGYOP1QmmiBXdJH/H/yLCT+rcQ7FaPBUxRGUtrg==}
+
+  '@date-fns/utc@2.1.0':
+    resolution: {integrity: sha512-176grgAgU2U303rD2/vcOmNg0kGPbhzckuH1TEP2al7n0AQipZIy9P15usd2TKQCG1g+E1jX/ZVQSzs4sUDwgA==}
 
   '@derhuerst/http-basic@8.2.4':
     resolution: {integrity: sha512-F9rL9k9Xjf5blCz8HsJRO4diy111cayL2vkY2XE4r4t3n0yPXVYy3KD3nJ1qbrSn9743UWSXH4IwuCa/HWlGFw==}
@@ -14466,6 +14487,8 @@ snapshots:
   '@cryptography/aes@0.1.1': {}
 
   '@date-fns/tz@1.2.0': {}
+
+  '@date-fns/utc@2.1.0': {}
 
   '@derhuerst/http-basic@8.2.4':
     dependencies:

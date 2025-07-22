@@ -18,6 +18,7 @@
     "name-of-artifacts": "tsx scripts/name-of-artifacts.ts"
   },
   "dependencies": {
+    "@date-fns/utc": "^2.1.0",
     "@formkit/auto-animate": "^0.8.2",
     "@huggingface/transformers": "^3.6.1",
     "@moeru/std": "catalog:",
@@ -53,6 +54,7 @@
     "@xsai/utils-chat": "catalog:",
     "colorjs.io": "^0.5.2",
     "culori": "^4.0.2",
+    "date-fns": "^4.1.0",
     "drizzle-kit": "^0.31.4",
     "drizzle-orm": "^0.44.2",
     "jszip": "^3.10.1",
