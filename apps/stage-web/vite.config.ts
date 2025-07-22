@@ -152,7 +152,7 @@ export default defineConfig({
     LFS({ root: cwd(), extraGlobs: ['*.vrm', '*.cmo3', '*.png', '*.jpg', '*.jpeg', '*.gif', '*.webp', '*.bmp', '*.ttf'] }),
     SpaceCard({
       root: cwd(),
-      title: 'Project AIRI: AI driven VTuber & Companion',
+      title: 'AIRI: Virtual Companion',
       emoji: '🧸',
       colorFrom: 'pink',
       colorTo: 'pink',
@@ -163,7 +163,7 @@ export default defineConfig({
         'onnx-community/whisper-base',
         'onnx-community/silero-vad',
       ],
-      short_description: 'Project AIRI: AI driven VTuber & Companion. LLM powered Live2D/VRM living character.',
+      short_description: 'AI driven VTuber & Companion, supports Live2D and VRM.',
     }),
   ],
 })
