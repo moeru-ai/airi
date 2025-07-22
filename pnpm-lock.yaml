@@ -897,8 +897,8 @@ importers:
         specifier: ^9.6.0
         version: 9.6.0
       hfup:
-        specifier: ^0.5.0
-        version: 0.5.0(@types/node@24.0.15)(jiti@2.4.2)(less@4.4.0)(lightningcss@1.30.1)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
+        specifier: ^0.6.2
+        version: 0.6.2
       less:
         specifier: ^4.3.0
         version: 4.4.0
@@ -8608,8 +8608,8 @@ packages:
   hey-listen@1.0.8:
     resolution: {integrity: sha512-COpmrF2NOg4TBWUJ5UVyaCU2A88wEMkUPK4hNqyCkqHbxT92BbvfjoSozkAIIm6XhicGlJHhFdullInrdhwU8Q==}
 
-  hfup@0.5.0:
-    resolution: {integrity: sha512-t2gc6eE44CHGe0lv8qnPbnr+H6Y7Z3EAH76K+flSCaziOx1cldeYnfX/E7mbhdSP5KJU7Cie/xhwu6MmTo4guw==}
+  hfup@0.6.2:
+    resolution: {integrity: sha512-wAOF1N5a3Kjpjv87Qmn4svRZlKeZB1814s49DI14S6DmOKHK8tv1mWqt7BGKFOGhYgwOGYnudosyIKcyZvIXwg==}
 
   highlight.js@10.7.3:
     resolution: {integrity: sha512-tzcUFauisWKNHaRkN4Wjl/ZA07gENAjFl3J/c480dprkGTg5EQstgaNFqBfUqCq54kZRIEcreTsAgF/m2quD7A==}
@@ -21125,23 +21125,11 @@ snapshots:
 
   hey-listen@1.0.8: {}
 
-  hfup@0.5.0(@types/node@24.0.15)(jiti@2.4.2)(less@4.4.0)(lightningcss@1.30.1)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0):
+  hfup@0.6.2:
     dependencies:
       defu: 6.1.4
       gray-matter: 4.0.3
-      vite: 6.3.5(@types/node@24.0.15)(jiti@2.4.2)(less@4.4.0)(lightningcss@1.30.1)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
-    transitivePeerDependencies:
-      - '@types/node'
-      - jiti
-      - less
-      - lightningcss
-      - sass
-      - sass-embedded
-      - stylus
-      - sugarss
-      - terser
-      - tsx
-      - yaml
+      unplugin: 2.3.5
 
   highlight.js@10.7.3: {}
 
