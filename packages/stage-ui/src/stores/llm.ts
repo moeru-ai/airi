@@ -1,5 +1,5 @@
 import type { ChatProvider } from '@xsai-ext/shared-providers'
-import type { Message, ToolCall, ToolMessagePart } from '@xsai/shared-chat'
+import type { CompletionToolCall, Message, ToolMessagePart } from '@xsai/shared-chat'
 
 import { readableStreamToAsyncIterator } from '@moeru/std'
 import { listModels } from '@xsai/model'
@@ -12,7 +12,7 @@ import { debug, mcp } from '../tools'
 
 export interface StreamOptions {
   headers?: Record<string, string>
-  onToolCall?: (toolCall: ToolCall) => void
+  onToolCall?: (toolCall: CompletionToolCall) => void
   onToolCallResult?: (toolCallResult: {
     id: string
     result?: string | ToolMessagePart[]
@@ -43,10 +43,10 @@ async function streamFrom(model: string, chatProvider: ChatProvider, messages: M
       : undefined,
     onEvent(event) {
       if (event.type === 'tool-call') {
-        options?.onToolCall?.(event.toolCall)
+        options?.onToolCall?.(event)
       }
-      else if (event.type === 'tool-call-result') {
-        options?.onToolCallResult?.({ id: event.id, result: event.result })
+      else if (event.type === 'tool-result') {
+        options?.onToolCallResult?.({ id: event.toolCallId, result: event.result })
       }
     },
   })

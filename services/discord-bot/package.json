@@ -20,9 +20,9 @@
   },
   "dependencies": {
     "@discordjs/voice": "^0.18.0",
-    "@dotenvx/dotenvx": "^1.45.2",
+    "@dotenvx/dotenvx": "^1.48.3",
     "@guiiai/logg": "^1.0.10",
-    "@huggingface/transformers": "^3.6.1",
+    "@huggingface/transformers": "^3.6.3",
     "@proj-airi/audio": "workspace:^",
     "@proj-airi/server-sdk": "workspace:^",
     "@proj-airi/server-shared": "workspace:^",
