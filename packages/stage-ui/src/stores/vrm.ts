@@ -31,6 +31,7 @@ export const useVRM = defineStore('vrm', () => {
 
   const modelObjectUrl = ref<string>()
   const modelRotationY = useLocalStorage('settings/vrm/modelRotationY', 0)
+  const cameraDistance = useLocalStorage('settings/vrm/cameraDistance', 0)
 
   // Manage the object URL lifecycle to prevent memory leaks
   watch(modelFile, (newFile) => {
@@ -70,5 +71,6 @@ export const useVRM = defineStore('vrm', () => {
     cameraFOV,
     initialCameraPosition,
     modelRotationY,
+    cameraDistance,
   }
 })

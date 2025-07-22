@@ -161,14 +161,6 @@ watch(modelRotationY, (newRotationY) => {
   }
 })
 
-onUnmounted(() => {
-  disposeBeforeRenderLoop?.()
-  if (vrm.value) {
-    vrm.value.scene.removeFromParent()
-    VRMUtils.deepDispose(vrm.value.scene)
-  }
-})
-
 defineExpose({
   setExpression(expression: string) {
     vrmEmote.value?.setEmotionWithResetAfter(expression, 1000)
@@ -180,6 +172,14 @@ const { pause, resume } = useLoop()
 
 watch(() => props.paused, (value) => {
   value ? pause() : resume()
+})
+
+onUnmounted(() => {
+  disposeBeforeRenderLoop?.()
+  if (vrm.value) {
+    vrm.value.scene.removeFromParent()
+    VRMUtils.deepDispose(vrm.value.scene)
+  }
 })
 </script>
 

@@ -14,6 +14,7 @@ const { camera, renderer } = useTresContext()
 const controls = shallowRef<OrbitControls>()
 const {
   modelSize,
+  cameraDistance,
 } = storeToRefs(useVRM())
 
 // initialize the OrbitControls
@@ -35,10 +36,20 @@ onMounted(() => {
     }
 
     controls.value.enablePan = false
+    // How near and far the camera can zoom
     controls.value.minDistance = modelSize.value.z
+    controls.value.maxDistance = modelSize.value.z * 20
 
     controls.value.update()
+
+    cameraDistance.value = controls.value.getDistance()
   }
+})
+
+defineExpose({
+  controls,
+  getDistance: () => controls.value?.getDistance(),
+  update: () => controls.value?.update(),
 })
 </script>
 

@@ -19,11 +19,13 @@ const {
   selectedModel,
   cameraFOV,
   initialCameraPosition,
+  cameraDistance,
 } = storeToRefs(useVRM())
 
 const modelRef = ref<InstanceType<typeof VRMModel>>()
 
 const camera = shallowRef(new THREE.PerspectiveCamera())
+const controlsRef = ref<InstanceType<typeof OrbitControls>>()
 
 onMounted(() => {
   if (vrmContainerRef.value) {
@@ -64,6 +66,39 @@ watch(selectedModel, () => {
   }
 })
 
+// Bidirectional watch between slider and OrbitControls
+watch(() => controlsRef.value?.getDistance(), (newDistance) => {
+  if (newDistance !== undefined) {
+    // To avoid floating point inaccuracies causing a feedback loop with the other watcher,
+    // we can check if the distance has changed significantly.
+    if (Math.abs(cameraDistance.value - newDistance) > 1e-6) {
+      cameraDistance.value = newDistance
+      initialCameraPosition.value = {
+        x: camera.value.position.x,
+        y: camera.value.position.y,
+        z: camera.value.position.z,
+      }
+    }
+  }
+})
+watch(cameraDistance, (newDistance) => {
+  if (camera.value && controlsRef.value) {
+    const newPosition = new THREE.Vector3()
+    newPosition.copy(camera.value.position.normalize().multiplyScalar(newDistance))
+    camera.value.position.set(
+      newPosition.x,
+      newPosition.y,
+      newPosition.z,
+    )
+    controlsRef.value.update()
+    initialCameraPosition.value = {
+      x: newPosition.x,
+      y: newPosition.y,
+      z: newPosition.z,
+    }
+  }
+})
+
 defineExpose({
   setExpression: (expression: string) => {
     modelRef.value?.setExpression(expression)
@@ -77,6 +112,7 @@ defineExpose({
       <TresAxesHelper :size="1" />
       <TresDirectionalLight :color="0xFFFFFF" :intensity="1.2" :position="[1, 1, 1]" />
       <TresAmbientLight :color="0xFFFFFF" :intensity="1.5" />
+      <OrbitControls ref="controlsRef" />
       <VRMModel
         ref="modelRef"
         :key="selectedModel"
@@ -87,7 +123,6 @@ defineExpose({
         @error="(val) => emit('error', val)"
       />
       <!-- <TresPerspectiveCamera :position="[initialCameraPosition.x, initialCameraPosition.y, initialCameraPosition.z]" :fov="cameraFOV"/> -->
-      <OrbitControls />
     </TresCanvas>
   </div>
 </template>
