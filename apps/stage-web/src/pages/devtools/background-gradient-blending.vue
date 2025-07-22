@@ -164,7 +164,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="h-fit w-full flex flex-col gap-4">
+  <div class="h-full w-full flex flex-col gap-4">
     <div class="relative w-full overflow-hidden rounded-xl">
       <div class="pointer-events-none left-0 right-0 top-0 z-10 flex items-center justify-center backdrop-blur-md" :style="{ background: topBar }">
         <div class="py-4 text-center text-sm text-white font-medium">
@@ -177,7 +177,7 @@ onUnmounted(() => {
       <img
         ref="imageRef"
         :src="images[0]"
-        class="h-full max-h-[calc(100dvh-25rem)] w-full object-cover"
+        class="h-full max-h-[calc(100dvh-28rem)] w-full object-cover"
       >
 
       <!-- Live2D area placeholder -->
