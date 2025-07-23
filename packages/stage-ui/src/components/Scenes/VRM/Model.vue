@@ -135,14 +135,14 @@ onMounted(async () => {
         hipsTrack.values[1],
         hipsTrack.values[2],
       )
-      const delta = new Vector3().subVectors(animeHipPos, defaultHipPos)
+      const animeDelta = new Vector3().subVectors(animeHipPos, defaultHipPos)
 
       clip.tracks.forEach((track) => {
         if (track.name.endsWith('.position') && track instanceof VectorKeyframeTrack) {
           for (let i = 0; i < track.values.length; i += 3) {
-            track.values[i] -= delta.x
-            track.values[i + 1] -= delta.y
-            track.values[i + 2] -= delta.z
+            track.values[i] -= animeDelta.x
+            track.values[i + 1] -= animeDelta.y
+            track.values[i + 2] -= animeDelta.z
           }
         }
       })
@@ -204,6 +204,7 @@ defineExpose({
     vrmEmote.value?.setEmotionWithResetAfter(expression, 1000)
   },
   scene: computed(() => vrm.value?.scene),
+  lookAt: computed(() => vrm.value?.lookAt),
 })
 
 const { pause, resume } = useLoop()

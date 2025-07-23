@@ -75,9 +75,6 @@ watch(
         )
         camera.value.updateProjectionMatrix()
         controlsRef.value.controls.update()
-        console.warn('camera setting complete: ', camera.value.position)
-        console.warn('target set complete', controlsRef.value.controls.target)
-        console.warn('model origin: ', modelOrigin.value)
       }
       finally {
         isUpdatingCamera = false
@@ -86,10 +83,6 @@ watch(
     }
   },
 )
-
-watch(cameraPosition, (newpos) => {
-  console.warn('camera postion changed: ', newpos)
-})
 
 // Bidirectional watch between slider and OrbitControls
 watch(() => controlsRef.value?.getDistance(), (newDistance) => {
