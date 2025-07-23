@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 
-import Range from './Range.vue'
+import PropertyNumber from './PropertyNumber.vue'
 
 const minValue = ref(0)
 const midValue = ref(50)
@@ -15,15 +15,15 @@ const maxValue = ref(100)
     </template>
 
     <Variant id="default-min" title="Default (min)">
-      <Range v-model="minValue" w-full />
+      <PropertyNumber v-model="minValue" w-full />
     </Variant>
 
     <Variant id="default-mid" title="Default (mid)">
-      <Range v-model="midValue" w-full />
+      <PropertyNumber v-model="midValue" w-full />
     </Variant>
 
     <Variant id="default-max" title="Default (max)">
-      <Range v-model="maxValue" w-full />
+      <PropertyNumber v-model="maxValue" w-full />
     </Variant>
   </Story>
 </template>

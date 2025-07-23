@@ -130,8 +130,10 @@ export function useIdleEyeSaccades() {
     if (!vrm.lookAt.target) {
       vrm.lookAt.target = new Object3D()
     }
+
     vrm.lookAt.target.position.lerp(fixationTarget!, randFloat(0.2, 0.5))
     vrm.lookAt?.update(delta)
+
     timeSinceLastSaccade += delta
   }
 

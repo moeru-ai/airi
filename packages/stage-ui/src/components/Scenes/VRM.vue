@@ -121,8 +121,8 @@ defineExpose({
   <div ref="vrmContainerRef" w="100%" h="100%">
     <TresCanvas v-if="camera" :camera="camera" :alpha="true" :antialias="true" :width="width" :height="height">
       <TresAxesHelper :size="1" />
-      <TresDirectionalLight :color="0xFFFFFF" :intensity="1.2" :position="[1, 1, 1]" />
-      <TresAmbientLight :color="0xFFFFFF" :intensity="1.5" />
+      <TresDirectionalLight :color="0xFFFFFF" :intensity="1.8" :position="[1, 1, -10]" />
+      <TresAmbientLight :color="0xFFFFFF" :intensity="1.2" />
       <OrbitControls ref="controlsRef" />
       <VRMModel
         ref="modelRef"

@@ -142,6 +142,9 @@ pages:
   models:
     description: 切换角色的 Live2D，VRM 模型
     title: 角色模型
+    sections:
+      section:
+        scene: 场景
   modules:
     consciousness:
       description: 人格设定、使用的模型等配置
@@ -535,7 +538,6 @@ vrm:
     tips: |
       设定模型放置的空间坐标。
       坐标轴已被可视化。
-    title: 缩放与位置
     scale: 缩放
     x: X轴偏移
     'y': Y 轴偏移

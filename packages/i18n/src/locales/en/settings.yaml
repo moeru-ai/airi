@@ -154,6 +154,15 @@ pages:
   models:
     description: Live2D, VRM, etc.
     title: Models
+    sections:
+      section:
+        live2d:
+          title: Live2D
+          description: Configure Live2D models and settings
+        vrm:
+          title: VRM
+          description: Configure 3D VRM models and settings
+        scene: Scene
   modules:
     consciousness:
       description: Personality, desired model, etc.
@@ -559,7 +568,6 @@ vrm:
     tips: |
       Edit the initial position the VRM model.
       Coordinate axes are visualised.
-    title: Scale And Position
     scale: Scale
     x: X Offset
     'y': Y Offset
@@ -571,6 +579,5 @@ vrm:
     title: Switch to Live2D Avatar?
     change-to-vrm: Click here to switch to the Live2D avatar setting
   theme-color-from-model:
-    title: Extract colors from model
     button-extract:
       title: Extract

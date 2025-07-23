@@ -1,13 +1,13 @@
 <script setup lang="ts">
-import { FieldRange, Input } from '@proj-airi/ui'
+import { Input } from '@proj-airi/ui'
 import { useFileDialog } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { Vector3 } from 'three'
 import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { useVRM } from '../../../../stores'
-import { Callout, Section } from '../../../Layouts'
+import { PropertyNumber, PropertyPoint, Section } from '../../../DataPane'
+import { Callout } from '../../../Layouts'
 import { Button } from '../../../Misc'
 import { ColorPalette } from '../../../Widgets'
 
@@ -68,32 +68,52 @@ function urlUploadClick() {
   loadingModel.value = true
   localModelUrl.value = selectedModel.value
 }
-
-function resetCameraDistance() {
-  // Calculate the camera distance that can fit the up-2/3 part of the model in the view
-  const radians = (cameraFOV.value / 2 * Math.PI) / 180
-  const initialCameraOffset = new Vector3(
-    modelSize.value.x / 16,
-    modelSize.value.y / 6, // default y value
-    -(modelSize.value.y / 3) / Math.tan(radians), // default z value
-  )
-  cameraDistance.value = initialCameraOffset.length()
-}
 </script>
 
 <template>
   <Section
-    :title="t('settings.vrm.switch-to-vrm.title')"
-    icon="i-solar:magic-stick-3-bold-duotone"
+    :title="t('settings.pages.models.sections.section.scene')"
+    icon="i-solar:people-nearby-bold-duotone"
     :class="[
       'rounded-xl',
       'bg-white/80  dark:bg-black/75',
       'backdrop-blur-lg',
     ]"
   >
-    <Button variant="secondary" @click="$emit('switchToLive2D')">
+    <Button variant="secondary" size="sm" @click="$emit('switchToLive2D')">
       {{ t('settings.vrm.switch-to-vrm.change-to-vrm') }}
     </Button>
+    <ColorPalette class="mb-4 mt-2" :colors="palette.map(hex => ({ hex, name: hex }))" mx-auto />
+    <Button variant="secondary" @click="$emit('extractColorsFromModel')">
+      {{ t('settings.vrm.theme-color-from-model.button-extract.title') }}
+    </Button>
+
+    <div grid="~ cols-5 gap-1" p-2>
+      <PropertyPoint
+        v-model:x="modelOffset.x"
+        v-model:y="modelOffset.y"
+        v-model:z="modelOffset.z"
+        label="Model Position"
+        :x-config="{ min: -modelSize.x * 2, max: modelSize.x * 2, step: modelSize.x / 100, label: 'X', formatValue: val => val?.toFixed(4) }"
+        :y-config="{ min: -modelSize.y * 2, max: modelSize.y * 2, step: modelSize.y / 100, label: 'Y', formatValue: val => val?.toFixed(4) }"
+        :z-config="{ min: -modelSize.z * 2, max: modelSize.z * 2, step: modelSize.z / 100, label: 'Z', formatValue: val => val?.toFixed(4) }"
+      />
+      <PropertyNumber
+        v-model="cameraFOV"
+        :config="{ min: 1, max: 180, step: 1, label: t('settings.vrm.scale-and-position.fov') }"
+        :label="t('settings.vrm.scale-and-position.fov')"
+      />
+      <PropertyNumber
+        v-model="cameraDistance"
+        :config="{ min: modelSize.z, max: modelSize.z * 20, step: modelSize.z / 100, label: t('settings.vrm.scale-and-position.camera-distance') }"
+        :label="t('settings.vrm.scale-and-position.camera-distance')"
+      />
+      <PropertyNumber
+        v-model="modelRotationY"
+        :config="{ min: -180, max: 180, step: 1, label: t('settings.vrm.scale-and-position.rotation-y') }"
+        :label="t('settings.vrm.scale-and-position.rotation-y')"
+      />
+    </div>
   </Section>
   <Section
     :title="t('settings.vrm.change-model.title')"
@@ -124,31 +144,7 @@ function resetCameraDistance() {
         {{ t('settings.vrm.change-model.from-url') }}
       </Button>
     </div>
-  </Section>
-  <Section
-    :title="t('settings.vrm.theme-color-from-model.title')"
-    icon="i-solar:magic-stick-3-bold-duotone"
-    inner-class="text-sm"
-    :class="[
-      'rounded-xl',
-      'bg-white/80  dark:bg-black/75',
-      'backdrop-blur-lg',
-    ]"
-  >
-    <ColorPalette class="mb-4 mt-2" :colors="palette.map(hex => ({ hex, name: hex }))" mx-auto />
-    <Button variant="secondary" @click="$emit('extractColorsFromModel')">
-      {{ t('settings.vrm.theme-color-from-model.button-extract.title') }}
-    </Button>
-  </Section>
-  <Section
-    :title="t('settings.vrm.scale-and-position.title')"
-    icon="i-solar:scale-bold-duotone"
-    :class="[
-      'rounded-xl',
-      'bg-white/80  dark:bg-black/75',
-      'backdrop-blur-lg',
-    ]"
-  >
+
     <Callout :label="t('settings.vrm.scale-and-position.model-info-title')">
       <div>
         <div class="text-sm text-neutral-600 space-y-1">
@@ -175,115 +171,5 @@ function resetCameraDistance() {
         {{ t('settings.vrm.scale-and-position.tips') }}
       </div>
     </Callout>
-    <FieldRange
-      v-model="modelOffset.x"
-      as="div"
-      :min="-modelSize.x * 2"
-      :max="modelSize.x * 2"
-      :step="modelSize.x / 100"
-      :label="t('settings.vrm.scale-and-position.x')"
-      :format-value="val => val.toFixed(4)"
-    >
-      <template #label>
-        <div flex items-center>
-          <div>
-            {{ t('settings.vrm.scale-and-position.x') }}
-          </div>
-          <button px-2 text-xs outline-none title="Reset value to default" @click="() => modelOffset.x = 0">
-            <div i-solar:forward-linear transform-scale-x--100 text="neutral-500 dark:neutral-400" />
-          </button>
-        </div>
-      </template>
-    </FieldRange>
-    <FieldRange
-      v-model="modelOffset.y"
-      as="div"
-      :min="-modelSize.y * 2"
-      :max="modelSize.y * 2"
-      :step="modelSize.y / 100"
-      :label="t('settings.vrm.scale-and-position.y')"
-      :format-value="val => val.toFixed(4)"
-    >
-      <template #label>
-        <div flex items-center>
-          <div>{{ t('settings.vrm.scale-and-position.y') }}</div>
-          <button px-2 text-xs outline-none title="Reset value to default" @click="() => modelOffset.y = 0">
-            <div i-solar:forward-linear transform-scale-x--100 text="neutral-500 dark:neutral-400" />
-          </button>
-        </div>
-      </template>
-    </FieldRange>
-    <FieldRange
-      v-model="modelOffset.z"
-      as="div"
-      :min="-modelSize.z * 2"
-      :max="modelSize.z * 2"
-      :step="modelSize.z / 100"
-      :label="t('settings.vrm.scale-and-position.z')"
-      :format-value="val => val.toFixed(4)"
-    >
-      <template #label>
-        <div flex items-center>
-          <div>{{ t('settings.vrm.scale-and-position.z') }}</div>
-          <button px-2 text-xs outline-none title="Reset value to default" @click="() => modelOffset.z = 0">
-            <div i-solar:forward-linear transform-scale-x--100 text="neutral-500 dark:neutral-400" />
-          </button>
-        </div>
-      </template>
-    </FieldRange>
-    <FieldRange
-      :model-value="cameraFOV"
-      as="div"
-      :min="1"
-      :max="180"
-      :step="1"
-      :label="t('settings.vrm.scale-and-position.fov')"
-      @update:model-value="val => cameraFOV = val"
-    >
-      <template #label>
-        <div flex items-center>
-          <div>{{ t('settings.vrm.scale-and-position.fov') }}</div>
-          <button px-2 text-xs outline-none title="Reset value to default" @click="() => cameraFOV = 40">
-            <div i-solar:forward-linear transform-scale-x--100 text="neutral-500 dark:neutral-400" />
-          </button>
-        </div>
-      </template>
-    </FieldRange>
-    <FieldRange
-      v-model="cameraDistance"
-      as="div"
-      :min="modelSize.z"
-      :max="modelSize.z * 20"
-      :step="modelSize.z / 100"
-      :label="t('settings.vrm.scale-and-position.camera-distance')"
-      :format-value="val => val.toFixed(4)"
-    >
-      <template #label>
-        <div flex items-center>
-          <div>{{ t('settings.vrm.scale-and-position.camera-distance') }}</div>
-          <button px-2 text-xs outline-none title="Reset value to default" @click="resetCameraDistance">
-            <div i-solar:forward-linear transform-scale-x--100 text="neutral-500 dark:neutral-400" />
-          </button>
-        </div>
-      </template>
-    </FieldRange>
-    <FieldRange
-      :model-value="modelRotationY"
-      as="div"
-      :min="-180"
-      :max="180"
-      :step="1"
-      :label="t('settings.vrm.scale-and-position.rotation-y')"
-      @update:model-value="val => modelRotationY = val"
-    >
-      <template #label>
-        <div flex items-center>
-          <div>{{ t('settings.vrm.scale-and-position.rotation-y') }}</div>
-          <button px-2 text-xs outline-none title="Reset value to default" @click="() => modelRotationY = 0">
-            <div i-solar:forward-linear transform-scale-x--100 text="neutral-500 dark:neutral-400" />
-          </button>
-        </div>
-      </template>
-    </FieldRange>
   </Section>
 </template>
