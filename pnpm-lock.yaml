@@ -339,9 +339,6 @@ importers:
       '@tresjs/core':
         specifier: ^4.3.6
         version: 4.3.6(three@0.178.0)(typescript@5.8.3)(vue@3.5.17(typescript@5.8.3))
-      '@tweakpane/core':
-        specifier: ^2.0.5
-        version: 2.0.5
       '@types/audioworklet':
         specifier: ^0.0.81
         version: 0.0.81
@@ -438,9 +435,6 @@ importers:
       three:
         specifier: ^0.178.0
         version: 0.178.0
-      tweakpane:
-        specifier: ^4.0.5
-        version: 4.0.5
       unified:
         specifier: ^11.0.5
         version: 11.0.5
@@ -688,9 +682,6 @@ importers:
       '@tresjs/core':
         specifier: ^4.3.6
         version: 4.3.6(three@0.178.0)(typescript@5.8.3)(vue@3.5.17(typescript@5.8.3))
-      '@tweakpane/core':
-        specifier: ^2.0.5
-        version: 2.0.5
       '@valibot/to-json-schema':
         specifier: 1.0.0-rc.0
         version: 1.0.0-rc.0(valibot@1.0.0-beta.9(typescript@5.8.3))
@@ -802,9 +793,6 @@ importers:
       three:
         specifier: ^0.178.0
         version: 0.178.0
-      tweakpane:
-        specifier: ^4.0.5
-        version: 4.0.5
       unified:
         specifier: ^11.0.5
         version: 11.0.5
@@ -1262,9 +1250,6 @@ importers:
       '@tresjs/core':
         specifier: ^4.3.6
         version: 4.3.6(three@0.178.0)(typescript@5.8.3)(vue@3.5.17(typescript@5.8.3))
-      '@tweakpane/core':
-        specifier: ^2.0.5
-        version: 2.0.5
       '@vueuse/core':
         specifier: ^13.5.0
         version: 13.5.0(vue@3.5.17(typescript@5.8.3))
@@ -1361,9 +1346,6 @@ importers:
       three:
         specifier: ^0.178.0
         version: 0.178.0
-      tweakpane:
-        specifier: ^4.0.5
-        version: 4.0.5
       unified:
         specifier: ^11.0.5
         version: 11.0.5
@@ -5410,9 +5392,6 @@ packages:
     peerDependencies:
       three: '>=0.133'
       vue: '>=3.4'
-
-  '@tweakpane/core@2.0.5':
-    resolution: {integrity: sha512-punBgD5rKCF5vcNo6BsSOXiDR/NSs9VM7SG65QSLJIxfRaGgj54ree9zQW6bO3pNFf3AogiGgaNODUVQRk9YqQ==}
 
   '@tweenjs/tween.js@23.1.3':
     resolution: {integrity: sha512-vJmvvwFxYuGnF2axRtPYocag6Clbb5YS7kLL+SO/TeVFzHqDIWrNKYtcsPMibjDx9O+bu+psAy9NKfWklassUA==}
@@ -11858,9 +11837,6 @@ packages:
     resolution: {integrity: sha512-eZ7wI6KjtT1eBqCnh2JPXWNUAxtoxxfi6VdBdZFvil0ychCOTxbm7YLRBi1JSt7U3c+u3CLxpoPxLdvr/Npr3A==}
     hasBin: true
 
-  tweakpane@4.0.5:
-    resolution: {integrity: sha512-rxEXdSI+ArlG1RyO6FghC4ZUX8JkEfz8F3v1JuteXSV0pEtHJzyo07fcDG+NsJfN5L39kSbCYbB9cBGHyuI/tQ==}
-
   type-check@0.4.0:
     resolution: {integrity: sha512-XleUoc9uwGXqjWwXaUTZAmzMcFZ5858QA2vvx1Ur5xIcixXIP+8LnFDgRplU30us6teqdlskFfu+ae4K79Ooew==}
     engines: {node: '>= 0.8.0'}
@@ -16758,8 +16734,6 @@ snapshots:
       vue: 3.5.17(typescript@5.8.3)
     transitivePeerDependencies:
       - typescript
-
-  '@tweakpane/core@2.0.5': {}
 
   '@tweenjs/tween.js@23.1.3': {}
 
@@ -25119,8 +25093,6 @@ snapshots:
       turbo-linux-arm64: 2.5.5
       turbo-windows-64: 2.5.5
       turbo-windows-arm64: 2.5.5
-
-  tweakpane@4.0.5: {}
 
   type-check@0.4.0:
     dependencies:
