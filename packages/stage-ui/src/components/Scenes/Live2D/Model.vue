@@ -253,6 +253,12 @@ watch(dark, updateDropShadowFilter, { immediate: true })
 watch([model, themeColorsHue], updateDropShadowFilter)
 watch(offset, setScaleAndPosition)
 watch(() => props.scale, setScaleAndPosition)
+watch(modelFile, () => {
+  if (modelFile.value) {
+    loadingModel.value = true
+    loadModel()
+  }
+}, { immediate: true })
 
 // TODO: This is hacky!
 function updateDropShadowFilterLoop() {

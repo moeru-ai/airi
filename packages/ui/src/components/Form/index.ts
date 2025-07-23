@@ -1,4 +1,5 @@
 export * from './Checkbox'
+export * from './Combobox'
 export * from './Field'
 export * from './Input'
 export * from './Radio'

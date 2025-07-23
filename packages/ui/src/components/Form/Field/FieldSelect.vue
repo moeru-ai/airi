@@ -1,14 +1,17 @@
 <script setup lang="ts">
 import { Select } from '@proj-airi/ui'
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   label: string
   description?: string
   options?: { label: string, value: string | number }[]
   placeholder?: string
   disabled?: boolean
   layout?: 'horizontal' | 'vertical'
-}>()
+  selectClass?: string | string[]
+}>(), {
+  layout: 'horizontal',
+})
 
 const modelValue = defineModel<string>({ required: false })
 </script>
@@ -39,6 +42,7 @@ const modelValue = defineModel<string>({ required: false })
           :placeholder="props.placeholder"
           :disabled="props.disabled"
           :title="label"
+          :class="props.selectClass"
         >
           <template #default="{ value }">
             {{ props.options?.find(option => option.value === value)?.label || props.placeholder }}

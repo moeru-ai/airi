@@ -55,6 +55,12 @@ onMounted(async () => {
   if (!region.value) {
     region.value = 'eastasia' // Default region
   }
+  if (!providers.value[providerId]?.region) {
+    if (!providers.value[providerId])
+      providers.value[providerId] = { region: region.value }
+    else
+      providers.value[providerId].region = region.value
+  }
 
   await speechStore.loadVoicesForProvider(providerId)
 })
