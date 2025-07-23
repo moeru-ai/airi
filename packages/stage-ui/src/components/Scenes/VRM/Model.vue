@@ -121,12 +121,13 @@ onMounted(async () => {
 
       // Calculate the offset from the hips node to the hips's first frame position
       const hipsTrack = clip.tracks.find(track =>
-        track.name.endsWith('Hips.position') && track instanceof VectorKeyframeTrack,
-      ) as VectorKeyframeTrack | undefined
-      if (!hipsTrack) {
-        console.warn('No Hips.position track found in animation.')
+        track.name.endsWith('Hips.position'),
+      )
+      if (!(hipsTrack instanceof VectorKeyframeTrack)) {
+        console.warn('No Hips.position track of type VectorKeyframeTrack found in animation.')
         return
       }
+
       const animeHipPos = new Vector3(
         hipsTrack.values[0],
         hipsTrack.values[1],
