@@ -2,6 +2,7 @@
 import { FieldRange, Input } from '@proj-airi/ui'
 import { useFileDialog } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
+import { Vector3 } from 'three'
 import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
@@ -71,7 +72,12 @@ function urlUploadClick() {
 function resetCameraDistance() {
   // Calculate the camera distance that can fit the up-2/3 part of the model in the view
   const radians = (cameraFOV.value / 2 * Math.PI) / 180
-  cameraDistance.value = (modelSize.value.y / 3) / Math.tan(radians)
+  const initialCameraOffset = new Vector3(
+    modelSize.value.x / 16,
+    modelSize.value.y / 6, // default y value
+    -(modelSize.value.y / 3) / Math.tan(radians), // default z value
+  )
+  cameraDistance.value = initialCameraOffset.length()
 }
 </script>
 
@@ -208,7 +214,7 @@ function resetCameraDistance() {
       </template>
     </FieldRange>
     <FieldRange
-      v-model="modelOffset.y"
+      v-model="modelOffset.z"
       as="div"
       :min="-modelSize.z * 2"
       :max="modelSize.z * 2"
@@ -250,6 +256,7 @@ function resetCameraDistance() {
       :max="modelSize.z * 20"
       :step="modelSize.z / 100"
       :label="t('settings.vrm.scale-and-position.camera-distance')"
+      :format-value="val => val.toFixed(4)"
     >
       <template #label>
         <div flex items-center>

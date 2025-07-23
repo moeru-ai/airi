@@ -16,7 +16,7 @@ export async function loadVrm(model: string, options?: {
   scene?: Scene
   lookAt?: boolean
   onProgress?: (progress: ProgressEvent<EventTarget>) => void | Promise<void>
-}): Promise<{ _vrm: VRMCore, _vrmGroup: Group, modelCenter: Vector3, modelSize: Vector3, initialCameraPosition: Vector3 } | undefined> {
+}): Promise<{ _vrm: VRMCore, _vrmGroup: Group, modelCenter: Vector3, modelSize: Vector3, initialCameraOffset: Vector3 } | undefined> {
   const loader = useVRMLoader()
   const gltf = await loader.loadAsync(model, progress => options?.onProgress?.(progress))
 
@@ -50,34 +50,22 @@ export async function loadVrm(model: string, options?: {
     options.scene.add(_vrmGroup)
   }
 
-  // Move the VRM model centre to the (0, 0, 0)
   const box = new Box3().setFromObject(_vrm.scene)
   const modelSize = new Vector3()
   const modelCenter = new Vector3()
   box.getSize(modelSize)
   box.getCenter(modelCenter)
-  modelCenter.negate()
-  modelCenter.y -= modelSize.y / 5 // Adjust pivot to align chest with the origin
+  modelCenter.y += modelSize.y / 5 // Adjust pivot to align chest with the origin
 
   // Set position
-  if (options?.positionOffset) {
-    _vrmGroup.position.set(
-      modelCenter.x + options.positionOffset[0],
-      modelCenter.y + options.positionOffset[1],
-      modelCenter.z + options.positionOffset[2],
-    )
-  }
-  else {
-    _vrmGroup.position.set(modelCenter.x, modelCenter.y, modelCenter.z)
-  }
 
   // Compute the initial camera position (once per loaded model)
   // In order to see the up-2/3 part fo the model, z = (y/3) / tan(fov/2)
   const fov = 40 // default fov = 40 degrees
   const radians = (fov / 2 * Math.PI) / 180
-  const initialCameraPosition = new Vector3(
+  const initialCameraOffset = new Vector3(
     modelSize.x / 16,
-    modelSize.y / 6,
+    modelSize.y / 6, // default y value
     -(modelSize.y / 3) / Math.tan(radians), // default z value
   )
 
@@ -86,6 +74,6 @@ export async function loadVrm(model: string, options?: {
     _vrmGroup,
     modelCenter,
     modelSize,
-    initialCameraPosition,
+    initialCameraOffset,
   }
 }

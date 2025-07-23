@@ -20,6 +20,7 @@ const {
   cameraFOV,
   initialCameraPosition,
   cameraDistance,
+  modelOrigin,
 } = storeToRefs(useVRM())
 
 const modelRef = ref<InstanceType<typeof VRMModel>>()
@@ -54,17 +55,25 @@ watch(cameraFOV, (newFov) => {
 //     camera.value.updateProjectionMatrix()
 //   }
 // })
-
-watch(selectedModel, () => {
-  if (camera.value) {
+function handleLoadModelProgress(val: number) {
+  if (val === 100 && camera.value && controlsRef.value && controlsRef.value.controls) {
+    // Set camera pos
     camera.value.position.set(
       initialCameraPosition.value.x,
       initialCameraPosition.value.y,
       initialCameraPosition.value.z,
     )
     camera.value.updateProjectionMatrix()
+
+    // Set camera target
+    controlsRef.value.controls.target.set(
+      modelOrigin.value.x,
+      modelOrigin.value.y,
+      modelOrigin.value.z,
+    )
+    controlsRef.value.controls.update()
   }
-})
+}
 
 // Bidirectional watch between slider and OrbitControls
 watch(() => controlsRef.value?.getDistance(), (newDistance) => {
@@ -82,9 +91,11 @@ watch(() => controlsRef.value?.getDistance(), (newDistance) => {
   }
 })
 watch(cameraDistance, (newDistance) => {
-  if (camera.value && controlsRef.value) {
+  if (camera.value && controlsRef.value && controlsRef.value.controls) {
     const newPosition = new THREE.Vector3()
-    newPosition.copy(camera.value.position.normalize().multiplyScalar(newDistance))
+    const target = controlsRef.value.controls.target
+    const direction = new THREE.Vector3().subVectors(camera.value.position, target).normalize()
+    newPosition.copy(target).addScaledVector(direction, newDistance)
     camera.value.position.set(
       newPosition.x,
       newPosition.y,
@@ -119,10 +130,9 @@ defineExpose({
         :model="selectedModel"
         idle-animation="/assets/vrm/animations/idle_loop.vrma"
         :paused="false"
-        @load-model-progress="(val) => emit('loadModelProgress', val)"
+        @load-model-progress="(val) => { emit('loadModelProgress', val); handleLoadModelProgress(val); }"
         @error="(val) => emit('error', val)"
       />
-      <!-- <TresPerspectiveCamera :position="[initialCameraPosition.x, initialCameraPosition.y, initialCameraPosition.z]" :fov="cameraFOV"/> -->
     </TresCanvas>
   </div>
 </template>

@@ -5,7 +5,7 @@ import type { AnimationClip, Group } from 'three'
 import { VRMUtils } from '@pixiv/three-vrm'
 import { useLoop, useTresContext } from '@tresjs/core'
 import { storeToRefs } from 'pinia'
-import { AnimationMixer, MathUtils, Quaternion, Vector3 } from 'three'
+import { AnimationMixer, MathUtils, Quaternion, Vector3, VectorKeyframeTrack } from 'three'
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 
 import { clipFromVRMAnimation, loadVRMAnimation, useBlink, useIdleEyeSaccades } from '../../../composables/vrm/animation'
@@ -40,7 +40,6 @@ const {
   modelOffset,
   modelOrigin,
   modelSize,
-  position,
   initialCameraPosition,
   loadingModel,
   modelRotationY,
@@ -69,12 +68,16 @@ onMounted(async () => {
       _vrmGroup,
       modelCenter: vrmModelCenter,
       modelSize: vrmModelSize,
-      initialCameraPosition: vrmInitialCameraPosition,
+      initialCameraOffset: vrmInitialCameraOffset,
     } = _vrmInfo
 
     vrmGroup.value = _vrmGroup
     // Set initial camera position
-    initialCameraPosition.value = vrmInitialCameraPosition
+    initialCameraPosition.value = {
+      x: vrmModelCenter.x + vrmInitialCameraOffset.x,
+      y: vrmModelCenter.y + vrmInitialCameraOffset.y,
+      z: vrmModelCenter.z + vrmInitialCameraOffset.z,
+    }
 
     // Set initial positions for model
     modelOrigin.value = {
@@ -95,8 +98,8 @@ onMounted(async () => {
       const facingDirection = lookAtTarget.faceFront
       const quaternion = new Quaternion()
       quaternion.setFromUnitVectors(facingDirection.normalize(), targetDirection.normalize())
-      _vrm.scene.quaternion.premultiply(quaternion)
-      _vrm.scene.updateMatrixWorld(true)
+      _vrmGroup.quaternion.premultiply(quaternion)
+      _vrmGroup.updateMatrixWorld(true)
     }
     else {
       console.warn('No look-at target found in VRM model')
@@ -105,9 +108,41 @@ onMounted(async () => {
     modelRotationY.value = 0
 
     // Set initial positions for animation
-    function removeRootPositionTrack(clip: AnimationClip) {
-      clip.tracks = clip.tracks.filter((track) => {
-        return !track.name.endsWith('.position')
+    function reanchorRootPositionTrack(clip: AnimationClip) {
+      // Get the hips node to reanchor the root position track
+      const hipNode = _vrm.humanoid?.getNormalizedBoneNode('hips')
+      if (!hipNode) {
+        console.warn('No hips node found in VRM model.')
+        return
+      }
+      hipNode.updateMatrixWorld(true)
+      const defaultHipPos = new Vector3()
+      hipNode.getWorldPosition(defaultHipPos)
+
+      // Calculate the offset from the hips node to the hips's first frame position
+      const hipsTrack = clip.tracks.find(track =>
+        track.name.endsWith('Hips.position'),
+      )
+      if (!(hipsTrack instanceof VectorKeyframeTrack)) {
+        console.warn('No Hips.position track of type VectorKeyframeTrack found in animation.')
+        return
+      }
+
+      const animeHipPos = new Vector3(
+        hipsTrack.values[0],
+        hipsTrack.values[1],
+        hipsTrack.values[2],
+      )
+      const delta = new Vector3().subVectors(animeHipPos, defaultHipPos)
+
+      clip.tracks.forEach((track) => {
+        if (track.name.endsWith('.position') && track instanceof VectorKeyframeTrack) {
+          for (let i = 0; i < track.values.length; i += 3) {
+            track.values[i] -= delta.x
+            track.values[i + 1] -= delta.y
+            track.values[i + 2] -= delta.z
+          }
+        }
       })
     }
 
@@ -117,8 +152,8 @@ onMounted(async () => {
       console.warn('No VRM animation loaded')
       return
     }
-
-    removeRootPositionTrack(clip)
+    // Reanchor the root position track to the model origin
+    reanchorRootPositionTrack(clip)
 
     // play animation
     vrmAnimationMixer.value = new AnimationMixer(_vrm.scene)
@@ -148,9 +183,9 @@ onMounted(async () => {
 watch(modelOffset, () => {
   if (vrmGroup.value) {
     vrmGroup.value.position.set(
-      position.value.x,
-      position.value.y,
-      position.value.z,
+      modelOffset.value.x,
+      modelOffset.value.y,
+      modelOffset.value.z,
     )
   }
 }, { deep: true })
