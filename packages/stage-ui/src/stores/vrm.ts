@@ -16,16 +16,16 @@ export const useVRM = defineStore('vrm', () => {
   const modelOrigin = useLocalStorage('settings/vrm/modelOrigin', { x: 0, y: 0, z: 0 })
   const modelOffset = useLocalStorage('settings/vrm/modelOffset', { x: 0, y: 0, z: 0 })
 
-  const position = computed(() => ({
-    x: modelOrigin.value.x + modelOffset.value.x,
-    y: modelOrigin.value.y + modelOffset.value.y,
-    z: modelOrigin.value.z + modelOffset.value.z,
-  }))
-  const positionInPercentageString = computed(() => ({
-    x: `${position.value.x}%`,
-    y: `${position.value.y}%`,
-    z: `${position.value.z}%`,
-  }))
+  // const position = computed(() => ({
+  //   x: modelOrigin.value.x + modelOffset.value.x,
+  //   y: modelOrigin.value.y + modelOffset.value.y,
+  //   z: modelOrigin.value.z + modelOffset.value.z,
+  // }))
+  // const positionInPercentageString = computed(() => ({
+  //   x: `${position.value.x}%`,
+  //   y: `${position.value.y}%`,
+  //   z: `${position.value.z}%`,
+  // }))
   const cameraFOV = useLocalStorage('settings/vrm/cameraFOV', 40)
   const initialCameraPosition = useLocalStorage('settings/vrm/initialCameraPosition', { x: 0, y: 0, z: -1 })
 
@@ -65,8 +65,8 @@ export const useVRM = defineStore('vrm', () => {
     scale,
     modelOrigin,
     modelOffset,
-    position,
-    positionInPercentageString,
+    // position,
+    // positionInPercentageString,
     selectedModel,
     cameraFOV,
     initialCameraPosition,
