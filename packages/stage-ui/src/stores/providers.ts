@@ -1477,7 +1477,7 @@ export const useProvidersStore = defineStore('providers', () => {
       validators: {
         validateProviderConfig: async (config) => {
           // Check if the Ollama server is reachable
-          return !!config.baseUrl && await fetch(`${config.baseUrl}/health`, {
+          return !!config.baseUrl && await fetch(`${(config.baseUrl as string).endsWith('/') ? (config.baseUrl as string).slice(0, -1) : config.baseUrl}/health`, {
             method: 'GET',
             headers: {
               'player2-game-key': 'airi',
