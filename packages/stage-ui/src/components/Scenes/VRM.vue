@@ -48,6 +48,7 @@ watch(cameraFOV, (newFov) => {
 // })
 // If controls are ready
 watch(() => controlsRef.value?.controls, (ctrl) => {
+  console.warn('control ref is not undefined')
   if (ctrl)
     controlsReady.value = true
 })
