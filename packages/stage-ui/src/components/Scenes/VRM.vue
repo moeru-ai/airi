@@ -76,6 +76,7 @@ watch(
         // Set camera target
         controlsRef.value.setTarget(modelOrigin.value)
         controlsRef.value.controls.update()
+        console.warn('camera setting complete: ', camera.value.position)
       }
       finally {
         isUpdatingCamera = false
@@ -119,7 +120,6 @@ watch(cameraDistance, (newDistance) => {
       y: newPosition.y,
       z: newPosition.z,
     }
-    console.warn('camera setting complete: ', camera.value.position)
   }
 
   isUpdatingCamera = false
