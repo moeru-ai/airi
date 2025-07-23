@@ -57,7 +57,7 @@ watch(cameraFOV, (newFov) => {
 // })
 function handleLoadModelProgress(val: number) {
   if (val === 100 && camera.value && controlsRef.value && controlsRef.value.controls) {
-    // 设置摄像机位置
+    // Set camera pos
     camera.value.position.set(
       initialCameraPosition.value.x,
       initialCameraPosition.value.y,
@@ -65,7 +65,7 @@ function handleLoadModelProgress(val: number) {
     )
     camera.value.updateProjectionMatrix()
 
-    // 设置摄像机目标点
+    // Set camera target
     controlsRef.value.controls.target.set(
       modelOrigin.value.x,
       modelOrigin.value.y,

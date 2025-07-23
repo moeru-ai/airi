@@ -58,16 +58,6 @@ export async function loadVrm(model: string, options?: {
   modelCenter.y += modelSize.y / 5 // Adjust pivot to align chest with the origin
 
   // Set position
-  // if (options?.positionOffset) {
-  //   _vrmGroup.position.set(
-  //     modelCenter.x + options.positionOffset[0],
-  //     modelCenter.y + options.positionOffset[1],
-  //     modelCenter.z + options.positionOffset[2],
-  //   )
-  // }
-  // else {
-  //   _vrmGroup.position.set(modelCenter.x, modelCenter.y, modelCenter.z)
-  // }
 
   // Compute the initial camera position (once per loaded model)
   // In order to see the up-2/3 part fo the model, z = (y/3) / tan(fov/2)
