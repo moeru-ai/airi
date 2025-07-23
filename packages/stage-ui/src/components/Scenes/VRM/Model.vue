@@ -152,7 +152,7 @@ onMounted(async () => {
       return
     }
     // Reanchor the root position track to the model origin
-    reanchorRootPositionTrack(clip, modelOrigin.value)
+    reanchorRootPositionTrack(clip)
 
     // play animation
     vrmAnimationMixer.value = new AnimationMixer(_vrm.scene)
