@@ -105,7 +105,7 @@ function urlUploadClick() {
       />
       <PropertyNumber
         v-model="cameraDistance"
-        :config="{ min: modelSize.z, max: modelSize.z * 20, step: modelSize.z / 100, label: t('settings.vrm.scale-and-position.camera-distance') }"
+        :config="{ min: modelSize.z, max: modelSize.z * 20, step: modelSize.z / 100, label: t('settings.vrm.scale-and-position.camera-distance'), formatValue: val => val?.toFixed(4) }"
         :label="t('settings.vrm.scale-and-position.camera-distance')"
       />
       <PropertyNumber
