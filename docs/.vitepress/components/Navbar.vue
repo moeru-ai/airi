@@ -7,6 +7,7 @@ import { ref, toRefs, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import DropdownMenu from './DropdownMenu.vue'
+import MotionToggle from './MotionToggle.vue'
 import NavbarLanguage from './NavbarLanguage.vue'
 import NavbarLanguageSubMenu from './NavbarLanguageSubMenu.vue'
 import ThemeToggle from './ThemeToggle.vue'
@@ -61,7 +62,10 @@ function isNavLinkActive(link: string, path: string) {
 
     <NavbarLanguage />
 
-    <ThemeToggle />
+    <div flex="~ row items-center justify-between gap-3">
+      <MotionToggle />
+      <ThemeToggle />
+    </div>
 
     <Separator
       class="bg-muted mx-4 h-4 w-px"

@@ -1,6 +1,9 @@
 <script setup lang="ts">
-import { createAnimatable, createTimeline } from 'animejs'
-import { onBeforeUnmount, onMounted, useTemplateRef } from 'vue'
+import type { AnimatableObject } from 'animejs'
+
+import { useLocalStorage } from '@vueuse/core'
+import { createAnimatable } from 'animejs'
+import { onBeforeUnmount, onMounted, shallowRef, useTemplateRef, watch } from 'vue'
 
 import homeCover from '../assets/home-cover-2025-07-23.avif'
 
@@ -8,67 +11,83 @@ const surfaceRef = useTemplateRef<HTMLImageElement>('surface')
 const silhouettePinkRef = useTemplateRef<HTMLDivElement>('silhouettePink')
 const silhouettePurpleRef = useTemplateRef<HTMLDivElement>('silhouettePurple')
 
+const shouldReduceMotion = useLocalStorage('docs:settings/reduce-motion', false)
+
 const DURATION = 1200
 const EASE = 'outSine'
 
-onMounted(() => {
-  const surfaceAnimatable = createAnimatable(surfaceRef.value!, {
-    x: DURATION,
-    y: DURATION,
-    z: 0,
-    ease: EASE,
-  })
+const surfaceAnimatable = shallowRef<AnimatableObject>()
+const silhouettePinkAnimatable = shallowRef<AnimatableObject>()
+const silhouettePurpleAnimatable = shallowRef<AnimatableObject>()
 
-  const silhouettePinkAnimatable = createAnimatable(silhouettePinkRef.value!, {
-    x: DURATION,
-    y: DURATION,
-    z: 0,
-    ease: EASE,
-  })
+function animateCover(xOffsetRatio: number, yOffsetRatio: number) {
+  const referenceWidth = window.innerWidth
 
-  const silhouettePurpleAnimatable = createAnimatable(silhouettePurpleRef.value!, {
-    x: DURATION,
-    y: DURATION,
-    z: 0,
-    ease: EASE,
-  })
+  surfaceAnimatable.value?.x(-xOffsetRatio * 0.02 * referenceWidth)
+  surfaceAnimatable.value?.y(-yOffsetRatio * 0.02 * referenceWidth)
+  surfaceAnimatable.value?.z(0)
 
-  createTimeline()
-    .set([surfaceAnimatable, silhouettePinkAnimatable, silhouettePurpleAnimatable], {
-      opacity: 0,
-    })
-    .add(surfaceAnimatable, {
-      opacity: 1,
-      duration: DURATION,
-    })
+  silhouettePinkAnimatable.value?.x(0.01 * referenceWidth - yOffsetRatio * 0.015 * referenceWidth)
+  silhouettePinkAnimatable.value?.y(0.02 * referenceWidth + xOffsetRatio * 0.015 * referenceWidth)
+  silhouettePinkAnimatable.value?.z(0)
 
-  const onMouseMove = (event: MouseEvent) => {
-    const x = event.clientX
-    const y = event.clientY
+  silhouettePurpleAnimatable.value?.x(0.01 * referenceWidth + yOffsetRatio * 0.01 * referenceWidth)
+  silhouettePurpleAnimatable.value?.y(-0.01 * referenceWidth - yOffsetRatio * 0.01 * referenceWidth)
+  silhouettePurpleAnimatable.value?.z(0)
+}
 
-    const surfaceBoundingWidth = surfaceRef.value!.getBoundingClientRect().width
+function onMouseMove(event: MouseEvent) {
+  const x = event.clientX
+  const y = event.clientY
 
-    const xOffsetRatio = (x - window.innerWidth / 2) / window.innerWidth
-    const yOffsetRatio = (y - window.innerHeight / 2) / window.innerHeight
+  const xOffsetRatio = (x - window.innerWidth / 2) / window.innerWidth
+  const yOffsetRatio = (y - window.innerHeight / 2) / window.innerHeight
 
-    surfaceAnimatable.x((-0.0 * surfaceBoundingWidth) + -xOffsetRatio * 0.05 * surfaceBoundingWidth)
-    surfaceAnimatable.y((-0.0 * surfaceBoundingWidth) - yOffsetRatio * 0.05 * surfaceBoundingWidth)
-    surfaceAnimatable.z(0)
+  animateCover(xOffsetRatio, yOffsetRatio)
+}
 
-    silhouettePinkAnimatable.x(-yOffsetRatio * 0.03 * surfaceBoundingWidth)
-    silhouettePinkAnimatable.y(xOffsetRatio * 0.03 * surfaceBoundingWidth)
-    silhouettePinkAnimatable.z(0)
-
-    silhouettePurpleAnimatable.x(yOffsetRatio * 0.01 * surfaceBoundingWidth)
-    silhouettePurpleAnimatable.y(-xOffsetRatio * 0.01 * surfaceBoundingWidth)
-    silhouettePurpleAnimatable.z(0)
-  }
-
-  window.addEventListener('mousemove', onMouseMove)
-
-  onBeforeUnmount(() => {
+watch(shouldReduceMotion, (shouldReduceMotion) => {
+  if (shouldReduceMotion) {
     window.removeEventListener('mousemove', onMouseMove)
+    animateCover(0, 0)
+  }
+  else {
+    window.addEventListener('mousemove', onMouseMove)
+  }
+})
+
+onMounted(() => {
+  surfaceAnimatable.value = createAnimatable(surfaceRef.value!, {
+    x: DURATION,
+    y: DURATION,
+    z: 0,
+    ease: EASE,
   })
+
+  silhouettePinkAnimatable.value = createAnimatable(silhouettePinkRef.value!, {
+    x: DURATION,
+    y: DURATION,
+    z: 0,
+    ease: EASE,
+  })
+
+  silhouettePurpleAnimatable.value = createAnimatable(silhouettePurpleRef.value!, {
+    x: DURATION,
+    y: DURATION,
+    z: 0,
+    ease: EASE,
+  })
+
+  if (!shouldReduceMotion.value) {
+    window.addEventListener('mousemove', onMouseMove)
+  }
+  else {
+    animateCover(0, 0)
+  }
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('mousemove', onMouseMove)
 })
 
 const maskImageURL = `url(${homeCover})`
@@ -85,9 +104,9 @@ const maskImageURL = `url(${homeCover})`
       '2xl:top-16dvh',
     ]"
   >
-    <img ref="surface" :src="homeCover" alt="Project AIRI Cover Image" class="shadow-lg">
-    <div ref="silhouettePink" class="silhouette absolute left-0 top-0 z--1 h-full w-full bg-[oklch(0.8105_0.1267_350.84)] shadow-lg" />
-    <div ref="silhouettePurple" class="silhouette absolute left-0 top-0 z--2 h-full w-full bg-[oklch(0.5712_0.2396_278.59)] shadow-lg" />
+    <img ref="surface" :src="homeCover" alt="Project AIRI Cover Image">
+    <div ref="silhouettePink" class="silhouette absolute left-0 top-0 z--1 h-full w-full bg-[oklch(0.8105_0.1267_350.84)]" />
+    <div ref="silhouettePurple" class="silhouette absolute left-0 top-0 z--2 h-full w-full bg-[oklch(0.5712_0.2396_278.59)]" />
   </div>
 </template>
 
