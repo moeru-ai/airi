@@ -62,6 +62,10 @@ watch(
   [controlsReady, modelReady],
   ([ctrlOk, modelOk]) => {
     console.warn('start camera setting')
+    console.warn('ctr OK?', ctrlOk)
+    console.warn('model OK? ', modelOk)
+    console.warn('controlsRef is defined? ', controlsRef.value)
+    console.warn('controlsRef.value.controls is defined?', controlsRef)
     if (ctrlOk && modelOk && camera.value && controlsRef.value && controlsRef.value.controls) {
       isUpdatingCamera = true
       try {
@@ -76,7 +80,7 @@ watch(
         camera.value.updateProjectionMatrix()
         // Set camera target
         controlsRef.value.setTarget(modelOrigin.value)
-        controlsRef.value.controls.update()
+        // controlsRef.value.controls.update()
         console.warn('camera setting complete: ', camera.value.position)
       }
       finally {
