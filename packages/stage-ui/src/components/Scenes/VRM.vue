@@ -63,19 +63,23 @@ watch(
   ([ctrlOk, modelOk]) => {
     if (ctrlOk && modelOk && camera.value && controlsRef.value && controlsRef.value.controls) {
       isUpdatingCamera = true
-      camera.value.aspect = width.value / height.value
-      camera.value.fov = cameraFOV.value
-      // Set camera position
-      camera.value.position.set(
-        cameraPosition.value.x,
-        cameraPosition.value.y,
-        cameraPosition.value.z,
-      )
-      camera.value.updateProjectionMatrix()
-      // Set camera target
-      controlsRef.value.setTarget(modelOrigin.value)
-      controlsRef.value.controls.update()
-      isUpdatingCamera = false
+      try {
+        camera.value.aspect = width.value / height.value
+        camera.value.fov = cameraFOV.value
+        // Set camera position
+        camera.value.position.set(
+          cameraPosition.value.x,
+          cameraPosition.value.y,
+          cameraPosition.value.z,
+        )
+        camera.value.updateProjectionMatrix()
+        // Set camera target
+        controlsRef.value.setTarget(modelOrigin.value)
+        controlsRef.value.controls.update()
+      }
+      finally {
+        isUpdatingCamera = false
+      }
     }
   },
 )
