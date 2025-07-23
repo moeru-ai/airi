@@ -6,7 +6,7 @@ import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { useVRM } from '../../../../stores'
-import { PropertyNumber, PropertyPoint, Section } from '../../../DataPane'
+import { Container, PropertyNumber, PropertyPoint } from '../../../DataPane'
 import { Callout } from '../../../Layouts'
 import { Button } from '../../../Misc'
 import { ColorPalette } from '../../../Widgets'
@@ -71,7 +71,7 @@ function urlUploadClick() {
 </script>
 
 <template>
-  <Section
+  <Container
     :title="t('settings.pages.models.sections.section.scene')"
     icon="i-solar:people-nearby-bold-duotone"
     :class="[
@@ -114,8 +114,8 @@ function urlUploadClick() {
         :label="t('settings.vrm.scale-and-position.rotation-y')"
       />
     </div>
-  </Section>
-  <Section
+  </Container>
+  <Container
     :title="t('settings.vrm.change-model.title')"
     icon="i-solar:magic-stick-3-bold-duotone"
     inner-class="text-sm"
@@ -171,5 +171,5 @@ function urlUploadClick() {
         {{ t('settings.vrm.scale-and-position.tips') }}
       </div>
     </Callout>
-  </Section>
+  </Container>
 </template>
