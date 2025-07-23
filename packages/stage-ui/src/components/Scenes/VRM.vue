@@ -31,6 +31,7 @@ let isUpdatingCamera = true
 // manage the sequence of the camera and controls initialization
 const controlsReady = ref(false)
 const modelReady = ref(false)
+const sceneReady = ref(false)
 
 watch(cameraFOV, (newFov) => {
   if (camera.value) {
@@ -59,16 +60,13 @@ function handleLoadModelProgress() {
 watch(
   [controlsReady, modelReady],
   ([ctrlOk, modelOk]) => {
-    console.warn('start camera setting')
-    console.warn('ctr OK?', ctrlOk)
-    console.warn('model OK? ', modelOk)
-    console.warn('controlsRef is defined? ', controlsRef.value)
-    console.warn('controlsRef.value.controls is defined?', controlsRef)
     if (ctrlOk && modelOk && camera.value && controlsRef.value && controlsRef.value.controls) {
       isUpdatingCamera = true
       try {
         camera.value.aspect = width.value / height.value
         camera.value.fov = cameraFOV.value
+        // Set camera target
+        controlsRef.value.setTarget(modelOrigin.value)
         // Set camera position
         camera.value.position.set(
           cameraPosition.value.x,
@@ -76,17 +74,22 @@ watch(
           cameraPosition.value.z,
         )
         camera.value.updateProjectionMatrix()
-        // Set camera target
-        controlsRef.value.setTarget(modelOrigin.value)
-        // controlsRef.value.controls.update()
+        controlsRef.value.controls.update()
         console.warn('camera setting complete: ', camera.value.position)
+        console.warn('target set complete', controlsRef.value.controls.target)
+        console.warn('model origin: ', modelOrigin.value)
       }
       finally {
         isUpdatingCamera = false
+        sceneReady.value = true
       }
     }
   },
 )
+
+watch(cameraPosition, (newpos) => {
+  console.warn('camera postion changed: ', newpos)
+})
 
 // Bidirectional watch between slider and OrbitControls
 watch(() => controlsRef.value?.getDistance(), (newDistance) => {
@@ -137,8 +140,7 @@ defineExpose({
 
 <template>
   <div ref="vrmContainerRef" w="100%" h="100%">
-    <TresCanvas v-if="camera" :camera="camera" :alpha="true" :antialias="true" :width="width" :height="height">
-      <TresAxesHelper :size="1" />
+    <TresCanvas v-if="camera" v-show="sceneReady" :camera="camera" :alpha="true" :antialias="true" :width="width" :height="height">
       <OrbitControls ref="controlsRef" />
       <TresDirectionalLight :color="0xFFFFFF" :intensity="1.8" :position="[1, 1, -10]" />
       <TresAmbientLight :color="0xFFFFFF" :intensity="1.2" />
@@ -152,6 +154,7 @@ defineExpose({
         @model-ready="handleLoadModelProgress"
         @error="(val) => emit('error', val)"
       />
+      <TresAxesHelper :size="1" />
     </TresCanvas>
   </div>
 </template>
