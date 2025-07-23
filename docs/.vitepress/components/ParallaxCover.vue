@@ -3,7 +3,7 @@ import type { AnimatableObject } from 'animejs'
 
 import { useLocalStorage } from '@vueuse/core'
 import { createAnimatable } from 'animejs'
-import { onBeforeUnmount, onMounted, shallowRef, useTemplateRef, watch } from 'vue'
+import { onMounted, shallowRef, useTemplateRef, watchEffect } from 'vue'
 
 import homeCover from '../assets/home-cover-2025-07-23.avif'
 
@@ -46,48 +46,29 @@ function onMouseMove(event: MouseEvent) {
   animateCover(xOffsetRatio, yOffsetRatio)
 }
 
-watch(shouldReduceMotion, (shouldReduceMotion) => {
-  if (shouldReduceMotion) {
-    window.removeEventListener('mousemove', onMouseMove)
-    animateCover(0, 0)
-  }
-  else {
-    window.addEventListener('mousemove', onMouseMove)
-  }
-})
-
 onMounted(() => {
-  surfaceAnimatable.value = createAnimatable(surfaceRef.value!, {
+  const animatableConfig = {
     x: DURATION,
     y: DURATION,
     z: 0,
     ease: EASE,
-  })
-
-  silhouettePinkAnimatable.value = createAnimatable(silhouettePinkRef.value!, {
-    x: DURATION,
-    y: DURATION,
-    z: 0,
-    ease: EASE,
-  })
-
-  silhouettePurpleAnimatable.value = createAnimatable(silhouettePurpleRef.value!, {
-    x: DURATION,
-    y: DURATION,
-    z: 0,
-    ease: EASE,
-  })
-
-  if (!shouldReduceMotion.value) {
-    window.addEventListener('mousemove', onMouseMove)
   }
-  else {
-    animateCover(0, 0)
-  }
+
+  surfaceAnimatable.value = createAnimatable(surfaceRef.value!, animatableConfig)
+  silhouettePinkAnimatable.value = createAnimatable(silhouettePinkRef.value!, animatableConfig)
+  silhouettePurpleAnimatable.value = createAnimatable(silhouettePurpleRef.value!, animatableConfig)
 })
 
-onBeforeUnmount(() => {
-  window.removeEventListener('mousemove', onMouseMove)
+watchEffect((onCleanup) => {
+  if (shouldReduceMotion.value) {
+    animateCover(0, 0)
+  }
+  else {
+    window.addEventListener('mousemove', onMouseMove)
+    onCleanup(() => {
+      window.removeEventListener('mousemove', onMouseMove)
+    })
+  }
 })
 
 const maskImageURL = `url(${homeCover})`

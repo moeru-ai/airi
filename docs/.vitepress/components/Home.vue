@@ -3,7 +3,7 @@ import type { AnimatableObject } from 'animejs'
 
 import { useLocalStorage } from '@vueuse/core'
 import { createAnimatable } from 'animejs'
-import { onBeforeUnmount, onMounted, shallowRef, useTemplateRef, watch } from 'vue'
+import { onMounted, shallowRef, useTemplateRef, watch, watchEffect } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import ParallaxCover from './ParallaxCover.vue'
@@ -57,17 +57,18 @@ onMounted(() => {
     z: 0,
     ease: EASE,
   })
-
-  if (!shouldReduceMotion.value) {
-    window.addEventListener('mousemove', onMouseMove)
-  }
-  else {
-    animateHero(0, 0)
-  }
 })
 
-onBeforeUnmount(() => {
-  window.removeEventListener('mousemove', onMouseMove)
+watchEffect((onCleanup) => {
+  if (shouldReduceMotion.value) {
+    animateHero(0, 0)
+  }
+  else {
+    window.addEventListener('mousemove', onMouseMove)
+    onCleanup(() => {
+      window.removeEventListener('mousemove', onMouseMove)
+    })
+  }
 })
 </script>
 
