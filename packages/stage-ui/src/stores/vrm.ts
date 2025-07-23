@@ -17,7 +17,7 @@ export const useVRM = defineStore('vrm', () => {
   const modelOffset = useLocalStorage('settings/vrm/modelOffset', { x: 0, y: 0, z: 0 })
 
   const cameraFOV = useLocalStorage('settings/vrm/cameraFOV', 40)
-  const initialCameraPosition = useLocalStorage('settings/vrm/initialCameraPosition', { x: 0, y: 0, z: -1 })
+  const cameraPosition = useLocalStorage('settings/vrm/camera-position', { x: 0, y: 0, z: -1 })
 
   const modelObjectUrl = ref<string>()
   const modelRotationY = useLocalStorage('settings/vrm/modelRotationY', 0)
@@ -57,7 +57,7 @@ export const useVRM = defineStore('vrm', () => {
     modelOffset,
     selectedModel,
     cameraFOV,
-    initialCameraPosition,
+    cameraPosition,
     modelRotationY,
     cameraDistance,
   }

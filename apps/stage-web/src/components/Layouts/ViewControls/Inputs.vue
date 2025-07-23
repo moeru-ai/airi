@@ -9,7 +9,7 @@ const props = defineProps<{
 }>()
 
 const { stageView, stageViewControlsEnabled } = storeToRefs(useSettings())
-const { scale: vrmScale, position: vrmPosition, modelSize: vrmModelSize } = storeToRefs(useVRM())
+const { scale: vrmScale, cameraPosition: vrmPosition, modelSize: vrmModelSize } = storeToRefs(useVRM())
 const { scale: live2dScale, position: live2dPosition } = storeToRefs(useLive2d())
 
 const viewControlsValueX = computed({

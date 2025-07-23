@@ -18,7 +18,7 @@ const { width, height } = useElementBounding(vrmContainerRef)
 const {
   selectedModel,
   cameraFOV,
-  initialCameraPosition,
+  cameraPosition,
   cameraDistance,
   modelOrigin,
 } = storeToRefs(useVRM())
@@ -33,9 +33,9 @@ onMounted(() => {
     camera.value.aspect = width.value / height.value
     camera.value.fov = cameraFOV.value
     camera.value.position.set(
-      initialCameraPosition.value.x,
-      initialCameraPosition.value.y,
-      initialCameraPosition.value.z,
+      cameraPosition.value.x,
+      cameraPosition.value.y,
+      cameraPosition.value.z,
     )
     camera.value.updateProjectionMatrix()
   }
@@ -59,9 +59,9 @@ function handleLoadModelProgress(val: number) {
   if (val === 100 && camera.value && controlsRef.value && controlsRef.value.controls) {
     // Set camera pos
     camera.value.position.set(
-      initialCameraPosition.value.x,
-      initialCameraPosition.value.y,
-      initialCameraPosition.value.z,
+      cameraPosition.value.x,
+      cameraPosition.value.y,
+      cameraPosition.value.z,
     )
     camera.value.updateProjectionMatrix()
 
@@ -82,7 +82,7 @@ watch(() => controlsRef.value?.getDistance(), (newDistance) => {
     // we can check if the distance has changed significantly.
     if (Math.abs(cameraDistance.value - newDistance) > 1e-6) {
       cameraDistance.value = newDistance
-      initialCameraPosition.value = {
+      cameraPosition.value = {
         x: camera.value.position.x,
         y: camera.value.position.y,
         z: camera.value.position.z,
@@ -102,7 +102,7 @@ watch(cameraDistance, (newDistance) => {
       newPosition.z,
     )
     controlsRef.value.update()
-    initialCameraPosition.value = {
+    cameraPosition.value = {
       x: newPosition.x,
       y: newPosition.y,
       z: newPosition.z,

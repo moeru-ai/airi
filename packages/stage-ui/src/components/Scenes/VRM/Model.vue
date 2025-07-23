@@ -40,7 +40,7 @@ const {
   modelOffset,
   modelOrigin,
   modelSize,
-  initialCameraPosition,
+  cameraPosition,
   loadingModel,
   modelRotationY,
 } = storeToRefs(vrmStore)
@@ -73,7 +73,7 @@ onMounted(async () => {
 
     vrmGroup.value = _vrmGroup
     // Set initial camera position
-    initialCameraPosition.value = {
+    cameraPosition.value = {
       x: vrmModelCenter.x + vrmInitialCameraOffset.x,
       y: vrmModelCenter.y + vrmInitialCameraOffset.y,
       z: vrmModelCenter.z + vrmInitialCameraOffset.z,
