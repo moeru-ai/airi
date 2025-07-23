@@ -66,7 +66,7 @@ function handleLoadModelProgress(val: number) {
     camera.value.updateProjectionMatrix()
 
     // 设置摄像机目标点
-    controlsRef.value.controls.target.copy(
+    controlsRef.value.controls.target.set(
       modelOrigin.value.x,
       modelOrigin.value.y,
       modelOrigin.value.z,
