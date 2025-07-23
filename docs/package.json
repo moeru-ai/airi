@@ -40,6 +40,7 @@
     "@types/markdown-it-anchor": "^7.0.0",
     "@unocss/reset": "^66.3.3",
     "@vue/tsconfig": "^0.7.0",
+    "animejs": "^4.0.2",
     "fast-glob": "^3.3.3",
     "mark.js": "^8.11.1",
     "markdown-it": "^14.1.0",

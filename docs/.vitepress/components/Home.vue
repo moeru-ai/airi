@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
 
-import homeCover from '../assets/home-cover-2025-07-15.avif'
+import ParallaxCover from './ParallaxCover.vue'
 
 const { t } = useI18n()
 
@@ -31,6 +31,7 @@ function handleClickTryLive() {
             ]"
             bg="primary/20 dark:primary/30 dark:hover:primary/40"
             transition="colors,transform duration-200 ease-in-out"
+            cursor-pointer
             @click="() => handleClickTryLive()"
           >
             {{ t('docs.theme.home.try-live.title') }}
@@ -42,6 +43,7 @@ function handleClickTryLive() {
               'text-slate-700 dark:text-slate-100',
             ]"
             bg="black/4 dark:white/20 dark:hover:white/30"
+            cursor-pointer
             transition="colors,transform duration-200 ease-in-out"
           >
             {{ t('docs.theme.home.download.title') }}
@@ -54,6 +56,7 @@ function handleClickTryLive() {
             ]"
             bg="black/4 dark:white/20 dark:hover:white/30"
             transition="colors,transform duration-200 ease-in-out"
+            cursor-pointer
           >
             {{ t('docs.theme.home.get-started.title') }}
           </a>
@@ -63,19 +66,8 @@ function handleClickTryLive() {
 
     <div class="absolute inset-0 overflow-hidden -z-10">
       <!-- Flickering red (even within the color space range) if to top in oklch (UnoCSS or tailwind css default), have to force to use srgb color space to prevent this -->
-      <div class="absolute bottom-0 left-0 right-0 top-10 z-2 h-full from-transparent to-white bg-gradient-to-t dark:to-[hsl(207_15%_5%)]" style="--un-gradient-shape: to top in srgb;" />
-      <img
-        :src="homeCover"
-        alt="Project AIRI Cover Image"
-        :class="[
-          'absolute left-1/2 -translate-x-1/2 max-w-none object-cover z-1',
-          'w-[160%] translate-y-[25%] -rotate-20 top-8rem',
-          'md:w-[120%] md:translate-y-[20%] md:rotate-[-15deg] md:top-8dvh',
-          'lg:w-[95%] lg:translate-y-[5%] lg:rotate-[-10deg] lg:top-32dvh',
-          'xl:top-18dvh',
-          '2xl:top-16dvh',
-        ]"
-      >
+      <div class="absolute bottom-0 left-0 right-0 top-10 z-2 h-60% from-transparent to-white bg-gradient-to-t dark:to-[hsl(207_15%_5%)]" style="--un-gradient-shape: to top in srgb;" />
+      <ParallaxCover />
     </div>
 
     <footer class="fixed bottom-3 left-1/2 z-40 flex justify-end -translate-x-1/2">
