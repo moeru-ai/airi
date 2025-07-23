@@ -67,11 +67,9 @@ function handleLoadModelProgress(val: number) {
 
     // 设置摄像机目标点
     controlsRef.value.controls.target.copy(
-      new THREE.Vector3(
-        modelOrigin.value.x,
-        modelOrigin.value.y,
-        modelOrigin.value.z,
-      ),
+      modelOrigin.value.x,
+      modelOrigin.value.y,
+      modelOrigin.value.z,
     )
     controlsRef.value.controls.update()
   }
