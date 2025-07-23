@@ -119,7 +119,9 @@ watch(cameraDistance, (newDistance) => {
       y: newPosition.y,
       z: newPosition.z,
     }
+    console.warn('camera setting complete: ', camera.value.position)
   }
+
   isUpdatingCamera = false
 })
 
