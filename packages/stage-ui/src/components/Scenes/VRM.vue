@@ -48,7 +48,6 @@ watch(cameraFOV, (newFov) => {
 // })
 // If controls are ready
 watch(() => controlsRef.value?.controls, (ctrl) => {
-  console.warn('control ref is not undefined')
   if (ctrl)
     controlsReady.value = true
 })
@@ -62,6 +61,7 @@ function handleLoadModelProgress(val: number) {
 watch(
   [controlsReady, modelReady],
   ([ctrlOk, modelOk]) => {
+    console.warn('start camera setting')
     if (ctrlOk && modelOk && camera.value && controlsRef.value && controlsRef.value.controls) {
       isUpdatingCamera = true
       try {
