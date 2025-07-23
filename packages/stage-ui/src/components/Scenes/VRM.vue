@@ -52,10 +52,8 @@ watch(() => controlsRef.value?.controls, (ctrl) => {
     controlsReady.value = true
 })
 // If model is ready
-function handleLoadModelProgress(val: number) {
-  if (val === 100) {
-    modelReady.value = true
-  }
+function handleLoadModelProgress() {
+  modelReady.value = true
 }
 // Then start to set the camera postion and target
 watch(
@@ -150,7 +148,8 @@ defineExpose({
         :model="selectedModel"
         idle-animation="/assets/vrm/animations/idle_loop.vrma"
         :paused="false"
-        @load-model-progress="(val) => { emit('loadModelProgress', val); handleLoadModelProgress(val); }"
+        @load-model-progress="(val) => emit('loadModelProgress', val)"
+        @model-ready="handleLoadModelProgress"
         @error="(val) => emit('error', val)"
       />
     </TresCanvas>

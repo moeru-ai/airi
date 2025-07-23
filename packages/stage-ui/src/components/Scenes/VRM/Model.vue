@@ -23,6 +23,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   (e: 'loadModelProgress', value: number): void
   (e: 'error', value: unknown): void
+  (e: 'modelReady'): void
 }>()
 
 let disposeBeforeRenderLoop: (() => void | undefined)
@@ -166,6 +167,7 @@ onMounted(async () => {
     vrm.value = _vrm
 
     loadingModel.value = false
+    emit('modelReady')
 
     disposeBeforeRenderLoop = onBeforeRender(({ delta }) => {
       vrmAnimationMixer.value?.update(delta)
