@@ -20,21 +20,19 @@ import { startClickThrough, stopClickThrough } from '../utils/windows'
 
 useTauriGlobalShortcuts()
 const windowStore = useWindowControlStore()
-const { width, height } = useWindowSize()
-
-const centerPos = computed(() => ({ x: width.value / 2, y: height.value / 2 }))
-const live2dFocusAt = ref<Point>(centerPos.value)
+const resourcesStore = useResourcesStore()
+const mcpStore = useMcpStore()
 
 const { listen } = useTauriEvent<AiriTamagotchiEvents>()
 const { invoke } = useTauriCore()
+const { width, height } = useWindowSize()
+const { connected, serverCmd, serverArgs } = storeToRefs(mcpStore)
+const { scale, positionInPercentageString } = storeToRefs(useLive2d())
+
+const centerPos = computed(() => ({ x: width.value / 2, y: height.value / 2 }))
 const { live2dLookAtX, live2dLookAtY, isCursorInside } = useTauriWindowClickThrough(centerPos)
 const shouldHideView = computed(() => isCursorInside.value && !windowStore.isControlActive && windowStore.isIgnoringMouseEvent)
-
-const resourcesStore = useResourcesStore()
-const mcpStore = useMcpStore()
-const { connected, serverCmd, serverArgs } = storeToRefs(mcpStore)
-
-const { scale, positionInPercentageString } = storeToRefs(useLive2d())
+const live2dFocusAt = ref<Point>(centerPos.value)
 
 watch([live2dLookAtX, live2dLookAtY], ([x, y]) => live2dFocusAt.value = { x, y }, { immediate: true })
 

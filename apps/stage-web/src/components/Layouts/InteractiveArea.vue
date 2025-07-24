@@ -5,9 +5,8 @@ import WhisperWorker from '@proj-airi/stage-ui/libs/workers/worker?worker&url'
 
 import { toWAVBase64 } from '@proj-airi/audio'
 import { useMicVAD, useWhisper } from '@proj-airi/stage-ui/composables'
-import { useAudioContext, useChatStore, useConsciousnessStore, useProvidersStore, useSettings } from '@proj-airi/stage-ui/stores'
+import { useAudioContext, useChatStore, useConsciousnessStore, useProvidersStore, useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores'
 import { BasicTextarea } from '@proj-airi/ui'
-import { useDevicesList } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -24,8 +23,8 @@ const providersStore = useProvidersStore()
 const { activeProvider, activeModel } = storeToRefs(useConsciousnessStore())
 const { themeColorsHueDynamic } = storeToRefs(useSettings())
 
-const { ensurePermissions } = useDevicesList({ constraints: { audio: true } })
-const { isAudioInputOn, selectedAudioDeviceId } = storeToRefs(useSettings())
+const { askPermission } = useSettingsAudioDevice()
+const { enabled, selectedAudioInput } = storeToRefs(useSettingsAudioDevice())
 const { send, onAfterSend, discoverToolsCompatibility } = useChatStore()
 const { messages } = storeToRefs(useChatStore())
 const { audioContext } = useAudioContext()
@@ -70,7 +69,7 @@ async function handleSend() {
   }
 }
 
-const { destroy, start } = useMicVAD(selectedAudioDeviceId, {
+const { destroy, start } = useMicVAD(selectedAudioInput, {
   onSpeechStart: () => {
     // TODO: interrupt the playback
     // TODO: interrupt any of the ongoing TTS
@@ -104,8 +103,8 @@ async function handleTranscription(buffer: ArrayBufferLike) {
   generate({ type: 'generate', data: { audio: audioBase64, language: 'en' } })
 }
 
-watch(isAudioInputOn, async (value) => {
-  if (value === 'false') {
+watch(enabled, async (value) => {
+  if (value === false) {
     destroy()
     terminate()
   }
@@ -113,7 +112,7 @@ watch(isAudioInputOn, async (value) => {
 
 watch(showMicrophoneSelect, async (value) => {
   if (value) {
-    await ensurePermissions()
+    await askPermission()
   }
 })
 

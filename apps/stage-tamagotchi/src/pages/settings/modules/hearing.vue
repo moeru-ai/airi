@@ -1,13 +1,12 @@
 <script setup lang="ts">
 import type { TranscriptionProvider } from '@xsai-ext/shared-providers'
 
-import { Button, ErrorContainer, LevelMeter, RadioCardSimple, TestDummyMarker, ThresholdMeter, TimeSeriesChart } from '@proj-airi/stage-ui/components'
-import { useAudioAnalyzer, useAudioRecorder } from '@proj-airi/stage-ui/composables'
+import { Alert, Button, ErrorContainer, LevelMeter, RadioCardManySelect, RadioCardSimple, TestDummyMarker, ThresholdMeter, TimeSeriesChart } from '@proj-airi/stage-ui/components'
+import { useAudioAnalyzer, useAudioDevice, useAudioRecorder } from '@proj-airi/stage-ui/composables'
 import { useAudioContext, useHearingStore, useProvidersStore } from '@proj-airi/stage-ui/stores'
 import { FieldCheckbox, FieldRange, FieldSelect } from '@proj-airi/ui'
-import { useDevicesList, useUserMedia } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import workletUrl from '../../../tauri/vad/process.worklet?worker&url'
@@ -17,15 +16,20 @@ import { createVAD, VADAudioManager } from '../../../tauri/vad'
 const { t } = useI18n()
 
 const hearingStore = useHearingStore()
-const { activeTranscriptionProvider, activeTranscriptionModel } = storeToRefs(hearingStore)
+const {
+  activeTranscriptionProvider,
+  activeTranscriptionModel,
+  providerModels,
+  activeProviderModelError,
+  isLoadingActiveProviderModels,
+  supportsModelListing,
+  transcriptionModelSearchQuery,
+  activeCustomModelName,
+} = storeToRefs(hearingStore)
 const providersStore = useProvidersStore()
 const { configuredTranscriptionProvidersMetadata } = storeToRefs(providersStore)
 
-const devices = useDevicesList({ constraints: { audio: true } })
-const audioInputs = computed(() => devices.audioInputs.value)
-const selectedAudioInput = ref<string>(devices.audioInputs.value[0]?.deviceId || '')
-const deviceConstraints = computed<MediaStreamConstraints>(() => ({ audio: { deviceId: { exact: selectedAudioInput.value }, autoGainControl: true, echoCancellation: true, noiseSuppression: true } }))
-const { stream, stop: streamStop, start: streamStart } = useUserMedia({ constraints: deviceConstraints, enabled: false, autoSwitch: false })
+const { audioInputs, selectedAudioInput, stream, stopStream, startStream } = useAudioDevice()
 const { startRecord, stopRecord, onStopRecord } = useAudioRecorder(stream)
 const { startAnalyzer, stopAnalyzer, onAnalyzerUpdate, volumeLevel } = useAudioAnalyzer()
 const { audioContext } = storeToRefs(useAudioContext())
@@ -149,7 +153,7 @@ async function setupAudioMonitoring() {
     // Clean up existing connections
     await stopAudioMonitoring()
 
-    await streamStart()
+    await startStream()
     if (!stream.value) {
       console.warn('No audio stream available')
       return
@@ -160,7 +164,7 @@ async function setupAudioMonitoring() {
         return
 
       try {
-        if (recording) {
+        if (recording && recording.size > 0) {
           audios.value.push(recording)
 
           const provider = await providersStore.getProviderInstance<TranscriptionProvider<string>>(activeTranscriptionProvider.value)
@@ -170,7 +174,8 @@ async function setupAudioMonitoring() {
 
           // Get model from configuration or use default
           const model = activeTranscriptionModel.value
-          const res = await hearingStore.transcription(provider, model, new File([recording], 'recording.wav'), 'json')
+          const res = await hearingStore.transcription(provider, model, new File([recording], 'recording.wav'))
+
           transcriptions.value.push(res.text)
         }
       }
@@ -226,7 +231,7 @@ async function stopAudioMonitoring() {
     await vadManager.value.stop()
   }
   if (stream.value) { // Stop media stream
-    streamStop()
+    stopStream()
   }
 
   stopAnalyzer()
@@ -263,12 +268,6 @@ watch(enablePlayback, updatePlayback)
 watch(monitorVolume, () => {
   if (gainNode.value && enablePlayback.value) {
     gainNode.value.gain.value = monitorVolume.value / 100
-  }
-})
-
-watch(audioInputs, () => {
-  if (!selectedAudioInput.value && audioInputs.value.length > 0) {
-    selectedAudioInput.value = audioInputs.value[0]?.deviceId
   }
 })
 
@@ -318,13 +317,12 @@ const speakingIndicatorClass = computed(() => {
   }
 })
 
-// Lifecycle
-onMounted(() => {
-  devices.ensurePermissions().then(() => nextTick()).then(() => {
-    if (audioInputs.value.length > 0 && !selectedAudioInput.value) {
-      selectedAudioInput.value = audioInputs.value[0]?.deviceId
-    }
-  })
+function updateCustomModelName(value: string) {
+  activeCustomModelName.value = value
+}
+
+onMounted(async () => {
+  await hearingStore.loadModelsForProvider(activeTranscriptionProvider.value)
 })
 
 onUnmounted(() => {
@@ -352,6 +350,7 @@ onUnmounted(() => {
               value: input.deviceId,
             }))"
             placeholder="Select an audio input device"
+            layout="vertical"
           />
         </div>
 
@@ -406,6 +405,66 @@ onUnmounted(() => {
             </div>
           </div>
         </div>
+
+        <!-- Model selection section -->
+        <div v-if="activeTranscriptionProvider && supportsModelListing">
+          <div flex="~ col gap-4">
+            <div>
+              <h2 class="text-lg md:text-2xl">
+                {{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.title') }}
+              </h2>
+              <div text="neutral-400 dark:neutral-400">
+                <span>{{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.subtitle') }}</span>
+              </div>
+            </div>
+
+            <!-- Loading state -->
+            <div v-if="isLoadingActiveProviderModels" class="flex items-center justify-center py-4">
+              <div class="mr-2 animate-spin">
+                <div i-solar:spinner-line-duotone text-xl />
+              </div>
+              <span>{{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.loading') }}</span>
+            </div>
+
+            <!-- Error state -->
+            <ErrorContainer
+              v-else-if="activeProviderModelError"
+              :title="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.error')"
+              :error="activeProviderModelError"
+            />
+
+            <!-- No models available -->
+            <Alert
+              v-else-if="providerModels.length === 0 && !isLoadingActiveProviderModels"
+              type="warning"
+            >
+              <template #title>
+                {{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.no_models') }}
+              </template>
+              <template #content>
+                {{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.no_models_description') }}
+              </template>
+            </Alert>
+
+            <!-- Using the new RadioCardManySelect component -->
+            <template v-else-if="providerModels.length > 0">
+              <RadioCardManySelect
+                v-model="activeTranscriptionModel"
+                v-model:search-query="transcriptionModelSearchQuery"
+                :items="providerModels.sort((a, b) => a.id === activeTranscriptionModel ? -1 : b.id === activeTranscriptionModel ? 1 : 0)"
+                :searchable="true"
+                :search-placeholder="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.search_placeholder')"
+                :search-no-results-title="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.no_search_results')"
+                :search-no-results-description="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.no_search_results_description', { query: transcriptionModelSearchQuery })"
+                :search-results-text="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.search_results', { count: '{count}', total: '{total}' })"
+                :custom-input-placeholder="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.custom_model_placeholder')"
+                :expand-button-text="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.expand')"
+                :collapse-button-text="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.collapse')"
+                @update:custom-value="updateCustomModelName"
+              />
+            </template>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -419,6 +478,8 @@ onUnmounted(() => {
             </div>
           </div>
         </h2>
+
+        <ErrorContainer v-if="error" title="Error occurred" :error="error" mb-4 />
 
         <Button class="mb-4" w-full @click="toggleMonitoring">
           {{ isMonitoring ? 'Stop Monitoring' : 'Start Monitoring' }}

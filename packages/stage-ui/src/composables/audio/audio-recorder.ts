@@ -9,7 +9,7 @@ export function useAudioRecorder(
   const audioRecorder = ref<MediaRecorder>()
   const mediaRef = toRef(media)
   const recordingChunk = shallowRef<Blob[]>([])
-  const recording = ref<Blob>()
+  const recording = shallowRef<Blob>()
 
   const onStopRecordHooks = ref<Array<(recording: Blob | undefined) => Promise<void>>>([])
 
@@ -23,7 +23,9 @@ export function useAudioRecorder(
     recordingChunk.value = []
 
     audioRecorder.value = new MediaRecorder(mediaRef.value)
-    audioRecorder.value.start()
+    // Whisper: problem with audio/mp4 blobs from Safari
+    // https://community.openai.com/t/whisper-problem-with-audio-mp4-blobs-from-safari/322252
+    audioRecorder.value.start(1000)
 
     audioRecorder.value.onerror = (event) => {
       console.error('Error recording audio:', event)

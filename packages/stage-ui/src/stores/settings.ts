@@ -1,7 +1,9 @@
-import { useDevicesList, useLocalStorage } from '@vueuse/core'
+import { useLocalStorage } from '@vueuse/core'
 import { converter } from 'culori'
 import { defineStore } from 'pinia'
-import { computed, ref, watch } from 'vue'
+import { onMounted, ref, watch } from 'vue'
+
+import { useAudioDevice } from './audio'
 
 export const DEFAULT_THEME_COLORS_HUE = 220.44
 
@@ -16,10 +18,6 @@ export const useSettings = defineStore('settings', () => {
   const stageView = useLocalStorage('settings/stage/view/model-renderer', '2d')
   const stageViewControlsEnabled = ref(false)
   const live2dDisableFocus = useLocalStorage('settings/live2d/disable-focus', false)
-
-  const isAudioInputOn = useLocalStorage('settings/audio/input', 'false')
-  const selectedAudioDeviceId = computed(() => selectedAudioDevice.value?.deviceId)
-  const { audioInputs, ensurePermissions } = useDevicesList({ constraints: { audio: true } })
 
   const disableTransitions = useLocalStorage('settings/disable-transitions', true)
   const usePageSpecificTransitions = useLocalStorage('settings/use-page-specific-transitions', true)
@@ -58,23 +56,6 @@ export const useSettings = defineStore('settings', () => {
     return hueDifference < 0.01 || hueDifference > 359.99
   }
 
-  watch(isAudioInputOn, (value) => {
-    if (value === 'false') {
-      selectedAudioDevice.value = undefined
-    }
-    if (value === 'true') {
-      ensurePermissions().then(() => {
-        selectedAudioDevice.value = audioInputs.value[0]
-      })
-    }
-  })
-
-  watch(audioInputs, () => {
-    if (isAudioInputOn.value === 'true' && !selectedAudioDevice.value) {
-      selectedAudioDevice.value = audioInputs.value[0]
-    }
-  }, { immediate: true })
-
   return {
     disableTransitions,
     usePageSpecificTransitions,
@@ -84,14 +65,51 @@ export const useSettings = defineStore('settings', () => {
     stageViewControlsEnabled,
     themeColorsHue,
     themeColorsHueDynamic,
-    isAudioInputOn,
     selectedAudioDevice,
-    selectedAudioDeviceId,
 
     allowVisibleOnAllWorkspaces,
 
     setThemeColorsHue,
     applyPrimaryColorFrom,
     isColorSelectedForPrimary,
+  }
+})
+
+export const useSettingsAudioDevice = defineStore('settings-audio-devices', () => {
+  const { audioInputs, deviceConstraints, selectedAudioInput: selectedAudioInputNonPersist, startStream, stopStream, stream, askPermission } = useAudioDevice()
+
+  const selectedAudioInputPersist = useLocalStorage('settings/audio/input', selectedAudioInputNonPersist.value)
+  const selectedAudioInputEnabledPersist = useLocalStorage('settings/audio/input-enabled', false)
+
+  watch(selectedAudioInputNonPersist, (newValue) => {
+    selectedAudioInputPersist.value = newValue
+  })
+
+  watch(selectedAudioInputEnabledPersist, (val) => {
+    if (val) {
+      startStream()
+    }
+    else {
+      stopStream()
+    }
+  })
+
+  onMounted(() => {
+    if (selectedAudioInputEnabledPersist.value && selectedAudioInputNonPersist.value) {
+      startStream()
+    }
+  })
+
+  return {
+    audioInputs,
+    deviceConstraints,
+    selectedAudioInput: selectedAudioInputNonPersist,
+    enabled: selectedAudioInputEnabledPersist,
+
+    stream,
+
+    askPermission,
+    startStream,
+    stopStream,
   }
 })

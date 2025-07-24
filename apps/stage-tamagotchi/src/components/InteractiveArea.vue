@@ -2,7 +2,7 @@
 import type { ChatProvider } from '@xsai-ext/shared-providers'
 
 import { useMicVAD } from '@proj-airi/stage-ui/composables'
-import { useChatStore, useConsciousnessStore, useProvidersStore, useSettings } from '@proj-airi/stage-ui/stores'
+import { useChatStore, useConsciousnessStore, useProvidersStore, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores'
 import { BasicTextarea } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { onMounted, ref, watch } from 'vue'
@@ -13,9 +13,8 @@ import TamagotchiChatHistory from './ChatHistory.vue'
 const messageInput = ref('')
 const listening = ref(false)
 
-// const { audioInputs } = useDevicesList({ constraints: { audio: true }, requestPermissions: true })
-// const { selectedAudioDevice, isAudioInputOn, selectedAudioDeviceId } = storeToRefs(useSettings())
-const { isAudioInputOn, selectedAudioDeviceId } = storeToRefs(useSettings())
+// const { askPermission } = useSettingsAudioDevice()
+const { enabled, selectedAudioInput } = storeToRefs(useSettingsAudioDevice())
 const { send, onAfterSend, discoverToolsCompatibility } = useChatStore()
 const { messages } = storeToRefs(useChatStore())
 const { t } = useI18n()
@@ -44,7 +43,7 @@ async function handleSend() {
   }
 }
 
-const { destroy, start } = useMicVAD(selectedAudioDeviceId, {
+const { destroy, start } = useMicVAD(selectedAudioInput, {
   onSpeechStart: () => {
     // TODO: interrupt the playback
     // TODO: interrupt any of the ongoing TTS
@@ -86,8 +85,8 @@ function handleTranscription(_buffer: Float32Array) {
 //   selectedAudioDevice.value = found
 // }
 
-watch(isAudioInputOn, async (value) => {
-  if (value === 'false') {
+watch(enabled, async (value) => {
+  if (value === false) {
     destroy()
   }
 })

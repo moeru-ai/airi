@@ -2,11 +2,12 @@
 import type { GenerateTranscriptionResult } from '@xsai/generate-transcription'
 
 import { FieldRange, FieldSelect } from '@proj-airi/ui'
-import { until, useDevicesList, useUserMedia } from '@vueuse/core'
-import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
+import { until } from '@vueuse/core'
+import { computed, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { useAudioRecorder } from '../../../composables/audio/audio-recorder'
+import { useAudioDevice } from '../../../composables/audio/device'
 import { LevelMeter, TestDummyMarker, ThresholdMeter } from '../../Gadgets'
 import { Button } from '../../Misc'
 
@@ -18,11 +19,7 @@ const props = defineProps<{
 }>()
 
 const { t } = useI18n()
-const devices = useDevicesList({ constraints: { audio: true }, requestPermissions: true })
-const selectedAudioInput = ref<string>(devices.audioInputs.value[0]?.deviceId || '')
-const deviceConstraints = computed<MediaStreamConstraints>(() => ({ audio: { deviceId: { exact: selectedAudioInput.value } } }))
-const { stream, stop, start, enabled } = useUserMedia({ constraints: deviceConstraints, enabled: false, autoSwitch: false })
-const audioInputs = computed(() => devices.audioInputs.value)
+const { audioInputs, selectedAudioInput, stream, stopStream, startStream } = useAudioDevice()
 
 const speakingThreshold = ref(25) // 0-100 (for volume-based fallback)
 const isMonitoring = ref(false)
@@ -55,8 +52,7 @@ async function setupAudioMonitoring() {
     // Clean up existing connections
     await stopAudioMonitoring()
 
-    enabled.value = true
-    await start()
+    await startStream()
     await until(stream).toBeTruthy()
 
     // Create audio context
@@ -104,7 +100,7 @@ async function stopAudioMonitoring() {
   }
 
   await stopRecord()
-  await stop()
+  await stopStream()
 
   analyser.value = undefined
   dataArray.value = undefined
@@ -160,7 +156,7 @@ async function toggleMonitoring() {
 
     onStopRecord(async (recording) => {
       try {
-        if (recording) {
+        if (recording && recording.size > 0) {
           audios.value.push(recording)
           const res = await props.generateTranscription(new File([recording], 'recording.wav'))
           transcriptions.value.push(res.text)
@@ -184,15 +180,6 @@ const speakingIndicatorClass = computed(() => {
   return isSpeaking.value
     ? 'bg-green-500 shadow-lg shadow-green-500/50'
     : 'bg-white dark:bg-neutral-900 border-2 border-neutral-300 dark:border-neutral-600'
-})
-
-// Lifecycle
-onMounted(() => {
-  devices.ensurePermissions().then(() => nextTick()).then(() => {
-    if (audioInputs.value.length > 0 && !selectedAudioInput.value) {
-      selectedAudioInput.value = audioInputs.value.find(input => input.deviceId === 'default')?.deviceId || audioInputs.value[0].deviceId
-    }
-  })
 })
 
 onUnmounted(() => {
@@ -225,6 +212,19 @@ onUnmounted(() => {
         layout="vertical"
         h-fit w-full
       />
+    </div>
+
+    <Button class="my-4" w-full @click="toggleMonitoring">
+      {{ isMonitoring ? 'Stop Monitoring' : 'Start Monitoring' }}
+    </Button>
+
+    <div>
+      <div v-for="(audio, index) in audioURLs" :key="index" class="mb-2">
+        <audio :src="audio" controls class="w-full" />
+        <div v-if="transcriptions[index]" class="mt-2 text-sm text-neutral-500 dark:text-neutral-400">
+          {{ transcriptions[index] }}
+        </div>
+      </div>
     </div>
 
     <!-- Audio Level Visualization -->
@@ -263,19 +263,6 @@ onUnmounted(() => {
         <span class="text-sm font-medium">
           {{ isSpeaking ? 'Speaking Detected' : 'Silence' }}
         </span>
-      </div>
-    </div>
-
-    <Button class="my-4" w-full @click="toggleMonitoring">
-      {{ isMonitoring ? 'Stop Monitoring' : 'Start Monitoring' }}
-    </Button>
-
-    <div>
-      <div v-for="(audio, index) in audioURLs" :key="index" class="mb-2">
-        <audio :src="audio" controls class="w-full" />
-        <div v-if="transcriptions[index]" class="mt-2 text-sm text-neutral-500 dark:text-neutral-400">
-          {{ transcriptions[index] }}
-        </div>
       </div>
     </div>
   </div>

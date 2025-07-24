@@ -3,7 +3,7 @@ import type { TranscriptionProviderWithExtraOptions } from '@xsai-ext/shared-pro
 import { useLocalStorage } from '@vueuse/core'
 import { generateTranscription } from '@xsai/generate-transcription'
 import { defineStore, storeToRefs } from 'pinia'
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 
 import { useProvidersStore } from '../providers'
 
@@ -14,6 +14,8 @@ export const useHearingStore = defineStore('hearing', () => {
   // State
   const activeTranscriptionProvider = useLocalStorage('settings/hearing/active-provider', '')
   const activeTranscriptionModel = useLocalStorage('settings/hearing/active-model', '')
+  const activeCustomModelName = useLocalStorage('settings/hearing/active-custom-model', '')
+  const transcriptionModelSearchQuery = ref('')
 
   // Computed properties
   const availableProvidersMetadata = computed(() => allAudioTranscriptionProvidersMetadata.value)
@@ -35,6 +37,20 @@ export const useHearingStore = defineStore('hearing', () => {
     return providersStore.modelLoadError[activeTranscriptionProvider.value] || null
   })
 
+  async function loadModelsForProvider(provider: string) {
+    if (provider && providersStore.getProviderMetadata(provider)?.capabilities.listModels !== undefined) {
+      await providersStore.fetchModelsForProvider(provider)
+    }
+  }
+
+  async function getModelsForProvider(provider: string) {
+    if (provider && providersStore.getProviderMetadata(provider)?.capabilities.listModels !== undefined) {
+      return providersStore.getModelsForProvider(provider)
+    }
+
+    return []
+  }
+
   const configured = computed(() => {
     return !!activeTranscriptionProvider.value && !!activeTranscriptionModel.value
   })
@@ -46,7 +62,7 @@ export const useHearingStore = defineStore('hearing', () => {
     format?: 'json' | 'verbose_json',
   ) {
     const response = await generateTranscription({
-      ...provider.transcription(model, { responseFormat: format }),
+      ...provider.transcription(model),
       file,
       responseFormat: format,
     })
@@ -58,6 +74,8 @@ export const useHearingStore = defineStore('hearing', () => {
     activeTranscriptionProvider,
     activeTranscriptionModel,
     availableProvidersMetadata,
+    activeCustomModelName,
+    transcriptionModelSearchQuery,
 
     supportsModelListing,
     providerModels,
@@ -66,5 +84,7 @@ export const useHearingStore = defineStore('hearing', () => {
     configured,
 
     transcription,
+    loadModelsForProvider,
+    getModelsForProvider,
   }
 })
