@@ -31,7 +31,7 @@ const props = withDefaults(defineProps<{
   mouthOpenSize: 0,
   paused: false,
   focusAt: () => ({ x: 0, y: 0 }),
-  disableFocusAt: useSettings().live2dDisableFocus,
+  disableFocusAt: false,
   scale: 1,
 })
 

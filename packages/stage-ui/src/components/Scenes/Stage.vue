@@ -41,7 +41,7 @@ const db = ref<DuckDBWasmDrizzleDatabase>()
 
 const vrmViewerRef = ref<{ setExpression: (expression: string) => void }>()
 
-const { stageView, stageViewControlsEnabled } = storeToRefs(useSettings())
+const { stageView, stageViewControlsEnabled, live2dDisableFocus } = storeToRefs(useSettings())
 const { mouthOpenSize } = storeToRefs(useSpeakingStore())
 const { audioContext, calculateVolume } = useAudioContext()
 const { onBeforeMessageComposed, onBeforeSend, onTokenLiteral, onTokenSpecial, onStreamEnd, onAssistantResponseEnd } = useChatStore()
@@ -237,6 +237,7 @@ onMounted(async () => {
         :x-offset="xOffset"
         :y-offset="yOffset"
         :scale="scale"
+        :disable-focus-at="live2dDisableFocus"
       />
       <VRMScene
         v-else-if="stageView === '3d'"

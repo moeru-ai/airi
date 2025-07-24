@@ -9,6 +9,7 @@ withDefaults(defineProps<{
   paused?: boolean
   mouthOpenSize?: number
   focusAt?: { x: number, y: number }
+  disableFocusAt?: boolean
   xOffset?: number | string
   yOffset?: number | string
   scale?: number
@@ -39,6 +40,7 @@ withDefaults(defineProps<{
         :x-offset="xOffset"
         :y-offset="yOffset"
         :scale="scale"
+        :disable-focus-at="disableFocusAt"
       />
     </Live2DCanvas>
   </Screen>

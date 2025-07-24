@@ -12,7 +12,7 @@ export const useSettings = defineStore('settings', () => {
   const selectedAudioDevice = ref<MediaDeviceInfo>()
 
   const language = useLocalStorage('settings/language', 'en')
-  
+
   const stageView = useLocalStorage('settings/stage/view/model-renderer', '2d')
   const stageViewControlsEnabled = ref(false)
   const live2dDisableFocus = useLocalStorage('settings/live2d/disable-focus', false)
