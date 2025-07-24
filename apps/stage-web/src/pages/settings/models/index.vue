@@ -43,8 +43,14 @@ const {
 </script>
 
 <template>
-  <div flex class="relative h-[calc(100dvh-8rem)] flex-col-reverse md:flex-row">
-    <ModelSettings live-2d-settings-class="w-100% md:w-40% lg:w-30% xl:w-30% 2xl:w-30% h-fit overflow-y-scroll absolute bottom-0 right-0 top-0" :palette="palette" @extract-colors-from-model="extractColorsFromModel" />
+  <div flex class="relative h-full flex-col-reverse md:flex-row">
+    <ModelSettings
+      live-2d-scene-class="absolute max-h-[calc(100dvh-100px-56px)] w-full h-full"
+      live-2d-settings-class="w-100% md:w-35% lg:w-25% xl:w-25% 2xl:w-30% h-fit sm:max-h-80dvh overflow-y-scroll relative"
+      vrm-scene-class="absolute max-h-[calc(100dvh-100px-56px)] w-full h-full"
+      vrm-settings-class="w-100% md:w-35% lg:w-25% xl:w-25% 2xl:w-30% h-fit sm:max-h-80dvh overflow-y-scroll relative"
+      :palette="palette" @extract-colors-from-model="extractColorsFromModel"
+    />
   </div>
 
   <IconAnimation
@@ -58,6 +64,7 @@ const {
     position="calc(100dvw - 9.5rem), calc(100dvh - 9.5rem)"
     text-color="text-neutral-200/50 dark:text-neutral-600/20"
   />
+
   <div
     v-else
     v-motion

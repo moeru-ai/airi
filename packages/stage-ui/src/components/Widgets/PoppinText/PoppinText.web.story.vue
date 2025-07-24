@@ -64,7 +64,7 @@ const mixedLanguageStream = createStream('g̈각நிกำषिक्षि')
       <div h-auto w-full p-4>
         <PoppinText
           :text="text" :animator="createFadeAnimator({ duration })"
-          text-2xl font-bold font-m-plus-rounded
+          font-m-plus-rounded text-2xl font-bold
         />
       </div>
     </Variant>
@@ -77,7 +77,7 @@ const mixedLanguageStream = createStream('g̈각நிกำषिक्षि')
         <PoppinText
           :text="textStream"
           :animator="createFloatAnimator({ duration })"
-          text-2xl font-bold font-m-plus-rounded
+          font-m-plus-rounded text-2xl font-bold
         />
       </div>
     </Variant>
@@ -90,7 +90,7 @@ const mixedLanguageStream = createStream('g̈각நிกำषिक्षि')
         <PoppinText
           :text="emojiStream"
           :animator="createFloatAnimator({ duration })"
-          text-2xl font-bold font-m-plus-rounded
+          font-m-plus-rounded text-2xl font-bold
         />
       </div>
     </Variant>

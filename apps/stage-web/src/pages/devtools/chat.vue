@@ -46,8 +46,10 @@ async function handleChatSendMessage() {
         messages: messages.value.slice(0, messages.value.length - 1).map(msg => toRaw(msg)),
       })
 
-      for await (const chunk of response.chunkStream)
-        sendEvent(tokenEvent.with(chunk.choices[0].delta.content || ''))
+      for await (const chunk of response.fullStream) {
+        if (chunk.type === 'text-delta')
+          sendEvent(tokenEvent.with(chunk.text || ''))
+      }
 
       return doneEvent.with()
     })

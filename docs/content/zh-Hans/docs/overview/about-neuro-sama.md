@@ -1,5 +1,5 @@
 ---
-title: Neuro-sama
+title: 有关 Neuro-sama
 ---
 
 Hypes and thoughts:

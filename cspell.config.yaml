@@ -33,6 +33,7 @@ words:
   - cientos
   - cjkfonts
   - clippy
+  - clustr
   - collectblock
   - colorjs
   - Comfortaa
@@ -44,6 +45,7 @@ words:
   - crossws
   - csmmap
   - csmvector
+  - csstype
   - cubismbreath
   - cubismdebug
   - cubismdefaultparameterid
@@ -111,6 +113,7 @@ words:
   - kirakira
   - kwaa
   - lemonnekogh
+  - lerp
   - libsamplerate
   - libsodium
   - lightningcss

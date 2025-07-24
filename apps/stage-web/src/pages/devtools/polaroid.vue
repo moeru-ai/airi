@@ -77,10 +77,11 @@ function handleShot() {
         </option>
       </select>
     </div>
-    <div border="2px solid white" flex items-center justify-center rounded-full p-1>
+    <div border="2px solid black dark:white" flex items-center justify-center rounded-full p-1>
       <button
-        h-18 w-18 rounded-full bg="white active:gray-50" outline-none
-        transition-colors duration-200 ease-in-out
+        class="h-15 w-15 md:h-18 md:w-18"
+        bg="black active:neutral-950 dark:white dark:active:neutral-50"
+        rounded-full outline-none transition-colors duration-200 ease-in-out
         @click="handleShot"
       />
     </div>

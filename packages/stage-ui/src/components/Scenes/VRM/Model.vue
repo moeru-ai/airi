@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import type { VRMCore } from '@pixiv/three-vrm-core'
-import type { AnimationClip } from 'three'
+import type { AnimationClip, Group } from 'three'
 
 import { VRMUtils } from '@pixiv/three-vrm'
 import { useLoop, useTresContext } from '@tresjs/core'
 import { storeToRefs } from 'pinia'
-import { AnimationMixer } from 'three'
-import { onMounted, onUnmounted, ref, watch } from 'vue'
+import { AnimationMixer, MathUtils, Quaternion, Vector3, VectorKeyframeTrack } from 'three'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 
 import { clipFromVRMAnimation, loadVRMAnimation, useBlink, useIdleEyeSaccades } from '../../../composables/vrm/animation'
 import { loadVrm } from '../../../composables/vrm/core'
@@ -40,21 +40,15 @@ const {
   modelOffset,
   modelOrigin,
   modelSize,
-  modelPosition,
+  cameraPosition,
+  loadingModel,
+  modelRotationY,
 } = storeToRefs(vrmStore)
-
-watch(modelOffset, () => {
-  if (vrm.value) {
-    vrm.value.scene.position.set(
-      modelPosition.value.x,
-      modelPosition.value.y,
-      modelPosition.value.z,
-    )
-  }
-}, { deep: true })
+const vrmGroup = ref<Group>()
 
 onMounted(async () => {
   if (!scene.value) {
+    console.warn('Scene is not ready, cannot load VRM model.')
     return
   }
 
@@ -65,13 +59,27 @@ onMounted(async () => {
       positionOffset: [modelOffset.value.x, modelOffset.value.y, modelOffset.value.z],
       onProgress: progress => emit('loadModelProgress', Number((100 * progress.loaded / progress.total).toFixed(2))),
     })
-    if (!_vrmInfo) {
+    if (!_vrmInfo || !_vrmInfo._vrm) {
       console.warn('No VRM model loaded')
       return
     }
-    const { _vrm, modelCenter: vrmModelCenter, modelSize: vrmModelSize } = _vrmInfo
+    const {
+      _vrm,
+      _vrmGroup,
+      modelCenter: vrmModelCenter,
+      modelSize: vrmModelSize,
+      initialCameraOffset: vrmInitialCameraOffset,
+    } = _vrmInfo
 
-    // Set initial postions for model
+    vrmGroup.value = _vrmGroup
+    // Set initial camera position
+    cameraPosition.value = {
+      x: vrmModelCenter.x + vrmInitialCameraOffset.x,
+      y: vrmModelCenter.y + vrmInitialCameraOffset.y,
+      z: vrmModelCenter.z + vrmInitialCameraOffset.z,
+    }
+
+    // Set initial positions for model
     modelOrigin.value = {
       x: vrmModelCenter.x,
       y: vrmModelCenter.y,
@@ -83,10 +91,58 @@ onMounted(async () => {
       z: vrmModelSize.z,
     }
 
-    // Set initial positons for animation
-    function removeRootPositionTrack(clip: AnimationClip) {
-      clip.tracks = clip.tracks.filter((track) => {
-        return !track.name.endsWith('.position')
+    // Set model facing direction
+    const targetDirection = new Vector3(0, 0, -1) // Default facing direction
+    const lookAtTarget = _vrm.lookAt
+    if (lookAtTarget) {
+      const facingDirection = lookAtTarget.faceFront
+      const quaternion = new Quaternion()
+      quaternion.setFromUnitVectors(facingDirection.normalize(), targetDirection.normalize())
+      _vrmGroup.quaternion.premultiply(quaternion)
+      _vrmGroup.updateMatrixWorld(true)
+    }
+    else {
+      console.warn('No look-at target found in VRM model')
+    }
+    // Reset model rotation Y
+    modelRotationY.value = 0
+
+    // Set initial positions for animation
+    function reanchorRootPositionTrack(clip: AnimationClip) {
+      // Get the hips node to reanchor the root position track
+      const hipNode = _vrm.humanoid?.getNormalizedBoneNode('hips')
+      if (!hipNode) {
+        console.warn('No hips node found in VRM model.')
+        return
+      }
+      hipNode.updateMatrixWorld(true)
+      const defaultHipPos = new Vector3()
+      hipNode.getWorldPosition(defaultHipPos)
+
+      // Calculate the offset from the hips node to the hips's first frame position
+      const hipsTrack = clip.tracks.find(track =>
+        track.name.endsWith('Hips.position'),
+      )
+      if (!(hipsTrack instanceof VectorKeyframeTrack)) {
+        console.warn('No Hips.position track of type VectorKeyframeTrack found in animation.')
+        return
+      }
+
+      const animeHipPos = new Vector3(
+        hipsTrack.values[0],
+        hipsTrack.values[1],
+        hipsTrack.values[2],
+      )
+      const delta = new Vector3().subVectors(animeHipPos, defaultHipPos)
+
+      clip.tracks.forEach((track) => {
+        if (track.name.endsWith('.position') && track instanceof VectorKeyframeTrack) {
+          for (let i = 0; i < track.values.length; i += 3) {
+            track.values[i] -= delta.x
+            track.values[i + 1] -= delta.y
+            track.values[i + 2] -= delta.z
+          }
+        }
       })
     }
 
@@ -96,7 +152,8 @@ onMounted(async () => {
       console.warn('No VRM animation loaded')
       return
     }
-    removeRootPositionTrack(clip)
+    // Reanchor the root position track to the model origin
+    reanchorRootPositionTrack(clip)
 
     // play animation
     vrmAnimationMixer.value = new AnimationMixer(_vrm.scene)
@@ -105,6 +162,8 @@ onMounted(async () => {
     vrmEmote.value = useVRMEmote(_vrm)
 
     vrm.value = _vrm
+
+    loadingModel.value = false
 
     disposeBeforeRenderLoop = onBeforeRender(({ delta }) => {
       vrmAnimationMixer.value?.update(delta)
@@ -115,8 +174,39 @@ onMounted(async () => {
     }).off
   }
   catch (err) {
+    // This is needed otherwise the URL input will be locked forever...
+    loadingModel.value = false
     emit('error', err)
   }
+})
+
+watch(modelOffset, () => {
+  if (vrmGroup.value) {
+    vrmGroup.value.position.set(
+      modelOffset.value.x,
+      modelOffset.value.y,
+      modelOffset.value.z,
+    )
+  }
+}, { deep: true })
+
+watch(modelRotationY, (newRotationY) => {
+  if (vrm.value && vrmGroup.value) {
+    vrmGroup.value.rotation.y = MathUtils.degToRad(newRotationY)
+  }
+})
+
+defineExpose({
+  setExpression(expression: string) {
+    vrmEmote.value?.setEmotionWithResetAfter(expression, 1000)
+  },
+  scene: computed(() => vrm.value?.scene),
+})
+
+const { pause, resume } = useLoop()
+
+watch(() => props.paused, (value) => {
+  value ? pause() : resume()
 })
 
 onUnmounted(() => {
@@ -125,18 +215,6 @@ onUnmounted(() => {
     vrm.value.scene.removeFromParent()
     VRMUtils.deepDispose(vrm.value.scene)
   }
-})
-
-defineExpose({
-  setExpression(expression: string) {
-    vrmEmote.value?.setEmotionWithResetAfter(expression, 1000)
-  },
-})
-
-const { pause, resume } = useLoop()
-
-watch(() => props.paused, (value) => {
-  value ? pause() : resume()
 })
 </script>
 

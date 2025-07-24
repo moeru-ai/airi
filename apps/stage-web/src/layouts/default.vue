@@ -23,7 +23,7 @@ import HeaderLink from '../components/Layouts/HeaderLink.vue'
       <HeaderLink />
     </div>
     <!-- Content -->
-    <div class="px-3 py-2 md:px-5 md:py-5" flex="~ col" mx-auto h-full max-w-screen-xl>
+    <div class="px-3 py-2 md:px-5 md:py-5" flex="~ col" h="[calc(100%-56px)]">
       <RouterView />
     </div>
   </div>

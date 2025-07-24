@@ -55,7 +55,7 @@ const { t } = useI18n()
     />
     <div
       v-motion
-      class="color-bar"
+      class="color-bar text-[10px] md:text-base sm:text-xs"
       :initial="{ opacity: 0, y: 10 }"
       :enter="{ opacity: 1, y: 0 }"
       :duration="250 + (7 * 10)"
@@ -86,7 +86,7 @@ const { t } = useI18n()
     </div>
     <div
       v-motion
-      class="color-bar transparency-grid"
+      class="color-bar transparency-grid text-[10px] md:text-base sm:text-xs"
       :initial="{ opacity: 0, y: 10 }"
       :enter="{ opacity: 1, y: 0 }"
       :duration="250 + (9 * 10)"
@@ -120,7 +120,7 @@ const { t } = useI18n()
     <div
       v-for="({ title, description, colors }, i) in $tm('settings.pages.themes.sections.section.theme-presets.presets')" :key="i"
       v-motion
-      class="w-full flex items-center justify-between rounded-lg px-4 py-3 outline-none transition-all duration-250 ease-in-out"
+      class="w-full flex flex-col items-start justify-between gap-2 rounded-lg px-4 py-3 outline-none transition-all duration-250 ease-in-out md:flex-row md:items-center md:gap-0"
       bg="neutral-100 dark:neutral-800"
       hover="bg-neutral-200 dark:bg-neutral-700"
       :initial="{ opacity: 0, y: 10 }"

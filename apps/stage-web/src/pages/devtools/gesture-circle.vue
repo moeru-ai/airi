@@ -68,7 +68,10 @@ watch([x, y], () => {
 
   canvasContext.value.beginPath()
   canvasContext.value.fillStyle = 'red'
-  canvasContext.value.arc(x.value, y.value, 4, 0, 2 * Math.PI)
+  // 20: padding left
+  // 40: padding top
+  // 40: header
+  canvasContext.value.arc(x.value - 20, y.value - 40 - 40, 4, 0, 2 * Math.PI)
   canvasContext.value.closePath()
   canvasContext.value.fill()
 })
@@ -126,7 +129,7 @@ watch(pointThrottled, (point) => {
 </script>
 
 <template>
-  <div ref="containerRef" h-full>
+  <div ref="containerRef" h="[calc(100dvh-40px)]">
     <div relative h-full>
       <div bg="neutral-100/50 dark:neutral-900/50" absolute inset-0 h-fit rounded-xl px-3 py-2 font-mono shadow-md backdrop-blur-md grid="~ cols-[150px_1fr]">
         <div text="neutral-400 dark:neutral-600">

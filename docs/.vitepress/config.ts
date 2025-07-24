@@ -97,20 +97,26 @@ export default defineConfig({
               { text: 'Introduction', link: withBase('/en/docs/overview/') },
               { text: 'About AI VTuber', link: withBase('/en/docs/overview/about-ai-vtuber') },
               { text: 'About Neuro-sama', link: withBase('/en/docs/overview/about-neuro-sama') },
+              {
+                text: 'Contributing',
+                items: [
+                  { text: 'Contribute Code', link: withBase('/en/docs/overview/contributing/') },
+                  {
+                    text: 'Contribute Design',
+                    items: [
+                      { text: 'Resources', link: withBase('/en/docs/overview/contributing/design-guidelines/resources') },
+                      { text: 'Tools', link: withBase('/en/docs/overview/contributing/design-guidelines/tools') },
+                    ],
+                  },
+                ],
+              },
             ],
           },
           {
-            text: 'Guides',
+            text: 'Manual',
             icon: 'lucide:book-open',
             items: [
-              { text: 'Contributing', link: withBase('/en/docs/guides/contributing/') },
-              {
-                text: 'Design Guidelines',
-                items: [
-                  { text: 'Resources', link: withBase('/en/docs/guides/contributing/design-guidelines/resources') },
-                  { text: 'Tools', link: withBase('/en/docs/guides/contributing/design-guidelines/tools') },
-                ],
-              },
+              { text: 'Versions', link: withBase('/en/docs/manual/versions') },
             ],
           },
           {
@@ -157,20 +163,26 @@ export default defineConfig({
               { text: '介绍', link: withBase('/zh-Hans/docs/overview/') },
               { text: '有关 AI VTuber', link: withBase('/zh-Hans/docs/overview/about-ai-vtuber') },
               { text: '有关 Neuro-sama', link: withBase('/zh-Hans/docs/overview/about-neuro-sama') },
+              {
+                text: '参与贡献',
+                items: [
+                  { text: '贡献代码', link: withBase('/zh-Hans/docs/overview/contributing/') },
+                  {
+                    text: '贡献设计',
+                    items: [
+                      { text: '参考资源', link: withBase('/zh-Hans/docs/overview/contributing/design-guidelines/resources') },
+                      { text: '工具', link: withBase('/zh-Hans/docs/overview/contributing/design-guidelines/tools') },
+                    ],
+                  },
+                ],
+              },
             ],
           },
           {
             text: '指南',
             icon: 'lucide:book-open',
             items: [
-              { text: '贡献指南', link: withBase('/zh-Hans/docs/guides/contributing/') },
-              {
-                text: '设计指引',
-                items: [
-                  { text: '参考资源', link: withBase('/zh-Hans/docs/guides/contributing/design-guidelines/resources') },
-                  { text: '工具', link: withBase('/zh-Hans/docs/guides/contributing/design-guidelines/tools') },
-                ],
-              },
+              { text: '不同的版本', link: withBase('/zh-Hans/docs/manual/versions') },
             ],
           },
           {

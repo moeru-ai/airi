@@ -26,7 +26,7 @@ watch(lang, () => locale.value = lang.value, { immediate: true })
 
 <template>
   <TooltipProvider>
-    <div class="h-full min-h-screen flex flex-col items-center font-sans-rounded">
+    <div class="font-sans-rounded h-full min-h-screen flex flex-col items-center">
       <header
         class="sticky top-0 z-20 h-[68px] w-full py-4 transition-all duration-500"
         :class="[
@@ -44,7 +44,7 @@ watch(lang, () => locale.value = lang.value, { immediate: true })
                 alt="Project AIRI logo"
                 :src="logo"
               >
-              <span class="translate-y-1 text-xl font-bold font-sans-rounded md:text-2xl">{{ title }}</span>
+              <span class="font-sans-rounded translate-y-1 text-xl font-bold md:text-2xl">{{ title }}</span>
             </a>
             <SearchTrigger />
           </div>

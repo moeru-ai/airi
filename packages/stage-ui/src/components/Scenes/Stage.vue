@@ -41,7 +41,7 @@ const db = ref<DuckDBWasmDrizzleDatabase>()
 
 const vrmViewerRef = ref<{ setExpression: (expression: string) => void }>()
 
-const { stageView } = storeToRefs(useSettings())
+const { stageView, stageViewControlsEnabled } = storeToRefs(useSettings())
 const { mouthOpenSize } = storeToRefs(useSpeakingStore())
 const { audioContext, calculateVolume } = useAudioContext()
 const { onBeforeMessageComposed, onBeforeSend, onTokenLiteral, onTokenSpecial, onStreamEnd, onAssistantResponseEnd } = useChatStore()
@@ -92,7 +92,7 @@ async function handleSpeechGeneration(ctx: { data: string }) {
     }
 
     // TODO: UnElevenLabsOptions
-    const provider = providersStore.getProviderInstance(activeSpeechProvider.value) as SpeechProviderWithExtraOptions<string, UnElevenLabsOptions>
+    const provider = await providersStore.getProviderInstance(activeSpeechProvider.value) as SpeechProviderWithExtraOptions<string, UnElevenLabsOptions>
     if (!provider) {
       console.error('Failed to initialize speech provider')
       return
@@ -245,6 +245,7 @@ onMounted(async () => {
         idle-animation="/assets/vrm/animations/idle_loop.vrma"
         min-w="50% <lg:full" min-h="100 sm:100" h-full w-full flex-1
         :paused="paused"
+        :show-axes="stageViewControlsEnabled"
         @error="console.error"
       />
     </div>

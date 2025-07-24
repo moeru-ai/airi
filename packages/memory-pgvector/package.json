@@ -1,7 +1,7 @@
 {
   "name": "@proj-airi/memory-pgvector",
   "type": "module",
-  "version": "0.6.1",
+  "version": "0.7.0-alpha.1",
   "private": true,
   "description": "",
   "author": {
@@ -22,7 +22,7 @@
   "dependencies": {
     "@guiiai/logg": "^1.0.10",
     "@proj-airi/server-sdk": "workspace:^",
-    "drizzle-orm": "^0.44.2",
+    "drizzle-orm": "^0.44.3",
     "postgres": "^3.4.7"
   },
   "devDependencies": {

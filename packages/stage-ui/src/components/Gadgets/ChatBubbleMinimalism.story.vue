@@ -92,21 +92,21 @@ onMounted(async () => {
       id="default"
       title="Default"
     >
-      <ChatBubbleMinimalism :text="stream" w-100 font-xiaolai />
+      <ChatBubbleMinimalism :text="stream" font-xiaolai w-100 />
     </Variant>
 
     <Variant
       id="loading"
       title="Loading"
     >
-      <ChatBubbleMinimalism w-100 font-xiaolai side="left" :loading="true" />
+      <ChatBubbleMinimalism font-xiaolai w-100 side="left" :loading="true" />
     </Variant>
 
     <Variant
       id="chat"
       title="Chat"
     >
-      <div bg="neutral-50 dark:neutral-900" w-120 flex flex-col gap-2 overflow-y-scroll rounded-xl p-4 font-m-plus-rounded>
+      <div bg="neutral-50 dark:neutral-900" font-m-plus-rounded w-120 flex flex-col gap-2 overflow-y-scroll rounded-xl p-4>
         <ChatBubbleMinimalism v-if="showSenderTextStream" :text="senderTextStream" side="left" w-100 self-start />
         <ChatBubbleMinimalism v-if="showRecipientTextStream" :text="recipientTextStream" w-100 self-end :loading="recipientLoading" />
       </div>

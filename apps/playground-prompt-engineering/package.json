@@ -1,7 +1,7 @@
 {
   "name": "@proj-airi/playground-prompt-engineering",
   "type": "module",
-  "version": "0.6.1",
+  "version": "0.7.0-alpha.1",
   "private": true,
   "description": "Prompt Engineering Playground for AI Characters",
   "scripts": {
@@ -11,14 +11,14 @@
     "typecheck": "vue-tsc --noEmit"
   },
   "dependencies": {
-    "@velin-dev/core": "^0.2.5",
-    "@velin-dev/vue": "^0.2.5",
+    "@velin-dev/core": "^0.2.6",
+    "@velin-dev/vue": "^0.2.6",
     "pinia": "^3.0.3",
     "vue": "^3.5.17"
   },
   "devDependencies": {
     "@iconify/vue": "^5.0.0",
-    "@types/node": "^24.0.13",
+    "@types/node": "^24.0.15",
     "@unocss/reset": "^66.3.3",
     "@vitejs/plugin-vue": "^6.0.0",
     "typescript": "~5.8.3",
@@ -28,6 +28,6 @@
     "vite": "catalog:rolldown-vite",
     "vite-plugin-vue-devtools": "^7.7.7",
     "vite-plugin-vue-layouts": "^0.11.0",
-    "vue-tsc": "^2.2.12"
+    "vue-tsc": "^3.0.3"
   }
 }

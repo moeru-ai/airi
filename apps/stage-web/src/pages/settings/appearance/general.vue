@@ -1,13 +1,21 @@
 <script setup lang="ts">
 import { useSettings } from '@proj-airi/stage-ui/stores'
-import { FieldCheckbox, FieldSelect, Option, Select } from '@proj-airi/ui'
+import { FieldCheckbox, FieldSelect } from '@proj-airi/ui'
 import { useDark } from '@vueuse/core'
+import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 const settings = useSettings()
 
-const { t, locale } = useI18n()
+const { t, messages } = useI18n()
 const dark = useDark()
+
+const languages = computed(() => {
+  return Object.keys(messages.value).map(lang => ({
+    label: t(`settings.language.options.${lang}`),
+    value: lang,
+  }))
+})
 </script>
 
 <template>
@@ -26,6 +34,7 @@ const dark = useDark()
 
     <!-- Language Setting -->
     <FieldSelect
+      v-model="settings.language"
       v-motion
       :initial="{ opacity: 0, y: 10 }"
       :enter="{ opacity: 1, y: 0 }"
@@ -34,27 +43,8 @@ const dark = useDark()
       transition="all ease-in-out duration-250"
       :label="t('settings.language.title')"
       :description="t('settings.language.description')"
-    >
-      <Select
-        v-model="settings.language"
-        transition="all ease-in-out duration-250"
-        cursor-pointer bg-transparent outline-none
-      >
-        <template #default="{ value }">
-          <div>
-            {{ value ? $t(`settings.language.${value}`) : t('settings.language.english') }}
-          </div>
-        </template>
-        <template #options="{ hide }">
-          <Option value="en" :active="locale === 'en'" @click="hide()">
-            {{ $t('settings.language.english') }}
-          </Option>
-          <Option value="zh-Hans" :active="locale === 'zh-Hans'" @click="hide()">
-            {{ $t('settings.language.chinese') }}
-          </Option>
-        </template>
-      </Select>
-    </FieldSelect>
+      :options="languages"
+    />
 
     <div
       v-motion

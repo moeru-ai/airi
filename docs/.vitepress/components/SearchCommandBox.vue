@@ -175,13 +175,13 @@ function formMarkRegex(terms: Set<string>) {
           <div class="flex flex-wrap items-center">
             <!-- <span>#</span> -->
             <span
-              v-for="(t, index) in p.titles"
+              v-for="(title, index) in p.titles"
               :key="index"
               class="flex items-center"
             >
               <span
                 class="text"
-                v-html="t"
+                v-html="title"
               />
               <Icon
                 icon="lucide:chevron-right"

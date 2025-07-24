@@ -1,9 +1,10 @@
 import { join, resolve } from 'node:path'
-import { env } from 'node:process'
+import { cwd, env } from 'node:process'
 
 import VueI18n from '@intlify/unplugin-vue-i18n/vite'
 import Vue from '@vitejs/plugin-vue'
 import Unocss from 'unocss/vite'
+import Info from 'unplugin-info/vite'
 import VueMacros from 'unplugin-vue-macros/vite'
 import VueRouter from 'unplugin-vue-router/vite'
 import Yaml from 'unplugin-yaml/vite'
@@ -57,6 +58,8 @@ export default defineConfig({
   },
 
   plugins: [
+    Info(),
+
     Yaml(),
 
     VueMacros({
@@ -146,9 +149,10 @@ export default defineConfig({
     Download('https://dist.ayaka.moe/vrm-models/VRoid-Hub/AvatarSample-B/AvatarSample_B.vrm', 'AvatarSample_B.vrm', 'assets/vrm/models/AvatarSample-B'),
 
     // HuggingFace Spaces
-    LFS({ extraGlobs: ['*.vrm', '*.cmo3', '*.png', '*.jpg', '*.jpeg', '*.gif', '*.webp', '*.bmp', '*.ttf'] }),
+    LFS({ root: cwd(), extraGlobs: ['*.vrm', '*.cmo3', '*.png', '*.jpg', '*.jpeg', '*.gif', '*.webp', '*.bmp', '*.ttf'] }),
     SpaceCard({
-      title: 'アイリ VTuber',
+      root: cwd(),
+      title: 'AIRI: Virtual Companion',
       emoji: '🧸',
       colorFrom: 'pink',
       colorTo: 'pink',
@@ -159,7 +163,7 @@ export default defineConfig({
         'onnx-community/whisper-base',
         'onnx-community/silero-vad',
       ],
-      short_description: 'アイリ VTuber. LLM powered Live2D/VRM living character.',
+      short_description: 'AI driven VTuber & Companion, supports Live2D and VRM.',
     }),
   ],
 })

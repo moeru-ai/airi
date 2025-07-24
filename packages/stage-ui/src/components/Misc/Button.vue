@@ -4,7 +4,7 @@ import { computed } from 'vue'
 import { BidirectionalTransition } from '../Misc'
 
 // Define button variants for better type safety and maintainability
-type ButtonVariant = 'primary' | 'secondary' | 'danger'
+type ButtonVariant = 'primary' | 'secondary' | 'secondary-muted' | 'danger'
 
 type ButtonTheme
   = | 'default'
@@ -15,6 +15,7 @@ type ButtonTheme
 type ButtonSize = 'sm' | 'md' | 'lg'
 
 interface ButtonProps {
+  toggled?: boolean // Optional toggled state for toggle buttons
   icon?: string // Icon class name
   label?: string // Button text label
   disabled?: boolean // Disabled state
@@ -26,6 +27,7 @@ interface ButtonProps {
 }
 
 const props = withDefaults(defineProps<ButtonProps>(), {
+  toggled: false,
   variant: 'primary',
   disabled: false,
   loading: false,
@@ -38,18 +40,33 @@ const isDisabled = computed(() => props.disabled || props.loading)
 
 // Extract variant styles for better organization
 const variantClasses: Record<ButtonVariant, {
-  default: string
-  // dimmed: string
-  // lightened: string
+  default: {
+    default: string
+    nonToggled?: string
+    toggled?: string
+  }
 }> = {
-  primary: {
-    default: 'bg-primary-500/15 hover:bg-primary-500/20 active:bg-primary-500/30 dark:bg-primary-700/30 dark:hover:bg-primary-700/40 dark:active:bg-primary-700/30 focus:ring-primary-300/60 dark:focus:ring-primary-600/30 border-2 border-solid border-primary-500/5 dark:border-primary-900/40 text-primary-950 dark:text-primary-100',
+  'primary': {
+    default: {
+      default: 'bg-primary-500/15 hover:bg-primary-500/20 active:bg-primary-500/30 dark:bg-primary-700/30 dark:hover:bg-primary-700/40 dark:active:bg-primary-700/30 focus:ring-primary-300/60 dark:focus:ring-primary-600/30 border-2 border-solid border-primary-500/5 dark:border-primary-900/40 text-primary-950 dark:text-primary-100',
+    },
   },
-  secondary: {
-    default: 'bg-neutral-400/15 hover:bg-neutral-400/20 active:bg-neutral-400/30 dark:bg-neutral-700/60 dark:hover:bg-neutral-700/80 dark:active:bg-neutral-700/60 focus:ring-neutral-300/30 dark:focus:ring-neutral-600/60 dark:focus:ring-neutral-600/30 border-2 border-solid border-neutral-300/30 dark:border-neutral-700/30 text-neutral-950 dark:text-neutral-100',
+  'secondary': {
+    default: {
+      default: 'bg-neutral-100/55 hover:bg-neutral-400/20 active:bg-neutral-400/30 dark:bg-neutral-700/60 dark:hover:bg-neutral-700/80 dark:active:bg-neutral-700/60 focus:ring-neutral-300/30 dark:focus:ring-neutral-600/60 dark:focus:ring-neutral-600/30 border-2 border-solid border-neutral-300/30 dark:border-neutral-700/30 text-neutral-950 dark:text-neutral-100',
+    },
   },
-  danger: {
-    default: 'bg-red-500/15 hover:bg-red-500/20 active:bg-red-500/30 dark:bg-red-700/30 dark:hover:bg-red-700/40 dark:active:bg-red-700/30 focus:ring-red-300/30 dark:focus:ring-red-600/60 dark:focus:ring-red-600/30 border-2 border-solid border-red-200/30 dark:border-red-900/30 text-red-950 dark:text-red-100',
+  'secondary-muted': {
+    default: {
+      default: 'hover:bg-neutral-50/50 active:bg-neutral-50/90 hover:dark:bg-neutral-800/50 active:dark:bg-neutral-800/90 border-2 border-solid border-neutral-100/60 dark:border-neutral-800/30 focus:ring-neutral-300/30 dark:focus:ring-neutral-600/60 dark:focus:ring-neutral-600/30',
+      nonToggled: 'bg-neutral-50/70 dark:bg-neutral-800/70 text-neutral-500 dark:text-neutral-400',
+      toggled: 'bg-white/90 dark:bg-neutral-500/70 ring-neutral-300/30 dark:ring-neutral-600/60 ring-2 dark:ring-neutral-600/30 text-primary-500 dark:text-primary-100',
+    },
+  },
+  'danger': {
+    default: {
+      default: 'bg-red-500/15 hover:bg-red-500/20 active:bg-red-500/30 dark:bg-red-700/30 dark:hover:bg-red-700/40 dark:active:bg-red-700/30 focus:ring-red-300/30 dark:focus:ring-red-600/60 dark:focus:ring-red-600/30 border-2 border-solid border-red-200/30 dark:border-red-900/30 text-red-950 dark:text-red-100',
+    },
   },
 }
 
@@ -62,14 +79,16 @@ const sizeClasses: Record<ButtonSize, string> = {
 
 // Base classes that are always applied
 const baseClasses = computed(() => [
-  'rounded-lg font-medium outline-none',
+  'rounded-xl font-medium outline-none',
   'transition-all duration-200 ease-in-out',
   'disabled:cursor-not-allowed disabled:opacity-50',
+  'backdrop-blur-md',
   props.block ? 'w-full' : '',
   sizeClasses[props.size],
-  variantClasses[props.variant][props.theme],
+  variantClasses[props.variant][props.theme].default,
+  props.toggled ? variantClasses[props.variant][props.theme].toggled || '' : variantClasses[props.variant][props.theme].nonToggled || '',
   { 'opacity-50 cursor-not-allowed': isDisabled.value },
-  'focus:ring-2 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-neutral-900',
+  'focus:ring-2',
 ])
 </script>
 

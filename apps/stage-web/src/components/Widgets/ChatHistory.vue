@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { useMarkdown } from '@proj-airi/stage-ui/composables'
 import { useChatStore } from '@proj-airi/stage-ui/stores'
-import { useElementBounding, useScroll } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { nextTick, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -10,8 +9,6 @@ const chatHistoryRef = ref<HTMLDivElement>()
 
 const { t } = useI18n()
 const { messages, sending } = storeToRefs(useChatStore())
-const bounding = useElementBounding(chatHistoryRef, { immediate: true, windowScroll: true, windowResize: true })
-const { y: chatHistoryContainerY } = useScroll(chatHistoryRef)
 
 const { process } = useMarkdown()
 const { onBeforeMessageComposed, onTokenLiteral } = useChatStore()
@@ -19,16 +16,20 @@ const { onBeforeMessageComposed, onTokenLiteral } = useChatStore()
 onBeforeMessageComposed(async () => {
   // Scroll down to the new sent message
   nextTick().then(() => {
-    bounding.update()
-    chatHistoryContainerY.value = bounding.height.value
+    if (!chatHistoryRef.value)
+      return
+
+    chatHistoryRef.value.scrollTop = chatHistoryRef.value.scrollHeight
   })
 })
 
 onTokenLiteral(async () => {
   // Scroll down to the new responding message
   nextTick().then(() => {
-    bounding.update()
-    chatHistoryContainerY.value = bounding.height.value
+    if (!chatHistoryRef.value)
+      return
+
+    chatHistoryRef.value.scrollTop = chatHistoryRef.value.scrollHeight
   })
 })
 </script>
@@ -65,8 +66,20 @@ onTokenLiteral(async () => {
             <div>
               <span text-xs text="primary-400/90 dark:primary-600/90" font-normal class="inline <sm:hidden">{{ t('stage.chat.message.character-name.airi') }}</span>
             </div>
-            <div v-if="sending && index === messages.length - 1" i-eos-icons:three-dots-loading />
-            <div v-else class="markdown-content break-words" text="base <sm:xs" v-html="process(message.content as string)" />
+            <div v-if="message.content && index === messages.length - 1" class="markdown-content" text="xs primary-400">
+              <div v-for="(slice, sliceIndex) in message.slices" :key="sliceIndex">
+                <div v-if="slice.type === 'tool-call'">
+                  <div
+                    p="1" border="1 solid primary-200" rounded-lg m="y-1" bg="primary-100"
+                  >
+                    Called: <code>{{ slice.toolCall.toolName }}</code>
+                  </div>
+                </div>
+                <div v-else-if="slice.type === 'tool-call-result'" /> <!-- this line should be unreachable -->
+                <div v-else v-html="process(slice.text)" />
+              </div>
+            </div>
+            <div v-else i-eos-icons:three-dots-loading />
           </div>
         </div>
         <div v-else-if="message.role === 'user'" flex="~ row-reverse" ml="12">

@@ -55,6 +55,12 @@ onMounted(async () => {
   if (!region.value) {
     region.value = 'eastasia' // Default region
   }
+  if (!providers.value[providerId]?.region) {
+    if (!providers.value[providerId])
+      providers.value[providerId] = { region: region.value }
+    else
+      providers.value[providerId].region = region.value
+  }
 
   await speechStore.loadVoicesForProvider(providerId)
 })
@@ -65,7 +71,7 @@ watch([apiKeyConfigured, region], async () => {
 
 // Generate speech with Microsoft-specific parameters
 async function handleGenerateSpeech(input: string, voiceId: string, useSSML: boolean) {
-  const provider = providersStore.getProviderInstance(providerId) as SpeechProviderWithExtraOptions<string, UnMicrosoftOptions>
+  const provider = await providersStore.getProviderInstance(providerId) as SpeechProviderWithExtraOptions<string, UnMicrosoftOptions>
   if (!provider) {
     throw new Error('Failed to initialize speech provider')
   }

@@ -26,6 +26,7 @@ export default defineConfig({
   viteNodeTransformMode: {
     web: [
       /\.web\.vue$/,
+      /\.web\.story\.vue$/,
     ],
   },
   tree: {
@@ -43,20 +44,24 @@ export default defineConfig({
         title: 'Form',
       },
       {
-        id: 'menu',
-        title: 'Menu',
-      },
-      {
-        id: 'providers',
-        title: 'Providers',
-      },
-      {
         id: 'misc',
         title: 'Misc',
       },
       {
+        id: 'data-pane',
+        title: 'Data Pane',
+      },
+      {
+        id: 'menu',
+        title: 'Menu',
+      },
+      {
         id: 'widgets',
         title: 'Widgets',
+      },
+      {
+        id: 'gadgets',
+        title: 'Gadgets',
       },
       {
         id: 'physics',
@@ -67,12 +72,8 @@ export default defineConfig({
         title: 'Graphics',
       },
       {
-        id: 'gadgets',
-        title: 'Gadgets',
-      },
-      {
-        id: 'data-gui',
-        title: 'Data GUI',
+        id: 'providers',
+        title: 'Providers',
       },
     ],
   },

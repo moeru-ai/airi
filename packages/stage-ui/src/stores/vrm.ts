@@ -4,24 +4,24 @@ import { computed, ref, watch } from 'vue'
 
 export const useVRM = defineStore('vrm', () => {
   const modelFile = ref<File>()
-  const modelUrl = ref<string>('/assets/vrm/models/AvatarSample-B/AvatarSample_B.vrm')
+
+  const defaultModelUrl = '/assets/vrm/models/AvatarSample-B/AvatarSample_B.vrm'
+  const modelUrl = useLocalStorage('settings/vrm/modelURL', defaultModelUrl)
+
   const loadSource = ref<'file' | 'url'>('url')
   const loadingModel = ref(false)
+
+  const scale = useLocalStorage('settings/live2d/cameraScale', 1)
   const modelSize = useLocalStorage('settings/vrm/modelSize', { x: 0, y: 0, z: 0 })
   const modelOrigin = useLocalStorage('settings/vrm/modelOrigin', { x: 0, y: 0, z: 0 })
   const modelOffset = useLocalStorage('settings/vrm/modelOffset', { x: 0, y: 0, z: 0 })
-  const modelPosition = computed(() => ({
-    x: modelOrigin.value.x + modelOffset.value.x,
-    y: modelOrigin.value.y + modelOffset.value.y,
-    z: modelOrigin.value.z + modelOffset.value.z,
-  }))
-  const positionInPercentageString = computed(() => ({
-    x: `${modelPosition.value.x}%`,
-    y: `${modelPosition.value.y}%`,
-    z: `${modelPosition.value.z}%`,
-  }))
+
+  const cameraFOV = useLocalStorage('settings/vrm/cameraFOV', 40)
+  const cameraPosition = useLocalStorage('settings/vrm/camera-position', { x: 0, y: 0, z: -1 })
 
   const modelObjectUrl = ref<string>()
+  const modelRotationY = useLocalStorage('settings/vrm/modelRotationY', 0)
+  const cameraDistance = useLocalStorage('settings/vrm/cameraDistance', 0)
 
   // Manage the object URL lifecycle to prevent memory leaks
   watch(modelFile, (newFile) => {
@@ -34,7 +34,6 @@ export const useVRM = defineStore('vrm', () => {
     }
   })
 
-  // Centralized computed property for the model source
   const selectedModel = computed(() => {
     if (loadSource.value === 'file' && modelObjectUrl.value) {
       return modelObjectUrl.value
@@ -43,19 +42,23 @@ export const useVRM = defineStore('vrm', () => {
       return modelUrl.value
     }
     // Fallback model
-    return '/assets/vrm/models/AvatarSample-B/AvatarSample_B.vrm'
+    return defaultModelUrl
   })
 
   return {
     modelFile,
+    defaultModelUrl,
     modelUrl,
     loadSource,
     loadingModel,
     modelSize,
+    scale,
     modelOrigin,
     modelOffset,
-    modelPosition,
-    positionInPercentageString,
-    selectedModel, // Expose the new computed property
+    selectedModel,
+    cameraFOV,
+    cameraPosition,
+    modelRotationY,
+    cameraDistance,
   }
 })

@@ -1,6 +1,6 @@
 import { useLocalStorage } from '@vueuse/core'
 import { defineStore } from 'pinia'
-import { computed, ref, watch } from 'vue'
+import { computed, ref } from 'vue'
 
 import { useProvidersStore } from '../providers'
 
@@ -64,33 +64,6 @@ export const useConsciousnessStore = defineStore('consciousness', () => {
 
     return []
   }
-
-  let player2Interval: ReturnType<typeof setInterval> | undefined
-  // Watch for provider changes and load models
-  watch(activeProvider, async (newProvider) => {
-    await loadModelsForProvider(newProvider)
-    resetModelSelection()
-
-    if (newProvider === 'player2') {
-      // Ping heal check every 60 seconds if Player2 is being used
-      player2Interval = setInterval(() => {
-        // eslint-disable-next-line no-console
-        console.log('Sending Player2 Health check if it is being used')
-        fetch(`localhost:4315/v1/health`, {
-          method: 'GET',
-          headers: {
-            'player2-game-key': 'airi',
-          },
-        })
-          .catch(() => { })
-      }, 60_000)
-    }
-    else {
-      if (player2Interval)
-        clearInterval(player2Interval)
-      player2Interval = undefined
-    }
-  })
 
   const configured = computed(() => {
     return !!activeProvider.value && !!activeModel.value

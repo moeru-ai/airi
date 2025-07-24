@@ -45,6 +45,13 @@ jobs:
       - name: Packages build
         run: pnpm run build:packages
 
+      - name: Packages publish (dry run)
+        run: pnpm publish -r --access public --no-git-checks --dry-run
+        env:
+          NODE_AUTH_TOKEN: ${{secrets.NPM_TOKEN}}
+          NPM_TOKEN: ${{secrets.NPM_TOKEN}}
+          NPM_CONFIG_PROVENANCE: true
+
       - name: Packages publish
         run: pnpm publish -r --access public --no-git-checks
         env:

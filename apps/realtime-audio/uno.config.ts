@@ -9,6 +9,8 @@ import {
   transformerVariantGroup,
 } from 'unocss'
 
+import { presetWebFontsFonts } from '../../uno.config'
+
 export default defineConfig({
   presets: [
     presetWind3(),
@@ -16,9 +18,7 @@ export default defineConfig({
     presetTypography(),
     presetWebFonts({
       fonts: {
-        sans: 'DM Sans',
-        serif: 'DM Serif Display',
-        mono: 'DM Mono',
+        ...presetWebFontsFonts('fontsource'),
       },
       timeouts: {
         warning: 5000,

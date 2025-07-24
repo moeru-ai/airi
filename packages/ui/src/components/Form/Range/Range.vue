@@ -153,6 +153,7 @@ https://toughengineer.github.io/demo/slider-styler*/
   border: var(--track-border);
   border-radius: var(--track-border-radius);
   background: var(--track-background);
+  backdrop-filter: blur(8px);
   box-shadow: var(--track-box-shadow);
   position: relative;
   cursor: col-resize;
@@ -225,6 +226,7 @@ https://toughengineer.github.io/demo/slider-styler*/
   border: var(--track-border);
   border-radius: var(--track-border-radius);
   background: var(--track-background);
+  backdrop-filter: blur(8px);
   box-shadow: var(--track-box-shadow);
   cursor: col-resize;
   /* Trim left and right paddings of track */
@@ -307,6 +309,7 @@ https://toughengineer.github.io/demo/slider-styler*/
   height: var(--track-height);
   border-radius: var(--track-border-radius);
   background: var(--track-background);
+  backdrop-filter: blur(8px);
   border: var(--track-border);
   box-shadow: var(--track-box-shadow);
   box-sizing: border-box;

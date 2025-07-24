@@ -163,7 +163,7 @@ const svgArts = computedAsync(async () => {
 <template>
   <div class="w-full">
     <div>
-      <h1 class="text-foreground text-4xl font-extrabold tracking-tight font-sans-rounded sm:text-5xl">
+      <h1 class="font-sans-rounded text-foreground text-4xl font-extrabold tracking-tight sm:text-5xl">
         {{ t('docs.theme.blog.title') }}
       </h1>
       <p class="text-muted-foreground mt-4 text-xl">
@@ -172,7 +172,7 @@ const svgArts = computedAsync(async () => {
     </div>
 
     <div class="mb-16">
-      <div class="flex flex-wrap items-center gap-2 font-sans-rounded">
+      <div class="font-sans-rounded flex flex-wrap items-center gap-2">
         <label
           v-for="item in categories"
           :key="item"

@@ -1,12 +1,13 @@
 <script setup lang="ts">
-import { FieldRange, Input } from '@proj-airi/ui'
+import { Input } from '@proj-airi/ui'
 import { useFileDialog } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { useVRM } from '../../../../stores'
-import { Callout, Section } from '../../../Layouts'
+import { Container, PropertyNumber, PropertyPoint } from '../../../DataPane'
+import { Callout } from '../../../Layouts'
 import { Button } from '../../../Misc'
 import { ColorPalette } from '../../../Widgets'
 
@@ -33,6 +34,10 @@ const {
   modelUrl,
   modelSize,
   modelOffset,
+  cameraFOV,
+  selectedModel,
+  modelRotationY,
+  cameraDistance,
 } = storeToRefs(vrm)
 const localModelUrl = ref(modelUrl.value)
 
@@ -41,25 +46,76 @@ modelFileDialog.onChange((files) => {
     modelFile.value = files[0]
     loadSource.value = 'file'
     loadingModel.value = true
+    localModelUrl.value = ''
   }
 })
+
+function urlUploadClick() {
+  modelUrl.value = localModelUrl.value
+  // same URL will let the loader be lazy and forgot to reset loading state
+  // If the loading state is still true, then the URL input will be locked
+  if (modelUrl.value === selectedModel.value) {
+    console.warn('Model URL is the same as the selected model, no need to reload.')
+    return
+  }
+  // Can't let the default model URL be reentered into the loader, otherwise it will still be too lazy to reset the loading state
+  if (!modelUrl.value && selectedModel.value === vrm.defaultModelUrl) {
+    localModelUrl.value = vrm.defaultModelUrl
+    return
+  }
+  // Only when real different URL is entered, then the loader will be triggered
+  loadSource.value = 'url'
+  loadingModel.value = true
+  localModelUrl.value = selectedModel.value
+}
 </script>
 
 <template>
-  <Section
-    :title="t('settings.vrm.switch-to-vrm.title')"
-    icon="i-solar:magic-stick-3-bold-duotone"
+  <Container
+    :title="t('settings.pages.models.sections.section.scene')"
+    icon="i-solar:people-nearby-bold-duotone"
     :class="[
       'rounded-xl',
       'bg-white/80  dark:bg-black/75',
       'backdrop-blur-lg',
     ]"
   >
-    <Button variant="secondary" @click="$emit('switchToLive2D')">
+    <Button variant="secondary" size="sm" @click="$emit('switchToLive2D')">
       {{ t('settings.vrm.switch-to-vrm.change-to-vrm') }}
     </Button>
-  </Section>
-  <Section
+    <ColorPalette class="mb-4 mt-2" :colors="palette.map(hex => ({ hex, name: hex }))" mx-auto />
+    <Button variant="secondary" @click="$emit('extractColorsFromModel')">
+      {{ t('settings.vrm.theme-color-from-model.button-extract.title') }}
+    </Button>
+
+    <div grid="~ cols-5 gap-1" p-2>
+      <PropertyPoint
+        v-model:x="modelOffset.x"
+        v-model:y="modelOffset.y"
+        v-model:z="modelOffset.z"
+        label="Model Position"
+        :x-config="{ min: -modelSize.x * 2, max: modelSize.x * 2, step: modelSize.x / 100, label: 'X', formatValue: val => val?.toFixed(4) }"
+        :y-config="{ min: -modelSize.y * 2, max: modelSize.y * 2, step: modelSize.y / 100, label: 'Y', formatValue: val => val?.toFixed(4) }"
+        :z-config="{ min: -modelSize.z * 2, max: modelSize.z * 2, step: modelSize.z / 100, label: 'Z', formatValue: val => val?.toFixed(4) }"
+      />
+      <PropertyNumber
+        v-model="cameraFOV"
+        :config="{ min: 1, max: 180, step: 1, label: t('settings.vrm.scale-and-position.fov') }"
+        :label="t('settings.vrm.scale-and-position.fov')"
+      />
+      <PropertyNumber
+        v-model="cameraDistance"
+        :config="{ min: modelSize.z, max: modelSize.z * 20, step: modelSize.z / 100, label: t('settings.vrm.scale-and-position.camera-distance') }"
+        :label="t('settings.vrm.scale-and-position.camera-distance')"
+      />
+      <PropertyNumber
+        v-model="modelRotationY"
+        :config="{ min: -180, max: 180, step: 1, label: t('settings.vrm.scale-and-position.rotation-y') }"
+        :label="t('settings.vrm.scale-and-position.rotation-y')"
+      />
+    </div>
+  </Container>
+  <Container
     :title="t('settings.vrm.change-model.title')"
     icon="i-solar:magic-stick-3-bold-duotone"
     inner-class="text-sm"
@@ -69,7 +125,12 @@ modelFileDialog.onChange((files) => {
       'backdrop-blur-lg',
     ]"
   >
-    <Button variant="secondary" @click="modelFileDialog.open()">
+    <Button
+      variant="secondary" @click=" () => {
+        modelFileDialog.reset()
+        modelFileDialog.open()
+      }"
+    >
       {{ t('settings.vrm.change-model.from-file') }}...
     </Button>
     <div flex items-center gap-2>
@@ -79,35 +140,11 @@ modelFileDialog.onChange((files) => {
         class="flex-1"
         :placeholder="t('settings.vrm.change-model.from-url-placeholder')"
       />
-      <Button size="sm" variant="secondary" @click="() => { modelUrl = localModelUrl; loadSource = 'url'; loadingModel = true }">
+      <Button size="sm" variant="secondary" @click="urlUploadClick">
         {{ t('settings.vrm.change-model.from-url') }}
       </Button>
     </div>
-  </Section>
-  <Section
-    :title="t('settings.vrm.theme-color-from-model.title')"
-    icon="i-solar:magic-stick-3-bold-duotone"
-    inner-class="text-sm"
-    :class="[
-      'rounded-xl',
-      'bg-white/80  dark:bg-black/75',
-      'backdrop-blur-lg',
-    ]"
-  >
-    <ColorPalette class="mb-4 mt-2" :colors="palette.map(hex => ({ hex, name: hex }))" mx-auto />
-    <Button variant="secondary" @click="$emit('extractColorsFromModel')">
-      {{ t('settings.vrm.theme-color-from-model.button-extract.title') }}
-    </Button>
-  </Section>
-  <Section
-    :title="t('settings.vrm.scale-and-position.title')"
-    icon="i-solar:scale-bold-duotone"
-    :class="[
-      'rounded-xl',
-      'bg-white/80  dark:bg-black/75',
-      'backdrop-blur-lg',
-    ]"
-  >
+
     <Callout :label="t('settings.vrm.scale-and-position.model-info-title')">
       <div>
         <div class="text-sm text-neutral-600 space-y-1">
@@ -134,61 +171,5 @@ modelFileDialog.onChange((files) => {
         {{ t('settings.vrm.scale-and-position.tips') }}
       </div>
     </Callout>
-    <FieldRange
-      :model-value="Number(modelOffset.x.toFixed(4))"
-      as="div"
-      :min="-modelSize.x"
-      :max="modelSize.x"
-      :step="modelSize.x / 100"
-      :label="t('settings.vrm.scale-and-position.x')"
-      @update:model-value="val => modelOffset.x = val"
-    >
-      <template #label>
-        <div flex items-center>
-          <div>
-            {{ t('settings.vrm.scale-and-position.x') }}
-          </div>
-          <button px-2 text-xs outline-none title="Reset value to default" @click="() => modelOffset.x = 0">
-            <div i-solar:forward-linear transform-scale-x--100 text="neutral-500 dark:neutral-400" />
-          </button>
-        </div>
-      </template>
-    </FieldRange>
-    <FieldRange
-      :model-value="Number(modelOffset.y.toFixed(4))"
-      as="div"
-      :min="-modelSize.y"
-      :max="modelSize.y"
-      :step="modelSize.y / 100"
-      :label="t('settings.vrm.scale-and-position.y')"
-      @update:model-value="val => modelOffset.y = val"
-    >
-      <template #label>
-        <div flex items-center>
-          <div>{{ t('settings.vrm.scale-and-position.y') }}</div>
-          <button px-2 text-xs outline-none title="Reset value to default" @click="() => modelOffset.y = 0">
-            <div i-solar:forward-linear transform-scale-x--100 text="neutral-500 dark:neutral-400" />
-          </button>
-        </div>
-      </template>
-    </FieldRange>
-    <FieldRange
-      :model-value="Number(modelOffset.z.toFixed(4))"
-      as="div"
-      :min="-modelSize.z"
-      :max="modelSize.z"
-      :step="modelSize.z / 100"
-      :label="t('settings.vrm.scale-and-position.z')"
-      @update:model-value="val => modelOffset.z = val"
-    >
-      <template #label>
-        <div flex items-center>
-          <div>{{ t('settings.vrm.scale-and-position.z') }}</div>
-          <button px-2 text-xs outline-none title="Reset value to default" @click="() => modelOffset.z = 0">
-            <div i-solar:forward-linear transform-scale-x--100 text="neutral-500 dark:neutral-400" />
-          </button>
-        </div>
-      </template>
-    </FieldRange>
-  </Section>
+  </Container>
 </template>

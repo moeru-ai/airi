@@ -1,4 +1,4 @@
-export * from './DataGui'
+export * from './DataPane'
 export * from './Gadgets'
 export * from './Graphics'
 export * from './Layouts'

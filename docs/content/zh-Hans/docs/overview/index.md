@@ -1,8 +1,12 @@
 ---
-title: Introduction
-description: Get to know the UI of Project AIRI
+title: 这是什么项目？
+description: 了解 Project AIRI 的用户界面
 ---
 
-For guides that help you understand how to contribute to this project, please refer to [Contributing](../references/contributing/guide/) page.
+Project AIRI
 
-For references Contributing help you design and improve the UI of Project AIRI, please refer to [Design Guidelines](../references/design-guidelines/) page.
+有关帮助您了解如何为此项目做出贡献的指南，
+请参阅 [Contributing](../references/contributing/guide/) 页面。
+
+有关帮助您设计和改进 Project AIRI 用户界面的参考信息，请参阅
+[Design Guidelines](../references/design-guidelines/) 页面。

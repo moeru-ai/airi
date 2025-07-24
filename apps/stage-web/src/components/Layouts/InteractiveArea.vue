@@ -6,7 +6,7 @@ import WhisperWorker from '@proj-airi/stage-ui/libs/workers/worker?worker&url'
 import { toWAVBase64 } from '@proj-airi/audio'
 import { useMicVAD, useWhisper } from '@proj-airi/stage-ui/composables'
 import { useAudioContext, useChatStore, useConsciousnessStore, useProvidersStore, useSettings } from '@proj-airi/stage-ui/stores'
-import { BasicTextarea, TransitionVertical } from '@proj-airi/ui'
+import { BasicTextarea } from '@proj-airi/ui'
 import { useDevicesList } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { onMounted, ref, watch } from 'vue'
@@ -24,8 +24,8 @@ const providersStore = useProvidersStore()
 const { activeProvider, activeModel } = storeToRefs(useConsciousnessStore())
 const { themeColorsHueDynamic } = storeToRefs(useSettings())
 
-const { audioInputs, ensurePermissions } = useDevicesList({ constraints: { audio: true } })
-const { selectedAudioDevice, isAudioInputOn, selectedAudioDeviceId } = storeToRefs(useSettings())
+const { ensurePermissions } = useDevicesList({ constraints: { audio: true } })
+const { isAudioInputOn, selectedAudioDeviceId } = storeToRefs(useSettings())
 const { send, onAfterSend, discoverToolsCompatibility } = useChatStore()
 const { messages } = storeToRefs(useChatStore())
 const { audioContext } = useAudioContext()
@@ -40,7 +40,7 @@ const { transcribe: generate, terminate } = useWhisper(WhisperWorker, {
     const providerConfig = providersStore.getProviderConfig(activeProvider.value)
 
     await send(res, {
-      chatProvider: providersStore.getProviderInstance(activeProvider.value) as ChatProvider,
+      chatProvider: await providersStore.getProviderInstance(activeProvider.value) as ChatProvider,
       model: activeModel.value,
       providerConfig,
     })
@@ -56,7 +56,7 @@ async function handleSend() {
     const providerConfig = providersStore.getProviderConfig(activeProvider.value)
 
     await send(messageInput.value, {
-      chatProvider: providersStore.getProviderInstance(activeProvider.value) as ChatProvider,
+      chatProvider: await providersStore.getProviderInstance(activeProvider.value) as ChatProvider,
       model: activeModel.value,
       providerConfig,
     })
@@ -104,17 +104,6 @@ async function handleTranscription(buffer: ArrayBufferLike) {
   generate({ type: 'generate', data: { audio: audioBase64, language: 'en' } })
 }
 
-async function handleAudioInputChange(event: Event) {
-  const target = event.target as HTMLSelectElement
-  const found = audioInputs.value.find(d => d.deviceId === target.value)
-  if (!found) {
-    selectedAudioDevice.value = undefined
-    return
-  }
-
-  selectedAudioDevice.value = found
-}
-
 watch(isAudioInputOn, async (value) => {
   if (value === 'false') {
     destroy()
@@ -130,7 +119,7 @@ watch(showMicrophoneSelect, async (value) => {
 
 watch([activeProvider, activeModel], async () => {
   if (activeProvider.value && activeModel.value) {
-    await discoverToolsCompatibility(activeModel.value, providersStore.getProviderInstance(activeProvider.value) as ChatProvider, [])
+    await discoverToolsCompatibility(activeModel.value, await providersStore.getProviderInstance<ChatProvider>(activeProvider.value), [])
   }
 })
 
@@ -193,47 +182,6 @@ onAfterSend(async () => {
             @compositionend="isComposing = false"
           />
         </div>
-      </div>
-    </div>
-    <div flex="~ row" gap-2 hidden>
-      <div flex="~ row" relative text-white font-normal>
-        <TransitionVertical>
-          <fieldset
-            v-if="showMicrophoneSelect"
-            right="0" bottom="[calc(100%+8px)]" text="cyan-400 dark:white" bg="white dark:cyan-900"
-            absolute z-30 h-fit rounded-2xl py-3 pl-3 pr-4 text-right text-nowrap text-sm font-sans
-          >
-            <label v-for="(input, index) in audioInputs" :key="index" class="[&_div_span]:dark:hover:bg-cyan-300 [&_div_span]:dark:hover:bg-cyan-900">
-              <input type="radio" name="audioInput" :value="input.deviceId" hidden @change="handleAudioInputChange">
-              <div flex="~ row" cursor-pointer items-center grid="cols-2">
-                <div min-w="6">
-                  <div v-if="input.deviceId === selectedAudioDeviceId" i-solar:check-circle-line-duotone />
-                </div>
-                <span
-                  inline-block
-                  :class="[input.deviceId === selectedAudioDeviceId ? 'cyan-400 dark:text-white' : 'cyan-400/50 dark:text-white/50']"
-                  transition="all duration-250 ease-in-out"
-                >
-                  {{ input.label }}
-                </span>
-              </div>
-            </label>
-          </fieldset>
-        </TransitionVertical>
-        <label
-          bg="complementary-100 hover:complementary-200 dark:complementary-800 dark:hover:complementary-700"
-          transition="all duration-250 ease-in-out"
-          :class="{ 'transition-colors-none': themeColorsHueDynamic }"
-          text="complementary-400"
-          h-fit flex cursor-pointer items-center justify-center gap-2 rounded-full px-4 py-2
-        >
-          <input v-model="showMicrophoneSelect" type="checkbox" hidden>
-          <div i-solar:microphone-2-bold-duotone />
-          <div>
-            <span v-if="!listening">{{ t('settings.microphone') }}</span>
-            <span v-else>Listening...</span>
-          </div>
-        </label>
       </div>
     </div>
   </div>
