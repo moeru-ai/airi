@@ -266,7 +266,7 @@ const exportObjectUrl = useObjectUrl(modelFile)
   >
     <Checkbox
       v-model="live2dDisableFocus"
-      :label="t('settings.live2d.focus.disable-focus')"
+      :label="t('settings.live2d.focus.button-disable.title')"
     />
   </Section>
 </template>
