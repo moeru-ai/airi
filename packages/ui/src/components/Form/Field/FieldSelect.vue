@@ -38,7 +38,7 @@ const modelValue = defineModel<string>({ required: false })
       <slot>
         <Select
           v-model="modelValue"
-          :options="props.options"
+          :options="props.options?.filter(option => option.label && option.value) || []"
           :placeholder="props.placeholder"
           :disabled="props.disabled"
           :title="label"

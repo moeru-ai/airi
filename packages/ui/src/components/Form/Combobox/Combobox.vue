@@ -31,7 +31,7 @@ function toDisplayValue(value: any): string {
   >
     <ComboboxAnchor
       :class="[
-        'min-w-[160px] w-full inline-flex items-center justify-between rounded-lg border px-[15px] leading-none h-[35px] gap-[5px] outline-none',
+        'min-w-[160px] w-full inline-flex items-center justify-between rounded-lg border px-2 leading-none h-[35px] gap-[5px] outline-none',
         'text-xs text-neutral-700 dark:text-neutral-200 data-[placeholder]:text-neutral-200',
         'bg-white dark:bg-neutral-900 disabled:bg-neutral-100 hover:bg-neutral-50 dark:disabled:bg-neutral-900 dark:hover:bg-neutral-700',
         'border-neutral-300 dark:border-neutral-800 border-solid border-2 focus:border-neutral-400 dark:focus:border-neutral-600',
@@ -41,7 +41,7 @@ function toDisplayValue(value: any): string {
     >
       <ComboboxInput
         :class="[
-          '!bg-transparent outline-none h-full selection:bg-grass5 placeholder-stone-400',
+          '!bg-transparent outline-none h-full selection:bg-grass5 placeholder-stone-400 w-full',
           'text-neutral-700 dark:text-neutral-200',
           'transition-colors duration-200 ease-in-out',
         ]"
@@ -72,8 +72,8 @@ function toDisplayValue(value: any): string {
       <ComboboxViewport class="p-[2px]">
         <ComboboxEmpty
           :class="[
-            'font-medium py-2',
-            'text-xs text-center text-neutral-700 dark:text-neutral-200',
+            'font-medium py-2 px-2',
+            'text-xs text-neutral-700 dark:text-neutral-200',
             'transition-colors duration-200 ease-in-out',
           ]"
         />
@@ -114,7 +114,7 @@ function toDisplayValue(value: any): string {
               <ComboboxItemIndicator
                 class="absolute left-0 w-[25px] inline-flex items-center justify-center opacity-30"
               >
-                <div i-solar:check-circle-line-duotone />
+                <div i-solar:alt-arrow-right-outline />
               </ComboboxItemIndicator>
               <span>
                 {{ option.label }}
