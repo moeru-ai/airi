@@ -138,7 +138,11 @@ export function useIdleEyeSaccades() {
   }
 
   function instantUpdate(vrm: VRMCore | undefined, lookAtTarget: { x: number, y: number, z: number }) {
-    updateFixationTarget(ref(lookAtTarget))
+    fixationTarget.set(
+      lookAtTarget.x,
+      lookAtTarget.y,
+      lookAtTarget.z,
+    )
     if (!vrm?.expressionManager || !vrm.lookAt)
       return
     if (!vrm.lookAt.target) {
