@@ -28,6 +28,9 @@
     ],
     "resources": {
       "infoplist/**/*": "./"
+    },
+    "macOS": {
+      "entitlements": "./Entitlements.plist"
     }
   }
 }
