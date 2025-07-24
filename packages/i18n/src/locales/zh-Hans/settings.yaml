@@ -58,6 +58,10 @@ live2d:
   theme-color-from-model:
     button-extract:
       title: 提取
+  focus:
+    title: 禁用模型鼠标跟踪
+    button-disable:
+      title: 禁用
 microphone: 麦克风
 models: 模型
 pages:
