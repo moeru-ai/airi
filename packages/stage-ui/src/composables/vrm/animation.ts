@@ -1,5 +1,6 @@
 import type { VRMAnimation } from '@pixiv/three-vrm-animation'
 import type { VRMCore } from '@pixiv/three-vrm-core'
+import type { Ref } from 'vue'
 
 import { createVRMAnimationClip } from '@pixiv/three-vrm-animation'
 import { Object3D, Vector3 } from 'three'
@@ -100,42 +101,52 @@ export function useBlink() {
  */
 export function useIdleEyeSaccades() {
   let nextSaccadeAfter = -1
-  let fixationTarget: Vector3 | undefined
+  const fixationTarget = new Vector3()
   let timeSinceLastSaccade = 0
 
   // Just a naive vector generator - Simulating random content on a 27in monitor at 65cm distance
-  function updateFixationTarget() {
-    if (!fixationTarget) {
-      fixationTarget = new Vector3(randFloat(-0.25, 0.25), randFloat(-0.2, 0.15), -0.65)
-    }
-    else {
-      fixationTarget.set(randFloat(-0.25, 0.25), randFloat(-0.2, 0.15), -0.65)
-    }
+  function updateFixationTarget(lookAtTarget: Ref<{ x: number, y: number, z: number }>) {
+    fixationTarget.set(
+      lookAtTarget.value.x + randFloat(-0.25, 0.25),
+      lookAtTarget.value.y + randFloat(-0.25, 0.25),
+      lookAtTarget.value.z,
+    )
   }
 
   // Function to handle idle eye saccades
-  function update(vrm: VRMCore | undefined, delta: number) {
+  function update(vrm: VRMCore | undefined, lookAtTarget: Ref<{ x: number, y: number, z: number }>, delta: number) {
     if (!vrm?.expressionManager || !vrm.lookAt)
       return
 
     if (timeSinceLastSaccade >= nextSaccadeAfter) {
-      updateFixationTarget()
+      updateFixationTarget(lookAtTarget)
       timeSinceLastSaccade = 0
       nextSaccadeAfter = randomSaccadeInterval() / 1000
     }
     else if (!fixationTarget) {
-      updateFixationTarget()
+      updateFixationTarget(lookAtTarget)
     }
 
     if (!vrm.lookAt.target) {
       vrm.lookAt.target = new Object3D()
     }
 
-    vrm.lookAt.target.position.lerp(fixationTarget!, randFloat(0.2, 0.5))
+    vrm.lookAt.target.position.lerp(fixationTarget!, 1)
     vrm.lookAt?.update(delta)
 
     timeSinceLastSaccade += delta
   }
 
-  return { update }
+  function instantUpdate(vrm: VRMCore | undefined, lookAtTarget: { x: number, y: number, z: number }) {
+    updateFixationTarget(ref(lookAtTarget))
+    if (!vrm?.expressionManager || !vrm.lookAt)
+      return
+    if (!vrm.lookAt.target) {
+      vrm.lookAt.target = new Object3D()
+    }
+    vrm.lookAt.target.position.lerp(fixationTarget!, 1)
+    vrm.lookAt?.update(0.016)
+  }
+
+  return { update, instantUpdate }
 }

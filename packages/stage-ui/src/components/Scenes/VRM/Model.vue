@@ -5,7 +5,7 @@ import type { AnimationClip, Group } from 'three'
 import { VRMUtils } from '@pixiv/three-vrm'
 import { useLoop, useTresContext } from '@tresjs/core'
 import { storeToRefs } from 'pinia'
-import { AnimationMixer, MathUtils, Quaternion, Vector3, VectorKeyframeTrack } from 'three'
+import { AnimationMixer, MathUtils, Quaternion, QuaternionKeyframeTrack, Vector3, VectorKeyframeTrack } from 'three'
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 
 import { clipFromVRMAnimation, loadVRMAnimation, useBlink, useIdleEyeSaccades } from '../../../composables/vrm/animation'
@@ -33,7 +33,6 @@ const vrmAnimationMixer = ref<AnimationMixer>()
 const { scene } = useTresContext()
 const { onBeforeRender } = useLoop()
 const blink = useBlink()
-const idleEyeSaccades = useIdleEyeSaccades()
 const vrmEmote = ref<ReturnType<typeof useVRMEmote>>()
 
 const vrmStore = useVRM()
@@ -46,6 +45,7 @@ const {
   modelRotationY,
 } = storeToRefs(vrmStore)
 const vrmGroup = ref<Group>()
+const idleEyeSaccades = useIdleEyeSaccades()
 
 onMounted(async () => {
   if (!scene.value) {
@@ -95,10 +95,10 @@ onMounted(async () => {
 
     // Set model facing direction
     const targetDirection = new Vector3(0, 0, -1) // Default facing direction
-    const lookAtTarget = _vrm.lookAt
-    if (lookAtTarget) {
-      const facingDirection = lookAtTarget.faceFront
-      const quaternion = new Quaternion()
+    const lookAt = _vrm.lookAt
+    const quaternion = new Quaternion()
+    if (lookAt) {
+      const facingDirection = lookAt.faceFront
       quaternion.setFromUnitVectors(facingDirection.normalize(), targetDirection.normalize())
       _vrmGroup.quaternion.premultiply(quaternion)
       _vrmGroup.updateMatrixWorld(true)
@@ -148,6 +148,27 @@ onMounted(async () => {
       })
     }
 
+    // Model rotationed, so the animation also needs rotation
+    function rotateRotationTracksInClip(clip: AnimationClip, q: Quaternion) {
+      clip.tracks.forEach((track) => {
+        if (track instanceof QuaternionKeyframeTrack) {
+          for (let i = 0; i < track.values.length; i += 4) {
+            const original = new Quaternion(
+              track.values[i],
+              track.values[i + 1],
+              track.values[i + 2],
+              track.values[i + 3],
+            )
+            const rotated = q.clone().multiply(original).normalize()
+            track.values[i] = rotated.x
+            track.values[i + 1] = rotated.y
+            track.values[i + 2] = rotated.z
+            track.values[i + 3] = rotated.w
+          }
+        }
+      })
+    }
+
     const animation = await loadVRMAnimation(props.idleAnimation)
     const clip = await clipFromVRMAnimation(_vrm, animation)
     if (!clip) {
@@ -156,6 +177,7 @@ onMounted(async () => {
     }
     // Reanchor the root position track to the model origin
     reanchorRootPositionTrack(clip)
+    rotateRotationTracksInClip(clip, quaternion)
 
     // play animation
     vrmAnimationMixer.value = new AnimationMixer(_vrm.scene)
@@ -171,8 +193,9 @@ onMounted(async () => {
     disposeBeforeRenderLoop = onBeforeRender(({ delta }) => {
       vrmAnimationMixer.value?.update(delta)
       vrm.value?.update(delta)
+      vrm.value?.lookAt?.update?.(delta)
       blink.update(vrm.value, delta)
-      idleEyeSaccades.update(vrm.value, delta)
+      idleEyeSaccades.update(vrm.value, cameraPosition, delta)
       vrmEmote.value?.update(delta)
     }).off
   }
@@ -204,7 +227,9 @@ defineExpose({
     vrmEmote.value?.setEmotionWithResetAfter(expression, 1000)
   },
   scene: computed(() => vrm.value?.scene),
-  lookAt: computed(() => vrm.value?.lookAt),
+  lookAtUpdate(target: { x: number, y: number, z: number }) {
+    idleEyeSaccades.instantUpdate(vrm.value, target)
+  },
 })
 
 const { pause, resume } = useLoop()
