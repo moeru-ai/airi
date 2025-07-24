@@ -24,7 +24,7 @@ watchPostEffect(() => {
       :aria-label="switchTitle"
     >
       <SwitchThumb
-        class="text-muted-foreground bg-background border-muted my-auto h-5 w-5 flex translate-x-0.5 items-center justify-center border rounded-full text-xs will-change-transform data-[state=checked]:translate-x-5 !transition-transform"
+        class="bg-background text-muted-foreground border-muted my-auto h-5 w-5 flex translate-x-0.5 items-center justify-center border rounded-full text-xs will-change-transform data-[state=checked]:translate-x-5 !transition-transform"
       >
         <Icon v-if="shouldReduceMotion" icon="lucide:square-dashed-mouse-pointer" />
         <Icon v-else icon="lucide:square-mouse-pointer" />
