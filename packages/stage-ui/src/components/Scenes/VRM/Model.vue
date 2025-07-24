@@ -5,7 +5,7 @@ import type { AnimationClip, Group } from 'three'
 import { VRMUtils } from '@pixiv/three-vrm'
 import { useLoop, useTresContext } from '@tresjs/core'
 import { storeToRefs } from 'pinia'
-import { AnimationMixer, MathUtils, Quaternion, QuaternionKeyframeTrack, Vector3, VectorKeyframeTrack } from 'three'
+import { AnimationMixer, MathUtils, Quaternion, Vector3, VectorKeyframeTrack } from 'three'
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 
 import { clipFromVRMAnimation, loadVRMAnimation, useBlink, useIdleEyeSaccades } from '../../../composables/vrm/animation'
@@ -148,27 +148,6 @@ onMounted(async () => {
       })
     }
 
-    // Model rotationed, so the animation also needs rotation
-    function rotateRotationTracksInClip(clip: AnimationClip, q: Quaternion) {
-      clip.tracks.forEach((track) => {
-        if (track instanceof QuaternionKeyframeTrack) {
-          for (let i = 0; i < track.values.length; i += 4) {
-            const original = new Quaternion(
-              track.values[i],
-              track.values[i + 1],
-              track.values[i + 2],
-              track.values[i + 3],
-            )
-            const rotated = q.clone().multiply(original).normalize()
-            track.values[i] = rotated.x
-            track.values[i + 1] = rotated.y
-            track.values[i + 2] = rotated.z
-            track.values[i + 3] = rotated.w
-          }
-        }
-      })
-    }
-
     const animation = await loadVRMAnimation(props.idleAnimation)
     const clip = await clipFromVRMAnimation(_vrm, animation)
     if (!clip) {
@@ -177,7 +156,7 @@ onMounted(async () => {
     }
     // Reanchor the root position track to the model origin
     reanchorRootPositionTrack(clip)
-    rotateRotationTracksInClip(clip, quaternion)
+    // rotateRotationTracksInClip(clip, quaternion)
 
     // play animation
     vrmAnimationMixer.value = new AnimationMixer(_vrm.scene)
