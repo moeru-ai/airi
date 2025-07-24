@@ -2,7 +2,7 @@
 import { TresCanvas } from '@tresjs/core'
 import { useElementBounding } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { onMounted, ref, shallowRef, watch } from 'vue'
+import { ref, shallowRef, watch } from 'vue'
 
 import * as THREE from 'three'
 
@@ -27,19 +27,11 @@ const modelRef = ref<InstanceType<typeof VRMModel>>()
 
 const camera = shallowRef(new THREE.PerspectiveCamera())
 const controlsRef = ref<InstanceType<typeof OrbitControls>>()
-
-onMounted(() => {
-  if (vrmContainerRef.value) {
-    camera.value.aspect = width.value / height.value
-    camera.value.fov = cameraFOV.value
-    camera.value.position.set(
-      cameraPosition.value.x,
-      cameraPosition.value.y,
-      cameraPosition.value.z,
-    )
-    camera.value.updateProjectionMatrix()
-  }
-})
+let isUpdatingCamera = true
+// manage the sequence of the camera and controls initialization
+const controlsReady = ref(false)
+const modelReady = ref(false)
+const sceneReady = ref(false)
 
 watch(cameraFOV, (newFov) => {
   if (camera.value) {
@@ -55,31 +47,49 @@ watch(cameraFOV, (newFov) => {
 //     camera.value.updateProjectionMatrix()
 //   }
 // })
-function handleLoadModelProgress(val: number) {
-  if (val === 100 && camera.value && controlsRef.value && controlsRef.value.controls) {
-    // Set camera pos
-    camera.value.position.set(
-      cameraPosition.value.x,
-      cameraPosition.value.y,
-      cameraPosition.value.z,
-    )
-    camera.value.updateProjectionMatrix()
-
-    // Set camera target
-    controlsRef.value.controls.target.set(
-      modelOrigin.value.x,
-      modelOrigin.value.y,
-      modelOrigin.value.z,
-    )
-    controlsRef.value.controls.update()
-  }
+// If controls are ready
+watch(() => controlsRef.value?.controls, (ctrl) => {
+  if (ctrl)
+    controlsReady.value = true
+})
+// If model is ready
+function handleLoadModelProgress() {
+  modelReady.value = true
 }
+// Then start to set the camera postion and target
+watch(
+  [controlsReady, modelReady],
+  ([ctrlOk, modelOk]) => {
+    if (ctrlOk && modelOk && camera.value && controlsRef.value && controlsRef.value.controls) {
+      isUpdatingCamera = true
+      try {
+        camera.value.aspect = width.value / height.value
+        camera.value.fov = cameraFOV.value
+        // Set camera target
+        controlsRef.value.setTarget(modelOrigin.value)
+        // Set camera position
+        camera.value.position.set(
+          cameraPosition.value.x,
+          cameraPosition.value.y,
+          cameraPosition.value.z,
+        )
+        camera.value.updateProjectionMatrix()
+        controlsRef.value.controls.update()
+      }
+      finally {
+        isUpdatingCamera = false
+        sceneReady.value = true
+      }
+    }
+  },
+)
 
 // Bidirectional watch between slider and OrbitControls
 watch(() => controlsRef.value?.getDistance(), (newDistance) => {
-  if (newDistance !== undefined) {
+  if (!isUpdatingCamera && newDistance !== undefined && camera.value) {
     // To avoid floating point inaccuracies causing a feedback loop with the other watcher,
     // we can check if the distance has changed significantly.
+    isUpdatingCamera = true
     if (Math.abs(cameraDistance.value - newDistance) > 1e-6) {
       cameraDistance.value = newDistance
       cameraPosition.value = {
@@ -88,10 +98,12 @@ watch(() => controlsRef.value?.getDistance(), (newDistance) => {
         z: camera.value.position.z,
       }
     }
+    isUpdatingCamera = false
   }
 })
 watch(cameraDistance, (newDistance) => {
-  if (camera.value && controlsRef.value && controlsRef.value.controls) {
+  if (!isUpdatingCamera && camera.value && controlsRef.value && controlsRef.value.controls) {
+    isUpdatingCamera = true
     const newPosition = new THREE.Vector3()
     const target = controlsRef.value.controls.target
     const direction = new THREE.Vector3().subVectors(camera.value.position, target).normalize()
@@ -108,6 +120,8 @@ watch(cameraDistance, (newDistance) => {
       z: newPosition.z,
     }
   }
+
+  isUpdatingCamera = false
 })
 
 defineExpose({
@@ -119,20 +133,21 @@ defineExpose({
 
 <template>
   <div ref="vrmContainerRef" w="100%" h="100%">
-    <TresCanvas v-if="camera" :camera="camera" :alpha="true" :antialias="true" :width="width" :height="height">
-      <TresAxesHelper :size="1" />
+    <TresCanvas v-if="camera" v-show="sceneReady" :camera="camera" :alpha="true" :antialias="true" :width="width" :height="height">
+      <OrbitControls ref="controlsRef" />
       <TresDirectionalLight :color="0xFFFFFF" :intensity="1.8" :position="[1, 1, -10]" />
       <TresAmbientLight :color="0xFFFFFF" :intensity="1.2" />
-      <OrbitControls ref="controlsRef" />
       <VRMModel
         ref="modelRef"
         :key="selectedModel"
         :model="selectedModel"
         idle-animation="/assets/vrm/animations/idle_loop.vrma"
         :paused="false"
-        @load-model-progress="(val) => { emit('loadModelProgress', val); handleLoadModelProgress(val); }"
+        @load-model-progress="(val) => emit('loadModelProgress', val)"
+        @model-ready="handleLoadModelProgress"
         @error="(val) => emit('error', val)"
       />
+      <TresAxesHelper :size="1" />
     </TresCanvas>
   </div>
 </template>

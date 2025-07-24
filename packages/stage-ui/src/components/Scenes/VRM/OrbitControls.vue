@@ -50,6 +50,12 @@ defineExpose({
   controls,
   getDistance: () => controls.value?.getDistance(),
   update: () => controls.value?.update(),
+  setTarget: (target: { x: number, y: number, z: number }) => {
+    if (controls.value) {
+      controls.value.target.set(target.x, target.y, target.z)
+      controls.value.update()
+    }
+  },
 })
 </script>
 
