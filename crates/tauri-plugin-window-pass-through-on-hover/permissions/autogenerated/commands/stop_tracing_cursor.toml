@@ -1,0 +1,13 @@
+# Automatically generated - DO NOT EDIT!
+
+"$schema" = "../../schemas/schema.json"
+
+[[permission]]
+identifier = "allow-stop-tracing-cursor"
+description = "Enables the stop_tracing_cursor command without any pre-configured scope."
+commands.allow = ["stop_tracing_cursor"]
+
+[[permission]]
+identifier = "deny-stop-tracing-cursor"
+description = "Denies the stop_tracing_cursor command without any pre-configured scope."
+commands.deny = ["stop_tracing_cursor"]

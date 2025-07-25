@@ -8,11 +8,12 @@ use tauri::{
 };
 use tauri_plugin_positioner::WindowExt;
 use tauri_plugin_prevent_default::Flags;
+use tauri_plugin_window_router_link::WindowMatcher;
 use tauri_plugin_window_state::{AppHandleExt, StateFlags};
 
 mod app;
-mod helpers;
-mod plugins;
+
+use app::windows::{chat, onboarding, settings};
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -28,11 +29,25 @@ pub fn run() {
     .plugin(tauri_plugin_global_shortcut::Builder::new().build())
     .plugin(tauri_plugin_window_state::Builder::default().build())
     .plugin(tauri_plugin_positioner::init())
-    // Internal plugins
-    .plugin(plugins::window_pass_through_on_hover::init())
-    .plugin(plugins::window_router_link::init())
-    .plugin(plugins::audio_transcription::init())
-    .plugin(plugins::audio_vad::init())
+    // Project AIRI plugins
+    .plugin(tauri_plugin_ipc_audio_transcription_ort::init())
+    .plugin(tauri_plugin_ipc_audio_vad_ort::init())
+    .plugin(tauri_plugin_window_pass_through_on_hover::init())
+    .plugin(tauri_plugin_window_router_link::init(
+      WindowMatcher::new()
+        .register("chat", |app| {
+          chat::new_chat_window(&app)
+            .map_err(|e| e)
+        })
+        .register("settings", |app| {
+          settings::new_settings_window(&app)
+            .map_err(|e| e)
+        })
+        .register("onboarding", |app| {
+          onboarding::new_onboarding_window(&app)
+            .map_err(|e| e)
+        })
+    ))
     .setup(|app| {
       let mut builder = WebviewWindowBuilder::new(app, "main", WebviewUrl::default());
 

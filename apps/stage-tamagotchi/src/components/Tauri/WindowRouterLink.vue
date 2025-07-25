@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { WindowRouterLink } from '../../commands'
+import { commands } from '../../bindings/tauri-plugins/window-router-link'
 
 const props = defineProps<{
   to: string
@@ -7,7 +7,7 @@ const props = defineProps<{
 }>()
 
 function handleClick() {
-  WindowRouterLink.commands.go(props.to, props.label ?? null)
+  commands.go(props.to, props.label ?? null)
 }
 </script>
 

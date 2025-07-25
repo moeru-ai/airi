@@ -8,7 +8,7 @@ export default await antfu(
       '**/assets/js/**',
       '**/assets/live2d/models/**',
       'apps/stage-tamagotchi/out/**',
-      'apps/stage-tamagotchi/src/commands/bindings/**',
+      'apps/stage-tamagotchi/src/bindings/**',
       'apps/stage-tamagotchi/src-tauri/**',
       'crates/**',
       '**/drizzle/**',

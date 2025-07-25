@@ -53,7 +53,7 @@ export class VAD {
     try {
       this.emit('status', { type: 'info', message: 'Loading VAD model...' })
 
-      await invoke('plugin:proj-airi-tauri-plugin-audio-vad|load_model_silero_vad')
+      await invoke('plugin:ipc-audio-vad-ort|load_ort_model_silero_vad')
       this.isReady = true
 
       this.emit('status', { type: 'info', message: 'VAD model loaded successfully' })
@@ -150,7 +150,7 @@ export class VAD {
   private async detectSpeech(buffer: Float32Array): Promise<boolean> {
     // Use Rust backend for inference
     const result = await (this.inferenceChain = this.inferenceChain.then(() =>
-      invoke('plugin:proj-airi-tauri-plugin-audio-vad|audio_vad', {
+      invoke('plugin:ipc-audio-vad-ort|ipc_audio_vad', {
         inputData: {
           input: Array.from(buffer),
           sr: this.config.sampleRate,

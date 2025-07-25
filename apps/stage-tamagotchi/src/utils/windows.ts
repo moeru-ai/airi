@@ -1,9 +1,9 @@
-import { WindowPassThroughOnHover } from '../commands'
+import { commands } from '../bindings/tauri-plugins/window-pass-through-on-hover'
 
 export async function startClickThrough() {
-  await WindowPassThroughOnHover.commands.startPassThrough()
+  await commands.startPassThrough()
 }
 
 export async function stopClickThrough() {
-  await WindowPassThroughOnHover.commands.stopPassThrough()
+  await commands.stopPassThrough()
 }

@@ -8,18 +8,16 @@ export interface InvokeMethods {
   'open_chat_window': { args: undefined, options: undefined, returns: void }
 
   // Plugin - Audio Transcription
-  'plugin:proj-airi-tauri-plugin-audio-transcription|load_model_whisper': { args: { modelType: 'base' | 'largev3' | 'tiny' | 'medium' }, options: undefined, returns: void }
-  'plugin:proj-airi-tauri-plugin-audio-transcription|audio_transcription': { args: { chunk: number[], language: string }, options: undefined, returns: [string, string] }
+  'plugin:ipc-audio-transcription-ort|load_ort_model_whisper': { args: { modelType: 'base' | 'largev3' | 'tiny' | 'medium' }, options: undefined, returns: void }
+  'plugin:ipc-audio-transcription-ort|ipc_audio_transcription': { args: { chunk: number[], language: string }, options: undefined, returns: string }
 
   // Plugin - Audio VAD
-  'plugin:proj-airi-tauri-plugin-audio-vad|load_model_silero_vad': { args: undefined, options: undefined, returns: void }
-  'plugin:proj-airi-tauri-plugin-audio-vad|audio_vad': { args: { inputData: { input: number[], sr: number, state: number[] } }, options: undefined, returns: number }
+  'plugin:ipc-audio-vad-ort|load_ort_model_silero_vad': { args: undefined, options: undefined, returns: void }
+  'plugin:ipc-audio-vad-ort|ipc_audio_vad': { args: { inputData: { input: number[], sr: number, state: number[] } }, options: undefined, returns: number }
 
   // Plugin - Window Pass through on hover
-  'plugin:proj-airi-tauri-plugin-window-pass-through-on-hover|start_monitor': { args: undefined, options: undefined, returns: void }
-  'plugin:proj-airi-tauri-plugin-window-pass-through-on-hover|stop_monitor': { args: undefined, options: undefined, returns: void }
-
-  // Plugin - WindowRouterLink
+  'plugin:window-pass-through-on-hover|start_tracing_cursor': { args: undefined, options: undefined, returns: void }
+  'plugin:window-pass-through-on-hover|stop_tracing_cursor': { args: undefined, options: undefined, returns: void }
 }
 
 export interface InvokeMethodShape {

@@ -1,0 +1,13 @@
+# Automatically generated - DO NOT EDIT!
+
+"$schema" = "../../schemas/schema.json"
+
+[[permission]]
+identifier = "allow-ipc-audio-transcription"
+description = "Enables the ipc_audio_transcription command without any pre-configured scope."
+commands.allow = ["ipc_audio_transcription"]
+
+[[permission]]
+identifier = "deny-ipc-audio-transcription"
+description = "Denies the ipc_audio_transcription command without any pre-configured scope."
+commands.deny = ["ipc_audio_transcription"]

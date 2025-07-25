@@ -1,0 +1,33 @@
+[package]
+name = "tauri-plugin-window-router-link"
+version.workspace = true
+description = "<RouterLink> like primitive support for opening links in desired window in Tauri"
+authors = [ "LemonNekoGH <self@lemonneko.moe>" ]
+license = "MIT"
+repository = "https://github.com/moeru-ai/airi"
+edition = "2024"
+rust-version = "1.85.0"
+links = "tauri-plugin-window-router-link"
+publish = false
+
+[lib]
+name = "tauri_plugin_window_router_link"
+crate-type = [
+  "staticlib",
+  "cdylib",
+  "rlib"
+]
+
+[dependencies]
+tauri = "2.3.1"
+serde_json = "1.0"
+serde = { version = "1.0", features = [ "derive" ] }
+log = "0.4"
+tokio = { version = "1", features = [ "full" ] }
+anyhow = "1"
+specta = "=2.0.0-rc.22"
+specta-typescript = "0.0.9"
+tauri-specta = { version = "=2.0.0-rc.21", features = ["derive", "typescript"] }
+
+[build-dependencies]
+tauri-plugin = { version = "2.2", features = [ "build" ] }

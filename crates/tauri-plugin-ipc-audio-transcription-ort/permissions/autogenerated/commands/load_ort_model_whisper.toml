@@ -1,0 +1,13 @@
+# Automatically generated - DO NOT EDIT!
+
+"$schema" = "../../schemas/schema.json"
+
+[[permission]]
+identifier = "allow-load-ort-model-whisper"
+description = "Enables the load_ort_model_whisper command without any pre-configured scope."
+commands.allow = ["load_ort_model_whisper"]
+
+[[permission]]
+identifier = "deny-load-ort-model-whisper"
+description = "Denies the load_ort_model_whisper command without any pre-configured scope."
+commands.deny = ["load_ort_model_whisper"]
