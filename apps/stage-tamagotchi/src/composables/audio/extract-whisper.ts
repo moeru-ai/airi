@@ -64,7 +64,7 @@ export function useWhisperTranscription(config: Partial<WhisperConfig> = {}) {
     error.value = ''
 
     try {
-      await invoke('plugin:ipc-audio-transcription-ort|load_candle_model_whisper', { modelType })
+      await invoke('plugin:ipc-audio-transcription-ort|load_ort_model_whisper', { modelType })
       isModelLoaded.value = true
     }
     catch (err) {
@@ -86,10 +86,10 @@ export function useWhisperTranscription(config: Partial<WhisperConfig> = {}) {
       isProcessing.value = true
 
       const audioArray = Array.from(segment.audioData)
-      const [result] = await invoke('plugin:ipc-audio-transcription-ort|ipc_audio_transcription', {
+      const result = await invoke('plugin:ipc-audio-transcription-ort|ipc_audio_transcription', {
         chunk: audioArray,
         language: mapLanguageCodeToName(locale),
-      }) || ['', '']
+      }) || ''
 
       const transcription: TranscriptionResult = {
         id: `transcription_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,

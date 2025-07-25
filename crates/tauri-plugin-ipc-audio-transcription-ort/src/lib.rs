@@ -22,7 +22,7 @@ use crate::models::{
 };
 
 #[tauri::command]
-async fn load_candle_model_whisper<R: Runtime>(
+async fn load_ort_model_whisper<R: Runtime>(
   app: tauri::AppHandle<R>,
   window: tauri::WebviewWindow<R>,
   model_type: Option<String>,
@@ -107,7 +107,7 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
       Ok(())
     })
     .invoke_handler(tauri::generate_handler![
-      load_candle_model_whisper,
+      load_ort_model_whisper,
       ipc_audio_transcription,
     ])
     .build()

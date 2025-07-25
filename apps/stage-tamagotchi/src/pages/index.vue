@@ -82,7 +82,7 @@ onMounted(async () => {
     const [_, filename, progress, totalSize, currentSize] = event.payload
     resourcesStore.updateResourceProgress('hearing', 'whisper', { filename, progress, totalSize, currentSize })
   }))
-  invoke('plugin:ipc-audio-transcription-ort|load_candle_model_whisper', { modelType: 'medium' })
+  invoke('plugin:ipc-audio-transcription-ort|load_ort_model_whisper', { modelType: 'medium' })
 
   if (connected.value)
     return

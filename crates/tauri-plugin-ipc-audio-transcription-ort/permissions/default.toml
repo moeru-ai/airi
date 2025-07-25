@@ -10,6 +10,6 @@ operations are available from the mcp plugin.
 All operations are enabled by default.
 """
 permissions = [
-  "allow-load-candle-model-whisper",
+  "allow-load-ort-model-whisper",
   "allow-ipc-audio-transcription",
 ]
