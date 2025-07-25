@@ -9,7 +9,7 @@ import { computed, onMounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterView } from 'vue-router'
 
-import { WindowRouterLink } from './commands'
+import { commands } from './bindings/tauri-plugins/window-router-link'
 import { useAppRuntime } from './composables/runtime'
 import { useTauriEvent } from './composables/tauri'
 import { useWindowControlStore } from './stores/window-controls'
@@ -48,7 +48,7 @@ watch(themeColorsHueDynamic, () => {
 
 watch(shouldShowSetup, () => {
   if (shouldShowSetup.value) {
-    WindowRouterLink.commands.go('/onboarding', 'onboarding')
+    commands.go('/onboarding', 'onboarding')
   }
 })
 

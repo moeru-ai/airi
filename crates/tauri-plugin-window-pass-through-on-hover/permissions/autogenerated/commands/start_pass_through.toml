@@ -1,0 +1,13 @@
+# Automatically generated - DO NOT EDIT!
+
+"$schema" = "../../schemas/schema.json"
+
+[[permission]]
+identifier = "allow-start-pass-through"
+description = "Enables the start_pass_through command without any pre-configured scope."
+commands.allow = ["start_pass_through"]
+
+[[permission]]
+identifier = "deny-start-pass-through"
+description = "Denies the start_pass_through command without any pre-configured scope."
+commands.deny = ["start_pass_through"]

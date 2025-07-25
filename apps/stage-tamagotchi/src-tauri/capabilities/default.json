@@ -26,11 +26,9 @@
     "global-shortcut:allow-register",
     "global-shortcut:allow-unregister",
     "global-shortcut:allow-unregister-all",
-    "proj-airi-tauri-plugin-window-pass-through-on-hover:default",
-    "proj-airi-tauri-plugin-window-persistence:default",
-    "proj-airi-tauri-plugin-window:default",
-    "proj-airi-tauri-plugin-window-router-link:default",
-    "proj-airi-tauri-plugin-audio-transcription:default",
-    "proj-airi-tauri-plugin-audio-vad:default"
+    "window-pass-through-on-hover:default",
+    "window-router-link:default",
+    "ipc-audio-transcription-candle:default",
+    "ipc-audio-vad-ort:default"
   ]
 }

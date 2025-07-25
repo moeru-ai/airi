@@ -64,7 +64,7 @@ export function useWhisperTranscription(config: Partial<WhisperConfig> = {}) {
     error.value = ''
 
     try {
-      await invoke('plugin:proj-airi-tauri-plugin-audio-transcription|load_model_whisper', { modelType })
+      await invoke('plugin:ipc-audio-transcription-candle|load_candle_model_whisper', { modelType })
       isModelLoaded.value = true
     }
     catch (err) {
@@ -86,7 +86,7 @@ export function useWhisperTranscription(config: Partial<WhisperConfig> = {}) {
       isProcessing.value = true
 
       const audioArray = Array.from(segment.audioData)
-      const [result, language] = await invoke('plugin:proj-airi-tauri-plugin-audio-transcription|audio_transcription', {
+      const [result, language] = await invoke('plugin:ipc-audio-transcription-candle|ipc_audio_transcription', {
         chunk: audioArray,
         language: mapLanguageCodeToName(locale),
       }) || ['', '']

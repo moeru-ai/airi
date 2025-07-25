@@ -28,13 +28,13 @@ export function useTauriPointAndWindowFrame() {
   }
 
   function addListeners() {
-    listen('tauri-app:proj-airi:window-pass-through-on-hover:cursor-position', (event) => {
+    listen('tauri-plugins:tauri-plugin-window-pass-through-on-hover:cursor-position', (event) => {
       _onCursorPosition(event)
     }).then((fn) => {
       unListenFuncs.value.push(fn)
     })
 
-    listen('tauri-app:proj-airi:window-pass-through-on-hover:window-frame', (event) => {
+    listen('tauri-plugins:tauri-plugin-window-pass-through-on-hover:window-frame', (event) => {
       _onWindowFrame(event)
     }).then((fn) => {
       unListenFuncs.value.push(fn)
@@ -48,13 +48,13 @@ export function useTauriPointAndWindowFrame() {
       unListenFuncs.value.forEach(fn => fn?.())
       unListenFuncs.value.length = 0
 
-      invoke('plugin:proj-airi-tauri-plugin-window-pass-through-on-hover|stop_monitor')
+      invoke('plugin:window-pass-through-on-hover|stop_tracing_cursor')
     })
 
     import.meta.hot.on('vite:afterUpdate', () => {
       unListenFuncs.value.length === 0 && addListeners()
 
-      invoke('plugin:proj-airi-tauri-plugin-window-pass-through-on-hover|start_monitor')
+      invoke('plugin:window-pass-through-on-hover|start_tracing_cursor')
     })
   }
 

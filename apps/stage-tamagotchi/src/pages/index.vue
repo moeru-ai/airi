@@ -50,13 +50,13 @@ const modeIndicatorClass = computed(() => {
 })
 
 onMounted(async () => {
-  await invoke('plugin:proj-airi-tauri-plugin-window-pass-through-on-hover|start_monitor')
+  await invoke('plugin:window-pass-through-on-hover|start_tracing_cursor')
   await startClickThrough()
 })
 
 onUnmounted(async () => {
   await stopClickThrough()
-  await invoke('plugin:proj-airi-tauri-plugin-window-pass-through-on-hover|stop_monitor')
+  await invoke('plugin:window-pass-through-on-hover|stop_tracing_cursor')
 })
 
 const unListenFuncs: (() => void)[] = []
@@ -71,18 +71,18 @@ function openChat() {
 
 onMounted(async () => {
   // VAD
-  unListenFuncs.push(await listen('tauri-tamagotchi://plugins:proj-airi:audio-vad:load-model-silero-vad-progress', (event) => {
+  unListenFuncs.push(await listen('tauri-plugins:tauri-plugin-ipc-audio-transcription-candle:load-model-silero-vad-progress', (event) => {
     const [_, filename, progress, totalSize, currentSize] = event.payload
     resourcesStore.updateResourceProgress('hearing', 'vad', { filename, progress, totalSize, currentSize })
   }))
-  invoke('plugin:proj-airi-tauri-plugin-audio-vad|load_model_silero_vad')
+  invoke('plugin:ipc-audio-vad-ort|load_ort_model_silero_vad')
 
   // Whisper
-  unListenFuncs.push(await listen('tauri-tamagotchi://plugins:proj-airi:audio-transcription:load-model-whisper-progress', (event) => {
+  unListenFuncs.push(await listen('tauri-plugins:tauri-plugin-ipc-audio-vad-ort:load-model-whisper-progress', (event) => {
     const [_, filename, progress, totalSize, currentSize] = event.payload
     resourcesStore.updateResourceProgress('hearing', 'whisper', { filename, progress, totalSize, currentSize })
   }))
-  invoke('plugin:proj-airi-tauri-plugin-audio-transcription|load_model_whisper', { modelType: 'medium' })
+  invoke('plugin:ipc-audio-transcription-candle|load_candle_model_whisper', { modelType: 'medium' })
 
   if (connected.value)
     return
@@ -107,10 +107,10 @@ if (import.meta.hot) { // For better DX
     unListenFuncs.forEach(fn => fn?.())
     unListenFuncs.length = 0
 
-    invoke('plugin:proj-airi-tauri-plugin-window-pass-through-on-hover|stop_monitor')
+    invoke('plugin:window-pass-through-on-hover|stop_tracing_cursor')
   })
   import.meta.hot.on('vite:afterUpdate', async () => {
-    invoke('plugin:proj-airi-tauri-plugin-window-pass-through-on-hover|start_monitor')
+    invoke('plugin:window-pass-through-on-hover|start_tracing_cursor')
   })
 }
 </script>
