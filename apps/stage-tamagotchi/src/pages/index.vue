@@ -71,7 +71,7 @@ function openChat() {
 
 onMounted(async () => {
   // VAD
-  unListenFuncs.push(await listen('tauri-plugins:tauri-plugin-ipc-audio-transcription-candle:load-model-silero-vad-progress', (event) => {
+  unListenFuncs.push(await listen('tauri-plugins:tauri-plugin-ipc-audio-transcription-ort:load-model-silero-vad-progress', (event) => {
     const [_, filename, progress, totalSize, currentSize] = event.payload
     resourcesStore.updateResourceProgress('hearing', 'vad', { filename, progress, totalSize, currentSize })
   }))
@@ -82,7 +82,7 @@ onMounted(async () => {
     const [_, filename, progress, totalSize, currentSize] = event.payload
     resourcesStore.updateResourceProgress('hearing', 'whisper', { filename, progress, totalSize, currentSize })
   }))
-  invoke('plugin:ipc-audio-transcription-candle|load_candle_model_whisper', { modelType: 'medium' })
+  invoke('plugin:ipc-audio-transcription-ort|load_candle_model_whisper', { modelType: 'medium' })
 
   if (connected.value)
     return

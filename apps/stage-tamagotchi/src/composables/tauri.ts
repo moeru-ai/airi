@@ -54,7 +54,7 @@ export interface AiriTamagotchiEvents extends Events {
   'tauri-plugins:tauri-plugin-window-pass-through-on-hover:cursor-position': Point
   'tauri-plugins:tauri-plugin-window-pass-through-on-hover:window-frame': WindowFrame
   'tauri-plugins:tauri-plugin-window-pass-through-on-hover:pass-through-enabled': boolean
-  'tauri-plugins:tauri-plugin-ipc-audio-transcription-candle:load-model-silero-vad-progress': [boolean, string, number, number, number]
+  'tauri-plugins:tauri-plugin-ipc-audio-transcription-ort:load-model-silero-vad-progress': [boolean, string, number, number, number]
   'tauri-plugins:tauri-plugin-ipc-audio-vad-ort:load-model-whisper-progress': [boolean, string, number, number, number]
   'mcp_plugin_destroyed': undefined
 }

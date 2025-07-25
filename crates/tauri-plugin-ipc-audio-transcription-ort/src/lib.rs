@@ -13,10 +13,13 @@ mod models;
 
 #[derive(Default)]
 struct AppDataWhisperProcessor {
-  whisper_processor: Option<models::whisper::Processor>,
+  whisper_processor: Option<models::whisper::whisper::WhisperPipeline>,
 }
 
-use crate::models::{new_whisper_processor, whisper::WhichWhisperModel};
+use crate::models::{
+  new_whisper_processor,
+  whisper::{self, whisper::WhichModel},
+};
 
 #[tauri::command]
 async fn load_candle_model_whisper<R: Runtime>(
@@ -38,7 +41,7 @@ async fn load_candle_model_whisper<R: Runtime>(
   // Load the traditional whisper models first
   match new_whisper_processor(
     window,
-    Some(WhichWhisperModel::from_str(
+    Some(WhichModel::from_str(
       model_type
         .unwrap_or_else(|| "medium".to_string())
         .as_str(),
@@ -67,7 +70,7 @@ async fn ipc_audio_transcription<R: Runtime>(
   app: tauri::AppHandle<R>,
   chunk: Vec<f32>,
   language: Option<String>,
-) -> Result<(String, String), String> {
+) -> Result<String, String> {
   info!("Processing audio transcription...");
 
   let data = app.state::<Mutex<AppDataWhisperProcessor>>();
@@ -84,17 +87,20 @@ async fn ipc_audio_transcription<R: Runtime>(
   let mut data = data.lock().unwrap();
   let processor = data.whisper_processor.as_mut().unwrap();
 
-  let (transcription, language) = processor
-    .transcribe(chunk.as_slice(), language.as_deref())
+  let mut config = whisper::whisper::GenerationConfig::default();
+  config.language = language;
+
+  let transcription = processor
+    .transcribe(chunk.as_slice(), &config)
     .map_err(|e| e.to_string())?;
 
   info!("Transcription completed: {}", transcription);
 
-  Ok((transcription, language))
+  Ok(transcription)
 }
 
 pub fn init<R: Runtime>() -> TauriPlugin<R> {
-  PluginBuilder::new("ipc-audio-transcription-candle")
+  PluginBuilder::new("ipc-audio-transcription-ort")
     .setup(|app, _| {
       info!("Initializing audio transcription plugin...");
       app.manage(Mutex::new(AppDataWhisperProcessor::default()));

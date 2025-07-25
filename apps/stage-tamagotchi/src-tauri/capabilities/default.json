@@ -28,7 +28,7 @@
     "global-shortcut:allow-unregister-all",
     "window-pass-through-on-hover:default",
     "window-router-link:default",
-    "ipc-audio-transcription-candle:default",
+    "ipc-audio-transcription-ort:default",
     "ipc-audio-vad-ort:default"
   ]
 }

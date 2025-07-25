@@ -1,21 +1,24 @@
 [package]
-name = "tauri-plugin-ipc-audio-vad-ort"
+name = "tauri-plugin-ipc-audio-transcription-ort"
 version.workspace = true
-description = "Audio VAD (Voice Activity Detection) plugin for Tauri using ONNX Runtime"
+description = "Audio transcription plugin for Tauri using ONNX Runtime"
 authors = [ "Neko Ayaka <neko@ayaka.moe>" ]
 license = "MIT"
 repository = "https://github.com/moeru-ai/airi"
 edition = "2024"
 rust-version = "1.85.0"
-links = "tauri-plugin-ipc-audio-vad-ort"
+links = "tauri-plugin-ipc-audio-transcription-ort"
 
 [lib]
-name = "tauri_plugin_ipc_audio_vad_ort"
+name = "tauri_plugin_ipc_audio_transcription_ort"
 crate-type = [
   "staticlib",
   "cdylib",
   "rlib"
 ]
+
+[features]
+default = []
 
 [dependencies]
 tauri = "2.3.1"
@@ -26,17 +29,12 @@ ndarray = "0.16.1"
 log = "0.4"
 anyhow = "1"
 tokenizers = "0.21.2"
-specta = "=2.0.0-rc.22"
-specta-typescript = "0.0.9"
-tauri-specta = { version = "=2.0.0-rc.21", features = ["derive", "typescript"] }
 hf-hub = "0.4.3"
 symphonia = "0.5.4"
 rubato = "0.16.2"
 byteorder = "1.5.0"
 clap = { version = "4.5.40", features = ["derive"] }
-
-[build-dependencies]
-tauri-plugin = { version = "2.2", features = [ "build" ] }
+rustfft = "6.4.0"
 
 [target.'cfg(target_os = "macos")'.dependencies]
 ort = { version = "2.0.0-rc.10", features = ["ndarray", "coreml"] }
@@ -46,3 +44,6 @@ ort = { version = "2.0.0-rc.10", features = ["ndarray", "directml", "cuda"] }
 
 [target.'cfg(target_os = "linux")'.dependencies]
 ort = { version = "2.0.0-rc.10", features = ["ndarray", "cuda"] }
+
+[build-dependencies]
+tauri-plugin = { version = "2.2", features = [ "build" ] }
