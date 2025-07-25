@@ -8,8 +8,8 @@ export interface InvokeMethods {
   'open_chat_window': { args: undefined, options: undefined, returns: void }
 
   // Plugin - Audio Transcription
-  'plugin:ipc-audio-transcription-candle|load_candle_model_whisper': { args: { modelType: 'base' | 'largev3' | 'tiny' | 'medium' }, options: undefined, returns: void }
-  'plugin:ipc-audio-transcription-candle|ipc_audio_transcription': { args: { chunk: number[], language: string }, options: undefined, returns: [string, string] }
+  'plugin:ipc-audio-transcription-ort|load_ort_model_whisper': { args: { modelType: 'base' | 'largev3' | 'tiny' | 'medium' }, options: undefined, returns: void }
+  'plugin:ipc-audio-transcription-ort|ipc_audio_transcription': { args: { chunk: number[], language: string }, options: undefined, returns: string }
 
   // Plugin - Audio VAD
   'plugin:ipc-audio-vad-ort|load_ort_model_silero_vad': { args: undefined, options: undefined, returns: void }

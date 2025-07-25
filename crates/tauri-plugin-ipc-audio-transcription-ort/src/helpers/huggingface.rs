@@ -1,20 +1,5 @@
-use anyhow::Ok;
-use log::{error, info};
+use log::error;
 use tauri::{Emitter, Runtime};
-
-pub fn load_device() -> anyhow::Result<candle_core::Device> {
-  // Determine device to use
-  let device = if candle_core::utils::cuda_is_available() {
-    candle_core::Device::new_cuda(0)?
-  } else if candle_core::utils::metal_is_available() {
-    candle_core::Device::new_metal(0)?
-  } else {
-    candle_core::Device::Cpu
-  };
-
-  info!("Using device: {device:?}");
-  Ok(device)
-}
 
 pub trait ProgressEmitter: Send + Sync {
   fn emit_progress(

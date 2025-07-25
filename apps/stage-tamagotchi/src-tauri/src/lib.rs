@@ -30,7 +30,7 @@ pub fn run() {
     .plugin(tauri_plugin_window_state::Builder::default().build())
     .plugin(tauri_plugin_positioner::init())
     // Project AIRI plugins
-    .plugin(tauri_plugin_ipc_audio_transcription_candle::init())
+    .plugin(tauri_plugin_ipc_audio_transcription_ort::init())
     .plugin(tauri_plugin_ipc_audio_vad_ort::init())
     .plugin(tauri_plugin_window_pass_through_on_hover::init())
     .plugin(tauri_plugin_window_router_link::init(
