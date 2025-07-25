@@ -2,7 +2,7 @@
 import { TresCanvas } from '@tresjs/core'
 import { useElementBounding } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { ref, shallowRef, watch } from 'vue'
+import { onUnmounted, ref, shallowRef, watch } from 'vue'
 
 import * as THREE from 'three'
 
@@ -49,8 +49,38 @@ watch(cameraFOV, (newFov) => {
 // })
 // If controls are ready
 watch(() => controlsRef.value?.controls, (ctrl) => {
-  if (ctrl)
+  if (ctrl && camera.value) {
     controlsReady.value = true
+
+    const updateCameraFromControls = () => {
+      if (isUpdatingCamera)
+        return
+      isUpdatingCamera = true
+
+      const newPos = camera.value!.position
+      const newDist = controlsRef.value!.controls!.getDistance()
+
+      const posChanged
+        = Math.abs(cameraPosition.value.x - newPos.x) > 1e-6
+          || Math.abs(cameraPosition.value.y - newPos.y) > 1e-6
+          || Math.abs(cameraPosition.value.z - newPos.z) > 1e-6
+
+      const distChanged = Math.abs(cameraDistance.value - newDist) > 1e-6
+
+      if (posChanged || distChanged) {
+        cameraPosition.value = { x: newPos.x, y: newPos.y, z: newPos.z }
+        cameraDistance.value = newDist
+      }
+
+      isUpdatingCamera = false
+    }
+
+    ctrl.addEventListener('change', updateCameraFromControls)
+
+    onUnmounted(() => {
+      ctrl.removeEventListener('change', updateCameraFromControls)
+    })
+  }
 })
 // If model is ready
 function handleLoadModelProgress() {
@@ -75,6 +105,7 @@ watch(
         )
         camera.value.updateProjectionMatrix()
         controlsRef.value.controls.update()
+        cameraDistance.value = controlsRef.value!.controls!.getDistance()
       }
       finally {
         isUpdatingCamera = false
@@ -83,24 +114,7 @@ watch(
     }
   },
 )
-
 // Bidirectional watch between slider and OrbitControls
-watch(() => controlsRef.value?.getDistance(), (newDistance) => {
-  if (!isUpdatingCamera && newDistance !== undefined && camera.value) {
-    // To avoid floating point inaccuracies causing a feedback loop with the other watcher,
-    // we can check if the distance has changed significantly.
-    isUpdatingCamera = true
-    if (Math.abs(cameraDistance.value - newDistance) > 1e-6) {
-      cameraDistance.value = newDistance
-      cameraPosition.value = {
-        x: camera.value.position.x,
-        y: camera.value.position.y,
-        z: camera.value.position.z,
-      }
-    }
-    isUpdatingCamera = false
-  }
-})
 watch(cameraDistance, (newDistance) => {
   if (!isUpdatingCamera && camera.value && controlsRef.value && controlsRef.value.controls) {
     isUpdatingCamera = true
@@ -120,9 +134,13 @@ watch(cameraDistance, (newDistance) => {
       z: newPosition.z,
     }
   }
-
   isUpdatingCamera = false
 })
+watch(cameraPosition, (newPosition) => {
+  if (modelRef.value) {
+    modelRef.value.lookAtUpdate(newPosition)
+  }
+}, { deep: true })
 
 defineExpose({
   setExpression: (expression: string) => {
