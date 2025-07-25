@@ -1,6 +1,7 @@
 {
   config,
   lib,
+  stdenv,
   stdenvNoCC,
   rustPlatform,
 
@@ -36,7 +37,7 @@ rustPlatform.buildRustPackage (final: {
   pnpmDeps = pnpm.fetchDeps {
     inherit (final) pname version src;
     fetcherVersion = 1;
-    hash = "sha256-+q1JF0Si+LMsiN5ZtpSsbOV57fBQ2mROSmHK32UeIiI="; # To update, set it to ""
+    hash = "sha256-uyL6piAm95Pjgc8ZnhPfg3v90oQVjt851GHaJKaf/D8="; # To update, set it to ""
   };
 
   # Cache of assets downloaded during vite build
@@ -70,30 +71,33 @@ rustPlatform.buildRustPackage (final: {
 
     outputHashMode = "recursive";
     # To update, set it to lib.fakeHash
-    outputHash = "sha256-QDG5sWlWwgMWvG/umkNY+Ct9i5zl+eKEJnvA2whPkY=";
+    outputHash = "sha256-QDGx5sWlWwgMWvG/umkNY+Ct9i5zl+eKEJnvA2whPkY=";
   };
 
   nativeBuildInputs =
     [
-      autoPatchelfHook
       cargo-tauri.hook
       nodejs
       pkg-config
       pnpm.configHook
+    ]
+    ++ lib.optionals stdenv.isLinux [
       wrapGAppsHook3
+      autoPatchelfHook
     ]
     ++ lib.optionals cudaSupport [
       cudaPackages.cuda_nvcc # Used by cudarc and bindgen_cuda
     ];
 
-  buildInputs =
-    [
-      alsa-lib # Used by alsa-sys
-      atk # Used by atk-sys
+  buildInputs = [
       glib # Used by glib-sys
-      libayatana-appindicator # Used by libappindicator-sys
       onnxruntime # Used by ort-sys
       openssl # Used by openssl-sys
+    ]
+    ++ lib.optionals stdenv.isLinux [
+      alsa-lib # Used by alsa-sys
+      atk # Used by atk-sys
+      libayatana-appindicator # Used by libappindicator-sys
       webkitgtk_4_1
     ]
     ++ lib.optionals cudaSupport [
@@ -145,12 +149,26 @@ rustPlatform.buildRustPackage (final: {
   buildType = if debugBuild then "debug" else "release";
   cargoBuildFeatures = lib.optional cudaSupport "cuda";
 
-  postInstall = ''
+  postInstall =
+  lib.optionalString stdenv.isLinux ''
     mv $out/bin/app $out/bin/airi
+  ''
+  + lib.optionalString stdenv.isDarwin ''
+    echo "=== DEBUG: Contents of $out ==="
+    find "$out" -type f | head -20
+    echo "=== DEBUG: Applications directory ==="
+    ls -la "$out/"
+    ls -la "$out/Applications/"
+    ls -la "$out/Applications/" || echo "No Applications directory"
+    echo "=== DEBUG: Looking for .app bundles ==="
+    find "$out" -name "*.app" -type d || echo "No .app bundles found"
+
+    mkdir -p "$out/bin"
+    ln -sf "$out/Applications/AIRI.app/Contents/MacOS/app" "$out/bin/airi"
   '';
 
   # Add missing runtime dependency
-  preFixup = ''
+  preFixup = lib.optionalString stdenv.isLinux ''
     patchelf --add-needed libayatana-appindicator3.so.1 $out/bin/airi
   '';
 
@@ -169,6 +187,8 @@ rustPlatform.buildRustPackage (final: {
     platforms = [
       "x86_64-linux"
       "aarch64-linux"
+      "x86_64-darwin"
+      "aarch64-darwin"
     ];
     mainProgram = "airi";
     maintainers = with lib.maintainers; [ weathercold ];
