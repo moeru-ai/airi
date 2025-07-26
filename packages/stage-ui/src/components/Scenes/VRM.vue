@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { TresCanvas } from '@tresjs/core'
-import { useElementBounding } from '@vueuse/core'
+import { useElementBounding, useMouse } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { onUnmounted, ref, shallowRef, watch } from 'vue'
 
@@ -13,6 +13,9 @@ const emit = defineEmits<{
   (e: 'loadModelProgress', value: number): void
   (e: 'error', value: unknown): void
 }>()
+
+const { x: mouseX, y: mouseY } = useMouse()
+
 const vrmContainerRef = ref<HTMLDivElement>()
 const { width, height } = useElementBounding(vrmContainerRef)
 const {
@@ -21,6 +24,9 @@ const {
   cameraPosition,
   cameraDistance,
   modelOrigin,
+  trackingMode,
+  lookAtTarget,
+  eyeHeight,
 } = storeToRefs(useVRM())
 
 const modelRef = ref<InstanceType<typeof VRMModel>>()
@@ -32,6 +38,8 @@ let isUpdatingCamera = true
 const controlsReady = ref(false)
 const modelReady = ref(false)
 const sceneReady = ref(false)
+const raycaster = new THREE.Raycaster()
+const mouse = new THREE.Vector2()
 
 watch(cameraFOV, (newFov) => {
   if (camera.value) {
@@ -136,11 +144,62 @@ watch(cameraDistance, (newDistance) => {
   }
   isUpdatingCamera = false
 })
+
+// Set looking target according to trackingMode
+function lookAtCamera(newPosition: { x: number, y: number, z: number }) {
+  modelRef.value?.lookAtUpdate(newPosition)
+  lookAtTarget.value = newPosition
+}
+function lookAtMouse(mouseX: number, mouseY: number) {
+  mouse.x = (mouseX / window.innerWidth) * 2 - 1
+  mouse.y = -(mouseY / window.innerHeight) * 2 + 1
+  // 2. 射线投射
+  raycaster.setFromCamera(mouse, camera.value)
+  // 3. 创建一个摄像机平面
+  const cameraDirection = new THREE.Vector3()
+  camera.value.getWorldDirection(cameraDirection) // 获取摄像头正前方方向
+  const plane = new THREE.Plane()
+  plane.setFromNormalAndCoplanarPoint(
+    cameraDirection,
+    camera.value.position.clone().add(cameraDirection.multiplyScalar(1)), // 在摄像机前 1 单位距离
+  )
+  const intersection = new THREE.Vector3()
+  raycaster.ray.intersectPlane(plane, intersection)
+  lookAtTarget.value = { x: intersection.x, y: intersection.y, z: cameraPosition.value.z }
+  // 4. 传给模型
+  modelRef.value?.lookAtUpdate(lookAtTarget.value)
+}
 watch(cameraPosition, (newPosition) => {
-  if (modelRef.value) {
-    modelRef.value.lookAtUpdate(newPosition)
+  if (!sceneReady.value || !modelRef.value)
+    return
+  if (trackingMode.value === 'camera') {
+    lookAtCamera(newPosition)
   }
 }, { deep: true })
+watch([mouseX, mouseY], () => {
+  if (!sceneReady.value || !modelRef.value)
+    return
+  if (trackingMode.value === 'mouse') {
+    lookAtMouse(mouseX.value, mouseY.value)
+  }
+})
+watch(trackingMode, (newMode) => {
+  if (!sceneReady.value || !modelRef.value)
+    return
+  if (newMode === 'camera') {
+    lookAtCamera(cameraPosition.value)
+  }
+  else if (newMode === 'mouse') {
+    lookAtMouse(mouseX.value, mouseY.value)
+  }
+  else {
+    lookAtTarget.value = {
+      x: 0,
+      y: eyeHeight.value,
+      z: -1000,
+    }
+  }
+})
 
 defineExpose({
   setExpression: (expression: string) => {
