@@ -217,13 +217,24 @@ watch(() => props.paused, (value) => {
   value ? pause() : resume()
 })
 
-onUnmounted(() => {
+function componentCleanUp() {
   disposeBeforeRenderLoop?.()
   if (vrm.value) {
     vrm.value.scene.removeFromParent()
     VRMUtils.deepDispose(vrm.value.scene)
   }
+}
+
+onUnmounted(() => {
+  componentCleanUp()
 })
+
+if (import.meta.hot) {
+  // Ensure cleanup on HMR
+  import.meta.hot.dispose(() => {
+    componentCleanUp()
+  })
+}
 </script>
 
 <template>
