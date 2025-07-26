@@ -88,7 +88,7 @@ export default defineConfig({
         outline: {
           level: 'deep',
         },
-        logo: '/favicon.svg',
+        logo: withBase('/favicon.svg'),
 
         sidebar: [
           {
@@ -154,7 +154,7 @@ export default defineConfig({
         outline: {
           level: 'deep',
         },
-        logo: '/favicon.svg',
+        logo: withBase('/favicon.svg'),
 
         sidebar: [
           {

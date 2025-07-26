@@ -66,6 +66,30 @@ function recursivelyFindAtAssets(propertyMaybeObjectOrScalar: unknown, fn: (valu
   }
 }
 
+function withoutBase(url?: string, base?: string): string | undefined {
+  if (!url) {
+    return url
+  }
+
+  if (!base?.startsWith('/')) {
+    base = `/${base}`
+  }
+  if (!base?.endsWith('/')) {
+    base += '/'
+  }
+
+  if (url.startsWith(`${base}`) && base) {
+    if (url.endsWith('/')) {
+      return url.slice(base.length)
+    }
+    else {
+      return `/${url.slice(base.length)}`
+    }
+  }
+
+  return url
+}
+
 export function frontmatterAssets(): Plugin {
   let resolvedConfig: VitePressConfig | undefined
   const mAssetAbsoluteUrlMetadata = new Map<string, { url: string, builtUrl?: string, hash?: string }>()
@@ -118,11 +142,12 @@ export function frontmatterAssets(): Plugin {
     },
     configureServer(server) {
       server.middlewares.use(async (req, res, next) => {
-        if (!req.url || !mapAssetBuiltUrlAssetAbsoluteUrl.has(req.url)) {
+        const requesting = withoutBase(req.url, resolvedConfig?.base)
+        if (!requesting || !mapAssetBuiltUrlAssetAbsoluteUrl.has(requesting)) {
           return next()
         }
 
-        const filePath = mapAssetBuiltUrlAssetAbsoluteUrl.get(req.url)
+        const filePath = mapAssetBuiltUrlAssetAbsoluteUrl.get(requesting)
         if (!filePath) {
           return next()
         }
@@ -130,12 +155,13 @@ export function frontmatterAssets(): Plugin {
         const ext = parse(filePath).ext.slice(1)
         const fileContent = await readFile(filePath)
 
+        res.write(fileContent)
         res.writeHead(200, {
           'Content-Type': ext === 'svg' ? 'image/svg+xml' : `image/${ext}`,
           'Content-Length': fileContent.length,
           'Cache-Control': 'public, max-age=31536000, immutable',
         })
-        res.end(fileContent)
+        res.end()
 
         return next()
       })

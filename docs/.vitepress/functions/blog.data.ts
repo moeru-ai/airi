@@ -52,7 +52,7 @@ function fromAtAssets(url: string): string {
   return url
 }
 
-function withBase(url?: string, base?: string, cwd?: string) {
+function withBase(url?: string, base?: string) {
   if (!url) {
     return url
   }
@@ -60,11 +60,20 @@ function withBase(url?: string, base?: string, cwd?: string) {
   if (url.startsWith('/') && base) {
     return join(base, url)
   }
-  if (!url.startsWith('/') && base && cwd) {
-    return join(base, cwd, url)
-  }
 
   return url
+}
+
+function withDirname(url?: string, cwd?: string) {
+  if (!url || !cwd) {
+    return url
+  }
+
+  if (url.startsWith('/')) {
+    return join(cwd, url)
+  }
+
+  return join(cwd, url)
 }
 
 export default createContentLoader('**/blog/**/*.md', {
@@ -98,8 +107,8 @@ export default createContentLoader('**/blog/**/*.md', {
           return `/assets/${parsed.name}.${hash}${parsed.ext}`
         }
 
-        const previewCoverLight = await fileToUrl(withBase(fromAtAssets(frontmatter['preview-cover']?.light), base, cwdFromUrl(url)))
-        const previewCoverDark = await fileToUrl(withBase(fromAtAssets(frontmatter['preview-cover']?.dark), base, cwdFromUrl(url)))
+        const previewCoverLight = withBase(await fileToUrl(withDirname(fromAtAssets(frontmatter['preview-cover']?.light), cwdFromUrl(url))), base)
+        const previewCoverDark = withBase(await fileToUrl(withDirname(fromAtAssets(frontmatter['preview-cover']?.dark), cwdFromUrl(url))), base)
 
         const res = {
           title: frontmatter.title,
