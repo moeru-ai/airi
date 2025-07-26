@@ -2,6 +2,9 @@
 title: DevLog @ 2025.06.08
 category: DevLog
 date: 2025-06-08
+preview-cover:
+  light: "@assets('./assets/250608-light.png')"
+  dark: "@assets('./assets/250608-dark.png')"
 ---
 
 Hello everyone, here's LemonNeko, one of maintainer of AIRI. Today's DevLog is talking about: Let Live2D model of AIRI Tamagotchi to focus position.
@@ -101,3 +104,5 @@ In this DevLog, we learned how to get the relative position of cursor to window,
 - [Win32 API: GetWindowRect](https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getwindowrect "GetWindowRect")
 - [macOS API: `NSWindow.frame`](https://developer.apple.com/documentation/appkit/nswindow/frame "NSWindow.frame")
 - [macOS API: `NSEvent.mouseLocation`](https://developer.apple.com/documentation/appkit/nsevent/mouselocation "NSEvent.mouseLocation")
+
+> Cover image by [@Rynco Maekawa](https://github.com/lynzrand)

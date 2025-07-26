@@ -4,6 +4,9 @@ description: 'Backstory of Project AIRI!'
 category: DreamLog
 date: 2025-06-16
 excerpt: 'The backstory of Project AIRI! Why this project?'
+preview-cover:
+  light: "@assets('./assets/dreamlog1-light.png')"
+  dark: "@assets('./assets/dreamlog1-dark.png')"
 ---
 
 <script setup>
@@ -508,6 +511,8 @@ How much memory we could store? **It depends on how much we could dream, and how
     <span>Thanks for reading! Oh, and, Happy Birthday, Project AIRI!</span>
   </div>
 </div>
+
+> Cover image by [@Rynco Maekawa](https://github.com/lynzrand)
 
 [^1]: https://neurosama.fandom.com/wiki/Osu!#cite_note-twitchtracker-1: Neuro-sama started out as an
   AI that plays osu! long before being developed further as an AI VTuber. The first osu! stream was on

@@ -18,8 +18,12 @@ interface Post {
   }
   excerpt: string | undefined
   frontmatter?: {
-    category?: string
-    author?: string
+    'category'?: string
+    'author'?: string
+    'preview-cover'?: {
+      light?: string
+      dark?: string
+    }
   }
 }
 
@@ -43,7 +47,14 @@ const posts = computed(() => {
   }
 
   const transformedPostsData = postsData
-    .map(post => ({ ...post, url: withBase(post.url) }))
+    .map((post) => {
+      const overridePost = {
+        ...post,
+        url: withBase(post.url),
+      }
+
+      return overridePost
+    })
     .filter(post => !!post.title)
 
   const currentLanguagePostsData = [...transformedPostsData].filter(post => post.lang === lang.value)
@@ -198,15 +209,25 @@ const svgArts = computedAsync(async () => {
         :href="post.url"
         class="block flex flex-col overflow-hidden border-transparent rounded-xl border-solid bg-white/50 decoration-none shadow-sm outline-2 outline-transparent outline-offset-0 outline transition-all transition-all duration-200 duration-300 ease-in-out dark:bg-black/20 dark:shadow-slate-600/5 hover:shadow-md hover:outline-primary/5 hover:outline-offset-2 [&_.post-card-title]:hover:text-primary dark:hover:outline-primary/25"
       >
-        <div class="h-28 rounded-t-xl">
+        <div class="rounded-t-xl">
           <ClientOnly>
-            <div h-full blur-2xl v-html="isDark ? svgArts?.[index].dark : svgArts?.[index].light" />
+            <div v-if="!post.frontmatter?.['preview-cover']?.[isDark ? 'dark' : 'light']" class="mb-6 h-20 md:h-60">
+              <div class="blur-2xl" h="full" w-full v-html="isDark ? svgArts?.[index].dark : svgArts?.[index].light" />
+            </div>
+            <div v-else class="relative mb-0 h-28 w-full md:h-68">
+              <div class="preview-card-art-image-overlay" />
+              <img
+                :src="post.frontmatter?.['preview-cover']?.[isDark ? 'dark' : 'light']"
+                alt="Post Cover"
+                class="preview-card-art-image h-full w-full object-cover"
+              >
+            </div>
           </ClientOnly>
         </div>
-        <div class="flex-grow p-6">
-          <h2 class="post-card-title text-card-foreground text-2xl font-bold transition-colors duration-200">
+        <div class="relative z-1 flex-grow px-6 pb-3 pt-6 md:pt-6">
+          <div class="post-card-title text-card-foreground z-1 text-2xl font-bold transition-colors duration-200">
             {{ post.title }}
-          </h2>
+          </div>
           <div class="text-muted-foreground mb-4 flex items-center gap-4 text-sm">
             <div class="flex items-center gap-2">
               <Icon icon="lucide:calendar" />
@@ -241,5 +262,22 @@ const svgArts = computedAsync(async () => {
   mask-image: linear-gradient(to bottom, black 70%, transparent 100%);
   max-height: 10lh; /* Adjust this value to control the number of visible lines */
   overflow: hidden;
+}
+
+/**
+https://stackoverflow.com/questions/67853607/how-do-i-graduallyfeather-gradient-transition-blur-in-css
+https://www.reddit.com/r/css/comments/t3am53/pure_css_gradientprogressive_blur_i_used/
+https://codepen.io/Francesco_Maretti/pen/yLPRvXp
+*/
+.preview-card-art-image-overlay {
+  height: 50%;
+  width: 100%;
+  position: absolute;
+  bottom: 0;
+  z-index: 1;
+  transform: translateY(50%);
+  backdrop-filter: blur(40px);
+  -webkit-mask-image: linear-gradient(to bottom, #ffffff00 0%, #ffffff 50%, #ffffff00 100%);
+  mask-image: linear-gradient(to bottom, #ffffff00 0%, #ffffff 50%, #ffffff00 100%);
 }
 </style>
