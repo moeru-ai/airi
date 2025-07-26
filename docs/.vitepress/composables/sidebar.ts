@@ -1,13 +1,12 @@
 import type { DefaultTheme } from 'vitepress/theme'
 import type { ComputedRef, Ref } from 'vue'
 
-import { useMediaQuery } from '@vueuse/core'
+import { useEventListener, useMediaQuery } from '@vueuse/core'
 import { useData, withBase } from 'vitepress'
 import {
   computed,
 
   onMounted,
-  onUnmounted,
 
   ref,
   watch,
@@ -90,13 +89,7 @@ export function useCloseSidebarOnEscape(
       : undefined
   })
 
-  onMounted(() => {
-    window.addEventListener('keyup', onEscape)
-  })
-
-  onUnmounted(() => {
-    window.removeEventListener('keyup', onEscape)
-  })
+  useEventListener('keyup', onEscape)
 
   function onEscape(e: KeyboardEvent) {
     if (e.key === 'Escape' && isOpen.value) {

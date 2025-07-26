@@ -39,7 +39,7 @@ defineProps<{
             :exit="{ opacity: 0, y: -10 }"
             class="z-20 border rounded-xl p-2 shadow-md backdrop-blur-md"
             :class="[
-              'bg-white/20 dark:border-white/5 dark:bg-black/20',
+              'bg-white/80 dark:border-white/5 dark:bg-black/80',
               'transition-colors duration-200 ease-in-out',
             ]"
           >
