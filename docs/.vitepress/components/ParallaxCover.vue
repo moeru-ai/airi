@@ -64,10 +64,12 @@ watchEffect((onCleanup) => {
     animateCover(0, 0)
   }
   else {
-    window.addEventListener('mousemove', onMouseMove)
-    onCleanup(() => {
-      window.removeEventListener('mousemove', onMouseMove)
-    })
+    if (!import.meta.env.SSR) {
+      window.addEventListener('mousemove', onMouseMove)
+      onCleanup(() => {
+        window.removeEventListener('mousemove', onMouseMove)
+      })
+    }
   }
 })
 
