@@ -153,20 +153,20 @@ function lookAtCamera(newPosition: { x: number, y: number, z: number }) {
 function lookAtMouse(mouseX: number, mouseY: number) {
   mouse.x = (mouseX / window.innerWidth) * 2 - 1
   mouse.y = -(mouseY / window.innerHeight) * 2 + 1
-  // 2. 射线投射
+  // Raycast from the mouse position
   raycaster.setFromCamera(mouse, camera.value)
-  // 3. 创建一个摄像机平面
+  // Create a plane in front of the camera
   const cameraDirection = new THREE.Vector3()
-  camera.value.getWorldDirection(cameraDirection) // 获取摄像头正前方方向
+  camera.value.getWorldDirection(cameraDirection) // Get camera's forward direction
   const plane = new THREE.Plane()
   plane.setFromNormalAndCoplanarPoint(
     cameraDirection,
-    camera.value.position.clone().add(cameraDirection.multiplyScalar(1)), // 在摄像机前 1 单位距离
+    camera.value.position.clone().add(cameraDirection.multiplyScalar(1)), // 1 unit in front of the camera
   )
   const intersection = new THREE.Vector3()
   raycaster.ray.intersectPlane(plane, intersection)
-  lookAtTarget.value = { x: intersection.x, y: intersection.y, z: cameraPosition.value.z }
-  // 4. 传给模型
+  lookAtTarget.value = { x: intersection.x, y: intersection.y, z: intersection.z }
+  // Pass the target to the model
   modelRef.value?.lookAtUpdate(lookAtTarget.value)
 }
 watch(cameraPosition, (newPosition) => {
