@@ -171,16 +171,15 @@ onMounted(async () => {
     loadingModel.value = false
     emit('modelReady')
 
-    function getEyeWorldPosition(): number | null {
+    function getEyePosition(): number | null {
       const eye = vrm.value?.humanoid?.getNormalizedBoneNode('head')
       if (!eye)
         return null
-      // 获取世界坐标
       const eyePos = new Vector3()
       eye.getWorldPosition(eyePos)
       return eyePos.y
     }
-    eyeHeight.value = getEyeWorldPosition()
+    eyeHeight.value = getEyePosition()
     trackingMode.value = 'none'
     lookAtTarget.value = {
       x: 0,
