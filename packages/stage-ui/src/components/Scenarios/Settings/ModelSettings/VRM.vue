@@ -41,6 +41,11 @@ const {
   trackingMode,
 } = storeToRefs(vrm)
 const localModelUrl = ref(modelUrl.value)
+const trackingOptions = [
+  { value: 'camera', label: 'Camera', class: 'col-start-3' },
+  { value: 'mouse', label: 'Mouse', class: 'col-start-4' },
+  { value: 'none', label: 'Disabled', class: 'col-start-5' },
+]
 
 modelFileDialog.onChange((files) => {
   if (files && files.length > 0) {
@@ -114,37 +119,21 @@ function urlUploadClick() {
         :config="{ min: -180, max: 180, step: 1, label: t('settings.vrm.scale-and-position.rotation-y') }"
         :label="t('settings.vrm.scale-and-position.rotation-y')"
       />
-
-      <!-- 新开一行 flex，不受上面 grid 影响 -->
+      <!-- Set eye tracking mode -->
       <span
         class="col-span-1 col-start-1 row-start-6 self-center text-xs leading-tight font-mono"
       >
         {{ t('settings.vrm.scale-and-position.eye-tracking-mode') }}:
       </span>
-      <!-- 第二行：Camera 按钮位于第 3 列 -->
-      <Button
-        class="col-start-3 row-start-6 w-auto"
-        size="sm"
-        :variant="trackingMode === 'camera' ? 'primary' : 'secondary'"
-        label="Camera"
-        @click="trackingMode = 'camera'"
-      />
-      <!-- 第二行：Mouse 按钮位于第 4 列 -->
-      <Button
-        class="col-start-4 row-start-6 w-auto"
-        size="sm"
-        :variant="trackingMode === 'mouse' ? 'primary' : 'secondary'"
-        label="Mouse"
-        @click="trackingMode = 'mouse'"
-      />
-      <!-- 第二行：Disabled 按钮位于第 5 列 -->
-      <Button
-        class="col-start-5 row-start-6 w-auto"
-        size="sm"
-        :variant="trackingMode === 'none' ? 'primary' : 'secondary'"
-        label="Disabled"
-        @click="trackingMode = 'none'"
-      />
+      <template v-for="option in trackingOptions" :key="option.value">
+        <Button
+          :class="[option.class, 'row-start-6 w-auto']"
+          size="sm"
+          :variant="trackingMode === option.value ? 'primary' : 'secondary'"
+          :label="option.label"
+          @click="trackingMode = option.value"
+        />
+      </template>
     </div>
   </Container>
   <Container
