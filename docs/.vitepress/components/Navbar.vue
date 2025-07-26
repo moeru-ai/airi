@@ -99,7 +99,7 @@ function isNavLinkActive(link: string, path: string) {
           align="end"
           class="will-change-[transform,opacity] z-10 w-[180px] border rounded-xl p-2 shadow-md backdrop-blur-md data-[state=open]:data-[side=bottom]:animate-slideUpAndFade"
           :class="[
-            'bg-white/20 dark:border-white/5 dark:bg-black/20',
+            'bg-white/70 dark:border-white/5 dark:bg-black/70',
           ]"
           transition="colors duration-200 ease-in-out"
         >
