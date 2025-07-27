@@ -41,11 +41,11 @@ const {
   trackingMode,
 } = storeToRefs(vrm)
 const localModelUrl = ref(modelUrl.value)
-const trackingOptions = [
-  { value: 'camera', label: 'Camera', class: 'col-start-3' },
-  { value: 'mouse', label: 'Mouse', class: 'col-start-4' },
-  { value: 'none', label: 'Disabled', class: 'col-start-5' },
-]
+const trackingOptions = computed(() => [
+  { value: 'camera', label: t('settings.vrm.scale-and-position.eye-tracking-mode.options.option.camera'), class: 'col-start-3' },
+  { value: 'mouse', label: t('settings.vrm.scale-and-position.eye-tracking-mode.options.option.mouse'), class: 'col-start-4' },
+  { value: 'none', label: t('settings.vrm.scale-and-position.eye-tracking-mode.options.option.disabled'), class: 'col-start-5' },
+])
 
 modelFileDialog.onChange((files) => {
   if (files && files.length > 0) {
