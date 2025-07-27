@@ -37,7 +37,7 @@ rustPlatform.buildRustPackage (final: {
   pnpmDeps = pnpm.fetchDeps {
     inherit (final) pname version src;
     fetcherVersion = 1;
-    hash = "sha256-QDGx5sWlWwgMWvG/umkNY+Ct9i5zl+eKEJnvA2whPkY="; # To update, set it to ""
+    hash = "sha256-i4HEZM79g12xzxMDWXyVXWAu4DFnOqtE9aXTEON+uco="; # To update, set it to ""
   };
 
   # Cache of assets downloaded during vite build
@@ -71,7 +71,7 @@ rustPlatform.buildRustPackage (final: {
 
     outputHashMode = "recursive";
     # To update, set it to lib.fakeHash
-    outputHash = lib.fakeHash;
+    outputHash = "sha256-QDGx5sWlWwgMWvG/umkNY+Ct9i5zl+eKEJnvA2whPkY=";
   };
 
   nativeBuildInputs =
