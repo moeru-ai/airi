@@ -123,7 +123,7 @@ function urlUploadClick() {
       <span
         class="col-span-1 col-start-1 row-start-6 self-center text-xs leading-tight font-mono"
       >
-        {{ t('settings.vrm.scale-and-position.eye-tracking-mode') }}:
+        {{ t('settings.vrm.scale-and-position.eye-tracking-mode.title') }}:
       </span>
       <template v-for="option in trackingOptions" :key="option.value">
         <Button
