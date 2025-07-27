@@ -97,9 +97,9 @@ function isNavLinkActive(link: string, path: string) {
           side="bottom"
           :side-offset="5"
           align="end"
-          class="will-change-[transform,opacity] data-[state=open]:data-[side=bottom]:animate-slideUpAndFade z-10 w-[180px] border rounded-xl p-2 shadow-md backdrop-blur-md"
+          class="will-change-[transform,opacity] z-10 w-[180px] border rounded-xl p-2 shadow-md backdrop-blur-md data-[state=open]:data-[side=bottom]:animate-slideUpAndFade"
           :class="[
-            'bg-white/20 dark:border-white/5 dark:bg-black/20',
+            'bg-white/70 dark:border-white/5 dark:bg-black/70',
           ]"
           transition="colors duration-200 ease-in-out"
         >
@@ -131,7 +131,7 @@ function isNavLinkActive(link: string, path: string) {
 
                 <DropdownMenuPortal>
                   <DropdownMenuSubContent
-                    class="will-change-[transform,opacity] data-[state=open]:data-[side=bottom]:animate-slideUpAndFade z-10 w-[180px] border rounded-xl p-2 shadow-md backdrop-blur-md"
+                    class="will-change-[transform,opacity] z-10 w-[180px] border rounded-xl p-2 shadow-md backdrop-blur-md data-[state=open]:data-[side=bottom]:animate-slideUpAndFade"
                     :class="[
                       'bg-white/20 dark:border-white/5 dark:bg-black/70',
                       'transition-all duration-200 ease-in-out',

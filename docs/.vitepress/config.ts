@@ -24,6 +24,7 @@ import {
   rekaShortName,
   releases,
 } from './meta'
+import { frontmatterAssets } from './plugins/vite-frontmatter-assets'
 
 function withBase(url: string) {
   return env.BASE_URL
@@ -87,7 +88,7 @@ export default defineConfig({
         outline: {
           level: 'deep',
         },
-        logo: '/favicon.svg',
+        logo: withBase('/favicon.svg'),
 
         sidebar: [
           {
@@ -153,7 +154,7 @@ export default defineConfig({
         outline: {
           level: 'deep',
         },
-        logo: '/favicon.svg',
+        logo: withBase('/favicon.svg'),
 
         sidebar: [
           {
@@ -276,6 +277,7 @@ export default defineConfig({
       i18n({ runtimeOnly: true, compositionOnly: true, fullInstall: true, ssr: true }),
       unocss(),
       yaml(),
+      frontmatterAssets(),
     ],
     css: {
       postcss: {

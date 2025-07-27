@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { AnimatableObject } from 'animejs'
 
-import { useLocalStorage } from '@vueuse/core'
+import { useLocalStorage, useWindowSize } from '@vueuse/core'
 import { createAnimatable } from 'animejs'
 import { onMounted, shallowRef, useTemplateRef, watch, watchEffect } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -12,6 +12,7 @@ const heroRef = useTemplateRef<HTMLDivElement>('hero')
 
 const shouldReduceMotion = useLocalStorage('docs:settings/reduce-motion', false)
 const { t } = useI18n()
+const { width: innerWidth, height: innerHeight } = useWindowSize({ includeScrollbar: true })
 
 function handleClickTryLive() {
   window.location.replace('https://airi.moeru.ai/')
@@ -23,7 +24,7 @@ const EASE = 'outSine'
 const heroAnimatable = shallowRef<AnimatableObject>()
 
 function animateHero(xOffsetRatio: number, yOffsetRatio: number) {
-  const referenceSize = window.innerWidth
+  const referenceSize = innerWidth.value
 
   heroAnimatable.value?.x(-xOffsetRatio * 0.03 * referenceSize)
   heroAnimatable.value?.y(-yOffsetRatio * 0.03 * referenceSize)
@@ -34,19 +35,21 @@ function onMouseMove(event: MouseEvent) {
   const x = event.clientX
   const y = event.clientY
 
-  const xOffsetRatio = (x - window.innerWidth / 2) / window.innerWidth
-  const yOffsetRatio = (y - window.innerHeight / 2) / window.innerHeight
+  const xOffsetRatio = (x - innerWidth.value / 2) / innerWidth.value
+  const yOffsetRatio = (y - innerHeight.value / 2) / innerHeight.value
 
   animateHero(xOffsetRatio, yOffsetRatio)
 }
 
 watch(shouldReduceMotion, (shouldReduceMotion) => {
-  if (shouldReduceMotion) {
-    window.removeEventListener('mousemove', onMouseMove)
-    animateHero(0, 0)
-  }
-  else {
-    window.addEventListener('mousemove', onMouseMove)
+  if (!import.meta.env.SSR) {
+    if (shouldReduceMotion) {
+      window.removeEventListener('mousemove', onMouseMove)
+      animateHero(0, 0)
+    }
+    else {
+      window.addEventListener('mousemove', onMouseMove)
+    }
   }
 })
 
@@ -64,10 +67,12 @@ watchEffect((onCleanup) => {
     animateHero(0, 0)
   }
   else {
-    window.addEventListener('mousemove', onMouseMove)
-    onCleanup(() => {
-      window.removeEventListener('mousemove', onMouseMove)
-    })
+    if (!import.meta.env.SSR) {
+      window.addEventListener('mousemove', onMouseMove)
+      onCleanup(() => {
+        window.removeEventListener('mousemove', onMouseMove)
+      })
+    }
   }
 })
 </script>
@@ -131,7 +136,9 @@ watchEffect((onCleanup) => {
     <div class="absolute inset-0 overflow-hidden -z-10">
       <!-- Flickering red (even within the color space range) if to top in oklch (UnoCSS or tailwind css default), have to force to use srgb color space to prevent this -->
       <div class="absolute bottom-0 left-0 right-0 top-0 z-2 h-80% from-transparent to-white bg-gradient-to-t dark:to-[hsl(207_15%_5%)]" style="--un-gradient-shape: to top in srgb;" />
-      <ParallaxCover />
+      <ClientOnly>
+        <ParallaxCover />
+      </ClientOnly>
     </div>
 
     <footer class="fixed bottom-3 left-1/2 z-40 flex justify-end -translate-x-1/2">

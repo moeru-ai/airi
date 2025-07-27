@@ -1,9 +1,10 @@
 import type { DefaultTheme } from 'vitepress/theme'
 import type { Ref } from 'vue'
 
+import { useEventListener } from '@vueuse/core'
 // Copied from https://github.com/vuejs/vitepress/blob/97f9469b6d4eb7ba9de9a1111986581d1f704ec3/src/client/theme-default/composables/outline.ts#L4
 import { getScrollOffset } from 'vitepress'
-import { onMounted, onUnmounted, onUpdated } from 'vue'
+import { onMounted, onUpdated } from 'vue'
 
 export interface Header {
   /**
@@ -153,7 +154,6 @@ export function useActiveAnchor(
 
   onMounted(() => {
     requestAnimationFrame(setActiveLink)
-    window.addEventListener('scroll', onScroll)
   })
 
   onUpdated(() => {
@@ -161,9 +161,7 @@ export function useActiveAnchor(
     activateLink(location.hash)
   })
 
-  onUnmounted(() => {
-    window.removeEventListener('scroll', onScroll)
-  })
+  useEventListener('scroll', onScroll)
 
   function setActiveLink() {
     const scrollY = window.scrollY

@@ -1,7 +1,7 @@
 {
   "name": "@proj-airi/ui",
   "type": "module",
-  "version": "0.7.0-alpha.1",
+  "version": "0.7.0-beta.1",
   "description": "A collection of UI components that used by Project AIRI",
   "author": {
     "name": "Moeru AI Project AIRI Team",

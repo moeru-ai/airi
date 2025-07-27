@@ -23,6 +23,8 @@ export const useVRM = defineStore('vrm', () => {
   const modelRotationY = useLocalStorage('settings/vrm/modelRotationY', 0)
   const cameraDistance = useLocalStorage('settings/vrm/cameraDistance', 0)
 
+  const isTracking = useLocalStorage('settings/vrm/isTracking', false)
+
   // Manage the object URL lifecycle to prevent memory leaks
   watch(modelFile, (newFile) => {
     if (modelObjectUrl.value) {
@@ -60,5 +62,6 @@ export const useVRM = defineStore('vrm', () => {
     cameraPosition,
     modelRotationY,
     cameraDistance,
+    isTracking,
   }
 })

@@ -33,7 +33,6 @@ const vrmAnimationMixer = ref<AnimationMixer>()
 const { scene } = useTresContext()
 const { onBeforeRender } = useLoop()
 const blink = useBlink()
-const idleEyeSaccades = useIdleEyeSaccades()
 const vrmEmote = ref<ReturnType<typeof useVRMEmote>>()
 
 const vrmStore = useVRM()
@@ -46,6 +45,7 @@ const {
   modelRotationY,
 } = storeToRefs(vrmStore)
 const vrmGroup = ref<Group>()
+const idleEyeSaccades = useIdleEyeSaccades()
 
 onMounted(async () => {
   if (!scene.value) {
@@ -95,10 +95,10 @@ onMounted(async () => {
 
     // Set model facing direction
     const targetDirection = new Vector3(0, 0, -1) // Default facing direction
-    const lookAtTarget = _vrm.lookAt
-    if (lookAtTarget) {
-      const facingDirection = lookAtTarget.faceFront
-      const quaternion = new Quaternion()
+    const lookAt = _vrm.lookAt
+    const quaternion = new Quaternion()
+    if (lookAt) {
+      const facingDirection = lookAt.faceFront
       quaternion.setFromUnitVectors(facingDirection.normalize(), targetDirection.normalize())
       _vrmGroup.quaternion.premultiply(quaternion)
       _vrmGroup.updateMatrixWorld(true)
@@ -156,6 +156,7 @@ onMounted(async () => {
     }
     // Reanchor the root position track to the model origin
     reanchorRootPositionTrack(clip)
+    // rotateRotationTracksInClip(clip, quaternion)
 
     // play animation
     vrmAnimationMixer.value = new AnimationMixer(_vrm.scene)
@@ -171,8 +172,9 @@ onMounted(async () => {
     disposeBeforeRenderLoop = onBeforeRender(({ delta }) => {
       vrmAnimationMixer.value?.update(delta)
       vrm.value?.update(delta)
+      vrm.value?.lookAt?.update?.(delta)
       blink.update(vrm.value, delta)
-      idleEyeSaccades.update(vrm.value, delta)
+      idleEyeSaccades.update(vrm.value, cameraPosition, delta)
       vrmEmote.value?.update(delta)
     }).off
   }
@@ -204,7 +206,9 @@ defineExpose({
     vrmEmote.value?.setEmotionWithResetAfter(expression, 1000)
   },
   scene: computed(() => vrm.value?.scene),
-  lookAt: computed(() => vrm.value?.lookAt),
+  lookAtUpdate(target: { x: number, y: number, z: number }) {
+    idleEyeSaccades.instantUpdate(vrm.value, target)
+  },
 })
 
 const { pause, resume } = useLoop()
@@ -213,13 +217,24 @@ watch(() => props.paused, (value) => {
   value ? pause() : resume()
 })
 
-onUnmounted(() => {
+function componentCleanUp() {
   disposeBeforeRenderLoop?.()
   if (vrm.value) {
     vrm.value.scene.removeFromParent()
     VRMUtils.deepDispose(vrm.value.scene)
   }
+}
+
+onUnmounted(() => {
+  componentCleanUp()
 })
+
+if (import.meta.hot) {
+  // Ensure cleanup on HMR
+  import.meta.hot.dispose(() => {
+    componentCleanUp()
+  })
+}
 </script>
 
 <template>
