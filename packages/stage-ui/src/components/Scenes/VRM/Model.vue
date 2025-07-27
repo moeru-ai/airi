@@ -43,6 +43,9 @@ const {
   cameraPosition,
   loadingModel,
   modelRotationY,
+  lookAtTarget,
+  eyeHeight,
+  trackingMode,
 } = storeToRefs(vrmStore)
 const vrmGroup = ref<Group>()
 const idleEyeSaccades = useIdleEyeSaccades()
@@ -156,7 +159,6 @@ onMounted(async () => {
     }
     // Reanchor the root position track to the model origin
     reanchorRootPositionTrack(clip)
-    // rotateRotationTracksInClip(clip, quaternion)
 
     // play animation
     vrmAnimationMixer.value = new AnimationMixer(_vrm.scene)
@@ -169,12 +171,28 @@ onMounted(async () => {
     loadingModel.value = false
     emit('modelReady')
 
+    function getEyePosition(): number | null {
+      const eye = vrm.value?.humanoid?.getNormalizedBoneNode('head')
+      if (!eye)
+        return null
+      const eyePos = new Vector3()
+      eye.getWorldPosition(eyePos)
+      return eyePos.y
+    }
+    eyeHeight.value = getEyePosition()
+    trackingMode.value = 'none'
+    lookAtTarget.value = {
+      x: 0,
+      y: eyeHeight.value,
+      z: -1000,
+    }
+
     disposeBeforeRenderLoop = onBeforeRender(({ delta }) => {
       vrmAnimationMixer.value?.update(delta)
       vrm.value?.update(delta)
       vrm.value?.lookAt?.update?.(delta)
       blink.update(vrm.value, delta)
-      idleEyeSaccades.update(vrm.value, cameraPosition, delta)
+      idleEyeSaccades.update(vrm.value, lookAtTarget, delta)
       vrmEmote.value?.update(delta)
     }).off
   }

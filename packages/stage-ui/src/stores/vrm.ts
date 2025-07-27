@@ -24,6 +24,9 @@ export const useVRM = defineStore('vrm', () => {
   const cameraDistance = useLocalStorage('settings/vrm/cameraDistance', 0)
 
   const isTracking = useLocalStorage('settings/vrm/isTracking', false)
+  const trackingMode = useLocalStorage('settings/vrm/trackingMode', 'none' as 'camera' | 'mouse' | 'none')
+  const lookAtTarget = useLocalStorage('settings/vrm/lookAtTarget', { x: 0, y: 0, z: 0 })
+  const eyeHeight = useLocalStorage('settings/vrm/eyeHeight', 0)
 
   // Manage the object URL lifecycle to prevent memory leaks
   watch(modelFile, (newFile) => {
@@ -63,5 +66,8 @@ export const useVRM = defineStore('vrm', () => {
     modelRotationY,
     cameraDistance,
     isTracking,
+    trackingMode,
+    lookAtTarget,
+    eyeHeight,
   }
 })
