@@ -298,9 +298,13 @@ watchDebounced(loadingModel, (value) => {
 }, { debounce: 1000 })
 
 onMounted(updateDropShadowFilter)
-onUnmounted(() => {
+
+function componentCleanUp() {
   cancelAnimationFrame(dropShadowAnimationId.value)
   model.value && pixiApp.value?.stage.removeChild(model.value)
+}
+onUnmounted(() => {
+  componentCleanUp()
 })
 
 function listMotionGroups() {
@@ -311,6 +315,13 @@ defineExpose({
   setMotion,
   listMotionGroups,
 })
+
+if (import.meta.hot) {
+  // Ensure cleanup on HMR
+  import.meta.hot.dispose(() => {
+    componentCleanUp()
+  })
+}
 </script>
 
 <template>
