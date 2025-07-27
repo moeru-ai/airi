@@ -5,19 +5,29 @@ members = [
   "crates/tauri-plugin-mcp",
   "crates/tauri-plugin-window-pass-through-on-hover",
   "crates/tauri-plugin-window-router-link",
-  "apps/stage-tamagotchi/src-tauri",
+  "apps/stage-tamagotchi/src-tauri"
 ]
 resolver = "2"
 
 [workspace.package]
-version = "0.7.0-alpha.1"
+version = "0.7.0-beta.1"
 
 [workspace.dependencies]
-tauri-plugin-ipc-audio-transcription-ort = { path = "./crates/tauri-plugin-ipc-audio-transcription-ort" }
-tauri-plugin-ipc-audio-vad-ort = { path = "./crates/tauri-plugin-ipc-audio-vad-ort" }
-tauri-plugin-mcp = { path = "./crates/tauri-plugin-mcp" }
-tauri-plugin-window-pass-through-on-hover = { path = "./crates/tauri-plugin-window-pass-through-on-hover" }
-tauri-plugin-window-router-link = { path = "./crates/tauri-plugin-window-router-link" }
+
+[workspace.dependencies.tauri-plugin-ipc-audio-transcription-ort]
+path = "./crates/tauri-plugin-ipc-audio-transcription-ort"
+
+[workspace.dependencies.tauri-plugin-ipc-audio-vad-ort]
+path = "./crates/tauri-plugin-ipc-audio-vad-ort"
+
+[workspace.dependencies.tauri-plugin-mcp]
+path = "./crates/tauri-plugin-mcp"
+
+[workspace.dependencies.tauri-plugin-window-pass-through-on-hover]
+path = "./crates/tauri-plugin-window-pass-through-on-hover"
+
+[workspace.dependencies.tauri-plugin-window-router-link]
+path = "./crates/tauri-plugin-window-router-link"
 
 [profile]
 
