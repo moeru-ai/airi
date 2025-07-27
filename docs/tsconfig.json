@@ -30,10 +30,14 @@
     "components/**/*.vue",
     ".vitepress/**/*.vue",
     "/**/*.ts",
+    "/**/*.md",
     ".vitepress/**/*.ts",
     ".vitepress/**/*.vue"
   ],
   "exclude": [
     "node_modules"
-  ]
+  ],
+  "vueCompilerOptions": {
+    "vitePressExtensions": [".md"]
+  }
 }
