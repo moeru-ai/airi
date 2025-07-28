@@ -3,7 +3,7 @@ import { presetWebFonts } from '@unocss/preset-web-fonts'
 
 export default definePreset(() => {
   return {
-    name: 'preset-chromatic',
+    name: 'preset-fonts',
     presets: [
       presetWebFonts({
         fonts: {
