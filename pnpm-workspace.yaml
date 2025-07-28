@@ -23,7 +23,7 @@ catalog:
   '@xsai/stream-text': ^0.3.2
   '@xsai/tool': ^0.3.2
   '@xsai/utils-chat': ^0.3.2
-  xsschema: ^0.3.2
+  xsschema: 0.3.2
 
 catalogs:
   rolldown-vite:
