@@ -2,11 +2,11 @@ import { object, string } from 'valibot'
 
 import Weather from './Weather.vue'
 
-import { defineCCComponent } from '../../plugin-component-calling'
+import { defineCallingComponent } from '../../plugin-component-calling'
 
 export { default as Weather } from './Weather.vue'
 
-export const weatherComponent = defineCCComponent(
+export const weatherComponent = defineCallingComponent(
   'weather',
   Weather,
   object({
