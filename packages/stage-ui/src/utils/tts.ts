@@ -2,6 +2,9 @@ import type { ReaderLike } from 'clustr'
 
 import { readGraphemeClusters } from 'clustr'
 
+// A special character to instruct the TTS pipeline to flush
+export const TTS_FLUSH_INSTRUCTION = '\u200B'
+
 const keptPunctuations = new Set('?？!！')
 const hardPunctuations = new Set('.。?？!！…⋯～~「」\n\t\r')
 const softPunctuations = new Set(',，、–—:：;；《》')
@@ -65,11 +68,12 @@ export async function* chunkTTSInput(input: string | ReaderLike, options?: TTSIn
       continue
     }
 
+    const flush = value === TTS_FLUSH_INSTRUCTION
     const hard = hardPunctuations.has(value)
     const soft = softPunctuations.has(value)
     const kept = keptPunctuations.has(value)
 
-    if (hard || soft) {
+    if (flush || hard || soft) {
       switch (value) {
         case '.':
         case ',': {
@@ -109,12 +113,12 @@ export async function* chunkTTSInput(input: string | ReaderLike, options?: TTSIn
       chunkWordsCount += words.length
       buffer = ''
 
-      if (hard || chunkWordsCount > maximumWords || yieldCount < boost) {
+      if (flush || hard || chunkWordsCount > maximumWords || yieldCount < boost) {
         const text = chunk.trim()
         yield {
           text,
           words: chunkWordsCount,
-          reason: hard ? 'hard' : chunkWordsCount > maximumWords ? 'limit' : 'boost',
+          reason: flush ? 'flush' : hard ? 'hard' : chunkWordsCount > maximumWords ? 'limit' : 'boost',
         }
         yieldCount++
         chunk = ''

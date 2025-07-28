@@ -10,6 +10,7 @@ import { ref, toRaw } from 'vue'
 import { useQueue } from '../composables'
 import { useLlmmarkerParser } from '../composables/llmmarkerParser'
 import { useLLM } from '../stores/llm'
+import { TTS_FLUSH_INSTRUCTION } from '../utils/tts'
 import { useAiriCardStore } from './modules'
 
 export interface ErrorMessage {
@@ -182,6 +183,9 @@ export const useChatStore = defineStore('chat', () => {
         })
         fullText += textPart
       }
+
+      // Instruct the TTS pipeline to flush
+      slicesQueue.add({ type: 'text', text: TTS_FLUSH_INSTRUCTION })
 
       await parser.end()
 
