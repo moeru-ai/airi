@@ -27,16 +27,17 @@ dialogs:
     start: Let's do it!
     select-model: Choose model
 language:
-  chinese: 简体中文
-  zh-CN: 简体中文
-  zh-Hans: 简体中文
-  english: English
-  en: English
-  en-US: English (US)
   title: Language
   description: >
     Change the language of the AIRI interface. This will not affect the language
     of the character's responses.
+  options:
+    chinese: 简体中文
+    zh-CN: 简体中文
+    zh-Hans: 简体中文
+    english: English
+    en: English
+    en-US: English (US)
 live2d:
   change-model:
     from-file: Load from File

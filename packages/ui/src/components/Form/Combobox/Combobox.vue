@@ -31,10 +31,10 @@ function toDisplayValue(value: any): string {
   >
     <ComboboxAnchor
       :class="[
-        'min-w-[160px] w-full inline-flex items-center justify-between rounded-lg border px-2 leading-none h-[35px] gap-[5px] outline-none',
+        'w-full inline-flex items-center justify-between rounded-lg border px-2 leading-none h-[35px] gap-[5px] outline-none',
         'text-xs text-neutral-700 dark:text-neutral-200 data-[placeholder]:text-neutral-200',
         'bg-white dark:bg-neutral-900 disabled:bg-neutral-100 hover:bg-neutral-50 dark:disabled:bg-neutral-900 dark:hover:bg-neutral-700',
-        'border-neutral-300 dark:border-neutral-800 border-solid border-2 focus:border-neutral-400 dark:focus:border-neutral-600',
+        'border-neutral-200 dark:border-neutral-800 border-solid border-2 focus:border-neutral-300 dark:focus:border-neutral-600',
         'shadow-sm focus:shadow-[0_0_0_2px] focus:shadow-black',
         'transition-colors duration-200 ease-in-out',
       ]"
@@ -66,7 +66,7 @@ function toDisplayValue(value: any): string {
         'absolute z-10 w-full mt-1 min-w-[160px] overflow-hidden rounded-lg shadow-sm border will-change-[opacity,transform] max-h-50dvh',
         'data-[side=top]:animate-slideDownAndFade data-[side=right]:animate-slideLeftAndFade data-[side=bottom]:animate-slideUpAndFade data-[side=left]:animate-slideRightAndFade',
         'bg-white dark:bg-neutral-900',
-        'border-neutral-300 dark:border-neutral-800 border-solid border-2 focus:border-neutral-400 dark:focus:border-neutral-600',
+        'border-neutral-200 dark:border-neutral-800 border-solid border-2 focus:border-neutral-300 dark:focus:border-neutral-600',
       ]"
     >
       <ComboboxViewport class="p-[2px]">

@@ -1,9 +1,22 @@
+import messages from '@proj-airi/i18n/locales'
+
 import { useLocalStorage } from '@vueuse/core'
 import { converter } from 'culori'
 import { defineStore } from 'pinia'
 import { onMounted, ref, watch } from 'vue'
 
 import { useAudioDevice } from './audio'
+
+const languageRemap: Record<string, string> = {
+  'zh-CN': 'zh-Hans',
+  'zh-TW': 'zh-Hans', // TODO: remove this when zh-Hant is supported
+  'zh-HK': 'zh-Hans', // TODO: remove this when zh-Hant is supported
+  'zh-Hant': 'zh-Hans', // TODO: remove this when zh-Hant is supported
+  'en-US': 'en',
+  'en-GB': 'en',
+  'en-AU': 'en',
+  'en': 'en',
+}
 
 export const DEFAULT_THEME_COLORS_HUE = 220.44
 
@@ -13,7 +26,7 @@ const getHueFrom = (color?: string) => color ? convert(color)?.h : DEFAULT_THEME
 export const useSettings = defineStore('settings', () => {
   const selectedAudioDevice = ref<MediaDeviceInfo>()
 
-  const language = useLocalStorage('settings/language', 'en')
+  const language = useLocalStorage('settings/language', '')
 
   const stageView = useLocalStorage('settings/stage/view/model-renderer', '2d')
   const stageViewControlsEnabled = ref(false)
@@ -26,6 +39,24 @@ export const useSettings = defineStore('settings', () => {
   const themeColorsHueDynamic = useLocalStorage('settings/theme/colors/hue-dynamic', false)
 
   const allowVisibleOnAllWorkspaces = useLocalStorage('settings/allow-visible-on-all-workspaces', true)
+
+  function getLanguage() {
+    let language = localStorage.getItem('settings/language')
+
+    if (!language) {
+      // Fallback to browser language
+      language = navigator.language || 'en'
+    }
+
+    const languages = Object.keys(messages!)
+    if (languageRemap[language || 'en'] != null) {
+      language = languageRemap[language || 'en']
+    }
+    if (language && languages.includes(language))
+      return language
+
+    return 'en'
+  }
 
   function setThemeColorsHue(hue = DEFAULT_THEME_COLORS_HUE) {
     themeColorsHue.value = hue
@@ -55,6 +86,10 @@ export const useSettings = defineStore('settings', () => {
     const hueDifference = Math.abs(h - themeColorsHue.value)
     return hueDifference < 0.01 || hueDifference > 359.99
   }
+
+  onMounted(() => {
+    language.value = getLanguage()
+  })
 
   return {
     disableTransitions,

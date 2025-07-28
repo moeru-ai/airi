@@ -15,8 +15,13 @@ const languageRemap: Record<string, string> = {
 
 function getLocale() {
   let language = localStorage.getItem('settings/language')
-  const languages = Object.keys(messages!)
 
+  if (!language) {
+    // Fallback to browser language
+    language = navigator.language || 'en'
+  }
+
+  const languages = Object.keys(messages!)
   if (languageRemap[language || 'en'] != null) {
     language = languageRemap[language || 'en']
   }

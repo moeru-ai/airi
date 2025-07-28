@@ -25,14 +25,15 @@ dialogs:
     start: 开始吧！
     select-model: 选择模型
 language:
-  chinese: 简体中文
-  english: English
   title: 语言
-  zh-Hans: 简体中文
-  zh-CN: 中文
-  en-US: English (US)
-  en: English
   description: 切换显示界面的语言
+  options:
+    chinese: 简体中文
+    english: English
+    zh-Hans: 简体中文
+    zh-CN: 中文
+    en-US: English (US)
+    en: English
 live2d:
   change-model:
     from-file: 从文件加载

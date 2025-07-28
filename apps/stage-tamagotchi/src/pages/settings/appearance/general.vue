@@ -15,7 +15,7 @@ const dark = useDark()
 
 const languages = computed(() => {
   return Object.keys(messages.value).map(lang => ({
-    label: t(`settings.language.${lang}`),
+    label: t(`settings.language.options.${lang}`),
     value: lang,
   }))
 })

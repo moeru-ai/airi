@@ -19,17 +19,23 @@ const modelValue = defineModel<string>({ required: false })
 <template>
   <label flex="~ col gap-4">
     <div
+      class="items-center justify-center"
       :class="[
-        props.layout === 'horizontal' ? 'flex flex-row items-center justify-between gap-2' : 'flex flex-col items-start justify-center gap-2',
+        props.layout === 'horizontal' ? 'grid grid-cols-3 gap-2' : 'grid grid-cols-2 gap-2',
       ]"
     >
-      <div class="min-w-[max-content] flex-1">
-        <div class="flex items-center gap-1 text-sm font-medium">
+      <div
+        class="w-full"
+        :class="[
+          props.layout === 'horizontal' ? 'col-span-2' : 'row-span-1',
+        ]"
+      >
+        <div class="flex items-center gap-1 break-words text-sm font-medium">
           <slot name="label">
             {{ props.label }}
           </slot>
         </div>
-        <div class="text-xs text-neutral-500 dark:text-neutral-400">
+        <div class="break-words text-xs text-neutral-500 dark:text-neutral-400">
           <slot name="description">
             {{ props.description }}
           </slot>
@@ -42,7 +48,12 @@ const modelValue = defineModel<string>({ required: false })
           :placeholder="props.placeholder"
           :disabled="props.disabled"
           :title="label"
-          :class="props.selectClass"
+          :class="[
+            ...(props.selectClass
+              ? (typeof props.selectClass === 'string' ? [props.selectClass] : props.selectClass)
+              : []),
+            props.layout === 'horizontal' ? 'col-span-1' : 'row-span-2',
+          ]"
         >
           <template #default="{ value }">
             {{ props.options?.find(option => option.value === value)?.label || props.placeholder }}
