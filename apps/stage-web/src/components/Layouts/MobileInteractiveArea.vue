@@ -165,7 +165,7 @@ onMounted(() => {
           transition="all duration-250 ease-in-out placeholder:all placeholder:duration-250 placeholder:ease-in-out"
           :class="[themeColorsHueDynamic ? 'transition-colors-none placeholder:transition-colors-none' : '']"
           default-height="1lh"
-          @submit="handleSend"
+          @submit="() => {}"
           @compositionstart="isComposing = true"
           @compositionend="isComposing = false"
         />
