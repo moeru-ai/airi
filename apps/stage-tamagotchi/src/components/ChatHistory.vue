@@ -66,7 +66,7 @@ onTokenLiteral(async () => {
             <div>
               <span text-xs text="primary-400/90 dark:primary-600/90" font-normal class="inline <sm:hidden">{{ t('stage.chat.message.character-name.airi') }}</span>
             </div>
-            <div v-if="message.content && index === messages.length - 1" class="markdown-content" text="xs primary-400">
+            <div v-if="message.content && index === messages.length - 1" class="markdown-content break-words" text="xs primary-400">
               <div v-for="(slice, sliceIndex) in message.slices" :key="sliceIndex">
                 <div v-if="slice.type === 'tool-call'">
                   <div

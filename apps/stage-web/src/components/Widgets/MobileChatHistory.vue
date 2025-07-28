@@ -44,16 +44,16 @@ onTokenLiteral(async () => {
             shadow="md violet-200/20 dark:none"
             min-w-20 rounded-lg px-3 py-2
             h="unset <sm:fit"
-            bg="violet-500 dark:violet-800"
+            bg="violet-100 dark:violet-800"
             backdrop-blur-sm
           >
-            <div flex="~ row" gap-2>
-              <div flex-1>
-                <span text-xs text="violet-400/90 dark:violet-600/90" font-normal class="inline <sm:hidden">{{ t('stage.chat.message.character-name.core-system') }}</span>
+            <div flex="~ row" items-center justify-between gap-2>
+              <div>
+                <span text-xs text="violet-400/90 dark:violet-600/90" font-normal>{{ t('stage.chat.message.character-name.core-system') }}</span>
               </div>
               <div i-solar:danger-triangle-bold-duotone text-violet-500 />
             </div>
-            <div v-if="message.content" class="markdown-content" text="base <sm:xs" v-html="process(message.content as string)" />
+            <div v-if="message.content" class="markdown-content break-words" text="base <sm:xs" v-html="process(message.content as string)" />
             <div v-else i-eos-icons:three-dots-loading />
           </div>
         </div>
@@ -63,13 +63,13 @@ onTokenLiteral(async () => {
             shadow="md primary-200/20 dark:none"
             min-w-20 rounded-lg px-3 py-2
             h="unset <sm:fit"
-            bg="primary-100 dark:primary-800"
+            bg="primary-50 dark:primary-800"
             backdrop-blur-md
           >
             <div>
               <span text="primary-400/90 dark:primary-600/90" text-xs font-normal class="inline <sm:hidden">{{ t('stage.chat.message.character-name.airi') }}</span>
             </div>
-            <div v-if="message.content" class="markdown-content" text="base <sm:xs" v-html="process(message.content as string)" />
+            <div v-if="message.content" class="markdown-content break-words" text="base <sm:xs" v-html="process(message.content as string)" />
             <div v-else i-eos-icons:three-dots-loading />
           </div>
         </div>
@@ -85,7 +85,7 @@ onTokenLiteral(async () => {
             <div>
               <span text-xs text="cyan-400/90 dark:cyan-600/90" font-normal class="inline <sm:hidden">{{ t('stage.chat.message.character-name.you') }}</span>
             </div>
-            <div v-if="message.content" class="markdown-content" text="base <sm:xs" v-html="process(message.content as string)" />
+            <div v-if="message.content" class="markdown-content break-words" text="base <sm:xs" v-html="process(message.content as string)" />
             <div v-else />
           </div>
         </div>
