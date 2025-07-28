@@ -1,5 +1,4 @@
 {
-  config,
   lib,
   stdenv,
   stdenvNoCC,
@@ -7,7 +6,6 @@
 
   autoPatchelfHook,
   cargo-tauri,
-  cudaPackages,
   pkg-config,
   pnpm,
   wrapGAppsHook3,
@@ -22,13 +20,12 @@
   openssl,
   webkitgtk_4_1,
 
-  cudaSupport ? config.cudaSupport,
   debugBuild ? false,
 }:
 
 rustPlatform.buildRustPackage (final: {
   pname = "airi";
-  version = "0.7.0-alpha.1";
+  version = "0.7.0-beta.1";
 
   src = ./.;
 
@@ -37,7 +34,7 @@ rustPlatform.buildRustPackage (final: {
   pnpmDeps = pnpm.fetchDeps {
     inherit (final) pname version src;
     fetcherVersion = 1;
-    hash = "sha256-gqsJ2TDby15bhz7AgiaRs06p0XiJY4w9Ay1HtRV28nk="; # To update, set it to ""
+    hash = "sha256-i4HEZM79g12xzxMDWXyVXWAu4DFnOqtE9aXTEON+uco="; # To update, set it to ""
   };
 
   # Cache of assets downloaded during vite build
@@ -74,46 +71,28 @@ rustPlatform.buildRustPackage (final: {
     outputHash = "sha256-QDGx5sWlWwgMWvG/umkNY+Ct9i5zl+eKEJnvA2whPkY=";
   };
 
-  nativeBuildInputs =
-    [
-      cargo-tauri.hook
-      nodejs
-      pkg-config
-      pnpm.configHook
-    ]
-    ++ lib.optionals stdenv.isLinux [
-      wrapGAppsHook3
-      autoPatchelfHook
-    ]
-    ++ lib.optionals cudaSupport [
-      cudaPackages.cuda_nvcc # Used by cudarc and bindgen_cuda
-    ];
+  nativeBuildInputs = [
+    cargo-tauri.hook
+    nodejs
+    pkg-config
+    pnpm.configHook
+  ]
+  ++ lib.optionals stdenv.isLinux [
+    wrapGAppsHook3
+    autoPatchelfHook
+  ];
 
   buildInputs = [
-      glib # Used by glib-sys
-      onnxruntime # Used by ort-sys
-      openssl # Used by openssl-sys
-    ]
-    ++ lib.optionals stdenv.isLinux [
-      alsa-lib # Used by alsa-sys
-      atk # Used by atk-sys
-      libayatana-appindicator # Used by libappindicator-sys
-      webkitgtk_4_1
-    ]
-    ++ lib.optionals cudaSupport [
-      cudaPackages.cuda_cccl # For nv/target used by bindgen_cuda
-      cudaPackages.cuda_cudart # For cuda.h used by cudarc
-      cudaPackages.cuda_nvrtc
-      cudaPackages.libcublas
-      cudaPackages.libcurand
-    ];
-
-  env = lib.optionalAttrs cudaSupport {
-    # For bindgen_cuda
-    CUDA_COMPUTE_CAP = builtins.replaceStrings [ "." ] [ "" ] (
-      builtins.head cudaPackages.flags.cudaCapabilities
-    );
-  };
+    glib # Used by glib-sys
+    onnxruntime # Used by ort-sys
+    openssl # Used by openssl-sys
+  ]
+  ++ lib.optionals stdenv.isLinux [
+    alsa-lib # Used by alsa-sys
+    atk # Used by atk-sys
+    libayatana-appindicator # Used by libappindicator-sys
+    webkitgtk_4_1
+  ];
 
   configurePhase = ''
     runHook preConfigure
@@ -121,22 +100,6 @@ rustPlatform.buildRustPackage (final: {
     echo Setting up asset cache
     mkdir apps/stage-tamagotchi/.cache
     cp -r $assets/assets apps/stage-tamagotchi/.cache
-
-    ${lib.optionalString cudaSupport ''
-      echo Patching cudarc build script to find CUDA
-      # In configurePhase because CUDA is set up in a pre configure hook
-      # cudarc searches in a few environment variables, but they can't be used because they don't
-      # support the CUDAToolkit_ROOT format (semicolon-separated list of paths).
-      # https://github.com/coreylowman/cudarc/blob/main/build.rs#L211
-      substituteInPlace ../cargo-vendor-dir/cudarc-*/build.rs \
-        --replace-fail /usr/lib/cuda "$(echo "$CUDAToolkit_ROOT" | sed 's/;/", "/g')"
-
-      echo Patching bindgen_cuda to find CUDA # Used by candle-kernels
-      # bindgen_cuda copies the pathfinding logic from cudarc
-      # https://github.com/Narsil/bindgen_cuda/blob/main/src/lib.rs#L436
-      substituteInPlace ../cargo-vendor-dir/bindgen_cuda-*/src/lib.rs \
-        --replace-fail /usr/lib/cuda "$(echo "$CUDAToolkit_ROOT" | sed 's/;/", "/g')"
-    ''}
 
     runHook postConfigure
   '';
@@ -147,16 +110,15 @@ rustPlatform.buildRustPackage (final: {
 
   buildAndTestSubdir = "apps/stage-tamagotchi";
   buildType = if debugBuild then "debug" else "release";
-  cargoBuildFeatures = lib.optional cudaSupport "cuda";
 
   postInstall =
-  lib.optionalString stdenv.isLinux ''
-    mv $out/bin/app $out/bin/airi
-  ''
-  + lib.optionalString stdenv.isDarwin ''
-    mkdir -p "$out/bin"
-    ln -sf "$out/Applications/AIRI.app/Contents/MacOS/app" "$out/bin/airi"
-  '';
+    lib.optionalString stdenv.isLinux ''
+      mv $out/bin/app $out/bin/airi
+    ''
+    + lib.optionalString stdenv.isDarwin ''
+      mkdir -p "$out/bin"
+      ln -sf "$out/Applications/AIRI.app/Contents/MacOS/app" "$out/bin/airi"
+    '';
 
   # Add missing runtime dependency
   preFixup = lib.optionalString stdenv.isLinux ''
