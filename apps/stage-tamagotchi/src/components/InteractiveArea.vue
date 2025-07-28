@@ -15,7 +15,7 @@ const listening = ref(false)
 
 // const { askPermission } = useSettingsAudioDevice()
 const { enabled, selectedAudioInput } = storeToRefs(useSettingsAudioDevice())
-const { send, onAfterSend, discoverToolsCompatibility } = useChatStore()
+const { send, onAfterMessageComposed, discoverToolsCompatibility } = useChatStore()
 const { messages } = storeToRefs(useChatStore())
 const { t } = useI18n()
 const providersStore = useProvidersStore()
@@ -97,7 +97,7 @@ watch([activeProvider, activeModel], async () => {
   }
 })
 
-onAfterSend(async () => {
+onAfterMessageComposed(async () => {
   messageInput.value = ''
 })
 

@@ -33,7 +33,7 @@ useResizeObserver(document.documentElement, () => screenSafeArea.update())
 // const { askPermission } = useSettingsAudioDevice()
 const { themeColorsHueDynamic, stageView, stageViewControlsEnabled } = storeToRefs(useSettings())
 const { enabled, selectedAudioInput } = storeToRefs(useSettingsAudioDevice())
-const { send, onAfterSend, discoverToolsCompatibility } = useChatStore()
+const { send, onAfterMessageComposed, discoverToolsCompatibility } = useChatStore()
 const { messages } = storeToRefs(useChatStore())
 const { t } = useI18n()
 
@@ -97,7 +97,7 @@ watch(enabled, async (value) => {
   }
 })
 
-onAfterSend(async () => {
+onAfterMessageComposed(async () => {
   messageInput.value = ''
 })
 

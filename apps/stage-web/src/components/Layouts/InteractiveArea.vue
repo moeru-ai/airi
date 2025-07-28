@@ -25,7 +25,7 @@ const { themeColorsHueDynamic } = storeToRefs(useSettings())
 
 const { askPermission } = useSettingsAudioDevice()
 const { enabled, selectedAudioInput } = storeToRefs(useSettingsAudioDevice())
-const { send, onAfterSend, discoverToolsCompatibility } = useChatStore()
+const { send, onAfterMessageComposed, discoverToolsCompatibility } = useChatStore()
 const { messages } = storeToRefs(useChatStore())
 const { audioContext } = useAudioContext()
 const { t } = useI18n()
@@ -127,7 +127,7 @@ onMounted(() => {
   start()
 })
 
-onAfterSend(async () => {
+onAfterMessageComposed(async () => {
   messageInput.value = ''
 })
 </script>
