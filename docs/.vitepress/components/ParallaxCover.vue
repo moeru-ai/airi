@@ -79,7 +79,7 @@ const maskImageURL = `url(${homeCover})`
 <template>
   <div
     :class="[
-      'relative left-1/2 -translate-x-1/2 max-w-none object-cover z-1',
+      'relative left-1/2 -translate-x-1/2 max-w-none z-1',
       'w-[160%] translate-y-[25%] -rotate-20 top-8rem',
       'md:w-[120%] md:translate-y-[20%] md:rotate-[-15deg] md:top-8dvh',
       'lg:w-[95%] lg:translate-y-[5%] lg:rotate-[-10deg] lg:top-32dvh',
@@ -87,7 +87,7 @@ const maskImageURL = `url(${homeCover})`
       '2xl:top-16dvh',
     ]"
   >
-    <img ref="surface" :src="homeCover" alt="Project AIRI Cover Image">
+    <img ref="surface" :src="homeCover" alt="Project AIRI Cover Image" class="w-full object-cover">
     <div ref="silhouettePink" class="silhouette absolute left-0 top-0 z--1 h-full w-full bg-[oklch(0.8105_0.1267_350.84)]" />
     <div ref="silhouettePurple" class="silhouette absolute left-0 top-0 z--2 h-full w-full bg-[oklch(0.5712_0.2396_278.59)]" />
   </div>
