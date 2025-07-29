@@ -9,7 +9,7 @@ import {
   AlertDialogPortal,
   AlertDialogRoot,
   AlertDialogTitle,
-} from 'radix-vue'
+} from 'reka-ui'
 import { useI18n } from 'vue-i18n'
 
 interface Props {

@@ -65,7 +65,6 @@
     "onnxruntime-web": "^1.22.0",
     "pinia": "^3.0.3",
     "popmotion": "^11.0.5",
-    "radix-vue": "^1.9.17",
     "rehype-stringify": "^10.0.1",
     "reka-ui": "^2.3.2",
     "remark-parse": "^11.0.0",

@@ -12,7 +12,7 @@ import {
   DialogPortal,
   DialogRoot,
   DialogTitle,
-} from 'radix-vue'
+} from 'reka-ui'
 import { computed, ref, toRaw } from 'vue'
 import { useI18n } from 'vue-i18n'
 
