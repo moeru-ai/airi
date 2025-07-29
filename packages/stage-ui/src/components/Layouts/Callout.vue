@@ -60,11 +60,11 @@ const themeClasses: Record<ThemeVariant, {
     relative mb-4
     flex flex-col gap-1
     overflow-hidden rounded-lg
-    py-2 pl-5 pr-3
+    py="2.5" pl="6.5" pr-3
     :class="[
       ...themeClasses[props.theme || 'violet'].container,
       // eslint-disable-next-line vue/prefer-separate-static-class
-      'before-position-absolute before:left-2 before:right-0 before:h-[calc(100%-25%)] before:top-50% before:translate-y--50% before:w-1 before:rounded-full',
+      'before-position-absolute before:left-3 before:right-0 before:h-[calc(100%-2rem)] before:top-50% before:translate-y--50% before:w-1 before:rounded-full',
     ]"
   >
     <div text="font-semibold" :class="[...(themeClasses[props.theme || 'violet'].label || [])]">
