@@ -110,8 +110,13 @@ export function useMessageContentQueue(ttsQueue: UseQueueReturn<string>) {
   });
 
   (async () => {
-    for await (const chunk of chunkTTSInput(stream.getReader())) {
-      await ttsQueue.add(chunk.text)
+    try {
+      for await (const chunk of chunkTTSInput(stream.getReader())) {
+        await ttsQueue.add(chunk.text)
+      }
+    }
+    catch (e) {
+      console.error('Error chunking input stream for TTS:', e)
     }
   })()
 
