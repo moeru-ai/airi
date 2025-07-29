@@ -155,15 +155,13 @@ export function frontmatterAssets(): Plugin {
         const ext = parse(filePath).ext.slice(1)
         const fileContent = await readFile(filePath)
 
-        res.write(fileContent)
         res.writeHead(200, {
           'Content-Type': ext === 'svg' ? 'image/svg+xml' : `image/${ext}`,
           'Content-Length': fileContent.length,
           'Cache-Control': 'public, max-age=31536000, immutable',
         })
+        res.write(fileContent)
         res.end()
-
-        return next()
       })
     },
     async writeBundle() {
