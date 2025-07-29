@@ -4,10 +4,6 @@ chat:
       airi: AIRI
       core-system: 核心系统
       you: 你
-  tabs:
-    chat: 聊天
-    clothes: 换装
-    custom: 自定义
 message: 说点什么...
 select-a-audio-input: 选择一个音频输入设备
 select-a-model: 选择一个模型
