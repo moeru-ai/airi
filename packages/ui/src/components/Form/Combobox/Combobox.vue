@@ -31,8 +31,8 @@ function toDisplayValue(value: any): string {
   >
     <ComboboxAnchor
       :class="[
-        'w-full inline-flex items-center justify-between rounded-lg border px-2 leading-none h-[35px] gap-[5px] outline-none',
-        'text-xs text-neutral-700 dark:text-neutral-200 data-[placeholder]:text-neutral-200',
+        'w-full inline-flex items-center justify-between rounded-xl border px-3 leading-none h-10 gap-[5px] outline-none',
+        'text-sm text-neutral-700 dark:text-neutral-200 data-[placeholder]:text-neutral-200',
         'bg-white dark:bg-neutral-900 disabled:bg-neutral-100 hover:bg-neutral-50 dark:disabled:bg-neutral-900 dark:hover:bg-neutral-700',
         'border-neutral-200 dark:border-neutral-800 border-solid border-2 focus:border-neutral-300 dark:focus:border-neutral-600',
         'shadow-sm focus:shadow-[0_0_0_2px] focus:shadow-black',
@@ -63,7 +63,7 @@ function toDisplayValue(value: any): string {
     <ComboboxContent
       :avoid-collisions="true"
       :class="[
-        'absolute z-10 w-full mt-1 min-w-[160px] overflow-hidden rounded-lg shadow-sm border will-change-[opacity,transform] max-h-50dvh',
+        'absolute z-10 w-full mt-1 min-w-[160px] overflow-hidden rounded-xl shadow-sm border will-change-[opacity,transform] max-h-50dvh',
         'data-[side=top]:animate-slideDownAndFade data-[side=right]:animate-slideLeftAndFade data-[side=bottom]:animate-slideUpAndFade data-[side=left]:animate-slideRightAndFade',
         'bg-white dark:bg-neutral-900',
         'border-neutral-200 dark:border-neutral-800 border-solid border-2 focus:border-neutral-300 dark:focus:border-neutral-600',
@@ -82,7 +82,7 @@ function toDisplayValue(value: any): string {
           v-for="(group, index) in options"
           :key="group.name"
         >
-          <ComboboxGroup>
+          <ComboboxGroup class="overflow-x-hidden">
             <ComboboxSeparator
               v-if="index !== 0"
               class="m-[5px] h-[1px] bg-neutral-400"
@@ -104,9 +104,9 @@ function toDisplayValue(value: any): string {
               :text-value="option.label"
               :value="option.value"
               :class="[
-                'leading-none rounded-[5px] flex items-center h-[25px] pr-[35px] pl-[25px] relative select-none data-[disabled]:pointer-events-none data-[highlighted]:outline-none',
+                'leading-none rounded-md flex items-center h-8 pr-[0.5rem] pl-[1.5rem] relative select-none data-[disabled]:pointer-events-none data-[highlighted]:outline-none',
                 'data-[highlighted]:bg-neutral-100 dark:data-[highlighted]:bg-neutral-800',
-                'text-xs text-neutral-700 dark:text-neutral-200 data-[disabled]:text-neutral-400 dark:data-[disabled]:text-neutral-600 data-[highlighted]:text-grass1',
+                'text-sm text-neutral-700 dark:text-neutral-200 data-[disabled]:text-neutral-400 dark:data-[disabled]:text-neutral-600 data-[highlighted]:text-grass1',
                 'transition-colors duration-200 ease-in-out',
                 'cursor-pointer',
               ]"
@@ -116,7 +116,7 @@ function toDisplayValue(value: any): string {
               >
                 <div i-solar:alt-arrow-right-outline />
               </ComboboxItemIndicator>
-              <span>
+              <span class="line-clamp-1 overflow-hidden text-ellipsis whitespace-nowrap">
                 {{ option.label }}
               </span>
             </ComboboxItem>
