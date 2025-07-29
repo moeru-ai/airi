@@ -6,6 +6,7 @@ date: 2025-07-26
 
 <script setup>
 import RollingText from './RollingText.vue'
+import GraphemeClusterAssembler from './GraphemeClusterAssembler.vue'
 import GraphemeClusterInspector from './GraphemeClusterInspector.vue'
 </script>
 
@@ -59,9 +60,9 @@ const decoded = decoder.decode(chunk, { stream: true })
 
 tl;dr: **Not exactly**.
 
-TextDecoder can help us decode a stream of bytes into Unicode code points, or the characters, correctly. Nevertheless, in Unicode, there's another "grapheme cluster" concept, which combines multiple code points into a single "visual" character. For example, the emoji "👩‍👩‍👧‍👦" (family) is represented by multiple code points but is visually treated as a single character.
+TextDecoder can help us decode a stream of bytes into Unicode code points, or the characters, correctly. Nevertheless, in Unicode, there's another "grapheme cluster" concept, which combines multiple code points into a single "visual" character. For example, the emoji "👩‍👩‍👧‍👦" (family) is represented by multiple code points but is visually treated as a single character. Under the hood, the code points in "👩‍👩‍👧‍👦" are joined together using zero-width joiners (ZWJs), whose code is `U+200D`.
 
-This could be hard to imagine. Don't worry. I built a simple interactive inspector for you to explore grapheme clusters and code points and understand how they are combined:
+This could be hard to imagine. Don't worry. I built a simple interactive inspector for you to explore grapheme clusters and code points and understand how they are combined. Pay attention to the `200D` code points in the breakdown:
 
 <GraphemeClusterInspector initText="👩‍👩‍👧‍👦🏄‍♀️🤼‍♂️🙋‍♀️" />
 
@@ -77,4 +78,22 @@ Similar to emojis, some languages also use combining code points to create compl
 
 ## Build a reader
 
-In the wild, we can assume
+It's relatively easy to split a fixed length string into grapheme clusters, but in the scenario of streaming, we are looking into a pipe where bytes flow out continuously. In the worst case, we only see a single byte at a time. Furthermore, because of the nature of UTF-8, we cannot safely assume that the bytes we received are complete for a code point, as a code point can be made up of at most 4 bytes.
+
+To address this, we can use [TextDecoder](https://developer.mozilla.org/en-US/docs/Web/API/TextDecoder) mentioned earlier. Upon receiving and decoding, we concatenate the decoded string to a buffer, where the grapheme clusters will be composed correctly.
+
+<div flex="~ row items-center justify-center gap-1">
+<GraphemeClusterAssembler :characters="[...'👋🏽']" />
+</div>
+
+Now that we have a pipeline to assemble the string back from bytes, we should start to worry about how to <b title="Because safety first" underline="~ dotted" cursor-help>safely</b> read grapheme clusters from the string. Luckily, `Intl.Segmenter` is happy to help. It provides an official way to split a string into grapheme clusters, with awareness of locales in mind.
+
+However, let's imagine that we have received some bytes and they were correctly decoded into the following grapheme cluster:
+
+<div flex="~ row items-center justify-center gap-1">
+<GraphemeClusterAssembler :characters="[...'👩‍👩‍👧‍👧'].slice(0, 5)" />
+</div>
+
+<div flex="~ row items-center justify-center gap-1">
+<GraphemeClusterAssembler :characters="['👩‍👩‍👧', '‍', '👦']" />
+</div>

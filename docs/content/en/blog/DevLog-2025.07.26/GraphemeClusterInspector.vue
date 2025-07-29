@@ -2,6 +2,8 @@
 import { animate } from 'animejs'
 import { computed, ref } from 'vue'
 
+import CharacterShowcase from './CharacterShowcase.vue'
+
 const props = defineProps<{
   initText: string
 }>()
@@ -60,21 +62,15 @@ function leaveAnimator(e: Element, done: () => void) {
         @enter="enterAnimator"
         @leave="leaveAnimator"
       >
-        <div
+        <CharacterShowcase
           v-for="(segment, segIndex) in segments"
           :key="segIndex"
-          b="~ 2"
-          :class="{
-            'b-solid b-primary/50 bg-primary/10': highlightedClusterIndex === segIndex,
-            'b-dashed b-primary/20': highlightedClusterIndex !== segIndex,
-          }"
-          h-10 w-10 cursor-pointer rounded-lg text-lg
-          flex="~ items-center justify-center"
+          :variant="highlightedClusterIndex === segIndex ? 'active' : 'default'"
+          cursor-pointer
+          :value="segment.segment"
           @mouseover="highlightedClusterIndex = segIndex"
           @mouseleave="highlightedClusterIndex = -1"
-        >
-          {{ segment.segment }}
-        </div>
+        />
       </TransitionGroup>
     </div>
 
@@ -91,29 +87,15 @@ function leaveAnimator(e: Element, done: () => void) {
         @leave="leaveAnimator"
       >
         <template v-for="(segment, segIndex) in segments" :key="segIndex">
-          <div
+          <CharacterShowcase
             v-for="(cp, cpIndex) in [...segment.segment]"
             :key="cpIndex"
-            flex="~ col items-center gap-1 justify-center"
-          >
-            <div
-              b="~ 2"
-              :class="{
-                'b-solid b-primary/50 bg-primary/10': highlightedClusterIndex === segIndex,
-                'b-dashed b-primary/20': highlightedClusterIndex !== segIndex,
-              }"
-              flex="~ col items-center justify-center"
-              transition="all duration-150 ease-out"
-              h-10 w-10 cursor-pointer rounded-lg text-lg
-              @mouseover="highlightedClusterIndex = segIndex"
-              @mouseleave="highlightedClusterIndex = -1"
-            >
-              {{ cp }}
-            </div>
-            <div text-xs text="primary" font-mono>
-              {{ cp.codePointAt(0)?.toString(16).toUpperCase() }}
-            </div>
-          </div>
+            :variant="highlightedClusterIndex === segIndex ? 'active' : 'default'"
+            :value="cp"
+            code-point
+            cursor-pointer
+            @mouseover="highlightedClusterIndex = segIndex" @mouseleave="highlightedClusterIndex = -1"
+          />
         </template>
       </TransitionGroup>
     </div>
