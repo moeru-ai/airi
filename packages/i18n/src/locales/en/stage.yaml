@@ -4,10 +4,6 @@ chat:
       airi: AIRI
       core-system: Core System
       you: You
-  tabs:
-    chat: Chat
-    clothes: Clothes
-    custom: Custom
 message: Say something...
 operations:
   load-models: Load Models

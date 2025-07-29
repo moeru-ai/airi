@@ -15,7 +15,6 @@ import ChatHistory from '../Widgets/ChatHistory.vue'
 
 const messageInput = ref('')
 const listening = ref(false)
-const tab = ref<'chat' | 'custom' | 'clothes'>('chat')
 const showMicrophoneSelect = ref(false)
 const isComposing = ref(false)
 
@@ -134,28 +133,6 @@ onAfterMessageComposed(async () => {
 
 <template>
   <div flex="col" items-center pt-4>
-    <fieldset flex="~ row" w-fit rounded-lg>
-      <label
-        :class="[
-          tab === 'chat' ? 'bg-primary-100 dark:bg-primary-900' : 'bg-white dark:bg-primary-950',
-          tab === 'chat' ? 'text-primary-500 dark:text-primary-500' : '',
-          { 'transition-colors-none ': themeColorsHueDynamic },
-        ]"
-        flex="~ row"
-        :checked="tab === 'chat'"
-        :aria-checked="tab === 'chat'"
-        border="solid 2 primary-100 dark:primary-900"
-        text="primary-300 hover:primary-500 dark:primary-300/50 dark:hover:primary-500"
-        transition="all duration-250 ease-in-out"
-        cursor-pointer items-center gap-1 rounded-lg px-2
-      >
-        <input v-model="tab" type="radio" name="tab" value="chat" hidden>
-        <div i-solar:dialog-2-bold-duotone text="2xl" transform="translate-y--2" />
-        <div flex="~ row" items-center>
-          <span min-w="3em">{{ t('stage.chat.tabs.chat') }}</span>
-        </div>
-      </label>
-    </fieldset>
     <div h-full max-h="[85vh]" w-full py="4">
       <div
         flex="~ col"
