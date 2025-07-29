@@ -160,7 +160,7 @@ export function frontmatterAssets(): Plugin {
           'Content-Length': fileContent.length,
           'Cache-Control': 'public, max-age=31536000, immutable',
         })
-        res.write(fileContent)
+        res.end(fileContent)
         res.end()
       })
     },
