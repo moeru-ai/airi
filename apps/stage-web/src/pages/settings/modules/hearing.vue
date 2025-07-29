@@ -2,8 +2,8 @@
 import type { TranscriptionProvider } from '@xsai-ext/shared-providers'
 
 import { Alert, Button, ErrorContainer, LevelMeter, RadioCardManySelect, RadioCardSimple, TestDummyMarker, ThresholdMeter, TimeSeriesChart } from '@proj-airi/stage-ui/components'
-import { useAudioAnalyzer, useAudioDevice, useAudioRecorder } from '@proj-airi/stage-ui/composables'
-import { useAudioContext, useHearingStore, useProvidersStore } from '@proj-airi/stage-ui/stores'
+import { useAudioAnalyzer, useAudioRecorder } from '@proj-airi/stage-ui/composables'
+import { useAudioContext, useHearingStore, useProvidersStore, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores'
 import { FieldCheckbox, FieldRange, FieldSelect } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
@@ -29,7 +29,8 @@ const {
 const providersStore = useProvidersStore()
 const { configuredTranscriptionProvidersMetadata } = storeToRefs(providersStore)
 
-const { audioInputs, selectedAudioInput, stream, stopStream, startStream } = useAudioDevice()
+const { stopStream, startStream } = useSettingsAudioDevice()
+const { audioInputs, selectedAudioInput, stream } = storeToRefs(useSettingsAudioDevice())
 const { startRecord, stopRecord, onStopRecord } = useAudioRecorder(stream)
 const { startAnalyzer, stopAnalyzer, onAnalyzerUpdate, volumeLevel } = useAudioAnalyzer()
 const { audioContext } = storeToRefs(useAudioContext())

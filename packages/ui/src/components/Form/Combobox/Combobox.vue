@@ -1,4 +1,6 @@
-<script setup lang="ts">
+<script setup lang="ts" generic="T extends AcceptableValue">
+import type { AcceptableValue } from 'reka-ui'
+
 import {
   ComboboxAnchor,
   ComboboxContent,
@@ -15,26 +17,26 @@ import {
 } from 'reka-ui'
 
 const props = defineProps<{
-  options: { groupLabel: string, children?: { label: string, value: any }[] }[]
+  options: { groupLabel: string, children?: { label: string, value: T }[] }[]
   placeholder?: string
 }>()
 
-function toDisplayValue(value: any): string {
+const modelValue = defineModel<T>({ required: false })
+
+function toDisplayValue(value: T): string {
   const option = props.options.flatMap(group => group.children).find(option => option?.value === value)
   return option ? option.label : props.placeholder || ''
 }
 </script>
 
 <template>
-  <ComboboxRoot
-    class="relative w-full"
-  >
+  <ComboboxRoot v-model="modelValue" class="relative w-full">
     <ComboboxAnchor
       :class="[
         'w-full inline-flex items-center justify-between rounded-xl border px-3 leading-none h-10 gap-[5px] outline-none',
         'text-sm text-neutral-700 dark:text-neutral-200 data-[placeholder]:text-neutral-200',
         'bg-white dark:bg-neutral-900 disabled:bg-neutral-100 hover:bg-neutral-50 dark:disabled:bg-neutral-900 dark:hover:bg-neutral-700',
-        'border-neutral-200 dark:border-neutral-800 border-solid border-2 focus:border-neutral-300 dark:focus:border-neutral-600',
+        'border-neutral-200 dark:border-neutral-800 border-solid border-2 focus:border-primary-300 dark:focus:border-primary-400/50',
         'shadow-sm focus:shadow-[0_0_0_2px] focus:shadow-black',
         'transition-colors duration-200 ease-in-out',
       ]"
@@ -104,7 +106,7 @@ function toDisplayValue(value: any): string {
               :text-value="option.label"
               :value="option.value"
               :class="[
-                'leading-none rounded-md flex items-center h-8 pr-[0.5rem] pl-[1.5rem] relative select-none data-[disabled]:pointer-events-none data-[highlighted]:outline-none',
+                'leading-none rounded-lg flex items-center h-8 pr-[0.5rem] pl-[1.5rem] relative select-none data-[disabled]:pointer-events-none data-[highlighted]:outline-none',
                 'data-[highlighted]:bg-neutral-100 dark:data-[highlighted]:bg-neutral-800',
                 'text-sm text-neutral-700 dark:text-neutral-200 data-[disabled]:text-neutral-400 dark:data-[disabled]:text-neutral-600 data-[highlighted]:text-grass1',
                 'transition-colors duration-200 ease-in-out',
