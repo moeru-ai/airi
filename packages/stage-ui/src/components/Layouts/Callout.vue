@@ -14,8 +14,9 @@ const themeClasses: Record<ThemeVariant, {
 }> = {
   primary: {
     container: [
-      'bg-primary-100/60 dark:bg-primary-50/10 text-neutral-900/80 backdrop-blur-md',
-      `before:bg-primary-400 dark:bg-primary-900/10 dark:text-neutral-100/80 before:content-[''] before:dark:bg-primary-900`,
+      'text-neutral-700/80 dark:text-neutral-300/80',
+      'bg-primary-50/60 dark:bg-primary-50/10 backdrop-blur-md',
+      `before:bg-primary-200 dark:bg-primary-900/10 before:content-[''] before:dark:bg-primary-900`,
     ],
     label: [
       'text-primary-500 dark:text-primary-400 font-semibold',
@@ -23,8 +24,9 @@ const themeClasses: Record<ThemeVariant, {
   },
   lime: {
     container: [
-      'bg-lime-100/60 dark:bg-lime-50/10 text-neutral-900/80 backdrop-blur-md',
-      `before:bg-lime-400 dark:bg-lime-900/10 dark:text-neutral-100/80 before:content-[''] before:dark:bg-lime-900`,
+      'text-neutral-700/80 dark:text-neutral-300/80',
+      'bg-lime-50/60 dark:bg-lime-50/10 backdrop-blur-md',
+      `before:bg-lime-200 dark:bg-lime-900/10 before:content-[''] before:dark:bg-lime-900`,
     ],
     label: [
       'text-lime-500 dark:text-lime-400 font-semibold',
@@ -32,8 +34,9 @@ const themeClasses: Record<ThemeVariant, {
   },
   violet: {
     container: [
-      'bg-violet-100/60 dark:bg-violet-50/10 text-neutral-900/80 backdrop-blur-md',
-      `before:bg-violet-400 dark:bg-violet-900/10 dark:text-neutral-100/80 before:content-[''] before:dark:bg-violet-900`,
+      'text-neutral-700/80 dark:text-neutral-300/80',
+      'bg-violet-50/60 dark:bg-violet-50/10 backdrop-blur-md',
+      `before:bg-violet-200 dark:bg-violet-900/10 before:content-[''] before:dark:bg-violet-900`,
     ],
     label: [
       'text-violet-500 dark:text-violet-400 font-semibold',
@@ -41,8 +44,9 @@ const themeClasses: Record<ThemeVariant, {
   },
   orange: {
     container: [
-      'bg-orange-100/60 dark:bg-orange-50/10 text-neutral-900/80 backdrop-blur-md',
-      `before:bg-orange-400 dark:bg-orange-900/10 dark:text-neutral-100/80 before:content-[''] before:dark:bg-orange-900`,
+      'text-neutral-700/80 dark:text-neutral-300/80',
+      'bg-orange-50/70 dark:bg-orange-50/10 backdrop-blur-md',
+      `before:bg-orange-200 dark:bg-orange-900/10 before:content-[''] before:dark:bg-orange-900`,
     ],
     label: [
       'text-orange-500 dark:text-orange-400 font-semibold',
@@ -56,11 +60,11 @@ const themeClasses: Record<ThemeVariant, {
     relative mb-4
     flex flex-col gap-1
     overflow-hidden rounded-lg
-    py-2 pl-4 pr-3
+    py-2 pl-5 pr-3
     :class="[
       ...themeClasses[props.theme || 'violet'].container,
       // eslint-disable-next-line vue/prefer-separate-static-class
-      'before-position-absolute before:inset-0 before:h-full before:w-1 before:rounded-full',
+      'before-position-absolute before:left-2 before:right-0 before:h-[calc(100%-25%)] before:top-50% before:translate-y--50% before:w-1 before:rounded-full',
     ]"
   >
     <div text="font-semibold" :class="[...(themeClasses[props.theme || 'violet'].label || [])]">
