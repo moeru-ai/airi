@@ -24,13 +24,25 @@ const iconClass = computed(() => {
   }
   return ''
 })
+
+const titleClass = computed(() => {
+  switch (props.type) {
+    case 'error':
+      return 'text-red-500 dark:text-red-400'
+    case 'warning':
+      return 'text-amber-500 dark:text-amber-400'
+  }
+  return ''
+})
 </script>
 
 <template>
-  <div class="flex flex-col gap-3 rounded-xl p-2" :class="containerClass">
-    <div class="flex items-center gap-2 font-medium">
+  <div class="flex flex-col gap-3 rounded-xl px-2 pb-3 pt-2" :class="containerClass">
+    <div class="flex items-center gap-1.5 font-medium">
       <div class="text-2xl" :class="iconClass" />
-      <slot name="title" />
+      <div :class="titleClass">
+        <slot name="title" />
+      </div>
     </div>
     <div class="px-1 text-sm">
       <slot name="content" />
