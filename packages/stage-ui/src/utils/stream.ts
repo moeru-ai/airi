@@ -4,11 +4,13 @@ export interface ControllableStream<R = any> {
 }
 
 export function createControllableStream<R = any>(): ControllableStream<R> {
-  let controller: ReadableStreamDefaultController<R>
+  // WHY!: ReadableStream.start is called synchronously and immediately
+  let controller!: ReadableStreamDefaultController<R>
+
   const stream = new ReadableStream<R>({
     start(ctrl) {
       controller = ctrl
     },
   })
-  return { stream, controller: controller! }
+  return { stream, controller }
 }
