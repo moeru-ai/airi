@@ -2,9 +2,7 @@ import type { Emotion } from '../constants/emotions'
 import type { UseQueueReturn } from './queue'
 
 import { sleep } from '@moeru/std'
-import { ref } from 'vue'
 
-import { llmInferenceEndToken } from '../constants'
 import { EMOTION_VALUES } from '../constants/emotions'
 import { chunkTTSInput } from '../utils/tts'
 import { useQueue } from './queue'
@@ -103,23 +101,29 @@ export function useDelayMessageQueue() {
 }
 
 export function useMessageContentQueue(ttsQueue: UseQueueReturn<string>) {
-  const processed = ref<string>('')
+  const encoder = new TextEncoder()
+  let enqueue: (data: Uint8Array) => void
+  const stream = new ReadableStream<Uint8Array>({
+    start(controller) {
+      enqueue = data => controller.enqueue(data)
+    },
+  });
+
+  (async () => {
+    try {
+      for await (const chunk of chunkTTSInput(stream.getReader())) {
+        await ttsQueue.add(chunk.text)
+      }
+    }
+    catch (e) {
+      console.error('Error chunking input stream for TTS:', e)
+    }
+  })()
 
   return useQueue<string>({
     handlers: [
       async (ctx) => {
-        if (ctx.data === llmInferenceEndToken) {
-          const content = processed.value.trim()
-          if (content)
-            await ttsQueue.add(content)
-
-          processed.value = ''
-          return
-        }
-
-        for await (const chunk of chunkTTSInput(ctx.data)) {
-          await ttsQueue.add(chunk.text)
-        }
+        enqueue(encoder.encode(ctx.data))
       },
     ],
   })

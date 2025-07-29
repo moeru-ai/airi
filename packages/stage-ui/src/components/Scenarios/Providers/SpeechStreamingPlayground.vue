@@ -71,7 +71,14 @@ async function testStreaming() {
 
 async function testChunking() {
   const chunks = []
-  for await (const chunk of chunkTTSInput(props.text, { boost: 1, minimumWords: 4, maximumWords: 12 })) {
+  const stream = new ReadableStream<Uint8Array>({
+    start(controller) {
+      controller.enqueue(new TextEncoder().encode(props.text))
+      controller.close()
+    },
+  })
+
+  for await (const chunk of chunkTTSInput(stream.getReader(), { boost: 1, minimumWords: 4, maximumWords: 12 })) {
     chunks.push(chunk)
   }
 
