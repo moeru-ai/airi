@@ -66,7 +66,7 @@ onTokenLiteral(async () => {
             <div>
               <span text-xs text="primary-400/90 dark:primary-600/90" font-normal class="inline <sm:hidden">{{ t('stage.chat.message.character-name.airi') }}</span>
             </div>
-            <div v-if="message.content && index === messages.length - 1" class="markdown-content break-words" text="xs primary-400">
+            <div v-if="message.content" class="markdown-content break-words" text="xs primary-400">
               <div v-for="(slice, sliceIndex) in message.slices" :key="sliceIndex">
                 <div v-if="slice.type === 'tool-call'">
                   <div
@@ -79,7 +79,7 @@ onTokenLiteral(async () => {
                 <div v-else v-html="process(slice.text)" />
               </div>
             </div>
-            <div v-else i-eos-icons:three-dots-loading />
+            <div v-else-if="index === messages.length - 1 && !message.content" i-eos-icons:three-dots-loading />
           </div>
         </div>
         <div v-else-if="message.role === 'user'" flex="~ row-reverse" ml="12">
