@@ -1,5 +1,5 @@
 import { blackA, cyan, grass, green, indigo, mauve, purple, red, slate, teal, violet } from '@radix-ui/colors'
-import { defineConfig, presetAttributify, presetTypography, presetWebFonts, presetWind3, transformerDirectives, transformerVariantGroup } from 'unocss'
+import { defineConfig, presetAttributify, presetIcons, presetTypography, presetWebFonts, presetWind3, transformerDirectives, transformerVariantGroup } from 'unocss'
 
 export default defineConfig({
   presets: [
@@ -57,6 +57,7 @@ export default defineConfig({
         },
       },
     }),
+    presetIcons(),
   ],
   content: {
     filesystem: [

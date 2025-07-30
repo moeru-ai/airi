@@ -7,7 +7,7 @@ defineProps<{
 </script>
 
 <template>
-  <div flex="~ row items-center justify-center gap-1">
+  <div flex="~ row justify-center items-start gap-1">
     <template v-for="(char, i) in characters" :key="i">
       <CharacterShowcase
         :value="char"

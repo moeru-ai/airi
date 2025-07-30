@@ -5,9 +5,10 @@ date: 2025-07-26
 ---
 
 <script setup>
-import RollingText from './RollingText.vue'
+import CharacterMatcher from './CharacterMatcher.vue'
 import GraphemeClusterAssembler from './GraphemeClusterAssembler.vue'
 import GraphemeClusterInspector from './GraphemeClusterInspector.vue'
+import RollingText from './RollingText.vue'
 </script>
 
 ## Before we start
@@ -33,17 +34,17 @@ Hello, this is Makito.
 </template>
 </RollingText>
 
-This is my first post on Project AIRI's DevLog, despite I have been working on it for a while.
+This is my first post on Project AIRI's DevLog, even though I have been working on it for a while.
 
-In this post, I will share my journey from implementing text animations in AIRI to building a library to handle grapheme clusters arrives in a stream of UTF-8 bytes. I hope you find it informative and inspiring!
+In this post, I will share my journey from implementing text animations in AIRI to building a library to handle grapheme clusters as they arrive in a stream of UTF-8 bytes. I hope you find it informative and inspiring!
 
 ## Background
 
 Recently, [Anime.js](https://animejs.com/) released its new [text utilities](https://animejs.com/documentation/text) in v4.10, providing a collection of utility functions to help with text animations (as shown above). This update indeed fills a gap Anime.js has had for a while. Previously, I had to manually split text into individual characters for animation, or rely on some libraries like [splt](https://www.spltjs.com/)—which uses Anime.js under the hood—or [SplitText](https://gsap.com/docs/v3/Plugins/SplitText/) in combination with [GSAP](https://gsap.com/).
 
-Text animations are especially useful for making messages appear in a fancy way in the UI. Typically, messages received fully formed, so we only need to split the received text into characters and animate them.
+Text animations are especially useful for making messages appear in a fancy way in the UI. Typically, messages are received fully formed, so we only need to split the received text into characters and animate them.
 
-However, what if we want to read a stream of UTF-8 bytes and animate them as they arrive? This is common in real-time applications, such as chat or audio transcription apps–the UI displays text as it is received, character by character.
+However, what if we want to read a stream of UTF-8 bytes and animate them as they arrive? This is common in real-time applications, such as chat or audio transcription apps—the UI displays text as it is received, character by character.
 
 ## Character by character?
 
@@ -60,7 +61,7 @@ const decoded = decoder.decode(chunk, { stream: true })
 
 tl;dr: **Not exactly**.
 
-TextDecoder can help us decode a stream of bytes into Unicode code points, or the characters, correctly. Nevertheless, in Unicode, there's another "grapheme cluster" concept, which combines multiple code points into a single "visual" character. For example, the emoji "👩‍👩‍👧‍👦" (family) is represented by multiple code points but is visually treated as a single character. Under the hood, the code points in "👩‍👩‍👧‍👦" are joined together using zero-width joiners (ZWJs), whose code is `U+200D`.
+TextDecoder can help us decode a stream of bytes into Unicode code points, or characters, correctly. Nevertheless, in Unicode, there's another "grapheme cluster" concept, which combines multiple code points into a single "visual" character. For example, the emoji "👩‍👩‍👧‍👦" (family) is represented by multiple code points but is visually treated as a single character. Under the hood, the code points in "👩‍👩‍👧‍👦" are joined together using zero-width joiners (ZWJs), whose code is `U+200D`.
 
 This could be hard to imagine. Don't worry. I built a simple interactive inspector for you to explore grapheme clusters and code points and understand how they are combined. Pay attention to the `200D` code points in the breakdown:
 
@@ -78,22 +79,34 @@ Similar to emojis, some languages also use combining code points to create compl
 
 ## Build a reader
 
-It's relatively easy to split a fixed length string into grapheme clusters, but in the scenario of streaming, we are looking into a pipe where bytes flow out continuously. In the worst case, we only see a single byte at a time. Furthermore, because of the nature of UTF-8, we cannot safely assume that the bytes we received are complete for a code point, as a code point can be made up of at most 4 bytes.
+It's relatively easy to split a fixed-length string into grapheme clusters, but in the scenario of streaming, we are looking into a pipe where bytes flow out continuously. In the worst case, we only see a single byte at a time. Furthermore, because of the nature of UTF-8, we cannot safely assume that the bytes we receive are complete for a code point, as a code point can be made up of at most 4 bytes.
 
 To address this, we can use [TextDecoder](https://developer.mozilla.org/en-US/docs/Web/API/TextDecoder) mentioned earlier. Upon receiving and decoding, we concatenate the decoded string to a buffer, where the grapheme clusters will be composed correctly.
 
-<div flex="~ row items-center justify-center gap-1">
-<GraphemeClusterAssembler :characters="[...'👋🏽']" />
-</div>
-
 Now that we have a pipeline to assemble the string back from bytes, we should start to worry about how to <b title="Because safety first" underline="~ dotted" cursor-help>safely</b> read grapheme clusters from the string. Luckily, `Intl.Segmenter` is happy to help. It provides an official way to split a string into grapheme clusters, with awareness of locales in mind.
 
-However, let's imagine that we have received some bytes and they were correctly decoded into the following grapheme cluster:
+Let's imagine that we have received some bytes and they were correctly decoded into the following grapheme cluster:
 
 <div flex="~ row items-center justify-center gap-1">
-<GraphemeClusterAssembler :characters="[...'👩‍👩‍👧‍👧'].slice(0, 5)" />
+<GraphemeClusterAssembler :characters="[...'👩‍👧']" />
 </div>
 
+By this time, "👩‍👧" (2 people) itself is a grapheme cluster. Can we take it out and start reading the following bytes? Not yet. In fact, if more bytes arrive, the previous grapheme cluster will become "👩‍👧‍👦" (3 people):
+
 <div flex="~ row items-center justify-center gap-1">
-<GraphemeClusterAssembler :characters="['👩‍👩‍👧', '‍', '👦']" />
+<GraphemeClusterAssembler :characters="['👩‍👧', '‍', '👦']" />
+</div>
+
+If we emit the "👩‍👧" (2 people) a step earlier, we will produce an incomplete grapheme cluster, which is not what we are expecting.
+
+## ASAP but safely
+
+In some scenarios, you may want to read these (complete, of course) grapheme clusters out as early as possible. We still use `Intl.Segmenter`, but with a slightly different dequeuing strategy. If we cannot assume whether the current grapheme cluster is complete, we can wait until the next one appears. This way, the potentially incomplete grapheme cluster will never be the current one, but the next one. I built another interactive component to demonstrate this:
+
+<CharacterMatcher />
+
+<div text-sm text-center>
+
+You may see how we wait until the first grapheme cluster to be complete before emitting it.
+
 </div>
