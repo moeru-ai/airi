@@ -107,6 +107,6 @@ In some scenarios, you may want to read these (complete, of course) grapheme clu
 
 <div text-sm text-center>
 
-You may see how we wait until the first grapheme cluster to be complete before emitting it.
+You may see how we wait until the second grapheme cluster to appear before emitting the first one.
 
 </div>
