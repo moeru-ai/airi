@@ -15,6 +15,7 @@ export const github = 'https://github.com/moeru-ai/airi'
 export const releases = 'https://github.com/moeru-ai/airi/releases'
 export const contributing = 'https://github.com/moeru-ai/airi/blob/main/.github/CONTRIBUTING.md'
 export const discord = 'https://discord.gg/TgQ3Cu2F7A'
+export const x = 'https://x.com/proj_airi'
 
 /* Avatar/Image/Sponsors servers */
 export const sponsor = 'https://github.com/sponsors/nekomeowww'

@@ -23,6 +23,7 @@ import {
   rekaName,
   rekaShortName,
   releases,
+  x,
 } from './meta'
 import { frontmatterAssets } from './plugins/vite-frontmatter-assets'
 
@@ -205,6 +206,7 @@ export default defineConfig({
   },
   themeConfig: {
     socialLinks: [
+      { icon: 'x', link: x },
       { icon: 'discord', link: discord },
       { icon: 'github', link: github },
     ],
