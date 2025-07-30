@@ -1,5 +1,7 @@
 import type { ReaderLike } from 'clustr'
 
+import type { UseQueueReturn } from '../composables/queue'
+
 import { readGraphemeClusters } from 'clustr'
 
 // A special character to instruct the TTS pipeline to flush
@@ -142,5 +144,16 @@ export async function* chunkTTSInput(input: string | ReaderLike, options?: TTSIn
       words: chunkWordsCount + [...segmenter.segment(buffer)].filter(w => w.isWordLike).length,
       reason: 'flush',
     }
+  }
+}
+
+export async function chunkToTTSQueue(reader: ReaderLike, queue: UseQueueReturn<string>) {
+  try {
+    for await (const chunk of chunkTTSInput(reader)) {
+      await queue.add(chunk.text)
+    }
+  }
+  catch (e) {
+    console.error('Error chunking stream to TTS queue:', e)
   }
 }

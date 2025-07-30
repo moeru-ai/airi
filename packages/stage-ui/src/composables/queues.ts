@@ -4,7 +4,8 @@ import type { UseQueueReturn } from './queue'
 import { sleep } from '@moeru/std'
 
 import { EMOTION_VALUES } from '../constants/emotions'
-import { chunkTTSInput } from '../utils/tts'
+import { createControllableStream } from '../utils/stream'
+import { chunkToTTSQueue } from '../utils/tts'
 import { useQueue } from './queue'
 
 export function useEmotionsMessageQueue(emotionsQueue: UseQueueReturn<Emotion>) {
@@ -102,28 +103,14 @@ export function useDelayMessageQueue() {
 
 export function useMessageContentQueue(ttsQueue: UseQueueReturn<string>) {
   const encoder = new TextEncoder()
-  let enqueue: (data: Uint8Array) => void
-  const stream = new ReadableStream<Uint8Array>({
-    start(controller) {
-      enqueue = data => controller.enqueue(data)
-    },
-  });
+  const { stream, controller } = createControllableStream<Uint8Array>()
 
-  (async () => {
-    try {
-      for await (const chunk of chunkTTSInput(stream.getReader())) {
-        await ttsQueue.add(chunk.text)
-      }
-    }
-    catch (e) {
-      console.error('Error chunking input stream for TTS:', e)
-    }
-  })()
+  chunkToTTSQueue(stream.getReader(), ttsQueue)
 
   return useQueue<string>({
     handlers: [
       async (ctx) => {
-        enqueue(encoder.encode(ctx.data))
+        controller.enqueue(encoder.encode(ctx.data))
       },
     ],
   })
