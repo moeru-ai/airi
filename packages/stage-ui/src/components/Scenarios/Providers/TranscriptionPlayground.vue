@@ -147,13 +147,6 @@ watch(audioInputs, () => {
 // Monitoring toggle
 async function toggleMonitoring() {
   if (!isMonitoring.value) {
-    await setupAudioMonitoring()
-    await startRecord()
-    isMonitoring.value = true
-  }
-  else {
-    await stopAudioMonitoring()
-
     onStopRecord(async (recording) => {
       try {
         if (recording && recording.size > 0) {
@@ -168,6 +161,12 @@ async function toggleMonitoring() {
       }
     })
 
+    await setupAudioMonitoring()
+    await startRecord()
+    isMonitoring.value = true
+  }
+  else {
+    await stopAudioMonitoring()
     await stopRecord()
 
     isMonitoring.value = false

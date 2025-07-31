@@ -1,17 +1,33 @@
 import type { MaybeRefOrGetter } from 'vue'
 
+import { toWav } from '@proj-airi/audio/encoding'
 import { until } from '@vueuse/core'
 import { ref, shallowRef, toRef, watch } from 'vue'
 
 export function useAudioRecorder(
   media: MaybeRefOrGetter<MediaStream | undefined>,
 ) {
-  const audioRecorder = ref<MediaRecorder>()
   const mediaRef = toRef(media)
-  const recordingChunk = shallowRef<Blob[]>([])
   const recording = shallowRef<Blob>()
+  const isRecording = ref(false)
+
+  // Audio processing variables
+  const audioContext = ref<AudioContext>()
+  const sourceNode = ref<MediaStreamAudioSourceNode>()
+  const processorNode = ref<ScriptProcessorNode>() // Using ScriptProcessorNode for wider compatibility
+  const audioData = ref<Float32Array<ArrayBufferLike>[]>([])
 
   const onStopRecordHooks = ref<Array<(recording: Blob | undefined) => Promise<void>>>([])
+
+  function onStopRecord(callback: (recording: Blob | undefined) => Promise<void>) {
+    onStopRecordHooks.value.push(callback)
+  }
+
+  // Convert audio buffer to WAV format
+  function encodeWAV(samples: Float32Array[], sampleRate: number): Blob {
+    const view = toWav(samples[0].buffer, sampleRate)
+    return new Blob([view], { type: 'audio/wav' })
+  }
 
   async function startRecord() {
     await until(mediaRef).toBeTruthy()
@@ -19,59 +35,87 @@ export function useAudioRecorder(
       return
     }
 
+    // Reset recording state
     recording.value = undefined
-    recordingChunk.value = []
+    audioData.value = []
+    isRecording.value = true
 
-    audioRecorder.value = new MediaRecorder(mediaRef.value)
-    // Whisper: problem with audio/mp4 blobs from Safari
-    // https://community.openai.com/t/whisper-problem-with-audio-mp4-blobs-from-safari/322252
-    audioRecorder.value.start(1000)
+    try {
+      // Create audio context and nodes
+      audioContext.value = new AudioContext()
+      sourceNode.value = audioContext.value.createMediaStreamSource(mediaRef.value)
 
-    audioRecorder.value.onerror = (event) => {
-      console.error('Error recording audio:', event)
+      // Create script processor for audio processing
+      processorNode.value = audioContext.value.createScriptProcessor(4096, 1, 1)
+
+      // Process audio data
+      processorNode.value.onaudioprocess = (e) => {
+        if (isRecording.value) {
+          const channelData = new Float32Array(e.inputBuffer.getChannelData(0))
+          audioData.value.push(channelData)
+        }
+      }
+
+      // Connect nodes
+      sourceNode.value.connect(processorNode.value)
+      processorNode.value.connect(audioContext.value.destination)
+    }
+    catch (error) {
+      console.error('Error starting audio recording:', error)
+      isRecording.value = false
+    }
+  }
+
+  async function stopRecord() {
+    if (!isRecording.value || !audioContext.value) {
+      return
     }
 
-    audioRecorder.value.onstop = () => {
-      if (recordingChunk.value.length > 0) {
-        const blob = new Blob(recordingChunk.value, { type: audioRecorder.value?.mimeType })
-        recording.value = blob
+    isRecording.value = false
+
+    try {
+      // Disconnect and clean up audio nodes
+      if (processorNode.value) {
+        processorNode.value.disconnect()
+        processorNode.value = undefined
+      }
+
+      if (sourceNode.value) {
+        sourceNode.value.disconnect()
+        sourceNode.value = undefined
+      }
+
+      // Create WAV from recorded data
+      if (audioData.value.length > 0) {
+        recording.value = encodeWAV(audioData.value, audioContext.value.sampleRate)
+
+        // Call hooks with the recording
+        for (const hook of onStopRecordHooks.value) {
+          await hook(recording.value)
+        }
       }
       else {
         recording.value = undefined
       }
 
-      for (const hook of onStopRecordHooks.value) {
-        hook(recording.value)
-      }
+      // Close audio context
+      await audioContext.value.close()
+      audioContext.value = undefined
+    }
+    catch (error) {
+      console.error('Error stopping audio recording:', error)
     }
 
-    audioRecorder.value.ondataavailable = (event) => {
-      recordingChunk.value.push(event.data)
-    }
-  }
-
-  function onStopRecord(callback: (recording: Blob | undefined) => Promise<void>) {
-    onStopRecordHooks.value.push(callback)
-  }
-
-  async function stopRecord() {
-    if (!audioRecorder.value) {
-      return []
-    }
-
-    audioRecorder.value?.stop()
-    return recordingChunk.value
+    return audioData.value
   }
 
   watch(mediaRef, () => {
-    if (audioRecorder.value && audioRecorder.value.state === 'recording') {
-      audioRecorder.value.stop()
-    }
-
-    audioRecorder.value = undefined
-
-    if (mediaRef.value && mediaRef.value.active) {
-      startRecord()
+    if (isRecording.value) {
+      stopRecord().then(() => {
+        if (mediaRef.value && mediaRef.value.active) {
+          startRecord()
+        }
+      })
     }
   })
 
@@ -79,7 +123,7 @@ export function useAudioRecorder(
     startRecord,
     stopRecord,
     onStopRecord,
-    recordingChunk,
     recording,
+    isRecording,
   }
 }
