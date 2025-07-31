@@ -7,8 +7,8 @@ settings:
 catalogs:
   default:
     '@moeru/std':
-      specifier: 0.1.0-beta.4
-      version: 0.1.0-beta.4
+      specifier: ^0.1.0-beta.7
+      version: 0.1.0-beta.7
     '@proj-airi/drizzle-duckdb-wasm':
       specifier: ^0.4.28
       version: 0.4.28
@@ -31,14 +31,14 @@ catalogs:
       specifier: ^0.3.2
       version: 0.3.2
     '@xsai/generate-transcription':
-      specifier: 0.3.0-beta.8
-      version: 0.3.0-beta.8
+      specifier: ^0.3.2
+      version: 0.3.3
     '@xsai/model':
       specifier: ^0.3.2
       version: 0.3.2
     '@xsai/shared':
-      specifier: 0.3.0-beta.8
-      version: 0.3.0-beta.8
+      specifier: ^0.3.2
+      version: 0.3.2
     '@xsai/shared-chat':
       specifier: ^0.3.2
       version: 0.3.2
@@ -52,7 +52,7 @@ catalogs:
       specifier: ^0.3.2
       version: 0.3.2
     xsschema:
-      specifier: 0.3.2
+      specifier: ^0.3.2
       version: 0.3.2
   rolldown-vite:
     vite:
@@ -348,7 +348,7 @@ importers:
         version: 3.6.3
       '@moeru/std':
         specifier: 'catalog:'
-        version: 0.1.0-beta.4
+        version: 0.1.0-beta.7
       '@proj-airi/audio':
         specifier: workspace:^
         version: link:../../packages/audio
@@ -697,7 +697,7 @@ importers:
         version: 0.4.4(@modelcontextprotocol/sdk@1.16.0)(zod@3.25.76)
       '@moeru/std':
         specifier: 'catalog:'
-        version: 0.1.0-beta.4
+        version: 0.1.0-beta.7
       '@proj-airi/audio':
         specifier: workspace:^
         version: link:../../packages/audio
@@ -775,7 +775,7 @@ importers:
         version: 0.3.2
       '@xsai/shared':
         specifier: 'catalog:'
-        version: 0.3.0-beta.8
+        version: 0.3.2
       '@xsai/shared-chat':
         specifier: 'catalog:'
         version: 0.3.2
@@ -1132,7 +1132,7 @@ importers:
     devDependencies:
       '@moeru/std':
         specifier: 'catalog:'
-        version: 0.1.0-beta.4
+        version: 0.1.0-beta.7
       '@types/audioworklet':
         specifier: ^0.0.81
         version: 0.0.81
@@ -1209,7 +1209,7 @@ importers:
     devDependencies:
       '@moeru/std':
         specifier: 'catalog:'
-        version: 0.1.0-beta.4
+        version: 0.1.0-beta.7
 
   packages/server-shared: {}
 
@@ -1340,13 +1340,13 @@ importers:
         version: 0.3.2
       '@xsai/generate-transcription':
         specifier: 'catalog:'
-        version: 0.3.0-beta.8
+        version: 0.3.3
       '@xsai/model':
         specifier: 'catalog:'
         version: 0.3.2
       '@xsai/shared':
         specifier: 'catalog:'
-        version: 0.3.0-beta.8
+        version: 0.3.2
       '@xsai/shared-chat':
         specifier: 'catalog:'
         version: 0.3.2
@@ -1497,7 +1497,7 @@ importers:
         version: 1.2.23
       '@moeru/std':
         specifier: 'catalog:'
-        version: 0.1.0-beta.4
+        version: 0.1.0-beta.7
       '@proj-airi/lobe-icons':
         specifier: ^1.0.8
         version: 1.0.8
@@ -1718,7 +1718,7 @@ importers:
         version: 0.3.2
       '@xsai/generate-transcription':
         specifier: 'catalog:'
-        version: 0.3.0-beta.8
+        version: 0.3.3
       '@xsai/shared-chat':
         specifier: 'catalog:'
         version: 0.3.2
@@ -1745,7 +1745,7 @@ importers:
         version: 1.0.10
       '@moeru/std':
         specifier: 'catalog:'
-        version: 0.1.0-beta.4
+        version: 0.1.0-beta.7
       '@proj-airi/server-sdk':
         specifier: ^0.6.1
         version: 0.6.1
@@ -1839,7 +1839,7 @@ importers:
         version: 1.0.10
       '@moeru/std':
         specifier: 'catalog:'
-        version: 0.1.0-beta.4
+        version: 0.1.0-beta.7
       '@xsai-ext/providers-cloud':
         specifier: 'catalog:'
         version: 0.3.2
@@ -1921,7 +1921,7 @@ importers:
         version: 1.16.0
       '@moeru/std':
         specifier: 'catalog:'
-        version: 0.1.0-beta.4
+        version: 0.1.0-beta.7
       '@proj-airi/server-sdk':
         specifier: ^0.6.1
         version: 0.6.1
@@ -4156,8 +4156,8 @@ packages:
   '@moeru/std@0.1.0-beta.1':
     resolution: {integrity: sha512-ImfoMBchZP+F4aos2nFmlcipcgIhT+ZkUUVWB/bBHEqyB/w/nbI/xgA8a1ibJUtG7RcQnQH+SKom0r4/1xCWqA==}
 
-  '@moeru/std@0.1.0-beta.4':
-    resolution: {integrity: sha512-L2EPYM0x83MyOP96r80VJmd2BoK/VUlyUtkv3ybCLinIbOOvyYxi4BUxLBcDSxAxoRqp5YsfPniUN+xMPuToFg==}
+  '@moeru/std@0.1.0-beta.7':
+    resolution: {integrity: sha512-zMo9Bt51SQPNcCa81yEgmcwCe+s5s7+dc8khwY3yKg0fzQgfCyqQ30TAvOmlKw61TS8SGqZxDlYdTEhxYUd+oQ==}
 
   '@mswjs/interceptors@0.37.6':
     resolution: {integrity: sha512-wK+5pLK5XFmgtH3aQ2YVvA3HohS3xqV/OxuVOdNx9Wpnz7VE/fnC+e1A7ln6LFYeck7gOJ/dsZV6OLplOtAJ2w==}
@@ -6437,8 +6437,8 @@ packages:
   '@xsai/generate-text@0.3.2':
     resolution: {integrity: sha512-yi+7JJ0h1W1cc6PoPHFHAFrGHGS1ix/YlzmYTIJ/BmHBJn2J50RMj8KDL89IHJgMo2bxZNrWDoRZ2XYtOMHW9A==}
 
-  '@xsai/generate-transcription@0.3.0-beta.8':
-    resolution: {integrity: sha512-bpBRbNnE6UlIXGAk/4+cNAa6h4Zn627jlnaoo5U1GzVXbPRCUF+Z/uMgeRY4A0KUJJZ294jyNQVRgYT4aan8IA==}
+  '@xsai/generate-transcription@0.3.3':
+    resolution: {integrity: sha512-FfX/xKE6Tc41VHeKaGI7LJW17MDQJvKfEzrWa9e9JppbpzyL+dpM1E7bdqSm2voPRzou0Y3Xb4D34SGrALwSSw==}
 
   '@xsai/model@0.3.2':
     resolution: {integrity: sha512-4bBC5SskgnrTdtd/5gtaR0u44FD/CQLqSP0omqy4yTAa4bhNxBwhlMvZPkCyDXIjYDC0rGTmDvX1TJtSE3b5iQ==}
@@ -6449,11 +6449,11 @@ packages:
   '@xsai/shared@0.2.2':
     resolution: {integrity: sha512-bgalLd3samx36hDRRmu3M75LY5NfWwh3YRaMwY4Woy7X09JQx+vEqVpJcaIeqcmVqztm8NGYzj8hUru7lwPh0w==}
 
-  '@xsai/shared@0.3.0-beta.8':
-    resolution: {integrity: sha512-S7BYvluU7aA2Ti7HEblV3ISDZbF89VP2dDC5WCrylYlQIYoFlZjlhJhJL5c/+KwX+og0pvh5Y0iSPKdcoMmLmw==}
-
   '@xsai/shared@0.3.2':
     resolution: {integrity: sha512-StLLjMwfDDyneIInJCaYYEYbzi9ipAEKp6/cSErQ3r7OmCvn9G7urLgxyT+ofopE+aGGBck22ryPYOaSWRyENQ==}
+
+  '@xsai/shared@0.3.3':
+    resolution: {integrity: sha512-1xul8h7He5cM+H/gGx8pdE/LLqujO3xSHM2+V4XVEjI05VxQq+s5lk42/7NUUbjcvcFxi5Ow9IL4pezHgxq9aQ==}
 
   '@xsai/stream-text@0.3.2':
     resolution: {integrity: sha512-nLZlqAz62T1Vq96QvtwLAVoCCtVisMlQ+INffxQLZqDA+4QaS7Nw9BDjI47Ko3m17EjpUXrKTF+F8gEqWUv4Ag==}
@@ -11364,6 +11364,7 @@ packages:
   source-map@0.8.0-beta.0:
     resolution: {integrity: sha512-2ymg6oRBpebeZi9UUNsgQ89bhx01TcTkmNTGnNO88imTmbSgy4nfujrgVEFKWpMTEGA11EDkTt7mqObTPdigIA==}
     engines: {node: '>= 8'}
+    deprecated: The work that was done in this beta branch won't be included in future versions
 
   sourcemap-codec@1.4.8:
     resolution: {integrity: sha512-9NykojV5Uih4lgo5So5dtw+f0JgJX30KCNI8gwhz2J9A15wD0Ml6tjHKwf6fTSa6fAdVBdZeNOs9eJ71qCk8vA==}
@@ -15538,7 +15539,7 @@ snapshots:
 
   '@moeru/std@0.1.0-beta.1': {}
 
-  '@moeru/std@0.1.0-beta.4': {}
+  '@moeru/std@0.1.0-beta.7': {}
 
   '@mswjs/interceptors@0.37.6':
     dependencies:
@@ -18228,7 +18229,7 @@ snapshots:
 
   '@xsai-ext/shared-providers@0.2.2':
     dependencies:
-      '@xsai/shared': 0.3.2
+      '@xsai/shared': 0.3.3
 
   '@xsai-ext/shared-providers@0.3.2':
     dependencies:
@@ -18266,9 +18267,9 @@ snapshots:
       '@xsai/shared': 0.3.2
       '@xsai/shared-chat': 0.3.2
 
-  '@xsai/generate-transcription@0.3.0-beta.8':
+  '@xsai/generate-transcription@0.3.3':
     dependencies:
-      '@xsai/shared': 0.3.2
+      '@xsai/shared': 0.3.3
 
   '@xsai/model@0.3.2':
     dependencies:
@@ -18280,9 +18281,9 @@ snapshots:
 
   '@xsai/shared@0.2.2': {}
 
-  '@xsai/shared@0.3.0-beta.8': {}
-
   '@xsai/shared@0.3.2': {}
+
+  '@xsai/shared@0.3.3': {}
 
   '@xsai/stream-text@0.3.2':
     dependencies:

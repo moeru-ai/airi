@@ -8,22 +8,22 @@ packages:
   - '!**/dist/**'
 
 catalog:
-  '@moeru/std': 0.1.0-beta.4
+  '@moeru/std': ^0.1.0-beta.7
   '@proj-airi/drizzle-duckdb-wasm': ^0.4.28
-  '@xsai-ext/providers-cloud': ^0.3.2
-  '@xsai-ext/providers-local': ^0.3.2
-  '@xsai-ext/shared-providers': ^0.3.2
-  '@xsai/embed': ^0.3.2
-  '@xsai/generate-speech': ^0.3.2
-  '@xsai/generate-text': ^0.3.2
-  '@xsai/generate-transcription': 0.3.0-beta.8
-  '@xsai/model': ^0.3.2
-  '@xsai/shared': 0.3.0-beta.8
-  '@xsai/shared-chat': ^0.3.2
-  '@xsai/stream-text': ^0.3.2
-  '@xsai/tool': ^0.3.2
-  '@xsai/utils-chat': ^0.3.2
-  xsschema: 0.3.2
+  '@xsai-ext/providers-cloud': &xsai ^0.3.2
+  '@xsai-ext/providers-local': *xsai
+  '@xsai-ext/shared-providers': *xsai
+  '@xsai/embed': *xsai
+  '@xsai/generate-speech': *xsai
+  '@xsai/generate-text': *xsai
+  '@xsai/generate-transcription': *xsai
+  '@xsai/model': *xsai
+  '@xsai/shared': *xsai
+  '@xsai/shared-chat': *xsai
+  '@xsai/stream-text': *xsai
+  '@xsai/tool': *xsai
+  '@xsai/utils-chat': *xsai
+  xsschema: *xsai
 
 catalogs:
   rolldown-vite:
