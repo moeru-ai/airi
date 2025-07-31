@@ -44,6 +44,18 @@ Recently, [Anime.js](https://animejs.com/) released its new [text utilities](htt
 
 Text animations are especially useful for making messages appear in a fancy way in the UI. Typically, messages are received fully formed, so we only need to split the received text into characters and animate them.
 
+In Project AIRI, [@nekomeowww](https://github.com/nekomeowww) also built an animated chat bubble component with motion effects:
+
+<video controls muted autoplay loop max-w="500px" w-full mx-auto>
+  <source src="./assets/animated-chat-bubble.mp4">
+</video>
+
+<div text-sm text-center>
+
+Check it out in [our UI storybook](https://airi.moeru.ai/ui/#/story/src-components-gadgets-chatbubbleminimalism-story-vue?variantId=chat)
+
+</div>
+
 However, what if we want to read a stream of UTF-8 bytes and animate them as they arrive? This is common in real-time applications, such as chat or audio transcription apps—the UI displays text as it is received, character by character.
 
 ## Character by character?
@@ -87,13 +99,13 @@ Now that we have a pipeline to assemble the string back from bytes, we should st
 
 Let's imagine that we have received some bytes and they were correctly decoded into the following grapheme cluster:
 
-<div flex="~ row items-center justify-center gap-1">
+<div flex="~ row items-center justify-center gap-1" overflow="x-scroll">
 <GraphemeClusterAssembler :characters="[...'👩‍👧']" />
 </div>
 
 By this time, "👩‍👧" (2 people) itself is a grapheme cluster. Can we take it out and start reading the following bytes? Not yet. In fact, if more bytes arrive, the previous grapheme cluster will become "👩‍👧‍👦" (3 people):
 
-<div flex="~ row items-center justify-center gap-1">
+<div flex="~ row items-center justify-center gap-1" overflow="x-scroll">
 <GraphemeClusterAssembler :characters="['👩‍👧', '‍', '👦']" />
 </div>
 
@@ -101,7 +113,21 @@ If we emit the "👩‍👧" (2 people) a step earlier, we will produce an incom
 
 ## ASAP but safely
 
-In some scenarios, you may want to read these (complete, of course) grapheme clusters out as early as possible. We still use `Intl.Segmenter`, but with a slightly different dequeuing strategy. If we cannot assume whether the current grapheme cluster is complete, we can wait until the next one appears. This way, the potentially incomplete grapheme cluster will never be the current one, but the next one. I built another interactive component to demonstrate this:
+In some scenarios, you may want to read these (complete, of course) grapheme clusters out as early as possible. We still use `Intl.Segmenter`, but with a slightly different dequeuing strategy. If we cannot assume whether the current grapheme cluster is complete, we can wait until the next one appears, and emit the ones except the last one:
+
+```ts
+declare let clusterBuffer: string
+const segmenter = new Intl.Segmenter(undefined, { granularity: 'grapheme' })
+while (true) {
+  const segments = [...segmenter.segment(clusterBuffer)]
+  segments.pop() // Discard the last segment
+  for (const seg of segments) {
+    yield seg.segment // Emit complete grapheme clusters
+  }
+}
+```
+
+This way, the potentially incomplete grapheme cluster will never be the current one, but the next one. I built another interactive component to demonstrate this:
 
 <CharacterMatcher />
 
@@ -110,3 +136,11 @@ In some scenarios, you may want to read these (complete, of course) grapheme clu
 You may see how we wait until the second grapheme cluster to appear before emitting the first one.
 
 </div>
+
+## Introducing Clustr
+
+By the time I wrote this DevLog, there are many nice libraries that help you split a string into grapheme clusters for you to choose from. However, among them, I didn't find one that both accepts a stream of UTF-8 bytes and emits grapheme clusters as they arrive. So I built one myself, with the approach described above, which I named [Clustr](https://github.com/sumimakito/clustr) to give it some resonance with the "grapheme cluster" concept in Unicode.
+
+Although the total line count of its core is less than 100, it may help you with your next project where you want to have some fancy text animations from a stream of UTF-8 bytes—like what we did in Project AIRI.
+
+If you are interested in what we're doing in Project AIRI, please check out our GitHub repository at [moeru-ai/airi](https://github.com/moeru-ai/airi)!

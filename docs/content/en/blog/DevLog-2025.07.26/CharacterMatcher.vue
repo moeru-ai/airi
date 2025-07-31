@@ -81,8 +81,8 @@ function stepBack() {
 </script>
 
 <template>
-  <div flex="~ col items-center justify-start gap-1" w-full bg="primary/5" rounded-lg p-2>
-    <div flex="~ row items-stretch gap-2" bg="primary/5" w-full rounded-lg p-2>
+  <div flex="~ col items-center justify-start gap-1" bg="primary/5" min-h-80 w-full rounded-lg p-2>
+    <div flex="~ row items-stretch gap-2 grow" bg="primary/5" w-full rounded-lg p-2>
       <div flex="~ col items-center justify-start gap-1" py-2>
         <div
           flex="~ row items-center"
@@ -122,6 +122,7 @@ function stepBack() {
       <div
         flex="~ row items-start gap-1 grow"
         transition="~ all duration-150 ease-out"
+        overflow="x-scroll"
         bg="primary/5" w-full rounded-lg p-2
       >
         <TransitionGroup
@@ -140,8 +141,8 @@ function stepBack() {
       </div>
     </div>
 
-    <div flex="~ row items-center justify-start gap-1" py-2 text-xs>
-      <div>
+    <div flex="~ row items-center justify-center gap-1 wrap" py-2 text-xs>
+      <div font-semibold w="full md:auto" text="center md:unset">
         Legend
       </div>
       <div

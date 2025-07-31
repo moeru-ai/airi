@@ -37,22 +37,22 @@ function leaveAnimator(e: Element, done: () => void) {
 </script>
 
 <template>
-  <div class="w-full" grid="~ cols-[min-content_auto]" overflow-hidden rounded-lg>
+  <div class="w-full" grid="~ cols-[auto] md:cols-[min-content_auto]" overflow-hidden rounded-lg>
     <div
       bg="primary/5"
-      flex="~ items-center justify-end"
-      p-2
+      flex="~ items-center justify-start md:justify-end"
+      p="2 md:e-0" text-sm font-semibold
     >
       Text
     </div>
     <div bg="primary/5" p-2>
-      <input v-model="text" bg="primary/10" w-full rounded-lg p-2 text-lg>
+      <input v-model="text" name="text" bg="primary/10" w-full rounded-lg p-2 text="md:lg">
     </div>
 
     <div
       whitespace-nowrap bg="primary/10"
-      flex="~ items-center justify-end"
-      p-2
+      flex="~ items-center justify-start md:justify-end"
+      p="2 md:e-0" text-sm font-semibold
     >
       Grapheme clusters
     </div>
@@ -76,9 +76,10 @@ function leaveAnimator(e: Element, done: () => void) {
 
     <div
       whitespace-nowrap bg="primary/15"
-      flex="~ items-center justify-end" p-2
+      flex="~ items-center justify-start md:justify-end"
+      p="2 md:e-0" text-sm font-semibold
     >
-      Code points
+      Characters
     </div>
     <div bg="primary/15" flex="~ row gap-2 wrap" p-2>
       <TransitionGroup
