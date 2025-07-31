@@ -185,6 +185,8 @@ export const useChatStore = defineStore('chat', () => {
       }
 
       // Instruct the TTS pipeline to flush
+      // eslint-disable-next-line no-console
+      console.debug('message content:', messages.value)
       slicesQueue.add({ type: 'text', text: TTS_FLUSH_INSTRUCTION })
 
       await parser.end()
