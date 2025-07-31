@@ -20,19 +20,20 @@ Hello, this is Makito.
 <div text-sm>
 <template v-if="!motionReduced">
 
-> **AIRI is working towards being a11y-friendly!** <br />
-> Animations in this post can be turned off with the "Reduce Motion" toggle in the top-right corner.
+> The animation below can be turned off with the "Reduce Motion" toggle in the top-right corner.
 
 </template>
 <template v-else>
 
-> **Animations are turned off.** <br />
-> You can turn them on with the "Reduce Motion" toggle in the top-right corner.
+> **The animation below has been turned off** <br />
+> You can turn it on with the "Reduce Motion" toggle in the top-right corner.
 
 </template>
 </div>
 </template>
 </RollingText>
+
+Endless August has begun… Maybe we can pass the time with this [realistic math problem](https://oeis.org/A180632/a180632.pdf). Oops, sorry for getting off-topic.
 
 This is my first post on Project AIRI's DevLog, even though I have been working on it for a while.
 
@@ -95,7 +96,7 @@ It's relatively easy to split a fixed-length string into grapheme clusters, but 
 
 To address this, we can use [TextDecoder](https://developer.mozilla.org/en-US/docs/Web/API/TextDecoder) mentioned earlier. Upon receiving and decoding, we concatenate the decoded string to a buffer, where the grapheme clusters will be composed correctly.
 
-Now that we have a pipeline to assemble the string back from bytes, we should start to worry about how to <b title="Because safety first" underline="~ dotted" cursor-help>safely</b> read grapheme clusters from the string. Luckily, `Intl.Segmenter` is happy to help. It provides an official way to split a string into grapheme clusters, with awareness of locales in mind.
+Now that we have a pipeline to assemble the string back from bytes, we should start to worry about how to <b title="Because safety first" underline="~ dotted" cursor-help>safely</b> read grapheme clusters from the string. Luckily, [`Intl.Segmenter`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Intl/Segmenter) is happy to help. It provides an official way to split a string into grapheme clusters, with awareness of locales in mind. `Intl.Segmenter` is more than a utility for grapheme clusters. It can also segment text into words or sentences, depending on the options you provide.
 
 Let's imagine that we have received some bytes and they were correctly decoded into the following grapheme cluster:
 

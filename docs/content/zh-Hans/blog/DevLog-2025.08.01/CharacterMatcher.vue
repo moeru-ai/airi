@@ -143,7 +143,7 @@ function stepBack() {
 
     <div flex="~ row items-center justify-center gap-1 wrap" py-2 text-xs>
       <div font-semibold w="full md:auto" text="center md:unset">
-        Legend
+        图例
       </div>
       <div
         b="~ 2 dotted primary/20"
@@ -151,7 +151,7 @@ function stepBack() {
         flex="~ items-center justify-center shrink-0"
         transition="~ all duration-150 ease-out"
       >
-        Character
+        字符
       </div>
       <div
         b="~ 2 dashed primary/20"
@@ -159,7 +159,7 @@ function stepBack() {
         flex="~ items-center justify-center shrink-0"
         transition="~ all duration-150 ease-out"
       >
-        Incomplete cluster
+        不完整字素簇
       </div>
       <div
         b="~ 2 solid primary/50"
@@ -168,7 +168,7 @@ function stepBack() {
         flex="~ items-center justify-center shrink-0"
         transition="~ all duration-150 ease-out"
       >
-        Complete cluster
+        完整字素簇
       </div>
     </div>
   </div>
