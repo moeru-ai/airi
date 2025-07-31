@@ -183,13 +183,10 @@ export const useChatStore = defineStore('chat', () => {
         })
         fullText += textPart
       }
+      await parser.end()
 
       // Instruct the TTS pipeline to flush
-      // eslint-disable-next-line no-console
-      console.debug('message content:', messages.value)
       slicesQueue.add({ type: 'text', text: TTS_FLUSH_INSTRUCTION })
-
-      await parser.end()
 
       for (const hook of onStreamEndHooks.value) {
         await hook()
