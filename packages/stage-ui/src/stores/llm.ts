@@ -56,7 +56,7 @@ export async function attemptForToolsCompatibilityDiscovery(model: string, chatP
   async function attempt(enable: boolean) {
     try {
       const res = await streamFrom(model, chatProvider, [{ role: 'user', content: 'Hello, world!' }], { ...options, supportsTools: enable })
-      for await (const _ of readableStreamToAsyncIterator(res.textStream, async v => v)) {
+      for await (const _ of readableStreamToAsyncIterator(res.textStream)) {
         // Drop
       }
 

@@ -176,7 +176,7 @@ export const useChatStore = defineStore('chat', () => {
 
       let fullText = ''
 
-      for await (const textPart of readableStreamToAsyncIterator(res.textStream, async v => v)) {
+      for await (const textPart of readableStreamToAsyncIterator(res.textStream)) {
         slicesQueue.add({
           type: 'text',
           text: textPart,
