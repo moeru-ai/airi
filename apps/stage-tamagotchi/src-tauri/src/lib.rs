@@ -35,16 +35,16 @@ pub fn run() {
     .plugin(tauri_plugin_window_pass_through_on_hover::init())
     .plugin(tauri_plugin_window_router_link::init(
       WindowMatcher::new()
-        .register("chat", |app| {
-          chat::new_chat_window(&app)
+        .register("chat", |app, on_page_load| {
+          chat::new_chat_window(&app, on_page_load)
             .map_err(|e| e)
         })
-        .register("settings", |app| {
-          settings::new_settings_window(&app)
+        .register("settings", |app, on_page_load| {
+          settings::new_settings_window(&app, on_page_load)
             .map_err(|e| e)
         })
-        .register("onboarding", |app| {
-          onboarding::new_onboarding_window(&app)
+        .register("onboarding", |app, on_page_load| {
+          onboarding::new_onboarding_window(&app, on_page_load)
             .map_err(|e| e)
         })
     ))
@@ -137,7 +137,7 @@ pub fn run() {
               return;
             }
 
-            app::windows::settings::new_settings_window(app).unwrap();
+            app::windows::settings::new_settings_window(app, None).unwrap();
           }
           "center" => {
             let _ = app.get_webview_window("main")

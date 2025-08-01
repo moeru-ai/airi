@@ -1,12 +1,13 @@
-use std::path::Path;
+use std::{path::Path, sync::Arc};
 
 use anyhow::{Ok, Result};
 #[cfg(target_os = "macos")]
 use tauri::TitleBarStyle;
-use tauri::{Runtime, WebviewUrl, WebviewWindowBuilder};
+use tauri::{Runtime, WebviewUrl, WebviewWindowBuilder, webview::PageLoadPayload};
 
 pub fn new_settings_window<R: Runtime>(
-  app: &tauri::AppHandle<R>
+  app: &tauri::AppHandle<R>,
+  page_load_handler: Option<Arc<dyn Fn(tauri::WebviewWindow<R>, PageLoadPayload) + Send + Sync>>,
 ) -> Result<tauri::WebviewWindow<R>> {
   let mut builder = WebviewWindowBuilder::new(
     app,
@@ -18,6 +19,12 @@ pub fn new_settings_window<R: Runtime>(
   .shadow(true)
   .transparent(false)
   .accept_first_mouse(true);
+
+  if let Some(handler) = page_load_handler {
+    builder = builder.on_page_load(move |window, load| {
+      handler(window, load);
+    });
+  }
 
   #[cfg(target_os = "macos")]
   {
