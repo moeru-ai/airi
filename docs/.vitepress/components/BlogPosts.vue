@@ -174,7 +174,7 @@ const svgArts = computedAsync(async () => {
 <template>
   <div class="w-full">
     <div>
-      <h1 class="font-sans-rounded text-foreground text-4xl font-extrabold tracking-tight sm:text-5xl">
+      <h1 class="text-foreground text-4xl font-extrabold tracking-tight font-sans-rounded sm:text-5xl">
         {{ t('docs.theme.blog.title') }}
       </h1>
       <p class="text-muted-foreground mt-4 text-xl">
@@ -183,7 +183,7 @@ const svgArts = computedAsync(async () => {
     </div>
 
     <div class="mb-16">
-      <div class="font-sans-rounded flex flex-wrap items-center gap-2">
+      <div class="flex flex-wrap items-center gap-2 font-sans-rounded">
         <label
           v-for="item in categories"
           :key="item"
@@ -212,7 +212,7 @@ const svgArts = computedAsync(async () => {
         <div class="rounded-t-xl">
           <ClientOnly>
             <div v-if="!post.frontmatter?.['preview-cover']?.[isDark ? 'dark' : 'light']" class="mb-6 h-20 md:h-60">
-              <div class="blur-2xl" h="full" w-full v-html="isDark ? svgArts?.[index].dark : svgArts?.[index].light" />
+              <div class="blur-lg" h="full" w-full v-html="isDark ? svgArts?.[index].dark : svgArts?.[index].light" />
             </div>
             <div v-else class="relative mb-0 h-28 w-full md:h-68">
               <div class="preview-card-art-image-overlay" />
