@@ -11,7 +11,7 @@ pub async fn open_settings_window(app: tauri::AppHandle) -> Result<(), tauri::Er
     return Ok(());
   }
 
-  settings::new_settings_window(&app)?;
+  settings::new_settings_window(&app, None)?;
   Ok(())
 }
 
@@ -23,7 +23,7 @@ pub async fn open_chat_window(app: tauri::AppHandle) -> Result<(), tauri::Error>
     return Ok(());
   }
 
-  chat::new_chat_window(&app)?;
+  chat::new_chat_window(&app, None)?;
   Ok(())
 }
 
@@ -35,7 +35,7 @@ pub async fn open_onboarding_window(app: tauri::AppHandle) -> Result<(), tauri::
     return Ok(());
   }
 
-  onboarding::new_onboarding_window(&app)?;
+  onboarding::new_onboarding_window(&app, None)?;
   Ok(())
 }
 

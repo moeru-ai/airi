@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::Arc};
 
 use anyhow::Result;
 #[cfg(debug_assertions)]
@@ -7,10 +7,15 @@ use tauri::{
   Manager,
   Runtime,
   plugin::{Builder, TauriPlugin},
+  webview::{PageLoadEvent, PageLoadPayload},
 };
 
-pub type WindowCreator<R> =
-  Box<dyn Fn(tauri::AppHandle<R>) -> Result<tauri::WebviewWindow<R>> + Send + Sync>;
+pub type PageLoadHandler<R> =
+  Option<Arc<dyn Fn(tauri::WebviewWindow<R>, PageLoadPayload) + Send + Sync>>;
+
+pub type WindowCreator<R> = Box<
+  dyn Fn(tauri::AppHandle<R>, PageLoadHandler<R>) -> Result<tauri::WebviewWindow<R>> + Send + Sync,
+>;
 
 // Define a matcher struct that holds window creation logic
 pub struct WindowMatcher<R: Runtime> {
@@ -30,7 +35,10 @@ impl<R: Runtime> WindowMatcher<R> {
     creator: F,
   ) -> Self
   where
-    F: Fn(tauri::AppHandle<R>) -> Result<tauri::WebviewWindow<R>> + Send + Sync + 'static,
+    F: Fn(tauri::AppHandle<R>, PageLoadHandler<R>) -> Result<tauri::WebviewWindow<R>>
+      + Send
+      + Sync
+      + 'static,
   {
     self
       .creators
@@ -42,6 +50,7 @@ impl<R: Runtime> WindowMatcher<R> {
     &self,
     app: tauri::AppHandle<R>,
     label: &str,
+    custom_page_load_handler: PageLoadHandler<R>,
   ) -> Result<tauri::WebviewWindow<R>, String> {
     // First try to get existing window
     if let Some(window) = app.get_webview_window(label) {
@@ -50,9 +59,8 @@ impl<R: Runtime> WindowMatcher<R> {
 
     // If no existing window, try to create one using registered creator
     match self.creators.get(label) {
-      Some(creator) => {
-        creator(app).map_err(|e| format!("Failed to create {} window: {}", label, e))
-      },
+      Some(creator) => creator(app, custom_page_load_handler)
+        .map_err(|e| format!("Failed to create {} window: {}", label, e)),
       None => Err(format!("Unknown window label: {}", label)),
     }
   }
@@ -69,23 +77,37 @@ async fn go<R: Runtime>(
 ) -> std::result::Result<(), String> {
   let window_label = window_label.ok_or("Missing window label")?;
   let matcher = app_handle.state::<WindowMatcher<R>>();
-  let target_window = matcher.get_or_create_window(app_handle.clone(), &window_label)?;
 
-  let mut current_url = target_window
-    .url()
-    .map_err(|e| format!("Failed to get current URL: {}", e))?;
-  let route: String = "/".to_string() + route.trim_start_matches('/');
-  current_url.set_fragment(Some(route.to_string().as_str()));
+  matcher.get_or_create_window(
+    app_handle.clone(),
+    &window_label,
+    Some(Arc::new(
+      move |target_window: tauri::WebviewWindow<R>, load| {
+        match load.event() {
+          PageLoadEvent::Finished => {
+            let current_url = target_window
+              .url()
+              .map_err(|e| format!("Failed to get current URL: {}", e));
+            if let Ok(mut current_url) = current_url {
+              let route: String = "/".to_string() + route.trim_start_matches('/');
+              current_url.set_fragment(Some(route.to_string().as_str()));
 
-  let _ = target_window.show();
-  if let Ok(url) = target_window.url() {
-    if url == current_url {
-      // If the URL is already the same, we don't need to navigate again.
-      return Ok(());
-    }
+              let _ = target_window.show();
+              if let Ok(url) = target_window.url() {
+                if url == current_url {
+                  // If the URL is already the same, we don't need to navigate again.
+                  return;
+                }
 
-    let _ = target_window.navigate(current_url);
-  }
+                let _ = target_window.navigate(current_url);
+              }
+            }
+          },
+          _ => {},
+        }
+      },
+    )),
+  )?;
 
   Ok(())
 }
