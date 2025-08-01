@@ -1,7 +1,4 @@
-import type { streamText } from '@xsai/stream-text'
-
-type InferStreamType<T> = T extends ReadableStream<infer U> ? U : never
-type StreamTextEvent = InferStreamType<Awaited<ReturnType<typeof streamText>>['fullStream']>
+import type { StreamTextEvent } from '@xsai/stream-text'
 
 export function mockStreamText(): {
   fullStream: ReadableStream<StreamTextEvent>
