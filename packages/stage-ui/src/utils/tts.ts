@@ -82,8 +82,15 @@ export async function* chunkTTSInput(input: string | ReaderLike, options?: TTSIn
           if (previousValue !== undefined && /\d/.test(previousValue)) {
             const next = await iterator.next()
             if (!next.done && next.value && /\d/.test(next.value)) {
-              // This dot could be a decimal point, so we skip it
-              previousValue = next.value
+              // This dot could be a decimal point, so we skip it (don't fully skip! keep in tts input!)
+
+              // REVIEW: @Lilia-Chen I think we need to remove the below line
+              // 1. Not sensible to let the previousValue to be the value of the next value
+              // 2. after the continue (jump to the bottom of the while loop), the previousValue will be reset to value, so this value assignment doesn't work at all
+              // previousValue = next.value
+
+              // If we don't append value ("." or ","), we will lose the decimal point, and 2.5 will become 25, which hugely impacted the tts...
+              buffer += value
               current = next
               continue
             }
@@ -133,10 +140,23 @@ export async function* chunkTTSInput(input: string | ReaderLike, options?: TTSIn
     }
 
     buffer += value
+    // TODO: remove later
+    // eslint-disable-next-line no-console
+    console.debug('current buffer: ', buffer)
     previousValue = value
-    current = await iterator.next()
+    // For debugging why it stuck at "xxxx\u200B"
+    const next = await iterator.next()
+    // if (next.value ==='\u200B') {
+    //   console.debug("TTS_FLUSH get for the next value!")
+    // } else {
+    //   console.debug("the next value: ", next.value)
+    // }
+    current = next
   }
 
+  // TODO: remove later
+  // eslint-disable-next-line no-console
+  console.debug('while loop ends, chunk/buffer:', chunk, buffer)
   if (chunk.length > 0 || buffer.length > 0) {
     const text = (chunk + buffer).trim()
     yield {
@@ -150,6 +170,9 @@ export async function* chunkTTSInput(input: string | ReaderLike, options?: TTSIn
 export async function chunkToTTSQueue(reader: ReaderLike, queue: UseQueueReturn<string>) {
   try {
     for await (const chunk of chunkTTSInput(reader)) {
+      // TODO: remove later
+      // eslint-disable-next-line no-console
+      console.debug('chunk to be pushed: ', chunk)
       await queue.add(chunk.text)
     }
   }
