@@ -2,6 +2,9 @@
 title: DevLog @ 2025.08.01
 category: DevLog
 date: 2025-08-01
+preview-cover:
+  light: "@assets('../../../en/blog/DevLog-2025.08.01/assets/cover-light.png')"
+  dark: "@assets('../../../en/blog/DevLog-2025.08.01/assets/cover-dark.png')"
 ---
 
 <script setup>
