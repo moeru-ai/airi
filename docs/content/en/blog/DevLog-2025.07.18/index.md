@@ -2,6 +2,9 @@
 title: DevLog @ 2025.07.18
 category: DevLog
 date: 2025-07-18
+preview-cover:
+  light: "@assets('./assets/factorio-belt.gif')"
+  dark: "@assets('./assets/factorio-belt.gif')"
 ---
 
 Hello, I'm [@LemonNeko](https://github.com/LemonNekoGH), one of the maintainers of AIRI.
@@ -76,3 +79,5 @@ Alright, we've basically overturned all the previous designs again. Time to star
 Thank you for reading. If you're interested, you can read through FLE's paper and [code](https://github.com/JackHopkins/factorio-learning-environment). Maybe my understanding is incorrect; corrections are welcome! This reading might not be deep enough, but when I follow my ideas to improve `airi-factorio` next, I'll need to read repeatedly and update when there's progress.
 
 That's it for this DevLog. Have a great weekend!
+
+> Cover artwork by [@anrew10](https://es.pixilart.com/art/factorio-yellow-belt-132272fb3d727dd)

@@ -2,6 +2,9 @@
 title: DevLog @ 2025.07.18
 category: DevLog
 date: 2025-07-18
+preview-cover:
+  light: "@assets('../../../en/blog/DevLog-2025.07.18/assets/factorio-belt.gif')"
+  dark: "@assets('../../../en/blog/DevLog-2025.07.18/assets/factorio-belt.gif')"
 ---
 
 大家好，我是 [@LemonNeko](https://github.com/LemonNekoGH)，AIRI 的维护者之一。
@@ -76,3 +79,5 @@ FLE 分为两种模式：
 感谢阅读，如果感兴趣，可以翻阅 FLE 的论文和 [代码](https://github.com/JackHopkins/factorio-learning-environment)，也许我的理解有误，欢迎指正！这次的阅读也许不够深入，但是接下来我在按照我的思路来改进 `airi-factorio` 的时候，会需要反复阅读，在有进展时再更新。
 
 这篇 DevLog 就到这里，祝大家周末愉快！
+
+> 封面取自 [@anrew10](https://es.pixilart.com/art/factorio-yellow-belt-132272fb3d727dd) 的作品
