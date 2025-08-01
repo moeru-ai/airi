@@ -1008,12 +1008,18 @@ importers:
       '@fontsource-variable/dm-sans':
         specifier: ^5.2.6
         version: 5.2.6
+      '@fontsource-variable/quicksand':
+        specifier: ^5.2.8
+        version: 5.2.8
       '@fontsource/dm-mono':
         specifier: ^5.2.6
         version: 5.2.6
       '@fontsource/dm-serif-display':
         specifier: ^5.2.6
         version: 5.2.6
+      '@fontsource/quicksand':
+        specifier: ^5.2.8
+        version: 5.2.8
       '@proj-airi/chromatic':
         specifier: ^1.0.0
         version: 1.0.0
@@ -3586,6 +3592,9 @@ packages:
 
   '@fontsource/m-plus-rounded-1c@5.2.8':
     resolution: {integrity: sha512-XBW1hHdfvVlcohcUtvihWVprqtQJgDJWzsml0zU0l01qU7y6Ryu/mVnMfqMgzNGRqlrRgYGqytKOZFQZsG7H/w==}
+
+  '@fontsource/quicksand@5.2.8':
+    resolution: {integrity: sha512-YRgnt2eQfNrk5OWqYJZmFoi6B6sioRIbjKJj3/l5CnezeE0TzD8XL35Q4fRNfHLpOzLi/ckNvTZySBHVVP1G6w==}
 
   '@fontsource/sniglet@5.2.6':
     resolution: {integrity: sha512-tYtYJEvHwBHIAspZJ7AsiFHAPcL31EVTMktf6cVNsGIHlhKW1Ea9Z0vb0/jL8TY65HVTvAK0s3zez8hEg1hHDQ==}
@@ -14936,6 +14945,8 @@ snapshots:
   '@fontsource/kiwi-maru@5.2.6': {}
 
   '@fontsource/m-plus-rounded-1c@5.2.8': {}
+
+  '@fontsource/quicksand@5.2.8': {}
 
   '@fontsource/sniglet@5.2.6': {}
 

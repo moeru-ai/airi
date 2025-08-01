@@ -1,0 +1,149 @@
+.devlog-steins-gate-divergence-meter-heading {
+  font-family: 'Quicksand Variable', sans-serif;
+  font-weight: 300;
+  font-size: 2.5rem;
+  color: rgb(255 159 32) !important;
+  text-shadow:
+    0 0 5px rgb(241 153 87),
+    0 0 10px rgb(255 110 0);
+  animation: flicker 2s infinite;
+  display: flex;
+  gap: 3px;
+}
+
+.nixie-digit {
+  position: relative;
+  display: inline-block;
+  width: 24px;
+  display: inline-flex;
+  justify-content: center;
+  background: #170d04;
+  border-top-left-radius: 8px;
+  border-top-right-radius: 8px;
+  border-bottom-left-radius: 4px;
+  border-bottom-right-radius: 4px;
+  box-shadow: inset 0px 0px 2px 0px #fff;
+}
+
+.dark .nixie-digit {
+  box-shadow: inset 0px 0px 2px 0px #4c320085;
+}
+
+.nixie-digit::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-size: 3px 3px;
+  background-image: repeating-linear-gradient(
+      90deg,
+      transparent,
+      transparent 2px,
+      #ff9f001a 2px,
+      rgb(221 214 213 / 0%) 3px
+    ),
+    repeating-linear-gradient(0deg, transparent, transparent 2px, #ff9f001a 2px, rgb(196 184 182 / 0%) 3px);
+  pointer-events: none;
+  z-index: 4;
+  border-top-left-radius: 8px;
+  border-top-right-radius: 8px;
+  border-bottom-left-radius: 4px;
+  border-bottom-right-radius: 4px;
+}
+
+.dark .nixie-digit::before {
+  background-image: repeating-linear-gradient(
+    90deg,
+    transparent,
+    transparent 2px,
+    #0000001a 2px,
+    rgb(0 0 0 / 0%) 3px),
+    repeating-linear-gradient(0deg, transparent, transparent 2px, #0000001a 2px, rgb(0 0 0 / 0%) 3px);
+}
+
+/* Subtle glass reflection effect */
+.nixie-digit::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-size: 3px 3px;
+  background-image: repeating-linear-gradient(
+      90deg,
+      transparent,
+      transparent 2px,
+      #ff9f001a 2px,
+      rgb(221 214 213 / 0%) 3px
+    ),
+    repeating-linear-gradient(0deg, transparent, transparent 2px, #ff9f001a 2px, rgb(196 184 182 / 0%) 3px);
+  pointer-events: none;
+  z-index: 2;
+  border-top-left-radius: 8px;
+  border-top-right-radius: 8px;
+  border-bottom-left-radius: 4px;
+  border-bottom-right-radius: 4px;
+}
+
+.dark .nixie-digit::after {
+  background-image: repeating-linear-gradient(
+    90deg,
+     transparent,
+     transparent 2px,
+    #8f59001a 2px,
+    rgb(208 197 196 / 0%) 3px),
+    repeating-linear-gradient(0deg, transparent, transparent 2px, #6740001a 2px, rgb(196 184 182 / 0%) 3px);
+}
+
+[data-theme='dark'] .devlog-steins-gate-divergence-meter-heading {
+  color: rgb(255, 157, 77) !important;
+  text-shadow:
+    0 0 7px #ff6a00,
+    0 0 10px #ff6a00;
+}
+
+[data-theme='dark'] .nixie-digit {
+  background: transparent;
+  box-shadow: none;
+}
+
+[data-theme='dark'] .nixie-digit::before {
+  background-image: repeating-linear-gradient(
+      90deg,
+      transparent,
+      transparent 2px,
+      rgba(30, 30, 30, 0.1) 2px,
+      rgba(30, 30, 30, 0.1) 3px
+    ),
+    repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(30, 30, 30, 0.1) 2px, rgba(30, 30, 30, 0.1) 3px);
+}
+
+[data-theme='dark'] .nixie-digit::after {
+  height: 35%;
+  background: linear-gradient(to bottom, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0));
+  border: none;
+}
+
+@keyframes flicker {
+  0% {
+    opacity: 1;
+  }
+  92% {
+    opacity: 1;
+  }
+  93% {
+    opacity: 0.8;
+  }
+  94% {
+    opacity: 1;
+  }
+  98% {
+    opacity: 0.9;
+  }
+  100% {
+    opacity: 1;
+  }
+}

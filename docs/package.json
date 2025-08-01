@@ -15,8 +15,10 @@
   "dependencies": {
     "@fontsource-variable/comfortaa": "^5.2.6",
     "@fontsource-variable/dm-sans": "^5.2.6",
+    "@fontsource-variable/quicksand": "^5.2.8",
     "@fontsource/dm-mono": "^5.2.6",
     "@fontsource/dm-serif-display": "^5.2.6",
+    "@fontsource/quicksand": "^5.2.8",
     "@proj-airi/chromatic": "^1.0.0",
     "@proj-airi/i18n": "workspace:^",
     "@vueuse/core": "^13.5.0",
