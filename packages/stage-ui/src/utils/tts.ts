@@ -84,7 +84,7 @@ export async function* chunkTTSInput(input: string | ReaderLike, options?: TTSIn
             if (!next.done && next.value && /\d/.test(next.value)) {
               // This dot could be a decimal point, so we skip it (don't fully skip! keep in tts input!)
 
-              // Kapapu: I think we need to remove the below line
+              // REVIEW: @Lilia-Chen I think we need to remove the below line
               // 1. Not sensible to let the previousValue to be the value of the next value
               // 2. after the continue (jump to the bottom of the while loop), the previousValue will be reset to value, so this value assignment doesn't work at all
               // previousValue = next.value
