@@ -169,6 +169,7 @@ export async function* chunkTTSInput(input: string | ReaderLike, options?: TTSIn
 export async function chunkToTTSQueue(reader: ReaderLike, queue: UseQueueReturn<string>) {
   try {
     for await (const chunk of chunkTTSInput(reader)) {
+      // TODO: remove later
       // eslint-disable-next-line no-console
       console.debug('chunk to be pushed: ', chunk)
       await queue.add(chunk.text)
