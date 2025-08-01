@@ -183,10 +183,15 @@ export const useChatStore = defineStore('chat', () => {
         })
         fullText += textPart
       }
-      await parser.end()
 
       // Instruct the TTS pipeline to flush
-      slicesQueue.add({ type: 'text', text: TTS_FLUSH_INSTRUCTION })
+      // 2x TTS_FLUSH_INSTRUCTION tokens are used:
+      // - One should be left in the grapheme cluster reader
+      // - The other should be left in the TTS chunking reader
+      // Because both readers will never be closed in the lifecycle of the app
+      slicesQueue.add({ type: 'text', text: `${TTS_FLUSH_INSTRUCTION}${TTS_FLUSH_INSTRUCTION}` })
+
+      await parser.end()
 
       for (const hook of onStreamEndHooks.value) {
         await hook()
