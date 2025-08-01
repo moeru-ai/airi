@@ -140,6 +140,7 @@ export async function* chunkTTSInput(input: string | ReaderLike, options?: TTSIn
     }
 
     buffer += value
+    // TODO: remove later
     // eslint-disable-next-line no-console
     console.debug('current buffer: ', buffer)
     previousValue = value
