@@ -38,7 +38,7 @@
     "@guiiai/logg": "^1.0.10",
     "@proj-airi/server-shared": "workspace:^",
     "crossws": "^0.4.1",
-    "h3": "^1.15.3",
+    "h3": "^1.15.4",
     "listhen": "^1.9.0"
   }
 }

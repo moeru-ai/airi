@@ -26,17 +26,17 @@
     "typecheck": "vue-tsc --noEmit"
   },
   "dependencies": {
-    "@vueuse/core": "^13.5.0",
+    "@vueuse/core": "^13.6.0",
     "@vueuse/motion": "^3.0.3",
-    "vue": "^3.5.17"
+    "vue": "^3.5.18"
   },
   "devDependencies": {
     "@unocss/reset": "^66.3.3",
-    "@vitejs/plugin-vue": "^6.0.0",
+    "@vitejs/plugin-vue": "^6.0.1",
     "unplugin-vue-router": "^0.14.0",
     "vite": "catalog:rolldown-vite",
-    "vite-plugin-vue-devtools": "^7.7.7",
+    "vite-plugin-vue-devtools": "^8.0.0",
     "vue-router": "^4.5.1",
-    "vue-tsc": "^3.0.3"
+    "vue-tsc": "^3.0.5"
   }
 }
