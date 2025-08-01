@@ -1045,6 +1045,9 @@ importers:
         specifier: ^2.0.2
         version: 2.0.2
     devDependencies:
+      '@iconify-json/lucide':
+        specifier: ^1.2.57
+        version: 1.2.57
       '@iconify/vue':
         specifier: ^5.0.0
         version: 5.0.0(vue@3.5.17(typescript@5.8.3))
@@ -1076,8 +1079,8 @@ importers:
         specifier: ^0.7.0
         version: 0.7.0(typescript@5.8.3)(vue@3.5.17(typescript@5.8.3))
       animejs:
-        specifier: ^4.0.2
-        version: 4.0.2
+        specifier: ^4.1.1
+        version: 4.1.2
       fast-glob:
         specifier: ^3.3.3
         version: 3.3.3
@@ -6542,6 +6545,9 @@ packages:
 
   animejs@4.0.2:
     resolution: {integrity: sha512-f0L/kSya2RF23iMSF/VO01pMmLwlAFoiQeNAvBXhEyLzIPd2/QTBRatwGUqkVCC6seaAJYzAkGir55N4SL+h3A==}
+
+  animejs@4.1.2:
+    resolution: {integrity: sha512-QojQzHzN4ZCOGk4Seir5CWPHGKFPpMAsen3KEj/BHsIKDceH0xKd3FBWflyKiNefKG2fn3+ofpY9jD/UXhpY6A==}
 
   ansi-align@3.0.1:
     resolution: {integrity: sha512-IOfwwBF5iczOjp/WeY4YxyjqAFMQoZufdQWDd19SEExbVLNXqvpzSJ/M7Za4/sCPmQ0+GRquoA7bGcINcxew6w==}
@@ -18402,6 +18408,8 @@ snapshots:
   alien-signals@2.0.5: {}
 
   animejs@4.0.2: {}
+
+  animejs@4.1.2: {}
 
   ansi-align@3.0.1:
     dependencies:
