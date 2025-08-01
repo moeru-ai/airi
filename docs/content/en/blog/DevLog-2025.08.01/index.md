@@ -3,8 +3,8 @@ title: DevLog @ 2025.08.01
 category: DevLog
 date: 2025-08-01
 preview-cover:
-  light: "@assets('./assets/cover-light.png')"
-  dark: "@assets('./assets/cover-dark.png')"
+  light: "@assets('./assets/cover-light.avif')"
+  dark: "@assets('./assets/cover-dark.avif')"
 ---
 
 <script setup>

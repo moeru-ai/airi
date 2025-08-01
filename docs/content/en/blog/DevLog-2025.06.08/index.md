@@ -3,8 +3,8 @@ title: DevLog @ 2025.06.08
 category: DevLog
 date: 2025-06-08
 preview-cover:
-  light: "@assets('./assets/250608-light.png')"
-  dark: "@assets('./assets/250608-dark.png')"
+  light: "@assets('./assets/250608-light.avif')"
+  dark: "@assets('./assets/250608-dark.avif')"
 ---
 
 Hello everyone, here's LemonNeko, one of maintainer of AIRI. Today's DevLog is talking about: Let Live2D model of AIRI Tamagotchi to focus position.
