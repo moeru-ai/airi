@@ -138,7 +138,7 @@ You may see how we wait until the second grapheme cluster to appear before emitt
 
 </div>
 
-## Introducing Clustr
+## Introducing [Clustr](https://github.com/sumimakito/clustr)
 
 By the time I wrote this DevLog, there are many nice libraries that help you split a string into grapheme clusters for you to choose from. However, among them, I didn't find one that both accepts a stream of UTF-8 bytes and emits grapheme clusters as they arrive. So I built one myself, with the approach described above, which I named [Clustr](https://github.com/sumimakito/clustr) to give it some resonance with the "grapheme cluster" concept in Unicode.
 
