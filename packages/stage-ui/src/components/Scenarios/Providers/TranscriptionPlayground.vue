@@ -29,7 +29,7 @@ const errorMessage = ref<string>('')
 
 const audioContext = ref<AudioContext>()
 const analyser = ref<AnalyserNode>()
-const dataArray = ref<Uint8Array>()
+const dataArray = ref<Uint8Array<ArrayBuffer>>()
 const animationFrame = ref<number>()
 const volumeLevel = ref(0) // 0-100
 

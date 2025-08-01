@@ -1,7 +1,7 @@
 export interface AudioManagerType {
   audioContext: AudioContext
   analyser: AnalyserNode
-  dataBuffer: Float32Array
+  dataBuffer: Float32Array<ArrayBuffer>
   frameId: number | null
   onVolumeChange?: (volume: number) => void
 }

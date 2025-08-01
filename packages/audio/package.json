@@ -27,10 +27,6 @@
       "types": "./dist/audio-context/processor.worklet.d.mts",
       "default": "./dist/audio-context/processor.worklet.mjs"
     },
-    "./vue": {
-      "types": "./dist/vue/index.d.mts",
-      "default": "./dist/vue/index.mjs"
-    },
     "./encoding": {
       "types": "./dist/encoding/index.d.mts",
       "default": "./dist/encoding/index.mjs"

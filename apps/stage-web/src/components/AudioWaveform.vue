@@ -6,7 +6,7 @@ import { onMounted, ref } from 'vue'
 const containerRef = ref<HTMLDivElement>()
 // https://developer.mozilla.org/en-US/docs/Web/API/AnalyserNode
 const analyser = ref<AnalyserNode>()
-const analyserDataBuffer = ref<Uint8Array>()
+const analyserDataBuffer = ref<Uint8Array<ArrayBuffer>>()
 const { audioContext } = useAudioContext()
 const canvasElemRef = ref<HTMLCanvasElement>()
 const isDark = useDark()

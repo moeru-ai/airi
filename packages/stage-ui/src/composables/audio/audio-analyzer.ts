@@ -2,7 +2,7 @@ import { ref } from 'vue'
 
 export function useAudioAnalyzer() {
   const analyzer = ref<AnalyserNode>()
-  const dataArray = ref<Uint8Array>()
+  const dataArray = ref<Uint8Array<ArrayBuffer>>()
   const animationFrame = ref<number>()
 
   const onAnalyzerUpdateHooks = ref<Array<(volumeLevel: number) => void | Promise<void>>>([])
