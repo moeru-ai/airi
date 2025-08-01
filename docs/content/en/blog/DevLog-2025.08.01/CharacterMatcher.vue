@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { animate } from 'animejs'
+import { useData } from 'vitepress'
 import { ref, watchEffect } from 'vue'
 
 import CharacterShowcase from './CharacterShowcase.vue'
@@ -28,6 +29,8 @@ const STATES: Character[][] = [
   ...interpolate([...'👩🏻‍💻'].splice(2), [{ value: '💆🏼‍♀️', variant: 'active' }, { value: '👩🏻', variant: 'default' }]),
   [{ value: '💆🏼‍♀️', variant: 'active' }, { value: '👩🏻‍💻', variant: 'active' }],
 ]
+
+const { lang } = useData()
 
 const stateIndex = ref(0)
 const isPlaying = ref(true)
@@ -143,7 +146,7 @@ function stepBack() {
 
     <div flex="~ row items-center justify-center gap-1 wrap" py-2 text-xs>
       <div font-semibold w="full md:auto" text="center md:unset">
-        Legend
+        {{ lang === 'zh-Hans' ? '图例' : 'Legend' }}
       </div>
       <div
         b="~ 2 dotted primary/20"
@@ -151,7 +154,7 @@ function stepBack() {
         flex="~ items-center justify-center shrink-0"
         transition="~ all duration-150 ease-out"
       >
-        Character
+        {{ lang === 'zh-Hans' ? '字符' : 'Character' }}
       </div>
       <div
         b="~ 2 dashed primary/20"
@@ -159,7 +162,7 @@ function stepBack() {
         flex="~ items-center justify-center shrink-0"
         transition="~ all duration-150 ease-out"
       >
-        Incomplete cluster
+        {{ lang === 'zh-Hans' ? '不完整字素簇' : 'Incomplete cluster' }}
       </div>
       <div
         b="~ 2 solid primary/50"
@@ -168,7 +171,7 @@ function stepBack() {
         flex="~ items-center justify-center shrink-0"
         transition="~ all duration-150 ease-out"
       >
-        Complete cluster
+        {{ lang === 'zh-Hans' ? '完整字素簇' : 'Complete cluster' }}
       </div>
     </div>
   </div>

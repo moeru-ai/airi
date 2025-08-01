@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { animate } from 'animejs'
+import { useData } from 'vitepress'
 import { computed, ref } from 'vue'
 
 import CharacterShowcase from './CharacterShowcase.vue'
@@ -7,6 +8,8 @@ import CharacterShowcase from './CharacterShowcase.vue'
 const props = defineProps<{
   initText: string
 }>()
+
+const { lang } = useData()
 
 const segmenter = new Intl.Segmenter(undefined, { granularity: 'grapheme' })
 
@@ -43,7 +46,7 @@ function leaveAnimator(e: Element, done: () => void) {
       flex="~ items-center justify-start md:justify-end"
       p="2 md:e-0" text-sm font-semibold
     >
-      Text
+      {{ lang === 'zh-Hans' ? '文本' : 'Text' }}
     </div>
     <div bg="primary/5" p-2>
       <input v-model="text" name="text" bg="primary/10" w-full rounded-lg p-2 text="md:lg">
@@ -54,7 +57,7 @@ function leaveAnimator(e: Element, done: () => void) {
       flex="~ items-center justify-start md:justify-end"
       p="2 md:e-0" text-sm font-semibold
     >
-      Grapheme clusters
+      {{ lang === 'zh-Hans' ? '字素簇' : 'Grapheme clusters' }}
     </div>
     <div bg="primary/10" flex="~ row gap-2 wrap" p-2>
       <TransitionGroup
@@ -79,7 +82,7 @@ function leaveAnimator(e: Element, done: () => void) {
       flex="~ items-center justify-start md:justify-end"
       p="2 md:e-0" text-sm font-semibold
     >
-      Characters
+      {{ lang === 'zh-Hans' ? '字符' : 'Characters' }}
     </div>
     <div bg="primary/15" flex="~ row gap-2 wrap" p-2>
       <TransitionGroup
@@ -90,7 +93,7 @@ function leaveAnimator(e: Element, done: () => void) {
         <template v-for="(segment, segIndex) in segments" :key="segIndex">
           <CharacterShowcase
             v-for="(cp, cpIndex) in [...segment.segment]"
-            :key="cpIndex"
+            :key="`${segIndex}-${cpIndex}`"
             :variant="highlightedClusterIndex === segIndex ? 'active' : 'default'"
             :value="cp"
             code-point

@@ -5,10 +5,10 @@ date: 2025-08-01
 ---
 
 <script setup>
-import CharacterMatcher from './CharacterMatcher.vue'
-import GraphemeClusterAssembler from './GraphemeClusterAssembler.vue'
-import GraphemeClusterInspector from './GraphemeClusterInspector.vue'
-import RollingText from './RollingText.vue'
+import CharacterMatcher from '../../../en/blog/DevLog-2025.08.01/CharacterMatcher.vue'
+import GraphemeClusterAssembler from '../../../en/blog/DevLog-2025.08.01/GraphemeClusterAssembler.vue'
+import GraphemeClusterInspector from '../../../en/blog/DevLog-2025.08.01/GraphemeClusterInspector.vue'
+import RollingText from '../../../en/blog/DevLog-2025.08.01/RollingText.vue'
 </script>
 
 ## 开始之前
@@ -20,13 +20,13 @@ import RollingText from './RollingText.vue'
 <div text-sm>
 <template v-if="!motionReduced">
 
-> 下方动画效果可通过右上角的“减少动画”开关控制
+> 下方动画效果可通过右上角的「减少动画」开关控制
 
 </template>
 <template v-else>
 
 > **下方动画效果已关闭** <br />
-> 可以通过右上角的“减少动画”开关重新开启动画
+> 可以通过右上角的「减少动画」开关重新开启动画
 
 </template>
 </div>
@@ -48,7 +48,7 @@ import RollingText from './RollingText.vue'
 在 Project AIRI 里，我们的伙伴 [@nekomeowww](https://github.com/nekomeowww) 也做了一个丝滑的聊天气泡组件：
 
 <video controls muted autoplay loop max-w="500px" w-full mx-auto>
-  <source src="./assets/animated-chat-bubble.mp4">
+  <source src="../../../en/blog/DevLog-2025.08.01/assets/animated-chat-bubble.mp4">
 </video>
 
 <div text-sm text-center>
@@ -72,7 +72,7 @@ const decoded = decoder.decode(chunk, { stream: true })
 
 ## 这样安全吗？
 
-太长不看：**不的**。
+太长不看：**并不**。
 
 TextDecoder 的确能帮我们把字节流正确解码成 Unicode 码点（字符）。但在 Unicode 里，还有「字素簇」（grapheme cluster）这个概念，它把多个码点组合成一个「视觉上」一体的字符。例如「👩‍👩‍👧‍👦」（家庭）这个 Emoji，底层其实由多个码点组成，但视觉上是一个字符。它们之间通过零宽连接符（ZWJ，码点 `U+200D`）连接。
 
@@ -138,7 +138,7 @@ while (true) {
 
 </div>
 
-## Clustr 的诞生
+## [Clustr](https://github.com/sumimakito/clustr) 的诞生
 
 写这篇 DevLog 的时候，社区中已经有不少可以把字符串拆分成字素簇的库了。但我没找到一个既能接受 UTF-8 字节流、又能随到随输出字素簇的实现。所以我自己实现了一个，并把思路分享给了大家，并取名为 [Clustr](https://github.com/sumimakito/clustr)，和 Unicode 的「字素簇」概念相应。
 
