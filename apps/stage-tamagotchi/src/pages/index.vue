@@ -85,8 +85,8 @@ async function setupWhisperModel() {
 }
 
 onMounted(async () => {
-  setupVADModel()
-  setupWhisperModel()
+  await setupVADModel()
+  await setupWhisperModel()
 
   if (connected.value)
     return
