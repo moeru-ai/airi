@@ -65,6 +65,7 @@ pub fn run() {
       }
 
       let window = builder.build().unwrap();
+      #[cfg(debug_assertions)]
       window.open_devtools();
 
       #[cfg(target_os = "macos")]
