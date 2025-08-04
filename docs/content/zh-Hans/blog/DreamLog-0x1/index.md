@@ -2,6 +2,7 @@
 title: 'DreamLog 0x1'
 description: 'Project AIRI 的幕后故事！'
 date: '2025-06-16'
+excerpt: 'Project AIRI 的幕后故事！以及为什么我们会想要制作如此一个项目？'
 preview-cover:
   light: '../../../en/blog/DreamLog-0x1/assets/dreamlog1-light.png'
   dark: '../../../en/blog/DreamLog-0x1/assets/dreamlog1-dark.png'
@@ -22,10 +23,6 @@ import ReLUStickerWow from '../../../en/blog/DreamLog-0x1/assets/relu-sticker-wo
 import '../../../en/blog/DreamLog-0x1/assets/dreamlog1-light.png'
 import '../../../en/blog/DreamLog-0x1/assets/dreamlog1-dark.png'
 </script>
-
-Project AIRI 的幕后故事！
-
----
 
 哈啰，又是我，Neko！
 

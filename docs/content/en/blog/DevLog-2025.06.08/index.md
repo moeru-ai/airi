@@ -2,6 +2,8 @@
 title: DevLog @ 2025.06.08
 category: DevLog
 date: 2025-06-08
+excerpt: |
+  How we make Live2D models follow the cursor position, and the how it's challenging to calculate across multiple displays.
 preview-cover:
   light: "@assets('./assets/250608-light.avif')"
   dark: "@assets('./assets/250608-dark.avif')"

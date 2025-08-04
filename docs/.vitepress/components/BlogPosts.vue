@@ -18,6 +18,7 @@ interface Post {
   }
   excerpt: string | undefined
   frontmatter?: {
+    'excerpt'?: string
     'category'?: string
     'author'?: string
     'preview-cover'?: {
@@ -66,7 +67,9 @@ const posts = computed(() => {
   return [
     ...currentLanguagePostsData,
     ...diffFallbackLanguagePostsData,
-  ]
+  ].sort((a, b) => {
+    return b.date.time - a.date.time
+  })
 })
 
 async function stringToSeed(str: string) {
@@ -238,7 +241,7 @@ const svgArts = computedAsync(async () => {
               <span class="font-medium">{{ post.frontmatter.category }}</span>
             </div>
           </div>
-          <p v-if="post.excerpt" class="text-muted-foreground fade-out-text mt-3 leading-relaxed" v-html="post.excerpt" />
+          <p v-if="post.excerpt || post?.frontmatter?.excerpt" class="text-muted-foreground fade-out-text mt-3 h-[calc(75%-48px)] leading-relaxed" v-html="post.excerpt || post?.frontmatter?.excerpt" />
         </div>
         <div class="mt-auto p-6 pt-0">
           <a :href="post.url" class="inline-flex items-center text-primary font-semibold hover:underline">

@@ -2,6 +2,8 @@
 title: DevLog @ 2025.08.01
 category: DevLog
 date: 2025-08-01
+excerpt: |
+  Makito will share her journey from implementing text animations in AIRI to building a library to handle grapheme clusters as they arrive in a stream of UTF-8 bytes.<br /> We hope you find it informative and inspiring!
 preview-cover:
   light: "@assets('./assets/cover-light.avif')"
   dark: "@assets('./assets/cover-dark.avif')"
