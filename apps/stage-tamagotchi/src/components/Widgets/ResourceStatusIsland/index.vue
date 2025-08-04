@@ -7,7 +7,9 @@ import { ref, watch } from 'vue'
 import LoadingModules from './LoadingModules.vue'
 
 import { useResourcesStore } from '../../../stores/resources'
+import { useWindowStore } from '../../../stores/window'
 
+const { shouldHideView } = storeToRefs(useWindowStore())
 const { atLeastOneLoading, atLeastOneLoadingDelay5s, atLeastOneLoadingDelay10s } = storeToRefs(useResourcesStore())
 
 const loadingProgressOpen = ref(false)
@@ -24,7 +26,7 @@ function handleClick() {
 <template>
   <div fixed left-0 top-3 w-full flex flex-col items-center>
     <TooltipProvider v-if="atLeastOneLoadingDelay10s" :delay-duration="150">
-      <TooltipRoot :open="loadingProgressOpen" disable-closing-trigger @update:open="(state) => loadingProgressOpen = state">
+      <TooltipRoot :open="loadingProgressOpen && !shouldHideView" disable-closing-trigger @update:open="(state) => loadingProgressOpen = state">
         <TooltipTrigger>
           <Transition name="fade">
             <div

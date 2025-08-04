@@ -2,8 +2,9 @@ import type { MaybeRefOrGetter } from 'vue'
 
 import type { AiriTamagotchiEvents, Point, WindowFrame } from './tauri'
 
-import { onMounted, ref, toValue, watch } from 'vue'
+import { onMounted, onUnmounted, ref, toValue, watch } from 'vue'
 
+import { startClickThrough, stopClickThrough } from '../utils/windows'
 import { useAppRuntime } from './runtime'
 import { useTauriCore, useTauriEvent } from './tauri'
 
@@ -41,7 +42,17 @@ export function useTauriPointAndWindowFrame() {
     })
   }
 
-  onMounted(() => addListeners())
+  onMounted(() => {
+    addListeners()
+    invoke('plugin:window-pass-through-on-hover|start_tracing_cursor')
+  })
+
+  onUnmounted(() => {
+    unListenFuncs.value.forEach(fn => fn?.())
+    unListenFuncs.value.length = 0
+
+    invoke('plugin:window-pass-through-on-hover|stop_tracing_cursor')
+  })
 
   if (import.meta.hot) { // For better DX
     import.meta.hot.on('vite:beforeUpdate', () => {
@@ -52,8 +63,7 @@ export function useTauriPointAndWindowFrame() {
     })
 
     import.meta.hot.on('vite:afterUpdate', () => {
-      unListenFuncs.value.length === 0 && addListeners()
-
+      addListeners()
       invoke('plugin:window-pass-through-on-hover|start_tracing_cursor')
     })
   }
@@ -106,6 +116,14 @@ export function useTauriWindowClickThrough(live2DLookAtDefault: MaybeRefOrGetter
       updateLive2DLookAt()
       updateIsCursorInside()
     }
+  })
+
+  onMounted(async () => {
+    await startClickThrough()
+  })
+
+  onUnmounted(async () => {
+    await stopClickThrough()
   })
 
   return {
