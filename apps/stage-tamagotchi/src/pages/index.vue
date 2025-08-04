@@ -4,7 +4,6 @@ import type { AiriTamagotchiEvents, Point } from '../composables/tauri'
 import { WidgetStage } from '@proj-airi/stage-ui/components/scenes'
 import { useLive2d, useMcpStore } from '@proj-airi/stage-ui/stores'
 import { connectServer } from '@proj-airi/tauri-plugin-mcp'
-import { useWindowSize } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 
@@ -12,31 +11,28 @@ import ResourceStatusIsland from '../components/Widgets/ResourceStatusIsland/ind
 
 import { useTauriCore, useTauriEvent } from '../composables/tauri'
 import { useTauriGlobalShortcuts } from '../composables/tauri-global-shortcuts'
-import { useTauriWindowClickThrough } from '../composables/tauri-window-pass-through-on-hover'
 import { useResourcesStore } from '../stores/resources'
+import { useWindowStore } from '../stores/window'
 import { useWindowControlStore } from '../stores/window-controls'
 import { WindowControlMode } from '../types/window-controls'
 
 useTauriGlobalShortcuts()
-const windowStore = useWindowControlStore()
+const windowControlStore = useWindowControlStore()
 const resourcesStore = useResourcesStore()
 const mcpStore = useMcpStore()
 
 const { listen } = useTauriEvent<AiriTamagotchiEvents>()
 const { invoke } = useTauriCore()
-const { width, height } = useWindowSize()
 const { connected, serverCmd, serverArgs } = storeToRefs(mcpStore)
 const { scale, positionInPercentageString } = storeToRefs(useLive2d())
 
-const centerPos = computed(() => ({ x: width.value / 2, y: height.value / 2 }))
-const { live2dLookAtX, live2dLookAtY, isCursorInside } = useTauriWindowClickThrough(centerPos)
-const shouldHideView = computed(() => isCursorInside.value && !windowStore.isControlActive && windowStore.isIgnoringMouseEvent)
+const { centerPos, live2dLookAtX, live2dLookAtY, shouldHideView } = storeToRefs(useWindowStore())
 const live2dFocusAt = ref<Point>(centerPos.value)
 
 watch([live2dLookAtX, live2dLookAtY], ([x, y]) => live2dFocusAt.value = { x, y }, { immediate: true })
 
 const modeIndicatorClass = computed(() => {
-  switch (windowStore.controlMode) {
+  switch (windowControlStore.controlMode) {
     case WindowControlMode.MOVE:
       return 'cursor-move'
     case WindowControlMode.RESIZE:
@@ -140,8 +136,8 @@ if (import.meta.hot) { // For better DX
       <div
         absolute bottom-4 left-4 flex gap-1 op-0 transition="opacity duration-500"
         :class="{
-          'pointer-events-none': windowStore.isControlActive,
-          'show-on-hover': !windowStore.isIgnoringMouseEvent,
+          'pointer-events-none': windowControlStore.isControlActive,
+          'show-on-hover': !windowControlStore.isIgnoringMouseEvent,
         }"
       >
         <div
@@ -165,7 +161,7 @@ if (import.meta.hot) { // For better DX
       </div>
     </div>
     <!-- Debug Mode UI -->
-    <div v-if="windowStore.controlMode === WindowControlMode.DEBUG" class="debug-controls">
+    <div v-if="windowControlStore.controlMode === WindowControlMode.DEBUG" class="debug-controls">
       <!-- Add debug controls here -->
     </div>
   </div>
@@ -178,7 +174,7 @@ if (import.meta.hot) { // For better DX
     leave-to-class="opacity-0"
   >
     <div
-      v-if="windowStore.controlMode === WindowControlMode.MOVE"
+      v-if="windowControlStore.controlMode === WindowControlMode.MOVE"
       data-tauri-drag-region
       class="absolute left-0 top-0 z-999 h-full w-full flex cursor-grab items-center justify-center overflow-hidden"
     >
@@ -203,7 +199,7 @@ if (import.meta.hot) { // For better DX
     leave-to-class="opacity-50"
   >
     <div
-      v-if="windowStore.controlMode === WindowControlMode.RESIZE"
+      v-if="windowControlStore.controlMode === WindowControlMode.RESIZE"
       class="absolute left-0 top-0 z-999 h-full w-full"
     >
       <div h-full w-full animate-flash animate-duration-2.5s animate-count-infinite b-4 b-primary rounded-2xl />
