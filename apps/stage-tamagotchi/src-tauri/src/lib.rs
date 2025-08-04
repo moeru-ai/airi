@@ -33,6 +33,7 @@ pub fn run() {
     .plugin(tauri_plugin_ipc_audio_transcription_ort::init())
     .plugin(tauri_plugin_ipc_audio_vad_ort::init())
     .plugin(tauri_plugin_window_pass_through_on_hover::init())
+    .plugin(tauri_plugin_rdev::init())
     .plugin(tauri_plugin_window_router_link::init(
       WindowMatcher::new()
         .register("chat", |app, on_page_load| {
@@ -63,7 +64,8 @@ pub fn run() {
         builder = builder.title_bar_style(tauri::TitleBarStyle::Transparent);
       }
 
-      let _ = builder.build().unwrap();
+      let window = builder.build().unwrap();
+      window.open_devtools();
 
       #[cfg(target_os = "macos")]
       {

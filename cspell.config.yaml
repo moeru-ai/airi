@@ -110,6 +110,7 @@ words:
   - jszip
   - Kawaii
   - kebabcase
+  - keyup
   - Keyyable
   - kirakira
   - kwaa
@@ -142,6 +143,8 @@ words:
   - modnet
   - moeru
   - Morioki
+  - mousedown
+  - mouseup
   - msvc
   - Myriam
   - ndarray
@@ -186,6 +189,7 @@ words:
   - pthread
   - quanlai
   - qwen
+  - rdev
   - rehype
   - reka
   - Replayable

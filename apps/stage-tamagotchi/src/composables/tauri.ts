@@ -3,6 +3,7 @@ import type { EventCallback, EventName, UnlistenFn } from '@tauri-apps/api/event
 import type { Monitor } from '@tauri-apps/api/window'
 
 import type { InvokeMethods, InvokeMethodShape } from '../tauri/invoke'
+import type { KeyCode } from '../tauri/rdev'
 
 import { withRetry } from '@moeru/std'
 import { computedAsync, until } from '@vueuse/core'
@@ -51,11 +52,23 @@ interface Events {
 }
 
 export interface AiriTamagotchiEvents extends Events {
+  // from tauri-plugin-window-pass-through-on-hover
   'tauri-plugins:tauri-plugin-window-pass-through-on-hover:cursor-position': Point
   'tauri-plugins:tauri-plugin-window-pass-through-on-hover:window-frame': WindowFrame
   'tauri-plugins:tauri-plugin-window-pass-through-on-hover:pass-through-enabled': boolean
+
+  // from tauri-plugin-ipc-audio-transcription-ort
   'tauri-plugins:tauri-plugin-ipc-audio-transcription-ort:load-model-silero-vad-progress': [boolean, string, number, number, number]
+  // from tauri-plugin-ipc-audio-vad-ort
   'tauri-plugins:tauri-plugin-ipc-audio-vad-ort:load-model-whisper-progress': [boolean, string, number, number, number]
+
+  // from tauri-plugin-rdev
+  'tauri-plugins:tauri-plugin-rdev:keydown': { time: { secs_since_epoch: number, nanos_since_epoch: number }, name: string, event_type: { KeyPress: KeyCode | { Unknown: number } } } // similar to 'keydown' events from DOM elements
+  'tauri-plugins:tauri-plugin-rdev:keyup': { time: { secs_since_epoch: number, nanos_since_epoch: number }, name: string, event_type: { KeyRelease: KeyCode | { Unknown: number } } } // similar to 'keyup' events from DOM elements
+  'tauri-plugins:tauri-plugin-rdev:mousedown': { time: { secs_since_epoch: number, nanos_since_epoch: number }, name: string, event_type: { ButtonPress: string } } // similar to 'mousedown' events from DOM elements
+  'tauri-plugins:tauri-plugin-rdev:mouseup': { time: { secs_since_epoch: number, nanos_since_epoch: number }, name: string, event_type: { ButtonRelease: string } } // similar to 'mouseup' events from DOM elements
+
+  // MCP
   'mcp_plugin_destroyed': undefined
 }
 
@@ -300,4 +313,9 @@ export function useTauriWindow() {
     setPosition,
     closeWindow,
   }
+}
+
+export function createTauriEventTarget(): EventTarget {
+  const eventTarget = new EventTarget()
+  return eventTarget
 }
