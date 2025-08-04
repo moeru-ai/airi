@@ -3,6 +3,7 @@ members = [
   "crates/tauri-plugin-ipc-audio-transcription-ort",
   "crates/tauri-plugin-ipc-audio-vad-ort",
   "crates/tauri-plugin-mcp",
+  "crates/tauri-plugin-rdev",
   "crates/tauri-plugin-window-pass-through-on-hover",
   "crates/tauri-plugin-window-router-link",
   "apps/stage-tamagotchi/src-tauri"
@@ -22,6 +23,9 @@ path = "./crates/tauri-plugin-ipc-audio-vad-ort"
 
 [workspace.dependencies.tauri-plugin-mcp]
 path = "./crates/tauri-plugin-mcp"
+
+[workspace.dependencies.tauri-plugin-rdev]
+path = "./crates/tauri-plugin-rdev"
 
 [workspace.dependencies.tauri-plugin-window-pass-through-on-hover]
 path = "./crates/tauri-plugin-window-pass-through-on-hover"

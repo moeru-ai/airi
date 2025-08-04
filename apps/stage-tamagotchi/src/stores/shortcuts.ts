@@ -1,4 +1,3 @@
-import type { ShortcutEvent } from '@tauri-apps/plugin-global-shortcut'
 import type { MaybeRefOrGetter, UseStorageOptions } from '@vueuse/core'
 
 import { useLocalStorage } from '@vueuse/core'
@@ -77,11 +76,7 @@ export const useShortcutsStore = defineStore('shortcuts', () => {
       shortcut: useVersionedLocalStorage('shortcuts/window/move', 'Shift+Alt+N'), // Shift + Alt + N
       group: 'window',
       type: 'move',
-      handle: async (event: ShortcutEvent) => {
-        if (event.state !== 'Pressed') {
-          return
-        }
-
+      handle: async () => {
         windowStore.setMode(WindowControlMode.MOVE)
         windowStore.toggleControl()
       },
@@ -91,7 +86,7 @@ export const useShortcutsStore = defineStore('shortcuts', () => {
       shortcut: useVersionedLocalStorage('shortcuts/window/resize', 'Shift+Alt+R'), // Shift + Alt + R
       group: 'window',
       type: 'resize',
-      handle: async (_: ShortcutEvent) => {
+      handle: async () => {
         windowStore.setMode(WindowControlMode.RESIZE)
         windowStore.toggleControl()
       },
@@ -101,7 +96,7 @@ export const useShortcutsStore = defineStore('shortcuts', () => {
       shortcut: useVersionedLocalStorage('shortcuts/window/debug', 'Shift+Alt+I'), // Shift + Alt + I
       group: 'window',
       type: 'ignore-mouse-event',
-      handle: async (_: ShortcutEvent) => {
+      handle: async () => {
         windowStore.isIgnoringMouseEvent = !windowStore.isIgnoringMouseEvent
         if (windowStore.isIgnoringMouseEvent) {
           await startClickThrough()

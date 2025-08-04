@@ -1,16 +1,17 @@
-import type { ShortcutEvent } from '@tauri-apps/plugin-global-shortcut'
-
-import { register, unregisterAll } from '@tauri-apps/plugin-global-shortcut'
-import { until } from '@vueuse/shared'
+import { useMagicKeys } from '@vueuse/core'
+import { until, whenever } from '@vueuse/shared'
 import { storeToRefs } from 'pinia'
 import { watch } from 'vue'
 
 import { useShortcutsStore } from '../stores/shortcuts'
 import { useAppRuntime } from './runtime'
+import { useTauriRdevEventTarget } from './tauri-rdev'
 
 export function useTauriGlobalShortcuts() {
   const { shortcuts } = storeToRefs(useShortcutsStore())
   const { platform, isInitialized } = useAppRuntime()
+  const eventTarget = useTauriRdevEventTarget()
+  const keys = useMagicKeys({ target: eventTarget })
 
   watch(shortcuts, async () => {
     await until(isInitialized).toBeTruthy()
@@ -18,25 +19,13 @@ export function useTauriGlobalShortcuts() {
       return
     }
 
-    await unregisterAll()
-
     for (const handler of shortcuts.value) {
       if (!handler.shortcut) {
         return
       }
 
-      await register(handler.shortcut
-        .replaceAll('Meta', 'CommandOrControl')
-        .replaceAll('meta', 'CommandOrControl')
-        .replaceAll('Ctrl', 'CommandOrControl')
-        .replaceAll('ctrl', 'CommandOrControl')
-        .replaceAll('Option', 'OptionOrAlt')
-        .replaceAll('option', 'OptionOrAlt'), (event: ShortcutEvent) => {
-        if (event.state !== 'Pressed') {
-          return
-        }
-
-        handler.handle(event).catch((error) => {
+      whenever(keys[handler.shortcut], async () => {
+        handler.handle().catch((error) => {
           console.error('Error handling shortcut', error)
         })
       })

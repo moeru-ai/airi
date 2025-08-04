@@ -8,6 +8,7 @@ repository = "https://github.com/moeru-ai/airi"
 edition = "2024"
 rust-version = "1.85.0"
 links = "tauri-plugin-ipc-audio-vad-ort"
+publish = false
 
 [lib]
 name = "tauri_plugin_ipc_audio_vad_ort"

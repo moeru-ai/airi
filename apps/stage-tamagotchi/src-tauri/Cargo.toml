@@ -36,6 +36,7 @@ tauri-plugin-mcp = { workspace = true }
 tauri-plugin-ipc-audio-transcription-ort = { workspace = true }
 tauri-plugin-ipc-audio-vad-ort = { workspace = true }
 tauri-plugin-prevent-default = "1.3"
+tauri-plugin-rdev = { workspace = true }
 tauri-plugin-window-pass-through-on-hover = { workspace = true }
 tauri-plugin-window-router-link = { workspace = true }
 serde = { version = "1.0.219", features = ["derive"] }
