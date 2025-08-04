@@ -2,6 +2,8 @@
 title: DevLog @ 2025.07.18
 category: DevLog
 date: 2025-07-18
+excerpt: |
+  We would love to share how we plan to improve our Factorio AI agent project, `airi-factorio`, based on the Factorio Learning Environment paper.
 preview-cover:
   light: "@assets('./assets/factorio-belt.gif')"
   dark: "@assets('./assets/factorio-belt.gif')"

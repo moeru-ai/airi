@@ -2,6 +2,8 @@
 title: DevLog @ 2025.08.01
 category: DevLog
 date: 2025-08-01
+excerpt: |
+  Makito 会分享她在 AIRI 中实现文本动画的过程，以及如何构建一个从 UTF-8 字节流中边接收边读出「字素簇」（grapheme cluster）的库。希望对你有所启发！
 preview-cover:
   light: "@assets('../../../en/blog/DevLog-2025.08.01/assets/cover-light.avif')"
   dark: "@assets('../../../en/blog/DevLog-2025.08.01/assets/cover-dark.avif')"

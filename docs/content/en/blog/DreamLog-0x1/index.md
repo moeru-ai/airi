@@ -22,10 +22,6 @@ import projectAIRIBannerDark from './assets/banner-dark-1280x640.avif';
 import ReLUStickerWow from './assets/relu-sticker-wow.avif'
 </script>
 
-The backstory of Project AIRI!
-
----
-
 Hello, it's me, Neko again!
 
 First of all, good summer for you folks living in north hemisphere!
