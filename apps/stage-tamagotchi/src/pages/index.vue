@@ -16,7 +16,6 @@ import { useTauriWindowClickThrough } from '../composables/tauri-window-pass-thr
 import { useResourcesStore } from '../stores/resources'
 import { useWindowControlStore } from '../stores/window-controls'
 import { WindowControlMode } from '../types/window-controls'
-import { startClickThrough, stopClickThrough } from '../utils/windows'
 
 useTauriGlobalShortcuts()
 const windowStore = useWindowControlStore()
@@ -49,16 +48,6 @@ const modeIndicatorClass = computed(() => {
   }
 })
 
-onMounted(async () => {
-  await invoke('plugin:window-pass-through-on-hover|start_tracing_cursor')
-  await startClickThrough()
-})
-
-onUnmounted(async () => {
-  await stopClickThrough()
-  await invoke('plugin:window-pass-through-on-hover|stop_tracing_cursor')
-})
-
 const unListenFuncs: (() => void)[] = []
 
 function openSettings() {
@@ -69,20 +58,35 @@ function openChat() {
   invoke('open_chat_window')
 }
 
-onMounted(async () => {
+async function setupVADModelLoadingProgressListener() {
   // VAD
-  unListenFuncs.push(await listen('tauri-plugins:tauri-plugin-ipc-audio-transcription-ort:load-model-silero-vad-progress', (event) => {
+  unListenFuncs.push(await listen('tauri-plugins:tauri-plugin-ipc-audio-vad-ort:load-model-silero-vad-progress', (event) => {
     const [_, filename, progress, totalSize, currentSize] = event.payload
     resourcesStore.updateResourceProgress('hearing', 'vad', { filename, progress, totalSize, currentSize })
   }))
-  invoke('plugin:ipc-audio-vad-ort|load_ort_model_silero_vad')
+}
 
+async function setupVADModel() {
+  await setupVADModelLoadingProgressListener()
+  invoke('plugin:ipc-audio-vad-ort|load_ort_model_silero_vad')
+}
+
+async function setupWhisperModelLoadingProgressListener() {
   // Whisper
-  unListenFuncs.push(await listen('tauri-plugins:tauri-plugin-ipc-audio-vad-ort:load-model-whisper-progress', (event) => {
+  unListenFuncs.push(await listen('tauri-plugins:tauri-plugin-ipc-audio-transcription-ort:load-model-whisper-progress', (event) => {
     const [_, filename, progress, totalSize, currentSize] = event.payload
     resourcesStore.updateResourceProgress('hearing', 'whisper', { filename, progress, totalSize, currentSize })
   }))
+}
+
+async function setupWhisperModel() {
+  await setupWhisperModelLoadingProgressListener()
   invoke('plugin:ipc-audio-transcription-ort|load_ort_model_whisper', { modelType: 'medium' })
+}
+
+onMounted(async () => {
+  setupVADModel()
+  setupWhisperModel()
 
   if (connected.value)
     return
@@ -106,11 +110,10 @@ if (import.meta.hot) { // For better DX
   import.meta.hot.on('vite:beforeUpdate', () => {
     unListenFuncs.forEach(fn => fn?.())
     unListenFuncs.length = 0
-
-    invoke('plugin:window-pass-through-on-hover|stop_tracing_cursor')
   })
   import.meta.hot.on('vite:afterUpdate', async () => {
-    invoke('plugin:window-pass-through-on-hover|start_tracing_cursor')
+    await setupVADModelLoadingProgressListener()
+    await setupWhisperModelLoadingProgressListener()
   })
 }
 </script>

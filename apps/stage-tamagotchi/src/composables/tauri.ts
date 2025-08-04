@@ -58,9 +58,9 @@ export interface AiriTamagotchiEvents extends Events {
   'tauri-plugins:tauri-plugin-window-pass-through-on-hover:pass-through-enabled': boolean
 
   // from tauri-plugin-ipc-audio-transcription-ort
-  'tauri-plugins:tauri-plugin-ipc-audio-transcription-ort:load-model-silero-vad-progress': [boolean, string, number, number, number]
+  'tauri-plugins:tauri-plugin-ipc-audio-vad-ort:load-model-silero-vad-progress': [boolean, string, number, number, number]
   // from tauri-plugin-ipc-audio-vad-ort
-  'tauri-plugins:tauri-plugin-ipc-audio-vad-ort:load-model-whisper-progress': [boolean, string, number, number, number]
+  'tauri-plugins:tauri-plugin-ipc-audio-transcription-ort:load-model-whisper-progress': [boolean, string, number, number, number]
 
   // from tauri-plugin-rdev
   'tauri-plugins:tauri-plugin-rdev:keydown': { time: { secs_since_epoch: number, nanos_since_epoch: number }, name: string, event_type: { KeyPress: KeyCode | { Unknown: number } } } // similar to 'keydown' events from DOM elements

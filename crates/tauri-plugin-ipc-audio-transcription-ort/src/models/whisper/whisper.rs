@@ -227,33 +227,76 @@ impl Whisper {
 
     let encoder_model_path_sub_name = "onnx/encoder_model.onnx";
     let encoder_model_path = match cache_repo.get(encoder_model_path_sub_name) {
-      None => repo.download_with_progress(
-        encoder_model_path_sub_name,
-        create_progress_emitter(
-          window.clone(),
-          "tauri-plugins:tauri-plugin-ipc-audio-transcription-ort:load-model-whisper-progress",
-          encoder_model_path_sub_name.to_string(),
-        ),
-      )?,
-      Some(p) => p,
+      Some(p) => {
+        println!("Using cached encoder model at: {}", p.display());
+
+        p
+      },
+      None => {
+        println!(
+          "Downloading encoder model from Hugging Face: {}",
+          encoder_model_path_sub_name
+        );
+
+        repo.download_with_progress(
+          encoder_model_path_sub_name,
+          create_progress_emitter(
+            window.clone(),
+            "tauri-plugins:tauri-plugin-ipc-audio-transcription-ort:load-model-whisper-progress",
+            encoder_model_path_sub_name.to_string(),
+          ),
+        )?
+      },
     };
 
     let decoder_model_path_sub_name = "onnx/decoder_model.onnx";
     let decoder_model_path = match cache_repo.get(decoder_model_path_sub_name) {
-      Some(path) => path,
-      None => repo.download(decoder_model_path_sub_name)?,
+      Some(path) => {
+        println!("Using cached decoder model at: {}", path.display());
+
+        path
+      },
+      None => {
+        println!(
+          "Downloading decoder model from Hugging Face: {}",
+          decoder_model_path_sub_name
+        );
+
+        repo.download_with_progress(
+          decoder_model_path_sub_name,
+          create_progress_emitter(
+            window.clone(),
+            "tauri-plugins:tauri-plugin-ipc-audio-transcription-ort:load-model-whisper-progress",
+            decoder_model_path_sub_name.to_string(),
+          ),
+        )?
+      },
     };
 
     let config_path_sub_name = "config.json";
     let config_path = match cache_repo.get(config_path_sub_name) {
       Some(path) => path,
-      None => repo.download(config_path_sub_name)?,
+      None => repo.download_with_progress(
+        config_path_sub_name,
+        create_progress_emitter(
+          window.clone(),
+          "tauri-plugins:tauri-plugin-ipc-audio-transcription-ort:load-model-whisper-progress",
+          config_path_sub_name.to_string(),
+        ),
+      )?,
     };
 
     let tokenizer_config_path_sub_name = "tokenizer.json";
     let tokenizer_config_path = match cache_repo.get(tokenizer_config_path_sub_name) {
       Some(path) => path,
-      None => repo.download(tokenizer_config_path_sub_name)?,
+      None => repo.download_with_progress(
+        tokenizer_config_path_sub_name,
+        create_progress_emitter(
+          window.clone(),
+          "tauri-plugins:tauri-plugin-ipc-audio-transcription-ort:load-model-whisper-progress",
+          tokenizer_config_path_sub_name.to_string(),
+        ),
+      )?,
     };
 
     let encoder_session = Self::create_optimized_session(encoder_model_path)?;
@@ -453,10 +496,17 @@ impl WhisperPipeline {
     revision: &str,
     window: tauri::WebviewWindow<R>,
   ) -> Result<Self> {
-    let model = Whisper::new(model_id, revision, window)?;
+    let model = Whisper::new(model_id, revision, window.clone())?;
 
     // Initialize our new processor
     let processor = WhisperProcessor::new(which_model)?;
+
+    let cache_api = hf_hub::Cache::from_env();
+    let cache_repo = cache_api.repo(Repo::with_revision(
+      model_id.to_string(),
+      RepoType::Model,
+      revision.to_string(),
+    ));
 
     let api = Api::new()?;
     let repo = api.repo(hf_hub::Repo::with_revision(
@@ -464,7 +514,20 @@ impl WhisperPipeline {
       hf_hub::RepoType::Model,
       revision.to_string(),
     ));
-    let tokenizer_path = repo.get("tokenizer.json")?;
+
+    let tokenizer_path_sub_name = "tokenizer.json";
+    let tokenizer_path = match cache_repo.get(tokenizer_path_sub_name) {
+      Some(path) => path,
+      None => repo.download_with_progress(
+        tokenizer_path_sub_name,
+        create_progress_emitter(
+          window.clone(),
+          "tauri-plugins:tauri-plugin-ipc-audio-transcription-ort:load-model-whisper-progress",
+          tokenizer_path_sub_name.to_string(),
+        ),
+      )?,
+    };
+
     let tokenizer = Tokenizer::from_file(tokenizer_path)
       .map_err(|e| anyhow!("Failed to load tokenizer: {}", e))?;
 
