@@ -1084,7 +1084,7 @@ export const useProvidersStore = defineStore('providers', () => {
             name: 'lin_zhiling',
             provider: 'index-tts-vllm',
             // previewURL: voice.preview_audio_url,
-            languages: ['Chinese', 'English'],
+            languages: [{ code: 'cn', title: 'Chinese' }, { code: 'en', title: 'English' }],
             gender: 'Female',
 
           }]
