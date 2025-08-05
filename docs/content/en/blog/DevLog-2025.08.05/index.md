@@ -76,7 +76,7 @@ But now it's drastically improved.
 
 #### Fade on hover™
 
-In the last release，v0.6, we introduced the **Fade on hover™** feature:
+In the last release, v0.6, we introduced the **Fade on hover™** feature:
 
 > Just kidding, we are open sourcing this project under MIT license,
 > there is no any trademark registered for this feature.
