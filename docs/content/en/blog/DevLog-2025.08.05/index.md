@@ -183,7 +183,7 @@ does.
 We designed a new set of component called **Resource Island** (inspired from
 Dynamic Island from iOS), which is a floating, hover-able widget displays
 the progress of downloading and installing the modules, and it will
-disappear when the download is finished.˜
+disappear when the download is finished.
 
 See it in action:
 
