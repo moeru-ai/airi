@@ -7,7 +7,7 @@ settings:
 catalogs:
   default:
     '@moeru/std':
-      specifier: ^0.1.0-beta.7
+      specifier: 0.1.0-beta.7
       version: 0.1.0-beta.7
     '@proj-airi/drizzle-duckdb-wasm':
       specifier: ^0.4.28
@@ -1063,6 +1063,9 @@ importers:
       '@mdit/plugin-tasklist':
         specifier: ^0.22.1
         version: 0.22.1(markdown-it@14.1.0)
+      '@proj-airi/stage-ui':
+        specifier: workspace:^
+        version: link:../packages/stage-ui
       '@radix-ui/colors':
         specifier: ^3.0.0
         version: 3.0.0

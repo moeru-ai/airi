@@ -36,6 +36,7 @@
     "@intlify/unplugin-vue-i18n": "^6.0.8",
     "@mdit/plugin-footnote": "^0.22.2",
     "@mdit/plugin-tasklist": "^0.22.1",
+    "@proj-airi/stage-ui": "workspace:^",
     "@radix-ui/colors": "^3.0.0",
     "@types/hast": "^3.0.4",
     "@types/markdown-it": "^14.1.2",

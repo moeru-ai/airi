@@ -6,9 +6,13 @@ export default defineConfig({
     presetAttributify(),
     presetTypography({
       cssExtend: {
-        a: {
+        'a': {
           'text-decoration': 'underline',
           'text-decoration-style': 'dotted',
+          'text-decoration-color': '#ced5e6',
+        },
+        '.dark a': {
+          'text-decoration-color': '#4b5056',
         },
       },
     }),
