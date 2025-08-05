@@ -1063,6 +1063,34 @@ export const useProvidersStore = defineStore('providers', () => {
         },
       },
     },
+    'index-tts-vllm': {
+      id: 'index-tts-vllm',
+      category: 'speech',
+      tasks: ['text-to-speech'],
+      nameKey: 'settings.pages.providers.provider.index-tts-vllm.title',
+      name: 'Index-TTS by bilibili',
+      descriptionKey: 'settings.pages.providers.provider.index-tts-vllm.description',
+      description: 'index-tts.github.io',
+      // iconColor: 'i-lobe-icons:alibabacloud',
+      iconImage: 'https://raw.githubusercontent.com/index-tts/index-tts/main/assets/index_icon.png',
+      defaultOptions: () => ({
+        baseUrl: 'http://localhost:11996',
+      }),
+
+      capabilities: {
+        listVoices: async (_config) => {
+          return [{
+            id: 'lin_zhiling',
+            name: 'lin_zhiling',
+            provider: 'index-tts-vllm',
+            // previewURL: voice.preview_audio_url,
+            languages: ['Chinese', 'English'],
+            gender: 'Female',
+
+          }]
+        },
+      },
+    },
     'alibaba-cloud-model-studio': {
       id: 'alibaba-cloud-model-studio',
       category: 'speech',
