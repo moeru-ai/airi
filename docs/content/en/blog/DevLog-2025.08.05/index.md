@@ -68,7 +68,7 @@ Tamagotchi is the name of the Desktop version of AIRI, where you can have it
 running as a separated, and always-running companion on Desktop with other
 applications without interfering your work.
 
-Previously. the Desktop version was more in a experiment stage where the UI/UX
+Previously, the Desktop version was more in a experiment stage where the UI/UX
 wasn't polished and refined enough, modules like local ASR/STT (speech-to-text) wasn't
 usable. Settings of using audio input devices were also the missing pieces.
 
