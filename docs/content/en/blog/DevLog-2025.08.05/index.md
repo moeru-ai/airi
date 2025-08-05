@@ -43,7 +43,7 @@ Let me be brutally honest about what the past three months looked like:
 - [**74,548 lines added**](https://github.com/moeru-ai/airi/compare/v0.6.1...v0.7.0)
 - [**13,930 lines removed**](https://github.com/moeru-ai/airi/compare/v0.6.1...v0.7.0)
 
-> But for of you who worked for software industries, these numbers means,
+> But for those of you who worked for software industries, these numbers mean,
 > nothing, it's just a reflection of the big impact we made in this release.
 >
 > No worries, I will walk you through the highlights in this DevLog.
