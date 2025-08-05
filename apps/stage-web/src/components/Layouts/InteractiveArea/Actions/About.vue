@@ -15,7 +15,7 @@ const localDate = formatISO9075(new UTCDate(committerDate))
   </button>
   <AboutDialog v-model="show">
     <div max-w="calc[100%-2rem]" mx-auto h-full flex flex-col pt-14>
-      <div font-sans-rounded mb-14 text-center text-5xl>
+      <div mb-14 text-center text-5xl font-sans-rounded>
         <span text="neutral-400 dark:neutral-100/65">Project</span> <span text="pink-400 dark:pink-300/90">AIRI</span>
         <div mt-2 text-base>
           Web ver.

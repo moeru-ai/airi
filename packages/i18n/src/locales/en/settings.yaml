@@ -404,6 +404,9 @@ pages:
               description: Speech Service region
               label: Region
         title: Microsoft / Azure Speech
+      index-tts-vllm:
+        description: https://index-tts.github.io/
+        title: Bilibili / IndexTTS
       mistral:
         description: mistral.ai
         title: Mistral

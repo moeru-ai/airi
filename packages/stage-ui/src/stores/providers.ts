@@ -1074,20 +1074,42 @@ export const useProvidersStore = defineStore('providers', () => {
       // iconColor: 'i-lobe-icons:alibabacloud',
       iconImage: 'https://raw.githubusercontent.com/index-tts/index-tts/main/assets/index_icon.png',
       defaultOptions: () => ({
-        baseUrl: 'http://localhost:11996',
+        baseUrl: 'http://localhost:11996/tts',
       }),
-
+      createProvider: async (config) => {
+        const provider: SpeechProvider = {
+          speech: () => {
+            const req = {
+              baseURL: config.baseUrl as string,
+              model: 'IndexTTS-1.5',
+            }
+            return req
+          },
+        }
+        return provider
+      },
       capabilities: {
-        listVoices: async (_config) => {
-          return [{
-            id: 'lin_zhiling',
-            name: 'lin_zhiling',
-            provider: 'index-tts-vllm',
-            // previewURL: voice.preview_audio_url,
-            languages: [{ code: 'cn', title: 'Chinese' }, { code: 'en', title: 'English' }],
-            gender: 'Female',
-
-          }]
+        listVoices: async (config) => {
+          const voicesUrl = config.baseUrl as string
+          const response = await fetch(`${voicesUrl}/audio/voices`)
+          if (!response.ok) {
+            throw new Error(`Failed to fetch voices: ${response.statusText}`)
+          }
+          const voices = await response.json()
+          return Object.keys(voices).map((voice: any) => {
+            return {
+              id: voice,
+              name: voice,
+              provider: 'index-tts-vllm',
+              // previewURL: voice.preview_audio_url,
+              languages: [{ code: 'cn', title: 'Chinese' }, { code: 'en', title: 'English' }],
+            }
+          })
+        },
+      },
+      validators: {
+        validateProviderConfig: (config) => {
+          return !!config.baseUrl
         },
       },
     },
