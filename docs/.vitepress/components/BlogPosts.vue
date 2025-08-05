@@ -217,7 +217,7 @@ const svgArts = computedAsync(async () => {
             <div v-if="!post.frontmatter?.['preview-cover']?.[isDark ? 'dark' : 'light']" class="mb-6 h-20 md:h-60">
               <div class="blur-lg" h="full" w-full v-html="isDark ? svgArts?.[index].dark : svgArts?.[index].light" />
             </div>
-            <div v-else class="relative mb-0 h-28 w-full md:h-68">
+            <div v-else class="relative mb-0 h-44 w-full md:h-68">
               <div class="preview-card-art-image-overlay" />
               <img
                 :src="post.frontmatter?.['preview-cover']?.[isDark ? 'dark' : 'light']"
@@ -227,8 +227,8 @@ const svgArts = computedAsync(async () => {
             </div>
           </ClientOnly>
         </div>
-        <div class="relative z-1 flex-grow px-6 pb-3 pt-6 md:pt-6">
-          <div class="post-card-title text-card-foreground z-1 text-2xl font-bold transition-colors duration-200">
+        <div class="relative z-1 flex-grow px-3 pb-3 pt-6 md:pt-6">
+          <div class="post-card-title text-card-foreground z-1 text-xl font-semibold transition-colors duration-200 md:text-2xl md:font-bold">
             {{ post.title }}
           </div>
           <div class="text-muted-foreground mb-4 flex items-center gap-4 text-sm">

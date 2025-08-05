@@ -88,7 +88,7 @@ const isCharactersPage = computed(() => path.value.includes('characters'))
         <div class="mb-2 text-sm text-primary font-bold">
           {{ activeSection?.text }}
         </div>
-        <article class="max-w-none w-full font-sans prose prose-slate dark:prose-invert">
+        <article class="docs-article max-w-none w-full font-sans prose prose-slate dark:prose-invert">
           <h1>
             {{ frontmatter.title || '' }}
           </h1>
