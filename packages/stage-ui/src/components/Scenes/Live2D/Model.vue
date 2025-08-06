@@ -190,18 +190,19 @@ async function loadModel() {
   // This is hacky too
   const hookedUpdate = motionManager.update as (model: CubismModel, now: number) => boolean
   motionManager.update = function (model: CubismModel, now: number) {
+    // Let's initialize the last update time first
+    if (lastUpdateTime.value === 0) {
+      lastUpdateTime.value = now
+    }
+
     hookedUpdate?.call(this, model, now)
-    // Only update eye focus when the model is idle
+    // Possibility 1: Only update eye focus when the model is idle
+    // Possibility 2: For models having no motion groups, currentGroup will be undefined while groups can be { idle: ... }
     if (!motionManager.state.currentGroup || motionManager.state.currentGroup === motionManager.groups.idle) {
       idleEyeFocus.update(internalModel, now)
 
       // If the model has eye blink parameters
       if (internalModel.eyeBlink != null) {
-      // Let's initialize the last update time first
-        if (lastUpdateTime.value === 0) {
-          lastUpdateTime.value = now
-        }
-
         // For the part of the auto eye blink implementation in pixi-live2d-display
         //
         // this.emit("beforeMotionUpdate");
@@ -228,6 +229,8 @@ async function loadModel() {
       // still, mark the motion as updated
       return true
     }
+
+    lastUpdateTime.value = now
 
     return false
   }
