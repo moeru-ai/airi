@@ -83,7 +83,7 @@ watchEffect((onCleanup) => {
     <section class="mx-auto h-full max-w-[1440px] w-full flex flex-1 flex-col">
       <div class="z-10 h-full w-full flex flex-1 flex-col items-center justify-start gap-4 overflow-hidden px-16 pb-16 pt-20 md:pt-36">
         <div ref="hero" flex="~ col items-center gap-4 justify-start">
-          <div class="font-sans-rounded relative w-full justify-center text-center font-extrabold" text="4xl md:5xl">
+          <div class="relative w-full justify-center text-center font-extrabold font-sans-rounded" text="4xl md:5xl">
             <div>
               Project AIRI
             </div>

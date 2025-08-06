@@ -63,7 +63,7 @@
 
     <Variant title="Cute Sans">
       <div flex flex-col gap-1>
-        <div font-cuteen mb-3 text-4xl font-bold tracking-wide>
+        <div mb-3 text-4xl font-bold tracking-wide font-cuteen>
           <span text="neutral-500 dark:neutral-400">Project</span> <span text-pink>AIRI</span>
         </div>
         <div flex flex-col gap-1>
