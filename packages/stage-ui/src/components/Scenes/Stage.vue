@@ -196,7 +196,7 @@ onBeforeSend(async () => {
 })
 
 onTokenLiteral(async (literal) => {
-  await messageContentQueue.add(literal.replace(/\.{3}/g, '…'))
+  await messageContentQueue.add(literal)
 })
 
 onTokenSpecial(async (special) => {
