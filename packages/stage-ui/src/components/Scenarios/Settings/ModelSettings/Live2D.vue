@@ -36,7 +36,6 @@ const live2d = useLive2d()
 const {
   modelFile,
   motionMap,
-  loadSource,
   loadingModel,
   availableMotions,
   modelUrl,
@@ -50,7 +49,6 @@ modelFileDialog.onChange((files) => {
   if (files && files.length > 0) {
     motionMap.value = {}
     modelFile.value = files[0]
-    loadSource.value = 'file'
     loadingModel.value = true
   }
 })
@@ -60,7 +58,7 @@ watch(loadingModel, (value) => {
     return
   }
 
-  if (loadSource.value !== 'file') {
+  if (!modelFile.value) {
     return
   }
 
@@ -116,7 +114,6 @@ async function saveMotionMap() {
 
   const patchedFile = await patchMotionMap(fileFromIndexedDB, motionMap.value)
   modelFile.value = patchedFile
-  loadSource.value = 'file'
   loadingModel.value = true
 }
 
@@ -178,7 +175,7 @@ const exportObjectUrl = useObjectUrl(modelFile)
     </Button>
   </Section>
   <Section
-    v-if="loadSource === 'file'"
+    v-if="modelFile"
     :title="t('settings.live2d.edit-motion-map.title')"
     icon="i-solar:face-scan-circle-bold-duotone"
     :class="[

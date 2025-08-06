@@ -1,7 +1,6 @@
 <script setup lang="ts">
+import { BidirectionalTransition } from '@proj-airi/ui'
 import { computed } from 'vue'
-
-import { BidirectionalTransition } from '../Misc'
 
 // Define button variants for better type safety and maintainability
 type ButtonVariant = 'primary' | 'secondary' | 'secondary-muted' | 'danger'

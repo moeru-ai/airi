@@ -21,7 +21,7 @@ import { useQueue } from '../../composables/queue'
 import { useDelayMessageQueue, useEmotionsMessageQueue, useMessageContentQueue } from '../../composables/queues'
 import { llmInferenceEndToken } from '../../constants'
 import { EMOTION_EmotionMotionName_value, EMOTION_VRMExpressionName_value, EmotionThinkMotionName } from '../../constants/emotions'
-import { useLive2d } from '../../stores'
+import { useLive2d, useVRM } from '../../stores'
 import { useAudioContext, useSpeakingStore } from '../../stores/audio'
 import { useChatStore } from '../../stores/chat'
 import { useSpeechStore } from '../../stores/modules/speech'
@@ -46,6 +46,8 @@ const { mouthOpenSize } = storeToRefs(useSpeakingStore())
 const { audioContext, calculateVolume } = useAudioContext()
 const { onBeforeMessageComposed, onBeforeSend, onTokenLiteral, onTokenSpecial, onStreamEnd, onAssistantResponseEnd } = useChatStore()
 const providersStore = useProvidersStore()
+const { modelFile, modelUrl } = storeToRefs(useLive2d())
+const { modelFile: vrmModelFile, modelUrl: vrmModelUrl } = storeToRefs(useVRM())
 
 const audioAnalyser = ref<AnalyserNode>()
 const nowSpeaking = ref(false)
@@ -230,9 +232,11 @@ onMounted(async () => {
     <div h-full w-full>
       <Live2DScene
         v-if="stageView === '2d'"
+        min-w="50% <lg:full" min-h="100 sm:100" h-full w-full flex-1
+        :model-src="modelUrl"
+        :model-file="modelFile"
         :focus-at="focusAt"
         :mouth-open-size="mouthOpenSize"
-        min-w="50% <lg:full" min-h="100 sm:100" h-full w-full flex-1
         :paused="paused"
         :x-offset="xOffset"
         :y-offset="yOffset"
@@ -242,7 +246,8 @@ onMounted(async () => {
       <VRMScene
         v-else-if="stageView === '3d'"
         ref="vrmViewerRef"
-        model="/assets/vrm/models/AvatarSample-B/AvatarSample_B.vrm"
+        :model-src="vrmModelUrl"
+        :model-file="vrmModelFile"
         idle-animation="/assets/vrm/animations/idle_loop.vrma"
         min-w="50% <lg:full" min-h="100 sm:100" h-full w-full flex-1
         :paused="paused"

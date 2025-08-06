@@ -1,12 +1,10 @@
 <script setup lang="ts">
 import type { Application } from '@pixi/app'
+import type { Cubism4InternalModel, InternalModel } from 'pixi-live2d-display/cubism4'
 
 import localforage from 'localforage'
 
-import { extensions } from '@pixi/extensions'
-import { InteractionManager } from '@pixi/interaction'
-import { Ticker, TickerPlugin } from '@pixi/ticker'
-import { breakpointsTailwind, useBreakpoints, useDark, useDebounceFn, watchDebounced } from '@vueuse/core'
+import { breakpointsTailwind, useBreakpoints, useDark, useDebounceFn, useObjectUrl, watchDebounced } from '@vueuse/core'
 import { formatHex } from 'culori'
 import { storeToRefs } from 'pinia'
 import { DropShadowFilter } from 'pixi-filters'
@@ -16,7 +14,17 @@ import { computed, onMounted, onUnmounted, ref, shallowRef, toRef, watch } from 
 import { useLive2DIdleEyeFocus } from '../../../composables/live2d'
 import { useLive2d, useSettings } from '../../../stores'
 
+type CubismModel = Cubism4InternalModel['coreModel']
+type CubismEyeBlink = Cubism4InternalModel['eyeBlink']
+type PixiLive2DInternalModel = InternalModel & {
+  eyeBlink?: CubismEyeBlink
+  coreModel: CubismModel
+}
+
 const props = withDefaults(defineProps<{
+  modelSrc?: string
+  modelFile?: File | null
+
   app?: Application
   mouthOpenSize?: number
   width: number
@@ -56,15 +64,29 @@ function parsePropsOffset() {
   }
 }
 
+const modelSrcRef = toRef(() => props.modelSrc)
+const modelFileRef = toRef(() => props.modelFile)
+const modelFileSrc = useObjectUrl(modelFileRef)
+const modelSrcNormalized = computed(() => {
+  if (modelFileSrc.value)
+    return modelFileSrc.value
+
+  if (modelSrcRef.value)
+    return modelSrcRef.value
+
+  return ''
+})
+
 const offset = computed(() => parsePropsOffset())
 
 const pixiApp = toRef(() => props.app)
 const paused = toRef(() => props.paused)
 const focusAt = toRef(() => props.focusAt)
-const model = ref<Live2DModel>()
+const model = ref<Live2DModel<PixiLive2DInternalModel>>()
 const initialModelWidth = ref<number>(0)
 const initialModelHeight = ref<number>(0)
 const mouthOpenSize = computed(() => Math.max(0, Math.min(100, props.mouthOpenSize)))
+const lastUpdateTime = ref(0)
 
 const dark = useDark()
 const breakpoints = useBreakpoints(breakpointsTailwind)
@@ -105,8 +127,6 @@ const {
   loadingModel,
   currentMotion,
   availableMotions,
-  loadSource,
-  modelUrl,
 } = storeToRefs(useLive2d())
 
 const {
@@ -125,21 +145,18 @@ async function loadModel() {
     model.value.destroy()
     model.value = undefined
   }
-
-  const modelInstance = new Live2DModel()
-
-  if (loadSource.value === 'file') {
-    await Live2DFactory.setupLive2DModel(modelInstance, [modelFile.value], { autoInteract: false })
+  if (!modelSrcNormalized.value) {
+    console.warn('No Live2D model source provided.')
+    return
   }
-  else if (loadSource.value === 'url') {
-    await Live2DFactory.setupLive2DModel(modelInstance, modelUrl.value, { autoInteract: false })
-  }
+
+  const modelInstance = new Live2DModel<PixiLive2DInternalModel>()
+  await Live2DFactory.setupLive2DModel(modelInstance, modelSrcNormalized.value, { autoInteract: false })
 
   model.value = modelInstance
-  pixiApp.value.stage.addChild(model.value as any)
+  pixiApp.value.stage.addChild(model.value)
   initialModelWidth.value = model.value.width
   initialModelHeight.value = model.value.height
-
   model.value.anchor.set(0.5, 0.5)
   setScaleAndPosition()
 
@@ -149,7 +166,7 @@ async function loadModel() {
   })
 
   const internalModel = model.value.internalModel
-  const coreModel = internalModel.coreModel as any
+  const coreModel = internalModel.coreModel
   const motionManager = internalModel.motionManager
   coreModel.setParameterValueById('ParamMouthOpenY', mouthOpenSize.value)
 
@@ -179,15 +196,46 @@ async function loadModel() {
   }
 
   // This is hacky too
-  const hookedUpdate = motionManager.update
-  motionManager.update = function (model, now) {
+  const hookedUpdate = motionManager.update as (model: CubismModel, now: number) => boolean
+  motionManager.update = function (model: CubismModel, now: number) {
+    lastUpdateTime.value = now
+
     hookedUpdate?.call(this, model, now)
-    // Only update eye focus when the model is idle
-    if (motionManager.state.currentGroup === motionManager.groups.idle) {
+    // Possibility 1: Only update eye focus when the model is idle
+    // Possibility 2: For models having no motion groups, currentGroup will be undefined while groups can be { idle: ... }
+    if (!motionManager.state.currentGroup || motionManager.state.currentGroup === motionManager.groups.idle) {
       idleEyeFocus.update(internalModel, now)
+
+      // If the model has eye blink parameters
+      if (internalModel.eyeBlink != null) {
+        // For the part of the auto eye blink implementation in pixi-live2d-display
+        //
+        // this.emit("beforeMotionUpdate");
+        // const motionUpdated = this.motionManager.update(this.coreModel, now);
+        // this.emit("afterMotionUpdate");
+        // model.saveParameters();
+        // this.motionManager.expressionManager?.update(model, now);
+        // if (!motionUpdated) {
+        //   this.eyeBlink?.updateParameters(model, dt);
+        // }
+        //
+        // https://github.com/guansss/pixi-live2d-display/blob/31317b37d5e22955a44d5b11f37f421e94a11269/src/cubism4/Cubism4InternalModel.ts#L202-L214
+        //
+        // If the this.motionManager.update returns true, as motion updated flag on,
+        // the eye blink parameters will not be updated, in another hand, the auto eye blink is disabled
+        //
+        // Since we are hooking the motionManager.update method currently,
+        // and previously a always `true` was returned, eye blink parameters were never updated.
+        //
+        // Thous we are here to manually update the eye blink parameters within this hooked method
+        internalModel.eyeBlink.updateParameters(model, (now - lastUpdateTime.value) / 1000)
+      }
+
+      // still, mark the motion as updated
+      return true
     }
 
-    return true
+    return false
   }
 
   motionManager.on('motionStart', (group, index) => {
@@ -200,33 +248,6 @@ async function loadModel() {
   }
 
   emits('modelLoaded')
-  loadingModel.value = false
-}
-
-async function initLive2DPixiStage() {
-  if (!pixiApp.value)
-    return
-
-  // https://guansss.github.io/pixi-live2d-display/#package-importing
-  Live2DModel.registerTicker(Ticker)
-  extensions.add(TickerPlugin)
-  extensions.add(InteractionManager)
-
-  // load indexdb model first
-  const live2dModelFromIndexedDB = await localforage.getItem<File>('live2dModel')
-  if (live2dModelFromIndexedDB) {
-    modelFile.value = live2dModelFromIndexedDB
-    loadSource.value = 'file'
-    loadingModel.value = true
-    return
-  }
-
-  if (modelUrl.value) {
-    loadSource.value = 'url'
-    loadingModel.value = true
-    return
-  }
-
   loadingModel.value = false
 }
 
@@ -249,16 +270,11 @@ function updateDropShadowFilter() {
 }
 
 watch([() => props.width, () => props.height], () => handleResize())
+watch(modelSrcNormalized, () => loadModel(), { immediate: true })
 watch(dark, updateDropShadowFilter, { immediate: true })
 watch([model, themeColorsHue], updateDropShadowFilter)
 watch(offset, setScaleAndPosition)
 watch(() => props.scale, setScaleAndPosition)
-watch(modelFile, () => {
-  if (modelFile.value) {
-    loadingModel.value = true
-    loadModel()
-  }
-}, { immediate: true })
 
 // TODO: This is hacky!
 function updateDropShadowFilterLoop() {
@@ -277,7 +293,6 @@ watch(themeColorsHueDynamic, () => {
 }, { immediate: true })
 
 watch(mouthOpenSize, value => getCoreModel().setParameterValueById('ParamMouthOpenY', value))
-watch(pixiApp, initLive2DPixiStage)
 watch(currentMotion, value => setMotion(value.group, value.index))
 watch(paused, value => value ? pixiApp.value?.stop() : pixiApp.value?.start())
 
@@ -297,7 +312,7 @@ watchDebounced(loadingModel, (value) => {
   loadModel()
 }, { debounce: 1000 })
 
-onMounted(updateDropShadowFilter)
+onMounted(() => updateDropShadowFilter())
 
 function componentCleanUp() {
   cancelAnimationFrame(dropShadowAnimationId.value)

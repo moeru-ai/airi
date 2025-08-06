@@ -6,6 +6,7 @@ import VRMScene from '../../../Scenes/VRM.vue'
 import Live2D from './Live2D.vue'
 import VRM from './VRM.vue'
 
+import { useLive2d, useVRM } from '../../../../stores'
 import { useSettings } from '../../../../stores/settings'
 
 const props = defineProps<{
@@ -21,6 +22,8 @@ defineEmits<{
 }>()
 
 const { stageView } = storeToRefs(useSettings())
+const { modelFile: live2dModelFile, modelUrl: live2dModelUrl } = storeToRefs(useLive2d())
+const { modelFile: vrmModelFile, modelUrl: vrmModelUrl } = storeToRefs(useVRM())
 </script>
 
 <template>
@@ -33,7 +36,7 @@ const { stageView } = storeToRefs(useSettings())
           : []),
       ]"
     >
-      <Live2DScene />
+      <Live2DScene :model-src="live2dModelUrl" :model-file="live2dModelFile" />
     </div>
     <div
       flex="~ col gap-2" :class="[
@@ -54,7 +57,7 @@ const { stageView } = storeToRefs(useSettings())
           : []),
       ]"
     >
-      <VRMScene />
+      <VRMScene :model-src="vrmModelUrl" :model-file="vrmModelFile" />
     </div>
     <div h-full w-full p-2>
       <div
