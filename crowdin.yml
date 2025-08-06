@@ -1,6 +1,8 @@
 files:
   - source: packages/i18n/src/locales/en/**/*
     translation: /packages/i18n/src/locales/%locale%/**/%original_file_name%
+    ignore:
+      - "**/*.ts"
     languages_mapping:
       locale:
         en: en
