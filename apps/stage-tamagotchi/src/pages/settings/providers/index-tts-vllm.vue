@@ -1,14 +1,12 @@
 <script setup lang="ts">
-import type { SpeechProviderWithExtraOptions } from '@xsai-ext/shared-providers'
-import type { UnMicrosoftOptions } from 'unspeech'
+import type { SpeechProvider } from '@xsai-ext/shared-providers'
 
 import {
   SpeechPlayground,
   SpeechProviderSettings,
 } from '@proj-airi/stage-ui/components'
 import { useProvidersStore, useSpeechStore } from '@proj-airi/stage-ui/stores'
-import { storeToRefs } from 'pinia'
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, watch } from 'vue'
 // import { useI18n } from 'vue-i18n'
 
 // const { t } = useI18n()
@@ -16,23 +14,15 @@ import { computed, onMounted, ref, watch } from 'vue'
 const providerId = 'index-tts-vllm'
 const defaultModel = 'IndexTTS-1.5'
 
-// Default voice settings specific to Microsoft Speech
-const defaultVoiceSettings = {
-  pitch: 0,
-  speed: 1.0,
-  volume: 0,
-}
-
 const speechStore = useSpeechStore()
 const providersStore = useProvidersStore()
-const { providers } = storeToRefs(providersStore)
-
-const pitch = ref(0)
+// const { providers } = storeToRefs(providersStore)
 
 // Check if API key is configured
-const apiKeyConfigured = computed(() => !!providers.value[providerId]?.apiKey)
+// const apiKeyConfigured = computed(() => !!providers.value[providerId]?.apiKey)
+const apiKeyConfigured = true // Assuming API key is always configured as its not required
 
-// Get available voices for Microsoft Speech
+// Get available voices for Index TTS provider
 const availableVoices = computed(() => {
   return speechStore.availableVoices[providerId] || []
 })
@@ -45,9 +35,8 @@ watch([apiKeyConfigured], async () => {
   await speechStore.loadVoicesForProvider(providerId)
 })
 
-// Generate speech with Microsoft-specific parameters
-async function handleGenerateSpeech(input: string, voiceId: string, useSSML: boolean) {
-  const provider = await providersStore.getProviderInstance(providerId) as SpeechProviderWithExtraOptions<string, UnMicrosoftOptions>
+async function handleGenerateSpeech(input: string, voiceId: string) {
+  const provider = await providersStore.getProviderInstance(providerId) as SpeechProvider
   if (!provider) {
     throw new Error('Failed to initialize speech provider')
   }
@@ -60,29 +49,8 @@ async function handleGenerateSpeech(input: string, voiceId: string, useSSML: boo
 
   const options = {
     ...providerConfig,
-    disableSsml: !useSSML, // If useSSML is true, we don't disable SSML
   }
 
-  // If not using SSML and we have a voice, generate SSML
-  if (!useSSML && voiceId) {
-    const voice = availableVoices.value.find(v => v.id === voiceId)
-    if (voice) {
-      const ssml = speechStore.generateSSML(
-        input,
-        voice,
-        { ...providerConfig, pitch: pitch.value },
-      )
-      return await speechStore.speech(
-        provider,
-        model,
-        ssml,
-        voiceId,
-        options,
-      )
-    }
-  }
-
-  // Either using direct SSML or no voice found
   return await speechStore.speech(
     provider,
     model,
@@ -94,16 +62,13 @@ async function handleGenerateSpeech(input: string, voiceId: string, useSSML: boo
 </script>
 
 <template>
-  <SpeechProviderSettings
-    :provider-id="providerId" :default-model="defaultModel"
-    :additional-settings="defaultVoiceSettings"
-  >
+  <SpeechProviderSettings :provider-id="providerId" :default-model="defaultModel">
     <!-- Replace the default playground with our standalone component -->
     <template #playground>
       <SpeechPlayground
         :available-voices="availableVoices" :generate-speech="handleGenerateSpeech"
-        :api-key-configured="apiKeyConfigured"
-        default-text="Hello! This is a test of the Index TTS Speech synthesis."
+        :api-key-configured="apiKeyConfigured" :use-ssml="false"
+        default-text="Hello! This is a test of the Index TTS Speech synthesis?."
       />
     </template>
   </SpeechProviderSettings>

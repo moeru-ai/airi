@@ -1,6 +1,5 @@
 <script setup lang="ts">
-import type { SpeechProviderWithExtraOptions } from '@xsai-ext/shared-providers'
-import type { UnElevenLabsOptions } from 'unspeech'
+import type { SpeechProvider } from '@xsai-ext/shared-providers'
 
 import {
   SpeechPlayground,
@@ -22,16 +21,17 @@ const { providers } = storeToRefs(providersStore)
 // const { t } = useI18n()
 
 // Check if API key is configured
-const apiKeyConfigured = computed(() => !!providers.value[providerId]?.apiKey)
+// const apiKeyConfigured = computed(() => !!providers.value[providerId]?.apiKey)
+const apiKeyConfigured = true // Assuming API key is always configured as its not required
 
-// Get available voices for ElevenLabs
+// Get available voices for Index TTS
 const availableVoices = computed(() => {
   return speechStore.availableVoices[providerId] || []
 })
 
-// Generate speech with ElevenLabs-specific parameters
+// Generate speech with IndexTTS-specific parameters
 async function handleGenerateSpeech(input: string, voiceId: string, _useSSML: boolean) {
-  const provider = await providersStore.getProviderInstance(providerId) as SpeechProviderWithExtraOptions<string, UnElevenLabsOptions>
+  const provider = await providersStore.getProviderInstance(providerId) as SpeechProvider
   if (!provider) {
     throw new Error('Failed to initialize speech provider')
   }
@@ -42,7 +42,7 @@ async function handleGenerateSpeech(input: string, voiceId: string, _useSSML: bo
   // Get model from configuration or use default
   const model = providerConfig.model as string | undefined || defaultModel
 
-  // ElevenLabs doesn't need SSML conversion, but if SSML is provided, use it directly
+  // Index TTS doesn't need SSML conversion, but if SSML is provided, use it directly
   return await speechStore.speech(
     provider,
     model,
