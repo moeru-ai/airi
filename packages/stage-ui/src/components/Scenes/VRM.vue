@@ -9,6 +9,11 @@ import * as THREE from 'three'
 import { useVRM } from '../../stores'
 import { OrbitControls, VRMModel } from '../Scenes'
 
+const props = defineProps<{
+  modelSrc?: string
+  modelFile?: File | null
+}>()
+
 const emit = defineEmits<{
   (e: 'loadModelProgress', value: number): void
   (e: 'error', value: unknown): void
@@ -19,7 +24,6 @@ const { x: mouseX, y: mouseY } = useMouse()
 const vrmContainerRef = ref<HTMLDivElement>()
 const { width, height } = useElementBounding(vrmContainerRef)
 const {
-  selectedModel,
   cameraFOV,
   cameraPosition,
   cameraDistance,
@@ -153,22 +157,28 @@ function lookAtCamera(newPosition: { x: number, y: number, z: number }) {
 function lookAtMouse(mouseX: number, mouseY: number) {
   mouse.x = (mouseX / window.innerWidth) * 2 - 1
   mouse.y = -(mouseY / window.innerHeight) * 2 + 1
+
   // Raycast from the mouse position
   raycaster.setFromCamera(mouse, camera.value)
+
   // Create a plane in front of the camera
   const cameraDirection = new THREE.Vector3()
   camera.value.getWorldDirection(cameraDirection) // Get camera's forward direction
+
   const plane = new THREE.Plane()
   plane.setFromNormalAndCoplanarPoint(
     cameraDirection,
     camera.value.position.clone().add(cameraDirection.multiplyScalar(1)), // 1 unit in front of the camera
   )
+
   const intersection = new THREE.Vector3()
   raycaster.ray.intersectPlane(plane, intersection)
   lookAtTarget.value = { x: intersection.x, y: intersection.y, z: intersection.z }
+
   // Pass the target to the model
   modelRef.value?.lookAtUpdate(lookAtTarget.value)
 }
+
 watch(cameraPosition, (newPosition) => {
   if (!sceneReady.value || !modelRef.value)
     return
@@ -176,6 +186,7 @@ watch(cameraPosition, (newPosition) => {
     lookAtCamera(newPosition)
   }
 }, { deep: true })
+
 watch([mouseX, mouseY], () => {
   if (!sceneReady.value || !modelRef.value)
     return
@@ -183,6 +194,7 @@ watch([mouseX, mouseY], () => {
     lookAtMouse(mouseX.value, mouseY.value)
   }
 })
+
 watch(trackingMode, (newMode) => {
   if (!sceneReady.value || !modelRef.value)
     return
@@ -210,14 +222,14 @@ defineExpose({
 
 <template>
   <div ref="vrmContainerRef" w="100%" h="100%">
-    <TresCanvas v-if="camera" v-show="sceneReady" :camera="camera" :alpha="true" :antialias="true" :width="width" :height="height">
+    <TresCanvas v-if="camera" v-show="sceneReady" :camera="camera" :antialias="true" :width="width" :height="height">
       <OrbitControls ref="controlsRef" />
       <TresDirectionalLight :color="0xFFFFFF" :intensity="1.8" :position="[1, 1, -10]" />
       <TresAmbientLight :color="0xFFFFFF" :intensity="1.2" />
       <VRMModel
         ref="modelRef"
-        :key="selectedModel"
-        :model="selectedModel"
+        :model-src="props.modelSrc"
+        :model-file="props.modelFile"
         idle-animation="/assets/vrm/animations/idle_loop.vrma"
         :paused="false"
         @load-model-progress="(val) => emit('loadModelProgress', val)"

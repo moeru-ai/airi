@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { Input } from '@proj-airi/ui'
-import { useFileDialog } from '@vueuse/core'
+import { useFileDialog, useObjectUrl } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { computed, ref } from 'vue'
+import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { useVRM } from '../../../../stores'
@@ -29,18 +29,15 @@ const modelFileDialog = useFileDialog({
 const vrm = useVRM()
 const {
   modelFile,
-  loadSource,
-  loadingModel,
   modelUrl,
   modelSize,
   modelOffset,
   cameraFOV,
-  selectedModel,
   modelRotationY,
   cameraDistance,
   trackingMode,
 } = storeToRefs(vrm)
-const localModelUrl = ref(modelUrl.value)
+
 const trackingOptions = computed(() => [
   { value: 'camera', label: t('settings.vrm.scale-and-position.eye-tracking-mode.options.option.camera'), class: 'col-start-3' },
   { value: 'mouse', label: t('settings.vrm.scale-and-position.eye-tracking-mode.options.option.mouse'), class: 'col-start-4' },
@@ -50,29 +47,22 @@ const trackingOptions = computed(() => [
 modelFileDialog.onChange((files) => {
   if (files && files.length > 0) {
     modelFile.value = files[0]
-    loadSource.value = 'file'
-    loadingModel.value = true
-    localModelUrl.value = ''
   }
 })
 
-function urlUploadClick() {
-  modelUrl.value = localModelUrl.value
-  // same URL will let the loader be lazy and forgot to reset loading state
-  // If the loading state is still true, then the URL input will be locked
-  if (modelUrl.value === selectedModel.value) {
-    console.warn('Model URL is the same as the selected model, no need to reload.')
-    return
+const urlFile = useObjectUrl(modelFile)
+const urlRef = computed({
+  get: () => urlFile.value || modelUrl.value || '',
+  set: (value) => {
+    modelUrl.value = value
+  },
+})
+
+function handleUrlLoad() {
+  const parsedUrl = new URL(urlRef.value, 'https://example.com')
+  if (parsedUrl.origin === 'https://example.com') {
+    modelUrl.value = urlRef.value
   }
-  // Can't let the default model URL be reentered into the loader, otherwise it will still be too lazy to reset the loading state
-  if (!modelUrl.value && selectedModel.value === vrm.defaultModelUrl) {
-    localModelUrl.value = vrm.defaultModelUrl
-    return
-  }
-  // Only when real different URL is entered, then the loader will be triggered
-  loadSource.value = 'url'
-  loadingModel.value = true
-  localModelUrl.value = selectedModel.value
 }
 </script>
 
@@ -156,12 +146,11 @@ function urlUploadClick() {
     </Button>
     <div flex items-center gap-2>
       <Input
-        v-model="localModelUrl"
-        :disabled="loadingModel"
+        v-model="urlRef"
         class="flex-1"
         :placeholder="t('settings.vrm.change-model.from-url-placeholder')"
       />
-      <Button size="sm" variant="secondary" @click="urlUploadClick">
+      <Button size="sm" variant="secondary" @click="handleUrlLoad">
         {{ t('settings.vrm.change-model.from-url') }}
       </Button>
     </div>

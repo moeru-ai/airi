@@ -6,6 +6,9 @@ import Live2DModel from './Live2D/Model.vue'
 import '../../utils/live2d-zip-loader'
 
 withDefaults(defineProps<{
+  modelSrc?: string
+  modelFile?: File | null
+
   paused?: boolean
   mouthOpenSize?: number
   focusAt?: { x: number, y: number }
@@ -31,6 +34,8 @@ withDefaults(defineProps<{
       max-h="100dvh"
     >
       <Live2DModel
+        :model-src="modelSrc"
+        :model-file="modelFile"
         :app="app"
         :mouth-open-size="mouthOpenSize"
         :width="width"

@@ -4,10 +4,7 @@ import type { Cubism4InternalModel, InternalModel } from 'pixi-live2d-display/cu
 
 import localforage from 'localforage'
 
-import { extensions } from '@pixi/extensions'
-import { InteractionManager } from '@pixi/interaction'
-import { Ticker, TickerPlugin } from '@pixi/ticker'
-import { breakpointsTailwind, useBreakpoints, useDark, useDebounceFn, watchDebounced } from '@vueuse/core'
+import { breakpointsTailwind, useBreakpoints, useDark, useDebounceFn, useObjectUrl, watchDebounced } from '@vueuse/core'
 import { formatHex } from 'culori'
 import { storeToRefs } from 'pinia'
 import { DropShadowFilter } from 'pixi-filters'
@@ -25,6 +22,9 @@ type PixiLive2DInternalModel = InternalModel & {
 }
 
 const props = withDefaults(defineProps<{
+  modelSrc?: string
+  modelFile?: File | null
+
   app?: Application
   mouthOpenSize?: number
   width: number
@@ -63,6 +63,19 @@ function parsePropsOffset() {
     yOffset,
   }
 }
+
+const modelSrcRef = toRef(() => props.modelSrc)
+const modelFileRef = toRef(() => props.modelFile)
+const modelFileSrc = useObjectUrl(modelFileRef)
+const modelSrcNormalized = computed(() => {
+  if (modelFileSrc.value)
+    return modelFileSrc.value
+
+  if (modelSrcRef.value)
+    return modelSrcRef.value
+
+  return ''
+})
 
 const offset = computed(() => parsePropsOffset())
 
@@ -114,8 +127,6 @@ const {
   loadingModel,
   currentMotion,
   availableMotions,
-  loadSource,
-  modelUrl,
 } = storeToRefs(useLive2d())
 
 const {
@@ -134,21 +145,18 @@ async function loadModel() {
     model.value.destroy()
     model.value = undefined
   }
+  if (!modelSrcNormalized.value) {
+    console.warn('No Live2D model source provided.')
+    return
+  }
 
   const modelInstance = new Live2DModel<PixiLive2DInternalModel>()
-
-  if (loadSource.value === 'file') {
-    await Live2DFactory.setupLive2DModel(modelInstance, [modelFile.value], { autoInteract: false })
-  }
-  else if (loadSource.value === 'url') {
-    await Live2DFactory.setupLive2DModel(modelInstance, modelUrl.value, { autoInteract: false })
-  }
+  await Live2DFactory.setupLive2DModel(modelInstance, modelSrcNormalized.value, { autoInteract: false })
 
   model.value = modelInstance
-  pixiApp.value.stage.addChild(model.value as any)
+  pixiApp.value.stage.addChild(model.value)
   initialModelWidth.value = model.value.width
   initialModelHeight.value = model.value.height
-
   model.value.anchor.set(0.5, 0.5)
   setScaleAndPosition()
 
@@ -190,10 +198,7 @@ async function loadModel() {
   // This is hacky too
   const hookedUpdate = motionManager.update as (model: CubismModel, now: number) => boolean
   motionManager.update = function (model: CubismModel, now: number) {
-    // Let's initialize the last update time first
-    if (lastUpdateTime.value === 0) {
-      lastUpdateTime.value = now
-    }
+    lastUpdateTime.value = now
 
     hookedUpdate?.call(this, model, now)
     // Possibility 1: Only update eye focus when the model is idle
@@ -230,8 +235,6 @@ async function loadModel() {
       return true
     }
 
-    lastUpdateTime.value = now
-
     return false
   }
 
@@ -245,33 +248,6 @@ async function loadModel() {
   }
 
   emits('modelLoaded')
-  loadingModel.value = false
-}
-
-async function initLive2DPixiStage() {
-  if (!pixiApp.value)
-    return
-
-  // https://guansss.github.io/pixi-live2d-display/#package-importing
-  Live2DModel.registerTicker(Ticker)
-  extensions.add(TickerPlugin)
-  extensions.add(InteractionManager)
-
-  // load indexdb model first
-  const live2dModelFromIndexedDB = await localforage.getItem<File>('live2dModel')
-  if (live2dModelFromIndexedDB) {
-    modelFile.value = live2dModelFromIndexedDB
-    loadSource.value = 'file'
-    loadingModel.value = true
-    return
-  }
-
-  if (modelUrl.value) {
-    loadSource.value = 'url'
-    loadingModel.value = true
-    return
-  }
-
   loadingModel.value = false
 }
 
@@ -294,16 +270,11 @@ function updateDropShadowFilter() {
 }
 
 watch([() => props.width, () => props.height], () => handleResize())
+watch(modelSrcNormalized, () => loadModel(), { immediate: true })
 watch(dark, updateDropShadowFilter, { immediate: true })
 watch([model, themeColorsHue], updateDropShadowFilter)
 watch(offset, setScaleAndPosition)
 watch(() => props.scale, setScaleAndPosition)
-watch(modelFile, () => {
-  if (modelFile.value) {
-    loadingModel.value = true
-    loadModel()
-  }
-}, { immediate: true })
 
 // TODO: This is hacky!
 function updateDropShadowFilterLoop() {
@@ -322,7 +293,6 @@ watch(themeColorsHueDynamic, () => {
 }, { immediate: true })
 
 watch(mouthOpenSize, value => getCoreModel().setParameterValueById('ParamMouthOpenY', value))
-watch(pixiApp, initLive2DPixiStage)
 watch(currentMotion, value => setMotion(value.group, value.index))
 watch(paused, value => value ? pixiApp.value?.stop() : pixiApp.value?.start())
 
@@ -342,7 +312,7 @@ watchDebounced(loadingModel, (value) => {
   loadModel()
 }, { debounce: 1000 })
 
-onMounted(updateDropShadowFilter)
+onMounted(() => updateDropShadowFilter())
 
 function componentCleanUp() {
   cancelAnimationFrame(dropShadowAnimationId.value)

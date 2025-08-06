@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Application } from '@pixi/app'
 import { extensions } from '@pixi/extensions'
+import { InteractionManager } from '@pixi/interaction'
 import { Ticker, TickerPlugin } from '@pixi/ticker'
 import { Live2DModel } from 'pixi-live2d-display/cubism4'
 import { onMounted, onUnmounted, ref, watch } from 'vue'
@@ -14,13 +15,17 @@ const props = withDefaults(defineProps<{
 })
 
 const containerRef = ref<HTMLDivElement>()
+const pixiAppReady = ref(false)
 const pixiApp = ref<Application>()
 const pixiAppCanvas = ref<HTMLCanvasElement>()
 
 async function initLive2DPixiStage(parent: HTMLDivElement) {
+  pixiAppReady.value = true
+
   // https://guansss.github.io/pixi-live2d-display/#package-importing
   Live2DModel.registerTicker(Ticker)
   extensions.add(TickerPlugin)
+  extensions.add(InteractionManager)
 
   pixiApp.value = new Application({
     width: props.width * props.resolution,
@@ -38,6 +43,7 @@ async function initLive2DPixiStage(parent: HTMLDivElement) {
   pixiAppCanvas.value.style.display = 'block'
 
   parent.appendChild(pixiApp.value.view)
+  pixiAppReady.value = true
 }
 
 function handleResize() {
@@ -84,6 +90,6 @@ defineExpose({
 
 <template>
   <div ref="containerRef" h-full w-full>
-    <slot :app="pixiApp" />
+    <slot v-if="pixiAppReady" :app="pixiApp" />
   </div>
 </template>
