@@ -94,6 +94,7 @@ export async function* chunkTTSInput(input: string | ReaderLike, options?: TTSIn
               // If we don't append value ("." or ","), we will lose the decimal point, and 2.5 will become 25, which hugely impacted the tts...
               buffer += value
               current = next
+              next = undefined
               continue
             }
           }
@@ -105,6 +106,8 @@ export async function* chunkTTSInput(input: string | ReaderLike, options?: TTSIn
               // If this is a '...' repalce the current value
               if (!afterNext.done && afterNext.value && afterNext.value === '.') {
                 value = '…'
+                next = undefined
+                afterNext = undefined
               }
             }
           }
