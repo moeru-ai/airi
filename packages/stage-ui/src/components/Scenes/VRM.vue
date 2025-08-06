@@ -6,6 +6,8 @@ import { onUnmounted, ref, shallowRef, watch } from 'vue'
 
 import * as THREE from 'three'
 
+import DirectionalLightHelper from './Tres/DirectionalLightHelper.vue'
+
 import { useVRM } from '../../stores'
 import { OrbitControls, VRMModel } from '../Scenes'
 
@@ -31,12 +33,23 @@ const {
   trackingMode,
   lookAtTarget,
   eyeHeight,
+
+  directionalLightPosition,
+  directionalLightRotation,
+  directionalLightIntensity,
+
+  ambientLightIntensity,
+
+  hemisphereLightPosition,
+  hemisphereLightIntensity,
 } = storeToRefs(useVRM())
 
 const modelRef = ref<InstanceType<typeof VRMModel>>()
 
 const camera = shallowRef(new THREE.PerspectiveCamera())
-const controlsRef = ref<InstanceType<typeof OrbitControls>>()
+const controlsRef = shallowRef<InstanceType<typeof OrbitControls>>()
+const directionalLightRef = shallowRef<InstanceType<typeof THREE.DirectionalLight>>()
+
 let isUpdatingCamera = true
 // manage the sequence of the camera and controls initialization
 const controlsReady = ref(false)
@@ -94,10 +107,12 @@ watch(() => controlsRef.value?.controls, (ctrl) => {
     })
   }
 })
+
 // If model is ready
 function handleLoadModelProgress() {
   modelReady.value = true
 }
+
 // Then start to set the camera postion and target
 watch(
   [controlsReady, modelReady],
@@ -126,6 +141,7 @@ watch(
     }
   },
 )
+
 // Bidirectional watch between slider and OrbitControls
 watch(cameraDistance, (newDistance) => {
   if (!isUpdatingCamera && camera.value && controlsRef.value && controlsRef.value.controls) {
@@ -154,6 +170,7 @@ function lookAtCamera(newPosition: { x: number, y: number, z: number }) {
   modelRef.value?.lookAtUpdate(newPosition)
   lookAtTarget.value = newPosition
 }
+
 function lookAtMouse(mouseX: number, mouseY: number) {
   mouse.x = (mouseX / window.innerWidth) * 2 - 1
   mouse.y = -(mouseY / window.innerHeight) * 2 + 1
@@ -224,8 +241,26 @@ defineExpose({
   <div ref="vrmContainerRef" w="100%" h="100%">
     <TresCanvas v-if="camera" v-show="sceneReady" :camera="camera" :antialias="true" :width="width" :height="height">
       <OrbitControls ref="controlsRef" />
-      <TresDirectionalLight :color="0xFFFFFF" :intensity="1.8" :position="[1, 1, -10]" />
-      <TresAmbientLight :color="0xFFFFFF" :intensity="1.2" />
+      <TresHemisphereLight
+        :color="0xFFFFFF"
+        :position="[hemisphereLightPosition.x, hemisphereLightPosition.y, hemisphereLightPosition.z]"
+        :intensity="hemisphereLightIntensity"
+        cast-shadow
+      />
+      <TresDirectionalLight
+        ref="directionalLightRef"
+        :color="0xFFFFFF"
+        :position="[directionalLightPosition.x, directionalLightPosition.y, directionalLightPosition.z]"
+        :rotation="[directionalLightRotation.x, directionalLightRotation.y, directionalLightRotation.z]"
+        :intensity="directionalLightIntensity"
+        cast-shadow
+      />
+      <DirectionalLightHelper :directional-light="directionalLightRef" />
+      <TresAmbientLight
+        :color="0xFFFFFF"
+        :intensity="ambientLightIntensity"
+        cast-shadow
+      />
       <VRMModel
         ref="modelRef"
         :model-src="props.modelSrc"

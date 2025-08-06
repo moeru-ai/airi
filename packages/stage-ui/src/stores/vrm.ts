@@ -37,32 +37,62 @@ export const useVRM = defineStore('vrm', () => {
   const modelSize = useLocalStorage('settings/vrm/modelSize', { x: 0, y: 0, z: 0 })
   const modelOrigin = useLocalStorage('settings/vrm/modelOrigin', { x: 0, y: 0, z: 0 })
   const modelOffset = useLocalStorage('settings/vrm/modelOffset', { x: 0, y: 0, z: 0 })
+  const modelRotationY = useLocalStorage('settings/vrm/modelRotationY', 0)
 
   const cameraFOV = useLocalStorage('settings/vrm/cameraFOV', 40)
   const cameraPosition = useLocalStorage('settings/vrm/camera-position', { x: 0, y: 0, z: -1 })
-
-  const modelRotationY = useLocalStorage('settings/vrm/modelRotationY', 0)
   const cameraDistance = useLocalStorage('settings/vrm/cameraDistance', 0)
 
+  const directionalLightPosition = useLocalStorage('settings/vrm/scenes/scene/directional-light/position', { x: 1, y: 1, z: -10 })
+  const directionalLightTarget = useLocalStorage('settings/vrm/scenes/scene/directional-light/target', { x: 0, y: 0, z: 0 })
+  const directionalLightRotation = useLocalStorage('settings/vrm/scenes/scene/directional-light/rotation', { x: 0, y: 0, z: 0 })
+  const directionalLightIntensity = useLocalStorage('settings/vrm/scenes/scene/directional-light/intensity', 1.8)
+  const directionalLightColor = useLocalStorage('settings/vrm/scenes/scene/directional-light/color', 0xFFFFFF)
+
+  const hemisphereLightPosition = useLocalStorage('settings/vrm/scenes/scene/hemisphere-light/position', { x: 0, y: 1, z: 0 })
+  const hemisphereSkyColor = useLocalStorage('settings/vrm/scenes/scene/hemisphere-light/sky-color', 0xFFFFFF)
+  const hemisphereGroundColor = useLocalStorage('settings/vrm/scenes/scene/hemisphere-light/ground-color', 0x000000)
+  const hemisphereLightIntensity = useLocalStorage('settings/vrm/scenes/scene/hemisphere-light/intensity', 1.0)
+
+  const ambientLightIntensity = useLocalStorage('settings/vrm/scenes/scene/ambient-light/intensity', 2.3)
+  const ambientLightColor = useLocalStorage('settings/vrm/scenes/scene/ambient-light/color', 0xFFFFFF)
+
+  const lookAtTarget = useLocalStorage('settings/vrm/lookAtTarget', { x: 0, y: 0, z: 0 })
   const isTracking = useLocalStorage('settings/vrm/isTracking', false)
   const trackingMode = useLocalStorage('settings/vrm/trackingMode', 'none' as 'camera' | 'mouse' | 'none')
-  const lookAtTarget = useLocalStorage('settings/vrm/lookAtTarget', { x: 0, y: 0, z: 0 })
   const eyeHeight = useLocalStorage('settings/vrm/eyeHeight', 0)
 
   return {
     modelFile,
     modelUrl,
     modelSize,
+
     scale,
     modelOrigin,
     modelOffset,
+    modelRotationY,
+
     cameraFOV,
     cameraPosition,
-    modelRotationY,
     cameraDistance,
+
+    directionalLightPosition,
+    directionalLightTarget,
+    directionalLightRotation,
+    directionalLightIntensity,
+    directionalLightColor,
+
+    ambientLightIntensity,
+    ambientLightColor,
+
+    hemisphereLightPosition,
+    hemisphereSkyColor,
+    hemisphereGroundColor,
+    hemisphereLightIntensity,
+
+    lookAtTarget,
     isTracking,
     trackingMode,
-    lookAtTarget,
     eyeHeight,
   }
 })
