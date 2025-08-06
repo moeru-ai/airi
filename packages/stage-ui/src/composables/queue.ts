@@ -8,7 +8,6 @@ export interface HandlerContext<T> {
   emit: (eventName: string, ...params: any[]) => void
 }
 
-// FIXME: should be exported?
 export interface Events<T> {
   add: Array<(payload: T) => void>
   pick: Array<(payload: T) => void>
