@@ -1,3 +1,8 @@
 files:
   - source: packages/i18n/src/locales/en/**/*
     translation: /packages/i18n/src/locales/%locale%/**/%original_file_name%
+    languages_mapping:
+      locale:
+        en: en
+        zh-CN: zh-Hans
+        zh-TW: zh-Hant
