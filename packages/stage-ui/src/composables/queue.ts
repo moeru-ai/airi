@@ -8,7 +8,6 @@ export interface HandlerContext<T> {
   emit: (eventName: string, ...params: any[]) => void
 }
 
-// FIXME: should be exported?
 export interface Events<T> {
   add: Array<(payload: T) => void>
   pick: Array<(payload: T) => void>
@@ -23,7 +22,7 @@ export function useQueue<T>(options: {
 }) {
   const queue = ref<T[]>([]) as Ref<T[]>
   const isProcessing = ref(false)
-  const internalEventHandler: Events<T> = {
+  const internalEventListeners: Events<T> = {
     add: [],
     pick: [],
     processing: [],
@@ -31,26 +30,26 @@ export function useQueue<T>(options: {
     processed: [],
     done: [],
   }
-  const internalHandlerEventHandler: Record<string, Array<(...params: any[]) => void>> = {}
+  const internalHandlerEventListeners: Record<string, Array<(...params: any[]) => void>> = {}
 
-  function on<E extends keyof Events<T>>(eventName: E, handler: Events<T>[E][number]) {
-    internalEventHandler[eventName].push(handler as any)
+  function on<E extends keyof Events<T>>(eventName: E, Listener: Events<T>[E][number]) {
+    internalEventListeners[eventName].push(Listener as any)
   }
 
   function emit<E extends keyof Events<T>>(eventName: E, ...params: Parameters<Events<T>[E][number]>) {
-    const handlers = internalEventHandler[eventName] as Events<T>[E]
+    const handlers = internalEventListeners[eventName] as Events<T>[E]
     handlers.forEach((handler) => {
       (handler as any)(...params)
     })
   }
 
   function onHandlerEvent(eventName: string, handler: (...params: any[]) => void) {
-    internalHandlerEventHandler[eventName] = internalHandlerEventHandler[eventName] || []
-    internalHandlerEventHandler[eventName].push(handler)
+    internalHandlerEventListeners[eventName] = internalHandlerEventListeners[eventName] || []
+    internalHandlerEventListeners[eventName].push(handler)
   }
 
   function emitHandlerEvent(eventName: string, ...params: any[]) {
-    const handlers = internalHandlerEventHandler[eventName] || []
+    const handlers = internalHandlerEventListeners[eventName] || []
     handlers.forEach((handler) => {
       handler(...params)
     })
@@ -70,7 +69,8 @@ export function useQueue<T>(options: {
     return payload
   }
 
-  async function handleItem() {
+  // Listener for item add / enqueue event
+  async function addItemListener() {
     if (isProcessing.value)
       return
 
@@ -81,12 +81,19 @@ export function useQueue<T>(options: {
     isProcessing.value = true
 
     for (const handler of options.handlers) {
+      // If there is a need to register customised listener for processing event, then this line of code should be rewritten
+      // handlers as the input parameter is only designed for the add event
       emit('processing', payload, handler)
       try {
+        // Use handler to deal with the newly enqueued item
         const result = await handler({ data: payload, itemsToBeProcessed: () => queue.value.length, emit: emitHandlerEvent })
+        // If there is a need to register customised listener for processing event, then this line of code should be rewritten
+        // handlers as the input parameter is only designed for the add event
         emit('processed', payload, result, handler)
       }
       catch (err) {
+        // If there is a need to register customised listener for processing event, then this line of code should be rewritten
+        // handlers as the input parameter is only designed for the add event
         emit('error', payload, err as Error, handler)
         continue
       }
@@ -97,11 +104,13 @@ export function useQueue<T>(options: {
 
     // Process next item if any
     if (queue.value.length > 0)
-      handleItem()
+      addItemListener()
   }
 
-  on('add', handleItem)
-  on('done', handleItem)
+  on('add', addItemListener)
+  // Lilia: I'm not sure why do we need to register handleItem to 'done', if queue is not empty, addItemListner will continue to call addItemListner. Calling this function again when 'done' event is triggered will only lead to payload = undefined (since queue is already empty) and return
+  // Maybe leave 'done' event to be registered other customised listeners would be more reasonable
+  // on('done', addItemListener)
 
   return {
     add,

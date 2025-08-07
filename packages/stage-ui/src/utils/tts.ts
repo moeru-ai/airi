@@ -8,8 +8,8 @@ import { readGraphemeClusters } from 'clustr'
 export const TTS_FLUSH_INSTRUCTION = '\u200B'
 
 const keptPunctuations = new Set('?？!！')
-const hardPunctuations = new Set('.。?？!！…⋯～~「」\n\t\r')
-const softPunctuations = new Set(',，、–—:：;；《》')
+const hardPunctuations = new Set('.。?？!！…⋯～~\n\t\r')
+const softPunctuations = new Set(',，、–—:：;；《》「」')
 
 export interface TTSInputChunk {
   text: string
@@ -62,7 +62,7 @@ export async function* chunkTTSInput(input: string | ReaderLike, options?: TTSIn
   let current = await iterator.next()
 
   while (!current.done) {
-    const value = current.value
+    let value = current.value
 
     if (value.length > 1) {
       previousValue = value
@@ -74,13 +74,15 @@ export async function* chunkTTSInput(input: string | ReaderLike, options?: TTSIn
     const hard = hardPunctuations.has(value)
     const soft = softPunctuations.has(value)
     const kept = keptPunctuations.has(value)
+    let next: IteratorResult<string, any> | undefined
+    let afterNext: IteratorResult<string, any> | undefined
 
     if (flush || hard || soft) {
       switch (value) {
         case '.':
         case ',': {
           if (previousValue !== undefined && /\d/.test(previousValue)) {
-            const next = await iterator.next()
+            next = await iterator.next()
             if (!next.done && next.value && /\d/.test(next.value)) {
               // This dot could be a decimal point, so we skip it (don't fully skip! keep in tts input!)
 
@@ -92,7 +94,21 @@ export async function* chunkTTSInput(input: string | ReaderLike, options?: TTSIn
               // If we don't append value ("." or ","), we will lose the decimal point, and 2.5 will become 25, which hugely impacted the tts...
               buffer += value
               current = next
+              next = undefined
               continue
+            }
+          }
+          else if (value === '.') {
+            // trying catch '...' and turn it into U+2026
+            next = await iterator.next()
+            if (!next.done && next.value && next.value === '.') {
+              afterNext = await iterator.next()
+              // If this is a '...' repalce the current value
+              if (!afterNext.done && afterNext.value && afterNext.value === '.') {
+                value = '…'
+                next = undefined
+                afterNext = undefined
+              }
             }
           }
         }
@@ -135,22 +151,40 @@ export async function* chunkTTSInput(input: string | ReaderLike, options?: TTSIn
       }
 
       previousValue = value
-      current = await iterator.next()
+      // If next had been read during decimal recognition or "..." recognition
+      if (next !== undefined) {
+        // If afterNext had also been read
+        if (afterNext !== undefined) {
+          // The only case that the program will come to this place is:
+          // "x..y" and y is not a "." so "..." is not recognised
+          // ".." is not a legal punctuation so ignored.
+          // The first "." had been consumed during hard flush
+          // next.value = second '.'
+          // afterNext.value = 'y', so we just need to care about 'y'
+          // In case 'y' is not just a useless blank. It's OK if 'y' is blank since we have `text = chunk.trim()`
+          current = afterNext
+          next = undefined
+          afterNext = undefined
+        }
+        else {
+          // Only next had been read
+          // This is the case where "x.y" and x is a number but y is not
+          // In case 'y' is not just a useless blank. It's OK if 'y' is blank since we have `text = chunk.trim()`
+          current = next
+          next = undefined
+        }
+      }
+      else {
+        // No next nor afterNext, so run `iterator.next()`
+        current = await iterator.next()
+      }
+      // No need to do anything with buffer, just jump to the next loop
       continue
     }
-
+    // If normal character enters, add it to the buffer and move to the next
     buffer += value
-    // TODO: remove later
-    // eslint-disable-next-line no-console
-    console.debug('current buffer: ', buffer)
     previousValue = value
-    // For debugging why it stuck at "xxxx\u200B"
-    const next = await iterator.next()
-    // if (next.value ==='\u200B') {
-    //   console.debug("TTS_FLUSH get for the next value!")
-    // } else {
-    //   console.debug("the next value: ", next.value)
-    // }
+    next = await iterator.next()
     current = next
   }
 
