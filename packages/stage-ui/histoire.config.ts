@@ -1,5 +1,5 @@
 import { HstVue } from '@histoire/plugin-vue'
-import { defaultColors, defineConfig } from 'histoire'
+import { defineConfig } from 'histoire'
 
 export default defineConfig({
   routerMode: 'hash',
@@ -10,9 +10,62 @@ export default defineConfig({
       light: './public/logo.svg',
     },
     colors: {
-      primary: defaultColors.neutral,
+      primary: {
+        50: '#fafafa',
+        100: '#f4f4f5',
+        200: '#e4e4e7',
+        300: '#d4d4d8',
+        400: '#a1a1aa',
+        500: '#71717a',
+        600: '#52525b',
+        700: '#121212',
+        800: '#0a0a0a',
+        900: '#020202',
+      },
+      gray: {
+        50: '#fafafa',
+        100: '#f4f4f5',
+        200: '#e4e4e7',
+        300: '#d4d4d8',
+        400: '#a1a1aa',
+        500: '#71717a',
+        600: '#52525b',
+        700: '#121212',
+        750: '#0e0e0e',
+        800: '#0a0a0a',
+        850: '#060606',
+        900: '#020202',
+        950: '#000000',
+      },
     },
   },
+  backgroundPresets: [
+    {
+      label: 'Transparent',
+      color: 'transparent',
+      contrastColor: '#333',
+    },
+    {
+      label: 'White',
+      color: '#fff',
+      contrastColor: '#333',
+    },
+    {
+      label: 'Light gray',
+      color: '#aaa',
+      contrastColor: '#eee',
+    },
+    {
+      label: 'Dark gray',
+      color: '#333',
+      contrastColor: '#ccc',
+    },
+    {
+      label: 'Black',
+      color: '#121212',
+      contrastColor: '#fff',
+    },
+  ],
   plugins: [
     HstVue(),
   ],

@@ -136,8 +136,8 @@ async function loadModel() {
       modelRotationY.value = 0
 
       // Set initial positions for animation
-      function reanchorRootPositionTrack(clip: AnimationClip) {
-      // Get the hips node to reanchor the root position track
+      function reAnchorRootPositionTrack(clip: AnimationClip) {
+      // Get the hips node to re-anchor the root position track
         const hipNode = _vrm.humanoid?.getNormalizedBoneNode('hips')
         if (!hipNode) {
           console.warn('No hips node found in VRM model.')
@@ -180,8 +180,8 @@ async function loadModel() {
         console.warn('No VRM animation loaded')
         return
       }
-      // Reanchor the root position track to the model origin
-      reanchorRootPositionTrack(clip)
+      // Re-anchor the root position track to the model origin
+      reAnchorRootPositionTrack(clip)
 
       // play animation
       vrmAnimationMixer.value = new AnimationMixer(_vrm.scene)
