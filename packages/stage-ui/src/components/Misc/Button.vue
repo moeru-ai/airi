@@ -78,7 +78,7 @@ const sizeClasses: Record<ButtonSize, string> = {
 
 // Base classes that are always applied
 const baseClasses = computed(() => [
-  'rounded-xl font-medium outline-none',
+  'rounded-lg font-medium outline-none',
   'transition-all duration-200 ease-in-out',
   'disabled:cursor-not-allowed disabled:opacity-50',
   'backdrop-blur-md',

@@ -34,7 +34,7 @@ withDefaults(defineProps<{
         />
       </button>
     </template>
-    <div grid gap-2 p-1 :class="innerClass">
+    <div gap="1" grid items-center p-1 :class="innerClass">
       <slot />
     </div>
   </Collapsable>

@@ -122,7 +122,7 @@ function handleUrlLoad() {
 
       <!-- Set eye tracking mode -->
       <span
-        class="col-span-2 col-start-1 row-start-6 self-center text-xs leading-tight font-mono"
+        class="col-span-2 col-start-1 row-start-6 self-center text-xs"
       >
         {{ t('settings.vrm.scale-and-position.eye-tracking-mode.title') }}:
       </span>

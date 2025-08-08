@@ -137,7 +137,7 @@ function stopDrag() {
   <div />
   <div
 
-    h="6.25"
+    h="5"
     grid-col-span-2 w-full
   >
     <input
@@ -149,7 +149,6 @@ function stopDrag() {
       :step="props.config?.step ?? 1"
       :disabled="props.config?.disabled"
       class="range-slider"
-
       h-full w-full appearance-none bg-transparent outline-none
       @input="handleSliderChange"
     >
@@ -158,9 +157,7 @@ function stopDrag() {
   <!-- Value input -->
   <label
     bg="neutral-100 dark:neutral-900"
-
-    border="~ 1 solid neutral-200 dark:neutral-800"
-    h-fit min-w-16 inline-flex items-center rounded-md px-2 py-1
+    h-fit min-w-12 inline-flex items-center rounded-md px="1.5" py="0.5"
   >
     <span h-fit w-full inline-flex items-center gap-2 text-xs>
       <span
@@ -176,8 +173,8 @@ function stopDrag() {
         :max="props.config?.max"
         :step="props.config?.step || 0.0001"
         :disabled="props.config?.disabled"
-
-        max-w-4lh w-full flex-1 appearance-none bg-transparent text-right text-xs font-mono outline-none
+        max-w-4lh w-full flex-1 appearance-none bg-transparent text-right font-mono outline-none
+        transition="all duration-200 ease-in-out"
         class="[&::-webkit-inner-spin-button]:(m-0 appearance-none)"
         @change="handleInputChange"
       >
@@ -190,6 +187,20 @@ function stopDrag() {
   --range: calc(var(--max) - var(--min));
   --ratio: calc((var(--value) - var(--min)) / var(--range));
   --progress: calc(var(--ratio) * 100%);
+
+  --progress-color: rgb(204 204 204 / 53%);
+  --track-color: rgb(245 245 245 / 75%);
+
+  transition: all 0.2s ease-in-out;
+}
+
+.range-slider:hover {
+  --progress-color: rgb(95 95 95 / 53%);
+}
+
+.dark .range-slider {
+  --progress-color: rgba(151, 151, 151, 0.8);
+  --track-color: rgb(23, 23, 23);
 }
 
 .range-slider::-webkit-slider-runnable-track {
@@ -197,23 +208,13 @@ function stopDrag() {
   border-radius: 6px;
   background: linear-gradient(
     to right,
-    rgb(198, 198, 198) 0%,
-    rgba(198, 198, 198) var(--progress),
-    rgb(236, 236, 236) var(--progress),
-    rgba(236, 236, 236) 100%
+    var(--progress-color) 0%,
+    var(--progress-color) var(--progress),
+    var(--track-color) var(--progress),
+    var(--track-color) 100%
   );
-  backdrop-filter: blur(4px);
   cursor: col-resize;
-}
-
-.dark .range-slider::-webkit-slider-runnable-track {
-  background: linear-gradient(
-    to right,
-    rgba(151, 151, 151, 0.8) 0%,
-    rgba(151, 151, 151, 0.8) var(--progress),
-    rgba(23, 23, 23) var(--progress),
-    rgba(23, 23, 23) 100%
-  );
+  transition: all 0.2s ease-in-out;
 }
 
 .range-slider::-webkit-slider-thumb {

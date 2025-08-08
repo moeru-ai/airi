@@ -128,11 +128,14 @@ function stopDrag() {
     </slot>
   </div>
   <div />
-  <label bg="neutral-100 dark:neutral-900" h-fit inline-flex items-center rounded-md px-2 py-1 border="~ 1 solid neutral-200 dark:neutral-800">
-    <span h-fit inline-flex items-center text-xs>
+  <label
+    h-fit w-full inline-flex items-center rounded-md px="1.5" py="0.5"
+    :class="[isDragging === 'x' ? 'bg-red-100/50 dark:bg-red-900/50' : 'bg-neutral-100 dark:bg-neutral-900']"
+    transition="colors duration-200 ease-in-out"
+  >
+    <span h-fit inline-flex items-center text="[12px]" gap-1>
       <span
-        cursor-col-resize select-none
-        :class="{ 'text-blue-500': isDragging === 'x' }"
+        cursor-col-resize select-none text-red-500
         @mousedown="(e) => startDrag('x', e)"
       >|</span>
       <input
@@ -147,11 +150,14 @@ function stopDrag() {
       >
     </span>
   </label>
-  <label bg="neutral-100 dark:neutral-900" h-fit inline-flex items-center rounded-md px-2 py-1 border="~ 1 solid neutral-200 dark:neutral-800">
-    <span h-fit inline-flex items-center text-xs>
+  <label
+    h-fit inline-flex items-center rounded-md px="1.5" py="0.5"
+    :class="[isDragging === 'y' ? 'bg-blue-100/50 dark:bg-blue-900/50' : 'bg-neutral-100 dark:bg-neutral-900']"
+    transition="colors duration-200 ease-in-out"
+  >
+    <span h-fit inline-flex items-center text="[12px]" gap-1>
       <span
-        cursor-col-resize select-none
-        :class="{ 'text-blue-500': isDragging === 'y' }"
+        cursor-col-resize select-none text-blue-500
         @mousedown="(e) => startDrag('y', e)"
       >|</span>
       <input
@@ -166,11 +172,14 @@ function stopDrag() {
       >
     </span>
   </label>
-  <label bg="neutral-100 dark:neutral-900" h-fit inline-flex items-center rounded-md px-2 py-1 border="~ 1 solid neutral-200 dark:neutral-800">
-    <span h-fit inline-flex items-center text-xs>
+  <label
+    h-fit inline-flex items-center rounded-md px="1.5" py="0.5"
+    :class="[isDragging === 'z' ? 'bg-green-100/50 dark:bg-green-900/50' : 'bg-neutral-100 dark:bg-neutral-900']"
+    transition="colors duration-200 ease-in-out"
+  >
+    <span h-fit inline-flex items-center text="[12px]" gap-1>
       <span
-        cursor-col-resize select-none
-        :class="{ 'text-blue-500': isDragging === 'z' }"
+        cursor-col-resize select-none text-green-500
         @mousedown="(e) => startDrag('z', e)"
       >|</span>
       <input
