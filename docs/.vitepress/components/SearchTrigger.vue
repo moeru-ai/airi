@@ -26,7 +26,7 @@ function handleClose() {
 
 <template>
   <DialogRoot v-model:open="open">
-    <DialogTrigger class="text-muted-foreground border-muted text-md md:bg-card hover:bg-muted flex items-center rounded-lg px-3 py-[7px] transition-colors duration-200 ease-in-out space-x-2 md:border md:text-sm">
+    <DialogTrigger class="text-muted-foreground border-muted hover:bg-muted text-md md:bg-card flex items-center rounded-lg px-3 py-[7px] transition-colors duration-200 ease-in-out space-x-2 md:border md:text-sm">
       <Icon icon="lucide:search" />
       <span class="w-24 text-left hidden lg:w-40 md:inline-flex">{{ t('docs.theme.search.title') }}</span>
       <span class="text-xs hidden prose md:inline-flex">

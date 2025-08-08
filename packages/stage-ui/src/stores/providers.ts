@@ -1063,6 +1063,55 @@ export const useProvidersStore = defineStore('providers', () => {
         },
       },
     },
+    'index-tts-vllm': {
+      id: 'index-tts-vllm',
+      category: 'speech',
+      tasks: ['text-to-speech'],
+      nameKey: 'settings.pages.providers.provider.index-tts-vllm.title',
+      name: 'Index-TTS by Bilibili',
+      descriptionKey: 'settings.pages.providers.provider.index-tts-vllm.description',
+      description: 'index-tts.github.io',
+      iconColor: 'i-lobe-icons:bilibiliindex',
+      defaultOptions: () => ({
+        baseUrl: 'http://localhost:11996/tts',
+      }),
+      createProvider: async (config) => {
+        const provider: SpeechProvider = {
+          speech: () => {
+            const req = {
+              baseURL: config.baseUrl as string,
+              model: 'IndexTTS-1.5',
+            }
+            return req
+          },
+        }
+        return provider
+      },
+      capabilities: {
+        listVoices: async (config) => {
+          const voicesUrl = config.baseUrl as string
+          const response = await fetch(`${voicesUrl}/audio/voices`)
+          if (!response.ok) {
+            throw new Error(`Failed to fetch voices: ${response.statusText}`)
+          }
+          const voices = await response.json()
+          return Object.keys(voices).map((voice: any) => {
+            return {
+              id: voice,
+              name: voice,
+              provider: 'index-tts-vllm',
+              // previewURL: voice.preview_audio_url,
+              languages: [{ code: 'cn', title: 'Chinese' }, { code: 'en', title: 'English' }],
+            }
+          })
+        },
+      },
+      validators: {
+        validateProviderConfig: (config) => {
+          return !!config.baseUrl
+        },
+      },
+    },
     'alibaba-cloud-model-studio': {
       id: 'alibaba-cloud-model-studio',
       category: 'speech',
