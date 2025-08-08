@@ -7,13 +7,11 @@ import {
 } from '@proj-airi/stage-ui/components'
 import { useProvidersStore, useSpeechStore } from '@proj-airi/stage-ui/stores'
 import { storeToRefs } from 'pinia'
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, watch } from 'vue'
 // import { useI18n } from 'vue-i18n'
 
 const providerId = 'index-tts-vllm'
 const defaultModel = 'IndexTTS-1.5'
-
-const speedRatio = ref<number>(1.0)
 
 const speechStore = useSpeechStore()
 const providersStore = useProvidersStore()
@@ -53,15 +51,6 @@ async function handleGenerateSpeech(input: string, voiceId: string, _useSSML: bo
     },
   )
 }
-
-watch(speedRatio, async () => {
-  const providerConfig = providersStore.getProviderConfig(providerId)
-  if (!providerConfig.audio) {
-    providerConfig.audio = {}
-  }
-
-  (providerConfig.audio as any).speedRatio = speedRatio.value
-})
 
 watch([providers], async () => {
   const providerConfig = providersStore.getProviderConfig(providerId)

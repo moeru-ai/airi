@@ -1068,11 +1068,10 @@ export const useProvidersStore = defineStore('providers', () => {
       category: 'speech',
       tasks: ['text-to-speech'],
       nameKey: 'settings.pages.providers.provider.index-tts-vllm.title',
-      name: 'Index-TTS by bilibili',
+      name: 'Index-TTS by Bilibili',
       descriptionKey: 'settings.pages.providers.provider.index-tts-vllm.description',
       description: 'index-tts.github.io',
-      // iconColor: 'i-lobe-icons:alibabacloud',
-      iconImage: 'https://raw.githubusercontent.com/index-tts/index-tts/main/assets/index_icon.png',
+      iconColor: 'i-lobe-icons:bilibiliindex',
       defaultOptions: () => ({
         baseUrl: 'http://localhost:11996/tts',
       }),
