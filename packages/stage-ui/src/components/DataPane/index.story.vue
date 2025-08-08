@@ -4,7 +4,8 @@ import type { Ref } from 'vue'
 
 import { ref } from 'vue'
 
-import ColorPicker from './ColorPicker.vue'
+import PropertyColor from './PropertyColor.vue'
+import PropertyNumber from './PropertyNumber.vue'
 
 type DataPaneSchemaTypes
   = | DataPaneSchemaNumber
@@ -147,13 +148,19 @@ const { data, schema } = useDataPane({
     </template>
 
     <Variant id="default-min" title="Default">
-      <div h-100 flex flex-col>
+      <div grid grid-cols-5 gap-2>
         <template v-for="(fieldSchema, fieldName) in schema" :key="fieldName">
           <template v-if="fieldSchema.type === 'number'">
-            <input v-model="data[fieldName]" type="number" class="data-pane">
+            <PropertyNumber
+              v-model="data[fieldName] as number"
+              :min="fieldSchema.min"
+              :max="fieldSchema.max"
+              :step="fieldSchema.step"
+              :label="fieldSchema.label"
+            />
           </template>
           <template v-if="fieldSchema.type === 'color'">
-            <ColorPicker v-model="data[fieldName] as Globals | DataType.Color" />
+            <PropertyColor v-model="data[fieldName] as Globals | DataType.Color" />
           </template>
         </template>
       </div>
