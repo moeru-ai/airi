@@ -54,17 +54,6 @@ async function handleGenerateSpeech(input: string, voiceId: string, _useSSML: bo
   )
 }
 
-onMounted(async () => {
-  const providerConfig = providersStore.getProviderConfig(providerId)
-  const providerMetadata = providersStore.getProviderMetadata(providerId)
-  if (await providerMetadata.validators.validateProviderConfig(providerConfig)) {
-    await speechStore.loadVoicesForProvider(providerId)
-  }
-  else {
-    console.error('Failed to validate provider config', providerConfig)
-  }
-})
-
 watch(speedRatio, async () => {
   const providerConfig = providersStore.getProviderConfig(providerId)
   if (!providerConfig.audio) {
