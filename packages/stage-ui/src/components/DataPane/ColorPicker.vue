@@ -352,7 +352,7 @@ watch([hue, saturation, value, alphaValue], () => {
     </PopoverTrigger>
     <PopoverPortal>
       <PopoverContent align="start">
-        <div class="mt-2 space-y-2" bg="white/90 dark:bg-neutral-900/90" rounded-xl p-1>
+        <div class="mt-2 space-y-2" bg="white/90 dark:neutral-900/90" rounded-xl p-1>
           <!-- Color Map -->
           <div class="relative h-48 w-full select-none overflow-hidden rounded-lg">
             <div
@@ -473,7 +473,7 @@ watch([hue, saturation, value, alphaValue], () => {
                 :value="Math.round(alphaValue * 100)"
                 min="0"
                 max="100"
-                class="w-16 border rounded px-2 py-1 text-sm"
+                class="w-16 border border-neutral-200 rounded-lg px-2 py-1 text-sm dark:border-neutral-700"
                 placeholder="A%"
                 @input="handleAlphaInput(Number(($event?.target as HTMLInputElement).value))"
               >
@@ -486,7 +486,7 @@ watch([hue, saturation, value, alphaValue], () => {
                 :value="currentColorRgb.r"
                 min="0"
                 max="255"
-                class="border rounded-lg px-2 py-1 text-sm"
+                class="border border-neutral-200 rounded-lg px-2 py-1 text-sm dark:border-neutral-700"
                 placeholder="R"
                 @input="handleRgbInput('r', Number(($event?.target as HTMLInputElement).value))"
               >
@@ -495,7 +495,7 @@ watch([hue, saturation, value, alphaValue], () => {
                 :value="currentColorRgb.g"
                 min="0"
                 max="255"
-                class="border rounded-lg px-2 py-1 text-sm"
+                class="border border-neutral-200 rounded-lg px-2 py-1 text-sm dark:border-neutral-700"
                 placeholder="G"
                 @input="handleRgbInput('g', Number(($event?.target as HTMLInputElement).value))"
               >
@@ -504,7 +504,7 @@ watch([hue, saturation, value, alphaValue], () => {
                 :value="currentColorRgb.b"
                 min="0"
                 max="255"
-                class="border rounded-lg px-2 py-1 text-sm"
+                class="border border-neutral-200 rounded-lg px-2 py-1 text-sm dark:border-neutral-700"
                 placeholder="B"
                 @input="handleRgbInput('b', Number(($event?.target as HTMLInputElement).value))"
               >
@@ -514,7 +514,7 @@ watch([hue, saturation, value, alphaValue], () => {
                 :value="Math.round(alphaValue * 100)"
                 min="0"
                 max="100"
-                class="border rounded-lg px-2 py-1 text-sm"
+                class="border border-neutral-200 rounded-lg px-2 py-1 text-sm dark:border-neutral-700"
                 placeholder="A%"
                 @input="handleAlphaInput(Number(($event?.target as HTMLInputElement).value))"
               >
@@ -527,7 +527,7 @@ watch([hue, saturation, value, alphaValue], () => {
                 :value="Math.round(hue)"
                 min="0"
                 max="360"
-                class="border rounded-lg px-2 py-1 text-sm"
+                class="border border-neutral-200 rounded-lg px-2 py-1 text-sm dark:border-neutral-700"
                 placeholder="H°"
                 @input="handleHsvInput('h', Number(($event?.target as HTMLInputElement).value))"
               >
@@ -536,7 +536,7 @@ watch([hue, saturation, value, alphaValue], () => {
                 :value="Math.round(saturation)"
                 min="0"
                 max="100"
-                class="border rounded-lg px-2 py-1 text-sm"
+                class="border border-neutral-200 rounded-lg px-2 py-1 text-sm dark:border-neutral-700"
                 placeholder="S%"
                 @input="handleHsvInput('s', Number(($event?.target as HTMLInputElement).value))"
               >
@@ -545,7 +545,7 @@ watch([hue, saturation, value, alphaValue], () => {
                 :value="Math.round(value)"
                 min="0"
                 max="100"
-                class="border rounded-lg px-2 py-1 text-sm"
+                class="border border-neutral-200 rounded-lg px-2 py-1 text-sm dark:border-neutral-700"
                 placeholder="V%"
                 @input="handleHsvInput('v', Number(($event?.target as HTMLInputElement).value))"
               >
@@ -555,7 +555,7 @@ watch([hue, saturation, value, alphaValue], () => {
                 :value="Math.round(alphaValue * 100)"
                 min="0"
                 max="100"
-                class="border rounded-lg px-2 py-1 text-sm"
+                class="border border-neutral-200 rounded-lg px-2 py-1 text-sm dark:border-neutral-700"
                 placeholder="A%"
                 @input="handleAlphaInput(Number(($event?.target as HTMLInputElement).value))"
               >
