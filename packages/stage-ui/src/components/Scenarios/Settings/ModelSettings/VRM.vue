@@ -6,7 +6,7 @@ import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { useVRM } from '../../../../stores'
-import { Container, PropertyNumber, PropertyPoint } from '../../../DataPane'
+import { Container, PropertyColor, PropertyNumber, PropertyPoint } from '../../../DataPane'
 import { Callout } from '../../../Layouts'
 import { Button } from '../../../Misc'
 import { ColorPalette } from '../../../Widgets'
@@ -41,11 +41,15 @@ const {
   directionalLightTarget,
   directionalLightRotation,
   directionalLightIntensity,
+  directionalLightColor,
 
   ambientLightIntensity,
+  ambientLightColor,
 
   hemisphereLightPosition,
   hemisphereLightIntensity,
+  hemisphereSkyColor,
+  hemisphereGroundColor,
 } = storeToRefs(vrm)
 
 const trackingOptions = computed(() => [
@@ -121,14 +125,13 @@ function handleUrlLoad() {
       />
 
       <!-- Set eye tracking mode -->
-      <span
-        class="col-span-2 col-start-1 row-start-6 self-center text-xs"
-      >
+      <div class="text-xs">
         {{ t('settings.vrm.scale-and-position.eye-tracking-mode.title') }}:
-      </span>
+      </div>
+      <div />
       <template v-for="option in trackingOptions" :key="option.value">
         <Button
-          :class="[option.class, 'row-start-6 w-auto']"
+          :class="[option.class, 'w-auto']"
           size="sm"
           :variant="trackingMode === option.value ? 'primary' : 'secondary'"
           :label="option.label"
@@ -163,6 +166,10 @@ function handleUrlLoad() {
         :y-config="{ step: 0.001, label: 'Y', formatValue: val => val?.toFixed(4) }"
         :z-config="{ step: 0.001, label: 'Z', formatValue: val => val?.toFixed(4) }"
       />
+      <PropertyColor
+        v-model="directionalLightColor"
+        label="Directional Light Color"
+      />
 
       <PropertyNumber
         v-model="directionalLightIntensity"
@@ -174,6 +181,10 @@ function handleUrlLoad() {
         v-model="ambientLightIntensity"
         :config="{ min: 0, max: 10, step: 0.01, label: 'Intensity' }"
         label="Ambient Light Intensity"
+      />
+      <PropertyColor
+        v-model="ambientLightColor"
+        label="Ambient Light Color"
       />
 
       <PropertyPoint
@@ -189,6 +200,14 @@ function handleUrlLoad() {
         v-model="hemisphereLightIntensity"
         :config="{ min: 0, max: 10, step: 0.01, label: 'Intensity' }"
         label="Hemisphere Light Intensity"
+      />
+      <PropertyColor
+        v-model="hemisphereSkyColor"
+        label="Hemisphere Sky Color"
+      />
+      <PropertyColor
+        v-model="hemisphereGroundColor"
+        label="Hemisphere Ground Color"
       />
     </div>
   </Container>

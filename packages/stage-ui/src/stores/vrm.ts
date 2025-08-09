@@ -46,16 +46,16 @@ export const useVRM = defineStore('vrm', () => {
   const directionalLightPosition = useLocalStorage('settings/vrm/scenes/scene/directional-light/position', { x: 1, y: 1, z: -10 })
   const directionalLightTarget = useLocalStorage('settings/vrm/scenes/scene/directional-light/target', { x: 0, y: 0, z: 0 })
   const directionalLightRotation = useLocalStorage('settings/vrm/scenes/scene/directional-light/rotation', { x: 0, y: 0, z: 0 })
-  const directionalLightIntensity = useLocalStorage('settings/vrm/scenes/scene/directional-light/intensity', 1.8)
-  const directionalLightColor = useLocalStorage('settings/vrm/scenes/scene/directional-light/color', 0xFFFFFF)
+  const directionalLightIntensity = useLocalStorage('settings/vrm/scenes/scene/directional-light/intensity', 0.6)
+  const directionalLightColor = useLocalStorage('settings/vrm/scenes/scene/directional-light/color', '#FFFFFF')
 
   const hemisphereLightPosition = useLocalStorage('settings/vrm/scenes/scene/hemisphere-light/position', { x: 0, y: 1, z: 0 })
-  const hemisphereSkyColor = useLocalStorage('settings/vrm/scenes/scene/hemisphere-light/sky-color', 0xFFFFFF)
-  const hemisphereGroundColor = useLocalStorage('settings/vrm/scenes/scene/hemisphere-light/ground-color', 0x000000)
-  const hemisphereLightIntensity = useLocalStorage('settings/vrm/scenes/scene/hemisphere-light/intensity', 1.0)
+  const hemisphereSkyColor = useLocalStorage('settings/vrm/scenes/scene/hemisphere-light/sky-color', '#FFFFFF')
+  const hemisphereGroundColor = useLocalStorage('settings/vrm/scenes/scene/hemisphere-light/ground-color', '#000000')
+  const hemisphereLightIntensity = useLocalStorage('settings/vrm/scenes/scene/hemisphere-light/intensity', 2.0)
 
-  const ambientLightIntensity = useLocalStorage('settings/vrm/scenes/scene/ambient-light/intensity', 2.3)
-  const ambientLightColor = useLocalStorage('settings/vrm/scenes/scene/ambient-light/color', 0xFFFFFF)
+  const ambientLightIntensity = useLocalStorage('settings/vrm/scenes/scene/ambient-light/intensity', 0.0)
+  const ambientLightColor = useLocalStorage('settings/vrm/scenes/scene/ambient-light/color', '#FFFFFF')
 
   const lookAtTarget = useLocalStorage('settings/vrm/lookAtTarget', { x: 0, y: 0, z: 0 })
   const isTracking = useLocalStorage('settings/vrm/isTracking', false)
