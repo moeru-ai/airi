@@ -19,5 +19,5 @@ const modelValue = defineModel<Globals | DataType.Color>({ required: false })
     </slot>
   </div>
   <div />
-  <ColorPicker v-model="modelValue" grid-col-span-2 />
+  <ColorPicker v-model="modelValue" />
 </template>

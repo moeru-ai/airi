@@ -1,28 +1,20 @@
 <script setup lang="ts">
 import { useEventListener } from '@vueuse/core'
-import { convertHsvToRgb, convertRgbToHsv } from 'culori'
+import { convertHsvToRgb, convertRgbToHsv, formatHex8 } from 'culori'
 import { PopoverContent, PopoverPortal, PopoverRoot, PopoverTrigger } from 'reka-ui'
 import { computed, onMounted, ref, watch } from 'vue'
 
 interface Props {
-  modelValue?: string
   alpha?: boolean
-  presets?: string[]
   disabled?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  modelValue: '#000000',
   alpha: true,
-  presets: () => ['#ff0000', '#00ff00', '#0000ff', '#ffff00', '#ff00ff', '#00ffff', '#ffffff', '#000000'],
   disabled: false,
 })
 
-const emit = defineEmits<{
-  'update:modelValue': [value: string]
-  'change': [value: string]
-  'confirm': []
-}>()
+const modelValue = defineModel<string>({ required: false, default: '#000000' })
 
 // Refs
 const colorMapRef = ref<HTMLDivElement>()
@@ -118,14 +110,6 @@ const currentColorHex = computed(() => {
   const { r, g, b } = currentColorRgb.value
   const hex = ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1)
   return `#${hex}`
-})
-
-const currentColor = computed(() => {
-  if (props.alpha && alphaValue.value < 1) {
-    const { r, g, b } = currentColorRgb.value
-    return `rgba(${r}, ${g}, ${b}, ${alphaValue.value})`
-  }
-  return currentColorHex.value
 })
 
 // Picker positions
@@ -264,16 +248,11 @@ function handleGlobalEnd() {
     isDragging.value = false
     dragType.value = null
     document.body.style.cursor = ''
-
-    // Emit the final color
-    emit('update:modelValue', currentColor.value)
-    emit('change', currentColor.value)
-    emit('confirm')
   }
 }
 
 // Watch for external color changes
-watch(() => props.modelValue, (newValue) => {
+watch(modelValue, (newValue) => {
   if (newValue && !isDragging.value) {
     const parsed = parseColor(newValue)
     hue.value = parsed.h
@@ -315,7 +294,7 @@ function handleHexInput(hex: string) {
   saturation.value = parsed.s
   value.value = parsed.v
   alphaValue.value = parsed.a
-  emit('update:modelValue', hex)
+  modelValue.value = hex
 }
 
 function handleRgbInput(channel: 'r' | 'g' | 'b', val: number) {
@@ -331,8 +310,6 @@ function handleRgbInput(channel: 'r' | 'g' | 'b', val: number) {
   hue.value = hsv.h || 0
   saturation.value = (hsv.s || 0) * 100
   value.value = (hsv.v || 0) * 100
-
-  emit('update:modelValue', currentColor.value)
 }
 
 function handleHsvInput(channel: 'h' | 's' | 'v', val: number) {
@@ -347,33 +324,35 @@ function handleHsvInput(channel: 'h' | 's' | 'v', val: number) {
       value.value = Math.max(0, Math.min(100, val))
       break
   }
-  emit('update:modelValue', currentColor.value)
 }
 
 function handleAlphaInput(val: number) {
   alphaValue.value = Math.max(0, Math.min(1, val / 100))
-  emit('update:modelValue', currentColor.value)
 }
 
-function selectPreset(preset: string) {
-  const parsed = parseColor(preset)
-  hue.value = parsed.h
-  saturation.value = parsed.s
-  value.value = parsed.v
-  alphaValue.value = parsed.a
-  emit('update:modelValue', preset)
-  emit('change', preset)
-}
+watch([hue, saturation, value, alphaValue], () => {
+  const rgb = convertHsvToRgb({
+    h: hue.value,
+    s: saturation.value / 100,
+    v: value.value / 100,
+    alpha: alphaValue.value,
+  })
+
+  modelValue.value = formatHex8(rgb)
+}, { immediate: true })
 </script>
 
 <template>
   <PopoverRoot>
-    <PopoverTrigger>
-      <div min-h-5 rounded-md :style="{ backgroundColor: modelValue }" />
+    <PopoverTrigger class="grid grid-col-span-3 grid-cols-3 h-fit items-center">
+      <div :style="{ backgroundColor: modelValue }" grid-col-span-1 min-h-5 rounded-md />
+      <div grid-col-span-2 font-mono text="[10px]">
+        {{ modelValue }}
+      </div>
     </PopoverTrigger>
     <PopoverPortal>
-      <PopoverContent>
-        <div class="space-y-2" bg="white/90 dark:bg-neutral-900/90" rounded-xl p-2>
+      <PopoverContent align="start">
+        <div class="mt-2 space-y-2" bg="white/90 dark:bg-neutral-900/90" rounded-xl p-1>
           <!-- Color Map -->
           <div class="relative h-48 w-full select-none overflow-hidden rounded-lg">
             <div
@@ -387,10 +366,7 @@ function selectPreset(preset: string) {
               @touchstart="handleColorMapStart"
             >
               <!-- Brightness overlay -->
-              <div
-                class="absolute inset-0"
-                style="background: linear-gradient(to bottom, transparent, black);"
-              />
+              <div class="absolute inset-0" style="background: linear-gradient(to bottom, transparent, black);" />
               <!-- Color picker circle -->
               <div
                 class="pointer-events-none absolute h-4 w-4 border-2 border-white rounded-full shadow-lg transition-transform"
@@ -398,7 +374,7 @@ function selectPreset(preset: string) {
                   pickerPosition,
                   {
                     transform: `translate(-50%, -50%) ${isDragging && dragType === 'map' ? 'scale(1.2)' : 'scale(1)'}`,
-                    backgroundColor: currentColor,
+                    backgroundColor: modelValue,
                   },
                 ]"
               />
@@ -465,7 +441,7 @@ function selectPreset(preset: string) {
           </div>
 
           <!-- Color Inputs -->
-          <div class="space-y-3">
+          <div class="flex justify-center gap-2">
             <div class="flex gap-2">
               <select
                 v-model="colorSpace"
@@ -584,17 +560,6 @@ function selectPreset(preset: string) {
                 @input="handleAlphaInput(Number(($event?.target as HTMLInputElement).value))"
               >
             </div>
-          </div>
-
-          <!-- Color Presets -->
-          <div v-if="presets.length > 0" class="grid grid-cols-8 gap-2">
-            <button
-              v-for="preset in presets"
-              :key="preset"
-              class="h-8 w-8 border-2 border-neutral-200 rounded-lg transition-colors hover:border-neutral-700"
-              :style="{ backgroundColor: preset }"
-              @click="selectPreset(preset)"
-            />
           </div>
         </div>
       </PopoverContent>
