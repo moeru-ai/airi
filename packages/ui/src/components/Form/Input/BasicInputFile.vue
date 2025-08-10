@@ -2,7 +2,10 @@
 import { useDebounce } from '@vueuse/core'
 import { ref } from 'vue'
 
-defineProps<{
+const props = defineProps<{
+  class?: string | string[] | null
+  isDraggingClasses?: string | string[] | null
+  isNotDraggingClasses?: string | string[] | null
   accept?: string
   multiple?: boolean
 }>()
@@ -28,6 +31,12 @@ function handleFileChange(e: Event) {
 <template>
   <label
     relative cursor-pointer
+    :class="[
+      props.class,
+      isDragging
+        ? [...Array.isArray(isDraggingClasses) ? isDraggingClasses : [isDraggingClasses]]
+        : [...Array.isArray(isNotDraggingClasses) ? isNotDraggingClasses : [isNotDraggingClasses]],
+    ]"
     @dragover="isDragging = true"
     @dragleave="isDragging = false"
   >
@@ -35,7 +44,7 @@ function handleFileChange(e: Event) {
       type="file"
       :accept="accept"
       :multiple="multiple"
-      class="absolute inset-0 h-full w-full opacity-0"
+      class="absolute inset-0 cursor-pointer appearance-none opacity-0"
       @change="handleFileChange"
     >
     <slot :is-dragging="isDraggingDebounced" :first-file="firstFile" :files="files" />
