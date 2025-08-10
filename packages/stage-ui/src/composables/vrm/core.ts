@@ -12,7 +12,6 @@ interface GLTFUserdata extends Record<string, any> {
 }
 
 export async function loadVrm(model: string, options?: {
-  positionOffset?: [number, number, number]
   scene?: Scene
   lookAt?: boolean
   onProgress?: (progress: ProgressEvent<EventTarget>) => void | Promise<void>
@@ -56,8 +55,6 @@ export async function loadVrm(model: string, options?: {
   box.getSize(modelSize)
   box.getCenter(modelCenter)
   modelCenter.y += modelSize.y / 5 // Adjust pivot to align chest with the origin
-
-  // Set position
 
   // Compute the initial camera position (once per loaded model)
   // In order to see the up-2/3 part fo the model, z = (y/3) / tan(fov/2)

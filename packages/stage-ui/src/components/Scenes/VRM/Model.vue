@@ -6,7 +6,7 @@ import { VRMUtils } from '@pixiv/three-vrm'
 import { useLoop, useTresContext } from '@tresjs/core'
 import { until, useObjectUrl } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { AnimationMixer, MathUtils, Quaternion, Vector3, VectorKeyframeTrack } from 'three'
+import { AnimationMixer, MathUtils, Mesh, MeshPhysicalMaterial, MeshStandardMaterial, Quaternion, Vector3, VectorKeyframeTrack } from 'three'
 import { computed, onMounted, onUnmounted, ref, toRef, watch } from 'vue'
 
 import { clipFromVRMAnimation, loadVRMAnimation, useBlink, useIdleEyeSaccades } from '../../../composables/vrm/animation'
@@ -32,6 +32,7 @@ const emit = defineEmits<{
 let disposeBeforeRenderLoop: (() => void | undefined)
 
 const modelCreating = ref(false)
+const modelLoaded = ref(false)
 const modelSrcRef = toRef(() => props.modelSrc)
 const modelFileRef = toRef(() => props.modelFile)
 const modelFileSrc = useObjectUrl(modelFileRef)
@@ -69,6 +70,7 @@ const idleEyeSaccades = useIdleEyeSaccades()
 async function loadModel() {
   await until(modelCreating).not.toBeTruthy()
   modelCreating.value = true
+  modelLoaded.value = false
 
   try {
     if (!scene.value) {
@@ -83,7 +85,6 @@ async function loadModel() {
       const _vrmInfo = await loadVrm(modelSrcNormalized.value, {
         scene: scene.value,
         lookAt: true,
-        positionOffset: [modelOffset.value.x, modelOffset.value.y, modelOffset.value.z],
         onProgress: progress => emit('loadModelProgress', Number((100 * progress.loaded / progress.total).toFixed(2))),
       })
       if (!_vrmInfo || !_vrmInfo._vrm) {
@@ -99,6 +100,7 @@ async function loadModel() {
       } = _vrmInfo
 
       vrmGroup.value = _vrmGroup
+
       // Set initial camera position
       cameraPosition.value = {
         x: vrmModelCenter.x + vrmInitialCameraOffset.x,
@@ -118,6 +120,12 @@ async function loadModel() {
         y: vrmModelSize.y,
         z: vrmModelSize.z,
       }
+
+      vrmGroup.value.position.set(
+        modelOffset.value.x,
+        modelOffset.value.y,
+        modelOffset.value.z,
+      )
 
       // Set model facing direction
       const targetDirection = new Vector3(0, 0, -1) // Default facing direction
@@ -189,9 +197,28 @@ async function loadModel() {
 
       vrmEmote.value = useVRMEmote(_vrm)
 
+      // TODO: perhaps we should allow user to choose whether to enable
+      //       this kind of behavior or not?
+      // WORKAROUND: set to use envMapIntensity for all matched materials
+      // REVIEW: MeshToonMaterial, and MeshBasicMaterial will not be affected
+      //         since they do not have envMapIntensity property
+      _vrm.scene.traverse((child) => {
+        if (child instanceof Mesh && child.material) {
+          const material = Array.isArray(child.material) ? child.material : [child.material]
+          material.forEach((mat) => {
+            if (mat instanceof MeshStandardMaterial || mat instanceof MeshPhysicalMaterial) {
+              // Should read envMap intensity from outside props
+              mat.envMapIntensity = 1.0
+              mat.needsUpdate = true
+            }
+          })
+        }
+      })
+
       vrm.value = _vrm
 
       emit('modelReady')
+      modelLoaded.value = true
 
       function getEyePosition(): number | null {
         const eye = vrm.value?.humanoid?.getNormalizedBoneNode('head')
@@ -286,5 +313,5 @@ defineExpose({
 </script>
 
 <template>
-  <slot />
+  <slot v-if="modelLoaded" />
 </template>

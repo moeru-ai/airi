@@ -242,7 +242,7 @@ function handleUrlLoad() {
 
     <Callout :label="t('settings.vrm.scale-and-position.model-info-title')">
       <div>
-        <div class="text-sm text-neutral-600 space-y-1">
+        <div class="text-sm text-neutral-600 space-y-1 dark:text-neutral-400">
           <div class="flex justify-between">
             <span>{{ t('settings.vrm.scale-and-position.model-info-x') }}</span>
             <span>{{ modelSize.x.toFixed(4) }}</span>
@@ -262,7 +262,7 @@ function handleUrlLoad() {
       theme="lime"
       label="Tips!"
     >
-      <div class="text-sm text-neutral-600 space-y-1">
+      <div class="text-sm text-neutral-600 space-y-1 dark:text-neutral-400">
         {{ t('settings.vrm.scale-and-position.tips') }}
       </div>
     </Callout>

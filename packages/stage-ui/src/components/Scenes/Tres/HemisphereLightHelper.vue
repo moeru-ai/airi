@@ -6,16 +6,16 @@ import { onMounted, shallowRef, toRef } from 'vue'
 import * as THREE from 'three'
 
 const props = defineProps<{
-  directionalLight?: THREE.DirectionalLight | null
+  hemisphereLight?: THREE.HemisphereLight | null
 }>()
 
 const { scene } = useTresContext()
-const directionalLightRef = toRef(() => props.directionalLight)
-const lightHelper = shallowRef<THREE.DirectionalLightHelper>()
+const hemisphereLightRef = toRef(() => props.hemisphereLight)
+const lightHelper = shallowRef<THREE.HemisphereLightHelper>()
 
 onMounted(async () => {
-  await until(directionalLightRef).toBeTruthy()
-  lightHelper.value = new THREE.DirectionalLightHelper(directionalLightRef.value!, 1)
+  await until(hemisphereLightRef).toBeTruthy()
+  lightHelper.value = new THREE.HemisphereLightHelper(hemisphereLightRef.value!, 1)
   scene.value.add(lightHelper.value)
 })
 
@@ -30,7 +30,7 @@ if (import.meta.hot) {
       }
     }
     catch (error) {
-      console.error('Error during DirectionalLightHelper cleanup:', error)
+      console.error('Error during HemisphereLightHelper cleanup:', error)
     }
   })
 }

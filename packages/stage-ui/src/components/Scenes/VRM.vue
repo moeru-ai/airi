@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import { TresCanvas } from '@tresjs/core'
+import { EffectComposerPmndrs, HueSaturationPmndrs } from '@tresjs/post-processing'
 import { useElementBounding, useMouse } from '@vueuse/core'
+import { formatHex } from 'culori'
 import { storeToRefs } from 'pinia'
+import { BlendFunction } from 'postprocessing'
+import { ACESFilmicToneMapping, PerspectiveCamera, Plane, Raycaster, Vector2, Vector3 } from 'three'
 import { onUnmounted, ref, shallowRef, watch } from 'vue'
-
-import * as THREE from 'three'
-
-import DirectionalLightHelper from './Tres/DirectionalLightHelper.vue'
 
 import { useVRM } from '../../stores'
 import { OrbitControls, VRMModel } from '../Scenes'
@@ -37,26 +37,35 @@ const {
   directionalLightPosition,
   directionalLightRotation,
   directionalLightIntensity,
+  directionalLightColor,
 
   ambientLightIntensity,
+  ambientLightColor,
 
   hemisphereLightPosition,
   hemisphereLightIntensity,
+  hemisphereSkyColor,
+  hemisphereGroundColor,
 } = storeToRefs(useVRM())
 
 const modelRef = ref<InstanceType<typeof VRMModel>>()
 
-const camera = shallowRef(new THREE.PerspectiveCamera())
+const camera = shallowRef(new PerspectiveCamera())
 const controlsRef = shallowRef<InstanceType<typeof OrbitControls>>()
-const directionalLightRef = shallowRef<InstanceType<typeof THREE.DirectionalLight>>()
+
+const effectProps = {
+  saturation: 0.3,
+  hue: 0,
+  blendFunction: BlendFunction.SRC,
+}
 
 let isUpdatingCamera = true
 // manage the sequence of the camera and controls initialization
 const controlsReady = ref(false)
 const modelReady = ref(false)
 const sceneReady = ref(false)
-const raycaster = new THREE.Raycaster()
-const mouse = new THREE.Vector2()
+const raycaster = new Raycaster()
+const mouse = new Vector2()
 
 watch(cameraFOV, (newFov) => {
   if (camera.value) {
@@ -113,7 +122,7 @@ function handleLoadModelProgress() {
   modelReady.value = true
 }
 
-// Then start to set the camera postion and target
+// Then start to set the camera position and target
 watch(
   [controlsReady, modelReady],
   ([ctrlOk, modelOk]) => {
@@ -146,9 +155,9 @@ watch(
 watch(cameraDistance, (newDistance) => {
   if (!isUpdatingCamera && camera.value && controlsRef.value && controlsRef.value.controls) {
     isUpdatingCamera = true
-    const newPosition = new THREE.Vector3()
+    const newPosition = new Vector3()
     const target = controlsRef.value.controls.target
-    const direction = new THREE.Vector3().subVectors(camera.value.position, target).normalize()
+    const direction = new Vector3().subVectors(camera.value.position, target).normalize()
     newPosition.copy(target).addScaledVector(direction, newDistance)
     camera.value.position.set(
       newPosition.x,
@@ -179,16 +188,16 @@ function lookAtMouse(mouseX: number, mouseY: number) {
   raycaster.setFromCamera(mouse, camera.value)
 
   // Create a plane in front of the camera
-  const cameraDirection = new THREE.Vector3()
+  const cameraDirection = new Vector3()
   camera.value.getWorldDirection(cameraDirection) // Get camera's forward direction
 
-  const plane = new THREE.Plane()
+  const plane = new Plane()
   plane.setFromNormalAndCoplanarPoint(
     cameraDirection,
     camera.value.position.clone().add(cameraDirection.multiplyScalar(1)), // 1 unit in front of the camera
   )
 
-  const intersection = new THREE.Vector3()
+  const intersection = new Vector3()
   raycaster.ray.intersectPlane(plane, intersection)
   lookAtTarget.value = { x: intersection.x, y: intersection.y, z: intersection.z }
 
@@ -239,28 +248,40 @@ defineExpose({
 
 <template>
   <div ref="vrmContainerRef" w="100%" h="100%">
-    <TresCanvas v-if="camera" v-show="sceneReady" :camera="camera" :antialias="true" :width="width" :height="height">
+    <TresCanvas
+      v-if="camera" v-show="sceneReady"
+      :camera="camera"
+      :antialias="true"
+      :width="width"
+      :height="height"
+      :tone-mapping="ACESFilmicToneMapping"
+      :tone-mapping-exposure="1"
+    >
       <OrbitControls ref="controlsRef" />
+      <TresAmbientLight
+        :color="formatHex(ambientLightColor)"
+        :intensity="ambientLightIntensity"
+        cast-shadow
+      />
       <TresHemisphereLight
-        :color="0xFFFFFF"
+        :color="formatHex(hemisphereSkyColor)"
+        :ground-color="formatHex(hemisphereGroundColor)"
         :position="[hemisphereLightPosition.x, hemisphereLightPosition.y, hemisphereLightPosition.z]"
         :intensity="hemisphereLightIntensity"
         cast-shadow
       />
       <TresDirectionalLight
-        ref="directionalLightRef"
-        :color="0xFFFFFF"
+        :color="formatHex(directionalLightColor)"
         :position="[directionalLightPosition.x, directionalLightPosition.y, directionalLightPosition.z]"
         :rotation="[directionalLightRotation.x, directionalLightRotation.y, directionalLightRotation.z]"
         :intensity="directionalLightIntensity"
         cast-shadow
       />
-      <DirectionalLightHelper :directional-light="directionalLightRef" />
-      <TresAmbientLight
-        :color="0xFFFFFF"
-        :intensity="ambientLightIntensity"
-        cast-shadow
-      />
+      <Suspense>
+        <EffectComposerPmndrs>
+          <HueSaturationPmndrs v-bind="effectProps" />
+        </EffectComposerPmndrs>
+      </Suspense>
       <VRMModel
         ref="modelRef"
         :model-src="props.modelSrc"

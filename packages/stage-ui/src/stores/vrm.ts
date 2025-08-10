@@ -43,19 +43,39 @@ export const useVRM = defineStore('vrm', () => {
   const cameraPosition = useLocalStorage('settings/vrm/camera-position', { x: 0, y: 0, z: -1 })
   const cameraDistance = useLocalStorage('settings/vrm/cameraDistance', 0)
 
-  const directionalLightPosition = useLocalStorage('settings/vrm/scenes/scene/directional-light/position', { x: 1, y: 1, z: -10 })
+  const directionalLightPosition = useLocalStorage('settings/vrm/scenes/scene/directional-light/position', { x: 0, y: 0, z: -10 })
   const directionalLightTarget = useLocalStorage('settings/vrm/scenes/scene/directional-light/target', { x: 0, y: 0, z: 0 })
   const directionalLightRotation = useLocalStorage('settings/vrm/scenes/scene/directional-light/rotation', { x: 0, y: 0, z: 0 })
-  const directionalLightIntensity = useLocalStorage('settings/vrm/scenes/scene/directional-light/intensity', 0.6)
-  const directionalLightColor = useLocalStorage('settings/vrm/scenes/scene/directional-light/color', '#FFFFFF')
+  // TODO: Manual directional light intensity will not work for other
+  //       scenes with different lighting setups. But since the model
+  //       is possible to have MeshToonMaterial, and MeshBasicMaterial
+  //       without envMap to be able to inherit lighting from HDRI map,
+  //       we will have to figure out a way to make this work to apply
+  //       different directional light and other lighting setups
+  //       for different environments.
+  // WORKAROUND: To achieve the rendering style of Warudo for anime style
+  //             Genshin Impact, or so called Cartoon style rendering with
+  //             harsh shadows and bright highlights.
+  // REVIEW: This is a temporary solution, and will be replaced with
+  //         a more flexible lighting system in the future.
+  const directionalLightIntensity = useLocalStorage('settings/vrm/scenes/scene/directional-light/intensity', 2.02)
+  // TODO: color are the same
+  const directionalLightColor = useLocalStorage('settings/vrm/scenes/scene/directional-light/color', '#fffbf5')
 
-  const hemisphereLightPosition = useLocalStorage('settings/vrm/scenes/scene/hemisphere-light/position', { x: 0, y: 1, z: 0 })
+  const hemisphereLightPosition = useLocalStorage('settings/vrm/scenes/scene/hemisphere-light/position', { x: 0, y: 0, z: 0 })
+  // TODO: color are the same
   const hemisphereSkyColor = useLocalStorage('settings/vrm/scenes/scene/hemisphere-light/sky-color', '#FFFFFF')
+  // TODO: color are the same
   const hemisphereGroundColor = useLocalStorage('settings/vrm/scenes/scene/hemisphere-light/ground-color', '#000000')
-  const hemisphereLightIntensity = useLocalStorage('settings/vrm/scenes/scene/hemisphere-light/intensity', 2.0)
+  // TODO: The same as directional light, this is a temporary solution
+  //       and will be replaced with a more flexible lighting system in the future.
+  const hemisphereLightIntensity = useLocalStorage('settings/vrm/scenes/scene/hemisphere-light/intensity', 0.4)
 
-  const ambientLightIntensity = useLocalStorage('settings/vrm/scenes/scene/ambient-light/intensity', 0.0)
+  // TODO: color are the same
   const ambientLightColor = useLocalStorage('settings/vrm/scenes/scene/ambient-light/color', '#FFFFFF')
+  // TODO: The same as directional light, this is a temporary solution
+  //       and will be replaced with a more flexible lighting system in the future.
+  const ambientLightIntensity = useLocalStorage('settings/vrm/scenes/scene/ambient-light/intensity', 0.6)
 
   const lookAtTarget = useLocalStorage('settings/vrm/lookAtTarget', { x: 0, y: 0, z: 0 })
   const isTracking = useLocalStorage('settings/vrm/isTracking', false)

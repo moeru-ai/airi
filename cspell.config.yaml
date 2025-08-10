@@ -1,4 +1,4 @@
-version: '0.2'
+version: "0.2"
 ignorePaths: []
 dictionaryDefinitions: []
 dictionaries: []
@@ -82,6 +82,7 @@ words:
   - DuckDBWASMQuery
   - eastasia
   - elevenlabs
+  - Equirectangular
   - esaxx
   - Factorio
   - feaxios
@@ -95,6 +96,7 @@ words:
   - gugi
   - guii
   - guiiai
+  - Hdri
   - hfspaceup
   - hfsup
   - hfup
@@ -198,6 +200,7 @@ words:
   - reka
   - Replayable
   - resampler
+  - RGBE
   - rlib
   - rmcp
   - rolldown
