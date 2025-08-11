@@ -43,7 +43,7 @@ export default defineConfig({
   description: rekaDescription,
   titleTemplate: rekaShortName,
   head: [
-    ['meta', { name: 'theme-color', content: '#00C38A' }],
+    ['meta', { name: 'theme-color', content: '#0b0d0f' }],
     ['link', { rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg', sizes: 'any' }],
     ['link', { rel: 'apple-touch-icon', href: '/apple-touch-icon.png', sizes: '180x180' }],
     ['meta', { name: 'apple-mobile-web-app-title', content: rekaName }],
@@ -66,6 +66,15 @@ export default defineConfig({
       'data-api': 'https://airi.moeru.ai/api/v1/page-external-data/submit',
       'src': 'https://airi.moeru.ai/remote-assets/page-external-data/js/script.js',
     }],
+    ['script', {}, `
+      ;(function () {
+        const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
+        const setting = localStorage.getItem('vueuse-color-scheme') || 'auto'
+        if (setting === 'light' || (prefersDark && setting !== 'dark')) {
+          document.querySelector('#themeColor')?.setAttribute('content', 'rgb(255,255,255)')
+        }
+      })()
+    `],
   ],
   base: env.BASE_URL || '/',
   lastUpdated: true,

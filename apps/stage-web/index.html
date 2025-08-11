@@ -14,7 +14,7 @@
         const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
         const setting = localStorage.getItem('vueuse-color-scheme') || 'auto'
         if (setting === 'light' || (prefersDark && setting !== 'dark'))
-          document.querySelector('#themeColor').setAttribute('content', 'rgb(255,255,255)')
+          document.querySelector('#themeColor')?.setAttribute('content', 'rgb(255,255,255)')
       })()
     </script>
     <script>

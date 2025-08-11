@@ -1017,6 +1017,9 @@ importers:
       '@fontsource/quicksand':
         specifier: ^5.2.8
         version: 5.2.8
+      '@moeru/std':
+        specifier: 'catalog:'
+        version: 0.1.0-beta.7
       '@proj-airi/chromatic':
         specifier: ^1.0.0
         version: 1.0.0
@@ -1026,6 +1029,9 @@ importers:
       '@vueuse/core':
         specifier: ^13.6.0
         version: 13.6.0(vue@3.5.18(typescript@5.9.2))
+      colorjs.io:
+        specifier: ^0.5.2
+        version: 0.5.2
       mark.js:
         specifier: ^8.11.1
         version: 8.11.1

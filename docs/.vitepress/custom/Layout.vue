@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { useScroll } from '@vueuse/core'
 import { TooltipProvider } from 'reka-ui'
-import { useData, withBase } from 'vitepress'
-import { computed, toRefs, watch } from 'vue'
+import { useData, useRoute, withBase } from 'vitepress'
+import { computed, onMounted, toRefs, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import Home from '../components/Home.vue'
@@ -11,7 +11,11 @@ import SearchTrigger from '../components/SearchTrigger.vue'
 import Docs from './Docs.vue'
 import Showcase from './Showcase.vue'
 
-const { site, theme, frontmatter, lang } = useData<{ logo: string }>()
+import { themeColorFromValue, useThemeColor } from '../composables/theme-color'
+
+const { site, theme, frontmatter, lang, isDark } = useData<{ logo: string }>()
+const route = useRoute()
+
 const { locale } = useI18n()
 const { arrivedState } = useScroll(globalThis.window)
 
@@ -20,6 +24,11 @@ const logo = computed(() => theme.value.logo)
 const title = computed(() => site.value.title)
 const layout = computed(() => frontmatter.value.layout)
 const isHome = computed(() => layout.value === 'home')
+
+const { updateThemeColor } = useThemeColor(themeColorFromValue({ light: 'rgb(255 255 255)', dark: 'rgb(18 18 18)' }))
+watch(isDark, () => updateThemeColor(), { immediate: true })
+watch(route, () => updateThemeColor(), { immediate: true })
+onMounted(() => updateThemeColor())
 
 watch(lang, () => locale.value = lang.value, { immediate: true })
 </script>
