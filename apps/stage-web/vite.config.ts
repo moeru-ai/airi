@@ -149,7 +149,7 @@ export default defineConfig({
     Download('https://dist.ayaka.moe/vrm-models/VRoid-Hub/AvatarSample-B/AvatarSample_B.vrm', 'AvatarSample_B.vrm', 'assets/vrm/models/AvatarSample-B'),
 
     // HuggingFace Spaces
-    LFS({ root: cwd(), extraGlobs: ['*.vrm', '.vrma', '*.cmo3', '*.png', '*.jpg', '*.jpeg', '*.gif', '*.webp', '*.bmp', '*.ttf'] }),
+    LFS({ root: cwd(), extraGlobs: ['*.vrm', '*.vrma', '*.cmo3', '*.png', '*.jpg', '*.jpeg', '*.gif', '*.webp', '*.bmp', '*.ttf'] }),
     SpaceCard({
       root: cwd(),
       title: 'AIRI: Virtual Companion',
