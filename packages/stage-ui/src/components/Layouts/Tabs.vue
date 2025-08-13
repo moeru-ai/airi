@@ -15,12 +15,10 @@ const props = withDefaults(defineProps<{
   tabs: TabItem[]
   theme?: ThemeVariant
   size?: 'xs' | 'sm' | 'md'
-  block?: boolean
   label?: string
 }>(), {
   theme: 'primary',
   size: 'sm',
-  block: false,
 })
 
 const emit = defineEmits<{
