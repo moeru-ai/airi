@@ -38,7 +38,7 @@ let _envRT: WebGLRenderTarget | null = null // WebGLRenderTarget from PMREM
 const { scene, renderer } = useTresContext()
 
 // Remove the sky box
-async function clearEnvironment() {
+function clearEnvironment() {
   const scn = scene.value as Scene | null
   if (!scn)
     return
