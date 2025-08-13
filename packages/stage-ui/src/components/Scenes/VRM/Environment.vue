@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { CanvasTexture, DataTexture, Scene, WebGLRenderer } from 'three'
+import type { CanvasTexture, DataTexture, Scene, WebGLRenderer, WebGLRenderTarget } from 'three'
 
 import { useTresContext } from '@tresjs/core'
 import {
@@ -33,7 +33,7 @@ const props = withDefaults(defineProps<{
 // Add these reactive variables to your setup
 const environment = ref<DataTexture | CanvasTexture>()
 let _pmrem: PMREMGenerator | null = null
-let _envRT: any = null // WebGLRenderTarget from PMREM
+let _envRT: WebGLRenderTarget | null = null // WebGLRenderTarget from PMREM
 
 const { scene, renderer } = useTresContext()
 
