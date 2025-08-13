@@ -6,7 +6,9 @@ import { formatHex } from 'culori'
 import { storeToRefs } from 'pinia'
 import { BlendFunction } from 'postprocessing'
 import { ACESFilmicToneMapping, PerspectiveCamera, Plane, Raycaster, Vector2, Vector3 } from 'three'
-import { onUnmounted, ref, shallowRef, watch } from 'vue'
+import { ref, shallowRef, watch } from 'vue'
+
+import Environment from './VRM/Environment.vue'
 
 import { useVRM } from '../../stores'
 import { OrbitControls, VRMModel } from '../Scenes'
@@ -46,6 +48,9 @@ const {
   hemisphereLightIntensity,
   hemisphereSkyColor,
   hemisphereGroundColor,
+
+  envSelect,
+  skyBoxSrc,
 } = storeToRefs(useVRM())
 
 const modelRef = ref<InstanceType<typeof VRMModel>>()
@@ -110,10 +115,6 @@ watch(() => controlsRef.value?.controls, (ctrl) => {
     }
 
     ctrl.addEventListener('change', updateCameraFromControls)
-
-    onUnmounted(() => {
-      ctrl.removeEventListener('change', updateCameraFromControls)
-    })
   }
 })
 
@@ -258,16 +259,22 @@ defineExpose({
       :tone-mapping-exposure="1"
     >
       <OrbitControls ref="controlsRef" />
-      <TresAmbientLight
-        :color="formatHex(ambientLightColor)"
-        :intensity="ambientLightIntensity"
-        cast-shadow
+      <Environment
+        v-if="envSelect === 'skyBox'"
+        :sky-box-src="skyBoxSrc"
+        :as-background="true"
       />
       <TresHemisphereLight
+        v-else
         :color="formatHex(hemisphereSkyColor)"
         :ground-color="formatHex(hemisphereGroundColor)"
         :position="[hemisphereLightPosition.x, hemisphereLightPosition.y, hemisphereLightPosition.z]"
         :intensity="hemisphereLightIntensity"
+        cast-shadow
+      />
+      <TresAmbientLight
+        :color="formatHex(ambientLightColor)"
+        :intensity="ambientLightIntensity"
         cast-shadow
       />
       <TresDirectionalLight

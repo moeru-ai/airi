@@ -206,6 +206,7 @@ async function loadModel() {
         if (child instanceof Mesh && child.material) {
           const material = Array.isArray(child.material) ? child.material : [child.material]
           material.forEach((mat) => {
+            // console.debug('material: ', mat)
             if (mat instanceof MeshStandardMaterial || mat instanceof MeshPhysicalMaterial) {
               // Should read envMap intensity from outside props
               mat.envMapIntensity = 1.0
@@ -273,8 +274,10 @@ watch(modelRotationY, (newRotationY) => {
     vrmGroup.value.rotation.y = MathUtils.degToRad(newRotationY)
   }
 })
-watch(modelSrcNormalized, (newSrc) => {
-  if (newSrc) {
+
+// watch if the model needs to be reloaded
+watch(modelSrcNormalized, (newSrc, oldSrc) => {
+  if (newSrc !== oldSrc) {
     loadModel()
   }
 })

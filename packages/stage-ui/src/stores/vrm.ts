@@ -4,6 +4,8 @@ import { useLocalStorage } from '@vueuse/core'
 import { defineStore } from 'pinia'
 import { computed, onMounted, ref } from 'vue'
 
+import defaultSkyBoxSrc from '../components/Scenes/Tres/assets/sky_linekotsi_23_HDRI.hdr?url'
+
 export const useVRM = defineStore('vrm', () => {
   const indexedDbModelFile = ref<File | null>(null)
 
@@ -82,7 +84,12 @@ export const useVRM = defineStore('vrm', () => {
   const trackingMode = useLocalStorage('settings/vrm/trackingMode', 'none' as 'camera' | 'mouse' | 'none')
   const eyeHeight = useLocalStorage('settings/vrm/eyeHeight', 0)
 
+  // environment related setting
+  const envSelect = useLocalStorage('settings/vrm/envEnabled', 'hemisphere' as 'hemisphere' | 'skyBox')
+  const skyBoxSrc = useLocalStorage('settings/vrm/skyBoxUrl', defaultSkyBoxSrc)
+
   return {
+    defaultModelUrl,
     modelFile,
     modelUrl,
     modelSize,
@@ -114,5 +121,9 @@ export const useVRM = defineStore('vrm', () => {
     isTracking,
     trackingMode,
     eyeHeight,
+
+    envSelect,
+    skyBoxSrc,
+
   }
 })
