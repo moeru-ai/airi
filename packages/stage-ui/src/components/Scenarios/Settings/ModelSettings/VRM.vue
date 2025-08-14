@@ -79,7 +79,6 @@ async function handleUrlLoad() {
   const raw = (modelUrl.value || '').trim()
   // If empty input, reset to default
   if (!raw) {
-    modelUrl.value = defaultModelUrl
     modelFile.value = null
     urlRef.value = defaultModelUrl
     return
