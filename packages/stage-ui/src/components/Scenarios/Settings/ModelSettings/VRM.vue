@@ -7,7 +7,7 @@ import { useI18n } from 'vue-i18n'
 
 import { useVRM } from '../../../../stores'
 import { Container, PropertyColor, PropertyNumber, PropertyPoint } from '../../../DataPane'
-import { Callout } from '../../../Layouts'
+import { Callout, Tabs } from '../../../Layouts'
 import { Button } from '../../../Misc'
 import { ColorPalette } from '../../../Widgets'
 
@@ -50,7 +50,10 @@ const {
   hemisphereLightIntensity,
   hemisphereSkyColor,
   hemisphereGroundColor,
+
+  envSelect,
 } = storeToRefs(vrm)
+const { defaultModelUrl } = vrm // 普通字符串
 
 const trackingOptions = computed(() => [
   { value: 'camera', label: t('settings.vrm.scale-and-position.eye-tracking-mode.options.option.camera'), class: 'col-start-3' },
@@ -72,12 +75,48 @@ const urlRef = computed({
   },
 })
 
-function handleUrlLoad() {
-  const parsedUrl = new URL(urlRef.value, 'https://example.com')
-  if (parsedUrl.origin === 'https://example.com') {
-    modelUrl.value = urlRef.value
+async function handleUrlLoad() {
+  const raw = (modelUrl.value || '').trim()
+  // If empty input, reset to default
+  if (!raw) {
+    modelFile.value = null
+    urlRef.value = defaultModelUrl
+    return
   }
+  // 3) parse URL
+  let parsedUrl: URL
+  try {
+    parsedUrl = new URL(raw, window.location.origin)
+  }
+  catch {
+    console.warn('Illegal URL input')
+    return
+  }
+  if (!['http:', 'https:', 'blob:', 'data:'].includes(parsedUrl.protocol))
+    return
+
+  modelUrl.value = parsedUrl.href
 }
+
+// switch between hemisphere light and sky box
+const tabList = [
+  {
+    value: 'hemisphere',
+    label: 'Hemisphere',
+    icon: {
+      idle: 'i-solar:forbidden-circle-linear rotate-45',
+      active: 'i-solar:forbidden-circle-bold rotate-45',
+    },
+  },
+  {
+    value: 'skyBox',
+    label: 'SkyBox',
+    icon: {
+      idle: 'i-solar:gallery-circle-linear',
+      active: 'i-solar:gallery-circle-bold',
+    },
+  },
+]
 </script>
 
 <template>
@@ -186,29 +225,42 @@ function handleUrlLoad() {
         v-model="ambientLightColor"
         label="Ambient Light Color"
       />
-
-      <PropertyPoint
-        v-model:x="hemisphereLightPosition.x"
-        v-model:y="hemisphereLightPosition.y"
-        v-model:z="hemisphereLightPosition.z"
-        label="Hemisphere Light Position"
-        :x-config="{ step: 0.001, label: 'X', formatValue: val => val?.toFixed(4) }"
-        :y-config="{ step: 0.001, label: 'Y', formatValue: val => val?.toFixed(4) }"
-        :z-config="{ step: 0.001, label: 'Z', formatValue: val => val?.toFixed(4) }"
-      />
-      <PropertyNumber
-        v-model="hemisphereLightIntensity"
-        :config="{ min: 0, max: 10, step: 0.01, label: 'Intensity' }"
-        label="Hemisphere Light Intensity"
-      />
-      <PropertyColor
-        v-model="hemisphereSkyColor"
-        label="Hemisphere Sky Color"
-      />
-      <PropertyColor
-        v-model="hemisphereGroundColor"
-        label="Hemisphere Ground Color"
-      />
+    </div>
+    <div>
+      <Tabs v-model="envSelect" :tabs="tabList" label="Environment">
+        <template #default>
+          <div v-if="envSelect === 'hemisphere'">
+            <!-- hemisphere settings -->
+            <div grid="~ cols-5 gap-1" p-2>
+              <PropertyPoint
+                v-model:x="hemisphereLightPosition.x"
+                v-model:y="hemisphereLightPosition.y"
+                v-model:z="hemisphereLightPosition.z"
+                label="Hemisphere Light Position"
+                :x-config="{ step: 0.001, label: 'X', formatValue: val => val?.toFixed(4) }"
+                :y-config="{ step: 0.001, label: 'Y', formatValue: val => val?.toFixed(4) }"
+                :z-config="{ step: 0.001, label: 'Z', formatValue: val => val?.toFixed(4) }"
+              />
+              <PropertyNumber
+                v-model="hemisphereLightIntensity"
+                :config="{ min: 0, max: 10, step: 0.01, label: 'Intensity' }"
+                label="Hemisphere Light Intensity"
+              />
+              <PropertyColor
+                v-model="hemisphereSkyColor"
+                label="Hemisphere Sky Color"
+              />
+              <PropertyColor
+                v-model="hemisphereGroundColor"
+                label="Hemisphere Ground Color"
+              />
+            </div>
+          </div>
+          <div v-else>
+            <!-- skybox settings -->
+          </div>
+        </template>
+      </Tabs>
     </div>
   </Container>
   <Container
