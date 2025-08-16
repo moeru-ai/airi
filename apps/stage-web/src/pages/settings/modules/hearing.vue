@@ -11,7 +11,7 @@ import { useI18n } from 'vue-i18n'
 
 import workletUrl from '../../../workers/vad/process.worklet?worker&url'
 
-import { createVAD, VADAudioManager } from '../../../workers/vad'
+import { createVAD, createVADStates } from '../../../workers/vad'
 
 const { t } = useI18n()
 
@@ -51,7 +51,7 @@ const speakingThreshold = ref(25) // 0-100 (for volume-based fallback)
 const monitorVolume = ref(50) // 0-100
 
 // VAD integration
-const vadManager = ref<VADAudioManager>()
+const vadManager = ref<ReturnType<typeof createVADStates>>()
 const isVADModelLoaded = ref(false)
 const isLoadingVADModel = ref(false)
 const useVADModel = ref(true) // Toggle between VAD and volume-based detection
@@ -120,7 +120,7 @@ async function loadVADModel() {
     })
 
     // Create and initialize audio manager
-    const manager = new VADAudioManager(vad, {
+    const manager = createVADStates(vad, workletUrl, {
       minChunkSize: 512,
       // NOTICE: VAD will have it's own audio context since
       // it needs special sample rate and latency settings
@@ -130,7 +130,7 @@ async function loadVADModel() {
       },
     })
 
-    await manager.initialize(workletUrl)
+    await manager.initialize()
     vadManager.value = manager
     isVADModelLoaded.value = true
   }

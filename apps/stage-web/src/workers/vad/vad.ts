@@ -1,48 +1,13 @@
 import type { PreTrainedModel } from '@huggingface/transformers'
+import type { BaseVAD, BaseVADConfig, VADEventCallback, VADEvents } from '@proj-airi/stage-ui/libs/audio/vad'
 
 import { AutoModel, Tensor } from '@huggingface/transformers'
-
-// Default configuration parameters
-export interface VADConfig {
-  // Sample rate of the audio
-  sampleRate: number
-  // Probabilities above this value are considered speech
-  speechThreshold: number
-  // Threshold to exit speech state
-  exitThreshold: number
-  // Minimum silence duration to consider speech ended (ms)
-  minSilenceDurationMs: number
-  // Padding to add before and after speech (ms)
-  speechPadMs: number
-  // Minimum duration of speech to consider valid (ms)
-  minSpeechDurationMs: number
-  // Maximum buffer duration in seconds
-  maxBufferDuration: number
-  // Size of input buffers from audio source
-  newBufferSize: number
-}
-
-export interface VADEvents {
-  // Emitted when speech is detected
-  'speech-start': void
-  // Emitted when speech has ended
-  'speech-end': void
-  // Emitted when a complete speech segment is ready for transcription
-  'speech-ready': { buffer: Float32Array, duration: number }
-  // Emitted for status updates and errors
-  'status': { type: string, message: string }
-  // Debug info
-  'debug': { message: string, data?: any }
-}
-
-export type VADEventCallback<K extends keyof VADEvents>
-  = (event: VADEvents[K]) => void
 
 /**
  * Voice Activity Detection processor
  */
-export class VAD {
-  private config: VADConfig
+export class VAD implements BaseVAD {
+  private config: BaseVADConfig
   private model: PreTrainedModel | undefined
   private state: Tensor
   private sampleRateTensor: Tensor
@@ -55,9 +20,9 @@ export class VAD {
   private eventListeners: Partial<Record<keyof VADEvents, VADEventCallback<any>[]>> = {}
   private isReady: boolean = false
 
-  constructor(userConfig: Partial<VADConfig> = {}) {
+  constructor(userConfig: Partial<BaseVADConfig> = {}) {
     // Default configuration
-    const defaultConfig: VADConfig = {
+    const defaultConfig: BaseVADConfig = {
       sampleRate: 16000,
       speechThreshold: 0.3,
       exitThreshold: 0.1,
@@ -290,7 +255,7 @@ export class VAD {
   /**
    * Update configuration
    */
-  public updateConfig(newConfig: Partial<VADConfig>): void {
+  public updateConfig(newConfig: Partial<BaseVADConfig>): void {
     this.config = { ...this.config, ...newConfig }
 
     // If buffer size changed, create a new buffer
@@ -325,7 +290,7 @@ export class VAD {
 /**
  * Create a VAD processor with the given configuration
  */
-export async function createVAD(config?: Partial<VADConfig>): Promise<VAD> {
+export async function createVAD(config?: Partial<BaseVADConfig>): Promise<VAD> {
   const vad = new VAD(config)
   await vad.initialize()
   return vad

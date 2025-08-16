@@ -1,28 +1,9 @@
+import type { BaseVAD, BaseVADConfig, VADEventCallback, VADEvents } from '@proj-airi/stage-ui/libs/audio/vad'
+
 import { invoke } from '../invoke'
 
-export interface VADConfig {
-  sampleRate: number
-  speechThreshold: number
-  exitThreshold: number
-  minSilenceDurationMs: number
-  speechPadMs: number
-  minSpeechDurationMs: number
-  maxBufferDuration: number
-  newBufferSize: number
-}
-
-export interface VADEvents {
-  'speech-start': void
-  'speech-end': void
-  'speech-ready': { buffer: Float32Array, duration: number }
-  'status': { type: string, message: string }
-  'debug': { message: string, data?: any }
-}
-
-export type VADEventCallback<K extends keyof VADEvents> = (event: VADEvents[K]) => void
-
-export class VAD {
-  private config: VADConfig
+export class VAD implements BaseVAD {
+  private config: BaseVADConfig
   private state: Float32Array = new Float32Array(2 * 1 * 128) // 2, 1, 128
   private buffer: Float32Array
   private bufferPointer: number = 0
@@ -33,8 +14,8 @@ export class VAD {
   private eventListeners: Partial<Record<keyof VADEvents, VADEventCallback<any>[]>> = {}
   private isReady: boolean = false
 
-  constructor(userConfig: Partial<VADConfig> = {}) {
-    const defaultConfig: VADConfig = {
+  constructor(userConfig: Partial<BaseVADConfig> = {}) {
+    const defaultConfig: BaseVADConfig = {
       sampleRate: 16000,
       speechThreshold: 0.3,
       exitThreshold: 0.1,
@@ -215,7 +196,7 @@ export class VAD {
     this.prevBuffers = []
   }
 
-  public updateConfig(newConfig: Partial<VADConfig>): void {
+  public updateConfig(newConfig: Partial<BaseVADConfig>): void {
     this.config = { ...this.config, ...newConfig }
 
     if (newConfig.maxBufferDuration || newConfig.sampleRate) {
@@ -229,7 +210,7 @@ export class VAD {
   }
 }
 
-export async function createVAD(config?: Partial<VADConfig>): Promise<VAD> {
+export async function createVAD(config?: Partial<BaseVADConfig>): Promise<VAD> {
   const vad = new VAD(config)
   await vad.initialize()
   return vad

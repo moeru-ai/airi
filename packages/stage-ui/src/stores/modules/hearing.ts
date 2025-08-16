@@ -7,7 +7,7 @@ import { computed, ref } from 'vue'
 
 import { useProvidersStore } from '../providers'
 
-export const useHearingStore = defineStore('hearing', () => {
+export const useHearingStore = defineStore('hearing-store', () => {
   const providersStore = useProvidersStore()
   const { allAudioTranscriptionProvidersMetadata } = storeToRefs(providersStore)
 

@@ -49,6 +49,7 @@
     "@xsai/generate-speech": "catalog:",
     "@xsai/generate-text": "catalog:",
     "@xsai/model": "catalog:",
+    "@xsai/shared": "catalog:",
     "@xsai/shared-chat": "catalog:",
     "@xsai/stream-text": "catalog:",
     "@xsai/utils-chat": "catalog:",
