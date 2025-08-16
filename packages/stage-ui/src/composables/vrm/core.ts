@@ -15,7 +15,13 @@ export async function loadVrm(model: string, options?: {
   scene?: Scene
   lookAt?: boolean
   onProgress?: (progress: ProgressEvent<EventTarget>) => void | Promise<void>
-}): Promise<{ _vrm: VRMCore, _vrmGroup: Group, modelCenter: Vector3, modelSize: Vector3, initialCameraOffset: Vector3 } | undefined> {
+}): Promise<{
+  _vrm: VRMCore
+  _vrmGroup: Group
+  modelCenter: Vector3
+  modelSize: Vector3
+  initialCameraOffset: Vector3
+} | undefined> {
   const loader = useVRMLoader()
   const gltf = await loader.loadAsync(model, progress => options?.onProgress?.(progress))
 

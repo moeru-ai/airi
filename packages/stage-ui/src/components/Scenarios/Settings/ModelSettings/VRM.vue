@@ -64,6 +64,7 @@ const trackingOptions = computed(() => [
 modelFileDialog.onChange((files) => {
   if (files && files.length > 0) {
     modelFile.value = files[0]
+    vrm.shouldUpdateView()
   }
 })
 

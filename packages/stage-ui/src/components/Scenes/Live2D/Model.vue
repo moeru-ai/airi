@@ -151,7 +151,12 @@ async function loadModel() {
   }
 
   const modelInstance = new Live2DModel<PixiLive2DInternalModel>()
-  await Live2DFactory.setupLive2DModel(modelInstance, modelSrcNormalized.value, { autoInteract: false })
+  if (modelFile.value) {
+    await Live2DFactory.setupLive2DModel(modelInstance, [modelFile.value], { autoInteract: false })
+  }
+  else {
+    await Live2DFactory.setupLive2DModel(modelInstance, modelSrcNormalized.value, { autoInteract: false })
+  }
 
   model.value = modelInstance
   pixiApp.value.stage.addChild(model.value)
@@ -270,7 +275,7 @@ function updateDropShadowFilter() {
 }
 
 watch([() => props.width, () => props.height], () => handleResize())
-watch(modelSrcNormalized, () => loadModel(), { immediate: true })
+watch(modelSrcNormalized, () => loadModel())
 watch(dark, updateDropShadowFilter, { immediate: true })
 watch([model, themeColorsHue], updateDropShadowFilter)
 watch(offset, setScaleAndPosition)

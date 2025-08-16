@@ -50,6 +50,7 @@ modelFileDialog.onChange((files) => {
     motionMap.value = {}
     modelFile.value = files[0]
     loadingModel.value = true
+    live2d.shouldUpdateView()
   }
 })
 
