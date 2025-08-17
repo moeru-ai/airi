@@ -27,7 +27,7 @@
 
 rustPlatform.buildRustPackage (final: {
   pname = "airi";
-  version = "0.7.0-beta.1";
+  version = "0.7.1";
 
   src = ./.;
 
