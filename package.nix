@@ -18,7 +18,9 @@
   nodejs,
   onnxruntime,
   openssl,
+  systemdLibs,
   webkitgtk_4_1,
+  xorg,
 
   debugBuild ? false,
 }:
@@ -29,12 +31,15 @@ rustPlatform.buildRustPackage (final: {
 
   src = ./.;
 
-  cargoLock.lockFile = ./Cargo.lock;
+  cargoLock = {
+    lockFile = ./Cargo.lock;
+    outputHashes."rdev-0.6.0" = "sha256-mGt44/kVo5EJO1Wf6MPLq0sZgwGTzuQjeVT6HxVzpQY=";
+  };
 
   pnpmDeps = pnpm.fetchDeps {
     inherit (final) pname version src;
     fetcherVersion = 1;
-    hash = "sha256-i4HEZM79g12xzxMDWXyVXWAu4DFnOqtE9aXTEON+uco="; # To update, set it to ""
+    hash = "sha256-XkSqDFiDUH3Z/bykyLcXLlFiIOGtHR/i1ZkErX0GuQk="; # To update, set it to ""
   };
 
   # Cache of assets downloaded during vite build
@@ -91,7 +96,9 @@ rustPlatform.buildRustPackage (final: {
     alsa-lib # Used by alsa-sys
     atk # Used by atk-sys
     libayatana-appindicator # Used by libappindicator-sys
+    systemdLibs # For libudev used by libudev-sys
     webkitgtk_4_1
+    xorg.libXtst # Used by x11
   ];
 
   configurePhase = ''

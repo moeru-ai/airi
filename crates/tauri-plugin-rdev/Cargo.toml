@@ -22,10 +22,15 @@ crate-type = [
 tauri = "2.3.1"
 tokio = { version = "1", features = [ "full" ] }
 anyhow = "1"
-rdev = { git = "https://github.com/Narsil/rdev", version = "0.6.0", features = ["serialize"] }
 serde = { version = "1.0.219", features = ["derive"] }
 serde_json = "1.0.142"
 log = "0.4.27"
+
+[target.'cfg(not(target_os = "linux"))'.dependencies]
+rdev = { git = "https://github.com/Narsil/rdev", version = "0.6.0", features = ["serialize"] }
+
+[target.'cfg(target_os = "linux")'.dependencies]
+rdev = { git = "https://github.com/Narsil/rdev", version = "0.6.0", features = ["serialize", "wayland", "x11"] }
 
 [build-dependencies]
 tauri-plugin = { version = "2.2", features = [ "build" ] }
