@@ -34,6 +34,10 @@
 
 > 深受 [Neuro-sama](https://www.youtube.com/@Neurosama) 启发
 
+> [!WARNING]
+> **注意：**
+> 我们**没有发行任何**与本项目关联的加密货币或代币，请注意判断资讯并谨慎行事。
+
 > [!NOTE]
 >
 > 我们有一个专门的组织 [@proj-airi](https://github.com/proj-airi) 用于所有从 Project AIRI 诞生的子项目，快来看看吧！
