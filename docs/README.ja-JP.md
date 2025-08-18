@@ -35,6 +35,10 @@
 
 > [Neuro-sama](https://www.youtube.com/@Neurosama) に大きな影響を受けました
 
+> [!WARNING]
+> **ご注意：**
+> 当プロジェクトでは、公式の暗号通貨やトークン等は**一切発行しておりません**。誤情報などにご注意ください。
+
 > [!NOTE]
 >
 > Project AIRIから生まれたすべてのサブプロジェクト用に、専用の組織[@proj-airi](https://github.com/proj-airi)があります。ぜひチェックしてみてください！
