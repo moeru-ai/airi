@@ -7,12 +7,25 @@ export default defineConfig({
     presetTypography({
       cssExtend: {
         'a': {
+          'color': '#7f8993',
           'text-decoration': 'underline',
           'text-decoration-style': 'dotted',
           'text-decoration-color': '#ced5e6',
+          'transition': 'color 0.2s ease-in-out',
+        },
+        'a:hover': {
+          '--primary': '207 62% 59%',
+          'color': 'hsl(var(--primary))',
         },
         '.dark a': {
+          'color': '#9ca0a4',
           'text-decoration-color': '#4b5056',
+        },
+        'code::before': {
+          content: 'normal',
+        },
+        'code::after': {
+          content: 'normal',
         },
       },
     }),
@@ -34,30 +47,6 @@ export default defineConfig({
         'sans-rounded': {
           name: 'Comfortaa Variable',
           provider: 'none',
-        },
-      },
-    }),
-    presetTypography({
-      cssExtend: {
-        'a': {
-          'text-decoration': 'none',
-          'font-weight': '600',
-          'border-bottom': '1px solid hsl(var(--primary))',
-        },
-        'a:hover': {
-          'border-bottom-width': '2px',
-        },
-        'code': {
-          'border': '1px solid hsl(var(--border))',
-          'border-radius': '0.375rem',
-          'padding': '0.25rem',
-          'line-height': '1rem',
-        },
-        'code::before': {
-          content: 'normal',
-        },
-        'code::after': {
-          content: 'normal',
         },
       },
     }),
