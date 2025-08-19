@@ -1,3 +1,6 @@
+import type { Preset } from 'unocss'
+
+import { presetChromatic } from '@proj-airi/unocss-preset-chromatic'
 import { blackA, cyan, grass, green, indigo, mauve, purple, red, slate, teal, violet } from '@radix-ui/colors'
 import { defineConfig, presetAttributify, presetIcons, presetTypography, presetWebFonts, presetWind3, transformerDirectives, transformerVariantGroup } from 'unocss'
 
@@ -7,10 +10,10 @@ export default defineConfig({
     presetTypography({
       cssExtend: {
         'a': {
-          'color': '#7f8993',
+          'color': '#223f5dff',
           'text-decoration': 'underline',
           'text-decoration-style': 'dotted',
-          'text-decoration-color': '#ced5e6',
+          'text-decoration-color': '#9fa4b1ff',
           'transition': 'color 0.2s ease-in-out',
         },
         'a:hover': {
@@ -51,6 +54,13 @@ export default defineConfig({
       },
     }),
     presetIcons(),
+    presetChromatic({
+      baseHue: 220.44,
+      colors: {
+        primary: 0,
+        complementary: 180,
+      },
+    }) as Preset,
   ],
   content: {
     filesystem: [

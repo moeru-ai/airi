@@ -106,8 +106,21 @@ export default defineConfig({
             icon: 'lucide:rocket',
             items: [
               { text: 'Introduction', link: withBase('/en/docs/overview/') },
-              { text: 'About AI VTuber', link: withBase('/en/docs/overview/about-ai-vtuber') },
-              { text: 'About Neuro-sama', link: withBase('/en/docs/overview/about-neuro-sama') },
+              {
+                text: 'Guide',
+                items: [
+                  {
+                    text: 'Guide to Desktop version',
+                    link: withBase('/en/docs/overview/guide/tamagotchi/'),
+                    items: [],
+                  },
+                  {
+                    text: 'Guide to Web version',
+                    link: withBase('/en/docs/overview/guide/web/'),
+                    items: [],
+                  },
+                ],
+              },
               {
                 text: 'Contributing',
                 items: [
@@ -121,6 +134,8 @@ export default defineConfig({
                   },
                 ],
               },
+              { text: 'About AI VTuber', link: withBase('/en/docs/overview/about-ai-vtuber') },
+              { text: 'About Neuro-sama', link: withBase('/en/docs/overview/about-neuro-sama') },
             ],
           },
           {
@@ -172,8 +187,21 @@ export default defineConfig({
             icon: 'lucide:rocket',
             items: [
               { text: '介绍', link: withBase('/zh-Hans/docs/overview/') },
-              { text: '有关 AI VTuber', link: withBase('/zh-Hans/docs/overview/about-ai-vtuber') },
-              { text: '有关 Neuro-sama', link: withBase('/zh-Hans/docs/overview/about-neuro-sama') },
+              {
+                text: '指南',
+                items: [
+                  {
+                    text: '桌面版上手指南',
+                    link: withBase('/zh-Hans/docs/overview/guide/tamagotchi/'),
+                    items: [],
+                  },
+                  {
+                    text: '网页版上手指南',
+                    link: withBase('/zh-Hans/docs/overview/guide/web/'),
+                    items: [],
+                  },
+                ],
+              },
               {
                 text: '参与贡献',
                 items: [
@@ -187,6 +215,8 @@ export default defineConfig({
                   },
                 ],
               },
+              { text: '有关 AI VTuber', link: withBase('/zh-Hans/docs/overview/about-ai-vtuber') },
+              { text: '有关 Neuro-sama', link: withBase('/zh-Hans/docs/overview/about-neuro-sama') },
             ],
           },
           {
