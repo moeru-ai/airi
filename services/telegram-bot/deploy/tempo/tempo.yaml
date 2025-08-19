@@ -14,6 +14,7 @@ query_frontend:
     duration_slo: 5s
 
 distributor:
+  max_attribute_bytes: 10485760
   receivers:
     otlp:
       protocols:
