@@ -15,7 +15,7 @@ catalog:
   '@xsai-ext/shared-providers': ^0.3.4
   '@xsai/embed': ^0.3.4
   '@xsai/generate-speech': ^0.3.4
-  '@xsai/generate-text': ^0.3.4
+  '@xsai/generate-text': 0.3.4
   '@xsai/generate-transcription': ^0.3.4
   '@xsai/model': ^0.3.4
   '@xsai/shared': ^0.3.4

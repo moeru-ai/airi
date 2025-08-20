@@ -27,11 +27,10 @@
     "dist",
     "package.json"
   ],
-  "scripts": {
-
-  },
+  "scripts": {},
   "dependencies": {
-
+    "@unbird/eventa": "^0.0.3",
+    "@xsai/generate-text": "catalog:"
   },
   "devDependencies": {
     "@moeru/std": "catalog:"
