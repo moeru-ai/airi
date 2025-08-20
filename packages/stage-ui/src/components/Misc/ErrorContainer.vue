@@ -12,7 +12,7 @@ defineProps<{
     <template #title>
       {{ title }}
     </template>
-    <template #content>
+    <template v-if="error" #content>
       <pre class="whitespace-pre-wrap break-all">{{ String(error) }}</pre>
     </template>
   </Alert>

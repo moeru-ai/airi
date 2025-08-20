@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { useConsciousnessStore, useProvidersStore } from '@proj-airi/stage-ui/stores'
 import { FieldInput } from '@proj-airi/ui'
 import { useDebounceFn } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
@@ -7,7 +6,9 @@ import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import onboardingLogo from '../../../../assets/onboarding.avif'
+import Alert from '../../../Misc/Alert.vue'
 
+import { useConsciousnessStore, useProvidersStore } from '../../../../stores'
 import { Callout } from '../../../Layouts'
 import { RadioCardDetail, RadioCardManySelect } from '../../../Menu'
 import { Button } from '../../../Misc'
@@ -149,13 +150,15 @@ async function validateConfiguration() {
 
     // Validate using provider's validator
     const metadata = providersStore.getProviderMetadata(selectedProvider.value.id)
-    isValid.value = await metadata.validators.validateProviderConfig(config)
+    const validationResult = await metadata.validators.validateProviderConfig(config)
+
+    isValid.value = validationResult.valid
 
     if (isValid.value) {
       validationMessage.value = t('settings.dialogs.onboarding.validationSuccess')
     }
     else {
-      validationMessage.value = t('settings.dialogs.onboarding.validationFailed')
+      validationMessage.value = validationResult.reason
     }
   }
   catch (error) {
@@ -228,7 +231,13 @@ async function handleFinishProviderConfiguration() {
 
   activeProvider.value = selectedProvider.value.id
   await nextTick()
-  await consciousnessStore.loadModelsForProvider(selectedProvider.value.id)
+
+  try {
+    await consciousnessStore.loadModelsForProvider(selectedProvider.value.id)
+  }
+  catch (err) {
+    console.error('error', err)
+  }
 
   handleNextStep()
 }
@@ -341,7 +350,7 @@ onMounted(() => {
             </h2>
             <div h-5 w-5 />
           </div>
-          <div v-if="selectedProvider" flex-1 overflow-y-auto>
+          <div v-if="selectedProvider" flex-1 overflow-y-auto space-y-4>
             <Callout label="Keep your API keys and credentials safe!" theme="violet">
               <div>
                 <div>
@@ -385,28 +394,16 @@ onMounted(() => {
             </div>
 
             <!-- Validation Status -->
-            <div v-if="validationMessage" class="mt-4">
-              <div
-                class="flex items-center rounded-lg p-3" :class="[
-                  isValidating
-                    ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
-                    : isValid
-                      ? 'bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-300'
-                      : 'bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-300',
-                ]"
-              >
-                <div
-                  class="mr-2 text-lg" :class="[
-                    isValidating
-                      ? 'i-svg-spinners:3-dots-fade'
-                      : isValid
-                        ? 'i-solar:check-circle-bold-duotone'
-                        : 'i-solar:danger-circle-bold-duotone',
-                  ]"
-                />
-                {{ validationMessage }}
-              </div>
-            </div>
+            <Alert v-if="validationMessage" type="error">
+              <template #title>
+                {{ t('settings.dialogs.onboarding.validationFailed') }}
+              </template>
+              <template v-if="validationMessage" #content>
+                <div class="whitespace-pre-wrap break-all">
+                  {{ validationMessage }}
+                </div>
+              </template>
+            </Alert>
           </div>
 
           <!-- Action Buttons -->

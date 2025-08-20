@@ -120,7 +120,15 @@ export interface ProviderMetadata {
     loadModel?: (config: Record<string, unknown>, hooks?: { onProgress?: (progress: ProgressInfo) => Promise<void> | void }) => Promise<void>
   }
   validators: {
-    validateProviderConfig: (config: Record<string, unknown>) => Promise<boolean> | boolean
+    validateProviderConfig: (config: Record<string, unknown>) => Promise<{
+      errors: unknown[]
+      reason: string
+      valid: boolean
+    }> | {
+      errors: unknown[]
+      reason: string
+      valid: boolean
+    }
   }
 }
 
@@ -204,7 +212,16 @@ export const useProvidersStore = defineStore('providers', () => {
       },
       validators: {
         validateProviderConfig: (config) => {
-          return !!config.apiKey && !!config.baseUrl
+          const errors = [
+            !config.apiKey && new Error('API key is required'),
+            !config.baseUrl && new Error('Base URL is required'),
+          ].filter(Boolean)
+
+          return {
+            errors,
+            reason: errors.filter(e => e).map(e => String(e)).join(', ') || '',
+            valid: !!config.apiKey && !!config.baseUrl,
+          }
         },
       },
     },
@@ -246,13 +263,19 @@ export const useProvidersStore = defineStore('providers', () => {
       },
       validators: {
         validateProviderConfig: (config) => {
-          if (!config.baseUrl)
-            return false
+          if (!config.baseUrl) {
+            return {
+              errors: [new Error('Base URL is required.')],
+              reason: 'Base URL is required. This is likely a bug, report to developers on https://github.com/moeru-ai/airi/issues.',
+              valid: false,
+            }
+          }
 
-          // Check if the Ollama server is reachable
-          return fetch(`${(config.baseUrl as string).trim()}models`)
-            .then(response => response.ok)
-            .catch(() => false)
+          return {
+            errors: [],
+            reason: '',
+            valid: true,
+          }
         },
       },
     },
@@ -294,13 +317,19 @@ export const useProvidersStore = defineStore('providers', () => {
       },
       validators: {
         validateProviderConfig: (config) => {
-          if (!config.baseUrl)
-            return false
+          if (!config.baseUrl) {
+            return {
+              errors: [new Error('Base URL is required.')],
+              reason: 'Base URL is required. This is likely a bug, report to developers on https://github.com/moeru-ai/airi/issues.',
+              valid: false,
+            }
+          }
 
-          // Check if the Ollama server is reachable
-          return fetch(`${(config.baseUrl as string).trim()}models`)
-            .then(response => response.ok)
-            .catch(() => false)
+          return {
+            errors: [],
+            reason: '',
+            valid: true,
+          }
         },
       },
     },
@@ -349,13 +378,19 @@ export const useProvidersStore = defineStore('providers', () => {
       },
       validators: {
         validateProviderConfig: (config) => {
-          if (!config.baseUrl)
-            return false
+          if (!config.baseUrl) {
+            return {
+              errors: [new Error('Base URL is required.')],
+              reason: 'Base URL is required. This is likely a bug, report to developers on https://github.com/moeru-ai/airi/issues.',
+              valid: false,
+            }
+          }
 
-          // Check if the Ollama server is reachable
-          return fetch(`${(config.baseUrl as string).trim()}models`)
-            .then(response => response.ok)
-            .catch(() => false)
+          return {
+            errors: [],
+            reason: '',
+            valid: true,
+          }
         },
       },
     },
@@ -404,13 +439,19 @@ export const useProvidersStore = defineStore('providers', () => {
       },
       validators: {
         validateProviderConfig: (config) => {
-          if (!config.baseUrl)
-            return false
+          if (!config.baseUrl) {
+            return {
+              errors: [new Error('Base URL is required.')],
+              reason: 'Base URL is required. This is likely a bug, report to developers on https://github.com/moeru-ai/airi/issues.',
+              valid: false,
+            }
+          }
 
-          // Check if the Ollama server is reachable
-          return fetch(`${(config.baseUrl as string).trim()}models`)
-            .then(response => response.ok)
-            .catch(() => false)
+          return {
+            errors: [],
+            reason: '',
+            valid: true,
+          }
         },
       },
     },
@@ -445,13 +486,34 @@ export const useProvidersStore = defineStore('providers', () => {
       },
       validators: {
         validateProviderConfig: (config) => {
-          if (!config.baseUrl)
-            return false
+          if (!config.baseUrl) {
+            return {
+              errors: [new Error('Base URL is required.')],
+              reason: 'Base URL is required. Default to http://localhost:11434/v1/ for Ollama.',
+              valid: false,
+            }
+          }
 
           // Check if the Ollama server is reachable
-          return fetch(`${(config.baseUrl as string).trim()}models`)
-            .then(response => response.ok)
-            .catch(() => false)
+          return fetch(`${(config.baseUrl as string).trim()}models`, { headers: (config.headers as HeadersInit) || undefined })
+            .then((response) => {
+              const errors = [
+                !response.ok && new Error(`Ollama server returned non-ok status code: ${response.statusText}`),
+              ].filter(Boolean)
+
+              return {
+                errors,
+                reason: errors.filter(e => e).map(e => String(e)).join(', ') || '',
+                valid: response.ok,
+              }
+            })
+            .catch((err) => {
+              return {
+                errors: [err],
+                reason: `Failed to reach Ollama server, error: ${String(err)} occurred.\n\nIf you are using Ollama locally, this is likely the CORS (Cross-Origin Resource Sharing) security issue, where you will need to set OLLAMA_ORIGINS=* or OLLAMA_ORIGINS=https://airi.moeru.ai,http://localhost environment variable before launching Ollama server to make this work.`,
+                valid: false,
+              }
+            })
         },
       },
     },
@@ -486,7 +548,34 @@ export const useProvidersStore = defineStore('providers', () => {
       },
       validators: {
         validateProviderConfig: (config) => {
-          return !!config.baseUrl
+          if (!config.baseUrl) {
+            return {
+              errors: [new Error('Base URL is required.')],
+              reason: 'Base URL is required. Default to http://localhost:11434/v1/ for Ollama.',
+              valid: false,
+            }
+          }
+
+          // Check if the Ollama server is reachable
+          return fetch(`${(config.baseUrl as string).trim()}models`, { headers: (config.headers as HeadersInit) || undefined })
+            .then((response) => {
+              const errors = [
+                !response.ok && new Error(`Ollama server returned non-ok status code: ${response.statusText}`),
+              ].filter(Boolean)
+
+              return {
+                errors,
+                reason: errors.filter(e => e).map(e => String(e)).join(', ') || '',
+                valid: response.ok,
+              }
+            })
+            .catch((err) => {
+              return {
+                errors: [err],
+                reason: `Failed to reach Ollama server, error: ${String(err)} occurred.\n\nIf you are using Ollama locally, this is likely the CORS (Cross-Origin Resource Sharing) security issue, where you will need to set OLLAMA_ORIGINS=* or OLLAMA_ORIGINS=https://airi.moeru.ai,http://localhost environment variable before launching Ollama server to make this work.`,
+                valid: false,
+              }
+            })
         },
       },
     },
@@ -550,7 +639,34 @@ export const useProvidersStore = defineStore('providers', () => {
       },
       validators: {
         validateProviderConfig: (config) => {
-          return !!config.baseUrl
+          if (!config.baseUrl) {
+            return {
+              errors: [new Error('Base URL is required.')],
+              reason: 'Base URL is required. Default to http://localhost:8000/v1/ for vLLM.',
+              valid: false,
+            }
+          }
+
+          // Check if the vLLM is reachable
+          return fetch(`${(config.baseUrl as string).trim()}models`, { headers: (config.headers as HeadersInit) || undefined })
+            .then((response) => {
+              const errors = [
+                !response.ok && new Error(`vLLM returned non-ok status code: ${response.statusText}`),
+              ].filter(Boolean)
+
+              return {
+                errors,
+                reason: errors.filter(e => e).map(e => String(e)).join(', ') || '',
+                valid: response.ok,
+              }
+            })
+            .catch((err) => {
+              return {
+                errors: [err],
+                reason: `Failed to reach vLLM, error: ${String(err)} occurred.`,
+                valid: false,
+              }
+            })
         },
       },
     },
@@ -585,7 +701,15 @@ export const useProvidersStore = defineStore('providers', () => {
       },
       validators: {
         validateProviderConfig: (config) => {
-          return !!config.apiKey && !!config.baseUrl
+          const errors = [
+            !config.baseUrl && new Error('Base URL is required. Default to https://api.openai.com/v1/ for official OpenAI API.'),
+          ].filter(Boolean)
+
+          return {
+            errors,
+            reason: errors.filter(e => e).map(e => String(e)).join(', ') || '',
+            valid: !!config.baseUrl,
+          }
         },
       },
     },
@@ -690,7 +814,15 @@ export const useProvidersStore = defineStore('providers', () => {
       },
       validators: {
         validateProviderConfig: (config) => {
-          return !!config.apiKey && !!config.baseUrl
+          const errors = [
+            !config.baseUrl && new Error('Base URL is required. Default to https://api.openai.com/v1/ for official OpenAI API.'),
+          ].filter(Boolean)
+
+          return {
+            errors,
+            reason: errors.filter(e => e).map(e => String(e)).join(', ') || '',
+            valid: !!config.baseUrl,
+          }
         },
       },
     },
@@ -725,7 +857,15 @@ export const useProvidersStore = defineStore('providers', () => {
       },
       validators: {
         validateProviderConfig: (config) => {
-          return !!config.apiKey && !!config.baseUrl
+          const errors = [
+            !config.baseUrl && new Error('Base URL is required. Default to https://api.openai.com/v1/ for official OpenAI API.'),
+          ].filter(Boolean)
+
+          return {
+            errors,
+            reason: errors.filter(e => e).map(e => String(e)).join(', ') || '',
+            valid: !!config.baseUrl,
+          }
         },
       },
     },
@@ -762,7 +902,19 @@ export const useProvidersStore = defineStore('providers', () => {
       },
       validators: {
         validateProviderConfig: (config) => {
-          return !!config.apiKey && !!config.resourceName && !!config.modelId
+          // return !!config.apiKey && !!config.resourceName && !!config.modelId
+
+          const errors = [
+            !config.apiKey && new Error('API key is required'),
+            !config.resourceName && new Error('Resource name is required'),
+            !config.modelId && new Error('Model ID is required'),
+          ]
+
+          return {
+            errors,
+            reason: errors.filter(e => e).map(e => String(e)).join(', ') || '',
+            valid: !!config.apiKey && !!config.resourceName && !!config.modelId,
+          }
         },
       },
     },
@@ -835,7 +987,16 @@ export const useProvidersStore = defineStore('providers', () => {
       },
       validators: {
         validateProviderConfig: (config) => {
-          return !!config.apiKey && !!config.baseUrl
+          const errors = [
+            !config.apiKey && new Error('API key is required.'),
+            !config.baseUrl && new Error('Base URL is required. Default to https://api.anthropic.com/v1/ for official Claude API with OpenAI compatibility.'),
+          ].filter(Boolean)
+
+          return {
+            errors,
+            reason: errors.filter(e => e).map(e => String(e)).join(', ') || '',
+            valid: !!config.apiKey && !!config.baseUrl,
+          }
         },
       },
     },
@@ -870,7 +1031,16 @@ export const useProvidersStore = defineStore('providers', () => {
       },
       validators: {
         validateProviderConfig: (config) => {
-          return !!config.apiKey && !!config.baseUrl
+          const errors = [
+            !config.apiKey && new Error('API key is required.'),
+            !config.baseUrl && new Error('Base URL is required. Default to https://generativelanguage.googleapis.com/v1beta/openai/ for official Google Gemini API with OpenAI compatibility.'),
+          ].filter(Boolean)
+
+          return {
+            errors,
+            reason: errors.filter(e => e).map(e => String(e)).join(', ') || '',
+            valid: !!config.apiKey && !!config.baseUrl,
+          }
         },
       },
     },
@@ -902,7 +1072,16 @@ export const useProvidersStore = defineStore('providers', () => {
       },
       validators: {
         validateProviderConfig: (config) => {
-          return !!config.apiKey && !!config.baseUrl
+          const errors = [
+            !config.apiKey && new Error('API key is required.'),
+            !config.baseUrl && new Error('Base URL is required.'),
+          ].filter(Boolean)
+
+          return {
+            errors,
+            reason: errors.filter(e => e).map(e => String(e)).join(', ') || '',
+            valid: !!config.apiKey && !!config.baseUrl,
+          }
         },
       },
     },
@@ -937,7 +1116,16 @@ export const useProvidersStore = defineStore('providers', () => {
       },
       validators: {
         validateProviderConfig: (config) => {
-          return !!config.apiKey && !!config.baseUrl
+          const errors = [
+            !config.apiKey && new Error('API key is required.'),
+            !config.baseUrl && new Error('Base URL is required.'),
+          ].filter(Boolean)
+
+          return {
+            errors,
+            reason: errors.filter(e => e).map(e => String(e)).join(', ') || '',
+            valid: !!config.apiKey && !!config.baseUrl,
+          }
         },
       },
     },
@@ -1008,7 +1196,16 @@ export const useProvidersStore = defineStore('providers', () => {
       },
       validators: {
         validateProviderConfig: (config) => {
-          return !!config.apiKey && !!config.baseUrl
+          const errors = [
+            !config.apiKey && new Error('API key is required.'),
+            !config.baseUrl && new Error('Base URL is required.'),
+          ].filter(Boolean)
+
+          return {
+            errors,
+            reason: errors.filter(e => e).map(e => String(e)).join(', ') || '',
+            valid: !!config.apiKey && !!config.baseUrl,
+          }
         },
       },
     },
@@ -1059,7 +1256,16 @@ export const useProvidersStore = defineStore('providers', () => {
       },
       validators: {
         validateProviderConfig: (config) => {
-          return !!config.apiKey && !!config.baseUrl
+          const errors = [
+            !config.apiKey && new Error('API key is required.'),
+            !config.baseUrl && new Error('Base URL is required.'),
+          ].filter(Boolean)
+
+          return {
+            errors,
+            reason: errors.filter(e => e).map(e => String(e)).join(', ') || '',
+            valid: !!config.apiKey && !!config.baseUrl,
+          }
         },
       },
     },
@@ -1108,7 +1314,15 @@ export const useProvidersStore = defineStore('providers', () => {
       },
       validators: {
         validateProviderConfig: (config) => {
-          return !!config.baseUrl
+          const errors = [
+            !config.baseUrl && new Error('Base URL is required. Default to http://localhost:11996/tts for Index-TTS.'),
+          ].filter(Boolean)
+
+          return {
+            errors,
+            reason: errors.filter(e => e).map(e => String(e)).join(', ') || '',
+            valid: !!config.baseUrl,
+          }
         },
       },
     },
@@ -1167,7 +1381,16 @@ export const useProvidersStore = defineStore('providers', () => {
       },
       validators: {
         validateProviderConfig: (config) => {
-          return !!config.apiKey && !!config.baseUrl
+          const errors = [
+            !config.apiKey && new Error('API key is required.'),
+            !config.baseUrl && new Error('Base URL is required.'),
+          ].filter(Boolean)
+
+          return {
+            errors,
+            reason: errors.filter(e => e).map(e => String(e)).join(', ') || '',
+            valid: !!config.apiKey && !!config.baseUrl,
+          }
         },
       },
     },
@@ -1218,7 +1441,17 @@ export const useProvidersStore = defineStore('providers', () => {
       },
       validators: {
         validateProviderConfig: (config) => {
-          return !!config.apiKey && !!config.baseUrl && !!config.app && !!(config.app as any).appId
+          const errors = [
+            !config.apiKey && new Error('API key is required.'),
+            !config.baseUrl && new Error('Base URL is required.'),
+            !((config.app as any)?.appId) && new Error('App ID is required.'),
+          ].filter(Boolean)
+
+          return {
+            errors,
+            reason: errors.filter(e => e).map(e => String(e)).join(', ') || '',
+            valid: !!config.apiKey && !!config.baseUrl && !!config.app && !!(config.app as any).appId,
+          }
         },
       },
     },
@@ -1250,7 +1483,16 @@ export const useProvidersStore = defineStore('providers', () => {
       },
       validators: {
         validateProviderConfig: (config) => {
-          return !!config.apiKey && !!config.baseUrl
+          const errors = [
+            !config.apiKey && new Error('API key is required.'),
+            !config.baseUrl && new Error('Base URL is required.'),
+          ].filter(Boolean)
+
+          return {
+            errors,
+            reason: errors.filter(e => e).map(e => String(e)).join(', ') || '',
+            valid: !!config.apiKey && !!config.baseUrl,
+          }
         },
       },
     },
@@ -1282,7 +1524,16 @@ export const useProvidersStore = defineStore('providers', () => {
       },
       validators: {
         validateProviderConfig: (config) => {
-          return !!config.apiKey && !!config.baseUrl
+          const errors = [
+            !config.apiKey && new Error('API key is required.'),
+            !config.baseUrl && new Error('Base URL is required.'),
+          ].filter(Boolean)
+
+          return {
+            errors,
+            reason: errors.filter(e => e).map(e => String(e)).join(', ') || '',
+            valid: !!config.apiKey && !!config.baseUrl,
+          }
         },
       },
     },
@@ -1314,7 +1565,16 @@ export const useProvidersStore = defineStore('providers', () => {
       },
       validators: {
         validateProviderConfig: (config) => {
-          return !!config.apiKey && !!config.baseUrl
+          const errors = [
+            !config.apiKey && new Error('API key is required.'),
+            !config.baseUrl && new Error('Base URL is required.'),
+          ].filter(Boolean)
+
+          return {
+            errors,
+            reason: errors.filter(e => e).map(e => String(e)).join(', ') || '',
+            valid: !!config.apiKey && !!config.baseUrl,
+          }
         },
       },
     },
@@ -1349,11 +1609,19 @@ export const useProvidersStore = defineStore('providers', () => {
       },
       validators: {
         validateProviderConfig: (config) => {
-          return !!config.apiKey && !!config.baseUrl
+          const errors = [
+            !config.apiKey && new Error('API key is required.'),
+            !config.baseUrl && new Error('Base URL is required.'),
+          ].filter(Boolean)
+
+          return {
+            errors,
+            reason: errors.filter(e => e).map(e => String(e)).join(', ') || '',
+            valid: !!config.apiKey && !!config.baseUrl,
+          }
         },
       },
     },
-
     'cloudflare-workers-ai': {
       id: 'cloudflare-workers-ai',
       category: 'chat',
@@ -1371,7 +1639,16 @@ export const useProvidersStore = defineStore('providers', () => {
       },
       validators: {
         validateProviderConfig: (config) => {
-          return !!config.apiKey && !!config.accountId
+          const errors = [
+            !config.apiKey && new Error('API key is required.'),
+            !config.accountId && new Error('Account ID is required.'),
+          ].filter(Boolean)
+
+          return {
+            errors,
+            reason: errors.filter(e => e).map(e => String(e)).join(', ') || '',
+            valid: !!config.apiKey && !!config.accountId,
+          }
         },
       },
     },
@@ -1431,7 +1708,16 @@ export const useProvidersStore = defineStore('providers', () => {
       },
       validators: {
         validateProviderConfig: (config) => {
-          return !!config.apiKey && !!config.baseUrl
+          const errors = [
+            !config.apiKey && new Error('API key is required.'),
+            !config.baseUrl && new Error('Base URL is required.'),
+          ].filter(Boolean)
+
+          return {
+            errors,
+            reason: errors.filter(e => e).map(e => String(e)).join(', ') || '',
+            valid: !!config.apiKey && !!config.baseUrl,
+          }
         },
       },
     },
@@ -1463,7 +1749,16 @@ export const useProvidersStore = defineStore('providers', () => {
       },
       validators: {
         validateProviderConfig: (config) => {
-          return !!config.apiKey && !!config.baseUrl
+          const errors = [
+            !config.apiKey && new Error('API key is required.'),
+            !config.baseUrl && new Error('Base URL is required.'),
+          ].filter(Boolean)
+
+          return {
+            errors,
+            reason: errors.filter(e => e).map(e => String(e)).join(', ') || '',
+            valid: !!config.apiKey && !!config.baseUrl,
+          }
         },
       },
     },
@@ -1495,7 +1790,16 @@ export const useProvidersStore = defineStore('providers', () => {
       },
       validators: {
         validateProviderConfig: (config) => {
-          return !!config.apiKey && !!config.baseUrl
+          const errors = [
+            !config.apiKey && new Error('API key is required.'),
+            !config.baseUrl && new Error('Base URL is required.'),
+          ].filter(Boolean)
+
+          return {
+            errors,
+            reason: errors.filter(e => e).map(e => String(e)).join(', ') || '',
+            valid: !!config.apiKey && !!config.baseUrl,
+          }
         },
       },
     },
@@ -1525,15 +1829,39 @@ export const useProvidersStore = defineStore('providers', () => {
       },
       validators: {
         validateProviderConfig: async (config) => {
-          // Check if the Ollama server is reachable
-          return !!config.baseUrl && await fetch(`${(config.baseUrl as string).endsWith('/') ? (config.baseUrl as string).slice(0, -1) : config.baseUrl}/health`, {
+          if (!config.baseUrl) {
+            return {
+              errors: [new Error('Base URL is required.')],
+              reason: 'Base URL is required. Default to http://localhost:4315/v1/',
+              valid: false,
+            }
+          }
+
+          // Check if the local running Player 2 is reachable
+          return await fetch(`${(config.baseUrl as string).endsWith('/') ? (config.baseUrl as string).slice(0, -1) : config.baseUrl}/health`, {
             method: 'GET',
             headers: {
               'player2-game-key': 'airi',
             },
           })
-            .then(response => response.ok)
-            .catch(() => false)
+            .then((response) => {
+              const errors = [
+                !response.ok && new Error(`Player 2 returned non-ok status code: ${response.statusText}`),
+              ].filter(Boolean)
+
+              return {
+                errors,
+                reason: errors.filter(e => e).map(e => String(e)).join(', ') || '',
+                valid: response.ok,
+              }
+            })
+            .catch((err) => {
+              return {
+                errors: [err],
+                reason: `Failed to reach Player 2, error: ${String(err)} occurred. If you do not have Player 2 running, please start it and try again.`,
+                valid: false,
+              }
+            })
         },
       },
     },
@@ -1606,7 +1934,19 @@ export const useProvidersStore = defineStore('providers', () => {
       },
       validators: {
         validateProviderConfig: (config: any) => {
-          return !!config.baseUrl
+          if (!config.baseUrl) {
+            return {
+              errors: [new Error('Base URL is required.')],
+              reason: 'Base URL is required. Default to http://localhost:4315/v1/',
+              valid: false,
+            }
+          }
+
+          return {
+            errors: [],
+            reason: '',
+            valid: true,
+          }
         },
       },
     },
@@ -1622,7 +1962,12 @@ export const useProvidersStore = defineStore('providers', () => {
     if (!metadata)
       return false
 
-    return await metadata.validators.validateProviderConfig(config)
+    const validationResult = await metadata.validators.validateProviderConfig(config)
+    if (!validationResult.valid) {
+      throw new Error(validationResult.reason)
+    }
+
+    return validationResult.valid
   }
 
   // Create computed properties for each provider's configuration status
@@ -1645,13 +1990,17 @@ export const useProvidersStore = defineStore('providers', () => {
   // Update configuration status for all providers
   async function updateConfigurationStatus() {
     await Promise.all(Object.keys(providerMetadata).map(async (providerId) => {
-      configuredProviders.value[providerId] = await validateProvider(providerId)
+      try {
+        configuredProviders.value[providerId] = await validateProvider(providerId)
+      }
+      catch {
+        configuredProviders.value[providerId] = false
+      }
     }))
   }
 
   // Call initially and watch for changes
-  updateConfigurationStatus()
-  watch(providerCredentials, updateConfigurationStatus, { deep: true })
+  watch(providerCredentials, updateConfigurationStatus, { deep: true, immediate: true })
 
   // Available providers (only those that are properly configured)
   const availableProviders = computed(() => Object.keys(providerMetadata).filter(providerId => configuredProviders.value[providerId]))
