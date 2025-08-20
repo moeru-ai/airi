@@ -1,5 +1,6 @@
 import type { AiriTamagotchiEvents } from '../composables/tauri'
 
+import { getCurrentWindow } from '@tauri-apps/api/window'
 import { defineStore } from 'pinia'
 import { onMounted, onUnmounted, ref } from 'vue'
 
@@ -24,6 +25,9 @@ export const useWindowControlStore = defineStore('windowControl', () => {
     }
 
     stopClickThrough()
+
+    const window = getCurrentWindow()
+    window.setFocus()
   }
 
   return {
