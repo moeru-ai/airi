@@ -394,7 +394,7 @@ onMounted(() => {
             </div>
 
             <!-- Validation Status -->
-            <Alert v-if="validationMessage" type="error">
+            <Alert v-if="!isValid && validationMessage" type="error">
               <template #title>
                 {{ t('settings.dialogs.onboarding.validationFailed') }}
               </template>
@@ -404,6 +404,24 @@ onMounted(() => {
                 </div>
               </template>
             </Alert>
+            <div v-if="(isValid || isValidating) && validationMessage" class="mt-4">
+              <div
+                class="flex items-center rounded-lg p-3" :class="[
+                  isValidating
+                    ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
+                    : 'bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-300',
+                ]"
+              >
+                <div
+                  class="mr-2 text-lg" :class="[
+                    isValidating
+                      ? 'i-svg-spinners:3-dots-fade'
+                      : 'i-solar:check-circle-bold-duotone',
+                  ]"
+                />
+                {{ validationMessage }}
+              </div>
+            </div>
           </div>
 
           <!-- Action Buttons -->
