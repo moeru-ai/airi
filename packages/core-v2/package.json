@@ -1,0 +1,39 @@
+{
+  "name": "@proj-airi/core-v2",
+  "type": "module",
+  "version": "0.7.1",
+  "description": "Core V2",
+  "author": {
+    "name": "Moeru AI Project AIRI Team",
+    "email": "airi@moeru.ai",
+    "url": "https://github.com/moeru-ai"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/moeru-ai/airi.git",
+    "directory": "packages/core-v2"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.mts",
+      "default": "./dist/index.mjs"
+    }
+  },
+  "main": "./dist/index.mjs",
+  "types": "./dist/index.d.mts",
+  "files": [
+    "README.md",
+    "dist",
+    "package.json"
+  ],
+  "scripts": {
+
+  },
+  "dependencies": {
+
+  },
+  "devDependencies": {
+    "@moeru/std": "catalog:"
+  }
+}

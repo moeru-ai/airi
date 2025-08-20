@@ -1164,6 +1164,12 @@ importers:
         specifier: ^1.0.6
         version: 1.0.6
 
+  packages/core-v2:
+    devDependencies:
+      '@moeru/std':
+        specifier: 'catalog:'
+        version: 0.1.0-beta.7
+
   packages/font-cjkfonts-allseto: {}
 
   packages/font-departure-mono: {}
