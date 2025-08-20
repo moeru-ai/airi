@@ -1,4 +1,4 @@
-import { desc, eq } from 'drizzle-orm'
+import { desc, eq, inArray } from 'drizzle-orm'
 
 import { useDrizzle } from '../db'
 import { recentSentStickersTable, stickersTable } from '../db/schema'
@@ -24,6 +24,15 @@ export async function findStickerByFileId(fileId: string) {
   }
 
   return sticker[0]
+}
+
+export async function findStickersByFileIds(fileIds: string[]) {
+  const stickers = await useDrizzle()
+    .select()
+    .from(stickersTable)
+    .where(inArray(stickersTable.file_id, fileIds))
+
+  return stickers
 }
 
 export async function recordSticker(stickerBase64: string, fileId: string, filePath: string, description: string, name: string, emoji: string, label: string) {

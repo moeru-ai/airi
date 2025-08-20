@@ -1,14 +1,20 @@
+import type { GenerateTextOptions } from '@xsai/generate-text'
 import type { Message } from 'grammy/types'
 
 import type { BotSelf } from '../../../types'
 
+import { env } from 'node:process'
+
 import { useLogg } from '@guiiai/logg'
 import { sleep } from '@moeru/std'
+import { generateText } from '@xsai/generate-text'
+import { message } from '@xsai/utils-chat'
 import { parse } from 'best-effort-json-parser'
 import { randomInt } from 'es-toolkit'
 
 import { recordMessage } from '../../../models'
 import { listJoinedChats } from '../../../models/chats'
+import { messageSplit } from '../../../prompts/prompts'
 import { cancellable } from '../../../utils/promise'
 
 export function parseMayStructuredMessage(responseText: string) {
@@ -28,11 +34,14 @@ export function parseMayStructuredMessage(responseText: string) {
   return { messages: [responseText], reply_to_message_id: undefined }
 }
 
-export async function sendMayStructuredMessage(
+export async function sendMessage(
   state: BotSelf,
   responseText: string,
   groupId: string,
+  abortController: AbortController,
 ) {
+  const logger = useLogg('imagineAnAction').useGlobalConfig()
+
   const chat = (await listJoinedChats()).find((chat) => {
     return chat.chat_id === groupId
   })
@@ -56,7 +65,37 @@ export async function sendMayStructuredMessage(
     return // Don't send the message, let the next processing loop handle it
   }
 
-  const structuredMessage = parseMayStructuredMessage(responseText)
+  const req = {
+    apiKey: env.LLM_API_KEY!,
+    baseURL: env.LLM_API_BASE_URL!,
+    model: env.LLM_MODEL!,
+    messages: message.messages(
+      message.system(await messageSplit()),
+      message.user('This is the input message:'),
+      message.user(responseText),
+    ),
+    abortSignal: abortController.signal,
+  } satisfies GenerateTextOptions
+  if (env.LLM_OLLAMA_DISABLE_THINK) {
+    (req as Record<string, unknown>).think = false
+  }
+
+  const res = await generateText(req)
+  res.text = res.text.replace(/<think>[\s\S]*?<\/think>/, '').trim()
+  if (!res.text) {
+    throw new Error('No response text')
+  }
+
+  logger.withFields({
+    messages: responseText,
+    response: res.text,
+    now: new Date().toLocaleString(),
+    totalTokens: res.usage.total_tokens,
+    promptTokens: res.usage.prompt_tokens,
+    completion_tokens: res.usage.completion_tokens,
+  }).log('Message split')
+
+  const structuredMessage = parseMayStructuredMessage(res.text)
   if (structuredMessage == null) {
     state.logger.log(`Not sending message to ${chatId} - no messages to send`)
     return
@@ -73,7 +112,12 @@ export async function sendMayStructuredMessage(
     }
 
     // Create cancellable typing and reply tasks
-    await state.bot.api.sendChatAction(chatId, 'typing')
+    try {
+      await state.bot.api.sendChatAction(chatId, 'typing')
+    }
+    catch {
+
+    }
     await sleep(item.length * 50)
 
     const replyTask = cancellable((async (): Promise<Message.TextMessage> => {

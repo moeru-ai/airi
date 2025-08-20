@@ -1,3 +1,4 @@
+import type { GenerateTextOptions } from '@xsai/generate-text'
 import type { Bot } from 'grammy'
 import type { Message, Sticker } from 'grammy/types'
 
@@ -40,7 +41,7 @@ export async function interpretSticker(bot: Bot, msg: Message, sticker: Sticker)
     const buffer = await stickerRes.arrayBuffer()
     const stickerBase64 = Buffer.from(await Sharp(buffer).resize(512, 512).png().toBuffer()).toString('base64')
 
-    const res = await generateText({
+    const req = {
       apiKey: env.LLM_VISION_API_KEY!,
       baseURL: env.LLM_VISION_API_BASE_URL!,
       model: env.LLM_VISION_MODEL!,
@@ -67,7 +68,16 @@ export async function interpretSticker(bot: Bot, msg: Message, sticker: Sticker)
         )),
         message.user([message.imagePart(`data:image/png;base64,${stickerBase64}`)]),
       ),
-    })
+    } satisfies GenerateTextOptions
+    if (env.LLM_OLLAMA_DISABLE_THINK) {
+      (req as Record<string, unknown>).think = false
+    }
+
+    const res = await generateText(req)
+    res.text = res.text.replace(/<think>[\s\S]*?<\/think>/, '').trim()
+    if (!res.text) {
+      throw new Error('No response text')
+    }
 
     // TODO: implement this for sticker searching
     const _embedRes = await embed({

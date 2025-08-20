@@ -86,7 +86,7 @@ export async function findLastNMessages(chatId: string, n: number) {
 
 export async function findRelevantMessages(botId: string, chatId: string, unreadHistoryMessagesEmbedding: { embedding: number[] }[], excludeMessageIds: string[] = []) {
   const db = useDrizzle()
-  const contextWindowSize = 10 // Number of messages to include before and after
+  const contextWindowSize = 5 // Number of messages to include before and after
   const logger = useLogg('findRelevantMessages').useGlobalConfig().withField('chatId', chatId)
 
   logger.withField('context_window_size', contextWindowSize).log('Querying relevant chat messages...')

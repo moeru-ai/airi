@@ -1,3 +1,4 @@
+import type { GenerateTextOptions } from '@xsai/generate-text'
 import type { Bot } from 'grammy'
 import type { Message, Sticker } from 'grammy/types'
 
@@ -104,7 +105,7 @@ export async function interpretAnimatedSticker(bot: Bot, msg: Message, sticker: 
     const frameDescriptions = []
     for (const frame of frames) {
       try {
-        const res = await generateText({
+        const req = {
           apiKey: env.LLM_VISION_API_KEY!,
           baseURL: env.LLM_VISION_API_BASE_URL!,
           model: env.LLM_VISION_MODEL!,
@@ -130,7 +131,16 @@ export async function interpretAnimatedSticker(bot: Bot, msg: Message, sticker: 
             )),
             message.user([message.imagePart(`data:image/png;base64,${frame.base64}`)]),
           ),
-        })
+        } satisfies GenerateTextOptions
+        if (env.LLM_OLLAMA_DISABLE_THINK) {
+          (req as Record<string, unknown>).think = false
+        }
+
+        const res = await generateText(req)
+        res.text = res.text.replace(/<think>[\s\S]*?<\/think>/, '').trim()
+        if (!res.text) {
+          throw new Error('No response text')
+        }
 
         frameDescriptions.push({
           frameNumber: frame.index + 1,
@@ -153,7 +163,7 @@ export async function interpretAnimatedSticker(bot: Bot, msg: Message, sticker: 
     // STAGE 2: Consolidate descriptions with a text-only LLM call
     logger.log('Consolidating frames')
 
-    const consolidatedResult = await generateText({
+    const req = {
       apiKey: env.LLM_API_KEY!, // Using text-only LLM API
       baseURL: env.LLM_API_BASE_URL!,
       model: env.LLM_MODEL!,
@@ -188,7 +198,12 @@ export async function interpretAnimatedSticker(bot: Bot, msg: Message, sticker: 
           ),
         ),
       ),
-    })
+    } satisfies GenerateTextOptions
+    if (env.LLM_OLLAMA_DISABLE_THINK) {
+      (req as Record<string, unknown>).think = false
+    }
+
+    const consolidatedResult = await generateText(req)
 
     // Clean up temp files
     await fs.rm(tempDir, { recursive: true, force: true })

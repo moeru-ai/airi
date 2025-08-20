@@ -24,7 +24,7 @@ export async function readMessage(
 }> {
   const logger = useLogg('readMessage').useGlobalConfig()
 
-  const lastNMessages = await findLastNMessages(action.chatId, 50)
+  const lastNMessages = await findLastNMessages(action.chatId, 30)
   const lastNMessagesOneliner = lastNMessages.map(msg => chatMessageToOneLine(botId, msg)).join('\n')
   logger.withField('number_of_last_n_messages', lastNMessages.length).log('Successfully found last N messages')
 

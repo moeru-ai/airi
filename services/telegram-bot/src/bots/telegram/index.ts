@@ -7,20 +7,21 @@ import type { BotSelf, ExtendedContext } from '../../types'
 import { env } from 'node:process'
 
 import { useLogg } from '@guiiai/logg'
+import { sleep } from '@moeru/std'
 import { message } from '@xsai/utils-chat'
 import { Bot } from 'grammy'
 
 import { imagineAnAction } from '../../llm/actions'
 import { interpretPhotos } from '../../llm/photo'
 import { interpretSticker } from '../../llm/sticker'
-import { findStickerByFileId, recordMessage } from '../../models'
+import { findStickerByFileId, findStickersByFileIds, recordMessage } from '../../models'
 import { listJoinedChats, recordJoinedChat } from '../../models/chats'
 import { listStickerPacks, recordStickerPack } from '../../models/sticker-packs'
-import { personality, systemTicking } from '../../prompts/system-v1'
+import { personality, systemTicking } from '../../prompts/prompts'
 import { div } from '../../prompts/utils'
 import { readMessage } from './loop/read-message'
 import { shouldInterruptProcessing } from './utils/interruption'
-import { sendMayStructuredMessage } from './utils/message'
+import { sendMessage } from './utils/message'
 
 async function handleLoopStep(state: BotSelf, msgs?: LLMMessage[], chatId?: string): Promise<() => Promise<any> | undefined> {
   // Set the start time when beginning new processing
@@ -45,11 +46,18 @@ async function handleLoopStep(state: BotSelf, msgs?: LLMMessage[], chatId?: stri
     msgs = [
       message.system(
         div(
-          personality().content,
-          systemTicking(),
+          (await personality()).content,
+          await systemTicking(),
         ),
       ),
     ]
+  }
+
+  if (msgs.length > 20) {
+    const length = msgs.length
+    // pick the latest 5
+    msgs = msgs.slice(-5)
+    msgs.push(message.user(`AIRI System: Approaching to system context limit, reducing... memory..., reduced from ${length} to ${msgs.length}, history may lost.`))
   }
 
   try {
@@ -61,6 +69,8 @@ async function handleLoopStep(state: BotSelf, msgs?: LLMMessage[], chatId?: stri
       return
     }
 
+    msgs.push(message.user(`You chose to ${action.action}, full action: ${JSON.stringify(action)}`))
+
     switch (action.action) {
       case 'list_stickers':
       {
@@ -68,10 +78,17 @@ async function handleLoopStep(state: BotSelf, msgs?: LLMMessage[], chatId?: stri
 
         const stickerPacks = await listStickerPacks()
         const stickerSets = await Promise.all(stickerPacks.map(s => state.bot.api.getStickerSet(s.platform_id)))
-        const stickerDescriptions = await Promise.all(stickerSets.map(s => Promise.all(s.stickers.map(sticker => findStickerByFileId(sticker.file_id)))))
-        const stickerDescriptionsOneliner = stickerDescriptions.map(d => d.map(s => `Sticker File ID: ${s.file_id}, Description: ${s.description}`).join('\n')).join('\n')
+        const stickersIds = stickerSets.flatMap(s => s.stickers.map(sticker => sticker.file_id))
+        const stickerDescriptions = await findStickersByFileIds(stickersIds)
+        const stickerDescriptionsOneliner = stickerDescriptions.map(d => `Sticker File ID: ${d.file_id}, Description: ${d.description}`)
 
-        msgs.push(message.user(`List of stickers:\n${stickerDescriptionsOneliner}`))
+        if (stickerDescriptionsOneliner.length === 0) {
+          msgs.push(message.user('AIRI SYSTEM: No stickers found in the current memory partition, preload of stickers is required, please ask for help.'))
+        }
+        else {
+          msgs.push(message.user(`List of stickers:\n${stickerDescriptionsOneliner}`))
+        }
+
         return () => handleLoopStep(state, msgs, chatId)
       }
       case 'send_sticker':
@@ -92,7 +109,7 @@ async function handleLoopStep(state: BotSelf, msgs?: LLMMessage[], chatId?: stri
         msgs.push(message.user(`Sending sticker ${action.fileId} with (${sticker.emoji} in set ${sticker.name}) to ${action.chatId}`))
         await state.bot.api.sendSticker(action.chatId, action.fileId)
 
-        break
+        return () => handleLoopStep(state, msgs, chatId)
       }
       case 'read_messages':
       {
@@ -107,6 +124,11 @@ async function handleLoopStep(state: BotSelf, msgs?: LLMMessage[], chatId?: stri
         }
 
         let unreadMessagesForThisChat: Message[] | undefined = state.unreadMessages[action.chatId]
+
+        const mentionedBy = unreadMessagesForThisChat.find(msg => msg.text?.includes(state.bot.botInfo.username) || msg.text?.includes(state.bot.botInfo.first_name))
+        if (mentionedBy) {
+          msgs.push(message.user(`AIRI System: You were mentioned in a message: ${mentionedBy.text} by ${mentionedBy.from?.first_name} (${mentionedBy.from?.username}), please respond as much as possible.`))
+        }
 
         // Modified interruption logic
         if (chatId && chatId === action.chatId
@@ -134,7 +156,7 @@ async function handleLoopStep(state: BotSelf, msgs?: LLMMessage[], chatId?: stri
 
           if (shouldInterrupt) {
             state.logger.withField('action', action).log(`Interrupting message processing for chat - new messages deemed more important`)
-            msgs.push(message.user(`Interrupting message processing for chat - new messages deemed more important`))
+            msgs.push(message.user(`AIRI System: Interrupting message processing for chat - new messages deemed more important`))
             return () => handleLoopStep(state, msgs, chatId)
           }
           else {
@@ -175,17 +197,18 @@ async function handleLoopStep(state: BotSelf, msgs?: LLMMessage[], chatId?: stri
         return () => handleLoopStep(state, msgs, chatId)
       case 'send_message':
         msgs.push(message.user(`Sending message to group ${action.chatId}: ${action.content}`))
-        await sendMayStructuredMessage(state, action.content, action.chatId)
+        await sendMessage(state, action.content, action.chatId, currentController)
         return () => handleLoopStep(state, msgs, chatId)
       case 'break':
         break
       case 'sleep':
-        break
+        await sleep(30 * 1000)
+        return () => handleLoopStep(state, msgs, chatId)
       case 'continue':
         return () => handleLoopStep(state, msgs, chatId)
       default:
-        msgs.push(message.user(`The action you sent ${action.action} haven't implemented yet by developer.`))
-        break
+        msgs.push(message.user(`AIRI System: The action you sent ${action.action} haven't implemented yet by developer.`))
+        return () => handleLoopStep(state, msgs, chatId)
     }
   }
   catch (err) {

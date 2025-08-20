@@ -1,3 +1,4 @@
+import type { GenerateTextOptions } from '@xsai/generate-text'
 import type { Message, PhotoSize } from 'grammy/types'
 
 import type { BotSelf } from '../types'
@@ -28,7 +29,7 @@ export async function interpretPhotos(state: BotSelf, msg: Message, photos: Phot
     const photoBase64s = pngResizedBuffers.map(buffer => Buffer.from(buffer).toString('base64'))
 
     await Promise.all(photoBase64s.map(async (base64, index) => {
-      const res = await generateText({
+      const req = {
         apiKey: env.LLM_VISION_API_KEY!,
         baseURL: env.LLM_VISION_API_BASE_URL!,
         model: env.LLM_VISION_MODEL!,
@@ -55,7 +56,16 @@ export async function interpretPhotos(state: BotSelf, msg: Message, photos: Phot
           ),
           message.user([message.imagePart(`data:image/png;base64,${base64}`)]),
         ),
-      })
+      } satisfies GenerateTextOptions
+      if (env.LLM_OLLAMA_DISABLE_THINK) {
+        (req as Record<string, unknown>).think = false
+      }
+
+      const res = await generateText(req)
+      res.text = res.text.replace(/<think>[\s\S]*?<\/think>/, '').trim()
+      if (!res.text) {
+        throw new Error('No response text')
+      }
 
       // TODO: implement this for photo searching
       const _embedRes = await embed({
