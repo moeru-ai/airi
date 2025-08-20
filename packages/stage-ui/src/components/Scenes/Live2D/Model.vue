@@ -4,7 +4,7 @@ import type { Cubism4InternalModel, InternalModel } from 'pixi-live2d-display/cu
 
 import localforage from 'localforage'
 
-import { breakpointsTailwind, useBreakpoints, useDark, useDebounceFn, useObjectUrl } from '@vueuse/core'
+import { breakpointsTailwind, until, useBreakpoints, useDark, useDebounceFn, useObjectUrl } from '@vueuse/core'
 import { formatHex } from 'culori'
 import { storeToRefs } from 'pinia'
 import { DropShadowFilter } from 'pixi-filters'
@@ -12,6 +12,7 @@ import { Live2DFactory, Live2DModel, MotionPriority } from 'pixi-live2d-display/
 import { computed, onMounted, onUnmounted, ref, shallowRef, toRef, watch } from 'vue'
 
 import { useLive2DIdleEyeFocus } from '../../../composables/live2d'
+import { Emotion, EmotionNeutralMotionName } from '../../../constants/emotions'
 import { useLive2d, useSettings } from '../../../stores'
 
 type CubismModel = Cubism4InternalModel['coreModel']
@@ -77,6 +78,8 @@ const modelSrcNormalized = computed(() => {
   return ''
 })
 
+const modelLoading = ref(false)
+
 const offset = computed(() => parsePropsOffset())
 
 const pixiApp = toRef(() => props.app)
@@ -124,9 +127,9 @@ function setScaleAndPosition() {
 
 const {
   modelFile,
-  loadingModel,
   currentMotion,
   availableMotions,
+  motionMap,
 } = storeToRefs(useLive2d())
 
 const {
@@ -137,8 +140,14 @@ const {
 const localCurrentMotion = ref<{ group: string, index: number }>({ group: 'Idle', index: 0 })
 
 async function loadModel() {
-  if (!pixiApp.value)
+  await until(modelLoading).not.toBeTruthy()
+
+  modelLoading.value = true
+
+  if (!pixiApp.value) {
+    modelLoading.value = false
     return
+  }
 
   if (model.value) {
     pixiApp.value.stage.removeChild(model.value)
@@ -147,72 +156,83 @@ async function loadModel() {
   }
   if (!modelSrcNormalized.value) {
     console.warn('No Live2D model source provided.')
+    modelLoading.value = false
     return
   }
 
-  const modelInstance = new Live2DModel<PixiLive2DInternalModel>()
-  if (modelFile.value) {
-    await Live2DFactory.setupLive2DModel(modelInstance, [modelFile.value], { autoInteract: false })
-  }
-  else {
-    await Live2DFactory.setupLive2DModel(modelInstance, modelSrcNormalized.value, { autoInteract: false })
-  }
+  try {
+    const modelInstance = new Live2DModel<PixiLive2DInternalModel>()
+    if (modelFile.value) {
+      await Live2DFactory.setupLive2DModel(modelInstance, [modelFile.value], { autoInteract: false })
+    }
+    else {
+      await Live2DFactory.setupLive2DModel(modelInstance, modelSrcNormalized.value, { autoInteract: false })
+    }
 
-  model.value = modelInstance
-  pixiApp.value.stage.addChild(model.value)
-  initialModelWidth.value = model.value.width
-  initialModelHeight.value = model.value.height
-  model.value.anchor.set(0.5, 0.5)
-  setScaleAndPosition()
-
-  model.value.on('hit', (hitAreas) => {
-    if (model.value && hitAreas.includes('body'))
-      model.value.motion('tap_body')
-  })
-
-  const internalModel = model.value.internalModel
-  const coreModel = internalModel.coreModel
-  const motionManager = internalModel.motionManager
-  coreModel.setParameterValueById('ParamMouthOpenY', mouthOpenSize.value)
-
-  availableMotions.value = Object.entries(motionManager.definitions).flatMap(([motionName, definition]) => {
-    if (!definition)
-      return []
-
-    return definition.map((motion: any, index: number) => ({
-      motionName,
-      motionIndex: index,
-      fileName: motion.File,
-    }))
-  }).filter(Boolean)
-
-  // Remove eye ball movements from idle motion group to prevent conflicts
-  // This is too hacky
-  // FIXME: it cannot blink if loading a model only have idle motion
-  if (motionManager.groups.idle) {
-    motionManager.motionGroups[motionManager.groups.idle]?.forEach((motion) => {
-      motion._motionData.curves.forEach((curve: any) => {
-        // TODO: After emotion mapper, stage editor, eye related parameters should be take cared to be dynamical instead of hardcoding
-        if (curve.id === 'ParamEyeBallX' || curve.id === 'ParamEyeBallY') {
-          curve.id = `_${curve.id}`
-        }
-      })
+    availableMotions.value.forEach((motion) => {
+      if (motion.motionName in Emotion) {
+        motionMap.value[motion.fileName] = motion.motionName
+      }
+      else {
+        motionMap.value[motion.fileName] = EmotionNeutralMotionName
+      }
     })
-  }
 
-  // This is hacky too
-  const hookedUpdate = motionManager.update as (model: CubismModel, now: number) => boolean
-  motionManager.update = function (model: CubismModel, now: number) {
-    lastUpdateTime.value = now
+    model.value = modelInstance
+    pixiApp.value.stage.addChild(model.value)
+    initialModelWidth.value = model.value.width
+    initialModelHeight.value = model.value.height
+    model.value.anchor.set(0.5, 0.5)
+    setScaleAndPosition()
 
-    hookedUpdate?.call(this, model, now)
-    // Possibility 1: Only update eye focus when the model is idle
-    // Possibility 2: For models having no motion groups, currentGroup will be undefined while groups can be { idle: ... }
-    if (!motionManager.state.currentGroup || motionManager.state.currentGroup === motionManager.groups.idle) {
-      idleEyeFocus.update(internalModel, now)
+    model.value.on('hit', (hitAreas) => {
+      if (model.value && hitAreas.includes('body'))
+        model.value.motion('tap_body')
+    })
 
-      // If the model has eye blink parameters
-      if (internalModel.eyeBlink != null) {
+    const internalModel = model.value.internalModel
+    const coreModel = internalModel.coreModel
+    const motionManager = internalModel.motionManager
+    coreModel.setParameterValueById('ParamMouthOpenY', mouthOpenSize.value)
+
+    availableMotions.value = Object.entries(motionManager.definitions).flatMap(([motionName, definition]) => {
+      if (!definition)
+        return []
+
+      return definition.map((motion: any, index: number) => ({
+        motionName,
+        motionIndex: index,
+        fileName: motion.File,
+      }))
+    }).filter(Boolean)
+
+    // Remove eye ball movements from idle motion group to prevent conflicts
+    // This is too hacky
+    // FIXME: it cannot blink if loading a model only have idle motion
+    if (motionManager.groups.idle) {
+      motionManager.motionGroups[motionManager.groups.idle]?.forEach((motion) => {
+        motion._motionData.curves.forEach((curve: any) => {
+        // TODO: After emotion mapper, stage editor, eye related parameters should be take cared to be dynamical instead of hardcoding
+          if (curve.id === 'ParamEyeBallX' || curve.id === 'ParamEyeBallY') {
+            curve.id = `_${curve.id}`
+          }
+        })
+      })
+    }
+
+    // This is hacky too
+    const hookedUpdate = motionManager.update as (model: CubismModel, now: number) => boolean
+    motionManager.update = function (model: CubismModel, now: number) {
+      lastUpdateTime.value = now
+
+      hookedUpdate?.call(this, model, now)
+      // Possibility 1: Only update eye focus when the model is idle
+      // Possibility 2: For models having no motion groups, currentGroup will be undefined while groups can be { idle: ... }
+      if (!motionManager.state.currentGroup || motionManager.state.currentGroup === motionManager.groups.idle) {
+        idleEyeFocus.update(internalModel, now)
+
+        // If the model has eye blink parameters
+        if (internalModel.eyeBlink != null) {
         // For the part of the auto eye blink implementation in pixi-live2d-display
         //
         // this.emit("beforeMotionUpdate");
@@ -233,27 +253,30 @@ async function loadModel() {
         // and previously a always `true` was returned, eye blink parameters were never updated.
         //
         // Thous we are here to manually update the eye blink parameters within this hooked method
-        internalModel.eyeBlink.updateParameters(model, (now - lastUpdateTime.value) / 1000)
+          internalModel.eyeBlink.updateParameters(model, (now - lastUpdateTime.value) / 1000)
+        }
+
+        // still, mark the motion as updated
+        return true
       }
 
-      // still, mark the motion as updated
-      return true
+      return false
     }
 
-    return false
+    motionManager.on('motionStart', (group, index) => {
+      localCurrentMotion.value = { group, index }
+    })
+
+    // save to indexdb
+    if (modelFile.value) {
+      await localforage.setItem('live2dModel', modelFile.value)
+    }
+
+    emits('modelLoaded')
   }
-
-  motionManager.on('motionStart', (group, index) => {
-    localCurrentMotion.value = { group, index }
-  })
-
-  // save to indexdb
-  if (modelFile.value) {
-    await localforage.setItem('live2dModel', modelFile.value)
+  finally {
+    modelLoading.value = false
   }
-
-  emits('modelLoaded')
-  loadingModel.value = false
 }
 
 async function setMotion(motionName: string, index?: number) {
@@ -275,7 +298,7 @@ function updateDropShadowFilter() {
 }
 
 watch([() => props.width, () => props.height], () => handleResize())
-watch(modelSrcNormalized, () => loadModel())
+watch(modelSrcNormalized, async () => await loadModel(), { immediate: true })
 watch(dark, updateDropShadowFilter, { immediate: true })
 watch([model, themeColorsHue], updateDropShadowFilter)
 watch(offset, setScaleAndPosition)
@@ -311,7 +334,6 @@ watch(focusAt, (value) => {
 })
 
 onMounted(async () => {
-  await loadModel()
   updateDropShadowFilter()
 })
 

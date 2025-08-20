@@ -147,14 +147,14 @@ onMounted(() => updateThemeColor())
     >
       <div relative h-full w-full pb-4 top="44px">
         <!-- Content -->
-        <div flex="~ col" mx-auto max-w-screen-xl>
+        <div flex="~ col" mx-auto max-w-screen-xl h="[calc(100dvh-44px-16px)]">
           <PageHeader
             :title="routeHeaderMetadata?.title"
             :subtitle="routeHeaderMetadata?.subtitle"
             :disable-back-button="route.path === '/settings'"
             top="44px!" px-4
           />
-          <div px-4>
+          <div h-full px-4>
             <RouterView />
           </div>
         </div>

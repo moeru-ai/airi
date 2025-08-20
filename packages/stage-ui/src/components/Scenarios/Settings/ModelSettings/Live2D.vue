@@ -5,10 +5,10 @@ import localforage from 'localforage'
 import { Checkbox, FieldRange, Input } from '@proj-airi/ui'
 import { useFileDialog, useObjectUrl } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { ref, watch } from 'vue'
+import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import { Emotion, EmotionNeutralMotionName } from '../../../../constants'
+import { Emotion } from '../../../../constants'
 import { useLive2d, useSettings } from '../../../../stores'
 import { Section } from '../../../Layouts'
 import { Button } from '../../../Misc'
@@ -36,7 +36,6 @@ const live2d = useLive2d()
 const {
   modelFile,
   motionMap,
-  loadingModel,
   availableMotions,
   modelUrl,
   currentMotion,
@@ -49,28 +48,8 @@ modelFileDialog.onChange((files) => {
   if (files && files.length > 0) {
     motionMap.value = {}
     modelFile.value = files[0]
-    loadingModel.value = true
     live2d.shouldUpdateView()
   }
-})
-
-watch(loadingModel, (value) => {
-  if (value) {
-    return
-  }
-
-  if (!modelFile.value) {
-    return
-  }
-
-  availableMotions.value.forEach((motion) => {
-    if (motion.motionName in Emotion) {
-      motionMap.value[motion.fileName] = motion.motionName
-    }
-    else {
-      motionMap.value[motion.fileName] = EmotionNeutralMotionName
-    }
-  })
 })
 
 async function patchMotionMap(source: File, motionMap: Record<string, string>): Promise<File> {
@@ -115,7 +94,6 @@ async function saveMotionMap() {
 
   const patchedFile = await patchMotionMap(fileFromIndexedDB, motionMap.value)
   modelFile.value = patchedFile
-  loadingModel.value = true
 }
 
 const exportObjectUrl = useObjectUrl(modelFile)
@@ -130,6 +108,8 @@ const exportObjectUrl = useObjectUrl(modelFile)
       'bg-white/80  dark:bg-black/75',
       'backdrop-blur-lg',
     ]"
+    size="sm"
+    :expand="false"
   >
     <Button variant="secondary" @click="$emit('switchToVRM')">
       {{ t('settings.live2d.switch-to-vrm.change-to-vrm') }}
@@ -144,6 +124,8 @@ const exportObjectUrl = useObjectUrl(modelFile)
       'bg-white/80  dark:bg-black/75',
       'backdrop-blur-lg',
     ]"
+    size="sm"
+    :expand="false"
   >
     <Button variant="secondary" @click="modelFileDialog.open()">
       {{ t('settings.live2d.change-model.from-file') }}...
@@ -151,7 +133,6 @@ const exportObjectUrl = useObjectUrl(modelFile)
     <div flex items-center gap-2>
       <Input
         v-model="localModelUrl"
-        :disabled="loadingModel"
         class="flex-1"
         :placeholder="t('settings.live2d.change-model.from-url-placeholder')"
       />
@@ -169,6 +150,8 @@ const exportObjectUrl = useObjectUrl(modelFile)
       'bg-white/80  dark:bg-black/75',
       'backdrop-blur-lg',
     ]"
+    size="sm"
+    :expand="false"
   >
     <ColorPalette class="mb-4 mt-2" :colors="palette.map(hex => ({ hex, name: hex }))" mx-auto />
     <Button variant="secondary" @click="$emit('extractColorsFromModel')">
@@ -184,6 +167,8 @@ const exportObjectUrl = useObjectUrl(modelFile)
       'bg-white/80  dark:bg-black/75',
       'backdrop-blur-lg',
     ]"
+    size="sm"
+    :expand="false"
   >
     <div v-for="motion in availableMotions" :key="motion.fileName" flex items-center justify-between text-sm>
       <span font-medium font-mono>{{ motion.fileName }}</span>
@@ -221,6 +206,8 @@ const exportObjectUrl = useObjectUrl(modelFile)
       'bg-white/80  dark:bg-black/75',
       'backdrop-blur-lg',
     ]"
+    size="sm"
+    :expand="false"
   >
     <FieldRange v-model="scale" as="div" :min="0.5" :max="2" :step="0.01" :label="t('settings.live2d.scale-and-position.scale')">
       <template #label>
@@ -261,6 +248,8 @@ const exportObjectUrl = useObjectUrl(modelFile)
       'bg-white/80  dark:bg-black/75',
       'backdrop-blur-lg',
     ]"
+    size="sm"
+    :expand="false"
   >
     <Checkbox
       v-model="live2dDisableFocus"

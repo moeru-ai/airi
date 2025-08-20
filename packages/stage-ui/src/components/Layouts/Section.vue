@@ -6,6 +6,7 @@ withDefaults(defineProps<{
   icon: string
   innerClass?: string
   expand?: boolean
+  size?: 'sm' | 'md'
 }>(), {
   expand: true,
 })
@@ -21,8 +22,8 @@ withDefaults(defineProps<{
         hover="bg-neutral-200 dark:bg-neutral-700"
         @click="slotProps.setVisible(!slotProps.visible)"
       >
-        <div flex items-center gap-1.5>
-          <div :class="icon" size-6 />
+        <div flex items-center gap-1.5 :class="[size === 'sm' ? 'text-xs 2xl:text-sm' : '']">
+          <div :class="[icon, size === 'sm' ? 'size-4' : 'size-6']" />
           {{ title }}
         </div>
         <div
@@ -32,7 +33,7 @@ withDefaults(defineProps<{
         />
       </button>
     </template>
-    <div grid gap-2 p-4 :class="innerClass">
+    <div grid gap-2 :class="[innerClass, size === 'sm' ? 'p-2' : 'p-4']">
       <slot />
     </div>
   </Collapsable>
