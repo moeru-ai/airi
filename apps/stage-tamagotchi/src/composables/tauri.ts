@@ -52,6 +52,11 @@ interface Events {
 }
 
 export interface AiriTamagotchiEvents extends Events {
+  // from main
+  'tauri-main:main:window-mode:fade-on-hover': true
+  'tauri-main:main:window-mode:move': true
+  'tauri-main:main:window-mode:resize': true
+
   // from tauri-plugin-window-pass-through-on-hover
   'tauri-plugins:tauri-plugin-window-pass-through-on-hover:cursor-position': Point
   'tauri-plugins:tauri-plugin-window-pass-through-on-hover:window-frame': WindowFrame

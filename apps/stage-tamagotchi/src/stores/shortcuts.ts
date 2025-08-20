@@ -77,8 +77,7 @@ export const useShortcutsStore = defineStore('shortcuts', () => {
       group: 'window',
       type: 'move',
       handle: async () => {
-        windowStore.setMode(WindowControlMode.MOVE)
-        windowStore.toggleControl()
+        windowStore.toggleMode(WindowControlMode.MOVE)
       },
     },
     {
@@ -87,8 +86,7 @@ export const useShortcutsStore = defineStore('shortcuts', () => {
       group: 'window',
       type: 'resize',
       handle: async () => {
-        windowStore.setMode(WindowControlMode.RESIZE)
-        windowStore.toggleControl()
+        windowStore.toggleMode(WindowControlMode.RESIZE)
       },
     },
     {

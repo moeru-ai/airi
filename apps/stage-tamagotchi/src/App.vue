@@ -3,7 +3,6 @@ import type { AiriTamagotchiEvents } from './composables/tauri'
 
 import { useMcpStore, useOnboardingStore, useSettings } from '@proj-airi/stage-ui/stores'
 import { Window } from '@tauri-apps/api/window'
-import { useEventListener } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -12,21 +11,16 @@ import { RouterView } from 'vue-router'
 import { commands } from './bindings/tauri-plugins/window-router-link'
 import { useAppRuntime } from './composables/runtime'
 import { useTauriEvent } from './composables/tauri'
-import { useWindowControlStore } from './stores/window-controls'
+import { useWindowMode } from './stores/window-controls'
 
+useWindowMode()
 const { language, themeColorsHue, themeColorsHueDynamic, allowVisibleOnAllWorkspaces } = storeToRefs(useSettings())
 const i18n = useI18n()
-const windowControlStore = useWindowControlStore()
 const mcpStore = useMcpStore()
 const onboardingStore = useOnboardingStore()
 const { shouldShowSetup } = storeToRefs(onboardingStore)
 const { platform } = useAppRuntime()
 const { listen } = useTauriEvent<AiriTamagotchiEvents>()
-
-useEventListener(window, 'resize', () => {
-  windowControlStore.size.width = window.innerWidth
-  windowControlStore.size.height = window.innerHeight
-})
 
 watch(language, () => {
   i18n.locale.value = language.value

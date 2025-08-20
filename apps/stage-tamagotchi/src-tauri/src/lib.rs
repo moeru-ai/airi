@@ -105,10 +105,27 @@ pub fn run() {
         ],
       )?;
 
+      let window_mode_fade_on_hover = MenuItem::with_id(app, "window-mode.fade-on-hover", "Fade On Hover", true, None::<&str>)?;
+      let window_mode_move = MenuItem::with_id(app, "window-mode.move", "Move", true, None::<&str>)?;
+      let window_mode_resize = MenuItem::with_id(app, "window-mode.resize", "Resize", true, None::<&str>)?;
+
+      let window_mode_sub_menu = Submenu::with_id_and_items(
+        app,
+        "window-mode",
+        "Window Mode",
+        true,
+        &[
+          &window_mode_fade_on_hover,
+          &window_mode_move,
+          &window_mode_resize,
+        ],
+      )?;
+
       let menu = Menu::with_items(
         app,
         &[
           &settings_item,
+          &window_mode_sub_menu,
           &position_sub_menu,
           &hide_item,
           &show_item,
@@ -141,6 +158,24 @@ pub fn run() {
             }
 
             app::windows::settings::new_settings_window(app, None).unwrap();
+          }
+          "window-mode.fade-on-hover" => {
+            let window = app.get_webview_window("main");
+            if let Some(window) = window {
+              window.emit("tauri-main:main:window-mode:fade-on-hover", true).map_err(|_| ()).unwrap();
+            }
+          }
+          "window-mode.move" => {
+            let window = app.get_webview_window("main");
+            if let Some(window) = window {
+              window.emit("tauri-main:main:window-mode:move", true).map_err(|_| ()).unwrap();
+            }
+          }
+          "window-mode.resize" => {
+            let window = app.get_webview_window("main");
+            if let Some(window) = window {
+              window.emit("tauri-main:main:window-mode:resize", true).map_err(|_| ()).unwrap();
+            }
           }
           "center" => {
             let _ = app.get_webview_window("main")
