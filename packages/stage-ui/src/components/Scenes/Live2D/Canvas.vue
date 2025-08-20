@@ -20,7 +20,7 @@ const pixiApp = ref<Application>()
 const pixiAppCanvas = ref<HTMLCanvasElement>()
 
 async function initLive2DPixiStage(parent: HTMLDivElement) {
-  pixiAppReady.value = true
+  pixiAppReady.value = false
 
   // https://guansss.github.io/pixi-live2d-display/#package-importing
   Live2DModel.registerTicker(Ticker)
