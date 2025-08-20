@@ -1,0 +1,50 @@
+doc:
+  outline:
+    title: En esta página
+  community:
+    title: Comunidad
+    edit:
+      title: Editar esta página
+    star-github:
+      title: Dar estrella en GitHub
+    discord:
+      title: Chatear en Discord
+    support:
+      title: Apoyar el proyecto
+  next-page:
+    title: Página siguiente
+  previous-page:
+    title: Página anterior
+home:
+  subtitle: >-
+    Recreando a Neuro-sama, un contenedor de almas de waifus de IA /
+    personajes virtuales para traerlos a nuestros mundos.
+  download:
+    title: Descargar
+  get-started:
+    title: Comenzar
+  try-live:
+    title: Probar en Vivo
+search:
+  title: Buscar
+  placeholder: Buscar documentación...
+navbar:
+  appearance:
+    title: Apariencia
+  language:
+    title: Idioma
+pages:
+  characters:
+    title: Personajes
+blog:
+  title: Blog y DevLogs
+  subtitle: Sigue nuestro viaje y obtén las últimas actualizaciones del equipo de desarrollo.
+  card:
+    post:
+      read-more:
+        title: Leer más
+  no-posts: No se encontraron publicaciones en esta categoría.
+  categories:
+    all: Todo
+    devlog: DevLog
+    dreamlog: DreamLog
