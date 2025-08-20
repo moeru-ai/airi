@@ -1,5 +1,6 @@
 import { env } from 'node:process'
 
+import { createContext, defineEventa } from '@unbird/eventa'
 import { generateText } from '@xsai/generate-text'
 
 export function pluginTranslate() {
@@ -9,6 +10,10 @@ export function pluginTranslate() {
 export function initPlugins() {
 
 }
+
+const ctx = createContext()
+const onMessageEvent = defineEventa<{ text: string }>('on-message')
+
 interface Req {
   text: string
 }
@@ -17,8 +22,34 @@ interface Res {
   text: string
 }
 
-const reqPlugins: ((req: Req) => Promise<Req>)[] = []
-const resPlugins: ((req: Req, res: Res) => Promise<Res>)[] = []
+type BeforeProcessFn = (req: Req) => void
+type AfterProcessFn = (req: Req, res: Res) => void
+
+type BeforeMiddlewareFn = (req: Req) => Promise<Req>
+
+type AfterMiddlewareFn = (req: Req, res: Res) => Promise<Res>
+
+const reqPlugins: BeforeProcessFn[] = []
+const resPlugins: AfterProcessFn[] = []
+
+const reqMiddlewares: BeforeMiddlewareFn[] = []
+const resMiddlewares: AfterMiddlewareFn[] = []
+
+export function addAfterProcessFn(plugin: AfterProcessFn) {
+  resPlugins.push(plugin)
+}
+
+export function addReqMiddleware(plugin: BeforeMiddlewareFn) {
+  reqMiddlewares.push(plugin)
+}
+
+export function addBeforeProcessFn(plugin: BeforeProcessFn) {
+  reqPlugins.push(plugin)
+}
+
+export function addResMiddleware(plugin: AfterMiddlewareFn) {
+  resMiddlewares.push(plugin)
+}
 
 async function beforeProcess(req: Req) {
   return await Promise.all(reqPlugins.map(plugin => plugin(req)))
@@ -27,9 +58,6 @@ async function beforeProcess(req: Req) {
 async function afterProcess(req: Req, res: Res) {
   return await Promise.all(resPlugins.map(plugin => plugin(req, res)))
 }
-
-const reqMiddlewares: ((req: Req) => Promise<Req>)[] = []
-const resMiddlewares: ((req: Req, res: Res) => Promise<Res>)[] = []
 
 export async function reqMiddleware(req: Req) {
   let result = req
@@ -75,3 +103,15 @@ export async function pipeline(req: Req) {
   await afterProcess(req, res)
   return await resMiddleware(req, res)
 }
+
+addAfterProcessFn((_, res) => {
+  ctx.emit(onMessageEvent, res)
+})
+
+// Another part
+ctx.on(onMessageEvent, (res) => {
+  // eslint-disable-next-line no-console
+  console.log(res.body.text)
+})
+
+pipeline({ text: 'Hello, world!' })
