@@ -48,6 +48,9 @@ function getElementStyle(element: HTMLElement) {
   }
 }
 
+let animation: Animation | null = null
+let lastElement: HTMLElement | null = null
+
 function prepareElement(element: HTMLElement, initialStyle: initialStyle) {
   const { width } = getComputedStyle(element)
   element.style.width = width
@@ -72,7 +75,8 @@ function animateTransition(
   keyframes: Keyframe[] | PropertyIndexedKeyframes | null,
   options?: number | KeyframeAnimationOptions,
 ) {
-  const animation = element.animate(keyframes, options)
+  lastElement = element
+  animation = element.animate(keyframes, options)
   // Set height to 'auto' to restore it after animation
   element.style.height = initialStyle.height
   animation.onfinish = () => {
@@ -106,9 +110,22 @@ function getEnterKeyframes(height: string, initialStyle: initialStyle) {
   ]
 }
 
+function cancelAnimation(HTMLElement: HTMLElement, overflow: string, done: () => void) {
+  if (HTMLElement !== lastElement) return false;
+  if (!animation) return false;
+  if (animation.playState !== 'running') return false;
+  animation.onfinish = () => {
+    HTMLElement.style.overflow = overflow;
+    done();
+  };
+  animation.reverse();
+  return true;
+}
+
 function enterTransition(element: Element, done: () => void) {
   const HTMLElement = element as HTMLElement
   const initialStyle = getElementStyle(HTMLElement)
+  if (cancelAnimation(HTMLElement, initialStyle.overflow, done)) return
   const height = prepareElement(HTMLElement, initialStyle)
   const keyframes = getEnterKeyframes(height, initialStyle)
   const options = { duration: props.duration, easing: props.easingEnter }
@@ -118,6 +135,7 @@ function enterTransition(element: Element, done: () => void) {
 function leaveTransition(element: Element, done: () => void) {
   const HTMLElement = element as HTMLElement
   const initialStyle = getElementStyle(HTMLElement)
+  if (cancelAnimation(HTMLElement, initialStyle.overflow, done)) return
   const { height } = getComputedStyle(HTMLElement)
   HTMLElement.style.height = height
   HTMLElement.style.overflow = 'hidden'
