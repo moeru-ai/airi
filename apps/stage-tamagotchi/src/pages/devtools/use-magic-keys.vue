@@ -16,9 +16,9 @@ const {
   s,
   v_u_e,
   u_s_e,
-  Shift_Alt_i,
-  Shift_Alt_r,
-  shift_Alt_n,
+  i_Shift_Alt,
+  a_Shift_Alt,
+  n_Shift_Alt,
   current,
 } = useMagicKeys({ target: eventTarget })
 const keys = computed(() => Array.from(current))
@@ -101,13 +101,13 @@ const Key = defineComponent({
       </div>
 
       <div class="mt-3 flex flex-col items-center gap-3">
-        <Key :value="Shift_Alt_i">
+        <Key :value="i_Shift_Alt">
           Shift + Alt + I
         </Key>
-        <Key :value="Shift_Alt_r">
-          Shift + Alt + R
+        <Key :value="a_Shift_Alt">
+          Shift + Alt + A
         </Key>
-        <Key :value="shift_Alt_n">
+        <Key :value="n_Shift_Alt">
           Shift + Alt + N
         </Key>
       </div>
