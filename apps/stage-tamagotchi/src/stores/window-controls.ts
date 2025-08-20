@@ -28,9 +28,6 @@ export const useWindowControlStore = defineStore('windowControl', () => {
     }
 
     stopClickThrough()
-
-    const window = getCurrentWindow()
-    window.setFocus()
   }
 
   return {

@@ -12,6 +12,36 @@ export function useTauriRdevEventTarget(): EventTarget {
   const { listen } = useTauriEvent<AiriTamagotchiEvents>()
 
   async function setup() {
+    window.addEventListener('keyup', (event) => {
+      event.preventDefault()
+      event.stopPropagation()
+
+      const e = new KeyboardEvent('keyup', {
+        key: event.key,
+        code: event.code,
+        metaKey: event.metaKey,
+        ctrlKey: event.ctrlKey,
+        altKey: event.altKey,
+        shiftKey: event.shiftKey,
+      })
+      eventTarget.dispatchEvent(e)
+    })
+
+    window.addEventListener('keydown', (event) => {
+      event.preventDefault()
+      event.stopPropagation()
+
+      const e = new KeyboardEvent('keydown', {
+        key: event.key,
+        code: event.code,
+        metaKey: event.metaKey,
+        ctrlKey: event.ctrlKey,
+        altKey: event.altKey,
+        shiftKey: event.shiftKey,
+      })
+      eventTarget.dispatchEvent(e)
+    })
+
     unListenFuncs.push(await listen('tauri-plugins:tauri-plugin-rdev:keyup', (event) => {
       if (typeof event.payload.event_type.KeyRelease === 'object' && 'Unknown' in event.payload.event_type.KeyRelease) {
         if (event.payload.event_type.KeyRelease.Unknown === 62) {
