@@ -10,7 +10,7 @@ operations:
   load-models-status:
     loading: Cargando
     ready: Listo
-select-a-audio-input: Select a audio input
+select-a-audio-input: Selecciona una entrada de audio
 select-a-model: Seleccionar Modelo
 select-a-voice: Elige una voz
 viewers:
