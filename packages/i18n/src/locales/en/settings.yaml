@@ -38,6 +38,7 @@ language:
     english: English
     en: English
     en-US: English (US)
+    es: Spanish
 live2d:
   change-model:
     from-file: Load from File
