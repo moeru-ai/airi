@@ -4,7 +4,7 @@ import type { Cubism4InternalModel, InternalModel } from 'pixi-live2d-display/cu
 
 import localforage from 'localforage'
 
-import { breakpointsTailwind, useBreakpoints, useDark, useDebounceFn, useObjectUrl, watchDebounced } from '@vueuse/core'
+import { breakpointsTailwind, useBreakpoints, useDark, useDebounceFn, useObjectUrl } from '@vueuse/core'
 import { formatHex } from 'culori'
 import { storeToRefs } from 'pinia'
 import { DropShadowFilter } from 'pixi-filters'
@@ -310,14 +310,10 @@ watch(focusAt, (value) => {
   model.value.focus(value.x, value.y)
 })
 
-watchDebounced(loadingModel, (value) => {
-  if (!value)
-    return
-
-  loadModel()
-}, { debounce: 1000 })
-
-onMounted(() => updateDropShadowFilter())
+onMounted(async () => {
+  await loadModel()
+  updateDropShadowFilter()
+})
 
 function componentCleanUp() {
   cancelAnimationFrame(dropShadowAnimationId.value)
