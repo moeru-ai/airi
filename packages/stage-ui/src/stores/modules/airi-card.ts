@@ -1,6 +1,7 @@
 import type { Card, ccv3 } from '@proj-airi/ccc'
 
 import { useLocalStorage } from '@vueuse/core'
+import { nanoid } from 'nanoid'
 import { defineStore, storeToRefs } from 'pinia'
 import { computed, onMounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -71,7 +72,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
   } = storeToRefs(speechStore)
 
   const addCard = (card: AiriCard | Card | ccv3.CharacterCardV3) => {
-    const newCardId = crypto.randomUUID()
+    const newCardId = nanoid()
     cards.value.set(newCardId, newAiriCard(card))
     return newCardId
   }
