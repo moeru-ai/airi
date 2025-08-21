@@ -116,7 +116,7 @@ onMounted(() => {
 
 function handleResetSettings() {
   providers.value[providerId] = {
-    ...(providerMetadata.value?.defaultOptions as any),
+    ...(providerMetadata.value?.defaultOptions?.() || {}),
   }
 }
 </script>
