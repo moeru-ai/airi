@@ -1,0 +1,2 @@
+ignore_patterns:
+  - packages/i18n/src/**
