@@ -83,7 +83,7 @@ You will discover that when hovering to the model, the Live2D model fade out / d
 and you cannot interact with it with cursor.
 
 <div rounded-lg overflow-hidden>
-  <video autoplay loop muted scale-150 translate-x--40>
+  <video autoplay loop muted class="scale-180 translate-x--30 translate-y--2 lg:scale-150 lg:translate-x--40">
     <source src="./assets/tutorial-basic-fade-on-hover.mp4" type="video/mp4">
   </video>
 </div>
@@ -121,7 +121,7 @@ You can toggle this feature through:
 3. Click **Fade on hover**
 
 <div rounded-lg overflow-hidden>
-  <video autoplay loop muted scale-180 translate-x--60 translate-y--40>
+  <video autoplay loop muted class="scale-200 translate-x--35 translate-y--23 lg:scale-180 lg:translate-x--60 lg:translate-y--40">
     <source src="./assets/tutorial-basic-disable-fade-on-hover.mp4" type="video/mp4">
   </video>
 </div>
@@ -137,7 +137,7 @@ You can customize the key mapping in [Settings] -> [General] -> [Shortcuts]
 <br />
 
 <div rounded-lg overflow-hidden>
-  <video autoplay loop muted scale-200 translate-x--80 translate-y--5>
+  <video autoplay loop muted class="scale-225 translate-x--45 translate-y--5 lg:scale-200 lg:translate-x--80 lg:translate-y--5">
     <source src="./assets/tutorial-basic-move.mp4" type="video/mp4">
   </video>
 </div>
@@ -153,7 +153,7 @@ You can customize the key mapping in [Settings] -> [General] -> [Shortcuts]
 <br />
 
 <div rounded-lg overflow-hidden>
-  <video autoplay loop muted scale-150 translate-x--40 translate-y-10>
+  <video autoplay loop muted class="scale-160 translate-x--20 lg:scale-150 lg:translate-x--40 lg:translate-y-10">
     <source src="./assets/tutorial-basic-resize.mp4" type="video/mp4">
   </video>
 </div>
