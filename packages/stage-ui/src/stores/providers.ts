@@ -678,7 +678,6 @@ export const useProvidersStore = defineStore('providers', () => {
       name: 'LM Studio',
       descriptionKey: 'settings.pages.providers.provider.lm-studio.description',
       description: 'lmstudio.ai',
-      icon: 'i-lobe-icons:lm-studio',
       defaultOptions: () => ({
         baseUrl: 'http://localhost:1234/v1/',
       }),
