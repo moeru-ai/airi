@@ -11,7 +11,7 @@ import {
 } from '@proj-airi/stage-ui/components'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores'
 import { storeToRefs } from 'pinia'
-import { computed, onMounted, watch } from 'vue'
+import { computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 
@@ -50,15 +50,6 @@ onMounted(() => {
   // Initialize refs with current values
   apiKey.value = providers.value[providerId]?.apiKey || ''
   baseUrl.value = providers.value[providerId]?.baseUrl || providerMetadata.value?.defaultOptions?.().baseUrl || ''
-})
-
-// Watch settings and update the provider configuration
-watch([apiKey, baseUrl], () => {
-  providers.value[providerId] = {
-    ...providers.value[providerId],
-    apiKey: apiKey.value,
-    baseUrl: baseUrl.value || providerMetadata.value?.defaultOptions?.().baseUrl || '',
-  }
 })
 
 function handleResetSettings() {
