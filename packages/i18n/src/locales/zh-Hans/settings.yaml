@@ -34,6 +34,7 @@ language:
     zh-CN: 中文
     en-US: English (US)
     en: English
+    es: Spanish
 live2d:
   change-model:
     from-file: 从文件加载

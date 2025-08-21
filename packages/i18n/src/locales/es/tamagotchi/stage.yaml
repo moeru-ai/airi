@@ -1,0 +1,10 @@
+operations:
+  load-models: Cargar Modelos
+  load-models-status:
+    loading: Cargando
+    ready: Listo
+docs:
+  theme:
+    navbar:
+      appearance:
+        title: Apariencia

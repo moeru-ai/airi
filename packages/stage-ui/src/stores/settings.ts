@@ -16,6 +16,10 @@ const languageRemap: Record<string, string> = {
   'en-GB': 'en',
   'en-AU': 'en',
   'en': 'en',
+  'es-ES': 'es',
+  'es-MX': 'es',
+  'es-AR': 'es',
+  'es': 'es',
 }
 
 export const DEFAULT_THEME_COLORS_HUE = 220.44
