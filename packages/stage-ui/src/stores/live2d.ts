@@ -2,7 +2,7 @@ import localforage from 'localforage'
 
 import { useBroadcastChannel, useLocalStorage } from '@vueuse/core'
 import { defineStore } from 'pinia'
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 
 type BroadcastChannelEvents
   = | BroadcastChannelEventShouldUpdateView
@@ -13,10 +13,11 @@ interface BroadcastChannelEventShouldUpdateView {
 
 export const useLive2d = defineStore('live2d', () => {
   const { post, data } = useBroadcastChannel<BroadcastChannelEvents, BroadcastChannelEvents>({ name: 'airi-stores-live2d' })
-  const shouldUpdateViewHooks = ref<Array<() => void>>([])
+  const shouldUpdateViewHooks = ref<Set<() => void>>(new Set())
 
   const onShouldUpdateView = (hook: () => void) => {
-    shouldUpdateViewHooks.value.push(hook)
+    shouldUpdateViewHooks.value.add(hook)
+    return () => shouldUpdateViewHooks.value.delete(hook)
   }
 
   function shouldUpdateView() {
@@ -25,22 +26,21 @@ export const useLive2d = defineStore('live2d', () => {
   }
 
   watch(data, (event) => {
-    if (event.type === 'should-update-view') {
+    if (event?.type === 'should-update-view') {
       shouldUpdateViewHooks.value.forEach(hook => hook())
+      void loadModelFileFromIndexedDb()
     }
   })
 
   const indexedDbModelFile = ref<File | null>(null)
 
-  onMounted(async () => await loadModelFileFromIndexedDb())
-  onShouldUpdateView(async () => await loadModelFileFromIndexedDb())
-
   async function loadModelFileFromIndexedDb() {
     const file = await localforage.getItem<File>('assets-models-live2d')
-    if (file) {
+    if (file && !indexedDbModelFile.value)
       indexedDbModelFile.value = file
-    }
   }
+
+  void loadModelFileFromIndexedDb()
 
   const modelFile = computed({
     get: () => {

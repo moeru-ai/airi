@@ -2,7 +2,7 @@ import localforage from 'localforage'
 
 import { useBroadcastChannel, useLocalStorage } from '@vueuse/core'
 import { defineStore } from 'pinia'
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 
 import defaultSkyBoxSrc from '../components/Scenes/Tres/assets/sky_linekotsi_23_HDRI.hdr?url'
 
@@ -15,10 +15,11 @@ interface BroadcastChannelEventShouldUpdateView {
 
 export const useVRM = defineStore('vrm', () => {
   const { post, data } = useBroadcastChannel<BroadcastChannelEvents, BroadcastChannelEvents>({ name: 'airi-stores-vrm' })
-  const shouldUpdateViewHooks = ref<Array<() => void | Promise<void>>>([])
+  const shouldUpdateViewHooks = ref<Set<() => void | Promise<void>>>(new Set())
 
   const onShouldUpdateView = (hook: () => void | Promise<void>) => {
-    shouldUpdateViewHooks.value.push(hook)
+    shouldUpdateViewHooks.value.add(hook)
+    return () => shouldUpdateViewHooks.value.delete(hook)
   }
 
   function shouldUpdateView() {
@@ -27,8 +28,9 @@ export const useVRM = defineStore('vrm', () => {
   }
 
   watch(data, (event) => {
-    if (event.type === 'should-update-view') {
+    if (event?.type === 'should-update-view') {
       shouldUpdateViewHooks.value.forEach(hook => hook())
+      void loadModelFileFromIndexedDb()
     }
   })
 
@@ -36,13 +38,11 @@ export const useVRM = defineStore('vrm', () => {
 
   async function loadModelFileFromIndexedDb() {
     const file = await localforage.getItem<File>('assets-models-vrm')
-    if (file) {
+    if (file && !indexedDbModelFile.value)
       indexedDbModelFile.value = file
-    }
   }
 
-  onMounted(async () => loadModelFileFromIndexedDb())
-  // onShouldUpdateView(() => loadModelFileFromIndexedDb())
+  void loadModelFileFromIndexedDb()
 
   const modelFile = computed({
     get: () => {

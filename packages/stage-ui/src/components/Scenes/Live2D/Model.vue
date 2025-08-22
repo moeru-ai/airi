@@ -339,7 +339,14 @@ onMounted(async () => {
 
 function componentCleanUp() {
   cancelAnimationFrame(dropShadowAnimationId.value)
-  model.value && pixiApp.value?.stage.removeChild(model.value)
+  if (model.value) {
+    pixiApp.value?.stage.removeChild(model.value)
+    try {
+      model.value.destroy({ children: true, texture: true, baseTexture: true })
+    }
+    catch {}
+    model.value = undefined
+  }
 }
 onUnmounted(() => {
   componentCleanUp()

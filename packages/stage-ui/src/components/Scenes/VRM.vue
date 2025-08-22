@@ -6,7 +6,7 @@ import { formatHex } from 'culori'
 import { storeToRefs } from 'pinia'
 import { BlendFunction } from 'postprocessing'
 import { ACESFilmicToneMapping, PerspectiveCamera, Plane, Raycaster, Vector2, Vector3 } from 'three'
-import { ref, shallowRef, watch } from 'vue'
+import { nextTick, ref, shallowRef, watch } from 'vue'
 
 import Environment from './VRM/Environment.vue'
 
@@ -87,7 +87,7 @@ watch(cameraFOV, (newFov) => {
 //   }
 // })
 // If controls are ready
-watch(() => controlsRef.value?.controls, (ctrl) => {
+watch(() => controlsRef.value?.controls, (ctrl, _prev, onInvalidate) => {
   if (ctrl && camera.value) {
     controlsReady.value = true
 
@@ -111,10 +111,13 @@ watch(() => controlsRef.value?.controls, (ctrl) => {
         cameraDistance.value = newDist
       }
 
-      isUpdatingCamera = false
+      requestAnimationFrame(() => {
+        isUpdatingCamera = false
+      })
     }
 
     ctrl.addEventListener('change', updateCameraFromControls)
+    onInvalidate(() => ctrl.removeEventListener('change', updateCameraFromControls))
   }
 })
 
@@ -145,7 +148,11 @@ watch(
         cameraDistance.value = controlsRef.value!.controls!.getDistance()
       }
       finally {
-        isUpdatingCamera = false
+        nextTick(() => {
+          requestAnimationFrame(() => {
+            isUpdatingCamera = false
+          })
+        })
         sceneReady.value = true
       }
     }
@@ -172,7 +179,9 @@ watch(cameraDistance, (newDistance) => {
       z: newPosition.z,
     }
   }
-  isUpdatingCamera = false
+  requestAnimationFrame(() => {
+    isUpdatingCamera = false
+  })
 })
 
 // Set looking target according to trackingMode
