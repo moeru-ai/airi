@@ -670,6 +670,79 @@ export const useProvidersStore = defineStore('providers', () => {
         },
       },
     },
+    'lm-studio': {
+      id: 'lm-studio',
+      category: 'chat',
+      tasks: ['text-generation'],
+      nameKey: 'settings.pages.providers.provider.lm-studio.title',
+      name: 'LM Studio',
+      descriptionKey: 'settings.pages.providers.provider.lm-studio.description',
+      description: 'lmstudio.ai',
+      icon: 'i-lobe-icons:lmstudio',
+      defaultOptions: () => ({
+        baseUrl: 'http://localhost:1234/v1/',
+      }),
+      createProvider: async config => createOpenAI('', (config.baseUrl as string).trim()),
+      capabilities: {
+        listModels: async (config) => {
+          try {
+            const response = await fetch(`${(config.baseUrl as string).trim()}models`, {
+              headers: (config.headers as HeadersInit) || undefined,
+            })
+
+            if (!response.ok) {
+              throw new Error(`LM Studio server returned non-ok status code: ${response.statusText}`)
+            }
+
+            const data = await response.json()
+            return data.data.map((model: any) => ({
+              id: model.id,
+              name: model.id,
+              provider: 'lm-studio',
+              description: model.description || '',
+              contextLength: model.context_length || 0,
+              deprecated: false,
+            })) satisfies ModelInfo[]
+          }
+          catch (error) {
+            console.error('Error fetching LM Studio models:', error)
+            return []
+          }
+        },
+      },
+      validators: {
+        validateProviderConfig: (config) => {
+          if (!config.baseUrl) {
+            return {
+              errors: [new Error('Base URL is required.')],
+              reason: 'Base URL is required. Default to http://localhost:1234/v1/ for LM Studio.',
+              valid: false,
+            }
+          }
+
+          // Check if the LM Studio server is reachable
+          return fetch(`${(config.baseUrl as string).trim()}models`, { headers: (config.headers as HeadersInit) || undefined })
+            .then((response) => {
+              const errors = [
+                !response.ok && new Error(`LM Studio server returned non-ok status code: ${response.statusText}`),
+              ].filter(Boolean)
+
+              return {
+                errors,
+                reason: errors.filter(e => e).map(e => String(e)).join(', ') || '',
+                valid: response.ok,
+              }
+            })
+            .catch((err) => {
+              return {
+                errors: [err],
+                reason: `Failed to reach LM Studio server, error: ${String(err)} occurred.\n\nMake sure LM Studio is running and the local server is started. You can start the local server in LM Studio by going to the 'Local Server' tab and clicking 'Start Server'.`,
+                valid: false,
+              }
+            })
+        },
+      },
+    },
     'openai': {
       id: 'openai',
       category: 'chat',

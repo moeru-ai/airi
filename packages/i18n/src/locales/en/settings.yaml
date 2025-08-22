@@ -441,6 +441,9 @@ pages:
       featherless:
         description: featherless.ai
         title: Featherless AI
+      lm-studio:
+        description: lmstudio.ai
+        title: LM Studio
       vllm:
         description: vllm.ai
         title: vLLM
