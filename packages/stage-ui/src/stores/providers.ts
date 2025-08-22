@@ -223,7 +223,7 @@ export const useProvidersStore = defineStore('providers', () => {
             !config.baseUrl && new Error('Base URL is required'),
           ].filter(Boolean)
 
-          if (!isAbsoluteUrl(config.baseUrl as string)) {
+          if (!!config.baseUrl && !isAbsoluteUrl(config.baseUrl as string)) {
             return notBaseUrlError.value
           }
 
@@ -727,7 +727,7 @@ export const useProvidersStore = defineStore('providers', () => {
             !config.baseUrl && new Error('Base URL is required. Default to https://api.openai.com/v1/ for official OpenAI API.'),
           ].filter(Boolean)
 
-          if (!isAbsoluteUrl(config.baseUrl as string)) {
+          if (!!config.baseUrl && !isAbsoluteUrl(config.baseUrl as string)) {
             return notBaseUrlError.value
           }
 
@@ -844,7 +844,7 @@ export const useProvidersStore = defineStore('providers', () => {
             !config.baseUrl && new Error('Base URL is required. Default to https://api.openai.com/v1/ for official OpenAI API.'),
           ].filter(Boolean)
 
-          if (!isAbsoluteUrl(config.baseUrl as string)) {
+          if (!!config.baseUrl && !isAbsoluteUrl(config.baseUrl as string)) {
             return notBaseUrlError.value
           }
 
@@ -891,7 +891,7 @@ export const useProvidersStore = defineStore('providers', () => {
             !config.baseUrl && new Error('Base URL is required. Default to https://api.openai.com/v1/ for official OpenAI API.'),
           ].filter(Boolean)
 
-          if (!isAbsoluteUrl(config.baseUrl as string)) {
+          if (!!config.baseUrl && !isAbsoluteUrl(config.baseUrl as string)) {
             return notBaseUrlError.value
           }
 
@@ -1026,7 +1026,7 @@ export const useProvidersStore = defineStore('providers', () => {
             !config.baseUrl && new Error('Base URL is required. Default to https://api.anthropic.com/v1/ for official Claude API with OpenAI compatibility.'),
           ].filter(Boolean)
 
-          if (!isAbsoluteUrl(config.baseUrl as string)) {
+          if (!!config.baseUrl && !isAbsoluteUrl(config.baseUrl as string)) {
             return notBaseUrlError.value
           }
 
@@ -1074,7 +1074,7 @@ export const useProvidersStore = defineStore('providers', () => {
             !config.baseUrl && new Error('Base URL is required. Default to https://generativelanguage.googleapis.com/v1beta/openai/ for official Google Gemini API with OpenAI compatibility.'),
           ].filter(Boolean)
 
-          if (!isAbsoluteUrl(config.baseUrl as string)) {
+          if (!!config.baseUrl && !isAbsoluteUrl(config.baseUrl as string)) {
             return notBaseUrlError.value
           }
 
@@ -1118,10 +1118,6 @@ export const useProvidersStore = defineStore('providers', () => {
             !config.apiKey && new Error('API key is required.'),
             !config.baseUrl && new Error('Base URL is required.'),
           ].filter(Boolean)
-
-          if (!isAbsoluteUrl(config.baseUrl as string)) {
-            return notBaseUrlError.value
-          }
 
           return {
             errors,
@@ -1167,7 +1163,7 @@ export const useProvidersStore = defineStore('providers', () => {
             !config.baseUrl && new Error('Base URL is required.'),
           ].filter(Boolean)
 
-          if (!isAbsoluteUrl(config.baseUrl as string)) {
+          if (!!config.baseUrl && !isAbsoluteUrl(config.baseUrl as string)) {
             return notBaseUrlError.value
           }
 
@@ -1251,7 +1247,7 @@ export const useProvidersStore = defineStore('providers', () => {
             !config.baseUrl && new Error('Base URL is required.'),
           ].filter(Boolean)
 
-          if (!isAbsoluteUrl(config.baseUrl as string)) {
+          if (!!config.baseUrl && !isAbsoluteUrl(config.baseUrl as string)) {
             return notBaseUrlError.value
           }
 
@@ -1315,7 +1311,7 @@ export const useProvidersStore = defineStore('providers', () => {
             !config.baseUrl && new Error('Base URL is required.'),
           ].filter(Boolean)
 
-          if (!isAbsoluteUrl(config.baseUrl as string)) {
+          if (!!config.baseUrl && !isAbsoluteUrl(config.baseUrl as string)) {
             return notBaseUrlError.value
           }
 
@@ -1376,7 +1372,7 @@ export const useProvidersStore = defineStore('providers', () => {
             !config.baseUrl && new Error('Base URL is required. Default to http://localhost:11996/tts for Index-TTS.'),
           ].filter(Boolean)
 
-          if (!isAbsoluteUrl(config.baseUrl as string)) {
+          if (!!config.baseUrl && !isAbsoluteUrl(config.baseUrl as string)) {
             return notBaseUrlError.value
           }
 
@@ -1448,7 +1444,7 @@ export const useProvidersStore = defineStore('providers', () => {
             !config.baseUrl && new Error('Base URL is required.'),
           ].filter(Boolean)
 
-          if (!isAbsoluteUrl(config.baseUrl as string)) {
+          if (!!config.baseUrl && !isAbsoluteUrl(config.baseUrl as string)) {
             return notBaseUrlError.value
           }
 
@@ -1513,7 +1509,7 @@ export const useProvidersStore = defineStore('providers', () => {
             !((config.app as any)?.appId) && new Error('App ID is required.'),
           ].filter(Boolean)
 
-          if (!isAbsoluteUrl(config.baseUrl as string)) {
+          if (!!config.baseUrl && !isAbsoluteUrl(config.baseUrl as string)) {
             return notBaseUrlError.value
           }
 
@@ -1558,10 +1554,6 @@ export const useProvidersStore = defineStore('providers', () => {
             !config.baseUrl && new Error('Base URL is required.'),
           ].filter(Boolean)
 
-          if (!isAbsoluteUrl(config.baseUrl as string)) {
-            return notBaseUrlError.value
-          }
-
           return {
             errors,
             reason: errors.filter(e => e).map(e => String(e)).join(', ') || '',
@@ -1603,10 +1595,6 @@ export const useProvidersStore = defineStore('providers', () => {
             !config.baseUrl && new Error('Base URL is required.'),
           ].filter(Boolean)
 
-          if (!isAbsoluteUrl(config.baseUrl as string)) {
-            return notBaseUrlError.value
-          }
-
           return {
             errors,
             reason: errors.filter(e => e).map(e => String(e)).join(', ') || '',
@@ -1647,10 +1635,6 @@ export const useProvidersStore = defineStore('providers', () => {
             !config.apiKey && new Error('API key is required.'),
             !config.baseUrl && new Error('Base URL is required.'),
           ].filter(Boolean)
-
-          if (!isAbsoluteUrl(config.baseUrl as string)) {
-            return notBaseUrlError.value
-          }
 
           return {
             errors,
@@ -1696,7 +1680,7 @@ export const useProvidersStore = defineStore('providers', () => {
             !config.baseUrl && new Error('Base URL is required.'),
           ].filter(Boolean)
 
-          if (!isAbsoluteUrl(config.baseUrl as string)) {
+          if (!!config.baseUrl && !isAbsoluteUrl(config.baseUrl as string)) {
             return notBaseUrlError.value
           }
 
@@ -1799,7 +1783,7 @@ export const useProvidersStore = defineStore('providers', () => {
             !config.baseUrl && new Error('Base URL is required.'),
           ].filter(Boolean)
 
-          if (!isAbsoluteUrl(config.baseUrl as string)) {
+          if (!!config.baseUrl && !isAbsoluteUrl(config.baseUrl as string)) {
             return notBaseUrlError.value
           }
 
@@ -1844,10 +1828,6 @@ export const useProvidersStore = defineStore('providers', () => {
             !config.baseUrl && new Error('Base URL is required.'),
           ].filter(Boolean)
 
-          if (!isAbsoluteUrl(config.baseUrl as string)) {
-            return notBaseUrlError.value
-          }
-
           return {
             errors,
             reason: errors.filter(e => e).map(e => String(e)).join(', ') || '',
@@ -1888,10 +1868,6 @@ export const useProvidersStore = defineStore('providers', () => {
             !config.apiKey && new Error('API key is required.'),
             !config.baseUrl && new Error('Base URL is required.'),
           ].filter(Boolean)
-
-          if (!isAbsoluteUrl(config.baseUrl as string)) {
-            return notBaseUrlError.value
-          }
 
           return {
             errors,
