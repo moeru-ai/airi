@@ -18,7 +18,7 @@ dialogs:
     baseUrlHelp: API endpoint URL (use default if unsure)
     accountId: Account ID
     validating: Validating configuration...
-    validationSuccess: Server has response, Configuration may valid.
+    validationSuccess: First configuration validated successful.
     validationFailed: Configuration validation failed
     validationError: 'Validation error: {error}'
     skipForNow: Skip for now
