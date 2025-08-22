@@ -48,6 +48,7 @@ import {
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import { isAbsoluteUrl } from '../utils/string'
 import { models as elevenLabsModels } from './providers/elevenlabs/list-models'
 
 export interface ProviderMetadata {
@@ -159,6 +160,11 @@ export interface VoiceInfo {
 export const useProvidersStore = defineStore('providers', () => {
   const providerCredentials = useLocalStorage<Record<string, Record<string, unknown>>>('settings/credentials/providers', {})
   const { t } = useI18n()
+  const notBaseUrlError = computed(() => ({
+    errors: [new Error('Base URL is not absolute')],
+    reason: 'Base URL is not absolute. Check your input.',
+    valid: false,
+  }))
 
   // Helper function to fetch OpenRouter models manually
   async function fetchOpenRouterModels(config: Record<string, unknown>): Promise<ModelInfo[]> {
@@ -216,6 +222,10 @@ export const useProvidersStore = defineStore('providers', () => {
             !config.apiKey && new Error('API key is required'),
             !config.baseUrl && new Error('Base URL is required'),
           ].filter(Boolean)
+
+          if (!!config.baseUrl && !isAbsoluteUrl(config.baseUrl as string)) {
+            return notBaseUrlError.value
+          }
 
           return {
             errors,
@@ -494,6 +504,10 @@ export const useProvidersStore = defineStore('providers', () => {
             }
           }
 
+          if (!isAbsoluteUrl(config.baseUrl as string)) {
+            return notBaseUrlError.value
+          }
+
           // Check if the Ollama server is reachable
           return fetch(`${(config.baseUrl as string).trim()}models`, { headers: (config.headers as HeadersInit) || undefined })
             .then((response) => {
@@ -554,6 +568,10 @@ export const useProvidersStore = defineStore('providers', () => {
               reason: 'Base URL is required. Default to http://localhost:11434/v1/ for Ollama.',
               valid: false,
             }
+          }
+
+          if (!isAbsoluteUrl(config.baseUrl as string)) {
+            return notBaseUrlError.value
           }
 
           // Check if the Ollama server is reachable
@@ -645,6 +663,10 @@ export const useProvidersStore = defineStore('providers', () => {
               reason: 'Base URL is required. Default to http://localhost:8000/v1/ for vLLM.',
               valid: false,
             }
+          }
+
+          if (!isAbsoluteUrl(config.baseUrl as string)) {
+            return notBaseUrlError.value
           }
 
           // Check if the vLLM is reachable
@@ -778,6 +800,10 @@ export const useProvidersStore = defineStore('providers', () => {
             !config.baseUrl && new Error('Base URL is required. Default to https://api.openai.com/v1/ for official OpenAI API.'),
           ].filter(Boolean)
 
+          if (!!config.baseUrl && !isAbsoluteUrl(config.baseUrl as string)) {
+            return notBaseUrlError.value
+          }
+
           return {
             errors,
             reason: errors.filter(e => e).map(e => String(e)).join(', ') || '',
@@ -891,6 +917,10 @@ export const useProvidersStore = defineStore('providers', () => {
             !config.baseUrl && new Error('Base URL is required. Default to https://api.openai.com/v1/ for official OpenAI API.'),
           ].filter(Boolean)
 
+          if (!!config.baseUrl && !isAbsoluteUrl(config.baseUrl as string)) {
+            return notBaseUrlError.value
+          }
+
           return {
             errors,
             reason: errors.filter(e => e).map(e => String(e)).join(', ') || '',
@@ -933,6 +963,10 @@ export const useProvidersStore = defineStore('providers', () => {
           const errors = [
             !config.baseUrl && new Error('Base URL is required. Default to https://api.openai.com/v1/ for official OpenAI API.'),
           ].filter(Boolean)
+
+          if (!!config.baseUrl && !isAbsoluteUrl(config.baseUrl as string)) {
+            return notBaseUrlError.value
+          }
 
           return {
             errors,
@@ -1065,6 +1099,10 @@ export const useProvidersStore = defineStore('providers', () => {
             !config.baseUrl && new Error('Base URL is required. Default to https://api.anthropic.com/v1/ for official Claude API with OpenAI compatibility.'),
           ].filter(Boolean)
 
+          if (!!config.baseUrl && !isAbsoluteUrl(config.baseUrl as string)) {
+            return notBaseUrlError.value
+          }
+
           return {
             errors,
             reason: errors.filter(e => e).map(e => String(e)).join(', ') || '',
@@ -1108,6 +1146,10 @@ export const useProvidersStore = defineStore('providers', () => {
             !config.apiKey && new Error('API key is required.'),
             !config.baseUrl && new Error('Base URL is required. Default to https://generativelanguage.googleapis.com/v1beta/openai/ for official Google Gemini API with OpenAI compatibility.'),
           ].filter(Boolean)
+
+          if (!!config.baseUrl && !isAbsoluteUrl(config.baseUrl as string)) {
+            return notBaseUrlError.value
+          }
 
           return {
             errors,
@@ -1194,6 +1236,10 @@ export const useProvidersStore = defineStore('providers', () => {
             !config.baseUrl && new Error('Base URL is required.'),
           ].filter(Boolean)
 
+          if (!!config.baseUrl && !isAbsoluteUrl(config.baseUrl as string)) {
+            return notBaseUrlError.value
+          }
+
           return {
             errors,
             reason: errors.filter(e => e).map(e => String(e)).join(', ') || '',
@@ -1274,6 +1320,10 @@ export const useProvidersStore = defineStore('providers', () => {
             !config.baseUrl && new Error('Base URL is required.'),
           ].filter(Boolean)
 
+          if (!!config.baseUrl && !isAbsoluteUrl(config.baseUrl as string)) {
+            return notBaseUrlError.value
+          }
+
           return {
             errors,
             reason: errors.filter(e => e).map(e => String(e)).join(', ') || '',
@@ -1334,6 +1384,10 @@ export const useProvidersStore = defineStore('providers', () => {
             !config.baseUrl && new Error('Base URL is required.'),
           ].filter(Boolean)
 
+          if (!!config.baseUrl && !isAbsoluteUrl(config.baseUrl as string)) {
+            return notBaseUrlError.value
+          }
+
           return {
             errors,
             reason: errors.filter(e => e).map(e => String(e)).join(', ') || '',
@@ -1390,6 +1444,10 @@ export const useProvidersStore = defineStore('providers', () => {
           const errors = [
             !config.baseUrl && new Error('Base URL is required. Default to http://localhost:11996/tts for Index-TTS.'),
           ].filter(Boolean)
+
+          if (!!config.baseUrl && !isAbsoluteUrl(config.baseUrl as string)) {
+            return notBaseUrlError.value
+          }
 
           return {
             errors,
@@ -1459,6 +1517,10 @@ export const useProvidersStore = defineStore('providers', () => {
             !config.baseUrl && new Error('Base URL is required.'),
           ].filter(Boolean)
 
+          if (!!config.baseUrl && !isAbsoluteUrl(config.baseUrl as string)) {
+            return notBaseUrlError.value
+          }
+
           return {
             errors,
             reason: errors.filter(e => e).map(e => String(e)).join(', ') || '',
@@ -1519,6 +1581,10 @@ export const useProvidersStore = defineStore('providers', () => {
             !config.baseUrl && new Error('Base URL is required.'),
             !((config.app as any)?.appId) && new Error('App ID is required.'),
           ].filter(Boolean)
+
+          if (!!config.baseUrl && !isAbsoluteUrl(config.baseUrl as string)) {
+            return notBaseUrlError.value
+          }
 
           return {
             errors,
@@ -1687,6 +1753,10 @@ export const useProvidersStore = defineStore('providers', () => {
             !config.baseUrl && new Error('Base URL is required.'),
           ].filter(Boolean)
 
+          if (!!config.baseUrl && !isAbsoluteUrl(config.baseUrl as string)) {
+            return notBaseUrlError.value
+          }
+
           return {
             errors,
             reason: errors.filter(e => e).map(e => String(e)).join(', ') || '',
@@ -1785,6 +1855,10 @@ export const useProvidersStore = defineStore('providers', () => {
             !config.apiKey && new Error('API key is required.'),
             !config.baseUrl && new Error('Base URL is required.'),
           ].filter(Boolean)
+
+          if (!!config.baseUrl && !isAbsoluteUrl(config.baseUrl as string)) {
+            return notBaseUrlError.value
+          }
 
           return {
             errors,
@@ -1910,6 +1984,10 @@ export const useProvidersStore = defineStore('providers', () => {
             }
           }
 
+          if (!isAbsoluteUrl(config.baseUrl as string)) {
+            return notBaseUrlError.value
+          }
+
           // Check if the local running Player 2 is reachable
           return await fetch(`${(config.baseUrl as string).endsWith('/') ? (config.baseUrl as string).slice(0, -1) : config.baseUrl}/health`, {
             method: 'GET',
@@ -2013,6 +2091,10 @@ export const useProvidersStore = defineStore('providers', () => {
               reason: 'Base URL is required. Default to http://localhost:4315/v1/',
               valid: false,
             }
+          }
+
+          if (!isAbsoluteUrl(config.baseUrl as string)) {
+            return notBaseUrlError.value
           }
 
           return {

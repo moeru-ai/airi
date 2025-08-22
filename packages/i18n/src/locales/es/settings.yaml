@@ -18,7 +18,6 @@ dialogs:
     baseUrlHelp: URL del endpoint de la API (usa el predeterminado si no estás seguro)
     accountId: ID de Cuenta
     validating: Validando configuración...
-    validationSuccess: ¡La configuración es válida!
     validationFailed: La validación de la configuración falló
     validationError: 'Error de validación: {error}'
     skipForNow: Omitir por ahora

@@ -1,4 +1,4 @@
-<script setup lang="ts">
+<script setup lang="ts" xmlns:i-solar="http://www.w3.org/1999/xhtml">
 import { FieldInput } from '@proj-airi/ui'
 import { useDebounceFn } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
@@ -20,6 +20,8 @@ interface Emits {
 }
 
 const emit = defineEmits<Emits>()
+
+const debounceTime = 500
 
 const step = ref(1)
 const direction = ref<'next' | 'previous'>('next')
@@ -55,8 +57,8 @@ const selectedProvider = computed(() => {
   return allChatProvidersMetadata.value.find(p => p.id === selectedProviderId.value) || null
 })
 
-// Validation state
-const isValidating = ref(false)
+// Validation state (animation)
+const isValidating = ref(0)
 const isValid = ref(false)
 const validationMessage = ref('')
 
@@ -134,8 +136,11 @@ async function validateConfiguration() {
   if (!selectedProvider.value)
     return
 
-  isValidating.value = true
+  isValidating.value++
+  // service startup time
+  const startValidationTimestamp = performance.now()
   validationMessage.value = t('settings.dialogs.onboarding.validating')
+  let finalValidationMessage = ''
 
   try {
     // Prepare config object
@@ -155,20 +160,23 @@ async function validateConfiguration() {
     isValid.value = validationResult.valid
 
     if (isValid.value) {
-      validationMessage.value = t('settings.dialogs.onboarding.validationSuccess')
+      finalValidationMessage = t('settings.dialogs.onboarding.validationSuccess')
     }
     else {
-      validationMessage.value = validationResult.reason
+      finalValidationMessage = validationResult.reason
     }
   }
   catch (error) {
     isValid.value = false
-    validationMessage.value = t('settings.dialogs.onboarding.validationError', {
+    finalValidationMessage = t('settings.dialogs.onboarding.validationError', {
       error: error instanceof Error ? error.message : String(error),
     })
   }
   finally {
-    isValidating.value = false
+    setTimeout(() => {
+      isValidating.value--
+      validationMessage.value = finalValidationMessage
+    }, Math.max(0, debounceTime - (performance.now() - startValidationTimestamp)))
   }
 }
 
@@ -184,7 +192,7 @@ const debouncedValidateConfiguration = useDebounceFn(() => {
     return
 
   validateConfiguration()
-}, 500)
+}, debounceTime)
 
 // Watch for changes and validate
 watch([apiKey, baseUrl, accountId], () => {
@@ -394,7 +402,7 @@ onMounted(() => {
             </div>
 
             <!-- Validation Status -->
-            <Alert v-if="!isValid && validationMessage" type="error">
+            <Alert v-if="!isValid && isValidating === 0 && validationMessage" type="error">
               <template #title>
                 {{ t('settings.dialogs.onboarding.validationFailed') }}
               </template>
@@ -404,17 +412,17 @@ onMounted(() => {
                 </div>
               </template>
             </Alert>
-            <div v-if="(isValid || isValidating) && validationMessage" class="mt-4">
+            <div v-if="(isValid || isValidating > 0) && validationMessage" class="mt-4">
               <div
                 class="flex items-center rounded-lg p-3" :class="[
-                  isValidating
+                  (isValidating > 0)
                     ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
                     : 'bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-300',
                 ]"
               >
                 <div
                   class="mr-2 text-lg" :class="[
-                    isValidating
+                    (isValidating > 0)
                       ? 'i-svg-spinners:3-dots-fade'
                       : 'i-solar:check-circle-bold-duotone',
                   ]"
