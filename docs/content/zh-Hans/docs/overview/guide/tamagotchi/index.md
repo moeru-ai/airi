@@ -22,7 +22,7 @@ description: 如何使用桌面版的 Project AIRI
 :::
 
 <video controls autoplay loop muted>
- <source src="./assets/tutorial-basic-setup-providers.mp4" type="video/mp4">
+ <source src="../../../../../en/docs/overview/guide/tamagotchi/assets/tutorial-basic-setup-providers.mp4" type="video/mp4">
 </video>
 
 <br />
@@ -52,7 +52,7 @@ description: 如何使用桌面版的 Project AIRI
 - 新手引导 / 设置向导
 - 模型（可显示 Live2D 和 VRM 模型）
 
-![](./assets/screenshot-ui.png)
+![](../../../../../en/docs/overview/guide/tamagotchi/assets/screenshot-ui.png)
 
 我们还在系统托盘中提供了其他选项/命令，包括：
 
@@ -84,7 +84,7 @@ description: 如何使用桌面版的 Project AIRI
 
 <div rounded-lg overflow-hidden>
   <video autoplay loop muted class="scale-180 translate-x--30 translate-y--2 lg:scale-150 lg:translate-x--40">
-      <source src="./assets/tutorial-basic-fade-on-hover.mp4" type="video/mp4">
+      <source src="../../../../../en/docs/overview/guide/tamagotchi/assets/tutorial-basic-fade-on-hover.mp4" type="video/mp4">
   </video>
 </div>
 
@@ -96,13 +96,13 @@ description: 如何使用桌面版的 Project AIRI
 #### 浏览 CrunchyRoll
 
 <video autoplay loop muted>
-  <source src="./assets/tutorial-demo-browsing-crunchy-roll.mp4" type="video/mp4">
+  <source src="../../../../../en/docs/overview/guide/tamagotchi/assets/tutorial-demo-browsing-crunchy-roll.mp4" type="video/mp4">
 </video>
 
 #### 浏览 Steam
 
 <video autoplay loop muted>
-  <source src="./assets/tutorial-demo-browsing-steam.mp4" type="video/mp4">
+  <source src="../../../../../en/docs/overview/guide/tamagotchi/assets/tutorial-demo-browsing-steam.mp4" type="video/mp4">
 </video>
 
 当然，想要禁用这一功能其实很简单。
@@ -120,7 +120,7 @@ description: 如何使用桌面版的 Project AIRI
 
 <div rounded-lg overflow-hidden>
   <video autoplay loop muted class="scale-200 translate-x--35 translate-y--23 lg:scale-180 lg:translate-x--60 lg:translate-y--40">
-     <source src="./assets/tutorial-basic-disable-fade-on-hover.mp4" type="video/mp4">
+     <source src="../../../../../en/docs/overview/guide/tamagotchi/assets/tutorial-basic-disable-fade-on-hover.mp4" type="video/mp4">
   </video>
 </div>
 
@@ -136,7 +136,7 @@ description: 如何使用桌面版的 Project AIRI
 
 <div rounded-lg overflow-hidden>
   <video autoplay loop muted class="scale-225 translate-x--45 translate-y--5 lg:scale-200 lg:translate-x--80 lg:translate-y--5">
-    <source src="./assets/tutorial-basic-move.mp4" type="video/mp4">
+    <source src="../../../../../en/docs/overview/guide/tamagotchi/assets/tutorial-basic-move.mp4" type="video/mp4">
   </video>
 </div>
 
@@ -152,7 +152,7 @@ description: 如何使用桌面版的 Project AIRI
 
 <div rounded-lg overflow-hidden>
   <video autoplay loop muted class="scale-160 translate-x--20 lg:scale-150 lg:translate-x--40 lg:translate-y-10">
-    <source src="./assets/tutorial-basic-resize.mp4" type="video/mp4">
+    <source src="../../../../../en/docs/overview/guide/tamagotchi/assets/tutorial-basic-resize.mp4" type="video/mp4">
   </video>
 </div>
 
@@ -168,7 +168,7 @@ description: 如何使用桌面版的 Project AIRI
 <br />
 
 <video autoplay loop muted>
- <source src="./assets/tutorial-basic-open-chat.mp4" type="video/mp4">
+ <source src="../../../../../en/docs/overview/guide/tamagotchi/assets/tutorial-basic-open-chat.mp4" type="video/mp4">
 </video>
 
 ## 设置
@@ -177,7 +177,7 @@ description: 如何使用桌面版的 Project AIRI
 更改 AIRI 的主题颜色，或切换到其他模型，比如 Live2D（2D 模型）或 VRM（3D 模型，就像是 Grok Companion 那样）。
 
 <video autoplay loop muted>
- <source src="./assets/tutorial-basic-open-settings.mp4" type="video/mp4">
+ <source src="../../../../../en/docs/overview/guide/tamagotchi/assets/tutorial-basic-open-settings.mp4" type="video/mp4">
 </video>
 
 设置中有很多选项，不妨多尝试一下，看看有哪些功能是你感兴趣的。
@@ -204,5 +204,5 @@ description: 如何使用桌面版的 Project AIRI
 <br />
 
 <video autoplay loop muted>
- <source src="./assets/tutorial-settings-change-model.mp4" type="video/mp4">
+ <source src="../../../../../en/docs/overview/guide/tamagotchi/assets/tutorial-settings-change-model.mp4" type="video/mp4">
 </video>
