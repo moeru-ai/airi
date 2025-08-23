@@ -76,10 +76,10 @@ description: 如何使用桌面版的 Project AIRI
 ::: info 快捷键速记
 要切换此功能（即可与模型进行交互），请使用快捷键<kbd aria-label="Shift" data-keyboard-key="shift" inline-block>Shift</kbd> + <kbd aria-label="Alt" data-macos-keyboard-key="option" inline-block>Alt</kbd> + <kbd aria-label="I" inline-block>I</kbd> 。
 
-你可以在以下位置自定义按键映射：[设置]-> [常规] -> [快捷键]
+你可以在以下位置自定义按键映射：[设置]-> [外观] -> [通用] -> [快捷键]
 :::
 
-你会发现，当鼠标悬停在模型上时，Live2D 模型会逐渐淡出或消失，
+你会发现，当鼠标悬停在模型上时，Live2D/VRM 模型会逐渐淡出或消失，
 此时你无法通过光标与它进行交互。
 
 <div rounded-lg overflow-hidden>
@@ -91,7 +91,7 @@ description: 如何使用桌面版的 Project AIRI
 这是因为默认情况下，**悬停时淡化** 功能是启用的：也就是说，
 每当光标悬停在模型窗口的上方时，模型会淡出，并且你的点击会直接穿透该窗口。
 
-这是一个非常强大的功能，在你让这位“伙伴”一直陪伴在身边的过程中，你会越来越发现它的用处。以下是我们想到的两个使用场景：
+这是一个非常强大的功能，在不断让「伙伴」一直陪伴在身边的过程中，你也可能会越来越发现它的有用之处。比如下面这两种我们想到的两个使用场景：
 
 #### 浏览 CrunchyRoll
 
@@ -105,7 +105,7 @@ description: 如何使用桌面版的 Project AIRI
   <source src="./assets/tutorial-demo-browsing-steam.mp4" type="video/mp4">
 </video>
 
-禁用这一功能其实很简单。
+当然，想要禁用这一功能其实很简单。
 
 有两种方式可以禁用它：
 
@@ -129,7 +129,7 @@ description: 如何使用桌面版的 Project AIRI
 ::: info 快捷键速记
 要切换此功能（即可与模型进行交互），请使用快捷键 <kbd aria-label="Shift" data-keyboard-key="shift" inline-block>Shift</kbd> + <kbd aria-label="Alt" data-macos-keyboard-key="option" inline-block>Alt</kbd> + <kbd aria-label="N" inline-block>N</kbd>。
 
-你可以在 [设置] -> [常规] -> [快捷键] 中自定义按键映射。
+你可以在 [设置]-> [外观] -> [通用] -> [快捷键] 中自定义按键映射。
 :::
 
 <br />
@@ -145,7 +145,7 @@ description: 如何使用桌面版的 Project AIRI
 ::: info 快捷键速记
 要切换此功能（即可与模型进行交互），请使用快捷键 <kbd aria-label="Shift" data-keyboard-key="shift" inline-block>Shift</kbd> + <kbd aria-label="Alt" data-macos-keyboard-key="option" inline-block>Alt</kbd> + <kbd aria-label="A" inline-block>A</kbd>。
 
-你可以在 [设置] -> [常规] -> [快捷键] 中自定义按键映射。
+你可以在 [设置]-> [外观] -> [通用] -> [快捷键] 中自定义按键映射。
 :::
 
 <br />
@@ -174,7 +174,7 @@ description: 如何使用桌面版的 Project AIRI
 ## 设置
 
 你可以在系统托盘中打开设置以进行更多自定义，例如：
-更改 AIRI 的主题颜色，或切换到其他模型，比如 Live2D（2D 模型）或 VRM（3D 模型，如 Grok Companion）。
+更改 AIRI 的主题颜色，或切换到其他模型，比如 Live2D（2D 模型）或 VRM（3D 模型，就像是 Grok Companion 那样）。
 
 <video autoplay loop muted>
  <source src="./assets/tutorial-basic-open-settings.mp4" type="video/mp4">
