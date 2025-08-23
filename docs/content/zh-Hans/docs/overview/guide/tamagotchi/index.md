@@ -10,11 +10,11 @@ description: 如何使用桌面版的 Project AIRI
 - 完成入门引导教程
 
 1. 选择您想要的 LLM / AI 提供商（在演示视频中，我选择了 OpenRouter）
-2. 输入 API 密钥以与 LLM / AI 进行交互（这将作为您角色的“大脑”或“灵魂”）
-3. 选择您想要的聊天模型（在演示视频中，我选择了 `DeepSeek V3 0324`）
+2. 输入与 LLM / AI 进行交互需要的 API 密钥（会作为角色的「大脑」或「灵魂」）
+3. 挑选一个合适的聊天（Chat）模型（在演示视频中，我选择了 `DeepSeek V3 0324`）
 4. 从系统托盘中禁用 **悬停时淡化** 模式
-5. 将鼠标悬停在模型界面上，点击聊天气泡图标，这将调出聊天窗口
-6. 输入并开始聊天！
+5. 将鼠标悬停在「角色模型」的界面上，点击聊天气泡图标，这将调出聊天窗口
+6. 现在输入点什么就可以开聊了！
 
 ::: tip 在本地使用 Ollama？
 您需要设置系统环境变量 `OLLAMA_ORIGINS=*`，
@@ -27,17 +27,17 @@ description: 如何使用桌面版的 Project AIRI
 
 <br />
 
-嗯，确实，这节奏太快了。我们打赌你还没搞明白 **悬停时淡化** 到底是什么，
+嗯，确实，这节奏太快了。我想... 你应该还没搞明白「**悬停时淡化**」到底是什么功能，
 以及如何自定义所有设置，对吧？
 
-::: 提示 我们仍处于开发的早期阶段，许多功能尚未完全可用。
+::: tip 我们仍处于开发的早期阶段，许多功能尚未完全可用。
 其中一些功能尚未真正就绪，但我们正努力让它们尽快实现：
 
-- 转录功能
+- 文本转语音（语音控制）功能
 - 本地语音合成（例如 GPT-SoVITS、IndexTTS 等）
-- 歌唱功能
-- 从用户界面配置 Discord（但该功能已可用，需要一定的编码技能来设置）
-- 从用户界面配置 Minecraft 智能体（但该功能已可用，需要一定的编码技能来设置）
+- AI 唱歌
+- 从用户界面配置 Discord（但已经可以用了！只是需要掌握一些写代码的能力才能配置）
+- 从用户界面配置 Minecraft Agent 智能体（但已经可以用了！只是需要掌握一些写代码的能力才能配置）
 :::
 
 但首先。。。
@@ -73,7 +73,7 @@ description: 如何使用桌面版的 Project AIRI
 
 ### 悬停时淡化
 
-::: info 要点速览 ｜ 内容概要
+::: info 快捷键速记
 要切换此功能（即可与模型进行交互），请使用快捷键<kbd aria-label="Shift" data-keyboard-key="shift" inline-block>Shift</kbd> + <kbd aria-label="Alt" data-macos-keyboard-key="option" inline-block>Alt</kbd> + <kbd aria-label="I" inline-block>I</kbd> 。
 
 你可以在以下位置自定义按键映射：[设置]-> [常规] -> [快捷键]
@@ -126,7 +126,7 @@ description: 如何使用桌面版的 Project AIRI
 
 ### 移动窗口
 
-::: info 要点速览 ｜ 内容概要
+::: info 快捷键速记
 要切换此功能（即可与模型进行交互），请使用快捷键 <kbd aria-label="Shift" data-keyboard-key="shift" inline-block>Shift</kbd> + <kbd aria-label="Alt" data-macos-keyboard-key="option" inline-block>Alt</kbd> + <kbd aria-label="N" inline-block>N</kbd>。
 
 你可以在 [设置] -> [常规] -> [快捷键] 中自定义按键映射。
@@ -142,7 +142,7 @@ description: 如何使用桌面版的 Project AIRI
 
 ### 调整窗口大小
 
-::: info 要点速览 ｜ 内容概要
+::: info 快捷键速记
 要切换此功能（即可与模型进行交互），请使用快捷键 <kbd aria-label="Shift" data-keyboard-key="shift" inline-block>Shift</kbd> + <kbd aria-label="Alt" data-macos-keyboard-key="option" inline-block>Alt</kbd> + <kbd aria-label="A" inline-block>A</kbd>。
 
 你可以在 [设置] -> [常规] -> [快捷键] 中自定义按键映射。
@@ -161,7 +161,7 @@ description: 如何使用桌面版的 Project AIRI
 目前系统托盘中没有直接打开聊天窗口的选项或命令，但我们未来可能会添加这一功能。
 目前，要打开聊天窗口，你需要先关闭 **悬停时淡化** 模式。
 
-::: info TL;DR | Cheatsheet
+::: info 快捷键速记
 悬停时淡化（Fade on Hover）的快捷键是: <kbd aria-label="Shift" data-keyboard-key="shift" inline-block>Shift</kbd> + <kbd aria-label="Alt" data-macos-keyboard-key="option" inline-block>Alt</kbd> + <kbd aria-label="I" inline-block>I</kbd>.
 :::
 
@@ -188,7 +188,7 @@ description: 如何使用桌面版的 Project AIRI
 
 模型设置位于 [设置] -> [模型] 中。
 
-::: tip 从 VTuber Studio 导入模型？
+::: tip 正在从 VTuber Studio 导入模型？
 我们用于渲染 Live2D 模型的库，在读取由 VTuber Studio 打包的 ZIP 文件时可能会遇到问题，这是因为 VTuber Studio 使用了一些 Live2D 引擎无法识别的文件。
 因此，在导入之前，将 VTuber Studio 模型压缩为 ZIP 文件时，请确保排除以下文件：
 
@@ -197,7 +197,7 @@ description: 如何使用桌面版的 Project AIRI
 
 <br />
 
-::: 提示 内含 Bug
+::: tip 现在还有一些 Bug
 目前模型场景重载功能尚未按预期工作。
 加载模型后，你需要重启 AIRI 才能生效。
 :::
