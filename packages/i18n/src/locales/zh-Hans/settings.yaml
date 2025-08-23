@@ -16,7 +16,7 @@ dialogs:
     baseUrlHelp: API 端点 URL（如果不确定请使用默认值）
     accountId: 账户 ID
     validating: 正在验证配置...
-    validationSuccess: 初步测试服务器有响应，配置或许有效。
+    validationSuccess: 配置初步验证通过。
     validationFailed: 配置验证失败
     validationError: 验证错误：{error}
     skipForNow: 暂时跳过
