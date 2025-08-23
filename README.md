@@ -21,9 +21,15 @@
 ### Prerequisites
 - Node.js and pnpm
 - Rust toolchain
-- **Whisper** (for audio transcription):
-  ```bash
-  # Install Whisper via pip
+- **Whisper** (for audio transcription)
+
+### Installation
+
+```shell
+# Install dependencies
+pnpm i
+
+# Install Whisper via pip
   pip install openai-whisper
   
   # Download recommended model (base model - good balance of speed/accuracy)
@@ -31,13 +37,7 @@
   
   # Alternative: smaller model for faster processing
   whisper --model tiny --download-root ~/.cache/whisper
-  ```
 
-### Installation
-
-```shell
-# Install dependencies
-pnpm i
 # Run desktop version with Live2D enhancements
 pnpm dev:tamagotchi
 ```
