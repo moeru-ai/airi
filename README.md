@@ -60,6 +60,3 @@ All other features and capabilities remain the same as the original project.
 - **Widget-Only Version**: Focus development on Tamagotchi widget as the primary interface
 - **Enhanced UI/UX**: Further interface improvements and modernization
 - **Performance Optimization**: Continue optimizing audio processing and Live2D rendering
-
-### 🚀 Vision
-This fork aims to become a lightweight, user-friendly desktop companion focused on the Tamagotchi experience with minimal configuration complexity.
