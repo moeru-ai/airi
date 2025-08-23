@@ -10,6 +10,7 @@
 
 ### 🎵 Audio System Enhancements
 - **Enhanced Speech Synthesis**: Improved audio quality and processing reliability
+- **ElevenLabs TTS Integration**: Text-to-speech functionality works exclusively through ElevenLabs API for high-quality voice synthesis
 
 ### 🎨 UI/UX Improvements
 - **Optimized Window Size**: Better default dimensions for desktop application
@@ -31,10 +32,10 @@ pnpm i
 
 # Install Whisper via pip
   pip install openai-whisper
-  
+
   # Download recommended model (base model - good balance of speed/accuracy)
   whisper --model base --download-root ~/.cache/whisper
-  
+
   # Alternative: smaller model for faster processing
   whisper --model tiny --download-root ~/.cache/whisper
 
