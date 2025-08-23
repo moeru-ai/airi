@@ -280,6 +280,9 @@ pages:
       app-local-audio-speech:
         title: 应用内（本地）
         description: https://github.com/moeru-ai/xsai-transformers
+      app-local-whisper-transcription:
+        title: Whisper（本地）
+        description: 使用 ONNX Runtime 的本地 Whisper 转录
       browser-local-audio-transcription:
         title: 浏览器内（本地）
         description: https://github.com/moeru-ai/xsai-transformers

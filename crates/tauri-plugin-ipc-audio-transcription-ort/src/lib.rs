@@ -71,7 +71,7 @@ async fn ipc_audio_transcription<R: Runtime>(
   chunk: Vec<f32>,
   language: Option<String>,
 ) -> Result<String, String> {
-  info!("Processing audio transcription...");
+  info!("Processing audio transcription with {} samples...", chunk.len());
 
   let data = app.state::<Mutex<AppDataWhisperProcessor>>();
 
@@ -79,22 +79,32 @@ async fn ipc_audio_transcription<R: Runtime>(
   {
     let data = data.lock().unwrap();
     if data.whisper_processor.is_none() {
+      info!("ERROR: Whisper model is not loaded!");
       return Err("Whisper model is not loaded".to_string());
     }
+    info!("Whisper model is loaded, proceeding with transcription...");
   }
 
   // Then mutable borrow
+  info!("Acquiring lock for transcription...");
   let mut data = data.lock().unwrap();
   let processor = data.whisper_processor.as_mut().unwrap();
 
+  info!("Setting up generation config...");
   let mut config = whisper::whisper::GenerationConfig::default();
-  config.language = language;
+  // Если язык не указан (null), используем автоопределение (None)
+  config.language = language.filter(|lang| !lang.is_empty());
 
+  info!("Starting transcription process...");
   let transcription = processor
     .transcribe(chunk.as_slice(), &config)
-    .map_err(|e| e.to_string())?;
+    .map_err(|e| {
+      let error_msg = format!("Transcription failed: {}", e);
+      info!("{}", error_msg);
+      error_msg
+    })?;
 
-  info!("Transcription completed: {}", transcription);
+  info!("Transcription completed successfully: '{}'", transcription);
 
   Ok(transcription)
 }

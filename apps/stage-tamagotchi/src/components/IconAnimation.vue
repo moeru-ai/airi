@@ -3,7 +3,7 @@ import { computed, ref, watch } from 'vue'
 
 const props = defineProps<{
   icon: string
-  iconSize: number // avoid conflict with unocss size prop
+  iconSize: number
   position: string
   duration: number
   started: boolean
@@ -22,7 +22,7 @@ const clsAndProps = computed(() => {
   return {
     opacity: isAnimating.value !== props.isReverse
       ? 1
-      : 0, // this equals to opacity: isAnimating.value ? props.isReverse ? 1 : 0 : props.isReverse ? 0 : 1
+      : 0
     size: isAnimating.value !== props.isReverse
       ? 25
       : props.iconSize,
@@ -58,7 +58,7 @@ watch(() => props.started, newVal =>
   <div
     pointer-events-none fixed w="100dvw" h="100dvh"
     :style="{
-      zIndex: animationEnded ? zIndex : undefined,
+      zIndex: animationEnded ? props.zIndex : undefined,
     }"
   >
     <div

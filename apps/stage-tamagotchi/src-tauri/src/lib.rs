@@ -54,7 +54,7 @@ pub fn run() {
 
       builder = builder.title("AIRI")
         .decorations(false)
-        .inner_size(450.0, 600.0)
+        .inner_size(300.0, 400.0)
         .shadow(false)
         .transparent(true)
         .always_on_top(true);
@@ -76,7 +76,7 @@ pub fn run() {
       if cfg!(debug_assertions) {
         app.handle().plugin(
           tauri_plugin_log::Builder::default()
-            .level(log::LevelFilter::Info)
+            .level(log::LevelFilter::Debug)
             .build(),
         )?;
       }
@@ -229,7 +229,6 @@ pub fn run() {
       app::commands::open_settings_window,
       app::commands::open_chat_window,
       app::commands::open_onboarding_window,
-      app::commands::debug_println,
     ])
     .run(tauri::generate_context!())
     .expect("error while running tauri application");

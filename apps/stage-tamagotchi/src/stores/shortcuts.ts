@@ -40,7 +40,7 @@ function useVersionedLocalStorage<T>(
             }
           }
           else {
-            console.warn(`version ${rawValue.value.version} doesn't satisfy the version ${options.defaultVersion} for key ${key}, will reset the value to default value ${toValue(initialValue)}`)
+            // Version mismatch warning removed
             rawValue.value = { version: defaultVersion, data: toValue(initialValue) }
             data.value = toValue(initialValue)
           }
@@ -50,12 +50,12 @@ function useVersionedLocalStorage<T>(
         return
       }
 
-      console.warn(`property key 'version' wasn't found in the value of key ${key} as ${value}, will keep the current ${toValue(initialValue)}`)
+      // Missing version property warning removed
       rawValue.value = { version: defaultVersion, data: toValue(initialValue) }
       data.value = toValue(initialValue)
     }
     catch (err) {
-      console.warn(`failed to un-marshal Local Storage value, possibly due to incompatible or corrupted for key ${key} value ${value}, falling back to default value ${toValue(initialValue)}`, err)
+      // Local storage unmarshal error warning removed
       rawValue.value = { version: defaultVersion, data: toValue(initialValue) }
       data.value = toValue(initialValue)
     }

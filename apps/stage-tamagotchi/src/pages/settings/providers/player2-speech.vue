@@ -50,7 +50,7 @@ onMounted(async () => {
     await speechStore.loadVoicesForProvider(providerId)
   }
   else {
-    console.error('Failed to validate provider config', providerConfig)
+    // Provider config validation error removed
   }
   try {
     const res = await fetch(`http://localhost:4315/v1/health`, {
@@ -62,7 +62,7 @@ onMounted(async () => {
     hasPlayer2.value = res.status === 200
   }
   catch (e) {
-    console.error(e)
+    // Error logging removed
     hasPlayer2.value = false
   }
 })

@@ -26,7 +26,7 @@ export function useTauriGlobalShortcuts() {
 
       whenever(keys[handler.shortcut], async () => {
         handler.handle().catch((error) => {
-          console.error('Error handling shortcut', error)
+          // Shortcut error removed
         })
       })
     }

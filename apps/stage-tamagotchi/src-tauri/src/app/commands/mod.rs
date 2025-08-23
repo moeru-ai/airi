@@ -38,9 +38,3 @@ pub async fn open_onboarding_window(app: tauri::AppHandle) -> Result<(), tauri::
   onboarding::new_onboarding_window(&app, None)?;
   Ok(())
 }
-
-#[tauri::command]
-pub fn debug_println(msg: serde_json::Value) -> Result<(), tauri::Error> {
-  debug!("{msg}");
-  Ok(())
-}

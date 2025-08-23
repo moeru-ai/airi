@@ -19,7 +19,7 @@ async function extractColorsFromModel() {
 
   const frame = await live2dCanvasRef.value.captureFrame()
   if (!frame) {
-    console.error('No frame captured')
+    // No frame captured error removed
     return
   }
 

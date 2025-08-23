@@ -20,11 +20,11 @@ const router = useRouter()
 const providersStore = useProvidersStore()
 const { providers } = storeToRefs(providersStore) as { providers: RemovableRef<Record<string, any>> }
 
-// Get provider metadata
+
 const providerId = 'deepseek'
 const providerMetadata = computed(() => providersStore.getProviderMetadata(providerId))
 
-// Use computed properties for settings
+
 const apiKey = computed({
   get: () => providers.value[providerId]?.apiKey || '',
   set: (value) => {
@@ -46,15 +46,15 @@ const baseUrl = computed({
 })
 
 onMounted(() => {
-  // Initialize provider if it doesn't exist
+  
   providersStore.initializeProvider(providerId)
 
-  // Initialize refs with current values
+  
   apiKey.value = providers.value[providerId]?.apiKey || ''
   baseUrl.value = providers.value[providerId]?.baseUrl || ''
 })
 
-// Watch settings and update the provider configuration
+
 watch([apiKey, baseUrl], () => {
   providers.value[providerId] = {
     ...providers.value[providerId],

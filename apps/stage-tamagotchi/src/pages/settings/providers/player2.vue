@@ -46,7 +46,7 @@ onMounted(async () => {
     hasPlayer2.value = res.status === 200
   }
   catch (e) {
-    console.error(e)
+    // Error logging removed
     hasPlayer2.value = false
   }
 })

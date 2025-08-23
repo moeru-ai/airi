@@ -78,7 +78,7 @@ onMounted(async () => {
     await speechStore.loadVoicesForProvider(providerId)
   }
   else {
-    console.error('Failed to validate provider config', providerConfig)
+    // Provider config validation error removed
   }
 })
 
@@ -124,7 +124,7 @@ watch(providers, async () => {
     await speechStore.loadVoicesForProvider(providerId)
   }
   else {
-    console.error('Failed to validate provider config', providerConfig)
+    // Provider config validation error removed
   }
 }, {
   immediate: true,

@@ -72,18 +72,18 @@ async function generateTestSpeech() {
     return
 
   if (!activeSpeechModel.value) {
-    console.error('No model selected')
+    // No model selected error removed
     return
   }
 
   if (!activeSpeechVoice.value) {
-    console.error('No voice selected')
+    // No voice selected error removed
     return
   }
 
   const provider = await providersStore.getProviderInstance(activeSpeechProvider.value) as SpeechProviderWithExtraOptions<string, any>
   if (!provider) {
-    console.error('Failed to initialize speech provider')
+    // Speech provider initialization error removed
     return
   }
 
@@ -119,7 +119,7 @@ async function generateTestSpeech() {
     }, 100)
   }
   catch (error) {
-    console.error('Error generating speech:', error)
+    // Speech generation error removed
     errorMessage.value = error instanceof Error ? error.message : 'An unknown error occurred'
   }
   finally {

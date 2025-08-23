@@ -12,7 +12,7 @@ export function useTauriPositioner() {
     await until(isInitialized).toBeTruthy()
 
     if (platform.value !== 'web') {
-      return untilImported(() => import('@tauri-apps/plugin-positioner'), console.warn)
+      return untilImported(() => import('@tauri-apps/plugin-positioner'), () => {})
     }
   })
 
@@ -20,7 +20,7 @@ export function useTauriPositioner() {
     await until(isInitialized).toBeTruthy()
 
     if (platform.value === 'web') {
-      console.warn('Attempted to use Tauri positioner in web platform')
+      // Tauri positioner web platform warning removed
       return
     }
 

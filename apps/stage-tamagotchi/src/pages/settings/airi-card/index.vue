@@ -57,7 +57,7 @@ watch(inputFiles, async (newFiles) => {
     isCardDialogOpen.value = true
   }
   catch (error) {
-    console.error('Error processing card file:', error)
+    // Card file processing error removed
   }
 })
 

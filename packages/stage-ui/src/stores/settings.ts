@@ -133,7 +133,19 @@ export const useSettingsAudioDevice = defineStore('settings-audio-devices', () =
     }
   })
 
+  // Автоматически выбираем устройство при обновлении списка
+  watch(audioInputs, () => {
+    if (!selectedAudioInputPersist.value && audioInputs.value.length > 0) {
+      selectedAudioInputPersist.value = audioInputs.value.find(input => input.deviceId === 'default')?.deviceId || audioInputs.value[0].deviceId
+    }
+  })
+
   onMounted(() => {
+    // Автоматически выбираем первое доступное устройство, если ничего не выбрано
+    if (!selectedAudioInputPersist.value && audioInputs.value.length > 0) {
+      selectedAudioInputPersist.value = audioInputs.value.find(input => input.deviceId === 'default')?.deviceId || audioInputs.value[0].deviceId
+    }
+    
     if (selectedAudioInputEnabledPersist.value && selectedAudioInputPersist.value) {
       startStream()
     }

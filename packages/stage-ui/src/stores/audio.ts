@@ -84,7 +84,7 @@ export const useAudioContext = defineStore('audio-context', () => {
 export function useAudioDevice(requestPermission: boolean = false) {
   const devices = useDevicesList({ constraints: { audio: true }, requestPermissions: requestPermission })
   const audioInputs = computed(() => devices.audioInputs.value)
-  const selectedAudioInput = ref<string>(devices.audioInputs.value.find(device => device.deviceId === 'default')?.deviceId || '')
+  const selectedAudioInput = ref<string>(devices.audioInputs.value.find(device => device.deviceId === 'default')?.deviceId || devices.audioInputs.value[0]?.deviceId || '')
   const deviceConstraints = computed<MediaStreamConstraints>(() => ({ audio: { deviceId: { exact: selectedAudioInput.value }, autoGainControl: true, echoCancellation: true, noiseSuppression: true } }))
   const { stream, stop: stopStream, start: startStream } = useUserMedia({ constraints: deviceConstraints, enabled: false, autoSwitch: true })
 

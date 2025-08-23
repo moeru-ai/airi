@@ -28,7 +28,7 @@ async function connect() {
   }
   catch (e) {
     const error = e as string
-    console.error(error)
+    // Error logging removed
     if (error.includes('already connected')) {
       connected.value = true
     }

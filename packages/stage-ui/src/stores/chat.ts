@@ -5,7 +5,7 @@ import type { ChatAssistantMessage, ChatMessage, ChatSlices } from '../types/cha
 
 import { readableStreamToAsyncIterator } from '@moeru/std'
 import { defineStore, storeToRefs } from 'pinia'
-import { ref, toRaw } from 'vue'
+import { ref, toRaw, watch } from 'vue'
 
 import { useQueue } from '../composables'
 import { useLlmmarkerParser } from '../composables/llmmarkerParser'
@@ -71,6 +71,13 @@ export const useChatStore = defineStore('chat', () => {
       content: systemPrompt.value, // TODO: compose, replace {{ user }} tag, etc
     } satisfies SystemMessage,
   ])
+
+  // Watch for systemPrompt changes and update the first message
+  watch(systemPrompt, (newSystemPrompt) => {
+    if (messages.value.length > 0 && messages.value[0].role === 'system') {
+      messages.value[0].content = newSystemPrompt
+    }
+  })
 
   const streamingMessage = ref<ChatAssistantMessage>({ role: 'assistant', content: '', slices: [], tool_results: [] })
 

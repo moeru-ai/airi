@@ -50,6 +50,7 @@ import { useI18n } from 'vue-i18n'
 
 import { isAbsoluteUrl } from '../utils/string'
 import { models as elevenLabsModels } from './providers/elevenlabs/list-models'
+import { createTauriTranscription, getAvailableWhisperModels } from './providers/tauri-transcription'
 
 export interface ProviderMetadata {
   id: string
@@ -217,20 +218,20 @@ export const useProvidersStore = defineStore('providers', () => {
         },
       },
       validators: {
-        validateProviderConfig: (config) => {
+        validateProviderConfig: (_config) => {
           const errors = [
-            !config.apiKey && new Error('API key is required'),
-            !config.baseUrl && new Error('Base URL is required'),
+            !_config.apiKey && new Error('API key is required'),
+            !_config.baseUrl && new Error('Base URL is required'),
           ].filter(Boolean)
 
-          if (!!config.baseUrl && !isAbsoluteUrl(config.baseUrl as string)) {
+          if (!!_config.baseUrl && !isAbsoluteUrl(_config.baseUrl as string)) {
             return notBaseUrlError.value
           }
 
           return {
             errors,
             reason: errors.filter(e => e).map(e => String(e)).join(', ') || '',
-            valid: !!config.apiKey && !!config.baseUrl,
+            valid: !!_config.apiKey && !!_config.baseUrl,
           }
         },
       },
@@ -272,8 +273,8 @@ export const useProvidersStore = defineStore('providers', () => {
         },
       },
       validators: {
-        validateProviderConfig: (config) => {
-          if (!config.baseUrl) {
+        validateProviderConfig: (_config) => {
+          if (!_config.baseUrl) {
             return {
               errors: [new Error('Base URL is required.')],
               reason: 'Base URL is required. This is likely a bug, report to developers on https://github.com/moeru-ai/airi/issues.',
@@ -335,6 +336,54 @@ export const useProvidersStore = defineStore('providers', () => {
             }
           }
 
+          return {
+            errors: [],
+            reason: '',
+            valid: true,
+          }
+        },
+      },
+    },
+    'app-local-whisper-transcription': {
+      id: 'app-local-whisper-transcription',
+      category: 'transcription',
+      tasks: ['speech-to-text', 'automatic-speech-recognition', 'asr', 'stt'],
+      isAvailableBy: async () => {
+        if ('window' in globalThis && globalThis.window != null) {
+          if ('__TAURI__' in globalThis.window && globalThis.window.__TAURI__ != null) {
+            return true
+          }
+        }
+        return false
+      },
+      nameKey: 'settings.pages.providers.provider.app-local-whisper-transcription.title',
+      name: 'Whisper (Local)',
+      descriptionKey: 'settings.pages.providers.provider.app-local-whisper-transcription.description',
+      description: 'OpenAI Whisper локальная транскрипция',
+      icon: 'i-lobe-icons:openai',
+      defaultOptions: () => ({
+        model: 'whisper-tiny'
+      }),
+      createProvider: async config => createTauriTranscription({
+        model: config.model as string || 'whisper-tiny'
+      }),
+      capabilities: {
+        listModels: async () => {
+          return getAvailableWhisperModels().map((model) => {
+            return {
+              id: model.id,
+              name: model.name,
+              provider: 'app-local-whisper-transcription',
+              description: `Размер: ${model.size}`,
+              contextLength: 0,
+              deprecated: false,
+            } satisfies ModelInfo
+          })
+        },
+      },
+      validators: {
+        validateProviderConfig: (_config) => {
+          // Whisper провайдер всегда доступен в Tauri окружении
           return {
             errors: [],
             reason: '',
@@ -777,11 +826,11 @@ export const useProvidersStore = defineStore('providers', () => {
       defaultOptions: () => ({
         baseUrl: 'https://api.openai.com/v1/',
       }),
-      createProvider: async config => createOpenAI((config.apiKey as string).trim(), (config.baseUrl as string).trim()),
+      createProvider: async config => createOpenAI((config.apiKey as string)?.trim() || '', (config.baseUrl as string)?.trim() || 'https://api.openai.com/v1/'),
       capabilities: {
         listModels: async (config) => {
           return (await listModels({
-            ...createOpenAI((config.apiKey as string).trim(), (config.baseUrl as string).trim()).model(),
+            ...createOpenAI((config.apiKey as string)?.trim() || '', (config.baseUrl as string)?.trim() || 'https://api.openai.com/v1/').model(),
           })).map((model) => {
             return {
               id: model.id,
@@ -824,11 +873,11 @@ export const useProvidersStore = defineStore('providers', () => {
       defaultOptions: () => ({
         baseUrl: 'https://api.openai.com/v1/',
       }),
-      createProvider: async config => createOpenAI((config.apiKey as string).trim(), (config.baseUrl as string).trim()),
+      createProvider: async config => createOpenAI((config.apiKey as string)?.trim() || '', (config.baseUrl as string)?.trim() || 'https://api.openai.com/v1/'),
       capabilities: {
         listModels: async (config) => {
           return (await listModels({
-            ...createOpenAI((config.apiKey as string).trim(), (config.baseUrl as string).trim()).model(),
+            ...createOpenAI((config.apiKey as string)?.trim() || '', (config.baseUrl as string)?.trim() || 'https://api.openai.com/v1/').model(),
           })).map((model) => {
             return {
               id: model.id,
@@ -2135,6 +2184,7 @@ export const useProvidersStore = defineStore('providers', () => {
       const defaultOptions = metadata.defaultOptions?.() || {}
       providerCredentials.value[providerId] = {
         baseUrl: defaultOptions.baseUrl || '',
+        ...defaultOptions,
       }
     }
   }

@@ -1,6 +1,6 @@
 import process from 'node:process'
 
-import { mkdirSync, readdirSync, renameSync } from 'node:fs'
+import { mkdirSync, renameSync } from 'node:fs'
 import { join } from 'node:path'
 
 import { cac } from 'cac'
@@ -46,10 +46,7 @@ async function main() {
 
   version = await getVersion(argOptions)
 
-  console.log('target:', target)
-  console.log('dirname', dirname)
-  console.log('version from:', beforeVersion, 'to:', version)
-  console.log('product name from:', beforeProductName, 'to:', productName)
+  // Script configuration
 
   if (!target) {
     throw new Error('<Target> is required')
@@ -58,9 +55,7 @@ async function main() {
   const srcPrefix = join(dirname, '..', '..', '..', 'target', target, 'release', 'bundle')
   const bundlePrefix = join(dirname, '..', '..', '..', 'bundle')
 
-  console.log('renaming directory from:', srcPrefix)
-  console.log('renaming directory to:', bundlePrefix)
-  console.log(readdirSync(srcPrefix))
+  // Setup directories
 
   mkdirSync(bundlePrefix, { recursive: true })
 
@@ -90,19 +85,17 @@ async function main() {
       renameTo = join(bundlePrefix, filename)
       break
     default:
-      console.error('Target is not supported')
       process.exit(1)
   }
 
-  console.log('renaming, from:', renameFrom, 'to:', renameTo)
+  // Perform rename operation
   renameSync(renameFrom, renameTo)
 }
 
 main()
   .then(() => {
-    console.log('Renaming completed successfully.')
+    // Renaming completed
   })
-  .catch((error) => {
-    console.error('Error during renaming:', error)
+  .catch(() => {
     process.exit(1)
   })

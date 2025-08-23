@@ -2,6 +2,7 @@
 import type { AiriTamagotchiEvents } from './composables/tauri'
 
 import { useMcpStore, useOnboardingStore, useSettings } from '@proj-airi/stage-ui/stores'
+import { initializeWhisperModel } from '@proj-airi/stage-ui/stores/providers/tauri-transcription'
 import { Window } from '@tauri-apps/api/window'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, watch } from 'vue'
@@ -30,6 +31,9 @@ watch(language, () => {
 onMounted(() => {
   // Initialize first-time setup check
   onboardingStore.initializeSetupCheck()
+  
+  // Initialize Whisper model for transcription
+  initializeWhisperModel()
 })
 
 watch(themeColorsHue, () => {

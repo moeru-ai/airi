@@ -2,8 +2,8 @@
 import type { TranscriptionProvider } from '@xsai-ext/shared-providers'
 
 import { Alert, Button, ErrorContainer, LevelMeter, RadioCardManySelect, RadioCardSimple, TestDummyMarker, ThresholdMeter, TimeSeriesChart } from '@proj-airi/stage-ui/components'
-import { useAudioAnalyzer, useAudioDevice, useAudioRecorder } from '@proj-airi/stage-ui/composables'
-import { useAudioContext, useHearingStore, useProvidersStore } from '@proj-airi/stage-ui/stores'
+import { useAudioAnalyzer, useAudioRecorder } from '@proj-airi/stage-ui/composables'
+import { useAudioContext, useHearingStore, useProvidersStore, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores'
 import { FieldCheckbox, FieldRange, FieldSelect } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
@@ -29,7 +29,30 @@ const {
 const providersStore = useProvidersStore()
 const { configuredTranscriptionProvidersMetadata } = storeToRefs(providersStore)
 
-const { audioInputs, selectedAudioInput, stream, stopStream, startStream } = useAudioDevice()
+// Инициализация Whisper провайдера по умолчанию в Tauri окружении
+const initializeWhisperProvider = async () => {
+  // Проверяем, доступен ли Tauri
+  const isTauriAvailable = 'window' in globalThis && globalThis.window != null && '__TAURI__' in globalThis.window
+  
+  if (isTauriAvailable && !activeTranscriptionProvider.value) {
+    activeTranscriptionProvider.value = 'app-local-whisper-transcription'
+    activeTranscriptionModel.value = 'whisper-tiny'
+    
+    // Инициализируем провайдер в store
+    providersStore.initializeProvider('app-local-whisper-transcription')
+    
+    // Устанавливаем модель в конфигурации провайдера
+    if (!providersStore.providers['app-local-whisper-transcription']) {
+      providersStore.providers['app-local-whisper-transcription'] = {}
+    }
+    providersStore.providers['app-local-whisper-transcription']['model'] = 'whisper-tiny'
+  }
+}
+
+// Вызываем инициализацию
+initializeWhisperProvider()
+
+const { audioInputs, selectedAudioInput, stream, stopStream, startStream, enabled } = useSettingsAudioDevice()
 const { startRecord, stopRecord, onStopRecord } = useAudioRecorder(stream)
 const { startAnalyzer, stopAnalyzer, onAnalyzerUpdate, volumeLevel } = useAudioAnalyzer()
 const { audioContext } = storeToRefs(useAudioContext())
@@ -63,6 +86,17 @@ const maxVadHistory = 50 // Keep 50 samples (~1.6 seconds at 32ms intervals)
 
 const audios = ref<Blob[]>([])
 const audioCleanups = ref<(() => void)[]>([])
+
+// Синхронизация состояния enabled с isMonitoring
+watch(() => enabled, async (newEnabled) => {
+  if (newEnabled && !isMonitoring.value) {
+    await setupAudioMonitoring()
+    isMonitoring.value = true
+  } else if (!newEnabled && isMonitoring.value) {
+    await stopAudioMonitoring()
+    isMonitoring.value = false
+  }
+})
 const audioURLs = computed(() => {
   return audios.value.map((blob) => {
     const url = URL.createObjectURL(blob)
@@ -73,7 +107,7 @@ const audioURLs = computed(() => {
 const transcriptions = ref<string[]>([])
 
 // VAD functions
-async function loadVADModel() {
+async function loadVADModel(): Promise<void> {
   if (isVADModelLoaded.value || isLoadingVADModel.value)
     return
 
@@ -135,7 +169,7 @@ async function loadVADModel() {
   }
   catch (error) {
     vadModelError.value = error instanceof Error ? error.message : String(error)
-    console.error('Failed to load VAD model:', error)
+    // VAD model loading error removed
   }
   finally {
     isLoadingVADModel.value = false
@@ -143,10 +177,10 @@ async function loadVADModel() {
 }
 
 // Audio monitoring
-async function setupAudioMonitoring() {
+async function setupAudioMonitoring(): Promise<void> {
   try {
-    if (!selectedAudioInput.value) {
-      console.warn('No audio input device selected')
+    if (!selectedAudioInput) {
+      // No audio input device warning removed
       return
     }
 
@@ -154,12 +188,12 @@ async function setupAudioMonitoring() {
     await stopAudioMonitoring()
 
     await startStream()
-    if (!stream.value) {
-      console.warn('No audio stream available')
+    if (!stream) {
+      // No audio stream warning removed
       return
     }
 
-    onStopRecord(async (recording) => {
+    onStopRecord(async (recording: Blob | undefined) => {
       if (!recording)
         return
 
@@ -181,14 +215,14 @@ async function setupAudioMonitoring() {
       }
       catch (err) {
         error.value = err instanceof Error ? err.message : String(err)
-        console.error('Error generating transcription:', error.value)
+        // Transcription error removed
       }
     })
 
-    const source = audioContext.value.createMediaStreamSource(stream.value)
+    const source = audioContext.value.createMediaStreamSource(stream)
     const analyzer = startAnalyzer(audioContext.value)
 
-    onAnalyzerUpdate((volumeLevel) => {
+    onAnalyzerUpdate((volumeLevel: number) => {
       // Fallback speaking detection (when VAD model is not used)
       if (!useVADModel.value || !isVADModelLoaded.value) {
         isSpeaking.value = volumeLevel > speakingThreshold.value
@@ -212,43 +246,76 @@ async function setupAudioMonitoring() {
     if (useVADModel.value) {
       await loadVADModel()
       if (vadManager.value) {
-        await vadManager.value.start(stream.value)
+        await vadManager.value.start(stream)
       }
     }
   }
   catch (error) {
-    console.error('Error setting up audio monitoring:', error)
+    // Audio monitoring setup error removed
     vadModelError.value = error instanceof Error ? error.message : String(error)
   }
 }
 
-async function stopAudioMonitoring() {
-  if (animationFrame.value) { // Stop animation frame
-    cancelAnimationFrame(animationFrame.value)
-    animationFrame.value = undefined
-  }
-  if (vadManager.value) { // Stop VAD manager
-    await vadManager.value.stop()
-  }
-  if (stream.value) { // Stop media stream
-    stopStream()
-  }
+async function stopAudioMonitoring(): Promise<void> {
+  try {
+    // Audio monitoring stop logging removed
+    
+    if (animationFrame.value) {
+      cancelAnimationFrame(animationFrame.value)
+      animationFrame.value = undefined
+    }
+    
+    if (vadManager.value) {
+      await vadManager.value.stop()
+    }
+    
+    try {
+      stopRecord()
+    } catch (err) {
+      // Recording stop error removed
+    }
+    
+    stopAnalyzer()
+    
+    if (gainNode.value) {
+      try {
+        gainNode.value.disconnect()
+      } catch (err) {
+        // Gain node disconnect error removed
+      }
+      gainNode.value = undefined
+    }
+    
+    if (stream && stream.getTracks) {
+      stream.getTracks().forEach((track: MediaStreamTrack) => {
+        if (track.readyState === 'live') {
+          track.stop()
+        }
+      })
+      stopStream()
+    }
 
-  stopAnalyzer()
-
-  gainNode.value = undefined
-  isSpeaking.value = false
-  vadProbability.value = 0
-  vadHistory.value = []
+    isSpeaking.value = false
+    vadProbability.value = 0
+    vadHistory.value = []
+    
+    // Audio monitoring stopped logging removed
+  }
+  catch (err) {
+    // Audio monitoring stop error removed
+    error.value = `Error stopping monitoring: ${err}`
+  }
 }
 
 // Update playback routing when playback setting changes
-async function updatePlayback() {
+async function updatePlayback(): Promise<void> {
   if (!audioContext.value || !gainNode.value)
     return
 
   if (enablePlayback.value) {
-    gainNode.value.gain.value = monitorVolume.value / 100
+    if (typeof monitorVolume.value === 'number') {
+      gainNode.value.gain.value = monitorVolume.value / 100
+    }
     gainNode.value.connect(audioContext.value.destination)
   }
   else {
@@ -258,16 +325,16 @@ async function updatePlayback() {
 }
 
 // Watchers
-watch(selectedAudioInput, async () => {
+watch(() => selectedAudioInput, async () => {
   if (isMonitoring.value) {
     await setupAudioMonitoring()
   }
 })
 
 watch(enablePlayback, updatePlayback)
-watch(monitorVolume, () => {
-  if (gainNode.value && enablePlayback.value) {
-    gainNode.value.gain.value = monitorVolume.value / 100
+watch(monitorVolume, (newValue: number) => {
+  if (gainNode.value && enablePlayback.value && typeof newValue === 'number') {
+    gainNode.value.gain.value = newValue / 100
   }
 })
 
@@ -279,14 +346,12 @@ watch(vadThreshold, () => {
 })
 
 // Monitoring toggle
-async function toggleMonitoring() {
-  if (!isMonitoring.value) {
-    await setupAudioMonitoring()
-    isMonitoring.value = true
+async function toggleMonitoring(): Promise<void> {
+  if (isMonitoring.value) {
+    await stopAudioMonitoring()
   }
   else {
-    await stopAudioMonitoring()
-    isMonitoring.value = false
+    await setupAudioMonitoring()
   }
 }
 
@@ -317,12 +382,14 @@ const speakingIndicatorClass = computed(() => {
   }
 })
 
-function updateCustomModelName(value: string) {
-  activeCustomModelName.value = value
+function updateCustomModelName(value: string): void {
+  if (typeof value === 'string') {
+    activeCustomModelName.value = value
+  }
 }
 
-onMounted(async () => {
-  await hearingStore.loadModelsForProvider(activeTranscriptionProvider.value)
+onMounted(() => {
+  initializeWhisperProvider()
 })
 
 onUnmounted(() => {
@@ -341,6 +408,13 @@ onUnmounted(() => {
       <div flex="~ col gap-4">
         <!-- Audio Input Selection -->
         <div>
+          <FieldCheckbox
+            v-model="enabled"
+            label="Enable Microphone"
+            description="Enable microphone access for transcription"
+            layout="vertical"
+
+          />
           <FieldSelect
             v-model="selectedAudioInput"
             label="Audio Input Device"
@@ -351,6 +425,7 @@ onUnmounted(() => {
             }))"
             placeholder="Select an audio input device"
             layout="vertical"
+            :disabled="!enabled"
           />
         </div>
 

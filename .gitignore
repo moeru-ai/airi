@@ -69,6 +69,12 @@ components.d.ts
 **/public/assets/live2d/models/*
 **/public/assets/vrm/models/*
 
+# Whisper models
+**/.cache/huggingface/
+**/whisper-models/
+**/*.onnx
+**/*.onnx_data
+
 # Serving fonts locally
 **/public/assets/fonts/
 

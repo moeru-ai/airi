@@ -6,9 +6,6 @@ use log::info;
 use ort::{
   execution_providers::{
     CPUExecutionProvider,
-    CUDAExecutionProvider,
-    CoreMLExecutionProvider,
-    DirectMLExecutionProvider,
   },
   session::{Session, builder::GraphOptimizationLevel},
   util::Mutex,
@@ -83,13 +80,6 @@ impl Processor {
 
     let session = builder
       .with_execution_providers(vec![
-        CUDAExecutionProvider::default()
-          .with_device_id(0)
-          .build(),
-        CoreMLExecutionProvider::default().build(),
-        DirectMLExecutionProvider::default()
-          .with_device_id(0)
-          .build(),
         CPUExecutionProvider::default().build(),
       ])?
       .commit_from_file(model_path)?;

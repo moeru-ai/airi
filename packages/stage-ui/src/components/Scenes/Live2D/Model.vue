@@ -88,7 +88,11 @@ const focusAt = toRef(() => props.focusAt)
 const model = ref<Live2DModel<PixiLive2DInternalModel>>()
 const initialModelWidth = ref<number>(0)
 const initialModelHeight = ref<number>(0)
-const mouthOpenSize = computed(() => Math.max(0, Math.min(100, props.mouthOpenSize)))
+const mouthOpenSize = computed(() => {
+  // Normalize from 0-100 range to 0-1 range for Live2D parameter
+  const normalized = Math.max(0, Math.min(100, props.mouthOpenSize)) / 100
+  return normalized
+})
 const lastUpdateTime = ref(0)
 
 const dark = useDark()
@@ -320,7 +324,14 @@ watch(themeColorsHueDynamic, () => {
   }
 }, { immediate: true })
 
-watch(mouthOpenSize, value => getCoreModel().setParameterValueById('ParamMouthOpenY', value))
+watch(mouthOpenSize, (value) => {
+  if (model.value && model.value.internalModel && model.value.internalModel.coreModel) {
+    console.log('Setting Live2D mouth parameter:', value)
+    getCoreModel().setParameterValueById('ParamMouthOpenY', value)
+  } else {
+    console.warn('Live2D model not ready for mouth parameter update:', value)
+  }
+})
 watch(currentMotion, value => setMotion(value.group, value.index))
 watch(paused, value => value ? pixiApp.value?.stop() : pixiApp.value?.start())
 

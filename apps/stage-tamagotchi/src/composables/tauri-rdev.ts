@@ -49,7 +49,7 @@ export function useTauriRdevEventTarget(): EventTarget {
         }
       }
       if (typeof event.payload.event_type.KeyRelease !== 'string') {
-        console.warn('unknown key release event:', event.payload.event_type.KeyRelease)
+        // Unknown key release event warning removed
         return
       }
 
@@ -72,7 +72,7 @@ export function useTauriRdevEventTarget(): EventTarget {
         }
       }
       if (typeof event.payload.event_type.KeyPress !== 'string') {
-        console.warn('unknown key release event:', event.payload.event_type.KeyPress)
+        // Unknown key press event warning removed
         return
       }
 

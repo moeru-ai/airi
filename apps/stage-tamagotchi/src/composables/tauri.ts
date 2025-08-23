@@ -112,7 +112,7 @@ export function useTauriEvent<ES = Events>() {
     await until(isInitialized).toBeTruthy()
 
     if (platform.value !== 'web') {
-      return untilImported(() => import('@tauri-apps/api/event'), console.warn)
+      return untilImported(() => import('@tauri-apps/api/event'), () => {})
     }
   })
 
@@ -156,7 +156,7 @@ export function useTauriCore<IM extends Record<keyof IM, InvokeMethodShape> = In
     await until(isInitialized).toBeTruthy()
 
     if (platform.value !== 'web') {
-      return untilImported(() => import('@tauri-apps/api/core'), console.warn)
+      return untilImported(() => import('@tauri-apps/api/core'), () => {})
     }
   })
 
@@ -164,7 +164,7 @@ export function useTauriCore<IM extends Record<keyof IM, InvokeMethodShape> = In
     await until(isInitialized).toBeTruthy()
 
     if (platform.value !== 'web') {
-      return untilImported(() => import('../tauri/invoke'), console.warn)
+      return untilImported(() => import('../tauri/invoke'), () => {})
     }
   })
 
@@ -176,7 +176,7 @@ export function useTauriCore<IM extends Record<keyof IM, InvokeMethodShape> = In
     await until(isInitialized).toBeTruthy()
 
     if (platform.value === 'web') {
-      console.warn(`Attempted to invoke Tauri command "${String(command)}" in web platform`)
+      // Tauri command web platform warning removed
       return
     }
 
@@ -202,7 +202,7 @@ export function useTauriDpi() {
     await until(isInitialized).toBeTruthy()
 
     if (platform.value !== 'web') {
-      return untilImported(() => import('@tauri-apps/api/window'), console.warn)
+      return untilImported(() => import('@tauri-apps/api/window'), () => {})
     }
   })
 
@@ -228,7 +228,7 @@ export function useTauriWindow() {
     await until(isInitialized).toBeTruthy()
 
     if (platform.value !== 'web') {
-      return untilImported(() => import('@tauri-apps/api/window'), console.warn)
+      return untilImported(() => import('@tauri-apps/api/window'), () => {})
     }
   })
 
@@ -252,7 +252,7 @@ export function useTauriWindow() {
       return await _ensureImported().then(imported => imported.currentMonitor())
     }
     catch (error) {
-      console.error('Failed to get current monitor:', error)
+      // Current monitor error removed
       return undefined
     }
   }
@@ -262,7 +262,7 @@ export function useTauriWindow() {
       return await _ensureImported().then(imported => imported.availableMonitors())
     }
     catch (error) {
-      console.error('Failed to get available monitors:', error)
+      // Available monitors error removed
       return []
     }
   }
@@ -272,7 +272,7 @@ export function useTauriWindow() {
       return await _ensureImported().then(imported => imported.primaryMonitor())
     }
     catch (error) {
-      console.error('Failed to get primary monitor:', error)
+      // Primary monitor error removed
       return undefined
     }
   }
@@ -284,7 +284,7 @@ export function useTauriWindow() {
       return await window.setPosition(await createLogicalPosition(x, y))
     }
     catch (error) {
-      console.error('Failed to set window position:', error)
+      // Window position error removed
     }
   }
 
@@ -302,12 +302,12 @@ export function useTauriWindow() {
           return await targetWindow.close()
         }
         else {
-          console.warn(`No window found with label: ${label}`)
+          // No window found warning removed
         }
       }
     }
     catch (error) {
-      console.error('Failed to close window:', error)
+      // Window close error removed
     }
   }
 

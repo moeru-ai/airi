@@ -301,6 +301,9 @@ pages:
       app-local-audio-speech:
         title: App (Local)
         description: https://github.com/moeru-ai/xsai-transformers
+      app-local-whisper-transcription:
+        title: Whisper (Local)
+        description: Transcripción local de Whisper usando ONNX Runtime
       browser-local-audio-transcription:
         title: Navegador (Local)
         description: https://github.com/moeru-ai/xsai-transformers

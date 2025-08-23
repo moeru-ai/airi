@@ -3,6 +3,7 @@ import type { AiriTamagotchiEvents, Point } from '../composables/tauri'
 
 import { WidgetStage } from '@proj-airi/stage-ui/components/scenes'
 import { useLive2d, useMcpStore } from '@proj-airi/stage-ui/stores'
+import { useSpeakingStore } from '@proj-airi/stage-ui/stores/audio'
 import { connectServer } from '@proj-airi/tauri-plugin-mcp'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
@@ -25,6 +26,7 @@ const { listen } = useTauriEvent<AiriTamagotchiEvents>()
 const { invoke } = useTauriCore()
 const { connected, serverCmd, serverArgs } = storeToRefs(mcpStore)
 const { scale, positionInPercentageString } = storeToRefs(useLive2d())
+const { mouthOpenSize } = storeToRefs(useSpeakingStore())
 
 const { centerPos, live2dLookAtX, live2dLookAtY, shouldHideView } = storeToRefs(useWindowStore())
 const live2dFocusAt = ref<Point>(centerPos.value)
@@ -55,7 +57,6 @@ function openChat() {
 }
 
 async function setupVADModelLoadingProgressListener() {
-  // VAD
   unListenFuncs.push(await listen('tauri-plugins:tauri-plugin-ipc-audio-vad-ort:load-model-silero-vad-progress', (event) => {
     const [_, filename, progress, totalSize, currentSize] = event.payload
     resourcesStore.updateResourceProgress('hearing', 'vad', { filename, progress, totalSize, currentSize })
@@ -68,7 +69,6 @@ async function setupVADModel() {
 }
 
 async function setupWhisperModelLoadingProgressListener() {
-  // Whisper
   unListenFuncs.push(await listen('tauri-plugins:tauri-plugin-ipc-audio-transcription-ort:load-model-whisper-progress', (event) => {
     const [_, filename, progress, totalSize, currentSize] = event.payload
     resourcesStore.updateResourceProgress('hearing', 'whisper', { filename, progress, totalSize, currentSize })
@@ -93,7 +93,7 @@ onMounted(async () => {
     connected.value = true
   }
   catch (error) {
-    console.error(error)
+    // Error logging removed
   }
 })
 
@@ -129,10 +129,12 @@ if (import.meta.hot) { // For better DX
       <WidgetStage
         h-full w-full flex-1
         :focus-at="live2dFocusAt" :scale="scale"
+        :mouth-open-size="mouthOpenSize"
         :x-offset="positionInPercentageString.x"
         :y-offset="positionInPercentageString.y" mb="<md:18"
       />
-      <ResourceStatusIsland />
+      <!-- UI elements hidden for widget mode -->
+      <ResourceStatusIsland v-if="windowControlStore.isControlActive" />
       <div
         absolute bottom-4 left-4 flex gap-1 op-0 transition="opacity duration-500"
         :class="{

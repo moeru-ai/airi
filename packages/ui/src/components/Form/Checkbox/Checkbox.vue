@@ -14,6 +14,8 @@ const modelValue = defineModel<boolean>({ required: true })
     bg="data-[state=checked]:primary-400 data-[state=unchecked]:neutral-300 data-[state=checked]:dark:primary-400/80 dark:data-[state=unchecked]:neutral-800"
     relative h-7 w="12.5" rounded-full
     shadow="sm focus-within:shadow-neutral-800 focus-within:[0_0_0_1px] "
+    @click="console.log('🎤 SwitchRoot clicked, current modelValue:', modelValue)"
+    @update:model-value="(value) => console.log('🎤 SwitchRoot model updated:', value)"
   >
     <SwitchThumb
       my-auto size-6

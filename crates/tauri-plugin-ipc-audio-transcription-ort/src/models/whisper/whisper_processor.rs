@@ -49,6 +49,8 @@ impl WhisperProcessor {
     &self,
     audio: &[f32],
   ) -> Array2<f32> {
+    log::info!("Processing audio: {} samples", audio.len());
+    
     // 1. Pad or truncate the audio to 30 seconds
     let mut pcm_data = audio.to_vec();
     if pcm_data.len() < N_SAMPLES {
@@ -57,13 +59,23 @@ impl WhisperProcessor {
       pcm_data.truncate(N_SAMPLES);
     }
     let pcm_data = Array1::from_vec(pcm_data);
+    log::info!("Audio padded/truncated to {} samples", pcm_data.len());
 
     // 2. Compute the Short-Time Fourier Transform (STFT)
+    log::info!("Computing STFT...");
     let stft = self.stft(&pcm_data);
+    log::info!("STFT computed, shape: {:?}", stft.shape());
+    
     // 3. Apply the mel filter bank
+    log::info!("Applying mel filter bank...");
     let mel_spectrogram = self.mel_filters.dot(&stft);
+    log::info!("Mel spectrogram computed, shape: {:?}", mel_spectrogram.shape());
+    
     // 4. Apply logarithmic scaling
-    self.log_mel_spectrogram(&mel_spectrogram)
+    log::info!("Applying logarithmic scaling...");
+    let result = self.log_mel_spectrogram(&mel_spectrogram);
+    log::info!("Audio processing completed, final shape: {:?}", result.shape());
+    result
   }
 
   /// Computes the Short-Time Fourier Transform (STFT) of the input audio.
@@ -125,10 +137,24 @@ impl WhisperProcessor {
     &self,
     mel_spec: &Array2<f32>,
   ) -> Array2<f32> {
+    log::info!("Starting log mel spectrogram computation...");
+    
+    log::info!("Computing log10 of mel spectrogram...");
     let mut log_spec = mel_spec.mapv(|x| x.max(1e-10).log10());
-    log_spec =
-      log_spec.mapv(|x| x.max(log_spec.fold(f32::NEG_INFINITY, |acc, &v| acc.max(v)) - 8.0));
+    
+    log::info!("Finding maximum value in log spectrogram...");
+    // Optimize: use iter().fold instead of fold method for better performance
+    let max_val = log_spec.iter().fold(f32::NEG_INFINITY, |acc, &v| acc.max(v));
+    log::info!("Maximum value found: {}", max_val);
+    
+    log::info!("Applying dynamic range compression...");
+    let threshold = max_val - 8.0;
+    log_spec = log_spec.mapv(|x| x.max(threshold));
+    
+    log::info!("Normalizing log spectrogram...");
     log_spec = (log_spec + 4.0) / 4.0;
+    
+    log::info!("Log mel spectrogram computation completed");
     log_spec
   }
 }

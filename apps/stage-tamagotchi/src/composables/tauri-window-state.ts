@@ -20,7 +20,7 @@ export function useTauriWindowState() {
     await until(isInitialized).toBeTruthy()
 
     if (platform.value !== 'web') {
-      return untilImported(() => import('@tauri-apps/plugin-window-state'), console.warn)
+      return untilImported(() => import('@tauri-apps/plugin-window-state'), () => {})
     }
   })
 
@@ -28,7 +28,7 @@ export function useTauriWindowState() {
     await until(isInitialized).toBeTruthy()
 
     if (platform.value === 'web') {
-      console.warn('Attempted to save window state in web platform')
+      // Window state web platform warning removed
       return
     }
 

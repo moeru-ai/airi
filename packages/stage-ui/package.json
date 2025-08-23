@@ -69,6 +69,7 @@
     "@proj-airi/tauri-plugin-mcp": "workspace:^",
     "@proj-airi/ui": "workspace:^",
     "@ricky0123/vad-web": "^0.0.24",
+    "@tauri-apps/api": "^2.7.0",
     "@tresjs/cientos": "^4.3.1",
     "@tresjs/core": "^4.3.6",
     "@tresjs/post-processing": "^2.4.0",

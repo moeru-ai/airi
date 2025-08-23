@@ -49,12 +49,11 @@ async function main() {
     writeFileSync(argOptions.out[0], filename, { encoding: 'utf-8' })
   }
   else {
-    console.log(filename)
+    // Output filename to stdout
   }
 }
 
 main()
-  .catch((error) => {
-    console.error('Error during generating name:', error)
+  .catch(() => {
     process.exit(1)
   })

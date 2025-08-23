@@ -10,10 +10,7 @@ use hf_hub::{
 use ndarray::{Array2, ArrayView3, Axis, s};
 use ort::{
   execution_providers::{
-    CPUExecutionProvider,
-    CUDAExecutionProvider,
-    CoreMLExecutionProvider,
-    DirectMLExecutionProvider,
+    CPUExecutionProvider, CUDAExecutionProvider, CoreMLExecutionProvider, ExecutionProvider,
   },
   session::{Session, SessionInputValue, builder::GraphOptimizationLevel},
   value::Value,
@@ -316,19 +313,33 @@ impl Whisper {
   }
 
   fn create_optimized_session(model_path: PathBuf) -> Result<Session> {
+    let cuda = CUDAExecutionProvider::default().with_device_id(0);
+    let coreml = CoreMLExecutionProvider::default();
+    
+    let mut providers = Vec::new();
+    
+    // Попробуем CUDA сначала
+    if cuda.is_available().unwrap_or(false) {
+      providers.push(cuda.build());
+      log::info!("Using CUDA execution provider for Whisper");
+    }
+    // Затем CoreML (для macOS)
+    else if coreml.is_available().unwrap_or(false) {
+      providers.push(coreml.build());
+      log::info!("Using CoreML execution provider for Whisper");
+    }
+    // Fallback на CPU
+    else {
+      log::info!("Using CPU execution provider for Whisper");
+    }
+    
+    // Всегда добавляем CPU как fallback
+    providers.push(CPUExecutionProvider::default().build());
+    
     let session = Session::builder()?
       .with_optimization_level(GraphOptimizationLevel::Level3)?
       .with_parallel_execution(true)?
-      .with_execution_providers([
-        CUDAExecutionProvider::default()
-          .with_device_id(0)
-          .build(),
-        CoreMLExecutionProvider::default().build(),
-        DirectMLExecutionProvider::default()
-          .with_device_id(0)
-          .build(),
-        CPUExecutionProvider::default().build(),
-      ])?
+      .with_execution_providers(providers)?
       .commit_from_file(model_path)?;
     Ok(session)
   }
@@ -345,15 +356,18 @@ impl Whisper {
     };
 
     if self.config.is_multilingual {
-      let lang = gen_config.language.as_deref().unwrap_or("en");
-      let lang_code = whisper_language_to_code(lang)?;
-      let lang_token = format!("<|{lang_code}|>");
-      let lang_token_id = self
-        .config
-        .lang_to_id
-        .get(&lang_token)
-        .ok_or_else(|| anyhow!("Language token not found for: {}", lang_token))?;
-      init_tokens.push(*lang_token_id);
+      // Если язык указан, используем его, иначе пропускаем языковой токен для автоопределения
+      if let Some(lang) = gen_config.language.as_deref() {
+        let lang_code = whisper_language_to_code(lang)?;
+        let lang_token = format!("<|{lang_code}|>");
+        let lang_token_id = self
+          .config
+          .lang_to_id
+          .get(&lang_token)
+          .ok_or_else(|| anyhow!("Language token not found for: {}", lang_token))?;
+        init_tokens.push(*lang_token_id);
+      }
+      // Если язык не указан (None), не добавляем языковой токен - модель автоматически определит язык
     }
     init_tokens.push(task_id);
 
@@ -434,7 +448,7 @@ impl Whisper {
       }
 
       generated_tokens.push(next_token);
-      decoder_input_ids = vec![next_token];
+      decoder_input_ids.push(next_token);
     }
 
     Ok(generated_tokens)
@@ -520,28 +534,43 @@ impl WhisperPipeline {
     audio: &[f32],
     gen_config: &GenerationConfig,
   ) -> Result<String> {
+    log::info!("Starting transcribe function with {} audio samples", audio.len());
+    
     // 1. Process the raw audio into a mel spectrogram with the correct shape [80, 3000] for normal, and [128, 3000] for large-v3
+    log::info!("Processing audio into mel spectrogram...");
     let input_features = self.processor.process(audio);
+    log::info!("Audio processed, mel spectrogram shape: {:?}", input_features.shape());
 
     // 2. Add the batch dimension, making the shape [1, 80, 3000] for normal, and [1, 128, 3000] for large-v3
+    log::info!("Adding batch dimension...");
     let input_features = input_features.insert_axis(Axis(0));
+    log::info!("Batch dimension added, final shape: {:?}", input_features.shape());
 
     // 3. Generate tokens. This will now work without a shape error.
+    log::info!("Starting token generation...");
     let generated_tokens = self
       .model
       .generate(input_features.view(), gen_config)?;
+    log::info!("Token generation completed, {} tokens generated", generated_tokens.len());
 
     // The rest of the function remains the same...
+    log::info!("Generated tokens (first 20): {:?}", &generated_tokens[..generated_tokens.len().min(20)]);
+    
+    log::info!("Converting tokens to u32...");
     let generated_tokens_u32: Vec<u32> = generated_tokens
       .iter()
       .map(|&x| u32::try_from(x).unwrap())
       .collect();
+    
+    log::info!("Generated tokens u32 (first 20): {:?}", &generated_tokens_u32[..generated_tokens_u32.len().min(20)]);
 
+    log::info!("Decoding tokens to text...");
     let transcript = self
       .tokenizer
       .decode(&generated_tokens_u32, true)
       .map_err(|e| anyhow!("Failed to decode tokens: {}", e))?;
-
+    
+    log::info!("Transcription completed: '{}' (length: {})", transcript, transcript.len());
     Ok(transcript)
   }
 }
