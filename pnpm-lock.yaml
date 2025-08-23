@@ -278,7 +278,7 @@ importers:
         version: rolldown-vite@7.0.12(@types/node@24.1.0)(esbuild@0.25.8)(jiti@2.5.1)(less@4.4.0)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       vite-plugin-vue-devtools:
         specifier: ^8.0.0
-        version: 8.0.0(@nuxt/kit@3.14.1592(magicast@0.3.5)(rollup@4.46.2))(rolldown-vite@7.0.12(@types/node@24.1.0)(esbuild@0.25.8)(jiti@2.5.1)(less@4.4.0)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0))(vue@3.5.18(typescript@5.9.2))
+        version: 8.0.0(@nuxt/kit@3.14.1592(magicast@0.3.5)(rollup@2.79.2))(rolldown-vite@7.0.12(@types/node@24.1.0)(esbuild@0.25.8)(jiti@2.5.1)(less@4.4.0)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0))(vue@3.5.18(typescript@5.9.2))
       vite-plugin-vue-layouts:
         specifier: ^0.11.0
         version: 0.11.0(rolldown-vite@7.0.12(@types/node@24.1.0)(esbuild@0.25.8)(jiti@2.5.1)(less@4.4.0)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0))(vue-router@4.5.1(vue@3.5.18(typescript@5.9.2)))(vue@3.5.18(typescript@5.9.2))
@@ -1323,9 +1323,9 @@ importers:
       '@ricky0123/vad-web':
         specifier: ^0.0.24
         version: 0.0.24
-      '@shikijs/markdown-it':
+      '@shikijs/rehype':
         specifier: ^3.9.1
-        version: 3.9.1
+        version: 3.11.0
       '@tresjs/cientos':
         specifier: ^4.3.1
         version: 4.3.1(@tresjs/core@4.3.6(three@0.179.0)(typescript@5.9.2)(vue@3.5.18(typescript@5.9.2)))(@types/three@0.178.1)(react@18.3.1)(three@0.179.0)(typescript@5.9.2)(vue@3.5.18(typescript@5.9.2))
@@ -1401,9 +1401,6 @@ importers:
       localforage:
         specifier: ^1.10.0
         version: 1.10.0
-      markdown-it:
-        specifier: ^14.1.0
-        version: 14.1.0
       nanoid:
         specifier: ^5.1.5
         version: 5.1.5
@@ -1540,9 +1537,6 @@ importers:
       '@types/culori':
         specifier: ^4.0.0
         version: 4.0.0
-      '@types/markdown-it':
-        specifier: ^14.1.2
-        version: 14.1.2
       '@types/three':
         specifier: ^0.178.1
         version: 0.178.1
@@ -1644,7 +1638,7 @@ importers:
         version: rolldown-vite@7.0.12(@types/node@24.1.0)(esbuild@0.25.8)(jiti@2.5.1)(less@4.4.0)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       vite-plugin-vue-devtools:
         specifier: ^8.0.0
-        version: 8.0.0(@nuxt/kit@3.14.1592(magicast@0.3.5)(rollup@4.46.2))(rolldown-vite@7.0.12(@types/node@24.1.0)(esbuild@0.25.8)(jiti@2.5.1)(less@4.4.0)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0))(vue@3.5.18(typescript@5.9.2))
+        version: 8.0.0(@nuxt/kit@3.14.1592(magicast@0.3.5)(rollup@2.79.2))(rolldown-vite@7.0.12(@types/node@24.1.0)(esbuild@0.25.8)(jiti@2.5.1)(less@4.4.0)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0))(vue@3.5.18(typescript@5.9.2))
       vue-router:
         specifier: ^4.5.1
         version: 4.5.1(vue@3.5.18(typescript@5.9.2))
@@ -1678,7 +1672,7 @@ importers:
         version: rolldown-vite@7.0.12(@types/node@24.1.0)(esbuild@0.25.8)(jiti@2.5.1)(less@4.4.0)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       vite-plugin-vue-devtools:
         specifier: ^8.0.0
-        version: 8.0.0(@nuxt/kit@3.14.1592(magicast@0.3.5)(rollup@4.46.2))(rolldown-vite@7.0.12(@types/node@24.1.0)(esbuild@0.25.8)(jiti@2.5.1)(less@4.4.0)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0))(vue@3.5.18(typescript@5.9.2))
+        version: 8.0.0(@nuxt/kit@3.14.1592(magicast@0.3.5)(rollup@2.79.2))(rolldown-vite@7.0.12(@types/node@24.1.0)(esbuild@0.25.8)(jiti@2.5.1)(less@4.4.0)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0))(vue@3.5.18(typescript@5.9.2))
       vue-router:
         specifier: ^4.5.1
         version: 4.5.1(vue@3.5.18(typescript@5.9.2))
@@ -5617,14 +5611,26 @@ packages:
   '@sec-ant/readable-stream@0.4.1':
     resolution: {integrity: sha512-831qok9r2t8AlxLko40y2ebgSDhenenCatLVeW/uBtnHPyhHOvG0C7TvfgecV+wHzIm5KUICgzmVpWS+IMEAeg==}
 
+  '@shikijs/core@3.11.0':
+    resolution: {integrity: sha512-oJwU+DxGqp6lUZpvtQgVOXNZcVsirN76tihOLBmwILkKuRuwHteApP8oTXmL4tF5vS5FbOY0+8seXmiCoslk4g==}
+
   '@shikijs/core@3.9.1':
     resolution: {integrity: sha512-W5Vwen0KJCtR7KFRo+3JLGAqLUPsfW7e+wZ4yaRBGIogwI9ZlnkpRm9ZV8JtfzMxOkIwZwMmmN0hNErLtm3AYg==}
+
+  '@shikijs/engine-javascript@3.11.0':
+    resolution: {integrity: sha512-6/ov6pxrSvew13k9ztIOnSBOytXeKs5kfIR7vbhdtVRg+KPzvp2HctYGeWkqv7V6YIoLicnig/QF3iajqyElZA==}
 
   '@shikijs/engine-javascript@3.9.1':
     resolution: {integrity: sha512-4hGenxYpAmtALryKsdli2K58F0s7RBYpj/RSDcAAGfRM6eTEGI5cZnt86mr+d9/4BaZ5sH5s4p3VU5irIdhj9Q==}
 
+  '@shikijs/engine-oniguruma@3.11.0':
+    resolution: {integrity: sha512-4DwIjIgETK04VneKbfOE4WNm4Q7WC1wo95wv82PoHKdqX4/9qLRUwrfKlmhf0gAuvT6GHy0uc7t9cailk6Tbhw==}
+
   '@shikijs/engine-oniguruma@3.9.1':
     resolution: {integrity: sha512-WPlL/xqviwS3te4unSGGGfflKsuHLMI6tPdNYvgz/IygcBT6UiwDFSzjBKyebwi5GGSlXsjjdoJLIBnAplmEZw==}
+
+  '@shikijs/langs@3.11.0':
+    resolution: {integrity: sha512-Njg/nFL4HDcf/ObxcK2VeyidIq61EeLmocrwTHGGpOQx0BzrPWM1j55XtKQ1LvvDWH15cjQy7rg96aJ1/l63uw==}
 
   '@shikijs/langs@3.9.1':
     resolution: {integrity: sha512-Vyy2Yv9PP3Veh3VSsIvNncOR+O93wFsNYgN2B6cCCJlS7H9SKFYc55edsqernsg8WT/zam1cfB6llJsQWLnVhA==}
@@ -5637,11 +5643,20 @@ packages:
       markdown-it-async:
         optional: true
 
+  '@shikijs/rehype@3.11.0':
+    resolution: {integrity: sha512-4njEqPBoFn+fsQqSOEw8OjiIIg52jBM0I2qRC1NALFFmQm97qZuQvP570RI94HvAfzCT6agG6ZFBPofrNZ4tlQ==}
+
+  '@shikijs/themes@3.11.0':
+    resolution: {integrity: sha512-BhhWRzCTEk2CtWt4S4bgsOqPJRkapvxdsifAwqP+6mk5uxboAQchc0etiJ0iIasxnMsb764qGD24DK9albcU9Q==}
+
   '@shikijs/themes@3.9.1':
     resolution: {integrity: sha512-zAykkGECNICCMXpKeVvq04yqwaSuAIvrf8MjsU5bzskfg4XreU+O0B5wdNCYRixoB9snd3YlZ373WV5E/g5T9A==}
 
   '@shikijs/transformers@3.9.1':
     resolution: {integrity: sha512-QI4Bh565EhKGaefiDAyn5o7S8rQIUGXcOjZANSiQHa/KSGCyJTZP9UUiRbvdovVpaI/nagODX6mspFk/vcYOQQ==}
+
+  '@shikijs/types@3.11.0':
+    resolution: {integrity: sha512-RB7IMo2E7NZHyfkqAuaf4CofyY8bPzjWPjJRzn6SEak3b46fIQyG6Vx5fG/obqkfppQ+g8vEsiD7Uc6lqQt32Q==}
 
   '@shikijs/types@3.9.1':
     resolution: {integrity: sha512-rqM3T7a0iM1oPKz9iaH/cVgNX9Vz1HERcUcXJ94/fulgVdwqfnhXzGxO4bLrAnh/o5CPLy3IcYedogfV+Ns0Qg==}
@@ -11671,6 +11686,9 @@ packages:
   shellwords@0.1.1:
     resolution: {integrity: sha512-vFwSUfQvqybiICwZY5+DAWIPLKsWO31Q91JSKl3UYv+K5c2QRPzn0qzec6QPu1Qc9eHYItiP3NdJqNVqetYAww==}
 
+  shiki@3.11.0:
+    resolution: {integrity: sha512-VgKumh/ib38I1i3QkMn6mAQA6XjjQubqaAYhfge71glAll0/4xnt8L2oSuC45Qcr/G5Kbskj4RliMQddGmy/Og==}
+
   shiki@3.9.1:
     resolution: {integrity: sha512-HogZ8nMnv9VAQMrG+P7BleJFhrKHm3fi6CYyHRbUu61gJ0lpqLr6ecYEui31IYG1Cn9Bad7N2vf332iXHnn0bQ==}
 
@@ -17476,6 +17494,13 @@ snapshots:
 
   '@sec-ant/readable-stream@0.4.1': {}
 
+  '@shikijs/core@3.11.0':
+    dependencies:
+      '@shikijs/types': 3.11.0
+      '@shikijs/vscode-textmate': 10.0.2
+      '@types/hast': 3.0.4
+      hast-util-to-html: 9.0.5
+
   '@shikijs/core@3.9.1':
     dependencies:
       '@shikijs/types': 3.9.1
@@ -17483,16 +17508,31 @@ snapshots:
       '@types/hast': 3.0.4
       hast-util-to-html: 9.0.5
 
+  '@shikijs/engine-javascript@3.11.0':
+    dependencies:
+      '@shikijs/types': 3.11.0
+      '@shikijs/vscode-textmate': 10.0.2
+      oniguruma-to-es: 4.3.3
+
   '@shikijs/engine-javascript@3.9.1':
     dependencies:
       '@shikijs/types': 3.9.1
       '@shikijs/vscode-textmate': 10.0.2
       oniguruma-to-es: 4.3.3
 
+  '@shikijs/engine-oniguruma@3.11.0':
+    dependencies:
+      '@shikijs/types': 3.11.0
+      '@shikijs/vscode-textmate': 10.0.2
+
   '@shikijs/engine-oniguruma@3.9.1':
     dependencies:
       '@shikijs/types': 3.9.1
       '@shikijs/vscode-textmate': 10.0.2
+
+  '@shikijs/langs@3.11.0':
+    dependencies:
+      '@shikijs/types': 3.11.0
 
   '@shikijs/langs@3.9.1':
     dependencies:
@@ -17503,6 +17543,19 @@ snapshots:
       markdown-it: 14.1.0
       shiki: 3.9.1
 
+  '@shikijs/rehype@3.11.0':
+    dependencies:
+      '@shikijs/types': 3.11.0
+      '@types/hast': 3.0.4
+      hast-util-to-string: 3.0.1
+      shiki: 3.11.0
+      unified: 11.0.5
+      unist-util-visit: 5.0.0
+
+  '@shikijs/themes@3.11.0':
+    dependencies:
+      '@shikijs/types': 3.11.0
+
   '@shikijs/themes@3.9.1':
     dependencies:
       '@shikijs/types': 3.9.1
@@ -17511,6 +17564,11 @@ snapshots:
     dependencies:
       '@shikijs/core': 3.9.1
       '@shikijs/types': 3.9.1
+
+  '@shikijs/types@3.11.0':
+    dependencies:
+      '@shikijs/vscode-textmate': 10.0.2
+      '@types/hast': 3.0.4
 
   '@shikijs/types@3.9.1':
     dependencies:
@@ -25400,6 +25458,17 @@ snapshots:
   shell-quote@1.8.3: {}
 
   shellwords@0.1.1: {}
+
+  shiki@3.11.0:
+    dependencies:
+      '@shikijs/core': 3.11.0
+      '@shikijs/engine-javascript': 3.11.0
+      '@shikijs/engine-oniguruma': 3.11.0
+      '@shikijs/langs': 3.11.0
+      '@shikijs/themes': 3.11.0
+      '@shikijs/types': 3.11.0
+      '@shikijs/vscode-textmate': 10.0.2
+      '@types/hast': 3.0.4
 
   shiki@3.9.1:
     dependencies:
