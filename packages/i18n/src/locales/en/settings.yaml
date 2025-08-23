@@ -18,7 +18,7 @@ dialogs:
     baseUrlHelp: API endpoint URL (use default if unsure)
     accountId: Account ID
     validating: Validating configuration...
-    validationSuccess: Configuration is valid!
+    validationSuccess: First configuration validated successful.
     validationFailed: Configuration validation failed
     validationError: 'Validation error: {error}'
     skipForNow: Skip for now
@@ -441,6 +441,9 @@ pages:
       featherless:
         description: featherless.ai
         title: Featherless AI
+      lm-studio:
+        description: lmstudio.ai
+        title: LM Studio
       vllm:
         description: vllm.ai
         title: vLLM
