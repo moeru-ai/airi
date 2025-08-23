@@ -22,7 +22,7 @@ const clsAndProps = computed(() => {
   return {
     opacity: isAnimating.value !== props.isReverse
       ? 1
-      : 0
+      : 0,
     size: isAnimating.value !== props.isReverse
       ? 25
       : props.iconSize,
