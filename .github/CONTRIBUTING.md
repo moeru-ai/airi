@@ -308,7 +308,6 @@ pnpm lint && pnpm typecheck
 If you are committing images, consider using AVIF format instead of PNG, JPG etc. You can convert existing images to AVIF by running:
 
 ```shell
-cd docs
 pnpm to-avif <PATH_TO_IMAGE_OR_DIRECTORY1> <PATH_2> <PATH_3> ...
 ```
 
