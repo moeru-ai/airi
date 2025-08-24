@@ -39,8 +39,10 @@ export interface DisplayModelURL {
 }
 
 const displayModelsPresets: DisplayModel[] = [
-  { id: 'preset-live2d-1', format: DisplayModelFormat.Live2dZip, type: 'url', url: '/assets/live2d/models/hiyori_pro_zh.zip', name: 'Hiyori (Pro)', previewImage: '/assets/live2d/models/hiyori_pro_zh/avatar.png', importedAt: 1733113886840 },
-  { id: 'preset-live2d-2', format: DisplayModelFormat.Live2dZip, type: 'url', url: '/assets/live2d/models/hiyori_free_zh.zip', name: 'Hiyori (Free)', previewImage: '/assets/live2d/models/hiyori_pro_zh/avatar.png', importedAt: 1733113886840 },
+  { id: 'preset-live2d-1', format: DisplayModelFormat.Live2dZip, type: 'url', url: '/assets/live2d/models/hiyori_pro_zh.zip', name: 'Hiyori (Pro)', previewImage: '/assets/live2d/models/hiyori_pro_zh/preview.png', importedAt: 1733113886840 },
+  { id: 'preset-live2d-2', format: DisplayModelFormat.Live2dZip, type: 'url', url: '/assets/live2d/models/hiyori_free_zh.zip', name: 'Hiyori (Free)', previewImage: '/assets/live2d/models/hiyori_pro_zh/preview.png', importedAt: 1733113886840 },
+  { id: 'preset-vrm-1', format: DisplayModelFormat.VRM, type: 'url', url: '/assets/vrm/models/AvatarSample-A/AvatarSample_A.vrm', name: 'AvatarSample_A', previewImage: '/assets/vrm/models/AvatarSample-A/preview.png', importedAt: 1733113886840 },
+  { id: 'preset-vrm-2', format: DisplayModelFormat.VRM, type: 'url', url: '/assets/vrm/models/AvatarSample-B/AvatarSample_B.vrm', name: 'AvatarSample_B', previewImage: '/assets/vrm/models/AvatarSample-B/preview.png', importedAt: 1733113886840 },
 ]
 
 export const useDisplayModelsStore = defineStore('display-models', () => {
