@@ -21,6 +21,8 @@ description: 如何使用桌面版的 Project AIRI
 并在设置完成后重启 Ollama 应用程序。
 :::
 
+<br />
+
 <video controls autoplay loop muted>
  <source src="../../../../../en/docs/overview/guide/tamagotchi/assets/tutorial-basic-setup-providers.mp4" type="video/mp4">
 </video>
@@ -162,7 +164,7 @@ description: 如何使用桌面版的 Project AIRI
 目前，要打开聊天窗口，你需要先关闭 **悬停时淡化** 模式。
 
 ::: info 快捷键速记
-悬停时淡化（Fade on Hover）的快捷键是: <kbd aria-label="Shift" data-keyboard-key="shift" inline-block>Shift</kbd> + <kbd aria-label="Alt" data-macos-keyboard-key="option" inline-block>Alt</kbd> + <kbd aria-label="I" inline-block>I</kbd>.
+悬停时淡化（Fade on Hover）的快捷键是：<kbd aria-label="Shift" data-keyboard-key="shift" inline-block>Shift</kbd> + <kbd aria-label="Alt" data-macos-keyboard-key="option" inline-block>Alt</kbd> + <kbd aria-label="I" inline-block>I</kbd>.
 :::
 
 <br />

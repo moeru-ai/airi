@@ -21,6 +21,8 @@ You will need to set the `OLLAMA_ORIGINS=*` system environment variable and rest
 application after finishes.
 :::
 
+<br />
+
 <video controls autoplay loop muted>
  <source src="./assets/tutorial-basic-setup-providers.mp4" type="video/mp4">
 </video>
