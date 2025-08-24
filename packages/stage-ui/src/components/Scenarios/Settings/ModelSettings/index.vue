@@ -13,7 +13,10 @@ import ModelManagerDialog from '../../Dialogs/model-selector/model-selector-dial
 import Live2D from './Live2D.vue'
 import VRM from './VRM.vue'
 
+import { DisplayModelFormat } from '../../../../stores/display-models'
+import { useLive2d } from '../../../../stores/live2d'
 import { useSettings } from '../../../../stores/settings'
+import { useVRM } from '../../../../stores/vrm'
 
 const props = defineProps<{
   palette: string[]
@@ -33,9 +36,20 @@ const positionCursor = useMouse()
 const settingsStore = useSettings()
 const { live2dDisableFocus, stageModelSelectedUrl, stageModelSelected, stageModelRenderer } = storeToRefs(settingsStore)
 
-watch(selectedModel, () => {
+watch(selectedModel, async () => {
   stageModelSelected.value = selectedModel.value?.id
-  settingsStore.updateStageModel()
+  await settingsStore.updateStageModel()
+
+  if (selectedModel.value) {
+    switch (selectedModel.value.format) {
+      case DisplayModelFormat.Live2dZip:
+        useLive2d().shouldUpdateView()
+        break
+      case DisplayModelFormat.VRM:
+        useVRM().shouldUpdateView()
+        break
+    }
+  }
 }, { deep: true })
 </script>
 

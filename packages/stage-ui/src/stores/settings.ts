@@ -35,7 +35,7 @@ export const useSettings = defineStore('settings', () => {
 
   const language = useLocalStorage('settings/language', '')
 
-  const stageModelSelected = useLocalStorage<string | undefined>('settings/stage/model', undefined)
+  const stageModelSelected = useLocalStorage<string | undefined>('settings/stage/model', 'preset-live2d-1')
   const stageModelSelectedDisplayModel = ref<DisplayModel | undefined>()
   const stageModelSelectedUrl = ref<string>()
   const stageModelRenderer = ref<'live2d' | 'vrm' | 'disabled'>()
@@ -56,17 +56,6 @@ export const useSettings = defineStore('settings', () => {
       return
     }
 
-    if (model.type === 'file') {
-      if (stageModelSelectedUrl.value) {
-        URL.revokeObjectURL(stageModelSelectedUrl.value)
-      }
-
-      stageModelSelectedUrl.value = URL.createObjectURL(model.file)
-    }
-    else {
-      stageModelSelectedUrl.value = model.url
-    }
-
     switch (model.format) {
       case DisplayModelFormat.Live2dZip:
         stageModelRenderer.value = 'live2d'
@@ -77,6 +66,17 @@ export const useSettings = defineStore('settings', () => {
       default:
         stageModelRenderer.value = 'disabled'
         break
+    }
+
+    if (model.type === 'file') {
+      if (stageModelSelectedUrl.value) {
+        URL.revokeObjectURL(stageModelSelectedUrl.value)
+      }
+
+      stageModelSelectedUrl.value = URL.createObjectURL(model.file)
+    }
+    else {
+      stageModelSelectedUrl.value = model.url
     }
 
     stageModelSelectedDisplayModel.value = model

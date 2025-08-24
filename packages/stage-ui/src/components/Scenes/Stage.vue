@@ -27,6 +27,7 @@ import { useLive2d } from '../../stores/live2d'
 import { useSpeechStore } from '../../stores/modules/speech'
 import { useProvidersStore } from '../../stores/providers'
 import { useSettings } from '../../stores/settings'
+import { useVRM } from '../../stores/vrm'
 
 withDefaults(defineProps<{
   paused?: boolean
@@ -41,11 +42,33 @@ const db = ref<DuckDBWasmDrizzleDatabase>()
 
 const vrmViewerRef = ref<{ setExpression: (expression: string) => void }>()
 
-const { stageModelRenderer, stageViewControlsEnabled, live2dDisableFocus, stageModelSelectedUrl } = storeToRefs(useSettings())
+const settingsStore = useSettings()
+const { stageModelRenderer, stageViewControlsEnabled, live2dDisableFocus, stageModelSelectedUrl } = storeToRefs(settingsStore)
 const { mouthOpenSize } = storeToRefs(useSpeakingStore())
 const { audioContext, calculateVolume } = useAudioContext()
 const { onBeforeMessageComposed, onBeforeSend, onTokenLiteral, onTokenSpecial, onStreamEnd, onAssistantResponseEnd } = useChatStore()
 const providersStore = useProvidersStore()
+
+const live2dStore = useLive2d()
+const vrmStore = useVRM()
+
+const showStage = ref(true)
+
+live2dStore.onShouldUpdateView(async () => {
+  showStage.value = false
+  await settingsStore.updateStageModel()
+  setTimeout(() => {
+    showStage.value = true
+  }, 100)
+})
+
+vrmStore.onShouldUpdateView(async () => {
+  showStage.value = false
+  await settingsStore.updateStageModel()
+  setTimeout(() => {
+    showStage.value = true
+  }, 100)
+})
 
 const audioAnalyser = ref<AnalyserNode>()
 const nowSpeaking = ref(false)
@@ -229,7 +252,7 @@ onMounted(async () => {
   <div relative>
     <div h-full w-full>
       <Live2DScene
-        v-if="stageModelRenderer === 'live2d'"
+        v-if="stageModelRenderer === 'live2d' && showStage"
         min-w="50% <lg:full" min-h="100 sm:100" h-full w-full flex-1
         :model-src="stageModelSelectedUrl"
         :focus-at="focusAt"
@@ -241,7 +264,7 @@ onMounted(async () => {
         :disable-focus-at="live2dDisableFocus"
       />
       <VRMScene
-        v-else-if="stageModelRenderer === 'vrm'"
+        v-if="stageModelRenderer === 'vrm' && showStage"
         ref="vrmViewerRef"
         :model-src="stageModelSelectedUrl"
         idle-animation="/assets/vrm/animations/idle_loop.vrma"

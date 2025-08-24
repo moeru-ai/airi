@@ -39,8 +39,8 @@ export interface DisplayModelURL {
 }
 
 const displayModelsPresets: DisplayModel[] = [
-  { id: 'preset-live2d-1', format: DisplayModelFormat.Live2dZip, type: 'url', url: '/assets/live2d/models/hiyori_pro_zh.zip', name: 'Hiyori (Pro)', previewImage: '/assets/live2d/models/hiyori_free_zh/avatar.png', importedAt: 1733113886840 },
-  { id: 'preset-live2d-2', format: DisplayModelFormat.Live2dZip, type: 'url', url: '/assets/live2d/models/hiyori_free_zh.zip', name: 'Hiyori (Free)', previewImage: '/assets/live2d/models/hiyori_free_zh/avatar.png', importedAt: 1733113886840 },
+  { id: 'preset-live2d-1', format: DisplayModelFormat.Live2dZip, type: 'url', url: '/assets/live2d/models/hiyori_pro_zh.zip', name: 'Hiyori (Pro)', previewImage: '/assets/live2d/models/hiyori_pro_zh/avatar.png', importedAt: 1733113886840 },
+  { id: 'preset-live2d-2', format: DisplayModelFormat.Live2dZip, type: 'url', url: '/assets/live2d/models/hiyori_free_zh.zip', name: 'Hiyori (Free)', previewImage: '/assets/live2d/models/hiyori_pro_zh/avatar.png', importedAt: 1733113886840 },
 ]
 
 export const useDisplayModelsStore = defineStore('display-models', () => {
