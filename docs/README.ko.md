@@ -244,15 +244,15 @@ npx bumpp --no-commit --no-tag
 %%{ init: { 'flowchart': { 'curve': 'catmullRom' } } }%%
 
 flowchart TD
-  Core("Core")
+  Core("코어")
   Unspeech("unspeech")
   DBDriver("@proj-airi/drizzle-duckdb-wasm")
-  MemoryDriver("[WIP] Memory Alaya")
+  MemoryDriver("[작업중] Memory Alaya")
   DB1("@proj-airi/duckdb-wasm")
   SVRT("@proj-airi/server-runtime")
-  Memory("Memory")
-  STT("STT")
-  Stage("Stage")
+  Memory("메모리")
+  STT("음성인식")
+  Stage("스테이지")
   StageUI("@proj-airi/stage-ui")
   UI("@proj-airi/ui")
 
@@ -263,7 +263,7 @@ flowchart TD
     Core --> SVRT
   end
 
-  subgraph UI_Components
+  subgraph UI_컴포넌트
     UI --> StageUI
     UITransitions("@proj-airi/ui-transitions") --> StageUI
     UILoadingScreens("@proj-airi/ui-loading-screens") --> StageUI
@@ -271,14 +271,14 @@ flowchart TD
     FontXiaolai("@proj-airi/font-xiaolai") --> StageUI
   end
 
-  subgraph Apps
+  subgraph 앱
     Stage --> StageWeb("@proj-airi/stage-web")
     Stage --> StageTamagotchi("@proj-airi/stage-tamagotchi")
     Core --> RealtimeAudio("@proj-airi/realtime-audio")
     Core --> PromptEngineering("@proj-airi/playground-prompt-engineering")
   end
 
-  subgraph Server_Components
+  subgraph 서버_컴포넌트
     Core --> ServerSDK("@proj-airi/server-sdk")
     ServerShared("@proj-airi/server-shared") --> SVRT
     ServerShared --> ServerSDK
@@ -288,8 +288,8 @@ flowchart TD
   SVRT -->|Factorio 플레이| F_AGENT
   SVRT -->|Minecraft 플레이| MC_AGENT
 
-  subgraph Factorio_Agent
-    F_AGENT("Factorio Agent")
+  subgraph Factorio_에이전트
+    F_AGENT("Factorio 에이전트")
     F_API("Factorio RCON API")
     factorio-server("factorio-server")
     F_MOD1("autorio")
@@ -298,8 +298,8 @@ flowchart TD
     F_MOD1 -.-> factorio-server
   end
 
-  subgraph Minecraft_Agent
-    MC_AGENT("Minecraft Agent")
+  subgraph Minecraft_에이전트
+    MC_AGENT("Minecraft 에이전트")
     Mineflayer("Mineflayer")
     minecraft-server("minecraft-server")
 
@@ -317,11 +317,11 @@ flowchart TD
   style AIRI fill:#fcf7f7,stroke:#333,stroke-width:1px
   style UI fill:#d4f9d4,stroke:#333,stroke-width:1px
   style Stage fill:#d4f9d4,stroke:#333,stroke-width:1px
-  style UI_Components fill:#d4f9d4,stroke:#333,stroke-width:1px
-  style Server_Components fill:#d4e6f9,stroke:#333,stroke-width:1px
-  style Apps fill:#d4d4f9,stroke:#333,stroke-width:1px
-  style Factorio_Agent fill:#f9d4f2,stroke:#333,stroke-width:1px
-  style Minecraft_Agent fill:#f9d4f2,stroke:#333,stroke-width:1px
+  style UI_컴포넌트 fill:#d4f9d4,stroke:#333,stroke-width:1px
+  style 서버_컴포넌트 fill:#d4e6f9,stroke:#333,stroke-width:1px
+  style 앱 fill:#d4d4f9,stroke:#333,stroke-width:1px
+  style Factorio_에이전트 fill:#f9d4f2,stroke:#333,stroke-width:1px
+  style Minecraft_에이전트 fill:#f9d4f2,stroke:#333,stroke-width:1px
 
   style DBDriver fill:#f9f9d4,stroke:#333,stroke-width:1px
   style MemoryDriver fill:#f9f9d4,stroke:#333,stroke-width:1px

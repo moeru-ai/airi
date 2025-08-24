@@ -10,61 +10,10 @@ import { existsSync, readFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
+import yaml from 'js-yaml'
+
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
-
-// Simple YAML parser (basic structure only)
-function parseYaml(content: string): any {
-  try {
-    // Very basic YAML parsing - recommend using actual yaml library in production
-    const lines = content.split('\n').filter(line => line.trim() && !line.trim().startsWith('#'))
-    const result: any = {}
-    const stack: any[] = [{ obj: result, indent: 0 }]
-
-    for (const line of lines) {
-      const trimmed = line.trim()
-      if (!trimmed)
-        continue
-
-      const indent = line.length - line.trimStart().length
-      const [key, ...valueParts] = trimmed.split(':')
-      const value = valueParts.join(':').trim()
-
-      // Adjust stack to match indent level
-      while (stack.length > 1 && indent <= stack[stack.length - 1].indent) {
-        stack.pop()
-      }
-
-      const current = stack[stack.length - 1].obj
-
-      if (value) {
-        // Case with value
-        let cleanValue = value
-        if (value.startsWith('"') && value.endsWith('"')) {
-          cleanValue = value.slice(1, -1)
-        }
-        else if (value.startsWith('\'') && value.endsWith('\'')) {
-          cleanValue = value.slice(1, -1)
-        }
-        else if (value === '>') {
-          cleanValue = '' // Treat multiline strings as empty string
-        }
-        current[key.trim()] = cleanValue
-      }
-      else {
-        // Case without value (nested object)
-        current[key.trim()] = {}
-        stack.push({ obj: current[key.trim()], indent })
-      }
-    }
-
-    return result
-  }
-  catch (error) {
-    console.error('YAML Parsing Error:', error)
-    return {}
-  }
-}
 
 interface TranslationStats {
   file: string
@@ -100,7 +49,7 @@ function getKeysFromYaml(filePath: string): string[] {
 
   try {
     const content = readFileSync(filePath, 'utf8')
-    const parsed = parseYaml(content)
+    const parsed = yaml.load(content) as any
     return extractKeys(parsed)
   }
   catch (error) {
