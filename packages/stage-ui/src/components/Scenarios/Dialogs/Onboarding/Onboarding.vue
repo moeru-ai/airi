@@ -436,7 +436,7 @@ onMounted(() => {
           <!-- Action Buttons -->
           <Button
             :label="t('settings.dialogs.onboarding.next')"
-            :disabled="!selectedProviderId"
+            :disabled="!selectedProviderId || (needsApiKey && apiKey.trim().length === 0)"
             :loading="isLoadingActiveProviderModels"
             @click="handleFinishProviderConfiguration"
           />
