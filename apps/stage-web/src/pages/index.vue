@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { WidgetStage } from '@proj-airi/stage-ui/components/scenes'
-import { useLive2d } from '@proj-airi/stage-ui/stores'
+import { useLive2d } from '@proj-airi/stage-ui/stores/live2d'
 import { breakpointsTailwind, useBreakpoints, useDark, useMouse } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { onMounted, ref, watch } from 'vue'

@@ -10,7 +10,7 @@ import { ref, shallowRef, watch } from 'vue'
 
 import Environment from './VRM/Environment.vue'
 
-import { useVRM } from '../../stores'
+import { useVRM } from '../../stores/vrm'
 import { OrbitControls, VRMModel } from '../Scenes'
 
 const props = defineProps<{

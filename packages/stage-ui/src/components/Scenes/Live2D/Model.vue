@@ -13,7 +13,8 @@ import { computed, onMounted, onUnmounted, ref, shallowRef, toRef, watch } from 
 
 import { useLive2DIdleEyeFocus } from '../../../composables/live2d'
 import { Emotion, EmotionNeutralMotionName } from '../../../constants/emotions'
-import { useLive2d, useSettings } from '../../../stores'
+import { useLive2d } from '../../../stores/live2d'
+import { useSettings } from '../../../stores/settings'
 
 type CubismModel = Cubism4InternalModel['coreModel']
 type CubismEyeBlink = Cubism4InternalModel['eyeBlink']

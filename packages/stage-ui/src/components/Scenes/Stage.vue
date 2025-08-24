@@ -21,12 +21,13 @@ import { useQueue } from '../../composables/queue'
 import { useDelayMessageQueue, useEmotionsMessageQueue, useMessageContentQueue } from '../../composables/queues'
 import { llmInferenceEndToken } from '../../constants'
 import { EMOTION_EmotionMotionName_value, EMOTION_VRMExpressionName_value, EmotionThinkMotionName } from '../../constants/emotions'
-import { useLive2d, useVRM } from '../../stores'
 import { useAudioContext, useSpeakingStore } from '../../stores/audio'
 import { useChatStore } from '../../stores/chat'
+import { useLive2d } from '../../stores/live2d'
 import { useSpeechStore } from '../../stores/modules/speech'
 import { useProvidersStore } from '../../stores/providers'
 import { useSettings } from '../../stores/settings'
+import { useVRM } from '../../stores/vrm'
 
 withDefaults(defineProps<{
   paused?: boolean

@@ -6,8 +6,9 @@ import VRMScene from '../../../Scenes/VRM.vue'
 import Live2D from './Live2D.vue'
 import VRM from './VRM.vue'
 
-import { useLive2d, useVRM } from '../../../../stores'
+import { useLive2d } from '../../../../stores/live2d'
 import { useSettings } from '../../../../stores/settings'
+import { useVRM } from '../../../../stores/vrm'
 
 const props = defineProps<{
   palette: string[]

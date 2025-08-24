@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import type { AiriTamagotchiEvents } from './composables/tauri'
 
-import { useMcpStore, useOnboardingStore, useSettings } from '@proj-airi/stage-ui/stores'
+import { useMcpStore } from '@proj-airi/stage-ui/stores/mcp'
+import { useOnboardingStore } from '@proj-airi/stage-ui/stores/onboarding'
+import { useSettings } from '@proj-airi/stage-ui/stores/settings'
 import { Window } from '@tauri-apps/api/window'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, watch } from 'vue'

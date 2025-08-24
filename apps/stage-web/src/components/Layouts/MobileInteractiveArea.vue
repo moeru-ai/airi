@@ -2,7 +2,10 @@
 import type { ChatProvider } from '@xsai-ext/shared-providers'
 
 import { useMicVAD } from '@proj-airi/stage-ui/composables'
-import { useChatStore, useConsciousnessStore, useProvidersStore, useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores'
+import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
+import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
+import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
+import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { BasicTextarea } from '@proj-airi/ui'
 import { useDark, useResizeObserver, useScreenSafeArea } from '@vueuse/core'
 import { storeToRefs } from 'pinia'

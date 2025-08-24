@@ -12,7 +12,7 @@ import { computed, onMounted, onUnmounted, ref, toRef, watch } from 'vue'
 import { clipFromVRMAnimation, loadVRMAnimation, useBlink, useIdleEyeSaccades } from '../../../composables/vrm/animation'
 import { loadVrm } from '../../../composables/vrm/core'
 import { useVRMEmote } from '../../../composables/vrm/expression'
-import { useVRM } from '../../../stores'
+import { useVRM } from '../../../stores/vrm'
 
 const props = defineProps<{
   modelSrc?: string

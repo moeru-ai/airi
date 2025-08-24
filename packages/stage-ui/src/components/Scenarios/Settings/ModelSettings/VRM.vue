@@ -5,7 +5,7 @@ import { storeToRefs } from 'pinia'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import { useVRM } from '../../../../stores'
+import { useVRM } from '../../../../stores/vrm'
 import { Container, PropertyColor, PropertyNumber, PropertyPoint } from '../../../DataPane'
 import { Callout, Tabs } from '../../../Layouts'
 import { Button } from '../../../Misc'

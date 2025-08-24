@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { OnboardingDialog, ToasterRoot } from '@proj-airi/stage-ui/components'
-import { useOnboardingStore, useSettings } from '@proj-airi/stage-ui/stores'
+import { useOnboardingStore } from '@proj-airi/stage-ui/stores/onboarding'
+import { useSettings } from '@proj-airi/stage-ui/stores/settings'
 import { StageTransitionGroup } from '@proj-airi/ui-transitions'
 import { useDark } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
