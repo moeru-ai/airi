@@ -1,4 +1,3 @@
-use log::debug;
 use tauri::Manager;
 
 use crate::app::windows::{chat, onboarding, settings};
