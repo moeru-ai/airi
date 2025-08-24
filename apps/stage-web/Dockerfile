@@ -4,15 +4,14 @@ WORKDIR /app
 
 RUN apt update && apt install -y ca-certificates curl
 RUN update-ca-certificates
-RUN apt update && apt install -y python curl
+RUN apt update && apt install -y python3 curl
 
 RUN corepack enable
 
-COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
-RUN --mount=type=cache,id=pnpm-store,target=/root/.turbo \
+COPY . .
+RUN --mount=type=cache,id=pnpm-store,target=/root/.pnpm-store \
     pnpm install --frozen-lockfile
 
-COPY . .
 RUN pnpm -F @proj-airi/stage-web run build && \
     pnpm -F @proj-airi/docs run build:base && \
     mv ./docs/.vitepress/dist ./apps/stage-web/dist/docs && \
@@ -21,7 +20,7 @@ RUN pnpm -F @proj-airi/stage-web run build && \
 
 FROM nginx:stable-alpine AS production-stage
 
-COPY --from=build-stage /apps/stage-web/dist /usr/share/nginx/html
+COPY --from=build-stage /app/apps/stage-web/dist /usr/share/nginx/html
 EXPOSE 80
 
 CMD ["nginx", "-g", "daemon off;"]
