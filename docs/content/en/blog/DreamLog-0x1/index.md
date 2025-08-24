@@ -5,8 +5,8 @@ category: DreamLog
 date: 2025-06-16
 excerpt: 'The backstory of Project AIRI! Why this project?'
 preview-cover:
-  light: "@assets('./assets/dreamlog1-light.png')"
-  dark: "@assets('./assets/dreamlog1-dark.png')"
+  light: "@assets('./assets/dreamlog1-light.avif')"
+  dark: "@assets('./assets/dreamlog1-dark.avif')"
 ---
 
 <script setup>

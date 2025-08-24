@@ -1,7 +1,10 @@
 <script setup lang="ts">
 import type { AiriTamagotchiEvents } from './composables/tauri'
 
-import { useMcpStore, useOnboardingStore, useSettings } from '@proj-airi/stage-ui/stores'
+import { useDisplayModelsStore } from '@proj-airi/stage-ui/stores/display-models'
+import { useMcpStore } from '@proj-airi/stage-ui/stores/mcp'
+import { useOnboardingStore } from '@proj-airi/stage-ui/stores/onboarding'
+import { useSettings } from '@proj-airi/stage-ui/stores/settings'
 import { Window } from '@tauri-apps/api/window'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, watch } from 'vue'
@@ -14,22 +17,27 @@ import { useTauriEvent } from './composables/tauri'
 import { useWindowMode } from './stores/window-controls'
 
 useWindowMode()
-const { language, themeColorsHue, themeColorsHueDynamic, allowVisibleOnAllWorkspaces } = storeToRefs(useSettings())
 const i18n = useI18n()
-const mcpStore = useMcpStore()
+const displayModelsStore = useDisplayModelsStore()
+const settingsStore = useSettings()
+const { language, themeColorsHue, themeColorsHueDynamic, allowVisibleOnAllWorkspaces } = storeToRefs(settingsStore)
 const onboardingStore = useOnboardingStore()
 const { shouldShowSetup } = storeToRefs(onboardingStore)
-const { platform } = useAppRuntime()
+
+const mcpStore = useMcpStore()
 const { listen } = useTauriEvent<AiriTamagotchiEvents>()
+const { platform } = useAppRuntime()
 
 watch(language, () => {
   i18n.locale.value = language.value
 })
 
 // FIXME: store settings to file
-onMounted(() => {
-  // Initialize first-time setup check
+onMounted(async () => {
   onboardingStore.initializeSetupCheck()
+
+  await displayModelsStore.loadDisplayModelsFromIndexedDB()
+  await settingsStore.initializeStageModel()
 })
 
 watch(themeColorsHue, () => {

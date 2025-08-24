@@ -14,7 +14,8 @@ import {
   ProviderBasicSettings,
   ProviderSettingsContainer,
 } from '.'
-import { useProvidersStore, useSpeechStore } from '../../../stores'
+import { useSpeechStore } from '../../../stores/modules/speech'
+import { useProvidersStore } from '../../../stores/providers'
 
 const props = defineProps<{
   providerId: string

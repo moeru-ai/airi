@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useSettings } from '@proj-airi/stage-ui/stores'
+import { useSettings } from '@proj-airi/stage-ui/stores/settings'
 
 import CheckBar from '../../../components/Settings/CheckBar.vue'
 

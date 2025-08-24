@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useAudioContext } from '@proj-airi/stage-ui/stores'
+import { useAudioContext } from '@proj-airi/stage-ui/stores/audio'
 import { useDark, useElementBounding } from '@vueuse/core'
 import { onMounted, ref } from 'vue'
 

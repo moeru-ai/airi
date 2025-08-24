@@ -8,7 +8,8 @@ import { useI18n } from 'vue-i18n'
 import onboardingLogo from '../../../../assets/onboarding.avif'
 import Alert from '../../../Misc/Alert.vue'
 
-import { useConsciousnessStore, useProvidersStore } from '../../../../stores'
+import { useConsciousnessStore } from '../../../../stores/modules/consciousness'
+import { useProvidersStore } from '../../../../stores/providers'
 import { Callout } from '../../../Layouts'
 import { RadioCardDetail, RadioCardManySelect } from '../../../Menu'
 import { Button } from '../../../Misc'
@@ -435,7 +436,7 @@ onMounted(() => {
           <!-- Action Buttons -->
           <Button
             :label="t('settings.dialogs.onboarding.next')"
-            :disabled="!selectedProviderId"
+            :disabled="!selectedProviderId || (needsApiKey && apiKey.trim().length === 0)"
             :loading="isLoadingActiveProviderModels"
             @click="handleFinishProviderConfiguration"
           />

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { Tool } from '@proj-airi/tauri-plugin-mcp'
 
-import { useMcpStore } from '@proj-airi/stage-ui/stores'
+import { useMcpStore } from '@proj-airi/stage-ui/stores/mcp'
 import { connectServer, disconnectServer, listTools } from '@proj-airi/tauri-plugin-mcp'
 import {
   FieldInput,

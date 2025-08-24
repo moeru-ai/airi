@@ -1,11 +1,9 @@
 <script setup lang="ts">
-import { Input } from '@proj-airi/ui'
-import { useFileDialog, useObjectUrl } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import { useVRM } from '../../../../stores'
+import { useVRM } from '../../../../stores/vrm'
 import { Container, PropertyColor, PropertyNumber, PropertyPoint } from '../../../DataPane'
 import { Callout, Tabs } from '../../../Layouts'
 import { Button } from '../../../Misc'
@@ -17,19 +15,12 @@ defineProps<{
 
 defineEmits<{
   (e: 'extractColorsFromModel'): void
-  (e: 'switchToLive2D'): void
 }>()
 
 const { t } = useI18n()
 
-const modelFileDialog = useFileDialog({
-  accept: '.vrm',
-})
-
 const vrm = useVRM()
 const {
-  modelFile,
-  modelUrl,
   modelSize,
   modelOffset,
   cameraFOV,
@@ -53,51 +44,11 @@ const {
 
   envSelect,
 } = storeToRefs(vrm)
-const { defaultModelUrl } = vrm // 普通字符串
-
 const trackingOptions = computed(() => [
   { value: 'camera', label: t('settings.vrm.scale-and-position.eye-tracking-mode.options.option.camera'), class: 'col-start-3' },
   { value: 'mouse', label: t('settings.vrm.scale-and-position.eye-tracking-mode.options.option.mouse'), class: 'col-start-4' },
   { value: 'none', label: t('settings.vrm.scale-and-position.eye-tracking-mode.options.option.disabled'), class: 'col-start-5' },
 ])
-
-modelFileDialog.onChange((files) => {
-  if (files && files.length > 0) {
-    modelFile.value = files[0]
-    vrm.shouldUpdateView()
-  }
-})
-
-const urlFile = useObjectUrl(modelFile)
-const urlRef = computed({
-  get: () => urlFile.value || modelUrl.value || '',
-  set: (value) => {
-    modelUrl.value = value
-  },
-})
-
-async function handleUrlLoad() {
-  const raw = (modelUrl.value || '').trim()
-  // If empty input, reset to default
-  if (!raw) {
-    modelFile.value = null
-    urlRef.value = defaultModelUrl
-    return
-  }
-  // 3) parse URL
-  let parsedUrl: URL
-  try {
-    parsedUrl = new URL(raw, window.location.origin)
-  }
-  catch {
-    console.warn('Illegal URL input')
-    return
-  }
-  if (!['http:', 'https:', 'blob:', 'data:'].includes(parsedUrl.protocol))
-    return
-
-  modelUrl.value = parsedUrl.href
-}
 
 // switch between hemisphere light and sky box
 const tabList = [
@@ -130,9 +81,6 @@ const tabList = [
       'backdrop-blur-lg',
     ]"
   >
-    <Button variant="secondary" size="sm" @click="$emit('switchToLive2D')">
-      {{ t('settings.vrm.switch-to-vrm.change-to-vrm') }}
-    </Button>
     <ColorPalette class="mb-4 mt-2" :colors="palette.map(hex => ({ hex, name: hex }))" mx-auto />
     <Button variant="secondary" @click="$emit('extractColorsFromModel')">
       {{ t('settings.vrm.theme-color-from-model.button-extract.title') }}
@@ -274,25 +222,6 @@ const tabList = [
       'backdrop-blur-lg',
     ]"
   >
-    <Button
-      variant="secondary" @click=" () => {
-        modelFileDialog.reset()
-        modelFileDialog.open()
-      }"
-    >
-      {{ t('settings.vrm.change-model.from-file') }}...
-    </Button>
-    <div flex items-center gap-2>
-      <Input
-        v-model="urlRef"
-        class="flex-1"
-        :placeholder="t('settings.vrm.change-model.from-url-placeholder')"
-      />
-      <Button size="sm" variant="secondary" @click="handleUrlLoad">
-        {{ t('settings.vrm.change-model.from-url') }}
-      </Button>
-    </div>
-
     <Callout :label="t('settings.vrm.scale-and-position.model-info-title')">
       <div>
         <div class="text-sm text-neutral-600 space-y-1 dark:text-neutral-400">

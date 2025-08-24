@@ -48,7 +48,7 @@ jobs:
 
   build-test:
     name: Build Test (${{ matrix.app_name }})
-    if: ${{ !(github.event_name == 'pull_request' && startsWith(github.event.pull_request.head.label, 'i18n/')) }}
+    if: ${{ !(github.event_name == 'pull_request' && startsWith(github.event.pull_request.head.label, 'moeru-ai:i18n/')) }}
     strategy:
       matrix:
         include:
@@ -103,7 +103,7 @@ jobs:
   typecheck:
     name: Type Check
     runs-on: ubuntu-latest
-    if: ${{ !(github.event_name == 'pull_request' && startsWith(github.event.pull_request.head.label, 'i18n/')) }}
+    if: ${{ !(github.event_name == 'pull_request' && startsWith(github.event.pull_request.head.label, 'moeru-ai:i18n/')) }}
     steps:
       - uses: actions/checkout@v4
 

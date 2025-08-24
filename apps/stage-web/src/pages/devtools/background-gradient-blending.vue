@@ -8,7 +8,7 @@ import { average } from 'culori'
 import { Vibrant } from 'node-vibrant/browser'
 import { computed, nextTick, onMounted, onUnmounted, ref, useTemplateRef, watch } from 'vue'
 
-import defaultBackgroundImage from '../../assets/backgrounds/fairy-forest.e17cbc2774.ko-fi.com.png'
+import defaultBackgroundImage from '../../assets/backgrounds/fairy-forest.e17cbc2774.ko-fi.com.avif'
 
 import { useThemeColor } from '../../composables/theme-color'
 

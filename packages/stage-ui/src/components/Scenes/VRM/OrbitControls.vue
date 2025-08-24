@@ -6,7 +6,7 @@ import { onMounted, shallowRef } from 'vue'
 
 import * as THREE from 'three'
 
-import { useVRM } from '../../../stores'
+import { useVRM } from '../../../stores/vrm'
 
 extend({ OrbitControls })
 

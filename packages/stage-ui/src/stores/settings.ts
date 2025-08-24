@@ -1,11 +1,14 @@
+import type { DisplayModel } from './display-models'
+
 import messages from '@proj-airi/i18n/locales'
 
-import { useLocalStorage } from '@vueuse/core'
+import { useEventListener, useLocalStorage } from '@vueuse/core'
 import { converter } from 'culori'
 import { defineStore } from 'pinia'
 import { onMounted, ref, watch } from 'vue'
 
 import { useAudioDevice } from './audio'
+import { DisplayModelFormat, useDisplayModelsStore } from './display-models'
 
 const languageRemap: Record<string, string> = {
   'zh-CN': 'zh-Hans',
@@ -28,12 +31,69 @@ const convert = converter('oklch')
 const getHueFrom = (color?: string) => color ? convert(color)?.h : DEFAULT_THEME_COLORS_HUE
 
 export const useSettings = defineStore('settings', () => {
-  const selectedAudioDevice = ref<MediaDeviceInfo>()
+  const displayModelsStore = useDisplayModelsStore()
 
   const language = useLocalStorage('settings/language', '')
 
-  const stageView = useLocalStorage('settings/stage/view/model-renderer', '2d')
+  const stageModelSelected = useLocalStorage<string | undefined>('settings/stage/model', undefined)
+  const stageModelSelectedDisplayModel = ref<DisplayModel | undefined>()
+  const stageModelSelectedUrl = ref<string>()
+  const stageModelRenderer = ref<'live2d' | 'vrm' | 'disabled'>()
+
+  async function updateStageModel() {
+    if (!stageModelSelected.value) {
+      stageModelSelectedUrl.value = undefined
+      stageModelSelectedDisplayModel.value = undefined
+      stageModelRenderer.value = 'disabled'
+      return
+    }
+
+    const model = await displayModelsStore.getDisplayModel(stageModelSelected.value)
+    if (!model) {
+      stageModelSelectedUrl.value = undefined
+      stageModelSelectedDisplayModel.value = undefined
+      stageModelRenderer.value = 'disabled'
+      return
+    }
+
+    if (model.type === 'file') {
+      if (stageModelSelectedUrl.value) {
+        URL.revokeObjectURL(stageModelSelectedUrl.value)
+      }
+
+      stageModelSelectedUrl.value = URL.createObjectURL(model.file)
+    }
+    else {
+      stageModelSelectedUrl.value = model.url
+    }
+
+    switch (model.format) {
+      case DisplayModelFormat.Live2dZip:
+        stageModelRenderer.value = 'live2d'
+        break
+      case DisplayModelFormat.VRM:
+        stageModelRenderer.value = 'vrm'
+        break
+      default:
+        stageModelRenderer.value = 'disabled'
+        break
+    }
+
+    stageModelSelectedDisplayModel.value = model
+  }
+
+  async function initializeStageModel() {
+    await updateStageModel()
+  }
+
+  useEventListener('unload', () => {
+    if (stageModelSelectedUrl.value) {
+      URL.revokeObjectURL(stageModelSelectedUrl.value)
+    }
+  })
+
   const stageViewControlsEnabled = ref(false)
+
   const live2dDisableFocus = useLocalStorage('settings/live2d/disable-focus', false)
 
   const disableTransitions = useLocalStorage('settings/disable-transitions', true)
@@ -91,26 +151,30 @@ export const useSettings = defineStore('settings', () => {
     return hueDifference < 0.01 || hueDifference > 359.99
   }
 
-  onMounted(() => {
-    language.value = getLanguage()
-  })
+  onMounted(() => language.value = getLanguage())
 
   return {
     disableTransitions,
     usePageSpecificTransitions,
     language,
-    stageView,
-    live2dDisableFocus,
+
+    stageModelRenderer,
+    stageModelSelected,
+    stageModelSelectedUrl,
+    stageModelSelectedDisplayModel,
     stageViewControlsEnabled,
+
+    live2dDisableFocus,
     themeColorsHue,
     themeColorsHueDynamic,
-    selectedAudioDevice,
 
     allowVisibleOnAllWorkspaces,
 
     setThemeColorsHue,
     applyPrimaryColorFrom,
     isColorSelectedForPrimary,
+    initializeStageModel,
+    updateStageModel,
   }
 })
 
