@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useMouse } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 
 import Live2DScene from '../../../Scenes/Live2D.vue'
@@ -22,7 +23,9 @@ defineEmits<{
   (e: 'extractColorsFromModel'): void
 }>()
 
-const { stageView } = storeToRefs(useSettings())
+const positionCursor = useMouse()
+
+const { stageView, live2dDisableFocus } = storeToRefs(useSettings())
 const { modelFile: live2dModelFile, modelUrl: live2dModelUrl } = storeToRefs(useLive2d())
 const { modelFile: vrmModelFile, modelUrl: vrmModelUrl } = storeToRefs(useVRM())
 </script>
@@ -37,7 +40,15 @@ const { modelFile: vrmModelFile, modelUrl: vrmModelUrl } = storeToRefs(useVRM())
           : []),
       ]"
     >
-      <Live2DScene :model-src="live2dModelUrl" :model-file="live2dModelFile" />
+      <Live2DScene
+        :focus-at="{
+          x: positionCursor.x.value,
+          y: positionCursor.y.value,
+        }"
+        :model-src="live2dModelUrl"
+        :model-file="live2dModelFile"
+        :disable-focus-at="live2dDisableFocus"
+      />
     </div>
     <div
       flex="~ col gap-2" :class="[
