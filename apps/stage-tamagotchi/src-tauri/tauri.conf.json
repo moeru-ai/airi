@@ -7,7 +7,7 @@
     "frontendDist": "../dist",
     "devUrl": "http://localhost:5173",
     "beforeDevCommand": "pnpm run dev",
-    "beforeBuildCommand": "./scripts/install_linuxdeploy.sh;pnpm run build;./scripts/fix_appimage_gst_plugin.sh"
+    "beforeBuildCommand": "pnpm run build;./scripts/fix_appimage_gst_plugin.sh"
   },
   "app": {
     "security": {
@@ -17,7 +17,7 @@
   },
   "bundle": {
     "active": true,
-    "targets": ["dmg", "appimage", "nsis"],
+    "targets": ["dmg", "deb", "rpm", "appimage", "nsis"],
     "icon": [
       "icons/32x32.png",
       "icons/64x64.png",
