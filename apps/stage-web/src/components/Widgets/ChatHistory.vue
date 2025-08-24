@@ -8,7 +8,7 @@ import { useI18n } from 'vue-i18n'
 const chatHistoryRef = ref<HTMLDivElement>()
 
 const { t } = useI18n()
-const { messages, sending } = storeToRefs(useChatStore())
+const { messages } = storeToRefs(useChatStore())
 
 const { process } = useMarkdown()
 const { onBeforeMessageComposed, onTokenLiteral } = useChatStore()
@@ -51,7 +51,7 @@ onTokenLiteral(async () => {
               </div>
               <div i-solar:danger-triangle-bold-duotone text-violet-500 />
             </div>
-            <div v-if="sending && index === messages.length - 1" i-eos-icons:three-dots-loading />
+            <div v-if="index === messages.length - 1 && !message.content" i-eos-icons:three-dots-loading />
             <div
               v-else class="markdown-content break-words text-violet-500" text="base <sm:xs"
               v-html="process(message.content as string)"
