@@ -27,7 +27,7 @@
 
 rustPlatform.buildRustPackage (final: {
   pname = "airi";
-  version = "0.7.1";
+  version = "0.7.2-beta.2";
 
   src = ./.;
 
@@ -39,7 +39,7 @@ rustPlatform.buildRustPackage (final: {
   pnpmDeps = pnpm.fetchDeps {
     inherit (final) pname version src;
     fetcherVersion = 1;
-    hash = "sha256-XkSqDFiDUH3Z/bykyLcXLlFiIOGtHR/i1ZkErX0GuQk="; # To update, set it to ""
+    hash = "sha256-y28rG+9NADUdwdjIAkYCqmYOKLoEWosAOpiGM4JPQoQ="; # To update, set it to ""
   };
 
   # Cache of assets downloaded during vite build
