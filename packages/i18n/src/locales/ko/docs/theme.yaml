@@ -1,0 +1,52 @@
+doc:
+  outline:
+    title: 이 페이지에서
+  community:
+    title: 커뮤니티
+    edit:
+      title: 이 페이지 편집
+    star-github:
+      title: GitHub에서 스타하기
+    discord:
+      title: 디스코드에서 채팅
+    support:
+      title: 프로젝트 지원
+  next-page:
+    title: 다음 페이지
+  previous-page:
+    title: 이전 페이지
+home:
+  subtitle: >-
+    AI 와이푸 / 가상 캐릭터들의 영혼을 담은 컨테이너인 Neuro-sama를
+    재창조하여 우리 세상으로 데려오기.
+  download:
+    title: 다운로드
+  get-started:
+    title: 시작하기
+  try-live:
+    title: 라이브 체험
+search:
+  title: 검색
+  placeholder: 문서 검색...
+navbar:
+  appearance:
+    title: 외관
+  language:
+    title: 언어
+pages:
+  characters:
+    title: 캐릭터
+blog:
+  title: 블로그 & 개발 로그
+  subtitle: 개발팀의 여정을 따라가며 최신 업데이트를 받아보세요.
+  card:
+    post:
+      read-more:
+        title: 더 읽기
+  no-posts: 이 카테고리에서 게시물을 찾을 수 없습니다.
+  categories:
+    all: 전체
+    devlog: 개발로그
+    dreamlog: 드림로그
+colorScheme:
+  title: 색상 테마

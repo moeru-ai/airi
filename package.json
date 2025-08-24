@@ -28,6 +28,8 @@
     "build:crates": "cargo build --workspace",
     "test": "vitest --coverage",
     "test:run": "vitest run",
+    "test:korean": "bash scripts/test-korean.sh",
+    "test:korean:keys": "tsx scripts/check-i18n-keys.ts",
     "lint": "eslint --cache .",
     "lint:fix": "eslint --cache --fix .",
     "lint:rust": "cargo fmt --check && cargo clippy --workspace",

@@ -1,0 +1,640 @@
+animations:
+  stage-transitions:
+    title: 스테이지 전환 효과 비활성화
+  use-page-specific-transitions:
+    description: >-
+      일부 페이지에서는 고유한 전환 효과를 사용합니다. 이 설정은 스테이지 전환 효과를
+      무시합니다.
+    title: 페이지별 전환 효과 사용
+dialogs:
+  onboarding:
+    title: AIRI에 오신 것을 환영합니다!
+    description: 시작하기 위해 첫 번째 AI 제공업체를 설정해보세요.
+    selectProvider: AI 제공업체 선택
+    configureProvider: '{provider} 설정'
+    apiKey: API 키
+    apiKeyHelp: '{provider}에서 API 키를 받아서 여기에 붙여넣으세요'
+    baseUrl: Base URL
+    baseUrlHelp: 'API 엔드포인트 URL (확실하지 않으면 기본값 사용)'
+    accountId: 계정 ID
+    validating: 설정을 확인하는 중...
+    validationSuccess: 첫 번째 설정이 성공적으로 검증되었습니다.
+    validationFailed: 설정 검증에 실패했습니다
+    validationError: '검증 오류: {error}'
+    skipForNow: 지금은 건너뛰기
+    saveAndContinue: 저장하고 계속하기
+    next: 다음
+    start: 시작해볼까요!
+    select-model: 모델 선택
+language:
+  title: 언어
+  description: >
+    AIRI 인터페이스의 언어를 변경합니다. 이는 캐릭터 응답의 언어에는
+    영향을 주지 않습니다.
+  options:
+    chinese: 简体中文
+    zh-CN: 简体中文
+    zh-Hans: 简体中文
+    english: English
+    en: English
+    en-US: English (US)
+    es: Spanish
+    ko: 한국어
+    korean: 한국어
+live2d:
+  change-model:
+    from-file: 파일에서 로드
+    from-file-select: 선택
+    from-url: URL에서 로드
+    from-url-confirm: 로드
+    from-url-placeholder: Live2D 모델 URL 입력
+    title: 모델 변경
+  edit-motion-map:
+    title: 모션 맵 편집
+  map-motions:
+    play: 모션 재생
+    title: 모션 맵핑
+  title: Live2D 설정
+  scale-and-position:
+    title: 크기 및 위치
+    scale: 크기
+    x: X
+    'y': 'Y'
+  switch-to-vrm:
+    title: 3D 아바타로 전환하시겠습니까?
+    change-to-vrm: 3D 아바타 설정(VRM)으로 전환하려면 여기를 클릭하세요
+  theme-color-from-model:
+    title: 모델에서 색상 추출
+    button-extract:
+      title: 추출
+  focus:
+    title: 모델 마우스 추적 비활성화
+    button-disable:
+      title: 비활성화
+pages:
+  card:
+    activate: 활성화
+    active: 활성
+    active_badge: 현재 활성화됨
+    cancel: 취소
+    card_not_found: 카드를 찾을 수 없음
+    character: 캐릭터
+    close: 닫기
+    consciousness:
+      model: 의식 / 모델
+    created_by: 제작자
+    creator_notes: 제작자 노트
+    delete: 삭제
+    delete_card: 카드 삭제
+    delete_confirmation: 이 카드를 삭제하시겠습니까?
+    description: AIRI 캐릭터 카드 프리셋 사용
+    description_label: 설명
+    drop_here: 드래그해서 업로드
+    create_card: 새 카드 생성
+    creation:
+      identity: 정체성
+      name: 이름
+      nickname: 별명
+      description: 설명
+      behavior: 행동 양식
+      greetings: 인사말 (한 줄에 하나씩)
+      settings: 설정
+      version: 버전
+      create: 생성
+      defaults:
+        name: 이름
+        personality: 당신은 모든 것에 호기심이 많은 평범한 사람입니다.
+        scenario: 최근에 깨어났지만 이전 삶에 대한 모든 것을 잊었습니다.
+        systemprompt: 메시지를 받으면 진짜 사람처럼 답변하세요.
+        posthistoryinstructions: 사람인 것처럼 행동하는 것을 기억하세요.
+      fields_info:
+        subtitle: >-
+          여기에 생성하려는 캐릭터에 대한 세부사항을 넣을 수 있습니다.
+          캐릭터의 역사와 맥락, 그리고 상호작용이 어떻게 답변되어야 하는지 설명하세요.
+        name: 이 캐릭터의 공식 이름입니다.
+        nickname: 우선적으로 사용될 별명을 줄 수도 있습니다.
+        description: 이 캐릭터에 대한 설명입니다.
+        notes: 개인적인 메모를 추가하고 싶다면 적어주세요.
+        personality: >-
+          여기에 캐릭터의 성격을 설명하세요. 수줍음이 많나요? 호기심이 많나요?
+          그 밖에 다른 특징이 있나요?
+        scenario: 주변 상황은 어떤가요? 현재 상황은 무엇인가요?
+        greetings_field: 인사말
+        greetings: 캐릭터가 "안녕하세요"라고 말하는 방식은?
+        systemprompt: 프롬프트를 받았을 때 AI LLM이 어떻게 답변해야 하는지 여기에 설명하세요.
+        posthistoryinstructions: AI LLM이 메시지 히스토리 이후에 읽어야 할 내용을 여기에 넣으세요.
+        version: >-
+          카드 버전입니다. 이전 카드에서 변경사항이 있다면 이 값을 증가시켜야 합니다.
+      errors:
+        name: 이름은 유효하거나 비어있지 않아야 합니다.
+        version: '오류: 잘못된 버전 번호입니다!'
+        description: '오류: 이 카드에 대한 설명을 제공해야 합니다.'
+        personality: '오류: 이 캐릭터의 성격을 제공해야 합니다.'
+        scenario: '오류: 시나리오가 필요합니다.'
+        systemprompt: '오류: 시스템 프롬프트를 제공해주세요.'
+        posthistoryinstructions: '오류: 히스토리 후 프롬프트가 필요합니다.'
+    modules: 모듈
+    name_asc: 이름 (가-하)
+    name_desc: 이름 (하-가)
+    no_cards: 아직 카드가 없습니다. 위의 버튼을 클릭해서 업로드하세요!
+    no_results: 일치하는 카드를 찾을 수 없습니다
+    personality: 성격
+    posthistoryinstructions: 히스토리 후 지시사항
+    recent: 최근 추가됨
+    scenario: 시나리오
+    search: 카드 검색...
+    sort_by: 정렬 기준
+    speech:
+      model: 음성 / 모델
+      voice: 음성 / 보이스
+    systemprompt: 시스템 프롬프트
+    title: AIRI 카드
+    try_different_search: 다른 검색어를 시도해보세요
+    upload: 업로드
+    upload_desc: 클릭하거나 파일을 드래그해서 업로드하세요
+  scene:
+    description: 캐릭터가 살고 있는 환경을 구성하세요
+    title: 장면
+  themes:
+    color-scheme:
+      description: 스테이지의 색상 스킴을 변경하세요.
+      title: 색상 스킴
+    developer:
+      description: 일부 개발자 옵션입니다.
+      title: 개발자
+    general:
+      description: 다크 테마, 언어 등
+      title: 일반
+    description: 스테이지를 커스터마이징하세요!
+    sections:
+      section:
+        custom-color:
+          fields:
+            field:
+              primary-color:
+                label: 주요 색상
+                rgb-on:
+                  title: 다이나믹하게 만들고 싶어요!
+          title: 색상 스킴
+        developer:
+          title: 개발자
+        theme-presets:
+          presets:
+            - colors:
+                - AIRI Green
+              description: AIRI가 제공하는 기본 녹색 테마 색상입니다!
+              title: 기본 색상
+            - colors:
+                - Taupe
+                - Beige
+                - Ash Grey
+                - Light Taupe
+                - Ivory
+                - Olive Grey
+                - Sand
+                - Warm Grey
+              description: 조르지오 모란디의 회화에서 영감을 받은 부드럽고 차분한 톤
+              title: 모란디 색상
+            - colors:
+                - Sky Blue
+                - Mist
+                - Sand
+                - Moss Green
+                - Water Lily
+                - Wheat
+                - Slate Blue
+                - Sage
+              description: 클로드 모네의 작품에서 영감을 받은 인상파 팔레트
+              title: 모네 색상
+            - colors:
+                - Tan
+                - Warm Taupe
+                - Umber
+                - Coffee
+                - Bronze
+                - Gold
+                - Mustard
+                - Amber
+              description: 전통 일본 색상 팔레트
+              title: 일본 색상
+            - colors:
+                - Nordic Blue
+                - Ice
+                - Fjord
+                - Steel
+                - Glacier
+                - Slate
+                - Cloud
+                - Stone
+              description: 스칸디나비아 미니멀리스트 색상 스킴
+              title: 북유럽 색상
+            - colors:
+                - Rosy Dawn
+                - Chinese Red
+                - Smoky Brown
+                - Bamboo Green
+                - Dark Purple
+                - Golden Yellow
+                - Azure Blue
+                - Ochre
+              description: >-
+                고대 직물, 도자기, 회화에서 파생된 전통적인 중국 색상
+              title: 중국 전통 색상
+          title: 색상 스킴 프리셋
+    title: 테마
+  memory:
+    description: 메모리가 저장되고 정리되는 곳
+    title: 메모리
+  models:
+    description: Live2D, VRM 등
+    title: 모델
+    sections:
+      section:
+        live2d:
+          title: Live2D
+          description: Live2D 모델과 설정을 구성하세요
+        vrm:
+          title: VRM
+          description: 3D VRM 모델과 설정을 구성하세요
+        scene: 장면
+  modules:
+    consciousness:
+      description: 성격, 원하는 모델 등
+      sections:
+        section:
+          provider-model-selection:
+            collapse: 접기
+            custom_model_placeholder: 사용자 정의 모델 이름 입력...
+            description: 의식을 위한 적합한 LLM 제공업체를 선택하세요
+            error: 모델 로딩 오류
+            expand: 펼치기
+            loading: 사용 가능한 모델 로딩 중...
+            manual_model_name: 모델 이름
+            manual_model_placeholder: 이 제공업체와 함께 사용할 모델 이름을 입력하세요
+            no_models: 사용 가능한 모델 없음
+            no_models_description: 이 제공업체에서 모델을 찾을 수 없습니다
+            no_search_results: 일치하는 모델 없음
+            no_search_results_description: "'{query}'에 일치하는 모델이 없습니다. 다른 검색어를 시도해보세요."
+            not_supported: 모델 목록이 지원되지 않음
+            not_supported_description: 이 제공업체는 모델 목록 기능을 지원하지 않습니다
+            search_placeholder: 모델 검색...
+            search_results: "'{total}개 모델 중 {count}개 발견'"
+            show_less: 적게 보기
+            show_more: 더 보기
+            subtitle: 제공업체에서 모델 선택
+            title: 모델
+      title: 의식
+    description: 사고, 시각, 음성 합성, 게임 등
+    gaming-factorio:
+      description: 팩토리오 플레이!
+      title: 팩토리오
+    gaming-minecraft:
+      description: 마인크래프트 플레이!
+      title: 마인크래프트
+    hearing:
+      description: 음성 인식 작동 방식을 설정하세요
+      title: 청각
+    memory-long-term:
+      description: 장기 메모리 전용 설정 및 관리
+      title: 장기 메모리
+    memory-short-term:
+      description: 단기 메모리 전용 설정 및 관리
+      title: 단기 메모리
+    messaging-discord:
+      description: 디스코드를 통한 채팅 & 음성 채팅
+      title: 디스코드
+    speech:
+      description: 음성 합성
+      sections:
+        section:
+          playground:
+            buttons:
+              stop:
+                label: 정지
+            select-voice:
+              required: 음성을 선택해주세요
+          provider-voice-selection:
+            custom_model_placeholder: 사용자 정의 모델 이름 입력...
+            custom_voice_placeholder: 사용자 정의 음성 ID 입력...
+            description: 적합한 음성 제공업체를 선택하세요
+            no_models: 사용 가능한 모델 없음
+            no_models_description: 이 제공업체에서 모델을 찾을 수 없습니다
+            no_voices: 사용 가능한 음성 없음
+            no_voices_description: 이 제공업체에서 음성을 찾을 수 없습니다
+            pause: 일시정지
+            play_sample: 샘플 재생
+            search_models_placeholder: 모델 검색...
+            search_models_results: '{total}개 모델 중 {count}개 발견'
+            search_voices_placeholder: 음성 검색...
+            search_voices_results: '{total}개 음성 중 {count}개 발견'
+            show_less: 적게 보기
+            show_more: 더 보기
+            title: 제공업체
+          voice-settings:
+            input-ssml:
+              placeholder: SSML 텍스트 입력...
+            use-ssml:
+              description: 일반 텍스트 대신 원시 SSML을 입력하려면 활성화하세요
+              label: SSML 사용
+            voice-speed:
+              label: 음성 속도
+            voice-pitch:
+              label: 음성 톤
+            voice-stability:
+              label: 음성 안정성
+            voice-clarity:
+              label: 음성 명료도
+            voice-similarity:
+              label: 음성 유사도
+      title: 음성
+    title: 모듈
+    vision:
+      description: 시각 인식 및 처리
+      title: 시각
+    x:
+      description: X / Twitter 탐색 및 사용
+      title: X / Twitter
+    mcp-server:
+      description: MCP 서버 및 도구 연결 및 관리
+      title: MCP 서버
+  providers:
+    description: AI 제공업체 구성
+    title: 제공업체
+    explained:
+      chat: '텍스트 생성 모델 제공업체. 예: OpenRouter, OpenAI, Ollama.'
+      Speech: '음성(텍스트-투-스피치) 모델 제공업체. 예: ElevenLabs, Azure Speech.'
+      Transcription: '전사(음성-투-텍스트) 모델 제공업체. 예: Whisper.cpp, OpenAI, Azure Speech'
+    helpinfo:
+      title: 처음 오셨나요?
+      description: >
+        AIRI가 제대로 생각하고 행동하려면 최소 하나의 {chat} 제공업체를 구성해야 합니다.
+        이것을 AIRI 시스템에 사는 캐릭터들의 두뇌라고 생각하시면 됩니다.
+    common:
+      fields:
+        field:
+          api-key:
+            label: API 키 입력
+          pitch:
+            description: '합성된 음성의 피치를 조정합니다 (예: 더 높거나 낮게)'
+            label: 피치
+          speed:
+            description: 음성 속도를 조정합니다
+            label: 속도
+          volume:
+            description: 음성 볼륨을 조정합니다
+            label: 볼륨
+      section:
+        advanced:
+          title: 고급
+          fields:
+            field:
+              headers:
+                description: 사용자 정의 HTTP 헤더 추가
+                key:
+                  placeholder: 키
+                label: HTTP 헤더
+                value:
+                  placeholder: 값
+        basic:
+          title: 기본
+          description: 필수 설정
+        voice:
+          title: 음성 설정
+    provider:
+      app-local-audio-transcription:
+        title: 앱 (로컬)
+        description: https://github.com/moeru-ai/xsai-transformers
+      app-local-audio-speech:
+        title: 앱 (로컬)
+        description: https://github.com/moeru-ai/xsai-transformers
+      browser-local-audio-transcription:
+        title: 브라우저 (로컬)
+        description: https://github.com/moeru-ai/xsai-transformers
+      browser-local-audio-speech:
+        title: 브라우저 (로컬)
+        description: https://github.com/moeru-ai/xsai-transformers
+      alibaba-cloud-model-studio:
+        description: bailian.console.aliyun.com
+        title: 알리바바 클라우드 모델 스튜디오
+      anthropic:
+        description: anthropic.com
+        title: Anthropic | Claude
+        helpinfo:
+          title: 시작하기 전에
+          description:
+            part1: >-
+              Anthropic이 최근 OpenAI SDK 호환성에 대한 베타 지원을
+              발표했지만
+            part2: (자세한 내용은 여기서 확인하세요)
+            part3: 구현 세부사항으로 인한
+            part4: >-
+              OpenAI SDK와 일치하지 않는 제한사항 때문에 현재
+              브라우저에서 이 제공업체를 사용할 수 없습니다.
+            part5: >-
+              이 제공업체를 사용해야 한다면 다음에서 실행되는
+              서버리스 함수와 같은 전용 프록시 백엔드가 필요합니다
+            part6: 또는 CORS 제한을 우회하는 일부 CORS 우회 서비스가 필요합니다.
+      cloudflare-workers-ai:
+        description: cloudflare.com
+        fields:
+          field:
+            account-id:
+              description: Cloudflare 계정 ID
+              label: 계정 ID
+              placeholder: Cloudflare 계정 ID를 입력하세요
+            api-key:
+              placeholder: Cloudflare API 키 입력
+        title: Cloudflare Workers AI
+      common:
+        fields:
+          field:
+            pitch:
+              description: '합성된 음성의 피치를 조정합니다 (예: 더 날카롭게 또는 더 거칠게)'
+              label: 피치
+            speed:
+              description: 음성 속도를 조정합니다
+              label: 속도
+            volume:
+              description: 음성 볼륨을 조정합니다
+              label: 볼륨
+      deepseek:
+        description: deepseek.com
+        title: DeepSeek
+      elevenlabs:
+        description: elevenlabs.io
+        fields:
+          field:
+            simularity-boost:
+              description: 음성 유사성 준수
+              label: 유사성 부스트
+            speaker-boost:
+              description: 화자 유사성 향상
+              label: 화자 부스트
+            speed:
+              description: 음성 생성 속도
+              label: 속도
+            stability:
+              description: 음성 안정성 및 무작위성
+              label: 안정성
+            style:
+              description: 음성 스타일 과장
+              label: 스타일
+        playground:
+          buttons:
+            button:
+              test-voice:
+                generating: 생성 중...
+                label: 음성 테스트
+          fields:
+            field:
+              input:
+                placeholder: 음성을 테스트할 텍스트를 입력하세요...
+              language:
+                description: 음성 언어 선택
+                label: 언어
+              voice:
+                description: 선호하는 음성 선택
+                label: 음성
+          title: 음성 플레이그라운드
+          validation:
+            error-missing-api-key: 음성을 테스트하려면 API 키를 입력해주세요.
+        title: ElevenLabs
+      fireworks:
+        description: fireworks.ai
+        title: Fireworks.ai
+      microsoft-speech:
+        description: speech.microsoft.com
+        fields:
+          field:
+            region:
+              description: 음성 서비스 지역
+              label: 지역
+        title: Microsoft / Azure Speech
+      index-tts-vllm:
+        description: https://index-tts.github.io/
+        title: Bilibili / IndexTTS
+      mistral:
+        description: mistral.ai
+        title: Mistral
+      moonshot:
+        description: moonshot.ai
+        title: Moonshot AI
+      novita:
+        description: novita.ai
+        title: Novita
+      ollama:
+        description: ollama.ai
+        title: Ollama
+      openai:
+        description: openai.com
+        title: OpenAI
+      openrouter:
+        description: openrouter.ai
+        title: OpenRouter
+      perplexity:
+        description: perplexity.ai
+        title: Perplexity
+      player2:
+        description: player2.game
+        title: Player2
+      together:
+        description: together.ai
+        title: Together.ai
+      google-generative-ai:
+        description: gemini.google.com
+        title: Google Gemini
+      featherless:
+        description: featherless.ai
+        title: Featherless AI
+      lm-studio:
+        description: lmstudio.ai
+        title: LM Studio
+      vllm:
+        description: vllm.ai
+        title: vLLM
+      volcengine:
+        description: volcengine.com
+        fields:
+          field:
+            appId:
+              description: 콘솔에서 얻을 수 있는 프로젝트의 앱 ID
+              label: 앱 ID
+        title: Volcano Engine
+      xai:
+        description: x.ai
+        title: xAI
+      transcriptions:
+        playground:
+          title: 전사 플레이그라운드
+          api-key:
+            label: API 키 입력
+      section:
+        advanced:
+          fields:
+            field:
+              headers:
+                description: 사용자 정의 HTTP 헤더 추가
+                key:
+                  placeholder: 키
+                label: HTTP 헤더
+                value:
+                  placeholder: 값
+          title: 고급
+        basic:
+          description: 필수 설정
+          title: 기본
+        voice:
+          title: 음성 설정
+microphone: 마이크
+models: 모델
+sections:
+  section:
+    general:
+      title: 일반
+theme:
+  title: 테마
+  description: |
+    AIRI의 기본 테마를 전환하세요. 라이트 모드 또는 다크 모드.
+  appearance:
+    title: 외관
+    color-scheme-presets:
+      title: 색상 스킴 프리셋
+title: 설정
+voices: 음성
+vrm:
+  change-model:
+    from-file: 파일에서 로드
+    from-file-select: 선택
+    from-url: URL에서 로드
+    from-url-confirm: 로드
+    from-url-placeholder: VRM 모델 URL 입력
+    title: 모델 변경
+  title: VRM 설정
+  scale-and-position:
+    model-info-title: 모델 크기 정보
+    model-info-x: 너비 (X)
+    model-info-y: 높이 (Y)
+    model-info-z: 깊이 (Z)
+    tips: |
+      VRM 모델의 초기 위치를 편집하세요.
+      좌표축이 시각화됩니다.
+    scale: 크기
+    x: X 오프셋
+    'y': Y 오프셋
+    z: Z 오프셋
+    fov: FOV (각도)
+    rotation-y: 회전 (Y축)
+    camera-distance: 카메라 거리
+    eye-tracking-mode:
+      title: 시선 추적
+      options:
+        option:
+          camera: 카메라
+          mouse: 마우스
+          disabled: 비활성화
+  switch-to-vrm:
+    title: Live2D 아바타로 전환하시겠습니까?
+    change-to-vrm: Live2D 아바타 설정으로 전환하려면 여기를 클릭하세요
+  theme-color-from-model:
+    button-extract:
+      title: 추출

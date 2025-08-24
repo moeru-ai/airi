@@ -17,7 +17,7 @@
 <p align="center">模型驱动的灵魂容器，什么都能做一点的桌宠：让 Neuro-sama 这样的虚拟伴侣也成为我们世界中的一份子吧！</p>
 
 <p align="center">
-  [<a href="https://discord.gg/TgQ3Cu2F7A">加入 Discord</a>] [<a href="https://airi.moeru.ai">试试看</a>] [<a href="https://github.com/moeru-ai/airi/blob/main/README.md">English</a>] [<a href="https://github.com/moeru-ai/airi/blob/main/docs/README.ja-JP.md">日本語</a>]
+  [<a href="https://discord.gg/TgQ3Cu2F7A">加入 Discord</a>] [<a href="https://airi.moeru.ai">试试看</a>] [<a href="../README.md">English</a>] [<a href="./README.ko.md">한국어</a>] [<a href="./README.ja-JP.md">日本語</a>]
 </p>
 
 <p align="center">

@@ -18,7 +18,7 @@
 <p align="center">Neuro-samaのようなバーチャルペアも私たちの世界の一部にしましょう！</p>
 
 <p align="center">
-  [<a href="https://discord.gg/TgQ3Cu2F7A">Discordサーバーに参加する</a>] [<a href="https:///airi.moeru.ai">試してみる</a>] [<a href="https://github.com/moeru-ai/airi/blob/main/README.md">English</a>] [<a href="https://github.com/moeru-ai/airi/blob/main/docs/README.zh-CN.md">简体中文</a>]
+  [<a href="https://discord.gg/TgQ3Cu2F7A">Discordサーバーに参加する</a>] [<a href="https:///airi.moeru.ai">試してみる</a>] [<a href="../README.md">English</a>] [<a href="./README.ko.md">한국어</a>] [<a href="./README.zh-CN.md">简体中文</a>]
 </p>
 
 <p align="center">
