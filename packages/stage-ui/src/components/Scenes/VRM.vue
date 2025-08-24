@@ -15,7 +15,6 @@ import { OrbitControls, VRMModel } from '../Scenes'
 
 const props = defineProps<{
   modelSrc?: string
-  modelFile?: File | null
 }>()
 
 const emit = defineEmits<{
@@ -292,7 +291,6 @@ defineExpose({
       <VRMModel
         ref="modelRef"
         :model-src="props.modelSrc"
-        :model-file="props.modelFile"
         idle-animation="/assets/vrm/animations/idle_loop.vrma"
         :paused="false"
         @load-model-progress="(val) => emit('loadModelProgress', val)"

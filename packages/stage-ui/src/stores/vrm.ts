@@ -1,8 +1,6 @@
-import localforage from 'localforage'
-
 import { useBroadcastChannel, useLocalStorage } from '@vueuse/core'
 import { defineStore } from 'pinia'
-import { computed, onMounted, ref, watch } from 'vue'
+import { ref, watch } from 'vue'
 
 import defaultSkyBoxSrc from '../components/Scenes/Tres/assets/sky_linekotsi_23_HDRI.hdr?url'
 
@@ -31,37 +29,6 @@ export const useVRM = defineStore('vrm', () => {
       shouldUpdateViewHooks.value.forEach(hook => hook())
     }
   })
-
-  const indexedDbModelFile = ref<File | null>(null)
-
-  async function loadModelFileFromIndexedDb() {
-    const file = await localforage.getItem<File>('assets-models-vrm')
-    if (file) {
-      indexedDbModelFile.value = file
-    }
-  }
-
-  onMounted(async () => loadModelFileFromIndexedDb())
-  // onShouldUpdateView(() => loadModelFileFromIndexedDb())
-
-  const modelFile = computed({
-    get: () => {
-      return indexedDbModelFile.value
-    },
-    set: (file: File | null) => {
-      if (file) {
-        localforage.setItem('assets-models-vrm', file)
-      }
-      else {
-        localforage.removeItem('assets-models-vrm')
-      }
-
-      indexedDbModelFile.value = file
-    },
-  })
-
-  const defaultModelUrl = '/assets/vrm/models/AvatarSample-B/AvatarSample_B.vrm'
-  const modelUrl = useLocalStorage('settings/vrm/modelURL', defaultModelUrl)
 
   const scale = useLocalStorage('settings/vrm/cameraScale', 1)
   const modelSize = useLocalStorage('settings/vrm/modelSize', { x: 0, y: 0, z: 0 })
@@ -117,9 +84,6 @@ export const useVRM = defineStore('vrm', () => {
   const skyBoxSrc = useLocalStorage('settings/vrm/skyBoxUrl', defaultSkyBoxSrc)
 
   return {
-    defaultModelUrl,
-    modelFile,
-    modelUrl,
     modelSize,
 
     scale,

@@ -2,9 +2,7 @@
 import type { Application } from '@pixi/app'
 import type { Cubism4InternalModel, InternalModel } from 'pixi-live2d-display/cubism4'
 
-import localforage from 'localforage'
-
-import { breakpointsTailwind, until, useBreakpoints, useDark, useDebounceFn, useObjectUrl } from '@vueuse/core'
+import { breakpointsTailwind, until, useBreakpoints, useDark, useDebounceFn } from '@vueuse/core'
 import { formatHex } from 'culori'
 import { storeToRefs } from 'pinia'
 import { DropShadowFilter } from 'pixi-filters'
@@ -25,7 +23,6 @@ type PixiLive2DInternalModel = InternalModel & {
 
 const props = withDefaults(defineProps<{
   modelSrc?: string
-  modelFile?: File | null
 
   app?: Application
   mouthOpenSize?: number
@@ -67,17 +64,6 @@ function parsePropsOffset() {
 }
 
 const modelSrcRef = toRef(() => props.modelSrc)
-const modelFileRef = toRef(() => props.modelFile)
-const modelFileSrc = useObjectUrl(modelFileRef)
-const modelSrcNormalized = computed(() => {
-  if (modelFileSrc.value)
-    return modelFileSrc.value
-
-  if (modelSrcRef.value)
-    return modelSrcRef.value
-
-  return ''
-})
 
 const modelLoading = ref(false)
 
@@ -127,7 +113,6 @@ function setScaleAndPosition() {
 }
 
 const {
-  modelFile,
   currentMotion,
   availableMotions,
   motionMap,
@@ -155,7 +140,7 @@ async function loadModel() {
     model.value.destroy()
     model.value = undefined
   }
-  if (!modelSrcNormalized.value) {
+  if (!modelSrcRef.value) {
     console.warn('No Live2D model source provided.')
     modelLoading.value = false
     return
@@ -163,11 +148,13 @@ async function loadModel() {
 
   try {
     const modelInstance = new Live2DModel<PixiLive2DInternalModel>()
-    if (modelFile.value) {
-      await Live2DFactory.setupLive2DModel(modelInstance, [modelFile.value], { autoInteract: false })
+    if (modelSrcRef.value.startsWith('blob:')) {
+      const res = await fetch(modelSrcRef.value)
+      const blob = await res.blob()
+      await Live2DFactory.setupLive2DModel(modelInstance, [blob], { autoInteract: false })
     }
     else {
-      await Live2DFactory.setupLive2DModel(modelInstance, modelSrcNormalized.value, { autoInteract: false })
+      await Live2DFactory.setupLive2DModel(modelInstance, modelSrcRef.value, { autoInteract: false })
     }
 
     availableMotions.value.forEach((motion) => {
@@ -268,11 +255,6 @@ async function loadModel() {
       localCurrentMotion.value = { group, index }
     })
 
-    // save to indexdb
-    if (modelFile.value) {
-      await localforage.setItem('live2dModel', modelFile.value)
-    }
-
     emits('modelLoaded')
   }
   finally {
@@ -299,7 +281,7 @@ function updateDropShadowFilter() {
 }
 
 watch([() => props.width, () => props.height], () => handleResize())
-watch(modelSrcNormalized, async () => await loadModel(), { immediate: true })
+watch(modelSrcRef, async () => await loadModel(), { immediate: true })
 watch(dark, updateDropShadowFilter, { immediate: true })
 watch([model, themeColorsHue], updateDropShadowFilter)
 watch(offset, setScaleAndPosition)

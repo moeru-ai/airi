@@ -7,7 +7,6 @@ import '../../utils/live2d-zip-loader'
 
 withDefaults(defineProps<{
   modelSrc?: string
-  modelFile?: File | null
 
   paused?: boolean
   mouthOpenSize?: number
@@ -35,7 +34,6 @@ withDefaults(defineProps<{
     >
       <Live2DModel
         :model-src="modelSrc"
-        :model-file="modelFile"
         :app="app"
         :mouth-open-size="mouthOpenSize"
         :width="width"

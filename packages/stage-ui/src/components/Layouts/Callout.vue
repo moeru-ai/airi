@@ -14,42 +14,42 @@ const themeClasses: Record<ThemeVariant, {
 }> = {
   primary: {
     container: [
-      'text-neutral-700/80 dark:text-neutral-300/80',
-      'bg-primary-50/60 dark:bg-primary-900/25 backdrop-blur-md',
-      `before:bg-primary-200 before:content-[''] before:dark:bg-primary-900`,
+      'text-neutral-900/80 dark:text-neutral-100/80',
+      'bg-primary-50/80 dark:bg-primary-900/50 backdrop-blur-md',
+      `before:bg-primary-500/30 before:content-[''] before:dark:bg-primary-200/20`,
     ],
     label: [
-      'text-primary-500 dark:text-primary-400 font-semibold',
+      'text-primary-500 dark:text-primary-200 font-semibold',
     ],
   },
   lime: {
     container: [
-      'text-neutral-700/80 dark:text-neutral-300/80',
-      'bg-lime-50/60 dark:bg-lime-900/25 backdrop-blur-md',
-      `before:bg-lime-200 before:content-[''] before:dark:bg-lime-900`,
+      'text-neutral-900/80 dark:text-neutral-100/80',
+      'bg-lime-50/80 dark:bg-lime-900/50 backdrop-blur-md',
+      `before:bg-lime-500/30 before:content-[''] before:dark:bg-lime-200/20`,
     ],
     label: [
-      'text-lime-500 dark:text-lime-400 font-semibold',
+      'text-lime-500 dark:text-lime-200 font-semibold',
     ],
   },
   violet: {
     container: [
-      'text-neutral-700/80 dark:text-neutral-300/80',
-      'bg-violet-50/60 dark:bg-violet-900/25 backdrop-blur-md',
-      `before:bg-violet-200 before:content-[''] before:dark:bg-violet-900`,
+      'text-neutral-900/80 dark:text-neutral-100/80',
+      'bg-violet-50/80 dark:bg-violet-900/50 backdrop-blur-md',
+      `before:bg-violet-500/30 before:content-[''] before:dark:bg-violet-200/20`,
     ],
     label: [
-      'text-violet-500 dark:text-violet-400 font-semibold',
+      'text-violet-500 dark:text-violet-200 font-semibold',
     ],
   },
   orange: {
     container: [
-      'text-neutral-700/80 dark:text-neutral-300/80',
-      'bg-orange-50/70 dark:bg-orange-900/25 backdrop-blur-md',
-      `before:bg-orange-200 before:content-[''] before:dark:bg-orange-900`,
+      'text-neutral-900/80 dark:text-neutral-100/80',
+      'bg-orange-100/60 dark:bg-orange-900/50 backdrop-blur-md',
+      `before:bg-orange-500/30 before:content-[''] before:dark:bg-orange-200/20`,
     ],
     label: [
-      'text-orange-500 dark:text-orange-400 font-semibold',
+      'text-orange-500 dark:text-orange-200 font-semibold',
     ],
   },
 }
@@ -59,7 +59,7 @@ const themeClasses: Record<ThemeVariant, {
   <div
     relative
     flex flex-col gap-1
-    overflow-hidden rounded-lg
+    rounded-lg
     py="2.5" pl="5" pr-3
     :class="[
       ...themeClasses[props.theme || 'violet'].container,

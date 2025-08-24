@@ -28,8 +28,8 @@ const emit = defineEmits<{
 
 const commonThemeClasses = {
   tabActive: [
-    'bg-white shadow-sm font-bold text-blue-600 dark:text-blue-400 text-xs',
-    'ring-2 ring-blue-500',
+    'bg-white shadow-sm font-bold text-primary-600 dark:text-primary-400 text-xs',
+    'ring-2 ring-primary-500',
     'dark:bg-neutral-700',
     'ring-1 ring-black/5 dark:ring-white/10',
   ],
@@ -117,6 +117,7 @@ function onClick(v: string, disabled?: boolean) {
           sizeCls,
           t.disabled ? 'opacity-40 cursor-not-allowed' : '',
           modelValue === t.value ? themeClasses[theme].tabActive : themeClasses[theme].tabIdle,
+          'focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-primary-200 focus-visible:outline-offset-2',
         ]"
         @click="onClick(t.value, t.disabled)"
       >
@@ -140,7 +141,3 @@ function onClick(v: string, disabled?: boolean) {
     </div>
   </div>
 </template>
-
-<style scoped>
-button:focus-visible { outline: 2px solid rgb(147 197 253); outline-offset: 2px }
-</style>
