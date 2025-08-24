@@ -1,6 +1,6 @@
 import { useLocalStorage } from '@vueuse/core'
 import { defineStore } from 'pinia'
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 
 import { useProvidersStore } from '../providers'
 
@@ -13,6 +13,8 @@ export const useConsciousnessStore = defineStore('consciousness', () => {
   const activeCustomModelName = useLocalStorage('settings/consciousness/active-custom-model', '')
   const expandedDescriptions = ref<Record<string, boolean>>({})
   const modelSearchQuery = ref('')
+  const isCheckingModel = ref(false)
+  const modelCheckError = ref<string | null>(null)
 
   // Computed properties
   const supportsModelListing = computed(() => {
@@ -65,6 +67,36 @@ export const useConsciousnessStore = defineStore('consciousness', () => {
     return []
   }
 
+  async function checkModelAvailability(provider: string, model: string) {
+    if (!provider || !model) return false
+    
+    const metadata = providersStore.getProviderMetadata(provider)
+    if (!metadata?.capabilities.checkModel) return true // Skip check if not supported
+    
+    try {
+      isCheckingModel.value = true
+      modelCheckError.value = null
+      
+      const result = await metadata.capabilities.checkModel(model)
+      return result
+    } catch (error) {
+      modelCheckError.value = error instanceof Error ? error.message : 'Unknown error'
+      return false
+    } finally {
+      isCheckingModel.value = false
+    }
+  }
+
+  // Watch for model changes and check availability
+  watch([activeProvider, activeModel], async ([newProvider, newModel], [oldProvider, oldModel]) => {
+    if (newProvider && newModel && (newProvider !== oldProvider || newModel !== oldModel)) {
+      const isAvailable = await checkModelAvailability(newProvider, newModel)
+      if (!isAvailable && modelCheckError.value) {
+        console.warn(`Model ${newModel} is not available for provider ${newProvider}:`, modelCheckError.value)
+      }
+    }
+  })
+
   const configured = computed(() => {
     return !!activeProvider.value && !!activeModel.value
   })
@@ -77,6 +109,8 @@ export const useConsciousnessStore = defineStore('consciousness', () => {
     customModelName: activeCustomModelName,
     expandedDescriptions,
     modelSearchQuery,
+    isCheckingModel,
+    modelCheckError,
 
     // Computed
     supportsModelListing,
@@ -89,5 +123,6 @@ export const useConsciousnessStore = defineStore('consciousness', () => {
     resetModelSelection,
     loadModelsForProvider,
     getModelsForProvider,
+    checkModelAvailability,
   }
 })

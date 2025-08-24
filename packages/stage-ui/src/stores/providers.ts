@@ -48,6 +48,8 @@ import {
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import { getOllamaAPI, MockOllamaAPI } from '../utils/ollama-api-loader'
+
 import { isAbsoluteUrl } from '../utils/string'
 import { models as elevenLabsModels } from './providers/elevenlabs/list-models'
 import { createTauriTranscription, getAvailableWhisperModels } from './providers/tauri-transcription'
@@ -213,7 +215,7 @@ export const useProvidersStore = defineStore('providers', () => {
       }),
       createProvider: async config => createOpenRouter((config.apiKey as string).trim(), (config.baseUrl as string).trim()),
       capabilities: {
-        listModels: async (config) => {
+        listModels: async (_config) => {
           return fetchOpenRouterModels(config)
         },
       },
@@ -607,6 +609,175 @@ export const useProvidersStore = defineStore('providers', () => {
               deprecated: false,
             } satisfies ModelInfo
           })
+        },
+      },
+      validators: {
+        validateProviderConfig: (config) => {
+          if (!config.baseUrl) {
+            return {
+              errors: [new Error('Base URL is required.')],
+              reason: 'Base URL is required. Default to http://localhost:11434/v1/ for Ollama.',
+              valid: false,
+            }
+          }
+
+          if (!isAbsoluteUrl(config.baseUrl as string)) {
+            return notBaseUrlError.value
+          }
+
+          // Check if the Ollama server is reachable
+          return fetch(`${(config.baseUrl as string).trim()}models`, { headers: (config.headers as HeadersInit) || undefined })
+            .then((response) => {
+              const errors = [
+                !response.ok && new Error(`Ollama server returned non-ok status code: ${response.statusText}`),
+              ].filter(Boolean)
+
+              return {
+                errors,
+                reason: errors.filter(e => e).map(e => String(e)).join(', ') || '',
+                valid: response.ok,
+              }
+            })
+            .catch((err) => {
+              return {
+                errors: [err],
+                reason: `Failed to reach Ollama server, error: ${String(err)} occurred.\n\nIf you are using Ollama locally, this is likely the CORS (Cross-Origin Resource Sharing) security issue, where you will need to set OLLAMA_ORIGINS=* or OLLAMA_ORIGINS=https://airi.moeru.ai,http://localhost environment variable before launching Ollama server to make this work.`,
+                valid: false,
+              }
+            })
+        },
+      },
+    },
+    'ollama-llama': {
+      id: 'ollama-llama',
+      category: 'chat',
+      tasks: ['text-generation'],
+      nameKey: 'settings.pages.providers.provider.ollama-llama.title',
+      name: 'Ollama LLaMA',
+      descriptionKey: 'settings.pages.providers.provider.ollama-llama.description',
+      description: 'Local LLaMA models with Ollama',
+      icon: 'i-lobe-icons:ollama',
+      defaultOptions: () => ({
+        baseUrl: 'http://localhost:11434/v1/',
+        model: 'Meta-Llama-3-8B-Instruct.Q4_K_M.gguf',
+        modelsPath: './models',
+      }),
+      createProvider: async config => createOllama((config.baseUrl as string).trim()),
+      capabilities: {
+        listModels: async (config) => {
+          return [
+            {
+              id: 'Meta-Llama-3-8B-Instruct.Q4_K_M.gguf',
+              name: '🌟 LLaMA 3 8B Instruct Q4_K_M (Рекомендуется)',
+              provider: 'ollama-llama',
+              description: 'Рекомендуемая модель Meta LLaMA 3 8B с квантизацией Q4_K_M для оптимального баланса качества и производительности. Автоматически загружается из папки models или скачивается с HuggingFace.',
+              contextLength: 8192,
+              deprecated: false,
+            },
+            {
+              id: 'Meta-Llama-3-8B-Instruct.Q8_0.gguf',
+              name: 'LLaMA 3 8B Instruct Q8_0 (Высокое качество)',
+              provider: 'ollama-llama',
+              description: 'Модель Meta LLaMA 3 8B с квантизацией Q8_0 для максимального качества. Требует больше памяти.',
+              contextLength: 8192,
+              deprecated: false,
+            },
+            {
+              id: 'Meta-Llama-3-8B-Instruct.Q2_K.gguf',
+              name: 'LLaMA 3 8B Instruct Q2_K (Быстрая)',
+              provider: 'ollama-llama',
+              description: 'Модель Meta LLaMA 3 8B с квантизацией Q2_K для быстрой работы на слабых устройствах.',
+              contextLength: 8192,
+              deprecated: false,
+            },
+          ]
+        },
+        loadModel: async (config, hooks) => {
+          const ollamaApi = await getOllamaAPI()
+          if (!ollamaApi) {
+            throw new Error('Ollama API not available in this environment')
+          }
+          
+          // Configure the API instance
+          ollamaApi.baseUrl = (config.baseUrl as string).trim()
+          ollamaApi.headers = (config.headers as Record<string, string>) || {}
+          
+          const modelName = config.model as string
+          if (!modelName) {
+            throw new Error('Model name is required')
+          }
+          
+          try {
+            // First, try to load model from local file if it exists
+            hooks?.onProgress?.({
+              status: 'Checking for local model...',
+              progress: 0,
+            })
+            
+            await ollamaApi.loadLocalModel(modelName, (progress) => {
+              if (hooks?.onProgress) {
+                hooks.onProgress({
+                  status: progress.status,
+                  progress: progress.total && progress.completed 
+                    ? (progress.completed / progress.total) * 100 
+                    : 50, // Default progress for local loading
+                  total: progress.total,
+                  completed: progress.completed,
+                })
+              }
+            })
+          } catch (_localError) {
+            // If local loading fails, download from HuggingFace
+            hooks?.onProgress?.({
+              status: 'Local model not found, downloading from HuggingFace...',
+              progress: 0,
+            })
+            
+            await ollamaApi.pullModel(modelName, (progress) => {
+              if (hooks?.onProgress) {
+                hooks.onProgress({
+                  status: progress.status,
+                  progress: progress.total && progress.completed 
+                    ? (progress.completed / progress.total) * 100 
+                    : 0,
+                  total: progress.total,
+                  completed: progress.completed,
+                })
+              }
+            })
+            
+            // After download, load the model into Ollama
+            hooks?.onProgress?.({
+              status: 'Loading downloaded model into Ollama...',
+              progress: 90,
+            })
+            
+            await ollamaApi.loadLocalModel(modelName, (progress) => {
+              if (hooks?.onProgress) {
+                hooks.onProgress({
+                  status: progress.status,
+                  progress: 95,
+                })
+              }
+            })
+          }
+        },
+        checkModel: async (config) => {
+          const ollamaApi = await getOllamaAPI()
+          if (!ollamaApi) {
+            return false
+          }
+          
+          // Configure the API instance
+          ollamaApi.baseUrl = (config.baseUrl as string).trim()
+          ollamaApi.headers = (config.headers as Record<string, string>) || {}
+          
+          const modelName = config.model as string
+          if (!modelName) {
+            return false
+          }
+          
+          return await ollamaApi.checkModel(modelName)
         },
       },
       validators: {

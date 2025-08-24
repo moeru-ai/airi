@@ -51,12 +51,12 @@ function toggleExpansion() {
     ]"
   >
     <input
-      v-model="modelValue"
       :checked="modelValue === value"
       type="radio"
       :name="name"
       :value="value"
       class="absolute opacity-0"
+      @change="modelValue = value"
     >
     <div class="relative mr-3 mt-0.5 flex-shrink-0">
       <div

@@ -15,6 +15,7 @@ import { storeToRefs } from 'pinia'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
+import OllamaModelDownloader from '@proj-airi/stage-ui/components/Scenarios/Providers/OllamaModelDownloader.vue'
 
 const { t } = useI18n()
 const router = useRouter()
@@ -119,6 +120,12 @@ function handleResetSettings() {
     ...(providerMetadata.value?.defaultOptions as any),
   }
 }
+
+function handleModelDownloaded(modelName: string) {
+  // Refresh the available models after download
+  console.warn(`Model ${modelName} downloaded successfully`)
+  // You could add logic here to refresh the model list or show a success message
+}
 </script>
 
 <template>
@@ -161,6 +168,14 @@ function handleResetSettings() {
           @remove="(index: number) => removeKeyValue(index, headers)"
         />
       </ProviderAdvancedSettings>
+      
+      <!-- Model Downloader Section -->
+      <div v-if="baseUrl && !validationMessage" class="mt-6">
+        <OllamaModelDownloader
+          :base-url="baseUrl.replace('/v1/', '')"
+          @model-downloaded="handleModelDownloaded"
+        />
+      </div>
     </ProviderSettingsContainer>
   </ProviderSettingsLayout>
 </template>

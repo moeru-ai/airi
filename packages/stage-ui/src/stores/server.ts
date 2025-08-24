@@ -7,7 +7,7 @@ export const useServerStore = defineStore('server', () => {
 
   onMounted(() => {
     server.value = new Client({
-      name: 'stage-web',
+      name: 'stage-tamagotchi',
       autoConnect: false,
       autoReconnect: true,
       onError: (error) => {

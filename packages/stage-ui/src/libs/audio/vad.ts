@@ -22,7 +22,7 @@ export interface VADEvents {
   'speech-start': void
   // Emitted when speech has ended
   'speech-end': void
-  // Emitted when a complete speech segment is ready for transcription
+  // Emitted when a complete speech segment is detected
   'speech-ready': { buffer: Float32Array, duration: number }
   // Emitted for status updates and errors
   'status': { type: string, message: string }

@@ -392,6 +392,9 @@ pages:
       ollama:
         description: ollama.ai
         title: Ollama
+      ollama-llama:
+        description: 通过 Ollama 运行的 LLaMA 模型
+        title: Ollama LLaMA
       openai:
         description: OpenAi.com
         title: OpenAI

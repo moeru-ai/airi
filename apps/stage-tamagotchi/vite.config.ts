@@ -20,6 +20,16 @@ export default defineConfig({
       '@proj-airi/stage-ui/*',
       '@proj-airi/drizzle-duckdb-wasm',
       '@proj-airi/drizzle-duckdb-wasm/*',
+      '@tauri-apps/api/fs',
+      '@tauri-apps/api/path',
+      '@tauri-apps/api/core',
+    ],
+  },
+  ssr: {
+    external: [
+      '@tauri-apps/api/fs',
+      '@tauri-apps/api/path', 
+      '@tauri-apps/api/core',
     ],
   },
   resolve: {

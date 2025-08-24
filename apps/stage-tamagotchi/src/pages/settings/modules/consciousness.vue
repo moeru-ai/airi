@@ -18,6 +18,8 @@ const {
   providerModels,
   isLoadingActiveProviderModels,
   activeProviderModelError,
+  isCheckingModel,
+  modelCheckError,
 } = storeToRefs(consciousnessStore)
 
 const { t } = useI18n()
@@ -144,6 +146,27 @@ function updateCustomModelName(value: string) {
             :collapse-button-text="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.collapse')"
             @update:custom-value="updateCustomModelName"
           />
+          
+          <!-- Model checking status -->
+          <div v-if="activeModel && (isCheckingModel || modelCheckError)" class="mt-3">
+            <!-- Checking state -->
+            <div v-if="isCheckingModel" class="flex items-center gap-2 text-sm text-blue-600 dark:text-blue-400">
+              <div class="animate-spin">
+                <div i-solar:spinner-line-duotone />
+              </div>
+              <span>Проверка доступности модели...</span>
+            </div>
+            
+            <!-- Error state -->
+            <Alert v-else-if="modelCheckError" type="error">
+              <template #title>
+                Модель недоступна
+              </template>
+              <template #content>
+                {{ modelCheckError }}
+              </template>
+            </Alert>
+          </div>
         </template>
       </div>
     </div>
@@ -182,6 +205,27 @@ function updateCustomModelName(value: string) {
             class="w-full border border-neutral-300 rounded bg-white px-3 py-2 dark:border-neutral-700 dark:bg-neutral-900"
             :placeholder="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.manual_model_placeholder')"
           >
+          
+          <!-- Model checking status for manual input -->
+          <div v-if="activeModel && (isCheckingModel || modelCheckError)" class="mt-3">
+            <!-- Checking state -->
+            <div v-if="isCheckingModel" class="flex items-center gap-2 text-sm text-blue-600 dark:text-blue-400">
+              <div class="animate-spin">
+                <div i-solar:spinner-line-duotone />
+              </div>
+              <span>Проверка доступности модели...</span>
+            </div>
+            
+            <!-- Error state -->
+            <Alert v-else-if="modelCheckError" type="error">
+              <template #title>
+                Модель недоступна
+              </template>
+              <template #content>
+                {{ modelCheckError }}
+              </template>
+            </Alert>
+          </div>
         </div>
       </div>
     </div>

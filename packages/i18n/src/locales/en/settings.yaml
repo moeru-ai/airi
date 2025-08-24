@@ -423,6 +423,9 @@ pages:
       ollama:
         description: ollama.ai
         title: Ollama
+      ollama-llama:
+        description: LLaMA models via Ollama
+        title: Ollama LLaMA
       openai:
         description: openai.com
         title: OpenAI

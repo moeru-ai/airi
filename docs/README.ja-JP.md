@@ -238,7 +238,6 @@ flowchart TD
   end
 
   subgraph Apps
-    Stage --> StageWeb("@proj-airi/stage-web")
     Stage --> StageTamagotchi("@proj-airi/stage-tamagotchi")
     Core --> RealtimeAudio("@proj-airi/realtime-audio")
     Core --> PromptEngineering("@proj-airi/playground-prompt-engineering")
