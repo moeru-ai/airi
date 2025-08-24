@@ -54,7 +54,7 @@ description: 如何使用桌面版的 Project AIRI
 - 新手引导 / 设置向导
 - 模型（可显示 Live2D 和 VRM 模型）
 
-![](../../../../../en/docs/overview/guide/tamagotchi/assets/screenshot-ui.png)
+![](../../../../../en/docs/overview/guide/tamagotchi/assets/screenshot-ui.avif)
 
 我们还在系统托盘中提供了其他选项/命令，包括：
 

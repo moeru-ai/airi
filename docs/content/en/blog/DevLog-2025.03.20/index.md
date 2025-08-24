@@ -5,7 +5,7 @@ date: 2025-03-20
 ---
 
 <script setup>
-import Gelbana from './assets/steins-gate-gelnana-from-elpsycongrooblog.webp'
+import Gelbana from './assets/steins-gate-gelnana-from-elpsycongrooblog.avif'
 import NewUIV3 from '../DevLog-2025.03.10/assets/new-ui-v3.avif'
 import NewUIV3Dark from '../DevLog-2025.03.10/assets/new-ui-v3-dark.avif'
 import HistoireColorSlider from './assets/histoire-color-slider.avif'
@@ -14,7 +14,7 @@ import HistoireLogo from './assets/histoire-logo.avif'
 import HistoireLogoDark from './assets/histoire-logo-dark.avif'
 import NewUIV4Speech from './assets/new-ui-v4-speech.avif'
 import NewUIV4SpeechDark from './assets/new-ui-v4-speech-dark.avif'
-import SteinsGateMayori from './assets/steins-gate-mayori.webp'
+import SteinsGateMayori from './assets/steins-gate-mayori.avif'
 </script>
 
 Hello again! It has been 10 days since the [last post of DevLog](../references/contributing/guide/).

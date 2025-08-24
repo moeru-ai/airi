@@ -9,7 +9,6 @@
     "dev": "vitepress dev",
     "preview": "vitepress preview",
     "typecheck": "vue-tsc --noEmit",
-    "to-avif": "tsx scripts/avif.ts",
     "contributors": "tsx scripts/update-contributors.ts"
   },
   "dependencies": {

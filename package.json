@@ -31,6 +31,7 @@
     "lint": "eslint --cache .",
     "lint:fix": "eslint --cache --fix .",
     "lint:rust": "cargo fmt --check && cargo clippy --workspace",
+    "to-avif": "tsx docs/scripts/avif.ts",
     "typecheck": "pnpm -rF=\"./packages/*\" -F=\"./apps/*\" -F=\"./docs\" --parallel typecheck",
     "up": "taze -w -r -I -f && pnpm prune && pnpm dedupe",
     "nolyfill": "pnpm dlx nolyfill"
