@@ -41,7 +41,7 @@ const db = ref<DuckDBWasmDrizzleDatabase>()
 
 const vrmViewerRef = ref<{ setExpression: (expression: string) => void }>()
 
-const { stageView, stageViewControlsEnabled, live2dDisableFocus, stageModelSelectedUrl } = storeToRefs(useSettings())
+const { stageModelRenderer, stageViewControlsEnabled, live2dDisableFocus, stageModelSelectedUrl } = storeToRefs(useSettings())
 const { mouthOpenSize } = storeToRefs(useSpeakingStore())
 const { audioContext, calculateVolume } = useAudioContext()
 const { onBeforeMessageComposed, onBeforeSend, onTokenLiteral, onTokenSpecial, onStreamEnd, onAssistantResponseEnd } = useChatStore()
@@ -137,14 +137,14 @@ const { currentMotion } = storeToRefs(useLive2d())
 const emotionsQueue = useQueue<Emotion>({
   handlers: [
     async (ctx) => {
-      if (stageView.value === 'vrm') {
+      if (stageModelRenderer.value === 'vrm') {
         const value = EMOTION_VRMExpressionName_value[ctx.data]
         if (!value)
           return
 
         await vrmViewerRef.value!.setExpression(value)
       }
-      else if (stageView.value === 'live2d') {
+      else if (stageModelRenderer.value === 'live2d') {
         currentMotion.value = { group: EMOTION_EmotionMotionName_value[ctx.data] }
       }
     },
@@ -229,7 +229,7 @@ onMounted(async () => {
   <div relative>
     <div h-full w-full>
       <Live2DScene
-        v-if="stageView === 'live2d'"
+        v-if="stageModelRenderer === 'live2d'"
         min-w="50% <lg:full" min-h="100 sm:100" h-full w-full flex-1
         :model-src="stageModelSelectedUrl"
         :focus-at="focusAt"
@@ -241,7 +241,7 @@ onMounted(async () => {
         :disable-focus-at="live2dDisableFocus"
       />
       <VRMScene
-        v-else-if="stageView === 'vrm'"
+        v-else-if="stageModelRenderer === 'vrm'"
         ref="vrmViewerRef"
         :model-src="stageModelSelectedUrl"
         idle-animation="/assets/vrm/animations/idle_loop.vrma"

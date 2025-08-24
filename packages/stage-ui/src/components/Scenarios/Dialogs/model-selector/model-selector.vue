@@ -61,6 +61,7 @@ const mapFormatRenderer: Record<DisplayModelFormat, string> = {
   [DisplayModelFormat.Live2dDirectory]: 'Live2D',
   [DisplayModelFormat.VRM]: 'VRM',
   [DisplayModelFormat.PMXDirectory]: 'MMD',
+  [DisplayModelFormat.PMXZip]: 'MMD',
   [DisplayModelFormat.PMD]: 'MMD',
 }
 
