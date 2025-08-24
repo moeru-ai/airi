@@ -88,7 +88,7 @@ watch(vrmFiles, (newFiles) => {
           </DropdownMenuTrigger>
           <DropdownMenuPortal>
             <DropdownMenuContent
-              class="will-change-[opacity,transform] z-10000 max-w-45 rounded-lg p-0.5 text-white shadow-md outline-none data-[side=bottom]:animate-slideUpAndFade data-[side=left]:animate-slideRightAndFade data-[side=right]:animate-slideLeftAndFade data-[side=top]:animate-slideDownAndFade dark:text-black"
+              class="will-change-[opacity,transform] z-10000 max-w-45 rounded-lg p-0.5 shadow-md outline-none data-[side=bottom]:animate-slideUpAndFade data-[side=left]:animate-slideRightAndFade data-[side=right]:animate-slideLeftAndFade data-[side=top]:animate-slideDownAndFade"
               bg="neutral-700/50 dark:neutral-950/50"
               transition="colors duration-200 ease-in-out"
               backdrop-blur-sm
@@ -169,7 +169,7 @@ watch(vrmFiles, (newFiles) => {
             px-1 py-2
           >
             <img v-if="model.previewImage" :src="model.previewImage" h-full w-full rounded-lg object-cover :class="[highlightDisplayModelCard && highlightDisplayModelCard === model.id ? 'ring-3 ring-primary-400' : 'ring-0 ring-transparent']" transition="all duration-200 ease-in-out">
-            <div v-else bg="neutral-100 dark:neutral-900" relative h-full w-full flex flex-col items-center justify-center gap-2 rounded-lg :class="[highlightDisplayModelCard && highlightDisplayModelCard === model.id ? 'ring-4 ring-primary-400' : 'ring-0 ring-transparent']" transition="all duration-200 ease-in-out">
+            <div v-else bg="neutral-100 dark:neutral-900" relative h-full w-full flex flex-col items-center justify-center gap-2 overflow-hidden rounded-lg :class="[highlightDisplayModelCard && highlightDisplayModelCard === model.id ? 'ring-3 ring-primary-400' : 'ring-0 ring-transparent']" transition="all duration-200 ease-in-out">
               <div i-solar:question-square-bold-duotone text-4xl opacity-75 />
               <div translate-y="100%" absolute top-0 flex flex-col translate-x--7 rotate-45 scale-250 gap-0 opacity-5>
                 <div text="sm sm:sm" translate-x-7 translate-y--2 text-nowrap>

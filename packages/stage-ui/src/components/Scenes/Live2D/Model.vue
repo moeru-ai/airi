@@ -151,7 +151,7 @@ async function loadModel() {
     if (modelSrcRef.value.startsWith('blob:')) {
       const res = await fetch(modelSrcRef.value)
       const blob = await res.blob()
-      await Live2DFactory.setupLive2DModel(modelInstance, [blob], { autoInteract: false })
+      await Live2DFactory.setupLive2DModel(modelInstance, [new File([blob], 'model.zip')], { autoInteract: false })
     }
     else {
       await Live2DFactory.setupLive2DModel(modelInstance, modelSrcRef.value, { autoInteract: false })
