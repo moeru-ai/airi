@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useMarkdown } from '@proj-airi/stage-ui/composables'
+import { MarkdownRenderer } from '@proj-airi/stage-ui/components'
 import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
 import { storeToRefs } from 'pinia'
 import { nextTick, ref } from 'vue'
@@ -10,7 +10,6 @@ const chatHistoryRef = ref<HTMLDivElement>()
 const { t } = useI18n()
 const { messages } = storeToRefs(useChatStore())
 
-const { process } = useMarkdown()
 const { onBeforeMessageComposed, onTokenLiteral } = useChatStore()
 
 onBeforeMessageComposed(async () => {
@@ -53,7 +52,12 @@ onTokenLiteral(async () => {
               </div>
               <div i-solar:danger-triangle-bold-duotone text-violet-500 />
             </div>
-            <div v-if="message.content" class="markdown-content break-words" text="base <sm:xs" v-html="process(message.content as string)" />
+            <MarkdownRenderer
+              v-if="message.content"
+              :content="message.content as string"
+              class="break-words"
+              text="base <sm:xs"
+            />
             <div v-else i-eos-icons:three-dots-loading />
           </div>
         </div>
@@ -69,7 +73,12 @@ onTokenLiteral(async () => {
             <div>
               <span text="primary-400/90 dark:primary-600/90" text-xs font-normal class="inline <sm:hidden">{{ t('stage.chat.message.character-name.airi') }}</span>
             </div>
-            <div v-if="message.content" class="markdown-content break-words" text="base <sm:xs" v-html="process(message.content as string)" />
+            <MarkdownRenderer
+              v-if="message.content"
+              :content="message.content as string"
+              class="break-words"
+              text="base <sm:xs"
+            />
             <div v-else i-eos-icons:three-dots-loading />
           </div>
         </div>
@@ -85,7 +94,12 @@ onTokenLiteral(async () => {
             <div>
               <span text-xs text="cyan-400/90 dark:cyan-600/90" font-normal class="inline <sm:hidden">{{ t('stage.chat.message.character-name.you') }}</span>
             </div>
-            <div v-if="message.content" class="markdown-content break-words" text="base <sm:xs" v-html="process(message.content as string)" />
+            <MarkdownRenderer
+              v-if="message.content"
+              :content="message.content as string"
+              class="break-words"
+              text="base <sm:xs"
+            />
             <div v-else />
           </div>
         </div>
