@@ -41,6 +41,7 @@ async fn start_tracing_cursor<R: Runtime>(
 
   // Then start interval timer for monitoring
   tauri::async_runtime::spawn(async move {
+    // TODO: don't poll
     loop {
       sleep(Duration::from_millis(32)).await; // ~30FPS check rate
 
@@ -49,29 +50,14 @@ async fn start_tracing_cursor<R: Runtime>(
         break;
       }
 
-      #[cfg(target_os = "macos")]
-      {
-        let _ = window.emit(
-          "tauri-plugins:tauri-plugin-window-pass-through-on-hover:cursor-position",
-          get_mouse_location(),
-        );
-        let _ = window.emit(
-          "tauri-plugins:tauri-plugin-window-pass-through-on-hover:window-frame",
-          get_window_frame(&window),
-        );
-      }
-
-      #[cfg(target_os = "windows")]
-      {
-        let _ = window.emit(
-          "tauri-plugins:tauri-plugin-window-pass-through-on-hover:cursor-position",
-          get_mouse_location(),
-        );
-        let _ = window.emit(
-          "tauri-plugins:tauri-plugin-window-pass-through-on-hover:window-frame",
-          get_window_frame(&window),
-        );
-      }
+      let _ = window.emit(
+        "tauri-plugins:tauri-plugin-window-pass-through-on-hover:cursor-position",
+        get_mouse_location(),
+      );
+      let _ = window.emit(
+        "tauri-plugins:tauri-plugin-window-pass-through-on-hover:window-frame",
+        get_window_frame(&window),
+      );
     }
   });
 

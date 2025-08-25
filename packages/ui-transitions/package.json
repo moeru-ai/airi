@@ -28,7 +28,7 @@
   "dependencies": {
     "@vueuse/core": "^13.6.0",
     "@vueuse/motion": "^3.0.3",
-    "vue": "^3.5.18"
+    "vue": "catalog:"
   },
   "devDependencies": {
     "@unocss/reset": "^66.3.3",

@@ -32,7 +32,7 @@ const { invoke } = useTauriCore()
 const { connected, serverCmd, serverArgs } = storeToRefs(mcpStore)
 const { scale, positionInPercentageString } = storeToRefs(useLive2d())
 
-const { centerPos, live2dLookAtX, live2dLookAtY } = storeToRefs(useWindowStore())
+const { centerPos, live2dLookAtX, live2dLookAtY, shouldHideView } = storeToRefs(useWindowStore())
 const live2dFocusAt = ref<Point>(centerPos.value)
 const widgetStageRef = ref<{ canvasElement: () => HTMLCanvasElement }>()
 const resourceStatusIslandRef = ref<InstanceType<typeof ResourceStatusIsland>>()
@@ -154,11 +154,11 @@ const modeIndicatorClass = computed(() => {
 const unListenFuncs: (() => void)[] = []
 
 function openSettings() {
-  invoke('open_settings_window')
+  invoke('open_window', { label: 'settings' })
 }
 
 function openChat() {
-  invoke('open_chat_window')
+  invoke('open_window', { label: 'chat' })
 }
 
 async function setupVADModelLoadingProgressListener() {
@@ -234,7 +234,7 @@ if (import.meta.hot) { // For better DX
 <template>
   <div
     :class="[modeIndicatorClass, {
-      'op-0': windowControlStore.isIgnoringMouseEvent && !isClickThrough,
+      'op-0': shouldHideView,
       'pointer-events-none': !isClickThrough,
     }]"
     max-h="[100vh]"

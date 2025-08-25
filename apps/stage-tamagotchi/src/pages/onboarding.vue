@@ -2,18 +2,21 @@
 import { OnboardingScreen } from '@proj-airi/stage-ui/components'
 import { useOnboardingStore } from '@proj-airi/stage-ui/stores/onboarding'
 
-import { useTauriWindow } from '../composables/tauri'
+import { useTauriCore, useTauriWindow } from '../composables/tauri'
 
 const window = useTauriWindow()
+const { invoke } = useTauriCore()
 const onboardingStore = useOnboardingStore()
 
 function handleSkipped() {
   window.closeWindow()
+  invoke('open_window', { label: 'main' })
 }
 
 function handleConfigured() {
   onboardingStore.markSetupCompleted()
   window.closeWindow()
+  invoke('open_window', { label: 'main' })
 }
 </script>
 

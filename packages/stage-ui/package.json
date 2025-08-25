@@ -152,6 +152,6 @@
     "unplugin-info": "^1.2.4",
     "unplugin-yaml": "^3.0.2",
     "vite": "^6.3.5",
-    "vue": "^3.5.18"
+    "vue": "catalog:"
   }
 }

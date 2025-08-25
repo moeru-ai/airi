@@ -13,7 +13,7 @@ import { RouterView } from 'vue-router'
 
 import { commands } from './bindings/tauri-plugins/window-router-link'
 import { useAppRuntime } from './composables/runtime'
-import { useTauriEvent } from './composables/tauri'
+import { useTauriCore, useTauriEvent } from './composables/tauri'
 import { useWindowMode } from './stores/window-controls'
 
 useWindowMode()
@@ -22,10 +22,11 @@ const displayModelsStore = useDisplayModelsStore()
 const settingsStore = useSettings()
 const { language, themeColorsHue, themeColorsHueDynamic, allowVisibleOnAllWorkspaces } = storeToRefs(settingsStore)
 const onboardingStore = useOnboardingStore()
-const { shouldShowSetup } = storeToRefs(onboardingStore)
+const { needsOnboarding, shouldShowSetup } = storeToRefs(onboardingStore)
 
 const mcpStore = useMcpStore()
 const { listen } = useTauriEvent<AiriTamagotchiEvents>()
+const { invoke } = useTauriCore()
 const { platform } = useAppRuntime()
 
 watch(language, () => {
@@ -38,6 +39,10 @@ onMounted(async () => {
 
   await displayModelsStore.loadDisplayModelsFromIndexedDB()
   await settingsStore.initializeStageModel()
+
+  if (!needsOnboarding.value) {
+    invoke('open_window', { label: 'main' })
+  }
 })
 
 watch(themeColorsHue, () => {

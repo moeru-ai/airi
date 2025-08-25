@@ -13,7 +13,66 @@
     "security": {
       "csp": null
     },
-    "macOSPrivateApi": true
+    "macOSPrivateApi": true,
+    "windows": [
+      {
+        "label": "main",
+        "title": "AIRI",
+        "width": 450,
+        "height": 600,
+        "decorations": false,
+        "transparent": true,
+        "alwaysOnTop": true,
+        "titleBarStyle": "Transparent",
+        "minimizable": false,
+        "visible": false
+      },
+      {
+        "label": "chat",
+        "title": "AIRI Chat",
+        "url": "#/chat",
+        "width": 600,
+        "height": 800,
+        "visible": false,
+        "titleBarStyle": "Overlay",
+        "hiddenTitle": true,
+        "acceptFirstMouse": true,
+        "trafficLightPosition": {
+          "x": 14.0,
+          "y": 20.0
+        }
+      },
+      {
+        "label": "settings",
+        "title": "AIRI Settings",
+        "url": "#/settings",
+        "width": 550,
+        "height": 900,
+        "visible": false,
+        "titleBarStyle": "Overlay",
+        "hiddenTitle": true,
+        "acceptFirstMouse": true,
+        "trafficLightPosition": {
+          "x": 14.0,
+          "y": 20.0
+        }
+      },
+      {
+        "label": "onboarding",
+        "title": "AIRI Onboarding",
+        "url": "#/onboarding",
+        "width": 800,
+        "height": 600,
+        "visible": false,
+        "titleBarStyle": "Overlay",
+        "hiddenTitle": true,
+        "acceptFirstMouse": true,
+        "trafficLightPosition": {
+          "x": 14.0,
+          "y": 20.0
+        }
+      }
+    ]
   },
   "bundle": {
     "active": true,
