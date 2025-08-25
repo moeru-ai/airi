@@ -167,6 +167,13 @@ export const useProvidersStore = defineStore('providers', () => {
   }))
 
   // Helper function to fetch OpenRouter models manually
+  interface OpenRouterModel {
+    id: string
+    name: string
+    description: string
+    context_length: number
+  }
+
   async function fetchOpenRouterModels(config: Record<string, unknown>): Promise<ModelInfo[]> {
     try {
       const response = await fetch('https://openrouter.ai/api/v1/models', {
@@ -181,7 +188,7 @@ export const useProvidersStore = defineStore('providers', () => {
       }
 
       const data = await response.json()
-      return data.data.map((model: any) => ({
+      return data.data.map((model: OpenRouterModel) => ({
         id: model.id,
         name: model.name || model.id,
         provider: 'openrouter-ai',
@@ -685,7 +692,7 @@ export const useProvidersStore = defineStore('providers', () => {
             .catch((err) => {
               return {
                 errors: [err],
-                reason: `Failed to reach vLLM, error: ${String(err)} occurred.`,
+                reason: `Failed to reach vLLM, error: ${String(err)} occurred.`, 
                 valid: false,
               }
             })
@@ -758,7 +765,7 @@ export const useProvidersStore = defineStore('providers', () => {
             .catch((err) => {
               return {
                 errors: [err],
-                reason: `Failed to reach LM Studio server, error: ${String(err)} occurred.\n\nMake sure LM Studio is running and the local server is started. You can start the local server in LM Studio by going to the 'Local Server' tab and clicking 'Start Server'.`,
+                reason: `Failed to reach LM Studio server, error: ${String(err)} occurred.\n\nMake sure LM Studio is running and the local server is started. You can start the local server in LM Studio by going to the 'Local Server' tab and clicking 'Start Server'.`, 
                 valid: false,
               }
             })
@@ -2009,7 +2016,7 @@ export const useProvidersStore = defineStore('providers', () => {
             .catch((err) => {
               return {
                 errors: [err],
-                reason: `Failed to reach Player 2, error: ${String(err)} occurred. If you do not have Player 2 running, please start it and try again.`,
+                reason: `Failed to reach Player 2, error: ${String(err)} occurred. If you do not have Player 2 running, please start it and try again.`, 
                 valid: false,
               }
             })
