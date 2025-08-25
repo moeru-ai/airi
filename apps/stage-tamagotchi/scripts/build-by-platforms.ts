@@ -100,7 +100,7 @@ try {
   env.GST_PLUGIN_SCANNER = `${join(appDir, 'usr', appLibPath, 'gstreamer-1.0', 'gst-plugin-scanner')}`
 
   console.log('[AIRI-AppImage] Fix process starting...')
-  execSync(`${gstreamerPluginPath} --appdir "${appDir}"`, { stdio: 'inherit', env })
+  execSync(`${gstreamerPluginPath} --appdir "${appDir} --no-strip"`, { stdio: 'inherit', env })
   console.log('[AIRI-AppImage] Fix completed.')
 
   execSync(`${linuxdeployPath} --appdir "${appDir}" --plugin gstreamer`, { stdio: 'inherit', env })
