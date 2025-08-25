@@ -14,7 +14,7 @@
 
 <h1 align="center">Project AIRI</h1>
 
-<p align="center">Re-creating Neuro-sama, a container of souls of AI waifu / virtual characters to bring them into our worlds.</p>
+<p align="center">Re-creating Neuro-sama, a soul container of AI waifu / virtual characters to bring them into our world.</p>
 
 <p align="center">
   [<a href="https://discord.gg/TgQ3Cu2F7A">Join Discord Server</a>] [<a href="https:///airi.moeru.ai">Try it</a>] [<a href="https://github.com/moeru-ai/airi/blob/main/docs/README.zh-CN.md">简体中文</a>] [<a href="https://github.com/moeru-ai/airi/blob/main/docs/README.ja-JP.md">日本語</a>]
@@ -40,21 +40,21 @@
 
 > [!NOTE]
 >
-> We got a whole dedicated organization [@proj-airi](https://github.com/proj-airi) for all the sub-project that born from Project AIRI, check it out!
+> We've got a whole dedicated organization [@proj-airi](https://github.com/proj-airi) for all the sub-projects born from Project AIRI. Check it out!
 >
 > RAG, memory system, embedded database, icons, Live2D utilities, and more!
 
-Have you dreamed about having a cyber living being (cyber waifu / husbando, digital pet), or digital companion that could play with and talk to you?
+Have you dreamed about having a cyber living being (cyber waifu / husbando, digital pet) or digital companion that could play with and talk to you?
 
-With the power of modern large language models like [ChatGPT](https://chatgpt.com), and famous [Claude](https://claude.ai), asking a virtual being able to have role playing and chat with us is already easy enough for everyone. Platforms like [Character.ai (a.k.a. c.ai)](https://character.ai) and [JanitorAI](https://janitorai.com/), and local playgrounds like [SillyTavern](https://github.com/SillyTavern/SillyTavern) is already a well-enough solution for chat based, or visual adventure game like experience.
+With the power of modern large language models like [ChatGPT](https://chatgpt.com) and famous [Claude](https://claude.ai), asking a virtual being to roleplay and chat with us is already easy enough for everyone. Platforms like [Character.ai (a.k.a. c.ai)](https://character.ai) and [JanitorAI](https://janitorai.com/) as well as local playgrounds like [SillyTavern](https://github.com/SillyTavern/SillyTavern) are already good-enough solutions for a chat based or visual adventure game like experience.
 
 > But, what about the abilities to play games? And see what you are coding at? Chatting while playing games, watching videos, and capable of doing many other things.
 
-Perhaps you know [Neuro-sama](https://www.youtube.com/@Neurosama) already, she is currently the best companion capable of playing games, chatting, and interacting with you and the participants (in VTuber community), some call this kind of being, "digital human" too. **Sadly, it's not open sourced, you cannot interact with her after she went offline from live stream**.
+Perhaps you know [Neuro-sama](https://www.youtube.com/@Neurosama) already. She is currently the best virtual streamer capable of playing games, chatting, and interacting with you and the participants. Some also call this kind of being "digital human." **Sadly, as it's not open sourced, you cannot interact with her after her live streams go offline**.
 
 Therefore, this project, AIRI, offers another possibility here: **let you own your digital life, cyber living, easily, anywhere, anytime**.
 
-## DevLogs we posted & Recent updates
+## DevLogs We Posted & Recent Updates
 
 - [DevLog @ 2025.07.18](https://airi.moeru.ai/docs/blog/DevLog-2025.07.18/) on July 18, 2025
 - [DreamLog 0x1](https://airi.moeru.ai/docs/blog/dreamlog-0x1/) on June 16, 2025
@@ -62,24 +62,24 @@ Therefore, this project, AIRI, offers another possibility here: **let you own yo
 - [DevLog @ 2025.05.16](https://airi.moeru.ai/docs/blog/DevLog-2025.05.16/) on May 16, 2025
 - ...more on [documentation site](https://airi.moeru.ai/docs)
 
-## What's so special for this project?
+## What's So Special About This Project?
 
-Unlike the other AI driven VTuber open source projects, アイリ VTuber was built with many support of Web technologies such as [WebGPU](https://www.w3.org/TR/webgpu/), [WebAudio](https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API), [Web Workers](https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API/Using_web_workers), [WebAssembly](https://webassembly.org/), [WebSocket](https://developer.mozilla.org/en-US/docs/Web/API/WebSocket), etc. from the first day.
+Unlike the other AI driven VTuber open source projects, アイリ was built with support of many Web technologies such as [WebGPU](https://www.w3.org/TR/webgpu/), [WebAudio](https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API), [Web Workers](https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API/Using_web_workers), [WebAssembly](https://webassembly.org/), [WebSocket](https://developer.mozilla.org/en-US/docs/Web/API/WebSocket), etc. from the first day.
 
 > [!TIP]
-> Worry about the performance drop since we are using Web related technologies?
+> Worrying about the performance drop since we are using Web related technologies?
 >
-> Don't worry, while Web browser version meant to give a insight about how much we can push and do inside browsers, and webviews, we will never fully rely on this, the desktop version of AIRI is capable of using native [NVIDIA CUDA](https://developer.nvidia.com/cuda-toolkit) and [Apple Metal](https://developer.apple.com/metal/) by default (thanks to HuggingFace & beloved [candle](https://github.com/huggingface/candle) project), without any complex dependency managements, considering the tradeoff, it was partially powered by Web technologies for graphics, layouts, animations, and the WIP plugin systems for everyone to integrate things.
+> Don't worry, while Web browser version is meant to give an insight about how much we can push and do inside browsers, and webviews, we will never fully rely on this, the desktop version of AIRI is capable of using native [NVIDIA CUDA](https://developer.nvidia.com/cuda-toolkit) and [Apple Metal](https://developer.apple.com/metal/) by default (thanks to HuggingFace & beloved [candle](https://github.com/huggingface/candle) project), without any complex dependency managements, considering the tradeoff, it was partially powered by Web technologies for graphics, layouts, animations, and the WIP plugin systems for everyone to integrate things.
 
-This means that **アイリ VTuber is capable to run on modern browsers and devices**, and even on mobile devices (already done with PWA support), this brought a lot of possibilities for us (the developers) to build and extend the power of アイリ VTuber to the next level, while still left the flexibilities for users to enable features that requires TCP connections or other non-Web technologies such as connect to voice channel to Discord, or playing Minecraft, Factorio with you and your friends.
+This means that **アイリ is capable of running on modern browsers and devices** and even on mobile devices (already done with PWA support). This brings a lot of possibilities for us (the developers) to build and extend the power of アイリ VTuber to the next level, while still leaving the flexibilities for users to enable features that requires TCP connections or other non-Web technologies such as connecting to Discord voice channel or playing Minecraft and Factorio with friends.
 
 > [!NOTE]
 >
-> We are still in the early stage of development where we are seeking out talented developers to join us and help us to make アイリ VTuber a reality.
+> We are still in the early stage of development where we are seeking out talented developers to join us and help us to make アイリ a reality.
 >
 > It's ok if you are not familiar with Vue.js, TypeScript, and devtools that required for this project, you can join us as an artist, designer, or even help us to launch our first live stream.
 >
-> Even you are a big fan of React or Svelte, even Solid, we welcome you, you can open a sub-directory to add features that you want to see in アイリ VTuber, or would like to experiment with.
+> Even you are a big fan of React, Svelte or even Solid, we welcome you. You can open a sub-directory to add features that you want to see in アイリ, or would like to experiment with.
 >
 > Fields (and related projects) that we are looking for:
 >
@@ -95,11 +95,11 @@ This means that **アイリ VTuber is capable to run on modern browsers and devi
 > - vLLM
 > - WebGPU
 > - Three.js
-> - WebXR ([checkout the another project](https://github.com/moeru-ai/chat) we have under @moeru-ai organization)
+> - WebXR ([checkout the another project](https://github.com/moeru-ai/chat) we have under the @moeru-ai organization)
 >
-> **If you are interested in, why not introduce yourself here? [Would like to join part of us to build AIRI?](https://github.com/moeru-ai/airi/discussions/33)**
+> **If you are interested, why not introduce yourself here? [Would like to join part of us to build AIRI?](https://github.com/moeru-ai/airi/discussions/33)**
 
-## Current progress
+## Current Progress
 
 <img src="./docs/content/public/readme-image-pc-preview.avif">
 
@@ -137,10 +137,10 @@ Capable of
 
 ## Development
 
-> For detailed instructions to develop this project, follow the [CONTRIBUTING.md](./.github/CONTRIBUTING.md)
+> For detailed instructions to develop this project, follow [CONTRIBUTING.md](./.github/CONTRIBUTING.md)
 
 > [!NOTE]
-> By default, `pnpm dev` will start the development server for the Stage Web (browser version), if you would
+> By default, `pnpm dev` will start the development server for the Stage Web (browser version). If you would
 > like to try developing the desktop version, please make sure you read [CONTRIBUTING.md](./.github/CONTRIBUTING.md)
 > to setup the environment correctly.
 
@@ -149,19 +149,25 @@ pnpm i
 pnpm dev
 ```
 
-### Stage Web (Browser version for [airi.moeru.ai](https://airi.moeru.ai))
+### Stage Web (Browser Version at [airi.moeru.ai](https://airi.moeru.ai))
 
 ```shell
 pnpm dev
 ```
 
-### Stage Tamagotchi (Desktop version)
+### Stage Tamagotchi (Desktop Version)
 
 ```shell
 pnpm dev:tamagotchi
 ```
 
-### Documentation site
+A Nix package for Tamagotchi is included. To run airi with Nix, first make sure to enable flakes, then run:
+
+```shell
+nix run github:moeru-ai/airi
+```
+
+### Documentation Site
 
 ```shell
 pnpm dev:docs
@@ -169,13 +175,13 @@ pnpm dev:docs
 
 ### Publish
 
-Please update the version in `Cargo.toml` after running the `bumpp`:
+Please update the version in `Cargo.toml` after running `bumpp`:
 
 ```shell
 npx bumpp --no-commit --no-tag
 ```
 
-## Supported the following LLM API Providers (powered by [xsai](https://github.com/moeru-ai/xsai))
+## Support of LLM API Providers (powered by [xsai](https://github.com/moeru-ai/xsai))
 
 - [x] [OpenRouter](https://openrouter.ai/)
 - [x] [vLLM](https://github.com/vllm-project/vllm)
@@ -206,7 +212,7 @@ npx bumpp --no-commit --no-tag
 - [ ] [Sparks](https://www.xfyun.cn/doc/spark/Web.html) (PR welcome)
 - [ ] [Volcano Engine](https://www.volcengine.com/experience/ark?utm_term=202502dsinvite&ac=DSASUQY5&rc=2QXCA1VI) (PR welcome)
 
-## Sub-projects born from this project
+## Sub-projects Born from This Project
 
 - [Awesome AI VTuber](https://github.com/proj-airi/awesome-ai-vtuber): A curated list of AI VTubers and related projects
 - [`unspeech`](https://github.com/moeru-ai/unspeech): Universal endpoint proxy server for `/audio/transcriptions` and `/audio/speech`, like LiteLLM but for any ASR and TTS

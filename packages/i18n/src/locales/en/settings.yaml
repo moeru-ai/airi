@@ -17,8 +17,6 @@ dialogs:
     baseUrl: Base URL
     baseUrlHelp: API endpoint URL (use default if unsure)
     accountId: Account ID
-    validating: Validating configuration...
-    validationSuccess: First configuration validated successful.
     validationFailed: Configuration validation failed
     validationError: 'Validation error: {error}'
     skipForNow: Skip for now
@@ -26,7 +24,9 @@ dialogs:
     next: Next
     start: Let's do it!
     select-model: Choose model
-language:
+    no-models: No available models
+    no-models-help: Please return to the previous step and check your API key, or check the network connection.
+  language:
   title: Language
   description: >
     Change the language of the AIRI interface. This will not affect the language
