@@ -15,8 +15,6 @@ dialogs:
     baseUrl: 基础 URL
     baseUrlHelp: API 端点 URL（如果不确定请使用默认值）
     accountId: 账户 ID
-    validating: 正在验证配置...
-    validationSuccess: 配置初步验证通过。
     validationFailed: 配置验证失败
     validationError: 验证错误：{error}
     skipForNow: 暂时跳过
@@ -24,6 +22,8 @@ dialogs:
     next: 下一步
     start: 开始吧！
     select-model: 选择模型
+    no-models: 找不到可用模型
+    no-models-help: 请返回上一步并检查您的 API Key，或检查网络连接。
 language:
   title: 语言
   description: 切换显示界面的语言
