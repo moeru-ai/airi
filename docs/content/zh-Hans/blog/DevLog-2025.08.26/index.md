@@ -139,7 +139,7 @@ ort.InferenceSession.create(model, { executionProviders: ['webgpu', 'wasm'] })
 
 ### 处理模型输出
 
-模型输出了一个 84000 个元素的数组，和 `dims` 为 `[1, 10, 8400]` 的数组，这意味着 84000 个元素是以 10 个为一组的，每组有边界框的中心 x 和 y 坐标、边界框的宽高、置信度和 6 个类别，一共 8400 组结果。
+模型输出了一个 84000 个元素的数组，和 `dims` 为 `[1, 10, 8400]` 的数组，这意味着 84000 个元素是以 10 个为一组的，每组有边界框的中心 x 和 y 坐标、边界框的宽高、6 个类别分别的置信度，一共 8400 组结果。
 
 在以置信度 0.6 为阈值过滤掉置信度低的边界框后，我们还需要使用 IOU 作为 NMS 手段，来过滤掉重叠的边界框。
 
@@ -148,14 +148,29 @@ ort.InferenceSession.create(model, { executionProviders: ['webgpu', 'wasm'] })
 我使用了一个非常简单的 NMS 实现，它把所有边界框按置信度排序，然后从高到低遍历，如果一个边界框的 IOU 大于 0.7，就认为它们是同一个物体，就把它过滤掉。
 
 ```typescript
-function nms(boxes: Box[], iouThreshold: number) {
-  const sortedBoxes = boxes.sort((a, b) => b.confidence - a.confidence)
+function nms(boxes: Box[], iouThreshold: number): Box[] {
+  // 1. Filter by confidence and sort in descending order
+  const candidates = boxes
+    .filter(box => box.confidence > 0.6)
+    .sort((a, b) => b.confidence - a.confidence)
+
   const result: Box[] = []
-  for (const box of sortedBoxes) {
-    if (box.confidence > 0.6) {
-      result.push(box)
+
+  while (candidates.length > 0) {
+    // 2. Pick the box with the highest confidence
+    const bestCandidate = candidates.shift()!
+    result.push(bestCandidate)
+
+    // 3. Compare with remaining boxes and remove ones with high IOU
+    for (let i = candidates.length - 1; i >= 0; i--) {
+      // The iou() function needs to be implemented separately, as described in the article.
+      if (iou(bestCandidate, candidates[i]) > iouThreshold) {
+        candidates.splice(i, 1)
+      }
     }
   }
+
+  return result
 }
 ```
 
