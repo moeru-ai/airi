@@ -74,9 +74,18 @@ const props = defineProps<{
         >
       </template>
     </RouterLink>
-    <div p-2>
-      <div v-if="!!props.configured" size-3 bg="green-500 dark:green-600" rounded-full />
-      <div v-else size-3 bg="neutral-400 dark:neutral-500" rounded-full />
+    <div p-2 flex="~ items-center justify-center">
+      <!-- Status indicator with better visual distinction -->
+      <div v-if="!!props.configured" class="flex items-center justify-center">
+        <!-- Checkmark for configured modules -->
+        <div size-4 bg="green-500 dark:green-500" rounded-full flex="~ items-center justify-center" shadow="lg">
+          <div i-solar:check-bold text="white" text-xs />
+        </div>
+      </div>
+      <div v-else class="flex items-center justify-center">
+        <!-- Empty circle for unconfigured modules with much lighter color -->
+        <div size-4 border="2 neutral-200 dark:neutral-700" rounded-full bg="white dark:neutral-900" />
+      </div>
     </div>
   </div>
 </template>
