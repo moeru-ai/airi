@@ -15,9 +15,16 @@ import Environment from './VRM/Environment.vue'
 import { useVRM } from '../../stores/vrm'
 import { OrbitControls, VRMModel } from '../Scenes'
 
-const props = defineProps<{
-  modelSrc?: string
-}>()
+const props =  withDefaults(defineProps<{
+  modelSrc?: string;
+  showAxes?: boolean;
+  idleAnimation?: string;
+  paused?: boolean;
+}>(), { 
+  showAxes: false,
+  idleAnimation: '/assets/vrm/animations/idle_loop.vrma',
+  paused: false,
+ })
 
 const emit = defineEmits<{
   (e: 'loadModelProgress', value: number): void
@@ -303,13 +310,13 @@ defineExpose({
       <VRMModel
         ref="modelRef"
         :model-src="props.modelSrc"
-        idle-animation="/assets/vrm/animations/idle_loop.vrma"
-        :paused="false"
+        :idle-animation="props.idleAnimation"
+        :paused="props.paused"
         @load-model-progress="(val) => emit('loadModelProgress', val)"
         @model-ready="handleLoadModelProgress"
         @error="(val) => emit('error', val)"
       />
-      <TresAxesHelper :size="1" />
+      <TresAxesHelper :size="1" v-if="props.showAxes" />
     </TresCanvas>
   </div>
 </template>
