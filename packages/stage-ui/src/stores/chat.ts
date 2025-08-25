@@ -141,6 +141,7 @@ export const useChatStore = defineStore('chat', () => {
             await hook(special)
           }
         },
+        minLiteralEmitLength: 24, // Avoid emitting literals too fast. This is a magic number and can be changed later.
       })
 
       const toolCallQueue = useQueue<ChatSlices>({

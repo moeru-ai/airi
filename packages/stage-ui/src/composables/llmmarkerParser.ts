@@ -1,3 +1,6 @@
+const TAG_OPEN = '<|'
+const TAG_CLOSE = '|>'
+
 /**
  * A streaming parser for LLM responses that contain special markers (e.g., for tool calls).
  * This composable is designed to be efficient and robust, using a regular expression
@@ -15,9 +18,15 @@
 export function useLlmmarkerParser(options: {
   onLiteral?: (literal: string) => void | Promise<void>
   onSpecial?: (special: string) => void | Promise<void>
+  /**
+   * The minimum length of text required to emit a literal part.
+   * Useful for avoiding emitting literal parts too fast.
+   */
+  minLiteralEmitLength?: number
 }) {
+  const minLiteralEmitLength = Math.max(1, options.minLiteralEmitLength ?? 1)
   let buffer = ''
-  const tagRegex = /(<\|.*?\|>)/
+  let inTag = false
 
   return {
     /**
@@ -29,27 +38,35 @@ export function useLlmmarkerParser(options: {
     async consume(textPart: string) {
       buffer += textPart
 
-      // The regex splits the buffer by tags, keeping the tags in the result array.
-      const parts = buffer.split(tagRegex)
+      while (buffer.length > 0) {
+        if (!inTag) {
+          const openTagIndex = buffer.indexOf(TAG_OPEN)
+          if (openTagIndex < 0) {
+            if (buffer.length - 1 >= minLiteralEmitLength) {
+              const emit = buffer.slice(0, -1)
+              buffer = buffer[buffer.length - 1]
+              await options.onLiteral?.(emit)
+            }
+            break
+          }
 
-      // The last element of the array is the remainder of the string after the last
-      // complete tag. It could be a partial literal or a partial tag. We keep it
-      // in the buffer for the next consume call.
-      const processableParts = parts.slice(0, -1)
-      buffer = parts[parts.length - 1] || ''
-
-      for (const part of processableParts) {
-        if (!part)
-          continue // Skip empty strings that can result from the split.
-
-        // Check if the part is a tag or a literal.
-        if (tagRegex.test(part)) {
-          // Extract the content from inside the tag and pass it to the callback.
-          const specialContent = part.slice(2, -2)
-          await options.onSpecial?.(specialContent)
+          if (openTagIndex > 0) {
+            const emit = buffer.slice(0, openTagIndex)
+            buffer = buffer.slice(openTagIndex)
+            await options.onLiteral?.(emit)
+          }
+          inTag = true
         }
         else {
-          await options.onLiteral?.(part)
+          const closeTagIndex = buffer.indexOf(TAG_CLOSE)
+          if (closeTagIndex < 0) {
+            break
+          }
+
+          const emit = buffer.slice(0, closeTagIndex + TAG_CLOSE.length)
+          buffer = buffer.slice(closeTagIndex + TAG_CLOSE.length)
+          await options.onSpecial?.(emit)
+          inTag = false
         }
       }
     },
@@ -60,7 +77,8 @@ export function useLlmmarkerParser(options: {
      * This should be called after the stream has ended.
      */
     async end() {
-      if (buffer) {
+      // Incomplete tag should not be emitted as literals.
+      if (!inTag && buffer.length > 0) {
         await options.onLiteral?.(buffer)
         buffer = ''
       }
