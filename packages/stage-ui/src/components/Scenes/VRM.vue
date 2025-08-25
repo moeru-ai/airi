@@ -16,9 +16,9 @@ import { useVRM } from '../../stores/vrm'
 import { OrbitControls, VRMModel } from '../Scenes'
 
 const props =  withDefaults(defineProps<{
-  modelSrc?: string;
-  showAxes?: boolean;
-  idleAnimation?: string;
+  modelSrc?: string
+  showAxes?: boolean
+  idleAnimation?: string
   paused?: boolean;
 }>(), { 
   showAxes: false,
