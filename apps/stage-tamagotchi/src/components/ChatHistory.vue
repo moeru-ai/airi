@@ -83,7 +83,7 @@ onTokenLiteral(async () => {
                 />
               </div>
             </div>
-            <div v-else i-eos-icons:three-dots-loading />
+            <div v-else-if="index === messages.length - 1 && !message.content" i-eos-icons:three-dots-loading />
           </div>
         </div>
         <div v-else-if="message.role === 'user'" flex="~ row-reverse" ml="12">
