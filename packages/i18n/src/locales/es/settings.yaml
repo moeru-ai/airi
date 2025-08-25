@@ -2,13 +2,12 @@ animations:
   stage-transitions:
     title: Desactivar Transiciones del Escenario
   use-page-specific-transitions:
-    description: >
-      Algunas páginas tendrán sus propias transiciones, esto anulará las transiciones
-      del escenario
+    description: >-
+      Algunas páginas tendrán sus propias transiciones, esto anulará las transiciones del escenario
     title: Usar Transiciones Específicas de Página
 dialogs:
   onboarding:
-    title: ¡Bienvenido a AIRI!
+    title: '¡Bienvenido a AIRI!'
     description: Configuremos tu primer proveedor de IA para comenzar.
     selectProvider: Elige un Proveedor de IA
     configureProvider: Configurar {provider}
@@ -18,18 +17,18 @@ dialogs:
     baseUrlHelp: URL del endpoint de la API (usa el predeterminado si no estás seguro)
     accountId: ID de Cuenta
     validating: Validando configuración...
+    validationSuccess: First configuration validated successful.
     validationFailed: La validación de la configuración falló
     validationError: 'Error de validación: {error}'
     skipForNow: Omitir por ahora
     saveAndContinue: Guardar y Continuar
     next: Siguiente
-    start: ¡Hagámoslo!
+    start: '¡Hagámoslo!'
     select-model: Elegir modelo
 language:
   title: Idioma
   description: >
-    Cambia el idioma de la interfaz de AIRI. Esto no afectará el idioma
-    de las respuestas del personaje.
+    Cambia el idioma de la interfaz de AIRI. Esto no afectará el idioma de las respuestas del personaje.
   options:
     chinese: 简体中文
     zh-CN: 简体中文
@@ -37,7 +36,6 @@ language:
     english: English
     en: English
     en-US: English (US)
-    spanish: Español
     es: Español
 live2d:
   change-model:
@@ -59,7 +57,7 @@ live2d:
     x: X
     'y': 'Y'
   switch-to-vrm:
-    title: ¿Cambiar a Avatar 3D?
+    title: '¿Cambiar a Avatar 3D?'
     change-to-vrm: Haz clic aquí para cambiar a la configuración de avatar 3D (VRM)
   theme-color-from-model:
     title: Extraer colores del modelo
@@ -86,7 +84,7 @@ pages:
     creator_notes: Notas del Creador
     delete: Eliminar
     delete_card: Eliminar Tarjeta
-    delete_confirmation: ¿Estás seguro de que quieres eliminar esta tarjeta?
+    delete_confirmation: '¿Estás seguro de que quieres eliminar esta tarjeta?'
     description: Usar presets de tarjeta de personaje AIRI
     description_label: Descripción
     drop_here: Suelta para subir
@@ -108,24 +106,21 @@ pages:
         systemprompt: Recibirás mensajes, respóndelos como un humano real.
         posthistoryinstructions: Recuerda imitar a un humano.
       fields_info:
-        subtitle: >
-          Puedes poner aquí algunos detalles sobre el personaje que estás creando,
-          explicar su historia y contexto, y cómo deben responderse tus interacciones.
+        subtitle: >-
+          Puedes poner aquí algunos detalles sobre el personaje que estás creando, explicar su historia y contexto, y cómo deben responderse tus interacciones.
         name: Es el nombre formal de este personaje.
         nickname: También puedes dar un apodo que se usará con prioridad.
         description: Descripción de este personaje.
         notes: Si quieres agregar algunas notas personales.
-        personality: >
-          Describe aquí la personalidad de tu personaje. ¿Tímido? ¿Curioso?
-          ¿Algo más?
-        scenario: ¿Cuáles son los alrededores? ¿Cuál es la situación actual?
+        personality: >-
+          Describe aquí la personalidad de tu personaje. ¿Tímido? ¿Curioso? ¿Algo más?
+        scenario: '¿Cuáles son los alrededores? ¿Cuál es la situación actual?'
         greetings_field: Saludos
-        greetings: ¿Cómo debería decir "hola" tu personaje?
+        greetings: '¿Cómo debería decir "hola" tu personaje?'
         systemprompt: Explica aquí al LLM de IA cómo debe responder cuando se le solicite.
         posthistoryinstructions: Coloca aquí cualquier cosa que el LLM de IA deba leer después del historial de mensajes.
-        version: >
-          Versión de la tarjeta, deberías aumentar esto si estás haciendo cambios desde
-          una tarjeta anterior.
+        version: >-
+          Versión de la tarjeta, deberías aumentar esto si estás haciendo cambios desde una tarjeta anterior.
       errors:
         name: El nombre debe ser válido o no estar vacío.
         version: '¡Error: Número de versión inválido!'
@@ -197,10 +192,10 @@ pages:
       title: Consciencia
     description: Pensamiento, visión, síntesis de voz, juegos, etc.
     gaming-factorio:
-      description: ¡Jugando Factorio!
+      description: '¡Jugando Factorio!'
       title: Factorio
     gaming-minecraft:
-      description: ¡Jugando Minecraft!
+      description: '¡Jugando Minecraft!'
       title: Minecraft
     hearing:
       description: Configurar cómo funciona el reconocimiento de voz
@@ -262,15 +257,12 @@ pages:
     explained:
       chat: Proveedores de modelos de generación de texto. ej. OpenRouter, OpenAI, Ollama.
       Speech: Proveedores de modelos de habla (texto a voz). ej. ElevenLabs, Azure Speech.
-      Transcription: >
-        Proveedores de modelos de transcripción (voz a texto). ej. Whisper.cpp,
-        OpenAI, Azure Speech
+      Transcription: >-
+        Proveedores de modelos de transcripción (voz a texto). ej. Whisper.cpp, OpenAI, Azure Speech
     helpinfo:
-      title: ¿Primera vez aquí?
+      title: '¿Primera vez aquí?'
       description: >
-        AIRI requiere que al menos un proveedor de {chat} esté configurado para pensar
-        y comportarse correctamente. Podrías pensarlo como el cerebro de los
-        personajes que viven en el sistema AIRI.
+        AIRI requiere que al menos un proveedor de {chat} esté configurado para pensar y comportarse correctamente. Podrías pensarlo como el cerebro de los personajes que viven en el sistema AIRI.
     common:
       fields:
         field:
@@ -316,17 +308,14 @@ pages:
         helpinfo:
           title: Antes de comenzar
           description:
-            part1: >
-              Aunque Anthropic recientemente anunció que tienen soporte beta
-              para compatibilidad con SDK de OpenAI
+            part1: >-
+              Aunque Anthropic recientemente anunció que tienen soporte beta para compatibilidad con SDK de OpenAI
             part2: (puedes leer más aquí)
             part3: pero debido a los detalles de implementación que vienen con
-            part4: >
-              restricciones que no están alineadas con el SDK de OpenAI, actualmente
-              no es posible usar este proveedor en el navegador.
-            part5: >
-              Si necesitas usar este proveedor, necesitarás un backend proxy dedicado
-              como una Función Serverless ejecutándose en
+            part4: >-
+              restricciones que no están alineadas con el SDK de OpenAI, actualmente no es posible usar este proveedor en el navegador.
+            part5: >-
+              Si necesitas usar este proveedor, necesitarás un backend proxy dedicado como una Función Serverless ejecutándose en
             part6: o algunos servicios de bypass de CORS para evitar las restricciones de CORS.
       cloudflare-workers-ai:
         description: cloudflare.com
@@ -477,7 +466,7 @@ pages:
     general:
       description: Tema oscuro, idiomas, etc.
       title: General
-    description: ¡Personaliza tu escenario!
+    description: '¡Personaliza tu escenario!'
     sections:
       section:
         custom-color:
@@ -486,17 +475,19 @@ pages:
               primary-color:
                 label: Color primario
                 rgb-on:
-                  title: ¡Lo Quiero Dinámico!
+                  title: '¡Lo Quiero Dinámico!'
           title: Esquema de Colores
         developer:
           title: Desarrollador
         theme-presets:
           presets:
-            - colors:
+            - 
+            colors:
                 - Verde AIRI
-              description: ¡El color de tema verdoso predeterminado, traído por AIRI para ti!
+              description: '¡El color de tema verdoso predeterminado, traído por AIRI para ti!'
               title: Color Predeterminado
-            - colors:
+            - 
+            colors:
                 - Taupe
                 - Beige
                 - Gris Ceniza
@@ -507,7 +498,8 @@ pages:
                 - Gris Cálido
               description: Tonos suaves y apagados inspirados en las pinturas de Giorgio Morandi
               title: Colores Morandi
-            - colors:
+            - 
+            colors:
                 - Azul Cielo
                 - Niebla
                 - Arena
@@ -518,7 +510,8 @@ pages:
                 - Salvia
               description: Paleta impresionista inspirada en las obras de Claude Monet
               title: Colores Monet
-            - colors:
+            - 
+            colors:
                 - Bronceado
                 - Taupe Cálido
                 - Umber
@@ -529,7 +522,8 @@ pages:
                 - Ámbar
               description: Paleta de colores japonesa tradicional
               title: Colores Japoneses
-            - colors:
+            - 
+            colors:
                 - Azul Nórdico
                 - Hielo
                 - Fiordo
@@ -540,7 +534,8 @@ pages:
                 - Piedra
               description: Esquema de colores minimalista escandinavo
               title: Colores Nórdicos
-            - colors:
+            - 
+            colors:
                 - Amanecer Rosado
                 - Rojo Chino
                 - Marrón Ahumado
@@ -549,9 +544,8 @@ pages:
                 - Amarillo Dorado
                 - Azul Azure
                 - Ocre
-              description: >
-                Colores chinos tradicionales, derivados de textiles antiguos,
-                porcelana y pinturas
+              description: >-
+                Colores chinos tradicionales, derivados de textiles antiguos, porcelana y pinturas
               title: Colores Tradicionales Chinos
           title: Presets de Esquema de Colores
     title: Apariencia
@@ -597,7 +591,7 @@ vrm:
           mouse: Ratón
           disabled: Desactivado
   switch-to-vrm:
-    title: ¿Cambiar a Avatar Live2D?
+    title: '¿Cambiar a Avatar Live2D?'
     change-to-vrm: Haz clic aquí para cambiar a la configuración de avatar Live2D
   theme-color-from-model:
     button-extract:

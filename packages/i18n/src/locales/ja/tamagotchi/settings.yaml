@@ -1,0 +1,23 @@
+allow-visible-on-all-workspaces:
+  title: Cross-Space Visibility
+  description: Allow the window to be visible on all workspaces, macOS only.
+pages:
+  modules:
+    mcp-server:
+      description: Connect and manage MCP server and tools
+      title: MCP Server
+  themes:
+    sections:
+      section:
+        window-shortcuts:
+          title: Keyboard Shortcuts
+    window-shortcuts:
+      description: Modify the window shortcuts.
+      title: Window Shortcuts
+      toggle-move:
+        label: Toggle Move
+      toggle-resize:
+        label: Toggle Resize
+      toggle-ignore-mouse-event:
+        label: Toggle Ignore Mouse Event
+      press-keys: Press Keys...
