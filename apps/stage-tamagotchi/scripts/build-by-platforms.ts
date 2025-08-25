@@ -103,7 +103,7 @@ try {
   execSync(`${gstreamerPluginPath} --appdir "${appDir}"`, { stdio: 'inherit', env })
   console.log('[AIRI-AppImage] Fix completed.')
 
-  execSync(`${linuxdeployPath} --appdir "${appDir}" --no-strip --plugin gstreamer`, { stdio: 'inherit', env })
+  execSync(`${linuxdeployPath} --appdir "${appDir}" --plugin gstreamer`, { stdio: 'inherit', env })
   execSync(`${linuxdeployPath} --appdir "${appDir}" --output appimage; mv ./AIRI-${mappedArch}.AppImage ${appDir}/../`, { stdio: 'inherit', env })
 }
 catch (error) {
