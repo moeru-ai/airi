@@ -392,6 +392,9 @@ pages:
       openai:
         description: OpenAi.com
         title: OpenAI
+      openai-compatible:
+        description: OpenAI Compatible
+        title: OpenAI Compatible
       openrouter:
         description: OpenRouter.ai
         title: OpenRouter

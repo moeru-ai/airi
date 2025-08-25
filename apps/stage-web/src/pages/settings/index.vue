@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { IconItem } from '@proj-airi/stage-ui/components'
-import { useSettings } from '@proj-airi/stage-ui/stores'
+import { useSettings } from '@proj-airi/stage-ui/stores/settings'
 import { computed, nextTick, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'

@@ -4,7 +4,7 @@ command = "pnpm -F @proj-airi/stream-vue-components... run build"
 publish = "/apps/stream-vue-components/dist"
 
 [build.environment]
-NODE_VERSION = "24.3.0"
+NODE_VERSION = "24"
 NODE_OPTIONS = "--max-old-space-size=4096"
 
 [[redirects]]

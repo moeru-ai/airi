@@ -12,7 +12,7 @@ import {
   ProviderSettingsContainer,
   ProviderSettingsLayout2,
 } from '.'
-import { useProvidersStore } from '../../../stores'
+import { useProvidersStore } from '../../../stores/providers'
 
 const props = defineProps<{
   providerId: string

@@ -4,7 +4,7 @@ import type { AnimationClip, Group } from 'three'
 
 import { VRMUtils } from '@pixiv/three-vrm'
 import { useLoop, useTresContext } from '@tresjs/core'
-import { until, useObjectUrl } from '@vueuse/core'
+import { until } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { AnimationMixer, MathUtils, Mesh, MeshPhysicalMaterial, MeshStandardMaterial, Quaternion, Vector3, VectorKeyframeTrack } from 'three'
 import { computed, onMounted, onUnmounted, ref, toRef, watch } from 'vue'
@@ -12,11 +12,10 @@ import { computed, onMounted, onUnmounted, ref, toRef, watch } from 'vue'
 import { clipFromVRMAnimation, loadVRMAnimation, useBlink, useIdleEyeSaccades } from '../../../composables/vrm/animation'
 import { loadVrm } from '../../../composables/vrm/core'
 import { useVRMEmote } from '../../../composables/vrm/expression'
-import { useVRM } from '../../../stores'
+import { useVRM } from '../../../stores/vrm'
 
 const props = defineProps<{
   modelSrc?: string
-  modelFile?: File | null
 
   idleAnimation: string
   loadAnimations?: string[]
@@ -31,20 +30,9 @@ const emit = defineEmits<{
 
 let disposeBeforeRenderLoop: (() => void | undefined)
 
-const modelCreating = ref(false)
+const modelLoading = ref(false)
 const modelLoaded = ref(false)
 const modelSrcRef = toRef(() => props.modelSrc)
-const modelFileRef = toRef(() => props.modelFile)
-const modelFileSrc = useObjectUrl(modelFileRef)
-const modelSrcNormalized = computed(() => {
-  if (modelFileSrc.value)
-    return modelFileSrc.value
-
-  if (modelSrcRef.value)
-    return modelSrcRef.value
-
-  return ''
-})
 
 const vrm = ref<VRMCore>()
 const vrmAnimationMixer = ref<AnimationMixer>()
@@ -68,8 +56,8 @@ const vrmGroup = ref<Group>()
 const idleEyeSaccades = useIdleEyeSaccades()
 
 async function loadModel() {
-  await until(modelCreating).not.toBeTruthy()
-  modelCreating.value = true
+  await until(modelLoading).not.toBeTruthy()
+  modelLoading.value = true
   modelLoaded.value = false
 
   try {
@@ -80,9 +68,12 @@ async function loadModel() {
     if (vrm.value) {
       componentCleanUp()
     }
+    if (!modelSrcRef.value) {
+      return
+    }
 
     try {
-      const _vrmInfo = await loadVrm(modelSrcNormalized.value, {
+      const _vrmInfo = await loadVrm(modelSrcRef.value, {
         scene: scene.value,
         lookAt: true,
         onProgress: progress => emit('loadModelProgress', Number((100 * progress.loaded / progress.total).toFixed(2))),
@@ -255,7 +246,7 @@ async function loadModel() {
     console.error(err)
   }
   finally {
-    modelCreating.value = false
+    modelLoading.value = false
   }
 }
 
@@ -276,7 +267,7 @@ watch(modelRotationY, (newRotationY) => {
 })
 
 // watch if the model needs to be reloaded
-watch(modelSrcNormalized, (newSrc, oldSrc) => {
+watch(modelSrcRef, (newSrc, oldSrc) => {
   if (newSrc !== oldSrc) {
     loadModel()
   }

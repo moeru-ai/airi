@@ -5,7 +5,8 @@ import {
   TranscriptionPlayground,
   TranscriptionProviderSettings,
 } from '@proj-airi/stage-ui/components'
-import { useHearingStore, useProvidersStore } from '@proj-airi/stage-ui/stores'
+import { useHearingStore } from '@proj-airi/stage-ui/stores/modules/hearing'
+import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { storeToRefs } from 'pinia'
 import { computed } from 'vue'
 

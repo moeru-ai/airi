@@ -1,7 +1,7 @@
 {
   "name": "@proj-airi/server-runtime",
   "type": "module",
-  "version": "0.7.2-beta.1",
+  "version": "0.7.2-beta.2",
   "description": "Server runtime implementation for AIRI running in different environments",
   "author": {
     "name": "Moeru AI Project AIRI Team",

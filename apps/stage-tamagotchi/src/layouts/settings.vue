@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { PageHeader } from '@proj-airi/stage-ui/components'
-import { useProvidersStore } from '@proj-airi/stage-ui/stores'
+import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { useDark } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, watch } from 'vue'

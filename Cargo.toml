@@ -11,7 +11,7 @@ members = [
 resolver = "2"
 
 [workspace.package]
-version = "0.7.2-beta.1"
+version = "0.7.2-beta.2"
 
 [workspace.dependencies]
 
