@@ -58,7 +58,8 @@ onMounted(async () => {
   }
 
   try {
-    const res = await fetch(`${providerConfig.baseUrl.endsWith('/') ? providerConfig.baseUrl.slice(0, -1) : providerConfig.baseUrl}/health`, {
+    const baseUrl = (providerConfig.baseUrl as string | undefined) ?? ''
+    const res = await fetch(`${baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl}/health`, {
       method: 'GET',
       headers: {
         'player2-game-key': 'airi',
