@@ -17,6 +17,8 @@ export interface StreamOptions {
     id: string
     result?: string | ToolMessagePart[]
   }) => void
+  onTextDelta?: (text: string) => void | Promise<void>
+  onFinish?: (event: any) => void | Promise<void>
   toolsCompatibility?: Map<string, boolean>
   supportsTools?: boolean
 }
@@ -47,6 +49,12 @@ async function streamFrom(model: string, chatProvider: ChatProvider, messages: M
       }
       else if (event.type === 'tool-result') {
         options?.onToolCallResult?.({ id: event.toolCallId, result: event.result })
+      }
+      else if (event.type === 'text-delta') {
+        options?.onTextDelta?.(event.text)
+      }
+      else if (event.type === 'finish') {
+        options?.onFinish?.(event)
       }
     },
   })
