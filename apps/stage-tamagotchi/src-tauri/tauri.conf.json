@@ -7,7 +7,7 @@
     "frontendDist": "../dist",
     "devUrl": "http://localhost:5173",
     "beforeDevCommand": "pnpm run dev",
-    "beforeBuildCommand": "pnpm run build && ./scripts/fix_appimage_gst_plugin.sh"
+    "beforeBuildCommand": "node ./scripts/build_by_platforms.cjs"
   },
   "app": {
     "security": {
