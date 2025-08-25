@@ -19,7 +19,6 @@ async function createProcessor() {
 }
 
 export function useMarkdown() {
-  // Fallback unified processor without syntax highlighting
   const fallbackProcessor = unified()
     .use(RemarkParse)
     .use(RemarkRehype)
