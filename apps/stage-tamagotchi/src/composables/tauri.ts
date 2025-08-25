@@ -36,7 +36,7 @@ export interface WindowFrame {
 
 interface Events {
   'tauri://resize': unknown
-  'tauri://move': unknown
+  'tauri://move': { payload: { x: number, y: number } }
   'tauri://close-requested': unknown
   'tauri://destroyed': unknown
   'tauri://focus': unknown
@@ -72,6 +72,7 @@ export interface AiriTamagotchiEvents extends Events {
   'tauri-plugins:tauri-plugin-rdev:keyup': { time: { secs_since_epoch: number, nanos_since_epoch: number }, name: string, event_type: { KeyRelease: KeyCode | { Unknown: number } } } // similar to 'keyup' events from DOM elements
   'tauri-plugins:tauri-plugin-rdev:mousedown': { time: { secs_since_epoch: number, nanos_since_epoch: number }, name: string, event_type: { ButtonPress: string } } // similar to 'mousedown' events from DOM elements
   'tauri-plugins:tauri-plugin-rdev:mouseup': { time: { secs_since_epoch: number, nanos_since_epoch: number }, name: string, event_type: { ButtonRelease: string } } // similar to 'mouseup' events from DOM elements
+  'tauri-plugins:tauri-plugin-rdev:mousemove': { time: { secs_since_epoch: number, nanos_since_epoch: number }, name: string, event_type: { MouseMove: { x: number, y: number } } } // similar to 'mousemove' events from DOM elements
 
   // MCP
   'mcp_plugin_destroyed': undefined
@@ -288,6 +289,18 @@ export function useTauriWindow() {
     }
   }
 
+  async function getPosition() {
+    try {
+      const imported = await _ensureImported()
+      const window = imported.getCurrentWindow()
+      return await window.innerPosition()
+    }
+    catch (error) {
+      console.error('Failed to get window position:', error)
+      return undefined
+    }
+  }
+
   async function closeWindow(label?: string) {
     try {
       const imported = await _ensureImported()
@@ -316,6 +329,7 @@ export function useTauriWindow() {
     getCurrentMonitor,
     getPrimaryMonitor,
     setPosition,
+    getPosition,
     closeWindow,
   }
 }

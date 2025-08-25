@@ -40,7 +40,8 @@ withDefaults(defineProps<{
 const db = ref<DuckDBWasmDrizzleDatabase>()
 // const transformersProvider = createTransformers({ embedWorkerURL })
 
-const vrmViewerRef = ref<{ setExpression: (expression: string) => void }>()
+const vrmViewerRef = ref<InstanceType<typeof VRMScene>>()
+const live2dSceneRef = ref<InstanceType<typeof Live2DScene>>()
 
 const settingsStore = useSettings()
 const { stageModelRenderer, stageViewControlsEnabled, live2dDisableFocus, stageModelSelectedUrl } = storeToRefs(settingsStore)
@@ -246,6 +247,18 @@ onMounted(async () => {
   db.value = drizzle({ connection: { bundles: getImportUrlBundles() } })
   await db.value.execute(`CREATE TABLE memory_test (vec FLOAT[768]);`)
 })
+
+function canvasElement() {
+  if (stageModelRenderer.value === 'live2d')
+    return live2dSceneRef.value?.canvasElement()
+
+  else if (stageModelRenderer.value === 'vrm')
+    return vrmViewerRef.value?.canvasElement()
+}
+
+defineExpose({
+  canvasElement,
+})
 </script>
 
 <template>
@@ -253,6 +266,7 @@ onMounted(async () => {
     <div h-full w-full>
       <Live2DScene
         v-if="stageModelRenderer === 'live2d' && showStage"
+        ref="live2dSceneRef"
         min-w="50% <lg:full" min-h="100 sm:100" h-full w-full flex-1
         :model-src="stageModelSelectedUrl"
         :focus-at="focusAt"

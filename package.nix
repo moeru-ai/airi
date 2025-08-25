@@ -27,7 +27,7 @@
 
 rustPlatform.buildRustPackage (final: {
   pname = "airi";
-  version = "0.7.1";
+  version = "0.7.2-beta.2";
 
   src = ./.;
 
@@ -39,7 +39,7 @@ rustPlatform.buildRustPackage (final: {
   pnpmDeps = pnpm.fetchDeps {
     inherit (final) pname version src;
     fetcherVersion = 1;
-    hash = "sha256-XkSqDFiDUH3Z/bykyLcXLlFiIOGtHR/i1ZkErX0GuQk="; # To update, set it to ""
+    hash = "sha256-y28rG+9NADUdwdjIAkYCqmYOKLoEWosAOpiGM4JPQoQ="; # To update, set it to ""
   };
 
   # Cache of assets downloaded during vite build
@@ -135,9 +135,10 @@ rustPlatform.buildRustPackage (final: {
   meta = {
     description = "Self-hostable AI waifu / companion / VTuber";
     longDescription = ''
-      AIRI is a container of souls of AI waifu / virtual characters to bring them into our worlds,
-      wishing to achieve Neuro-sama's altitude, completely LLM and AI driven, capable of realtime
-      voice chat, Minecraft playing, Factorio playing. It can be run in Browser or Desktop.
+      AIRI is a soul container of AI waifu / virtual characters to bring them into our world,
+      wishing to achieve Neuro-sama's altitude. It's completely LLM and AI driven, capable of
+      realtime voice chat, playing Minecraft and Factorio. It can be run in browser or on desktop.
+      This is the desktop version.
     '';
     homepage = "https://github.com/moeru-ai/airi";
     changelog = "https://github.com/moeru-ai/airi/releases/tag/v${final.version}";
