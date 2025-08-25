@@ -1,8 +1,6 @@
 use log::debug;
 use tauri::Manager;
 
-use crate::app::windows::{chat, onboarding, settings};
-
 #[tauri::command]
 pub async fn open_settings_window(app: tauri::AppHandle) -> Result<(), tauri::Error> {
   let window = app.get_webview_window("settings");
@@ -11,7 +9,8 @@ pub async fn open_settings_window(app: tauri::AppHandle) -> Result<(), tauri::Er
     return Ok(());
   }
 
-  settings::new_settings_window(&app, None)?;
+  // Settings window should exist as it's declared in tauri.conf.json
+  eprintln!("Settings window not found!");
   Ok(())
 }
 
@@ -23,7 +22,8 @@ pub async fn open_chat_window(app: tauri::AppHandle) -> Result<(), tauri::Error>
     return Ok(());
   }
 
-  chat::new_chat_window(&app, None)?;
+  // Chat window should exist as it's declared in tauri.conf.json
+  eprintln!("Chat window not found!");
   Ok(())
 }
 
@@ -35,7 +35,8 @@ pub async fn open_onboarding_window(app: tauri::AppHandle) -> Result<(), tauri::
     return Ok(());
   }
 
-  onboarding::new_onboarding_window(&app, None)?;
+  // Onboarding window should exist as it's declared in tauri.conf.json
+  eprintln!("Onboarding window not found!");
   Ok(())
 }
 
