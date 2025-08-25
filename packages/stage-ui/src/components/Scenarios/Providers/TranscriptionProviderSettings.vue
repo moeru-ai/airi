@@ -59,6 +59,11 @@ onMounted(() => {
   apiKey.value = providers.value[props.providerId]?.apiKey as string | undefined || ''
   baseUrl.value = providers.value[props.providerId]?.baseUrl as string | undefined || providerMetadata.value?.defaultOptions?.().baseUrl as string | undefined || ''
 })
+
+function handleResetTranscriptionSettings() {
+  apiKey.value = ''
+  baseUrl.value = providerMetadata.value?.defaultOptions?.().baseUrl as string | undefined || ''
+}
 </script>
 
 <template>
@@ -73,6 +78,7 @@ onMounted(() => {
         <ProviderBasicSettings
           :title="t('settings.pages.providers.common.section.basic.title')"
           :description="t('settings.pages.providers.common.section.basic.description')"
+          :on-reset="handleResetTranscriptionSettings"
         >
           <ProviderApiKeyInput v-model="apiKey" :provider-name="providerMetadata?.localizedName" :placeholder="props.placeholder || 'API Key'" />
           <!-- Slot for provider-specific basic settings -->
