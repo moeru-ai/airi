@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import type { TresContext } from '@tresjs/core'
+
 import { TresCanvas } from '@tresjs/core'
 import { EffectComposerPmndrs, HueSaturationPmndrs } from '@tresjs/post-processing'
 import { useElementBounding, useMouse } from '@vueuse/core'
@@ -56,6 +58,11 @@ const modelRef = ref<InstanceType<typeof VRMModel>>()
 
 const camera = shallowRef(new PerspectiveCamera())
 const controlsRef = shallowRef<InstanceType<typeof OrbitControls>>()
+const tresCanvasRef = shallowRef<TresContext>()
+
+function onTresReady(context: TresContext) {
+  tresCanvasRef.value = context
+}
 
 const effectProps = {
   saturation: 0.3,
@@ -243,6 +250,9 @@ defineExpose({
   setExpression: (expression: string) => {
     modelRef.value?.setExpression(expression)
   },
+  canvasElement: () => {
+    return tresCanvasRef.value?.renderer.value.domElement
+  },
 })
 </script>
 
@@ -256,6 +266,8 @@ defineExpose({
       :height="height"
       :tone-mapping="ACESFilmicToneMapping"
       :tone-mapping-exposure="1"
+      :preserve-drawing-buffer="true"
+      @ready="onTresReady"
     >
       <OrbitControls ref="controlsRef" />
       <Environment

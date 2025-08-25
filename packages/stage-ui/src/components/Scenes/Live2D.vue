@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { ref } from 'vue'
+
 import Screen from '../Misc/Screen.vue'
 import Live2DCanvas from './Live2D/Canvas.vue'
 import Live2DModel from './Live2D/Model.vue'
@@ -21,11 +23,20 @@ withDefaults(defineProps<{
   mouthOpenSize: 0,
   scale: 1,
 })
+
+const live2dCanvasRef = ref<InstanceType<typeof Live2DCanvas>>()
+
+defineExpose({
+  canvasElement: () => {
+    return live2dCanvasRef.value?.canvasElement()
+  },
+})
 </script>
 
 <template>
   <Screen v-slot="{ width, height }" relative>
     <Live2DCanvas
+      ref="live2dCanvasRef"
       v-slot="{ app }"
       :width="width"
       :height="height"
