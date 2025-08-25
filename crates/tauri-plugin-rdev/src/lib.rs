@@ -1,14 +1,12 @@
-use std::sync::{Mutex, atomic::Ordering};
+use std::sync::{atomic::Ordering, Mutex};
 
 use log::error;
-use rdev::{Event, EventType, listen};
+use rdev::{listen, Event, EventType};
 use serde::Serialize;
 use serde_json::Value;
 use tauri::{
-  Emitter,
-  Manager,
-  Runtime,
   plugin::{Builder as PluginBuilder, TauriPlugin},
+  Emitter, Manager, Runtime,
 };
 
 #[derive(Debug, Clone, Serialize)]
@@ -22,7 +20,7 @@ pub enum DeviceKind {
 
 #[derive(Debug, Clone, Serialize)]
 pub struct DeviceEvent {
-  kind:  DeviceKind,
+  kind: DeviceKind,
   value: Value,
 }
 
@@ -49,6 +47,7 @@ fn start_listen<R: tauri::Runtime>(app: tauri::AppHandle<R>) {
       EventType::KeyRelease(_) => "tauri-plugins:tauri-plugin-rdev:keyup",
       EventType::ButtonPress(_) => "tauri-plugins:tauri-plugin-rdev:mousedown",
       EventType::ButtonRelease(_) => "tauri-plugins:tauri-plugin-rdev:mouseup",
+      EventType::MouseMove { .. } => "tauri-plugins:tauri-plugin-rdev:mousemove",
       _ => return,
     };
 
@@ -58,7 +57,7 @@ fn start_listen<R: tauri::Runtime>(app: tauri::AppHandle<R>) {
       Err(e) => {
         error!("PluginState mutex is poisoned: {}", e);
         return;
-      },
+      }
     };
 
     for label in &state.window_labels {
@@ -118,8 +117,8 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
           state
             .window_labels
             .retain(|label| label != window_cloned.label());
-        },
-        _ => {},
+        }
+        _ => {}
       });
     })
     .build()

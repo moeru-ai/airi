@@ -5,7 +5,6 @@ import { defineStore } from 'pinia'
 import { ref, toValue, watch } from 'vue'
 
 import { WindowControlMode } from '../types/window-controls'
-import { startClickThrough, stopClickThrough } from '../utils/windows'
 import { useWindowControlStore } from './window-controls'
 
 interface Versioned<T> { version?: string, data?: T }
@@ -96,12 +95,6 @@ export const useShortcutsStore = defineStore('shortcuts', () => {
       type: 'ignore-mouse-event',
       handle: async () => {
         windowStore.isIgnoringMouseEvent = !windowStore.isIgnoringMouseEvent
-        if (windowStore.isIgnoringMouseEvent) {
-          await startClickThrough()
-          return
-        }
-
-        await stopClickThrough()
       },
     },
   ])

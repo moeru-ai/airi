@@ -55,12 +55,6 @@ export const useWindowMode = defineStore('window-mode', () => {
 
     unlistenFuncs.value.push(await listen('tauri-main:main:window-mode:fade-on-hover', async () => {
       windowStore.isIgnoringMouseEvent = !windowStore.isIgnoringMouseEvent
-      if (windowStore.isIgnoringMouseEvent) {
-        await startClickThrough()
-        return
-      }
-
-      await stopClickThrough()
     }))
   }
 

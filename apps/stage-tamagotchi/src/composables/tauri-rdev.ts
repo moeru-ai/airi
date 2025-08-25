@@ -42,6 +42,17 @@ export function useTauriRdevEventTarget(): EventTarget {
       eventTarget.dispatchEvent(e)
     })
 
+    unListenFuncs.push(await listen('tauri-plugins:tauri-plugin-rdev:mousemove', (event) => {
+      if (event.payload.event_type.MouseMove) {
+        const { x, y } = event.payload.event_type.MouseMove
+        const e = new MouseEvent('mousemove', {
+          clientX: x,
+          clientY: y,
+        })
+        eventTarget.dispatchEvent(e)
+      }
+    }))
+
     unListenFuncs.push(await listen('tauri-plugins:tauri-plugin-rdev:keyup', (event) => {
       if (typeof event.payload.event_type.KeyRelease === 'object' && 'Unknown' in event.payload.event_type.KeyRelease) {
         if (event.payload.event_type.KeyRelease.Unknown === 62) {
