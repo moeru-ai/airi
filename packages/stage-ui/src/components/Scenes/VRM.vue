@@ -19,7 +19,7 @@ const props =  withDefaults(defineProps<{
   modelSrc?: string
   showAxes?: boolean
   idleAnimation?: string
-  paused?: boolean;
+  paused?: boolean
 }>(), { 
   showAxes: false,
   idleAnimation: '/assets/vrm/animations/idle_loop.vrma',
