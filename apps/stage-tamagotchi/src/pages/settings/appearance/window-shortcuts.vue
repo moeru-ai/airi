@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useSettings } from '@proj-airi/stage-ui/stores'
+import { useSettings } from '@proj-airi/stage-ui/stores/settings'
 import { getCurrentWindow } from '@tauri-apps/api/window'
 import { useEventListener } from '@vueuse/core'
 import { storeToRefs } from 'pinia'

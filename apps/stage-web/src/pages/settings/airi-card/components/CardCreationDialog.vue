@@ -4,7 +4,7 @@ import type { Card } from '@proj-airi/ccc'
 import kebabcase from '@stdlib/string-base-kebabcase'
 
 import { Button } from '@proj-airi/stage-ui/components'
-import { useAiriCardStore } from '@proj-airi/stage-ui/stores'
+import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
 import { FieldInput, FieldValues } from '@proj-airi/ui'
 import {
   DialogContent,

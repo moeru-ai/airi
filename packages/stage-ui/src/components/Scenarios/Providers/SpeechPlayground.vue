@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { VoiceInfo } from '../../../stores'
+import type { VoiceInfo } from '../../../stores/providers'
 
 import { FieldCheckbox, FieldSelect } from '@proj-airi/ui'
 import { computed, onUnmounted, ref, watch } from 'vue'

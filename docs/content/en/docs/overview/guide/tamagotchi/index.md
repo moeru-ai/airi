@@ -21,6 +21,8 @@ You will need to set the `OLLAMA_ORIGINS=*` system environment variable and rest
 application after finishes.
 :::
 
+<br />
+
 <video controls autoplay loop muted>
  <source src="./assets/tutorial-basic-setup-providers.mp4" type="video/mp4">
 </video>
@@ -52,7 +54,7 @@ After downloaded, start AIRI from anywhere. You will see the user interface cons
 - Onboarding / Wizard setup guide
 - Model (capable of showing Live2D & VRM models)
 
-![](./assets/screenshot-ui.png)
+![](./assets/screenshot-ui.avif)
 
 We have other options/commands in the system tray, including:
 

@@ -17,13 +17,20 @@ const isDragging = ref(false)
 const isDraggingDebounced = useDebounce(isDragging, 150)
 
 function handleFileChange(e: Event) {
-  const input = e.target as HTMLInputElement
+  files.value = []
 
-  if (input.files && input.files.length > 0) {
-    firstFile.value = input.files[0]
+  const input = e.target as HTMLInputElement
+  if (!input.files)
+    return
+
+  for (let i = 0; i < input.files?.length; i++) {
+    files.value.push(input.files[i])
   }
 
-  files.value = Array.from(input.files || [])
+  if (files.value && files.value.length > 0) {
+    firstFile.value = files.value[0]
+  }
+
   isDragging.value = false
 }
 </script>
@@ -44,7 +51,7 @@ function handleFileChange(e: Event) {
       type="file"
       :accept="accept"
       :multiple="multiple"
-      class="absolute inset-0 cursor-pointer appearance-none opacity-0"
+      class="absolute inset-0 h-0 w-0 cursor-pointer appearance-none opacity-0"
       @change="handleFileChange"
     >
     <slot :is-dragging="isDraggingDebounced" :first-file="firstFile" :files="files" />

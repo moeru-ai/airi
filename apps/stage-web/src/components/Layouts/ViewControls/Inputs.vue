@@ -1,5 +1,7 @@
 <script setup lang="ts">
-import { useLive2d, useSettings, useVRM } from '@proj-airi/stage-ui/stores'
+import { useLive2d } from '@proj-airi/stage-ui/stores/live2d'
+import { useSettings } from '@proj-airi/stage-ui/stores/settings'
+import { useVRM } from '@proj-airi/stage-ui/stores/vrm'
 import { RoundRange } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed } from 'vue'
@@ -8,27 +10,27 @@ const props = defineProps<{
   mode: 'x' | 'y' | 'z' | 'scale'
 }>()
 
-const { stageView, stageViewControlsEnabled } = storeToRefs(useSettings())
+const { stageModelRenderer, stageViewControlsEnabled } = storeToRefs(useSettings())
 const { scale: vrmScale, modelOffset: vrmPosition, modelSize: vrmModelSize } = storeToRefs(useVRM())
 const { scale: live2dScale, position: live2dPosition } = storeToRefs(useLive2d())
 
 const viewControlsValueX = computed({
   get: () => {
-    switch (stageView.value) {
-      case '2d':
+    switch (stageModelRenderer.value) {
+      case 'live2d':
         return live2dPosition.value.x
-      case '3d':
+      case 'vrm':
         return vrmPosition.value.x
       default:
         return 0
     }
   },
   set: (value) => {
-    switch (stageView.value) {
-      case '2d':
+    switch (stageModelRenderer.value) {
+      case 'live2d':
         live2dPosition.value.x = value
         break
-      case '3d':
+      case 'vrm':
         vrmPosition.value.x = value
         break
       default:
@@ -38,30 +40,30 @@ const viewControlsValueX = computed({
 })
 
 const viewControlsValueXMin = computed(() => {
-  return stageView.value === '2d' ? -500 : -vrmModelSize.value.x - 10
+  return stageModelRenderer.value === 'live2d' ? -500 : -vrmModelSize.value.x - 10
 })
 
 const viewControlsValueXMax = computed(() => {
-  return stageView.value === '2d' ? 500 : vrmModelSize.value.x + 10
+  return stageModelRenderer.value === 'vrm' ? 500 : vrmModelSize.value.x + 10
 })
 
 const viewControlsValueY = computed({
   get: () => {
-    switch (stageView.value) {
-      case '2d':
+    switch (stageModelRenderer.value) {
+      case 'live2d':
         return live2dPosition.value.y
-      case '3d':
+      case 'vrm':
         return vrmPosition.value.y
       default:
         return 0
     }
   },
   set: (value) => {
-    switch (stageView.value) {
-      case '2d':
+    switch (stageModelRenderer.value) {
+      case 'live2d':
         live2dPosition.value.y = value
         break
-      case '3d':
+      case 'vrm':
         vrmPosition.value.y = value
         break
       default:
@@ -71,29 +73,29 @@ const viewControlsValueY = computed({
 })
 
 const viewControlsValueYMin = computed(() => {
-  return stageView.value === '2d' ? -500 : -vrmModelSize.value.y - 10
+  return stageModelRenderer.value === 'live2d' ? -500 : -vrmModelSize.value.y - 10
 })
 
 const viewControlsValueYMax = computed(() => {
-  return stageView.value === '2d' ? 500 : vrmModelSize.value.y + 10
+  return stageModelRenderer.value === 'vrm' ? 500 : vrmModelSize.value.y + 10
 })
 
 const viewControlsValueZ = computed({
   get: () => {
-    switch (stageView.value) {
-      case '2d':
+    switch (stageModelRenderer.value) {
+      case 'live2d':
         return 0
-      case '3d':
+      case 'vrm':
         return vrmPosition.value.z
       default:
         return 0
     }
   },
   set: (value) => {
-    switch (stageView.value) {
-      case '2d':
+    switch (stageModelRenderer.value) {
+      case 'live2d':
         break
-      case '3d':
+      case 'vrm':
         vrmPosition.value.z = value
         break
       default:
@@ -103,23 +105,23 @@ const viewControlsValueZ = computed({
 })
 
 const viewControlsValueZMin = computed(() => {
-  return stageView.value === '2d' ? -500 : -vrmModelSize.value.z - 10
+  return stageModelRenderer.value === 'live2d' ? -500 : -vrmModelSize.value.z - 10
 })
 
 const viewControlsValueZMax = computed(() => {
-  return stageView.value === '2d' ? 500 : vrmModelSize.value.z + 10
+  return stageModelRenderer.value === 'live2d' ? 500 : vrmModelSize.value.z + 10
 })
 
 const viewControlsValueScale = computed({
   get: () => {
-    if (stageView.value === '2d') {
+    if (stageModelRenderer.value === 'live2d') {
       return live2dScale.value
     }
 
     return vrmScale.value
   },
   set: (value) => {
-    if (stageView.value === '2d') {
+    if (stageModelRenderer.value === 'live2d') {
       live2dScale.value = value
     }
     else {
@@ -166,7 +168,7 @@ defineExpose({
             {{ viewControlsValueY.toFixed(2) }}
           </div>
         </div>
-        <div v-else-if="stageView === '3d' && props.mode === 'z'" relative class="[&_.round-range-tooltip]:hover:opacity-100">
+        <div v-else-if="stageModelRenderer === 'vrm' && props.mode === 'z'" relative class="[&_.round-range-tooltip]:hover:opacity-100">
           <RoundRange v-model="viewControlsValueZ" :min="viewControlsValueZMin" :max="viewControlsValueZMax" :step="0.01" write-vertical-left h="50%" data-direction="vertical" />
           <div class="round-range-tooltip" top="50%" translate-y="[-50%]" absolute left-10 font-mono op-0 transition="all duration-200 ease-in-out">
             {{ viewControlsValueZ.toFixed(2) }}

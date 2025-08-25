@@ -2,7 +2,10 @@
 import type { ChatProvider } from '@xsai-ext/shared-providers'
 
 import { useMicVAD } from '@proj-airi/stage-ui/composables'
-import { useChatStore, useConsciousnessStore, useProvidersStore, useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores'
+import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
+import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
+import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
+import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { BasicTextarea } from '@proj-airi/ui'
 import { useDark, useResizeObserver, useScreenSafeArea } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
@@ -31,7 +34,7 @@ const { activeProvider, activeModel } = storeToRefs(useConsciousnessStore())
 useResizeObserver(document.documentElement, () => screenSafeArea.update())
 
 // const { askPermission } = useSettingsAudioDevice()
-const { themeColorsHueDynamic, stageView, stageViewControlsEnabled } = storeToRefs(useSettings())
+const { themeColorsHueDynamic, stageViewControlsEnabled } = storeToRefs(useSettings())
 const { enabled, selectedAudioInput } = storeToRefs(useSettingsAudioDevice())
 const { send, onAfterMessageComposed, discoverToolsCompatibility } = useChatStore()
 const { messages } = storeToRefs(useChatStore())
@@ -142,14 +145,6 @@ onMounted(() => {
           <!-- <button border="2 solid neutral-100/60 dark:neutral-800/30" bg="neutral-50/70 dark:neutral-800/70" w-fit flex items-center self-end justify-center rounded-xl p-2 backdrop-blur-md title="Model">
             <div i-solar:face-scan-circle-outline size-5 text="neutral-500 dark:neutral-400" />
           </button> -->
-          <button border="2 solid neutral-100/60 dark:neutral-800/30" bg="neutral-50/70 dark:neutral-800/70" w-fit flex items-center self-end justify-center rounded-xl p-2 backdrop-blur-md title="Stage View" @click="stageView = stageView === '2d' ? '3d' : '2d'">
-            <div v-if="stageView === '2d'" size-5 text="neutral-500 dark:neutral-400" inline-flex items-center justify-center>
-              <span>2D</span>
-            </div>
-            <div v-if="stageView === '3d'" size-5 text="neutral-500 dark:neutral-400" inline-flex items-center justify-center>
-              <span>3D</span>
-            </div>
-          </button>
           <ActionViewControls v-model="viewControlsActiveMode" @reset="() => viewControlsInputsRef?.resetOnMode()" />
         </div>
       </div>

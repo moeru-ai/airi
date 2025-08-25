@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { MarkdownRenderer } from '@proj-airi/stage-ui/components'
-import { useChatStore } from '@proj-airi/stage-ui/stores'
+import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
 import { storeToRefs } from 'pinia'
 import { nextTick, ref } from 'vue'
 import { useI18n } from 'vue-i18n'

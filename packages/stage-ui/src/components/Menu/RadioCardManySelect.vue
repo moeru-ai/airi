@@ -44,8 +44,8 @@ const emit = defineEmits<{
 }>()
 
 const modelValue = defineModel<string>({ required: true })
+const searchQuery = defineModel<string>('searchQuery')
 
-const searchQuery = ref('')
 const isListExpanded = ref(false)
 const customValue = ref('')
 

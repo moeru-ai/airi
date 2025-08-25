@@ -345,14 +345,14 @@ watch([hue, saturation, value, alphaValue], () => {
 <template>
   <PopoverRoot>
     <PopoverTrigger class="grid grid-col-span-3 grid-cols-3 h-fit items-center">
-      <div :style="{ backgroundColor: modelValue }" grid-col-span-1 min-h-5 rounded-md />
-      <div grid-col-span-2 font-mono text="[10px]">
+      <div :style="{ backgroundColor: modelValue }" grid-col-span-2 min-h-5 rounded-md />
+      <div grid-col-span-1 font-mono text="[10px] right">
         {{ modelValue }}
       </div>
     </PopoverTrigger>
     <PopoverPortal>
-      <PopoverContent align="start">
-        <div class="mt-2 space-y-2" bg="white/90 dark:neutral-900/90" rounded-xl p-1>
+      <PopoverContent align="start" class="relative z-20">
+        <div class="z-20 mt-2 space-y-2" bg="white/90 dark:neutral-900/90" rounded-xl p-1>
           <!-- Color Map -->
           <div class="relative h-48 w-full select-none overflow-hidden rounded-lg">
             <div
@@ -566,6 +566,12 @@ watch([hue, saturation, value, alphaValue], () => {
     </PopoverPortal>
   </PopoverRoot>
 </template>
+
+<style scoped>
+data-[data-reka-popper-content-wrapper=""] {
+  z-index: 20;
+}
+</style>
 
 <style>
 .hue-slider,

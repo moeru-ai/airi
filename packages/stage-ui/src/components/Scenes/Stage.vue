@@ -21,12 +21,13 @@ import { useQueue } from '../../composables/queue'
 import { useDelayMessageQueue, useEmotionsMessageQueue, useMessageContentQueue } from '../../composables/queues'
 import { llmInferenceEndToken } from '../../constants'
 import { EMOTION_EmotionMotionName_value, EMOTION_VRMExpressionName_value, EmotionThinkMotionName } from '../../constants/emotions'
-import { useLive2d, useVRM } from '../../stores'
 import { useAudioContext, useSpeakingStore } from '../../stores/audio'
 import { useChatStore } from '../../stores/chat'
+import { useLive2d } from '../../stores/live2d'
 import { useSpeechStore } from '../../stores/modules/speech'
 import { useProvidersStore } from '../../stores/providers'
 import { useSettings } from '../../stores/settings'
+import { useVRM } from '../../stores/vrm'
 
 withDefaults(defineProps<{
   paused?: boolean
@@ -41,13 +42,33 @@ const db = ref<DuckDBWasmDrizzleDatabase>()
 
 const vrmViewerRef = ref<{ setExpression: (expression: string) => void }>()
 
-const { stageView, stageViewControlsEnabled, live2dDisableFocus } = storeToRefs(useSettings())
+const settingsStore = useSettings()
+const { stageModelRenderer, stageViewControlsEnabled, live2dDisableFocus, stageModelSelectedUrl } = storeToRefs(settingsStore)
 const { mouthOpenSize } = storeToRefs(useSpeakingStore())
 const { audioContext, calculateVolume } = useAudioContext()
 const { onBeforeMessageComposed, onBeforeSend, onTokenLiteral, onTokenSpecial, onStreamEnd, onAssistantResponseEnd } = useChatStore()
 const providersStore = useProvidersStore()
-const { modelFile, modelUrl } = storeToRefs(useLive2d())
-const { modelFile: vrmModelFile, modelUrl: vrmModelUrl } = storeToRefs(useVRM())
+
+const live2dStore = useLive2d()
+const vrmStore = useVRM()
+
+const showStage = ref(true)
+
+live2dStore.onShouldUpdateView(async () => {
+  showStage.value = false
+  await settingsStore.updateStageModel()
+  setTimeout(() => {
+    showStage.value = true
+  }, 100)
+})
+
+vrmStore.onShouldUpdateView(async () => {
+  showStage.value = false
+  await settingsStore.updateStageModel()
+  setTimeout(() => {
+    showStage.value = true
+  }, 100)
+})
 
 const audioAnalyser = ref<AnalyserNode>()
 const nowSpeaking = ref(false)
@@ -139,14 +160,14 @@ const { currentMotion } = storeToRefs(useLive2d())
 const emotionsQueue = useQueue<Emotion>({
   handlers: [
     async (ctx) => {
-      if (stageView.value === '3d') {
+      if (stageModelRenderer.value === 'vrm') {
         const value = EMOTION_VRMExpressionName_value[ctx.data]
         if (!value)
           return
 
         await vrmViewerRef.value!.setExpression(value)
       }
-      else if (stageView.value === '2d') {
+      else if (stageModelRenderer.value === 'live2d') {
         currentMotion.value = { group: EMOTION_EmotionMotionName_value[ctx.data] }
       }
     },
@@ -231,10 +252,9 @@ onMounted(async () => {
   <div relative>
     <div h-full w-full>
       <Live2DScene
-        v-if="stageView === '2d'"
+        v-if="stageModelRenderer === 'live2d' && showStage"
         min-w="50% <lg:full" min-h="100 sm:100" h-full w-full flex-1
-        :model-src="modelUrl"
-        :model-file="modelFile"
+        :model-src="stageModelSelectedUrl"
         :focus-at="focusAt"
         :mouth-open-size="mouthOpenSize"
         :paused="paused"
@@ -244,10 +264,9 @@ onMounted(async () => {
         :disable-focus-at="live2dDisableFocus"
       />
       <VRMScene
-        v-else-if="stageView === '3d'"
+        v-if="stageModelRenderer === 'vrm' && showStage"
         ref="vrmViewerRef"
-        :model-src="vrmModelUrl"
-        :model-file="vrmModelFile"
+        :model-src="stageModelSelectedUrl"
         idle-animation="/assets/vrm/animations/idle_loop.vrma"
         min-w="50% <lg:full" min-h="100 sm:100" h-full w-full flex-1
         :paused="paused"
