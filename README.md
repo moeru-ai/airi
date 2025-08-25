@@ -12,7 +12,7 @@
   <img width="250" src="./docs/content/public/banner-light-1280x640.avif" />
 </picture>
 
-<h1 align="center">Project AIRI (アイリ)</h1>
+<h1 align="center">Project AIRI</h1>
 
 <p align="center">Re-creating Neuro-sama, a soul container of AI waifu / virtual characters to bring them into our world.</p>
 
