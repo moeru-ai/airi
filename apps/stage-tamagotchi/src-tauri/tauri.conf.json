@@ -6,8 +6,7 @@
   "build": {
     "frontendDist": "../dist",
     "devUrl": "http://localhost:5173",
-    "beforeDevCommand": "pnpm run dev",
-    "beforeBuildCommand": "node ./scripts/build_by_platforms.cjs"
+    "beforeDevCommand": "pnpm run dev"
   },
   "app": {
     "security": {
