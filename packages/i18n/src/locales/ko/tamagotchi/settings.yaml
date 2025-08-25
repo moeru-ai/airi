@@ -1,0 +1,23 @@
+allow-visible-on-all-workspaces:
+  title: 전체 작업공간 표시
+  description: 창이 모든 작업공간에서 보이도록 허용합니다. (macOS 전용)
+pages:
+  modules:
+    mcp-server:
+      description: MCP 서버 및 도구 연결 및 관리
+      title: MCP 서버
+  themes:
+    sections:
+      section:
+        window-shortcuts:
+          title: 키보드 단축키
+    window-shortcuts:
+      description: 창 단축키를 수정합니다.
+      title: 창 단축키
+      toggle-move:
+        label: 이동 토글
+      toggle-resize:
+        label: 크기 조절 토글
+      toggle-ignore-mouse-event:
+        label: 마우스 이벤트 무시 토글
+      press-keys: 키를 눌러주세요...

@@ -1,0 +1,37 @@
+chat:
+  message:
+    character-name:
+      airi: AIRI
+      core-system: 코어 시스템
+      you: 당신
+message: 무언가 말해보세요...
+operations:
+  load-models: 모델 로드
+  load-models-status:
+    loading: 로딩 중
+    ready: 준비됨
+select-a-audio-input: 오디오 입력 선택
+select-a-model: 모델 선택
+select-a-voice: 음성 선택
+viewers:
+  debug-menu:
+    emotions: 감정
+    emotions-btn:
+      angry: 😠 화남
+      awkward: 😳 어색함
+      happy: 😄 행복
+      neutral: 🙂 평범함
+      question: 🤔 의문
+      sad: 😫 슬픔
+      surprised: 🤯 놀람
+      think: 🤨 생각
+    vrm:
+      camera: 카메라
+      model:
+        title: 모델
+waiting: 대기 중
+docs:
+  theme:
+    navbar:
+      appearance:
+        title: 외관
