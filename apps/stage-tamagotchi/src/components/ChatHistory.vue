@@ -8,7 +8,7 @@ import { useI18n } from 'vue-i18n'
 const chatHistoryRef = ref<HTMLDivElement>()
 
 const { t } = useI18n()
-const { messages } = storeToRefs(useChatStore())
+const { messages, sending } = storeToRefs(useChatStore())
 
 const { onBeforeMessageComposed, onTokenLiteral } = useChatStore()
 
