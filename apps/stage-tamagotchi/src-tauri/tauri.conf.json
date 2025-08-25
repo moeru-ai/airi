@@ -6,7 +6,8 @@
   "build": {
     "frontendDist": "../dist",
     "devUrl": "http://localhost:5173",
-    "beforeDevCommand": "pnpm run dev"
+    "beforeDevCommand": "pnpm run dev",
+    "beforeBuildCommand": "tsx ./scripts/build-by-platforms.ts ${appDir}"
   },
   "app": {
     "security": {
@@ -16,7 +17,7 @@
   },
   "bundle": {
     "active": true,
-    "targets": ["dmg", "deb", "rpm", "appimage", "nsis"],
+    "targets": ["dmg", "deb", "rpm", "nsis"],
     "icon": [
       "icons/32x32.png",
       "icons/64x64.png",

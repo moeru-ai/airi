@@ -41,6 +41,7 @@
     "@tresjs/cientos": "^4.3.1",
     "@tresjs/core": "^4.3.6",
     "@types/audioworklet": "^0.0.82",
+    "@typescript-eslint/types": "^8.40.0",
     "@vueuse/core": "^13.6.0",
     "@vueuse/shared": "^13.6.0",
     "@xsai-ext/providers-cloud": "catalog:",
