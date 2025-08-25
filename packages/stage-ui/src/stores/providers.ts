@@ -2372,6 +2372,20 @@ export const useProvidersStore = defineStore('providers', () => {
       }
     }
   }
+  // Watch for credential changes and refetch models accordingly
+  watch(providerCredentials, (newCreds, oldCreds) => {
+    // Determine which providers have changed credentials
+    const changedProviders = Object.keys(newCreds).filter(providerId =>
+      JSON.stringify(newCreds[providerId]) !== JSON.stringify(oldCreds?.[providerId]),
+    )
+
+    for (const providerId of changedProviders) {
+      // If the provider is configured and has the capability, refetch its models
+      if (configuredProviders.value[providerId] && providerMetadata[providerId]?.capabilities.listModels) {
+        fetchModelsForProvider(providerId)
+      }
+    }
+  }, { deep: true })
 
   // Function to get localized provider metadata
   function getProviderMetadata(providerId: string) {

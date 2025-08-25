@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { useMarkdown } from '../../composables/markdown'
+import MarkdownRenderer from '../MarkdownRenderer.vue'
+
 import { useChatStore } from '../../stores/chat'
 
 const { streamingMessage } = useChatStore()
-const { process } = useMarkdown()
 </script>
 
 <template>
@@ -20,7 +20,7 @@ const { process } = useMarkdown()
     transform="translate-x--1/2"
   >
     <div bg="primary-50" rounded-xl px-10 py-6>
-      <div class="markdown-content" v-html="process(streamingMessage.content as string)" />
+      <MarkdownRenderer :content="streamingMessage.content as string" />
     </div>
   </div>
 </template>

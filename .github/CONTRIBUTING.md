@@ -12,7 +12,7 @@ Hello! Thank you for your interest in contributing to this project. This guide w
 <details>
 <summary>Windows setup</summary>
 
-0. Download [Visual Studio](https://visualstudio.microsoft.com/downloads/), and follow the instructions here: https://rust-lang.github.io/rustup/installation/windows-msvc.html#walkthrough-installing-visual-studio-2022
+0. Download [Visual Studio](https://visualstudio.microsoft.com/downloads/) and follow the instructions here: https://rust-lang.github.io/rustup/installation/windows-msvc.html#walkthrough-installing-visual-studio-2022
 
    > Make sure to install Windows SDK and C++ build tools when installing Visual Studio.
 
@@ -51,7 +51,7 @@ Hello! Thank you for your interest in contributing to this project. This guide w
 <details>
 <summary>macOS setup</summary>
 
-0. Open Terminal, (or iTerm2, Ghostty, Kitty, etc.)
+0. Open Terminal (or iTerm2, Ghostty, Kitty, etc.)
 1. Install `git`, `node` through `brew`
 
    ```shell
@@ -70,7 +70,7 @@ Hello! Thank you for your interest in contributing to this project. This guide w
 <details>
 <summary>Linux setup</summary>
 
-0. Open Terminal
+0. Open terminal
 1. Follow [nodesource/distributions: NodeSource Node.js Binary Distributions](https://github.com/nodesource/distributions?tab=readme-ov-file#table-of-contents) to install `node`
 2. Follow [Git](https://git-scm.com/downloads/linux) to install `git`
 3. Install `pnpm` through `corepack`
@@ -78,8 +78,11 @@ Hello! Thank you for your interest in contributing to this project. This guide w
    ```shell
    corepack enable
    corepack prepare pnpm@latest --activate
-4. If you would love to help to develop the desktop version, you will need those dependencies:
    ```
+
+4. If you would love to help to develop the desktop version, you will need those dependencies:
+
+   ```shell
    sudo apt install \
       libssl-dev \
       libglib2.0-dev \
@@ -94,12 +97,12 @@ Hello! Thank you for your interest in contributing to this project. This guide w
 
 > [!WARNING]
 >
-> If you haven't clone this repository, skip this section.
+> If you haven't cloned this repository, skip this section.
 
 Make sure your local repository is up to date with the upstream repository:
 
 ```shell
-git fetch -all
+git fetch --all
 git checkout main
 git pull upstream main --rebase
 ```
@@ -336,7 +339,7 @@ You should be able to browse the branch on your fork repository.
 
 > [!NOTE]
 >
-> If this is your first time contributing with this project, you need to add the upstream repository too:
+> If this is your first time contributing to this project, you need to add the upstream repository too:
 >
 > ```shell
 > git remote add upstream https://github.com/moeru-ai/airi.git
