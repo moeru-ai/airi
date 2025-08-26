@@ -7,7 +7,7 @@
     "frontendDist": "../dist",
     "devUrl": "http://localhost:5173",
     "beforeDevCommand": "pnpm run dev",
-    "beforeBuildCommand": "if [ \"$TAURI_PLATFORM\" = \"appimage\" ]; then tsx ./scripts/before-build.ts; fi"
+    "beforeBuildCommand": "tsx ./scripts/before-build.ts"
   },
   "app": {
     "security": {
