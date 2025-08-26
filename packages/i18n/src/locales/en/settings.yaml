@@ -31,15 +31,6 @@ language:
   description: >
     Change the language of the AIRI interface. This will not affect the language
     of the character's responses.
-  options:
-    chinese: 简体中文
-    zh-CN: 简体中文
-    zh-Hans: 简体中文
-    english: English
-    en: English
-    en-US: English (US)
-    es: Spanish
-    ru: Russian
 live2d:
   change-model:
     from-file: Load from File
@@ -604,3 +595,6 @@ vrm:
   theme-color-from-model:
     button-extract:
       title: Extract
+  skybox:
+    skybox-intensity: SkyBox Intensity
+    skybox-specular-mix: Specular Mix

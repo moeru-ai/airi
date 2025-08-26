@@ -37,12 +37,13 @@ const {
   ambientLightIntensity,
   ambientLightColor,
 
-  hemisphereLightPosition,
   hemisphereLightIntensity,
   hemisphereSkyColor,
   hemisphereGroundColor,
 
   envSelect,
+  skyBoxIntensity,
+  specularMix,
 } = storeToRefs(vrm)
 const trackingOptions = computed(() => [
   { value: 'camera', label: t('settings.vrm.scale-and-position.eye-tracking-mode.options.option.camera'), class: 'col-start-3' },
@@ -181,15 +182,6 @@ const tabList = [
           <div v-if="envSelect === 'hemisphere'">
             <!-- hemisphere settings -->
             <div grid="~ cols-5 gap-1" p-2>
-              <PropertyPoint
-                v-model:x="hemisphereLightPosition.x"
-                v-model:y="hemisphereLightPosition.y"
-                v-model:z="hemisphereLightPosition.z"
-                label="Hemisphere Light Position"
-                :x-config="{ step: 0.001, label: 'X', formatValue: val => val?.toFixed(4) }"
-                :y-config="{ step: 0.001, label: 'Y', formatValue: val => val?.toFixed(4) }"
-                :z-config="{ step: 0.001, label: 'Z', formatValue: val => val?.toFixed(4) }"
-              />
               <PropertyNumber
                 v-model="hemisphereLightIntensity"
                 :config="{ min: 0, max: 10, step: 0.01, label: 'Intensity' }"
@@ -207,6 +199,18 @@ const tabList = [
           </div>
           <div v-else>
             <!-- skybox settings -->
+            <div grid="~ cols-5 gap-1" p-2>
+              <PropertyNumber
+                v-model="skyBoxIntensity"
+                :config="{ min: 0, max: 1, step: 0.01, label: 'Intensity' }"
+                :label="t('settings.vrm.skybox.skybox-intensity')"
+              />
+              <PropertyNumber
+                v-model="specularMix"
+                :config="{ min: 0, max: 1, step: 0.01, label: 'Mix' }"
+                :label="t('settings.vrm.skybox.skybox-specular-mix')"
+              />
+            </div>
           </div>
         </template>
       </Tabs>
