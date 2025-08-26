@@ -103,7 +103,9 @@ watchThrottled([mouseX, mouseY], async ([x, y]) => {
     const gl = canvas.getContext('webgl2') || canvas.getContext('webgl')
     if (gl) {
       const pixelX = relativeX * (gl.drawingBufferWidth / canvas.clientWidth)
-      const pixelY = gl.drawingBufferHeight - relativeY * (gl.drawingBufferHeight / canvas.clientHeight)
+      const pixelY
+      = gl.drawingBufferHeight
+      - relativeY * (gl.drawingBufferHeight / canvas.clientHeight)
       const data = new Uint8Array(4)
       gl.readPixels(
         Math.floor(pixelX),
