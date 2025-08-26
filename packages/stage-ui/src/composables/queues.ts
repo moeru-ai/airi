@@ -1,13 +1,11 @@
 import type { Emotion } from '../constants/emotions'
-import type { UseQueueReturn } from './queue'
+import type { UseQueueReturn, useQueue } from './queue'
 
 import { sleep } from '@moeru/std'
-import { TTS_FLUSH_INSTRUCTION } from '../utils/tts'
 
-import { EMOTION_VALUES } from '../constants/emotions'
 import { createControllableStream } from '../utils/stream'
-import { chunkToTTSQueue } from '../utils/tts'
-import { useQueue } from './queue'
+import { EMOTION_VALUES } from '../constants/emotions'
+import { TTS_FLUSH_INSTRUCTION, chunkToTTSQueue } from '../utils/tts'
 
 export function useEmotionsMessageQueue(emotionsQueue: UseQueueReturn<Emotion>) {
   function splitEmotion(content: string) {
@@ -113,7 +111,8 @@ export function useMessageContentQueue(ttsQueue: UseQueueReturn<string>) {
         // If the message is the llmInferenceEndToken, enqueue a flush instruction to TTS queue
         if (ctx.data === llmInferenceEndToken) {
           controller.enqueue(encoder.encode(TTS_FLUSH_INSTRUCTION))
-        } else {
+        } 
+        else {
           controller.enqueue(encoder.encode(ctx.data))
         }
       },
