@@ -25,9 +25,7 @@ dialogs:
     start: Let's do it!
     select-model: Choose model
     no-models: No available models
-    no-models-help: >-
-      Please return to the previous step and check your API key, or check the
-      network connection.
+    no-models-help: Please return to the previous step and check your API key, or check the network connection.
 language:
   title: Language
   description: >
