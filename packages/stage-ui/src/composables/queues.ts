@@ -2,6 +2,7 @@ import type { Emotion } from '../constants/emotions'
 import type { UseQueueReturn } from './queue'
 
 import { sleep } from '@moeru/std'
+import { TTS_FLUSH_INSTRUCTION } from '../utils/tts'
 
 import { EMOTION_VALUES } from '../constants/emotions'
 import { createControllableStream } from '../utils/stream'
@@ -104,13 +105,17 @@ export function useDelayMessageQueue() {
 export function useMessageContentQueue(ttsQueue: UseQueueReturn<string>) {
   const encoder = new TextEncoder()
   const { stream, controller } = createControllableStream<Uint8Array>()
-
   chunkToTTSQueue(stream.getReader(), ttsQueue)
 
   return useQueue<string>({
     handlers: [
       async (ctx) => {
-        controller.enqueue(encoder.encode(ctx.data))
+        // If the message is the llmInferenceEndToken, enqueue a flush instruction to TTS queue
+        if (ctx.data === '<|llm_inference_end|>') {
+          controller.enqueue(encoder.encode(TTS_FLUSH_INSTRUCTION))
+        } else {
+          controller.enqueue(encoder.encode(ctx.data))
+        }
       },
     ],
   })
