@@ -40,7 +40,7 @@ try {
   const mappedArch: string = archMap[process.arch] ?? process.arch
 
   const linuxdeployUrl = `https://github.com/linuxdeploy/linuxdeploy/releases/download/1-alpha-20250213-2/linuxdeploy-${mappedArch}.AppImage`
-  const gstreamerPluginUrl = `https://raw.githubusercontent.com/linuxdeploy/linuxdeploy-plugin-gstreamer/refs/heads/master/linuxdeploy-plugin-gstreamer.sh`
+  const gstreamerPluginUrl = 'https://raw.githubusercontent.com/linuxdeploy/linuxdeploy-plugin-gstreamer/refs/heads/master/linuxdeploy-plugin-gstreamer.sh'
 
   const linuxdeployPath = join(tmpDir, `linuxdeploy-${mappedArch}.AppImage`)
   const gstreamerPluginPath = join(tmpDir, 'linuxdeploy-plugin-gstreamer.sh')
@@ -50,11 +50,15 @@ try {
   execSync(`chmod +x "${linuxdeployPath}"`, { stdio: 'inherit' })
   execSync(`curl -fL -o "${gstreamerPluginPath}" "${gstreamerPluginUrl}"`, { stdio: 'inherit' })
   execSync(`chmod +x "${gstreamerPluginPath}"`, { stdio: 'inherit' })
-
   // --- Determine host GStreamer path ---
   let hostGstPath = ''
-
-  if (existsSync('/usr/lib/gstreamer-1.0')) {
+  // 1. Arch-specific path
+  const archLibPath = `/usr/lib/${mappedArch}-linux-gnu/gstreamer-1.0`
+  if (existsSync(archLibPath)) {
+    hostGstPath = archLibPath
+  }
+  // 2. Standard paths
+  else if (existsSync('/usr/lib/gstreamer-1.0')) {
     hostGstPath = '/usr/lib/gstreamer-1.0'
   }
   else if (existsSync('/usr/lib64/gstreamer-1.0')) {
@@ -73,7 +77,7 @@ try {
     console.log('[AIRI-AppImage] Symlink step completed.')
   }
   else {
-    console.error('Error: No GStreamer plugins found in /usr/lib or /usr/lib64 on host system.')
+    console.error('Error: No GStreamer plugins found in /usr/lib, /usr/lib64, or /usr/lib/<arch>-linux-gnu on host system.')
     process.exit(1)
   }
 
