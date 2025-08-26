@@ -12,12 +12,12 @@
   <img width="250" src="./docs/content/public/banner-light-1280x640.avif" />
 </picture>
 
-<h1 align="center">Project AIRI</h1>
+<h1 align="center">Проект AIRI</h1>
 
-<p align="center">Re-creating Neuro-sama, a soul container of AI waifu / virtual characters to bring them into our world.</p>
+<p align="center">Воссоздание Neuro-sama, контейнера души для AI waifu / виртуальных персонажей, чтобы привести их в наш мир.</p>
 
 <p align="center">
-  [<a href="https://discord.gg/TgQ3Cu2F7A">Join Discord Server</a>] [<a href="https:///airi.moeru.ai">Try it</a>] [<a href="https://github.com/moeru-ai/airi/blob/main/docs/README.zh-CN.md">简体中文</a>] [<a href="https://github.com/moeru-ai/airi/blob/main/docs/README.ja-JP.md">日本語</a>]
+  [<a href="https://discord.gg/TgQ3Cu2F7A">Присоединиться к серверу Discord</a>] [<a href="https://airi.moeru.ai">Попробовать</a>] [<a href="https://github.com/moeru-ai/airi/blob/main/docs/README.zh-CN.md">简体中文</a>] [<a href="https://github.com/moeru-ai/airi/blob/main/docs/README.ja-JP.md">日本語</a>] [<a href="https://github.com/moeru-ai/airi/blob/main/docs/README.ru-RU.md">Русский</a>]
 </p>
 
 <p align="center">
@@ -33,31 +33,115 @@
   <a href="https://trendshift.io/repositories/14636" target="_blank"><img src="https://trendshift.io/api/badge/repositories/14636" alt="moeru-ai%2Fairi | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
 </p>
 
-> Heavily inspired by [Neuro-sama](https://www.youtube.com/@Neurosama)
+> Сильно вдохновлено [Neuro-sama](https://www.youtube.com/@Neurosama)
 
 > [!WARNING]
-> **Attention:** We **do not** have any officially minted cryptocurrency or token associated with this project. Please check the information and proceed with caution.
+> **Внимание:** У нас **нет** официально выпущенной криптовалюты или токена, связанного с этим проектом. Пожалуйста, проверяйте информацию и действуйте с осторожностью.
 
 > [!NOTE]
 >
-> We've got a whole dedicated organization [@proj-airi](https://github.com/proj-airi) for all the sub-projects born from Project AIRI. Check it out!
+> У нас есть целая выделенная организация [@proj-airi](https://github.com/proj-airi) для всех подпроектов, родившихся из Проекта AIRI. Проверьте её!
 >
-> RAG, memory system, embedded database, icons, Live2D utilities, and more!
+> RAG, система памяти, встроенная база данных, иконки, утилиты Live2D и многое другое!
 
-Have you dreamed about having a cyber living being (cyber waifu / husbando, digital pet) or digital companion that could play with and talk to you?
+Вы когда-нибудь мечтали о кибер-живом существе (кибер-вайфу / хазбандо, цифровом питомце) или цифровом компаньоне, который мог бы играть с вами и разговаривать?
 
-With the power of modern large language models like [ChatGPT](https://chatgpt.com) and famous [Claude](https://claude.ai), asking a virtual being to roleplay and chat with us is already easy enough for everyone. Platforms like [Character.ai (a.k.a. c.ai)](https://character.ai) and [JanitorAI](https://janitorai.com/) as well as local playgrounds like [SillyTavern](https://github.com/SillyTavern/SillyTavern) are already good-enough solutions for a chat based or visual adventure game like experience.
+С силой современных больших языковых моделей, таких как [ChatGPT](https://chatgpt.com) и знаменитый [Claude](https://claude.ai), попросить виртуальное существо ролеплей и общаться с нами уже достаточно просто для всех. Платформы вроде [Character.ai (a.k.a. c.ai)](https://character.ai) и [JanitorAI](https://janitorai.com/), а также локальные площадки вроде [SillyTavern](https://github.com/SillyTavern/SillyTavern) уже являются достаточно хорошими решениями для чат-основанного или визуального опыта, похожего на приключенческую игру.
 
-> But, what about the abilities to play games? And see what you are coding at? Chatting while playing games, watching videos, and capable of doing many other things.
+> Но что насчёт способностей играть в игры? И видеть, что вы кодите? Общаться во время игр, просмотра видео и способности делать многое другое.
 
-Perhaps you know [Neuro-sama](https://www.youtube.com/@Neurosama) already. She is currently the best virtual streamer capable of playing games, chatting, and interacting with you and the participants. Some also call this kind of being "digital human." **Sadly, as it's not open sourced, you cannot interact with her after her live streams go offline**.
+Возможно, вы уже знаете [Neuro-sama](https://www.youtube.com/@Neurosama). Она в настоящее время является лучшим виртуальным стримером, способным играть в игры, общаться и взаимодействовать с вами и участниками. Некоторые также называют такое существо "цифровым человеком". **К сожалению, поскольку это не с открытым исходным кодом, вы не можете взаимодействовать с ней после того, как её прямые трансляции заканчиваются**.
 
-Therefore, this project, AIRI, offers another possibility here: **let you own your digital life, cyber living, easily, anywhere, anytime**.
+Поэтому этот проект, AIRI, предлагает здесь другую возможность: **позволить вам владеть своей цифровой жизнью, кибер-жизнью, легко, везде, в любое время**.
 
-## DevLogs We Posted & Recent Updates
+## Журналы разработки, которые мы опубликовали, и последние обновления
 
-- [DevLog @ 2025.07.18](https://airi.moeru.ai/docs/blog/DevLog-2025.07.18/) on July 18, 2025
-- [DreamLog 0x1](https://airi.moeru.ai/docs/blog/dreamlog-0x1/) on June 16, 2025
-- [DevLog @ 2025.06.08](https://airi.moeru.ai/docs/blog/DevLog-2025.06.08/) on June 8, 2025
-- [DevLog @ 2025.05.16](https://airi.moeru.ai/docs/blog/DevLog-2025.05.16/) on May 16, 2025
-- ...more on [documentation site](https://airi.moeru.ai/docs)
+- [DevLog @ 2025.07.18](https://airi.moeru.ai/docs/blog/DevLog-2025.07.18/) от 18 июля 2025 г.
+- [DreamLog 0x1](https://airi.moeru.ai/docs/blog/dreamlog-0x1/) от 16 июня 2025 г.
+- [DevLog @ 2025.06.08](https://airi.moeru.ai/docs/blog/DevLog-2025.06.08/) от 8 июня 2025 г.
+- [DevLog @ 2025.05.16](https://airi.moeru.ai/docs/blog/DevLog-2025.05.16/) от 16 мая 2025 г.
+- ...больше на [сайте документации](https://airi.moeru.ai/docs)
+
+## Что такого особенного в этом проекте?
+
+В отличие от других открытых проектов AI-управляемых VTuber, アイリ был построен с поддержкой многих веб-технологий, таких как [WebGPU](https://www.w3.org/TR/webgpu/), [WebAudio](https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API), [Web Workers](https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API/Using_web_workers), [WebAssembly](https://webassembly.org/), [WebSocket](https://developer.mozilla.org/en-US/docs/Web/API/WebSocket) и т.д. с первого дня.
+
+> [!TIP]
+> Беспокоитесь о падении производительности из-за использования веб-технологий?
+>
+> Не беспокойтесь, хотя версия для веб-браузера предназначена для демонстрации того, насколько мы можем продвинуться внутри браузеров и веб-вью, мы никогда не будем полностью полагаться на это. Десктопная версия AIRI способна использовать нативные [NVIDIA CUDA](https://developer.nvidia.com/cuda-toolkit) и [Apple Metal](https://developer.apple.com/metal/) по умолчанию (благодаря HuggingFace и любимому проекту [candle](https://github.com/huggingface/candle)), без сложного управления зависимостями. Учитывая компромисс, она частично питается веб-технологиями для графики, макетов, анимаций и WIP-системы плагинов для всех, чтобы интегрировать вещи.
+
+Это означает, что **アイリ способен работать в современных браузерах и устройствах** и даже на мобильных устройствах (уже сделано с поддержкой PWA). Это открывает множество возможностей для нас (разработчиков) для построения и расширения мощи アイリ VTuber на следующий уровень, при этом оставляя гибкость для пользователей включать функции, требующие TCP-соединений или других невеб-технологий, таких как подключение к голосовому каналу Discord или игра в Minecraft и Factorio с друзьями.
+
+> [!NOTE]
+>
+> Мы всё ещё на ранней стадии разработки, где ищем талантливых разработчиков, чтобы присоединиться к нам и помочь сделать アイリ реальностью.
+>
+> Это нормально, если вы не знакомы с Vue.js, TypeScript и инструментами разработки, необходимыми для этого проекта, вы можете присоединиться к нам как художник, дизайнер или даже помочь запустить нашу первую прямую трансляцию.
+>
+> Даже если вы большой фанат React, Svelte или даже Solid, мы приветствуем вас. Вы можете открыть поддиректорию, чтобы добавить функции, которые вы хотите видеть в アイリ, или которые хотели бы поэкспериментировать.
+>
+> Области (и связанные проекты), которые мы ищем:
+>
+> - Моделлер Live2D
+> - Моделлер VRM
+> - Дизайнер аватаров VRChat
+> - Компьютерное зрение
+> - Обучение с подкреплением
+> - Распознавание речи
+> - Синтез речи
+> - ONNX Runtime
+> - Transformers.js
+> - vLLM
+> - WebGPU
+> - Three.js
+> - WebXR ([проверьте другой проект](https://github.com/moeru-ai/chat), который у нас есть в организации @moeru-ai)
+>
+> **Если вы заинтересованы, почему бы не представить себя здесь? [Хотите присоединиться к нам, чтобы строить AIRI?](https://github.com/moeru-ai/airi/discussions/33)**
+
+## Текущий прогресс
+
+<img src="./docs/content/public/readme-image-pc-preview.avif">
+
+Способен на
+
+- [x] Мозг
+  - [x] Играть в [Minecraft](https://www.minecraft.net)
+  - [x] Играть в [Factorio](https://www.factorio.com) (WIP, но [PoC и демо доступны](https://github.com/moeru-ai/airi-factorio))
+  - [x] Общаться в [Telegram](https://telegram.org)
+  - [x] Общаться в [Discord](https://discord.com)
+  - [ ] Память
+    - [x] Полная поддержка базы данных в браузере (DuckDB WASM | `pglite`)
+    - [ ] Memory Alaya (WIP)
+  - [ ] Полностью локальный вывод в браузере (WebGPU)
+- [x] Уши
+  - [x] Аудиовход из браузера
+  - [x] Аудиовход из [Discord](https://discord.com)
+  - [x] Распознавание речи на стороне клиента
+  - [x] Обнаружение речи на стороне клиента
+- [x] Рот
+  - [x] Синтез голоса [ElevenLabs](https://elevenlabs.io/)
+- [x] Тело
+  - [x] Поддержка VRM
+    - [x] Управление моделью VRM
+  - [x] Анимации модели VRM
+    - [x] Автоматическое моргание
+    - [x] Автоматический взгляд
+    - [x] Движение глаз в состоянии покоя
+  - [x] Поддержка Live2D
+    - [x] Управление моделью Live2D
+  - [x] Анимации модели Live2D
+    - [x] Автоматическое моргание
+    - [x] Автоматический взгляд
+    - [x] Движение глаз в состоянии покоя
+
+## Разработка
+
+> Для подробных инструкций по разработке этого проекта следуйте [CONTRIBUTING.md](./.github/CONTRIBUTING.md)
+
+> [!NOTE]
+> По умолчанию `pnpm dev` запустит сервер разработки для Stage Web (версия для браузера). Если вы хотите попробовать разработку десктопной версии, пожалуйста, убедитесь, что вы прочитали [CONTRIBUTING.md](./.github/CONTRIBUTING.md), чтобы правильно настроить среду.
+
+```shell
+pnpm i
+pnpm dev
