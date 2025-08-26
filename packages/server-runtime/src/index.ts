@@ -100,12 +100,12 @@ function main() {
             unregisterModulePeer(p)
             const { name, index } = event.data as { name: string; index?: number }
             if (!name || typeof name !== 'string') {
-              send(peer, { type: 'error', data: { message: 'the field 'name' must be a non-empty string for event 'module:announce'' } })
+              send(peer, { type: 'error', data: { message: 'the field \'name\' must be a non-empty string for event \'module:announce\'' } })
               return
             }
             if (typeof index !== 'undefined') {
               if (typeof index !== 'number' || index < 0) {
-                send(peer, { type: 'error', data: { message: 'the field 'index' must be a non-negative number for event 'module:announce'' } })
+                send(peer, { type: 'error', data: { message: 'the field \'index\' must be a non-negative number for event \'module:announce\'' } })
                 return
               }
             }
