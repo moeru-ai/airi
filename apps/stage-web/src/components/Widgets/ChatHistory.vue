@@ -104,7 +104,7 @@ onTokenLiteral(async () => {
           </div>
         </div>
       </div>
-      <div v-if="sending" flex mr="12">
+      <div v-if="streamingMessage.content" flex mr="12">
         <div
           flex="~ col" border="2 solid primary-200/50 dark:primary-500/50" shadow="md primary-200/50 dark:none" min-w-20
           rounded-lg px-2 py-1 h="unset <sm:fit" bg="<md:primary-500/25"
