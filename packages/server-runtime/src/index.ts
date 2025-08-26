@@ -1,9 +1,7 @@
 import type { WebSocketEvent } from '@proj-airi/server-shared/types'
-
 import type { AuthenticatedPeer, Peer } from './types'
 
 import { env } from 'node:process'
-
 import { Format, LogLevel, setGlobalFormat, setGlobalLogLevel, useLogg } from '@guiiai/logg'
 import { createApp, createRouter, defineWebSocketHandler } from 'h3'
 
@@ -46,8 +44,7 @@ function main() {
   }
 
   function unregisterModulePeer(p: AuthenticatedPeer) {
-    if (!p.name)
-      return
+    if (!p.name) return
     const group = peersByModule.get(p.name)
     if (group) {
       group.delete(p.index)
@@ -61,8 +58,7 @@ function main() {
     open: (peer) => {
       if (AUTH_TOKEN) {
         peers.set(peer.id, { peer, authenticated: false, name: '' })
-      }
-      else {
+      } else {
         peer.send(RESPONSES.authenticated)
         peers.set(peer.id, { peer, authenticated: true, name: '' })
       }
@@ -73,8 +69,7 @@ function main() {
       let event: WebSocketEvent
       try {
         event = message.json() as WebSocketEvent
-      }
-      catch (err) {
+      } catch (err) {
         send(peer, { type: 'error', data: { message: `invalid JSON, error: ${err.message}` } })
         return
       }
@@ -94,15 +89,31 @@ function main() {
           }
           return
         }
+
         case 'module:announce': {
           const p = peers.get(peer.id)
           if (p) {
             unregisterModulePeer(p)
-            Object.assign(p, { authenticated: true, name: event.data.name })
+
+            const { name, index } = event.data as { name: string; index?: number }
+
+            if (!name || typeof name !== 'string') {
+              send(peer, { type: 'error', data: { message: "the field 'name' must be a non-empty string for event 'module:announce'" } })
+              return
+            }
+            if (typeof index !== 'undefined') {
+              if (typeof index !== 'number' || index < 0) {
+                send(peer, { type: 'error', data: { message: "the field 'index' must be a non-negative number for event 'module:announce'" } })
+                return
+              }
+            }
+
+            Object.assign(p, { authenticated: true, name, index })
             registerModulePeer(p, p.name, p.index)
           }
           return
         }
+
         case 'ui:configure': {
           const { moduleName, moduleIndex, config } = event.data
 
@@ -122,8 +133,7 @@ function main() {
           const target = peersByModule.get(moduleName)?.get(moduleIndex)
           if (target) {
             send(target.peer, { type: 'module:configure', data: { config } })
-          }
-          else {
+          } else {
             send(peer, { type: 'error', data: { message: 'module not found, it haven\'t announced it or the name was wrong' } })
           }
           return
@@ -150,8 +160,7 @@ function main() {
     },
     close: (peer, details) => {
       const p = peers.get(peer.id)
-      if (p)
-        unregisterModulePeer(p)
+      if (p) unregisterModulePeer(p)
 
       websocketLogger.withFields({ peer: peer.id, details, activePeers: peers.size }).log('closed')
       peers.delete(peer.id)
