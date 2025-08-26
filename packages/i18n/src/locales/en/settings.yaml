@@ -27,7 +27,7 @@ dialogs:
     no-models: No available models
     no-models-help: Please return to the previous step and check your API key, or check the network connection.
   language:
-  title: Language
+    title: Language
   description: >
     Change the language of the AIRI interface. This will not affect the language
     of the character's responses.
@@ -39,6 +39,7 @@ dialogs:
     en: English
     en-US: English (US)
     es: Spanish
+    ru: Russian
 live2d:
   change-model:
     from-file: Load from File

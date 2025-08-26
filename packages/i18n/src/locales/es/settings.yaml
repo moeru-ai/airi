@@ -38,6 +38,7 @@ language:
     en-US: English (US)
     spanish: Español
     es: Español
+    ru: Russian
 live2d:
   change-model:
     from-file: Cargar desde Archivo

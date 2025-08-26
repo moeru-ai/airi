@@ -15,6 +15,8 @@ const languageRemap: Record<string, string> = {
   'es-MX': 'es',
   'es-AR': 'es',
   'es': 'es',
+  'ru': 'ru',
+  'ru-RU': 'ru',
 }
 
 function getLocale() {

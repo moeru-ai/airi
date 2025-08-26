@@ -35,6 +35,7 @@ language:
     en-US: English (US)
     en: English
     es: Spanish
+    ru: Russian
 live2d:
   change-model:
     from-file: 从文件加载
