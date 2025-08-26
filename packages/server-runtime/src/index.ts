@@ -83,7 +83,10 @@ function main() {
           }
 
           peer.send(RESPONSES.authenticated)
-          Object.assign(peers.get(peer.id)!, { authenticated: true })
+const p = peers.get(peer.id);
+if (p) {
+  Object.assign(p, { authenticated: true });
+}
           return
         }
         case 'module:announce': {
