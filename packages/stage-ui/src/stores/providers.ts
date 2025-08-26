@@ -2105,7 +2105,7 @@ export const useProvidersStore = defineStore('providers', () => {
       name: 'ModelScope',
       descriptionKey: 'settings.pages.providers.provider.modelscope.description',
       description: 'modelscope',
-      icon: 'i-lobe-icons:modelscocpe',
+      icon: 'i-lobe-icons:modelscope',
       defaultOptions: () => ({
         baseUrl: 'https://api-inference.modelscope.cn/v1',
       }),
