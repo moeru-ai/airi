@@ -1,5 +1,5 @@
 import type { ChatProvider } from '@xsai-ext/shared-providers'
-import type { CompletionToolCall, Message, ToolMessagePart } from '@xsai/shared-chat'
+import type { CommonContentPart, CompletionToolCall, Message } from '@xsai/shared-chat'
 
 import { readableStreamToAsyncIterator } from '@moeru/std'
 import { listModels } from '@xsai/model'
@@ -14,7 +14,7 @@ export type StreamEvent
   = | { type: 'text-delta', text: string }
     | ({ type: 'finish' } & any)
     | ({ type: 'tool-call' } & CompletionToolCall)
-    | { type: 'tool-result', toolCallId: string, result?: string | ToolMessagePart[] }
+    | { type: 'tool-result', toolCallId: string, result?: string | CommonContentPart[] }
     | { type: 'error', error: any }
 
 export interface StreamOptions {

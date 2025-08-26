@@ -1,5 +1,5 @@
 import type { ChatProvider } from '@xsai-ext/shared-providers'
-import type { Message, SystemMessage, UserMessagePart } from '@xsai/shared-chat'
+import type { CommonContentPart, Message, SystemMessage } from '@xsai/shared-chat'
 
 import type { StreamEvent } from '../stores/llm'
 import type { ChatAssistantMessage, ChatMessage, ChatSlices } from '../types/chat'
@@ -97,7 +97,7 @@ export const useChatStore = defineStore('chat', () => {
         await hook(sendingMessage)
       }
 
-      const contentParts: UserMessagePart[] = [{ type: 'text', text: sendingMessage }]
+      const contentParts: CommonContentPart[] = [{ type: 'text', text: sendingMessage }]
 
       if (options.attachments) {
         for (const attachment of options.attachments) {
