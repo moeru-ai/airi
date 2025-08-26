@@ -98,11 +98,23 @@ function main() {
           const p = peers.get(peer.id)
           if (p) {
             unregisterModulePeer(p)
-            Object.assign(p, { authenticated: true, name: event.data.name })
+            const { name, index } = event.data as { name: string, index?: number }
+            if (!name || typeof name !== 'string') {
+              send(peer, { type: 'error', data: { message: 'the field \'name\' must be a non-empty string for event \'module:announce\'' } })
+              return
+            }
+            if (typeof index !== 'undefined') {
+              if (typeof index !== 'number' || index < 0) {
+                send(peer, { type: 'error', data: { message: 'the field \'index\' must be a non-negative number for event \'module:announce\'' } })
+                return
+              }
+            }
+            Object.assign(p, { authenticated: true, name, index })
             registerModulePeer(p, p.name, p.index)
           }
           return
         }
+
         case 'ui:configure': {
           const { moduleName, moduleIndex, config } = event.data
 

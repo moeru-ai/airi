@@ -1,85 +1,86 @@
-enum States {
-  Literal = 'literal',
-  Special = 'special',
-}
+const TAG_OPEN = '<|'
+const TAG_CLOSE = '|>'
 
-function peek(array: string, index: number, offset: number): string | undefined {
-  if (index + offset < 0 || index + offset >= (array.length - 1))
-    return ''
-
-  return array[index + offset]
-}
-
+/**
+ * A streaming parser for LLM responses that contain special markers (e.g., for tool calls).
+ * This composable is designed to be efficient and robust, using a regular expression
+ * to handle special tags enclosed in `<|...|>`.
+ *
+ * @example
+ * const parser = useLlmmarkerParser({
+ *   onLiteral: (text) => console.log('Literal:', text),
+ *   onSpecial: (tagContent) => console.log('Special:', tagContent),
+ * });
+ *
+ * await parser.consume('This is some text <|tool_code|> and some more |> text.');
+ * await parser.end();
+ */
 export function useLlmmarkerParser(options: {
   onLiteral?: (literal: string) => void | Promise<void>
   onSpecial?: (special: string) => void | Promise<void>
+  /**
+   * The minimum length of text required to emit a literal part.
+   * Useful for avoiding emitting literal parts too fast.
+   */
+  minLiteralEmitLength?: number
 }) {
-  let state = States.Literal
+  const minLiteralEmitLength = Math.max(1, options.minLiteralEmitLength ?? 1)
   let buffer = ''
+  let inTag = false
 
   return {
+    /**
+     * Consumes a chunk of text from the stream.
+     * It processes the internal buffer to find and emit complete literal and special parts.
+     * Incomplete parts are kept in the buffer to be processed with the next chunk.
+     * @param textPart The chunk of text to consume.
+     */
     async consume(textPart: string) {
-      for (let i = 0; i < textPart.length; i++) {
-        let current = textPart[i]
-        let newState: States = state
+      buffer += textPart
 
-        // read
-        if (current === '<' && peek(textPart, i, 1) === '|') {
-          current += peek(textPart, i, 1)
-          newState = States.Special
-          i++
-        }
-        else if (current === '|' && peek(textPart, i, 1) === '>') {
-          current += peek(textPart, i, 1)
-          newState = States.Literal
-          i++
-        }
-        else if (current === '<') {
-          newState = States.Special
-        }
-        else if (current === '>') {
-          newState = States.Literal
-        }
-
-        // handle
-        if (state === States.Literal && newState === States.Special) {
-          if (buffer !== '') {
-            await options.onLiteral?.(buffer)
-            buffer = ''
+      while (buffer.length > 0) {
+        if (!inTag) {
+          const openTagIndex = buffer.indexOf(TAG_OPEN)
+          if (openTagIndex < 0) {
+            if (buffer.length - 1 >= minLiteralEmitLength) {
+              const emit = buffer.slice(0, -1)
+              buffer = buffer[buffer.length - 1]
+              await options.onLiteral?.(emit)
+            }
+            break
           }
-        }
-        else if (state === States.Special && newState === States.Literal) {
-          if (buffer !== '') {
-            buffer += current
-            await options.onSpecial?.(buffer)
-            buffer = '' // Clear buffer when exiting Special state
-          }
-        }
 
-        if (state === States.Literal && newState === States.Literal) {
-          await options.onLiteral?.(current)
-          buffer = ''
-        }
-        else if (state === States.Special && newState === States.Literal) {
-          buffer = ''
+          if (openTagIndex > 0) {
+            const emit = buffer.slice(0, openTagIndex)
+            buffer = buffer.slice(openTagIndex)
+            await options.onLiteral?.(emit)
+          }
+          inTag = true
         }
         else {
-          buffer += current
-        }
+          const closeTagIndex = buffer.indexOf(TAG_CLOSE)
+          if (closeTagIndex < 0) {
+            break
+          }
 
-        state = newState
+          const emit = buffer.slice(0, closeTagIndex + TAG_CLOSE.length)
+          buffer = buffer.slice(closeTagIndex + TAG_CLOSE.length)
+          await options.onSpecial?.(emit)
+          inTag = false
+        }
       }
     },
+
+    /**
+     * Finalizes the parsing process.
+     * Any remaining content in the buffer is flushed as a final literal part.
+     * This should be called after the stream has ended.
+     */
     async end() {
-      if (buffer !== '') {
-        if (state === States.Literal) {
-          await options.onLiteral?.(buffer)
-        }
-        else {
-          if (buffer.endsWith('|>')) {
-            await options.onSpecial?.(buffer)
-          }
-        }
+      // Incomplete tag should not be emitted as literals.
+      if (!inTag && buffer.length > 0) {
+        await options.onLiteral?.(buffer)
+        buffer = ''
       }
     },
   }

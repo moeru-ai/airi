@@ -42,17 +42,21 @@ const windowY = ref(0)
 const isClickThrough = ref(false)
 const isPassingThrough = ref(false)
 const isOverUI = ref(false)
+const isFirstTime = ref(true)
 
 watchThrottled([mouseX, mouseY], async ([x, y]) => {
   const canvas = widgetStageRef.value?.canvasElement()
   if (!canvas)
     return
 
+  isFirstTime.value = false
+
   if (windowControlStore.controlMode === WindowControlMode.RESIZE || windowControlStore.controlMode === WindowControlMode.MOVE) {
     if (isPassingThrough.value) {
       passThroughCommands.stopPassThrough()
       isPassingThrough.value = false
     }
+
     return
   }
 
@@ -194,8 +198,8 @@ onMounted(async () => {
     windowY.value = pos.y
   }
   unListenFuncs.push(await listen('tauri://move', (event) => {
-    windowX.value = event.payload.payload.x
-    windowY.value = event.payload.payload.y
+    windowX.value = event.payload.x
+    windowY.value = event.payload.y
   }))
 
   await setupVADModel()

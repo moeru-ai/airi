@@ -186,4 +186,4 @@ function nms(boxes: Box[], iouThreshold: number): Box[] {
 
 ## 最后
 
-到了这里，就是我这个月来的成果了，收获颇丰啊，非常感谢 [@nekomeowww](https://github.com/nekomeowww) 和 [@dsh0416](https://github.com/dsh0416) 对我的帮助。接下来我该想办法提升一下模型性能，然后以某种方式让 AI 来控制游戏了。
+到了这里，就是我这个月来的成果了，收获颇丰啊，非常感谢 [@nekomeowww](https://github.com/nekomeowww) 和 [@dsh0416](https://github.com/dsh0416) 和 [makito](https://github.com/sumimakito) 对我的帮助。接下来我该想办法提升一下模型性能，然后以某种方式让 AI 来控制游戏了。
