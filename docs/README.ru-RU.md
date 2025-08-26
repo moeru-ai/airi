@@ -1,15 +1,15 @@
 <picture>
   <source
     width="100%"
-    srcset="./docs/content/public/banner-dark-1280x640.avif"
+    srcset="./content/public/banner-dark-1280x640.avif"
     media="(prefers-color-scheme: dark)"
   />
   <source
     width="100%"
-    srcset="./docs/content/public/banner-light-1280x640.avif"
+    srcset="./content/public/banner-light-1280x640.avif"
     media="(prefers-color-scheme: light), (prefers-color-scheme: no-preference)"
   />
-  <img width="250" src="./docs/content/public/banner-light-1280x640.avif" />
+  <img width="250" src="./content/public/banner-light-1280x640.avif" />
 </picture>
 
 <h1 align="center">Проект AIRI</h1>
@@ -17,7 +17,7 @@
 <p align="center">Воссоздание Neuro-sama, контейнера души для AI waifu / виртуальных персонажей, чтобы привести их в наш мир.</p>
 
 <p align="center">
-  [<a href="https://discord.gg/TgQ3Cu2F7A">Присоединиться к серверу Discord</a>] [<a href="https:///airi.moeru.ai">Попробовать</a>] [<a href="https://github.com/moeru-ai/airi/blob/main/docs/README.zh-CN.md">简体中文</a>] [<a href="https://github.com/moeru-ai/airi/blob/main/docs/README.ja-JP.md">日本語</a>] [<a href="https://github.com/moeru-ai/airi/blob/main/docs/README.ru-RU.md">Русский</a>]
+  [<a href="https://discord.gg/TgQ3Cu2F7A">Присоединиться к серверу Discord</a>] [<a href="https:///airi.moeru.ai">Попробовать</a>] [<a href="https://github.com/moeru-ai/airi/blob/main/docs/README.zh-CN.md">简体中文</a>] [<a href="https://github.com/moeru-ai/airi/blob/main/docs/README.ja-JP.md">日本語</a>] [<a href="https://github.com/moeru-ai/airi/blob/main/README.md">English</a>][<a href="https://github.com/moeru-ai/airi/blob/main/docs/README.ru-RU.md">Русский</a>]
 </p>
 
 <p align="center">
@@ -101,7 +101,7 @@
 
 ## Текущий прогресс
 
-<img src="./docs/content/public/readme-image-pc-preview.avif">
+<img src="./content/public/readme-image-pc-preview.avif">
 
 Способен на
 
