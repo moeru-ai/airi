@@ -2177,8 +2177,9 @@ export const useProvidersStore = defineStore('providers', () => {
       }),
       createProvider: async config => createPlayer2((config.baseUrl as string).trim(), 'airi'),
       capabilities: {
-        listVoices: async () => {
-          return await fetch('http://localhost:4315/v1/tts/voices').then(res => res.json()).then(({ voices }) => (voices as { id: string, language: 'american_english' | 'british_english' | 'japanese' | 'mandarin_chinese' | 'spanish' | 'french' | 'hindi' | 'italian' | 'brazilian_portuguese', name: string, gender: string }[]).map(({ id, language, name, gender }) => (
+        listVoices: async (config) => {
+          const baseUrl = (config.baseUrl as string).endsWith('/') ? (config.baseUrl as string).slice(0, -1) : config.baseUrl as string
+          return await fetch(`${baseUrl}/tts/voices`).then(res => res.json()).then(({ voices }) => (voices as { id: string, language: 'american_english' | 'british_english' | 'japanese' | 'mandarin_chinese' | 'spanish' | 'french' | 'hindi' | 'italian' | 'brazilian_portuguese', name: string, gender: string }[]).map(({ id, language, name, gender }) => (
             {
 
               id,
