@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { UserMessagePart } from '@xsai/shared-chat'
+import type { CommonContentPart } from '@xsai/shared-chat'
 
 import { MarkdownRenderer } from '@proj-airi/stage-ui/components'
 import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
@@ -93,7 +93,7 @@ onTokenLiteral(async () => {
             <span text-xs text="cyan-400/90 dark:cyan-600/90" font-normal class="inline <sm:hidden">{{ t('stage.chat.message.character-name.you') }}</span>
           </div>
           <div v-if="Array.isArray(message.content)" class="flex flex-col gap-2">
-            <template v-for="(part, partIndex) in (message.content as UserMessagePart[])" :key="partIndex">
+            <template v-for="(part, partIndex) in (message.content as CommonContentPart[])" :key="partIndex">
               <MarkdownRenderer
                 v-if="part.type === 'text' && part.text"
                 :content="part.text"
