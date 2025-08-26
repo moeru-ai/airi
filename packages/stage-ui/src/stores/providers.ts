@@ -168,7 +168,7 @@ export const useProvidersStore = defineStore('providers', () => {
     else if (typeof baseUrl !== 'string') {
       msg = 'Base URL must be a string.'
     }
-    else if (!isUrl(baseUrl)) {
+    else if (!isUrl(baseUrl) || new URL(baseUrl).host.length === 0) {
       msg = 'Base URL is not absolute. Try to include a scheme (http:// or https://).'
     }
     else if (!baseUrl.endsWith('/')) {
