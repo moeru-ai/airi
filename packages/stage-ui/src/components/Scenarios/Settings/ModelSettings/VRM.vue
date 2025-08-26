@@ -202,12 +202,12 @@ const tabList = [
             <div grid="~ cols-5 gap-1" p-2>
               <PropertyNumber
                 v-model="skyBoxIntensity"
-                :config="{ min: 0, max: 1, step: 0.01, label: t('settings.vrm.skybox.skybox-intensity') }"
+                :config="{ min: 0, max: 1, step: 0.01, label: 'Intensity' }"
                 :label="t('settings.vrm.skybox.skybox-intensity')"
               />
               <PropertyNumber
                 v-model="specularMix"
-                :config="{ min: 0, max: 1, step: 0.01, label: t('settings.vrm.skybox.skybox-specular-mix') }"
+                :config="{ min: 0, max: 1, step: 0.01, label: 'Mix' }"
                 :label="t('settings.vrm.skybox.skybox-specular-mix')"
               />
             </div>
