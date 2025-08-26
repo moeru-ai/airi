@@ -308,6 +308,7 @@ async function loadModel() {
                         vec3 rW = inverseTransformDirection(r, viewMatrix);
                         vec3 vW = normalize(reflect(-rW, nW));
 
+                        // To resolve the upside-down reflection issue of equirect map
                         nW.z = -nW.z;
                         rW.z = -rW.z;
                         
