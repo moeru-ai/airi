@@ -1,4 +1,4 @@
-import type { AssistantMessage, CompletionToolCall, SystemMessage, ToolMessage, ToolMessagePart, UserMessage } from '@xsai/shared-chat'
+import type { AssistantMessage, CommonContentPart, CompletionToolCall, SystemMessage, ToolMessage, UserMessage } from '@xsai/shared-chat'
 
 export interface ChatSlicesText {
   type: 'text'
@@ -13,7 +13,7 @@ export interface ChatSlicesToolCall {
 export interface ChatSlicesToolCallResult {
   type: 'tool-call-result'
   id: string
-  result?: string | ToolMessagePart[]
+  result?: string | CommonContentPart[]
 }
 
 export type ChatSlices = ChatSlicesText | ChatSlicesToolCall | ChatSlicesToolCallResult
@@ -22,7 +22,7 @@ export interface ChatAssistantMessage extends AssistantMessage {
   slices: ChatSlices[]
   tool_results: {
     id: string
-    result?: string | ToolMessagePart[]
+    result?: string | CommonContentPart[]
   }[]
 }
 
