@@ -94,7 +94,6 @@ function main() {
           }
           return
         }
-          
         case 'module:announce': {
           const p = peers.get(peer.id)
           if (p) {
