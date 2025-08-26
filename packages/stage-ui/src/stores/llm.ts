@@ -10,13 +10,16 @@ import { ref } from 'vue'
 
 import { debug, mcp } from '../tools'
 
+export type StreamEvent
+  = | { type: 'text-delta', text: string }
+    | ({ type: 'finish' } & any)
+    | ({ type: 'tool-call' } & CompletionToolCall)
+    | { type: 'tool-result', toolCallId: string, result?: string | ToolMessagePart[] }
+    | { type: 'error', error: any }
+
 export interface StreamOptions {
   headers?: Record<string, string>
-  onToolCall?: (toolCall: CompletionToolCall) => void
-  onToolCallResult?: (toolCallResult: {
-    id: string
-    result?: string | ToolMessagePart[]
-  }) => void
+  onStreamEvent?: (event: StreamEvent) => void | Promise<void>
   toolsCompatibility?: Map<string, boolean>
   supportsTools?: boolean
 }
@@ -42,12 +45,7 @@ async function streamFrom(model: string, chatProvider: ChatProvider, messages: M
         ]
       : undefined,
     onEvent(event) {
-      if (event.type === 'tool-call') {
-        options?.onToolCall?.(event)
-      }
-      else if (event.type === 'tool-result') {
-        options?.onToolCallResult?.({ id: event.toolCallId, result: event.result })
-      }
+      options?.onStreamEvent?.(event as StreamEvent)
     },
   })
 }
