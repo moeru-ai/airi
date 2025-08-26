@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import type { TresContext } from '@tresjs/core'
+import type { Texture,
+} from 'three'
 
 import { TresCanvas } from '@tresjs/core'
 import { EffectComposerPmndrs, HueSaturationPmndrs } from '@tresjs/post-processing'
@@ -7,10 +9,17 @@ import { useElementBounding, useMouse } from '@vueuse/core'
 import { formatHex } from 'culori'
 import { storeToRefs } from 'pinia'
 import { BlendFunction } from 'postprocessing'
-import { ACESFilmicToneMapping, PerspectiveCamera, Plane, Raycaster, Vector2, Vector3 } from 'three'
-import { ref, shallowRef, watch } from 'vue'
+import {
+  ACESFilmicToneMapping,
+  PerspectiveCamera,
+  Plane,
+  Raycaster,
+  Vector2,
+  Vector3,
+} from 'three'
+import { onMounted, ref, shallowRef, watch } from 'vue'
 
-import Environment from './VRM/Environment.vue'
+import SkyBoxEnvironment from './VRM/SkyBoxEnvironment.vue'
 
 import { useVRM } from '../../stores/vrm'
 import { OrbitControls, VRMModel } from '../Scenes'
@@ -52,7 +61,6 @@ const {
   ambientLightIntensity,
   ambientLightColor,
 
-  hemisphereLightPosition,
   hemisphereLightIntensity,
   hemisphereSkyColor,
   hemisphereGroundColor,
@@ -66,6 +74,7 @@ const modelRef = ref<InstanceType<typeof VRMModel>>()
 const camera = shallowRef(new PerspectiveCamera())
 const controlsRef = shallowRef<InstanceType<typeof OrbitControls>>()
 const tresCanvasRef = shallowRef<TresContext>()
+const skyBoxEnvRef = ref<InstanceType<typeof SkyBoxEnvironment>>()
 
 function onTresReady(context: TresContext) {
   tresCanvasRef.value = context
@@ -84,6 +93,9 @@ const modelReady = ref(false)
 const sceneReady = ref(false)
 const raycaster = new Raycaster()
 const mouse = new Vector2()
+
+// For NPR skybox shader
+const nprEquirectTex = ref<Texture | null>(null)
 
 watch(cameraFOV, (newFov) => {
   if (camera.value) {
@@ -253,6 +265,12 @@ watch(trackingMode, (newMode) => {
   }
 })
 
+onMounted(() => {
+  if (envSelect.value === 'skyBox') {
+    skyBoxEnvRef.value?.reload(skyBoxSrc.value)
+  }
+})
+
 defineExpose({
   setExpression: (expression: string) => {
     modelRef.value?.setExpression(expression)
@@ -277,16 +295,18 @@ defineExpose({
       @ready="onTresReady"
     >
       <OrbitControls ref="controlsRef" />
-      <Environment
+      <SkyBoxEnvironment
         v-if="envSelect === 'skyBox'"
+        ref="skyBoxEnvRef"
         :sky-box-src="skyBoxSrc"
         :as-background="true"
+        @equirect-skybox-ready="(tex) => nprEquirectTex = tex"
       />
       <TresHemisphereLight
         v-else
         :color="formatHex(hemisphereSkyColor)"
         :ground-color="formatHex(hemisphereGroundColor)"
-        :position="[hemisphereLightPosition.x, hemisphereLightPosition.y, hemisphereLightPosition.z]"
+        :position="[0, 1, 0]"
         :intensity="hemisphereLightIntensity"
         cast-shadow
       />
@@ -312,6 +332,7 @@ defineExpose({
         :model-src="props.modelSrc"
         :idle-animation="props.idleAnimation"
         :paused="props.paused"
+        :npr-equirect-tex="nprEquirectTex"
         @load-model-progress="(val) => emit('loadModelProgress', val)"
         @model-ready="handleLoadModelProgress"
         @error="(val) => emit('error', val)"

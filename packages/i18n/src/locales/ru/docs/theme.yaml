@@ -1,0 +1,49 @@
+doc:
+  outline:
+    title: Содержание статьи
+  community:
+    title: Сообщество
+    edit:
+      title: Редактировать страницу
+    star-github:
+      title: Дать звезду на Github
+    discord:
+      title: Наш Discord сервер
+    support:
+      title: Поддержать проект
+  next-page:
+    title: Следующая страница
+  previous-page:
+    title: Предыдущая страница
+home:
+  subtitle: >-
+    Воссоздаем Нейро-саму, воплощая души нейронных вайфу в реальность
+  download:
+    title: Скачать
+  get-started:
+    title: Мануал по установке
+  try-live:
+    title: Попробовать в Live
+search:
+  title: Поиск
+  placeholder: Искать в документации...
+navbar:
+  appearance:
+    title: Внешность
+  language:
+    title: Язык
+pages:
+  characters:
+    title: Персонажи
+blog:
+  title: Блог & ДевЛоги
+  subtitle: Следи за новостями и получай последние обновления от команды разработки
+  card:
+    post:
+      read-more:
+        title: Читать дальше
+  no-posts: Посты не найдены в этой категории.
+  categories:
+    all: Всё
+    devlog: ДевЛог
+    dreamlog: Хроники

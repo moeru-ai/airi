@@ -59,11 +59,11 @@ export const useVRM = defineStore('vrm', () => {
   // TODO: color are the same
   const directionalLightColor = useLocalStorage('settings/vrm/scenes/scene/directional-light/color', '#fffbf5')
 
-  const hemisphereLightPosition = useLocalStorage('settings/vrm/scenes/scene/hemisphere-light/position', { x: 0, y: 0, z: 0 })
   // TODO: color are the same
   const hemisphereSkyColor = useLocalStorage('settings/vrm/scenes/scene/hemisphere-light/sky-color', '#FFFFFF')
   // TODO: color are the same
-  const hemisphereGroundColor = useLocalStorage('settings/vrm/scenes/scene/hemisphere-light/ground-color', '#000000')
+  // Lilia: The ground color is not pure black
+  const hemisphereGroundColor = useLocalStorage('settings/vrm/scenes/scene/hemisphere-light/ground-color', '#222222')
   // TODO: The same as directional light, this is a temporary solution
   //       and will be replaced with a more flexible lighting system in the future.
   const hemisphereLightIntensity = useLocalStorage('settings/vrm/scenes/scene/hemisphere-light/intensity', 0.4)
@@ -80,8 +80,10 @@ export const useVRM = defineStore('vrm', () => {
   const eyeHeight = useLocalStorage('settings/vrm/eyeHeight', 0)
 
   // environment related setting
-  const envSelect = useLocalStorage('settings/vrm/envEnabled', 'hemisphere' as 'hemisphere' | 'skyBox')
+  const envSelect = useLocalStorage('settings/vrm/envEnabled', 'skyBox' as 'hemisphere' | 'skyBox')
   const skyBoxSrc = useLocalStorage('settings/vrm/skyBoxUrl', defaultSkyBoxSrc)
+  const specularMix = useLocalStorage('settings/vrm/specularMix', 0)
+  const skyBoxIntensity = useLocalStorage('settings/vrm/skyBoxIntensity', 0.1)
 
   return {
     modelSize,
@@ -104,7 +106,6 @@ export const useVRM = defineStore('vrm', () => {
     ambientLightIntensity,
     ambientLightColor,
 
-    hemisphereLightPosition,
     hemisphereSkyColor,
     hemisphereGroundColor,
     hemisphereLightIntensity,
@@ -115,6 +116,8 @@ export const useVRM = defineStore('vrm', () => {
     eyeHeight,
     envSelect,
     skyBoxSrc,
+    specularMix,
+    skyBoxIntensity,
 
     shouldUpdateView,
     onShouldUpdateView,
