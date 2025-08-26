@@ -427,20 +427,20 @@ function updateNprUniforms(tex: Texture | null) {
     return
 
   const mode = (envSelect.value === 'skyBox' && !!tex) ? 2 : 0 // 0=off，2=skybox
-  root.traverse((child: any) => {
-    if (!child?.isMesh)
-      return
-    const mats = Array.isArray(child.material) ? child.material : [child.material]
-    mats.forEach((mat: any) => {
-      const u = mat.userData?.__nprUniforms
-      if (!u)
-        return
-      // Skybox texture and mode
-      u.uEnvMapEquirect.value = tex
-      u.uNprEnvMode.value = mode
-      u.uEnvIntensity.value = skyBoxIntensity.value
-      u.uSpecularMix.value = specularMix.value
-    })
+  root.traverse((child) => {
+    if (child instanceof Mesh && child.material) {
+      const mats = Array.isArray(child.material) ? child.material : [child.material]
+      mats.forEach((mat) => {
+        const u = mat.userData?.__nprUniforms
+        if (!u)
+          return
+        // Skybox texture and mode
+        u.uEnvMapEquirect.value = tex
+        u.uNprEnvMode.value = mode
+        u.uEnvIntensity.value = skyBoxIntensity.value
+        u.uSpecularMix.value = specularMix.value
+      })
+    }
   })
 }
 // watch NPR skybox
