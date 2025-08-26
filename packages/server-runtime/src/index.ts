@@ -98,7 +98,7 @@ function main() {
           const p = peers.get(peer.id)
           if (p) {
             unregisterModulePeer(p)
-            const { name, index } = event.data as { name: string; index?: number }
+            const { name, index } = event.data as { name: string, index?: number }
             if (!name || typeof name !== 'string') {
               send(peer, { type: 'error', data: { message: 'the field \'name\' must be a non-empty string for event \'module:announce\'' } })
               return
