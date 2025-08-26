@@ -218,7 +218,6 @@ async function loadModel() {
       //         since they do not have envMapIntensity property
       // - Lilia: NPR mat can be affected by envMapIntensity if we choose to user skybox as envMap
       //        This part will be implemented as a NPR HDRI shader injection
-
       _vrm.scene.traverse((child) => {
         if (child instanceof Mesh && child.material) {
           const material = Array.isArray(child.material) ? child.material : [child.material]
