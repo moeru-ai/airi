@@ -595,3 +595,6 @@ vrm:
   theme-color-from-model:
     button-extract:
       title: Extract
+  skybox:
+    skybox-intensity: SkyBox Intensity
+    skybox-specular-mix: Specular Mix
