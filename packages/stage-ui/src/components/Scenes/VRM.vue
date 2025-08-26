@@ -24,16 +24,16 @@ import SkyBoxEnvironment from './VRM/SkyBoxEnvironment.vue'
 import { useVRM } from '../../stores/vrm'
 import { OrbitControls, VRMModel } from '../Scenes'
 
-const props =  withDefaults(defineProps<{
+const props = withDefaults(defineProps<{
   modelSrc?: string
   showAxes?: boolean
   idleAnimation?: string
   paused?: boolean
-}>(), { 
+}>(), {
   showAxes: false,
   idleAnimation: '/assets/vrm/animations/idle_loop.vrma',
   paused: false,
- })
+})
 
 const emit = defineEmits<{
   (e: 'loadModelProgress', value: number): void
@@ -337,7 +337,7 @@ defineExpose({
         @model-ready="handleLoadModelProgress"
         @error="(val) => emit('error', val)"
       />
-      <TresAxesHelper :size="1" v-if="props.showAxes" />
+      <TresAxesHelper v-if="props.showAxes" :size="1" />
     </TresCanvas>
   </div>
 </template>
