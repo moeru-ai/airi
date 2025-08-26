@@ -44,7 +44,7 @@ function main() {
   }
 
   function unregisterModulePeer(p: AuthenticatedPeer) {
-    if (!p.name) return
+if (!p.name) return;
     const group = peersByModule.get(p.name)
     if (group) {
       group.delete(p.index)
