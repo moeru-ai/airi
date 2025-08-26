@@ -1419,6 +1419,9 @@ importers:
       rehype-katex:
         specifier: ^7.0.1
         version: 7.0.1
+      rehype-sanitize:
+        specifier: ^6.0.0
+        version: 6.0.0
       rehype-stringify:
         specifier: ^10.0.1
         version: 10.0.1
@@ -6872,8 +6875,8 @@ packages:
   '@xsai/shared@0.3.5':
     resolution: {integrity: sha512-gxWH+9UjhXgqqKeU/o9UteC/ih1FzxEEsmPojImd/jvq4j/wtIg4aP3dCFnu+EhCT/MRQ38dkBSra99iY9cC3w==}
 
-  '@xsai/shared@0.4.0-beta.1':
-    resolution: {integrity: sha512-azgYCr9Ww+t94p2vyLpVUpTGICs3fto8fTSX1ivgRJ0HeYZzYI5nk4X9HB2zXy4omkJtbtWWPiZOt7oYsPa+mg==}
+  '@xsai/shared@0.4.0-beta.2':
+    resolution: {integrity: sha512-nKdT+/gon1FxkEqv1iKfS2QRWnmYY/2o7Wl+Bcfot45qACE0sK9E4nw2BeLI/MeRYD6w7bTLP2J2U8373aHdYA==}
 
   '@xsai/stream-text@0.3.4':
     resolution: {integrity: sha512-5hI1zvBGwC8J9BiuChHwIxIJOetIwl1kmt4OR9b/CGLuhK1OR5JnxhbMcwXjJKqfOMKMkqM74KHTQG+QSVfsGg==}
@@ -9075,6 +9078,9 @@ packages:
 
   hast-util-raw@9.1.0:
     resolution: {integrity: sha512-Y8/SBAHkZGoNkpzqqfCldijcuUKh7/su31kEBp67cFY09Wy0mTRgtsLYsiIxMJxlu0f6AA5SUTbDR8K0rxnbUw==}
+
+  hast-util-sanitize@5.0.2:
+    resolution: {integrity: sha512-3yTWghByc50aGS7JlGhk61SPenfE/p1oaFeNwkOOyrscaOkMGrcW9+Cy/QAIOBpZxP1yqDIzFMR0+Np0i0+usg==}
 
   hast-util-select@6.0.4:
     resolution: {integrity: sha512-RqGS1ZgI0MwxLaKLDxjprynNzINEkRHY2i8ln4DDjgv9ZhcYVIHN9rlpiYsqtFwrgpYU361SyWDQcGNIBVu3lw==}
@@ -11398,6 +11404,9 @@ packages:
 
   rehype-remove-comments@6.1.1:
     resolution: {integrity: sha512-O3OAvqpV8IUJf6+Q4s5nqaKQqrgeXdU/+0fjUHMO0KAB4SwkMdN34NJQC9hexwvjYE00tX/xB8GvnVJI8Cdf6g==}
+
+  rehype-sanitize@6.0.0:
+    resolution: {integrity: sha512-CsnhKNsyI8Tub6L4sm5ZFsme4puGfc6pYylvXo1AeqaGbjOYyzNv3qZPwvs0oMJ39eryyeOdmxwUIo94IpEhqg==}
 
   rehype-stringify@10.0.1:
     resolution: {integrity: sha512-k9ecfXHmIPuFVI61B9DeLPN0qFHfawM6RsuX48hoqlaKSF61RskNjSm1lI8PhBEM0MRdLxVVm4WmTqJQccH9mA==}
@@ -19258,7 +19267,7 @@ snapshots:
 
   '@xsai-ext/shared-providers@0.2.2':
     dependencies:
-      '@xsai/shared': 0.4.0-beta.1
+      '@xsai/shared': 0.4.0-beta.2
 
   '@xsai-ext/shared-providers@0.3.4':
     dependencies:
@@ -19314,7 +19323,7 @@ snapshots:
 
   '@xsai/shared@0.3.5': {}
 
-  '@xsai/shared@0.4.0-beta.1': {}
+  '@xsai/shared@0.4.0-beta.2': {}
 
   '@xsai/stream-text@0.3.4':
     dependencies:
@@ -22044,6 +22053,12 @@ snapshots:
       web-namespaces: 2.0.1
       zwitch: 2.0.4
     optional: true
+
+  hast-util-sanitize@5.0.2:
+    dependencies:
+      '@types/hast': 3.0.4
+      '@ungap/structured-clone': 1.2.0
+      unist-util-position: 5.0.0
 
   hast-util-select@6.0.4:
     dependencies:
@@ -24966,6 +24981,11 @@ snapshots:
       '@types/hast': 3.0.4
       hast-util-is-conditional-comment: 3.0.1
       unist-util-visit: 5.0.0
+
+  rehype-sanitize@6.0.0:
+    dependencies:
+      '@types/hast': 3.0.4
+      hast-util-sanitize: 5.0.2
 
   rehype-stringify@10.0.1:
     dependencies:
