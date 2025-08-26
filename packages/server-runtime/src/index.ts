@@ -1,7 +1,9 @@
 import type { WebSocketEvent } from '@proj-airi/server-shared/types'
+
 import type { AuthenticatedPeer, Peer } from './types'
 
 import { env } from 'node:process'
+
 import { Format, LogLevel, setGlobalFormat, setGlobalLogLevel, useLogg } from '@guiiai/logg'
 import { createApp, createRouter, defineWebSocketHandler } from 'h3'
 
@@ -44,7 +46,8 @@ function main() {
   }
 
   function unregisterModulePeer(p: AuthenticatedPeer) {
-    if (!p.name) return
+    if (!p.name)
+      return
     const group = peersByModule.get(p.name)
     if (group) {
       group.delete(p.index)
@@ -58,7 +61,8 @@ function main() {
     open: (peer) => {
       if (AUTH_TOKEN) {
         peers.set(peer.id, { peer, authenticated: false, name: '' })
-      } else {
+      }
+      else {
         peer.send(RESPONSES.authenticated)
         peers.set(peer.id, { peer, authenticated: true, name: '' })
       }
@@ -69,8 +73,9 @@ function main() {
       let event: WebSocketEvent
       try {
         event = message.json() as WebSocketEvent
-      } catch (err) {
-        send(peer, { type: 'error', data: { message: 'invalid JSON' } })
+      }
+      catch (err) {
+        send(peer, { type: 'error', data: { message: `invalid JSON, error: ${err.message}` } })
         return
       }
 
@@ -83,10 +88,10 @@ function main() {
           }
 
           peer.send(RESPONSES.authenticated)
-const p = peers.get(peer.id);
-if (p) {
-  Object.assign(p, { authenticated: true });
-}
+          const p = peers.get(peer.id)
+          if (p) {
+            Object.assign(p, { authenticated: true })
+          }
           return
         }
         case 'module:announce': {
@@ -102,23 +107,24 @@ if (p) {
           const { moduleName, moduleIndex, config } = event.data
 
           if (moduleName === '') {
-            send(peer, { type: 'error', data: { message: "the field 'moduleName' can't be empty for event 'ui:configure'" } })
+            send(peer, { type: 'error', data: { message: 'the field \'moduleName\' can\'t be empty for event \'ui:configure\'' } })
             return
           }
           if (typeof moduleIndex !== 'undefined' && typeof moduleIndex !== 'number') {
-            send(peer, { type: 'error', data: { message: "the field 'moduleIndex' must be a number for event 'ui:configure'" } })
+            send(peer, { type: 'error', data: { message: 'the field \'moduleIndex\' must be a number for event \'ui:configure\'' } })
             return
           }
           if (typeof moduleIndex !== 'undefined' && moduleIndex < 0) {
-            send(peer, { type: 'error', data: { message: "the field 'moduleIndex' must be a positive number for event 'ui:configure'" } })
+            send(peer, { type: 'error', data: { message: 'the field \'moduleIndex\' must be a positive number for event \'ui:configure\'' } })
             return
           }
 
           const target = peersByModule.get(moduleName)?.get(moduleIndex)
           if (target) {
             send(target.peer, { type: 'module:configure', data: { config } })
-          } else {
-            send(peer, { type: 'error', data: { message: "module not found, it haven't announced it or the name was wrong" } })
+          }
+          else {
+            send(peer, { type: 'error', data: { message: 'module not found, it haven\'t announced it or the name was wrong' } })
           }
           return
         }
@@ -144,7 +150,8 @@ if (p) {
     },
     close: (peer, details) => {
       const p = peers.get(peer.id)
-      if (p) unregisterModulePeer(p)
+      if (p)
+        unregisterModulePeer(p)
 
       websocketLogger.withFields({ peer: peer.id, details, activePeers: peers.size }).log('closed')
       peers.delete(peer.id)
