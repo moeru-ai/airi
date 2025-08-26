@@ -111,7 +111,7 @@ export function useMessageContentQueue(ttsQueue: UseQueueReturn<string>) {
     handlers: [
       async (ctx) => {
         // If the message is the llmInferenceEndToken, enqueue a flush instruction to TTS queue
-        if (ctx.data === '<|llm_inference_end|>') {
+        if (ctx.data === llmInferenceEndToken) {
           controller.enqueue(encoder.encode(TTS_FLUSH_INSTRUCTION))
         } else {
           controller.enqueue(encoder.encode(ctx.data))
