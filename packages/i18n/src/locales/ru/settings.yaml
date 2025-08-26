@@ -25,19 +25,6 @@ dialogs:
     select-model: Выберите модель
     no-models: Нет доступных моделей
     no-models-help: Вернитесь на предыдущий шаг и проверьте API-ключ или подключение к сети.
-  language:
-    title: Язык
-    description: >
-      Настройка языка интерфейса AIRI. Не влияет на язык ответа персонажа.
-    options:
-      chinese: 简体中文
-      zh-CN: 简体中文
-      zh-Hans: 简体中文
-      english: Английский
-      en: Английский
-      en-US: Английский (США)
-      es: Испанский
-      ru: Русский
 live2d:
   change-model:
     from-file: Загрузить из файла
