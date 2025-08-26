@@ -74,8 +74,9 @@ function main() {
         let event: WebSocketEvent;
         try {
           event = message.json() as WebSocketEvent;
-        } catch (err: any) {
-          send(peer, { type: 'error', data: { message: `invalid JSON, error: ${err.message}` } });
+        } catch (err) {
+          const message = err instanceof Error ? err.message : String(err);
+          send(peer, { type: 'error', data: { message: `invalid JSON, error: ${message}` } });
           return;
         }
 
