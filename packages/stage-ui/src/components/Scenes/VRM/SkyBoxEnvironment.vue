@@ -1,9 +1,18 @@
 <script setup lang="ts">
-import type { CanvasTexture, DataTexture, Scene, WebGLRenderer, WebGLRenderTarget } from 'three'
+import type {
+  CanvasTexture,
+  DataTexture,
+  Scene,
+  Texture,
+  WebGLRenderer,
+  WebGLRenderTarget,
+} from 'three'
 
 import { useTresContext } from '@tresjs/core'
+import { until } from '@vueuse/core'
 import {
   ACESFilmicToneMapping,
+  EquirectangularReflectionMapping,
   PMREMGenerator,
   SRGBColorSpace,
 } from 'three'
@@ -30,10 +39,16 @@ const props = withDefaults(defineProps<{
   backgroundIntensity: 1,
 })
 
+// emit equirect HDRI for NPR shader use
+const emit = defineEmits<{
+  (e: 'equirectSkyboxReady', value: Texture | null): void
+}>()
+
 // Add these reactive variables to your setup
 const environment = ref<DataTexture | CanvasTexture>()
 let _pmrem: PMREMGenerator | null = null
 let _envRT: WebGLRenderTarget | null = null // WebGLRenderTarget from PMREM
+let _equirectTex: Texture | null = null // equirectangular texture for NPR shader
 
 const { scene, renderer } = useTresContext()
 
@@ -46,16 +61,24 @@ function clearEnvironment() {
   scn.background = null
   // Do not forcibly clear background; caller/prop controls that intent.
   // scn.background = null
+  // Lilia: background must be cleared when switching to hemisphere light
   _envRT?.dispose?.()
   _pmrem?.dispose?.()
   _envRT = null
   _pmrem = null
+
+  // Clear equirect texture for NPR skybox
+  // if(_equirectTex) {
+  //   emit('equirect-skybox-ready', null)
+  //   // _equirectTex.dispose?.()
+  //   // _equirectTex = null
+  // }
 }
 
 // load HDRI environment from sky box
 async function loadEnvironment(skyBoxSrc?: string | null) {
-  if (!scene.value || !renderer.value)
-    return
+  // Wait until renderer is ready
+  await until(() => !!renderer.value && !!renderer.value).toBeTruthy()
 
   // Always dispose previous env when switching
   clearEnvironment()
@@ -75,6 +98,7 @@ async function loadEnvironment(skyBoxSrc?: string | null) {
     // - polyhaven.com
     // - hdrihaven.com
     const hdrTex = await new RGBELoader().loadAsync(skyBoxSrc)
+    hdrTex.mapping = EquirectangularReflectionMapping
 
     // PMREM prefiltering for physically correct IBL
     _pmrem = new PMREMGenerator(renderer.value as WebGLRenderer)
@@ -90,8 +114,10 @@ async function loadEnvironment(skyBoxSrc?: string | null) {
     scn.backgroundBlurriness = props.backgroundBlurriness
     scn.backgroundIntensity = props.backgroundIntensity
 
-    // Source HDR no longer needed for sampling by materials
-    hdrTex.dispose()
+    // emit equirect texture for NPR shader use
+    // Don't dispose this texture, it will be used by NPR injected shader
+    _equirectTex = hdrTex
+    emit('equirectSkyboxReady', _equirectTex)
   }
   catch (error) {
     console.warn('Failed to load HDRI environment:', error)
@@ -113,6 +139,10 @@ onMounted(async () => {
     },
     { deep: false },
   )
+})
+
+defineExpose({
+  reload: async (skyBoxSrc: string | null) => await loadEnvironment(skyBoxSrc),
 })
 
 onUnmounted(async () => {

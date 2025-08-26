@@ -25,8 +25,10 @@ dialogs:
     start: Let's do it!
     select-model: Choose model
     no-models: No available models
-    no-models-help: Please return to the previous step and check your API key, or check the network connection.
-  language:
+    no-models-help: >-
+      Please return to the previous step and check your API key, or check the
+      network connection.
+  language: null
   title: Language
   description: >
     Change the language of the AIRI interface. This will not affect the language
@@ -603,3 +605,6 @@ vrm:
   theme-color-from-model:
     button-extract:
       title: Extract
+  skybox:
+    skybox-intensity: SkyBox Intensity
+    skybox-specular-mix: Specular Mix
