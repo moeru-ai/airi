@@ -154,11 +154,11 @@ const modeIndicatorClass = computed(() => {
 const unListenFuncs: (() => void)[] = []
 
 function openSettings() {
-  invoke('open_window', { label: 'settings' })
+  invoke('show_window', { label: 'settings' })
 }
 
 function openChat() {
-  invoke('open_window', { label: 'chat' })
+  invoke('show_window', { label: 'chat' })
 }
 
 async function setupVADModelLoadingProgressListener() {

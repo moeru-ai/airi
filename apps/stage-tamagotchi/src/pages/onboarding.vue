@@ -9,14 +9,14 @@ const { invoke } = useTauriCore()
 const onboardingStore = useOnboardingStore()
 
 function handleSkipped() {
+  invoke('show_window', { label: 'main' })
   window.closeWindow()
-  invoke('open_window', { label: 'main' })
 }
 
 function handleConfigured() {
   onboardingStore.markSetupCompleted()
+  invoke('show_window', { label: 'main' })
   window.closeWindow()
-  invoke('open_window', { label: 'main' })
 }
 </script>
 

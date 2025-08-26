@@ -16,61 +16,62 @@
     "macOSPrivateApi": true,
     "windows": [
       {
-        "label": "main",
-        "title": "AIRI",
-        "width": 450,
-        "height": 600,
-        "decorations": false,
-        "transparent": true,
         "alwaysOnTop": true,
-        "titleBarStyle": "Transparent",
+        "decorations": false,
+        "height": 600,
+        "label": "main",
         "minimizable": false,
-        "visible": false
+        "shadow": false,
+        "skipTaskbar": true,
+        "title": "AIRI",
+        "titleBarStyle": "Transparent",
+        "transparent": true,
+        "width": 450
       },
       {
+        "acceptFirstMouse": true,
+        "create": false,
+        "height": 800,
+        "hiddenTitle": true,
         "label": "chat",
         "title": "AIRI Chat",
-        "url": "#/chat",
-        "width": 600,
-        "height": 800,
-        "visible": false,
         "titleBarStyle": "Overlay",
-        "hiddenTitle": true,
-        "acceptFirstMouse": true,
         "trafficLightPosition": {
-          "x": 14.0,
-          "y": 20.0
-        }
+          "x": 14,
+          "y": 20
+        },
+        "url": "#/chat",
+        "width": 600
       },
       {
+        "acceptFirstMouse": true,
+        "create": false,
+        "height": 900,
+        "hiddenTitle": true,
         "label": "settings",
         "title": "AIRI Settings",
-        "url": "#/settings",
-        "width": 550,
-        "height": 900,
-        "visible": false,
         "titleBarStyle": "Overlay",
-        "hiddenTitle": true,
-        "acceptFirstMouse": true,
         "trafficLightPosition": {
-          "x": 14.0,
-          "y": 20.0
-        }
+          "x": 14,
+          "y": 20
+        },
+        "url": "#/settings",
+        "width": 550
       },
       {
+        "acceptFirstMouse": true,
+        "create": false,
+        "height": 600,
+        "hiddenTitle": true,
         "label": "onboarding",
         "title": "AIRI Onboarding",
-        "url": "#/onboarding",
-        "width": 800,
-        "height": 600,
-        "visible": false,
         "titleBarStyle": "Overlay",
-        "hiddenTitle": true,
-        "acceptFirstMouse": true,
         "trafficLightPosition": {
-          "x": 14.0,
-          "y": 20.0
-        }
+          "x": 14,
+          "y": 20
+        },
+        "url": "#/onboarding",
+        "width": 800
       }
     ]
   },

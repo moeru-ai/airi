@@ -1,21 +1,16 @@
 use log::debug;
-use tauri::Manager;
+use tauri::Result;
 
 #[tauri::command]
-pub async fn open_window(
+pub fn show_window(
   app: tauri::AppHandle,
   label: String,
-) -> Result<(), tauri::Error> {
-  let window = app.get_webview_window(&label);
-  if let Some(window) = window {
-    window.show()
-  } else {
-    Err(tauri::Error::WindowNotFound)
-  }
+) -> Result<()> {
+  crate::utils::get_window(&app, &label)?.show()
 }
 
 #[tauri::command]
-pub fn debug_println(msg: serde_json::Value) -> Result<(), tauri::Error> {
+pub fn debug_println(msg: serde_json::Value) -> Result<()> {
   debug!("{msg}");
   Ok(())
 }

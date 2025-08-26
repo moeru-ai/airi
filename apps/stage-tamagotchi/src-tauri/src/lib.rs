@@ -10,6 +10,7 @@ use tauri_plugin_prevent_default::Flags;
 use tauri_plugin_window_router_link::WindowMatcher;
 
 mod commands;
+mod utils;
 
 fn create_tray_menu(app: &tauri::AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
   let show_item = MenuItem::with_id(app, "show", "Show", true, None::<&str>)?;
@@ -103,8 +104,7 @@ fn on_menu_event(
     },
 
     "settings" => {
-      app
-        .get_webview_window("settings")
+      utils::get_window(app, "settings")
         .unwrap()
         .show()
         .unwrap();
@@ -117,8 +117,7 @@ fn on_menu_event(
         "window-mode.resize" => "tauri-main:main:window-mode:resize",
         _ => unreachable!(),
       };
-      app
-        .get_webview_window("main")
+      utils::get_window(app, "main")
         .unwrap()
         .emit(event, true)
         .unwrap();
@@ -131,23 +130,20 @@ fn on_menu_event(
         "position.bottom-right" => tauri_plugin_positioner::Position::BottomRight,
         _ => unreachable!(),
       };
-      app
-        .get_webview_window("main")
+      utils::get_window(app, "main")
         .unwrap()
         .move_window(pos)
         .unwrap();
     },
 
     "hide" => {
-      app
-        .get_webview_window("main")
+      utils::get_window(app, "main")
         .unwrap()
         .hide()
         .unwrap();
     },
     "show" => {
-      app
-        .get_webview_window("main")
+      utils::get_window(app, "main")
         .unwrap()
         .show()
         .unwrap();
@@ -155,8 +151,7 @@ fn on_menu_event(
 
     #[cfg(debug_assertions)]
     "show-devtools" => {
-      app
-        .get_webview_window("main")
+      utils::get_window(app, "main")
         .unwrap()
         .open_devtools();
     },
@@ -185,20 +180,11 @@ pub fn run() {
     .plugin(tauri_plugin_rdev::init())
     .plugin(tauri_plugin_window_router_link::init(
       WindowMatcher::new()
-        .register("chat", |app, _| {
-          Ok(app.get_webview_window("chat").unwrap())
-        })
-        .register("settings", |app, _| {
-          Ok(app.get_webview_window("settings").unwrap())
-        })
-        .register("onboarding", |app, _| {
-          Ok(app.get_webview_window("onboarding").unwrap())
-        })
+        .register("chat", |app, _| utils::get_window(&app, "chat").map_err(|e| e.into()))
+        .register("settings", |app, _| utils::get_window(&app, "settings").map_err(|e| e.into()))
+        .register("onboarding", |app, _| utils::get_window(&app, "onboarding").map_err(|e| e.into()))
     ))
     .setup(|app| {
-      // Main window is now created declaratively via tauri.conf.json
-      let main_window = app.get_webview_window("main").unwrap();
-
       #[cfg(target_os = "macos")]
       {
         app.set_activation_policy(tauri::ActivationPolicy::Accessory); // hide dock icon
@@ -206,7 +192,7 @@ pub fn run() {
 
       #[cfg(debug_assertions)]
       {
-        main_window.open_devtools();
+        app.get_webview_window("main").unwrap().open_devtools();
         app.handle().plugin(
           tauri_plugin_log::Builder::default()
             .level(log::LevelFilter::Info)
@@ -227,7 +213,7 @@ pub fn run() {
       Ok(())
     })
     .invoke_handler(tauri::generate_handler![
-      commands::open_window,
+      commands::show_window,
       commands::debug_println,
     ])
     .run(tauri::generate_context!())

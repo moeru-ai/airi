@@ -40,8 +40,8 @@ onMounted(async () => {
   await displayModelsStore.loadDisplayModelsFromIndexedDB()
   await settingsStore.initializeStageModel()
 
-  if (!needsOnboarding.value) {
-    invoke('open_window', { label: 'main' })
+  if (needsOnboarding.value) {
+    invoke('show_window', { label: 'onboarding' })
   }
 })
 

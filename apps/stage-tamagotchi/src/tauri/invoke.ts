@@ -6,7 +6,7 @@ export type WindowLabel = 'main' | 'settings' | 'onboarding' | 'chat'
 
 export interface InvokeMethods {
   // app windows
-  'open_window': { args: { label: WindowLabel }, options: undefined, returns: void }
+  'show_window': { args: { label: WindowLabel }, options: undefined, returns: void }
 
   // Plugin - Audio Transcription
   'plugin:ipc-audio-transcription-ort|load_ort_model_whisper': { args: { modelType: 'base' | 'largev3' | 'tiny' | 'medium' }, options: undefined, returns: void }
