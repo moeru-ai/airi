@@ -40,16 +40,12 @@ try {
   const mappedArch: string = archMap[process.arch] ?? process.arch
 
   const linuxdeployUrl = `https://github.com/linuxdeploy/linuxdeploy/releases/download/1-alpha-20250213-2/linuxdeploy-${mappedArch}.AppImage`
-  const gstreamerPluginUrl = 'https://raw.githubusercontent.com/linuxdeploy/linuxdeploy-plugin-gstreamer/refs/heads/master/linuxdeploy-plugin-gstreamer.sh'
 
   const linuxdeployPath = join(tmpDir, `linuxdeploy-${mappedArch}.AppImage`)
-  const gstreamerPluginPath = join(tmpDir, 'linuxdeploy-plugin-gstreamer.sh')
 
   console.log('[AIRI-AppImage] Downloading linuxdeploy and plugin...')
   execSync(`curl -fL -o "${linuxdeployPath}" "${linuxdeployUrl}"`, { stdio: 'inherit' })
   execSync(`chmod +x "${linuxdeployPath}"`, { stdio: 'inherit' })
-  execSync(`curl -fL -o "${gstreamerPluginPath}" "${gstreamerPluginUrl}"`, { stdio: 'inherit' })
-  execSync(`chmod +x "${gstreamerPluginPath}"`, { stdio: 'inherit' })
   // --- Determine host GStreamer path ---
   let hostGstPath = ''
   // 1. Arch-specific path
@@ -81,12 +77,6 @@ try {
     process.exit(1)
   }
 
-  // --- Patch plugin script to use /usr/lib64 if necessary ---
-  if (!existsSync('/usr/lib/gstreamer-1.0') && existsSync('/usr/lib64/gstreamer-1.0')) {
-    console.log('[AIRI-AppImage] Patching gstreamer plugin script for /usr/lib64...')
-    execSync(`sed -i 's|/usr/lib/gstreamer-1.0|/usr/lib64/gstreamer-1.0|g' "${gstreamerPluginPath}"`)
-  }
-
   // --- Environment setup ---
   const env = { ...process.env }
   env.GST_PLUGIN_PATH = hostGstPath
@@ -104,11 +94,9 @@ try {
   env.GST_PLUGIN_SCANNER = `${join(appDir, 'usr', appLibPath, 'gstreamer-1.0', 'gst-plugin-scanner')}`
 
   console.log('[AIRI-AppImage] Fix process starting...')
-  execSync(`${gstreamerPluginPath} --appdir "${appDir}"`, { stdio: 'inherit', env })
   console.log('[AIRI-AppImage] Fix completed.')
 
-  execSync(`${linuxdeployPath} --appdir "${appDir}" --plugin gstreamer`, { stdio: 'inherit', env })
-  execSync(`${linuxdeployPath} --appdir "${appDir}" --output appimage; mv ./AIRI-${mappedArch}.AppImage ${appDir}/../`, { stdio: 'inherit', env })
+  execSync(`${linuxdeployPath} --appdir "${appDir}" --output appimage && mv ./AIRI-${mappedArch}.AppImage ${appDir}/../`, { stdio: 'inherit', env })
 }
 catch (error) {
   console.error('An error occurred during the process:', error)
