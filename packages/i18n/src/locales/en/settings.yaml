@@ -26,19 +26,11 @@ dialogs:
     select-model: Choose model
     no-models: No available models
     no-models-help: Please return to the previous step and check your API key, or check the network connection.
-  language:
+language:
   title: Language
   description: >
     Change the language of the AIRI interface. This will not affect the language
     of the character's responses.
-  options:
-    chinese: 简体中文
-    zh-CN: 简体中文
-    zh-Hans: 简体中文
-    english: English
-    en: English
-    en-US: English (US)
-    es: Spanish
 live2d:
   change-model:
     from-file: Load from File
@@ -603,3 +595,6 @@ vrm:
   theme-color-from-model:
     button-extract:
       title: Extract
+  skybox:
+    skybox-intensity: SkyBox Intensity
+    skybox-specular-mix: Specular Mix

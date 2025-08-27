@@ -1,9 +1,9 @@
 import type { ChatProvider } from '@xsai-ext/shared-providers'
-import type { Message, SystemMessage } from '@xsai/shared-chat'
+import type { CommonContentPart, Message, SystemMessage } from '@xsai/shared-chat'
 
+import type { StreamEvent } from '../stores/llm'
 import type { ChatAssistantMessage, ChatMessage, ChatSlices } from '../types/chat'
 
-import { readableStreamToAsyncIterator } from '@moeru/std'
 import { defineStore, storeToRefs } from 'pinia'
 import { ref, toRaw } from 'vue'
 
@@ -65,25 +65,56 @@ export const useChatStore = defineStore('chat', () => {
     onAssistantResponseEndHooks.value.push(cb)
   }
 
+  // I know this nu uh, better than loading all language on rehypeShiki
+  const codeBlockSystemPrompt = '- For any programming code block, always specify the programming language that supported on @shikijs/rehype on the rendered markdown, eg. ```python ... ```\n'
+  const mathSyntaxSystemPrompt = '- For any math equation, use LaTeX format, eg: $ x^3 $, always escape dollar sign outside math equation\n'
+
   const messages = ref<Array<ChatMessage | ErrorMessage>>([
     {
       role: 'system',
-      content: systemPrompt.value, // TODO: compose, replace {{ user }} tag, etc
+      content: codeBlockSystemPrompt + mathSyntaxSystemPrompt + systemPrompt.value, // TODO: compose, replace {{ user }} tag, etc
     } satisfies SystemMessage,
   ])
 
   const streamingMessage = ref<ChatAssistantMessage>({ role: 'assistant', content: '', slices: [], tool_results: [] })
 
-  async function send(sendingMessage: string, options: { model: string, chatProvider: ChatProvider, providerConfig?: Record<string, unknown> }) {
+  async function send(
+    sendingMessage: string,
+    options: {
+      model: string
+      chatProvider: ChatProvider
+      providerConfig?: Record<string, unknown>
+      attachments?: { type: 'image', data: string, mimeType: string }[]
+    },
+  ) {
     try {
       sending.value = true
 
-      if (!sendingMessage)
+      if (!sendingMessage && !options.attachments?.length)
         return
 
       for (const hook of onBeforeMessageComposedHooks.value) {
         await hook(sendingMessage)
       }
+
+      const contentParts: CommonContentPart[] = [{ type: 'text', text: sendingMessage }]
+
+      if (options.attachments) {
+        for (const attachment of options.attachments) {
+          if (attachment.type === 'image') {
+            contentParts.push({
+              type: 'image_url',
+              image_url: {
+                url: `data:${attachment.mimeType};base64,${attachment.data}`,
+              },
+            })
+          }
+        }
+      }
+
+      const finalContent = contentParts.length > 1 ? contentParts : sendingMessage
+
+      messages.value.push({ role: 'user', content: finalContent })
 
       const parser = useLlmmarkerParser({
         onLiteral: async (literal) => {
@@ -110,16 +141,12 @@ export const useChatStore = defineStore('chat', () => {
             await hook(special)
           }
         },
+        minLiteralEmitLength: 24, // Avoid emitting literals too fast. This is a magic number and can be changed later.
       })
 
-      const slicesQueue = useQueue<ChatSlices>({
+      const toolCallQueue = useQueue<ChatSlices>({
         handlers: [
-          async (ctx) => { // FIXME: it still looks dirty
-            if (ctx.data.type === 'text') {
-              await parser.consume(ctx.data.text)
-              return
-            }
-
+          async (ctx) => {
             if (ctx.data.type === 'tool-call') {
               streamingMessage.value.slices.push(ctx.data)
               return
@@ -133,9 +160,7 @@ export const useChatStore = defineStore('chat', () => {
       })
 
       streamingMessage.value = { role: 'assistant', content: '', slices: [], tool_results: [] }
-      messages.value.push({ role: 'user', content: sendingMessage })
-      messages.value.push(streamingMessage.value)
-      const newMessages = messages.value.slice(0, messages.value.length - 1).map((msg) => {
+      const newMessages = messages.value.map((msg) => {
         if (msg.role === 'assistant') {
           const { slices: _, ...rest } = msg // exclude slices
           rest.tool_results = toRaw(rest.tool_results)
@@ -152,57 +177,62 @@ export const useChatStore = defineStore('chat', () => {
         await hook(sendingMessage)
       }
 
+      let fullText = ''
       const headers = (options.providerConfig?.headers || {}) as Record<string, string>
-      const res = await stream(options.model, options.chatProvider, newMessages as Message[], {
+
+      await stream(options.model, options.chatProvider, newMessages as Message[], {
         headers,
-        onToolCall(toolCall) {
-          slicesQueue.add({
-            type: 'tool-call',
-            toolCall,
-          })
-        },
-        onToolCallResult(toolCallResult) {
-          slicesQueue.add({
-            type: 'tool-call-result',
-            id: toolCallResult.id,
-            result: toolCallResult.result,
-          })
+        async onStreamEvent(event: StreamEvent) {
+          if (event.type === 'tool-call') {
+            toolCallQueue.add({
+              type: 'tool-call',
+              toolCall: event,
+            })
+          }
+          else if (event.type === 'tool-result') {
+            toolCallQueue.add({
+              type: 'tool-call-result',
+              id: event.toolCallId,
+              result: event.result,
+            })
+          }
+          else if (event.type === 'text-delta') {
+            fullText += event.text
+            await parser.consume(event.text)
+          }
+          else if (event.type === 'finish') {
+            // Finalize the parsing of the actual message content
+            await parser.end()
+
+            // Add the completed message to the history only if it has content
+            if (streamingMessage.value.slices.length > 0)
+              messages.value.push(toRaw(streamingMessage.value))
+
+            // Reset the streaming message for the next turn
+            streamingMessage.value = { role: 'assistant', content: '', slices: [], tool_results: [] }
+
+            // Instruct the TTS pipeline to flush by calling hooks directly
+            const flushSignal = `${TTS_FLUSH_INSTRUCTION}${TTS_FLUSH_INSTRUCTION}`
+            for (const hook of onTokenLiteralHooks.value)
+              await hook(flushSignal)
+
+            // Call the end-of-stream hooks
+            for (const hook of onStreamEndHooks.value)
+              await hook()
+
+            // Call the end-of-response hooks with the full text
+            for (const hook of onAssistantResponseEndHooks.value)
+              await hook(fullText)
+
+            // eslint-disable-next-line no-console
+            console.debug('LLM output:', fullText)
+          }
         },
       })
 
       for (const hook of onAfterSendHooks.value) {
         await hook(sendingMessage)
       }
-
-      let fullText = ''
-
-      for await (const textPart of readableStreamToAsyncIterator(res.textStream)) {
-        slicesQueue.add({
-          type: 'text',
-          text: textPart,
-        })
-        fullText += textPart
-      }
-
-      // Instruct the TTS pipeline to flush
-      // 2x TTS_FLUSH_INSTRUCTION tokens are used:
-      // - One should be left in the grapheme cluster reader
-      // - The other should be left in the TTS chunking reader
-      // Because both readers will never be closed in the lifecycle of the app
-      slicesQueue.add({ type: 'text', text: `${TTS_FLUSH_INSTRUCTION}${TTS_FLUSH_INSTRUCTION}` })
-
-      await parser.end()
-
-      for (const hook of onStreamEndHooks.value) {
-        await hook()
-      }
-
-      for (const hook of onAssistantResponseEndHooks.value) {
-        await hook(fullText)
-      }
-
-      // eslint-disable-next-line no-console
-      console.debug('LLM output:', fullText)
     }
     catch (error) {
       console.error('Error sending message:', error)

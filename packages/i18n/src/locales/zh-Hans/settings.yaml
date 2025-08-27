@@ -27,14 +27,6 @@ dialogs:
 language:
   title: 语言
   description: 切换显示界面的语言
-  options:
-    chinese: 简体中文
-    english: English
-    zh-Hans: 简体中文
-    zh-CN: 中文
-    en-US: English (US)
-    en: English
-    es: Spanish
 live2d:
   change-model:
     from-file: 从文件加载
@@ -570,3 +562,6 @@ vrm:
   theme-color-from-model:
     button-extract:
       title: 提取
+  skybox:
+    skybox-intensity: 天空盒光照强度
+    skybox-specular-mix: 漫反射/镜面反射混合系数

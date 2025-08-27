@@ -8,7 +8,7 @@ import { useI18n } from 'vue-i18n'
 const chatHistoryRef = ref<HTMLDivElement>()
 
 const { t } = useI18n()
-const { messages, sending } = storeToRefs(useChatStore())
+const { messages, sending, streamingMessage } = storeToRefs(useChatStore())
 
 const { onBeforeMessageComposed, onTokenLiteral } = useChatStore()
 
@@ -102,6 +102,33 @@ onTokenLiteral(async () => {
             />
             <div v-else />
           </div>
+        </div>
+      </div>
+      <div v-if="streamingMessage.content" flex mr="12">
+        <div
+          flex="~ col" border="2 solid primary-200/50 dark:primary-500/50" shadow="md primary-200/50 dark:none" min-w-20
+          rounded-lg px-2 py-1 h="unset <sm:fit" bg="<md:primary-500/25"
+        >
+          <div>
+            <span text-xs text="primary-400/90 dark:primary-600/90" font-normal class="inline <sm:hidden">{{ t('stage.chat.message.character-name.airi') }}</span>
+          </div>
+          <div v-if="streamingMessage.content" class="break-words" text="xs primary-400">
+            <div v-for="(slice, sliceIndex) in streamingMessage.slices" :key="sliceIndex">
+              <div v-if="slice.type === 'tool-call'">
+                <div
+                  p="1" border="1 solid primary-200" rounded-lg m="y-1" bg="primary-100"
+                >
+                  Called: <code>{{ slice.toolCall.toolName }}</code>
+                </div>
+              </div>
+              <div v-else-if="slice.type === 'tool-call-result'" /> <!-- this line should be unreachable -->
+              <MarkdownRenderer
+                v-else
+                :content="slice.text"
+              />
+            </div>
+          </div>
+          <div v-else i-eos-icons:three-dots-loading />
         </div>
       </div>
     </div>
