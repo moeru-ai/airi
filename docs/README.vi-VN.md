@@ -57,10 +57,10 @@ Do đó, dự án AIRI mang đến một lựa chọn khác: **cho phép bạn s
 ## DevLogs Đã Đăng & Cập Nhật Gần Đây
 
 - [DevLog @ 2025.07.18](https://airi.moeru.ai/docs/blog/DevLog-2025.07.18/) ngày 18 tháng 7, 2025
-- [DreamLog 0x1](https://airi.moeru.ai/docs/blog/dreamlog-0x1/) ngày 16 tháng 6, 2025  
-- [DevLog @ 2025.06.08](https://airi.moeru.ai/docs/blog/DevLog-2025.06.08/) ngày 8 tháng 6, 2025  
-- [DevLog @ 2025.05.16](https://airi.moeru.ai/docs/blog/DevLog-2025.05.16/) ngày 16 tháng 5, 2025  
-- ...xem thêm tại [docs page](https://airi.moeru.ai/docs)  
+- [DreamLog 0x1](https://airi.moeru.ai/docs/blog/dreamlog-0x1/) ngày 16 tháng 6, 2025
+- [DevLog @ 2025.06.08](https://airi.moeru.ai/docs/blog/DevLog-2025.06.08/) ngày 8 tháng 6, 2025
+- [DevLog @ 2025.05.16](https://airi.moeru.ai/docs/blog/DevLog-2025.05.16/) ngày 16 tháng 5, 2025
+- ...xem thêm tại [docs page](https://airi.moeru.ai/docs)
 
 ## Dự Án Này Có Gì Đặc Biệt?
 
@@ -77,9 +77,9 @@ Khác với các dự án VTuber AI mã nguồn mở khác, **アイリ** đư�
 > Chúng tôi vẫn đang ở giai đoạn đầu phát triển và tìm kiếm nhà phát triển tài năng để cùng hiện thực hoá アイリ.
 >
 > Không sao nếu bạn chưa quen Vue.js, TypeScript, hay devtools của dự án này, bạn vẫn có thể tham gia với vai trò hoạ sĩ, nhà thiết kế, hoặc giúp chúng tôi tổ chức buổi livestream đầu tiên.
-> 
+>
 > Kể cả bạn là fan của React, Svelte hay Solid, chúng tôi vẫn chào đón. Bạn có thể mở thư mục phụ để thêm tính năng mà bạn muốn thử nghiệm cho アイリ.
-> 
+>
 > Các mảng (và dự án liên quan) chúng tôi cần:
 > - Live2D modeller
 > - VRM modeller
@@ -94,7 +94,7 @@ Khác với các dự án VTuber AI mã nguồn mở khác, **アイリ** đư�
 > - WebGPU
 > - Three.js
 > - WebXR ([xem thêm dự án khác](https://github.com/moeru-ai/chat) của tổ chức @moeru-ai)
-> 
+>
 > **Nếu bạn hứng thú, hãy giới thiệu bản thân ở đây: [Muốn tham gia cùng chúng tôi xây dựng AIRI?](https://github.com/moeru-ai/airi/discussions/33)**
 
 ## Tiến Độ Hiện Tại
