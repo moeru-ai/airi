@@ -238,51 +238,42 @@ if (import.meta.hot) { // For better DX
   <div
     :class="[modeIndicatorClass, {
       'op-0': windowControlStore.isIgnoringMouseEvent && !isClickThrough && !isFirstTime,
-      'pointer-events-none': isClickThrough && !isOverUI,
     }]"
-    max-h="[100vh]"
-    max-w="[100vw]"
-    flex="~ col"
-    relative z-2 h-full overflow-hidden rounded-xl
-    transition="opacity duration-500 ease-in-out"
+    class="relative z-2 h-full max-h-[100vh] max-w-[100vw] flex flex-col overflow-hidden rounded-xl transition-opacity duration-500 ease-in-out"
   >
-    <div relative h-full w-full items-end gap-2 class="view">
+    <div class="view relative h-full w-full items-end gap-2">
       <WidgetStage
         ref="widgetStageRef"
-        h-full w-full flex-1
-        :focus-at="live2dFocusAt" :scale="scale"
+        :focus-at="live2dFocusAt"
+        :scale="scale"
         :x-offset="positionInPercentageString.x"
-        :y-offset="positionInPercentageString.y" mb="<md:18"
+        :y-offset="positionInPercentageString.y"
+        class="mb-<md:18 h-full w-full flex-1"
       />
-      <ResourceStatusIsland ref="resourceStatusIslandRef" />
+      <ResourceStatusIsland />
       <div
         ref="buttonsContainerRef"
-        absolute bottom-4 left-4 flex gap-1 op-0 transition="opacity duration-500"
+        class="absolute bottom-4 left-4 flex gap-1 op-0 transition-opacity duration-500"
         :class="{
           'pointer-events-none': isClickThrough && !isOverUI,
           'show-on-hover': !windowControlStore.isIgnoringMouseEvent && (!isClickThrough || isOverUI),
         }"
       >
         <div
-          border="solid 2 primary-100 "
-          text="lg primary-400 hover:primary-600  placeholder:primary-400 placeholder:hover:primary-600"
-          bg="primary-50 dark:primary-50" max-h="[10lh]" min-h="[1lh]"
-          flex cursor-pointer items-center justify-center rounded-l-xl p-4 transition-colors
+          class="max-h-[10lh] min-h-[1lh] flex cursor-pointer items-center justify-center border-2 border-primary-100 rounded-l-xl border-solid bg-primary-50 p-4 text-lg text-primary-400 transition-colors dark:bg-primary-50 hover:text-primary-600 placeholder:text-primary-400 placeholder:hover:text-primary-600"
           @click="openChat"
         >
           <div i-solar:chat-line-bold-duotone />
         </div>
         <div
-          border="solid 2 primary-100 "
-          text="lg primary-400 hover:primary-600  placeholder:primary-400 placeholder:hover:primary-600"
-          bg="primary-50 dark:primary-50" max-h="[10lh]" min-h="[1lh]"
-          flex cursor-pointer items-center justify-center rounded-r-xl p-4 transition-colors
+          class="max-h-[10lh] min-h-[1lh] flex cursor-pointer items-center justify-center border-2 border-primary-100 rounded-r-xl border-solid bg-primary-50 p-4 text-lg text-primary-400 transition-colors dark:bg-primary-50 hover:text-primary-600 placeholder:text-primary-400 placeholder:hover:text-primary-600"
           @click="openSettings"
         >
           <div i-solar:settings-bold-duotone />
         </div>
       </div>
     </div>
+    <div v-if="windowControlStore.controlMode === WindowControlMode.DEBUG" class="debug-controls" />
   </div>
   <Transition
     enter-active-class="transition-opacity duration-250"
@@ -299,7 +290,8 @@ if (import.meta.hot) { // For better DX
     >
       <div
         class="absolute h-32 w-full flex items-center justify-center overflow-hidden rounded-xl"
-        bg="white/80 dark:neutral-950/80" backdrop-blur="md"
+        bg="white/80 dark:neutral-950/80"
+        backdrop-blur="md"
       >
         <div class="wall absolute top-0 h-8" />
         <div data-tauri-drag-region class="absolute left-0 top-0 h-full w-full flex animate-flash animate-duration-5s animate-count-infinite select-none items-center justify-center text-1.5rem text-primary-400 font-normal">
@@ -321,7 +313,7 @@ if (import.meta.hot) { // For better DX
       v-if="windowControlStore.controlMode === WindowControlMode.RESIZE"
       class="absolute left-0 top-0 z-999 h-full w-full"
     >
-      <div h-full w-full animate-flash animate-duration-2.5s animate-count-infinite b-4 b-primary rounded-2xl />
+      <div class="h-full w-full animate-flash animate-duration-2.5s animate-count-infinite b-4 b-primary rounded-2xl" />
     </div>
   </Transition>
 </template>
