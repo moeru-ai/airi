@@ -1,0 +1,30 @@
+name: Migrate Issue Types
+
+on:
+  workflow_dispatch:
+
+jobs:
+  migrate-issue-types:
+    runs-on: ubuntu-latest
+
+    permissions:
+      issues: write
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Install dependencies
+        run: pnpm ci --ignore-scripts
+
+      - name: Run issue type migration
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: pnpm tsx .github/workflows/migrate-issue-types.ts

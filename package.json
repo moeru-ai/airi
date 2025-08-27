@@ -41,6 +41,7 @@
     "@antfu/ni": "^25.0.0",
     "@arethetypeswrong/core": "^0.18.2",
     "@iconify/utils": "^2.3.0",
+    "@octokit/rest": "^22.0.0",
     "@proj-airi/unocss-preset-chromatic": "^1.0.0",
     "@types/node": "^24.1.0",
     "@unocss/eslint-config": "^66.3.3",
