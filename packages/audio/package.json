@@ -58,6 +58,6 @@
   "devDependencies": {
     "@moeru/std": "catalog:",
     "@types/audioworklet": "^0.0.82",
-    "vite": "^7.0.6"
+    "vite": "^7.1.3"
   }
 }

@@ -27,10 +27,10 @@
     "build": "pkgroll"
   },
   "dependencies": {
-    "@tauri-apps/api": "^2.7.0"
+    "@tauri-apps/api": "^2.8.0"
   },
   "devDependencies": {
-    "pkgroll": "^2.15.0"
+    "pkgroll": "^2.15.3"
   },
   "publishConfig": {
     "exports": {
