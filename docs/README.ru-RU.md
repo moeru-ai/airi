@@ -33,7 +33,7 @@
   <a href="https://www.producthunt.com/products/airi?embed=true&utm_source=badge-featured&utm_medium=badge&utm_source=badge-airi" target="_blank"><img src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=993524&theme=neutral&t=1752696535380" alt="AIRI - A&#0032;container&#0032;of&#0032;cyber&#0032;living&#0032;souls&#0044;&#0032;re&#0045;creation&#0032;of&#0032;Neuro&#0045;sama | Product Hunt" style="width: 250px; height: 54px;" width="250" height="54" /></a>
   <a href="https://trendshift.io/repositories/14636" target="_blank"><img src="https://trendshift.io/api/badge/repositories/14636" alt="moeru-ai%2Fairi | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
 </p>
-<p>  <strong>Руководство от сообщества:</strong> Для более подробного пошагового руководства по настройке, включая получение ключей API и настройку среды, ознакомьтесь с этим замечательным <a href="https://docs.google.com/document/d/1AGs3Br_6mMbyQykbmSilczg4I56U6LTO-E9D3_Szk_I/edit?tab=t.0">руководством, написанным сообществом</a>.</p>
+<strong>Руководство от сообщества:</strong> Для более подробного пошагового руководства по настройке, включая получение ключей API и настройку среды, ознакомьтесь с этим замечательным <a href="https://docs.google.com/document/d/1AGs3Br_6mMbyQykbmSilczg4I56U6LTO-E9D3_Szk_I/edit?tab=t.0">руководством, написанным сообществом</a>.</p>
 > Сильно вдохновлено [Neuro-sama](https://www.youtube.com/@Neurosama)
 
 > [!WARNING]
@@ -57,10 +57,10 @@
 ## Журналы разработки, которые мы опубликовали, и последние обновления
 
 - [DevLog @ 2025.07.18](https://airi.moeru.ai/docs/blog/DevLog-2025.07.18/) от 18 июля 2025 г.
-- [DreamLog 0x1](https://airi.moeru.ai/docs/blog/dreamlog-0x1/)от 16 июня 2025 г.
+- [DreamLog 0x1](https://airi.moeru.ai/docs/blog/dreamlog-0x1/) от 16 июня 2025 г.
 - [DevLog @ 2025.06.08](https://airi.moeru.ai/docs/blog/DevLog-2025.06.08/) от 8 июня 2025 г.
 - [DevLog @ 2025.05.16](https://airi.moeru.ai/docs/blog/DevLog-2025.05.16/) от 16 мая 2025 г.
-- ...больше на[сайте документации](https://airi.moeru.ai/docs)
+- ...больше на [сайте документации](https://airi.moeru.ai/docs)
 
 ## Что такого особенного в этом проекте?
 
@@ -98,7 +98,7 @@
 > - Three.js
 > - WebXR ([проверьте другой проект](https://github.com/moeru-ai/chat), который у нас есть в организации @moeru-ai)
 >
-> **Если вы заинтересованы, почему бы не представить себя здесь? [Если вы заинтересованы, почему бы не представить себя здесь?](https://github.com/moeru-ai/airi/discussions/33)**
+> **Если вы заинтересованы, почему бы не представить себя здесь? [Хотите присоединиться к нам в создании AIRI？](https://github.com/moeru-ai/airi/discussions/33)**
 
 ## Текущий прогресс
 
@@ -139,12 +139,12 @@
 
 ## Разработка
 
-> Для подробных инструкций по разработке этого проекта следуйте [CONTRIBUTING.md](./.github/CONTRIBUTING.md)
+> Для подробных инструкций по разработке этого проекта следуйте [CONTRIBUTING.md](../.github/CONTRIBUTING.md)
 
 > [!NOTE]
 > По умолчанию `pnpm dev` запустит сервер разработки для Stage Web (версия для браузера).
 > Если вы хотите попробовать разработку десктопной версии, пожалуйста, убедитесь,
-> что вы прочитали [CONTRIBUTING.md](./.github/CONTRIBUTING.md), чтобы правильно настроить среду.
+> что вы прочитали [CONTRIBUTING.md](../.github/CONTRIBUTING.md), чтобы правильно настроить среду.
 
 
 ```shell
@@ -215,7 +215,7 @@ npx bumpp --no-commit --no-tag
 - [ ] [Sparks](https://www.xfyun.cn/doc/spark/Web.html) (PR welcome)
 - [ ] [Volcano Engine](https://www.volcengine.com/experience/ark?utm_term=202502dsinvite&ac=DSASUQY5&rc=2QXCA1VI) (PR welcome)
 
-## Подпроекты, родившиеся из этого проекта•
+## Подпроекты, родившиеся из этого проекта
 
 - [Awesome AI VTuber](https://github.com/proj-airi/awesome-ai-vtuber): Курируемый список AI VTuber и связанных проектов
 - [`unspeech`](https://github.com/moeru-ai/unspeech): Универсальный прокси-сервер конечной точки для `/audio/transcriptions` and `/audio/speech`, как LiteLLM, но для любого ASR и TTS
@@ -329,7 +329,7 @@ flowchart TD
 
 ### С открытым исходным кодом
 
-- [kimjammer/Neuro: A recreation of Neuro-Sama originally created in 7 days.](https://github.com/kimjammer/Neuro): С открытым исходным кодом.
+- [kimjammer/Neuro: A recreation of Neuro-Sama originally created in 7 days.](https://github.com/kimjammer/Neuro): очень качественная реализация.
 - [SugarcaneDefender/z-waif](https://github.com/SugarcaneDefender/z-waif): Отлично в играх, автономности и инженерии промптов.
 - [semperai/amica](https://github.com/semperai/amica/): Отлично в VRM, WebXR
 - [elizaOS/eliza](https://github.com/elizaOS/eliza): Отличные примеры и инженерия ПО по интеграции агента в различные системы и API.
