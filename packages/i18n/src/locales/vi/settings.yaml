@@ -250,8 +250,8 @@ pages:
       title: Máy chủ MCP
   providers:
     explained:
-      chat: Nhà cung cấp mô hình tạo văn bản. Ví dụ: OpenRouter, OpenAI, Ollama.
-      Speech: Nhà cung cấp mô hình giọng nói (text-to-speech). Ví dụ: ElevenLabs, Azure Speech.
+      chat: 'Nhà cung cấp mô hình tạo văn bản. Ví dụ: OpenRouter, OpenAI, Ollama.'
+      Speech: 'Nhà cung cấp mô hình giọng nói (text-to-speech). Ví dụ: ElevenLabs, Azure Speech.'
       Transcription: >-
         Nhà cung cấp mô hình chuyển giọng nói thành văn bản. Ví dụ: Whisper.cpp,
         OpenAI, Azure Speech
