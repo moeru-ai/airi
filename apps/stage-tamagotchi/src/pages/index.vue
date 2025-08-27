@@ -105,7 +105,7 @@ watchThrottled([mouseX, mouseY], async ([x, y]) => {
       const pixelX = relativeX * (gl.drawingBufferWidth / canvas.clientWidth)
       const pixelY
       = gl.drawingBufferHeight
-      - relativeY * (gl.drawingBufferHeight / canvas.clientHeight)
+        - relativeY * (gl.drawingBufferHeight / canvas.clientHeight)
       const data = new Uint8Array(4)
       gl.readPixels(
         Math.floor(pixelX),
@@ -118,7 +118,8 @@ watchThrottled([mouseX, mouseY], async ([x, y]) => {
       )
       isTransparent = data[3] < 100 // Use a small threshold for anti-aliasing
     }
-  } else {
+  }
+  else {
     isTransparent = true
   }
 
@@ -135,7 +136,8 @@ watchThrottled([mouseX, mouseY], async ([x, y]) => {
   if (isTransparent && !isPassingThrough.value) {
     passThroughCommands.startPassThrough()
     isPassingThrough.value = true
-  } else if (!isTransparent && isPassingThrough.value) {
+  }
+  else if (!isTransparent && isPassingThrough.value) {
     passThroughCommands.stopPassThrough()
     isPassingThrough.value = false
   }
@@ -240,6 +242,7 @@ if (import.meta.hot) { // For better DX
   <div
     :class="[modeIndicatorClass, {
       'op-0': windowControlStore.isIgnoringMouseEvent && !isClickThrough && !isFirstTime,
+      'pointer-events-none': isClickThrough && !isOverUI,
     }]"
     max-h="[100vh]"
     max-w="[100vw]"
@@ -284,8 +287,7 @@ if (import.meta.hot) { // For better DX
         </div>
       </div>
     </div>
-    <div v-if="windowControlStore.controlMode === WindowControlMode.DEBUG" class="debug-controls">
-      </div>
+    <div v-if="windowControlStore.controlMode === WindowControlMode.DEBUG" class="debug-controls" />
   </div>
   <Transition
     enter-active-class="transition-opacity duration-250"
