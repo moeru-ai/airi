@@ -1,0 +1,10 @@
+operations:
+  load-models: Загрузить модели
+  load-models-status:
+    loading: Загрузка
+    ready: Готово
+docs:
+  theme:
+    navbar:
+      appearance:
+        title: Внешний вид

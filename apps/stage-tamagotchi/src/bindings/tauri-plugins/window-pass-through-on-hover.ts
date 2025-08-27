@@ -4,40 +4,25 @@
 
 /** user-defined commands **/
 
-let passThroughEnabled = false;
 
 export const commands = {
-  async startPassThrough(): Promise<Result<null, string>> {
-    if (passThroughEnabled) {
-      return { status: 'ok', data: null };
-    }
+async startPassThrough() : Promise<Result<null, string>> {
     try {
-      passThroughEnabled = true;
-      return { status: 'ok', data: await TAURI_INVOKE('plugin:window-pass-through-on-hover|start_pass_through') };
-    }
-    catch (e) {
-      passThroughEnabled = false;
-      if (e instanceof Error)
-        throw e;
-      else return { status: 'error', error: e as any };
-    }
-  },
-  async stopPassThrough(): Promise<Result<null, string>> {
-    if (!passThroughEnabled) {
-      return { status: 'ok', data: null };
-    }
+    return { status: "ok", data: await TAURI_INVOKE("plugin:window-pass-through-on-hover|start_pass_through") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async stopPassThrough() : Promise<Result<null, string>> {
     try {
-      passThroughEnabled = false;
-      return { status: 'ok', data: await TAURI_INVOKE('plugin:window-pass-through-on-hover|stop_pass_through') };
-    }
-    catch (e) {
-      passThroughEnabled = true;
-      if (e instanceof Error)
-        throw e;
-      else return { status: 'error', error: e as any };
-    }
-  }
-};
+    return { status: "ok", data: await TAURI_INVOKE("plugin:window-pass-through-on-hover|stop_pass_through") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+}
+}
 
 /** user-defined events **/
 

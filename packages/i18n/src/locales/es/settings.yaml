@@ -29,15 +29,6 @@ language:
   description: >
     Cambia el idioma de la interfaz de AIRI. Esto no afectará el idioma
     de las respuestas del personaje.
-  options:
-    chinese: 简体中文
-    zh-CN: 简体中文
-    zh-Hans: 简体中文
-    english: English
-    en: English
-    en-US: English (US)
-    spanish: Español
-    es: Español
 live2d:
   change-model:
     from-file: Cargar desde Archivo

@@ -36,7 +36,7 @@ export interface WindowFrame {
 
 interface Events {
   'tauri://resize': unknown
-  'tauri://move': { payload: { x: number, y: number } }
+  'tauri://move': { x: number, y: number }
   'tauri://close-requested': unknown
   'tauri://destroyed': unknown
   'tauri://focus': unknown
