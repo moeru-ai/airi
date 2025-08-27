@@ -35,16 +35,16 @@
 
 > Lấy cảm hứng mạnh mẽ từ [Neuro-sama](https://www.youtube.com/@Neurosama)
 
-> [!WARNING]  
+> [!WARNING]
 > **Chú ý:** Chúng tôi **không** phát hành bất kỳ loại tiền điện tử hay token chính thức nào liên quan đến dự án này. Hãy kiểm tra kỹ thông tin trước khi tham gia.
 
-> [!NOTE]  
-> Chúng tôi có cả một tổ chức riêng [@proj-airi](https://github.com/proj-airi) cho các dự án con xuất phát từ AIRI. Hãy xem qua nhé!  
+> [!NOTE]
+> Chúng tôi có cả một tổ chức riêng [@proj-airi](https://github.com/proj-airi) cho các dự án con xuất phát từ AIRI. Hãy xem qua nhé!
 > Bao gồm: RAG, hệ thống bộ nhớ, cơ sở dữ liệu nhúng, icon, tiện ích Live2D, và nhiều hơn nữa.
 
 Bạn đã từng mơ về một thực thể số sống động (cyber-waifu / husbando, thú cưng ảo) hay một bạn đồng hành kỹ thuật số có thể chơi cùng và trò chuyện với bạn chưa?
 
-Với sức mạnh của các mô hình LLM (ngôn ngữ lớn) hiện nay như [ChatGPT](https://chatgpt.com) hay [Claude](https://claude.ai), việc yêu cầu nhân vật ảo nhập vai và trò chuyện với chúng ta đã trở nên rất dễ dàng. Các nền tảng như [Character.ai](https://character.ai), [JanitorAI](https://janitorai.com/) hay bản cài tự host như [SillyTavern](https://github.com/SillyTavern/SillyTavern) đã đủ tốt cho trải nghiệm trò chuyện và nhập vai.  
+Với sức mạnh của các mô hình LLM (ngôn ngữ lớn) hiện nay như [ChatGPT](https://chatgpt.com) hay [Claude](https://claude.ai), việc yêu cầu nhân vật ảo nhập vai và trò chuyện với chúng ta đã trở nên rất dễ dàng. Các nền tảng như [Character.ai](https://character.ai), [JanitorAI](https://janitorai.com/) hay bản cài tự host như [SillyTavern](https://github.com/SillyTavern/SillyTavern) đã đủ tốt cho trải nghiệm trò chuyện và nhập vai.
 
 > Nhưng còn việc **chơi game cùng bạn, xem bạn code, trò chuyện khi chơi game hoặc xem video, và làm được nhiều việc khác** thì sao?
 
@@ -56,7 +56,7 @@ Do đó, dự án AIRI mang đến một lựa chọn khác: **cho phép bạn s
 
 ## DevLogs Đã Đăng & Cập Nhật Gần Đây
 
-- [DevLog @ 2025.07.18](https://airi.moeru.ai/docs/blog/DevLog-2025.07.18/) ngày 18 tháng 7, 2025  
+- [DevLog @ 2025.07.18](https://airi.moeru.ai/docs/blog/DevLog-2025.07.18/) ngày 18 tháng 7, 2025
 - [DreamLog 0x1](https://airi.moeru.ai/docs/blog/dreamlog-0x1/) ngày 16 tháng 6, 2025  
 - [DevLog @ 2025.06.08](https://airi.moeru.ai/docs/blog/DevLog-2025.06.08/) ngày 8 tháng 6, 2025  
 - [DevLog @ 2025.05.16](https://airi.moeru.ai/docs/blog/DevLog-2025.05.16/) ngày 16 tháng 5, 2025  
@@ -66,36 +66,36 @@ Do đó, dự án AIRI mang đến một lựa chọn khác: **cho phép bạn s
 
 Khác với các dự án VTuber AI mã nguồn mở khác, **アイリ** được xây dựng ngay từ đầu với sự hỗ trợ của nhiều công nghệ Web như [WebGPU](https://www.w3.org/TR/webgpu/), [WebAudio](https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API), [Web Workers](https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API/Using_web_workers), [WebAssembly](https://webassembly.org/), [WebSocket](https://developer.mozilla.org/en-US/docs/Web/API/WebSocket), v.v.
 
-> [!TIP]  
-> Bạn lo lắng về hiệu năng khi chúng tôi dùng công nghệ Web?  
->  
+> [!TIP]
+> Bạn lo lắng về hiệu năng khi chúng tôi dùng công nghệ Web?
+>
 > Đừng lo, phiên bản chạy trên trình duyệt chỉ nhằm minh hoạ khả năng có thể đạt được trong browser và webview. Phiên bản desktop của AIRI mặc định có thể dùng [NVIDIA CUDA](https://developer.nvidia.com/cuda-toolkit) và [Apple Metal](https://developer.apple.com/metal/) (nhờ HuggingFace & dự án [candle](https://github.com/huggingface/candle)), mà không cần quản lý phụ thuộc phức tạp. Đồ hoạ, bố cục, animation, và hệ thống plugin (WIP) vẫn tận dụng công nghệ Web để mở rộng dễ dàng.
 
 Điều này có nghĩa là **アイリ có thể chạy trên các trình duyệt và thiết bị hiện đại**, kể cả thiết bị di động (đã hỗ trợ PWA). Điều này mở ra nhiều khả năng để chúng tôi (nhà phát triển) nâng VTuber アイリ lên tầm cao mới, đồng thời vẫn để người dùng linh hoạt bật các tính năng cần TCP hoặc công nghệ ngoài Web như kết nối kênh thoại Discord hay chơi Minecraft, Factorio với bạn bè.
 
-> [!NOTE]  
-> Chúng tôi vẫn đang ở giai đoạn đầu phát triển và tìm kiếm nhà phát triển tài năng để cùng hiện thực hoá アイリ.  
->  
-> Không sao nếu bạn chưa quen Vue.js, TypeScript, hay devtools của dự án này, bạn vẫn có thể tham gia với vai trò hoạ sĩ, nhà thiết kế, hoặc giúp chúng tôi tổ chức buổi livestream đầu tiên.  
->  
-> Kể cả bạn là fan của React, Svelte hay Solid, chúng tôi vẫn chào đón. Bạn có thể mở thư mục phụ để thêm tính năng mà bạn muốn thử nghiệm cho アイリ.  
->  
-> Các mảng (và dự án liên quan) chúng tôi cần:  
-> - Live2D modeller  
-> - VRM modeller  
-> - Nhà thiết kế avatar VRChat  
-> - Thị giác máy tính  
-> - Học tăng cường (Reinforcement Learning)  
-> - Nhận diện giọng nói  
-> - Tổng hợp giọng nói  
-> - ONNX Runtime  
-> - Transformers.js  
-> - vLLM  
-> - WebGPU  
-> - Three.js  
-> - WebXR ([xem thêm dự án khác](https://github.com/moeru-ai/chat) của tổ chức @moeru-ai)  
->  
-> **Nếu bạn hứng thú, hãy giới thiệu bản thân ở đây: [Muốn tham gia cùng chúng tôi xây dựng AIRI?](https://github.com/moeru-ai/airi/discussions/33)**  
+> [!NOTE]
+> Chúng tôi vẫn đang ở giai đoạn đầu phát triển và tìm kiếm nhà phát triển tài năng để cùng hiện thực hoá アイリ.
+>
+> Không sao nếu bạn chưa quen Vue.js, TypeScript, hay devtools của dự án này, bạn vẫn có thể tham gia với vai trò hoạ sĩ, nhà thiết kế, hoặc giúp chúng tôi tổ chức buổi livestream đầu tiên.
+> 
+> Kể cả bạn là fan của React, Svelte hay Solid, chúng tôi vẫn chào đón. Bạn có thể mở thư mục phụ để thêm tính năng mà bạn muốn thử nghiệm cho アイリ.
+> 
+> Các mảng (và dự án liên quan) chúng tôi cần:
+> - Live2D modeller
+> - VRM modeller
+> - Nhà thiết kế avatar VRChat
+> - Thị giác máy tính
+> - Học tăng cường (Reinforcement Learning)
+> - Nhận diện giọng nói
+> - Tổng hợp giọng nói
+> - ONNX Runtime
+> - Transformers.js
+> - vLLM
+> - WebGPU
+> - Three.js
+> - WebXR ([xem thêm dự án khác](https://github.com/moeru-ai/chat) của tổ chức @moeru-ai)
+> 
+> **Nếu bạn hứng thú, hãy giới thiệu bản thân ở đây: [Muốn tham gia cùng chúng tôi xây dựng AIRI?](https://github.com/moeru-ai/airi/discussions/33)**
 
 ## Tiến Độ Hiện Tại
 
@@ -103,42 +103,42 @@ Khác với các dự án VTuber AI mã nguồn mở khác, **アイリ** đư�
 
 Khả năng:
 
-- [x] Bộ não  
-  - [x] Chơi game: [Minecraft](https://www.minecraft.net)  
-  - [x] Chơi game: [Factorio](https://www.factorio.com) (WIP, [PoC và demo có sẵn](https://github.com/moeru-ai/airi-factorio))  
-  - [x] Trò chuyện trên [Telegram](https://telegram.org)  
-  - [x] Trò chuyện trên [Discord](https://discord.com)  
-  - [ ] Bộ nhớ  
-    - [x] Hỗ trợ CSDL trong trình duyệt (DuckDB WASM | `pglite`)  
-    - [ ] Memory Alaya (WIP)  
-  - [ ] Suy luận cục bộ trong trình duyệt (WebGPU)  
+- [x] Bộ não
+  - [x] Chơi game: [Minecraft](https://www.minecraft.net)
+  - [x] Chơi game: [Factorio](https://www.factorio.com) (WIP, [PoC và demo có sẵn](https://github.com/moeru-ai/airi-factorio))
+  - [x] Trò chuyện trên [Telegram](https://telegram.org)
+  - [x] Trò chuyện trên [Discord](https://discord.com)
+  - [ ] Bộ nhớ
+    - [x] Hỗ trợ CSDL trong trình duyệt (DuckDB WASM | `pglite`)
+    - [ ] Memory Alaya (WIP)
+  - [ ] Suy luận cục bộ trong trình duyệt (WebGPU)
 - [x] Khả năng nghe hiểu
-  - [x] Nhận âm thanh từ trình duyệt  
-  - [x] Nhận âm thanh từ [Discord](https://discord.com)  
-  - [x] Nhận diện giọng nói phía client  
-  - [x] Phát hiện nói chuyện phía client  
-- [x] Giọng nói  
-  - [x] Tổng hợp giọng nói bằng [ElevenLabs](https://elevenlabs.io/)  
-- [x] Cơ thể  
-  - [x] Hỗ trợ VRM  
-    - [x] Điều khiển model VRM  
-  - [x] Animation cho VRM  
+  - [x] Nhận âm thanh từ trình duyệt
+  - [x] Nhận âm thanh từ [Discord](https://discord.com)
+  - [x] Nhận diện giọng nói phía client
+  - [x] Phát hiện giọng nói chuyện phía client
+- [x] Giọng nói
+  - [x] Tổng hợp giọng nói bằng [ElevenLabs](https://elevenlabs.io/)
+- [x] Cơ thể
+  - [x] Hỗ trợ VRM
+    - [x] Điều khiển model VRM
+  - [x] Animation cho VRM
     - [x] Chớp mắt
-    - [x] Tự động nhìn theo  
-    - [x] Chuyển động mắt khi idle  
-  - [x] Hỗ trợ Live2D  
-    - [x] Điều khiển model Live2D  
-  - [x] Animation cho Live2D  
+    - [x] Tự động nhìn theo
+    - [x] Chuyển động mắt khi idle
+  - [x] Hỗ trợ Live2D
+    - [x] Điều khiển model Live2D
+  - [x] Animation cho Live2D
     - [x] Chớp mắt
-    - [x] Tự động nhìn theo  
-    - [x] Chuyển động mắt khi idle  
+    - [x] Tự động nhìn theo
+    - [x] Chuyển động mắt khi idle
 
 ## Phát Triển
 
 > Để xem hướng dẫn chi tiết phát triển, tham khảo [CONTRIBUTING.md](../.github/CONTRIBUTING.md)
 
-> [!NOTE]  
-> Mặc định, `pnpm dev` sẽ khởi chạy server cho Stage Web (phiên bản trình duyệt).  
+> [!NOTE]
+> Mặc định, `pnpm dev` sẽ khởi chạy server cho Stage Web (phiên bản trình duyệt).
 > Nếu muốn phát triển bản desktop, hãy đọc [CONTRIBUTING.md](../.github/CONTRIBUTING.md) để cấu hình đúng môi trường.
 
 ```shell
