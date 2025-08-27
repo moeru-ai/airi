@@ -84,7 +84,8 @@ const audioQueue = useQueue<{ audioBuffer: AudioBuffer, text: string }>({
         if (currentAudioSource) {
           try { 
             currentAudioSource.stop() 
-          } catch {}
+          } 
+          catch {}
           currentAudioSource.disconnect()
           currentAudioSource = null
         }
