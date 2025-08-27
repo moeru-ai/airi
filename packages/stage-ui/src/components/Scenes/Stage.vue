@@ -82,9 +82,6 @@ const audioQueue = useQueue<{ audioBuffer: AudioBuffer, text: string }>({
       return new Promise((resolve) => {
         // Stop any currently playing audio
         if (currentAudioSource) {
-          try { 
-            currentAudioSource.stop() 
-          } 
           try {
             currentAudioSource.stop()
           }
