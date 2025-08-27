@@ -100,9 +100,8 @@ watchThrottled([mouseX, mouseY], async ([x, y]) => {
     if (gl) {
       const pixelX = relativeX * (gl.drawingBufferWidth / canvas.clientWidth)
       const pixelY
-        = gl.drawingBufferHeight
-          - relativeY * (gl.drawingBufferHeight / canvas.clientHeight)
-
+      = gl.drawingBufferHeight
+        - relativeY * (gl.drawingBufferHeight / canvas.clientHeight)
       const data = new Uint8Array(4)
       gl.readPixels(
         Math.floor(pixelX),
@@ -239,7 +238,7 @@ if (import.meta.hot) { // For better DX
   <div
     :class="[modeIndicatorClass, {
       'op-0': windowControlStore.isIgnoringMouseEvent && !isClickThrough && !isFirstTime,
-      'pointer-events-none': !isClickThrough,
+      'pointer-events-none': isClickThrough && !isOverUI,
     }]"
     max-h="[100vh]"
     max-w="[100vw]"
@@ -283,10 +282,6 @@ if (import.meta.hot) { // For better DX
           <div i-solar:settings-bold-duotone />
         </div>
       </div>
-    </div>
-    <!-- Debug Mode UI -->
-    <div v-if="windowControlStore.controlMode === WindowControlMode.DEBUG" class="debug-controls">
-      <!-- Add debug controls here -->
     </div>
   </div>
   <Transition
