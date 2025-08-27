@@ -240,8 +240,6 @@ if (import.meta.hot) { // For better DX
   <div
     :class="[modeIndicatorClass, {
       'op-0': windowControlStore.isIgnoringMouseEvent && !isClickThrough && !isFirstTime,
-      // Fix: Only apply pointer-events-none if it's click-through and not over the UI
-      'pointer-events-none': isClickThrough && !isOverUI,
     }]"
     max-h="[100vh]"
     max-w="[100vw]"
