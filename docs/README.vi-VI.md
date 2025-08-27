@@ -135,7 +135,7 @@ Khả năng:
 
 ## Phát Triển
 
-> Để xem hướng dẫn chi tiết phát triển, tham khảo [CONTRIBUTING.md](./.github/CONTRIBUTING.md)  
+> Để xem hướng dẫn chi tiết phát triển, tham khảo [CONTRIBUTING.md](../.github/CONTRIBUTING.md)
 
 > [!NOTE]  
 > Mặc định, `pnpm dev` sẽ khởi chạy server cho Stage Web (phiên bản trình duyệt).  
