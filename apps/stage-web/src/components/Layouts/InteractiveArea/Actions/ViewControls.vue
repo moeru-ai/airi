@@ -1,13 +1,13 @@
 <script lang="ts" setup>
 import { Button } from '@proj-airi/stage-ui/components'
-import { useSettings } from '@proj-airi/stage-ui/stores'
+import { useSettings } from '@proj-airi/stage-ui/stores/settings'
 import { storeToRefs } from 'pinia'
 
 const emits = defineEmits<{
   (e: 'reset'): void
 }>()
 
-const { stageView, stageViewControlsEnabled } = storeToRefs(useSettings())
+const { stageModelRenderer, stageViewControlsEnabled } = storeToRefs(useSettings())
 
 const mode = defineModel<'x' | 'y' | 'z' | 'scale'>({ required: true })
 
@@ -31,7 +31,7 @@ function handleViewControlsToggle(targetMode: 'x' | 'y' | 'z' | 'scale') {
         <Button variant="secondary-muted" :toggled="mode === 'y'" w-full @click="handleViewControlsToggle('y')">
           Y
         </Button>
-        <Button v-if="stageView === '3d'" variant="secondary-muted" :toggled="mode === 'z'" w-full @click="handleViewControlsToggle('z')">
+        <Button v-if="stageModelRenderer === 'vrm'" variant="secondary-muted" :toggled="mode === 'z'" w-full @click="handleViewControlsToggle('z')">
           Z
         </Button>
         <Button variant="secondary-muted" :toggled="mode === 'scale'" w-full @click="handleViewControlsToggle('scale')">

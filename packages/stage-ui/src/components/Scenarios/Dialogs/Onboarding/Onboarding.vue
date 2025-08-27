@@ -8,7 +8,8 @@ import { useI18n } from 'vue-i18n'
 import onboardingLogo from '../../../../assets/onboarding.avif'
 import Alert from '../../../Misc/Alert.vue'
 
-import { useConsciousnessStore, useProvidersStore } from '../../../../stores'
+import { useConsciousnessStore } from '../../../../stores/modules/consciousness'
+import { useProvidersStore } from '../../../../stores/providers'
 import { Callout } from '../../../Layouts'
 import { RadioCardDetail, RadioCardManySelect } from '../../../Menu'
 import { Button } from '../../../Misc'
@@ -139,7 +140,6 @@ async function validateConfiguration() {
   isValidating.value++
   // service startup time
   const startValidationTimestamp = performance.now()
-  validationMessage.value = t('settings.dialogs.onboarding.validating')
   let finalValidationMessage = ''
 
   try {
@@ -159,10 +159,7 @@ async function validateConfiguration() {
 
     isValid.value = validationResult.valid
 
-    if (isValid.value) {
-      finalValidationMessage = t('settings.dialogs.onboarding.validationSuccess')
-    }
-    else {
+    if (!isValid.value) {
       finalValidationMessage = validationResult.reason
     }
   }
@@ -176,7 +173,7 @@ async function validateConfiguration() {
     setTimeout(() => {
       isValidating.value--
       validationMessage.value = finalValidationMessage
-    }, Math.max(0, debounceTime - (performance.now() - startValidationTimestamp)))
+    }, debounceTime - (performance.now() - startValidationTimestamp))
   }
 }
 
@@ -412,31 +409,13 @@ onMounted(() => {
                 </div>
               </template>
             </Alert>
-            <div v-if="(isValid || isValidating > 0) && validationMessage" class="mt-4">
-              <div
-                class="flex items-center rounded-lg p-3" :class="[
-                  (isValidating > 0)
-                    ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
-                    : 'bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-300',
-                ]"
-              >
-                <div
-                  class="mr-2 text-lg" :class="[
-                    (isValidating > 0)
-                      ? 'i-svg-spinners:3-dots-fade'
-                      : 'i-solar:check-circle-bold-duotone',
-                  ]"
-                />
-                {{ validationMessage }}
-              </div>
-            </div>
           </div>
 
           <!-- Action Buttons -->
           <Button
             :label="t('settings.dialogs.onboarding.next')"
-            :disabled="!selectedProviderId"
-            :loading="isLoadingActiveProviderModels"
+            :loading="isLoadingActiveProviderModels || isValidating > 0"
+            :disabled="!selectedProviderId || (needsApiKey && apiKey.trim().length === 0) || !isValid"
             @click="handleFinishProviderConfiguration"
           />
         </div>
@@ -458,9 +437,10 @@ onMounted(() => {
           <!-- Using the new RadioCardManySelect component -->
           <div flex-1>
             <RadioCardManySelect
+              v-if="providerModels.length > 0"
               v-model="activeModel"
               v-model:search-query="modelSearchQuery"
-              :items="providerModels.sort((a, b) => a.id === activeModel ? -1 : b.id === activeModel ? 1 : 0)"
+              :items="providerModels.toSorted((a, b) => a.id === activeModel ? -1 : b.id === activeModel ? 1 : 0)"
               :searchable="true"
               :search-placeholder="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.search_placeholder')"
               :search-no-results-title="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.no_search_results')"
@@ -471,6 +451,17 @@ onMounted(() => {
               :collapse-button-text="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.collapse')"
               list-class="max-h-[calc(100dvh-17rem)] sm:max-h-120"
             />
+
+            <Alert v-else type="error">
+              <template #title>
+                {{ t('settings.dialogs.onboarding.no-models') }}
+              </template>
+              <template #content>
+                <div class="whitespace-pre-wrap break-all">
+                  {{ t('settings.dialogs.onboarding.no-models-help') }}
+                </div>
+              </template>
+            </Alert>
           </div>
 
           <!-- Action Buttons -->

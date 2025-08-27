@@ -17,7 +17,6 @@ dialogs:
     baseUrl: URL Base
     baseUrlHelp: URL del endpoint de la API (usa el predeterminado si no estás seguro)
     accountId: ID de Cuenta
-    validating: Validando configuración...
     validationFailed: La validación de la configuración falló
     validationError: 'Error de validación: {error}'
     skipForNow: Omitir por ahora
@@ -30,15 +29,6 @@ language:
   description: >
     Cambia el idioma de la interfaz de AIRI. Esto no afectará el idioma
     de las respuestas del personaje.
-  options:
-    chinese: 简体中文
-    zh-CN: 简体中文
-    zh-Hans: 简体中文
-    english: English
-    en: English
-    en-US: English (US)
-    spanish: Español
-    es: Español
 live2d:
   change-model:
     from-file: Cargar desde Archivo
@@ -422,6 +412,9 @@ pages:
       openai:
         description: openai.com
         title: OpenAI
+      openai-compatible:
+        description: OpenAI Compatible
+        title: OpenAI Compatible
       openrouter:
         description: openrouter.ai
         title: OpenRouter

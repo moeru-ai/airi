@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { useSettings } from '@proj-airi/stage-ui/stores'
+import { all } from '@proj-airi/i18n'
+import { useSettings } from '@proj-airi/stage-ui/stores/settings'
 import { FieldCheckbox, FieldSelect } from '@proj-airi/ui'
 import { useDark } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
@@ -8,16 +9,13 @@ import { useI18n } from 'vue-i18n'
 
 const settings = useSettings()
 
-const { t, messages } = useI18n()
+const { t } = useI18n()
 const { allowVisibleOnAllWorkspaces } = storeToRefs(settings)
 
 const dark = useDark()
 
 const languages = computed(() => {
-  return Object.keys(messages.value).map(lang => ({
-    label: t(`settings.language.options.${lang}`),
-    value: lang,
-  }))
+  return Object.entries(all).map(([value, label]) => ({ label, value }))
 })
 </script>
 

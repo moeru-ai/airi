@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { OnboardingDialog, ToasterRoot } from '@proj-airi/stage-ui/components'
-import { useOnboardingStore, useSettings } from '@proj-airi/stage-ui/stores'
+import { useDisplayModelsStore } from '@proj-airi/stage-ui/stores/display-models'
+import { useOnboardingStore } from '@proj-airi/stage-ui/stores/onboarding'
+import { useSettings } from '@proj-airi/stage-ui/stores/settings'
 import { StageTransitionGroup } from '@proj-airi/ui-transitions'
 import { useDark } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
@@ -15,7 +17,9 @@ import 'vue-sonner/style.css'
 
 usePWAStore()
 const i18n = useI18n()
-const settings = storeToRefs(useSettings())
+const displayModelsStore = useDisplayModelsStore()
+const settingsStore = useSettings()
+const settings = storeToRefs(settingsStore)
 const onboardingStore = useOnboardingStore()
 const { shouldShowSetup } = storeToRefs(onboardingStore)
 const isDark = useDark()
@@ -55,8 +59,11 @@ watch(settings.themeColorsHueDynamic, () => {
 }, { immediate: true })
 
 // Initialize first-time setup check when app mounts
-onMounted(() => {
+onMounted(async () => {
   onboardingStore.initializeSetupCheck()
+
+  await displayModelsStore.loadDisplayModelsFromIndexedDB()
+  await settingsStore.initializeStageModel()
 })
 
 // Handle first-time setup events

@@ -1,0 +1,584 @@
+animations:
+  stage-transitions:
+    title: Отключить переходы между сценами
+  use-page-specific-transitions:
+    description: >-
+      Некоторые страницы имеют свои собственные переходы — они будут переопределять переходы сцен
+    title: Использовать переходы для страниц
+dialogs:
+  onboarding:
+    title: Добро пожаловать в AIRI!
+    description: Давайте настроим вашего первого AI-провайдера, чтобы начать работу.
+    selectProvider: Выберите AI-провайдера
+    configureProvider: Настроить {provider}
+    apiKey: API-ключ
+    apiKeyHelp: Получите API-ключ у {provider} и вставьте его сюда
+    baseUrl: Базовый URL
+    baseUrlHelp: URL конечной точки API (оставьте по умолчанию, если не уверены)
+    accountId: ID аккаунта
+    validationFailed: Проверка конфигурации не удалась
+    validationError: 'Ошибка проверки: {error}'
+    skipForNow: Пропустить на сейчас
+    saveAndContinue: Сохранить и продолжить
+    next: Далее
+    start: Поехали!
+    select-model: Выберите модель
+    no-models: Нет доступных моделей
+    no-models-help: Вернитесь на предыдущий шаг и проверьте API-ключ или подключение к сети.
+live2d:
+  change-model:
+    from-file: Загрузить из файла
+    from-file-select: Выбрать
+    from-url: Загрузить по URL
+    from-url-confirm: Загрузить
+    from-url-placeholder: Введите URL модели Live2D
+    title: Сменить модель
+  edit-motion-map:
+    title: Редактировать карту движений
+  map-motions:
+    play: Воспроизвести движение
+    title: Карта движений
+  title: Настройки Live2D
+  scale-and-position:
+    title: Масштаб и позиция
+    scale: Масштаб
+    x: X
+    'y': 'Y'
+  switch-to-vrm:
+    title: Переключиться на 3D-аватар?
+    change-to-vrm: Нажмите здесь, чтобы переключиться на настройки 3D-аватара (VRM)
+  theme-color-from-model:
+    title: Извлечь цвета из модели
+    button-extract:
+      title: Извлечь
+  focus:
+    title: Отключить слежение за мышью
+    button-disable:
+      title: Отключить
+microphone: Микрофон
+models: Модель
+pages:
+  card:
+    activate: Активировать
+    active: Активно
+    active_badge: Текущая
+    cancel: Отмена
+    card_not_found: Карта не найдена
+    character: Персонаж
+    close: Закрыть
+    consciousness:
+      model: Сознание / Модель
+    created_by: создано
+    creator_notes: Заметки автора
+    delete: Удалить
+    delete_card: Удалить карту
+    delete_confirmation: Вы уверены, что хотите удалить эту карту?
+    description: Используйте предустановленные карты персонажей AIRI
+    description_label: Описание
+    drop_here: Перетащите сюда для загрузки
+    create_card: Создать новую карту
+    creation:
+      identity: Личность
+      name: Имя
+      nickname: Ник
+      description: Описание
+      behavior: Поведение
+      greetings: Приветствия (по одному на строку)
+      settings: Настройки
+      version: Версия
+      create: Создать
+      defaults:
+        name: Имя
+        personality: Вы обычный человек, любопытный ко всему.
+        scenario: Вы недавно проснулись и забыли всё о прошлой жизни.
+        systemprompt: Вы будете получать сообщения, отвечайте на них как настоящий человек.
+        posthistoryinstructions: Не забывайте подражать человеку.
+      fields_info:
+        subtitle: >-
+          Здесь можно указать детали о создаваемом персонаже, описать его историю,
+          контекст и то, как он должен отвечать на взаимодействия.
+        name: Формальное имя персонажа.
+        nickname: Можно дать ник, который будет приоритетным.
+        description: Описание персонажа.
+        notes: Личные заметки.
+        personality: >-
+          Опишите личность персонажа. Застенчивый? Любопытный? Что угодно.
+        scenario: Его местоположение? В какой он ситуации?
+        greetings_field: Приветствия
+        greetings: Как персонаж должен здороваться?
+        systemprompt: Опишите, как AI должен отвечать на запросы.
+        posthistoryinstructions: Укажите, что AI должен учитывать после истории сообщений.
+        version: >-
+          Версия карты. Увеличьте число, если изменяете предыдущую карту.
+      errors:
+        name: Имя должно быть корректным и непустым.
+        version: 'Ошибка: неверная версия!'
+        description: 'Ошибка: необходимо указать описание карты.'
+        personality: 'Ошибка: необходимо указать личность персонажа.'
+        scenario: 'Ошибка: требуется сценарий.'
+        systemprompt: 'Ошибка: укажите системный промпт.'
+        posthistoryinstructions: 'Ошибка: требуется post-history промпт.'
+    modules: Модули
+    name_asc: Имя (А-Я)
+    name_desc: Имя (Я-А)
+    no_cards: Карточек пока нет. Нажмите кнопку выше, чтобы загрузить!
+    no_results: Карточки не найдены :(
+    personality: Личность
+    posthistoryinstructions: Инструкции после истории
+    recent: Недавно добавленные
+    scenario: Сценарий
+    search: Искать карточки...
+    sort_by: Сортировать по
+    speech:
+      model: Речь / Модель
+      voice: Речь / Голос
+    systemprompt: Системный промпт
+    title: Карта AIRI
+    try_different_search: Попробуйте другой поисковый запрос
+    upload: Загрузить
+    upload_desc: Нажмите или перетащите файл для загрузки
+  memory:
+    description: Хранилище и организация воспоминаний
+    title: Память
+  models:
+    description: Live2D, VRM и др.
+    title: Модели
+    sections:
+      section:
+        live2d:
+          title: Live2D
+          description: Настройка моделей Live2D
+        vrm:
+          title: VRM
+          description: Настройка 3D-моделей VRM
+        scene: Сцена
+  modules:
+    consciousness:
+      description: Личность, модель сознания и др.
+      sections:
+        section:
+          provider-model-selection:
+            collapse: Свернуть
+            custom_model_placeholder: Введите название кастомной модели...
+            description: Выберите подходящего LLM-провайдера для сознания
+            error: Ошибка загрузки моделей
+            expand: Развернуть
+            loading: Загрузка доступных моделей...
+            manual_model_name: Название модели
+            manual_model_placeholder: Введите имя модели для использования
+            no_models: Моделей нет
+            no_models_description: Для этого провайдера модели не найдены
+            no_search_results: Совпадений нет
+            no_search_results_description: Моделей, соответствующих '{query}', не найдено.
+            not_supported: Список моделей не поддерживается
+            not_supported_description: Этот провайдер не поддерживает вывод списка моделей
+            search_placeholder: Поиск моделей...
+            search_results: Найдено {count} из {total} моделей
+            show_less: Показать меньше
+            show_more: Показать больше
+            subtitle: Выберите модель у провайдера
+            title: Модель
+      title: Сознание
+    description: Мыслительный процесс, зрение, синтез речи, игры и т. д.
+    gaming-factorio:
+      description: Играем в Factorio!
+      title: Factorio
+    gaming-minecraft:
+      description: Играем в Minecraft!
+      title: Minecraft
+    hearing:
+      description: Настройка распознавания речи
+      title: Слух
+    memory-long-term:
+      description: Настройки долговременной памяти
+      title: Долговременная память
+    memory-short-term:
+      description: Настройки кратковременной памяти
+      title: Кратковременная память
+    messaging-discord:
+      description: Чат и голосовой чат через Discord
+      title: Discord
+    speech:
+      description: Синтез речи
+      sections:
+        section:
+          playground:
+            buttons:
+              stop:
+                label: Стоп
+            select-voice:
+              required: Выберите голос
+          provider-voice-selection:
+            custom_model_placeholder: Введите название кастомной модели...
+            custom_voice_placeholder: Введите ID кастомного голоса...
+            description: Выберите подходящего провайдера синтеза речи
+            no_models: Моделей нет
+            no_models_description: Модели не найдены
+            no_voices: Голосов нет
+            no_voices_description: Голоса не найдены
+            pause: Пауза
+            play_sample: Воспроизвести пример
+            search_models_placeholder: Поиск моделей...
+            search_models_results: Найдено {count} из {total} моделей
+            search_voices_placeholder: Поиск голосов...
+            search_voices_results: Найдено {count} из {total} голосов
+            show_less: Показать меньше
+            show_more: Показать больше
+            title: Провайдер
+          voice-settings:
+            input-ssml:
+              placeholder: Введите SSML-текст...
+            use-ssml:
+              description: Включите для ввода SSML вместо обычного текста
+              label: Использовать кастомный SSML
+      title: Речь
+    title: Модули
+    vision:
+      description: Зрение
+      title: Зрение
+    x:
+      description: Просмотр и использование X / Twitter
+      title: X / Twitter
+    mcp-server:
+      description: Подключение и управление MCP-сервером и инструментами
+      title: MCP-сервер
+  providers:
+    explained:
+      chat: Провайдеры текстогенерации, напр. OpenRouter, OpenAI, Ollama.
+      Speech: Провайдеры речи (TTS), напр. ElevenLabs, Azure Speech.
+      Transcription: >-
+        Провайдеры транскрипции (STT): Whisper.cpp, OpenAI, Azure Speech.
+    helpinfo:
+      title: Впервые здесь?
+      description: >
+        AIRI требует как минимум одного {chat}-провайдера для корректной работы.
+        Можно считать его "мозгом" персонажей в системе AIRI.
+    common:
+      fields:
+        field:
+          api-key:
+            label: Ввод API-ключа
+      section:
+        advanced:
+          fields:
+            field:
+              headers:
+                description: Добавить кастомные HTTP-заголовки
+                key:
+                  placeholder: Ключ
+                label: HTTP-заголовки
+                value:
+                  placeholder: Значение
+          title: Дополнительно
+        basic:
+          description: Основные настройки
+          title: Базовые
+        voice:
+          title: Настройки голоса
+    description: LLM-модели, провайдеры речи и др.
+    provider:
+      app-local-audio-transcription:
+        title: Приложение (локально)
+        description: https://github.com/moeru-ai/xsai-transformers
+      app-local-audio-speech:
+        title: Приложение (локально)
+        description: https://github.com/moeru-ai/xsai-transformers
+      browser-local-audio-transcription:
+        title: Браузер (локально)
+        description: https://github.com/moeru-ai/xsai-transformers
+      browser-local-audio-speech:
+        title: Браузер (локально)
+        description: https://github.com/moeru-ai/xsai-transformers
+      alibaba-cloud-model-studio:
+        description: bailian.console.aliyun.com
+        title: Alibaba Cloud Model Studio
+      anthropic:
+        description: anthropic.com
+        title: Anthropic | Claude
+        helpinfo:
+          title: Перед началом
+          description:
+            part1: >-
+              Хотя Anthropic недавно объявили о бета-поддержке совместимости с OpenAI SDK
+            part2: (подробнее здесь)
+            part3: но из-за особенностей реализации есть
+            part4: >-
+              ограничения, не совпадающие со спецификой OpenAI SDK, поэтому сейчас
+              использовать этого провайдера в браузере нельзя.
+            part5: >-
+              Если провайдер необходим, нужен выделенный прокси-бэкенд
+              (например, Serverless Function)
+            part6: или сервисы обхода CORS для снятия ограничений CORS.
+      cloudflare-workers-ai:
+        description: cloudflare.com
+        fields:
+          field:
+            account-id:
+              description: ID аккаунта Cloudflare
+              label: Account ID
+              placeholder: Ваш Cloudflare Account ID
+            api-key:
+              placeholder: Введите Cloudflare API Key
+        title: Cloudflare Workers AI
+      common:
+        fields:
+          field:
+            pitch:
+              description: Настроить высоту синтезируемой речи (острее/грубее)
+              label: Высота
+            speed:
+              description: Регулировка скорости речи
+              label: Скорость
+            volume:
+              description: Регулировка громкости речи
+              label: Громкость
+      deepseek:
+        description: deepseek.com
+        title: DeepSeek
+      elevenlabs:
+        description: elevenlabs.io
+        fields:
+          field:
+            simularity-boost:
+              description: Степень сохранения сходства голоса
+              label: Similarity Boost
+            speaker-boost:
+              description: Усиление схожести с диктором
+              label: Speaker Boost
+            speed:
+              description: Скорость генерации речи
+              label: Speed
+            stability:
+              description: Стабильность/случайность голоса
+              label: Stability
+            style:
+              description: Выразительность/стиль голоса
+              label: Style
+        playground:
+          buttons:
+            button:
+              test-voice:
+                generating: Генерация...
+                label: Протестировать голос
+          fields:
+            field:
+              input:
+                placeholder: Введите текст для теста голоса...
+              language:
+                description: Выберите язык голоса
+                label: Язык
+              voice:
+                description: Выберите предпочтительный голос
+                label: Голос
+          title: Песочница голоса
+          validation:
+            error-missing-api-key: Введите API-ключ, чтобы протестировать голос.
+        title: ElevenLabs
+      fireworks:
+        description: fireworks.ai
+        title: Fireworks.ai
+      microsoft-speech:
+        description: speech.microsoft.com
+        fields:
+          field:
+            region:
+              description: Регион Speech Service
+              label: Регион
+        title: Microsoft / Azure Speech
+      index-tts-vllm:
+        description: https://index-tts.github.io/
+        title: Bilibili / IndexTTS
+      mistral:
+        description: mistral.ai
+        title: Mistral
+      moonshot:
+        description: moonshot.ai
+        title: Moonshot AI
+      novita:
+        description: novita.ai
+        title: Novita
+      ollama:
+        description: ollama.ai
+        title: Ollama
+      openai:
+        description: openai.com
+        title: OpenAI
+      openai-compatible:
+        description: Совместимый с OpenAI
+        title: OpenAI Compatible
+      openrouter:
+        description: openrouter.ai
+        title: OpenRouter
+      perplexity:
+        description: perplexity.ai
+        title: Perplexity
+      player2:
+        description: player2.game
+        title: Player2
+      together:
+        description: together.ai
+        title: Together.ai
+      google-generative-ai:
+        description: gemini.google.com
+        title: Google Gemini
+      featherless:
+        description: featherless.ai
+        title: Featherless AI
+      lm-studio:
+        description: lmstudio.ai
+        title: LM Studio
+      vllm:
+        description: vllm.ai
+        title: vLLM
+      volcengine:
+        description: volcengine.com
+        fields:
+          field:
+            appId:
+              description: App ID проекта (получается в Console)
+              label: App ID
+        title: Volcano Engine
+      xai:
+        description: x.ai
+        title: xAI
+      transcriptions:
+        playground:
+          title: Песочница транскрипции
+    title: Провайдеры
+  scene:
+    description: Настройте окружение, в котором живёт персонаж
+    title: Сцена
+  themes:
+    color-scheme:
+      description: Изменить цветовую схему сцены
+      title: Цветовая схема
+    developer:
+      description: Опции разработчика
+      title: Разработчики
+    general:
+      description: Тема, языки и др.
+      title: Общие
+    description: Настройте вашу сцену!
+    sections:
+      section:
+        custom-color:
+          fields:
+            field:
+              primary-color:
+                label: Основной цвет
+                rgb-on:
+                  title: Хочу динамический!
+          title: Цветовая схема
+        developer:
+          title: Разработчик
+        theme-presets:
+          presets:
+            - colors:
+                - AIRI Green
+              description: Стандартный зелёный оттенок AIRI
+              title: Цвет по умолчанию
+            - colors:
+                - Taupe
+                - Beige
+                - Ash Grey
+                - Light Taupe
+                - Ivory
+                - Olive Grey
+                - Sand
+                - Warm Grey
+              description: Приглушённые тона в стиле Джорджо Моранди
+              title: Цвета Моранди
+            - colors:
+                - Sky Blue
+                - Mist
+                - Sand
+                - Moss Green
+                - Water Lily
+                - Wheat
+                - Slate Blue
+                - Sage
+              description: Палитра импрессионизма, вдохновлённая Моне
+              title: Цвета Моне
+            - colors:
+                - Tan
+                - Warm Taupe
+                - Umber
+                - Coffee
+                - Bronze
+                - Gold
+                - Mustard
+                - Amber
+              description: Традиционная японская цветовая палитра
+              title: Японские цвета
+            - colors:
+                - Nordic Blue
+                - Ice
+                - Fjord
+                - Steel
+                - Glacier
+                - Slate
+                - Cloud
+                - Stone
+              description: Скандинавская минималистичная схема
+              title: Северные цвета
+            - colors:
+                - Rosy Dawn
+                - Chinese Red
+                - Smoky Brown
+                - Bamboo Green
+                - Dark Purple
+                - Golden Yellow
+                - Azure Blue
+                - Ochre
+              description: >-
+                Традиционные китайские цвета, вдохновлённые текстилем, фарфором и живописью
+              title: Китайские традиционные цвета
+          title: Наборы цветовых схем
+    title: Внешний вид
+sections:
+  section:
+    general:
+      title: Общие
+theme:
+  title: Тема
+  description: |
+    Переключение основной темы AIRI: светлая или тёмная.
+title: Настройки
+voices: Голос
+vrm:
+  change-model:
+    from-file: Загрузить из файла
+    from-file-select: Выбрать
+    from-url: Загрузить по URL
+    from-url-confirm: Загрузить
+    from-url-placeholder: Введите URL модели VRM
+    title: Смена модели
+  title: Настройки VRM
+  scale-and-position:
+    model-info-title: Информация о размере модели
+    model-info-x: Ширина (X)
+    model-info-y: Высота (Y)
+    model-info-z: Глубина (Z)
+    tips: |
+      Настройте начальную позицию модели VRM.
+      Оси координат визуализированы.
+    scale: Масштаб
+    x: Смещение по X
+    'y': Смещение по Y
+    z: Смещение по Z
+    fov: Угол обзора (градусы)
+    rotation-y: Вращение (ось Y)
+    camera-distance: Дистанция камеры
+    eye-tracking-mode:
+      title: Смотреть на
+      options:
+        option:
+          camera: Камеру
+          mouse: Мышь
+          disabled: Отключено
+  switch-to-vrm:
+    title: Переключиться на аватар Live2D?
+    change-to-vrm: Нажмите здесь, чтобы переключиться на настройки Live2D
+  theme-color-from-model:
+    button-extract:
+      title: Извлечь

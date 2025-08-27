@@ -1,15 +1,10 @@
 <script setup lang="ts">
-import JSZip from 'jszip'
-import localforage from 'localforage'
-
-import { Checkbox, FieldRange, Input } from '@proj-airi/ui'
-import { useFileDialog, useObjectUrl } from '@vueuse/core'
+import { Checkbox, FieldRange } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
-import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import { Emotion } from '../../../../constants'
-import { useLive2d, useSettings } from '../../../../stores'
+import { useLive2d } from '../../../../stores/live2d'
+import { useSettings } from '../../../../stores/settings'
 import { Section } from '../../../Layouts'
 import { Button } from '../../../Misc'
 import { ColorPalette } from '../../../Widgets'
@@ -20,126 +15,106 @@ defineProps<{
 
 defineEmits<{
   (e: 'extractColorsFromModel'): void
-  (e: 'switchToVRM'): void
 }>()
 
 const { t } = useI18n()
-
-const modelFileDialog = useFileDialog({
-  accept: 'application/zip',
-})
 
 const settings = useSettings()
 const { live2dDisableFocus } = storeToRefs(settings)
 
 const live2d = useLive2d()
 const {
-  modelFile,
-  motionMap,
-  availableMotions,
-  modelUrl,
-  currentMotion,
   scale,
   position,
 } = storeToRefs(live2d)
-const localModelUrl = ref(modelUrl.value)
 
-modelFileDialog.onChange((files) => {
-  if (files && files.length > 0) {
-    motionMap.value = {}
-    modelFile.value = files[0]
-    live2d.shouldUpdateView()
-  }
-})
+// async function patchMotionMap(source: File, motionMap: Record<string, string>): Promise<File> {
+//   if (!Object.keys(motionMap).length)
+//     return source
 
-async function patchMotionMap(source: File, motionMap: Record<string, string>): Promise<File> {
-  if (!Object.keys(motionMap).length)
-    return source
+//   const jsZip = new JSZip()
+//   const zip = await jsZip.loadAsync(source)
+//   const fileName = Object.keys(zip.files).find(key => key.endsWith('model3.json'))
+//   if (!fileName) {
+//     throw new Error('model3.json not found')
+//   }
 
-  const jsZip = new JSZip()
-  const zip = await jsZip.loadAsync(source)
-  const fileName = Object.keys(zip.files).find(key => key.endsWith('model3.json'))
-  if (!fileName) {
-    throw new Error('model3.json not found')
-  }
+//   const model3Json = await zip.file(fileName)!.async('string')
+//   const model3JsonObject = JSON.parse(model3Json)
 
-  const model3Json = await zip.file(fileName)!.async('string')
-  const model3JsonObject = JSON.parse(model3Json)
+//   const motions: Record<string, { File: string }[]> = {}
+//   Object.entries(motionMap).forEach(([key, value]) => {
+//     if (motions[value]) {
+//       motions[value].push({ File: key })
+//       return
+//     }
+//     motions[value] = [{ File: key }]
+//   })
 
-  const motions: Record<string, { File: string }[]> = {}
-  Object.entries(motionMap).forEach(([key, value]) => {
-    if (motions[value]) {
-      motions[value].push({ File: key })
-      return
-    }
-    motions[value] = [{ File: key }]
-  })
+//   model3JsonObject.FileReferences.Motions = motions
 
-  model3JsonObject.FileReferences.Motions = motions
+//   zip.file(fileName, JSON.stringify(model3JsonObject, null, 2))
+//   const zipBlob = await zip.generateAsync({ type: 'blob' })
 
-  zip.file(fileName, JSON.stringify(model3JsonObject, null, 2))
-  const zipBlob = await zip.generateAsync({ type: 'blob' })
+//   return new File([zipBlob], source.name, {
+//     type: source.type,
+//     lastModified: source.lastModified,
+//   })
+// }
 
-  return new File([zipBlob], source.name, {
-    type: source.type,
-    lastModified: source.lastModified,
-  })
-}
+// async function saveMotionMap() {
+//   const fileFromIndexedDB = await localforage.getItem<File>('live2dModel')
+//   if (!fileFromIndexedDB) {
+//     return
+//   }
 
-async function saveMotionMap() {
-  const fileFromIndexedDB = await localforage.getItem<File>('live2dModel')
-  if (!fileFromIndexedDB) {
-    return
-  }
-
-  const patchedFile = await patchMotionMap(fileFromIndexedDB, motionMap.value)
-  modelFile.value = patchedFile
-}
-
-const exportObjectUrl = useObjectUrl(modelFile)
+//   const patchedFile = await patchMotionMap(fileFromIndexedDB, motionMap.value)
+//   modelFile.value = patchedFile
+// }
 </script>
 
 <template>
   <Section
-    :title="t('settings.live2d.switch-to-vrm.title')"
-    icon="i-solar:magic-stick-3-bold-duotone"
+    :title="t('settings.live2d.scale-and-position.title')"
+    icon="i-solar:scale-bold-duotone"
     :class="[
       'rounded-xl',
       'bg-white/80  dark:bg-black/75',
       'backdrop-blur-lg',
     ]"
     size="sm"
-    :expand="false"
+    :expand="true"
   >
-    <Button variant="secondary" @click="$emit('switchToVRM')">
-      {{ t('settings.live2d.switch-to-vrm.change-to-vrm') }}
-    </Button>
-  </Section>
-  <Section
-    :title="t('settings.live2d.change-model.title')"
-    icon="i-solar:magic-stick-3-bold-duotone"
-    inner-class="text-sm"
-    :class="[
-      'rounded-xl',
-      'bg-white/80  dark:bg-black/75',
-      'backdrop-blur-lg',
-    ]"
-    size="sm"
-    :expand="false"
-  >
-    <Button variant="secondary" @click="modelFileDialog.open()">
-      {{ t('settings.live2d.change-model.from-file') }}...
-    </Button>
-    <div flex items-center gap-2>
-      <Input
-        v-model="localModelUrl"
-        class="flex-1"
-        :placeholder="t('settings.live2d.change-model.from-url-placeholder')"
-      />
-      <Button size="sm" variant="secondary" @click="modelUrl = localModelUrl">
-        {{ t('settings.live2d.change-model.from-url') }}
-      </Button>
-    </div>
+    <FieldRange v-model="scale" as="div" :min="0.5" :max="2" :step="0.01" :label="t('settings.live2d.scale-and-position.scale')">
+      <template #label>
+        <div flex items-center>
+          <div>{{ t('settings.live2d.scale-and-position.scale') }}</div>
+          <button px-2 text-xs outline-none title="Reset value to default" @click="() => scale = 1">
+            <div i-solar:forward-linear transform-scale-x--100 text="neutral-500 dark:neutral-400" />
+          </button>
+        </div>
+      </template>
+    </FieldRange>
+    <FieldRange v-model="position.x" as="div" :min="-100" :max="100" :step="1" :label="t('settings.live2d.scale-and-position.x')">
+      <template #label>
+        <div flex items-center>
+          <div>{{ t('settings.live2d.scale-and-position.x') }}</div>
+          <button px-2 text-xs outline-none title="Reset value to default" @click="() => position.x = 0">
+            <div i-solar:forward-linear transform-scale-x--100 text="neutral-500 dark:neutral-400" />
+          </button>
+        </div>
+      </template>
+    </FieldRange>
+    <FieldRange v-model="position.y" as="div" :min="-100" :max="100" :step="1" :label="t('settings.live2d.scale-and-position.y')">
+      <template #label>
+        <div flex items-center>
+          <div>{{ t('settings.live2d.scale-and-position.y') }}</div>
+          <button px-2 text-xs outline-none title="Reset value to default" @click="() => position.y = 0">
+            <div i-solar:forward-linear transform-scale-x--100 text="neutral-500 dark:neutral-400" />
+          </button>
+        </div>
+      </template>
+    </FieldRange>
   </Section>
   <Section
     :title="t('settings.live2d.theme-color-from-model.title')"
@@ -158,7 +133,7 @@ const exportObjectUrl = useObjectUrl(modelFile)
       {{ t('settings.live2d.theme-color-from-model.button-extract.title') }}
     </Button>
   </Section>
-  <Section
+  <!-- <Section
     v-if="modelFile"
     :title="t('settings.live2d.edit-motion-map.title')"
     icon="i-solar:face-scan-circle-bold-duotone"
@@ -197,49 +172,7 @@ const exportObjectUrl = useObjectUrl(modelFile)
     >
       <Button w-full>Export</button>
     </a>
-  </Section>
-  <Section
-    :title="t('settings.live2d.scale-and-position.title')"
-    icon="i-solar:scale-bold-duotone"
-    :class="[
-      'rounded-xl',
-      'bg-white/80  dark:bg-black/75',
-      'backdrop-blur-lg',
-    ]"
-    size="sm"
-    :expand="false"
-  >
-    <FieldRange v-model="scale" as="div" :min="0.5" :max="2" :step="0.01" :label="t('settings.live2d.scale-and-position.scale')">
-      <template #label>
-        <div flex items-center>
-          <div>{{ t('settings.live2d.scale-and-position.scale') }}</div>
-          <button px-2 text-xs outline-none title="Reset value to default" @click="() => scale = 1">
-            <div i-solar:forward-linear transform-scale-x--100 text="neutral-500 dark:neutral-400" />
-          </button>
-        </div>
-      </template>
-    </FieldRange>
-    <FieldRange v-model="position.x" as="div" :min="-100" :max="100" :step="1" :label="t('settings.live2d.scale-and-position.x')">
-      <template #label>
-        <div flex items-center>
-          <div>{{ t('settings.live2d.scale-and-position.x') }}</div>
-          <button px-2 text-xs outline-none title="Reset value to default" @click="() => position.x = 0">
-            <div i-solar:forward-linear transform-scale-x--100 text="neutral-500 dark:neutral-400" />
-          </button>
-        </div>
-      </template>
-    </FieldRange>
-    <FieldRange v-model="position.y" as="div" :min="-100" :max="100" :step="1" :label="t('settings.live2d.scale-and-position.y')">
-      <template #label>
-        <div flex items-center>
-          <div>{{ t('settings.live2d.scale-and-position.y') }}</div>
-          <button px-2 text-xs outline-none title="Reset value to default" @click="() => position.y = 0">
-            <div i-solar:forward-linear transform-scale-x--100 text="neutral-500 dark:neutral-400" />
-          </button>
-        </div>
-      </template>
-    </FieldRange>
-  </Section>
+  </Section> -->
   <Section
     :title="t('settings.live2d.focus.title')"
     icon="i-solar:eye-scan-bold-duotone"

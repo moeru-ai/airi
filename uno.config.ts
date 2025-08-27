@@ -85,6 +85,7 @@ export function presetWebFontsFonts(provider: 'fontsource' | 'none'): Record<str
     'cutejp': {
       name: 'Kiwi Maru',
       provider,
+      subsets: ['latin', 'japanese'],
     },
     'cuteen': {
       name: 'Sniglet',
@@ -109,6 +110,7 @@ export function presetWebFontsFonts(provider: 'fontsource' | 'none'): Record<str
     'comfortaa': {
       name: provider === 'fontsource' ? 'Comfortaa' : 'Comfortaa Variable',
       provider,
+      subsets: ['cyrillic'],
     },
     'm-plus-rounded': {
       name: 'M PLUS Rounded 1c',
@@ -193,9 +195,9 @@ export function sharedUnoConfig() {
       fontFamily: {
         'sans': `"DM Sans Variant", "DM Sans", ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";`,
         'sans-rounded': `"Comfortaa Variable", "Comfortaa", "DM Sans", ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";`,
-        'cute': `"Sniglet", "Kiwi Maru", "xiaolai", "DM Sans Variant", "DM Sans", ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";`,
-        'cuteen': `"Sniglet", "Kiwi Maru", "xiaolai", "DM Sans Variant", "DM Sans", ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";`,
-        'cutejp': `"Sniglet", "Kiwi Maru", "xiaolai", "DM Sans Variant", "DM Sans", ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";`,
+        'cute': `"Sniglet", "Kiwi Maru", "Comfortaa", "xiaolai", "DM Sans Variant", "DM Sans", ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";`,
+        'cuteen': `"Sniglet", "Kiwi Maru", "Comfortaa", "xiaolai", "DM Sans Variant", "DM Sans", ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";`,
+        'cutejp': `"Sniglet", "Kiwi Maru", "Comfortaa", "xiaolai", "DM Sans Variant", "DM Sans", ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";`,
       },
       /**
        * https://github.com/unocss/unocss/blob/1031312057a3bea1082b7d938eb2ad640f57613a/packages-presets/preset-wind4/src/theme/animate.ts
@@ -203,22 +205,40 @@ export function sharedUnoConfig() {
        */
       animation: {
         keyframes: {
+          overlayShow: '{from{opacity:0;}to{opacity:1;}}',
+          overlayHide: '{from{opacity:1;}to{opacity:0;}}',
+          contentShow: '{from:{opacity:0;transform:translate(-50%,-48%) scale(0.96);}to:{opacity:1;transform:translate(-50%,-50%) scale(1);}}',
+          contentHide: '{from:{opacity:1;transform:translate(-50%,-50%) scale(1);}to:{opacity:0;transform:translate(-50%,-48%) scale(0.96);}}',
           slideUpAndFade: '{from{opacity:0;transform:translateY(2px)}to{opacity:1;transform:translateY(0)}}',
           slideRightAndFade: '{from{opacity:0;transform:translateX(-2px)}to{opacity:1;transform:translateX(0)}}',
           slideDownAndFade: '{from{opacity:0;transform:translateY(-2px)}to{opacity:1;transform:translateY(0)}}',
           slideLeftAndFade: '{from{opacity:0;transform:translateX(2px)}to{opacity:1;transform:translateX(0)}}',
+          fadeIn: '{from{opacity:0;}to{opacity:1;}}',
+          fadeOut: '{from{opacity:1;}to{opacity:0;}}',
         },
         durations: {
+          overlayShow: '300ms',
+          overlayHide: '300ms',
+          contentShow: '150ms',
+          contentHide: '150ms',
           slideUpAndFade: '400ms',
           slideRightAndFade: '400ms',
           slideDownAndFade: '400ms',
           slideLeftAndFade: '400ms',
+          fadeIn: '200ms',
+          fadeOut: '200ms',
         },
         timingFns: {
+          overlayShow: 'cubic-bezier(0.16, 1, 0.3, 1)',
+          overlayHide: 'cubic-bezier(0.16, 1, 0.3, 1)',
+          contentShow: 'cubic-bezier(0.16, 1, 0.3, 1)',
+          contentHide: 'cubic-bezier(0.16, 1, 0.3, 1)',
           slideUpAndFade: 'cubic-bezier(0.16, 1, 0.3, 1)',
           slideRightAndFade: 'cubic-bezier(0.16, 1, 0.3, 1)',
           slideDownAndFade: 'cubic-bezier(0.16, 1, 0.3, 1)',
           slideLeftAndFade: 'cubic-bezier(0.16, 1, 0.3, 1)',
+          fadeIn: 'ease-in-out',
+          fadeOut: 'ease-in-out',
         },
       },
     },

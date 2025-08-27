@@ -5,7 +5,6 @@ import { defineStore } from 'pinia'
 import { ref, toValue, watch } from 'vue'
 
 import { WindowControlMode } from '../types/window-controls'
-import { startClickThrough, stopClickThrough } from '../utils/windows'
 import { useWindowControlStore } from './window-controls'
 
 interface Versioned<T> { version?: string, data?: T }
@@ -73,7 +72,7 @@ export const useShortcutsStore = defineStore('shortcuts', () => {
   const shortcuts = ref([
     {
       name: 'tamagotchi.settings.pages.themes.window-shortcuts.toggle-move.label',
-      shortcut: useVersionedLocalStorage('shortcuts/window/move', 'Shift+Alt+N', { defaultVersion: '1.0.2', satisfiesVersionBy: v => v !== '1.0.2', onVersionMismatch: () => ({ action: 'reset' }) }), // Shift + Alt + N
+      shortcut: useVersionedLocalStorage('shortcuts/window/move', 'Shift+Alt+N', { defaultVersion: '1.0.2', satisfiesVersionBy: v => v === '1.0.2', onVersionMismatch: () => ({ action: 'reset' }) }), // Shift + Alt + N
       group: 'window',
       type: 'move',
       handle: async () => {
@@ -82,7 +81,7 @@ export const useShortcutsStore = defineStore('shortcuts', () => {
     },
     {
       name: 'tamagotchi.settings.pages.themes.window-shortcuts.toggle-resize.label',
-      shortcut: useVersionedLocalStorage('shortcuts/window/resize', 'Shift+Alt+A', { defaultVersion: '1.0.2', satisfiesVersionBy: v => v !== '1.0.2', onVersionMismatch: () => ({ action: 'reset' }) }), // Shift + Alt + A
+      shortcut: useVersionedLocalStorage('shortcuts/window/resize', 'Shift+Alt+A', { defaultVersion: '1.0.2', satisfiesVersionBy: v => v === '1.0.2', onVersionMismatch: () => ({ action: 'reset' }) }), // Shift + Alt + A
       group: 'window',
       type: 'resize',
       handle: async () => {
@@ -91,17 +90,11 @@ export const useShortcutsStore = defineStore('shortcuts', () => {
     },
     {
       name: 'tamagotchi.settings.pages.themes.window-shortcuts.toggle-ignore-mouse-event.label',
-      shortcut: useVersionedLocalStorage('shortcuts/window/debug', 'Shift+Alt+I', { defaultVersion: '1.0.2', satisfiesVersionBy: v => v !== '1.0.2', onVersionMismatch: () => ({ action: 'reset' }) }), // Shift + Alt + I
+      shortcut: useVersionedLocalStorage('shortcuts/window/debug', 'Shift+Alt+I', { defaultVersion: '1.0.2', satisfiesVersionBy: v => v === '1.0.2', onVersionMismatch: () => ({ action: 'reset' }) }), // Shift + Alt + I
       group: 'window',
       type: 'ignore-mouse-event',
       handle: async () => {
         windowStore.isIgnoringMouseEvent = !windowStore.isIgnoringMouseEvent
-        if (windowStore.isIgnoringMouseEvent) {
-          await startClickThrough()
-          return
-        }
-
-        await stopClickThrough()
       },
     },
   ])
