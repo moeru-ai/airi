@@ -1,0 +1,142 @@
+animations:
+  stage-transitions:
+    title: Tắt hiệu ứng chuyển cảnh
+  use-page-specific-transitions:
+    description: >-
+      Một số trang sẽ có hiệu ứng riêng, điều này sẽ ghi đè hiệu ứng chuyển cảnh chung
+    title: Sử dụng hiệu ứng riêng cho từng trang
+dialogs:
+  onboarding:
+    title: Chào mừng đến với AIRI!
+    description: Hãy thiết lập nhà cung cấp AI đầu tiên để bắt đầu.
+    selectProvider: Chọn nhà cung cấp AI
+    configureProvider: Cấu hình {provider}
+    apiKey: Khóa API
+    apiKeyHelp: Lấy API key từ {provider} và dán vào đây
+    baseUrl: URL gốc
+    baseUrlHelp: Đường dẫn API (dùng mặc định nếu không chắc)
+    accountId: Mã tài khoản
+    validationFailed: Xác thực cấu hình thất bại
+    validationError: 'Lỗi xác thực: {error}'
+    skipForNow: Bỏ qua
+    saveAndContinue: Lưu và tiếp tục
+    next: Tiếp theo
+    start: Bắt đầu thôi!
+    select-model: Chọn mô hình
+    no-models: Không có mô hình khả dụng
+    no-models-help: Vui lòng quay lại bước trước để kiểm tra API key hoặc kiểm tra kết nối mạng.
+language:
+  title: Ngôn ngữ
+  description: >
+    Thay đổi ngôn ngữ giao diện của AIRI. Điều này sẽ không ảnh hưởng đến ngôn ngữ trả lời của nhân vật.
+live2d:
+  change-model:
+    from-file: Tải từ tệp
+    from-file-select: Chọn
+    from-url: Tải từ URL
+    from-url-confirm: Tải
+    from-url-placeholder: Nhập URL mô hình Live2D
+    title: Thay đổi mô hình
+  edit-motion-map:
+    title: Chỉnh sửa bản đồ chuyển động
+  map-motions:
+    play: Phát chuyển động
+    title: Gán chuyển động
+  title: Cài đặt Live2D
+  scale-and-position:
+    title: Tỉ lệ và vị trí
+    scale: Tỉ lệ
+    x: X
+    'y': Y
+  switch-to-vrm:
+    title: Chuyển sang Avatar 3D?
+    change-to-vrm: Bấm vào đây để chuyển sang cài đặt avatar 3D (VRM)
+  theme-color-from-model:
+    title: Trích xuất màu từ mô hình
+    button-extract:
+      title: Trích xuất
+  focus:
+    title: Tắt theo dõi chuột của mô hình
+    button-disable:
+      title: Tắt
+microphone: Micro
+models: Mô hình
+pages:
+  card:
+    activate: Kích hoạt
+    active: Đang hoạt động
+    active_badge: Đang sử dụng
+    cancel: Hủy
+    card_not_found: Không tìm thấy thẻ
+    character: Nhân vật
+    close: Đóng
+    consciousness:
+      model: Ý thức / Mô hình
+    created_by: tạo bởi
+    creator_notes: Ghi chú của tác giả
+    delete: Xóa
+    delete_card: Xóa thẻ
+    delete_confirmation: Bạn có chắc muốn xóa thẻ này không?
+    description: Sử dụng các thẻ nhân vật AIRI có sẵn
+    description_label: Mô tả
+    drop_here: Thả vào đây để tải lên
+    create_card: Tạo thẻ mới
+    creation:
+      identity: Danh tính
+      name: Tên
+      nickname: Biệt danh
+      description: Mô tả
+      behavior: Hành vi
+      greetings: Lời chào (mỗi dòng một câu)
+      settings: Cài đặt
+      version: Phiên bản
+      create: Tạo
+      defaults:
+        name: Tên
+        personality: Bạn là một con người bình thường, tò mò về mọi thứ.
+        scenario: Bạn vừa tỉnh dậy và quên hết ký ức trước kia.
+        systemprompt: Bạn sẽ nhận tin nhắn và trả lời như một con người thật.
+        posthistoryinstructions: Hãy nhớ bắt chước như một con người.
+      fields_info:
+        subtitle: >-
+          Bạn có thể thêm chi tiết về nhân vật, giải thích bối cảnh và cách tương tác nên được trả lời thế nào.
+        name: Tên chính thức của nhân vật.
+        nickname: Biệt danh sẽ được ưu tiên sử dụng.
+        description: Mô tả nhân vật.
+        notes: Nếu muốn, bạn có thể thêm ghi chú cá nhân.
+        personality: >-
+          Miêu tả tính cách của nhân vật. Nhút nhát? Tò mò? Hay điều gì khác?
+        scenario: Bối cảnh xung quanh là gì? Tình huống hiện tại thế nào?
+        greetings_field: Lời chào
+        greetings: Nhân vật sẽ nói "xin chào" như thế nào?
+        systemprompt: Giải thích cho AI cách nó nên trả lời.
+        posthistoryinstructions: Đặt ở đây những điều AI cần đọc sau lịch sử hội thoại.
+        version: >-
+          Phiên bản thẻ, hãy tăng số này nếu bạn chỉnh sửa từ thẻ cũ.
+      errors:
+        name: Tên phải hợp lệ hoặc không để trống.
+        version: 'Lỗi: Số phiên bản không hợp lệ!'
+        description: 'Lỗi: Bạn phải cung cấp mô tả cho thẻ này.'
+        personality: 'Lỗi: Phải có tính cách cho nhân vật.'
+        scenario: 'Lỗi: Cần có một bối cảnh.'
+        systemprompt: 'Lỗi: Vui lòng cung cấp system prompt.'
+        posthistoryinstructions: 'Lỗi: Cần có post history prompt.'
+    modules: Mô-đun
+    name_asc: Tên (A-Z)
+    name_desc: Tên (Z-A)
+    no_cards: Chưa có thẻ nào. Nhấn nút phía trên để tải lên!
+    no_results: Không tìm thấy thẻ phù hợp
+    personality: Tính cách
+    posthistoryinstructions: Hướng dẫn sau lịch sử
+    recent: Vừa thêm
+    scenario: Bối cảnh
+    search: Tìm kiếm thẻ...
+    sort_by: Sắp xếp theo
+    speech:
+      model: Giọng nói / Mô hình
+      voice: Giọng nói / Voice
+    systemprompt: System Prompt
+    title: Thẻ AIRI
+    try_different_search: Hãy thử từ khóa khác
+    upload: Tải lên
+    upload_desc: Nhấn hoặc kéo tệp vào để tải lên
