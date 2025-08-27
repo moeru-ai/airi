@@ -10,10 +10,10 @@ pages:
     sections:
       section:
         window-shortcuts:
-          title: Phím tắt cửa sổ
+          title: Phím tắt Windows
     window-shortcuts:
-      description: Chỉnh sửa các phím tắt cho cửa sổ.
-      title: Phím tắt cửa sổ
+      description: Chỉnh sửa các phím tắt cho Windows.
+      title: Phím tắt Windows
       toggle-move:
         label: Bật/Tắt Di chuyển
       toggle-resize:
