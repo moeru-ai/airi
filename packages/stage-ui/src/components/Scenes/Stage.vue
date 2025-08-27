@@ -74,11 +74,24 @@ vrmStore.onShouldUpdateView(async () => {
 const audioAnalyser = ref<AnalyserNode>()
 const nowSpeaking = ref(false)
 const lipSyncStarted = ref(false)
-
+let currentAudioSource: AudioBufferSourceNode | null = null
+  
 const audioQueue = useQueue<{ audioBuffer: AudioBuffer, text: string }>({
   handlers: [
     (ctx) => {
       return new Promise((resolve) => {
+        // Stop any currently playing audio
+        if (currentAudioSource) {
+          try { 
+            currentAudioSource.stop() 
+          } 
+          try {
+            currentAudioSource.stop()
+          }
+          catch {}
+          currentAudioSource.disconnect()
+          currentAudioSource = null
+        }
         // Create an AudioBufferSourceNode
         const source = audioContext.createBufferSource()
         source.buffer = ctx.data.audioBuffer
