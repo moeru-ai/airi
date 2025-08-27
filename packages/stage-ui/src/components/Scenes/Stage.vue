@@ -104,7 +104,9 @@ const audioQueue = useQueue<{ audioBuffer: AudioBuffer, text: string }>({
         source.start(0)
         source.onended = () => {
           nowSpeaking.value = false
-          if (currentAudioSource === source) currentAudioSource = null
+          if (currentAudioSource === source) {
+            currentAudioSource = null
+          }
           resolve()
         }
       })
@@ -223,8 +225,11 @@ function setupAnalyser() {
 onBeforeMessageComposed(async () => {
   // Stop any currently playing audio and clear the audio queue
   if (currentAudioSource) {
-    try { currentAudioSource.stop(); } catch {}
-    currentAudioSource.disconnect();
+    try {
+      currentAudioSource.stop()
+    }
+    catch {}
+    currentAudioSource.disconnect()
     currentAudioSource = null;
   }
   audioQueue.queue.value = []
