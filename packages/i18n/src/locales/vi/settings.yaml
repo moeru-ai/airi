@@ -12,11 +12,11 @@ dialogs:
     description: Hãy thiết lập nhà cung cấp AI đầu tiên để bắt đầu.
     selectProvider: Chọn nhà cung cấp AI
     configureProvider: Cấu hình {provider}
-    apiKey: API Key
-    apiKeyHelp: Lấy API key từ {provider} và dán vào đây
-    baseUrl: Base URL
-    baseUrlHelp: Địa chỉ API endpoint (dùng mặc định nếu không chắc)
-    accountId: Account ID
+    apiKey: Khóa API
+    apiKeyHelp: Lấy khóa API từ {provider} và dán vào đây
+    baseUrl: URL gốc
+    baseUrlHelp: Địa chỉ API đầu cuối (dùng mặc định nếu không chắc)
+    accountId: ID tài khoản
     validationFailed: Xác thực cấu hình thất bại
     validationError: 'Lỗi xác thực: {error}'
     skipForNow: Bỏ qua
@@ -25,7 +25,7 @@ dialogs:
     start: Bắt đầu thôi!
     select-model: Chọn mô hình
     no-models: Không có mô hình khả dụng
-    no-models-help: Vui lòng quay lại bước trước và kiểm tra API key, hoặc kiểm tra kết nối mạng.
+    no-models-help: Vui lòng quay lại bước trước và kiểm tra khóa API, hoặc kiểm tra kết nối mạng.
 language:
   title: Ngôn ngữ
   description: >
@@ -51,8 +51,8 @@ live2d:
     x: X
     'y': Y
   switch-to-vrm:
-    title: Chuyển sang Avatar 3D?
-    change-to-vrm: Bấm vào đây để đổi sang cài đặt avatar 3D (VRM)
+    title: Chuyển sang mô hình 3D?
+    change-to-vrm: Bấm vào đây để đổi sang cài đặt mô hình 3D (VRM)
   theme-color-from-model:
     title: Trích xuất màu từ mô hình
     button-extract:
@@ -122,8 +122,8 @@ pages:
         description: 'Lỗi: Phải có mô tả cho thẻ này.'
         personality: 'Lỗi: Phải có tính cách cho nhân vật.'
         scenario: 'Lỗi: Phải có kịch bản.'
-        systemprompt: 'Lỗi: Hãy cung cấp system prompt.'
-        posthistoryinstructions: 'Lỗi: Cần có post history prompt.'
+        systemprompt: 'Lỗi: Hãy cung cấp lời nhắc hệ thống'
+        posthistoryinstructions: 'Lỗi: Cần có lịch sử đăng lời nhắc'
     modules: Module
     name_asc: Tên (A-Z)
     name_desc: Tên (Z-A)
@@ -137,8 +137,8 @@ pages:
     sort_by: Sắp xếp theo
     speech:
       model: Giọng nói / Mô hình
-      voice: Giọng nói / Voice
-    systemprompt: System Prompt
+      voice: Giọng nói / Giọng
+    systemprompt: Lời nhắc hệ thống
     title: Thẻ AIRI
     try_different_search: Hãy thử từ khóa khác
     upload: Tải lên
@@ -264,7 +264,7 @@ pages:
       fields:
         field:
           api-key:
-            label: Nhập API Key
+            label: Nhập khóa API
       section:
         advanced:
           fields:
@@ -298,7 +298,7 @@ pages:
         description: https://github.com/moeru-ai/xsai-transformers
       alibaba-cloud-model-studio:
         description: bailian.console.aliyun.com
-        title: Alibaba Cloud Model Studio
+        title: Mô hình Studio Alibaba Cloud
       anthropic:
         description: anthropic.com
         title: Anthropic | Claude
@@ -319,11 +319,11 @@ pages:
         fields:
           field:
             account-id:
-              description: Cloudflare Account ID
+              description: ID tài khoản Cloudflare
               label: Account ID
-              placeholder: Cloudflare Account ID của bạn
+              placeholder: ID tài khoản Cloudflare của bạn
             api-key:
-              placeholder: Nhập Cloudflare API Key
+              placeholder: Nhập khóa API cho Cloudflare
         title: Cloudflare Workers AI
       common:
         fields:
@@ -377,7 +377,7 @@ pages:
                 label: Giọng
           title: Voice Playground
           validation:
-            error-missing-api-key: Vui lòng nhập API key để thử giọng.
+            error-missing-api-key: Vui lòng nhập khóa API để thử giọng.
         title: ElevenLabs
       fireworks:
         description: fireworks.ai
@@ -563,8 +563,8 @@ vrm:
   scale-and-position:
     model-info-title: Thông Tin Kích Thước Mô Hình
     model-info-x: Chiều Rộng (X)
-    model-info-y: Chiều Cao (Y)
-    model-info-z: Chiều Sâu (Z)
+    model-info-y: Chiều Dài (Y)
+    model-info-z: Chiều Cao (Z)
     tips: |
       Chỉnh sửa vị trí ban đầu của mô hình VRM.
       Hệ trục tọa độ được hiển thị.
@@ -583,7 +583,7 @@ vrm:
           mouse: Chuột
           disabled: Tắt
   switch-to-vrm:
-    title: Chuyển sang Live2D Avatar?
+    title: Chuyển sang mô hình Live2D?
     change-to-vrm: Nhấn vào đây để chuyển sang cài đặt Live2D avatar
   theme-color-from-model:
     button-extract:
