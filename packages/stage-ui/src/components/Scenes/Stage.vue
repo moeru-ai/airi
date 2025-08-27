@@ -230,7 +230,7 @@ onBeforeMessageComposed(async () => {
     }
     catch {}
     currentAudioSource.disconnect()
-    currentAudioSource = null;
+    currentAudioSource = null
   }
   audioQueue.queue.value = []
   setupAnalyser()
