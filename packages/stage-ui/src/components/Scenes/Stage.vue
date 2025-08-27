@@ -75,11 +75,16 @@ const audioAnalyser = ref<AnalyserNode>()
 const nowSpeaking = ref(false)
 const lipSyncStarted = ref(false)
 let currentAudioSource: AudioBufferSourceNode | null = null
-  
-const audioQueue = useQueue<{ audioBuffer: AudioBuffer, text: string }>({
+let currentSession = 0
+
+const audioQueue = useQueue<{ audioBuffer: AudioBuffer, text: string, session: number }>({
   handlers: [
     (ctx) => {
       return new Promise((resolve) => {
+        // Only play if session matches
+        if (ctx.data.session !== currentSession) {
+          return resolve()
+        }
         // Stop any currently playing audio
         if (currentAudioSource) {
           try {
@@ -113,8 +118,11 @@ const audioQueue = useQueue<{ audioBuffer: AudioBuffer, text: string }>({
 const speechStore = useSpeechStore()
 const { ssmlEnabled, activeSpeechProvider, activeSpeechModel, activeSpeechVoice, pitch } = storeToRefs(speechStore)
 
-async function handleSpeechGeneration(ctx: { data: string }) {
+async function handleSpeechGeneration(ctx: { data: string, session: number }) {
   try {
+    if (ctx.session !== currentSession) {
+      return
+    }
     if (!activeSpeechProvider.value) {
       console.warn('No active speech provider configured')
       return
@@ -146,17 +154,18 @@ async function handleSpeechGeneration(ctx: { data: string }) {
 
     // Decode the ArrayBuffer into an AudioBuffer
     const audioBuffer = await audioContext.decodeAudioData(res)
-    await audioQueue.add({ audioBuffer, text: ctx.data })
+    if (ctx.session !== currentSession) {
+      return
+    }
+    await audioQueue.add({ audioBuffer, text: ctx.data, session: ctx.session })
   }
   catch (error) {
     console.error('Speech generation failed:', error)
   }
 }
 
-const ttsQueue = useQueue<string>({
-  handlers: [
-    handleSpeechGeneration,
-  ],
+const ttsQueue = useQueue<{ data: string, session: number }>({
+  handlers: [handleSpeechGeneration],
 })
 
 ttsQueue.on('add', (content) => {
@@ -164,7 +173,13 @@ ttsQueue.on('add', (content) => {
   console.debug('ttsQueue added', content)
 })
 
-const messageContentQueue = useMessageContentQueue(ttsQueue)
+const messageContentQueue = useQueue<{ data: string, session: number }>({
+  handlers: [async (ctx) => {
+    // Only process if session matches
+    if (ctx.session !== currentSession) return
+    await ttsQueue.add({ data: ctx.data, session: ctx.session })
+  }],
+})
 
 const { currentMotion } = storeToRefs(useLive2d())
 
@@ -224,6 +239,16 @@ onBeforeMessageComposed(async () => {
 })
 
 onBeforeSend(async () => {
+  // Interrupt audio playback and clear queues when a new message is sent
+  currentSession++
+  if (currentAudioSource) {
+    try { currentAudioSource.stop() } catch {}
+    currentAudioSource.disconnect()
+    currentAudioSource = null
+  }
+  audioQueue.clear()
+  ttsQueue.clear()
+  messageContentQueue.clear()
   currentMotion.value = { group: EmotionThinkMotionName }
 })
 
@@ -251,6 +276,15 @@ onAssistantResponseEnd(async (_message) => {
 
 onUnmounted(() => {
   lipSyncStarted.value = false
+  currentSession++
+  if (currentAudioSource) {
+    try { currentAudioSource.stop() } catch {}
+    currentAudioSource.disconnect()
+    currentAudioSource = null
+  }
+  audioQueue.clear()
+  ttsQueue.clear()
+  messageContentQueue.clear()
 })
 
 onMounted(async () => {
