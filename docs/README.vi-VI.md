@@ -139,7 +139,7 @@ Khả năng:
 
 > [!NOTE]  
 > Mặc định, `pnpm dev` sẽ khởi chạy server cho Stage Web (phiên bản trình duyệt).  
-> Nếu muốn phát triển bản desktop, hãy đọc [CONTRIBUTING.md](./.github/CONTRIBUTING.md) để cấu hình đúng môi trường.  
+> Nếu muốn phát triển bản desktop, hãy đọc [CONTRIBUTING.md](../.github/CONTRIBUTING.md) để cấu hình đúng môi trường.
 
 ```shell
 pnpm i
