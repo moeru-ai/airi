@@ -29,7 +29,7 @@
 </p>
 
 <p align="center">
-  <a href="https://www.producthunt.com/products/airi?embed=true&utm_source=badge-featured&utm_medium=badge&utm_source=badge-airi" target="_blank"><img src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=993524&theme=neutral&t=1752696535380" alt="AIRI - Một&#0032;bình&#0032;chứa&#0032;linh&#0032;hồn&#0032;số&#0044;&#0032;tái&#0032;tạo&#0032;Neuro-sama | Product Hunt" style="width: 250px; height: 54px;" width="250" height="54" /></a>
+  <a href="https://www.producthunt.com/products/airi?embed=true&utm_source=badge-featured&utm_medium=badge&utm_source=badge-airi" target="_blank"><img src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=993524&theme=neutral&t=1752696535380" alt="AIRI - Một bình chứa linh hồn số, tái tạo Neuro-sama | Product Hunt" style="width: 250px; height: 54px;" width="250" height="54" /></a>
   <a href="https://trendshift.io/repositories/14636" target="_blank"><img src="https://trendshift.io/api/badge/repositories/14636" alt="moeru-ai%2Fairi | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
 </p>
 
