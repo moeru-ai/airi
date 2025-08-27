@@ -287,7 +287,7 @@ if (import.meta.hot) { // For better DX
       </div>
     </div>
     <div v-if="windowControlStore.controlMode === WindowControlMode.DEBUG" class="debug-controls">
-      </div>
+    </div>
   </div>
   <Transition
     enter-active-class="transition-opacity duration-250"
@@ -369,4 +369,3 @@ if (import.meta.hot) { // For better DX
 meta:
   layout: stage
 </route>
-
