@@ -9,7 +9,7 @@
     srcset="./content/public/banner-light-1280x640.avif"
     media="(prefers-color-scheme: light), (prefers-color-scheme: no-preference)"
   />
-  <img width="250" src="./docs/content/public/banner-light-1280x640.avif" />
+  <img width="250" src="./content/public/banner-light-1280x640.avif" />
 </picture>
 
 <h1 align="center">Dự án AIRI</h1>
