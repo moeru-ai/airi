@@ -92,7 +92,7 @@ function handleResetSettings() {
       <ProviderAdvancedSettings :title="t('settings.pages.providers.common.section.advanced.title')">
         <ProviderBaseUrlInput
           v-model="baseUrl"
-          placeholder="https://api-inference.modelscope.cn/v1"
+          placeholder="https://api-inference.modelscope.cn/v1/"
         />
       </ProviderAdvancedSettings>
     </ProviderSettingsContainer>

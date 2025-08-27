@@ -2150,7 +2150,7 @@ export const useProvidersStore = defineStore('providers', () => {
       description: 'modelscope',
       icon: 'i-lobe-icons:modelscope',
       defaultOptions: () => ({
-        baseUrl: 'https://api-inference.modelscope.cn/v1',
+        baseUrl: 'https://api-inference.modelscope.cn/v1/',
       }),
       createProvider: async config => createOpenAI((config.apiKey as string).trim(), (config.baseUrl as string).trim()),
       capabilities: {
