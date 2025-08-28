@@ -44,17 +44,17 @@ const props = defineProps<{
           <span>{{ props.description || '' }}</span>
         </div>
       </div>
-      <template v-if=" props.icon">
+      <template v-if="props.icon">
         <div
           class="menu-icon-status-item-icon"
           transition="all ease-in-out duration-400"
           absolute right-0 size-16 translate-y-2
           text="neutral-400/50 dark:neutral-600/50"
           grayscale-100
-          :class="[props.icon]"
+          :class="props.icon"
         />
       </template>
-      <template v-if=" props.iconColor">
+      <template v-if="props.iconColor">
         <div
           class="menu-icon-status-item-icon-color"
           transition="all ease-in-out duration-400"
@@ -64,9 +64,9 @@ const props = defineProps<{
           :class="[props.iconColor]"
         />
       </template>
-      <template v-if=" props.iconImage">
+      <template v-if="props.iconImage">
         <img
-          :src=" props.iconImage"
+          :src="props.iconImage"
           class="menu-icon-status-item-icon-image"
           transition="all ease-in-out duration-400"
           absolute right-0 size-16 translate-y-2
@@ -75,8 +75,8 @@ const props = defineProps<{
       </template>
     </RouterLink>
     <div p-2>
-      <div v-if="!!props.configured" size-3 bg="green-500 dark:green-600" rounded-full />
-      <div v-else size-3 bg="neutral-400 dark:neutral-500" rounded-full />
+      <div v-if="props.configured" size-4 bg="green-500" rounded-full shadow="lg" />
+      <div v-else size-4 border="2 neutral-200 dark:neutral-700" rounded-full bg="white dark:neutral-900" />
     </div>
   </div>
 </template>

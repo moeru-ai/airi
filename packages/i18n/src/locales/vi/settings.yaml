@@ -1,0 +1,593 @@
+animations:
+  stage-transitions:
+    title: Tắt hiệu ứng chuyển cảnh
+  use-page-specific-transitions:
+    description: >-
+      Một số trang sẽ có hiệu ứng chuyển cảnh riêng, điều này sẽ ghi đè hiệu ứng
+      chuyển cảnh mặc định
+    title: Dùng hiệu ứng chuyển cảnh riêng cho từng trang
+dialogs:
+  onboarding:
+    title: Chào mừng đến với AIRI!
+    description: Hãy thiết lập nhà cung cấp AI đầu tiên để bắt đầu.
+    selectProvider: Chọn nhà cung cấp AI
+    configureProvider: Cấu hình {provider}
+    apiKey: Khóa API
+    apiKeyHelp: Lấy khóa API từ {provider} và dán vào đây
+    baseUrl: URL gốc
+    baseUrlHelp: Địa chỉ API đầu cuối (dùng mặc định nếu không chắc)
+    accountId: ID tài khoản
+    validationFailed: Xác thực cấu hình thất bại
+    validationError: 'Lỗi xác thực: {error}'
+    skipForNow: Bỏ qua
+    saveAndContinue: Lưu và tiếp tục
+    next: Tiếp
+    start: Bắt đầu thôi!
+    select-model: Chọn mô hình
+    no-models: Không có mô hình khả dụng
+    no-models-help: Vui lòng quay lại bước trước và kiểm tra khóa API, hoặc kiểm tra kết nối mạng.
+language:
+  title: Ngôn ngữ
+  description: >
+    Thay đổi ngôn ngữ giao diện AIRI. Điều này sẽ không ảnh hưởng đến ngôn ngữ
+    phản hồi của nhân vật.
+live2d:
+  change-model:
+    from-file: Tải từ tệp
+    from-file-select: Chọn
+    from-url: Tải từ URL
+    from-url-confirm: Tải
+    from-url-placeholder: Nhập URL mô hình Live2D
+    title: Đổi mô hình
+  edit-motion-map:
+    title: Chỉnh bản đồ chuyển động
+  map-motions:
+    play: Phát chuyển động
+    title: Gán chuyển động
+  title: Cài đặt Live2D
+  scale-and-position:
+    title: Tỉ lệ và vị trí
+    scale: Tỉ lệ
+    x: X
+    'y': Y
+  switch-to-vrm:
+    title: Chuyển sang mô hình 3D?
+    change-to-vrm: Bấm vào đây để đổi sang cài đặt mô hình 3D (VRM)
+  theme-color-from-model:
+    title: Trích xuất màu từ mô hình
+    button-extract:
+      title: Trích xuất
+  focus:
+    title: Tắt theo dõi chuột cho mô hình
+    button-disable:
+      title: Tắt
+microphone: Micro
+models: Mô hình
+pages:
+  card:
+    activate: Kích hoạt
+    active: Đang hoạt động
+    active_badge: Hiện đang hoạt động
+    cancel: Hủy
+    card_not_found: Không tìm thấy thẻ
+    character: Nhân vật
+    close: Đóng
+    consciousness:
+      model: Ý thức / Mô hình
+    created_by: được tạo bởi
+    creator_notes: Ghi chú của tác giả
+    delete: Xóa
+    delete_card: Xóa thẻ
+    delete_confirmation: Bạn có chắc muốn xóa thẻ này?
+    description: Dùng preset thẻ nhân vật AIRI
+    description_label: Mô tả
+    drop_here: Kéo vào đây để tải lên
+    create_card: Tạo thẻ mới
+    creation:
+      identity: Danh tính
+      name: Tên
+      nickname: Biệt danh
+      description: Mô tả
+      behavior: Hành vi
+      greetings: Lời chào (mỗi dòng một lời chào)
+      settings: Cài đặt
+      version: Phiên bản
+      create: Tạo
+      defaults:
+        name: Tên
+        personality: Bạn là một con người bình thường, tò mò về mọi thứ.
+        scenario: Bạn vừa tỉnh dậy và quên hết quá khứ.
+        systemprompt: Bạn sẽ nhận tin nhắn và trả lời như một con người thực sự.
+        posthistoryinstructions: Nhớ bắt chước như một con người.
+      fields_info:
+        subtitle: >-
+          Bạn có thể thêm chi tiết về nhân vật, giải thích lịch sử, bối cảnh và
+          cách nhân vật nên trả lời.
+        name: Tên chính thức của nhân vật.
+        nickname: Có thể đặt biệt danh để ưu tiên dùng.
+        description: Mô tả nhân vật này.
+        notes: Thêm ghi chú cá nhân nếu muốn.
+        personality: >-
+          Miêu tả tính cách nhân vật. Nhút nhát? Tò mò? Hoặc khác?
+        scenario: Hoàn cảnh xung quanh? Tình huống hiện tại?
+        greetings_field: Lời chào
+        greetings: Nhân vật nên chào như thế nào?
+        systemprompt: Hướng dẫn AI LLM cách trả lời khi được hỏi.
+        posthistoryinstructions: Đặt thông tin mà AI LLM nên đọc sau lịch sử hội thoại.
+        version: >-
+          Phiên bản thẻ, hãy tăng giá trị này nếu bạn đã chỉnh sửa thẻ từ trước.
+      errors:
+        name: Tên không hợp lệ hoặc rỗng.
+        version: 'Lỗi: Số phiên bản không hợp lệ!'
+        description: 'Lỗi: Phải có mô tả cho thẻ này.'
+        personality: 'Lỗi: Phải có tính cách cho nhân vật.'
+        scenario: 'Lỗi: Phải có kịch bản.'
+        systemprompt: 'Lỗi: Hãy cung cấp lời nhắc hệ thống'
+        posthistoryinstructions: 'Lỗi: Cần có lịch sử đăng lời nhắc'
+    modules: Mô-đun
+    name_asc: Tên (A-Z)
+    name_desc: Tên (Z-A)
+    no_cards: Chưa có thẻ nào. Bấm nút trên để tải lên!
+    no_results: Không tìm thấy thẻ phù hợp
+    personality: Tính cách
+    posthistoryinstructions: Hướng dẫn sau lịch sử
+    recent: Thêm gần đây
+    scenario: Kịch bản
+    search: Tìm thẻ...
+    sort_by: Sắp xếp theo
+    speech:
+      model: Giọng nói / Mô hình
+      voice: Giọng nói / Giọng
+    systemprompt: Lời nhắc hệ thống
+    title: Thẻ AIRI
+    try_different_search: Hãy thử từ khóa khác
+    upload: Tải lên
+    upload_desc: Bấm hoặc kéo thả tệp để tải lên
+  memory:
+    description: Nơi lưu trữ và tổ chức ký ức
+    title: Bộ nhớ
+  models:
+    description: Live2D, VRM, v.v.
+    title: Mô hình
+    sections:
+      section:
+        live2d:
+          title: Live2D
+          description: Cấu hình mô hình Live2D
+        vrm:
+          title: VRM
+          description: Cấu hình mô hình 3D VRM
+        scene: Bối cảnh
+  modules:
+    consciousness:
+      description: Tính cách, mô hình mong muốn, v.v.
+      sections:
+        section:
+          provider-model-selection:
+            collapse: Thu gọn
+            custom_model_placeholder: Nhập tên mô hình tùy chỉnh...
+            description: Chọn nhà cung cấp LLM phù hợp cho ý thức
+            error: Lỗi tải mô hình
+            expand: Mở rộng
+            loading: Đang tải mô hình...
+            manual_model_name: Tên mô hình
+            manual_model_placeholder: Nhập tên mô hình dùng với nhà cung cấp này
+            no_models: Không có mô hình
+            no_models_description: Không tìm thấy mô hình nào cho nhà cung cấp này
+            no_search_results: Không có kết quả phù hợp
+            no_search_results_description: Không có mô hình nào khớp với '{query}'. Thử từ khóa khác.
+            not_supported: Không hỗ trợ liệt kê mô hình
+            not_supported_description: Nhà cung cấp này không hỗ trợ chức năng liệt kê mô hình
+            search_placeholder: Tìm mô hình...
+            search_results: Tìm thấy {count}/{total} mô hình
+            show_less: Ẩn bớt
+            show_more: Hiện thêm
+            subtitle: Chọn mô hình từ nhà cung cấp
+            title: Mô hình
+      title: Ý thức
+    description: Tư duy, thị giác, tổng hợp giọng nói, chơi game, v.v.
+    gaming-factorio:
+      description: Chơi Factorio!
+      title: Factorio
+    gaming-minecraft:
+      description: Chơi Minecraft!
+      title: Minecraft
+    hearing:
+      description: Cấu hình nhận diện giọng nói
+      title: Nghe
+    memory-long-term:
+      description: Cài đặt và quản lý trí nhớ dài hạn
+      title: Trí nhớ dài hạn
+    memory-short-term:
+      description: Cài đặt và quản lý trí nhớ ngắn hạn
+      title: Trí nhớ ngắn hạn
+    messaging-discord:
+      description: Chat & Gọi thoại qua Discord
+      title: Discord
+    speech:
+      description: Tổng hợp giọng nói
+      sections:
+        section:
+          playground:
+            buttons:
+              stop:
+                label: Dừng
+            select-voice:
+              required: Vui lòng chọn một giọng nói
+          provider-voice-selection:
+            custom_model_placeholder: Nhập tên mô hình tùy chỉnh...
+            custom_voice_placeholder: Nhập ID giọng nói tùy chỉnh...
+            description: Chọn nhà cung cấp giọng nói phù hợp
+            no_models: Không có mô hình
+            no_models_description: Không tìm thấy mô hình nào cho nhà cung cấp này
+            no_voices: Không có giọng nói
+            no_voices_description: Không tìm thấy giọng nói nào cho nhà cung cấp này
+            pause: Tạm dừng
+            play_sample: Nghe thử
+            search_models_placeholder: Tìm mô hình...
+            search_models_results: Tìm thấy {count}/{total} mô hình
+            search_voices_placeholder: Tìm giọng nói...
+            search_voices_results: Tìm thấy {count}/{total} giọng nói
+            show_less: Ẩn bớt
+            show_more: Hiện thêm
+            title: Nhà cung cấp
+          voice-settings:
+            input-ssml:
+              placeholder: Nhập văn bản SSML...
+            use-ssml:
+              description: Bật để nhập SSML thô thay vì văn bản
+              label: Dùng SSML tùy chỉnh
+      title: Giọng nói
+    title: Module
+    vision:
+      description: Thị giác
+      title: Thị giác
+    x:
+      description: Sử Dụng Twitter
+      title: X / Twitter
+    mcp-server:
+      description: Kết nối, quản lý máy chủ MCP và công cụ
+      title: Máy chủ MCP
+  providers:
+    explained:
+      chat: 'Nhà cung cấp mô hình tạo văn bản. Ví dụ: OpenRouter, OpenAI, Ollama.'
+      Speech: 'Nhà cung cấp mô hình giọng nói (text-to-speech). Ví dụ: ElevenLabs, Azure Speech.'
+      Transcription: >-
+        Nhà cung cấp mô hình chuyển giọng nói thành văn bản. Ví dụ: Whisper.cpp,
+        OpenAI, Azure Speech
+    helpinfo:
+      title: Lần đầu tới đây?
+      description: >
+        AIRI cần ít nhất một nhà cung cấp để suy nghĩ và hoạt động đúng cách {chat}.
+        Có thể coi nó như bộ não của nhân vật AIRI trong hệ thống.
+    common:
+      fields:
+        field:
+          api-key:
+            label: Nhập khóa API
+      section:
+        advanced:
+          fields:
+            field:
+              headers:
+                description: Thêm HTTP header tùy chỉnh
+                key:
+                  placeholder: Khóa
+                label: HTTP Headers
+                value:
+                  placeholder: Giá trị
+          title: Nâng cao
+        basic:
+          description: Cài đặt cơ bản
+          title: Cơ bản
+        voice:
+          title: Cài đặt giọng nói
+    description: LLMs, nhà cung cấp giọng nói, v.v.
+    provider:
+      app-local-audio-transcription:
+        title: Ứng dụng (Local)
+        description: https://github.com/moeru-ai/xsai-transformers
+      app-local-audio-speech:
+        title: Ứng dụng (Local)
+        description: https://github.com/moeru-ai/xsai-transformers
+      browser-local-audio-transcription:
+        title: Trình duyệt (Local)
+        description: https://github.com/moeru-ai/xsai-transformers
+      browser-local-audio-speech:
+        title: Trình duyệt (Local)
+        description: https://github.com/moeru-ai/xsai-transformers
+      alibaba-cloud-model-studio:
+        description: bailian.console.aliyun.com
+        title: Mô hình Studio Alibaba Cloud
+      anthropic:
+        description: anthropic.com
+        title: Anthropic | Claude
+        helpinfo:
+          title: Trước khi bắt đầu
+          description:
+            part1: >-
+              Anthropic gần đây công bố hỗ trợ beta cho SDK OpenAI
+            part2: (xem thêm tại đây)
+            part3: nhưng do chi tiết triển khai đi kèm
+            part4: >-
+              với hạn chế không tương thích hoàn toàn với SDK OpenAI, hiện chưa thể dùng nhà cung cấp này trong trình duyệt.
+            part5: >-
+              Nếu cần dùng, bạn phải có proxy backend riêng như Serverless Function
+            part6: hoặc dịch vụ bypass CORS để vượt hạn chế.
+      cloudflare-workers-ai:
+        description: cloudflare.com
+        fields:
+          field:
+            account-id:
+              description: ID tài khoản Cloudflare
+              label: Account ID
+              placeholder: ID tài khoản Cloudflare của bạn
+            api-key:
+              placeholder: Nhập khóa API cho Cloudflare
+        title: Cloudflare Workers AI
+      common:
+        fields:
+          field:
+            pitch:
+              description: Điều chỉnh cao độ giọng nói
+              label: Pitch
+            speed:
+              description: Điều chỉnh tốc độ giọng nói
+              label: Tốc độ
+            volume:
+              description: Điều chỉnh âm lượng
+              label: Âm lượng
+      deepseek:
+        description: deepseek.com
+        title: DeepSeek
+      elevenlabs:
+        description: elevenlabs.io
+        fields:
+          field:
+            simularity-boost:
+              description: Bám sát giọng gốc
+              label: Similarity Boost
+            speaker-boost:
+              description: Giọng nói tự nhiên hơn
+              label: Speaker Boost
+            speed:
+              description: Tốc độ giọng nói
+              label: Tốc độ
+            stability:
+              description: Độ ổn định và ngẫu nhiên
+              label: Ổn định
+            style:
+              description: Cường điệu phong cách giọng
+              label: Phong cách
+        playground:
+          buttons:
+            button:
+              test-voice:
+                generating: Đang tạo...
+                label: Thử giọng
+          fields:
+            field:
+              input:
+                placeholder: Nhập văn bản để thử giọng...
+              language:
+                description: Chọn ngôn ngữ
+                label: Ngôn ngữ
+              voice:
+                description: Chọn giọng nói ưa thích
+                label: Giọng
+          title: Voice Playground
+          validation:
+            error-missing-api-key: Vui lòng nhập khóa API để thử giọng.
+        title: ElevenLabs
+      fireworks:
+        description: fireworks.ai
+        title: Fireworks.ai
+      microsoft-speech:
+        description: speech.microsoft.com
+        fields:
+          field:
+            region:
+              description: Khu vực dịch vụ Speech
+              label: Region
+        title: Microsoft / Azure Speech
+      index-tts-vllm:
+        description: https://index-tts.github.io/
+        title: Bilibili / IndexTTS
+      mistral:
+        description: mistral.ai
+        title: Mistral
+      moonshot:
+        description: moonshot.ai
+        title: Moonshot AI
+      novita:
+        description: novita.ai
+        title: Novita
+      ollama:
+        description: ollama.ai
+        title: Ollama
+      openai:
+        description: openai.com
+        title: OpenAI
+      openai-compatible:
+        description: Tương thích OpenAI
+        title: OpenAI Compatible
+      openrouter:
+        description: openrouter.ai
+        title: OpenRouter
+      perplexity:
+        description: perplexity.ai
+        title: Perplexity
+      player2:
+        description: player2.game
+        title: Player2
+      together:
+        description: together.ai
+        title: Together.ai
+      google-generative-ai:
+        description: gemini.google.com
+        title: Google Gemini
+      featherless:
+        description: featherless.ai
+        title: Featherless AI
+      lm-studio:
+        description: lmstudio.ai
+        title: LM Studio
+      vllm:
+        description: vllm.ai
+        title: vLLM
+      volcengine:
+        description: volcengine.com
+        fields:
+          field:
+            appId:
+              description: App ID của dự án (lấy trong Console)
+              label: App ID
+        title: Volcano Engine
+      xai:
+        description: x.ai
+        title: xAI
+      transcriptions:
+        playground:
+          title: Transcription Playground
+    title: Nhà cung cấp
+  scene:
+    description: Cấu hình môi trường nhân vật sinh sống
+    title: Bối cảnh
+  themes:
+    color-scheme:
+      description: Đổi bảng màu sân khấu.
+      title: Bảng màu
+    developer:
+      description: Một số tùy chọn cho nhà phát triển.
+      title: Nhà phát triển
+    general:
+      description: Chế độ tối, ngôn ngữ, v.v.
+      title: Chung
+    description: Tùy chỉnh thiết lập bối cảnh của bạn!
+    sections:
+      section:
+        custom-color:
+          fields:
+            field:
+              primary-color:
+                label: Màu chính
+                rgb-on:
+                  title: Tôi muốn nó động!
+          title: Bảng màu
+        developer:
+          title: Nhà phát triển
+        theme-presets:
+          presets:
+            - colors:
+                - Xanh AIRI
+              description: Màu xanh đặc trưng mặc định của AIRI
+              title: Màu mặc định
+            - colors:
+                - Taupe
+                - Be
+                - Xám tro
+                - Nâu sáng
+                - Ngà
+                - Xám ô liu
+                - Cát
+                - Xám ấm
+              description: Tông màu dịu nhẹ lấy cảm hứng từ tranh Giorgio Morandi
+              title: Màu Morandi
+            - colors:
+                - Xanh Da Trời
+                - Sương Mù
+                - Cát
+                - Xanh Rêu
+                - Hoa Súng
+                - Lúa Mì
+                - Xanh Đá Phiến
+                - Xanh Xô Thơm
+              description: Bảng màu ấn tượng lấy cảm hứng từ các tác phẩm của Claude Monet
+              title: Màu Monet
+            - colors:
+                - Nâu Vàng
+                - Nâu Ấm
+                - Nâu Đậm (Umber)
+                - Cà Phê
+                - Đồng
+                - Vàng Kim
+                - Mù Tạt
+                - Hổ Phách
+              description: Bảng màu truyền thống Nhật Bản
+              title: Màu Nhật Bản
+            - colors:
+                - Xanh Bắc Âu
+                - Băng Giá
+                - Xanh đậm (Fjord)
+                - Thép
+                - Sông Băng
+                - Đá Phiến
+                - Mây
+                - Đá
+              description: Bảng màu tối giản phong cách Bắc Âu
+              title: Màu Bắc Âu
+            - colors:
+                - Hồng Bình Minh
+                - Đỏ Trung Hoa
+                - Nâu Khói
+                - Xanh Tre
+                - Tím Đậm
+                - Vàng Óng
+                - Xanh Lam Ngọc
+                - Son Đất
+              description: >-
+                Màu sắc truyền thống Trung Hoa, bắt nguồn từ vải dệt cổ, gốm sứ
+                và tranh vẽ
+              title: Màu Truyền Thống Trung Hoa
+          title: Bộ Màu Có Sẵn
+    title: Giao Diện
+sections:
+  section:
+    general:
+      title: Chung
+theme:
+  title: Chủ Đề
+  description: |
+    Chuyển đổi chủ đề cơ bản của AIRI, Chế độ Sáng hoặc Chế độ Tối.
+title: Cài Đặt
+voices: Giọng Nói
+vrm:
+  change-model:
+    from-file: Tải từ Tệp
+    from-file-select: Chọn
+    from-url: Tải từ URL
+    from-url-confirm: Tải
+    from-url-placeholder: Nhập URL mô hình VRM
+    title: Thay Đổi Mô Hình
+  title: Cài Đặt VRM
+  scale-and-position:
+    model-info-title: Thông Tin Kích Thước Mô Hình
+    model-info-x: Chiều Rộng (X)
+    model-info-y: Chiều Dài (Y)
+    model-info-z: Chiều Cao (Z)
+    tips: |
+      Chỉnh sửa vị trí ban đầu của mô hình VRM.
+      Hệ trục tọa độ được hiển thị.
+    scale: Tỷ Lệ
+    x: Dịch X
+    'y': Dịch Y
+    z: Dịch Z
+    fov: Góc Nhìn (độ)
+    rotation-y: Xoay Trục Y
+    camera-distance: Khoảng Cách Camera
+    eye-tracking-mode:
+      title: Nhìn Vào
+      options:
+        option:
+          camera: Camera
+          mouse: Chuột
+          disabled: Tắt
+  switch-to-vrm:
+    title: Chuyển sang mô hình Live2D?
+    change-to-vrm: Nhấn vào đây để chuyển sang cài đặt Live2D avatar
+  theme-color-from-model:
+    button-extract:
+      title: Trích Xuất
+  skybox:
+    skybox-intensity: Cường Độ SkyBox
+    skybox-specular-mix: Độ Trộn Phản Chiếu

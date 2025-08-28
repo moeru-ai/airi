@@ -2140,6 +2140,50 @@ export const useProvidersStore = defineStore('providers', () => {
         },
       },
     },
+    'modelscope': {
+      id: 'modelscope',
+      category: 'chat',
+      tasks: ['text-generation'],
+      nameKey: 'settings.pages.providers.provider.modelscope.title',
+      name: 'ModelScope',
+      descriptionKey: 'settings.pages.providers.provider.modelscope.description',
+      description: 'modelscope',
+      icon: 'i-lobe-icons:modelscope',
+      defaultOptions: () => ({
+        baseUrl: 'https://api-inference.modelscope.cn/v1/',
+      }),
+      createProvider: async config => createOpenAI((config.apiKey as string).trim(), (config.baseUrl as string).trim()),
+      capabilities: {
+        listModels: async (config) => {
+          return (await listModels({
+            ...createOpenAI((config.apiKey as string).trim(), (config.baseUrl as string).trim()).model(),
+          })).map((model) => {
+            return {
+              id: model.id,
+              name: model.id,
+              provider: 'modelscope',
+              description: '',
+              contextLength: 0,
+              deprecated: false,
+            } satisfies ModelInfo
+          })
+        },
+      },
+      validators: {
+        validateProviderConfig: (config) => {
+          const errors = [
+            !config.apiKey && new Error('API key is required.'),
+            !config.baseUrl && new Error('Base URL is required.'),
+          ].filter(Boolean)
+
+          return {
+            errors,
+            reason: errors.filter(e => e).map(e => String(e)).join(', ') || '',
+            valid: !!config.apiKey && !!config.baseUrl,
+          }
+        },
+      },
+    },
     'player2': {
       id: 'player2',
       category: 'chat',

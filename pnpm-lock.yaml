@@ -281,7 +281,7 @@ importers:
         version: rolldown-vite@7.0.12(@types/node@24.1.0)(esbuild@0.25.8)(jiti@2.5.1)(less@4.4.0)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       vite-plugin-vue-devtools:
         specifier: ^8.0.0
-        version: 8.0.0(@nuxt/kit@3.14.1592(magicast@0.3.5)(rollup@2.79.2))(rolldown-vite@7.0.12(@types/node@24.1.0)(esbuild@0.25.8)(jiti@2.5.1)(less@4.4.0)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0))(vue@3.5.20(typescript@5.9.2))
+        version: 8.0.0(@nuxt/kit@3.14.1592(magicast@0.3.5)(rollup@4.46.2))(rolldown-vite@7.0.12(@types/node@24.1.0)(esbuild@0.25.8)(jiti@2.5.1)(less@4.4.0)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0))(vue@3.5.20(typescript@5.9.2))
       vite-plugin-vue-layouts:
         specifier: ^0.11.0
         version: 0.11.0(rolldown-vite@7.0.12(@types/node@24.1.0)(esbuild@0.25.8)(jiti@2.5.1)(less@4.4.0)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0))(vue-router@4.5.1(vue@3.5.20(typescript@5.9.2)))(vue@3.5.20(typescript@5.9.2))
@@ -1647,7 +1647,7 @@ importers:
         version: rolldown-vite@7.0.12(@types/node@24.1.0)(esbuild@0.25.8)(jiti@2.5.1)(less@4.4.0)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       vite-plugin-vue-devtools:
         specifier: ^8.0.0
-        version: 8.0.0(@nuxt/kit@3.14.1592(magicast@0.3.5)(rollup@2.79.2))(rolldown-vite@7.0.12(@types/node@24.1.0)(esbuild@0.25.8)(jiti@2.5.1)(less@4.4.0)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0))(vue@3.5.20(typescript@5.9.2))
+        version: 8.0.0(@nuxt/kit@3.14.1592(magicast@0.3.5)(rollup@4.46.2))(rolldown-vite@7.0.12(@types/node@24.1.0)(esbuild@0.25.8)(jiti@2.5.1)(less@4.4.0)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0))(vue@3.5.20(typescript@5.9.2))
       vue-router:
         specifier: ^4.5.1
         version: 4.5.1(vue@3.5.20(typescript@5.9.2))
@@ -1681,7 +1681,7 @@ importers:
         version: rolldown-vite@7.0.12(@types/node@24.1.0)(esbuild@0.25.8)(jiti@2.5.1)(less@4.4.0)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0)
       vite-plugin-vue-devtools:
         specifier: ^8.0.0
-        version: 8.0.0(@nuxt/kit@3.14.1592(magicast@0.3.5)(rollup@2.79.2))(rolldown-vite@7.0.12(@types/node@24.1.0)(esbuild@0.25.8)(jiti@2.5.1)(less@4.4.0)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0))(vue@3.5.20(typescript@5.9.2))
+        version: 8.0.0(@nuxt/kit@3.14.1592(magicast@0.3.5)(rollup@4.46.2))(rolldown-vite@7.0.12(@types/node@24.1.0)(esbuild@0.25.8)(jiti@2.5.1)(less@4.4.0)(terser@5.43.1)(tsx@4.20.3)(yaml@2.8.0))(vue@3.5.20(typescript@5.9.2))
       vue-router:
         specifier: ^4.5.1
         version: 4.5.1(vue@3.5.20(typescript@5.9.2))
@@ -14019,7 +14019,7 @@ snapshots:
 
   '@babel/generator@7.28.0':
     dependencies:
-      '@babel/parser': 7.28.0
+      '@babel/parser': 7.28.3
       '@babel/types': 7.28.2
       '@jridgewell/gen-mapping': 0.3.12
       '@jridgewell/trace-mapping': 0.3.29
@@ -18750,7 +18750,7 @@ snapshots:
   '@vue-macros/boolean-prop@3.0.0-beta.8(vue@3.5.20(typescript@5.9.2))':
     dependencies:
       '@vue-macros/common': 3.0.0-beta.8(vue@3.5.20(typescript@5.9.2))
-      '@vue/compiler-core': 3.5.18
+      '@vue/compiler-core': 3.5.20
     transitivePeerDependencies:
       - vue
 
@@ -18989,7 +18989,7 @@ snapshots:
   '@vue-macros/short-bind@3.0.0-beta.8(vue@3.5.20(typescript@5.9.2))':
     dependencies:
       '@vue-macros/common': 3.0.0-beta.8(vue@3.5.20(typescript@5.9.2))
-      '@vue/compiler-core': 3.5.18
+      '@vue/compiler-core': 3.5.20
     transitivePeerDependencies:
       - vue
 
@@ -19017,7 +19017,7 @@ snapshots:
   '@vue-macros/short-vmodel@3.0.0-beta.8(vue@3.5.20(typescript@5.9.2))':
     dependencies:
       '@vue-macros/common': 3.0.0-beta.8(vue@3.5.20(typescript@5.9.2))
-      '@vue/compiler-core': 3.5.18
+      '@vue/compiler-core': 3.5.20
     transitivePeerDependencies:
       - vue
 
@@ -19090,7 +19090,7 @@ snapshots:
 
   '@vue/compiler-core@3.5.18':
     dependencies:
-      '@babel/parser': 7.28.0
+      '@babel/parser': 7.28.3
       '@vue/shared': 3.5.18
       entities: 4.5.0
       estree-walker: 2.0.2
@@ -19762,7 +19762,7 @@ snapshots:
 
   ast-kit@2.1.1:
     dependencies:
-      '@babel/parser': 7.28.0
+      '@babel/parser': 7.28.3
       pathe: 2.0.3
 
   ast-v8-to-istanbul@0.3.3:
@@ -19773,7 +19773,7 @@ snapshots:
 
   ast-walker-scope@0.6.2:
     dependencies:
-      '@babel/parser': 7.28.0
+      '@babel/parser': 7.28.3
       ast-kit: 1.4.2
 
   ast-walker-scope@0.8.1:

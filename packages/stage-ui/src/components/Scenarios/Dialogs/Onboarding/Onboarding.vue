@@ -119,6 +119,7 @@ function getApiKeyPlaceholder(_providerId: string): string {
     'together-ai': 'togetherapi-...',
     'mistral-ai': 'mis-...',
     'moonshot-ai': 'ms-...',
+    'modelscope': 'ms-...',
     'fireworks-ai': 'fw-...',
     'featherless-ai': 'fw-...',
     'novita-ai': 'nvt-...',
