@@ -39,6 +39,10 @@
       "types": "./dist/locales/ru/index.d.mts",
       "default": "./dist/locales/ru/index.mjs"
     },
+    "./locales/vi": {
+      "types": "./dist/locales/vi/index.d.mts",
+      "default": "./dist/locales/vi/index.mjs"
+    },
     "./locales/*.yaml": {
       "default": "./dist/locales/*.yaml"
     }

@@ -15,6 +15,8 @@ const languageRemap: Record<string, string> = {
   'es-MX': 'es',
   'es-AR': 'es',
   'es': 'es',
+  'vi': 'vi',
+  'vi-VN': 'vi',
   'ru': 'ru',
   'ru-RU': 'ru',
 }

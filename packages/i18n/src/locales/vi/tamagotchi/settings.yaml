@@ -1,0 +1,23 @@
+allow-visible-on-all-workspaces:
+  title: Hiển thị ở mọi nơi
+  description: Cho phép cửa sổ hiển thị trên tất cả workspaces, chỉ áp dụng cho macOS.
+pages:
+  modules:
+    mcp-server:
+      description: Kết nối và quản lý máy chủ MCP và các công cụ
+      title: Máy chủ MCP
+  themes:
+    sections:
+      section:
+        window-shortcuts:
+          title: Phím tắt Windows
+    window-shortcuts:
+      description: Chỉnh sửa các phím tắt cho Windows.
+      title: Phím tắt Windows
+      toggle-move:
+        label: Bật/Tắt Di chuyển
+      toggle-resize:
+        label: Bật/Tắt Thay đổi kích thước
+      toggle-ignore-mouse-event:
+        label: Bật/Tắt Bỏ qua sự kiện chuột
+      press-keys: Nhấn phím...
