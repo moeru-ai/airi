@@ -1,0 +1,49 @@
+doc:
+  outline:
+    title: Trong trang này
+  community:
+    title: Cộng đồng
+    edit:
+      title: Chỉnh sửa trang này
+    star-github:
+      title: Gắn sao trên GitHub
+    discord:
+      title: Trò chuyện trên Discord
+    support:
+      title: Hỗ trợ dự án
+  next-page:
+    title: Trang sau
+  previous-page:
+    title: Trang trước
+home:
+  subtitle: >-
+    Một nhân vật chứa linh hồn của AI waifu / VTuber nhân vật ảo để đưa họ vào thế giới của chúng ta.
+  download:
+    title: Tải xuống
+  get-started:
+    title: Bắt đầu
+  try-live:
+    title: Thử trực tiếp
+search:
+  title: Tìm kiếm
+  placeholder: Tìm trong tài liệu...
+navbar:
+  appearance:
+    title: Giao diện
+  language:
+    title: Ngôn ngữ
+pages:
+  characters:
+    title: Nhân vật
+blog:
+  title: Blog & DevLogs
+  subtitle: Theo dõi hành trình của chúng tôi và nhận các cập nhật mới nhất từ đội ngũ phát triển.
+  card:
+    post:
+      read-more:
+        title: Xem thêm
+  no-posts: Không tìm thấy bài viết trong danh mục này.
+  categories:
+    all: Tất cả
+    devlog: DevLog
+    dreamlog: DreamLog

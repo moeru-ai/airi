@@ -174,6 +174,7 @@ pnpm -F @proj-airi/docs dev
 - [x] [百川](https://platform.baichuan-ai.com)
 - [x] [Minimax](https://api.minimax.chat/)
 - [x] [月之暗面](https://platform.moonshot.cn/)
+- [x] [魔搭社区](https://modelscope.cn/docs/model-service/API-Inference/intro)
 - [x] [Player2](https://player2.game/)
 - [x] [腾讯混元](https://cloud.tencent.com/document/product/1729)
 - [ ] [讯飞星火](https://www.xfyun.cn/doc/spark/Web.html)

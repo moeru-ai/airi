@@ -1,0 +1,10 @@
+operations:
+  load-models: Tải các mô hình
+  load-models-status:
+    loading: Đang tải
+    ready: Sẵn sàng
+docs:
+  theme:
+    navbar:
+      appearance:
+        title: Giao diện
