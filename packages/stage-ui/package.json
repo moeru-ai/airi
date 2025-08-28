@@ -100,6 +100,7 @@
     "pixi-filters": "4",
     "pixi-live2d-display": "^0.4.0",
     "postprocessing": "^6.37.7",
+    "rehype-katex": "^7.0.1",
     "rehype-stringify": "^10.0.1",
     "reka-ui": "^2.4.1",
     "remark-parse": "^11.0.0",
