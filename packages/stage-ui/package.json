@@ -103,6 +103,7 @@
     "rehype-katex": "^7.0.1",
     "rehype-stringify": "^10.0.1",
     "reka-ui": "^2.4.1",
+    "remark-math": "^6.0.0",
     "remark-parse": "^11.0.0",
     "remark-rehype": "^11.1.2",
     "shiki": "^3.9.1",
