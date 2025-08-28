@@ -124,7 +124,7 @@ pages:
         scenario: 'Lỗi: Phải có kịch bản.'
         systemprompt: 'Lỗi: Hãy cung cấp lời nhắc hệ thống'
         posthistoryinstructions: 'Lỗi: Cần có lịch sử đăng lời nhắc'
-    modules: Module
+    modules: Mô-đun
     name_asc: Tên (A-Z)
     name_desc: Tên (Z-A)
     no_cards: Chưa có thẻ nào. Bấm nút trên để tải lên!
@@ -258,8 +258,8 @@ pages:
     helpinfo:
       title: Lần đầu tới đây?
       description: >
-        AIRI cần ít nhất một nhà cung cấp {chat} để suy nghĩ và hoạt động đúng cách.
-        Có thể coi nó như bộ não của nhân vật trong hệ thống AIRI.
+        AIRI cần ít nhất một nhà cung cấp để suy nghĩ và hoạt động đúng cách {chat}.
+        Có thể coi nó như bộ não của nhân vật AIRI trong hệ thống.
     common:
       fields:
         field:
@@ -332,7 +332,7 @@ pages:
               description: Điều chỉnh cao độ giọng nói
               label: Pitch
             speed:
-              description: Điều chỉnh tốc độ giọng
+              description: Điều chỉnh tốc độ giọng nói
               label: Tốc độ
             volume:
               description: Điều chỉnh âm lượng
