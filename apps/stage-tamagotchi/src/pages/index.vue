@@ -46,8 +46,9 @@ const isFirstTime = ref(true)
 
 watchThrottled([mouseX, mouseY], async ([x, y]) => {
   const canvas = widgetStageRef.value?.canvasElement()
-  if (!canvas)
+  if (!canvas) {
     return
+  }
 
   isFirstTime.value = false
 
@@ -56,7 +57,6 @@ watchThrottled([mouseX, mouseY], async ([x, y]) => {
       passThroughCommands.stopPassThrough()
       isPassingThrough.value = false
     }
-
     return
   }
 
@@ -66,32 +66,36 @@ watchThrottled([mouseX, mouseY], async ([x, y]) => {
   const islandEl = resourceStatusIslandRef.value?.$el as HTMLElement
   const buttonsEl = buttonsContainerRef.value
 
-  isOverUI.value = false
+  let isOverUIElements = false
   if (!windowControlStore.isIgnoringMouseEvent) {
     if (islandEl) {
       const rect = islandEl.getBoundingClientRect()
-      if (relativeX >= rect.left && relativeX <= rect.right && relativeY >= rect.top && relativeY <= rect.bottom)
-        isOverUI.value = true
-    }
-    if (!isOverUI.value && buttonsEl) {
-      const rect = buttonsEl.getBoundingClientRect()
-      if (relativeX >= rect.left && relativeX <= rect.right && relativeY >= rect.top && relativeY <= rect.bottom)
-        isOverUI.value = true
-    }
-
-    if (isOverUI.value) {
-      if (isPassingThrough.value) {
-        passThroughCommands.stopPassThrough()
-        isPassingThrough.value = false
+      if (relativeX >= rect.left && relativeX <= rect.right && relativeY >= rect.top && relativeY <= rect.bottom) {
+        isOverUIElements = true
       }
-      return
     }
+    if (!isOverUIElements && buttonsEl) {
+      const rect = buttonsEl.getBoundingClientRect()
+      if (relativeX >= rect.left && relativeX <= rect.right && relativeY >= rect.top && relativeY <= rect.bottom) {
+        isOverUIElements = true
+      }
+    }
+  }
+
+  isOverUI.value = isOverUIElements
+
+  if (isOverUI.value) {
+    isClickThrough.value = false
+    if (isPassingThrough.value) {
+      passThroughCommands.stopPassThrough()
+      isPassingThrough.value = false
+    }
+    return
   }
 
   let isTransparent = false
   if (
-    !isOverUI.value
-    && relativeX >= 0
+    relativeX >= 0
     && relativeX < canvas.clientWidth
     && relativeY >= 0
     && relativeY < canvas.clientHeight
