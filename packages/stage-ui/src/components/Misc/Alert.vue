@@ -1,9 +1,11 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, useSlots } from 'vue'
 
 const props = defineProps<{
   type?: 'error' | 'warning' | 'success' | 'info' | 'loading'
 }>()
+
+const slots = useSlots()
 
 const containerClass = computed(() => {
   switch (props.type) {
@@ -62,7 +64,7 @@ const titleClass = computed(() => {
         <slot name="title" />
       </div>
     </div>
-    <div v-if="$slots.content" class="px-1 text-sm">
+    <div v-if="slots.content" class="px-1 text-sm">
       <slot name="content" />
     </div>
   </div>
