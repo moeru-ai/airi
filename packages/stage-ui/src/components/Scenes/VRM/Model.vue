@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /* eslint-disable style/max-statements-per-line */
 import type { VRMCore } from '@pixiv/three-vrm-core'
-import type { AnimationClip, Group, Texture } from 'three'
+import type { AnimationClip, Group, Material, SphericalHarmonics3, Texture } from 'three'
 
 import { VRMUtils } from '@pixiv/three-vrm'
 import { useLoop, useTresContext } from '@tresjs/core'
@@ -34,7 +34,8 @@ const props = defineProps<{
   idleAnimation: string
   loadAnimations?: string[]
   paused: boolean
-  nprEquirectTex?: Texture | null
+  nprEquirectTex: Texture | null
+  nprIrrSH: SphericalHarmonics3 | null
 }>()
 
 const emit = defineEmits<{
@@ -75,6 +76,53 @@ const vrmGroup = ref<Group>()
 const idleEyeSaccades = useIdleEyeSaccades()
 
 const nprProgramVersion = ref(0)
+
+// Try the best to extract the matcap texture from various possible places
+// TODO: this function should be refactored and moved to composables/vrm
+function extractMatcapTexture(mat: any): Texture | null {
+  // a) MeshMatcapMaterial
+  if ('matcap' in mat && mat.matcap)
+    return mat.matcap as Texture
+
+  // b) For common MToon materials, it might be under uniforms
+  const u = (mat as any).uniforms
+  if (u) {
+    // try different possible names...
+    if (u.matcapTexture?.value)
+      return u.matcapTexture.value as Texture
+    if (u.sphereAddTexture?.value)
+      return u.sphereAddTexture.value as Texture
+    if (u._MatCapTex?.value)
+      return u._MatCapTex.value as Texture
+    if (u._SphereAdd?.value)
+      return u._SphereAdd.value as Texture
+  }
+
+  // c) If the matcap is in the gltf extension
+  const ud = (mat as any).userData || {}
+  const ext = ud.gltfExtensions?.VRMC_materials_mtoon || ud.vrmMaterialProperties || ud.mtoon
+  if (ext) {
+    // Different possible names...
+    const cand
+      = ext.matcapTexture
+        || ext.sphereAddTexture
+        || ext.matcap
+        || ext.sphereAdd
+    if (cand && cand.isTexture)
+      return cand as Texture
+  }
+
+  return null
+}
+
+// flaten the irrSH to array of Vector3
+function shToVec3Array(sh: SphericalHarmonics3 | null): Vector3[] {
+  const arr: Vector3[] = Array.from({ length: 9 }, () => new Vector3())
+  if (!sh)
+    return arr
+  for (let i = 0; i < 9; i++) arr[i].copy(sh.coefficients[i])
+  return arr
+}
 
 async function loadModel() {
   await until(modelLoading).not.toBeTruthy()
@@ -257,20 +305,80 @@ async function loadModel() {
                 prevOnBeforeCompile?.(shader, renderer)
                 // Obtain skybox texture from scene environment
                 const equirectTex = props.nprEquirectTex ?? null
+                // use the type assertion to fix TS error...
+                const m = mat as unknown as Material & {
+                  extensions?: { shaderTextureLOD?: boolean }
+                }
+                m.extensions = { ...(m.extensions || {}), shaderTextureLOD: true }
+                // If matcap texture is available, then use matcap in IBL specular reflection
+                const matcapTex = extractMatcapTexture(mat)
 
                 // If no normal, then skip the rest
                 const hasNormal = shader.fragmentShader.includes('vNormal')
                 if (!hasNormal)
                   return
 
+                // --- vWorldPos/vWorldNormal ---
+                if (!shader.vertexShader.includes('varying vec3 vWorldPos')) {
+                  shader.vertexShader
+                    = `
+                    varying vec3 vWorldPos;
+                    varying vec3 vWorldNormal;
+                    ${shader.vertexShader}`
+                }
+                if (!shader.fragmentShader.includes('varying vec3 vWorldPos')) {
+                  shader.fragmentShader
+                    = `
+                    varying vec3 vWorldPos;
+                    varying vec3 vWorldNormal;
+                    ${shader.fragmentShader}`
+                }
+
+                // --- vertex shader injection ---
+                shader.vertexShader = shader.vertexShader
+                  .replace(
+                    '#include <defaultnormal_vertex>',
+                    `
+                    #include <defaultnormal_vertex>
+                    vWorldNormal = normalize( mat3( modelMatrix ) * objectNormal );
+                    `,
+                  )
+                  .replace(
+                    '#include <begin_vertex>',
+                    `
+                    #include <begin_vertex>
+                    vWorldPos = ( modelMatrix * vec4( transformed, 1.0 ) ).xyz;
+                    `,
+                  )
+
                 // Setup uniforms
                 shader.uniforms.uNprEnvMode = { value: (envSelect.value === 'hemisphere') ? 0 : 2 } // 0=hemi: no further injection; 2=skybox
                 shader.uniforms.uEnvIntensity = { value: skyBoxIntensity.value } // exposed to GUI
                 shader.uniforms.uEnvMapEquirect = { value: equirectTex }
                 shader.uniforms.uSpecularMix = { value: specularMix.value }
+                // LOD mip
+                shader.uniforms.uEnvMaxMip = { value: 8.0 }
+                shader.uniforms.uBrightMip = { value: 2.0 } // bright color = low mip
+                shader.uniforms.uShadowMip = { value: 8.0 } // shadow color = high mip
+                // Tint
+                // 染色强度控制
+                shader.uniforms.uHighlightTint = { value: 0.6 }
+                shader.uniforms.uShadowTint = { value: 0.35 }
+                // Specular uniforms for NPR skybox
+                shader.uniforms.uSpecToonThreshold = { value: 0.9 } // highlight threshold
+                shader.uniforms.uSpecToonWidth = { value: 0.15 } // highlight width
+                shader.uniforms.uSpecPower = { value: 10.0 } // highlight sharpness
+                shader.uniforms.uSpecMip = { value: 8.0 } // default LOD mip level for specular
+                // Irradiance sampling
+                const emptySH: Vector3[] = Array.from({ length: 9 }, () => new Vector3())
+                shader.uniforms.uSHCoeffs = { value: emptySH }
+                // Specular matcap
+                // shader.uniforms.uUseMatcap         = { value: !!matcapTex }
+                shader.uniforms.uUseMatcap = { value: false }
+                shader.uniforms.uMatcap = { value: matcapTex ?? null }
+                shader.uniforms.uMatcapIntensity = { value: 1.0 }
 
-                // If it has viewDir, then we can do reflection
-                const hasView = shader.fragmentShader.includes('vViewPosition')
+                // console.debug('same matcap?', matcapTex === shader.uniforms.uMatcap.value)
 
                 // Shader injection!
                 shader.fragmentShader = shader.fragmentShader.replace(
@@ -281,7 +389,18 @@ async function loadModel() {
                       uniform float uEnvIntensity;
                       uniform float uSpecularMix;       // 0=diffuse only, 1=specular only
 
+                      uniform float uSpecToonThreshold;
+                      uniform float uSpecToonWidth;
+                      uniform float uSpecPower; 
+                      uniform bool  uUseMatcap;
+                      uniform sampler2D uMatcap;
+                      uniform float uMatcapIntensity;
+                      
                       uniform sampler2D uEnvMapEquirect; // Skybox(equirect)
+
+                      uniform vec3 uSHCoeffs[9];  // for irradiance
+                      uniform float uSpecMip;   // default LOD mip for specular
+
                       // --- Direction to equirectangular UV ---
                       vec2 dirToEquirectUV(vec3 d){
                         d = normalize(d);
@@ -289,44 +408,102 @@ async function loadModel() {
                         float th  = asin(clamp(d.y, -1.0, 1.0));
                         return vec2(0.5 + phi/(2.0*PI), 0.5 - th/PI);
                       }
+
+                      // --- Spherical Harmonics (3rd order) for diffuse IBL ---
+
+                      // Constants for SH basis functions
+                      const float C0 = 1.0 / (2.0 * sqrt(PI));
+                      const float C1 = sqrt(3.0 / PI) / 2.0;
+                      const float C2 = sqrt(15.0 / PI) / 2.0;
+                      const float C3 = sqrt(5.0 / PI) / 4.0;
+                      const float C4 = sqrt(15.0 / PI) / 4.0;
+
+                      vec3 evalIrradianceSH( vec3 n ) {
+                        vec3 sh = vec3(0.0);
+                        sh += uSHCoeffs[0] * C0;
+                        sh += uSHCoeffs[1] * (-C1 * n.y);
+                        sh += uSHCoeffs[2] * ( C1 * n.z);
+                        sh += uSHCoeffs[3] * (-C1 * n.x);
+                        sh += uSHCoeffs[4] * ( C2 * n.x * n.y);
+                        sh += uSHCoeffs[5] * (-C2 * n.y * n.z);
+                        sh += uSHCoeffs[6] * ( C3 * (3.0 * n.z * n.z - 1.0));
+                        sh += uSHCoeffs[7] * (-C2 * n.x * n.z);
+                        sh += uSHCoeffs[8] * ( C4 * (n.x * n.x - n.y * n.y));
+                        return sh;
+                      }
                       `,
                 ).replace(
                   '#include <dithering_fragment>',
                   `
                       // --- NPR skybox env lighting injection ---
                       vec3 n = normalize(vNormal);
+                      vec3 nW = inverseTransformDirection(n, viewMatrix);
 
-                      // Skybox lighting: equirect sampling -  difuse & reflection
                       vec3 envCol = vec3(0.0);
                       if(uNprEnvMode == 2) {
-                        ${hasView
-                          ? `vec3 v = normalize(vViewPosition);
-                            vec3 r = reflect(v, n);`
-                          : `vec3 r = n;`}
+                        // View direction in world space
+                        #ifdef USE_VIEWPOSITION
+                          vec3 v = normalize(-vViewPosition);
+                          vec3 vW = inverseTransformDirection(v, viewMatrix);
+                        #else
+                          vec3 vW = normalize(-cameraPosition);
+                        #endif
 
-                        vec3 nW = inverseTransformDirection(n, viewMatrix);
-                        vec3 rW = inverseTransformDirection(r, viewMatrix);
-                        vec3 vW = normalize(reflect(-rW, nW));
+                        // Reflection direction in world space
+                        vec3 rW = reflect(-vW, nW);
 
                         // To resolve the upside-down reflection issue of equirect map
-                        nW.z = -nW.z;
-                        rW.z = -rW.z;
+                        // nW.y = -nW.y;
+                        // rW.y = -rW.y;                       
                         
-                        float NoV = clamp(dot(nW, vW), 0.0, 1.0);
+                        // --- IBL Diffusion ---
+                        // SH-based irradiance
+                        vec3 I = evalIrradianceSH(nW);
+                        vec3 albedo = gl_FragColor.rgb;
+                        // albedo/pi * I(n)
+                        vec3 envDiff = (albedo / 3.14159265) * I * (uEnvIntensity);
+                        // TODO: Tint
 
-                        // Specular term
-                        vec3 envSpec = texture2D(uEnvMapEquirect, dirToEquirectUV(rW)).rgb;
-                        // TODO: NPR style specular? how to do that?
-
-                        // Diffuse term
-                        vec3 envDiff    = texture2D(uEnvMapEquirect, dirToEquirectUV(-nW)).rgb;
-                        // TODO: NPR style diffuse? how to do that?
+                        // --- IBL Specular reflection ---
+                        // TODO: a more stylistic specular reflection model. Is specular necessary?
+                        vec3 envSpec;
+                        if (uUseMatcap) {
+                          // Matcap-based specular
+                          vec3 V = vec3(0.0, 0.0, 1.0);
+                          vec3 nV = n;
+                          vec3 R = reflect(-V, nV);
+                          float m = 2.0 * sqrt( pow(R.x, 2.0) + pow(R.y, 2.0) + pow(R.z + 1.0, 2.0) );
+                          vec2 uvMC = R.xy / m * 0.5 + 0.5;
+                          vec3 matcapCol = texture2D(uMatcap, uvMC).rgb;
+                          envSpec = matcapCol * uMatcapIntensity;
+                        }
+                        else {
+                          // Equirect-based specular, LOD needed for NPR
+                          vec3 N = normalize(vWorldNormal);
+                          vec3 V = normalize(cameraPosition - vWorldPos); // camera to frag
+                          vec3 R = reflect(-V, N);
+                          vec2 uvRef = dirToEquirectUV(R);
+                          #if __VERSION__ >= 300
+                            vec3 envRef = textureLod(uEnvMapEquirect, uvRef, uSpecMip).rgb;
+                          #else
+                            #ifdef GL_EXT_shader_texture_lod
+                              vec3 envRef = texture2DLodEXT(uEnvMapEquirect, uvRef, uSpecMip).rgb;
+                            #else
+                              vec3 envRef = texture2D(uEnvMapEquirect, uvRef).rgb;
+                            #endif
+                          #endif
+                          // Blinn/Phong
+                          float specRaw = clamp(dot(R, V), 0.0, 1.0);
+                          float sToon = smoothstep(uSpecToonThreshold - uSpecToonWidth,
+                                                  uSpecToonThreshold + uSpecToonWidth, specRaw);
+                          envSpec = pow(sToon, uSpecPower) * envRef * uEnvIntensity;
+                        }
 
                         // Mix specular and diffuse
-                        envCol = uSpecularMix * envSpec + (1.0 - uSpecularMix) * envDiff;
+                        envCol = mix(envDiff, envSpec, uSpecularMix);
 
                         // skybox color mixing 
-                        gl_FragColor.rgb += envCol * uEnvIntensity;
+                        gl_FragColor.rgb += envCol;
                       }
                       // --- Injection ends ---
 
@@ -421,7 +598,7 @@ function componentCleanUp() {
 }
 
 // Switch to NPR SkyBox
-function updateNprUniforms(tex: Texture | null) {
+function updateNprUniforms(tex: Texture | null, nprIrrSH?: SphericalHarmonics3 | null) {
   const root = vrm.value?.scene
   if (!root)
     return
@@ -439,16 +616,37 @@ function updateNprUniforms(tex: Texture | null) {
         u.uNprEnvMode.value = mode
         u.uEnvIntensity.value = skyBoxIntensity.value
         u.uSpecularMix.value = specularMix.value
+        // Update SH coeffs after the skybox is ready
+        if (u.uSHCoeffs && nprIrrSH) {
+          // console.debug('Updating SH coeffs with new props.nprIrrSH:', props.nprIrrSH)
+          const irrSH = shToVec3Array(nprIrrSH)
+          for (let i = 0; i < 9; i++) {
+            u.uSHCoeffs.value[i].copy(irrSH[i])
+          }
+          // console.debug('Updated SH coeffs:', u.uSHCoeffs.value)
+        }
+        // Update LOD max mip based on the texture size when the skybox is ready
+        if (tex?.image?.width && tex?.image?.height) {
+          const maxMip = Math.floor(Math.log2(Math.max(tex.image.width, tex.image.height)))
+          u.uEnvMaxMip.value = maxMip
+          u.uShadowMip.value = maxMip // max mip for shadow tint
+        }
       })
     }
   })
 }
 // watch NPR skybox
 watch(
-  () => [envSelect.value, props.nprEquirectTex, skyBoxIntensity.value, specularMix.value],
+  () => [
+    envSelect.value,
+    props.nprEquirectTex,
+    skyBoxIntensity.value,
+    specularMix.value,
+    props.nprIrrSH,
+  ],
   async () => {
     nprProgramVersion.value += 1
-    updateNprUniforms(props.nprEquirectTex ?? null)
+    updateNprUniforms(props.nprEquirectTex ?? null, props.nprIrrSH ?? null)
   },
   { immediate: true, deep: false },
 )
