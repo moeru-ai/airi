@@ -410,22 +410,26 @@ async function loadModel() {
                       }
 
                       // --- Spherical Harmonics (3rd order) for diffuse IBL ---
-                      // Lilia: I know it's ugly to have so many magic numbers here...
+
+                      // Constants for SH basis functions
+                      const float C0 = 1.0 / (2.0 * sqrt(PI));
+                      const float C1 = sqrt(3.0 / PI) / 2.0;
+                      const float C2 = sqrt(15.0 / PI) / 2.0;
+                      const float C3 = sqrt(5.0 / PI) / 4.0;
+                      const float C4 = sqrt(15.0 / PI) / 4.0;
+
                       vec3 evalIrradianceSH( vec3 n ) {
-                        float x=n.x, y=n.y, z=n.z;
-                        float sh0 = 0.2820947918;
-                        float sh1 = -0.4886025119 * y;
-                        float sh2 =  0.4886025119 * z;
-                        float sh3 = -0.4886025119 * x;
-                        float sh4 =  1.0925484306 * x * y;
-                        float sh5 = -1.0925484306 * y * z;
-                        float sh6 =  0.3153915653 * (3.0*z*z - 1.0);
-                        float sh7 = -1.0925484306 * x * z;
-                        float sh8 =  0.5462742153 * (x*x - y*y);
-                        return
-                          uSHCoeffs[0]*sh0 + uSHCoeffs[1]*sh1 + uSHCoeffs[2]*sh2 +
-                          uSHCoeffs[3]*sh3 + uSHCoeffs[4]*sh4 + uSHCoeffs[5]*sh5 +
-                          uSHCoeffs[6]*sh6 + uSHCoeffs[7]*sh7 + uSHCoeffs[8]*sh8;
+                        vec3 sh = vec3(0.0);
+                        sh += uSHCoeffs[0] * C0;
+                        sh += uSHCoeffs[1] * (-C1 * n.y);
+                        sh += uSHCoeffs[2] * ( C1 * n.z);
+                        sh += uSHCoeffs[3] * (-C1 * n.x);
+                        sh += uSHCoeffs[4] * ( C2 * n.x * n.y);
+                        sh += uSHCoeffs[5] * (-C2 * n.y * n.z);
+                        sh += uSHCoeffs[6] * ( C3 * (3.0 * n.z * n.z - 1.0));
+                        sh += uSHCoeffs[7] * (-C2 * n.x * n.z);
+                        sh += uSHCoeffs[8] * ( C4 * (n.x * n.x - n.y * n.y));
+                        return sh;
                       }
                       `,
                 ).replace(
