@@ -2,7 +2,9 @@
 import type {
   CanvasTexture,
   DataTexture,
+  LightProbe,
   Scene,
+  SphericalHarmonics3,
   Texture,
   WebGLRenderer,
   WebGLRenderTarget,
@@ -13,9 +15,14 @@ import { until } from '@vueuse/core'
 import {
   ACESFilmicToneMapping,
   EquirectangularReflectionMapping,
+  LinearFilter,
+  LinearMipmapLinearFilter,
+  LinearSRGBColorSpace,
   PMREMGenerator,
   SRGBColorSpace,
+  WebGLCubeRenderTarget,
 } from 'three'
+import { LightProbeGenerator } from 'three/examples/jsm/lights/LightProbeGenerator.js'
 import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js'
 import { onMounted, onUnmounted, ref, watch } from 'vue'
 
@@ -41,8 +48,14 @@ const props = withDefaults(defineProps<{
 
 // emit equirect HDRI for NPR shader use
 const emit = defineEmits<{
-  (e: 'equirectSkyboxReady', value: Texture | null): void
+  (e: 'skyboxReady', value: EnvPayload): void
 }>()
+
+interface EnvPayload {
+  hdri: Texture | null
+  pmrem?: WebGLRenderTarget | null
+  irrSH: SphericalHarmonics3 | null
+}
 
 // Add these reactive variables to your setup
 const environment = ref<DataTexture | CanvasTexture>()
@@ -100,11 +113,28 @@ async function loadEnvironment(skyBoxSrc?: string | null) {
     const hdrTex = await new RGBELoader().loadAsync(skyBoxSrc)
     hdrTex.mapping = EquirectangularReflectionMapping
 
+    // IBL requires mipmaps
+    hdrTex.generateMipmaps = true
+    hdrTex.minFilter = LinearMipmapLinearFilter
+    hdrTex.magFilter = LinearFilter
+    hdrTex.colorSpace = LinearSRGBColorSpace
+
     // PMREM prefiltering for physically correct IBL
     _pmrem = new PMREMGenerator(renderer.value as WebGLRenderer)
     const rt = _pmrem.fromEquirectangular(hdrTex)
     _envRT = rt
 
+    // Convert equirectangular to cube render target
+    const cubeRT = new WebGLCubeRenderTarget(256)
+    cubeRT.fromEquirectangularTexture(renderer.value as WebGLRenderer, hdrTex)
+
+    // Generate SH from cube render target
+    const probe: LightProbe = await LightProbeGenerator.fromCubeRenderTarget(
+      renderer.value as WebGLRenderer,
+      cubeRT,
+    )
+
+    // PBR IBL
     environment.value = hdrTex
     const scn = scene.value as Scene
     scn.environment = rt.texture // drives PBR materials (Standard/Physical)
@@ -117,7 +147,7 @@ async function loadEnvironment(skyBoxSrc?: string | null) {
     // emit equirect texture for NPR shader use
     // Don't dispose this texture, it will be used by NPR injected shader
     _equirectTex = hdrTex
-    emit('equirectSkyboxReady', _equirectTex)
+    emit('skyboxReady', { hdri: _equirectTex, irrSH: probe.sh })
   }
   catch (error) {
     console.warn('Failed to load HDRI environment:', error)
