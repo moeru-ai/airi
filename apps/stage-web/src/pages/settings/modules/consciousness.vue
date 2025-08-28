@@ -91,8 +91,6 @@ function updateCustomModelName(value: string) {
 
     <!-- Model selection section -->
     <div v-if="activeProvider && supportsModelListing">
-      {{ providerModels }}
-
       <div flex="~ col gap-4">
         <div>
           <h2 class="text-lg md:text-2xl">
