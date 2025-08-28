@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { TresContext } from '@tresjs/core'
-import type { Texture,
+import type { SphericalHarmonics3, Texture, WebGLRenderTarget,
 } from 'three'
 
 import { TresCanvas } from '@tresjs/core'
@@ -95,7 +95,13 @@ const raycaster = new Raycaster()
 const mouse = new Vector2()
 
 // For NPR skybox shader
-const nprEquirectTex = ref<Texture | null>(null)
+const hdriTex = ref<Texture | null>(null)
+const irrSHTex = ref<SphericalHarmonics3 | null>(null)
+
+function onEnvReady(EnvPayload: { hdri: Texture | null, pmrem?: WebGLRenderTarget | null, irrSH: SphericalHarmonics3 | null }) {
+  hdriTex.value = EnvPayload.hdri
+  irrSHTex.value = EnvPayload.irrSH || null
+}
 
 watch(cameraFOV, (newFov) => {
   if (camera.value) {
@@ -300,7 +306,7 @@ defineExpose({
         ref="skyBoxEnvRef"
         :sky-box-src="skyBoxSrc"
         :as-background="true"
-        @equirect-skybox-ready="(tex) => nprEquirectTex = tex"
+        @skybox-ready="onEnvReady"
       />
       <TresHemisphereLight
         v-else
@@ -332,7 +338,8 @@ defineExpose({
         :model-src="props.modelSrc"
         :idle-animation="props.idleAnimation"
         :paused="props.paused"
-        :npr-equirect-tex="nprEquirectTex"
+        :npr-equirect-tex="hdriTex"
+        :npr-irr-s-h="irrSHTex"
         @load-model-progress="(val) => emit('loadModelProgress', val)"
         @model-ready="handleLoadModelProgress"
         @error="(val) => emit('error', val)"
