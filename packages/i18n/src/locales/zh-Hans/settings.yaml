@@ -375,6 +375,9 @@ pages:
       moonshot:
         description: Moonshot.ai
         title: 月之暗面
+      modelscope:
+        description: modelscope.cn
+        title: 魔搭社区 ModelScope
       novita:
         description: novita.ai
         title: Novita
