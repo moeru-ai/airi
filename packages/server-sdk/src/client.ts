@@ -119,11 +119,11 @@ export class Client<C = undefined> {
       }
     })
   }
-  
+
   async connect() {
     await this.tryReconnectWithExponentialBackoff()
   }
-  
+
   private tryAnnounce() {
     this.send({
       type: 'module:announce',
