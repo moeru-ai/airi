@@ -35,10 +35,6 @@
       "types": "./dist/locales/es/index.d.mts",
       "default": "./dist/locales/es/index.mjs"
     },
-    "./locales/ru": {
-      "types": "./dist/locales/ru/index.d.mts",
-      "default": "./dist/locales/ru/index.mjs"
-    },
     "./locales/*.yaml": {
       "default": "./dist/locales/*.yaml"
     }
@@ -56,6 +52,6 @@
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
-    "unplugin-yaml": "^3.0.4"
+    "unplugin-yaml": "^3.0.2"
   }
 }

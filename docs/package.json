@@ -21,18 +21,18 @@
     "@moeru/std": "catalog:",
     "@proj-airi/chromatic": "^1.0.0",
     "@proj-airi/i18n": "workspace:^",
-    "@vueuse/core": "^13.7.0",
+    "@vueuse/core": "^13.6.0",
     "colorjs.io": "^0.5.2",
     "mark.js": "^8.11.1",
-    "motion-v": "^1.7.0",
+    "motion-v": "^1.6.1",
     "pathe": "^2.0.3",
     "reka-ui": "^2.4.1",
-    "vue": "^3.5.20",
+    "vue": "^3.5.18",
     "vue-i18n": "^11.1.11",
-    "vue-sonner": "^2.0.8"
+    "vue-sonner": "^2.0.2"
   },
   "devDependencies": {
-    "@iconify-json/lucide": "^1.2.64",
+    "@iconify-json/lucide": "^1.2.59",
     "@iconify/vue": "^5.0.0",
     "@intlify/unplugin-vue-i18n": "^6.0.8",
     "@mdit/plugin-footnote": "^0.22.2",
@@ -42,9 +42,9 @@
     "@types/hast": "^3.0.4",
     "@types/markdown-it": "^14.1.2",
     "@types/markdown-it-anchor": "^7.0.0",
-    "@unocss/reset": "^66.4.2",
+    "@unocss/reset": "^66.3.3",
     "@vue/tsconfig": "^0.7.0",
-    "animejs": "^4.1.3",
+    "animejs": "^4.1.2",
     "fast-glob": "^3.3.3",
     "gray-matter": "^4.0.3",
     "markdown-it": "^14.1.0",
@@ -52,12 +52,12 @@
     "minisearch": "^7.1.2",
     "postcss": "^8.5.6",
     "sharp": "^0.34.3",
-    "shiki": "^3.12.0",
+    "shiki": "^3.9.1",
     "tinyglobby": "^0.2.14",
-    "tsx": "^4.20.5",
+    "tsx": "^4.20.3",
     "uncrypto": "^0.1.3",
-    "unplugin-yaml": "^3.0.4",
-    "vitepress": "2.0.0-alpha.12",
-    "vue-tsc": "^3.0.6"
+    "unplugin-yaml": "^3.0.2",
+    "vitepress": "^2.0.0-alpha.9",
+    "vue-tsc": "^3.0.5"
   }
 }
