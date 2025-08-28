@@ -2,10 +2,11 @@ import type { InvokeArgs, InvokeOptions } from '@tauri-apps/api/core'
 
 import { invoke as tauriInvoke } from '@tauri-apps/api/core'
 
+export type WindowLabel = 'main' | 'settings' | 'onboarding' | 'chat'
+
 export interface InvokeMethods {
   // app windows
-  'open_settings_window': { args: undefined, options: undefined, returns: void }
-  'open_chat_window': { args: undefined, options: undefined, returns: void }
+  'show_window': { args: { label: WindowLabel }, options: undefined, returns: void }
 
   // Plugin - Audio Transcription
   'plugin:ipc-audio-transcription-ort|load_ort_model_whisper': { args: { modelType: 'base' | 'largev3' | 'tiny' | 'medium' }, options: undefined, returns: void }

@@ -29,7 +29,7 @@
     "@xsai/stream-text": "catalog:",
     "es-toolkit": "^1.39.8",
     "valibot": "1.0.0-beta.9",
-    "vue": "^3.5.18",
+    "vue": "catalog:",
     "xsschema": "catalog:"
   },
   "devDependencies": {

@@ -174,6 +174,8 @@ pnpm dev:tamagotchi
 > nr dev:tamagotchi
 > ```
 
+If the command gets stuck, remove `cargo` component via `rustup` and re-install it.
+
 ### Stage Web (Browser version for [airi.moeru.ai](https://airi.moeru.ai))
 
 ```shell

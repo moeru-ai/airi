@@ -13,7 +13,67 @@
     "security": {
       "csp": null
     },
-    "macOSPrivateApi": true
+    "macOSPrivateApi": true,
+    "windows": [
+      {
+        "alwaysOnTop": true,
+        "decorations": false,
+        "height": 600,
+        "label": "main",
+        "minimizable": false,
+        "shadow": false,
+        "skipTaskbar": true,
+        "title": "AIRI",
+        "titleBarStyle": "Transparent",
+        "transparent": true,
+        "width": 450
+      },
+      {
+        "acceptFirstMouse": true,
+        "create": false,
+        "height": 800,
+        "hiddenTitle": true,
+        "label": "chat",
+        "title": "AIRI Chat",
+        "titleBarStyle": "Overlay",
+        "trafficLightPosition": {
+          "x": 14,
+          "y": 20
+        },
+        "url": "#/chat",
+        "width": 600
+      },
+      {
+        "acceptFirstMouse": true,
+        "create": false,
+        "height": 900,
+        "hiddenTitle": true,
+        "label": "settings",
+        "title": "AIRI Settings",
+        "titleBarStyle": "Overlay",
+        "trafficLightPosition": {
+          "x": 14,
+          "y": 20
+        },
+        "url": "#/settings",
+        "width": 550
+      },
+      {
+        "acceptFirstMouse": true,
+        "create": false,
+        "height": 600,
+        "hiddenTitle": true,
+        "label": "onboarding",
+        "title": "AIRI Onboarding",
+        "titleBarStyle": "Overlay",
+        "trafficLightPosition": {
+          "x": 14,
+          "y": 20
+        },
+        "url": "#/onboarding",
+        "width": 800
+      }
+    ]
   },
   "bundle": {
     "active": true,

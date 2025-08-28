@@ -23,6 +23,7 @@ catalog:
   '@xsai/stream-text': ^0.4.0-beta.2
   '@xsai/tool': ^0.4.0-beta.2
   '@xsai/utils-chat': ^0.4.0-beta.2
+  vue: ^3.5.20
   xsschema: ^0.4.0-beta.2
 
 catalogs:
