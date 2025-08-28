@@ -225,6 +225,7 @@ pages:
             no_models_description: No models were found for this provider
             no_voices: No voices available
             no_voices_description: No voices were found for this provider
+            no_voices_hint: You can enter a custom voice name below.
             pause: Pause
             play_sample: Play Sample
             search_models_placeholder: Search models...
@@ -406,6 +407,9 @@ pages:
       moonshot:
         description: moonshot.ai
         title: Moonshot AI
+      modelscope:
+        description: modelscope.cn
+        title: ModelScope
       novita:
         description: novita.ai
         title: Novita

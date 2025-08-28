@@ -403,6 +403,9 @@ pages:
       moonshot:
         description: moonshot.ai
         title: Moonshot AI
+      modelscope:
+        description: modelscope.cn
+        title: ModelScope
       novita:
         description: novita.ai
         title: Novita
