@@ -1,7 +1,7 @@
 name: 🚀 New feature proposal
 description: Propose a new feature (Something you would like to see in this project?)
 type: Feature
-labels: [pending-triage]
+labels: [pending triage]
 body:
   - type: markdown
     attributes:
