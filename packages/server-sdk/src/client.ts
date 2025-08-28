@@ -19,8 +19,6 @@ export interface ClientOptions<C = undefined> {
 export class Client<C = undefined> {
   private connected = false
   private websocket?: WebSocket
-  
-  private reconnectAttempts = 0
   private shouldClose = false
 
   private readonly opts: Required<Omit<ClientOptions<C>, 'token'>> & Pick<ClientOptions<C>, 'token'>
@@ -45,41 +43,45 @@ export class Client<C = undefined> {
     this.onEvent('module:authenticated', async (event) => {
       if (event.data.authenticated) {
         this.tryAnnounce()
-      } else {
+      }
+      else {
         await this.retryWithExponentialBackoff(() => this.tryAuthenticate())
       }
     })
 
-    if (this.opts.autoConnect) void this.connect()
+    if (this.opts.autoConnect)
+      void this.connect()
   }
 
   private async retryWithExponentialBackoff(fn: () => void | Promise<void>) {
     const { maxReconnectAttempts } = this.opts
     let attempts = 0
 
-    while (maxReconnectAttempts === -1 || attempts < maxReconnectAttempts) {
-      try {
-        await fn()
-        return
-      } catch (err) {
-        this.opts.onError?.(err)
-        // capped exponential backoff (max 30s)
-        const delay = Math.min(2 ** attempts * 1000, 30_000)
-        await sleep(delay)
-        attempts++
-      }
+  while (attempts < maxReconnectAttempts || maxReconnectAttempts === -1) {
+    try {
+      await fn()
+      return
     }
-    console.error(`Maximum retry attempts (${maxReconnectAttempts}) reached`)
+    catch (err) {
+      this.opts.onError?.(err)
+      // capped exponential backoff (max 30s)
+      const delay = Math.min(2 ** attempts * 1000, 30_000)
+      await sleep(delay)
+      attempts++
+    }
   }
+  console.error(`Maximum retry attempts (${maxReconnectAttempts}) reached`)
+}
 
   private async tryReconnectWithExponentialBackoff() {
-    if (this.shouldClose) return
-    this.reconnectAttempts++
+    if (this.shouldClose)
+      return
     await this.retryWithExponentialBackoff(() => this._connect())
   }
 
   private _connect(): Promise<void> {
-    if (this.shouldClose || this.connected) return Promise.resolve()
+    if (this.shouldClose || this.connected) 
+      return Promise.resolve()
 
     return new Promise((resolve, reject) => {
       const ws = new WebSocket(this.opts.url)
@@ -104,7 +106,6 @@ export class Client<C = undefined> {
       ws.onmessage = this.handleMessageBound
 
       ws.onopen = () => {
-        this.reconnectAttempts = 0
         this.connected = true
         this.opts.token ? this.tryAuthenticate() : this.tryAnnounce()
         resolve()
@@ -153,7 +154,8 @@ export class Client<C = undefined> {
         executions.push(Promise.resolve(listener(data as any)))
       }
       await Promise.allSettled(executions)
-    } catch (err) {
+    }
+    catch (err) {
       console.error('Failed to parse message:', err)
       this.opts.onError?.(err)
     }
@@ -176,11 +178,14 @@ export class Client<C = undefined> {
     callback?: (data: WebSocketBaseEvent<E, WebSocketEvents<C>[E]>) => void,
   ): void {
     const listeners = this.eventListeners.get(event)
-    if (!listeners) return
+    if (!listeners)
+      return
     if (callback) {
       listeners.delete(callback as any)
-      if (!listeners.size) this.eventListeners.delete(event)
-    } else {
+      if (!listeners.size) 
+        this.eventListeners.delete(event)
+    }
+    else {
       this.eventListeners.delete(event)
     }
   }
