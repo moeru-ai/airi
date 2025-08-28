@@ -354,7 +354,8 @@ function updateCustomModelName(value: string) {
               {{ t('settings.pages.modules.speech.sections.section.provider-voice-selection.no_voices') }}
             </template>
             <template #content>
-              {{ t('settings.pages.modules.speech.sections.section.provider-voice-selection.no_voices_description') }}
+              {{ t('settings.pages.modules.speech.sections.section.provider-voice-selection.no_voices_description') }}.
+              {{ t('settings.pages.modules.speech.sections.section.provider-voice-selection.no_voices_hint') }}
             </template>
           </Alert>
 
