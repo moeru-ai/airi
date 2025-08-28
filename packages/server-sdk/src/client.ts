@@ -1,127 +1,157 @@
-import type { WebSocketBaseEvent, WebSocketEvent, WebSocketEvents } from '@proj-airi/server-shared/types'
+import type { WebSocketBaseEvent, WebSocketEvent, WebSocketEvents } from '@proj-airi/server-shared/types';
 
-import WebSocket from 'crossws/websocket'
+import WebSocket from 'crossws/websocket';
 
-import { sleep } from '@moeru/std'
+import { sleep } from '@moeru/std';
 
 export interface ClientOptions<C = undefined> {
-  url?: string
-  name: string
-  possibleEvents?: Array<keyof WebSocketEvents<C>>
-  token?: string
-  onError?: (error: unknown) => void
-  onClose?: () => void
-  autoConnect?: boolean
-  autoReconnect?: boolean
-  maxReconnectAttempts?: number
+  url?: string;
+  name: string;
+  possibleEvents?: Array<keyof WebSocketEvents<C>>;
+  token?: string;
+  onError?: (error: unknown) => void;
+  onClose?: () => void;
+  autoConnect?: boolean;
+  autoReconnect?: boolean;
+  maxReconnectAttempts?: number;
+  // Consider adding a onReconnectAttempt callback
+  onReconnectAttempt?: (attempt: number) => void;
 }
 
-export class Client<C = undefined> {
-  private connected = false
-  private websocket?: WebSocket
-  private shouldClose = false
+export enum ReadyState {
+  CONNECTING,
+  OPEN,
+  CLOSING,
+  CLOSED,
+}
 
-  private readonly opts: Required<Omit<ClientOptions<C>, 'token'>> & Pick<ClientOptions<C>, 'token'>
+
+export class Client<C = undefined> {
+  private connected = false;
+  private websocket?: WebSocket;
+  private shouldClose = false;
+  private reconnecting = false; // Prevent multiple reconnects
+  public readyState: ReadyState = ReadyState.CLOSED;
+
+
+  private readonly opts: Required<Omit<ClientOptions<C>, 'token'>> & Pick<ClientOptions<C>, 'token'>;
   private readonly eventListeners = new Map<
     keyof WebSocketEvents<C>,
     Set<(data: WebSocketBaseEvent<any, any>) => void | Promise<void>>
-  >()
+  >();
 
   constructor(options: ClientOptions<C>) {
     this.opts = {
       url: 'ws://localhost:6121/ws',
       possibleEvents: [],
-      onError: () => {},
-      onClose: () => {},
+      onError: () => { },
+      onClose: () => { },
       autoConnect: true,
       autoReconnect: true,
       maxReconnectAttempts: -1,
       ...options,
-    }
+    };
 
-    // Authentication listener is registered once only
     this.onEvent('module:authenticated', async (event) => {
       if (event.data.authenticated) {
-        this.tryAnnounce()
+        this.tryAnnounce();
       }
       else {
-        await this.retryWithExponentialBackoff(() => this.tryAuthenticate())
+        await this.retryWithExponentialBackoff(() => this.tryAuthenticate());
       }
-    })
+    });
 
     if (this.opts.autoConnect) {
-      void this.connect()
+      void this.connect();
     }
   }
 
   private async retryWithExponentialBackoff(fn: () => void | Promise<void>) {
-    const { maxReconnectAttempts } = this.opts
-    let attempts = 0
+    if (this.reconnecting)
+        return;
+    this.reconnecting = true;
 
-    // Loop until attempts exceed maxReconnectAttempts, or unlimited if -1
-    while (true) {
-      if (maxReconnectAttempts !== -1 && attempts >= maxReconnectAttempts) {
-        console.error(`Maximum retry attempts (${maxReconnectAttempts}) reached`)
-        return
-      }
+    const { maxReconnectAttempts } = this.opts;
+    let attempts = 0;
 
+    while (maxReconnectAttempts === -1 || attempts < maxReconnectAttempts) {
       try {
-        await fn()
-        return
+        this.opts.onReconnectAttempt?.(attempts);
+        await fn();
+        this.reconnecting = false;
+        return;
       }
       catch (err) {
-        this.opts.onError?.(err)
-        const delay = Math.min(2 ** attempts * 1000, 30_000) // capped exponential backoff
-        await sleep(delay)
-        attempts++
+        this.opts.onError?.(err);
+        console.error(`Reconnect attempt ${attempts + 1} failed:`, err); // More specific logging
+        const delay = Math.min(2 ** attempts * 1000, 30_000);
+        await sleep(delay);
+      }
+      finally {
+        attempts++;
       }
     }
+
+    console.error(`Maximum retry attempts (${maxReconnectAttempts}) reached`);
+    this.reconnecting = false;
+    // Consider emitting a specific "reconnectFailed" event here
   }
+
 
   private async tryReconnectWithExponentialBackoff() {
     if (this.shouldClose) {
-      return
+      return;
     }
-    await this.retryWithExponentialBackoff(() => this._connect())
+    await this.retryWithExponentialBackoff(() => this._connect());
   }
 
   private _connect(): Promise<void> {
     if (this.shouldClose || this.connected) {
-      return Promise.resolve()
+      return Promise.resolve();
     }
 
-    return new Promise((resolve, reject) => {
-      const ws = new WebSocket(this.opts.url)
-      this.websocket = ws
+    this.readyState = ReadyState.CONNECTING;
 
-      ws.onerror = (event: any) => {
-        this.connected = false
-        this.opts.onError?.(event)
-        reject(event?.error ?? new Error('WebSocket error'))
-      }
+    return new Promise((resolve, reject) => {
+      const ws = new WebSocket(this.opts.url);
+      this.websocket = ws;
+
+      ws.onerror = (event: Event) => {
+        this.connected = false;
+        this.readyState = ReadyState.CLOSED;
+        this.opts.onError?.(event);
+        console.error('WebSocket error:', event);
+        reject(new Error('WebSocket error')); // More consistent error
+
+      };
 
       ws.onclose = () => {
+        console.log('WebSocket closed');
+        this.readyState = ReadyState.CLOSED;
+
         if (this.connected) {
-          this.connected = false
-          this.opts.onClose?.()
+          this.connected = false;
+          this.opts.onClose?.();
         }
         if (this.opts.autoReconnect && !this.shouldClose) {
-          void this.tryReconnectWithExponentialBackoff()
+          void this.tryReconnectWithExponentialBackoff();
         }
-      }
+      };
 
-      ws.onmessage = this.handleMessageBound
+      ws.onmessage = this.handleMessageBound;
 
       ws.onopen = () => {
-        this.connected = true
-        this.opts.token ? this.tryAuthenticate() : this.tryAnnounce()
-        resolve()
-      }
-    })
+        console.log('WebSocket opened');
+        this.connected = true;
+        this.readyState = ReadyState.OPEN;
+        this.opts.token ? this.tryAuthenticate() : this.tryAnnounce();
+        resolve();
+      };
+    });
   }
 
   async connect() {
-    await this.tryReconnectWithExponentialBackoff()
+    await this.tryReconnectWithExponentialBackoff();
   }
 
   private tryAnnounce() {
@@ -131,7 +161,7 @@ export class Client<C = undefined> {
         name: this.opts.name,
         possibleEvents: this.opts.possibleEvents,
       },
-    })
+    });
   }
 
   private tryAuthenticate() {
@@ -139,33 +169,30 @@ export class Client<C = undefined> {
       this.send({
         type: 'module:authenticate',
         data: { token: this.opts.token },
-      })
+      });
     }
   }
 
-  // bound reference avoids new closure allocation on every connect
   private readonly handleMessageBound = (event: MessageEvent) => {
-    void this.handleMessage(event)
-  }
+    void this.handleMessage(event);
+  };
 
   private async handleMessage(event: MessageEvent) {
     try {
-      const data = JSON.parse(event.data as string) as WebSocketEvent<C>
-      const listeners = this.eventListeners.get(data.type)
+      const data = JSON.parse(event.data as string) as WebSocketEvent<C>;
+      const listeners = this.eventListeners.get(data.type);
       if (!listeners?.size) {
-        return
+        return;
       }
 
-      // Execute all listeners concurrently
-      const executions: Promise<void>[] = []
+      const executions: Promise<void>[] = [];
       for (const listener of listeners) {
-        executions.push(Promise.resolve(listener(data as any)))
+        executions.push(Promise.resolve(listener(data as any)));
       }
-      await Promise.allSettled(executions)
-    }
-    catch (err) {
-      console.error('Failed to parse message:', err)
-      this.opts.onError?.(err)
+      await Promise.allSettled(executions);
+    } catch (err) {
+      console.error('Failed to parse message:', err);
+      this.opts.onError?.(err);
     }
   }
 
@@ -173,51 +200,61 @@ export class Client<C = undefined> {
     event: E,
     callback: (data: WebSocketBaseEvent<E, WebSocketEvents<C>[E]>) => void | Promise<void>,
   ): void {
-    let listeners = this.eventListeners.get(event)
+    let listeners = this.eventListeners.get(event);
     if (!listeners) {
-      listeners = new Set()
-      this.eventListeners.set(event, listeners)
+      listeners = new Set();
+      this.eventListeners.set(event, listeners);
     }
-    listeners.add(callback as any)
+    listeners.add(callback as any);
   }
 
   offEvent<E extends keyof WebSocketEvents<C>>(
     event: E,
     callback?: (data: WebSocketBaseEvent<E, WebSocketEvents<C>[E]>) => void,
   ): void {
-    const listeners = this.eventListeners.get(event)
+    const listeners = this.eventListeners.get(event);
     if (!listeners) {
-      return
+      return;
     }
 
     if (callback) {
-      listeners.delete(callback as any)
+      listeners.delete(callback as any);
       if (!listeners.size) {
-        this.eventListeners.delete(event)
+        this.eventListeners.delete(event);
       }
     }
     else {
-      this.eventListeners.delete(event)
+      this.eventListeners.delete(event);
     }
   }
 
   send(data: WebSocketEvent<C>): void {
-    if (this.websocket && this.connected) {
-      this.websocket.send(JSON.stringify(data))
+    if (this.websocket && this.connected && this.readyState === ReadyState.OPEN) {
+      this.websocket.send(JSON.stringify(data));
+    }
+    else {
+      console.warn('WebSocket is not connected, message not sent');
     }
   }
 
   sendRaw(data: string | ArrayBufferLike | ArrayBufferView): void {
-    if (this.websocket && this.connected) {
-      this.websocket.send(data)
+    if (this.websocket && this.connected && this.readyState === ReadyState.OPEN) {
+      this.websocket.send(data);
+    }
+    else {
+      console.warn('WebSocket is not connected, raw message not sent');
     }
   }
 
   close(): void {
-    this.shouldClose = true
+    this.shouldClose = true;
+    this.readyState = ReadyState.CLOSING;
     if (this.websocket) {
-      this.websocket.close()
-      this.connected = false
+      this.websocket.close();
+      this.websocket.onclose = () => {
+        this.connected = false;
+        this.readyState = ReadyState.CLOSED;
+      };
     }
   }
 }
