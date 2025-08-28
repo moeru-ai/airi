@@ -124,13 +124,13 @@ export function resolveHeaders(
   const ret: MenuItem[] = []
   // eslint-disable-next-line no-labels
   outer: for (let i = 0; i < headers.length; i++) {
-    const cur = headers[i]
+    const cur = headers[i]!
     if (i === 0) {
       ret.push(cur)
     }
     else {
       for (let j = i - 1; j >= 0; j--) {
-        const prev = headers[j]
+        const prev = headers[j]!
         if (prev.level < cur.level) {
           ;(prev.children || (prev.children = [])).push(cur)
           // eslint-disable-next-line no-labels
@@ -192,7 +192,7 @@ export function useActiveAnchor(
 
     // page bottom - highlight last link
     if (isBottom) {
-      activateLink(headers[headers.length - 1].link)
+      activateLink(headers[headers.length - 1]!.link)
       return
     }
 

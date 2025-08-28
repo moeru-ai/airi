@@ -99,8 +99,8 @@ function createPRNG(seed: number) {
     return min + nextFloat() * (max - min)
   }
 
-  function choice<T>(arr: T[]) {
-    return arr[Math.floor(next(0, arr.length))]
+  function choice<T>(arr: T[]): T {
+    return arr[Math.floor(next(0, arr.length))]!
   }
 
   return {
@@ -135,7 +135,7 @@ async function createTileGenerator(title: string) {
         pathData += ` L ${x} ${yOffset + Math.sin(x * frequency) * amplitude}`
       }
 
-      paths += `<path d="${pathData}" fill="none" stroke="${stroke.toHex()}" stroke-width="${strokeWidth}" />`
+      paths += `<path d="${pathData}" fill="none" stroke="${stroke?.toHex() || '#000'}" stroke-width="${strokeWidth}" />`
     }
 
     return paths
@@ -215,7 +215,7 @@ const svgArts = computedAsync(async () => {
         <div class="rounded-t-xl">
           <ClientOnly>
             <div v-if="!post.frontmatter?.['preview-cover']?.[isDark ? 'dark' : 'light']" class="mb-6 h-20 md:h-60">
-              <div class="blur-lg" h="full" w-full v-html="isDark ? svgArts?.[index].dark : svgArts?.[index].light" />
+              <div class="blur-lg" h="full" w-full v-html="isDark ? svgArts?.[index]?.dark : svgArts?.[index]?.light" />
             </div>
             <div v-else class="relative mb-0 h-44 w-full md:h-68">
               <div class="preview-card-art-image-overlay" />

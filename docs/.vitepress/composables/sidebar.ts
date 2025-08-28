@@ -260,7 +260,7 @@ export function getSidebar(
       return path.startsWith(ensureStartingSlash(dir))
     })
 
-  const sidebar = dir ? _sidebar[dir] : []
+  const sidebar = dir ? _sidebar[dir]! : []
   return Array.isArray(sidebar)
     ? addBase(sidebar)
     : addBase(sidebar.items, sidebar.base)
@@ -275,7 +275,7 @@ export function getSidebarGroups(sidebar: SidebarItem[]): SidebarItem[] {
   let lastGroupIndex: number = 0
 
   for (const index in sidebar) {
-    const item = sidebar[index]
+    const item = sidebar[index]!
 
     if (item.items) {
       lastGroupIndex = groups.push(item)

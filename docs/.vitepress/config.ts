@@ -292,7 +292,7 @@ export default defineConfig({
             return id && slug === id[1]
           })
           // Get the actual heading content
-          const title = state.tokens[idx + 1].content
+          const title = state.tokens[idx + 1]!.content
           return {
             'aria-label': `Permalink to "${title}"`,
           }
