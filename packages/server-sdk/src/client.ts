@@ -57,18 +57,19 @@ export class Client<C = undefined> {
   private async retryWithExponentialBackoff(fn: () => void | Promise<void>) {
     const { maxReconnectAttempts } = this.opts
     let attempts = 0
-  
+
     // Loop until attempts exceed maxReconnectAttempts, or unlimited if -1
     while (true) {
       if (maxReconnectAttempts !== -1 && attempts >= maxReconnectAttempts) {
         console.error(`Maximum retry attempts (${maxReconnectAttempts}) reached`)
         return
       }
-  
+
       try {
         await fn()
         return
-      } catch (err) {
+      }
+      catch (err) {
         this.opts.onError?.(err)
         const delay = Math.min(2 ** attempts * 1000, 30_000) // capped exponential backoff
         await sleep(delay)
@@ -76,7 +77,6 @@ export class Client<C = undefined> {
       }
     }
   }
-
 
   private async tryReconnectWithExponentialBackoff() {
     if (this.shouldClose) {
@@ -114,21 +114,16 @@ export class Client<C = undefined> {
 
       ws.onopen = () => {
         this.connected = true
-        if (this.opts.token) {
-          this.tryAuthenticate()
-        }
-        else {
-          this.tryAnnounce()
-        }
+        this.opts.token ? this.tryAuthenticate() : this.tryAnnounce()
         resolve()
       }
     })
   }
-
+  
   async connect() {
     await this.tryReconnectWithExponentialBackoff()
   }
-
+  
   private tryAnnounce() {
     this.send({
       type: 'module:announce',
