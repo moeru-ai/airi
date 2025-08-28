@@ -227,9 +227,9 @@ onBeforeMessageComposed(async () => {
   if (currentAudioSource) {
     try {
       currentAudioSource.stop()
+      currentAudioSource.disconnect()
     }
     catch {}
-    currentAudioSource.disconnect()
     currentAudioSource = null
   }
   audioQueue.queue.value = []
