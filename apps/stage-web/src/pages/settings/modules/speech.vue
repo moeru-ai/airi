@@ -149,7 +149,11 @@ onUnmounted(() => {
   }
 })
 
-function updateCustomVoiceName(value: string) {
+function updateCustomVoiceName(value: string | undefined) {
+  if (!value) {
+    activeSpeechVoice.value = undefined
+    return
+  }
   activeSpeechVoice.value = {
     id: value,
     name: value,
@@ -382,11 +386,11 @@ function updateCustomModelName(value: string) {
             class="mt-2 space-y-6"
           >
             <FieldInput
-              v-model="activeSpeechVoiceId"
               type="text"
-              label="Voice ID"
-              description="Enter the voice ID for your custom voice"
+              label="Voice Name"
+              description="Enter the voice name for your custom voice"
               placeholder="Enter voice name (e.g., 'Rachel', 'Josh')"
+              @update:model-value="updateCustomVoiceName"
             />
 
             <!-- Model selection for ElevenLabs -->
