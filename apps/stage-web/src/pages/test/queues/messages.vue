@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { useQueue } from '@proj-airi/stage-ui/composables/queue'
 import { useMessageContentQueue } from '@proj-airi/stage-ui/composables/queues'
 import { llmInferenceEndToken } from '@proj-airi/stage-ui/constants'
+import { createQueue } from '@proj-airi/stage-ui/utils/queue'
 import { Textarea } from '@proj-airi/ui'
 import { ref } from 'vue'
 
@@ -9,7 +9,7 @@ const messageInput = ref<string>('')
 const ttsProcessed = ref<string[]>([])
 const processing = ref<boolean>(false)
 
-const ttsQueue = useQueue<string>({
+const ttsQueue = createQueue<string>({
   handlers: [
     async (ctx) => {
       ttsProcessed.value.push(ctx.data)
@@ -26,9 +26,9 @@ async function onSendMessage() {
   // await sleep(100)
   // messageContentQueue.add(token)
   // }
-  messageContentQueue.add(messageInput.value)
+  messageContentQueue.enqueue(messageInput.value)
 
-  messageContentQueue.add(llmInferenceEndToken)
+  messageContentQueue.enqueue(llmInferenceEndToken)
   messageInput.value = ''
   processing.value = false
 }

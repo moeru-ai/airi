@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import type { Emotion } from '@proj-airi/stage-ui/constants/emotions'
 
-import { useQueue } from '@proj-airi/stage-ui/composables/queue'
 import { useEmotionsMessageQueue } from '@proj-airi/stage-ui/composables/queues'
 import { llmInferenceEndToken } from '@proj-airi/stage-ui/constants'
+import { createQueue } from '@proj-airi/stage-ui/utils/queue'
 import { Textarea } from '@proj-airi/ui'
 import { ref } from 'vue'
 
@@ -12,7 +12,7 @@ const messagesProcessed = ref<string[]>([])
 const emotionsProcessed = ref<string[]>([])
 const processing = ref<boolean>(false)
 
-const emotionsQueue = useQueue<Emotion>({
+const emotionsQueue = createQueue<Emotion>({
   handlers: [
     async (ctx) => {
       emotionsProcessed.value.push(ctx.data)
@@ -26,9 +26,9 @@ function onSendMessage() {
   processing.value = true
   const tokens = messageInput.value.split('')
   for (const token of tokens)
-    emotionMessageContentQueue.add(token)
+    emotionMessageContentQueue.enqueue(token)
 
-  emotionMessageContentQueue.add(llmInferenceEndToken)
+  emotionMessageContentQueue.enqueue(llmInferenceEndToken)
   messageInput.value = ''
   processing.value = false
 }
