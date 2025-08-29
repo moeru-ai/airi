@@ -1,6 +1,6 @@
 import type { ReaderLike } from 'clustr'
 
-import type { UseQueueReturn } from '../composables/queue'
+import type { UseQueueReturn } from './queue'
 
 import { readGraphemeClusters } from 'clustr'
 
@@ -207,7 +207,7 @@ export async function chunkToTTSQueue(reader: ReaderLike, queue: UseQueueReturn<
       // TODO: remove later
       // eslint-disable-next-line no-console
       console.debug('chunk to be pushed: ', chunk)
-      await queue.add(chunk.text)
+      queue.enqueue(chunk.text)
     }
   }
   catch (e) {

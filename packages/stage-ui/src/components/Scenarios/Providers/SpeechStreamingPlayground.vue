@@ -4,9 +4,9 @@ import type { TTSInputChunk } from '../../../utils/tts'
 import { animate } from 'animejs'
 import { ref } from 'vue'
 
-import { useQueue } from '../../../composables/queue'
 import { useMessageContentQueue } from '../../../composables/queues'
 import { useAudioContext } from '../../../stores/audio'
+import { createQueue } from '../../../utils/queue'
 import { chunkTTSInput } from '../../../utils/tts'
 
 const props = defineProps<{
@@ -21,7 +21,7 @@ const nowSpeaking = ref(false)
 const ttsInputChunks = ref<TTSInputChunk[]>([])
 const speechGenerationIndex = ref(-1)
 
-const audioQueue = useQueue<{ audioBuffer: AudioBuffer, text: string }>({
+const audioQueue = createQueue<{ audioBuffer: AudioBuffer, text: string }>({
   handlers: [
     (ctx) => {
       return new Promise((resolve) => {
@@ -54,19 +54,19 @@ async function handleSpeechGeneration(ctx: { data: string }) {
 
     // Decode the ArrayBuffer into an AudioBuffer
     const audioBuffer = await audioContext.decodeAudioData(res)
-    await audioQueue.add({ audioBuffer, text: ctx.data })
+    audioQueue.enqueue({ audioBuffer, text: ctx.data })
   }
   catch (error) {
     console.error('Speech generation failed:', error)
   }
 }
 
-const ttsQueue = useQueue<string>({ handlers: [handleSpeechGeneration] })
+const ttsQueue = createQueue<string>({ handlers: [handleSpeechGeneration] })
 
 const messageContentQueue = useMessageContentQueue(ttsQueue)
 
 async function testStreaming() {
-  await messageContentQueue.add(props.text)
+  messageContentQueue.enqueue(props.text)
 }
 
 async function testChunking() {

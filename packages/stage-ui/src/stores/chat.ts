@@ -7,9 +7,9 @@ import type { ChatAssistantMessage, ChatMessage, ChatSlices } from '../types/cha
 import { defineStore, storeToRefs } from 'pinia'
 import { ref, toRaw } from 'vue'
 
-import { useQueue } from '../composables'
 import { useLlmmarkerParser } from '../composables/llmmarkerParser'
 import { useLLM } from '../stores/llm'
+import { createQueue } from '../utils/queue'
 import { TTS_FLUSH_INSTRUCTION } from '../utils/tts'
 import { useAiriCardStore } from './modules'
 
@@ -144,7 +144,7 @@ export const useChatStore = defineStore('chat', () => {
         minLiteralEmitLength: 24, // Avoid emitting literals too fast. This is a magic number and can be changed later.
       })
 
-      const toolCallQueue = useQueue<ChatSlices>({
+      const toolCallQueue = createQueue<ChatSlices>({
         handlers: [
           async (ctx) => {
             if (ctx.data.type === 'tool-call') {
@@ -184,13 +184,13 @@ export const useChatStore = defineStore('chat', () => {
         headers,
         async onStreamEvent(event: StreamEvent) {
           if (event.type === 'tool-call') {
-            toolCallQueue.add({
+            toolCallQueue.enqueue({
               type: 'tool-call',
               toolCall: event,
             })
           }
           else if (event.type === 'tool-result') {
-            toolCallQueue.add({
+            toolCallQueue.enqueue({
               type: 'tool-call-result',
               id: event.toolCallId,
               result: event.result,
