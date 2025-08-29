@@ -23,25 +23,25 @@
   "dependencies": {
     "@proj-airi/ui": "workspace:^",
     "@valibot/to-json-schema": "1.0.0-rc.0",
-    "@vueuse/core": "^13.6.0",
+    "@vueuse/core": "^13.8.0",
     "@xsai/generate-text": "catalog:",
     "@xsai/shared-chat": "catalog:",
     "@xsai/stream-text": "catalog:",
-    "es-toolkit": "^1.39.8",
+    "es-toolkit": "^1.39.10",
     "valibot": "1.0.0-beta.9",
-    "vue": "^3.5.18",
+    "vue": "^3.5.20",
     "xsschema": "catalog:"
   },
   "devDependencies": {
-    "@iconify-json/solar": "^1.2.2",
-    "@iconify-json/svg-spinners": "^1.2.2",
+    "@iconify-json/solar": "^1.2.4",
+    "@iconify-json/svg-spinners": "^1.2.4",
     "@types/xast": "^2.0.4",
-    "@unocss/reset": "^66.3.3",
+    "@unocss/reset": "^66.4.2",
     "@vitejs/plugin-vue": "^6.0.1",
     "superjson": "^2.2.2",
-    "unplugin-vue-router": "^0.14.0",
+    "unplugin-vue-router": "^0.15.0",
     "vite": "catalog:rolldown-vite",
     "vue-router": "^4.5.1",
-    "vue-tsc": "^3.0.5"
+    "vue-tsc": "^3.0.6"
   }
 }

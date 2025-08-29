@@ -23,14 +23,14 @@
 
       packages = forAllSystems (system: {
         default = self.packages.${system}.airi;
-        airi = (pkgsForSystem system).callPackage ./package.nix { };
-        airi-debug = (pkgsForSystem system).callPackage ./package.nix { debugBuild = true; };
+        airi = (pkgsForSystem system).callPackage ./nix/package.nix { };
+        airi-debug = (pkgsForSystem system).callPackage ./nix/package.nix { debugBuild = true; };
       });
 
       overlays = {
         default = self.overlays.airi;
         airi = final: _: {
-          airi = final.callPackage ./package.nix { };
+          airi = final.callPackage ./nix/package.nix { };
         };
       };
 

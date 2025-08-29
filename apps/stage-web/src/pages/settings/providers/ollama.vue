@@ -20,6 +20,7 @@ const { t } = useI18n()
 const router = useRouter()
 const providersStore = useProvidersStore()
 const { providers } = storeToRefs(providersStore) as { providers: RemovableRef<Record<string, any>> }
+const loading = ref(0)
 
 // Get provider metadata
 const providerId = 'ollama'
@@ -37,7 +38,7 @@ const baseUrl = computed({
   },
 })
 
-const headers = ref<{ key: string, value: string }[]>(Object.entries(providers.value[providerId]?.headers).map(([key, value]) => ({ key, value } as { key: string, value: string })) || [{ key: '', value: '' }])
+const headers = ref(Object.entries(providers.value[providerId]?.headers ?? {}).map(([key, value]) => ({ key, value } as { key: string, value: string })) || [{ key: '', value: '' }])
 
 function addKeyValue(headers: { key: string, value: string }[], key: string, value: string) {
   if (!headers)
@@ -74,6 +75,11 @@ watch(headers, (headers) => {
 })
 
 async function refetch() {
+  loading.value++
+  // service startup time
+  const startValidationTimestamp = performance.now()
+  let finalValidationMessage = ''
+
   try {
     const validationResult = await providerMetadata.value.validators.validateProviderConfig({
       baseUrl: baseUrl.value,
@@ -84,15 +90,24 @@ async function refetch() {
     })
 
     if (!validationResult.valid) {
-      validationMessage.value = t('settings.dialogs.onboarding.validationError', {
+      finalValidationMessage = t('settings.dialogs.onboarding.validationError', {
         error: validationResult.reason,
       })
     }
+    else {
+      finalValidationMessage = ''
+    }
   }
   catch (error) {
-    validationMessage.value = t('settings.dialogs.onboarding.validationError', {
+    finalValidationMessage = t('settings.dialogs.onboarding.validationError', {
       error: error instanceof Error ? error.message : String(error),
     })
+  }
+  finally {
+    setTimeout(() => {
+      loading.value--
+      validationMessage.value = finalValidationMessage
+    }, 500 - (performance.now() - startValidationTimestamp))
   }
 }
 
@@ -122,47 +137,59 @@ function handleResetSettings() {
 </script>
 
 <template>
-  <Alert v-if="validationMessage" type="error">
-    <template #title>
-      {{ t('settings.dialogs.onboarding.validationFailed') }}
-    </template>
-    <template v-if="validationMessage" #content>
-      <div class="whitespace-pre-wrap break-all">
-        {{ validationMessage }}
-      </div>
-    </template>
-  </Alert>
-  <ProviderSettingsLayout
-    :provider-name="providerMetadata?.localizedName"
-    :provider-icon="providerMetadata?.icon"
-    :on-back="() => router.back()"
-  >
-    <ProviderSettingsContainer>
-      <ProviderBasicSettings
-        :title="t('settings.pages.providers.common.section.basic.title')"
-        :description="t('settings.pages.providers.common.section.basic.description')"
-        :on-reset="handleResetSettings"
-      >
-        <ProviderBaseUrlInput
-          v-model="baseUrl"
-          :placeholder="providerMetadata?.defaultOptions?.().baseUrl as string || ''"
-          required
-        />
-      </ProviderBasicSettings>
+  <div class="flex flex-col gap-4">
+    <Alert v-if="!!loading" type="loading">
+      <template #title>
+        {{ t('settings.pages.providers.provider.common.status.validating') }}
+      </template>
+    </Alert>
+    <Alert v-else-if="!validationMessage" type="success">
+      <template #title>
+        {{ t('settings.pages.providers.provider.common.status.valid') }}
+      </template>
+    </Alert>
+    <Alert v-else-if="validationMessage" type="error">
+      <template #title>
+        {{ t('settings.dialogs.onboarding.validationFailed') }}
+      </template>
+      <template v-if="validationMessage" #content>
+        <div class="whitespace-pre-wrap break-all">
+          {{ validationMessage }}
+        </div>
+      </template>
+    </Alert>
+    <ProviderSettingsLayout
+      :provider-name="providerMetadata?.localizedName"
+      :provider-icon="providerMetadata?.icon"
+      :on-back="() => router.back()"
+    >
+      <ProviderSettingsContainer>
+        <ProviderBasicSettings
+          :title="t('settings.pages.providers.common.section.basic.title')"
+          :description="t('settings.pages.providers.common.section.basic.description')"
+          :on-reset="handleResetSettings"
+        >
+          <ProviderBaseUrlInput
+            v-model="baseUrl"
+            :placeholder="providerMetadata?.defaultOptions?.().baseUrl as string || ''"
+            required
+          />
+        </ProviderBasicSettings>
 
-      <ProviderAdvancedSettings :title="t('settings.pages.providers.common.section.advanced.title')">
-        <FieldKeyValues
-          v-model="headers"
-          :label="t('settings.pages.providers.common.section.advanced.fields.field.headers.label')"
-          :description="t('settings.pages.providers.common.section.advanced.fields.field.headers.description')"
-          :key-placeholder="t('settings.pages.providers.common.section.advanced.fields.field.headers.key.placeholder')"
-          :value-placeholder="t('settings.pages.providers.common.section.advanced.fields.field.headers.value.placeholder')"
-          @add="(key: string, value: string) => addKeyValue(headers, key, value)"
-          @remove="(index: number) => removeKeyValue(index, headers)"
-        />
-      </ProviderAdvancedSettings>
-    </ProviderSettingsContainer>
-  </ProviderSettingsLayout>
+        <ProviderAdvancedSettings :title="t('settings.pages.providers.common.section.advanced.title')">
+          <FieldKeyValues
+            v-model="headers"
+            :label="t('settings.pages.providers.common.section.advanced.fields.field.headers.label')"
+            :description="t('settings.pages.providers.common.section.advanced.fields.field.headers.description')"
+            :key-placeholder="t('settings.pages.providers.common.section.advanced.fields.field.headers.key.placeholder')"
+            :value-placeholder="t('settings.pages.providers.common.section.advanced.fields.field.headers.value.placeholder')"
+            @add="(key: string, value: string) => addKeyValue(headers, key, value)"
+            @remove="(index: number) => removeKeyValue(index, headers)"
+          />
+        </ProviderAdvancedSettings>
+      </ProviderSettingsContainer>
+    </ProviderSettingsLayout>
+  </div>
 </template>
 
 <route lang="yaml">

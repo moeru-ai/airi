@@ -22,7 +22,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@dotenvx/dotenvx": "^1.48.4",
+    "@dotenvx/dotenvx": "^1.49.0",
     "@ffmpeg-installer/ffmpeg": "^1.1.0",
     "@grammyjs/files": "^1.1.1",
     "@guiiai/logg": "^1.0.10",
@@ -46,12 +46,12 @@
     "@xsai/utils-chat": "catalog:",
     "best-effort-json-parser": "^1.2.1",
     "dotenv": "^17.2.1",
-    "drizzle-orm": "^0.44.4",
-    "es-toolkit": "^1.39.8",
+    "drizzle-orm": "^0.44.5",
+    "es-toolkit": "^1.39.10",
     "fluent-ffmpeg": "^2.1.3",
-    "grammy": "^1.37.0",
+    "grammy": "^1.38.1",
     "nanoid": "^5.1.5",
-    "p-limit": "^6.2.0",
+    "p-limit": "^7.1.1",
     "pg": "^8.16.3",
     "sharp": "^0.34.3",
     "telegram": "^2.26.22",
@@ -61,6 +61,6 @@
   "devDependencies": {
     "@types/pg": "^8.15.5",
     "drizzle-kit": "^0.31.4",
-    "tsx": "^4.20.3"
+    "tsx": "^4.20.5"
   }
 }

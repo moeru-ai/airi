@@ -6,12 +6,12 @@ export function transformJSDocLinks(md: MarkdownIt) {
     state.tokens.forEach((token) => {
       if (token.type === 'inline' && token.children?.length) {
         for (let i = 0; i < token.children.length; i++) {
-          const child = token.children[i]
+          const child = token.children[i]!
           if (child.type === 'text' && child.content.startsWith('{@link')) {
             // eslint-disable-next-line regexp/no-super-linear-backtracking
             const matches = child.content.match(/\{@link\s+(.*?)\}/)
             if (matches) {
-              const linkText = matches[1]
+              const linkText = matches[1]!
               const linkNode = new state.Token('link_open', 'a', 1)
               linkNode.attrSet('href', linkText)
               linkNode.attrSet('target', '_blank')

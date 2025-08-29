@@ -26,9 +26,9 @@ const heroAnimatable = shallowRef<AnimatableObject>()
 function animateHero(xOffsetRatio: number, yOffsetRatio: number) {
   const referenceSize = innerWidth.value
 
-  heroAnimatable.value?.x(-xOffsetRatio * 0.03 * referenceSize)
-  heroAnimatable.value?.y(-yOffsetRatio * 0.03 * referenceSize)
-  heroAnimatable.value?.z(0)
+  heroAnimatable.value?.x?.(-xOffsetRatio * 0.03 * referenceSize)
+  heroAnimatable.value?.y?.(-yOffsetRatio * 0.03 * referenceSize)
+  heroAnimatable.value?.z?.(0)
 }
 
 function onMouseMove(event: MouseEvent) {
