@@ -24,8 +24,13 @@ const { messages } = storeToRefs(useChatStore())
 const { t } = useI18n()
 const providersStore = useProvidersStore()
 const { activeModel, activeProvider } = storeToRefs(useConsciousnessStore())
+const isComposing = ref(false)
 
 async function handleSend() {
+  if (isComposing.value) {
+    return
+  }
+
   if (!messageInput.value.trim() && !attachments.value.length) {
     return
   }
@@ -39,6 +44,9 @@ async function handleSend() {
       providerConfig,
       attachments: attachmentsToSend,
     })
+
+    // clear after sending
+    messageInput.value = ''
   }
   catch (error) {
     messages.value.pop()
@@ -163,7 +171,9 @@ onMounted(() => {
       bg="primary-50 dark:primary-100" max-h="[10lh]" min-h="[1lh]"
       w-full shrink-0 resize-none overflow-y-scroll rounded-xl p-2 font-medium outline-none
       transition="all duration-250 ease-in-out placeholder:all placeholder:duration-250 placeholder:ease-in-out"
-      @submit="handleSend"
+      @compositionstart="isComposing = true"
+      @compositionend="isComposing = false"
+      @keydown.enter.exact.prevent="handleSend"
       @paste-file="handleFilePaste"
     />
   </div>

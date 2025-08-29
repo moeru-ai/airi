@@ -29,17 +29,17 @@ rustPlatform.buildRustPackage (final: {
   pname = "airi";
   version = "0.7.2-beta.2";
 
-  src = ./.;
+  src = ../.;
 
   cargoLock = {
-    lockFile = ./Cargo.lock;
+    lockFile = ../Cargo.lock;
     outputHashes."rdev-0.6.0" = "sha256-mGt44/kVo5EJO1Wf6MPLq0sZgwGTzuQjeVT6HxVzpQY=";
   };
 
   pnpmDeps = pnpm.fetchDeps {
     inherit (final) pname version src;
     fetcherVersion = 1;
-    hash = "sha256-y28rG+9NADUdwdjIAkYCqmYOKLoEWosAOpiGM4JPQoQ="; # To update, set it to ""
+    hash = builtins.readFile ./pnpm-deps-hash.txt;
   };
 
   # Cache of assets downloaded during vite build

@@ -305,6 +305,9 @@ pages:
               placeholder: 请输入 Cloudflare Workers AI 的 API Key
         title: Workers AI
       common:
+        status:
+          validating: 正在验证配置
+          valid: 配置似乎有效。
         fields:
           field:
             pitch:

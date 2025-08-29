@@ -12,7 +12,7 @@ const open = ref(false)
 const { meta_k } = useMagicKeys()
 const { t } = useI18n()
 
-whenever(meta_k, (n) => {
+whenever(meta_k!, (n) => {
   if (n)
     open.value = true
 })

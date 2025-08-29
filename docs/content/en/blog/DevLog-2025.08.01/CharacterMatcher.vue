@@ -15,7 +15,7 @@ function interpolate(characters: string[], initial?: Character[]) {
     return [
       ...chars,
       [
-        ...chars.length > 0 ? chars[chars.length - 1] : [],
+        ...chars.length > 0 ? chars[chars.length - 1]! : [],
         { value: c, variant: 'dotted' },
       ],
     ]

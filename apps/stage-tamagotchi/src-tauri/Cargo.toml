@@ -21,7 +21,7 @@ crate-type = [
 ]
 
 [build-dependencies]
-tauri-build = { version = "2.2.0", features = [] }
+tauri-build = { version = "2.4.0", features = [] }
 
 [dependencies]
 log = "0.4"

@@ -23,17 +23,17 @@ const silhouettePurpleAnimatable = shallowRef<AnimatableObject>()
 function animateCover(xOffsetRatio: number, yOffsetRatio: number) {
   const referenceWidth = window.innerWidth
 
-  surfaceAnimatable.value?.x(-xOffsetRatio * 0.02 * referenceWidth)
-  surfaceAnimatable.value?.y(-yOffsetRatio * 0.02 * referenceWidth)
-  surfaceAnimatable.value?.z(0)
+  surfaceAnimatable.value?.x?.(-xOffsetRatio * 0.02 * referenceWidth)
+  surfaceAnimatable.value?.y?.(-yOffsetRatio * 0.02 * referenceWidth)
+  surfaceAnimatable.value?.z?.(0)
 
-  silhouettePinkAnimatable.value?.x(0.01 * referenceWidth - yOffsetRatio * 0.015 * referenceWidth)
-  silhouettePinkAnimatable.value?.y(0.02 * referenceWidth + xOffsetRatio * 0.015 * referenceWidth)
-  silhouettePinkAnimatable.value?.z(0)
+  silhouettePinkAnimatable.value?.x?.(0.01 * referenceWidth - yOffsetRatio * 0.015 * referenceWidth)
+  silhouettePinkAnimatable.value?.y?.(0.02 * referenceWidth + xOffsetRatio * 0.015 * referenceWidth)
+  silhouettePinkAnimatable.value?.z?.(0)
 
-  silhouettePurpleAnimatable.value?.x(0.01 * referenceWidth + yOffsetRatio * 0.01 * referenceWidth)
-  silhouettePurpleAnimatable.value?.y(-0.01 * referenceWidth - yOffsetRatio * 0.01 * referenceWidth)
-  silhouettePurpleAnimatable.value?.z(0)
+  silhouettePurpleAnimatable.value?.x?.(0.01 * referenceWidth + yOffsetRatio * 0.01 * referenceWidth)
+  silhouettePurpleAnimatable.value?.y?.(-0.01 * referenceWidth - yOffsetRatio * 0.01 * referenceWidth)
+  silhouettePurpleAnimatable.value?.z?.(0)
 }
 
 function onMouseMove(event: MouseEvent) {
