@@ -7,7 +7,7 @@ export interface Events<T> {
   enqueue: Array<(payload: T, queueLength: number) => void>
   dequeue: Array<(payload: T, queueLength: number) => void>
   process: Array<(payload: T, handler: (param: HandlerContext<T>) => Promise<any>) => void>
-  error: Array<(payload: T, error: Error, handler: (param: HandlerContext<T>) => Promise<any>) => void>
+  error: Array<(payload: T, error: unknown, handler: (param: HandlerContext<T>) => Promise<any>) => void>
   result: Array<<R>(payload: T, result: R, handler: (param: HandlerContext<T>) => Promise<any>) => void>
   drain: Array<() => void>
 }
@@ -76,7 +76,8 @@ export function createQueue<T>(options: {
           emit('result', payload, result, handler)
         }
         catch (err) {
-          emit('error', payload, err as Error, handler)
+          // Keep `unknown` and let the event listener handle the error type
+          emit('error', payload, err, handler)
           continue
         }
       }
