@@ -19,7 +19,6 @@ import type {
 
 import { computedAsync, useLocalStorage } from '@vueuse/core'
 import {
-  createAnthropic,
   createAzure,
   createDeepSeek,
   createFireworks,
@@ -35,6 +34,12 @@ import {
   createXAI,
 } from '@xsai-ext/providers-cloud'
 import { createOllama, createPlayer2 } from '@xsai-ext/providers-local'
+import {
+  createChatProvider,
+  createMetadataProvider,
+  createModelProvider,
+  merge,
+} from '@xsai-ext/shared-providers'
 import { listModels } from '@xsai/model'
 import { isWebGPUSupported } from 'gpuu/webgpu'
 import { defineStore } from 'pinia'
@@ -50,6 +55,7 @@ import { useI18n } from 'vue-i18n'
 
 import { isUrl } from '../utils/url'
 import { models as elevenLabsModels } from './providers/elevenlabs/list-models'
+import { buildOpenAICompatibleProvider } from './providers/openai-compatible-builder'
 
 export interface ProviderMetadata {
   id: string
@@ -157,6 +163,26 @@ export interface VoiceInfo {
   }[]
 }
 
+function createAnthropic(apiKey: string, baseURL: string = 'https://api.anthropic.com/v1/') {
+  const anthropicFetch = async (input: any, init: any) => {
+    init.headers ??= {}
+    if (Array.isArray(init.headers))
+      init.headers.push(['anthropic-dangerous-direct-browser-access', 'true'])
+    else if (init.headers instanceof Headers)
+      init.headers.append('anthropic-dangerous-direct-browser-access', 'true')
+    else
+      init.headers['anthropic-dangerous-direct-browser-access'] = 'true'
+    return fetch(input, init)
+  }
+
+  return merge(
+    createMetadataProvider('anthropic'),
+    /** @see {@link https://docs.anthropic.com/en/docs/about-claude/models/all-models} */
+    createChatProvider({ apiKey, fetch: anthropicFetch, baseURL }),
+    createModelProvider({ apiKey, fetch: anthropicFetch, baseURL }),
+  )
+}
+
 export const useProvidersStore = defineStore('providers', () => {
   const providerCredentials = useLocalStorage<Record<string, Record<string, unknown>>>('settings/credentials/providers', {})
   const { t } = useI18n()
@@ -184,227 +210,62 @@ export const useProvidersStore = defineStore('providers', () => {
     return null
   })
 
-  // Helper function to fetch OpenRouter models manually
-  async function fetchOpenRouterModels(config: Record<string, unknown>): Promise<ModelInfo[]> {
-    try {
-      const response = await fetch('https://openrouter.ai/api/v1/models', {
-        headers: {
-          'Authorization': `Bearer ${(config.apiKey as string).trim()}`,
-          'Content-Type': 'application/json',
-        },
-      })
-
-      if (!response.ok) {
-        throw new Error(`Failed to fetch OpenRouter models: ${response.statusText}`)
+  async function isTamagotchi() {
+    if ('window' in globalThis && globalThis.window != null) {
+      if (('__TAURI_INTERNALS__' in globalThis.window && globalThis.window.__TAURI_INTERNALS__ != null) || location.host === 'tauri.localhost') {
+        return true
       }
+    }
+    return false
+  }
 
-      const data = await response.json()
-      return data.data.map((model: any) => ({
-        id: model.id,
-        name: model.name || model.id,
-        provider: 'openrouter-ai',
-        description: model.description || '',
-        contextLength: model.context_length,
-        deprecated: false,
-      }))
+  async function isBrowserAndMemoryEnough() {
+    const isInApp = await isTamagotchi()
+
+    if (isInApp)
+      return false
+
+    const webGPUAvailable = await isWebGPUSupported()
+    if (webGPUAvailable) {
+      return true
     }
-    catch (error) {
-      console.error('Error fetching OpenRouter models:', error)
-      throw error
+
+    if ('navigator' in globalThis && globalThis.navigator != null && 'deviceMemory' in globalThis.navigator && typeof globalThis.navigator.deviceMemory === 'number') {
+      const memory = globalThis.navigator.deviceMemory
+      // Check if the device has at least 8GB of RAM
+      if (memory >= 8) {
+        return true
+      }
     }
+
+    return false
   }
 
   // Centralized provider metadata with provider factory functions
   const providerMetadata: Record<string, ProviderMetadata> = {
-    'openrouter-ai': {
+    'openrouter-ai': buildOpenAICompatibleProvider({
       id: 'openrouter-ai',
-      category: 'chat',
-      tasks: ['text-generation'],
-      nameKey: 'settings.pages.providers.provider.openrouter.title',
       name: 'OpenRouter',
+      nameKey: 'settings.pages.providers.provider.openrouter.title',
       descriptionKey: 'settings.pages.providers.provider.openrouter.description',
-      description: 'openrouter.ai',
       icon: 'i-lobe-icons:openrouter',
-      defaultOptions: () => ({
-        baseUrl: 'https://openrouter.ai/api/v1/',
-      }),
-      createProvider: async config => createOpenRouter((config.apiKey as string).trim(), (config.baseUrl as string).trim()),
-      capabilities: {
-        listModels: async (config) => {
-          return fetchOpenRouterModels(config)
-        },
-      },
-      validators: {
-        validateProviderConfig: (config) => {
-          const errors = [
-            !config.apiKey && new Error('API key is required'),
-            !config.baseUrl && new Error('Base URL is required'),
-          ].filter(Boolean)
-
-          const res = baseUrlValidator.value(config.baseUrl)
-          if (res) {
-            return res
-          }
-
-          return {
-            errors,
-            reason: errors.filter(e => e).map(e => String(e)).join(', ') || '',
-            valid: !!config.apiKey && !!config.baseUrl,
-          }
-        },
-      },
-    },
-    'app-local-audio-speech': {
+      description: 'openrouter.ai',
+      defaultBaseUrl: 'https://openrouter.ai/api/v1/',
+      creator: createOpenRouter,
+      validation: ['health', 'model_list', 'chat_completions'],
+    }),
+    'app-local-audio-speech': buildOpenAICompatibleProvider({
       id: 'app-local-audio-speech',
-      category: 'speech',
-      tasks: ['text-to-speech', 'tts'],
-      isAvailableBy: async () => {
-        if ('window' in globalThis && globalThis.window != null) {
-          if ('__TAURI__' in globalThis.window && globalThis.window.__TAURI__ != null) {
-            return true
-          }
-        }
-
-        return false
-      },
+      name: 'App (Local)',
       nameKey: 'settings.pages.providers.provider.app-local-audio-speech.title',
-      name: 'App (Local)',
       descriptionKey: 'settings.pages.providers.provider.app-local-audio-speech.description',
-      description: 'https://github.com/huggingface/candle',
       icon: 'i-lobe-icons:huggingface',
-      defaultOptions: () => ({}),
-      createProvider: async config => createOpenAI((config.baseUrl as string).trim()),
-      capabilities: {
-        listModels: async (config) => {
-          return (await listModels({
-            ...createOpenAI((config.baseUrl as string).trim()).model(),
-          })).map((model) => {
-            return {
-              id: model.id,
-              name: model.id,
-              provider: 'app-local-candle',
-              description: '',
-              contextLength: 0,
-              deprecated: false,
-            } satisfies ModelInfo
-          })
-        },
-      },
-      validators: {
-        validateProviderConfig: (config) => {
-          if (!config.baseUrl) {
-            return {
-              errors: [new Error('Base URL is required.')],
-              reason: 'Base URL is required. This is likely a bug, report to developers on https://github.com/moeru-ai/airi/issues.',
-              valid: false,
-            }
-          }
-
-          return {
-            errors: [],
-            reason: '',
-            valid: true,
-          }
-        },
-      },
-    },
-    'app-local-audio-transcription': {
-      id: 'app-local-audio-transcription',
-      category: 'transcription',
-      tasks: ['speech-to-text', 'automatic-speech-recognition', 'asr', 'stt'],
-      isAvailableBy: async () => {
-        if ('window' in globalThis && globalThis.window != null) {
-          if ('__TAURI__' in globalThis.window && globalThis.window.__TAURI__ != null) {
-            return true
-          }
-        }
-
-        return false
-      },
-      nameKey: 'settings.pages.providers.provider.app-local-audio-transcription.title',
-      name: 'App (Local)',
-      descriptionKey: 'settings.pages.providers.provider.app-local-audio-transcription.description',
       description: 'https://github.com/huggingface/candle',
-      icon: 'i-lobe-icons:huggingface',
-      defaultOptions: () => ({}),
-      createProvider: async config => createOpenAI((config.baseUrl as string).trim()),
-      capabilities: {
-        listModels: async (config) => {
-          return (await listModels({
-            ...createOpenAI((config.baseUrl as string).trim()).model(),
-          })).map((model) => {
-            return {
-              id: model.id,
-              name: model.id,
-              provider: 'app-local-candle',
-              description: '',
-              contextLength: 0,
-              deprecated: false,
-            } satisfies ModelInfo
-          })
-        },
-      },
-      validators: {
-        validateProviderConfig: (config) => {
-          if (!config.baseUrl) {
-            return {
-              errors: [new Error('Base URL is required.')],
-              reason: 'Base URL is required. This is likely a bug, report to developers on https://github.com/moeru-ai/airi/issues.',
-              valid: false,
-            }
-          }
-
-          return {
-            errors: [],
-            reason: '',
-            valid: true,
-          }
-        },
-      },
-    },
-    'browser-local-audio-speech': {
-      id: 'browser-local-audio-speech',
       category: 'speech',
       tasks: ['text-to-speech', 'tts'],
-      isAvailableBy: async () => {
-        const webGPUAvailable = await isWebGPUSupported()
-        if (webGPUAvailable) {
-          return true
-        }
-
-        if ('navigator' in globalThis && globalThis.navigator != null && 'deviceMemory' in globalThis.navigator && typeof globalThis.navigator.deviceMemory === 'number') {
-          const memory = globalThis.navigator.deviceMemory
-          // Check if the device has at least 8GB of RAM
-          if (memory >= 8) {
-            return true
-          }
-        }
-
-        return false
-      },
-      nameKey: 'settings.pages.providers.provider.browser-local-audio-speech.title',
-      name: 'Browser (Local)',
-      descriptionKey: 'settings.pages.providers.provider.browser-local-audio-speech.description',
-      description: 'https://github.com/moeru-ai/xsai-transformers',
-      icon: 'i-lobe-icons:huggingface',
-      defaultOptions: () => ({}),
-      createProvider: async config => createOpenAI((config.baseUrl as string).trim()),
-      capabilities: {
-        listModels: async (config) => {
-          return (await listModels({
-            ...createOpenAI((config.baseUrl as string).trim()).model(),
-          })).map((model) => {
-            return {
-              id: model.id,
-              name: model.id,
-              provider: 'browser-local-transformers',
-              description: '',
-              contextLength: 0,
-              deprecated: false,
-            } satisfies ModelInfo
-          })
-        },
-      },
+      isAvailableBy: isTamagotchi,
+      creator: createOpenAI,
+      validation: [],
       validators: {
         validateProviderConfig: (config) => {
           if (!config.baseUrl) {
@@ -422,50 +283,19 @@ export const useProvidersStore = defineStore('providers', () => {
           }
         },
       },
-    },
-    'browser-local-audio-transcription': {
-      id: 'browser-local-audio-transcription',
+    }),
+    'app-local-audio-transcription': buildOpenAICompatibleProvider({
+      id: 'app-local-audio-transcription',
+      name: 'App (Local)',
+      nameKey: 'settings.pages.providers.provider.app-local-audio-transcription.title',
+      descriptionKey: 'settings.pages.providers.provider.app-local-audio-transcription.description',
+      icon: 'i-lobe-icons:huggingface',
+      description: 'https://github.com/huggingface/candle',
       category: 'transcription',
       tasks: ['speech-to-text', 'automatic-speech-recognition', 'asr', 'stt'],
-      isAvailableBy: async () => {
-        const webGPUAvailable = await isWebGPUSupported()
-        if (webGPUAvailable) {
-          return true
-        }
-
-        if ('navigator' in globalThis && globalThis.navigator != null && 'deviceMemory' in globalThis.navigator && typeof globalThis.navigator.deviceMemory === 'number') {
-          const memory = globalThis.navigator.deviceMemory
-          // Check if the device has at least 8GB of RAM
-          if (memory >= 8) {
-            return true
-          }
-        }
-
-        return false
-      },
-      nameKey: 'settings.pages.providers.provider.browser-local-audio-transcription.title',
-      name: 'Browser (Local)',
-      descriptionKey: 'settings.pages.providers.provider.browser-local-audio-transcription.description',
-      description: 'https://github.com/moeru-ai/xsai-transformers',
-      icon: 'i-lobe-icons:huggingface',
-      defaultOptions: () => ({}),
-      createProvider: async config => createOpenAI((config.baseUrl as string).trim()),
-      capabilities: {
-        listModels: async (config) => {
-          return (await listModels({
-            ...createOpenAI((config.baseUrl as string).trim()).model(),
-          })).map((model) => {
-            return {
-              id: model.id,
-              name: model.id,
-              provider: 'browser-local-transformers',
-              description: '',
-              contextLength: 0,
-              deprecated: false,
-            } satisfies ModelInfo
-          })
-        },
-      },
+      isAvailableBy: isTamagotchi,
+      creator: createOpenAI,
+      validation: [],
       validators: {
         validateProviderConfig: (config) => {
           if (!config.baseUrl) {
@@ -483,7 +313,67 @@ export const useProvidersStore = defineStore('providers', () => {
           }
         },
       },
-    },
+    }),
+    'browser-local-audio-speech': buildOpenAICompatibleProvider({
+      id: 'browser-local-audio-speech',
+      name: 'Browser (Local)',
+      nameKey: 'settings.pages.providers.provider.browser-local-audio-speech.title',
+      descriptionKey: 'settings.pages.providers.provider.browser-local-audio-speech.description',
+      icon: 'i-lobe-icons:huggingface',
+      description: 'https://github.com/moeru-ai/xsai-transformers',
+      category: 'speech',
+      tasks: ['text-to-speech', 'tts'],
+      isAvailableBy: isBrowserAndMemoryEnough,
+      creator: createOpenAI,
+      validation: [],
+      validators: {
+        validateProviderConfig: (config) => {
+          if (!config.baseUrl) {
+            return {
+              errors: [new Error('Base URL is required.')],
+              reason: 'Base URL is required. This is likely a bug, report to developers on https://github.com/moeru-ai/airi/issues.',
+              valid: false,
+            }
+          }
+
+          return {
+            errors: [],
+            reason: '',
+            valid: true,
+          }
+        },
+      },
+    }),
+    'browser-local-audio-transcription': buildOpenAICompatibleProvider({
+      id: 'browser-local-audio-transcription',
+      name: 'Browser (Local)',
+      nameKey: 'settings.pages.providers.provider.browser-local-audio-transcription.title',
+      descriptionKey: 'settings.pages.providers.provider.browser-local-audio-transcription.description',
+      icon: 'i-lobe-icons:huggingface',
+      description: 'https://github.com/moeru-ai/xsai-transformers',
+      category: 'transcription',
+      tasks: ['speech-to-text', 'automatic-speech-recognition', 'asr', 'stt'],
+      isAvailableBy: isBrowserAndMemoryEnough,
+      creator: createOpenAI,
+      validation: [],
+      validators: {
+        validateProviderConfig: (config) => {
+          if (!config.baseUrl) {
+            return {
+              errors: [new Error('Base URL is required.')],
+              reason: 'Base URL is required. This is likely a bug, report to developers on https://github.com/moeru-ai/airi/issues.',
+              valid: false,
+            }
+          }
+
+          return {
+            errors: [],
+            reason: '',
+            valid: true,
+          }
+        },
+      },
+    }),
     'ollama': {
       id: 'ollama',
       category: 'chat',
@@ -544,7 +434,7 @@ export const useProvidersStore = defineStore('providers', () => {
             .catch((err) => {
               return {
                 errors: [err],
-                reason: `Failed to reach Ollama server, error: ${String(err)} occurred.\n\nIf you are using Ollama locally, this is likely the CORS (Cross-Origin Resource Sharing) security issue, where you will need to set OLLAMA_ORIGINS=* or OLLAMA_ORIGINS=https://airi.moeru.ai,http://localhost environment variable before launching Ollama server to make this work.`,
+                reason: `Failed to reach Ollama server, error: ${String(err)} occurred.\n\nIf you are using Ollama locally, this is likely the CORS (Cross-Origin Resource Sharing) security issue, where you will need to set OLLAMA_ORIGINS=* or OLLAMA_ORIGINS=https://airi.moeru.ai,${location.origin} environment variable before launching Ollama server to make this work.`,
                 valid: false,
               }
             })
@@ -792,131 +682,40 @@ export const useProvidersStore = defineStore('providers', () => {
         },
       },
     },
-    'openai': {
+    'openai': buildOpenAICompatibleProvider({
       id: 'openai',
-      category: 'chat',
-      tasks: ['text-generation'],
-      nameKey: 'settings.pages.providers.provider.openai.title',
       name: 'OpenAI',
+      nameKey: 'settings.pages.providers.provider.openai.title',
       descriptionKey: 'settings.pages.providers.provider.openai.description',
+      icon: 'i-lobe-icons:openai',
       description: 'openai.com',
-      icon: 'i-lobe-icons:openai',
-      defaultOptions: () => ({
-        baseUrl: 'https://api.openai.com/v1/',
-      }),
-      createProvider: async config => createOpenAI((config.apiKey as string).trim(), (config.baseUrl as string).trim()),
-      capabilities: {
-        listModels: async (config) => {
-          return (await listModels({
-            ...createOpenAI((config.apiKey as string).trim(), (config.baseUrl as string).trim()).model(),
-          })).map((model) => {
-            return {
-              id: model.id,
-              name: model.id,
-              provider: 'openai',
-              description: '',
-              contextLength: 0,
-              deprecated: false,
-            } satisfies ModelInfo
-          })
-        },
-      },
-      validators: {
-        validateProviderConfig: (config) => {
-          const errors = [
-            !config.baseUrl && new Error('Base URL is required. Default to https://api.openai.com/v1/ for official OpenAI API.'),
-          ].filter(Boolean)
-
-          const res = baseUrlValidator.value(config.baseUrl)
-          if (res) {
-            return res
-          }
-
-          return {
-            errors,
-            reason: errors.filter(e => e).map(e => String(e)).join(', ') || '',
-            valid: !!config.baseUrl,
-          }
-        },
-      },
-    },
-    'openai-compatible': {
+      defaultBaseUrl: 'https://api.openai.com/v1/',
+      creator: createOpenAI,
+      validation: ['health', 'model_list'],
+    }),
+    'openai-compatible': buildOpenAICompatibleProvider({
       id: 'openai-compatible',
-      category: 'chat',
-      tasks: ['text-generation'],
-      nameKey: 'settings.pages.providers.provider.openai-compatible.title',
       name: 'OpenAI Compatible',
+      nameKey: 'settings.pages.providers.provider.openai-compatible.title',
       descriptionKey: 'settings.pages.providers.provider.openai-compatible.description',
-      description: 'Connect to any API that follows the OpenAI specification.',
       icon: 'i-lobe-icons:openai',
-      defaultOptions: () => ({
-        baseUrl: '',
-      }),
-      createProvider: async config => createOpenAI((config.apiKey as string).trim(), (config.baseUrl as string).trim()),
-      capabilities: {
-        listModels: async (config) => {
-          return (await listModels({
-            ...createOpenAI((config.apiKey as string).trim(), (config.baseUrl as string).trim()).model(),
-          })).map((model) => {
-            return {
-              id: model.id,
-              name: model.id,
-              provider: 'openai-compatible',
-              description: '',
-              contextLength: 0,
-              deprecated: false,
-            } satisfies ModelInfo
-          })
-        },
-      },
-      validators: {
-        validateProviderConfig: (config) => {
-          const errors = [
-            !config.apiKey && new Error('API key is required'),
-            !config.baseUrl && new Error('Base URL is required'),
-          ].filter(Boolean)
-
-          const res = baseUrlValidator.value(config.baseUrl)
-          if (res) {
-            return res
-          }
-
-          return {
-            errors,
-            reason: errors.filter(e => e).map(e => String(e)).join(', ') || '',
-            valid: !!config.apiKey && !!config.baseUrl,
-          }
-        },
-      },
-    },
-    'openai-audio-speech': {
+      description: 'Connect to any API that follows the OpenAI specification.',
+      creator: createOpenAI,
+      validation: ['health'],
+    }),
+    'openai-audio-speech': buildOpenAICompatibleProvider({
       id: 'openai-audio-speech',
+      name: 'OpenAI',
+      nameKey: 'settings.pages.providers.provider.openai.title',
+      descriptionKey: 'settings.pages.providers.provider.openai.description',
+      icon: 'i-lobe-icons:openai',
+      description: 'openai.com',
       category: 'speech',
       tasks: ['text-to-speech'],
-      nameKey: 'settings.pages.providers.provider.openai.title',
-      name: 'OpenAI',
-      descriptionKey: 'settings.pages.providers.provider.openai.description',
-      description: 'openai.com',
-      icon: 'i-lobe-icons:openai',
-      defaultOptions: () => ({
-        baseUrl: 'https://api.openai.com/v1/',
-      }),
-      createProvider: async config => createOpenAI((config.apiKey as string).trim(), (config.baseUrl as string).trim()),
+      defaultBaseUrl: 'https://api.openai.com/v1/',
+      creator: createOpenAI,
+      validation: ['health'],
       capabilities: {
-        listModels: async (config) => {
-          return (await listModels({
-            ...createOpenAI((config.apiKey as string).trim(), (config.baseUrl as string).trim()).model(),
-          })).map((model) => {
-            return {
-              id: model.id,
-              name: model.id,
-              provider: 'openai',
-              description: '',
-              contextLength: 0,
-              deprecated: false,
-            } satisfies ModelInfo
-          })
-        },
         listVoices: async () => {
           return [
             {
@@ -1006,88 +805,35 @@ export const useProvidersStore = defineStore('providers', () => {
           }
         },
       },
-    },
-    'openai-compatible-audio-speech': {
+    }),
+    'openai-compatible-audio-speech': buildOpenAICompatibleProvider({
       id: 'openai-compatible-audio-speech',
+      name: 'OpenAI Compatible',
+      nameKey: 'settings.pages.providers.provider.openai-compatible.title',
+      descriptionKey: 'settings.pages.providers.provider.openai-compatible.description',
+      icon: 'i-lobe-icons:openai',
+      description: 'Connect to any API that follows the OpenAI specification.',
       category: 'speech',
       tasks: ['text-to-speech'],
-      nameKey: 'settings.pages.providers.provider.openai-compatible.title',
-      name: 'OpenAI Compatible',
-      descriptionKey: 'settings.pages.providers.provider.openai-compatible.description',
-      description: 'Connect to any API that follows the OpenAI specification.',
-      icon: 'i-lobe-icons:openai',
-      defaultOptions: () => ({
-        baseUrl: '',
-      }),
-      createProvider: async config => createOpenAI((config.apiKey as string).trim(), (config.baseUrl as string).trim()),
       capabilities: {
-        listModels: async (config) => {
-          return (await listModels({
-            ...createOpenAI((config.apiKey as string).trim(), (config.baseUrl as string).trim()).model(),
-          })).map((model) => {
-            return {
-              id: model.id,
-              name: model.id,
-              provider: 'openai-compatible-audio-speech',
-              description: '',
-              contextLength: 0,
-              deprecated: false,
-            } satisfies ModelInfo
-          })
-        },
         listVoices: async () => {
           return []
         },
       },
-      validators: {
-        validateProviderConfig: (config) => {
-          const errors = [
-            !config.apiKey && new Error('API key is required'),
-            !config.baseUrl && new Error('Base URL is required'),
-          ].filter(Boolean)
-
-          const res = baseUrlValidator.value(config.baseUrl)
-          if (res) {
-            return res
-          }
-
-          return {
-            errors,
-            reason: errors.filter(e => e).map(e => String(e)).join(', ') || '',
-            valid: !!config.apiKey && !!config.baseUrl,
-          }
-        },
-      },
-    },
-    'openai-audio-transcription': {
+      creator: createOpenAI,
+    }),
+    'openai-audio-transcription': buildOpenAICompatibleProvider({
       id: 'openai-audio-transcription',
+      name: 'OpenAI',
+      nameKey: 'settings.pages.providers.provider.openai.title',
+      descriptionKey: 'settings.pages.providers.provider.openai.description',
+      icon: 'i-lobe-icons:openai',
+      description: 'openai.com',
       category: 'transcription',
       tasks: ['speech-to-text', 'automatic-speech-recognition', 'asr', 'stt'],
-      nameKey: 'settings.pages.providers.provider.openai.title',
-      name: 'OpenAI',
-      descriptionKey: 'settings.pages.providers.provider.openai.description',
-      description: 'openai.com',
-      icon: 'i-lobe-icons:openai',
-      defaultOptions: () => ({
-        baseUrl: 'https://api.openai.com/v1/',
-      }),
-      createProvider: async config => createOpenAI((config.apiKey as string).trim(), (config.baseUrl as string).trim()),
-      capabilities: {
-        listModels: async (config) => {
-          return (await listModels({
-            ...createOpenAI((config.apiKey as string).trim(), (config.baseUrl as string).trim()).model(),
-          })).map((model) => {
-            return {
-              id: model.id,
-              name: model.id,
-              provider: 'openai',
-              description: '',
-              contextLength: 0,
-              deprecated: false,
-            } satisfies ModelInfo
-          })
-        },
-      },
+      defaultBaseUrl: 'https://api.openai.com/v1/',
+      creator: createOpenAI,
+      validation: ['health'],
       validators: {
         validateProviderConfig: (config) => {
           const errors = [
@@ -1106,63 +852,25 @@ export const useProvidersStore = defineStore('providers', () => {
           }
         },
       },
-    },
-    'openai-compatible-audio-transcription': {
+    }),
+    'openai-compatible-audio-transcription': buildOpenAICompatibleProvider({
       id: 'openai-compatible-audio-transcription',
+      name: 'OpenAI Compatible',
+      nameKey: 'settings.pages.providers.provider.openai-compatible.title',
+      descriptionKey: 'settings.pages.providers.provider.openai-compatible.description',
+      icon: 'i-lobe-icons:openai',
+      description: 'Connect to any API that follows the OpenAI specification.',
       category: 'transcription',
       tasks: ['speech-to-text', 'automatic-speech-recognition', 'asr', 'stt'],
-      nameKey: 'settings.pages.providers.provider.openai-compatible.title',
-      name: 'OpenAI Compatible',
-      descriptionKey: 'settings.pages.providers.provider.openai-compatible.description',
-      description: 'Connect to any API that follows the OpenAI specification.',
-      icon: 'i-lobe-icons:openai',
-      defaultOptions: () => ({
-        baseUrl: '',
-      }),
-      createProvider: async config => createOpenAI((config.apiKey as string).trim(), (config.baseUrl as string).trim()),
-      capabilities: {
-        listModels: async (config) => {
-          return (await listModels({
-            ...createOpenAI((config.apiKey as string).trim(), (config.baseUrl as string).trim()).model(),
-          })).map((model) => {
-            return {
-              id: model.id,
-              name: model.id,
-              provider: 'openai-compatible-audio-transcription',
-              description: '',
-              contextLength: 0,
-              deprecated: false,
-            } satisfies ModelInfo
-          })
-        },
-      },
-      validators: {
-        validateProviderConfig: (config) => {
-          const errors = [
-            !config.apiKey && new Error('API key is required'),
-            !config.baseUrl && new Error('Base URL is required'),
-          ].filter(Boolean)
-
-          const res = baseUrlValidator.value(config.baseUrl)
-          if (res) {
-            return res
-          }
-
-          return {
-            errors,
-            reason: errors.filter(e => e).map(e => String(e)).join(', ') || '',
-            valid: !!config.apiKey && !!config.baseUrl,
-          }
-        },
-      },
-    },
+      creator: createOpenAI,
+    }),
     'azure-ai-foundry': {
       id: 'azure-ai-foundry',
       category: 'chat',
       tasks: ['text-generation'],
-      nameKey: 'settings.pages.providers.provider.azure_ai_foundry.title',
+      nameKey: 'settings.pages.providers.provider.azure-ai-foundry.title',
       name: 'Azure AI Foundry',
-      descriptionKey: 'settings.pages.providers.provider.azure_ai_foundry.description',
+      descriptionKey: 'settings.pages.providers.provider.azure-ai-foundry.description',
       description: 'azure.com',
       icon: 'i-lobe-icons:microsoft',
       defaultOptions: () => ({}),
@@ -1205,232 +913,53 @@ export const useProvidersStore = defineStore('providers', () => {
         },
       },
     },
-    'anthropic': {
+    'anthropic': buildOpenAICompatibleProvider({
       id: 'anthropic',
-      category: 'chat',
-      tasks: ['text-generation'],
-      nameKey: 'settings.pages.providers.provider.anthropic.title',
       name: 'Anthropic',
+      nameKey: 'settings.pages.providers.provider.anthropic.title',
       descriptionKey: 'settings.pages.providers.provider.anthropic.description',
-      description: 'anthropic.com',
       icon: 'i-lobe-icons:anthropic',
-      defaultOptions: () => ({
-        baseUrl: 'https://api.anthropic.com/v1/',
-      }),
-      createProvider: async config => createAnthropic((config.apiKey as string).trim(), (config.baseUrl as string).trim()),
-      capabilities: {
-        listModels: async () => {
-          return [
-            {
-              id: 'claude-3-7-sonnet-20250219',
-              name: 'Claude 3.7 Sonnet',
-              provider: 'anthropic',
-              description: '',
-              contextLength: 0,
-              deprecated: false,
-            },
-            {
-              id: 'claude-3-5-sonnet-20241022',
-              name: 'Claude 3.5 Sonnet (New)',
-              provider: 'anthropic',
-              description: '',
-              contextLength: 0,
-              deprecated: false,
-            },
-            {
-              id: 'claude-3-5-haiku-20241022',
-              name: 'Claude 3.5 Haiku',
-              provider: 'anthropic',
-              description: '',
-              contextLength: 0,
-              deprecated: false,
-            },
-            {
-              id: 'claude-3-5-sonnet-20240620',
-              name: 'Claude 3.5 Sonnet (Old)',
-              provider: 'anthropic',
-              description: '',
-              contextLength: 0,
-              deprecated: false,
-            },
-            {
-              id: 'claude-3-haiku-20240307',
-              name: 'Claude 3 Haiku',
-              provider: 'anthropic',
-              description: '',
-              contextLength: 0,
-              deprecated: false,
-            },
-            {
-              id: 'claude-3-opus-20240229',
-              name: 'Claude 3 Opus',
-              provider: 'anthropic',
-              description: '',
-              contextLength: 0,
-              deprecated: false,
-            },
-          ] satisfies ModelInfo[]
-        },
+      description: 'anthropic.com',
+      defaultBaseUrl: 'https://api.anthropic.com/v1/',
+      creator: createAnthropic,
+      validation: ['health', 'model_list'],
+      additionalHeaders: {
+        'anthropic-dangerous-direct-browser-access': 'true',
       },
-      validators: {
-        validateProviderConfig: (config) => {
-          const errors = [
-            !config.apiKey && new Error('API key is required.'),
-            !config.baseUrl && new Error('Base URL is required. Default to https://api.anthropic.com/v1/ for official Claude API with OpenAI compatibility.'),
-          ].filter(Boolean)
-
-          const res = baseUrlValidator.value(config.baseUrl)
-          if (res) {
-            return res
-          }
-
-          return {
-            errors,
-            reason: errors.filter(e => e).map(e => String(e)).join(', ') || '',
-            valid: !!config.apiKey && !!config.baseUrl,
-          }
-        },
-      },
-    },
-    'google-generative-ai': {
+    }),
+    'google-generative-ai': buildOpenAICompatibleProvider({
       id: 'google-generative-ai',
-      category: 'chat',
-      tasks: ['text-generation'],
-      nameKey: 'settings.pages.providers.provider.google-generative-ai.title',
       name: 'Google Gemini',
+      nameKey: 'settings.pages.providers.provider.google-generative-ai.title',
       descriptionKey: 'settings.pages.providers.provider.google-generative-ai.description',
-      description: 'ai.google.dev',
       icon: 'i-lobe-icons:gemini',
-      defaultOptions: () => ({
-        baseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai/',
-      }),
-      createProvider: async config => createGoogleGenerativeAI((config.apiKey as string).trim(), (config.baseUrl as string).trim()),
-      capabilities: {
-        listModels: async (config) => {
-          return (await listModels({
-            ...createGoogleGenerativeAI((config.apiKey as string).trim(), (config.baseUrl as string).trim()).model(),
-          })).map((model) => {
-            return {
-              id: model.id,
-              name: model.id,
-              provider: 'google-generative-ai',
-              description: '',
-              contextLength: 0,
-              deprecated: false,
-            } satisfies ModelInfo
-          })
-        },
-      },
-      validators: {
-        validateProviderConfig: (config) => {
-          const errors = [
-            !config.apiKey && new Error('API key is required.'),
-            !config.baseUrl && new Error('Base URL is required. Default to https://generativelanguage.googleapis.com/v1beta/openai/ for official Google Gemini API with OpenAI compatibility.'),
-          ].filter(Boolean)
-
-          const res = baseUrlValidator.value(config.baseUrl)
-          if (res) {
-            return res
-          }
-
-          return {
-            errors,
-            reason: errors.filter(e => e).map(e => String(e)).join(', ') || '',
-            valid: !!config.apiKey && !!config.baseUrl,
-          }
-        },
-      },
-    },
-    'xai': {
+      description: 'ai.google.dev',
+      defaultBaseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai/',
+      creator: createGoogleGenerativeAI,
+      validation: ['health', 'model_list'],
+    }),
+    'xai': buildOpenAICompatibleProvider({
       id: 'xai',
-      category: 'chat',
-      tasks: ['text-generation'],
-      nameKey: 'settings.pages.providers.provider.xai.title',
       name: 'xAI',
+      nameKey: 'settings.pages.providers.provider.xai.title',
       descriptionKey: 'settings.pages.providers.provider.xai.description',
-      description: 'x.ai',
       icon: 'i-lobe-icons:xai',
-      createProvider: async config => createXAI((config.apiKey as string).trim(), (config.baseUrl as string).trim()),
-      capabilities: {
-        listModels: async (config) => {
-          return (await listModels({
-            ...createXAI((config.apiKey as string).trim(), (config.baseUrl as string).trim()).model(),
-          })).map((model) => {
-            return {
-              id: model.id,
-              name: model.id,
-              provider: 'xai',
-              description: '',
-              contextLength: 0,
-              deprecated: false,
-            } satisfies ModelInfo
-          })
-        },
-      },
-      validators: {
-        validateProviderConfig: (config) => {
-          const errors = [
-            !config.apiKey && new Error('API key is required.'),
-            !config.baseUrl && new Error('Base URL is required.'),
-          ].filter(Boolean)
-
-          return {
-            errors,
-            reason: errors.filter(e => e).map(e => String(e)).join(', ') || '',
-            valid: !!config.apiKey && !!config.baseUrl,
-          }
-        },
-      },
-    },
-    'deepseek': {
+      description: 'x.ai',
+      defaultBaseUrl: 'https://api.x.ai/v1/',
+      creator: createXAI,
+      validation: ['health', 'model_list'],
+    }),
+    'deepseek': buildOpenAICompatibleProvider({
       id: 'deepseek',
-      category: 'chat',
-      tasks: ['text-generation'],
-      nameKey: 'settings.pages.providers.provider.deepseek.title',
       name: 'DeepSeek',
+      nameKey: 'settings.pages.providers.provider.deepseek.title',
       descriptionKey: 'settings.pages.providers.provider.deepseek.description',
+      icon: 'i-lobe-icons:deepseek',
       description: 'deepseek.com',
-      iconColor: 'i-lobe-icons:deepseek',
-      defaultOptions: () => ({
-        baseUrl: 'https://api.deepseek.com/',
-      }),
-      createProvider: async config => createDeepSeek((config.apiKey as string).trim(), (config.baseUrl as string).trim()),
-      capabilities: {
-        listModels: async (config) => {
-          return (await listModels({
-            ...createDeepSeek((config.apiKey as string).trim(), (config.baseUrl as string).trim()).model(),
-          })).map((model) => {
-            return {
-              id: model.id,
-              name: model.id,
-              provider: 'deepseek',
-              description: '',
-              contextLength: 0,
-              deprecated: false,
-            } satisfies ModelInfo
-          })
-        },
-      },
-      validators: {
-        validateProviderConfig: (config) => {
-          const errors = [
-            !config.apiKey && new Error('API key is required.'),
-            !config.baseUrl && new Error('Base URL is required.'),
-          ].filter(Boolean)
-
-          const res = baseUrlValidator.value(config.baseUrl)
-          if (res) {
-            return res
-          }
-
-          return {
-            errors,
-            reason: errors.filter(e => e).map(e => String(e)).join(', ') || '',
-            valid: !!config.apiKey && !!config.baseUrl,
-          }
-        },
-      },
-    },
+      defaultBaseUrl: 'https://api.deepseek.com/',
+      creator: createDeepSeek,
+      validation: ['health', 'model_list'],
+    }),
     'elevenlabs': {
       id: 'elevenlabs',
       category: 'speech',
@@ -1782,178 +1311,52 @@ export const useProvidersStore = defineStore('providers', () => {
         },
       },
     },
-    'together-ai': {
+    'together-ai': buildOpenAICompatibleProvider({
       id: 'together-ai',
-      category: 'chat',
-      tasks: ['text-generation'],
-      nameKey: 'settings.pages.providers.provider.together.title',
       name: 'Together.ai',
+      nameKey: 'settings.pages.providers.provider.together.title',
       descriptionKey: 'settings.pages.providers.provider.together.description',
+      icon: 'i-lobe-icons:together',
       description: 'together.ai',
+      defaultBaseUrl: 'https://api.together.xyz/v1/',
+      creator: createTogetherAI,
+      validation: ['health', 'model_list'],
       iconColor: 'i-lobe-icons:together',
-      createProvider: async config => createTogetherAI((config.apiKey as string).trim(), (config.baseUrl as string).trim()),
-      capabilities: {
-        listModels: async (config) => {
-          return (await listModels({
-            ...createTogetherAI((config.apiKey as string).trim(), (config.baseUrl as string).trim()).model(),
-          })).map((model) => {
-            return {
-              id: model.id,
-              name: model.id,
-              provider: 'together-ai',
-              description: '',
-              contextLength: 0,
-              deprecated: false,
-            } satisfies ModelInfo
-          })
-        },
-      },
-      validators: {
-        validateProviderConfig: (config) => {
-          const errors = [
-            !config.apiKey && new Error('API key is required.'),
-            !config.baseUrl && new Error('Base URL is required.'),
-          ].filter(Boolean)
-
-          return {
-            errors,
-            reason: errors.filter(e => e).map(e => String(e)).join(', ') || '',
-            valid: !!config.apiKey && !!config.baseUrl,
-          }
-        },
-      },
-    },
-    'novita-ai': {
+    }),
+    'novita-ai': buildOpenAICompatibleProvider({
       id: 'novita-ai',
-      category: 'chat',
-      tasks: ['text-generation'],
-      nameKey: 'settings.pages.providers.provider.novita.title',
       name: 'Novita',
+      nameKey: 'settings.pages.providers.provider.novita.title',
       descriptionKey: 'settings.pages.providers.provider.novita.description',
+      icon: 'i-lobe-icons:novita',
       description: 'novita.ai',
+      defaultBaseUrl: 'https://api.novita.ai/openai/',
+      creator: createNovita,
+      validation: ['health', 'model_list'],
       iconColor: 'i-lobe-icons:novita',
-      createProvider: async config => createNovita((config.apiKey as string).trim(), (config.baseUrl as string).trim()),
-      capabilities: {
-        listModels: async (config) => {
-          return (await listModels({
-            ...createNovita((config.apiKey as string).trim(), (config.baseUrl as string).trim()).model(),
-          })).map((model) => {
-            return {
-              id: model.id,
-              name: model.id,
-              provider: 'novita-ai',
-              description: '',
-              contextLength: 0,
-              deprecated: false,
-            } satisfies ModelInfo
-          })
-        },
-      },
-      validators: {
-        validateProviderConfig: (config) => {
-          const errors = [
-            !config.apiKey && new Error('API key is required.'),
-            !config.baseUrl && new Error('Base URL is required.'),
-          ].filter(Boolean)
-
-          return {
-            errors,
-            reason: errors.filter(e => e).map(e => String(e)).join(', ') || '',
-            valid: !!config.apiKey && !!config.baseUrl,
-          }
-        },
-      },
-    },
-    'fireworks-ai': {
+    }),
+    'fireworks-ai': buildOpenAICompatibleProvider({
       id: 'fireworks-ai',
-      category: 'chat',
-      tasks: ['text-generation'],
-      nameKey: 'settings.pages.providers.provider.fireworks.title',
       name: 'Fireworks.ai',
+      nameKey: 'settings.pages.providers.provider.fireworks.title',
       descriptionKey: 'settings.pages.providers.provider.fireworks.description',
-      description: 'fireworks.ai',
       icon: 'i-lobe-icons:fireworks',
-      createProvider: async config => createFireworks((config.apiKey as string).trim(), (config.baseUrl as string).trim()),
-      capabilities: {
-        listModels: async (config) => {
-          return (await listModels({
-            ...createFireworks((config.apiKey as string).trim(), (config.baseUrl as string).trim()).model(),
-          })).map((model) => {
-            return {
-              id: model.id,
-              name: model.id,
-              provider: 'fireworks-ai',
-              description: '',
-              contextLength: 0,
-              deprecated: false,
-            } satisfies ModelInfo
-          })
-        },
-      },
-      validators: {
-        validateProviderConfig: (config) => {
-          const errors = [
-            !config.apiKey && new Error('API key is required.'),
-            !config.baseUrl && new Error('Base URL is required.'),
-          ].filter(Boolean)
-
-          return {
-            errors,
-            reason: errors.filter(e => e).map(e => String(e)).join(', ') || '',
-            valid: !!config.apiKey && !!config.baseUrl,
-          }
-        },
-      },
-    },
-    'featherless-ai': {
+      description: 'fireworks.ai',
+      defaultBaseUrl: 'https://api.fireworks.ai/inference/v1/',
+      creator: createFireworks,
+      validation: ['health', 'model_list'],
+    }),
+    'featherless-ai': buildOpenAICompatibleProvider({
       id: 'featherless-ai',
-      category: 'chat',
-      tasks: ['text-generation'],
-      nameKey: 'settings.pages.providers.provider.featherless.title',
       name: 'Featherless.ai',
+      nameKey: 'settings.pages.providers.provider.featherless.title',
       descriptionKey: 'settings.pages.providers.provider.featherless.description',
-      description: 'featherless.ai',
       icon: 'i-lobe-icons:featherless-ai',
-      defaultOptions: () => ({
-        baseUrl: 'https://api.featherless.ai/v1/',
-      }),
-      createProvider: async config => createOpenAI((config.apiKey as string).trim(), (config.baseUrl as string).trim()),
-      capabilities: {
-        listModels: async (config) => {
-          return (await listModels({
-            ...createOpenAI((config.apiKey as string).trim(), (config.baseUrl as string).trim()).model(),
-          })).map((model) => {
-            return {
-              id: model.id,
-              name: model.id,
-              provider: 'featherless-ai',
-              description: '',
-              contextLength: 0,
-              deprecated: false,
-            } satisfies ModelInfo
-          })
-        },
-      },
-      validators: {
-        validateProviderConfig: (config) => {
-          const errors = [
-            !config.apiKey && new Error('API key is required.'),
-            !config.baseUrl && new Error('Base URL is required.'),
-          ].filter(Boolean)
-
-          const res = baseUrlValidator.value(config.baseUrl)
-          if (res) {
-            return res
-          }
-
-          return {
-            errors,
-            reason: errors.filter(e => e).map(e => String(e)).join(', ') || '',
-            valid: !!config.apiKey && !!config.baseUrl,
-          }
-        },
-      },
-    },
+      description: 'featherless.ai',
+      defaultBaseUrl: 'https://api.featherless.ai/v1/',
+      creator: createOpenAI,
+      validation: ['health', 'model_list'],
+    }),
     'cloudflare-workers-ai': {
       id: 'cloudflare-workers-ai',
       category: 'chat',
@@ -1984,206 +1387,52 @@ export const useProvidersStore = defineStore('providers', () => {
         },
       },
     },
-    'perplexity-ai': {
+    'perplexity-ai': buildOpenAICompatibleProvider({
       id: 'perplexity-ai',
-      category: 'chat',
-      tasks: ['text-generation'],
-      nameKey: 'settings.pages.providers.provider.perplexity.title',
       name: 'Perplexity',
+      nameKey: 'settings.pages.providers.provider.perplexity.title',
       descriptionKey: 'settings.pages.providers.provider.perplexity.description',
-      description: 'perplexity.ai',
       icon: 'i-lobe-icons:perplexity',
-      defaultOptions: () => ({
-        baseUrl: 'https://api.perplexity.ai',
-      }),
-      createProvider: async config => createPerplexity((config.apiKey as string).trim(), (config.baseUrl as string).trim()),
-      capabilities: {
-        listModels: async () => {
-          return [
-            {
-              id: 'sonar-small-online',
-              name: 'Sonar Small (Online)',
-              provider: 'perplexity-ai',
-              description: 'Efficient model with online search capabilities',
-              contextLength: 12000,
-            },
-            {
-              id: 'sonar-medium-online',
-              name: 'Sonar Medium (Online)',
-              provider: 'perplexity-ai',
-              description: 'Balanced model with online search capabilities',
-              contextLength: 12000,
-            },
-            {
-              id: 'sonar-large-online',
-              name: 'Sonar Large (Online)',
-              provider: 'perplexity-ai',
-              description: 'Powerful model with online search capabilities',
-              contextLength: 12000,
-            },
-            {
-              id: 'codey-small',
-              name: 'Codey Small',
-              provider: 'perplexity-ai',
-              description: 'Specialized for code generation and understanding',
-              contextLength: 12000,
-            },
-            {
-              id: 'codey-large',
-              name: 'Codey Large',
-              provider: 'perplexity-ai',
-              description: 'Advanced code generation and understanding',
-              contextLength: 12000,
-            },
-          ]
-        },
-      },
-      validators: {
-        validateProviderConfig: (config) => {
-          const errors = [
-            !config.apiKey && new Error('API key is required.'),
-            !config.baseUrl && new Error('Base URL is required.'),
-          ].filter(Boolean)
-
-          const res = baseUrlValidator.value(config.baseUrl)
-          if (res) {
-            return res
-          }
-
-          return {
-            errors,
-            reason: errors.filter(e => e).map(e => String(e)).join(', ') || '',
-            valid: !!config.apiKey && !!config.baseUrl,
-          }
-        },
-      },
-    },
-    'mistral-ai': {
+      description: 'perplexity.ai',
+      defaultBaseUrl: 'https://api.perplexity.ai/',
+      creator: createPerplexity,
+      validation: ['health', 'model_list'],
+    }),
+    'mistral-ai': buildOpenAICompatibleProvider({
       id: 'mistral-ai',
-      category: 'chat',
-      tasks: ['text-generation'],
-      nameKey: 'settings.pages.providers.provider.mistral.title',
       name: 'Mistral',
+      nameKey: 'settings.pages.providers.provider.mistral.title',
       descriptionKey: 'settings.pages.providers.provider.mistral.description',
+      icon: 'i-lobe-icons:mistral',
       description: 'mistral.ai',
+      defaultBaseUrl: 'https://api.mistral.ai/v1/',
+      creator: createMistral,
+      validation: ['health', 'model_list'],
       iconColor: 'i-lobe-icons:mistral',
-      createProvider: async config => createMistral((config.apiKey as string).trim(), (config.baseUrl as string).trim()),
-      capabilities: {
-        listModels: async (config) => {
-          return (await listModels({
-            ...createMistral((config.apiKey as string).trim(), (config.baseUrl as string).trim()).model(),
-          })).map((model) => {
-            return {
-              id: model.id,
-              name: model.id,
-              provider: 'mistral-ai',
-              description: '',
-              contextLength: 0,
-              deprecated: false,
-            } satisfies ModelInfo
-          })
-        },
-      },
-      validators: {
-        validateProviderConfig: (config) => {
-          const errors = [
-            !config.apiKey && new Error('API key is required.'),
-            !config.baseUrl && new Error('Base URL is required.'),
-          ].filter(Boolean)
-
-          return {
-            errors,
-            reason: errors.filter(e => e).map(e => String(e)).join(', ') || '',
-            valid: !!config.apiKey && !!config.baseUrl,
-          }
-        },
-      },
-    },
-    'moonshot-ai': {
+    }),
+    'moonshot-ai': buildOpenAICompatibleProvider({
       id: 'moonshot-ai',
-      category: 'chat',
-      tasks: ['text-generation'],
-      nameKey: 'settings.pages.providers.provider.moonshot.title',
       name: 'Moonshot AI',
+      nameKey: 'settings.pages.providers.provider.moonshot.title',
       descriptionKey: 'settings.pages.providers.provider.moonshot.description',
-      description: 'moonshot.ai',
       icon: 'i-lobe-icons:moonshot',
-      createProvider: async config => createMoonshot((config.apiKey as string).trim(), (config.baseUrl as string).trim()),
-      capabilities: {
-        listModels: async (config) => {
-          return (await listModels({
-            ...createMoonshot((config.apiKey as string).trim(), (config.baseUrl as string).trim()).model(),
-          })).map((model) => {
-            return {
-              id: model.id,
-              name: model.id,
-              provider: 'moonshot-ai',
-              description: '',
-              contextLength: 0,
-              deprecated: false,
-            } satisfies ModelInfo
-          })
-        },
-      },
-      validators: {
-        validateProviderConfig: (config) => {
-          const errors = [
-            !config.apiKey && new Error('API key is required.'),
-            !config.baseUrl && new Error('Base URL is required.'),
-          ].filter(Boolean)
-
-          return {
-            errors,
-            reason: errors.filter(e => e).map(e => String(e)).join(', ') || '',
-            valid: !!config.apiKey && !!config.baseUrl,
-          }
-        },
-      },
-    },
-    'modelscope': {
+      description: 'moonshot.ai',
+      defaultBaseUrl: 'https://api.moonshot.ai/v1/',
+      creator: createMoonshot,
+      validation: ['health', 'model_list'],
+    }),
+    'modelscope': buildOpenAICompatibleProvider({
       id: 'modelscope',
-      category: 'chat',
-      tasks: ['text-generation'],
-      nameKey: 'settings.pages.providers.provider.modelscope.title',
       name: 'ModelScope',
+      nameKey: 'settings.pages.providers.provider.modelscope.title',
       descriptionKey: 'settings.pages.providers.provider.modelscope.description',
-      description: 'modelscope',
       icon: 'i-lobe-icons:modelscope',
-      defaultOptions: () => ({
-        baseUrl: 'https://api-inference.modelscope.cn/v1/',
-      }),
-      createProvider: async config => createOpenAI((config.apiKey as string).trim(), (config.baseUrl as string).trim()),
-      capabilities: {
-        listModels: async (config) => {
-          return (await listModels({
-            ...createOpenAI((config.apiKey as string).trim(), (config.baseUrl as string).trim()).model(),
-          })).map((model) => {
-            return {
-              id: model.id,
-              name: model.id,
-              provider: 'modelscope',
-              description: '',
-              contextLength: 0,
-              deprecated: false,
-            } satisfies ModelInfo
-          })
-        },
-      },
-      validators: {
-        validateProviderConfig: (config) => {
-          const errors = [
-            !config.apiKey && new Error('API key is required.'),
-            !config.baseUrl && new Error('Base URL is required.'),
-          ].filter(Boolean)
-
-          return {
-            errors,
-            reason: errors.filter(e => e).map(e => String(e)).join(', ') || '',
-            valid: !!config.apiKey && !!config.baseUrl,
-          }
-        },
-      },
-    },
+      description: 'modelscope',
+      defaultBaseUrl: 'https://api-inference.modelscope.cn/v1/',
+      creator: createOpenAI,
+      validation: ['health', 'model_list', 'chat_completions'],
+      iconColor: 'i-lobe-icons:modelscope',
+    }),
     'player2': {
       id: 'player2',
       category: 'chat',
@@ -2344,26 +1593,34 @@ export const useProvidersStore = defineStore('providers', () => {
     },
   }
 
+  const configuredProviders = ref<Record<string, boolean>>({})
+  const validatedCredentials = ref<Record<string, string>>({})
+
   // Configuration validation functions
   async function validateProvider(providerId: string): Promise<boolean> {
     const config = providerCredentials.value[providerId]
     if (!config)
       return false
 
+    const configString = JSON.stringify(config || {})
+    if (validatedCredentials.value[providerId] === configString && typeof configuredProviders.value[providerId] === 'boolean')
+      return configuredProviders.value[providerId]
+
     const metadata = providerMetadata[providerId]
     if (!metadata)
       return false
 
+    // Always cache the current config string to prevent re-validating the same config
+    validatedCredentials.value[providerId] = configString
+
     const validationResult = await metadata.validators.validateProviderConfig(config)
-    if (!validationResult.valid) {
-      throw new Error(validationResult.reason)
-    }
+
+    configuredProviders.value[providerId] = validationResult.valid
 
     return validationResult.valid
   }
 
   // Create computed properties for each provider's configuration status
-  const configuredProviders = ref<Record<string, boolean>>({})
 
   // Initialize provider configurations
   function initializeProvider(providerId: string) {

@@ -3,6 +3,7 @@ import type { RemovableRef } from '@vueuse/core'
 import type { TranscriptionProvider } from '@xsai-ext/shared-providers'
 
 import {
+  Alert,
   ProviderAdvancedSettings,
   ProviderApiKeyInput,
   ProviderBaseUrlInput,
@@ -11,39 +12,44 @@ import {
   ProviderSettingsLayout,
   TranscriptionPlayground,
 } from '@proj-airi/stage-ui/components'
+import { useProviderValidation } from '@proj-airi/stage-ui/composables/useProviderValidation'
 import { useHearingStore } from '@proj-airi/stage-ui/stores/modules/hearing'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { FieldInput } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
-import { computed, onMounted } from 'vue'
-import { useI18n } from 'vue-i18n'
-import { useRouter } from 'vue-router'
+import { computed } from 'vue'
 
+const providerId = 'openai-compatible-audio-transcription'
 const hearingStore = useHearingStore()
 const providersStore = useProvidersStore()
 const { providers } = storeToRefs(providersStore) as { providers: RemovableRef<Record<string, any>> }
-const { t } = useI18n()
-const router = useRouter()
 
-// Get provider metadata
-const providerId = 'openai-compatible-audio-transcription'
-const providerMetadata = computed(() => providersStore.getProviderMetadata(providerId))
-const pageTitle = computed(() => providerMetadata.value?.localizedName || t('settings.pages.providers.provider.openai-compatible-audio-transcription.title'))
-
-// Settings refs
+// Define computed properties for credentials
 const apiKey = computed({
   get: () => providers.value[providerId]?.apiKey || '',
-  set: value => (providers.value[providerId] = { ...providers.value[providerId], apiKey: value }),
+  set: (value) => {
+    if (!providers.value[providerId])
+      providers.value[providerId] = {}
+    providers.value[providerId].apiKey = value
+  },
 })
 
 const baseUrl = computed({
   get: () => providers.value[providerId]?.baseUrl || '',
-  set: value => (providers.value[providerId] = { ...providers.value[providerId], baseUrl: value }),
+  set: (value) => {
+    if (!providers.value[providerId])
+      providers.value[providerId] = {}
+    providers.value[providerId].baseUrl = value
+  },
 })
 
 const model = computed({
-  get: () => providers.value[providerId]?.model || 'whisper-1',
-  set: value => (providers.value[providerId] = { ...providers.value[providerId], model: value }),
+  get: () => providers.value[providerId]?.model || '',
+  set: (value) => {
+    if (!providers.value[providerId])
+      providers.value[providerId] = {}
+    providers.value[providerId].model = value
+  },
 })
 
 // Check if API key is configured
@@ -63,32 +69,22 @@ async function handleGenerateTranscription(file: File) {
   )
 }
 
-onMounted(() => {
-  providersStore.initializeProvider(providerId)
-  const config = providers.value[providerId] || {}
-  apiKey.value = config.apiKey || ''
-  baseUrl.value = config.baseUrl || ''
-  model.value = config.model || 'whisper-1'
-})
-
-function handleResetSettings() {
-  const defaults = providerMetadata.value?.defaultOptions?.() || {}
-  providers.value[providerId] = {
-    apiKey: '',
-    baseUrl: defaults.baseUrl || '',
-    model: 'whisper-1',
-  }
-  // Force update refs
-  apiKey.value = ''
-  baseUrl.value = defaults.baseUrl || ''
-  model.value = 'whisper-1'
-}
+// Use the composable to get validation logic and state
+const {
+  t,
+  router,
+  providerMetadata,
+  isValidating,
+  isValid,
+  validationMessage,
+  handleResetSettings,
+} = useProviderValidation(providerId)
 </script>
 
 <template>
   <ProviderSettingsLayout
-    :provider-name="pageTitle"
-    :provider-icon="providerMetadata?.icon"
+    :provider-name="providerMetadata?.localizedName"
+    :provider-icon-color="providerMetadata?.iconColor"
     :on-back="() => router.back()"
   >
     <ProviderSettingsContainer>
@@ -112,23 +108,38 @@ function handleResetSettings() {
       <ProviderAdvancedSettings :title="t('settings.pages.providers.common.section.advanced.title')">
         <ProviderBaseUrlInput
           v-model="baseUrl"
-          placeholder="https://api.example.com/v1/"
+          placeholder="https://api.openai.com/v1/"
         />
       </ProviderAdvancedSettings>
+
+      <!-- Validation Status -->
+      <Alert v-if="!isValid && isValidating === 0 && validationMessage" type="error">
+        <template #title>
+          {{ t('settings.dialogs.onboarding.validationFailed') }}
+        </template>
+        <template v-if="validationMessage" #content>
+          <div class="whitespace-pre-wrap break-all">
+            {{ validationMessage }}
+          </div>
+        </template>
+      </Alert>
+      <Alert v-if="isValid && isValidating === 0" type="success">
+        <template #title>
+          {{ t('settings.dialogs.onboarding.validationSuccess') }}
+        </template>
+      </Alert>
     </ProviderSettingsContainer>
 
-    <template #playground>
-      <TranscriptionPlayground
-        :generate-transcription="handleGenerateTranscription"
-        :api-key-configured="apiKeyConfigured"
-      />
-    </template>
+    <TranscriptionPlayground
+      :generate-transcription="handleGenerateTranscription"
+      :api-key-configured="apiKeyConfigured"
+    />
   </ProviderSettingsLayout>
 </template>
 
 <route lang="yaml">
-  meta:
-    layout: settings
-    stageTransition:
-      name: slide
-  </route>
+meta:
+  layout: settings
+  stageTransition:
+    name: slide
+</route>

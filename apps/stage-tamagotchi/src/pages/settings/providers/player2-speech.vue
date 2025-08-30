@@ -3,6 +3,7 @@ import type { SpeechProviderWithExtraOptions } from '@xsai-ext/shared-providers'
 import type { UnElevenLabsOptions } from 'unspeech'
 
 import {
+  Alert,
   SpeechPlayground,
   SpeechProviderSettings,
 } from '@proj-airi/stage-ui/components'
@@ -75,21 +76,6 @@ watch(speedRatio, async () => {
 </script>
 
 <template>
-  <div v-if="!hasPlayer2" style="color: red; margin-bottom: 1rem;">
-    <div>
-      Please download and run the Player2 App:
-      <a href="https://player2.game" target="_blank" rel="noopener noreferrer">
-        https://player2.game
-      </a>
-
-      <div>
-        After downloading, if you still are having trouble, please reach out to us on Discord:
-        <a href="https://player2.game/discord" target="_blank" rel="noopener noreferrer">
-          https://player2.game/discord
-        </a>.
-      </div>
-    </div>
-  </div>
   <SpeechProviderSettings
     :provider-id="providerId"
     :default-model="defaultModel"
@@ -115,6 +101,28 @@ watch(speedRatio, async () => {
       />
     </template>
   </SpeechProviderSettings>
+  <Alert v-if="!hasPlayer2" type="error">
+    <template #title>
+      {{ t('settings.dialogs.onboarding.validationFailed') }}
+    </template>
+    <template #content>
+      <div class="whitespace-pre-wrap break-all">
+        <div>
+          Please download and run the Player2 App:
+          <a href="https://player2.game" target="_blank" rel="noopener noreferrer">
+            https://player2.game
+          </a>
+
+          <div>
+            After downloading, if you still are having trouble, please reach out to us on Discord:
+            <a href="https://player2.game/discord" target="_blank" rel="noopener noreferrer">
+              https://player2.game/discord
+            </a>.
+          </div>
+        </div>
+      </div>
+    </template>
+  </Alert>
 </template>
 
 <route lang="yaml">

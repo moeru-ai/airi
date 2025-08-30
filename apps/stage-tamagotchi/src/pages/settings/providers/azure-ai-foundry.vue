@@ -3,9 +3,9 @@ import type { RemovableRef } from '@vueuse/core'
 
 import {
   Alert,
+  ProviderAccountIdInput,
   ProviderAdvancedSettings,
   ProviderApiKeyInput,
-  ProviderBaseUrlInput,
   ProviderBasicSettings,
   ProviderSettingsContainer,
   ProviderSettingsLayout,
@@ -15,7 +15,7 @@ import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { storeToRefs } from 'pinia'
 import { computed } from 'vue'
 
-const providerId = 'moonshot-ai'
+const providerId = 'azure-ai-foundry'
 const providersStore = useProvidersStore()
 const { providers } = storeToRefs(providersStore) as { providers: RemovableRef<Record<string, any>> }
 
@@ -29,12 +29,30 @@ const apiKey = computed({
   },
 })
 
-const baseUrl = computed({
-  get: () => providers.value[providerId]?.baseUrl || '',
+const resourceName = computed({
+  get: () => providers.value[providerId]?.resourceName || '',
   set: (value) => {
     if (!providers.value[providerId])
       providers.value[providerId] = {}
-    providers.value[providerId].baseUrl = value
+    providers.value[providerId].resourceName = value
+  },
+})
+
+const apiVersion = computed({
+  get: () => providers.value[providerId]?.apiVersion || '',
+  set: (value) => {
+    if (!providers.value[providerId])
+      providers.value[providerId] = {}
+    providers.value[providerId].apiVersion = value
+  },
+})
+
+const modelId = computed({
+  get: () => providers.value[providerId]?.modelId || '',
+  set: (value) => {
+    if (!providers.value[providerId])
+      providers.value[providerId] = {}
+    providers.value[providerId].modelId = value
   },
 })
 
@@ -65,14 +83,31 @@ const {
         <ProviderApiKeyInput
           v-model="apiKey"
           :provider-name="providerMetadata?.localizedName"
-          placeholder="sk-..."
+          placeholder="..."
+          required
+        />
+        <ProviderAccountIdInput
+          v-model="resourceName"
+          label="Resouce name"
+          placeholder="..."
+          description="Prefix used in https://<prefix>.services.ai.azure.com"
+          required
+        />
+        <ProviderAccountIdInput
+          v-model="modelId"
+          label="Model id"
+          placeholder="..."
+          description="Model ID on Azure AI Foundry"
+          required
         />
       </ProviderBasicSettings>
 
       <ProviderAdvancedSettings :title="t('settings.pages.providers.common.section.advanced.title')">
-        <ProviderBaseUrlInput
-          v-model="baseUrl"
-          placeholder="https://api.moonshot.cn/v1/"
+        <ProviderAccountIdInput
+          v-model="apiVersion"
+          label="API version"
+          placeholder="e.g. 2025-04-01-preview"
+          description="API version for snapshot of the models"
         />
       </ProviderAdvancedSettings>
 
@@ -97,8 +132,8 @@ const {
 </template>
 
 <route lang="yaml">
-meta:
-  layout: settings
-  stageTransition:
-    name: slide
-</route>
+  meta:
+    layout: settings
+    stageTransition:
+      name: slide
+  </route>

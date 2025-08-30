@@ -10,7 +10,7 @@ import {
 } from '@proj-airi/stage-ui/components'
 import { useProviderValidation } from '@proj-airi/stage-ui/composables/useProviderValidation'
 
-const providerId = 'together-ai'
+const providerId = 'vllm'
 
 const {
   t,
@@ -40,14 +40,14 @@ const {
         <ProviderApiKeyInput
           v-model="apiKey"
           :provider-name="providerMetadata?.localizedName"
-          placeholder="sk-..."
+          placeholder="token-..."
         />
       </ProviderBasicSettings>
 
       <ProviderAdvancedSettings :title="t('settings.pages.providers.common.section.advanced.title')">
         <ProviderBaseUrlInput
           v-model="baseUrl"
-          placeholder="https://api.together.xyz/v1/"
+          placeholder="http://localhost:8000/v1"
         />
       </ProviderAdvancedSettings>
 

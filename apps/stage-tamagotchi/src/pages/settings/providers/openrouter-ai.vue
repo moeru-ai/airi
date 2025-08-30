@@ -2,6 +2,7 @@
 import type { RemovableRef } from '@vueuse/core'
 
 import {
+  Alert,
   ProviderAdvancedSettings,
   ProviderApiKeyInput,
   ProviderBaseUrlInput,
@@ -9,70 +10,50 @@ import {
   ProviderSettingsContainer,
   ProviderSettingsLayout,
 } from '@proj-airi/stage-ui/components'
+import { useProviderValidation } from '@proj-airi/stage-ui/composables/useProviderValidation'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { storeToRefs } from 'pinia'
-import { computed, onMounted, watch } from 'vue'
-import { useI18n } from 'vue-i18n'
-import { useRouter } from 'vue-router'
+import { computed } from 'vue'
 
-const { t } = useI18n()
-const router = useRouter()
+const providerId = 'openrouter-ai'
 const providersStore = useProvidersStore()
 const { providers } = storeToRefs(providersStore) as { providers: RemovableRef<Record<string, any>> }
 
-// Get provider metadata
-const providerId = 'openrouter-ai'
-const providerMetadata = computed(() => providersStore.getProviderMetadata(providerId))
-
-// Use computed properties for settings
+// Define computed properties for credentials
 const apiKey = computed({
   get: () => providers.value[providerId]?.apiKey || '',
   set: (value) => {
     if (!providers.value[providerId])
       providers.value[providerId] = {}
-
     providers.value[providerId].apiKey = value
   },
 })
 
 const baseUrl = computed({
-  get: () => providers.value[providerId]?.baseUrl || providerMetadata.value?.defaultOptions?.().baseUrl || '',
+  get: () => providers.value[providerId]?.baseUrl || '',
   set: (value) => {
     if (!providers.value[providerId])
       providers.value[providerId] = {}
-
     providers.value[providerId].baseUrl = value
   },
 })
 
-onMounted(() => {
-  providersStore.initializeProvider(providerId)
-
-  // Initialize refs with current values
-  apiKey.value = providers.value[providerId]?.apiKey || ''
-  baseUrl.value = providers.value[providerId]?.baseUrl || providerMetadata.value?.defaultOptions?.().baseUrl || ''
-})
-
-// Watch settings and update the provider configuration
-watch([apiKey, baseUrl], () => {
-  providers.value[providerId] = {
-    ...providers.value[providerId],
-    apiKey: apiKey.value,
-    baseUrl: baseUrl.value || providerMetadata.value?.defaultOptions?.().baseUrl || '',
-  }
-})
-
-function handleResetSettings() {
-  providers.value[providerId] = {
-    ...(providerMetadata.value?.defaultOptions as any),
-  }
-}
+// Use the composable to get validation logic and state
+const {
+  t,
+  router,
+  providerMetadata,
+  isValidating,
+  isValid,
+  validationMessage,
+  handleResetSettings,
+} = useProviderValidation(providerId)
 </script>
 
 <template>
   <ProviderSettingsLayout
     :provider-name="providerMetadata?.localizedName"
-    :provider-icon="providerMetadata?.icon"
+    :provider-icon-color="providerMetadata?.iconColor"
     :on-back="() => router.back()"
   >
     <ProviderSettingsContainer>
@@ -91,16 +72,33 @@ function handleResetSettings() {
       <ProviderAdvancedSettings :title="t('settings.pages.providers.common.section.advanced.title')">
         <ProviderBaseUrlInput
           v-model="baseUrl"
-          :placeholder="providerMetadata?.defaultOptions?.().baseUrl as string || ''"
+          placeholder="https://openrouter.ai/api/v1/"
         />
       </ProviderAdvancedSettings>
+
+      <!-- Validation Status -->
+      <Alert v-if="!isValid && isValidating === 0 && validationMessage" type="error">
+        <template #title>
+          {{ t('settings.dialogs.onboarding.validationFailed') }}
+        </template>
+        <template v-if="validationMessage" #content>
+          <div class="whitespace-pre-wrap break-all">
+            {{ validationMessage }}
+          </div>
+        </template>
+      </Alert>
+      <Alert v-if="isValid && isValidating === 0" type="success">
+        <template #title>
+          {{ t('settings.dialogs.onboarding.validationSuccess') }}
+        </template>
+      </Alert>
     </ProviderSettingsContainer>
   </ProviderSettingsLayout>
 </template>
 
 <route lang="yaml">
-  meta:
-    layout: settings
-    stageTransition:
-      name: slide
-  </route>
+meta:
+  layout: settings
+  stageTransition:
+    name: slide
+</route>

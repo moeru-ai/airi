@@ -3,6 +3,7 @@ import type { RemovableRef } from '@vueuse/core'
 import type { SpeechProvider } from '@xsai-ext/shared-providers'
 
 import {
+  Alert,
   ProviderAdvancedSettings,
   ProviderApiKeyInput,
   ProviderBaseUrlInput,
@@ -11,19 +12,16 @@ import {
   ProviderSettingsLayout,
   SpeechPlaygroundOpenAICompatible,
 } from '@proj-airi/stage-ui/components'
+import { useProviderValidation } from '@proj-airi/stage-ui/composables/useProviderValidation'
 import { useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { FieldRange } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
-import { computed, onMounted, ref, watch } from 'vue'
-import { useI18n } from 'vue-i18n'
-import { useRouter } from 'vue-router'
+import { computed, ref } from 'vue'
 
 const speechStore = useSpeechStore()
 const providersStore = useProvidersStore()
 const { providers } = storeToRefs(providersStore) as { providers: RemovableRef<Record<string, any>> }
-const { t } = useI18n()
-const router = useRouter()
 
 const defaultVoiceSettings = {
   speed: 1.0,
@@ -31,7 +29,6 @@ const defaultVoiceSettings = {
 
 // Get provider metadata
 const providerId = 'openai-compatible-audio-speech'
-const providerMetadata = computed(() => providersStore.getProviderMetadata(providerId))
 
 // Settings refs
 const apiKey = computed({
@@ -92,43 +89,22 @@ async function handleGenerateSpeech(input: string, voiceId: string, _useSSML: bo
   )
 }
 
-onMounted(() => {
-  providersStore.initializeProvider(providerId)
-  const config = providers.value[providerId] || {}
-  apiKey.value = config.apiKey || ''
-  baseUrl.value = config.baseUrl || ''
-  model.value = config.model || 'tts-1'
-  voice.value = config.voice || 'alloy'
-  speed.value = config.speed || 1.0
-})
-
-watch(speed, (newSpeed) => {
-  if (providers.value[providerId])
-    providers.value[providerId].speed = newSpeed
-})
-
-function handleResetSettings() {
-  const defaults = providerMetadata.value?.defaultOptions?.() || {}
-  providers.value[providerId] = {
-    apiKey: '',
-    baseUrl: defaults.baseUrl || '',
-    model: 'tts-1',
-    voice: 'alloy',
-    speed: 1.0,
-  }
-  // Force update refs
-  apiKey.value = ''
-  baseUrl.value = defaults.baseUrl || ''
-  model.value = 'tts-1'
-  voice.value = 'alloy'
-  speed.value = 1.0
-}
+// Use the composable to get validation logic and state
+const {
+  t,
+  router,
+  providerMetadata,
+  isValidating,
+  isValid,
+  validationMessage,
+  handleResetSettings,
+} = useProviderValidation(providerId)
 </script>
 
 <template>
   <ProviderSettingsLayout
-    :provider-name="providerMetadata?.localizedName || 'OpenAI Compatible'"
-    :provider-icon="providerMetadata?.icon"
+    :provider-name="providerMetadata?.localizedName"
+    :provider-icon-color="providerMetadata?.iconColor"
     :on-back="() => router.back()"
   >
     <ProviderSettingsContainer>
@@ -147,7 +123,7 @@ function handleResetSettings() {
       <ProviderAdvancedSettings :title="t('settings.pages.providers.common.section.advanced.title')">
         <ProviderBaseUrlInput
           v-model="baseUrl"
-          placeholder="https://api.example.com/v1/"
+          placeholder="https://api.openai.com/v1/"
         />
         <FieldRange
           v-model="speed"
@@ -157,6 +133,23 @@ function handleResetSettings() {
           :max="2.0" :step="0.01"
         />
       </ProviderAdvancedSettings>
+
+      <!-- Validation Status -->
+      <Alert v-if="!isValid && isValidating === 0 && validationMessage" type="error">
+        <template #title>
+          {{ t('settings.dialogs.onboarding.validationFailed') }}
+        </template>
+        <template v-if="validationMessage" #content>
+          <div class="whitespace-pre-wrap break-all">
+            {{ validationMessage }}
+          </div>
+        </template>
+      </Alert>
+      <Alert v-if="isValid && isValidating === 0" type="success">
+        <template #title>
+          {{ t('settings.dialogs.onboarding.validationSuccess') }}
+        </template>
+      </Alert>
     </ProviderSettingsContainer>
 
     <SpeechPlaygroundOpenAICompatible
@@ -170,8 +163,8 @@ function handleResetSettings() {
 </template>
 
 <route lang="yaml">
-  meta:
-    layout: settings
-    stageTransition:
-      name: slide
-  </route>
+meta:
+  layout: settings
+  stageTransition:
+    name: slide
+</route>

@@ -17,6 +17,7 @@ dialogs:
     baseUrl: URL Base
     baseUrlHelp: URL del endpoint de la API (usa el predeterminado si no estás seguro)
     accountId: ID de Cuenta
+    validationSuccess: La validación de la configuración fue exitosa
     validationFailed: La validación de la configuración falló
     validationError: 'Error de validación: {error}'
     skipForNow: Omitir por ahora
@@ -397,6 +398,9 @@ pages:
       index-tts-vllm:
         description: https://index-tts.github.io/
         title: Bilibili / IndexTTS
+      azure-ai-foundry:
+        description: Azure AI Foundry
+        title: Azure AI Foundry
       mistral:
         description: mistral.ai
         title: Mistral
