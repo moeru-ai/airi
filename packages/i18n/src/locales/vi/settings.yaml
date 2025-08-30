@@ -258,7 +258,7 @@ pages:
     helpinfo:
       title: Lần đầu tới đây?
       description: >
-        AIRI cần ít nhất một nhà cung cấp để suy nghĩ và hoạt động đúng cách {chat}.
+        {chat} AIRI cần ít nhất một nhà cung cấp để suy nghĩ và hoạt động đúng cách.
         Có thể coi nó như bộ não của nhân vật AIRI trong hệ thống.
     common:
       fields:
