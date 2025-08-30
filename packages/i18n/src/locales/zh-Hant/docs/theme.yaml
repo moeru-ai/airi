@@ -1,0 +1,48 @@
+home:
+  subtitle: 模型驅動的靈魂容器，什麼都能做一點的桌寵：讓 Neuro-sama 這樣的虛擬夥伴也成為我們世界中的一份子吧！
+  download:
+    title: 下載
+  get-started:
+    title: 教學
+  try-live:
+    title: 網頁版
+doc:
+  outline:
+    title: 本頁大綱
+  community:
+    discord:
+      title: Discord 伺服器
+    edit:
+      title: 編輯此頁面
+    star-github:
+      title: 給 GitHub 點個 Star
+    support:
+      title: 支援我們
+    title: 社群
+  next-page:
+    title: 下一頁
+  previous-page:
+    title: 前一頁
+search:
+  title: 搜尋
+  placeholder: 搜尋文件...
+navbar:
+  appearance:
+    title: 主題
+  language:
+    title: 語言
+pages:
+  characters:
+    title: 角色
+blog:
+  card:
+    post:
+      read-more:
+        title: 閱讀更多
+  no-posts: 此分類下沒有找到任何文章
+  subtitle: 和我們一起旅行！閱讀由開發團隊發布的最新進展
+  title: 文章 & 開發日誌
+  categories:
+    all: 全部
+    devlog: 開發日誌
+    dreamlog: 夢境日誌
