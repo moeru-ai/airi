@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import { sleep } from '@moeru/std'
-import { useQueue } from '@proj-airi/stage-ui/composables/queue'
+import { createQueue } from '@proj-airi/stage-ui/utils/queue'
 import { onMounted, ref } from 'vue'
 
 const temp = ref<string>('')
 
-const audioQueue = useQueue<string>({
+const audioQueue = createQueue<string>({
   handlers: [
     async (text) => {
       // eslint-disable-next-line no-console
@@ -13,16 +13,16 @@ const audioQueue = useQueue<string>({
     },
   ],
 })
-const ttsQueue = useQueue<string>({
+const ttsQueue = createQueue<string>({
   handlers: [
     async (ctx) => {
       // eslint-disable-next-line no-console
       console.log('ready to stream speech audio for', ctx)
-      audioQueue.add(ctx.data)
+      audioQueue.enqueue(ctx.data)
     },
   ],
 })
-const textQueue = useQueue<string>({
+const textQueue = createQueue<string>({
   handlers: [
     async (ctx) => {
       const endMarker = ['.', '?', '!']
@@ -40,7 +40,7 @@ const textQueue = useQueue<string>({
         const afterPeriod = ctx.data.slice(periodIndex + 1)
 
         temp.value += beforePeriod
-        ttsQueue.add(temp.value.trim())
+        ttsQueue.enqueue(temp.value.trim())
         temp.value = afterPeriod
 
         newEndPartDiscovered = true
@@ -129,7 +129,7 @@ const textParts = [
 async function mockTextPartsStreamHandler() {
   for (const part of textParts) {
     await sleep(100)
-    textQueue.add(part)
+    textQueue.enqueue(part)
   }
 }
 

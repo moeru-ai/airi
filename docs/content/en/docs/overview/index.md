@@ -61,7 +61,7 @@ We do support both Web and Desktop.
   </div>
 </div>
 
-Web is much minimum for accessing it anywhere, even on Mobile devices.
+The web version offers easy access from anywhere, even on mobile devices.
 Desktop suits for more advanced usage such as VTuber streaming, computer use
 and accessing to local LLMs where you don't need to pay for massive amount
 of tokens for running AIRI.

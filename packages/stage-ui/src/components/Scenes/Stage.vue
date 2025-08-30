@@ -17,7 +17,6 @@ import { onMounted, onUnmounted, ref } from 'vue'
 import Live2DScene from './Live2D.vue'
 import VRMScene from './VRM.vue'
 
-import { useQueue } from '../../composables/queue'
 import { useDelayMessageQueue, useEmotionsMessageQueue, useMessageContentQueue } from '../../composables/queues'
 import { llmInferenceEndToken } from '../../constants'
 import { EMOTION_EmotionMotionName_value, EMOTION_VRMExpressionName_value, EmotionThinkMotionName } from '../../constants/emotions'
@@ -28,6 +27,7 @@ import { useSpeechStore } from '../../stores/modules/speech'
 import { useProvidersStore } from '../../stores/providers'
 import { useSettings } from '../../stores/settings'
 import { useVRM } from '../../stores/vrm'
+import { createQueue } from '../../utils/queue'
 
 withDefaults(defineProps<{
   paused?: boolean
@@ -76,7 +76,7 @@ const nowSpeaking = ref(false)
 const lipSyncStarted = ref(false)
 let currentAudioSource: AudioBufferSourceNode | null = null
 
-const audioQueue = useQueue<{ audioBuffer: AudioBuffer, text: string }>({
+const audioQueue = createQueue<{ audioBuffer: AudioBuffer, text: string }>({
   handlers: [
     (ctx) => {
       return new Promise((resolve) => {
@@ -150,29 +150,24 @@ async function handleSpeechGeneration(ctx: { data: string }) {
 
     // Decode the ArrayBuffer into an AudioBuffer
     const audioBuffer = await audioContext.decodeAudioData(res)
-    await audioQueue.add({ audioBuffer, text: ctx.data })
+    audioQueue.enqueue({ audioBuffer, text: ctx.data })
   }
   catch (error) {
     console.error('Speech generation failed:', error)
   }
 }
 
-const ttsQueue = useQueue<string>({
+const ttsQueue = createQueue<string>({
   handlers: [
     handleSpeechGeneration,
   ],
-})
-
-ttsQueue.on('add', (content) => {
-  // eslint-disable-next-line no-console
-  console.debug('ttsQueue added', content)
 })
 
 const messageContentQueue = useMessageContentQueue(ttsQueue)
 
 const { currentMotion } = storeToRefs(useLive2d())
 
-const emotionsQueue = useQueue<Emotion>({
+const emotionsQueue = createQueue<Emotion>({
   handlers: [
     async (ctx) => {
       if (stageModelRenderer.value === 'vrm') {
@@ -232,7 +227,7 @@ onBeforeMessageComposed(async () => {
     catch {}
     currentAudioSource = null
   }
-  audioQueue.queue.value = []
+  audioQueue.clear()
   setupAnalyser()
   setupLipSync()
 })
@@ -242,16 +237,16 @@ onBeforeSend(async () => {
 })
 
 onTokenLiteral(async (literal) => {
-  await messageContentQueue.add(literal)
+  messageContentQueue.enqueue(literal)
 })
 
 onTokenSpecial(async (special) => {
-  await delaysQueue.add(special)
-  await emotionMessageContentQueue.add(special)
+  delaysQueue.enqueue(special)
+  emotionMessageContentQueue.enqueue(special)
 })
 
 onStreamEnd(async () => {
-  await delaysQueue.add(llmInferenceEndToken)
+  delaysQueue.enqueue(llmInferenceEndToken)
 })
 
 onAssistantResponseEnd(async (_message) => {

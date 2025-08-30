@@ -1,12 +1,12 @@
 import type { Emotion } from '../constants/emotions'
-import type { UseQueueReturn } from './queue'
+import type { UseQueueReturn } from '../utils/queue'
 
 import { sleep } from '@moeru/std'
 
 import { EMOTION_VALUES } from '../constants/emotions'
+import { createQueue } from '../utils/queue'
 import { createControllableStream } from '../utils/stream'
 import { chunkToTTSQueue } from '../utils/tts'
-import { useQueue } from './queue'
 
 export function useEmotionsMessageQueue(emotionsQueue: UseQueueReturn<Emotion>) {
   function splitEmotion(content: string) {
@@ -27,14 +27,13 @@ export function useEmotionsMessageQueue(emotionsQueue: UseQueueReturn<Emotion>) 
     }
   }
 
-  return useQueue<string>({
+  return createQueue<string>({
     handlers: [
       async (ctx) => {
         // if the message is an emotion, push the last content to the message queue
         if (EMOTION_VALUES.includes(ctx.data as Emotion)) {
           ctx.emit('emotion', ctx.data as Emotion)
-          await emotionsQueue.add(ctx.data as Emotion)
-
+          emotionsQueue.enqueue(ctx.data as Emotion)
           return
         }
 
@@ -44,7 +43,7 @@ export function useEmotionsMessageQueue(emotionsQueue: UseQueueReturn<Emotion>) 
           const { ok, emotion } = splitEmotion(ctx.data)
           if (ok) {
             ctx.emit('emotion', emotion)
-            await emotionsQueue.add(emotion)
+            emotionsQueue.enqueue(emotion)
           }
         }
       },
@@ -87,7 +86,7 @@ export function useDelayMessageQueue() {
     }
   }
 
-  return useQueue<string>({
+  return createQueue<string>({
     handlers: [
       async (ctx) => {
         // iterate through the message to find the emotions
@@ -107,7 +106,7 @@ export function useMessageContentQueue(ttsQueue: UseQueueReturn<string>) {
 
   chunkToTTSQueue(stream.getReader(), ttsQueue)
 
-  return useQueue<string>({
+  return createQueue<string>({
     handlers: [
       async (ctx) => {
         controller.enqueue(encoder.encode(ctx.data))

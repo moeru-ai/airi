@@ -26,9 +26,9 @@ function onSendMessage() {
   processing.value = true
   const tokens = messageInput.value.split('')
   for (const token of tokens)
-    delaysQueue.add(token)
+    delaysQueue.enqueue(token)
 
-  delaysQueue.add(llmInferenceEndToken)
+  delaysQueue.enqueue(llmInferenceEndToken)
   messageInput.value = ''
   processing.value = false
 }

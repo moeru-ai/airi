@@ -7,135 +7,114 @@ import { sleep } from '@moeru/std'
 export interface ClientOptions<C = undefined> {
   url?: string
   name: string
-  possibleEvents?: Array<(keyof WebSocketEvents<C>)>
+  possibleEvents?: Array<keyof WebSocketEvents<C>>
   token?: string
   onError?: (error: unknown) => void
   onClose?: () => void
   autoConnect?: boolean
   autoReconnect?: boolean
+  maxReconnectAttempts?: number
 }
 
 export class Client<C = undefined> {
   private connected = false
-  private opts: Required<Omit<ClientOptions<C>, 'token'>> & Pick<ClientOptions<C>, 'token'>
-  private websocket: WebSocket | undefined
-  private eventListeners: Map<keyof WebSocketEvents<C>, Array<(data: WebSocketBaseEvent<any, any>) => void | Promise<void>>> = new Map()
-
-  private reconnectAttempts = 0
+  private websocket?: WebSocket
   private shouldClose = false
+
+  private readonly opts: Required<Omit<ClientOptions<C>, 'token'>> & Pick<ClientOptions<C>, 'token'>
+  private readonly eventListeners = new Map<
+    keyof WebSocketEvents<C>,
+    Set<(data: WebSocketBaseEvent<any, any>) => void | Promise<void>>
+  >()
 
   constructor(options: ClientOptions<C>) {
     this.opts = {
       url: 'ws://localhost:6121/ws',
       possibleEvents: [],
-      onError: () => { },
-      onClose: () => { },
+      onError: () => {},
+      onClose: () => {},
       autoConnect: true,
       autoReconnect: true,
+      maxReconnectAttempts: -1,
       ...options,
     }
 
+    // Authentication listener is registered once only
+    this.onEvent('module:authenticated', async (event) => {
+      if (event.data.authenticated) {
+        this.tryAnnounce()
+      }
+      else {
+        await this.retryWithExponentialBackoff(() => this.tryAuthenticate())
+      }
+    })
+
     if (this.opts.autoConnect) {
+      void this.connect()
+    }
+  }
+
+  private async retryWithExponentialBackoff(fn: () => void | Promise<void>) {
+    const { maxReconnectAttempts } = this.opts
+    let attempts = 0
+
+    // Loop until attempts exceed maxReconnectAttempts, or unlimited if -1
+    while (true) {
+      if (maxReconnectAttempts !== -1 && attempts >= maxReconnectAttempts) {
+        console.error(`Maximum retry attempts (${maxReconnectAttempts}) reached`)
+        return
+      }
+
       try {
-        this.connect()
+        await fn()
+        return
       }
       catch (err) {
-        console.error(err)
+        this.opts.onError?.(err)
+        const delay = Math.min(2 ** attempts * 1000, 30_000) // capped exponential backoff
+        await sleep(delay)
+        attempts++
       }
     }
   }
 
-  async retryWithExponentialBackoff(fn: () => void | Promise<void>, attempts = 0, maxAttempts = -1) {
-    if (maxAttempts !== -1 && attempts >= maxAttempts) {
-      console.error(`Maximum retry attempts (${maxAttempts}) reached`)
+  private async tryReconnectWithExponentialBackoff() {
+    if (this.shouldClose) {
       return
     }
-
-    try {
-      await fn()
-    }
-    catch (err) {
-      console.error('Encountered an error when retrying', err)
-      await sleep(2 ** attempts * 1000)
-      await this.retryWithExponentialBackoff(fn, attempts + 1, maxAttempts)
-    }
+    await this.retryWithExponentialBackoff(() => this._connect())
   }
 
-  async tryReconnectWithExponentialBackoff() {
-    await this.retryWithExponentialBackoff(() => this._connect(), this.reconnectAttempts)
-  }
+  private _connect(): Promise<void> {
+    if (this.shouldClose || this.connected) {
+      return Promise.resolve()
+    }
 
-  private _connect() {
-    return new Promise<void>((resolve, reject) => {
-      if (this.shouldClose) {
-        resolve()
-        return
-      }
+    return new Promise((resolve, reject) => {
+      const ws = new WebSocket(this.opts.url)
+      this.websocket = ws
 
-      if (this.connected) {
-        resolve()
-        return
-      }
-
-      this.websocket = new WebSocket(this.opts.url)
-
-      this.onEvent('module:authenticated', async (event) => {
-        const auth = event.data.authenticated
-        if (!auth) {
-          this.retryWithExponentialBackoff(() => this.tryAuthenticate())
-        }
-        else {
-          this.tryAnnounce()
-        }
-      })
-
-      this.websocket.onerror = (event) => {
-        this.opts.onError?.(event)
-
-        if ('error' in event && event.error instanceof Error) {
-          if (event.error.message === 'Received network error or non-101 status code.') {
-            this.connected = false
-
-            if (!this.opts.autoReconnect) {
-              this.opts.onError?.(event)
-              this.opts.onClose?.()
-              reject(event.error)
-              return
-            }
-
-            reject(event.error)
-          }
-        }
-      }
-
-      this.websocket.onclose = () => {
-        this.opts.onClose?.()
+      ws.onerror = (event: any) => {
         this.connected = false
+        this.opts.onError?.(event)
+        reject(event?.error ?? new Error('WebSocket error'))
+      }
 
-        if (!this.opts.autoReconnect) {
+      ws.onclose = () => {
+        if (this.connected) {
+          this.connected = false
           this.opts.onClose?.()
         }
-        else {
-          this.tryReconnectWithExponentialBackoff()
+        if (this.opts.autoReconnect && !this.shouldClose) {
+          void this.tryReconnectWithExponentialBackoff()
         }
       }
 
-      this.websocket.onmessage = (event) => {
-        this.handleMessage(event)
-      }
+      ws.onmessage = this.handleMessageBound
 
-      this.websocket.onopen = () => {
-        this.reconnectAttempts = 0
-
-        if (this.opts.token) {
-          this.tryAuthenticate()
-        }
-        else {
-          this.tryAnnounce()
-        }
-
+      ws.onopen = () => {
         this.connected = true
-
+        this.opts.token ? this.tryAuthenticate() : this.tryAnnounce()
         resolve()
       }
     })
@@ -157,19 +136,32 @@ export class Client<C = undefined> {
 
   private tryAuthenticate() {
     if (this.opts.token) {
-      this.send({ type: 'module:authenticate', data: { token: this.opts.token || '' } })
+      this.send({
+        type: 'module:authenticate',
+        data: { token: this.opts.token },
+      })
     }
   }
 
-  private async handleMessage(event: any) {
-    try {
-      const data = JSON.parse(event.data) as WebSocketEvent<C>
-      const listeners = this.eventListeners.get(data.type)
-      if (!listeners)
-        return
+  // bound reference avoids new closure allocation on every connect
+  private readonly handleMessageBound = (event: MessageEvent) => {
+    void this.handleMessage(event)
+  }
 
-      for (const listener of listeners)
-        await listener(data)
+  private async handleMessage(event: MessageEvent) {
+    try {
+      const data = JSON.parse(event.data as string) as WebSocketEvent<C>
+      const listeners = this.eventListeners.get(data.type)
+      if (!listeners?.size) {
+        return
+      }
+
+      // Execute all listeners concurrently
+      const executions: Promise<void>[] = []
+      for (const listener of listeners) {
+        executions.push(Promise.resolve(listener(data as any)))
+      }
+      await Promise.allSettled(executions)
     }
     catch (err) {
       console.error('Failed to parse message:', err)
@@ -181,30 +173,49 @@ export class Client<C = undefined> {
     event: E,
     callback: (data: WebSocketBaseEvent<E, WebSocketEvents<C>[E]>) => void | Promise<void>,
   ): void {
-    if (!this.eventListeners.get(event)) {
-      this.eventListeners.set(event, [])
+    let listeners = this.eventListeners.get(event)
+    if (!listeners) {
+      listeners = new Set()
+      this.eventListeners.set(event, listeners)
     }
+    listeners.add(callback as any)
+  }
 
+  offEvent<E extends keyof WebSocketEvents<C>>(
+    event: E,
+    callback?: (data: WebSocketBaseEvent<E, WebSocketEvents<C>[E]>) => void,
+  ): void {
     const listeners = this.eventListeners.get(event)
     if (!listeners) {
       return
     }
 
-    listeners.push(callback as unknown as (data: WebSocketBaseEvent<E, WebSocketEvents<C>[E]>) => void | Promise<void>)
+    if (callback) {
+      listeners.delete(callback as any)
+      if (!listeners.size) {
+        this.eventListeners.delete(event)
+      }
+    }
+    else {
+      this.eventListeners.delete(event)
+    }
   }
 
   send(data: WebSocketEvent<C>): void {
-    this.websocket?.send(JSON.stringify(data))
+    if (this.websocket && this.connected) {
+      this.websocket.send(JSON.stringify(data))
+    }
   }
 
   sendRaw(data: string | ArrayBufferLike | ArrayBufferView): void {
-    this.websocket?.send(data)
+    if (this.websocket && this.connected) {
+      this.websocket.send(data)
+    }
   }
 
   close(): void {
     this.shouldClose = true
-
-    if (this.connected && this.websocket) {
+    if (this.websocket) {
       this.websocket.close()
       this.connected = false
     }
