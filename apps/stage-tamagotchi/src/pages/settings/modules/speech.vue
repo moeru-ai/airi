@@ -21,7 +21,7 @@ import {
 import { watchDebounced } from '@vueuse/core'
 import { generateSpeech } from '@xsai/generate-speech'
 import { storeToRefs } from 'pinia'
-import { onMounted, onUnmounted, ref, watch } from 'vue'
+import { onMounted, onUnmounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
 
@@ -64,16 +64,6 @@ watchDebounced(activeSpeechProvider, async () => {
   await providersStore.loadModelsForConfiguredProviders()
   await speechStore.loadVoicesForProvider(activeSpeechProvider.value)
 }, { debounce: 100 })
-
-watch(activeSpeechVoiceId, (newId) => {
-  if (newId) {
-    const voices = availableVoices.value[activeSpeechProvider.value] || []
-    const existingVoice = voices.find(voice => voice.id === newId)
-    if (!existingVoice) {
-      updateCustomVoiceName(newId)
-    }
-  }
-})
 
 // Function to generate speech
 async function generateTestSpeech() {
