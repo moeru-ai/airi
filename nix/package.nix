@@ -118,14 +118,10 @@ rustPlatform.buildRustPackage (final: {
   buildAndTestSubdir = "apps/stage-tamagotchi";
   buildType = if debugBuild then "debug" else "release";
 
-  postInstall =
-    lib.optionalString stdenv.isLinux ''
-      mv $out/bin/app $out/bin/airi
-    ''
-    + lib.optionalString stdenv.isDarwin ''
-      mkdir -p "$out/bin"
-      ln -sf "$out/Applications/AIRI.app/Contents/MacOS/app" "$out/bin/airi"
-    '';
+  postInstall = lib.optionalString stdenv.isDarwin ''
+    mkdir -p "$out/bin"
+    ln -sf "$out/Applications/AIRI.app/Contents/MacOS/airi" "$out/bin/airi"
+  '';
 
   # Add missing runtime dependency
   preFixup = lib.optionalString stdenv.isLinux ''

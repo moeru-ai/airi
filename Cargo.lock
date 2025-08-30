@@ -58,6 +58,43 @@ dependencies = [
 ]
 
 [[package]]
+name = "airi"
+version = "0.7.2-beta.2"
+dependencies = [
+ "anyhow",
+ "byteorder",
+ "clap",
+ "crossbeam-channel",
+ "hf-hub",
+ "log",
+ "ndarray",
+ "rubato",
+ "serde",
+ "serde_json",
+ "specta",
+ "specta-typescript",
+ "symphonia",
+ "tauri",
+ "tauri-build",
+ "tauri-plugin-global-shortcut",
+ "tauri-plugin-ipc-audio-transcription-ort",
+ "tauri-plugin-ipc-audio-vad-ort",
+ "tauri-plugin-log",
+ "tauri-plugin-mcp",
+ "tauri-plugin-os",
+ "tauri-plugin-positioner",
+ "tauri-plugin-prevent-default",
+ "tauri-plugin-rdev",
+ "tauri-plugin-window-pass-through-on-hover",
+ "tauri-plugin-window-router-link",
+ "tauri-plugin-window-state",
+ "tauri-specta",
+ "tokenizers",
+ "tokio",
+ "url",
+]
+
+[[package]]
 name = "alloc-no-stdlib"
 version = "2.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -159,43 +196,6 @@ name = "anyhow"
 version = "1.0.99"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b0674a1ddeecb70197781e945de4b3b8ffb61fa939a5597bcf48503737663100"
-
-[[package]]
-name = "app"
-version = "0.7.2-beta.2"
-dependencies = [
- "anyhow",
- "byteorder",
- "clap",
- "crossbeam-channel",
- "hf-hub",
- "log",
- "ndarray",
- "rubato",
- "serde",
- "serde_json",
- "specta",
- "specta-typescript",
- "symphonia",
- "tauri",
- "tauri-build",
- "tauri-plugin-global-shortcut",
- "tauri-plugin-ipc-audio-transcription-ort",
- "tauri-plugin-ipc-audio-vad-ort",
- "tauri-plugin-log",
- "tauri-plugin-mcp",
- "tauri-plugin-os",
- "tauri-plugin-positioner",
- "tauri-plugin-prevent-default",
- "tauri-plugin-rdev",
- "tauri-plugin-window-pass-through-on-hover",
- "tauri-plugin-window-router-link",
- "tauri-plugin-window-state",
- "tauri-specta",
- "tokenizers",
- "tokio",
- "url",
-]
 
 [[package]]
 name = "arrayvec"
