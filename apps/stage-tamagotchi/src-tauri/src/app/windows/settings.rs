@@ -3,12 +3,18 @@ use std::{path::Path, sync::Arc};
 use anyhow::{Ok, Result};
 #[cfg(target_os = "macos")]
 use tauri::TitleBarStyle;
-use tauri::{Runtime, WebviewUrl, WebviewWindowBuilder, webview::PageLoadPayload};
+use tauri::{Manager, Runtime, WebviewUrl, WebviewWindowBuilder, webview::PageLoadPayload};
 
 pub fn new_settings_window<R: Runtime>(
   app: &tauri::AppHandle<R>,
   page_load_handler: Option<Arc<dyn Fn(tauri::WebviewWindow<R>, PageLoadPayload) + Send + Sync>>,
 ) -> Result<tauri::WebviewWindow<R>> {
+  if let Some(window) = app.get_webview_window("settings") {
+    _ = window.show();
+    _ = window.set_focus();
+    return Ok(window);
+  }
+
   let mut builder = WebviewWindowBuilder::new(
     app,
     "settings",

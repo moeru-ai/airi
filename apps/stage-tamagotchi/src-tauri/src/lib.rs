@@ -151,12 +151,6 @@ pub fn run() {
             app.exit(0);
           }
           "settings" => {
-            let window = app.get_webview_window("settings");
-            if let Some(window) = window {
-              let _ = window.show();
-              return;
-            }
-
             app::windows::settings::new_settings_window(app, None).unwrap();
           }
           "window-mode.fade-on-hover" => {
