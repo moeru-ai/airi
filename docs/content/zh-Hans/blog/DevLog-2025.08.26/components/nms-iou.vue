@@ -102,6 +102,8 @@ const union = computed(() => {
 })
 
 const iou = computed(() => {
+  if (union.value.area === 0)
+    return 0
   return intersect.value.area / union.value.area
 })
 </script>
