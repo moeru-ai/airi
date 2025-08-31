@@ -8,6 +8,10 @@ preview-cover:
 # TODO
 ---
 
+<script setup lang="ts">
+import NmsIou from './components/nms-iou.vue'
+</script>
+
 大家好久不见，我是 [@LemonNeko](https://github.com/LemonNekoGH)，AIRI 的维护者之一。~~啊，有点厌倦这样开场了，像 LLM 一样。~~
 
 我的上一篇 [DevLog](../DevLog-2025.07.18/index.md) 中提到，我浅浅地看了一下 [Factorio Learning Environment](https://arxiv.org/abs/2503.09617) 论文，并且简单说了一下我们打算如何改进 `airi-factorio`，但是...今天想和大家分享的并不是这个，而是关于纯视觉方向的进展。
@@ -175,6 +179,12 @@ function nms(boxes: Box[], iouThreshold: number): Box[] {
 ```
 
 可以在[这里](https://github.com/moeru-ai/airi-factorio/tree/ba46a4e47b31187dd064b06314b595b551ed3411/apps/factorio-yolo-v0-playground)看整个 Playground 的源代码。
+
+也可以在下面这个可视化组件游玩体验 IOU 和 NMS 的效果，通过拖动标签来改变框框位置：
+
+<div class="flex justify-center">
+  <NmsIou />
+</div>
 
 ### 发现的问题
 

@@ -20,7 +20,7 @@ watchPostEffect(() => {
     <SwitchRoot
       id="motion-toggle"
       v-model="shouldReduceMotion"
-      class="border-muted-foreground/10 bg-muted relative h-6 w-11 flex flex-shrink-0 border rounded-full"
+      class="bg-muted border-muted-foreground/10 relative h-6 w-11 flex flex-shrink-0 border rounded-full"
       :aria-label="switchTitle"
     >
       <SwitchThumb
