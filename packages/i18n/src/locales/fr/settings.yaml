@@ -1,0 +1,607 @@
+animations:
+  stage-transitions:
+    title: Désactiver les transitions de scène
+  use-page-specific-transitions:
+    description: >-
+      Certaines pages auront leurs propres transitions, ceci remplacera les
+      transitions de scène.
+    title: Utiliser les transitions spécifiques à chaque page
+dialogs:
+  onboarding:
+    title: Bienvenue dans AIRI!
+    description: Configurez votre premier fournisseur d’IA pour commencer.
+    selectProvider: Choisissez un fournisseur d'IA.
+    configureProvider: Configurer {provider}
+    apiKey: Clé API
+    apiKeyHelp: Obtenez votre clé API de {provider} et collez-la ici
+    baseUrl: URL de base
+    baseUrlHelp: URL du point de terminaison API (utilisez la valeur par défaut si vous n’êtes pas sûr)
+    accountId: ID du compte
+    validationFailed: La validation de la configuration a échouée.
+    validationError: 'Erreur de validation: {error}'
+    skipForNow: Passer pour l'instant
+    saveAndContinue: Sauvegarder et Continuer
+    next: Suivant
+    start: Commençons !
+    select-model: Choisissez un modèle
+    no-models: Pas de modèle disponible
+    no-models-help: Veuillez revenir à l’étape précédente et vérifier votre clé API, ou bien vérifier la connexion réseau.
+language:
+  title: Langage
+  description: >
+    Changee le langage de l'inteface d'AIRI. Cela n'affecter pas le langage des
+    réponses du personnage.
+live2d:
+  change-model:
+    from-file: Charger depuis un Fichier
+    from-file-select: Sélectionner
+    from-url: Charger depuis une URL
+    from-url-confirm: Charger
+    from-url-placeholder: Entrer l'URL d'un modèle Live2D
+    title: Changer de Modèle
+  edit-motion-map:
+    title: Modifier la carte des mouvements
+  map-motions:
+    play: Jouer le mouvement
+    title: Cartographier les mouvements
+  title: Paramètres Live2D
+  scale-and-position:
+    title: Échelle et position
+    scale: Échelle
+    x: X
+    'y': Y
+  switch-to-vrm:
+    title: Passer à l’avatar 3D ?
+    change-to-vrm: Cliquez ici pour passer aux paramètres de l’avatar 3D (VRM)
+  theme-color-from-model:
+    title: Extraire les couleurs du modèle
+    button-extract:
+      title: Extraire
+  focus:
+    title: Désactiver le suivi du modèle par la souris
+    button-disable:
+      title: Désactiver
+microphone: Microphone
+models: Modèle
+pages:
+  card:
+    activate: Activer
+    active: Actif
+    active_badge: Actuellement actif
+    cancel: Annuler
+    card_not_found: Carte non trouvée
+    character: Personnage
+    close: Fermer
+    consciousness:
+      model: Conscience / Modèle
+    created_by: créé par
+    creator_notes: Notes du créateur
+    delete: Supprimer
+    delete_card: Supprimer la carte
+    delete_confirmation: Êtes-vous sûr de vouloir supprimer cette carte ?
+    description: Utiliser les presets de carte de personnage AIRI
+    description_label: Description
+    drop_here: Déposer pour téléverser
+    create_card: Créer une nouvelle carte
+    creation:
+      identity: Identité
+      name: Nom
+      nickname: Surnom
+      description: Description
+      behavior: Comportement
+      greetings: Salutations (une par ligne)
+      settings: Paramètres
+      version: Version
+      create: Créer
+      defaults:
+        name: Nom
+        personality: Vous êtes une personne normale, curieuse de tout.
+        scenario: Vous vous êtes récemment réveillé et avez tout oublié de votre vie passée.
+        systemprompt: Vous recevrez des messages et y répondrez comme un humain.
+        posthistoryinstructions: N’oubliez pas d’imiter un humain.
+      fields_info:
+        subtitle: >-
+          Vous pouvez ici ajouter des détails sur le personnage que vous créez,
+          expliquer son histoire et son contexte, et comment vos interactions
+          devraient être répondues.
+        name: Le nom officiel du personnage.
+        nickname: Vous pouvez également donner un surnom qui sera utilisé en priorité.
+        description: Description du personnage.
+        notes: Si vous souhaitez ajouter des notes personnelles.
+        personality: >-
+          Décrivez ici la personnalité de votre personnage. Timide ? Curieux ?
+          Autre chose ?
+        scenario: Quel est l’environnement ? Quelle est la situation actuelle ?
+        greetings_field: Salutations
+        greetings: Comment votre personnage devrait dire « bonjour » ?
+        systemprompt: Expliquez ici à l’IA comment elle doit répondre lorsqu’on l’interroge.
+        posthistoryinstructions: Placez ici tout ce que l’IA doit lire après l’historique des messages.
+        version: >-
+          Version de la carte, vous devez l’incrémenter si vous apportez des modifications
+          par rapport à une carte précédente.
+      errors:
+        name: Le nom doit être valide ou non vide.
+        version: Erreur : numéro de version invalide !
+        description: Erreur : vous devez fournir une description pour cette carte.
+        personality: Erreur : une personnalité doit être fournie pour ce personnage.
+        scenario: Erreur : un scénario est requis.
+        systemprompt: Erreur : veuillez fournir un prompt système.
+        posthistoryinstructions: Erreur : le prompt post-historique est requis.
+    modules: Modules
+    name_asc: Nom (A-Z)
+    name_desc: Nom (Z-A)
+    no_cards: Aucune carte pour le moment. Cliquez sur le bouton ci-dessus pour en téléverser une !
+    no_results: Aucune carte correspondante trouvée
+    personality: Personnalité
+    posthistoryinstructions: Instructions post-historique
+    recent: Récemment ajouté
+    scenario: Scénario
+    search: Rechercher des cartes...
+    sort_by: Trier par
+    speech:
+      model: Parole / Modèle
+      voice: Parole / Voix
+    systemprompt: Prompt système
+    title: Carte AIRI
+    try_different_search: Essayez un autre terme de recherche
+    upload: Téléverser
+    upload_desc: Cliquez ou glissez un fichier pour téléverser
+  memory:
+    description: Endroit où les souvenirs sont stockés et organisés
+    title: Mémoire
+  models:
+    description: Live2D, VRM, etc.
+    title: Modèles
+    sections:
+      section:
+        live2d:
+          title: Live2D
+          description: Configurer les modèles et paramètres Live2D
+        vrm:
+          title: VRM
+          description: Configurer les modèles et paramètres 3D VRM
+        scene: Scène
+  modules:
+    consciousness:
+      description: Personnalité, modèle désiré, etc.
+      sections:
+        section:
+          provider-model-selection:
+            collapse: Réduire
+            custom_model_placeholder: Entrez le nom du modèle personnalisé...
+            description: Sélectionnez le fournisseur LLM approprié pour la conscience
+            error: Erreur lors du chargement des modèles
+            expand: Développer
+            loading: Chargement des modèles disponibles...
+            manual_model_name: Nom du modèle
+            manual_model_placeholder: Entrez le nom du modèle à utiliser avec ce fournisseur
+            no_models: Aucun modèle disponible
+            no_models_description: Aucun modèle trouvé pour ce fournisseur
+            no_search_results: Aucun modèle correspondant
+            no_search_results_description: Aucun modèle ne correspond à '{query}'. Essayez un autre terme.
+            not_supported: Liste des modèles non supportée
+            not_supported_description: Ce fournisseur ne supporte pas la fonctionnalité de liste des modèles
+            search_placeholder: Rechercher des modèles...
+            search_results: {count} modèles trouvés sur {total}
+            show_less: Afficher moins
+            show_more: Afficher plus
+            subtitle: Sélectionnez un modèle du fournisseur
+            title: Modèle
+      title: Conscience
+    description: Synthèse, vision, parole, jeux, etc.
+    gaming-factorio:
+      description: Jouer à Factorio !
+      title: Factorio
+    gaming-minecraft:
+      description: Jouer à Minecraft !
+      title: Minecraft
+    hearing:
+      description: Configurer la reconnaissance vocale
+      title: Audition
+    memory-long-term:
+      description: Paramètres et gestion de la mémoire à long terme
+      title: Mémoire à long terme
+    memory-short-term:
+      description: Paramètres et gestion de la mémoire à court terme
+      title: Mémoire à court terme
+    messaging-discord:
+      description: Chat et chat vocal via Discord
+      title: Discord
+    speech:
+      description: Synthèse vocale
+      sections:
+        section:
+          playground:
+            buttons:
+              stop:
+                label: Arrêter
+            select-voice:
+              required: Veuillez sélectionner une voix
+          provider-voice-selection:
+            custom_model_placeholder: Entrez le nom du modèle personnalisé...
+            custom_voice_placeholder: Entrez l’ID de la voix personnalisée...
+            description: Sélectionnez le fournisseur de synthèse vocale approprié
+            no_models: Aucun modèle disponible
+            no_models_description: Aucun modèle trouvé pour ce fournisseur
+            no_voices: Aucune voix disponible
+            no_voices_description: Aucune voix trouvée pour ce fournisseur
+            no_voices_hint: Vous pouvez entrer un nom de voix personnalisé ci-dessous.
+            pause: Pause
+            play_sample: Jouer l’exemple
+            search_models_placeholder: Rechercher des modèles...
+            search_models_results: {count} modèles trouvés sur {total}
+            search_voices_placeholder: Rechercher des voix...
+            search_voices_results: {count} voix trouvées sur {total}
+            show_less: Afficher moins
+            show_more: Afficher plus
+            title: Fournisseur
+          voice-settings:
+            input-ssml:
+              placeholder: Entrez le texte SSML...
+            use-ssml:
+              description: Activez pour saisir du SSML brut au lieu de texte simple
+              label: Utiliser SSML personnalisé
+      title: Parole
+    title: Modules
+    vision:
+      description: Vision
+      title: Vision
+    x:
+      description: Navigation et utilisation X / Twitter
+      title: X / Twitter
+    mcp-server:
+      description: Connecter et gérer le serveur MCP et ses outils
+      title: Serveur MCP
+  providers:
+    explained:
+      chat: Fournisseurs de modèles de génération de texte, par ex. OpenRouter, OpenAI, Ollama.
+      Speech: Fournisseurs de modèles de synthèse vocale, par ex. ElevenLabs, Azure Speech.
+      Transcription: >-
+        Fournisseurs de modèles de transcription (speech-to-text),
+        par ex. Whisper.cpp, OpenAI, Azure Speech
+    helpinfo:
+      title: Première fois ici ?
+      description: >
+        AIRI nécessite qu’au moins un fournisseur {chat} soit configuré pour penser et
+        se comporter correctement. On peut le considérer comme le cerveau
+        des personnages vivant dans le système AIRI.
+    common:
+      fields:
+        field:
+          api-key:
+            label: Saisie de clé API
+      section:
+        advanced:
+          fields:
+            field:
+              headers:
+                description: Ajouter des en-têtes HTTP personnalisés
+                key:
+                  placeholder: Clé
+                label: En-têtes HTTP
+                value:
+                  placeholder: Valeur
+          title: Avancé
+        basic:
+          description: Paramètres essentiels
+          title: Basique
+        voice:
+          title: Paramètres de la voix
+    description: LLMs, fournisseurs vocaux, etc.
+    provider:
+      app-local-audio-transcription:
+        title: Application (Locale)
+        description: https://github.com/moeru-ai/xsai-transformers
+      app-local-audio-speech:
+        title: Application (Locale)
+        description: https://github.com/moeru-ai/xsai-transformers
+      browser-local-audio-transcription:
+        title: Navigateur (Local)
+        description: https://github.com/moeru-ai/xsai-transformers
+      browser-local-audio-speech:
+        title: Navigateur (Local)
+        description: https://github.com/moeru-ai/xsai-transformers
+      alibaba-cloud-model-studio:
+        description: bailian.console.aliyun.com
+        title: Studio de modèles Alibaba Cloud
+      anthropic:
+        description: anthropic.com
+        title: Anthropic | Claude
+        helpinfo:
+          title: Avant de commencer
+          description:
+            part1: >-
+              Bien qu’Anthropic ait récemment annoncé un support bêta pour
+              la compatibilité SDK OpenAI
+            part2: (vous pouvez en lire plus ici)
+            part3: en raison de détails d’implémentation
+            part4: >-
+              des restrictions non alignées avec le SDK OpenAI, il n’est actuellement
+              pas possible d’utiliser ce fournisseur dans le navigateur.
+            part5: >-
+              Si vous devez utiliser ce fournisseur, vous aurez besoin d’un
+              proxy backend dédié comme une fonction serverless
+            part6: ou des services contournant le CORS pour éviter les restrictions CORS.
+      cloudflare-workers-ai:
+        description: cloudflare.com
+        fields:
+          field:
+            account-id:
+              description: ID de compte Cloudflare
+              label: ID de compte
+              placeholder: Votre ID de compte Cloudflare
+            api-key:
+              placeholder: Saisir la clé API Cloudflare
+        title: Cloudflare Workers AI
+      common:
+        status:
+          validating: Validation en cours
+          valid: La configuration semble valide.
+        fields:
+          field:
+            pitch:
+              description: Ajuster la hauteur de la voix synthétisée (ex : plus aiguë ou plus grave)
+              label: Hauteur
+            speed:
+              description: Ajuster la vitesse de la parole
+              label: Vitesse
+            volume:
+              description: Ajuster le volume de la parole
+              label: Volume
+      deepseek:
+        description: deepseek.com
+        title: DeepSeek
+      elevenlabs:
+        description: elevenlabs.io
+        fields:
+          field:
+            simularity-boost:
+              description: Adhérence à la voix originale
+              label: Boost de similarité
+            speaker-boost:
+              description: Améliorer la similarité du locuteur
+              label: Boost du locuteur
+            speed:
+              description: Vitesse de génération de la parole
+              label: Vitesse
+            stability:
+              description: Stabilité et aléatoire de la voix
+              label: Stabilité
+            style:
+              description: Exagération du style de la voix
+              label: Style
+        playground:
+          buttons:
+            button:
+              test-voice:
+                generating: Génération...
+                label: Tester la voix
+          fields:
+            field:
+              input:
+                placeholder: Entrez le texte pour tester la voix...
+              language:
+                description: Sélectionnez la langue de la voix
+                label: Langue
+              voice:
+                description: Sélectionnez la voix préférée
+                label: Voix
+          title: Terrain de test de la voix
+          validation:
+            error-missing-api-key: Veuillez entrer une clé API pour tester la voix.
+        title: ElevenLabs
+      fireworks:
+        description: fireworks.ai
+        title: Fireworks.ai
+      microsoft-speech:
+        description: speech.microsoft.com
+        fields:
+          field:
+            region:
+              description: Speech Service region
+              label: Région
+        title: Microsoft / Azure Speech
+      index-tts-vllm:
+        description: https://index-tts.github.io/
+        title: Bilibili / IndexTTS
+      mistral:
+        description: mistral.ai
+        title: Mistral
+      moonshot:
+        description: moonshot.ai
+        title: Moonshot AI
+      modelscope:
+        description: modelscope.cn
+        title: ModelScope
+      novita:
+        description: novita.ai
+        title: Novita
+      ollama:
+        description: ollama.ai
+        title: Ollama
+      openai:
+        description: openai.com
+        title: OpenAI
+      openai-compatible:
+        description: OpenAI Compatible
+        title: OpenAI Compatible
+      openrouter:
+        description: openrouter.ai
+        title: OpenRouter
+      perplexity:
+        description: perplexity.ai
+        title: Perplexity
+      player2:
+        description: player2.game
+        title: Player2
+      together:
+        description: together.ai
+        title: Together.ai
+      google-generative-ai:
+        description: gemini.google.com
+        title: Google Gemini
+      featherless:
+        description: featherless.ai
+        title: Featherless AI
+      lm-studio:
+        description: lmstudio.ai
+        title: LM Studio
+      vllm:
+        description: vllm.ai
+        title: vLLM
+      volcengine:
+        description: volcengine.com
+        fields:
+          field:
+            appId:
+              description: ID de l’application du projet, que vous pouvez obtenir dans la Console
+              label: ID de l’application
+        title: Volcano Engine
+      xai:
+        description: x.ai
+        title: xAI
+      transcriptions:
+        playground:
+          title: Terrain de test de transcription
+    title: Fournisseurs
+  scene:
+    description: Configurer l’environnement où vit le personnage
+    title: Scène
+  themes:
+    color-scheme:
+      description: Modifier le schéma de couleurs de la scène.
+      title: Schéma de couleurs
+    developer:
+      description: Quelques options pour développeurs.
+      title: Développeurs
+    general:
+      description: Thème sombre, langues, etc.
+      title: Général
+    description: Personnalisez votre scène !
+    sections:
+      section:
+        custom-color:
+          fields:
+            field:
+              primary-color:
+                label: Couleur principale
+                rgb-on:
+                  title: Je veux que ce soit dynamique !
+          title: Schéma de couleurs
+        developer:
+          title: Développeur
+        theme-presets:
+          presets:
+            - colors:
+                - AIRI Green
+              description: La couleur verte par défaut, apportée par AIRI pour vous !
+              title: Couleur par défaut
+            - colors:
+                - Taupe
+                - Beige
+                - Gris cendré
+                - Taupe clair
+                - Ivoire
+                - Gris olive
+                - Sable
+                - Gris chaud
+              description: Tons doux et atténués inspirés des peintures de Giorgio Morandi
+              title: Couleurs Morandi
+            - colors:
+                - Bleu ciel
+                - Brume
+                - Sable
+                - Vert mousse
+                - Nénuphar
+                - Blé
+                - Bleu ardoise
+                - Sauge
+              description: Palette impressionniste inspirée des œuvres de Claude Monet
+              title: Couleurs Monet
+            - colors:
+                - Fauve
+                - Taupe chaud
+                - Ombre
+                - Café
+                - Bronze
+                - Or
+                - Moutarde
+                - Ambre
+              description: Palette traditionnelle japonaise
+              title: Couleurs japonaises
+            - colors:
+                - Bleu nordique
+                - Glace
+                - Fjord
+                - Acier
+                - Glacier
+                - Ardoise
+                - Nuage
+                - Pierre
+              description: Schéma de couleurs minimaliste scandinave
+              title: Couleurs nordiques
+            - colors:
+                - Aube rosée
+                - Rouge chinois
+                - Marron fumé
+                - Vert bambou
+                - Violet foncé
+                - Jaune doré
+                - Bleu azur
+                - Ocre
+              description: >-
+                Couleurs traditionnelles chinoises, issues des textiles anciens,
+                de la porcelaine et des peintures
+              title: Couleurs traditionnelles chinoises
+          title: Préréglages de couleurs
+    title: Apparence
+sections:
+  section:
+    general:
+      title: Général
+theme:
+  title: Thème
+  description: |
+    Changez le thème de base d’AIRI, mode clair ou mode sombre.
+title: Paramètres
+voices: Voix
+vrm:
+  change-model:
+    from-file: Charger depuis un fichier
+    from-file-select: Sélectionner
+    from-url: Charger depuis une URL
+    from-url-confirm: Charger
+    from-url-placeholder: Entrez l’URL du modèle VRM
+    title: Changer de modèle
+  title: Paramètres VRM
+  scale-and-position:
+    model-info-title: Informations sur la taille du modèle
+    model-info-x: Largeur (X)
+    model-info-y: Hauteur (Y)
+    model-info-z: Profondeur (Z)
+    tips: |
+      Modifiez la position initiale du modèle VRM.
+      Les axes de coordonnées sont visualisés.
+    scale: Échelle
+    x: Décalage X
+    'y': Décalage Y
+    z: Décalage Z
+    fov: FOV (degré)
+    rotation-y: Rotation (axe Y)
+    camera-distance: Distance de la caméra
+    eye-tracking-mode:
+      title: Regarder vers
+      options:
+        option:
+          camera: Caméra
+          mouse: Souris
+          disabled: Désactivé
+  switch-to-vrm:
+    title: Passer à l’avatar Live2D ?
+    change-to-vrm: Cliquez ici pour passer aux paramètres de l’avatar Live2D
+  theme-color-from-model:
+    button-extract:
+      title: Extraire
+  skybox:
+    skybox-intensity: Intensité de la SkyBox
+    skybox-specular-mix: Mélange spéculaire
