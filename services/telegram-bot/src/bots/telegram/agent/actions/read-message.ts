@@ -1,20 +1,21 @@
 import type { Message } from 'grammy/types'
 
-import type { BotSelf, ReadMessagesAction } from '../../../types'
+import type { BotSelf, ReadUnreadMessagesAction } from '../../../../types'
 
 import { env } from 'node:process'
 
 import { useLogg } from '@guiiai/logg'
 import { embed } from '@xsai/embed'
 
-import { findLastNMessages, findRelevantMessages } from '../../../models'
-import { chatMessageToOneLine, telegramMessageToOneLine } from '../../../models/common'
+import { findLastNMessages, findRelevantMessages } from '../../../../models'
+import { chatMessageToOneLine, telegramMessageToOneLine } from '../../../../models/common'
+import { actionReadMessages } from '../../../../prompts'
 
 export async function readMessage(
   state: BotSelf,
   botId: string,
   chatId: string,
-  action: ReadMessagesAction,
+  action: ReadUnreadMessagesAction,
   unreadMessages: Message[],
   abortController: AbortController,
 ): Promise<{
@@ -56,30 +57,10 @@ export async function readMessage(
 
   return {
     break: true,
-    result: ''
-      + 'You choose to read the messages from the group (perhaps you are already engaging the topics in the group).'
-      + 'Imaging you are using Telegram app on the mobile phone, and you are reading the messages from the group chat.'
-      + '\n'
-      + 'Previous 30 messages (including what you said):\n'
-      + `${lastNMessagesOneliner || 'No messages'}`
-      + '\n'
-      + 'All the messages you requested to read:\n'
-      + `${unreadHistoryMessageOneliner || 'No messages'}`
-      + '\n'
-      + 'Relevant chat messages may help you recall the memories:\n'
-      + `${relevantChatMessagesOneliner || 'No relevant messages'}`
-      + '\n'
-      + 'Based on your personalities, imaging you have your own choice and interest over different topics, '
-      + 'giving the above context and chat history, would you like to participate in the conversation '
-      + 'about the topic? Or will you aggressively diss or piss off about the opinions of others?\n'
-      + 'Feel free to ignore by just sending an empty array within a object with key "messages" (i.e.'
-      + '{ "messages": [] }).'
-      + 'If you would like to participate, send me an array of messages (i.e. { "messages": [] }) you would '
-      + 'like to send without telling you willing to participate.'
-      + 'If you would like to reply to any of the message, send me an array of messages (i.e. { "messages":'
-      + '["message content"], "reply_to_message_id": "1234567890" }) with the message id of the message you '
-      + 'want to reply to.'
-      + '\n'
-      + 'Choose your action.',
+    result: await actionReadMessages({
+      lastMessages: lastNMessagesOneliner,
+      unreadHistoryMessages: unreadHistoryMessageOneliner,
+      relevantChatMessages: relevantChatMessagesOneliner,
+    }),
   }
 }

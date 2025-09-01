@@ -2,9 +2,6 @@
 import { useMagicKeys } from '@vueuse/core'
 import { computed, defineComponent, h } from 'vue'
 
-import { useTauriRdevEventTarget } from '../../composables/tauri-rdev'
-
-const eventTarget = useTauriRdevEventTarget()
 const {
   shift,
   control,
@@ -20,7 +17,7 @@ const {
   a_Shift_Alt,
   n_Shift_Alt,
   current,
-} = useMagicKeys({ target: eventTarget })
+} = useMagicKeys()
 const keys = computed(() => Array.from(current))
 
 const Key = defineComponent({
@@ -132,8 +129,3 @@ const Key = defineComponent({
     >
   </div>
 </template>
-
-<route lang="yaml">
-meta:
-  layout: settings
-</route>

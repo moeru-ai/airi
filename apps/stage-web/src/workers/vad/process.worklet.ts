@@ -50,4 +50,4 @@ class VADProcessor extends AudioWorkletProcessor {
   }
 }
 
-registerProcessor('vad-processor', VADProcessor)
+registerProcessor('vad-audio-worklet-processor', VADProcessor)

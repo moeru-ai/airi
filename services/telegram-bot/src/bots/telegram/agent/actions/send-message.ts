@@ -1,7 +1,7 @@
 import type { GenerateTextOptions } from '@xsai/generate-text'
 import type { Message } from 'grammy/types'
 
-import type { BotSelf } from '../../../types'
+import type { BotSelf } from '../../../../types'
 
 import { env } from 'node:process'
 
@@ -12,16 +12,16 @@ import { message } from '@xsai/utils-chat'
 import { parse } from 'best-effort-json-parser'
 import { randomInt } from 'es-toolkit'
 
-import { recordMessage } from '../../../models'
-import { listJoinedChats } from '../../../models/chats'
-import { messageSplit } from '../../../prompts/prompts'
-import { cancellable } from '../../../utils/promise'
+import { recordMessage } from '../../../../models'
+import { listJoinedChats } from '../../../../models/chats'
+import { messageSplit } from '../../../../prompts'
+import { cancellable } from '../../../../utils/promise'
 
 export function parseMayStructuredMessage(responseText: string) {
   const logger = useLogg('parseMayStructuredMessage').useGlobalConfig()
 
   // eslint-disable-next-line regexp/no-super-linear-backtracking, regexp/optimal-quantifier-concatenation
-  const result = /^\{(("?)*.*\s*)*\}$/u.exec(responseText)
+  const result = /^\{(("?)*.*\s*)*\}$/mu.exec(responseText)
   if (result) {
     logger.withField('text', JSON.stringify(responseText)).withField('result', result).log('Multiple messages detected')
 
@@ -81,7 +81,13 @@ export async function sendMessage(
   }
 
   const res = await generateText(req)
-  res.text = res.text.replace(/<think>[\s\S]*?<\/think>/, '').trim()
+  res.text = res.text
+    .replace(/<think>[\s\S]*?<\/think>/, '')
+    .replace(/^```json\s*\n/, '')
+    .replace(/\n```$/, '')
+    .replace(/^```\s*\n/, '')
+    .replace(/\n```$/, '')
+    .trim()
   if (!res.text) {
     throw new Error('No response text')
   }

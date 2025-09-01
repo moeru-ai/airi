@@ -146,6 +146,32 @@ async function loadVADModel() {
   }
 }
 
+onStopRecord(async (recording) => {
+  if (!recording)
+    return
+
+  try {
+    if (recording && recording.size > 0) {
+      audios.value.push(recording)
+
+      const provider = await providersStore.getProviderInstance<TranscriptionProvider<string>>(activeTranscriptionProvider.value)
+      if (!provider) {
+        throw new Error('Failed to initialize speech provider')
+      }
+
+      // Get model from configuration or use default
+      const model = activeTranscriptionModel.value
+      const res = await hearingStore.transcription(provider, model, new File([recording], 'recording.wav'))
+
+      transcriptions.value.push(res.text)
+    }
+  }
+  catch (err) {
+    error.value = err instanceof Error ? err.message : String(err)
+    console.error('Error generating transcription:', error.value)
+  }
+})
+
 // Audio monitoring
 async function setupAudioMonitoring() {
   try {
@@ -162,32 +188,6 @@ async function setupAudioMonitoring() {
       console.warn('No audio stream available')
       return
     }
-
-    onStopRecord(async (recording) => {
-      if (!recording)
-        return
-
-      try {
-        if (recording && recording.size > 0) {
-          audios.value.push(recording)
-
-          const provider = await providersStore.getProviderInstance<TranscriptionProvider<string>>(activeTranscriptionProvider.value)
-          if (!provider) {
-            throw new Error('Failed to initialize speech provider')
-          }
-
-          // Get model from configuration or use default
-          const model = activeTranscriptionModel.value
-          const res = await hearingStore.transcription(provider, model, new File([recording], 'recording.wav'))
-
-          transcriptions.value.push(res.text)
-        }
-      }
-      catch (err) {
-        error.value = err instanceof Error ? err.message : String(err)
-        console.error('Error generating transcription:', error.value)
-      }
-    })
 
     const source = audioContext.value.createMediaStreamSource(stream.value)
     const analyzer = startAnalyzer(audioContext.value)
@@ -364,7 +364,7 @@ onUnmounted(() => {
               {{ t('settings.pages.providers.title') }}
             </h2>
             <div text="neutral-400 dark:neutral-400">
-              <span>{{ t('settings.pages.modules.hearing.sections.section.provider-model-selection.description') }}</span>
+              <span>{{ t('settings.pages.modules.hearing.sections.section.provider-selection.description') }}</span>
             </div>
           </div>
           <div max-w-full>

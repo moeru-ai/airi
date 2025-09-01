@@ -118,11 +118,11 @@ const iou = computed(() => {
           width: `${box1.width}px`,
           height: `${box1.height}px`,
         }" class="absolute" border="solid 2px"
-        :class="[colors[0].border, colors[0].bg]" rounded="b-md" z="1 hover:2"
+        :class="[colors[0]?.border, colors[0]?.bg]" rounded="b-md" z="1 hover:2"
       >
         <div
           ref="object1HandleEl" class="label" text="no-wrap white" h="6" w="full" outline="solid 2px"
-          :class="[colors[0].border, colors[0].labelBg]" flex="~ items-center justify-between" rounded="t-md"
+          :class="[colors[0]?.border, colors[0]?.labelBg]" flex="~ items-center justify-between" rounded="t-md"
           top="-6" absolute cursor-grab select-none px-2
         >
           <div>
@@ -146,11 +146,11 @@ const iou = computed(() => {
           width: `${box2.width}px`,
           height: `${box2.height}px`,
         }" class="absolute" border="solid 2px"
-        :class="[colors[1].border, colors[1].bg]" rounded="b-md" z="1 hover:2"
+        :class="[colors[1]?.border, colors[1]?.bg]" rounded="b-md" z="1 hover:2"
       >
         <div
           ref="object2HandleEl" class="label" text="no-wrap white" h="6" w="full" outline="solid 2px"
-          :class="[colors[1].border, colors[1].labelBg]" flex="~ items-center justify-between" rounded="t-md"
+          :class="[colors[1]?.border, colors[1]?.labelBg]" flex="~ items-center justify-between" rounded="t-md"
           top="-6" absolute cursor-grab select-none px-2
         >
           <div>

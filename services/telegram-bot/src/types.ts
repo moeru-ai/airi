@@ -3,7 +3,7 @@ import type { Logg } from '@guiiai/logg'
 import type { Bot, Context } from 'grammy'
 import type { Message } from 'grammy/types'
 
-import type { createAttentionHandler } from './bots/telegram/attention-handler'
+import type { createAttentionHandler } from './bots/telegram/agent/attention-handler'
 import type { CancellablePromise } from './utils/promise'
 
 export interface PendingMessage {
@@ -64,8 +64,15 @@ export interface SearchGoogleAction {
   query: string
 }
 
-export interface ReadMessagesAction {
-  action: 'read_messages'
+export interface ReadHistoryMessagesAction {
+  action: 'read_history_messages'
+  beforeMessageId?: string
+  afterMessageId?: string
+  chatId: string
+}
+
+export interface ReadUnreadMessagesAction {
+  action: 'read_unread_messages'
   chatId: string
 }
 
@@ -81,7 +88,8 @@ export type Action
     | SendMessageAction
     | SendStickerAction
     | SearchGoogleAction
-    | ReadMessagesAction
+    | ReadHistoryMessagesAction
+    | ReadUnreadMessagesAction
     | ListStickersAction
 
 export interface AttentionConfig {

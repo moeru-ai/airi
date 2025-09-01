@@ -6,7 +6,7 @@ pages:
     mcp-server:
       description: 连接与管理 MCP 服务器和工具
       title: MCP 服务器
-  themes:
+  system:
     sections:
       section:
         window-shortcuts:
