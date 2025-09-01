@@ -11,7 +11,6 @@ import {
   AnimationMixer,
   MathUtils,
   Mesh,
-  MeshBasicMaterial,
   MeshPhysicalMaterial,
   MeshStandardMaterial,
   MeshToonMaterial,
@@ -270,6 +269,7 @@ async function loadModel() {
         if (child instanceof Mesh && child.material) {
           const material = Array.isArray(child.material) ? child.material : [child.material]
           material.forEach((mat) => {
+            // console.debug("shader material: ", mat)
             if (mat instanceof MeshStandardMaterial || mat instanceof MeshPhysicalMaterial) {
               // Should read envMap intensity from outside props
               mat.envMapIntensity = 1.0
@@ -277,7 +277,7 @@ async function loadModel() {
             }
             else if (
               mat instanceof MeshToonMaterial
-              || mat instanceof MeshBasicMaterial
+              // || mat instanceof MeshBasicMaterial
               || mat instanceof ShaderMaterial
               || mat instanceof RawShaderMaterial
             ) {
