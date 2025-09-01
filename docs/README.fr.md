@@ -101,7 +101,7 @@ Cela signifie qu’**アイリ peut fonctionner sur les navigateurs modernes et 
 
 ## Progrès actuels
 
-<img src="./docs/content/public/readme-image-pc-preview.avif">
+<img src="./content/public/readme-image-pc-preview.avif">
 
 Capacités :
 
