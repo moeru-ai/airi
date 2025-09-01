@@ -58,17 +58,16 @@ if (uNprEnvMode == 2) {
 `
 
 // ===== Utility tools =====
-export type EnvMode = 'off' | 'skybox' | 'hemisphere'
+export type EnvMode = 'off' | 'skyBox' | 'hemisphere'
 
 export const isShaderMat = (m: any): m is THREE.ShaderMaterial => !!m?.isShaderMaterial
 export const isRawShader = (m: any): m is THREE.RawShaderMaterial => !!m?.isRawShaderMaterial
 export const isMToon = (mat: any) => !!(mat?.isShaderMaterial && mat.userData?.vrmMaterialType === 'MToon')
 
 export function normalizeEnvMode(v?: string | null): EnvMode {
-  const s = (v || '').toLowerCase()
-  if (s === 'skybox')
-    return 'skybox'
-  if (s === 'hemisphere')
+  if (v === 'skyBox')
+    return 'skyBox'
+  if (v === 'hemisphere')
     return 'hemisphere'
   return 'off'
 }
@@ -116,23 +115,18 @@ export function injectDiffuseIBL(mat: THREE.ShaderMaterial) {
 
     // fragement shader apply
     if (!shader.fragmentShader.includes('AIRI_DIFFUSE_APPLY')) {
-      if (shader.fragmentShader.includes('#include <dithering_fragment>')) {
-        shader.fragmentShader = shader.fragmentShader.replace(
-          '#include <dithering_fragment>',
-          `${FS_APPLY}\n#include <dithering_fragment>`,
-        )
-      }
-      else {
-        shader.fragmentShader = shader.fragmentShader.replace(/\}\s*$/m, `${FS_APPLY}\n}\n`)
-      }
+      shader.fragmentShader = shader.fragmentShader.replace(
+        '#include <dithering_fragment>',
+        `${FS_APPLY}\n#include <dithering_fragment>`,
+      )
     }
 
     // uniforms
     const emptySH = Array.from({ length: 9 }, () => new THREE.Vector3())
     shader.uniforms.uNprEnvMode ||= { value: 0 }
     shader.uniforms.uEnvIntensity ||= { value: 0.0 }
-    shader.uniforms.uSHCoeffs ||= { value: emptySH }
-    ;(mat.userData ||= {}).__airiIbl = shader.uniforms
+    shader.uniforms.uSHCoeffs ||= { value: emptySH };
+    (mat.userData ||= {}).__airiIbl = shader.uniforms
   }
 
   if ('toneMapped' in mat)
@@ -145,7 +139,7 @@ export function updateNprShaderSetting(
   root: THREE.Object3D,
   opts: { mode: EnvMode, intensity: number, sh?: THREE.SphericalHarmonics3 | null },
 ) {
-  const shaderMode = opts.mode === 'skybox' ? 2 : 0
+  const shaderMode = opts.mode === 'skyBox' ? 2 : 0
   root.traverse((o) => {
     const mesh = o as THREE.Mesh
     const raw = (mesh as any).material
@@ -168,7 +162,7 @@ export function createIblProbeController(scene: THREE.Scene) {
   scene.add(probe)
 
   function update(mode: EnvMode, intensity: number, sh?: THREE.SphericalHarmonics3 | null) {
-    probe.intensity = (mode === 'skybox') ? intensity : 0
+    probe.intensity = (mode === 'skyBox') ? intensity : 0
     if (sh)
       probe.sh.copy(sh)
   }

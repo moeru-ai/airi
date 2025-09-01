@@ -257,7 +257,9 @@ async function loadModel() {
                 try {
                   (tex as any).colorSpace = SRGBColorSpace
                 }
-                catch {}
+                catch (e) {
+                  console.warn('Failed to set colorSpace on texture:', e)
+                }
               }
 
               // refactoring, IBL injection
