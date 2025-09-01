@@ -43,7 +43,6 @@ const {
 
   envSelect,
   skyBoxIntensity,
-  specularMix,
 } = storeToRefs(vrm)
 const trackingOptions = computed(() => [
   { value: 'camera', label: t('settings.vrm.scale-and-position.eye-tracking-mode.options.option.camera'), class: 'col-start-3' },
@@ -202,13 +201,8 @@ const tabList = [
             <div grid="~ cols-5 gap-1" p-2>
               <PropertyNumber
                 v-model="skyBoxIntensity"
-                :config="{ min: 0, max: 2, step: 0.01, label: 'Intensity' }"
+                :config="{ min: 0, max: 1, step: 0.01, label: 'Intensity' }"
                 :label="t('settings.vrm.skybox.skybox-intensity')"
-              />
-              <PropertyNumber
-                v-model="specularMix"
-                :config="{ min: 0, max: 1, step: 0.01, label: 'Mix' }"
-                :label="t('settings.vrm.skybox.skybox-specular-mix')"
               />
             </div>
           </div>
