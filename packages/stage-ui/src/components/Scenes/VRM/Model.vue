@@ -27,7 +27,7 @@ import {
   createIblProbeController,
   injectDiffuseIBL,
   normalizeEnvMode,
-  updateDiffuseIBLUniforms,
+  updateNprShaderSetting,
 } from '../../../composables/vrm/shader/ibl'
 import { useVRM } from '../../../stores/vrm'
 
@@ -361,7 +361,7 @@ watch(
     nprProgramVersion.value += 1
     // updateNprUniforms(props.nprEquirectTex ?? null, props.nprIrrSH ?? null)
     const mode = normalizeEnvMode(envSelect.value)
-    updateDiffuseIBLUniforms(vrm.value?.scene, {
+    updateNprShaderSetting(vrm.value?.scene, {
       mode,
       intensity: skyBoxIntensity.value,
       sh: props.nprIrrSH ?? null,

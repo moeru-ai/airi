@@ -1,7 +1,7 @@
 // stage-ui/composables/shader/ibl.ts
 import * as THREE from 'three'
 
-// ===== 宏守卫的注入片段 =====
+// ===== head guard shader injection =====
 const VS_DECL = `
 #ifndef AIRI_DIFFUSE_VS_DECL
 #define AIRI_DIFFUSE_VS_DECL
@@ -24,8 +24,12 @@ uniform float uEnvIntensity;
 uniform vec3  uSHCoeffs[9];
 varying vec3  vWorldNormal;
 
-// 3rd-order SH constants（数值等价于你之前的）
-const float C0=0.2820947918, C1=0.4886025119, C2=1.0925484306, C3=0.3153915653, C4=0.5462742153;
+// 3rd-order SH constants
+const float C0=0.2820947918; 
+const float C1=0.4886025119;
+const float C2=1.0925484306; 
+const float C3=0.3153915653;
+const float C4=0.5462742153;
 
 vec3 AIRI_evalIrradianceSH(vec3 n){
   n = normalize(n);
@@ -136,22 +140,8 @@ export function injectDiffuseIBL(mat: THREE.ShaderMaterial) {
   mat.needsUpdate = true
 }
 
-// 对象级批量注入（跳过 MToon）
-export function applyDiffuseIBLToObject(root: THREE.Object3D) {
-  root.traverse((o) => {
-    const mesh = o as THREE.Mesh
-    const raw = (mesh as any).material
-    const mats: THREE.Material[] = raw ? (Array.isArray(raw) ? raw : [raw]) : []
-    mats.forEach((m) => {
-      if ((m as any).isShaderMaterial && !isMToon(m)) {
-        injectDiffuseIBL(m as THREE.ShaderMaterial)
-      }
-    })
-  })
-}
-
-// 运行时更新 uniforms（ShaderMaterial）
-export function updateDiffuseIBLUniforms(
+// update shader settings
+export function updateNprShaderSetting(
   root: THREE.Object3D,
   opts: { mode: EnvMode, intensity: number, sh?: THREE.SphericalHarmonics3 | null },
 ) {
