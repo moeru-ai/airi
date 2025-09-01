@@ -37,6 +37,7 @@
     "@stdlib/string-base-kebabcase": "^0.2.2",
     "@tresjs/cientos": "^4.3.1",
     "@tresjs/core": "^4.3.6",
+    "@unbird/eventa": "^0.0.5",
     "@valibot/to-json-schema": "1.0.0-rc.0",
     "@vueuse/core": "^13.8.0",
     "@vueuse/shared": "^13.8.0",

@@ -25,7 +25,9 @@ dialogs:
     start: Let's do it!
     select-model: Choose model
     no-models: No available models
-    no-models-help: Please return to the previous step and check your API key, or check the network connection.
+    no-models-help: >-
+      Please return to the previous step and check your API key, or check the
+      network connection.
 language:
   title: Language
   description: >
@@ -467,7 +469,7 @@ pages:
   scene:
     description: Configure the environment where the character lives
     title: Scene
-  themes:
+  system:
     color-scheme:
       description: Change the color scheme of the stage.
       title: Color Scheme
@@ -490,6 +492,11 @@ pages:
           title: Color Scheme
         developer:
           title: Developer
+          sections:
+            section:
+              use-magic-keys:
+                title: useMagicKeys
+                description: Test shortcuts
         theme-presets:
           presets:
             - colors:
@@ -554,7 +561,7 @@ pages:
                 porcelain and paintings
               title: Chinese Traditional Colors
           title: Color Scheme Presets
-    title: Appearance
+    title: System
 sections:
   section:
     general:

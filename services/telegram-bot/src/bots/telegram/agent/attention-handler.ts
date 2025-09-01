@@ -1,6 +1,6 @@
 import type { Message } from 'grammy/types'
 
-import type { AttentionConfig, AttentionState, BotSelf } from '../../types'
+import type { AttentionConfig, AttentionState, BotSelf } from '../../../types'
 
 export function createAttentionHandler(bot: BotSelf, config: AttentionConfig) {
   // Private state

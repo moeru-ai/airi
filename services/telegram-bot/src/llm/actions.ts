@@ -12,89 +12,93 @@ import { generateText } from '@xsai/generate-text'
 import { message } from '@xsai/utils-chat'
 import { parse } from 'best-effort-json-parser'
 
-import { recordChatCompletions } from '../models/chat-completions-history'
-import { systemTicking } from '../prompts/prompts'
+import { personality, systemTicking } from '../prompts'
 import { div, span } from '../prompts/utils'
 
 export async function imagineAnAction(
   _botId: string,
-  unreadMessages: Record<string, Message[]>,
   currentAbortController: AbortController,
-  agentMessages: LLMMessage[],
-  _lastInteractedNChatIds: string[],
+  messages: LLMMessage[],
+  actions: { action: Action, result: unknown }[],
+  globalStates: {
+    unreadMessages: Record<string, Message[]>
+  },
 ): Promise<Action | undefined> {
   const logger = useLogg('imagineAnAction').useGlobalConfig()
+  const tracer = trace.getTracer('airi.telegram.bot')
 
-  if (agentMessages == null) {
-    agentMessages = []
-  }
+  return await tracer.startActiveSpan('telegram.module.generate_agent_action.generate', async (s) => {
+    s.setAttribute('telegram.bot.id', _botId)
 
-  agentMessages.push(
-    message.user(
-      div(
-        await systemTicking(),
-        span(`
-        Currently, it's ${new Date()} on the server that hosts you.
-        The others in the group may live in a different timezone, so please be aware of the time difference.
-      `),
-        span(`
-        You have total ${Object.values(unreadMessages).reduce((acc, cur) => acc + cur.length, 0)} unread messages.
-      `),
-        'Unread messages count are:',
-        Object.entries(unreadMessages).map(([key, value]) => `ID:${key}, Unread message count:${value.length}`).join('\n'),
-        span(`
-        Now, please, based on the context, choose a right action from the listing of the tools you want to
-        take next:
-      `),
-      ),
-    ),
-    message.user(''
-      + 'What do you want to do? Respond with the action and parameters you choose in JSON only, without any explanation and markups',
-    ),
-  )
-
-  const tracer = trace.getTracer('airi-telegram-bot')
-
-  return await tracer.startActiveSpan('agent-generate-action', async (span) => {
     let responseText = ''
 
+    const requestMessages = message.messages(
+      message.system(
+        div(
+          await systemTicking(),
+          await personality(),
+        ),
+      ),
+      ...messages,
+      message.user(
+        div(
+          'History actions:',
+          actions.map(a => `- Action: ${JSON.stringify(a.action)}, Result: ${JSON.stringify(a.result)}`).join('\n'),
+          span(`
+            Currently, it's ${new Date()} on the server that hosts you.
+            The others in the group may live in a different timezone, so please be aware of the time difference.
+          `),
+          `You have total ${Object.values(globalStates.unreadMessages).reduce((acc, cur) => acc + cur.length, 0)} unread messages.`,
+          'Unread messages count are:',
+          Object.entries(globalStates.unreadMessages).map(([key, value]) => `ID:${key}, Unread message count:${value.length}`).join('\n'),
+          'Based on the context, What do you want to do? Choose a right action from the listing of the tools you want to take next.',
+          'Respond with the action and parameters you choose in JSON only, without any explanation and markups.',
+        ),
+      ),
+    )
+
     try {
-      const res = await tracer.startActiveSpan('llm-call', async (span) => {
-        span.setAttribute('botId', _botId)
-        span.setAttribute('model', env.LLM_MODEL!)
-        span.setAttribute('messages', JSON.stringify(agentMessages))
+      const res = await tracer.startActiveSpan('llm.chat.generate_text', async (s) => {
+        s.setAttribute('llm.chat.model', env.LLM_MODEL!)
+        s.setAttribute('llm.chat.messages', JSON.stringify(requestMessages))
+        s.setAttribute('llm.provider.api_base_url', env.LLM_API_BASE_URL!)
 
         const req = {
           apiKey: env.LLM_API_KEY!,
           baseURL: env.LLM_API_BASE_URL!,
           model: env.LLM_MODEL!,
-          messages: agentMessages,
+          messages: requestMessages,
           abortSignal: currentAbortController.signal,
         } satisfies GenerateTextOptions
         if (env.LLM_OLLAMA_DISABLE_THINK) {
           (req as Record<string, unknown>).think = false
+          s.setAttribute('llm.chat.ollama.think', false)
         }
 
         const res = await generateText(req)
+        s.setAttribute('llm.chat.generate_text.response.full_text', res.text)
+
         res.text = res.text.replace(/<think>[\s\S]*?<\/think>/, '').trim()
         if (!res.text) {
           throw new Error('No response text')
         }
 
-        span.end()
+        s.setAttribute('llm.chat.generate_text.response.text', res.text)
+
+        s.end()
         return res
       })
 
       logger.withFields({
         response: res.text,
-        unreadMessages: Object.fromEntries(Object.entries(unreadMessages).map(([key, value]) => [key, value.length])),
+        unreadMessages: Object.fromEntries(Object.entries(globalStates.unreadMessages).map(([key, value]) => [key, value.length])),
         now: new Date().toLocaleString(),
         totalTokens: res.usage.total_tokens,
         promptTokens: res.usage.prompt_tokens,
         completion_tokens: res.usage.completion_tokens,
       }).log('Generated action')
 
-      const action = tracer.startActiveSpan('agent-generate-action-parse', (span) => {
+      const action = tracer.startActiveSpan('telegram.module.generate_agent_action.parse', (s) => {
         responseText = res.text
           .replace(/^```json\s*\n/, '')
           .replace(/\n```$/, '')
@@ -103,20 +107,19 @@ export async function imagineAnAction(
           .trim()
 
         const action = parse(responseText) as Action
+        s.setAttribute('telegram.bot.id', _botId)
+        s.setAttribute('telegram.module.generate_agent_action.parsed_action', JSON.stringify(action))
 
-        span.end()
+        s.end()
         return action
       })
 
-      span.end()
+      s.end()
       return action
     }
     catch (err) {
       logger.withField('error', err).withFormat(Format.JSON).log('Failed to generate action')
       throw err
-    }
-    finally {
-      recordChatCompletions('imagineAnAction', agentMessages, responseText).then(() => {}).catch(err => logger.withField('error', err).log('Failed to record chat completions'))
     }
   })
 }

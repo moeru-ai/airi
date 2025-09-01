@@ -1,9 +1,22 @@
 <script setup lang="ts">
+import { IconItem } from '@proj-airi/stage-ui/components'
 import { useSettings } from '@proj-airi/stage-ui/stores/settings'
+import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import CheckBar from '../../../components/Settings/CheckBar.vue'
 
+const { t } = useI18n()
 const settings = useSettings()
+
+const menu = computed(() => [
+  {
+    title: t('settings.pages.system.sections.section.developer.sections.section.use-magic-keys.title'),
+    description: t('settings.pages.system.sections.section.developer.sections.section.use-magic-keys.description'),
+    icon: 'i-solar:sledgehammer-bold-duotone',
+    to: '/devtools/use-magic-keys',
+  },
+])
 </script>
 
 <template>
@@ -17,7 +30,7 @@ const settings = useSettings()
     :initial="{ opacity: 0, y: 10 }"
     :enter="{ opacity: 1, y: 0 }"
     :duration="250 + (19 * 10)"
-    :delay="19 * 50"
+    :delay="1 * 50"
     transition="all ease-in-out duration-250"
   />
   <CheckBar
@@ -31,9 +44,27 @@ const settings = useSettings()
     :initial="{ opacity: 0, y: 10 }"
     :enter="{ opacity: 1, y: 0 }"
     :duration="250 + (20 * 10)"
-    :delay="20 * 50"
+    :delay="2 * 50"
     transition="all ease-in-out duration-250"
   />
+
+  <div flex="~ col gap-4" pb-12>
+    <IconItem
+      v-for="(item, index) in menu"
+      :key="item.to"
+      v-motion
+      :initial="{ opacity: 0, y: 10 }"
+      :enter="{ opacity: 1, y: 0 }"
+      :duration="250"
+      :style="{
+        transitionDelay: `${index * 50}ms`, // delay between each item, unocss doesn't support dynamic generation of classes now
+      }"
+      :title="item.title"
+      :description="item.description"
+      :icon="item.icon"
+      :to="item.to"
+    />
+  </div>
 
   <div
     v-motion

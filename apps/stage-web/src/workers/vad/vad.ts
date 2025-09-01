@@ -186,14 +186,10 @@ export class VAD implements BaseVAD {
 
     // Update the state
     this.state = stateN
-
     // Get the speech probability
     const speechProb = output.data[0]
 
-    this.emit('debug', {
-      message: 'VAD score',
-      data: { probability: speechProb },
-    })
+    this.emit('debug', { message: 'VAD score', data: { probability: speechProb } })
 
     // Apply thresholds
     return (
@@ -268,22 +264,6 @@ export class VAD implements BaseVAD {
     if (newConfig.sampleRate) {
       this.sampleRateTensor = new Tensor('int64', [this.config.sampleRate], [])
     }
-  }
-
-  /**
-   * Get current VAD probability
-   */
-  public getLastProbability(): number {
-    // This should be set after the last detectSpeech call
-    // For now, we'll return 0 as a placeholder
-    return 0
-  }
-
-  /**
-   * Check if currently recording speech
-   */
-  public isCurrentlyRecording(): boolean {
-    return this.isRecording
   }
 }
 

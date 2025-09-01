@@ -97,10 +97,10 @@ const settings = computed(() => [
     to: '/settings/providers',
   },
   {
-    title: t('settings.pages.themes.title'),
-    description: t('settings.pages.themes.description'),
+    title: t('settings.pages.system.title'),
+    description: t('settings.pages.system.description'),
     icon: 'i-solar:filters-bold-duotone',
-    to: '/settings/appearance',
+    to: '/settings/system',
   },
 ])
 </script>

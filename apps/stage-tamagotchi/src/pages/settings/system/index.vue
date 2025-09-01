@@ -7,22 +7,28 @@ const { t } = useI18n()
 
 const settings = computed(() => [
   {
-    title: t('settings.pages.themes.general.title'),
-    description: t('settings.pages.themes.general.description'),
+    title: t('settings.pages.system.general.title'),
+    description: t('settings.pages.system.general.description'),
     icon: 'i-solar:emoji-funny-square-bold-duotone',
-    to: '/settings/appearance/general',
+    to: '/settings/system/general',
   },
   {
-    title: t('settings.pages.themes.color-scheme.title'),
-    description: t('settings.pages.themes.color-scheme.description'),
+    title: t('settings.pages.system.color-scheme.title'),
+    description: t('settings.pages.system.color-scheme.description'),
     icon: 'i-solar:pallete-2-bold-duotone',
-    to: '/settings/appearance/color-scheme',
+    to: '/settings/system/color-scheme',
   },
   {
-    title: t('settings.pages.themes.developer.title'),
-    description: t('settings.pages.themes.developer.description'),
+    title: t('tamagotchi.settings.pages.system.window-shortcuts.title'),
+    description: t('tamagotchi.settings.pages.system.window-shortcuts.description'),
+    icon: 'i-solar:keyboard-bold-duotone',
+    to: '/settings/system/window-shortcuts',
+  },
+  {
+    title: t('settings.pages.system.developer.title'),
+    description: t('settings.pages.system.developer.description'),
     icon: 'i-solar:code-bold-duotone',
-    to: '/settings/appearance/developer',
+    to: '/settings/system/developer',
   },
 ])
 </script>

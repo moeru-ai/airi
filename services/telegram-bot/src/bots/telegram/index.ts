@@ -2,7 +2,7 @@ import type { Logg } from '@guiiai/logg'
 import type { Message as LLMMessage } from '@xsai/shared-chat'
 import type { Message } from 'grammy/types'
 
-import type { BotSelf, ExtendedContext } from '../../types'
+import type { Action, BotSelf, ExtendedContext } from '../../types'
 
 import { env } from 'node:process'
 
@@ -17,125 +17,150 @@ import { interpretSticker } from '../../llm/sticker'
 import { findStickerByFileId, findStickersByFileIds, recordMessage } from '../../models'
 import { listJoinedChats, recordJoinedChat } from '../../models/chats'
 import { listStickerPacks, recordStickerPack } from '../../models/sticker-packs'
-import { personality, systemTicking } from '../../prompts/prompts'
-import { div } from '../../prompts/utils'
-import { readMessage } from './loop/read-message'
-import { shouldInterruptProcessing } from './utils/interruption'
-import { sendMessage } from './utils/message'
+import { readMessage } from './agent/actions/read-message'
+import { sendMessage } from './agent/actions/send-message'
+import { shouldInterruptProcessing } from './agent/interruption'
 
-async function handleLoopStep(state: BotSelf, msgs?: LLMMessage[], chatId?: string): Promise<() => Promise<any> | undefined> {
+interface AgentState {
+  messages: LLMMessage[]
+  actions: { action: Action, result: unknown }[]
+}
+
+async function handleLoopStep(bot: BotSelf, agentState: AgentState, chatId?: string): Promise<() => Promise<any> | undefined> {
   // Set the start time when beginning new processing
-  state.currentProcessingStartTime = Date.now()
+  bot.currentProcessingStartTime = Date.now()
 
   // Create a new abort controller for this loop execution
-  if (state.currentAbortController) {
-    state.currentAbortController.abort()
+  if (bot.currentAbortController) {
+    bot.currentAbortController.abort()
   }
-  state.currentAbortController = new AbortController()
-  const currentController = state.currentAbortController
+  bot.currentAbortController = new AbortController()
+  const currentController = bot.currentAbortController
 
   // Track message processing state
-  if (chatId && !state.lastInteractedNChatIds.includes(chatId)) {
-    state.lastInteractedNChatIds.push(chatId)
+  if (chatId && !bot.lastInteractedNChatIds.includes(chatId)) {
+    bot.lastInteractedNChatIds.push(chatId)
   }
-  if (state.lastInteractedNChatIds.length > 5) {
-    state.lastInteractedNChatIds = state.lastInteractedNChatIds.slice(-5)
-  }
-
-  if (msgs == null || msgs.length === 0) {
-    msgs = [
-      message.system(
-        div(
-          (await personality()).content,
-          await systemTicking(),
-        ),
-      ),
-    ]
+  if (bot.lastInteractedNChatIds.length > 5) {
+    bot.lastInteractedNChatIds = bot.lastInteractedNChatIds.slice(-5)
   }
 
-  if (msgs.length > 20) {
-    const length = msgs.length
+  if (agentState.messages == null) {
+    agentState.messages = []
+  }
+  if (agentState.messages.length > 20) {
+    const length = agentState.messages.length
     // pick the latest 5
-    msgs = msgs.slice(-5)
-    msgs.push(message.user(`AIRI System: Approaching to system context limit, reducing... memory..., reduced from ${length} to ${msgs.length}, history may lost.`))
+    agentState.messages = agentState.messages.slice(-5)
+    agentState.messages.push(message.user(`AIRI System: Approaching to system context limit, reducing... memory..., reduced from ${length} to ${agentState.messages.length}, history may lost.`))
+  }
+
+  if (agentState.actions == null) {
+    agentState.actions = []
+  }
+  if (agentState.actions.length > 50) {
+    const length = agentState.actions.length
+    // pick the latest 20
+    agentState.actions = agentState.actions.slice(-20)
+    agentState.messages.push(message.user(`AIRI System: Approaching to system context limit, reducing... memory..., reduced from ${length} to ${agentState.actions.length}, history of actions may lost.`))
   }
 
   try {
-    const action = await imagineAnAction(state.bot.botInfo.id.toString(), state.unreadMessages, currentController, msgs, state.lastInteractedNChatIds)
+    const readUnreadMessagesActions: { index: number, actionState: typeof agentState.actions[number] }[] = []
+
+    for (const actionHistory of agentState.actions) {
+      if (actionHistory.action.action === 'read_unread_messages') {
+        readUnreadMessagesActions.push({ index: agentState.actions.indexOf(actionHistory), actionState: actionHistory })
+      }
+    }
+
+    readUnreadMessagesActions.map((item, index) => {
+      if (index === readUnreadMessagesActions.length - 1) {
+        return item
+      }
+
+      item.actionState.result = 'AIRI System: Please refer to the last read_unread_messages action for context.'
+      return item
+    })
+
+    for (const item of readUnreadMessagesActions) {
+      agentState.actions[item.index] = item.actionState
+    }
+
+    const action = await imagineAnAction(bot.bot.botInfo.id.toString(), currentController, agentState.messages, agentState.actions, { unreadMessages: bot.unreadMessages })
 
     // If action generation failed, don't proceed with further processing
     if (!action || !action.action) {
-      state.logger.withField('action', action).log('No valid action returned. Skipping further processing.')
-      return
+      bot.logger.withField('action', action).log('No valid action returned.')
+      agentState.messages.push(message.user('AIRI System: No valid action returned.'))
+      return () => handleLoopStep(bot, agentState, chatId)
     }
-
-    msgs.push(message.user(`You chose to ${action.action}, full action: ${JSON.stringify(action)}`))
 
     switch (action.action) {
       case 'list_stickers':
       {
-        await state.bot.api.sendChatAction(chatId, 'choose_sticker')
+        await bot.bot.api.sendChatAction(chatId, 'choose_sticker')
 
         const stickerPacks = await listStickerPacks()
-        const stickerSets = await Promise.all(stickerPacks.map(s => state.bot.api.getStickerSet(s.platform_id)))
+        const stickerSets = await Promise.all(stickerPacks.map(s => bot.bot.api.getStickerSet(s.platform_id)))
         const stickersIds = stickerSets.flatMap(s => s.stickers.map(sticker => sticker.file_id))
         const stickerDescriptions = await findStickersByFileIds(stickersIds)
         const stickerDescriptionsOneliner = stickerDescriptions.map(d => `Sticker File ID: ${d.file_id}, Description: ${d.description}`)
 
         if (stickerDescriptionsOneliner.length === 0) {
-          msgs.push(message.user('AIRI SYSTEM: No stickers found in the current memory partition, preload of stickers is required, please ask for help.'))
+          agentState.actions.push({ action, result: 'AIRI System: No stickers found in the current memory partition, preload of stickers is required, please ask for help.' })
         }
         else {
-          msgs.push(message.user(`List of stickers:\n${stickerDescriptionsOneliner}`))
+          agentState.actions.push({ action, result: `AIRI System: List of stickers:\n${stickerDescriptionsOneliner}` })
         }
 
-        return () => handleLoopStep(state, msgs, chatId)
+        return () => handleLoopStep(bot, agentState, chatId)
       }
       case 'send_sticker':
       {
         try {
-          const file = await state.bot.api.getFile(action.fileId)
+          const file = await bot.bot.api.getFile(action.fileId)
           if (!file) {
-            msgs.push(message.user(`Sticker file ID ${action.fileId} not found, did you list the needed stickers before sending?.`))
-            return () => handleLoopStep(state, msgs, chatId)
+            agentState.actions.push({ action, result: `AIRI System: Error executing 'send_sticker': Sticker file ID ${action.fileId} not found, did you list the needed stickers before sending?.` })
+            return () => handleLoopStep(bot, agentState, chatId)
           }
         }
         catch (err) {
-          msgs.push(message.user(`Sticker file ID ${action.fileId} not found or failed due to ${String(err)}, did you list the needed stickers before sending?.`))
-          return () => handleLoopStep(state, msgs, chatId)
+          agentState.actions.push({ action, result: `AIRI System: Error executing 'send_sticker': Sticker file ID ${action.fileId} not found or failed due to ${String(err)}, did you list the needed stickers before sending?.` })
+          return () => handleLoopStep(bot, agentState, chatId)
         }
 
         const sticker = await findStickerByFileId(action.fileId)
-        msgs.push(message.user(`Sending sticker ${action.fileId} with (${sticker.emoji} in set ${sticker.name}) to ${action.chatId}`))
-        await state.bot.api.sendSticker(action.chatId, action.fileId)
+        agentState.actions.push({ action, result: `AIRI System: Sending sticker ${action.fileId} with (${sticker.emoji} in set ${sticker.name}) to ${action.chatId}` })
+        await bot.bot.api.sendSticker(action.chatId, action.fileId)
 
-        return () => handleLoopStep(state, msgs, chatId)
+        return () => handleLoopStep(bot, agentState, chatId)
       }
-      case 'read_messages':
+      case 'read_unread_messages':
       {
-        if (Object.keys(state.unreadMessages).length === 0) {
-          state.logger.withField('action', action).log('No unread messages - deleting all unread messages')
-          state.unreadMessages = {}
+        if (Object.keys(bot.unreadMessages).length === 0) {
+          bot.logger.withField('action', action).log('No unread messages - deleting all unread messages')
+          bot.unreadMessages = {}
           break
         }
         if (action.chatId == null) {
-          state.logger.withField('action', action).warn('No group ID - deleting all unread messages')
+          bot.logger.withField('action', action).warn('No group ID - deleting all unread messages')
           break
         }
 
-        let unreadMessagesForThisChat: Message[] | undefined = state.unreadMessages[action.chatId]
+        let unreadMessagesForThisChat: Message[] | undefined = bot.unreadMessages[action.chatId]
 
-        const mentionedBy = unreadMessagesForThisChat.find(msg => msg.text?.includes(state.bot.botInfo.username) || msg.text?.includes(state.bot.botInfo.first_name))
+        const mentionedBy = unreadMessagesForThisChat.find(msg => msg.text?.includes(bot.bot.botInfo.username) || msg.text?.includes(bot.bot.botInfo.first_name))
         if (mentionedBy) {
-          msgs.push(message.user(`AIRI System: You were mentioned in a message: ${mentionedBy.text} by ${mentionedBy.from?.first_name} (${mentionedBy.from?.username}), please respond as much as possible.`))
+          agentState.messages.push(message.user(`AIRI System: You were mentioned in a message: ${mentionedBy.text} by ${mentionedBy.from?.first_name} (${mentionedBy.from?.username}), please respond as much as possible.`))
         }
 
         // Modified interruption logic
         if (chatId && chatId === action.chatId
           && unreadMessagesForThisChat
           && unreadMessagesForThisChat.length > 0) {
-          const processingTime = state.currentProcessingStartTime
-            ? Date.now() - state.currentProcessingStartTime
+          const processingTime = bot.currentProcessingStartTime
+            ? Date.now() - bot.currentProcessingStartTime
             : 0
 
           const messageCount = unreadMessagesForThisChat.length
@@ -149,27 +174,27 @@ async function handleLoopStep(state: BotSelf, msgs?: LLMMessage[], chatId?: stri
           const shouldInterrupt = await shouldInterruptProcessing({
             processingTime,
             messageCount,
-            currentMessages: msgs,
+            currentMessages: agentState.messages,
             newMessages: unreadMessagesForThisChat,
             chatId: action.chatId,
           })
 
           if (shouldInterrupt) {
-            state.logger.withField('action', action).log(`Interrupting message processing for chat - new messages deemed more important`)
-            msgs.push(message.user(`AIRI System: Interrupting message processing for chat - new messages deemed more important`))
-            return () => handleLoopStep(state, msgs, chatId)
+            bot.logger.withField('action', action).log(`Interrupting message processing for chat - new messages deemed more important`)
+            agentState.messages.push(message.user(`AIRI System: Interrupting message processing for chat - new messages deemed more important`))
+            return () => handleLoopStep(bot, agentState, chatId)
           }
           else {
-            state.logger.withField('action', action).log(`Continuing current processing despite new messages in chat`)
+            bot.logger.withField('action', action).log(`Continuing current processing despite new messages in chat`)
           }
         }
         if (!Array.isArray(unreadMessagesForThisChat)) {
-          state.logger.withField('action', action).log(`Unread messages for group is not an array - converting to array`)
+          bot.logger.withField('action', action).log(`Unread messages for group is not an array - converting to array`)
           unreadMessagesForThisChat = []
         }
         if (unreadMessagesForThisChat.length === 0) {
-          state.logger.withField('action', action).log(`No unread messages for group - deleting`)
-          delete state.unreadMessages[action.chatId]
+          bot.logger.withField('action', action).log(`No unread messages for group - deleting`)
+          delete bot.unreadMessages[action.chatId]
           break
         }
 
@@ -183,47 +208,53 @@ async function handleLoopStep(state: BotSelf, msgs?: LLMMessage[], chatId?: stri
         //   return { break: true }
         // }
 
-        const result = await readMessage(state, state.bot.botInfo.id.toString(), chatId, action, unreadMessagesForThisChat, currentController)
-        if (result?.result) {
-          msgs.push(message.user(`Reading message of chat ${action.chatId}:\n${result.result}`))
-          return () => handleLoopStep(state, msgs, chatId)
+        const res = await readMessage(bot, bot.bot.botInfo.id.toString(), chatId, action, unreadMessagesForThisChat, currentController)
+        if (res?.result) {
+          bot.logger.log('message, read')
+          agentState.actions.push({ action, result: res.result })
+          return () => handleLoopStep(bot, agentState, chatId)
         }
         else {
           return
         }
       }
       case 'list_chats':
-        msgs.push(message.user(`List of chats:${(await listJoinedChats()).map(chat => `ID:${chat.chat_id}, Name:${chat.chat_name}`).join('\n')}`))
-        return () => handleLoopStep(state, msgs, chatId)
+        agentState.actions.push({ action, result: `AIRI System: List of chats:${(await listJoinedChats()).map(chat => `ID:${chat.chat_id}, Name:${chat.chat_name}`).join('\n')}` })
+        return () => handleLoopStep(bot, agentState, chatId)
       case 'send_message':
-        msgs.push(message.user(`Sending message to group ${action.chatId}: ${action.content}`))
-        await sendMessage(state, action.content, action.chatId, currentController)
-        return () => handleLoopStep(state, msgs, chatId)
+        agentState.actions.push({ action, result: `AIRI System: Sending message to group ${action.chatId}: ${action.content}` })
+        await sendMessage(bot, action.content, action.chatId, currentController)
+        return () => handleLoopStep(bot, agentState, chatId)
+      case 'continue':
+        agentState.actions.push({ action, result: 'AIRI System: Acknowledged, will now continue until next tick.' })
+        return
       case 'break':
-        break
+        agentState.messages = []
+        agentState.actions = []
+        agentState.actions.push({ action, result: 'AIRI System: Acknowledged, will now break, and clear out all existing memories, messages, actions. Left only this one.' })
+        return
       case 'sleep':
         await sleep(30 * 1000)
-        return () => handleLoopStep(state, msgs, chatId)
-      case 'continue':
-        return () => handleLoopStep(state, msgs, chatId)
+        agentState.actions.push({ action, result: `AIRI System: Sleeping for ${30} seconds as requested...` })
+        return () => handleLoopStep(bot, agentState, chatId)
       default:
-        msgs.push(message.user(`AIRI System: The action you sent ${action.action} haven't implemented yet by developer.`))
-        return () => handleLoopStep(state, msgs, chatId)
+        agentState.messages.push(message.user(`AIRI System: The action you sent ${action.action} haven't implemented yet by developer.`))
+        return () => handleLoopStep(bot, agentState, chatId)
     }
   }
   catch (err) {
     if (err.name === 'AbortError') {
-      state.logger.log('Operation was aborted due to interruption')
+      bot.logger.log('Operation was aborted due to interruption')
       return
     }
 
-    state.logger.withError(err).log('Error occurred')
+    bot.logger.withError(err).log('Error occurred')
   }
   finally {
     // Clean up timing when done
-    if (state.currentAbortController === currentController) {
-      state.currentAbortController = null
-      state.currentProcessingStartTime = null
+    if (bot.currentAbortController === currentController) {
+      bot.currentAbortController = null
+      bot.currentProcessingStartTime = null
     }
   }
 }
@@ -241,8 +272,9 @@ async function isChatIdBotAdmin(fromId: number) {
   return admins.includes(fromId.toString())
 }
 
-async function handleLoop(state: BotSelf, msgs?: LLMMessage[], chatId?: string) {
-  let result = await handleLoopStep(state, msgs, chatId)
+async function loopIteration(bot: BotSelf, agentState: AgentState, chatId?: string) {
+  bot.logger.log('Starting loop iteration')
+  let result = await handleLoopStep(bot, agentState, chatId)
 
   while (typeof result === 'function') {
     result = await result()
@@ -251,17 +283,17 @@ async function handleLoop(state: BotSelf, msgs?: LLMMessage[], chatId?: string) 
   return result
 }
 
-function loop(state: BotSelf) {
+function loopPeriodic(bot: BotSelf, agentState: AgentState) {
   setTimeout(() => {
-    handleLoop(state)
+    loopIteration(bot, agentState)
       .then(() => {})
       .catch((err) => {
         if (err.name === 'AbortError')
-          state.logger.log('main loop was aborted - restarting loop')
+          bot.logger.log('main loop was aborted - restarting loop')
         else
-          state.logger.withError(err).log('error in main loop')
+          bot.logger.withError(err).log('error in main loop')
       })
-      .finally(() => loop(state))
+      .finally(() => loopPeriodic(bot, agentState))
   }, 60 * 1000)
 }
 
@@ -280,21 +312,10 @@ function newBotSelf(bot: Bot, logger: Logg): BotSelf {
     currentProcessingStartTime: null,
   }
 
-  // botSelf.attentionHandler = createAttentionHandler(botSelf, {
-  //   initialResponseRate: 0.3,
-  //   responseRateMin: 0.2,
-  //   responseRateMax: 1,
-  //   cooldownMs: 5000, // 30 seconds
-  //   triggerWords: ['ReLU', 'relu', 'RELU', 'Relu', '热卤'],
-  //   ignoreWords: ['ignore me'],
-  //   decayRatePerMinute: 0.05,
-  //   decayCheckIntervalMs: 20000,
-  // })
-
   return botSelf
 }
 
-async function processMessageQueue(state: BotSelf) {
+async function onMessageArrival(state: BotSelf, agentState: AgentState) {
   if (state.processing)
     return
   state.processing = true
@@ -354,7 +375,7 @@ async function processMessageQueue(state: BotSelf) {
         state.unreadMessages[nextMsg.message.chat.id] = unreadMessagesForThisChat
         state.logger.withField('chatId', nextMsg.message.chat.id).log('message queue processed, triggering immediate reaction')
         // Trigger immediate processing when messages are ready
-        handleLoop(state, [], nextMsg.message.chat.id.toString())
+        loopIteration(state, agentState, nextMsg.message.chat.id.toString())
         state.messageQueue.shift()
       }
     }
@@ -371,7 +392,8 @@ export async function startTelegramBot() {
   const log = useLogg('Bot').useGlobalConfig()
 
   const bot = new Bot<ExtendedContext>(env.TELEGRAM_BOT_TOKEN!)
-  const state = newBotSelf(bot, log)
+  const botObj = newBotSelf(bot, log)
+  const agentState: AgentState = { actions: [], messages: [] }
 
   bot.command('add_sticker_pack', async (ctx) => {
     if (!(await isChatIdBotAdmin(ctx.message.from.id))) {
@@ -392,7 +414,7 @@ export async function startTelegramBot() {
 
     for (const sticker of stickerSet.stickers) {
       logger.withField('sticker', sticker).log('interpreting sticker')
-      await interpretSticker(state.bot, ctx.message.reply_to_message, sticker)
+      await interpretSticker(botObj.bot, ctx.message.reply_to_message, sticker)
       logger.withField('sticker', sticker).log('interpreted sticker')
     }
 
@@ -402,41 +424,41 @@ export async function startTelegramBot() {
 
   bot.on('message:sticker', async (ctx) => {
     const messageId = `${ctx.message.chat.id}-${ctx.message.message_id}`
-    if (!state.processedIds.has(messageId)) {
-      state.processedIds.add(messageId)
-      state.messageQueue.push({
+    if (!botObj.processedIds.has(messageId)) {
+      botObj.processedIds.add(messageId)
+      botObj.messageQueue.push({
         message: ctx.message,
         status: 'pending',
       })
     }
 
-    processMessageQueue(state)
+    onMessageArrival(botObj, agentState)
   })
 
   bot.on('message:photo', async (ctx) => {
     const messageId = `${ctx.message.chat.id}-${ctx.message.message_id}`
-    if (!state.processedIds.has(messageId)) {
-      state.processedIds.add(messageId)
-      state.messageQueue.push({
+    if (!botObj.processedIds.has(messageId)) {
+      botObj.processedIds.add(messageId)
+      botObj.messageQueue.push({
         message: ctx.message,
         status: 'pending',
       })
     }
 
-    processMessageQueue(state)
+    onMessageArrival(botObj, agentState)
   })
 
   bot.on('message:text', async (ctx) => {
     const messageId = `${ctx.message.chat.id}-${ctx.message.message_id}`
-    if (!state.processedIds.has(messageId)) {
-      state.processedIds.add(messageId)
-      state.messageQueue.push({
+    if (!botObj.processedIds.has(messageId)) {
+      botObj.processedIds.add(messageId)
+      botObj.messageQueue.push({
         message: ctx.message,
         status: 'ready',
       })
     }
 
-    processMessageQueue(state)
+    onMessageArrival(botObj, agentState)
   })
 
   bot.errorHandler = async err => log.withError(err).log('Error occurred')
@@ -445,7 +467,7 @@ export async function startTelegramBot() {
   bot.start({ drop_pending_updates: true })
 
   try {
-    loop(state)
+    loopPeriodic(botObj, agentState)
   }
   catch (err) {
     console.error(err)

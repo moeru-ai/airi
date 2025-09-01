@@ -62,8 +62,29 @@ async function extractColorsFromImage() {
   try {
     isCapturing.value = true
 
-    // Extract colors using Vibrant
-    const vibrant = new Vibrant(images.value[0])
+    // Load the image
+    const img = new window.Image()
+    img.crossOrigin = 'anonymous'
+    img.src = images.value[0]
+
+    await new Promise((resolve, reject) => {
+      img.onload = resolve
+      img.onerror = reject
+    })
+
+    // Create a canvas and draw only the top portion
+    const cropHeight = Math.floor(img.naturalHeight * 0.2) // top 20% of the image
+    const canvas = document.createElement('canvas')
+    canvas.width = img.naturalWidth
+    canvas.height = cropHeight
+    const ctx = canvas.getContext('2d')
+    if (ctx) {
+      ctx.drawImage(img, 0, 0, img.naturalWidth, cropHeight, 0, 0, img.naturalWidth, cropHeight)
+    }
+
+    // Convert canvas to data URL and use Vibrant on the cropped region
+    const dataUrl = canvas.toDataURL()
+    const vibrant = new Vibrant(dataUrl)
     const palette = await vibrant.getPalette()
 
     const colors = Object.values(palette)

@@ -127,6 +127,12 @@ export function createVADStates(vad: BaseVAD, vadAudioWorkletUrl: string, option
   }
 
   function stop() {
+    if (audioContext) {
+      audioContext.suspend()
+    }
+  }
+
+  function dispose() {
     if (sourceNode) {
       sourceNode.disconnect()
       sourceNode = null
@@ -139,14 +145,6 @@ export function createVADStates(vad: BaseVAD, vadAudioWorkletUrl: string, option
       mediaStream.getTracks().forEach(track => track.stop())
       mediaStream = null
     }
-    if (audioContext) {
-      audioContext.suspend()
-    }
-  }
-
-  function dispose() {
-    stop()
-
     if (audioContext && audioContext.state !== 'closed') {
       audioContext.close()
     }

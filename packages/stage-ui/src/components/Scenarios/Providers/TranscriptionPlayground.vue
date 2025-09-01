@@ -6,6 +6,7 @@ import { until } from '@vueuse/core'
 import { computed, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import { useAudioAnalyzer } from '../../../composables/audio/audio-analyzer'
 import { useAudioRecorder } from '../../../composables/audio/audio-recorder'
 import { useAudioDevice } from '../../../composables/audio/device'
 import { LevelMeter, TestDummyMarker, ThresholdMeter } from '../../Gadgets'
@@ -20,6 +21,8 @@ const props = defineProps<{
 
 const { t } = useI18n()
 const { audioInputs, selectedAudioInput, stream, stopStream, startStream } = useAudioDevice()
+const { volumeLevel, stopAnalyzer, startAnalyzer } = useAudioAnalyzer()
+const { startRecord, stopRecord, onStopRecord } = useAudioRecorder(stream)
 
 const speakingThreshold = ref(25) // 0-100 (for volume-based fallback)
 const isMonitoring = ref(false)
@@ -28,10 +31,8 @@ const isSpeaking = ref(false)
 const errorMessage = ref<string>('')
 
 const audioContext = ref<AudioContext>()
-const analyser = ref<AnalyserNode>()
 const dataArray = ref<Uint8Array<ArrayBuffer>>()
 const animationFrame = ref<number>()
-const volumeLevel = ref(0) // 0-100
 
 const audios = ref<Blob[]>([])
 const audioCleanups = ref<(() => void)[]>([])
@@ -43,94 +44,6 @@ const audioURLs = computed(() => {
   })
 })
 const transcriptions = ref<string[]>([])
-
-const { startRecord, stopRecord, onStopRecord } = useAudioRecorder(stream)
-
-// Audio monitoring
-async function setupAudioMonitoring() {
-  try {
-    // Clean up existing connections
-    await stopAudioMonitoring()
-
-    await startStream()
-    await until(stream).toBeTruthy()
-
-    // Create audio context
-    audioContext.value = new AudioContext()
-    const source = audioContext.value.createMediaStreamSource(stream.value!)
-
-    // Create analyser for volume detection
-    analyser.value = audioContext.value.createAnalyser()
-    analyser.value.fftSize = 256
-    analyser.value.smoothingTimeConstant = 0.3
-
-    // Connect audio graph
-    source.connect(analyser.value)
-
-    // Set up data array for analysis
-    const bufferLength = analyser.value.frequencyBinCount
-    dataArray.value = new Uint8Array(bufferLength)
-
-    // Start audio analysis loop
-    startAudioAnalysis()
-  }
-  catch (error) {
-    console.error('Error setting up audio monitoring:', error)
-    errorMessage.value = error instanceof Error ? error.message : String(error)
-  }
-}
-
-async function stopAudioMonitoring() {
-  // Stop animation frame
-  if (animationFrame.value) {
-    cancelAnimationFrame(animationFrame.value)
-    animationFrame.value = undefined
-  }
-
-  // Stop media stream
-  if (stream.value) {
-    stream.value.getTracks().forEach(track => track.stop())
-    stream.value = undefined
-  }
-
-  // Close audio context
-  if (audioContext.value) {
-    await audioContext.value.close()
-    audioContext.value = undefined
-  }
-
-  await stopRecord()
-  await stopStream()
-
-  analyser.value = undefined
-  dataArray.value = undefined
-  volumeLevel.value = 0
-  isSpeaking.value = false
-}
-
-function startAudioAnalysis() {
-  const analyze = () => {
-    if (!analyser.value || !dataArray.value)
-      return
-
-    // Get frequency data for volume visualization
-    analyser.value.getByteFrequencyData(dataArray.value)
-
-    // Calculate RMS volume level
-    let sum = 0
-    for (let i = 0; i < dataArray.value.length; i++) {
-      sum += dataArray.value[i] * dataArray.value[i]
-    }
-    const rms = Math.sqrt(sum / dataArray.value.length)
-    volumeLevel.value = Math.min(100, (rms / 255) * 100 * 3) // Amplify for better visualization
-
-    isSpeaking.value = volumeLevel.value > speakingThreshold.value
-
-    animationFrame.value = requestAnimationFrame(analyze)
-  }
-
-  analyze()
-}
 
 watch(selectedAudioInput, async () => {
   if (isMonitoring.value) {
@@ -144,23 +57,69 @@ watch(audioInputs, () => {
   }
 })
 
+async function setupAudioMonitoring() {
+  try {
+    await stopAudioMonitoring()
+
+    await startStream()
+    await until(stream).toBeTruthy()
+
+    // Create audio context
+    audioContext.value = new AudioContext()
+    const source = audioContext.value.createMediaStreamSource(stream.value!)
+    const analyzer = startAnalyzer(audioContext.value)
+    source.connect(analyzer!)
+
+    // Set up data array for analysis
+    const bufferLength = analyzer!.frequencyBinCount
+    dataArray.value = new Uint8Array(bufferLength)
+  }
+  catch (error) {
+    console.error('Error setting up audio monitoring:', error)
+    errorMessage.value = error instanceof Error ? error.message : String(error)
+  }
+}
+
+async function stopAudioMonitoring() {
+  // Stop animation frame
+  if (animationFrame.value) {
+    cancelAnimationFrame(animationFrame.value)
+    animationFrame.value = undefined
+  }
+  if (stream.value) {
+    stream.value.getTracks().forEach(track => track.stop())
+    stream.value = undefined
+  }
+  if (audioContext.value) {
+    await audioContext.value.close()
+    audioContext.value = undefined
+  }
+
+  await stopRecord()
+  await stopStream()
+  await stopAnalyzer()
+
+  dataArray.value = undefined
+  isSpeaking.value = false
+}
+
+onStopRecord(async (recording) => {
+  try {
+    if (recording && recording.size > 0) {
+      audios.value.push(recording)
+      const res = await props.generateTranscription(new File([recording], 'recording.wav'))
+      transcriptions.value.push(res.text)
+    }
+  }
+  catch (err) {
+    errorMessage.value = err instanceof Error ? err.message : String(err)
+    console.error('Error generating transcription:', errorMessage.value)
+  }
+})
+
 // Monitoring toggle
 async function toggleMonitoring() {
   if (!isMonitoring.value) {
-    onStopRecord(async (recording) => {
-      try {
-        if (recording && recording.size > 0) {
-          audios.value.push(recording)
-          const res = await props.generateTranscription(new File([recording], 'recording.wav'))
-          transcriptions.value.push(res.text)
-        }
-      }
-      catch (err) {
-        errorMessage.value = err instanceof Error ? err.message : String(err)
-        console.error('Error generating transcription:', errorMessage.value)
-      }
-    })
-
     await setupAudioMonitoring()
     await startRecord()
     isMonitoring.value = true

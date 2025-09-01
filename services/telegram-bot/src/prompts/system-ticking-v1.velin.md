@@ -31,10 +31,15 @@ const actions = [
     description: 'List all the available stickers and recent sent stickers.',
     example: { action: 'list_stickers', reason: 'I want to see all the stickers I can use' },
   },
+  // {
+  //   name: 'read_history_messages',
+  //   description: 'Query historical messages from a specific chat group. If you want to read the unread messages from a specific chat group, you can use this action.',
+  //   example: { action: 'read_history_messages', chatId: '123123', beforeMessageId: '<message_id> (optional if use afterMessageId)', afterMessageId: '<message_id> (optional if use beforeMessageId)', reason: 'I want to know what happened before' },
+  // },
   {
-    name: 'read_messages',
+    name: 'read_unread_messages',
     description: 'Read unread messages from a specific chat group. If you want to read the unread messages from a specific chat group, you can use this action.',
-    example: { action: 'read_messages', chatId: '123123', reason: 'I want to catch up on the conversation' },
+    example: { action: 'read_unread_messages', chatId: '123123', reason: 'I want to catch up on the conversation' },
   },
   {
     name: 'continue',
@@ -43,7 +48,7 @@ const actions = [
   },
   {
     name: 'break',
-    description: 'Take a break, which means to clear out ongoing tasks, but keep the short-term memory, and I\'ll ask you again in (1 minute later).',
+    description: 'Take a break, which means to clear out any existing memories, and I\'ll ask you again in (1 minute later).',
     example: { action: 'break', reason: 'I need a break to recharge.' },
   },
   {

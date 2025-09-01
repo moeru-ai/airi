@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { parseMayStructuredMessage } from './message'
+import { parseMayStructuredMessage } from './send-message'
 
 describe('parseMayStructuredMessage', () => {
   it('should return an array of messages', () => {
