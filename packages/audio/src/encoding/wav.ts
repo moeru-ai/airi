@@ -1,49 +1,51 @@
 import { encodeBase64 } from '@moeru/std/base64'
 
-function writeString(dataView: DataView, offset: number, string: string) {
-  for (let i = 0; i < string.length; i++) {
-    dataView.setUint8(offset + i, string.charCodeAt(i))
+function writeString(dataView: DataView, offset: number, str: string) {
+  for (let i = 0; i < str.length; i++) {
+    dataView.setUint8(offset + i, str.charCodeAt(i))
   }
 }
 
-export function toWav(buffer: ArrayBufferLike, sampleRate: number, channel = 1) {
-  const samples = new Float32Array(buffer) // ✅ allows indexing
-  const numChannels = channel
-  const numSamples = buffer.byteLength // ✅ unchanged (same as your original)
+export function toWav(samples: Float32Array, sampleRate: number, numChannels = 1) {
+  const numSamples = samples.length
+  const bytesPerSample = 2 // 16-bit PCM
+  const blockAlign = numChannels * bytesPerSample
+  const byteRate = sampleRate * blockAlign
+  const dataSize = numSamples * bytesPerSample
+  const buffer = new ArrayBuffer(44 + dataSize)
+  const view = new DataView(buffer)
 
-  const arrayBuffer = new ArrayBuffer(44 + numSamples * 2)
-  const dataView = new DataView(arrayBuffer)
+  // RIFF header
+  writeString(view, 0, 'RIFF')
+  view.setUint32(4, 36 + dataSize, true)
+  writeString(view, 8, 'WAVE')
 
-  // RIFF chunk descriptor
-  writeString(dataView, 0, 'RIFF')
-  dataView.setUint32(4, 36 + numSamples * 2, true)
-  writeString(dataView, 8, 'WAVE')
+  // fmt chunk
+  writeString(view, 12, 'fmt ')
+  view.setUint32(16, 16, true) // PCM chunk size
+  view.setUint16(20, 1, true)  // Audio format = PCM
+  view.setUint16(22, numChannels, true)
+  view.setUint32(24, sampleRate, true)
+  view.setUint32(28, byteRate, true)
+  view.setUint16(32, blockAlign, true)
+  view.setUint16(34, 16, true) // bits per sample
 
-  // fmt sub-chunk
-  writeString(dataView, 12, 'fmt ')
-  dataView.setUint32(16, 16, true)
-  dataView.setUint16(20, 1, true) // PCM format
-  dataView.setUint16(22, numChannels, true)
-  dataView.setUint32(24, sampleRate, true)
-  dataView.setUint32(28, sampleRate * numChannels * 2, true)
-  dataView.setUint16(32, numChannels * 2, true)
-  dataView.setUint16(34, 16, true)
-
-  // data sub-chunk
-  writeString(dataView, 36, 'data')
-  dataView.setUint32(40, numSamples * 2, true)
+  // data chunk
+  writeString(view, 36, 'data')
+  view.setUint32(40, dataSize, true)
 
   // PCM samples
-  const offset = 44
+  let offset = 44
   for (let i = 0; i < numSamples; i++) {
-    const sample = Math.max(-1, Math.min(1, samples[i]))
-    const value = sample < 0 ? sample * 0x8000 : sample * 0x7FFF
-    dataView.setInt16(offset + i * 2, value, true)
+    const s = Math.max(-1, Math.min(1, samples[i]))
+    const val = s < 0 ? s * 0x8000 : s * 0x7FFF
+    view.setInt16(offset, val, true)
+    offset += 2
   }
 
-  return arrayBuffer
+  return buffer
 }
 
-export function toWAVBase64(buffer: ArrayBufferLike, sampleRate: number) {
-  return encodeBase64(toWav(buffer, sampleRate))
+export function toWavBase64(samples: Float32Array, sampleRate: number) {
+  return encodeBase64(toWav(samples, sampleRate))
 }
