@@ -32,6 +32,37 @@ const isExpanded = ref(false)
 function toggleExpansion() {
   isExpanded.value = !isExpanded.value
 }
+
+const tooltipVisible = ref(false)
+const tooltipText = ref('')
+const tooltipX = ref(0)
+const tooltipY = ref(0)
+
+function isTextTruncated(el: HTMLElement) {
+  const hasLineClamp = window.getComputedStyle(el).webkitLineClamp !== 'none'
+
+  if (hasLineClamp) {
+    return el.scrollHeight > el.clientHeight
+  }
+  else {
+    return el.scrollWidth > el.clientWidth
+  }
+}
+
+function showTooltip(event: MouseEvent) {
+  const el = event.currentTarget as HTMLElement
+  if (isTextTruncated(el)) {
+    tooltipText.value = el.textContent || ''
+    const rect = el.getBoundingClientRect()
+    tooltipX.value = rect.left - rect.width * 1.5
+    tooltipY.value = rect.top - 150
+    tooltipVisible.value = true
+  }
+}
+
+function hideTooltip() {
+  tooltipVisible.value = false
+}
 </script>
 
 <template>
@@ -86,6 +117,8 @@ function toggleExpansion() {
               ? 'text-neutral-700 dark:text-neutral-300'
               : 'text-neutral-700 dark:text-neutral-400',
           ]"
+          @mouseenter="showTooltip"
+          @mouseleave="hideTooltip"
         >
           {{ title }}
         </span>
@@ -151,6 +184,13 @@ function toggleExpansion() {
       </div>
     </div>
   </label>
+  <div
+    v-if="tooltipVisible"
+    class="absolute z-50 whitespace-nowrap rounded bg-white px-2 py-1 text-xs text-black dark:bg-black dark:text-white"
+    :style="{ left: `${tooltipX}px`, top: `${tooltipY}px`, transform: 'translateX(-50%)' }"
+  >
+    {{ tooltipText }}
+  </div>
 </template>
 
 <style scoped>
