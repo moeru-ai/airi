@@ -1,18 +1,13 @@
 # Security Policy
 
 ## Supported Versions
-
-Use this section to tell people about which versions of your project are
-currently being supported with security updates.
-
-| Version | Supported          |
-| ------- | ------------------ |
-| 0.3.x   | :white_check_mark: |
+We currently support security fixes on the `main` branch and the latest tagged release line (e.g. `0.3.x`).
 
 ## Reporting a Vulnerability
+Please report vulnerabilities via GitHub Security Advisories:
 
-Use this section to tell people how to report a vulnerability.
+1. Open the repository on GitHub.
+2. Go to the **Security** tab → **Report a vulnerability**.
+3. Provide as much detail as possible (affected area, steps to reproduce, impact).
 
-Tell them where to go, how often they can expect to get an update on a
-reported vulnerability, what to expect if the vulnerability is accepted or
-declined, etc.
+We will acknowledge receipt within 72 hours and keep you informed about the fix progress.

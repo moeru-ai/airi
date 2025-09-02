@@ -5,7 +5,7 @@ Hello! Thank you for your interest in contributing to this project. This guide w
 ## Prerequisites
 
 - [Git](https://git-scm.com/downloads)
-- [Node.js 23+](https://nodejs.org/en/download/)
+- [Node.js 22 LTS](https://nodejs.org/en/download/)
 - [corepack](https://github.com/nodejs/corepack)
 - [pnpm](https://pnpm.io/installation)
 
@@ -27,7 +27,7 @@ Hello! Thank you for your interest in contributing to this project. This guide w
 3. Install `git`, Node.js, `rustup`, `msvc` through `scoop`
 
    ```powershell
-   scoop install git nodejs rustup
+   scoop install git nodejs rustup main/rust-msvc
 
    # For Rust dependencies
    # Not required if you are not going to develop on either crates or apps/tamagotchi

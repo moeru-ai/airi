@@ -1,7 +1,7 @@
 [build]
 base = "/"
-command = "pnpm -F @proj-airi/stream-vue-components... run build"
-publish = "/apps/stream-vue-components/dist"
+command = "pnpm -F @proj-airi/component-calling run build"
+publish = "/apps/component-calling/dist"
 
 [build.environment]
 NODE_VERSION = "24"

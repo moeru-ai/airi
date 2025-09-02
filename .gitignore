@@ -100,4 +100,8 @@ twitter-session.json
 # Symlinks created by nix build
 result*
 
-
+# Local env files
+.env
+.env.local
+services/discord-bot/.env
+services/discord-bot/.env.local

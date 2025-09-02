@@ -168,7 +168,7 @@ function createParser(events?: ParserEvents): XMLParser {
             }
           }
           catch (e) {
-            console.error('Failed to parse component props:', e)
+            console.error('Error consuming stream chunk:', e)
           }
         }
         else if (parserSeekTag === 'name') {

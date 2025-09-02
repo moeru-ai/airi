@@ -5,7 +5,7 @@ description = "AIRI tamagotchi app built with Tauri"
 authors = [ "LemonNekoGH <self@lemonneko.moe>" ]
 license = "MIT"
 repository = "https://github.com/moeru-ai/airi"
-edition = "2024"
+edition = "2021"
 rust-version = "1.85.0"
 publish = false
 
