@@ -9,7 +9,7 @@ function writeString(dataView: DataView, offset: number, string: string) {
 export function toWav(buffer: ArrayBufferLike, sampleRate: number, channel = 1) {
   const samples = new Float32Array(buffer) // allows indexing
   const numChannels = channel
- const numSamples = samples.length
+  const numSamples = samples.length
 
   const arrayBuffer = new ArrayBuffer(44 + numSamples * 2)
   const dataView = new DataView(arrayBuffer)
