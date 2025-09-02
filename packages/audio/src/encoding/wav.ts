@@ -11,6 +11,7 @@ export function toWav(buffer: ArrayBufferLike, sampleRate: number, channel = 1) 
   const numChannels = channel
   const numSamples = samples.length
 
+  // Create the WAV file container
   const arrayBuffer = new ArrayBuffer(44 + numSamples * 2)
   const dataView = new DataView(arrayBuffer)
 
@@ -25,9 +26,10 @@ export function toWav(buffer: ArrayBufferLike, sampleRate: number, channel = 1) 
   dataView.setUint16(20, 1, true) // PCM format
   dataView.setUint16(22, numChannels, true)
   dataView.setUint32(24, sampleRate, true)
-  dataView.setUint32(28, sampleRate * numChannels * 2, true)
-  dataView.setUint16(32, numChannels * 2, true)
-  dataView.setUint16(34, 16, true)
+  dataView.setUint32(28, sampleRate * numChannels * 2, true) // byte rate
+  dataView.setUint16(32, numChannels * 2, true) // block align
+
+  dataView.setUint16(34, 16, true) // bits per sample
 
   // data sub-chunk
   writeString(dataView, 36, 'data')
