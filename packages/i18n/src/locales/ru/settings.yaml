@@ -58,6 +58,51 @@ live2d:
 microphone: Микрофон
 models: Модель
 pages:
+  providers:
+    provider:
+      silero-tts:
+        title: Silero TTS
+        description: Настройки синтеза русской речи
+        advanced:
+          title: Дополнительные настройки
+          pitch: Высота голоса
+          speed: Скорость речи
+          timeout: Тайм-аут (сек)
+          timeoutHelp: Максимальное время ожидания ответа от сервера
+          autoRetry: Автоматический повтор при ошибке
+        status:
+          title: Состояние сервера
+          server: Сервер
+          speakers: Голосов
+          lastTest: Последняя проверка
+          currentSpeaker: Текущий голос
+        actions:
+          title: Быстрые действия
+          refreshSpeakers: Обновить голоса
+          testAllSpeakers: Протестировать все голоса
+          resetDefaults: Сбросить к умолчанию
+      tauri-whisper:
+        title: Tauri Whisper
+        description: Настройки локального распознавания речи
+        advanced:
+          title: Дополнительные настройки
+          modelManagement: Управление моделями
+          threads: Потоки
+          processors: Процессоры
+          denoise: Подавление шума
+          vad: Детекция голосовой активности
+          timestamps: Временные метки
+        system:
+          title: Системная информация
+          tauri: Tauri API
+          models: Модели
+          memory: Доступная память
+          storage: Доступное место
+        performance:
+          title: Метрики производительности
+          avgTime: Среднее время
+          accuracy: Точность
+          total: Всего транскрипций
   card:
     activate: Активировать
     active: Активно
@@ -242,7 +287,6 @@ pages:
     mcp-server:
       description: Подключение и управление MCP-сервером и инструментами
       title: MCP-сервер
-  providers:
     explained:
       chat: Провайдеры текстогенерации, напр. OpenRouter, OpenAI, Ollama.
       Speech: Провайдеры речи (TTS), напр. ElevenLabs, Azure Speech.
@@ -275,7 +319,6 @@ pages:
           title: Базовые
         voice:
           title: Настройки голоса
-    description: LLM-модели, провайдеры речи и др.
     provider:
       app-local-audio-transcription:
         title: Приложение (локально)
@@ -427,6 +470,12 @@ pages:
       lm-studio:
         description: lmstudio.ai
         title: LM Studio
+        model:
+          label: Модель
+          description: Выберите модель для использования с LM Studio
+          placeholder: Выберите модель...
+          loading: Загружаю модели...
+          refresh: Обновить модели
       vllm:
         description: vllm.ai
         title: vLLM
@@ -441,10 +490,72 @@ pages:
       xai:
         description: x.ai
         title: xAI
+      silero-tts:
+        title: Silero TTS
+        description: Локальный сервер Silero TTS для синтеза речи
+        baseUrl:
+          description: URL вашего сервера Silero TTS (например, http://localhost:8001/)
+        speaker:
+          label: Голос
+          description: Выберите голос для синтеза речи
+        sampleRate:
+          label: Частота дискретизации
+          description: Качество звука - большие значения означают лучшее качество, но больший размер файла
+        playground:
+          title: Песочница синтеза речи
+          textInput: Текст для синтеза
+          placeholder: Введите текст для преобразования в речь...
+          generate: Синтезировать речь
+          generating: Синтезирую...
+          error: Ошибка синтеза речи
+      tauri-whisper:
+        title: Tauri Whisper
+        description: Локальная транскрипция Whisper через Tauri
+        model:
+          label: Модель Whisper
+          description: Выберите размер модели - большие модели точнее, но медленнее
+        language:
+          label: Язык
+          description: Укажите язык транскрипции или используйте автоопределение
+        modelLoading:
+          title: Управление моделью
+          load: Загрузить модель
+          loading: Загружаю модель...
+          success: Модель успешно загружена!
+          error: Ошибка загрузки модели
+        playground:
+          title: Песочница транскрипции
+          startRecording: Начать запись
+          stopRecording: Остановить запись
+          uploadAudio: Загрузить аудиофайл
+          recording: Идет запись...
+          transcribing: Транскрибирую...
+          result: Результат транскрипции
+          error: Ошибка транскрипции
+      koboldcpp-whisper:
+        title: KoboldCPP Whisper
+        description: Транскрипция Whisper через сервер KoboldCPP
+        baseUrl:
+          description: URL вашего сервера KoboldCPP с поддержкой Whisper
+        language:
+          label: Язык
+          description: Укажите язык транскрипции или используйте автоопределение
+        connectionTest:
+          title: Тест соединения
+          test: Проверить соединение
+          testing: Проверяю...
+        playground:
+          title: Песочница транскрипции
+          startRecording: Начать запись
+          stopRecording: Остановить запись
+          uploadAudio: Загрузить аудиофайл
+          recording: Идет запись...
+          transcribing: Транскрибирую...
+          result: Результат транскрипции
+          error: Ошибка транскрипции
       transcriptions:
         playground:
           title: Песочница транскрипции
-    title: Провайдеры
   scene:
     description: Настройте окружение, в котором живёт персонаж
     title: Сцена

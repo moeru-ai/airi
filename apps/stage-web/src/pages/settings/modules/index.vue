@@ -53,7 +53,15 @@ const modulesList = computed<Module[]>(() => [
     name: t('settings.pages.modules.vision.title'),
     description: t('settings.pages.modules.vision.description'),
     icon: 'i-solar:eye-closed-bold-duotone',
-    to: '',
+    to: '/settings/modules/vision',
+    configured: false,
+  },
+  {
+    id: 'mcp-server',
+    name: t('settings.pages.modules.mcp-server.title'),
+    description: t('settings.pages.modules.mcp-server.description'),
+    icon: 'i-solar:server-square-bold-duotone',
+    to: '/settings/modules/mcp-server',
     configured: false,
   },
   {

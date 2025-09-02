@@ -5,6 +5,7 @@ import WhisperWorker from '@proj-airi/stage-ui/libs/workers/worker?worker&url'
 
 import { toWAVBase64 } from '@proj-airi/audio'
 import { useMicVAD, useWhisper } from '@proj-airi/stage-ui/composables'
+import { useVoiceInteraction } from '@proj-airi/stage-ui/composables/voiceInteraction'
 import { useAudioContext } from '@proj-airi/stage-ui/stores/audio'
 import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
 import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
@@ -16,11 +17,13 @@ import { onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import ChatHistory from '../Widgets/ChatHistory.vue'
+import VoiceControls from './InteractiveArea/VoiceControls.vue'
 
 const messageInput = ref('')
 const listening = ref(false)
 const showMicrophoneSelect = ref(false)
 const isComposing = ref(false)
+const showVoiceControls = ref(false)
 
 const providersStore = useProvidersStore()
 const { activeProvider, activeModel } = storeToRefs(useConsciousnessStore())
@@ -106,6 +109,46 @@ async function handleTranscription(buffer: ArrayBufferLike) {
   generate({ type: 'generate', data: { audio: audioBase64, language: 'en' } })
 }
 
+// Состояние для управления воспроизведением речи АЙРИ
+const currentSpeechAudio = ref<HTMLAudioElement | null>(null)
+
+// Новый голосовой композабль для улучшенного взаимодействия
+const voiceInteraction = useVoiceInteraction(selectedAudioInput, {
+  onSpeechStart() {
+    listening.value = true
+    // Прерываем речь АЙРИ если она говорит
+    if (currentSpeechAudio.value) {
+      currentSpeechAudio.value.pause()
+      currentSpeechAudio.value = null
+    }
+  },
+
+  onSpeechEnd() {
+    listening.value = false
+    // Примечание: пока используем существующую систему handleTranscription
+    // В будущем здесь можно добавить обработку аудио данных из VAD
+  },
+
+  onVoiceActivityDetected(probability) {
+    // Обновляем вероятность речи для визуализации
+    console.warn('Voice activity probability:', probability)
+  },
+})
+
+// Функции для голосового управления
+function toggleVoiceListening() {
+  if (voiceInteraction.isListening.value) {
+    voiceInteraction.stop()
+  }
+  else {
+    voiceInteraction.start()
+  }
+}
+
+function toggleVoiceControls() {
+  showVoiceControls.value = !showVoiceControls.value
+}
+
 watch(enabled, async (value) => {
   if (value === false) {
     destroy()
@@ -145,6 +188,26 @@ onAfterMessageComposed(async () => {
         bg="primary-50/50 dark:primary-950/70" backdrop-blur-md
       >
         <ChatHistory h-full flex-1 p-4 w="full" max-h="<md:[60%]" />
+
+        <!-- Голосовые элементы управления -->
+        <div class="px-4 pb-2">
+          <VoiceControls
+            :is-listening="voiceInteraction.isListening.value"
+            :is-recording="voiceInteraction.isRecording.value"
+            :is-voice-active="voiceInteraction.isVoiceActive.value"
+            :audio-level="voiceInteraction.audioLevel.value"
+            :microphone-sensitivity="voiceInteraction.microphoneSensitivity.value"
+            :speech-threshold="voiceInteraction.speechThreshold.value"
+            :noise-reduction="voiceInteraction.noiseReduction.value"
+            :show-controls="showVoiceControls"
+            @update:microphone-sensitivity="voiceInteraction.setSensitivity"
+            @update:speech-threshold="voiceInteraction.setSpeechThreshold"
+            @update:noise-reduction="voiceInteraction.setNoiseReduction"
+            @toggle-listening="toggleVoiceListening"
+            @toggle-controls="toggleVoiceControls"
+          />
+        </div>
+
         <div h="<md:full" flex gap-2>
           <BasicTextarea
             v-model="messageInput"

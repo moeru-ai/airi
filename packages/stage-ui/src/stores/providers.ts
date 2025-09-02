@@ -2342,6 +2342,218 @@ export const useProvidersStore = defineStore('providers', () => {
         },
       },
     },
+    'silero-tts': {
+      id: 'silero-tts',
+      category: 'speech',
+      tasks: ['text-to-speech'],
+      nameKey: 'settings.pages.providers.provider.silero-tts.title',
+      name: 'Silero TTS',
+      descriptionKey: 'settings.pages.providers.provider.silero-tts.description',
+      description: 'silero.ai local TTS server',
+      icon: 'i-solar:volume-loud-bold-duotone',
+      iconColor: '#2563eb',
+      defaultOptions: () => ({
+        baseUrl: 'http://localhost:8001/',
+        speaker: 'baya',
+        sampleRate: 48000,
+      }),
+      createProvider: async (config) => {
+        const provider: SpeechProvider = {
+          speech: () => {
+            const req = {
+              baseURL: config.baseUrl as string,
+              model: 'silero-tts',
+            }
+            return req
+          },
+        }
+        return provider
+      },
+      capabilities: {
+        listVoices: async (config) => {
+          try {
+            const baseUrl = (config.baseUrl as string).trim().replace(/\/+$/, '')
+            const response = await fetch(`${baseUrl}/tts/speakers`)
+            if (!response.ok) {
+              throw new Error(`Failed to fetch speakers: ${response.statusText}`)
+            }
+            await response.json()
+
+            // Silero TTS speakers with language support
+            const speakersInfo = [
+              { id: 'baya', name: 'Baya', gender: 'female', languages: [{ code: 'ru', title: 'Russian' }] },
+              { id: 'aidar', name: 'Aidar', gender: 'male', languages: [{ code: 'ru', title: 'Russian' }] },
+              { id: 'kseniya', name: 'Kseniya', gender: 'female', languages: [{ code: 'ru', title: 'Russian' }] },
+              { id: 'xenia', name: 'Xenia', gender: 'female', languages: [{ code: 'ru', title: 'Russian' }] },
+              { id: 'en_0', name: 'English Speaker 0', gender: 'female', languages: [{ code: 'en', title: 'English' }] },
+              { id: 'en_1', name: 'English Speaker 1', gender: 'male', languages: [{ code: 'en', title: 'English' }] },
+              { id: 'en_2', name: 'English Speaker 2', gender: 'female', languages: [{ code: 'en', title: 'English' }] },
+            ]
+
+            return speakersInfo.map(speaker => ({
+              id: speaker.id,
+              name: speaker.name,
+              provider: 'silero-tts',
+              gender: speaker.gender,
+              languages: speaker.languages,
+            }))
+          }
+          catch (error) {
+            console.error('Error fetching Silero TTS speakers:', error)
+            return []
+          }
+        },
+      },
+      validators: {
+        validateProviderConfig: (_config) => {
+          const errors = [
+            !_config.baseUrl && new Error('Base URL is required.'),
+          ].filter(Boolean)
+
+          const res = baseUrlValidator.value(_config.baseUrl)
+          if (res) {
+            return res
+          }
+
+          return {
+            errors,
+            reason: errors.filter(e => e).map(e => String(e)).join(', ') || '',
+            valid: !!_config.baseUrl,
+          }
+        },
+      },
+    },
+    'tauri-whisper': {
+      id: 'tauri-whisper',
+      category: 'transcription',
+      tasks: ['speech-to-text', 'automatic-speech-recognition', 'asr', 'stt'],
+      isAvailableBy: async () => {
+        if ('window' in globalThis && globalThis.window != null) {
+          if ('__TAURI__' in globalThis.window && globalThis.window.__TAURI__ != null) {
+            return true
+          }
+        }
+        return false
+      },
+      nameKey: 'settings.pages.providers.provider.tauri-whisper.title',
+      name: 'Tauri Whisper',
+      descriptionKey: 'settings.pages.providers.provider.tauri-whisper.description',
+      description: 'Local Whisper transcription via Tauri',
+      icon: 'i-solar:microphone-3-bold-duotone',
+      iconColor: '#059669',
+      defaultOptions: () => ({
+        model: 'medium',
+        language: 'auto',
+      }),
+      createProvider: async (_config) => {
+        const provider: TranscriptionProvider = {
+          transcription: () => {
+            const req = {
+              baseURL: '',
+              model: 'tauri-whisper',
+            }
+            return req
+          },
+        }
+        return provider
+      },
+      capabilities: {
+        listModels: async () => {
+          return [
+            {
+              id: 'tiny',
+              name: 'Tiny (39MB)',
+              provider: 'tauri-whisper',
+              description: 'Fastest model, lowest accuracy',
+            },
+            {
+              id: 'base',
+              name: 'Base (74MB)',
+              provider: 'tauri-whisper',
+              description: 'Balanced speed and accuracy',
+            },
+            {
+              id: 'small',
+              name: 'Small (244MB)',
+              provider: 'tauri-whisper',
+              description: 'Good accuracy, moderate speed',
+            },
+            {
+              id: 'medium',
+              name: 'Medium (769MB)',
+              provider: 'tauri-whisper',
+              description: 'High accuracy, slower speed',
+            },
+            {
+              id: 'large',
+              name: 'Large (1550MB)',
+              provider: 'tauri-whisper',
+              description: 'Highest accuracy, slowest speed',
+            },
+          ]
+        },
+      },
+      validators: {
+        validateProviderConfig: (_config) => {
+          const errors = [
+            !_config.model && new Error('Model is required.'),
+            !_config.language && new Error('Language is required.'),
+          ].filter(Boolean)
+
+          return {
+            errors,
+            reason: errors.filter(e => e).map(e => String(e)).join(', ') || '',
+            valid: !!_config.model && !!_config.language,
+          }
+        },
+      },
+    },
+    'koboldcpp-whisper': {
+      id: 'koboldcpp-whisper',
+      category: 'transcription',
+      tasks: ['speech-to-text', 'automatic-speech-recognition', 'asr', 'stt'],
+      nameKey: 'settings.pages.providers.provider.koboldcpp-whisper.title',
+      name: 'KoboldCPP Whisper',
+      descriptionKey: 'settings.pages.providers.provider.koboldcpp-whisper.description',
+      description: 'Whisper transcription via KoboldCPP API',
+      icon: 'i-solar:cpu-bolt-bold-duotone',
+      iconColor: '#7c3aed',
+      defaultOptions: () => ({
+        baseUrl: 'http://localhost:5001/',
+        language: 'auto',
+      }),
+      createProvider: async (_config) => {
+        const provider: TranscriptionProvider = {
+          transcription: () => {
+            const req = {
+              baseURL: _config.baseUrl as string,
+              model: 'whisper',
+            }
+            return req
+          },
+        }
+        return provider
+      },
+      capabilities: {},
+      validators: {
+        validateProviderConfig: (_config) => {
+          const errors = [
+            !_config.baseUrl && new Error('Base URL is required.'),
+          ].filter(Boolean)
+
+          const res = baseUrlValidator.value(_config.baseUrl)
+          if (res) {
+            return res
+          }
+
+          return {
+            errors,
+            reason: errors.filter(e => e).map(e => String(e)).join(', ') || '',
+            valid: !!_config.baseUrl,
+          }
+        },
+      },
+    },
   }
 
   // Configuration validation functions

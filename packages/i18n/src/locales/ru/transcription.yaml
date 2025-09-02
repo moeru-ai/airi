@@ -1,0 +1,49 @@
+settings:
+  provider: Провайдер
+  baseUrl: Базовый URL сервера
+  model: Модель
+  language: Язык
+  temperature: Температура
+  maxTokens: Максимум токенов
+  test: Тест
+  testing: Тестирование...
+  testPlayground: Тестовая площадка
+  startRecording: Начать запись
+  stopRecording: Остановить запись
+  uploadFile: Загрузить файл
+  transcribing: Транскрибирую...
+  result: Результат
+
+playground:
+  title: Плейграунд распознавания речи
+  description: Тестируйте и настраивайте параметры распознавания речи
+  provider: Провайдер
+  model: Модель
+  language: Язык
+  liveRecording: Запись с микрофона
+  startRecording: Начать запись
+  stopRecording: Остановить запись
+  audioLevel: Уровень звука
+  fileUpload: Загрузка файла
+  dragDropText: Перетащите аудиофайл сюда или нажмите для выбора
+  selectFile: Выбрать файл
+  supportedFormats: Поддерживаемые форматы
+  sampleFiles: Образцы файлов
+  transcribing: Транскрибирую...
+  pleaseWait: Пожалуйста, подождите...
+  result: Результат транскрипции
+  detectedLanguage: Обнаруженный язык
+  confidence: Уверенность
+  charactersCount: Символов
+  wordsCount: Слов
+  segments: Временные сегменты
+  error: Ошибка транскрипции
+  samples:
+    greeting: Приветствие
+    greetingDesc: Короткая фраза приветствия
+    weather: Прогноз погоды
+    weatherDesc: Рассказ о погоде
+    meeting: Деловая встреча
+    meetingDesc: Отрывок из деловой беседы
+    poetry: Поэзия
+    poetryDesc: Стихотворный отрывок

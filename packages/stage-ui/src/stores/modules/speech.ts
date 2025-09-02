@@ -1,238 +1,252 @@
-import type { SpeechProviderWithExtraOptions } from '@xsai-ext/shared-providers'
-
-import type { VoiceInfo } from '../providers'
-
 import { useLocalStorage } from '@vueuse/core'
-import { generateSpeech } from '@xsai/generate-speech'
-import { defineStore, storeToRefs } from 'pinia'
-import { computed, onMounted, ref, watch } from 'vue'
-import { toXml } from 'xast-util-to-xml'
-import { x } from 'xastscript'
+import { defineStore } from 'pinia'
+import { computed, ref } from 'vue'
 
-import { useProvidersStore } from '../providers'
+// Types for Silero TTS
+export interface SileroTTSConfig {
+  baseUrl: string
+  speaker: string
+  sampleRate: number
+  format: 'wav' | 'mp3' | 'ogg'
+}
+
+export interface SileroSpeaker {
+  name: string
+  language: string
+  gender: 'male' | 'female'
+  description?: string
+}
+
+export interface SpeechRequest {
+  text: string
+  speaker?: string
+  sampleRate?: number
+  format?: 'wav' | 'mp3' | 'ogg'
+}
+
+export interface SpeechState {
+  isGenerating: boolean
+  isPlaying: boolean
+  currentAudio: HTMLAudioElement | null
+  lastGeneratedUrl: string | null
+  error: string | null
+}
 
 export const useSpeechStore = defineStore('speech', () => {
-  const providersStore = useProvidersStore()
-  const { allAudioSpeechProvidersMetadata } = storeToRefs(providersStore)
+  // Configuration
+  const sileroConfig = useLocalStorage<SileroTTSConfig>('speech/silero-config', {
+    baseUrl: 'http://127.0.0.1:8001',
+    speaker: 'baya',
+    sampleRate: 48000,
+    format: 'wav',
+  })
 
   // State
-  const activeSpeechProvider = useLocalStorage('settings/speech/active-provider', '')
-  const activeSpeechModel = useLocalStorage('settings/speech/active-model', 'eleven_multilingual_v2')
-  const activeSpeechVoiceId = useLocalStorage<string>('settings/speech/voice', '')
-  const activeSpeechVoice = ref<VoiceInfo>()
-
-  const pitch = useLocalStorage('settings/speech/pitch', 0)
-  const rate = useLocalStorage('settings/speech/rate', 1)
-  const ssmlEnabled = useLocalStorage('settings/speech/ssml-enabled', false)
-  const isLoadingSpeechProviderVoices = ref(false)
-  const speechProviderError = ref<string | null>(null)
-  const availableVoices = ref<Record<string, VoiceInfo[]>>({})
-  const selectedLanguage = useLocalStorage('settings/speech/language', 'en-US')
-  const modelSearchQuery = ref('')
-
-  // Computed properties
-  const availableSpeechProvidersMetadata = computed(() => allAudioSpeechProvidersMetadata.value)
-
-  // Computed properties
-  const supportsModelListing = computed(() => {
-    return providersStore.getProviderMetadata(activeSpeechProvider.value)?.capabilities.listModels !== undefined
+  const state = ref<SpeechState>({
+    isGenerating: false,
+    isPlaying: false,
+    currentAudio: null,
+    lastGeneratedUrl: null,
+    error: null,
   })
 
-  const providerModels = computed(() => {
-    return providersStore.getModelsForProvider(activeSpeechProvider.value)
-  })
+  // Available speakers (will be fetched from API)
+  const availableSpeakers = ref<SileroSpeaker[]>([
+    { name: 'baya', language: 'ru', gender: 'female', description: 'Женский голос Baya' },
+    { name: 'aidar', language: 'ru', gender: 'male', description: 'Мужской голос Aidar' },
+    { name: 'kseniya', language: 'ru', gender: 'female', description: 'Женский голос Kseniya' },
+    { name: 'xenia', language: 'ru', gender: 'female', description: 'Женский голос Xenia' },
+    { name: 'eugene', language: 'ru', gender: 'male', description: 'Мужской голос Eugene' },
+  ])
 
-  const isLoadingActiveProviderModels = computed(() => {
-    return providersStore.isLoadingModels[activeSpeechProvider.value] || false
-  })
+  // Computed
+  const currentSpeaker = computed(() =>
+    availableSpeakers.value.find(s => s.name === sileroConfig.value.speaker) || availableSpeakers.value[0],
+  )
 
-  const activeProviderModelError = computed(() => {
-    return providersStore.modelLoadError[activeSpeechProvider.value] || null
-  })
+  const isReady = computed(() => !!sileroConfig.value.baseUrl)
 
-  const filteredModels = computed(() => {
-    if (!modelSearchQuery.value.trim()) {
-      return providerModels.value
-    }
-
-    const query = modelSearchQuery.value.toLowerCase().trim()
-    return providerModels.value.filter(model =>
-      model.name.toLowerCase().includes(query)
-      || model.id.toLowerCase().includes(query)
-      || (model.description && model.description.toLowerCase().includes(query)),
-    )
-  })
-
-  const supportsSSML = computed(() => {
-    // Currently only ElevenLabs and some other providers support SSML
-    return ['elevenlabs', 'microsoft-speech', 'azure-speech', 'google', 'alibaba-cloud-model-studio', 'volcengine'].includes(activeSpeechProvider.value)
-  })
-
-  async function loadVoicesForProvider(provider: string) {
-    if (!provider) {
-      return []
-    }
-
-    isLoadingSpeechProviderVoices.value = true
-    speechProviderError.value = null
-
+  // Actions
+  async function fetchSpeakers(): Promise<void> {
     try {
-      const voices = await providersStore.getProviderMetadata(provider).capabilities.listVoices?.(providersStore.getProviderConfig(provider)) || []
-      availableVoices.value[provider] = voices
-      return voices
+      const response = await fetch(`${sileroConfig.value.baseUrl.replace(/\/$/, '')}/tts/speakers`)
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+      }
+      const speakers = await response.json()
+
+      // Transform API response to our format
+      if (Array.isArray(speakers)) {
+        availableSpeakers.value = speakers.map(speaker => ({
+          name: speaker.name || speaker,
+          language: speaker.language || 'ru',
+          gender: speaker.gender || 'female',
+          description: speaker.description || `Голос ${speaker.name || speaker}`,
+        }))
+      }
     }
     catch (error) {
-      console.error(`Error fetching voices for ${provider}:`, error)
-      speechProviderError.value = error instanceof Error ? error.message : 'Unknown error'
-      return []
+      console.error('Failed to fetch speakers:', error)
+      // Keep default speakers if API fails
+    }
+  }
+
+  async function generateSpeech(request: SpeechRequest): Promise<string> {
+    if (!isReady.value) {
+      throw new Error('Silero TTS не настроен')
+    }
+
+    state.value.isGenerating = true
+    state.value.error = null
+
+    try {
+      const response = await fetch(`${sileroConfig.value.baseUrl.replace(/\/$/, '')}/tts/generate`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          text: request.text,
+          speaker: request.speaker || sileroConfig.value.speaker,
+          sample_rate: request.sampleRate || sileroConfig.value.sampleRate,
+          format: request.format || sileroConfig.value.format,
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+      }
+
+      // Get audio data as blob
+      const audioBlob = await response.blob()
+      const audioUrl = URL.createObjectURL(audioBlob)
+
+      state.value.lastGeneratedUrl = audioUrl
+      return audioUrl
+    }
+    catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Неизвестная ошибка'
+      state.value.error = errorMessage
+      throw error
     }
     finally {
-      isLoadingSpeechProviderVoices.value = false
+      state.value.isGenerating = false
     }
   }
 
-  // Get voices for a specific provider
-  function getVoicesForProvider(provider: string) {
-    return availableVoices.value[provider] || []
+  async function playSpeech(audioUrl: string): Promise<void> {
+    // Stop current audio if playing
+    if (state.value.currentAudio) {
+      state.value.currentAudio.pause()
+      state.value.currentAudio = null
+    }
+
+    state.value.isPlaying = true
+    state.value.error = null
+
+    try {
+      const audio = new Audio(audioUrl)
+      state.value.currentAudio = audio
+
+      return new Promise((resolve, reject) => {
+        audio.onended = () => {
+          state.value.isPlaying = false
+          state.value.currentAudio = null
+          resolve()
+        }
+
+        audio.onerror = () => {
+          state.value.isPlaying = false
+          state.value.currentAudio = null
+          const error = new Error('Ошибка воспроизведения аудио')
+          state.value.error = error.message
+          reject(error)
+        }
+
+        audio.play().catch(reject)
+      })
+    }
+    catch (error) {
+      state.value.isPlaying = false
+      state.value.currentAudio = null
+      const errorMessage = error instanceof Error ? error.message : 'Ошибка воспроизведения'
+      state.value.error = errorMessage
+      throw error
+    }
   }
 
-  // Watch for provider changes and load voices
-  watch(activeSpeechProvider, async (newProvider) => {
-    if (newProvider) {
-      await loadVoicesForProvider(newProvider)
-      // Don't reset voice settings when changing providers to allow for persistence
-    }
-  })
+  async function generateAndPlay(text: string): Promise<void> {
+    const audioUrl = await generateSpeech({ text })
+    await playSpeech(audioUrl)
+  }
 
-  onMounted(() => {
-    loadVoicesForProvider(activeSpeechProvider.value).then(() => {
-      if (activeSpeechVoiceId.value) {
-        activeSpeechVoice.value = availableVoices.value[activeSpeechProvider.value]?.find(voice => voice.id === activeSpeechVoiceId.value)
+  function stopSpeech(): void {
+    if (state.value.currentAudio) {
+      state.value.currentAudio.pause()
+      state.value.currentAudio = null
+    }
+    state.value.isPlaying = false
+  }
+
+  async function testConnection(): Promise<boolean> {
+    try {
+      const response = await fetch(`${sileroConfig.value.baseUrl.replace(/\/$/, '')}/health`, {
+        method: 'GET',
+        signal: AbortSignal.timeout(5000), // 5 second timeout
+      })
+      return response.ok
+    }
+    catch {
+      return false
+    }
+  }
+
+  async function playSample(speakerName?: string): Promise<void> {
+    const speaker = speakerName || sileroConfig.value.speaker
+    try {
+      const response = await fetch(`${sileroConfig.value.baseUrl.replace(/\/$/, '')}/tts/sample?speaker=${speaker}`)
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`)
       }
-    })
-  })
 
-  watch(activeSpeechVoiceId, (voiceId) => {
-    if (voiceId) {
-      activeSpeechVoice.value = availableVoices.value[activeSpeechProvider.value]?.find(voice => voice.id === voiceId)
+      const audioBlob = await response.blob()
+      const audioUrl = URL.createObjectURL(audioBlob)
+      await playSpeech(audioUrl)
     }
-  }, {
-    immediate: true,
-  })
-
-  watch(availableVoices, (voices) => {
-    if (activeSpeechVoiceId.value) {
-      activeSpeechVoice.value = voices[activeSpeechProvider.value]?.find(voice => voice.id === activeSpeechVoiceId.value)
+    catch (error) {
+      console.error('Failed to play sample:', error)
+      throw error
     }
-  }, {
-    immediate: true,
-  })
-
-  /**
-   * Generate speech using the specified provider and settings
-   *
-   * @param provider The speech provider instance
-   * @param model The model to use
-   * @param input The text input to convert to speech
-   * @param voice The voice ID to use
-   * @param providerConfig Additional provider configuration
-   * @returns ArrayBuffer containing the audio data
-   */
-  async function speech(
-    provider: SpeechProviderWithExtraOptions<string, any>,
-    model: string,
-    input: string,
-    voice: string,
-    providerConfig: Record<string, any> = {},
-  ): Promise<ArrayBuffer> {
-    const response = await generateSpeech({
-      ...provider.speech(model, {
-        ...providerConfig,
-      }),
-      input,
-      voice,
-    })
-
-    return response
   }
 
-  function generateSSML(
-    text: string,
-    voice: VoiceInfo,
-    providerConfig?: Record<string, any>,
-  ): string {
-    const pitch = providerConfig?.pitch
-    const speed = providerConfig?.speed
-    const volume = providerConfig?.volume
-
-    const prosody = {
-      pitch: pitch != null
-        ? pitch > 0
-          ? `+${pitch}%`
-          : `-${pitch}%`
-        : undefined,
-      rate: speed != null
-        ? speed !== 1.0
-          ? `${speed}`
-          : '1'
-        : undefined,
-      volume: volume != null
-        ? volume > 0
-          ? `+${volume}%`
-          : `${volume}%`
-        : undefined,
-    }
-
-    const ssmlXast = x('speak', { 'version': '1.0', 'xmlns': 'http://www.w3.org/2001/10/synthesis', 'xml:lang': voice.languages[0]?.code || 'en-US' }, [
-      x('voice', { name: voice.id, gender: voice.gender || 'neutral' }, [
-        Object.entries(prosody).filter(([_, value]) => value != null).length > 0
-          ? x('prosody', {
-              pitch: pitch != null ? pitch > 0 ? `+${pitch}%` : `-${pitch}%` : undefined,
-              rate: speed != null ? speed !== 1.0 ? `${speed}` : '1' : undefined,
-              volume: volume != null ? volume > 0 ? `+${volume}%` : `${volume}%` : undefined,
-            }, [
-              text,
-            ])
-          : text,
-      ]),
-    ])
-
-    return toXml(ssmlXast)
+  // Update configuration
+  function updateConfig(newConfig: Partial<SileroTTSConfig>): void {
+    Object.assign(sileroConfig.value, newConfig)
   }
 
-  const configured = computed(() => {
-    return !!activeSpeechProvider.value && !!activeSpeechModel.value && !!activeSpeechVoiceId.value
-  })
+  // Initialize
+  fetchSpeakers()
 
   return {
-    // State
-    configured,
-    activeSpeechProvider,
-    activeSpeechModel,
-    activeSpeechVoice,
-    activeSpeechVoiceId,
-    pitch,
-    rate,
-    ssmlEnabled,
-    selectedLanguage,
-    isLoadingSpeechProviderVoices,
-    speechProviderError,
-    availableVoices,
-    modelSearchQuery,
+    // Configuration
+    sileroConfig,
 
-    // Computed
-    availableSpeechProvidersMetadata,
-    supportsSSML,
-    supportsModelListing,
-    providerModels,
-    isLoadingActiveProviderModels,
-    activeProviderModelError,
-    filteredModels,
+    // State
+    state: computed(() => state.value),
+    availableSpeakers: computed(() => availableSpeakers.value),
+    currentSpeaker,
+    isReady,
 
     // Actions
-    speech,
-    loadVoicesForProvider,
-    getVoicesForProvider,
-    generateSSML,
+    fetchSpeakers,
+    generateSpeech,
+    playSpeech,
+    generateAndPlay,
+    stopSpeech,
+    testConnection,
+    playSample,
+    updateConfig,
   }
 })
+
+export type SpeechStore = ReturnType<typeof useSpeechStore>

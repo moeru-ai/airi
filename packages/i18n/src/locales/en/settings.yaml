@@ -66,6 +66,51 @@ live2d:
 microphone: Microphone
 models: Model
 pages:
+  providers:
+    provider:
+      silero-tts:
+        title: Silero TTS
+        description: Russian speech synthesis settings
+        advanced:
+          title: Advanced Settings
+          pitch: Voice Pitch
+          speed: Speech Speed
+          timeout: Timeout (sec)
+          timeoutHelp: Maximum server response wait time
+          autoRetry: Auto-retry on error
+        status:
+          title: Server Status
+          server: Server
+          speakers: Speakers
+          lastTest: Last Test
+          currentSpeaker: Current Speaker
+        actions:
+          title: Quick Actions
+          refreshSpeakers: Refresh Speakers
+          testAllSpeakers: Test All Speakers
+          resetDefaults: Reset to Defaults
+      tauri-whisper:
+        title: Tauri Whisper
+        description: Local speech recognition settings
+        advanced:
+          title: Advanced Settings
+          modelManagement: Model Management
+          threads: Threads
+          processors: Processors
+          denoise: Noise Suppression
+          vad: Voice Activity Detection
+          timestamps: Timestamps
+        system:
+          title: System Information
+          tauri: Tauri API
+          models: Models
+          memory: Available Memory
+          storage: Available Storage
+        performance:
+          title: Performance Metrics
+          avgTime: Average Time
+          accuracy: Accuracy
+          total: Total Transcriptions
   card:
     activate: Activate
     active: Active
@@ -258,7 +303,6 @@ pages:
     mcp-server:
       description: Connect and manage MCP server and tools
       title: MCP Server
-  providers:
     explained:
       chat: Text generation model providers. e.g. OpenRouter, OpenAI, Ollama.
       Speech: Speech (text-to-speech) model providers. e.g. ElevenLabs, Azure Speech.
@@ -293,7 +337,6 @@ pages:
           title: Basic
         voice:
           title: Voice Settings
-    description: LLMs, speech providers, etc.
     provider:
       app-local-audio-transcription:
         title: App (Local)
@@ -452,6 +495,12 @@ pages:
       lm-studio:
         description: lmstudio.ai
         title: LM Studio
+        model:
+          label: Model
+          description: Select the model to use with LM Studio
+          placeholder: Choose a model...
+          loading: Loading models...
+          refresh: Refresh Models
       vllm:
         description: vllm.ai
         title: vLLM
@@ -466,10 +515,71 @@ pages:
       xai:
         description: x.ai
         title: xAI
-      transcriptions:
+      silero-tts:
+        title: Silero TTS
+        description: Local Silero TTS server for speech synthesis
+        baseUrl:
+          description: URL of your Silero TTS server (e.g., http://localhost:8001/)
+        speaker:
+          label: Speaker
+          description: Choose voice speaker for text-to-speech generation
+        sampleRate:
+          label: Sample Rate
+          description: Audio quality - higher values mean better quality but larger file size
+        playground:
+          title: Speech Playground
+          textInput: Text to synthesize
+          placeholder: Enter text to convert to speech...
+          generate: Generate Speech
+          generating: Generating...
+          error: Speech Generation Error
+      tauri-whisper:
+        title: Tauri Whisper
+        description: Local Whisper transcription via Tauri runtime
+        model:
+          label: Whisper Model
+          description: Choose model size - larger models are more accurate but slower
+        language:
+          label: Language
+          description: Set transcription language or use auto-detection
+        modelLoading:
+          title: Model Management
+          load: Load Model
+          loading: Loading Model...
+          success: Model loaded successfully!
+          error: Model Loading Error
         playground:
           title: Transcription Playground
-    title: Providers
+          startRecording: Start Recording
+          stopRecording: Stop Recording
+          uploadAudio: Upload Audio File
+          recording: Recording...
+          transcribing: Transcribing...
+          result: Transcription Result
+          error: Transcription Error
+      koboldcpp-whisper:
+        title: KoboldCPP Whisper
+        description: Whisper transcription via KoboldCPP server
+        baseUrl:
+          description: URL of your KoboldCPP server with Whisper support
+        language:
+          label: Language
+          description: Set transcription language or use auto-detection
+        connectionTest:
+          title: Connection Test
+          test: Test Connection
+          testing: Testing...
+        playground:
+          title: Transcription Playground
+          startRecording: Start Recording
+          stopRecording: Stop Recording
+          uploadAudio: Upload Audio File
+          recording: Recording...
+          transcribing: Transcribing...
+          result: Transcription Result
+          error: Transcription Error
+
+  title: Providers
   scene:
     description: Configure the environment where the character lives
     title: Scene
@@ -493,7 +603,6 @@ pages:
                 label: Primary color
                 rgb-on:
                   title: I Want It Dynamic!
-          title: Color Scheme
         developer:
           title: Developer
           sections:
@@ -565,11 +674,6 @@ pages:
                 porcelain and paintings
               title: Chinese Traditional Colors
           title: Color Scheme Presets
-    title: System
-sections:
-  section:
-    general:
-      title: General
 theme:
   title: Theme
   description: |

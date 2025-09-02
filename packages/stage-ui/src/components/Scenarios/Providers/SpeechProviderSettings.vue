@@ -1,173 +1,342 @@
 <script setup lang="ts">
+import type { SileroSpeaker, SileroTTSConfig } from '../../../stores/modules/speech'
+
 import { useDebounceFn } from '@vueuse/core'
-import { storeToRefs } from 'pinia'
-import { computed, onMounted, ref, watch } from 'vue'
-import { useI18n } from 'vue-i18n'
-import { useRouter } from 'vue-router'
+import { computed, ref, watch } from 'vue'
 
-import ProviderSettingsLayout2 from './ProviderSettingsLayout2.vue'
+interface Props {
+  title: string
+  description: string
+  config: SileroTTSConfig
+  availableSpeakers: SileroSpeaker[]
+  defaultBaseUrl: string
+  canPlaySample?: boolean
+}
 
-import {
-  ProviderAdvancedSettings,
-  ProviderApiKeyInput,
-  ProviderBaseUrlInput,
-  ProviderBasicSettings,
-  ProviderSettingsContainer,
-} from '.'
-import { useSpeechStore } from '../../../stores/modules/speech'
-import { useProvidersStore } from '../../../stores/providers'
+interface Emits {
+  (e: 'update:config', config: Partial<SileroTTSConfig>): void
+  (e: 'testConnection'): Promise<boolean>
+  (e: 'playSample', speakerName: string): Promise<void>
+  (e: 'generateSpeech', text: string): Promise<string>
+  (e: 'playSpeech', audioUrl: string): Promise<void>
+}
 
-const props = defineProps<{
-  providerId: string
-  // Default model to use if not specified in provider settings
-  defaultModel?: string
-  // Additional provider-specific settings
-  additionalSettings?: Record<string, any>
-  placeholder?: string
-}>()
-
-// Expose slots and emit events to allow customization
-defineSlots<{
-  'basic-settings': (props: any) => any
-  'voice-settings': (props: any) => any
-  'advanced-settings': (props: any) => any
-  'playground': (props: any) => any
-}>()
-const { t } = useI18n()
-const router = useRouter()
-const providersStore = useProvidersStore()
-const speechStore = useSpeechStore()
-const { providers } = storeToRefs(providersStore)
-
-// Get provider metadata
-const providerMetadata = computed(() => providersStore.getProviderMetadata(props.providerId))
-
-// Common provider settings
-const apiKey = computed({
-  get: () => providers.value[props.providerId]?.apiKey as string | undefined || '',
-  set: (value) => {
-    if (!providers.value[props.providerId])
-      providers.value[props.providerId] = {}
-
-    providers.value[props.providerId].apiKey = value
-  },
+const props = withDefaults(defineProps<Props>(), {
+  canPlaySample: true,
 })
 
-const baseUrl = computed({
-  get: () => providers.value[props.providerId]?.baseUrl as string | undefined || providerMetadata.value?.defaultOptions?.().baseUrl as string | undefined || '',
-  set: (value) => {
-    if (!providers.value[props.providerId])
-      providers.value[props.providerId] = {}
+const emit = defineEmits<Emits>()
 
-    providers.value[props.providerId].baseUrl = value
-  },
-})
+// Local config for editing
+const localConfig = ref<SileroTTSConfig>({ ...props.config })
 
-// Voice settings as reactive objects to allow for different provider settings
-const voiceSettings = ref<Record<string, any>>({})
+// Test playground
+const testText = ref('Привет! Это тест синтеза речи.')
+const testAudioUrl = ref<string | null>(null)
+const isGeneratingTest = ref(false)
+const isPlayingTest = ref(false)
+const testError = ref<string | null>(null)
 
-// Initialize voice settings with defaults or from provider
-function initializeVoiceSettings() {
-  if (providers.value[props.providerId]?.voiceSettings) {
-    voiceSettings.value = { ...(providers.value[props.providerId].voiceSettings as Record<string, any> | undefined) }
+// Connection state
+const isTestingConnection = ref(false)
+const connectionStatus = ref<'connected' | 'disconnected' | 'unknown'>('unknown')
+const connectionError = ref<string | null>(null)
+const isPlayingSample = ref(false)
+
+// Computed
+const connectionStatusText = computed(() => {
+  switch (connectionStatus.value) {
+    case 'connected':
+      return 'Подключено'
+    case 'disconnected':
+      return 'Отключено'
+    default:
+      return 'Неизвестно'
   }
-  else {
-    // Default values that most providers use
-    voiceSettings.value = {
-      pitch: 0,
-      speed: 1.0,
-      volume: 0,
-      // Provider-specific defaults can be set in the onMounted lifecycle
-      ...props.additionalSettings,
+})
+
+// Watch for prop changes
+watch(() => props.config, (newConfig) => {
+  localConfig.value = { ...newConfig }
+}, { deep: true })
+
+// Debounced config update
+const debouncedConfigUpdate = useDebounceFn((config: Partial<SileroTTSConfig>) => {
+  emit('update:config', config)
+}, 500)
+
+// Methods
+function onConfigChange() {
+  debouncedConfigUpdate(localConfig.value)
+}
+
+async function testConnection() {
+  isTestingConnection.value = true
+  connectionError.value = null
+
+  try {
+    const isConnected = await emit('testConnection')
+    connectionStatus.value = isConnected ? 'connected' : 'disconnected'
+    if (!isConnected) {
+      connectionError.value = 'Не удается подключиться к серверу'
     }
   }
+  catch (error) {
+    connectionStatus.value = 'disconnected'
+    connectionError.value = error instanceof Error ? error.message : 'Ошибка подключения'
+  }
+  finally {
+    isTestingConnection.value = false
+  }
 }
 
-onMounted(() => {
-  providersStore.initializeProvider(props.providerId)
+async function playSample() {
+  isPlayingSample.value = true
 
-  // Initialize refs with current values
-  apiKey.value = providers.value[props.providerId]?.apiKey as string | undefined || ''
-  baseUrl.value = providers.value[props.providerId]?.baseUrl as string | undefined || providerMetadata.value?.defaultOptions?.().baseUrl as string | undefined || ''
-
-  // Initialize voice settings
-  initializeVoiceSettings()
-
-  // Load voices if provider is configured
-  if (providersStore.configuredProviders[props.providerId]) {
-    speechStore.loadVoicesForProvider(props.providerId)
+  try {
+    await emit('playSample', localConfig.value.speaker)
   }
-})
-
-const debouncedUpdate = useDebounceFn(() => {
-  providers.value[props.providerId] = {
-    ...providers.value[props.providerId],
-    apiKey: apiKey.value,
-    baseUrl: baseUrl.value || providerMetadata.value?.defaultOptions?.().baseUrl || '',
-    voiceSettings: { ...voiceSettings.value },
+  catch (error) {
+    console.error('Failed to play sample:', error)
   }
-}, 1000)
-
-// Watch all settings and update the provider configuration
-watch([apiKey, baseUrl], debouncedUpdate)
-
-// Watch voice settings for changes
-watch(voiceSettings, debouncedUpdate, { deep: true })
-
-function handleResetVoiceSettings() {
-  voiceSettings.value = { ...(providerMetadata.value?.defaultOptions?.().voiceSettings || {}) }
-  debouncedUpdate()
+  finally {
+    isPlayingSample.value = false
+  }
 }
+
+async function generateTestSpeech() {
+  if (!testText.value.trim())
+    return
+
+  isGeneratingTest.value = true
+  testError.value = null
+  testAudioUrl.value = null
+
+  try {
+    const audioUrl = await emit('generateSpeech', testText.value)
+    testAudioUrl.value = audioUrl
+  }
+  catch (error) {
+    testError.value = error instanceof Error ? error.message : 'Ошибка генерации речи'
+  }
+  finally {
+    isGeneratingTest.value = false
+  }
+}
+
+async function playTestSpeech() {
+  if (!testAudioUrl.value)
+    return
+
+  isPlayingTest.value = true
+
+  try {
+    await emit('playSpeech', testAudioUrl.value)
+  }
+  catch (error) {
+    testError.value = error instanceof Error ? error.message : 'Ошибка воспроизведения'
+  }
+  finally {
+    isPlayingTest.value = false
+  }
+}
+
+// Initialize connection test
+testConnection()
 </script>
 
 <template>
-  <ProviderSettingsLayout2
-    :provider-name="providerMetadata?.localizedName"
-    :provider-icon="providerMetadata?.icon"
-    :on-back="() => router.back()"
-  >
-    <div flex="~ col md:row gap-6">
-      <ProviderSettingsContainer class="w-full md:w-[40%]">
-        <!-- Basic settings section -->
-        <ProviderBasicSettings
-          :title="t('settings.pages.providers.common.section.basic.title')"
-          :description="t('settings.pages.providers.common.section.basic.description')"
-          :on-reset="handleResetVoiceSettings"
-        >
-          <ProviderApiKeyInput v-model="apiKey" :provider-name="providerMetadata?.localizedName" :placeholder="props.placeholder || 'API Key'" />
-          <!-- Slot for provider-specific basic settings -->
-          <slot name="basic-settings" />
-        </ProviderBasicSettings>
-
-        <!-- Voice settings section -->
-        <div flex="~ col gap-6">
-          <h2 class="text-lg text-neutral-500 md:text-2xl dark:text-neutral-400">
-            {{ t('settings.pages.providers.common.section.voice.title') }}
-          </h2>
-          <div flex="~ col gap-4">
-            <!-- Common voice settings with ranges -->
-            <slot name="voice-settings" />
-          </div>
-        </div>
-
-        <!-- Advanced settings section -->
-        <ProviderAdvancedSettings :title="t('settings.pages.providers.common.section.advanced.title')">
-          <ProviderBaseUrlInput
-            v-model="baseUrl"
-            :placeholder="providerMetadata?.defaultOptions?.().baseUrl as string || ''" required
-          />
-          <!-- Slot for provider-specific advanced settings -->
-          <slot name="advanced-settings" />
-        </ProviderAdvancedSettings>
-      </ProviderSettingsContainer>
-
-      <!-- Playground section -->
-      <div flex="~ col gap-6" class="w-full md:w-[60%]">
-        <div w-full rounded-xl>
-          <!-- Custom playground slot -->
-          <slot name="playground" />
-        </div>
+  <div class="speech-provider-settings">
+    <!-- Header -->
+    <div class="mb-6 flex items-center justify-between">
+      <div>
+        <h3 class="text-lg text-gray-900 font-semibold dark:text-white">
+          {{ title }}
+        </h3>
+        <p class="text-sm text-gray-600 dark:text-gray-400">
+          {{ description }}
+        </p>
+      </div>
+      <div class="flex items-center space-x-2">
+        <div
+          class="h-2 w-2 rounded-full"
+          :class="connectionStatus === 'connected' ? 'bg-green-500' : connectionStatus === 'disconnected' ? 'bg-red-500' : 'bg-yellow-500'"
+        />
+        <span class="text-xs text-gray-500 dark:text-gray-400">
+          {{ connectionStatusText }}
+        </span>
       </div>
     </div>
-  </ProviderSettingsLayout2>
+
+    <!-- Configuration Section -->
+    <div class="space-y-6">
+      <!-- Base URL -->
+      <div>
+        <label class="mb-2 block text-sm text-gray-700 font-medium dark:text-gray-300">
+          {{ $t('speech.settings.baseUrl') }}
+        </label>
+        <div class="flex space-x-2">
+          <input
+            v-model="localConfig.baseUrl"
+            type="url"
+            class="flex-1 border border-gray-300 rounded-md px-3 py-2 text-sm shadow-sm dark:border-gray-600 focus:border-blue-500 dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder-gray-400"
+            :placeholder="defaultBaseUrl"
+            @input="onConfigChange"
+          >
+          <button
+            type="button"
+            :disabled="isTestingConnection"
+            class="rounded-md bg-blue-600 px-4 py-2 text-sm text-white font-medium disabled:cursor-not-allowed hover:bg-blue-700 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            @click="testConnection"
+          >
+            <div v-if="isTestingConnection" class="flex items-center">
+              <div class="mr-2 h-4 w-4 animate-spin border-2 border-white border-t-transparent rounded-full" />
+              {{ $t('speech.settings.testing') }}
+            </div>
+            <span v-else>{{ $t('speech.settings.test') }}</span>
+          </button>
+        </div>
+        <p v-if="connectionError" class="mt-1 text-sm text-red-600 dark:text-red-400">
+          {{ connectionError }}
+        </p>
+      </div>
+
+      <!-- Speaker Selection -->
+      <div>
+        <label class="mb-2 block text-sm text-gray-700 font-medium dark:text-gray-300">
+          {{ $t('speech.settings.speaker') }}
+        </label>
+        <div class="flex space-x-2">
+          <select
+            v-model="localConfig.speaker"
+            class="flex-1 border border-gray-300 rounded-md px-3 py-2 text-sm shadow-sm dark:border-gray-600 focus:border-blue-500 dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            @change="onConfigChange"
+          >
+            <option v-for="speaker in availableSpeakers" :key="speaker.name" :value="speaker.name">
+              {{ speaker.description || speaker.name }}
+            </option>
+          </select>
+          <button
+            v-if="canPlaySample"
+            type="button"
+            :disabled="isPlayingSample"
+            class="rounded-md bg-green-600 px-4 py-2 text-sm text-white font-medium disabled:cursor-not-allowed hover:bg-green-700 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-green-500"
+            @click="playSample"
+          >
+            <div v-if="isPlayingSample" class="flex items-center">
+              <div class="mr-2 h-4 w-4 animate-spin border-2 border-white border-t-transparent rounded-full" />
+              {{ $t('speech.settings.playing') }}
+            </div>
+            <span v-else>{{ $t('speech.settings.sample') }}</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Sample Rate -->
+      <div>
+        <label class="mb-2 block text-sm text-gray-700 font-medium dark:text-gray-300">
+          {{ $t('speech.settings.sampleRate') }}
+        </label>
+        <select
+          v-model.number="localConfig.sampleRate"
+          class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm shadow-sm dark:border-gray-600 focus:border-blue-500 dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+          @change="onConfigChange"
+        >
+          <option :value="8000">
+            8 kHz
+          </option>
+          <option :value="16000">
+            16 kHz
+          </option>
+          <option :value="22050">
+            22.05 kHz
+          </option>
+          <option :value="44100">
+            44.1 kHz
+          </option>
+          <option :value="48000">
+            48 kHz
+          </option>
+        </select>
+      </div>
+
+      <!-- Audio Format -->
+      <div>
+        <label class="mb-2 block text-sm text-gray-700 font-medium dark:text-gray-300">
+          {{ $t('speech.settings.format') }}
+        </label>
+        <select
+          v-model="localConfig.format"
+          class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm shadow-sm dark:border-gray-600 focus:border-blue-500 dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+          @change="onConfigChange"
+        >
+          <option value="wav">
+            WAV
+          </option>
+          <option value="mp3">
+            MP3
+          </option>
+          <option value="ogg">
+            OGG
+          </option>
+        </select>
+      </div>
+
+      <!-- Test Playground -->
+      <div class="border-t pt-6">
+        <label class="mb-2 block text-sm text-gray-700 font-medium dark:text-gray-300">
+          {{ $t('speech.settings.testPlayground') }}
+        </label>
+        <div class="space-y-3">
+          <textarea
+            v-model="testText"
+            rows="3"
+            class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm shadow-sm dark:border-gray-600 focus:border-blue-500 dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder-gray-400"
+            :placeholder="$t('speech.settings.testTextPlaceholder')"
+          />
+          <div class="flex space-x-2">
+            <button
+              type="button"
+              :disabled="!testText.trim() || isGeneratingTest"
+              class="flex-1 rounded-md bg-blue-600 px-4 py-2 text-sm text-white font-medium disabled:cursor-not-allowed hover:bg-blue-700 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              @click="generateTestSpeech"
+            >
+              <div v-if="isGeneratingTest" class="flex items-center justify-center">
+                <div class="mr-2 h-4 w-4 animate-spin border-2 border-white border-t-transparent rounded-full" />
+                {{ $t('speech.settings.generating') }}
+              </div>
+              <span v-else>{{ $t('speech.settings.generate') }}</span>
+            </button>
+            <button
+              v-if="testAudioUrl"
+              type="button"
+              :disabled="isPlayingTest"
+              class="rounded-md bg-green-600 px-4 py-2 text-sm text-white font-medium disabled:cursor-not-allowed hover:bg-green-700 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-green-500"
+              @click="playTestSpeech"
+            >
+              <div v-if="isPlayingTest" class="flex items-center">
+                <div class="mr-2 h-4 w-4 animate-spin border-2 border-white border-t-transparent rounded-full" />
+                {{ $t('speech.settings.playing') }}
+              </div>
+              <span v-else>{{ $t('speech.settings.play') }}</span>
+            </button>
+          </div>
+        </div>
+        <p v-if="testError" class="mt-2 text-sm text-red-600 dark:text-red-400">
+          {{ testError }}
+        </p>
+      </div>
+    </div>
+
+    <!-- Advanced Settings Slot -->
+    <div v-if="$slots.advanced" class="mt-6 border-t pt-6">
+      <slot name="advanced" />
+    </div>
+  </div>
 </template>
+
+<style scoped>
+.speech-provider-settings {
+  @apply bg-white dark:bg-gray-900 rounded-lg p-6 shadow-sm border border-gray-200 dark:border-gray-700;
+}
+</style>

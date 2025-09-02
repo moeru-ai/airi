@@ -1,0 +1,47 @@
+settings:
+  baseUrl: Server Base URL
+  speaker: Voice
+  sampleRate: Sample Rate
+  format: Audio Format
+  test: Test
+  testing: Testing...
+  sample: Sample
+  playing: Playing...
+  testPlayground: Test Playground
+  testTextPlaceholder: Enter text to generate speech...
+  generate: Generate Speech
+  generating: Generating...
+  play: Play
+
+playground:
+  title: Speech Synthesis Playground
+  description: Test and configure speech synthesis parameters
+  inputText: Text to Synthesize
+  inputPlaceholder: Enter text you want to synthesize...
+  quickTemplates: Quick Templates
+  speaker: Voice
+  sampleRate: Sample Rate
+  format: Format
+  generate: Generate
+  generating: Generating...
+  play: Play
+  playing: Playing...
+  stop: Stop
+  download: Download
+  audioPreview: Audio Preview
+  duration: Duration
+  size: Size
+  currentTime: Current Time
+  generationSuccess: Speech generated successfully!
+  statistics: Statistics
+  charactersCount: Characters
+  wordsCount: Words
+  estimatedDuration: Estimated Duration
+  selectedSpeaker: Selected Voice
+  templates:
+    greeting: Greeting
+    weather: Weather
+    meeting: Meeting
+    thanks: Thanks
+    error: Error
+    success: Success

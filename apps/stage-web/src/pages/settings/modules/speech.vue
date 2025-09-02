@@ -110,12 +110,53 @@ async function generateTestSpeech() {
     })
 
     // Convert the response to a blob and create an object URL
-    audioUrl.value = URL.createObjectURL(new Blob([response]))
+    console.warn(`Speech response: ${response.byteLength} bytes from provider: ${activeSpeechProvider.value}`)
+
+    // Try different audio MIME types for better browser compatibility
+    const audioTypes = ['audio/wav', 'audio/x-wav', 'audio/mpeg', 'audio/mp3', 'audio/ogg']
+    let audioCreated = false
+
+    for (const audioType of audioTypes) {
+      try {
+        const audioBlob = new Blob([response], { type: audioType })
+        const testUrl = URL.createObjectURL(audioBlob)
+
+        // Test if this type can be played
+        const testAudio = new Audio(testUrl)
+        await new Promise<void>((resolve, reject) => {
+          testAudio.oncanplaythrough = () => {
+            console.warn(`Audio compatible with type: ${audioType}`)
+            audioUrl.value = testUrl
+            audioCreated = true
+            resolve()
+          }
+          testAudio.onerror = () => {
+            URL.revokeObjectURL(testUrl)
+            reject(new Error(`Cannot play with type: ${audioType}`))
+          }
+          testAudio.load()
+        })
+
+        break
+      }
+      catch (error) {
+        console.warn(`Failed to create audio with ${audioType}:`, error)
+        continue
+      }
+    }
+
+    if (!audioCreated) {
+      // Fallback to default
+      audioUrl.value = URL.createObjectURL(new Blob([response], { type: 'audio/wav' }))
+    }
 
     // Play the audio
     setTimeout(() => {
       if (audioPlayer.value) {
-        audioPlayer.value.play()
+        audioPlayer.value.play().catch((error) => {
+          console.error('Error playing audio:', error)
+          errorMessage.value = 'Не удалось воспроизвести аудио. Проверьте формат ответа.'
+        })
       }
     }, 100)
   }

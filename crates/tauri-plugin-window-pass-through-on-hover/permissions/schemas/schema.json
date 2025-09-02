@@ -343,10 +343,10 @@
           "markdownDescription": "Denies the stop_tracing_cursor command without any pre-configured scope."
         },
         {
-          "description": "This permission set configures what kind of\noperations are available from the mcp plugin.\n\n#### Granted Permissions\n\nAll operations are enabled by default.\n\n#### This default permission set includes:\n\n- `allow-start-tracing-cursor`\n- `allow-stop-tracing-cursor`\n- `allow-start-pass-through`\n- `allow-stop-pass-through`",
+          "description": "This permission set configures what kind of\r\noperations are available from the mcp plugin.\r\n\r\n#### Granted Permissions\r\n\r\nAll operations are enabled by default.\r\n\n#### This default permission set includes:\n\n- `allow-start-tracing-cursor`\n- `allow-stop-tracing-cursor`\n- `allow-start-pass-through`\n- `allow-stop-pass-through`",
           "type": "string",
           "const": "default",
-          "markdownDescription": "This permission set configures what kind of\noperations are available from the mcp plugin.\n\n#### Granted Permissions\n\nAll operations are enabled by default.\n\n#### This default permission set includes:\n\n- `allow-start-tracing-cursor`\n- `allow-stop-tracing-cursor`\n- `allow-start-pass-through`\n- `allow-stop-pass-through`"
+          "markdownDescription": "This permission set configures what kind of\r\noperations are available from the mcp plugin.\r\n\r\n#### Granted Permissions\r\n\r\nAll operations are enabled by default.\r\n\n#### This default permission set includes:\n\n- `allow-start-tracing-cursor`\n- `allow-stop-tracing-cursor`\n- `allow-start-pass-through`\n- `allow-stop-pass-through`"
         }
       ]
     }

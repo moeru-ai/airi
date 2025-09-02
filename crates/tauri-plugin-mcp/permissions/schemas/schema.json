@@ -343,10 +343,10 @@
           "markdownDescription": "Denies the list_tools command without any pre-configured scope."
         },
         {
-          "description": "This permission set configures what kind of\noperations are available from the mcp plugin.\n\n#### Granted Permissions\n\nAll operations are enabled by default.\n\n#### This default permission set includes:\n\n- `allow-connect-server`\n- `allow-disconnect-server`\n- `allow-list-tools`\n- `allow-call-tool`",
+          "description": "This permission set configures what kind of\r\noperations are available from the mcp plugin.\r\n\r\n#### Granted Permissions\r\n\r\nAll operations are enabled by default.\r\n\n#### This default permission set includes:\n\n- `allow-connect-server`\n- `allow-disconnect-server`\n- `allow-list-tools`\n- `allow-call-tool`",
           "type": "string",
           "const": "default",
-          "markdownDescription": "This permission set configures what kind of\noperations are available from the mcp plugin.\n\n#### Granted Permissions\n\nAll operations are enabled by default.\n\n#### This default permission set includes:\n\n- `allow-connect-server`\n- `allow-disconnect-server`\n- `allow-list-tools`\n- `allow-call-tool`"
+          "markdownDescription": "This permission set configures what kind of\r\noperations are available from the mcp plugin.\r\n\r\n#### Granted Permissions\r\n\r\nAll operations are enabled by default.\r\n\n#### This default permission set includes:\n\n- `allow-connect-server`\n- `allow-disconnect-server`\n- `allow-list-tools`\n- `allow-call-tool`"
         }
       ]
     }

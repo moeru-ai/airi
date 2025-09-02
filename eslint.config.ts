@@ -17,6 +17,7 @@ export default await antfu(
       'crates/**',
       '**/drizzle/**',
       '**/.astro/**',
+      'SILERO-TTS-FIXES.md',
     ],
     rules: {
       'vue/prefer-separate-static-class': 'off',

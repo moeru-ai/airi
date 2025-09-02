@@ -181,7 +181,7 @@ export const useSettings = defineStore('settings', () => {
 })
 
 export const useSettingsAudioDevice = defineStore('settings-audio-devices', () => {
-  const { audioInputs, deviceConstraints, selectedAudioInput: selectedAudioInputNonPersist, startStream, stopStream, stream, askPermission } = useAudioDevice()
+  const { audioInputs, deviceConstraints, selectedAudioInput: selectedAudioInputNonPersist, startStream, stopStream, stream, askPermission } = useAudioDevice(true)
 
   const selectedAudioInputPersist = useLocalStorage('settings/audio/input', selectedAudioInputNonPersist.value)
   const selectedAudioInputEnabledPersist = useLocalStorage('settings/audio/input-enabled', false)

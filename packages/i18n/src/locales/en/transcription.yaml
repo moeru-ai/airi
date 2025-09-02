@@ -1,0 +1,49 @@
+settings:
+  provider: Provider
+  baseUrl: Server Base URL
+  model: Model
+  language: Language
+  temperature: Temperature
+  maxTokens: Max Tokens
+  test: Test
+  testing: Testing...
+  testPlayground: Test Playground
+  startRecording: Start Recording
+  stopRecording: Stop Recording
+  uploadFile: Upload File
+  transcribing: Transcribing...
+  result: Result
+
+playground:
+  title: Speech Recognition Playground
+  description: Test and configure speech recognition parameters
+  provider: Provider
+  model: Model
+  language: Language
+  liveRecording: Live Recording
+  startRecording: Start Recording
+  stopRecording: Stop Recording
+  audioLevel: Audio Level
+  fileUpload: File Upload
+  dragDropText: Drag audio file here or click to select
+  selectFile: Select File
+  supportedFormats: Supported formats
+  sampleFiles: Sample Files
+  transcribing: Transcribing...
+  pleaseWait: Please wait...
+  result: Transcription Result
+  detectedLanguage: Detected Language
+  confidence: Confidence
+  charactersCount: Characters
+  wordsCount: Words
+  segments: Time Segments
+  error: Transcription Error
+  samples:
+    greeting: Greeting
+    greetingDesc: Short greeting phrase
+    weather: Weather
+    weatherDesc: Weather report
+    meeting: Business Meeting
+    meetingDesc: Business conversation excerpt
+    poetry: Poetry
+    poetryDesc: Poetry excerpt

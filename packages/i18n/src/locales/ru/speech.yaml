@@ -1,0 +1,47 @@
+settings:
+  baseUrl: Базовый URL сервера
+  speaker: Голос
+  sampleRate: Частота дискретизации
+  format: Формат аудио
+  test: Тест
+  testing: Тестирование...
+  sample: Образец
+  playing: Воспроизведение...
+  testPlayground: Тестовая площадка
+  testTextPlaceholder: Введите текст для генерации речи...
+  generate: Генерировать речь
+  generating: Генерация...
+  play: Воспроизвести
+
+playground:
+  title: Плейграунд синтеза речи
+  description: Тестируйте и настраивайте параметры синтеза речи
+  inputText: Текст для синтеза
+  inputPlaceholder: Введите текст, который хотите озвучить...
+  quickTemplates: Быстрые шаблоны
+  speaker: Голос
+  sampleRate: Частота дискретизации
+  format: Формат
+  generate: Генерировать
+  generating: Генерирую...
+  play: Воспроизвести
+  playing: Воспроизвожу...
+  stop: Остановить
+  download: Скачать
+  audioPreview: Предпросмотр аудио
+  duration: Длительность
+  size: Размер
+  currentTime: Текущее время
+  generationSuccess: Речь сгенерирована успешно!
+  statistics: Статистика
+  charactersCount: Символов
+  wordsCount: Слов
+  estimatedDuration: Ожидаемая длительность
+  selectedSpeaker: Выбранный голос
+  templates:
+    greeting: Приветствие
+    weather: Погода
+    meeting: Встреча
+    thanks: Благодарность
+    error: Ошибка
+    success: Успех

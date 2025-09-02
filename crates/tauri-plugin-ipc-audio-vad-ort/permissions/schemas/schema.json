@@ -319,10 +319,10 @@
           "markdownDescription": "Denies the load_ort_model_silero_vad command without any pre-configured scope."
         },
         {
-          "description": "This permission set configures what kind of\noperations are available from the mcp plugin.\n\n#### Granted Permissions\n\nAll operations are enabled by default.\n\n#### This default permission set includes:\n\n- `allow-load-ort-model-silero-vad`\n- `allow-ipc-audio-vad`",
+          "description": "This permission set configures what kind of\r\noperations are available from the mcp plugin.\r\n\r\n#### Granted Permissions\r\n\r\nAll operations are enabled by default.\r\n\n#### This default permission set includes:\n\n- `allow-load-ort-model-silero-vad`\n- `allow-ipc-audio-vad`",
           "type": "string",
           "const": "default",
-          "markdownDescription": "This permission set configures what kind of\noperations are available from the mcp plugin.\n\n#### Granted Permissions\n\nAll operations are enabled by default.\n\n#### This default permission set includes:\n\n- `allow-load-ort-model-silero-vad`\n- `allow-ipc-audio-vad`"
+          "markdownDescription": "This permission set configures what kind of\r\noperations are available from the mcp plugin.\r\n\r\n#### Granted Permissions\r\n\r\nAll operations are enabled by default.\r\n\n#### This default permission set includes:\n\n- `allow-load-ort-model-silero-vad`\n- `allow-ipc-audio-vad`"
         }
       ]
     }

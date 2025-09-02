@@ -283,14 +283,31 @@ watch(vadThreshold, () => {
 })
 
 // Monitoring toggle
+const isToggling = ref(false)
+
 async function toggleMonitoring() {
-  if (!isMonitoring.value) {
-    await setupAudioMonitoring()
-    isMonitoring.value = true
+  if (isToggling.value) {
+    console.warn('Already toggling monitoring state')
+    return
   }
-  else {
-    await stopAudioMonitoring()
-    isMonitoring.value = false
+
+  isToggling.value = true
+  try {
+    if (!isMonitoring.value) {
+      await setupAudioMonitoring()
+      isMonitoring.value = true
+    }
+    else {
+      await stopAudioMonitoring()
+      isMonitoring.value = false
+    }
+  }
+  catch (error) {
+    console.error('Error toggling monitoring:', error)
+    error.value = error instanceof Error ? error.message : 'Failed to toggle monitoring'
+  }
+  finally {
+    isToggling.value = false
   }
 }
 
@@ -485,8 +502,8 @@ onUnmounted(() => {
 
         <ErrorContainer v-if="error" title="Error occurred" :error="error" mb-4 />
 
-        <Button class="mb-4" w-full @click="toggleMonitoring">
-          {{ isMonitoring ? 'Stop Monitoring' : 'Start Monitoring' }}
+        <Button class="mb-4" w-full :disabled="isToggling" @click="toggleMonitoring">
+          {{ isToggling ? 'Switching...' : (isMonitoring ? 'Stop Monitoring' : 'Start Monitoring') }}
         </Button>
 
         <div>
