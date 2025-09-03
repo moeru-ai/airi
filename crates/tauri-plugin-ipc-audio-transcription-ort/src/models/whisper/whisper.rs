@@ -543,12 +543,13 @@ impl WhisperPipeline {
       .generate(input_features.view(), gen_config)?;
 
     // Convert tokens safely to u32 for tokenizer.decode
-    let mut generated_tokens_u32 = Vec::with_capacity(generated_tokens.len());
-    for &tok in &generated_tokens {
-      let tok_u32 = u32::try_from(tok)
-        .map_err(|e| anyhow!("token id out of range when converting to u32: {} ({})", tok, e))?;
-      generated_tokens_u32.push(tok_u32);
-    }
+    let generated_tokens_u32: Vec<u32> = generated_tokens
+      .iter()
+      .map(|&tok| {
+        u32::try_from(tok)
+          .map_err(|e| anyhow!("token id out of range when converting to u32: {} ({})", tok, e))
+      })
+      .collect::<Result<_, _>>()?;
 
     let transcript = self
       .tokenizer
