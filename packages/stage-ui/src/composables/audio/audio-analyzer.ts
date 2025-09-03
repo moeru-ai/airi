@@ -10,7 +10,7 @@ export function useAudioAnalyzer() {
   const volumeLevel = ref(0) // 0-100
   const error = ref<string>()
 
-  const amplification = 3 // configurable but same result as before
+  const amplification = 3 // Amplification factor for volume visualization
 
   function onAnalyzerUpdate(callback: (volumeLevel: number) => void | Promise<void>) {
     onAnalyzerUpdateHooks.value.push(callback)
