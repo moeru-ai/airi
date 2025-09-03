@@ -1,21 +1,24 @@
-import { ref } from 'vue'
+import { ref, onUnmounted } from 'vue'
 
 export function useAudioAnalyzer() {
   const analyzer = ref<AnalyserNode>()
-  const dataArray = ref<Uint8Array<ArrayBuffer>>()
+  const dataArray = ref<Uint8Array>()
   const animationFrame = ref<number>()
 
   const onAnalyzerUpdateHooks = ref<Array<(volumeLevel: number) => void | Promise<void>>>([])
 
   const volumeLevel = ref(0) // 0-100
-
   const error = ref<string>()
+
+  const amplification = 3 // configurable but same result as before
 
   function onAnalyzerUpdate(callback: (volumeLevel: number) => void | Promise<void>) {
     onAnalyzerUpdateHooks.value.push(callback)
   }
 
   function start() {
+    if (animationFrame.value) return // prevent multiple loops
+
     const analyze = () => {
       if (!analyzer.value || !dataArray.value)
         return
@@ -29,7 +32,7 @@ export function useAudioAnalyzer() {
         sum += dataArray.value[i] * dataArray.value[i]
       }
       const rms = Math.sqrt(sum / dataArray.value.length)
-      volumeLevel.value = Math.min(100, (rms / 255) * 100 * 3) // Amplify for better visualization
+      volumeLevel.value = Math.min(100, (rms / 255) * 100 * amplification) // Amplify for better visualization
 
       for (const hook of onAnalyzerUpdateHooks.value) {
         hook(volumeLevel.value)
@@ -47,7 +50,7 @@ export function useAudioAnalyzer() {
     }
 
     try {
-    // Create analyser for volume detection
+      // Create analyser for volume detection
       analyzer.value = audioContext.createAnalyser()
       analyzer.value.fftSize = 256
       analyzer.value.smoothingTimeConstant = 0.3
@@ -68,7 +71,7 @@ export function useAudioAnalyzer() {
   }
 
   function stopAnalyzer() {
-  // Stop animation frame
+    // Stop animation frame
     if (animationFrame.value) {
       cancelAnimationFrame(animationFrame.value)
       animationFrame.value = undefined
@@ -78,9 +81,14 @@ export function useAudioAnalyzer() {
     dataArray.value = undefined
   }
 
+  // Auto-cleanup when used in a component
+  onUnmounted(() => {
+    stopAnalyzer()
+  })
+
   return {
     volumeLevel,
-
+    error,
     startAnalyzer,
     stopAnalyzer,
     onAnalyzerUpdate,
