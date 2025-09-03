@@ -13,9 +13,9 @@ dialogs:
     selectProvider: Choisissez un fournisseur d'IA.
     configureProvider: Configurer {provider}
     apiKey: Clé API
-    apiKeyHelp: Obtenez votre clé API de {provider} et collez-la ici
+    apiKeyHelp: Obtenez votre clé API {provider} et collez-la ici
     baseUrl: URL de base
-    baseUrlHelp: URL du point de terminaison API (utilisez la valeur par défaut si vous n’êtes pas sûr)
+    baseUrlHelp: URL de l'endpoint API (utilisez la valeur par défaut si vous n’êtes pas sûr)
     accountId: ID du compte
     validationFailed: La validation de la configuration a échouée.
     validationError: 'Erreur de validation: {error}'
@@ -29,7 +29,7 @@ dialogs:
 language:
   title: Langage
   description: >
-    Changee le langage de l'inteface d'AIRI. Cela n'affecter pas le langage des
+    Modifier le langage de l'inteface d'AIRI. Cela n'affectera pas le langage des
     réponses du personnage.
 live2d:
   change-model:
@@ -79,7 +79,7 @@ pages:
     delete: Supprimer
     delete_card: Supprimer la carte
     delete_confirmation: Êtes-vous sûr de vouloir supprimer cette carte ?
-    description: Utiliser les presets de carte de personnage AIRI
+    description: Utiliser les préréglages des cartes d'AIRI
     description_label: Description
     drop_here: Déposer pour téléverser
     create_card: Créer une nouvelle carte
