@@ -7,8 +7,9 @@ function writeString(dataView: DataView, offset: number, string: string) {
 }
 
 export function toWav(buffer: ArrayBufferLike, sampleRate: number, channel = 1) {
+  const samples = new Float32Array(buffer) // allows indexing
   const numChannels = channel
-  const numSamples = buffer.byteLength
+  const numSamples = samples.length
 
   // Create the WAV file container
   const arrayBuffer = new ArrayBuffer(44 + numSamples * 2)
@@ -34,10 +35,10 @@ export function toWav(buffer: ArrayBufferLike, sampleRate: number, channel = 1) 
   writeString(dataView, 36, 'data')
   dataView.setUint32(40, numSamples * 2, true)
 
-  // Write the PCM samples
+  // PCM samples
   const offset = 44
   for (let i = 0; i < numSamples; i++) {
-    const sample = Math.max(-1, Math.min(1, buffer[i]))
+    const sample = Math.max(-1, Math.min(1, samples[i]))
     const value = sample < 0 ? sample * 0x8000 : sample * 0x7FFF
     dataView.setInt16(offset + i * 2, value, true)
   }

@@ -1,0 +1,32 @@
+chat:
+  message:
+    character-name:
+      airi: AIRI
+      core-system: 核心系統
+      you: 你
+message: 說點什麼...
+select-a-audio-input: 選擇一個音訊輸入裝置
+select-a-model: 選擇一個模型
+select-a-voice: 選擇一個聲線
+viewers:
+  debug-menu:
+    emotions: 表情
+    emotions-btn:
+      angry: 😠 生氣
+      awkward: 😳 尷尬
+      happy: 😄 開心
+      neutral: 🙂 日常
+      question: 🤔 疑問
+      sad: 😫 難過
+      surprised: 🤯 驚喜
+      think: 🤨 思考
+    vrm:
+      camera: 攝影機
+      model:
+        title: 模型
+waiting: 等待中
+operations:
+  load-models: 載入模型
+  load-models-status:
+    loading: 模型載入中
+    ready: 已就緒

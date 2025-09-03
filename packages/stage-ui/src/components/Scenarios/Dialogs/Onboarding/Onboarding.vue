@@ -41,7 +41,7 @@ const {
 
 // Popular providers for first-time setup
 const popularProviders = computed(() => {
-  const popular = ['openai', 'anthropic', 'google-generative-ai', 'openrouter-ai', 'ollama', 'deepseek', 'player2']
+  const popular = ['openai', 'anthropic', 'google-generative-ai', 'openrouter-ai', 'ollama', 'deepseek', 'player2', 'openai-compatible']
   return allChatProvidersMetadata.value
     .filter(provider => popular.includes(provider.id))
     .sort((a, b) => popular.indexOf(a.id) - popular.indexOf(b.id))
@@ -408,6 +408,11 @@ onMounted(() => {
                 <div class="whitespace-pre-wrap break-all">
                   {{ validationMessage }}
                 </div>
+              </template>
+            </Alert>
+            <Alert v-if="isValid && isValidating === 0" type="success">
+              <template #title>
+                {{ t('settings.dialogs.onboarding.validationSuccess') }}
               </template>
             </Alert>
           </div>

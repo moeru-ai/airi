@@ -30,6 +30,11 @@ const fn default_true() -> bool {
   true
 }
 
+// Task token ids used by the decoder prompt.
+// These are the special token ids added to the tokenizer / model vocabulary.
+const TASK_TRANSLATE_ID: i64 = 50358;
+const TASK_TRANSCRIBE_ID: i64 = 50359;
+
 #[derive(Deserialize, Debug)]
 pub struct WhisperConfig {
   pub num_mel_bins:           i64,
@@ -189,6 +194,7 @@ static WHISPER_TO_LANGUAGE_CODE: std::sync::LazyLock<HashMap<&'static str, &'sta
   });
 
 pub fn whisper_language_to_code(language: &str) -> Result<String> {
+  // Accept either two-letter code (en) or full name (english).
   let lower_lang = language.to_lowercase();
   if let Some(&code) = WHISPER_TO_LANGUAGE_CODE.get(lower_lang.as_str()) {
     return Ok(code.to_string());
@@ -205,13 +211,15 @@ fn get_or_download_file<R: Runtime>(
   window: tauri::WebviewWindow<R>,
   file_sub_path: &str,
   event_name: &str,
-) -> Result<PathBuf, hf_hub::api::sync::ApiError> {
+) -> Result<PathBuf> {
   match cache_repo.get(file_sub_path) {
     Some(p) => Ok(p),
-    None => repo.download_with_progress(
-      file_sub_path,
-      create_progress_emitter(window.clone(), event_name, file_sub_path.to_string()),
-    ),
+    None => repo
+      .download_with_progress(
+        file_sub_path,
+        create_progress_emitter(window.clone(), event_name, file_sub_path.to_string()),
+      )
+      .map_err(|e| anyhow!("failed to download {}: {}", file_sub_path, e)),
   }
 }
 
@@ -339,9 +347,9 @@ impl Whisper {
   ) -> Result<Vec<i64>> {
     let mut init_tokens = vec![self.config.decoder_start_token_id];
     let task_id = if gen_config.task == "translate" {
-      50358
+      TASK_TRANSLATE_ID
     } else {
-      50359
+      TASK_TRANSCRIBE_ID
     };
 
     if self.config.is_multilingual {
@@ -388,11 +396,13 @@ impl Whisper {
     let owned_input = input_features.to_owned();
     let inputs = vec![("input_features", Value::from_array(owned_input)?)];
     let encoder_outputs = self.encoder_session.run(inputs)?;
-    let encoder_hidden_states = encoder_outputs.get("last_hidden_state").unwrap();
+    let encoder_hidden_states = encoder_outputs
+      .get("last_hidden_state")
+      .ok_or_else(|| anyhow!("encoder output did not contain 'last_hidden_state'"))?;
 
     let mut generated_tokens = Vec::new();
 
-    // KV Cache
+    // KV Cache (commented scaffold remains)
     // let num_decoder_layers = self.config.decoder_layers as usize;
     // let head_dim = self.config.d_model / self.config.decoder_attention_heads;
     // let mut past_key_values: Vec<Array4<f32>> = (0..num_decoder_layers * 2)
@@ -434,7 +444,8 @@ impl Whisper {
       }
 
       generated_tokens.push(next_token);
-      decoder_input_ids = vec![next_token];
+      // keep the full prefix for the next iteration (no KV cache): APPEND rather than replace.
+      decoder_input_ids.push(next_token);
     }
 
     Ok(generated_tokens)
@@ -520,22 +531,25 @@ impl WhisperPipeline {
     audio: &[f32],
     gen_config: &GenerationConfig,
   ) -> Result<String> {
-    // 1. Process the raw audio into a mel spectrogram with the correct shape [80, 3000] for normal, and [128, 3000] for large-v3
+    // Process the raw audio into a mel spectrogram with the correct shape [80, 3000] for normal, and [128, 3000] for large-v3
     let input_features = self.processor.process(audio);
 
-    // 2. Add the batch dimension, making the shape [1, 80, 3000] for normal, and [1, 128, 3000] for large-v3
+    // Add the batch dimension, making the shape [1, 80, 3000] for normal, and [1, 128, 3000] for large-v3
     let input_features = input_features.insert_axis(Axis(0));
 
-    // 3. Generate tokens. This will now work without a shape error.
+    // Generate tokens. This will now work without a shape error.
     let generated_tokens = self
       .model
       .generate(input_features.view(), gen_config)?;
 
-    // The rest of the function remains the same...
+    // Convert tokens safely to u32 for tokenizer.decode
     let generated_tokens_u32: Vec<u32> = generated_tokens
       .iter()
-      .map(|&x| u32::try_from(x).unwrap())
-      .collect();
+      .map(|&tok| {
+        u32::try_from(tok)
+          .map_err(|e| anyhow!("token id out of range when converting to u32: {} ({})", tok, e))
+      })
+      .collect::<Result<_, _>>()?;
 
     let transcript = self
       .tokenizer

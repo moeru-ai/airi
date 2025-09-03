@@ -2,6 +2,7 @@
 import type { RemovableRef } from '@vueuse/shared'
 
 import {
+  Alert,
   ProviderBaseUrlInput,
   ProviderSettingsContainer,
   ProviderSettingsLayout,
@@ -67,22 +68,6 @@ function handleResetSettings() {
 </script>
 
 <template>
-  <div v-if="!hasPlayer2" style="color: red; margin-bottom: 1rem;">
-    <div>
-      Please download and run the Player2 App:
-      <a href="https://player2.game" target="_blank" rel="noopener noreferrer">
-        https://player2.game
-      </a>
-
-      <div>
-        After downloading, if you still are having trouble, please reach out to us on Discord:
-        <a href="https://player2.game/discord" target="_blank" rel="noopener noreferrer">
-          https://player2.game/discord
-        </a>.
-      </div>
-    </div>
-  </div>
-
   <ProviderSettingsLayout
     :provider-name="providerMetadata?.localizedName"
     :provider-icon="providerMetadata?.icon"
@@ -98,6 +83,28 @@ function handleResetSettings() {
       </ProviderBasicSettings>
     </ProviderSettingsContainer>
   </ProviderSettingsLayout>
+  <Alert v-if="!hasPlayer2" type="error">
+    <template #title>
+      {{ t('settings.dialogs.onboarding.validationFailed') }}
+    </template>
+    <template #content>
+      <div class="whitespace-pre-wrap break-all">
+        <div>
+          Please download and run the Player2 App:
+          <a href="https://player2.game" target="_blank" rel="noopener noreferrer">
+            https://player2.game
+          </a>
+
+          <div>
+            After downloading, if you still are having trouble, please reach out to us on Discord:
+            <a href="https://player2.game/discord" target="_blank" rel="noopener noreferrer">
+              https://player2.game/discord
+            </a>.
+          </div>
+        </div>
+      </div>
+    </template>
+  </Alert>
 </template>
 
 <route lang="yaml">

@@ -15,6 +15,7 @@ dialogs:
     baseUrl: 基础 URL
     baseUrlHelp: API 端点 URL（如果不确定请使用默认值）
     accountId: 账户 ID
+    validationSuccess: 配置验证成功
     validationFailed: 配置验证失败
     validationError: 验证错误：{error}
     skipForNow: 暂时跳过
@@ -372,6 +373,12 @@ pages:
               description: 服务 Endpoint 地区（比如亚太 eastasia 区域）
               label: Endpoint 地区
         title: Microsoft / Azure 语音服务
+      index-tts-vllm:
+        description: https://index-tts.github.io/
+        title: Bilibili / IndexTTS
+      azure-ai-foundry:
+        description: Azure AI Foundry
+        title: Azure AI Foundry
       mistral:
         description: mistral.ai
         title: Mistral

@@ -40,6 +40,16 @@ const { send, onAfterMessageComposed, discoverToolsCompatibility } = useChatStor
 const { messages } = storeToRefs(useChatStore())
 const { t } = useI18n()
 
+function isMobileDevice() {
+  return /Mobi|Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+}
+
+async function handleSubmit() {
+  if (!isMobileDevice()) {
+    await handleSend()
+  }
+}
+
 async function handleSend() {
   if (!messageInput.value.trim() || isComposing.value) {
     return
@@ -160,7 +170,7 @@ onMounted(() => {
           transition="all duration-250 ease-in-out placeholder:all placeholder:duration-250 placeholder:ease-in-out"
           :class="[themeColorsHueDynamic ? 'transition-colors-none placeholder:transition-colors-none' : '']"
           default-height="1lh"
-          @submit="() => {}"
+          @submit="handleSubmit"
           @compositionstart="isComposing = true"
           @compositionend="isComposing = false"
         />

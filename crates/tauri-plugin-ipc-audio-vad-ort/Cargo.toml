@@ -35,6 +35,7 @@ symphonia = "0.5.4"
 rubato = "0.16.2"
 byteorder = "1.5.0"
 clap = { version = "4.5.40", features = ["derive"] }
+glib = "0.21.1"
 
 [build-dependencies]
 tauri-plugin = { version = "2.2", features = [ "build" ] }

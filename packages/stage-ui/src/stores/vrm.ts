@@ -82,7 +82,6 @@ export const useVRM = defineStore('vrm', () => {
   // environment related setting
   const envSelect = useLocalStorage('settings/vrm/envEnabled', 'skyBox' as 'hemisphere' | 'skyBox')
   const skyBoxSrc = useLocalStorage('settings/vrm/skyBoxUrl', defaultSkyBoxSrc)
-  const specularMix = useLocalStorage('settings/vrm/specularMix', 0)
   const skyBoxIntensity = useLocalStorage('settings/vrm/skyBoxIntensity', 0.1)
 
   return {
@@ -116,7 +115,6 @@ export const useVRM = defineStore('vrm', () => {
     eyeHeight,
     envSelect,
     skyBoxSrc,
-    specularMix,
     skyBoxIntensity,
 
     shouldUpdateView,

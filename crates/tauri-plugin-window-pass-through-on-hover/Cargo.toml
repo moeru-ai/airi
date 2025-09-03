@@ -28,6 +28,7 @@ anyhow = "1"
 specta = "=2.0.0-rc.22"
 specta-typescript = "0.0.9"
 tauri-specta = { version = "=2.0.0-rc.21", features = ["derive", "typescript"] }
+glib = "0.21.1"
 
 [build-dependencies]
 tauri-plugin = { version = "2.2", features = [ "build" ] }

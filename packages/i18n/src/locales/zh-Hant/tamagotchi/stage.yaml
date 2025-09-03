@@ -1,0 +1,5 @@
+operations:
+  load-models: 載入推理模型
+  load-models-status:
+    loading: 載入中
+    ready: 已就緒

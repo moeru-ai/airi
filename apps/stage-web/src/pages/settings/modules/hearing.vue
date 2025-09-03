@@ -364,7 +364,7 @@ onUnmounted(() => {
               {{ t('settings.pages.providers.title') }}
             </h2>
             <div text="neutral-400 dark:neutral-400">
-              <span>{{ t('settings.pages.modules.hearing.sections.section.provider-model-selection.description') }}</span>
+              <span>{{ t('settings.pages.modules.hearing.sections.section.provider-selection.description') }}</span>
             </div>
           </div>
           <div max-w-full>

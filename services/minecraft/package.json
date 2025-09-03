@@ -35,11 +35,11 @@
     "prismarine-windows": "^2.9.0",
     "valibot": "1.0.0-beta.9",
     "vec3": "^0.1.10",
-    "zod": "^4.1.4",
+    "zod": "^4.1.5",
     "zod-to-json-schema": "^3.24.6"
   },
   "devDependencies": {
     "@dotenvx/dotenvx": "^1.49.0",
-    "dotenv": "^17.2.1"
+    "dotenv": "^17.2.2"
   }
 }

@@ -4,6 +4,7 @@ import fr from './fr'
 import ru from './ru'
 import vi from './vi'
 import zhHans from './zh-Hans'
+import zhHant from './zh-Hant'
 
 export default {
   en,
@@ -11,4 +12,5 @@ export default {
   ru,
   vi,
   'zh-Hans': zhHans,
+  'zh-Hant': zhHant,
 }
