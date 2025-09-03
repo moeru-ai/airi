@@ -17,7 +17,7 @@ export function useAudioAnalyzer() {
   }
 
   function start() {
-    if (animationFrame.value) 
+    if (animationFrame.value)
       return // prevent multiple loops
 
     const analyze = () => {
