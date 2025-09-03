@@ -1,4 +1,4 @@
-import { ref, onUnmounted } from 'vue'
+import { onUnmounted, ref } from 'vue'
 
 export function useAudioAnalyzer() {
   const analyzer = ref<AnalyserNode>()
@@ -17,7 +17,8 @@ export function useAudioAnalyzer() {
   }
 
   function start() {
-    if (animationFrame.value) return // prevent multiple loops
+    if (animationFrame.value) 
+      return // prevent multiple loops
 
     const analyze = () => {
       if (!analyzer.value || !dataArray.value)
