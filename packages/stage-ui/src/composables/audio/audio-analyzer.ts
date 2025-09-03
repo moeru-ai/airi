@@ -25,7 +25,7 @@ export function useAudioAnalyzer() {
         return
 
       // Get frequency data for volume visualization
-      analyzer.value.getByteFrequencyData(dataArray.value)
+      analyzer.value.getByteFrequencyData(dataArray.value as Uint8Array)
 
       // Calculate RMS volume level
       let sum = 0
