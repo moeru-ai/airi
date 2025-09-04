@@ -28,8 +28,8 @@ class ResamplingAudioWorkletProcessor extends AudioWorkletProcessor {
       outputSampleRate: options.processorOptions?.outputSampleRate || 16000,
       channels: options.processorOptions?.channels || 1,
       converterType:
-        options.processorOptions?.converterType ||
-        ConverterType.SRC_SINC_MEDIUM_QUALITY,
+        options.processorOptions?.converterType
+        || ConverterType.SRC_SINC_MEDIUM_QUALITY,
       bufferSize: options.processorOptions?.bufferSize || 4096,
     }
 
@@ -40,9 +40,8 @@ class ResamplingAudioWorkletProcessor extends AudioWorkletProcessor {
 
     // Listen for messages from main thread
     this.port.onmessage = (event) => {
-      if (event.data.type === 'updateOptions') {
+      if (event.data.type === 'updateOptions')
         this.updateOptions(event.data.options)
-      }
     }
   }
 
@@ -69,10 +68,10 @@ class ResamplingAudioWorkletProcessor extends AudioWorkletProcessor {
 
   private async updateOptions(newOptions: Partial<ProcessorOptions>) {
     const needsReinitialize =
-      newOptions.inputSampleRate !== this.options.inputSampleRate ||
-      newOptions.outputSampleRate !== this.options.outputSampleRate ||
-      newOptions.channels !== this.options.channels ||
-      newOptions.converterType !== this.options.converterType
+      newOptions.inputSampleRate !== this.options.inputSampleRate
+      || newOptions.outputSampleRate !== this.options.outputSampleRate
+      || newOptions.channels !== this.options.channels
+      || newOptions.converterType !== this.options.converterType
 
     Object.assign(this.options, newOptions)
 
@@ -95,7 +94,8 @@ class ResamplingAudioWorkletProcessor extends AudioWorkletProcessor {
     if (!this.isInitialized || !this.converter || !input.length) {
       // Pass-through if uninitialized
       for (let ch = 0; ch < output.length; ch++) {
-        if (input[ch]) output[ch].set(input[ch])
+        if (input[ch])
+          output[ch].set(input[ch])
       }
       return true
     }
@@ -146,9 +146,8 @@ class ResamplingAudioWorkletProcessor extends AudioWorkletProcessor {
                 output[ch].length,
               )
               output[ch].set(channelData.subarray(0, copyLength))
-              if (copyLength < output[ch].length) {
+              if (copyLength < output[ch].length)
                 output[ch].fill(0, copyLength)
-              }
             }
           }
 
@@ -165,7 +164,8 @@ class ResamplingAudioWorkletProcessor extends AudioWorkletProcessor {
 
       // Fail-safe: passthrough
       for (let ch = 0; ch < output.length; ch++) {
-        if (input[ch]) output[ch].set(input[ch])
+        if (input[ch])
+          output[ch].set(input[ch])
       }
     }
 
