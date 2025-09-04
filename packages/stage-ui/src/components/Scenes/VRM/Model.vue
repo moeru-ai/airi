@@ -247,6 +247,9 @@ async function loadModel() {
               // --- Shader material, further IBL injection needed ---
               // disable envMap for NPR materials, envMap will be reassigned by default skybox
               // close tone mapping for NPR materials
+              // console.debug("Mat: ", mat)
+              // TODO: stylised shader injection
+              // Lilia: I plan to replce all injected shader code to be my own, so that it can always avoid double injection and unkown user upload VRM injected shader behaviour...
               if ('toneMapped' in mat)
                 mat.toneMapped = false
               if ('envMap' in mat && mat.envMap)

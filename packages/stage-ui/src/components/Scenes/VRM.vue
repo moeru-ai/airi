@@ -20,7 +20,6 @@ import {
 } from 'three'
 import { onMounted, ref, shallowRef, watch } from 'vue'
 
-import DirectionalLightHelper from './Tres/DirectionalLightHelper.vue'
 import SkyBoxEnvironment from './VRM/SkyBoxEnvironment.vue'
 
 import { useVRM } from '../../stores/vrm'
@@ -78,7 +77,7 @@ const camera = shallowRef(new PerspectiveCamera())
 const controlsRef = shallowRef<InstanceType<typeof OrbitControls>>()
 const tresCanvasRef = shallowRef<TresContext>()
 const skyBoxEnvRef = ref<InstanceType<typeof SkyBoxEnvironment>>()
-const dirLight = ref<InstanceType<typeof DirectionalLight>>()
+const dirLightRef = ref<InstanceType<typeof DirectionalLight>>()
 
 function onTresReady(context: TresContext) {
   tresCanvasRef.value = context
@@ -95,6 +94,7 @@ let isUpdatingCamera = true
 const controlsReady = ref(false)
 const modelReady = ref(false)
 const sceneReady = ref(false)
+const dirLightReady = ref(false)
 const raycaster = new Raycaster()
 const mouse = new Vector2()
 
@@ -105,6 +105,10 @@ const irrSHTex = ref<SphericalHarmonics3 | null>(null)
 function onEnvReady(EnvPayload: { hdri: Texture | null, pmrem?: WebGLRenderTarget | null, irrSH: SphericalHarmonics3 | null }) {
   hdriTex.value = EnvPayload.hdri
   irrSHTex.value = EnvPayload.irrSH || null
+}
+
+function onDirLightReady() {
+  dirLightReady.value = true
 }
 
 watch(cameraFOV, (newFov) => {
@@ -160,9 +164,9 @@ function handleLoadModelProgress() {
 
 // Then start to set the camera position and target
 watch(
-  [controlsReady, modelReady],
+  [controlsReady, modelReady, dirLightReady],
   ([ctrlOk, modelOk]) => {
-    if (ctrlOk && modelOk && camera.value && controlsRef.value && controlsRef.value.controls) {
+    if (ctrlOk && modelOk && camera.value && controlsRef.value && controlsRef.value.controls && dirLightRef.value) {
       isUpdatingCamera = true
       try {
         camera.value.aspect = width.value / height.value
@@ -178,6 +182,16 @@ watch(
         camera.value.updateProjectionMatrix()
         controlsRef.value.controls.update()
         cameraDistance.value = controlsRef.value!.controls!.getDistance()
+
+        // setup initial target of directional light
+        dirLightRef.value.parent?.add(dirLightRef.value.target)
+        dirLightRef.value.target.position.set(
+          directionalLightTarget.value.x,
+          directionalLightTarget.value.y,
+          directionalLightTarget.value.z,
+        )
+        // console.debug("direction light target set: ", dirLightRef.value.target.position)
+        dirLightRef.value.target.updateMatrixWorld()
       }
       finally {
         isUpdatingCamera = false
@@ -242,7 +256,7 @@ function lookAtMouse(mouseX: number, mouseY: number) {
 }
 
 function updateDirLightTarget(newRotation: { x: number, y: number, z: number }) {
-  const light = dirLight.value
+  const light = dirLightRef.value
   if (!light)
     return
 
@@ -265,9 +279,11 @@ function updateDirLightTarget(newRotation: { x: number, y: number, z: number }) 
   const target = lightPosition.clone().addScaledVector(newForward, distance)
 
   light.target.position.copy(target)
+
   light.target.updateMatrixWorld()
 
   directionalLightTarget.value = { x: target.x, y: target.y, z: target.z }
+  // console.debug("directional Light target update!: ", directionalLightTarget.value)
 }
 
 watch(directionalLightRotation, (newRotation) => {
@@ -359,11 +375,12 @@ defineExpose({
         cast-shadow
       />
       <TresDirectionalLight
-        ref="dirLight"
+        ref="dirLightRef"
         :color="formatHex(directionalLightColor)"
         :position="[directionalLightPosition.x, directionalLightPosition.y, directionalLightPosition.z]"
         :intensity="directionalLightIntensity"
         cast-shadow
+        @ready="onDirLightReady"
       />
       <Suspense>
         <EffectComposerPmndrs>
@@ -382,7 +399,6 @@ defineExpose({
         @error="(val) => emit('error', val)"
       />
       <TresAxesHelper v-if="props.showAxes" :size="1" />
-      <DirectionalLightHelper :directional-light="dirLight" />
     </TresCanvas>
   </div>
 </template>
