@@ -261,7 +261,7 @@ function updateDirLightTarget(newRotation: { x: number, y: number, z: number }) 
   )
   const initialForward = origin.clone().sub(lightPosition).normalize()
   const newForward = initialForward.applyEuler(euler).normalize()
-  const distance = lightPosition.distanceTo(origin)
+  const distance = lightPosition.clone().distanceTo(origin)
   const target = lightPosition.addScaledVector(newForward, distance)
 
   light.target.position.copy(target)
