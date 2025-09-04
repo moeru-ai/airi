@@ -9,16 +9,16 @@ interface ProcessorOptions {
   outputSampleRate: number
   channels: number
   converterType: ConverterTypeValue
-  bufferSize: number
+  bufferSize: number // in frames
 }
 
 class ResamplingAudioWorkletProcessor extends AudioWorkletProcessor {
   private converter: Awaited<ReturnType<typeof create>> | null = null
   private isInitialized = false
   private options: ProcessorOptions
-  private inputBuffer: Float32Array[] = []
+  private inputBuffer: Float32Array
   private bufferSize: number
-  private bufferFill = 0 // track how many frames are currently filled
+  private bufferFill = 0 // frames currently stored
 
   constructor(options: AudioWorkletNodeOptions) {
     super()
@@ -27,16 +27,14 @@ class ResamplingAudioWorkletProcessor extends AudioWorkletProcessor {
       inputSampleRate: options.processorOptions?.inputSampleRate || 44100,
       outputSampleRate: options.processorOptions?.outputSampleRate || 16000,
       channels: options.processorOptions?.channels || 1,
-      converterType: options.processorOptions?.converterType || ConverterType.SRC_SINC_MEDIUM_QUALITY,
+      converterType:
+        options.processorOptions?.converterType ||
+        ConverterType.SRC_SINC_MEDIUM_QUALITY,
       bufferSize: options.processorOptions?.bufferSize || 4096,
     }
 
     this.bufferSize = this.options.bufferSize
-
-    // Initialize input buffers for each channel
-    for (let i = 0; i < this.options.channels; i++) {
-      this.inputBuffer[i] = new Float32Array(this.bufferSize)
-    }
+    this.inputBuffer = new Float32Array(this.bufferSize * this.options.channels)
 
     this.initializeConverter()
 
@@ -54,16 +52,13 @@ class ResamplingAudioWorkletProcessor extends AudioWorkletProcessor {
         this.options.channels,
         this.options.inputSampleRate,
         this.options.outputSampleRate,
-        {
-          converterType: this.options.converterType,
-        },
+        { converterType: this.options.converterType },
       )
       this.isInitialized = true
       this.port.postMessage({ type: 'initialized', success: true })
     }
     catch (error) {
       console.error('Failed to initialize sample rate converter:', error)
-
       this.port.postMessage({
         type: 'initialized',
         success: false,
@@ -73,11 +68,11 @@ class ResamplingAudioWorkletProcessor extends AudioWorkletProcessor {
   }
 
   private async updateOptions(newOptions: Partial<ProcessorOptions>) {
-    const needsReinitialize
-      = newOptions.inputSampleRate !== this.options.inputSampleRate
-        || newOptions.outputSampleRate !== this.options.outputSampleRate
-        || newOptions.channels !== this.options.channels
-        || newOptions.converterType !== this.options.converterType
+    const needsReinitialize =
+      newOptions.inputSampleRate !== this.options.inputSampleRate ||
+      newOptions.outputSampleRate !== this.options.outputSampleRate ||
+      newOptions.channels !== this.options.channels ||
+      newOptions.converterType !== this.options.converterType
 
     Object.assign(this.options, newOptions)
 
@@ -85,6 +80,10 @@ class ResamplingAudioWorkletProcessor extends AudioWorkletProcessor {
       this.converter.destroy()
       this.converter = null
       this.isInitialized = false
+      this.inputBuffer = new Float32Array(
+        this.options.bufferSize * this.options.channels,
+      )
+      this.bufferFill = 0
       await this.initializeConverter()
     }
   }
@@ -94,72 +93,79 @@ class ResamplingAudioWorkletProcessor extends AudioWorkletProcessor {
     const output = outputs[0]
 
     if (!this.isInitialized || !this.converter || !input.length) {
-      // Pass through if not ready
-      for (let channel = 0; channel < output.length; channel++) {
-        if (input[channel]) {
-          output[channel].set(input[channel])
-        }
+      // Pass-through if uninitialized
+      for (let ch = 0; ch < output.length; ch++) {
+        if (input[ch]) output[ch].set(input[ch])
       }
       return true
     }
 
     try {
       const framesPerBlock = input[0]?.length ?? 0
+      let offset = 0
 
-      // Accumulate input samples into buffer
-      for (let channel = 0; channel < Math.min(input.length, this.options.channels); channel++) {
-        const inputData = input[channel]
-        if (inputData && inputData.length > 0) {
-          this.inputBuffer[channel].set(inputData, this.bufferFill)
+      while (offset < framesPerBlock) {
+        const spaceLeft = this.bufferSize - this.bufferFill
+        const framesToCopy = Math.min(spaceLeft, framesPerBlock - offset)
+
+        // Interleave input into buffer
+        for (let f = 0; f < framesToCopy; f++) {
+          for (let ch = 0; ch < this.options.channels; ch++) {
+            this.inputBuffer[(this.bufferFill + f) * this.options.channels + ch] =
+              input[ch]?.[offset + f] ?? 0
+          }
         }
-      }
-      this.bufferFill += framesPerBlock
 
-      // Once buffer is filled, resample
-      if (this.bufferFill >= this.bufferSize) {
-        for (let channel = 0; channel < this.options.channels; channel++) {
-          const chunk = this.inputBuffer[channel].subarray(0, this.bufferSize)
+        this.bufferFill += framesToCopy
+        offset += framesToCopy
 
-          // Resample the buffered input data
+        // If buffer full → resample + flush
+        if (this.bufferFill >= this.bufferSize) {
+          const chunk = this.inputBuffer.subarray(
+            0,
+            this.bufferSize * this.options.channels,
+          )
           const resampledData = this.converter.simple(chunk)
 
-          // Send resampled data to main thread
           this.port.postMessage({
             type: 'audioData',
-            channel,
             data: resampledData,
             originalSampleRate: this.options.inputSampleRate,
             outputSampleRate: this.options.outputSampleRate,
             timestamp: currentTime,
           })
 
-          // Copy to output (truncate or zero-pad as needed)
-          if (output[channel]) {
-            const copyLength = Math.min(resampledData.length, output[channel].length)
-            output[channel].set(resampledData.subarray(0, copyLength))
-            if (copyLength < output[channel].length) {
-              output[channel].fill(0, copyLength)
+          // De-interleave for output
+          for (let ch = 0; ch < this.options.channels; ch++) {
+            if (output[ch]) {
+              const channelData = resampledData.filter(
+                (_, i) => i % this.options.channels === ch,
+              )
+              const copyLength = Math.min(
+                channelData.length,
+                output[ch].length,
+              )
+              output[ch].set(channelData.subarray(0, copyLength))
+              if (copyLength < output[ch].length) {
+                output[ch].fill(0, copyLength)
+              }
             }
           }
-        }
 
-        // Reset buffer fill for next accumulation
-        this.bufferFill = 0
+          this.bufferFill = 0
+        }
       }
     }
     catch (error) {
       console.error('Resampling error in worklet:', error)
-
       this.port.postMessage({
         type: 'error',
         error: error instanceof Error ? error.message : String(error),
       })
 
-      // Pass through original data on error
-      for (let channel = 0; channel < output.length; channel++) {
-        if (input[channel]) {
-          output[channel].set(input[channel])
-        }
+      // Fail-safe: passthrough
+      for (let ch = 0; ch < output.length; ch++) {
+        if (input[ch]) output[ch].set(input[ch])
       }
     }
 
