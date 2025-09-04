@@ -2,7 +2,7 @@ import { onUnmounted, ref } from 'vue'
 
 export function useAudioAnalyzer() {
   const analyzer = ref<AnalyserNode>()
-  const dataArray = ref<Uint8Array<ArrayBuffer>>() // fixed type
+  const dataArray = ref<Uint8Array<ArrayBuffer>>()
   const animationFrame = ref<number>()
 
   const onAnalyzerUpdateHooks = ref<Array<(volumeLevel: number) => void | Promise<void>>>([])
@@ -62,7 +62,7 @@ export function useAudioAnalyzer() {
 
       // Set up data array for analysis
       const bufferLength = analyzer.value.frequencyBinCount
-      dataArray.value = new Uint8Array(bufferLength) as Uint8Array<ArrayBuffer> // ✅ typed correctly
+      dataArray.value = new Uint8Array(bufferLength) as Uint8Array<ArrayBuffer>
 
       // Start audio analysis loop
       start()
