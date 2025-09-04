@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import type { DisplayModel } from '../../../../stores/display-models'
 
-import { BasicInputFile } from '@proj-airi/ui'
+import { useFileDialog } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { DropdownMenuContent, DropdownMenuItem, DropdownMenuPortal, DropdownMenuRoot, DropdownMenuTrigger, EditableArea, EditableEditTrigger, EditableInput, EditablePreview, EditableRoot, EditableSubmitTrigger } from 'reka-ui'
-import { ref, watch } from 'vue'
+import { ref } from 'vue'
 
 import Button from '../../../Misc/Button.vue'
 
@@ -21,11 +21,9 @@ function handleRemoveModel(model: DisplayModel) {
 }
 
 const highlightDisplayModelCard = ref<string | undefined>(selectedModel.value?.id)
-const live2dFiles = ref<File[]>([])
-const vrmFiles = ref<File[]>([])
 
-function handleAddLive2DModel(file: File[]) {
-  if (file.length === 0)
+function handleAddLive2DModel(file: FileList | null) {
+  if (file === null || file.length === 0)
     return
   if (!file[0].name.endsWith('.zip'))
     return
@@ -43,12 +41,8 @@ function handleMobilePick() {
   emits('close', undefined)
 }
 
-watch(live2dFiles, (newFiles) => {
-  handleAddLive2DModel(newFiles)
-}, { deep: true })
-
-function handleAddVRMModel(file: File[]) {
-  if (file.length === 0)
+function handleAddVRMModel(file: FileList | null) {
+  if (file === null || file.length === 0)
     return
   if (!file[0].name.endsWith('.vrm'))
     return
@@ -65,9 +59,11 @@ const mapFormatRenderer: Record<DisplayModelFormat, string> = {
   [DisplayModelFormat.PMD]: 'MMD',
 }
 
-watch(vrmFiles, (newFiles) => {
-  handleAddVRMModel(newFiles)
-}, { deep: true })
+const live2dDialog = useFileDialog({ accept: '.zip', multiple: false, reset: true })
+const vrmDialog = useFileDialog({ accept: '.vrm', multiple: false, reset: true })
+
+live2dDialog.onChange(handleAddLive2DModel)
+vrmDialog.onChange(handleAddVRMModel)
 </script>
 
 <template>
@@ -100,18 +96,15 @@ watch(vrmFiles, (newFiles) => {
               <DropdownMenuItem
                 class="data-[disabled]:text-mauve8 relative flex cursor-pointer select-none items-center rounded-md px-3 py-2 text-base leading-none outline-none data-[disabled]:pointer-events-none data-[highlighted]:bg-primary-100/20 sm:text-sm data-[highlighted]:text-primary-200"
                 transition="colors duration-200 ease-in-out"
+                @click="live2dDialog.open()"
               >
-                <BasicInputFile v-model="live2dFiles" accept=".zip">
-                  Live2D
-                </BasicInputFile>
+                Live2D
               </DropdownMenuItem>
               <DropdownMenuItem
                 class="data-[disabled]:text-mauve8 relative flex cursor-pointer select-none items-center rounded-md px-3 py-2 text-base leading-none outline-none data-[disabled]:pointer-events-none data-[highlighted]:bg-primary-100/20 sm:text-sm data-[highlighted]:text-primary-200"
-                transition="colors duration-200 ease-in-out"
+                transition="colors duration-200 ease-in-out" @click="live2dDialog.open()"
               >
-                <BasicInputFile v-model="vrmFiles" accept=".vrm">
-                  VRM
-                </BasicInputFile>
+                VRM
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenuPortal>
@@ -169,7 +162,7 @@ watch(vrmFiles, (newFiles) => {
             aspect="12/16"
             px-1 py-2
           >
-            <img v-if="model.previewImage" :src="model.previewImage" h-full w-full rounded-lg object-cover :class="[highlightDisplayModelCard && highlightDisplayModelCard === model.id ? 'ring-3 ring-primary-400' : 'ring-0 ring-transparent']" transition="all duration-200 ease-in-out">
+            <img v-if="model.previewImage" :src="model.previewImage" h-full w-full rounded-lg object-contain :class="[highlightDisplayModelCard && highlightDisplayModelCard === model.id ? 'ring-3 ring-primary-400' : 'ring-0 ring-transparent']" transition="all duration-200 ease-in-out">
             <div v-else bg="neutral-100 dark:neutral-900" relative h-full w-full flex flex-col items-center justify-center gap-2 overflow-hidden rounded-lg :class="[highlightDisplayModelCard && highlightDisplayModelCard === model.id ? 'ring-3 ring-primary-400' : 'ring-0 ring-transparent']" transition="all duration-200 ease-in-out">
               <div i-solar:question-square-bold-duotone text-4xl opacity-75 />
               <div translate-y="100%" absolute top-0 flex flex-col translate-x--7 rotate-45 scale-250 gap-0 opacity-5>

@@ -215,7 +215,7 @@ async function loadModel() {
 
       hookedUpdate?.call(this, model, now)
       // Possibility 1: Only update eye focus when the model is idle
-      // Possibility 2: For models having no motion groups, currentGroup will be undefined while groups can be { idle: ... }
+      // Possibility 2: For models having no mo`ti`on groups, currentGroup will be undefined while groups can be { idle: ... }
       if (!motionManager.state.currentGroup || motionManager.state.currentGroup === motionManager.groups.idle) {
         idleEyeFocus.update(internalModel, now)
 

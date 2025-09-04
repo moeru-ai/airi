@@ -38,7 +38,7 @@ catalogs:
       version: 0.4.0-beta.2
     '@xsai/shared':
       specifier: ^0.4.0-beta.2
-      version: 0.4.0-beta.2
+      version: 0.4.0-beta.3
     '@xsai/shared-chat':
       specifier: ^0.4.0-beta.2
       version: 0.4.0-beta.2
@@ -429,7 +429,7 @@ importers:
         version: 0.4.0-beta.2
       '@xsai/shared':
         specifier: 'catalog:'
-        version: 0.4.0-beta.2
+        version: 0.4.0-beta.3
       '@xsai/shared-chat':
         specifier: 'catalog:'
         version: 0.4.0-beta.2
@@ -781,7 +781,7 @@ importers:
         version: 0.4.0-beta.2
       '@xsai/shared':
         specifier: 'catalog:'
-        version: 0.4.0-beta.2
+        version: 0.4.0-beta.3
       '@xsai/shared-chat':
         specifier: 'catalog:'
         version: 0.4.0-beta.2
@@ -1251,6 +1251,9 @@ importers:
       '@huggingface/transformers':
         specifier: ^3.7.2
         version: 3.7.2
+      '@lemonneko/crop-empty-pixels':
+        specifier: 0.1.1
+        version: 0.1.1
       '@pixi/app':
         specifier: ^6.5.10
         version: 6.5.10(@pixi/core@6.5.10(@pixi/constants@6.5.10)(@pixi/extensions@6.5.10)(@pixi/math@6.5.10)(@pixi/runner@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10))(@pixi/ticker@6.5.10(@pixi/extensions@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10)))(@pixi/utils@6.5.10(@pixi/constants@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10))))(@pixi/display@6.5.10(@pixi/constants@6.5.10)(@pixi/math@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10))(@pixi/utils@6.5.10(@pixi/constants@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10))))(@pixi/math@6.5.10)(@pixi/utils@6.5.10(@pixi/constants@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10)))
@@ -1382,7 +1385,7 @@ importers:
         version: 0.4.0-beta.2
       '@xsai/shared':
         specifier: 'catalog:'
-        version: 0.4.0-beta.2
+        version: 0.4.0-beta.3
       '@xsai/shared-chat':
         specifier: 'catalog:'
         version: 0.4.0-beta.2
@@ -1404,6 +1407,9 @@ importers:
       gpuu:
         specifier: ^1.0.4
         version: 1.0.4
+      i:
+        specifier: ^0.3.7
+        version: 0.3.7
       jszip:
         specifier: ^3.10.1
         version: 3.10.1
@@ -4274,6 +4280,9 @@ packages:
 
   '@kwsites/promise-deferred@1.1.1':
     resolution: {integrity: sha512-GaHYm+c0O9MjZRu0ongGBRbinu8gVAMd2UZjji6jVmqKtZluZnptXGWhz1E8j8D2HJ3f/yMxKAUC0b+57wncIw==}
+
+  '@lemonneko/crop-empty-pixels@0.1.1':
+    resolution: {integrity: sha512-4Mp6gBN3XbXw5OXyN0rF5bhWWISmrU4DRCGUWDnyWWFCERE2SZwvv2w4hoPhg804BcI0wXLPk5lHf/v15AFXSA==}
 
   '@lezer/common@1.2.3':
     resolution: {integrity: sha512-w7ojc8ejBqr2REPsWxJjrMFsA/ysDCFICn8zEOR9mrqzOu2amhITYuLD8ag6XZf0CFXDrhKqw7+tW8cX66NaDA==}
@@ -7493,8 +7502,8 @@ packages:
   '@xsai/shared@0.3.5':
     resolution: {integrity: sha512-gxWH+9UjhXgqqKeU/o9UteC/ih1FzxEEsmPojImd/jvq4j/wtIg4aP3dCFnu+EhCT/MRQ38dkBSra99iY9cC3w==}
 
-  '@xsai/shared@0.4.0-beta.2':
-    resolution: {integrity: sha512-nKdT+/gon1FxkEqv1iKfS2QRWnmYY/2o7Wl+Bcfot45qACE0sK9E4nw2BeLI/MeRYD6w7bTLP2J2U8373aHdYA==}
+  '@xsai/shared@0.4.0-beta.3':
+    resolution: {integrity: sha512-IOqe0CzSdRbaj5vgfL3pAjzOk/u2NCm0RrcsYgvvRc6VyTIPGsgAUuDpWXD+OfWEtCK4t24Q6qhjLkhgo2S9rA==}
 
   '@xsai/stream-text@0.3.5':
     resolution: {integrity: sha512-XUyM3/jo9FulWoqmQU6vvHFOoRZzr3rcsTGm0MY8hUXg9HJl91N0voQGb6R5AMlo5XgoSbO3GMFzJ26AVxmRMg==}
@@ -10092,6 +10101,10 @@ packages:
 
   humanize-ms@1.2.1:
     resolution: {integrity: sha512-Fl70vYtsAFb/C06PTS9dZBo7ihau+Tu/DNCk/OyHhea07S+aeMWpFFkUaXRa8fI+ScZbEI8dfSxwY7gxZ9SAVQ==}
+
+  i@0.3.7:
+    resolution: {integrity: sha512-FYz4wlXgkQwIPqhzC5TdNMLSE5+GS1IIDJZY/1ZiEPCT2S3COUVZeT5OW4BmW4r5LHLQuOosSwsvnroG9GR59Q==}
+    engines: {node: '>=0.4'}
 
   iconv-lite@0.4.24:
     resolution: {integrity: sha512-v3MXnZAcvnywkTUEZomIActle7RXXeedOR31wwl7VlyoXO4Qi9arvSenNQWne1TcRwhCL1HwLI21bEqdpj8/rA==}
@@ -17425,6 +17438,8 @@ snapshots:
 
   '@kwsites/promise-deferred@1.1.1': {}
 
+  '@lemonneko/crop-empty-pixels@0.1.1': {}
+
   '@lezer/common@1.2.3': {}
 
   '@lezer/highlight@1.2.1':
@@ -21427,16 +21442,16 @@ snapshots:
   '@xsai-ext/providers-cloud@0.4.0-beta.2':
     dependencies:
       '@xsai-ext/shared-providers': 0.4.0-beta.2
-      '@xsai/shared': 0.4.0-beta.2
+      '@xsai/shared': 0.4.0-beta.3
 
   '@xsai-ext/providers-local@0.4.0-beta.2':
     dependencies:
       '@xsai-ext/shared-providers': 0.4.0-beta.2
-      '@xsai/shared': 0.4.0-beta.2
+      '@xsai/shared': 0.4.0-beta.3
 
   '@xsai-ext/shared-providers@0.2.2':
     dependencies:
-      '@xsai/shared': 0.4.0-beta.2
+      '@xsai/shared': 0.4.0-beta.3
 
   '@xsai-ext/shared-providers@0.3.5':
     dependencies:
@@ -21444,7 +21459,7 @@ snapshots:
 
   '@xsai-ext/shared-providers@0.4.0-beta.2':
     dependencies:
-      '@xsai/shared': 0.4.0-beta.2
+      '@xsai/shared': 0.4.0-beta.3
 
   '@xsai-transformers/embed@0.0.7(web-worker@1.5.0)':
     dependencies:
@@ -21471,11 +21486,11 @@ snapshots:
 
   '@xsai/embed@0.4.0-beta.2':
     dependencies:
-      '@xsai/shared': 0.4.0-beta.2
+      '@xsai/shared': 0.4.0-beta.3
 
   '@xsai/generate-speech@0.4.0-beta.2':
     dependencies:
-      '@xsai/shared': 0.4.0-beta.2
+      '@xsai/shared': 0.4.0-beta.3
 
   '@xsai/generate-text@0.3.5':
     dependencies:
@@ -21484,16 +21499,16 @@ snapshots:
 
   '@xsai/generate-text@0.4.0-beta.2':
     dependencies:
-      '@xsai/shared': 0.4.0-beta.2
+      '@xsai/shared': 0.4.0-beta.3
       '@xsai/shared-chat': 0.4.0-beta.2
 
   '@xsai/generate-transcription@0.4.0-beta.2':
     dependencies:
-      '@xsai/shared': 0.4.0-beta.2
+      '@xsai/shared': 0.4.0-beta.3
 
   '@xsai/model@0.4.0-beta.2':
     dependencies:
-      '@xsai/shared': 0.4.0-beta.2
+      '@xsai/shared': 0.4.0-beta.3
 
   '@xsai/shared-chat@0.3.5':
     dependencies:
@@ -21501,13 +21516,13 @@ snapshots:
 
   '@xsai/shared-chat@0.4.0-beta.2':
     dependencies:
-      '@xsai/shared': 0.4.0-beta.2
+      '@xsai/shared': 0.4.0-beta.3
 
   '@xsai/shared@0.2.2': {}
 
   '@xsai/shared@0.3.5': {}
 
-  '@xsai/shared@0.4.0-beta.2': {}
+  '@xsai/shared@0.4.0-beta.3': {}
 
   '@xsai/stream-text@0.3.5':
     dependencies:
@@ -21519,7 +21534,7 @@ snapshots:
 
   '@xsai/tool@0.4.0-beta.2(zod-to-json-schema@3.24.6(zod@4.1.5))(zod@4.1.5)':
     dependencies:
-      '@xsai/shared': 0.4.0-beta.2
+      '@xsai/shared': 0.4.0-beta.3
       '@xsai/shared-chat': 0.4.0-beta.2
       xsschema: 0.4.0-beta.2(@valibot/to-json-schema@1.0.0-rc.0(valibot@1.0.0-beta.9(typescript@5.9.2)))(zod-to-json-schema@3.24.6(zod@4.1.5))(zod@4.1.5)
     transitivePeerDependencies:
@@ -24656,6 +24671,8 @@ snapshots:
   humanize-ms@1.2.1:
     dependencies:
       ms: 2.1.3
+
+  i@0.3.7: {}
 
   iconv-lite@0.4.24:
     dependencies:
