@@ -17,8 +17,8 @@ class ResamplingAudioWorkletProcessor extends AudioWorkletProcessor {
   private isInitialized = false
   private options: ProcessorOptions
   private inputBuffer: Float32Array[] = []
-  private outputBuffer: Float32Array[] = []
   private bufferSize: number
+  private bufferFill = 0 // track how many frames are currently filled
 
   constructor(options: AudioWorkletNodeOptions) {
     super()
@@ -33,10 +33,9 @@ class ResamplingAudioWorkletProcessor extends AudioWorkletProcessor {
 
     this.bufferSize = this.options.bufferSize
 
-    // Initialize input/output buffers for each channel
+    // Initialize input buffers for each channel
     for (let i = 0; i < this.options.channels; i++) {
       this.inputBuffer[i] = new Float32Array(this.bufferSize)
-      this.outputBuffer[i] = new Float32Array(0)
     }
 
     this.initializeConverter()
@@ -105,13 +104,24 @@ class ResamplingAudioWorkletProcessor extends AudioWorkletProcessor {
     }
 
     try {
-      // Process each channel
+      const framesPerBlock = input[0]?.length ?? 0
+
+      // Accumulate input samples into buffer
       for (let channel = 0; channel < Math.min(input.length, this.options.channels); channel++) {
         const inputData = input[channel]
-
         if (inputData && inputData.length > 0) {
-          // Resample the input data
-          const resampledData = this.converter.simple(inputData)
+          this.inputBuffer[channel].set(inputData, this.bufferFill)
+        }
+      }
+      this.bufferFill += framesPerBlock
+
+      // Once buffer is filled, resample
+      if (this.bufferFill >= this.bufferSize) {
+        for (let channel = 0; channel < this.options.channels; channel++) {
+          const chunk = this.inputBuffer[channel].subarray(0, this.bufferSize)
+
+          // Resample the buffered input data
+          const resampledData = this.converter.simple(chunk)
 
           // Send resampled data to main thread
           this.port.postMessage({
@@ -123,18 +133,18 @@ class ResamplingAudioWorkletProcessor extends AudioWorkletProcessor {
             timestamp: currentTime,
           })
 
-          // Copy to output (you might want to buffer this properly for different sample rates)
+          // Copy to output (truncate or zero-pad as needed)
           if (output[channel]) {
             const copyLength = Math.min(resampledData.length, output[channel].length)
-            for (let i = 0; i < copyLength; i++) {
-              output[channel][i] = resampledData[i]
-            }
-            // Zero-pad remaining
-            for (let i = copyLength; i < output[channel].length; i++) {
-              output[channel][i] = 0
+            output[channel].set(resampledData.subarray(0, copyLength))
+            if (copyLength < output[channel].length) {
+              output[channel].fill(0, copyLength)
             }
           }
         }
+
+        // Reset buffer fill for next accumulation
+        this.bufferFill = 0
       }
     }
     catch (error) {
