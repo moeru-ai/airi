@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import type { TresContext } from '@tresjs/core'
-import type { SphericalHarmonics3, Texture, WebGLRenderTarget,
-} from 'three'
+import type { DirectionalLight, SphericalHarmonics3, Texture, WebGLRenderTarget } from 'three'
 
 import { TresCanvas } from '@tresjs/core'
 import { EffectComposerPmndrs, HueSaturationPmndrs } from '@tresjs/post-processing'
@@ -11,6 +10,8 @@ import { storeToRefs } from 'pinia'
 import { BlendFunction } from 'postprocessing'
 import {
   ACESFilmicToneMapping,
+  Euler,
+  MathUtils,
   PerspectiveCamera,
   Plane,
   Raycaster,
@@ -19,6 +20,7 @@ import {
 } from 'three'
 import { onMounted, ref, shallowRef, watch } from 'vue'
 
+import DirectionalLightHelper from './Tres/DirectionalLightHelper.vue'
 import SkyBoxEnvironment from './VRM/SkyBoxEnvironment.vue'
 
 import { useVRM } from '../../stores/vrm'
@@ -53,10 +55,11 @@ const {
   lookAtTarget,
   eyeHeight,
 
-  directionalLightPosition,
-  directionalLightRotation,
   directionalLightIntensity,
   directionalLightColor,
+  directionalLightPosition,
+  directionalLightRotation,
+  directionalLightTarget,
 
   ambientLightIntensity,
   ambientLightColor,
@@ -75,6 +78,7 @@ const camera = shallowRef(new PerspectiveCamera())
 const controlsRef = shallowRef<InstanceType<typeof OrbitControls>>()
 const tresCanvasRef = shallowRef<TresContext>()
 const skyBoxEnvRef = ref<InstanceType<typeof SkyBoxEnvironment>>()
+const dirLight = ref<InstanceType<typeof DirectionalLight>>()
 
 function onTresReady(context: TresContext) {
   tresCanvasRef.value = context
@@ -237,6 +241,39 @@ function lookAtMouse(mouseX: number, mouseY: number) {
   modelRef.value?.lookAtUpdate(lookAtTarget.value)
 }
 
+function updateDirLightTarget(newRotation: { x: number, y: number, z: number }) {
+  const light = dirLight.value
+  if (!light)
+    return
+
+  const { x: rx, y: ry, z: rz } = newRotation
+  const lightPosition = new Vector3(
+    directionalLightPosition.value.x,
+    directionalLightPosition.value.y,
+    directionalLightPosition.value.z,
+  )
+  const origin = new Vector3(0, 0, 0)
+  const euler = new Euler(
+    MathUtils.degToRad(rx),
+    MathUtils.degToRad(ry),
+    MathUtils.degToRad(rz),
+    'XYZ',
+  )
+  const initialForward = origin.clone().sub(lightPosition).normalize()
+  const newForward = initialForward.applyEuler(euler).normalize()
+  const distance = lightPosition.distanceTo(origin)
+  const target = lightPosition.addScaledVector(newForward, distance)
+
+  light.target.position.copy(target)
+  light.target.updateMatrixWorld()
+
+  directionalLightTarget.value = { x: target.x, y: target.y, z: target.z }
+}
+
+watch(directionalLightRotation, (newRotation) => {
+  updateDirLightTarget(newRotation)
+}, { deep: true })
+
 watch(cameraPosition, (newPosition) => {
   if (!sceneReady.value || !modelRef.value)
     return
@@ -322,9 +359,9 @@ defineExpose({
         cast-shadow
       />
       <TresDirectionalLight
+        ref="dirLight"
         :color="formatHex(directionalLightColor)"
         :position="[directionalLightPosition.x, directionalLightPosition.y, directionalLightPosition.z]"
-        :rotation="[directionalLightRotation.x, directionalLightRotation.y, directionalLightRotation.z]"
         :intensity="directionalLightIntensity"
         cast-shadow
       />
@@ -345,6 +382,7 @@ defineExpose({
         @error="(val) => emit('error', val)"
       />
       <TresAxesHelper v-if="props.showAxes" :size="1" />
+      <DirectionalLightHelper :directional-light="dirLight" />
     </TresCanvas>
   </div>
 </template>
