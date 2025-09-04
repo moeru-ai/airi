@@ -22,6 +22,7 @@ pub fn new_settings_window<R: Runtime>(
   )
   .title("Settings")
   .inner_size(550.0, 900.0)
+  .min_inner_size(550.0, 900.0)
   .shadow(true)
   .transparent(false)
   .accept_first_mouse(true);

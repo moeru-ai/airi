@@ -121,8 +121,8 @@ watch(vrmFiles, (newFiles) => {
     <div v-if="displayModelsFromIndexedDBLoading">
       Loading display models...
     </div>
-    <div class="flex-1 md:flex-none" h-full w-full>
-      <div class="flex flex-1 flex-row gap-2 overflow-x-scroll md:grid lg:grid-cols-2 md:grid-cols-2 lg:max-h-80dvh md:overflow-y-scroll">
+    <div class="flex-1 md:flex-none" h-full w-full overflow-x-hidden overflow-y-scroll>
+      <div class="grid grid-cols-2 gap-2 lg:max-h-80dvh">
         <div
           v-for="(model) of displayModels"
           :key="model.id"
@@ -165,7 +165,7 @@ watch(vrmFiles, (newFiles) => {
             </DropdownMenuRoot>
           </div>
           <div
-            class="min-w-65 lg:min-h-60"
+            class="min-w-60 lg:min-h-60"
             aspect="12/16"
             px-1 py-2
           >
