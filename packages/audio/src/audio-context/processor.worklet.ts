@@ -67,8 +67,8 @@ class ResamplingAudioWorkletProcessor extends AudioWorkletProcessor {
   }
 
   private async updateOptions(newOptions: Partial<ProcessorOptions>) {
-    const needsReinitialize =
-      newOptions.inputSampleRate !== this.options.inputSampleRate
+    const needsReinitialize
+      = newOptions.inputSampleRate !== this.options.inputSampleRate
       || newOptions.outputSampleRate !== this.options.outputSampleRate
       || newOptions.channels !== this.options.channels
       || newOptions.converterType !== this.options.converterType
@@ -111,8 +111,8 @@ class ResamplingAudioWorkletProcessor extends AudioWorkletProcessor {
         // Interleave input into buffer
         for (let f = 0; f < framesToCopy; f++) {
           for (let ch = 0; ch < this.options.channels; ch++) {
-            this.inputBuffer[(this.bufferFill + f) * this.options.channels + ch] =
-              input[ch]?.[offset + f] ?? 0
+            this.inputBuffer[(this.bufferFill + f) * this.options.channels + ch]
+              = input[ch]?.[offset + f] ?? 0
           }
         }
 
