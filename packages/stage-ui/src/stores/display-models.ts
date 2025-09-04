@@ -67,7 +67,7 @@ export const useDisplayModelsStore = defineStore('display-models', () => {
       console.error(err)
     }
 
-    displayModels.value = models
+    displayModels.value = models.sort((a, b) => b.importedAt - a.importedAt)
     displayModelsFromIndexedDBLoading.value = false
   }
 
