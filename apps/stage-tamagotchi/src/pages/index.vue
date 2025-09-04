@@ -4,6 +4,7 @@ import type { AiriTamagotchiEvents, Point } from '../composables/tauri'
 import { WidgetStage } from '@proj-airi/stage-ui/components/scenes'
 import { useLive2d } from '@proj-airi/stage-ui/stores/live2d'
 import { useMcpStore } from '@proj-airi/stage-ui/stores/mcp'
+import { useOnboardingStore } from '@proj-airi/stage-ui/stores/onboarding'
 import { connectServer } from '@proj-airi/tauri-plugin-mcp'
 import { watchThrottled } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
@@ -12,6 +13,7 @@ import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import ResourceStatusIsland from '../components/Widgets/ResourceStatusIsland/index.vue'
 
 import { commands as passThroughCommands } from '../bindings/tauri-plugins/window-pass-through-on-hover'
+import { commands } from '../bindings/tauri-plugins/window-router-link'
 import { useTauriCore, useTauriEvent, useTauriWindow } from '../composables/tauri'
 import { useTauriGlobalShortcuts } from '../composables/tauri-global-shortcuts'
 import { useRdevMouse } from '../composables/use-rdev-mouse'
@@ -19,6 +21,9 @@ import { useResourcesStore } from '../stores/resources'
 import { useWindowStore } from '../stores/window'
 import { useWindowControlStore } from '../stores/window-controls'
 import { WindowControlMode } from '../types/window-controls'
+
+const onboardingStore = useOnboardingStore()
+const { shouldShowSetup } = storeToRefs(onboardingStore)
 
 useTauriGlobalShortcuts()
 const windowControlStore = useWindowControlStore()
@@ -43,6 +48,12 @@ const isClickThrough = ref(false)
 const isPassingThrough = ref(false)
 const isOverUI = ref(false)
 const isFirstTime = ref(true)
+
+watch(shouldShowSetup, () => {
+  if (shouldShowSetup.value) {
+    commands.go('/onboarding', 'onboarding')
+  }
+}, { immediate: true })
 
 watchThrottled([mouseX, mouseY], async ([x, y]) => {
   const canvas = widgetStageRef.value?.canvasElement()
