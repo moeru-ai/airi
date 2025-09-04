@@ -102,7 +102,7 @@ vrmDialog.onChange(handleAddVRMModel)
               </DropdownMenuItem>
               <DropdownMenuItem
                 class="data-[disabled]:text-mauve8 relative flex cursor-pointer select-none items-center rounded-md px-3 py-2 text-base leading-none outline-none data-[disabled]:pointer-events-none data-[highlighted]:bg-primary-100/20 sm:text-sm data-[highlighted]:text-primary-200"
-                transition="colors duration-200 ease-in-out" @click="live2dDialog.open()"
+                transition="colors duration-200 ease-in-out" @click="vrmDialog.open()"
               >
                 VRM
               </DropdownMenuItem>

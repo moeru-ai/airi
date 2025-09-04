@@ -146,6 +146,7 @@ export const useDisplayModelsStore = defineStore('display-models', () => {
     const croppedCanvas = cropImg(offscreenCanvas)
     const dataUrl = croppedCanvas.toDataURL()
 
+    app.destroy()
     document.body.removeChild(offscreenCanvas)
     URL.revokeObjectURL(objUrl)
 
