@@ -1,5 +1,13 @@
 <script setup lang="ts">
 import { Input, TransitionVertical } from '@proj-airi/ui'
+import {
+  TooltipArrow,
+  TooltipContent,
+  TooltipPortal,
+  TooltipProvider,
+  TooltipRoot,
+  TooltipTrigger,
+} from 'reka-ui'
 import { ref } from 'vue'
 
 withDefaults(defineProps<{
@@ -25,6 +33,8 @@ withDefaults(defineProps<{
 
 const modelValue = defineModel<string>({ required: true })
 
+const cardRef = ref<HTMLElement | null>(null)
+
 // Track if description is expanded
 const isExpanded = ref(false)
 
@@ -32,41 +42,11 @@ const isExpanded = ref(false)
 function toggleExpansion() {
   isExpanded.value = !isExpanded.value
 }
-
-const tooltipVisible = ref(false)
-const tooltipText = ref('')
-const tooltipX = ref(0)
-const tooltipY = ref(0)
-
-function isTextTruncated(el: HTMLElement) {
-  const hasLineClamp = window.getComputedStyle(el).webkitLineClamp !== 'none'
-
-  if (hasLineClamp) {
-    return el.scrollHeight > el.clientHeight
-  }
-  else {
-    return el.scrollWidth > el.clientWidth
-  }
-}
-
-function showTooltip(event: MouseEvent) {
-  const el = event.currentTarget as HTMLElement
-  if (isTextTruncated(el)) {
-    tooltipText.value = el.textContent || ''
-    const rect = el.getBoundingClientRect()
-    tooltipX.value = rect.left - rect.width * 1.5
-    tooltipY.value = rect.top - 150
-    tooltipVisible.value = true
-  }
-}
-
-function hideTooltip() {
-  tooltipVisible.value = false
-}
 </script>
 
 <template>
   <label
+    ref="cardRef"
     :key="id"
     class="form_radio-card-detail relative flex cursor-pointer items-start rounded-xl p-3 pr-[20px]"
     transition="all duration-200 ease-in-out"
@@ -108,21 +88,34 @@ function hideTooltip() {
         />
       </div>
     </div>
+
     <div class="w-full flex flex-col gap-2">
-      <div class="flex items-center">
-        <span
-          class="line-clamp-1 font-normal"
-          :class="[
-            modelValue === value
-              ? 'text-neutral-700 dark:text-neutral-300'
-              : 'text-neutral-700 dark:text-neutral-400',
-          ]"
-          @mouseenter="showTooltip"
-          @mouseleave="hideTooltip"
-        >
-          {{ title }}
-        </span>
-      </div>
+      <TooltipProvider>
+        <TooltipRoot>
+          <TooltipTrigger as-child>
+            <span
+              class="line-clamp-1 font-normal"
+              :class="[
+                modelValue === value
+                  ? 'text-neutral-700 dark:text-neutral-300'
+                  : 'text-neutral-700 dark:text-neutral-400',
+              ]"
+            >
+              {{ title }}
+            </span>
+          </TooltipTrigger>
+          <TooltipPortal :container="cardRef">
+            <TooltipContent
+              class="z-[10000] border rounded-md bg-white px-3 py-1 text-sm text-black shadow-sm dark:bg-black dark:text-white"
+              side="top"
+              :side-offset="5"
+            >
+              {{ title }}
+              <TooltipArrow :width="11" :height="5" />
+            </TooltipContent>
+          </TooltipPortal>
+        </TooltipRoot>
+      </TooltipProvider>
 
       <!-- Truncated description with expand/collapse functionality -->
       <div v-if="description" class="relative">
@@ -157,7 +150,6 @@ function hideTooltip() {
           </div>
         </TransitionVertical>
 
-        <!-- Expand/collapse button for long descriptions -->
         <button
           v-if="showExpandCollapse && description.length > expandCollapseThreshold"
           class="mt-0.5 inline-flex items-center text-xs text-primary-500 dark:text-primary-600"
@@ -184,13 +176,6 @@ function hideTooltip() {
       </div>
     </div>
   </label>
-  <div
-    v-if="tooltipVisible"
-    class="absolute z-50 whitespace-nowrap rounded bg-white px-2 py-1 text-xs text-black dark:bg-black dark:text-white"
-    :style="{ left: `${tooltipX}px`, top: `${tooltipY}px`, transform: 'translateX(-50%)' }"
-  >
-    {{ tooltipText }}
-  </div>
 </template>
 
 <style scoped>
