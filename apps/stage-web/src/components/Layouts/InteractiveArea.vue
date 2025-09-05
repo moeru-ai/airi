@@ -17,6 +17,9 @@ import { useI18n } from 'vue-i18n'
 
 import ChatHistory from '../Widgets/ChatHistory.vue'
 
+// This is for core pipeline
+// TODO: Use core pipeline to handle the message sendings
+
 const messageInput = ref('')
 const listening = ref(false)
 const showMicrophoneSelect = ref(false)

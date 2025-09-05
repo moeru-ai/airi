@@ -11,6 +11,18 @@
     "paths": {
       "@proj-airi/stage-ui/*": [
         "../../packages/stage-ui/src/*"
+      ],
+      "@proj-airi/runtime-core": [
+        "../../packages/runtime-core/src/index.ts"
+      ],
+      "@proj-airi/runtime-core/*": [
+        "../../packages/runtime-core/src/*"
+      ],
+      "@proj-airi/core": [
+        "../../packages/core/src/index.ts"
+      ],
+      "@proj-airi/core/*": [
+        "../../packages/core/src/*"
       ]
     },
     "resolveJsonModule": true,

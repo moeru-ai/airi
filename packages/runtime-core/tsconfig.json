@@ -1,0 +1,38 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "target": "ESNext",
+    "jsx": "preserve",
+    "lib": [
+      "DOM",
+      "ESNext"
+    ],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "paths": {
+      "@proj-airi/core": ["../core/src/index.ts"],
+      "@proj-airi/core/*": ["../core/src/*"]
+    },
+    "resolveJsonModule": true,
+    "allowJs": true,
+    "strict": true,
+    "declaration": true,
+    "declarationMap": true,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "isolatedModules": true,
+    "verbatimModuleSyntax": true,
+    "skipLibCheck": true
+  },
+  "vueCompilerOptions": {
+    "plugins": [
+      "@vue-macros/volar/define-models",
+      "@vue-macros/volar/define-slots"
+    ],
+    "skipTemplateCodegen": false
+  },
+  "include": [
+    "src/**/*.ts"
+  ]
+}

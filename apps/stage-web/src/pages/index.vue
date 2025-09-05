@@ -13,6 +13,9 @@ import MobileInteractiveArea from '../components/Layouts/MobileInteractiveArea.v
 import AnimatedWave from '../components/Widgets/AnimatedWave.vue'
 
 import { themeColorFromPropertyOf, useThemeColor } from '../composables/theme-color'
+// This is for core pipeline
+// TODO:
+// WidgetStage, useLive2d will be moved to core package later
 
 const dark = useDark()
 const paused = ref(false)

@@ -54,6 +54,8 @@ export default defineConfig({
       '@proj-airi/stage-ui/stores': resolve(join(import.meta.dirname, '..', '..', 'packages', 'stage-ui', 'src', 'stores')),
       '@proj-airi/stage-ui': resolve(join(import.meta.dirname, '..', '..', 'packages', 'stage-ui', 'src')),
       '@proj-airi/i18n': resolve(join(import.meta.dirname, '..', '..', 'packages', 'i18n', 'src')),
+      '@proj-airi/runtime-core': resolve(join(import.meta.dirname, '..', '..', 'packages', 'runtime-core', 'src')),
+      '@proj-airi/core': resolve(join(import.meta.dirname, '..', '..', 'packages', 'core', 'src')),
     },
   },
 

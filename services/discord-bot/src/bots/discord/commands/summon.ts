@@ -262,8 +262,7 @@ export class VoiceManager extends EventEmitter {
           volumeBuffer.shift()
         }
 
-        const avgVolume
-        = volumeBuffer.reduce((sum, v) => sum + v, 0) / VOLUME_WINDOW_SIZE
+        const avgVolume = volumeBuffer.reduce((sum, v) => sum + v, 0) / VOLUME_WINDOW_SIZE
 
         if (avgVolume > SPEAKING_THRESHOLD) {
           volumeBuffer.length = 0

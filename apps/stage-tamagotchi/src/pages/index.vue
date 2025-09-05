@@ -115,8 +115,7 @@ watchThrottled([mouseX, mouseY], async ([x, y]) => {
     if (gl) {
       const pixelX = relativeX * (gl.drawingBufferWidth / canvas.clientWidth)
       const pixelY
-      = gl.drawingBufferHeight
-        - relativeY * (gl.drawingBufferHeight / canvas.clientHeight)
+        = gl.drawingBufferHeight - relativeY * (gl.drawingBufferHeight / canvas.clientHeight)
       const data = new Uint8Array(4)
       gl.readPixels(
         Math.floor(pixelX),

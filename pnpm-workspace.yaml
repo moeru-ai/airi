@@ -24,6 +24,7 @@ catalog:
   '@xsai/tool': ^0.4.0-beta.2
   '@xsai/utils-chat': ^0.4.0-beta.2
   xsschema: ^0.4.0-beta.2
+  zod: ^4.1.5
 
 catalogs:
   rolldown-vite:
