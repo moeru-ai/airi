@@ -25,6 +25,8 @@ const languageRemap: Record<string, string> = {
   'es': 'es',
   'ru': 'ru',
   'ru-RU': 'ru',
+  'fr': 'fr',
+  'fr-FR': 'fr',
 }
 
 export const DEFAULT_THEME_COLORS_HUE = 220.44

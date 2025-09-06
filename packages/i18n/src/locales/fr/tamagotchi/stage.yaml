@@ -1,0 +1,10 @@
+operations:
+  load-models: Charger Modèle
+  load-models-status:
+    loading: Chargement
+    ready: Prêt
+docs:
+  theme:
+    navbar:
+      appearance:
+        title: Apparence
