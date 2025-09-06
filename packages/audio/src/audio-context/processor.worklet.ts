@@ -69,14 +69,14 @@ class ResamplingAudioWorkletProcessor extends AudioWorkletProcessor {
 
   private async updateOptions(newOptions: Partial<ProcessorOptions>) {
     const needsReinitialize =
-      (newOptions.inputSampleRate &&
-        newOptions.inputSampleRate !== this.options.inputSampleRate) ||
-      (newOptions.outputSampleRate &&
-        newOptions.outputSampleRate !== this.options.outputSampleRate) ||
-      (newOptions.channels &&
-        newOptions.channels !== this.options.channels) ||
-      (newOptions.converterType &&
-        newOptions.converterType !== this.options.converterType)
+      (newOptions.inputSampleRate
+        && newOptions.inputSampleRate !== this.options.inputSampleRate)
+      || (newOptions.outputSampleRate
+        && newOptions.outputSampleRate !== this.options.outputSampleRate)
+      || (newOptions.channels
+        && newOptions.channels !== this.options.channels)
+      || (newOptions.converterType
+        && newOptions.converterType !== this.options.converterType)
 
     Object.assign(this.options, newOptions)
 
@@ -117,7 +117,19 @@ class ResamplingAudioWorkletProcessor extends AudioWorkletProcessor {
           // Resample
           const resampledData = this.converter.simple(inputData)
 
-          // Send to main thread (transfer buffer to avoid GC pressure)
+          // Copy to output (truncate or pad as needed) BEFORE transfer
+          if (output[channel]) {
+            const copyLength = Math.min(
+              resampledData.length,
+              output[channel].length,
+            )
+            output[channel].set(resampledData.subarray(0, copyLength))
+            if (copyLength < output[channel].length) {
+              output[channel].fill(0, copyLength)
+            }
+          }
+
+          // send to main thread (after using resampledData)
           this.port.postMessage(
             {
               type: 'audioData',
@@ -129,18 +141,6 @@ class ResamplingAudioWorkletProcessor extends AudioWorkletProcessor {
             },
             [resampledData.buffer],
           )
-
-          // Copy to output (truncate or pad as needed)
-          if (output[channel]) {
-            const copyLength = Math.min(
-              resampledData.length,
-              output[channel].length,
-            )
-            output[channel].set(resampledData.subarray(0, copyLength))
-            if (copyLength < output[channel].length) {
-              output[channel].fill(0, copyLength)
-            }
-          }
         }
         else if (output[channel]) {
           output[channel].fill(0)
@@ -170,7 +170,4 @@ class ResamplingAudioWorkletProcessor extends AudioWorkletProcessor {
   }
 }
 
-registerProcessor(
-  'resampling-processor',
-  ResamplingAudioWorkletProcessor,
-)
+registerProcessor('resampling-processor', ResamplingAudioWorkletProcessor)
