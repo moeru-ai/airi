@@ -6,7 +6,7 @@ import type { ChatAssistantMessage, ChatMessage, ChatSlices } from '../types/cha
 
 import { useLocalStorage } from '@vueuse/core'
 import { defineStore, storeToRefs } from 'pinia'
-import { ref, toRaw } from 'vue'
+import { ref, toRaw, watch } from 'vue'
 
 import { useLlmmarkerParser } from '../composables/llmmarkerParser'
 import { useLLM } from '../stores/llm'
@@ -70,16 +70,27 @@ export const useChatStore = defineStore('chat', () => {
   const codeBlockSystemPrompt = '- For any programming code block, always specify the programming language that supported on @shikijs/rehype on the rendered markdown, eg. ```python ... ```\n'
   const mathSyntaxSystemPrompt = '- For any math equation, use LaTeX format, eg: $ x^3 $, always escape dollar sign outside math equation\n'
 
-  const messages = useLocalStorage<Array<ChatMessage | ErrorMessage>>('chat/messages', [
-    {
+  function generateInitialMessage() {
+    // TODO: compose, replace {{ user }} tag, etc
+    return {
       role: 'system',
-      content: codeBlockSystemPrompt + mathSyntaxSystemPrompt + systemPrompt.value, // TODO: compose, replace {{ user }} tag, etc
-    } satisfies SystemMessage,
-  ])
+      content: codeBlockSystemPrompt + mathSyntaxSystemPrompt + systemPrompt.value,
+    } satisfies SystemMessage
+  }
+
+  const messages = useLocalStorage<Array<ChatMessage | ErrorMessage>>('chat/messages', [generateInitialMessage()])
 
   function cleanupMessages() {
-    messages.value = messages.value.filter(message => message.role === 'system')
+    messages.value = [generateInitialMessage()]
   }
+
+  watch(systemPrompt, () => {
+    if (messages.value.length > 0 && messages.value[0].role === 'system') {
+      messages.value[0] = generateInitialMessage()
+    }
+  }, {
+    immediate: true,
+  })
 
   const streamingMessage = ref<ChatAssistantMessage>({ role: 'assistant', content: '', slices: [], tool_results: [] })
 
