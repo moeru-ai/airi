@@ -4,6 +4,7 @@ import type { CommonContentPart, Message, SystemMessage } from '@xsai/shared-cha
 import type { StreamEvent } from '../stores/llm'
 import type { ChatAssistantMessage, ChatMessage, ChatSlices } from '../types/chat'
 
+import { useLocalStorage } from '@vueuse/core'
 import { defineStore, storeToRefs } from 'pinia'
 import { ref, toRaw } from 'vue'
 
@@ -69,12 +70,16 @@ export const useChatStore = defineStore('chat', () => {
   const codeBlockSystemPrompt = '- For any programming code block, always specify the programming language that supported on @shikijs/rehype on the rendered markdown, eg. ```python ... ```\n'
   const mathSyntaxSystemPrompt = '- For any math equation, use LaTeX format, eg: $ x^3 $, always escape dollar sign outside math equation\n'
 
-  const messages = ref<Array<ChatMessage | ErrorMessage>>([
+  const messages = useLocalStorage<Array<ChatMessage | ErrorMessage>>('chat/messages', [
     {
       role: 'system',
       content: codeBlockSystemPrompt + mathSyntaxSystemPrompt + systemPrompt.value, // TODO: compose, replace {{ user }} tag, etc
     } satisfies SystemMessage,
   ])
+
+  function cleanupMessages() {
+    messages.value = messages.value.filter(message => message.role === 'system')
+  }
 
   const streamingMessage = ref<ChatAssistantMessage>({ role: 'assistant', content: '', slices: [], tool_results: [] })
 
@@ -251,6 +256,7 @@ export const useChatStore = defineStore('chat', () => {
     discoverToolsCompatibility,
 
     send,
+    cleanupMessages,
 
     onBeforeMessageComposed,
     onAfterMessageComposed,

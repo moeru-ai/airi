@@ -28,7 +28,7 @@ const { themeColorsHueDynamic } = storeToRefs(useSettings())
 
 const { askPermission } = useSettingsAudioDevice()
 const { enabled, selectedAudioInput } = storeToRefs(useSettingsAudioDevice())
-const { send, onAfterMessageComposed, discoverToolsCompatibility } = useChatStore()
+const { send, onAfterMessageComposed, discoverToolsCompatibility, cleanupMessages } = useChatStore()
 const { messages } = storeToRefs(useChatStore())
 const { audioContext } = useAudioContext()
 const { t } = useI18n()
@@ -164,5 +164,19 @@ onAfterMessageComposed(async () => {
         </div>
       </div>
     </div>
+
+    <button
+      absolute bottom--8 right-0 flex items-center justify-center rounded-md p-2
+      class="max-h-[10lh] min-h-[1lh]" outline-none
+      bg="neutral-100 dark:neutral-800"
+      @click="cleanupMessages"
+    >
+      <div
+        class="i-solar:trash-bin-2-bold-duotone"
+        text="lg neutral-500 dark:neutral-400"
+        hover:text="red-500 dark:red-400"
+        transition-colors
+      />
+    </button>
   </div>
 </template>
