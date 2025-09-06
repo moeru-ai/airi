@@ -144,7 +144,7 @@ onAfterMessageComposed(async () => {
         h-full w-full overflow-scroll rounded-xl
         bg="primary-50/50 dark:primary-950/70" backdrop-blur-md
       >
-        <ChatHistory h-full flex-1 p-4 w="full" max-h="<md:[60%]" />
+        <ChatHistory h-full flex-1 w="full" max-h="<md:[60%]" />
         <div h="<md:full" flex gap-2>
           <BasicTextarea
             v-model="messageInput"

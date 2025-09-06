@@ -34,9 +34,9 @@ onTokenLiteral(async () => {
 </script>
 
 <template>
-  <div relative px="<sm:2" py="<sm:2" flex="~ col" rounded="lg" overflow-hidden>
+  <div py="<sm:2" flex="~ col" rounded="lg" relative overflow-hidden py-4>
     <div flex-1 /> <!-- spacer -->
-    <div ref="chatHistoryRef" v-auto-animate h-full w-full flex="~ col" overflow-scroll>
+    <div ref="chatHistoryRef" v-auto-animate px="<sm:2" flex="~ col" h-full w-full overflow-scroll px-4>
       <div flex-1 /> <!-- spacer -->
       <div v-for="(message, index) in messages" :key="index" mb-2>
         <div v-if="message.role === 'error'" flex mr="12">
