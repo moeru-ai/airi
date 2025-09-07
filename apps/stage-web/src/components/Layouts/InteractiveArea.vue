@@ -185,7 +185,6 @@ onAfterMessageComposed(async () => {
         class="max-h-[10lh] min-h-[1lh]"
         bg="neutral-100 dark:neutral-800"
         text="lg neutral-500 dark:neutral-400"
-        hover:text="red-500 dark:red-400"
         flex items-center justify-center rounded-md p-2 outline-none
         transition-colors transition-transform active:scale-95
         @click="isDark = !isDark"
