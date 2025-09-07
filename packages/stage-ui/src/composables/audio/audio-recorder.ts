@@ -4,7 +4,7 @@ import { until } from '@vueuse/core'
 import { BufferTarget, MediaStreamAudioTrackSource, Output, QUALITY_MEDIUM, WavOutputFormat } from 'mediabunny'
 import { ref, shallowRef, toRef } from 'vue'
 
-async function getMediaStreamTrack(stream: MediaStream) {
+function getMediaStreamTrack(stream: MediaStream) {
   const tracks = stream.getAudioTracks()
   if (!tracks.length) throw new Error("No audio tracks found in stream")
   return tracks[0]
