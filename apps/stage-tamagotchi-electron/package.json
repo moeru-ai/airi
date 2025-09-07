@@ -24,7 +24,7 @@
     "@electron-toolkit/preload": "^3.0.2",
     "@electron-toolkit/utils": "^4.0.0",
     "@formkit/auto-animate": "^0.8.4",
-    "@guiiai/logg": "^1.0.10",
+    "@guiiai/logg": "catalog:",
     "@huggingface/transformers": "^3.7.2",
     "@moeru/std": "catalog:",
     "@proj-airi/audio": "workspace:^",
