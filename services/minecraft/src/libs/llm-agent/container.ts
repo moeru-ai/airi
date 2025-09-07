@@ -2,7 +2,7 @@ import type { Neuri } from 'neuri'
 
 import type { Logger } from '../../utils/logger'
 
-import { useLogg } from '@guiiai/logg'
+import { useLogger } from '@guiiai/logg'
 import { asClass, asFunction, createContainer, InjectionMode } from 'awilix'
 
 import { ActionAgentImpl } from '../../agents/action'
@@ -29,7 +29,7 @@ export function createAgentContainer(options: {
   // Register services
   container.register({
     // Create independent logger for each agent
-    logger: asFunction(() => useLogg('agent').useGlobalConfig()).singleton(),
+    logger: asFunction(() => useLogger('agent').useGlobalConfig()).singleton(),
 
     // Register neuri client
     neuri: asFunction(() => options.neuri).singleton(),

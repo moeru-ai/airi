@@ -5,7 +5,7 @@ import type { BotContext, ChatContext } from '../../../../types'
 
 import { env } from 'node:process'
 
-import { useLogg } from '@guiiai/logg'
+import { useLogger } from '@guiiai/logg'
 import { sleep } from '@moeru/std'
 import { generateText } from '@xsai/generate-text'
 import { message } from '@xsai/utils-chat'
@@ -18,7 +18,7 @@ import { messageSplit } from '../../../../prompts'
 import { cancellable } from '../../../../utils/promise'
 
 export function parseMayStructuredMessage(responseText: string) {
-  const logger = useLogg('parseMayStructuredMessage').useGlobalConfig()
+  const logger = useLogger('parseMayStructuredMessage').useGlobalConfig()
 
   // eslint-disable-next-line regexp/no-super-linear-backtracking, regexp/optimal-quantifier-concatenation
   const result = /^\{(("?)*.*\s*)*\}$/mu.exec(responseText)
@@ -41,7 +41,7 @@ export async function sendMessage(
   groupId: string,
   abortController: AbortController,
 ) {
-  const logger = useLogg('imagineAnAction').useGlobalConfig()
+  const logger = useLogger('imagineAnAction').useGlobalConfig()
 
   const chat = (await listJoinedChats()).find((chat) => {
     return chat.chat_id === groupId

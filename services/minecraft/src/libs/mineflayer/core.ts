@@ -8,7 +8,7 @@ import type { EventHandlers, EventsHandler } from './types'
 import EventEmitter from 'eventemitter3'
 import mineflayer from 'mineflayer'
 
-import { useLogg } from '@guiiai/logg'
+import { useLogger } from '@guiiai/logg'
 
 import { parseCommand } from './command'
 import { Components } from './components'
@@ -45,7 +45,7 @@ export class Mineflayer extends EventEmitter<EventHandlers> {
     this.options = options
     this.bot = mineflayer.createBot(options.botConfig)
     this.username = options.botConfig.username
-    this.logger = useLogg(`Bot:${this.username}`).useGlobalConfig()
+    this.logger = useLogger(`Bot:${this.username}`).useGlobalConfig()
 
     this.on('interrupt', () => {
       this.logger.log('Interrupted')

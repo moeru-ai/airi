@@ -1,10 +1,10 @@
 import type { MineflayerPlugin } from '../libs/mineflayer/plugin'
 
 import { ChatMessageHandler } from '../libs/mineflayer/message'
-import { useLogger } from '../utils/logger'
+import { useLoggerer } from '../utils/logger'
 
 export function Echo(): MineflayerPlugin {
-  const logger = useLogger()
+  const logger = useLoggerer()
 
   return {
     spawned(mineflayer) {

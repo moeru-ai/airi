@@ -4,7 +4,7 @@ import type { Action } from './action'
 
 import EventEmitter3 from 'eventemitter3'
 
-import { useLogg } from '@guiiai/logg'
+import { useLogger } from '@guiiai/logg'
 
 export type AgentType = 'action' | 'memory' | 'planning' | 'chat'
 
@@ -71,7 +71,7 @@ export abstract class AbstractAgent extends EventEmitter3 implements BaseAgent {
     this.type = config.type
     this.name = `${this.type}-agent`
     this.initialized = false
-    this.logger = useLogg(this.name).useGlobalConfig()
+    this.logger = useLogger(this.name).useGlobalConfig()
 
     // Initialize managers
     // this.actionManager = useActionManager(this)

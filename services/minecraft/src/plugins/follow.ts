@@ -2,10 +2,10 @@ import type { MineflayerPlugin } from '../libs/mineflayer/plugin'
 
 import pathfinderModel from 'mineflayer-pathfinder'
 
-import { useLogger } from '../utils/logger'
+import { useLoggerer } from '../utils/logger'
 
 export function FollowCommand(options?: { rangeGoal: number }): MineflayerPlugin {
-  const logger = useLogger()
+  const logger = useLoggerer()
   const { goals, Movements } = pathfinderModel
 
   return {

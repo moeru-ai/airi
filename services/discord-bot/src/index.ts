@@ -1,6 +1,6 @@
 import { env } from 'node:process'
 
-import { Format, LogLevel, setGlobalFormat, setGlobalLogLevel, useLogg } from '@guiiai/logg'
+import { Format, LogLevel, setGlobalFormat, setGlobalLogLevel, useLogger } from '@guiiai/logg'
 import { Client as AiriClient } from '@proj-airi/server-sdk'
 import { Client, Events, GatewayIntentBits } from 'discord.js'
 
@@ -8,7 +8,7 @@ import { handlePing, registerCommands, VoiceManager } from './bots/discord/comma
 
 setGlobalFormat(Format.Pretty)
 setGlobalLogLevel(LogLevel.Log)
-const log = useLogg('Bot').useGlobalConfig()
+const log = useLogger('Bot').useGlobalConfig()
 
 // Create a new client instance
 async function main() {

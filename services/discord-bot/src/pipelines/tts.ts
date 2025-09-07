@@ -6,7 +6,7 @@ import { env } from 'node:process'
 
 import wavefile from 'wavefile'
 
-import { useLogg } from '@guiiai/logg'
+import { useLogger } from '@guiiai/logg'
 import { pipeline } from '@huggingface/transformers'
 import { toWav } from '@proj-airi/audio'
 import { createOpenAI } from '@xsai-ext/providers-cloud'
@@ -46,7 +46,7 @@ export function textFromResult(result: Array<{ text: string }> | { text: string 
 }
 
 export async function transcribe(pcmBuffer: Buffer) {
-  const log = useLogg('Memory:Transcribe').useGlobalConfig()
+  const log = useLogger('Memory:Transcribe').useGlobalConfig()
 
   const pcmConvertedWav = toWav(pcmBuffer.buffer, 48000, 2)
   log.withFields({ from: pcmBuffer.byteLength, to: pcmConvertedWav.byteLength }).log('Audio data received')
@@ -71,7 +71,7 @@ export async function transcribe(pcmBuffer: Buffer) {
 }
 
 export async function openaiTranscribe(wavBuffer: Buffer) {
-  const log = useLogg('Remote:Transcribe').useGlobalConfig()
+  const log = useLogger('Remote:Transcribe').useGlobalConfig()
 
   log.log('Transcribing audio...')
 

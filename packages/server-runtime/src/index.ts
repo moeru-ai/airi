@@ -4,7 +4,7 @@ import type { AuthenticatedPeer, Peer } from './types'
 
 import { env } from 'node:process'
 
-import { Format, LogLevel, setGlobalFormat, setGlobalLogLevel, useLogg } from '@guiiai/logg'
+import { Format, LogLevel, setGlobalFormat, setGlobalLogLevel, useLogger } from '@guiiai/logg'
 import { createApp, createRouter, defineWebSocketHandler } from 'h3'
 
 setGlobalFormat(Format.Pretty)
@@ -25,8 +25,8 @@ function send(peer: Peer, event: WebSocketEvent<Record<string, unknown>> | strin
 }
 
 function main() {
-  const appLogger = useLogg('App').useGlobalConfig()
-  const websocketLogger = useLogg('WebSocket').useGlobalConfig()
+  const appLogger = useLogger('App').useGlobalConfig()
+  const websocketLogger = useLogger('WebSocket').useGlobalConfig()
 
   const app = createApp({
     onError: error => appLogger.withError(error).error('an error occurred'),

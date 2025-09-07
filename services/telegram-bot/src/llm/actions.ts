@@ -6,7 +6,7 @@ import type { Action } from '../types'
 
 import { env } from 'node:process'
 
-import { Format, useLogg } from '@guiiai/logg'
+import { Format, useLogger } from '@guiiai/logg'
 import { trace } from '@opentelemetry/api'
 import { generateText } from '@xsai/generate-text'
 import { message } from '@xsai/utils-chat'
@@ -25,7 +25,7 @@ export async function imagineAnAction(
     incomingMessages?: Message[]
   },
 ): Promise<Action | undefined> {
-  const logger = useLogg('imagineAnAction').useGlobalConfig()
+  const logger = useLogger('imagineAnAction').useGlobalConfig()
   const tracer = trace.getTracer('airi.telegram.bot')
 
   return await tracer.startActiveSpan('telegram.module.generate_agent_action.generate', async (s) => {

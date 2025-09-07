@@ -8,11 +8,11 @@ import { sleep } from '@moeru/std'
 import { randomInt } from 'es-toolkit'
 import { Vec3 } from 'vec3'
 
-import { useLogger } from '../utils/logger'
+import { useLoggerer } from '../utils/logger'
 import { log } from './base'
 import { getNearestBlock, getNearestEntityWhere } from './world'
 
-const logger = useLogger()
+const logger = useLoggerer()
 const { goals, Movements } = pathfinder
 
 export async function goToPosition(

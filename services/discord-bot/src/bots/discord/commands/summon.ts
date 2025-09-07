@@ -26,7 +26,7 @@ import {
   StreamType,
   VoiceConnectionStatus,
 } from '@discordjs/voice'
-import { useLogg } from '@guiiai/logg'
+import { useLogger } from '@guiiai/logg'
 
 import { DECODE_SAMPLE_RATE } from '../../../constants/audio'
 import { openaiTranscribe } from '../../../pipelines/tts'
@@ -56,7 +56,7 @@ async function setSelfVoice(logger: Logg, me?: GuildMember | null) {
 // https://github.com/elizaOS/eliza/blob/develop/packages/client-discord/src/voice.ts
 
 export class VoiceManager extends EventEmitter {
-  private logger = useLogg('VoiceManager').useGlobalConfig()
+  private logger = useLogger('VoiceManager').useGlobalConfig()
   private processingVoice: boolean = false
   private transcriptionTimeout: NodeJS.Timeout | null = null
   private userStates: Map<

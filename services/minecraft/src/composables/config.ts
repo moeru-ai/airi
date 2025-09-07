@@ -2,9 +2,9 @@ import type { BotOptions } from 'mineflayer'
 
 import { env } from 'node:process'
 
-import { useLogger } from '../utils/logger'
+import { useLoggerer } from '../utils/logger'
 
-const logger = useLogger()
+const logger = useLoggerer()
 
 // Configuration interfaces
 interface OpenAIConfig {

@@ -1,11 +1,11 @@
 import type { MineflayerPlugin } from '../libs/mineflayer/plugin'
 
-import { useLogger } from '../utils/logger'
+import { useLoggerer } from '../utils/logger'
 
 export function Status(): MineflayerPlugin {
   return {
     created(bot) {
-      const logger = useLogger()
+      const logger = useLoggerer()
       logger.log('Loading status component')
 
       bot.onCommand('status', () => {

@@ -4,7 +4,7 @@ import type { Message, UserFromGetMe } from 'grammy/types'
 
 import { env } from 'node:process'
 
-import { useLogg } from '@guiiai/logg'
+import { useLogger } from '@guiiai/logg'
 import { embed } from '@xsai/embed'
 import { and, cosineDistance, desc, eq, gt, inArray, lt, ne, notInArray, sql } from 'drizzle-orm'
 
@@ -87,7 +87,7 @@ export async function findLastNMessages(chatId: string, n: number) {
 export async function findRelevantMessages(botId: string, chatId: string, unreadHistoryMessagesEmbedding: { embedding: number[] }[], excludeMessageIds: string[] = []) {
   const db = useDrizzle()
   const contextWindowSize = 5 // Number of messages to include before and after
-  const logger = useLogg('findRelevantMessages').useGlobalConfig().withField('chatId', chatId)
+  const logger = useLogger('findRelevantMessages').useGlobalConfig().withField('chatId', chatId)
 
   logger.withField('context_window_size', contextWindowSize).log('Querying relevant chat messages...')
 

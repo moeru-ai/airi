@@ -44,7 +44,7 @@ export function initLogger(): void {
  * Get logger instance with directory name and filename
  * @returns logger instance configured with "directoryName/filename"
  */
-export function useLogger(name?: string): ReturnType<typeof createLogg> {
+export function useLoggerer(name?: string): ReturnType<typeof createLogg> {
   if (name)
     return createLogg(name).useGlobalConfig()
 
@@ -62,12 +62,12 @@ export function useLogger(name?: string): ReturnType<typeof createLogg> {
 
 // Create pre-configured loggers for various services
 export const logger = {
-  auth: useLogger('auth-service'),
-  timeline: useLogger('timeline-service'),
-  browser: useLogger('browser-adapter'),
-  airi: useLogger('airi-adapter'),
-  mcp: useLogger('mcp-adapter'),
-  parser: useLogger('parser'),
-  main: useLogger('twitter-service'),
-  config: useLogger('config'),
+  auth: useLoggerer('auth-service'),
+  timeline: useLoggerer('timeline-service'),
+  browser: useLoggerer('browser-adapter'),
+  airi: useLoggerer('airi-adapter'),
+  mcp: useLoggerer('mcp-adapter'),
+  parser: useLoggerer('parser'),
+  main: useLoggerer('twitter-service'),
+  config: useLoggerer('config'),
 }

@@ -3,14 +3,14 @@ import type { MineflayerPlugin } from '../libs/mineflayer/plugin'
 
 import pathfinderModel from 'mineflayer-pathfinder'
 
-import { useLogger } from '../utils/logger'
+import { useLoggerer } from '../utils/logger'
 
 const { goals, Movements } = pathfinderModel
 
 export function PathFinder(options?: { rangeGoal: number }): MineflayerPlugin {
   return {
     created(bot) {
-      const logger = useLogger()
+      const logger = useLoggerer()
 
       let defaultMove: any
 
