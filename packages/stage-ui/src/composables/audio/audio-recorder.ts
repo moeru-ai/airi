@@ -6,7 +6,8 @@ import { ref, shallowRef, toRef } from 'vue'
 
 function getMediaStreamTrack(stream: MediaStream) {
   const tracks = stream.getAudioTracks()
-  if (!tracks.length) throw new Error("No audio tracks found in stream")
+  if (!tracks.length)
+    throw new Error('No audio tracks found in stream')
   return tracks[0]
 }
 
@@ -61,7 +62,7 @@ export function useAudioRecorder(
         await hook(audioBlob)
       }
       catch (err) {
-        console.error("onStopRecord hook failed:", err)
+        console.error('onStopRecord hook failed:', err)
       }
     }
 
