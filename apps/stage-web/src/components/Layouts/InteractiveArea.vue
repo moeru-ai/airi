@@ -191,8 +191,8 @@ onAfterMessageComposed(async () => {
         @click="isDark = !isDark"
       >
         <Transition name="fade" mode="out-in">
-          <div v-if="isDark" i-solar:moon-outline size-5 text="neutral-500 dark:neutral-400" />
-          <div v-else i-solar:sun-2-outline size-5 text="neutral-500 dark:neutral-400" />
+          <div v-if="isDark" i-solar:moon-outline />
+          <div v-else i-solar:sun-2-outline />
         </Transition>
       </button>
     </div>
