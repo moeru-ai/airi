@@ -105,6 +105,7 @@ words:
   - hfspaceup
   - hfsup
   - hfup
+  - highpass
   - higress
   - histoire
   - hiyori
@@ -136,6 +137,7 @@ words:
   - lobehub
   - logg
   - Lorebook
+  - lowpass
   - lucide
   - luoling
   - Maekawa
@@ -243,6 +245,7 @@ words:
   - tamagotchi
   - tauri
   - taze
+  - tempora
   - togetherapi
   - tolist
   - tresjs
