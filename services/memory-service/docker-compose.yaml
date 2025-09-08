@@ -1,0 +1,39 @@
+services:
+  # PostgreSQL with pgvector extension for vector similarity search
+  airi-memory-pgvector:
+    image: ghcr.io/tensorchord/pgvecto-rs:pg17-v0.4.0
+    ports:
+      - '5434:5432'
+    environment:
+      POSTGRES_DATABASE: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - ./sql/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./.postgres/data:/var/lib/postgresql/data
+    healthcheck:
+      test: [CMD-SHELL, pg_isready -d $$POSTGRES_DB -U $$POSTGRES_USER]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Memory Service API
+  airi-memory-service:
+    build:
+      context: ../..
+      dockerfile: services/memory-service/Dockerfile
+    ports:
+      - '${PORT}:${PORT}'
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - PORT=${PORT}
+      - CORS_ORIGIN=${CORS_ORIGIN}
+      - API_KEY=${API_KEY}
+      - LOG_LEVEL=${LOG_LEVEL}
+      - OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=${OTEL_EXPORTER_OTLP_ENDPOINT}/v1/traces
+      - OTEL_EXPORTER_OTLP_METRICS_ENDPOINT=${OTEL_EXPORTER_OTLP_ENDPOINT}/v1/metrics
+    env_file:
+      - .env
+    depends_on:
+      airi-memory-pgvector:
+        condition: service_healthy
+    restart: unless-stopped
