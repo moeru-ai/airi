@@ -52,6 +52,7 @@
     "@xsai/shared-chat": "catalog:",
     "@xsai/stream-text": "catalog:",
     "@xsai/utils-chat": "catalog:",
+    "animejs": "^4.1.3",
     "colorjs.io": "^0.5.2",
     "culori": "^4.0.2",
     "date-fns": "^4.1.0",

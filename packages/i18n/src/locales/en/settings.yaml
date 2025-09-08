@@ -165,6 +165,9 @@ pages:
           description: Configure 3D VRM models and settings
         scene: Scene
   modules:
+    beat-sync:
+      description: Vibe with beats from the audio source
+      title: Beat Sync
     consciousness:
       description: Personality, desired model, etc.
       sections:

@@ -11,6 +11,7 @@ import { computed, onMounted, onUnmounted, ref, shallowRef, toRef, watch } from 
 
 import { useLive2DIdleEyeFocus } from '../../../composables/live2d'
 import { Emotion, EmotionNeutralMotionName } from '../../../constants/emotions'
+import { useBeatSyncStore } from '../../../stores/beat-sync'
 import { useLive2d } from '../../../stores/live2d'
 import { useSettings } from '../../../stores/settings'
 
@@ -68,6 +69,13 @@ function parsePropsOffset() {
 const modelSrcRef = toRef(() => props.modelSrc)
 
 const modelLoading = ref(false)
+
+// Beat Sync: Values are all in degrees
+const beatSyncTargetY = ref<number>(0)
+const beatSyncTargetZ = ref<number>(0)
+const beatSyncVelocityY = ref<number>(0)
+const beatSyncVelocityZ = ref<number>(0)
+// End of Beat Sync
 
 const offset = computed(() => parsePropsOffset())
 
@@ -220,12 +228,60 @@ async function loadModel() {
     // This is hacky too
     const hookedUpdate = motionManager.update as (model: CubismModel, now: number) => boolean
     motionManager.update = function (model: CubismModel, now: number) {
+      const timeDelta = now - lastUpdateTime.value
+
+      // Beat Sync
+      {
+        // Semi-implicit Euler approach
+        const stiffness = 120 // Higher -> Snappier
+        const damping = 16 // Higher -> Less bounce
+        const mass = 1
+
+        let paramAngleY = coreModel.getParameterValueById('ParamAngleY') as number
+        let paramAngleZ = coreModel.getParameterValueById('ParamAngleZ') as number
+
+        // Y
+        {
+          const target = beatSyncTargetY.value
+          const pos = paramAngleY
+          const vel = beatSyncVelocityY.value
+          const accel = (stiffness * (target - pos) - damping * vel) / mass
+          beatSyncVelocityY.value = vel + accel * timeDelta
+          paramAngleY = pos + beatSyncVelocityY.value * timeDelta
+
+          // Snap
+          if (Math.abs(target - paramAngleY) < 0.01 && Math.abs(beatSyncVelocityY.value) < 0.01) {
+            paramAngleY = target
+            beatSyncVelocityY.value = 0
+          }
+        }
+
+        // Z
+        {
+          const target = beatSyncTargetZ.value
+          const pos = paramAngleZ
+          const vel = beatSyncVelocityZ.value
+          const accel = (stiffness * (target - pos) - damping * vel) / mass
+          beatSyncVelocityZ.value = vel + accel * timeDelta
+          paramAngleZ = pos + beatSyncVelocityZ.value * timeDelta
+
+          // Snap
+          if (Math.abs(target - paramAngleZ) < 0.01 && Math.abs(beatSyncVelocityZ.value) < 0.01) {
+            paramAngleZ = target
+            beatSyncVelocityZ.value = 0
+          }
+        }
+
+        coreModel.setParameterValueById('ParamAngleY', paramAngleY)
+        coreModel.setParameterValueById('ParamAngleZ', paramAngleZ)
+      }
+
       lastUpdateTime.value = now
 
       hookedUpdate?.call(this, model, now)
 
       // Possibility 1: Only update eye focus when the model is idle
-      // Possibility 2: For models having no mo`ti`on groups, currentGroup will be undefined while groups can be { idle: ... }
+      // Possibility 2: For models having no motion groups, currentGroup will be undefined while groups can be { idle: ... }
       if (!motionManager.state.currentGroup || motionManager.state.currentGroup === motionManager.groups.idle) {
         idleEyeFocus.update(internalModel, now)
 
@@ -325,6 +381,21 @@ watch(focusAt, (value) => {
     return
 
   model.value.focus(value.x, value.y)
+})
+
+const beatSyncStore = useBeatSyncStore()
+
+onMounted(() => {
+  const onBeat = (level: number) => {
+    beatSyncTargetY.value = Math.max(-10, Math.min(10, (beatSyncTargetY.value < 0 ? 10 : -10) * level * 5))
+    beatSyncTargetZ.value = Math.max(-10, Math.min(10, (beatSyncTargetZ.value < 0 ? 10 : -10) * level * 4))
+  }
+
+  beatSyncStore.on('beat', onBeat)
+
+  onUnmounted(() => {
+    beatSyncStore.off('beat', onBeat)
+  })
 })
 
 onMounted(async () => {
