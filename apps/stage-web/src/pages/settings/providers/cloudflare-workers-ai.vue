@@ -47,10 +47,6 @@ const accountId = computed({
 onMounted(() => {
   // Initialize provider if it doesn't exist
   providersStore.initializeProvider(providerId)
-
-  // Initialize refs with current values
-  apiKey.value = providers.value[providerId]?.apiKey || ''
-  accountId.value = providers.value[providerId]?.accountId || ''
 })
 
 // Watch settings and update the provider configuration
@@ -64,15 +60,15 @@ watch([apiKey, accountId], () => {
 
 function handleResetSettings() {
   providers.value[providerId] = {
-    ...(providerMetadata.value?.defaultOptions as any),
+    ...(providerMetadata.value?.defaultOptions ?? {}),
   }
 }
 </script>
 
 <template>
   <ProviderSettingsLayout
-    :provider-name="providerMetadata?.localizedName"
-    :provider-icon-color="providerMetadata?.iconColor"
+    :provider-name="providerMetadata.value?.localizedName"
+    :provider-icon-color="providerMetadata.value?.iconColor"
     :on-back="() => router.back()"
   >
     <ProviderSettingsContainer>
@@ -83,7 +79,7 @@ function handleResetSettings() {
       >
         <ProviderApiKeyInput
           v-model="apiKey"
-          :provider-name="providerMetadata?.localizedName"
+          :provider-name="providerMetadata.value?.localizedName"
           :placeholder="t('settings.pages.providers.provider.cloudflare-workers-ai.fields.field.api-key.placeholder')"
         />
 
@@ -103,4 +99,4 @@ function handleResetSettings() {
     layout: settings
     stageTransition:
       name: slide
-  </route>
+</route>
