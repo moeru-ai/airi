@@ -18,67 +18,56 @@ import { useRouter } from 'vue-router'
 const { t } = useI18n()
 const router = useRouter()
 const providersStore = useProvidersStore()
-const { providers } = storeToRefs(providersStore) as { providers: RemovableRef<Record<string, any>> }
+const { providers } = storeToRefs(providersStore) as {
+  providers: RemovableRef<Record<string, any>>
+}
 
-// Get provider metadata
 const providerId = 'azure-ai-foundry'
+
+// Reactive provider metadata
 const providerMetadata = computed(() => providersStore.getProviderMetadata(providerId))
 
-// Use computed properties for settings
-const apiKey = computed({
+// Computed settings
+const apiKey = computed<string>({
   get: () => providers.value[providerId]?.apiKey || '',
   set: (value) => {
-    if (!providers.value[providerId])
-      providers.value[providerId] = {}
-
+    if (!providers.value[providerId]) providers.value[providerId] = {}
     providers.value[providerId].apiKey = value
   },
 })
 
-const resourceName = computed({
+const resourceName = computed<string>({
   get: () => providers.value[providerId]?.resourceName || '',
   set: (value) => {
-    if (!providers.value[providerId])
-      providers.value[providerId] = {}
-
+    if (!providers.value[providerId]) providers.value[providerId] = {}
     providers.value[providerId].resourceName = value
   },
 })
 
-const apiVersion = computed({
+const apiVersion = computed<string>({
   get: () => providers.value[providerId]?.apiVersion || '',
   set: (value) => {
-    if (!providers.value[providerId])
-      providers.value[providerId] = {}
-
+    if (!providers.value[providerId]) providers.value[providerId] = {}
     providers.value[providerId].apiVersion = value
   },
 })
 
-const modelId = computed({
+const modelId = computed<string>({
   get: () => providers.value[providerId]?.modelId || '',
   set: (value) => {
-    if (!providers.value[providerId])
-      providers.value[providerId] = {}
-
+    if (!providers.value[providerId]) providers.value[providerId] = {}
     providers.value[providerId].modelId = value
   },
 })
 
 onMounted(() => {
-  // Initialize provider if it doesn't exist
+  // Ensure provider entry exists
   if (!providers.value[providerId]) {
     providers.value[providerId] = {}
   }
-
-  // Initialize refs with current values
-  apiKey.value = providers.value[providerId]?.apiKey || ''
-  resourceName.value = providers.value[providerId]?.resourceName || ''
-  apiVersion.value = providers.value[providerId]?.apiVersion || ''
-  modelId.value = providers.value[providerId]?.modelId || ''
 })
 
-// Watch settings and update the provider configuration
+// Sync changes to store when values change
 watch([apiKey, resourceName, apiVersion, modelId], () => {
   providers.value[providerId] = {
     ...providers.value[providerId],
@@ -96,8 +85,8 @@ function handleResetSettings() {
 
 <template>
   <ProviderSettingsLayout
-    :provider-name="providerMetadata?.localizedName || 'Azure OpenAI'"
-    :provider-icon="providerMetadata?.icon"
+    :provider-name="providerMetadata.value?.localizedName || 'Azure OpenAI'"
+    :provider-icon="providerMetadata.value?.icon"
     :on-back="() => router.back()"
   >
     <ProviderSettingsContainer>
@@ -108,13 +97,13 @@ function handleResetSettings() {
       >
         <ProviderApiKeyInput
           v-model="apiKey"
-          :provider-name="providerMetadata?.localizedName || 'Azure OpenAI'"
+          :provider-name="providerMetadata.value?.localizedName || 'Azure OpenAI'"
           placeholder="..."
           required
         />
         <ProviderAccountIdInput
           v-model="resourceName"
-          label="Resouce name"
+          label="Resource name"
           placeholder="..."
           description="Prefix used in https://<prefix>.services.ai.azure.com"
           required
@@ -128,7 +117,9 @@ function handleResetSettings() {
         />
       </ProviderBasicSettings>
 
-      <ProviderAdvancedSettings :title="t('settings.pages.providers.common.section.advanced.title')">
+      <ProviderAdvancedSettings
+        :title="t('settings.pages.providers.common.section.advanced.title')"
+      >
         <ProviderAccountIdInput
           v-model="apiVersion"
           label="API version"
@@ -141,8 +132,8 @@ function handleResetSettings() {
 </template>
 
 <route lang="yaml">
-  meta:
-    layout: settings
-    stageTransition:
-      name: slide
-  </route>
+meta:
+  layout: settings
+  stageTransition:
+    name: slide
+</route>
