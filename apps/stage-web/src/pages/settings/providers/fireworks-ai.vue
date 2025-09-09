@@ -36,7 +36,7 @@ const apiKey = computed({
 })
 
 const baseUrl = computed({
-  get: () => providers.value[providerId]?.baseUrl || '',
+  get: () => providers.value[providerId]?.baseUrl || 'https://api.fireworks.ai/inference/v1/',
   set: (value) => {
     if (!providers.value[providerId])
       providers.value[providerId] = {}
@@ -48,10 +48,6 @@ const baseUrl = computed({
 onMounted(() => {
   // Initialize provider if it doesn't exist
   providersStore.initializeProvider(providerId)
-
-  // Initialize refs with current values
-  apiKey.value = providers.value[providerId]?.apiKey || ''
-  baseUrl.value = providers.value[providerId]?.baseUrl || ''
 })
 
 // Watch settings and update the provider configuration
@@ -59,21 +55,21 @@ watch([apiKey, baseUrl], () => {
   providers.value[providerId] = {
     ...providers.value[providerId],
     apiKey: apiKey.value,
-    baseUrl: baseUrl.value || '',
+    baseUrl: baseUrl.value || 'https://api.fireworks.ai/inference/v1/',
   }
 })
 
 function handleResetSettings() {
   providers.value[providerId] = {
-    ...(providerMetadata.value?.defaultOptions as any),
+    ...(providerMetadata.value?.defaultOptions ?? {}),
   }
 }
 </script>
 
 <template>
   <ProviderSettingsLayout
-    :provider-name="providerMetadata?.localizedName"
-    :provider-icon="providerMetadata?.icon"
+    :provider-name="providerMetadata.value?.localizedName"
+    :provider-icon="providerMetadata.value?.icon"
     :on-back="() => router.back()"
   >
     <ProviderSettingsContainer>
@@ -84,7 +80,7 @@ function handleResetSettings() {
       >
         <ProviderApiKeyInput
           v-model="apiKey"
-          :provider-name="providerMetadata?.localizedName"
+          :provider-name="providerMetadata.value?.localizedName"
           placeholder="fw-..."
         />
       </ProviderBasicSettings>
@@ -104,4 +100,4 @@ function handleResetSettings() {
     layout: settings
     stageTransition:
       name: slide
-  </route>
+</route>
