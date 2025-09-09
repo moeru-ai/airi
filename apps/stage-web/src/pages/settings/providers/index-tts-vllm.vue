@@ -21,7 +21,7 @@ const { providers } = storeToRefs(providersStore)
 
 // Check if API key is configured
 // const apiKeyConfigured = computed(() => !!providers.value[providerId]?.apiKey)
-const apiKeyConfigured = true // Assuming API key is always configured as its not required
+const apiKeyConfigured = true // IndexTTS does not require API key
 
 // Get available voices for Index TTS
 const availableVoices = computed(() => {
@@ -30,7 +30,7 @@ const availableVoices = computed(() => {
 
 // Generate speech with IndexTTS-specific parameters
 async function handleGenerateSpeech(input: string, voiceId: string, _useSSML: boolean) {
-  const provider = await providersStore.getProviderInstance(providerId) as SpeechProvider
+  const provider = await providersStore.getProviderInstance(providerId) as SpeechProvider | undefined
   if (!provider) {
     throw new Error('Failed to initialize speech provider')
   }
@@ -39,10 +39,10 @@ async function handleGenerateSpeech(input: string, voiceId: string, _useSSML: bo
   const providerConfig = providersStore.getProviderConfig(providerId)
 
   // Get model from configuration or use default
-  const model = providerConfig.model as string | undefined || defaultModel
+  const model = (providerConfig.model as string | undefined) || defaultModel
 
   // Index TTS doesn't need SSML conversion, but if SSML is provided, use it directly
-  return await speechStore.speech(
+  return speechStore.speech(
     provider,
     model,
     input,
@@ -53,14 +53,18 @@ async function handleGenerateSpeech(input: string, voiceId: string, _useSSML: bo
   )
 }
 
-watch([providers], async () => {
+watch(providers, async () => {
   const providerConfig = providersStore.getProviderConfig(providerId)
   const providerMetadata = providersStore.getProviderMetadata(providerId)
-  if (await providerMetadata.validators.validateProviderConfig(providerConfig)) {
-    await speechStore.loadVoicesForProvider(providerId)
-  }
-  else {
-    console.error('Failed to validate provider config', providerConfig)
+  if (providerMetadata?.validators?.validateProviderConfig) {
+    const valid = await providerMetadata.validators.validateProviderConfig(providerConfig)
+    if (valid) {
+      await speechStore.loadVoicesForProvider(providerId)
+    } else {
+      console.error('Failed to validate provider config', providerConfig)
+    }
+  } else {
+    console.error('Provider metadata or validator missing for', providerId)
   }
 }, {
   immediate: true,
@@ -85,8 +89,8 @@ watch([providers], async () => {
 </template>
 
 <route lang="yaml">
-  meta:
-    layout: settings
-    stageTransition:
-      name: slide
-  </route>
+meta:
+  layout: settings
+  stageTransition:
+    name: slide
+</route>
