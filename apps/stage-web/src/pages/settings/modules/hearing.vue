@@ -67,10 +67,23 @@ const maxVadHistory = 50 // Keep 50 samples (~1.6 seconds at 32ms intervals)
 
 const audios = ref<Blob[]>([])
 const audioCleanups = ref<(() => void)[]>([])
+
+// FIX: revoke existing URLs before creating new ones to avoid leaks
 const audioURLs = computed(() => {
+  // revoke previously created URLs first
+  try {
+    audioCleanups.value.forEach(cleanup => {
+      try { cleanup() } catch { /* swallow */ }
+    })
+  } finally {
+    audioCleanups.value = []
+  }
+
   return audios.value.map((blob) => {
     const url = URL.createObjectURL(blob)
-    audioCleanups.value.push(() => URL.revokeObjectURL(url))
+    audioCleanups.value.push(() => {
+      try { URL.revokeObjectURL(url) } catch { /* swallow */ }
+    })
     return url
   })
 })
@@ -232,10 +245,19 @@ async function stopAudioMonitoring() {
     animationFrame.value = undefined
   }
   if (vadManager.value) { // Stop VAD manager
-    await vadManager.value.stop()
+    try {
+      await vadManager.value.stop()
+    } catch (e) {
+      // swallow errors during stop to avoid blocking cleanup
+      console.warn('Error stopping VAD manager:', e)
+    }
   }
   if (stream.value) { // Stop media stream
-    stopStream()
+    try {
+      stopStream()
+    } catch (e) {
+      console.warn('Error stopping stream:', e)
+    }
   }
 
   stopAnalyzer()
@@ -253,11 +275,21 @@ async function updatePlayback() {
 
   if (enablePlayback.value) {
     gainNode.value.gain.value = monitorVolume.value / 100
-    gainNode.value.connect(audioContext.value.destination)
+    // ensure connecting doesn't throw
+    try {
+      gainNode.value.connect(audioContext.value.destination)
+    } catch (e) {
+      console.warn('Error connecting gain node:', e)
+    }
   }
   else {
     gainNode.value.gain.value = 0
-    gainNode.value.disconnect()
+    // FIX: disconnect might throw if not connected; swallow errors
+    try {
+      gainNode.value.disconnect()
+    } catch (e) {
+      // No-op
+    }
   }
 }
 
@@ -283,14 +315,21 @@ watch(vadThreshold, () => {
 })
 
 // Monitoring toggle
+const _isTogglingMonitoring = ref(false) // FIX: guard to prevent concurrent toggles
 async function toggleMonitoring() {
-  if (!isMonitoring.value) {
-    await setupAudioMonitoring()
-    isMonitoring.value = true
-  }
-  else {
-    await stopAudioMonitoring()
-    isMonitoring.value = false
+  if (_isTogglingMonitoring.value) return
+  _isTogglingMonitoring.value = true
+  try {
+    if (!isMonitoring.value) {
+      await setupAudioMonitoring()
+      isMonitoring.value = true
+    }
+    else {
+      await stopAudioMonitoring()
+      isMonitoring.value = false
+    }
+  } finally {
+    _isTogglingMonitoring.value = false
   }
 }
 
@@ -330,12 +369,34 @@ onMounted(async () => {
 })
 
 onUnmounted(() => {
-  stopAudioMonitoring()
-  if (vadManager.value) {
-    vadManager.value.dispose()
-  }
+  // Run async cleanup without changing "result" semantics; swallow errors.
+  ;(async () => {
+    try {
+      await stopAudioMonitoring()
+    } catch (e) {
+      console.warn('Error during stopAudioMonitoring in unmount:', e)
+    }
 
-  audioCleanups.value.forEach(cleanup => cleanup())
+    if (vadManager.value) {
+      try {
+        // dispose if available; swallow errors
+        if (typeof vadManager.value.dispose === 'function') {
+          vadManager.value.dispose()
+        }
+      } catch (e) {
+        console.warn('Error disposing vadManager on unmount:', e)
+      }
+    }
+
+    // Revoke any created object URLs
+    try {
+      audioCleanups.value.forEach(cleanup => {
+        try { cleanup() } catch { /* swallow */ }
+      })
+    } finally {
+      audioCleanups.value = []
+    }
+  })()
 })
 </script>
 
