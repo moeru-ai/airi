@@ -11,6 +11,10 @@ import { useIconAnimation } from '../../../composables/icon-animation'
 
 const { t } = useI18n()
 
+// Instantiate stores once at top-level (avoid calling inside computed)
+const consciousnessStore = useConsciousnessStore()
+const speechStore = useSpeechStore()
+
 interface Module {
   id: string
   name: string
@@ -19,7 +23,7 @@ interface Module {
   iconColor?: string
   iconImage?: string
   to: string
-  configured: boolean
+  configured: boolean | any
 }
 
 // TODO: categorize modules, such as essential, messaging, gaming, etc.
@@ -30,7 +34,8 @@ const modulesList = computed<Module[]>(() => [
     description: t('settings.pages.modules.consciousness.description'),
     icon: 'i-solar:ghost-bold-duotone',
     to: '/settings/modules/consciousness',
-    configured: useConsciousnessStore().configured,
+    // reference the already-created store rather than re-calling the composable
+    configured: consciousnessStore.configured,
   },
   {
     id: 'speech',
@@ -38,7 +43,7 @@ const modulesList = computed<Module[]>(() => [
     description: t('settings.pages.modules.speech.description'),
     icon: 'i-solar:user-speak-rounded-bold-duotone',
     to: '/settings/modules/speech',
-    configured: useSpeechStore().configured,
+    configured: speechStore.configured,
   },
   {
     id: 'hearing',
