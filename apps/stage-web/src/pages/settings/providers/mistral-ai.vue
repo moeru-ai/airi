@@ -46,16 +46,15 @@ const baseUrl = computed({
 })
 
 onMounted(() => {
-  // Initialize provider if it doesn't exist
+  // Ensure provider object exists
   providersStore.initializeProvider(providerId)
-
-  // Initialize refs with current values
-  apiKey.value = providers.value[providerId]?.apiKey || ''
-  baseUrl.value = providers.value[providerId]?.baseUrl || ''
 })
 
 // Watch settings and update the provider configuration
 watch([apiKey, baseUrl], () => {
+  if (!providers.value[providerId])
+    providers.value[providerId] = {}
+
   providers.value[providerId] = {
     ...providers.value[providerId],
     apiKey: apiKey.value,
@@ -65,7 +64,9 @@ watch([apiKey, baseUrl], () => {
 
 function handleResetSettings() {
   providers.value[providerId] = {
-    ...(providerMetadata.value?.defaultOptions as any),
+    ...(typeof providerMetadata.value?.defaultOptions === 'function'
+      ? providerMetadata.value.defaultOptions()
+      : providerMetadata.value?.defaultOptions || {}),
   }
 }
 </script>
@@ -73,6 +74,7 @@ function handleResetSettings() {
 <template>
   <ProviderSettingsLayout
     :provider-name="providerMetadata?.localizedName"
+    :provider-icon="providerMetadata?.icon"
     :provider-icon-color="providerMetadata?.iconColor"
     :on-back="() => router.back()"
   >
@@ -104,4 +106,4 @@ function handleResetSettings() {
     layout: settings
     stageTransition:
       name: slide
-  </route>
+</route>
