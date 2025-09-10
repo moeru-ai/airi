@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import DOMPurify from 'dompurify'
+
 import { onMounted, ref, watch } from 'vue'
 
 import { useMarkdown } from '../composables/markdown'
@@ -40,7 +42,7 @@ onMounted(() => {
   <div
     :class="props.class"
     class="markdown-content"
-    v-html="processedContent"
+    v-html="DOMPurify.sanitize(processedContent)"
   />
 </template>
 
