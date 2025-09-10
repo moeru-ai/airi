@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import type { RemovableRef } from '@vueuse/core'
 import type { SpeechProvider } from '@xsai-ext/shared-providers'
 
 import {
@@ -21,15 +20,10 @@ import { useRouter } from 'vue-router'
 
 const speechStore = useSpeechStore()
 const providersStore = useProvidersStore()
-const { providers } = storeToRefs(providersStore) as { providers: RemovableRef<Record<string, any>> }
+const { providers } = storeToRefs(providersStore)
 const { t } = useI18n()
 const router = useRouter()
 
-const defaultVoiceSettings = {
-  speed: 1.0,
-}
-
-// Get provider metadata
 const providerId = 'openai-compatible-audio-speech'
 const providerMetadata = computed(() => providersStore.getProviderMetadata(providerId))
 
@@ -37,41 +31,42 @@ const providerMetadata = computed(() => providersStore.getProviderMetadata(provi
 const apiKey = computed({
   get: () => providers.value[providerId]?.apiKey || '',
   set: (value) => {
-    if (providers.value[providerId])
-      providers.value[providerId].apiKey = value
+    if (!providers.value[providerId])
+      providers.value[providerId] = {}
+    providers.value[providerId].apiKey = value
   },
 })
 
 const baseUrl = computed({
   get: () => providers.value[providerId]?.baseUrl || '',
   set: (value) => {
-    if (providers.value[providerId])
-      providers.value[providerId].baseUrl = value
+    if (!providers.value[providerId])
+      providers.value[providerId] = {}
+    providers.value[providerId].baseUrl = value
   },
 })
 
 const model = computed({
   get: () => providers.value[providerId]?.model || 'tts-1',
   set: (value) => {
-    if (providers.value[providerId])
-      providers.value[providerId].model = value
+    if (!providers.value[providerId])
+      providers.value[providerId] = {}
+    providers.value[providerId].model = value
   },
 })
 
 const voice = computed({
   get: () => providers.value[providerId]?.voice || 'alloy',
   set: (value) => {
-    if (providers.value[providerId])
-      providers.value[providerId].voice = value
+    if (!providers.value[providerId])
+      providers.value[providerId] = {}
+    providers.value[providerId].voice = value
   },
 })
 
 const speed = ref<number>(1.0)
-
-// Check if API key is configured
 const apiKeyConfigured = computed(() => !!providers.value[providerId]?.apiKey)
 
-// Generate speech with specific parameters
 async function handleGenerateSpeech(input: string, voiceId: string, _useSSML: boolean, modelId?: string) {
   const provider = await providersStore.getProviderInstance<SpeechProvider<string>>(providerId)
   if (!provider)
@@ -86,7 +81,6 @@ async function handleGenerateSpeech(input: string, voiceId: string, _useSSML: bo
     voiceId || voice.value,
     {
       ...providerConfig,
-      ...defaultVoiceSettings,
       speed: speed.value,
     },
   )
@@ -94,17 +88,12 @@ async function handleGenerateSpeech(input: string, voiceId: string, _useSSML: bo
 
 onMounted(() => {
   providersStore.initializeProvider(providerId)
-  const config = providers.value[providerId] || {}
-  apiKey.value = config.apiKey || ''
-  baseUrl.value = config.baseUrl || ''
-  model.value = config.model || 'tts-1'
-  voice.value = config.voice || 'alloy'
-  speed.value = config.speed || 1.0
 })
 
 watch(speed, (newSpeed) => {
-  if (providers.value[providerId])
-    providers.value[providerId].speed = newSpeed
+  if (!providers.value[providerId])
+    providers.value[providerId] = {}
+  providers.value[providerId].speed = newSpeed
 })
 
 function handleResetSettings() {
@@ -112,23 +101,22 @@ function handleResetSettings() {
   providers.value[providerId] = {
     apiKey: '',
     baseUrl: defaults.baseUrl || '',
-    model: 'tts-1',
-    voice: 'alloy',
-    speed: 1.0,
+    model: defaults.model || 'tts-1',
+    voice: defaults.voice || 'alloy',
+    speed: defaults.speed || 1.0,
   }
-  // Force update refs
   apiKey.value = ''
   baseUrl.value = defaults.baseUrl || ''
-  model.value = 'tts-1'
-  voice.value = 'alloy'
-  speed.value = 1.0
+  model.value = defaults.model || 'tts-1'
+  voice.value = defaults.voice || 'alloy'
+  speed.value = defaults.speed || 1.0
 }
 </script>
 
 <template>
   <ProviderSettingsLayout
-    :provider-name="providerMetadata?.localizedName || 'OpenAI Compatible'"
-    :provider-icon="providerMetadata?.icon"
+    :provider-name="providerMetadata.value?.localizedName || 'OpenAI Compatible'"
+    :provider-icon="providerMetadata.value?.icon"
     :on-back="() => router.back()"
   >
     <ProviderSettingsContainer>
@@ -139,7 +127,7 @@ function handleResetSettings() {
       >
         <ProviderApiKeyInput
           v-model="apiKey"
-          :provider-name="providerMetadata?.localizedName"
+          :provider-name="providerMetadata.value?.localizedName"
           placeholder="sk-..."
         />
       </ProviderBasicSettings>
@@ -154,7 +142,8 @@ function handleResetSettings() {
           :label="t('settings.pages.providers.provider.common.fields.field.speed.label')"
           :description="t('settings.pages.providers.provider.common.fields.field.speed.description')"
           :min="0.5"
-          :max="2.0" :step="0.01"
+          :max="2.0"
+          :step="0.01"
         />
       </ProviderAdvancedSettings>
     </ProviderSettingsContainer>
@@ -174,4 +163,4 @@ function handleResetSettings() {
     layout: settings
     stageTransition:
       name: slide
-  </route>
+</route>
