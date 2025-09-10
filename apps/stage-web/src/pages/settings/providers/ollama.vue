@@ -28,63 +28,87 @@ const providerMetadata = computed(() => providersStore.getProviderMetadata(provi
 
 const validationMessage = ref('')
 
-const baseUrl = computed({
-  get: () => providers.value[providerId]?.baseUrl || providerMetadata.value?.defaultOptions?.().baseUrl || '',
-  set: (value) => {
-    if (!providers.value[providerId])
-      providers.value[providerId] = {}
+// helper to safely get defaultOptions (supports function or object)
+function getDefaultOptions() {
+  const def = providerMetadata.value?.defaultOptions
+  if (!def) return undefined
+  return typeof def === 'function' ? def() : def
+}
 
-    providers.value[providerId].baseUrl = value
+// Use computed for baseUrl; preserve existing object when setting
+const baseUrl = computed<string>({
+  get: () =>
+    providers.value[providerId]?.baseUrl ??
+    getDefaultOptions()?.baseUrl ??
+    '',
+  set: (value: string) => {
+    providers.value[providerId] = {
+      ...providers.value[providerId],
+      baseUrl: value,
+    }
   },
 })
 
-const headers = ref(Object.entries(providers.value[providerId]?.headers ?? {}).map(([key, value]) => ({ key, value } as { key: string, value: string })) || [{ key: '', value: '' }])
+// Initialize headers ref from provider data (array of {key, value})
+const initialHeadersArray = () => {
+  const raw = providers.value[providerId]?.headers ?? {}
+  const entries = Object.entries(raw).map(([key, value]) => ({ key, value } as { key: string; value: string }))
+  return entries.length ? entries : []
+}
+const headers = ref<{ key: string; value: string }[]>(initialHeadersArray())
 
-function addKeyValue(headers: { key: string, value: string }[], key: string, value: string) {
-  if (!headers)
-    return
-
-  headers.push({ key, value })
+// helper functions tolerate either a raw array or a Ref to an array
+function addKeyValue(headersArg: any, key: string, value: string) {
+  const target = headersArg && 'value' in headersArg ? headersArg.value : headersArg
+  if (!target) return
+  target.push({ key, value })
 }
 
-function removeKeyValue(index: number, headers: { key: string, value: string }[]) {
-  if (!headers)
-    return
+function removeKeyValue(index: number, headersArg: any) {
+  const target = headersArg && 'value' in headersArg ? headersArg.value : headersArg
+  if (!target) return
 
-  if (headers.length === 1) {
-    headers[0].key = ''
-    headers[0].value = ''
-  }
-  else {
-    headers.splice(index, 1)
+  if (target.length === 1) {
+    target[0].key = ''
+    target[0].value = ''
+  } else {
+    target.splice(index, 1)
   }
 }
 
-watch(headers, (headers) => {
-  if (headers.length > 0 && (headers[headers.length - 1].key !== '' || headers[headers.length - 1].value !== '')) {
-    headers.push({ key: '', value: '' })
-  }
+// watch headers (array) and sync to providers store; avoid shadowing variable name
+watch(
+  headers,
+  (hdrs) => {
+    // ensure trailing blank row for UI
+    if (hdrs.length > 0 && (hdrs[hdrs.length - 1].key !== '' || hdrs[hdrs.length - 1].value !== '')) {
+      hdrs.push({ key: '', value: '' })
+    }
 
-  providers.value[providerId].headers = headers.filter(header => header.key !== '').reduce((acc, header) => {
-    acc[header.key] = header.value
-    return acc
-  }, {} as Record<string, string>)
-}, {
-  deep: true,
-  immediate: true,
-})
+    // ensure provider object exists before writing
+    providers.value[providerId] = {
+      ...providers.value[providerId],
+      headers: hdrs
+        .filter((h) => h.key !== '')
+        .reduce((acc, header) => {
+          acc[header.key] = header.value
+          return acc
+        }, {} as Record<string, string>),
+    }
+  },
+  { deep: true, immediate: true }
+)
 
 async function refetch() {
   loading.value++
-  // service startup time
   const startValidationTimestamp = performance.now()
   let finalValidationMessage = ''
 
   try {
     const validationResult = await providerMetadata.value.validators.validateProviderConfig({
       baseUrl: baseUrl.value,
-      headers: headers.value.filter(header => header.key !== '').reduce((acc, header) => {
-        acc[header.key] = header.value
+      headers: headers.value.filter((h) => h.key !== '').reduce((acc, h) => {
+        acc[h.key] = h.value
         return acc
       }, {} as Record<string, string>),
     })
@@ -93,35 +117,39 @@ async function refetch() {
       finalValidationMessage = t('settings.dialogs.onboarding.validationError', {
         error: validationResult.reason,
       })
-    }
-    else {
+    } else {
       finalValidationMessage = ''
     }
-  }
-  catch (error) {
+  } catch (error) {
     finalValidationMessage = t('settings.dialogs.onboarding.validationError', {
       error: error instanceof Error ? error.message : String(error),
     })
-  }
-  finally {
+  } finally {
+    // ensure non-negative timeout
+    const elapsed = performance.now() - startValidationTimestamp
+    const delay = Math.max(0, 500 - elapsed)
     setTimeout(() => {
       loading.value--
       validationMessage.value = finalValidationMessage
-    }, 500 - (performance.now() - startValidationTimestamp))
+    }, delay)
   }
 }
 
+// watch baseUrl and headers (headers needs deep watch separately for nested array changes)
 watch([baseUrl, headers], refetch, { immediate: true })
 watch(headers, refetch, { deep: true })
 
 onMounted(() => {
   providersStore.initializeProvider(providerId)
 
-  // Initialize refs with current values
-  baseUrl.value = providers.value[providerId]?.baseUrl || providerMetadata.value?.defaultOptions?.().baseUrl || ''
+  // Initialize baseUrl from store or defaults
+  baseUrl.value = providers.value[providerId]?.baseUrl ?? getDefaultOptions()?.baseUrl ?? ''
 
-  // Initialize headers if not already set
-  if (!providers.value[providerId]?.headers) {
+  // Ensure headers object exists on provider and the ref has at least one blank row
+  if (!providers.value[providerId]) {
+    providers.value[providerId] = {}
+  }
+  if (!providers.value[providerId].headers) {
     providers.value[providerId].headers = {}
   }
   if (headers.value.length === 0) {
@@ -131,7 +159,7 @@ onMounted(() => {
 
 function handleResetSettings() {
   providers.value[providerId] = {
-    ...(providerMetadata.value?.defaultOptions as any),
+    ...(getDefaultOptions() as any),
   }
 }
 </script>
@@ -171,7 +199,7 @@ function handleResetSettings() {
         >
           <ProviderBaseUrlInput
             v-model="baseUrl"
-            :placeholder="providerMetadata?.defaultOptions?.().baseUrl as string || ''"
+            :placeholder="providerMetadata?.defaultOptions?.().baseUrl || ''"
             required
           />
         </ProviderBasicSettings>
@@ -197,4 +225,4 @@ function handleResetSettings() {
     layout: settings
     stageTransition:
       name: slide
-  </route>
+</route>
