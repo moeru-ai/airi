@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import type { SpeechProviderWithExtraOptions } from '@xsai-ext/shared-providers'
-import type { UnElevenLabsOptions } from 'unspeech'
 
 import {
   SpeechPlayground,
@@ -25,12 +24,13 @@ const { t } = useI18n()
 
 // Additional settings specific to Volcengine (appId)
 const appId = computed({
-  get: () => (providers.value[providerId]?.app as any)?.appId as string | undefined || '',
+  get: () => (providers.value[providerId]?.app as any)?.appId || '',
   set: (value) => {
     if (!providers.value[providerId])
       providers.value[providerId] = {}
 
     providers.value[providerId].app = {
+      ...(providers.value[providerId].app || {}),
       appId: value,
     }
   },
@@ -39,14 +39,16 @@ const appId = computed({
 // Check if API key is configured
 const apiKeyConfigured = computed(() => !!providers.value[providerId]?.apiKey)
 
-// Get available voices for ElevenLabs
+// Get available voices for Volcengine
 const availableVoices = computed(() => {
   return speechStore.availableVoices[providerId] || []
 })
 
-// Generate speech with ElevenLabs-specific parameters
+// Generate speech with Volcengine-specific parameters
 async function handleGenerateSpeech(input: string, voiceId: string, _useSSML: boolean) {
-  const provider = await providersStore.getProviderInstance(providerId) as SpeechProviderWithExtraOptions<string, UnElevenLabsOptions>
+  const provider = await providersStore.getProviderInstance(
+    providerId,
+  ) as SpeechProviderWithExtraOptions<string, Record<string, any>>
   if (!provider) {
     throw new Error('Failed to initialize speech provider')
   }
@@ -55,9 +57,9 @@ async function handleGenerateSpeech(input: string, voiceId: string, _useSSML: bo
   const providerConfig = providersStore.getProviderConfig(providerId)
 
   // Get model from configuration or use default
-  const model = providerConfig.model as string | undefined || defaultModel
+  const model = (providerConfig.model as string | undefined) || defaultModel
 
-  // ElevenLabs doesn't need SSML conversion, but if SSML is provided, use it directly
+  // Volcengine doesn’t need SSML conversion
   return await speechStore.speech(
     provider,
     model,
@@ -69,38 +71,32 @@ async function handleGenerateSpeech(input: string, voiceId: string, _useSSML: bo
   )
 }
 
+async function validateAndLoadVoices() {
+  const providerConfig = providersStore.getProviderConfig(providerId)
+  const providerMetadata = providersStore.getProviderMetadata(providerId)
+  if (await providerMetadata.validators.validateProviderConfig(providerConfig)) {
+    await speechStore.loadVoicesForProvider(providerId)
+  }
+  else {
+    console.error('Failed to validate provider config', providerConfig)
+  }
+}
+
 onMounted(async () => {
-  const providerConfig = providersStore.getProviderConfig(providerId)
-  const providerMetadata = providersStore.getProviderMetadata(providerId)
-  if (await providerMetadata.validators.validateProviderConfig(providerConfig)) {
-    await speechStore.loadVoicesForProvider(providerId)
-  }
-  else {
-    console.error('Failed to validate provider config', providerConfig)
-  }
+  await validateAndLoadVoices()
 })
 
-watch(speedRatio, async () => {
+watch(speedRatio, (val) => {
   const providerConfig = providersStore.getProviderConfig(providerId)
-  if (!providerConfig.audio) {
+  if (!providerConfig.audio)
     providerConfig.audio = {}
-  }
 
-  (providerConfig.audio as any).speedRatio = speedRatio.value
+  ;(providerConfig.audio as any).speedRatio = val
 })
 
-watch([providers, appId], async () => {
-  const providerConfig = providersStore.getProviderConfig(providerId)
-  const providerMetadata = providersStore.getProviderMetadata(providerId)
-  if (await providerMetadata.validators.validateProviderConfig(providerConfig)) {
-    await speechStore.loadVoicesForProvider(providerId)
-  }
-  else {
-    console.error('Failed to validate provider config', providerConfig)
-  }
-}, {
-  immediate: true,
-})
+watch(appId, async () => {
+  await validateAndLoadVoices()
+}, { immediate: true })
 </script>
 
 <template>
@@ -108,7 +104,7 @@ watch([providers, appId], async () => {
     :provider-id="providerId"
     :default-model="defaultModel"
   >
-    <!-- Voice settings specific to ElevenLabs -->
+    <!-- Basic settings specific to Volcengine -->
     <template #basic-settings>
       <div flex="~ col gap-4">
         <FieldInput
@@ -127,7 +123,8 @@ watch([providers, appId], async () => {
         :label="t('settings.pages.providers.provider.common.fields.field.speed.label')"
         :description="t('settings.pages.providers.provider.common.fields.field.speed.description')"
         :min="0.5"
-        :max="2.0" :step="0.01"
+        :max="2.0"
+        :step="0.01"
       />
     </template>
 
@@ -137,7 +134,7 @@ watch([providers, appId], async () => {
         :available-voices="availableVoices"
         :generate-speech="handleGenerateSpeech"
         :api-key-configured="apiKeyConfigured"
-        default-text="Hello! This is a test of the ElevenLabs voice synthesis."
+        default-text="Hello! This is a test of the Volcengine voice synthesis."
       />
     </template>
   </SpeechProviderSettings>
@@ -148,4 +145,4 @@ watch([providers, appId], async () => {
     layout: settings
     stageTransition:
       name: slide
-  </route>
+</route>
