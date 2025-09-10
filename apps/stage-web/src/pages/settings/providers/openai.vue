@@ -20,17 +20,16 @@ const router = useRouter()
 const providersStore = useProvidersStore()
 const { providers } = storeToRefs(providersStore) as { providers: RemovableRef<Record<string, any>> }
 
-// Get provider metadata
+// Provider ID and metadata
 const providerId = 'openai'
 const providerMetadata = computed(() => providersStore.getProviderMetadata(providerId))
 
-// Use computed properties for settings
+// Settings
 const apiKey = computed({
   get: () => providers.value[providerId]?.apiKey || '',
   set: (value) => {
     if (!providers.value[providerId])
       providers.value[providerId] = {}
-
     providers.value[providerId].apiKey = value
   },
 })
@@ -40,25 +39,16 @@ const baseUrl = computed({
   set: (value) => {
     if (!providers.value[providerId])
       providers.value[providerId] = {}
-
     providers.value[providerId].baseUrl = value
   },
 })
 
+// Initialize provider on mount
 onMounted(() => {
-  // Initialize provider if it doesn't exist
-  if (!providers.value[providerId]) {
-    providers.value[providerId] = {
-      baseUrl: 'https://api.openai.com/v1/',
-    }
-  }
-
-  // Initialize refs with current values
-  apiKey.value = providers.value[providerId]?.apiKey || ''
-  baseUrl.value = providers.value[providerId]?.baseUrl || 'https://api.openai.com/v1/'
+  providersStore.initializeProvider(providerId)
 })
 
-// Watch settings and update the provider configuration
+// Sync changes
 watch([apiKey, baseUrl], () => {
   providers.value[providerId] = {
     ...providers.value[providerId],
@@ -67,8 +57,10 @@ watch([apiKey, baseUrl], () => {
   }
 })
 
+// Reset handler
 function handleResetSettings() {
   providers.value[providerId] = {
+    apiKey: '',
     baseUrl: 'https://api.openai.com/v1/',
   }
 }
@@ -108,4 +100,4 @@ function handleResetSettings() {
     layout: settings
     stageTransition:
       name: slide
-  </route>
+</route>
