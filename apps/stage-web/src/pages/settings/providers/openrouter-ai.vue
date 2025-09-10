@@ -1,6 +1,4 @@
 <script setup lang="ts">
-import type { RemovableRef } from '@vueuse/core'
-
 import {
   ProviderAdvancedSettings,
   ProviderApiKeyInput,
@@ -18,61 +16,54 @@ import { useRouter } from 'vue-router'
 const { t } = useI18n()
 const router = useRouter()
 const providersStore = useProvidersStore()
-const { providers } = storeToRefs(providersStore) as { providers: RemovableRef<Record<string, any>> }
+const { providers } = storeToRefs(providersStore)
 
 // Get provider metadata
 const providerId = 'openrouter-ai'
 const providerMetadata = computed(() => providersStore.getProviderMetadata(providerId))
 
-// Use computed properties for settings
+// Computed settings
 const apiKey = computed({
   get: () => providers.value[providerId]?.apiKey || '',
   set: (value) => {
     if (!providers.value[providerId])
       providers.value[providerId] = {}
-
     providers.value[providerId].apiKey = value
   },
 })
 
 const baseUrl = computed({
-  get: () => providers.value[providerId]?.baseUrl || providerMetadata.value?.defaultOptions?.().baseUrl || '',
+  get: () => providers.value[providerId]?.baseUrl || providerMetadata.value?.defaultOptions?.()?.baseUrl || '',
   set: (value) => {
     if (!providers.value[providerId])
       providers.value[providerId] = {}
-
     providers.value[providerId].baseUrl = value
   },
 })
 
 onMounted(() => {
   providersStore.initializeProvider(providerId)
-
-  // Initialize refs with current values
-  apiKey.value = providers.value[providerId]?.apiKey || ''
-  baseUrl.value = providers.value[providerId]?.baseUrl || providerMetadata.value?.defaultOptions?.().baseUrl || ''
 })
 
-// Watch settings and update the provider configuration
+// Keep provider state in sync
 watch([apiKey, baseUrl], () => {
   providers.value[providerId] = {
     ...providers.value[providerId],
     apiKey: apiKey.value,
-    baseUrl: baseUrl.value || providerMetadata.value?.defaultOptions?.().baseUrl || '',
+    baseUrl: baseUrl.value || providerMetadata.value?.defaultOptions?.()?.baseUrl || '',
   }
 })
 
 function handleResetSettings() {
-  providers.value[providerId] = {
-    ...(providerMetadata.value?.defaultOptions as any),
-  }
+  const defaults = providerMetadata.value?.defaultOptions?.() || {}
+  providers.value[providerId] = { ...defaults }
 }
 </script>
 
 <template>
   <ProviderSettingsLayout
-    :provider-name="providerMetadata?.localizedName"
-    :provider-icon="providerMetadata?.icon"
+    :provider-name="providerMetadata.value?.localizedName"
+    :provider-icon="providerMetadata.value?.icon"
     :on-back="() => router.back()"
   >
     <ProviderSettingsContainer>
@@ -83,15 +74,17 @@ function handleResetSettings() {
       >
         <ProviderApiKeyInput
           v-model="apiKey"
-          :provider-name="providerMetadata?.localizedName"
+          :provider-name="providerMetadata.value?.localizedName"
           placeholder="sk-or-..."
         />
       </ProviderBasicSettings>
 
-      <ProviderAdvancedSettings :title="t('settings.pages.providers.common.section.advanced.title')">
+      <ProviderAdvancedSettings
+        :title="t('settings.pages.providers.common.section.advanced.title')"
+      >
         <ProviderBaseUrlInput
           v-model="baseUrl"
-          :placeholder="providerMetadata?.defaultOptions?.().baseUrl as string || ''"
+          :placeholder="providerMetadata.value?.defaultOptions?.()?.baseUrl || ''"
         />
       </ProviderAdvancedSettings>
     </ProviderSettingsContainer>
@@ -99,8 +92,8 @@ function handleResetSettings() {
 </template>
 
 <route lang="yaml">
-  meta:
-    layout: settings
-    stageTransition:
-      name: slide
-  </route>
+meta:
+  layout: settings
+  stageTransition:
+    name: slide
+</route>
