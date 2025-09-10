@@ -20,22 +20,27 @@ const speechStore = useSpeechStore()
 const providersStore = useProvidersStore()
 
 const { t } = useI18n()
+
 // Get available voices for Player2
-const availableVoices = computed(() => {
-  return speechStore.availableVoices[providerId] || []
+const availableVoices = computed(() => speechStore.availableVoices[providerId] || [])
+
+// API key configured state
+const apiKeyConfigured = computed(() => {
+  const providerConfig = providersStore.getProviderConfig(providerId)
+  return !!providerConfig?.apiKey
 })
 
 // Generate speech with Player2-specific parameters
 async function handleGenerateSpeech(input: string, voiceId: string, _useSSML: boolean) {
   const provider = await providersStore.getProviderInstance(providerId) as SpeechProviderWithExtraOptions<string, UnElevenLabsOptions>
-  if (!provider) {
+  if (!provider)
     throw new Error('Failed to initialize speech provider')
-  }
-  // Get provider configuration
+
   const providerConfig = providersStore.getProviderConfig(providerId)
-  // Get model from configuration or use default
-  const model = providerConfig.model as string | undefined || defaultModel
-  // Player2 doesn't need SSML conversion, but if SSML is provided, use it directly
+  const model = typeof providerConfig.model === 'string'
+    ? providerConfig.model
+    : defaultModel
+
   return await speechStore.speech(
     provider,
     model,
@@ -46,24 +51,27 @@ async function handleGenerateSpeech(input: string, voiceId: string, _useSSML: bo
     },
   )
 }
-const hasPlayer2 = ref(true)
-onMounted(async () => {
-  const providerConfig = providersStore.getProviderConfig(providerId)
-  const providerMetadata = providersStore.getProviderMetadata(providerId)
-  if (await providerMetadata.validators.validateProviderConfig(providerConfig)) {
-    await speechStore.loadVoicesForProvider(providerId)
-  }
-  else {
-    console.error('Failed to validate provider config', providerConfig)
-  }
 
+const hasPlayer2 = ref(true)
+
+onMounted(async () => {
   try {
+    const providerConfig = providersStore.getProviderConfig(providerId)
+    const providerMetadata = providersStore.getProviderMetadata(providerId)
+
+    if (await providerMetadata?.validators?.validateProviderConfig?.(providerConfig)) {
+      await speechStore.loadVoicesForProvider(providerId)
+    }
+    else {
+      console.error('Failed to validate provider config', providerConfig)
+    }
+
     const baseUrl = (providerConfig.baseUrl as string | undefined) ?? ''
-    const res = await fetch(`${baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl}/health`, {
+    const url = `${baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl}/health`
+
+    const res = await fetch(url, {
       method: 'GET',
-      headers: {
-        'player2-game-key': 'airi',
-      },
+      headers: { 'player2-game-key': 'airi' },
     })
 
     hasPlayer2.value = res.status === 200
@@ -74,63 +82,9 @@ onMounted(async () => {
   }
 })
 
-watch(speedRatio, async () => {
-  const providerConfig = providersStore.getProviderConfig(providerId)
-  providerConfig.speed = speedRatio.value
+watch(speedRatio, (newSpeed) => {
+  const provider = providersStore.providers[providerId]
+  if (provider)
+    provider.speed = newSpeed
 })
 </script>
-
-<template>
-  <div v-if="!hasPlayer2" style="color: red; margin-bottom: 1rem;">
-    <Callout theme="orange">
-      <template #label>
-        Player 2 is not running
-      </template>
-      <div>
-        Please download and run the Player2 App:
-        <a href="https://player2.game" target="_blank" rel="noopener noreferrer">
-          https://player2.game
-        </a>
-
-        <div>
-          After downloading, if you still are having trouble, please reach out to us on Discord:
-          <a href="https://player2.game/discord" target="_blank" rel="noopener noreferrer">
-            https://player2.game/discord
-          </a>.
-        </div>
-      </div>
-    </Callout>
-  </div>
-  <SpeechProviderSettings
-    :provider-id="providerId"
-    :default-model="defaultModel"
-  >
-    <template #voice-settings>
-      <!-- Speed control - common to most providers -->
-      <FieldRange
-        v-model="speedRatio"
-        :label="t('settings.pages.providers.provider.common.fields.field.speed.label')"
-        :description="t('settings.pages.providers.provider.common.fields.field.speed.description')"
-        :min="0.5"
-        :max="5.0" :step="0.01"
-      />
-    </template>
-
-    <!-- Replace the default playground with our standalone component -->
-    <template #playground>
-      <SpeechPlayground
-        :available-voices="availableVoices"
-        :generate-speech="handleGenerateSpeech"
-        :api-key-configured="true"
-        default-text="Hello! This is a test of the Player 2 voice synthesis."
-      />
-    </template>
-  </SpeechProviderSettings>
-</template>
-
-<route lang="yaml">
-  meta:
-    layout: settings
-    stageTransition:
-      name: slide
-  </route>
