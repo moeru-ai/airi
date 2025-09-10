@@ -20,11 +20,9 @@ const router = useRouter()
 const providersStore = useProvidersStore()
 const { providers } = storeToRefs(providersStore) as { providers: RemovableRef<Record<string, any>> }
 
-// Get provider metadata
 const providerId = 'xai'
 const providerMetadata = computed(() => providersStore.getProviderMetadata(providerId))
 
-// Use computed properties for settings
 const apiKey = computed({
   get: () => providers.value[providerId]?.apiKey || '',
   set: (value) => {
@@ -46,15 +44,9 @@ const baseUrl = computed({
 })
 
 onMounted(() => {
-  // Initialize provider if it doesn't exist
   providersStore.initializeProvider(providerId)
-
-  // Initialize refs with current values
-  apiKey.value = providers.value[providerId]?.apiKey || ''
-  baseUrl.value = providers.value[providerId]?.baseUrl || ''
 })
 
-// Watch settings and update the provider configuration
 watch([apiKey, baseUrl], () => {
   providers.value[providerId] = {
     ...providers.value[providerId],
@@ -64,16 +56,18 @@ watch([apiKey, baseUrl], () => {
 })
 
 function handleResetSettings() {
-  providers.value[providerId] = {
-    ...(providerMetadata.value?.defaultOptions as any),
-  }
+  const defaults = typeof providerMetadata.value?.defaultOptions === 'function'
+    ? providerMetadata.value.defaultOptions()
+    : providerMetadata.value?.defaultOptions || {}
+
+  providers.value[providerId] = { ...defaults }
 }
 </script>
 
 <template>
   <ProviderSettingsLayout
-    :provider-name="providerMetadata?.localizedName"
-    :provider-icon="providerMetadata?.icon"
+    :provider-name="providerMetadata.value?.localizedName"
+    :provider-icon="providerMetadata.value?.icon"
     :on-back="() => router.back()"
   >
     <ProviderSettingsContainer>
@@ -84,7 +78,7 @@ function handleResetSettings() {
       >
         <ProviderApiKeyInput
           v-model="apiKey"
-          :provider-name="providerMetadata?.localizedName"
+          :provider-name="providerMetadata.value?.localizedName"
           placeholder="xai-..."
         />
       </ProviderBasicSettings>
@@ -104,4 +98,4 @@ function handleResetSettings() {
     layout: settings
     stageTransition:
       name: slide
-  </route>
+</route>
