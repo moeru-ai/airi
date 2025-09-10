@@ -1,33 +1,17 @@
 <script setup lang="ts">
 import type { DuckDBWasmDrizzleDatabase } from '@proj-airi/drizzle-duckdb-wasm'
-import type { SpeechProviderWithExtraOptions } from '@xsai-ext/shared-providers'
-import type { UnElevenLabsOptions } from 'unspeech'
-
-import type { Emotion } from '../../constants/emotions'
 
 import { drizzle } from '@proj-airi/drizzle-duckdb-wasm'
 import { getImportUrlBundles } from '@proj-airi/drizzle-duckdb-wasm/bundles/import-url-browser'
-// import { createTransformers } from '@xsai-transformers/embed'
-// import embedWorkerURL from '@xsai-transformers/embed/worker?worker&url'
-// import { embed } from '@xsai/embed'
-import { generateSpeech } from '@xsai/generate-speech'
 import { storeToRefs } from 'pinia'
 import { onMounted, onUnmounted, ref } from 'vue'
 
 import Live2DScene from './Live2D.vue'
 import VRMScene from './VRM.vue'
 
-import { useDelayMessageQueue, useEmotionsMessageQueue, useMessageContentQueue } from '../../composables/queues'
-import { llmInferenceEndToken } from '../../constants'
-import { EMOTION_EmotionMotionName_value, EMOTION_VRMExpressionName_value, EmotionThinkMotionName } from '../../constants/emotions'
-import { useAudioContext, useSpeakingStore } from '../../stores/audio'
-import { useChatStore } from '../../stores/chat'
 import { useLive2d } from '../../stores/live2d'
-import { useSpeechStore } from '../../stores/modules/speech'
-import { useProvidersStore } from '../../stores/providers'
 import { useSettings } from '../../stores/settings'
 import { useVRM } from '../../stores/vrm'
-import { createQueue } from '../../utils/queue'
 
 withDefaults(defineProps<{
   paused?: boolean
@@ -45,10 +29,6 @@ const live2dSceneRef = ref<InstanceType<typeof Live2DScene>>()
 
 const settingsStore = useSettings()
 const { stageModelRenderer, stageViewControlsEnabled, live2dDisableFocus, stageModelSelectedUrl } = storeToRefs(settingsStore)
-const { mouthOpenSize } = storeToRefs(useSpeakingStore())
-const { audioContext, calculateVolume } = useAudioContext()
-const { onBeforeMessageComposed, onBeforeSend, onTokenLiteral, onTokenSpecial, onStreamEnd, onAssistantResponseEnd } = useChatStore()
-const providersStore = useProvidersStore()
 
 const live2dStore = useLive2d()
 const vrmStore = useVRM()
@@ -71,195 +51,8 @@ vrmStore.onShouldUpdateView(async () => {
   }, 100)
 })
 
-const audioAnalyser = ref<AnalyserNode>()
-const nowSpeaking = ref(false)
-const lipSyncStarted = ref(false)
-let currentAudioSource: AudioBufferSourceNode | null = null
-
-const audioQueue = createQueue<{ audioBuffer: AudioBuffer, text: string }>({
-  handlers: [
-    (ctx) => {
-      return new Promise((resolve) => {
-        // Stop any currently playing audio
-        if (currentAudioSource) {
-          try {
-            currentAudioSource.stop()
-            currentAudioSource.disconnect()
-          }
-          catch {}
-          currentAudioSource = null
-        }
-        // Create an AudioBufferSourceNode
-        const source = audioContext.createBufferSource()
-        source.buffer = ctx.data.audioBuffer
-
-        // Connect the source to the AudioContext's destination (the speakers)
-        source.connect(audioContext.destination)
-        // Connect the source to the analyzer
-        source.connect(audioAnalyser.value!)
-
-        // Start playing the audio
-        nowSpeaking.value = true
-        currentAudioSource = source
-        source.start(0)
-        source.onended = () => {
-          nowSpeaking.value = false
-          if (currentAudioSource === source) {
-            currentAudioSource = null
-          }
-          resolve()
-        }
-      })
-    },
-  ],
-})
-
-const speechStore = useSpeechStore()
-const { ssmlEnabled, activeSpeechProvider, activeSpeechModel, activeSpeechVoice, pitch } = storeToRefs(speechStore)
-
-async function handleSpeechGeneration(ctx: { data: string }) {
-  try {
-    if (!activeSpeechProvider.value) {
-      console.warn('No active speech provider configured')
-      return
-    }
-
-    if (!activeSpeechVoice.value) {
-      console.warn('No active speech voice configured')
-      return
-    }
-
-    // TODO: UnElevenLabsOptions
-    const provider = await providersStore.getProviderInstance(activeSpeechProvider.value) as SpeechProviderWithExtraOptions<string, UnElevenLabsOptions>
-    if (!provider) {
-      console.error('Failed to initialize speech provider')
-      return
-    }
-
-    const providerConfig = providersStore.getProviderConfig(activeSpeechProvider.value)
-
-    const input = ssmlEnabled.value
-      ? speechStore.generateSSML(ctx.data, activeSpeechVoice.value, { ...providerConfig, pitch: pitch.value })
-      : ctx.data
-
-    const res = await generateSpeech({
-      ...provider.speech(activeSpeechModel.value, providerConfig),
-      input,
-      voice: activeSpeechVoice.value.id,
-    })
-
-    // Decode the ArrayBuffer into an AudioBuffer
-    const audioBuffer = await audioContext.decodeAudioData(res)
-    audioQueue.enqueue({ audioBuffer, text: ctx.data })
-  }
-  catch (error) {
-    console.error('Speech generation failed:', error)
-  }
-}
-
-const ttsQueue = createQueue<string>({
-  handlers: [
-    handleSpeechGeneration,
-  ],
-})
-
-const messageContentQueue = useMessageContentQueue(ttsQueue)
-
-const { currentMotion } = storeToRefs(useLive2d())
-
-const emotionsQueue = createQueue<Emotion>({
-  handlers: [
-    async (ctx) => {
-      if (stageModelRenderer.value === 'vrm') {
-        const value = EMOTION_VRMExpressionName_value[ctx.data]
-        if (!value)
-          return
-
-        await vrmViewerRef.value!.setExpression(value)
-      }
-      else if (stageModelRenderer.value === 'live2d') {
-        currentMotion.value = { group: EMOTION_EmotionMotionName_value[ctx.data] }
-      }
-    },
-  ],
-})
-
-const emotionMessageContentQueue = useEmotionsMessageQueue(emotionsQueue)
-emotionMessageContentQueue.onHandlerEvent('emotion', (emotion) => {
-  // eslint-disable-next-line no-console
-  console.debug('emotion detected', emotion)
-})
-
-const delaysQueue = useDelayMessageQueue()
-delaysQueue.onHandlerEvent('delay', (delay) => {
-  // eslint-disable-next-line no-console
-  console.debug('delay detected', delay)
-})
-
-function getVolumeWithMinMaxNormalizeWithFrameUpdates() {
-  requestAnimationFrame(getVolumeWithMinMaxNormalizeWithFrameUpdates)
-  if (!nowSpeaking.value)
-    return
-
-  mouthOpenSize.value = calculateVolume(audioAnalyser.value!, 'linear')
-}
-
-function setupLipSync() {
-  if (!lipSyncStarted.value) {
-    getVolumeWithMinMaxNormalizeWithFrameUpdates()
-    audioContext.resume()
-    lipSyncStarted.value = true
-  }
-}
-
-function setupAnalyser() {
-  if (!audioAnalyser.value)
-    audioAnalyser.value = audioContext.createAnalyser()
-}
-
-onBeforeMessageComposed(async () => {
-  // Stop any currently playing audio and clear the audio queue
-  if (currentAudioSource) {
-    try {
-      currentAudioSource.stop()
-      currentAudioSource.disconnect()
-    }
-    catch {}
-    currentAudioSource = null
-  }
-  audioQueue.clear()
-  setupAnalyser()
-  setupLipSync()
-})
-
-onBeforeSend(async () => {
-  currentMotion.value = { group: EmotionThinkMotionName }
-})
-
-onTokenLiteral(async (literal) => {
-  messageContentQueue.enqueue(literal)
-})
-
-onTokenSpecial(async (special) => {
-  delaysQueue.enqueue(special)
-  emotionMessageContentQueue.enqueue(special)
-})
-
-onStreamEnd(async () => {
-  delaysQueue.enqueue(llmInferenceEndToken)
-})
-
-onAssistantResponseEnd(async (_message) => {
-  // const res = await embed({
-  //   ...transformersProvider.embed('Xenova/nomic-embed-text-v1'),
-  //   input: message,
-  // })
-
-  // await db.value?.execute(`INSERT INTO memory_test (vec) VALUES (${JSON.stringify(res.embedding)});`)
-})
-
 onUnmounted(() => {
-  lipSyncStarted.value = false
+
 })
 
 onMounted(async () => {
@@ -289,7 +82,6 @@ defineExpose({
         min-w="50% <lg:full" min-h="100 sm:100" h-full w-full flex-1
         :model-src="stageModelSelectedUrl"
         :focus-at="focusAt"
-        :mouth-open-size="mouthOpenSize"
         :paused="paused"
         :x-offset="xOffset"
         :y-offset="yOffset"

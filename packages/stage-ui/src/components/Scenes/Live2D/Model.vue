@@ -1,25 +1,29 @@
 <script setup lang="ts">
 import type { Application } from '@pixi/app'
+import type { SpeechProviderWithExtraOptions } from '@xsai-ext/shared-providers'
 import type { Cubism4InternalModel, InternalModel } from 'pixi-live2d-display/cubism4'
+import type { UnElevenLabsOptions } from 'unspeech'
 
 import { breakpointsTailwind, until, useBreakpoints, useDark, useDebounceFn } from '@vueuse/core'
+import { generateSpeech } from '@xsai/generate-speech'
 import { formatHex } from 'culori'
+import { MotionSync } from 'live2d-motionsync'
 import { storeToRefs } from 'pinia'
 import { DropShadowFilter } from 'pixi-filters'
 import { Live2DFactory, Live2DModel, MotionPriority } from 'pixi-live2d-display/cubism4'
 import { computed, onMounted, onUnmounted, ref, shallowRef, toRef, watch } from 'vue'
 
 import { useLive2DIdleEyeFocus } from '../../../composables/live2d'
-import { Emotion, EmotionNeutralMotionName } from '../../../constants/emotions'
+import { useDelayMessageQueue, useEmotionsMessageQueue, useMessageContentQueue } from '../../../composables/queues'
+import { llmInferenceEndToken } from '../../../constants'
+import { Emotion, EMOTION_EmotionMotionName_value, EmotionNeutralMotionName, EmotionThinkMotionName } from '../../../constants/emotions'
+import { useAudioContext, useSpeakingStore } from '../../../stores/audio'
+import { useChatStore } from '../../../stores/chat'
 import { useLive2d } from '../../../stores/live2d'
+import { useSpeechStore } from '../../../stores/modules/speech'
+import { useProvidersStore } from '../../../stores/providers'
 import { useSettings } from '../../../stores/settings'
-
-type CubismModel = Cubism4InternalModel['coreModel']
-type CubismEyeBlink = Cubism4InternalModel['eyeBlink']
-type PixiLive2DInternalModel = InternalModel & {
-  eyeBlink?: CubismEyeBlink
-  coreModel: CubismModel
-}
+import { createQueue } from '../../../utils/queue'
 
 const props = withDefaults(defineProps<{
   modelSrc?: string
@@ -41,10 +45,255 @@ const props = withDefaults(defineProps<{
   disableFocusAt: false,
   scale: 1,
 })
-
 const emits = defineEmits<{
   (e: 'modelLoaded'): void
 }>()
+// 获取音频上下文，避免使用前未定义的问题
+const { audioContext, calculateVolume } = useAudioContext()
+const { currentMotion, availableMotions, motionMap } = storeToRefs(useLive2d())
+const { mouthOpenSize } = storeToRefs(useSpeakingStore())
+
+type CubismModel = Cubism4InternalModel['coreModel']
+type CubismEyeBlink = Cubism4InternalModel['eyeBlink']
+type PixiLive2DInternalModel = InternalModel & {
+  eyeBlink?: CubismEyeBlink
+  coreModel: CubismModel
+}
+
+const audioAnalyser = ref<AnalyserNode>()
+const nowSpeaking = ref(false)
+const lipSyncStarted = ref(false)
+let currentAudioSource: AudioBufferSourceNode | null = null
+let motionSync: MotionSync | null = null
+
+const { stageModelRenderer } = storeToRefs(useSettings())
+const audioQueue = createQueue<{ audioBuffer: AudioBuffer, text: string }>({
+  handlers: [
+    (ctx) => {
+      return new Promise((resolve) => {
+        // Stop any currently playing audio
+        if (currentAudioSource) {
+          try {
+            currentAudioSource.stop()
+            currentAudioSource.disconnect()
+          }
+          catch {}
+          currentAudioSource = null
+        }
+
+        // 根据模型类型选择不同的播放方式
+        if (stageModelRenderer.value === 'live2d' && motionSync) {
+          // Live2D模型使用motionSync.play()直接播放AudioBuffer
+          try {
+            nowSpeaking.value = true
+
+            // 连接到分析器
+            const source = audioContext.createBufferSource()
+            source.buffer = ctx.data.audioBuffer
+            source.connect(audioAnalyser.value!)
+            source.start()
+
+            // 使用motionSync播放音频
+            motionSync.play(ctx.data.audioBuffer).then(() => {
+              nowSpeaking.value = false
+              currentAudioSource = null
+              resolve()
+            }).catch((error) => {
+              console.error('Error playing audio with motionSync:', error)
+              nowSpeaking.value = false
+              currentAudioSource = null
+              // 失败时回退到原始播放方式
+              playAudioWithDefaultMethod(ctx.data.audioBuffer, resolve)
+            })
+
+            currentAudioSource = source
+
+            source.onended = () => {
+              // 确保状态正确更新
+              if (currentAudioSource === source) {
+                nowSpeaking.value = false
+                currentAudioSource = null
+              }
+            }
+          }
+          catch (error) {
+            console.error('Error setting up audio playback:', error)
+            nowSpeaking.value = false
+            // 失败时回退到原始播放方式
+            playAudioWithDefaultMethod(ctx.data.audioBuffer, resolve)
+          }
+        }
+        else {
+          // 其他类型模型使用原始播放方式
+          playAudioWithDefaultMethod(ctx.data.audioBuffer, resolve)
+        }
+      })
+    },
+  ],
+})
+
+// 原始音频播放方法
+function playAudioWithDefaultMethod(audioBuffer: AudioBuffer, resolve: () => void) {
+  // Create an AudioBufferSourceNode
+  const source = audioContext.createBufferSource()
+  source.buffer = audioBuffer
+
+  // Connect the source to the AudioContext's destination (the speakers)
+  source.connect(audioContext.destination)
+  // Connect the source to the analyzer
+  source.connect(audioAnalyser.value!)
+
+  // Start playing the audio
+  nowSpeaking.value = true
+  currentAudioSource = source
+  source.start(0)
+  source.onended = () => {
+    nowSpeaking.value = false
+    if (currentAudioSource === source) {
+      currentAudioSource = null
+    }
+    resolve()
+  }
+}
+
+const speechStore = useSpeechStore()
+const { ssmlEnabled, activeSpeechProvider, activeSpeechModel, activeSpeechVoice, pitch } = storeToRefs(speechStore)
+const providersStore = useProvidersStore()
+const { onBeforeMessageComposed, onBeforeSend, onTokenLiteral, onTokenSpecial, onStreamEnd, onAssistantResponseEnd } = useChatStore()
+
+async function handleSpeechGeneration(ctx: { data: string }) {
+  try {
+    if (!activeSpeechProvider.value) {
+      console.warn('No active speech provider configured')
+      return
+    }
+
+    if (!activeSpeechVoice.value) {
+      console.warn('No active speech voice configured')
+      return
+    }
+
+    // TODO: UnElevenLabsOptions
+    const provider = await providersStore.getProviderInstance(activeSpeechProvider.value) as SpeechProviderWithExtraOptions<string, UnElevenLabsOptions>
+    if (!provider) {
+      console.error('Failed to initialize speech provider')
+      return
+    }
+
+    const providerConfig = providersStore.getProviderConfig(activeSpeechProvider.value)
+
+    const input = ssmlEnabled.value
+      ? speechStore.generateSSML(ctx.data, activeSpeechVoice.value, { ...providerConfig, pitch: pitch.value })
+      : ctx.data
+
+    const res = await generateSpeech({
+      ...provider.speech(activeSpeechModel.value, providerConfig),
+      input,
+      voice: activeSpeechVoice.value.id,
+    })
+
+    // Decode the ArrayBuffer into an AudioBuffer
+    const audioBuffer = await audioContext.decodeAudioData(res)
+    audioQueue.enqueue({ audioBuffer, text: ctx.data })
+  }
+  catch (error) {
+    console.error('Speech generation failed:', error)
+  }
+}
+
+const ttsQueue = createQueue<string>({
+  handlers: [
+    handleSpeechGeneration,
+  ],
+})
+
+const messageContentQueue = useMessageContentQueue(ttsQueue)
+
+const emotionsQueue = createQueue<Emotion>({
+  handlers: [
+    async (ctx) => {
+      const value = EMOTION_EmotionMotionName_value[ctx.data]
+      if (!value)
+        return
+
+      currentMotion.value = { group: value }
+    },
+  ],
+})
+
+const emotionMessageContentQueue = useEmotionsMessageQueue(emotionsQueue)
+emotionMessageContentQueue.onHandlerEvent('emotion', (emotion) => {
+  // eslint-disable-next-line no-console
+  console.debug('emotion detected', emotion)
+})
+
+const delaysQueue = useDelayMessageQueue()
+delaysQueue.onHandlerEvent('delay', (delay) => {
+  // eslint-disable-next-line no-console
+  console.debug('delay detected', delay)
+})
+
+function getVolumeWithMinMaxNormalizeWithFrameUpdates() {
+  requestAnimationFrame(getVolumeWithMinMaxNormalizeWithFrameUpdates)
+  if (!nowSpeaking.value)
+    return
+
+  mouthOpenSize.value = calculateVolume(audioAnalyser.value!, 'linear')
+}
+
+function setupLipSync() {
+  if (!lipSyncStarted.value) {
+    getVolumeWithMinMaxNormalizeWithFrameUpdates()
+    audioContext.resume()
+    lipSyncStarted.value = true
+  }
+}
+
+function setupAnalyser() {
+  if (!audioAnalyser.value)
+    audioAnalyser.value = audioContext.createAnalyser()
+}
+
+onBeforeMessageComposed(async () => {
+  // Stop any currently playing audio and clear the audio queue
+  if (currentAudioSource) {
+    try {
+      currentAudioSource.stop()
+      currentAudioSource.disconnect()
+    }
+    catch {}
+    currentAudioSource = null
+  }
+  audioQueue.clear()
+  setupAnalyser()
+  setupLipSync()
+})
+
+onBeforeSend(async () => {
+  currentMotion.value = { group: EmotionThinkMotionName }
+})
+
+onTokenLiteral(async (literal) => {
+  messageContentQueue.enqueue(literal)
+})
+
+onTokenSpecial(async (special) => {
+  delaysQueue.enqueue(special)
+  emotionMessageContentQueue.enqueue(special)
+})
+
+onStreamEnd(async () => {
+  delaysQueue.enqueue(llmInferenceEndToken)
+})
+
+onAssistantResponseEnd(async (_message) => {
+  // const res = await embed({
+  //   ...transformersProvider.embed('Xenova/nomic-embed-text-v1'),
+  //   input: message,
+  // })
+
+  // await db.value?.execute(`INSERT INTO memory_test (vec) VALUES (${JSON.stringify(res.embedding)});`)
+})
 
 function parsePropsOffset() {
   let xOffset = Number.parseFloat(String(props.xOffset)) || 0
@@ -75,7 +324,6 @@ const focusAt = toRef(() => props.focusAt)
 const model = ref<Live2DModel<PixiLive2DInternalModel>>()
 const initialModelWidth = ref<number>(0)
 const initialModelHeight = ref<number>(0)
-const mouthOpenSize = computed(() => Math.max(0, Math.min(100, props.mouthOpenSize)))
 const lastUpdateTime = ref(0)
 
 const dark = useDark()
@@ -111,12 +359,6 @@ function setScaleAndPosition() {
   model.value.x = (props.width / 2) + offset.value.xOffset
   model.value.y = props.height + offset.value.yOffset
 }
-
-const {
-  currentMotion,
-  availableMotions,
-  motionMap,
-} = storeToRefs(useLive2d())
 
 const {
   themeColorsHue,
@@ -179,6 +421,9 @@ async function loadModel() {
     })
 
     const internalModel = model.value.internalModel
+    motionSync = new MotionSync(internalModel)
+    // motionSync.loadMotionSyncFromUrl('./hiyori_free_t08.motionsync3.json')
+    motionSync.loadDefaultMotionSync()
     const coreModel = internalModel.coreModel
     const motionManager = internalModel.motionManager
     coreModel.setParameterValueById('ParamMouthOpenY', mouthOpenSize.value)
@@ -323,6 +568,7 @@ onMounted(async () => {
 function componentCleanUp() {
   cancelAnimationFrame(dropShadowAnimationId.value)
   model.value && pixiApp.value?.stage.removeChild(model.value)
+  lipSyncStarted.value = false
 }
 onUnmounted(() => {
   componentCleanUp()
