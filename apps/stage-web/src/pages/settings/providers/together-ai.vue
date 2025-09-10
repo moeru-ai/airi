@@ -18,19 +18,16 @@ import { useRouter } from 'vue-router'
 const { t } = useI18n()
 const router = useRouter()
 const providersStore = useProvidersStore()
-const { providers } = storeToRefs(providersStore) as { providers: RemovableRef<Record<string, any>> }
+const { providers } = storeToRefs(providersStore)
 
-// Get provider metadata
 const providerId = 'together-ai'
 const providerMetadata = computed(() => providersStore.getProviderMetadata(providerId))
 
-// Use computed properties for settings
 const apiKey = computed({
   get: () => providers.value[providerId]?.apiKey || '',
   set: (value) => {
     if (!providers.value[providerId])
       providers.value[providerId] = {}
-
     providers.value[providerId].apiKey = value
   },
 })
@@ -40,21 +37,14 @@ const baseUrl = computed({
   set: (value) => {
     if (!providers.value[providerId])
       providers.value[providerId] = {}
-
     providers.value[providerId].baseUrl = value
   },
 })
 
 onMounted(() => {
-  // Initialize provider if it doesn't exist
   providersStore.initializeProvider(providerId)
-
-  // Initialize refs with current values
-  apiKey.value = providers.value[providerId]?.apiKey || ''
-  baseUrl.value = providers.value[providerId]?.baseUrl || ''
 })
 
-// Watch settings and update the provider configuration
 watch([apiKey, baseUrl], () => {
   providers.value[providerId] = {
     ...providers.value[providerId],
@@ -64,16 +54,20 @@ watch([apiKey, baseUrl], () => {
 })
 
 function handleResetSettings() {
+  const defaults = typeof providerMetadata.value?.defaultOptions === 'function'
+    ? providerMetadata.value.defaultOptions()
+    : providerMetadata.value?.defaultOptions || {}
+
   providers.value[providerId] = {
-    ...(providerMetadata.value?.defaultOptions as any),
+    ...defaults,
   }
 }
 </script>
 
 <template>
   <ProviderSettingsLayout
-    :provider-name="providerMetadata?.localizedName"
-    :provider-icon-color="providerMetadata?.iconColor"
+    :provider-name="providerMetadata.value?.localizedName"
+    :provider-icon-color="providerMetadata.value?.iconColor"
     :on-back="() => router.back()"
   >
     <ProviderSettingsContainer>
@@ -84,7 +78,7 @@ function handleResetSettings() {
       >
         <ProviderApiKeyInput
           v-model="apiKey"
-          :provider-name="providerMetadata?.localizedName"
+          :provider-name="providerMetadata.value?.localizedName"
           placeholder="togetherapi-..."
         />
       </ProviderBasicSettings>
@@ -100,8 +94,8 @@ function handleResetSettings() {
 </template>
 
 <route lang="yaml">
-  meta:
-    layout: settings
-    stageTransition:
-      name: slide
-  </route>
+meta:
+  layout: settings
+  stageTransition:
+    name: slide
+</route>
