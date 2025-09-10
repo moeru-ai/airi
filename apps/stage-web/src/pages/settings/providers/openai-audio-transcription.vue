@@ -8,33 +8,32 @@ import {
 import { useHearingStore } from '@proj-airi/stage-ui/stores/modules/hearing'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { storeToRefs } from 'pinia'
-import { computed } from 'vue'
+import { computed, onMounted } from 'vue'
 
 const hearingStore = useHearingStore()
 const providersStore = useProvidersStore()
 const { providers } = storeToRefs(providersStore)
 
-// Get provider metadata
 const providerId = 'openai-audio-transcription'
 const defaultModel = 'whisper-1'
 
-// Check if API key is configured
 const apiKeyConfigured = computed(() => !!providers.value[providerId]?.apiKey)
 
-// Generate speech with ElevenLabs-specific parameters
+// Ensure provider entry exists
+onMounted(() => {
+  providersStore.initializeProvider(providerId)
+})
+
+// Generate transcription
 async function handleGenerateTranscription(file: File) {
   const provider = await providersStore.getProviderInstance<TranscriptionProvider<string>>(providerId)
   if (!provider) {
-    throw new Error('Failed to initialize speech provider')
+    throw new Error('Failed to initialize transcription provider')
   }
 
-  // Get provider configuration
-  const providerConfig = providersStore.getProviderConfig(providerId)
+  const providerConfig = providersStore.getProviderConfig(providerId) ?? {}
+  const model = (providerConfig.model as string | undefined) || defaultModel
 
-  // Get model from configuration or use default
-  const model = providerConfig.model as string | undefined || defaultModel
-
-  // ElevenLabs doesn't need SSML conversion, but if SSML is provided, use it directly
   return await hearingStore.transcription(
     provider,
     model,
@@ -59,8 +58,8 @@ async function handleGenerateTranscription(file: File) {
 </template>
 
 <route lang="yaml">
-  meta:
-    layout: settings
-    stageTransition:
-      name: slide
-  </route>
+meta:
+  layout: settings
+  stageTransition:
+    name: slide
+</route>
