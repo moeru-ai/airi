@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import type { RemovableRef } from '@vueuse/core'
 import type { TranscriptionProvider } from '@xsai-ext/shared-providers'
 
 import {
@@ -21,54 +20,57 @@ import { useRouter } from 'vue-router'
 
 const hearingStore = useHearingStore()
 const providersStore = useProvidersStore()
-const { providers } = storeToRefs(providersStore) as { providers: RemovableRef<Record<string, any>> }
+const { providers } = storeToRefs(providersStore)
 const { t } = useI18n()
 const router = useRouter()
 
-// Get provider metadata
 const providerId = 'openai-compatible-audio-transcription'
 const providerMetadata = computed(() => providersStore.getProviderMetadata(providerId))
-const pageTitle = computed(() => providerMetadata.value?.localizedName || t('settings.pages.providers.provider.openai-compatible-audio-transcription.title'))
+const pageTitle = computed(() =>
+  providerMetadata.value?.localizedName ||
+  t('settings.pages.providers.provider.openai-compatible-audio-transcription.title'),
+)
 
 // Settings refs
 const apiKey = computed({
   get: () => providers.value[providerId]?.apiKey || '',
-  set: value => (providers.value[providerId] = { ...providers.value[providerId], apiKey: value }),
+  set: (value) => {
+    if (!providers.value[providerId])
+      providers.value[providerId] = {}
+    providers.value[providerId].apiKey = value
+  },
 })
 
 const baseUrl = computed({
   get: () => providers.value[providerId]?.baseUrl || '',
-  set: value => (providers.value[providerId] = { ...providers.value[providerId], baseUrl: value }),
+  set: (value) => {
+    if (!providers.value[providerId])
+      providers.value[providerId] = {}
+    providers.value[providerId].baseUrl = value
+  },
 })
 
 const model = computed({
   get: () => providers.value[providerId]?.model || 'whisper-1',
-  set: value => (providers.value[providerId] = { ...providers.value[providerId], model: value }),
+  set: (value) => {
+    if (!providers.value[providerId])
+      providers.value[providerId] = {}
+    providers.value[providerId].model = value
+  },
 })
 
-// Check if API key is configured
 const apiKeyConfigured = computed(() => !!providers.value[providerId]?.apiKey)
 
-// Generate transcription
 async function handleGenerateTranscription(file: File) {
   const provider = await providersStore.getProviderInstance<TranscriptionProvider<string>>(providerId)
   if (!provider)
     throw new Error('Failed to initialize transcription provider')
 
-  return await hearingStore.transcription(
-    provider,
-    model.value,
-    file,
-    'json',
-  )
+  return await hearingStore.transcription(provider, model.value, file, 'json')
 }
 
 onMounted(() => {
   providersStore.initializeProvider(providerId)
-  const config = providers.value[providerId] || {}
-  apiKey.value = config.apiKey || ''
-  baseUrl.value = config.baseUrl || ''
-  model.value = config.model || 'whisper-1'
 })
 
 function handleResetSettings() {
@@ -76,19 +78,18 @@ function handleResetSettings() {
   providers.value[providerId] = {
     apiKey: '',
     baseUrl: defaults.baseUrl || '',
-    model: 'whisper-1',
+    model: defaults.model || 'whisper-1',
   }
-  // Force update refs
   apiKey.value = ''
   baseUrl.value = defaults.baseUrl || ''
-  model.value = 'whisper-1'
+  model.value = defaults.model || 'whisper-1'
 }
 </script>
 
 <template>
   <ProviderSettingsLayout
     :provider-name="pageTitle"
-    :provider-icon="providerMetadata?.icon"
+    :provider-icon="providerMetadata.value?.icon"
     :on-back="() => router.back()"
   >
     <ProviderSettingsContainer>
@@ -99,7 +100,7 @@ function handleResetSettings() {
       >
         <ProviderApiKeyInput
           v-model="apiKey"
-          :provider-name="providerMetadata?.localizedName"
+          :provider-name="providerMetadata.value?.localizedName"
           placeholder="sk-..."
         />
         <FieldInput
@@ -131,4 +132,4 @@ function handleResetSettings() {
     layout: settings
     stageTransition:
       name: slide
-  </route>
+</route>
