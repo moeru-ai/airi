@@ -27,96 +27,140 @@ const providerMetadata = computed(() => providersStore.getProviderMetadata(provi
 
 const validationMessage = ref('')
 
-const baseUrl = computed({
-  get: () => providers.value[providerId]?.baseUrl || providerMetadata.value?.defaultOptions?.().baseUrl || '',
-  set: (value) => {
-    if (!providers.value[providerId])
-      providers.value[providerId] = {}
+// Safely resolve default baseUrl from provider metadata (guard if defaultOptions is not a function)
+const defaultOptions = computed(() => {
+  const meta = providerMetadata.value
+  if (!meta) return undefined
+  const def = (typeof meta.defaultOptions === 'function') ? meta.defaultOptions() : meta.defaultOptions
+  return def
+})
+const placeholderBaseUrl = computed(() => (defaultOptions.value?.baseUrl as string) || '')
 
+// Use computed for baseUrl but guard the fallback to provider default safely
+const baseUrl = computed({
+  get: () => providers.value[providerId]?.baseUrl ?? placeholderBaseUrl.value ?? '',
+  set: (value: string) => {
+    if (!providers.value[providerId]) {
+      providers.value[providerId] = {}
+    }
     providers.value[providerId].baseUrl = value
   },
 })
 
-const headers = ref<{ key: string, value: string }[]>(Object.entries(providers.value[providerId]?.headers || {}).map(([key, value]) => ({ key, value } as { key: string, value: string })) || [{ key: '', value: '' }])
+// Initialize headers array from provider headers (object) -> array of {key,value}
+const initialHeadersArray = (): { key: string; value: string }[] => {
+  const raw = providers.value[providerId]?.headers ?? {}
+  const arr = Object.entries(raw).map(([key, value]) => ({ key, value } as { key: string; value: string }))
+  // keep at least one empty row for UI if there are no headers
+  return arr.length > 0 ? arr : [{ key: '', value: '' }]
+}
+const headers = ref<{ key: string; value: string }[]>(initialHeadersArray())
 
-function addKeyValue(headers: { key: string, value: string }[], key: string, value: string) {
-  if (!headers)
-    return
-
-  headers.push({ key, value })
+function addKeyValue(hdrs: { key: string; value: string }[], key: string, value: string) {
+  if (!hdrs) return
+  hdrs.push({ key, value })
 }
 
-function removeKeyValue(index: number, headers: { key: string, value: string }[]) {
-  if (!headers)
-    return
-
-  if (headers.length === 1) {
-    headers[0].key = ''
-    headers[0].value = ''
-  }
-  else {
-    headers.splice(index, 1)
+function removeKeyValue(index: number, hdrs: { key: string; value: string }[]) {
+  if (!hdrs) return
+  if (hdrs.length === 1) {
+    hdrs[0].key = ''
+    hdrs[0].value = ''
+  } else {
+    hdrs.splice(index, 1)
   }
 }
 
-watch(headers, (headers) => {
-  if (headers.length > 0 && (headers[headers.length - 1].key !== '' || headers[headers.length - 1].value !== '')) {
-    headers.push({ key: '', value: '' })
-  }
+// Sync headers array -> providers.value[providerId].headers safely and ensure trailing blank row
+watch(
+  headers,
+  (hdrs) => {
+    // ensure the provider object exists before writing
+    if (!providers.value[providerId]) {
+      // avoid creating provider here; initialization should happen in onMounted
+      return
+    }
 
-  providers.value[providerId].headers = headers.filter(header => header.key !== '').reduce((acc, header) => {
-    acc[header.key] = header.value
-    return acc
-  }, {} as Record<string, string>)
-}, {
-  deep: true,
-  immediate: true,
-})
+    // ensure trailing empty row exists so UI always has an empty input row
+    if (hdrs.length > 0 && (hdrs[hdrs.length - 1].key !== '' || hdrs[hdrs.length - 1].value !== '')) {
+      hdrs.push({ key: '', value: '' })
+    }
 
-async function refetch() {
-  try {
-    const validationResult = await providerMetadata.value.validators.validateProviderConfig({
-      baseUrl: baseUrl.value,
-      headers: headers.value.filter(header => header.key !== '').reduce((acc, header) => {
+    // write only non-empty keys into provider.headers object
+    providers.value[providerId].headers = hdrs
+      .filter((h) => h.key !== '')
+      .reduce((acc, header) => {
         acc[header.key] = header.value
         return acc
-      }, {} as Record<string, string>),
+      }, {} as Record<string, string>)
+  },
+  {
+    deep: true,
+    immediate: true,
+  },
+)
+
+// Validation/refetch logic — safe guard when metadata validators or provider not ready
+async function refetch() {
+  // ensure metadata and validator exist
+  if (!providerMetadata.value || !providerMetadata.value.validators || typeof providerMetadata.value.validators.validateProviderConfig !== 'function') {
+    validationMessage.value = ''
+    return
+  }
+
+  try {
+    const headersObj = headers.value
+      .filter((h) => h.key !== '')
+      .reduce((acc, h) => {
+        acc[h.key] = h.value
+        return acc
+      }, {} as Record<string, string>)
+
+    const validationResult = await providerMetadata.value.validators.validateProviderConfig({
+      baseUrl: baseUrl.value,
+      headers: headersObj,
     })
 
     if (!validationResult.valid) {
       validationMessage.value = t('settings.dialogs.onboarding.validationError', {
         error: validationResult.reason,
       })
+    } else {
+      validationMessage.value = ''
     }
-  }
-  catch (error) {
+  } catch (error) {
     validationMessage.value = t('settings.dialogs.onboarding.validationError', {
       error: error instanceof Error ? error.message : String(error),
     })
   }
 }
 
+// Watch baseUrl and headers together for validation; keep immediate
 watch([baseUrl, headers], refetch, { immediate: true })
-watch(headers, refetch, { deep: true })
 
 onMounted(() => {
+  // ensure provider exists (store helper)
   providersStore.initializeProvider(providerId)
 
-  // Initialize refs with current values
-  baseUrl.value = providers.value[providerId]?.baseUrl || providerMetadata.value?.defaultOptions?.().baseUrl || ''
+  // initialize baseUrl (will go through computed setter)
+  baseUrl.value = providers.value[providerId]?.baseUrl ?? placeholderBaseUrl.value ?? ''
 
-  // Initialize headers if not already set
+  // ensure provider.headers exists as object
   if (!providers.value[providerId]?.headers) {
     providers.value[providerId].headers = {}
   }
-  if (headers.value.length === 0) {
+
+  // ensure headers array UI is initialized (if watch didn't set it)
+  if (!headers.value || headers.value.length === 0) {
     headers.value = [{ key: '', value: '' }]
   }
 })
 
 function handleResetSettings() {
   providers.value[providerId] = {
-    ...(providerMetadata.value?.defaultOptions?.() || {}),
+    ...(typeof providerMetadata.value?.defaultOptions === 'function'
+      ? providerMetadata.value?.defaultOptions()
+      : providerMetadata.value?.defaultOptions) || {},
   }
 }
 </script>
@@ -132,6 +176,7 @@ function handleResetSettings() {
       </div>
     </template>
   </Alert>
+
   <ProviderSettingsLayout
     :provider-name="providerMetadata?.localizedName"
     :provider-icon="providerMetadata?.icon"
@@ -145,7 +190,7 @@ function handleResetSettings() {
       >
         <ProviderBaseUrlInput
           v-model="baseUrl"
-          :placeholder="providerMetadata?.defaultOptions?.().baseUrl as string || ''"
+          :placeholder="placeholderBaseUrl"
           required
         />
       </ProviderBasicSettings>
@@ -170,4 +215,4 @@ function handleResetSettings() {
     layout: settings
     stageTransition:
       name: slide
-  </route>
+</route>
