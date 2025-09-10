@@ -11,66 +11,64 @@ import {
 } from '@proj-airi/stage-ui/components'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { storeToRefs } from 'pinia'
-import { computed, onMounted, watch } from 'vue'
+import { computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
+
+// ---- constants for defaults ----
+const DEFAULT_BASE_URL = 'https://generativelanguage.googleapis.com/v1beta/openai/'
+const DEFAULT_PROVIDER_ID = 'google-generative-ai'
 
 const { t } = useI18n()
 const router = useRouter()
 const providersStore = useProvidersStore()
+
+// TODO: define providers type in store instead of casting
 const { providers } = storeToRefs(providersStore) as { providers: RemovableRef<Record<string, any>> }
 
-// Get provider metadata
-const providerId = 'google-generative-ai'
-const providerMetadata = computed(() => providersStore.getProviderMetadata(providerId))
+// provider metadata
+const providerMetadata = computed(() =>
+  providersStore.getProviderMetadata(DEFAULT_PROVIDER_ID) ?? {},
+)
 
-// Use computed properties for settings
+// computed refs for settings
 const apiKey = computed({
-  get: () => providers.value[providerId]?.apiKey || '',
+  get: () => providers.value[DEFAULT_PROVIDER_ID]?.apiKey || '',
   set: (value) => {
-    if (!providers.value[providerId])
-      providers.value[providerId] = {}
+    if (!providers.value[DEFAULT_PROVIDER_ID])
+      providers.value[DEFAULT_PROVIDER_ID] = {}
 
-    providers.value[providerId].apiKey = value
+    providers.value[DEFAULT_PROVIDER_ID].apiKey = value
   },
 })
 
 const baseUrl = computed({
-  get: () => providers.value[providerId]?.baseUrl || 'https://generativelanguage.googleapis.com/v1beta/openai/',
+  get: () => providers.value[DEFAULT_PROVIDER_ID]?.baseUrl || DEFAULT_BASE_URL,
   set: (value) => {
-    if (!providers.value[providerId])
-      providers.value[providerId] = {}
+    if (!providers.value[DEFAULT_PROVIDER_ID])
+      providers.value[DEFAULT_PROVIDER_ID] = {}
 
-    providers.value[providerId].baseUrl = value
+    providers.value[DEFAULT_PROVIDER_ID].baseUrl = value
   },
 })
 
 onMounted(() => {
-  // Initialize provider if it doesn't exist
-  if (!providers.value[providerId]) {
-    providers.value[providerId] = {
-      baseUrl: 'https://api.anthropic.com/v1/',
+  // ensure provider exists
+  if (!providers.value[DEFAULT_PROVIDER_ID]) {
+    providers.value[DEFAULT_PROVIDER_ID] = {
+      baseUrl: DEFAULT_BASE_URL,
     }
-  }
-
-  // Initialize refs with current values
-  apiKey.value = providers.value[providerId]?.apiKey || ''
-  baseUrl.value = providers.value[providerId]?.baseUrl || 'https://generativelanguage.googleapis.com/v1beta/openai/'
-})
-
-// Watch settings and update the provider configuration
-watch([apiKey, baseUrl], () => {
-  providers.value[providerId] = {
-    ...providers.value[providerId],
-    apiKey: apiKey.value,
-    baseUrl: baseUrl.value || 'https://generativelanguage.googleapis.com/v1beta/openai/',
   }
 })
 
 function handleResetSettings() {
-  providers.value[providerId] = {
-    baseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai/',
+  providers.value[DEFAULT_PROVIDER_ID] = {
+    baseUrl: DEFAULT_BASE_URL,
   }
+}
+
+function handleBack() {
+  router.back()
 }
 </script>
 
@@ -78,7 +76,7 @@ function handleResetSettings() {
   <ProviderSettingsLayout
     :provider-name="providerMetadata?.localizedName || 'Google | Gemini'"
     :provider-icon="providerMetadata?.icon"
-    :on-back="() => router.back()"
+    :on-back="handleBack"
   >
     <ProviderSettingsContainer>
       <ProviderBasicSettings
@@ -96,7 +94,7 @@ function handleResetSettings() {
       <ProviderAdvancedSettings :title="t('settings.pages.providers.common.section.advanced.title')">
         <ProviderBaseUrlInput
           v-model="baseUrl"
-          placeholder="https://generativelanguage.googleapis.com/v1beta/openai/"
+          :placeholder="DEFAULT_BASE_URL"
         />
       </ProviderAdvancedSettings>
     </ProviderSettingsContainer>
@@ -104,8 +102,8 @@ function handleResetSettings() {
 </template>
 
 <route lang="yaml">
-  meta:
-    layout: settings
-    stageTransition:
-      name: slide
-  </route>
+meta:
+  layout: settings
+  stageTransition:
+    name: slide
+</route>
