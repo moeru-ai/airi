@@ -1,0 +1,67 @@
+{
+  "name": "@proj-airi/memory-service",
+  "type": "module",
+  "private": true,
+  "description": "Centralized memory service for AIRI with PostgreSQL + pgvector",
+  "author": {
+    "name": "lucas-oma"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/moeru-ai/airi.git",
+    "directory": "services/memory-service"
+  },
+  "scripts": {
+    "start": "tsx --max-old-space-size=8192 src/index.ts",
+    "dev": "dotenvx run -f .env -f .env.local --overload --ignore=MISSING_ENV_FILE -- tsx watch src/index.ts",
+    "db:generate": "drizzle-kit generate",
+    "db:push": "dotenvx run -f .env -f .env.local --overload --ignore=MISSING_ENV_FILE -- drizzle-kit push",
+    "db:migrate": "dotenvx run -f .env -f .env.local --overload --ignore=MISSING_ENV_FILE -- tsx src/db/migrate.ts",
+    "db:setup": "pnpm db:generate && dotenvx run -f .env -f .env.local --overload --ignore=MISSING_ENV_FILE -- pnpm db:migrate",
+    "typecheck": "tsc --noEmit",
+    "build": "tsc",
+    "test": "vitest"
+  },
+  "dependencies": {
+    "@dotenvx/dotenvx": "^1.49.0",
+    "@google/generative-ai": "^0.21.0",
+    "@guiiai/logg": "^1.0.10",
+    "@moeru/std": "catalog:",
+    "@opentelemetry/api": "^1.9.0",
+    "@opentelemetry/auto-instrumentations-node": "^0.62.1",
+    "@opentelemetry/exporter-metrics-otlp-proto": "^0.203.0",
+    "@opentelemetry/exporter-trace-otlp-proto": "^0.203.0",
+    "@opentelemetry/instrumentation-pg": "^0.56.0",
+    "@opentelemetry/resources": "^2.0.1",
+    "@opentelemetry/sdk-metrics": "^2.0.1",
+    "@opentelemetry/sdk-node": "^0.203.0",
+    "@opentelemetry/sdk-trace-node": "^2.0.1",
+    "@opentelemetry/semantic-conventions": "^1.36.0",
+    "@proj-airi/server-sdk": "workspace:^",
+    "@proj-airi/server-shared": "workspace:^",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.1",
+    "drizzle-orm": "^0.44.5",
+    "express": "^4.21.2",
+    "helmet": "^8.0.0",
+    "nanoid": "^5.1.5",
+    "openai": "^4.28.0",
+    "pg": "^8.16.3",
+    "socket.io": "^4.8.1",
+    "uuid": "^11.1.0",
+    "valibot": "1.0.0-beta.9",
+    "ws": "^8.18.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.17",
+    "@types/express": "^5.0.0",
+    "@types/pg": "^8.15.5",
+    "@types/ws": "^8.5.10",
+    "drizzle-kit": "^0.31.4",
+    "tsx": "^4.20.5",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  }
+}

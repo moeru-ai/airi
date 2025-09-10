@@ -1,5 +1,5 @@
 import type { ChatProvider } from '@xsai-ext/shared-providers'
-import type { CommonContentPart, Message, SystemMessage } from '@xsai/shared-chat'
+import type { CommonContentPart, Message, SystemMessage, UserMessage } from '@xsai/shared-chat'
 
 import type { StreamEvent } from '../stores/llm'
 import type { ChatAssistantMessage, ChatMessage, ChatSlices } from '../types/chat'
@@ -9,6 +9,8 @@ import { defineStore, storeToRefs } from 'pinia'
 import { ref, toRaw, watch } from 'vue'
 
 import { useLlmmarkerParser } from '../composables/llmmarkerParser'
+import { useConversationHistory } from '../composables/useConversationHistory'
+import { useMemoryService } from '../composables/useMemoryService'
 import { useLLM } from '../stores/llm'
 import { createQueue } from '../utils/queue'
 import { TTS_FLUSH_INSTRUCTION } from '../utils/tts'
@@ -19,11 +21,17 @@ export interface ErrorMessage {
   content: string
 }
 
+// TODO [lucas-oma]: remove console.debug and console.log before merging (eslint)
+
 export const useChatStore = defineStore('chat', () => {
   const { stream, discoverToolsCompatibility } = useLLM()
   const { systemPrompt } = storeToRefs(useAiriCardStore())
+  const { storeAIResponse, memoryServiceEnabled } = useMemoryService()
+  const { loadHistory, isLoading: isLoadingHistory, hasMore: hasMoreHistory, error: historyError } = useConversationHistory()
 
   const sending = ref(false)
+  const loadingInitialHistory = ref(false)
+  const hasLoadedInitialHistory = ref(false)
 
   const onBeforeMessageComposedHooks = ref<Array<(message: string) => Promise<void>>>([])
   const onAfterMessageComposedHooks = ref<Array<(message: string) => Promise<void>>>([])
@@ -93,6 +101,39 @@ export const useChatStore = defineStore('chat', () => {
   })
 
   const streamingMessage = ref<ChatAssistantMessage>({ role: 'assistant', content: '', slices: [], tool_results: [] })
+
+  // Dedupe guard to prevent duplicate storage calls
+  const DEDUPE_WINDOW_MS = 100
+  const DEDUPE_STORAGE_KEY = 'airi-chat-last-message'
+
+  function shouldSkipStorage(message: string): boolean {
+    try {
+      const lastMessageData = localStorage.getItem(DEDUPE_STORAGE_KEY)
+
+      if (!lastMessageData) {
+        localStorage.setItem(DEDUPE_STORAGE_KEY, JSON.stringify({ message, timestamp: Date.now() }))
+        return false
+      }
+
+      const { message: lastMessage, timestamp } = JSON.parse(lastMessageData)
+      const now = Date.now()
+      const timeDiff = now - timestamp
+
+      // Skip if same message and within dedupe window
+      if (message === lastMessage && timeDiff < DEDUPE_WINDOW_MS) {
+        // console.log('Dedup check - Skipping duplicate message')
+        return true
+      }
+
+      // Update with current message
+      localStorage.setItem(DEDUPE_STORAGE_KEY, JSON.stringify({ message, timestamp: now }))
+      return false
+    }
+    catch (error) {
+      console.warn('Dedupe guard error:', error)
+      return false
+    }
+  }
 
   async function send(
     sendingMessage: string,
@@ -175,7 +216,9 @@ export const useChatStore = defineStore('chat', () => {
         ],
       })
 
+      // Reset the streaming message for the next turn
       streamingMessage.value = { role: 'assistant', content: '', slices: [], tool_results: [] }
+      // Don't reset currentResponseStored here - it should persist for the entire response
       const newMessages = messages.value.map((msg) => {
         if (msg.role === 'assistant') {
           const { slices: _, ...rest } = msg // exclude slices
@@ -217,6 +260,8 @@ export const useChatStore = defineStore('chat', () => {
             await parser.consume(event.text)
           }
           else if (event.type === 'finish') {
+            // console.log(`Stream FINISH event triggered`)
+
             // Finalize the parsing of the actual message content
             await parser.end()
 
@@ -240,8 +285,32 @@ export const useChatStore = defineStore('chat', () => {
             for (const hook of onAssistantResponseEndHooks.value)
               await hook(fullText)
 
-            // eslint-disable-next-line no-console
-            console.debug('LLM output:', fullText)
+            // Async: Store AI response in memory service (fire and forget)
+            if (memoryServiceEnabled?.value && !shouldSkipStorage(sendingMessage)) {
+              // Format the full prompt
+              const fullPrompt = newMessages.map(msg =>
+                `${msg.role.toUpperCase()}: ${typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content)}`,
+              ).join('\n\n')
+
+              // Store the completion and update localStorage
+              try {
+                await storeAIResponse(fullPrompt, fullText, 'web')
+                // console.log('Storing completion - Success, updating localStorage')
+                // Update localStorage after successful storage
+                localStorage.setItem(DEDUPE_STORAGE_KEY, JSON.stringify({
+                  message: sendingMessage,
+                  timestamp: Date.now(),
+                }))
+              }
+              catch (error) {
+                console.warn('Memory storage failed:', error)
+              }
+            }
+            else {
+              // console.log('Storing completion - Skipped due to dedup')
+            }
+
+            // console.debug('LLM output:', fullText)
           }
         },
       })
@@ -259,13 +328,107 @@ export const useChatStore = defineStore('chat', () => {
     }
   }
 
+  // Load initial conversation history
+  async function loadInitialHistory(limit: number = 10) {
+    // Prevent the function from running more than once
+    if (hasLoadedInitialHistory.value) {
+      return
+    }
+
+    try {
+      loadingInitialHistory.value = true
+      const history = await loadHistory(limit)
+
+      // Convert history messages to chat format
+      const chatMessages = history.map((msg) => {
+        if (msg.type === 'assistant') {
+          return {
+            role: msg.type,
+            content: msg.content,
+            slices: [{ type: 'text', text: msg.content }] as ChatSlices[],
+            tool_results: [],
+            created_at: msg.created_at,
+          } as ChatAssistantMessage
+        }
+        else {
+          return {
+            role: msg.type,
+            content: msg.content,
+            created_at: msg.created_at,
+          } as UserMessage
+        }
+      })
+
+      // Add system message first
+      messages.value = [
+        {
+          role: 'system',
+          content: codeBlockSystemPrompt + mathSyntaxSystemPrompt + systemPrompt.value,
+        } as SystemMessage,
+        ...chatMessages,
+      ]
+
+      // Set the flag to true after the first successful load
+      hasLoadedInitialHistory.value = true
+    }
+    finally {
+      loadingInitialHistory.value = false
+    }
+  }
+
+  // Load more history when scrolling up
+  async function loadMoreHistory() {
+    if (!hasMoreHistory.value || isLoadingHistory.value)
+      return
+
+    const oldestMessage = messages.value
+      .filter(msg => msg.role !== 'system')
+      .sort((a, b) => ((a as any).created_at || 0) - ((b as any).created_at || 0))[0]
+
+    if (!(oldestMessage as any)?.created_at)
+      return
+
+    const history = await loadHistory(10, (oldestMessage as any).created_at)
+
+    // Convert and add to messages
+    const chatMessages = history.map((msg) => {
+      if (msg.type === 'assistant') {
+        return {
+          role: msg.type,
+          content: msg.content,
+          slices: [{ type: 'text', text: msg.content }] as ChatSlices[],
+          tool_results: [],
+          created_at: msg.created_at,
+        } as ChatAssistantMessage
+      }
+      else {
+        return {
+          role: msg.type,
+          content: msg.content,
+          created_at: msg.created_at,
+        } as UserMessage
+      }
+    })
+
+    messages.value = [
+      ...messages.value.filter(msg => msg.role === 'system'),
+      ...chatMessages,
+      ...messages.value.filter(msg => msg.role !== 'system'),
+    ]
+  }
+
   return {
     sending,
     messages,
     streamingMessage,
+    loadingInitialHistory,
+    isLoadingHistory,
+    hasMoreHistory,
+    historyError,
 
     discoverToolsCompatibility,
-
+    loadInitialHistory,
+    loadMoreHistory,
     send,
     cleanupMessages,
 
