@@ -11,68 +11,64 @@ import {
 } from '@proj-airi/stage-ui/components'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { storeToRefs } from 'pinia'
-import { computed, onMounted, watch } from 'vue'
+import { computed, watch, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 
 const { t } = useI18n()
 const router = useRouter()
 const providersStore = useProvidersStore()
-const { providers } = storeToRefs(providersStore) as { providers: RemovableRef<Record<string, any>> }
+const { providers } = storeToRefs(providersStore)
 
-// Get provider metadata
 const providerId = 'openai-compatible'
 const providerMetadata = computed(() => providersStore.getProviderMetadata(providerId))
 
-// Use computed properties for settings
+// Normalize defaultOptions (support function or object)
+const defaultOptions = computed(() => {
+  const opts = providerMetadata.value?.defaultOptions
+  return typeof opts === 'function' ? opts() : opts || {}
+})
+
 const apiKey = computed({
   get: () => providers.value[providerId]?.apiKey || '',
   set: (value) => {
-    if (!providers.value[providerId])
-      providers.value[providerId] = {}
-
+    if (!providers.value[providerId]) providers.value[providerId] = {}
     providers.value[providerId].apiKey = value
   },
 })
 
 const baseUrl = computed({
-  get: () => providers.value[providerId]?.baseUrl || providerMetadata.value?.defaultOptions?.().baseUrl || '',
+  get: () => providers.value[providerId]?.baseUrl || defaultOptions.value.baseUrl || '',
   set: (value) => {
-    if (!providers.value[providerId])
-      providers.value[providerId] = {}
-
+    if (!providers.value[providerId]) providers.value[providerId] = {}
     providers.value[providerId].baseUrl = value
   },
 })
 
 onMounted(() => {
   providersStore.initializeProvider(providerId)
-
-  // Initialize refs with current values
-  apiKey.value = providers.value[providerId]?.apiKey || ''
-  baseUrl.value = providers.value[providerId]?.baseUrl || providerMetadata.value?.defaultOptions?.().baseUrl || ''
 })
 
-// Watch settings and update the provider configuration
+// Keep provider config synced
 watch([apiKey, baseUrl], () => {
   providers.value[providerId] = {
     ...providers.value[providerId],
     apiKey: apiKey.value,
-    baseUrl: baseUrl.value || providerMetadata.value?.defaultOptions?.().baseUrl || '',
+    baseUrl: baseUrl.value || defaultOptions.value.baseUrl || '',
   }
 })
 
 function handleResetSettings() {
   providers.value[providerId] = {
-    ...(providerMetadata.value?.defaultOptions as any),
+    ...defaultOptions.value,
   }
 }
 </script>
 
 <template>
   <ProviderSettingsLayout
-    :provider-name="providerMetadata?.localizedName || 'OpenAI Compatible'"
-    :provider-icon="providerMetadata?.icon"
+    :provider-name="providerMetadata.value?.localizedName || 'OpenAI Compatible'"
+    :provider-icon="providerMetadata.value?.icon"
     :on-back="() => router.back()"
   >
     <ProviderSettingsContainer>
@@ -83,15 +79,17 @@ function handleResetSettings() {
       >
         <ProviderApiKeyInput
           v-model="apiKey"
-          :provider-name="providerMetadata?.localizedName"
+          :provider-name="providerMetadata.value?.localizedName"
           placeholder="sk-..."
         />
       </ProviderBasicSettings>
 
-      <ProviderAdvancedSettings :title="t('settings.pages.providers.common.section.advanced.title')">
+      <ProviderAdvancedSettings
+        :title="t('settings.pages.providers.common.section.advanced.title')"
+      >
         <ProviderBaseUrlInput
           v-model="baseUrl"
-          :placeholder="providerMetadata?.defaultOptions?.().baseUrl as string || 'https://api.example.com/v1/'"
+          :placeholder="defaultOptions.baseUrl || 'https://api.example.com/v1/'"
         />
       </ProviderAdvancedSettings>
     </ProviderSettingsContainer>
@@ -99,8 +97,8 @@ function handleResetSettings() {
 </template>
 
 <route lang="yaml">
-  meta:
-    layout: settings
-    stageTransition:
-      name: slide
-  </route>
+meta:
+  layout: settings
+  stageTransition:
+    name: slide
+</route>
