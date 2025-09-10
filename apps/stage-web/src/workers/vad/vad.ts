@@ -14,7 +14,7 @@ export class VAD implements BaseVAD {
   private buffer: Float32Array
   private bufferPointer: number = 0
   private isRecording: boolean = false
-  private postSpeechSamples: number = 0
+  private postSpeechCount: number = 0
   private prevBuffers: Float32Array[] = []
   private inferenceChain: Promise<any> = Promise.resolve()
   private eventListeners: Partial<Record<keyof VADEvents, VADEventCallback<any>[]>> = {}
@@ -36,7 +36,11 @@ export class VAD implements BaseVAD {
     this.config = { ...defaultConfig, ...userConfig }
 
     this.buffer = new Float32Array(this.config.maxBufferDuration * this.config.sampleRate)
-    this.sampleRateTensor = new Tensor('int64', [this.config.sampleRate], [])
+    this.sampleRateTensor = new Tensor(
+      'int64',
+      BigInt64Array.from([BigInt(this.config.sampleRate)]),
+      [],
+    )
     this.state = new Tensor('float32', new Float32Array(2 * 1 * 128), [2, 1, 128])
   }
 
@@ -49,7 +53,7 @@ export class VAD implements BaseVAD {
 
       this.model = await AutoModel.from_pretrained('onnx-community/silero-vad', {
         config: { model_type: 'custom' } as any,
-        dtype: 'fp32', // Full-precision
+        dtype: 'fp32',
       })
 
       this.isReady = true
@@ -124,17 +128,14 @@ export class VAD implements BaseVAD {
     // Check if we need to handle buffer overflow
     const remaining = this.buffer.length - this.bufferPointer
     if (inputBuffer.length >= remaining) {
-      // The buffer is full, process what we have
       this.buffer.set(inputBuffer.subarray(0, remaining), this.bufferPointer)
       this.bufferPointer += remaining
 
-      // Process and reset with overflow
       const overflow = inputBuffer.subarray(remaining)
       this.processSpeechSegment(overflow)
       return
     }
     else {
-      // Add input to the buffer
       this.buffer.set(inputBuffer, this.bufferPointer)
       this.bufferPointer += inputBuffer.length
     }
@@ -142,30 +143,24 @@ export class VAD implements BaseVAD {
     // Handle speech detection
     if (isSpeech) {
       if (!this.isRecording) {
-        // Speech just started
-        this.emit('speech-start', undefined)
+        this.emit('speech-start', {} as any)
         this.emit('status', { type: 'info', message: 'Speech detected' })
       }
 
-      // Update state
       this.isRecording = true
-      this.postSpeechSamples = 0
+      this.postSpeechCount = 0
       return
     }
 
     // At this point, we were recording but the current buffer is not speech
-    this.postSpeechSamples += inputBuffer.length
+    this.postSpeechCount += inputBuffer.length
 
     // Check if silence is long enough to consider speech ended
-    if (this.postSpeechSamples >= minSilenceDurationSamples) {
-      // Check if the speech segment is long enough to process
+    if (this.postSpeechCount >= minSilenceDurationSamples) {
       if (this.bufferPointer < minSpeechDurationSamples) {
-        // Too short, reset without processing
         this.reset()
         return
       }
-
-      // Process the speech segment
       this.processSpeechSegment()
     }
   }
@@ -174,24 +169,28 @@ export class VAD implements BaseVAD {
    * Detect speech in an audio buffer
    */
   private async detectSpeech(buffer: Float32Array): Promise<boolean> {
+    if (!this.model) {
+      throw new Error('VAD model not initialized')
+    }
+
     const input = new Tensor('float32', buffer, [1, buffer.length])
 
-    const { stateN, output } = await (this.inferenceChain = this.inferenceChain.then(() =>
-      this.model?.({
+    const result = await (this.inferenceChain = this.inferenceChain.then(() =>
+      this.model!({
         input,
         sr: this.sampleRateTensor,
         state: this.state,
       }),
     ))
 
-    // Update the state
+    if (!result) return false
+
+    const { stateN, output } = result as any
     this.state = stateN
-    // Get the speech probability
     const speechProb = output.data[0]
 
     this.emit('debug', { message: 'VAD score', data: { probability: speechProb } })
 
-    // Apply thresholds
     return (
       speechProb > this.config.speechThreshold
       || (this.isRecording && speechProb >= this.config.exitThreshold)
@@ -205,46 +204,50 @@ export class VAD implements BaseVAD {
     const sampleRateMs = this.config.sampleRate / 1000
     const speechPadSamples = this.config.speechPadMs * sampleRateMs
 
-    // Calculate duration info
     const duration = (this.bufferPointer / this.config.sampleRate) * 1000
     const overflowLength = overflow?.length ?? 0
 
-    // Create the final buffer with padding
     const prevLength = this.prevBuffers.reduce((acc, b) => acc + b.length, 0)
     const finalBuffer = new Float32Array(prevLength + this.bufferPointer + speechPadSamples)
 
-    // Add previous buffers for pre-speech padding
     let offset = 0
     for (const prev of this.prevBuffers) {
       finalBuffer.set(prev, offset)
       offset += prev.length
     }
 
-    // Add the main speech segment
-    finalBuffer.set(this.buffer.slice(0, this.bufferPointer + speechPadSamples), offset)
+    finalBuffer.set(this.buffer.subarray(0, this.bufferPointer + speechPadSamples), offset)
 
-    // Emit the speech segment
-    this.emit('speech-end', undefined)
-    this.emit('speech-ready', {
-      buffer: finalBuffer,
-      duration,
-    })
+    this.emit('speech-end', {} as any)
+    this.emit('speech-ready', { buffer: finalBuffer, duration })
 
-    // Reset for the next segment
     if (overflow) {
-      this.buffer.set(overflow, 0)
+      if (overflow.length > this.buffer.length) {
+        let ptr = 0
+        while (ptr < overflow.length) {
+          const chunk = overflow.subarray(ptr, ptr + this.buffer.length)
+          this.buffer.set(chunk, 0)
+          this.bufferPointer = chunk.length
+          ptr += chunk.length
+        }
+      }
+      else {
+        this.buffer.set(overflow, 0)
+        this.bufferPointer = overflowLength
+      }
+    } else {
+      this.reset()
     }
-    this.reset(overflowLength)
   }
 
   /**
    * Reset the VAD state
    */
   private reset(offset: number = 0): void {
-    this.buffer.fill(0, offset)
+    this.buffer.fill(0, offset, this.buffer.length)
     this.bufferPointer = offset
     this.isRecording = false
-    this.postSpeechSamples = 0
+    this.postSpeechCount = 0
     this.prevBuffers = []
   }
 
@@ -254,15 +257,17 @@ export class VAD implements BaseVAD {
   public updateConfig(newConfig: Partial<BaseVADConfig>): void {
     this.config = { ...this.config, ...newConfig }
 
-    // If buffer size changed, create a new buffer
     if (newConfig.maxBufferDuration || newConfig.sampleRate) {
       this.buffer = new Float32Array(this.config.maxBufferDuration * this.config.sampleRate)
       this.bufferPointer = 0
     }
 
-    // Update sample rate tensor if needed
     if (newConfig.sampleRate) {
-      this.sampleRateTensor = new Tensor('int64', [this.config.sampleRate], [])
+      this.sampleRateTensor = new Tensor(
+        'int64',
+        BigInt64Array.from([BigInt(this.config.sampleRate)]),
+        [],
+      )
     }
   }
 }
