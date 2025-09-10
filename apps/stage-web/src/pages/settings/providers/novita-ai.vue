@@ -18,40 +18,38 @@ import { useRouter } from 'vue-router'
 const { t } = useI18n()
 const router = useRouter()
 const providersStore = useProvidersStore()
-const { providers } = storeToRefs(providersStore) as { providers: RemovableRef<Record<string, any>> }
+const { providers } = storeToRefs(providersStore) as {
+  providers: RemovableRef<Record<string, any>>
+}
 
 // Get provider metadata
 const providerId = 'novita-ai'
 const providerMetadata = computed(() => providersStore.getProviderMetadata(providerId))
 
 // Use computed properties for settings
-const apiKey = computed({
+const apiKey = computed<string>({
   get: () => providers.value[providerId]?.apiKey || '',
   set: (value) => {
-    if (!providers.value[providerId])
-      providers.value[providerId] = {}
-
-    providers.value[providerId].apiKey = value
+    providers.value[providerId] = {
+      ...providers.value[providerId],
+      apiKey: value,
+    }
   },
 })
 
-const baseUrl = computed({
+const baseUrl = computed<string>({
   get: () => providers.value[providerId]?.baseUrl || '',
   set: (value) => {
-    if (!providers.value[providerId])
-      providers.value[providerId] = {}
-
-    providers.value[providerId].baseUrl = value
+    providers.value[providerId] = {
+      ...providers.value[providerId],
+      baseUrl: value,
+    }
   },
 })
 
 onMounted(() => {
-  // Initialize provider if it doesn't exist
+  // Ensure provider exists
   providersStore.initializeProvider(providerId)
-
-  // Initialize refs with current values
-  apiKey.value = providers.value[providerId]?.apiKey || ''
-  baseUrl.value = providers.value[providerId]?.baseUrl || ''
 })
 
 // Watch settings and update the provider configuration
@@ -72,8 +70,8 @@ function handleResetSettings() {
 
 <template>
   <ProviderSettingsLayout
-    :provider-name="providerMetadata?.localizedName"
-    :provider-icon-color="providerMetadata?.iconColor"
+    :provider-name="providerMetadata.localizedName"
+    :provider-icon-color="providerMetadata.iconColor"
     :on-back="() => router.back()"
   >
     <ProviderSettingsContainer>
@@ -84,12 +82,14 @@ function handleResetSettings() {
       >
         <ProviderApiKeyInput
           v-model="apiKey"
-          :provider-name="providerMetadata?.localizedName"
+          :provider-name="providerMetadata.localizedName"
           placeholder="nvt-..."
         />
       </ProviderBasicSettings>
 
-      <ProviderAdvancedSettings :title="t('settings.pages.providers.common.section.advanced.title')">
+      <ProviderAdvancedSettings
+        :title="t('settings.pages.providers.common.section.advanced.title')"
+      >
         <ProviderBaseUrlInput
           v-model="baseUrl"
           placeholder="https://api.novita.ai/v1/"
@@ -100,8 +100,8 @@ function handleResetSettings() {
 </template>
 
 <route lang="yaml">
-  meta:
-    layout: settings
-    stageTransition:
-      name: slide
-  </route>
+meta:
+  layout: settings
+  stageTransition:
+    name: slide
+</route>
