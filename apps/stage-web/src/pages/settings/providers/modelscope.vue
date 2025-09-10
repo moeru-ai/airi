@@ -30,7 +30,6 @@ const apiKey = computed({
   set: (value) => {
     if (!providers.value[providerId])
       providers.value[providerId] = {}
-
     providers.value[providerId].apiKey = value
   },
 })
@@ -40,22 +39,20 @@ const baseUrl = computed({
   set: (value) => {
     if (!providers.value[providerId])
       providers.value[providerId] = {}
-
     providers.value[providerId].baseUrl = value
   },
 })
 
 onMounted(() => {
-  // Initialize provider if it doesn't exist
+  // Ensure provider exists
   providersStore.initializeProvider(providerId)
-
-  // Initialize refs with current values
-  apiKey.value = providers.value[providerId]?.apiKey || ''
-  baseUrl.value = providers.value[providerId]?.baseUrl || ''
 })
 
 // Watch settings and update the provider configuration
 watch([apiKey, baseUrl], () => {
+  if (!providers.value[providerId])
+    providers.value[providerId] = {}
+
   providers.value[providerId] = {
     ...providers.value[providerId],
     apiKey: apiKey.value,
@@ -65,14 +62,16 @@ watch([apiKey, baseUrl], () => {
 
 function handleResetSettings() {
   providers.value[providerId] = {
-    ...(providerMetadata.value?.defaultOptions as any),
+    ...(typeof providerMetadata.value?.defaultOptions === 'function'
+      ? providerMetadata.value.defaultOptions()
+      : providerMetadata.value?.defaultOptions || {}),
   }
 }
 </script>
 
 <template>
   <ProviderSettingsLayout
-    :provider-name="providerMetadata?.localizedName"
+    :provider-name="providerMetadata?.localizedName || ''"
     :provider-icon="providerMetadata?.icon"
     :on-back="() => router.back()"
   >
@@ -84,7 +83,7 @@ function handleResetSettings() {
       >
         <ProviderApiKeyInput
           v-model="apiKey"
-          :provider-name="providerMetadata?.localizedName"
+          :provider-name="providerMetadata?.localizedName || ''"
           placeholder="ms-..."
         />
       </ProviderBasicSettings>
@@ -104,4 +103,4 @@ function handleResetSettings() {
     layout: settings
     stageTransition:
       name: slide
-  </route>
+</route>
