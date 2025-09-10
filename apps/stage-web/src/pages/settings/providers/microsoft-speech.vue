@@ -34,33 +34,36 @@ const speed = ref(1.0)
 const volume = ref(0)
 
 // Additional settings specific to Microsoft Speech (region)
-const region = computed({
+const region = computed<string | undefined>({
   get: () => providers.value[providerId]?.region as string | undefined,
-  set: (value) => {
-    if (!providers.value[providerId])
-      providers.value[providerId] = { region: 'eastasia' }
-
-    providers.value[providerId].region = value
+  set: (value: string | undefined) => {
+    if (!providers.value[providerId]) {
+      // create an object but don't overwrite any possible existing properties (safe create)
+      providers.value[providerId] = {}
+    }
+    providers.value[providerId].region = value ?? 'eastasia'
   },
 })
 
 // Check if API key is configured
 const apiKeyConfigured = computed(() => !!providers.value[providerId]?.apiKey)
 
-// Get available voices for Microsoft Speech
+// Get available voices for Microsoft Speech (guarded)
 const availableVoices = computed(() => {
-  return speechStore.availableVoices[providerId] || []
+  // speechStore.availableVoices may be undefined or an object; guard access
+  return (speechStore.availableVoices?.[providerId]) ?? []
 })
 
 onMounted(async () => {
   if (!region.value) {
     region.value = 'eastasia' // Default region
   }
-  if (!providers.value[providerId]?.region) {
-    if (!providers.value[providerId])
-      providers.value[providerId] = { region: region.value }
-    else
-      providers.value[providerId].region = region.value
+
+  // Ensure provider object exists and set region without overwriting other keys
+  if (!providers.value[providerId]) {
+    providers.value[providerId] = { region: region.value }
+  } else if (!providers.value[providerId].region) {
+    providers.value[providerId].region = region.value
   }
 
   await speechStore.loadVoicesForProvider(providerId)
@@ -77,13 +80,13 @@ async function handleGenerateSpeech(input: string, voiceId: string, useSSML: boo
     throw new Error('Failed to initialize speech provider')
   }
 
-  // Get provider configuration
-  const providerConfig = providersStore.getProviderConfig(providerId)
+  // Get provider configuration (guard with default)
+  const providerConfig = (providersStore.getProviderConfig(providerId) ?? {}) as Record<string, any>
 
   // Get model from configuration or use default
-  const model = providerConfig.model as string | undefined || defaultModel
+  const model = (providerConfig?.model as string) || defaultModel
 
-  // For Microsoft Speech, we need to ensure we're using the right region
+  // For Microsoft Speech, ensure we're using the right region; safe spread of providerConfig
   const options = {
     ...providerConfig,
     region: region.value,
@@ -92,7 +95,7 @@ async function handleGenerateSpeech(input: string, voiceId: string, useSSML: boo
 
   // If not using SSML and we have a voice, generate SSML
   if (!useSSML && voiceId) {
-    const voice = availableVoices.value.find(v => v.id === voiceId)
+    const voice = (availableVoices.value || []).find(v => v.id === voiceId)
     if (voice) {
       const ssml = speechStore.generateSSML(
         input,
