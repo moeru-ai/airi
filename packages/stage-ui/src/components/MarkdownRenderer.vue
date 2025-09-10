@@ -22,11 +22,11 @@ async function processContent() {
   }
 
   try {
-    processedContent.value = await process(props.content)
+    processedContent.value = DOMPurify.sanitize(await process(props.content))
   }
   catch (error) {
     console.warn('Failed to process markdown with syntax highlighting, using fallback:', error)
-    processedContent.value = processSync(props.content)
+    processedContent.value = DOMPurify.sanitize(processSync(props.content))
   }
 }
 
@@ -42,7 +42,7 @@ onMounted(() => {
   <div
     :class="props.class"
     class="markdown-content"
-    v-html="DOMPurify.sanitize(processedContent)"
+    v-html="processedContent"
   />
 </template>
 
