@@ -95,6 +95,7 @@
     "date-fns": "^4.1.0",
     "gpuu": "^1.0.4",
     "jszip": "^3.10.1",
+    "live2d-motionsync": "^0.0.4",
     "localforage": "^1.10.0",
     "mediabunny": "^1.13.0",
     "nanoid": "^5.1.5",
