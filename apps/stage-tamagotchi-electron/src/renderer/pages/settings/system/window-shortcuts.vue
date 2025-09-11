@@ -141,9 +141,12 @@ function isConflict(shortcut: typeof shortcuts.value[0]) {
   >
     <div text="60" i-solar:keyboard-bold-duotone />
   </div>
+</template> -->
+<template>
+  <slot />
 </template>
 
-<route lang="yaml">
+<!-- <route lang="yaml">
 meta:
   layout: settings
   stageTransition:

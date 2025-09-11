@@ -214,15 +214,15 @@ const svgArts = computedAsync(async () => {
       >
         <div class="rounded-t-xl">
           <ClientOnly>
-            <div v-if="!post.frontmatter?.['preview-cover']?.[isDark ? 'dark' : 'light']" class="mb-6 h-20 md:h-60">
-              <div class="blur-lg" h="full" w-full v-html="isDark ? svgArts?.[index]?.dark : svgArts?.[index]?.light" />
+            <div v-if="!post.frontmatter?.['preview-cover']?.[isDark ? 'dark' : 'light']" class="relative mb-0 h-44 w-full md:h-68">
+              <div class="blur-lg" h-full w-full object-cover v-html="isDark ? svgArts?.[index]?.dark : svgArts?.[index]?.light" />
             </div>
             <div v-else class="relative mb-0 h-44 w-full md:h-68">
               <div class="preview-card-art-image-overlay" />
               <img
                 :src="post.frontmatter?.['preview-cover']?.[isDark ? 'dark' : 'light']"
                 alt="Post Cover"
-                class="preview-card-art-image h-full w-full object-cover"
+                class="preview-card-art-image not-prose h-full w-full object-cover"
               >
             </div>
           </ClientOnly>

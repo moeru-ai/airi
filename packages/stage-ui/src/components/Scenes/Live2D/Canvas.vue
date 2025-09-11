@@ -13,13 +13,16 @@ const props = withDefaults(defineProps<{
   resolution: 2,
 })
 
+const componentState = defineModel<'pending' | 'loading' | 'mounted'>('state', { default: 'pending' })
+
 const containerRef = ref<HTMLDivElement>()
-const pixiAppReady = ref(false)
+const isPixiCanvasReady = ref(false)
 const pixiApp = ref<Application>()
 const pixiAppCanvas = ref<HTMLCanvasElement>()
 
 async function initLive2DPixiStage(parent: HTMLDivElement) {
-  pixiAppReady.value = false
+  componentState.value = 'loading'
+  isPixiCanvasReady.value = false
 
   // https://guansss.github.io/pixi-live2d-display/#package-importing
   Live2DModel.registerTicker(Ticker)
@@ -43,7 +46,9 @@ async function initLive2DPixiStage(parent: HTMLDivElement) {
   pixiAppCanvas.value.style.display = 'block'
 
   parent.appendChild(pixiApp.value.view)
-  pixiAppReady.value = true
+
+  isPixiCanvasReady.value = true
+  componentState.value = 'mounted'
 }
 
 function handleResize() {
@@ -90,6 +95,6 @@ defineExpose({
 
 <template>
   <div ref="containerRef" h-full w-full>
-    <slot v-if="pixiAppReady" :app="pixiApp" />
+    <slot v-if="isPixiCanvasReady" :app="pixiApp" />
   </div>
 </template>

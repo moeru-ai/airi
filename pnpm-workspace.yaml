@@ -8,6 +8,7 @@ packages:
   - '!**/dist/**'
 
 catalog:
+  '@guiiai/logg': ^1.1.0
   '@moeru/std': 0.1.0-beta.7
   '@proj-airi/drizzle-duckdb-wasm': ^0.4.28
   '@xsai-ext/providers-cloud': ^0.4.0-beta.2

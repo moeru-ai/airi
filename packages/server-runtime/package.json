@@ -35,7 +35,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@guiiai/logg": "^1.0.10",
+    "@guiiai/logg": "catalog:",
     "@proj-airi/server-shared": "workspace:^",
     "crossws": "^0.4.1",
     "h3": "^1.15.4",

@@ -1,18 +1,15 @@
 <script setup lang="ts">
-// import type { AiriTamagotchiEvents } from './composables/tauri'
-
 import { useDisplayModelsStore } from '@proj-airi/stage-ui/stores/display-models'
-// import { useMcpStore } from '@proj-airi/stage-ui/stores/mcp'
 import { useOnboardingStore } from '@proj-airi/stage-ui/stores/onboarding'
 import { useSettings } from '@proj-airi/stage-ui/stores/settings'
-// import { Window } from '@tauri-apps/api/window'
+import { defineInvoke } from '@unbird/eventa'
+import { createContext } from '@unbird/eventa/adapters/electron/renderer'
 import { storeToRefs } from 'pinia'
 import { onMounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterView } from 'vue-router'
 
-// import { useAppRuntime } from './composables/runtime'
-// import { useTauriEvent } from './composables/tauri'
+import { electronStartTrackingCursorPoint } from '../shared/eventa'
 import { useWindowMode } from './stores/window-controls'
 
 useWindowMode()
@@ -21,10 +18,6 @@ const displayModelsStore = useDisplayModelsStore()
 const settingsStore = useSettings()
 const { language, themeColorsHue, themeColorsHueDynamic } = storeToRefs(settingsStore)
 const onboardingStore = useOnboardingStore()
-
-// const mcpStore = useMcpStore()
-// const { listen } = useTauriEvent<AiriTamagotchiEvents>()
-// const { platform } = useAppRuntime()
 
 watch(language, () => {
   i18n.locale.value = language.value
@@ -36,6 +29,10 @@ onMounted(async () => {
 
   await displayModelsStore.loadDisplayModelsFromIndexedDB()
   await settingsStore.initializeStageModel()
+
+  const { context } = createContext(window.electron.ipcRenderer)
+  const startTrackingCursorPoint = defineInvoke(context, electronStartTrackingCursorPoint)
+  await startTrackingCursorPoint(undefined)
 })
 
 watch(themeColorsHue, () => {
@@ -45,26 +42,6 @@ watch(themeColorsHue, () => {
 watch(themeColorsHueDynamic, () => {
   document.documentElement.classList.toggle('dynamic-hue', themeColorsHueDynamic.value)
 }, { immediate: true })
-
-// onMounted(() => {
-//   listen('mcp_plugin_destroyed', () => {
-//     mcpStore.connected = false
-//   })
-// })
-
-// const isMac = computed(() => platform.value === 'macos')
-
-// if (isMac.value) {
-//   watch(allowVisibleOnAllWorkspaces, async (value) => {
-//     const window = await Window.getByLabel('main')
-
-//     if (!window) {
-//       return
-//     }
-
-//     window.setVisibleOnAllWorkspaces(value)
-//   })
-// }
 </script>
 
 <template>

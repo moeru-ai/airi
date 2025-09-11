@@ -20,7 +20,7 @@
     "dev": "tsx src/index.ts"
   },
   "dependencies": {
-    "@guiiai/logg": "^1.0.10",
+    "@guiiai/logg": "catalog:",
     "@proj-airi/server-sdk": "workspace:^",
     "drizzle-orm": "^0.44.5",
     "postgres": "^3.4.7"

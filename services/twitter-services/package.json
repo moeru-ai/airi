@@ -13,7 +13,7 @@
   },
   "dependencies": {
     "@browserbasehq/stagehand": "^2.4.4",
-    "@guiiai/logg": "^1.0.10",
+    "@guiiai/logg": "catalog:",
     "@modelcontextprotocol/sdk": "^1.17.5",
     "@moeru/std": "catalog:",
     "@proj-airi/server-sdk": "^0.7.2-beta.2",

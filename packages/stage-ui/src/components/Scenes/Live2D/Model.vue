@@ -46,6 +46,8 @@ const emits = defineEmits<{
   (e: 'modelLoaded'): void
 }>()
 
+const componentState = defineModel<'pending' | 'loading' | 'mounted'>('state', { default: 'pending' })
+
 function parsePropsOffset() {
   let xOffset = Number.parseFloat(String(props.xOffset)) || 0
   let yOffset = Number.parseFloat(String(props.yOffset)) || 0
@@ -129,9 +131,11 @@ async function loadModel() {
   await until(modelLoading).not.toBeTruthy()
 
   modelLoading.value = true
+  componentState.value = 'loading'
 
   if (!pixiApp.value) {
     modelLoading.value = false
+    componentState.value = 'mounted'
     return
   }
 
@@ -143,18 +147,19 @@ async function loadModel() {
   if (!modelSrcRef.value) {
     console.warn('No Live2D model source provided.')
     modelLoading.value = false
+    componentState.value = 'mounted'
     return
   }
 
   try {
-    const modelInstance = new Live2DModel<PixiLive2DInternalModel>()
+    const live2DModel = new Live2DModel<PixiLive2DInternalModel>()
     if (modelSrcRef.value.startsWith('blob:')) {
       const res = await fetch(modelSrcRef.value)
       const blob = await res.blob()
-      await Live2DFactory.setupLive2DModel(modelInstance, [new File([blob], 'model.zip')], { autoInteract: false })
+      await Live2DFactory.setupLive2DModel(live2DModel, [new File([blob], 'model.zip')], { autoInteract: false })
     }
     else {
-      await Live2DFactory.setupLive2DModel(modelInstance, modelSrcRef.value, { autoInteract: false })
+      await Live2DFactory.setupLive2DModel(live2DModel, modelSrcRef.value, { autoInteract: false })
     }
 
     availableMotions.value.forEach((motion) => {
@@ -166,33 +171,37 @@ async function loadModel() {
       }
     })
 
-    model.value = modelInstance
+    // --- Scene
+
+    model.value = live2DModel
     pixiApp.value.stage.addChild(model.value)
     initialModelWidth.value = model.value.width
     initialModelHeight.value = model.value.height
     model.value.anchor.set(0.5, 0.5)
     setScaleAndPosition()
 
+    // --- Interaction
+
     model.value.on('hit', (hitAreas) => {
       if (model.value && hitAreas.includes('body'))
         model.value.motion('tap_body')
     })
+
+    // --- Motion
 
     const internalModel = model.value.internalModel
     const coreModel = internalModel.coreModel
     const motionManager = internalModel.motionManager
     coreModel.setParameterValueById('ParamMouthOpenY', mouthOpenSize.value)
 
-    availableMotions.value = Object.entries(motionManager.definitions).flatMap(([motionName, definition]) => {
-      if (!definition)
-        return []
-
-      return definition.map((motion: any, index: number) => ({
+    availableMotions.value = Object
+      .entries(motionManager.definitions)
+      .flatMap(([motionName, definition]) => (definition?.map((motion: any, index: number) => ({
         motionName,
         motionIndex: index,
         fileName: motion.File,
-      }))
-    }).filter(Boolean)
+      })) || []))
+      .filter(Boolean)
 
     // Remove eye ball movements from idle motion group to prevent conflicts
     // This is too hacky
@@ -214,6 +223,7 @@ async function loadModel() {
       lastUpdateTime.value = now
 
       hookedUpdate?.call(this, model, now)
+
       // Possibility 1: Only update eye focus when the model is idle
       // Possibility 2: For models having no mo`ti`on groups, currentGroup will be undefined while groups can be { idle: ... }
       if (!motionManager.state.currentGroup || motionManager.state.currentGroup === motionManager.groups.idle) {
@@ -221,26 +231,26 @@ async function loadModel() {
 
         // If the model has eye blink parameters
         if (internalModel.eyeBlink != null) {
-        // For the part of the auto eye blink implementation in pixi-live2d-display
-        //
-        // this.emit("beforeMotionUpdate");
-        // const motionUpdated = this.motionManager.update(this.coreModel, now);
-        // this.emit("afterMotionUpdate");
-        // model.saveParameters();
-        // this.motionManager.expressionManager?.update(model, now);
-        // if (!motionUpdated) {
-        //   this.eyeBlink?.updateParameters(model, dt);
-        // }
-        //
-        // https://github.com/guansss/pixi-live2d-display/blob/31317b37d5e22955a44d5b11f37f421e94a11269/src/cubism4/Cubism4InternalModel.ts#L202-L214
-        //
-        // If the this.motionManager.update returns true, as motion updated flag on,
-        // the eye blink parameters will not be updated, in another hand, the auto eye blink is disabled
-        //
-        // Since we are hooking the motionManager.update method currently,
-        // and previously a always `true` was returned, eye blink parameters were never updated.
-        //
-        // Thous we are here to manually update the eye blink parameters within this hooked method
+          // For the part of the auto eye blink implementation in pixi-live2d-display
+          //
+          // this.emit("beforeMotionUpdate");
+          // const motionUpdated = this.motionManager.update(this.coreModel, now);
+          // this.emit("afterMotionUpdate");
+          // model.saveParameters();
+          // this.motionManager.expressionManager?.update(model, now);
+          // if (!motionUpdated) {
+          //   this.eyeBlink?.updateParameters(model, dt);
+          // }
+          //
+          // https://github.com/guansss/pixi-live2d-display/blob/31317b37d5e22955a44d5b11f37f421e94a11269/src/cubism4/Cubism4InternalModel.ts#L202-L214
+          //
+          // If the this.motionManager.update returns true, as motion updated flag on,
+          // the eye blink parameters will not be updated, in another hand, the auto eye blink is disabled
+          //
+          // Since we are hooking the motionManager.update method currently,
+          // and previously a always `true` was returned, eye blink parameters were never updated.
+          //
+          // Thous we are here to manually update the eye blink parameters within this hooked method
           internalModel.eyeBlink.updateParameters(model, (now - lastUpdateTime.value) / 1000)
         }
 
@@ -259,6 +269,7 @@ async function loadModel() {
   }
   finally {
     modelLoading.value = false
+    componentState.value = 'mounted'
   }
 }
 

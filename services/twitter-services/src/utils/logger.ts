@@ -1,6 +1,8 @@
+import type { Logg } from '@guiiai/logg'
+
 import path from 'node:path'
 
-import { createLogg, Format, LogLevel, setGlobalFormat, setGlobalLogLevel } from '@guiiai/logg'
+import { Format, LogLevel, setGlobalFormat, setGlobalLogLevel, useLogg } from '@guiiai/logg'
 
 import { useConfigManager } from '../config'
 
@@ -44,9 +46,9 @@ export function initLogger(): void {
  * Get logger instance with directory name and filename
  * @returns logger instance configured with "directoryName/filename"
  */
-export function useLogger(name?: string): ReturnType<typeof createLogg> {
+export function useLogger(name?: string): Logg {
   if (name)
-    return createLogg(name).useGlobalConfig()
+    return useLogg(name).useGlobalConfig()
 
   const stack = new Error('logger').stack
   const caller = stack?.split('\n')[2]
@@ -57,7 +59,7 @@ export function useLogger(name?: string): ReturnType<typeof createLogg> {
   const fileName = match?.[2] || path.basename(__filename, '.ts')
   const lineNumber = match?.[3] || '?'
 
-  return createLogg(`${dirName}/${fileName}:${lineNumber}`).useGlobalConfig()
+  return useLogg(`${dirName}/${fileName}:${lineNumber}`).useGlobalConfig()
 }
 
 // Create pre-configured loggers for various services

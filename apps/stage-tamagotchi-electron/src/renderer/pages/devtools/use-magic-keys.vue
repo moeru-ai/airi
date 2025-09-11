@@ -131,9 +131,12 @@ const Key = defineComponent({
       :class="{ 'opacity-0': !u_s_e, 'rotate-180': shift }"
     >
   </div>
+</template> -->
+<template>
+  <slot />
 </template>
 
-<route lang="yaml">
+<!-- <route lang="yaml">
 meta:
   layout: settings
 </route> -->

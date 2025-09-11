@@ -11,6 +11,7 @@ import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consci
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { BasicTextarea } from '@proj-airi/ui'
+import { useDark } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -32,6 +33,8 @@ const { send, onAfterMessageComposed, discoverToolsCompatibility, cleanupMessage
 const { messages } = storeToRefs(useChatStore())
 const { audioContext } = useAudioContext()
 const { t } = useI18n()
+
+const isDark = useDark({ disableTransition: false })
 
 const { transcribe: generate, terminate } = useWhisper(WhisperWorker, {
   onComplete: async (res) => {
@@ -165,17 +168,32 @@ onAfterMessageComposed(async () => {
       </div>
     </div>
 
-    <button
-      class="max-h-[10lh] min-h-[1lh]"
-      bg="neutral-100 dark:neutral-800"
-      text="lg neutral-500 dark:neutral-400"
-      hover:text="red-500 dark:red-400"
-      absolute bottom--8 right-0
-      flex items-center justify-center rounded-md p-2 outline-none
-      transition-colors transition-transform active:scale-95
-      @click="cleanupMessages"
-    >
-      <div class="i-solar:trash-bin-2-bold-duotone" />
-    </button>
+    <div absolute bottom--8 right-0 flex gap-2>
+      <button
+        class="max-h-[10lh] min-h-[1lh]"
+        bg="neutral-100 dark:neutral-800"
+        text="lg neutral-500 dark:neutral-400"
+        hover:text="red-500 dark:red-400"
+        flex items-center justify-center rounded-md p-2 outline-none
+        transition-colors transition-transform active:scale-95
+        @click="cleanupMessages"
+      >
+        <div class="i-solar:trash-bin-2-bold-duotone" />
+      </button>
+
+      <button
+        class="max-h-[10lh] min-h-[1lh]"
+        bg="neutral-100 dark:neutral-800"
+        text="lg neutral-500 dark:neutral-400"
+        flex items-center justify-center rounded-md p-2 outline-none
+        transition-colors transition-transform active:scale-95
+        @click="isDark = !isDark"
+      >
+        <Transition name="fade" mode="out-in">
+          <div v-if="isDark" i-solar:moon-bold />
+          <div v-else i-solar:sun-2-bold />
+        </Transition>
+      </button>
+    </div>
   </div>
 </template>

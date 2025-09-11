@@ -1,6 +1,5 @@
+import type { Logg } from '@guiiai/logg'
 import type { Neuri } from 'neuri'
-
-import type { Logger } from '../../utils/logger'
 
 import { useLogg } from '@guiiai/logg'
 import { asClass, asFunction, createContainer, InjectionMode } from 'awilix'
@@ -10,7 +9,7 @@ import { ChatAgentImpl } from '../../agents/chat'
 import { PlanningAgentImpl } from '../../agents/planning'
 
 export interface ContainerServices {
-  logger: Logger
+  logger: Logg
   actionAgent: ActionAgentImpl
   planningAgent: PlanningAgentImpl
   chatAgent: ChatAgentImpl

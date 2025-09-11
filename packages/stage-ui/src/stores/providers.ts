@@ -1207,16 +1207,16 @@ export const useProvidersStore = defineStore('providers', () => {
         listModels: async () => {
           return [
             {
-              id: 'cozyvoice-v1',
-              name: 'CozyVoice',
+              id: 'cosyvoice-v1',
+              name: 'CosyVoice',
               provider: 'alibaba-cloud-model-studio',
               description: '',
               contextLength: 0,
               deprecated: false,
             },
             {
-              id: 'cozyvoice-v2',
-              name: 'CozyVoice (New)',
+              id: 'cosyvoice-v2',
+              name: 'CosyVoice (New)',
               provider: 'alibaba-cloud-model-studio',
               description: '',
               contextLength: 0,

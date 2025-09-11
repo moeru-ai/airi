@@ -1,5 +1,6 @@
+import type { Logg } from '@guiiai/logg'
+
 import type { PlanStep } from '../../agents/planning/adapter'
-import type { Logger } from '../../utils/logger'
 import type { Action } from './action'
 
 import EventEmitter3 from 'eventemitter3'
@@ -61,7 +62,7 @@ export abstract class AbstractAgent extends EventEmitter3 implements BaseAgent {
   public readonly name: string
 
   protected initialized: boolean
-  protected logger: Logger
+  protected logger: Logg
   // protected actionManager: ReturnType<typeof useActionManager>
   // protected conversationStore: ReturnType<typeof useConversationStore>
 

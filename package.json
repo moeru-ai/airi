@@ -18,6 +18,7 @@
     "dev:ui": "pnpm -rF @proj-airi/stage-ui run story:dev",
     "dev:web": "pnpm -rF @proj-airi/stage-web run dev",
     "dev:tamagotchi": "pnpm -rF @proj-airi/stage-tamagotchi run app:dev",
+    "dev:tamagotchi-electron": "pnpm -rF @proj-airi/stage-tamagotchi-electron run app:dev",
     "dev:apps": "pnpm -rF=\"./apps/*\" run --parallel dev",
     "dev:packages": "pnpm -rF=\"./packages/*\" --parallel run dev",
     "build": "turbo run build -F=\"./packages/*\" -F=\"./apps/*\"",

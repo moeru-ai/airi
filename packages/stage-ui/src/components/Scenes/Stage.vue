@@ -37,6 +37,8 @@ withDefaults(defineProps<{
   scale?: number
 }>(), { paused: false, scale: 1 })
 
+const componentState = defineModel<'pending' | 'loading' | 'mounted'>('state', { default: 'pending' })
+
 const db = ref<DuckDBWasmDrizzleDatabase>()
 // const transformersProvider = createTransformers({ embedWorkerURL })
 
@@ -286,7 +288,8 @@ defineExpose({
       <Live2DScene
         v-if="stageModelRenderer === 'live2d' && showStage"
         ref="live2dSceneRef"
-        min-w="50% <lg:full" min-h="100 sm:100" h-full w-full flex-1
+        v-model:state="componentState" min-w="50% <lg:full" min-h="100 sm:100" h-full w-full
+        flex-1
         :model-src="stageModelSelectedUrl"
         :focus-at="focusAt"
         :mouth-open-size="mouthOpenSize"
