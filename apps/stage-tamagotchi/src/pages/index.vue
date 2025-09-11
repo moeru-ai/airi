@@ -50,17 +50,16 @@ const isOverUI = ref(false)
 const isFirstTime = ref(true)
 
 watch(shouldShowSetup, () => {
-  if (shouldShowSetup.value) {
+  if (shouldShowSetup.value)
     commands.go('/onboarding', 'onboarding')
-  }
 }, { immediate: true })
 
-watchThrottled([mouseX, mouseY], async ([x, y]) => {
+// Handle mouse pass-through based on WebGL pixel alpha.
+watchThrottled([mouseX, mouseY], ([x, y]) => {
   requestAnimationFrame(() => {
     const canvas = widgetStageRef.value?.canvasElement()
-    if (!canvas) {
+    if (!canvas)
       return
-    }
 
     isFirstTime.value = false
 
@@ -82,15 +81,13 @@ watchThrottled([mouseX, mouseY], async ([x, y]) => {
     if (!windowControlStore.isIgnoringMouseEvent) {
       if (islandEl) {
         const rect = islandEl.getBoundingClientRect()
-        if (relativeX >= rect.left && relativeX <= rect.right && relativeY >= rect.top && relativeY <= rect.bottom) {
+        if (relativeX >= rect.left && relativeX <= rect.right && relativeY >= rect.top && relativeY <= rect.bottom)
           isOverUIElements = true
-        }
       }
       if (!isOverUIElements && buttonsEl) {
         const rect = buttonsEl.getBoundingClientRect()
-        if (relativeX >= rect.left && relativeX <= rect.right && relativeY >= rect.top && relativeY <= rect.bottom) {
+        if (relativeX >= rect.left && relativeX <= rect.right && relativeY >= rect.top && relativeY <= rect.bottom)
           isOverUIElements = true
-        }
       }
     }
 
@@ -106,23 +103,18 @@ watchThrottled([mouseX, mouseY], async ([x, y]) => {
     }
 
     let isTransparent = false
-
-    const gl = canvas.getContext('webgl2') || canvas.getContext('webgl')
-    gl.clearColor(0.0, 0.0, 0.0, 0.0) // explicit frame clear
-    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
     if (
       relativeX >= 0
       && relativeX < canvas.clientWidth
       && relativeY >= 0
       && relativeY < canvas.clientHeight
     ) {
-      gl.clearColor(0.0, 0.0, 0.0, 0.0) // explicit frame clear
-      gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
+      const gl = canvas.getContext('webgl2') || canvas.getContext('webgl')
       if (gl) {
         const pixelX = relativeX * (gl.drawingBufferWidth / canvas.clientWidth)
         const pixelY
-        = gl.drawingBufferHeight
-          - relativeY * (gl.drawingBufferHeight / canvas.clientHeight)
+          = gl.drawingBufferHeight
+            - relativeY * (gl.drawingBufferHeight / canvas.clientHeight)
         const data = new Uint8Array(4)
         gl.readPixels(
           Math.floor(pixelX),
@@ -212,6 +204,7 @@ async function setupWhisperModel() {
   invoke('plugin:ipc-audio-transcription-ort|load_ort_model_whisper', { modelType: 'medium' })
 }
 
+// Setup models and connect to the server on component mount.
 onMounted(async () => {
   const pos = await getPosition()
   if (pos) {
@@ -258,49 +251,52 @@ if (import.meta.hot) { // For better DX
 
 <template>
   <div
-    :class="[modeIndicatorClass, {
-      'op-0': windowControlStore.isIgnoringMouseEvent && !isClickThrough && !isFirstTime,
-    }]"
+    class="stage-container"
+    :class="[modeIndicatorClass]"
     max-h="[100vh]"
     max-w="[100vw]"
     flex="~ col"
     relative z-2 h-full overflow-hidden rounded-xl
-    transition="opacity duration-500 ease-in-out"
   >
     <div relative h-full w-full items-end gap-2 class="view">
-      <WidgetStage
-        ref="widgetStageRef"
-        h-full w-full flex-1
-        :focus-at="live2dFocusAt" :scale="scale"
-        :x-offset="positionInPercentageString.x"
-        :y-offset="positionInPercentageString.y" mb="<md:18"
-      />
-      <ResourceStatusIsland ref="resourceStatusIslandRef" />
       <div
-        ref="buttonsContainerRef"
-        absolute bottom-4 left-4 flex gap-1 op-0 transition="opacity duration-500"
-        :class="{
-          'pointer-events-none': isClickThrough && !isOverUI,
-          'show-on-hover': !windowControlStore.isIgnoringMouseEvent && (!isClickThrough || isOverUI),
-        }"
+        class="stage-wrapper"
+        :class="{ 'op-0': windowControlStore.isIgnoringMouseEvent && !isClickThrough && !isFirstTime }"
       >
+        <WidgetStage
+          ref="widgetStageRef"
+          h-full w-full flex-1
+          :focus-at="live2dFocusAt" :scale="scale"
+          :x-offset="positionInPercentageString.x"
+          :y-offset="positionInPercentageString.y" mb="<md:18"
+        />
+      </div>
+
+      <ResourceStatusIsland ref="resourceStatusIslandRef" class="interactive-ui" />
+      <div class="button-hover-area">
         <div
-          border="solid 2 primary-100 "
-          text="lg primary-400 hover:primary-600  placeholder:primary-400 placeholder:hover:primary-600"
-          bg="primary-50 dark:primary-50" max-h="[10lh]" min-h="[1lh]"
-          flex cursor-pointer items-center justify-center rounded-l-xl p-4 transition-colors
-          @click="openChat"
+          ref="buttonsContainerRef"
+          class="buttons-container interactive-ui"
+          :class="{ 'pointer-events-none': isClickThrough && !isOverUI }"
         >
-          <div i-solar:chat-line-bold-duotone />
-        </div>
-        <div
-          border="solid 2 primary-100 "
-          text="lg primary-400 hover:primary-600  placeholder:primary-400 placeholder:hover:primary-600"
-          bg="primary-50 dark:primary-50" max-h="[10lh]" min-h="[1lh]"
-          flex cursor-pointer items-center justify-center rounded-r-xl p-4 transition-colors
-          @click="openSettings"
-        >
-          <div i-solar:settings-bold-duotone />
+          <div
+            border="solid 2 primary-100 "
+            text="lg primary-400 hover:primary-600  placeholder:primary-400 placeholder:hover:primary-600"
+            bg="primary-50 dark:primary-50" max-h="[10lh]" min-h="[1lh]"
+            flex cursor-pointer items-center justify-center rounded-l-xl p-4 transition-colors
+            @click="openChat"
+          >
+            <div i-solar:chat-line-bold-duotone />
+          </div>
+          <div
+            border="solid 2 primary-100 "
+            text="lg primary-400 hover:primary-600  placeholder:primary-400 placeholder:hover:primary-600"
+            bg="primary-50 dark:primary-50" max-h="[10lh]" min-h="[1lh]"
+            flex cursor-pointer items-center justify-center rounded-r-xl p-4 transition-colors
+            @click="openSettings"
+          >
+            <div i-solar:settings-bold-duotone />
+          </div>
         </div>
       </div>
     </div>
@@ -351,10 +347,45 @@ if (import.meta.hot) { // For better DX
 <style scoped>
 .view {
   transition: opacity 0.5s ease-in-out;
+}
 
-  .show-on-hover {
-    opacity: 1;
-  }
+/* --- Styles for Character Stage --- */
+.stage-wrapper {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  transition: opacity 0.5s ease-in-out;
+}
+.stage-wrapper.op-0 {
+  opacity: 0;
+}
+
+/* --- Styles for UI Elements --- */
+.interactive-ui {
+  opacity: 0;
+  transition: opacity 0.5s ease-in-out;
+  pointer-events: none;
+}
+.stage-container:hover .interactive-ui {
+  opacity: 1;
+  pointer-events: auto;
+}
+.button-hover-area {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 150px;
+  height: 80px;
+  z-index: 10;
+}
+.buttons-container {
+  position: absolute;
+  bottom: 1rem;
+  left: 1rem;
+  display: flex;
+  gap: 0.25rem;
 }
 
 @keyframes wall-move {
