@@ -56,102 +56,109 @@ watch(shouldShowSetup, () => {
 }, { immediate: true })
 
 watchThrottled([mouseX, mouseY], async ([x, y]) => {
-  const canvas = widgetStageRef.value?.canvasElement()
-  if (!canvas) {
-    return
-  }
-
-  isFirstTime.value = false
-
-  if (windowControlStore.controlMode === WindowControlMode.RESIZE || windowControlStore.controlMode === WindowControlMode.MOVE) {
-    if (isPassingThrough.value) {
-      passThroughCommands.stopPassThrough()
-      isPassingThrough.value = false
+  requestAnimationFrame(() => {
+    const canvas = widgetStageRef.value?.canvasElement()
+    if (!canvas) {
+      return
     }
-    return
-  }
 
-  const relativeX = x - windowX.value
-  const relativeY = y - windowY.value
+    isFirstTime.value = false
 
-  const islandEl = resourceStatusIslandRef.value?.$el as HTMLElement
-  const buttonsEl = buttonsContainerRef.value
+    if (windowControlStore.controlMode === WindowControlMode.RESIZE || windowControlStore.controlMode === WindowControlMode.MOVE) {
+      if (isPassingThrough.value) {
+        passThroughCommands.stopPassThrough()
+        isPassingThrough.value = false
+      }
+      return
+    }
 
-  let isOverUIElements = false
-  if (!windowControlStore.isIgnoringMouseEvent) {
-    if (islandEl) {
-      const rect = islandEl.getBoundingClientRect()
-      if (relativeX >= rect.left && relativeX <= rect.right && relativeY >= rect.top && relativeY <= rect.bottom) {
-        isOverUIElements = true
+    const relativeX = x - windowX.value
+    const relativeY = y - windowY.value
+
+    const islandEl = resourceStatusIslandRef.value?.$el as HTMLElement
+    const buttonsEl = buttonsContainerRef.value
+
+    let isOverUIElements = false
+    if (!windowControlStore.isIgnoringMouseEvent) {
+      if (islandEl) {
+        const rect = islandEl.getBoundingClientRect()
+        if (relativeX >= rect.left && relativeX <= rect.right && relativeY >= rect.top && relativeY <= rect.bottom) {
+          isOverUIElements = true
+        }
+      }
+      if (!isOverUIElements && buttonsEl) {
+        const rect = buttonsEl.getBoundingClientRect()
+        if (relativeX >= rect.left && relativeX <= rect.right && relativeY >= rect.top && relativeY <= rect.bottom) {
+          isOverUIElements = true
+        }
       }
     }
-    if (!isOverUIElements && buttonsEl) {
-      const rect = buttonsEl.getBoundingClientRect()
-      if (relativeX >= rect.left && relativeX <= rect.right && relativeY >= rect.top && relativeY <= rect.bottom) {
-        isOverUIElements = true
+
+    isOverUI.value = isOverUIElements
+
+    if (isOverUI.value) {
+      isClickThrough.value = false
+      if (isPassingThrough.value) {
+        isPassingThrough.value = false
+        passThroughCommands.stopPassThrough()
       }
+      windowControlStore.isIgnoringMouseEvent = false
     }
-  }
 
-  isOverUI.value = isOverUIElements
+    let isTransparent = false
 
-  if (isOverUI.value) {
-    isClickThrough.value = false
-    if (isPassingThrough.value) {
-      passThroughCommands.stopPassThrough()
-      isPassingThrough.value = false
-    }
-    return
-  }
-
-  let isTransparent = false
-  if (
-    relativeX >= 0
-    && relativeX < canvas.clientWidth
-    && relativeY >= 0
-    && relativeY < canvas.clientHeight
-  ) {
     const gl = canvas.getContext('webgl2') || canvas.getContext('webgl')
-    if (gl) {
-      const pixelX = relativeX * (gl.drawingBufferWidth / canvas.clientWidth)
-      const pixelY
-      = gl.drawingBufferHeight
-        - relativeY * (gl.drawingBufferHeight / canvas.clientHeight)
-      const data = new Uint8Array(4)
-      gl.readPixels(
-        Math.floor(pixelX),
-        Math.floor(pixelY),
-        1,
-        1,
-        gl.RGBA,
-        gl.UNSIGNED_BYTE,
-        data,
-      )
-      isTransparent = data[3] < 100 // Use a small threshold for anti-aliasing
+    gl.clearColor(0.0, 0.0, 0.0, 0.0) // explicit frame clear
+    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
+    if (
+      relativeX >= 0
+      && relativeX < canvas.clientWidth
+      && relativeY >= 0
+      && relativeY < canvas.clientHeight
+    ) {
+      gl.clearColor(0.0, 0.0, 0.0, 0.0) // explicit frame clear
+      gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
+      if (gl) {
+        const pixelX = relativeX * (gl.drawingBufferWidth / canvas.clientWidth)
+        const pixelY
+        = gl.drawingBufferHeight
+          - relativeY * (gl.drawingBufferHeight / canvas.clientHeight)
+        const data = new Uint8Array(4)
+        gl.readPixels(
+          Math.floor(pixelX),
+          Math.floor(pixelY),
+          1,
+          1,
+          gl.RGBA,
+          gl.UNSIGNED_BYTE,
+          data,
+        )
+        isTransparent = data[3] < 100 // Use a small threshold for anti-aliasing
+      }
     }
-  }
-  else {
-    isTransparent = true
-  }
+    else {
+      isTransparent = true
+    }
 
-  isClickThrough.value = isTransparent
+    isClickThrough.value = isTransparent
 
-  if (windowControlStore.isIgnoringMouseEvent) {
-    if (!isPassingThrough.value) {
+    if (windowControlStore.isIgnoringMouseEvent) {
+      if (!isPassingThrough.value) {
+        passThroughCommands.startPassThrough()
+        isPassingThrough.value = true
+      }
+      return
+    }
+
+    if (isTransparent && !isPassingThrough.value) {
       passThroughCommands.startPassThrough()
       isPassingThrough.value = true
     }
-    return
-  }
-
-  if (isTransparent && !isPassingThrough.value) {
-    passThroughCommands.startPassThrough()
-    isPassingThrough.value = true
-  }
-  else if (!isTransparent && isPassingThrough.value) {
-    passThroughCommands.stopPassThrough()
-    isPassingThrough.value = false
-  }
+    else if (!isTransparent && isPassingThrough.value) {
+      passThroughCommands.stopPassThrough()
+      isPassingThrough.value = false
+    }
+  })
 }, { throttle: 33 })
 
 watch([live2dLookAtX, live2dLookAtY], ([x, y]) => live2dFocusAt.value = { x, y }, { immediate: true })
