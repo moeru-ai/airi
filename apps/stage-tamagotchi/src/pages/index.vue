@@ -56,9 +56,6 @@ watch(shouldShowSetup, () => {
 
 // Handle mouse pass-through based on WebGL pixel alpha.
 watchThrottled([mouseX, mouseY], ([x, y]) => {
-  const gl = canvas.getContext('webgl2') || canvas.getContext('webgl')
-  gl.clearColor(0.0, 0.0, 0.0, 0.0)
-  gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
   requestAnimationFrame(() => {
     const canvas = widgetStageRef.value?.canvasElement()
     if (!canvas)
