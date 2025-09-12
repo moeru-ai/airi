@@ -14,7 +14,7 @@ const { t } = useI18n()
   <Section
     v-motion
     mb-2
-    :title="t('settings.pages.themes.sections.section.custom-color.title')"
+    :title="t('settings.pages.system.sections.section.custom-color.title')"
     icon="i-solar:pallete-2-bold-duotone"
     :initial="{ opacity: 0, y: 10 }"
     :enter="{ opacity: 1, y: 0 }"
@@ -31,7 +31,7 @@ const { t } = useI18n()
       :delay="5 * 50"
       transition="all ease-in-out duration-250"
     >
-      <span text-lg font-normal>{{ $t('settings.pages.themes.sections.section.custom-color.fields.field.primary-color.label') }}</span>
+      <span text-lg font-normal>{{ $t('settings.pages.system.sections.section.custom-color.fields.field.primary-color.label') }}</span>
       <label relative flex cursor-pointer items-center gap-2>
         <input
           v-model="settings.themeColorsHueDynamic"
@@ -41,7 +41,7 @@ const { t } = useI18n()
         <div
           class="h-6 w-11 rounded-full bg-neutral-200 after:absolute after:left-[2px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:bg-white dark:bg-neutral-600 peer-checked:bg-primary-500 after:transition-all after:content-[''] peer-checked:after:translate-x-full peer-checked:after:border-white"
         />
-        {{ $t('settings.pages.themes.sections.section.custom-color.fields.field.primary-color.rgb-on.title') }}
+        {{ $t('settings.pages.system.sections.section.custom-color.fields.field.primary-color.rgb-on.title') }}
       </label>
     </div>
     <ColorHueRange
@@ -118,7 +118,7 @@ const { t } = useI18n()
     transition="all ease-in-out duration-250"
   >
     <div
-      v-for="({ title, description, colors }, i) in $tm('settings.pages.themes.sections.section.theme-presets.presets')" :key="i"
+      v-for="({ title, description, colors }, i) in $tm('settings.pages.system.sections.section.theme-presets.presets')" :key="i"
       v-motion
       class="w-full flex flex-col items-start justify-between gap-2 rounded-lg px-4 py-3 outline-none transition-all duration-250 ease-in-out md:flex-row md:items-center md:gap-0"
       bg="neutral-100 dark:neutral-800"

@@ -1,18 +1,19 @@
 {
   "recommendations": [
-    "streetsidesoftware.code-spell-checker",
-    "mikestead.dotenv",
-    "EditorConfig.EditorConfig",
-    "usernamehw.errorlens",
-    "dbaeumer.vscode-eslint",
     "antfu.goto-alias",
-    "lokalise.i18n-ally",
     "antfu.iconify",
-    "yzhang.markdown-all-in-one",
+    "antfu.pnpm-catalog-lens",
     "antfu.unocss",
+    "dbaeumer.vscode-eslint",
+    "EditorConfig.EditorConfig",
+    "lokalise.i18n-ally",
+    "mikestead.dotenv",
+    "redhat.vscode-yaml",
+    "rust-lang.rust-analyzer",
+    "streetsidesoftware.code-spell-checker",
+    "usernamehw.errorlens",
     "Vue.volar",
     "vitest.explorer",
-    "redhat.vscode-yaml",
-    "rust-lang.rust-analyzer"
+    "yzhang.markdown-all-in-one"
   ]
 }
