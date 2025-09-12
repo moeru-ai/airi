@@ -321,15 +321,13 @@ function updateCustomModelName(value: string) {
               v-model:voice-id="activeSpeechVoiceId"
               :voices="availableVoices[activeSpeechProvider]?.filter(voice => {
                 return voice.compatibleModels?.includes(activeSpeechModel)
-              }).map((voice) => {
-                return {
-                  id: voice.id,
-                  name: voice.name,
-                  description: voice.description,
-                  previewURL: voice.previewURL,
-                  customizable: false,
-                }
-              })"
+              }).map(voice => ({
+                id: voice.id,
+                name: voice.name,
+                description: voice.description,
+                previewURL: voice.previewURL,
+                customizable: false,
+              }))"
               :searchable="true"
               :search-placeholder="t('settings.pages.modules.speech.sections.section.provider-voice-selection.search_voices_placeholder')"
               :search-no-results-title="t('settings.pages.modules.speech.sections.section.provider-voice-selection.no_voices')"
