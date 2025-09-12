@@ -107,10 +107,10 @@ const audioQueue = createQueue<{ audioBuffer: AudioBuffer, text: string }>({
   handlers: [
     (ctx) => {
       return new Promise((resolve) => {
-        // 确保audioAnalyser已经创建
+        // Ensure audioAnalyser is created
         setupAnalyser()
 
-        // 停止任何当前播放的音频
+        // Stop any currently playing audio
         if (currentAudioSource) {
           try {
             currentAudioSource.stop()
@@ -122,22 +122,22 @@ const audioQueue = createQueue<{ audioBuffer: AudioBuffer, text: string }>({
           currentAudioSource = null
         }
 
-        // 如果有motionSync实例且模型类型为live2d，使用motionSync播放音频
+        // If motionSync instance exists and model type is live2d, use motionSync to play audio
         if (motionSyncInstance && stageModelRenderer.value === 'live2d') {
           nowSpeaking.value = true
 
-          // 使用motionSync.play播放音频
+          // Use motionSync.play to play audio
           motionSyncInstance.play(ctx.data.audioBuffer).then(() => {
             nowSpeaking.value = false
             resolve()
           }).catch((error) => {
             console.error('MotionSync play failed:', error)
-            // 降级到标准播放逻辑
+            // Fallback to standard playback logic
             fallbackToStandardPlayback(ctx.data.audioBuffer, resolve)
           })
         }
         else {
-          // 标准播放逻辑
+          // Standard playback logic
           fallbackToStandardPlayback(ctx.data.audioBuffer, resolve)
         }
       })
@@ -145,10 +145,10 @@ const audioQueue = createQueue<{ audioBuffer: AudioBuffer, text: string }>({
   ],
 })
 
-// 标准音频播放的降级函数
+// Fallback function for standard audio playback
 function fallbackToStandardPlayback(audioBuffer: AudioBuffer, resolve: () => void) {
   try {
-    // 检查audioContext状态并尝试恢复
+    // Check audioContext state and attempt to resume
     if (audioContext.state === 'suspended') {
       audioContext.resume().catch((err) => {
         console.warn('Failed to resume audio context during fallback:', err)
@@ -162,19 +162,19 @@ function fallbackToStandardPlayback(audioBuffer: AudioBuffer, resolve: () => voi
     // Connect the source to the AudioContext's destination (the speakers)
     source.connect(audioContext.destination)
 
-    // 确保audioAnalyser存在再连接
+    // Ensure audioAnalyser exists before connecting
     if (audioAnalyser.value) {
       source.connect(audioAnalyser.value)
     }
 
-    // 开始设置口型同步
+    // Start setting up lip sync
     setupLipSync()
 
     // Start playing the audio
     nowSpeaking.value = true
     currentAudioSource = source
 
-    // 处理不同浏览器的兼容性
+    // Handle cross-browser compatibility
     try {
       source.start(0)
     }
@@ -215,7 +215,7 @@ async function handleSpeechGeneration(ctx: { data: string }) {
       return
     }
 
-    // 确保audioContext处于运行状态
+    // Ensure audioContext is running
     if (audioContext.state === 'suspended') {
       try {
         await audioContext.resume()
@@ -251,12 +251,12 @@ async function handleSpeechGeneration(ctx: { data: string }) {
     }
     catch (decodeError) {
       console.error('Failed to decode audio data:', decodeError)
-      // 可以添加用户友好的错误提示逻辑
+      // User-friendly error notification logic can be added here
     }
   }
   catch (error) {
     console.error('Speech generation failed:', error)
-    // 可以添加用户友好的错误提示逻辑
+    // User-friendly error notification logic can be added here
   }
 }
 
@@ -307,14 +307,14 @@ function getVolumeWithMinMaxNormalizeWithFrameUpdates() {
 
 function setupLipSync() {
   if (!lipSyncStarted.value) {
-    // 确保audioAnalyser已经创建
+    // Ensure audioAnalyser is created
     setupAnalyser()
     audioContext.resume().catch((err) => {
       console.warn('Failed to resume audio context:', err)
     })
     lipSyncStarted.value = true
 
-    // 开始音量检测循环
+    // Start volume detection loop
     if (!volumeUpdateId) {
       getVolumeWithMinMaxNormalizeWithFrameUpdates()
     }
@@ -324,7 +324,7 @@ function setupLipSync() {
 function setupAnalyser() {
   if (!audioAnalyser.value) {
     audioAnalyser.value = audioContext.createAnalyser()
-    // 设置一些合理的默认值
+    // Set some reasonable default values
     audioAnalyser.value.fftSize = 256
   }
 }
@@ -438,10 +438,15 @@ async function loadModel() {
     // --- Motion
 
     const internalModel = model.value.internalModel
-    const motionSync = new MotionSync(internalModel)
-    motionSync.loadDefaultMotionSync()
-    // 保存motionSync实例供音频播放使用
-    motionSyncInstance = motionSync
+    try {
+      const motionSync = new MotionSync(internalModel)
+      motionSync.loadDefaultMotionSync()
+      // Save motionSync instance for audio playback
+      motionSyncInstance = motionSync
+    }
+    catch (error) {
+      console.error('Error initializing MotionSync:', error)
+    }
     const coreModel = internalModel.coreModel
     const motionManager = internalModel.motionManager
     coreModel.setParameterValueById('ParamMouthOpenY', mouthOpenSize.value)
@@ -580,7 +585,7 @@ watch(focusAt, (value) => {
 })
 
 onBeforeMessageComposed(async () => {
-  // 停止任何当前播放的音频并清除音频队列
+  // Stop any currently playing audio and clear the audio queue
   if (currentAudioSource) {
     try {
       currentAudioSource.stop()
@@ -590,7 +595,7 @@ onBeforeMessageComposed(async () => {
     currentAudioSource = null
   }
 
-  // 如果有motionSync实例，调用reset方法停止播放
+  // If motionSync instance exists, call reset method to stop playback
   if (motionSyncInstance) {
     try {
       motionSyncInstance.reset()
@@ -640,21 +645,21 @@ onMounted(async () => {
 })
 
 function componentCleanUp() {
-  // 取消所有动画帧请求
+  // Cancel all animation frame requests
   cancelAnimationFrame(dropShadowAnimationId.value)
   if (volumeUpdateId) {
     cancelAnimationFrame(volumeUpdateId)
     volumeUpdateId = null
   }
 
-  // 清理模型相关资源
+  // Clean up model-related resources
   model.value && pixiApp.value?.stage.removeChild(model.value)
 
-  // 清理TTS相关资源
+  // Clean up TTS-related resources
   lipSyncStarted.value = false
   nowSpeaking.value = false
 
-  // 停止并断开当前音频源
+  // Stop and disconnect current audio source
   if (currentAudioSource) {
     try {
       currentAudioSource.stop()
@@ -666,13 +671,13 @@ function componentCleanUp() {
     currentAudioSource = null
   }
 
-  // 断开音频分析器连接
+  // Disconnect audio analyser
   if (audioAnalyser.value) {
     audioAnalyser.value.disconnect()
-    // 注意：不要在这里设置audioAnalyser.value = null，因为组件可能会被重新激活
+    // Note: Do not set audioAnalyser.value = null here because the component may be reactivated
   }
 
-  // 清理motionSync实例
+  // Clean up motionSync instance
   if (motionSyncInstance) {
     try {
       motionSyncInstance.reset()
@@ -683,7 +688,7 @@ function componentCleanUp() {
     motionSyncInstance = null
   }
 
-  // 清空队列
+  // Clear queues
   audioQueue.clear()
   ttsQueue.clear()
 }
