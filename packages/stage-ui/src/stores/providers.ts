@@ -153,6 +153,7 @@ export interface VoiceInfo {
   id: string
   name: string
   provider: string
+  compatible_models?: string[]
   description?: string
   gender?: string
   deprecated?: boolean
@@ -723,68 +724,99 @@ export const useProvidersStore = defineStore('providers', () => {
               name: 'Alloy',
               provider: 'openai-audio-speech',
               languages: [],
+              compatible_models: ['tts-1', 'tts-1-hd'],
             },
             {
               id: 'ash',
               name: 'Ash',
               provider: 'openai-audio-speech',
               languages: [],
+              compatible_models: ['tts-1', 'tts-1-hd'],
             },
             {
               id: 'ballad',
               name: 'Ballad',
               provider: 'openai-audio-speech',
               languages: [],
+              compatible_models: ['tts-1', 'tts-1-hd'],
             },
             {
               id: 'coral',
               name: 'Coral',
               provider: 'openai-audio-speech',
               languages: [],
+              compatible_models: ['tts-1', 'tts-1-hd'],
             },
             {
               id: 'echo',
               name: 'Echo',
               provider: 'openai-audio-speech',
               languages: [],
+              compatible_models: ['tts-1', 'tts-1-hd'],
             },
             {
               id: 'fable',
               name: 'Fable',
               provider: 'openai-audio-speech',
               languages: [],
+              compatible_models: ['tts-1', 'tts-1-hd'],
             },
             {
               id: 'onyx',
               name: 'Onyx',
               provider: 'openai-audio-speech',
               languages: [],
+              compatible_models: ['tts-1', 'tts-1-hd'],
             },
             {
               id: 'nova',
               name: 'Nova',
               provider: 'openai-audio-speech',
               languages: [],
+              compatible_models: ['tts-1', 'tts-1-hd'],
             },
             {
               id: 'sage',
               name: 'Sage',
               provider: 'openai-audio-speech',
               languages: [],
+              compatible_models: ['tts-1', 'tts-1-hd'],
             },
             {
               id: 'shimmer',
               name: 'Shimmer',
               provider: 'openai-audio-speech',
               languages: [],
+              compatible_models: ['tts-1', 'tts-1-hd'],
             },
             {
               id: 'verse',
               name: 'Verse',
               provider: 'openai-audio-speech',
               languages: [],
+              compatible_models: ['tts-1', 'tts-1-hd'],
             },
           ] satisfies VoiceInfo[]
+        },
+        listModels: async () => {
+          return [
+            {
+              id: 'tts-1',
+              name: 'TTS-1',
+              provider: 'openai-audio-speech',
+              description: '',
+              contextLength: 0,
+              deprecated: false,
+            },
+            {
+              id: 'tts-1-hd',
+              name: 'TTS-1-HD',
+              provider: 'openai-audio-speech',
+              description: '',
+              contextLength: 0,
+              deprecated: false,
+            },
+          ]
         },
       },
       validators: {
@@ -1198,6 +1230,7 @@ export const useProvidersStore = defineStore('providers', () => {
               id: voice.id,
               name: voice.name,
               provider: 'alibaba-cloud-model-studio',
+              compatible_models: voice.compatible_models,
               previewURL: voice.preview_audio_url,
               languages: voice.languages,
               gender: voice.labels?.gender,

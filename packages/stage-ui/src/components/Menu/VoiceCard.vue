@@ -151,7 +151,7 @@ function togglePlayback() {
           v-else
           class="mt-auto w-full flex items-center justify-center bg-neutral-50 py-3 text-xs text-neutral-400 italic dark:bg-neutral-800/50 dark:text-neutral-600"
         >
-          No preview available
+          No preview available. You can select it and test voice on the right experiment.
         </div>
 
         <!-- Voice info -->
