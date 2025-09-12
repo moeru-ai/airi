@@ -16,7 +16,7 @@ export const useOnboardingStore = defineStore('onboarding', () => {
 
   // Check if any essential provider is configured
   const hasEssentialProviderConfigured = computed(() => {
-    const essentialProviders = ['openai', 'anthropic', 'google-generative-ai', 'openrouter-ai', 'ollama', 'deepseek', 'openai-compatible']
+    const essentialProviders = ['sofia-zunvra', 'openai', 'anthropic', 'google-generative-ai', 'openrouter-ai', 'ollama', 'deepseek', 'openai-compatible']
     return essentialProviders.some(providerId => providersStore.configuredProviders[providerId])
   })
 
@@ -39,7 +39,18 @@ export const useOnboardingStore = defineStore('onboarding', () => {
 
   // Initialize setup check
   async function initializeSetupCheck() {
+    console.warn('Onboarding - Checking if zunvra.com is configured...')
+    console.warn('Onboarding - Configured providers:', providersStore.configuredProviders)
+
+    // If zunvra.com is configured, automatically mark setup as completed
+    if (providersStore.configuredProviders['sofia-zunvra']) {
+      console.warn('Onboarding - zunvra.com is configured, marking setup as completed')
+      markSetupCompleted()
+      return
+    }
+
     if (needsOnboarding.value) {
+      console.warn('Onboarding - Showing onboarding dialog')
       // Use nextTick to ensure the app is fully rendered before showing dialog
       await nextTick()
       shouldShowSetup.value = true

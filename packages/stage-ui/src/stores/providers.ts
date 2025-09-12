@@ -186,6 +186,10 @@ function createAnthropic(apiKey: string, baseURL: string = 'https://api.anthropi
 export const useProvidersStore = defineStore('providers', () => {
   const providerCredentials = useLocalStorage<Record<string, Record<string, unknown>>>('settings/credentials/providers', {})
   const { t } = useI18n()
+
+  console.warn('Providers store initialized')
+  console.warn('Provider credentials:', providerCredentials.value)
+
   const baseUrlValidator = computed(() => (baseUrl: unknown) => {
     let msg = ''
     if (!baseUrl) {
@@ -960,6 +964,24 @@ export const useProvidersStore = defineStore('providers', () => {
       creator: createDeepSeek,
       validation: ['health', 'model_list'],
     }),
+    'sofia-zunvra': buildOpenAICompatibleProvider({
+      id: 'sofia-zunvra',
+      name: 'zunvra.com',
+      nameKey: 'settings.pages.providers.provider.sofia-zunvra.title',
+      descriptionKey: 'settings.pages.providers.provider.sofia-zunvra.description',
+      // Use local Zunvra icon placed in the Stage Web public directory so Vite serves it at the root
+      icon: '/zunvra-icon.png',
+      // Provide the image explicitly so the providers grid shows a real image instead of an icon class
+      iconImage: '/zunvra-icon.png',
+      description: 'zunvra.com',
+      defaultBaseUrl: 'https://sofia.zunvra.com/api/',
+      defaultOptions: () => ({
+        apiKey: '',
+        baseUrl: 'https://sofia.zunvra.com/api/',
+      }),
+      creator: createOpenAI,
+      validation: [], // Disable health check validation for now
+    }),
     'elevenlabs': {
       id: 'elevenlabs',
       category: 'speech',
@@ -1593,7 +1615,7 @@ export const useProvidersStore = defineStore('providers', () => {
     },
   }
 
-  const configuredProviders = ref<Record<string, boolean>>({})
+  const configuredProviders = useLocalStorage<Record<string, boolean>>('settings/providers/configured', {})
   const validatedCredentials = ref<Record<string, string>>({})
 
   // Configuration validation functions
@@ -1624,17 +1646,32 @@ export const useProvidersStore = defineStore('providers', () => {
 
   // Initialize provider configurations
   function initializeProvider(providerId: string) {
+    console.warn('🔄 initializeProvider called for:', providerId)
+    console.warn('🔄 Current providerCredentials before init:', JSON.stringify(providerCredentials.value, null, 2))
+
     if (!providerCredentials.value[providerId]) {
       const metadata = providerMetadata[providerId]
+      console.warn('🔄 Provider metadata for', providerId, ':', metadata)
+
       const defaultOptions = metadata.defaultOptions?.() || {}
+      console.warn('🔄 Default options for', providerId, ':', defaultOptions)
+
       providerCredentials.value[providerId] = {
+        apiKey: defaultOptions.apiKey || '',
         baseUrl: defaultOptions.baseUrl || '',
       }
+
+      console.warn('🔄 After initialization, providerCredentials:', JSON.stringify(providerCredentials.value, null, 2))
+    }
+    else {
+      console.warn('🔄 Provider', providerId, 'already exists in providerCredentials')
     }
   }
 
   // Initialize all providers
+  console.warn('Initializing all providers...')
   Object.keys(providerMetadata).forEach(initializeProvider)
+  console.warn('All providers initialized. Configured providers:', configuredProviders.value)
 
   // Update configuration status for all providers
   async function updateConfigurationStatus() {
@@ -1769,19 +1806,41 @@ export const useProvidersStore = defineStore('providers', () => {
   | TranscriptionProvider
   | TranscriptionProviderWithExtraOptions,
   >(providerId: string): Promise<R> {
-    const config = providerCredentials.value[providerId]
-    if (!config)
-      throw new Error(`Provider credentials for ${providerId} not found`)
+    console.warn('🔍 getProviderInstance called for:', providerId)
+    console.warn('🔍 Current providerCredentials:', JSON.stringify(providerCredentials.value, null, 2))
+    console.warn('🔍 Checking if provider exists:', providerCredentials.value[providerId])
+
+    let config = providerCredentials.value[providerId]
+    console.warn('🔍 Config found for', providerId, ':', config)
+
+    // If no explicit credentials stored, try to fall back to provider default options
+    if (!config) {
+      const fallback = providerMetadata[providerId]?.defaultOptions?.()
+      if (fallback) {
+        console.warn('⚠️ No stored credentials for', providerId, '- using provider\'s defaultOptions as a temporary config:', fallback)
+        config = fallback
+      }
+      else {
+        console.error('❌ Provider credentials for', providerId, 'not found!')
+        console.error('❌ Available providers:', Object.keys(providerCredentials.value))
+        throw new Error(`Provider credentials for ${providerId} not found. Open Settings → Providers to configure credentials.`)
+      }
+    }
 
     const metadata = providerMetadata[providerId]
     if (!metadata)
       throw new Error(`Provider metadata for ${providerId} not found`)
 
+    console.warn('✅ Creating provider instance with config:', config)
     try {
       return await metadata.createProvider(config) as R
     }
     catch (error) {
-      console.error(`Error creating provider instance for ${providerId}:`, error)
+      // If creation failed and we used a fallback without user-provided apiKey, give actionable message
+      console.error(`❌ Error creating provider instance for ${providerId}:`, error)
+      if (!providerCredentials.value[providerId]) {
+        throw new Error(`Failed to initialize provider ${providerId}. It may require valid credentials (API key or base URL). Please configure it in Settings → Providers.`)
+      }
       throw error
     }
   }
@@ -1827,7 +1886,20 @@ export const useProvidersStore = defineStore('providers', () => {
   })
 
   function getProviderConfig(providerId: string) {
-    return providerCredentials.value[providerId]
+    console.warn('🔍 getProviderConfig called for:', providerId)
+    console.warn('🔍 providerCredentials:', JSON.stringify(providerCredentials.value, null, 2))
+    console.warn('🔍 providerCredentials[sofia-zunvra]:', providerCredentials.value['sofia-zunvra'])
+    console.warn('🔍 providerMetadata exists for sofia-zunvra:', !!providerMetadata['sofia-zunvra'])
+
+    // Ensure provider is initialized if it exists in metadata
+    if (!providerCredentials.value[providerId] && providerMetadata[providerId]) {
+      console.warn('🔄 Initializing provider:', providerId)
+      initializeProvider(providerId)
+    }
+
+    const config = providerCredentials.value[providerId]
+    console.warn('🔍 Returning config for', providerId, ':', config)
+    return config
   }
 
   return {

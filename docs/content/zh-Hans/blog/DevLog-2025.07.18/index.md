@@ -9,7 +9,7 @@ preview-cover:
   dark: "@assets('../../../en/blog/DevLog-2025.07.18/assets/factorio-belt.gif')"
 ---
 
-大家好，我是 [@LemonNeko](https://github.com/LemonNekoGH)，AIRI 的维护者之一。
+大家好，我是 [@LemonNeko](https://github.com/LemonNekoGH)，AIRIX 的维护者之一。
 
 ## 回顾
 

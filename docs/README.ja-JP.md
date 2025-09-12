@@ -12,7 +12,7 @@
   <img width="250" src="./content/public/banner-light-1280x640.avif" />
 </picture>
 
-<h1 align="center">Project AIRI</h1>
+<h1 align="center">Project AIRIX</h1>
 
 <p align="center">モデル駆動の魂の容器、ちょっとしたことができるデスクペット。</p>
 <p align="center">Neuro-samaのようなバーチャルペアも私たちの世界の一部にしましょう！</p>
@@ -30,7 +30,7 @@
 </p>
 
 <p align="center">
-  <a href="https://www.producthunt.com/products/airi?embed=true&utm_source=badge-featured&utm_medium=badge&utm_source=badge-airi" target="_blank"><img src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=993524&theme=neutral&t=1752696535380" alt="AIRI - A&#0032;container&#0032;of&#0032;cyber&#0032;living&#0032;souls&#0044;&#0032;re&#0045;creation&#0032;of&#0032;Neuro&#0045;sama | Product Hunt" style="width: 250px; height: 54px;" width="250" height="54" /></a>
+  <a href="https://www.producthunt.com/products/airi?embed=true&utm_source=badge-featured&utm_medium=badge&utm_source=badge-airi" target="_blank"><img src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=993524&theme=neutral&t=1752696535380" alt="AIRIX - A&#0032;container&#0032;of&#0032;cyber&#0032;living&#0032;souls&#0044;&#0032;re&#0045;creation&#0032;of&#0032;Neuro&#0045;sama | Product Hunt" style="width: 250px; height: 54px;" width="250" height="54" /></a>
   <a href="https://trendshift.io/repositories/14636" target="_blank"><img src="https://trendshift.io/api/badge/repositories/14636" alt="moeru-ai%2Fairi | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
 </p>
 
@@ -42,7 +42,7 @@
 
 > [!NOTE]
 >
-> Project AIRIから生まれたすべてのサブプロジェクト用に、専用の組織[@proj-airi](https://github.com/proj-airi)があります。ぜひチェックしてみてください！
+> Project AIRIXから生まれたすべてのサブプロジェクト用に、専用の組織[@proj-airi](https://github.com/proj-airi)があります。ぜひチェックしてみてください！
 >
 > RAG、メモリシステム、組み込みデータベース、アイコン、Live2Dユーティリティなど多数あります！
 
@@ -54,7 +54,7 @@
 
 おそらく[Neuro-sama](https://www.youtube.com/@Neurosama)をすでに知っているでしょう。彼女は現在、ゲームをプレイし、チャットし、あなたや参加者（VTuberコミュニティ内）と対話できる最高のコンパニオンです。この種の存在を「デジタルヒューマン」と呼ぶ人もいます。**残念ながら、オープンソースではないため、ライブストリームがオフラインになった後は彼女と対話することはできません**。
 
-そのため、このプロジェクトAIRIは、ここで別の可能性を提供します：**簡単に、どこでも、いつでも、あなた自身のデジタルライフ、サイバー生活を所有できるようにします**。
+そのため、このプロジェクトAIRIXは、ここで別の可能性を提供します：**簡単に、どこでも、いつでも、あなた自身のデジタルライフ、サイバー生活を所有できるようにします**。
 
 ## このプロジェクトの特別な点は何ですか？
 
@@ -86,7 +86,7 @@
 > - Three.js
 > - WebXR（@moeru-ai組織の[別のプロジェクト](https://github.com/moeru-ai/chat)もチェックしてください）
 >
-> **興味があるなら、ここで自己紹介してみませんか？ [Would like to join part of us to build AIRI?](https://github.com/moeru-ai/airi/discussions/33)**
+> **興味があるなら、ここで自己紹介してみませんか？ [Would like to join part of us to build AIRIX?](https://github.com/moeru-ai/airi/discussions/33)**
 
 ## 現在の進捗
 
@@ -197,7 +197,7 @@ pnpm dev:docs
 - [WebAI: Realtime Voice Chat](https://github.com/proj-airi/webai-realtime-voice-chat): VAD + STT + LLM + TTSを使用してChatGPTのリアルタイム音声をゼロから実装する完全な例
 - [`@proj-airi/drizzle-duckdb-wasm`](https://github.com/moeru-ai/airi/tree/main/packages/drizzle-duckdb-wasm/README.md): DuckDB WASMのDrizzle ORMドライバー
 - [`@proj-airi/duckdb-wasm`](https://github.com/moeru-ai/airi/tree/main/packages/duckdb-wasm/README.md): `@duckdb/duckdb-wasm`の使いやすいラッパー
-- [AIRI Factorio](https://github.com/moeru-ai/airi-factorio): AIRIがFactorioをプレイできるようにする
+- [AIRIX Factorio](https://github.com/moeru-ai/airi-factorio): AIRIXがFactorioをプレイできるようにする
 - [Factorio RCON API](https://github.com/nekomeowww/factorio-rcon-api): FactorioヘッドレスサーバーコンソールのRESTful APIラッパー
 - [`autorio`](https://github.com/moeru-ai/airi-factorio/tree/main/packages/autorio): Factorio自動化ライブラリ
 - [`tstl-plugin-reload-factorio-mod`](https://github.com/moeru-ai/airi-factorio/tree/main/packages/tstl-plugin-reload-factorio-mod): Factorioモッドの開発時にリロードをサポート
@@ -223,7 +223,7 @@ flowchart TD
   StageUI("@proj-airi/stage-ui")
   UI("@proj-airi/ui")
 
-  subgraph AIRI
+  subgraph AIRIX
     DB1 --> DBDriver --> MemoryDriver --> Memory --> Core
     UI --> StageUI --> Stage --> Core
     Core --> STT
@@ -281,7 +281,7 @@ flowchart TD
   Memory_PGVector("@proj-airi/memory-pgvector") --> Memory
 
   style Core fill:#f9d4d4,stroke:#333,stroke-width:1px
-  style AIRI fill:#fcf7f7,stroke:#333,stroke-width:1px
+  style AIRIX fill:#fcf7f7,stroke:#333,stroke-width:1px
   style UI fill:#d4f9d4,stroke:#333,stroke-width:1px
   style Stage fill:#d4f9d4,stroke:#333,stroke-width:1px
   style UI_Components fill:#d4f9d4,stroke:#333,stroke-width:1px

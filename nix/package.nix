@@ -120,7 +120,7 @@ rustPlatform.buildRustPackage (final: {
 
   postInstall = lib.optionalString stdenv.isDarwin ''
     mkdir -p "$out/bin"
-    ln -sf "$out/Applications/AIRI.app/Contents/MacOS/airi" "$out/bin/airi"
+    ln -sf "$out/Applications/AIRIX.app/Contents/MacOS/airi" "$out/bin/airi"
   '';
 
   # Add missing runtime dependency
@@ -131,7 +131,7 @@ rustPlatform.buildRustPackage (final: {
   meta = {
     description = "Self-hostable AI waifu / companion / VTuber";
     longDescription = ''
-      AIRI is a soul container of AI waifu / virtual characters to bring them into our world,
+      AIRIX is a soul container of AI waifu / virtual characters to bring them into our world,
       wishing to achieve Neuro-sama's altitude. It's completely LLM and AI driven, capable of
       realtime voice chat, playing Minecraft and Factorio. It can be run in browser or on desktop.
       This is the desktop version.

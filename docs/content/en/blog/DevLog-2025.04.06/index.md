@@ -56,11 +56,11 @@ Such beautiful, and empowers me to continue to improve her.
 
 I was working on the refactoring over
 [`telegram-bot`](https://github.com/moeru-ai/airi/tree/main/services/telegram-bot),
-for the upcoming memory update for Project AIRI. Which we were planning to implement
+for the upcoming memory update for Project AIRIX. Which we were planning to implement
 for months.
 
 最近正在重构 [`telegram-bot`](https://github.com/moeru-ai/airi/tree/main/services/telegram-bot) 以为已经准备了数月的
-Project AIRI 即将到来的「记忆更新」作准备。
+Project AIRIX 即将到来的「记忆更新」作准备。
 
 We are planning to make the memory system the most advanced, robust, and reliable
 that many thoughts were borrowed from how memory works in Human brain.
@@ -671,9 +671,9 @@ We finally supported Character cards natively!
   </div>
 </div>
 
-A editor with models, voice lines, and every modules that Project AIRI has supported is included 🎉.
+A editor with models, voice lines, and every modules that Project AIRIX has supported is included 🎉.
 
-当然，一个包含模型、声线和 Project AIRI 支持的所有模块 🎉 的配置的能力的编辑器也包含在内了。
+当然，一个包含模型、声线和 Project AIRIX 支持的所有模块 🎉 的配置的能力的编辑器也包含在内了。
 
 Big shout out to [@luoling8192](https://github.com/luoling8192)
 
@@ -748,15 +748,15 @@ bug fixes, and improvements we haven't covered yet:
 - Featherless.ai provider supported
 - Gemini provider supported (thanks to [@asukaminato0721](https://github.com/asukaminato0721))
 - Catastrophic OOM bug fixed for Telegram Bot integration (thanks to [@sumimakito](https://github.com/sumimakito), [@kwaa](https://github.com/kwaa), and [@QiroNT](https://github.com/QiroNT))
-- New 98.css integration for Project AIRI's special DevLog (thanks to [@OverflowCat](https://github.com/OverflowCat))
+- New 98.css integration for Project AIRIX's special DevLog (thanks to [@OverflowCat](https://github.com/OverflowCat))
 
-> This is a special version of Project AIRI's DevLog that heavily inspired by [@OverflowCat](https://github.com/OverflowCat)'s
+> This is a special version of Project AIRIX's DevLog that heavily inspired by [@OverflowCat](https://github.com/OverflowCat)'s
 > blog post [ModTran](https://blog.xinshijiededa.men/modtran/) and the style of code was copied from [@OverflowCat](https://github.com/OverflowCat)'s implementation
 > over https://github.com/OverflowCat/blog/blob/0a92f916629ad942b7da84b894759fde1616bf37/src/components/98/98.ts
 >
 > She writes awesome blog posts about almost everything I am not familiar with, please do check it out, u will like it.
 >
-> 这是 Project AIRI 一篇特别版的开发日志，其灵感主要来自 [@OverflowCat](https://github.com/OverflowCat) 的博文 [ModTran](https://blog.xinshijiededa.men/modtran/)，
+> 这是 Project AIRIX 一篇特别版的开发日志，其灵感主要来自 [@OverflowCat](https://github.com/OverflowCat) 的博文 [ModTran](https://blog.xinshijiededa.men/modtran/)，
 > 代码风格大量借鉴了 [@OverflowCat](https://github.com/OverflowCat) 在 https://github.com/OverflowCat/blog/blob/0a92f916629ad942b7da84b894759fde1616bf37/src/components/98/98.ts 里的实现。
 >
 > 她写的博文很棒，几乎涉及所有我不熟悉的内容，请一定去看看，你会喜欢的。

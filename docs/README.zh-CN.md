@@ -12,7 +12,7 @@
   <img width="250" src="./content/public/banner-light-1280x640.avif" />
 </picture>
 
-<h1 align="center">Project AIRI</h1>
+<h1 align="center">Project AIRIX</h1>
 
 <p align="center">模型驱动的灵魂容器，什么都能做一点的桌宠：让 Neuro-sama 这样的虚拟伴侣也成为我们世界中的一份子吧！</p>
 
@@ -29,7 +29,7 @@
 </p>
 
 <p align="center">
-  <a href="https://www.producthunt.com/products/airi?embed=true&utm_source=badge-featured&utm_medium=badge&utm_source=badge-airi" target="_blank"><img src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=993524&theme=neutral&t=1752696535380" alt="AIRI - A&#0032;container&#0032;of&#0032;cyber&#0032;living&#0032;souls&#0044;&#0032;re&#0045;creation&#0032;of&#0032;Neuro&#0045;sama | Product Hunt" style="width: 250px; height: 54px;" width="250" height="54" /></a>
+  <a href="https://www.producthunt.com/products/airi?embed=true&utm_source=badge-featured&utm_medium=badge&utm_source=badge-airi" target="_blank"><img src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=993524&theme=neutral&t=1752696535380" alt="AIRIX - A&#0032;container&#0032;of&#0032;cyber&#0032;living&#0032;souls&#0044;&#0032;re&#0045;creation&#0032;of&#0032;Neuro&#0045;sama | Product Hunt" style="width: 250px; height: 54px;" width="250" height="54" /></a>
   <a href="https://trendshift.io/repositories/14636" target="_blank"><img src="https://trendshift.io/api/badge/repositories/14636" alt="moeru-ai%2Fairi | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
 </p>
 
@@ -41,7 +41,7 @@
 
 > [!NOTE]
 >
-> 我们有一个专门的组织 [@proj-airi](https://github.com/proj-airi) 用于所有从 Project AIRI 诞生的子项目，快来看看吧！
+> 我们有一个专门的组织 [@proj-airi](https://github.com/proj-airi) 用于所有从 Project AIRIX 诞生的子项目，快来看看吧！
 >
 > RAG（检索增强生成）、记忆系统、嵌入式数据库、图标、Live2D 实用工具等等！
 
@@ -53,7 +53,7 @@
 
 你可能已经知道 [Neuro-sama](https://www.youtube.com/@Neurosama)，她目前是最好的能够玩游戏、聊天并与你和参与者（在VTuber社区中）互动的 AI VTuber / 伴侣，有些人也称这种存在为"数字人"。**可惜的是，她并不开源，当她从直播中下线后，你就无法与她互动了**。
 
-因此，这个项目 AIRI，在这里提供了另一种可能性：**让你轻松拥有自己的数字生命、赛博生命，随时随地**。
+因此，这个项目 AIRIX，在这里提供了另一种可能性：**让你轻松拥有自己的数字生命、赛博生命，随时随地**。
 
 ## 这个项目有什么特别的呢？
 
@@ -85,7 +85,7 @@
 > - Three.js
 > - WebXR (也可以看看我们在 @moeru-ai 组织下另外的[这个项目](https://github.com/moeru-ai/chat))
 >
-> **如果你已经感兴趣了，为什么不来这里和大家打个招呼呢？[Would like to join part of us to build AIRI?](https://github.com/moeru-ai/airi/discussions/33)**
+> **如果你已经感兴趣了，为什么不来这里和大家打个招呼呢？[Would like to join part of us to build AIRIX?](https://github.com/moeru-ai/airi/discussions/33)**
 
 ## 当前进度
 
@@ -187,7 +187,7 @@ pnpm -F @proj-airi/docs dev
 - [`@proj-airi/drizzle-duckdb-wasm`](https://github.com/moeru-ai/airi/tree/main/packages/drizzle-duckdb-wasm/README.md): DuckDB WASM 的 Drizzle ORM driver 驱动
 - [`@proj-airi/duckdb-wasm`](https://github.com/moeru-ai/airi/tree/main/packages/duckdb-wasm/README.md): 易于使用的 `@duckdb/duckdb-wasm` 封装
 - [`@proj-airi/lobe-icons`](https://github.com/proj-airi/lobe-icons): 为 [lobe-icons](https://github.com/lobehub/lobe-icons) 漂亮的 AI & LLM 图标制作的 Iconify JSON 封装，支持 Tailwind 和 UnoCSS
-- [AIRI Factorio](https://github.com/moeru-ai/airi-factorio): 让 AIRI 玩 Factorio
+- [AIRIX Factorio](https://github.com/moeru-ai/airi-factorio): 让 AIRIX 玩 Factorio
 - [Factorio RCON API](https://github.com/nekomeowww/factorio-rcon-api): Factorio 无头服务器控制台的 RESTful API 封装
 - [`autorio`](https://github.com/moeru-ai/airi-factorio/tree/main/packages/autorio): Factorio 自动化库
 - [`tstl-plugin-reload-factorio-mod`](https://github.com/moeru-ai/airi-factorio/tree/main/packages/tstl-plugin-reload-factorio-mod): 开发时支持热重载 Factorio 模组
@@ -214,7 +214,7 @@ flowchart TD
   StageUI("@proj-airi/stage-ui")
   UI("@proj-airi/ui")
 
-  subgraph AIRI
+  subgraph AIRIX
     DB1 --> DBDriver --> MemoryDriver --> Memory --> Core
     UI --> StageUI --> Stage --> Core
     Core --> STT
@@ -272,7 +272,7 @@ flowchart TD
   Memory_PGVector("@proj-airi/memory-pgvector") --> Memory
 
   style Core fill:#f9d4d4,stroke:#333,stroke-width:1px
-  style AIRI fill:#fcf7f7,stroke:#333,stroke-width:1px
+  style AIRIX fill:#fcf7f7,stroke:#333,stroke-width:1px
   style UI fill:#d4f9d4,stroke:#333,stroke-width:1px
   style Stage fill:#d4f9d4,stroke:#333,stroke-width:1px
   style UI_Components fill:#d4f9d4,stroke:#333,stroke-width:1px

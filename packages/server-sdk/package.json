@@ -2,9 +2,9 @@
   "name": "@proj-airi/server-sdk",
   "type": "module",
   "version": "0.7.2-beta.2",
-  "description": "Client-side SDK implementation for connecting to AIRI server components and runtimes",
+  "description": "Client-side SDK implementation for connecting to AIRIX server components and runtimes",
   "author": {
-    "name": "Moeru AI Project AIRI Team",
+    "name": "Moeru AI Project AIRIX Team",
     "email": "airi@moeru.ai",
     "url": "https://github.com/moeru-ai"
   },

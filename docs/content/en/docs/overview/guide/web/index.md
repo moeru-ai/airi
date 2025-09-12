@@ -1,4 +1,4 @@
 ---
 title: Guide to Web version
-description: How to use Web version of Project AIRI
+description: How to use Web version of Project AIRIX
 ---

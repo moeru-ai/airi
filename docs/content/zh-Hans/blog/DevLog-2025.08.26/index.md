@@ -12,7 +12,7 @@ preview-cover:
 import NmsIou from './components/nms-iou.vue'
 </script>
 
-大家好久不见，我是 [@LemonNeko](https://github.com/LemonNekoGH)，AIRI 的维护者之一。~~啊，有点厌倦这样开场了，像 LLM 一样。~~
+大家好久不见，我是 [@LemonNeko](https://github.com/LemonNekoGH)，AIRIX 的维护者之一。~~啊，有点厌倦这样开场了，像 LLM 一样。~~
 
 我的上一篇 [DevLog](../DevLog-2025.07.18/index.md) 中提到，我浅浅地看了一下 [Factorio Learning Environment](https://arxiv.org/abs/2503.09617) 论文，并且简单说了一下我们打算如何改进 `airi-factorio`，但是...今天想和大家分享的并不是这个，而是关于纯视觉方向的进展。
 

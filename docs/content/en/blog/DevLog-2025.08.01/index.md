@@ -3,7 +3,7 @@ title: DevLog @ 2025.08.01
 category: DevLog
 date: 2025-08-01
 excerpt: |
-  Makito will share her journey from implementing text animations in AIRI to building a library to handle grapheme clusters as they arrive in a stream of UTF-8 bytes.<br /> We hope you find it informative and inspiring!
+  Makito will share her journey from implementing text animations in AIRIX to building a library to handle grapheme clusters as they arrive in a stream of UTF-8 bytes.<br /> We hope you find it informative and inspiring!
 preview-cover:
   light: "@assets('./assets/cover-light.avif')"
   dark: "@assets('./assets/cover-dark.avif')"
@@ -40,9 +40,9 @@ Hello, this is Makito.
 
 Endless August has begun… Maybe we can pass the time with this [realistic math problem](https://oeis.org/A180632/a180632.pdf). Oops, sorry for getting off-topic.
 
-This is my first post on Project AIRI's DevLog, even though I have been working on it for a while.
+This is my first post on Project AIRIX's DevLog, even though I have been working on it for a while.
 
-In this post, I will share my journey from implementing text animations in AIRI to building a library to handle grapheme clusters as they arrive in a stream of UTF-8 bytes. I hope you find it informative and inspiring!
+In this post, I will share my journey from implementing text animations in AIRIX to building a library to handle grapheme clusters as they arrive in a stream of UTF-8 bytes. I hope you find it informative and inspiring!
 
 ## Background
 
@@ -50,7 +50,7 @@ Recently, [Anime.js](https://animejs.com/) released its new [text utilities](htt
 
 Text animations are especially useful for making messages appear in a fancy way in the UI. Typically, messages are received fully formed, so we only need to split the received text into characters and animate them.
 
-In Project AIRI, [@nekomeowww](https://github.com/nekomeowww) also built an animated chat bubble component with motion effects:
+In Project AIRIX, [@nekomeowww](https://github.com/nekomeowww) also built an animated chat bubble component with motion effects:
 
 <video controls muted autoplay loop max-w="500px" w-full mx-auto>
   <source src="./assets/animated-chat-bubble.mp4">
@@ -147,6 +147,6 @@ You may see how we wait until the second grapheme cluster to appear before emitt
 
 By the time I wrote this DevLog, there are many nice libraries that help you split a string into grapheme clusters for you to choose from. However, among them, I didn't find one that both accepts a stream of UTF-8 bytes and emits grapheme clusters as they arrive. So I built one myself, with the approach described above, which I named [Clustr](https://github.com/sumimakito/clustr) to give it some resonance with the "grapheme cluster" concept in Unicode.
 
-Although the total line count of its core is less than 100, it may help you with your next project where you want to have some fancy text animations from a stream of UTF-8 bytes—like what we did in Project AIRI.
+Although the total line count of its core is less than 100, it may help you with your next project where you want to have some fancy text animations from a stream of UTF-8 bytes—like what we did in Project AIRIX.
 
-If you are interested in what we're doing in Project AIRI, please check out our GitHub repository at [moeru-ai/airi](https://github.com/moeru-ai/airi)!
+If you are interested in what we're doing in Project AIRIX, please check out our GitHub repository at [moeru-ai/airi](https://github.com/moeru-ai/airi)!

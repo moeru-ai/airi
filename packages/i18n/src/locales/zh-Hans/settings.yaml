@@ -6,7 +6,7 @@ animations:
     title: 是否使用页面特定过场动画
 dialogs:
   onboarding:
-    title: 欢迎来到 AIRI！
+    title: 欢迎来到 AIRIX！
     description: 让我们设置您的第一个服务来源来开始使用。
     selectProvider: 选择服务来源
     configureProvider: 配置 {provider}
@@ -75,7 +75,7 @@ pages:
     delete: 删除
     delete_card: 删除角色卡
     delete_confirmation: 确定要删除这张角色卡吗？
-    description: 使用 AIRI 角色卡预设
+    description: 使用 AIRIX 角色卡预设
     description_label: 描述
     drop_here: 放开以上传文件
     create_card: 创建新角色卡
@@ -131,7 +131,7 @@ pages:
       model: 声音 / 模型
       voice: 声音 / 声线
     systemprompt: 系统提示词
-    title: AIRI 角色卡
+    title: AIRIX 角色卡
     try_different_search: 尝试使用其他关键词搜索
     upload: 上传
     upload_desc: 点击或拖拽文件到此处上传
@@ -242,7 +242,7 @@ pages:
     helpinfo:
       title: 第一次使用？
       description: |
-        AIRI 需要配置至少一个 {chat} 服务来源，才能正常思考和运作。你可以把它看作是 AIRI 系统中角色的大脑。
+        AIRIX 需要配置至少一个 {chat} 服务来源，才能正常思考和运作。你可以把它看作是 AIRIX 系统中角色的大脑。
     common:
       fields:
         field:
@@ -323,6 +323,9 @@ pages:
       deepseek:
         description: DeepSeek.com
         title: 深度求索 DeepSeek
+      sofia-zunvra:
+        description: zunvra.com
+        title: zunvra.com
       elevenlabs:
         description: Elevenlabs.io
         fields:
@@ -468,8 +471,8 @@ pages:
         theme-presets:
           presets:
             - colors:
-                - AIRI 绿
-              description: 默认的绿色主题，由 AIRI 为您带来！
+                - AIRIX 绿
+              description: 默认的绿色主题，由 AIRIX 为您带来！
               title: 默认颜色
             - colors:
                 - 灰褐色
@@ -535,7 +538,7 @@ sections:
 theme:
   title: 主题
   description: |
-    切换 AIRI 的基础主题，亮色模式或暗色模式。
+    切换 AIRIX 的基础主题，亮色模式或暗色模式。
 title: 设置
 voices: 声线
 vrm:

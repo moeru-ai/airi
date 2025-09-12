@@ -1,6 +1,6 @@
 ---
 title: Guide to Desktop version
-description: How to use Tamagotchi version of Project AIRI
+description: How to use Tamagotchi version of Project AIRIX
 ---
 
 ## I want to chat, now!
@@ -49,7 +49,7 @@ But first...
 Thank you for downloading and trying it!
 :::
 
-After downloaded, start AIRI from anywhere. You will see the user interface consists of two parts:
+After downloaded, start AIRIX from anywhere. You will see the user interface consists of two parts:
 
 - Onboarding / Wizard setup guide
 - Model (capable of showing Live2D & VRM models)
@@ -179,7 +179,7 @@ Shortcut for Fade on Hover is: <kbd aria-label="Shift" data-keyboard-key="shift"
 ## Settings
 
 You can open settings in the system tray for further customization, for example,
-changing the theme color of AIRI, or switching to another model, either
+changing the theme color of AIRIX, or switching to another model, either
 Live2D (2D) or VRM (3D, like Grok Companion).
 
 <video autoplay loop muted>
@@ -211,7 +211,7 @@ to exclude the following files:
 
 ::: warning Bugs inside
 Currently the functionality of the reloading the scene of models is not working as intended.
-You will have to restart AIRI after loaded the model.
+You will have to restart AIRIX after loaded the model.
 :::
 
 <br />

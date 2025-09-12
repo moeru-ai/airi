@@ -18,6 +18,18 @@ defineProps<{
     :duration="500"
     size-60
   >
-    <div text="60" :class="providerIcon || providerIconColor" />
+    <!-- If providerIcon is a URL or a local image path (starts with http, /, ./ or ends with an image extension), render it as an image. Otherwise treat it as a CSS/icon class. -->
+    <template v-if="providerIcon && typeof providerIcon === 'string' && (providerIcon.startsWith('http') || providerIcon.startsWith('/') || providerIcon.startsWith('./') || providerIcon.match(/\.(png|jpe?g|svg|webp|avif)$/i))">
+      <!-- Larger, responsive provider icon for settings page -->
+      <img
+        :src="providerIcon"
+        alt="provider icon"
+        class="rounded-lg"
+        style="object-fit:contain; position:absolute; right:-1.25rem; bottom:-1.25rem; width:15rem; height:15rem; opacity:0.12; filter:grayscale(100%);"
+      >
+    </template>
+    <template v-else>
+      <div text="60" :class="providerIcon || providerIconColor" />
+    </template>
   </div>
 </template>

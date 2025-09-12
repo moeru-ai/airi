@@ -8,7 +8,7 @@ animations:
     title: Use Page Specific Transitions
 dialogs:
   onboarding:
-    title: Welcome to AIRI!
+    title: Welcome to AIRIX!
     description: Let's set up your first AI provider to get started.
     selectProvider: Choose an AI Provider
     configureProvider: Configure {provider}
@@ -32,7 +32,7 @@ dialogs:
 language:
   title: Language
   description: >
-    Change the language of the AIRI interface. This will not affect the language
+    Change the language of the AIRIX interface. This will not affect the language
     of the character's responses.
 live2d:
   change-model:
@@ -82,7 +82,7 @@ pages:
     delete: Delete
     delete_card: Delete Card
     delete_confirmation: Are you sure you want to delete this card?
-    description: Use AIRI character card presets
+    description: Use AIRIX character card presets
     description_label: Description
     drop_here: Drop to upload
     create_card: Create a new Card
@@ -145,7 +145,7 @@ pages:
       model: Speech / Model
       voice: Speech / Voice
     systemprompt: System Prompt
-    title: AIRI Card
+    title: AIRIX Card
     try_different_search: Try a different search term
     upload: Upload
     upload_desc: Click or drag file to upload
@@ -269,9 +269,9 @@ pages:
     helpinfo:
       title: First time here?
       description: >
-        AIRI requires at least one {chat} provider to be configured to think,
+        AIRIX requires at least one {chat} provider to be configured to think,
         and behave properly. You could think of it as the brain of the
-        characters living in AIRI system.
+        characters living in AIRIX system.
     common:
       fields:
         field:
@@ -358,6 +358,9 @@ pages:
       deepseek:
         description: deepseek.com
         title: DeepSeek
+      sofia-zunvra:
+        description: zunvra.com
+        title: zunvra.com
       elevenlabs:
         description: elevenlabs.io
         fields:
@@ -508,8 +511,8 @@ pages:
         theme-presets:
           presets:
             - colors:
-                - AIRI Green
-              description: The default greenish theme color, brought by AIRI to you!
+                - AIRIX Green
+              description: The default greenish theme color, brought by AIRIX to you!
               title: Default Color
             - colors:
                 - Taupe
@@ -577,7 +580,7 @@ sections:
 theme:
   title: Theme
   description: |
-    Switch the base theme of AIRI, Light mode or Dark mode.
+    Switch the base theme of AIRIX, Light mode or Dark mode.
 title: Settings
 voices: Voice
 vrm:

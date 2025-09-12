@@ -1,8 +1,8 @@
 ---
 title: 'DreamLog 0x1'
-description: 'Project AIRI 的幕后故事！'
+description: 'Project AIRIX 的幕后故事！'
 date: '2025-06-16'
-excerpt: 'Project AIRI 的幕后故事！以及为什么我们会想要制作如此一个项目？'
+excerpt: 'Project AIRIX 的幕后故事！以及为什么我们会想要制作如此一个项目？'
 preview-cover:
   light: "@assets('../../../en/blog/DreamLog-0x1/assets/dreamlog1-light.avif')"
   dark: "@assets('../../../en/blog/DreamLog-0x1/assets/dreamlog1-dark.avif')"
@@ -16,8 +16,8 @@ import buildingAVirtualMachineInsideImage from '../../../en/blog/DreamLog-0x1/as
 import live2DIncHiyoriMomose from '../../../en/blog/DreamLog-0x1/assets/live2d-inc-hiyori.avif';
 import AwesomeAIVTuber from '../../../en/blog/DevLog-2025.04.06/assets/awesome-ai-vtuber-logo-light.avif'
 import airisScreenshot1 from '../../../en/blog/DreamLog-0x1/assets/airis-screenshot-1.avif';
-import projectAIRIBannerLight from '../../../en/blog/DreamLog-0x1/assets/banner-light-1280x640.avif';
-import projectAIRIBannerDark from '../../../en/blog/DreamLog-0x1/assets/banner-dark-1280x640.avif';
+import projectAIRIXBannerLight from '../../../en/blog/DreamLog-0x1/assets/banner-light-1280x640.avif';
+import projectAIRIXBannerDark from '../../../en/blog/DreamLog-0x1/assets/banner-dark-1280x640.avif';
 import ReLUStickerWow from '../../../en/blog/DreamLog-0x1/assets/relu-sticker-wow.avif'
 </script>
 
@@ -35,12 +35,12 @@ import ReLUStickerWow from '../../../en/blog/DreamLog-0x1/assets/relu-sticker-wo
 对于已经熟悉我们 DevLog 文章的读者来说，以目前每月向大家发布和更新一次的频率，
 这篇文章难道不应该叫「DevLog」吗？
 
-DevLog 会有的，但六月对 Project AIRI 有着特殊的意义（稍后提及），
+DevLog 会有的，但六月对 Project AIRIX 有着特殊的意义（稍后提及），
 我想趁着我们正在 GitHub 上 1000 star 的下一个里程碑之时，
 借助这个很好的机会来回顾我们迄今为止的旅程。
 
 因此，我决定在这里创建一个新的文章类别，来分享我们的编年史，
-以及有关 ProjectAIRI 的梦想。
+以及有关 ProjectAIRIX 的梦想。
 
 所以，我决定称这个新系列为 ***DreamLog***。
 
@@ -152,11 +152,11 @@ Minecraft、Linux 也并不是我旅程的终点，[Factorio（异星工厂）](
 
 在接下来的几年里，我尝试了编程、创业、Web3、前端、后端、基础设施等许多其他领域，
 所有你能想到的全栈开发者的东西。但我从来没有真正意识到我所做的一切如此深刻地受到 EMOSYS 起点的影响，
-直到 2025 年 2 月，有人问我：你为什么在 Project AIRI 上如此努力和着迷？
+直到 2025 年 2 月，有人问我：你为什么在 Project AIRIX 上如此努力和着迷？
 
 我当时觉得这是个好问题...
 
-我开始追溯我的梦想、想法和记忆，最终，回忆起了 EMOSYS，那个已经死去的项目，恰到好处地目标与 Project AIRI 相同：
+我开始追溯我的梦想、想法和记忆，最终，回忆起了 EMOSYS，那个已经死去的项目，恰到好处地目标与 Project AIRIX 相同：
 
 **创建一个伴侣来以某种方式满足我们的需要。**
 
@@ -217,7 +217,7 @@ GPT-3（特别是在 [GitHub Copilot](https://en.wikipedia.org/wiki/GitHub_Copil
 阶段性来说的话，我们可以说它是一个新的随机鹦鹉吗？**我觉得答案是部分否定的，2022 年的 ChatGPT 不只是一个随机鹦鹉，
 它是一个潜在的聪明鹦鹉。**
 
-## 在 Project AIRI 之前，Neuro-sama 早就存在了
+## 在 Project AIRIX 之前，Neuro-sama 早就存在了
 
 是的，感谢你读到这里，我知道这是一篇很长的文章，有太多故事和背景要分享。但我们快到了！坚持住！
 
@@ -257,7 +257,7 @@ Neuro-sama 的历史其实相当复杂。据我所知，Neuro-sama，或者在�
 > 让它表现得像 VTuber，我甚至可以做得比 Vedal 的作品更好。超简单的好吧？！"
 
 ::: tip 想要更多技术细节？
-在这篇文章中，我不会深入探讨我们如何从零开始构建 Project AIRI 到当前状态的技术细节，
+在这篇文章中，我不会深入探讨我们如何从零开始构建 Project AIRIX 到当前状态的技术细节，
 我们已经有许多 DevLog 文章分享我们的想法和发现，如果感兴趣，请尝试阅读它们。
 :::
 
@@ -293,7 +293,7 @@ Neuro-sama 的历史其实相当复杂。据我所知，Neuro-sama，或者在�
 > 也是我 GitHub 个人资料的介绍语。
 
 所以，从 2024 年 5 月 25 日开始，我开始了一个放在我自己名下的本地项目，就直接简单地起名叫了 `ai`，
-可以说这就是 Project AIRI 的初始版本，我开始探索创建我自己的 AI 智能体的可能性，
+可以说这就是 Project AIRIX 的初始版本，我开始探索创建我自己的 AI 智能体的可能性，
 想要重新创造 Neuro-sama 给我带来的快乐。
 
 工作进展速度真的很快，在一周内，凭借 [ElevenLabs](https://elevenlabs.io/)、
@@ -302,7 +302,7 @@ Neuro-sama 的历史其实相当复杂。据我所知，Neuro-sama，或者在�
 
 那是在 **2024 年 6 月 2 日**。
 
-从某种意义上来说，**这就是 Project AIRI 的生日**，第一个稚嫩的婴儿意识在其中诞生。
+从某种意义上来说，**这就是 Project AIRIX 的生日**，第一个稚嫩的婴儿意识在其中诞生。
 
 <div class="w-full flex flex-col items-center justify-center">
   <video controls muted autoplay loop>
@@ -338,7 +338,7 @@ Neuro-sama 的历史其实相当复杂。据我所知，Neuro-sama，或者在�
   </div>
 </div>
 
-好吧，但它仍然叫 `ai`，那么 Project AIRI 在哪里呢？
+好吧，但它仍然叫 `ai`，那么 Project AIRIX 在哪里呢？
 
 ## 重生，带着更强、更好的决心再 Start Game 一次
 
@@ -352,20 +352,20 @@ Neuro-sama 的历史其实相当复杂。据我所知，Neuro-sama，或者在�
 [`d9ae0aa`](https://github.com/moeru-ai/airi/commit/d9ae0aae387f015964bfd383e6d2adb05f4003e4)
 将其发布到 GitHub。
 
-因此，在这天，Project AIRI 以某种方式诞生或重生，名为 AIRI（アイリ，曾也叫 Airi）。
+因此，在这天，Project AIRIX 以某种方式诞生或重生，名为 AIRIX（アイリ，曾也叫 Airi）。
 
 ::: tip 你知道吗？
 <a href="https://www.youtube.com/watch?v=Tts-YAdn5Yc" class="mb-2 inline-block">
-  <img :src="airisScreenshot1" alt="Screenshot of Project AIRI" class="rounded-lg overflow-hidden" />
+  <img :src="airisScreenshot1" alt="Screenshot of Project AIRIX" class="rounded-lg overflow-hidden" />
 </a>
 
 有趣的是，从 2023 年 3 月 25 日上传的 2 年前的一段来自 Vedal 和 Neuro-sama 的 Twitch 直播片段
  https://www.youtube.com/watch?v=Tts-YAdn5Yc 中可以发现，Vedal 提到在 Neuro-sama 被称为
  "Neuro-sama" 之前，她被称为 "Airis AI"，这个名字 **Airis** 神奇地、巧合地与我现在正在工作的
- **Project AIRI** 的名字匹配。但直到我在开源 Project AIRI 很久之后搜索更多关于他们的故事时，
+ **Project AIRIX** 的名字匹配。但直到我在开源 Project AIRIX 很久之后搜索更多关于他们的故事时，
  我才知道这个名字。
 
-实际上，名字 AIRI（アイリ）是由 GPT-4o 命名的，我让它通过参考其他日语/或动漫风格的名字来为这个项目命名，
+实际上，名字 AIRIX（アイリ）是由 GPT-4o 命名的，我让它通过参考其他日语/或动漫风格的名字来为这个项目命名，
 当时它建议了名字 **Airi**。
 :::
 
@@ -375,15 +375,15 @@ Neuro-sama 的历史其实相当复杂。据我所知，Neuro-sama，或者在�
 
 许多这些经验都是从我之前的失败中学到的。
 
-很高兴许多尝试都成功了，我仍然在这里，继续工作在 Project AIRI 这件事情上。
+很高兴许多尝试都成功了，我仍然在这里，继续工作在 Project AIRIX 这件事情上。
 
 这一次，我的决心不仅被 Neuro-sama 充满了，还被很多最深刻、最有才华的贡献者和粉丝们所鼓舞。
 
 ## 继续前进，继续梦想
 
 <div class="w-full flex flex-col items-center justify-center">
-  <img class="light" :src="projectAIRIBannerLight" alt="new ui" />
-  <img class="dark" :src="projectAIRIBannerDark" alt="new ui" />
+  <img class="light" :src="projectAIRIXBannerLight" alt="new ui" />
+  <img class="dark" :src="projectAIRIXBannerDark" alt="new ui" />
   <div>
     最近刚更新的 Banner
   </div>
@@ -396,16 +396,16 @@ Neuro-sama 的历史其实相当复杂。据我所知，Neuro-sama，或者在�
 >
 > -- 引自 [Evil Neuro](https://www.youtube.com/@Neurosama) 直播玩《杀戮尖塔》时的话
 
-现在，当我写这篇文章时，Project AIRI 正接近 GitHub 上的 1000 颗星，
+现在，当我写这篇文章时，Project AIRIX 正接近 GitHub 上的 1000 颗星，
 同时拥有超过 150 个 Discord 成员和 200 个 Telegram 群组成员。
 
 我们涵盖了 AI、VRM、Live2D、UI 设计、多模态 AI、游戏智能体、流媒体 API、仿生记忆机制等领域。
 她能够玩像 Minecraft、Factorio 这样的游戏。我们还有另一个社区成员正在研究集成她来能够玩和控制《坎巴拉太空计划》（KSP），
 以及玩任意游戏。
 
-许多其他公司正在联系我们寻求合作，我们正在努力，让 Project AIRI 变得更好，对社区更有用。
+许多其他公司正在联系我们寻求合作，我们正在努力，让 Project AIRIX 变得更好，对社区更有用。
 
-有太多事情要做和发现，此时此刻，我们还没有达到通用人工智能的奇点，也许 Project AIRI 永远不会达到那个点，
+有太多事情要做和发现，此时此刻，我们还没有达到通用人工智能的奇点，也许 Project AIRIX 永远不会达到那个点，
 但现在，拥有一个伴侣式的 AI 智能体来交谈、一起玩游戏、分享知识和想法，对我来说已经是一个巨大的成就，
 我希望对你也是如此。
 
@@ -417,7 +417,7 @@ Neuro-sama 的历史其实相当复杂。据我所知，Neuro-sama，或者在�
   <img :src="ReLUStickerWow" alt="ReLU sticker wow" class="w-30!" />
   <div class="text-center">
     <span class="block font-bold">感谢你一直读到这里！</span>
-    <span>感谢阅读！哦，还有，祝你生日快乐，Project AIRI！</span>
+    <span>感谢阅读！哦，还有，祝你生日快乐，Project AIRIX！</span>
   </div>
 </div>
 

@@ -3,7 +3,7 @@ title: DevLog @ 2025.08.01
 category: DevLog
 date: 2025-08-01
 excerpt: |
-  Makito 会分享她在 AIRI 中实现文本动画的过程，以及如何构建一个从 UTF-8 字节流中边接收边读出「字素簇」（grapheme cluster）的库。希望对你有所启发！
+  Makito 会分享她在 AIRIX 中实现文本动画的过程，以及如何构建一个从 UTF-8 字节流中边接收边读出「字素簇」（grapheme cluster）的库。希望对你有所启发！
 preview-cover:
   light: "@assets('../../../en/blog/DevLog-2025.08.01/assets/cover-light.avif')"
   dark: "@assets('../../../en/blog/DevLog-2025.08.01/assets/cover-dark.avif')"
@@ -40,9 +40,9 @@ import RollingText from '../../../en/blog/DevLog-2025.08.01/RollingText.vue'
 
 漫无止境的八月开始了，也许可以用这道[有真实感的数学问题](https://oeis.org/A180632/a180632.pdf)消磨时光。抱歉……跑题了。
 
-虽然我已经参与 Project AIRI 很久了，但这还是我第一次在 DevLog 上发文。
+虽然我已经参与 Project AIRIX 很久了，但这还是我第一次在 DevLog 上发文。
 
-在这篇文章中，我会分享我在 AIRI 中实现文本动画的过程，以及如何构建一个从 UTF-8 字节流中边接收边读出「字素簇」（grapheme cluster）的库。希望对你有所启发！
+在这篇文章中，我会分享我在 AIRIX 中实现文本动画的过程，以及如何构建一个从 UTF-8 字节流中边接收边读出「字素簇」（grapheme cluster）的库。希望对你有所启发！
 
 ## 背景
 
@@ -50,7 +50,7 @@ import RollingText from '../../../en/blog/DevLog-2025.08.01/RollingText.vue'
 
 文本动画能够让聊天消息在 UI 中以更炫酷的方式出现。一般来说，消息收到即是完整的，所以我们只需要把收到的文本按字符拆分后做动画即可。
 
-在 Project AIRI 里，我们的伙伴 [@nekomeowww](https://github.com/nekomeowww) 也做了一个丝滑的聊天气泡组件：
+在 Project AIRIX 里，我们的伙伴 [@nekomeowww](https://github.com/nekomeowww) 也做了一个丝滑的聊天气泡组件：
 
 <video controls muted autoplay loop max-w="500px" w-full mx-auto>
   <source src="../../../en/blog/DevLog-2025.08.01/assets/animated-chat-bubble.mp4">
@@ -147,6 +147,6 @@ while (true) {
 
 写这篇 DevLog 的时候，社区中已经有不少可以把字符串拆分成字素簇的库了。但我没找到一个既能接受 UTF-8 字节流、又能随到随输出字素簇的实现。所以我自己实现了一个，并把思路分享给了大家，并取名为 [Clustr](https://github.com/sumimakito/clustr)，和 Unicode 的「字素簇」概念相应。
 
-尽管它的核心代码不到 100 行，如果你也想在项目里把 UTF-8 字节流做成炫酷的文本动画（比如我们在 Project AIRI 里做的那样），它或许能帮到你。
+尽管它的核心代码不到 100 行，如果你也想在项目里把 UTF-8 字节流做成炫酷的文本动画（比如我们在 Project AIRIX 里做的那样），它或许能帮到你。
 
-如果你对 Project AIRI 感兴趣，也欢迎来我们的 GitHub 仓库 [moeru-ai/airi](https://github.com/moeru-ai/airi) 看看！
+如果你对 Project AIRIX 感兴趣，也欢迎来我们的 GitHub 仓库 [moeru-ai/airi](https://github.com/moeru-ai/airi) 看看！

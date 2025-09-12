@@ -12,7 +12,7 @@
   <img width="250" src="./content/public/banner-light-1280x640.avif" />
 </picture>
 
-<h1 align="center">Проект AIRI</h1>
+<h1 align="center">Проект AIRIX</h1>
 
 <p align="center">Воссоздание Neuro-sama, контейнера души для AI waifu / виртуальных персонажей, чтобы привести их в наш мир.</p>
 
@@ -29,7 +29,7 @@
 </p>
 
 <p align="center">
-  <a href="https://www.producthunt.com/products/airi?embed=true&utm_source=badge-featured&utm_medium=badge&utm_source=badge-airi" target="_blank"><img src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=993524&theme=neutral&t=1752696535380" alt="AIRI - A&#0032;container&#0032;of&#0032;cyber&#0032;living&#0032;souls&#0044;&#0032;re&#0045;creation&#0032;of&#0032;Neuro&#0045;sama | Product Hunt" style="width: 250px; height: 54px;" width="250" height="54" /></a>
+  <a href="https://www.producthunt.com/products/airi?embed=true&utm_source=badge-featured&utm_medium=badge&utm_source=badge-airi" target="_blank"><img src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=993524&theme=neutral&t=1752696535380" alt="AIRIX - A&#0032;container&#0032;of&#0032;cyber&#0032;living&#0032;souls&#0044;&#0032;re&#0045;creation&#0032;of&#0032;Neuro&#0045;sama | Product Hunt" style="width: 250px; height: 54px;" width="250" height="54" /></a>
   <a href="https://trendshift.io/repositories/14636" target="_blank"><img src="https://trendshift.io/api/badge/repositories/14636" alt="moeru-ai%2Fairi | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
 </p>
 <strong>Руководство от сообщества:</strong> Для более подробного пошагового руководства по настройке, включая получение ключей API и настройку среды, ознакомьтесь с этим замечательным <a href="https://docs.google.com/document/d/1AGs3Br_6mMbyQykbmSilczg4I56U6LTO-E9D3_Szk_I/edit?tab=t.0">руководством, написанным сообществом</a>.</p>
@@ -40,7 +40,7 @@
 
 > [!NOTE]
 >
-> У нас есть целая выделенная организация [@proj-airi](https://github.com/proj-airi) для всех подпроектов, родившихся из Проекта AIRI. Проверьте её!
+> У нас есть целая выделенная организация [@proj-airi](https://github.com/proj-airi) для всех подпроектов, родившихся из Проекта AIRIX. Проверьте её!
 >
 > RAG, система памяти, встроенная база данных, иконки, утилиты Live2D и многое другое!
 Вы когда-нибудь мечтали о кибер-живом существе (кибер-вайфу / хазбандо, цифровом питомце) или цифровом компаньоне, который мог бы играть с вами и разговаривать?
@@ -51,7 +51,7 @@
 
 Возможно, вы уже знаете [Neuro-sama](https://www.youtube.com/@Neurosama). Она в настоящее время является лучшим виртуальным стримером, способным играть в игры, общаться и взаимодействовать с вами и участниками. Некоторые также называют такое существо "цифровым человеком". **К сожалению, поскольку это не с открытым исходным кодом, вы не можете взаимодействовать с ней после того, как её прямые трансляции заканчиваются**.
 
-Поэтому этот проект, AIRI, предлагает здесь другую возможность: **позволить вам владеть своей цифровой жизнью, кибер-жизнью, легко, везде, в любое время**.
+Поэтому этот проект, AIRIX, предлагает здесь другую возможность: **позволить вам владеть своей цифровой жизнью, кибер-жизнью, легко, везде, в любое время**.
 
 ## Журналы разработки, которые мы опубликовали, и последние обновления
 
@@ -68,7 +68,7 @@
 > [!TIP]
 > Беспокоитесь о падении производительности из-за использования веб-технологий?
 >
-> Не беспокойтесь, хотя версия для веб-браузера предназначена для демонстрации того, насколько мы можем продвинуться внутри браузеров и веб-вью, мы никогда не будем полностью полагаться на это. Десктопная версия AIRI способна использовать нативные [NVIDIA CUDA](https://developer.nvidia.com/cuda-toolkit) и [Apple Metal](https://developer.apple.com/metal/) по умолчанию (благодаря HuggingFace и любимому проекту [candle](https://github.com/huggingface/candle)), без сложного управления зависимостями. Учитывая компромисс, она частично питается веб-технологиями для графики, макетов, анимаций и WIP-системы плагинов для всех, чтобы интегрировать вещи.
+> Не беспокойтесь, хотя версия для веб-браузера предназначена для демонстрации того, насколько мы можем продвинуться внутри браузеров и веб-вью, мы никогда не будем полностью полагаться на это. Десктопная версия AIRIX способна использовать нативные [NVIDIA CUDA](https://developer.nvidia.com/cuda-toolkit) и [Apple Metal](https://developer.apple.com/metal/) по умолчанию (благодаря HuggingFace и любимому проекту [candle](https://github.com/huggingface/candle)), без сложного управления зависимостями. Учитывая компромисс, она частично питается веб-технологиями для графики, макетов, анимаций и WIP-системы плагинов для всех, чтобы интегрировать вещи.
 
 Это означает, что **アイリ способен работать в современных браузерах и устройствах** и даже на мобильных устройствах (уже сделано с поддержкой PWA). Это открывает множество возможностей для нас (разработчиков) для построения и расширения мощи アイリ VTuber на следующий уровень, при этом оставляя гибкость для пользователей включать функции, требующие TCP-соединений или других невеб-технологий, таких как подключение к голосовому каналу Discord или игра в Minecraft и Factorio с друзьями.
 
@@ -96,7 +96,7 @@
 > - Three.js
 > - WebXR ([проверьте другой проект](https://github.com/moeru-ai/chat), который у нас есть в организации @moeru-ai)
 >
-> **Если вы заинтересованы, почему бы не представить себя здесь? [Хотите присоединиться к нам в создании AIRI？](https://github.com/moeru-ai/airi/discussions/33)**
+> **Если вы заинтересованы, почему бы не представить себя здесь? [Хотите присоединиться к нам в создании AIRIX？](https://github.com/moeru-ai/airi/discussions/33)**
 
 ## Текущий прогресс
 
@@ -221,7 +221,7 @@ npx bumpp --no-commit --no-tag
 - [`@proj-airi/drizzle-duckdb-wasm`](https://github.com/moeru-ai/airi/tree/main/packages/drizzle-duckdb-wasm/README.md): Драйвер Drizzle ORM для DuckDB WASM
 - [`@proj-airi/duckdb-wasm`](https://github.com/moeru-ai/airi/tree/main/packages/duckdb-wasm/README.md): Простой обертка для `@duckdb/duckdb-wasm`
 - [`tauri-plugin-mcp`](https://github.com/moeru-ai/airi/blob/main/crates/tauri-plugin-mcp/README.md): Плагин Tauri для взаимодействия с серверами MCP.
-- [AIRI Factorio](https://github.com/moeru-ai/airi-factorio): Позволяет AIRI играть в Factorio
+- [AIRIX Factorio](https://github.com/moeru-ai/airi-factorio): Позволяет AIRIX играть в Factorio
 - [Factorio RCON API](https://github.com/nekomeowww/factorio-rcon-api): RESTful API-обертка для консоли headless-сервера Factorio
 - [`autorio`](https://github.com/moeru-ai/airi-factorio/tree/main/packages/autorio): Библиотека автоматизации Factorio
 - [`tstl-plugin-reload-factorio-mod`](https://github.com/moeru-ai/airi-factorio/tree/main/packages/tstl-plugin-reload-factorio-mod): Перезагрузка мода Factorio при разработке
@@ -247,7 +247,7 @@ flowchart TD
   StageUI("@proj-airi/stage-ui")
   UI("@proj-airi/ui")
 
-  subgraph AIRI
+  subgraph AIRIX
     DB1 --> DBDriver --> MemoryDriver --> Memory --> Core
     UI --> StageUI --> Stage --> Core
     Core --> STT
@@ -305,7 +305,7 @@ flowchart TD
   Memory_PGVector("@proj-airi/memory-pgvector") --> Memory
 
   style Core fill:#f9d4d4,stroke:#333,stroke-width:1px
-  style AIRI fill:#fcf7f7,stroke:#333,stroke-width:1px
+  style AIRIX fill:#fcf7f7,stroke:#333,stroke-width:1px
   style UI fill:#d4f9d4,stroke:#333,stroke-width:1px
   style Stage fill:#d4f9d4,stroke:#333,stroke-width:1px
   style UI_Components fill:#d4f9d4,stroke:#333,stroke-width:1px

@@ -1,6 +1,6 @@
 ---
 title: Tools
-description: Tools for designing the UI, UX for Project AIRI
+description: Tools for designing the UI, UX for Project AIRIX
 ---
 
 ## Colors

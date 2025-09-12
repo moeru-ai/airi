@@ -50,6 +50,19 @@ export function buildOpenAICompatibleProvider(
     },
   }
 
+  // Normalize base URL: users might paste the full endpoint (e.g. https://.../api/chat/completions)
+  // or the base (e.g. https://.../api/). Normalize to a base that always ends with a
+  // trailing slash and does NOT include endpoint fragments like `chat/completions` or `models`.
+  const normalizeBase = (raw: string) => {
+    let b = (raw || '').trim()
+    // remove trailing occurrences of known endpoint fragments
+    b = b.replace(/\/?chat\/completions\/?$/i, '')
+    b = b.replace(/\/?models\/?$/i, '')
+    if (!b.endsWith('/'))
+      b = `${b}/`
+    return b
+  }
+
   const finalValidators = validators || {
     validateProviderConfig: async (config: Record<string, unknown>) => {
       const errors: Error[] = []
@@ -78,13 +91,14 @@ export function buildOpenAICompatibleProvider(
       }
 
       const validationChecks = validation || []
+      const baseUrl = normalizeBase(config.baseUrl as string)
       let responseModelList = null
       let responseChat = null
 
       if (validationChecks.includes('health')) {
         try {
-          responseChat = await fetch(`${config.baseUrl as string}chat/completions`, { headers: { Authorization: `Bearer ${config.apiKey}`, ...additionalHeaders }, method: 'POST' })
-          responseModelList = await fetch(`${config.baseUrl as string}models`, { headers: { Authorization: `Bearer ${config.apiKey}`, ...additionalHeaders } })
+          responseChat = await fetch(`${baseUrl}chat/completions`, { headers: { Authorization: `Bearer ${config.apiKey}`, ...additionalHeaders }, method: 'POST' })
+          responseModelList = await fetch(`${baseUrl}models`, { headers: { Authorization: `Bearer ${config.apiKey}`, ...additionalHeaders } })
 
           if (!([200, 400, 401].includes(responseChat.status) || [200, 400, 401].includes(responseModelList.status))) {
             errors.push(new Error(`Invalid Base URL, ${config.baseUrl} is not supported`))
@@ -103,7 +117,7 @@ export function buildOpenAICompatibleProvider(
         try {
           let response = responseModelList
           if (!response) {
-            response = await fetch(`${config.baseUrl as string}models`, { headers: { Authorization: `Bearer ${config.apiKey}`, ...additionalHeaders } })
+            response = await fetch(`${baseUrl}models`, { headers: { Authorization: `Bearer ${config.apiKey}`, ...additionalHeaders } })
           }
 
           if (!response.ok) {
@@ -119,7 +133,7 @@ export function buildOpenAICompatibleProvider(
         try {
           let response = responseChat
           if (!response) {
-            response = await fetch(`${config.baseUrl as string}chat/completions`, { headers: { Authorization: `Bearer ${config.apiKey}`, ...additionalHeaders }, method: 'POST' })
+            response = await fetch(`${baseUrl}chat/completions`, { headers: { Authorization: `Bearer ${config.apiKey}`, ...additionalHeaders }, method: 'POST' })
           }
 
           if (!response.ok) {

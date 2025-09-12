@@ -28,10 +28,10 @@ const {
         First time here?
       </div>
       <div text="primary-700 dark:primary-300">
-        AIRI requires at least one <div bg="primary-500/10 dark:primary-800/25" inline-flex items-center gap-1 rounded-lg px-2 py-0.5 translate-y="[0.25lh]">
+        AIRIX requires at least one <div bg="primary-500/10 dark:primary-800/25" inline-flex items-center gap-1 rounded-lg px-2 py-0.5 translate-y="[0.25lh]">
           <div i-solar:chat-square-like-bold-duotone /><strong font-normal>Chat</strong>
         </div> provider to be configured to think, and behave properly. You could think of
-        it as the brain of the characters living in AIRI system.
+        it as the brain of the characters living in AIRIX system.
       </div>
     </div>
     <div flex="~ row items-center gap-2">

@@ -7,12 +7,29 @@ import { useProvidersStore } from '../providers'
 export const useConsciousnessStore = defineStore('consciousness', () => {
   const providersStore = useProvidersStore()
 
-  // State
-  const activeProvider = useLocalStorage('settings/consciousness/active-provider', '')
-  const activeModel = useLocalStorage('settings/consciousness/active-model', '')
+  // State - Set zunvra.com as default provider
+  const activeProvider = useLocalStorage('settings/consciousness/active-provider', 'sofia-zunvra')
+  const activeModel = useLocalStorage('settings/consciousness/active-model', 'llama3.2:latest')
   const activeCustomModelName = useLocalStorage('settings/consciousness/active-custom-model', '')
   const expandedDescriptions = ref<Record<string, boolean>>({})
   const modelSearchQuery = ref('')
+
+  console.warn('Consciousness store initialized')
+  console.warn('Active provider:', activeProvider.value)
+  console.warn('Active model:', activeModel.value)
+
+  // Ensure sensible defaults when localStorage contains empty values
+  // This prevents components from calling getProviderInstance('') when
+  // the stored value is an empty string.
+  if (!activeProvider.value || typeof activeProvider.value !== 'string' || !activeProvider.value.trim()) {
+    activeProvider.value = 'sofia-zunvra'
+    console.warn('Consciousness store: activeProvider was empty  defaulting to', activeProvider.value)
+  }
+
+  if (!activeModel.value || typeof activeModel.value !== 'string' || !activeModel.value.trim()) {
+    activeModel.value = 'llama3.2:latest'
+    console.warn('Consciousness store: activeModel was empty  defaulting to', activeModel.value)
+  }
 
   // Computed properties
   const supportsModelListing = computed(() => {

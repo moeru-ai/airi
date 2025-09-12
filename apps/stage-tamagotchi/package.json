@@ -3,7 +3,7 @@
   "type": "module",
   "version": "0.7.2-beta.2",
   "private": true,
-  "description": "AIRI tamagotchi app built with Tauri",
+  "description": "AIRIX tamagotchi app built with Tauri",
   "author": "LemonNekoGH",
   "scripts": {
     "typecheck": "vue-tsc --noEmit --composite false",

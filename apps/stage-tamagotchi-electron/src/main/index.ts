@@ -32,7 +32,7 @@ let trackCursorPointInterval: NodeJS.Timeout | undefined
 
 function createWindow(): void {
   const mainWindow = new BrowserWindow({
-    title: 'AIRI',
+    title: 'AIRIX',
     width: 450.0,
     height: 600.0,
     show: false,

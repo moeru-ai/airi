@@ -1,4 +1,4 @@
-# Start contributing to [Project AIRI](https://github.com/moeru-ai/airi)
+# Start contributing to [Project AIRIX](https://github.com/moeru-ai/airi)
 
 Hello! Thank you for your interest in contributing to this project. This guide will help you get started.
 

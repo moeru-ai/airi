@@ -1,6 +1,6 @@
 ---
 title: 这是什么项目？
-description: 了解 Project AIRI 的用户界面
+description: 了解 Project AIRIX 的用户界面
 ---
 
 ### 太长不看
@@ -23,7 +23,7 @@ description: 了解 Project AIRI 的用户界面
 
 或许你已经认识 [Neuro-sama](https://www.youtube.com/@Neurosama) 了，她是目前最好的数字伙伴，可以玩游戏、聊天，还能和你以及（在 VTuber 社区）的参与者互动，有些人也把这种生物称为“数字人”。**可惜的是，它目前尚未开源，直播下线后你就无法与她互动了**。
 
-因此 Project AIRI 提供了另一种可能性：
+因此 Project AIRIX 提供了另一种可能性：
 **让你随时随地轻松拥有自己的数字生命、赛博生命。**。
 
 ## 开始使用
@@ -55,7 +55,7 @@ description: 了解 Project AIRI 的用户界面
 
 网页版功能较为基础，适用于在任何设备（包括移动设备）上访问。
 
-客户端则更适合进行高级操作，例如 VTuber 直播、computer-use 以及访问本地 LLM 模型，此时无需为运行 AIRI 支付大量 token 费用。
+客户端则更适合进行高级操作，例如 VTuber 直播、computer-use 以及访问本地 LLM 模型，此时无需为运行 AIRIX 支付大量 token 费用。
 
 <div flex gap-2 w-full flex-col justify-center text-base>
   <a href="../overview/guide/tamagotchi/" w-full flex items-center gap-2 border="2 solid gray-500/10" rounded-lg px-4 py-2>
@@ -86,4 +86,4 @@ description: 了解 Project AIRI 的用户界面
 
 有关如何为本项目做出贡献的指南，请参阅 [贡献](../overview/contributing/) 页面。
 
-有关如何设计和改进 Project AIRI 用户界面的参考资料，请参阅 [设计指南](../overview/contributing/design-guidelines/resources) 页面。
+有关如何设计和改进 Project AIRIX 用户界面的参考资料，请参阅 [设计指南](../overview/contributing/design-guidelines/resources) 页面。

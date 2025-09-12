@@ -6,7 +6,7 @@
   "packageManager": "pnpm@10.15.1",
   "description": "LLM powered virtual character",
   "author": {
-    "name": "Moeru AI Project AIRI Team",
+    "name": "Moeru AI Project AIRIX Team",
     "email": "airi@moeru.ai",
     "url": "https://github.com/moeru-ai"
   },

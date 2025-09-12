@@ -12,7 +12,7 @@
   <img width="250" src="./content/public/banner-light-1280x640.avif" />
 </picture>
 
-<h1 align="center">Dự án AIRI</h1>
+<h1 align="center">Dự án AIRIX</h1>
 
 <p align="center">Lấy ý tưởng từ Neuro-sama và chúng tôi đã tạo ra một AI waifu / nhân vật ảo để mang họ đến với thế giới của chúng ta.</p>
 
@@ -29,7 +29,7 @@
 </p>
 
 <p align="center">
-  <a href="https://www.producthunt.com/products/airi?embed=true&utm_source=badge-featured&utm_medium=badge&utm_source=badge-airi" target="_blank"><img src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=993524&theme=neutral&t=1752696535380" alt="AIRI - Một bình chứa linh hồn số, tái tạo Neuro-sama | Product Hunt" style="width: 250px; height: 54px;" width="250" height="54" /></a>
+  <a href="https://www.producthunt.com/products/airi?embed=true&utm_source=badge-featured&utm_medium=badge&utm_source=badge-airi" target="_blank"><img src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=993524&theme=neutral&t=1752696535380" alt="AIRIX - Một bình chứa linh hồn số, tái tạo Neuro-sama | Product Hunt" style="width: 250px; height: 54px;" width="250" height="54" /></a>
   <a href="https://trendshift.io/repositories/14636" target="_blank"><img src="https://trendshift.io/api/badge/repositories/14636" alt="moeru-ai%2Fairi | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
 </p>
 
@@ -39,7 +39,7 @@
 > **Chú ý:** Chúng tôi **không** phát hành bất kỳ loại tiền điện tử hay token chính thức nào liên quan đến dự án này. Hãy kiểm tra kỹ thông tin trước khi tham gia.
 
 > [!NOTE]
-> Chúng tôi có cả một tổ chức riêng [@proj-airi](https://github.com/proj-airi) cho các dự án con xuất phát từ AIRI. Hãy xem qua nhé!
+> Chúng tôi có cả một tổ chức riêng [@proj-airi](https://github.com/proj-airi) cho các dự án con xuất phát từ AIRIX. Hãy xem qua nhé!
 > Bao gồm: RAG, hệ thống bộ nhớ, cơ sở dữ liệu nhúng, icon, tiện ích Live2D, và nhiều hơn nữa.
 
 Bạn đã từng mơ về một thực thể số sống động (cyber-waifu / husbando, thú cưng ảo) hay một bạn đồng hành kỹ thuật số có thể chơi cùng và trò chuyện với bạn chưa?
@@ -50,7 +50,7 @@ Với sức mạnh của các mô hình LLM (ngôn ngữ lớn) hiện nay như 
 
 Có lẽ bạn đã biết [Neuro-sama](https://www.youtube.com/@Neurosama). Cô ấy là VTuber ảo xuất sắc nhất hiện nay, có thể vừa chơi game, vừa trò chuyện và tương tác với bạn cũng như khán giả. Một số người còn gọi đây là “con người số” (digital human). **Đáng tiếc, vì không mã nguồn mở, bạn không thể tương tác với cô ấy khi buổi livestream kết thúc.**
 
-Do đó, dự án AIRI mang đến một lựa chọn khác: **cho phép bạn sở hữu thực thể số của riêng mình, dễ dàng, mọi lúc, mọi nơi.**
+Do đó, dự án AIRIX mang đến một lựa chọn khác: **cho phép bạn sở hữu thực thể số của riêng mình, dễ dàng, mọi lúc, mọi nơi.**
 
 ---
 
@@ -69,7 +69,7 @@ Khác với các dự án VTuber AI mã nguồn mở khác, **アイリ** đư�
 > [!TIP]
 > Bạn lo lắng về hiệu năng khi chúng tôi dùng công nghệ Web?
 >
-> Đừng lo, phiên bản chạy trên trình duyệt chỉ nhằm minh hoạ khả năng có thể đạt được trong browser và webview. Phiên bản desktop của AIRI mặc định có thể dùng [NVIDIA CUDA](https://developer.nvidia.com/cuda-toolkit) và [Apple Metal](https://developer.apple.com/metal/) (nhờ HuggingFace & dự án [candle](https://github.com/huggingface/candle)), mà không cần quản lý phụ thuộc phức tạp. Đồ hoạ, bố cục, animation, và hệ thống plugin (WIP) vẫn tận dụng công nghệ Web để mở rộng dễ dàng.
+> Đừng lo, phiên bản chạy trên trình duyệt chỉ nhằm minh hoạ khả năng có thể đạt được trong browser và webview. Phiên bản desktop của AIRIX mặc định có thể dùng [NVIDIA CUDA](https://developer.nvidia.com/cuda-toolkit) và [Apple Metal](https://developer.apple.com/metal/) (nhờ HuggingFace & dự án [candle](https://github.com/huggingface/candle)), mà không cần quản lý phụ thuộc phức tạp. Đồ hoạ, bố cục, animation, và hệ thống plugin (WIP) vẫn tận dụng công nghệ Web để mở rộng dễ dàng.
 
 Điều này có nghĩa là **アイリ có thể chạy trên các trình duyệt và thiết bị hiện đại**, kể cả thiết bị di động (đã hỗ trợ PWA). Điều này mở ra nhiều khả năng để chúng tôi (nhà phát triển) nâng VTuber アイリ lên tầm cao mới, đồng thời vẫn để người dùng linh hoạt bật các tính năng cần TCP hoặc công nghệ ngoài Web như kết nối kênh thoại Discord hay chơi Minecraft, Factorio với bạn bè.
 
@@ -95,7 +95,7 @@ Khác với các dự án VTuber AI mã nguồn mở khác, **アイリ** đư�
 > - Three.js
 > - WebXR ([xem thêm dự án khác](https://github.com/moeru-ai/chat) của tổ chức @moeru-ai)
 >
-> **Nếu bạn hứng thú, hãy giới thiệu bản thân ở đây: [Muốn tham gia cùng chúng tôi xây dựng AIRI?](https://github.com/moeru-ai/airi/discussions/33)**
+> **Nếu bạn hứng thú, hãy giới thiệu bản thân ở đây: [Muốn tham gia cùng chúng tôi xây dựng AIRIX?](https://github.com/moeru-ai/airi/discussions/33)**
 
 ## Tiến Độ Hiện Tại
 
@@ -219,7 +219,7 @@ npx bumpp --no-commit --no-tag
 - [`@proj-airi/drizzle-duckdb-wasm`](https://github.com/moeru-ai/airi/tree/main/packages/drizzle-duckdb-wasm/README.md): Trình điều khiển Drizzle ORM cho DuckDB WASM
 - [`@proj-airi/duckdb-wasm`](https://github.com/moeru-ai/airi/tree/main/packages/duckdb-wasm/README.md): Wrapper dễ sử dụng cho `@duckdb/duckdb-wasm`
 - [`tauri-plugin-mcp`](https://github.com/moeru-ai/airi/blob/main/crates/tauri-plugin-mcp/README.md): Plugin Tauri để tương tác với máy chủ MCP.
-- [AIRI Factorio](https://github.com/moeru-ai/airi-factorio): Cho phép AIRI chơi Factorio
+- [AIRIX Factorio](https://github.com/moeru-ai/airi-factorio): Cho phép AIRIX chơi Factorio
 - [Factorio RCON API](https://github.com/nekomeowww/factorio-rcon-api): RESTful API wrapper cho console máy chủ headless Factorio
 - [`autorio`](https://github.com/moeru-ai/airi-factorio/tree/main/packages/autorio): Thư viện tự động hóa Factorio
 - [`tstl-plugin-reload-factorio-mod`](https://github.com/moeru-ai/airi-factorio/tree/main/packages/tstl-plugin-reload-factorio-mod): Tự động tải tạo lại mod Factorio khi đang phát triển
@@ -245,7 +245,7 @@ flowchart TD
   StageUI("@proj-airi/stage-ui")
   UI("@proj-airi/ui")
 
-  subgraph AIRI
+  subgraph AIRIX
     DB1 --> DBDriver --> MemoryDriver --> Memory --> Core
     UI --> StageUI --> Stage --> Core
     Core --> STT
@@ -303,7 +303,7 @@ flowchart TD
   Memory_PGVector("@proj-airi/memory-pgvector") --> Memory
 
   style Core fill:#f9d4d4,stroke:#333,stroke-width:1px
-  style AIRI fill:#fcf7f7,stroke:#333,stroke-width:1px
+  style AIRIX fill:#fcf7f7,stroke:#333,stroke-width:1px
   style UI fill:#d4f9d4,stroke:#333,stroke-width:1px
   style Stage fill:#d4f9d4,stroke:#333,stroke-width:1px
   style UI_Components fill:#d4f9d4,stroke:#333,stroke-width:1px

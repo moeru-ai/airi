@@ -85,7 +85,7 @@ watchEffect((onCleanup) => {
         <div ref="hero" flex="~ col items-center gap-4 justify-start">
           <div class="relative w-full justify-center text-center font-extrabold font-sans-rounded" text="4xl md:5xl">
             <div>
-              Project AIRI
+              Project AIRIX
             </div>
           </div>
           <div class="relative max-w-prose text-center text-slate-900 dark:text-white">
@@ -143,7 +143,7 @@ watchEffect((onCleanup) => {
 
     <footer class="fixed bottom-3 left-1/2 z-40 flex justify-end -translate-x-1/2">
       <div class="rounded-full bg-white/80 px-3 py-2 text-sm text-slate-400 backdrop-blur-md dark:bg-white/20 dark:text-slate-900" text="nowrap">
-        Since 2024 @ <a href="https://github.com/proj-airi">Project AIRI</a> × <a href="https://github.com/moeru-ai">萌える AI 研究会</a>
+        Since 2024 @ <a href="https://github.com/proj-airi">Project AIRIX</a> × <a href="https://github.com/moeru-ai">萌える AI 研究会</a>
       </div>
     </footer>
   </div>

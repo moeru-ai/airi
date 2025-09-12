@@ -120,9 +120,12 @@ watch([activeProvider, activeModel], async () => {
   }
 })
 
-onMounted(() => {
+onMounted(async () => {
   start()
   screenSafeArea.update()
+
+  // Initialize Sofia Zunvra provider automatically
+  await providersStore.initializeProvider('sofia-zunvra')
 })
 </script>
 

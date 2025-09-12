@@ -87,7 +87,7 @@ const maskImageURL = `url(${homeCover})`
       '2xl:top-16dvh',
     ]"
   >
-    <img ref="surface" :src="homeCover" alt="Project AIRI Cover Image" class="w-full object-cover">
+    <img ref="surface" :src="homeCover" alt="Project AIRIX Cover Image" class="w-full object-cover">
     <div ref="silhouettePink" class="silhouette absolute left-0 top-0 z--1 h-full w-full bg-[oklch(0.8105_0.1267_350.84)]" />
     <div ref="silhouettePurple" class="silhouette absolute left-0 top-0 z--2 h-full w-full bg-[oklch(0.5712_0.2396_278.59)]" />
   </div>

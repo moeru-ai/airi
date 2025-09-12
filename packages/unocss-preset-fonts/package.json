@@ -2,9 +2,9 @@
   "name": "@proj-airi/unocss-preset-fonts",
   "type": "module",
   "version": "0.7.2-beta.2",
-  "description": "Fonts that are not included by Google Fonts, FontSource but open-source used by Project AIRI",
+  "description": "Fonts that are not included by Google Fonts, FontSource but open-source used by Project AIRIX",
   "author": {
-    "name": "Moeru AI Project AIRI Team",
+    "name": "Moeru AI Project AIRIX Team",
     "email": "airi@moeru.ai",
     "url": "https://github.com/moeru-ai"
   },

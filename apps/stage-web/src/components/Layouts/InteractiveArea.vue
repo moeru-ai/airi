@@ -57,20 +57,31 @@ async function handleSend() {
     return
   }
 
-  try {
-    const providerConfig = providersStore.getProviderConfig(activeProvider.value)
+  const userMessage = messageInput.value.trim()
+  messageInput.value = '' // Clear input immediately
 
-    await send(messageInput.value, {
+  try {
+    console.warn('InteractiveArea - Starting send process')
+    console.warn('InteractiveArea - Active provider:', activeProvider.value)
+    console.warn('InteractiveArea - Active model:', activeModel.value)
+    const providerConfig = providersStore.getProviderConfig(activeProvider.value)
+    console.warn('InteractiveArea - Provider config:', providerConfig)
+    console.warn('InteractiveArea - Configured providers:', providersStore.configuredProviders)
+
+    await send(userMessage, {
       chatProvider: await providersStore.getProviderInstance(activeProvider.value) as ChatProvider,
       model: activeModel.value,
       providerConfig,
     })
+
+    console.warn('InteractiveArea - Send completed successfully')
   }
   catch (error) {
-    messages.value.pop()
+    console.error('InteractiveArea - Send error:', error)
+    // Add error message to chat instead of popping user message
     messages.value.push({
       role: 'error',
-      content: (error as Error).message,
+      content: `Error sending message: ${error instanceof Error ? error.message : String(error)}`,
     })
   }
 }
@@ -128,9 +139,12 @@ watch([activeProvider, activeModel], async () => {
   }
 })
 
-onMounted(() => {
+onMounted(async () => {
   // loadWhisper()
   start()
+
+  // Initialize zunvra.com provider automatically
+  await providersStore.initializeProvider('sofia-zunvra')
 })
 
 onAfterMessageComposed(async () => {

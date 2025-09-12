@@ -94,8 +94,8 @@ export default defineConfig({
           registerType: 'autoUpdate',
           includeAssets: ['favicon.svg', 'apple-touch-icon.png'],
           manifest: {
-            name: 'AIRI',
-            short_name: 'AIRI',
+            name: 'AIRIX',
+            short_name: 'AIRIX',
             icons: [
               {
                 purpose: 'maskable',
@@ -152,7 +152,7 @@ export default defineConfig({
     LFS({ root: cwd(), extraGlobs: ['*.vrm', '*.vrma', '*.hdr', '*.cmo3', '*.png', '*.jpg', '*.jpeg', '*.gif', '*.webp', '*.bmp', '*.ttf'] }),
     SpaceCard({
       root: cwd(),
-      title: 'AIRI: Virtual Companion',
+      title: 'AIRIX: Virtual Companion',
       emoji: '🧸',
       colorFrom: 'pink',
       colorTo: 'pink',

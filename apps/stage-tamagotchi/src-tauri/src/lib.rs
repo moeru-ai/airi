@@ -29,7 +29,7 @@ pub fn run() {
     .plugin(tauri_plugin_global_shortcut::Builder::new().build())
     .plugin(tauri_plugin_window_state::Builder::default().build())
     .plugin(tauri_plugin_positioner::init())
-    // Project AIRI plugins
+    // Project AIRIX plugins
     .plugin(tauri_plugin_ipc_audio_transcription_ort::init())
     .plugin(tauri_plugin_ipc_audio_vad_ort::init())
     .plugin(tauri_plugin_window_pass_through_on_hover::init())
@@ -52,7 +52,7 @@ pub fn run() {
     .setup(|app| {
       let mut builder = WebviewWindowBuilder::new(app, "main", WebviewUrl::default());
 
-      builder = builder.title("AIRI")
+      builder = builder.title("AIRIX")
         .decorations(false)
         .inner_size(450.0, 600.0)
         .shadow(false)

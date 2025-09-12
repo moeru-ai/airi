@@ -20,7 +20,7 @@ const dark = useDark()
       <img :src="Logo" h-8 w-8 class="theme-colored">
     </template>
     <div translate-y="[2px]" font-quicksand font-semibold>
-      <span>AIRI</span>
+      <span>AIRIX</span>
     </div>
   </RouterLink>
 </template>

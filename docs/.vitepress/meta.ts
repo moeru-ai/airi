@@ -1,8 +1,8 @@
 // noinspection ES6PreferShortImport: IntelliJ IDE hint to avoid warning to use `~/contributors`, will fail on build if changed
 
 /* Texts */
-export const rekaName = 'Project AIRI'
-export const rekaShortName = 'AIRI'
+export const rekaName = 'Project AIRIX'
+export const rekaShortName = 'AIRIX'
 export const rekaDescription
   = 'An open-source attempt to re-create Neuro-sama, the most famous AI VTuber on this earth, but also forming a cyber companion for everyone.'
 

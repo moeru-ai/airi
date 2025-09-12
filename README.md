@@ -1,3 +1,20 @@
+<!-- Added: Sofia Zunvra provider integration summary (English) and logo -->
+<p align="center">
+  <img src="https://zunvra.com/images/zunvra-icon.png" alt="Zunvra logo" width="72" />
+</p>
+
+## Sofia Zunvra Provider Integration
+
+This repository has been updated to include Sofia Zunvra as an OpenAI-compatible LLM provider. The web UI now includes a settings page to configure the Sofia Zunvra API key and base URL. The provider uses the model "llama3.2:latest" by default when selected. To use Sofia Zunvra, open Settings → Providers → Sofia Zunvra and paste your API key and base URL.
+
+Changes made:
+- Added `sofia-zunvra` provider metadata and configuration UI.
+- Provider settings accept a manual API key and base URL.
+- The provider builder normalizes base URLs and validates configuration.
+- The UI displays the official Zunvra logo in provider settings.
+
+---
+
 <picture>
   <source
     width="100%"
@@ -12,7 +29,7 @@
   <img width="250" src="./docs/content/public/banner-light-1280x640.avif" />
 </picture>
 
-<h1 align="center">Project AIRI</h1>
+<h1 align="center">Project AIRIX</h1>
 
 <p align="center">Re-creating Neuro-sama, a soul container of AI waifu / virtual characters to bring them into our world.</p>
 
@@ -29,7 +46,7 @@
 </p>
 
 <p align="center">
-  <a href="https://www.producthunt.com/products/airi?embed=true&utm_source=badge-featured&utm_medium=badge&utm_source=badge-airi" target="_blank"><img src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=993524&theme=neutral&t=1752696535380" alt="AIRI - A&#0032;container&#0032;of&#0032;cyber&#0032;living&#0032;souls&#0044;&#0032;re&#0045;creation&#0032;of&#0032;Neuro&#0045;sama | Product Hunt" style="width: 250px; height: 54px;" width="250" height="54" /></a>
+  <a href="https://www.producthunt.com/products/airi?embed=true&utm_source=badge-featured&utm_medium=badge&utm_source=badge-airi" target="_blank"><img src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=993524&theme=neutral&t=1752696535380" alt="AIRIX - A&#0032;container&#0032;of&#0032;cyber&#0032;living&#0032;souls&#0044;&#0032;re&#0045;creation&#0032;of&#0032;Neuro&#0045;sama | Product Hunt" style="width: 250px; height: 54px;" width="250" height="54" /></a>
   <a href="https://trendshift.io/repositories/14636" target="_blank"><img src="https://trendshift.io/api/badge/repositories/14636" alt="moeru-ai%2Fairi | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
 </p>
 
@@ -40,7 +57,7 @@
 
 > [!NOTE]
 >
-> We've got a whole dedicated organization [@proj-airi](https://github.com/proj-airi) for all the sub-projects born from Project AIRI. Check it out!
+> We've got a whole dedicated organization [@proj-airi](https://github.com/proj-airi) for all the sub-projects born from Project AIRIX. Check it out!
 >
 > RAG, memory system, embedded database, icons, Live2D utilities, and more!
 
@@ -52,7 +69,7 @@ With the power of modern large language models like [ChatGPT](https://chatgpt.co
 
 Perhaps you know [Neuro-sama](https://www.youtube.com/@Neurosama) already. She is currently the best virtual streamer capable of playing games, chatting, and interacting with you and the participants. Some also call this kind of being "digital human." **Sadly, as it's not open sourced, you cannot interact with her after her live streams go offline**.
 
-Therefore, this project, AIRI, offers another possibility here: **let you own your digital life, cyber living, easily, anywhere, anytime**.
+Therefore, this project, AIRIX, offers another possibility here: **let you own your digital life, cyber living, easily, anywhere, anytime**.
 
 ## DevLogs We Posted & Recent Updates
 
@@ -69,7 +86,7 @@ Unlike the other AI driven VTuber open source projects, アイリ was built with
 > [!TIP]
 > Worrying about the performance drop since we are using Web related technologies?
 >
-> Don't worry, while Web browser version is meant to give an insight about how much we can push and do inside browsers, and webviews, we will never fully rely on this, the desktop version of AIRI is capable of using native [NVIDIA CUDA](https://developer.nvidia.com/cuda-toolkit) and [Apple Metal](https://developer.apple.com/metal/) by default (thanks to HuggingFace & beloved [candle](https://github.com/huggingface/candle) project), without any complex dependency managements, considering the tradeoff, it was partially powered by Web technologies for graphics, layouts, animations, and the WIP plugin systems for everyone to integrate things.
+> Don't worry, while Web browser version is meant to give an insight about how much we can push and do inside browsers, and webviews, we will never fully rely on this, the desktop version of AIRIX is capable of using native [NVIDIA CUDA](https://developer.nvidia.com/cuda-toolkit) and [Apple Metal](https://developer.apple.com/metal/) by default (thanks to HuggingFace & beloved [candle](https://github.com/huggingface/candle) project), without any complex dependency managements, considering the tradeoff, it was partially powered by Web technologies for graphics, layouts, animations, and the WIP plugin systems for everyone to integrate things.
 
 This means that **アイリ is capable of running on modern browsers and devices** and even on mobile devices (already done with PWA support). This brings a lot of possibilities for us (the developers) to build and extend the power of アイリ VTuber to the next level, while still leaving the flexibilities for users to enable features that requires TCP connections or other non-Web technologies such as connecting to Discord voice channel or playing Minecraft and Factorio with friends.
 
@@ -97,7 +114,7 @@ This means that **アイリ is capable of running on modern browsers and devices
 > - Three.js
 > - WebXR ([checkout the another project](https://github.com/moeru-ai/chat) we have under the @moeru-ai organization)
 >
-> **If you are interested, why not introduce yourself here? [Would like to join part of us to build AIRI?](https://github.com/moeru-ai/airi/discussions/33)**
+> **If you are interested, why not introduce yourself here? [Would like to join part of us to build AIRIX?](https://github.com/moeru-ai/airi/discussions/33)**
 
 ## Current Progress
 
@@ -223,7 +240,7 @@ npx bumpp --no-commit --no-tag
 - [`@proj-airi/drizzle-duckdb-wasm`](https://github.com/moeru-ai/airi/tree/main/packages/drizzle-duckdb-wasm/README.md): Drizzle ORM driver for DuckDB WASM
 - [`@proj-airi/duckdb-wasm`](https://github.com/moeru-ai/airi/tree/main/packages/duckdb-wasm/README.md): Easy to use wrapper for `@duckdb/duckdb-wasm`
 - [`tauri-plugin-mcp`](https://github.com/moeru-ai/airi/blob/main/crates/tauri-plugin-mcp/README.md): A Tauri plugin for interacting with MCP servers.
-- [AIRI Factorio](https://github.com/moeru-ai/airi-factorio): Allow AIRI to play Factorio
+- [AIRIX Factorio](https://github.com/moeru-ai/airi-factorio): Allow AIRIX to play Factorio
 - [Factorio RCON API](https://github.com/nekomeowww/factorio-rcon-api): RESTful API wrapper for Factorio headless server console
 - [`autorio`](https://github.com/moeru-ai/airi-factorio/tree/main/packages/autorio): Factorio automation library
 - [`tstl-plugin-reload-factorio-mod`](https://github.com/moeru-ai/airi-factorio/tree/main/packages/tstl-plugin-reload-factorio-mod): Reload Factorio mod when developing
@@ -249,7 +266,7 @@ flowchart TD
   StageUI("@proj-airi/stage-ui")
   UI("@proj-airi/ui")
 
-  subgraph AIRI
+  subgraph AIRIX
     DB1 --> DBDriver --> MemoryDriver --> Memory --> Core
     UI --> StageUI --> Stage --> Core
     Core --> STT
@@ -307,7 +324,7 @@ flowchart TD
   Memory_PGVector("@proj-airi/memory-pgvector") --> Memory
 
   style Core fill:#f9d4d4,stroke:#333,stroke-width:1px
-  style AIRI fill:#fcf7f7,stroke:#333,stroke-width:1px
+  style AIRIX fill:#fcf7f7,stroke:#333,stroke-width:1px
   style UI fill:#d4f9d4,stroke:#333,stroke-width:1px
   style Stage fill:#d4f9d4,stroke:#333,stroke-width:1px
   style UI_Components fill:#d4f9d4,stroke:#333,stroke-width:1px

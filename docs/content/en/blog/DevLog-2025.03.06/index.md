@@ -7,7 +7,7 @@ date: 2025-03-06
 ## Dejavu
 
 Previous day, I was on DevStream to show the progress of making the
-fundamental animations and transitions for AIRI.
+fundamental animations and transitions for AIRIX.
 
 The goal is to port and adapt the amazing work done by [@yui540](https://yui540.com/)
 into a reusable Vue component for any of the Vue project to be able to use it.
@@ -58,7 +58,7 @@ Later on this day, I researched some of the technologies and
 that DeepSeek team has released for a week ago, as well as the so called
 ByteDance released [LLM gateway AIBrix](https://github.com/vllm-project/aibrix).
 And was researching whether the newly released and announced Phi-4-mini was
-capable of porting for AIRI to use, good news is,
+capable of porting for AIRIX to use, good news is,
 [Phi-4-mini](https://techcommunity.microsoft.com/blog/educatordeveloperblog/welcome-to-the-new-phi-4-models---microsoft-phi-4-mini--phi-4-multimodal/4386037)
 included the function calling abilities, that means we can finally build our
 agents with pre-trained support.
@@ -79,7 +79,7 @@ appreciated.
 ![](./assets/live-stream-layout-update.avif)
 
 During the DevStream of today, I was trying to integrate the stage transition
-animation component into AIRI's website main stage, it wasn't that smooth,
+animation component into AIRIX's website main stage, it wasn't that smooth,
 I found several bugs in my previous design for the animation component, good
 news is that I already fixed them, and the new animation transition is available
 already at our official deployment at [https://airi.moeru.ai](https://airi.moeru.ai).

@@ -79,29 +79,29 @@ const narrowAsciiArt = computed(() => (`
         /
 `))
 
-const projectAIRIAsciiArt = computed(() => {
+const projectAIRIXAsciiArt = computed(() => {
   if (isDeviceSm.value)
     return narrowAsciiArt.value
   return wideAsciiArt.value
 })
 
-const projectAIRIMetadata = `
-Project AIRI team from Moeru AI (https://moeru.ai) and other contributors
+const projectAIRIXMetadata = `
+Project AIRIX team from Moeru AI (https://moeru.ai) and other contributors
 Open sourced on https://github.com/moeru-ai/airi
 `
 
 const bootMessages = computed<BootMessage[]>(() => [
-  ...projectAIRIAsciiArt.value.split('\n').map(line => ({
+  ...projectAIRIXAsciiArt.value.split('\n').map(line => ({
     template: line,
     typingSpeed: 1,
     withoutTimestamp: true,
   })),
   {
-    template: `Project AIRI version ${import.meta.env.VITE_AIRI_VERSION || '1.0.0'} @ ${import.meta.env.VITE_AIRI_COMMIT || '0240602'} build`,
+    template: `Project AIRIX version ${import.meta.env.VITE_AIRIX_VERSION || '1.0.0'} @ ${import.meta.env.VITE_AIRIX_COMMIT || '0240602'} build`,
     typingSpeed: 5,
     withoutTimestamp: true,
   },
-  ...projectAIRIMetadata.trim().split('\n').map(line => ({
+  ...projectAIRIXMetadata.trim().split('\n').map(line => ({
     template: line,
     typingSpeed: 1,
     withoutTimestamp: true,
@@ -125,7 +125,7 @@ const bootMessages = computed<BootMessage[]>(() => [
     typingSpeed: 1,
   },
   {
-    template: 'Initializing AIRI subsystems...',
+    template: 'Initializing AIRIX subsystems...',
     typingSpeed: 1,
     pending: true,
     onPendingCheck: () => {
@@ -160,7 +160,7 @@ const bootMessages = computed<BootMessage[]>(() => [
     },
   },
   {
-    template: 'AIRI core services initialized',
+    template: 'AIRIX core services initialized',
     typingSpeed: 1,
   },
   {
@@ -236,7 +236,7 @@ const bootMessages = computed<BootMessage[]>(() => [
     typingSpeed: 1,
   },
   {
-    template: 'AIRI ready',
+    template: 'AIRIX ready',
     typingSpeed: 1,
   },
 ])

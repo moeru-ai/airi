@@ -1,9 +1,9 @@
 ---
 title: 'DreamLog 0x1'
-description: 'Backstory of Project AIRI!'
+description: 'Backstory of Project AIRIX!'
 category: DreamLog
 date: 2025-06-16
-excerpt: 'The backstory of Project AIRI! Why this project?'
+excerpt: 'The backstory of Project AIRIX! Why this project?'
 preview-cover:
   light: "@assets('./assets/dreamlog1-light.avif')"
   dark: "@assets('./assets/dreamlog1-dark.avif')"
@@ -17,8 +17,8 @@ import buildingAVirtualMachineInsideImage from './assets/building-a-virtual-mach
 import live2DIncHiyoriMomose from './assets/live2d-inc-hiyori.avif';
 import AwesomeAIVTuber from '../DevLog-2025.04.06/assets/awesome-ai-vtuber-logo-light.avif'
 import airisScreenshot1 from './assets/airis-screenshot-1.avif';
-import projectAIRIBannerLight from './assets/banner-light-1280x640.avif';
-import projectAIRIBannerDark from './assets/banner-dark-1280x640.avif';
+import projectAIRIXBannerLight from './assets/banner-light-1280x640.avif';
+import projectAIRIXBannerDark from './assets/banner-dark-1280x640.avif';
 import ReLUStickerWow from './assets/relu-sticker-wow.avif'
 </script>
 
@@ -40,13 +40,13 @@ exactly? For the readers already familiar with our DevLog posts, with
 the current frequency of posting and updating to you folks once per
 month, shouldn't be this post be called "DevLog"?
 
-June got its own meaning for Project AIRI (which I will reveal during
+June got its own meaning for Project AIRIX (which I will reveal during
 the story), and as we are indeed approaching theo next milestone of
 stars on GitHub towards 1000, I think it would be a great opportunity to
 reflect on our journey so far.
 
 Therefore I decided to to make a new category of posts here,
-to share the chronicles of me, and the dream about Project AIRI.
+to share the chronicles of me, and the dream about Project AIRIX.
 
 So, I decided to call this new series, ***DreamLog***.
 
@@ -191,11 +191,11 @@ programming, startups, Web3, frontend, backend, infrastructure, everything
 you could think of for a full-stack developer.
 I never really realize what I was doing was influenced so deeply by the
 starting point of EMOSYS, only until February 2025, when someone asked
-me: Why do you work so hard on Project AIRI?
+me: Why do you work so hard on Project AIRIX?
 
 Nice question, I thought. I started to trace back my dreams, ideas, and memories,
 eventually, EMOSYS was there, the already dead project aimed the same goal as
-Project AIRI:
+Project AIRIX:
 
 **Create a companion to somehow fulfill my need.**
 
@@ -270,7 +270,7 @@ API inside programs.
 In conclusion, is it a new random parrot? **I guess the answer is partially no,
 ChatGPT in 2022 is not just a random parrot, it is a potential smart parrot.**
 
-## Way before Project AIRI, Neuro-sama exists.
+## Way before Project AIRIX, Neuro-sama exists.
 
 Yeah, thanks for reading down to here, I know this is a long post, so many stories and
 contexts to share. But here we are! We are almost there, hang tight!
@@ -322,7 +322,7 @@ engineering experiences across of various domains, I naively thought:
 
 ::: tip More technical details?
 In this post, I won't go any deep further about the technical details of how we built
-Project AIRI from scratch to the current state, we got many DevLog posts
+Project AIRIX from scratch to the current state, we got many DevLog posts
 sharing our thoughts and discoveries already, if interested in, try read
 them.
 :::
@@ -366,7 +366,7 @@ At that time, Neuro-sama fulfilled me with determination.
 > -- quote from [Star Trek, Captain James T. Kirk](https://en.wikipedia.org/wiki/Where_no_man_has_gone_before), also my intro line of my GitHub profile.
 
 Therefore, starting from May 25, 2024, I started one simple named project called `ai` under
-my name handle locally, which is the initial version of Project AIRI, I started to
+my name handle locally, which is the initial version of Project AIRIX, I started to
 explore the possibilities of creating my own AI agent, recreating the
 joy Neuro-sama brought me.
 
@@ -376,7 +376,7 @@ I was able to create a simple version of *"Neuro-sama"* that could interact with
 
 That was the day at **June 2, 2024**.
 
-Technically saying, **this is the birthday of Project AIRI** with first baby consciousness inside of it, naively.
+Technically saying, **this is the birthday of Project AIRIX** with first baby consciousness inside of it, naively.
 
 <div class="w-full flex flex-col items-center justify-center">
   <video controls muted autoplay loop>
@@ -419,7 +419,7 @@ produces this huge awesome list of AI VTuber projects:
   </div>
 </div>
 
-Ok, but it's still called `ai`, where is Project AIRI then?
+Ok, but it's still called `ai`, where is Project AIRIX then?
 
 ## Reborn, with stronger, and better determination
 
@@ -435,20 +435,20 @@ system, and adjustments on the basic WebUI I made randomly, finally, I published
 GitHub on **December 2, 2024** with commit
 [`d9ae0aa`](https://github.com/moeru-ai/airi/commit/d9ae0aae387f015964bfd383e6d2adb05f4003e4).
 
-Project AIRI was somehow born or reborn, with the name of AIRI (アイリ, formerly Airi).
+Project AIRIX was somehow born or reborn, with the name of AIRIX (アイリ, formerly Airi).
 
 ::: tip Did you know?
 <a href="https://www.youtube.com/watch?v=Tts-YAdn5Yc" class="mb-2 inline-block">
-  <img :src="airisScreenshot1" alt="Screenshot of Project AIRI" class="rounded-lg overflow-hidden" />
+  <img :src="airisScreenshot1" alt="Screenshot of Project AIRIX" class="rounded-lg overflow-hidden" />
 </a>
 
 Interestingly, from the upload 2 years ago, March 25, 2023, https://www.youtube.com/watch?v=Tts-YAdn5Yc, a clip
 from Twitch stream of Vedal, and Neuro-sama, Vedal mentioned that right before she called the name "Neuro-sama",
 she was called "Airis AI", the name **Airis** magically, and coincidentally, matches the name of
-**Project AIRI**, which I am working on now. But I wasn't aware of this name until I searches more about their
-stories long after I open sourced Project AIRI.
+**Project AIRIX**, which I am working on now. But I wasn't aware of this name until I searches more about their
+stories long after I open sourced Project AIRIX.
 
-In fact, the name AIRI (アイリ) was named by GPT-4o, I asked it about naming this project by
+In fact, the name AIRIX (アイリ) was named by GPT-4o, I asked it about naming this project by
 referencing other Japanese / or Anime-ish names, it suggested the name **Airi**.
 :::
 
@@ -459,7 +459,7 @@ others to my friends and during small meetups and conferences.
 
 Many of those experiences was learned from my previous failures.
 
-Glad many trials succeeded, and I am still here, working on Project AIRI.
+Glad many trials succeeded, and I am still here, working on Project AIRIX.
 
 Perhaps, it's another time that my determination was filled by not only Neuro-sama, but also the
 most profound, talented contributors, and fans.
@@ -467,8 +467,8 @@ most profound, talented contributors, and fans.
 ## Keep going, keep dreaming
 
 <div class="w-full flex flex-col items-center justify-center">
-  <img class="light" :src="projectAIRIBannerLight" alt="new ui" />
-  <img class="dark" :src="projectAIRIBannerDark" alt="new ui" />
+  <img class="light" :src="projectAIRIXBannerLight" alt="new ui" />
+  <img class="dark" :src="projectAIRIXBannerDark" alt="new ui" />
   <div>
     New Banner!
   </div>
@@ -479,7 +479,7 @@ most profound, talented contributors, and fans.
 >
 > -- quote from [Evil Neuro](https://www.youtube.com/@Neurosama) when streaming playing Slay the Spire
 
-Now, Project AIRI is approaching to 1000 stars on GitHub when I am writing this post,
+Now, Project AIRIX is approaching to 1000 stars on GitHub when I am writing this post,
 while having over 150 Discord members, and 200 Telegram group members.
 
 We covers fields like AI, VRM, Live2D, UI design, multi-modal AI, game playing agents,
@@ -489,10 +489,10 @@ integrating her to be able to play and control Kerbal Space Program (KSP), as we
 play any arbitrary games.
 
 Many other companies are reaching out to us asking for collaboration, and we are
-working on it, to make Project AIRI better, and more useful for the community.
+working on it, to make Project AIRIX better, and more useful for the community.
 
 There is so much to do, and discover, we haven't reached the singularity of general purpose AI,
-perhaps Project AIRI will never made that point, but for now, having a companion-like AI agent
+perhaps Project AIRIX will never made that point, but for now, having a companion-like AI agent
 to talk to, play games with, and share the knowledge and ideas with, is already a great
 achievement for me, and I hope it is for you too.
 
@@ -504,7 +504,7 @@ How much memory we could store? **It depends on how much we could dream, and how
   <img :src="ReLUStickerWow" alt="ReLU sticker wow" class="w-30!" />
   <div class="text-center">
     <span class="block font-bold">Thanks for reading all the way here!</span>
-    <span>Thanks for reading! Oh, and, Happy Birthday, Project AIRI!</span>
+    <span>Thanks for reading! Oh, and, Happy Birthday, Project AIRIX!</span>
   </div>
 </div>
 

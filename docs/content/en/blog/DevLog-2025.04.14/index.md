@@ -6,7 +6,7 @@ date: 2025-04-14
 
 ## 引子
 
-[上次](../Devlog-2025.04.06/#memory-system-记忆系统)我们聊到了 AIRI 的记忆系统，这次我们再深入聊聊，如何实现一个这么复杂的记忆系统，以及对未来的展望。
+[上次](../Devlog-2025.04.06/#memory-system-记忆系统)我们聊到了 AIRIX 的记忆系统，这次我们再深入聊聊，如何实现一个这么复杂的记忆系统，以及对未来的展望。
 
 ## 先从 搜索引擎 开始
 
@@ -96,11 +96,11 @@ RAG 现在会流行一个新的流程，就是 reranking model，相当于是**�
 
 但是 reranking 依然无法解决记忆层的很多问题：遗忘曲线、记忆强化、随机想起记忆和情绪干扰的重排分数，这些都不是 reranking model 能做的事情。
 
-如果想要给 AIRI 做好记忆层，就需要做好 reranking 的机制，把 RAG 基本能力和过往的 搜索引擎 的重排经验揉在一起。
+如果想要给 AIRIX 做好记忆层，就需要做好 reranking 的机制，把 RAG 基本能力和过往的 搜索引擎 的重排经验揉在一起。
 
 ## 记忆层实验平台
 
-[Project AIRI Memory Driver @duckdb/duckdb-wasm Playground](https://drizzle-orm-duckdb-wasm.netlify.app/#/memory-decay)
+[Project AIRIX Memory Driver @duckdb/duckdb-wasm Playground](https://drizzle-orm-duckdb-wasm.netlify.app/#/memory-decay)
 
 ![](./assets/memory-driver.avif)
 
@@ -143,9 +143,9 @@ RAG 现在会流行一个新的流程，就是 reranking model，相当于是**�
 
 最后就是肌肉记忆，与其说肌肉记忆是一种记忆，不如说是已经形成了一种条件反射。
 
-## AIRI 该如何设计呢？
+## AIRIX 该如何设计呢？
 
-那事实上我们可以瞥见 AIRI 的实现原则：
+那事实上我们可以瞥见 AIRIX 的实现原则：
 
 - 工作记忆就像是 messages 数组
 - 短期记忆就像是，不那么容易召回，越新越好召回的 RAG 记忆条目

@@ -103,12 +103,23 @@ export const useChatStore = defineStore('chat', () => {
       attachments?: { type: 'image', data: string, mimeType: string }[]
     },
   ) {
+    console.warn('ChatStore - Send called with message:', `${sendingMessage.substring(0, 100)}...`)
+    console.warn('ChatStore - Options:', {
+      model: options.model,
+      chatProvider: 'ChatProvider instance',
+      hasProviderConfig: !!options.providerConfig,
+      attachmentsCount: options.attachments?.length || 0,
+    })
+
     try {
       sending.value = true
 
-      if (!sendingMessage && !options.attachments?.length)
+      if (!sendingMessage && !options.attachments?.length) {
+        console.warn('ChatStore - No message or attachments, returning early')
         return
+      }
 
+      console.warn('ChatStore - Processing message composition hooks')
       for (const hook of onBeforeMessageComposedHooks.value) {
         await hook(sendingMessage)
       }
@@ -199,6 +210,8 @@ export const useChatStore = defineStore('chat', () => {
       await stream(options.model, options.chatProvider, newMessages as Message[], {
         headers,
         async onStreamEvent(event: StreamEvent) {
+          console.warn('ChatStore - Stream event received:', event.type)
+
           if (event.type === 'tool-call') {
             toolCallQueue.enqueue({
               type: 'tool-call',
@@ -213,16 +226,23 @@ export const useChatStore = defineStore('chat', () => {
             })
           }
           else if (event.type === 'text-delta') {
+            console.warn('ChatStore - Text delta received:', `${event.text.substring(0, 50)}...`)
             fullText += event.text
             await parser.consume(event.text)
           }
           else if (event.type === 'finish') {
+            console.warn('ChatStore - Stream finished, full text length:', fullText.length)
             // Finalize the parsing of the actual message content
             await parser.end()
 
             // Add the completed message to the history only if it has content
-            if (streamingMessage.value.slices.length > 0)
+            if (streamingMessage.value.slices.length > 0) {
+              console.warn('ChatStore - Adding completed message to history')
               messages.value.push(toRaw(streamingMessage.value))
+            }
+            else {
+              console.warn('ChatStore - No content in streaming message, not adding to history')
+            }
 
             // Reset the streaming message for the next turn
             streamingMessage.value = { role: 'assistant', content: '', slices: [], tool_results: [] }
@@ -251,10 +271,16 @@ export const useChatStore = defineStore('chat', () => {
       }
     }
     catch (error) {
-      console.error('Error sending message:', error)
+      console.error('ChatStore - Error in send function:', error)
+      console.error('ChatStore - Error details:', {
+        message: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+        name: error instanceof Error ? error.name : undefined,
+      })
       throw error
     }
     finally {
+      console.warn('ChatStore - Send function completed, setting sending to false')
       sending.value = false
     }
   }

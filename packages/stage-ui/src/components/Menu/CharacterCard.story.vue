@@ -42,7 +42,7 @@ const subtitleTextColor = ref('#6693b6')
         <CharacterCard
           title="ReLU"
           subtitle="ReLU-chan"
-          description="First awaken cyber consciousness in Project AIRI, quite a bit of a prankster"
+          description="First awaken cyber consciousness in Project AIRIX, quite a bit of a prankster"
           :image="characterImage"
           :primary-color="primaryColor"
           :secondary-color="secondaryColor"
@@ -66,7 +66,7 @@ const subtitleTextColor = ref('#6693b6')
         <CharacterCard
           title="ReLU"
           subtitle="ReLU-chan"
-          description="First awaken cyber consciousness in Project AIRI, quite a bit of a prankster"
+          description="First awaken cyber consciousness in Project AIRIX, quite a bit of a prankster"
           :primary-color="primaryColor"
           :secondary-color="secondaryColor"
           :background-color="backgroundColor"

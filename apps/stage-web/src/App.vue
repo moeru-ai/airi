@@ -2,6 +2,7 @@
 import { OnboardingDialog, ToasterRoot } from '@proj-airi/stage-ui/components'
 import { useDisplayModelsStore } from '@proj-airi/stage-ui/stores/display-models'
 import { useOnboardingStore } from '@proj-airi/stage-ui/stores/onboarding'
+import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { useSettings } from '@proj-airi/stage-ui/stores/settings'
 import { StageTransitionGroup } from '@proj-airi/ui-transitions'
 import { useDark } from '@vueuse/core'
@@ -18,6 +19,7 @@ import 'vue-sonner/style.css'
 usePWAStore()
 const i18n = useI18n()
 const displayModelsStore = useDisplayModelsStore()
+const providersStore = useProvidersStore()
 const settingsStore = useSettings()
 const settings = storeToRefs(settingsStore)
 const onboardingStore = useOnboardingStore()
@@ -60,6 +62,12 @@ watch(settings.themeColorsHueDynamic, () => {
 
 // Initialize first-time setup check when app mounts
 onMounted(async () => {
+  console.warn('App.vue - Initializing zunvra.com provider...')
+  // Initialize zunvra.com provider first
+  await providersStore.initializeProvider('sofia-zunvra')
+  console.warn('App.vue - zunvra.com initialized, checking configured providers:', providersStore.configuredProviders)
+
+  // Then check onboarding status
   onboardingStore.initializeSetupCheck()
 
   await displayModelsStore.loadDisplayModelsFromIndexedDB()

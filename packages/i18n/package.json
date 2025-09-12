@@ -2,9 +2,9 @@
   "name": "@proj-airi/i18n",
   "type": "module",
   "private": true,
-  "description": "Internationalization (i18n) locales and utilities for Project AIRI",
+  "description": "Internationalization (i18n) locales and utilities for Project AIRIX",
   "author": {
-    "name": "Moeru AI Project AIRI Team",
+    "name": "Moeru AI Project AIRIX Team",
     "email": "airi@moeru.ai",
     "url": "https://github.com/moeru-ai"
   },

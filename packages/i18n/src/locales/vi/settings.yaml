@@ -8,7 +8,7 @@ animations:
     title: Dùng hiệu ứng chuyển cảnh riêng cho từng trang
 dialogs:
   onboarding:
-    title: Chào mừng đến với AIRI!
+    title: Chào mừng đến với AIRIX!
     description: Hãy thiết lập nhà cung cấp AI đầu tiên để bắt đầu.
     selectProvider: Chọn nhà cung cấp AI
     configureProvider: Cấu hình {provider}
@@ -29,7 +29,7 @@ dialogs:
 language:
   title: Ngôn ngữ
   description: >
-    Thay đổi ngôn ngữ giao diện AIRI. Điều này sẽ không ảnh hưởng đến ngôn ngữ
+    Thay đổi ngôn ngữ giao diện AIRIX. Điều này sẽ không ảnh hưởng đến ngôn ngữ
     phản hồi của nhân vật.
 live2d:
   change-model:
@@ -79,7 +79,7 @@ pages:
     delete: Xóa
     delete_card: Xóa thẻ
     delete_confirmation: Bạn có chắc muốn xóa thẻ này?
-    description: Dùng preset thẻ nhân vật AIRI
+    description: Dùng preset thẻ nhân vật AIRIX
     description_label: Mô tả
     drop_here: Kéo vào đây để tải lên
     create_card: Tạo thẻ mới
@@ -139,7 +139,7 @@ pages:
       model: Giọng nói / Mô hình
       voice: Giọng nói / Giọng
     systemprompt: Lời nhắc hệ thống
-    title: Thẻ AIRI
+    title: Thẻ AIRIX
     try_different_search: Hãy thử từ khóa khác
     upload: Tải lên
     upload_desc: Bấm hoặc kéo thả tệp để tải lên
@@ -258,8 +258,8 @@ pages:
     helpinfo:
       title: Lần đầu tới đây?
       description: >
-        {chat} AIRI cần ít nhất một nhà cung cấp để suy nghĩ và hoạt động đúng cách.
-        Có thể coi nó như bộ não của nhân vật AIRI trong hệ thống.
+        {chat} AIRIX cần ít nhất một nhà cung cấp để suy nghĩ và hoạt động đúng cách.
+        Có thể coi nó như bộ não của nhân vật AIRIX trong hệ thống.
     common:
       fields:
         field:
@@ -340,6 +340,9 @@ pages:
       deepseek:
         description: deepseek.com
         title: DeepSeek
+      sofia-zunvra:
+        description: zunvra.com
+        title: zunvra.com
       elevenlabs:
         description: elevenlabs.io
         fields:
@@ -479,8 +482,8 @@ pages:
         theme-presets:
           presets:
             - colors:
-                - Xanh AIRI
-              description: Màu xanh đặc trưng mặc định của AIRI
+                - Xanh AIRIX
+              description: Màu xanh đặc trưng mặc định của AIRIX
               title: Màu mặc định
             - colors:
                 - Taupe
@@ -548,7 +551,7 @@ sections:
 theme:
   title: Chủ Đề
   description: |
-    Chuyển đổi chủ đề cơ bản của AIRI, Chế độ Sáng hoặc Chế độ Tối.
+    Chuyển đổi chủ đề cơ bản của AIRIX, Chế độ Sáng hoặc Chế độ Tối.
 title: Cài Đặt
 voices: Giọng Nói
 vrm:

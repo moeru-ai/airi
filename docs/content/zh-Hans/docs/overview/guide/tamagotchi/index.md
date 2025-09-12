@@ -1,6 +1,6 @@
 ---
 title: 桌面版上手指南
-description: 如何使用桌面版的 Project AIRI
+description: 如何使用桌面版的 Project AIRIX
 ---
 
 ## 我现在就想聊天！
@@ -49,7 +49,7 @@ description: 如何使用桌面版的 Project AIRI
 感谢你下载并试用它！
 :::
 
-下载完成后，你可以从任何位置启动 AIRI。你将看到用户界面由两部分组成：
+下载完成后，你可以从任何位置启动 AIRIX。你将看到用户界面由两部分组成：
 
 - 新手引导 / 设置向导
 - 模型（可显示 Live2D 和 VRM 模型）
@@ -176,7 +176,7 @@ description: 如何使用桌面版的 Project AIRI
 ## 设置
 
 你可以在系统托盘中打开设置以进行更多自定义，例如：
-更改 AIRI 的主题颜色，或切换到其他模型，比如 Live2D（2D 模型）或 VRM（3D 模型，就像是 Grok Companion 那样）。
+更改 AIRIX 的主题颜色，或切换到其他模型，比如 Live2D（2D 模型）或 VRM（3D 模型，就像是 Grok Companion 那样）。
 
 <video autoplay loop muted>
  <source src="../../../../../en/docs/overview/guide/tamagotchi/assets/tutorial-basic-open-settings.mp4" type="video/mp4">
@@ -201,7 +201,7 @@ description: 如何使用桌面版的 Project AIRI
 
 ::: tip 现在还有一些 Bug
 目前模型场景重载功能尚未按预期工作。
-加载模型后，你需要重启 AIRI 才能生效。
+加载模型后，你需要重启 AIRIX 才能生效。
 :::
 <br />
 

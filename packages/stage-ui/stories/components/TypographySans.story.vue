@@ -7,7 +7,7 @@
     <Variant title="Sans">
       <div flex flex-col gap-1>
         <div mb-3 text-4xl font-bold tracking-wide font-sans>
-          <span text="neutral-500 dark:neutral-400">Project</span> <span text-pink>AIRI</span>
+          <span text="neutral-500 dark:neutral-400">Project</span> <span text-pink>AIRIX</span>
         </div>
         <div flex flex-col gap-1>
           <div font-sans>
@@ -26,7 +26,7 @@
     <Variant title="Quanlai Sans">
       <div flex flex-col gap-1>
         <div font-quanlai mb-3 text-4xl font-bold tracking-wide>
-          <span text="neutral-500 dark:neutral-400">Project</span> <span text-pink>AIRI</span>
+          <span text="neutral-500 dark:neutral-400">Project</span> <span text-pink>AIRIX</span>
         </div>
         <div flex flex-col gap-1>
           <div font-quanlai>
@@ -45,7 +45,7 @@
     <Variant title="Xiaolai Sans">
       <div flex flex-col gap-1>
         <div font-xiaolai mb-3 text-4xl font-bold tracking-wide>
-          <span text="neutral-500 dark:neutral-400">Project</span> <span text-pink>AIRI</span>
+          <span text="neutral-500 dark:neutral-400">Project</span> <span text-pink>AIRIX</span>
         </div>
         <div flex flex-col gap-1>
           <div font-xiaolai>
@@ -64,7 +64,7 @@
     <Variant title="Cute Sans">
       <div flex flex-col gap-1>
         <div mb-3 text-4xl font-bold tracking-wide font-cuteen>
-          <span text="neutral-500 dark:neutral-400">Project</span> <span text-pink>AIRI</span>
+          <span text="neutral-500 dark:neutral-400">Project</span> <span text-pink>AIRIX</span>
         </div>
         <div flex flex-col gap-1>
           <div font-cuteen>
@@ -83,7 +83,7 @@
     <Variant title="Jura Sans">
       <div flex flex-col gap-1>
         <div font-jura mb-3 text-4xl font-bold tracking-wide>
-          <span text="neutral-500 dark:neutral-400">Project</span> <span text-pink>AIRI</span>
+          <span text="neutral-500 dark:neutral-400">Project</span> <span text-pink>AIRIX</span>
         </div>
         <div flex flex-col gap-1>
           <div font-jura>
@@ -102,7 +102,7 @@
     <Variant title="Tech Sans">
       <div flex flex-col gap-1>
         <div font-quicksand mb-3 text-4xl font-bold tracking-wide>
-          <span text="neutral-500 dark:neutral-400">Project</span> <span text-pink>AIRI</span>
+          <span text="neutral-500 dark:neutral-400">Project</span> <span text-pink>AIRIX</span>
         </div>
         <div flex flex-col gap-1>
           <div font-quicksand>
@@ -121,7 +121,7 @@
     <Variant title="Urbanist">
       <div flex flex-col gap-1>
         <div font-urbanist mb-3 text-4xl font-bold tracking-wide>
-          <span text="neutral-500 dark:neutral-400">Project</span> <span text-pink>AIRI</span>
+          <span text="neutral-500 dark:neutral-400">Project</span> <span text-pink>AIRIX</span>
         </div>
         <div flex flex-col gap-1>
           <div font-urbanist>
@@ -140,7 +140,7 @@
     <Variant title="M PLUS Rounded 1c">
       <div flex flex-col gap-1>
         <div font-m-plus-rounded mb-3 text-4xl font-bold tracking-wide>
-          <span text="neutral-500 dark:neutral-400">Project</span> <span text-pink>AIRI</span>
+          <span text="neutral-500 dark:neutral-400">Project</span> <span text-pink>AIRIX</span>
         </div>
         <div flex flex-col gap-1>
           <div font-m-plus-rounded>

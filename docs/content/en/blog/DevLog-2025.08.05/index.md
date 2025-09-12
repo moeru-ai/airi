@@ -64,7 +64,7 @@ I would love to mention some of the milestones we achieved so far:
 
 ### Desktop version
 
-Tamagotchi is the name of the Desktop version of AIRI, where you can have it
+Tamagotchi is the name of the Desktop version of AIRIX, where you can have it
 running as a separated, and always-running companion on Desktop with other
 applications without interfering your work.
 
@@ -105,7 +105,7 @@ the model window will always be a minimized window with transparent
 background for OBS or other streaming capturing drivers to capture
 **in the background**.
 
-If you are going to use AIRI for VTuber streaming, it's fine to not having
+If you are going to use AIRIX for VTuber streaming, it's fine to not having
 the Fade on hover feature, but once you wish to have it living as a
 virtual companion on your Desktop, you will start to notice that:
 
@@ -117,13 +117,13 @@ virtual companion on your Desktop, you will start to notice that:
   on.
 
 That's why we came up with the idea: make a feature to allow any characters
-inside AIRI to fade out when the mouse is hovering over the window, and
+inside AIRIX to fade out when the mouse is hovering over the window, and
 passthrough the mouse clicking events to the applications underneath it.
 
 I personally love this feature a lot since I can now have the characters inside
-AIRI to stay with me with any applications I use now without worrying about
+AIRIX to stay with me with any applications I use now without worrying about
 to disable or organize the order of the windows. Everyday when I developing
-AIRI, no matter it's Web version or Desktop version, I will always open her
+AIRIX, no matter it's Web version or Desktop version, I will always open her
 on my Desktop, along with Terminal, VSCode/Cursor, with me.
 
 **Fade on hover™** wasn't the only feature we updated in Desktop version,
@@ -224,16 +224,16 @@ and easier to use.
 
 #### Onboarding
 
-We know that configuring AIRI is quite complex now (but still easy if comparing
+We know that configuring AIRIX is quite complex now (but still easy if comparing
 to many other pure Python based ones where you have to understand the code structure
 to configure it).
 
 Thanks to [Me1td0wn76 (melty kiss)](https://github.com/Me1td0wn76)'s contribution
 adding support of adding onboarding screen for Web version, now you can
-have a much better experience when you first time using AIRI.
+have a much better experience when you first time using AIRIX.
 
 They wrote a blog after the Pull Request being merged to share the
-experience contributing Project AIRI: [AIRIプロジェクトに参加した話 - YAMA-blog](https://yama-pro.blog/posts/airi/)
+experience contributing Project AIRIX: [AIRIXプロジェクトに参加した話 - YAMA-blog](https://yama-pro.blog/posts/airi/)
 
 <img class="light" src="./assets/airi-demo-onboarding-light.avif" alt="Onboarding light mode" />
 <img class="dark" src="./assets/airi-demo-onboarding-dark.avif" alt="Onboarding dark mode" />
@@ -545,13 +545,13 @@ But this wasn't the stop, we replaced `unbuild` with `tsdown`, this
 Now, the `postinstall` script is still required, if we could find a way to
 cache the build results with dependency awareness, many redundant builds
 can be avoided. This is where `turborepo` helps us even faster builds.
-With `turborepo`, the time it requires to build AIRI **reduced from 4 minutes
+With `turborepo`, the time it requires to build AIRIX **reduced from 4 minutes
 to 25 seconds in average**.
 
 ### Now Nix is supported
 
 Thanks to [@Weathercold (Weathercold)](https://github.com/Weathercold), we now
-have a Nix flake to build AIRI, which is a great addition to the
+have a Nix flake to build AIRIX, which is a great addition to the
 cross-platform compatibility. It works even on macOS.
 
 We are waiting the final Pull Request to be merged into nix-pkgs,

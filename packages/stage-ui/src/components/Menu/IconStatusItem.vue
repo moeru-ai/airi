@@ -48,7 +48,7 @@ const props = defineProps<{
         <div
           class="menu-icon-status-item-icon"
           transition="all ease-in-out duration-400"
-          absolute right-0 size-16 translate-y-2
+          absolute right-0 size-24 translate-y-2
           text="neutral-400/50 dark:neutral-600/50"
           grayscale-100
           :class="props.icon"
@@ -58,7 +58,7 @@ const props = defineProps<{
         <div
           class="menu-icon-status-item-icon-color"
           transition="all ease-in-out duration-400"
-          absolute right-0 size-16 translate-y-2
+          absolute right-0 size-24 translate-y-2
           text="neutral-400/50 dark:neutral-600/50"
           grayscale-100
           :class="[props.iconColor]"
@@ -69,7 +69,7 @@ const props = defineProps<{
           :src="props.iconImage"
           class="menu-icon-status-item-icon-image"
           transition="all ease-in-out duration-400"
-          absolute right-0 size-16 translate-y-2
+          absolute right-0 size-24 translate-y-2
           grayscale-100
         >
       </template>
@@ -141,6 +141,13 @@ const props = defineProps<{
 .menu-icon-status-item._hover .menu-icon-status-item-icon-color {
   --at-apply: text-primary-500;
   scale: 1.2;
+}
+
+.menu-icon-status-item-icon-image {
+  width: 120px;
+  height: 120px;
+  object-fit: contain;
+  border-radius: 8px;
 }
 
 .dark .menu-icon-status-item:hover .menu-icon-status-item-title,

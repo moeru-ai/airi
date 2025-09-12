@@ -1,5 +1,5 @@
 appId: ai.moeru.airi
-productName: AIRI
+productName: AIRIX
 directories:
   buildResources: build
 files:
@@ -14,7 +14,7 @@ files:
 asarUnpack:
   - resources/**
 win:
-  executableName: AIRI
+  executableName: AIRIX
 nsis:
   artifactName: ${productName}-v${version}-windows-${arch}-setup.${ext}
   shortcutName: ${productName}
@@ -27,7 +27,7 @@ mac:
     - NSDocumentsFolderUsageDescription: Application requests access to the user's Documents folder.
     - NSDownloadsFolderUsageDescription: Application requests access to the user's Downloads folder.
   notarize: false
-  executableName: AIRI
+  executableName: AIRIX
 dmg:
   artifactName: ${productName}-v${version}-darwin-${arch}.${ext}
 linux:
@@ -35,7 +35,7 @@ linux:
     - AppImage
   maintainer: moeru.ai
   category: Utility
-  executableName: AIRI
+  executableName: AIRIX
   artifactName: ${productName}-v${version}-linux-${arch}.${ext}
 appImage:
   artifactName: ${productName}-v${version}-linux-${arch}.${ext}

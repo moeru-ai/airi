@@ -2,9 +2,9 @@
   "name": "@proj-airi/ui",
   "type": "module",
   "version": "0.7.2-beta.2",
-  "description": "A collection of UI components that used by Project AIRI",
+  "description": "A collection of UI components that used by Project AIRIX",
   "author": {
-    "name": "Moeru AI Project AIRI Team",
+    "name": "Moeru AI Project AIRIX Team",
     "email": "airi@moeru.ai",
     "url": "https://github.com/moeru-ai"
   },

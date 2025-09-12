@@ -1,6 +1,6 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
-  "productName": "AIRI",
+  "productName": "AIRIX",
   "version": "../package.json",
   "identifier": "ai.moeru.airi-tamagotchi",
   "build": {
