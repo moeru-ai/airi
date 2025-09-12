@@ -320,7 +320,7 @@ function updateCustomModelName(value: string) {
               v-model:search-query="voiceSearchQuery"
               v-model:voice-id="activeSpeechVoiceId"
               :voices="availableVoices[activeSpeechProvider]?.filter(voice => {
-                return voice.compatibleModels?.includes(activeSpeechModel)
+                return !voice.compatibleModels || voice.compatibleModels.includes(activeSpeechModel)
               }).map(voice => ({
                 id: voice.id,
                 name: voice.name,
