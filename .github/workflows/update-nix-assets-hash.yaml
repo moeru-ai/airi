@@ -1,0 +1,31 @@
+name: Update Nix assets Hash
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - 'apps/stage-tamagotchi/package.json'
+      - 'apps/stage-tamagotchi/vite.config.ts'
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: cachix/install-nix-action@v31
+        with:
+          extra_nix_config: experimental-features = nix-command flakes
+
+      - name: Update Hash
+        run: nix/update-assets-hash.sh
+
+      - uses: stefanzweifel/git-auto-commit-action@v6
+        with:
+          commit_message: 'chore(nix): update assets hash'
+          commit_author: github-actions[bot] <github-actions[bot]@users.noreply.github.com>
