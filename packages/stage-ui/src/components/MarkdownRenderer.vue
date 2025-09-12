@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import DOMPurify from 'dompurify'
+
 import { onMounted, ref, watch } from 'vue'
 
 import { useMarkdown } from '../composables/markdown'
@@ -20,11 +22,11 @@ async function processContent() {
   }
 
   try {
-    processedContent.value = await process(props.content)
+    processedContent.value = DOMPurify.sanitize(await process(props.content))
   }
   catch (error) {
     console.warn('Failed to process markdown with syntax highlighting, using fallback:', error)
-    processedContent.value = processSync(props.content)
+    processedContent.value = DOMPurify.sanitize(processSync(props.content))
   }
 }
 

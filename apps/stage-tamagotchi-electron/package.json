@@ -1,7 +1,8 @@
 {
   "name": "@proj-airi/stage-tamagotchi-electron",
   "type": "module",
-  "version": "1.0.0",
+  "version": "0.7.2-beta.3",
+  "private": true,
   "description": "An Electron application with Vue and TypeScript",
   "author": "example.com",
   "homepage": "https://electron-vite.org",
@@ -59,6 +60,7 @@
     "colorjs.io": "^0.5.2",
     "culori": "^4.0.2",
     "date-fns": "^4.1.0",
+    "dompurify": "^3.2.6",
     "drizzle-kit": "^0.31.4",
     "drizzle-orm": "^0.44.5",
     "jszip": "^3.10.1",

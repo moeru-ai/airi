@@ -1,7 +1,7 @@
 {
   "name": "@proj-airi/font-departure-mono",
   "type": "module",
-  "version": "0.7.2-beta.2",
+  "version": "0.7.2-beta.3",
   "description": "Essential CSS for font, Departure Mono, used by Project AIRI",
   "author": {
     "name": "Tobias Fried",

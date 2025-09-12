@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import type { AiriCard } from '@proj-airi/stage-ui/stores/modules/airi-card'
 
+import DOMPurify from 'dompurify'
+
 import { Button } from '@proj-airi/stage-ui/components'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
 import { storeToRefs } from 'pinia'
@@ -84,7 +86,7 @@ function handleActivate() {
 }
 
 function highlightTagToHtml(text: string) {
-  return text?.replace(/\{\{(.*?)\}\}/g, '<span class="bg-primary-500/20 inline-block">{{ $1 }}</span>').trim()
+  return DOMPurify.sanitize(text?.replace(/\{\{(.*?)\}\}/g, '<span class="bg-primary-500/20 inline-block">{{ $1 }}</span>').trim())
 }
 
 // Delete confirmation
