@@ -68,6 +68,7 @@ pages:
     card_not_found: 未找到角色卡
     character: 角色设定
     close: 关闭
+    save: 保存
     consciousness:
       model: 意识 / 模型
     created_by: 创建者
@@ -116,6 +117,9 @@ pages:
         scenario: 错误：必须提供一个情境。
         systemprompt: 错误：请提供系统提示。
         posthistoryinstructions: 错误：必须提供消息历史后的提示。
+    edit:
+      edit: 编辑
+      title: 编辑角色卡
     modules: 模块
     name_asc: 名称 (A-Z)
     name_desc: 名称 (Z-A)

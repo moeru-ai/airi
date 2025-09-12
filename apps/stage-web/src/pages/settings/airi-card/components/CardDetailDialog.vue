@@ -14,6 +14,7 @@ import {
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import CardEditDialog from './CardEditDialog.vue'
 import DeleteCardDialog from './DeleteCardDialog.vue'
 
 interface Props {
@@ -74,6 +75,9 @@ const isActive = computed(() => props.cardId === activeCardId.value)
 
 // Animation control for card activation
 const isActivating = ref(false)
+
+// Edit dialog state
+const isEditDialogOpen = ref(false)
 
 function handleActivate() {
   isActivating.value = true
@@ -192,6 +196,14 @@ const activeTab = computed({
 
               <!-- Action buttons -->
               <div flex="~ row" gap-2>
+                <!-- Edit button -->
+                <Button
+                  variant="secondary"
+                  icon="i-solar:clapperboard-edit-line-duotone"
+                  :label="t('settings.pages.card.edit.edit')"
+                  @click="isEditDialogOpen = true"
+                />
+
                 <!-- Activation button -->
                 <Button
                   variant="primary"
@@ -200,6 +212,14 @@ const activeTab = computed({
                   :disabled="isActive"
                   :class="{ 'animate-pulse': isActivating }"
                   @click="handleActivate"
+                />
+
+                <!-- Delete button -->
+                <Button
+                  variant="danger"
+                  icon="i-solar:trash-bin-minimalistic-bold"
+                  :label="t('settings.pages.card.delete')"
+                  @click="showDeleteConfirm = true"
                 />
               </div>
             </div>
@@ -341,6 +361,12 @@ const activeTab = computed({
       </DialogContent>
     </DialogPortal>
   </DialogRoot>
+
+  <!-- Edit card dialog -->
+  <CardEditDialog
+    v-model="isEditDialogOpen"
+    :card-id="props.cardId"
+  />
 
   <!-- Delete confirmation dialog -->
   <DeleteCardDialog
