@@ -36,7 +36,6 @@ rubato = "0.16.2"
 byteorder = "1.5.0"
 clap = { version = "4.5.40", features = ["derive"] }
 rustfft = "6.4.0"
-glib = "0.21.1"
 
 [target.'cfg(target_os = "macos")'.dependencies]
 ort = { version = "2.0.0-rc.10", features = ["ndarray", "coreml"] }
