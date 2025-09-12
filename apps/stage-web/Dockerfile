@@ -9,6 +9,9 @@ RUN apt update && apt install -y python3 curl
 RUN corepack enable
 
 COPY . .
+
+RUN chown -R node:node /app
+USER node
 RUN --mount=type=cache,id=pnpm-store,target=/root/.pnpm-store \
     pnpm install --frozen-lockfile
 
