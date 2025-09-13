@@ -319,7 +319,9 @@ function updateCustomModelName(value: string) {
             <VoiceCardManySelect
               v-model:search-query="voiceSearchQuery"
               v-model:voice-id="activeSpeechVoiceId"
-              :voices="availableVoices[activeSpeechProvider]?.map(voice => ({
+              :voices="availableVoices[activeSpeechProvider]?.filter(voice => {
+                return !voice.compatibleModels || voice.compatibleModels.includes(activeSpeechModel)
+              }).map(voice => ({
                 id: voice.id,
                 name: voice.name,
                 description: voice.description,
@@ -331,6 +333,8 @@ function updateCustomModelName(value: string) {
               :search-no-results-title="t('settings.pages.modules.speech.sections.section.provider-voice-selection.no_voices')"
               :search-no-results-description="t('settings.pages.modules.speech.sections.section.provider-voice-selection.no_voices_description')"
               :search-results-text="t('settings.pages.modules.speech.sections.section.provider-voice-selection.search_voices_results', { count: 0, total: 0 })"
+              :unsupported-voice-warning-title="t('settings.pages.modules.speech.sections.section.provider-voice-selection.unsupported_voice_warning_title')"
+              :unsupported-voice-warning-content="t('settings.pages.modules.speech.sections.section.provider-voice-selection.unsupported_voice_warning_content')"
               :custom-input-placeholder="t('settings.pages.modules.speech.sections.section.provider-voice-selection.custom_voice_placeholder')"
               :expand-button-text="t('settings.pages.modules.speech.sections.section.provider-voice-selection.show_more')"
               :collapse-button-text="t('settings.pages.modules.speech.sections.section.provider-voice-selection.show_less')"
