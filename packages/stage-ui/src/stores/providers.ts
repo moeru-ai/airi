@@ -252,7 +252,53 @@ export const useProvidersStore = defineStore('providers', () => {
       description: 'openrouter.ai',
       defaultBaseUrl: 'https://openrouter.ai/api/v1/',
       creator: createOpenRouter,
-      validation: ['health', 'model_list', 'chat_completions'],
+      validation: ['health', 'model_list'],
+      validators: {
+        validateProviderConfig: async (config) => {
+          const errors: Error[] = []
+
+          if (!config.apiKey) {
+            errors.push(new Error('API Key is required'))
+          }
+
+          if (!config.baseUrl) {
+            errors.push(new Error('Base URL is required'))
+          }
+
+          if (errors.length > 0) {
+            return { errors, reason: errors.map(e => e.message).join(', '), valid: false }
+          }
+
+          if (!isUrl(config.baseUrl as string) || new URL(config.baseUrl as string).host.length === 0) {
+            errors.push(new Error('Base URL is not absolute. Check your input.'))
+          }
+
+          if (!(config.baseUrl as string).endsWith('/')) {
+            errors.push(new Error('Base URL must end with a trailing slash (/).'))
+          }
+
+          if (errors.length > 0) {
+            return { errors, reason: errors.map(e => e.message).join(', '), valid: false }
+          }
+
+          const response = await fetch(`${config.baseUrl as string}chat/completions`, { headers: { Authorization: `Bearer ${config.apiKey}` }, method: 'POST', body: `{"model": "test","messages": [{"role": "user","content": "Hello, world"}],"stream": false}` })
+          const responseJson = await response.json()
+
+          if (!responseJson.user_id) {
+            return {
+              errors: [new Error(`OpenRouterError: ${responseJson.error.message}`)],
+              reason: `OpenRouterError: ${responseJson.error.message}`,
+              valid: false,
+            }
+          }
+
+          return {
+            errors: [],
+            reason: '',
+            valid: true,
+          }
+        },
+      },
     }),
     'app-local-audio-speech': buildOpenAICompatibleProvider({
       id: 'app-local-audio-speech',
