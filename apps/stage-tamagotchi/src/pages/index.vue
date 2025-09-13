@@ -100,6 +100,7 @@ watchThrottled([mouseX, mouseY], ([x, y]) => {
         passThroughCommands.stopPassThrough()
       }
       windowControlStore.isIgnoringMouseEvent = false
+      return
     }
 
     let isTransparent = false
