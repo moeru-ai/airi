@@ -1,7 +1,11 @@
 <script setup lang="ts">
+import type { RendererEvents, Unsub } from '@proj-airi/renderer-three/bus'
 import type { TresContext } from '@tresjs/core'
 import type { DirectionalLight, SphericalHarmonics3, Texture, WebGLRenderTarget } from 'three'
 
+import { createRendererBus } from '@proj-airi/renderer-three/bus'
+// === renderer-three refactoring ===
+import { OrbitControls } from '@proj-airi/renderer-three/tres'
 import { TresCanvas } from '@tresjs/core'
 import { EffectComposerPmndrs, HueSaturationPmndrs } from '@tresjs/post-processing'
 import { useElementBounding, useMouse } from '@vueuse/core'
@@ -18,12 +22,12 @@ import {
   Vector2,
   Vector3,
 } from 'three'
-import { onMounted, ref, shallowRef, watch } from 'vue'
+import { onMounted, onUnmounted, ref, shallowRef, watch } from 'vue'
 
 import SkyBoxEnvironment from './ThreeD/SkyBoxEnvironment.vue'
 
 import { useVRM } from '../../stores/vrm'
-import { OrbitControls, VRMModel } from '../Scenes'
+import { VRMModel } from './ThreeD'
 
 const props = withDefaults(defineProps<{
   modelSrc?: string
@@ -50,6 +54,7 @@ const {
   cameraPosition,
   cameraDistance,
   modelOrigin,
+  modelSize,
   trackingMode,
   lookAtTarget,
   eyeHeight,
@@ -79,6 +84,72 @@ const tresCanvasRef = shallowRef<TresContext>()
 const skyBoxEnvRef = ref<InstanceType<typeof SkyBoxEnvironment>>()
 const dirLightRef = ref<InstanceType<typeof DirectionalLight>>()
 
+// === renderer-three refactoring ===
+let unSubList: Array<Unsub> = []
+// let disposeEventList: Array<() => void> = []
+const rendererBus = createRendererBus()
+
+onMounted(() => {
+  // === Event: renderer-three => stage-ui ===
+  // Get camera update => update camera info in pinia
+  unSubList.push(rendererBus.eventsBus.on(
+    'orbit-controls/camera-changed',
+    (
+      { cameraPosition: newCameraPosition, cameraDistance: newCameraDistance }: RendererEvents['orbit-controls/camera-changed'],
+    ) => {
+      const posChanged = Math.abs(cameraPosition.value.x - newCameraPosition.x) > 1e-6
+        || Math.abs(cameraPosition.value.y - newCameraPosition.y) > 1e-6
+        || Math.abs(cameraPosition.value.z - newCameraPosition.z) > 1e-6
+      if (posChanged) {
+        cameraPosition.value = newCameraPosition
+      }
+      const distChanged = Math.abs(cameraDistance.value - newCameraDistance) > 1e-6
+      if (distChanged) {
+        cameraDistance.value = newCameraDistance
+      }
+    },
+  ))
+
+  // === Command: stage-ui => renderer-three ===
+  // send model size
+  watch(modelSize, (newSize) => {
+    // Send to orbitControls
+    rendererBus.commandsBus.emit('orbit-controls/model-size', newSize)
+  }, { immediate: true, deep: true })
+  // send camera position
+  watch(cameraPosition, (newPosition) => {
+    rendererBus.commandsBus.emit('orbit-controls/position', newPosition)
+  }, { immediate: true, deep: true })
+  // send camera target
+  watch(modelOrigin, (newOrigin) => {
+    rendererBus.commandsBus.emit('orbit-controls/target', newOrigin)
+  }, { immediate: true, deep: true })
+  // send fov
+  watch(cameraFOV, (newFOV) => {
+    rendererBus.commandsBus.emit('orbit-controls/fov', newFOV)
+  })
+  // send camera distance
+  watch(cameraDistance, (newDistance) => {
+    rendererBus.commandsBus.emit('orbit-controls/distance', newDistance)
+  })
+  if (envSelect.value === 'skyBox') {
+    skyBoxEnvRef.value?.reload(skyBoxSrc.value)
+  }
+})
+
+// Destruct all renderer-three bus subscription
+onUnmounted(() => {
+  unSubList.forEach(unSub => unSub())
+  unSubList = []
+})
+
+const controlsReady = ref(false)
+
+// temp for duplicating the same behaviour
+function onOrbitControlsReady() {
+  controlsReady.value = true
+}
+
 function onTresReady(context: TresContext) {
   tresCanvasRef.value = context
 }
@@ -89,9 +160,9 @@ const effectProps = {
   blendFunction: BlendFunction.SRC,
 }
 
-let isUpdatingCamera = true
+// let isUpdatingCamera = true
 // manage the sequence of the camera and controls initialization
-const controlsReady = ref(false)
+
 const modelReady = ref(false)
 const sceneReady = ref(false)
 const dirLightReady = ref(false)
@@ -126,36 +197,36 @@ watch(cameraFOV, (newFov) => {
 //   }
 // })
 // If controls are ready
-watch(() => controlsRef.value?.controls, (ctrl) => {
-  if (ctrl && camera.value) {
-    controlsReady.value = true
+// watch(() => controlsRef.value?.controls, (ctrl) => {
+//   if (ctrl && camera.value) {
+//     controlsReady.value = true
 
-    const updateCameraFromControls = () => {
-      if (isUpdatingCamera)
-        return
-      isUpdatingCamera = true
+//     const updateCameraFromControls = () => {
+//       if (isUpdatingCamera)
+//         return
+//       isUpdatingCamera = true
 
-      const newPos = camera.value!.position
-      const newDist = controlsRef.value!.controls!.getDistance()
+//       const newPos = camera.value!.position
+//       const newDist = controlsRef.value!.controls!.getDistance()
 
-      const posChanged
-        = Math.abs(cameraPosition.value.x - newPos.x) > 1e-6
-          || Math.abs(cameraPosition.value.y - newPos.y) > 1e-6
-          || Math.abs(cameraPosition.value.z - newPos.z) > 1e-6
+//       const posChanged
+//         = Math.abs(cameraPosition.value.x - newPos.x) > 1e-6
+//           || Math.abs(cameraPosition.value.y - newPos.y) > 1e-6
+//           || Math.abs(cameraPosition.value.z - newPos.z) > 1e-6
 
-      const distChanged = Math.abs(cameraDistance.value - newDist) > 1e-6
+//       const distChanged = Math.abs(cameraDistance.value - newDist) > 1e-6
 
-      if (posChanged || distChanged) {
-        cameraPosition.value = { x: newPos.x, y: newPos.y, z: newPos.z }
-        cameraDistance.value = newDist
-      }
+//       if (posChanged || distChanged) {
+//         cameraPosition.value = { x: newPos.x, y: newPos.y, z: newPos.z }
+//         cameraDistance.value = newDist
+//       }
 
-      isUpdatingCamera = false
-    }
+//       isUpdatingCamera = false
+//     }
 
-    ctrl.addEventListener('change', updateCameraFromControls)
-  }
-})
+//     ctrl.addEventListener('change', updateCameraFromControls)
+//   }
+// })
 
 // If model is ready
 function handleLoadModelProgress() {
@@ -167,21 +238,21 @@ watch(
   [controlsReady, modelReady, dirLightReady],
   ([ctrlOk, modelOk]) => {
     if (ctrlOk && modelOk && camera.value && controlsRef.value && controlsRef.value.controls && dirLightRef.value) {
-      isUpdatingCamera = true
+      // isUpdatingCamera = true
       try {
-        camera.value.aspect = width.value / height.value
-        camera.value.fov = cameraFOV.value
-        // Set camera target
-        controlsRef.value.setTarget(modelOrigin.value)
-        // Set camera position
-        camera.value.position.set(
-          cameraPosition.value.x,
-          cameraPosition.value.y,
-          cameraPosition.value.z,
-        )
-        camera.value.updateProjectionMatrix()
-        controlsRef.value.controls.update()
-        cameraDistance.value = controlsRef.value!.controls!.getDistance()
+        // camera.value.aspect = width.value / height.value
+        // camera.value.fov = cameraFOV.value
+        // // Set camera target
+        // controlsRef.value.setTarget(modelOrigin.value)
+        // // Set camera position
+        // camera.value.position.set(
+        //   cameraPosition.value.x,
+        //   cameraPosition.value.y,
+        //   cameraPosition.value.z,
+        // )
+        // camera.value.updateProjectionMatrix()
+        // controlsRef.value.controls.update()
+        // cameraDistance.value = controlsRef.value!.controls!.getDistance()
 
         // setup initial target of directional light
         dirLightRef.value.parent?.add(dirLightRef.value.target)
@@ -194,7 +265,7 @@ watch(
         dirLightRef.value.target.updateMatrixWorld()
       }
       finally {
-        isUpdatingCamera = false
+        // isUpdatingCamera = false
         sceneReady.value = true
       }
     }
@@ -202,27 +273,27 @@ watch(
 )
 
 // Bidirectional watch between slider and OrbitControls
-watch(cameraDistance, (newDistance) => {
-  if (!isUpdatingCamera && camera.value && controlsRef.value && controlsRef.value.controls) {
-    isUpdatingCamera = true
-    const newPosition = new Vector3()
-    const target = controlsRef.value.controls.target
-    const direction = new Vector3().subVectors(camera.value.position, target).normalize()
-    newPosition.copy(target).addScaledVector(direction, newDistance)
-    camera.value.position.set(
-      newPosition.x,
-      newPosition.y,
-      newPosition.z,
-    )
-    controlsRef.value.update()
-    cameraPosition.value = {
-      x: newPosition.x,
-      y: newPosition.y,
-      z: newPosition.z,
-    }
-  }
-  isUpdatingCamera = false
-})
+// watch(cameraDistance, (newDistance) => {
+//   if (!isUpdatingCamera && camera.value && controlsRef.value && controlsRef.value.controls) {
+//     isUpdatingCamera = true
+//     const newPosition = new Vector3()
+//     const target = controlsRef.value.controls.target
+//     const direction = new Vector3().subVectors(camera.value.position, target).normalize()
+//     newPosition.copy(target).addScaledVector(direction, newDistance)
+//     camera.value.position.set(
+//       newPosition.x,
+//       newPosition.y,
+//       newPosition.z,
+//     )
+//     controlsRef.value.update()
+//     cameraPosition.value = {
+//       x: newPosition.x,
+//       y: newPosition.y,
+//       z: newPosition.z,
+//     }
+//   }
+//   isUpdatingCamera = false
+// })
 
 // Set looking target according to trackingMode
 function lookAtCamera(newPosition: { x: number, y: number, z: number }) {
@@ -324,12 +395,6 @@ watch(trackingMode, (newMode) => {
   }
 })
 
-onMounted(() => {
-  if (envSelect.value === 'skyBox') {
-    skyBoxEnvRef.value?.reload(skyBoxSrc.value)
-  }
-})
-
 defineExpose({
   setExpression: (expression: string) => {
     modelRef.value?.setExpression(expression)
@@ -343,7 +408,7 @@ defineExpose({
 <template>
   <div ref="vrmContainerRef" w="100%" h="100%">
     <TresCanvas
-      v-if="camera" v-show="sceneReady"
+      v-show="sceneReady"
       :camera="camera"
       :antialias="true"
       :width="width"
@@ -353,7 +418,11 @@ defineExpose({
       :preserve-drawing-buffer="true"
       @ready="onTresReady"
     >
-      <OrbitControls ref="controlsRef" />
+      <OrbitControls
+        ref="controlsRef"
+        :bus="rendererBus"
+        @ready="onOrbitControlsReady"
+      />
       <SkyBoxEnvironment
         v-if="envSelect === 'skyBox'"
         ref="skyBoxEnvRef"
