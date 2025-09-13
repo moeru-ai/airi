@@ -3,7 +3,7 @@ import DOMPurify from 'dompurify'
 
 import { onMounted, ref, watch } from 'vue'
 
-import { useMarkdown } from '../composables/markdown'
+import { useMarkdown } from '../../composables/markdown'
 
 interface Props {
   content: string
