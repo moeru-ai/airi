@@ -153,6 +153,7 @@ export interface VoiceInfo {
   id: string
   name: string
   provider: string
+  compatibleModels?: string[]
   description?: string
   gender?: string
   deprecated?: boolean
@@ -252,7 +253,53 @@ export const useProvidersStore = defineStore('providers', () => {
       description: 'openrouter.ai',
       defaultBaseUrl: 'https://openrouter.ai/api/v1/',
       creator: createOpenRouter,
-      validation: ['health', 'model_list', 'chat_completions'],
+      validation: ['health', 'model_list'],
+      validators: {
+        validateProviderConfig: async (config) => {
+          const errors: Error[] = []
+
+          if (!config.apiKey) {
+            errors.push(new Error('API Key is required'))
+          }
+
+          if (!config.baseUrl) {
+            errors.push(new Error('Base URL is required'))
+          }
+
+          if (errors.length > 0) {
+            return { errors, reason: errors.map(e => e.message).join(', '), valid: false }
+          }
+
+          if (!isUrl(config.baseUrl as string) || new URL(config.baseUrl as string).host.length === 0) {
+            errors.push(new Error('Base URL is not absolute. Check your input.'))
+          }
+
+          if (!(config.baseUrl as string).endsWith('/')) {
+            errors.push(new Error('Base URL must end with a trailing slash (/).'))
+          }
+
+          if (errors.length > 0) {
+            return { errors, reason: errors.map(e => e.message).join(', '), valid: false }
+          }
+
+          const response = await fetch(`${config.baseUrl as string}chat/completions`, { headers: { Authorization: `Bearer ${config.apiKey}` }, method: 'POST', body: `{"model": "test","messages": [{"role": "user","content": "Hello, world"}],"stream": false}` })
+          const responseJson = await response.json()
+
+          if (!responseJson.user_id) {
+            return {
+              errors: [new Error(`OpenRouterError: ${responseJson.error.message}`)],
+              reason: `OpenRouterError: ${responseJson.error.message}`,
+              valid: false,
+            }
+          }
+
+          return {
+            errors: [],
+            reason: '',
+            valid: true,
+          }
+        },
+      },
     }),
     'app-local-audio-speech': buildOpenAICompatibleProvider({
       id: 'app-local-audio-speech',
@@ -723,68 +770,99 @@ export const useProvidersStore = defineStore('providers', () => {
               name: 'Alloy',
               provider: 'openai-audio-speech',
               languages: [],
+              compatibleModels: ['tts-1', 'tts-1-hd'],
             },
             {
               id: 'ash',
               name: 'Ash',
               provider: 'openai-audio-speech',
               languages: [],
+              compatibleModels: ['tts-1', 'tts-1-hd'],
             },
             {
               id: 'ballad',
               name: 'Ballad',
               provider: 'openai-audio-speech',
               languages: [],
+              compatibleModels: ['tts-1', 'tts-1-hd'],
             },
             {
               id: 'coral',
               name: 'Coral',
               provider: 'openai-audio-speech',
               languages: [],
+              compatibleModels: ['tts-1', 'tts-1-hd'],
             },
             {
               id: 'echo',
               name: 'Echo',
               provider: 'openai-audio-speech',
               languages: [],
+              compatibleModels: ['tts-1', 'tts-1-hd'],
             },
             {
               id: 'fable',
               name: 'Fable',
               provider: 'openai-audio-speech',
               languages: [],
+              compatibleModels: ['tts-1', 'tts-1-hd'],
             },
             {
               id: 'onyx',
               name: 'Onyx',
               provider: 'openai-audio-speech',
               languages: [],
+              compatibleModels: ['tts-1', 'tts-1-hd'],
             },
             {
               id: 'nova',
               name: 'Nova',
               provider: 'openai-audio-speech',
               languages: [],
+              compatibleModels: ['tts-1', 'tts-1-hd'],
             },
             {
               id: 'sage',
               name: 'Sage',
               provider: 'openai-audio-speech',
               languages: [],
+              compatibleModels: ['tts-1', 'tts-1-hd'],
             },
             {
               id: 'shimmer',
               name: 'Shimmer',
               provider: 'openai-audio-speech',
               languages: [],
+              compatibleModels: ['tts-1', 'tts-1-hd'],
             },
             {
               id: 'verse',
               name: 'Verse',
               provider: 'openai-audio-speech',
               languages: [],
+              compatibleModels: ['tts-1', 'tts-1-hd'],
             },
           ] satisfies VoiceInfo[]
+        },
+        listModels: async () => {
+          return [
+            {
+              id: 'tts-1',
+              name: 'TTS-1',
+              provider: 'openai-audio-speech',
+              description: '',
+              contextLength: 0,
+              deprecated: false,
+            },
+            {
+              id: 'tts-1-hd',
+              name: 'TTS-1-HD',
+              provider: 'openai-audio-speech',
+              description: '',
+              contextLength: 0,
+              deprecated: false,
+            },
+          ]
         },
       },
       validators: {
@@ -1198,6 +1276,7 @@ export const useProvidersStore = defineStore('providers', () => {
               id: voice.id,
               name: voice.name,
               provider: 'alibaba-cloud-model-studio',
+              compatibleModels: voice.compatible_models,
               previewURL: voice.preview_audio_url,
               languages: voice.languages,
               gender: voice.labels?.gender,

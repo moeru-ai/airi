@@ -214,6 +214,8 @@ pages:
             search_models_results: 找到 {count} / {total} 个模型
             search_voices_placeholder: 搜索声线...
             search_voices_results: 找到 {count} / {total} 个声线
+            unsupported_voice_warning_title: 没有支持的声线
+            unsupported_voice_warning_content: 我们正在尽快支持该模型的所有音色，如果你迫切希望支持该模型音色，请在 GitHub 上联系我们 https://github.com/moeru-ai/airi/issues
             show_less: 显示更少
             show_more: 显示更多
             title: 选择语音合成服务来源
