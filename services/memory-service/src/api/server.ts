@@ -16,7 +16,7 @@ import express from 'express'
 
 import { desc, sql } from 'drizzle-orm'
 
-import { useDrizzle } from '../db'
+import { isEmbeddedPostgresEnabled, setEmbeddedPostgresEnabled, useDrizzle } from '../db'
 import { chatCompletionsHistoryTable, chatMessagesTable } from '../db/schema'
 import { MemoryService } from '../services/memory'
 import { SettingsService } from '../services/settings'
@@ -104,6 +104,18 @@ export function createApp() {
         details: error instanceof Error ? error.message : 'Unknown error',
       })
     }
+  })
+
+  // Get current embedded Postgres status
+  app.get('/api/embedded-postgres', authenticateApiKey, (_req, res) => {
+    res.json({ enabled: isEmbeddedPostgresEnabled() })
+  })
+
+  // Update embedded Postgres status
+  app.post('/api/embedded-postgres', authenticateApiKey, (req, res) => {
+    const { enabled } = req.body as { enabled: boolean }
+    setEmbeddedPostgresEnabled(enabled)
+    res.json({ success: true, enabled: isEmbeddedPostgresEnabled() })
   })
 
   // Update memory service settings
