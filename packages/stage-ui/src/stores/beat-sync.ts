@@ -1,4 +1,4 @@
-import type { Analyser, AnalyserListeners } from '@nekopaw/tempora'
+import type { Analyser, AnalyserListeners, AnalyserWorkletParameters } from '@nekopaw/tempora'
 
 import analyserWorklet from '@nekopaw/tempora/worklet?url'
 
@@ -53,6 +53,10 @@ export const useBeatSyncStore = defineStore('beat-sync', () => {
     source.value = node
   }
 
+  const updateParameters = (params: Partial<AnalyserWorkletParameters>) => {
+    analyser.value?.updateParameters(params)
+  }
+
   const startFromScreenCapture = async () => start(async (context) => {
     const stream = await navigator.mediaDevices.getDisplayMedia({
       audio: {
@@ -101,6 +105,7 @@ export const useBeatSyncStore = defineStore('beat-sync', () => {
 
   return {
     start,
+    updateParameters,
     startFromScreenCapture,
     stop,
     on,
