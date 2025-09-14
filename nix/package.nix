@@ -27,7 +27,7 @@
 
 rustPlatform.buildRustPackage (final: {
   pname = "airi";
-  version = "0.7.2-beta.2";
+  version = "0.7.2-beta.3";
 
   src = ../.;
 
@@ -72,8 +72,7 @@ rustPlatform.buildRustPackage (final: {
     '';
 
     outputHashMode = "recursive";
-    # To update, set it to lib.fakeHash
-    outputHash = "sha256-QDGx5sWlWwgMWvG/umkNY+Ct9i5zl+eKEJnvA2whPkY=";
+    outputHash = builtins.readFile ./assets-hash.txt;
   };
 
   nativeBuildInputs = [

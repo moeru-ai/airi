@@ -2,13 +2,13 @@ import type { Mineflayer } from '../../libs/mineflayer'
 
 import { sleep } from '@moeru/std'
 
-import { useLoggerer } from '../../utils/logger'
+import { useLogger } from '../../utils/logger'
 import { breakBlockAt } from '../blocks'
 import { goToPosition, moveAway } from '../movement'
 import { getNearestBlocks } from '../world'
 import { pickupNearbyItems } from './world-interactions'
 
-const logger = useLoggerer()
+const logger = useLogger()
 
 /**
  * Gather wood blocks nearby to collect logs.

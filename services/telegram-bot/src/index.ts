@@ -1,6 +1,6 @@
 import process, { env } from 'node:process'
 
-import { Format, LogLevel, setGlobalFormat, setGlobalLogLevel, useLogger } from '@guiiai/logg'
+import { Format, LogLevel, setGlobalFormat, setGlobalLogLevel, useLogg } from '@guiiai/logg'
 import { OTLPMetricExporter } from '@opentelemetry/exporter-metrics-otlp-proto'
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-proto'
 import { resourceFromAttributes } from '@opentelemetry/resources'
@@ -42,7 +42,7 @@ async function main() {
 }
 
 process.on('unhandledRejection', (err) => {
-  const log = useLogger('UnhandledRejection').useGlobalConfig()
+  const log = useLogg('UnhandledRejection').useGlobalConfig()
   log
     .withError(err)
     .withField('cause', (err as any).cause)

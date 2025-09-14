@@ -4,8 +4,11 @@ import { until } from '@vueuse/core'
 import { BufferTarget, MediaStreamAudioTrackSource, Output, QUALITY_MEDIUM, WavOutputFormat } from 'mediabunny'
 import { ref, shallowRef, toRef } from 'vue'
 
-async function getMediaStreamTrack(stream: MediaStream) {
-  return stream.getAudioTracks()[0]
+function getMediaStreamTrack(stream: MediaStream) {
+  const tracks = stream.getAudioTracks()
+  if (!tracks.length)
+    throw new Error('No audio tracks found in stream')
+  return tracks[0]
 }
 
 export function useAudioRecorder(
@@ -21,6 +24,10 @@ export function useAudioRecorder(
 
   function onStopRecord(callback: (recording: Blob | undefined) => Promise<void>) {
     onStopRecordHooks.value.push(callback)
+    // Return unsubscribe function to prevent memory leaks
+    return () => {
+      onStopRecordHooks.value = onStopRecordHooks.value.filter(h => h !== callback)
+    }
   }
 
   async function startRecord() {
@@ -42,14 +49,24 @@ export function useAudioRecorder(
       return
     }
 
-    await mediaOutput.value?.finalize()
-    const bufferTarget = mediaOutput.value?.target as BufferTarget | undefined
-    const buffer = bufferTarget!.buffer
-    const audioBlob = new Blob([buffer!], { type: mediaFormat.value })
+    await mediaOutput.value.finalize()
+    const bufferTarget = mediaOutput.value.target as BufferTarget | undefined
+    const buffer = bufferTarget?.buffer
+    const audioBlob = buffer ? new Blob([buffer], { type: mediaFormat.value }) : undefined
 
+    recording.value = audioBlob
+
+    // await hooks and catch errors
     for (const hook of onStopRecordHooks.value) {
-      hook(audioBlob)
+      try {
+        await hook(audioBlob)
+      }
+      catch (err) {
+        console.error('onStopRecord hook failed:', err)
+      }
     }
+
+    mediaOutput.value = undefined
 
     return audioBlob
   }
