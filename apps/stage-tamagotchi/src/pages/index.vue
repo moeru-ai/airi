@@ -274,30 +274,28 @@ if (import.meta.hot) { // For better DX
       </div>
 
       <ResourceStatusIsland ref="resourceStatusIslandRef" class="interactive-ui" />
-      <div class="button-hover-area">
+      <div
+        ref="buttonsContainerRef"
+        class="buttons-container interactive-ui"
+        :class="{ 'pointer-events-none': isClickThrough && !isOverUI }"
+      >
         <div
-          ref="buttonsContainerRef"
-          class="buttons-container interactive-ui"
-          :class="{ 'pointer-events-none': isClickThrough && !isOverUI }"
+          border="solid 2 primary-100 "
+          text="lg primary-400 hover:primary-600  placeholder:primary-400 placeholder:hover:primary-600"
+          bg="primary-50 dark:primary-50" max-h="[10lh]" min-h="[1lh]"
+          flex cursor-pointer items-center justify-center rounded-l-xl p-4 transition-colors
+          @click="openChat"
         >
-          <div
-            border="solid 2 primary-100 "
-            text="lg primary-400 hover:primary-600  placeholder:primary-400 placeholder:hover:primary-600"
-            bg="primary-50 dark:primary-50" max-h="[10lh]" min-h="[1lh]"
-            flex cursor-pointer items-center justify-center rounded-l-xl p-4 transition-colors
-            @click="openChat"
-          >
-            <div i-solar:chat-line-bold-duotone />
-          </div>
-          <div
-            border="solid 2 primary-100 "
-            text="lg primary-400 hover:primary-600  placeholder:primary-400 placeholder:hover:primary-600"
-            bg="primary-50 dark:primary-50" max-h="[10lh]" min-h="[1lh]"
-            flex cursor-pointer items-center justify-center rounded-r-xl p-4 transition-colors
-            @click="openSettings"
-          >
-            <div i-solar:settings-bold-duotone />
-          </div>
+          <div i-solar:chat-line-bold-duotone />
+        </div>
+        <div
+          border="solid 2 primary-100 "
+          text="lg primary-400 hover:primary-600  placeholder:primary-400 placeholder:hover:primary-600"
+          bg="primary-50 dark:primary-50" max-h="[10lh]" min-h="[1lh]"
+          flex cursor-pointer items-center justify-center rounded-r-xl p-4 transition-colors
+          @click="openSettings"
+        >
+          <div i-solar:settings-bold-duotone />
         </div>
       </div>
     </div>
