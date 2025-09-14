@@ -83,6 +83,7 @@ function handleResetSettings() {
       >
         <ProviderApiKeyInput
           v-model="apiKey"
+          :required="false"
           :provider-name="providerMetadata?.localizedName"
           placeholder="sk-..."
         />
