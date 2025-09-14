@@ -565,6 +565,22 @@ onMounted(async () => {
         </div>
 
         <div class="mb-4">
+          <label class="flex cursor-pointer items-center gap-3">
+            <input
+              v-model="embeddedPostgresEnabled"
+              type="checkbox"
+              class="h-4 w-4 border-gray-300 rounded bg-gray-100 text-blue-600 dark:border-gray-600 dark:bg-gray-700 focus:ring-2 focus:ring-blue-500 dark:ring-offset-gray-800 dark:focus:ring-blue-600"
+            >
+            <span class="text-sm text-neutral-700 font-medium dark:text-neutral-300">
+              Enable Embedded Postgres
+            </span>
+          </label>
+          <p class="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
+            Toggle the embedded Postgres database for local memory storage
+          </p>
+        </div>
+
+        <div class="mb-4">
           <label class="mb-2 block text-sm text-neutral-700 font-medium dark:text-neutral-300">
             Memory Service URL (default: http://localhost:3001)
           </label>
@@ -799,6 +815,7 @@ onMounted(async () => {
               :id="`dim-${dim}`"
               :key="dim"
               v-model="tempEmbeddingDim"
+              class="max-w-[3.5rem]"
               name="embedding-dimension"
               :value="dim"
               :title="`${dim}D`"
