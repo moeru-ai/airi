@@ -5,7 +5,7 @@ import type { Action, BotContext, ChatContext, ExtendedContext } from '../../typ
 
 import { env } from 'node:process'
 
-import { useLogger } from '@guiiai/logg'
+import { useLogg } from '@guiiai/logg'
 import { sleep } from '@moeru/std'
 import { message } from '@xsai/utils-chat'
 import { Bot } from 'grammy'
@@ -460,7 +460,7 @@ function ensureChatContext(botCtx: BotContext, chatId: string): ChatContext {
 }
 
 export async function startTelegramBot() {
-  const log = useLogger('Bot').useGlobalConfig()
+  const log = useLogg('Bot').useGlobalConfig()
 
   const telegramBot = new Bot<ExtendedContext>(env.TELEGRAM_BOT_TOKEN!)
   telegramBot.errorHandler = async err => log.withError(err).log('Error occurred')
@@ -477,7 +477,7 @@ export async function startTelegramBot() {
       return
     }
 
-    const logger = useLogger('addStickerPack').useGlobalConfig()
+    const logger = useLogg('addStickerPack').useGlobalConfig()
 
     const repliedSticker = ctx.message.reply_to_message.sticker
     const stickerSet = await telegramBot.api.getStickerSet(repliedSticker.set_name)

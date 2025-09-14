@@ -14,7 +14,7 @@ import { config, initEnv } from './composables/config'
 import { createNeuriAgent } from './composables/neuri'
 import { LLMAgent } from './libs/llm-agent'
 import { wrapPlugin } from './libs/mineflayer'
-import { initLogger, useLoggerer } from './utils/logger'
+import { initLogger, useLogger } from './utils/logger'
 
 async function main() {
   initLogger() // todo: save logs to file
@@ -49,6 +49,6 @@ async function main() {
 }
 
 main().catch((err: Error) => {
-  useLoggerer().errorWithError('Fatal error', err)
+  useLogger().errorWithError('Fatal error', err)
   exit(1)
 })

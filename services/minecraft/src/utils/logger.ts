@@ -1,12 +1,10 @@
-import { Format, LogLevel, setGlobalFormat, setGlobalLogLevel, useLogger } from '@guiiai/logg'
-
-export type Logger = ReturnType<typeof useLogger>
+import { Format, LogLevel, setGlobalFormat, setGlobalLogLevel, useLogg } from '@guiiai/logg'
 
 export function initLogger() {
   setGlobalLogLevel(LogLevel.Debug)
   setGlobalFormat(Format.Pretty)
 
-  const logger = useLogger('logger').useGlobalConfig()
+  const logger = useLogg('logger').useGlobalConfig()
   logger.log('Logger initialized')
 }
 
@@ -14,7 +12,7 @@ export function initLogger() {
  * Get logger instance with directory name and filename
  * @returns logger instance configured with "directoryName/filename"
  */
-export function useLoggerer() {
+export function useLogger() {
   const stack = new Error('logger').stack
   const caller = stack?.split('\n')[2]
 
@@ -23,5 +21,5 @@ export function useLoggerer() {
   const dirName = match?.[1] || 'unknown'
   const fileName = match?.[2] || 'unknown'
 
-  return useLogger(`${dirName}/${fileName}`).useGlobalConfig()
+  return useLogg(`${dirName}/${fileName}`).useGlobalConfig()
 }

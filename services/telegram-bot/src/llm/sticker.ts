@@ -7,7 +7,7 @@ import { env } from 'node:process'
 
 import Sharp from 'sharp'
 
-import { useLogger } from '@guiiai/logg'
+import { useLogg } from '@guiiai/logg'
 import { embed } from '@xsai/embed'
 import { generateText } from '@xsai/generate-text'
 import { message } from '@xsai/utils-chat'
@@ -17,7 +17,7 @@ import { div, span } from '../prompts/utils'
 import { interpretAnimatedSticker } from './animated-sticker'
 
 export async function interpretSticker(bot: Bot, msg: Message, sticker: Sticker) {
-  const logger = useLogger('interpretSticker').useGlobalConfig()
+  const logger = useLogg('interpretSticker').useGlobalConfig()
 
   if (sticker.is_animated || sticker.is_video) {
     logger

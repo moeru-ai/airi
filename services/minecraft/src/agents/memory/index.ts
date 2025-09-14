@@ -5,7 +5,7 @@ import type { AgentConfig, MemoryAgent } from '../../libs/mineflayer/base-agent'
 import type { Logger } from '../../utils/logger'
 
 import { Memory } from '../../libs/mineflayer/memory'
-import { useLoggerer } from '../../utils/logger'
+import { useLogger } from '../../utils/logger'
 
 export class MemoryAgentImpl implements MemoryAgent {
   public readonly type = 'memory' as const
@@ -20,7 +20,7 @@ export class MemoryAgentImpl implements MemoryAgent {
     this.memory = new Map()
     this.initialized = false
     this.memoryInstance = new Memory()
-    this.logger = useLoggerer()
+    this.logger = useLogger()
   }
 
   async init(): Promise<void> {

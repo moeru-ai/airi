@@ -13,6 +13,8 @@ export default defineConfig({
   push: false,
   all: true,
   execute: async () => {
+    await execa('pnpm', ['publish', '-r', '--access', 'public', '--no-git-checks', '--dry-run'])
+
     const cargoTomlFile = await readFile(join(cwd(), 'Cargo.toml'))
     const cargoToml = parse(cargoTomlFile.toString('utf-8')) as {
       workspace?: {

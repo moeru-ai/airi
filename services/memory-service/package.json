@@ -43,6 +43,7 @@
     "cors": "^2.8.5",
     "dotenv": "^17.2.1",
     "drizzle-orm": "^0.44.5",
+    "embedded-postgres": "17.6.0-beta.15",
     "express": "^4.21.2",
     "helmet": "^8.0.0",
     "nanoid": "^5.1.5",

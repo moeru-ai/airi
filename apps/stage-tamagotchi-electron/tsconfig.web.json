@@ -42,6 +42,11 @@
     "src/renderer/**/*.ts",
     "src/renderer/**/*.d.ts",
     "src/renderer/**/*.tsx",
-    "src/renderer/**/*.vue"
+    "src/renderer/**/*.vue",
+
+    "src/shared/**/*.ts",
+    "src/shared/**/*.d.ts",
+    "src/shared/**/*.tsx",
+    "src/shared/**/*.vue"
   ]
 }

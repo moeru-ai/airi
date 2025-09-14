@@ -7,13 +7,13 @@ import type { LLMConfig, LLMResponse } from './types'
 import { withRetry } from '@moeru/std'
 
 import { config } from '../../composables/config'
-import { useLoggerer } from '../../utils/logger'
+import { useLogger } from '../../utils/logger'
 
 export abstract class BaseLLMHandler {
   protected logger: Logger
 
   constructor(protected config: LLMConfig) {
-    this.logger = useLoggerer()
+    this.logger = useLogger()
   }
 
   protected async handleCompletion(

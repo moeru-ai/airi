@@ -4,14 +4,14 @@ import type { Recipe } from 'prismarine-recipe'
 
 import type { Mineflayer } from '../libs/mineflayer'
 
-import { useLoggerer } from '../utils/logger'
+import { useLogger } from '../utils/logger'
 import { getItemId, getItemName } from '../utils/mcdata'
 import { ensureCraftingTable } from './actions/ensure'
 import { collectBlock, placeBlock } from './blocks'
 import { goToNearestBlock, goToPosition, moveAway } from './movement'
 import { getInventoryCounts, getNearestBlock, getNearestFreeSpace } from './world'
 
-const logger = useLoggerer()
+const logger = useLogger()
 
 /*
 Possible Scenarios:

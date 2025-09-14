@@ -7,14 +7,14 @@ import { neuri } from 'neuri'
 import { createActionNeuriAgent } from '../agents/action/adapter'
 import { createChatNeuriAgent } from '../agents/chat/llm'
 import { createPlanningNeuriAgent } from '../agents/planning/adapter'
-import { useLoggerer } from '../utils/logger'
+import { useLogger } from '../utils/logger'
 import { config } from './config'
 
 let neuriAgent: Neuri | undefined
 const agents = new Set<Agent | Promise<Agent>>()
 
 export async function createNeuriAgent(mineflayer: Mineflayer): Promise<Neuri> {
-  useLoggerer().log('Initializing neuri agent')
+  useLogger().log('Initializing neuri agent')
   let n = neuri()
 
   agents.add(createPlanningNeuriAgent())

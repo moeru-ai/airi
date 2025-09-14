@@ -2,7 +2,7 @@ import type { Readable } from 'node:stream'
 
 import { Buffer } from 'node:buffer'
 
-import { useLogger } from '@guiiai/logg'
+import { useLogg } from '@guiiai/logg'
 
 // eliza/packages/client-discord/src/voice.ts at develop · elizaOS/eliza
 // https://github.com/elizaOS/eliza/blob/develop/packages/client-discord/src/voice.ts
@@ -12,7 +12,7 @@ export class AudioMonitor {
   private maxSize: number
   private lastFlagged: number = -1
   private ended: boolean = false
-  private logger = useLogger('AudioMonitor').useGlobalConfig()
+  private logger = useLogg('AudioMonitor').useGlobalConfig()
 
   constructor(
     readable: Readable,

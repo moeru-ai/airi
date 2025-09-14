@@ -1,10 +1,11 @@
+import type { Logg } from '@guiiai/logg'
+
 import type { PlanStep } from '../../agents/planning/adapter'
-import type { Logger } from '../../utils/logger'
 import type { Action } from './action'
 
 import EventEmitter3 from 'eventemitter3'
 
-import { useLogger } from '@guiiai/logg'
+import { useLogg } from '@guiiai/logg'
 
 export type AgentType = 'action' | 'memory' | 'planning' | 'chat'
 
@@ -61,7 +62,7 @@ export abstract class AbstractAgent extends EventEmitter3 implements BaseAgent {
   public readonly name: string
 
   protected initialized: boolean
-  protected logger: Logger
+  protected logger: Logg
   // protected actionManager: ReturnType<typeof useActionManager>
   // protected conversationStore: ReturnType<typeof useConversationStore>
 
@@ -71,7 +72,7 @@ export abstract class AbstractAgent extends EventEmitter3 implements BaseAgent {
     this.type = config.type
     this.name = `${this.type}-agent`
     this.initialized = false
-    this.logger = useLogger(this.name).useGlobalConfig()
+    this.logger = useLogg(this.name).useGlobalConfig()
 
     // Initialize managers
     // this.actionManager = useActionManager(this)
