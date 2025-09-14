@@ -34,6 +34,8 @@ interface Props {
   searchNoResultsTitle?: string
   searchNoResultsDescription?: string
   searchResultsText?: string
+  unsupportedVoiceWarningTitle?: string
+  unsupportedVoiceWarningContent?: string
   customInputPlaceholder?: string
   expandButtonText?: string
   collapseButtonText?: string
@@ -49,6 +51,8 @@ const props = withDefaults(defineProps<Props>(), {
   searchNoResultsTitle: 'No voices found',
   searchNoResultsDescription: 'Try a different search term',
   searchResultsText: '{count} of {total} voices',
+  unsupportedVoiceWarningTitle: 'No voices',
+  unsupportedVoiceWarningContent: 'Try a different model or provider. We are working on supporting all the voice for this model as quickly as possible. If you need it urgently, please let us know on GitHub.',
   customInputPlaceholder: 'Enter custom voice name',
   expandButtonText: 'Show more',
   collapseButtonText: 'Show less',
@@ -350,6 +354,16 @@ const customVoiceName = ref('')
           transition="all duration-200 ease-in-out"
           style="scroll-snap-type: x mandatory;"
         >
+          <!-- Not support voices warning -->
+          <Alert v-if="!searchQuery && filteredVoices.length === 0" type="warning">
+            <template #title>
+              {{ unsupportedVoiceWarningTitle }}
+            </template>
+            <template #content>
+              {{ unsupportedVoiceWarningContent }}
+            </template>
+          </Alert>
+
           <!-- Voice card with preview button -->
           <VoiceCard
             v-for="voice in filteredVoices"
