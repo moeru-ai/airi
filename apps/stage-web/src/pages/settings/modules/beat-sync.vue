@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { RadioCardSimple } from '@proj-airi/stage-ui/components'
+import { Button } from '@proj-airi/stage-ui/components'
 import { useBeatSyncStore } from '@proj-airi/stage-ui/stores/beat-sync'
 import { FieldCheckbox, FieldRange } from '@proj-airi/ui'
 import { createTimeline } from 'animejs'
@@ -8,26 +8,6 @@ import { onMounted, onUnmounted, ref, watch, watchEffect } from 'vue'
 const beatSyncStore = useBeatSyncStore()
 
 const selectedAudioSource = ref<string>('none')
-
-const audioSources = ref<Array<{
-  id: string
-  name: string
-  value: string
-  title: string
-  description?: string
-}>>([{
-  id: 'none',
-  name: 'none',
-  value: 'none',
-  title: 'None',
-  description: 'Turn off this feature',
-}, {
-  id: 'screen-capture',
-  name: 'screen',
-  value: 'screen',
-  title: 'Screen Capture',
-  description: '',
-}])
 
 const beatsHistory = ref<Array<{
   level: number
@@ -73,9 +53,6 @@ onMounted(() => {
       linearLevel: linearLevel(level),
       timestamp,
     })
-
-    // if (beatsHistory.value.length > 20)
-    //   beatsHistory.value.splice(20)
   }
 
   beatSyncStore.on('beat', onBeat)
@@ -93,42 +70,32 @@ onMounted(() => {
         <div flex="~ col gap-4">
           <div>
             <h2 class="text-lg text-neutral-500 md:text-2xl dark:text-neutral-500">
-              Audio Source
+              Audio source
             </h2>
             <div text="neutral-400 dark:neutral-400">
               <span>Select an audio source to detect beats from.</span>
             </div>
           </div>
-          <div max-w-full>
-            <!--
-              fieldset has min-width set to --webkit-min-container, in order to use over flow scroll,
-              we need to set the min-width to 0.
-              See also: https://stackoverflow.com/a/33737340
-            -->
-            <fieldset
-              flex="~ row gap-4"
-              :style="{ 'scrollbar-width': 'none' }"
-              min-w-0 of-x-scroll scroll-smooth
-              role="radiogroup"
-            >
-              <RadioCardSimple
-                v-for="source in audioSources"
-                :id="source.id"
-                :key="source.id"
-                v-model="selectedAudioSource"
-                name="provider"
-                :value="source.id"
-                :title="source.title || 'Unknown'"
-                :description="source.description"
-              />
-            </fieldset>
+
+          <div max-w-full flex="~ row gap-4 wrap">
+            <template v-if="beatSyncStore.isActive">
+              <Button @click="beatSyncStore.stop">
+                Stop
+              </Button>
+            </template>
+
+            <template v-else>
+              <Button @click="beatSyncStore.startFromScreenCapture">
+                Start screen capture
+              </Button>
+            </template>
           </div>
         </div>
 
         <div flex="~ col gap-4">
           <div>
             <h2 class="text-lg text-neutral-500 md:text-2xl dark:text-neutral-500">
-              Analyser Parameters
+              Analyser parameters
             </h2>
             <div text="neutral-400 dark:neutral-400">
               <span>Select an audio source to detect beats from.</span>

@@ -4,7 +4,7 @@ import analyserWorklet from '@nekopaw/tempora/worklet?url'
 
 import { startAnalyser as startTemporaAnalyser } from '@nekopaw/tempora'
 import { defineStore } from 'pinia'
-import { readonly, shallowRef } from 'vue'
+import { readonly, ref, shallowRef } from 'vue'
 
 export type BeatSyncEvent = 'beat'
 
@@ -16,11 +16,17 @@ export const useBeatSyncStore = defineStore('beat-sync', () => {
   const context = shallowRef<AudioContext>()
   const analyser = shallowRef<Analyser>()
   const source = shallowRef<AudioNode>()
+  const isActive = ref(false)
+
   let stopSource: (() => void) | undefined
 
   const onBeatListeners: Array<Required<AnalyserListeners>['onBeat']> = []
 
   const stop = () => {
+    if (!isActive.value)
+      return
+
+    isActive.value = false
     stopSource?.()
     stopSource = undefined
 
@@ -51,6 +57,8 @@ export const useBeatSyncStore = defineStore('beat-sync', () => {
     const node = await createSource(context.value)
     node.connect(analyser.value.workletNode)
     source.value = node
+
+    isActive.value = true
   }
 
   const updateParameters = (params: Partial<AnalyserWorkletParameters>) => {
@@ -71,6 +79,17 @@ export const useBeatSyncStore = defineStore('beat-sync', () => {
     if (stream.getAudioTracks().length === 0) {
       throw new Error('No audio track available in the stream')
     }
+
+    stream.getAudioTracks().forEach((track) => {
+      let stopCalled = false
+      track.addEventListener('ended', () => {
+        if (stopCalled)
+          return
+
+        stopCalled = true
+        stop()
+      })
+    })
 
     const node = context.createMediaStreamSource(stream)
     stopSource = () => {
@@ -110,6 +129,8 @@ export const useBeatSyncStore = defineStore('beat-sync', () => {
     stop,
     on,
     off,
+
+    isActive: readonly(isActive),
 
     context: readonly(context),
     analyser: readonly(analyser),
