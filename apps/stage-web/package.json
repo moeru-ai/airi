@@ -22,6 +22,7 @@
     "@huggingface/transformers": "^3.7.2",
     "@llama-flow/core": "^0.4.4",
     "@moeru/std": "catalog:",
+    "@nekopaw/tempora": "0.0.7-alpha.1",
     "@proj-airi/audio": "workspace:^",
     "@proj-airi/ccc": "workspace:^",
     "@proj-airi/drizzle-duckdb-wasm": "catalog:",
