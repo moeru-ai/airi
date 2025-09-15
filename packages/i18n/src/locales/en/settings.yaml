@@ -165,9 +165,34 @@ pages:
           description: Configure 3D VRM models and settings
         scene: Scene
   modules:
-    beat-sync:
+    beat_sync:
       description: Vibe with beats from the audio source
       title: Beat Sync
+      sections:
+        audio_source:
+          actions:
+            start_screen_capture: Start screen capture
+            stop: Stop
+          description: Select an audio source to detect beats from.
+          title: Audio source
+        beat_visualizer:
+          title: Beat visualizer
+        parameters:
+          description: Tweak the beat detection parameters.
+          title: Parameters
+          parameters:
+            lowpass_filter_frequency:
+              description: Frequencies above this value will be filtered out before beat detection.
+              label: Lowpass filter frequency
+            min_beat_interval:
+              description: Lower values may result in more frequent beat detections.
+              label: Max BPM / Min beat interval
+            peak_threshold:
+              description: Higher values may result in less sensitive beat detections.
+              label: Peak threshold
+            warmup:
+              description: Whether to warm up before detecting beats for better accuracy.
+              label: Warmup
     consciousness:
       description: Personality, desired model, etc.
       sections:
