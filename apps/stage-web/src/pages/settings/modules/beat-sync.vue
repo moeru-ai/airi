@@ -4,8 +4,10 @@ import { useBeatSyncStore } from '@proj-airi/stage-ui/stores/beat-sync'
 import { FieldCheckbox, FieldRange } from '@proj-airi/ui'
 import { createTimeline } from 'animejs'
 import { onMounted, onUnmounted, ref, watch, watchEffect } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 const beatSyncStore = useBeatSyncStore()
+const { t } = useI18n()
 
 const selectedAudioSource = ref<string>('none')
 
@@ -61,6 +63,13 @@ onMounted(() => {
     beatSyncStore.off('beat', onBeat)
   })
 })
+
+function resetDefaultParameters() {
+  minBeatInterval.value = 0.2
+  peakThreshold.value = 1.5
+  lowpassFilterFrequency.value = 240
+  warmup.value = true
+}
 </script>
 
 <template>
@@ -70,41 +79,56 @@ onMounted(() => {
         <div flex="~ col gap-4">
           <div>
             <h2 class="text-lg text-neutral-500 md:text-2xl dark:text-neutral-500">
-              Audio source
+              {{ t('settings.pages.modules.beat_sync.sections.audio_source.title') }}
             </h2>
             <div text="neutral-400 dark:neutral-400">
-              <span>Select an audio source to detect beats from.</span>
+              <span>{{ t('settings.pages.modules.beat_sync.sections.audio_source.description') }}</span>
             </div>
           </div>
 
           <div max-w-full flex="~ row gap-4 wrap">
             <template v-if="beatSyncStore.isActive">
               <Button @click="beatSyncStore.stop">
-                Stop
+                {{ t('settings.pages.modules.beat_sync.sections.audio_source.actions.stop') }}
               </Button>
             </template>
 
             <template v-else>
               <Button @click="beatSyncStore.startFromScreenCapture">
-                Start screen capture
+                {{ t('settings.pages.modules.beat_sync.sections.audio_source.actions.start_screen_capture') }}
               </Button>
             </template>
           </div>
         </div>
 
         <div flex="~ col gap-4">
-          <div>
-            <h2 class="text-lg text-neutral-500 md:text-2xl dark:text-neutral-500">
-              Analyser parameters
-            </h2>
-            <div text="neutral-400 dark:neutral-400">
-              <span>Select an audio source to detect beats from.</span>
+          <div flex="~ row" items-center justify-between>
+            <div>
+              <h2 class="text-lg text-neutral-500 md:text-2xl dark:text-neutral-500">
+                {{ t('settings.pages.modules.beat_sync.sections.parameters.title') }}
+              </h2>
+              <div text="neutral-400 dark:neutral-400">
+                <span>{{ t('settings.pages.modules.beat_sync.sections.parameters.description') }}</span>
+              </div>
             </div>
+
+            <button
+              title="Reset settings"
+              flex items-center justify-center rounded-full p-2
+              transition="all duration-250 ease-in-out"
+              text="neutral-500 dark:neutral-400"
+              bg="transparent dark:transparent hover:neutral-200 dark:hover:neutral-800 active:neutral-300 dark:active:neutral-700"
+              @click="resetDefaultParameters"
+            >
+              <div i-solar:refresh-bold-duotone text-xl />
+            </button>
           </div>
+
           <div max-w-full flex="~ col gap-4">
             <FieldRange
               v-model="minBeatInterval"
-              label="Max BPM / Min beat interval"
+              :label="t('settings.pages.modules.beat_sync.sections.parameters.parameters.min_beat_interval.label')"
+              :description="t('settings.pages.modules.beat_sync.sections.parameters.parameters.min_beat_interval.description')"
               :min="0.05"
               :max="1"
               :step="0.01"
@@ -113,7 +137,8 @@ onMounted(() => {
 
             <FieldRange
               v-model="peakThreshold"
-              label="Peak threshold"
+              :label="t('settings.pages.modules.beat_sync.sections.parameters.parameters.peak_threshold.label')"
+              :description="t('settings.pages.modules.beat_sync.sections.parameters.parameters.peak_threshold.description')"
               :min="0.1"
               :max="3"
               :step="0.1"
@@ -122,7 +147,8 @@ onMounted(() => {
 
             <FieldRange
               v-model="lowpassFilterFrequency"
-              label="Lowpass filter frequency"
+              :label="t('settings.pages.modules.beat_sync.sections.parameters.parameters.lowpass_filter_frequency.label')"
+              :description="t('settings.pages.modules.beat_sync.sections.parameters.parameters.lowpass_filter_frequency.description')"
               :min="20"
               :max="24000 /* Nyquist frequency under 48 kHz sample rate */"
               :step="10"
@@ -131,7 +157,8 @@ onMounted(() => {
 
             <FieldCheckbox
               v-model="warmup"
-              label="Warmup"
+              :label="t('settings.pages.modules.beat_sync.sections.parameters.parameters.warmup.label')"
+              :description="t('settings.pages.modules.beat_sync.sections.parameters.parameters.warmup.description')"
             />
           </div>
         </div>
@@ -139,19 +166,20 @@ onMounted(() => {
     </div>
 
     <div flex="~ col gap-6" class="w-full md:w-[60%]">
-      <div w-full rounded-xl>
+      <div w-full rounded-xl flex="~ col gap-4">
         <h2 class="mb-4 text-lg text-neutral-500 md:text-2xl dark:text-neutral-400" w-full>
           <div class="inline-flex items-center gap-4">
-            <div>
-              Beats
-            </div>
+            {{ t('settings.pages.modules.beat_sync.sections.beat_visualizer.title') }}
           </div>
         </h2>
 
         <div flex="~ col gap-4 items-center">
           <TransitionGroup
             tag="div"
-            relative aspect-square h-400px max-w-full w-400px
+            bg="neutral/10"
+            relative aspect-square
+            h-full max-h-400px max-w-400px w-full
+            rounded-2xl
             flex="~ row gap-2 wrap items-center"
             :css="false"
             @enter="(el) => {
