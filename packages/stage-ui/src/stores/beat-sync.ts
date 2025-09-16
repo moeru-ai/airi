@@ -71,7 +71,6 @@ export const useBeatSyncStore = defineStore('beat-sync', () => {
         echoCancellation: false,
         noiseSuppression: false,
         autoGainControl: false,
-        sampleRate: 22050,
       },
       video: true,
     })
