@@ -77,6 +77,8 @@ function resetDefaultParameters() {
   peakThreshold.value = 1.5
   lowpassFilterFrequency.value = 240
   warmup.value = true
+  shortTermBufferDuration.value = 0.04
+  longTermBufferDuration.value = 4
 }
 </script>
 

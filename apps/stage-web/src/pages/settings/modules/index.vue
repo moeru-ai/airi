@@ -113,7 +113,7 @@ const modulesList = computed<Module[]>(() => [
     description: t('settings.pages.modules.beat_sync.description'),
     icon: 'i-solar:music-notes-bold-duotone',
     to: '/settings/modules/beat-sync',
-    configured: Boolean(beatSyncStore.analyser),
+    configured: beatSyncStore.isActive,
   },
 ])
 
