@@ -1,8 +1,11 @@
 <script setup lang="ts">
+import type { AnalyserBeatEvent } from '@nekopaw/tempora'
+
 import { Button } from '@proj-airi/stage-ui/components'
 import { useBeatSyncStore } from '@proj-airi/stage-ui/stores/beat-sync'
 import { FieldCheckbox, FieldRange } from '@proj-airi/ui'
 import { createTimeline } from 'animejs'
+import { nanoid } from 'nanoid'
 import { onMounted, onUnmounted, ref, watch, watchEffect } from 'vue'
 import { useI18n } from 'vue-i18n'
 
@@ -12,15 +15,17 @@ const { t } = useI18n()
 const selectedAudioSource = ref<string>('none')
 
 const beatsHistory = ref<Array<{
+  id: string
   level: number
   linearLevel: number
-  timestamp: number
 }>>([])
 
 const minBeatInterval = ref(0.2)
 const peakThreshold = ref(1.5)
 const lowpassFilterFrequency = ref(240)
 const warmup = ref(true)
+const shortTermBufferDuration = ref(0.04)
+const longTermBufferDuration = ref(4)
 
 watchEffect(() => {
   beatSyncStore.updateParameters({
@@ -28,6 +33,8 @@ watchEffect(() => {
     peakThreshold: peakThreshold.value,
     lowpassFilterFrequency: lowpassFilterFrequency.value,
     warmup: warmup.value,
+    shortTermBufferDuration: shortTermBufferDuration.value,
+    longTermBufferDuration: longTermBufferDuration.value,
   })
 })
 
@@ -49,11 +56,12 @@ watch(selectedAudioSource, async (source) => {
 })
 
 onMounted(() => {
-  const onBeat = (level: number, timestamp: number) => {
+  const onBeat = (event: AnalyserBeatEvent) => {
+    const { level } = event
     beatsHistory.value.unshift({
+      id: nanoid(),
       level,
       linearLevel: linearLevel(level),
-      timestamp,
     })
   }
 
@@ -160,6 +168,32 @@ function resetDefaultParameters() {
               :label="t('settings.pages.modules.beat_sync.sections.parameters.parameters.warmup.label')"
               :description="t('settings.pages.modules.beat_sync.sections.parameters.parameters.warmup.description')"
             />
+
+            <div>
+              <h3 class="text text-neutral-500 md:text-xl dark:text-neutral-500">
+                {{ t('settings.pages.modules.beat_sync.sections.parameters.advanced_parameters') }}
+              </h3>
+            </div>
+
+            <FieldRange
+              v-model="shortTermBufferDuration"
+              :label="t('settings.pages.modules.beat_sync.sections.parameters.parameters.short_term_buffer_duration.label')"
+              :description="t('settings.pages.modules.beat_sync.sections.parameters.parameters.short_term_buffer_duration.description')"
+              :min="0.01"
+              :max="1"
+              :step="0.01"
+              :format-value="value => `${value.toFixed(2)} s`"
+            />
+
+            <FieldRange
+              v-model="longTermBufferDuration"
+              :label="t('settings.pages.modules.beat_sync.sections.parameters.parameters.long_term_buffer_duration.label')"
+              :description="t('settings.pages.modules.beat_sync.sections.parameters.parameters.long_term_buffer_duration.description')"
+              :min="2"
+              :max="10"
+              :step="0.5"
+              :format-value="value => `${value.toFixed(1)} s`"
+            />
           </div>
         </div>
       </div>
@@ -207,7 +241,7 @@ function resetDefaultParameters() {
           >
             <div
               v-for="beat in beatsHistory"
-              :key="beat.timestamp"
+              :key="beat.id"
               absolute h-full w-full
               rounded-full bg="primary/50"
             />

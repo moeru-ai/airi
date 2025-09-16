@@ -109,8 +109,8 @@ const modulesList = computed<Module[]>(() => [
   },
   {
     id: 'beat-sync',
-    name: t('settings.pages.modules.beat-sync.title'),
-    description: t('settings.pages.modules.beat-sync.description'),
+    name: t('settings.pages.modules.beat_sync.title'),
+    description: t('settings.pages.modules.beat_sync.description'),
     icon: 'i-solar:music-notes-bold-duotone',
     to: '/settings/modules/beat-sync',
     configured: Boolean(beatSyncStore.analyser),
