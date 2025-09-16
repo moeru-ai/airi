@@ -2,6 +2,7 @@
 import type { RemovableRef } from '@vueuse/core'
 
 import {
+  Alert,
   ProviderAccountIdInput,
   ProviderAdvancedSettings,
   ProviderApiKeyInput,
@@ -9,28 +10,21 @@ import {
   ProviderSettingsContainer,
   ProviderSettingsLayout,
 } from '@proj-airi/stage-ui/components'
+import { useProviderValidation } from '@proj-airi/stage-ui/composables/useProviderValidation'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { storeToRefs } from 'pinia'
-import { computed, onMounted, watch } from 'vue'
-import { useI18n } from 'vue-i18n'
-import { useRouter } from 'vue-router'
+import { computed } from 'vue'
 
-const { t } = useI18n()
-const router = useRouter()
+const providerId = 'azure-ai-foundry'
 const providersStore = useProvidersStore()
 const { providers } = storeToRefs(providersStore) as { providers: RemovableRef<Record<string, any>> }
 
-// Get provider metadata
-const providerId = 'azure-ai-foundry'
-const providerMetadata = computed(() => providersStore.getProviderMetadata(providerId))
-
-// Use computed properties for settings
+// Define computed properties for credentials
 const apiKey = computed({
   get: () => providers.value[providerId]?.apiKey || '',
   set: (value) => {
     if (!providers.value[providerId])
       providers.value[providerId] = {}
-
     providers.value[providerId].apiKey = value
   },
 })
@@ -40,7 +34,6 @@ const resourceName = computed({
   set: (value) => {
     if (!providers.value[providerId])
       providers.value[providerId] = {}
-
     providers.value[providerId].resourceName = value
   },
 })
@@ -50,7 +43,6 @@ const apiVersion = computed({
   set: (value) => {
     if (!providers.value[providerId])
       providers.value[providerId] = {}
-
     providers.value[providerId].apiVersion = value
   },
 })
@@ -60,44 +52,26 @@ const modelId = computed({
   set: (value) => {
     if (!providers.value[providerId])
       providers.value[providerId] = {}
-
     providers.value[providerId].modelId = value
   },
 })
 
-onMounted(() => {
-  // Initialize provider if it doesn't exist
-  if (!providers.value[providerId]) {
-    providers.value[providerId] = {}
-  }
-
-  // Initialize refs with current values
-  apiKey.value = providers.value[providerId]?.apiKey || ''
-  resourceName.value = providers.value[providerId]?.resourceName || ''
-  apiVersion.value = providers.value[providerId]?.apiVersion || ''
-  modelId.value = providers.value[providerId]?.modelId || ''
-})
-
-// Watch settings and update the provider configuration
-watch([apiKey, resourceName, apiVersion, modelId], () => {
-  providers.value[providerId] = {
-    ...providers.value[providerId],
-    apiKey: apiKey.value,
-    resourceName: resourceName.value,
-    apiVersion: apiVersion.value,
-    modelId: modelId.value,
-  }
-})
-
-function handleResetSettings() {
-  providers.value[providerId] = {}
-}
+// Use the composable to get validation logic and state
+const {
+  t,
+  router,
+  providerMetadata,
+  isValidating,
+  isValid,
+  validationMessage,
+  handleResetSettings,
+} = useProviderValidation(providerId)
 </script>
 
 <template>
   <ProviderSettingsLayout
-    :provider-name="providerMetadata?.localizedName || 'Azure OpenAI'"
-    :provider-icon="providerMetadata?.icon"
+    :provider-name="providerMetadata?.localizedName"
+    :provider-icon-color="providerMetadata?.iconColor"
     :on-back="() => router.back()"
   >
     <ProviderSettingsContainer>
@@ -108,7 +82,7 @@ function handleResetSettings() {
       >
         <ProviderApiKeyInput
           v-model="apiKey"
-          :provider-name="providerMetadata?.localizedName || 'Azure OpenAI'"
+          :provider-name="providerMetadata?.localizedName"
           placeholder="..."
           required
         />
@@ -136,6 +110,23 @@ function handleResetSettings() {
           description="API version for snapshot of the models"
         />
       </ProviderAdvancedSettings>
+
+      <!-- Validation Status -->
+      <Alert v-if="!isValid && isValidating === 0 && validationMessage" type="error">
+        <template #title>
+          {{ t('settings.dialogs.onboarding.validationFailed') }}
+        </template>
+        <template v-if="validationMessage" #content>
+          <div class="whitespace-pre-wrap break-all">
+            {{ validationMessage }}
+          </div>
+        </template>
+      </Alert>
+      <Alert v-if="isValid && isValidating === 0" type="success">
+        <template #title>
+          {{ t('settings.dialogs.onboarding.validationSuccess') }}
+        </template>
+      </Alert>
     </ProviderSettingsContainer>
   </ProviderSettingsLayout>
 </template>

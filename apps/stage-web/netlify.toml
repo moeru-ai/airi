@@ -35,9 +35,3 @@ from = "/*"
 to = "/index.html"
 status = 200
 force = false
-
-[[headers]]
-for = "/manifest.webmanifest"
-
-[headers.values]
-Content-Type = "application/manifest+json"

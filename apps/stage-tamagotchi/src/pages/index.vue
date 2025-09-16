@@ -50,108 +50,108 @@ const isOverUI = ref(false)
 const isFirstTime = ref(true)
 
 watch(shouldShowSetup, () => {
-  if (shouldShowSetup.value) {
+  if (shouldShowSetup.value)
     commands.go('/onboarding', 'onboarding')
-  }
 }, { immediate: true })
 
-watchThrottled([mouseX, mouseY], async ([x, y]) => {
-  const canvas = widgetStageRef.value?.canvasElement()
-  if (!canvas) {
-    return
-  }
+// Handle mouse pass-through based on WebGL pixel alpha.
+watchThrottled([mouseX, mouseY], ([x, y]) => {
+  requestAnimationFrame(() => {
+    const canvas = widgetStageRef.value?.canvasElement()
+    if (!canvas)
+      return
 
-  isFirstTime.value = false
+    isFirstTime.value = false
 
-  if (windowControlStore.controlMode === WindowControlMode.RESIZE || windowControlStore.controlMode === WindowControlMode.MOVE) {
-    if (isPassingThrough.value) {
-      passThroughCommands.stopPassThrough()
-      isPassingThrough.value = false
+    if (windowControlStore.controlMode === WindowControlMode.RESIZE || windowControlStore.controlMode === WindowControlMode.MOVE) {
+      if (isPassingThrough.value) {
+        passThroughCommands.stopPassThrough()
+        isPassingThrough.value = false
+      }
+      return
     }
-    return
-  }
 
-  const relativeX = x - windowX.value
-  const relativeY = y - windowY.value
+    const relativeX = x - windowX.value
+    const relativeY = y - windowY.value
 
-  const islandEl = resourceStatusIslandRef.value?.$el as HTMLElement
-  const buttonsEl = buttonsContainerRef.value
+    const islandEl = resourceStatusIslandRef.value?.$el as HTMLElement
+    const buttonsEl = buttonsContainerRef.value
 
-  let isOverUIElements = false
-  if (!windowControlStore.isIgnoringMouseEvent) {
-    if (islandEl) {
-      const rect = islandEl.getBoundingClientRect()
-      if (relativeX >= rect.left && relativeX <= rect.right && relativeY >= rect.top && relativeY <= rect.bottom) {
-        isOverUIElements = true
+    let isOverUIElements = false
+    if (!windowControlStore.isIgnoringMouseEvent) {
+      if (islandEl) {
+        const rect = islandEl.getBoundingClientRect()
+        if (relativeX >= rect.left && relativeX <= rect.right && relativeY >= rect.top && relativeY <= rect.bottom)
+          isOverUIElements = true
+      }
+      if (!isOverUIElements && buttonsEl) {
+        const rect = buttonsEl.getBoundingClientRect()
+        if (relativeX >= rect.left && relativeX <= rect.right && relativeY >= rect.top && relativeY <= rect.bottom)
+          isOverUIElements = true
       }
     }
-    if (!isOverUIElements && buttonsEl) {
-      const rect = buttonsEl.getBoundingClientRect()
-      if (relativeX >= rect.left && relativeX <= rect.right && relativeY >= rect.top && relativeY <= rect.bottom) {
-        isOverUIElements = true
+
+    isOverUI.value = isOverUIElements
+
+    if (isOverUI.value) {
+      isClickThrough.value = false
+      if (isPassingThrough.value) {
+        isPassingThrough.value = false
+        passThroughCommands.stopPassThrough()
+      }
+      windowControlStore.isIgnoringMouseEvent = false
+      return
+    }
+
+    let isTransparent = false
+    if (
+      relativeX >= 0
+      && relativeX < canvas.clientWidth
+      && relativeY >= 0
+      && relativeY < canvas.clientHeight
+    ) {
+      const gl = canvas.getContext('webgl2') || canvas.getContext('webgl')
+      if (gl) {
+        const pixelX = relativeX * (gl.drawingBufferWidth / canvas.clientWidth)
+        const pixelY
+          = gl.drawingBufferHeight
+            - relativeY * (gl.drawingBufferHeight / canvas.clientHeight)
+        const data = new Uint8Array(4)
+        gl.readPixels(
+          Math.floor(pixelX),
+          Math.floor(pixelY),
+          1,
+          1,
+          gl.RGBA,
+          gl.UNSIGNED_BYTE,
+          data,
+        )
+        isTransparent = data[3] < 100 // Use a small threshold for anti-aliasing
       }
     }
-  }
-
-  isOverUI.value = isOverUIElements
-
-  if (isOverUI.value) {
-    isClickThrough.value = false
-    if (isPassingThrough.value) {
-      passThroughCommands.stopPassThrough()
-      isPassingThrough.value = false
+    else {
+      isTransparent = true
     }
-    return
-  }
 
-  let isTransparent = false
-  if (
-    relativeX >= 0
-    && relativeX < canvas.clientWidth
-    && relativeY >= 0
-    && relativeY < canvas.clientHeight
-  ) {
-    const gl = canvas.getContext('webgl2') || canvas.getContext('webgl')
-    if (gl) {
-      const pixelX = relativeX * (gl.drawingBufferWidth / canvas.clientWidth)
-      const pixelY
-      = gl.drawingBufferHeight
-        - relativeY * (gl.drawingBufferHeight / canvas.clientHeight)
-      const data = new Uint8Array(4)
-      gl.readPixels(
-        Math.floor(pixelX),
-        Math.floor(pixelY),
-        1,
-        1,
-        gl.RGBA,
-        gl.UNSIGNED_BYTE,
-        data,
-      )
-      isTransparent = data[3] < 100 // Use a small threshold for anti-aliasing
+    isClickThrough.value = isTransparent
+
+    if (windowControlStore.isIgnoringMouseEvent) {
+      if (!isPassingThrough.value) {
+        passThroughCommands.startPassThrough()
+        isPassingThrough.value = true
+      }
+      return
     }
-  }
-  else {
-    isTransparent = true
-  }
 
-  isClickThrough.value = isTransparent
-
-  if (windowControlStore.isIgnoringMouseEvent) {
-    if (!isPassingThrough.value) {
+    if (isTransparent && !isPassingThrough.value) {
       passThroughCommands.startPassThrough()
       isPassingThrough.value = true
     }
-    return
-  }
-
-  if (isTransparent && !isPassingThrough.value) {
-    passThroughCommands.startPassThrough()
-    isPassingThrough.value = true
-  }
-  else if (!isTransparent && isPassingThrough.value) {
-    passThroughCommands.stopPassThrough()
-    isPassingThrough.value = false
-  }
+    else if (!isTransparent && isPassingThrough.value) {
+      passThroughCommands.stopPassThrough()
+      isPassingThrough.value = false
+    }
+  })
 }, { throttle: 33 })
 
 watch([live2dLookAtX, live2dLookAtY], ([x, y]) => live2dFocusAt.value = { x, y }, { immediate: true })
@@ -205,6 +205,7 @@ async function setupWhisperModel() {
   invoke('plugin:ipc-audio-transcription-ort|load_ort_model_whisper', { modelType: 'medium' })
 }
 
+// Setup models and connect to the server on component mount.
 onMounted(async () => {
   const pos = await getPosition()
   if (pos) {
@@ -251,31 +252,32 @@ if (import.meta.hot) { // For better DX
 
 <template>
   <div
-    :class="[modeIndicatorClass, {
-      'op-0': windowControlStore.isIgnoringMouseEvent && !isClickThrough && !isFirstTime,
-    }]"
+    class="stage-container"
+    :class="[modeIndicatorClass]"
     max-h="[100vh]"
     max-w="[100vw]"
     flex="~ col"
     relative z-2 h-full overflow-hidden rounded-xl
-    transition="opacity duration-500 ease-in-out"
   >
     <div relative h-full w-full items-end gap-2 class="view">
-      <WidgetStage
-        ref="widgetStageRef"
-        h-full w-full flex-1
-        :focus-at="live2dFocusAt" :scale="scale"
-        :x-offset="positionInPercentageString.x"
-        :y-offset="positionInPercentageString.y" mb="<md:18"
-      />
-      <ResourceStatusIsland ref="resourceStatusIslandRef" />
+      <div
+        class="stage-wrapper"
+        :class="{ 'op-0': windowControlStore.isIgnoringMouseEvent && !isClickThrough && !isFirstTime }"
+      >
+        <WidgetStage
+          ref="widgetStageRef"
+          h-full w-full flex-1
+          :focus-at="live2dFocusAt" :scale="scale"
+          :x-offset="positionInPercentageString.x"
+          :y-offset="positionInPercentageString.y" mb="<md:18"
+        />
+      </div>
+
+      <ResourceStatusIsland ref="resourceStatusIslandRef" class="interactive-ui" />
       <div
         ref="buttonsContainerRef"
-        absolute bottom-4 left-4 flex gap-1 op-0 transition="opacity duration-500"
-        :class="{
-          'pointer-events-none': isClickThrough && !isOverUI,
-          'show-on-hover': !windowControlStore.isIgnoringMouseEvent && (!isClickThrough || isOverUI),
-        }"
+        class="buttons-container interactive-ui"
+        :class="{ 'pointer-events-none': isClickThrough && !isOverUI }"
       >
         <div
           border="solid 2 primary-100 "
@@ -344,10 +346,45 @@ if (import.meta.hot) { // For better DX
 <style scoped>
 .view {
   transition: opacity 0.5s ease-in-out;
+}
 
-  .show-on-hover {
-    opacity: 1;
-  }
+/* --- Styles for Character Stage --- */
+.stage-wrapper {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  transition: opacity 0.5s ease-in-out;
+}
+.stage-wrapper.op-0 {
+  opacity: 0;
+}
+
+/* --- Styles for UI Elements --- */
+.interactive-ui {
+  opacity: 0;
+  transition: opacity 0.5s ease-in-out;
+  pointer-events: none;
+}
+.stage-container:hover .interactive-ui {
+  opacity: 1;
+  pointer-events: auto;
+}
+.button-hover-area {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 150px;
+  height: 80px;
+  z-index: 10;
+}
+.buttons-container {
+  position: absolute;
+  bottom: 1rem;
+  left: 1rem;
+  display: flex;
+  gap: 0.25rem;
 }
 
 @keyframes wall-move {

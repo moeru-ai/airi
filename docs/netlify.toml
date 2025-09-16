@@ -23,9 +23,3 @@ from = "/api/v1/page-external-data/submit"
 to = "https://plausible.io/api/event"
 status = 200
 force = true
-
-[[headers]]
-for = "/site.webmanifest"
-
-[headers.values]
-Content-Type = "application/manifest+json"

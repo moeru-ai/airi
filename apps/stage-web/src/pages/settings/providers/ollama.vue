@@ -9,36 +9,38 @@ import {
   ProviderSettingsContainer,
   ProviderSettingsLayout,
 } from '@proj-airi/stage-ui/components'
+import { useProviderValidation } from '@proj-airi/stage-ui/composables/useProviderValidation'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { FieldKeyValues } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, ref, watch } from 'vue'
-import { useI18n } from 'vue-i18n'
-import { useRouter } from 'vue-router'
 
-const { t } = useI18n()
-const router = useRouter()
+const providerId = 'ollama'
 const providersStore = useProvidersStore()
 const { providers } = storeToRefs(providersStore) as { providers: RemovableRef<Record<string, any>> }
-const loading = ref(0)
 
-// Get provider metadata
-const providerId = 'ollama'
-const providerMetadata = computed(() => providersStore.getProviderMetadata(providerId))
-
-const validationMessage = ref('')
-
+// Define computed properties for credentials
 const baseUrl = computed({
-  get: () => providers.value[providerId]?.baseUrl || providerMetadata.value?.defaultOptions?.().baseUrl || '',
+  get: () => providers.value[providerId]?.baseUrl || 'http://localhost:11434/v1/',
   set: (value) => {
     if (!providers.value[providerId])
       providers.value[providerId] = {}
-
     providers.value[providerId].baseUrl = value
   },
 })
 
-const headers = ref(Object.entries(providers.value[providerId]?.headers ?? {}).map(([key, value]) => ({ key, value } as { key: string, value: string })) || [{ key: '', value: '' }])
+// Use the composable to get validation logic and state
+const {
+  t,
+  router,
+  providerMetadata,
+  isValidating,
+  isValid,
+  validationMessage,
+  handleResetSettings,
+} = useProviderValidation(providerId)
+
+const headers = ref<{ key: string, value: string }[]>(Object.entries(providers.value[providerId]?.headers || {}).map(([key, value]) => ({ key, value } as { key: string, value: string })) || [{ key: '', value: '' }])
 
 function addKeyValue(headers: { key: string, value: string }[], key: string, value: string) {
   if (!headers)
@@ -75,11 +77,6 @@ watch(headers, (headers) => {
 })
 
 async function refetch() {
-  loading.value++
-  // service startup time
-  const startValidationTimestamp = performance.now()
-  let finalValidationMessage = ''
-
   try {
     const validationResult = await providerMetadata.value.validators.validateProviderConfig({
       baseUrl: baseUrl.value,
@@ -90,24 +87,15 @@ async function refetch() {
     })
 
     if (!validationResult.valid) {
-      finalValidationMessage = t('settings.dialogs.onboarding.validationError', {
+      validationMessage.value = t('settings.dialogs.onboarding.validationError', {
         error: validationResult.reason,
       })
     }
-    else {
-      finalValidationMessage = ''
-    }
   }
   catch (error) {
-    finalValidationMessage = t('settings.dialogs.onboarding.validationError', {
+    validationMessage.value = t('settings.dialogs.onboarding.validationError', {
       error: error instanceof Error ? error.message : String(error),
     })
-  }
-  finally {
-    setTimeout(() => {
-      loading.value--
-      validationMessage.value = finalValidationMessage
-    }, 500 - (performance.now() - startValidationTimestamp))
   }
 }
 
@@ -128,73 +116,61 @@ onMounted(() => {
     headers.value = [{ key: '', value: '' }]
   }
 })
-
-function handleResetSettings() {
-  providers.value[providerId] = {
-    ...(providerMetadata.value?.defaultOptions as any),
-  }
-}
 </script>
 
 <template>
-  <div class="flex flex-col gap-4">
-    <Alert v-if="!!loading" type="loading">
-      <template #title>
-        {{ t('settings.pages.providers.provider.common.status.validating') }}
-      </template>
-    </Alert>
-    <Alert v-else-if="!validationMessage" type="success">
-      <template #title>
-        {{ t('settings.pages.providers.provider.common.status.valid') }}
-      </template>
-    </Alert>
-    <Alert v-else-if="validationMessage" type="error">
-      <template #title>
-        {{ t('settings.dialogs.onboarding.validationFailed') }}
-      </template>
-      <template v-if="validationMessage" #content>
-        <div class="whitespace-pre-wrap break-all">
-          {{ validationMessage }}
-        </div>
-      </template>
-    </Alert>
-    <ProviderSettingsLayout
-      :provider-name="providerMetadata?.localizedName"
-      :provider-icon="providerMetadata?.icon"
-      :on-back="() => router.back()"
-    >
-      <ProviderSettingsContainer>
-        <ProviderBasicSettings
-          :title="t('settings.pages.providers.common.section.basic.title')"
-          :description="t('settings.pages.providers.common.section.basic.description')"
-          :on-reset="handleResetSettings"
-        >
-          <ProviderBaseUrlInput
-            v-model="baseUrl"
-            :placeholder="providerMetadata?.defaultOptions?.().baseUrl as string || ''"
-            required
-          />
-        </ProviderBasicSettings>
+  <ProviderSettingsLayout
+    :provider-name="providerMetadata?.localizedName"
+    :provider-icon-color="providerMetadata?.iconColor"
+    :on-back="() => router.back()"
+  >
+    <ProviderSettingsContainer>
+      <ProviderBasicSettings
+        :title="t('settings.pages.providers.common.section.basic.title')"
+        :description="t('settings.pages.providers.common.section.basic.description')"
+        :on-reset="handleResetSettings"
+      >
+        <ProviderBaseUrlInput
+          v-model="baseUrl"
+          placeholder="http://localhost:11434/v1/"
+        />
+      </ProviderBasicSettings>
 
-        <ProviderAdvancedSettings :title="t('settings.pages.providers.common.section.advanced.title')">
-          <FieldKeyValues
-            v-model="headers"
-            :label="t('settings.pages.providers.common.section.advanced.fields.field.headers.label')"
-            :description="t('settings.pages.providers.common.section.advanced.fields.field.headers.description')"
-            :key-placeholder="t('settings.pages.providers.common.section.advanced.fields.field.headers.key.placeholder')"
-            :value-placeholder="t('settings.pages.providers.common.section.advanced.fields.field.headers.value.placeholder')"
-            @add="(key: string, value: string) => addKeyValue(headers, key, value)"
-            @remove="(index: number) => removeKeyValue(index, headers)"
-          />
-        </ProviderAdvancedSettings>
-      </ProviderSettingsContainer>
-    </ProviderSettingsLayout>
-  </div>
+      <ProviderAdvancedSettings :title="t('settings.pages.providers.common.section.advanced.title')">
+        <FieldKeyValues
+          v-model="headers"
+          :label="t('settings.pages.providers.common.section.advanced.fields.field.headers.label')"
+          :description="t('settings.pages.providers.common.section.advanced.fields.field.headers.description')"
+          :key-placeholder="t('settings.pages.providers.common.section.advanced.fields.field.headers.key.placeholder')"
+          :value-placeholder="t('settings.pages.providers.common.section.advanced.fields.field.headers.value.placeholder')"
+          @add="(key: string, value: string) => addKeyValue(headers, key, value)"
+          @remove="(index: number) => removeKeyValue(index, headers)"
+        />
+      </ProviderAdvancedSettings>
+
+      <!-- Validation Status -->
+      <Alert v-if="!isValid && isValidating === 0 && validationMessage" type="error">
+        <template #title>
+          {{ t('settings.dialogs.onboarding.validationFailed') }}
+        </template>
+        <template v-if="validationMessage" #content>
+          <div class="whitespace-pre-wrap break-all">
+            {{ validationMessage }}
+          </div>
+        </template>
+      </Alert>
+      <Alert v-if="isValid && isValidating === 0" type="success">
+        <template #title>
+          {{ t('settings.dialogs.onboarding.validationSuccess') }}
+        </template>
+      </Alert>
+    </ProviderSettingsContainer>
+  </ProviderSettingsLayout>
 </template>
 
 <route lang="yaml">
-  meta:
-    layout: settings
-    stageTransition:
-      name: slide
-  </route>
+meta:
+  layout: settings
+  stageTransition:
+    name: slide
+</route>

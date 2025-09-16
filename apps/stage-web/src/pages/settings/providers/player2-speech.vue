@@ -3,7 +3,7 @@ import type { SpeechProviderWithExtraOptions } from '@xsai-ext/shared-providers'
 import type { UnElevenLabsOptions } from 'unspeech'
 
 import {
-  Callout,
+  Alert,
   SpeechPlayground,
   SpeechProviderSettings,
 } from '@proj-airi/stage-ui/components'
@@ -18,13 +18,11 @@ const defaultModel = 'v1'
 const speedRatio = ref<number>(1.0)
 const speechStore = useSpeechStore()
 const providersStore = useProvidersStore()
-
 const { t } = useI18n()
 // Get available voices for Player2
 const availableVoices = computed(() => {
   return speechStore.availableVoices[providerId] || []
 })
-
 // Generate speech with Player2-specific parameters
 async function handleGenerateSpeech(input: string, voiceId: string, _useSSML: boolean) {
   const provider = await providersStore.getProviderInstance(providerId) as SpeechProviderWithExtraOptions<string, UnElevenLabsOptions>
@@ -56,7 +54,6 @@ onMounted(async () => {
   else {
     console.error('Failed to validate provider config', providerConfig)
   }
-
   try {
     const baseUrl = (providerConfig.baseUrl as string | undefined) ?? ''
     const res = await fetch(`${baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl}/health`, {
@@ -65,7 +62,6 @@ onMounted(async () => {
         'player2-game-key': 'airi',
       },
     })
-
     hasPlayer2.value = res.status === 200
   }
   catch (e) {
@@ -73,7 +69,6 @@ onMounted(async () => {
     hasPlayer2.value = false
   }
 })
-
 watch(speedRatio, async () => {
   const providerConfig = providersStore.getProviderConfig(providerId)
   providerConfig.speed = speedRatio.value
@@ -81,26 +76,6 @@ watch(speedRatio, async () => {
 </script>
 
 <template>
-  <div v-if="!hasPlayer2" style="color: red; margin-bottom: 1rem;">
-    <Callout theme="orange">
-      <template #label>
-        Player 2 is not running
-      </template>
-      <div>
-        Please download and run the Player2 App:
-        <a href="https://player2.game" target="_blank" rel="noopener noreferrer">
-          https://player2.game
-        </a>
-
-        <div>
-          After downloading, if you still are having trouble, please reach out to us on Discord:
-          <a href="https://player2.game/discord" target="_blank" rel="noopener noreferrer">
-            https://player2.game/discord
-          </a>.
-        </div>
-      </div>
-    </Callout>
-  </div>
   <SpeechProviderSettings
     :provider-id="providerId"
     :default-model="defaultModel"
@@ -126,6 +101,28 @@ watch(speedRatio, async () => {
       />
     </template>
   </SpeechProviderSettings>
+  <Alert v-if="!hasPlayer2" type="error">
+    <template #title>
+      {{ t('settings.dialogs.onboarding.validationFailed') }}
+    </template>
+    <template #content>
+      <div class="whitespace-pre-wrap break-all">
+        <div>
+          Please download and run the Player2 App:
+          <a href="https://player2.game" target="_blank" rel="noopener noreferrer">
+            https://player2.game
+          </a>
+
+          <div>
+            After downloading, if you still are having trouble, please reach out to us on Discord:
+            <a href="https://player2.game/discord" target="_blank" rel="noopener noreferrer">
+              https://player2.game/discord
+            </a>.
+          </div>
+        </div>
+      </div>
+    </template>
+  </Alert>
 </template>
 
 <route lang="yaml">

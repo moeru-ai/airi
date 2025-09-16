@@ -12,7 +12,7 @@ import DocOutline from '../components/DocOutline.vue'
 import DocSidebar from '../components/DocSidebar.vue'
 import DocTopbar from '../components/DocTopbar.vue'
 
-import { flatten } from '../functions/flatten'
+import { flatten } from '../utils/flatten'
 
 const { theme, frontmatter } = useData()
 const { path } = toRefs(useRoute())
