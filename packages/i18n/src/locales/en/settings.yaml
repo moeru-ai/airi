@@ -178,9 +178,13 @@ pages:
         beat_visualizer:
           title: Beat visualizer
         parameters:
+          advanced_parameters: Advanced Parameters
           description: Tweak the beat detection parameters.
           title: Parameters
           parameters:
+            long_term_buffer_duration:
+              description: Long-term buffer stores averaged RMS levels over a longer window to track baseline loudness and trends used for computing the long-term mean.
+              label: Long-term buffer duration
             lowpass_filter_frequency:
               description: Frequencies above this value will be filtered out before beat detection.
               label: Lowpass filter frequency
@@ -190,6 +194,9 @@ pages:
             peak_threshold:
               description: Higher values may result in less sensitive beat detections.
               label: Peak threshold
+            short_term_buffer_duration:
+              description: Short-term buffer records recent RMS levels over a short window to detect sudden peaks, which are compared to the long-term mean to identify beats.
+              label: Short-term buffer duration
             warmup:
               description: Whether to warm up before detecting beats for better accuracy.
               label: Warmup

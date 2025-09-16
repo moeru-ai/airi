@@ -43,7 +43,7 @@
     "@formkit/auto-animate": "^0.8.4",
     "@huggingface/transformers": "^3.7.2",
     "@lemonneko/crop-empty-pixels": "0.1.1",
-    "@nekopaw/tempora": "0.0.6-alpha.1",
+    "@nekopaw/tempora": "0.1.0-alpha.1",
     "@pixi/app": "^6.5.10",
     "@pixi/constants": "^6.5.10",
     "@pixi/core": "^6.5.10",
