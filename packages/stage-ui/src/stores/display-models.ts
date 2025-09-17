@@ -144,14 +144,22 @@ export const useDisplayModelsStore = defineStore('display-models', () => {
     app.renderer.render(app.stage)
 
     const croppedCanvas = cropImg(offscreenCanvas)
-    const dataUrl = croppedCanvas.toDataURL()
+
+    // padding to 12:16
+    const paddingCanvas = document.createElement('canvas')
+    paddingCanvas.width = croppedCanvas.width > croppedCanvas.height / 16 * 12 ? croppedCanvas.width : croppedCanvas.height / 16 * 12
+    paddingCanvas.height = paddingCanvas.width / 12 * 16
+    const paddingCanvasCtx = paddingCanvas.getContext('2d')!
+
+    paddingCanvasCtx.drawImage(croppedCanvas, (paddingCanvas.width - croppedCanvas.width) / 2, (paddingCanvas.height - croppedCanvas.height) / 2, croppedCanvas.width, croppedCanvas.height)
+    const paddingDataUrl = paddingCanvas.toDataURL()
 
     app.destroy()
     document.body.removeChild(offscreenCanvas)
     URL.revokeObjectURL(objUrl)
 
     // return dataUrl
-    return dataUrl
+    return paddingDataUrl
   }
 
   async function addDisplayModel(format: DisplayModelFormat, file: File) {

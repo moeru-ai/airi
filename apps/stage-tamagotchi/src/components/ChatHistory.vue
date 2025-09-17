@@ -40,8 +40,9 @@ onTokenLiteral(async () => {
     <div v-for="(message, index) in messages" :key="index" mb-2>
       <div v-if="message.role === 'error'" flex mr="12">
         <div
-          flex="~ col" border="2 solid violet-200/50 dark:violet-500/50" shadow="md violet-200/50 dark:none"
-          min-w-20 rounded-lg px-2 py-1 h="unset <sm:fit" bg="<md:violet-500/25"
+          flex="~ col" shadow="md violet-900/50 dark:none"
+          min-w-20 rounded-lg px-2 py-1 h="unset <sm:fit"
+          class="bg-violet-50/80 <md:bg-violet-500/25 dark:bg-violet-900/80"
         >
           <div flex="~ row" gap-2>
             <div flex-1>
@@ -60,13 +61,14 @@ onTokenLiteral(async () => {
       </div>
       <div v-if="message.role === 'assistant' && message.content !== ''" flex mr="12">
         <div
-          flex="~ col" border="2 solid primary-200/50 dark:primary-500/50" shadow="md primary-200/50 dark:none" min-w-20
-          rounded-lg px-2 py-1 h="unset <sm:fit" bg="<md:primary-500/25"
+          flex="~ col" shadow="sm primary-200/50 dark:none" min-w-20
+          rounded-lg px-2 py-1 h="unset <sm:fit"
+          class="bg-primary-50/80 <md:bg-primary-500/25 dark:bg-primary-900/80"
         >
           <div>
             <span text-xs text="primary-400/90 dark:primary-600/90" font-normal class="inline <sm:hidden">{{ t('stage.chat.message.character-name.airi') }}</span>
           </div>
-          <div class="break-words" text="xs primary-400">
+          <div class="break-words" text="primary-700 dark:primary-200">
             <div v-for="(slice, sliceIndex) in message.slices" :key="sliceIndex">
               <div v-if="slice.type === 'tool-call'">
                 <div
@@ -86,8 +88,9 @@ onTokenLiteral(async () => {
       </div>
       <div v-else-if="message.role === 'user'" flex="~ row-reverse" ml="12">
         <div
-          flex="~ col" border="2 solid cyan-200/50 dark:cyan-500/50" shadow="md cyan-200/50 dark:none" px="2"
-          h="unset <sm:fit" min-w-20 rounded-lg px-2 py-1 bg="<md:cyan-500/25"
+          flex="~ col" shadow="sm cyan-200/50 dark:none" px="2"
+          h="unset <sm:fit" min-w-20 rounded-lg px-2 py-1
+          class="bg-cyan-50/80 <md:bg-cyan-500/25 dark:bg-cyan-900/80"
         >
           <div>
             <span text-xs text="cyan-400/90 dark:cyan-600/90" font-normal class="inline <sm:hidden">{{ t('stage.chat.message.character-name.you') }}</span>
@@ -114,13 +117,14 @@ onTokenLiteral(async () => {
     </div>
     <div v-if="sending" flex mr="12">
       <div
-        flex="~ col" border="2 solid primary-200/50 dark:primary-500/50" shadow="md primary-200/50 dark:none" min-w-20
-        rounded-lg px-2 py-1 h="unset <sm:fit" bg="<md:primary-500/25"
+        flex="~ col" shadow="sm primary-200/50 dark:none" min-w-20
+        rounded-lg px-2 py-1 h="unset <sm:fit"
+        class="bg-primary-50/80 <md:bg-primary-500/25 dark:bg-primary-900/80"
       >
         <div>
           <span text-xs text="primary-400/90 dark:primary-600/90" font-normal class="inline <sm:hidden">{{ t('stage.chat.message.character-name.airi') }}</span>
         </div>
-        <div v-if="streamingMessage.content" class="break-words" text="xs primary-400">
+        <div v-if="streamingMessage.content" class="break-words" text="primary-700 dark:primary-200">
           <div v-for="(slice, sliceIndex) in streamingMessage.slices" :key="sliceIndex">
             <div v-if="slice.type === 'tool-call'">
               <div
