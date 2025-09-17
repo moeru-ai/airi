@@ -1,0 +1,194 @@
+name: Build Stage Tamagotchi Windows (Tauri)
+
+on:
+  push:
+    branches: [ main, master ]
+    tags: [ 'v*' ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:  # 允许手动触发
+    inputs:
+      upload_artifacts:
+        description: 'Upload build artifacts'
+        required: false
+        default: true
+        type: boolean
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install pnpm
+      uses: pnpm/action-setup@v4
+      with:
+        run_install: false
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'pnpm'
+
+    - name: Setup Rust
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        targets: x86_64-pc-windows-msvc
+
+    # 缓存 Cargo 依赖
+    - name: Cache cargo registry
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+        key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-cargo-registry-
+
+    # 缓存编译的 target 目录
+    - name: Cache cargo target
+      uses: actions/cache@v3
+      with:
+        path: |
+          apps/stage-tamagotchi/src-tauri/target
+        key: ${{ runner.os }}-cargo-target-tauri-${{ hashFiles('**/Cargo.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-cargo-target-tauri-
+
+    # 缓存 node_modules
+    - name: Cache node_modules
+      uses: actions/cache@v3
+      with:
+        path: |
+          node_modules
+          ~/.pnpm-store
+        key: ${{ runner.os }}-node-modules-${{ hashFiles('pnpm-lock.yaml') }}
+        restore-keys: |
+          ${{ runner.os }}-node-modules-
+
+    - name: Install dependencies
+      run: |
+        pnpm install --frozen-lockfile
+
+    - name: Build workspace packages
+      run: |
+        pnpm run build:packages
+
+    - name: Build Tauri application
+      working-directory: apps/stage-tamagotchi
+      run: |
+        pnpm run app:build
+      env:
+        CARGO_INCREMENTAL: 1
+        RUST_LOG: info
+        RUST_BACKTRACE: '1'
+
+    - name: Package build files
+      shell: powershell
+      run: |
+        $timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
+        $packageName = "stage-tamagotchi-windows-$timestamp"
+        New-Item -ItemType Directory -Path $packageName -Force
+
+        # 复制 Tauri 构建输出文件
+        $sourcePaths = @(
+          "apps/stage-tamagotchi/src-tauri/target/release/bundle/nsis/*.exe",
+          "apps/stage-tamagotchi/src-tauri/target/release/bundle/msi/*.msi",
+          "apps/stage-tamagotchi/src-tauri/target/release/*.exe"
+        )
+
+        foreach ($path in $sourcePaths) {
+          if (Test-Path $path) {
+            Copy-Item $path $packageName/ -Force -ErrorAction SilentlyContinue
+          }
+        }
+
+        # 创建构建信息文件
+        @"
+        🎉 Stage Tamagotchi (Tauri) Windows版本 - GitHub Actions构建
+
+        构建信息:
+        - 构建时间: $(Get-Date)
+        - 构建来源: GitHub Actions
+        - 分支/标签: $env:GITHUB_REF_NAME
+        - 提交哈希: $env:GITHUB_SHA
+        - 构建ID: $env:GITHUB_RUN_ID
+        - Node版本: $(node --version)
+        - pnpm版本: $(pnpm --version)
+        - Rust版本: $(rustc --version)
+
+        技术栈:
+        - 框架: Tauri (Rust + Vue)
+        - 打包格式: NSIS/MSI
+
+        使用方法:
+        1. 下载并解压文件包
+        2. 运行 .exe 安装程序
+        3. 或者直接运行 AIRI.exe (如果有便携版)
+        "@  | Out-File -FilePath "$packageName/BUILD_INFO.txt" -Encoding UTF8
+
+        # 创建启动脚本
+        @'
+        @echo off
+        title Stage Tamagotchi (Tauri) - GitHub Actions构建版
+        echo ===============================================
+        echo 🎉 Stage Tamagotchi (Tauri) - GitHub Actions构建
+        echo ===============================================
+        echo.
+        echo ✅ 这是基于 Tauri 的 Windows 版本
+        echo ✅ 从GitHub Actions自动构建
+        echo.
+        echo 🚀 请运行安装程序进行安装...
+        echo.
+        pause
+        '@ | Out-File -FilePath "$packageName/install-instructions.bat" -Encoding ASCII
+
+        # 打包
+        Compress-Archive -Path $packageName -DestinationPath "$packageName.zip" -Force
+
+        # 设置环境变量供后续步骤使用
+        echo "PACKAGE_NAME=$packageName" >> $env:GITHUB_ENV
+        echo "PACKAGE_ZIP=$packageName.zip" >> $env:GITHUB_ENV
+
+        # 显示构建结果
+        echo "📦 构建包创建完成: $packageName.zip"
+        Get-ChildItem $packageName | Format-Table Name, Length, LastWriteTime
+
+    - name: Upload build artifacts
+      if: ${{ inputs.upload_artifacts != false }}
+      uses: actions/upload-artifact@v4
+      with:
+        name: stage-tamagotchi-windows-${{ github.run_id }}
+        path: ${{ env.PACKAGE_ZIP }}
+        retention-days: 30
+
+    - name: Create Release (仅在打 tag 时)
+      if: startsWith(github.ref, 'refs/tags/')
+      uses: softprops/action-gh-release@v2
+      with:
+        files: ${{ env.PACKAGE_ZIP }}
+        body: |
+          ## Stage Tamagotchi (Tauri) Windows版本
+
+          ### 下载说明
+          - 📦 Windows版本: `${{ env.PACKAGE_ZIP }}`
+
+          ### 安装说明
+          1. 下载并解压 ZIP 文件
+          2. 运行安装程序 (.exe 或 .msi)
+          3. 按照安装向导完成安装
+
+          ### 技术栈
+          - 基于 Tauri 框架 (Rust + Vue)
+          - 更小的体积，更快的启动速度
+          - 原生 Windows 性能
+
+          ### 更新内容
+          - 查看最近的提交记录了解更新内容
+
+          ---
+          🤖 此版本由 GitHub Actions 自动构建和发布
