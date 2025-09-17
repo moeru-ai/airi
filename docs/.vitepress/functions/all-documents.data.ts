@@ -2,7 +2,7 @@ import type { SiteConfig } from 'vitepress'
 
 import { createContentLoader } from 'vitepress'
 
-import { formatDate } from './utils'
+import { formatDate } from '../utils/utils'
 
 const config: SiteConfig = (globalThis as any).VITEPRESS_CONFIG
 

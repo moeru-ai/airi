@@ -1,0 +1,37 @@
+html.dark img.light {
+  display: none;
+}
+
+html.dark video.light {
+  display: none;
+}
+
+html:not(.dark) img.dark {
+  display: none;
+}
+
+html:not(.dark) video.dark {
+  display: none;
+}
+
+.docs-article video {
+  border-radius: 12px;
+}
+
+.docs-article img {
+  border-radius: 12px;
+}
+
+@media (width >= 64rem) {
+  .docs-article video {
+    max-height: 50dvw;
+    margin: 0 auto;
+  }
+}
+
+@media (width >= 80rem) {
+  .docs-article video {
+    max-height: 40dvw;
+    margin: 0 auto;
+  }
+}

@@ -35,7 +35,7 @@ const volume = ref(0)
 
 // Additional settings specific to Microsoft Speech (region)
 const region = computed({
-  get: () => providers.value[providerId]?.region as string | undefined,
+  get: () => providers.value[providerId]?.region as string | undefined || 'eastasia',
   set: (value) => {
     if (!providers.value[providerId])
       providers.value[providerId] = { region: 'eastasia' }
