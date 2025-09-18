@@ -1,12 +1,13 @@
-import type { WebSocketEvent } from '@proj-airi/server-shared/types'
-
 import { env } from 'node:process'
 
-import type { AuthenticatedPeer, Peer } from './types'
+import { Format, LogLevel, setGlobalFormat, setGlobalLogLevel, useLogg } from '@guiiai/logg'
+
+import type { WebSocketEvent } from '@proj-airi/server-shared/types'
 
 import { WebSocketReadyState } from './types'
 
-import { Format, LogLevel, setGlobalFormat, setGlobalLogLevel, useLogg } from '@guiiai/logg'
+import type { AuthenticatedPeer, Peer } from './types'
+
 import { createApp, createRouter, defineWebSocketHandler } from 'h3'
 
 setGlobalFormat(Format.Pretty)
