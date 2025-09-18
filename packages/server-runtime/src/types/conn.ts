@@ -7,7 +7,9 @@ export interface Peer {
     compress?: boolean
   }) => number | void | undefined
   
-  /** WebSocket lifecycle state (mirrors WebSocket.readyState) */
+  /**
+   * WebSocket lifecycle state (mirrors WebSocket.readyState)
+   */
   readyState: number
 }
 
@@ -17,7 +19,7 @@ export interface NamedPeer {
   peer: Peer
 }
 
-export const enum WebSocketReadyState {
+export enum WebSocketReadyState {
   CONNECTING = 0,
   OPEN = 1,
   CLOSING = 2,
