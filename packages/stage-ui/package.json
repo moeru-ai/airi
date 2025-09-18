@@ -67,6 +67,7 @@
     "@proj-airi/font-xiaolai": "workspace:^",
     "@proj-airi/i18n": "workspace:^",
     "@proj-airi/server-sdk": "workspace:^",
+    "@proj-airi/stage-ui-three": "workspace:^",
     "@proj-airi/tauri-plugin-mcp": "workspace:^",
     "@proj-airi/ui": "workspace:^",
     "@ricky0123/vad-web": "^0.0.26",

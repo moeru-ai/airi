@@ -1,7 +1,7 @@
 <script setup lang="ts">
+import { useModelStore } from '@proj-airi/stage-ui-three'
 import { useLive2d } from '@proj-airi/stage-ui/stores/live2d'
 import { useSettings } from '@proj-airi/stage-ui/stores/settings'
-import { useVRM } from '@proj-airi/stage-ui/stores/vrm'
 import { RoundRange } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed } from 'vue'
@@ -11,7 +11,7 @@ const props = defineProps<{
 }>()
 
 const { stageModelRenderer, stageViewControlsEnabled } = storeToRefs(useSettings())
-const { scale: vrmScale, modelOffset: vrmPosition, modelSize: vrmModelSize } = storeToRefs(useVRM())
+const { scale: vrmScale, modelOffset: vrmPosition, modelSize: vrmModelSize } = storeToRefs(useModelStore())
 const { scale: live2dScale, position: live2dPosition } = storeToRefs(useLive2d())
 
 const viewControlsValueX = computed({

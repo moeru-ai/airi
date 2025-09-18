@@ -7,6 +7,7 @@ import type { Emotion } from '../../constants/emotions'
 
 import { drizzle } from '@proj-airi/drizzle-duckdb-wasm'
 import { getImportUrlBundles } from '@proj-airi/drizzle-duckdb-wasm/bundles/import-url-browser'
+import { ThreeScene } from '@proj-airi/stage-ui-three'
 // import { createTransformers } from '@xsai-transformers/embed'
 // import embedWorkerURL from '@xsai-transformers/embed/worker?worker&url'
 // import { embed } from '@xsai/embed'
@@ -15,7 +16,6 @@ import { storeToRefs } from 'pinia'
 import { onMounted, onUnmounted, ref } from 'vue'
 
 import Live2DScene from './Live2D.vue'
-import VRMScene from './VRM.vue'
 
 import { useDelayMessageQueue, useEmotionsMessageQueue, useMessageContentQueue } from '../../composables/queues'
 import { llmInferenceEndToken } from '../../constants'
@@ -26,7 +26,6 @@ import { useLive2d } from '../../stores/live2d'
 import { useSpeechStore } from '../../stores/modules/speech'
 import { useProvidersStore } from '../../stores/providers'
 import { useSettings } from '../../stores/settings'
-import { useVRM } from '../../stores/vrm'
 import { createQueue } from '../../utils/queue'
 
 withDefaults(defineProps<{
@@ -42,7 +41,7 @@ const componentState = defineModel<'pending' | 'loading' | 'mounted'>('state', {
 const db = ref<DuckDBWasmDrizzleDatabase>()
 // const transformersProvider = createTransformers({ embedWorkerURL })
 
-const vrmViewerRef = ref<InstanceType<typeof VRMScene>>()
+const vrmViewerRef = ref<InstanceType<typeof ThreeScene>>()
 const live2dSceneRef = ref<InstanceType<typeof Live2DScene>>()
 
 const settingsStore = useSettings()
@@ -53,7 +52,6 @@ const { onBeforeMessageComposed, onBeforeSend, onTokenLiteral, onTokenSpecial, o
 const providersStore = useProvidersStore()
 
 const live2dStore = useLive2d()
-const vrmStore = useVRM()
 
 const showStage = ref(true)
 
@@ -65,13 +63,18 @@ live2dStore.onShouldUpdateView(async () => {
   }, 100)
 })
 
-vrmStore.onShouldUpdateView(async () => {
-  showStage.value = false
-  await settingsStore.updateStageModel()
-  setTimeout(() => {
-    showStage.value = true
-  }, 100)
-})
+// Lilia: tbh I don't see the meaning of using this hook...
+// 1. vrm.ts store is only responsible for the settings within the vrm scene, it has nothing to do with model loading and url setting
+// 2. put the hook injection to vrm.ts is too deep, at least putting it in the setting.ts may be more reasonable
+// 3. from the code in Scenarios/Settings/index (the model loading component), it seems like this settingStore.updateStageModel() was called twice... the first time was call in that index component, and the second time is call here... no idea why it would be necessary
+// 4. I don't think showStage is necessary here to show or hide the stage component...
+// vrmStore.onShouldUpdateView(async () => {
+//   showStage.value = false
+//   await settingsStore.updateStageModel()
+//   setTimeout(() => {
+//     showStage.value = true
+//   }, 100)
+// })
 
 const audioAnalyser = ref<AnalyserNode>()
 const nowSpeaking = ref(false)
@@ -299,7 +302,7 @@ defineExpose({
         :scale="scale"
         :disable-focus-at="live2dDisableFocus"
       />
-      <VRMScene
+      <ThreeScene
         v-if="stageModelRenderer === 'vrm' && showStage"
         ref="vrmViewerRef"
         :model-src="stageModelSelectedUrl"

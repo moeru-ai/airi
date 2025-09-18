@@ -1,9 +1,9 @@
 <script setup lang="ts">
+import { useModelStore } from '@proj-airi/stage-ui-three'
 import { storeToRefs } from 'pinia'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import { useVRM } from '../../../../stores/vrm'
 import { Container, PropertyColor, PropertyNumber, PropertyPoint } from '../../../DataPane'
 import { Callout, Tabs } from '../../../Layouts'
 import { Button } from '../../../Misc'
@@ -19,7 +19,7 @@ defineEmits<{
 
 const { t } = useI18n()
 
-const vrm = useVRM()
+const modelStore = useModelStore()
 const {
   modelSize,
   modelOffset,
@@ -41,7 +41,7 @@ const {
 
   envSelect,
   skyBoxIntensity,
-} = storeToRefs(vrm)
+} = storeToRefs(modelStore)
 const trackingOptions = computed(() => [
   { value: 'camera', label: t('settings.vrm.scale-and-position.eye-tracking-mode.options.option.camera'), class: 'col-start-3' },
   { value: 'mouse', label: t('settings.vrm.scale-and-position.eye-tracking-mode.options.option.mouse'), class: 'col-start-4' },
