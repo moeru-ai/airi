@@ -19,12 +19,12 @@ import { PeriodicExportingMetricReader } from '@opentelemetry/sdk-metrics'
 import { NodeSDK } from '@opentelemetry/sdk-node'
 import { ATTR_SERVICE_NAME, ATTR_SERVICE_VERSION } from '@opentelemetry/semantic-conventions'
 
-// TODO [lucas-ona]: Import database initialization
-// import { initDb } from './db'
 // Import API server
 import memoryRouter from './api/memory.js'
 
 import { createApp } from './api/server.js'
+// TODO [lucas-ona]: Import database initialization
+import { initDb } from './db'
 import { BackgroundTrigger } from './services/background-trigger.js'
 import { EmbeddingProviderFactory } from './services/embedding-providers/factory.js'
 // TODO [gg582]: Implement DB Backup
@@ -58,7 +58,7 @@ async function main() {
   sdk.start()
 
   // TODO [lucas-oma]: Initialize database connection
-  // await initDb()
+  await initDb()
 
   // Initialize embedding provider at startup (prevents first-request delays)
   try {
