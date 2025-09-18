@@ -2,10 +2,11 @@ import { dirname, resolve } from 'node:path'
 import { env, exit } from 'node:process'
 import { fileURLToPath } from 'node:url'
 
+import EmbeddedPostgres from 'embedded-postgres'
+
 import { sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
 import { migrate } from 'drizzle-orm/node-postgres/migrator'
-import { EmbeddedPostgres } from 'embedded-postgres'
 import { Pool } from 'pg'
 
 import * as schema from './schema'
@@ -35,14 +36,13 @@ export async function initEmbeddedPostgres() {
     const __filename = fileURLToPath(import.meta.url)
     const __dirname = dirname(__filename)
     const dataDir = resolve(__dirname, '../../.embedded_pg')
+    env.PGDATA = dataDir
+    env.DATABASE_URL = `postgres://postgres:airi_memory_password@localhost:5433/postgres`
     embeddedPostgres = new EmbeddedPostgres({
-      version: '17.6.0',
       port: 5433,
-      dataDir,
     })
-    await embeddedPostgres.launch()
-    env.DATABASE_URL = embeddedPostgres.getConnectionString()
-    console.warn('Embedded Postgres started at', embeddedPostgres.getConnectionString)
+    await embeddedPostgres.start()
+    console.warn('Embedded Postgres started at', env.DATABASE_URL)
   }
 }
 /**
