@@ -18,6 +18,7 @@ const connectionError = ref('')
 // === DATABASE CONNECTION INFO ===
 const currentDbUrl = ref('')
 const dbInfoMessage = ref('')
+const embeddedPostgresEnabled = useLocalStorage('settings/memory/embedded-postgres-enabled', false)
 
 // === REGENERATION STATUS ===
 const isRegenerating = ref(false)
