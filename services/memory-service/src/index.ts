@@ -22,9 +22,12 @@ import { ATTR_SERVICE_NAME, ATTR_SERVICE_VERSION } from '@opentelemetry/semantic
 // TODO [lucas-ona]: Import database initialization
 // import { initDb } from './db'
 // Import API server
+import memoryRouter from './api/memory.js'
+
 import { createApp } from './api/server.js'
 import { BackgroundTrigger } from './services/background-trigger.js'
 import { EmbeddingProviderFactory } from './services/embedding-providers/factory.js'
+// TODO [gg582]: Implement DB Backup
 import { MemoryService } from './services/memory.js'
 import { MessageIngestionService } from './services/message-processing.js'
 
@@ -84,6 +87,7 @@ async function main() {
 
   // Create and start REST API server
   const port = env.PORT || 3001
+  app.use('/api/memory', memoryRouter)
   app.listen(port, () => {
     console.warn(`Memory service running on port ${port}`)
   })

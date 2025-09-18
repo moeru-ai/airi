@@ -1,27 +1,46 @@
+import type { Request, Response } from 'express'
+
+import fs from 'node:fs'
 import os from 'node:os'
+import path from 'node:path'
+import process from 'node:process'
 
-import { cp, existsSync, mkdirSync } from 'node:fs'
-import { dirname, resolve } from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { exec } from 'node:child_process'
 
-export async function exportEmbeddedPostgres(): Promise<string> {
-  const __filename = fileURLToPath(import.meta.url)
-  const __dirname = dirname(__filename)
+import { Router } from 'express'
 
-  const sourceDir = resolve(__dirname, '../../.embedded_pg')
-  if (!existsSync(sourceDir)) {
-    throw new Error(`Source directory does not exist: ${sourceDir}`)
+const memoryRouter = Router()
+
+memoryRouter.post('/export-embedded', async (req: Request, res: Response) => {
+  try {
+    const homeDir = os.homedir()
+    const exportDir = path.join(homeDir, 'airi_memory')
+    const dumpFile = path.join(exportDir, 'embedded_pg_backup.sql')
+
+    if (!fs.existsSync(exportDir)) {
+      fs.mkdirSync(exportDir, { recursive: true })
+    }
+
+    const dbUrl
+      = process.env.DATABASE_URL
+        || 'postgres://postgres:postgres@localhost:5433/postgres'
+
+    exec(`pg_dump ${dbUrl} > "${dumpFile}"`, (error, stdout, stderr) => {
+      if (error) {
+        console.error('pg_dump error:', stderr)
+        return res.status(500).send('Failed to dump database')
+      }
+
+      res.download(dumpFile, 'embedded_pg_backup.sql', (err) => {
+        if (err)
+          console.error('Download failed:', err)
+      })
+    })
   }
-
-  const homeDir = os.homedir()
-  const targetRoot = resolve(homeDir, 'airi_memory')
-  const targetDir = resolve(targetRoot, '.embedded_pg.db')
-
-  if (!existsSync(targetRoot)) {
-    mkdirSync(targetRoot, { recursive: true })
+  catch (err) {
+    console.error(err)
+    res.status(500).send('Export failed')
   }
+})
 
-  await cp(sourceDir, targetDir, { recursive: true })
-  console.warn(`Copied embedded Postgres to: ${targetDir}`)
-  return targetDir
-}
+export default memoryRouter
