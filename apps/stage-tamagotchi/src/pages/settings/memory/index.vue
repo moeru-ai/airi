@@ -632,13 +632,6 @@ async function exportEmbeddedDb() {
         </div>
         <!-- Embedded Postgres Export -->
         <div class="mt-4">
-          <h2 class="text-xl font-semibold">
-            Embedded Postgres
-          </h2>
-          <label class="inline-flex items-center space-x-2">
-            <input v-model="embeddedPostgresEnabled" type="checkbox" class="form-checkbox">
-            <span>Enable Embedded Postgres</span>
-          </label>
           <div class="mt-2">
             <button :disabled="!embeddedPostgresEnabled" class="btn btn-warning" @click="exportEmbeddedDb">
               Export Embedded Postgres
