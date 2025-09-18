@@ -55,6 +55,7 @@ const modeIndicatorClass = computed(() => {
     flex="~ col"
     relative z-2 h-full overflow-hidden rounded-xl
     transition="opacity duration-500 ease-in-out"
+    class="drag-region"
   >
     <div v-show="!isLoading" relative h-full w-full items-end gap-2 class="view">
       <WidgetStage
