@@ -40,7 +40,7 @@ onTokenLiteral(async () => {
         <div v-if="message.role === 'error'" flex mr="12">
           <div
             flex="~ col"
-            shadow="md violet-200/20 dark:none"
+            shadow="sm violet-200/50 dark:none"
             min-w-20 rounded-lg px-3 py-2
             h="unset <sm:fit"
             bg="violet-100 dark:violet-800"
@@ -64,11 +64,11 @@ onTokenLiteral(async () => {
         <div v-if="message.role === 'assistant'" flex mr="12">
           <div
             flex="~ col"
-            shadow="md primary-200/20 dark:none"
+            shadow="sm primary-200/50 dark:none"
             min-w-20 rounded-lg px-3 py-2
             h="unset <sm:fit"
-            bg="primary-50 dark:primary-800"
             backdrop-blur-md
+            class="bg-primary-50 dark:bg-primary-900"
           >
             <div>
               <span text="primary-400/90 dark:primary-600/90" text-xs font-normal class="inline <sm:hidden">{{ t('stage.chat.message.character-name.airi') }}</span>
@@ -85,7 +85,7 @@ onTokenLiteral(async () => {
         <div v-else-if="message.role === 'user'" flex="~">
           <div
             flex="~ col"
-            shadow="md cyan-200/20 dark:none"
+            shadow="sm cyan-200/50 dark:none"
             px="2"
             h="unset <sm:fit" min-w-20 rounded-lg px-3 py-2
             bg="white dark:neutral-800"
