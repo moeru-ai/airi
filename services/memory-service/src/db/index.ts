@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url'
 import { sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
 import { migrate } from 'drizzle-orm/node-postgres/migrator'
-import { EmbeddedPostgres } from 'embedded-posttgres'
+import { EmbeddedPostgres } from 'embedded-postgres'
 import { Pool } from 'pg'
 
 import * as schema from './schema'

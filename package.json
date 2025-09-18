@@ -3,7 +3,7 @@
   "type": "module",
   "version": "0.7.2-beta.3",
   "private": true,
-  "packageManager": "pnpm@10.15.1",
+  "packageManager": "pnpm@10.17.0",
   "description": "LLM powered virtual character",
   "author": {
     "name": "Moeru AI Project AIRI Team",

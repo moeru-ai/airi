@@ -19,6 +19,7 @@ const connectionError = ref('')
 const currentDbUrl = ref('')
 const dbInfoMessage = ref('')
 const embeddedPostgresEnabled = useLocalStorage('settings/memory/embedded-postgres-enabled', false)
+const exportMessage = ref('')
 
 // === REGENERATION STATUS ===
 const isRegenerating = ref(false)
@@ -445,6 +446,40 @@ onMounted(async () => {
   settingsChanged.value = hasChanges
   showRegenerationWarning.value = hasChanges
 })
+
+async function exportEmbeddedDb() {
+  if (!embeddedPostgresEnabled.value) {
+    exportMessage.value = 'Embedded Postgres is not enabled'
+    return
+  }
+
+  try {
+    const response = await fetch(`${memoryServiceUrl.value}/api/export-embedded`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${apiKey.value}` },
+    })
+
+    if (!response.ok) {
+      const err = await response.text()
+      exportMessage.value = `Failed to export embedded Postgres: ${err}`
+      return
+    }
+
+    const blob = await response.blob()
+    const url = window.URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `embedded_postgres_export_${new Date().toISOString()}.zip`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    exportMessage.value = 'Embedded Postgres export completed successfully!'
+  }
+  catch (error) {
+    console.error(error)
+    exportMessage.value = `Error exporting embedded Postgres: ${error instanceof Error ? error.message : 'Unknown error'}`
+  }
+}
 </script>
 
 <template>
@@ -593,6 +628,24 @@ onMounted(async () => {
           />
           <p class="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
             The URL where your memory service is running
+          </p>
+        </div>
+        <!-- Embedded Postgres Export -->
+        <div class="mt-4">
+          <h2 class="text-xl font-semibold">
+            Embedded Postgres
+          </h2>
+          <label class="inline-flex items-center space-x-2">
+            <input v-model="embeddedPostgresEnabled" type="checkbox" class="form-checkbox">
+            <span>Enable Embedded Postgres</span>
+          </label>
+          <div class="mt-2">
+            <button :disabled="!embeddedPostgresEnabled" class="btn btn-warning" @click="exportEmbeddedDb">
+              Export Embedded Postgres
+            </button>
+          </div>
+          <p v-if="exportMessage" class="mt-1 text-blue-600">
+            {{ exportMessage }}
           </p>
         </div>
 
