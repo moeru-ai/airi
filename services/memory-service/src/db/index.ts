@@ -17,7 +17,7 @@ let db: ReturnType<typeof drizzle>
 let embeddedPostgres: EmbeddedPostgres | null = null
 // TODO: Toggle boolean value via settings page
 // TODO: Avoid using global scope variable
-let embeddedPostgresEnabled: boolean = true
+let embeddedPostgresEnabled: boolean = false
 
 /**
  * Initialized embedded postgres

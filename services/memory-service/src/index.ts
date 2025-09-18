@@ -103,7 +103,7 @@ process.on('unhandledRejection', (err) => {
   const log = useLogg('UnhandledRejection').useGlobalConfig()
   log
     .withError(err)
-    .withField('cause', (err as any).cause)
+    .withField('cause', (err as any)?.cause)
     .error('Unhandled rejection')
 })
 
