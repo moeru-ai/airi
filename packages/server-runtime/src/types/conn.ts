@@ -6,7 +6,6 @@ export interface Peer {
   send: (data: unknown, options?: {
     compress?: boolean
   }) => number | void | undefined
-  
   /**
    * WebSocket lifecycle state (mirrors WebSocket.readyState)
    */
