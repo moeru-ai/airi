@@ -9,7 +9,7 @@ export interface Peer {
   /**
    * WebSocket lifecycle state (mirrors WebSocket.readyState)
    */
-  readyState: number
+  readyState?: number
 }
 
 export interface NamedPeer {
