@@ -133,13 +133,12 @@ function main() {
             send(peer, { type: 'error', data: { message: 'the field \'moduleName\' can\'t be empty for event \'ui:configure\'' } })
             return
           }
-          if (typeof moduleIndex !== 'undefined' && typeof moduleIndex !== 'number') {
-            send(peer, { type: 'error', data: { message: 'the field \'moduleIndex\' must be a number for event \'ui:configure\'' } })
-            return
-          }
           if (typeof moduleIndex !== 'undefined') {
             if (!Number.isInteger(moduleIndex) || moduleIndex < 0) {
-              send(peer, { type: 'error', data: { message: 'the field \'moduleIndex\' must be a non-negative integer for event \'ui:configure\'' } })
+              send(peer, {
+                type: 'error',
+                data: { message: 'the field \'moduleIndex\' must be a non-negative integer for event \'ui:configure\'' },
+              })
               return
             }
           }
