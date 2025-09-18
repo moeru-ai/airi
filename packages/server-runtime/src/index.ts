@@ -1,9 +1,10 @@
 import type { WebSocketEvent } from '@proj-airi/server-shared/types'
 
-import type { AuthenticatedPeer, Peer } from './types'
-import { WebSocketReadyState } from './types'
-
 import { env } from 'node:process'
+
+import type { AuthenticatedPeer, Peer } from './types'
+
+import { WebSocketReadyState } from './types'
 
 import { Format, LogLevel, setGlobalFormat, setGlobalLogLevel, useLogg } from '@guiiai/logg'
 import { createApp, createRouter, defineWebSocketHandler } from 'h3'
@@ -164,7 +165,8 @@ function main() {
 
       const payload = JSON.stringify(event)
       for (const [id, other] of peers.entries()) {
-        if (id === peer.id) continue
+        if (id === peer.id)
+          continue
         if (other.peer.readyState === WebSocketReadyState.OPEN) {
           other.peer.send(payload)
         }
