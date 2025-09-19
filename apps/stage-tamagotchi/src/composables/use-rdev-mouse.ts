@@ -19,7 +19,6 @@ export const useRdevMouse = createSharedComposable(() => {
   async function updateScaleFactor() {
     try {
       const newScaleFactor = await getScaleFactor()
-      console.warn(`[DPI Debug] Scale factor detected: ${newScaleFactor}`)
       scaleFactor.value = newScaleFactor
     }
     catch (error) {
@@ -30,13 +29,9 @@ export const useRdevMouse = createSharedComposable(() => {
 
   // Convert physical coordinates to logical coordinates
   watch([mouseX, mouseY, scaleFactor], ([x, y, scale]) => {
-    logicalMouseX.value = x / scale
-    logicalMouseY.value = y / scale
-
-    // Debug logging every 100th mouse move to avoid spam
-    if (Math.floor(x) % 100 === 0) {
-      console.warn(`[DPI Debug] Physical: (${x}, ${y}) → Logical: (${logicalMouseX.value}, ${logicalMouseY.value}) | Scale: ${scale}`)
-    }
+    const logical = convertPhysicalToLogical(x, y, scale)
+    logicalMouseX.value = logical.x
+    logicalMouseY.value = logical.y
   })
 
   async function setup() {

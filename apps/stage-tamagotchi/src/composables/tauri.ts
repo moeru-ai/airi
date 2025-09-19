@@ -226,16 +226,14 @@ export function useTauriDpi() {
     return monitor?.scaleFactor ?? 1
   }
 
-  async function convertPhysicalToLogical(physicalX: number, physicalY: number): Promise<{ x: number, y: number }> {
-    const scaleFactor = await getScaleFactor()
+  function convertPhysicalToLogical(physicalX: number, physicalY: number, scaleFactor: number): { x: number, y: number } {
     return {
       x: physicalX / scaleFactor,
       y: physicalY / scaleFactor,
     }
   }
 
-  async function convertLogicalToPhysical(logicalX: number, logicalY: number): Promise<{ x: number, y: number }> {
-    const scaleFactor = await getScaleFactor()
+  function convertLogicalToPhysical(logicalX: number, logicalY: number, scaleFactor: number): { x: number, y: number } {
     return {
       x: logicalX * scaleFactor,
       y: logicalY * scaleFactor,
