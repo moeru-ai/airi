@@ -454,7 +454,7 @@ async function exportEmbeddedDb() {
   }
 
   try {
-    const response = await fetch(`${memoryServiceUrl.value}/api/export-embedded`, {
+    const response = await fetch(`${memoryServiceUrl.value}/api/memory/export-embedded`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${apiKey.value}` },
     })
@@ -614,6 +614,17 @@ async function exportEmbeddedDb() {
           <p class="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
             Toggle the embedded Postgres database for local memory storage
           </p>
+          <!-- Embedded Postgres Export -->
+          <div class="mt-4">
+            <div class="mt-2">
+              <button :disabled="!embeddedPostgresEnabled" class="btn btn-warning" @click="exportEmbeddedDb">
+                Export Embedded Postgres
+              </button>
+            </div>
+            <p v-if="exportMessage" class="mt-1 text-blue-600">
+              {{ exportMessage }}
+            </p>
+          </div>
         </div>
 
         <div class="mb-4">
@@ -630,18 +641,6 @@ async function exportEmbeddedDb() {
             The URL where your memory service is running
           </p>
         </div>
-        <!-- Embedded Postgres Export -->
-        <div class="mt-4">
-          <div class="mt-2">
-            <button :disabled="!embeddedPostgresEnabled" class="btn btn-warning" @click="exportEmbeddedDb">
-              Export Embedded Postgres
-            </button>
-          </div>
-          <p v-if="exportMessage" class="mt-1 text-blue-600">
-            {{ exportMessage }}
-          </p>
-        </div>
-
         <div class="mb-4">
           <label class="mb-2 block text-sm text-neutral-700 font-medium dark:text-neutral-300">
             Server Password (Optional)

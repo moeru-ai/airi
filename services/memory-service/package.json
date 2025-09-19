@@ -1,6 +1,7 @@
 {
   "name": "@proj-airi/memory-service",
   "type": "module",
+  "version": "0.0.0",
   "private": true,
   "description": "Centralized memory service for AIRI with PostgreSQL + pgvector",
   "author": {
