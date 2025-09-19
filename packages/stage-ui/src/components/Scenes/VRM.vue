@@ -330,75 +330,13 @@ onMounted(() => {
   }
 })
 
-// --- Imports ---
-/**
- * Smooth expression system with natural relax.
- * Works alongside VRMModel's existing expression logic.
- */
-
-const currentExpression = ref<{ [key: string]: number }>({})
-const targetExpression = ref<{ [key: string]: number }>({})
-const expressionSpeedIn = 0.1
-const expressionSpeedOut = 0.02
-
-/**
- * Set a target expression.
- * Optional: duration(ms) to automatically relax back to 0.
- */
-function setExpressionSmooth(
-  newExpression: { [key: string]: number },
-  duration?: number,
-) {
-  targetExpression.value = { ...newExpression }
-
-  if (duration) {
-    setTimeout(() => {
-      for (const key in newExpression) {
-        targetExpression.value[key] = 0
-      }
-    }, duration)
-  }
-}
-
-/**
- * Update current expression by interpolating towards target.
- * Uses different speeds for appear and relax.
- */
-function updateExpression(delta: number) {
-  if (!modelRef.value)
-    return
-
-  let changed = false
-  for (const key in targetExpression.value) {
-    const curr = currentExpression.value[key] || 0
-    const target = targetExpression.value[key]
-
-    const speed = target > curr ? expressionSpeedIn : expressionSpeedOut
-    const next = curr + (target - curr) * speed * delta
-
-    if (Math.abs(next - curr) > 1e-4) {
-      changed = true
-      currentExpression.value[key] = next
-    }
-  }
-
-  if (changed) {
-    modelRef.value.setExpression(currentExpression.value)
-  }
-
-  requestAnimationFrame(() => updateExpression(1))
-}
-
-// Start the smooth update loop
-onMounted(() => updateExpression(1))
-
-// --- Expose functions to parent component ---
 defineExpose({
   setExpression: (expression: string) => {
     modelRef.value?.setExpression(expression)
   },
-  setExpressionSmooth,
-  canvasElement: () => tresCanvasRef.value?.renderer.value.domElement,
+  canvasElement: () => {
+    return tresCanvasRef.value?.renderer.value.domElement
+  },
 })
 </script>
 
