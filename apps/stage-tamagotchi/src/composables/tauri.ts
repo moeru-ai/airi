@@ -216,8 +216,37 @@ export function useTauriDpi() {
     return new imported.LogicalPosition(x, y)
   }
 
+  async function getScaleFactor(): Promise<number> {
+    const imported = await tauriDpiApi.value
+    if (!imported) {
+      throw new Error('Tauri DPI API not available')
+    }
+
+    const monitor = await imported.currentMonitor()
+    return monitor?.scaleFactor ?? 1
+  }
+
+  async function convertPhysicalToLogical(physicalX: number, physicalY: number): Promise<{ x: number, y: number }> {
+    const scaleFactor = await getScaleFactor()
+    return {
+      x: physicalX / scaleFactor,
+      y: physicalY / scaleFactor,
+    }
+  }
+
+  async function convertLogicalToPhysical(logicalX: number, logicalY: number): Promise<{ x: number, y: number }> {
+    const scaleFactor = await getScaleFactor()
+    return {
+      x: logicalX * scaleFactor,
+      y: logicalY * scaleFactor,
+    }
+  }
+
   return {
     createLogicalPosition,
+    getScaleFactor,
+    convertPhysicalToLogical,
+    convertLogicalToPhysical,
   }
 }
 
