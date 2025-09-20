@@ -1,5 +1,5 @@
 import type { ChatProvider } from '@xsai-ext/shared-providers'
-import type { CommonContentPart, CompletionToolCall, Message } from '@xsai/shared-chat'
+import type { CommonContentPart, CompletionToolCall, Message, SystemMessage } from '@xsai/shared-chat'
 
 import { readableStreamToAsyncIterator } from '@moeru/std'
 import { listModels } from '@xsai/model'
@@ -8,6 +8,7 @@ import { streamText } from '@xsai/stream-text'
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 
+import { useMemoryService } from '../composables/useMemoryService'
 import { debug, mcp } from '../tools'
 
 export type StreamEvent
@@ -22,6 +23,7 @@ export interface StreamOptions {
   onStreamEvent?: (event: StreamEvent) => void | Promise<void>
   toolsCompatibility?: Map<string, boolean>
   supportsTools?: boolean
+  use_memory_service?: boolean
 }
 
 function streamOptionsToolsCompatibilityOk(model: string, chatProvider: ChatProvider, _: Message[], options?: StreamOptions, toolsCompatibility: Map<string, boolean> = new Map()): boolean {
@@ -29,13 +31,68 @@ function streamOptionsToolsCompatibilityOk(model: string, chatProvider: ChatProv
 }
 
 async function streamFrom(model: string, chatProvider: ChatProvider, messages: Message[], options?: StreamOptions) {
+  // TODO [lucas-oma]: optimize this function
+  // Right now, it fetches context and then makes LLM call for AI response,
+  // this can and should be integrated into a new streamText call/function and the server API should be removed and handled
+  // inside the message ingestion API.
+
+  const { memoryServiceEnabled, memoryServiceUrl, memoryApiKey } = useMemoryService()
+  let formattedMessages = messages.map(msg => ({ ...msg, content: (msg.role as string === 'error' ? `User encountered error: ${msg.content}` : msg.content), role: (msg.role as string === 'error' ? 'user' : msg.role) } as Message))
+
+  if (memoryServiceEnabled.value) {
+    try {
+      if (!memoryServiceUrl.value) {
+        throw new Error('Memory service URL not configured')
+      }
+
+      // Headers just for memory service
+      const memoryHeaders: Record<string, string> = {
+        'Content-Type': 'application/json',
+      }
+
+      if (memoryApiKey.value.trim()) {
+        memoryHeaders.Authorization = `Bearer ${memoryApiKey.value}`
+      }
+
+      // 1. First get context
+      const contextResponse = await fetch(`${memoryServiceUrl.value}/api/context`, {
+        method: 'POST',
+        headers: memoryHeaders,
+        body: JSON.stringify({
+          message: messages[messages.length - 1].content, // last message
+        }),
+      })
+
+      if (!contextResponse.ok) {
+        throw new Error(`Failed to get context: ${contextResponse.statusText}`)
+      }
+
+      const context = await contextResponse.json()
+
+      // 2. Add context as system message
+      formattedMessages = [
+        ...formattedMessages,
+        ...(context
+          ? [{
+              role: 'system',
+              content: context, // Context is already a formatted string
+            } as SystemMessage]
+          : []),
+      ]
+    }
+    catch (error) {
+      console.error('Error fetching context:', error)
+      // Continue with normal flow if context fails
+    }
+  }
+
   const headers = options?.headers
 
   return await streamText({
     ...chatProvider.chat(model),
     maxSteps: 10,
     // TODO: proper format for other error messages.
-    messages: messages.map(msg => ({ ...msg, content: (msg.role as string === 'error' ? `User encountered error: ${msg.content}` : msg.content), role: (msg.role as string === 'error' ? 'user' : msg.role) } as Message)),
+    messages: formattedMessages,
     headers,
     // TODO: we need Automatic tools discovery
     tools: streamOptionsToolsCompatibilityOk(model, chatProvider, messages, options)
