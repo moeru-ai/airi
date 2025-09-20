@@ -262,6 +262,7 @@ export const memoryConsolidatedMemoriesTable = pgTable('memory_consolidated_memo
 export const memorySettingsTable = pgTable('memory_settings', {
   id: uuid().primaryKey().defaultRandom(),
   // LLM Settings
+  embedded_postgres: boolean().notNull().default(true),
   mem_llm_provider: text().notNull().default('openai'),
   mem_llm_model: text().notNull().default('gpt-3.5-turbo'),
   mem_llm_api_key: text().notNull(),

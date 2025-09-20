@@ -110,6 +110,8 @@ export function createApp() {
   app.post('/api/settings', authenticateApiKey, async (req, res) => {
     try {
       const {
+        // Embedded Postgres
+        embeddedPostgres,
         // LLM settings
         llmProvider,
         llmModel,
@@ -141,6 +143,7 @@ export function createApp() {
       // Update settings first
       await settingsService.updateSettings({
         // LLM settings
+        embedded_postgres: embeddedPostgres,
         mem_llm_provider: llmProvider,
         mem_llm_model: llmModel,
         mem_llm_api_key: llmApiKey,

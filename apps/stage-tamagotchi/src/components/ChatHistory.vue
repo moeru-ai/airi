@@ -4,39 +4,94 @@ import type { CommonContentPart } from '@xsai/shared-chat'
 import { MarkdownRenderer } from '@proj-airi/stage-ui/components'
 import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
 import { storeToRefs } from 'pinia'
-import { nextTick, ref } from 'vue'
+import { computed, nextTick, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 const chatHistoryRef = ref<HTMLDivElement>()
 
 const { t } = useI18n()
-const { messages, sending, streamingMessage } = storeToRefs(useChatStore())
+const { messages, sending, streamingMessage, loadingInitialHistory, isLoadingHistory, hasMoreHistory } = storeToRefs(useChatStore())
 
-const { onBeforeMessageComposed, onTokenLiteral } = useChatStore()
+console.warn(!!loadingInitialHistory)
+
+const { onBeforeMessageComposed, onTokenLiteral, loadInitialHistory, loadMoreHistory } = useChatStore()
+
+// Track if we're scrolled to top
+const isScrolledToTop = ref(false)
+
+// Only show load more when we have more history and are scrolled to top
+const showLoadMore = computed(() => hasMoreHistory.value && isScrolledToTop.value)
+
+function handleScroll(event: Event) {
+  const target = event.target as HTMLDivElement
+  isScrolledToTop.value = target.scrollTop === 0
+}
+
+async function scrollToBottom() {
+  await nextTick()
+  if (chatHistoryRef.value) {
+    chatHistoryRef.value.scrollTop = chatHistoryRef.value.scrollHeight
+  }
+}
+
+onMounted(async () => {
+  await loadInitialHistory(10)
+  await scrollToBottom()
+})
 
 onBeforeMessageComposed(async () => {
   // Scroll down to the new sent message
-  nextTick().then(() => {
-    if (!chatHistoryRef.value)
-      return
-
-    chatHistoryRef.value.scrollTop = chatHistoryRef.value.scrollHeight
-  })
+  await scrollToBottom()
 })
 
 onTokenLiteral(async () => {
-  // Scroll down to the new responding message
-  nextTick().then(() => {
-    if (!chatHistoryRef.value)
-      return
-
-    chatHistoryRef.value.scrollTop = chatHistoryRef.value.scrollHeight
-  })
+  await scrollToBottom()
 })
+
+// Load more history without changing scroll position
+async function handleLoadMore() {
+  if (!chatHistoryRef.value)
+    return
+  // Store current scroll height and position
+  const oldScrollHeight = chatHistoryRef.value.scrollHeight
+  const oldScrollTop = chatHistoryRef.value.scrollTop
+  // Load more history
+  await loadMoreHistory()
+  // After new content is loaded, adjust scroll position to maintain relative position
+  await nextTick()
+  if (chatHistoryRef.value) {
+    const newScrollHeight = chatHistoryRef.value.scrollHeight
+    const heightDiff = newScrollHeight - oldScrollHeight
+    chatHistoryRef.value.scrollTop = oldScrollTop + heightDiff
+  }
+}
 </script>
 
 <template>
-  <div ref="chatHistoryRef" v-auto-animate flex="~ col" relative h-full w-full overflow-y-auto rounded-lg px="<sm:2" py="<sm:2">
+  <!-- Load more button -->
+  <div v-if="showLoadMore" class="load-more-container" p="x-4 y-2" flex="~ center">
+    <div class="load-more-wrapper">
+      <button
+        v-if="!isLoadingHistory"
+        class="load-more-btn"
+        bg="primary-200/20 dark:primary-400/20"
+        text="primary-500 hover:primary-600 dark:primary-300/50"
+        p="x-6 y-2"
+        rounded="full"
+        transition="all duration-200"
+        hover="bg-primary-300/20 dark:bg-primary-500/20"
+        @click="handleLoadMore"
+      >
+        Load More History
+      </button>
+      <div v-else text="primary-300/50" animate-pulse>
+        Loading...
+      </div>
+    </div>
+  </div>
+  <div flex-1 />
+
+  <div ref="chatHistoryRef" v-auto-animate flex="~ col" relative h-full w-full overflow-y-auto rounded-lg px="<sm:2" py="<sm:2" class="chat-history" @scroll="handleScroll">
     <div v-for="(message, index) in messages" :key="index" mb-2>
       <div v-if="message.role === 'error'" flex mr="12">
         <div

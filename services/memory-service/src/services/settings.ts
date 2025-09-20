@@ -9,6 +9,8 @@ export type NewMemorySettings = typeof memorySettingsTable.$inferInsert
 
 // Default settings
 const DEFAULT_SETTINGS: Omit<NewMemorySettings, 'id' | 'created_at' | 'updated_at'> = {
+  // Embedded Postgres
+  embedded_postgres: true,
   // LLM Settings
   mem_llm_provider: 'openai',
   mem_llm_model: 'gpt-3.5-turbo',

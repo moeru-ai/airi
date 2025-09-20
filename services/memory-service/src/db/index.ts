@@ -1,15 +1,46 @@
+import { dirname, resolve } from 'node:path'
 import { env, exit } from 'node:process'
+import { fileURLToPath } from 'node:url'
+
+import EmbeddedPostgres from 'embedded-postgres'
 
 import { sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
 import { migrate } from 'drizzle-orm/node-postgres/migrator'
 import { Pool } from 'pg'
 
+import { SettingsService } from '../services/settings'
+
 import * as schema from './schema'
 
 // Database connection pool
 let pool: Pool
 let db: ReturnType<typeof drizzle>
+let embeddedPostgres: EmbeddedPostgres | null = null
+
+async function isEmbeddedPostgresEnabled() {
+  const settingsService = SettingsService.getInstance()
+  const currentSettings = settingsService.getSettings()
+  const currentSettingsResolved = await currentSettings
+  const embeddedPostgresEnabled = currentSettingsResolved.embedded_postgres
+  return embeddedPostgresEnabled
+}
+
+async function StartPostgres() {
+  const embeddedPgEnabled = await isEmbeddedPostgresEnabled()
+  if (embeddedPgEnabled === true) {
+    const __filename = fileURLToPath(import.meta.url)
+    const __dirname = dirname(__filename)
+    const dataDir = resolve(__dirname, '../../.embedded_pg')
+    env.PGDATA = dataDir
+    env.DATABASE_URL = `postgres://postgres:airi_memory_password@localhost:5433/postgres`
+    embeddedPostgres = new EmbeddedPostgres({
+      port: 5433,
+    })
+    await embeddedPostgres.start()
+    console.warn('Embedded Postgres started at', env.DATABASE_URL)
+  }
+}
 
 /**
  * Initialize database connection pool
@@ -36,6 +67,7 @@ export function initPool() {
  * Initialize Drizzle ORM with connection pool
  */
 export function initDb() {
+  StartPostgres()
   if (!db) {
     const pool = initPool()
     db = drizzle(pool, { schema })
@@ -98,6 +130,9 @@ export async function runMigrations(): Promise<void> {
 export async function closeConnections(): Promise<void> {
   if (pool) {
     await pool.end()
+    if (embeddedPostgres !== null) {
+      embeddedPostgres.stop()
+    }
     console.warn('Database connections closed')
   }
 }
