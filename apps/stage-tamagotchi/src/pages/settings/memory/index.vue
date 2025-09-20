@@ -8,13 +8,18 @@ import IconAnimation from '../../../components/IconAnimation.vue'
 
 import { useIconAnimation } from '../../../composables/icon-animation'
 
+// Animated icon composable
 const {
   iconAnimationStarted,
   showIconAnimation,
   animationIcon,
 } = useIconAnimation('i-solar:armchair-2-bold-duotone')
 
-// Memory settings state
+// --------------------
+// State Definitions
+// --------------------
+
+// Memory settings state (server-driven, persisted in settings)
 const memorySettings = ref({
   embeddedPostgres: false,
   llmProvider: '',
@@ -28,7 +33,7 @@ const memorySettings = ref({
   embeddingDimensions: 1536,
 })
 
-// regeneration status
+// Embedding regeneration status (background progress info)
 const regenerationStatus = ref({
   isRegenerating: false,
   progress: 0,
@@ -40,13 +45,17 @@ const regenerationStatus = ref({
   estimatedTimeRemaining: 0,
 })
 
-// local ui state
+// Local UI state flags
 const togglingEPBusy = ref(false)
 const exportingBackupBusy = ref(false)
 const settingsBusy = ref(false)
 const errorMsg = ref('')
 
-// fetch current memory settings from server
+// --------------------
+// API Interactions
+// --------------------
+
+// Fetch memory settings + regeneration status from server
 async function fetchMemorySettings() {
   try {
     const [settingsRes, embeddedRes, regenRes] = await Promise.all([
@@ -59,16 +68,16 @@ async function fetchMemorySettings() {
     Object.assign(regenerationStatus.value, regenRes)
   }
   catch (e: unknown) {
-    errorMsg.value = e?.message || 'Failed fetching settings.'
+    const msg = e instanceof Error ? e.message : (e as any)?.message
+    errorMsg.value = msg || 'Failed fetching settings.'
   }
 }
 
-// update memory settings on server
+// Persist memory settings on server
 async function updateMemorySettings() {
   try {
     settingsBusy.value = true
     await axios.post('/api/settings', {
-      // include embeddedPostgres so it is also reflected in the settings payload
       embeddedPostgres: memorySettings.value.embeddedPostgres,
       llmProvider: memorySettings.value.llmProvider,
       llmModel: memorySettings.value.llmModel,
@@ -81,40 +90,41 @@ async function updateMemorySettings() {
       embeddingDimensions: memorySettings.value.embeddingDimensions,
     })
   }
-  catch (e: any) {
-    errorMsg.value = e?.message || 'Failed saving settings.'
+  catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : (e as any)?.message
+    errorMsg.value = msg || 'Failed saving settings.'
   }
   finally {
     settingsBusy.value = false
   }
 }
 
-// toggle embedded Postgres (button-driven)
-async function toggleEmbeddedPostgres() {
+// Set Embedded Postgres state (instead of toggle → pass explicit nextState)
+async function setEmbeddedPostgres(nextState: boolean) {
   if (togglingEPBusy.value)
     return
   togglingEPBusy.value = true
   errorMsg.value = ''
-  const newState = !memorySettings.value.embeddedPostgres
-  // optimistic UI update
+
   const prev = memorySettings.value.embeddedPostgres
-  memorySettings.value.embeddedPostgres = newState
+  // optimistic UI update
+  memorySettings.value.embeddedPostgres = nextState
   try {
-    await axios.post('/api/embedded-postgres', { enabled: newState })
-    // also persist into /api/settings so the flag is reflected when saving
-    await axios.post('/api/settings', { embeddedPostgres: newState })
+    await axios.post('/api/embedded-postgres', { enabled: nextState })
+    await axios.post('/api/settings', { embeddedPostgres: nextState })
   }
   catch (e: unknown) {
-    // revert on failure
+    // rollback on failure
     memorySettings.value.embeddedPostgres = prev
-    errorMsg.value = e?.message || 'Failed toggling Embedded Postgres.'
+    const msg = e instanceof Error ? e.message : (e as any)?.message
+    errorMsg.value = msg || 'Failed toggling Embedded Postgres.'
   }
   finally {
     togglingEPBusy.value = false
   }
 }
 
-// export embedded Postgres SQL dump
+// Export Embedded Postgres SQL dump (calls pg_dump backend)
 async function exportEmbeddedBackup() {
   if (exportingBackupBusy.value)
     return
@@ -132,17 +142,22 @@ async function exportEmbeddedBackup() {
     a.remove()
     URL.revokeObjectURL(url)
   }
-  catch (e: any) {
-    errorMsg.value = e?.message || 'Failed to export backup.'
+  catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : (e as any)?.message
+    errorMsg.value = msg || 'Failed to export backup.'
   }
   finally {
     exportingBackupBusy.value = false
   }
 }
 
+// --------------------
+// Lifecycle
+// --------------------
+
 onMounted(fetchMemorySettings)
 
-// optionally poll regeneration status
+// Poll regeneration status every 5s
 const interval = setInterval(async () => {
   try {
     const res = await axios.get('/api/settings/regeneration-status')
@@ -151,7 +166,7 @@ const interval = setInterval(async () => {
   catch {}
 }, 5000)
 
-// ensure cleanup if this component ever unmounts
+// Ensure cleanup if HMR reloads
 try {
   // @ts-expect-error runtime-only
   import.meta.hot?.on('vite:beforeFullReload', () => clearInterval(interval))
@@ -161,45 +176,55 @@ catch {}
 
 <template>
   <div>
+    <!-- Callout about development state -->
     <Callout label="In development, needs your help!" theme="orange">
       <div>
-        This functionality is still under development. If you have any suggestions or would like to contribute, please reach out to us on our <a underline decoration-dotted href="https://github.com/moeru-ai/airi/issues">GitHub issues page</a>.
-        The source code of this page is located at <a underline decoration-dotted href="https://github.com/moeru-ai/airi/tree/main/apps/stage-web/src/pages/settings/scene/index.vue">here</a>.
+        This functionality is still under development. If you have any suggestions or would like to contribute, please reach out to us on our
+        <a underline decoration-dotted href="https://github.com/moeru-ai/airi/issues">GitHub issues page</a>.
+        The source code of this page is located
+        <a underline decoration-dotted href="https://github.com/moeru-ai/airi/tree/main/apps/stage-web/src/pages/settings/scene/index.vue">here</a>.
       </div>
     </Callout>
 
     <div class="mt-6 space-y-4">
-      <!-- NEW: Explicit toggle button for embedded Postgres -->
-      <div class="flex items-center gap-3">
+      <!-- Buttons for Embedded Postgres control -->
+      <div class="flex flex-wrap items-center gap-3">
+        <!-- Toggle button -->
         <button
-          class="btn btn-secondary"
+          class="rounded-lg bg-neutral-200 px-3 py-1.5 transition dark:bg-neutral-700 hover:bg-neutral-300 disabled:opacity-60 dark:hover:bg-neutral-600"
           :disabled="togglingEPBusy"
-          @click="toggleEmbeddedPostgres"
+          @click="setEmbeddedPostgres(!memorySettings.embeddedPostgres)"
         >
           {{ memorySettings.embeddedPostgres ? 'Disable' : 'Enable' }} Embedded Postgres
         </button>
+
+        <!-- Export backup button -->
         <button
-          class="btn btn-primary"
+          class="rounded-lg bg-primary-600 px-3 py-1.5 text-white transition hover:bg-primary-700 disabled:opacity-60"
           :disabled="exportingBackupBusy"
           title="Download a pg_dump SQL file of the embedded Postgres database"
           @click="exportEmbeddedBackup"
-        />
+        >
+          {{ exportingBackupBusy ? 'Exporting…' : 'Export Backup (.sql)' }}
+        </button>
+
         <span class="text-sm opacity-70">
           Current: <strong>{{ memorySettings.embeddedPostgres ? 'Enabled' : 'Disabled' }}</strong>
         </span>
       </div>
 
-      <!-- (Optional) Keep the checkbox in sync for users who prefer a switch UI -->
-      <label class="flex items-center space-x-2">
+      <!-- Checkbox alternative UI -->
+      <label class="mt-2 inline-flex items-center gap-2">
         <input
-          v-model="memorySettings.embeddedPostgres"
-          :disabled="togglingEPBusy"
           type="checkbox"
-          @change="toggleEmbeddedPostgres"
+          :checked="memorySettings.embeddedPostgres"
+          :disabled="togglingEPBusy"
+          @change="setEmbeddedPostgres(($event.target as HTMLInputElement).checked)"
         >
         <span>Enable Embedded Postgres</span>
       </label>
 
+      <!-- Form inputs for memory settings -->
       <div class="grid grid-cols-2 gap-4">
         <input v-model="memorySettings.llmProvider" placeholder="LLM Provider">
         <input v-model="memorySettings.llmModel" placeholder="LLM Model">
@@ -212,20 +237,31 @@ catch {}
         <input v-model.number="memorySettings.embeddingDimensions" type="number" placeholder="Embedding Dimensions">
       </div>
 
-      <button class="btn btn-primary" :disabled="settingsBusy" @click="updateMemorySettings">
+      <!-- Save button -->
+      <button
+        class="rounded-lg bg-blue-600 px-3 py-1.5 text-white transition hover:bg-blue-700 disabled:opacity-60"
+        :disabled="settingsBusy"
+        @click="updateMemorySettings"
+      >
         {{ settingsBusy ? 'Saving…' : 'Save Settings' }}
       </button>
 
+      <!-- Error message -->
       <p v-if="errorMsg" class="text-sm text-red-500">
         {{ errorMsg }}
       </p>
 
+      <!-- Regeneration progress -->
       <div v-if="regenerationStatus.isRegenerating" class="mt-4">
-        <p>Embedding regeneration in progress: {{ regenerationStatus.processedItems }}/{{ regenerationStatus.totalItems }}</p>
+        <p>
+          Embedding regeneration in progress:
+          {{ regenerationStatus.processedItems }}/{{ regenerationStatus.totalItems }}
+        </p>
         <progress :value="regenerationStatus.progress" max="100" />
       </div>
     </div>
 
+    <!-- Animated Icon -->
     <IconAnimation
       v-if="showIconAnimation"
       :z-index="-1"
@@ -238,6 +274,7 @@ catch {}
       text-color="text-neutral-200/50 dark:text-neutral-600/20"
     />
 
+    <!-- Static Icon fallback -->
     <div
       v-else
       v-motion

@@ -70,27 +70,27 @@ impl Default for Settings {
 /// Regeneration status returned to the UI (stub).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RegenStatus {
-  pub isRegenerating: bool,
+  pub is_regenerating: bool,
   pub progress: u32,               // 0..=100
-  pub totalItems: u32,
-  pub processedItems: u32,
-  pub avgBatchTimeMs: u64,
-  pub lastBatchTimeMs: u64,
-  pub currentBatchSize: u32,
-  pub estimatedTimeRemaining: u64, // ms
+  pub total_items: u32,
+  pub processed_items: u32,
+  pub avg_batch_time_ms: u64,
+  pub last_batch_time_ms: u64,
+  pub current_batch_size: u32,
+  pub estimated_time_remaining: u64, // ms
 }
 
 impl Default for RegenStatus {
   fn default() -> Self {
     Self {
-      isRegenerating: false,
+      is_regenerating: false,
       progress: 0,
-      totalItems: 0,
-      processedItems: 0,
-      avgBatchTimeMs: 0,
-      lastBatchTimeMs: 0,
-      currentBatchSize: 50,
-      estimatedTimeRemaining: 0,
+      total_items: 0,
+      processed_items: 0,
+      avg_batch_time_ms: 0,
+      last_batch_time_ms: 0,
+      current_batch_size: 50,
+      estimated_time_remaining: 0,
     }
   }
 }

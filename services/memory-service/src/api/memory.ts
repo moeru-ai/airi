@@ -24,7 +24,7 @@ memoryRouter.post('/export-embedded', async (req: Request, res: Response) => {
 
     const dbUrl
       = process.env.DATABASE_URL
-        || 'postgres://postgres:postgres@localhost:5434/postgres'
+        || 'postgres://postgres:postgres@localhost:5433/postgres'
 
     exec(`pg_dump ${dbUrl} > "${dumpFile}"`, (error, stdout, stderr) => {
       if (error) {
