@@ -15,6 +15,11 @@ const connectionMessage = ref('')
 const connectionMessageType = ref<'success' | 'error'>('')
 const connectionError = ref('')
 
+// === NEW: EMBEDDED POSTGRES FLAG ===
+const embeddedPostgres = useLocalStorage('settings/memory/embedded-postgres', false)
+const togglingEPBusy = ref(false)
+const exportingBackupBusy = ref(false)
+
 // === DATABASE CONNECTION INFO ===
 const currentDbUrl = ref('')
 const dbInfoMessage = ref('')
@@ -115,7 +120,7 @@ const llmModels = computed(() => {
       ]
     case 'gemini':
       return [
-        { id: 'gemini-pro', name: 'Gemini Pro', description: 'Google\'s most capable Gemini model' },
+        { id: 'gemini-pro', name: 'Gemini Pro', description: "Google's most capable Gemini model" },
         { id: 'gemini-pro-vision', name: 'Gemini Pro Vision', description: 'Gemini Pro with vision capabilities' },
       ]
     case 'local':
@@ -137,7 +142,7 @@ const embeddingModels = computed(() => {
       ]
     case 'gemini':
       return [
-        { id: 'embedding-001', name: 'Embedding 001', description: 'Google\'s embedding model (768 dims)' },
+        { id: 'embedding-001', name: 'Embedding 001', description: "Google's embedding model (768 dims)" },
       ]
     case 'local':
       return [
@@ -176,14 +181,12 @@ const showRegenerationWarning = ref(false)
 
 // Watch for changes in temporary embedding settings
 watch([tempEmbeddingProvider, tempEmbeddingModel, tempEmbeddingDim, tempEmbeddingApiKey], () => {
-  // Check if any temporary setting differs from committed setting
   const hasChanges
     = tempEmbeddingProvider.value !== embeddingProvider.value
       || tempEmbeddingModel.value !== embeddingModel.value
       || tempEmbeddingDim.value !== embeddingDim.value
       || tempEmbeddingApiKey.value !== embeddingApiKey.value
 
-  // Also consider it a change if we're setting initial values
   const isInitialSetup
     = (!embeddingProvider.value && tempEmbeddingProvider.value)
       || (!embeddingModel.value && tempEmbeddingModel.value)
@@ -213,7 +216,6 @@ async function fetchSettings() {
 
     const settings = await response.json()
 
-    // Only update settings if they exist in the response
     if (settings) {
       // Update LLM settings
       llmProvider.value = settings.llmProvider || ''
@@ -226,6 +228,14 @@ async function fetchSettings() {
       embeddingApiKey.value = settings.embeddingApiKey || ''
       embeddingDim.value = settings.embeddingDimensions || 0
 
+      // NEW: Embedded Postgres flag from server (if available)
+      if (typeof settings.embeddedPostgres === 'boolean') {
+        embeddedPostgres.value = settings.embeddedPostgres
+      } else {
+        // fallback to separate endpoint
+        await fetchEmbeddedPostgres()
+      }
+
       // Sync temporary settings
       tempEmbeddingProvider.value = embeddingProvider.value
       tempEmbeddingModel.value = embeddingModel.value
@@ -236,10 +246,97 @@ async function fetchSettings() {
       connectionMessageType.value = 'success'
     }
   }
-  catch (error) {
+  catch (error: any) {
     console.error('Failed to fetch settings:', error)
     connectionMessage.value = `Failed to fetch settings: ${error.message}`
     connectionMessageType.value = 'error'
+  }
+}
+
+async function fetchEmbeddedPostgres() {
+  try {
+    if (!memoryServiceEnabled.value) return
+    const response = await fetch(`${memoryServiceUrl.value}/api/embedded-postgres`, {
+      headers: { Authorization: `Bearer ${apiKey.value}` },
+    })
+    if (!response.ok) throw new Error('Failed to fetch embedded Postgres state')
+    const data = await response.json()
+    embeddedPostgres.value = !!data.enabled
+  } catch (error) {
+    console.error('Failed to fetch embedded Postgres:', error)
+  }
+}
+
+async function toggleEmbeddedPostgres() {
+  if (!memoryServiceEnabled.value || togglingEPBusy.value) return
+  togglingEPBusy.value = true
+
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+  if (apiKey.value.trim()) headers.Authorization = `Bearer ${apiKey.value}`
+
+  const next = !embeddedPostgres.value
+  const prev = embeddedPostgres.value
+  // optimistic UI
+  embeddedPostgres.value = next
+
+  try {
+    const res = await fetch(`${memoryServiceUrl.value}/api/embedded-postgres`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ enabled: next }),
+    })
+    if (!res.ok) throw new Error(`Server responded ${res.status}`)
+
+    // Also try to reflect in /api/settings so saves stay in sync
+    try {
+      await fetch(`${memoryServiceUrl.value}/api/settings`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ embeddedPostgres: next }),
+      })
+    } catch { /* optional; ignore if unsupported */ }
+
+    connectionMessage.value = `Embedded Postgres ${next ? 'enabled' : 'disabled'}`
+    connectionMessageType.value = 'success'
+  } catch (error: any) {
+    embeddedPostgres.value = prev // rollback
+    connectionMessage.value = `Failed to toggle Embedded Postgres: ${error.message || error}`
+    connectionMessageType.value = 'error'
+  } finally {
+    togglingEPBusy.value = false
+  }
+}
+
+async function exportEmbeddedBackup() {
+  if (!memoryServiceEnabled.value || exportingBackupBusy.value) return
+  exportingBackupBusy.value = true
+  try {
+    const headers: Record<string, string> = {}
+    if (apiKey.value.trim()) headers.Authorization = `Bearer ${apiKey.value}`
+
+    const res = await fetch(`${memoryServiceUrl.value}/api/export-embedded`, {
+      method: 'POST',
+      headers,
+    })
+    if (!res.ok) throw new Error(`Server responded ${res.status}`)
+
+    const blob = await res.blob()
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = 'embedded_pg_backup.sql'
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+    URL.revokeObjectURL(url)
+
+    connectionMessage.value = 'Backup exported successfully.'
+    connectionMessageType.value = 'success'
+  } catch (error: any) {
+    connectionMessage.value = `Failed to export backup: ${error.message || error}`
+    connectionMessageType.value = 'error'
+  } finally {
+    exportingBackupBusy.value = false
   }
 }
 
@@ -264,8 +361,8 @@ async function testConnection() {
       connectionMessageType.value = 'success'
       connectionError.value = ''
 
-      // Also fetch database info now that we have a working connection
       await fetchDatabaseInfo()
+      await fetchEmbeddedPostgres()
     }
     else if (response.status === 401) {
       isConnected.value = false
@@ -289,12 +386,12 @@ async function testConnection() {
       connectionError.value = `HTTP ${response.status}: ${response.statusText}`
     }
   }
-  catch (error) {
+  catch (error: any) {
     isConnected.value = false
     connectionStatus.value = 'Cannot connect to Memory Service ❌'
     connectionMessage.value = 'Connection failed: Network error'
     connectionMessageType.value = 'error'
-    connectionError.value = error instanceof Error ? error.message : 'Unknown connection error'
+    connectionError.value = error?.message || 'Unknown connection error'
   }
   finally {
     isTesting.value = false
@@ -312,7 +409,8 @@ function resetSettings() {
   embeddingModel.value = ''
   embeddingApiKey.value = ''
   embeddingDim.value = 0
-  // Reset temporary settings to match committed settings
+  embeddedPostgres.value = false
+
   tempEmbeddingProvider.value = embeddingProvider.value
   tempEmbeddingModel.value = embeddingModel.value
   tempEmbeddingApiKey.value = embeddingApiKey.value
@@ -334,42 +432,42 @@ async function confirmRegeneration() {
     embeddingApiKey.value = tempEmbeddingApiKey.value
     embeddingDim.value = tempEmbeddingDim.value
 
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${apiKey.value}`,
+    }
+
     // Call the API to update settings and trigger regeneration
     const response = await fetch(`${memoryServiceUrl.value}/api/settings`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey.value}`,
-      },
+      headers,
       body: JSON.stringify({
         // LLM settings
         llmProvider: llmProvider.value,
         llmModel: llmModel.value,
         llmApiKey: llmApiKey.value,
-        // llmTemperature: 7, // TODO: Maybe add settings for these
-        // llmMaxTokens: 2000, // TODO: maybe add settings for these
-
         // Embedding settings
         embeddingProvider: embeddingProvider.value,
         embeddingModel: embeddingModel.value,
         embeddingApiKey: embeddingApiKey.value,
         embeddingDimensions: embeddingDim.value,
+        // NEW: reflect embedded Postgres flag in settings as well
+        embeddedPostgres: embeddedPostgres.value,
       }),
     })
 
     if (!response.ok) {
-      const error = await response.json()
+      const error = await response.json().catch(() => ({}))
       throw new Error(error.details || 'Failed to update settings')
     }
 
     showRegenerationWarning.value = false
     settingsChanged.value = false
 
-    // Show success message
     connectionMessage.value = 'Settings updated and embedding regeneration started'
     connectionMessageType.value = 'success'
   }
-  catch (error) {
+  catch (error: any) {
     console.error('Failed to update settings:', error)
     connectionMessage.value = `Failed to update settings: ${error.message}`
     connectionMessageType.value = 'error'
@@ -377,7 +475,6 @@ async function confirmRegeneration() {
 }
 
 function dismissRegenerationWarning() {
-  // Revert temporary settings back to committed settings
   tempEmbeddingProvider.value = embeddingProvider.value
   tempEmbeddingModel.value = embeddingModel.value
   tempEmbeddingApiKey.value = embeddingApiKey.value
@@ -419,22 +516,21 @@ watch(memoryServiceEnabled, async (newValue) => {
     await fetchSettings()
     await fetchRegenerationStatus()
     await fetchDatabaseInfo()
+    await fetchEmbeddedPostgres()
   }
 })
 
 onMounted(async () => {
-  // Initialize temporary settings with either stored values or defaults
   tempEmbeddingProvider.value = embeddingProvider.value || 'openai'
   tempEmbeddingModel.value = embeddingModel.value || 'text-embedding-3-small'
   tempEmbeddingApiKey.value = embeddingApiKey.value
   tempEmbeddingDim.value = embeddingDim.value || 1536
 
-  // Fetch database info when settings page opens
   if (memoryServiceEnabled.value) {
     await fetchDatabaseInfo()
+    await fetchEmbeddedPostgres()
   }
 
-  // Force check for changes on mount
   const hasChanges
     = tempEmbeddingProvider.value !== embeddingProvider.value
       || tempEmbeddingModel.value !== embeddingModel.value
@@ -479,6 +575,48 @@ onMounted(async () => {
           </div>
         </div>
       </div>
+    </div>
+
+    <!-- NEW: Embedded Postgres Controls -->
+    <div class="border border-neutral-200 rounded-lg bg-white p-6 dark:border-neutral-700 dark:bg-neutral-800">
+      <div class="mb-2 flex items-center justify-between">
+        <h3 class="text-lg text-neutral-900 font-semibold dark:text-neutral-100">Embedded Postgres</h3>
+        <div class="flex items-center gap-3">
+          <button
+            class="rounded-lg px-3 py-1 text-sm bg-neutral-200 dark:bg-neutral-700 hover:bg-neutral-300 dark:hover:bg-neutral-600 disabled:opacity-60"
+            :disabled="!memoryServiceEnabled || togglingEPBusy"
+            @click="toggleEmbeddedPostgres"
+          >
+            {{ embeddedPostgres ? 'Disable' : 'Enable' }}
+          </button>
+          <span class="text-xs text-neutral-600 dark:text-neutral-300">Current: <strong>{{ embeddedPostgres ? 'Enabled' : 'Disabled' }}</strong></span>
+        </div>
+      </div>
+      <div class="flex flex-col gap-3">
+        <label class="flex items-center gap-2">
+          <input
+            type="checkbox"
+            class="h-4 w-4 border-gray-300 rounded bg-gray-100 text-blue-600 dark:border-gray-600 dark:bg-gray-700 focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-600"
+            :disabled="!memoryServiceEnabled || togglingEPBusy"
+            v-model="embeddedPostgres"
+            @change="toggleEmbeddedPostgres"
+          >
+          <span class="text-sm text-neutral-700 dark:text-neutral-300">Enable Embedded Postgres</span>
+        </label>
+
+        <div class="flex gap-2">
+          <button
+            class="rounded-lg px-3 py-1 text-sm bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-60"
+            :disabled="!memoryServiceEnabled || exportingBackupBusy"
+            @click="exportEmbeddedBackup"
+            title="Export SQL dump of the embedded Postgres database"
+          >
+            {{ exportingBackupBusy ? 'Exporting…' : 'Export Backup (.sql)' }}
+          </button>
+          <span class="text-xs text-neutral-500 dark:text-neutral-400 self-center">Download a pg_dump SQL file of the embedded database.</span>
+        </div>
+      </div>
+      <p class="mt-2 text-xs text-neutral-500 dark:text-neutral-400">Toggles the built-in Postgres instance used by the memory service, and lets you export a backup.</p>
     </div>
 
     <!-- Regeneration Warning -->
