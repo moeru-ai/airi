@@ -386,9 +386,9 @@ watch(focusAt, (value) => {
 const beatSyncStore = useBeatSyncStore()
 
 onMounted(() => {
-  const onBeat = (level: number) => {
-    beatSyncTargetY.value = Math.max(-10, Math.min(10, (beatSyncTargetY.value < 0 ? 10 : -10) * level * 5))
-    beatSyncTargetZ.value = Math.max(-10, Math.min(10, (beatSyncTargetZ.value < 0 ? 10 : -10) * level * 4))
+  const onBeat = () => {
+    beatSyncTargetY.value = Math.max(-10, Math.min(10, (beatSyncTargetY.value < 0 ? 10 : -10) * 0.5))
+    beatSyncTargetZ.value = Math.max(-10, Math.min(10, (beatSyncTargetZ.value < 0 ? 10 : -10) * 0.4))
   }
 
   beatSyncStore.on('beat', onBeat)

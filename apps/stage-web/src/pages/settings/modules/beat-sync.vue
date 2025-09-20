@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import type { AnalyserBeatEvent } from '@nekopaw/tempora'
+import type { AnalyserBeatEvent, AnalyserWorkletParameters } from '@nekopaw/tempora'
 
+import { DEFAULT_ANALYSER_WORKLET_PARAMS } from '@nekopaw/tempora'
 import { Button } from '@proj-airi/stage-ui/components'
 import { useBeatSyncStore } from '@proj-airi/stage-ui/stores/beat-sync'
 import { FieldCheckbox, FieldRange } from '@proj-airi/ui'
@@ -16,32 +17,20 @@ const selectedAudioSource = ref<string>('none')
 
 const beatsHistory = ref<Array<{
   id: string
-  level: number
-  linearLevel: number
+  energy: number
+  normalizedEnergy: number
 }>>([])
 
-const minBeatInterval = ref(0.2)
-const peakThreshold = ref(1.5)
-const lowpassFilterFrequency = ref(240)
-const warmup = ref(true)
-const shortTermBufferDuration = ref(0.04)
-const longTermBufferDuration = ref(4)
+const parameters = ref<AnalyserWorkletParameters>({ ...DEFAULT_ANALYSER_WORKLET_PARAMS })
 
 watchEffect(() => {
-  beatSyncStore.updateParameters({
-    minBeatInterval: minBeatInterval.value,
-    peakThreshold: peakThreshold.value,
-    lowpassFilterFrequency: lowpassFilterFrequency.value,
-    warmup: warmup.value,
-    shortTermBufferDuration: shortTermBufferDuration.value,
-    longTermBufferDuration: longTermBufferDuration.value,
-  })
+  beatSyncStore.updateParameters(parameters.value)
 })
 
-function linearLevel(level: number) {
+function normalizeEnergy(energy: number) {
   const base = 2
   const a = 0.5
-  return ((base ** level - 1) / (base - 1)) ** a
+  return ((base ** energy - 1) / (base - 1)) ** a
 }
 
 watch(selectedAudioSource, async (source) => {
@@ -56,12 +45,11 @@ watch(selectedAudioSource, async (source) => {
 })
 
 onMounted(() => {
-  const onBeat = (event: AnalyserBeatEvent) => {
-    const { level } = event
+  const onBeat = ({ energy }: AnalyserBeatEvent) => {
     beatsHistory.value.unshift({
       id: nanoid(),
-      level,
-      linearLevel: linearLevel(level),
+      energy,
+      normalizedEnergy: normalizeEnergy(energy),
     })
   }
 
@@ -72,13 +60,34 @@ onMounted(() => {
   })
 })
 
+function onRippleEnter(el: Element, done: () => void) {
+  const beatId = (el as HTMLElement).dataset.beatId
+  createTimeline()
+    .set(el, {
+      opacity: 1,
+      scale: 0,
+    })
+    .add(el, {
+      opacity: 0,
+      scale: 1,
+      duration: 2000,
+      delay: 0,
+      ease: 'out(5)',
+      onComplete: () => {
+        if (!beatId)
+          return
+
+        const idx = beatsHistory.value.findIndex(b => b.id === beatId)
+        if (idx >= 0)
+          beatsHistory.value.splice(idx, 1)
+
+        done()
+      },
+    })
+}
+
 function resetDefaultParameters() {
-  minBeatInterval.value = 0.2
-  peakThreshold.value = 1.5
-  lowpassFilterFrequency.value = 240
-  warmup.value = true
-  shortTermBufferDuration.value = 0.04
-  longTermBufferDuration.value = 4
+  parameters.value = { ...DEFAULT_ANALYSER_WORKLET_PARAMS }
 }
 </script>
 
@@ -136,7 +145,7 @@ function resetDefaultParameters() {
 
           <div max-w-full flex="~ col gap-4">
             <FieldRange
-              v-model="minBeatInterval"
+              v-model="parameters.minBeatInterval"
               :label="t('settings.pages.modules.beat_sync.sections.parameters.parameters.min_beat_interval.label')"
               :description="t('settings.pages.modules.beat_sync.sections.parameters.parameters.min_beat_interval.description')"
               :min="0.05"
@@ -146,29 +155,43 @@ function resetDefaultParameters() {
             />
 
             <FieldRange
-              v-model="peakThreshold"
-              :label="t('settings.pages.modules.beat_sync.sections.parameters.parameters.peak_threshold.label')"
-              :description="t('settings.pages.modules.beat_sync.sections.parameters.parameters.peak_threshold.description')"
-              :min="0.1"
-              :max="3"
-              :step="0.1"
+              v-model="parameters.sensitivity"
+              label="Sensitivity"
+              description=""
+              :min="0"
+              :max="1"
+              :step="0.01"
               :format-value="value => value.toFixed(1)"
             />
 
             <FieldRange
-              v-model="lowpassFilterFrequency"
+              v-model="parameters.lowpassFilterFrequency"
               :label="t('settings.pages.modules.beat_sync.sections.parameters.parameters.lowpass_filter_frequency.label')"
               :description="t('settings.pages.modules.beat_sync.sections.parameters.parameters.lowpass_filter_frequency.description')"
               :min="20"
-              :max="24000 /* Nyquist frequency under 48 kHz sample rate */"
+              :max="600"
               :step="10"
               :format-value="value => `${value.toFixed(0)} Hz`"
             />
 
-            <FieldCheckbox
-              v-model="warmup"
-              :label="t('settings.pages.modules.beat_sync.sections.parameters.parameters.warmup.label')"
-              :description="t('settings.pages.modules.beat_sync.sections.parameters.parameters.warmup.description')"
+            <FieldRange
+              v-model="parameters.highpassFilterFrequency"
+              label="Highpass filter Frequency"
+              description=""
+              :min="150"
+              :max="2000"
+              :step="10"
+              :format-value="value => `${value.toFixed(0)} Hz`"
+            />
+
+            <FieldRange
+              v-model="parameters.envelopeFilterFrequency"
+              label="Envelope filter Frequency"
+              description=""
+              :min="20"
+              :max="200"
+              :step="10"
+              :format-value="value => `${value.toFixed(0)} Hz`"
             />
 
             <div>
@@ -177,18 +200,26 @@ function resetDefaultParameters() {
               </h3>
             </div>
 
-            <FieldRange
-              v-model="shortTermBufferDuration"
-              :label="t('settings.pages.modules.beat_sync.sections.parameters.parameters.short_term_buffer_duration.label')"
-              :description="t('settings.pages.modules.beat_sync.sections.parameters.parameters.short_term_buffer_duration.description')"
-              :min="0.01"
-              :max="1"
-              :step="0.01"
-              :format-value="value => `${value.toFixed(2)} s`"
+            <FieldCheckbox
+              v-model="parameters.warmup"
+              :label="t('settings.pages.modules.beat_sync.sections.parameters.parameters.warmup.label')"
+              :description="t('settings.pages.modules.beat_sync.sections.parameters.parameters.warmup.description')"
+            />
+
+            <FieldCheckbox
+              v-model="parameters.adaptiveThreshold"
+              label="Adaptive threshold"
+              description=""
+            />
+
+            <FieldCheckbox
+              v-model="parameters.spectralFluxEnabled"
+              label="Spectral flux-based onset detection"
+              description=""
             />
 
             <FieldRange
-              v-model="longTermBufferDuration"
+              v-model="parameters.bufferDuration"
               :label="t('settings.pages.modules.beat_sync.sections.parameters.parameters.long_term_buffer_duration.label')"
               :description="t('settings.pages.modules.beat_sync.sections.parameters.parameters.long_term_buffer_duration.description')"
               :min="2"
@@ -213,37 +244,15 @@ function resetDefaultParameters() {
           <TransitionGroup
             tag="div"
             bg="neutral/10"
-            relative aspect-square
-            h-full max-h-400px max-w-400px w-full
-            rounded-2xl
+            relative box-border aspect-square h-full max-h-400px max-w-400px w-full rounded-2xl
             flex="~ row gap-2 wrap items-center"
             :css="false"
-            @enter="(el) => {
-              createTimeline()
-                .set(el, {
-                  opacity: 1,
-                  scale: 0,
-                })
-                .add(el, {
-                  opacity: 0.8,
-                  duration: 100,
-                  ease: 'out(5)',
-                })
-                .add(el, {
-                  opacity: 0,
-                  scale: 1,
-                  duration: 5000,
-                  delay: 300,
-                  ease: 'out(5)',
-                  onComplete: () => {
-                    beatsHistory.pop()
-                  },
-                })
-            }"
+            @enter="onRippleEnter"
           >
             <div
               v-for="beat in beatsHistory"
               :key="beat.id"
+              :data-beat-id="beat.id"
               absolute h-full w-full
               rounded-full bg="primary/50"
             />
