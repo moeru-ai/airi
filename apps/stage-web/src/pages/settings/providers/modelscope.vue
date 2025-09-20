@@ -2,6 +2,7 @@
 import type { RemovableRef } from '@vueuse/core'
 
 import {
+  Alert,
   ProviderAdvancedSettings,
   ProviderApiKeyInput,
   ProviderBaseUrlInput,
@@ -9,20 +10,26 @@ import {
   ProviderSettingsContainer,
   ProviderSettingsLayout,
 } from '@proj-airi/stage-ui/components'
+import { useProviderValidation } from '@proj-airi/stage-ui/composables/useProviderValidation'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, watch } from 'vue'
-import { useI18n } from 'vue-i18n'
-import { useRouter } from 'vue-router'
 
-const { t } = useI18n()
-const router = useRouter()
 const providersStore = useProvidersStore()
 const { providers } = storeToRefs(providersStore) as { providers: RemovableRef<Record<string, any>> }
 
 // Get provider metadata
 const providerId = 'modelscope'
-const providerMetadata = computed(() => providersStore.getProviderMetadata(providerId))
+
+const {
+  t,
+  router,
+  providerMetadata,
+  isValidating,
+  isValid,
+  validationMessage,
+  handleResetSettings,
+} = useProviderValidation(providerId)
 
 // Use computed properties for settings
 const apiKey = computed({
@@ -62,12 +69,6 @@ watch([apiKey, baseUrl], () => {
     baseUrl: baseUrl.value || '',
   }
 })
-
-function handleResetSettings() {
-  providers.value[providerId] = {
-    ...(providerMetadata.value?.defaultOptions as any),
-  }
-}
 </script>
 
 <template>
@@ -95,6 +96,23 @@ function handleResetSettings() {
           placeholder="https://api-inference.modelscope.cn/v1/"
         />
       </ProviderAdvancedSettings>
+
+      <!-- Validation Status -->
+      <Alert v-if="!isValid && isValidating === 0 && validationMessage" type="error">
+        <template #title>
+          {{ t('settings.dialogs.onboarding.validationFailed') }}
+        </template>
+        <template v-if="validationMessage" #content>
+          <div class="whitespace-pre-wrap break-all">
+            {{ validationMessage }}
+          </div>
+        </template>
+      </Alert>
+      <Alert v-if="isValid && isValidating === 0" type="success">
+        <template #title>
+          {{ t('settings.dialogs.onboarding.validationSuccess') }}
+        </template>
+      </Alert>
     </ProviderSettingsContainer>
   </ProviderSettingsLayout>
 </template>

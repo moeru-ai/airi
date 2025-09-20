@@ -2,14 +2,14 @@ import type { Logg } from '@guiiai/logg'
 
 import type { Handler } from './types'
 
-import { useLoggerer } from '../../utils/logger'
+import { useLogger } from '../../utils/logger'
 
 export class Components {
   private components: Map<string, Handler> = new Map()
   private logger: Logg
 
   constructor() {
-    this.logger = useLoggerer()
+    this.logger = useLogger()
   }
 
   register(componentName: string, component: Handler) {

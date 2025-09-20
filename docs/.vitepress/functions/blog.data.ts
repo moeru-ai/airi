@@ -8,7 +8,7 @@ import { env } from 'node:process'
 import { dirname, join } from 'pathe'
 import { createContentLoader } from 'vitepress'
 
-import { formatDate } from './utils'
+import { formatDate } from '../utils/utils'
 
 const config: SiteConfig = (globalThis as any).VITEPRESS_CONFIG
 const base = config.userConfig.base || env.BASE_URL || '/'

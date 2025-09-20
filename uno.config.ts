@@ -174,9 +174,12 @@ export function sharedUnoConfig() {
           // the default
           /\.(vue|svelte|[jt]sx|mdx?|astro|elm|php|phtml|html)($|\?)/,
           // include js/ts files
-          '(components|src)/**/*.{js,ts,vue}',
-          '**/stage-ui/**/*.{vue,js,ts}',
-          '**/ui/**/*.{vue,js,ts}',
+          '(components|src)/**/*.{js,ts,vue}', // THIS CAN INCLUDE node_modules
+          '**/stage-ui/**/*.{vue,js,ts}', // THIS TOO
+          '**/ui/**/*.{vue,js,ts}', // THIS TOO
+        ],
+        exclude: [
+          /\/node_modules\//, // DO NOT SCAN THE BLACK HOLE
         ],
       },
     },

@@ -2,11 +2,14 @@
 import { useDisplayModelsStore } from '@proj-airi/stage-ui/stores/display-models'
 import { useOnboardingStore } from '@proj-airi/stage-ui/stores/onboarding'
 import { useSettings } from '@proj-airi/stage-ui/stores/settings'
+import { defineInvoke } from '@unbird/eventa'
+import { createContext } from '@unbird/eventa/adapters/electron/renderer'
 import { storeToRefs } from 'pinia'
 import { onMounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterView } from 'vue-router'
 
+import { electronStartTrackingCursorPoint } from '../shared/eventa'
 import { useWindowMode } from './stores/window-controls'
 
 useWindowMode()
@@ -26,6 +29,10 @@ onMounted(async () => {
 
   await displayModelsStore.loadDisplayModelsFromIndexedDB()
   await settingsStore.initializeStageModel()
+
+  const { context } = createContext(window.electron.ipcRenderer)
+  const startTrackingCursorPoint = defineInvoke(context, electronStartTrackingCursorPoint)
+  await startTrackingCursorPoint(undefined)
 })
 
 watch(themeColorsHue, () => {

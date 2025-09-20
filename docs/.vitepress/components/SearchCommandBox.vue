@@ -14,7 +14,7 @@ import { useData } from 'vitepress'
 import { markRaw, nextTick, onMounted, ref, shallowRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import { LRUCache } from '../functions/cache'
+import { LRUCache } from '../utils/cache'
 
 const emits = defineEmits<{
   close: []

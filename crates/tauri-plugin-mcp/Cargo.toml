@@ -28,7 +28,6 @@ rmcp = { version = "0.1", features = [
 ] }
 tokio = { version = "1", features = [ "full" ] }
 anyhow = "1"
-glib = "0.21.1"
 
 [build-dependencies]
 tauri-plugin = { version = "2.2", features = [ "build" ] }

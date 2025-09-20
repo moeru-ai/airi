@@ -106,6 +106,13 @@ jobs:
             librsvg2-dev \
             patchelf
 
+      - name: Install system dependencies (macOS Only)
+        if: matrix.os == 'macos-latest'
+        run: |
+          brew install \
+            pkg-config \
+            glib
+
       - name: Setup MSVC (Windows Only)
         if: matrix.os == 'windows-latest'
         uses: TheMrMilchmann/setup-msvc-dev@v3

@@ -40,7 +40,7 @@ const {
   handleResetSettings,
 } = useProviderValidation(providerId)
 
-const headers = ref<{ key: string, value: string }[]>(Object.entries(providers.value[providerId]?.headers).map(([key, value]) => ({ key, value } as { key: string, value: string })) || [{ key: '', value: '' }])
+const headers = ref<{ key: string, value: string }[]>(Object.entries(providers.value[providerId]?.headers || {}).map(([key, value]) => ({ key, value } as { key: string, value: string })) || [{ key: '', value: '' }])
 
 function addKeyValue(headers: { key: string, value: string }[], key: string, value: string) {
   if (!headers)

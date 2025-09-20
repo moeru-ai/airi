@@ -1,0 +1,126 @@
+
+
+.list-box-tips kbd,
+.prose kbd,
+.custom-block kbd {
+  color: inherit;
+  padding: 4px 8px;
+  font-size: 0.8rem;
+  cursor: pointer;
+  user-select: none;
+  position: relative;
+  bottom: 2px;
+  font-family: 'DM Sans', -apple-system, BlinkMacSystemFont ,"Segoe UI Adjusted", "Segoe UI", "Liberation Sans", sans-serif;
+  font-weight: 600;
+  border: none;
+  border-radius: inherit;
+}
+
+.custom-block kbd {
+  z-index: 1;
+}
+
+.list-box-tips kbd::after,
+.prose kbd::after,
+.custom-block kbd::after {
+  display: inline;
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 100%;
+  width: 100%;
+  background: hsl(0 0% 94% / 1);
+  box-shadow: 0px 2px 0 2px hsl(0 0% 88% / 1);
+  border-radius: 6px;
+  font-size: 0.8rem;
+  cursor: pointer;
+  user-select: none;
+  z-index: -1;
+}
+
+.dark .list-box-tips kbd::after,
+.dark .prose kbd::after,
+.dark .custom-block kbd::after {
+  background: #3c3c3c;
+  box-shadow: 0 2px 0 2px #292929;
+}
+
+/**
+https://apple.stackexchange.com/a/123577
+*/
+kbd[data-macos-keyboard-key="command"]::before {
+  content: "⌘";
+  vertical-align: top;
+  margin-right: 4px;
+}
+
+kbd[data-macos-keyboard-key="option"]::before {
+  content: "⌥";
+  vertical-align: top;
+  margin-right: 4px;
+}
+
+kbd[data-windows-keyboard-key="windows"]::before {
+  content: "⊞";
+  vertical-align: top;
+  margin-right: 4px;
+  font-size: 1.4em;
+}
+
+kbd[data-keyboard-key="esc"]::before {
+  content: "⎋";
+  vertical-align: top;
+  margin-right: 4px;
+}
+
+kbd[data-keyboard-key="shift"]::before {
+  content: "⇧";
+  vertical-align: top;
+  margin-right: 4px;
+}
+
+kbd[data-keyboard-key="return"]::before {
+  content: "⏎";
+  vertical-align: top;
+  margin-right: 4px;
+}
+
+kbd[data-keyboard-key="control"]::before {
+  content: "⌃";
+  vertical-align: top;
+  margin-right: 4px;
+}
+
+kbd[data-keyboard-key="enter"]::before {
+  content: "⏎";
+  vertical-align: top;
+  margin-right: 4px;
+}
+
+kbd[data-keyboard-key="space"]::before {
+  content: "␣";
+  vertical-align: top;
+  margin-right: 4px;
+  font-weight: bold;
+}
+
+kbd[data-keyboard-key="up-arrow"]::before {
+  content: "↑";
+  vertical-align: top;
+}
+
+kbd[data-keyboard-key="down-arrow"]::before {
+  content: "↓";
+  vertical-align: top;
+}
+
+kbd[data-keyboard-key="left-arrow"]::before {
+  content: "←";
+  vertical-align: top;
+}
+
+kbd[data-keyboard-key="right-arrow"]::before {
+  content: "→";
+  vertical-align: top;
+}

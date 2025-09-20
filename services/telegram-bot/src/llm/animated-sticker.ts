@@ -13,7 +13,7 @@ import ffmpegInstaller from '@ffmpeg-installer/ffmpeg'
 import ffmpeg from 'fluent-ffmpeg'
 import Sharp from 'sharp'
 
-import { useLogger } from '@guiiai/logg'
+import { useLogg } from '@guiiai/logg'
 import { generateText } from '@xsai/generate-text'
 import { message } from '@xsai/utils-chat'
 
@@ -48,7 +48,7 @@ async function extractFrames(inputFilePath, outputDir, frameRate = 5) {
 }
 
 export async function interpretAnimatedSticker(bot: Bot, msg: Message, sticker: Sticker) {
-  const logger = useLogger('interpretAnimatedSticker')
+  const logger = useLogg('interpretAnimatedSticker')
     .useGlobalConfig()
     .withField('sticker_id', sticker.file_id)
     .withField('sticker_emoji', sticker.emoji)

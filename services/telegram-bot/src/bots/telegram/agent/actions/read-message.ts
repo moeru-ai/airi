@@ -4,7 +4,7 @@ import type { BotContext, ReadUnreadMessagesAction } from '../../../../types'
 
 import { env } from 'node:process'
 
-import { useLogger } from '@guiiai/logg'
+import { useLogg } from '@guiiai/logg'
 import { withRetry } from '@moeru/std'
 import { trace } from '@opentelemetry/api'
 import { embed } from '@xsai/embed'
@@ -25,7 +25,7 @@ export async function readMessage(
   break?: boolean
   result: string
 }> {
-  const logger = useLogger('readMessage').useGlobalConfig()
+  const logger = useLogg('readMessage').useGlobalConfig()
   const tracer = trace.getTracer('airi.telegram.bot')
 
   return await tracer.startActiveSpan('telegram.module.read_message', async (span) => {

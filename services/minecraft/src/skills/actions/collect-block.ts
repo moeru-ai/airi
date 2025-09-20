@@ -4,13 +4,13 @@ import type { Mineflayer } from '../../libs/mineflayer'
 
 import pathfinder from 'mineflayer-pathfinder'
 
-import { useLoggerer } from '../../utils/logger'
+import { useLogger } from '../../utils/logger'
 import { breakBlockAt } from '../blocks'
 import { getNearestBlocks } from '../world'
 import { ensurePickaxe } from './ensure'
 import { pickupNearbyItems } from './world-interactions'
 
-const logger = useLoggerer()
+const logger = useLogger()
 
 function isMessagable(err: unknown): err is { message: string } {
   return (err instanceof Error || (typeof err === 'object' && !!err && 'message' in err && typeof err.message === 'string'))

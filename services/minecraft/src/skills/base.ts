@@ -1,8 +1,8 @@
 import type { Mineflayer } from '../libs/mineflayer'
 
-import { useLoggerer } from '../utils/logger'
+import { useLogger } from '../utils/logger'
 
-const logger = useLoggerer()
+const logger = useLogger()
 
 /**
  * Log a message to the context's output buffer

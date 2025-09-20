@@ -8,11 +8,11 @@ import pathfinder from 'mineflayer-pathfinder'
 import { sleep } from '@moeru/std'
 import { Vec3 } from 'vec3'
 
-import { useLoggerer } from '../../utils/logger'
+import { useLogger } from '../../utils/logger'
 import { getNearestBlock, makeItem } from '../../utils/mcdata'
 import { goToPosition } from '../movement'
 
-const logger = useLoggerer()
+const logger = useLogger()
 
 export async function placeBlock(
   mineflayer: Mineflayer,

@@ -5,7 +5,7 @@ import { z } from 'zod'
 import { collectBlock } from '../../skills/actions/collect-block'
 import { discard, equip, putInChest, takeFromChest, viewChest } from '../../skills/actions/inventory'
 import { activateNearestBlock, placeBlock } from '../../skills/actions/world-interactions'
-import { useLoggerer } from '../../utils/logger'
+import { useLogger } from '../../utils/logger'
 
 import * as skills from '../../skills'
 import * as world from '../../skills/world'
@@ -59,7 +59,7 @@ export const actionsList: Action[] = [
     schema: z.object({}),
     perform: mineflayer => (): string => {
       const blocks = world.getNearbyBlockTypes(mineflayer)
-      useLoggerer().withFields({ blocks }).log('nearbyBlocks')
+      useLogger().withFields({ blocks }).log('nearbyBlocks')
       return pad(`NEARBY_BLOCKS${blocks.map((b: string) => `\n- ${b}`).join('') || ': none'}`)
     },
   },

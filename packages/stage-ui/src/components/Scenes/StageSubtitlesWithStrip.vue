@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import MarkdownRenderer from '../MarkdownRenderer.vue'
+import MarkdownRenderer from '../Markdown/MarkdownRenderer.vue'
 
 import { useChatStore } from '../../stores/chat'
 
@@ -20,7 +20,7 @@ const { streamingMessage } = useChatStore()
     transform="translate-x--1/2"
   >
     <div bg="primary-50" rounded-xl px-10 py-6>
-      <MarkdownRenderer :content="streamingMessage.content as string" />
+      <MarkdownRenderer :content="(streamingMessage.content as string)" />
     </div>
   </div>
 </template>

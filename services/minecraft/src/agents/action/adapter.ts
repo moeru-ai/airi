@@ -8,11 +8,11 @@ import { agent } from 'neuri'
 import { system, user } from 'neuri/openai'
 
 import { BaseLLMHandler } from '../../libs/llm-agent/handler'
-import { useLoggerer } from '../../utils/logger'
+import { useLogger } from '../../utils/logger'
 import { actionsList } from './tools'
 
 export async function createActionNeuriAgent(mineflayer: Mineflayer): Promise<Agent> {
-  const logger = useLoggerer()
+  const logger = useLogger()
   logger.log('Initializing action agent')
   let actionAgent = agent('action')
 

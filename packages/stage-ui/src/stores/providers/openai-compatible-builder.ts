@@ -54,9 +54,6 @@ export function buildOpenAICompatibleProvider(
     validateProviderConfig: async (config: Record<string, unknown>) => {
       const errors: Error[] = []
 
-      if (!config.apiKey) {
-        errors.push(new Error('API key is required'))
-      }
       if (!config.baseUrl) {
         errors.push(new Error('Base URL is required'))
       }
@@ -83,7 +80,7 @@ export function buildOpenAICompatibleProvider(
 
       if (validationChecks.includes('health')) {
         try {
-          responseChat = await fetch(`${config.baseUrl as string}chat/completions`, { headers: { Authorization: `Bearer ${config.apiKey}`, ...additionalHeaders }, method: 'POST' })
+          responseChat = await fetch(`${config.baseUrl as string}chat/completions`, { headers: { Authorization: `Bearer ${config.apiKey}`, ...additionalHeaders }, method: 'POST', body: '{"model": "test"}' })
           responseModelList = await fetch(`${config.baseUrl as string}models`, { headers: { Authorization: `Bearer ${config.apiKey}`, ...additionalHeaders } })
 
           if (!([200, 400, 401].includes(responseChat.status) || [200, 400, 401].includes(responseModelList.status))) {
@@ -119,7 +116,7 @@ export function buildOpenAICompatibleProvider(
         try {
           let response = responseChat
           if (!response) {
-            response = await fetch(`${config.baseUrl as string}chat/completions`, { headers: { Authorization: `Bearer ${config.apiKey}`, ...additionalHeaders }, method: 'POST' })
+            response = await fetch(`${config.baseUrl as string}chat/completions`, { headers: { Authorization: `Bearer ${config.apiKey}`, ...additionalHeaders }, method: 'POST', body: '{"model": "test"}' })
           }
 
           if (!response.ok) {

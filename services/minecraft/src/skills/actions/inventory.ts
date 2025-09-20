@@ -2,11 +2,11 @@ import type { Item } from 'prismarine-item'
 
 import type { Mineflayer } from '../../libs/mineflayer'
 
-import { useLoggerer } from '../../utils/logger'
+import { useLogger } from '../../utils/logger'
 import { goToPlayer, goToPosition } from '../movement'
 import { getNearestBlock } from '../world'
 
-const logger = useLoggerer()
+const logger = useLogger()
 
 /**
  * Equip an item from the bot's inventory.

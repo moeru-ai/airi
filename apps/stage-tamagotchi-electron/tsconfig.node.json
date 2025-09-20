@@ -30,6 +30,11 @@
     "src/preload/**/*.ts",
     "src/preload/**/*.d.ts",
     "src/preload/**/*.tsx",
-    "src/preload/**/*.vue"
+    "src/preload/**/*.vue",
+
+    "src/shared/**/*.ts",
+    "src/shared/**/*.d.ts",
+    "src/shared/**/*.tsx",
+    "src/shared/**/*.vue"
   ]
 }

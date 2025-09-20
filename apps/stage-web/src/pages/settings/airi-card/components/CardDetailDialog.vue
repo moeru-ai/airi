@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import type { AiriCard } from '@proj-airi/stage-ui/stores/modules/airi-card'
 
+import DOMPurify from 'dompurify'
+
 import { Button } from '@proj-airi/stage-ui/components'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
 import { storeToRefs } from 'pinia'
@@ -83,8 +85,8 @@ function handleActivate() {
   }, 300)
 }
 
-function hightlightTagToHtml(text: string) {
-  return text?.replace(/\{\{(.*?)\}\}/g, '<span class="bg-primary-500/20 inline-block">{{ $1 }}</span>').trim()
+function highlightTagToHtml(text: string) {
+  return DOMPurify.sanitize(text?.replace(/\{\{(.*?)\}\}/g, '<span class="bg-primary-500/20 inline-block">{{ $1 }}</span>').trim())
 }
 
 // Delete confirmation
@@ -235,7 +237,7 @@ const activeTab = computed({
                 border="~ neutral-200/50 dark:neutral-700/30"
                 max-h-60 overflow-auto whitespace-pre-line rounded-lg p-4 text-neutral-700 sm:max-h-80 dark:text-neutral-300 transition="all duration-200"
                 hover="bg-white/80 dark:bg-black/40"
-                v-html="hightlightTagToHtml(selectedCard.notes)"
+                v-html="highlightTagToHtml(selectedCard.notes)"
               />
             </div>
 
@@ -246,7 +248,7 @@ const activeTab = computed({
                 max-h-60 overflow-auto whitespace-pre-line rounded-lg p-4 sm:max-h-80
                 text="neutral-600 dark:neutral-300"
                 border="~ neutral-200/50 dark:neutral-700/30"
-                v-html="hightlightTagToHtml(selectedCard.description)"
+                v-html="highlightTagToHtml(selectedCard.description)"
               />
             </div>
 
@@ -264,7 +266,7 @@ const activeTab = computed({
                       transition="all duration-200"
                       hover="bg-white/80 dark:bg-black/40"
                       max-h-none overflow-auto whitespace-pre-line rounded-lg p-3 text-neutral-700 dark:text-neutral-300
-                      v-html="hightlightTagToHtml(value)"
+                      v-html="highlightTagToHtml(value)"
                     />
                   </div>
                 </template>

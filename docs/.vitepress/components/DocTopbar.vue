@@ -10,7 +10,7 @@ import { useI18n } from 'vue-i18n'
 
 import DocSidebarItem from '../components/DocSidebarItem.vue'
 
-import { flatten } from '../functions/flatten'
+import { flatten } from '../utils/flatten'
 
 const { path } = toRefs(useRoute())
 const { page, theme } = useData()
