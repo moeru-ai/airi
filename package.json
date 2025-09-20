@@ -27,7 +27,6 @@
     "build": "turbo run build -F=\"./packages/*\" -F=\"./apps/*\"",
     "build:web": "turbo run build -F @proj-airi/stage-web",
     "build:tamagotchi": "pnpm -rF @proj-airi/stage-tamagotchi run app:build",
-    "build:tamagotchi-with-memory": "pnpm -r -F @proj-airi/memory-service run build && pnpm -r -F @proj-airi/stage-tamagotchi run app:build",
     "build:apps": "turbo run build -F=\"./apps/*\"",
     "build:packages": "turbo run build -F=\"./packages/*\"",
     "build:crates": "cargo build --workspace",
