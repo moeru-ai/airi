@@ -57,7 +57,8 @@ async function fetchMemorySettings() {
     Object.assign(memorySettings.value, settingsRes)
     memorySettings.value.embeddedPostgres = !!embeddedRes.enabled
     Object.assign(regenerationStatus.value, regenRes)
-  } catch (e:any) {
+  }
+  catch (e: unknown) {
     errorMsg.value = e?.message || 'Failed fetching settings.'
   }
 }
@@ -79,16 +80,19 @@ async function updateMemorySettings() {
       embeddingApiKey: memorySettings.value.embeddingApiKey,
       embeddingDimensions: memorySettings.value.embeddingDimensions,
     })
-  } catch (e:any) {
+  }
+  catch (e: any) {
     errorMsg.value = e?.message || 'Failed saving settings.'
-  } finally {
+  }
+  finally {
     settingsBusy.value = false
   }
 }
 
 // toggle embedded Postgres (button-driven)
 async function toggleEmbeddedPostgres() {
-  if (togglingEPBusy.value) return
+  if (togglingEPBusy.value)
+    return
   togglingEPBusy.value = true
   errorMsg.value = ''
   const newState = !memorySettings.value.embeddedPostgres
@@ -98,23 +102,22 @@ async function toggleEmbeddedPostgres() {
   try {
     await axios.post('/api/embedded-postgres', { enabled: newState })
     // also persist into /api/settings so the flag is reflected when saving
-    try {
-      await axios.post('/api/settings', { embeddedPostgres: newState })
-    } catch (_) {
-      // ignore if backend doesn't accept the field; main toggle API succeeded
-    }
-  } catch (e:any) {
+    await axios.post('/api/settings', { embeddedPostgres: newState })
+  }
+  catch (e: unknown) {
     // revert on failure
     memorySettings.value.embeddedPostgres = prev
     errorMsg.value = e?.message || 'Failed toggling Embedded Postgres.'
-  } finally {
+  }
+  finally {
     togglingEPBusy.value = false
   }
 }
 
 // export embedded Postgres SQL dump
 async function exportEmbeddedBackup() {
-  if (exportingBackupBusy.value) return
+  if (exportingBackupBusy.value)
+    return
   exportingBackupBusy.value = true
   errorMsg.value = ''
   try {
@@ -128,13 +131,14 @@ async function exportEmbeddedBackup() {
     a.click()
     a.remove()
     URL.revokeObjectURL(url)
-  } catch (e:any) {
+  }
+  catch (e: any) {
     errorMsg.value = e?.message || 'Failed to export backup.'
-  } finally {
+  }
+  finally {
     exportingBackupBusy.value = false
   }
 }
-
 
 onMounted(fetchMemorySettings)
 
@@ -143,14 +147,16 @@ const interval = setInterval(async () => {
   try {
     const res = await axios.get('/api/settings/regeneration-status')
     Object.assign(regenerationStatus.value, res.data)
-  } catch {}
+  }
+  catch {}
 }, 5000)
 
 // ensure cleanup if this component ever unmounts
 try {
-  // @ts-ignore runtime-only
+  // @ts-expect-error runtime-only
   import.meta.hot?.on('vite:beforeFullReload', () => clearInterval(interval))
-} catch {}
+}
+catch {}
 </script>
 
 <template>
@@ -172,13 +178,12 @@ try {
         >
           {{ memorySettings.embeddedPostgres ? 'Disable' : 'Enable' }} Embedded Postgres
         </button>
-          <button
-            class="btn btn-primary"
-            :disabled="exportingBackupBusy"
-            @click="exportEmbeddedBackup"
-            title="Download a pg_dump SQL file of the embedded Postgres database"
-          >
-          </button>
+        <button
+          class="btn btn-primary"
+          :disabled="exportingBackupBusy"
+          title="Download a pg_dump SQL file of the embedded Postgres database"
+          @click="exportEmbeddedBackup"
+        />
         <span class="text-sm opacity-70">
           Current: <strong>{{ memorySettings.embeddedPostgres ? 'Enabled' : 'Disabled' }}</strong>
         </span>
@@ -187,8 +192,8 @@ try {
       <!-- (Optional) Keep the checkbox in sync for users who prefer a switch UI -->
       <label class="flex items-center space-x-2">
         <input
-          :disabled="togglingEPBusy"
           v-model="memorySettings.embeddedPostgres"
+          :disabled="togglingEPBusy"
           type="checkbox"
           @change="toggleEmbeddedPostgres"
         >
@@ -211,7 +216,9 @@ try {
         {{ settingsBusy ? 'Saving…' : 'Save Settings' }}
       </button>
 
-      <p v-if="errorMsg" class="text-red-500 text-sm">{{ errorMsg }}</p>
+      <p v-if="errorMsg" class="text-sm text-red-500">
+        {{ errorMsg }}
+      </p>
 
       <div v-if="regenerationStatus.isRegenerating" class="mt-4">
         <p>Embedding regeneration in progress: {{ regenerationStatus.processedItems }}/{{ regenerationStatus.totalItems }}</p>

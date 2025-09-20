@@ -19,6 +19,7 @@ use serde::{Deserialize, Serialize};
 use std::{net::SocketAddr, time::Duration};
 use thiserror::Error;
 use tokio::sync::{Mutex, oneshot};
+use tokio::net::TcpListener;
 use tower_http::cors::{Any, CorsLayer};
 use which::which;
 
@@ -101,9 +102,10 @@ pub struct ToggleEP {
 
 /// Starts an Axum HTTP server on 127.0.0.1:<port>.
 /// Returns a oneshot Sender to trigger graceful shutdown.
+
 pub async fn start_http(port: u16) -> oneshot::Sender<()> {
   let cors = CorsLayer::new()
-    .allow_origin(Any)   // tighten this in production (e.g., `tauri://localhost`)
+    .allow_origin(Any)
     .allow_methods(Any)
     .allow_headers(Any);
 
@@ -117,16 +119,25 @@ pub async fn start_http(port: u16) -> oneshot::Sender<()> {
     .with_state(state)
     .layer(cors);
 
-  let addr = SocketAddr::from(([127, 0, 0, 1], port));
+  let addr = format!("127.0.0.1:{port}");
   let (tx, rx) = oneshot::channel::<()>();
 
   tokio::spawn(async move {
-    let server = axum::Server::bind(&addr).serve(app.into_make_service());
-    let graceful = server.with_graceful_shutdown(async {
-      let _ = rx.await;
-      tokio::time::sleep(Duration::from_millis(150)).await; // let in-flight reqs finish
-    });
-    if let Err(e) = graceful.await {
+    let listener = match TcpListener::bind(&addr).await {
+      Ok(l) => l,
+      Err(e) => {
+        eprintln!("[memory-service] bind error on {}: {e}", addr);
+        return;
+      }
+    };
+
+    let server = axum::serve(listener, app.into_make_service())
+      .with_graceful_shutdown(async {
+        let _ = rx.await;
+        tokio::time::sleep(std::time::Duration::from_millis(150)).await;
+      });
+
+    if let Err(e) = server.await {
       eprintln!("[memory-service] server error: {e:?}");
     }
   });

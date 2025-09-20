@@ -70,6 +70,7 @@ dependencies = [
  "hf-hub",
  "log",
  "ndarray",
+ "once_cell",
  "rubato",
  "serde",
  "serde_json",
