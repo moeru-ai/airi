@@ -7,7 +7,7 @@
     "frontendDist": "../dist",
     "devUrl": "http://localhost:5173",
     "beforeDevCommand": "pnpm run dev",
-    "beforeBuildCommand": "pnpm run build"
+    "beforeBuildCommand": "pnpm run build:link-binary"
   },
   "app": {
     "security": {
@@ -29,6 +29,9 @@
     "resources": {
       "infoplist/**/*": "./"
     },
+    "externalBin": [
+      "../../../services/memory-service/dist/memory-service-bin"
+    ],
     "macOS": {
       "entitlements": "./Entitlements.plist"
     },
