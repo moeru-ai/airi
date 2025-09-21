@@ -13,6 +13,7 @@
     "url": "https://github.com/moeru-ai/airi.git",
     "directory": "services/memory-service"
   },
+  "bin": "dist/index.js",
   "scripts": {
     "start": "tsx --max-old-space-size=8192 src/index.ts",
     "dev": "dotenvx run -f .env -f .env.local --overload --ignore=MISSING_ENV_FILE -- tsx watch src/index.ts",
@@ -22,8 +23,8 @@
     "db:setup": "pnpm db:generate && dotenvx run -f .env -f .env.local --overload --ignore=MISSING_ENV_FILE -- pnpm db:migrate",
     "typecheck": "tsc --noEmit",
     "build": "tsc",
-    "build:binary": "pkg --targets node18-win-x64,node18-macos-arm64,node18-macos-x64,node18-linux-x64,node18-linux-arm64 ./dist/index.js -o ./dist/memory-service-bin",
-    "build:binary-tauri": "TAURI_TARGET=$(echo $TAURI_ENV_TARGET_TRIPLE | cut -d'-' -f1-2 | sed 's/x86_64/x64/;s/aarch64/arm64/;s/unknown-linux-gnu/linux/;s/apple-darwin/macos/'); pkg --targets ${TAURI_TARGET} ./dist/index.js -o ./dist/memory-service-bin",
+    "build:binary": "pkg . -o ./dist/memory-service-bin",
+    "build:binary-tauri": "TAURI_TARGET=$(echo $TAURI_ENV_TARGET_TRIPLE | cut -d'-' -f1-2 | sed 's/x86_64/x64/;s/aarch64/arm64/;s/s/unknown-linux-gnu/linux/;s/apple-darwin/macos/'); pkg . -o ./dist/memory-service-bin",
     "test": "vitest"
   },
   "dependencies": {
@@ -68,5 +69,25 @@
     "tsx": "^4.20.5",
     "typescript": "^5.7.2",
     "vitest": "^2.1.8"
+  },
+  "pkg": {
+    "scripts": [
+      "./dist/index.js",
+      "./dist/db/index.js",
+      "./dist/utils/index.js",
+      "./dist/services/index.js",
+      "./dist/middleware/index.js",
+      "./dist/api/index.js"
+    ],
+    "assets": [
+      "./dist/**/*"
+    ],
+    "targets": [
+      "node18-win-x64",
+      "node18-macos-arm64",
+      "node18-macos-x64",
+      "node18-linux-x64",
+      "node18-linux-arm64"
+    ]
   }
 }
