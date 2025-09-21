@@ -9,6 +9,7 @@ import zhHant from './zh-Hant'
 export default {
   en,
   es,
+  fr,
   ru,
   vi,
   'zh-Hans': zhHans,

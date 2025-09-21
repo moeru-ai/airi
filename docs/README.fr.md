@@ -161,7 +161,6 @@ pnpm dev:tamagotchi
 
 Un package Nix pour Tamagotchi est inclus. Pour lancer AIRI avec Nix, assurez-vous d'abord d'activer les flakes, puis exécutez :
 
-
 ```shell
 nix run github:moeru-ai/airi
 ```
@@ -337,7 +336,7 @@ flowchart TD
 
 ### Non open source
 
-- https://clips.twitch.tv/WanderingCaringDeerDxCat-Qt55xtiGDSoNmDDr  
+- https://clips.twitch.tv/WanderingCaringDeerDxCat-Qt55xtiGDSoNmDDr
   https://www.youtube.com/watch?v=8Giv5mupJNE
 - https://clips.twitch.tv/TriangularAthleticBunnySoonerLater-SXpBk1dFso21VcWD
 - https://www.youtube.com/@NOWA_Mirai
