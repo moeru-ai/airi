@@ -147,7 +147,6 @@ function resetDefaultParameters() {
             <FieldRange
               v-model="parameters.sensitivity"
               :label="t('settings.pages.modules.beat_sync.sections.parameters.parameters.sensitivity.label')"
-              :description="t('settings.pages.modules.beat_sync.sections.parameters.parameters.sensitivity.description')"
               :min="0"
               :max="1"
               :step="0.01"
