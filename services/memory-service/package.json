@@ -23,8 +23,7 @@
     "db:setup": "pnpm db:generate && dotenvx run -f .env -f .env.local --overload --ignore=MISSING_ENV_FILE -- pnpm db:migrate",
     "typecheck": "tsc --noEmit",
     "build": "tsc",
-    "build:binary": "pkg . -o ./dist/memory-service-bin",
-    "build:binary-tauri": "TAURI_TARGET=$(echo $TAURI_ENV_TARGET_TRIPLE | cut -d'-' -f1-2 | sed 's/x86_64/x64/;s/aarch64/arm64/;s/s/unknown-linux-gnu/linux/;s/apple-darwin/macos/'); pkg . -o ./dist/memory-service-bin",
+    "build:binary": "pnpm build && pkg . -o ./dist/memory-service-bin",
     "test": "vitest"
   },
   "dependencies": {

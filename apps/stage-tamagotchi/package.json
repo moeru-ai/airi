@@ -12,7 +12,7 @@
     "build:binary-tauri": "pnpm --filter=@proj-airi/memory-service run build:binary",
     "build:link-binary": "ts-node scripts/link-binary.ts",
     "dev": "vite",
-    "build": "vite build",
+    "build": "pnpm build:binary-tauri && pnpm build:link-binary && vite build",
     "preview": "vite preview",
     "tauri": "tauri",
     "build:unpack": "tauri build --no-bundle",
