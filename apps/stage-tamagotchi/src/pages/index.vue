@@ -30,7 +30,7 @@ const windowControlStore = useWindowControlStore()
 const resourcesStore = useResourcesStore()
 const mcpStore = useMcpStore()
 const { getPosition } = useTauriWindow()
-const { mouseX, mouseY } = useRdevMouse()
+const { logicalMouseX, logicalMouseY } = useRdevMouse()
 
 const { listen } = useTauriEvent<AiriTamagotchiEvents>()
 const { invoke } = useTauriCore()
@@ -55,7 +55,7 @@ watch(shouldShowSetup, () => {
 }, { immediate: true })
 
 // Handle mouse pass-through based on WebGL pixel alpha.
-watchThrottled([mouseX, mouseY], ([x, y]) => {
+watchThrottled([logicalMouseX, logicalMouseY], ([x, y]) => {
   requestAnimationFrame(() => {
     const canvas = widgetStageRef.value?.canvasElement()
     if (!canvas)
