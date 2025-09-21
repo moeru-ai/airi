@@ -121,12 +121,12 @@ pages:
           par rapport à une carte précédente.
       errors:
         name: Le nom doit être valide ou non vide.
-        version: Erreur : numéro de version invalide !
-        description: Erreur : vous devez fournir une description pour cette carte.
-        personality: Erreur : une personnalité doit être fournie pour ce personnage.
-        scenario: Erreur : un scénario est requis.
-        systemprompt: Erreur : veuillez fournir un prompt système.
-        posthistoryinstructions: Erreur : le prompt post-historique est requis.
+        version: 'Erreur : numéro de version invalide !'
+        description: 'Erreur : vous devez fournir une description pour cette carte.'
+        personality: 'Erreur : une personnalité doit être fournie pour ce personnage.'
+        scenario: 'Erreur : un scénario est requis.'
+        systemprompt: 'Erreur : veuillez fournir un prompt système.'
+        posthistoryinstructions: 'Erreur : le prompt post-historique est requis.'
     modules: Modules
     name_asc: Nom (A-Z)
     name_desc: Nom (Z-A)
@@ -182,7 +182,7 @@ pages:
             not_supported: Liste des modèles non supportée
             not_supported_description: Ce fournisseur ne supporte pas la fonctionnalité de liste des modèles
             search_placeholder: Rechercher des modèles...
-            search_results: {count} modèles trouvés sur {total}
+            search_results: '{count} modèles trouvés sur {total}'
             show_less: Afficher moins
             show_more: Afficher plus
             subtitle: Sélectionnez un modèle du fournisseur
@@ -229,9 +229,9 @@ pages:
             pause: Pause
             play_sample: Jouer l’exemple
             search_models_placeholder: Rechercher des modèles...
-            search_models_results: {count} modèles trouvés sur {total}
+            search_models_results: '{count} modèles trouvés sur {total}'
             search_voices_placeholder: Rechercher des voix...
-            search_voices_results: {count} voix trouvées sur {total}
+            search_voices_results: '{count} voix trouvées sur {total}'
             show_less: Afficher moins
             show_more: Afficher plus
             title: Fournisseur
@@ -340,7 +340,7 @@ pages:
         fields:
           field:
             pitch:
-              description: Ajuster la hauteur de la voix synthétisée (ex : plus aiguë ou plus grave)
+              description: 'Ajuster la hauteur de la voix synthétisée (ex : plus aiguë ou plus grave)'
               label: Hauteur
             speed:
               description: Ajuster la vitesse de la parole
