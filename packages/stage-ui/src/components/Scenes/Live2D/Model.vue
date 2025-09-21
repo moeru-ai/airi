@@ -387,8 +387,8 @@ const beatSyncStore = useBeatSyncStore()
 
 onMounted(() => {
   const onBeat = () => {
-    beatSyncTargetY.value = Math.max(-10, Math.min(10, (beatSyncTargetY.value < 0 ? 10 : -10) * 0.5))
-    beatSyncTargetZ.value = Math.max(-10, Math.min(10, (beatSyncTargetZ.value < 0 ? 10 : -10) * 0.4))
+    beatSyncTargetY.value = Math.max(-5, Math.min(5, (beatSyncTargetY.value < 0 ? 10 : -10) * (0.5 + Math.random() * 0.3)))
+    beatSyncTargetZ.value = Math.max(-5, Math.min(5, (beatSyncTargetZ.value < 0 ? 10 : -10) * (0.5 + Math.random() * 0.3)))
   }
 
   beatSyncStore.on('beat', onBeat)
