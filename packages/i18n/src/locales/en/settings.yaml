@@ -182,21 +182,30 @@ pages:
           description: Tweak the beat detection parameters.
           title: Parameters
           parameters:
-            long_term_buffer_duration:
-              description: Long-term buffer stores averaged RMS levels over a longer window to track baseline loudness and trends used for computing the long-term mean.
-              label: Long-term buffer duration
+            adaptive_threshold:
+              description: Whether to apply adaptive thresholds based on signal variance over time.
+              label: Adaptive threshold
+            buffer_duration:
+              description: Duration of the internal analysis buffer.
+              label: Buffer duration
+            envelope_filter_frequency:
+              description: Frequency for the envelope filter applied to the audio input that smooths energy changes.
+              label: Envelope filter frequency
+            highpass_filter_frequency:
+              description: Frequency for the highpass filter applied to the audio input.
+              label: Highpass filter frequency
             lowpass_filter_frequency:
-              description: Frequencies above this value will be filtered out before beat detection.
+              description: Frequency for the lowpass filter applied to the audio input.
               label: Lowpass filter frequency
             min_beat_interval:
-              description: Lower values may result in more frequent beat detections.
+              description: Maximum BPM or minimum interval between detected beats.
               label: Max BPM / Min beat interval
-            peak_threshold:
-              description: Higher values may result in less sensitive beat detections.
-              label: Peak threshold
-            short_term_buffer_duration:
-              description: Short-term buffer records recent RMS levels over a short window to detect sudden peaks, which are compared to the long-term mean to identify beats.
-              label: Short-term buffer duration
+            sensitivity:
+              description: Overall sensitivity.
+              label: Sensitivity
+            spectral_flux:
+              description: Whether to enable spectral flux-based onset detection.
+              label: Spectral flux
             warmup:
               description: Whether to warm up before detecting beats for better accuracy.
               label: Warmup

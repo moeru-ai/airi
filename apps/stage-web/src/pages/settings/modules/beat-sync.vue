@@ -145,6 +145,16 @@ function resetDefaultParameters() {
 
           <div max-w-full flex="~ col gap-4">
             <FieldRange
+              v-model="parameters.sensitivity"
+              :label="t('settings.pages.modules.beat_sync.sections.parameters.parameters.sensitivity.label')"
+              :description="t('settings.pages.modules.beat_sync.sections.parameters.parameters.sensitivity.description')"
+              :min="0"
+              :max="1"
+              :step="0.01"
+              :format-value="value => value.toFixed(1)"
+            />
+
+            <FieldRange
               v-model="parameters.minBeatInterval"
               :label="t('settings.pages.modules.beat_sync.sections.parameters.parameters.min_beat_interval.label')"
               :description="t('settings.pages.modules.beat_sync.sections.parameters.parameters.min_beat_interval.description')"
@@ -154,15 +164,11 @@ function resetDefaultParameters() {
               :format-value="value => `${(60 / value).toFixed(1)} BPM / ${value.toFixed(2)} s`"
             />
 
-            <FieldRange
-              v-model="parameters.sensitivity"
-              label="Sensitivity"
-              description=""
-              :min="0"
-              :max="1"
-              :step="0.01"
-              :format-value="value => value.toFixed(1)"
-            />
+            <div>
+              <h3 class="text text-neutral-500 md:text-xl dark:text-neutral-500">
+                {{ t('settings.pages.modules.beat_sync.sections.parameters.advanced_parameters') }}
+              </h3>
+            </div>
 
             <FieldRange
               v-model="parameters.lowpassFilterFrequency"
@@ -176,8 +182,8 @@ function resetDefaultParameters() {
 
             <FieldRange
               v-model="parameters.highpassFilterFrequency"
-              label="Highpass filter Frequency"
-              description=""
+              :label="t('settings.pages.modules.beat_sync.sections.parameters.parameters.highpass_filter_frequency.label')"
+              :description="t('settings.pages.modules.beat_sync.sections.parameters.parameters.highpass_filter_frequency.description')"
               :min="150"
               :max="2000"
               :step="10"
@@ -186,19 +192,13 @@ function resetDefaultParameters() {
 
             <FieldRange
               v-model="parameters.envelopeFilterFrequency"
-              label="Envelope filter Frequency"
-              description=""
+              :label="t('settings.pages.modules.beat_sync.sections.parameters.parameters.envelope_filter_frequency.label')"
+              :description="t('settings.pages.modules.beat_sync.sections.parameters.parameters.envelope_filter_frequency.description')"
               :min="20"
               :max="200"
               :step="10"
               :format-value="value => `${value.toFixed(0)} Hz`"
             />
-
-            <div>
-              <h3 class="text text-neutral-500 md:text-xl dark:text-neutral-500">
-                {{ t('settings.pages.modules.beat_sync.sections.parameters.advanced_parameters') }}
-              </h3>
-            </div>
 
             <FieldCheckbox
               v-model="parameters.warmup"
@@ -208,20 +208,20 @@ function resetDefaultParameters() {
 
             <FieldCheckbox
               v-model="parameters.adaptiveThreshold"
-              label="Adaptive threshold"
-              description=""
+              :label="t('settings.pages.modules.beat_sync.sections.parameters.parameters.adaptive_threshold.label')"
+              :description="t('settings.pages.modules.beat_sync.sections.parameters.parameters.adaptive_threshold.description')"
             />
 
             <FieldCheckbox
-              v-model="parameters.spectralFluxEnabled"
-              label="Spectral flux-based onset detection"
-              description=""
+              v-model="parameters.spectralFlux"
+              :label="t('settings.pages.modules.beat_sync.sections.parameters.parameters.spectral_flux.label')"
+              :description="t('settings.pages.modules.beat_sync.sections.parameters.parameters.spectral_flux.description')"
             />
 
             <FieldRange
               v-model="parameters.bufferDuration"
-              :label="t('settings.pages.modules.beat_sync.sections.parameters.parameters.long_term_buffer_duration.label')"
-              :description="t('settings.pages.modules.beat_sync.sections.parameters.parameters.long_term_buffer_duration.description')"
+              :label="t('settings.pages.modules.beat_sync.sections.parameters.parameters.buffer_duration.label')"
+              :description="t('settings.pages.modules.beat_sync.sections.parameters.parameters.buffer_duration.description')"
               :min="2"
               :max="10"
               :step="0.5"
