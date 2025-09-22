@@ -8,11 +8,9 @@
   "scripts": {
     "typecheck": "vue-tsc --noEmit --composite false",
     "app:dev": "pnpm tauri dev",
-    "app:build": "pnpm --filter=@proj-airi/memory-service run build:binary && pnpm tauri build",
-    "build:binary-tauri": "pnpm --filter=@proj-airi/memory-service run build:binary",
-    "build:link-binary": "ts-node scripts/link-binary.ts",
+    "app:build": "pnpm tauri build",
     "dev": "vite",
-    "build": "pnpm build:binary-tauri && pnpm build:link-binary && vite build",
+    "build": "vite build",
     "preview": "vite preview",
     "tauri": "tauri",
     "build:unpack": "tauri build --no-bundle",

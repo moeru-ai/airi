@@ -26,10 +26,7 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
-    "resources": {
-      "infoplist/**/*": "./",
-      "../services/memory-service/dist/*": "./"
-    },
+    "resources": ["../../../services/memory-service/dist/bundle.js"],
     "externalBin": [],
     "macOS": {
       "entitlements": "./Entitlements.plist"
@@ -279,7 +276,7 @@
           "webkit2gtk4.1",
           "woff2",
           "xz-libs",
-          "zlib-ng-compat",
+          "zlib-ng-compat"
         ]
       }
     }

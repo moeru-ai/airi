@@ -15,9 +15,9 @@ default = []
 [lib]
 name = "app_lib"
 crate-type = [
-  "staticlib",
-  "cdylib",
-  "rlib"
+    "staticlib",
+    "cdylib",
+    "rlib"
 ]
 
 [build-dependencies]
@@ -25,10 +25,10 @@ tauri-build = { version = "2.4.0", features = [] }
 
 [dependencies]
 log = "0.4"
-tauri = { version = "2.3.1", features = [
-  'macos-private-api',
-  'tray-icon',
-  'image-png'
+tauri = { version = "2.4.0", features = [
+    'macos-private-api',
+    'tray-icon',
+    'image-png'
 ] }
 tauri-plugin-log = "2.0.0-rc"
 tauri-plugin-os = "2"

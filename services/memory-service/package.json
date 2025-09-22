@@ -21,7 +21,7 @@
     "db:migrate": "dotenvx run -f .env -f .env.local --overload --ignore=MISSING_ENV_FILE -- tsx src/db/migrate.ts",
     "db:setup": "pnpm db:generate && dotenvx run -f .env -f .env.local --overload --ignore=MISSING_ENV_FILE -- pnpm db:migrate",
     "typecheck": "tsc --noEmit",
-    "build": "tsc",
+    "build": "esbuild src/index.ts --bundle --platform=node --outfile=dist/bundle.js --external:embedded-postgres",
     "test": "vitest"
   },
   "dependencies": {
@@ -45,7 +45,6 @@
     "dotenv": "^17.2.1",
     "drizzle-orm": "^0.44.5",
     "embedded-postgres": "17.6.0-beta.15",
-    "esbuild": "^0.25.10",
     "express": "^4.21.2",
     "helmet": "^8.0.0",
     "nanoid": "^5.1.5",
@@ -63,6 +62,7 @@
     "@types/pg": "^8.15.5",
     "@types/ws": "^8.5.10",
     "drizzle-kit": "^0.31.4",
+    "esbuild": "^0.25.10",
     "pkg": "^5.8.1",
     "tsx": "^4.20.5",
     "typescript": "^5.7.2",
