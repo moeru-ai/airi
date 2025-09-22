@@ -7,7 +7,7 @@
     "frontendDist": "../dist",
     "devUrl": "http://localhost:5173",
     "beforeDevCommand": "pnpm run dev",
-    "beforeBuildCommand": "pnpm --filter=@proj-airi/memory-service run build"
+    "beforeBuildCommand": "pnpm run build"
   },
   "app": {
     "security": {
@@ -26,8 +26,9 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
-    "resources": ["../../../services/memory-service/dist/bundle.js"],
-    "externalBin": [],
+    "resources": {
+      "infoplist/**/*": "./"
+    },
     "macOS": {
       "entitlements": "./Entitlements.plist"
     },
@@ -146,8 +147,7 @@
           "libxrender1",
           "libxslt1.1",
           "libxtst6",
-          "libzstd1",
-          "nodejs"
+          "libzstd1"
         ]
       },
       "rpm": {
@@ -260,7 +260,6 @@
           "mesa-libgbm",
           "mpg123-libs",
           "nettle",
-          "nodejs",
           "openssl-libs",
           "opus",
           "orc",
