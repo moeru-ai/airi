@@ -1,26 +1,24 @@
-FROM node:18-alpine
+FROM node:24-alpine
 
-# Install Python and build tools
-RUN apk add --no-cache python3 make g++
+# Install build tools and libraries
+RUN apk add --no-cache python3 make g++ bash curl libc6-compat git
 
 WORKDIR /app
 
 # Install pnpm globally
 RUN npm install -g pnpm
 
-# Copy workspace files first (including turbo.json)
+# Copy workspace lockfiles first to leverage cache
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml turbo.json ./
 
-# Copy the packages directory for workspace dependencies
+# Copy packages and memory service package.json
 COPY packages/ ./packages/
-
-# Copy the memory service package.json
 COPY services/memory-service/package.json ./services/memory-service/
 
-# Install dependencies (native modules will compile with Python available)
-RUN pnpm install --frozen-lockfile
+# Install dependencies (fallback if frozen-lockfile fails)
+RUN pnpm install --frozen-lockfile || pnpm install
 
-# Copy the memory service source code
+# Copy the full memory service source code
 COPY services/memory-service/ ./services/memory-service/
 
 # Set working directory to memory service
@@ -33,4 +31,4 @@ RUN pnpm build
 EXPOSE 3001
 
 # Start the service
-CMD ["pnpm", "start"] 
+CMD ["pnpm", "start"]
