@@ -13,7 +13,7 @@ export const useRdevMouse = createSharedComposable(() => {
   const scaleFactor = ref(1)
 
   const { listen } = useTauriEvent<AiriTamagotchiEvents>()
-  const { getScaleFactor } = useTauriDpi()
+  const { convertPhysicalToLogical, getScaleFactor } = useTauriDpi()
 
   // Update scale factor when DPI changes
   async function updateScaleFactor() {
