@@ -27,8 +27,8 @@
       "icons/icon.ico"
     ],
     "resources": {
-      "infoplist/**/*": "./"
-      "../services/memory-service/dist/bundle.js"
+      "infoplist/**/*": "./",
+      "../services/memory-service/dist/*": "./"
     },
     "externalBin": [],
     "macOS": {
