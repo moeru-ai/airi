@@ -13,7 +13,6 @@
     "url": "https://github.com/moeru-ai/airi.git",
     "directory": "services/memory-service"
   },
-  "bin": "dist/index.js",
   "scripts": {
     "start": "tsx --max-old-space-size=8192 src/index.ts",
     "dev": "dotenvx run -f .env -f .env.local --overload --ignore=MISSING_ENV_FILE -- tsx watch src/index.ts",
@@ -23,7 +22,6 @@
     "db:setup": "pnpm db:generate && dotenvx run -f .env -f .env.local --overload --ignore=MISSING_ENV_FILE -- pnpm db:migrate",
     "typecheck": "tsc --noEmit",
     "build": "tsc",
-    "build:binary": "pnpm build && pkg . -o ./dist/memory-service-bin",
     "test": "vitest"
   },
   "dependencies": {
@@ -47,6 +45,7 @@
     "dotenv": "^17.2.1",
     "drizzle-orm": "^0.44.5",
     "embedded-postgres": "17.6.0-beta.15",
+    "esbuild": "^0.25.10",
     "express": "^4.21.2",
     "helmet": "^8.0.0",
     "nanoid": "^5.1.5",
@@ -68,25 +67,5 @@
     "tsx": "^4.20.5",
     "typescript": "^5.7.2",
     "vitest": "^2.1.8"
-  },
-  "pkg": {
-    "scripts": [
-      "./dist/index.js",
-      "./dist/db/index.js",
-      "./dist/utils/index.js",
-      "./dist/services/index.js",
-      "./dist/middleware/index.js",
-      "./dist/api/index.js"
-    ],
-    "assets": [
-      "./dist/**/*"
-    ],
-    "targets": [
-      "node18-win-x64",
-      "node18-macos-arm64",
-      "node18-macos-x64",
-      "node18-linux-x64",
-      "node18-linux-arm64"
-    ]
   }
 }
