@@ -19,7 +19,10 @@ const connectionError = ref('')
 const currentDbUrl = ref('')
 const dbInfoMessage = ref('')
 const embeddedPostgresEnabled = useLocalStorage('settings/memory/embedded-postgres-enabled', false)
+const pgLiteEnabled = useLocalStorage('settings/memory/pglite-enabled', false)
 const exportMessage = ref('')
+const importMessage = ref('')
+const checkDbVariantMessage = ref ('')
 
 // === REGENERATION STATUS ===
 const isRegenerating = ref(false)
@@ -389,6 +392,42 @@ function dismissRegenerationWarning() {
   settingsChanged.value = false
 }
 
+async function updateDbEnabled(endpoint: 'embedded-postgres' | 'pglite', enabled: boolean) {
+  try {
+    const response = await fetch(`${memoryServiceUrl.value}/api/${endpoint}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey.value}`,
+      },
+      body: JSON.stringify({ enabled }),
+    })
+    if (!response.ok) {
+      throw new Error(`Failed to update ${endpoint} status`)
+    }
+  }
+  catch (error) {
+    checkDbVariantMessage.value = `Error updating ${endpoint} status: ${error}`
+    console.error(checkDbVariantMessage)
+  }
+}
+
+watch(embeddedPostgresEnabled, (newValue, oldValue) => {
+  if (newValue === true && oldValue === false) {
+    pgLiteEnabled.value = false
+    updateDbEnabled('pglite', false)
+    updateDbEnabled('embedded-postgres', true)
+  }
+})
+
+watch(pgLiteEnabled, (newValue, oldValue) => {
+  if (newValue === true && oldValue === false) {
+    embeddedPostgresEnabled.value = false
+    updateDbEnabled('embedded-postgres', false)
+    updateDbEnabled('pglite', true)
+  }
+})
+
 async function fetchDatabaseInfo() {
   try {
     if (!memoryServiceEnabled.value)
@@ -447,37 +486,89 @@ onMounted(async () => {
   showRegenerationWarning.value = hasChanges
 })
 
-async function exportEmbeddedDb() {
-  if (!embeddedPostgresEnabled.value) {
-    exportMessage.value = 'Embedded Postgres is not enabled'
-    return
-  }
+async function importChatHistory() {
+  const fileInput = document.createElement('input')
+  fileInput.type = 'file'
+  fileInput.accept = '.sql,.tar,.gz,.tgz'
 
+  fileInput.onchange = async (event) => {
+    const file = (event.target as HTMLInputElement)?.files?.[0]
+    if (!file) {
+      importMessage.value = 'No file selected.'
+      return
+    }
+
+    const name = file.name.toLowerCase()
+    const isPglite = /\.(?:tar|tgz|gz)$/.test(name)
+
+    if (!isPglite && !name.endsWith('.sql')) {
+      importMessage.value = 'Unsupported file. Use .sql (Postgres) or .tar/.gz/.tgz (PGlite).'
+      return
+    }
+
+    try {
+      importMessage.value = 'Importing chat history...'
+      const formData = new FormData()
+      formData.append('file', file)
+
+      const url = `${memoryServiceUrl.value}/api/memory/import-chathistory?isPglite=${isPglite ? 'true' : 'false'}`
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${apiKey.value}`,
+          'X-DB-Variant': isPglite ? 'pglite' : 'pg',
+        },
+        body: formData,
+      })
+
+      if (!response.ok) {
+        const err = await response.text()
+        throw new Error(`Failed to import chat history: ${err}`)
+      }
+      importMessage.value = 'Chat history imported successfully!'
+    }
+    catch (error) {
+      console.error(error)
+      importMessage.value = `Error importing chat history: ${error instanceof Error ? error.message : 'Unknown error'}`
+    }
+  }
+  fileInput.click()
+}
+
+async function exportChatHistory() {
   try {
-    const response = await fetch(`${memoryServiceUrl.value}/api/memory/export-embedded`, {
+    const isPglite = pgLiteEnabled.value === true
+    const url = `${memoryServiceUrl.value}/api/memory/export-chathistory?isPglite=${isPglite ? 'true' : 'false'}`
+
+    const response = await fetch(url, {
       method: 'POST',
-      headers: { Authorization: `Bearer ${apiKey.value}` },
+      headers: {
+        'Authorization': `Bearer ${apiKey.value}`,
+        'X-DB-Variant': isPglite ? 'pglite' : 'pg',
+      },
     })
 
     if (!response.ok) {
       const err = await response.text()
-      exportMessage.value = `Failed to export embedded Postgres: ${err}`
+      exportMessage.value = `Failed to export chat history: ${err}`
       return
     }
 
     const blob = await response.blob()
-    const url = window.URL.createObjectURL(blob)
+    const blobUrl = window.URL.createObjectURL(blob)
     const a = document.createElement('a')
-    a.href = url
-    a.download = `embedded_postgres_export_${new Date().toISOString()}.zip`
+    a.href = blobUrl
+    a.download = isPglite ? `pglite_backup_${new Date().toISOString()}.tar.gz` : `chathistory_pg_backup_${new Date().toISOString()}.sql`
     document.body.appendChild(a)
     a.click()
     document.body.removeChild(a)
-    exportMessage.value = 'Embedded Postgres export completed successfully!'
+    window.URL.revokeObjectURL(blobUrl)
+
+    exportMessage.value = 'Chat history export completed successfully!'
   }
   catch (error) {
     console.error(error)
-    exportMessage.value = `Error exporting embedded Postgres: ${error instanceof Error ? error.message : 'Unknown error'}`
+    exportMessage.value = `Error exporting chat history: ${error instanceof Error ? error.message : 'Unknown error'}`
   }
 }
 </script>
@@ -614,15 +705,36 @@ async function exportEmbeddedDb() {
           <p class="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
             Toggle the embedded Postgres database for local memory storage
           </p>
+          <label class="flex cursor-pointer items-center gap-3">
+            <input
+              v-model="pgLiteEnabled"
+              type="checkbox"
+              class="h-4 w-4 border-gray-300 rounded bg-gray-100 text-blue-600 dark:border-gray-600 dark:bg-gray-700 focus:ring-2 focus:ring-blue-500 dark:ring-offset-gray-800 dark:focus:ring-blue-600"
+            >
+            <span class="text-sm text-neutral-700 font-medium dark:text-neutral-300">
+              Enable PGLite
+            </span>
+          </label>
+          <p class="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
+            Toggle the PGLite database for local memory storage (Recommended)
+          </p>
           <!-- Embedded Postgres Export -->
           <div class="mt-4">
             <div class="mt-2">
-              <button :disabled="!embeddedPostgresEnabled" class="btn btn-warning" @click="exportEmbeddedDb">
-                Export Embedded Postgres
+              <button class="btn btn-warning" @click="exportChatHistory">
+                Export Chat History
               </button>
             </div>
             <p v-if="exportMessage" class="mt-1 text-blue-600">
               {{ exportMessage }}
+            </p>
+            <div class="mt-2">
+              <button class="btn btn-warning" @click="importChatHistory">
+                Import Chat History
+              </button>
+            </div>
+            <p v-if="importMessage" class="mt-1 text-blue-600">
+              {{ importMessage }}
             </p>
           </div>
         </div>

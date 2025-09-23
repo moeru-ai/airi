@@ -28,8 +28,7 @@ import { NodeSDK } from '@opentelemetry/sdk-node'
 import { ATTR_SERVICE_NAME, ATTR_SERVICE_VERSION } from '@opentelemetry/semantic-conventions'
 import { Pool } from 'pg'
 
-import memoryRouter from './api/memory.js'
-
+import { memoryRouter } from './api/memory.js'
 import { createApp } from './api/server.js'
 import { initDb } from './db'
 import { BackgroundTrigger } from './services/background-trigger.js'
@@ -39,66 +38,42 @@ import { MessageIngestionService } from './services/message-processing.js'
 
 import 'dotenv/config'
 
-// ----------------------------------------------------------------------------
-// Logging setup
-// ----------------------------------------------------------------------------
 setGlobalFormat(Format.Pretty)
 setGlobalLogLevel(LogLevel.Debug)
 
-// ----------------------------------------------------------------------------
-// Small helpers for ESM __dirname
-// ----------------------------------------------------------------------------
-const __filename = fileURLToPath(import.meta.url)
+const __filename
+  = (typeof import.meta !== 'undefined' && (import.meta as any).url)
+    ? fileURLToPath((import.meta as any).url)
+    : path.resolve(process.cwd(), 'src/index.ts')
 const __dirname = path.dirname(__filename)
 
-// ----------------------------------------------------------------------------
-// Configuration
-// ----------------------------------------------------------------------------
 const PG_URL = env.PG_URL || env.DATABASE_URL || 'postgres://postgres:postgres@localhost:5432/postgres'
 const PORT = Number(env.PORT || 3001)
 const BASE_SCHEMA_FILE = path.resolve(__dirname, '../drizzle/0000_sharp_iceman.sql')
 
-// ----------------------------------------------------------------------------
-// Ensure Base Schema (idempotent)
-//   - We check a sentinel table first (public.memory_settings).
-//   - If missing, we load and execute the iceman SQL file verbatim.
-// ----------------------------------------------------------------------------
 async function ensureBaseSchema(): Promise<void> {
   const pool = new Pool({ connectionString: PG_URL })
   try {
-    // 1) Sentinel check: does one of the core tables already exist?
     const check = await pool.query<{ exists: string | null }>(
       'SELECT to_regclass(\'public.memory_settings\') AS exists',
     )
-    if (check.rows[0]?.exists) {
-      console.warn('[memory-service] Base schema already present (skipping)')
+    if (check.rows[0]?.exists)
       return
-    }
 
-    // 2) Load SQL file
-    if (!fs.existsSync(BASE_SCHEMA_FILE)) {
+    if (!fs.existsSync(BASE_SCHEMA_FILE))
       throw new Error(`Base schema SQL not found at: ${BASE_SCHEMA_FILE}`)
-    }
     const sql = fs.readFileSync(BASE_SCHEMA_FILE, 'utf8').trim()
-    if (!sql) {
+    if (!sql)
       throw new Error('Base schema SQL file is empty')
-    }
 
-    // 3) Execute (single round-trip; node-postgres accepts multiple statements separated by ;)
-    console.warn('[memory-service] Applying base schema from drizzle/0000_sharp_iceman.sql …')
     await pool.query(sql)
-    console.warn('[memory-service] Base schema applied successfully ✅')
   }
   finally {
     await pool.end()
   }
 }
 
-// ----------------------------------------------------------------------------
-// Main
-// ----------------------------------------------------------------------------
 async function main() {
-  // ---- OpenTelemetry (non-fatal if collector is absent) --------------------
   const sdk = new NodeSDK({
     resource: resourceFromAttributes({
       [ATTR_SERVICE_NAME]: 'memory-service',
@@ -114,16 +89,12 @@ async function main() {
       exportIntervalMillis: 5000,
     }),
   })
-
   sdk.start()
 
-  // ---- DB bootstrap --------------------------------------------------------
   await initDb()
-  await ensureBaseSchema() // <— Run the iceman SQL once if needed
+  await ensureBaseSchema()
 
-  // ---- Warm up embedding provider (non-fatal) ------------------------------
   try {
-    console.warn('🚀 Initializing embedding provider…')
     const embeddingFactory = EmbeddingProviderFactory.getInstance()
     await embeddingFactory.initializeProvider()
   }
@@ -131,38 +102,26 @@ async function main() {
     console.error('[memory-service] Embedding provider init failed (continuing):', error)
   }
 
-  // ---- Shared singletons ---------------------------------------------------
   const messageIngestionService = MessageIngestionService.getInstance()
   const memoryService = new MemoryService()
-
-  // Resume any in-progress regeneration workflow
   await memoryService.checkAndResumeRegeneration()
 
-  // Start background processing loop
   const backgroundTrigger = BackgroundTrigger.getInstance(messageIngestionService)
   backgroundTrigger.startProcessing(30_000)
-  console.warn('[memory-service] Background processing started')
 
-  // ---- HTTP server ---------------------------------------------------------
   const app = createApp()
   app.use('/api/memory', memoryRouter)
 
   app.listen(PORT, () => {
-    console.warn(`[memory-service] HTTP server listening on http://localhost:${PORT}`)
+    process.stdout.write(`[memory-service] HTTP server listening on http://localhost:${PORT}\n`)
   })
 }
 
-// ----------------------------------------------------------------------------
-// Global rejection handler (keeps logs useful in production)
-// ----------------------------------------------------------------------------
 process.on('unhandledRejection', (err) => {
   const log = useLogg('UnhandledRejection').useGlobalConfig()
   log.withError(err).withField('cause', (err as any)?.cause).error('Unhandled rejection')
 })
 
-// ----------------------------------------------------------------------------
-// Entrypoint
-// ----------------------------------------------------------------------------
 main().catch((err) => {
   console.error('[memory-service] Fatal error during startup:', err)
   process.exitCode = 1

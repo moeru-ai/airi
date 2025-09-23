@@ -16,26 +16,41 @@ import express from 'express'
 
 import { desc, sql } from 'drizzle-orm'
 
-import { isEmbeddedPostgresEnabled, setEmbeddedPostgresEnabled, useDrizzle } from '../db'
-import { chatCompletionsHistoryTable, chatMessagesTable } from '../db/schema'
+import memoryRouter from './memory.js'
+
+import {
+  isEmbeddedPostgresEnabled,
+  isPGliteEnabled,
+  setEmbeddedPostgresEnabled,
+  setPGliteEnabled,
+  useDrizzle,
+} from '../db/index.js'
+import { chatCompletionsHistoryTable, chatMessagesTable } from '../db/schema.js'
 import { MemoryService } from '../services/memory'
 import { SettingsService } from '../services/settings'
 
 // Simple authentication middleware
-function authenticateApiKey(req: express.Request, res: express.Response, next: express.NextFunction) {
+function authenticateApiKey(
+  req: express.Request,
+  res: express.Response,
+  next: express.NextFunction,
+) {
   // If API_KEY is empty or not set, skip authentication entirely
   if (!env.API_KEY || env.API_KEY === '') {
-    return next()
+    next()
+    return
   }
 
   const authHeader = req.headers.authorization
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return res.status(401).json({ error: 'API key required' })
+    res.status(401).json({ error: 'API key required' })
+    return
   }
 
   const apiKey = authHeader.split(' ')[1]
   if (apiKey !== env.API_KEY) {
-    return res.status(403).json({ error: 'Invalid API key' })
+    res.status(403).json({ error: 'Invalid API key' })
+    return
   }
 
   next()
@@ -50,26 +65,28 @@ export function createApp() {
   app.use(cors())
   app.use(express.json())
 
+  // Mount memory feature router (export/import, etc.)
+  app.use('/api/memory', authenticateApiKey, memoryRouter)
+
   // Health check endpoint (no auth required)
-  app.get('/api/health', (req, res) => {
+  app.get('/api/health', (_req, res) => {
     res.json({ status: 'ok', timestamp: new Date().toISOString() })
   })
 
   // Test authentication endpoint
-  app.get('/api/test-conn', authenticateApiKey, (req, res) => {
+  app.get('/api/test-conn', authenticateApiKey, (_req, res) => {
     res.json({
       status: 'authenticated',
       timestamp: new Date().toISOString(),
       message: 'API key is valid',
     })
   })
-  // Get current database URL from environment
-  app.get('/api/database-url', authenticateApiKey, (req, res) => {
-    const dbUrl = env.DATABASE_URL || 'ERROR: DATABASE_URL environment variable not configured'
 
+  // Get current database URL from environment
+  app.get('/api/database-url', authenticateApiKey, (_req, res) => {
+    const dbUrl = env.DATABASE_URL || 'ERROR: DATABASE_URL environment variable not configured'
     // Censor the password in the URL for security
     const censoredUrl = dbUrl.replace(/:([^:@]+)@/, ':*****@')
-
     res.json({
       dbUrl: censoredUrl,
       message: 'Database connection is configured via DATABASE_URL environment variable',
@@ -118,6 +135,18 @@ export function createApp() {
     res.json({ success: true, enabled: isEmbeddedPostgresEnabled() })
   })
 
+  // Get current PGlite status
+  app.get('/api/pglite', authenticateApiKey, (_req, res) => {
+    res.json({ enabled: isPGliteEnabled() })
+  })
+
+  // Update PGlite status
+  app.post('/api/pglite', authenticateApiKey, (req, res) => {
+    const { enabled } = req.body as { enabled: boolean }
+    setPGliteEnabled(enabled)
+    res.json({ success: true, enabled: isPGliteEnabled() })
+  })
+
   // Update memory service settings
   app.post('/api/settings', authenticateApiKey, async (req, res) => {
     try {
@@ -139,15 +168,19 @@ export function createApp() {
       const currentSettings = await settingsService.getSettings()
 
       // Check if embeddings are being regenerated
-      if (currentSettings.mem_is_regenerating && (
-        currentSettings.mem_embedding_provider !== embeddingProvider
-        || currentSettings.mem_embedding_model !== embeddingModel
-        || currentSettings.mem_embedding_dimensions !== embeddingDimensions
-      )) {
-        return res.status(409).json({
+      if (
+        currentSettings.mem_is_regenerating
+        && (
+          currentSettings.mem_embedding_provider !== embeddingProvider
+          || currentSettings.mem_embedding_model !== embeddingModel
+          || currentSettings.mem_embedding_dimensions !== embeddingDimensions
+        )
+      ) {
+        res.status(409).json({
           error: 'Cannot change embedding settings while regeneration is in progress',
           details: 'Please wait for the current regeneration to complete',
         })
+        return
       }
 
       // Update settings first
@@ -166,17 +199,14 @@ export function createApp() {
       })
 
       // Only trigger regeneration if embedding-related settings changed AND not already regenerating
-      if (
-        !currentSettings.mem_is_regenerating && (
-          currentSettings.mem_embedding_provider !== embeddingProvider
+      const embeddingChanged
+        = currentSettings.mem_embedding_provider !== embeddingProvider
           || currentSettings.mem_embedding_model !== embeddingModel
           || currentSettings.mem_embedding_dimensions !== embeddingDimensions
-        )
-      ) {
+
+      if (!currentSettings.mem_is_regenerating && embeddingChanged) {
         // Set regenerating state
-        await settingsService.updateSettings({
-          mem_is_regenerating: true,
-        })
+        await settingsService.updateSettings({ mem_is_regenerating: true })
 
         // Send response immediately
         res.json({
@@ -192,9 +222,7 @@ export function createApp() {
         }
         finally {
           // Always clear regenerating state
-          await settingsService.updateSettings({
-            mem_is_regenerating: false,
-          })
+          await settingsService.updateSettings({ mem_is_regenerating: false })
         }
         return // Already sent response
       }
@@ -215,7 +243,7 @@ export function createApp() {
   })
 
   // Get regeneration status endpoint
-  app.get('/api/settings/regeneration-status', authenticateApiKey, async (req, res) => {
+  app.get('/api/settings/regeneration-status', authenticateApiKey, async (_req, res) => {
     try {
       const settings = await settingsService.getSettings()
 
@@ -227,6 +255,7 @@ export function createApp() {
         avgBatchTimeMs: settings.mem_regeneration_avg_batch_time_ms,
         lastBatchTimeMs: settings.mem_regeneration_last_batch_time_ms,
         currentBatchSize: settings.mem_regeneration_current_batch_size,
+        // Rough ETA based on average batch time and current batch size
         estimatedTimeRemaining: settings.mem_regeneration_total_items > 0
           ? Math.round(
               (settings.mem_regeneration_total_items - settings.mem_regeneration_processed_items)
@@ -249,7 +278,8 @@ export function createApp() {
     try {
       const { message } = req.body
       if (!message) {
-        return res.status(400).json({ error: 'message is required' })
+        res.status(400).json({ error: 'message is required' })
+        return
       }
 
       // Store the message first so it's included in context building
@@ -260,10 +290,6 @@ export function createApp() {
 
       // Build context using ContextBuilder
       const context = await memoryService.buildQueryContext(message)
-
-      // console.log('========== Context ================================')
-      // console.log('Context:', JSON.stringify(context, null, 2))
-      // console.log('===================================================')
 
       res.json(context)
     }
@@ -280,6 +306,8 @@ export function createApp() {
   app.get('/api/conversations', authenticateApiKey, async (req, res) => {
     try {
       const db = useDrizzle()
+
+      // Pagination params
       const limit = Number.parseInt(req.query.limit as string) || 10
       const before = Number.parseInt(req.query.before as string) || Date.now() // timestamp for pagination
 
@@ -321,7 +349,7 @@ export function createApp() {
       const earliestTimestamp = conversation[conversation.length - 1]?.created_at
 
       res.json({
-        messages: conversation.reverse(), // revered to get chat-style order
+        messages: conversation.reverse(), // reversed to get chat-style order
         hasMore: conversation.length === limit,
         nextCursor: earliestTimestamp,
       })

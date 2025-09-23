@@ -26,6 +26,7 @@
   },
   "dependencies": {
     "@dotenvx/dotenvx": "^1.49.0",
+    "@electric-sql/pglite": "^0.3.9",
     "@google/generative-ai": "^0.21.0",
     "@guiiai/logg": "^1.0.10",
     "@moeru/std": "catalog:",
@@ -47,6 +48,7 @@
     "embedded-postgres": "17.6.0-beta.15",
     "express": "^4.21.2",
     "helmet": "^8.0.0",
+    "multer": "^2.0.2",
     "nanoid": "^5.1.5",
     "openai": "^4.28.0",
     "pg": "^8.16.3",
@@ -59,6 +61,7 @@
   "devDependencies": {
     "@types/cors": "^2.8.17",
     "@types/express": "^5.0.0",
+    "@types/multer": "^2.0.0",
     "@types/pg": "^8.15.5",
     "@types/ws": "^8.5.10",
     "drizzle-kit": "^0.31.4",

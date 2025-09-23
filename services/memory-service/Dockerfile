@@ -1,12 +1,11 @@
 FROM node:24-alpine
 
 # Install build tools and libraries
-RUN apk add --no-cache python3 make g++ bash curl libc6-compat git
+RUN apk add --no-cache python3 make g++ bash curl libc6-compat git postgresql-client tar
 
 WORKDIR /app
 
 # Install pnpm globally
-RUN apk add --no-cache postgresql-client
 RUN npm install -g pnpm
 
 # Copy workspace lockfiles first to leverage cache
