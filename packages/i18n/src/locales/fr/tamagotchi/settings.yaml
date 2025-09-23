@@ -1,0 +1,23 @@
+allow-visible-on-all-workspaces:
+  title: Visibilité sur tous les bureaux
+  description: Permet à la fenêtre d’être visible sur tous les bureaux, macOS uniquement.
+pages:
+  modules:
+    mcp-server:
+      description: Connecter et gérer le serveur MCP et ses outils
+      title: Serveur MCP
+  themes:
+    sections:
+      section:
+        window-shortcuts:
+          title: Raccourcis clavier
+    window-shortcuts:
+      description: Modifier les raccourcis de la fenêtre.
+      title: Raccourcis de la fenêtre
+      toggle-move:
+        label: (Dés)Activer - Déplacement
+      toggle-resize:
+        label: (Dés)Activer - Redimensionnement
+      toggle-ignore-mouse-event:
+        label: (Dés)Activer - Ignorer les événements de la souris
+      press-keys: Appuyer sur les touches...
