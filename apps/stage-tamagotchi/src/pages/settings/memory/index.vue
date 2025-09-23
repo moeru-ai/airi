@@ -553,22 +553,27 @@ async function exportChatHistory() {
       exportMessage.value = `Failed to export chat history: ${err}`
       return
     }
+    const cd = res.headers.get('content-disposition') || ''
+    const m = /filename\*=UTF-8''([^;]+)|filename="([^"]+)"/i.exec(cd)
+    const serverName = decodeURIComponent(m?.[1] || m?.[2] || '')
 
-    const blob = await response.blob()
-    const blobUrl = window.URL.createObjectURL(blob)
+    const blob = await res.blob()
+    const urlObj = window.URL.createObjectURL(blob)
     const a = document.createElement('a')
-    a.href = blobUrl
-    a.download = isPglite ? `pglite_backup_${new Date().toISOString()}.tar.gz` : `chathistory_pg_backup_${new Date().toISOString()}.sql`
+    a.href = urlObj
+    a.download = serverName || (isPglite
+      ? `pglite_backup_${new Date().toISOString()}.tar.gz`
+      : `chathistory_pg_backup_${new Date().toISOString()}.tar.gz`)
     document.body.appendChild(a)
     a.click()
-    document.body.removeChild(a)
-    window.URL.revokeObjectURL(blobUrl)
+    a.remove()
+    window.URL.revokeObjectURL(urlObj)
 
     exportMessage.value = 'Chat history export completed successfully!'
   }
   catch (error) {
-    console.error(error)
-    exportMessage.value = `Error exporting chat history: ${error instanceof Error ? error.message : 'Unknown error'}`
+    const msg = error instanceof Error ? error.message : String(error)
+    exportMessage.value = `Failed to export chat history: ${msg}`
   }
 }
 </script>

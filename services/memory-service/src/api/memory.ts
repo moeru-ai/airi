@@ -116,6 +116,7 @@ memoryRouter.post('/export-chathistory', async (req: Request, res: Response) => 
             res.status(500).send('Failed to archive dump')
             return
           }
+          res.setHeader('Content-Type', 'application/gzip')
           res.download(outFile, path.basename(outFile), (dlErr) => {
             if (dlErr) {
               console.warn('Failed to download a backup file')
@@ -131,9 +132,9 @@ memoryRouter.post('/export-chathistory', async (req: Request, res: Response) => 
       return
     }
     const outFile = path.join(exportDir, `pglite_backup_${Date.now()}.tar.gz`)
-    exec(`tar -czf "${outFile}" -C "${dataDir}" .`, (error, _stdout, _stderr) => {
+    exec(`tar -czf "${outFile}" -C "${dataDir}" .`, (error, _stdout, stderr) => {
       if (error) {
-        res.status(500).send('Failed to archive PGlite data')
+        res.status(500).send(`Failed to archive PGlite data: ${stderr || error.message}`)
         return
       }
       res.download(outFile, path.basename(outFile), (dlErr) => {
