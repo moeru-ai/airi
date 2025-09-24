@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { RadioCardManySelect, RadioCardSimple } from '@proj-airi/stage-ui/components'
+import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
 import { FieldInput } from '@proj-airi/ui'
 import { useLocalStorage } from '@vueuse/core'
 import { computed, onMounted, ref, watch } from 'vue'
 
 // === EXISTING MEMORY SERVICE SETTINGS ===
 const memoryServiceEnabled = useLocalStorage('settings/memory/enabled', false)
+const chatStore = useChatStore()
 const memoryServiceUrl = useLocalStorage('settings/memory/service-url', 'http://localhost:3001')
 const apiKey = useLocalStorage('settings/memory/api-key', '')
 const isConnected = ref(false)
@@ -543,6 +545,8 @@ async function importChatHistory() {
         throw new Error(`Failed to import chat history: ${err}`)
       }
       importMessage.value = 'Chat history imported successfully!'
+      chatStore.resetConversation()
+      await chatStore.reloadFromDb()
     }
     catch (error) {
       console.error(error)
