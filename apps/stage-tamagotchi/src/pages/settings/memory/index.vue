@@ -545,7 +545,6 @@ async function importChatHistory() {
         throw new Error(`Failed to import chat history: ${err}`)
       }
       importMessage.value = 'Chat history imported successfully!'
-      chatStore.resetConversation()
       await chatStore.reloadFromDb()
     }
     catch (error) {
