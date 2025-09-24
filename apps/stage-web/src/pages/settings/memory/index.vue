@@ -12,12 +12,22 @@ const isConnected = ref(false)
 const isTesting = ref(false)
 const connectionStatus = ref('Click "Test Connection" to verify service')
 const connectionMessage = ref('')
-const connectionMessageType = ref<'success' | 'error'>('')
+const connectionMessageType = ref<'success' | 'error' | null>(null)
 const connectionError = ref('')
 
 // === DATABASE CONNECTION INFO ===
 const currentDbUrl = ref('')
 const dbInfoMessage = ref('')
+const boolSerializer = {
+  read: (v: string) => v === 'true',
+  write: (v: boolean) => String(v),
+}
+
+const embeddedPostgresEnabled = useLocalStorage<boolean>('settings/memory/embedded-postgres-enabled', false, { serializer: boolSerializer })
+const pgLiteEnabled = useLocalStorage<boolean>('settings/memory/pglite-enabled', false, { serializer: boolSerializer })
+const exportMessage = ref('Click and wait for success log...')
+const importMessage = ref('')
+const checkDbVariantMessage = ref ('')
 
 // === REGENERATION STATUS ===
 const isRegenerating = ref(false)
@@ -89,6 +99,10 @@ const tempEmbeddingProvider = ref('openai')
 const tempEmbeddingModel = ref('text-embedding-3-small')
 const tempEmbeddingApiKey = ref('')
 const tempEmbeddingDim = ref(1536)
+const tempEmbeddingDimStr = computed({
+  get: () => String(tempEmbeddingDim.value),
+  set: (v: string) => { tempEmbeddingDim.value = Number(v) },
+})
 
 // === PROVIDER OPTIONS ===
 const llmProviders = [
@@ -237,9 +251,10 @@ async function fetchSettings() {
     }
   }
   catch (error) {
-    console.error('Failed to fetch settings:', error)
-    connectionMessage.value = `Failed to fetch settings: ${error.message}`
+    const msg = error instanceof Error ? error.message : String(error)
+    connectionMessage.value = `Failed to fetch settings: ${msg}`
     connectionMessageType.value = 'error'
+    console.error(connectionMessage.value)
   }
 }
 
@@ -370,9 +385,10 @@ async function confirmRegeneration() {
     connectionMessageType.value = 'success'
   }
   catch (error) {
-    console.error('Failed to update settings:', error)
-    connectionMessage.value = `Failed to update settings: ${error.message}`
+    const msg = error instanceof Error ? error.message : String(error)
+    connectionMessage.value = `Failed to update settings: ${msg}`
     connectionMessageType.value = 'error'
+    console.error(connectionMessage.value)
   }
 }
 
@@ -386,6 +402,48 @@ function dismissRegenerationWarning() {
   showRegenerationWarning.value = false
   settingsChanged.value = false
 }
+
+async function updateDbEnabled(endpoint: 'embedded-postgres' | 'pglite', enabled: boolean) {
+  try {
+    const response = await fetch(`${memoryServiceUrl.value}/api/${endpoint}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey.value}`,
+      },
+      body: JSON.stringify({ enabled }),
+    })
+    if (!response.ok) {
+      throw new Error(`Failed to update ${endpoint} status`)
+    }
+  }
+  catch (error) {
+    checkDbVariantMessage.value = `Error updating ${endpoint} status: ${error}`
+    console.error(checkDbVariantMessage.value)
+  }
+}
+
+watch(embeddedPostgresEnabled, (n, o) => {
+  const now = n === true
+  const old = o === true
+  if (now && !old) {
+    if (pgLiteEnabled.value)
+      pgLiteEnabled.value = false
+    updateDbEnabled('pglite', false)
+    updateDbEnabled('embedded-postgres', true)
+  }
+})
+
+watch(pgLiteEnabled, (n, o) => {
+  const now = n === true
+  const old = o === true
+  if (now && !old) {
+    if (embeddedPostgresEnabled.value)
+      embeddedPostgresEnabled.value = false
+    updateDbEnabled('embedded-postgres', false)
+    updateDbEnabled('pglite', true)
+  }
+})
 
 async function fetchDatabaseInfo() {
   try {
@@ -444,6 +502,97 @@ onMounted(async () => {
   settingsChanged.value = hasChanges
   showRegenerationWarning.value = hasChanges
 })
+
+async function importChatHistory() {
+  const fileInput = document.createElement('input')
+  fileInput.type = 'file'
+  fileInput.accept = '.sql,.tar,.gz,.tgz'
+
+  fileInput.onchange = async (event) => {
+    const file = (event.target as HTMLInputElement)?.files?.[0]
+    if (!file) {
+      importMessage.value = 'No file selected.'
+      return
+    }
+
+    const name = file.name.toLowerCase()
+    const isPglite = /\.(?:tar|tgz|gz)$/.test(name)
+
+    if (!isPglite && !name.endsWith('.sql')) {
+      importMessage.value = 'Unsupported file. Use .sql (Postgres) or .tar/.gz/.tgz (PGlite).'
+      return
+    }
+
+    try {
+      importMessage.value = 'Importing chat history...'
+      const formData = new FormData()
+      formData.append('file', file)
+
+      const url = `${memoryServiceUrl.value}/api/memory/import-chathistory?isPglite=${isPglite ? 'true' : 'false'}`
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${apiKey.value}`,
+          'X-DB-Variant': isPglite ? 'pglite' : 'pg',
+        },
+        body: formData,
+      })
+
+      if (!response.ok) {
+        const err = await response.text()
+        throw new Error(`Failed to import chat history: ${err}`)
+      }
+      importMessage.value = 'Chat history imported successfully!'
+    }
+    catch (error) {
+      console.error(error)
+      importMessage.value = `Error importing chat history: ${error instanceof Error ? error.message : 'Unknown error'}`
+    }
+  }
+  fileInput.click()
+}
+
+async function exportChatHistory() {
+  try {
+    exportMessage.value = 'Chat export task has started...'
+    const usePglite = pgLiteEnabled.value === true
+    const endpoint = usePglite
+      ? `${memoryServiceUrl.value}/api/memory/export-chathistory?isPglite=true`
+      : `${memoryServiceUrl.value}/api/memory/export-embedded`
+
+    const r = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey.value}`,
+        'X-DB-Variant': usePglite ? 'pglite' : 'pg',
+      },
+    })
+
+    if (!r.ok) {
+      const t = await r.text().catch(() => '')
+      throw new Error(t || `HTTP ${r.status}`)
+    }
+
+    const cd = r.headers.get('content-disposition') || ''
+    const m = /filename\*=UTF-8''([^;]+)|filename="([^"]+)"/i.exec(cd)
+    const serverName = decodeURIComponent(m?.[1] || m?.[2] || '')
+    const blob = await r.blob()
+    const urlObj = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = urlObj
+    a.download = serverName || (usePglite
+      ? `pglite_backup_${new Date().toISOString()}.tar.gz`
+      : `chathistory_pg_backup_${new Date().toISOString()}.tar.gz`)
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+    URL.revokeObjectURL(urlObj)
+    exportMessage.value = 'Chat history export completed successfully!'
+  }
+  catch (e: unknown) {
+    exportMessage.value = `Failed to export chat history: ${e instanceof Error ? e.message : String(e)}`
+  }
+}
 </script>
 
 <template>
@@ -565,6 +714,54 @@ onMounted(async () => {
         </div>
 
         <div class="mb-4">
+          <label class="flex cursor-pointer items-center gap-3">
+            <input
+              v-model="embeddedPostgresEnabled"
+              type="checkbox"
+              class="h-4 w-4 border-gray-300 rounded bg-gray-100 text-blue-600 dark:border-gray-600 dark:bg-gray-700 focus:ring-2 focus:ring-blue-500 dark:ring-offset-gray-800 dark:focus:ring-blue-600"
+            >
+            <span class="text-sm text-neutral-700 font-medium dark:text-neutral-300">
+              Enable Embedded Postgres
+            </span>
+          </label>
+          <p class="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
+            Toggle the embedded Postgres database for local memory storage
+          </p>
+          <label class="flex cursor-pointer items-center gap-3">
+            <input
+              v-model="pgLiteEnabled"
+              type="checkbox"
+              class="h-4 w-4 border-gray-300 rounded bg-gray-100 text-blue-600 dark:border-gray-600 dark:bg-gray-700 focus:ring-2 focus:ring-blue-500 dark:ring-offset-gray-800 dark:focus:ring-blue-600"
+            >
+            <span class="text-sm text-neutral-700 font-medium dark:text-neutral-300">
+              Enable PGLite
+            </span>
+          </label>
+          <p class="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
+            Toggle the PGLite database for local memory storage (Recommended)
+          </p>
+          <!-- Embedded Postgres Export -->
+          <div class="mt-4">
+            <div class="mt-2">
+              <button class="btn btn-warning" @click="exportChatHistory">
+                Export Chat History
+              </button>
+            </div>
+            <p v-if="exportMessage" class="mt-1 text-blue-600">
+              {{ exportMessage }}
+            </p>
+            <div class="mt-2">
+              <button class="btn btn-warning" @click="importChatHistory">
+                Import Chat History
+              </button>
+            </div>
+            <p v-if="importMessage" class="mt-1 text-blue-600">
+              {{ importMessage }}
+            </p>
+          </div>
+        </div>
+
+        <div class="mb-4">
           <label class="mb-2 block text-sm text-neutral-700 font-medium dark:text-neutral-300">
             Memory Service URL (default: http://localhost:3001)
           </label>
@@ -578,7 +775,6 @@ onMounted(async () => {
             The URL where your memory service is running
           </p>
         </div>
-
         <div class="mb-4">
           <label class="mb-2 block text-sm text-neutral-700 font-medium dark:text-neutral-300">
             Server Password (Optional)
@@ -798,9 +994,10 @@ onMounted(async () => {
               v-for="dim in availableDimensions"
               :id="`dim-${dim}`"
               :key="dim"
-              v-model="tempEmbeddingDim"
+              v-model="tempEmbeddingDimStr"
+              class="max-w-[3.5rem]"
               name="embedding-dimension"
-              :value="dim"
+              :value="String(dim)"
               :title="`${dim}D`"
               :description="`${dim} dims`"
             />
