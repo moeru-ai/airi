@@ -12,15 +12,20 @@ const isConnected = ref(false)
 const isTesting = ref(false)
 const connectionStatus = ref('Click "Test Connection" to verify service')
 const connectionMessage = ref('')
-const connectionMessageType = ref<'success' | 'error'>('')
+const connectionMessageType = ref<'success' | 'error' | null>(null)
 const connectionError = ref('')
 
 // === DATABASE CONNECTION INFO ===
 const currentDbUrl = ref('')
 const dbInfoMessage = ref('')
-const embeddedPostgresEnabled = useLocalStorage('settings/memory/embedded-postgres-enabled', false)
-const pgLiteEnabled = useLocalStorage('settings/memory/pglite-enabled', false)
-const exportMessage = ref('')
+const boolSerializer = {
+  read: (v: string) => v === 'true',
+  write: (v: boolean) => String(v),
+}
+
+const embeddedPostgresEnabled = useLocalStorage<boolean>('settings/memory/embedded-postgres-enabled', false, { serializer: boolSerializer })
+const pgLiteEnabled = useLocalStorage<boolean>('settings/memory/pglite-enabled', false, { serializer: boolSerializer })
+const exportMessage = ref('Click and wait for success log...')
 const importMessage = ref('')
 const checkDbVariantMessage = ref ('')
 
@@ -94,6 +99,10 @@ const tempEmbeddingProvider = ref('openai')
 const tempEmbeddingModel = ref('text-embedding-3-small')
 const tempEmbeddingApiKey = ref('')
 const tempEmbeddingDim = ref(1536)
+const tempEmbeddingDimStr = computed({
+  get: () => String(tempEmbeddingDim.value),
+  set: (v: string) => { tempEmbeddingDim.value = Number(v) },
+})
 
 // === PROVIDER OPTIONS ===
 const llmProviders = [
@@ -242,9 +251,10 @@ async function fetchSettings() {
     }
   }
   catch (error) {
-    console.error('Failed to fetch settings:', error)
-    connectionMessage.value = `Failed to fetch settings: ${error.message}`
+    const msg = error instanceof Error ? error.message : String(error)
+    connectionMessage.value = `Failed to fetch settings: ${msg}`
     connectionMessageType.value = 'error'
+    console.error(connectionMessage.value)
   }
 }
 
@@ -375,9 +385,10 @@ async function confirmRegeneration() {
     connectionMessageType.value = 'success'
   }
   catch (error) {
-    console.error('Failed to update settings:', error)
-    connectionMessage.value = `Failed to update settings: ${error.message}`
+    const msg = error instanceof Error ? error.message : String(error)
+    connectionMessage.value = `Failed to update settings: ${msg}`
     connectionMessageType.value = 'error'
+    console.error(connectionMessage.value)
   }
 }
 
@@ -408,21 +419,27 @@ async function updateDbEnabled(endpoint: 'embedded-postgres' | 'pglite', enabled
   }
   catch (error) {
     checkDbVariantMessage.value = `Error updating ${endpoint} status: ${error}`
-    console.error(checkDbVariantMessage)
+    console.error(checkDbVariantMessage.value)
   }
 }
 
-watch(embeddedPostgresEnabled, (newValue, oldValue) => {
-  if (newValue === true && oldValue === false) {
-    pgLiteEnabled.value = false
+watch(embeddedPostgresEnabled, (n, o) => {
+  const now = n === true
+  const old = o === true
+  if (now && !old) {
+    if (pgLiteEnabled.value)
+      pgLiteEnabled.value = false
     updateDbEnabled('pglite', false)
     updateDbEnabled('embedded-postgres', true)
   }
 })
 
-watch(pgLiteEnabled, (newValue, oldValue) => {
-  if (newValue === true && oldValue === false) {
-    embeddedPostgresEnabled.value = false
+watch(pgLiteEnabled, (n, o) => {
+  const now = n === true
+  const old = o === true
+  if (now && !old) {
+    if (embeddedPostgresEnabled.value)
+      embeddedPostgresEnabled.value = false
     updateDbEnabled('embedded-postgres', false)
     updateDbEnabled('pglite', true)
   }
@@ -537,43 +554,43 @@ async function importChatHistory() {
 
 async function exportChatHistory() {
   try {
-    const isPglite = pgLiteEnabled.value === true
-    const url = `${memoryServiceUrl.value}/api/memory/export-chathistory?isPglite=${isPglite ? 'true' : 'false'}`
+    exportMessage.value = 'Chat export task has started...'
+    const usePglite = pgLiteEnabled.value === true
+    const endpoint = usePglite
+      ? `${memoryServiceUrl.value}/api/memory/export-chathistory?isPglite=true`
+      : `${memoryServiceUrl.value}/api/memory/export-embedded`
 
-    const response = await fetch(url, {
+    const r = await fetch(endpoint, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${apiKey.value}`,
-        'X-DB-Variant': isPglite ? 'pglite' : 'pg',
+        'X-DB-Variant': usePglite ? 'pglite' : 'pg',
       },
     })
 
-    if (!response.ok) {
-      const err = await response.text()
-      exportMessage.value = `Failed to export chat history: ${err}`
-      return
+    if (!r.ok) {
+      const t = await r.text().catch(() => '')
+      throw new Error(t || `HTTP ${r.status}`)
     }
-    const cd = res.headers.get('content-disposition') || ''
+
+    const cd = r.headers.get('content-disposition') || ''
     const m = /filename\*=UTF-8''([^;]+)|filename="([^"]+)"/i.exec(cd)
     const serverName = decodeURIComponent(m?.[1] || m?.[2] || '')
-
-    const blob = await res.blob()
-    const urlObj = window.URL.createObjectURL(blob)
+    const blob = await r.blob()
+    const urlObj = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = urlObj
-    a.download = serverName || (isPglite
+    a.download = serverName || (usePglite
       ? `pglite_backup_${new Date().toISOString()}.tar.gz`
       : `chathistory_pg_backup_${new Date().toISOString()}.tar.gz`)
     document.body.appendChild(a)
     a.click()
     a.remove()
-    window.URL.revokeObjectURL(urlObj)
-
+    URL.revokeObjectURL(urlObj)
     exportMessage.value = 'Chat history export completed successfully!'
   }
-  catch (error) {
-    const msg = error instanceof Error ? error.message : String(error)
-    exportMessage.value = `Failed to export chat history: ${msg}`
+  catch (e: unknown) {
+    exportMessage.value = `Failed to export chat history: ${e instanceof Error ? e.message : String(e)}`
   }
 }
 </script>
@@ -977,10 +994,10 @@ async function exportChatHistory() {
               v-for="dim in availableDimensions"
               :id="`dim-${dim}`"
               :key="dim"
-              v-model="tempEmbeddingDim"
+              v-model="tempEmbeddingDimStr"
               class="max-w-[3.5rem]"
               name="embedding-dimension"
-              :value="dim"
+              :value="String(dim)"
               :title="`${dim}D`"
               :description="`${dim} dims`"
             />

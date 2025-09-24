@@ -5,7 +5,9 @@ import os from 'node:os'
 import path from 'node:path'
 import process from 'node:process'
 
-import { exec } from 'node:child_process'
+import { exec, spawn } from 'node:child_process'
+import { PassThrough, pipeline } from 'node:stream'
+import { createGzip } from 'node:zlib'
 
 import multer from 'multer'
 
@@ -57,96 +59,104 @@ function findFirstSql(root: string) {
   return null
 }
 
-memoryRouter.post('/export-embedded', async (req: Request, res: Response) => {
-  try {
-    const homeDir = os.homedir()
-    const exportDir = path.join(homeDir, 'airi_memory')
-    ensureDir(exportDir)
-    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'pgexp-'))
-    const sqlFile = path.join(tmpDir, 'embedded_pg_backup.sql')
-    const outFile = path.join(exportDir, `embedded_pg_backup_${Date.now()}.tar.gz`)
-    const dbUrl = process.env.DATABASE_URL || 'postgres://postgres:airi_memory_password@localhost:5434/postgres'
-    const envVars = parsePwdEnv(dbUrl)
-    exec(`pg_dump "${dbUrl}" -f "${sqlFile}"`, { env: envVars }, (error, _stdout, _stderr) => {
-      if (error) {
-        fs.rmSync(tmpDir, { recursive: true, force: true })
-        res.status(500).send('Failed to dump database')
-        return
-      }
-      exec(`tar -czf "${outFile}" -C "${tmpDir}" "${path.basename(sqlFile)}"`, (tErr, _so, _se) => {
-        fs.rmSync(tmpDir, { recursive: true, force: true })
-        if (tErr) {
-          res.status(500).send('Failed to archive dump')
-          return
-        }
-        res.download(outFile, path.basename(outFile), (dlErr) => {
-          if (dlErr) {
-            console.warn('Failed to download a backup file')
-          }
-        })
-      })
-    })
-  }
-  catch {
-    res.status(500).send('Export failed')
-  }
-})
-
 memoryRouter.post('/export-chathistory', async (req: Request, res: Response) => {
   try {
     const pglite = isPgliteReq(req)
-    const homeDir = os.homedir()
-    const exportDir = path.join(homeDir, 'airi_memory')
-    ensureDir(exportDir)
+    res.setHeader('Cache-Control', 'no-store')
+
     if (!pglite) {
-      const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'pgexp-'))
-      const sqlFile = path.join(tmpDir, 'chathistory_pg_backup.sql')
-      const outFile = path.join(exportDir, `chathistory_pg_backup_${Date.now()}.tar.gz`)
       const dbUrl = process.env.DATABASE_URL || 'postgres://postgres:airi_memory_password@localhost:5434/postgres'
       const envVars = parsePwdEnv(dbUrl)
-      exec(`pg_dump "${dbUrl}" -f "${sqlFile}"`, { env: envVars }, (error, _stdout, _stderr) => {
-        if (error) {
-          fs.rmSync(tmpDir, { recursive: true, force: true })
-          res.status(500).send('Failed to dump database')
-          return
-        }
-        exec(`tar -czf "${outFile}" -C "${tmpDir}" "${path.basename(sqlFile)}"`, (tErr, _so, _se) => {
-          fs.rmSync(tmpDir, { recursive: true, force: true })
-          if (tErr) {
-            res.status(500).send('Failed to archive dump')
-            return
-          }
-          res.setHeader('Content-Type', 'application/gzip')
-          res.download(outFile, path.basename(outFile), (dlErr) => {
-            if (dlErr) {
-              console.warn('Failed to download a backup file')
-            }
-          })
-        })
+      const dump = spawn('pg_dump', ['--dbname', dbUrl], { env: envVars })
+      const gz = createGzip()
+      const filename = `chathistory_pg_backup_${Date.now()}.sql.gz`
+      res.setHeader('Content-Type', 'application/gzip')
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`)
+      let errMsg = ''
+      dump.stderr.on('data', (d) => {
+        errMsg += d.toString()
+      })
+      dump.on('error', (e) => {
+        if (!res.headersSent)
+          res.status(500).end('Failed to spawn pg_dump')
+        else
+          res.destroy(e)
+      })
+      dump.on('close', (code) => {
+        if (code !== 0)
+          res.destroy(new Error(errMsg || `pg_dump exited with ${code}`))
+      })
+      pipeline(dump.stdout, gz, res, (e) => {
+        if (e && !res.headersSent)
+          res.status(500).end('Failed to stream dump')
+      })
+      req.on('close', () => {
+        dump.kill('SIGTERM')
       })
       return
     }
-    const dataDir = process.env.PGLITE_DATA_DIR || path.join(homeDir, 'airi_memory', 'pglite_data')
+
+    const homeDir = os.homedir()
+    const exportDir = path.join(homeDir, 'airi_memory')
+    ensureDir(exportDir)
+    const dataDir = process.env.PGLITE_DATA_DIR || path.join(exportDir, 'pglite_data')
     if (!fs.existsSync(dataDir)) {
       res.status(400).send('PGlite data directory not found')
       return
     }
-    const outFile = path.join(exportDir, `pglite_backup_${Date.now()}.tar.gz`)
-    exec(`tar -czf "${outFile}" -C "${dataDir}" .`, (error, _stdout, stderr) => {
-      if (error) {
-        res.status(500).send(`Failed to archive PGlite data: ${stderr || error.message}`)
-        return
-      }
-      res.download(outFile, path.basename(outFile), (dlErr) => {
-        if (dlErr) {
-          console.warn('Failed to download a backup file')
-        }
-      })
+    const tar = spawn('tar', ['-C', dataDir, '-c', '.'])
+    const gz = createGzip()
+    const filename = `pglite_backup_${Date.now()}.tar.gz`
+    res.setHeader('Content-Type', 'application/gzip')
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`)
+    const outDir = process.env.MEMORY_EXPORT_DIR || exportDir
+    ensureDir(outDir)
+    const outPath = path.join(outDir, filename)
+    const tee = new PassThrough()
+    const file = fs.createWriteStream(outPath)
+
+    let errMsg = ''
+    tar.stderr.on('data', (d) => {
+      errMsg += d.toString()
+    })
+    tar.on('error', (e) => {
+      if (!res.headersSent)
+        res.status(500).end('Failed to spawn tar')
+      else
+        res.destroy(e)
+    })
+    tar.on('close', (code) => {
+      if (code !== 0)
+        res.destroy(new Error(errMsg || `tar exited with ${code}`))
+    })
+    pipeline(tar.stdout, gz, tee, (e) => {
+      if (e && !res.headersSent)
+        res.status(500).end('Failed to stream archive')
+    })
+
+    tee.pipe(res)
+    tee.pipe(file)
+
+    res.on('close', () => {
+      file.end()
+    })
+
+    req.on('close', () => {
+      tar.kill('SIGTERM')
+      file.destroy()
     })
   }
   catch {
-    res.status(500).send('Export failed')
+    if (!res.headersSent)
+      res.status(500).send('Export failed')
+    else res.destroy()
   }
+})
+
+memoryRouter.post('/export-embedded', (req, res) => {
+  const q = req.query as any
+  q.isPglite = 'false'
+  ;(memoryRouter as any).handle(req, res)
 })
 
 memoryRouter.post('/import-chathistory', upload.single('file'), async (req: Request, res: Response) => {
@@ -158,13 +168,14 @@ memoryRouter.post('/import-chathistory', upload.single('file'), async (req: Requ
     }
     const pglite = isPgliteReq(req)
     const homeDir = os.homedir()
+
     if (!pglite) {
       const name = (file.originalname || '').toLowerCase()
       const isArchive = /\.(?:tar|tgz|gz)$/.test(name)
       if (!isArchive) {
         const dbUrl = process.env.DATABASE_URL || 'postgres://postgres:airi_memory_password@localhost:5434/postgres'
         const envVars = parsePwdEnv(dbUrl)
-        exec(`psql "${dbUrl}" -f "${file.path}"`, { env: envVars }, (error, _stdout, _stderr) => {
+        exec(`psql "${dbUrl}" -f "${file.path}"`, { env: envVars }, (error) => {
           fs.unlink(file.path, () => {})
           if (error) {
             res.status(500).send('Failed to restore database')
@@ -175,7 +186,7 @@ memoryRouter.post('/import-chathistory', upload.single('file'), async (req: Requ
         return
       }
       const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'pgimp-'))
-      exec(`tar -xzf "${file.path}" -C "${tmpDir}"`, (tErr, _so, _se) => {
+      exec(`tar -xzf "${file.path}" -C "${tmpDir}"`, (tErr) => {
         fs.unlink(file.path, () => {})
         if (tErr) {
           fs.rmSync(tmpDir, { recursive: true, force: true })
@@ -190,9 +201,9 @@ memoryRouter.post('/import-chathistory', upload.single('file'), async (req: Requ
         }
         const dbUrl = process.env.DATABASE_URL || 'postgres://postgres:airi_memory_password@localhost:5434/postgres'
         const envVars = parsePwdEnv(dbUrl)
-        exec(`psql "${dbUrl}" -f "${sqlPath}"`, { env: envVars }, (error, _stdout2, _stderr2) => {
+        exec(`psql "${dbUrl}" -f "${sqlPath}"`, { env: envVars }, (error2) => {
           fs.rmSync(tmpDir, { recursive: true, force: true })
-          if (error) {
+          if (error2) {
             res.status(500).send('Failed to restore database')
             return
           }
@@ -201,6 +212,7 @@ memoryRouter.post('/import-chathistory', upload.single('file'), async (req: Requ
       })
       return
     }
+
     const dataDir = process.env.PGLITE_DATA_DIR || path.join(homeDir, 'airi_memory', 'pglite_data')
     ensureDir(dataDir)
     const name = (file.originalname || '').toLowerCase()
@@ -210,7 +222,7 @@ memoryRouter.post('/import-chathistory', upload.single('file'), async (req: Requ
       res.status(400).send('Unsupported file. Use .tar/.gz/.tgz for PGlite')
       return
     }
-    exec(`tar -xzf "${file.path}" -C "${dataDir}"`, (error, _stdout, _stderr) => {
+    exec(`tar -xzf "${file.path}" -C "${dataDir}"`, (error) => {
       fs.unlink(file.path, () => {})
       if (error) {
         res.status(500).send('Failed to import PGlite data')
