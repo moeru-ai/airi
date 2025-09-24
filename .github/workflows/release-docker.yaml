@@ -15,7 +15,7 @@ jobs:
       packages: write
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Fetch version
         id: version
@@ -49,7 +49,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: ./
-          file: ./apps/stage-web//Dockerfile
+          file: ./apps/stage-web/Dockerfile
           push: true
           platforms: linux/amd64,linux/arm64,linux/arm64/v8
           cache-from: type=gha
