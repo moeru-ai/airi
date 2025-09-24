@@ -205,8 +205,8 @@ watch([tempEmbeddingProvider, tempEmbeddingModel, tempEmbeddingDim, tempEmbeddin
       || (!!tempEmbeddingModel.value && !embeddingModel.value)
       || (!!tempEmbeddingApiKey.value && !embeddingApiKey.value)
 
-  settingsChanged.value = hasChanges || isInitialSetup !== ''
-  showRegenerationWarning.value = hasChanges || isInitialSetup !== ''
+  settingsChanged.value = !!hasChanges || !!isInitialSetup
+  showRegenerationWarning.value = !!hasChanges || !!isInitialSetup
 
   console.warn('Settings change detected:')
 }, { deep: true, immediate: true })
