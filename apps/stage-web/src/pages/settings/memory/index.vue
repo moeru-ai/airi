@@ -83,16 +83,16 @@ async function fetchRegenerationStatus() {
 }
 
 // === NEW LLM CONFIGURATION SETTINGS ===
-const llmProvider = useLocalStorage('settings/memory/llm-provider', '')
-const llmModel = useLocalStorage('settings/memory/llm-model', '')
-const llmApiKey = useLocalStorage('settings/memory/llm-api-key', '')
+const llmProvider = useLocalStorage<string>('settings/memory/llm-provider', '')
+const llmModel = useLocalStorage<string>('settings/memory/llm-model', '')
+const llmApiKey = useLocalStorage<string>('settings/memory/llm-api-key', '')
 
 // === NEW EMBEDDING CONFIGURATION SETTINGS ===
 // These are the "committed" settings that persist
-const embeddingProvider = useLocalStorage('settings/memory/embedding-provider', 'openai')
-const embeddingModel = useLocalStorage('settings/memory/embedding-model', 'text-embedding-3-small')
-const embeddingApiKey = useLocalStorage('settings/memory/embedding-api-key', '')
-const embeddingDim = useLocalStorage('settings/memory/embedding-dim', 1536)
+const embeddingProvider = useLocalStorage<string>('settings/memory/embedding-provider', 'openai')
+const embeddingModel = useLocalStorage<string>('settings/memory/embedding-model', 'text-embedding-3-small')
+const embeddingApiKey = useLocalStorage<string>('settings/memory/embedding-api-key', '')
+const embeddingDim = useLocalStorage<number>('settings/memory/embedding-dim', 1536)
 
 // === TEMPORARY EMBEDDING SETTINGS (for pending changes) ===
 const tempEmbeddingProvider = ref('openai')
@@ -543,7 +543,6 @@ async function importChatHistory() {
         throw new Error(`Failed to import chat history: ${err}`)
       }
       importMessage.value = 'Chat history imported successfully!'
-      chatStore.hasLoadedInitialHistory = false
       await chatStore.loadInitialHistory(50)
     }
     catch (error) {
