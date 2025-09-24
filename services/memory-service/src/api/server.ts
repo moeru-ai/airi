@@ -16,7 +16,7 @@ import express from 'express'
 
 import { desc, sql } from 'drizzle-orm'
 
-import memoryRouter from './memory.js'
+import memoryRouter from './memory'
 
 import {
   isEmbeddedPostgresEnabled,

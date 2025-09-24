@@ -28,7 +28,8 @@ import { NodeSDK } from '@opentelemetry/sdk-node'
 import { ATTR_SERVICE_NAME, ATTR_SERVICE_VERSION } from '@opentelemetry/semantic-conventions'
 import { Pool } from 'pg'
 
-import { memoryRouter } from './api/memory.js'
+import memoryRouter from './api/memory'
+
 import { createApp } from './api/server.js'
 import { initDb } from './db'
 import { BackgroundTrigger } from './services/background-trigger.js'
