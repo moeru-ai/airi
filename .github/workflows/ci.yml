@@ -119,3 +119,20 @@ jobs:
 
       - name: Typecheck
         run: pnpm run typecheck
+
+  check-provenance:
+    name: Check Provenance
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: danielroe/provenance-action@main
+        id: check
+        with:
+          fail-on-provenance-change: true # optional, default: false
+        #   lockfile: pnpm-lock.yaml      # optional
+        #   base-ref: origin/main         # optional, default: origin/main
+        #   fail-on-downgrade: true       # optional, default: true
+      - name: Print result
+        run: "echo 'Downgraded: ${{ steps.check.outputs.downgraded }}'"
