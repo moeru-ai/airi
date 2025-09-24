@@ -193,20 +193,20 @@ const showRegenerationWarning = ref(false)
 // Watch for changes in temporary embedding settings
 watch([tempEmbeddingProvider, tempEmbeddingModel, tempEmbeddingDim, tempEmbeddingApiKey], () => {
   // Check if any temporary setting differs from committed setting
-  const hasChanges: boolean
+  const hasChanges
     = tempEmbeddingProvider.value !== embeddingProvider.value
       || tempEmbeddingModel.value !== embeddingModel.value
       || tempEmbeddingDim.value !== embeddingDim.value
       || tempEmbeddingApiKey.value !== embeddingApiKey.value
 
   // Also consider it a change if we're setting initial values
-  const isInitialSetup: boolean
-    = (!embeddingProvider.value && tempEmbeddingProvider.value)
-      || (!embeddingModel.value && tempEmbeddingModel.value)
-      || (!embeddingApiKey.value && tempEmbeddingApiKey.value)
+  const isInitialSetup
+    = (!!tempEmbeddingProvider.value && !embeddingProvider.value)
+      || (!!tempEmbeddingModel.value && !embeddingModel.value)
+      || (!!tempEmbeddingApiKey.value && !embeddingApiKey.value)
 
-  settingsChanged.value = hasChanges || isInitialSetup
-  showRegenerationWarning.value = hasChanges || isInitialSetup
+  settingsChanged.value = !!hasChanges || !!isInitialSetup
+  showRegenerationWarning.value = !!hasChanges || !!isInitialSetup
 
   console.warn('Settings change detected:')
 }, { deep: true, immediate: true })
