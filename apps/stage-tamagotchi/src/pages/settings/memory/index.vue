@@ -187,7 +187,7 @@ const availableDimensions = computed(() => {
 })
 
 // === SETTINGS CHANGE DETECTION ===
-const settingsChanged = ref(false)
+const settingsChanged: boolean = ref(false)
 const showRegenerationWarning = ref(false)
 
 // Watch for changes in temporary embedding settings
