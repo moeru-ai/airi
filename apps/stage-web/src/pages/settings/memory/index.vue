@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { RadioCardManySelect, RadioCardSimple } from '@proj-airi/stage-ui/components'
+import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
 import { FieldInput } from '@proj-airi/ui'
 import { useLocalStorage } from '@vueuse/core'
 import { computed, onMounted, ref, watch } from 'vue'
 
 // === EXISTING MEMORY SERVICE SETTINGS ===
 const memoryServiceEnabled = useLocalStorage('settings/memory/enabled', false)
+const chatStore = useChatStore()
 const memoryServiceUrl = useLocalStorage('settings/memory/service-url', 'http://localhost:3001')
 const apiKey = useLocalStorage('settings/memory/api-key', '')
 const isConnected = ref(false)
@@ -83,16 +85,16 @@ async function fetchRegenerationStatus() {
 }
 
 // === NEW LLM CONFIGURATION SETTINGS ===
-const llmProvider = useLocalStorage<string>('settings/memory/llm-provider', '')
-const llmModel = useLocalStorage<string>('settings/memory/llm-model', '')
-const llmApiKey = useLocalStorage<string>('settings/memory/llm-api-key', '')
+const llmProvider = useLocalStorage('settings/memory/llm-provider', '')
+const llmModel = useLocalStorage('settings/memory/llm-model', '')
+const llmApiKey = useLocalStorage('settings/memory/llm-api-key', '')
 
 // === NEW EMBEDDING CONFIGURATION SETTINGS ===
 // These are the "committed" settings that persist
-const embeddingProvider = useLocalStorage<string>('settings/memory/embedding-provider', 'openai')
-const embeddingModel = useLocalStorage<string>('settings/memory/embedding-model', 'text-embedding-3-small')
-const embeddingApiKey = useLocalStorage<string>('settings/memory/embedding-api-key', '')
-const embeddingDim = useLocalStorage<number>('settings/memory/embedding-dim', 1536)
+const embeddingProvider = useLocalStorage('settings/memory/embedding-provider', 'openai')
+const embeddingModel = useLocalStorage('settings/memory/embedding-model', 'text-embedding-3-small')
+const embeddingApiKey = useLocalStorage('settings/memory/embedding-api-key', '')
+const embeddingDim = useLocalStorage('settings/memory/embedding-dim', 1536)
 
 // === TEMPORARY EMBEDDING SETTINGS (for pending changes) ===
 const tempEmbeddingProvider = ref('openai')
@@ -185,20 +187,20 @@ const availableDimensions = computed(() => {
 })
 
 // === SETTINGS CHANGE DETECTION ===
-const settingsChanged: boolean = ref(false)
+const settingsChanged = ref(false)
 const showRegenerationWarning = ref(false)
 
 // Watch for changes in temporary embedding settings
 watch([tempEmbeddingProvider, tempEmbeddingModel, tempEmbeddingDim, tempEmbeddingApiKey], () => {
   // Check if any temporary setting differs from committed setting
-  const hasChanges
+  const hasChanges: boolean
     = tempEmbeddingProvider.value !== embeddingProvider.value
       || tempEmbeddingModel.value !== embeddingModel.value
       || tempEmbeddingDim.value !== embeddingDim.value
       || tempEmbeddingApiKey.value !== embeddingApiKey.value
 
   // Also consider it a change if we're setting initial values
-  const isInitialSetup
+  const isInitialSetup: boolean
     = (!embeddingProvider.value && tempEmbeddingProvider.value)
       || (!embeddingModel.value && tempEmbeddingModel.value)
       || (!embeddingApiKey.value && tempEmbeddingApiKey.value)
