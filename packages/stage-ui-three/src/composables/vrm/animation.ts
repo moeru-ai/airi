@@ -8,8 +8,8 @@ import { Object3D, Vector3, VectorKeyframeTrack } from 'three'
 import { randFloat } from 'three/src/math/MathUtils.js'
 import { ref } from 'vue'
 
-import { randomSaccadeInterval } from '../utils/eye-motions'
 import { useVRMLoader } from './loader'
+import { randomSaccadeInterval } from './utils/eye-motions'
 
 export interface GLTFUserdata extends Record<string, any> {
   vrmAnimations: VRMAnimation[]

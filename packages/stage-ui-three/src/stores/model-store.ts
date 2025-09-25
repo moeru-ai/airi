@@ -11,7 +11,6 @@ export interface Vec3 { x: number, y: number, z: number }
 export type TrackingMode = 'camera' | 'mouse' | 'none'
 export type HexColor = string & { __hex?: true }
 
-// === Default field definition ===
 export interface FieldBase<T> {
   space: string // name space
   key: string // name key
@@ -38,7 +37,6 @@ export type SelectField<T extends string = string> = FieldBase<T> & {
   options: readonly { label: string, value: T }[]
 }
 
-// === Field type : value type ===
 export interface FieldKindMap {
   number: { def: NumberField, value: number }
   vec3: { def: Vec3Field, value: Vector3 }

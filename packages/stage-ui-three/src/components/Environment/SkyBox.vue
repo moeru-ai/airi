@@ -1,6 +1,5 @@
 <script setup lang="ts">
 /*
-  * SkyBox.vue
   * - Sky box component for NPR IBL
   * - Load HDRI texture and compute environmental lighting
   * - Display sky box as background
@@ -33,6 +32,8 @@ import { LightProbeGenerator } from 'three/examples/jsm/lights/LightProbeGenerat
 import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js'
 import { onMounted, onUnmounted, ref, watch } from 'vue'
 
+import skyBoxSrc from './assets/sky_linekotsi_23_HDRI.hdr?url'
+
 /**
  * Props
  * - src: HDRI url
@@ -45,7 +46,7 @@ const props = withDefaults(defineProps<{
   backgroundBlurriness?: number
   backgroundIntensity?: number
 }>(), {
-  skyBoxSrc: './assets/sky_linekotsi_23_HDRI.hdr?url',
+  skyBoxSrc,
   asBackground: true,
   backgroundBlurriness: 0,
   backgroundIntensity: 1,

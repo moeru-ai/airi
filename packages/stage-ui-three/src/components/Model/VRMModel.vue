@@ -1,6 +1,5 @@
 <script setup lang="ts">
 /*
-  * VRMModel.vue
   * - Core component for loading and displaying VRM model
   * - Load model, get some geometry data for initialisation
   * - Shader injection and rendering setting
@@ -49,6 +48,12 @@ import {
 
 } from 'vue'
 
+import {
+  createIblProbeController,
+  injectDiffuseIBL,
+  normalizeEnvMode,
+  updateNprShaderSetting,
+} from '../../composables/shader/ibl'
 // From stage-ui-three package
 import {
   clipFromVRMAnimation,
@@ -56,15 +61,9 @@ import {
   reAnchorRootPositionTrack,
   useBlink,
   useIdleEyeSaccades,
-} from '../../composables/animation'
-import { loadVrm } from '../../composables/core'
-import { useVRMEmote } from '../../composables/expression'
-import {
-  createIblProbeController,
-  injectDiffuseIBL,
-  normalizeEnvMode,
-  updateNprShaderSetting,
-} from '../../composables/shader/ibl'
+} from '../../composables/vrm/animation'
+import { loadVrm } from '../../composables/vrm/core'
+import { useVRMEmote } from '../../composables/vrm/expression'
 
 /*
   * Props:
