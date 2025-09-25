@@ -457,6 +457,9 @@ pages:
       xai:
         description: x.ai
         title: xAI
+      302-ai:
+        description: 302.AI
+        title: 302.AI
       transcriptions:
         playground:
           title: Playground de Transcripción
@@ -464,7 +467,7 @@ pages:
   scene:
     description: Configurar el entorno donde vive el personaje
     title: Escena
-  themes:
+  system:
     color-scheme:
       description: Cambiar el esquema de colores del escenario.
       title: Esquema de Colores

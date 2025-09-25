@@ -183,6 +183,7 @@ npx bumpp --no-commit --no-tag
 
 ## Support of LLM API Providers (powered by [xsai](https://github.com/moeru-ai/xsai))
 
+- [x] [302.AI (sponsored)](https://share.302.ai/514k2v)
 - [x] [OpenRouter](https://openrouter.ai/)
 - [x] [vLLM](https://github.com/vllm-project/vllm)
 - [x] [SGLang](https://github.com/sgl-project/sglang)

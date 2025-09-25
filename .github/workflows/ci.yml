@@ -21,7 +21,7 @@ jobs:
     name: Lint
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       # Rust
       - uses: dtolnay/rust-toolchain@nightly
@@ -63,7 +63,7 @@ jobs:
 
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       # Rust
       - uses: dtolnay/rust-toolchain@nightly
@@ -105,7 +105,7 @@ jobs:
     runs-on: ubuntu-latest
     if: ${{ !(github.event_name == 'pull_request' && startsWith(github.event.pull_request.head.label, 'moeru-ai:i18n/')) }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       # Node.js
       - uses: pnpm/action-setup@v3
@@ -119,3 +119,20 @@ jobs:
 
       - name: Typecheck
         run: pnpm run typecheck
+
+  check-provenance:
+    name: Check Provenance
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: danielroe/provenance-action@main
+        id: check
+        with:
+          fail-on-provenance-change: true # optional, default: false
+        #   lockfile: pnpm-lock.yaml      # optional
+        #   base-ref: origin/main         # optional, default: origin/main
+        #   fail-on-downgrade: true       # optional, default: true
+      - name: Print result
+        run: "echo 'Downgraded: ${{ steps.check.outputs.downgraded }}'"

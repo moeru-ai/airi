@@ -431,11 +431,14 @@ pages:
       transcriptions:
         playground:
           title: 實驗平台
+      302-ai:
+        title: 302.AI
+        description: 302.AI
     title: 服務來源
   scene:
     description: 設定角色所在環境
     title: 場景
-  themes:
+  system:
     color-scheme:
       description: 更改舞台的配色方案
       title: 配色方案

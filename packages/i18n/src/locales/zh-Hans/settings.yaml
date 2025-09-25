@@ -53,6 +53,7 @@ live2d:
   theme-color-from-model:
     button-extract:
       title: 提取
+    title: 从模型提取主题颜色
   focus:
     title: 禁用模型鼠标跟踪
     button-disable:
@@ -144,6 +145,12 @@ pages:
     sections:
       section:
         scene: 场景
+        live2d:
+          description: 配置 Live2D 模型
+          title: Live2D
+        vrm:
+          title: VRM
+          description: 配置 3D VRM 模型
   modules:
     consciousness:
       description: 人格设定、使用的模型等配置
@@ -181,6 +188,10 @@ pages:
     hearing:
       description: 语音识别
       title: 听觉
+      sections:
+        section:
+          provider-selection:
+            description: 选择合适的语音转文本的服务来源
     memory-long-term:
       description: 长期记忆
       title: 长期记忆
@@ -215,10 +226,13 @@ pages:
             search_voices_placeholder: 搜索声线...
             search_voices_results: 找到 {count} / {total} 个声线
             unsupported_voice_warning_title: 没有支持的声线
-            unsupported_voice_warning_content: 我们正在尽快支持该模型的所有音色，如果你迫切希望支持该模型音色，请在 GitHub 上联系我们 https://github.com/moeru-ai/airi/issues
+            unsupported_voice_warning_content: >-
+              我们正在尽快支持该模型的所有音色，如果你迫切希望支持该模型音色，请在 GitHub 上联系我们
+              https://github.com/moeru-ai/airi/issues
             show_less: 显示更少
             show_more: 显示更多
             title: 选择语音合成服务来源
+            no_voices_hint: 可以在下方输入自定义声线名字
           voice-settings:
             input-ssml:
               placeholder: 请输入 SSML 文本
@@ -437,6 +451,9 @@ pages:
       xai:
         description: X.AI
         title: xAI
+      302-ai:
+        description: 302.AI
+        title: 302.AI
       transcriptions:
         playground:
           title: 实验平台
@@ -444,7 +461,7 @@ pages:
   scene:
     description: 配置角色所在环境
     title: 场景
-  themes:
+  system:
     color-scheme:
       description: 更改舞台的配色方案
       title: 配色方案
@@ -467,6 +484,11 @@ pages:
           title: 配色
         developer:
           title: 开发者
+          sections:
+            section:
+              use-magic-keys:
+                title: useMagicKeys
+                description: 测试快捷键
         theme-presets:
           presets:
             - colors:

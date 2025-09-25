@@ -6,7 +6,7 @@ pages:
     mcp-server:
       description: Connecter et gérer le serveur MCP et ses outils
       title: Serveur MCP
-  themes:
+  system:
     sections:
       section:
         window-shortcuts:

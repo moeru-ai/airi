@@ -446,6 +446,9 @@ pages:
       xai:
         description: x.ai
         title: xAI
+      302-ai:
+        description: 302.AI
+        title: 302.AI
       transcriptions:
         playground:
           title: Transcription Playground
@@ -453,7 +456,7 @@ pages:
   scene:
     description: Cấu hình môi trường nhân vật sinh sống
     title: Bối cảnh
-  themes:
+  system:
     color-scheme:
       description: Đổi bảng màu sân khấu.
       title: Bảng màu

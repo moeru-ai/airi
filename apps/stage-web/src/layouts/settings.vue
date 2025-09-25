@@ -23,21 +23,21 @@ const routeHeaderMetadataMap = computed(() => {
       subtitle: t('settings.title'),
       title: t('settings.pages.card.title'),
     },
-    '/settings/appearance': {
+    '/settings/system': {
       subtitle: t('settings.title'),
-      title: t('settings.pages.themes.title'),
+      title: t('settings.pages.system.title'),
     },
-    '/settings/appearance/general': {
+    '/settings/system/general': {
       subtitle: t('settings.title'),
-      title: t('settings.pages.themes.general.title'),
+      title: t('settings.pages.system.general.title'),
     },
-    '/settings/appearance/color-scheme': {
+    '/settings/system/color-scheme': {
       subtitle: t('settings.title'),
-      title: t('settings.pages.themes.color-scheme.title'),
+      title: t('settings.pages.system.color-scheme.title'),
     },
-    '/settings/appearance/developer': {
+    '/settings/system/developer': {
       subtitle: t('settings.title'),
-      title: t('settings.pages.themes.developer.title'),
+      title: t('settings.pages.system.developer.title'),
     },
     '/settings/memory': {
       subtitle: t('settings.title'),
