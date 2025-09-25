@@ -1,3 +1,5 @@
+// Lilia: I haven't figure out the way to do this part, so just keep it in stage-ui package for now
+
 import type { VRMCore } from '@pixiv/three-vrm-core'
 import type { Profile } from 'wlipsync'
 

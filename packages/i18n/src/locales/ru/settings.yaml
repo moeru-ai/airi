@@ -441,6 +441,9 @@ pages:
       xai:
         description: x.ai
         title: xAI
+      302-ai:
+        description: 302.AI
+        title: 302.AI
       transcriptions:
         playground:
           title: Песочница транскрипции
@@ -448,7 +451,7 @@ pages:
   scene:
     description: Настройте окружение, в котором живёт персонаж
     title: Сцена
-  themes:
+  system:
     color-scheme:
       description: Изменить цветовую схему сцены
       title: Цветовая схема

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { DisplayModel } from '../../../../stores/display-models'
 
+import { ThreeScene } from '@proj-airi/stage-ui-three'
 import { useMouse } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { ref, watch } from 'vue'
@@ -8,7 +9,6 @@ import { ref, watch } from 'vue'
 import Callout from '../../../Layouts/Callout.vue'
 import Button from '../../../Misc/Button.vue'
 import Live2DScene from '../../../Scenes/Live2D.vue'
-import VRMScene from '../../../Scenes/VRM.vue'
 import ModelManagerDialog from '../../Dialogs/model-selector/model-selector-dialog.vue'
 import Live2D from './Live2D.vue'
 import VRM from './VRM.vue'
@@ -16,7 +16,6 @@ import VRM from './VRM.vue'
 import { DisplayModelFormat } from '../../../../stores/display-models'
 import { useLive2d } from '../../../../stores/live2d'
 import { useSettings } from '../../../../stores/settings'
-import { useVRM } from '../../../../stores/vrm'
 
 const props = defineProps<{
   palette: string[]
@@ -46,7 +45,9 @@ watch(selectedModel, async () => {
         useLive2d().shouldUpdateView()
         break
       case DisplayModelFormat.VRM:
-        useVRM().shouldUpdateView()
+        // Lilia: settingStore.updateStageModel has been called once above
+        // I don't know why it should be recalled again by triggering useVRM().shouldUpdateView()
+        // useVRM().shouldUpdateView()
         break
     }
   }
@@ -93,7 +94,7 @@ watch(selectedModel, async () => {
   <!-- VRM component for 3D stage view -->
   <template v-if="stageModelRenderer === 'vrm'">
     <div :class="[...(props.vrmSceneClass ? (typeof props.vrmSceneClass === 'string' ? [props.vrmSceneClass] : props.vrmSceneClass) : [])]">
-      <VRMScene :model-src="stageModelSelectedUrl" />
+      <ThreeScene :model-src="stageModelSelectedUrl" />
     </div>
   </template>
 </template>

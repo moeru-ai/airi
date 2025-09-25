@@ -460,6 +460,9 @@ pages:
       xai:
         description: x.ai
         title: xAI
+      302-ai:
+        description: 302.AI
+        title: 302.AI
       transcriptions:
         playground:
           title: Terrain de test de transcription
@@ -467,7 +470,7 @@ pages:
   scene:
     description: Configurer l’environnement où vit le personnage
     title: Scène
-  themes:
+  system:
     color-scheme:
       description: Modifier le schéma de couleurs de la scène.
       title: Schéma de couleurs

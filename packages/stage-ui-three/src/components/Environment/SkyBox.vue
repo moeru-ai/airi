@@ -1,4 +1,10 @@
 <script setup lang="ts">
+/*
+  * - Sky box component for NPR IBL
+  * - Load HDRI texture and compute environmental lighting
+  * - Display sky box as background
+*/
+
 import type {
   CanvasTexture,
   DataTexture,
@@ -26,21 +32,21 @@ import { LightProbeGenerator } from 'three/examples/jsm/lights/LightProbeGenerat
 import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js'
 import { onMounted, onUnmounted, ref, watch } from 'vue'
 
-import defaultskyBoxSrc from '../Tres/assets/sky_linekotsi_23_HDRI.hdr?url'
+import skyBoxSrc from './assets/sky_linekotsi_23_HDRI.hdr?url'
 
 /**
  * Props
- * - src: HDRI url; when falsy ('' | null | undefined) the environment is cleared but component stays mounted.
+ * - src: HDRI url
  * - asBackground: whether to also use as scene.background.
  * - backgroundBlurriness / backgroundIntensity: r152+ background controls.
  */
 const props = withDefaults(defineProps<{
-  skyBoxSrc?: string | null
+  skyBoxSrc?: string
   asBackground?: boolean
   backgroundBlurriness?: number
   backgroundIntensity?: number
 }>(), {
-  skyBoxSrc: defaultskyBoxSrc,
+  skyBoxSrc,
   asBackground: true,
   backgroundBlurriness: 0,
   backgroundIntensity: 1,
@@ -48,11 +54,11 @@ const props = withDefaults(defineProps<{
 
 // emit equirect HDRI for NPR shader use
 const emit = defineEmits<{
-  (e: 'skyboxReady', value: EnvPayload): void
+  (e: 'skyBoxReady', value: EnvPayload): void
 }>()
 
 interface EnvPayload {
-  hdri: Texture | null
+  hdri?: Texture | null
   pmrem?: WebGLRenderTarget | null
   irrSH: SphericalHarmonics3 | null
 }
@@ -61,7 +67,6 @@ interface EnvPayload {
 const environment = ref<DataTexture | CanvasTexture>()
 let _pmrem: PMREMGenerator | null = null
 let _envRT: WebGLRenderTarget | null = null // WebGLRenderTarget from PMREM
-let _equirectTex: Texture | null = null // equirectangular texture for NPR shader
 
 const { scene, renderer } = useTresContext()
 
@@ -79,27 +84,14 @@ function clearEnvironment() {
   _pmrem?.dispose?.()
   _envRT = null
   _pmrem = null
-
-  // Clear equirect texture for NPR skybox
-  // if(_equirectTex) {
-  //   emit('equirect-skybox-ready', null)
-  //   // _equirectTex.dispose?.()
-  //   // _equirectTex = null
-  // }
 }
 
 // load HDRI environment from sky box
-async function loadEnvironment(skyBoxSrc?: string | null) {
+async function loadEnvironment(skyBoxSrc: string) {
   // Wait until renderer is ready
   await until(() => !!renderer.value && !!renderer.value).toBeTruthy()
-
   // Always dispose previous env when switching
   clearEnvironment()
-
-  // If no designated sky box, then load the default one
-  if (!skyBoxSrc) {
-    skyBoxSrc = defaultskyBoxSrc
-  }
 
   // Recommended renderer configuration for HDR + PBR
   renderer.value.outputColorSpace = SRGBColorSpace
@@ -144,10 +136,8 @@ async function loadEnvironment(skyBoxSrc?: string | null) {
     scn.backgroundBlurriness = props.backgroundBlurriness
     scn.backgroundIntensity = props.backgroundIntensity
 
-    // emit equirect texture for NPR shader use
-    // Don't dispose this texture, it will be used by NPR injected shader
-    _equirectTex = hdrTex
-    emit('skyboxReady', { hdri: _equirectTex, irrSH: probe.sh })
+    // emit irrSH for NPR IBL
+    emit('skyBoxReady', { irrSH: probe.sh })
   }
   catch (error) {
     console.warn('Failed to load HDRI environment:', error)
@@ -165,14 +155,14 @@ onMounted(async () => {
     // TODO: maybe we can open more options for users regarding to the settings of the background in the future
     () => [props.skyBoxSrc],
     ([skyBoxSrc]) => {
-      loadEnvironment(skyBoxSrc as string | null)
+      loadEnvironment(skyBoxSrc as string)
     },
     { deep: false },
   )
 })
 
 defineExpose({
-  reload: async (skyBoxSrc: string | null) => await loadEnvironment(skyBoxSrc),
+  reload: async (skyBoxSrc: string) => await loadEnvironment(skyBoxSrc),
 })
 
 onUnmounted(async () => {

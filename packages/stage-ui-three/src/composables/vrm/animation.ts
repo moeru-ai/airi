@@ -1,14 +1,15 @@
 import type { VRMAnimation } from '@pixiv/three-vrm-animation'
 import type { VRMCore } from '@pixiv/three-vrm-core'
+import type { AnimationClip } from 'three'
 import type { Ref } from 'vue'
 
 import { createVRMAnimationClip } from '@pixiv/three-vrm-animation'
-import { Object3D, Vector3 } from 'three'
+import { Object3D, Vector3, VectorKeyframeTrack } from 'three'
 import { randFloat } from 'three/src/math/MathUtils.js'
 import { ref } from 'vue'
 
-import { randomSaccadeInterval } from '../../utils'
 import { useVRMLoader } from './loader'
+import { randomSaccadeInterval } from './utils/eye-motions'
 
 export interface GLTFUserdata extends Record<string, any> {
   vrmAnimations: VRMAnimation[]
@@ -44,6 +45,45 @@ export async function clipFromVRMAnimation(vrm?: VRMCore, animation?: VRMAnimati
 
   // create animation clip
   return createVRMAnimationClip(animation, vrm)
+}
+
+// Set initial positions for animation
+export function reAnchorRootPositionTrack(clip: AnimationClip, _vrm: VRMCore) {
+// Get the hips node to re-anchor the root position track
+  const hipNode = _vrm.humanoid?.getNormalizedBoneNode('hips')
+  if (!hipNode) {
+    console.warn('No hips node found in VRM model.')
+    return
+  }
+  hipNode.updateMatrixWorld(true)
+  const defaultHipPos = new Vector3()
+  hipNode.getWorldPosition(defaultHipPos)
+
+  // Calculate the offset from the hips node to the hips's first frame position
+  const hipsTrack = clip.tracks.find(track =>
+    track.name.endsWith('Hips.position'),
+  )
+  if (!(hipsTrack instanceof VectorKeyframeTrack)) {
+    console.warn('No Hips.position track of type VectorKeyframeTrack found in animation.')
+    return
+  }
+
+  const animeHipPos = new Vector3(
+    hipsTrack.values[0],
+    hipsTrack.values[1],
+    hipsTrack.values[2],
+  )
+  const animeDelta = new Vector3().subVectors(animeHipPos, defaultHipPos)
+
+  clip.tracks.forEach((track) => {
+    if (track.name.endsWith('.position') && track instanceof VectorKeyframeTrack) {
+      for (let i = 0; i < track.values.length; i += 3) {
+        track.values[i] -= animeDelta.x
+        track.values[i + 1] -= animeDelta.y
+        track.values[i + 2] -= animeDelta.z
+      }
+    }
+  })
 }
 
 export function useBlink() {

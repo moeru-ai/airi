@@ -1,1 +1,1 @@
-export * from './eye-motions'
+export { randomSaccadeInterval } from './eye-motions'

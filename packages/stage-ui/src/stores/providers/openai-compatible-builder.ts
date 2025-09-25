@@ -28,25 +28,27 @@ export function buildOpenAICompatibleProvider(
 
   const finalCapabilities = capabilities || {
     listModels: async (config: Record<string, unknown>) => {
-      const provider = creator(
+      const provider = await creator(
         (config.apiKey as string || '').trim(),
         (config.baseUrl as string || '').trim(),
       )
-      if (provider.model) {
-        return (await listModels({
-          ...provider.model(),
-        })).map((model: any) => {
-          return {
-            id: model.id,
-            name: model.name || model.display_name || model.id,
-            provider: id,
-            description: model.description || '',
-            contextLength: model.context_length || 0,
-            deprecated: false,
-          } satisfies ModelInfo
-        })
+
+      if (!provider.model) {
+        return []
       }
-      return []
+
+      return (await listModels({
+        ...provider.model(),
+      })).map((model: any) => {
+        return {
+          id: model.id,
+          name: model.name || model.display_name || model.id,
+          provider: id,
+          description: model.description || '',
+          contextLength: model.context_length || 0,
+          deprecated: false,
+        } satisfies ModelInfo
+      })
     },
   }
 
