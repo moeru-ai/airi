@@ -644,6 +644,83 @@ export const useProvidersStore = defineStore('providers', () => {
       defaultBaseUrl: 'https://api.openai.com/v1/',
       creator: createOpenAI,
       validation: ['health', 'model_list'],
+      // Support transcription endpoints for speech recognition
+      validators: {
+        validateProviderConfig: async (config) => {
+          const errors: Error[] = []
+
+          if (!config.baseUrl) {
+            errors.push(new Error('Base URL is required. Default to https://api.openai.com/v1/ for official OpenAI API.'))
+          }
+
+          if (errors.length > 0) {
+            return { errors, reason: errors.map(e => e.message).join(', '), valid: false }
+          }
+
+          if (!isUrl(config.baseUrl as string) || new URL(config.baseUrl as string).host.length === 0) {
+            errors.push(new Error('Base URL is not absolute. Check your input.'))
+          }
+
+          if (!(config.baseUrl as string).endsWith('/')) {
+            errors.push(new Error('Base URL must end with a trailing slash (/).'))
+          }
+
+          if (errors.length > 0) {
+            return { errors, reason: errors.map(e => e.message).join(', '), valid: false }
+          }
+
+          let responseModelList = null
+          let responseChat = null
+
+          try {
+            responseChat = await fetch(`${config.baseUrl as string}chat/completions`, { headers: { Authorization: `Bearer ${config.apiKey}` }, method: 'POST', body: '{"model": "test"}' })
+            responseModelList = await fetch(`${config.baseUrl as string}models`, { headers: { Authorization: `Bearer ${config.apiKey}` } })
+
+            // Also try transcription endpoints for speech recognition servers
+            let responseTranscription = null
+            try {
+              responseTranscription = await fetch(`${config.baseUrl as string}audio/transcriptions`, { headers: { Authorization: `Bearer ${config.apiKey}` }, method: 'POST', body: new FormData() })
+            }
+            catch {
+              // Transcription endpoint might not exist, that's okay
+            }
+
+            // Accept if any of the endpoints work (chat, models, or transcription)
+            const validResponses = [responseChat, responseModelList, responseTranscription].filter(r => r && [200, 400, 401].includes(r.status))
+            if (validResponses.length === 0) {
+              errors.push(new Error(`Invalid Base URL, ${config.baseUrl} is not supported. Make sure your server supports OpenAI-compatible endpoints.`))
+            }
+          }
+          catch (e) {
+            errors.push(new Error(`Invalid Base URL, ${(e as Error).message}`))
+          }
+
+          if (errors.length > 0) {
+            return { errors, reason: errors.map(e => e.message).join(', '), valid: false }
+          }
+
+          // Model list validation
+          try {
+            let response = responseModelList
+            if (!response) {
+              response = await fetch(`${config.baseUrl as string}models`, { headers: { Authorization: `Bearer ${config.apiKey}` } })
+            }
+
+            if (!response.ok) {
+              errors.push(new Error(`Invalid API Key`))
+            }
+          }
+          catch (e) {
+            errors.push(new Error(`Model list check failed: ${(e as Error).message}`))
+          }
+
+          return {
+            errors,
+            reason: errors.map(e => e.message).join(', ') || '',
+            valid: errors.length === 0,
+          }
+        },
+      },
     }),
     'openai-compatible': buildOpenAICompatibleProvider({
       id: 'openai-compatible',
