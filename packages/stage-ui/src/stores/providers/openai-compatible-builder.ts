@@ -85,8 +85,19 @@ export function buildOpenAICompatibleProvider(
           responseChat = await fetch(`${config.baseUrl as string}chat/completions`, { headers: { Authorization: `Bearer ${config.apiKey}`, ...additionalHeaders }, method: 'POST', body: '{"model": "test"}' })
           responseModelList = await fetch(`${config.baseUrl as string}models`, { headers: { Authorization: `Bearer ${config.apiKey}`, ...additionalHeaders } })
 
-          if (!([200, 400, 401].includes(responseChat.status) || [200, 400, 401].includes(responseModelList.status))) {
-            errors.push(new Error(`Invalid Base URL, ${config.baseUrl} is not supported`))
+          // Also try transcription endpoints for speech recognition servers
+          let responseTranscription = null
+          try {
+            responseTranscription = await fetch(`${config.baseUrl as string}audio/transcriptions`, { headers: { Authorization: `Bearer ${config.apiKey}`, ...additionalHeaders }, method: 'POST', body: new FormData() })
+          }
+          catch {
+            // Transcription endpoint might not exist, that's okay
+          }
+
+          // Accept if any of the endpoints work (chat, models, or transcription)
+          const validResponses = [responseChat, responseModelList, responseTranscription].filter(r => r && [200, 400, 401].includes(r.status))
+          if (validResponses.length === 0) {
+            errors.push(new Error(`Invalid Base URL, ${config.baseUrl} is not supported. Make sure your server supports OpenAI-compatible endpoints.`))
           }
         }
         catch (e) {
