@@ -24,19 +24,19 @@
     "@pixiv/three-vrm": "^3.4.2",
     "@pixiv/three-vrm-animation": "^3.4.2",
     "@pixiv/three-vrm-core": "^3.4.2",
-    "@tresjs/cientos": "^4.3.1",
-    "@tresjs/core": "^4.3.6",
+    "@tresjs/cientos": "^5.0.0",
+    "@tresjs/core": "^5.0.2",
     "@tresjs/post-processing": "^2.4.0",
     "@vueuse/core": "^13.9.0",
     "culori": "^4.0.2",
     "pinia": "^3.0.3",
-    "postprocessing": "^6.37.7",
-    "three": "^0.179.1",
-    "vue": "^3.5.21"
+    "postprocessing": "^6.37.8",
+    "three": "^0.180.0",
+    "vue": "^3.5.22"
   },
   "devDependencies": {
     "@types/culori": "^4.0.1",
-    "@types/three": "^0.179.0",
-    "vue-tsc": "^3.0.6"
+    "@types/three": "^0.180.0",
+    "vue-tsc": "^3.0.8"
   }
 }

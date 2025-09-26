@@ -268,7 +268,7 @@ defineExpose({
     modelRef.value?.setExpression(expression)
   },
   canvasElement: () => {
-    return tresCanvasRef.value?.renderer.value.domElement
+    return tresCanvasRef.value?.renderer.instance.domElement
   },
 })
 </script>
