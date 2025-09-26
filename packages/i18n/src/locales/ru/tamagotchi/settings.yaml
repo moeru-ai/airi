@@ -12,8 +12,8 @@ pages:
         window-shortcuts:
           title: Клавиши навигации окна
     window-shortcuts:
-      description: Modify the window shortcuts. Редактирование горячих клавиш для управления окном
-      title: Window Shortcuts Горячие клавиши управления окном
+      description: Редактирование горячих клавиш для управления окном
+      title: Горячие клавиши управления окном
       toggle-move:
         label: Перемещение окна
       toggle-resize:
