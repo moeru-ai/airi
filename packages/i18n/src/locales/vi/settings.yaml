@@ -198,6 +198,7 @@ pages:
       server-address-description: Địa chỉ IP hoặc tên máy chủ của máy chủ Factorio
       server-address-placeholder: Nhập địa chỉ máy chủ (ví dụ localhost hoặc 192.168.1.100)
       server-port: Cổng máy chủ
+      server-port-description: Số cổng của máy chủ Factorio (mặc định 34197)
       username: Tên người dùng
       username-description: Tên người dùng của bạn trên máy chủ Factorio
       username-placeholder: Nhập tên người dùng Factorio của bạn
@@ -211,6 +212,7 @@ pages:
       server-address-description: Địa chỉ IP hoặc tên máy chủ của máy chủ Minecraft
       server-address-placeholder: Nhập địa chỉ máy chủ (ví dụ localhost hoặc play.example.com)
       server-port: Cổng máy chủ
+      server-port-description: Số cổng của máy chủ Minecraft (mặc định 25565)
       username: Tên người dùng
       username-description: Tên người dùng của bạn trên máy chủ Minecraft
       username-placeholder: Nhập tên người dùng Minecraft của bạn

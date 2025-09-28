@@ -36,7 +36,7 @@ function saveSettings() {
       :max="65535"
       :step="1"
       :label="t('settings.pages.modules.gaming-minecraft.server-port')"
-      :description="t('settings.pages.modules.gaming-minecraft.server-port')"
+      :description="t('settings.pages.modules.gaming-minecraft.server-port-description')"
     />
 
     <FieldInput

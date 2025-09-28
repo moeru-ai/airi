@@ -201,6 +201,7 @@ pages:
       server-address-description: L'adresse IP ou le nom d'hôte du serveur Factorio
       server-address-placeholder: Entrez l'adresse du serveur (ex. localhost ou 192.168.1.100)
       server-port: Port du serveur
+      server-port-description: Le numéro de port du serveur Factorio (par défaut 34197)
       username: Nom d'utilisateur
       username-description: Votre nom d'utilisateur sur le serveur Factorio
       username-placeholder: Entrez votre nom d'utilisateur Factorio
@@ -214,6 +215,7 @@ pages:
       server-address-description: L'adresse IP ou le nom d'hôte du serveur Minecraft
       server-address-placeholder: Entrez l'adresse du serveur (ex. localhost ou play.exemple.com)
       server-port: Port du serveur
+      server-port-description: Le numéro de port du serveur Minecraft (par défaut 25565)
       username: Nom d'utilisateur
       username-description: Votre nom d'utilisateur sur le serveur Minecraft
       username-placeholder: Entrez votre nom d'utilisateur Minecraft

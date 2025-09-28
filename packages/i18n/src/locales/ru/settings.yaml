@@ -192,6 +192,7 @@ pages:
       server-address-description: IP-адрес или имя хоста сервера Factorio
       server-address-placeholder: Введите адрес сервера (например, localhost или 192.168.1.100)
       server-port: Порт сервера
+      server-port-description: Номер порта сервера Factorio (по умолчанию 34197)
       username: Имя пользователя
       username-description: Ваше имя пользователя на сервере Factorio
       username-placeholder: Введите ваше имя пользователя Factorio
@@ -205,6 +206,7 @@ pages:
       server-address-description: IP-адрес или имя хоста сервера Minecraft
       server-address-placeholder: Введите адрес сервера (например, localhost или play.example.com)
       server-port: Порт сервера
+      server-port-description: Номер порта сервера Minecraft (по умолчанию 25565)
       username: Имя пользователя
       username-description: Ваше имя пользователя на сервере Minecraft
       username-placeholder: Введите ваше имя пользователя Minecraft

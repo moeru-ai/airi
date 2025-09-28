@@ -191,6 +191,7 @@ pages:
       server-address-description: 异星工厂服务器的IP地址或主机名
       server-address-placeholder: 输入服务器地址（例如：localhost或192.168.1.100）
       server-port: 服务器端口
+      server-port-description: 异星工厂服务器的端口号（默认 34197）
       username: 用户名
       username-description: 您在异星工厂服务器中的用户名
       username-placeholder: 输入您的异星工厂用户名
@@ -204,6 +205,7 @@ pages:
       server-address-description: 我的世界服务器的IP地址或主机名
       server-address-placeholder: 输入服务器地址（例如：localhost或play.example.com）
       server-port: 服务器端口
+      server-port-description: 我的世界服务器的端口号（默认 25565）
       username: 用户名
       username-description: 您在我的世界服务器中的用户名
       username-placeholder: 输入您的我的世界用户名

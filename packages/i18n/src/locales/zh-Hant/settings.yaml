@@ -183,6 +183,7 @@ pages:
       server-address-description: 異星工廠伺服器的 IP 地址或主機名稱
       server-address-placeholder: 輸入伺服器地址（例如：localhost 或 192.168.1.100）
       server-port: 伺服器端口
+      server-port-description: 異星工廠伺服器的端口號（預設 34197）
       username: 使用者名稱
       username-description: 您在異星工廠伺服器中的使用者名稱
       username-placeholder: 輸入您的異星工廠使用者名稱
@@ -196,6 +197,7 @@ pages:
       server-address-description: 我的世界伺服器的 IP 地址或主機名稱
       server-address-placeholder: 輸入伺服器地址（例如：localhost 或 play.example.com）
       server-port: 伺服器端口
+      server-port-description: 我的世界伺服器的端口號（預設 25565）
       username: 使用者名稱
       username-description: 您在我的世界伺服器中的使用者名稱
       username-placeholder: 輸入您的我的世界使用者名稱
