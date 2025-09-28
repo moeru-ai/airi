@@ -1,5 +1,6 @@
 import { useLocalStorage } from '@vueuse/core'
 import { defineStore } from 'pinia'
+import { computed } from 'vue'
 
 export const useFactorioStore = defineStore('factorio', () => {
   const enabled = useLocalStorage('settings/factorio/enabled', false)
@@ -15,9 +16,9 @@ export const useFactorioStore = defineStore('factorio', () => {
     // Data is automatically loaded from localStorage via useLocalStorage
   }
 
-  const configured = () => {
+  const configured = computed(() => {
     return !!(serverAddress.value.trim() && username.value.trim())
-  }
+  })
 
   return {
     enabled,

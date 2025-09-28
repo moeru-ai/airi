@@ -1,5 +1,6 @@
 import { useLocalStorage } from '@vueuse/core'
 import { defineStore } from 'pinia'
+import { computed } from 'vue'
 
 export const useMinecraftStore = defineStore('minecraft', () => {
   const enabled = useLocalStorage('settings/minecraft/enabled', false)
@@ -15,9 +16,9 @@ export const useMinecraftStore = defineStore('minecraft', () => {
     // Data is automatically loaded from localStorage via useLocalStorage
   }
 
-  const configured = () => {
+  const configured = computed(() => {
     return !!(serverAddress.value.trim() && username.value.trim())
-  }
+  })
 
   return {
     enabled,
