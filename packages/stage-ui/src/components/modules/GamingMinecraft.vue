@@ -3,11 +3,23 @@ import { Button } from '@proj-airi/stage-ui/components'
 import { useMinecraftStore } from '@proj-airi/stage-ui/stores/modules/gaming-minecraft'
 import { FieldCheckbox, FieldInput } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
+import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 const { t } = useI18n()
 const minecraftStore = useMinecraftStore()
 const { enabled, serverAddress, serverPort, username, configured } = storeToRefs(minecraftStore)
+
+// Create computed property to handle number to string conversion for the input field
+const serverPortString = computed({
+  get: () => serverPort.value?.toString() || '',
+  set: (value) => {
+    const numValue = Number.parseInt(value, 10)
+    if (!Number.isNaN(numValue)) {
+      serverPort.value = numValue
+    }
+  },
+})
 
 function saveSettings() {
   minecraftStore.saveSettings()
@@ -30,7 +42,7 @@ function saveSettings() {
     />
 
     <FieldInput
-      v-model="serverPort"
+      v-model="serverPortString"
       type="number"
       :min="1"
       :max="65535"
