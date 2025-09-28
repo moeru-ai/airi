@@ -12,6 +12,9 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: nix-update
+
 jobs:
   update:
     runs-on: ubuntu-latest

@@ -1,7 +1,5 @@
 import type { ReaderLike } from 'clustr'
 
-import type { UseQueueReturn } from './queue'
-
 import { readGraphemeClusters } from 'clustr'
 
 // A special character to instruct the TTS pipeline to flush
@@ -201,13 +199,13 @@ export async function* chunkTTSInput(input: string | ReaderLike, options?: TTSIn
   }
 }
 
-export async function chunkToTTSQueue(reader: ReaderLike, queue: UseQueueReturn<string>) {
+export async function chunkEmitter(reader: ReaderLike, handler: (chunk: string) => Promise<void> | void) {
   try {
     for await (const chunk of chunkTTSInput(reader)) {
       // TODO: remove later
       // eslint-disable-next-line no-console
       console.debug('chunk to be pushed: ', chunk)
-      queue.enqueue(chunk.text)
+      await handler(chunk.text)
     }
   }
   catch (e) {

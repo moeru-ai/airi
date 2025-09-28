@@ -10,10 +10,10 @@ import { onUnmounted, ref, toRef, unref, watch } from 'vue'
 export function useMicVAD(deviceId: MaybeRef<ConstrainDOMString | undefined>, options: Partial<RealTimeVADOptions> & { auto?: boolean } = {}) {
   const opts = merge<Omit<RealTimeVADOptions, 'stream'> & { auto?: boolean }, Partial<RealTimeVADOptions> & { auto?: boolean }>({
     ...getDefaultRealTimeVADOptions('v5'),
-    preSpeechPadFrames: 30,
+    preSpeechPadMs: 30,
     positiveSpeechThreshold: 0.5, // default is 0.5
     negativeSpeechThreshold: 0.5 - 0.15, // default is 0.5 - 0.15
-    minSpeechFrames: 30, // default is 9
+    minSpeechMs: 30, // default is 9
     auto: true,
   }, options)
 
@@ -39,7 +39,9 @@ export function useMicVAD(deviceId: MaybeRef<ConstrainDOMString | undefined>, op
     // Source code reference: https://github.com/t41372/Open-LLM-VTuber/blob/92cbf4349b84a68b0035bc825bc3d1d61fd0f063/static/index.html#L119
     micVad.value = await MicVAD.new({
       ...opts,
-      stream: media,
+      getStream: async () => {
+        return media
+      },
     })
 
     if (opts.auto)

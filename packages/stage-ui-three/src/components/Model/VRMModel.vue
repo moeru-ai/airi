@@ -9,6 +9,7 @@
 import type { VRMCore } from '@pixiv/three-vrm-core'
 import type {
   Group,
+  Object3D,
   PerspectiveCamera,
   ShaderMaterial,
   SphericalHarmonics3,
@@ -155,7 +156,7 @@ let stopCameraWatch: WatchStopHandle | undefined
 
 // Animation related ref
 const vrmAnimationMixer = ref<AnimationMixer>()
-const { onBeforeRender, pause, resume } = useLoop()
+const { onBeforeRender, stop, start } = useLoop()
 let disposeBeforeRenderLoop: (() => void | undefined)
 
 // Expressions
@@ -178,7 +179,32 @@ function componentCleanUp() {
   }
   // deep clear
   if (vrm.value) {
-    VRMUtils.deepDispose(vrm.value.scene)
+    // TODO: after bumping up to three 0.180.0 with @types/three 0.180.0,
+    //   Argument of type 'Group<Object3DEventMap>' is not assignable to parameter of type 'Object3D<Object3DEventMap>'.
+    //     Type 'Group<Object3DEventMap>' is missing the following properties from type 'Object3D<Object3DEventMap>': setPointerCapture, releasePointerCapture, hasPointerCapture
+    //
+    // Currently, AFAIK, https://github.com/pmndrs/xr/blob/456aa380206e93888cd3a5741a1534e672ae3106/packages/pointer-events/src/pointer.ts#L69-L100 declares
+    // declare module 'three' {
+    //   interface Object3D {
+    //     setPointerCapture(pointerId: number): void
+    //     releasePointerCapture(pointerId: number): void
+    //     hasPointerCapture(pointerId: number): boolean
+
+    //     intersectChildren?: boolean
+    //     interactableDescendants?: Array<Object3D>
+    //     /**
+    //      * @deprecated
+    //      */
+    //     ancestorsHaveListeners?: boolean
+    //     ancestorsHavePointerListeners?: boolean
+    //     ancestorsHaveWheelListeners?: boolean
+    //   }
+    // }
+    //
+    // And in @tresjs/core v5, it uses the @pmndrs/pointer-events internally.
+    // Somehow the Object3D from @types/three and the one augmented by @pmndrs/pointer-events are not compatible.
+    // This needs to be fixed later.
+    VRMUtils.deepDispose(vrm.value.scene as unknown as Object3D)
   }
   // clear IBL probe
   airiIblProbe?.dispose()
@@ -440,10 +466,10 @@ onMounted(async () => {
   // watch if the animation should be paused
   watch(paused, (isPaused) => {
     if (isPaused) {
-      pause()
+      stop()
     }
     else {
-      resume()
+      start()
     }
   }, { immediate: true })
   // update model position
@@ -469,7 +495,33 @@ onMounted(async () => {
     // force the program to flush
     nprProgramVersion.value += 1
     const mode = normalizeEnvMode(envSelect.value)
-    updateNprShaderSetting(vrm.value?.scene, {
+
+    // TODO: after bumping up to three 0.180.0 with @types/three 0.180.0,
+    //   Argument of type 'Group<Object3DEventMap>' is not assignable to parameter of type 'Object3D<Object3DEventMap>'.
+    //     Type 'Group<Object3DEventMap>' is missing the following properties from type 'Object3D<Object3DEventMap>': setPointerCapture, releasePointerCapture, hasPointerCapture
+    //
+    // Currently, AFAIK, https://github.com/pmndrs/xr/blob/456aa380206e93888cd3a5741a1534e672ae3106/packages/pointer-events/src/pointer.ts#L69-L100 declares
+    // declare module 'three' {
+    //   interface Object3D {
+    //     setPointerCapture(pointerId: number): void
+    //     releasePointerCapture(pointerId: number): void
+    //     hasPointerCapture(pointerId: number): boolean
+
+    //     intersectChildren?: boolean
+    //     interactableDescendants?: Array<Object3D>
+    //     /**
+    //      * @deprecated
+    //      */
+    //     ancestorsHaveListeners?: boolean
+    //     ancestorsHavePointerListeners?: boolean
+    //     ancestorsHaveWheelListeners?: boolean
+    //   }
+    // }
+    //
+    // And in @tresjs/core v5, it uses the @pmndrs/pointer-events internally.
+    // Somehow the Object3D from @types/three and the one augmented by @pmndrs/pointer-events are not compatible.
+    // This needs to be fixed later.
+    updateNprShaderSetting(vrm.value?.scene as unknown as Object3D, {
       mode,
       intensity: skyBoxIntensity.value,
       sh: nprIrrSH.value ?? null,

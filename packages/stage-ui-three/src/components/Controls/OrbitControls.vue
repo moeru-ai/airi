@@ -1,13 +1,12 @@
 <script setup lang="ts">
 /*
-  * OrbitControls.vue
   * - Extend OrbitControls from three
-  * - Define camera behaviour
+  * - Define camera behavior
 */
 
 import type { Vec3 } from '../../stores/model-store'
 
-import { extend, useTresContext } from '@tresjs/core'
+import { extend, useTres } from '@tresjs/core'
 import { until } from '@vueuse/core'
 import {
   MOUSE,
@@ -59,7 +58,7 @@ const {
 
 extend({ OrbitControls })
 
-const { camera: cameraTres, renderer } = useTresContext()
+const { camera: cameraTres, renderer } = useTres()
 const controls = shallowRef<OrbitControls>()
 const camera = shallowRef<PerspectiveCamera | null>(null)
 
@@ -146,10 +145,10 @@ function registerInfoFlow() {
 
 onMounted(async () => {
   // wait until camera is not undefined
-  await until(() => cameraTres.value && renderer.value?.domElement).toBeTruthy()
+  await until(() => cameraTres.value && renderer.domElement).toBeTruthy()
   // Prevent the data value fluctuation, camera setting should take effective after model loading
   await until(() => props.modelLoaded).toBeTruthy()
-  if (!cameraTres.value || !renderer.value?.domElement) {
+  if (!cameraTres.value || !renderer.domElement) {
     console.warn('Camera or Renderer initialisation failure!')
     return
   }
@@ -160,7 +159,7 @@ onMounted(async () => {
   }
   camera.value = cameraTres.value as PerspectiveCamera
   // Obtain orbitControl instance
-  controls.value = new OrbitControls(camera.value, renderer.value.domElement)
+  controls.value = new OrbitControls(camera.value, renderer.domElement)
   // Align to tresjs conventions
   controls.value.mouseButtons = {
     LEFT: MOUSE.ROTATE,

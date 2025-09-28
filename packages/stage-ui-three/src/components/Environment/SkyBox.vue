@@ -16,7 +16,7 @@ import type {
   WebGLRenderTarget,
 } from 'three'
 
-import { useTresContext } from '@tresjs/core'
+import { useTres } from '@tresjs/core'
 import { until } from '@vueuse/core'
 import {
   ACESFilmicToneMapping,
@@ -68,7 +68,7 @@ const environment = ref<DataTexture | CanvasTexture>()
 let _pmrem: PMREMGenerator | null = null
 let _envRT: WebGLRenderTarget | null = null // WebGLRenderTarget from PMREM
 
-const { scene, renderer } = useTresContext()
+const { scene, renderer } = useTres()
 
 // Remove the sky box
 function clearEnvironment() {
@@ -89,14 +89,14 @@ function clearEnvironment() {
 // load HDRI environment from sky box
 async function loadEnvironment(skyBoxSrc: string) {
   // Wait until renderer is ready
-  await until(() => !!renderer.value && !!renderer.value).toBeTruthy()
+  await until(() => !!renderer && !!renderer.domElement).toBeTruthy()
   // Always dispose previous env when switching
   clearEnvironment()
 
   // Recommended renderer configuration for HDR + PBR
-  renderer.value.outputColorSpace = SRGBColorSpace
+  renderer.outputColorSpace = SRGBColorSpace
   // This tone mapping is only for BPR parts, for NPR parts, this mapping will be disabled when loading model (as per parts)
-  renderer.value.toneMapping = ACESFilmicToneMapping
+  renderer.toneMapping = ACESFilmicToneMapping
 
   try {
     // Resources
@@ -112,17 +112,17 @@ async function loadEnvironment(skyBoxSrc: string) {
     hdrTex.colorSpace = LinearSRGBColorSpace
 
     // PMREM prefiltering for physically correct IBL
-    _pmrem = new PMREMGenerator(renderer.value as WebGLRenderer)
+    _pmrem = new PMREMGenerator(renderer as WebGLRenderer)
     const rt = _pmrem.fromEquirectangular(hdrTex)
     _envRT = rt
 
     // Convert equirectangular to cube render target
     const cubeRT = new WebGLCubeRenderTarget(256)
-    cubeRT.fromEquirectangularTexture(renderer.value as WebGLRenderer, hdrTex)
+    cubeRT.fromEquirectangularTexture(renderer as WebGLRenderer, hdrTex)
 
     // Generate SH from cube render target
     const probe: LightProbe = await LightProbeGenerator.fromCubeRenderTarget(
-      renderer.value as WebGLRenderer,
+      renderer as WebGLRenderer,
       cubeRT,
     )
 

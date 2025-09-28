@@ -71,7 +71,7 @@ export const useAudioContext = defineStore('audio-context', () => {
   onUnmounted(async () => {
     // Close audio context
     if (audioContext) {
-      await audioContext.value.close()
+      await audioContext.value.suspend()
     }
   })
 

@@ -1,0 +1,34 @@
+{
+  "name": "@proj-airi/tresjs",
+  "type": "module",
+  "private": true,
+  "description": "Shared Tres (effects, composables)",
+  "author": {
+    "name": "Moeru AI Project AIRI Team",
+    "email": "airi@moeru.ai",
+    "url": "https://github.com/moeru-ai"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/moeru-ai/airi.git",
+    "directory": "packages/tres"
+  },
+  "exports": {
+    "./post-processing": "./src/post-processing/index.ts"
+  },
+  "scripts": {
+    "typecheck": "vue-tsc --noEmit"
+  },
+  "peerDependencies": {
+    "@tresjs/cientos": ">=5.0.0 <6.0.0",
+    "@tresjs/core": ">=5.0.0 <6.0.0",
+    "postprocessing": ">=6.0.0 <7.0.0",
+    "three": ">=0.180.0 <0.181.0",
+    "vue": ">=3.5.0 <4.0.0"
+  },
+  "devDependencies": {
+    "@types/three": "^0.180.0",
+    "vue-tsc": "^3.0.8"
+  }
+}
