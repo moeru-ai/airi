@@ -17,7 +17,7 @@ import { onMounted, onUnmounted, ref } from 'vue'
 
 import Live2DScene from './Live2D.vue'
 
-import { useDelayMessageQueue, useEmotionsMessageQueue, useMessageContentQueue } from '../../composables/queues'
+import { useDelayMessageQueue, useEmotionsMessageQueue, usePipelineCharacterSpeechPlaybackQueueStore, usePipelineWorkflowTextSegmentationStore } from '../../composables/queues'
 import { llmInferenceEndToken } from '../../constants'
 import { EMOTION_EmotionMotionName_value, EMOTION_VRMExpressionName_value, EmotionThinkMotionName } from '../../constants/emotions'
 import { useAudioContext, useSpeakingStore } from '../../stores/audio'
@@ -44,13 +44,22 @@ const db = ref<DuckDBWasmDrizzleDatabase>()
 const vrmViewerRef = ref<InstanceType<typeof ThreeScene>>()
 const live2dSceneRef = ref<InstanceType<typeof Live2DScene>>()
 
+const textSegmentationStore = usePipelineWorkflowTextSegmentationStore()
+const { onTextSegmented } = textSegmentationStore
+const { textSegmentationQueue } = storeToRefs(textSegmentationStore)
+
+const characterSpeechPlaybackQueue = usePipelineCharacterSpeechPlaybackQueueStore()
+const { connectAudioContext, connectAudioAnalyser, clearAll } = characterSpeechPlaybackQueue
+const { playbackQueue } = storeToRefs(characterSpeechPlaybackQueue)
+
 const settingsStore = useSettings()
 const { stageModelRenderer, stageViewControlsEnabled, live2dDisableFocus, stageModelSelectedUrl } = storeToRefs(settingsStore)
 const { mouthOpenSize } = storeToRefs(useSpeakingStore())
 const { audioContext, calculateVolume } = useAudioContext()
+connectAudioContext(audioContext)
+
 const { onBeforeMessageComposed, onBeforeSend, onTokenLiteral, onTokenSpecial, onStreamEnd, onAssistantResponseEnd } = useChatStore()
 const providersStore = useProvidersStore()
-
 const live2dStore = useLive2d()
 
 const showStage = ref(true)
@@ -79,45 +88,6 @@ live2dStore.onShouldUpdateView(async () => {
 const audioAnalyser = ref<AnalyserNode>()
 const nowSpeaking = ref(false)
 const lipSyncStarted = ref(false)
-let currentAudioSource: AudioBufferSourceNode | null = null
-
-const audioQueue = createQueue<{ audioBuffer: AudioBuffer, text: string }>({
-  handlers: [
-    (ctx) => {
-      return new Promise((resolve) => {
-        // Stop any currently playing audio
-        if (currentAudioSource) {
-          try {
-            currentAudioSource.stop()
-            currentAudioSource.disconnect()
-          }
-          catch {}
-          currentAudioSource = null
-        }
-        // Create an AudioBufferSourceNode
-        const source = audioContext.createBufferSource()
-        source.buffer = ctx.data.audioBuffer
-
-        // Connect the source to the AudioContext's destination (the speakers)
-        source.connect(audioContext.destination)
-        // Connect the source to the analyzer
-        source.connect(audioAnalyser.value!)
-
-        // Start playing the audio
-        nowSpeaking.value = true
-        currentAudioSource = source
-        source.start(0)
-        source.onended = () => {
-          nowSpeaking.value = false
-          if (currentAudioSource === source) {
-            currentAudioSource = null
-          }
-          resolve()
-        }
-      })
-    },
-  ],
-})
 
 const speechStore = useSpeechStore()
 const { ssmlEnabled, activeSpeechProvider, activeSpeechModel, activeSpeechVoice, pitch } = storeToRefs(speechStore)
@@ -155,7 +125,7 @@ async function handleSpeechGeneration(ctx: { data: string }) {
 
     // Decode the ArrayBuffer into an AudioBuffer
     const audioBuffer = await audioContext.decodeAudioData(res)
-    audioQueue.enqueue({ audioBuffer, text: ctx.data })
+    playbackQueue.value.enqueue({ audioBuffer, text: ctx.data })
   }
   catch (error) {
     console.error('Speech generation failed:', error)
@@ -168,7 +138,9 @@ const ttsQueue = createQueue<string>({
   ],
 })
 
-const messageContentQueue = useMessageContentQueue(ttsQueue)
+onTextSegmented((chunk) => {
+  ttsQueue.enqueue(chunk)
+})
 
 const { currentMotion } = storeToRefs(useLive2d())
 
@@ -218,21 +190,14 @@ function setupLipSync() {
 }
 
 function setupAnalyser() {
-  if (!audioAnalyser.value)
+  if (!audioAnalyser.value) {
     audioAnalyser.value = audioContext.createAnalyser()
+    connectAudioAnalyser(audioAnalyser.value)
+  }
 }
 
 onBeforeMessageComposed(async () => {
-  // Stop any currently playing audio and clear the audio queue
-  if (currentAudioSource) {
-    try {
-      currentAudioSource.stop()
-      currentAudioSource.disconnect()
-    }
-    catch {}
-    currentAudioSource = null
-  }
-  audioQueue.clear()
+  clearAll()
   setupAnalyser()
   setupLipSync()
 })
@@ -242,7 +207,7 @@ onBeforeSend(async () => {
 })
 
 onTokenLiteral(async (literal) => {
-  messageContentQueue.enqueue(literal)
+  textSegmentationQueue.value.enqueue(literal)
 })
 
 onTokenSpecial(async (special) => {

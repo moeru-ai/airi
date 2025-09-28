@@ -2,9 +2,10 @@
 import type { TTSInputChunk } from '../../../utils/tts'
 
 import { animate } from 'animejs'
+import { storeToRefs } from 'pinia'
 import { ref } from 'vue'
 
-import { useMessageContentQueue } from '../../../composables/queues'
+import { usePipelineWorkflowTextSegmentationStore } from '../../../composables/queues'
 import { useAudioContext } from '../../../stores/audio'
 import { createQueue } from '../../../utils/queue'
 import { chunkTTSInput } from '../../../utils/tts'
@@ -16,6 +17,8 @@ const props = defineProps<{
   voice: string
 }>()
 
+const { onTextSegmented } = usePipelineWorkflowTextSegmentationStore()
+const { textSegmentationQueue } = storeToRefs(usePipelineWorkflowTextSegmentationStore())
 const { audioContext } = useAudioContext()
 const nowSpeaking = ref(false)
 const ttsInputChunks = ref<TTSInputChunk[]>([])
@@ -63,10 +66,12 @@ async function handleSpeechGeneration(ctx: { data: string }) {
 
 const ttsQueue = createQueue<string>({ handlers: [handleSpeechGeneration] })
 
-const messageContentQueue = useMessageContentQueue(ttsQueue)
+onTextSegmented((chunk) => {
+  ttsQueue.enqueue(chunk)
+})
 
 async function testStreaming() {
-  messageContentQueue.enqueue(props.text)
+  textSegmentationQueue.value.enqueue(props.text)
 }
 
 async function testChunking() {

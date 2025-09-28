@@ -1,13 +1,18 @@
 <script setup lang="ts">
-import { useMessageContentQueue } from '@proj-airi/stage-ui/composables/queues'
+import { usePipelineWorkflowTextSegmentationStore } from '@proj-airi/stage-ui/composables/queues'
 import { llmInferenceEndToken } from '@proj-airi/stage-ui/constants'
 import { createQueue } from '@proj-airi/stage-ui/utils/queue'
 import { Textarea } from '@proj-airi/ui'
+import { storeToRefs } from 'pinia'
 import { ref } from 'vue'
 
 const messageInput = ref<string>('')
 const ttsProcessed = ref<string[]>([])
 const processing = ref<boolean>(false)
+
+const textSegmentationStore = usePipelineWorkflowTextSegmentationStore()
+const { onTextSegmented } = textSegmentationStore
+const { textSegmentationQueue } = storeToRefs(textSegmentationStore)
 
 const ttsQueue = createQueue<string>({
   handlers: [
@@ -17,7 +22,9 @@ const ttsQueue = createQueue<string>({
   ],
 })
 
-const messageContentQueue = useMessageContentQueue(ttsQueue)
+onTextSegmented((text) => {
+  ttsQueue.enqueue(text)
+})
 
 async function onSendMessage() {
   processing.value = true
@@ -26,9 +33,8 @@ async function onSendMessage() {
   // await sleep(100)
   // messageContentQueue.add(token)
   // }
-  messageContentQueue.enqueue(messageInput.value)
-
-  messageContentQueue.enqueue(llmInferenceEndToken)
+  textSegmentationQueue.value.enqueue(messageInput.value)
+  textSegmentationQueue.value.enqueue(llmInferenceEndToken)
   messageInput.value = ''
   processing.value = false
 }
