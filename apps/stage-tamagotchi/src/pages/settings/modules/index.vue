@@ -15,6 +15,14 @@ import { useIconAnimation } from '../../../composables/icon-animation'
 
 const { t } = useI18n()
 
+// Initialize stores at the top level
+const consciousnessStore = useConsciousnessStore()
+const speechStore = useSpeechStore()
+const discordStore = useDiscordStore()
+const twitterStore = useTwitterStore()
+const minecraftStore = useMinecraftStore()
+const factorioStore = useFactorioStore()
+
 interface Module {
   id: string
   name: string
@@ -34,7 +42,7 @@ const modulesList = computed<Module[]>(() => [
     description: t('settings.pages.modules.consciousness.description'),
     icon: 'i-solar:ghost-bold-duotone',
     to: '/settings/modules/consciousness',
-    configured: useConsciousnessStore().configured,
+    configured: consciousnessStore.configured,
   },
   {
     id: 'speech',
@@ -42,7 +50,7 @@ const modulesList = computed<Module[]>(() => [
     description: t('settings.pages.modules.speech.description'),
     icon: 'i-solar:user-speak-rounded-bold-duotone',
     to: '/settings/modules/speech',
-    configured: useSpeechStore().configured,
+    configured: speechStore.configured,
   },
   {
     id: 'hearing',
@@ -82,7 +90,7 @@ const modulesList = computed<Module[]>(() => [
     description: t('settings.pages.modules.messaging-discord.description'),
     icon: 'i-simple-icons:discord',
     to: '/settings/modules/messaging-discord',
-    configured: useDiscordStore().configured,
+    configured: discordStore.configured,
   },
   {
     id: 'x',
@@ -90,7 +98,7 @@ const modulesList = computed<Module[]>(() => [
     description: t('settings.pages.modules.x.description'),
     icon: 'i-simple-icons:x',
     to: '/settings/modules/x',
-    configured: useTwitterStore().configured,
+    configured: twitterStore.configured,
   },
   {
     id: 'game-minecraft',
@@ -98,7 +106,7 @@ const modulesList = computed<Module[]>(() => [
     description: t('settings.pages.modules.gaming-minecraft.description'),
     iconColor: 'i-vscode-icons:file-type-minecraft',
     to: '/settings/modules/gaming-minecraft',
-    configured: useMinecraftStore().configured,
+    configured: minecraftStore.configured,
   },
   {
     id: 'game-factorio',
@@ -106,7 +114,7 @@ const modulesList = computed<Module[]>(() => [
     description: t('settings.pages.modules.gaming-factorio.description'),
     iconImage: '',
     to: '/settings/modules/gaming-factorio',
-    configured: useFactorioStore().configured,
+    configured: factorioStore.configured,
   },
   {
     id: 'mcp-server',
