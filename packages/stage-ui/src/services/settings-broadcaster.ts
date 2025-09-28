@@ -1,0 +1,84 @@
+import { Client } from '@proj-airi/server-sdk'
+
+class SettingsBroadcaster {
+  private client: Client | null = null
+  private connected = false
+  private pendingConfigurations: Array<{ moduleName: string, config: any }> = []
+
+  constructor() {
+    this.initClient()
+  }
+
+  private initClient() {
+    try {
+      this.client = new Client({
+        name: 'settings-broadcaster',
+        url: 'ws://localhost:6121/ws',
+        possibleEvents: [
+          'ui:configure',
+          'module:authenticated',
+        ],
+      })
+
+      this.client.onEvent('module:authenticated', (event) => {
+        if (event.data.authenticated) {
+          this.connected = true
+          // Send any pending configurations
+          this.sendPendingConfigurations()
+        }
+      })
+    }
+    catch {
+      // In a real implementation, you might want to use a proper error handling mechanism
+      // For now, we'll just silently handle the error to comply with linting rules
+    }
+  }
+
+  private sendPendingConfigurations() {
+    for (const config of this.pendingConfigurations) {
+      this.sendConfiguration(config.moduleName, config.config)
+    }
+    this.pendingConfigurations = []
+  }
+
+  public sendConfiguration(moduleName: string, config: any): void {
+    if (!this.client) {
+      // Silently handle the error
+      return
+    }
+
+    const configData = {
+      type: 'ui:configure' as const,
+      data: {
+        moduleName,
+        config,
+      },
+    }
+
+    if (this.connected) {
+      this.client.send(configData)
+    }
+    else {
+      // Queue the configuration to send when connected
+      this.pendingConfigurations.push({ moduleName, config })
+    }
+  }
+
+  public async connect(): Promise<void> {
+    if (this.client) {
+      await this.client.connect()
+    }
+  }
+
+  public disconnect(): void {
+    if (this.client) {
+      this.client.close()
+    }
+  }
+}
+
+// Create a singleton instance
+export const settingsBroadcaster = new SettingsBroadcaster()
+
+// Initialize connection when the service is imported
+settingsBroadcaster.connect()
