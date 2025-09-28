@@ -1,3 +1,6 @@
+common:
+  save: Сохранить
+
 animations:
   stage-transitions:
     title: Отключить переходы между сценами
@@ -183,9 +186,29 @@ pages:
     gaming-factorio:
       description: Играем в Factorio!
       title: Factorio
+      enable: Включить интеграцию Factorio
+      enable-description: Разрешить AIRI взаимодействовать с игрой Factorio
+      server-address: Адрес сервера
+      server-address-description: IP-адрес или имя хоста сервера Factorio
+      server-address-placeholder: Введите адрес сервера (например, localhost или 192.168.1.100)
+      server-port: Порт сервера
+      username: Имя пользователя
+      username-description: Ваше имя пользователя на сервере Factorio
+      username-placeholder: Введите ваше имя пользователя Factorio
+      configured: Factorio настроен правильно!
     gaming-minecraft:
       description: Играем в Minecraft!
       title: Minecraft
+      enable: Включить интеграцию Minecraft
+      enable-description: Разрешить AIRI взаимодействовать с игрой Minecraft
+      server-address: Адрес сервера
+      server-address-description: IP-адрес или имя хоста сервера Minecraft
+      server-address-placeholder: Введите адрес сервера (например, localhost или play.example.com)
+      server-port: Порт сервера
+      username: Имя пользователя
+      username-description: Ваше имя пользователя на сервере Minecraft
+      username-placeholder: Введите ваше имя пользователя Minecraft
+      configured: Minecraft настроен правильно!
     hearing:
       description: Настройка распознавания речи
       title: Слух
@@ -198,6 +221,12 @@ pages:
     messaging-discord:
       description: Чат и голосовой чат через Discord
       title: Discord
+      enable: Включить интеграцию Discord
+      enable-description: Разрешить AIRI взаимодействовать через Discord
+      token: Токен бота
+      token-description: Ваш токен бота Discord
+      token-placeholder: Введите токен бота Discord
+      configured: Discord настроен правильно!
     speech:
       description: Синтез речи
       sections:
@@ -239,6 +268,21 @@ pages:
     x:
       description: Просмотр и использование X / Twitter
       title: X / Twitter
+      enable: Включить интеграцию X / Twitter
+      enable-description: Разрешить AIRI взаимодействовать с X / Twitter
+      api-key: API-ключ
+      api-key-description: Ваш API-ключ X / Twitter
+      api-key-placeholder: Введите ваш API-ключ X / Twitter
+      api-secret: API-секрет
+      api-secret-description: Ваш API-секрет X / Twitter
+      api-secret-placeholder: Введите ваш API-секрет X / Twitter
+      access-token: Токен доступа
+      access-token-description: Ваш токен доступа X / Twitter
+      access-token-placeholder: Введите ваш токен доступа X / Twitter
+      access-token-secret: Секрет токена доступа
+      access-token-secret-description: Ваш секрет токена доступа X / Twitter
+      access-token-secret-placeholder: Введите ваш секрет токена доступа X / Twitter
+      configured: X / Twitter настроен правильно!
     mcp-server:
       description: Подключение и управление MCP-сервером и инструментами
       title: MCP-сервер

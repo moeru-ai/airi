@@ -1,7 +1,11 @@
 <script setup lang="ts">
 import { IconStatusItem } from '@proj-airi/stage-ui/components'
 import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
+import { useDiscordStore } from '@proj-airi/stage-ui/stores/modules/discord'
+import { useFactorioStore } from '@proj-airi/stage-ui/stores/modules/factorio'
+import { useMinecraftStore } from '@proj-airi/stage-ui/stores/modules/minecraft'
 import { useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
+import { useTwitterStore } from '@proj-airi/stage-ui/stores/modules/twitter'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
@@ -77,32 +81,32 @@ const modulesList = computed<Module[]>(() => [
     name: t('settings.pages.modules.messaging-discord.title'),
     description: t('settings.pages.modules.messaging-discord.description'),
     icon: 'i-simple-icons:discord',
-    to: '',
-    configured: false,
+    to: '/settings/modules/messaging-discord',
+    configured: useDiscordStore().configured,
   },
   {
     id: 'x',
     name: t('settings.pages.modules.x.title'),
     description: t('settings.pages.modules.x.description'),
     icon: 'i-simple-icons:x',
-    to: '',
-    configured: false,
+    to: '/settings/modules/x',
+    configured: useTwitterStore().configured,
   },
   {
     id: 'game-minecraft',
     name: t('settings.pages.modules.gaming-minecraft.title'),
     description: t('settings.pages.modules.gaming-minecraft.description'),
     iconColor: 'i-vscode-icons:file-type-minecraft',
-    to: '',
-    configured: false,
+    to: '/settings/modules/gaming-minecraft',
+    configured: useMinecraftStore().configured,
   },
   {
     id: 'game-factorio',
     name: t('settings.pages.modules.gaming-factorio.title'),
     description: t('settings.pages.modules.gaming-factorio.description'),
     iconImage: '',
-    to: '',
-    configured: false,
+    to: '/settings/modules/gaming-factorio',
+    configured: useFactorioStore().configured,
   },
   {
     id: 'mcp-server',

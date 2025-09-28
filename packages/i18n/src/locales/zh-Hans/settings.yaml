@@ -1,3 +1,6 @@
+common:
+  save: 保存
+
 animations:
   stage-transitions:
     title: 是否开启舞台动画
@@ -182,9 +185,29 @@ pages:
     gaming-factorio:
       description: 一起玩 Factorio！
       title: 异星工厂 Factorio
+      enable: 启用异星工厂集成
+      enable-description: 允许AIRI与异星工厂游戏互动
+      server-address: 服务器地址
+      server-address-description: 异星工厂服务器的IP地址或主机名
+      server-address-placeholder: 输入服务器地址（例如：localhost或192.168.1.100）
+      server-port: 服务器端口
+      username: 用户名
+      username-description: 您在异星工厂服务器中的用户名
+      username-placeholder: 输入您的异星工厂用户名
+      configured: 异星工厂已正确配置！
     gaming-minecraft:
       description: 一起玩 Minecraft！
       title: 我的世界 Minecraft
+      enable: 启用我的世界集成
+      enable-description: 允许AIRI与我的世界游戏互动
+      server-address: 服务器地址
+      server-address-description: 我的世界服务器的IP地址或主机名
+      server-address-placeholder: 输入服务器地址（例如：localhost或play.example.com）
+      server-port: 服务器端口
+      username: 用户名
+      username-description: 您在我的世界服务器中的用户名
+      username-placeholder: 输入您的我的世界用户名
+      configured: 我的世界已正确配置！
     hearing:
       description: 语音识别
       title: 听觉
@@ -201,6 +224,12 @@ pages:
     messaging-discord:
       description: Discord 发消息和语音聊天
       title: Discord
+      enable: 启用Discord集成
+      enable-description: 允许AIRI通过Discord进行互动
+      token: 机器人令牌
+      token-description: 您的Discord机器人令牌
+      token-placeholder: 输入您的Discord机器人令牌
+      configured: Discord已正确配置！
     speech:
       description: 语音合成
       sections:
@@ -247,6 +276,21 @@ pages:
     x:
       description: X / Twitter 的浏览和使用
       title: X / Twitter
+      enable: 启用X / Twitter集成
+      enable-description: 允许AIRI与X / Twitter互动
+      api-key: API密钥
+      api-key-description: 您的X / Twitter API密钥
+      api-key-placeholder: 输入您的X / Twitter API密钥
+      api-secret: API密钥密文
+      api-secret-description: 您的X / Twitter API密钥密文
+      api-secret-placeholder: 输入您的X / Twitter API密钥密文
+      access-token: 访问令牌
+      access-token-description: 您的X / Twitter访问令牌
+      access-token-placeholder: 输入您的X / Twitter访问令牌
+      access-token-secret: 访问令牌密文
+      access-token-secret-description: 您的X / Twitter访问令牌密文
+      access-token-secret-placeholder: 输入您的X / Twitter访问令牌密文
+      configured: X / Twitter已正确配置！
     mcp-server:
       description: 连接和管理 MCP 服务器及工具
       title: MCP 服务器

@@ -1,0 +1,68 @@
+<script setup lang="ts">
+import { Button } from '@proj-airi/stage-ui/components'
+import { useFactorioStore } from '@proj-airi/stage-ui/stores/modules/factorio'
+import { FieldCheckbox, FieldInput } from '@proj-airi/ui'
+import { storeToRefs } from 'pinia'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
+const factorioStore = useFactorioStore()
+const { enabled, serverAddress, serverPort, username, configured } = storeToRefs(factorioStore)
+function saveSettings() {
+  factorioStore.saveSettings()
+}
+</script>
+
+<template>
+  <div flex="~ col gap-6">
+    <FieldCheckbox
+      v-model="enabled"
+      :label="t('settings.pages.modules.gaming-factorio.enable')"
+      :description="t('settings.pages.modules.gaming-factorio.enable-description')"
+    />
+
+    <FieldInput
+      v-model="serverAddress"
+      :label="t('settings.pages.modules.gaming-factorio.server-address')"
+      :description="t('settings.pages.modules.gaming-factorio.server-address-description')"
+      :placeholder="t('settings.pages.modules.gaming-factorio.server-address-placeholder')"
+    />
+
+    <FieldInput
+      v-model="serverPort"
+      type="number"
+      :min="1"
+      :max="65535"
+      :step="1"
+      :label="t('settings.pages.modules.gaming-factorio.server-port')"
+      :description="t('settings.pages.modules.gaming-factorio.server-port')"
+    />
+
+    <FieldInput
+      v-model="username"
+      :label="t('settings.pages.modules.gaming-factorio.username')"
+      :description="t('settings.pages.modules.gaming-factorio.username-description')"
+      :placeholder="t('settings.pages.modules.gaming-factorio.username-placeholder')"
+    />
+
+    <div>
+      <Button
+        :label="t('settings.common.save')"
+        variant="primary"
+        @click="saveSettings"
+      />
+    </div>
+
+    <div v-if="configured" class="mt-4 rounded-lg bg-green-100 p-4 text-green-800">
+      {{ t('settings.pages.modules.gaming-factorio.configured') }}
+    </div>
+  </div>
+</template>
+
+<route lang="yaml">
+meta:
+  layout: settings
+  stageTransition:
+    name: slide
+    pageSpecificAvailable: true
+</route>

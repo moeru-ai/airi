@@ -1,3 +1,6 @@
+common:
+  save: Save
+
 animations:
   stage-transitions:
     title: Disable Stage Transitions
@@ -238,9 +241,29 @@ pages:
     gaming-factorio:
       description: Playing Factorio!
       title: Factorio
+      enable: Enable Factorio Integration
+      enable-description: Allow AIRI to interact with Factorio game
+      server-address: Server Address
+      server-address-description: The IP address or hostname of the Factorio server
+      server-address-placeholder: Enter server address (e.g., localhost or 192.168.1.100)
+      server-port: Server Port
+      username: Username
+      username-description: Your username in the Factorio server
+      username-placeholder: Enter your Factorio username
+      configured: Factorio is properly configured!
     gaming-minecraft:
       description: Playing Minecraft!
       title: Minecraft
+      enable: Enable Minecraft Integration
+      enable-description: Allow AIRI to interact with Minecraft game
+      server-address: Server Address
+      server-address-description: The IP address or hostname of the Minecraft server
+      server-address-placeholder: Enter server address (e.g., localhost or play.example.com)
+      server-port: Server Port
+      username: Username
+      username-description: Your username in the Minecraft server
+      username-placeholder: Enter your Minecraft username
+      configured: Minecraft is properly configured!
     hearing:
       description: Configure how speech recognition works
       title: Hearing
@@ -257,6 +280,12 @@ pages:
     messaging-discord:
       description: Chat & voice chat over Discord
       title: Discord
+      enable: Enable Discord Integration
+      enable-description: Allow AIRI to interact through Discord
+      token: Bot Token
+      token-description: Your Discord bot token
+      token-placeholder: Enter your Discord bot token
+      configured: Discord is properly configured!
     speech:
       description: Speech synthesis
       sections:
@@ -305,6 +334,21 @@ pages:
     x:
       description: X / Twitter browsing and usage
       title: X / Twitter
+      enable: Enable X / Twitter Integration
+      enable-description: Allow AIRI to interact with X / Twitter
+      api-key: API Key
+      api-key-description: Your X / Twitter API key
+      api-key-placeholder: Enter your X / Twitter API key
+      api-secret: API Secret
+      api-secret-description: Your X / Twitter API secret
+      api-secret-placeholder: Enter your X / Twitter API secret
+      access-token: Access Token
+      access-token-description: Your X / Twitter access token
+      access-token-placeholder: Enter your X / Twitter access token
+      access-token-secret: Access Token Secret
+      access-token-secret-description: Your X / Twitter access token secret
+      access-token-secret-placeholder: Enter your X / Twitter access token secret
+      configured: X / Twitter is properly configured!
     mcp-server:
       description: Connect and manage MCP server and tools
       title: MCP Server

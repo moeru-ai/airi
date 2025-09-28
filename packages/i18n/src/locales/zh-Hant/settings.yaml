@@ -1,3 +1,6 @@
+common:
+  save: 儲存
+
 animations:
   stage-transitions:
     title: 是否開啟舞台動畫
@@ -174,9 +177,29 @@ pages:
     gaming-factorio:
       description: 一起玩 Factorio！
       title: 異星工廠 Factorio
+      enable: 啟用異星工廠集成
+      enable-description: 允許 AIRI 與異星工廠遊戲互動
+      server-address: 伺服器地址
+      server-address-description: 異星工廠伺服器的 IP 地址或主機名稱
+      server-address-placeholder: 輸入伺服器地址（例如：localhost 或 192.168.1.100）
+      server-port: 伺服器端口
+      username: 使用者名稱
+      username-description: 您在異星工廠伺服器中的使用者名稱
+      username-placeholder: 輸入您的異星工廠使用者名稱
+      configured: 異星工廠已正確設定！
     gaming-minecraft:
       description: 一起玩 Minecraft！
       title: 我的世界 Minecraft
+      enable: 啟用我的世界集成
+      enable-description: 允許 AIRI 與我的世界遊戲互動
+      server-address: 伺服器地址
+      server-address-description: 我的世界伺服器的 IP 地址或主機名稱
+      server-address-placeholder: 輸入伺服器地址（例如：localhost 或 play.example.com）
+      server-port: 伺服器端口
+      username: 使用者名稱
+      username-description: 您在我的世界伺服器中的使用者名稱
+      username-placeholder: 輸入您的我的世界使用者名稱
+      configured: 我的世界已正確設定！
     hearing:
       description: 語音辨識
       title: 聽覺
@@ -189,6 +212,12 @@ pages:
     messaging-discord:
       description: Discord 訊息與語音聊天
       title: Discord
+      enable: 啟用 Discord 集成
+      enable-description: 允許 AIRI 透過 Discord 進行互動
+      token: 機器人權杖
+      token-description: 您的 Discord 機器人权杖
+      token-placeholder: 輸入您的 Discord 機器人权杖
+      configured: Discord 已正確設定！
     speech:
       description: 語音合成
       sections:
@@ -230,6 +259,21 @@ pages:
     x:
       description: X / Twitter 的瀏覽與使用
       title: X / Twitter
+      enable: 啟用 X / Twitter 集成
+      enable-description: 允許 AIRI 與 X / Twitter 互動
+      api-key: API 金鑰
+      api-key-description: 您的 X / Twitter API 金鑰
+      api-key-placeholder: 輸入您的 X / Twitter API 金鑰
+      api-secret: API 金鑰密文
+      api-secret-description: 您的 X / Twitter API 金鑰密文
+      api-secret-placeholder: 輸入您的 X / Twitter API 金鑰密文
+      access-token: 存取權杖
+      access-token-description: 您的 X / Twitter 存取權杖
+      access-token-placeholder: 輸入您的 X / Twitter 存取權杖
+      access-token-secret: 存取權杖密文
+      access-token-secret-description: 您的 X / Twitter 存取權杖密文
+      access-token-secret-placeholder: 輸入您的 X / Twitter 存取權杖密文
+      configured: X / Twitter 已正確設定！
     mcp-server:
       description: 連線與管理 MCP 伺服器及工具
       title: MCP 伺服器
