@@ -14,7 +14,7 @@ files:
 asarUnpack:
   - resources/**
 win:
-  executableName: AIRI
+  executableName: airi
 nsis:
   artifactName: ${productName}-${version}-windows-${arch}-setup.${ext}
   shortcutName: ${productName}
@@ -27,7 +27,7 @@ mac:
     - NSDocumentsFolderUsageDescription: Application requests access to the user's Documents folder.
     - NSDownloadsFolderUsageDescription: Application requests access to the user's Downloads folder.
   notarize: false
-  executableName: AIRI
+  executableName: airi
 dmg:
   artifactName: ${productName}-${version}-darwin-${arch}.${ext}
 linux:
@@ -35,7 +35,7 @@ linux:
     - AppImage
   maintainer: moeru.ai
   category: Utility
-  executableName: AIRI
+  executableName: airi
   artifactName: ${productName}-${version}-linux-${arch}.${ext}
 appImage:
   artifactName: ${productName}-${version}-linux-${arch}.${ext}

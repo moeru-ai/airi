@@ -21,11 +21,10 @@
     {
       formatter = forAllSystems (system: (pkgsForSystem system).nixfmt-tree);
 
-      packages = forAllSystems (system: {
-        default = self.packages.${system}.airi;
-        airi = (pkgsForSystem system).callPackage ./nix/package.nix { };
-        airi-debug = (pkgsForSystem system).callPackage ./nix/package.nix { debugBuild = true; };
-      });
+      packages = forAllSystems (
+        system:
+        { default = self.packages.${system}.airi; } // self.overlays.airi (pkgsForSystem system) null
+      );
 
       overlays = {
         default = self.overlays.airi;
@@ -40,6 +39,7 @@
             inputsFrom = [ self.packages.${system}.airi ];
             packages = [
               nixd
+              nixfmt-rfc-style
               nixfmt-tree
               pnpm
             ];
