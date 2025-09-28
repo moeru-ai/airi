@@ -1,7 +1,7 @@
 {
   "name": "@proj-airi/stage-ui-three",
   "type": "module",
-  "version": "0.0.1",
+  "private": true,
   "description": "A collection of 3D scene components that used by Project AIRI",
   "author": {
     "name": "Moeru AI Project AIRI Team",
@@ -24,9 +24,9 @@
     "@pixiv/three-vrm": "^3.4.2",
     "@pixiv/three-vrm-animation": "^3.4.2",
     "@pixiv/three-vrm-core": "^3.4.2",
+    "@proj-airi/tresjs": "workspace:*",
     "@tresjs/cientos": "^5.0.0",
     "@tresjs/core": "^5.0.2",
-    "@tresjs/post-processing": "^2.4.0",
     "@vueuse/core": "^13.9.0",
     "culori": "^4.0.2",
     "pinia": "^3.0.3",

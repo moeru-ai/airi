@@ -1,6 +1,5 @@
 <script setup lang="ts">
 /*
-  * ThreeScene.vue
   * - Root vue component of stage-ui-three package
   * - This scene component the root for all the sub components in the 3d scene
   * - This package, stage-ui-three, is a stateful package
@@ -13,8 +12,8 @@ import type { DirectionalLight, SphericalHarmonics3, Texture, WebGLRenderTarget 
 
 import type { Vec3 } from '../stores/model-store'
 
+import { EffectComposerPmndrs, HueSaturationPmndrs } from '@proj-airi/tresjs/post-processing'
 import { TresCanvas } from '@tresjs/core'
-import { EffectComposerPmndrs, HueSaturationPmndrs } from '@tresjs/post-processing'
 import { useElementBounding } from '@vueuse/core'
 import { formatHex } from 'culori'
 import { storeToRefs } from 'pinia'
@@ -283,6 +282,7 @@ defineExpose({
       :height="height"
       :tone-mapping="ACESFilmicToneMapping"
       :tone-mapping-exposure="1"
+      :clear-alpha="0"
       @ready="onTresReady"
     >
       <OrbitControls

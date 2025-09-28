@@ -74,6 +74,7 @@ words:
   - dompurify
   - dotenvx
   - DownloadLive2DSDK
+  - Downsampling
   - dreamlog
   - dtolnay
   - dtype
@@ -157,6 +158,7 @@ words:
   - mousedown
   - mouseup
   - msvc
+  - multisampling
   - Myriam
   - ndarray
   - Neko

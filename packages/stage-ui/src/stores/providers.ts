@@ -1427,7 +1427,7 @@ export const useProvidersStore = defineStore('providers', () => {
       description: 'novita.ai',
       defaultBaseUrl: 'https://api.novita.ai/openai/',
       creator: createNovita,
-      validation: ['health', 'model_list'],
+      validation: ['health', 'model_list', 'chat_completions'],
       iconColor: 'i-lobe-icons:novita',
     }),
     'fireworks-ai': buildOpenAICompatibleProvider({

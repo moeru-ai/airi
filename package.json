@@ -39,7 +39,6 @@
   },
   "devDependencies": {
     "@antfu/eslint-config": "^5.4.1",
-    "@antfu/ni": "^26.0.1",
     "@arethetypeswrong/core": "^0.18.2",
     "@electron-toolkit/eslint-config-ts": "^3.1.0",
     "@iconify/utils": "^3.0.2",
