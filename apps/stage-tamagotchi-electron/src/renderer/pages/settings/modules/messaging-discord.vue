@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { MessagingDiscord } from '@proj-airi/ui'
+import { MessagingDiscord } from '@proj-airi/stage-ui'
 </script>
 
 <template>

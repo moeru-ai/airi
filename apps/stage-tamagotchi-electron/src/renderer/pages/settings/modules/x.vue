@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { X } from '@proj-airi/ui'
+import { X } from '@proj-airi/stage-ui'
 </script>
 
 <template>
