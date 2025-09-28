@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Button } from '@proj-airi/stage-ui/components'
-import { useMinecraftStore } from '@proj-airi/stage-ui/stores/modules/minecraft'
+import { useMinecraftStore } from '@proj-airi/stage-ui/stores/modules/gaming-minecraft'
 import { FieldCheckbox, FieldInput } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { useI18n } from 'vue-i18n'
