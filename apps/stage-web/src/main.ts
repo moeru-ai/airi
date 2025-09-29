@@ -1,15 +1,11 @@
-import type { Plugin } from 'vue'
+import type { App as VueApp } from 'vue'
 import type { Router } from 'vue-router'
 
-import Tres from '@tresjs/core'
 import NProgress from 'nprogress'
 
-import { autoAnimatePlugin } from '@formkit/auto-animate/vue'
-import { settingsBroadcaster } from '@proj-airi/stage-ui/services'
-import { MotionPlugin } from '@vueuse/motion'
+import { initializeApp } from '@proj-airi/stage-ui/services'
 import { createPinia } from 'pinia'
 import { setupLayouts } from 'virtual:generated-layouts'
-import { createApp } from 'vue'
 import { createRouter, createWebHashHistory, createWebHistory } from 'vue-router'
 import { routes } from 'vue-router/auto-routes'
 
@@ -41,32 +37,30 @@ router.afterEach(() => {
   NProgress.done()
 })
 
-router.isReady()
-  .then(async () => {
-    if (import.meta.env.SSR) {
-      return
-    }
-    if (import.meta.env.VITE_APP_TARGET_HUGGINGFACE_SPACE) {
-      return
-    }
+// Custom initialization callback for web-specific post-initialization
+async function onInitialized(_app: VueApp, router: Router) {
+  // Handle PWA registration after router is ready
+  router.isReady()
+    .then(async () => {
+      if (import.meta.env.SSR) {
+        return
+      }
+      if (import.meta.env.VITE_APP_TARGET_HUGGINGFACE_SPACE) {
+        return
+      }
 
-    const { registerSW } = await import('./modules/pwa')
-    registerSW({ immediate: true })
-  })
-  .catch(() => {})
+      const { registerSW } = await import('./modules/pwa')
+      registerSW({ immediate: true })
+    })
+    .catch(() => {})
+}
 
-const app = createApp(App)
-  .use(MotionPlugin)
-  // TODO: Fix autoAnimatePlugin type error
-  .use(autoAnimatePlugin as unknown as Plugin)
-  .use(router)
-  .use(pinia)
-  .use(i18n)
-  .use(Tres)
-
-// Initialize settings broadcaster connection
-settingsBroadcaster.connect().catch((error) => {
-  console.error('Failed to connect settings broadcaster:', error)
+// Initialize and mount the app using the shared initialization logic with web-specific options
+initializeApp(App, {
+  router,
+  pinia,
+  i18n,
+  onInitialized,
+}).then((app) => {
+  app.mount('#app')
 })
-
-app.mount('#app')
