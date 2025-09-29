@@ -37,6 +37,7 @@ class SettingsBroadcaster {
 
   private sendPendingConfigurations() {
     if (!this.client) {
+      console.warn('SettingsBroadcaster client is not initialized. Pending configurations were not sent.')
       return
     }
     for (const { moduleName, config } of this.pendingConfigurations) {
@@ -53,7 +54,7 @@ class SettingsBroadcaster {
 
   public sendConfiguration(moduleName: string, config: Record<string, unknown>): void {
     if (!this.client) {
-      // Silently handle the error
+      console.warn('SettingsBroadcaster client is not initialized. Configuration was not sent.', { moduleName, config })
       return
     }
 
