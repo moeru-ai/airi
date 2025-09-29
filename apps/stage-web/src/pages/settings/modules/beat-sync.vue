@@ -7,13 +7,11 @@ import { useBeatSyncStore } from '@proj-airi/stage-ui/stores/beat-sync'
 import { FieldCheckbox, FieldRange } from '@proj-airi/ui'
 import { createTimeline } from 'animejs'
 import { nanoid } from 'nanoid'
-import { onMounted, onUnmounted, ref, watch, watchEffect } from 'vue'
+import { onMounted, onUnmounted, ref, watchEffect } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 const beatSyncStore = useBeatSyncStore()
 const { t } = useI18n()
-
-const selectedAudioSource = ref<string>('none')
 
 const beatsHistory = ref<Array<{
   id: string
@@ -32,17 +30,6 @@ function normalizeEnergy(energy: number) {
   const a = 0.5
   return ((base ** energy - 1) / (base - 1)) ** a
 }
-
-watch(selectedAudioSource, async (source) => {
-  switch (source) {
-    case 'none':
-      break
-    case 'screen-capture': {
-      await beatSyncStore.startFromScreenCapture()
-      break
-    }
-  }
-})
 
 onMounted(() => {
   const onBeat = ({ energy }: AnalyserBeatEvent) => {
