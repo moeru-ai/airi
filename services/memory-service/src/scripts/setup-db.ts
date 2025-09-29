@@ -1,12 +1,7 @@
 import { execSync } from 'node:child_process'
 import { exit } from 'node:process'
 
-import { config } from 'dotenv'
-
 import { closeConnections, healthCheck, runMigrations } from '../db/index.js'
-
-// Load environment variables
-config()
 
 async function setupDatabase() {
   console.log('🚀 Setting up Memory Service Database...\n')

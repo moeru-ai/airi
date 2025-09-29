@@ -37,10 +37,17 @@ import { EmbeddingProviderFactory } from './services/embedding-providers/factory
 import { MemoryService } from './services/memory.js'
 import { MessageIngestionService } from './services/message-processing.js'
 
-import 'dotenv/config'
-
 setGlobalFormat(Format.Pretty)
 setGlobalLogLevel(LogLevel.Debug)
+
+const envPath = path.resolve(process.cwd(), '.env')
+try {
+  process.loadEnvFile(envPath)
+  console.warn('[SUCCESS] .env variables loaded using process.loadEnvFile.')
+}
+catch (e) {
+  console.error(`[WARNING] Failed to load .env file at ${envPath}:`, e)
+}
 
 const __filename
   = (typeof import.meta !== 'undefined' && (import.meta as any).url)
@@ -48,12 +55,17 @@ const __filename
     : path.resolve(process.cwd(), 'src/index.ts')
 const __dirname = path.dirname(__filename)
 
-const PG_URL = env.PG_URL || env.DATABASE_URL || 'postgres://postgres:postgres@localhost:5432/postgres'
 const PORT = Number(env.PORT || 3001)
 const BASE_SCHEMA_FILE = path.resolve(__dirname, '../drizzle/0000_sharp_iceman.sql')
 
 async function ensureBaseSchema(): Promise<void> {
-  const pool = new Pool({ connectionString: PG_URL })
+  const pool = new Pool({
+    host: env.PGHOST,
+    port: Number(env.PGPORT),
+    user: env.PGUSER,
+    password: env.PGPASSWORD,
+    database: env.PGDATABASE,
+  })
   try {
     const check = await pool.query<{ exists: string | null }>(
       'SELECT to_regclass(\'public.memory_settings\') AS exists',

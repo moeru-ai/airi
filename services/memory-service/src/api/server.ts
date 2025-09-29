@@ -84,12 +84,12 @@ export function createApp() {
 
   // Get current database URL from environment
   app.get('/api/database-url', authenticateApiKey, (_req, res) => {
-    const dbUrl = env.DATABASE_URL || 'ERROR: DATABASE_URL environment variable not configured'
+    const dbUrl = env.PG_URL || 'ERROR: PG_URL environment variable not configured'
     // Censor the password in the URL for security
     const censoredUrl = dbUrl.replace(/:([^:@]+)@/, ':*****@')
     res.json({
       dbUrl: censoredUrl,
-      message: 'Database connection is configured via DATABASE_URL environment variable',
+      message: 'Database connection is configured via PG_URL environment variable',
     })
   })
 

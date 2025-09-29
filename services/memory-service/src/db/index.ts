@@ -76,18 +76,20 @@ export async function initEmbeddedPostgres() {
     const __dirname = dirname(__filename)
     const dataDir = resolve(__dirname, '../../.embedded_pg')
     env.PGDATA = dataDir
-    if (!env.DATABASE_URL)
-      env.DATABASE_URL = 'postgres://postgres:airi_memory_password@localhost:5433/postgres'
-    embeddedPostgres = new EmbeddedPostgres({ port: 5433 })
+    embeddedPostgres = new EmbeddedPostgres({ port: 5434 })
     await embeddedPostgres.start()
-    console.warn('Embedded Postgres started at', env.DATABASE_URL)
+    console.warn('Embedded Postgres started at', env.PG_URL)
   }
 }
 
 function ensurePgPool(): Pool {
   if (!pool) {
     pool = new Pool({
-      connectionString: env.DATABASE_URL!,
+      host: env.PGHOST,
+      port: Number(env.PGPORT),
+      user: env.PGUSER,
+      password: env.PGPASSWORD,
+      database: env.PGDATABASE,
       max: 20, // Maximum number of connections
       idleTimeoutMillis: 30000, // Close idle connections after 30 seconds
       connectionTimeoutMillis: 2000, // Return an error after 2 seconds if connection could not be established

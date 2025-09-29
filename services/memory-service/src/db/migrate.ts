@@ -2,12 +2,7 @@
 
 import { exit } from 'node:process'
 
-import { config } from 'dotenv'
-
 import { closeConnections, runMigrations } from './index.js'
-
-// Load environment variables
-config()
 
 async function migrate() {
   console.warn('🔄 Running database migrations...')

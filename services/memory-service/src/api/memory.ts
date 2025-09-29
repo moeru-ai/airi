@@ -56,7 +56,7 @@ memoryRouter.post('/export-chathistory', async (req: Request, res: Response) => 
       const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'pgexp-'))
       const finalOut = path.join(exportDir, `chathistory_pg_backup_${Date.now()}.sql`)
 
-      const dbUrl = process.env.DATABASE_URL || 'postgres://postgres:airi_memory_password@localhost:5434/postgres'
+      const dbUrl = process.env.PG_URL || 'postgres://postgres:airi_memory_password@localhost:5434/postgres'
       const envVars = parsePwdEnv(dbUrl)
 
       const dump = spawn(
@@ -175,7 +175,7 @@ memoryRouter.post('/import-chathistory', upload.single('file'), async (req: Requ
     const homeDir = os.homedir()
 
     if (!pglite) {
-      const dbUrl = process.env.DATABASE_URL || 'postgres://postgres:airi_memory_password@localhost:5434/postgres'
+      const dbUrl = process.env.PG_URL || 'postgres://postgres:airi_memory_password@localhost:5434/postgres'
       const envVars = parsePwdEnv(dbUrl)
 
       const name = (file.originalname || '').toLowerCase()
