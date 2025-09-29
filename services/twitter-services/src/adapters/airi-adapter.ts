@@ -1,6 +1,6 @@
 /**
  * Airi Adapter
- * Adapts the Twitter service as an Airi module
+ * Adapts the X service as an Airi module
  */
 import type { Context } from '../core/browser/context'
 import type { Tweet } from '../core/services/tweet'
@@ -28,7 +28,7 @@ export interface AiriAdapterConfig {
   }
 }
 
-export interface TwitterConfig {
+export interface XConfig {
   apiKey?: string
   apiSecret?: string
   accessToken?: string
@@ -45,7 +45,7 @@ export class AiriAdapter {
     this.ctx = ctx
     this.config = config
     this.client = new Client({
-      name: 'twitter',
+      name: 'x',
       url: config.url || 'ws://localhost:6121/ws',
       token: config.token,
       possibleEvents: [
@@ -70,8 +70,8 @@ export class AiriAdapter {
   private setupEventHandlers(): void {
     // Handle configuration from UI
     this.client.onEvent('ui:configure', async (event) => {
-      if (event.data && event.data.moduleName === 'twitter' && event.data.config && isTwitterConfig(event.data.config)) {
-        logger.main.log('Received configuration from UI for Twitter module')
+      if (event.data && event.data.moduleName === 'x' && event.data.config && isXConfig(event.data.config)) {
+        logger.main.log('Received configuration from UI for X module')
         logger.main.log('Twitter configuration received:', event.data.config)
 
         // Check if any credentials have changed
@@ -86,7 +86,7 @@ export class AiriAdapter {
             ...newCreds,
           }
 
-          logger.main.log('Twitter credentials updated from configuration, re-initializing session.')
+          logger.main.log('X credentials updated from configuration, re-initializing session.')
 
           // If Twitter API keys are provided, we might need to re-authenticate
           // For now, we'll clear the session to force re-authentication
@@ -104,9 +104,9 @@ export class AiriAdapter {
           }
         }
       }
-      else if (event.data && event.data.moduleName === 'twitter') {
+      else if (event.data && event.data.moduleName === 'x') {
         // Log error if config is not valid
-        logger.main.error('Invalid configuration received for Twitter module')
+        logger.main.error('Invalid configuration received for X module')
       }
     })
 
@@ -120,10 +120,10 @@ export class AiriAdapter {
     // Handle authentication
     this.client.onEvent('module:authenticated', async (event) => {
       if (event.data.authenticated) {
-        logger.main.log('Twitter module authenticated with AIRI server')
+        logger.main.log('X module authenticated with AIRI server')
       }
       else {
-        logger.main.warn('Twitter module authentication failed')
+        logger.main.warn('X module authentication failed')
       }
     })
   }
@@ -131,9 +131,9 @@ export class AiriAdapter {
   private async handleInput(input: string): Promise<void> {
     let responseSent = false
     try {
-      // Parse and handle Twitter commands
+      // Parse and handle X commands
       // For now, we'll just log the input and send a response back
-      logger.main.log('Processing Twitter command:', input)
+      logger.main.log('Processing X command:', input)
 
       // Handle commands based on explicit prefixes for better reliability
       const normalizedInput = input.trim().toLowerCase()
@@ -243,7 +243,7 @@ ${tweets.map((t: Tweet) => `- ${t.author.displayName}: ${t.text.substring(0, 80)
       }
 
       if (!handled) {
-        throw new Error(`Unknown Twitter command: ${input}. Supported commands: "post tweet: <text>", "search tweets: <query>", "like tweet: <tweetId>", "retweet: <tweetId>", "get user: <username>", "get timeline [count: N]"`)
+        throw new Error(`Unknown X command: ${input}. Supported commands: "post tweet: <text>", "search tweets: <query>", "like tweet: <tweetId>", "retweet: <tweetId>", "get user: <username>", "get timeline [count: N]"`)
       }
 
       // Only send the original processing response if we haven't already sent a specific response
@@ -251,7 +251,7 @@ ${tweets.map((t: Tweet) => `- ${t.author.displayName}: ${t.text.substring(0, 80)
         this.client.send({
           type: 'input:text',
           data: {
-            text: `Processed Twitter command: ${input}`,
+            text: `Processed X command: ${input}`,
           },
         })
       }
@@ -262,7 +262,7 @@ ${tweets.map((t: Tweet) => `- ${t.author.displayName}: ${t.text.substring(0, 80)
       this.client.send({
         type: 'error',
         data: {
-          message: `Error processing Twitter command: ${errorMessage}`,
+          message: `Error processing X command: ${errorMessage}`,
         },
       })
     }
@@ -272,13 +272,13 @@ ${tweets.map((t: Tweet) => `- ${t.author.displayName}: ${t.text.substring(0, 80)
    * Start the AiriAdapter and connect to the AIRI server
    */
   async start(): Promise<void> {
-    logger.main.log('Starting Airi adapter for Twitter...')
+    logger.main.log('Starting Airi adapter for X...')
     try {
       await this.client.connect()
-      logger.main.log('Airi adapter for Twitter started successfully')
+      logger.main.log('Airi adapter for X started successfully')
     }
     catch (error) {
-      logger.main.errorWithError('Failed to start Airi adapter for Twitter:', error)
+      logger.main.errorWithError('Failed to start Airi adapter for X:', error)
       throw error
     }
   }
@@ -287,13 +287,13 @@ ${tweets.map((t: Tweet) => `- ${t.author.displayName}: ${t.text.substring(0, 80)
    * Stop the AiriAdapter and disconnect from the AIRI server
    */
   async stop(): Promise<void> {
-    logger.main.log('Stopping Airi adapter for Twitter...')
+    logger.main.log('Stopping Airi adapter for X...')
     try {
       this.client.close()
-      logger.main.log('Airi adapter for Twitter stopped')
+      logger.main.log('Airi adapter for X stopped')
     }
     catch (error) {
-      logger.main.errorWithError('Error stopping Airi adapter for Twitter:', error)
+      logger.main.errorWithError('Error stopping Airi adapter for X:', error)
       throw error
     }
   }
@@ -345,7 +345,7 @@ ${tweets.map((t: Tweet) => `- ${t.author.displayName}: ${t.text.substring(0, 80)
   }
 }
 
-function isTwitterConfig(config: unknown): config is TwitterConfig {
+function isXConfig(config: unknown): config is XConfig {
   if (typeof config !== 'object' || config === null)
     return false
   const c = config as Record<string, unknown>

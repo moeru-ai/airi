@@ -96,7 +96,7 @@ export function useModulesList() {
       category: 'messaging',
     },
     {
-      id: 'messaging-x',
+      id: 'x',
       name: t('settings.pages.modules.x.title'),
       description: t('settings.pages.modules.x.description'),
       icon: 'i-simple-icons:x',
