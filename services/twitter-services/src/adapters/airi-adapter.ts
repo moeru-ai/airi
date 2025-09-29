@@ -199,7 +199,7 @@ Following: ${userProfile.followingCount || 0}`,
       }
       else if (normalizedInput.startsWith('get timeline')) {
         // Handle "get timeline" command
-        const countMatch = normalizedInput.match(/count:\\s*(\\d+)/)
+        const countMatch = normalizedInput.match(/count:\s*(\d+)/)
         const count = countMatch ? Number.parseInt(countMatch[1], 10) : 10
 
         const timelineOptions = { count }

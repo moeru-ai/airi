@@ -22,7 +22,7 @@ export const useFactorioStore = defineStore('factorio', () => {
   }
 
   const configured = computed(() => {
-    return !!(serverAddress.value.trim() && username.value.trim())
+    return !!(serverAddress.value.trim() && username.value.trim() && serverPort.value !== null)
   })
 
   return {

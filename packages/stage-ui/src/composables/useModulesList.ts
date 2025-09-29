@@ -149,7 +149,6 @@ export function useModulesList() {
     essential: t('settings.pages.modules.categories.essential'),
     messaging: t('settings.pages.modules.categories.messaging'),
     gaming: t('settings.pages.modules.categories.gaming'),
-    infrastructure: t('settings.pages.modules.categories.infrastructure'),
   }))
 
   return {

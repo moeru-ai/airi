@@ -16,6 +16,21 @@ export interface DiscordAdapterConfig {
   airiUrl?: string
 }
 
+// Define Discord configuration type
+interface DiscordConfig {
+  token?: string
+  enabled?: boolean
+}
+
+// Type guard to safely validate the configuration object
+function isDiscordConfig(config: unknown): config is DiscordConfig {
+  if (typeof config !== 'object' || config === null)
+    return false
+  const c = config as Record<string, unknown>
+  return (typeof c.token === 'string' || typeof c.token === 'undefined')
+    && (typeof c.enabled === 'boolean' || typeof c.enabled === 'undefined')
+}
+
 export class DiscordAdapter {
   private airiClient: AiriClient
   private discordClient: Client
@@ -53,23 +68,30 @@ export class DiscordAdapter {
     this.airiClient.onEvent('ui:configure', async (event) => {
       if (event.data.moduleName === 'discord') {
         log.log('Received Discord configuration:', event.data.config)
-        const { token, enabled } = event.data.config as { token?: string, enabled?: boolean }
 
-        if (enabled === false && this.discordClient.isReady) {
-          log.log('Disabling Discord bot as per configuration...')
-          await this.discordClient.destroy()
-          return
-        }
+        if (isDiscordConfig(event.data.config)) {
+          const config = event.data.config as DiscordConfig
+          const { token, enabled } = config
 
-        if (enabled && token && (this.discordToken !== token || !this.discordClient.isReady)) {
-          this.discordToken = token
-          if (this.discordClient.isReady) {
-            log.log('Reconnecting Discord client with new token...')
+          if (enabled === false && this.discordClient.isReady) {
+            log.log('Disabling Discord bot as per configuration...')
             await this.discordClient.destroy()
+            return
           }
-          log.log('Connecting Discord client...')
-          await this.discordClient.login(this.discordToken)
-          log.log('Discord client connected.')
+
+          if (enabled && token && (this.discordToken !== token || !this.discordClient.isReady)) {
+            this.discordToken = token
+            if (this.discordClient.isReady) {
+              log.log('Reconnecting Discord client with new token...')
+              await this.discordClient.destroy()
+            }
+            log.log('Connecting Discord client...')
+            await this.discordClient.login(this.discordToken)
+            log.log('Discord client connected.')
+          }
+        }
+        else {
+          log.warn('Invalid Discord configuration received, skipping...')
         }
       }
     })
