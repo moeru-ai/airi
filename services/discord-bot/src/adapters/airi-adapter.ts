@@ -1,9 +1,10 @@
-import type { Client, Events, GatewayIntentBits, Interaction } from 'discord.js'
+import type { Interaction } from 'discord.js'
 
 import { env } from 'node:process'
 
 import { useLogg } from '@guiiai/logg'
 import { Client as AiriClient } from '@proj-airi/server-sdk'
+import { Client, Events, GatewayIntentBits } from 'discord.js'
 
 import { handlePing, registerCommands, VoiceManager } from '../bots/discord/commands'
 
@@ -52,19 +53,23 @@ export class DiscordAdapter {
     this.airiClient.onEvent('ui:configure', async (event) => {
       if (event.data.moduleName === 'discord') {
         log.log('Received Discord configuration:', event.data.config)
+        const { token, enabled } = event.data.config as { token?: string, enabled?: boolean }
 
-        // Update Discord token from configuration if provided
-        if (event.data.config.token) {
-          this.discordToken = event.data.config.token
-          log.log('Discord token updated from configuration')
+        if (enabled === false && this.discordClient.isReady) {
+          log.log('Disabling Discord bot as per configuration...')
+          await this.discordClient.destroy()
+          return
+        }
 
-          // Reconnect with new token if client is already logged in
+        if (enabled && token && (this.discordToken !== token || !this.discordClient.isReady)) {
+          this.discordToken = token
           if (this.discordClient.isReady) {
             log.log('Reconnecting Discord client with new token...')
             await this.discordClient.destroy()
-            await this.discordClient.login(this.discordToken)
-            log.log('Discord client reconnected with new token')
           }
+          log.log('Connecting Discord client...')
+          await this.discordClient.login(this.discordToken)
+          log.log('Discord client connected.')
         }
       }
     })
