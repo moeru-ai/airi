@@ -49,6 +49,8 @@ const app = createApp(App)
   .use(Tres)
 
 // Initialize settings broadcaster connection
-settingsBroadcaster.connect()
+settingsBroadcaster.connect().catch((error) => {
+  console.error('Failed to connect settings broadcaster:', error)
+})
 
 app.mount('#app')
