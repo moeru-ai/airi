@@ -342,6 +342,47 @@ ${tweets.map((t: Tweet) => `- ${t.author.displayName}: ${t.text.substring(0, 80)
   }
 }
 
+// Define a union type for the command parsing result
+export type ParseResult
+  = | { command: 'post tweet', content: string }
+    | { command: 'search tweets', content: string }
+    | { command: 'like tweet', content: string }
+    | { command: 'retweet', content: string }
+    | { command: 'get user', content: string }
+    | { command: 'get timeline', content: string }
+
+/**
+ * Parses a Twitter command from the input string
+ * @param input The input string containing the command
+ * @returns Parsed command and content, or null if no valid command found
+ */
+export function parseTwitterCommand(input: string): ParseResult | null {
+  // Handle commands based on explicit prefixes for better reliability
+  const normalizedInput = input.trim().toLowerCase()
+
+  // Define command patterns
+  const commandPatterns: Array<{ pattern: string, command: string }> = [
+    { pattern: 'post tweet:', command: 'post tweet' },
+    { pattern: 'search tweets:', command: 'search tweets' },
+    { pattern: 'like tweet:', command: 'like tweet' },
+    { pattern: 'retweet:', command: 'retweet' },
+    { pattern: 'get user:', command: 'get user' },
+    { pattern: 'get timeline', command: 'get timeline' },
+  ]
+
+  // Find the matching command pattern
+  for (const { pattern, command } of commandPatterns) {
+    if (normalizedInput.startsWith(pattern)) {
+      // Extract the content after the prefix
+      const content = input.substring(pattern.length).trim()
+      return { command: command as ParseResult['command'], content }
+    }
+  }
+
+  // No valid command found
+  return null
+}
+
 function isXConfig(config: unknown): config is XConfig {
   if (typeof config !== 'object' || config === null)
     return false
