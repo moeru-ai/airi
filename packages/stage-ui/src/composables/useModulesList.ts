@@ -134,14 +134,14 @@ export function useModulesList() {
   ])
 
   const categorizedModules = computed(() => {
-    const categories: Record<string, Module[]> = {}
-    modulesList.value.forEach((module) => {
-      if (!categories[module.category]) {
-        categories[module.category] = []
+    return modulesList.value.reduce((categories, module) => {
+      const { category } = module
+      if (!categories[category]) {
+        categories[category] = []
       }
-      categories[module.category].push(module)
-    })
-    return categories
+      categories[category].push(module)
+      return categories
+    }, {} as Record<string, Module[]>)
   })
 
   // Define category display names
