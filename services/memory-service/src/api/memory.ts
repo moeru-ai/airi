@@ -83,7 +83,11 @@ memoryRouter.post('/export-chathistory', async (req: Request, res: Response) => 
           if (!res.headersSent)
             res.status(500).end(pgErr || `pg_dump exited with ${code}`)
         }
+        else {
+          res.status(200).send('PG Dump exported successfully')
+        }
       })
+      return
     }
 
     const homeDir = os.homedir()
