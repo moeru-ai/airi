@@ -46,14 +46,35 @@ describe('airiAdapter Command Parsing', () => {
     const result = parseTwitterCommand('get timeline')
 
     expect(result).not.toBeNull()
-    expect(result).toMatchObject({ command: 'get timeline', content: '' })
+    expect(result).toMatchObject({ command: 'get timeline', content: '', count: 10 })
   })
 
   it('should handle get timeline with count parameter', () => {
     const result = parseTwitterCommand('get timeline count: 5')
 
     expect(result).not.toBeNull()
-    expect(result).toMatchObject({ command: 'get timeline', content: 'count: 5' })
+    expect(result).toMatchObject({ command: 'get timeline', content: 'count: 5', count: 5 })
+  })
+
+  it('should handle get timeline with count parameter and additional text', () => {
+    const result = parseTwitterCommand('get timeline with extra text count: 7 and more')
+
+    expect(result).not.toBeNull()
+    expect(result).toMatchObject({ command: 'get timeline', content: 'with extra text count: 7 and more', count: 7 })
+  })
+
+  it('should handle get timeline with default count when no count is specified', () => {
+    const result = parseTwitterCommand('get timeline random text')
+
+    expect(result).not.toBeNull()
+    expect(result).toMatchObject({ command: 'get timeline', content: 'random text', count: 10 })
+  })
+
+  it('should handle get timeline with count parameter containing spaces', () => {
+    const result = parseTwitterCommand('get timeline count:  15  ')
+
+    expect(result).not.toBeNull()
+    expect(result).toMatchObject({ command: 'get timeline', content: 'count:  15  ', count: 15 })
   })
 
   it('should reject unknown commands', () => {

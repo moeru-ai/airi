@@ -132,32 +132,36 @@ export class AiriAdapter {
     let responseSent = false
     try {
       // Parse and handle X commands
-      // For now, we'll just log the input and send a response back
       logger.main.log('Processing X command:', input)
 
-      // Handle commands based on explicit prefixes for better reliability
-      const normalizedInput = input.trim().toLowerCase()
+      // Parse the command using the dedicated parsing function
+      const parsedCommand = parseTwitterCommand(input)
 
-      // Define command handlers map
-      const commandHandlers = {
-        'post tweet:': async (content: string) => {
-          if (content) {
-            await this.twitterServices.tweet.postTweet(content)
-            logger.main.log('Posted tweet:', content)
+      if (!parsedCommand) {
+        throw new Error(`Unknown X command: ${input}. Supported commands: "post tweet: <text>", "search tweets: <query>", "like tweet: <tweetId>", "retweet: <tweetId>", "get user: <username>", "get timeline [count: N]"`)
+      }
+
+      // Execute the appropriate command handler based on the parsed command
+      switch (parsedCommand.command) {
+        case 'post tweet':
+          if (parsedCommand.content) {
+            await this.twitterServices.tweet.postTweet(parsedCommand.content)
+            logger.main.log('Posted tweet:', parsedCommand.content)
           }
           else {
             throw new Error('Tweet text is empty. Please provide text to post.')
           }
-        },
-        'search tweets:': async (content: string) => {
-          if (content) {
-            const tweets = await this.twitterServices.tweet.searchTweets(content)
-            logger.main.log(`Found ${tweets.length} tweets for query: ${content}`)
+          break
+
+        case 'search tweets':
+          if (parsedCommand.content) {
+            const tweets = await this.twitterServices.tweet.searchTweets(parsedCommand.content)
+            logger.main.log(`Found ${tweets.length} tweets for query: ${parsedCommand.content}`)
             // Return results to the user
             this.client.send({
               type: 'input:text',
               data: {
-                text: `Found ${tweets.length} tweets for '${content}':
+                text: `Found ${tweets.length} tweets for '${parsedCommand.content}':
 ${tweets.slice(0, 5).map((t: Tweet) => `- ${t.text.substring(0, 100)}...`).join('\n')}`,
               },
             })
@@ -166,29 +170,32 @@ ${tweets.slice(0, 5).map((t: Tweet) => `- ${t.text.substring(0, 100)}...`).join(
           else {
             throw new Error('Search query is empty. Please provide a query to search.')
           }
-        },
-        'like tweet:': async (content: string) => {
-          if (content) {
-            await this.twitterServices.tweet.likeTweet(content)
-            logger.main.log(`Liked tweet: ${content}`)
+          break
+
+        case 'like tweet':
+          if (parsedCommand.content) {
+            await this.twitterServices.tweet.likeTweet(parsedCommand.content)
+            logger.main.log(`Liked tweet: ${parsedCommand.content}`)
           }
           else {
             throw new Error('Tweet ID is empty. Please provide a tweet ID to like.')
           }
-        },
-        'retweet:': async (content: string) => {
-          if (content) {
-            await this.twitterServices.tweet.retweet(content)
-            logger.main.log(`Retweeted: ${content}`)
+          break
+
+        case 'retweet':
+          if (parsedCommand.content) {
+            await this.twitterServices.tweet.retweet(parsedCommand.content)
+            logger.main.log(`Retweeted: ${parsedCommand.content}`)
           }
           else {
             throw new Error('Tweet ID is empty. Please provide a tweet ID to retweet.')
           }
-        },
-        'get user:': async (content: string) => {
-          if (content) {
-            const userProfile = await this.twitterServices.user.getUserProfile(content)
-            logger.main.log(`Retrieved profile for user: @${content}`)
+          break
+
+        case 'get user':
+          if (parsedCommand.content) {
+            const userProfile = await this.twitterServices.user.getUserProfile(parsedCommand.content)
+            logger.main.log(`Retrieved profile for user: @${parsedCommand.content}`)
             // Return user info to the user
             this.client.send({
               type: 'input:text',
@@ -205,13 +212,11 @@ Following: ${userProfile.followingCount || 0}`,
           else {
             throw new Error('Username is empty. Please provide a username to retrieve.')
           }
-        },
-        'get timeline': async (content: string) => {
-          // Handle "get timeline" command - parse count from content
-          const countMatch = content.match(/count:\s*(\d+)/)
-          const count = countMatch ? Number.parseInt(countMatch[1], 10) : 10
+          break
 
-          const timelineOptions = { count }
+        case 'get timeline':
+        // Handle "get timeline" command with the parsed count parameter
+        { const timelineOptions = { count: parsedCommand.count }
           const tweets = await this.twitterServices.timeline.getTimeline(timelineOptions)
           logger.main.log(`Retrieved ${tweets.length} tweets from timeline`)
           // Return timeline to the user
@@ -223,24 +228,11 @@ ${tweets.map((t: Tweet) => `- ${t.author.displayName}: ${t.text.substring(0, 80)
             },
           })
           responseSent = true
-        },
-      }
+          break }
 
-      // Find and execute the appropriate command handler
-      let handled = false
-      for (const [prefix, handler] of Object.entries(commandHandlers)) {
-        if (normalizedInput.startsWith(prefix)) {
-          // Extract the content after the prefix
-          const content = input.substring(prefix.length).trim()
-
-          await handler(content)
-          handled = true
-          break
-        }
-      }
-
-      if (!handled) {
-        throw new Error(`Unknown X command: ${input}. Supported commands: "post tweet: <text>", "search tweets: <query>", "like tweet: <tweetId>", "retweet: <tweetId>", "get user: <username>", "get timeline [count: N]"`)
+        default:
+          // This should not happen if parseTwitterCommand is working correctly
+          throw new Error(`Unknown X command: ${input}`)
       }
 
       // Only send the original processing response if we haven't already sent a specific response
@@ -349,7 +341,7 @@ export type ParseResult
     | { command: 'like tweet', content: string }
     | { command: 'retweet', content: string }
     | { command: 'get user', content: string }
-    | { command: 'get timeline', content: string }
+    | { command: 'get timeline', content: string, count: number }
 
 /**
  * Parses a Twitter command from the input string
@@ -375,7 +367,15 @@ export function parseTwitterCommand(input: string): ParseResult | null {
     if (normalizedInput.startsWith(pattern)) {
       // Extract the content after the prefix
       const content = input.substring(pattern.length).trim()
-      return { command: command as ParseResult['command'], content }
+
+      // Special handling for 'get timeline' command to extract count parameter
+      if (command === 'get timeline') {
+        const countMatch = content.match(/count:\s*(\d+)/)
+        const count = countMatch ? Number.parseInt(countMatch[1], 10) : 10
+        return { command: command as ParseResult['command'], content, count }
+      }
+
+      return { command: command as Exclude<ParseResult['command'], 'get timeline'>, content }
     }
   }
 
