@@ -28,6 +28,13 @@ export interface AiriAdapterConfig {
   }
 }
 
+export interface TwitterConfig {
+  apiKey?: string
+  apiSecret?: string
+  accessToken?: string
+  accessTokenSecret?: string
+}
+
 export class AiriAdapter {
   private client: Client
   private ctx: Context
@@ -63,7 +70,7 @@ export class AiriAdapter {
   private setupEventHandlers(): void {
     // Handle configuration from UI
     this.client.onEvent('ui:configure', async (event) => {
-      if (event.data && event.data.moduleName === 'twitter' && event.data.config) {
+      if (event.data && event.data.moduleName === 'twitter' && event.data.config && isTwitterConfig(event.data.config)) {
         logger.main.log('Received configuration from UI for Twitter module')
         logger.main.log('Twitter configuration received:', event.data.config)
 
@@ -96,6 +103,10 @@ export class AiriAdapter {
             logger.main.errorWithError('Failed to reinitialize browser context with new credentials:', error)
           }
         }
+      }
+      else if (event.data && event.data.moduleName === 'twitter') {
+        // Log error if config is not valid
+        logger.main.error('Invalid configuration received for Twitter module')
       }
     })
 
@@ -332,4 +343,16 @@ ${tweets.map((t: Tweet) => `- ${t.author.displayName}: ${t.text.substring(0, 80)
       throw error
     }
   }
+}
+
+function isTwitterConfig(config: unknown): config is TwitterConfig {
+  if (typeof config !== 'object' || config === null)
+    return false
+  const c = config as Record<string, unknown>
+  const checkStringOrUndefined = (key: string) => typeof c[key] === 'string' || typeof c[key] === 'undefined'
+
+  return checkStringOrUndefined('apiKey')
+    && checkStringOrUndefined('apiSecret')
+    && checkStringOrUndefined('accessToken')
+    && checkStringOrUndefined('accessTokenSecret')
 }
