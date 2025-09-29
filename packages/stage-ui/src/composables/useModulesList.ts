@@ -117,7 +117,6 @@ export function useModulesList() {
       id: 'gaming-factorio',
       name: t('settings.pages.modules.gaming-factorio.title'),
       description: t('settings.pages.modules.gaming-factorio.description'),
-      iconImage: '',
       to: '/settings/modules/gaming-factorio',
       configured: factorioStore.configured,
       category: 'gaming',

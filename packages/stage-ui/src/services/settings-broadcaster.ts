@@ -36,8 +36,17 @@ class SettingsBroadcaster {
   }
 
   private sendPendingConfigurations() {
-    for (const config of this.pendingConfigurations) {
-      this.sendConfiguration(config.moduleName, config.config)
+    if (!this.client) {
+      return
+    }
+    for (const { moduleName, config } of this.pendingConfigurations) {
+      this.client.send({
+        type: 'ui:configure' as const,
+        data: {
+          moduleName,
+          config,
+        },
+      })
     }
     this.pendingConfigurations = []
   }
