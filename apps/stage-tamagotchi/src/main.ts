@@ -3,7 +3,7 @@ import type { Plugin } from 'vue'
 import Tres from '@tresjs/core'
 
 import { autoAnimatePlugin } from '@formkit/auto-animate/vue'
-import { settingsBroadcaster } from '@proj-airi/stage-ui'
+import { settingsBroadcaster } from '@proj-airi/stage-ui/services'
 import { MotionPlugin } from '@vueuse/motion'
 import { createPinia } from 'pinia'
 import { setupLayouts } from 'virtual:generated-layouts'
