@@ -206,9 +206,9 @@ Following: ${userProfile.followingCount || 0}`,
             throw new Error('Username is empty. Please provide a username to retrieve.')
           }
         },
-        'get timeline': async () => {
-          // Handle "get timeline" command - this command doesn't take content after the prefix
-          const countMatch = normalizedInput.match(/count:\s*(\d+)/)
+        'get timeline': async (content: string) => {
+          // Handle "get timeline" command - parse count from content
+          const countMatch = content.match(/count:\s*(\d+)/)
           const count = countMatch ? Number.parseInt(countMatch[1], 10) : 10
 
           const timelineOptions = { count }
@@ -230,11 +230,8 @@ ${tweets.map((t: Tweet) => `- ${t.author.displayName}: ${t.text.substring(0, 80)
       let handled = false
       for (const [prefix, handler] of Object.entries(commandHandlers)) {
         if (normalizedInput.startsWith(prefix)) {
-          // For commands with content after the prefix, extract that content
-          let content = ''
-          if (prefix !== 'get timeline') { // 'get timeline' is handled specially since it doesn't have content after it
-            content = input.substring(prefix.length).trim()
-          }
+          // Extract the content after the prefix
+          const content = input.substring(prefix.length).trim()
 
           await handler(content)
           handled = true
