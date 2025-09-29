@@ -7,7 +7,7 @@ import { settingsBroadcaster } from '../../services/settings-broadcaster'
 export const useMinecraftStore = defineStore('minecraft', () => {
   const enabled = useLocalStorage('settings/minecraft/enabled', false)
   const serverAddress = useLocalStorage('settings/minecraft/server-address', '')
-  const serverPort = useLocalStorage('settings/minecraft/server-port', 25565) // stored as a number
+  const serverPort = useLocalStorage<number | null>('settings/minecraft/server-port', 25565) // stored as a number or null
   const username = useLocalStorage('settings/minecraft/username', '')
 
   function saveSettings() {

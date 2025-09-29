@@ -112,6 +112,7 @@ export class AiriAdapter {
   }
 
   private async handleInput(input: string): Promise<void> {
+    let responseSent = false
     try {
       // Parse and handle Twitter commands
       // For now, we'll just log the input and send a response back
@@ -142,9 +143,10 @@ export class AiriAdapter {
             type: 'input:text',
             data: {
               text: `Found ${tweets.length} tweets for '${query}':
-${tweets.slice(0, 5).map((t: any) => `- ${t.text.substring(0, 100)}...`).join('\n')}`,
+${tweets.slice(0, 5).map((t: any) => `- ${t.text.substring(0, 100)}...`).join('\\n')}`,
             },
           })
+          responseSent = true
         }
         else {
           throw new Error('Search query is empty. Please provide a query to search.')
@@ -189,6 +191,7 @@ Followers: ${userProfile.followersCount || 0}
 Following: ${userProfile.followingCount || 0}`,
             },
           })
+          responseSent = true
         }
         else {
           throw new Error('Username is empty. Please provide a username to retrieve.')
@@ -196,7 +199,7 @@ Following: ${userProfile.followingCount || 0}`,
       }
       else if (normalizedInput.startsWith('get timeline')) {
         // Handle "get timeline" command
-        const countMatch = normalizedInput.match(/count:\s*(\d+)/)
+        const countMatch = normalizedInput.match(/count:\\s*(\\d+)/)
         const count = countMatch ? Number.parseInt(countMatch[1], 10) : 10
 
         const timelineOptions = { count }
@@ -207,18 +210,17 @@ Following: ${userProfile.followingCount || 0}`,
           type: 'input:text',
           data: {
             text: `Latest ${tweets.length} tweets from your timeline:
-${tweets.map((t: any) => `- ${t.author.displayName}: ${t.text.substring(0, 80)}...`).join('\n')}`,
+${tweets.map((t: any) => `- ${t.author.displayName}: ${t.text.substring(0, 80)}...`).join('\\n')}`,
           },
         })
+        responseSent = true
       }
       else {
         throw new Error(`Unknown Twitter command: ${input}. Supported commands: "post tweet: <text>", "search tweets: <query>", "like tweet: <tweetId>", "retweet: <tweetId>", "get user: <username>", "get timeline [count: N]"`)
       }
 
       // Only send the original processing response if we haven't already sent a specific response
-      if (!normalizedInput.startsWith('search tweets:')
-        && !normalizedInput.startsWith('get user:')
-        && !normalizedInput.startsWith('get timeline')) {
+      if (!responseSent) {
         this.client.send({
           type: 'input:text',
           data: {
