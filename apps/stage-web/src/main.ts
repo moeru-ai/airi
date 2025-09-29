@@ -5,6 +5,7 @@ import Tres from '@tresjs/core'
 import NProgress from 'nprogress'
 
 import { autoAnimatePlugin } from '@formkit/auto-animate/vue'
+import { settingsBroadcaster } from '@proj-airi/stage-ui'
 import { MotionPlugin } from '@vueuse/motion'
 import { createPinia } from 'pinia'
 import { setupLayouts } from 'virtual:generated-layouts'
@@ -54,7 +55,7 @@ router.isReady()
   })
   .catch(() => {})
 
-createApp(App)
+const app = createApp(App)
   .use(MotionPlugin)
   // TODO: Fix autoAnimatePlugin type error
   .use(autoAnimatePlugin as unknown as Plugin)
@@ -62,4 +63,8 @@ createApp(App)
   .use(pinia)
   .use(i18n)
   .use(Tres)
-  .mount('#app')
+
+// Initialize settings broadcaster connection
+settingsBroadcaster.connect()
+
+app.mount('#app')

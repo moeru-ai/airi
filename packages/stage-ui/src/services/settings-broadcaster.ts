@@ -80,6 +80,3 @@ class SettingsBroadcaster {
 
 // Create a singleton instance
 export const settingsBroadcaster = new SettingsBroadcaster()
-
-// Initialize connection when the service is imported
-settingsBroadcaster.connect()
