@@ -3,7 +3,7 @@ import { Client } from '@proj-airi/server-sdk'
 class SettingsBroadcaster {
   private client: Client | null = null
   private connected = false
-  private pendingConfigurations: Array<{ moduleName: string, config: any }> = []
+  private pendingConfigurations: Array<{ moduleName: string, config: Record<string, unknown> }> = []
 
   constructor() {
     this.initClient()
@@ -42,7 +42,7 @@ class SettingsBroadcaster {
     this.pendingConfigurations = []
   }
 
-  public sendConfiguration(moduleName: string, config: any): void {
+  public sendConfiguration(moduleName: string, config: Record<string, unknown>): void {
     if (!this.client) {
       // Silently handle the error
       return

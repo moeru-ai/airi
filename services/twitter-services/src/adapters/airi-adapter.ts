@@ -286,10 +286,15 @@ ${tweets.map((t: any) => `- ${t.author.displayName}: ${t.text.substring(0, 80)}.
 
       logger.main.log('Session file cleared, re-initializing browser context')
 
-      // Reinitialize the browser with a fresh context
-      // Currently using default config, but in a more complete implementation
-      // we may want to pass updated config values that incorporate the new credentials
-      const config = getDefaultConfig()
+      // Use the updated configuration with new credentials
+      const config = {
+        ...getDefaultConfig(),
+        credentials: {
+          ...getDefaultConfig().credentials,
+          ...this.config.credentials,
+        },
+      }
+
       await initBrowser(config)
 
       // Update the context reference
@@ -302,7 +307,7 @@ ${tweets.map((t: any) => `- ${t.author.displayName}: ${t.text.substring(0, 80)}.
         user: useTwitterUserServices(this.ctx),
       }
 
-      logger.main.log('Browser context reinitialized successfully')
+      logger.main.log('Browser context reinitialized successfully with new credentials')
     }
     catch (error) {
       logger.main.errorWithError('Failed to reinitialize browser context:', error)

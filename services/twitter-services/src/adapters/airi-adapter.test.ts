@@ -71,7 +71,7 @@ describe('airiAdapter Command Parsing', () => {
     const result = await parseCommand('POST TWEET: Hello world')
 
     expect(result.command).toBe('post tweet')
-    expect(result.content).toBe('POST TWEET: Hello world'.substring('post tweet:'.length).trim())
+    expect(result.content).toBe('Hello world')
   })
 
   it('should not be fooled by colon in the middle of a sentence', async () => {

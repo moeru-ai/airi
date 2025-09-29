@@ -23,10 +23,6 @@ export const useTwitterStore = defineStore('twitter', () => {
     })
   }
 
-  function loadSettings() {
-    // Data is automatically loaded from localStorage via useLocalStorage
-  }
-
   const configured = computed(() => {
     return !!(apiKey.value.trim() && apiSecret.value.trim() && accessToken.value.trim() && accessTokenSecret.value.trim())
   })
@@ -39,6 +35,5 @@ export const useTwitterStore = defineStore('twitter', () => {
     accessTokenSecret,
     configured,
     saveSettings,
-    loadSettings,
   }
 })

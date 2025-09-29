@@ -2,6 +2,8 @@ import { useLocalStorage } from '@vueuse/core'
 import { defineStore } from 'pinia'
 import { computed } from 'vue'
 
+import { settingsBroadcaster } from '../../services/settings-broadcaster'
+
 export const useMinecraftStore = defineStore('minecraft', () => {
   const enabled = useLocalStorage('settings/minecraft/enabled', false)
   const serverAddress = useLocalStorage('settings/minecraft/server-address', '')
@@ -10,10 +12,13 @@ export const useMinecraftStore = defineStore('minecraft', () => {
 
   function saveSettings() {
     // Data is automatically saved to localStorage via useLocalStorage
-  }
-
-  function loadSettings() {
-    // Data is automatically loaded from localStorage via useLocalStorage
+    // Also broadcast configuration to backend
+    settingsBroadcaster.sendConfiguration('minecraft', {
+      enabled: enabled.value,
+      serverAddress: serverAddress.value,
+      serverPort: serverPort.value,
+      username: username.value,
+    })
   }
 
   const configured = computed(() => {
@@ -27,6 +32,5 @@ export const useMinecraftStore = defineStore('minecraft', () => {
     username,
     configured,
     saveSettings,
-    loadSettings,
   }
 })

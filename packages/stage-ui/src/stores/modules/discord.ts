@@ -17,10 +17,6 @@ export const useDiscordStore = defineStore('discord', () => {
     })
   }
 
-  function loadSettings() {
-    // Data is automatically loaded from localStorage via useLocalStorage
-  }
-
   const configured = computed(() => {
     return !!token.value.trim()
   })
@@ -30,6 +26,5 @@ export const useDiscordStore = defineStore('discord', () => {
     token,
     configured,
     saveSettings,
-    loadSettings,
   }
 })

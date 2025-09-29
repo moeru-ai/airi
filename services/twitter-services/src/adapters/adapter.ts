@@ -16,7 +16,7 @@ export function useAdapter() {
       adapters.airi = new AiriAdapter(ctx, {
         url: config.adapters.airi.url,
         token: config.adapters.airi.token,
-        credentials: {},
+        credentials: config.credentials || {},
       })
 
       await adapters.airi.start()

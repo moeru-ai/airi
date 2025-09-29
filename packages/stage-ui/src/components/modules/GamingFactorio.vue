@@ -12,8 +12,12 @@ const { enabled, serverAddress, serverPort, username, configured } = storeToRefs
 
 // Create computed property to handle number to string conversion for the input field
 const serverPortString = computed({
-  get: () => serverPort.value?.toString() || '',
+  get: () => serverPort.value?.toString() ?? '',
   set: (value) => {
+    if (value === '') {
+      serverPort.value = null
+      return
+    }
     const numValue = Number.parseInt(value, 10)
     if (!Number.isNaN(numValue)) {
       serverPort.value = numValue
