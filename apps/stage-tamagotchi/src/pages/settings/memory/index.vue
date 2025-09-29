@@ -546,7 +546,7 @@ async function importChatHistory() {
       }
       importMessage.value = 'Chat history imported successfully!'
       // use exceptionally big value to retain recent contexts!
-      await chatStore.loadInitialHistory(100000)
+      await chatStore.loadAllHistoryPaginated()
     }
     catch (error) {
       console.error(error)

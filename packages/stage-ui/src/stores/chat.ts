@@ -376,7 +376,81 @@ export const useChatStore = defineStore('chat', () => {
     }
   }
 
-  // Load more history when scrolling up
+  // Loads all conversation history in small, consecutive batches.
+  async function loadAllHistoryPaginated(batchSize: number = 50) {
+    const systemMessage = messages.value.find(msg => msg.role === 'system')
+    messages.value = systemMessage ? [systemMessage] : [] // Clear old messages
+
+    loadingInitialHistory.value = true
+    hasMoreHistory.value = true
+
+    let beforeTimestamp: number | undefined
+    let allChatMessages: Array<ChatMessage | ErrorMessage> = []
+
+    try {
+      // Loop until the 'hasMore' flag from the API becomes false
+      while (hasMoreHistory.value) {
+        const history = await loadHistory(batchSize, beforeTimestamp)
+
+        if (history.length === 0) {
+          hasMoreHistory.value = false
+          break
+        }
+
+        const batchChatMessages = history.map((msg) => {
+          // Explicitly check for assistant role (assuming all others are user/error)
+          if (msg.type === 'assistant') {
+            return {
+              role: msg.type,
+              content: msg.content,
+              slices: [{ type: 'text', text: msg.content }] as ChatSlices[],
+              tool_results: [],
+              created_at: msg.created_at,
+            } as ChatAssistantMessage
+          }
+          else {
+            // User message structure (ensuring slices and tool_results are present)
+            return {
+              role: 'user',
+              content: msg.content,
+              slices: [{ type: 'text', text: msg.content }] as ChatSlices[],
+              tool_results: [],
+              created_at: msg.created_at,
+            } as UserMessage
+          }
+        })
+        allChatMessages = [...allChatMessages, ...batchChatMessages]
+        // Update state partially to show progress (optional, but good for UX)
+        messages.value = systemMessage ? [systemMessage, ...allChatMessages] : allChatMessages
+
+        // Determine the timestamp for the next batch (oldest message's timestamp)
+        const oldestMsg = history.sort((a, b) => a.created_at - b.created_at)[0]
+        beforeTimestamp = oldestMsg.created_at
+
+        // If the batch returned less than the requested limit, we're done.
+        if (history.length < batchSize) {
+          hasMoreHistory.value = false
+        }
+      }
+
+      // Final check for system message insertion if not already done in the loop
+      if (systemMessage && messages.value[0]?.role !== 'system') {
+        messages.value.unshift(systemMessage)
+      }
+
+      hasLoadedInitialHistory.value = true
+      console.warn(`Loaded ${allChatMessages.length} total messages in batches.`)
+    }
+    catch (error) {
+      console.error('Failed to load full history paginated:', error)
+      // Reset flag to allow retries
+      hasLoadedInitialHistory.value = false
+    }
+    finally {
+      loadingInitialHistory.value = false
+    }
+  }
+
   async function loadMoreHistory() {
     if (!hasMoreHistory.value || isLoadingHistory.value)
       return
@@ -428,6 +502,7 @@ export const useChatStore = defineStore('chat', () => {
 
     discoverToolsCompatibility,
     loadInitialHistory,
+    loadAllHistoryPaginated,
     loadMoreHistory,
     send,
     cleanupMessages,
