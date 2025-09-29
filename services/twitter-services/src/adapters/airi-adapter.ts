@@ -127,100 +127,111 @@ export class AiriAdapter {
       // Handle commands based on explicit prefixes for better reliability
       const normalizedInput = input.trim().toLowerCase()
 
-      if (normalizedInput.startsWith('post tweet:')) {
-        // Handle "post tweet: <text>" command
-        const tweetText = input.substring('post tweet:'.length).trim()
-        if (tweetText) {
-          await this.twitterServices.tweet.postTweet(tweetText)
-          logger.main.log('Posted tweet:', tweetText)
-        }
-        else {
-          throw new Error('Tweet text is empty. Please provide text to post.')
-        }
-      }
-      else if (normalizedInput.startsWith('search tweets:')) {
-        // Handle "search tweets: <query>" command
-        const query = input.substring('search tweets:'.length).trim()
-        if (query) {
-          const tweets = await this.twitterServices.tweet.searchTweets(query)
-          logger.main.log(`Found ${tweets.length} tweets for query: ${query}`)
-          // Return results to the user
-          this.client.send({
-            type: 'input:text',
-            data: {
-              text: `Found ${tweets.length} tweets for '${query}':
+      // Define command handlers map
+      const commandHandlers = {
+        'post tweet:': async (content: string) => {
+          if (content) {
+            await this.twitterServices.tweet.postTweet(content)
+            logger.main.log('Posted tweet:', content)
+          }
+          else {
+            throw new Error('Tweet text is empty. Please provide text to post.')
+          }
+        },
+        'search tweets:': async (content: string) => {
+          if (content) {
+            const tweets = await this.twitterServices.tweet.searchTweets(content)
+            logger.main.log(`Found ${tweets.length} tweets for query: ${content}`)
+            // Return results to the user
+            this.client.send({
+              type: 'input:text',
+              data: {
+                text: `Found ${tweets.length} tweets for '${content}':
 ${tweets.slice(0, 5).map((t: Tweet) => `- ${t.text.substring(0, 100)}...`).join('\\n')}`,
-            },
-          })
-          responseSent = true
-        }
-        else {
-          throw new Error('Search query is empty. Please provide a query to search.')
-        }
-      }
-      else if (normalizedInput.startsWith('like tweet:')) {
-        // Handle "like tweet: <tweetId>" command
-        const tweetId = input.substring('like tweet:'.length).trim()
-        if (tweetId) {
-          await this.twitterServices.tweet.likeTweet(tweetId)
-          logger.main.log(`Liked tweet: ${tweetId}`)
-        }
-        else {
-          throw new Error('Tweet ID is empty. Please provide a tweet ID to like.')
-        }
-      }
-      else if (normalizedInput.startsWith('retweet:')) {
-        // Handle "retweet: <tweetId>" command
-        const tweetId = input.substring('retweet:'.length).trim()
-        if (tweetId) {
-          await this.twitterServices.tweet.retweet(tweetId)
-          logger.main.log(`Retweeted: ${tweetId}`)
-        }
-        else {
-          throw new Error('Tweet ID is empty. Please provide a tweet ID to retweet.')
-        }
-      }
-      else if (normalizedInput.startsWith('get user:')) {
-        // Handle "get user: <username>" command
-        const username = input.substring('get user:'.length).trim()
-        if (username) {
-          const userProfile = await this.twitterServices.user.getUserProfile(username)
-          logger.main.log(`Retrieved profile for user: @${username}`)
-          // Return user info to the user
-          this.client.send({
-            type: 'input:text',
-            data: {
-              text: `User Profile for @${userProfile.username}:
+              },
+            })
+            responseSent = true
+          }
+          else {
+            throw new Error('Search query is empty. Please provide a query to search.')
+          }
+        },
+        'like tweet:': async (content: string) => {
+          if (content) {
+            await this.twitterServices.tweet.likeTweet(content)
+            logger.main.log(`Liked tweet: ${content}`)
+          }
+          else {
+            throw new Error('Tweet ID is empty. Please provide a tweet ID to like.')
+          }
+        },
+        'retweet:': async (content: string) => {
+          if (content) {
+            await this.twitterServices.tweet.retweet(content)
+            logger.main.log(`Retweeted: ${content}`)
+          }
+          else {
+            throw new Error('Tweet ID is empty. Please provide a tweet ID to retweet.')
+          }
+        },
+        'get user:': async (content: string) => {
+          if (content) {
+            const userProfile = await this.twitterServices.user.getUserProfile(content)
+            logger.main.log(`Retrieved profile for user: @${content}`)
+            // Return user info to the user
+            this.client.send({
+              type: 'input:text',
+              data: {
+                text: `User Profile for @${userProfile.username}:
 Display Name: ${userProfile.displayName}
 Bio: ${userProfile.bio || 'N/A'}
 Followers: ${userProfile.followersCount || 0}
 Following: ${userProfile.followingCount || 0}`,
+              },
+            })
+            responseSent = true
+          }
+          else {
+            throw new Error('Username is empty. Please provide a username to retrieve.')
+          }
+        },
+        'get timeline': async () => {
+          // Handle "get timeline" command - this command doesn't take content after the prefix
+          const countMatch = normalizedInput.match(/count:\s*(\d+)/)
+          const count = countMatch ? Number.parseInt(countMatch[1], 10) : 10
+
+          const timelineOptions = { count }
+          const tweets = await this.twitterServices.timeline.getTimeline(timelineOptions)
+          logger.main.log(`Retrieved ${tweets.length} tweets from timeline`)
+          // Return timeline to the user
+          this.client.send({
+            type: 'input:text',
+            data: {
+              text: `Latest ${tweets.length} tweets from your timeline:
+${tweets.map((t: Tweet) => `- ${t.author.displayName}: ${t.text.substring(0, 80)}...`).join('\\n')}`,
             },
           })
           responseSent = true
-        }
-        else {
-          throw new Error('Username is empty. Please provide a username to retrieve.')
-        }
+        },
       }
-      else if (normalizedInput.startsWith('get timeline')) {
-        // Handle "get timeline" command
-        const countMatch = normalizedInput.match(/count:\s*(\d+)/)
-        const count = countMatch ? Number.parseInt(countMatch[1], 10) : 10
 
-        const timelineOptions = { count }
-        const tweets = await this.twitterServices.timeline.getTimeline(timelineOptions)
-        logger.main.log(`Retrieved ${tweets.length} tweets from timeline`)
-        // Return timeline to the user
-        this.client.send({
-          type: 'input:text',
-          data: {
-            text: `Latest ${tweets.length} tweets from your timeline:\n${tweets.map((t: Tweet) => `- ${t.author.displayName}: ${t.text.substring(0, 80)}...`).join('\\n')}`,
-          },
-        })
-        responseSent = true
+      // Find and execute the appropriate command handler
+      let handled = false
+      for (const [prefix, handler] of Object.entries(commandHandlers)) {
+        if (normalizedInput.startsWith(prefix)) {
+          // For commands with content after the prefix, extract that content
+          let content = ''
+          if (prefix !== 'get timeline') { // 'get timeline' is handled specially since it doesn't have content after it
+            content = input.substring(prefix.length).trim()
+          }
+
+          await handler(content)
+          handled = true
+          break
+        }
       }
-      else {
+
+      if (!handled) {
         throw new Error(`Unknown Twitter command: ${input}. Supported commands: "post tweet: <text>", "search tweets: <query>", "like tweet: <tweetId>", "retweet: <tweetId>", "get user: <username>", "get timeline [count: N]"`)
       }
 
