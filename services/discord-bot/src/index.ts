@@ -20,16 +20,18 @@ async function main() {
   await adapter.start()
 
   // Set up process shutdown hooks
-  process.on('SIGINT', async () => {
-    log.log('Received SIGINT, shutting down...')
+  async function gracefulShutdown(signal: string) {
+    log.log(`Received ${signal}, shutting down...`)
     await adapter.stop()
     process.exit(0)
+  }
+
+  process.on('SIGINT', async () => {
+    await gracefulShutdown('SIGINT')
   })
 
   process.on('SIGTERM', async () => {
-    log.log('Received SIGTERM, shutting down...')
-    await adapter.stop()
-    process.exit(0)
+    await gracefulShutdown('SIGTERM')
   })
 }
 
