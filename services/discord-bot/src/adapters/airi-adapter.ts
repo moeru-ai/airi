@@ -36,6 +36,7 @@ export class DiscordAdapter {
   private discordClient: Client
   private discordToken: string
   private voiceManager: VoiceManager
+  private isReconnecting = false
 
   constructor(config: DiscordAdapterConfig) {
     this.discordToken = config.discordToken || env.DISCORD_TOKEN || ''
@@ -67,43 +68,53 @@ export class DiscordAdapter {
     // Handle configuration from UI
     this.airiClient.onEvent('ui:configure', async (event) => {
       if (event.data.moduleName === 'discord') {
-        log.log('Received Discord configuration:', event.data.config)
+        if (this.isReconnecting) {
+          log.warn('A reconnect is already in progress, skipping this configuration event.')
+          return
+        }
+        this.isReconnecting = true
+        try {
+          log.log('Received Discord configuration:', event.data.config)
 
-        if (isDiscordConfig(event.data.config)) {
-          const config = event.data.config as DiscordConfig
-          const { token, enabled } = config
+          if (isDiscordConfig(event.data.config)) {
+            const config = event.data.config as DiscordConfig
+            const { token, enabled } = config
 
-          if (enabled === false) {
-            if (this.discordClient.isReady) {
-              log.log('Disabling Discord bot as per configuration...')
-              await this.discordClient.destroy()
+            if (enabled === false) {
+              if (this.discordClient.isReady) {
+                log.log('Disabling Discord bot as per configuration...')
+                await this.discordClient.destroy()
+              }
+              return
             }
-            return
+
+            // If enabled, but no token is provided, stop the bot if it's running.
+            if (!token) {
+              log.warn('Discord bot enabled, but no token provided. Stopping bot.')
+              if (this.discordClient.isReady) {
+                await this.discordClient.destroy()
+              }
+              return
+            }
+
+            // Connect or reconnect if token changed or client is not ready.
+            if (this.discordToken !== token || !this.discordClient.isReady) {
+              this.discordToken = token
+              if (this.discordClient.isReady) {
+                log.log('Reconnecting Discord client with new token...')
+                await this.discordClient.destroy()
+              }
+              log.log('Connecting Discord client...')
+              await this.discordClient.login(this.discordToken)
+              log.log('Discord client connected.')
+            }
           }
-
-          // If enabled, but no token is provided, stop the bot if it's running.
-          if (!token) {
-            log.warn('Discord bot enabled, but no token provided. Stopping bot.')
-            if (this.discordClient.isReady) {
-              await this.discordClient.destroy()
-            }
-            return
-          }
-
-          // Connect or reconnect if token changed or client is not ready.
-          if (this.discordToken !== token || !this.discordClient.isReady) {
-            this.discordToken = token
-            if (this.discordClient.isReady) {
-              log.log('Reconnecting Discord client with new token...')
-              await this.discordClient.destroy()
-            }
-            log.log('Connecting Discord client...')
-            await this.discordClient.login(this.discordToken)
-            log.log('Discord client connected.')
+          else {
+            log.warn('Invalid Discord configuration received, skipping...')
           }
         }
-        else {
-          log.warn('Invalid Discord configuration received, skipping...')
+        finally {
+          this.isReconnecting = false
         }
       }
     })
