@@ -13,7 +13,7 @@ class SettingsBroadcaster {
     try {
       this.client = new Client({
         name: 'settings-broadcaster',
-        url: 'ws://localhost:6121/ws',
+        url: import.meta.env.VITE_AIRI_WS_URL || 'ws://localhost:6121/ws',
         possibleEvents: [
           'ui:configure',
           'module:authenticated',
@@ -28,9 +28,10 @@ class SettingsBroadcaster {
         }
       })
     }
-    catch {
+    catch (error) {
       // In a real implementation, you might want to use a proper error handling mechanism
-      // For now, we'll just silently handle the error to comply with linting rules
+      // For now, we'll just log the error to comply with linting rules
+      console.error('Failed to initialize SettingsBroadcaster client:', error)
     }
   }
 

@@ -36,6 +36,7 @@ export class DiscordAdapter {
         'input:text',
         'input:text:voice',
         'input:voice',
+        'ui:configure',
       ],
       token: config.airiToken,
       url: config.airiUrl,
@@ -104,9 +105,14 @@ export class DiscordAdapter {
       // Register commands
       await registerCommands()
 
-      // Log in to Discord
-      await this.discordClient.login(this.discordToken)
-      log.log('Discord adapter started successfully')
+      // Log in to Discord if token is available
+      if (this.discordToken) {
+        await this.discordClient.login(this.discordToken)
+        log.log('Discord adapter started successfully')
+      }
+      else {
+        log.warn('Discord token not provided. Waiting for configuration from UI.')
+      }
     }
     catch (error) {
       log.withError(error).error('Failed to start Discord adapter')
