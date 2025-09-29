@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { Button } from '@proj-airi/stage-ui/components'
+import { useNumberString } from '@proj-airi/stage-ui/composables/useNumberString'
 import { useFactorioStore } from '@proj-airi/stage-ui/stores/modules/gaming-factorio'
 import { FieldCheckbox, FieldInput } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
-import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 const { t } = useI18n()
@@ -11,19 +11,7 @@ const factorioStore = useFactorioStore()
 const { enabled, serverAddress, serverPort, username, configured } = storeToRefs(factorioStore)
 
 // Create computed property to handle number to string conversion for the input field
-const serverPortString = computed({
-  get: () => serverPort.value?.toString() ?? '',
-  set: (value) => {
-    if (value === '') {
-      serverPort.value = null
-      return
-    }
-    const numValue = Number.parseInt(value, 10)
-    if (!Number.isNaN(numValue)) {
-      serverPort.value = numValue
-    }
-  },
-})
+const serverPortString = useNumberString(serverPort)
 
 function saveSettings() {
   factorioStore.saveSettings()
