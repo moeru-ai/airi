@@ -108,8 +108,8 @@ async function parseCommand(input: string): Promise<ParseResult> {
     'get user:': async (content: string) => {
       return { command: 'get user', content }
     },
-    'get timeline': async () => {
-      const countMatch = normalizedInput.match(/count:\s*(\d+)/)
+    'get timeline': async (content: string) => {
+      const countMatch = content.match(/count:\s*(\d+)/)
       const count = countMatch ? Number.parseInt(countMatch[1], 10) : 10
       return { command: 'get timeline', count }
     },
@@ -119,10 +119,7 @@ async function parseCommand(input: string): Promise<ParseResult> {
   for (const [prefix, handler] of Object.entries(commandHandlers)) {
     if (normalizedInput.startsWith(prefix)) {
       // For commands with content after the prefix, extract that content
-      let content = ''
-      if (prefix !== 'get timeline') { // 'get timeline' is handled specially since it doesn't have content after it
-        content = input.substring(prefix.length).trim()
-      }
+      const content = input.substring(prefix.length).trim()
 
       return await handler(content)
     }
