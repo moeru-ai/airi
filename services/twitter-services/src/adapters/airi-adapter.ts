@@ -67,22 +67,27 @@ export class AiriAdapter {
         logger.main.log('Received configuration from UI for Twitter module')
         logger.main.log('Twitter configuration received:', event.data.config)
 
-        // Update credentials from configuration if provided
-        if (event.data.config.accessToken && event.data.config.accessTokenSecret) {
+        // Check if any credentials have changed
+        const newCreds = event.data.config
+        const credKeys: (keyof AiriAdapterConfig['credentials'])[] = ['apiKey', 'apiSecret', 'accessToken', 'accessTokenSecret']
+        const credsChanged = credKeys.some(key => key in newCreds && newCreds[key] !== this.config.credentials[key])
+
+        if (credsChanged) {
           // Update the configuration with the new credentials
           this.config.credentials = {
             ...this.config.credentials,
-            ...event.data.config,
+            ...newCreds,
           }
 
-          logger.main.log('Twitter credentials updated from configuration')
+          logger.main.log('Twitter credentials updated from configuration, re-initializing session.')
 
           // If Twitter API keys are provided, we might need to re-authenticate
           // For now, we'll clear the session to force re-authentication
           // since the session might be tied to the previous API credentials
           try {
             // Close existing browser context and create a new one with fresh session
-            await this.ctx.browser.close()
+            if (this.ctx.browser)
+              await this.ctx.browser.close()
             await this.reinitializeBrowserContext()
 
             logger.main.log('Browser context reinitialized with new credentials')
