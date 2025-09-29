@@ -158,7 +158,7 @@ export class AiriAdapter {
               type: 'input:text',
               data: {
                 text: `Found ${tweets.length} tweets for '${content}':
-${tweets.slice(0, 5).map((t: Tweet) => `- ${t.text.substring(0, 100)}...`).join('\\n')}`,
+${tweets.slice(0, 5).map((t: Tweet) => `- ${t.text.substring(0, 100)}...`).join('\n')}`,
               },
             })
             responseSent = true
@@ -219,7 +219,7 @@ Following: ${userProfile.followingCount || 0}`,
             type: 'input:text',
             data: {
               text: `Latest ${tweets.length} tweets from your timeline:
-${tweets.map((t: Tweet) => `- ${t.author.displayName}: ${t.text.substring(0, 80)}...`).join('\\n')}`,
+${tweets.map((t: Tweet) => `- ${t.author.displayName}: ${t.text.substring(0, 80)}...`).join('\n')}`,
             },
           })
           responseSent = true
