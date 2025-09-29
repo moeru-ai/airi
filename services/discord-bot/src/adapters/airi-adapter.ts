@@ -73,13 +73,25 @@ export class DiscordAdapter {
           const config = event.data.config as DiscordConfig
           const { token, enabled } = config
 
-          if (enabled === false && this.discordClient.isReady) {
-            log.log('Disabling Discord bot as per configuration...')
-            await this.discordClient.destroy()
+          if (enabled === false) {
+            if (this.discordClient.isReady) {
+              log.log('Disabling Discord bot as per configuration...')
+              await this.discordClient.destroy()
+            }
             return
           }
 
-          if (enabled && token && (this.discordToken !== token || !this.discordClient.isReady)) {
+          // If enabled, but no token is provided, stop the bot if it's running.
+          if (!token) {
+            log.warn('Discord bot enabled, but no token provided. Stopping bot.')
+            if (this.discordClient.isReady) {
+              await this.discordClient.destroy()
+            }
+            return
+          }
+
+          // Connect or reconnect if token changed or client is not ready.
+          if (this.discordToken !== token || !this.discordClient.isReady) {
             this.discordToken = token
             if (this.discordClient.isReady) {
               log.log('Reconnecting Discord client with new token...')
