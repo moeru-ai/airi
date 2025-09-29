@@ -92,21 +92,115 @@ export class AiriAdapter {
       // For now, we'll just log the input and send a response back
       logger.main.log('Processing Twitter command:', input)
 
-      // Example: Handle commands like "post tweet: Hello world"
-      if (input.toLowerCase().includes('tweet') && input.toLowerCase().includes('post')) {
-        const tweetText = input.replace(/.*?:\s*/, '') // Extract text after colon
-        await this.twitterServices.tweet.postTweet(tweetText)
-        logger.main.log('Posted tweet:', tweetText)
-      }
-      // Add more command handling as needed
+      // Handle commands based on explicit prefixes for better reliability
+      const normalizedInput = input.trim().toLowerCase()
 
-      // Send response back to AIRI
-      this.client.send({
-        type: 'input:text',
-        data: {
-          text: `Processed Twitter command: ${input}`,
-        },
-      })
+      if (normalizedInput.startsWith('post tweet:')) {
+        // Handle "post tweet: <text>" command
+        const tweetText = input.substring('post tweet:'.length).trim()
+        if (tweetText) {
+          await this.twitterServices.tweet.postTweet(tweetText)
+          logger.main.log('Posted tweet:', tweetText)
+        }
+        else {
+          throw new Error('Tweet text is empty. Please provide text to post.')
+        }
+      }
+      else if (normalizedInput.startsWith('search tweets:')) {
+        // Handle "search tweets: <query>" command
+        const query = input.substring('search tweets:'.length).trim()
+        if (query) {
+          const tweets = await this.twitterServices.tweet.searchTweets(query)
+          logger.main.log(`Found ${tweets.length} tweets for query: ${query}`)
+          // Return results to the user
+          this.client.send({
+            type: 'input:text',
+            data: {
+              text: `Found ${tweets.length} tweets for '${query}':
+${tweets.slice(0, 5).map(t => `- ${t.text.substring(0, 100)}...`).join('\n')}`,
+            },
+          })
+        }
+        else {
+          throw new Error('Search query is empty. Please provide a query to search.')
+        }
+      }
+      else if (normalizedInput.startsWith('like tweet:')) {
+        // Handle "like tweet: <tweetId>" command
+        const tweetId = input.substring('like tweet:'.length).trim()
+        if (tweetId) {
+          await this.twitterServices.tweet.likeTweet(tweetId)
+          logger.main.log(`Liked tweet: ${tweetId}`)
+        }
+        else {
+          throw new Error('Tweet ID is empty. Please provide a tweet ID to like.')
+        }
+      }
+      else if (normalizedInput.startsWith('retweet:')) {
+        // Handle "retweet: <tweetId>" command
+        const tweetId = input.substring('retweet:'.length).trim()
+        if (tweetId) {
+          await this.twitterServices.tweet.retweet(tweetId)
+          logger.main.log(`Retweeted: ${tweetId}`)
+        }
+        else {
+          throw new Error('Tweet ID is empty. Please provide a tweet ID to retweet.')
+        }
+      }
+      else if (normalizedInput.startsWith('get user:')) {
+        // Handle "get user: <username>" command
+        const username = input.substring('get user:'.length).trim()
+        if (username) {
+          const userProfile = await this.twitterServices.user.getUserProfile(username)
+          logger.main.log(`Retrieved profile for user: @${username}`)
+          // Return user info to the user
+          this.client.send({
+            type: 'input:text',
+            data: {
+              text: `User Profile for @${userProfile.username}:
+Display Name: ${userProfile.displayName}
+Bio: ${userProfile.bio || 'N/A'}
+Followers: ${userProfile.followersCount || 0}
+Following: ${userProfile.followingCount || 0}`,
+            },
+          })
+        }
+        else {
+          throw new Error('Username is empty. Please provide a username to retrieve.')
+        }
+      }
+      else if (normalizedInput.startsWith('get timeline')) {
+        // Handle "get timeline" command
+        const countMatch = normalizedInput.match(/count:\s*(\d+)/)
+        const count = countMatch ? Number.parseInt(countMatch[1], 10) : 10
+
+        const timelineOptions = { count }
+        const tweets = await this.twitterServices.timeline.getTimeline(timelineOptions)
+        logger.main.log(`Retrieved ${tweets.length} tweets from timeline`)
+        // Return timeline to the user
+        this.client.send({
+          type: 'input:text',
+          data: {
+            text: `Latest ${tweets.length} tweets from your timeline:
+${tweets.map(t => `- ${t.author.displayName}: ${t.text.substring(0, 80)}...`).join('\n')}`,
+          },
+        })
+      }
+      else {
+        throw new Error(`Unknown Twitter command: ${input}. Supported commands: "post tweet: <text>", "search tweets: <query>", "like tweet: <tweetId>", "retweet: <tweetId>", "get user: <username>", "get timeline [count: N]"`)
+      }
+
+      // Only send the original processing response if we haven't already sent a specific response
+      if (!normalizedInput.startsWith('search tweets:')
+        && !normalizedInput.startsWith('get user:')
+        && !normalizedInput.startsWith('get timeline')) {
+        this.client.send({
+          type: 'input:text',
+          data: {
+            text: `Processed Twitter command: ${input}`,
+          },
+        })
+      }
     }
     catch (error) {
       logger.main.errorWithError('Error handling input:', error)
