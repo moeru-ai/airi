@@ -1,6 +1,6 @@
 import { useLocalStorage } from '@vueuse/core'
 import { defineStore } from 'pinia'
-import { computed, watch } from 'vue'
+import { computed } from 'vue'
 
 import { settingsBroadcaster } from '../../services/settings-broadcaster'
 
@@ -10,18 +10,6 @@ export const useTwitterStore = defineStore('twitter', () => {
   const apiSecret = useLocalStorage('settings/twitter/api-secret', '')
   const accessToken = useLocalStorage('settings/twitter/access-token', '')
   const accessTokenSecret = useLocalStorage('settings/twitter/access-token-secret', '')
-
-  // Watch for changes to the credentials and broadcast to backend when they change
-  watch([apiKey, apiSecret, accessToken, accessTokenSecret], ([newApiKey, newApiSecret, newAccessToken, newAccessTokenSecret]) => {
-    if (newApiKey && newApiSecret && newAccessToken && newAccessTokenSecret) {
-      settingsBroadcaster.sendConfiguration('twitter', {
-        apiKey: newApiKey,
-        apiSecret: newApiSecret,
-        accessToken: newAccessToken,
-        accessTokenSecret: newAccessTokenSecret,
-      })
-    }
-  })
 
   function saveSettings() {
     // Data is automatically saved to localStorage via useLocalStorage
