@@ -50,7 +50,7 @@ const { textSegmentationQueue } = storeToRefs(textSegmentationStore)
 
 const characterSpeechPlaybackQueue = usePipelineCharacterSpeechPlaybackQueueStore()
 const { connectAudioContext, connectAudioAnalyser, clearAll } = characterSpeechPlaybackQueue
-const { playbackQueue } = storeToRefs(characterSpeechPlaybackQueue)
+const { currentAudioSource, playbackQueue } = storeToRefs(characterSpeechPlaybackQueue)
 
 const settingsStore = useSettings()
 const { stageModelRenderer, stageViewControlsEnabled, live2dDisableFocus, stageModelSelectedUrl } = storeToRefs(settingsStore)
@@ -275,6 +275,7 @@ defineExpose({
         min-w="50% <lg:full" min-h="100 sm:100" h-full w-full flex-1
         :paused="paused"
         :show-axes="stageViewControlsEnabled"
+        :current-audio-source="currentAudioSource"
         @error="console.error"
       />
     </div>
