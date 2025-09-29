@@ -2,7 +2,7 @@
  * Tests for AiriAdapter command parsing
  * These are unit tests to verify the command parsing logic without running the full service
  */
-import { describe, expect } from 'vitest'
+import { describe, expect, it } from 'vitest'
 
 // We'll create a simplified version to test just the command parsing logic
 describe('airiAdapter Command Parsing', () => {

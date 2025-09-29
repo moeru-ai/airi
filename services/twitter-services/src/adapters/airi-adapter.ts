@@ -5,8 +5,12 @@
 import type { Context } from '../core/browser/context'
 import type { TwitterServices } from '../types/services'
 
+import * as fs from 'node:fs/promises'
+
 import { Client } from '@proj-airi/server-sdk'
 
+import { getDefaultConfig } from '../config/types'
+import { initBrowser, useContext, useSessionFileAsync } from '../core/browser/context'
 import { useTwitterTimelineServices } from '../core/services/timeline'
 import { useTwitterTweetServices } from '../core/services/tweet'
 import { useTwitterUserServices } from '../core/services/user'
@@ -27,9 +31,11 @@ export class AiriAdapter {
   private client: Client
   private ctx: Context
   private twitterServices: TwitterServices
+  private config: AiriAdapterConfig
 
   constructor(ctx: Context, config: AiriAdapterConfig) {
     this.ctx = ctx
+    this.config = config
     this.client = new Client({
       name: 'twitter',
       url: config.url || 'ws://localhost:6121/ws',
@@ -56,14 +62,33 @@ export class AiriAdapter {
   private setupEventHandlers(): void {
     // Handle configuration from UI
     this.client.onEvent('ui:configure', async (event) => {
-      if (event.data.moduleName === 'twitter') {
+      if (event.data && event.data.moduleName === 'twitter' && event.data.config) {
         logger.main.log('Received configuration from UI for Twitter module')
         logger.main.log('Twitter configuration received:', event.data.config)
 
         // Update credentials from configuration if provided
         if (event.data.config.accessToken && event.data.config.accessTokenSecret) {
-          // Update credentials in memory, actual re-authentication would depend on implementation
+          // Update the configuration with the new credentials
+          this.config.credentials = {
+            ...this.config.credentials,
+            ...event.data.config,
+          }
+
           logger.main.log('Twitter credentials updated from configuration')
+
+          // If Twitter API keys are provided, we might need to re-authenticate
+          // For now, we'll clear the session to force re-authentication
+          // since the session might be tied to the previous API credentials
+          try {
+            // Close existing browser context and create a new one with fresh session
+            await this.ctx.browser.close()
+            await this.reinitializeBrowserContext()
+
+            logger.main.log('Browser context reinitialized with new credentials')
+          }
+          catch (error) {
+            logger.main.errorWithError('Failed to reinitialize browser context with new credentials:', error)
+          }
         }
       }
     })
@@ -117,7 +142,7 @@ export class AiriAdapter {
             type: 'input:text',
             data: {
               text: `Found ${tweets.length} tweets for '${query}':
-${tweets.slice(0, 5).map(t => `- ${t.text.substring(0, 100)}...`).join('\n')}`,
+${tweets.slice(0, 5).map((t: any) => `- ${t.text.substring(0, 100)}...`).join('\n')}`,
             },
           })
         }
@@ -182,7 +207,7 @@ Following: ${userProfile.followingCount || 0}`,
           type: 'input:text',
           data: {
             text: `Latest ${tweets.length} tweets from your timeline:
-${tweets.map(t => `- ${t.author.displayName}: ${t.text.substring(0, 80)}...`).join('\n')}`,
+${tweets.map((t: any) => `- ${t.author.displayName}: ${t.text.substring(0, 80)}...`).join('\n')}`,
           },
         })
       }
@@ -202,12 +227,13 @@ ${tweets.map(t => `- ${t.author.displayName}: ${t.text.substring(0, 80)}...`).jo
         })
       }
     }
-    catch (error) {
+    catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error)
       logger.main.errorWithError('Error handling input:', error)
       this.client.send({
         type: 'error',
         data: {
-          message: `Error processing Twitter command: ${error.message}`,
+          message: `Error processing Twitter command: ${errorMessage}`,
         },
       })
     }
@@ -239,6 +265,47 @@ ${tweets.map(t => `- ${t.author.displayName}: ${t.text.substring(0, 80)}...`).jo
     }
     catch (error) {
       logger.main.errorWithError('Error stopping Airi adapter for Twitter:', error)
+      throw error
+    }
+  }
+
+  /**
+   * Reinitialize the browser context to refresh session state
+   * This is needed when credentials are updated from the UI
+   */
+  private async reinitializeBrowserContext(): Promise<void> {
+    try {
+      // Clear the session file to force re-authentication with new credentials
+      const sessionFile = await useSessionFileAsync()
+
+      // Clear the session file to force re-authentication
+      await fs.writeFile(
+        sessionFile,
+        JSON.stringify({ cookies: [], origins: [] }, null, 2),
+      )
+
+      logger.main.log('Session file cleared, re-initializing browser context')
+
+      // Reinitialize the browser with a fresh context
+      // Currently using default config, but in a more complete implementation
+      // we may want to pass updated config values that incorporate the new credentials
+      const config = getDefaultConfig()
+      await initBrowser(config)
+
+      // Update the context reference
+      this.ctx = useContext()
+
+      // Reinitialize services with the new context
+      this.twitterServices = {
+        timeline: useTwitterTimelineServices(this.ctx),
+        tweet: useTwitterTweetServices(this.ctx),
+        user: useTwitterUserServices(this.ctx),
+      }
+
+      logger.main.log('Browser context reinitialized successfully')
+    }
+    catch (error) {
+      logger.main.errorWithError('Failed to reinitialize browser context:', error)
       throw error
     }
   }
