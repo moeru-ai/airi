@@ -3,6 +3,7 @@
  * Adapts the Twitter service as an Airi module
  */
 import type { Context } from '../core/browser/context'
+import type { Tweet } from '../core/services/tweet'
 import type { TwitterServices } from '../types/services'
 
 import * as fs from 'node:fs/promises'
@@ -143,7 +144,7 @@ export class AiriAdapter {
             type: 'input:text',
             data: {
               text: `Found ${tweets.length} tweets for '${query}':
-${tweets.slice(0, 5).map((t: any) => `- ${t.text.substring(0, 100)}...`).join('\\n')}`,
+${tweets.slice(0, 5).map((t: Tweet) => `- ${t.text.substring(0, 100)}...`).join('\\n')}`,
             },
           })
           responseSent = true
@@ -209,8 +210,7 @@ Following: ${userProfile.followingCount || 0}`,
         this.client.send({
           type: 'input:text',
           data: {
-            text: `Latest ${tweets.length} tweets from your timeline:
-${tweets.map((t: any) => `- ${t.author.displayName}: ${t.text.substring(0, 80)}...`).join('\\n')}`,
+            text: `Latest ${tweets.length} tweets from your timeline:\n${tweets.map((t: Tweet) => `- ${t.author.displayName}: ${t.text.substring(0, 80)}...`).join('\\n')}`,
           },
         })
         responseSent = true
