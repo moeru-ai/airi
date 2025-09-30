@@ -13,6 +13,14 @@ export interface Config {
     endpoint?: string // Optional Stagehand service endpoint
   }
 
+  // Twitter API credentials
+  credentials?: {
+    apiKey?: string
+    apiSecret?: string
+    accessToken?: string
+    accessTokenSecret?: string
+  }
+
   // Twitter configuration
   twitter: {
     defaultOptions?: {
@@ -61,6 +69,12 @@ export function getDefaultConfig(): Config {
       timeout: Number.parseInt(process.env.BROWSER_TIMEOUT || '30000'),
       requestTimeout: Number.parseInt(process.env.BROWSER_REQUEST_TIMEOUT || '20000'),
       requestRetries: Number.parseInt(process.env.BROWSER_REQUEST_RETRIES || '2'),
+    },
+    credentials: {
+      apiKey: process.env.TWITTER_API_KEY,
+      apiSecret: process.env.TWITTER_API_SECRET,
+      accessToken: process.env.TWITTER_ACCESS_TOKEN,
+      accessTokenSecret: process.env.TWITTER_ACCESS_TOKEN_SECRET,
     },
     twitter: {
       defaultOptions: {
