@@ -11,8 +11,6 @@ const { t } = useI18n()
 const { messages, sending, streamingMessage, loadingInitialHistory, isLoadingHistory, hasMoreHistory } = storeToRefs(useChatStore())
 const { onBeforeMessageComposed, onTokenLiteral, loadInitialHistory, loadMoreHistory } = useChatStore()
 
-// Patch for eslint lintern
-console.warn(!!loadingInitialHistory)
 
 // Track if we're scrolled to top
 const isScrolledToTop = ref(false)
