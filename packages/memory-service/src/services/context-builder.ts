@@ -305,7 +305,7 @@ export class ContextBuilder {
         importance: memoryFragmentsTable.importance,
         emotional_impact: memoryFragmentsTable.emotional_impact,
         created_at: memoryFragmentsTable.created_at,
-        similarity: sql<number>`1 - (${memoryFragmentsTable[vectorColumn as keyof typeof memoryFragmentsTable]} <=> ${JSON.stringify(queryVector)})`.as('similarity'),
+        similarity: sql<number>`1 - (${memoryFragmentsTable[vectorColumn as keyof typeof memoryFragmentsTable]} <=> ${queryVector})`.as('similarity'),
       })
       .from(memoryFragmentsTable)
       .where(
