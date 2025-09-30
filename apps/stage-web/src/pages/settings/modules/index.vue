@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { IconStatusItem } from '@proj-airi/stage-ui/components'
-import { useModulesList } from '@proj-airi/stage-ui/composables/useModulesList'
+import { useModulesList } from '@proj-airi/stage-ui/composables/use-modules-list'
 
 import IconAnimation from '../../../components/IconAnimation.vue'
 

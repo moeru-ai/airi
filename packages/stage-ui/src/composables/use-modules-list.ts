@@ -1,6 +1,7 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import { useBeatSyncStore } from '../stores/beat-sync'
 import { useConsciousnessStore } from '../stores/modules/consciousness'
 import { useDiscordStore } from '../stores/modules/discord'
 import { useFactorioStore } from '../stores/modules/gaming-factorio'
@@ -30,6 +31,7 @@ export function useModulesList() {
   const twitterStore = useTwitterStore()
   const minecraftStore = useMinecraftStore()
   const factorioStore = useFactorioStore()
+  const beatSyncStore = useBeatSyncStore()
 
   const modulesList = computed<Module[]>(() => [
     {
@@ -128,6 +130,15 @@ export function useModulesList() {
       icon: 'i-solar:server-bold-duotone',
       to: '/settings/modules/mcp',
       configured: false,
+      category: 'essential',
+    },
+    {
+      id: 'beat-sync',
+      name: t('settings.pages.modules.beat_sync.title'),
+      description: t('settings.pages.modules.beat_sync.description'),
+      icon: 'i-solar:music-notes-bold-duotone',
+      to: '/settings/modules/beat-sync',
+      configured: beatSyncStore.isActive,
       category: 'essential',
     },
   ])

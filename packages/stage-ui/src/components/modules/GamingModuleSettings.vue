@@ -6,7 +6,7 @@ import { storeToRefs } from 'pinia'
 import { useI18n } from 'vue-i18n'
 
 import { Button } from '../../components'
-import { useNumberString } from '../../composables/useNumberString'
+import { useNumberString } from '../../composables/use-number-string'
 
 interface GamingModuleStore extends StoreGeneric {
   enabled: boolean
