@@ -211,9 +211,9 @@ watch([
   const tempLlmModel = llmModel.value
   const tempLlmApiKey = llmApiKey.value
   const hasLLMChanges
-    = tempLlmProvider.value !== useLocalStorage('settings/memory/llm-provider', 'openai').value
-      || tempLlmModel.value !== useLocalStorage('settings/memory/llm-model', 'gpt-4-turbo-preview').value
-      || tempLlmApiKey.value !== useLocalStorage('settings/memory/llm-api-key', '').value
+    = tempLlmProvider !== useLocalStorage('settings/memory/llm-provider', 'openai').value
+      || tempLlmModel !== useLocalStorage('settings/memory/llm-model', 'gpt-4-turbo-preview').value
+      || tempLlmApiKey !== useLocalStorage('settings/memory/llm-api-key', '').value
 
   settingsChanged.value = hasEmbeddingChanges || hasLLMChanges
   showRegenerationWarning.value = hasEmbeddingChanges
