@@ -36,7 +36,7 @@ export async function initializeApp(
 ): Promise<App> {
   const app = createApp(AppComponent)
     .use(MotionPlugin)
-    .use(autoAnimatePlugin as unknown as Plugin)
+    .use(autoAnimatePlugin as unknown as Plugin) // TODO: Fix autoAnimatePlugin type error
     .use(options.router)
     .use(options.pinia)
     .use(options.i18n)

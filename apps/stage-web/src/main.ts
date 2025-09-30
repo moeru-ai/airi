@@ -52,7 +52,7 @@ async function onInitialized(_app: VueApp, router: Router) {
       const { registerSW } = await import('./modules/pwa')
       registerSW({ immediate: true })
     })
-    .catch(() => {})
+    .catch(error => console.error('Failed during post-initialization:', error))
 }
 
 // Initialize and mount the app using the shared initialization logic with web-specific options

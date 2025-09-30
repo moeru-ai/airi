@@ -113,6 +113,9 @@ export class DiscordAdapter {
             log.warn('Invalid Discord configuration received, skipping...')
           }
         }
+        catch (error) {
+          log.withError(error as Error).error('Failed to apply Discord configuration.')
+        }
         finally {
           this.isReconnecting = false
         }

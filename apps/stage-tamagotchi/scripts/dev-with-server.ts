@@ -76,8 +76,13 @@ const tamagotchiProcess = spawn(
   },
 )
 
+let isCleaningUp = false
+
 // Handle cleanup on exit
 function cleanup() {
+  if (isCleaningUp)
+    return
+  isCleaningUp = true
   console.log('\n🛑 Shutting down...')
   try {
     if (serverProcess && !serverProcess.killed) {
@@ -95,27 +100,26 @@ function cleanup() {
   catch (error) {
     console.error('Error killing tamagotchi process:', error)
   }
-  process.exit(0)
 }
 
 process.on('SIGINT', cleanup)
 process.on('SIGTERM', cleanup)
-process.on('exit', cleanup)
 
 // Wait for processes
 await Promise.race([
-  new Promise((resolve) => {
+  new Promise((_resolve) => {
     serverProcess.on('exit', (code) => {
       console.log(`Server process exited with code ${code}`)
-      resolve(code)
+      process.exit(code || 0)
     })
   }),
-  new Promise((resolve) => {
+  new Promise((_resolve) => {
     tamagotchiProcess.on('exit', (code) => {
       console.log(`Tamagotchi process exited with code ${code}`)
-      resolve(code)
+      process.exit(code || 0)
     })
   }),
 ])
 
 cleanup()
+process.exit(0)
