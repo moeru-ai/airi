@@ -84,12 +84,12 @@ async function fetchRegenerationStatus() {
   }
 }
 
-// === NEW LLM CONFIGURATION SETTINGS (Set explicit defaults for XsaiLLMProvider stability) ===
+// === LLM CONFIGURATION SETTINGS (Set explicit defaults for XsaiLLMProvider stability) ===
 const llmProvider = useLocalStorage('settings/memory/llm-provider', 'openai')
 const llmModel = useLocalStorage('settings/memory/llm-model', 'gpt-4-turbo-preview')
 const llmApiKey = useLocalStorage('settings/memory/llm-api-key', '')
 
-// === NEW EMBEDDING CONFIGURATION SETTINGS ===
+// === EMBEDDING CONFIGURATION SETTINGS ===
 // These are the "committed" settings that persist
 const embeddingProvider = useLocalStorage('settings/memory/embedding-provider', 'openai')
 const embeddingModel = useLocalStorage('settings/memory/embedding-model', 'text-embedding-3-small')
@@ -207,10 +207,13 @@ watch([
       || tempEmbeddingDim.value !== embeddingDim.value
       || tempEmbeddingApiKey.value !== embeddingApiKey.value
 
+  const tempLlmProvider = llmProvider.value
+  const tempLlmModel = llmModel.value
+  const tempLlmApiKey = llmApiKey.value
   const hasLLMChanges
-    = llmProvider.value !== useLocalStorage('settings/memory/llm-provider', 'openai').value
-      || llmModel.value !== useLocalStorage('settings/memory/llm-model', 'gpt-4-turbo-preview').value
-      || llmApiKey.value !== useLocalStorage('settings/memory/llm-api-key', '').value
+    = tempLlmProvider.value !== useLocalStorage('settings/memory/llm-provider', 'openai').value
+      || tempLlmModel.value !== useLocalStorage('settings/memory/llm-model', 'gpt-4-turbo-preview').value
+      || tempLlmApiKey.value !== useLocalStorage('settings/memory/llm-api-key', '').value
 
   settingsChanged.value = hasEmbeddingChanges || hasLLMChanges
   showRegenerationWarning.value = hasEmbeddingChanges
