@@ -217,6 +217,10 @@ export const usePipelineWorkflowTextSegmentationStore = defineStore('pipelines:w
     onTextSegmentedHooks.value.push(hook)
   }
 
+  function clearHooks() {
+    onTextSegmentedHooks.value = []
+  }
+
   const textSegmentationQueue = ref(invoke(() => {
     const textSegmentationStream = ref()
     const textSegmentationStreamController = ref<ReadableStreamDefaultController<Uint8Array>>()
@@ -244,6 +248,7 @@ export const usePipelineWorkflowTextSegmentationStore = defineStore('pipelines:w
 
   return {
     onTextSegmented,
+    clearHooks,
 
     textSegmentationQueue,
   }

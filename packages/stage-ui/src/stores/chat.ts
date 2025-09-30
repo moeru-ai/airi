@@ -66,6 +66,17 @@ export const useChatStore = defineStore('chat', () => {
     onAssistantResponseEndHooks.value.push(cb)
   }
 
+  function clearHooks() {
+    onBeforeMessageComposedHooks.value = []
+    onAfterMessageComposedHooks.value = []
+    onBeforeSendHooks.value = []
+    onAfterSendHooks.value = []
+    onTokenLiteralHooks.value = []
+    onTokenSpecialHooks.value = []
+    onStreamEndHooks.value = []
+    onAssistantResponseEndHooks.value = []
+  }
+
   // I know this nu uh, better than loading all language on rehypeShiki
   const codeBlockSystemPrompt = '- For any programming code block, always specify the programming language that supported on @shikijs/rehype on the rendered markdown, eg. ```python ... ```\n'
   const mathSyntaxSystemPrompt = '- For any math equation, use LaTeX format, eg: $ x^3 $, always escape dollar sign outside math equation\n'
@@ -268,6 +279,7 @@ export const useChatStore = defineStore('chat', () => {
 
     send,
     cleanupMessages,
+    clearHooks,
 
     onBeforeMessageComposed,
     onAfterMessageComposed,
