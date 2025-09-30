@@ -7,7 +7,7 @@ export const rekaDescription
   = 'An open-source attempt to re-create Neuro-sama, the most famous AI VTuber on this earth, but also forming a cyber companion for everyone.'
 
 /* vitepress head */
-export const ogUrl = 'https://airi.moeru.ai/'
+export const ogUrl = 'https://airi.moeru.ai/docs/'
 export const ogImage = `${ogUrl}og.jpg`
 
 /* GitHub and social links */

@@ -78,7 +78,9 @@ export default defineConfig({
   ],
   base: env.BASE_URL || '/',
   lastUpdated: true,
-  sitemap: { hostname: ogUrl },
+  sitemap: {
+    hostname: ogUrl,
+  },
   locales: {
     'root': {
       label: 'English',
