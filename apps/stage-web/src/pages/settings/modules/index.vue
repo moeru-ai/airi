@@ -1,121 +1,12 @@
 <script setup lang="ts">
 import { IconStatusItem } from '@proj-airi/stage-ui/components'
-import { useBeatSyncStore } from '@proj-airi/stage-ui/stores/beat-sync'
-import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
-import { useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
-import { computed } from 'vue'
-import { useI18n } from 'vue-i18n'
+import { useModulesList } from '@proj-airi/stage-ui/composables/use-modules-list'
 
 import IconAnimation from '../../../components/IconAnimation.vue'
 
 import { useIconAnimation } from '../../../composables/icon-animation'
 
-const { t } = useI18n()
-
-interface Module {
-  id: string
-  name: string
-  description: string
-  icon?: string
-  iconColor?: string
-  iconImage?: string
-  to: string
-  configured: boolean
-}
-
-const beatSyncStore = useBeatSyncStore()
-
-// TODO: categorize modules, such as essential, messaging, gaming, etc.
-const modulesList = computed<Module[]>(() => [
-  {
-    id: 'consciousness',
-    name: t('settings.pages.modules.consciousness.title'),
-    description: t('settings.pages.modules.consciousness.description'),
-    icon: 'i-solar:ghost-bold-duotone',
-    to: '/settings/modules/consciousness',
-    configured: useConsciousnessStore().configured,
-  },
-  {
-    id: 'speech',
-    name: t('settings.pages.modules.speech.title'),
-    description: t('settings.pages.modules.speech.description'),
-    icon: 'i-solar:user-speak-rounded-bold-duotone',
-    to: '/settings/modules/speech',
-    configured: useSpeechStore().configured,
-  },
-  {
-    id: 'hearing',
-    name: t('settings.pages.modules.hearing.title'),
-    description: t('settings.pages.modules.hearing.description'),
-    icon: 'i-solar:microphone-3-bold-duotone',
-    to: '/settings/modules/hearing',
-    configured: false,
-  },
-  {
-    id: 'vision',
-    name: t('settings.pages.modules.vision.title'),
-    description: t('settings.pages.modules.vision.description'),
-    icon: 'i-solar:eye-closed-bold-duotone',
-    to: '',
-    configured: false,
-  },
-  {
-    id: 'memory-short-term',
-    name: t('settings.pages.modules.memory-short-term.title'),
-    description: t('settings.pages.modules.memory-short-term.description'),
-    icon: 'i-solar:bookmark-bold-duotone',
-    to: '/settings/modules/memory-short-term',
-    configured: false,
-  },
-  {
-    id: 'memory-long-term',
-    name: t('settings.pages.modules.memory-long-term.title'),
-    description: t('settings.pages.modules.memory-long-term.description'),
-    icon: 'i-solar:book-bookmark-bold-duotone',
-    to: '/settings/modules/memory-long-term',
-    configured: false,
-  },
-  {
-    id: 'messaging-discord',
-    name: t('settings.pages.modules.messaging-discord.title'),
-    description: t('settings.pages.modules.messaging-discord.description'),
-    icon: 'i-simple-icons:discord',
-    to: '',
-    configured: false,
-  },
-  {
-    id: 'x',
-    name: t('settings.pages.modules.x.title'),
-    description: t('settings.pages.modules.x.description'),
-    icon: 'i-simple-icons:x',
-    to: '',
-    configured: false,
-  },
-  {
-    id: 'game-minecraft',
-    name: t('settings.pages.modules.gaming-minecraft.title'),
-    description: t('settings.pages.modules.gaming-minecraft.description'),
-    iconColor: 'i-vscode-icons:file-type-minecraft',
-    to: '',
-    configured: false,
-  },
-  {
-    id: 'game-factorio',
-    name: t('settings.pages.modules.gaming-factorio.title'),
-    description: t('settings.pages.modules.gaming-factorio.description'),
-    iconImage: '',
-    to: '',
-    configured: false,
-  },
-  {
-    id: 'beat-sync',
-    name: t('settings.pages.modules.beat_sync.title'),
-    description: t('settings.pages.modules.beat_sync.description'),
-    icon: 'i-solar:music-notes-bold-duotone',
-    to: '/settings/modules/beat-sync',
-    configured: beatSyncStore.isActive,
-  },
-])
+const { modulesList } = useModulesList()
 
 const {
   iconAnimationStarted,

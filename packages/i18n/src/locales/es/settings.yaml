@@ -1,3 +1,6 @@
+common:
+  save: Guardar
+
 animations:
   stage-transitions:
     title: Desactivar Transiciones del Escenario
@@ -190,9 +193,31 @@ pages:
     gaming-factorio:
       description: ¡Jugando Factorio!
       title: Factorio
+      enable: Habilitar integración con Factorio
+      enable-description: Permitir que AIRI interactúe con el juego Factorio
+      server-address: Dirección del servidor
+      server-address-description: La dirección IP o nombre de host del servidor de Factorio
+      server-address-placeholder: Ingrese la dirección del servidor (por ejemplo, localhost o 192.168.1.100)
+      server-port: Puerto del servidor
+      server-port-description: El número de puerto del servidor de Factorio (por defecto 34197)
+      username: Nombre de usuario
+      username-description: Su nombre de usuario en el servidor de Factorio
+      username-placeholder: Ingrese su nombre de usuario de Factorio
+      configured: ¡Factorio está configurado correctamente!
     gaming-minecraft:
       description: ¡Jugando Minecraft!
       title: Minecraft
+      enable: Habilitar integración con Minecraft
+      enable-description: Permitir que AIRI interactúe con el juego Minecraft
+      server-address: Dirección del servidor
+      server-address-description: La dirección IP o nombre de host del servidor de Minecraft
+      server-address-placeholder: Ingrese la dirección del servidor (por ejemplo, localhost o play.ejemplo.com)
+      server-port: Puerto del servidor
+      server-port-description: El número de puerto del servidor de Minecraft (por defecto 25565)
+      username: Nombre de usuario
+      username-description: Su nombre de usuario en el servidor de Minecraft
+      username-placeholder: Ingrese su nombre de usuario de Minecraft
+      configured: ¡Minecraft está configurado correctamente!
     hearing:
       description: Configurar cómo funciona el reconocimiento de voz
       title: Audición
@@ -205,6 +230,12 @@ pages:
     messaging-discord:
       description: Chat y chat de voz por Discord
       title: Discord
+      enable: Habilitar integración con Discord
+      enable-description: Permitir que AIRI interactúe a través de Discord
+      token: Token del bot
+      token-description: Su token de bot de Discord
+      token-placeholder: Ingrese su token de bot de Discord
+      configured: ¡Discord está configurado correctamente!
     speech:
       description: Síntesis de voz
       sections:
@@ -246,6 +277,21 @@ pages:
     x:
       description: Navegación y uso de X / Twitter
       title: X / Twitter
+      enable: Habilitar integración con X / Twitter
+      enable-description: Permitir que AIRI interactúe con X / Twitter
+      api-key: Clave API
+      api-key-description: Su clave API de X / Twitter
+      api-key-placeholder: Ingrese su clave API de X / Twitter
+      api-secret: Secreto API
+      api-secret-description: Su secreto API de X / Twitter
+      api-secret-placeholder: Ingrese su secreto API de X / Twitter
+      access-token: Token de acceso
+      access-token-description: Su token de acceso de X / Twitter
+      access-token-placeholder: Ingrese su token de acceso de X / Twitter
+      access-token-secret: Secreto de token de acceso
+      access-token-secret-description: Su secreto de token de acceso de X / Twitter
+      access-token-secret-placeholder: Ingrese su secreto de token de acceso de X / Twitter
+      configured: ¡X / Twitter está configurado correctamente!
     mcp-server:
       description: Conectar y gestionar servidor MCP y herramientas
       title: Servidor MCP
