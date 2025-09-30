@@ -32,7 +32,7 @@ export class XsaiEmbeddingProvider implements EmbeddingProvider {
         : this.provider === 'gemini'
           ? { outputDimensionality: dimensions }
           : { dimensions } // assuimg as openai compatible
-    const { embeddings } = await embedMany({
+    const { embedding } = await embed({
       apiKey: this.apiKey,
       baseURL: this.baseUrl,
       input: text,
