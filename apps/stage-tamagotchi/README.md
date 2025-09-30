@@ -12,17 +12,15 @@ $ pnpm install
 
 ### Development
 
+Run from the project root:
+
 ```bash
-$ cd /apps/stage
 $ pnpm dev:tamagotchi
 ```
 
-Then open another terminal and run:
+This automatically starts both the WebSocket server and the Tamagotchi app.
 
-```bash
-$ cd /apps/tamagotchi
-$ pnpm dev:tamagotchi
-```
+> **Note:** The Tamagotchi app requires the WebSocket server (`@proj-airi/server-runtime`) running on port 6121. The `dev:tamagotchi` command handles this automatically. If you need to run components separately for debugging, use `pnpm dev:server` and `pnpm dev:tamagotchi:app-only`.
 
 ### Build
 
