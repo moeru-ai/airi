@@ -88,6 +88,7 @@ export function buildOpenAICompatibleProvider(
           // Also try transcription endpoints for speech recognition servers
           let responseTranscription = null
           try {
+            // Sending empty FormData is fine; 400 still counts as a valid endpoint
             responseTranscription = await fetch(`${config.baseUrl as string}audio/transcriptions`, { headers: { Authorization: `Bearer ${config.apiKey}`, ...additionalHeaders }, method: 'POST', body: new FormData() })
           }
           catch {
