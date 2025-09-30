@@ -40,10 +40,6 @@ export class XsaiEmbeddingProvider implements EmbeddingProvider {
       dimensionOptions,
     })
 
-    if (!embeddings || embeddings.length === 0) {
-      throw new Error('Failed to generate embedding: API returned no results.')
-    }
-
-    return embeddings[0]
+    return embedding
   }
 }
