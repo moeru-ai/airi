@@ -1,6 +1,6 @@
 import type { EmbeddingProvider } from './base'
 
-import { embedMany } from '@xsai/embed'
+import { embed } from '@xsai/embed'
 
 export class XsaiEmbeddingProvider implements EmbeddingProvider {
   private apiKey: string = ''
