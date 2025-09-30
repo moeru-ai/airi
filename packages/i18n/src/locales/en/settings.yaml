@@ -165,6 +165,49 @@ pages:
           description: Configure 3D VRM models and settings
         scene: Scene
   modules:
+    beat_sync:
+      description: Vibe with beats from the audio source
+      title: Beat Sync
+      sections:
+        audio_source:
+          actions:
+            start_screen_capture: Start screen capture
+            stop: Stop
+          description: Select an audio source to detect beats from.
+          title: Audio source
+        beat_visualizer:
+          title: Beat visualizer
+        parameters:
+          advanced_parameters: Advanced Parameters
+          description: Tweak the beat detection parameters.
+          title: Parameters
+          parameters:
+            adaptive_threshold:
+              description: Whether to apply adaptive thresholds based on signal variance over time.
+              label: Adaptive threshold
+            buffer_duration:
+              description: Duration of the internal analysis buffer.
+              label: Buffer duration
+            envelope_filter_frequency:
+              description: Frequency for the envelope filter applied to smooth energy changes.
+              label: Envelope filter frequency
+            highpass_filter_frequency:
+              description: Frequency for the highpass filter applied to reduce low frequencies like sub-bass noises.
+              label: Highpass filter frequency
+            lowpass_filter_frequency:
+              description: Frequency for the lowpass filter applied to reduce high frequencies like vocals.
+              label: Lowpass filter frequency
+            min_beat_interval:
+              description: Maximum BPM or minimum interval between detected beats.
+              label: Max BPM / Min beat interval
+            sensitivity:
+              label: Sensitivity
+            spectral_flux:
+              description: Whether to enable spectral flux-based onset detection.
+              label: Spectral flux
+            warmup:
+              description: Whether to warm up before detecting beats for better accuracy.
+              label: Warmup
     consciousness:
       description: Personality, desired model, etc.
       sections:

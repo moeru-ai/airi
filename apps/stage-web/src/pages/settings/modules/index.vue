@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { IconStatusItem } from '@proj-airi/stage-ui/components'
+import { useBeatSyncStore } from '@proj-airi/stage-ui/stores/beat-sync'
 import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
 import { useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
 import { computed } from 'vue'
@@ -21,6 +22,8 @@ interface Module {
   to: string
   configured: boolean
 }
+
+const beatSyncStore = useBeatSyncStore()
 
 // TODO: categorize modules, such as essential, messaging, gaming, etc.
 const modulesList = computed<Module[]>(() => [
@@ -103,6 +106,14 @@ const modulesList = computed<Module[]>(() => [
     iconImage: '',
     to: '',
     configured: false,
+  },
+  {
+    id: 'beat-sync',
+    name: t('settings.pages.modules.beat_sync.title'),
+    description: t('settings.pages.modules.beat_sync.description'),
+    icon: 'i-solar:music-notes-bold-duotone',
+    to: '/settings/modules/beat-sync',
+    configured: beatSyncStore.isActive,
   },
 ])
 
