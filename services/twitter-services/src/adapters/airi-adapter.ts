@@ -128,6 +128,92 @@ export class AiriAdapter {
     })
   }
 
+  private async handlePostTweet(content: string): Promise<void> {
+    if (content) {
+      await this.twitterServices.tweet.postTweet(content)
+      logger.main.log('Posted tweet:', content)
+    }
+    else {
+      throw new Error('Tweet text is empty. Please provide text to post.')
+    }
+  }
+
+  private async handleSearchTweets(content: string): Promise<boolean> {
+    if (content) {
+      const tweets = await this.twitterServices.tweet.searchTweets(content)
+      logger.main.log(`Found ${tweets.length} tweets for query: ${content}`)
+      // Return results to the user
+      this.client.send({
+        type: 'input:text',
+        data: {
+          text: `Found ${tweets.length} tweets for '${content}':
+${tweets.slice(0, 5).map((t: Tweet) => `- ${t.text.substring(0, 100)}...`).join('\n')}`,
+        },
+      })
+      return true
+    }
+    else {
+      throw new Error('Search query is empty. Please provide a query to search.')
+    }
+  }
+
+  private async handleLikeTweet(content: string): Promise<void> {
+    if (content) {
+      await this.twitterServices.tweet.likeTweet(content)
+      logger.main.log(`Liked tweet: ${content}`)
+    }
+    else {
+      throw new Error('Tweet ID is empty. Please provide a tweet ID to like.')
+    }
+  }
+
+  private async handleRetweet(content: string): Promise<void> {
+    if (content) {
+      await this.twitterServices.tweet.retweet(content)
+      logger.main.log(`Retweeted: ${content}`)
+    }
+    else {
+      throw new Error('Tweet ID is empty. Please provide a tweet ID to retweet.')
+    }
+  }
+
+  private async handleGetUser(content: string): Promise<boolean> {
+    if (content) {
+      const userProfile = await this.twitterServices.user.getUserProfile(content)
+      logger.main.log(`Retrieved profile for user: @${content}`)
+      // Return user info to the user
+      this.client.send({
+        type: 'input:text',
+        data: {
+          text: `User Profile for @${userProfile.username}:
+Display Name: ${userProfile.displayName}
+Bio: ${userProfile.bio || 'N/A'}
+Followers: ${userProfile.followersCount || 0}
+Following: ${userProfile.followingCount || 0}`,
+        },
+      })
+      return true
+    }
+    else {
+      throw new Error('Username is empty. Please provide a username to retrieve.')
+    }
+  }
+
+  private async handleGetTimeline(count: number): Promise<boolean> {
+    const timelineOptions = { count }
+    const tweets = await this.twitterServices.timeline.getTimeline(timelineOptions)
+    logger.main.log(`Retrieved ${tweets.length} tweets from timeline`)
+    // Return timeline to the user
+    this.client.send({
+      type: 'input:text',
+      data: {
+        text: `Latest ${tweets.length} tweets from your timeline:
+${tweets.map((t: Tweet) => `- ${t.author.displayName}: ${t.text.substring(0, 80)}...`).join('\n')}`,
+      },
+    })
+    return true
+  }
+
   private async handleInput(input: string): Promise<void> {
     let responseSent = false
     try {
@@ -144,91 +230,28 @@ export class AiriAdapter {
       // Execute the appropriate command handler based on the parsed command
       switch (parsedCommand.command) {
         case 'post tweet':
-          if (parsedCommand.content) {
-            await this.twitterServices.tweet.postTweet(parsedCommand.content)
-            logger.main.log('Posted tweet:', parsedCommand.content)
-          }
-          else {
-            throw new Error('Tweet text is empty. Please provide text to post.')
-          }
+          await this.handlePostTweet(parsedCommand.content)
           break
 
         case 'search tweets':
-          if (parsedCommand.content) {
-            const tweets = await this.twitterServices.tweet.searchTweets(parsedCommand.content)
-            logger.main.log(`Found ${tweets.length} tweets for query: ${parsedCommand.content}`)
-            // Return results to the user
-            this.client.send({
-              type: 'input:text',
-              data: {
-                text: `Found ${tweets.length} tweets for '${parsedCommand.content}':
-${tweets.slice(0, 5).map((t: Tweet) => `- ${t.text.substring(0, 100)}...`).join('\n')}`,
-              },
-            })
-            responseSent = true
-          }
-          else {
-            throw new Error('Search query is empty. Please provide a query to search.')
-          }
+          responseSent = await this.handleSearchTweets(parsedCommand.content)
           break
 
         case 'like tweet':
-          if (parsedCommand.content) {
-            await this.twitterServices.tweet.likeTweet(parsedCommand.content)
-            logger.main.log(`Liked tweet: ${parsedCommand.content}`)
-          }
-          else {
-            throw new Error('Tweet ID is empty. Please provide a tweet ID to like.')
-          }
+          await this.handleLikeTweet(parsedCommand.content)
           break
 
         case 'retweet':
-          if (parsedCommand.content) {
-            await this.twitterServices.tweet.retweet(parsedCommand.content)
-            logger.main.log(`Retweeted: ${parsedCommand.content}`)
-          }
-          else {
-            throw new Error('Tweet ID is empty. Please provide a tweet ID to retweet.')
-          }
+          await this.handleRetweet(parsedCommand.content)
           break
 
         case 'get user':
-          if (parsedCommand.content) {
-            const userProfile = await this.twitterServices.user.getUserProfile(parsedCommand.content)
-            logger.main.log(`Retrieved profile for user: @${parsedCommand.content}`)
-            // Return user info to the user
-            this.client.send({
-              type: 'input:text',
-              data: {
-                text: `User Profile for @${userProfile.username}:
-Display Name: ${userProfile.displayName}
-Bio: ${userProfile.bio || 'N/A'}
-Followers: ${userProfile.followersCount || 0}
-Following: ${userProfile.followingCount || 0}`,
-              },
-            })
-            responseSent = true
-          }
-          else {
-            throw new Error('Username is empty. Please provide a username to retrieve.')
-          }
+          responseSent = await this.handleGetUser(parsedCommand.content)
           break
 
         case 'get timeline':
-        // Handle "get timeline" command with the parsed count parameter
-        { const timelineOptions = { count: parsedCommand.count }
-          const tweets = await this.twitterServices.timeline.getTimeline(timelineOptions)
-          logger.main.log(`Retrieved ${tweets.length} tweets from timeline`)
-          // Return timeline to the user
-          this.client.send({
-            type: 'input:text',
-            data: {
-              text: `Latest ${tweets.length} tweets from your timeline:
-${tweets.map((t: Tweet) => `- ${t.author.displayName}: ${t.text.substring(0, 80)}...`).join('\n')}`,
-            },
-          })
-          responseSent = true
-          break }
+          responseSent = await this.handleGetTimeline(parsedCommand.count || 10)
+          break
 
         default:
           // This should not happen if parseTwitterCommand is working correctly
