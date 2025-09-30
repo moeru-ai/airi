@@ -1,15 +1,28 @@
+import type { WebSocket as ElysiaWebSocket } from 'ws'
+
 import type { SettingsService } from '../services/settings'
 
-import { WebSocket } from 'ws'
+export const localRegenerationClients = new Set<ElysiaWebSocket>()
 
-// Track WebSocket clients interested in regeneration status
-export const regenerationClients = new Set<WebSocket>()
+export interface ConnectionPublisher {
+  publish: (topic: string, data: any) => Promise<void>
+}
+
+export const wsPublisher: ConnectionPublisher = {
+  async publish(topic: string, message: any): Promise<void> {
+    for (const client of localRegenerationClients) {
+      if (client.readyState === client.OPEN) {
+        client.send(message)
+      }
+    }
+  },
+}
 
 // Helper to broadcast regeneration status
-export async function broadcastRegenerationStatus(settingsService: SettingsService) {
-  if (regenerationClients.size === 0)
-    return
-
+export async function broadcastRegenerationStatus(
+  publisher: ConnectionPublisher,
+  settingsService: SettingsService,
+) {
   try {
     const settings = await settingsService.getSettings()
     const status = {
@@ -32,11 +45,8 @@ export async function broadcastRegenerationStatus(settingsService: SettingsServi
     }
 
     const message = JSON.stringify(status)
-    for (const client of regenerationClients) {
-      if (client.readyState === WebSocket.OPEN) {
-        client.send(message)
-      }
-    }
+    const topic = 'regeneration_status'
+    await publisher.publish(topic, message)
   }
   catch (error) {
     console.error('Failed to broadcast regeneration status:', error)

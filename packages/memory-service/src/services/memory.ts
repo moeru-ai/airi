@@ -18,7 +18,7 @@ import {
   memoryFragmentsTable,
   memoryShortTermIdeasTable,
 } from '../db/schema'
-import { broadcastRegenerationStatus } from '../utils/broadcast'
+import { broadcastRegenerationStatus, wsPublisher } from '../utils/broadcast'
 import { ContextBuilder } from './context-builder'
 import { EmbeddingProviderFactory } from './embedding-providers/factory'
 import { SettingsService } from './settings'
@@ -100,7 +100,7 @@ export class MemoryService {
 
     // Broadcast status update
     // TODO [lucas-oma]: might remove this:
-    await broadcastRegenerationStatus(this.settingsService)
+    await broadcastRegenerationStatus(wsPublisher, this.settingsService)
   }
 
   private async processBatch<T extends { id: string, content: string }>(

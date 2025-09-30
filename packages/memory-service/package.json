@@ -3,9 +3,7 @@
   "type": "module",
   "version": "0.7.2-beta.3",
   "description": "Centralized memory service for AIRI with PostgreSQL + pgvector",
-  "author": {
-    "name": "lucas-oma"
-  },
+  "author": ["lucas-oma", "gg582"],
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -20,7 +18,6 @@
     "@electric-sql/pglite": "^0.3.9",
     "@electric-sql/pglite-tools": "^0.2.15",
     "@elysiajs/cors": "^1.4.0",
-    "@google/generative-ai": "^0.21.0",
     "@guiiai/logg": "^1.0.10",
     "@moeru/std": "catalog:",
     "@opentelemetry/api": "^1.9.0",
@@ -41,14 +38,8 @@
     "dotenv": "^17.2.1",
     "drizzle-orm": "^0.44.5",
     "elysia": "^1.4.9",
-    "helmet": "^8.0.0",
-    "multer": "^2.0.2",
-    "openai": "^4.28.0",
     "pg": "^8.16.3",
-    "uuid": "^11.1.0",
-    "valibot": "1.0.0-beta.9",
-    "ws": "^8.18.0",
-    "zod": "^3.23.8"
+    "uuid": "^11.1.0"
   },
   "devDependencies": {
     "@types/cors": "^2.8.17",
