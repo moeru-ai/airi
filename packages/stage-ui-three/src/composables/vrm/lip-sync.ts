@@ -1,6 +1,5 @@
-// Lilia: I haven't figure out the way to do this part, so just keep it in stage-ui package for now
-
 import type { VRMCore } from '@pixiv/three-vrm-core'
+import type { Ref } from 'vue'
 import type { Profile } from 'wlipsync'
 
 import { useAsyncState } from '@vueuse/core'
@@ -9,9 +8,9 @@ import { createWLipSyncNode } from 'wlipsync'
 
 import profile from '../../assets/lip-sync-profile.json' with { type: 'json' }
 
-import { useAudioContext } from '../../stores/audio'
+import { useAudioContext } from '../../../../stage-ui/src/stores/audio'
 
-export function useVRMLipSync(audioNode: AudioNode) {
+export function useVRMLipSync(audioNode: Ref<AudioBufferSourceNode | undefined, AudioBufferSourceNode | undefined>) {
   const { audioContext } = useAudioContext()
   const { state: lipSyncNode, isReady } = useAsyncState(createWLipSyncNode(audioContext, profile as Profile), undefined)
 
@@ -24,10 +23,16 @@ export function useVRMLipSync(audioNode: AudioNode) {
     U: 'ou',
   }
 
-  watch(isReady, () => isReady.value && audioNode.connect(lipSyncNode.value!))
-  onUnmounted(() => audioNode.disconnect())
+  watch([isReady, audioNode], ([ready, newAudioNode], [, oldAudioNode]) => {
+    if (oldAudioNode)
+      oldAudioNode.disconnect()
 
-  function update(vrm: VRMCore | undefined) {
+    if (ready && newAudioNode)
+      newAudioNode.connect(lipSyncNode.value!)
+  }, { immediate: true })
+  onUnmounted(() => audioNode.value?.disconnect())
+
+  function update(vrm?: VRMCore) {
     if (!vrm?.expressionManager || !lipSyncNode.value)
       return
 

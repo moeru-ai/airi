@@ -32,7 +32,8 @@
     "pinia": "^3.0.3",
     "postprocessing": "^6.37.8",
     "three": "^0.180.0",
-    "vue": "^3.5.22"
+    "vue": "^3.5.22",
+    "wlipsync": "^1.2.1"
   },
   "devDependencies": {
     "@types/culori": "^4.0.1",

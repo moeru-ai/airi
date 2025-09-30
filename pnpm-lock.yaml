@@ -1882,9 +1882,6 @@ importers:
       vue-tsc:
         specifier: ^3.0.8
         version: 3.0.8(typescript@5.9.2)
-      wlipsync:
-        specifier: ^1.2.1
-        version: 1.2.1
       xast-util-to-xml:
         specifier: ^4.0.0
         version: 4.0.0
@@ -2033,6 +2030,9 @@ importers:
       vue:
         specifier: ^3.5.22
         version: 3.5.22(typescript@5.9.2)
+      wlipsync:
+        specifier: ^1.2.1
+        version: 1.2.1
     devDependencies:
       '@types/culori':
         specifier: ^4.0.1
@@ -8669,6 +8669,7 @@ packages:
   '@vue-macros/define-props@4.0.6':
     resolution: {integrity: sha512-cfFg84z9/qa0HNpkubERQOcBBkLo2Y9RpI8BXq/tl4gceuR6++ycIgqZZMSxoaLdet0VnDv+CMRz3yHGVSClKw==}
     engines: {node: '>=16.14.0'}
+    deprecated: Use v3
     peerDependencies:
       '@vue-macros/reactivity-transform': ^1.1.6
       vue: ^2.7.0 || ^3.2.25

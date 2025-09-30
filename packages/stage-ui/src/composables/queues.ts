@@ -116,7 +116,7 @@ export const usePipelineCharacterSpeechPlaybackQueueStore = defineStore('pipelin
     onPlaybackFinishedHooks.value.push(hook)
   }
 
-  let currentAudioSource: AudioBufferSourceNode | null = null
+  const currentAudioSource = ref<AudioBufferSourceNode>()
 
   const audioContext = ref<AudioContext>()
   const audioAnalyser = ref<AnalyserNode>()
@@ -132,11 +132,11 @@ export const usePipelineCharacterSpeechPlaybackQueueStore = defineStore('pipelin
   function clearPlaying() {
     if (currentAudioSource) {
       try {
-        currentAudioSource.stop()
-        currentAudioSource.disconnect()
+        currentAudioSource.value?.stop()
+        currentAudioSource.value?.disconnect()
       }
       catch {}
-      currentAudioSource = null
+      currentAudioSource.value = undefined
     }
   }
 
@@ -166,14 +166,14 @@ export const usePipelineCharacterSpeechPlaybackQueueStore = defineStore('pipelin
               hook()
             }
 
-            currentAudioSource = source
+            currentAudioSource.value = source
             source.start(0)
             source.onended = () => {
               for (const hook of onPlaybackFinishedHooks.value) {
                 hook()
               }
-              if (currentAudioSource === source) {
-                currentAudioSource = null
+              if (currentAudioSource.value === source) {
+                currentAudioSource.value = undefined
               }
 
               resolve()
@@ -203,6 +203,7 @@ export const usePipelineCharacterSpeechPlaybackQueueStore = defineStore('pipelin
     clearQueue,
     clearAll,
 
+    currentAudioSource,
     playbackQueue,
   }
 })
@@ -214,6 +215,10 @@ export const usePipelineWorkflowTextSegmentationStore = defineStore('pipelines:w
   // Hooks registers
   function onTextSegmented(hook: (segment: string) => Promise<void> | void) {
     onTextSegmentedHooks.value.push(hook)
+  }
+
+  function clearHooks() {
+    onTextSegmentedHooks.value = []
   }
 
   const textSegmentationQueue = ref(invoke(() => {
@@ -243,6 +248,7 @@ export const usePipelineWorkflowTextSegmentationStore = defineStore('pipelines:w
 
   return {
     onTextSegmented,
+    clearHooks,
 
     textSegmentationQueue,
   }

@@ -35,6 +35,7 @@ import { SkyBox } from './Environment'
 import { VRMModel } from './Model'
 
 const props = withDefaults(defineProps<{
+  currentAudioSource?: AudioBufferSourceNode
   modelSrc?: string
   skyBoxSrc?: string
   showAxes?: boolean
@@ -332,6 +333,7 @@ defineExpose({
       <VRMModel
         ref="modelRef"
 
+        :current-audio-source="props.currentAudioSource"
         :model-src="props.modelSrc"
         :last-model-src="lastModelSrc"
         :idle-animation="props.idleAnimation"
