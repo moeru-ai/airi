@@ -1657,9 +1657,6 @@ importers:
       elysia:
         specifier: ^1.4.9
         version: 1.4.9(@sinclair/typebox@0.34.41)(exact-mirror@0.2.2(@sinclair/typebox@0.34.41))(openapi-types@12.1.3)(typescript@5.9.2)
-      embedded-postgres:
-        specifier: 17.6.0-beta.15
-        version: 17.6.0-beta.15
       helmet:
         specifier: ^8.0.0
         version: 8.1.0
@@ -3676,54 +3673,6 @@ packages:
     resolution: {integrity: sha512-pb0SCzBfFbFSYA/U40HHO7R+YrcXBJXOWgL20eSViK33ol1e20ru2/KUaZYo5IMUn63yaTJI/bQERuQ+77ND8g==}
     peerDependencies:
       elysia: '>= 1.4.0'
-
-  '@embedded-postgres/darwin-arm64@17.6.0-beta.15':
-    resolution: {integrity: sha512-6qadBAn0/b1iccZISh0ZPaI3FpHlChSrLr0wMlonBUCJyTIJth7l9XZZd2eNlJixnbQU4LMVea+7d/YGFgGg9w==}
-    engines: {node: '>=16'}
-    cpu: [arm64]
-    os: [darwin]
-
-  '@embedded-postgres/darwin-x64@17.6.0-beta.15':
-    resolution: {integrity: sha512-8IbShoPZNPnfWg+JMr1betXseUX4vYK7kc9i3VQo8sA6LovLlmNq6kxavnE3FuRqZiRSr5l/zvPqRT+u9x3cMQ==}
-    engines: {node: '>=16'}
-    cpu: [x64]
-    os: [darwin]
-
-  '@embedded-postgres/linux-arm64@17.6.0-beta.15':
-    resolution: {integrity: sha512-L4xWiBeiRoltG3UeiKZn5EWrNoqoHq6evBJlWk176AhB89QThfGfDndNyRrSwB22aHfPP4t1LXs7qQUmG1TVVA==}
-    engines: {node: '>=16'}
-    cpu: [arm64]
-    os: [linux]
-
-  '@embedded-postgres/linux-arm@17.6.0-beta.15':
-    resolution: {integrity: sha512-XsAquOJqouyc/HpMSrmV4n/X6ILJ7RtPBv70Hb8VpltLckDU/GEAvaRSjMD3DmHb4tMcbJRvN9zSRuSBENPiqg==}
-    engines: {node: '>=16'}
-    cpu: [arm]
-    os: [linux]
-
-  '@embedded-postgres/linux-ia32@17.6.0-beta.15':
-    resolution: {integrity: sha512-nYsBL6gNYsUH7sc8/V7wTYuFCUjtVfM5jTqyoU6N2+6uD+dTYEDSQE0lUWfLV1kbPaVYKE1rC2RVC4b/9f1ELA==}
-    engines: {node: '>=16'}
-    cpu: [ia32]
-    os: [linux]
-
-  '@embedded-postgres/linux-ppc64@17.6.0-beta.15':
-    resolution: {integrity: sha512-pHDTy9Q/7xh3yywlSl6aqO6yKmCi7QkH3/eLwVbQK+dogPJcxYyIjX4aNb6WELsLPdU+PSulz4mFuP7gDgI7Ag==}
-    engines: {node: '>=16'}
-    cpu: [ppc64]
-    os: [linux]
-
-  '@embedded-postgres/linux-x64@17.6.0-beta.15':
-    resolution: {integrity: sha512-f04/oSB35rc2SB4WbJLvUGeh8eNnnwbsIkLXLf86Bi43vOc7H07Znx1zROwpi08mGkUFmNrpAcXyL4Yu8YRgMw==}
-    engines: {node: '>=16'}
-    cpu: [x64]
-    os: [linux]
-
-  '@embedded-postgres/windows-x64@17.6.0-beta.15':
-    resolution: {integrity: sha512-zzoF/J8NA6cePJPnWcWBti4IXt3347A9zD7ucSHx4ccuS5v/uhip4Cm1Oc+isI8TIjW/jtEL9pKsu6J1upoHSA==}
-    engines: {node: '>=16'}
-    cpu: [x64]
-    os: [win32]
 
   '@emnapi/core@1.5.0':
     resolution: {integrity: sha512-sbP8GzB1WDzacS8fgNPpHlp6C9VZe+SJP3F90W9rLemaQj2PzIuTEl1qDOYQf58YIpyjViI24y9aPWCjEzY2cg==}
@@ -10728,10 +10677,6 @@ packages:
 
   email-addresses@3.1.0:
     resolution: {integrity: sha512-k0/r7GrWVL32kZlGwfPNgB2Y/mMXVTq/decgLczm/j34whdaspNrZO8CnXPf1laaHxI6ptUlsnAxN+UAPw+fzg==}
-
-  embedded-postgres@17.6.0-beta.15:
-    resolution: {integrity: sha512-zF1hy3dxKonsHvVff/Hpmnhy3Ftifx0a3nqun/F17sa0wGgKNpj73yieR6K3VDNUo9jTf1Adg9W1jXEnuDUhyQ==}
-    engines: {node: '>=16'}
 
   emoji-regex@10.3.0:
     resolution: {integrity: sha512-QpLs9D9v9kArv4lfDEgg1X/gN5XLnf/A6l9cs8SPZLRZR3ZkY9+kwIQTxm+fsSej5UMYGE8fdoaZVIBlqG0XTw==}
@@ -18718,30 +18663,6 @@ snapshots:
   '@elysiajs/cors@1.4.0(elysia@1.4.9(@sinclair/typebox@0.34.41)(exact-mirror@0.2.2(@sinclair/typebox@0.34.41))(openapi-types@12.1.3)(typescript@5.9.2))':
     dependencies:
       elysia: 1.4.9(@sinclair/typebox@0.34.41)(exact-mirror@0.2.2(@sinclair/typebox@0.34.41))(openapi-types@12.1.3)(typescript@5.9.2)
-
-  '@embedded-postgres/darwin-arm64@17.6.0-beta.15':
-    optional: true
-
-  '@embedded-postgres/darwin-x64@17.6.0-beta.15':
-    optional: true
-
-  '@embedded-postgres/linux-arm64@17.6.0-beta.15':
-    optional: true
-
-  '@embedded-postgres/linux-arm@17.6.0-beta.15':
-    optional: true
-
-  '@embedded-postgres/linux-ia32@17.6.0-beta.15':
-    optional: true
-
-  '@embedded-postgres/linux-ppc64@17.6.0-beta.15':
-    optional: true
-
-  '@embedded-postgres/linux-x64@17.6.0-beta.15':
-    optional: true
-
-  '@embedded-postgres/windows-x64@17.6.0-beta.15':
-    optional: true
 
   '@emnapi/core@1.5.0':
     dependencies:
@@ -26800,22 +26721,6 @@ snapshots:
       typescript: 5.9.2
 
   email-addresses@3.1.0: {}
-
-  embedded-postgres@17.6.0-beta.15:
-    dependencies:
-      async-exit-hook: 2.0.1
-      pg: 8.16.3
-    optionalDependencies:
-      '@embedded-postgres/darwin-arm64': 17.6.0-beta.15
-      '@embedded-postgres/darwin-x64': 17.6.0-beta.15
-      '@embedded-postgres/linux-arm': 17.6.0-beta.15
-      '@embedded-postgres/linux-arm64': 17.6.0-beta.15
-      '@embedded-postgres/linux-ia32': 17.6.0-beta.15
-      '@embedded-postgres/linux-ppc64': 17.6.0-beta.15
-      '@embedded-postgres/linux-x64': 17.6.0-beta.15
-      '@embedded-postgres/windows-x64': 17.6.0-beta.15
-    transitivePeerDependencies:
-      - pg-native
 
   emoji-regex@10.3.0: {}
 

@@ -2,11 +2,8 @@ import type { Request } from 'express'
 
 import fs from 'node:fs'
 
-import { dirname, resolve } from 'node:path'
+import { resolve } from 'node:path'
 import { cwd, env, exit } from 'node:process'
-import { fileURLToPath } from 'node:url'
-
-import EmbeddedPostgres from 'embedded-postgres'
 
 import { PGlite } from '@electric-sql/pglite'
 import { sql } from 'drizzle-orm'
@@ -23,22 +20,7 @@ let pool: Pool | null
 let dbPg: ReturnType<typeof drizzle> | null
 let lite: PGlite | null
 let dbLite: ReturnType<typeof drizzleLite> | null
-let embeddedPostgres: EmbeddedPostgres | null = null
-// TODO: Toggle boolean value via settings page
-// TODO: Avoid using global scope variable
-let embeddedPostgresEnabled: boolean = false
 let pgLiteEnabled: boolean = false
-
-/**
- * Initialized embedded postgres
- */
-export function isEmbeddedPostgresEnabled() {
-  return embeddedPostgresEnabled
-}
-
-export function setEmbeddedPostgresEnabled(enabled: boolean) {
-  embeddedPostgresEnabled = enabled
-}
 
 /**
  * Initialized PGlite
@@ -67,19 +49,6 @@ export function resolveVariantFromReq(req?: Request): 'pglite' | 'pg' {
   if (hdr === 'pg' || (q.isPglite && !truthy(q.isPglite)))
     return 'pg'
   return isPGliteEnabled() ? 'pglite' : 'pg'
-}
-
-// extend ImportMeta type
-export async function initEmbeddedPostgres() {
-  if (!embeddedPostgres) {
-    const __filename = fileURLToPath(import.meta.url)
-    const __dirname = dirname(__filename)
-    const dataDir = resolve(__dirname, '../../.embedded_pg')
-    env.PGDATA = dataDir
-    embeddedPostgres = new EmbeddedPostgres({ port: 5434 })
-    await embeddedPostgres.start()
-    console.warn('Embedded Postgres started at', env.PG_URL)
-  }
 }
 
 function ensurePgPool(): Pool {
@@ -117,8 +86,6 @@ function ensureLite(): PGlite {
  */
 export async function initPool(): Promise<Pool | PGlite> {
   if (!isPGliteEnabled()) {
-    if (embeddedPostgresEnabled)
-      await initEmbeddedPostgres()
     return ensurePgPool()
   }
   else {
@@ -214,10 +181,5 @@ export async function closeConnections(): Promise<void> {
     lite = null
     dbLite = null
     console.warn('PGlite closed')
-  }
-  if (embeddedPostgresEnabled && embeddedPostgres) {
-    await embeddedPostgres.stop()
-    embeddedPostgres = null
-    console.warn('Embedded postgres stopped')
   }
 }

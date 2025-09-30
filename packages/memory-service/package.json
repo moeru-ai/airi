@@ -41,7 +41,6 @@
     "dotenv": "^17.2.1",
     "drizzle-orm": "^0.44.5",
     "elysia": "^1.4.9",
-    "embedded-postgres": "17.6.0-beta.15",
     "helmet": "^8.0.0",
     "multer": "^2.0.2",
     "openai": "^4.28.0",

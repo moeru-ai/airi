@@ -136,16 +136,6 @@ memoryRouter.post('/export-chathistory', async ({ set, query, headers }) => {
   }
 })
 
-memoryRouter.post('/export-embedded', ({ set, request }) => {
-  const url = new URL(request.url)
-
-  url.pathname = url.pathname.replace(/\/export-embedded$/, '/export-chathistory')
-  url.searchParams.set('isPglite', 'false')
-
-  set.status = 307
-  set.headers.Location = url.toString()
-})
-
 memoryRouter.post('/import-chathistory', async ({ body, set, headers, query }) => {
   const { file } = body as any
   if (!file || !(file instanceof File)) {
