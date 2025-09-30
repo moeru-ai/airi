@@ -110,16 +110,15 @@ await Promise.race([
   new Promise((_resolve) => {
     serverProcess.on('exit', (code) => {
       console.log(`Server process exited with code ${code}`)
+      cleanup()
       process.exit(code || 0)
     })
   }),
   new Promise((_resolve) => {
     tamagotchiProcess.on('exit', (code) => {
       console.log(`Tamagotchi process exited with code ${code}`)
+      cleanup()
       process.exit(code || 0)
     })
   }),
 ])
-
-cleanup()
-process.exit(0)

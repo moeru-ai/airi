@@ -1,12 +1,12 @@
 /**
- * Tests for AiriAdapter command parsing
+ * Tests for command parser
  * These are unit tests to verify the command parsing logic without running the full service
  */
 import { describe, expect, it } from 'vitest'
 
-import { parseTwitterCommand } from './airi-adapter'
+import { parseTwitterCommand } from './command-parser'
 
-describe('airiAdapter Command Parsing', () => {
+describe('command Parser', () => {
   it('should correctly parse post tweet command', () => {
     const result = parseTwitterCommand('post tweet: Hello world')
 

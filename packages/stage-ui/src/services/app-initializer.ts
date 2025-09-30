@@ -1,4 +1,6 @@
-import type { App, Plugin } from 'vue'
+import type { Pinia } from 'pinia'
+import type { App, Component, Plugin } from 'vue'
+import type { I18n } from 'vue-i18n'
 import type { Router } from 'vue-router'
 
 import Tres from '@tresjs/core'
@@ -13,9 +15,9 @@ interface AppInitializationOptions {
   /** Router for the app - must be provided */
   router: Router
   /** Pinia instance for state management */
-  pinia: any
-  /** I18n instance for internationalization */
-  i18n: any
+  pinia: Pinia
+  /** I18n instance for internationalization - using any to maintain compatibility with various locale configurations */
+  i18n: I18n<any, any, any, any, any>
   /** Optional callback to run before mounting the app */
   beforeMountCallback?: () => void | Promise<void>
   /** Callback to run after the app is initialized but before mounting */
@@ -31,7 +33,7 @@ interface AppInitializationOptions {
  * as they are application-specific and cannot be created in the shared module.
  */
 export async function initializeApp(
-  AppComponent: any,
+  AppComponent: Component,
   options: AppInitializationOptions,
 ): Promise<App> {
   const app = createApp(AppComponent)

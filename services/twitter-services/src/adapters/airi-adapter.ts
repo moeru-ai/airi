@@ -15,6 +15,7 @@ import { initBrowser, useContext, useSessionFileAsync } from '../core/browser/co
 import { useTwitterTimelineServices } from '../core/services/timeline'
 import { useTwitterTweetServices } from '../core/services/tweet'
 import { useTwitterUserServices } from '../core/services/user'
+import { parseTwitterCommand } from '../parsers/command-parser'
 import { logger } from '../utils/logger'
 
 export interface AiriAdapterConfig {
@@ -272,9 +273,9 @@ ${tweets.map((t: Tweet) => `- ${t.author.displayName}: ${t.text.substring(0, 80)
       const errorMessage = error instanceof Error ? error.message : String(error)
       logger.main.errorWithError('Error handling input:', error)
       this.client.send({
-        type: 'error',
+        type: 'input:text',
         data: {
-          message: `Error processing X command: ${errorMessage}`,
+          text: `Error processing X command: ${errorMessage}`,
         },
       })
     }
@@ -355,55 +356,6 @@ ${tweets.map((t: Tweet) => `- ${t.author.displayName}: ${t.text.substring(0, 80)
       throw error
     }
   }
-}
-
-// Define a union type for the command parsing result
-export type ParseResult
-  = | { command: 'post tweet', content: string }
-    | { command: 'search tweets', content: string }
-    | { command: 'like tweet', content: string }
-    | { command: 'retweet', content: string }
-    | { command: 'get user', content: string }
-    | { command: 'get timeline', content: string, count: number }
-
-/**
- * Parses a Twitter command from the input string
- * @param input The input string containing the command
- * @returns Parsed command and content, or null if no valid command found
- */
-export function parseTwitterCommand(input: string): ParseResult | null {
-  // Handle commands based on explicit prefixes for better reliability
-  const normalizedInput = input.trim().toLowerCase()
-
-  // Define command patterns
-  const commandPatterns: Array<{ pattern: string, command: string }> = [
-    { pattern: 'post tweet:', command: 'post tweet' },
-    { pattern: 'search tweets:', command: 'search tweets' },
-    { pattern: 'like tweet:', command: 'like tweet' },
-    { pattern: 'retweet:', command: 'retweet' },
-    { pattern: 'get user:', command: 'get user' },
-    { pattern: 'get timeline', command: 'get timeline' },
-  ]
-
-  // Find the matching command pattern
-  for (const { pattern, command } of commandPatterns) {
-    if (normalizedInput.startsWith(pattern)) {
-      // Extract the content after the prefix
-      const content = input.substring(pattern.length).trim()
-
-      // Special handling for 'get timeline' command to extract count parameter
-      if (command === 'get timeline') {
-        const countMatch = content.match(/count:\s*(\d+)/)
-        const count = countMatch ? Number.parseInt(countMatch[1], 10) : 10
-        return { command: command as ParseResult['command'], content, count }
-      }
-
-      return { command: command as Exclude<ParseResult['command'], 'get timeline'>, content }
-    }
-  }
-
-  // No valid command found
-  return null
 }
 
 function isXConfig(config: unknown): config is XConfig {
