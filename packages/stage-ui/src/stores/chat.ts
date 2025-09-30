@@ -104,7 +104,7 @@ export const useChatStore = defineStore('chat', () => {
 
   // Dedupe guard to prevent duplicate storage calls
   const DEDUPE_WINDOW_MS = 100
-  const DEDUPE_STORAGE_KEY = 'airi-chat-last-message'
+const DEDUPE_STORAGE_KEY = 'airi-chat-last-message'
 
   function shouldSkipStorage(message: string): boolean {
     try {
