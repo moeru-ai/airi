@@ -33,7 +33,7 @@ export class XsaiLLMProvider implements LLMProvider {
 
     // Logic to set baseUrl based on the provider (OpenAI and Gemini)
     if (this.provider === 'gemini') {
-      this.baseUrl = 'https://generativelanguage.googleapis.com/v1beta/'
+      this.baseUrl = 'https://generativelanguage.googleapis.com/v1beta/openai'
     }
     else if (this.provider === 'openai') {
       this.baseUrl = 'https://api.openai.com/v1/'

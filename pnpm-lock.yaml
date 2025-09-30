@@ -2346,6 +2346,9 @@ importers:
       openai:
         specifier: ^4.28.0
         version: 4.95.1(encoding@0.1.13)(ws@8.18.3(bufferutil@4.0.9)(utf-8-validate@5.0.10))(zod@3.25.76)
+      pg:
+        specifier: ^8.16.3
+        version: 8.16.3
       uuid:
         specifier: ^11.1.0
         version: 11.1.0

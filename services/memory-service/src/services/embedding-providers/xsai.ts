@@ -18,7 +18,7 @@ export class XsaiEmbeddingProvider implements EmbeddingProvider {
 
     // Sets the base URL based on the provider name
     if (provider === 'gemini') {
-      this.baseUrl = 'https://generativelanguage.googleapis.com/v1beta/'
+      this.baseUrl = 'https://generativelanguage.googleapis.com/v1beta/openai/'
     }
     else if (provider === 'openai') {
       this.baseUrl = 'https://api.openai.com/v1/'

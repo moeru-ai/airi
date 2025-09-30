@@ -3,7 +3,9 @@ import os from 'node:os'
 import path from 'node:path'
 import process from 'node:process'
 
+import { Buffer } from 'node:buffer'
 import { exec, spawn } from 'node:child_process'
+import { writeFile } from 'node:fs/promises'
 
 import { PGlite } from '@electric-sql/pglite'
 import { pgDump } from '@electric-sql/pglite-tools/pg_dump'
@@ -85,7 +87,14 @@ memoryRouter.post('/export-chathistory', async ({ set, query, headers }) => {
             reject(pgErr || `pg_dump exited with ${code}`)
           }
           else {
-            resolve('PG Dump exported successfully')
+            set.status = 200
+            const sqlContent = fs.readFileSync(finalOut, 'utf-8')
+            const headers = {
+              'Content-Type': 'application/sql; charset=utf-8',
+              'Content-Disposition': `attachment; filename="chathistory_pg_backup_${Date.now()}.sql"`,
+              'X-Content-Type-Options': 'nosniff',
+            }
+            resolve(new Response(sqlContent, { headers }))
           }
         })
       })
@@ -145,7 +154,8 @@ memoryRouter.post('/import-chathistory', async ({ body, set, headers, query }) =
   }
 
   const tmpPath = path.join(os.tmpdir(), file.name)
-  await Bun.write(tmpPath, file)
+  const ab = await file.arrayBuffer()
+  await writeFile(tmpPath, Buffer.from(ab))
 
   try {
     const pglite = isPgliteReq(headers, query)

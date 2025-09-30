@@ -1,25 +1,25 @@
 /**
  * Memory Service - Centralized memory backend for AIRI
- *
  * What this file does:
- *  1) Bootstraps OpenTelemetry (optional; non-fatal if collector is absent)
- *  2) Initializes DB connection (initDb)
- *  3) Ensures base schema by executing ./drizzle/0000_sharp_iceman.sql exactly once
- *  4) Warms up embedding provider (non-fatal on failure)
- *  5) Starts background workers and HTTP server at PORT (default: 3001)
+ * 1) Bootstraps OpenTelemetry (optional; non-fatal if collector is absent)
+ * 2) Initializes DB connection (initDb)
+ * 3) Ensures base schema by executing ./drizzle/0000_sharp_iceman.sql exactly once
+ * 4) Warms up embedding provider (non-fatal on failure)
+ * 5) Starts background workers and HTTP server at PORT (default: 3001)
  *
  * Notes:
- *  - No external migration runner. The SQL file is executed inline, one-shot.
- *  - Idempotency: We check for the existence of a sentinel table before applying.
+ * - No external migration runner. The SQL file is executed inline, one-shot.
+ * - Idempotency: We check for the existence of a sentinel table before applying.
  */
 
 import fs from 'node:fs'
+import http from 'node:http'
 import path from 'node:path'
 import process, { env } from 'node:process'
 
 import { fileURLToPath } from 'node:url'
 
-import { Format, LogLevel, setGlobalFormat, setGlobalLogLevel, useLogg } from '@guiiai/logg'
+import { Format, LogLevel, setGlobalFormat, setGlobalLogLevel } from '@guiiai/logg'
 import { OTLPMetricExporter } from '@opentelemetry/exporter-metrics-otlp-proto'
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-proto'
 import { resourceFromAttributes } from '@opentelemetry/resources'
@@ -27,8 +27,6 @@ import { PeriodicExportingMetricReader } from '@opentelemetry/sdk-metrics'
 import { NodeSDK } from '@opentelemetry/sdk-node'
 import { ATTR_SERVICE_NAME, ATTR_SERVICE_VERSION } from '@opentelemetry/semantic-conventions'
 import { Pool } from 'pg'
-
-import memoryRouter from './api/memory'
 
 import { createApp } from './api/server.js'
 import { initDb } from './db'
@@ -86,7 +84,7 @@ async function ensureBaseSchema(): Promise<void> {
   }
 }
 
-async function main() {
+async function setupAndStart() {
   const sdk = new NodeSDK({
     resource: resourceFromAttributes({
       [ATTR_SERVICE_NAME]: 'memory-service',
@@ -123,19 +121,56 @@ async function main() {
   backgroundTrigger.startProcessing(30_000)
 
   const app = createApp()
-  app.use('/api/memory', memoryRouter)
-
-  app.listen(PORT, () => {
-    process.stdout.write(`[memory-service] HTTP server listening on http://localhost:${PORT}\n`)
-  })
+  return app
 }
 
-process.on('unhandledRejection', (err) => {
-  const log = useLogg('UnhandledRejection').useGlobalConfig()
-  log.withError(err).withField('cause', (err as any)?.cause).error('Unhandled rejection')
-})
+const appPromise = setupAndStart()
 
-main().catch((err) => {
-  console.error('[memory-service] Fatal error during startup:', err)
-  process.exitCode = 1
-})
+appPromise
+  .then((app) => {
+    const server = http.createServer(async (req, res) => {
+      try {
+        const url = `http://${req.headers.host}${req.url}`
+        const request = new Request(url, {
+          method: req.method,
+          headers: req.headers as any,
+          body: req.method !== 'GET' && req.method !== 'HEAD' ? req : undefined,
+          duplex: 'half',
+        })
+
+        const response = await app.fetch(request)
+
+        res.writeHead(response.status, Object.fromEntries(response.headers))
+
+        if (response.body) {
+          const reader = response.body.getReader()
+          const pump = async (): Promise<void> => {
+            const { done, value } = await reader.read()
+            if (done) {
+              res.end()
+              return
+            }
+            res.write(value)
+            pump()
+          }
+          pump()
+        }
+        else {
+          res.end()
+        }
+      }
+      catch (err) {
+        console.error('[memory-service] Handler error:', err)
+        res.statusCode = 500
+        res.end('Internal Server Error')
+      }
+    })
+
+    server.listen(PORT, () => {
+      console.warn(`[memory-service] HTTP server listening on http://localhost:${PORT}`)
+    })
+  })
+  .catch((err) => {
+    console.error('[memory-service] Fatal error during startup:', err)
+    process.exitCode = 1
+  })

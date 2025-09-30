@@ -611,8 +611,8 @@ async function exportChatHistory() {
     const a = document.createElement('a')
     a.href = urlObj
     a.download = serverName || (usePglite
-      ? `pglite_backup_${new Date().toISOString()}.tar.gz`
-      : `chathistory_pg_backup_${new Date().toISOString()}.tar.gz`)
+      ? `pglite_backup_${new Date().toISOString()}.sql`
+      : `chathistory_pg_backup_${new Date().toISOString()}.sql`)
     document.body.appendChild(a)
     a.click()
     a.remove()
