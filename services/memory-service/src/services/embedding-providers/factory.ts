@@ -1,11 +1,10 @@
 import { SettingsService } from '../settings'
-import { GeminiEmbeddingProvider } from './gemini'
-import { OpenAIEmbeddingProvider } from './openai'
+import { XsaiEmbeddingProvider } from './xsai'
 
 export class EmbeddingProviderFactory {
   private static instance: EmbeddingProviderFactory
   private settingsService = SettingsService.getInstance()
-  private currentProvider: OpenAIEmbeddingProvider | GeminiEmbeddingProvider | null = null
+  private currentProvider: XsaiEmbeddingProvider | null = null // Current active provider instance
 
   private constructor() {}
 
@@ -17,8 +16,8 @@ export class EmbeddingProviderFactory {
   }
 
   /**
-   * Initialize the embedding provider at startup
-   * This prevents delays on first user interaction
+   * Initialize the embedding provider at startup.
+   * This prevents delays on first user interaction.
    */
   async initializeProvider(): Promise<void> {
     try {
@@ -38,64 +37,51 @@ export class EmbeddingProviderFactory {
     }
   }
 
-  private async getProvider() {
+  private async getProvider(): Promise<XsaiEmbeddingProvider> {
     const settings = await this.settingsService.getSettings()
     const provider = settings.mem_embedding_provider.toLowerCase()
+    const model = settings.mem_embedding_model.toLowerCase()
     const apiKey = settings.mem_embedding_api_key
 
-    // If we already have a provider of the right type, reuse it
     if (
-      (this.currentProvider instanceof OpenAIEmbeddingProvider && provider === 'openai')
-      || (this.currentProvider instanceof GeminiEmbeddingProvider && provider === 'gemini')
+      this.currentProvider instanceof XsaiEmbeddingProvider
+      && this.currentProvider.provider === provider // Assumes public 'provider' property exists on XsaiEmbeddingProvider
+      && this.currentProvider.modelName === model // Assumes public 'modelName' property exists on XsaiEmbeddingProvider
     ) {
       console.warn('Reusing existing embedding provider')
       return this.currentProvider
     }
 
-    console.warn(`Creating embedding provider: ${provider} for dimensions: ${settings.mem_embedding_dimensions}`)
-
-    switch (provider) {
-      case 'openai':
-        if (!apiKey) {
-          console.warn('OpenAI embedding provider requested but no API key provided in settings')
-          throw new Error('OpenAI API key is required')
-        }
-        console.warn('Initializing OpenAI embedding provider...')
-        this.currentProvider = new OpenAIEmbeddingProvider(apiKey)
-        return this.currentProvider
-
-      case 'gemini':
-        if (!apiKey) {
-          console.warn('Gemini embedding provider requested but no API key provided in settings')
-          throw new Error('Gemini API key is required')
-        }
-        console.warn('Initializing Gemini embedding provider...')
-        this.currentProvider = new GeminiEmbeddingProvider(apiKey)
-        return this.currentProvider
-
-      default:
-        console.warn(`Unknown embedding provider in settings: ${provider}`)
-        throw new Error(`Unsupported embedding provider: ${provider}`)
-    }
+    // Create a new instance using the parameters from settings.
+    this.currentProvider = new XsaiEmbeddingProvider(provider, model, apiKey)
+    return this.currentProvider
   }
 
+  /**
+   * Generate an embedding vector for the given text using the configured provider.
+   * The result is mapped to the content_vector fields based on the configured dimension.
+   * @param text The input string to embed.
+   * @returns An object containing the embedding vector mapped to the correct dimension field, others being null.
+   */
   async generateEmbedding(text: string): Promise<{
     content_vector_1536: number[] | null
     content_vector_1024: number[] | null
     content_vector_768: number[] | null
   }> {
-    // TODO [lucas-oma]: debug, this might be triggered twiced per message
     const settings = await this.settingsService.getSettings()
     const provider = await this.getProvider()
+    const dimensions = settings.mem_embedding_dimensions
 
-    console.warn(`Generating ${settings.mem_embedding_dimensions}-dimensional embedding...`)
-    const mainEmbedding = await provider.generateEmbedding(text, settings.mem_embedding_dimensions)
+    console.warn(`Generating ${dimensions}-dimensional embedding...`)
+    // Call the provider's method (which handles the dimension parameter logic)
+    const mainEmbedding = await provider.generateEmbedding(text, dimensions)
     console.warn('Embedding generated successfully')
 
+    // Map the single generated embedding to the correct dimension field based on the configured dimension.
     return {
-      content_vector_1536: settings.mem_embedding_dimensions === 1536 ? mainEmbedding : null,
-      content_vector_1024: settings.mem_embedding_dimensions === 1024 ? mainEmbedding : null,
-      content_vector_768: settings.mem_embedding_dimensions === 768 ? mainEmbedding : null,
+      content_vector_1536: dimensions === 1536 ? mainEmbedding : null,
+      content_vector_1024: dimensions === 1024 ? mainEmbedding : null,
+      content_vector_768: dimensions === 768 ? mainEmbedding : null,
     }
   }
 }

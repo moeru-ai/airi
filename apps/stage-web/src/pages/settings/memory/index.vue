@@ -84,9 +84,9 @@ async function fetchRegenerationStatus() {
   }
 }
 
-// === NEW LLM CONFIGURATION SETTINGS ===
-const llmProvider = useLocalStorage('settings/memory/llm-provider', '')
-const llmModel = useLocalStorage('settings/memory/llm-model', '')
+// === NEW LLM CONFIGURATION SETTINGS (Set explicit defaults for XsaiLLMProvider stability) ===
+const llmProvider = useLocalStorage('settings/memory/llm-provider', 'openai')
+const llmModel = useLocalStorage('settings/memory/llm-model', 'gpt-4-turbo-preview')
 const llmApiKey = useLocalStorage('settings/memory/llm-api-key', '')
 
 // === NEW EMBEDDING CONFIGURATION SETTINGS ===
@@ -106,17 +106,17 @@ const tempEmbeddingDimStr = computed({
   set: (v: string) => { tempEmbeddingDim.value = Number(v) },
 })
 
-// === PROVIDER OPTIONS ===
+// === PROVIDER OPTIONS (Labels updated to reflect Xsai consolidation) ===
 const llmProviders = [
-  { value: 'openai', label: 'OpenAI', description: 'GPT models via OpenAI API' },
-  { value: 'gemini', label: 'Google Gemini', description: 'Gemini models via Google AI' },
-  { value: 'local', label: 'Ollama', description: 'Self-hosted Ollama models' },
+  { value: 'openai', label: 'OpenAI (via Xsai)', description: 'GPT models via unified Xsai provider' },
+  { value: 'gemini', label: 'Google Gemini (via Xsai)', description: 'Gemini models via unified Xsai provider' },
+  { value: 'local', label: 'Ollama (via Xsai)', description: 'Self-hosted Ollama models via unified Xsai provider' },
 ]
 
 const embeddingProviders = [
-  { value: 'openai', label: 'OpenAI', description: 'Text embedding models via OpenAI API' },
-  { value: 'gemini', label: 'Google Gemini', description: 'Embedding models via Google AI' },
-  { value: 'local', label: 'Ollama', description: 'Self-hosted Ollama embedding models' },
+  { value: 'openai', label: 'OpenAI (via Xsai)', description: 'Text embedding models via unified Xsai provider' },
+  { value: 'gemini', label: 'Google Gemini (via Xsai)', description: 'Embedding models via unified Xsai provider' },
+  { value: 'local', label: 'Ollama (via Xsai)', description: 'Self-hosted Ollama embedding models via unified Xsai provider' },
 ]
 
 // === MODEL OPTIONS BASED ON PROVIDER ===
@@ -190,25 +190,32 @@ const availableDimensions = computed(() => {
 const settingsChanged = ref(false)
 const showRegenerationWarning = ref(false)
 
-// Watch for changes in temporary embedding settings
-watch([tempEmbeddingProvider, tempEmbeddingModel, tempEmbeddingDim, tempEmbeddingApiKey], () => {
-  // Check if any temporary setting differs from committed setting
-  const hasChanges
+// Watch for changes in all LLM and temporary embedding settings
+watch([
+  llmProvider,
+  llmModel,
+  llmApiKey,
+  tempEmbeddingProvider,
+  tempEmbeddingModel,
+  tempEmbeddingDim,
+  tempEmbeddingApiKey,
+], () => {
+  // 1. Check for embedding changes (Triggers Regeneration Warning)
+  const hasEmbeddingChanges
     = tempEmbeddingProvider.value !== embeddingProvider.value
       || tempEmbeddingModel.value !== embeddingModel.value
       || tempEmbeddingDim.value !== embeddingDim.value
       || tempEmbeddingApiKey.value !== embeddingApiKey.value
 
-  // Also consider it a change if we're setting initial values
-  const isInitialSetup
-    = (!!tempEmbeddingProvider.value && !embeddingProvider.value)
-      || (!!tempEmbeddingModel.value && !embeddingModel.value)
-      || (!!tempEmbeddingApiKey.value && !embeddingApiKey.value)
+  const hasLLMChanges
+    = llmProvider.value !== useLocalStorage('settings/memory/llm-provider', 'openai').value
+      || llmModel.value !== useLocalStorage('settings/memory/llm-model', 'gpt-4-turbo-preview').value
+      || llmApiKey.value !== useLocalStorage('settings/memory/llm-api-key', '').value
 
-  settingsChanged.value = !!hasChanges || !!isInitialSetup
-  showRegenerationWarning.value = !!hasChanges || !!isInitialSetup
+  settingsChanged.value = hasEmbeddingChanges || hasLLMChanges
+  showRegenerationWarning.value = hasEmbeddingChanges
 
-  console.warn('Settings change detected:')
+  console.warn('Settings change detected. Requires embedding regeneration:', hasEmbeddingChanges)
 }, { deep: true, immediate: true })
 
 // === FUNCTIONS ===
@@ -232,15 +239,16 @@ async function fetchSettings() {
     // Only update settings if they exist in the response
     if (settings) {
       // Update LLM settings
-      llmProvider.value = settings.llmProvider || ''
-      llmModel.value = settings.llmModel || ''
+      // Use explicit, non-empty defaults to avoid LLMProvider constructor failure
+      llmProvider.value = settings.llmProvider || 'openai'
+      llmModel.value = settings.llmModel || 'gpt-4-turbo-preview'
       llmApiKey.value = settings.llmApiKey || ''
 
       // Update embedding settings (both committed and temporary)
-      embeddingProvider.value = settings.embeddingProvider || ''
-      embeddingModel.value = settings.embeddingModel || ''
+      embeddingProvider.value = settings.embeddingProvider || 'openai'
+      embeddingModel.value = settings.embeddingModel || 'text-embedding-3-small'
       embeddingApiKey.value = settings.embeddingApiKey || ''
-      embeddingDim.value = settings.embeddingDimensions || 0
+      embeddingDim.value = settings.embeddingDimensions || 1536
 
       // Sync temporary settings
       tempEmbeddingProvider.value = embeddingProvider.value
@@ -322,13 +330,16 @@ function resetSettings() {
   memoryServiceEnabled.value = false
   memoryServiceUrl.value = 'http://localhost:3001'
   apiKey.value = ''
-  llmProvider.value = ''
-  llmModel.value = ''
+  // Use explicit, non-empty defaults to satisfy LLMProvider's non-fallback requirement
+  llmProvider.value = 'openai'
+  llmModel.value = 'gpt-4-turbo-preview'
   llmApiKey.value = ''
-  embeddingProvider.value = ''
-  embeddingModel.value = ''
+
+  embeddingProvider.value = 'openai'
+  embeddingModel.value = 'text-embedding-3-small'
   embeddingApiKey.value = ''
-  embeddingDim.value = 0
+  embeddingDim.value = 1536
+
   // Reset temporary settings to match committed settings
   tempEmbeddingProvider.value = embeddingProvider.value
   tempEmbeddingModel.value = embeddingModel.value
@@ -345,11 +356,24 @@ function resetSettings() {
 
 async function confirmRegeneration() {
   try {
-    // Commit the temporary settings to persistent storage
-    embeddingProvider.value = tempEmbeddingProvider.value
-    embeddingModel.value = tempEmbeddingModel.value
-    embeddingApiKey.value = tempEmbeddingApiKey.value
-    embeddingDim.value = tempEmbeddingDim.value
+    // LLM settings and Embedding settings are bundled for persistence
+    const settingsToCommit = {
+      // LLM settings
+      llmProvider: llmProvider.value,
+      llmModel: llmModel.value,
+      llmApiKey: llmApiKey.value,
+      // Embedding settings (from temporary values)
+      embeddingProvider: tempEmbeddingProvider.value,
+      embeddingModel: tempEmbeddingModel.value,
+      embeddingApiKey: tempEmbeddingApiKey.value,
+      embeddingDimensions: tempEmbeddingDim.value,
+    }
+
+    // Commit the temporary embedding settings to persistent storage
+    embeddingProvider.value = settingsToCommit.embeddingProvider
+    embeddingModel.value = settingsToCommit.embeddingModel
+    embeddingApiKey.value = settingsToCommit.embeddingApiKey
+    embeddingDim.value = settingsToCommit.embeddingDimensions
 
     // Call the API to update settings and trigger regeneration
     const response = await fetch(`${memoryServiceUrl.value}/api/settings`, {
@@ -359,18 +383,14 @@ async function confirmRegeneration() {
         'Authorization': `Bearer ${apiKey.value}`,
       },
       body: JSON.stringify({
-        // LLM settings
-        llmProvider: llmProvider.value,
-        llmModel: llmModel.value,
-        llmApiKey: llmApiKey.value,
-        // llmTemperature: 7, // TODO: Maybe add settings for these
-        // llmMaxTokens: 2000, // TODO: maybe add settings for these
-
-        // Embedding settings
-        embeddingProvider: embeddingProvider.value,
-        embeddingModel: embeddingModel.value,
-        embeddingApiKey: embeddingApiKey.value,
-        embeddingDimensions: embeddingDim.value,
+        // Transmit all settings, including the LLM settings that were just updated
+        llmProvider: settingsToCommit.llmProvider,
+        llmModel: settingsToCommit.llmModel,
+        llmApiKey: settingsToCommit.llmApiKey,
+        embeddingProvider: settingsToCommit.embeddingProvider,
+        embeddingModel: settingsToCommit.embeddingModel,
+        embeddingApiKey: settingsToCommit.embeddingApiKey,
+        embeddingDimensions: settingsToCommit.embeddingDimensions,
       }),
     })
 
@@ -483,6 +503,12 @@ watch(memoryServiceEnabled, async (newValue) => {
 })
 
 onMounted(async () => {
+  // Initialize LLM settings to non-empty defaults for factory stability
+  if (!llmProvider.value)
+    llmProvider.value = 'openai'
+  if (!llmModel.value)
+    llmModel.value = 'gpt-4-turbo-preview'
+
   // Initialize temporary settings with either stored values or defaults
   tempEmbeddingProvider.value = embeddingProvider.value || 'openai'
   tempEmbeddingModel.value = embeddingModel.value || 'text-embedding-3-small'
@@ -545,7 +571,8 @@ async function importChatHistory() {
         throw new Error(`Failed to import chat history: ${err}`)
       }
       importMessage.value = 'Chat history imported successfully!'
-      await chatStore.loadInitialHistory(50)
+      // use exceptionally big value to retain recent contexts!
+      await chatStore.loadAllHistoryPaginated()
     }
     catch (error) {
       console.error(error)
@@ -600,7 +627,6 @@ async function exportChatHistory() {
 
 <template>
   <div flex flex-col gap-5 pb-12>
-    <!-- Beta Warning -->
     <div class="border border-yellow-200 rounded-lg bg-yellow-50 p-4 dark:border-yellow-800 dark:bg-yellow-950/20">
       <div class="flex items-center gap-2">
         <span class="text-yellow-800 font-semibold dark:text-yellow-200">BETA</span>
@@ -608,7 +634,6 @@ async function exportChatHistory() {
       </div>
     </div>
 
-    <!-- Help Info Section -->
     <div class="rounded-lg bg-primary-500/10 p-4 dark:bg-primary-800/25">
       <div class="mb-2 text-xl text-primary-800 font-semibold dark:text-primary-100">
         Memory Service Configuration
@@ -618,7 +643,6 @@ async function exportChatHistory() {
       </div>
     </div>
 
-    <!-- Connection Status Section -->
     <div flex="~ row items-center gap-2">
       <div i-solar:leaf-bold-duotone text="neutral-500 dark:neutral-400 4xl" />
       <div>
@@ -633,7 +657,6 @@ async function exportChatHistory() {
       </div>
     </div>
 
-    <!-- Regeneration Warning -->
     <div v-if="showRegenerationWarning" class="border border-orange-200 rounded-lg bg-orange-50 p-4 dark:border-orange-800 dark:bg-orange-950/20">
       <div class="mb-2 text-lg text-orange-800 font-semibold dark:text-orange-200">
         ⚠️ Embedding Settings Changed
@@ -657,13 +680,11 @@ async function exportChatHistory() {
       </div>
     </div>
 
-    <!-- Regeneration Progress -->
     <div v-if="isRegenerating" class="border border-blue-200 rounded-lg bg-blue-50 p-4 dark:border-blue-800 dark:bg-blue-950/20">
       <div class="mb-2 text-lg text-blue-800 font-semibold dark:text-blue-200">
         🔄 Regenerating Embeddings...
       </div>
 
-      <!-- Progress Bar -->
       <div class="mb-3 h-2 w-full rounded-full bg-blue-200 dark:bg-blue-800">
         <div
           class="h-full rounded-full bg-blue-600 transition-all duration-300 ease-in-out dark:bg-blue-400"
@@ -671,7 +692,6 @@ async function exportChatHistory() {
         />
       </div>
 
-      <!-- Progress Details -->
       <div class="text-sm text-blue-800 dark:text-blue-200">
         <div class="mb-2">
           Progress: {{ regenerationProgress }}% ({{ regenerationProcessedItems }} / {{ regenerationTotalItems }} items)
@@ -687,9 +707,7 @@ async function exportChatHistory() {
       </div>
     </div>
 
-    <!-- Service and Database Configuration Section - Two separate blocks side by side -->
     <div class="grid grid-cols-1 gap-5 lg:grid-cols-2">
-      <!-- Service Configuration Block -->
       <div class="border border-neutral-200 rounded-lg bg-white p-6 dark:border-neutral-700 dark:bg-neutral-800">
         <div class="mb-4">
           <h3 class="text-lg text-neutral-900 font-semibold dark:text-neutral-100">
@@ -743,7 +761,6 @@ async function exportChatHistory() {
           <p class="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
             Toggle the PGLite database for local memory storage (Recommended)
           </p>
-          <!-- Embedded Postgres Export -->
           <div class="mt-4">
             <div class="mt-2">
               <button class="btn btn-warning" @click="exportChatHistory">
@@ -821,7 +838,6 @@ async function exportChatHistory() {
         </div>
       </div>
 
-      <!-- Database Connection Info -->
       <div class="border border-neutral-200 rounded-lg bg-white p-6 dark:border-neutral-700 dark:bg-neutral-800">
         <div class="mb-4">
           <h3 class="text-lg text-neutral-900 font-semibold dark:text-neutral-100">
@@ -853,7 +869,6 @@ async function exportChatHistory() {
       </div>
     </div>
 
-    <!-- AI Configuration Section Title -->
     <div class="mb-4">
       <h2 class="text-xl text-neutral-900 font-semibold dark:text-neutral-100">
         AI Configuration
@@ -863,9 +878,7 @@ async function exportChatHistory() {
       </p>
     </div>
 
-    <!-- AI Configuration Section - Two separate blocks side by side -->
     <div class="grid grid-cols-1 gap-5 lg:grid-cols-2">
-      <!-- LLM Configuration Block -->
       <div class="border border-neutral-200 rounded-lg bg-white p-6 dark:border-neutral-700 dark:bg-neutral-800">
         <div class="mb-4">
           <h3 class="text-lg text-neutral-900 font-semibold dark:text-neutral-100">
@@ -927,7 +940,6 @@ async function exportChatHistory() {
         </div>
       </div>
 
-      <!-- Embedding Configuration Block -->
       <div class="border border-neutral-200 rounded-lg bg-white p-6 dark:border-neutral-700 dark:bg-neutral-800">
         <div class="mb-4">
           <h3 class="text-lg text-neutral-900 font-semibold dark:text-neutral-100">
@@ -967,7 +979,6 @@ async function exportChatHistory() {
             search-placeholder="Search embedding models..."
             search-no-results-title="No models found"
             search-no-results-description="Try a different search term"
-            search-results-text="{count} of {total} models"
             :show-more="false"
             list-class="max-h-48"
           />
@@ -1012,7 +1023,6 @@ async function exportChatHistory() {
       </div>
     </div>
 
-    <!-- Configuration Info Section -->
     <div class="border border-neutral-200 rounded-lg bg-white p-6 dark:border-neutral-700 dark:bg-neutral-800">
       <div class="mb-4">
         <h3 class="text-lg text-neutral-900 font-semibold dark:text-neutral-100">
@@ -1032,7 +1042,6 @@ async function exportChatHistory() {
       </ul>
     </div>
 
-    <!-- Settings Persistence Info -->
     <div class="border border-green-200 rounded-lg bg-green-50 p-4 dark:border-green-800 dark:bg-green-950/20">
       <div class="mb-2 text-green-900 font-medium dark:text-green-100">
         ✓ Settings Persistence

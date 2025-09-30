@@ -70,6 +70,7 @@
     "node-vibrant": "^4.0.3",
     "nprogress": "^0.2.0",
     "ofetch": "^1.4.1",
+    "onnxruntime-common": "^1.23.0",
     "onnxruntime-web": "^1.23.0",
     "pinia": "^3.0.3",
     "rehype-stringify": "^10.0.1",

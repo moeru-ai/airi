@@ -377,7 +377,8 @@ export const useChatStore = defineStore('chat', () => {
   }
 
   // Loads all conversation history in small, consecutive batches.
-  async function loadAllHistoryPaginated(batchSize: number = 50) {
+  async function loadAllHistoryPaginated(blocks: number = 4) {
+    const batchSize = 100 // constant block size
     const systemMessage = messages.value.find(msg => msg.role === 'system')
     messages.value = systemMessage ? [systemMessage] : [] // Clear old messages
 
@@ -389,7 +390,8 @@ export const useChatStore = defineStore('chat', () => {
 
     try {
       // Loop until the 'hasMore' flag from the API becomes false
-      while (hasMoreHistory.value) {
+      // Break load after exceeding block length
+      for (let i = 0; i < blocks; i++) {
         const history = await loadHistory(batchSize, beforeTimestamp)
 
         if (history.length === 0) {

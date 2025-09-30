@@ -1,24 +1,17 @@
-import type { Request, Response } from 'express'
-
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import process from 'node:process'
 
 import { exec, spawn } from 'node:child_process'
-import { PassThrough, pipeline } from 'node:stream'
-import { createGzip } from 'node:zlib'
 
-import multer from 'multer'
+import { PGlite } from '@electric-sql/pglite'
+import { pgDump } from '@electric-sql/pglite-tools/pg_dump'
+import { Elysia, t } from 'elysia'
 
-import { Router } from 'express'
-
-const memoryRouter = Router()
-const upload = multer({ dest: os.tmpdir() })
-
-function isPgliteReq(req: Request) {
-  const h = String(req.headers['x-db-variant'] || '').toLowerCase()
-  const q = String((req.query as any)?.isPglite || '').toLowerCase()
+function isPgliteReq(headers: Record<string, string | string[]>, query: Record<string, any>) {
+  const h = String(headers['x-db-variant'] || '').toLowerCase()
+  const q = String(query?.isPglite || '').toLowerCase()
   if (h === 'pglite')
     return true
   if (h === 'pg')
@@ -43,180 +36,182 @@ function parsePwdEnv(dbUrl: string) {
   return envVars
 }
 
-memoryRouter.post('/export-chathistory', async (req: Request, res: Response) => {
+const memoryRouter = new Elysia({ prefix: '/memory' })
+
+memoryRouter.post('/export-chathistory', async ({ set, query, headers }) => {
   try {
-    const pglite = isPgliteReq(req)
-    res.setHeader('Cache-Control', 'no-store')
-
-    if (!pglite) {
-      const homeDir = os.homedir()
-      const exportDir = path.join(homeDir, 'airi_memory')
-      ensureDir(exportDir)
-
-      const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'pgexp-'))
-      const finalOut = path.join(exportDir, `chathistory_pg_backup_${Date.now()}.sql`)
-
-      const dbUrl = process.env.PG_URL || 'postgres://postgres:airi_memory_password@localhost:5434/postgres'
-      const envVars = parsePwdEnv(dbUrl)
-
-      const dump = spawn(
-        'pg_dump',
-        ['--no-owner', '--no-privileges', '--dbname', dbUrl, '--file', finalOut],
-        { env: envVars },
-      )
-
-      let pgErr = ''
-
-      dump.stderr.on('data', (d) => {
-        pgErr += d.toString()
-      })
-
-      dump.on('error', (e: NodeJS.ErrnoException) => {
-        fs.rmSync(tmpDir, { recursive: true, force: true })
-        if (!res.headersSent)
-          res.status(500).end(e?.code === 'ENOENT' ? 'pg_dump not found (install postgresql-client)' : 'Failed to run pg_dump')
-      })
-
-      dump.on('close', (code) => {
-        if (code !== 0) {
-          fs.rmSync(tmpDir, { recursive: true, force: true })
-          if (!res.headersSent)
-            res.status(500).end(pgErr || `pg_dump exited with ${code}`)
-        }
-        else {
-          res.status(200).send('PG Dump exported successfully')
-        }
-      })
-      return
-    }
+    const pglite = isPgliteReq(
+      headers as Record<string, string | string[]>,
+      query,
+    )
+    set.headers['Cache-Control'] = 'no-store'
 
     const homeDir = os.homedir()
     const exportDir = path.join(homeDir, 'airi_memory')
     ensureDir(exportDir)
+
+    if (!pglite) {
+      const dbUrl = process.env.PG_URL || 'postgres://postgres:airi_memory_password@localhost:5434/postgres'
+      const envVars = parsePwdEnv(dbUrl)
+      const finalOut = path.join(exportDir, `chathistory_pg_backup_${Date.now()}.sql`)
+
+      return new Promise((resolve, reject) => {
+        const dump = spawn(
+          'pg_dump',
+          ['--no-owner', '--no-privileges', '--dbname', dbUrl, '--file', finalOut],
+          { env: envVars },
+        )
+
+        let pgErr = ''
+
+        dump.stderr.on('data', (d) => {
+          pgErr += d.toString()
+        })
+
+        dump.on('error', (e: NodeJS.ErrnoException) => {
+          set.status = 500
+          reject(
+            new Error(
+              e?.code === 'ENOENT'
+                ? 'pg_dump not found (install postgresql-client)'
+                : 'Failed to run pg_dump',
+            ),
+          )
+        })
+
+        dump.on('close', (code) => {
+          if (code !== 0) {
+            set.status = 500
+            reject(pgErr || `pg_dump exited with ${code}`)
+          }
+          else {
+            resolve('PG Dump exported successfully')
+          }
+        })
+      })
+    }
+
     const dataDir = process.env.PGLITE_DATA_DIR || path.join(exportDir, 'pglite_data')
     if (!fs.existsSync(dataDir)) {
-      res.status(400).send('PGlite data directory not found')
-      return
+      set.status = 400
+      return 'PGlite data directory not found'
     }
-    const tar = spawn('tar', ['-C', dataDir, '-c', '.'])
-    const gz = createGzip()
 
-    const filename = `pglite_backup_${Date.now()}.tar.gz`
-    res.setHeader('Content-Type', 'application/gzip')
-    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`)
+    const pg = await PGlite.create({ dataDir })
 
-    const outDir = process.env.MEMORY_EXPORT_DIR || exportDir
-    ensureDir(outDir)
-    const outPath = path.join(outDir, filename)
+    try {
+      const dumpResult = await pgDump({ pg })
+      const dumpContent = await dumpResult.text()
 
-    const tee = new PassThrough()
-    const file = fs.createWriteStream(outPath)
+      const filename = `chathistory_pglite_backup_${Date.now()}.sql`
+      const outDir = process.env.MEMORY_EXPORT_DIR || exportDir
+      ensureDir(outDir)
+      const outPath = path.join(outDir, filename)
+      fs.writeFileSync(outPath, dumpContent)
 
-    let errMsg = ''
-    tar.stderr.on('data', (d) => {
-      errMsg += d.toString()
-    })
-
-    tar.on('error', (e) => {
-      if (!res.headersSent)
-        res.status(500).end('Failed to spawn tar')
-      console.warn('Failed to spawn tar: ', e)
-      file.destroy()
-    })
-
-    pipeline(tar.stdout, gz, tee, (e) => {
-      if (e && !res.headersSent)
-        res.status(500).end('Failed to stream archive')
-    })
-
-    tee.pipe(res)
-    tee.pipe(file)
-
-    res.on('error', () => {})
-    res.on('close', () => {})
-    req.on('close', () => {})
-
-    file.on('finish', () => {})
-    file.on('error', () => {})
-
-    tar.on('close', (code) => {
-      if (code !== 0) {
-        if (!res.headersSent)
-          res.status(500).end(errMsg || `tar exited with ${code}`)
-      }
-    })
+      return 'PGlite Dump exported successfully'
+    }
+    catch (e) {
+      console.error('PGlite dump failed: ', e)
+      set.status = 500
+      return 'Failed to run PGlite pg_dump'
+    }
+    finally {
+      await pg.close()
+    }
   }
   catch {
-    if (!res.headersSent)
-      res.status(500).send('Export failed')
-    else res.destroy()
+    if (!set.headersSent)
+      set.status = 500
+    return 'Export failed'
   }
 })
 
-memoryRouter.post('/export-embedded', (req, res) => {
-  const host = req.headers.host || 'localhost'
-  const base = `http://${host}`
-  const url = new URL(req.originalUrl, base)
+memoryRouter.post('/export-embedded', ({ set, request }) => {
+  const url = new URL(request.url)
 
   url.pathname = url.pathname.replace(/\/export-embedded$/, '/export-chathistory')
   url.searchParams.set('isPglite', 'false')
 
-  res.redirect(307, url.toString())
+  set.status = 307
+  set.headers.Location = url.toString()
 })
 
-memoryRouter.post('/import-chathistory', upload.single('file'), async (req: Request, res: Response) => {
+memoryRouter.post('/import-chathistory', async ({ body, set, headers, query }) => {
+  const { file } = body as any
+  if (!file || !(file instanceof File)) {
+    set.status = 400
+    return 'No file uploaded'
+  }
+
+  const tmpPath = path.join(os.tmpdir(), file.name)
+  await Bun.write(tmpPath, file)
+
   try {
-    const file = (req as any).file as { path: string, originalname?: string } | undefined
-    if (!file || !file.path) {
-      res.status(400).send('No file uploaded')
-      return
-    }
-    const pglite = isPgliteReq(req)
+    const pglite = isPgliteReq(headers, query)
     const homeDir = os.homedir()
 
     if (!pglite) {
       const dbUrl = process.env.PG_URL || 'postgres://postgres:airi_memory_password@localhost:5434/postgres'
       const envVars = parsePwdEnv(dbUrl)
 
-      const name = (file.originalname || '').toLowerCase()
+      const name = (file.name || '').toLowerCase()
       if (!name.endsWith('.sql')) {
-        fs.unlink(file.path, () => {})
-        res.status(400).send('For Postgres/Embedded-Postgres, upload a .sql dump. Archives (.tar/.gz/.tgz) are only for PGlite.')
-        return
+        set.status = 400
+        return 'For Postgres/Embedded-Postgres, upload a .sql dump.'
       }
 
-      exec(`psql "${dbUrl}" -f "${file.path}"`, { env: envVars }, (error, _so, stderr) => {
-        fs.unlink(file.path, () => {})
-        if (error) {
-          res.status(500).send(`Failed to restore database: ${stderr || error.message}`)
-          return
-        }
-        res.json({ ok: true })
+      await new Promise<void>((resolve, reject) => {
+        exec(`psql "${dbUrl}" -f "${tmpPath}"`, { env: envVars }, (error, _so, stderr) => {
+          if (error) {
+            set.status = 500
+            reject(new Error(`Failed to restore database: ${stderr || error.message}`))
+          }
+          else {
+            resolve()
+          }
+        })
       })
-      return
+      return { ok: true }
     }
 
     const dataDir = process.env.PGLITE_DATA_DIR || path.join(homeDir, 'airi_memory', 'pglite_data')
     ensureDir(dataDir)
-    const name = (file.originalname || '').toLowerCase()
-    const isArchive = /\.(?:tar|tgz|gz)$/.test(name)
-    if (!isArchive) {
-      fs.unlink(file.path, () => {})
-      res.status(400).send('Unsupported file. Use .tar/.gz/.tgz for PGlite')
-      return
+
+    const name = (file.name || '').toLowerCase()
+    if (!name.endsWith('.sql')) {
+      set.status = 400
+      return 'Unsupported file. Use .sql dump from PGlite pg_dump.'
     }
-    exec(`tar -xzf "${file.path}" -C "${dataDir}"`, (error) => {
-      fs.unlink(file.path, () => {})
-      if (error) {
-        res.status(500).send('Failed to import PGlite data')
-        return
-      }
-      res.json({ ok: true })
-    })
+
+    const pg = await PGlite.create({ dataDir })
+
+    try {
+      const sql = fs.readFileSync(tmpPath, 'utf8')
+      await pg.exec(sql)
+      return { ok: true }
+    }
+    catch (e) {
+      console.error('PGlite import failed: ', e)
+      set.status = 500
+      return 'Failed to import PGlite data'
+    }
+    finally {
+      await pg.close()
+    }
   }
   catch {
-    res.status(500).send('Import failed')
+    if (!set.headersSent)
+      set.status = 500
+    return 'Import failed'
   }
+  finally {
+    fs.unlink(tmpPath, () => {})
+  }
+}, {
+  body: t.Object({
+    file: t.File(),
+  }),
 })
 
 export default memoryRouter

@@ -11,10 +11,9 @@
 
 import { env } from 'node:process'
 
-import cors from 'cors'
-import express from 'express'
-
+import { cors } from '@elysiajs/cors'
 import { desc, sql } from 'drizzle-orm'
+import { Elysia, t } from 'elysia'
 
 import memoryRouter from './memory'
 
@@ -29,126 +28,141 @@ import { chatCompletionsHistoryTable, chatMessagesTable } from '../db/schema.js'
 import { MemoryService } from '../services/memory'
 import { SettingsService } from '../services/settings'
 
-// Simple authentication middleware
-function authenticateApiKey(
-  req: express.Request,
-  res: express.Response,
-  next: express.NextFunction,
-) {
-  // If API_KEY is empty or not set, skip authentication entirely
-  if (!env.API_KEY || env.API_KEY === '') {
-    next()
-    return
-  }
-
-  const authHeader = req.headers.authorization
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    res.status(401).json({ error: 'API key required' })
-    return
-  }
-
-  const apiKey = authHeader.split(' ')[1]
-  if (apiKey !== env.API_KEY) {
-    res.status(403).json({ error: 'Invalid API key' })
-    return
-  }
-
-  next()
-}
-
 export function createApp() {
-  const app = express()
   const memoryService = new MemoryService()
   const settingsService = SettingsService.getInstance()
 
+  const app = new Elysia({ prefix: '/api' })
+
   // Middleware
   app.use(cors())
-  app.use(express.json())
+  app.use(memoryRouter)
 
-  // Mount memory feature router (export/import, etc.)
-  app.use('/api/memory', authenticateApiKey, memoryRouter)
+  // Health check endpoint
+  const unauthedApp = new Elysia()
+    .get('/api/health', () => {
+      return { status: 'ok', timestamp: new Date().toISOString() }
+    })
 
-  // Health check endpoint (no auth required)
-  app.get('/api/health', (_req, res) => {
-    res.json({ status: 'ok', timestamp: new Date().toISOString() })
-  })
-
+  app
+    .use(unauthedApp)
   // Test authentication endpoint
-  app.get('/api/test-conn', authenticateApiKey, (_req, res) => {
-    res.json({
+  app.get('/test-conn', () => {
+    return {
       status: 'authenticated',
       timestamp: new Date().toISOString(),
       message: 'API key is valid',
-    })
+    }
   })
 
   // Get current database URL from environment
-  app.get('/api/database-url', authenticateApiKey, (_req, res) => {
+  app.get('/database-url', () => {
     const dbUrl = env.PG_URL || 'ERROR: PG_URL environment variable not configured'
     // Censor the password in the URL for security
     const censoredUrl = dbUrl.replace(/:([^:@]+)@/, ':*****@')
-    res.json({
+    return {
       dbUrl: censoredUrl,
       message: 'Database connection is configured via PG_URL environment variable',
-    })
+    }
   })
-
   // Message ingestion endpoint
-  app.post('/api/messages', authenticateApiKey, async (req, res) => {
-    try {
-      const result = await memoryService.ingestMessage(req.body)
-      res.json(result)
-    }
-    catch (error) {
-      console.error('Failed to ingest message:', error)
-      res.status(500).json({
-        error: 'Failed to ingest message',
-        details: error instanceof Error ? error.message : 'Unknown error',
-      })
-    }
-  })
+  app.post(
+    '/messages',
+    async ({ body, set }) => {
+      const {
+        content,
+        platform,
+      } = body as { content: string, platform?: string }
 
-  // Store AI completion endpoint
-  app.post('/api/completions', authenticateApiKey, async (req, res) => {
-    try {
-      const result = await memoryService.storeCompletion(req.body)
-      res.json(result)
-    }
-    catch (error) {
-      console.error('Failed to store completion:', error)
-      res.status(500).json({
-        error: 'Failed to store completion',
-        details: error instanceof Error ? error.message : 'Unknown error',
-      })
-    }
-  })
+      const messageData = {
+        content,
+        platform: platform || '',
+      }
 
-  // Get current embedded Postgres status
-  app.get('/api/embedded-postgres', authenticateApiKey, (_req, res) => {
-    res.json({ enabled: isEmbeddedPostgresEnabled() })
+      try {
+        const result = await memoryService.ingestMessage(messageData as any)
+        return result
+      }
+      catch (error) {
+        console.error('Failed to ingest message:', error)
+        set.status = 500
+        return {
+          error: 'Failed to ingest message',
+          details: error instanceof Error ? error.message : 'Unknown error',
+        }
+      }
+    },
+    {
+      body: t.Object({
+        content: t.String(),
+        platform: t.Optional(t.String()),
+      }),
+    },
+  )
+
+  // Replace the original route definition block (Lines 104-110)
+
+  app.post(
+    '/completions',
+    async ({ body, set }: { body: { prompt: string, response: string, platform?: string }, set: any }) => {
+      const { prompt, response, platform } = body
+      const completionData = {
+        prompt,
+        response,
+        platform: platform || '',
+      }
+      try {
+        const result = await memoryService.storeCompletion(completionData as any)
+        return result
+      }
+      catch (error) {
+        console.error('Failed to store completion:', error)
+        set.status = 500
+        return {
+          error: 'Failed to store completion',
+          details: error instanceof Error ? error.message : 'Unknown error',
+        }
+      }
+    },
+    {
+      body: t.Object({
+        prompt: t.String(),
+        response: t.String(),
+        platform: t.Optional(t.String()),
+      }),
+    },
+  )
+
+  // iet current embedded Postgres status
+  app.get('/embedded-postgres', () => {
+    return { enabled: isEmbeddedPostgresEnabled() }
   })
 
   // Update embedded Postgres status
-  app.post('/api/embedded-postgres', authenticateApiKey, (req, res) => {
-    const { enabled } = req.body as { enabled: boolean }
+  app.post('/embedded-postgres', (body: any) => {
+    const { enabled } = body as { enabled: boolean }
     setEmbeddedPostgresEnabled(enabled)
-    res.json({ success: true, enabled: isEmbeddedPostgresEnabled() })
+    return { success: true, enabled: isEmbeddedPostgresEnabled() }
+  }, {
+    body: t.Object({ enabled: t.Boolean() }),
   })
 
   // Get current PGlite status
-  app.get('/api/pglite', authenticateApiKey, (_req, res) => {
-    res.json({ enabled: isPGliteEnabled() })
+  app.get('/pglite', () => {
+    return { enabled: isPGliteEnabled() }
   })
 
   // Update PGlite status
-  app.post('/api/pglite', authenticateApiKey, (req, res) => {
-    const { enabled } = req.body as { enabled: boolean }
+  app.post('/pglite', (body: any) => {
+    const { enabled } = body as { enabled: boolean }
     setPGliteEnabled(enabled)
-    res.json({ success: true, enabled: isPGliteEnabled() })
+    return { success: true, enabled: isPGliteEnabled() }
+  }, {
+    body: t.Object({ enabled: t.Boolean() }),
   })
 
   // Update memory service settings
-  app.post('/api/settings', authenticateApiKey, async (req, res) => {
+  app.post('/settings', async ({ body, set }) => {
     try {
       const {
         // LLM settings
@@ -162,7 +176,7 @@ export function createApp() {
         embeddingModel,
         embeddingApiKey,
         embeddingDimensions,
-      } = req.body
+      } = body
 
       // Get current settings to compare
       const currentSettings = await settingsService.getSettings()
@@ -176,11 +190,11 @@ export function createApp() {
           || currentSettings.mem_embedding_dimensions !== embeddingDimensions
         )
       ) {
-        res.status(409).json({
+        set.status = 409
+        return {
           error: 'Cannot change embedding settings while regeneration is in progress',
           details: 'Please wait for the current regeneration to complete',
-        })
-        return
+        }
       }
 
       // Update settings first
@@ -209,45 +223,69 @@ export function createApp() {
         await settingsService.updateSettings({ mem_is_regenerating: true })
 
         // Send response immediately
-        res.json({
+        set.status = 200
+        const response = {
           status: 'success',
           message: 'Settings updated successfully. Embedding regeneration started in background.',
           isRegenerating: true,
-        })
+        }
 
         // Process in background
-        try {
-          // This will process everything in parallel but wait for completion
-          await memoryService.triggerEmbeddingRegeneration()
+        set.event = async () => {
+          try {
+            // This will process everything in parallel but wait for completion
+            await memoryService.triggerEmbeddingRegeneration()
+          }
+          finally {
+            // Always clear regenerating state
+            await settingsService.updateSettings({ mem_is_regenerating: false })
+          }
         }
-        finally {
-          // Always clear regenerating state
-          await settingsService.updateSettings({ mem_is_regenerating: false })
-        }
-        return // Already sent response
+
+        return response // Already sent response
       }
 
       // If no regeneration needed, respond normally
-      res.json({
+      return {
         status: 'success',
         message: 'Settings updated successfully',
-      })
+      }
     }
     catch (error) {
       console.error('Failed to update settings:', error)
-      res.status(500).json({
+      set.status = 500
+      return {
         error: 'Failed to update settings',
         details: error instanceof Error ? error.message : 'Unknown error',
-      })
+      }
     }
+  }, {
+    body: t.Object({
+      llmProvider: t.Optional(t.String()),
+      llmModel: t.Optional(t.String()),
+      llmApiKey: t.Optional(t.String()),
+      llmTemperature: t.Optional(t.Number()),
+      llmMaxTokens: t.Optional(t.Number()),
+      embeddingProvider: t.Optional(t.String()),
+      embeddingModel: t.Optional(t.String()),
+      embeddingApiKey: t.Optional(t.String()),
+      embeddingDimensions: t.Optional(t.Number()),
+    }),
   })
 
   // Get regeneration status endpoint
-  app.get('/api/settings/regeneration-status', authenticateApiKey, async (_req, res) => {
+  app.get('/settings/regeneration-status', async (set: any) => {
     try {
       const settings = await settingsService.getSettings()
 
-      res.json({
+      const estimatedTimeRemaining = settings.mem_regeneration_total_items > 0
+        ? Math.round(
+            (settings.mem_regeneration_total_items - settings.mem_regeneration_processed_items)
+            * (settings.mem_regeneration_avg_batch_time_ms / settings.mem_regeneration_current_batch_size),
+          )
+        : null
+
+      return {
         isRegenerating: settings.mem_is_regenerating,
         progress: settings.mem_regeneration_progress,
         totalItems: settings.mem_regeneration_total_items,
@@ -256,30 +294,26 @@ export function createApp() {
         lastBatchTimeMs: settings.mem_regeneration_last_batch_time_ms,
         currentBatchSize: settings.mem_regeneration_current_batch_size,
         // Rough ETA based on average batch time and current batch size
-        estimatedTimeRemaining: settings.mem_regeneration_total_items > 0
-          ? Math.round(
-              (settings.mem_regeneration_total_items - settings.mem_regeneration_processed_items)
-              * (settings.mem_regeneration_avg_batch_time_ms / settings.mem_regeneration_current_batch_size),
-            )
-          : null,
-      })
+        estimatedTimeRemaining,
+      }
     }
     catch (error) {
       console.error('Failed to get regeneration status:', error)
-      res.status(500).json({
+      set.status = 500
+      return {
         error: 'Failed to get regeneration status',
         details: error instanceof Error ? error.message : 'Unknown error',
-      })
+      }
     }
   })
 
   // Get context for a message
-  app.post('/api/context', authenticateApiKey, async (req, res) => {
+  app.post('/context', async ({ body, set }) => {
     try {
-      const { message } = req.body
+      const { message } = body
       if (!message) {
-        res.status(400).json({ error: 'message is required' })
-        return
+        set.status = 400
+        return { error: 'message is required' }
       }
 
       // Store the message first so it's included in context building
@@ -291,25 +325,28 @@ export function createApp() {
       // Build context using ContextBuilder
       const context = await memoryService.buildQueryContext(message)
 
-      res.json(context)
+      return context
     }
     catch (error) {
       console.error('Failed to build context:', error)
-      res.status(500).json({
+      set.status = 500
+      return {
         error: 'Failed to build context',
         details: error instanceof Error ? error.message : 'Unknown error',
-      })
+      }
     }
+  }, {
+    body: t.Object({ message: t.String() }),
   })
 
   // Get paginated conversation history
-  app.get('/api/conversations', authenticateApiKey, async (req, res) => {
+  app.get('/conversations', async ({ query, set }) => {
     try {
       const db = useDrizzle()
 
       // Pagination params
-      const limit = Number.parseInt(req.query.limit as string) || 10
-      const before = Number.parseInt(req.query.before as string) || Date.now() // timestamp for pagination
+      const limit = Number.parseInt(query.limit as string) || 10
+      const before = Number.parseInt(query.before as string) || Date.now() // timestamp for pagination
 
       // Get messages and completions before the timestamp
       const [messages, completions] = await Promise.all([
@@ -348,18 +385,19 @@ export function createApp() {
       // Get the earliest timestamp for next page
       const earliestTimestamp = conversation[conversation.length - 1]?.created_at
 
-      res.json({
+      return {
         messages: conversation.reverse(), // reversed to get chat-style order
         hasMore: conversation.length === limit,
         nextCursor: earliestTimestamp,
-      })
+      }
     }
     catch (error) {
       console.error('Failed to fetch conversation history:', error)
-      res.status(500).json({
+      set.status = 500
+      return {
         error: 'Failed to fetch conversation history',
         details: error instanceof Error ? error.message : 'Unknown error',
-      })
+      }
     }
   })
 
