@@ -134,10 +134,7 @@ export function useMemoryService() {
         headers.Authorization = `Bearer ${memoryApiKey.value}`
       }
 
-      const response = await fetch(`${memoryServiceUrl.value}/health`, {
-        method: 'GET',
-        headers,
-      })
+      const response = await fetch(`${memoryServiceUrl.value}/api/test-conn`, {
 
       if (response.ok) {
         return { success: true, message: 'Successfully connected to memory service' }
