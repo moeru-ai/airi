@@ -2,8 +2,6 @@ import type { ModelInfo, ProviderMetadata } from '../providers'
 
 import { listModels } from '@xsai/model'
 
-import { isUrl } from '../../utils/url'
-
 type ProviderCreator = (apiKey: string, baseUrl: string) => any
 
 export function buildOpenAICompatibleProvider(
@@ -45,10 +43,8 @@ export function buildOpenAICompatibleProvider(
   const finalCapabilities = capabilities || {
     listModels: async (config: Record<string, unknown>) => {
       // Safer casting of apiKey/baseUrl (prevents .trim() crash if not a string)
-      const apiKey =
-        typeof config.apiKey === 'string' ? config.apiKey.trim() : ''
-      const baseUrl =
-        typeof config.baseUrl === 'string' ? config.baseUrl.trim() : ''
+      const apiKey = typeof config.apiKey === 'string' ? config.apiKey.trim() : ''
+      const baseUrl = typeof config.baseUrl === 'string' ? config.baseUrl.trim() : ''
 
       const provider = await creator(apiKey, baseUrl)
       // Check provider.model exists and is a function
@@ -236,7 +232,7 @@ export function buildOpenAICompatibleProvider(
     defaultOptions: () => ({
       baseUrl: defaultBaseUrl || '',
     }),
-    createProvider: async (config: { apiKey: string; baseUrl: string }) => {
+    createProvider: async (config: { apiKey: string, baseUrl: string }) => {
       const apiKey = typeof config.apiKey === 'string' ? config.apiKey.trim() : ''
       let baseUrl = typeof config.baseUrl === 'string' ? config.baseUrl.trim() : ''
       if (baseUrl && !baseUrl.endsWith('/')) {
