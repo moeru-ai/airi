@@ -74,6 +74,7 @@ export function buildOpenAICompatibleProvider(
       const errors: Error[] = []
       // Safer cast before using URL
       let baseUrl = typeof config.baseUrl === 'string' ? config.baseUrl.trim() : ''
+      const apiKey = typeof config.apiKey === 'string' ? config.apiKey.trim() : ''
 
       if (!baseUrl) {
         errors.push(new Error('Base URL is required'))
