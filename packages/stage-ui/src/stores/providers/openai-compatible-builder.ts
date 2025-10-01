@@ -24,22 +24,44 @@ export function buildOpenAICompatibleProvider(
     additionalHeaders?: Record<string, string>
   },
 ): ProviderMetadata {
-  const { id, name, icon, description, nameKey, descriptionKey, category, tasks, defaultBaseUrl, creator, capabilities, validators, validation, additionalHeaders, ...rest } = options
+  const {
+    id,
+    name,
+    icon,
+    description,
+    nameKey,
+    descriptionKey,
+    category,
+    tasks,
+    defaultBaseUrl,
+    creator,
+    capabilities,
+    validators,
+    validation,
+    additionalHeaders,
+    ...rest
+  } = options
 
   const finalCapabilities = capabilities || {
     listModels: async (config: Record<string, unknown>) => {
-      const provider = await creator(
-        (config.apiKey as string || '').trim(),
-        (config.baseUrl as string || '').trim(),
-      )
+      // Safer casting of apiKey/baseUrl (prevents .trim() crash if not a string)
+      const apiKey =
+        typeof config.apiKey === 'string' ? config.apiKey.trim() : ''
+      const baseUrl =
+        typeof config.baseUrl === 'string' ? config.baseUrl.trim() : ''
 
-      if (!provider.model) {
+      const provider = await creator(apiKey, baseUrl)
+      
+      // Check provider.model exists and is a function
+      if (!provider || typeof provider.model !== 'function') {
         return []
       }
 
-      return (await listModels({
+      const models = await listModels({
         ...provider.model(),
-      })).map((model: any) => {
+      })
+
+      return models.map((model: any) => {
         return {
           id: model.id,
           name: model.name || model.display_name || model.id,
@@ -55,50 +77,91 @@ export function buildOpenAICompatibleProvider(
   const finalValidators = validators || {
     validateProviderConfig: async (config: Record<string, unknown>) => {
       const errors: Error[] = []
+      
+      // Safer cast before using URL
+      let baseUrl =
+        typeof config.baseUrl === 'string' ? config.baseUrl.trim() : ''
 
-      if (!config.baseUrl) {
+      if (!baseUrl) {
         errors.push(new Error('Base URL is required'))
       }
 
+      try {
+        if (!isUrl(baseUrl) || new URL(baseUrl).host.length === 0) {
+          errors.push(new Error('Base URL is not absolute. Check your input.'))
+        }
+      }
+      catch {
+        errors.push(new Error('Base URL is invalid'))
+      }
+
+      // normalize trailing slash instead of rejecting
+      if (baseUrl && !baseUrl.endsWith('/')) {
+        baseUrl += '/'
+      }
+
       if (errors.length > 0) {
-        return { errors, reason: errors.map(e => e.message).join(', '), valid: false }
-      }
-
-      if (!isUrl(config.baseUrl as string) || new URL(config.baseUrl as string).host.length === 0) {
-        errors.push(new Error('Base URL is not absolute. Check your input.'))
-      }
-
-      if (!(config.baseUrl as string).endsWith('/')) {
-        errors.push(new Error('Base URL must end with a trailing slash (/).'))
-      }
-
-      if (errors.length > 0) {
-        return { errors, reason: errors.map(e => e.message).join(', '), valid: false }
+        return {
+          errors,
+          reason: errors.map(e => e.message).join(', '),
+          valid: false,
+        }
       }
 
       const validationChecks = validation || []
-      let responseModelList = null
-      let responseChat = null
+      let responseModelList: Response | null = null
+      let responseChat: Response | null = null
 
       if (validationChecks.includes('health')) {
         try {
-          responseChat = await fetch(`${config.baseUrl as string}chat/completions`, { headers: { Authorization: `Bearer ${config.apiKey}`, ...additionalHeaders }, method: 'POST', body: '{"model": "test"}' })
-          responseModelList = await fetch(`${config.baseUrl as string}models`, { headers: { Authorization: `Bearer ${config.apiKey}`, ...additionalHeaders } })
+          responseChat = await fetch(`${baseUrl}chat/completions`, {
+            // Authorization always overrides additionalHeaders
+            headers: {
+              ...additionalHeaders,
+              Authorization: `Bearer ${config.apiKey || ''}`,
+            },
+            method: 'POST',
+            body: '{"model": "test"}',
+          })
 
+          responseModelList = await fetch(`${baseUrl}models`, {
+            headers: {
+              ...additionalHeaders,
+              Authorization: `Bearer ${config.apiKey || ''}`,
+            },
+          })
+          
           // Also try transcription endpoints for speech recognition servers
-          let responseTranscription = null
+          let responseTranscription: Response | null = null
           try {
-            // Sending empty FormData is fine; 400 still counts as a valid endpoint
-            responseTranscription = await fetch(`${config.baseUrl as string}audio/transcriptions`, { headers: { Authorization: `Bearer ${config.apiKey}`, ...additionalHeaders }, method: 'POST', body: new FormData() })
+            const form =
+              typeof FormData !== 'undefined' ? new FormData() : undefined
+            responseTranscription = await fetch(`${baseUrl}audio/transcriptions`, {
+              headers: {
+                ...additionalHeaders,
+                Authorization: `Bearer ${config.apiKey || ''}`,
+              },
+              method: 'POST',
+              body: form,
+            })
           }
           catch {
             // Transcription endpoint might not exist, that's okay
           }
 
           // Accept if any of the endpoints work (chat, models, or transcription)
-          const validResponses = [responseChat, responseModelList, responseTranscription].filter(r => r && [200, 400, 401].includes(r.status))
+          const validResponses = [responseChat, responseModelList, responseTranscription].filter(
+            r =>
+              r &&
+              ((r.status >= 200 && r.status < 300) ||
+                [400, 401, 403].includes(r.status)),
+          )
           if (validResponses.length === 0) {
-            errors.push(new Error(`Invalid Base URL, ${config.baseUrl} is not supported. Make sure your server supports OpenAI-compatible endpoints.`))
+            errors.push(
+              new Error(
+                `Invalid Base URL, ${baseUrl} is not supported. Make sure your server supports OpenAI-compatible endpoints.`,
+              ),
+            )
           }
         }
         catch (e) {
@@ -107,18 +170,27 @@ export function buildOpenAICompatibleProvider(
       }
 
       if (errors.length > 0) {
-        return { errors, reason: errors.map(e => e.message).join(', '), valid: false }
+        return {
+          errors,
+          reason: errors.map(e => e.message).join(', '),
+          valid: false,
+        }
       }
 
       if (validationChecks.includes('model_list')) {
         try {
           let response = responseModelList
           if (!response) {
-            response = await fetch(`${config.baseUrl as string}models`, { headers: { Authorization: `Bearer ${config.apiKey}`, ...additionalHeaders } })
+            response = await fetch(`${baseUrl}models`, {
+              headers: {
+                ...additionalHeaders,
+                Authorization: `Bearer ${config.apiKey || ''}`,
+              },
+            })
           }
 
           if (!response.ok) {
-            errors.push(new Error(`Invalid API Key`))
+            errors.push(new Error('Invalid API Key'))
           }
         }
         catch (e) {
@@ -130,21 +202,31 @@ export function buildOpenAICompatibleProvider(
         try {
           let response = responseChat
           if (!response) {
-            response = await fetch(`${config.baseUrl as string}chat/completions`, { headers: { Authorization: `Bearer ${config.apiKey}`, ...additionalHeaders }, method: 'POST', body: '{"model": "test"}' })
+            response = await fetch(`${baseUrl}chat/completions`, {
+              headers: {
+                ...additionalHeaders,
+                Authorization: `Bearer ${config.apiKey || ''}`,
+              },
+              method: 'POST',
+              body: '{"model": "test"}',
+            })
           }
 
           if (!response.ok) {
-            errors.push(new Error(`Invalid API Key`))
+            errors.push(new Error('Invalid API Key'))
           }
         }
         catch (e) {
-          errors.push(new Error(`Chat Completions check Failed: ${(e as Error).message}`))
+          errors.push(
+            new Error(`Chat Completions check Failed: ${(e as Error).message}`),
+          )
         }
       }
 
       return {
         errors,
-        reason: errors.map(e => e.message).join(', ') || '',
+        // Consistent reason string (empty when no errors)
+        reason: errors.length > 0 ? errors.map(e => e.message).join(', ') : '',
         valid: errors.length === 0,
       }
     },
@@ -162,7 +244,16 @@ export function buildOpenAICompatibleProvider(
     defaultOptions: () => ({
       baseUrl: defaultBaseUrl || '',
     }),
-    createProvider: async config => creator((config.apiKey as string || '').trim(), (config.baseUrl as string || '').trim()),
+    createProvider: async config => {
+      const apiKey =
+        typeof config.apiKey === 'string' ? config.apiKey.trim() : ''
+      let baseUrl =
+        typeof config.baseUrl === 'string' ? config.baseUrl.trim() : ''
+      if (baseUrl && !baseUrl.endsWith('/')) {
+        baseUrl += '/'
+      }
+      return creator(apiKey, baseUrl)
+    },
     capabilities: finalCapabilities,
     validators: finalValidators,
     ...rest,
