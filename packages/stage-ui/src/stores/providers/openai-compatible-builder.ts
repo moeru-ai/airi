@@ -87,12 +87,12 @@ export function buildOpenAICompatibleProvider(
       }
 
       try {
-        if (!isUrl(baseUrl) || new URL(baseUrl).host.length === 0) {
+        if (new URL(baseUrl).host.length === 0) {
           errors.push(new Error('Base URL is not absolute. Check your input.'))
         }
       }
       catch {
-        errors.push(new Error('Base URL is invalid'))
+        errors.push(new Error('Base URL is invalid. It must be an absolute URL.'))
       }
 
       // normalize trailing slash instead of rejecting
@@ -245,10 +245,8 @@ export function buildOpenAICompatibleProvider(
       baseUrl: defaultBaseUrl || '',
     }),
     createProvider: async config => {
-      const apiKey =
-        typeof config.apiKey === 'string' ? config.apiKey.trim() : ''
-      let baseUrl =
-        typeof config.baseUrl === 'string' ? config.baseUrl.trim() : ''
+      const apiKey = typeof config.apiKey === 'string' ? config.apiKey.trim() : ''
+      let baseUrl = typeof config.baseUrl === 'string' ? config.baseUrl.trim() : ''
       if (baseUrl && !baseUrl.endsWith('/')) {
         baseUrl += '/'
       }
