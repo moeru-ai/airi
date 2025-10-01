@@ -111,7 +111,7 @@ export function buildOpenAICompatibleProvider(
             // Authorization always overrides additionalHeaders
             headers: {
               ...additionalHeaders,
-              Authorization: `Bearer ${config.apiKey || ''}`,
+              Authorization: `Bearer ${apiKey}`,
             },
             method: 'POST',
             body: '{"model": "test"}',
@@ -120,7 +120,7 @@ export function buildOpenAICompatibleProvider(
           responseModelList = await fetch(`${baseUrl}models`, {
             headers: {
               ...additionalHeaders,
-              Authorization: `Bearer ${config.apiKey || ''}`,
+              Authorization: `Bearer ${apiKey}`,
             },
           })
           // Also try transcription endpoints for speech recognition servers
@@ -130,7 +130,7 @@ export function buildOpenAICompatibleProvider(
             responseTranscription = await fetch(`${baseUrl}audio/transcriptions`, {
               headers: {
                 ...additionalHeaders,
-                Authorization: `Bearer ${config.apiKey || ''}`,
+                Authorization: `Bearer ${apiKey}`,
               },
               method: 'POST',
               body: form,
@@ -172,7 +172,7 @@ export function buildOpenAICompatibleProvider(
             response = await fetch(`${baseUrl}models`, {
               headers: {
                 ...additionalHeaders,
-                Authorization: `Bearer ${config.apiKey || ''}`,
+                Authorization: `Bearer ${apiKey}`,
               },
             })
           }
@@ -193,7 +193,7 @@ export function buildOpenAICompatibleProvider(
             response = await fetch(`${baseUrl}chat/completions`, {
               headers: {
                 ...additionalHeaders,
-                Authorization: `Bearer ${config.apiKey || ''}`,
+                Authorization: `Bearer ${apiKey}`,
               },
               method: 'POST',
               body: '{"model": "test"}',
