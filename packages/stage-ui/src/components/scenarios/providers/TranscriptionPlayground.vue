@@ -3,7 +3,7 @@ import type { GenerateTranscriptionResult } from '@xsai/generate-transcription'
 
 import { FieldRange, FieldSelect } from '@proj-airi/ui'
 import { until } from '@vueuse/core'
-import { computed, onUnmounted, ref, watch } from 'vue'
+import { computed, onUnmounted, ref, shallowRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { useAudioAnalyzer } from '../../../composables/audio/audio-analyzer'
@@ -30,7 +30,7 @@ const isSpeaking = ref(false)
 
 const errorMessage = ref<string>('')
 
-const audioContext = ref<AudioContext>()
+const audioContext = shallowRef<AudioContext>()
 const dataArray = ref<Uint8Array<ArrayBuffer>>()
 const animationFrame = ref<number>()
 
