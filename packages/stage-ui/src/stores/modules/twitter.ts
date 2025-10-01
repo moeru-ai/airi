@@ -2,9 +2,11 @@ import { useLocalStorage } from '@vueuse/core'
 import { defineStore } from 'pinia'
 import { computed } from 'vue'
 
-import { settingsBroadcaster } from '../../services/settings-broadcaster'
+import { useConfiguratorForAiriSdk } from '../configurator'
 
 export const useTwitterStore = defineStore('twitter', () => {
+  const configurator = useConfiguratorForAiriSdk()
+
   const enabled = useLocalStorage('settings/twitter/enabled', false)
   const apiKey = useLocalStorage('settings/twitter/api-key', '')
   const apiSecret = useLocalStorage('settings/twitter/api-secret', '')
@@ -14,7 +16,7 @@ export const useTwitterStore = defineStore('twitter', () => {
   function saveSettings() {
     // Data is automatically saved to localStorage via useLocalStorage
     // Also broadcast configuration to backend
-    settingsBroadcaster.sendConfiguration('twitter', {
+    configurator.updateFor('twitter', {
       enabled: enabled.value,
       apiKey: apiKey.value,
       apiSecret: apiSecret.value,

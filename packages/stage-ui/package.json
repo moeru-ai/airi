@@ -26,8 +26,6 @@
     "./constants": "./src/constants/index.ts",
     "./libs/*": "./src/libs/*.ts",
     "./libs": "./src/libs/index.ts",
-    "./services/*": "./src/services/*.ts",
-    "./services": "./src/services/index.ts",
     "./stores/*": "./src/stores/*.ts",
     "./stores": "./src/stores/index.ts",
     "./utils": "./src/utils/index.ts"
