@@ -51,7 +51,6 @@ export function buildOpenAICompatibleProvider(
         typeof config.baseUrl === 'string' ? config.baseUrl.trim() : ''
 
       const provider = await creator(apiKey, baseUrl)
-      
       // Check provider.model exists and is a function
       if (!provider || typeof provider.model !== 'function') {
         return []
@@ -77,10 +76,8 @@ export function buildOpenAICompatibleProvider(
   const finalValidators = validators || {
     validateProviderConfig: async (config: Record<string, unknown>) => {
       const errors: Error[] = []
-      
       // Safer cast before using URL
-      let baseUrl =
-        typeof config.baseUrl === 'string' ? config.baseUrl.trim() : ''
+      let baseUrl = typeof config.baseUrl === 'string' ? config.baseUrl.trim() : ''
 
       if (!baseUrl) {
         errors.push(new Error('Base URL is required'))
@@ -130,12 +127,10 @@ export function buildOpenAICompatibleProvider(
               Authorization: `Bearer ${config.apiKey || ''}`,
             },
           })
-          
           // Also try transcription endpoints for speech recognition servers
           let responseTranscription: Response | null = null
           try {
-            const form =
-              typeof FormData !== 'undefined' ? new FormData() : undefined
+            const form = typeof FormData !== 'undefined' ? new FormData() : undefined
             responseTranscription = await fetch(`${baseUrl}audio/transcriptions`, {
               headers: {
                 ...additionalHeaders,
@@ -151,10 +146,7 @@ export function buildOpenAICompatibleProvider(
 
           // Accept if any of the endpoints work (chat, models, or transcription)
           const validResponses = [responseChat, responseModelList, responseTranscription].filter(
-            r =>
-              r &&
-              ((r.status >= 200 && r.status < 300) ||
-                [400, 401, 403].includes(r.status)),
+            r => r && ((r.status >= 200 && r.status < 300) || [400, 401, 403].includes(r.status)),
           )
           if (validResponses.length === 0) {
             errors.push(
@@ -244,7 +236,7 @@ export function buildOpenAICompatibleProvider(
     defaultOptions: () => ({
       baseUrl: defaultBaseUrl || '',
     }),
-    createProvider: async config => {
+    createProvider: async (config: { apiKey: string; baseUrl: string }) => {
       const apiKey = typeof config.apiKey === 'string' ? config.apiKey.trim() : ''
       let baseUrl = typeof config.baseUrl === 'string' ? config.baseUrl.trim() : ''
       if (baseUrl && !baseUrl.endsWith('/')) {
