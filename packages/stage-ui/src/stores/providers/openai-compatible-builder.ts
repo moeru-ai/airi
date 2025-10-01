@@ -149,6 +149,7 @@ export function buildOpenAICompatibleProvider(
             // Transcription endpoint might not exist, that's okay
           }
 
+
           // Accept if any of the endpoints work (chat, models, or transcription)
           const validResponses = [responseChat, responseModelList, responseTranscription].filter(
             r =>

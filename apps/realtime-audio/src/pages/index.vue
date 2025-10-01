@@ -11,7 +11,7 @@ import type {
 
 import { useLocalStorage, useWebSocket } from '@vueuse/core'
 import { streamText } from '@xsai/stream-text'
-import { computed, ref, toRaw, watch } from 'vue'
+import { computed, ref, shallowRef, toRaw, watch } from 'vue'
 
 import { useQueue } from '../composables/queue'
 
@@ -21,7 +21,7 @@ const model = useLocalStorage('settings/llm/model', 'openai/gpt-4o-mini')
 const sendingMessage = ref('')
 const messages = ref<Message[]>([])
 const streamingMessage = ref<AssistantMessage>({ role: 'assistant', content: '' })
-const audioContext = ref<AudioContext>()
+const audioContext = shallowRef<AudioContext>()
 
 const voiceId = useLocalStorage('settings/voiceId', 'lNxY9WuCBCZCISASyJ55')
 const voiceApiKey = useLocalStorage('settings/voiceApiKey', '')
@@ -46,16 +46,14 @@ async function handleChatSendMessage() {
   messages.value.push({ role: 'user', content: sendingMessage.value })
   messages.value.push(streamingMessage.value)
 
-  const response = await streamText({
+  const response = streamText({
     baseURL: baseUrl.value,
     apiKey: apiKey.value,
     model: model.value,
     messages: messages.value.slice(0, messages.value.length - 1).map(msg => toRaw(msg)),
   })
 
-  for await (const chunk of response.chunkStream) {
-    const text = chunk.choices[0].delta.content || ''
-
+  for await (const text of response.textStream) {
     if (text !== '') {
       sendPayload({
         'xi-api-key': voiceApiKey.value,

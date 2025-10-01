@@ -7,7 +7,7 @@ import type { Emotion } from '../../constants/emotions'
 
 import { drizzle } from '@proj-airi/drizzle-duckdb-wasm'
 import { getImportUrlBundles } from '@proj-airi/drizzle-duckdb-wasm/bundles/import-url-browser'
-import { ThreeScene } from '@proj-airi/stage-ui-three'
+import { ThreeScene, useModelStore } from '@proj-airi/stage-ui-three'
 // import { createTransformers } from '@xsai-transformers/embed'
 // import embedWorkerURL from '@xsai-transformers/embed/worker?worker&url'
 // import { embed } from '@xsai/embed'
@@ -45,12 +45,26 @@ const vrmViewerRef = ref<InstanceType<typeof ThreeScene>>()
 const live2dSceneRef = ref<InstanceType<typeof Live2DScene>>()
 
 const textSegmentationStore = usePipelineWorkflowTextSegmentationStore()
-const { onTextSegmented } = textSegmentationStore
+const { onTextSegmented, clearHooks: clearTextSegmentationHooks } = textSegmentationStore
 const { textSegmentationQueue } = storeToRefs(textSegmentationStore)
+// WORKAROUND: clear previous hooks to avoid duplicate calls
+//             due to re-mounting of this component when switching routes and stages.
+//             We may need to find a way to better orchestrate the lifecycle of the event
+//             listeners within specific scopes, e.g., perhaps, addEventListener with
+//             group tag, then we can remove them all once, or perhaps, we could implement
+//             every non-deterministic onXXX register function to remove registered listeners
+//             when the onUnmounted lifecycle hook is called.
+//             Another possible approach but not really work for every cases (such as character
+//             pipeline here, we may have multiple characters? Or multiple chat instances?, etc.)
+//             is to orchestrate the lifecycle of events for specific Character, sub-module like
+//             Dreaming procedure, etc. in each entity's own store with all lifecycle contained.
+//             We need better pattern (maybe learn from game engine) to power this kind of pipeline/
+//             event-driven workflow to avoid unexpected behaviors while maintain flexibility.
+clearTextSegmentationHooks()
 
 const characterSpeechPlaybackQueue = usePipelineCharacterSpeechPlaybackQueueStore()
 const { connectAudioContext, connectAudioAnalyser, clearAll } = characterSpeechPlaybackQueue
-const { playbackQueue } = storeToRefs(characterSpeechPlaybackQueue)
+const { currentAudioSource, playbackQueue } = storeToRefs(characterSpeechPlaybackQueue)
 
 const settingsStore = useSettings()
 const { stageModelRenderer, stageViewControlsEnabled, live2dDisableFocus, stageModelSelectedUrl } = storeToRefs(settingsStore)
@@ -58,12 +72,19 @@ const { mouthOpenSize } = storeToRefs(useSpeakingStore())
 const { audioContext, calculateVolume } = useAudioContext()
 connectAudioContext(audioContext)
 
-const { onBeforeMessageComposed, onBeforeSend, onTokenLiteral, onTokenSpecial, onStreamEnd, onAssistantResponseEnd } = useChatStore()
+const { onBeforeMessageComposed, onBeforeSend, onTokenLiteral, onTokenSpecial, onStreamEnd, onAssistantResponseEnd, clearHooks } = useChatStore()
+// WORKAROUND: clear previous hooks to avoid duplicate calls
+//             due to re-mounting of this component when switching routes and stages.
+//            See the comment above for more details.
+clearHooks()
+
 const providersStore = useProvidersStore()
 const live2dStore = useLive2d()
+const vrmStore = useModelStore()
 
 const showStage = ref(true)
 
+// TODO: duplicate calls may happen if this component mounted multiple times
 live2dStore.onShouldUpdateView(async () => {
   showStage.value = false
   await settingsStore.updateStageModel()
@@ -72,18 +93,14 @@ live2dStore.onShouldUpdateView(async () => {
   }, 100)
 })
 
-// Lilia: tbh I don't see the meaning of using this hook...
-// 1. vrm.ts store is only responsible for the settings within the vrm scene, it has nothing to do with model loading and url setting
-// 2. put the hook injection to vrm.ts is too deep, at least putting it in the setting.ts may be more reasonable
-// 3. from the code in Scenarios/Settings/index (the model loading component), it seems like this settingStore.updateStageModel() was called twice... the first time was call in that index component, and the second time is call here... no idea why it would be necessary
-// 4. I don't think showStage is necessary here to show or hide the stage component...
-// vrmStore.onShouldUpdateView(async () => {
-//   showStage.value = false
-//   await settingsStore.updateStageModel()
-//   setTimeout(() => {
-//     showStage.value = true
-//   }, 100)
-// })
+// TODO: duplicate calls may happen if this component mounted multiple times
+vrmStore.onShouldUpdateView(async () => {
+  showStage.value = false
+  await settingsStore.updateStageModel()
+  setTimeout(() => {
+    showStage.value = true
+  }, 100)
+})
 
 const audioAnalyser = ref<AnalyserNode>()
 const nowSpeaking = ref(false)
@@ -104,7 +121,6 @@ async function handleSpeechGeneration(ctx: { data: string }) {
       return
     }
 
-    // TODO: UnElevenLabsOptions
     const provider = await providersStore.getProviderInstance(activeSpeechProvider.value) as SpeechProviderWithExtraOptions<string, UnElevenLabsOptions>
     if (!provider) {
       console.error('Failed to initialize speech provider')
@@ -123,7 +139,6 @@ async function handleSpeechGeneration(ctx: { data: string }) {
       voice: activeSpeechVoice.value.id,
     })
 
-    // Decode the ArrayBuffer into an AudioBuffer
     const audioBuffer = await audioContext.decodeAudioData(res)
     playbackQueue.value.enqueue({ audioBuffer, text: ctx.data })
   }
@@ -275,6 +290,7 @@ defineExpose({
         min-w="50% <lg:full" min-h="100 sm:100" h-full w-full flex-1
         :paused="paused"
         :show-axes="stageViewControlsEnabled"
+        :current-audio-source="currentAudioSource"
         @error="console.error"
       />
     </div>

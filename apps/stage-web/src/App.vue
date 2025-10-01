@@ -87,7 +87,7 @@ function handleSetupSkipped() {
     :use-page-specific-transitions="settings.usePageSpecificTransitions.value"
   >
     <RouterView v-slot="{ Component }">
-      <KeepAlive :include="/IndexScenePage|StageScenePage/">
+      <KeepAlive :include="['IndexScenePage', 'StageScenePage']">
         <component :is="Component" />
       </KeepAlive>
     </RouterView>

@@ -1,7 +1,8 @@
 import type { Vector3 } from 'three'
 
-import { useLocalStorage } from '@vueuse/core'
+import { useBroadcastChannel, useLocalStorage } from '@vueuse/core'
 import { defineStore } from 'pinia'
+import { ref, watch } from 'vue'
 
 import defaultSkyBoxSrc from '../components/Environment/assets/sky_linekotsi_23_HDRI.hdr?url'
 
@@ -51,8 +52,31 @@ export type FieldValueOf<D> = D extends SelectField<infer T> ? T
     ? K extends keyof FieldKindMap ? FieldKindMap[K]['value'] : never
     : never
 
+type BroadcastChannelEvents
+  = | BroadcastChannelEventShouldUpdateView
+
+interface BroadcastChannelEventShouldUpdateView {
+  type: 'should-update-view'
+}
+
 export const useModelStore = defineStore('modelStore', () => {
-  // const defaultRootDir = 'settings/3d-model'
+  const { post, data } = useBroadcastChannel<BroadcastChannelEvents, BroadcastChannelEvents>({ name: 'airi-stores-live2d' })
+  const shouldUpdateViewHooks = ref<Array<() => void>>([])
+
+  const onShouldUpdateView = (hook: () => void) => {
+    shouldUpdateViewHooks.value.push(hook)
+  }
+
+  function shouldUpdateView() {
+    post({ type: 'should-update-view' })
+    shouldUpdateViewHooks.value.forEach(hook => hook())
+  }
+
+  watch(data, (event) => {
+    if (event.type === 'should-update-view') {
+      shouldUpdateViewHooks.value.forEach(hook => hook())
+    }
+  })
 
   const scale = useLocalStorage('settings/stage-ui-three/scale', 1)
   const lastModelSrc = useLocalStorage('settings/stage-ui-three/lastModelSrc', '')
@@ -149,6 +173,9 @@ export const useModelStore = defineStore('modelStore', () => {
     envSelect,
     skyBoxSrc,
     skyBoxIntensity,
+
+    onShouldUpdateView,
+    shouldUpdateView,
 
     resetModelStore,
   }

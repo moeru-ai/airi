@@ -1,3 +1,6 @@
+common:
+  save: Lưu
+
 animations:
   stage-transitions:
     title: Tắt hiệu ứng chuyển cảnh
@@ -189,9 +192,31 @@ pages:
     gaming-factorio:
       description: Chơi Factorio!
       title: Factorio
+      enable: Bật tích hợp Factorio
+      enable-description: Cho phép AIRI tương tác với trò chơi Factorio
+      server-address: Địa chỉ máy chủ
+      server-address-description: Địa chỉ IP hoặc tên máy chủ của máy chủ Factorio
+      server-address-placeholder: Nhập địa chỉ máy chủ (ví dụ localhost hoặc 192.168.1.100)
+      server-port: Cổng máy chủ
+      server-port-description: Số cổng của máy chủ Factorio (mặc định 34197)
+      username: Tên người dùng
+      username-description: Tên người dùng của bạn trên máy chủ Factorio
+      username-placeholder: Nhập tên người dùng Factorio của bạn
+      configured: Đã cấu hình Factorio thành công!
     gaming-minecraft:
       description: Chơi Minecraft!
       title: Minecraft
+      enable: Bật tích hợp Minecraft
+      enable-description: Cho phép AIRI tương tác với trò chơi Minecraft
+      server-address: Địa chỉ máy chủ
+      server-address-description: Địa chỉ IP hoặc tên máy chủ của máy chủ Minecraft
+      server-address-placeholder: Nhập địa chỉ máy chủ (ví dụ localhost hoặc play.example.com)
+      server-port: Cổng máy chủ
+      server-port-description: Số cổng của máy chủ Minecraft (mặc định 25565)
+      username: Tên người dùng
+      username-description: Tên người dùng của bạn trên máy chủ Minecraft
+      username-placeholder: Nhập tên người dùng Minecraft của bạn
+      configured: Đã cấu hình Minecraft thành công!
     hearing:
       description: Cấu hình nhận diện giọng nói
       title: Nghe
@@ -202,8 +227,14 @@ pages:
       description: Cài đặt và quản lý trí nhớ ngắn hạn
       title: Trí nhớ ngắn hạn
     messaging-discord:
-      description: Chat & Gọi thoại qua Discord
+      description: Trò chuyện & gọi thoại qua Discord
       title: Discord
+      enable: Bật tích hợp Discord
+      enable-description: Cho phép AIRI tương tác qua Discord
+      token: Mã token của bot
+      token-description: Mã token bot Discord của bạn
+      token-placeholder: Nhập mã token bot Discord của bạn
+      configured: Đã cấu hình Discord thành công!
     speech:
       description: Tổng hợp giọng nói
       sections:
@@ -245,6 +276,21 @@ pages:
     x:
       description: Sử Dụng Twitter
       title: X / Twitter
+      enable: Bật tích hợp X / Twitter
+      enable-description: Cho phép AIRI tương tác với X / Twitter
+      api-key: Khóa API
+      api-key-description: Khóa API X / Twitter của bạn
+      api-key-placeholder: Nhập khóa API X / Twitter của bạn
+      api-secret: Bí mật API
+      api-secret-description: Bí mật API X / Twitter của bạn
+      api-secret-placeholder: Nhập bí mật API X / Twitter của bạn
+      access-token: Mã truy cập
+      access-token-description: Mã truy cập X / Twitter của bạn
+      access-token-placeholder: Nhập mã truy cập X / Twitter của bạn
+      access-token-secret: Bí mật mã truy cập
+      access-token-secret-description: Bí mật mã truy cập X / Twitter của bạn
+      access-token-secret-placeholder: Nhập bí mật mã truy cập X / Twitter của bạn
+      configured: Đã cấu hình X / Twitter thành công!
     mcp-server:
       description: Kết nối, quản lý máy chủ MCP và công cụ
       title: Máy chủ MCP

@@ -65,6 +65,7 @@ import {
 } from '../../composables/vrm/animation'
 import { loadVrm } from '../../composables/vrm/core'
 import { useVRMEmote } from '../../composables/vrm/expression'
+import { useVRMLipSync } from '../../composables/vrm/lip-sync'
 
 /*
   * Props:
@@ -78,6 +79,7 @@ import { useVRMEmote } from '../../composables/vrm/expression'
   * - modelRotationY: The rotation of the model (y-axis)
 */
 const props = withDefaults(defineProps<{
+  currentAudioSource?: AudioBufferSourceNode
   modelSrc?: string
   lastModelSrc?: string
   idleAnimation: string
@@ -121,6 +123,7 @@ const emit = defineEmits<{
 }>()
 
 const {
+  currentAudioSource,
   modelSrc,
   lastModelSrc,
   idleAnimation,
@@ -163,6 +166,7 @@ let disposeBeforeRenderLoop: (() => void | undefined)
 const blink = useBlink()
 const idleEyeSaccades = useIdleEyeSaccades()
 const vrmEmote = ref<ReturnType<typeof useVRMEmote>>()
+const vrmLipSync = useVRMLipSync(currentAudioSource)
 
 // For sky box update
 const nprProgramVersion = ref(0)
@@ -431,6 +435,7 @@ async function loadModel() {
         blink.update(vrm.value, delta)
         idleEyeSaccades.update(vrm.value, lookAtTarget, delta)
         vrmEmote.value?.update(delta)
+        vrmLipSync.update(vrm.value)
       }).off
 
       // update the 'last model src'

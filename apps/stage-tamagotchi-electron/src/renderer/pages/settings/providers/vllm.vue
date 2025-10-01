@@ -8,7 +8,7 @@ import {
   ProviderSettingsContainer,
   ProviderSettingsLayout,
 } from '@proj-airi/stage-ui/components'
-import { useProviderValidation } from '@proj-airi/stage-ui/composables/useProviderValidation'
+import { useProviderValidation } from '@proj-airi/stage-ui/composables/use-provider-validation'
 
 const providerId = 'vllm'
 

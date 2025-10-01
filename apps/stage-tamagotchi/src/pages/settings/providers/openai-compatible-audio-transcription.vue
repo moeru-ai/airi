@@ -12,7 +12,7 @@ import {
   ProviderSettingsLayout,
   TranscriptionPlayground,
 } from '@proj-airi/stage-ui/components'
-import { useProviderValidation } from '@proj-airi/stage-ui/composables/useProviderValidation'
+import { useProviderValidation } from '@proj-airi/stage-ui/composables/use-provider-validation'
 import { useHearingStore } from '@proj-airi/stage-ui/stores/modules/hearing'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { FieldInput } from '@proj-airi/ui'
