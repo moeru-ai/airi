@@ -1,7 +1,6 @@
 import type { ModelInfo, ProviderMetadata } from '../providers'
 
 import { generateText } from '@xsai/generate-text'
-
 import { listModels } from '@xsai/model'
 
 type ProviderCreator = (apiKey: string, baseUrl: string) => any
@@ -57,7 +56,7 @@ export function buildOpenAICompatibleProvider(
       // Previously: fetch(`${baseUrl}models`)
       const models = await listModels({
         apiKey,
-        baseUrl,
+        baseURL,
         headers: {
           ...additionalHeaders,
           Authorization: `Bearer ${apiKey}`,
@@ -116,7 +115,7 @@ export function buildOpenAICompatibleProvider(
         try {
           await generateText({
             apiKey,
-            baseUrl,
+            baseURL,
             headers: {
               ...additionalHeaders,
               Authorization: `Bearer ${apiKey}`,
@@ -136,7 +135,7 @@ export function buildOpenAICompatibleProvider(
         try {
           const models = await listModels({
             apiKey,
-            baseUrl,
+            baseURL,
             headers: {
               ...additionalHeaders,
               Authorization: `Bearer ${apiKey}`,
@@ -156,7 +155,7 @@ export function buildOpenAICompatibleProvider(
         try {
           await generateText({
             apiKey,
-            baseUrl,
+            baseURL,
             headers: {
               ...additionalHeaders,
               Authorization: `Bearer ${apiKey}`,
