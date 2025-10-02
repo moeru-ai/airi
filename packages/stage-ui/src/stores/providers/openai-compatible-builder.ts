@@ -1,5 +1,8 @@
 import type { ModelInfo, ProviderMetadata } from '../providers'
-import { listModels, generateText } from '@xsai/generate-text'
+
+import { generateText } from '@xsai/generate-text'
+
+import { listModels } from '@xsai/model'
 
 type ProviderCreator = (apiKey: string, baseUrl: string) => any
 
@@ -189,7 +192,7 @@ export function buildOpenAICompatibleProvider(
     defaultOptions: () => ({
       baseUrl: defaultBaseUrl || '',
     }),
-    createProvider: async (config: { apiKey: string; baseUrl: string }) => {
+    createProvider: async (config: { apiKey: string, baseUrl: string }) => {
       const apiKey = typeof config.apiKey === 'string' ? config.apiKey.trim() : ''
       let baseUrl = typeof config.baseUrl === 'string' ? config.baseUrl.trim() : ''
       if (baseUrl && !baseUrl.endsWith('/')) {
