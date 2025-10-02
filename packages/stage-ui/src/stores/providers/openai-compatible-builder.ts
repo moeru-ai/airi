@@ -56,7 +56,7 @@ export function buildOpenAICompatibleProvider(
       // Previously: fetch(`${baseUrl}models`)
       const models = await listModels({
         apiKey,
-        baseUrl,
+        baseURL: baseUrl,
         headers: {
           ...additionalHeaders,
           Authorization: `Bearer ${apiKey}`,
@@ -115,7 +115,7 @@ export function buildOpenAICompatibleProvider(
         try {
           await generateText({
             apiKey,
-            baseUrl,
+            baseURL: baseUrl,
             headers: {
               ...additionalHeaders,
               Authorization: `Bearer ${apiKey}`,
@@ -135,7 +135,7 @@ export function buildOpenAICompatibleProvider(
         try {
           const models = await listModels({
             apiKey,
-            baseUrl,
+            baseURL: baseUrl,
             headers: {
               ...additionalHeaders,
               Authorization: `Bearer ${apiKey}`,
@@ -155,7 +155,7 @@ export function buildOpenAICompatibleProvider(
         try {
           await generateText({
             apiKey,
-            baseUrl,
+            baseURL: baseUrl,
             headers: {
               ...additionalHeaders,
               Authorization: `Bearer ${apiKey}`,
