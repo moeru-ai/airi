@@ -46,15 +46,22 @@ export default defineConfig({
       '@framework/model/cubismmoc',
     ],
   },
-
   resolve: {
     alias: {
       '@proj-airi/server-sdk': resolve(join(import.meta.dirname, '..', '..', 'packages', 'server-sdk', 'src')),
-      '@proj-airi/stage-ui': resolve(join(import.meta.dirname, '..', '..', 'packages', 'stage-ui', 'src')),
       '@proj-airi/i18n': resolve(join(import.meta.dirname, '..', '..', 'packages', 'i18n', 'src')),
+      '@proj-airi/stage-ui': resolve(join(import.meta.dirname, '..', '..', 'packages', 'stage-ui', 'src')),
+      '@proj-airi/stage-pages': resolve(join(import.meta.dirname, '..', '..', 'packages', 'stage-pages', 'src')),
     },
   },
-
+  server: {
+    warmup: {
+      clientFiles: [
+        `${resolve(join(import.meta.dirname, '..', '..', 'packages', 'stage-ui', 'src'))}/*.vue`,
+        `${resolve(join(import.meta.dirname, '..', '..', 'packages', 'stage-pages', 'src'))}/*.vue`,
+      ],
+    },
+  },
   plugins: [
     Info(),
 
@@ -76,6 +83,10 @@ export default defineConfig({
       extensions: ['.vue', '.md'],
       dts: resolve(import.meta.dirname, 'src/typed-router.d.ts'),
       importMode: 'async',
+      routesFolder: [
+        resolve(import.meta.dirname, 'src', 'pages'),
+        resolve(import.meta.dirname, '..', '..', 'packages', 'stage-pages', 'src', 'pages'),
+      ],
     }),
 
     // https://github.com/JohnCampionJr/vite-plugin-vue-layouts

@@ -13,9 +13,9 @@ catalog:
   '@proj-airi/drizzle-duckdb-wasm': ^0.4.28
   '@xsai-ext/providers-cloud': ^0.4.0-beta.4
   '@xsai-ext/providers-local': ^0.4.0-beta.4
-  '@xsai-ext/shared-providers': ^0.4.0-beta.4
+  '@xsai-ext/shared-providers': 0.4.0-beta.4
   '@xsai/embed': ^0.4.0-beta.4
-  '@xsai/generate-speech': ^0.4.0-beta.4
+  '@xsai/generate-speech': 0.4.0-beta.4
   '@xsai/generate-text': ^0.4.0-beta.4
   '@xsai/generate-transcription': ^0.4.0-beta.4
   '@xsai/model': ^0.4.0-beta.4

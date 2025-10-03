@@ -20,7 +20,6 @@
     "@date-fns/utc": "^2.1.1",
     "@formkit/auto-animate": "^0.9.0",
     "@huggingface/transformers": "^3.7.3",
-    "@llama-flow/core": "^0.4.4",
     "@moeru/std": "catalog:",
     "@nekopaw/tempora": "0.3.1-alpha.1",
     "@proj-airi/audio": "workspace:^",

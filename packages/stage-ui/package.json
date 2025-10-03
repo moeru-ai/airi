@@ -28,6 +28,9 @@
     "./libs": "./src/libs/index.ts",
     "./stores/*": "./src/stores/*.ts",
     "./stores": "./src/stores/index.ts",
+    "./workers/vad": "./src/workers/vad/index.ts",
+    "./workers/*": "./src/workers/*.ts",
+    "./workers": "./src/workers/index.ts",
     "./utils": "./src/utils/index.ts"
   },
   "scripts": {
@@ -148,6 +151,7 @@
     "@iconify-json/vscode-icons": "^1.2.30",
     "@moeru/std": "catalog:",
     "@proj-airi/lobe-icons": "^1.0.11",
+    "@types/audioworklet": "^0.0.85",
     "@types/culori": "^4.0.1",
     "@types/three": "^0.180.0",
     "@unocss/reset": "^66.5.2",

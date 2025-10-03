@@ -11,9 +11,7 @@
     "resolveJsonModule": true,
     "types": [
       "vitest",
-      "vite/client",
-      "unplugin-info/client",
-      "@types/audioworklet"
+      "vite/client"
     ],
     "allowJs": true,
     "strict": true,
@@ -34,17 +32,10 @@
     "skipTemplateCodegen": false
   },
   "include": [
-    "env.d.ts",
     "src/**/*.ts",
     "src/**/*.d.ts",
     "src/**/*.mts",
-    "src/**/*.vue",
-    "src/**/*.story.vue",
-    "stories/**/*.ts",
-    "stories/**/*.d.ts",
-    "stories/**/*.mts",
-    "stories/**/*.vue",
-    "stories/**/*.story.vue"
+    "src/**/*.vue"
   ],
   "exclude": [
     "dist",
