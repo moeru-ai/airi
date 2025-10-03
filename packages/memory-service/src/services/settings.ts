@@ -74,7 +74,7 @@ export class SettingsService {
     }
     catch (error) {
       // If table doesn't exist yet, return default-like settings object
-      if (error instanceof Error && error.message.includes('relation "memory_settings" does not exist')) {
+      if (error instanceof Error && (error as any).code === '42P01') {
         console.warn('Memory settings table does not exist yet, using temporary defaults')
         // Return a settings-like object with defaults and a temporary ID
         const tempSettings = {
