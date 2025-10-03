@@ -4,7 +4,7 @@ import type { UseQueueReturn } from '../utils/queue'
 import { sleep } from '@moeru/std'
 import { invoke } from '@vueuse/core'
 import { defineStore } from 'pinia'
-import { ref } from 'vue'
+import { ref, shallowRef } from 'vue'
 
 import { EMOTION_VALUES } from '../constants/emotions'
 import { createQueue } from '../utils/queue'
@@ -116,10 +116,10 @@ export const usePipelineCharacterSpeechPlaybackQueueStore = defineStore('pipelin
     onPlaybackFinishedHooks.value.push(hook)
   }
 
-  const currentAudioSource = ref<AudioBufferSourceNode>()
+  const currentAudioSource = shallowRef<AudioBufferSourceNode>()
 
-  const audioContext = ref<AudioContext>()
-  const audioAnalyser = ref<AnalyserNode>()
+  const audioContext = shallowRef<AudioContext>()
+  const audioAnalyser = shallowRef<AnalyserNode>()
 
   function connectAudioContext(context: AudioContext) {
     audioContext.value = context

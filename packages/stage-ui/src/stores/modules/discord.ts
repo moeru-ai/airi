@@ -2,16 +2,17 @@ import { useLocalStorage } from '@vueuse/core'
 import { defineStore } from 'pinia'
 import { computed } from 'vue'
 
-import { settingsBroadcaster } from '../../services/settings-broadcaster'
+import { useConfiguratorForAiriSdk } from '../configurator'
 
 export const useDiscordStore = defineStore('discord', () => {
+  const configurator = useConfiguratorForAiriSdk()
   const enabled = useLocalStorage('settings/discord/enabled', false)
   const token = useLocalStorage('settings/discord/token', '')
 
   function saveSettings() {
     // Data is automatically saved to localStorage via useLocalStorage
     // Also broadcast configuration to backend
-    settingsBroadcaster.sendConfiguration('discord', {
+    configurator.updateFor('discord', {
       token: token.value,
       enabled: enabled.value,
     })

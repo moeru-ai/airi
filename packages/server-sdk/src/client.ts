@@ -4,6 +4,13 @@ import WebSocket from 'crossws/websocket'
 
 import { sleep } from '@moeru/std'
 
+class ReconnectingError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = 'ReconnectingError'
+  }
+}
+
 export interface ClientOptions<C = undefined> {
   url?: string
   name: string
@@ -18,6 +25,7 @@ export interface ClientOptions<C = undefined> {
 
 export class Client<C = undefined> {
   private connected = false
+  private connecting = false
   private websocket?: WebSocket
   private shouldClose = false
 
@@ -70,6 +78,10 @@ export class Client<C = undefined> {
         return
       }
       catch (err) {
+        if (err instanceof ReconnectingError) {
+          return
+        }
+
         this.opts.onError?.(err)
         const delay = Math.min(2 ** attempts * 1000, 30_000) // capped exponential backoff
         await sleep(delay)
@@ -82,6 +94,7 @@ export class Client<C = undefined> {
     if (this.shouldClose) {
       return
     }
+
     await this.retryWithExponentialBackoff(() => this._connect())
   }
 
@@ -89,18 +102,27 @@ export class Client<C = undefined> {
     if (this.shouldClose || this.connected) {
       return Promise.resolve()
     }
+    if (this.connecting) {
+      return Promise.reject(new ReconnectingError('Already connecting'))
+    }
 
     return new Promise((resolve, reject) => {
+      this.connecting = true
+
       const ws = new WebSocket(this.opts.url)
       this.websocket = ws
 
+      ws.onmessage = this.handleMessageBound
       ws.onerror = (event: any) => {
+        this.connecting = false
         this.connected = false
+
         this.opts.onError?.(event)
         reject(event?.error ?? new Error('WebSocket error'))
       }
-
       ws.onclose = () => {
+        this.connecting = false
+
         if (this.connected) {
           this.connected = false
           this.opts.onClose?.()
@@ -109,11 +131,10 @@ export class Client<C = undefined> {
           void this.tryReconnectWithExponentialBackoff()
         }
       }
-
-      ws.onmessage = this.handleMessageBound
-
       ws.onopen = () => {
+        this.connecting = false
         this.connected = true
+
         this.opts.token ? this.tryAuthenticate() : this.tryAnnounce()
         resolve()
       }

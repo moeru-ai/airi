@@ -1,14 +1,14 @@
 <script setup lang="ts">
 import { FieldRange, Radio } from '@proj-airi/ui'
-import { onBeforeUnmount, ref, watch } from 'vue'
+import { onBeforeUnmount, ref, shallowRef, watch } from 'vue'
 
 import AudioSpectrum from './AudioSpectrum.vue'
 import AudioSpectrumVisualizer from './AudioSpectrumVisualizer.vue'
 
 // Create a mock oscillator to generate audio for demonstration
-const audioContext = ref<AudioContext>()
-const oscillator = ref<OscillatorNode>()
-const mediaStream = ref<MediaStream>()
+const audioContext = shallowRef<AudioContext>()
+const oscillator = shallowRef<OscillatorNode>()
+const mediaStream = shallowRef<MediaStream>()
 const isPlaying = ref(false)
 const frequency = ref(440) // A4 note
 const waveform = ref<OscillatorType>('sine')
@@ -19,7 +19,7 @@ const waveforms: OscillatorType[] = ['sine', 'square', 'sawtooth', 'triangle']
 function createMockAudioStream() {
   try {
     // Create audio context
-    audioContext.value = new (window.AudioContext || (window as any).webkitAudioContext)()
+    audioContext.value = new AudioContext()
 
     // Create oscillator
     oscillator.value = audioContext.value.createOscillator()
