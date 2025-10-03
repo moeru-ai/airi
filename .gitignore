@@ -100,4 +100,5 @@ twitter-session.json
 # Symlinks created by nix build
 result*
 
-
+# Tauri generated files
+/apps/stage-tamagotchi/src-tauri/gen/
