@@ -4,12 +4,14 @@ import path from 'node:path'
 import process from 'node:process'
 
 import { Buffer } from 'node:buffer'
-import { exec, spawn } from 'node:child_process'
+import { spawn } from 'node:child_process'
 import { writeFile } from 'node:fs/promises'
 
 import { PGlite } from '@electric-sql/pglite'
 import { pgDump } from '@electric-sql/pglite-tools/pg_dump'
 import { Elysia, t } from 'elysia'
+
+import { restoreFromPsqlDump } from './pg-dump'
 
 function isPgliteReq(headers: Record<string, string | string[]>, query: Record<string, any>) {
   const h = String(headers['x-db-variant'] || '').toLowerCase()
@@ -148,12 +150,14 @@ memoryRouter.post('/import-chathistory', async ({ body, set, headers, query }) =
   await writeFile(tmpPath, Buffer.from(ab))
 
   try {
-    const pglite = isPgliteReq(headers, query)
+    const pglite = isPgliteReq(
+      headers as Record<string, string | string[]>,
+      query as Record<string, string | string[]>,
+    )
     const homeDir = os.homedir()
 
     if (!pglite) {
       const dbUrl = process.env.PG_URL || 'postgres://postgres:airi_memory_password@localhost:5434/postgres'
-      const envVars = parsePwdEnv(dbUrl)
 
       const name = (file.name || '').toLowerCase()
       if (!name.endsWith('.sql')) {
@@ -161,17 +165,7 @@ memoryRouter.post('/import-chathistory', async ({ body, set, headers, query }) =
         return 'For Postgres/Embedded-Postgres, upload a .sql dump.'
       }
 
-      await new Promise<void>((resolve, reject) => {
-        exec(`psql "${dbUrl}" -f "${tmpPath}"`, { env: envVars }, (error, _so, stderr) => {
-          if (error) {
-            set.status = 500
-            reject(new Error(`Failed to restore database: ${stderr || error.message}`))
-          }
-          else {
-            resolve()
-          }
-        })
-      })
+      await restoreFromPsqlDump({ dbUrl, filePath: tmpPath })
       return { ok: true }
     }
 
@@ -201,7 +195,7 @@ memoryRouter.post('/import-chathistory', async ({ body, set, headers, query }) =
     }
   }
   catch {
-    if (!set.headersSent)
+    if (!set.status)
       set.status = 500
     return 'Import failed'
   }

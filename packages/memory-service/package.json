@@ -3,7 +3,10 @@
   "type": "module",
   "version": "0.7.2-beta.3",
   "description": "Centralized memory service for AIRI with PostgreSQL + pgvector",
-  "author": ["lucas-oma", "gg582"],
+  "author": [
+    "lucas-oma",
+    "gg582"
+  ],
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -39,6 +42,7 @@
     "drizzle-orm": "^0.44.5",
     "elysia": "^1.4.9",
     "pg": "^8.16.3",
+    "pg-copy-streams": "^7.0.0",
     "uuid": "^11.1.0"
   },
   "devDependencies": {
