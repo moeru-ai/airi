@@ -49,6 +49,11 @@ From the UI, in `Settings -> Memory` setup your LLM provider, Embedding provider
 
 ### 2. Start Services
 ```bash
+# Setup your environment
+cp .env-example .env
+editor .env
+
+# Install deps
 pnpm install
 
 # Start DB
@@ -83,6 +88,9 @@ pnpm db:setup
 - `POST /api/completions` - Store AI completion response
 - `POST /api/context` - Build context for a query message
 - `GET /api/conversations` - Get paginated conversation history
+### Chat History Migration
+- `POST /api/import-chathistory` - Import dumped chat history
+- `POST /api/export-chathistory` - Export current chat history using `pg_dump`
 
 ### Settings & Configuration
 - `POST /api/settings` - Update LLM and embedding provider settings (for backend use)
