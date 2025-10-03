@@ -42,6 +42,6 @@
     "unplugin-vue-router": "^0.15.0",
     "vite": "catalog:rolldown-vite",
     "vue-router": "^4.5.1",
-    "vue-tsc": "^3.0.8"
+    "vue-tsc": "^3.1.0"
   }
 }

@@ -20,7 +20,7 @@
   "devDependencies": {
     "@unocss/reset": "^66.5.2",
     "@wxt-dev/module-vue": "^1.0.3",
-    "vue-tsc": "^3.0.8",
+    "vue-tsc": "^3.1.0",
     "wxt": "^0.20.11"
   }
 }

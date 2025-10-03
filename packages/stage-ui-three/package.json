@@ -38,6 +38,6 @@
   "devDependencies": {
     "@types/culori": "^4.0.1",
     "@types/three": "^0.180.0",
-    "vue-tsc": "^3.0.8"
+    "vue-tsc": "^3.1.0"
   }
 }

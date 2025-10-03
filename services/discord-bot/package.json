@@ -22,7 +22,7 @@
     "@discordjs/voice": "^0.19.0",
     "@dotenvx/dotenvx": "^1.51.0",
     "@guiiai/logg": "catalog:",
-    "@huggingface/transformers": "^3.7.3",
+    "@huggingface/transformers": "^3.7.5",
     "@proj-airi/audio": "workspace:^",
     "@proj-airi/server-sdk": "workspace:^",
     "@proj-airi/server-shared": "workspace:^",
