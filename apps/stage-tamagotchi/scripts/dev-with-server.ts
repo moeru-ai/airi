@@ -106,19 +106,16 @@ process.on('SIGINT', cleanup)
 process.on('SIGTERM', cleanup)
 
 // Wait for processes
-await Promise.race([
-  new Promise((_resolve) => {
-    serverProcess.on('exit', (code) => {
-      console.log(`Server process exited with code ${code}`)
-      cleanup()
-      process.exit(code || 0)
-    })
-  }),
-  new Promise((_resolve) => {
-    tamagotchiProcess.on('exit', (code) => {
-      console.log(`Tamagotchi process exited with code ${code}`)
-      cleanup()
-      process.exit(code || 0)
-    })
-  }),
-])
+const serverExit = new Promise(resolve => serverProcess.on('exit', code => resolve({ name: 'Server', code })))
+const tamagotchiExit = new Promise(resolve => tamagotchiProcess.on('exit', code => resolve({ name: 'Tamagotchi', code })))
+
+const firstToExit = await Promise.race([serverExit, tamagotchiExit])
+
+console.log(`${firstToExit.name} process exited with code ${firstToExit.code}, shutting down...`)
+cleanup()
+
+// Wait for both processes to terminate before exiting the script.
+await Promise.all([serverExit, tamagotchiExit])
+
+console.log('All child processes have terminated.')
+process.exit(firstToExit.code ?? 0)
