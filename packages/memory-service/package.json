@@ -11,7 +11,7 @@
     "directory": "services/memory-service"
   },
   "scripts": {
-    "dev": "pnpm run build",
+    "dev": "tsx watch src/index.ts",
     "build": "tsdown"
   },
   "dependencies": {
