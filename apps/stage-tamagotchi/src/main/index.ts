@@ -61,7 +61,9 @@ function createWindow(): void {
   })
 
   mainWindow.setAlwaysOnTop(true)
-  mainWindow.setWindowButtonVisibility(false)
+  if (isMacOS) {
+    mainWindow.setWindowButtonVisibility(false)
+  }
   mainWindow.on('ready-to-show', () => mainWindow!.show())
   mainWindow.webContents.setWindowOpenHandler((details) => {
     shell.openExternal(details.url)
@@ -125,6 +127,8 @@ app.whenReady().then(() => {
   app.on('browser-window-created', (_, window) => optimizer.watchWindowShortcuts(window))
 
   createWindow()
+}).catch((err) => {
+  console.error('Error during app initialization:', err)
 })
 
 // Quit when all windows are closed, except on macOS. There, it's common
