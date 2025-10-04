@@ -72,7 +72,7 @@ async function main() {
   console.info(filename, 'is the target filename')
 
   switch (target) {
-    case 'x64-pc-windows-msvc':
+    case 'x86_64-pc-windows-msvc':
       renameFrom = join(srcPrefix, `${beforeProductName}-${beforeVersion}-windows-x64-setup.exe`)
       renameTo = join(bundlePrefix, filename)
       break
