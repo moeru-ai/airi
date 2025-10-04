@@ -100,7 +100,7 @@ app.whenReady().then(async () => {
     // The server-runtime exports the h3 app as a named export
     const serverRuntimeApp = serverRuntimeModule.app
 
-    serverInstance = await listen(serverRuntimeApp as http.RequestListener, {
+    serverInstance = await listen(serverRuntimeApp as unknown as http.RequestListener, {
       port: 6121,
       hostname: 'localhost',
       // Enable WebSocket support as used in the server-runtime package
