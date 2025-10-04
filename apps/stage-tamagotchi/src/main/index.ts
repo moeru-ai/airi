@@ -18,6 +18,10 @@ import { electronCursorPoint, electronOpenSettings, electronStartTrackingCursorP
 setGlobalFormat(Format.Pretty)
 setGlobalLogLevel(LogLevel.Log)
 
+// Store the eventa context and invokers to reuse them
+let eventaContext: ReturnType<typeof createContext> | null = null
+let openSettingsInvoker: ReturnType<typeof defineInvoke> | null = null
+
 if (/^true$/i.test(env.APP_REMOTE_DEBUG || '')) {
   const remoteDebugPort = Number(env.APP_REMOTE_DEBUG_PORT || '9222')
   if (Number.isNaN(remoteDebugPort) || !Number.isInteger(remoteDebugPort) || remoteDebugPort < 0 || remoteDebugPort > 65535) {
@@ -51,7 +55,8 @@ function createWindow(): void {
     hasShadow: false,
   })
 
-  const { context } = createContext(ipcMain, mainWindow)
+  eventaContext = createContext(ipcMain, mainWindow)
+  const { context } = eventaContext
 
   defineInvokeHandler(context, electronStartTrackingCursorPoint, () => {
     trackCursorPointInterval = setInterval(() => {
@@ -61,6 +66,9 @@ function createWindow(): void {
     // mainWindow.webContents.send(electronCursorPoint.id, dipPos)
     }, 32)
   })
+
+  // Create the openSettings invoker once and store it for reuse
+  openSettingsInvoker = defineInvoke(context, electronOpenSettings)
 
   mainWindow.setAlwaysOnTop(true)
   if (isMacOS) {
@@ -112,10 +120,10 @@ function createTray(): void {
       click: () => {
         if (mainWindow) {
           showMainWindow()
-          // Send the open settings command using eventa
-          const { context } = createContext(ipcMain, mainWindow)
-          const openSettings = defineInvoke(context, electronOpenSettings)
-          openSettings(undefined)
+          // Send the open settings command using the pre-created invoker
+          if (openSettingsInvoker) {
+            openSettingsInvoker(undefined)
+          }
         }
       },
     },
