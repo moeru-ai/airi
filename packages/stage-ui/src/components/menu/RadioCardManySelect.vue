@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue'
 
 import Alert from '../misc/Alert.vue'
+import CategoryMenu from './CategoryMenu.vue'
 import RadioCardDetail from './RadioCardDetail.vue'
 
 interface Item {
@@ -48,6 +49,7 @@ const searchQuery = defineModel<string>('searchQuery')
 
 const isListExpanded = ref(false)
 const customValue = ref('')
+const categoryFilters = ref<Record<string, string>>({})
 
 const filteredItems = computed(() => {
   if (!searchQuery.value)
@@ -63,6 +65,12 @@ const filteredItems = computed(() => {
 function updateCustomValue(value: string) {
   customValue.value = value
   emit('update:customValue', value)
+}
+
+function updateCategoryFilters(filters: Record<string, string>) {
+  categoryFilters.value = filters
+  // Here you can add logic to filter items based on category filters
+  // For example: further filter filteredItems
 }
 </script>
 
@@ -82,6 +90,11 @@ function updateCustomValue(value: string) {
         bg="white dark:neutral-900"
         :placeholder="searchPlaceholder"
       >
+    </div>
+
+    <!-- Category filter menu -->
+    <div class="mt-4">
+      <CategoryMenu @update:filter="updateCategoryFilters" />
     </div>
 
     <!-- Items list with search results info -->
