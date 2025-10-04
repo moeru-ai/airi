@@ -53,6 +53,7 @@ export default await antfu(
           newlinesBetween: 'always',
         },
       ],
+      'no-console': ['error', { allow: ['warn', 'error', 'info'] }],
     },
   },
 )

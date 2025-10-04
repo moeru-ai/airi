@@ -49,7 +49,7 @@ async function main() {
     writeFileSync(argOptions.out[0], filename, { encoding: 'utf-8' })
   }
   else {
-    console.log(filename)
+    console.info(filename)
   }
 }
 

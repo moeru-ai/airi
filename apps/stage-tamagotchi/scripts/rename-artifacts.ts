@@ -46,30 +46,30 @@ async function main() {
 
   version = await getVersion(argOptions)
 
-  console.log('target:', target)
-  console.log('dirname', dirname)
-  console.log('version from:', beforeVersion, 'to:', version)
-  console.log('product name from:', beforeProductName, 'to:', productName)
+  console.info('target:', target)
+  console.info('dirname', dirname)
+  console.info('version from:', beforeVersion, 'to:', version)
+  console.info('product name from:', beforeProductName, 'to:', productName)
 
   if (!target) {
     throw new Error('<Target> is required')
   }
 
   const srcPrefix = join(dirname, '..', 'dist')
-  console.log('source directory:', srcPrefix)
+  console.info('source directory:', srcPrefix)
   const bundlePrefix = join(dirname, '..', 'bundle')
-  console.log('bundle directory:', bundlePrefix)
+  console.info('bundle directory:', bundlePrefix)
 
-  console.log('renaming directory from:', srcPrefix)
-  console.log('renaming directory to:', bundlePrefix)
-  console.log(readdirSync(srcPrefix))
+  console.info('renaming directory from:', srcPrefix)
+  console.info('renaming directory to:', bundlePrefix)
+  console.info(readdirSync(srcPrefix))
 
   mkdirSync(bundlePrefix, { recursive: true })
 
   let renameFrom = ''
   let renameTo = ''
   const filename = await getFilename(target, argOptions)
-  console.log(filename, 'is the target filename')
+  console.info(filename, 'is the target filename')
 
   switch (target) {
     case 'x64-pc-windows-msvc':
@@ -97,13 +97,13 @@ async function main() {
       process.exit(1)
   }
 
-  console.log('renaming, from:', renameFrom, 'to:', renameTo)
+  console.info('renaming, from:', renameFrom, 'to:', renameTo)
   renameSync(renameFrom, renameTo)
 }
 
 main()
   .then(() => {
-    console.log('Renaming completed successfully.')
+    console.info('Renaming completed successfully.')
   })
   .catch((error) => {
     console.error('Error during renaming:', error)

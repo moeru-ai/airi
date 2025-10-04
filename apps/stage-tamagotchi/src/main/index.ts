@@ -105,7 +105,7 @@ app.whenReady().then(async () => {
       ws: true,
     })
 
-    console.warn('WebSocket server started on ws://localhost:6121')
+    console.info('WebSocket server started on ws://localhost:6121')
   }
   catch (error) {
     console.error('Failed to start WebSocket server:', error)
@@ -132,7 +132,7 @@ app.whenReady().then(async () => {
           }
 
           wsUrl = wsUrl.substring(5)
-          console.warn(`Inspect remotely: ${remoteDebugEndpoint}/devtools/inspector.html?ws=${wsUrl}`)
+          console.info(`Inspect remotely: ${remoteDebugEndpoint}/devtools/inspector.html?ws=${wsUrl}`)
           shell.openExternal(`${remoteDebugEndpoint}/devtools/inspector.html?ws=${wsUrl}`)
         }
         catch (err) {
@@ -180,7 +180,7 @@ app.on('before-quit', async () => {
   if (serverInstance && typeof serverInstance.close === 'function') {
     try {
       await serverInstance.close()
-      console.warn('WebSocket server closed')
+      console.info('WebSocket server closed')
     }
     catch (error) {
       console.error('Error closing WebSocket server:', error)
