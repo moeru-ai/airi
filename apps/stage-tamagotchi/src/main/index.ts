@@ -6,14 +6,14 @@ import { fileURLToPath } from 'node:url'
 
 import { electronApp, is, optimizer } from '@electron-toolkit/utils'
 import { Format, LogLevel, setGlobalFormat, setGlobalLogLevel } from '@guiiai/logg'
-import { defineInvokeHandler } from '@unbird/eventa'
+import { defineInvoke, defineInvokeHandler } from '@unbird/eventa'
 import { createContext } from '@unbird/eventa/adapters/electron/main'
-import { app, BrowserWindow, ipcMain, screen, shell } from 'electron'
+import { app, BrowserWindow, ipcMain, Menu, screen, shell, Tray } from 'electron'
 import { isMacOS } from 'std-env'
 
 import icon from '../../resources/icon.png?asset'
 
-import { electronCursorPoint, electronStartTrackingCursorPoint } from '../shared/eventa'
+import { electronCursorPoint, electronOpenSettings, electronStartTrackingCursorPoint } from '../shared/eventa'
 
 setGlobalFormat(Format.Pretty)
 setGlobalLogLevel(LogLevel.Log)
@@ -30,10 +30,12 @@ if (/^true$/i.test(env.APP_REMOTE_DEBUG || '')) {
 
 app.dock?.setIcon(icon)
 
+let mainWindow: BrowserWindow | null = null
+let appTray: Tray | null = null
 let trackCursorPointInterval: NodeJS.Timeout | undefined
 
 function createWindow(): void {
-  const mainWindow = new BrowserWindow({
+  mainWindow = new BrowserWindow({
     title: 'AIRI',
     width: 916.0,
     height: 1245.0,
@@ -77,6 +79,78 @@ function createWindow(): void {
   }
   else {
     mainWindow.loadFile(join(__dirname, '../renderer/index.html'))
+  }
+}
+
+function createTray(): void {
+  if (appTray) {
+    return
+  }
+
+  // Create tray icon
+  appTray = new Tray(icon)
+
+  // Define tray menu
+  const contextMenu = Menu.buildFromTemplate([
+    {
+      label: 'Show Window',
+      click: () => {
+        if (mainWindow) {
+          if (mainWindow.isMinimized()) {
+            mainWindow.restore()
+          }
+          mainWindow.show()
+          mainWindow.focus()
+        }
+      },
+    },
+    { type: 'separator' },
+    {
+      label: 'Settings',
+      click: () => {
+        if (mainWindow) {
+          mainWindow.show()
+          mainWindow.focus()
+          // Send the open settings command using eventa
+          const { context } = createContext(ipcMain, mainWindow)
+          const openSettings = defineInvoke(context, electronOpenSettings)
+          openSettings(undefined)
+        }
+      },
+    },
+    { type: 'separator' },
+    {
+      label: 'Quit',
+      click: () => {
+        app.quit()
+      },
+    },
+  ])
+
+  // Set tray properties
+  appTray.setContextMenu(contextMenu)
+  appTray.setToolTip('AIRI - AI Virtual Assistant')
+  appTray.addListener('click', () => {
+    if (mainWindow) {
+      if (mainWindow.isMinimized()) {
+        mainWindow.restore()
+      }
+      mainWindow.show()
+      mainWindow.focus()
+    }
+  })
+
+  // On macOS, there's a special double-click event
+  if (platform === 'darwin') {
+    appTray.addListener('double-click', () => {
+      if (mainWindow) {
+        if (mainWindow.isMinimized()) {
+          mainWindow.restore()
+        }
+        mainWindow.show()
+        mainWindow.focus()
+      }
+    })
   }
 }
 
@@ -127,6 +201,7 @@ app.whenReady().then(() => {
   app.on('browser-window-created', (_, window) => optimizer.watchWindowShortcuts(window))
 
   createWindow()
+  createTray()
 }).catch((err) => {
   console.error('Error during app initialization:', err)
 })
@@ -141,5 +216,13 @@ app.on('window-all-closed', () => {
 
   if (platform !== 'darwin') {
     app.quit()
+  }
+})
+
+// Clean up tray when app quits
+app.on('before-quit', () => {
+  if (appTray) {
+    appTray.destroy()
+    appTray = null
   }
 })
