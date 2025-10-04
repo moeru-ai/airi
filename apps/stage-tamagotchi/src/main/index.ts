@@ -18,6 +18,9 @@ import { electronCursorPoint, electronStartTrackingCursorPoint } from '../shared
 setGlobalFormat(Format.Pretty)
 setGlobalLogLevel(LogLevel.Log)
 
+// Server instance
+let serverInstance: any = null
+
 if (/^true$/i.test(env.APP_REMOTE_DEBUG || '')) {
   const remoteDebugPort = Number(env.APP_REMOTE_DEBUG_PORT || '9222')
   if (Number.isNaN(remoteDebugPort) || !Number.isInteger(remoteDebugPort) || remoteDebugPort < 0 || remoteDebugPort > 65535) {
@@ -83,7 +86,31 @@ function createWindow(): void {
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
+  // Start the server-runtime server with WebSocket support
+  try {
+    // Dynamically import the server-runtime and listhen
+    const [serverRuntimeModule, { listen }] = await Promise.all([
+      import('@proj-airi/server-runtime'),
+      import('listhen'),
+    ])
+
+    // The server-runtime exports the h3 app as a named export
+    const serverRuntimeApp = serverRuntimeModule.app
+
+    serverInstance = await listen(serverRuntimeApp as any, {
+      port: 6121,
+      hostname: 'localhost',
+      // Enable WebSocket support as used in the server-runtime package
+      ws: true,
+    })
+
+    console.warn('WebSocket server started on ws://localhost:6121')
+  }
+  catch (error) {
+    console.error('Failed to start WebSocket server:', error)
+  }
+
   if (/^true$/i.test(env.APP_REMOTE_DEBUG || '')) {
     const remoteDebugEndpoint = `http://localhost:${env.APP_REMOTE_DEBUG_PORT || '9222'}`
 
@@ -105,8 +132,7 @@ app.whenReady().then(() => {
           }
 
           wsUrl = wsUrl.substring(5)
-          // eslint-disable-next-line no-console
-          console.log(`Inspect remotely: ${remoteDebugEndpoint}/devtools/inspector.html?ws=${wsUrl}`)
+          console.warn(`Inspect remotely: ${remoteDebugEndpoint}/devtools/inspector.html?ws=${wsUrl}`)
           shell.openExternal(`${remoteDebugEndpoint}/devtools/inspector.html?ws=${wsUrl}`)
         }
         catch (err) {
@@ -141,5 +167,23 @@ app.on('window-all-closed', () => {
 
   if (platform !== 'darwin') {
     app.quit()
+  }
+})
+
+// Clean up server and intervals when app quits
+app.on('before-quit', async () => {
+  if (trackCursorPointInterval) {
+    clearInterval(trackCursorPointInterval)
+  }
+
+  // Close the server if it's running
+  if (serverInstance && typeof serverInstance.close === 'function') {
+    try {
+      await serverInstance.close()
+      console.warn('WebSocket server closed')
+    }
+    catch (error) {
+      console.error('Error closing WebSocket server:', error)
+    }
   }
 })
