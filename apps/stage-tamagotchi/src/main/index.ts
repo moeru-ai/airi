@@ -20,7 +20,7 @@ setGlobalLogLevel(LogLevel.Log)
 
 // Store the eventa context and invokers to reuse them
 let eventaContext: ReturnType<typeof createContext> | null = null
-let openSettingsInvoker: ReturnType<typeof defineInvoke> | null = null
+let openSettingsInvoker: ReturnType<typeof defineInvoke<void, void>> | null = null
 
 if (/^true$/i.test(env.APP_REMOTE_DEBUG || '')) {
   const remoteDebugPort = Number(env.APP_REMOTE_DEBUG_PORT || '9222')
@@ -68,7 +68,7 @@ function createWindow(): void {
   })
 
   // Create the openSettings invoker once and store it for reuse
-  openSettingsInvoker = defineInvoke(context, electronOpenSettings)
+  openSettingsInvoker = defineInvoke<void, void>(context, electronOpenSettings)
 
   mainWindow.setAlwaysOnTop(true)
   if (isMacOS) {
