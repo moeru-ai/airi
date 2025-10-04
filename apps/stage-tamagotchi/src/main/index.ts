@@ -138,7 +138,7 @@ function createTray(): void {
 
   // Set tray properties
   appTray.setContextMenu(contextMenu)
-  appTray.setToolTip('AIRI - AI Virtual Assistant')
+  appTray.setToolTip('Project AIRI')
   appTray.addListener('click', showMainWindow)
 
   // On macOS, there's a special double-click event
