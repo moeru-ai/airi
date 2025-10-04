@@ -36,7 +36,7 @@ onMounted(async () => {
   await startTrackingCursorPoint(undefined)
 
   // Listen for open-settings IPC message from main process
-  defineInvokeHandler(context, electronOpenSettings, async () => {
+  defineInvokeHandler(context, electronOpenSettings, () => {
     router.push('/settings')
   })
 })
