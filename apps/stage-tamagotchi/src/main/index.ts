@@ -1,3 +1,5 @@
+import type { Listener } from 'listhen'
+
 import http from 'node:http'
 
 import { dirname, join } from 'node:path'
@@ -19,7 +21,7 @@ setGlobalFormat(Format.Pretty)
 setGlobalLogLevel(LogLevel.Log)
 
 // Server instance
-let serverInstance: any = null
+let serverInstance: Listener | null = null
 
 if (/^true$/i.test(env.APP_REMOTE_DEBUG || '')) {
   const remoteDebugPort = Number(env.APP_REMOTE_DEBUG_PORT || '9222')
@@ -98,7 +100,7 @@ app.whenReady().then(async () => {
     // The server-runtime exports the h3 app as a named export
     const serverRuntimeApp = serverRuntimeModule.app
 
-    serverInstance = await listen(serverRuntimeApp as any, {
+    serverInstance = await listen(serverRuntimeApp as http.RequestListener, {
       port: 6121,
       hostname: 'localhost',
       // Enable WebSocket support as used in the server-runtime package
