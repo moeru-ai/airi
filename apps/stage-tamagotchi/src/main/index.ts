@@ -87,6 +87,16 @@ function createTray(): void {
     return
   }
 
+  const showMainWindow = (): void => {
+    if (mainWindow) {
+      if (mainWindow.isMinimized()) {
+        mainWindow.restore()
+      }
+      mainWindow.show()
+      mainWindow.focus()
+    }
+  }
+
   // Create tray icon
   appTray = new Tray(icon)
 
@@ -94,23 +104,14 @@ function createTray(): void {
   const contextMenu = Menu.buildFromTemplate([
     {
       label: 'Show Window',
-      click: () => {
-        if (mainWindow) {
-          if (mainWindow.isMinimized()) {
-            mainWindow.restore()
-          }
-          mainWindow.show()
-          mainWindow.focus()
-        }
-      },
+      click: showMainWindow,
     },
     { type: 'separator' },
     {
       label: 'Settings',
       click: () => {
         if (mainWindow) {
-          mainWindow.show()
-          mainWindow.focus()
+          showMainWindow()
           // Send the open settings command using eventa
           const { context } = createContext(ipcMain, mainWindow)
           const openSettings = defineInvoke(context, electronOpenSettings)
@@ -130,27 +131,11 @@ function createTray(): void {
   // Set tray properties
   appTray.setContextMenu(contextMenu)
   appTray.setToolTip('AIRI - AI Virtual Assistant')
-  appTray.addListener('click', () => {
-    if (mainWindow) {
-      if (mainWindow.isMinimized()) {
-        mainWindow.restore()
-      }
-      mainWindow.show()
-      mainWindow.focus()
-    }
-  })
+  appTray.addListener('click', showMainWindow)
 
   // On macOS, there's a special double-click event
   if (platform === 'darwin') {
-    appTray.addListener('double-click', () => {
-      if (mainWindow) {
-        if (mainWindow.isMinimized()) {
-          mainWindow.restore()
-        }
-        mainWindow.show()
-        mainWindow.focus()
-      }
-    })
+    appTray.addListener('double-click', showMainWindow)
   }
 }
 
