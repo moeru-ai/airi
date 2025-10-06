@@ -36,23 +36,47 @@ jobs:
     strategy:
       matrix:
         include:
+
           - os: macos-13
             artifact: darwin-x64
+            target: x86_64-apple-darwin
+            builder-args: --macos --x64
             ext: dmg
+
           - os: macos-latest
             artifact: darwin-arm64
+            target: aarch64-apple-darwin
+            builder-args: --macos --arm64
             ext: dmg
+
           - os: ubuntu-latest
             artifact: linux-x64
+            target: x86_64-unknown-linux-gnu
+            builder-args: --linux --x64
             ext: AppImage
+
           - os: ubuntu-24.04-arm
             artifact: linux-arm64
+            target: aarch64-unknown-linux-gnu
+            builder-args: --linux --arm64
             ext: AppImage
+
           - os: windows-latest
             artifact: windows-x64-setup
+            target: x86_64-pc-windows-msvc
+            builder-args: --windows --x64
             ext: exe
+
     runs-on: ${{ matrix.os }}
     steps:
+      # Why?
+      #
+      # failed to build archive at `/home/runner/work/airi/airi/target/x86_64-unknown-linux-gnu/release/deps/libapp_lib.rlib`:
+      # No space left on device (os error 28)
+      - name: Free Disk Space
+        if: matrix.os == 'ubuntu-latest' || matrix.os == 'ubuntu-24.04-arm'
+        uses: jlumbroso/free-disk-space@main
+
       - uses: actions/checkout@v5
       - uses: pnpm/action-setup@v4
         with:
@@ -62,14 +86,100 @@ jobs:
           node-version: lts/*
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - name: Build
+
+      # ---------
+      # Build
+      # ---------
+
+      - run: pnpm run build:packages
+
+      - name: Build (Windows Only) # Windows
+        if: matrix.os == 'windows-latest'
+        run: pnpm run -F @proj-airi/stage-tamagotchi build && pnpm -F @proj-airi/stage-tamagotchi exec electron-builder build ${{ matrix.builder-args }}
+
+      - name: Build (macOS Only) # macOS
+        if: matrix.os == 'macos-13' || matrix.os == 'macos-latest'
+        run: pnpm run -F @proj-airi/stage-tamagotchi build && pnpm -F @proj-airi/stage-tamagotchi exec electron-builder build ${{ matrix.builder-args }}
+
+      - name: Build (Linux Only) # Linux
+        if: matrix.os == 'ubuntu-latest' || matrix.os == 'ubuntu-24.04-arm'
+        run: pnpm run -F @proj-airi/stage-tamagotchi build && pnpm -F @proj-airi/stage-tamagotchi exec electron-builder build ${{ matrix.builder-args }}
+
+      # ---------
+      # Nightly (schedule) builds only
+      # ---------
+      - name: Get Name of Artifacts (Nightly + Windows Only)
+        if: ${{ github.event_name == 'schedule' && matrix.os == 'windows-latest' }}
         run: |
-          pnpm run -F @proj-airi/stage-tamagotchi build
-      - id: version
+          pnpm -F @proj-airi/stage-tamagotchi name-of-artifacts ${{ matrix.target }} --out bundle_name
+          echo "BUNDLE_NAME=$(node -p "require('node:fs').readFileSync(require('node:path').join('apps', 'stage-tamagotchi', 'bundle_name')).toString('utf-8')")" >> $env:GITHUB_ENV
+
+      - name: Get Name of Artifacts (Nightly)
+        if: ${{ github.event_name == 'schedule' && matrix.os != 'windows-latest' }}
         run: |
-          echo VERSION=$(node -p "JSON.parse(require('node:fs').readFileSync(require('node:path').join('apps', 'stage-tamagotchi', 'package.json')).toString('utf-8')).version") >> $GITHUB_ENV
-      - name: Upload To GitHub Releases
+          pnpm -F @proj-airi/stage-tamagotchi name-of-artifacts ${{ matrix.target }} --out bundle_name
+          echo "BUNDLE_NAME=$(node -p "require('node:fs').readFileSync(require('node:path').join('apps', 'stage-tamagotchi', 'bundle_name')).toString('utf-8')")" >> $GITHUB_ENV
+
+      - name: Rename Artifacts (Nightly)
+        if: ${{ github.event_name == 'schedule' }}
+        run:
+          pnpm run -F @proj-airi/stage-tamagotchi rename-artifacts ${{ matrix.target }}
+
+      - name: Upload Artifacts (Nightly)
+        if: ${{ github.event_name == 'schedule' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.BUNDLE_NAME }}
+          path: bundle/${{ env.BUNDLE_NAME }}
+
+        # ---------
+        # Workflow Dispatch only
+        # ---------
+
+      - name: Get Name of Artifacts (Manual + Windows Only)
+        if: ${{ github.event_name == 'workflow_dispatch' && matrix.os == 'windows-latest' }}
+        run: |
+          pnpm -F @proj-airi/stage-tamagotchi name-of-artifacts ${{ matrix.target }} --out bundle_name --release ${{ !inputs.build_only && !inputs.artifacts_only }} --tag ${{ inputs.tag }} --auto-tag ${{ !inputs.build_only }}
+          echo "BUNDLE_NAME=$(node -p "require('node:fs').readFileSync(require('node:path').join('apps', 'stage-tamagotchi', 'bundle_name')).toString('utf-8')")" >> $env:GITHUB_ENV
+
+      - name: Get Name of Artifacts (Manual)
+        if: ${{ github.event_name == 'workflow_dispatch' && matrix.os != 'windows-latest' }}
+        run: |
+          pnpm -F @proj-airi/stage-tamagotchi name-of-artifacts ${{ matrix.target }} --out bundle_name --release ${{ !inputs.build_only && !inputs.artifacts_only }} --tag ${{ inputs.tag }} --auto-tag ${{ !inputs.build_only }}
+          echo "BUNDLE_NAME=$(node -p "require('node:fs').readFileSync(require('node:path').join('apps', 'stage-tamagotchi', 'bundle_name')).toString('utf-8')")" >> $GITHUB_ENV
+
+      - name: Rename Artifacts (Manual)
+        if: ${{ github.event_name == 'workflow_dispatch' }}
+        run: |
+          pnpm run -F @proj-airi/stage-tamagotchi rename-artifacts ${{ matrix.target }} --release ${{ !inputs.build_only && !inputs.artifacts_only }} --tag ${{ inputs.tag }} --auto-tag ${{ !inputs.build_only }}
+
+      - name: Upload Artifacts (Manual + Non-Release)
+        if: ${{ github.event_name == 'workflow_dispatch' && !inputs.build_only && inputs.artifacts_only }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.BUNDLE_NAME }}
+          path: bundle/${{ env.BUNDLE_NAME }}
+
+      - name: Upload To GitHub Releases (Manual + Overwrite Release)
+        if: ${{ github.event_name == 'workflow_dispatch' && !inputs.build_only && !inputs.artifacts_only }}
         uses: softprops/action-gh-release@v2
         with:
-          files: dist/AIRI-${{ steps.version.outputs.VERSION }}-${{ matrix.artifact }}.${{ matrix.ext }}
-          generate_release_notes: true
+          files: bundle/${{ env.PRODUCT_NAME }}_*
+          append_body: true
+          tag_name: ${{ inputs.tag }}
+
+        # ---------
+        # Version push
+        # ---------
+
+      - name: Rename Artifacts (Automatic)
+        if: ${{ github.event_name == 'release' }}
+        run: |
+          pnpm run -F @proj-airi/stage-tamagotchi rename-artifacts ${{ matrix.target }} --release --auto-tag
+
+      - name: Upload To GitHub Releases (Automatic)
+        if: ${{ github.event_name == 'release' }}
+        uses: softprops/action-gh-release@v2
+        with:
+          files: bundle/${{ env.PRODUCT_NAME }}_*
+          append_body: true

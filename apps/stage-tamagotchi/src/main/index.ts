@@ -1,3 +1,5 @@
+import type { Listener } from 'listhen'
+
 import http from 'node:http'
 
 import { dirname, join } from 'node:path'
@@ -6,17 +8,24 @@ import { fileURLToPath } from 'node:url'
 
 import { electronApp, is, optimizer } from '@electron-toolkit/utils'
 import { Format, LogLevel, setGlobalFormat, setGlobalLogLevel } from '@guiiai/logg'
-import { defineInvokeHandler } from '@unbird/eventa'
+import { defineInvoke, defineInvokeHandler } from '@unbird/eventa'
 import { createContext } from '@unbird/eventa/adapters/electron/main'
-import { app, BrowserWindow, ipcMain, screen, shell } from 'electron'
+import { app, BrowserWindow, ipcMain, Menu, screen, shell, Tray } from 'electron'
 import { isMacOS } from 'std-env'
 
 import icon from '../../resources/icon.png?asset'
 
-import { electronCursorPoint, electronStartTrackingCursorPoint } from '../shared/eventa'
+import { electronCursorPoint, electronOpenSettings, electronStartTrackingCursorPoint } from '../shared/eventa'
 
 setGlobalFormat(Format.Pretty)
 setGlobalLogLevel(LogLevel.Log)
+
+// Server instance
+let serverInstance: Listener | null = null
+
+// Store the eventa context and invokers to reuse them
+let eventaContext: ReturnType<typeof createContext> | null = null
+let openSettingsInvoker: ReturnType<typeof defineInvoke<void, void>> | null = null
 
 if (/^true$/i.test(env.APP_REMOTE_DEBUG || '')) {
   const remoteDebugPort = Number(env.APP_REMOTE_DEBUG_PORT || '9222')
@@ -30,10 +39,12 @@ if (/^true$/i.test(env.APP_REMOTE_DEBUG || '')) {
 
 app.dock?.setIcon(icon)
 
+let mainWindow: BrowserWindow | null = null
+let appTray: Tray | null = null
 let trackCursorPointInterval: NodeJS.Timeout | undefined
 
 function createWindow(): void {
-  const mainWindow = new BrowserWindow({
+  mainWindow = new BrowserWindow({
     title: 'AIRI',
     width: 916.0,
     height: 1245.0,
@@ -49,7 +60,8 @@ function createWindow(): void {
     hasShadow: false,
   })
 
-  const { context } = createContext(ipcMain, mainWindow)
+  eventaContext = createContext(ipcMain, mainWindow)
+  const { context } = eventaContext
 
   defineInvokeHandler(context, electronStartTrackingCursorPoint, () => {
     trackCursorPointInterval = setInterval(() => {
@@ -60,8 +72,13 @@ function createWindow(): void {
     }, 32)
   })
 
+  // Create the openSettings invoker once and store it for reuse
+  openSettingsInvoker = defineInvoke<void, void>(context, electronOpenSettings)
+
   mainWindow.setAlwaysOnTop(true)
-  mainWindow.setWindowButtonVisibility(false)
+  if (isMacOS) {
+    mainWindow.setWindowButtonVisibility(false)
+  }
   mainWindow.on('ready-to-show', () => mainWindow!.show())
   mainWindow.webContents.setWindowOpenHandler((details) => {
     shell.openExternal(details.url)
@@ -78,10 +95,91 @@ function createWindow(): void {
   }
 }
 
+function createTray(): void {
+  if (appTray) {
+    return
+  }
+
+  const showMainWindow = (): void => {
+    if (mainWindow) {
+      if (mainWindow.isMinimized()) {
+        mainWindow.restore()
+      }
+      mainWindow.show()
+      mainWindow.focus()
+    }
+  }
+
+  // Create tray icon
+  appTray = new Tray(icon)
+
+  // Define tray menu
+  const contextMenu = Menu.buildFromTemplate([
+    {
+      label: 'Show Window',
+      click: showMainWindow,
+    },
+    { type: 'separator' },
+    {
+      label: 'Settings',
+      click: () => {
+        if (mainWindow) {
+          showMainWindow()
+          // Send the open settings command using the pre-created invoker
+          if (openSettingsInvoker) {
+            openSettingsInvoker(undefined)
+          }
+        }
+      },
+    },
+    { type: 'separator' },
+    {
+      label: 'Quit',
+      click: () => {
+        app.quit()
+      },
+    },
+  ])
+
+  // Set tray properties
+  appTray.setContextMenu(contextMenu)
+  appTray.setToolTip('Project AIRI')
+  appTray.addListener('click', showMainWindow)
+
+  // On macOS, there's a special double-click event
+  if (platform === 'darwin') {
+    appTray.addListener('double-click', showMainWindow)
+  }
+}
+
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
+  // Start the server-runtime server with WebSocket support
+  try {
+    // Dynamically import the server-runtime and listhen
+    const [serverRuntimeModule, { listen }] = await Promise.all([
+      import('@proj-airi/server-runtime'),
+      import('listhen'),
+    ])
+
+    // The server-runtime exports the h3 app as a named export
+    const serverRuntimeApp = serverRuntimeModule.app
+
+    serverInstance = await listen(serverRuntimeApp as unknown as http.RequestListener, {
+      port: 6121,
+      hostname: 'localhost',
+      // Enable WebSocket support as used in the server-runtime package
+      ws: true,
+    })
+
+    console.info('WebSocket server started on ws://localhost:6121')
+  }
+  catch (error) {
+    console.error('Failed to start WebSocket server:', error)
+  }
+
   if (/^true$/i.test(env.APP_REMOTE_DEBUG || '')) {
     const remoteDebugEndpoint = `http://localhost:${env.APP_REMOTE_DEBUG_PORT || '9222'}`
 
@@ -103,8 +201,7 @@ app.whenReady().then(() => {
           }
 
           wsUrl = wsUrl.substring(5)
-          // eslint-disable-next-line no-console
-          console.log(`Inspect remotely: ${remoteDebugEndpoint}/devtools/inspector.html?ws=${wsUrl}`)
+          console.info(`Inspect remotely: ${remoteDebugEndpoint}/devtools/inspector.html?ws=${wsUrl}`)
           shell.openExternal(`${remoteDebugEndpoint}/devtools/inspector.html?ws=${wsUrl}`)
         }
         catch (err) {
@@ -125,6 +222,9 @@ app.whenReady().then(() => {
   app.on('browser-window-created', (_, window) => optimizer.watchWindowShortcuts(window))
 
   createWindow()
+  createTray()
+}).catch((err) => {
+  console.error('Error during app initialization:', err)
 })
 
 // Quit when all windows are closed, except on macOS. There, it's common
@@ -137,5 +237,28 @@ app.on('window-all-closed', () => {
 
   if (platform !== 'darwin') {
     app.quit()
+  }
+})
+
+// Clean up server and intervals when app quits
+app.on('before-quit', async () => {
+  if (trackCursorPointInterval) {
+    clearInterval(trackCursorPointInterval)
+  }
+
+  // Close the server if it's running
+  if (serverInstance && typeof serverInstance.close === 'function') {
+    try {
+      await serverInstance.close()
+      console.info('WebSocket server closed')
+    }
+    catch (error) {
+      console.error('Error closing WebSocket server:', error)
+    }
+  }
+
+  if (appTray) {
+    appTray.destroy()
+    appTray = null
   }
 })

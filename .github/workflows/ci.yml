@@ -9,42 +9,20 @@ on:
     branches:
       - main
 
-env:
-  # Rust
-  CARGO_TERM_COLOR: always
-  # https://github.com/Mozilla-Actions/sccache-action#rust-code
-  RUSTC_WRAPPER: sccache
-  SCCACHE_GHA_ENABLED: 'true'
-
 jobs:
   lint:
     name: Lint
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-
-      # Rust
-      - uses: dtolnay/rust-toolchain@nightly
-      # - uses: mozilla-actions/sccache-action@v0.0.3
-
-      - name: Install system dependencies
-        run: |
-          sudo apt update
-          sudo apt install -y libwebkit2gtk-4.1-dev
-
-      # Node.js
       - uses: pnpm/action-setup@v3
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: lts/*
           cache: pnpm
 
-      - name: Install
-        run: pnpm install
-
-      - name: Lint
-        run: |
-          pnpm run lint
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run lint
 
   build-test:
     name: Build Test (${{ matrix.app_name }})
@@ -65,15 +43,6 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      # Rust
-      - uses: dtolnay/rust-toolchain@nightly
-      # - uses: mozilla-actions/sccache-action@v0.0.3
-
-      - name: Install system dependencies
-        run: |
-          sudo apt update
-          sudo apt install -y libwebkit2gtk-4.1-dev
-
       # Turborepo
       - name: Cache turbo build setup
         uses: actions/cache@v4
@@ -83,22 +52,17 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-turbo-
 
-      - uses: pnpm/action-setup@v3
-      - uses: actions/setup-node@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: lts/*
           cache: pnpm
 
-      - name: Install
-        run: pnpm install
-
-      - name: Build
-        run: |
-          pnpm run build:packages
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run build:packages
 
       - name: Build App
-        run: |
-          ${{ matrix.command }}
+        run: ${{ matrix.command }}
 
   typecheck:
     name: Type Check
@@ -114,11 +78,8 @@ jobs:
           node-version: lts/*
           cache: pnpm
 
-      - name: Install
-        run: pnpm install
-
-      - name: Typecheck
-        run: pnpm run typecheck
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run typecheck
 
   check-provenance:
     name: Check Provenance

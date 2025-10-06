@@ -20,13 +20,11 @@ jobs:
     name: Release
     runs-on: ubuntu-24.04
     steps:
-      - name: Checkout
-        uses: actions/checkout@v5
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
       - uses: pnpm/action-setup@v3
-        name: Install pnpm
         with:
           run_install: false
 
@@ -39,21 +37,16 @@ jobs:
           registry-url: 'https://registry.npmjs.org'
           cache: pnpm
 
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run build:packages
 
-      - name: Packages build
-        run: pnpm run build:packages
-
-      - name: Packages publish (dry run)
-        run: pnpm publish -r --access public --no-git-checks --dry-run
+      - run: pnpm publish -r --access public --no-git-checks --dry-run
         env:
           NODE_AUTH_TOKEN: ${{secrets.NPM_TOKEN}}
           NPM_TOKEN: ${{secrets.NPM_TOKEN}}
           NPM_CONFIG_PROVENANCE: true
 
-      - name: Packages publish
-        run: pnpm publish -r --access public --no-git-checks
+      - run: pnpm publish -r --access public --no-git-checks
         env:
           NODE_AUTH_TOKEN: ${{secrets.NPM_TOKEN}}
           NPM_TOKEN: ${{secrets.NPM_TOKEN}}

@@ -175,6 +175,9 @@ importers:
       vitest:
         specifier: ^3.2.4
         version: 3.2.4(@types/debug@4.1.12)(@types/node@24.6.2)(jiti@2.5.1)(jsdom@25.0.1(bufferutil@4.0.9)(utf-8-validate@5.0.10))(less@4.4.1)(lightningcss@1.30.2)(msw@2.7.3(@types/node@24.6.2)(typescript@5.9.3))(terser@5.43.1)(tsx@4.20.6)(yaml@2.8.1)
+      yaml:
+        specifier: ^2.8.1
+        version: 2.8.1
 
   apps/component-calling:
     dependencies:
@@ -281,6 +284,9 @@ importers:
       '@proj-airi/i18n':
         specifier: workspace:^
         version: link:../../packages/i18n
+      '@proj-airi/server-runtime':
+        specifier: workspace:^
+        version: link:../../packages/server-runtime
       '@proj-airi/stage-ui':
         specifier: workspace:^
         version: link:../../packages/stage-ui
@@ -362,6 +368,9 @@ importers:
       jszip:
         specifier: ^3.10.1
         version: 3.10.1
+      listhen:
+        specifier: ^1.9.0
+        version: 1.9.0
       localforage:
         specifier: ^1.10.0
         version: 1.10.0
@@ -600,6 +609,9 @@ importers:
       vue-tsc:
         specifier: ^3.1.0
         version: 3.1.0(typescript@5.9.3)
+      yaml:
+        specifier: ^2.8.1
+        version: 2.8.1
 
   apps/stage-web:
     dependencies:

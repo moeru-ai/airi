@@ -38,7 +38,7 @@ export default defineConfig({
     }
 
     cargoToml.workspace.package.version = packageJSON.version
-    console.log(`Bumping Cargo.toml version to ${cargoToml.workspace.package.version} (from package.json, ${packageJSON.version})`)
+    console.info(`Bumping Cargo.toml version to ${cargoToml.workspace.package.version} (from package.json, ${packageJSON.version})`)
 
     await writeFile(join(cwd(), 'Cargo.toml'), stringify(cargoToml))
     await execa('cargo', ['generate-lockfile'])
