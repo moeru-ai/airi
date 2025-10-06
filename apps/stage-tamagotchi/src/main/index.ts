@@ -10,10 +10,11 @@ import { electronApp, is, optimizer } from '@electron-toolkit/utils'
 import { Format, LogLevel, setGlobalFormat, setGlobalLogLevel } from '@guiiai/logg'
 import { defineInvoke, defineInvokeHandler } from '@unbird/eventa'
 import { createContext } from '@unbird/eventa/adapters/electron/main'
-import { app, BrowserWindow, ipcMain, Menu, screen, shell, Tray } from 'electron'
+import { app, BrowserWindow, ipcMain, Menu, nativeImage, screen, shell, Tray } from 'electron'
 import { isMacOS } from 'std-env'
 
 import icon from '../../resources/icon.png?asset'
+import macOSTrayIcon from '../../resources/tray-icon-macos.png?asset'
 
 import { electronCursorPoint, electronOpenSettings, electronStartTrackingCursorPoint } from '../shared/eventa'
 
@@ -46,8 +47,8 @@ let trackCursorPointInterval: NodeJS.Timeout | undefined
 function createWindow(): void {
   mainWindow = new BrowserWindow({
     title: 'AIRI',
-    width: 916.0,
-    height: 1245.0,
+    width: 450.0,
+    height: 600.0,
     show: false,
     icon,
     webPreferences: {
@@ -111,7 +112,7 @@ function createTray(): void {
   }
 
   // Create tray icon
-  appTray = new Tray(icon)
+  appTray = new Tray(nativeImage.createFromPath(macOSTrayIcon).resize({ width: 16 }))
 
   // Define tray menu
   const contextMenu = Menu.buildFromTemplate([
