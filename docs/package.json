@@ -44,7 +44,7 @@
     "@types/markdown-it-anchor": "^7.0.0",
     "@unocss/reset": "^66.5.2",
     "@vue/tsconfig": "^0.8.1",
-    "animejs": "^4.2.0",
+    "animejs": "^4.2.1",
     "fast-glob": "^3.3.3",
     "gray-matter": "^4.0.3",
     "markdown-it": "^14.1.0",
