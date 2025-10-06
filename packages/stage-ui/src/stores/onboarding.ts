@@ -80,8 +80,11 @@ export const useOnboardingStore = defineStore('onboarding', () => {
   }
 
   watch(hasEssentialProviderConfigured, (configured) => {
-    if (configured)
+    if (configured) {
       shouldShowSetup.value = false
+      if (!hasCompletedSetup.value)
+        hasCompletedSetup.value = true
+    }
   })
 
   return {

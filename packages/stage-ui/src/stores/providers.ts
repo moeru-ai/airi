@@ -1811,8 +1811,31 @@ export const useProvidersStore = defineStore('providers', () => {
     // Always cache the current config string to prevent re-validating the same config
     validatedCredentials.value[providerId] = configString
 
-    const hasEnvCredentials = providerEnvOverrides[providerId] != null
-    const hasEnvModel = providerEnvModelOverrides[providerId] != null
+    const envCredentials = providerEnvOverrides[providerId]
+    const envModel = providerEnvModelOverrides[providerId]
+
+    const hasEnvCredentials = envCredentials != null
+    const hasEnvModel = typeof envModel === 'string' && envModel.length > 0
+
+    const matchesEnvCredentials = hasEnvCredentials
+      ? Object.entries(envCredentials!).every(([key, value]) => {
+        const configValue = config[key]
+        if (typeof configValue === 'string')
+          return configValue.trim() === value
+        return configValue === value
+      })
+      : false
+
+    const requiresModelSelection = metadata.capabilities.listModels != null
+    const hasMatchingEnvModel = hasEnvModel && (
+      (typeof (config as any).model === 'string' && (config as any).model?.trim() === envModel)
+      || !("model" in config)
+    )
+
+    if (matchesEnvCredentials && (!requiresModelSelection || hasMatchingEnvModel)) {
+      configuredProviders.value[providerId] = true
+      return true
+    }
 
     let validationResult: { valid: boolean }
 
@@ -1824,10 +1847,8 @@ export const useProvidersStore = defineStore('providers', () => {
       validationResult = { valid: false }
     }
 
-    if (!validationResult.valid && hasEnvCredentials) {
-      // If we have environment credentials, consider provider configured even if validation fails.
-      // Require env model when the provider supports chat listings to avoid missing model errors.
-      const canSkipModelCheck = metadata.capabilities.listModels == null || hasEnvModel
+    if (!validationResult.valid && matchesEnvCredentials) {
+      const canSkipModelCheck = !requiresModelSelection || hasMatchingEnvModel
       if (canSkipModelCheck) {
         configuredProviders.value[providerId] = true
         return true
