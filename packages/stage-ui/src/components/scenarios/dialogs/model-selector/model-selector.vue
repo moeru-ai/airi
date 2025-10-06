@@ -7,6 +7,7 @@ import { DropdownMenuContent, DropdownMenuItem, DropdownMenuPortal, DropdownMenu
 import { ref } from 'vue'
 
 import Button from '../../../misc/Button.vue'
+import URLModelImportDialog from './URLModelImportDialog.vue'
 
 import { DisplayModelFormat, useDisplayModelsStore } from '../../../../stores/display-models'
 
@@ -61,6 +62,7 @@ const mapFormatRenderer: Record<DisplayModelFormat, string> = {
 
 const live2dDialog = useFileDialog({ accept: '.zip', multiple: false, reset: true })
 const vrmDialog = useFileDialog({ accept: '.vrm', multiple: false, reset: true })
+const urlImportDialogOpen = ref(false)
 
 live2dDialog.onChange(handleAddLive2DModel)
 vrmDialog.onChange(handleAddVRMModel)
@@ -105,6 +107,13 @@ vrmDialog.onChange(handleAddVRMModel)
                 transition="colors duration-200 ease-in-out" @click="vrmDialog.open()"
               >
                 VRM
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                class="data-[disabled]:text-mauve8 relative flex cursor-pointer select-none items-center rounded-md px-3 py-2 text-base leading-none outline-none data-[disabled]:pointer-events-none data-[highlighted]:bg-primary-100/20 sm:text-sm data-[highlighted]:text-primary-200"
+                transition="colors duration-200 ease-in-out"
+                @click="urlImportDialogOpen = true"
+              >
+                From URL
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenuPortal>
@@ -215,5 +224,8 @@ vrmDialog.onChange(handleAddVRMModel)
     <Button class="block md:hidden" @click="handleMobilePick()">
       Confirm
     </Button>
+
+    <!-- URL Import Dialog -->
+    <URLModelImportDialog v-model:open="urlImportDialogOpen" />
   </div>
 </template>

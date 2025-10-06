@@ -43,6 +43,8 @@ export interface DisplayModelURL {
   name: string
   previewImage?: string
   importedAt: number
+  cached?: boolean
+  cacheKey?: string
 }
 
 const displayModelsPresets: DisplayModel[] = [
@@ -195,6 +197,128 @@ export const useDisplayModelsStore = defineStore('display-models', () => {
     displayModels.value = displayModels.value.filter(model => model.id !== id)
   }
 
+  // Parse VPM JSON format
+  interface VPMPackage {
+    url?: string
+    version?: string
+  }
+
+  interface VPMManifest {
+    packages?: Record<string, VPMPackage>
+    dependencies?: Record<string, string>
+  }
+
+  async function parseVPMJson(url: string): Promise<{ url: string, name: string } | null> {
+    try {
+      const response = await fetch(url)
+      const data = await response.json() as VPMManifest
+
+      // Try to find VRM package in packages field
+      if (data.packages) {
+        for (const [name, pkg] of Object.entries(data.packages)) {
+          if (pkg.url && (pkg.url.endsWith('.vrm') || pkg.url.endsWith('.zip'))) {
+            return { url: pkg.url, name }
+          }
+        }
+      }
+
+      return null
+    }
+    catch (error) {
+      console.error('Failed to parse VPM JSON:', error)
+      return null
+    }
+  }
+
+  // Add model from URL
+  async function addDisplayModelFromURL(url: string, format?: DisplayModelFormat) {
+    await until(displayModelsFromIndexedDBLoading).toBe(false)
+
+    let actualUrl = url
+    let modelName = url.split('/').pop() || 'Unknown Model'
+    let detectedFormat = format
+
+    // Check if it's a VPM JSON
+    if (url.endsWith('.json')) {
+      const vpmData = await parseVPMJson(url)
+      if (vpmData) {
+        actualUrl = vpmData.url
+        modelName = vpmData.name
+      }
+    }
+
+    // Auto-detect format if not provided
+    if (!detectedFormat) {
+      if (actualUrl.endsWith('.vrm')) {
+        detectedFormat = DisplayModelFormat.VRM
+      }
+      else if (actualUrl.endsWith('.zip')) {
+        // Assume Live2D for zip files
+        detectedFormat = DisplayModelFormat.Live2dZip
+      }
+      else {
+        throw new Error('Unable to detect model format. Please specify format manually.')
+      }
+    }
+
+    // Fetch and cache the model
+    const cacheKey = `model-cache-${nanoid()}`
+    try {
+      const response = await fetch(actualUrl)
+      const blob = await response.blob()
+      const file = new File([blob], modelName, { type: blob.type })
+
+      // Cache the file
+      await localforage.setItem(cacheKey, { file, url: actualUrl })
+
+      const newDisplayModel: DisplayModelURL = {
+        id: `display-model-${nanoid()}`,
+        format: detectedFormat,
+        type: 'url',
+        url: actualUrl,
+        name: modelName,
+        importedAt: Date.now(),
+        cached: true,
+        cacheKey,
+      }
+
+      // Generate preview for Live2D models
+      if (detectedFormat === DisplayModelFormat.Live2dZip) {
+        const previewImage = await loadLive2DModelPreview(file)
+        if (previewImage) {
+          newDisplayModel.previewImage = previewImage
+        }
+      }
+
+      displayModels.value.unshift(newDisplayModel)
+
+      // Save metadata to IndexedDB
+      await localforage.setItem(newDisplayModel.id, {
+        ...newDisplayModel,
+        // Don't duplicate the file data in metadata
+        file: undefined,
+      })
+
+      return newDisplayModel
+    }
+    catch (error) {
+      console.error('Failed to fetch and cache model:', error)
+      throw error
+    }
+  }
+
+  // Get cached model file
+  async function getCachedModelFile(cacheKey: string): Promise<File | null> {
+    try {
+      const cached = await localforage.getItem<{ file: File, url: string }>(cacheKey)
+      return cached?.file || null
+    }
+    catch (error) {
+      console.error('Failed to get cached model:', error)
+      return null
+    }
+  }
+
   return {
     displayModels,
     displayModelsFromIndexedDBLoading,
@@ -202,6 +326,8 @@ export const useDisplayModelsStore = defineStore('display-models', () => {
     loadDisplayModelsFromIndexedDB,
     getDisplayModel,
     addDisplayModel,
+    addDisplayModelFromURL,
+    getCachedModelFile,
     renameDisplayModel,
     removeDisplayModel,
   }
