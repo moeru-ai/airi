@@ -23,6 +23,28 @@ export interface ClientOptions<C = undefined> {
   maxReconnectAttempts?: number
 }
 
+// Determine default WebSocket URL based on environment
+function getDefaultWebSocketURL(): string {
+  // Check if we're in a browser environment
+  if (typeof window !== 'undefined' && typeof window.location !== 'undefined') {
+    const { protocol, hostname, port } = window.location
+
+    // If deployed (not localhost), disable WebSocket connection
+    if (hostname !== 'localhost' && hostname !== '127.0.0.1') {
+      // Return a dummy URL that will fail gracefully
+      // This prevents attempting to connect to production WebSocket
+      return 'ws://disabled/ws'
+    }
+
+    // For localhost, use the development server port
+    const wsProtocol = protocol === 'https:' ? 'wss:' : 'ws:'
+    return `${wsProtocol}//${hostname}:6121/ws`
+  }
+
+  // Fallback for non-browser environments (Node.js)
+  return 'ws://localhost:6121/ws'
+}
+
 export class Client<C = undefined> {
   private connected = false
   private connecting = false
@@ -37,7 +59,7 @@ export class Client<C = undefined> {
 
   constructor(options: ClientOptions<C>) {
     this.opts = {
-      url: 'ws://localhost:6121/ws',
+      url: getDefaultWebSocketURL(),
       possibleEvents: [],
       onError: () => {},
       onClose: () => {},

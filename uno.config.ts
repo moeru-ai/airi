@@ -84,7 +84,8 @@ export function presetWebFontsFonts(provider: 'fontsource' | 'none'): Record<str
     },
     'cutejp': {
       name: 'Kiwi Maru',
-      provider,
+      // Use 'none' provider to avoid CORS issues with jsdelivr.net
+      provider: 'none',
       subsets: ['latin', 'japanese'],
     },
     'cuteen': {
