@@ -62,6 +62,9 @@ const providerEnvDefine = providerEnvKeys.reduce<Record<string, string>>((acc, k
 }, {})
 
 export default defineConfig({
+  build: {
+    outDir: resolve(join(import.meta.dirname, '..', '..', 'dist')),
+  },
   define: providerEnvDefine,
   optimizeDeps: {
     exclude: [
