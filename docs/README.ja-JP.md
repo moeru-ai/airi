@@ -194,6 +194,48 @@ Vercel プロジェクト設定でこれらの環境変数を追加してくだ�
 | `DEFAULT_SPEECH_PROVIDER` | デフォルト TTS プロバイダー ID | `openai-audio-speech` |
 | `DEFAULT_TRANSCRIPTION_PROVIDER` | デフォルト STT プロバイダー ID | `openai-audio-transcription` |
 
+#### デフォルトモデル設定（チャット）
+
+| 変数 | 説明 | 例 |
+|------|------|-----|
+| `OPENAI_MODEL` | OpenAI のデフォルトチャットモデル | `gpt-4o-mini` |
+| `OPENAI_COMPATIBLE_MODEL` | OpenAI 互換のデフォルトチャットモデル | `gpt-4o-mini` |
+| `OPENROUTER_MODEL` | OpenRouter のデフォルトチャットモデル | `meta-llama/llama-3.1-405b-instruct` |
+| `ANTHROPIC_MODEL` | Anthropic のデフォルトチャットモデル | `claude-3-opus-20240229` |
+| `GOOGLE_GENERATIVE_AI_MODEL` | Google Gemini のデフォルトチャットモデル | `gemini-1.5-pro-latest` |
+| `DEEPSEEK_MODEL` | DeepSeek のデフォルトチャットモデル | `deepseek-chat` |
+| `AI302_MODEL` | 302.AI のデフォルトチャットモデル | `gpt-4o-mini` |
+| `TOGETHER_MODEL` | Together.ai のデフォルトチャットモデル | `meta-llama/Llama-3-70b-chat-hf` |
+| `XAI_MODEL` | xAI のデフォルトチャットモデル | `grok-beta` |
+| `NOVITA_MODEL` | Novita のデフォルトチャットモデル | `gpt-4o-mini` |
+| `FIREWORKS_MODEL` | Fireworks.ai のデフォルトチャットモデル | `accounts/fireworks/models/llama-v3p1-405b-instruct` |
+| `FEATHERLESS_MODEL` | Featherless のデフォルトチャットモデル | `mistral-small-latest` |
+| `PERPLEXITY_MODEL` | Perplexity のデフォルトチャットモデル | `llama-3.1-sonar-small-128k-online` |
+| `MISTRAL_MODEL` | Mistral のデフォルトチャットモデル | `mistral-large-latest` |
+| `MOONSHOT_MODEL` | Moonshot のデフォルトチャットモデル | `moonshot-v1-32k` |
+| `MODELSCOPE_MODEL` | ModelScope のデフォルトチャットモデル | `qwen2-72b-instruct` |
+| `CLOUDFLARE_WORKERS_AI_MODEL` | Cloudflare Workers AI のデフォルトチャットモデル | `@cf/meta/llama-3-8b-instruct` |
+| `OLLAMA_MODEL` | Ollama のデフォルトチャットモデル | `llama3.1` |
+| `LM_STUDIO_MODEL` | LM Studio のデフォルトチャットモデル | `llama3.1-8b` |
+| `PLAYER2_MODEL` | Player2 のデフォルトチャットモデル | `player2-model` |
+| `VLLM_MODEL` | vLLM プロキシのデフォルトチャットモデル | `llama-2-13b` |
+
+#### デフォルトモデル設定（音声 / 埋め込み）
+
+| 変数 | 説明 | 例 |
+|------|------|-----|
+| `OPENAI_SPEECH_MODEL` | OpenAI のデフォルト音声モデル | `tts-1` |
+| `OPENAI_COMPATIBLE_SPEECH_MODEL` | OpenAI 互換のデフォルト音声モデル | `tts-1-hd` |
+| `PLAYER2_SPEECH_MODEL` | Player2 のデフォルト音声モデル | `player2-voice` |
+| `OLLAMA_EMBEDDING_MODEL` | Ollama のデフォルト埋め込みモデル | `nomic-embed-text` |
+
+#### デフォルトモデル設定（音声認識）
+
+| 変数 | 説明 | 例 |
+|------|------|-----|
+| `OPENAI_TRANSCRIPTION_MODEL` | OpenAI のデフォルト音声認識モデル | `gpt-4o-mini-transcribe` |
+| `OPENAI_COMPATIBLE_TRANSCRIPTION_MODEL` | OpenAI 互換のデフォルト音声認識モデル | `whisper-1` |
+
 ### 利用可能なプロバイダー ID
 
 - **チャット**: `openai`, `openai-compatible`, `anthropic`, `google-generative-ai`, `deepseek`, `302-ai`, `together-ai`, `xai`, `novita-ai`, `fireworks-ai`, `perplexity-ai`, `mistral-ai`, `moonshot-ai`, `modelscope`, `openrouter-ai`
@@ -205,6 +247,7 @@ Vercel プロジェクト設定でこれらの環境変数を追加してくだ�
 ```env
 OPENAI_API_KEY=sk-proj-xxxxx
 OPENAI_BASE_URL=https://api.openai.com/v1/
+OPENAI_MODEL=gpt-4o-mini
 DEFAULT_CHAT_PROVIDER=openai
 DEFAULT_SPEECH_PROVIDER=openai-audio-speech
 DEFAULT_TRANSCRIPTION_PROVIDER=openai-audio-transcription

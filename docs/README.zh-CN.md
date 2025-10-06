@@ -186,6 +186,48 @@ pnpm -F @proj-airi/docs dev
 | `DEFAULT_SPEECH_PROVIDER` | 默认 TTS 提供商 ID | `openai-audio-speech` |
 | `DEFAULT_TRANSCRIPTION_PROVIDER` | 默认 STT 提供商 ID | `openai-audio-transcription` |
 
+#### 默认模型选择（聊天）
+
+| 变量 | 描述 | 示例 |
+|------|------|------|
+| `OPENAI_MODEL` | OpenAI 默认聊天模型 | `gpt-4o-mini` |
+| `OPENAI_COMPATIBLE_MODEL` | OpenAI 兼容默认聊天模型 | `gpt-4o-mini` |
+| `OPENROUTER_MODEL` | OpenRouter 默认聊天模型 | `meta-llama/llama-3.1-405b-instruct` |
+| `ANTHROPIC_MODEL` | Anthropic 默认聊天模型 | `claude-3-opus-20240229` |
+| `GOOGLE_GENERATIVE_AI_MODEL` | Google Gemini 默认聊天模型 | `gemini-1.5-pro-latest` |
+| `DEEPSEEK_MODEL` | DeepSeek 默认聊天模型 | `deepseek-chat` |
+| `AI302_MODEL` | 302.AI 默认聊天模型 | `gpt-4o-mini` |
+| `TOGETHER_MODEL` | Together.ai 默认聊天模型 | `meta-llama/Llama-3-70b-chat-hf` |
+| `XAI_MODEL` | xAI 默认聊天模型 | `grok-beta` |
+| `NOVITA_MODEL` | Novita 默认聊天模型 | `gpt-4o-mini` |
+| `FIREWORKS_MODEL` | Fireworks.ai 默认聊天模型 | `accounts/fireworks/models/llama-v3p1-405b-instruct` |
+| `FEATHERLESS_MODEL` | Featherless 默认聊天模型 | `mistral-small-latest` |
+| `PERPLEXITY_MODEL` | Perplexity 默认聊天模型 | `llama-3.1-sonar-small-128k-online` |
+| `MISTRAL_MODEL` | Mistral 默认聊天模型 | `mistral-large-latest` |
+| `MOONSHOT_MODEL` | Moonshot 默认聊天模型 | `moonshot-v1-32k` |
+| `MODELSCOPE_MODEL` | ModelScope 默认聊天模型 | `qwen2-72b-instruct` |
+| `CLOUDFLARE_WORKERS_AI_MODEL` | Cloudflare Workers AI 默认聊天模型 | `@cf/meta/llama-3-8b-instruct` |
+| `OLLAMA_MODEL` | Ollama 默认聊天模型 | `llama3.1` |
+| `LM_STUDIO_MODEL` | LM Studio 默认聊天模型 | `llama3.1-8b` |
+| `PLAYER2_MODEL` | Player2 默认聊天模型 | `player2-model` |
+| `VLLM_MODEL` | vLLM 代理默认聊天模型 | `llama-2-13b` |
+
+#### 默认模型选择（语音 & 向量）
+
+| 变量 | 描述 | 示例 |
+|------|------|------|
+| `OPENAI_SPEECH_MODEL` | OpenAI 默认语音模型 | `tts-1` |
+| `OPENAI_COMPATIBLE_SPEECH_MODEL` | OpenAI 兼容默认语音模型 | `tts-1-hd` |
+| `PLAYER2_SPEECH_MODEL` | Player2 默认语音模型 | `player2-voice` |
+| `OLLAMA_EMBEDDING_MODEL` | Ollama 默认向量模型 | `nomic-embed-text` |
+
+#### 默认模型选择（语音识别）
+
+| 变量 | 描述 | 示例 |
+|------|------|------|
+| `OPENAI_TRANSCRIPTION_MODEL` | OpenAI 默认语音识别模型 | `gpt-4o-mini-transcribe` |
+| `OPENAI_COMPATIBLE_TRANSCRIPTION_MODEL` | OpenAI 兼容默认语音识别模型 | `whisper-1` |
+
 ### 可用的提供商 ID
 
 - **聊天**: `openai`, `openai-compatible`, `anthropic`, `google-generative-ai`, `deepseek`, `302-ai`, `together-ai`, `xai`, `novita-ai`, `fireworks-ai`, `perplexity-ai`, `mistral-ai`, `moonshot-ai`, `modelscope`, `openrouter-ai`
@@ -197,6 +239,7 @@ pnpm -F @proj-airi/docs dev
 ```env
 OPENAI_API_KEY=sk-proj-xxxxx
 OPENAI_BASE_URL=https://api.openai.com/v1/
+OPENAI_MODEL=gpt-4o-mini
 DEFAULT_CHAT_PROVIDER=openai
 DEFAULT_SPEECH_PROVIDER=openai-audio-speech
 DEFAULT_TRANSCRIPTION_PROVIDER=openai-audio-transcription

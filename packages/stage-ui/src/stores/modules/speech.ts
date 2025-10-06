@@ -46,6 +46,15 @@ export const useSpeechStore = defineStore('speech', () => {
     )
   }
 
+  watch(activeSpeechProvider, (provider) => {
+    if (!provider)
+      return
+
+    const envModel = providersStore.getEnvModelForProvider?.(provider)
+    if (envModel && (!activeSpeechModel.value || activeSpeechModel.value === 'eleven_multilingual_v2'))
+      activeSpeechModel.value = envModel
+  }, { immediate: true })
+
   // Computed properties
   const availableSpeechProvidersMetadata = computed(() => allAudioSpeechProvidersMetadata.value)
 

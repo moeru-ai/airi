@@ -81,6 +81,41 @@ const providerEnvPrefixes: Record<string, string> = {
   'mistral-ai': 'MISTRAL',
   'moonshot-ai': 'MOONSHOT',
   'modelscope': 'MODELSCOPE',
+  'cloudflare-workers-ai': 'CLOUDFLARE_WORKERS_AI',
+  'ollama': 'OLLAMA',
+  'lm-studio': 'LM_STUDIO',
+  'player2': 'PLAYER2',
+  vllm: 'VLLM',
+}
+
+const providerEnvModelKeys: Record<string, string> = {
+  openai: 'OPENAI_MODEL',
+  'openai-compatible': 'OPENAI_COMPATIBLE_MODEL',
+  'openai-audio-speech': 'OPENAI_SPEECH_MODEL',
+  'openai-compatible-audio-speech': 'OPENAI_COMPATIBLE_SPEECH_MODEL',
+  'openai-audio-transcription': 'OPENAI_TRANSCRIPTION_MODEL',
+  'openai-compatible-audio-transcription': 'OPENAI_COMPATIBLE_TRANSCRIPTION_MODEL',
+  'openrouter-ai': 'OPENROUTER_MODEL',
+  anthropic: 'ANTHROPIC_MODEL',
+  'google-generative-ai': 'GOOGLE_GENERATIVE_AI_MODEL',
+  deepseek: 'DEEPSEEK_MODEL',
+  '302-ai': 'AI302_MODEL',
+  'together-ai': 'TOGETHER_MODEL',
+  xai: 'XAI_MODEL',
+  'novita-ai': 'NOVITA_MODEL',
+  'fireworks-ai': 'FIREWORKS_MODEL',
+  'featherless-ai': 'FEATHERLESS_MODEL',
+  'perplexity-ai': 'PERPLEXITY_MODEL',
+  'mistral-ai': 'MISTRAL_MODEL',
+  'moonshot-ai': 'MOONSHOT_MODEL',
+  'modelscope': 'MODELSCOPE_MODEL',
+  'cloudflare-workers-ai': 'CLOUDFLARE_WORKERS_AI_MODEL',
+  'ollama': 'OLLAMA_MODEL',
+  'ollama-embedding': 'OLLAMA_EMBEDDING_MODEL',
+  'lm-studio': 'LM_STUDIO_MODEL',
+  'player2': 'PLAYER2_MODEL',
+  'player2-speech': 'PLAYER2_SPEECH_MODEL',
+  vllm: 'VLLM_MODEL',
 }
 
 function ensureTrailingSlash(url: string) {
@@ -109,11 +144,21 @@ function readProviderEnvCredentials(prefix: string) {
 }
 
 const providerEnvOverrides: Record<string, Record<string, string>> = {}
+const providerEnvModelOverrides: Record<string, string> = {}
 
 for (const [providerId, prefix] of Object.entries(providerEnvPrefixes)) {
   const credentials = readProviderEnvCredentials(prefix)
   if (credentials)
     providerEnvOverrides[providerId] = credentials
+}
+
+for (const [providerId, envKey] of Object.entries(providerEnvModelKeys)) {
+  const value = providerEnvSource[envKey]
+  if (typeof value === 'string') {
+    const trimmedValue = value.trim()
+    if (trimmedValue)
+      providerEnvModelOverrides[providerId] = trimmedValue
+  }
 }
 
 export interface ProviderMetadata {
@@ -2007,6 +2052,8 @@ export const useProvidersStore = defineStore('providers', () => {
   return {
     providers: providerCredentials,
     getProviderConfig,
+    getEnvModelForProvider: (providerId: string) => providerEnvModelOverrides[providerId],
+    envModelOverrides: providerEnvModelOverrides,
     availableProviders,
     configuredProviders,
     providerMetadata,

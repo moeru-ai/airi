@@ -33,6 +33,15 @@ export const useHearingStore = defineStore('hearing-store', () => {
     )
   }
 
+  watch(activeTranscriptionProvider, (provider) => {
+    if (!provider)
+      return
+
+    const envModel = providersStore.getEnvModelForProvider?.(provider)
+    if (envModel && (!activeTranscriptionModel.value || activeTranscriptionModel.value.trim().length === 0))
+      activeTranscriptionModel.value = envModel
+  }, { immediate: true })
+
   // Computed properties
   const availableProvidersMetadata = computed(() => allAudioTranscriptionProvidersMetadata.value)
 

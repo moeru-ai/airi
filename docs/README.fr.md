@@ -206,11 +206,54 @@ Ajoutez ces variables d'environnement dans les paramètres de votre projet Verce
 | `DEFAULT_SPEECH_PROVIDER` | ID du fournisseur TTS par défaut | `openai-audio-speech` |
 | `DEFAULT_TRANSCRIPTION_PROVIDER` | ID du fournisseur STT par défaut | `openai-audio-transcription` |
 
+#### Sélection du modèle par défaut (chat)
+
+| Variable | Description | Exemple |
+|----------|-------------|---------|
+| `OPENAI_MODEL` | Modèle de chat OpenAI utilisé par défaut | `gpt-4o-mini` |
+| `OPENAI_COMPATIBLE_MODEL` | Modèle de chat compatible OpenAI par défaut | `gpt-4o-mini` |
+| `OPENROUTER_MODEL` | Modèle de chat OpenRouter par défaut | `meta-llama/llama-3.1-405b-instruct` |
+| `ANTHROPIC_MODEL` | Modèle de chat Anthropic par défaut | `claude-3-opus-20240229` |
+| `GOOGLE_GENERATIVE_AI_MODEL` | Modèle de chat Google Gemini par défaut | `gemini-1.5-pro-latest` |
+| `DEEPSEEK_MODEL` | Modèle de chat DeepSeek par défaut | `deepseek-chat` |
+| `AI302_MODEL` | Modèle de chat 302.AI par défaut | `gpt-4o-mini` |
+| `TOGETHER_MODEL` | Modèle de chat Together.ai par défaut | `meta-llama/Llama-3-70b-chat-hf` |
+| `XAI_MODEL` | Modèle de chat xAI par défaut | `grok-beta` |
+| `NOVITA_MODEL` | Modèle de chat Novita par défaut | `gpt-4o-mini` |
+| `FIREWORKS_MODEL` | Modèle de chat Fireworks.ai par défaut | `accounts/fireworks/models/llama-v3p1-405b-instruct` |
+| `FEATHERLESS_MODEL` | Modèle de chat Featherless par défaut | `mistral-small-latest` |
+| `PERPLEXITY_MODEL` | Modèle de chat Perplexity par défaut | `llama-3.1-sonar-small-128k-online` |
+| `MISTRAL_MODEL` | Modèle de chat Mistral par défaut | `mistral-large-latest` |
+| `MOONSHOT_MODEL` | Modèle de chat Moonshot par défaut | `moonshot-v1-32k` |
+| `MODELSCOPE_MODEL` | Modèle de chat ModelScope par défaut | `qwen2-72b-instruct` |
+| `CLOUDFLARE_WORKERS_AI_MODEL` | Modèle de chat Cloudflare Workers AI par défaut | `@cf/meta/llama-3-8b-instruct` |
+| `OLLAMA_MODEL` | Modèle de chat Ollama par défaut | `llama3.1` |
+| `LM_STUDIO_MODEL` | Modèle de chat LM Studio par défaut | `llama3.1-8b` |
+| `PLAYER2_MODEL` | Modèle de chat Player2 par défaut | `player2-model` |
+| `VLLM_MODEL` | Modèle de chat proxifié par vLLM par défaut | `llama-2-13b` |
+
+#### Sélection du modèle par défaut (voix / embeddings)
+
+| Variable | Description | Exemple |
+|----------|-------------|---------|
+| `OPENAI_SPEECH_MODEL` | Modèle TTS OpenAI par défaut | `tts-1` |
+| `OPENAI_COMPATIBLE_SPEECH_MODEL` | Modèle TTS compatible OpenAI par défaut | `tts-1-hd` |
+| `PLAYER2_SPEECH_MODEL` | Modèle TTS Player2 par défaut | `player2-voice` |
+| `OLLAMA_EMBEDDING_MODEL` | Modèle d'embedding Ollama par défaut | `nomic-embed-text` |
+
+#### Sélection du modèle par défaut (transcription)
+
+| Variable | Description | Exemple |
+|----------|-------------|---------|
+| `OPENAI_TRANSCRIPTION_MODEL` | Modèle STT OpenAI par défaut | `gpt-4o-mini-transcribe` |
+| `OPENAI_COMPATIBLE_TRANSCRIPTION_MODEL` | Modèle STT compatible OpenAI par défaut | `whisper-1` |
+
 ### Exemple de configuration
 
 ```env
 OPENAI_API_KEY=sk-proj-xxxxx
 OPENAI_BASE_URL=https://api.openai.com/v1/
+OPENAI_MODEL=gpt-4o-mini
 DEFAULT_CHAT_PROVIDER=openai
 DEFAULT_SPEECH_PROVIDER=openai-audio-speech
 DEFAULT_TRANSCRIPTION_PROVIDER=openai-audio-transcription

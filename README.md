@@ -219,6 +219,48 @@ Add these environment variables in your Vercel project settings:
 | `DEFAULT_SPEECH_PROVIDER` | Default TTS provider ID | `openai-audio-speech` |
 | `DEFAULT_TRANSCRIPTION_PROVIDER` | Default STT provider ID | `openai-audio-transcription` |
 
+#### Default Model Selection (Chat)
+
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `OPENAI_MODEL` | Default OpenAI chat model | `gpt-4o-mini` |
+| `OPENAI_COMPATIBLE_MODEL` | Default OpenAI-compatible chat model | `gpt-4o-mini` |
+| `OPENROUTER_MODEL` | Default OpenRouter chat model | `meta-llama/llama-3.1-405b-instruct` |
+| `ANTHROPIC_MODEL` | Default Anthropic chat model | `claude-3-opus-20240229` |
+| `GOOGLE_GENERATIVE_AI_MODEL` | Default Google Gemini chat model | `gemini-1.5-pro-latest` |
+| `DEEPSEEK_MODEL` | Default DeepSeek chat model | `deepseek-chat` |
+| `AI302_MODEL` | Default 302.AI chat model | `gpt-4o-mini` |
+| `TOGETHER_MODEL` | Default Together.ai chat model | `meta-llama/Llama-3-70b-chat-hf` |
+| `XAI_MODEL` | Default xAI chat model | `grok-beta` |
+| `NOVITA_MODEL` | Default Novita chat model | `gpt-4o-mini` |
+| `FIREWORKS_MODEL` | Default Fireworks.ai chat model | `accounts/fireworks/models/llama-v3p1-405b-instruct` |
+| `FEATHERLESS_MODEL` | Default Featherless chat model | `mistral-small-latest` |
+| `PERPLEXITY_MODEL` | Default Perplexity chat model | `llama-3.1-sonar-small-128k-online` |
+| `MISTRAL_MODEL` | Default Mistral chat model | `mistral-large-latest` |
+| `MOONSHOT_MODEL` | Default Moonshot chat model | `moonshot-v1-32k` |
+| `MODELSCOPE_MODEL` | Default ModelScope chat model | `qwen2-72b-instruct` |
+| `CLOUDFLARE_WORKERS_AI_MODEL` | Default Cloudflare Workers AI chat model | `@cf/meta/llama-3-8b-instruct` |
+| `OLLAMA_MODEL` | Default Ollama chat model | `llama3.1` |
+| `LM_STUDIO_MODEL` | Default LM Studio chat model | `llama3.1-8b` |
+| `PLAYER2_MODEL` | Default Player2 chat model | `player2-model` |
+| `VLLM_MODEL` | Default vLLM proxy chat model | `llama-2-13b` |
+
+#### Default Model Selection (Speech / Embeddings)
+
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `OPENAI_SPEECH_MODEL` | Default OpenAI speech model | `tts-1` |
+| `OPENAI_COMPATIBLE_SPEECH_MODEL` | Default OpenAI-compatible speech model | `tts-1-hd` |
+| `PLAYER2_SPEECH_MODEL` | Default Player2 speech model | `player2-voice` |
+| `OLLAMA_EMBEDDING_MODEL` | Default Ollama embedding model | `nomic-embed-text` |
+
+#### Default Model Selection (Transcription)
+
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `OPENAI_TRANSCRIPTION_MODEL` | Default OpenAI transcription model | `gpt-4o-mini-transcribe` |
+| `OPENAI_COMPATIBLE_TRANSCRIPTION_MODEL` | Default OpenAI-compatible transcription model | `whisper-1` |
+
 ### Available Provider IDs
 
 - **Chat**: `openai`, `openai-compatible`, `anthropic`, `google-generative-ai`, `deepseek`, `302-ai`, `together-ai`, `xai`, `novita-ai`, `fireworks-ai`, `perplexity-ai`, `mistral-ai`, `moonshot-ai`, `modelscope`, `openrouter-ai`
@@ -230,6 +272,7 @@ Add these environment variables in your Vercel project settings:
 ```env
 OPENAI_API_KEY=sk-proj-xxxxx
 OPENAI_BASE_URL=https://api.openai.com/v1/
+OPENAI_MODEL=gpt-4o-mini
 DEFAULT_CHAT_PROVIDER=openai
 DEFAULT_SPEECH_PROVIDER=openai-audio-speech
 DEFAULT_TRANSCRIPTION_PROVIDER=openai-audio-transcription

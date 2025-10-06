@@ -31,6 +31,15 @@ export const useConsciousnessStore = defineStore('consciousness', () => {
     )
   }
 
+  watch(activeProvider, (provider) => {
+    if (!provider)
+      return
+
+    const envModel = providersStore.getEnvModelForProvider?.(provider)
+    if (envModel && (!activeModel.value || activeModel.value.trim().length === 0))
+      activeModel.value = envModel
+  }, { immediate: true })
+
   // Computed properties
   const supportsModelListing = computed(() => {
     return providersStore.getProviderMetadata(activeProvider.value)?.capabilities.listModels !== undefined
