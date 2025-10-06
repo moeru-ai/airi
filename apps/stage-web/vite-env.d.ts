@@ -1,6 +1,40 @@
 interface ImportMetaEnv {
   readonly VITE_APP_TARGET_HUGGINGFACE_SPACE: boolean
-  // more env variables...
+  readonly OPENAI_API_KEY?: string
+  readonly OPENAI_BASE_URL?: string
+  readonly OPENAI_COMPATIBLE_API_KEY?: string
+  readonly OPENAI_COMPATIBLE_BASE_URL?: string
+  readonly OPENROUTER_API_KEY?: string
+  readonly OPENROUTER_BASE_URL?: string
+  readonly ANTHROPIC_API_KEY?: string
+  readonly ANTHROPIC_BASE_URL?: string
+  readonly GOOGLE_GENERATIVE_AI_API_KEY?: string
+  readonly GOOGLE_GENERATIVE_AI_BASE_URL?: string
+  readonly DEEPSEEK_API_KEY?: string
+  readonly DEEPSEEK_BASE_URL?: string
+  readonly AI302_API_KEY?: string
+  readonly AI302_BASE_URL?: string
+  readonly TOGETHER_API_KEY?: string
+  readonly TOGETHER_BASE_URL?: string
+  readonly XAI_API_KEY?: string
+  readonly XAI_BASE_URL?: string
+  readonly NOVITA_API_KEY?: string
+  readonly NOVITA_BASE_URL?: string
+  readonly FIREWORKS_API_KEY?: string
+  readonly FIREWORKS_BASE_URL?: string
+  readonly FEATHERLESS_API_KEY?: string
+  readonly FEATHERLESS_BASE_URL?: string
+  readonly PERPLEXITY_API_KEY?: string
+  readonly PERPLEXITY_BASE_URL?: string
+  readonly MISTRAL_API_KEY?: string
+  readonly MISTRAL_BASE_URL?: string
+  readonly MOONSHOT_API_KEY?: string
+  readonly MOONSHOT_BASE_URL?: string
+  readonly MODELSCOPE_API_KEY?: string
+  readonly MODELSCOPE_BASE_URL?: string
+  readonly DEFAULT_CHAT_PROVIDER?: string
+  readonly DEFAULT_SPEECH_PROVIDER?: string
+  readonly DEFAULT_TRANSCRIPTION_PROVIDER?: string
 }
 
 interface ImportMeta {
