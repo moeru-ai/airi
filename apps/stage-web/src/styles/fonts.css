@@ -1,0 +1,12 @@
+/* Preload locally bundled fonts to avoid runtime CDN requests */
+@import '@fontsource-variable/dm-sans/wght.css';
+@import '@fontsource-variable/jura/wght.css';
+@import '@fontsource-variable/quicksand/wght.css';
+@import '@fontsource-variable/urbanist/wght.css';
+@import '@fontsource-variable/comfortaa/wght.css';
+@import '@fontsource/dm-serif-display/400.css';
+@import '@fontsource/dm-mono/400.css';
+@import '@fontsource/sniglet/400.css';
+@import '@fontsource/gugi/400.css';
+@import '@fontsource/kiwi-maru/400.css';
+@import '@fontsource/m-plus-rounded-1c/400.css';
