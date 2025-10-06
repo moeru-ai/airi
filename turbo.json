@@ -44,7 +44,8 @@
     "build": {
       "outputs": ["dist/**"],
       "dependsOn": ["^build"],
-      "env": []
+      "env": [],
+      "passThroughEnv": []
     }
   }
 }
