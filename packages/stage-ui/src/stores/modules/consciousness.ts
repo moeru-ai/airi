@@ -1,11 +1,12 @@
 import { useLocalStorage } from '@vueuse/core'
-import { defineStore } from 'pinia'
-import { computed, ref } from 'vue'
+import { defineStore, storeToRefs } from 'pinia'
+import { computed, ref, watch } from 'vue'
 
 import { useProvidersStore } from '../providers'
 
 export const useConsciousnessStore = defineStore('consciousness', () => {
   const providersStore = useProvidersStore()
+  const { configuredProviders } = storeToRefs(providersStore)
 
   // State
   const activeProvider = useLocalStorage('settings/consciousness/active-provider', '')
@@ -13,6 +14,22 @@ export const useConsciousnessStore = defineStore('consciousness', () => {
   const activeCustomModelName = useLocalStorage('settings/consciousness/active-custom-model', '')
   const expandedDescriptions = ref<Record<string, boolean>>({})
   const modelSearchQuery = ref('')
+
+  const defaultChatProvider = (import.meta.env.DEFAULT_CHAT_PROVIDER || '').trim()
+
+  if (
+    defaultChatProvider
+    && Object.prototype.hasOwnProperty.call(providersStore.providerMetadata, defaultChatProvider)
+  ) {
+    watch(
+      () => configuredProviders.value[defaultChatProvider],
+      (isConfigured) => {
+        if (isConfigured && !activeProvider.value)
+          activeProvider.value = defaultChatProvider
+      },
+      { immediate: true },
+    )
+  }
 
   // Computed properties
   const supportsModelListing = computed(() => {

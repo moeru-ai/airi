@@ -13,7 +13,7 @@ import { useProvidersStore } from '../providers'
 
 export const useSpeechStore = defineStore('speech', () => {
   const providersStore = useProvidersStore()
-  const { allAudioSpeechProvidersMetadata } = storeToRefs(providersStore)
+  const { allAudioSpeechProvidersMetadata, configuredProviders } = storeToRefs(providersStore)
 
   // State
   const activeSpeechProvider = useLocalStorage('settings/speech/active-provider', '')
@@ -29,6 +29,22 @@ export const useSpeechStore = defineStore('speech', () => {
   const availableVoices = ref<Record<string, VoiceInfo[]>>({})
   const selectedLanguage = useLocalStorage('settings/speech/language', 'en-US')
   const modelSearchQuery = ref('')
+
+  const defaultSpeechProvider = (import.meta.env.DEFAULT_SPEECH_PROVIDER || '').trim()
+
+  if (
+    defaultSpeechProvider
+    && Object.prototype.hasOwnProperty.call(providersStore.providerMetadata, defaultSpeechProvider)
+  ) {
+    watch(
+      () => configuredProviders.value[defaultSpeechProvider],
+      (isConfigured) => {
+        if (isConfigured && !activeSpeechProvider.value)
+          activeSpeechProvider.value = defaultSpeechProvider
+      },
+      { immediate: true },
+    )
+  }
 
   // Computed properties
   const availableSpeechProvidersMetadata = computed(() => allAudioSpeechProvidersMetadata.value)

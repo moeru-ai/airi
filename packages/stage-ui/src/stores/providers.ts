@@ -58,6 +58,64 @@ import { isUrl } from '../utils/url'
 import { models as elevenLabsModels } from './providers/elevenlabs/list-models'
 import { buildOpenAICompatibleProvider } from './providers/openai-compatible-builder'
 
+const providerEnvSource = import.meta.env as Record<string, string | boolean | undefined>
+
+const providerEnvPrefixes: Record<string, string> = {
+  openai: 'OPENAI',
+  'openai-compatible': 'OPENAI_COMPATIBLE',
+  'openai-audio-speech': 'OPENAI',
+  'openai-compatible-audio-speech': 'OPENAI_COMPATIBLE',
+  'openai-audio-transcription': 'OPENAI',
+  'openai-compatible-audio-transcription': 'OPENAI_COMPATIBLE',
+  'openrouter-ai': 'OPENROUTER',
+  anthropic: 'ANTHROPIC',
+  'google-generative-ai': 'GOOGLE_GENERATIVE_AI',
+  deepseek: 'DEEPSEEK',
+  '302-ai': 'AI302',
+  'together-ai': 'TOGETHER',
+  xai: 'XAI',
+  'novita-ai': 'NOVITA',
+  'fireworks-ai': 'FIREWORKS',
+  'featherless-ai': 'FEATHERLESS',
+  'perplexity-ai': 'PERPLEXITY',
+  'mistral-ai': 'MISTRAL',
+  'moonshot-ai': 'MOONSHOT',
+  'modelscope': 'MODELSCOPE',
+}
+
+function ensureTrailingSlash(url: string) {
+  return url.endsWith('/') ? url : `${url}/`
+}
+
+function readProviderEnvCredentials(prefix: string) {
+  const apiKeyKey = `${prefix}_API_KEY`
+  const baseUrlKey = `${prefix}_BASE_URL`
+
+  const apiKey = typeof providerEnvSource[apiKeyKey] === 'string'
+    ? (providerEnvSource[apiKeyKey] as string).trim()
+    : ''
+  const baseUrl = typeof providerEnvSource[baseUrlKey] === 'string'
+    ? ensureTrailingSlash((providerEnvSource[baseUrlKey] as string).trim())
+    : ''
+
+  const credentials: Record<string, string> = {}
+
+  if (apiKey)
+    credentials.apiKey = apiKey
+  if (baseUrl)
+    credentials.baseUrl = baseUrl
+
+  return Object.keys(credentials).length > 0 ? credentials : null
+}
+
+const providerEnvOverrides: Record<string, Record<string, string>> = {}
+
+for (const [providerId, prefix] of Object.entries(providerEnvPrefixes)) {
+  const credentials = readProviderEnvCredentials(prefix)
+  if (credentials)
+    providerEnvOverrides[providerId] = credentials
+}
+
 export interface ProviderMetadata {
   id: string
   order?: number
@@ -1719,13 +1777,34 @@ export const useProvidersStore = defineStore('providers', () => {
 
   // Initialize provider configurations
   function initializeProvider(providerId: string) {
-    if (!providerCredentials.value[providerId]) {
-      const metadata = providerMetadata[providerId]
-      const defaultOptions = metadata.defaultOptions?.() || {}
-      providerCredentials.value[providerId] = {
-        baseUrl: defaultOptions.baseUrl || '',
+    const metadata = providerMetadata[providerId]
+    const defaultOptions = metadata.defaultOptions?.() || {}
+    const existingCredentials = providerCredentials.value[providerId] || {}
+
+    const mergedCredentials: Record<string, unknown> = {
+      ...defaultOptions,
+      ...existingCredentials,
+    }
+
+    const envCredentials = providerEnvOverrides[providerId]
+    if (envCredentials) {
+      for (const [key, value] of Object.entries(envCredentials)) {
+        const existingValue = existingCredentials[key]
+        const defaultValue = defaultOptions[key]
+
+        if (
+          existingValue != null
+          && !(typeof existingValue === 'string' && existingValue.trim().length === 0)
+          && existingValue !== defaultValue
+        ) {
+          continue
+        }
+
+        mergedCredentials[key] = value
       }
     }
+
+    providerCredentials.value[providerId] = mergedCredentials
   }
 
   // Initialize all providers
