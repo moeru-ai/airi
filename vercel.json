@@ -2,7 +2,7 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "vite",
   "buildCommand": "pnpm install --frozen-lockfile && turbo run build --filter=@proj-airi/stage-web",
-  "outputDirectory": "dist",
+  "outputDirectory": "apps/stage-web/dist",
   "headers": [
     {
       "source": "/(.*)",
