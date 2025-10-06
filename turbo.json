@@ -1,5 +1,8 @@
 {
   "$schema": "https://turborepo.com/schema.json",
+  "remoteCache": {
+    "enabled": false
+  },
   "globalPassThroughEnv": [
     "OPENAI_API_KEY",
     "OPENAI_BASE_URL",
