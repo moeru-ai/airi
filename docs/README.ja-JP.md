@@ -156,6 +156,62 @@ pnpm dev:tamagotchi
 pnpm dev:docs
 ```
 
+## Vercel へのデプロイ
+
+環境変数を設定することで、LLM プロバイダーを事前設定した AIRI を Vercel にデプロイできます。これにより、ユーザーは自分の API キーを設定しなくてもデプロイされたインスタンスを使用できます。
+
+### 環境変数
+
+Vercel プロジェクト設定でこれらの環境変数を追加してください：
+
+#### LLM プロバイダー認証情報
+
+| 変数 | 説明 | 例 |
+|------|------|-----|
+| `OPENAI_API_KEY` | OpenAI API キー | `sk-...` |
+| `OPENAI_BASE_URL` | OpenAI ベース URL | `https://api.openai.com/v1/` |
+| `OPENAI_COMPATIBLE_API_KEY` | OpenAI 互換 API キー | `sk-...` |
+| `OPENAI_COMPATIBLE_BASE_URL` | OpenAI 互換ベース URL | `https://your-api.com/v1/` |
+| `OPENROUTER_API_KEY` | OpenRouter API キー | `sk-...` |
+| `ANTHROPIC_API_KEY` | Anthropic Claude API キー | `sk-ant-...` |
+| `GOOGLE_GENERATIVE_AI_API_KEY` | Google Gemini API キー | `AI...` |
+| `DEEPSEEK_API_KEY` | DeepSeek API キー | `sk-...` |
+| `AI302_API_KEY` | 302.AI API キー | `sk-...` |
+| `TOGETHER_API_KEY` | Together.ai API キー | `...` |
+| `XAI_API_KEY` | xAI API キー | `...` |
+| `NOVITA_API_KEY` | Novita API キー | `...` |
+| `FIREWORKS_API_KEY` | Fireworks.ai API キー | `...` |
+| `PERPLEXITY_API_KEY` | Perplexity API キー | `...` |
+| `MISTRAL_API_KEY` | Mistral AI API キー | `...` |
+| `MOONSHOT_API_KEY` | Moonshot AI API キー | `...` |
+| `MODELSCOPE_API_KEY` | ModelScope API キー | `...` |
+
+#### デフォルトプロバイダー選択
+
+| 変数 | 説明 | 例 |
+|------|------|-----|
+| `DEFAULT_CHAT_PROVIDER` | デフォルトチャットプロバイダー ID | `openai` |
+| `DEFAULT_SPEECH_PROVIDER` | デフォルト TTS プロバイダー ID | `openai-audio-speech` |
+| `DEFAULT_TRANSCRIPTION_PROVIDER` | デフォルト STT プロバイダー ID | `openai-audio-transcription` |
+
+### 利用可能なプロバイダー ID
+
+- **チャット**: `openai`, `openai-compatible`, `anthropic`, `google-generative-ai`, `deepseek`, `302-ai`, `together-ai`, `xai`, `novita-ai`, `fireworks-ai`, `perplexity-ai`, `mistral-ai`, `moonshot-ai`, `modelscope`, `openrouter-ai`
+- **音声合成 (TTS)**: `openai-audio-speech`, `openai-compatible-audio-speech`, `elevenlabs`, `microsoft-speech`
+- **音声認識 (STT)**: `openai-audio-transcription`, `openai-compatible-audio-transcription`
+
+### 設定例
+
+```env
+OPENAI_API_KEY=sk-proj-xxxxx
+OPENAI_BASE_URL=https://api.openai.com/v1/
+DEFAULT_CHAT_PROVIDER=openai
+DEFAULT_SPEECH_PROVIDER=openai-audio-speech
+DEFAULT_TRANSCRIPTION_PROVIDER=openai-audio-transcription
+```
+
+これらの変数を設定すると、ユーザーがデプロイにアクセスした際にプロバイダーが自動的に設定され選択されます。
+
 ## サポートされているLLM APIプロバイダー（[xsai](https://github.com/moeru-ai/xsai)によって提供）
 
 - [x] [302.AI](https://share.302.ai/514k2v)

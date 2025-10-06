@@ -179,6 +179,45 @@ Merci de mettre à jour la version dans `Cargo.toml` après avoir exécuté `bum
 npx bumpp --no-commit --no-tag
 ```
 
+## Déploiement sur Vercel
+
+Vous pouvez déployer AIRI sur Vercel avec des fournisseurs LLM pré-configurés en définissant des variables d'environnement. Cela permet aux utilisateurs d'utiliser votre instance déployée sans configurer leurs propres clés API.
+
+### Variables d'environnement
+
+Ajoutez ces variables d'environnement dans les paramètres de votre projet Vercel :
+
+#### Identifiants des fournisseurs LLM
+
+| Variable | Description | Exemple |
+|----------|-------------|---------|
+| `OPENAI_API_KEY` | Clé API OpenAI | `sk-...` |
+| `OPENAI_BASE_URL` | URL de base OpenAI | `https://api.openai.com/v1/` |
+| `ANTHROPIC_API_KEY` | Clé API Anthropic Claude | `sk-ant-...` |
+| `GOOGLE_GENERATIVE_AI_API_KEY` | Clé API Google Gemini | `AI...` |
+| `DEEPSEEK_API_KEY` | Clé API DeepSeek | `sk-...` |
+| `AI302_API_KEY` | Clé API 302.AI | `sk-...` |
+
+#### Sélection du fournisseur par défaut
+
+| Variable | Description | Exemple |
+|----------|-------------|---------|
+| `DEFAULT_CHAT_PROVIDER` | ID du fournisseur de chat par défaut | `openai` |
+| `DEFAULT_SPEECH_PROVIDER` | ID du fournisseur TTS par défaut | `openai-audio-speech` |
+| `DEFAULT_TRANSCRIPTION_PROVIDER` | ID du fournisseur STT par défaut | `openai-audio-transcription` |
+
+### Exemple de configuration
+
+```env
+OPENAI_API_KEY=sk-proj-xxxxx
+OPENAI_BASE_URL=https://api.openai.com/v1/
+DEFAULT_CHAT_PROVIDER=openai
+DEFAULT_SPEECH_PROVIDER=openai-audio-speech
+DEFAULT_TRANSCRIPTION_PROVIDER=openai-audio-transcription
+```
+
+Après avoir défini ces variables, les utilisateurs auront les fournisseurs pré-configurés et automatiquement sélectionnés lorsqu'ils visiteront votre déploiement.
+
 ## Support des fournisseurs d'API LLM suivants (propulsé par [xsai](https://github.com/moeru-ai/xsai))
 
 - [x] [302.AI](https://share.302.ai/514k2v)

@@ -181,6 +181,62 @@ Please update the version in `Cargo.toml` after running `bumpp`:
 npx bumpp --no-commit --no-tag
 ```
 
+## Deployment to Vercel
+
+You can deploy AIRI to Vercel with pre-configured LLM providers by setting environment variables. This allows users to use your deployed instance without configuring their own API keys.
+
+### Environment Variables
+
+Add these environment variables in your Vercel project settings:
+
+#### LLM Provider Credentials
+
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `OPENAI_API_KEY` | OpenAI API Key | `sk-...` |
+| `OPENAI_BASE_URL` | OpenAI Base URL | `https://api.openai.com/v1/` |
+| `OPENAI_COMPATIBLE_API_KEY` | OpenAI-Compatible API Key | `sk-...` |
+| `OPENAI_COMPATIBLE_BASE_URL` | OpenAI-Compatible Base URL | `https://your-api.com/v1/` |
+| `OPENROUTER_API_KEY` | OpenRouter API Key | `sk-...` |
+| `ANTHROPIC_API_KEY` | Anthropic Claude API Key | `sk-ant-...` |
+| `GOOGLE_GENERATIVE_AI_API_KEY` | Google Gemini API Key | `AI...` |
+| `DEEPSEEK_API_KEY` | DeepSeek API Key | `sk-...` |
+| `AI302_API_KEY` | 302.AI API Key | `sk-...` |
+| `TOGETHER_API_KEY` | Together.ai API Key | `...` |
+| `XAI_API_KEY` | xAI API Key | `...` |
+| `NOVITA_API_KEY` | Novita API Key | `...` |
+| `FIREWORKS_API_KEY` | Fireworks.ai API Key | `...` |
+| `PERPLEXITY_API_KEY` | Perplexity API Key | `...` |
+| `MISTRAL_API_KEY` | Mistral AI API Key | `...` |
+| `MOONSHOT_API_KEY` | Moonshot AI API Key | `...` |
+| `MODELSCOPE_API_KEY` | ModelScope API Key | `...` |
+
+#### Default Provider Selection
+
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `DEFAULT_CHAT_PROVIDER` | Default chat provider ID | `openai` |
+| `DEFAULT_SPEECH_PROVIDER` | Default TTS provider ID | `openai-audio-speech` |
+| `DEFAULT_TRANSCRIPTION_PROVIDER` | Default STT provider ID | `openai-audio-transcription` |
+
+### Available Provider IDs
+
+- **Chat**: `openai`, `openai-compatible`, `anthropic`, `google-generative-ai`, `deepseek`, `302-ai`, `together-ai`, `xai`, `novita-ai`, `fireworks-ai`, `perplexity-ai`, `mistral-ai`, `moonshot-ai`, `modelscope`, `openrouter-ai`
+- **Speech (TTS)**: `openai-audio-speech`, `openai-compatible-audio-speech`, `elevenlabs`, `microsoft-speech`
+- **Transcription (STT)**: `openai-audio-transcription`, `openai-compatible-audio-transcription`
+
+### Example Configuration
+
+```env
+OPENAI_API_KEY=sk-proj-xxxxx
+OPENAI_BASE_URL=https://api.openai.com/v1/
+DEFAULT_CHAT_PROVIDER=openai
+DEFAULT_SPEECH_PROVIDER=openai-audio-speech
+DEFAULT_TRANSCRIPTION_PROVIDER=openai-audio-transcription
+```
+
+After setting these variables, users will have the providers pre-configured and auto-selected when they visit your deployment.
+
 ## Support of LLM API Providers (powered by [xsai](https://github.com/moeru-ai/xsai))
 
 - [x] [302.AI (sponsored)](https://share.302.ai/514k2v)

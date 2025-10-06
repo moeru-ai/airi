@@ -148,6 +148,62 @@ pnpm dev:tamagotchi
 pnpm -F @proj-airi/docs dev
 ```
 
+## 部署到 Vercel
+
+你可以通过设置环境变量，将 AIRI 部署到 Vercel 并预配置 LLM 提供商。这样用户无需配置自己的 API 密钥即可使用你的部署实例。
+
+### 环境变量
+
+在你的 Vercel 项目设置中添加这些环境变量：
+
+#### LLM 提供商凭证
+
+| 变量 | 描述 | 示例 |
+|------|------|------|
+| `OPENAI_API_KEY` | OpenAI API 密钥 | `sk-...` |
+| `OPENAI_BASE_URL` | OpenAI 基础 URL | `https://api.openai.com/v1/` |
+| `OPENAI_COMPATIBLE_API_KEY` | OpenAI 兼容 API 密钥 | `sk-...` |
+| `OPENAI_COMPATIBLE_BASE_URL` | OpenAI 兼容基础 URL | `https://your-api.com/v1/` |
+| `OPENROUTER_API_KEY` | OpenRouter API 密钥 | `sk-...` |
+| `ANTHROPIC_API_KEY` | Anthropic Claude API 密钥 | `sk-ant-...` |
+| `GOOGLE_GENERATIVE_AI_API_KEY` | Google Gemini API 密钥 | `AI...` |
+| `DEEPSEEK_API_KEY` | DeepSeek API 密钥 | `sk-...` |
+| `AI302_API_KEY` | 302.AI API 密钥 | `sk-...` |
+| `TOGETHER_API_KEY` | Together.ai API 密钥 | `...` |
+| `XAI_API_KEY` | xAI API 密钥 | `...` |
+| `NOVITA_API_KEY` | Novita API 密钥 | `...` |
+| `FIREWORKS_API_KEY` | Fireworks.ai API 密钥 | `...` |
+| `PERPLEXITY_API_KEY` | Perplexity API 密钥 | `...` |
+| `MISTRAL_API_KEY` | Mistral AI API 密钥 | `...` |
+| `MOONSHOT_API_KEY` | Moonshot AI API 密钥 | `...` |
+| `MODELSCOPE_API_KEY` | ModelScope API 密钥 | `...` |
+
+#### 默认提供商选择
+
+| 变量 | 描述 | 示例 |
+|------|------|------|
+| `DEFAULT_CHAT_PROVIDER` | 默认聊天提供商 ID | `openai` |
+| `DEFAULT_SPEECH_PROVIDER` | 默认 TTS 提供商 ID | `openai-audio-speech` |
+| `DEFAULT_TRANSCRIPTION_PROVIDER` | 默认 STT 提供商 ID | `openai-audio-transcription` |
+
+### 可用的提供商 ID
+
+- **聊天**: `openai`, `openai-compatible`, `anthropic`, `google-generative-ai`, `deepseek`, `302-ai`, `together-ai`, `xai`, `novita-ai`, `fireworks-ai`, `perplexity-ai`, `mistral-ai`, `moonshot-ai`, `modelscope`, `openrouter-ai`
+- **语音合成 (TTS)**: `openai-audio-speech`, `openai-compatible-audio-speech`, `elevenlabs`, `microsoft-speech`
+- **语音识别 (STT)**: `openai-audio-transcription`, `openai-compatible-audio-transcription`
+
+### 配置示例
+
+```env
+OPENAI_API_KEY=sk-proj-xxxxx
+OPENAI_BASE_URL=https://api.openai.com/v1/
+DEFAULT_CHAT_PROVIDER=openai
+DEFAULT_SPEECH_PROVIDER=openai-audio-speech
+DEFAULT_TRANSCRIPTION_PROVIDER=openai-audio-transcription
+```
+
+设置这些变量后，用户访问你的部署时将自动预配置并选择提供商。
+
 ## 原生支持的 LLM API 服务来源列表（由 [xsai](https://github.com/moeru-ai/xsai) 驱动）
 
 - [x] [302.AI](https://share.302.ai/514k2v)
