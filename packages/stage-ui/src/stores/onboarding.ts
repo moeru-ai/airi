@@ -1,6 +1,6 @@
 import { useLocalStorage } from '@vueuse/core'
 import { defineStore } from 'pinia'
-import { computed, nextTick, ref } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 
 import { useProvidersStore } from './providers'
 
@@ -15,35 +15,43 @@ export const useOnboardingStore = defineStore('onboarding', () => {
   const shouldShowSetup = ref(false)
 
   // Check if any essential provider is configured
+  const essentialProviders = ['openai', 'anthropic', 'google-generative-ai', 'openrouter-ai', 'ollama', 'deepseek', 'openai-compatible']
+
   const hasEssentialProviderConfigured = computed(() => {
-    const essentialProviders = ['openai', 'anthropic', 'google-generative-ai', 'openrouter-ai', 'ollama', 'deepseek', 'openai-compatible']
-    return essentialProviders.some(providerId => providersStore.configuredProviders[providerId])
+    return essentialProviders.some((providerId) => {
+      const configured = providersStore.configuredProviders[providerId]
+      if (configured)
+        return true
+
+      return providersStore.envCredentialOverrides?.[providerId] != null
+    })
   })
 
   // Check if first-time setup should be shown
   const needsOnboarding = computed(() => {
     // Don't show if already completed or skipped
-    if (hasCompletedSetup.value || hasSkippedSetup.value) {
-      console.warn('Onboarding already completed or skipped')
+    if (hasCompletedSetup.value || hasSkippedSetup.value)
       return false
-    }
 
     // Don't show if user already has essential providers configured
-    if (hasEssentialProviderConfigured.value) {
-      console.warn('Essential provider already configured, no onboarding needed')
+    if (hasEssentialProviderConfigured.value)
       return false
-    }
 
     return true
   })
 
   // Initialize setup check
   async function initializeSetupCheck() {
-    if (needsOnboarding.value) {
-      // Use nextTick to ensure the app is fully rendered before showing dialog
-      await nextTick()
+    await providersStore.refreshConfiguredProviders?.()
+
+    if (!needsOnboarding.value)
+      return
+
+    // Use nextTick to ensure the app is fully rendered before showing dialog
+    await nextTick()
+
+    if (needsOnboarding.value)
       shouldShowSetup.value = true
-    }
   }
 
   // Mark setup as completed
@@ -70,6 +78,11 @@ export const useOnboardingStore = defineStore('onboarding', () => {
   function forceShowSetup() {
     shouldShowSetup.value = true
   }
+
+  watch(hasEssentialProviderConfigured, (configured) => {
+    if (configured)
+      shouldShowSetup.value = false
+  })
 
   return {
     hasCompletedSetup,

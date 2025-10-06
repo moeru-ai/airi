@@ -1811,7 +1811,28 @@ export const useProvidersStore = defineStore('providers', () => {
     // Always cache the current config string to prevent re-validating the same config
     validatedCredentials.value[providerId] = configString
 
-    const validationResult = await metadata.validators.validateProviderConfig(config)
+    const hasEnvCredentials = providerEnvOverrides[providerId] != null
+    const hasEnvModel = providerEnvModelOverrides[providerId] != null
+
+    let validationResult: { valid: boolean }
+
+    try {
+      validationResult = await metadata.validators.validateProviderConfig(config)
+    }
+    catch (error) {
+      console.warn(`Provider validation failed for ${providerId}:`, error)
+      validationResult = { valid: false }
+    }
+
+    if (!validationResult.valid && hasEnvCredentials) {
+      // If we have environment credentials, consider provider configured even if validation fails.
+      // Require env model when the provider supports chat listings to avoid missing model errors.
+      const canSkipModelCheck = metadata.capabilities.listModels == null || hasEnvModel
+      if (canSkipModelCheck) {
+        configuredProviders.value[providerId] = true
+        return true
+      }
+    }
 
     configuredProviders.value[providerId] = validationResult.valid
 
@@ -2054,6 +2075,8 @@ export const useProvidersStore = defineStore('providers', () => {
     getProviderConfig,
     getEnvModelForProvider: (providerId: string) => providerEnvModelOverrides[providerId],
     envModelOverrides: providerEnvModelOverrides,
+    envCredentialOverrides: providerEnvOverrides,
+    refreshConfiguredProviders: updateConfigurationStatus,
     availableProviders,
     configuredProviders,
     providerMetadata,
