@@ -12,6 +12,7 @@ import { useLlmmarkerParser } from '../composables/llmmarkerParser'
 import { useLLM } from '../stores/llm'
 import { createQueue } from '../utils/queue'
 import { TTS_FLUSH_INSTRUCTION } from '../utils/tts'
+import { useMemoryStore } from './memory'
 import { useAiriCardStore } from './modules'
 
 export interface ErrorMessage {
@@ -22,6 +23,8 @@ export interface ErrorMessage {
 export const useChatStore = defineStore('chat', () => {
   const { stream, discoverToolsCompatibility } = useLLM()
   const { systemPrompt } = storeToRefs(useAiriCardStore())
+  const memoryStore = useMemoryStore()
+  void memoryStore.fetchRecent()
 
   const sending = ref(false)
 
@@ -196,6 +199,21 @@ export const useChatStore = defineStore('chat', () => {
         return toRaw(msg)
       })
 
+      await memoryStore.fetchRecent()
+      const similarMemories = await memoryStore.searchMemories(sendingMessage, 6)
+      let messagesWithMemory = memoryStore.appendContextMessages(newMessages as Message[])
+
+      if (similarMemories.length) {
+        const longTermContext: Message = {
+          role: 'system',
+          content: `Relevant long-term memory entries:\n${similarMemories.map(memory => `${memory.role}: ${typeof memory.content === 'string' ? memory.content : JSON.stringify(memory.content)}`).join('\n')}`,
+        }
+
+        messagesWithMemory = messagesWithMemory.length
+          ? [messagesWithMemory[0], longTermContext, ...messagesWithMemory.slice(1)]
+          : [longTermContext]
+      }
+
       for (const hook of onAfterMessageComposedHooks.value) {
         await hook(sendingMessage)
       }
@@ -207,7 +225,7 @@ export const useChatStore = defineStore('chat', () => {
       let fullText = ''
       const headers = (options.providerConfig?.headers || {}) as Record<string, string>
 
-      await stream(options.model, options.chatProvider, newMessages as Message[], {
+      await stream(options.model, options.chatProvider, messagesWithMemory, {
         headers,
         async onStreamEvent(event: StreamEvent) {
           if (event.type === 'tool-call') {
@@ -237,6 +255,14 @@ export const useChatStore = defineStore('chat', () => {
 
             // Reset the streaming message for the next turn
             streamingMessage.value = { role: 'assistant', content: '', slices: [], tool_results: [] }
+
+            await memoryStore.saveMessage({
+              role: 'assistant',
+              content: fullText,
+              timestamp: new Date(),
+              metadata: { source: 'assistant-response' },
+            })
+            await memoryStore.fetchRecent()
 
             // Instruct the TTS pipeline to flush by calling hooks directly
             const flushSignal = `${TTS_FLUSH_INSTRUCTION}${TTS_FLUSH_INSTRUCTION}`
@@ -269,6 +295,24 @@ export const useChatStore = defineStore('chat', () => {
       sending.value = false
     }
   }
+
+  watch(() => messages.value.length, (length, prevLength) => {
+    if (length <= prevLength)
+      return
+
+    const latest = messages.value.at(-1)
+    if (!latest)
+      return
+
+    if (latest.role === 'user') {
+      void memoryStore.saveMessage({
+        role: 'user',
+        content: typeof latest.content === 'string' ? latest.content : JSON.stringify(latest.content),
+        timestamp: new Date(),
+        metadata: { source: 'user-message' },
+      }).then(() => memoryStore.fetchRecent())
+    }
+  }, { flush: 'post' })
 
   return {
     sending,

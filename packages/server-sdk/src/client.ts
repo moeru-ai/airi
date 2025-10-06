@@ -27,7 +27,7 @@ export interface ClientOptions<C = undefined> {
 function getDefaultWebSocketURL(): string {
   // Check if we're in a browser environment
   if (typeof window !== 'undefined' && typeof window.location !== 'undefined') {
-    const { protocol, hostname, port } = window.location
+    const { protocol, hostname } = window.location
 
     // If deployed (not localhost), disable WebSocket connection
     if (hostname !== 'localhost' && hostname !== '127.0.0.1') {

@@ -1,13 +1,11 @@
 <script setup lang="ts">
 import { DialogClose, DialogContent, DialogDescription, DialogOverlay, DialogPortal, DialogRoot, DialogTitle, DialogTrigger } from 'reka-ui'
 import { ref } from 'vue'
-import { useI18n } from 'vue-i18n'
 
 import Button from '../../../misc/Button.vue'
 
 import { DisplayModelFormat, useDisplayModelsStore } from '../../../../stores/display-models'
 
-const { t } = useI18n()
 const displayModelStore = useDisplayModelsStore()
 
 const isOpen = defineModel<boolean>('open', { default: false })
@@ -64,39 +62,39 @@ function handleCancel() {
     </DialogTrigger>
     <DialogPortal>
       <DialogOverlay
-        class="fixed inset-0 z-10000 bg-black/20 data-[state=open]:animate-overlayShow backdrop-blur-sm"
+        class="fixed inset-0 z-10000 bg-black/20 backdrop-blur-sm data-[state=open]:animate-overlayShow"
       />
       <DialogContent
-        class="fixed left-[50%] top-[50%] z-10001 max-h-[85vh] w-[90vw] max-w-[500px] translate-x-[-50%] translate-y-[-50%] rounded-[6px] bg-white p-[25px] shadow-[hsl(206_22%_7%_/_35%)_0px_10px_38px_-10px,_hsl(206_22%_7%_/_20%)_0px_10px_20px_-15px] focus:outline-none data-[state=open]:animate-contentShow dark:bg-neutral-900"
+        class="fixed left-[50%] top-[50%] z-10001 max-h-[85vh] max-w-[500px] w-[90vw] translate-x-[-50%] translate-y-[-50%] rounded-[6px] bg-white p-[25px] shadow-[hsl(206_22%_7%_/_35%)_0px_10px_38px_-10px,_hsl(206_22%_7%_/_20%)_0px_10px_20px_-15px] data-[state=open]:animate-contentShow dark:bg-neutral-900 focus:outline-none"
       >
-        <DialogTitle class="m-0 text-[17px] font-semibold text-neutral-900 dark:text-neutral-100">
+        <DialogTitle class="m-0 text-[17px] text-neutral-900 font-semibold dark:text-neutral-100">
           Import Model from URL
         </DialogTitle>
-        <DialogDescription class="mb-5 mt-[10px] text-[15px] leading-normal text-neutral-700 dark:text-neutral-400">
+        <DialogDescription class="mb-5 mt-[10px] text-[15px] text-neutral-700 leading-normal dark:text-neutral-400">
           Import VRM or Live2D models from a direct URL, VPM JSON, or ZIP file. The model will be cached for offline use.
         </DialogDescription>
 
         <fieldset class="mb-[15px] flex flex-col gap-2">
-          <label class="text-[15px] font-medium leading-[35px] text-neutral-900 dark:text-neutral-100" for="url">
+          <label class="text-[15px] text-neutral-900 font-medium leading-[35px] dark:text-neutral-100" for="url">
             Model URL
           </label>
           <input
             id="url"
             v-model="url"
-            class="inline-flex h-[35px] w-full flex-1 items-center justify-center rounded-[4px] px-[10px] text-[15px] leading-none text-neutral-900 shadow-[0_0_0_1px] shadow-neutral-300 outline-none focus:shadow-[0_0_0_2px] focus:shadow-primary-500 dark:bg-neutral-800 dark:text-neutral-100 dark:shadow-neutral-700 dark:focus:shadow-primary-500"
+            class="h-[35px] w-full inline-flex flex-1 items-center justify-center rounded-[4px] px-[10px] text-[15px] text-neutral-900 leading-none shadow-[0_0_0_1px] shadow-neutral-300 outline-none dark:bg-neutral-800 dark:text-neutral-100 dark:shadow-neutral-700 focus:shadow-[0_0_0_2px] focus:shadow-primary-500 dark:focus:shadow-primary-500"
             placeholder="https://example.com/model.vrm or .json or .zip"
             :disabled="isLoading"
           >
         </fieldset>
 
         <fieldset class="mb-[15px] flex flex-col gap-2">
-          <label class="text-[15px] font-medium leading-[35px] text-neutral-900 dark:text-neutral-100" for="format">
+          <label class="text-[15px] text-neutral-900 font-medium leading-[35px] dark:text-neutral-100" for="format">
             Format
           </label>
           <select
             id="format"
             v-model="format"
-            class="inline-flex h-[35px] w-full flex-1 items-center justify-center rounded-[4px] px-[10px] text-[15px] leading-none text-neutral-900 shadow-[0_0_0_1px] shadow-neutral-300 outline-none focus:shadow-[0_0_0_2px] focus:shadow-primary-500 dark:bg-neutral-800 dark:text-neutral-100 dark:shadow-neutral-700 dark:focus:shadow-primary-500"
+            class="h-[35px] w-full inline-flex flex-1 items-center justify-center rounded-[4px] px-[10px] text-[15px] text-neutral-900 leading-none shadow-[0_0_0_1px] shadow-neutral-300 outline-none dark:bg-neutral-800 dark:text-neutral-100 dark:shadow-neutral-700 focus:shadow-[0_0_0_2px] focus:shadow-primary-500 dark:focus:shadow-primary-500"
             :disabled="isLoading"
           >
             <option v-for="opt in formatOptions" :key="opt.value" :value="opt.value">

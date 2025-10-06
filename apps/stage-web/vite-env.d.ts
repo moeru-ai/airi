@@ -59,6 +59,7 @@ interface ImportMetaEnv {
   readonly PLAYER2_MODEL?: string
   readonly PLAYER2_SPEECH_MODEL?: string
   readonly VLLM_MODEL?: string
+  readonly VITE_AIRI_WS_URL?: string
   readonly DEFAULT_CHAT_PROVIDER?: string
   readonly DEFAULT_SPEECH_PROVIDER?: string
   readonly DEFAULT_TRANSCRIPTION_PROVIDER?: string

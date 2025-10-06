@@ -61,19 +61,19 @@ import { buildOpenAICompatibleProvider } from './providers/openai-compatible-bui
 const providerEnvSource = import.meta.env as Record<string, string | boolean | undefined>
 
 const providerEnvPrefixes: Record<string, string> = {
-  openai: 'OPENAI',
+  'openai': 'OPENAI',
   'openai-compatible': 'OPENAI_COMPATIBLE',
   'openai-audio-speech': 'OPENAI',
   'openai-compatible-audio-speech': 'OPENAI_COMPATIBLE',
   'openai-audio-transcription': 'OPENAI',
   'openai-compatible-audio-transcription': 'OPENAI_COMPATIBLE',
   'openrouter-ai': 'OPENROUTER',
-  anthropic: 'ANTHROPIC',
+  'anthropic': 'ANTHROPIC',
   'google-generative-ai': 'GOOGLE_GENERATIVE_AI',
-  deepseek: 'DEEPSEEK',
+  'deepseek': 'DEEPSEEK',
   '302-ai': 'AI302',
   'together-ai': 'TOGETHER',
-  xai: 'XAI',
+  'xai': 'XAI',
   'novita-ai': 'NOVITA',
   'fireworks-ai': 'FIREWORKS',
   'featherless-ai': 'FEATHERLESS',
@@ -85,23 +85,23 @@ const providerEnvPrefixes: Record<string, string> = {
   'ollama': 'OLLAMA',
   'lm-studio': 'LM_STUDIO',
   'player2': 'PLAYER2',
-  vllm: 'VLLM',
+  'vllm': 'VLLM',
 }
 
 const providerEnvModelKeys: Record<string, string> = {
-  openai: 'OPENAI_MODEL',
+  'openai': 'OPENAI_MODEL',
   'openai-compatible': 'OPENAI_COMPATIBLE_MODEL',
   'openai-audio-speech': 'OPENAI_SPEECH_MODEL',
   'openai-compatible-audio-speech': 'OPENAI_COMPATIBLE_SPEECH_MODEL',
   'openai-audio-transcription': 'OPENAI_TRANSCRIPTION_MODEL',
   'openai-compatible-audio-transcription': 'OPENAI_COMPATIBLE_TRANSCRIPTION_MODEL',
   'openrouter-ai': 'OPENROUTER_MODEL',
-  anthropic: 'ANTHROPIC_MODEL',
+  'anthropic': 'ANTHROPIC_MODEL',
   'google-generative-ai': 'GOOGLE_GENERATIVE_AI_MODEL',
-  deepseek: 'DEEPSEEK_MODEL',
+  'deepseek': 'DEEPSEEK_MODEL',
   '302-ai': 'AI302_MODEL',
   'together-ai': 'TOGETHER_MODEL',
-  xai: 'XAI_MODEL',
+  'xai': 'XAI_MODEL',
   'novita-ai': 'NOVITA_MODEL',
   'fireworks-ai': 'FIREWORKS_MODEL',
   'featherless-ai': 'FEATHERLESS_MODEL',
@@ -115,7 +115,7 @@ const providerEnvModelKeys: Record<string, string> = {
   'lm-studio': 'LM_STUDIO_MODEL',
   'player2': 'PLAYER2_MODEL',
   'player2-speech': 'PLAYER2_SPEECH_MODEL',
-  vllm: 'VLLM_MODEL',
+  'vllm': 'VLLM_MODEL',
 }
 
 function ensureTrailingSlash(url: string) {
@@ -1819,17 +1819,17 @@ export const useProvidersStore = defineStore('providers', () => {
 
     const matchesEnvCredentials = hasEnvCredentials
       ? Object.entries(envCredentials!).every(([key, value]) => {
-        const configValue = config[key]
-        if (typeof configValue === 'string')
-          return configValue.trim() === value
-        return configValue === value
-      })
+          const configValue = config[key]
+          if (typeof configValue === 'string')
+            return configValue.trim() === value
+          return configValue === value
+        })
       : false
 
     const requiresModelSelection = metadata.capabilities.listModels != null
     const hasMatchingEnvModel = hasEnvModel && (
       (typeof (config as any).model === 'string' && (config as any).model?.trim() === envModel)
-      || !("model" in config)
+      || !('model' in config)
     )
 
     if (matchesEnvCredentials && (!requiresModelSelection || hasMatchingEnvModel)) {
