@@ -627,6 +627,39 @@ importers:
 
   apps/stage-web:
     dependencies:
+      '@fontsource-variable/comfortaa':
+        specifier: ^5.2.8
+        version: 5.2.8
+      '@fontsource-variable/dm-sans':
+        specifier: ^5.2.8
+        version: 5.2.8
+      '@fontsource-variable/jura':
+        specifier: ^5.2.7
+        version: 5.2.7
+      '@fontsource-variable/quicksand':
+        specifier: ^5.2.10
+        version: 5.2.10
+      '@fontsource-variable/urbanist':
+        specifier: ^5.2.7
+        version: 5.2.7
+      '@fontsource/dm-mono':
+        specifier: ^5.2.7
+        version: 5.2.7
+      '@fontsource/dm-serif-display':
+        specifier: ^5.2.8
+        version: 5.2.8
+      '@fontsource/gugi':
+        specifier: ^5.2.7
+        version: 5.2.7
+      '@fontsource/kiwi-maru':
+        specifier: ^5.2.8
+        version: 5.2.8
+      '@fontsource/m-plus-rounded-1c':
+        specifier: ^5.2.9
+        version: 5.2.9
+      '@fontsource/sniglet':
+        specifier: ^5.2.8
+        version: 5.2.8
       '@date-fns/utc':
         specifier: ^2.1.1
         version: 2.1.1
