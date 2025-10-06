@@ -1,6 +1,6 @@
 {
   "$schema": "https://turborepo.com/schema.json",
-  "globalEnv": [
+  "globalPassThroughEnv": [
     "OPENAI_API_KEY",
     "OPENAI_BASE_URL",
     "OPENAI_COMPATIBLE_API_KEY",
