@@ -31,11 +31,18 @@ function streamOptionsToolsCompatibilityOk(model: string, chatProvider: ChatProv
 async function streamFrom(model: string, chatProvider: ChatProvider, messages: Message[], options?: StreamOptions) {
   const headers = options?.headers
 
+  const processedMessages = messages.map(msg => ({ ...msg, content: (msg.role as string === 'error' ? `User encountered error: ${msg.content}` : msg.content), role: (msg.role as string === 'error' ? 'user' : msg.role) } as Message))
+
+  // eslint-disable-next-line no-console
+  console.log('[LLM] Sending messages to provider:', JSON.stringify(processedMessages.map(m => ({ role: m.role, contentLength: typeof m.content === 'string' ? m.content.length : JSON.stringify(m.content).length }))))
+  // eslint-disable-next-line no-console
+  console.log('[LLM] First message (system):', processedMessages[0]?.role === 'system' ? (processedMessages[0].content as string).substring(0, 300) : 'Not system message')
+
   return await streamText({
     ...chatProvider.chat(model),
     maxSteps: 10,
     // TODO: proper format for other error messages.
-    messages: messages.map(msg => ({ ...msg, content: (msg.role as string === 'error' ? `User encountered error: ${msg.content}` : msg.content), role: (msg.role as string === 'error' ? 'user' : msg.role) } as Message)),
+    messages: processedMessages,
     headers,
     // TODO: we need Automatic tools discovery
     tools: streamOptionsToolsCompatibilityOk(model, chatProvider, messages, options)
