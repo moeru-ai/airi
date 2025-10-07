@@ -181,6 +181,10 @@ Please update the version in `Cargo.toml` after running `bumpp`:
 npx bumpp --no-commit --no-tag
 ```
 
+## Deployment to Vercel
+
+See [docs/content/en/docs/guides/deploy/vercel.md](docs/content/en/docs/guides/deploy/vercel.md) for the up-to-date deployment guide.
+
 ## Support of LLM API Providers (powered by [xsai](https://github.com/moeru-ai/xsai))
 
 - [x] [302.AI (sponsored)](https://share.302.ai/514k2v)

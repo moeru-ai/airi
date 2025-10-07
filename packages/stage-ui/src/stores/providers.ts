@@ -58,6 +58,109 @@ import { isUrl } from '../utils/url'
 import { models as elevenLabsModels } from './providers/elevenlabs/list-models'
 import { buildOpenAICompatibleProvider } from './providers/openai-compatible-builder'
 
+const providerEnvSource = import.meta.env as Record<string, string | boolean | undefined>
+
+const providerEnvPrefixes: Record<string, string> = {
+  'openai': 'OPENAI',
+  'openai-compatible': 'OPENAI_COMPATIBLE',
+  'openai-audio-speech': 'OPENAI',
+  'openai-compatible-audio-speech': 'OPENAI_COMPATIBLE',
+  'openai-audio-transcription': 'OPENAI',
+  'openai-compatible-audio-transcription': 'OPENAI_COMPATIBLE',
+  'openrouter-ai': 'OPENROUTER',
+  'anthropic': 'ANTHROPIC',
+  'google-generative-ai': 'GOOGLE_GENERATIVE_AI',
+  'deepseek': 'DEEPSEEK',
+  '302-ai': 'AI302',
+  'together-ai': 'TOGETHER',
+  'xai': 'XAI',
+  'novita-ai': 'NOVITA',
+  'fireworks-ai': 'FIREWORKS',
+  'featherless-ai': 'FEATHERLESS',
+  'perplexity-ai': 'PERPLEXITY',
+  'mistral-ai': 'MISTRAL',
+  'moonshot-ai': 'MOONSHOT',
+  'modelscope': 'MODELSCOPE',
+  'cloudflare-workers-ai': 'CLOUDFLARE_WORKERS_AI',
+  'ollama': 'OLLAMA',
+  'lm-studio': 'LM_STUDIO',
+  'player2': 'PLAYER2',
+  'vllm': 'VLLM',
+}
+
+const providerEnvModelKeys: Record<string, string> = {
+  'openai': 'OPENAI_MODEL',
+  'openai-compatible': 'OPENAI_COMPATIBLE_MODEL',
+  'openai-audio-speech': 'OPENAI_SPEECH_MODEL',
+  'openai-compatible-audio-speech': 'OPENAI_COMPATIBLE_SPEECH_MODEL',
+  'openai-audio-transcription': 'OPENAI_TRANSCRIPTION_MODEL',
+  'openai-compatible-audio-transcription': 'OPENAI_COMPATIBLE_TRANSCRIPTION_MODEL',
+  'openrouter-ai': 'OPENROUTER_MODEL',
+  'anthropic': 'ANTHROPIC_MODEL',
+  'google-generative-ai': 'GOOGLE_GENERATIVE_AI_MODEL',
+  'deepseek': 'DEEPSEEK_MODEL',
+  '302-ai': 'AI302_MODEL',
+  'together-ai': 'TOGETHER_MODEL',
+  'xai': 'XAI_MODEL',
+  'novita-ai': 'NOVITA_MODEL',
+  'fireworks-ai': 'FIREWORKS_MODEL',
+  'featherless-ai': 'FEATHERLESS_MODEL',
+  'perplexity-ai': 'PERPLEXITY_MODEL',
+  'mistral-ai': 'MISTRAL_MODEL',
+  'moonshot-ai': 'MOONSHOT_MODEL',
+  'modelscope': 'MODELSCOPE_MODEL',
+  'cloudflare-workers-ai': 'CLOUDFLARE_WORKERS_AI_MODEL',
+  'ollama': 'OLLAMA_MODEL',
+  'ollama-embedding': 'OLLAMA_EMBEDDING_MODEL',
+  'lm-studio': 'LM_STUDIO_MODEL',
+  'player2': 'PLAYER2_MODEL',
+  'player2-speech': 'PLAYER2_SPEECH_MODEL',
+  'vllm': 'VLLM_MODEL',
+}
+
+function ensureTrailingSlash(url: string) {
+  return url.endsWith('/') ? url : `${url}/`
+}
+
+function readProviderEnvCredentials(prefix: string) {
+  const apiKeyKey = `${prefix}_API_KEY`
+  const baseUrlKey = `${prefix}_BASE_URL`
+
+  const apiKey = typeof providerEnvSource[apiKeyKey] === 'string'
+    ? (providerEnvSource[apiKeyKey] as string).trim()
+    : ''
+  const baseUrl = typeof providerEnvSource[baseUrlKey] === 'string'
+    ? ensureTrailingSlash((providerEnvSource[baseUrlKey] as string).trim())
+    : ''
+
+  const credentials: Record<string, string> = {}
+
+  if (apiKey)
+    credentials.apiKey = apiKey
+  if (baseUrl)
+    credentials.baseUrl = baseUrl
+
+  return Object.keys(credentials).length > 0 ? credentials : null
+}
+
+const providerEnvOverrides: Record<string, Record<string, string>> = {}
+const providerEnvModelOverrides: Record<string, string> = {}
+
+for (const [providerId, prefix] of Object.entries(providerEnvPrefixes)) {
+  const credentials = readProviderEnvCredentials(prefix)
+  if (credentials)
+    providerEnvOverrides[providerId] = credentials
+}
+
+for (const [providerId, envKey] of Object.entries(providerEnvModelKeys)) {
+  const value = providerEnvSource[envKey]
+  if (typeof value === 'string') {
+    const trimmedValue = value.trim()
+    if (trimmedValue)
+      providerEnvModelOverrides[providerId] = trimmedValue
+  }
+}
+
 export interface ProviderMetadata {
   id: string
   order?: number
@@ -1708,7 +1811,49 @@ export const useProvidersStore = defineStore('providers', () => {
     // Always cache the current config string to prevent re-validating the same config
     validatedCredentials.value[providerId] = configString
 
-    const validationResult = await metadata.validators.validateProviderConfig(config)
+    const envCredentials = providerEnvOverrides[providerId]
+    const envModel = providerEnvModelOverrides[providerId]
+
+    const hasEnvCredentials = envCredentials != null
+    const hasEnvModel = typeof envModel === 'string' && envModel.length > 0
+
+    const matchesEnvCredentials = hasEnvCredentials
+      ? Object.entries(envCredentials!).every(([key, value]) => {
+          const configValue = config[key]
+          if (typeof configValue === 'string')
+            return configValue.trim() === value
+          return configValue === value
+        })
+      : false
+
+    const requiresModelSelection = metadata.capabilities.listModels != null
+    const hasMatchingEnvModel = hasEnvModel && (
+      (typeof (config as any).model === 'string' && (config as any).model?.trim() === envModel)
+      || !('model' in config)
+    )
+
+    if (matchesEnvCredentials && (!requiresModelSelection || hasMatchingEnvModel)) {
+      configuredProviders.value[providerId] = true
+      return true
+    }
+
+    let validationResult: { valid: boolean }
+
+    try {
+      validationResult = await metadata.validators.validateProviderConfig(config)
+    }
+    catch (error) {
+      console.warn(`Provider validation failed for ${providerId}:`, error)
+      validationResult = { valid: false }
+    }
+
+    if (!validationResult.valid && matchesEnvCredentials) {
+      const canSkipModelCheck = !requiresModelSelection || hasMatchingEnvModel
+      if (canSkipModelCheck) {
+        configuredProviders.value[providerId] = true
+        return true
+      }
+    }
 
     configuredProviders.value[providerId] = validationResult.valid
 
@@ -1719,13 +1864,34 @@ export const useProvidersStore = defineStore('providers', () => {
 
   // Initialize provider configurations
   function initializeProvider(providerId: string) {
-    if (!providerCredentials.value[providerId]) {
-      const metadata = providerMetadata[providerId]
-      const defaultOptions = metadata.defaultOptions?.() || {}
-      providerCredentials.value[providerId] = {
-        baseUrl: defaultOptions.baseUrl || '',
+    const metadata = providerMetadata[providerId]
+    const defaultOptions = metadata.defaultOptions?.() || {}
+    const existingCredentials = providerCredentials.value[providerId] || {}
+
+    const mergedCredentials: Record<string, unknown> = {
+      ...defaultOptions,
+      ...existingCredentials,
+    }
+
+    const envCredentials = providerEnvOverrides[providerId]
+    if (envCredentials) {
+      for (const [key, value] of Object.entries(envCredentials)) {
+        const existingValue = existingCredentials[key]
+        const defaultValue = defaultOptions[key]
+
+        if (
+          existingValue != null
+          && !(typeof existingValue === 'string' && existingValue.trim().length === 0)
+          && existingValue !== defaultValue
+        ) {
+          continue
+        }
+
+        mergedCredentials[key] = value
       }
     }
+
+    providerCredentials.value[providerId] = mergedCredentials
   }
 
   // Initialize all providers
@@ -1928,6 +2094,10 @@ export const useProvidersStore = defineStore('providers', () => {
   return {
     providers: providerCredentials,
     getProviderConfig,
+    getEnvModelForProvider: (providerId: string) => providerEnvModelOverrides[providerId],
+    envModelOverrides: providerEnvModelOverrides,
+    envCredentialOverrides: providerEnvOverrides,
+    refreshConfiguredProviders: updateConfigurationStatus,
     availableProviders,
     configuredProviders,
     providerMetadata,
