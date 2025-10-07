@@ -100,7 +100,20 @@ export const useChatStore = defineStore('chat', () => {
     return systemMessage
   }
 
-  const messages = useLocalStorage<Array<ChatMessage | ErrorMessage>>('chat/messages', [generateInitialMessage()])
+  const messages = useLocalStorage<Array<ChatMessage | ErrorMessage>>('chat/messages', [generateInitialMessage()], {
+    serializer: {
+      read: (raw: string) => {
+        try {
+          return JSON.parse(raw)
+        }
+        catch (error) {
+          console.error('[Chat] Failed to parse stored messages, resetting:', error)
+          return [generateInitialMessage()]
+        }
+      },
+      write: (value: Array<ChatMessage | ErrorMessage>) => JSON.stringify(value),
+    },
+  })
 
   function cleanupMessages() {
     messages.value = [generateInitialMessage()]

@@ -52,7 +52,21 @@ export interface AiriCard extends Card {
 }
 
 export const useAiriCardStore = defineStore('airi-card', () => {
-  const cards = useLocalStorage<Map<string, AiriCard>>('airi-cards', new Map())
+  const cards = useLocalStorage<Map<string, AiriCard>>('airi-cards', new Map(), {
+    serializer: {
+      read: (raw: string) => {
+        try {
+          const parsed = JSON.parse(raw)
+          return new Map(Object.entries(parsed))
+        }
+        catch (error) {
+          console.error('[AiriCard] Failed to parse stored cards, resetting:', error)
+          return new Map()
+        }
+      },
+      write: (value: Map<string, AiriCard>) => JSON.stringify(Object.fromEntries(value)),
+    },
+  })
   const activeCardId = useLocalStorage('airi-card-active-id', 'default')
 
   const activeCard = computed(() => cards.value.get(activeCardId.value))
@@ -237,8 +251,10 @@ export const useAiriCardStore = defineStore('airi-card', () => {
 
     systemPrompt: computed(() => {
       const card = activeCard.value
-      if (!card)
+      if (!card) {
+        console.warn('[AiriCard] No active card found')
         return ''
+      }
 
       const components: string[] = []
 
@@ -270,7 +286,9 @@ export const useAiriCardStore = defineStore('airi-card', () => {
       if (card.postHistoryInstructions)
         components.push(`## Instructions\n${card.postHistoryInstructions}`)
 
-      return components.join('\n\n')
+      const result = components.join('\n\n')
+      console.info('[AiriCard] Generated system prompt for', card.name, 'length:', result.length)
+      return result
     }),
   }
 })
