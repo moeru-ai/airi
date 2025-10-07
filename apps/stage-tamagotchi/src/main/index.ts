@@ -6,7 +6,9 @@ import { platform } from 'node:process'
 
 import { electronApp, optimizer } from '@electron-toolkit/utils'
 import { Format, LogLevel, setGlobalFormat, setGlobalLogLevel, useLogg } from '@guiiai/logg'
+import { createLoggLogger, injecta } from '@proj-airi/injecta'
 import { app, Menu, nativeImage, Tray } from 'electron'
+import { noop, once } from 'es-toolkit'
 import { isMacOS } from 'std-env'
 
 import icon from '../../resources/icon.png?asset'
@@ -14,6 +16,7 @@ import macOSTrayIcon from '../../resources/tray-icon-macos.png?asset'
 
 import { openDebugger, setupDebugger } from './app/debugger'
 import { emitAppBeforeQuit, emitAppReady, emitAppWindowAllClosed, onAppBeforeQuit } from './libs/bootkit/lifecycle'
+import { setupInlayWindow } from './windows/inlay'
 import { setupMainWindow } from './windows/main'
 import { setupSettingsWindow } from './windows/settings'
 import { toggleWindowShow } from './windows/shared/window'
@@ -27,31 +30,26 @@ const log = useLogg('main').useGlobalConfig()
 app.dock?.setIcon(icon)
 electronApp.setAppUserModelId('ai.moeru.airi')
 
-let mainWindow: BrowserWindow | null = null
-let appTray: Tray | null = null
+function setupTray(params: { mainWindow: BrowserWindow }): void {
+  once(() => {
+    const appTray = new Tray(nativeImage.createFromPath(macOSTrayIcon).resize({ width: 16 }))
+    onAppBeforeQuit(() => appTray.destroy())
 
-function setupTray(): void {
-  if (appTray) {
-    return
-  }
+    const contextMenu = Menu.buildFromTemplate([
+      { label: 'Show', click: () => toggleWindowShow(params.mainWindow) },
+      { label: 'Inlay', click: () => setupInlayWindow() },
+      { type: 'separator' },
+      { label: 'Settings', click: () => setupSettingsWindow() },
+      { type: 'separator' },
+      { label: 'Quit', click: () => app.quit() },
+    ])
 
-  appTray = new Tray(nativeImage.createFromPath(macOSTrayIcon).resize({ width: 16 }))
-
-  const contextMenu = Menu.buildFromTemplate([
-    { label: 'Show Window', click: () => toggleWindowShow(mainWindow) },
-    { type: 'separator' },
-    { label: 'Settings', click: () => setupSettingsWindow() },
-    { type: 'separator' },
-    { label: 'Quit', click: () => app.quit() },
-  ])
-
-  appTray.setContextMenu(contextMenu)
-  appTray.setToolTip('Project AIRI')
-  appTray.addListener('click', () => toggleWindowShow(mainWindow))
-  // On macOS, there's a special double-click event
-  if (isMacOS) {
-    appTray.addListener('double-click', () => toggleWindowShow(mainWindow))
-  }
+    appTray.setContextMenu(contextMenu)
+    appTray.setToolTip('Project AIRI')
+    appTray.addListener('click', () => toggleWindowShow(params.mainWindow))
+    // On macOS, there's a special double-click event
+    isMacOS && appTray.addListener('double-click', () => toggleWindowShow(params.mainWindow))
+  })()
 }
 
 async function setupProjectAIRIServerRuntime() {
@@ -91,8 +89,11 @@ async function setupProjectAIRIServerRuntime() {
 app.whenReady().then(async () => {
   await setupProjectAIRIServerRuntime()
 
-  mainWindow = await setupMainWindow()
-  setupTray()
+  injecta.setLogger(createLoggLogger())
+  injecta.provide('mainWindow', async () => await setupMainWindow())
+  injecta.provide<{ mainWindow: BrowserWindow }>('tray', { dependsOn: { mainWindow: 'mainWindow' }, build: async ({ dependsOn }) => setupTray({ mainWindow: dependsOn.mainWindow }) })
+  injecta.invoke({ dependsOn: { mainWindow: 'mainWindow', tray: 'tray' }, callback: noop })
+  injecta.start()
 
   // Lifecycle
   emitAppReady()
@@ -122,9 +123,4 @@ app.on('window-all-closed', () => {
 // Clean up server and intervals when app quits
 app.on('before-quit', async () => {
   emitAppBeforeQuit()
-
-  if (appTray) {
-    appTray.destroy()
-    appTray = null
-  }
 })

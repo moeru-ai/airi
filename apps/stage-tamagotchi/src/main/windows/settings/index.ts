@@ -11,7 +11,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url))
 
 export async function setupSettingsWindow() {
   const window = new BrowserWindow({
-    title: 'AIRI',
+    title: 'Settings',
     width: 600.0,
     height: 800.0,
     show: false,

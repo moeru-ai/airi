@@ -23,3 +23,17 @@ export function transparentWindowConfig(): BrowserWindowConstructorOptions {
     hasShadow: false,
   }
 }
+
+export function blurryWindowConfig(): BrowserWindowConstructorOptions {
+  return {
+    vibrancy: 'under-window',
+    backgroundMaterial: 'acrylic',
+  }
+}
+
+export function spotlightLikeWindowConfig(): BrowserWindowConstructorOptions {
+  return {
+    ...blurryWindowConfig(),
+    titleBarStyle: isMacOS ? 'hidden' : undefined,
+  }
+}

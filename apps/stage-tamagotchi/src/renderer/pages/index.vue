@@ -107,17 +107,17 @@ const modeIndicatorClass = computed(() => {
   >
     <div
       v-if="windowControlStore.controlMode === WindowControlMode.MOVE"
-      class="drag-region absolute left-0 top-0 z-99 h-full w-full flex cursor-grab items-center justify-center overflow-hidden"
+      class="absolute left-0 top-0 z-99 h-full w-full flex cursor-grab items-center justify-center overflow-hidden drag-region"
     >
       <div
         class="absolute h-32 w-full flex items-center justify-center overflow-hidden rounded-xl"
         bg="white/80 dark:neutral-950/80" backdrop-blur="md"
       >
         <div class="wall absolute top-0 h-8" />
-        <div class="drag-region absolute left-0 top-0 h-full w-full flex animate-flash animate-duration-5s animate-count-infinite select-none items-center justify-center text-1.5rem text-primary-400 font-normal">
+        <div class="absolute left-0 top-0 h-full w-full flex animate-flash animate-duration-5s animate-count-infinite select-none items-center justify-center text-1.5rem text-primary-400 font-normal drag-region">
           DRAG HERE TO MOVE
         </div>
-        <div class="wall drag-region absolute bottom-0 h-8" />
+        <div class="wall absolute bottom-0 h-8 drag-region" />
       </div>
     </div>
   </Transition>
@@ -139,10 +139,6 @@ const modeIndicatorClass = computed(() => {
 </template>
 
 <style scoped>
-.drag-region {
-  app-region: drag;
-}
-
 .view {
   transition: opacity 0.5s ease-in-out;
 

@@ -1,8 +1,12 @@
-import type { DependencyMap, InvokeOption, ProvideOption } from '.'
+import type { DependencyMap, InvokeOption, Logger, ProvideOption } from '.'
 
 import { createContainer, provide as indexProvide, start as indexStart, stop as indexStop } from '.'
 
 const globalContainer = createContainer()
+
+export function setLogger(logger: Logger) {
+  globalContainer.logger = logger
+}
 
 export function provide<D extends DependencyMap | undefined, T = any>(
   name: string,

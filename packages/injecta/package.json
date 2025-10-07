@@ -14,7 +14,17 @@
     "url": "https://github.com/moeru-ai/airi.git",
     "directory": "packages/injecta"
   },
+  "exports": {
+    ".": {
+      "type": "./dist/index.d.mjs",
+      "default": "./dist/index.mjs"
+    }
+  },
   "scripts": {
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "build": "tsdown"
+  },
+  "dependencies": {
+    "@guiiai/logg": "catalog:"
   }
 }
