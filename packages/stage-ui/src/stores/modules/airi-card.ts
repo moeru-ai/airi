@@ -192,7 +192,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     }))
   })
 
-  watch(activeCard, (newCard: AiriCard | undefined) => {
+  watch(activeCard, (newCard: AiriCard | undefined, oldCard: AiriCard | undefined) => {
     if (!newCard)
       return
 
@@ -205,6 +205,16 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     activeConsciousnessModel.value = extension?.modules?.consciousness?.model
     activeSpeechModel.value = extension?.modules?.speech?.model
     activeSpeechVoiceId.value = extension?.modules?.speech?.voice_id
+
+    // When switching to a different card, clear chat history to ensure new character prompt is used
+    // This is critical for serverless environments like Vercel where initialization order may vary
+    if (oldCard && oldCard.name !== newCard.name) {
+      // Dynamically import to avoid circular dependency
+      import('../chat').then(({ useChatStore }) => {
+        const chatStore = useChatStore()
+        chatStore.cleanupMessages()
+      })
+    }
   })
 
   return {
