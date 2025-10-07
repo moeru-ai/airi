@@ -180,16 +180,24 @@ export const useAiriCardStore = defineStore('airi-card', () => {
   onMounted(() => {
     const { t } = useI18n()
 
-    cards.value.set('default', newAiriCard({
-      name: 'AIRI',
-      version: '1.0.0',
-      description: t('base.prompt.prefix'),
-      personality: 'Cute, expressive, emotional, playful, curious, energetic, caring',
-      scenario: 'AIRI is a virtual AI VTuber who just woke up in a life pod. She can see and hear the world through text, voice, and visual input.',
-      systemPrompt: t('base.prompt.suffix'),
-      postHistoryInstructions: 'Remember to stay in character as AIRI. Express emotions using the emotion markers. Be authentic and human-like in your responses.',
-      greetings: ['Hello! I just woke up... where am I?'],
-    }))
+    // Only create default card if it doesn't exist
+    if (!cards.value.has('default')) {
+      cards.value.set('default', newAiriCard({
+        name: 'AIRI',
+        version: '1.0.0',
+        description: t('base.prompt.prefix'),
+        personality: 'Cute, expressive, emotional, playful, curious, energetic, caring',
+        scenario: 'AIRI is a virtual AI VTuber who just woke up in a life pod. She can see and hear the world through text, voice, and visual input.',
+        systemPrompt: t('base.prompt.suffix'),
+        postHistoryInstructions: 'Remember to stay in character as AIRI. Express emotions using the emotion markers. Be authentic and human-like in your responses.',
+        greetings: ['Hello! I just woke up... where am I?'],
+      }))
+    }
+
+    // Ensure activeCardId points to an existing card
+    if (!cards.value.has(activeCardId.value)) {
+      activeCardId.value = 'default'
+    }
   })
 
   watch(activeCard, (newCard: AiriCard | undefined) => {
