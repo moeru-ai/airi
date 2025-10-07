@@ -1,0 +1,20 @@
+{
+  "name": "@proj-airi/injecta",
+  "type": "module",
+  "private": true,
+  "description": "Dependency Injection (DI) utilities",
+  "author": {
+    "name": "Moeru AI Project AIRI Team",
+    "email": "airi@moeru.ai",
+    "url": "https://github.com/moeru-ai"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/moeru-ai/airi.git",
+    "directory": "packages/injecta"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  }
+}

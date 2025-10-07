@@ -1,8 +1,8 @@
 import type { ModelInfo, ProviderMetadata } from '../providers'
 
+import { generateText } from '@xsai/generate-text'
 import { listModels } from '@xsai/model'
-
-import { isUrl } from '../../utils/url'
+import { message } from '@xsai/utils-chat'
 
 type ProviderCreator = (apiKey: string, baseUrl: string) => any
 
@@ -24,22 +24,47 @@ export function buildOpenAICompatibleProvider(
     additionalHeaders?: Record<string, string>
   },
 ): ProviderMetadata {
-  const { id, name, icon, description, nameKey, descriptionKey, category, tasks, defaultBaseUrl, creator, capabilities, validators, validation, additionalHeaders, ...rest } = options
+  const {
+    id,
+    name,
+    icon,
+    description,
+    nameKey,
+    descriptionKey,
+    category,
+    tasks,
+    defaultBaseUrl,
+    creator,
+    capabilities,
+    validators,
+    validation,
+    additionalHeaders,
+    ...rest
+  } = options
 
   const finalCapabilities = capabilities || {
     listModels: async (config: Record<string, unknown>) => {
-      const provider = await creator(
-        (config.apiKey as string || '').trim(),
-        (config.baseUrl as string || '').trim(),
-      )
+      // Safer casting of apiKey/baseUrl (prevents .trim() crash if not a string)
+      const apiKey = typeof config.apiKey === 'string' ? config.apiKey.trim() : ''
+      const baseUrl = typeof config.baseUrl === 'string' ? config.baseUrl.trim() : ''
 
-      if (!provider.model) {
+      const provider = await creator(apiKey, baseUrl)
+      // Check provider.model exists and is a function
+      if (!provider || typeof provider.model !== 'function') {
         return []
       }
 
-      return (await listModels({
-        ...provider.model(),
-      })).map((model: any) => {
+      // Previously: fetch(`${baseUrl}models`)
+      const models = await listModels({
+        apiKey,
+        baseURL: baseUrl,
+        headers: {
+          ...additionalHeaders,
+          Authorization: `Bearer ${apiKey}`,
+        },
+      })
+
+      return models.map((model: any) => {
         return {
           id: model.id,
           name: model.name || model.display_name || model.id,
@@ -55,70 +80,70 @@ export function buildOpenAICompatibleProvider(
   const finalValidators = validators || {
     validateProviderConfig: async (config: Record<string, unknown>) => {
       const errors: Error[] = []
+      let baseUrl = typeof config.baseUrl === 'string' ? config.baseUrl.trim() : ''
+      const apiKey = typeof config.apiKey === 'string' ? config.apiKey.trim() : ''
 
-      if (!config.baseUrl) {
+      if (!baseUrl) {
         errors.push(new Error('Base URL is required'))
       }
 
+      try {
+        if (new URL(baseUrl).host.length === 0) {
+          errors.push(new Error('Base URL is not absolute. Check your input.'))
+        }
+      }
+      catch {
+        errors.push(new Error('Base URL is invalid. It must be an absolute URL.'))
+      }
+
+      // normalize trailing slash instead of rejecting
+      if (baseUrl && !baseUrl.endsWith('/')) {
+        baseUrl += '/'
+      }
+
       if (errors.length > 0) {
-        return { errors, reason: errors.map(e => e.message).join(', '), valid: false }
-      }
-
-      if (!isUrl(config.baseUrl as string) || new URL(config.baseUrl as string).host.length === 0) {
-        errors.push(new Error('Base URL is not absolute. Check your input.'))
-      }
-
-      if (!(config.baseUrl as string).endsWith('/')) {
-        errors.push(new Error('Base URL must end with a trailing slash (/).'))
-      }
-
-      if (errors.length > 0) {
-        return { errors, reason: errors.map(e => e.message).join(', '), valid: false }
+        return {
+          errors,
+          reason: errors.map(e => e.message).join(', '),
+          valid: false,
+        }
       }
 
       const validationChecks = validation || []
-      let responseModelList = null
-      let responseChat = null
 
+      // Health check = try generating text (was: fetch(`${baseUrl}chat/completions`))
       if (validationChecks.includes('health')) {
         try {
-          responseChat = await fetch(`${config.baseUrl as string}chat/completions`, { headers: { Authorization: `Bearer ${config.apiKey}`, ...additionalHeaders }, method: 'POST', body: '{"model": "test"}' })
-          responseModelList = await fetch(`${config.baseUrl as string}models`, { headers: { Authorization: `Bearer ${config.apiKey}`, ...additionalHeaders } })
-
-          // Also try transcription endpoints for speech recognition servers
-          let responseTranscription = null
-          try {
-            // Sending empty FormData is fine; 400 still counts as a valid endpoint
-            responseTranscription = await fetch(`${config.baseUrl as string}audio/transcriptions`, { headers: { Authorization: `Bearer ${config.apiKey}`, ...additionalHeaders }, method: 'POST', body: new FormData() })
-          }
-          catch {
-            // Transcription endpoint might not exist, that's okay
-          }
-
-          // Accept if any of the endpoints work (chat, models, or transcription)
-          const validResponses = [responseChat, responseModelList, responseTranscription].filter(r => r && [200, 400, 401].includes(r.status))
-          if (validResponses.length === 0) {
-            errors.push(new Error(`Invalid Base URL, ${config.baseUrl} is not supported. Make sure your server supports OpenAI-compatible endpoints.`))
-          }
+          await generateText({
+            apiKey,
+            baseURL: baseUrl,
+            headers: {
+              ...additionalHeaders,
+              Authorization: `Bearer ${apiKey}`,
+            },
+            model: 'test',
+            messages: message.messages(message.user('ping')),
+            max_tokens: 1,
+          })
         }
         catch (e) {
-          errors.push(new Error(`Invalid Base URL, ${(e as Error).message}`))
+          errors.push(new Error(`Health check failed: ${(e as Error).message}`))
         }
       }
 
-      if (errors.length > 0) {
-        return { errors, reason: errors.map(e => e.message).join(', '), valid: false }
-      }
-
+      // Model list validation (was: fetch(`${baseUrl}models`))
       if (validationChecks.includes('model_list')) {
         try {
-          let response = responseModelList
-          if (!response) {
-            response = await fetch(`${config.baseUrl as string}models`, { headers: { Authorization: `Bearer ${config.apiKey}`, ...additionalHeaders } })
-          }
-
-          if (!response.ok) {
-            errors.push(new Error(`Invalid API Key`))
+          const models = await listModels({
+            apiKey,
+            baseURL: baseUrl,
+            headers: {
+              ...additionalHeaders,
+              Authorization: `Bearer ${apiKey}`,
+            },
+          })
+          if (!models || models.length === 0) {
+            errors.push(new Error('Model list check failed: no models found'))
           }
         }
         catch (e) {
@@ -126,25 +151,30 @@ export function buildOpenAICompatibleProvider(
         }
       }
 
+      // Chat completions validation = generateText again (was: fetch(`${baseUrl}chat/completions`))
       if (validationChecks.includes('chat_completions')) {
         try {
-          let response = responseChat
-          if (!response) {
-            response = await fetch(`${config.baseUrl as string}chat/completions`, { headers: { Authorization: `Bearer ${config.apiKey}`, ...additionalHeaders }, method: 'POST', body: '{"model": "test"}' })
-          }
-
-          if (!response.ok) {
-            errors.push(new Error(`Invalid API Key`))
-          }
+          await generateText({
+            apiKey,
+            baseURL: baseUrl,
+            headers: {
+              ...additionalHeaders,
+              Authorization: `Bearer ${apiKey}`,
+            },
+            model: 'test',
+            messages: message.messages(message.user('ping')),
+            max_tokens: 1,
+          })
         }
         catch (e) {
-          errors.push(new Error(`Chat Completions check Failed: ${(e as Error).message}`))
+          errors.push(new Error(`Chat completions check failed: ${(e as Error).message}`))
         }
       }
 
       return {
         errors,
-        reason: errors.map(e => e.message).join(', ') || '',
+        // Consistent reason string (empty when no errors)
+        reason: errors.length > 0 ? errors.map(e => e.message).join(', ') : '',
         valid: errors.length === 0,
       }
     },
@@ -162,7 +192,14 @@ export function buildOpenAICompatibleProvider(
     defaultOptions: () => ({
       baseUrl: defaultBaseUrl || '',
     }),
-    createProvider: async config => creator((config.apiKey as string || '').trim(), (config.baseUrl as string || '').trim()),
+    createProvider: async (config: { apiKey: string, baseUrl: string }) => {
+      const apiKey = typeof config.apiKey === 'string' ? config.apiKey.trim() : ''
+      let baseUrl = typeof config.baseUrl === 'string' ? config.baseUrl.trim() : ''
+      if (baseUrl && !baseUrl.endsWith('/')) {
+        baseUrl += '/'
+      }
+      return creator(apiKey, baseUrl)
+    },
     capabilities: finalCapabilities,
     validators: finalValidators,
     ...rest,
