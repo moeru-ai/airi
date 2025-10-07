@@ -52,6 +52,7 @@ export interface AiriCard extends Card {
 }
 
 export const useAiriCardStore = defineStore('airi-card', () => {
+  console.info('[AiriCard] Store initializing...')
   const cards = useLocalStorage<Map<string, AiriCard>>('airi-cards', new Map(), {
     serializer: {
       read: (raw: string) => {

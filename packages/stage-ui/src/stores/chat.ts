@@ -21,8 +21,10 @@ export interface ErrorMessage {
 }
 
 export const useChatStore = defineStore('chat', () => {
+  console.info('[Chat] Store initializing...')
   const { stream, discoverToolsCompatibility } = useLLM()
   const { systemPrompt } = storeToRefs(useAiriCardStore())
+  console.info('[Chat] System prompt from card store:', systemPrompt.value?.substring(0, 100))
   const memoryStore = useMemoryStore()
   void memoryStore.fetchRecent()
 
