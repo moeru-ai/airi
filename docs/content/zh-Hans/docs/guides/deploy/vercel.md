@@ -26,6 +26,7 @@ Vercel 可以直接从此 monorepo 构建并提供 Stage Web 应用程序。提�
 
 | 名称 | 必需 | 描述 | 示例 |
 | --- | --- | --- | --- |
+| `SKIP_PROVIDER_HEALTH_CHECK` | 推荐 | 跳过提供商健康检查以避免 CORS 错误。设置为 `true` 可在 serverless 部署中直接保存提供商配置而无需验证。默认在浏览器中为 `true`。**注意：** 实际环境变量名为 `VITE_SKIP_PROVIDER_HEALTH_CHECK`。 | `true` |
 | `DEFAULT_CHAT_PROVIDER` | 是 | UI 默认使用的提供商标识符。必须匹配已配置的提供商之一。 | `openai` |
 | `DEFAULT_SPEECH_PROVIDER` | 是 | 默认的文本转语音提供商标识。 | `openai-audio-speech` |
 | `DEFAULT_TRANSCRIPTION_PROVIDER` | 是 | 默认的语音转文本提供商标识。 | `openai-audio-transcription` |

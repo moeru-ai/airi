@@ -54,6 +54,7 @@ export default await antfu(
         },
       ],
       'no-console': ['error', { allow: ['warn', 'error', 'info'] }],
+      'node/prefer-global/process': 'off',
     },
   },
 )

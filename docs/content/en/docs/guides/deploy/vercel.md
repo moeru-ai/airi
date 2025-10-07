@@ -26,6 +26,7 @@ The build relies on environment variables that are injected at build time (and i
 
 | Name | Required | Description | Example |
 | --- | --- | --- | --- |
+| `SKIP_PROVIDER_HEALTH_CHECK` | Recommended | Skip provider health checks to avoid CORS errors. Set to `true` to save provider configurations directly without validation in serverless deployments. Defaults to `true` in browser environments. **Note:** Actual env var name is `VITE_SKIP_PROVIDER_HEALTH_CHECK`. | `true` |
 | `DEFAULT_CHAT_PROVIDER` | Yes | Provider identifier the UI should use by default. Must match one of the configured providers. | `openai` |
 | `DEFAULT_SPEECH_PROVIDER` | Yes | Default text-to-speech provider slug. | `openai-audio-speech` |
 | `DEFAULT_TRANSCRIPTION_PROVIDER` | Yes | Default speech-to-text provider slug. | `openai-audio-transcription` |

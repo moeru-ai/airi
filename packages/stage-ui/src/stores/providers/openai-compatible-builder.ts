@@ -109,6 +109,31 @@ export function buildOpenAICompatibleProvider(
         }
       }
 
+      // Check if we should skip validation via environment variable
+      // Default to 'true' in browser environments to avoid CORS issues in serverless deployments
+      const envSkipHealthCheck = import.meta.env.VITE_SKIP_PROVIDER_HEALTH_CHECK
+      const defaultSkipInBrowser = typeof window !== 'undefined' && !(
+        // @ts-expect-error - Tauri specific
+        window.__TAURI__ !== undefined
+        // @ts-expect-error - Electron specific
+        || (window as any).process?.type === 'renderer'
+      )
+
+      // Priority: explicit env var > auto-detect browser environment
+      const skipHealthChecks = envSkipHealthCheck !== undefined
+        ? envSkipHealthCheck === 'true' || envSkipHealthCheck === true
+        : defaultSkipInBrowser
+
+      if (skipHealthChecks) {
+        // eslint-disable-next-line no-console
+        console.log('[Provider] Skipping health checks (SKIP_PROVIDER_HEALTH_CHECK=true or browser environment)')
+        return {
+          errors: [],
+          reason: '',
+          valid: true,
+        }
+      }
+
       const validationChecks = validation || []
 
       // Health check = try generating text (was: fetch(`${baseUrl}chat/completions`))
