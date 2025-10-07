@@ -211,6 +211,11 @@ export const useChatStore = defineStore('chat', () => {
       const similarMemories = await memoryStore.searchMemories(sendingMessage, 6)
       let messagesWithMemory = memoryStore.appendContextMessages(newMessages as Message[])
 
+      // eslint-disable-next-line no-console
+      console.log('[Chat] System prompt length:', messagesWithMemory[0]?.role === 'system' ? (messagesWithMemory[0].content as string).length : 0)
+      // eslint-disable-next-line no-console
+      console.log('[Chat] System prompt preview:', messagesWithMemory[0]?.role === 'system' ? (messagesWithMemory[0].content as string).substring(0, 200) : 'No system prompt')
+
       if (similarMemories.length) {
         const longTermContext: Message = {
           role: 'system',
@@ -221,6 +226,11 @@ export const useChatStore = defineStore('chat', () => {
           ? [messagesWithMemory[0], longTermContext, ...messagesWithMemory.slice(1)]
           : [longTermContext]
       }
+
+      // eslint-disable-next-line no-console
+      console.log('[Chat] Final messages count:', messagesWithMemory.length)
+      // eslint-disable-next-line no-console
+      console.log('[Chat] Final messages:', JSON.stringify(messagesWithMemory.map(m => ({ role: m.role, contentLength: typeof m.content === 'string' ? m.content.length : JSON.stringify(m.content).length }))))
 
       for (const hook of onAfterMessageComposedHooks.value) {
         await hook(sendingMessage)
