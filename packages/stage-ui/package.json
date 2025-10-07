@@ -90,6 +90,7 @@
     "@xsai-transformers/shared": "^0.0.7",
     "@xsai/embed": "catalog:",
     "@xsai/generate-speech": "catalog:",
+    "@xsai/generate-text": "catalog:",
     "@xsai/generate-transcription": "catalog:",
     "@xsai/model": "catalog:",
     "@xsai/shared": "catalog:",
