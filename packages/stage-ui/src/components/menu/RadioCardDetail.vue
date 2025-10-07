@@ -106,7 +106,7 @@ function toggleExpansion() {
           </TooltipTrigger>
           <TooltipPortal :container="cardRef">
             <TooltipContent
-              class="z-[10000] border rounded-md bg-white px-3 py-1 text-sm text-black shadow-sm dark:bg-black dark:text-white"
+              class="z-[15] border rounded-md bg-white px-3 py-1 text-sm text-black shadow-sm dark:bg-black dark:text-white"
               side="top"
               :side-offset="5"
             >
