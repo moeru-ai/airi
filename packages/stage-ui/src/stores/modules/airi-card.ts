@@ -227,18 +227,20 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     }
   })
 
-  watch(activeCard, (newCard: AiriCard | undefined, oldCard: AiriCard | undefined) => {
+  // Watch activeCardId instead of activeCard to properly detect changes
+  watch(activeCardId, (newCardId: string, oldCardId: string) => {
+    const newCard = cards.value.get(newCardId)
     if (!newCard)
       return
 
     // Clear chat history when switching cards (but not on initial load)
-    if (oldCard && newCard !== oldCard) {
+    if (oldCardId && newCardId !== oldCardId) {
       // Dynamically import to avoid circular dependency
       import('../chat').then(({ useChatStore }) => {
         const chatStore = useChatStore()
         chatStore.cleanupMessages()
         // eslint-disable-next-line no-console
-        console.log('[AiriCard] Switched card, cleared chat history')
+        console.log('[AiriCard] Switched card from', oldCardId, 'to', newCardId, '- cleared chat history')
       })
     }
 
