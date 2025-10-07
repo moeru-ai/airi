@@ -6,8 +6,6 @@ import { defineStore, storeToRefs } from 'pinia'
 import { computed, onMounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import SystemPromptV2 from '../../constants/prompts/system-v2'
-
 import { useConsciousnessStore } from './consciousness'
 import { useSpeechStore } from './speech'
 
@@ -183,13 +181,14 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     const { t } = useI18n()
 
     cards.value.set('default', newAiriCard({
-      name: 'ReLU',
+      name: 'AIRI',
       version: '1.0.0',
-      // description: 'ReLU is a simple and effective activation function that is used in many neural networks.',
-      description: SystemPromptV2(
-        t('base.prompt.prefix'),
-        t('base.prompt.suffix'),
-      ).content,
+      description: t('base.prompt.prefix'),
+      personality: 'Cute, expressive, emotional, playful, curious, energetic, caring',
+      scenario: 'AIRI is a virtual AI VTuber who just woke up in a life pod. She can see and hear the world through text, voice, and visual input.',
+      systemPrompt: t('base.prompt.suffix'),
+      postHistoryInstructions: 'Remember to stay in character as AIRI. Express emotions using the emotion markers. Be authentic and human-like in your responses.',
+      greetings: ['Hello! I just woke up... where am I?'],
     }))
   })
 
@@ -233,13 +232,37 @@ export const useAiriCardStore = defineStore('airi-card', () => {
       if (!card)
         return ''
 
-      const components = [
-        card.systemPrompt,
-        card.description,
-        card.personality,
-      ].filter(Boolean)
+      const components: string[] = []
 
-      return components.join('\n')
+      // Add system prompt if exists
+      if (card.systemPrompt)
+        components.push(card.systemPrompt)
+
+      // Add character description
+      if (card.description)
+        components.push(`## Character Description\n${card.description}`)
+
+      // Add personality traits
+      if (card.personality)
+        components.push(`## Personality\n${card.personality}`)
+
+      // Add scenario/background
+      if (card.scenario)
+        components.push(`## Scenario\n${card.scenario}`)
+
+      // Add message examples
+      if (card.messageExample && card.messageExample.length > 0) {
+        const examples = card.messageExample
+          .map(conversation => conversation.join('\n'))
+          .join('\n\n')
+        components.push(`## Example Conversations\n${examples}`)
+      }
+
+      // Add post history instructions if exists
+      if (card.postHistoryInstructions)
+        components.push(`## Instructions\n${card.postHistoryInstructions}`)
+
+      return components.join('\n\n')
     }),
   }
 })
