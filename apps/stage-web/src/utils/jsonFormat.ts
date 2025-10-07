@@ -6,6 +6,10 @@ import { generateText } from '@xsai/generate-text'
 import { message } from '@xsai/utils-chat'
 import { toJsonSchema, validate } from 'xsschema'
 
+import * as zodCore from 'zod/v4/core'
+
+void zodCore // ensure bundlers keep the zod v4 helper chunk for xsschema imports
+
 type SchemaOrString<S extends Schema | undefined | unknown> = S extends unknown ? string : S extends Schema ? Infer<S> : never
 
 async function parseJSONFormat<S extends Schema, R extends SchemaOrString<S>>(content: string, options: { messages: Message[], apiKey?: string, baseURL: string, model: string } & Partial<CommonRequestOptions>, schema?: S, erroredValue?: string, errorMessage?: string): Promise<R> {

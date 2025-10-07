@@ -142,6 +142,85 @@ pages:
   memory:
     description: 存放记忆的地方，以及策略
     title: 记忆体
+    short_term:
+      title: 短期记忆
+      description: 短期记忆存储最近的对话上下文，帮助 AIRI 维持连贯的对话
+      saved: 配置已应用
+      provider: 短期记忆提供商
+      providers:
+        localRedis: 本地 Redis
+        upstash: Upstash Redis（无服务器）
+        vercelKv: Vercel KV
+      enable: 启用短期记忆
+      enableDescription: 为当前浏览器会话持久化最近的对话上下文
+      namespace: 命名空间键前缀
+      retention: 短期记忆保留的消息数量
+      retentionHint: 更高的值保留更多消息，但可能会拖慢提示速度
+      ttl: TTL（秒）
+      ttlHint: 消息在此时长后从短期存储中过期
+      upstashTitle: Upstash Redis 配置
+      redisTitle: Redis 连接
+      redisHost: 主机地址
+      redisPort: 端口
+      redisPassword: 密码
+      redisPasswordPlaceholder: 可选密码
+      session: 会话控制
+      sessionHint: 短期记忆按会话隔离
+      newSession: 开始新会话
+      clear: 清除会话记忆
+      history: 最近消息
+      historyHint: 预览馈送给 LLM 的缓存上下文
+      disabledMessage: 启用短期记忆以在本地保留聊天历史
+      empty: 尚未缓存任何消息
+    long_term:
+      title: 长期记忆
+      description: 长期记忆使用向量数据库存储重要记忆，支持语义搜索和跨设备同步
+      saved: 配置已应用
+      enable: 启用长期记忆
+      enableDescription: 使用配置的数据库和嵌入模型存储记忆
+      provider: 长期记忆提供商
+      providers:
+        postgres: Postgres + pgvector
+        qdrant: Qdrant
+      connectionTitle: 数据库连接
+      connectionString: 连接字符串
+      connectionHint: 可选：如果您更喜欢键值配置，可以覆盖下面的各个字段
+      host: 主机地址
+      port: 端口
+      database: 数据库
+      user: 用户名
+      password: 密码
+      ssl: 需要 SSL/TLS
+      qdrantTitle: Qdrant 配置
+      qdrantUrl: 端点 URL
+      qdrantApiKey: API 密钥
+      qdrantApiKeyPlaceholder: 公共实例可选
+      qdrantCollection: 集合名称
+      qdrantVectorSize: 向量大小
+      embeddingTitle: 嵌入提供商
+      embeddingProvider: 提供商
+      embeddingProviders:
+        openai: OpenAI
+        openaiCompatible: OpenAI 兼容
+        cloudflare: Cloudflare AI
+      apiKey: API 密钥
+      baseUrl: 基础 URL
+      accountId: 账户 ID
+      model: 嵌入模型名称
+      modelHint: 输入嵌入模型的确切标识符。留空则使用默认值
+      promoteAssistant: 自动持久化助手消息
+      promoteUser: 自动持久化用户消息
+      userId: 用于记忆索引的用户标识符
+      userIdPlaceholder: 例如 airi@home
+      userIdHint: 使用一致的标识符在设备间同步记忆
+      searchTitle: 搜索记忆
+      searchHint: 使用语义搜索查找相关记忆
+      searchPlaceholder: AIRI 应该记住什么...
+      export: 导出 JSON
+      disabledMessage: 启用长期记忆以访问搜索 API
+      exportPreview: 导出预览
+      searching: 正在搜索记忆...
+      empty: 尚无匹配的记忆
   models:
     description: 切换角色的 Live2D，VRM 模型
     title: 角色模型

@@ -1,3 +1,4 @@
+import type { MemoryConfiguration } from '@proj-airi/memory-system'
 import type { WebSocketEvent } from '@proj-airi/server-shared/types'
 
 import type { AuthenticatedPeer, Peer } from './types'
@@ -5,8 +6,9 @@ import type { AuthenticatedPeer, Peer } from './types'
 import { env } from 'node:process'
 
 import { Format, LogLevel, setGlobalFormat, setGlobalLogLevel, useLogg } from '@guiiai/logg'
-import { createApp, createRouter, defineWebSocketHandler } from 'h3'
+import { createApp, createRouter, defineWebSocketHandler, eventHandler, getRouterParam, readBody } from 'h3'
 
+import { clearSessionMemory, configureMemorySystem, exportUserMemory, getMemoryConfiguration, getRecentMessages, saveShortTermMemory, searchUserMemory } from './services/memory'
 import { WebSocketReadyState } from './types'
 
 setGlobalFormat(Format.Pretty)
@@ -35,6 +37,104 @@ function main() {
   })
 
   const router = createRouter()
+  router.get('/api/memory/config', eventHandler(() => {
+    return { success: true, data: getMemoryConfiguration() }
+  }))
+
+  router.post('/api/memory/config', eventHandler(async (event) => {
+    const body = await readBody(event) as MemoryConfiguration | undefined
+
+    if (!body) {
+      return { success: false, error: 'Configuration payload is required' }
+    }
+
+    try {
+      await configureMemorySystem(body)
+      return { success: true }
+    }
+    catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : String(error) }
+    }
+  }))
+
+  router.post('/api/memory/save', eventHandler(async (event) => {
+    const body = await readBody(event) as { sessionId?: string, message?: unknown, userId?: string }
+
+    if (!body?.sessionId || typeof body.sessionId !== 'string') {
+      return { success: false, error: 'sessionId is required' }
+    }
+
+    if (!body?.message || typeof body.message !== 'object') {
+      return { success: false, error: 'message payload is required' }
+    }
+
+    await saveShortTermMemory({
+      sessionId: body.sessionId,
+      message: body.message as any,
+      userId: typeof body.userId === 'string' ? body.userId : undefined,
+    })
+
+    return { success: true }
+  }))
+
+  router.get('/api/memory/session/:sessionId', eventHandler(async (event) => {
+    const sessionId = getRouterParam(event, 'sessionId')
+
+    if (!sessionId) {
+      return { success: false, error: 'sessionId is required' }
+    }
+
+    const requestUrl = new URL(event.node.req.url ?? '', 'http://localhost')
+    const limitParam = requestUrl.searchParams.get('limit')
+    const limit = limitParam ? Number.parseInt(limitParam, 10) : undefined
+
+    const messages = await getRecentMessages(sessionId, Number.isNaN(limit) ? undefined : limit)
+
+    return { success: true, data: messages }
+  }))
+
+  router.post('/api/memory/search', eventHandler(async (event) => {
+    const body = await readBody(event) as { query?: string, userId?: string, limit?: number }
+
+    if (!body?.query || typeof body.query !== 'string') {
+      return { success: false, error: 'query is required' }
+    }
+
+    if (!body?.userId || typeof body.userId !== 'string') {
+      return { success: false, error: 'userId is required' }
+    }
+
+    const results = await searchUserMemory(body.query, body.userId, typeof body.limit === 'number' ? body.limit : undefined)
+
+    return { success: true, data: results }
+  }))
+
+  router.post('/api/memory/clear', eventHandler(async (event) => {
+    const body = await readBody(event) as { sessionId?: string }
+
+    if (!body?.sessionId || typeof body.sessionId !== 'string') {
+      return { success: false, error: 'sessionId is required' }
+    }
+
+    await clearSessionMemory(body.sessionId)
+
+    return { success: true }
+  }))
+
+  router.get('/api/memory/export', eventHandler(async (event) => {
+    const url = new URL(event.node.req.url ?? '', 'http://localhost')
+    const userId = url.searchParams.get('userId')
+    const limitParam = url.searchParams.get('limit')
+
+    if (!userId) {
+      return { success: false, error: 'userId is required' }
+    }
+
+    const limit = limitParam ? Number.parseInt(limitParam, 10) : undefined
+    const data = await exportUserMemory(userId, Number.isNaN(limit) ? undefined : limit)
+
+    return { success: true, data }
+  }))
   app.use(router)
 
   const peers = new Map<string, AuthenticatedPeer>()
