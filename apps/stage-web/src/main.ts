@@ -5,6 +5,7 @@ import Tres from '@tresjs/core'
 import NProgress from 'nprogress'
 
 import { autoAnimatePlugin } from '@formkit/auto-animate/vue'
+import { inject } from '@vercel/analytics'
 import { MotionPlugin } from '@vueuse/motion'
 import { createPinia } from 'pinia'
 import { setupLayouts } from 'virtual:generated-layouts'
@@ -22,6 +23,8 @@ import '@unocss/reset/tailwind.css'
 import './styles/fonts.css'
 import './styles/main.css'
 import 'uno.css'
+
+inject() // Enable Vercel Web Analytics
 
 const pinia = createPinia()
 const routeRecords = setupLayouts(routes)

@@ -204,6 +204,9 @@ export default defineConfig({
           },
           workbox: {
             maximumFileSizeToCacheInBytes: 64 * 1024 * 1024,
+            clientsClaim: true,
+            skipWaiting: true,
+            cleanupOutdatedCaches: true,
             navigateFallbackDenylist: [
               /^\/docs\//,
               /^\/ui\//,

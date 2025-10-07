@@ -51,6 +51,7 @@
     "@tresjs/core": "^5.0.3",
     "@unbird/eventa": "^0.1.2",
     "@valibot/to-json-schema": "1.0.0-rc.0",
+    "@vercel/analytics": "^1.5.0",
     "@vueuse/core": "^13.9.0",
     "@vueuse/shared": "^13.9.0",
     "@xsai-ext/providers-cloud": "catalog:",
