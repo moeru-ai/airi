@@ -1,4 +1,5 @@
 import cropImg from '@lemonneko/crop-empty-pixels'
+import JSZip from 'jszip'
 import localforage from 'localforage'
 
 import { Application } from '@pixi/app'
@@ -230,6 +231,128 @@ export const useDisplayModelsStore = defineStore('display-models', () => {
     }
   }
 
+  // Convert GitHub blob URL to raw URL
+  function convertGitHubBlobUrlToRaw(url: string): string {
+    // Convert blob URLs to raw URLs
+    // https://github.com/user/repo/blob/branch/path -> https://raw.githubusercontent.com/user/repo/branch/path
+    // https://github.com/user/repo/raw/branch/path -> already raw, keep it
+
+    if (url.includes('github.com') && url.includes('/blob/')) {
+      return url.replace('github.com', 'raw.githubusercontent.com').replace('/blob/', '/')
+    }
+
+    return url
+  }
+
+  // Parse model3.json and collect all referenced files
+  interface Model3Json {
+    Version?: number
+    FileReferences?: {
+      Moc?: string
+      Textures?: string[]
+      Physics?: string
+      Pose?: string
+      DisplayInfo?: string
+      Expressions?: Array<{ Name?: string, File?: string }>
+      Motions?: Record<string, Array<{ File?: string, Sound?: string }>>
+      UserData?: string
+    }
+  }
+
+  async function loadModel3JsonAndResources(model3JsonUrl: string): Promise<File> {
+    // Convert GitHub URL to raw if needed
+    const rawUrl = convertGitHubBlobUrlToRaw(model3JsonUrl)
+    const baseUrl = rawUrl.substring(0, rawUrl.lastIndexOf('/'))
+
+    // Fetch model3.json
+    const response = await fetch(rawUrl)
+    if (!response.ok) {
+      throw new Error(`Failed to fetch model3.json: ${response.statusText}`)
+    }
+
+    const model3JsonText = await response.text()
+    const model3Json: Model3Json = JSON.parse(model3JsonText)
+
+    // Collect all file paths from model3.json
+    const filesToFetch: Set<string> = new Set()
+    filesToFetch.add(model3JsonUrl.split('/').pop() || 'model.model3.json')
+
+    const fileRefs = model3Json.FileReferences
+    if (fileRefs) {
+      // Add moc file
+      if (fileRefs.Moc) filesToFetch.add(fileRefs.Moc)
+
+      // Add textures
+      if (fileRefs.Textures) {
+        fileRefs.Textures.forEach(texture => filesToFetch.add(texture))
+      }
+
+      // Add physics
+      if (fileRefs.Physics) filesToFetch.add(fileRefs.Physics)
+
+      // Add pose
+      if (fileRefs.Pose) filesToFetch.add(fileRefs.Pose)
+
+      // Add display info
+      if (fileRefs.DisplayInfo) filesToFetch.add(fileRefs.DisplayInfo)
+
+      // Add user data
+      if (fileRefs.UserData) filesToFetch.add(fileRefs.UserData)
+
+      // Add expressions
+      if (fileRefs.Expressions) {
+        fileRefs.Expressions.forEach(exp => {
+          if (exp.File) filesToFetch.add(exp.File)
+        })
+      }
+
+      // Add motions
+      if (fileRefs.Motions) {
+        Object.values(fileRefs.Motions).forEach(motionGroup => {
+          motionGroup.forEach(motion => {
+            if (motion.File) filesToFetch.add(motion.File)
+            if (motion.Sound) filesToFetch.add(motion.Sound)
+          })
+        })
+      }
+    }
+
+    // Create a zip file
+    const zip = new JSZip()
+
+    // Add model3.json to zip
+    zip.file(model3JsonUrl.split('/').pop() || 'model.model3.json', model3JsonText)
+
+    // Fetch and add all referenced files
+    const fetchPromises = Array.from(filesToFetch)
+      .filter(file => file !== (model3JsonUrl.split('/').pop() || 'model.model3.json'))
+      .map(async (relativePath) => {
+        try {
+          const fileUrl = `${baseUrl}/${relativePath}`
+          const fileResponse = await fetch(convertGitHubBlobUrlToRaw(fileUrl))
+
+          if (!fileResponse.ok) {
+            console.warn(`Failed to fetch ${relativePath}: ${fileResponse.statusText}`)
+            return
+          }
+
+          const fileBlob = await fileResponse.blob()
+          zip.file(relativePath, fileBlob)
+        }
+        catch (error) {
+          console.warn(`Error fetching ${relativePath}:`, error)
+        }
+      })
+
+    await Promise.all(fetchPromises)
+
+    // Generate zip blob
+    const zipBlob = await zip.generateAsync({ type: 'blob' })
+    const modelName = model3JsonUrl.split('/').pop()?.replace('.model3.json', '') || 'model'
+
+    return new File([zipBlob], `${modelName}.zip`, { type: 'application/zip' })
+  }
+
   // Add model from URL
   async function addDisplayModelFromURL(url: string, format?: DisplayModelFormat) {
     await until(displayModelsFromIndexedDBLoading).toBe(false)
@@ -237,9 +360,24 @@ export const useDisplayModelsStore = defineStore('display-models', () => {
     let actualUrl = url
     let modelName = url.split('/').pop() || 'Unknown Model'
     let detectedFormat = format
+    let fileToCache: File | null = null
 
+    // Check if it's a model3.json file (Live2D model configuration)
+    if (url.endsWith('.model3.json')) {
+      console.log('Detected model3.json URL, loading model and resources...')
+      try {
+        fileToCache = await loadModel3JsonAndResources(url)
+        modelName = modelName.replace('.model3.json', '')
+        detectedFormat = DisplayModelFormat.Live2dZip
+        actualUrl = url // Keep original URL for reference
+      }
+      catch (error) {
+        console.error('Failed to load model3.json and resources:', error)
+        throw new Error(`Failed to load model3.json: ${error instanceof Error ? error.message : 'Unknown error'}`)
+      }
+    }
     // Check if it's a VPM JSON
-    if (url.endsWith('.json')) {
+    else if (url.endsWith('.json')) {
       const vpmData = await parseVPMJson(url)
       if (vpmData) {
         actualUrl = vpmData.url
@@ -247,8 +385,8 @@ export const useDisplayModelsStore = defineStore('display-models', () => {
       }
     }
 
-    // Auto-detect format if not provided
-    if (!detectedFormat) {
+    // Auto-detect format if not provided and not already detected
+    if (!detectedFormat && !fileToCache) {
       if (actualUrl.endsWith('.vrm')) {
         detectedFormat = DisplayModelFormat.VRM
       }
@@ -261,19 +399,28 @@ export const useDisplayModelsStore = defineStore('display-models', () => {
       }
     }
 
-    // Fetch and cache the model
+    // Fetch and cache the model if not already done
     const cacheKey = `model-cache-${nanoid()}`
     try {
-      const response = await fetch(actualUrl)
-      const blob = await response.blob()
-      const file = new File([blob], modelName, { type: blob.type })
+      let file: File
+
+      if (fileToCache) {
+        // Already have the file from model3.json processing
+        file = fileToCache
+      }
+      else {
+        // Fetch from URL
+        const response = await fetch(actualUrl)
+        const blob = await response.blob()
+        file = new File([blob], modelName, { type: blob.type })
+      }
 
       // Cache the file
       await localforage.setItem(cacheKey, { file, url: actualUrl })
 
       const newDisplayModel: DisplayModelURL = {
         id: `display-model-${nanoid()}`,
-        format: detectedFormat,
+        format: detectedFormat!,
         type: 'url',
         url: actualUrl,
         name: modelName,

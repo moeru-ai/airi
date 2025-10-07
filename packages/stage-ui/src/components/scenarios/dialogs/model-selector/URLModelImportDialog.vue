@@ -71,7 +71,7 @@ function handleCancel() {
           Import Model from URL
         </DialogTitle>
         <DialogDescription class="mb-5 mt-[10px] text-[15px] text-neutral-700 leading-normal dark:text-neutral-400">
-          Import VRM or Live2D models from a direct URL, VPM JSON, or ZIP file. The model will be cached for offline use.
+          Import VRM or Live2D models from a direct URL. Supports .vrm files, .zip files, VPM JSON, or model3.json (will automatically fetch all related resources). The model will be cached for offline use.
         </DialogDescription>
 
         <fieldset class="mb-[15px] flex flex-col gap-2">
@@ -82,7 +82,7 @@ function handleCancel() {
             id="url"
             v-model="url"
             class="h-[35px] w-full inline-flex flex-1 items-center justify-center rounded-[4px] px-[10px] text-[15px] text-neutral-900 leading-none shadow-[0_0_0_1px] shadow-neutral-300 outline-none dark:bg-neutral-800 dark:text-neutral-100 dark:shadow-neutral-700 focus:shadow-[0_0_0_2px] focus:shadow-primary-500 dark:focus:shadow-primary-500"
-            placeholder="https://example.com/model.vrm or .json or .zip"
+            placeholder="https://example.com/model.vrm or .model3.json or .zip"
             :disabled="isLoading"
           >
         </fieldset>
