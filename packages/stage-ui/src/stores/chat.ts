@@ -100,7 +100,15 @@ export const useChatStore = defineStore('chat', () => {
 
   watch(systemPrompt, () => {
     if (messages.value.length > 0 && messages.value[0].role === 'system') {
-      messages.value[0] = generateInitialMessage()
+      const newSystemMessage = generateInitialMessage()
+      // Only update if the system prompt actually changed
+      if (messages.value[0].content !== newSystemMessage.content) {
+        messages.value[0] = newSystemMessage
+      }
+    }
+    else if (messages.value.length === 0 || messages.value[0].role !== 'system') {
+      // No system message exists, prepend one
+      messages.value = [generateInitialMessage(), ...messages.value]
     }
   }, {
     immediate: true,
@@ -289,6 +297,13 @@ export const useChatStore = defineStore('chat', () => {
     }
     catch (error) {
       console.error('Error sending message:', error)
+
+      // Add error message to chat for user visibility
+      messages.value.push({
+        role: 'error',
+        content: `Failed to send message: ${error instanceof Error ? error.message : String(error)}`,
+      })
+
       throw error
     }
     finally {

@@ -52,7 +52,21 @@ export interface AiriCard extends Card {
 }
 
 export const useAiriCardStore = defineStore('airi-card', () => {
-  const cards = useLocalStorage<Map<string, AiriCard>>('airi-cards', new Map())
+  const cards = useLocalStorage<Map<string, AiriCard>>('airi-cards', new Map(), {
+    serializer: {
+      read: (raw: string) => {
+        try {
+          const parsed = JSON.parse(raw)
+          return new Map(Object.entries(parsed))
+        }
+        catch (error) {
+          console.error('[AiriCard] Failed to parse stored cards, resetting:', error)
+          return new Map()
+        }
+      },
+      write: (value: Map<string, AiriCard>) => JSON.stringify(Object.fromEntries(value)),
+    },
+  })
   const activeCardId = useLocalStorage('airi-card-active-id', 'default')
 
   const activeCard = computed(() => cards.value.get(activeCardId.value))
@@ -177,22 +191,43 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     }
   }
 
-  onMounted(() => {
-    const { t } = useI18n()
-
+  // Initialize default card if it doesn't exist (SSR-safe)
+  if (!cards.value.has('default')) {
+    // Use a minimal default card that works without i18n
+    // The full card will be created in onMounted once i18n is available
     cards.value.set('default', newAiriCard({
       name: 'AIRI',
       version: '1.0.0',
-      description: t('base.prompt.prefix'),
+      description: 'A helpful AI assistant',
       personality: 'Cute, expressive, emotional, playful, curious, energetic, caring',
       scenario: 'AIRI is a virtual AI VTuber who just woke up in a life pod. She can see and hear the world through text, voice, and visual input.',
-      systemPrompt: t('base.prompt.suffix'),
+      systemPrompt: 'You are AIRI, a friendly AI assistant. Be helpful and conversational.',
       postHistoryInstructions: 'Remember to stay in character as AIRI. Express emotions using the emotion markers. Be authentic and human-like in your responses.',
       greetings: ['Hello! I just woke up... where am I?'],
     }))
+  }
+
+  // Ensure activeCardId points to an existing card
+  if (!cards.value.has(activeCardId.value)) {
+    activeCardId.value = 'default'
+  }
+
+  // Update default card with i18n translations once available (client-side only)
+  onMounted(() => {
+    const { t } = useI18n()
+    const defaultCard = cards.value.get('default')
+
+    // Only update if using the minimal default description/systemPrompt
+    if (defaultCard && defaultCard.description === 'A helpful AI assistant') {
+      cards.value.set('default', newAiriCard({
+        ...defaultCard,
+        description: t('base.prompt.prefix'),
+        systemPrompt: t('base.prompt.suffix'),
+      }))
+    }
   })
 
-  watch(activeCard, (newCard: AiriCard | undefined, oldCard: AiriCard | undefined) => {
+  watch(activeCard, (newCard: AiriCard | undefined) => {
     if (!newCard)
       return
 
@@ -205,16 +240,6 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     activeConsciousnessModel.value = extension?.modules?.consciousness?.model
     activeSpeechModel.value = extension?.modules?.speech?.model
     activeSpeechVoiceId.value = extension?.modules?.speech?.voice_id
-
-    // When switching to a different card, clear chat history to ensure new character prompt is used
-    // This is critical for serverless environments like Vercel where initialization order may vary
-    if (oldCard && oldCard.name !== newCard.name) {
-      // Dynamically import to avoid circular dependency
-      import('../chat').then(({ useChatStore }) => {
-        const chatStore = useChatStore()
-        chatStore.cleanupMessages()
-      })
-    }
   })
 
   return {
