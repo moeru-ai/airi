@@ -22,23 +22,165 @@ Vercel 可以直接从此 monorepo 构建并提供 Stage Web 应用程序。提�
 
 ## 2. 配置环境变量
 
-构建依赖于在构建时（以及运行时 serverless 函数中）注入的环境变量来预配置提供商。Vercel 将继承仪表板中定义的值或通过 `vercel env`/`vc env` 命令定义的值。完整列表位于 `vercel.json` 中，但下表突出显示了最重要的变量：
+构建依赖于在构建时（以及运行时 serverless 函数中）注入的环境变量来预配置提供商。Vercel 将继承仪表板中定义的值或通过 `vercel env`/`vc env` 命令定义的值。完整列表位于 `vercel.json` 中，下面列出了所有可用的环境变量：
+
+### 基础配置
 
 | 名称 | 必需 | 描述 | 示例 |
 | --- | --- | --- | --- |
-| `SKIP_PROVIDER_HEALTH_CHECK` | 推荐 | 跳过提供商健康检查以避免 CORS 错误。设置为 `true` 可在 serverless 部署中直接保存提供商配置而无需验证。默认在浏览器中为 `true`。**注意：** 实际环境变量名为 `VITE_SKIP_PROVIDER_HEALTH_CHECK`。 | `true` |
+| `VITE_SKIP_PROVIDER_HEALTH_CHECK` | 推荐 | 跳过提供商健康检查以避免 CORS 错误。设置为 `true` 可在 serverless 部署中直接保存提供商配置而无需验证。默认在浏览器中为 `true`。 | `true` |
 | `DEFAULT_CHAT_PROVIDER` | 是 | UI 默认使用的提供商标识符。必须匹配已配置的提供商之一。 | `openai` |
 | `DEFAULT_SPEECH_PROVIDER` | 是 | 默认的文本转语音提供商标识。 | `openai-audio-speech` |
 | `DEFAULT_TRANSCRIPTION_PROVIDER` | 是 | 默认的语音转文本提供商标识。 | `openai-audio-transcription` |
-| `OPENAI_API_KEY` | 可选 | 当 `DEFAULT_CHAT_PROVIDER=openai` 时用于 OpenAI 的 API 密钥。如果代理 API，请提供匹配的基础 URL 和模型。 | `sk-...` |
-| `OPENAI_BASE_URL` | 可选 | OpenAI 兼容端点的基础 URL。默认为 `https://api.openai.com/v1/`。 | 自定义代理 URL |
-| `OPENAI_MODEL` | 可选 | 用于 OpenAI 的聊天模型标识符。 | `gpt-4o-mini` |
-| `OPENROUTER_API_KEY` | 可选 | 使用 [OpenRouter](https://openrouter.ai/) 时的凭据。 | `sk-or-...` |
-| `ANTHROPIC_API_KEY` | 可选 | Anthropic Claude 的凭据。 | `sk-ant-...` |
-| `GOOGLE_GENERATIVE_AI_API_KEY` | 可选 | Google Gemini 的凭据。 | `AIza...` |
 | `VITE_AIRI_WS_URL` | 可选 | 新的实时配置器功能的 WebSocket 端点。当希望远程模块配置在生产中工作时，将其指向 AIRI 后端（`wss://your-backend/ws`）。 | `wss://airi.yourdomain.com/ws` |
 
-> **注意：** `vercel.json` 中列出的每个提供商都有匹配的 `*_API_KEY`、`*_BASE_URL` 和 `*_MODEL` 条目。仅填充你计划使用的组合。空值可以安全地保留。
+### AI 提供商配置
+
+每个 AI 提供商都有对应的 API 密钥、基础 URL 和模型配置。仅配置你计划使用的提供商。
+
+#### OpenAI
+
+| 名称 | 必需 | 描述 | 示例 |
+| --- | --- | --- | --- |
+| `OPENAI_API_KEY` | 可选 | OpenAI API 密钥 | `sk-...` |
+| `OPENAI_BASE_URL` | 可选 | OpenAI API 基础 URL，默认为 `https://api.openai.com/v1/` | `https://api.openai.com/v1/` |
+| `OPENAI_MODEL` | 可选 | 聊天模型标识符 | `gpt-4o-mini` |
+| `OPENAI_SPEECH_MODEL` | 可选 | 语音合成模型 | `tts-1` |
+| `OPENAI_TRANSCRIPTION_MODEL` | 可选 | 语音转文本模型 | `whisper-1` |
+
+#### OpenAI 兼容提供商
+
+| 名称 | 必需 | 描述 | 示例 |
+| --- | --- | --- | --- |
+| `OPENAI_COMPATIBLE_API_KEY` | 可选 | OpenAI 兼容 API 密钥 | `sk-...` |
+| `OPENAI_COMPATIBLE_BASE_URL` | 可选 | OpenAI 兼容 API 基础 URL | `https://your-api.com/v1/` |
+| `OPENAI_COMPATIBLE_MODEL` | 可选 | 聊天模型标识符 | `custom-model` |
+| `OPENAI_COMPATIBLE_SPEECH_MODEL` | 可选 | 语音合成模型 | `custom-tts` |
+| `OPENAI_COMPATIBLE_TRANSCRIPTION_MODEL` | 可选 | 语音转文本模型 | `custom-whisper` |
+
+#### OpenRouter
+
+| 名称 | 必需 | 描述 | 示例 |
+| --- | --- | --- | --- |
+| `OPENROUTER_API_KEY` | 可选 | OpenRouter API 密钥 | `sk-or-...` |
+| `OPENROUTER_BASE_URL` | 可选 | OpenRouter 基础 URL，默认为 `https://openrouter.ai/api/v1/` | `https://openrouter.ai/api/v1/` |
+| `OPENROUTER_MODEL` | 可选 | 模型标识符 | `anthropic/claude-3.5-sonnet` |
+
+#### Anthropic
+
+| 名称 | 必需 | 描述 | 示例 |
+| --- | --- | --- | --- |
+| `ANTHROPIC_API_KEY` | 可选 | Anthropic API 密钥 | `sk-ant-...` |
+| `ANTHROPIC_BASE_URL` | 可选 | Anthropic API 基础 URL，默认为 `https://api.anthropic.com/v1/` | `https://api.anthropic.com/v1/` |
+| `ANTHROPIC_MODEL` | 可选 | Claude 模型标识符 | `claude-3-5-sonnet-20241022` |
+
+#### Google Gemini
+
+| 名称 | 必需 | 描述 | 示例 |
+| --- | --- | --- | --- |
+| `GOOGLE_GENERATIVE_AI_API_KEY` | 可选 | Google Generative AI API 密钥 | `AIza...` |
+| `GOOGLE_GENERATIVE_AI_BASE_URL` | 可选 | Google API 基础 URL，默认为 `https://generativelanguage.googleapis.com/v1beta/openai/` | `https://generativelanguage.googleapis.com/v1beta/openai/` |
+| `GOOGLE_GENERATIVE_AI_MODEL` | 可选 | Gemini 模型标识符 | `gemini-2.0-flash-exp` |
+
+#### DeepSeek
+
+| 名称 | 必需 | 描述 | 示例 |
+| --- | --- | --- | --- |
+| `DEEPSEEK_API_KEY` | 可选 | DeepSeek API 密钥 | `sk-...` |
+| `DEEPSEEK_BASE_URL` | 可选 | DeepSeek API 基础 URL，默认为 `https://api.deepseek.com/` | `https://api.deepseek.com/` |
+| `DEEPSEEK_MODEL` | 可选 | DeepSeek 模型标识符 | `deepseek-chat` |
+
+#### AI302
+
+| 名称 | 必需 | 描述 | 示例 |
+| --- | --- | --- | --- |
+| `AI302_API_KEY` | 可选 | AI302 API 密钥 | `sk-...` |
+| `AI302_BASE_URL` | 可选 | AI302 API 基础 URL，默认为 `https://api.302.ai/v1/` | `https://api.302.ai/v1/` |
+| `AI302_MODEL` | 可选 | 模型标识符 | `gpt-4o-mini` |
+
+#### Together AI
+
+| 名称 | 必需 | 描述 | 示例 |
+| --- | --- | --- | --- |
+| `TOGETHER_API_KEY` | 可选 | Together AI API 密钥 | `...` |
+| `TOGETHER_BASE_URL` | 可选 | Together AI 基础 URL，默认为 `https://api.together.xyz/v1/` | `https://api.together.xyz/v1/` |
+| `TOGETHER_MODEL` | 可选 | 模型标识符 | `meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo` |
+
+#### xAI (Grok)
+
+| 名称 | 必需 | 描述 | 示例 |
+| --- | --- | --- | --- |
+| `XAI_API_KEY` | 可选 | xAI API 密钥 | `xai-...` |
+| `XAI_BASE_URL` | 可选 | xAI API 基础 URL，默认为 `https://api.x.ai/v1/` | `https://api.x.ai/v1/` |
+| `XAI_MODEL` | 可选 | Grok 模型标识符 | `grok-2-latest` |
+
+#### Novita AI
+
+| 名称 | 必需 | 描述 | 示例 |
+| --- | --- | --- | --- |
+| `NOVITA_API_KEY` | 可选 | Novita AI API 密钥 | `...` |
+| `NOVITA_BASE_URL` | 可选 | Novita AI 基础 URL，默认为 `https://api.novita.ai/openai/` | `https://api.novita.ai/openai/` |
+| `NOVITA_MODEL` | 可选 | 模型标识符 | `meta-llama/llama-3.1-8b-instruct` |
+
+#### Fireworks AI
+
+| 名称 | 必需 | 描述 | 示例 |
+| --- | --- | --- | --- |
+| `FIREWORKS_API_KEY` | 可选 | Fireworks AI API 密钥 | `fw-...` |
+| `FIREWORKS_BASE_URL` | 可选 | Fireworks AI 基础 URL，默认为 `https://api.fireworks.ai/inference/v1/` | `https://api.fireworks.ai/inference/v1/` |
+| `FIREWORKS_MODEL` | 可选 | 模型标识符 | `accounts/fireworks/models/llama-v3p1-8b-instruct` |
+
+#### Featherless AI
+
+| 名称 | 必需 | 描述 | 示例 |
+| --- | --- | --- | --- |
+| `FEATHERLESS_API_KEY` | 可选 | Featherless AI API 密钥 | `...` |
+| `FEATHERLESS_BASE_URL` | 可选 | Featherless AI 基础 URL，默认为 `https://api.featherless.ai/v1/` | `https://api.featherless.ai/v1/` |
+| `FEATHERLESS_MODEL` | 可选 | 模型标识符 | `meta-llama/Meta-Llama-3.1-8B-Instruct` |
+
+#### Perplexity
+
+| 名称 | 必需 | 描述 | 示例 |
+| --- | --- | --- | --- |
+| `PERPLEXITY_API_KEY` | 可选 | Perplexity API 密钥 | `pplx-...` |
+| `PERPLEXITY_BASE_URL` | 可选 | Perplexity API 基础 URL，默认为 `https://api.perplexity.ai/` | `https://api.perplexity.ai/` |
+| `PERPLEXITY_MODEL` | 可选 | 模型标识符 | `llama-3.1-sonar-small-128k-online` |
+
+#### Mistral AI
+
+| 名称 | 必需 | 描述 | 示例 |
+| --- | --- | --- | --- |
+| `MISTRAL_API_KEY` | 可选 | Mistral AI API 密钥 | `...` |
+| `MISTRAL_BASE_URL` | 可选 | Mistral AI 基础 URL，默认为 `https://api.mistral.ai/v1/` | `https://api.mistral.ai/v1/` |
+| `MISTRAL_MODEL` | 可选 | 模型标识符 | `mistral-small-latest` |
+
+#### Moonshot AI
+
+| 名称 | 必需 | 描述 | 示例 |
+| --- | --- | --- | --- |
+| `MOONSHOT_API_KEY` | 可选 | Moonshot AI API 密钥 | `sk-...` |
+| `MOONSHOT_BASE_URL` | 可选 | Moonshot AI 基础 URL，默认为 `https://api.moonshot.ai/v1/` | `https://api.moonshot.ai/v1/` |
+| `MOONSHOT_MODEL` | 可选 | 模型标识符 | `moonshot-v1-8k` |
+
+#### ModelScope
+
+| 名称 | 必需 | 描述 | 示例 |
+| --- | --- | --- | --- |
+| `MODELSCOPE_API_KEY` | 可选 | ModelScope API 密钥 | `...` |
+| `MODELSCOPE_BASE_URL` | 可选 | ModelScope API 基础 URL，默认为 `https://api-inference.modelscope.cn/v1/` | `https://api-inference.modelscope.cn/v1/` |
+| `MODELSCOPE_MODEL` | 可选 | 模型标识符 | `qwen2.5-72b-instruct` |
+
+#### 本地模型提供商
+
+| 名称 | 必需 | 描述 | 示例 |
+| --- | --- | --- | --- |
+| `CLOUDFLARE_WORKERS_AI_MODEL` | 可选 | Cloudflare Workers AI 模型标识符 | `@cf/meta/llama-3.1-8b-instruct` |
+| `OLLAMA_MODEL` | 可选 | Ollama 聊天模型名称 | `llama3.2` |
+| `OLLAMA_EMBEDDING_MODEL` | 可选 | Ollama 嵌入模型名称 | `nomic-embed-text` |
+| `LM_STUDIO_MODEL` | 可选 | LM Studio 模型名称 | `llama-3.1-8b` |
+| `PLAYER2_MODEL` | 可选 | Player2 聊天模型名称 | `custom-model` |
+| `PLAYER2_SPEECH_MODEL` | 可选 | Player2 语音模型名称 | `custom-tts` |
+| `VLLM_MODEL` | 可选 | vLLM 模型名称 | `meta-llama/Meta-Llama-3.1-8B-Instruct` |
 
 ### 记忆系统配置
 

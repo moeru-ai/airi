@@ -22,23 +22,165 @@ Vercel can build and serve the Stage Web application directly from this monorepo
 
 ## 2. Configure environment variables
 
-The build relies on environment variables that are injected at build time (and in runtime serverless functions) to preconfigure providers. Vercel will inherit the values defined in the dashboard or through `vercel env`/`vc env` commands. The complete list lives in `vercel.json`, but the table below highlights the most important ones:
+The build relies on environment variables that are injected at build time (and in runtime serverless functions) to preconfigure providers. Vercel will inherit the values defined in the dashboard or through `vercel env`/`vc env` commands. The complete list lives in `vercel.json`, and all available environment variables are listed below:
+
+### Basic Configuration
 
 | Name | Required | Description | Example |
 | --- | --- | --- | --- |
-| `SKIP_PROVIDER_HEALTH_CHECK` | Recommended | Skip provider health checks to avoid CORS errors. Set to `true` to save provider configurations directly without validation in serverless deployments. Defaults to `true` in browser environments. **Note:** Actual env var name is `VITE_SKIP_PROVIDER_HEALTH_CHECK`. | `true` |
+| `VITE_SKIP_PROVIDER_HEALTH_CHECK` | Recommended | Skip provider health checks to avoid CORS errors. Set to `true` to save provider configurations directly without validation in serverless deployments. Defaults to `true` in browser environments. | `true` |
 | `DEFAULT_CHAT_PROVIDER` | Yes | Provider identifier the UI should use by default. Must match one of the configured providers. | `openai` |
 | `DEFAULT_SPEECH_PROVIDER` | Yes | Default text-to-speech provider slug. | `openai-audio-speech` |
 | `DEFAULT_TRANSCRIPTION_PROVIDER` | Yes | Default speech-to-text provider slug. | `openai-audio-transcription` |
-| `OPENAI_API_KEY` | Optional | API key for OpenAI when `DEFAULT_CHAT_PROVIDER=openai`. Provide the matching base URL and model if you proxy the API. | `sk-...` |
-| `OPENAI_BASE_URL` | Optional | Base URL for the OpenAI-compatible endpoint. Defaults to `https://api.openai.com/v1/`. | Custom proxy URL |
-| `OPENAI_MODEL` | Optional | Chat model identifier used for OpenAI. | `gpt-4o-mini` |
-| `OPENROUTER_API_KEY` | Optional | Credentials when using [OpenRouter](https://openrouter.ai/). | `sk-or-...` |
-| `ANTHROPIC_API_KEY` | Optional | Credentials for Anthropic Claude. | `sk-ant-...` |
-| `GOOGLE_GENERATIVE_AI_API_KEY` | Optional | Credentials for Google Gemini. | `AIza...` |
 | `VITE_AIRI_WS_URL` | Optional | WebSocket endpoint for the new live configurator feature. Point this to your AIRI backend (`wss://your-backend/ws`) when you want remote module configuration to work in production. | `wss://airi.yourdomain.com/ws` |
 
-> **Heads-up:** Every provider listed in `vercel.json` has matching `*_API_KEY`, `*_BASE_URL`, and `*_MODEL` entries. Only populate the combinations you plan to use. Empty values are safe to leave in place.
+### AI Provider Configuration
+
+Each AI provider has corresponding API key, base URL, and model configuration. Only configure the providers you plan to use.
+
+#### OpenAI
+
+| Name | Required | Description | Example |
+| --- | --- | --- | --- |
+| `OPENAI_API_KEY` | Optional | OpenAI API key | `sk-...` |
+| `OPENAI_BASE_URL` | Optional | OpenAI API base URL, defaults to `https://api.openai.com/v1/` | `https://api.openai.com/v1/` |
+| `OPENAI_MODEL` | Optional | Chat model identifier | `gpt-4o-mini` |
+| `OPENAI_SPEECH_MODEL` | Optional | Speech synthesis model | `tts-1` |
+| `OPENAI_TRANSCRIPTION_MODEL` | Optional | Speech-to-text model | `whisper-1` |
+
+#### OpenAI Compatible Providers
+
+| Name | Required | Description | Example |
+| --- | --- | --- | --- |
+| `OPENAI_COMPATIBLE_API_KEY` | Optional | OpenAI compatible API key | `sk-...` |
+| `OPENAI_COMPATIBLE_BASE_URL` | Optional | OpenAI compatible API base URL | `https://your-api.com/v1/` |
+| `OPENAI_COMPATIBLE_MODEL` | Optional | Chat model identifier | `custom-model` |
+| `OPENAI_COMPATIBLE_SPEECH_MODEL` | Optional | Speech synthesis model | `custom-tts` |
+| `OPENAI_COMPATIBLE_TRANSCRIPTION_MODEL` | Optional | Speech-to-text model | `custom-whisper` |
+
+#### OpenRouter
+
+| Name | Required | Description | Example |
+| --- | --- | --- | --- |
+| `OPENROUTER_API_KEY` | Optional | OpenRouter API key | `sk-or-...` |
+| `OPENROUTER_BASE_URL` | Optional | OpenRouter base URL, defaults to `https://openrouter.ai/api/v1/` | `https://openrouter.ai/api/v1/` |
+| `OPENROUTER_MODEL` | Optional | Model identifier | `anthropic/claude-3.5-sonnet` |
+
+#### Anthropic
+
+| Name | Required | Description | Example |
+| --- | --- | --- | --- |
+| `ANTHROPIC_API_KEY` | Optional | Anthropic API key | `sk-ant-...` |
+| `ANTHROPIC_BASE_URL` | Optional | Anthropic API base URL, defaults to `https://api.anthropic.com/v1/` | `https://api.anthropic.com/v1/` |
+| `ANTHROPIC_MODEL` | Optional | Claude model identifier | `claude-3-5-sonnet-20241022` |
+
+#### Google Gemini
+
+| Name | Required | Description | Example |
+| --- | --- | --- | --- |
+| `GOOGLE_GENERATIVE_AI_API_KEY` | Optional | Google Generative AI API key | `AIza...` |
+| `GOOGLE_GENERATIVE_AI_BASE_URL` | Optional | Google API base URL, defaults to `https://generativelanguage.googleapis.com/v1beta/openai/` | `https://generativelanguage.googleapis.com/v1beta/openai/` |
+| `GOOGLE_GENERATIVE_AI_MODEL` | Optional | Gemini model identifier | `gemini-2.0-flash-exp` |
+
+#### DeepSeek
+
+| Name | Required | Description | Example |
+| --- | --- | --- | --- |
+| `DEEPSEEK_API_KEY` | Optional | DeepSeek API key | `sk-...` |
+| `DEEPSEEK_BASE_URL` | Optional | DeepSeek API base URL, defaults to `https://api.deepseek.com/` | `https://api.deepseek.com/` |
+| `DEEPSEEK_MODEL` | Optional | DeepSeek model identifier | `deepseek-chat` |
+
+#### AI302
+
+| Name | Required | Description | Example |
+| --- | --- | --- | --- |
+| `AI302_API_KEY` | Optional | AI302 API key | `sk-...` |
+| `AI302_BASE_URL` | Optional | AI302 API base URL, defaults to `https://api.302.ai/v1/` | `https://api.302.ai/v1/` |
+| `AI302_MODEL` | Optional | Model identifier | `gpt-4o-mini` |
+
+#### Together AI
+
+| Name | Required | Description | Example |
+| --- | --- | --- | --- |
+| `TOGETHER_API_KEY` | Optional | Together AI API key | `...` |
+| `TOGETHER_BASE_URL` | Optional | Together AI base URL, defaults to `https://api.together.xyz/v1/` | `https://api.together.xyz/v1/` |
+| `TOGETHER_MODEL` | Optional | Model identifier | `meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo` |
+
+#### xAI (Grok)
+
+| Name | Required | Description | Example |
+| --- | --- | --- | --- |
+| `XAI_API_KEY` | Optional | xAI API key | `xai-...` |
+| `XAI_BASE_URL` | Optional | xAI API base URL, defaults to `https://api.x.ai/v1/` | `https://api.x.ai/v1/` |
+| `XAI_MODEL` | Optional | Grok model identifier | `grok-2-latest` |
+
+#### Novita AI
+
+| Name | Required | Description | Example |
+| --- | --- | --- | --- |
+| `NOVITA_API_KEY` | Optional | Novita AI API key | `...` |
+| `NOVITA_BASE_URL` | Optional | Novita AI base URL, defaults to `https://api.novita.ai/openai/` | `https://api.novita.ai/openai/` |
+| `NOVITA_MODEL` | Optional | Model identifier | `meta-llama/llama-3.1-8b-instruct` |
+
+#### Fireworks AI
+
+| Name | Required | Description | Example |
+| --- | --- | --- | --- |
+| `FIREWORKS_API_KEY` | Optional | Fireworks AI API key | `fw-...` |
+| `FIREWORKS_BASE_URL` | Optional | Fireworks AI base URL, defaults to `https://api.fireworks.ai/inference/v1/` | `https://api.fireworks.ai/inference/v1/` |
+| `FIREWORKS_MODEL` | Optional | Model identifier | `accounts/fireworks/models/llama-v3p1-8b-instruct` |
+
+#### Featherless AI
+
+| Name | Required | Description | Example |
+| --- | --- | --- | --- |
+| `FEATHERLESS_API_KEY` | Optional | Featherless AI API key | `...` |
+| `FEATHERLESS_BASE_URL` | Optional | Featherless AI base URL, defaults to `https://api.featherless.ai/v1/` | `https://api.featherless.ai/v1/` |
+| `FEATHERLESS_MODEL` | Optional | Model identifier | `meta-llama/Meta-Llama-3.1-8B-Instruct` |
+
+#### Perplexity
+
+| Name | Required | Description | Example |
+| --- | --- | --- | --- |
+| `PERPLEXITY_API_KEY` | Optional | Perplexity API key | `pplx-...` |
+| `PERPLEXITY_BASE_URL` | Optional | Perplexity API base URL, defaults to `https://api.perplexity.ai/` | `https://api.perplexity.ai/` |
+| `PERPLEXITY_MODEL` | Optional | Model identifier | `llama-3.1-sonar-small-128k-online` |
+
+#### Mistral AI
+
+| Name | Required | Description | Example |
+| --- | --- | --- | --- |
+| `MISTRAL_API_KEY` | Optional | Mistral AI API key | `...` |
+| `MISTRAL_BASE_URL` | Optional | Mistral AI base URL, defaults to `https://api.mistral.ai/v1/` | `https://api.mistral.ai/v1/` |
+| `MISTRAL_MODEL` | Optional | Model identifier | `mistral-small-latest` |
+
+#### Moonshot AI
+
+| Name | Required | Description | Example |
+| --- | --- | --- | --- |
+| `MOONSHOT_API_KEY` | Optional | Moonshot AI API key | `sk-...` |
+| `MOONSHOT_BASE_URL` | Optional | Moonshot AI base URL, defaults to `https://api.moonshot.ai/v1/` | `https://api.moonshot.ai/v1/` |
+| `MOONSHOT_MODEL` | Optional | Model identifier | `moonshot-v1-8k` |
+
+#### ModelScope
+
+| Name | Required | Description | Example |
+| --- | --- | --- | --- |
+| `MODELSCOPE_API_KEY` | Optional | ModelScope API key | `...` |
+| `MODELSCOPE_BASE_URL` | Optional | ModelScope API base URL, defaults to `https://api-inference.modelscope.cn/v1/` | `https://api-inference.modelscope.cn/v1/` |
+| `MODELSCOPE_MODEL` | Optional | Model identifier | `qwen2.5-72b-instruct` |
+
+#### Local Model Providers
+
+| Name | Required | Description | Example |
+| --- | --- | --- | --- |
+| `CLOUDFLARE_WORKERS_AI_MODEL` | Optional | Cloudflare Workers AI model identifier | `@cf/meta/llama-3.1-8b-instruct` |
+| `OLLAMA_MODEL` | Optional | Ollama chat model name | `llama3.2` |
+| `OLLAMA_EMBEDDING_MODEL` | Optional | Ollama embedding model name | `nomic-embed-text` |
+| `LM_STUDIO_MODEL` | Optional | LM Studio model name | `llama-3.1-8b` |
+| `PLAYER2_MODEL` | Optional | Player2 chat model name | `custom-model` |
+| `PLAYER2_SPEECH_MODEL` | Optional | Player2 speech model name | `custom-tts` |
+| `VLLM_MODEL` | Optional | vLLM model name | `meta-llama/Meta-Llama-3.1-8B-Instruct` |
 
 ### Memory system configuration
 
