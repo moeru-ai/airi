@@ -33,7 +33,7 @@ withDefaults(defineProps<{
 
 const modelValue = defineModel<string>({ required: true })
 
-const cardRef = ref<HTMLElement | null>(null)
+const cardRef = ref<HTMLElement>()
 
 // Track if description is expanded
 const isExpanded = ref(false)
