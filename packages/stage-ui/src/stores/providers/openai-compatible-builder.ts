@@ -2,6 +2,7 @@ import type { ModelInfo, ProviderMetadata } from '../providers'
 
 import { generateText } from '@xsai/generate-text'
 import { listModels } from '@xsai/model'
+import { message } from '@xsai/utils-chat'
 
 type ProviderCreator = (apiKey: string, baseUrl: string) => any
 
@@ -121,7 +122,7 @@ export function buildOpenAICompatibleProvider(
               Authorization: `Bearer ${apiKey}`,
             },
             model: 'test',
-            prompt: 'ping',
+            messages: message.messages(message.user('ping')),
             max_tokens: 1,
           })
         }
@@ -161,7 +162,7 @@ export function buildOpenAICompatibleProvider(
               Authorization: `Bearer ${apiKey}`,
             },
             model: 'test',
-            prompt: 'ping',
+            messages: message.messages(message.user('ping')),
             max_tokens: 1,
           })
         }

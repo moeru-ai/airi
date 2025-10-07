@@ -97,6 +97,7 @@
     "@xsai/shared-chat": "catalog:",
     "@xsai/stream-text": "catalog:",
     "@xsai/tool": "catalog:",
+    "@xsai/utils-chat": "catalog:",
     "animejs": "^4.2.1",
     "culori": "^4.0.2",
     "date-fns": "^4.1.0",
