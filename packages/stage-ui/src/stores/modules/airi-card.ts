@@ -227,9 +227,20 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     }
   })
 
-  watch(activeCard, (newCard: AiriCard | undefined) => {
+  watch(activeCard, (newCard: AiriCard | undefined, oldCard: AiriCard | undefined) => {
     if (!newCard)
       return
+
+    // Clear chat history when switching cards (but not on initial load)
+    if (oldCard && newCard !== oldCard) {
+      // Dynamically import to avoid circular dependency
+      import('../chat').then(({ useChatStore }) => {
+        const chatStore = useChatStore()
+        chatStore.cleanupMessages()
+        // eslint-disable-next-line no-console
+        console.log('[AiriCard] Switched card, cleared chat history')
+      })
+    }
 
     // TODO: live2d, vrm
     // TODO: Minecraft Agent, etc
