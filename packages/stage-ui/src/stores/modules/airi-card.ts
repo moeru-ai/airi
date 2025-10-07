@@ -3,7 +3,7 @@ import type { Card, ccv3 } from '@proj-airi/ccc'
 import { useLocalStorage } from '@vueuse/core'
 import { nanoid } from 'nanoid'
 import { defineStore, storeToRefs } from 'pinia'
-import { computed, watch } from 'vue'
+import { computed, onMounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { useConsciousnessStore } from './consciousness'
@@ -52,54 +52,8 @@ export interface AiriCard extends Card {
 }
 
 export const useAiriCardStore = defineStore('airi-card', () => {
-  console.info('[AiriCard] Store initializing...')
-
-  const { t } = useI18n()
-
-  const cards = useLocalStorage<Map<string, AiriCard>>('airi-cards', new Map(), {
-    serializer: {
-      read: (raw: string) => {
-        try {
-          const parsed = JSON.parse(raw)
-          return new Map(Object.entries(parsed))
-        }
-        catch (error) {
-          console.error('[AiriCard] Failed to parse stored cards, resetting:', error)
-          return new Map()
-        }
-      },
-      write: (value: Map<string, AiriCard>) => JSON.stringify(Object.fromEntries(value)),
-    },
-  })
+  const cards = useLocalStorage<Map<string, AiriCard>>('airi-cards', new Map())
   const activeCardId = useLocalStorage('airi-card-active-id', 'default')
-
-  // Initialize default card immediately if it doesn't exist
-  if (!cards.value.has('default')) {
-    cards.value.set('default', {
-      name: 'AIRI',
-      version: '1.0.0',
-      description: t('base.prompt.prefix'),
-      personality: 'Cute, expressive, emotional, playful, curious, energetic, caring',
-      scenario: 'AIRI is a virtual AI VTuber who just woke up in a life pod. She can see and hear the world through text, voice, and visual input.',
-      systemPrompt: t('base.prompt.suffix'),
-      postHistoryInstructions: 'Remember to stay in character as AIRI. Express emotions using the emotion markers. Be authentic and human-like in your responses.',
-      greetings: ['Hello! I just woke up... where am I?'],
-      extensions: {
-        airi: {
-          modules: {
-            consciousness: { model: '' },
-            speech: { model: '', voice_id: '' },
-          },
-          agents: {},
-        },
-      },
-    })
-  }
-
-  // Ensure activeCardId points to an existing card
-  if (!cards.value.has(activeCardId.value)) {
-    activeCardId.value = 'default'
-  }
 
   const activeCard = computed(() => cards.value.get(activeCardId.value))
 
@@ -223,6 +177,21 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     }
   }
 
+  onMounted(() => {
+    const { t } = useI18n()
+
+    cards.value.set('default', newAiriCard({
+      name: 'AIRI',
+      version: '1.0.0',
+      description: t('base.prompt.prefix'),
+      personality: 'Cute, expressive, emotional, playful, curious, energetic, caring',
+      scenario: 'AIRI is a virtual AI VTuber who just woke up in a life pod. She can see and hear the world through text, voice, and visual input.',
+      systemPrompt: t('base.prompt.suffix'),
+      postHistoryInstructions: 'Remember to stay in character as AIRI. Express emotions using the emotion markers. Be authentic and human-like in your responses.',
+      greetings: ['Hello! I just woke up... where am I?'],
+    }))
+  })
+
   watch(activeCard, (newCard: AiriCard | undefined) => {
     if (!newCard)
       return
@@ -260,10 +229,8 @@ export const useAiriCardStore = defineStore('airi-card', () => {
 
     systemPrompt: computed(() => {
       const card = activeCard.value
-      if (!card) {
-        console.warn('[AiriCard] No active card found')
+      if (!card)
         return ''
-      }
 
       const components: string[] = []
 
@@ -295,9 +262,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
       if (card.postHistoryInstructions)
         components.push(`## Instructions\n${card.postHistoryInstructions}`)
 
-      const result = components.join('\n\n')
-      console.info('[AiriCard] Generated system prompt for', card.name, 'length:', result.length)
-      return result
+      return components.join('\n\n')
     }),
   }
 })

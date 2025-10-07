@@ -21,10 +21,8 @@ export interface ErrorMessage {
 }
 
 export const useChatStore = defineStore('chat', () => {
-  console.info('[Chat] Store initializing...')
   const { stream, discoverToolsCompatibility } = useLLM()
   const { systemPrompt } = storeToRefs(useAiriCardStore())
-  console.info('[Chat] System prompt from card store:', systemPrompt.value?.substring(0, 100))
   const memoryStore = useMemoryStore()
   void memoryStore.fetchRecent()
 
@@ -88,49 +86,21 @@ export const useChatStore = defineStore('chat', () => {
 
   function generateInitialMessage() {
     // TODO: compose, replace {{ user }} tag, etc
-    const systemMessage = {
+    return {
       role: 'system',
       content: codeBlockSystemPrompt + mathSyntaxSystemPrompt + systemPrompt.value,
     } satisfies SystemMessage
-
-    // Debug: log the system prompt to verify it's being set correctly
-    if (import.meta.env.DEV || typeof window !== 'undefined') {
-      console.info('[Chat] System prompt length:', systemMessage.content.length)
-      console.info('[Chat] System prompt preview:', systemMessage.content.substring(0, 200))
-    }
-
-    return systemMessage
   }
 
-  const messages = useLocalStorage<Array<ChatMessage | ErrorMessage>>('chat/messages', [generateInitialMessage()], {
-    serializer: {
-      read: (raw: string) => {
-        try {
-          return JSON.parse(raw)
-        }
-        catch (error) {
-          console.error('[Chat] Failed to parse stored messages, resetting:', error)
-          return [generateInitialMessage()]
-        }
-      },
-      write: (value: Array<ChatMessage | ErrorMessage>) => JSON.stringify(value),
-    },
-  })
+  const messages = useLocalStorage<Array<ChatMessage | ErrorMessage>>('chat/messages', [generateInitialMessage()])
 
   function cleanupMessages() {
     messages.value = [generateInitialMessage()]
   }
 
-  watch(systemPrompt, (newPrompt, oldPrompt) => {
+  watch(systemPrompt, () => {
     if (messages.value.length > 0 && messages.value[0].role === 'system') {
       messages.value[0] = generateInitialMessage()
-    }
-
-    // If system prompt changed significantly, it's likely a different character card
-    // Clear chat history to avoid confusion
-    if (oldPrompt && newPrompt !== oldPrompt && messages.value.length > 1) {
-      console.info('[Chat] System prompt changed, clearing chat history')
-      cleanupMessages()
     }
   }, {
     immediate: true,
