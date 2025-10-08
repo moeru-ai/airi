@@ -280,7 +280,8 @@ export const useDisplayModelsStore = defineStore('display-models', () => {
     const fileRefs = model3Json.FileReferences
     if (fileRefs) {
       // Add moc file
-      if (fileRefs.Moc) filesToFetch.add(fileRefs.Moc)
+      if (fileRefs.Moc)
+        filesToFetch.add(fileRefs.Moc)
 
       // Add textures
       if (fileRefs.Textures) {
@@ -288,30 +289,37 @@ export const useDisplayModelsStore = defineStore('display-models', () => {
       }
 
       // Add physics
-      if (fileRefs.Physics) filesToFetch.add(fileRefs.Physics)
+      if (fileRefs.Physics)
+        filesToFetch.add(fileRefs.Physics)
 
       // Add pose
-      if (fileRefs.Pose) filesToFetch.add(fileRefs.Pose)
+      if (fileRefs.Pose)
+        filesToFetch.add(fileRefs.Pose)
 
       // Add display info
-      if (fileRefs.DisplayInfo) filesToFetch.add(fileRefs.DisplayInfo)
+      if (fileRefs.DisplayInfo)
+        filesToFetch.add(fileRefs.DisplayInfo)
 
       // Add user data
-      if (fileRefs.UserData) filesToFetch.add(fileRefs.UserData)
+      if (fileRefs.UserData)
+        filesToFetch.add(fileRefs.UserData)
 
       // Add expressions
       if (fileRefs.Expressions) {
-        fileRefs.Expressions.forEach(exp => {
-          if (exp.File) filesToFetch.add(exp.File)
+        fileRefs.Expressions.forEach((exp) => {
+          if (exp.File)
+            filesToFetch.add(exp.File)
         })
       }
 
       // Add motions
       if (fileRefs.Motions) {
-        Object.values(fileRefs.Motions).forEach(motionGroup => {
-          motionGroup.forEach(motion => {
-            if (motion.File) filesToFetch.add(motion.File)
-            if (motion.Sound) filesToFetch.add(motion.Sound)
+        Object.values(fileRefs.Motions).forEach((motionGroup) => {
+          motionGroup.forEach((motion) => {
+            if (motion.File)
+              filesToFetch.add(motion.File)
+            if (motion.Sound)
+              filesToFetch.add(motion.Sound)
           })
         })
       }
@@ -364,7 +372,7 @@ export const useDisplayModelsStore = defineStore('display-models', () => {
 
     // Check if it's a model3.json file (Live2D model configuration)
     if (url.endsWith('.model3.json')) {
-      console.log('Detected model3.json URL, loading model and resources...')
+      console.info('Detected model3.json URL, loading model and resources...')
       try {
         fileToCache = await loadModel3JsonAndResources(url)
         modelName = modelName.replace('.model3.json', '')

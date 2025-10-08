@@ -191,24 +191,78 @@ Vercel 可以直接从此 monorepo 构建并提供 Stage Web 应用程序。提�
 
 ### 记忆系统配置
 
-Stage 记忆系统可通过环境变量配置，因此你可以为短期记忆选择 Redis/Upstash，为长期嵌入存储选择 Postgres/Qdrant。
+Stage 记忆系统支持在 Vercel 的 serverless 环境中运行，无需独立后端服务器。系统通过 `/api/memory/*` serverless 函数实现短期和长期记忆功能。
+
+#### 短期记忆配置（必需）
+
+短期记忆用于存储对话历史，支持 Vercel KV 和 Upstash Redis 两种后端：
 
 | 名称 | 必需 | 描述 | 示例 |
 | --- | --- | --- | --- |
-| `MEMORY_PROVIDER` / `SHORT_TERM_MEMORY_PROVIDER` | 可选 | 短期存储提供商（`local-redis`、`upstash-redis` 或 `vercel-kv`）。留空则回退到 `local-redis`。 | `upstash-redis` |
-| `MEMORY_NAMESPACE` | 可选 | 用于短期记忆的 Redis 键前缀。 | `memory` |
-| `SHORT_TERM_MEMORY_MAX_MESSAGES` | 可选 | 每个会话保留的最近消息数上限。 | `20` |
-| `SHORT_TERM_MEMORY_TTL_SECONDS` | 可选 | 短期条目的 TTL（秒）。 | `1800` |
-| `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN` | 可选 | 当 `MEMORY_PROVIDER=upstash-redis` 时所需的 REST 凭据。 | `https://us1-bold-foo.upstash.io` |
-| `REDIS_HOST` / `REDIS_PORT` / `REDIS_PASSWORD` | 可选 | 运行自己的 Redis 实例时的连接详细信息。 | `redis.internal`、`6379` |
-| `LONG_TERM_MEMORY_PROVIDER` / `MEMORY_LONG_TERM_PROVIDER` | 可选 | 长期存储（`postgres-pgvector`、`qdrant` 或 `none`）。默认为 `postgres-pgvector`。 | `qdrant` |
-| `POSTGRES_URL` / `POSTGRES_PRISMA_URL` / `DATABASE_URL` | 可选 | pgvector 部署的连接字符串。你也可以混合使用下面的 host/user/password 选项。 | `postgresql://user:pass@host/db` |
-| `POSTGRES_HOST` / `POSTGRES_PORT` / `POSTGRES_DATABASE` / `POSTGRES_USER` / `POSTGRES_PASSWORD` / `POSTGRES_SSL` | 可选 | 如果不提供 URL，可使用单独的 Postgres 连接参数。 | `postgres.internal`、`5432`、`true` |
-| `QDRANT_URL` / `QDRANT_API_KEY` | 可选 | 使用 Qdrant 进行向量存储时的连接详细信息。 | `https://qdrant.example.com` |
-| `QDRANT_COLLECTION` / `QDRANT_VECTOR_SIZE` | 可选 | Qdrant 的集合配置。 | `memory_entries`、`1536` |
-| `MEMORY_EMBEDDING_PROVIDER` | 可选 | 长期存储使用的嵌入提供商（`openai`、`openai-compatible`、`cloudflare`）。 | `openai` |
-| `MEMORY_EMBEDDING_API_KEY` | 可选 | 嵌入提供商的 API 密钥。省略时回退到 `OPENAI_API_KEY`。 | `sk-...` |
-| `MEMORY_EMBEDDING_BASE_URL` / `MEMORY_EMBEDDING_MODEL` | 可选 | 覆盖嵌入端点和模型。 | `https://api.openai.com/v1/`、`text-embedding-3-small` |
+| `KV_URL` / `KV_REST_API_URL` | Vercel KV 必需 | Vercel KV REST API URL，在 Vercel 仪表板创建 KV 数据库后自动提供 | `https://*.kv.vercel-storage.com` |
+| `KV_REST_API_TOKEN` | Vercel KV 必需 | Vercel KV REST API 令牌 | `AX****` |
+| `KV_REST_API_READ_ONLY_TOKEN` | Vercel KV 可选 | Vercel KV 只读令牌 | `AW****` |
+| `UPSTASH_REDIS_REST_URL` | Upstash 必需 | Upstash Redis REST URL | `https://us1-bold-foo.upstash.io` |
+| `UPSTASH_REDIS_REST_TOKEN` | Upstash 必需 | Upstash Redis REST Token | `AX****` |
+| `MEMORY_NAMESPACE` | 可选 | 用于短期记忆的键前缀 | `memory` |
+| `SHORT_TERM_MEMORY_MAX_MESSAGES` | 可选 | 每个会话保留的最近消息数上限 | `20` |
+| `SHORT_TERM_MEMORY_TTL_SECONDS` | 可选 | 短期条目的 TTL（秒） | `1800` |
+
+**提示：** Vercel 项目可直接在 **Storage** 标签中创建 Vercel KV 数据库，环境变量会自动注入。或者使用 Upstash 提供的免费 Redis 实例。
+
+#### 长期记忆配置（可选）
+
+长期记忆通过向量数据库实现语义搜索，支持 Postgres+pgvector 和 Qdrant：
+
+| 名称 | 必需 | 描述 | 示例 |
+| --- | --- | --- | --- |
+| `LONG_TERM_MEMORY_PROVIDER` / `MEMORY_LONG_TERM_PROVIDER` | 可选 | 长期存储提供商（`postgres-pgvector`、`qdrant` 或 `none`） | `postgres-pgvector` |
+| `POSTGRES_URL` / `DATABASE_URL` | Postgres 必需 | Vercel Postgres 或其他 Postgres 数据库连接字符串 | `postgresql://user:pass@host/db` |
+| `MEMORY_TABLE_NAME` | Postgres 可选 | pgvector 表名，默认 `memory_embeddings` | `memory_embeddings` |
+| `QDRANT_URL` | Qdrant 必需 | Qdrant 服务 URL | `https://xyz.cloud.qdrant.io` |
+| `QDRANT_API_KEY` | Qdrant 可选 | Qdrant API 密钥 | `your-api-key` |
+| `QDRANT_COLLECTION_NAME` | Qdrant 可选 | Qdrant 集合名称，默认 `memory` | `memory` |
+
+#### Embedding 配置（长期记忆必需）
+
+长期记忆需要生成文本嵌入，支持 OpenAI 和 Cloudflare Workers AI：
+
+| 名称 | 必需 | 描述 | 示例 |
+| --- | --- | --- | --- |
+| `EMBEDDING_PROVIDER` | 长期记忆必需 | 嵌入提供商（`openai` 或 `cloudflare`） | `openai` |
+| `EMBEDDING_MODEL` | 可选 | 嵌入模型名称 | `text-embedding-3-small` |
+| `EMBEDDING_DIMENSIONS` | 可选 | 嵌入向量维度 | `1536` |
+| `OPENAI_API_KEY` | OpenAI 必需 | OpenAI API 密钥（也用于聊天） | `sk-...` |
+| `OPENAI_BASE_URL` | OpenAI 可选 | OpenAI API 基础 URL | `https://api.openai.com/v1/` |
+| `CLOUDFLARE_ACCOUNT_ID` | Cloudflare 必需 | Cloudflare 账户 ID | `1234567890abcdef` |
+| `CLOUDFLARE_API_TOKEN` | Cloudflare 必需 | Cloudflare API Token（需要 Workers AI 权限） | `your-cf-token` |
+| `CLOUDFLARE_EMBEDDING_MODEL` | Cloudflare 可选 | Cloudflare Workers AI 嵌入模型 | `@cf/baai/bge-base-en-v1.5` |
+
+**重要说明：**
+
+1. **数据库初始化：** 长期记忆需要手动创建数据库表或集合：
+   - **Postgres+pgvector：** 需要执行以下 SQL 创建表和索引：
+     ```sql
+     CREATE EXTENSION IF NOT EXISTS vector;
+     CREATE TABLE memory_embeddings (
+       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+       user_id TEXT NOT NULL,
+       content TEXT NOT NULL,
+       embedding VECTOR(1536),
+       metadata JSONB,
+       created_at TIMESTAMP DEFAULT NOW()
+     );
+     CREATE INDEX ON memory_embeddings USING ivfflat (embedding vector_cosine_ops);
+     ```
+   - **Qdrant：** 需要通过 API 或控制台创建集合，并配置向量维度和距离度量。
+
+2. **Vercel Postgres 集成：** 在 Vercel 项目的 **Storage** 标签中创建 Postgres 数据库，环境变量 `POSTGRES_URL` 会自动注入。
+
+3. **成本考虑：**
+   - Vercel KV 和 Postgres 有免费额度，超出需付费
+   - Upstash 和 Qdrant Cloud 提供免费套餐
+   - OpenAI embedding API 按 token 计费
+   - Cloudflare Workers AI 提供慷慨的免费额度
 
 通过 Vercel UI（**Settings → Environment Variables**）或 CLI 设置值：
 

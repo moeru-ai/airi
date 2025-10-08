@@ -191,24 +191,78 @@ Each AI provider has corresponding API key, base URL, and model configuration. O
 
 ### Memory system configuration
 
-The Stage memory system is configurable through environment variables so you can choose Redis/Upstash for short-term memory and Postgres/Qdrant for long-term embedding storage.
+The Stage memory system supports running in Vercel's serverless environment without requiring a separate backend server. The system implements short-term and long-term memory functionality through `/api/memory/*` serverless functions.
+
+#### Short-term memory configuration (Required)
+
+Short-term memory stores conversation history and supports two backends: Vercel KV and Upstash Redis:
 
 | Name | Required | Description | Example |
 | --- | --- | --- | --- |
-| `MEMORY_PROVIDER` / `SHORT_TERM_MEMORY_PROVIDER` | Optional | Short-term store provider (`local-redis`, `upstash-redis`, or `vercel-kv`). Leaving blank falls back to `local-redis`. | `upstash-redis` |
-| `MEMORY_NAMESPACE` | Optional | Redis key prefix used for short-term memory. | `memory` |
-| `SHORT_TERM_MEMORY_MAX_MESSAGES` | Optional | Cap on recent messages kept per session. | `20` |
-| `SHORT_TERM_MEMORY_TTL_SECONDS` | Optional | TTL for short-term entries. | `1800` |
-| `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN` | Optional | REST credentials required when `MEMORY_PROVIDER=upstash-redis`. | `https://us1-bold-foo.upstash.io` |
-| `REDIS_HOST` / `REDIS_PORT` / `REDIS_PASSWORD` | Optional | Connection details when running your own Redis instance. | `redis.internal`, `6379` |
-| `LONG_TERM_MEMORY_PROVIDER` / `MEMORY_LONG_TERM_PROVIDER` | Optional | Long-term store (`postgres-pgvector`, `qdrant`, or `none`). Defaults to `postgres-pgvector`. | `qdrant` |
-| `POSTGRES_URL` / `POSTGRES_PRISMA_URL` / `DATABASE_URL` | Optional | Connection string for pgvector deployments. You can also mix and match the host/user/password options below. | `postgresql://user:pass@host/db` |
-| `POSTGRES_HOST` / `POSTGRES_PORT` / `POSTGRES_DATABASE` / `POSTGRES_USER` / `POSTGRES_PASSWORD` / `POSTGRES_SSL` | Optional | Individual Postgres connection parameters if you do not supply a URL. | `postgres.internal`, `5432`, `true` |
-| `QDRANT_URL` / `QDRANT_API_KEY` | Optional | Connection details when using Qdrant for vector storage. | `https://qdrant.example.com` |
-| `QDRANT_COLLECTION` / `QDRANT_VECTOR_SIZE` | Optional | Collection configuration for Qdrant. | `memory_entries`, `1536` |
-| `MEMORY_EMBEDDING_PROVIDER` | Optional | Embedding provider used by the long-term store (`openai`, `openai-compatible`, `cloudflare`). | `openai` |
-| `MEMORY_EMBEDDING_API_KEY` | Optional | API key for the embedding provider. Falls back to `OPENAI_API_KEY` when omitted. | `sk-...` |
-| `MEMORY_EMBEDDING_BASE_URL` / `MEMORY_EMBEDDING_MODEL` | Optional | Override the embedding endpoint and model. | `https://api.openai.com/v1/`, `text-embedding-3-small` |
+| `KV_URL` / `KV_REST_API_URL` | Vercel KV Required | Vercel KV REST API URL, automatically provided after creating a KV database in the Vercel dashboard | `https://*.kv.vercel-storage.com` |
+| `KV_REST_API_TOKEN` | Vercel KV Required | Vercel KV REST API token | `AX****` |
+| `KV_REST_API_READ_ONLY_TOKEN` | Vercel KV Optional | Vercel KV read-only token | `AW****` |
+| `UPSTASH_REDIS_REST_URL` | Upstash Required | Upstash Redis REST URL | `https://us1-bold-foo.upstash.io` |
+| `UPSTASH_REDIS_REST_TOKEN` | Upstash Required | Upstash Redis REST Token | `AX****` |
+| `MEMORY_NAMESPACE` | Optional | Key prefix for short-term memory | `memory` |
+| `SHORT_TERM_MEMORY_MAX_MESSAGES` | Optional | Maximum number of recent messages kept per session | `20` |
+| `SHORT_TERM_MEMORY_TTL_SECONDS` | Optional | TTL for short-term entries (seconds) | `1800` |
+
+**Tip:** Vercel projects can create a Vercel KV database directly in the **Storage** tab, and environment variables will be automatically injected. Alternatively, use Upstash's free Redis instance.
+
+#### Long-term memory configuration (Optional)
+
+Long-term memory enables semantic search through vector databases, supporting Postgres+pgvector and Qdrant:
+
+| Name | Required | Description | Example |
+| --- | --- | --- | --- |
+| `LONG_TERM_MEMORY_PROVIDER` / `MEMORY_LONG_TERM_PROVIDER` | Optional | Long-term storage provider (`postgres-pgvector`, `qdrant`, or `none`) | `postgres-pgvector` |
+| `POSTGRES_URL` / `DATABASE_URL` | Postgres Required | Vercel Postgres or other Postgres database connection string | `postgresql://user:pass@host/db` |
+| `MEMORY_TABLE_NAME` | Postgres Optional | pgvector table name, defaults to `memory_embeddings` | `memory_embeddings` |
+| `QDRANT_URL` | Qdrant Required | Qdrant service URL | `https://xyz.cloud.qdrant.io` |
+| `QDRANT_API_KEY` | Qdrant Optional | Qdrant API key | `your-api-key` |
+| `QDRANT_COLLECTION_NAME` | Qdrant Optional | Qdrant collection name, defaults to `memory` | `memory` |
+
+#### Embedding configuration (Required for long-term memory)
+
+Long-term memory requires text embedding generation, supporting OpenAI and Cloudflare Workers AI:
+
+| Name | Required | Description | Example |
+| --- | --- | --- | --- |
+| `EMBEDDING_PROVIDER` | Long-term memory required | Embedding provider (`openai` or `cloudflare`) | `openai` |
+| `EMBEDDING_MODEL` | Optional | Embedding model name | `text-embedding-3-small` |
+| `EMBEDDING_DIMENSIONS` | Optional | Embedding vector dimensions | `1536` |
+| `OPENAI_API_KEY` | OpenAI Required | OpenAI API key (also used for chat) | `sk-...` |
+| `OPENAI_BASE_URL` | OpenAI Optional | OpenAI API base URL | `https://api.openai.com/v1/` |
+| `CLOUDFLARE_ACCOUNT_ID` | Cloudflare Required | Cloudflare account ID | `1234567890abcdef` |
+| `CLOUDFLARE_API_TOKEN` | Cloudflare Required | Cloudflare API Token (requires Workers AI permissions) | `your-cf-token` |
+| `CLOUDFLARE_EMBEDDING_MODEL` | Cloudflare Optional | Cloudflare Workers AI embedding model | `@cf/baai/bge-base-en-v1.5` |
+
+**Important notes:**
+
+1. **Database initialization:** Long-term memory requires manual creation of database tables or collections:
+   - **Postgres+pgvector:** Execute the following SQL to create tables and indexes:
+     ```sql
+     CREATE EXTENSION IF NOT EXISTS vector;
+     CREATE TABLE memory_embeddings (
+       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+       user_id TEXT NOT NULL,
+       content TEXT NOT NULL,
+       embedding VECTOR(1536),
+       metadata JSONB,
+       created_at TIMESTAMP DEFAULT NOW()
+     );
+     CREATE INDEX ON memory_embeddings USING ivfflat (embedding vector_cosine_ops);
+     ```
+   - **Qdrant:** Create a collection through the API or console, configuring vector dimensions and distance metrics.
+
+2. **Vercel Postgres integration:** Create a Postgres database in your Vercel project's **Storage** tab, and the `POSTGRES_URL` environment variable will be automatically injected.
+
+3. **Cost considerations:**
+   - Vercel KV and Postgres have free tiers with paid overage
+   - Upstash and Qdrant Cloud offer free plans
+   - OpenAI embedding API charges per token
+   - Cloudflare Workers AI provides generous free tier
 
 Set the values through the Vercel UI (**Settings → Environment Variables**) or via CLI:
 
