@@ -170,11 +170,18 @@ Vercel 可以直接从此 monorepo 构建并提供 Stage Web 应用程序。提�
 | `MODELSCOPE_BASE_URL` | 可选 | ModelScope API 基础 URL，默认为 `https://api-inference.modelscope.cn/v1/` | `https://api-inference.modelscope.cn/v1/` |
 | `MODELSCOPE_MODEL` | 可选 | 模型标识符 | `qwen2.5-72b-instruct` |
 
+#### Cloudflare Workers AI
+
+| 名称 | 必需 | 描述 | 示例 |
+| --- | --- | --- | --- |
+| `CLOUDFLARE_WORKERS_AI_API_KEY` | 可选 | Cloudflare Workers AI 的 API 令牌 | `your-cloudflare-api-token` |
+| `CLOUDFLARE_ACCOUNT_ID` | 可选 | Cloudflare 账户 ID（也用于嵌入） | `1234567890abcdef` |
+| `CLOUDFLARE_WORKERS_AI_MODEL` | 可选 | Cloudflare Workers AI 模型标识符 | `@cf/meta/llama-3.1-8b-instruct` |
+
 #### 本地模型提供商
 
 | 名称 | 必需 | 描述 | 示例 |
 | --- | --- | --- | --- |
-| `CLOUDFLARE_WORKERS_AI_MODEL` | 可选 | Cloudflare Workers AI 模型标识符 | `@cf/meta/llama-3.1-8b-instruct` |
 | `OLLAMA_MODEL` | 可选 | Ollama 聊天模型名称 | `llama3.2` |
 | `OLLAMA_EMBEDDING_MODEL` | 可选 | Ollama 嵌入模型名称 | `nomic-embed-text` |
 | `LM_STUDIO_MODEL` | 可选 | LM Studio 模型名称 | `llama-3.1-8b` |
@@ -191,7 +198,7 @@ Stage 记忆系统可通过环境变量配置，因此你可以为短期记忆�
 | `MEMORY_PROVIDER` / `SHORT_TERM_MEMORY_PROVIDER` | 可选 | 短期存储提供商（`local-redis`、`upstash-redis` 或 `vercel-kv`）。留空则回退到 `local-redis`。 | `upstash-redis` |
 | `MEMORY_NAMESPACE` | 可选 | 用于短期记忆的 Redis 键前缀。 | `memory` |
 | `SHORT_TERM_MEMORY_MAX_MESSAGES` | 可选 | 每个会话保留的最近消息数上限。 | `20` |
-| `SHORT_TERM_MEMORY_TTL_SECONDS` | 可选 | 短期条目的 TTL。 | `1800` |
+| `SHORT_TERM_MEMORY_TTL_SECONDS` | 可选 | 短期条目的 TTL（秒）。 | `1800` |
 | `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN` | 可选 | 当 `MEMORY_PROVIDER=upstash-redis` 时所需的 REST 凭据。 | `https://us1-bold-foo.upstash.io` |
 | `REDIS_HOST` / `REDIS_PORT` / `REDIS_PASSWORD` | 可选 | 运行自己的 Redis 实例时的连接详细信息。 | `redis.internal`、`6379` |
 | `LONG_TERM_MEMORY_PROVIDER` / `MEMORY_LONG_TERM_PROVIDER` | 可选 | 长期存储（`postgres-pgvector`、`qdrant` 或 `none`）。默认为 `postgres-pgvector`。 | `qdrant` |
@@ -202,7 +209,6 @@ Stage 记忆系统可通过环境变量配置，因此你可以为短期记忆�
 | `MEMORY_EMBEDDING_PROVIDER` | 可选 | 长期存储使用的嵌入提供商（`openai`、`openai-compatible`、`cloudflare`）。 | `openai` |
 | `MEMORY_EMBEDDING_API_KEY` | 可选 | 嵌入提供商的 API 密钥。省略时回退到 `OPENAI_API_KEY`。 | `sk-...` |
 | `MEMORY_EMBEDDING_BASE_URL` / `MEMORY_EMBEDDING_MODEL` | 可选 | 覆盖嵌入端点和模型。 | `https://api.openai.com/v1/`、`text-embedding-3-small` |
-| `CLOUDFLARE_ACCOUNT_ID` | 可选 | 使用 Cloudflare Workers AI 嵌入时必需。 | `1234567890abcdef` |
 
 通过 Vercel UI（**Settings → Environment Variables**）或 CLI 设置值：
 

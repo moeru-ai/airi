@@ -52,13 +52,31 @@ interface MemoryConfigurationPayload {
   }
 }
 
+// Helper function to get env value
+function getEnvValue(key: string, defaultValue: string | number | boolean): string | number | boolean {
+  const value = import.meta.env[key]
+  if (value === undefined || value === null || value === '') {
+    return defaultValue
+  }
+  // If defaultValue is a number, try to parse the env value
+  if (typeof defaultValue === 'number') {
+    const parsed = Number.parseInt(String(value), 10)
+    return Number.isNaN(parsed) ? defaultValue : parsed
+  }
+  // If defaultValue is a boolean, convert the env value
+  if (typeof defaultValue === 'boolean') {
+    return value === 'true' || value === '1'
+  }
+  return String(value)
+}
+
 export const useMemoryStore = defineStore('memory', () => {
   const enabledShortTerm = useLocalStorage('settings/memory/short-term/enabled', true)
   const enabledLongTerm = useLocalStorage('settings/memory/long-term/enabled', false)
-  const retentionLimit = useLocalStorage('settings/memory/short-term/limit', 20)
-  const shortTermProvider = useLocalStorage<ShortTermProviderType>('settings/memory/short-term/provider', 'local-redis')
-  const shortTermNamespace = useLocalStorage('settings/memory/short-term/namespace', 'memory')
-  const shortTermTtl = useLocalStorage('settings/memory/short-term/ttl', 60 * 30)
+  const retentionLimit = useLocalStorage('settings/memory/short-term/limit', getEnvValue('SHORT_TERM_MEMORY_MAX_MESSAGES', 20) as number)
+  const shortTermProvider = useLocalStorage<ShortTermProviderType>('settings/memory/short-term/provider', getEnvValue('SHORT_TERM_MEMORY_PROVIDER', getEnvValue('MEMORY_PROVIDER', 'local-redis') as string) as ShortTermProviderType)
+  const shortTermNamespace = useLocalStorage('settings/memory/short-term/namespace', getEnvValue('MEMORY_NAMESPACE', 'memory') as string)
+  const shortTermTtl = useLocalStorage('settings/memory/short-term/ttl', getEnvValue('SHORT_TERM_MEMORY_TTL_SECONDS', 60 * 30) as number)
   const shortTermUpstashUrl = useLocalStorage('settings/memory/short-term/upstash-url', '')
   const shortTermUpstashToken = useLocalStorage('settings/memory/short-term/upstash-token', '')
   const shortTermRedisHost = useLocalStorage('settings/memory/short-term/redis-host', 'localhost')
@@ -67,7 +85,7 @@ export const useMemoryStore = defineStore('memory', () => {
 
   const autoPromoteAssistant = useLocalStorage('settings/memory/long-term/promote-assistant', true)
   const autoPromoteUser = useLocalStorage('settings/memory/long-term/promote-user', true)
-  const longTermProvider = useLocalStorage('settings/memory/long-term/provider', 'postgres-pgvector')
+  const longTermProvider = useLocalStorage('settings/memory/long-term/provider', getEnvValue('LONG_TERM_MEMORY_PROVIDER', getEnvValue('MEMORY_LONG_TERM_PROVIDER', 'postgres-pgvector') as string) as string)
   const longTermConnectionString = useLocalStorage('settings/memory/long-term/connection-string', '')
   const longTermHost = useLocalStorage('settings/memory/long-term/host', '')
   const longTermPort = useLocalStorage('settings/memory/long-term/port', 5432)
@@ -81,11 +99,11 @@ export const useMemoryStore = defineStore('memory', () => {
   const longTermQdrantCollection = useLocalStorage('settings/memory/long-term/qdrant/collection', 'memory_entries')
   const longTermQdrantVectorSize = useLocalStorage('settings/memory/long-term/qdrant/vector-size', 1536)
 
-  const embeddingProvider = useLocalStorage<EmbeddingProviderType>('settings/memory/embedding/provider', 'openai')
-  const embeddingApiKey = useLocalStorage('settings/memory/embedding/api-key', '')
-  const embeddingBaseUrl = useLocalStorage('settings/memory/embedding/base-url', '')
-  const embeddingAccountId = useLocalStorage('settings/memory/embedding/account-id', '')
-  const embeddingModel = useLocalStorage('settings/memory/embedding/model', 'text-embedding-3-small')
+  const embeddingProvider = useLocalStorage<EmbeddingProviderType>('settings/memory/embedding/provider', getEnvValue('MEMORY_EMBEDDING_PROVIDER', 'openai') as EmbeddingProviderType)
+  const embeddingApiKey = useLocalStorage('settings/memory/embedding/api-key', getEnvValue('MEMORY_EMBEDDING_API_KEY', '') as string)
+  const embeddingBaseUrl = useLocalStorage('settings/memory/embedding/base-url', getEnvValue('MEMORY_EMBEDDING_BASE_URL', '') as string)
+  const embeddingAccountId = useLocalStorage('settings/memory/embedding/account-id', getEnvValue('CLOUDFLARE_ACCOUNT_ID', '') as string)
+  const embeddingModel = useLocalStorage('settings/memory/embedding/model', getEnvValue('MEMORY_EMBEDDING_MODEL', 'text-embedding-3-small') as string)
 
   const userId = useLocalStorage('settings/memory/user-id', 'default-user')
   const sessionId = useLocalStorage('settings/memory/session-id', crypto.randomUUID())

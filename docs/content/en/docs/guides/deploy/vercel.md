@@ -170,11 +170,18 @@ Each AI provider has corresponding API key, base URL, and model configuration. O
 | `MODELSCOPE_BASE_URL` | Optional | ModelScope API base URL, defaults to `https://api-inference.modelscope.cn/v1/` | `https://api-inference.modelscope.cn/v1/` |
 | `MODELSCOPE_MODEL` | Optional | Model identifier | `qwen2.5-72b-instruct` |
 
+#### Cloudflare Workers AI
+
+| Name | Required | Description | Example |
+| --- | --- | --- | --- |
+| `CLOUDFLARE_WORKERS_AI_API_KEY` | Optional | Cloudflare API token for Workers AI | `your-cloudflare-api-token` |
+| `CLOUDFLARE_ACCOUNT_ID` | Optional | Cloudflare account ID (also used for embeddings) | `1234567890abcdef` |
+| `CLOUDFLARE_WORKERS_AI_MODEL` | Optional | Cloudflare Workers AI model identifier | `@cf/meta/llama-3.1-8b-instruct` |
+
 #### Local Model Providers
 
 | Name | Required | Description | Example |
 | --- | --- | --- | --- |
-| `CLOUDFLARE_WORKERS_AI_MODEL` | Optional | Cloudflare Workers AI model identifier | `@cf/meta/llama-3.1-8b-instruct` |
 | `OLLAMA_MODEL` | Optional | Ollama chat model name | `llama3.2` |
 | `OLLAMA_EMBEDDING_MODEL` | Optional | Ollama embedding model name | `nomic-embed-text` |
 | `LM_STUDIO_MODEL` | Optional | LM Studio model name | `llama-3.1-8b` |
@@ -202,7 +209,6 @@ The Stage memory system is configurable through environment variables so you can
 | `MEMORY_EMBEDDING_PROVIDER` | Optional | Embedding provider used by the long-term store (`openai`, `openai-compatible`, `cloudflare`). | `openai` |
 | `MEMORY_EMBEDDING_API_KEY` | Optional | API key for the embedding provider. Falls back to `OPENAI_API_KEY` when omitted. | `sk-...` |
 | `MEMORY_EMBEDDING_BASE_URL` / `MEMORY_EMBEDDING_MODEL` | Optional | Override the embedding endpoint and model. | `https://api.openai.com/v1/`, `text-embedding-3-small` |
-| `CLOUDFLARE_ACCOUNT_ID` | Optional | Required when using Cloudflare Workers AI embeddings. | `1234567890abcdef` |
 
 Set the values through the Vercel UI (**Settings → Environment Variables**) or via CLI:
 
