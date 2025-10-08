@@ -51,6 +51,7 @@
     "@unocss/preset-web-fonts": "^66.5.2",
     "@upstash/redis": "^1.35.5",
     "@vercel/kv": "^1.0.1",
+    "@vercel/node": "^5.3.26",
     "@vercel/postgres": "^0.8.0",
     "@vitest/coverage-v8": "^3.2.4",
     "bumpp": "^10.3.1",
