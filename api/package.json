@@ -1,6 +1,5 @@
 {
   "name": "@proj-airi/api",
-  "type": "module",
   "version": "0.7.2-beta.3",
   "private": true,
   "description": "Vercel serverless API functions for AIRI",
