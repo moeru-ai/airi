@@ -1,8 +1,13 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "vite",
-  "buildCommand": "pnpm install --frozen-lockfile && rm -rf dist && pnpm --filter @proj-airi/stage-web run build -- --outDir ../../dist",
+  "buildCommand": "pnpm install --frozen-lockfile && rm -rf dist && pnpm --filter @proj-airi/stage-web exec vite build --outDir ../../dist --emptyOutDir",
   "outputDirectory": "dist",
+  "functions": {
+    "api/**/*.ts": {
+      "runtime": "nodejs20.x"
+    }
+  },
   "headers": [
     {
       "source": "/(.*)",

@@ -136,8 +136,8 @@ function resolveShortTermConfigurationFromEnv(): ShortTermProviderConfiguration 
 
   if (provider === 'upstash-redis') {
     configuration.upstash = {
-      url: env.UPSTASH_REDIS_REST_URL ?? '',
-      token: env.UPSTASH_REDIS_REST_TOKEN ?? '',
+      url: env.UPSTASH_KV_REST_API_URL ?? env.UPSTASH_KV_URL ?? '',
+      token: env.UPSTASH_KV_REST_API_TOKEN ?? '',
     }
   }
 
@@ -154,7 +154,7 @@ function resolveShortTermConfigurationFromEnv(): ShortTermProviderConfiguration 
 
 function normalizeShortTermProvider(provider: ShortTermProviderType): ShortTermProviderType {
   if (provider === 'upstash-redis') {
-    if (!env.UPSTASH_REDIS_REST_URL || !env.UPSTASH_REDIS_REST_TOKEN) {
+    if (!env.UPSTASH_KV_REST_API_URL || !env.UPSTASH_KV_REST_API_TOKEN) {
       return 'local-redis'
     }
   }
@@ -170,6 +170,7 @@ function buildEmbeddingConfiguration() {
     apiKey,
     baseUrl: env.MEMORY_EMBEDDING_BASE_URL,
     accountId: env.CLOUDFLARE_ACCOUNT_ID,
+    apiToken: env.CLOUDFLARE_API_TOKEN,
     model: env.MEMORY_EMBEDDING_MODEL ?? 'text-embedding-3-small',
   }
 }
