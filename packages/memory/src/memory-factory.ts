@@ -350,19 +350,20 @@ export class MemorySystemFactory {
   }
 
   private static resolveEmbeddingFromEnv(envVars: NodeJS.ProcessEnv): EmbeddingProviderConfiguration | undefined {
-    const provider = (envVars.MEMORY_EMBEDDING_PROVIDER as EmbeddingProviderConfiguration['provider'] | undefined) ?? 'openai'
+    const provider = (envVars.MEMORY_EMBEDDING_PROVIDER || envVars.EMBEDDING_PROVIDER) as EmbeddingProviderConfiguration['provider'] | undefined ?? 'openai'
     const apiKey = envVars.MEMORY_EMBEDDING_API_KEY ?? envVars.OPENAI_API_KEY ?? undefined
 
-    if (!apiKey) {
+    if (!apiKey && provider !== 'cloudflare') {
       return undefined
     }
 
     return {
       provider,
       apiKey,
-      model: envVars.MEMORY_EMBEDDING_MODEL ?? 'text-embedding-3-small',
-      baseUrl: envVars.MEMORY_EMBEDDING_BASE_URL,
+      model: envVars.MEMORY_EMBEDDING_MODEL ?? envVars.EMBEDDING_MODEL,
+      baseUrl: envVars.MEMORY_EMBEDDING_BASE_URL ?? envVars.OPENAI_BASE_URL,
       accountId: envVars.CLOUDFLARE_ACCOUNT_ID,
+      apiToken: envVars.CLOUDFLARE_API_TOKEN,
     } satisfies EmbeddingProviderConfiguration
   }
 }

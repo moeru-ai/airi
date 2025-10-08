@@ -86,13 +86,23 @@ export function setConfiguration(config: MemoryConfiguration): void {
 }
 
 function createConfigurationFromEnv(): MemoryConfiguration {
-  // Determine provider based on available environment variables
+  // Determine provider based on SHORT_TERM_MEMORY_PROVIDER or MEMORY_PROVIDER env var
+  const providerEnv = (process.env.SHORT_TERM_MEMORY_PROVIDER || process.env.MEMORY_PROVIDER || '').toLowerCase()
   let provider: 'vercel-kv' | 'upstash-redis' = 'vercel-kv'
 
   const upstashUrl = process.env.UPSTASH_KV_REST_API_URL || process.env.UPSTASH_KV_URL || process.env.UPSTASH_REDIS_REST_URL
   const upstashToken = process.env.UPSTASH_KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN
 
-  if (upstashUrl && upstashToken) {
+  // Explicitly check for provider setting first
+  if (providerEnv === 'upstash-redis') {
+    provider = 'upstash-redis'
+  }
+  else if (providerEnv === 'vercel-kv' || providerEnv === '') {
+    // Use vercel-kv if explicitly set or not set
+    provider = 'vercel-kv'
+  }
+  else if (upstashUrl && upstashToken) {
+    // Fallback: auto-detect based on environment variables
     provider = 'upstash-redis'
   }
 

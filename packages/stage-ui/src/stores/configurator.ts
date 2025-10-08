@@ -44,9 +44,13 @@ export const useConfiguratorForAiriSdk = defineStore('configurator:adapter:proj-
 
   function init(options?: { token?: string }) {
     return new Promise((resolve, reject) => {
+      // Check if WebSocket is disabled
+      const wsDisabled = import.meta.env?.VITE_DISABLE_WEBSOCKET === 'true'
+        || import.meta.env?.DISABLE_WEBSOCKET === 'true'
+
       client.value = new Client({
         name: 'proj-airi:ui:stage',
-        url: import.meta.env.VITE_AIRI_WS_URL || 'ws://localhost:6121/ws',
+        url: wsDisabled ? '' : (import.meta.env.VITE_AIRI_WS_URL || 'ws://localhost:6121/ws'),
         token: options?.token,
         possibleEvents: [
           'ui:configure',
