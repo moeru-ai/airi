@@ -90,12 +90,14 @@
     "@xsai-transformers/shared": "^0.0.7",
     "@xsai/embed": "catalog:",
     "@xsai/generate-speech": "catalog:",
+    "@xsai/generate-text": "catalog:",
     "@xsai/generate-transcription": "catalog:",
     "@xsai/model": "catalog:",
     "@xsai/shared": "catalog:",
     "@xsai/shared-chat": "catalog:",
     "@xsai/stream-text": "catalog:",
     "@xsai/tool": "catalog:",
+    "@xsai/utils-chat": "catalog:",
     "animejs": "^4.2.1",
     "culori": "^4.0.2",
     "date-fns": "^4.1.0",
@@ -162,7 +164,7 @@
     "unocss": "^66.5.2",
     "unplugin-info": "^1.2.4",
     "unplugin-yaml": "^3.0.6",
-    "vite": "^7.1.9",
+    "vite": "^6.3.6",
     "vue": "^3.5.22"
   }
 }

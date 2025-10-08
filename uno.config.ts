@@ -193,6 +193,7 @@ export function sharedUnoConfig() {
           '--un-background-opacity': parsedColor?.cssColor?.alpha ?? parsedColor?.alpha ?? 1,
         }
       }],
+      [/drag-region/, () => ({ 'app-region': 'drag' })],
     ],
     theme: {
       fontFamily: {
