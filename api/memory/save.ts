@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 
-import { saveShortTermMemory } from '@proj-airi/server-runtime/services/memory'
+import { saveMessage } from '../_lib/memory'
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Set CORS headers
@@ -27,11 +27,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(400).json({ success: false, error: 'message payload is required' })
     }
 
-    await saveShortTermMemory({
-      sessionId: body.sessionId,
-      message: body.message as any,
-      userId: typeof body.userId === 'string' ? body.userId : undefined,
-    })
+    await saveMessage(body.sessionId, body.message as any, body.userId)
 
     return res.status(200).json({ success: true })
   }

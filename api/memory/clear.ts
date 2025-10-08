@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 
-import { clearSessionMemory } from '@proj-airi/server-runtime/services/memory'
+import { clearSession } from '../_lib/memory'
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Set CORS headers
@@ -23,7 +23,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(400).json({ success: false, error: 'sessionId is required' })
     }
 
-    await clearSessionMemory(body.sessionId)
+    await clearSession(body.sessionId)
 
     return res.status(200).json({ success: true })
   }

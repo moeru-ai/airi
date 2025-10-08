@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 
-import { configureMemorySystem, getMemoryConfiguration } from '@proj-airi/server-runtime/services/memory'
+import { getConfiguration, setConfiguration } from '../_lib/memory'
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Set CORS headers
@@ -14,7 +14,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   try {
     if (req.method === 'GET') {
-      const config = getMemoryConfiguration()
+      const config = getConfiguration()
       return res.status(200).json({ success: true, data: config })
     }
 
@@ -25,7 +25,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(400).json({ success: false, error: 'Configuration payload is required' })
       }
 
-      await configureMemorySystem(body)
+      setConfiguration(body)
       return res.status(200).json({ success: true })
     }
 

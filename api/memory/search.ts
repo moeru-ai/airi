@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 
-import { searchUserMemory } from '@proj-airi/server-runtime/services/memory'
+import { searchSimilar } from '../_lib/memory'
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Set CORS headers
@@ -27,7 +27,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(400).json({ success: false, error: 'userId is required' })
     }
 
-    const results = await searchUserMemory(
+    const results = await searchSimilar(
       body.query,
       body.userId,
       typeof body.limit === 'number' ? body.limit : undefined,

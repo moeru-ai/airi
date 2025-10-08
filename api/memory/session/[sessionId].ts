@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 
-import { getRecentMessages } from '@proj-airi/server-runtime/services/memory'
+import { getRecentMessages } from '../../_lib/memory'
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Set CORS headers
