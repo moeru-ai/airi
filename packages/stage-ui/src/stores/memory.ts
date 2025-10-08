@@ -99,11 +99,12 @@ export const useMemoryStore = defineStore('memory', () => {
   const longTermQdrantCollection = useLocalStorage('settings/memory/long-term/qdrant/collection', 'memory_entries')
   const longTermQdrantVectorSize = useLocalStorage('settings/memory/long-term/qdrant/vector-size', 1536)
 
-  const embeddingProvider = useLocalStorage<EmbeddingProviderType>('settings/memory/embedding/provider', getEnvValue('MEMORY_EMBEDDING_PROVIDER', 'openai') as EmbeddingProviderType)
-  const embeddingApiKey = useLocalStorage('settings/memory/embedding/api-key', getEnvValue('MEMORY_EMBEDDING_API_KEY', '') as string)
-  const embeddingBaseUrl = useLocalStorage('settings/memory/embedding/base-url', getEnvValue('MEMORY_EMBEDDING_BASE_URL', '') as string)
+  const embeddingProvider = useLocalStorage<EmbeddingProviderType>('settings/memory/embedding/provider', getEnvValue('MEMORY_EMBEDDING_PROVIDER', getEnvValue('EMBEDDING_PROVIDER', 'openai') as string) as EmbeddingProviderType)
+  const embeddingApiKey = useLocalStorage('settings/memory/embedding/api-key', getEnvValue('MEMORY_EMBEDDING_API_KEY', getEnvValue('OPENAI_API_KEY', '') as string) as string)
+  const embeddingBaseUrl = useLocalStorage('settings/memory/embedding/base-url', getEnvValue('MEMORY_EMBEDDING_BASE_URL', getEnvValue('OPENAI_BASE_URL', '') as string) as string)
   const embeddingAccountId = useLocalStorage('settings/memory/embedding/account-id', getEnvValue('CLOUDFLARE_ACCOUNT_ID', '') as string)
-  const embeddingModel = useLocalStorage('settings/memory/embedding/model', getEnvValue('MEMORY_EMBEDDING_MODEL', 'text-embedding-3-small') as string)
+  const embeddingApiToken = useLocalStorage('settings/memory/embedding/api-token', getEnvValue('CLOUDFLARE_API_TOKEN', '') as string)
+  const embeddingModel = useLocalStorage('settings/memory/embedding/model', getEnvValue('MEMORY_EMBEDDING_MODEL', getEnvValue('EMBEDDING_MODEL', 'text-embedding-3-small') as string) as string)
 
   const userId = useLocalStorage('settings/memory/user-id', 'default-user')
   const sessionId = useLocalStorage('settings/memory/session-id', crypto.randomUUID())
@@ -117,6 +118,50 @@ export const useMemoryStore = defineStore('memory', () => {
 
   const shortTermEnabled = computed(() => enabledShortTerm.value)
   const longTermEnabled = computed(() => enabledLongTerm.value)
+
+  // Configuration status detection
+  const shortTermConfigured = computed(() => {
+    if (shortTermProvider.value === 'vercel-kv') {
+      // Vercel KV is usually pre-configured via environment variables
+      return true
+    }
+    if (shortTermProvider.value === 'upstash-redis') {
+      return !!(shortTermUpstashUrl.value && shortTermUpstashToken.value)
+    }
+    if (shortTermProvider.value === 'local-redis') {
+      return !!shortTermRedisHost.value
+    }
+    return false
+  })
+
+  const longTermConfigured = computed(() => {
+    if (!enabledLongTerm.value) {
+      return false
+    }
+
+    // Check database configuration
+    let databaseConfigured = false
+    if (longTermProvider.value === 'postgres-pgvector') {
+      databaseConfigured = !!(longTermConnectionString.value || (longTermHost.value && longTermDatabase.value))
+    }
+    else if (longTermProvider.value === 'qdrant') {
+      databaseConfigured = !!longTermQdrantUrl.value
+    }
+
+    if (!databaseConfigured) {
+      return false
+    }
+
+    // Check embedding configuration
+    if (embeddingProvider.value === 'openai' || embeddingProvider.value === 'openai-compatible') {
+      return !!(embeddingApiKey.value && embeddingModel.value)
+    }
+    if (embeddingProvider.value === 'cloudflare') {
+      return !!(embeddingAccountId.value && embeddingApiToken.value)
+    }
+
+    return false
+  })
 
   function regenerateSession() {
     sessionId.value = crypto.randomUUID()
@@ -489,6 +534,8 @@ export const useMemoryStore = defineStore('memory', () => {
     enabledLongTerm,
     shortTermEnabled,
     longTermEnabled,
+    shortTermConfigured,
+    longTermConfigured,
     sessionId,
     userId,
     recentMessages,
@@ -520,6 +567,7 @@ export const useMemoryStore = defineStore('memory', () => {
     embeddingApiKey,
     embeddingBaseUrl,
     embeddingAccountId,
+    embeddingApiToken,
     embeddingModel,
     configurationLoading,
     configurationSaving,
