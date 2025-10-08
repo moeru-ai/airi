@@ -89,7 +89,10 @@ function createConfigurationFromEnv(): MemoryConfiguration {
   // Determine provider based on available environment variables
   let provider: 'vercel-kv' | 'upstash-redis' = 'vercel-kv'
 
-  if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) {
+  const upstashUrl = process.env.UPSTASH_KV_REST_API_URL || process.env.UPSTASH_KV_URL || process.env.UPSTASH_REDIS_REST_URL
+  const upstashToken = process.env.UPSTASH_KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN
+
+  if (upstashUrl && upstashToken) {
     provider = 'upstash-redis'
   }
 
@@ -104,8 +107,8 @@ function createConfigurationFromEnv(): MemoryConfiguration {
 
   if (provider === 'upstash-redis') {
     config.shortTerm.upstash = {
-      url: process.env.UPSTASH_REDIS_REST_URL || '',
-      token: process.env.UPSTASH_REDIS_REST_TOKEN || '',
+      url: upstashUrl || '',
+      token: upstashToken || '',
     }
   }
 

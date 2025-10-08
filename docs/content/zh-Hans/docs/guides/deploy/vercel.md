@@ -202,8 +202,9 @@ Stage 记忆系统支持在 Vercel 的 serverless 环境中运行，无需独立
 | `KV_URL` / `KV_REST_API_URL` | Vercel KV 必需 | Vercel KV REST API URL，在 Vercel 仪表板创建 KV 数据库后自动提供 | `https://*.kv.vercel-storage.com` |
 | `KV_REST_API_TOKEN` | Vercel KV 必需 | Vercel KV REST API 令牌 | `AX****` |
 | `KV_REST_API_READ_ONLY_TOKEN` | Vercel KV 可选 | Vercel KV 只读令牌 | `AW****` |
-| `UPSTASH_REDIS_REST_URL` | Upstash 必需 | Upstash Redis REST URL | `https://us1-bold-foo.upstash.io` |
-| `UPSTASH_REDIS_REST_TOKEN` | Upstash 必需 | Upstash Redis REST Token | `AX****` |
+| `UPSTASH_KV_REST_API_URL` / `UPSTASH_KV_URL` | Upstash 必需 | Upstash Redis REST URL，在 Vercel 中创建 Upstash 集成时自动提供 | `https://us1-bold-foo.upstash.io` |
+| `UPSTASH_KV_REST_API_TOKEN` | Upstash 必需 | Upstash Redis REST Token | `AX****` |
+| `UPSTASH_REDIS_URL` | Upstash 可选 | Upstash Redis 连接 URL（备用格式） | `redis://default:****@us1-bold-foo.upstash.io:6379` |
 | `MEMORY_NAMESPACE` | 可选 | 用于短期记忆的键前缀 | `memory` |
 | `SHORT_TERM_MEMORY_MAX_MESSAGES` | 可选 | 每个会话保留的最近消息数上限 | `20` |
 | `SHORT_TERM_MEMORY_TTL_SECONDS` | 可选 | 短期条目的 TTL（秒） | `1800` |

@@ -202,8 +202,9 @@ Short-term memory stores conversation history and supports two backends: Vercel 
 | `KV_URL` / `KV_REST_API_URL` | Vercel KV Required | Vercel KV REST API URL, automatically provided after creating a KV database in the Vercel dashboard | `https://*.kv.vercel-storage.com` |
 | `KV_REST_API_TOKEN` | Vercel KV Required | Vercel KV REST API token | `AX****` |
 | `KV_REST_API_READ_ONLY_TOKEN` | Vercel KV Optional | Vercel KV read-only token | `AW****` |
-| `UPSTASH_REDIS_REST_URL` | Upstash Required | Upstash Redis REST URL | `https://us1-bold-foo.upstash.io` |
-| `UPSTASH_REDIS_REST_TOKEN` | Upstash Required | Upstash Redis REST Token | `AX****` |
+| `UPSTASH_KV_REST_API_URL` / `UPSTASH_KV_URL` | Upstash Required | Upstash Redis REST URL, automatically provided when creating Upstash integration in Vercel | `https://us1-bold-foo.upstash.io` |
+| `UPSTASH_KV_REST_API_TOKEN` | Upstash Required | Upstash Redis REST Token | `AX****` |
+| `UPSTASH_REDIS_URL` | Upstash Optional | Upstash Redis connection URL (alternative format) | `redis://default:****@us1-bold-foo.upstash.io:6379` |
 | `MEMORY_NAMESPACE` | Optional | Key prefix for short-term memory | `memory` |
 | `SHORT_TERM_MEMORY_MAX_MESSAGES` | Optional | Maximum number of recent messages kept per session | `20` |
 | `SHORT_TERM_MEMORY_TTL_SECONDS` | Optional | TTL for short-term entries (seconds) | `1800` |
