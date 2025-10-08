@@ -37,16 +37,13 @@
   ],
   "rewrites": [
     {
-      "source": "/api/(.*)",
-      "destination": "/api/$1"
-    },
-    {
-      "source": "/(.*)",
+      "source": "/((?!api).*)",
       "destination": "/index.html"
     }
   ],
   "env": {
     "VITE_SKIP_PROVIDER_HEALTH_CHECK": "true",
+    "VITE_DISABLE_WEBSOCKET": "true",
     "OPENAI_API_KEY": "",
     "OPENAI_BASE_URL": "https://api.openai.com/v1/",
     "OPENAI_MODEL": "",

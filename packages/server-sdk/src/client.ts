@@ -25,15 +25,27 @@ export interface ClientOptions<C = undefined> {
 
 // Determine default WebSocket URL based on environment
 function getDefaultWebSocketURL(): string {
+  // Check environment variable to disable WebSocket
+  const wsDisabled = import.meta.env?.VITE_DISABLE_WEBSOCKET === 'true'
+    || import.meta.env?.DISABLE_WEBSOCKET === 'true'
+
+  if (wsDisabled) {
+    return '' // Empty URL will prevent connection attempts
+  }
+
   // Check if we're in a browser environment
   if (typeof window !== 'undefined' && typeof window.location !== 'undefined') {
     const { protocol, hostname } = window.location
 
-    // If deployed (not localhost), disable WebSocket connection
+    // Check for custom WebSocket URL from environment
+    const customUrl = import.meta.env?.VITE_AIRI_WS_URL
+    if (customUrl) {
+      return customUrl
+    }
+
+    // If deployed (not localhost), disable WebSocket connection by default
     if (hostname !== 'localhost' && hostname !== '127.0.0.1') {
-      // Return a dummy URL that will fail gracefully
-      // This prevents attempting to connect to production WebSocket
-      return 'ws://disabled/ws'
+      return '' // Empty URL will prevent connection attempts
     }
 
     // For localhost, use the development server port
@@ -121,6 +133,13 @@ export class Client<C = undefined> {
   }
 
   private _connect(): Promise<void> {
+    // If URL is empty, WebSocket is disabled - silently skip connection
+    if (!this.opts.url || this.opts.url === '') {
+      this.connecting = false
+      this.connected = false
+      return Promise.resolve()
+    }
+
     if (this.shouldClose || this.connected) {
       return Promise.resolve()
     }
@@ -139,7 +158,10 @@ export class Client<C = undefined> {
         this.connecting = false
         this.connected = false
 
-        this.opts.onError?.(event)
+        // Only log error if not intentionally disabled
+        if (this.opts.url && this.opts.url !== '') {
+          this.opts.onError?.(event)
+        }
         reject(event?.error ?? new Error('WebSocket error'))
       }
       ws.onclose = () => {
@@ -149,7 +171,8 @@ export class Client<C = undefined> {
           this.connected = false
           this.opts.onClose?.()
         }
-        if (this.opts.autoReconnect && !this.shouldClose) {
+        // Don't auto-reconnect if WebSocket is disabled
+        if (this.opts.autoReconnect && !this.shouldClose && this.opts.url && this.opts.url !== '') {
           void this.tryReconnectWithExponentialBackoff()
         }
       }
