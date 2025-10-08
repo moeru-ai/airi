@@ -33,7 +33,7 @@ onMounted(async () => {
 
   const { context } = createContext(window.electron.ipcRenderer)
   const startTrackingCursorPoint = defineInvoke(context, electronStartTrackingCursorPoint)
-  await startTrackingCursorPoint(undefined)
+  await startTrackingCursorPoint()
 
   // Listen for open-settings IPC message from main process
   defineInvokeHandler(context, electronOpenSettings, () => {

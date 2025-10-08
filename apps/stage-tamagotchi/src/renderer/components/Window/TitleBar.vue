@@ -13,12 +13,12 @@ const { platform } = useAppRuntime()
   <div
     bg="neutral-100 dark:neutral-900" w="100dvw"
     top="0"
-    data-tauri-drag-region fixed z-100 w-full select-none py-2 pr-4
+    fixed z-100 w-full select-none py-2 pr-4 drag-region
     :class="[
       platform === 'macos' ? 'pl-20' : 'pl-4',
     ]"
   >
-    <div data-tauri-drag-region flex>
+    <div flex drag-region>
       <div
         bg="hover:neutral-200 hover:dark:neutral-800"
         transition="all duration-200 ease-in-out"
@@ -27,7 +27,7 @@ const { platform } = useAppRuntime()
         <div :class="icon" select-none text="neutral-400 dark:neutral-500" whitespace-nowrap />
         <div><span select-none whitespace-nowrap text-sm>{{ title }}</span></div>
       </div>
-      <div data-tauri-drag-region w-full />
+      <div w-full drag-region />
       <div
         bg="hover:neutral-200 hover:dark:neutral-800"
         transition="all duration-200 ease-in-out"

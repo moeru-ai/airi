@@ -57,7 +57,7 @@ components.d.ts
 
 # Cache
 .eslintcache
-**/.cache/**
+**/.cache/
 **/.vitepress/cache/
 **/tsconfig.tsbuildinfo
 

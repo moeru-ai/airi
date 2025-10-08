@@ -19,7 +19,7 @@ function handleConfigured() {
 
 <template>
   <div h-full w-full flex flex-col overflow-x-hidden overflow-y-hidden overscroll-none>
-    <div bg="white dark:#181818" w="100dvw" min-h="12" data-tauri-drag-region w-full flex-shrink-0 select-none />
+    <div bg="white dark:#181818" w="100dvw" min-h="12" w-full flex-shrink-0 select-none data-tauri-drag-region />
     <div w-full flex-1 overflow-y-scroll px-3>
       <div h-full py-3>
         <OnboardingScreen @skipped="handleSkipped" @configured="handleConfigured" />
