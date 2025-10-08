@@ -6,6 +6,7 @@ import UnoCss from 'unocss/vite'
 import VueMacros from 'unplugin-vue-macros/vite'
 import VueRouter from 'unplugin-vue-router/vite'
 import Yaml from 'unplugin-yaml/vite'
+import Inspect from 'vite-plugin-inspect'
 import VitePluginVueDevTools from 'vite-plugin-vue-devtools'
 import Layouts from 'vite-plugin-vue-layouts'
 
@@ -65,7 +66,10 @@ export default defineConfig({
         ],
       },
     },
+
     plugins: [
+      Inspect(),
+
       Yaml(),
 
       VueMacros({
@@ -90,7 +94,10 @@ export default defineConfig({
       VitePluginVueDevTools(),
 
       // https://github.com/JohnCampionJr/vite-plugin-vue-layouts
-      Layouts(),
+      Layouts({
+        layoutsDirs: [resolve(import.meta.dirname, 'src', 'renderer', 'layouts')],
+        pagesDirs: [resolve(import.meta.dirname, 'src', 'renderer', 'pages')],
+      }),
 
       UnoCss(),
 
