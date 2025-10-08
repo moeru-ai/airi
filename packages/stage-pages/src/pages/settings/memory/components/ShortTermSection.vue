@@ -37,6 +37,18 @@ const saveStateLabel = computed(() => {
   return ''
 })
 
+const providerName = computed(() => {
+  switch (shortTermProvider.value) {
+    case 'upstash-redis':
+      return t('settings.memory.short_term.providers.upstash', 'Upstash Redis')
+    case 'vercel-kv':
+      return t('settings.memory.short_term.providers.vercelKv', 'Vercel KV')
+    case 'local-redis':
+    default:
+      return t('settings.memory.short_term.providers.localRedis', 'Local Redis')
+  }
+})
+
 onMounted(async () => {
   await refresh()
 })
@@ -55,13 +67,6 @@ async function refresh() {
   isLoading.value = true
   await memoryStore.fetchRecent()
   isLoading.value = false
-}
-
-function handleToggle(value: boolean) {
-  enabledShortTerm.value = value
-  if (value)
-    refresh()
-  void memoryStore.applyConfiguration()
 }
 
 function applyLimit() {
@@ -104,38 +109,14 @@ async function saveConfiguration() {
       </header>
 
       <div class="mt-4 space-y-4">
-        <div class="flex flex-col gap-2">
-          <label class="text-sm text-neutral-700 font-medium dark:text-neutral-200">
-            {{ t('settings.memory.short_term.provider', 'Short-term memory provider') }}
-          </label>
-          <select
-            v-model="shortTermProvider"
-            class="w-full border border-neutral-200 rounded-md bg-white px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
-          >
-            <option value="local-redis">
-              {{ t('settings.memory.short_term.providers.localRedis', 'Local Redis') }}
-            </option>
-            <option value="upstash-redis">
-              {{ t('settings.memory.short_term.providers.upstash', 'Upstash Redis (Serverless)') }}
-            </option>
-            <option value="vercel-kv">
-              {{ t('settings.memory.short_term.providers.vercelKv', 'Vercel KV') }}
-            </option>
-          </select>
+        <div class="border border-blue-200 rounded-lg bg-blue-50 px-4 py-3 dark:border-blue-800 dark:bg-blue-900/30">
+          <p class="text-sm text-blue-800 dark:text-blue-200">
+            <span class="font-medium">{{ t('settings.memory.short_term.currentProvider', 'Current provider:') }}</span> {{ providerName }}
+          </p>
+          <p class="mt-1 text-xs text-blue-600 dark:text-blue-400">
+            {{ t('settings.memory.short_term.changeProviderHint', 'Change provider in Settings → Memory') }}
+          </p>
         </div>
-
-        <label class="flex items-center justify-between gap-3 border border-neutral-200 rounded-lg bg-neutral-50 px-4 py-3 dark:border-neutral-800 dark:bg-neutral-900/80">
-          <div class="flex flex-col">
-            <span class="text-neutral-800 font-medium dark:text-neutral-100">{{ t('settings.memory.short_term.enable', 'Enable short-term memory') }}</span>
-            <span class="text-xs text-neutral-500 dark:text-neutral-400">{{ t('settings.memory.short_term.enableDescription', 'Persist recent conversation context for this browser session') }}</span>
-          </div>
-          <input
-            v-model="enabledShortTerm"
-            type="checkbox"
-            class="h-5 w-5 accent-primary-500"
-            @change="handleToggle(enabledShortTerm)"
-          >
-        </label>
 
         <div class="flex flex-col gap-2">
           <label class="text-sm text-neutral-700 font-medium dark:text-neutral-200" for="memory-short-term-namespace">
@@ -264,9 +245,24 @@ async function saveConfiguration() {
               v-model="shortTermRedisPassword"
               type="password"
               class="w-full border border-neutral-200 rounded-md bg-white px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
-              placeholder="{{ t('settings.memory.short_term.redisPasswordPlaceholder', 'Optional password') }}"
+              :placeholder="t('settings.memory.short_term.redisPasswordPlaceholder', 'Optional password')"
             >
           </div>
+        </div>
+
+        <div
+          v-else-if="shortTermProvider === 'vercel-kv'"
+          class="border border-neutral-200 rounded-lg bg-neutral-50 p-4 dark:border-neutral-800 dark:bg-neutral-900/60"
+        >
+          <h3 class="text-sm text-neutral-700 font-semibold dark:text-neutral-200">
+            {{ t('settings.memory.short_term.vercelKvTitle', 'Vercel KV configuration') }}
+          </h3>
+          <p class="mt-2 text-sm text-neutral-600 dark:text-neutral-300">
+            {{ t('settings.memory.short_term.vercelKvDescription', 'Vercel KV is automatically configured from environment variables when deployed on Vercel.') }}
+          </p>
+          <p class="mt-2 text-xs text-neutral-500 dark:text-neutral-400">
+            {{ t('settings.memory.short_term.vercelKvHint', 'No additional configuration needed.') }}
+          </p>
         </div>
 
         <div class="flex items-center gap-3">
