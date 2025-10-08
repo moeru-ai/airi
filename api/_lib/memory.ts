@@ -1,7 +1,8 @@
 // Standalone memory service for Vercel serverless functions
-// This is a simplified version that uses Vercel KV directly
+// Supports Vercel KV and Upstash Redis for short-term memory
 
-import { kv } from '@vercel/kv'
+import { Redis } from '@upstash/redis'
+import { kv as vercelKv } from '@vercel/kv'
 
 export interface Message {
   role: string
@@ -12,7 +13,7 @@ export interface Message {
 
 export interface MemoryConfiguration {
   shortTerm: {
-    provider: 'vercel-kv' | 'upstash-redis' | 'local-redis'
+    provider: 'vercel-kv' | 'upstash-redis'
     namespace?: string
     maxMessages?: number
     ttlSeconds?: number
@@ -20,28 +21,17 @@ export interface MemoryConfiguration {
       url: string
       token: string
     }
-    redis?: {
-      host?: string
-      port?: number
-      password?: string
-    }
   }
   longTerm?: {
     enabled: boolean
     provider: 'postgres-pgvector' | 'qdrant'
-    connection?: Record<string, unknown>
-    embedding?: {
-      provider: string
-      apiKey: string
-      model: string
-      baseUrl?: string
-      accountId?: string
-    }
+    [key: string]: unknown
   }
 }
 
 // In-memory configuration cache (per-instance)
 let currentConfig: MemoryConfiguration | null = null
+let redisClient: Redis | null = null
 
 export function getConfiguration(): MemoryConfiguration {
   if (!currentConfig) {
@@ -52,12 +42,17 @@ export function getConfiguration(): MemoryConfiguration {
 
 export function setConfiguration(config: MemoryConfiguration): void {
   currentConfig = config
+  // Reset Redis client when config changes
+  redisClient = null
 }
 
 function createConfigurationFromEnv(): MemoryConfiguration {
-  const provider = (process.env.SHORT_TERM_MEMORY_PROVIDER
-    || process.env.MEMORY_PROVIDER
-    || 'vercel-kv') as 'vercel-kv' | 'upstash-redis' | 'local-redis'
+  // Determine provider based on available environment variables
+  let provider: 'vercel-kv' | 'upstash-redis' = 'vercel-kv'
+
+  if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) {
+    provider = 'upstash-redis'
+  }
 
   const config: MemoryConfiguration = {
     shortTerm: {
@@ -74,33 +69,37 @@ function createConfigurationFromEnv(): MemoryConfiguration {
       token: process.env.UPSTASH_REDIS_REST_TOKEN || '',
     }
   }
-  else if (provider === 'local-redis') {
-    config.shortTerm.redis = {
-      host: process.env.REDIS_HOST || 'localhost',
-      port: Number.parseInt(process.env.REDIS_PORT || '6379', 10),
-      password: process.env.REDIS_PASSWORD,
-    }
-  }
 
-  // Long-term memory configuration (optional)
-  const longTermProvider = (process.env.LONG_TERM_MEMORY_PROVIDER
-    || process.env.MEMORY_LONG_TERM_PROVIDER) as 'postgres-pgvector' | 'qdrant' | undefined
+  // Long-term memory (placeholder)
+  const longTermProvider = process.env.LONG_TERM_MEMORY_PROVIDER || process.env.MEMORY_LONG_TERM_PROVIDER
 
-  if (longTermProvider) {
+  if (longTermProvider && longTermProvider !== 'none') {
     config.longTerm = {
       enabled: true,
-      provider: longTermProvider,
-      embedding: {
-        provider: process.env.MEMORY_EMBEDDING_PROVIDER || 'openai',
-        apiKey: process.env.MEMORY_EMBEDDING_API_KEY || '',
-        model: process.env.MEMORY_EMBEDDING_MODEL || 'text-embedding-3-small',
-        baseUrl: process.env.MEMORY_EMBEDDING_BASE_URL,
-        accountId: process.env.CLOUDFLARE_ACCOUNT_ID,
-      },
+      provider: longTermProvider as 'postgres-pgvector' | 'qdrant',
     }
   }
 
   return config
+}
+
+// Helper to get or create Redis client
+function getRedisClient(): Redis {
+  if (!redisClient) {
+    const config = getConfiguration()
+    if (config.shortTerm.provider !== 'upstash-redis') {
+      throw new Error('Redis client requested but provider is not upstash-redis')
+    }
+    if (!config.shortTerm.upstash) {
+      throw new Error('Upstash configuration is missing')
+    }
+
+    redisClient = new Redis({
+      url: config.shortTerm.upstash.url,
+      token: config.shortTerm.upstash.token,
+    })
+  }
+  return redisClient
 }
 
 // Helper to build Redis key
@@ -109,14 +108,9 @@ function buildKey(sessionId: string, namespace?: string): string {
   return `${ns}:session:${sessionId}`
 }
 
-// Save message to short-term memory (Vercel KV)
+// Save message to short-term memory
 export async function saveMessage(sessionId: string, message: Message, userId?: string): Promise<void> {
   const config = getConfiguration()
-
-  if (config.shortTerm.provider !== 'vercel-kv') {
-    throw new Error('Only Vercel KV is supported in serverless mode. Please configure SHORT_TERM_MEMORY_PROVIDER=vercel-kv')
-  }
-
   const key = buildKey(sessionId, config.shortTerm.namespace)
 
   // Normalize message
@@ -129,31 +123,58 @@ export async function saveMessage(sessionId: string, message: Message, userId?: 
     },
   }
 
-  // Get existing messages
-  const existing = await kv.get<Message[]>(key) || []
+  if (config.shortTerm.provider === 'vercel-kv') {
+    // Vercel KV
+    const existing = await vercelKv.get<Message[]>(key) || []
+    const updated = [...existing, normalizedMessage]
 
-  // Add new message
-  const updated = [...existing, normalizedMessage]
+    // Keep only last N messages
+    const maxMessages = config.shortTerm.maxMessages || 20
+    const trimmed = updated.slice(-maxMessages)
 
-  // Keep only last N messages
-  const maxMessages = config.shortTerm.maxMessages || 20
-  const trimmed = updated.slice(-maxMessages)
+    // Save with TTL
+    const ttl = config.shortTerm.ttlSeconds || 1800
+    await vercelKv.setex(key, ttl, trimmed)
+  }
+  else if (config.shortTerm.provider === 'upstash-redis') {
+    // Upstash Redis
+    const redis = getRedisClient()
+    const existing = await redis.get<Message[]>(key) || []
+    const updated = [...existing, normalizedMessage]
 
-  // Save with TTL
-  const ttl = config.shortTerm.ttlSeconds || 1800
-  await kv.setex(key, ttl, trimmed)
+    // Keep only last N messages
+    const maxMessages = config.shortTerm.maxMessages || 20
+    const trimmed = updated.slice(-maxMessages)
+
+    // Save with TTL
+    const ttl = config.shortTerm.ttlSeconds || 1800
+    await redis.setex(key, ttl, JSON.stringify(trimmed))
+  }
+  else {
+    throw new Error(`Unsupported short-term provider: ${config.shortTerm.provider}`)
+  }
 }
 
 // Get recent messages from short-term memory
 export async function getRecentMessages(sessionId: string, limit?: number): Promise<Message[]> {
   const config = getConfiguration()
-
-  if (config.shortTerm.provider !== 'vercel-kv') {
-    throw new Error('Only Vercel KV is supported in serverless mode')
-  }
-
   const key = buildKey(sessionId, config.shortTerm.namespace)
-  const messages = await kv.get<Message[]>(key) || []
+
+  let messages: Message[] = []
+
+  if (config.shortTerm.provider === 'vercel-kv') {
+    messages = await vercelKv.get<Message[]>(key) || []
+  }
+  else if (config.shortTerm.provider === 'upstash-redis') {
+    const redis = getRedisClient()
+    const data = await redis.get<string>(key)
+    if (data) {
+      messages = typeof data === 'string' ? JSON.parse(data) : data
+    }
+  }
+  else {
+    throw new Error(`Unsupported short-term provider: ${config.shortTerm.provider}`)
+  }
 
   if (limit && limit > 0) {
     return messages.slice(-limit)
@@ -165,19 +186,24 @@ export async function getRecentMessages(sessionId: string, limit?: number): Prom
 // Clear session memory
 export async function clearSession(sessionId: string): Promise<void> {
   const config = getConfiguration()
-
-  if (config.shortTerm.provider !== 'vercel-kv') {
-    throw new Error('Only Vercel KV is supported in serverless mode')
-  }
-
   const key = buildKey(sessionId, config.shortTerm.namespace)
-  await kv.del(key)
+
+  if (config.shortTerm.provider === 'vercel-kv') {
+    await vercelKv.del(key)
+  }
+  else if (config.shortTerm.provider === 'upstash-redis') {
+    const redis = getRedisClient()
+    await redis.del(key)
+  }
+  else {
+    throw new Error(`Unsupported short-term provider: ${config.shortTerm.provider}`)
+  }
 }
 
 // Search similar memories (placeholder - requires vector DB)
 export async function searchSimilar(_query: string, _userId: string, _limit?: number): Promise<any[]> {
-  // This would require vector database integration
-  // For now, return empty array
-  console.warn('Long-term memory search is not implemented in serverless mode')
+  // Long-term memory search requires vector database integration
+  // This would need Postgres+pgvector or Qdrant setup
+  console.warn('[Memory] Long-term memory search is not implemented in serverless mode')
   return []
 }

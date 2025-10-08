@@ -106,6 +106,9 @@ importers:
       '@unocss/preset-web-fonts':
         specifier: ^66.5.2
         version: 66.5.2
+      '@upstash/redis':
+        specifier: ^1.35.5
+        version: 1.35.5
       '@vercel/kv':
         specifier: ^1.0.1
         version: 1.0.1
