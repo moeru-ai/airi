@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { OnboardingDialog, ToasterRoot } from '@proj-airi/stage-ui/components'
-import { useConfiguratorForAiriSdk } from '@proj-airi/stage-ui/stores/configurator'
 import { useDisplayModelsStore } from '@proj-airi/stage-ui/stores/display-models'
+import { useModsChannelServerStore } from '@proj-airi/stage-ui/stores/mods/api/channel-server'
 import { useOnboardingStore } from '@proj-airi/stage-ui/stores/onboarding'
 import { useSettings } from '@proj-airi/stage-ui/stores/settings'
 import { StageTransitionGroup } from '@proj-airi/ui-transitions'
@@ -24,7 +24,7 @@ const settings = storeToRefs(settingsStore)
 const onboardingStore = useOnboardingStore()
 const { shouldShowSetup } = storeToRefs(onboardingStore)
 const isDark = useDark()
-const { dispose } = useConfiguratorForAiriSdk()
+const channelServerStore = useModsChannelServerStore()
 
 const primaryColor = computed(() => {
   return isDark.value
@@ -63,13 +63,14 @@ watch(settings.themeColorsHueDynamic, () => {
 // Initialize first-time setup check when app mounts
 onMounted(async () => {
   onboardingStore.initializeSetupCheck()
+  channelServerStore.initialize()
 
   await displayModelsStore.loadDisplayModelsFromIndexedDB()
   await settingsStore.initializeStageModel()
 })
 
 onUnmounted(() => {
-  dispose()
+  channelServerStore.dispose()
 })
 
 // Handle first-time setup events
