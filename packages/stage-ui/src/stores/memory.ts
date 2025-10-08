@@ -268,12 +268,18 @@ export const useMemoryStore = defineStore('memory', () => {
   }
 
   async function loadConfiguration() {
+    // Skip API call for static deployments (no backend)
+    // Configuration is already initialized from environment variables
     configurationLoading.value = true
     configurationError.value = null
 
     try {
       const response = await fetch('/api/memory/config')
       if (!response.ok) {
+        // Silently skip for static deployments (404 is expected)
+        if (response.status === 404) {
+          return
+        }
         throw new Error(`Failed to load configuration: ${response.status}`)
       }
 
@@ -343,7 +349,10 @@ export const useMemoryStore = defineStore('memory', () => {
       }
     }
     catch (error) {
-      configurationError.value = error instanceof Error ? error.message : String(error)
+      // Only set error for non-404 errors
+      if (error instanceof Error && !error.message.includes('404')) {
+        configurationError.value = error.message
+      }
     }
     finally {
       configurationLoading.value = false
@@ -443,6 +452,13 @@ export const useMemoryStore = defineStore('memory', () => {
         },
         body: JSON.stringify(payload),
       })
+
+      // For static deployments (no backend), saving to localStorage is enough
+      if (response.status === 404) {
+        configurationSaveState.value = 'saved'
+        // Settings are already saved to localStorage via reactive refs
+        return
+      }
 
       const data = await response.json().catch(() => ({ success: response.ok }))
       if (!response.ok || !data.success) {

@@ -125,12 +125,16 @@ function ensureTrailingSlash(url: string) {
 function readProviderEnvCredentials(prefix: string) {
   const apiKeyKey = `${prefix}_API_KEY`
   const baseUrlKey = `${prefix}_BASE_URL`
+  const accountIdKey = `CLOUDFLARE_ACCOUNT_ID` // Shared across Cloudflare services
 
   const apiKey = typeof providerEnvSource[apiKeyKey] === 'string'
     ? (providerEnvSource[apiKeyKey] as string).trim()
     : ''
   const baseUrl = typeof providerEnvSource[baseUrlKey] === 'string'
     ? ensureTrailingSlash((providerEnvSource[baseUrlKey] as string).trim())
+    : ''
+  const accountId = typeof providerEnvSource[accountIdKey] === 'string'
+    ? (providerEnvSource[accountIdKey] as string).trim()
     : ''
 
   const credentials: Record<string, string> = {}
@@ -139,6 +143,9 @@ function readProviderEnvCredentials(prefix: string) {
     credentials.apiKey = apiKey
   if (baseUrl)
     credentials.baseUrl = baseUrl
+  // Only add accountId for Cloudflare providers
+  if (accountId && prefix === 'CLOUDFLARE_WORKERS_AI')
+    credentials.accountId = accountId
 
   return Object.keys(credentials).length > 0 ? credentials : null
 }
