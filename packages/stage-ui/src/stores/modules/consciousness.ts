@@ -15,7 +15,7 @@ export const useConsciousnessStore = defineStore('consciousness', () => {
   const expandedDescriptions = ref<Record<string, boolean>>({})
   const modelSearchQuery = ref('')
 
-  const defaultChatProvider = (import.meta.env.DEFAULT_CHAT_PROVIDER || '').trim()
+  const defaultChatProvider = (import.meta.env.DEFAULT_CHAT_PROVIDER || 'openai').trim()
 
   if (
     defaultChatProvider

@@ -30,7 +30,7 @@ export const useSpeechStore = defineStore('speech', () => {
   const selectedLanguage = useLocalStorage('settings/speech/language', 'en-US')
   const modelSearchQuery = ref('')
 
-  const defaultSpeechProvider = (import.meta.env.DEFAULT_SPEECH_PROVIDER || '').trim()
+  const defaultSpeechProvider = (import.meta.env.DEFAULT_SPEECH_PROVIDER || 'openai-audio-speech').trim()
 
   if (
     defaultSpeechProvider

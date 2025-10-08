@@ -17,7 +17,7 @@ export const useHearingStore = defineStore('hearing-store', () => {
   const activeCustomModelName = useLocalStorage('settings/hearing/active-custom-model', '')
   const transcriptionModelSearchQuery = ref('')
 
-  const defaultTranscriptionProvider = (import.meta.env.DEFAULT_TRANSCRIPTION_PROVIDER || '').trim()
+  const defaultTranscriptionProvider = (import.meta.env.DEFAULT_TRANSCRIPTION_PROVIDER || 'openai-audio-transcription').trim()
 
   if (
     defaultTranscriptionProvider
