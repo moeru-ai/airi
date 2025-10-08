@@ -226,7 +226,8 @@ export class MemorySystemFactory {
       return new VercelKvShortTermMemoryProvider(options.shortTermOptions as VercelKvShortTermMemoryOptions | undefined)
     }
 
-    if ((envVars.UPSTASH_KV_REST_API_URL || envVars.UPSTASH_KV_URL) && envVars.UPSTASH_KV_REST_API_TOKEN) {
+    if ((envVars.UPSTASH_KV_REST_API_URL || envVars.UPSTASH_KV_URL || envVars.UPSTASH_REDIS_REST_URL)
+      && (envVars.UPSTASH_KV_REST_API_TOKEN || envVars.UPSTASH_REDIS_REST_TOKEN)) {
       return new UpstashRedisShortTermMemoryProvider(options.shortTermOptions as UpstashRedisShortTermMemoryOptions | undefined)
     }
 

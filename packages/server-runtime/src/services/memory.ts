@@ -136,8 +136,8 @@ function resolveShortTermConfigurationFromEnv(): ShortTermProviderConfiguration 
 
   if (provider === 'upstash-redis') {
     configuration.upstash = {
-      url: env.UPSTASH_KV_REST_API_URL ?? env.UPSTASH_KV_URL ?? '',
-      token: env.UPSTASH_KV_REST_API_TOKEN ?? '',
+      url: env.UPSTASH_KV_REST_API_URL ?? env.UPSTASH_KV_URL ?? env.UPSTASH_REDIS_REST_URL ?? '',
+      token: env.UPSTASH_KV_REST_API_TOKEN ?? env.UPSTASH_REDIS_REST_TOKEN ?? '',
     }
   }
 
@@ -154,7 +154,11 @@ function resolveShortTermConfigurationFromEnv(): ShortTermProviderConfiguration 
 
 function normalizeShortTermProvider(provider: ShortTermProviderType): ShortTermProviderType {
   if (provider === 'upstash-redis') {
-    if (!env.UPSTASH_KV_REST_API_URL || !env.UPSTASH_KV_REST_API_TOKEN) {
+    const hasUpstashConfig = Boolean(
+      (env.UPSTASH_KV_REST_API_URL || env.UPSTASH_KV_URL || env.UPSTASH_REDIS_REST_URL)
+      && (env.UPSTASH_KV_REST_API_TOKEN || env.UPSTASH_REDIS_REST_TOKEN),
+    )
+    if (!hasUpstashConfig) {
       return 'local-redis'
     }
   }

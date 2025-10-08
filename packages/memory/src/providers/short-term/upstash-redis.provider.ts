@@ -27,11 +27,16 @@ export class UpstashRedisShortTermMemoryProvider extends BaseShortTermMemoryProv
   }
 
   private static createClient(options: UpstashRedisShortTermMemoryOptions): Redis {
-    const url = options.url ?? env.UPSTASH_KV_REST_API_URL ?? env.UPSTASH_KV_URL
-    const token = options.token ?? env.UPSTASH_KV_REST_API_TOKEN
+    const url = options.url
+      ?? env.UPSTASH_KV_REST_API_URL
+      ?? env.UPSTASH_KV_URL
+      ?? env.UPSTASH_REDIS_REST_URL
+    const token = options.token
+      ?? env.UPSTASH_KV_REST_API_TOKEN
+      ?? env.UPSTASH_REDIS_REST_TOKEN
 
     if (!url || !token) {
-      throw new Error('Upstash Redis configuration is missing. Provide url/token or set UPSTASH_KV_REST_API_URL/UPSTASH_KV_URL and UPSTASH_KV_REST_API_TOKEN.')
+      throw new Error('Upstash Redis configuration is missing. Provide url/token or set UPSTASH_KV_REST_API_URL/UPSTASH_KV_URL/UPSTASH_REDIS_REST_URL and UPSTASH_KV_REST_API_TOKEN/UPSTASH_REDIS_REST_TOKEN.')
     }
 
     return new Redis({ url, token })
