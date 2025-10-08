@@ -1,8 +1,8 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "vite",
-  "buildCommand": "pnpm install --frozen-lockfile && rm -rf dist && pnpm --filter @proj-airi/stage-web exec vite build --outDir ../../dist --emptyOutDir",
-  "outputDirectory": "dist",
+  "buildCommand": "cd apps/stage-web && pnpm install && pnpm run build",
+  "outputDirectory": "apps/stage-web/dist",
   "functions": {
     "api/**/*.ts": {
       "runtime": "nodejs20.x"
