@@ -22,15 +22,15 @@ const {
       {{ t('settings.memory.long_term.embeddingTitle', 'Embedding provider') }}
     </h3>
     <p class="text-xs text-neutral-500 dark:text-neutral-400">
-      {{ t('settings.memory.embedding.envHint', 'Fields auto-fill from environment variables such as MEMORY_EMBEDDING_PROVIDER, MEMORY_EMBEDDING_API_KEY, MEMORY_EMBEDDING_BASE_URL and MEMORY_EMBEDDING_MODEL (or their VITE_ prefixed variants).') }}
+      {{ t('settings.memory.long_term.embedding.envHint', 'Fields auto-fill from environment variables such as MEMORY_EMBEDDING_PROVIDER, MEMORY_EMBEDDING_API_KEY, MEMORY_EMBEDDING_BASE_URL and MEMORY_EMBEDDING_MODEL (or their VITE_ prefixed variants).') }}
     </p>
     <div class="border border-neutral-200 rounded-md bg-white/60 p-3 text-xs text-neutral-600 dark:border-neutral-700 dark:bg-neutral-900/40 dark:text-neutral-300">
       <p class="text-neutral-700 font-medium dark:text-neutral-200">
-        {{ t('settings.memory.embedding.manualTitle', 'Manual setup guide') }}
+        {{ t('settings.memory.long_term.embedding.manualTitle', 'Manual setup guide') }}
       </p>
       <ol class="mt-2 list-decimal pl-4 space-y-1">
-        <li>{{ t('settings.memory.embedding.stepGenerate', 'Generate an embedding API credential from your provider (OpenAI, Cloudflare, or OpenAI-compatible service).') }}</li>
-        <li>{{ t('settings.memory.embedding.stepEnv', 'Add the credential to your deployment environment variables, then redeploy so the values appear here automatically.') }}</li>
+        <li>{{ t('settings.memory.long_term.embedding.stepGenerate', 'Generate an embedding API credential from your provider (OpenAI, Cloudflare, or OpenAI-compatible service).') }}</li>
+        <li>{{ t('settings.memory.long_term.embedding.stepEnv', 'Add the credential to your deployment environment variables, then redeploy so the values appear here automatically.') }}</li>
         <li>{{ t('settings.memory.embedding.stepFallback', 'If automatic fill is unavailable, paste the values manually and press “Save Configuration”.') }}</li>
       </ol>
     </div>
