@@ -120,11 +120,31 @@ export const useMemoryStore = defineStore('memory', () => {
   const enabledShortTerm = useLocalStorage('settings/memory/short-term/enabled', true)
   const enabledLongTerm = useLocalStorage('settings/memory/long-term/enabled', getEnvValue('LONG_TERM_MEMORY_ENABLED', getEnvValue('MEMORY_LONG_TERM_ENABLED', false) as boolean) as boolean)
   const retentionLimit = useLocalStorage('settings/memory/short-term/limit', getEnvValue('SHORT_TERM_MEMORY_MAX_MESSAGES', 20) as number)
-  const shortTermProvider = useLocalStorage<ShortTermProviderType>('settings/memory/short-term/provider', getEnvValue('SHORT_TERM_MEMORY_PROVIDER', getEnvValue('MEMORY_PROVIDER', 'local-redis') as string) as ShortTermProviderType)
+
+  const envShortTermProvider = getEnvValue('SHORT_TERM_MEMORY_PROVIDER', getEnvValue('MEMORY_PROVIDER', '') as string) as string
+  const detectedUpstashUrl = getEnvValue(
+    'UPSTASH_KV_REST_API_URL',
+    getEnvValue('UPSTASH_KV_URL', getEnvValue('UPSTASH_REDIS_REST_URL', '') as string) as string,
+  ) as string
+  const defaultShortTermProvider = (() => {
+    const normalized = (envShortTermProvider || '').toLowerCase()
+    if (normalized === 'vercel-kv' || normalized === 'upstash-redis' || normalized === 'local-redis') {
+      return normalized as ShortTermProviderType
+    }
+    if (detectedUpstashUrl) {
+      return 'upstash-redis' as ShortTermProviderType
+    }
+    return 'local-redis' as ShortTermProviderType
+  })()
+
+  const shortTermProvider = useLocalStorage<ShortTermProviderType>('settings/memory/short-term/provider', defaultShortTermProvider)
   const shortTermNamespace = useLocalStorage('settings/memory/short-term/namespace', getEnvValue('MEMORY_NAMESPACE', 'memory') as string)
   const shortTermTtl = useLocalStorage('settings/memory/short-term/ttl', getEnvValue('SHORT_TERM_MEMORY_TTL_SECONDS', 60 * 30) as number)
-  const shortTermUpstashUrl = useLocalStorage('settings/memory/short-term/upstash-url', '')
-  const shortTermUpstashToken = useLocalStorage('settings/memory/short-term/upstash-token', '')
+  const shortTermUpstashUrl = useLocalStorage('settings/memory/short-term/upstash-url', detectedUpstashUrl)
+  const shortTermUpstashToken = useLocalStorage(
+    'settings/memory/short-term/upstash-token',
+    getEnvValue('UPSTASH_KV_REST_API_TOKEN', getEnvValue('UPSTASH_REDIS_REST_TOKEN', '') as string) as string,
+  )
   const shortTermRedisHost = useLocalStorage('settings/memory/short-term/redis-host', 'localhost')
   const shortTermRedisPort = useLocalStorage('settings/memory/short-term/redis-port', 6379)
   const shortTermRedisPassword = useLocalStorage('settings/memory/short-term/redis-password', '')

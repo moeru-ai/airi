@@ -660,7 +660,7 @@ async function runPostgresQuery<T extends QueryResultRow = QueryResultRow>(
       externalPostgresPoolConnectionString = overrideConnection
     }
 
-    return externalPostgresPool.query(query, params) as Promise<QueryResult<T>>
+    return (externalPostgresPool as Pool).query(query, params) as Promise<QueryResult<T>>
   }
 
   if (envConnections.length > 0) {
