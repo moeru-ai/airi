@@ -25,11 +25,6 @@ const {
   longTermQdrantApiKey,
   longTermQdrantCollection,
   longTermQdrantVectorSize,
-  embeddingProvider,
-  embeddingApiKey,
-  embeddingBaseUrl,
-  embeddingAccountId,
-  embeddingModel,
   configurationSaving,
   configurationSaveState,
   configurationError,
@@ -112,6 +107,10 @@ async function saveConfiguration() {
             </option>
           </select>
         </div>
+
+        <p class="text-xs text-neutral-500 dark:text-neutral-400">
+          {{ t('settings.memory.long_term.embeddingHint', 'Configure embedding credentials from Settings → Memory → Embedding Configuration.') }}
+        </p>
 
         <div
           v-if="longTermProvider === 'postgres-pgvector'"
@@ -238,82 +237,6 @@ async function saveConfiguration() {
                 class="w-full border border-neutral-200 rounded-md bg-white px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
               >
             </div>
-          </div>
-        </div>
-
-        <div class="border border-neutral-200 rounded-lg bg-neutral-50 p-4 space-y-3 dark:border-neutral-800 dark:bg-neutral-900/60">
-          <h3 class="text-sm text-neutral-700 font-semibold dark:text-neutral-200">
-            {{ t('settings.memory.long_term.embeddingTitle', 'Embedding provider') }}
-          </h3>
-          <div class="flex flex-col gap-2">
-            <label class="text-sm text-neutral-700 font-medium dark:text-neutral-200">
-              {{ t('settings.memory.long_term.embeddingProvider', 'Provider') }}
-            </label>
-            <select
-              v-model="embeddingProvider"
-              class="w-full border border-neutral-200 rounded-md bg-white px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
-            >
-              <option value="openai">
-                {{ t('settings.memory.long_term.embeddingProviders.openai', 'OpenAI') }}
-              </option>
-              <option value="openai-compatible">
-                {{ t('settings.memory.long_term.embeddingProviders.openaiCompatible', 'OpenAI-compatible') }}
-              </option>
-              <option value="cloudflare">
-                {{ t('settings.memory.long_term.embeddingProviders.cloudflare', 'Cloudflare AI') }}
-              </option>
-            </select>
-          </div>
-          <div class="flex flex-col gap-2">
-            <label class="text-xs text-neutral-500 font-medium tracking-wide uppercase dark:text-neutral-400" for="memory-long-term-embedding-api-key">
-              {{ t('settings.memory.long_term.apiKey', 'API key') }}
-            </label>
-            <input
-              id="memory-long-term-embedding-api-key"
-              v-model="embeddingApiKey"
-              type="password"
-              class="w-full border border-neutral-200 rounded-md bg-white px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
-              placeholder="sk-..."
-            >
-          </div>
-          <div v-if="embeddingProvider === 'openai-compatible'" class="flex flex-col gap-2">
-            <label class="text-xs text-neutral-500 font-medium tracking-wide uppercase dark:text-neutral-400" for="memory-long-term-embedding-base-url">
-              {{ t('settings.memory.long_term.baseUrl', 'Base URL') }}
-            </label>
-            <input
-              id="memory-long-term-embedding-base-url"
-              v-model="embeddingBaseUrl"
-              type="text"
-              class="w-full border border-neutral-200 rounded-md bg-white px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
-              placeholder="https://api.your-provider.com/v1"
-            >
-          </div>
-          <div v-if="embeddingProvider === 'cloudflare'" class="flex flex-col gap-2">
-            <label class="text-xs text-neutral-500 font-medium tracking-wide uppercase dark:text-neutral-400" for="memory-long-term-embedding-account">
-              {{ t('settings.memory.long_term.accountId', 'Account ID') }}
-            </label>
-            <input
-              id="memory-long-term-embedding-account"
-              v-model="embeddingAccountId"
-              type="text"
-              class="w-full border border-neutral-200 rounded-md bg-white px-3 py-2 text-sm dark-border-neutral-700 dark:bg-neutral-900"
-              placeholder="xxxxxxxxxxxxxxxxxxxx"
-            >
-          </div>
-          <div class="flex flex-col gap-2">
-            <label class="text-xs text-neutral-500 font-medium tracking-wide uppercase dark:text-neutral-400" for="memory-long-term-embedding-model">
-              {{ t('settings.memory.long_term.model', 'Embedding model name') }}
-            </label>
-            <input
-              id="memory-long-term-embedding-model"
-              v-model="embeddingModel"
-              type="text"
-              class="w-full border border-neutral-200 rounded-md bg-white px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
-              placeholder="text-embedding-3-small"
-            >
-            <p class="text-xs text-neutral-500 dark:text-neutral-500">
-              {{ t('settings.memory.long_term.modelHint', 'Enter the exact identifier for your embedding model. Defaults are used if left blank.') }}
-            </p>
           </div>
         </div>
 

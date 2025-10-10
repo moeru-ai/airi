@@ -1,7 +1,9 @@
+import { storeToRefs } from 'pinia'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { useBeatSyncStore } from '../stores/beat-sync'
+import { useMemoryStore } from '../stores/memory'
 import { useConsciousnessStore } from '../stores/modules/consciousness'
 import { useDiscordStore } from '../stores/modules/discord'
 import { useFactorioStore } from '../stores/modules/gaming-factorio'
@@ -32,6 +34,8 @@ export function useModulesList() {
   const minecraftStore = useMinecraftStore()
   const factorioStore = useFactorioStore()
   const beatSyncStore = useBeatSyncStore()
+  const memoryStore = useMemoryStore()
+  const { shortTermConfigured, longTermConfigured } = storeToRefs(memoryStore)
 
   const modulesList = computed<Module[]>(() => [
     {
@@ -76,7 +80,7 @@ export function useModulesList() {
       description: t('settings.pages.modules.memory-short-term.description'),
       icon: 'i-solar:bookmark-bold-duotone',
       to: '/settings/modules/memory-short-term',
-      configured: false,
+      configured: shortTermConfigured.value,
       category: 'essential',
     },
     {
@@ -85,7 +89,7 @@ export function useModulesList() {
       description: t('settings.pages.modules.memory-long-term.description'),
       icon: 'i-solar:book-bookmark-bold-duotone',
       to: '/settings/modules/memory-long-term',
-      configured: false,
+      configured: longTermConfigured.value,
       category: 'essential',
     },
     {

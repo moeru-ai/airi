@@ -52,22 +52,49 @@ interface MemoryConfigurationPayload {
   }
 }
 
-// Helper function to get env value
+function resolveEnvValue(key: string): string | boolean | undefined {
+  const env = (import.meta?.env ?? {}) as Record<string, string | boolean | undefined>
+  const variants = [key, `VITE_${key}`, `PUBLIC_${key}`, `NEXT_PUBLIC_${key}`]
+
+  for (const name of variants) {
+    const value = env[name]
+    if (value !== undefined && value !== null && value !== '') {
+      return value
+    }
+  }
+
+  if (typeof process !== 'undefined' && process.env) {
+    for (const name of variants) {
+      const value = process.env[name]
+      if (value !== undefined && value !== null && value !== '') {
+        return value
+      }
+    }
+  }
+
+  return undefined
+}
+
 function getEnvValue(key: string, defaultValue: string | number | boolean): string | number | boolean {
-  const value = import.meta.env[key]
-  if (value === undefined || value === null || value === '') {
+  const resolved = resolveEnvValue(key)
+  if (resolved === undefined) {
     return defaultValue
   }
-  // If defaultValue is a number, try to parse the env value
+
   if (typeof defaultValue === 'number') {
-    const parsed = Number.parseInt(String(value), 10)
+    const parsed = Number.parseInt(String(resolved), 10)
     return Number.isNaN(parsed) ? defaultValue : parsed
   }
-  // If defaultValue is a boolean, convert the env value
+
   if (typeof defaultValue === 'boolean') {
-    return value === 'true' || value === '1'
+    if (typeof resolved === 'boolean') {
+      return resolved
+    }
+    const normalized = String(resolved).toLowerCase()
+    return normalized === 'true' || normalized === '1'
   }
-  return String(value)
+
+  return String(resolved)
 }
 
 export const useMemoryStore = defineStore('memory', () => {
