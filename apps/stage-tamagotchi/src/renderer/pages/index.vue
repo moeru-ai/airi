@@ -4,6 +4,7 @@ import { useLive2d } from '@proj-airi/stage-ui/stores/live2d'
 import { storeToRefs } from 'pinia'
 import { computed, ref, watch } from 'vue'
 
+import ControlsIsland from '../components/Widgets/ControlsIsland/index.vue'
 import ResourceStatusIsland from '../components/Widgets/ResourceStatusIsland/index.vue'
 
 import { useWindowStore } from '../stores/window'
@@ -55,9 +56,9 @@ const modeIndicatorClass = computed(() => {
     flex="~ col"
     relative z-2 h-full overflow-hidden rounded-xl
     transition="opacity duration-500 ease-in-out"
-    class="drag-region"
   >
     <div v-show="!isLoading" relative h-full w-full items-end gap-2 class="view">
+      <ResourceStatusIsland ref="resourceStatusIslandRef" />
       <WidgetStage
         ref="widgetStageRef"
         v-model:state="componentStateStage"
@@ -69,7 +70,7 @@ const modeIndicatorClass = computed(() => {
         :y-offset="positionInPercentageString.y"
         mb="<md:18"
       />
-      <ResourceStatusIsland ref="resourceStatusIslandRef" />
+      <ControlsIsland />
     </div>
     <div v-show="isLoading" h-full w-full>
       <div class="absolute left-0 top-0 z-99 h-full w-full flex cursor-grab items-center justify-center overflow-hidden">

@@ -111,6 +111,24 @@ export function buildOpenAICompatibleProvider(
 
       const validationChecks = validation || []
 
+      // Auto-detect first available model for validation
+      let model = 'test' // fallback to `test` if fails
+      try {
+        const models = await listModels({
+          apiKey,
+          baseURL: baseUrl,
+          headers: {
+            ...additionalHeaders,
+            Authorization: `Bearer ${apiKey}`,
+          },
+        })
+        if (models && models.length > 0)
+          model = models[0].id
+      }
+      catch (e) {
+        console.warn(`Model auto-detection failed: ${(e as Error).message}`)
+      }
+
       // Health check = try generating text (was: fetch(`${baseUrl}chat/completions`))
       if (validationChecks.includes('health')) {
         try {
@@ -121,7 +139,7 @@ export function buildOpenAICompatibleProvider(
               ...additionalHeaders,
               Authorization: `Bearer ${apiKey}`,
             },
-            model: 'test',
+            model,
             messages: message.messages(message.user('ping')),
             max_tokens: 1,
           })
@@ -161,7 +179,7 @@ export function buildOpenAICompatibleProvider(
               ...additionalHeaders,
               Authorization: `Bearer ${apiKey}`,
             },
-            model: 'test',
+            model,
             messages: message.messages(message.user('ping')),
             max_tokens: 1,
           })

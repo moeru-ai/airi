@@ -1,0 +1,28 @@
+{
+  "name": "@proj-airi/airi-plugin-claude-code",
+  "type": "module",
+  "version": "0.7.2-beta.3",
+  "private": true,
+  "description": "manifest.json description",
+  "bin": {
+    "tsdown": "./dist/run.mjs"
+  },
+  "scripts": {
+    "build": "tsdown",
+    "dev": "tsx ./src/run.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@guiiai/logg": "catalog:",
+    "@proj-airi/server-sdk": "workspace:*",
+    "cac": "^6.7.14",
+    "debug": "^4.4.3",
+    "destr": "^2.0.5",
+    "vue": "^3.5.22"
+  },
+  "devDependencies": {
+    "@anthropic-ai/claude-code": "^2.0.11",
+    "tsx": "^4.20.6",
+    "vue-tsc": "^3.1.1"
+  }
+}

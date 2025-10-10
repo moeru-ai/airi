@@ -31,7 +31,7 @@
     "@vueuse/shared": "^13.9.0",
     "@xsai-ext/shared-providers": "catalog:",
     "@xsai/generate-speech": "catalog:",
-    "animejs": "^4.2.1",
+    "animejs": "^4.2.2",
     "dompurify": "^3.2.7",
     "nanoid": "^5.1.6",
     "node-vibrant": "^4.0.3",
@@ -44,6 +44,6 @@
   },
   "devDependencies": {
     "@types/three": "^0.180.0",
-    "vue-tsc": "^3.1.0"
+    "vue-tsc": "^3.1.1"
   }
 }
