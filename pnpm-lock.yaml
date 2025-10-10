@@ -75,6 +75,22 @@ overrides:
 importers:
 
   .:
+    dependencies:
+      '@qdrant/js-client-rest':
+        specifier: ^1.15.1
+        version: 1.15.1(typescript@5.9.3)
+      '@upstash/redis':
+        specifier: ^1.35.5
+        version: 1.35.5
+      '@vercel/kv':
+        specifier: ^1.0.1
+        version: 1.0.1
+      '@vercel/postgres':
+        specifier: ^0.8.0
+        version: 0.8.0
+      openai:
+        specifier: ^4.95.1
+        version: 4.95.1(encoding@0.1.13)(ws@8.18.3(bufferutil@4.0.8)(utf-8-validate@6.0.3))(zod@3.25.76)
     devDependencies:
       '@antfu/eslint-config':
         specifier: ^5.4.1
@@ -91,9 +107,6 @@ importers:
       '@proj-airi/unocss-preset-chromatic':
         specifier: ^1.0.0
         version: 1.0.0
-      '@qdrant/js-client-rest':
-        specifier: ^1.15.1
-        version: 1.15.1(typescript@5.9.3)
       '@types/node':
         specifier: ^24.6.2
         version: 24.6.2
@@ -109,18 +122,9 @@ importers:
       '@unocss/preset-web-fonts':
         specifier: ^66.5.2
         version: 66.5.2
-      '@upstash/redis':
-        specifier: ^1.35.5
-        version: 1.35.5
-      '@vercel/kv':
-        specifier: ^1.0.1
-        version: 1.0.1
       '@vercel/node':
         specifier: ^5.3.26
         version: 5.3.26(encoding@0.1.13)(rollup@4.52.4)
-      '@vercel/postgres':
-        specifier: ^0.8.0
-        version: 0.8.0
       '@vitest/coverage-v8':
         specifier: ^3.2.4
         version: 3.2.4(vitest@3.2.4(@edge-runtime/vm@3.2.0)(@types/debug@4.1.12)(@types/node@24.6.2)(jiti@2.5.1)(jsdom@25.0.1(bufferutil@4.0.8)(utf-8-validate@6.0.3))(less@4.4.1)(lightningcss@1.30.2)(msw@2.7.3(@types/node@24.6.2)(typescript@5.9.3))(terser@5.43.1)(tsx@4.20.6)(yaml@2.8.1))
@@ -136,9 +140,6 @@ importers:
       lint-staged:
         specifier: ^16.2.3
         version: 16.2.3
-      openai:
-        specifier: ^4.95.1
-        version: 4.95.1(encoding@0.1.13)(ws@8.18.3(bufferutil@4.0.8)(utf-8-validate@6.0.3))(zod@3.25.76)
       pg:
         specifier: ^8.16.3
         version: 8.16.3
