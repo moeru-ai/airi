@@ -109,6 +109,10 @@ const providerEnvKeys = [
   'POSTGRES_PASSWORD',
   'MEMORY_LONG_TERM_ENABLED',
   'MEMORY_LONG_TERM_PROVIDER',
+  'UPSTASH_KV_REST_URL',
+  'UPSTASH_KV_REST_TOKEN',
+  'UPSTASH_REDIS_URL',
+  'UPSTASH_REDIS_REST_TOKEN',
 ]
 
 const providerEnvDefine = providerEnvKeys.reduce<Record<string, string>>((acc, key) => {
