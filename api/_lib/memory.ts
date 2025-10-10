@@ -401,38 +401,45 @@ export async function searchSimilar(query: string, userId: string, limit?: numbe
 // Search Postgres with pgvector
 async function searchPostgres(embedding: number[], userId: string, limit: number): Promise<MemorySearchResult[]> {
   const config = getConfiguration()
-  const tableName = config.longTerm?.postgres?.tableName || 'memory_embeddings'
+  const configuredTable = config.longTerm?.postgres?.tableName || 'memory_embeddings'
 
-  try {
-    // Assumes table schema:
-    // CREATE TABLE memory_embeddings (
-    //   id UUID PRIMARY KEY,
-    //   user_id TEXT NOT NULL,
-    //   content TEXT NOT NULL,
-    //   embedding VECTOR(1536),
-    //   metadata JSONB,
-    //   created_at TIMESTAMP DEFAULT NOW()
-    // );
-    // CREATE INDEX ON memory_embeddings USING ivfflat (embedding vector_cosine_ops);
+  if (!/^[A-Z_]\w*$/i.test(configuredTable)) {
+    throw new Error(`Invalid Postgres table name: ${configuredTable}`)
+  }
 
-    const result = await sql`
+  interface PostgresRow {
+    id: string
+    content: string
+    metadata: Record<string, unknown> | null
+    timestamp: string
+    score: number
+  }
+
+  const query = `
       SELECT
         id::text,
         content,
         metadata,
         created_at::text as timestamp,
-        1 - (embedding <=> ${JSON.stringify(embedding)}::vector) as score
-      FROM ${sql(tableName)}
-      WHERE user_id = ${userId}
-      ORDER BY embedding <=> ${JSON.stringify(embedding)}::vector
-      LIMIT ${limit}
+        1 - (embedding <=> $2::vector) as score
+      FROM ${configuredTable}
+      WHERE user_id = $1
+      ORDER BY embedding <=> $2::vector
+      LIMIT $3
     `
+
+  try {
+    const result = await sql.query<PostgresRow>(query, [
+      userId,
+      JSON.stringify(embedding),
+      limit,
+    ])
 
     return result.rows.map(row => ({
       id: row.id,
       content: row.content,
       score: row.score,
-      metadata: row.metadata || {},
+      metadata: row.metadata ?? {},
       timestamp: row.timestamp,
     }))
   }
