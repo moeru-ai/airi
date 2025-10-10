@@ -71,5 +71,6 @@ snap:
   grade: stable
 npmRebuild: false
 publish:
-  provider: snapStore
-  url: https://example.com/auto-updates
+  provider: github
+  owner: moeru-ai
+  repo: airi
