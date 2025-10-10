@@ -111,7 +111,6 @@
       "esbuild",
       "ffmpeg-static",
       "msw",
-      "onnxruntime-node",
       "protobufjs",
       "sharp",
       "simple-git-hooks",
