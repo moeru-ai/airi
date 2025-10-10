@@ -355,7 +355,7 @@ export const useMemoryStore = defineStore('memory', () => {
 
     // 记忆关键词检测（中英文支持）
     const memoryKeywords = [
-      // 中文关键词
+      // 中文关键词 - 用户输入
       '记忆：',
       '记忆:',
       '记住',
@@ -367,7 +367,7 @@ export const useMemoryStore = defineStore('memory', () => {
       '长期记忆',
       '存到记忆里',
       '添加到记忆',
-      // 英文关键词
+      // 英文关键词 - 用户输入
       'remember:',
       'remember:',
       'remember this',
@@ -378,20 +378,52 @@ export const useMemoryStore = defineStore('memory', () => {
       'long term memory',
       'commit to memory',
       'note this down',
+      // AI回复关键词 - 当AI回复这些时，表示它"认为"自己在存储记忆
+      '已经记住',
+      '已经存储',
+      '已经保存',
+      '已经记录',
+      '写进记忆',
+      '存进长期记忆',
+      '我会记住',
+      '我会保存',
+      '我会记住',
+      '已经记下',
+      '牢牢记进',
+      'i remember',
+      'i will remember',
+      'i\'ll save that',
+      'i\'ll remember that',
+      'saved to memory',
+      'stored in memory',
+      'recorded for future',
+      'committed to memory',
     ]
 
-    const hasMemoryKeyword = memoryKeywords.some(keyword =>
-      content.includes(keyword) || lowContent.includes(keyword),
-    )
+    const hasMemoryKeyword = memoryKeywords.some((keyword) => {
+      // 对于更长的关键词，使用字符串匹配而不是简单包含
+      if (keyword.length > 10) {
+        return lowContent.includes(keyword)
+      }
+      return content.includes(keyword) || lowContent.includes(keyword)
+    })
 
     if (hasMemoryKeyword) {
       console.info('[Memory Debug] 检测到记忆关键词:', {
+        role: message.role,
         content: `${content.substring(0, 100)}...`,
         matchedKeywords: memoryKeywords.filter(keyword =>
           content.includes(keyword) || lowContent.includes(keyword),
         ),
       })
-      return true // 包含记忆关键词时强制存储
+
+      // 如果是AI回复并且提到了记忆存储，强制存储到长期记忆
+      if (message.role === 'assistant') {
+        return true
+      }
+
+      // 用户输入的记忆关键词也强制存储
+      return true
     }
 
     if (message.role === 'assistant') {

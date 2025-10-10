@@ -19,6 +19,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     const body = req.body as { query?: string, userId?: string, limit?: number }
 
+    console.info('[Memory Debug Search] 收到搜索请求:', {
+      query: body?.query,
+      userId: body?.userId,
+      limit: body?.limit,
+    })
+
     if (!body?.query || typeof body.query !== 'string') {
       return res.status(400).json({ success: false, error: 'query is required' })
     }
@@ -32,6 +38,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       body.userId,
       typeof body.limit === 'number' ? body.limit : undefined,
     )
+
+    console.info('[Memory Debug Search] 搜索结果数量:', results.length)
+    console.info('[Memory Debug Search] 搜索成功，返回结果')
 
     return res.status(200).json({ success: true, data: results })
   }
