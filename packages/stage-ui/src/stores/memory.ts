@@ -244,6 +244,17 @@ export const useMemoryStore = defineStore('memory', () => {
       return
     }
 
+    const shouldStore = longTermEnabled.value && shouldPromote(message)
+    console.info('[Memory Debug] 消息存储检查:', {
+      shortTermEnabled: shortTermEnabled.value,
+      longTermEnabled: longTermEnabled.value,
+      shouldPromote: shouldPromote(message),
+      shouldStore,
+      messageContent: typeof message.content === 'string' ? `${message.content.substring(0, 100)}...` : 'non-string',
+      autoPromoteAssistant: autoPromoteAssistant.value,
+      autoPromoteUser: autoPromoteUser.value,
+    })
+
     const payload = {
       sessionId: sessionId.value,
       userId: userId.value,
@@ -252,18 +263,32 @@ export const useMemoryStore = defineStore('memory', () => {
         timestamp: message.timestamp ?? new Date(),
         metadata: {
           ...(message.metadata ?? {}),
-          persistLongTerm: longTermEnabled.value && shouldPromote(message),
+          persistLongTerm: shouldStore,
         },
       }),
     }
 
-    await fetch('/api/memory/save', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(payload),
-    })
+    try {
+      const response = await fetch('/api/memory/save', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      })
+
+      if (!response.ok) {
+        console.error('[Memory Debug] 保存失败:', response.status, response.statusText)
+        const errorText = await response.text()
+        console.error('[Memory Debug] 错误详情:', errorText)
+      }
+      else {
+        console.info('[Memory Debug] 保存成功')
+      }
+    }
+    catch (error) {
+      console.error('[Memory Debug] 保存异常:', error)
+    }
   }
 
   async function searchMemories(query: string, limit?: number) {
@@ -324,6 +349,51 @@ export const useMemoryStore = defineStore('memory', () => {
   }
 
   function shouldPromote(message: MemoryMessage) {
+    // 检查消息内容是否包含记忆关键词
+    const content = typeof message.content === 'string' ? message.content : String(message.content)
+    const lowContent = content.toLowerCase()
+
+    // 记忆关键词检测（中英文支持）
+    const memoryKeywords = [
+      // 中文关键词
+      '记忆：',
+      '记忆:',
+      '记住',
+      '记一下',
+      '记下来',
+      '存储',
+      '保存',
+      '记录',
+      '长期记忆',
+      '存到记忆里',
+      '添加到记忆',
+      // 英文关键词
+      'remember:',
+      'remember:',
+      'remember this',
+      'save this',
+      'store this',
+      'memorize',
+      'add to memory',
+      'long term memory',
+      'commit to memory',
+      'note this down',
+    ]
+
+    const hasMemoryKeyword = memoryKeywords.some(keyword =>
+      content.includes(keyword) || lowContent.includes(keyword),
+    )
+
+    if (hasMemoryKeyword) {
+      console.info('[Memory Debug] 检测到记忆关键词:', {
+        content: `${content.substring(0, 100)}...`,
+        matchedKeywords: memoryKeywords.filter(keyword =>
+          content.includes(keyword) || lowContent.includes(keyword),
+        ),
+      })
+      return true // 包含记忆关键词时强制存储
+    }
+
     if (message.role === 'assistant') {
       return autoPromoteAssistant.value
     }

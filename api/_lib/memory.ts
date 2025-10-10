@@ -311,11 +311,41 @@ async function generateEmbedding(text: string): Promise<number[]> {
       throw new Error(`Cloudflare API error: ${response.statusText}`)
     }
 
-    const data = await response.json() as { result: { data: number[][] } }
-    return data.result.data[0]
+    const payload = await response.json() as Record<string, any>
+    const embedding = extractCloudflareEmbedding(payload)
+
+    if (!embedding || !Array.isArray(embedding) || embedding.length === 0) {
+      throw new Error('Cloudflare embedding response did not include an embedding vector.')
+    }
+
+    return embedding.map((value: number | string) => Number(value))
   }
 
   throw new Error(`Unsupported embedding provider: ${provider}`)
+}
+
+function extractCloudflareEmbedding(payload: Record<string, any>): number[] | undefined {
+  const result = payload.result ?? payload
+
+  if (Array.isArray(result?.data) && result.data.length > 0) {
+    const candidate = result.data[0]
+    if (Array.isArray(candidate?.embedding)) {
+      return candidate.embedding as number[]
+    }
+    if (Array.isArray(candidate?.vector)) {
+      return candidate.vector as number[]
+    }
+  }
+
+  if (Array.isArray(result?.embedding)) {
+    return result.embedding as number[]
+  }
+
+  if (Array.isArray(result?.data?.embedding)) {
+    return result.data.embedding as number[]
+  }
+
+  return undefined
 }
 
 function sanitizeTableName(tableName?: string): string {

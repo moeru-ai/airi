@@ -207,7 +207,12 @@ pages:
       embeddingProviders:
         openai: OpenAI
         openaiCompatible: OpenAI 兼容
-        cloudflare: Cloudflare AI
+        cloudflare: Cloudflare Workers AI
+      embeddingApiKey: API 密钥
+      embeddingBaseUrl: 基础 URL
+      embeddingAccountId: 账户 ID
+      embeddingApiToken: API 令牌
+      embeddingModel: 嵌入模型名称
       apiKey: API 密钥
       baseUrl: 基础 URL
       accountId: 账户 ID
@@ -802,7 +807,12 @@ memory:
     embeddingProviders:
       openai: OpenAI
       openaiCompatible: OpenAI 兼容
-      cloudflare: Cloudflare AI
+      cloudflare: Cloudflare Workers AI
+    embeddingApiKey: API 密钥
+    embeddingBaseUrl: 基础 URL
+    embeddingAccountId: 账户 ID
+    embeddingApiToken: API 令牌
+    embeddingModel: 嵌入模型名称
     apiKey: API 密钥
     baseUrl: 基础 URL
     accountId: 账户 ID
