@@ -21,7 +21,19 @@ export function buildOpenAICompatibleProvider(
     capabilities?: ProviderMetadata['capabilities']
     validators?: ProviderMetadata['validators']
     validation?: ('health' | 'model_list' | 'chat_completions')[]
-    additionalHeaders?: Record<string, string>
+    /**
+     * Extra headers to be sent for validation and model listing.
+     * Values may be either string literals or a function that derives
+     * the header value from the provided apiKey at runtime.
+     */
+    additionalHeaders?: Record<string, string | ((apiKey: string) => string)>
+    /**
+     * Whether to include the standard `Authorization: Bearer <apiKey>` header.
+     * Some OpenAI-compatible providers (e.g. Anthropic, Google Generative AI)
+     * do not use the Authorization header and require a provider-specific header.
+     * Defaults to true.
+     */
+    useAuthorizationHeader?: boolean
   },
 ): ProviderMetadata {
   const {
@@ -39,8 +51,26 @@ export function buildOpenAICompatibleProvider(
     validators,
     validation,
     additionalHeaders,
+    useAuthorizationHeader = true,
     ...rest
   } = options
+
+  // Build headers per request considering provider-specific options
+  const buildHeaders = (apiKey: string) => {
+    const headers: Record<string, string> = {}
+
+    if (useAuthorizationHeader) {
+      headers.Authorization = `Bearer ${apiKey}`
+    }
+
+    if (additionalHeaders) {
+      for (const [key, value] of Object.entries(additionalHeaders)) {
+        headers[key] = typeof value === 'function' ? value(apiKey) : value
+      }
+    }
+
+    return headers
+  }
 
   const finalCapabilities = capabilities || {
     listModels: async (config: Record<string, unknown>) => {
@@ -58,10 +88,7 @@ export function buildOpenAICompatibleProvider(
       const models = await listModels({
         apiKey,
         baseURL: baseUrl,
-        headers: {
-          ...additionalHeaders,
-          Authorization: `Bearer ${apiKey}`,
-        },
+        headers: buildHeaders(apiKey),
       })
 
       return models.map((model: any) => {
@@ -117,10 +144,7 @@ export function buildOpenAICompatibleProvider(
         const models = await listModels({
           apiKey,
           baseURL: baseUrl,
-          headers: {
-            ...additionalHeaders,
-            Authorization: `Bearer ${apiKey}`,
-          },
+          headers: buildHeaders(apiKey),
         })
         if (models && models.length > 0)
           model = models[0].id
@@ -135,10 +159,7 @@ export function buildOpenAICompatibleProvider(
           await generateText({
             apiKey,
             baseURL: baseUrl,
-            headers: {
-              ...additionalHeaders,
-              Authorization: `Bearer ${apiKey}`,
-            },
+            headers: buildHeaders(apiKey),
             model,
             messages: message.messages(message.user('ping')),
             max_tokens: 1,
@@ -155,10 +176,7 @@ export function buildOpenAICompatibleProvider(
           const models = await listModels({
             apiKey,
             baseURL: baseUrl,
-            headers: {
-              ...additionalHeaders,
-              Authorization: `Bearer ${apiKey}`,
-            },
+            headers: buildHeaders(apiKey),
           })
           if (!models || models.length === 0) {
             errors.push(new Error('Model list check failed: no models found'))
@@ -175,10 +193,7 @@ export function buildOpenAICompatibleProvider(
           await generateText({
             apiKey,
             baseURL: baseUrl,
-            headers: {
-              ...additionalHeaders,
-              Authorization: `Bearer ${apiKey}`,
-            },
+            headers: buildHeaders(apiKey),
             model,
             messages: message.messages(message.user('ping')),
             max_tokens: 1,
