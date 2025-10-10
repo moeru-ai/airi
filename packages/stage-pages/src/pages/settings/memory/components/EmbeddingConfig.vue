@@ -11,6 +11,7 @@ const {
   embeddingApiKey,
   embeddingBaseUrl,
   embeddingAccountId,
+  embeddingApiToken,
   embeddingModel,
 } = storeToRefs(memoryStore)
 </script>
@@ -52,7 +53,7 @@ const {
         </option>
       </select>
     </div>
-    <div class="flex flex-col gap-2">
+    <div v-if="embeddingProvider !== 'cloudflare'" class="flex flex-col gap-2">
       <label class="text-xs text-neutral-500 font-medium tracking-wide uppercase dark:text-neutral-400" for="memory-embedding-api-key">
         {{ t('settings.memory.long_term.embeddingApiKey', 'API key') }}
       </label>
@@ -61,7 +62,7 @@ const {
         v-model="embeddingApiKey"
         type="password"
         class="w-full border border-neutral-200 rounded-md bg-white px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
-        :placeholder="embeddingProvider === 'cloudflare' ? 'Cloudflare API Token' : 'sk-...'"
+        placeholder="sk-..."
       >
     </div>
     <div v-if="embeddingProvider === 'cloudflare'" class="flex flex-col gap-2">
@@ -74,6 +75,18 @@ const {
         type="text"
         class="w-full border border-neutral-200 rounded-md bg-white px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
         placeholder="1234567890abcdef"
+      >
+    </div>
+    <div v-if="embeddingProvider === 'cloudflare'" class="flex flex-col gap-2">
+      <label class="text-xs text-neutral-500 font-medium tracking-wide uppercase dark:text-neutral-400" for="memory-embedding-api-token">
+        {{ t('settings.memory.long_term.embeddingApiToken', 'API Token') }}
+      </label>
+      <input
+        id="memory-embedding-api-token"
+        v-model="embeddingApiToken"
+        type="password"
+        class="w-full border border-neutral-200 rounded-md bg-white px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
+        placeholder="Cloudflare API Token"
       >
     </div>
     <div v-if="embeddingProvider === 'openai-compatible'" class="flex flex-col gap-2">

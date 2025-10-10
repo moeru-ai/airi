@@ -155,6 +155,94 @@ pages:
   memory:
     description: Where memories got stored, and organized
     title: Memory
+    short_term:
+      title: Short-Term Memory
+      description: Short-term cache keeps recent dialogue context so AIRI can stay coherent
+      saved: Configuration applied.
+      provider: Short-term provider
+      providers:
+        localRedis: Local Redis
+        upstash: Upstash Redis (serverless)
+        vercelKv: Vercel KV
+      enable: Enable short-term memory
+      enableDescription: Persist recent dialogue context for the current browser session
+      namespace: Namespace prefix
+      retention: Messages to retain in short-term memory
+      retentionHint: Higher values keep more context but may slow down prompting
+      ttl: TTL (seconds)
+      ttlHint: Messages expire after this duration
+      upstashTitle: Upstash Redis configuration
+      redisTitle: Redis connection
+      redisHost: Host
+      redisPort: Port
+      redisPassword: Password
+      redisPasswordPlaceholder: Optional password
+      session: Session controls
+      sessionHint: Short-term memory is isolated per session
+      newSession: Start new session
+      clear: Clear session memory
+      history: Recent messages
+      historyHint: Preview of cached context sent to the LLM
+      disabledMessage: Enable short-term memory to retain chat history locally
+      empty: No messages cached yet
+    long_term:
+      title: Long-term Memory
+      description: Store important memories inside a vector database for semantic search and multi-device sync
+      saved: Configuration applied.
+      enable: Enable long-term memory
+      enableDescription: Persist memories using the configured database and embedding provider
+      provider: Long-term provider
+      providers:
+        postgres: Postgres + pgvector
+        qdrant: Qdrant
+      connectionTitle: Database connection
+      connectionString: Connection string
+      connectionHint: 'Optional: override individual fields below if you prefer key/value configuration.'
+      host: Host
+      port: Port
+      database: Database
+      user: User
+      password: Password
+      ssl: Require SSL/TLS
+      qdrantTitle: Qdrant configuration
+      qdrantUrl: Endpoint URL
+      qdrantApiKey: API key
+      qdrantApiKeyPlaceholder: Optional for public instances
+      qdrantCollection: Collection name
+      qdrantVectorSize: Vector size
+      embeddingTitle: Embedding provider
+      embeddingProvider: Provider
+      embeddingProviders:
+        openai: OpenAI
+        openaiCompatible: OpenAI Compatible
+        cloudflare: Cloudflare AI
+      apiKey: API key
+      baseUrl: Base URL
+      accountId: Account ID
+      apiToken: API Token
+      model: Embedding model name
+      modelHint: Provide the exact embedding model identifier. Leave blank to use the default value.
+      promoteAssistant: Persist assistant messages automatically
+      promoteUser: Persist user messages automatically
+      userId: User identifier for memory indexing
+      userIdPlaceholder: e.g. airi@home
+      userIdHint: Use the same identifier across devices to sync memories.
+      searchTitle: Search memories
+      searchHint: Find related memories via semantic search.
+      searchPlaceholder: What should AIRI remember...
+      export: Export JSON
+      disabledMessage: Enable long-term memory to access the search API.
+      exportPreview: Export preview
+      searching: Searching memories...
+      empty: No matching memories yet.
+    embedding:
+      title: Embedding Configuration
+      description: Configure the embedding provider for long-term memory semantic search.
+      envHint: Fields auto-fill from environment variables such as MEMORY_EMBEDDING_PROVIDER, MEMORY_EMBEDDING_API_KEY, MEMORY_EMBEDDING_BASE_URL, and MEMORY_EMBEDDING_MODEL (or their VITE_ prefixed variants).
+      manualTitle: Manual setup guide
+      stepGenerate: Generate embedding API credentials from your provider (OpenAI, Cloudflare, or an OpenAI-compatible service).
+      stepEnv: Add the credentials to your deployment environment variables, then redeploy so the values appear here automatically.
+      stepFallback: If auto-fill is unavailable, paste the values manually and press “Save Configuration”.
   models:
     description: Live2D, VRM, etc.
     title: Models

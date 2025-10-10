@@ -2,6 +2,8 @@
 // Supports Vercel KV and Upstash Redis for short-term memory
 // Supports Postgres+pgvector and Qdrant for long-term memory
 
+import { randomUUID } from 'node:crypto'
+
 import OpenAI from 'openai'
 
 import { QdrantClient } from '@qdrant/js-client-rest'
@@ -40,9 +42,13 @@ export interface MemoryConfiguration {
       collectionName?: string
     }
     embedding?: {
-      provider: 'openai' | 'cloudflare'
+      provider: 'openai' | 'cloudflare' | 'openai-compatible'
       model?: string
       dimensions?: number
+      apiKey?: string
+      baseUrl?: string
+      accountId?: string
+      apiToken?: string
       openai?: {
         apiKey: string
         baseURL?: string
@@ -149,14 +155,18 @@ function createConfigurationFromEnv(): MemoryConfiguration {
     }
 
     // Embedding configuration
-    const embeddingProvider = process.env.EMBEDDING_PROVIDER || 'openai'
+    const embeddingProvider = (process.env.EMBEDDING_PROVIDER || 'openai') as 'openai' | 'cloudflare' | 'openai-compatible'
     config.longTerm.embedding = {
-      provider: embeddingProvider as 'openai' | 'cloudflare',
+      provider: embeddingProvider,
       model: process.env.EMBEDDING_MODEL,
       dimensions: process.env.EMBEDDING_DIMENSIONS ? Number.parseInt(process.env.EMBEDDING_DIMENSIONS, 10) : undefined,
+      apiKey: process.env.OPENAI_API_KEY,
+      baseUrl: process.env.OPENAI_BASE_URL,
+      accountId: process.env.CLOUDFLARE_ACCOUNT_ID,
+      apiToken: process.env.CLOUDFLARE_API_TOKEN,
     }
 
-    if (embeddingProvider === 'openai') {
+    if (embeddingProvider === 'openai' || embeddingProvider === 'openai-compatible') {
       config.longTerm.embedding.openai = {
         apiKey: process.env.OPENAI_API_KEY || '',
         baseURL: process.env.OPENAI_BASE_URL,
@@ -222,13 +232,26 @@ function getQdrantClient(): QdrantClient {
 function getOpenAIClient(): OpenAI {
   if (!openaiClient) {
     const config = getConfiguration()
-    if (!config.longTerm?.embedding?.openai) {
+    const embedding = config.longTerm?.embedding
+
+    if (!embedding || embedding.provider === 'cloudflare') {
       throw new Error('OpenAI configuration is missing')
     }
 
+    const openaiConfig = embedding.openai ?? {
+      apiKey: embedding.apiKey ?? '',
+      baseURL: embedding.baseUrl ?? (embedding as Record<string, unknown>).baseURL as string | undefined,
+    }
+
+    if (!openaiConfig.apiKey) {
+      throw new Error('OpenAI API key is missing')
+    }
+
+    embedding.openai = openaiConfig
+
     openaiClient = new OpenAI({
-      apiKey: config.longTerm.embedding.openai.apiKey,
-      baseURL: config.longTerm.embedding.openai.baseURL,
+      apiKey: openaiConfig.apiKey,
+      baseURL: openaiConfig.baseURL,
     })
   }
   return openaiClient
@@ -244,7 +267,7 @@ async function generateEmbedding(text: string): Promise<number[]> {
 
   const { provider, model } = config.longTerm.embedding
 
-  if (provider === 'openai') {
+  if (provider === 'openai' || provider === 'openai-compatible') {
     const openai = getOpenAIClient()
     const response = await openai.embeddings.create({
       model: model || 'text-embedding-3-small',
@@ -279,6 +302,130 @@ async function generateEmbedding(text: string): Promise<number[]> {
   }
 
   throw new Error(`Unsupported embedding provider: ${provider}`)
+}
+
+function sanitizeTableName(tableName?: string): string {
+  const candidate = tableName || 'memory_embeddings'
+  if (!/^[A-Z_]\w*$/i.test(candidate)) {
+    throw new Error(`Invalid Postgres table name: ${candidate}`)
+  }
+  return candidate
+}
+
+async function savePostgresMemoryEntry(
+  config: MemoryConfiguration,
+  userId: string,
+  content: string,
+  embedding: number[],
+  metadata: Record<string, unknown> | undefined,
+  createdAt: string | undefined,
+): Promise<void> {
+  const tableName = sanitizeTableName(config.longTerm?.postgres?.tableName)
+  const query = `
+    INSERT INTO ${tableName} (id, user_id, content, embedding, metadata, created_at)
+    VALUES ($1::uuid, $2, $3, $4::vector, $5::jsonb, COALESCE($6::timestamptz, NOW()))
+  `
+
+  const metadataJson = metadata ? JSON.stringify(metadata) : null
+  const createdAtValue = createdAt ? new Date(createdAt).toISOString() : null
+
+  await sql.query(query, [
+    randomUUID(),
+    userId,
+    content,
+    JSON.stringify(embedding),
+    metadataJson,
+    createdAtValue,
+  ])
+}
+
+async function saveQdrantMemoryEntry(
+  config: MemoryConfiguration,
+  userId: string,
+  content: string,
+  embedding: number[],
+  metadata: Record<string, unknown> | undefined,
+  createdAt: string | undefined,
+): Promise<void> {
+  const qdrant = getQdrantClient()
+  const collectionName = config.longTerm?.qdrant?.collectionName || 'memory'
+
+  const payload: Record<string, unknown> = {
+    userId,
+    content,
+    timestamp: createdAt,
+    metadata,
+  }
+
+  await qdrant.upsert(collectionName, {
+    wait: false,
+    points: [
+      {
+        id: randomUUID(),
+        vector: embedding,
+        payload,
+      },
+    ],
+  })
+}
+
+async function persistLongTermMemory(
+  sessionId: string,
+  message: Message,
+  config: MemoryConfiguration,
+  userId?: string,
+): Promise<void> {
+  if (!config.longTerm?.enabled) {
+    return
+  }
+
+  if (!userId) {
+    return
+  }
+
+  const shouldPersist = Boolean(message.metadata && message.metadata.persistLongTerm)
+  if (!shouldPersist) {
+    return
+  }
+
+  const contentString = typeof message.content === 'string'
+    ? message.content
+    : JSON.stringify(message.content)
+
+  if (!contentString || !contentString.trim()) {
+    return
+  }
+
+  const metadata: Record<string, unknown> = {
+    ...(message.metadata ? { ...message.metadata } : {}),
+    role: message.role,
+    sessionId,
+  }
+
+  delete metadata.persistLongTerm
+
+  const timestamp = typeof message.timestamp === 'string'
+    ? message.timestamp
+    : message.timestamp instanceof Date
+      ? message.timestamp.toISOString()
+      : undefined
+
+  try {
+    const embedding = await generateEmbedding(contentString)
+
+    if (config.longTerm.provider === 'postgres-pgvector') {
+      await savePostgresMemoryEntry(config, userId, contentString, embedding, metadata, timestamp)
+    }
+    else if (config.longTerm.provider === 'qdrant') {
+      await saveQdrantMemoryEntry(config, userId, contentString, embedding, metadata, timestamp)
+    }
+    else {
+      console.warn(`[Memory] Unsupported long-term provider: ${config.longTerm.provider}`)
+    }
+  }
+  catch (error) {
+    console.error('[Memory] Failed to persist long-term memory:', error)
+  }
 }
 
 // Save message to short-term memory
@@ -326,6 +473,8 @@ export async function saveMessage(sessionId: string, message: Message, userId?: 
   else {
     throw new Error(`Unsupported short-term provider: ${config.shortTerm.provider}`)
   }
+
+  await persistLongTermMemory(sessionId, normalizedMessage, config, userId)
 }
 
 // Get recent messages from short-term memory
@@ -401,11 +550,7 @@ export async function searchSimilar(query: string, userId: string, limit?: numbe
 // Search Postgres with pgvector
 async function searchPostgres(embedding: number[], userId: string, limit: number): Promise<MemorySearchResult[]> {
   const config = getConfiguration()
-  const configuredTable = config.longTerm?.postgres?.tableName || 'memory_embeddings'
-
-  if (!/^[A-Z_]\w*$/i.test(configuredTable)) {
-    throw new Error(`Invalid Postgres table name: ${configuredTable}`)
-  }
+  const tableName = sanitizeTableName(config.longTerm?.postgres?.tableName)
 
   interface PostgresRow {
     id: string
@@ -422,7 +567,7 @@ async function searchPostgres(embedding: number[], userId: string, limit: number
         metadata,
         created_at::text as timestamp,
         1 - (embedding <=> $2::vector) as score
-      FROM ${configuredTable}
+      FROM ${tableName}
       WHERE user_id = $1
       ORDER BY embedding <=> $2::vector
       LIMIT $3

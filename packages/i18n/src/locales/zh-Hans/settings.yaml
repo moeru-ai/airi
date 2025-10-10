@@ -211,6 +211,7 @@ pages:
       apiKey: API 密钥
       baseUrl: 基础 URL
       accountId: 账户 ID
+      apiToken: API 令牌
       model: 嵌入模型名称
       modelHint: 输入嵌入模型的确切标识符。留空则使用默认值
       promoteAssistant: 自动持久化助手消息

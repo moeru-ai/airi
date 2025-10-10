@@ -32,8 +32,8 @@ interface MemoryConfigurationPayload {
   }
   longTerm?: {
     enabled: boolean
-    provider: 'postgres-pgvector'
-    connection: {
+    provider: 'postgres-pgvector' | 'qdrant'
+    postgres?: {
       connectionString?: string
       host?: string
       port?: number
@@ -41,16 +41,35 @@ interface MemoryConfigurationPayload {
       user?: string
       password?: string
       ssl?: boolean
+      tableName?: string
+    }
+    qdrant?: {
+      url?: string
+      apiKey?: string
+      collectionName?: string
+      vectorSize?: number
     }
     embedding?: {
       provider: EmbeddingProviderType
-      apiKey: string
       model: string
+      apiKey?: string
       baseUrl?: string
       accountId?: string
+      apiToken?: string
+      openai?: {
+        apiKey: string
+        baseURL?: string
+      }
+      cloudflare?: {
+        accountId: string
+        apiToken: string
+        model?: string
+      }
     }
   }
 }
+
+type EmbeddingConfigurationPayloadType = NonNullable<MemoryConfigurationPayload['longTerm']>['embedding']
 
 function resolveEnvValue(key: string): string | boolean | undefined {
   const env = (import.meta?.env ?? {}) as Record<string, string | boolean | undefined>
@@ -388,17 +407,17 @@ export const useMemoryStore = defineStore('memory', () => {
         longTermProvider.value = longTerm.provider
 
         if (longTerm.provider === 'postgres-pgvector') {
-          const connection = longTerm.connection ?? {}
-          longTermConnectionString.value = connection.connectionString ?? ''
-          longTermHost.value = connection.host ?? ''
-          if (typeof connection.port === 'number') {
-            longTermPort.value = connection.port
+          const postgres = longTerm.postgres ?? (longTerm as Record<string, any>).connection ?? {}
+          longTermConnectionString.value = postgres.connectionString ?? ''
+          longTermHost.value = postgres.host ?? ''
+          if (typeof postgres.port === 'number') {
+            longTermPort.value = postgres.port
           }
-          longTermDatabase.value = connection.database ?? 'postgres'
-          longTermUser.value = connection.user ?? 'postgres'
-          longTermPassword.value = connection.password ?? ''
-          if (typeof connection.ssl === 'boolean') {
-            longTermSsl.value = connection.ssl
+          longTermDatabase.value = postgres.database ?? 'postgres'
+          longTermUser.value = postgres.user ?? 'postgres'
+          longTermPassword.value = postgres.password ?? ''
+          if (typeof postgres.ssl === 'boolean') {
+            longTermSsl.value = postgres.ssl
           }
         }
         else if (longTerm.provider === 'qdrant') {
@@ -412,11 +431,31 @@ export const useMemoryStore = defineStore('memory', () => {
         }
 
         if (longTerm.embedding) {
-          embeddingProvider.value = longTerm.embedding.provider ?? 'openai'
-          embeddingApiKey.value = longTerm.embedding.apiKey ?? ''
-          embeddingBaseUrl.value = longTerm.embedding.baseUrl ?? ''
-          embeddingAccountId.value = longTerm.embedding.accountId ?? ''
-          embeddingModel.value = longTerm.embedding.model ?? 'text-embedding-3-small'
+          const embedding = longTerm.embedding
+          embeddingProvider.value = embedding.provider ?? 'openai'
+          embeddingModel.value = embedding.model ?? 'text-embedding-3-small'
+
+          if (embeddingProvider.value === 'cloudflare') {
+            const cloudflare = embedding.cloudflare ?? {
+              accountId: embedding.accountId,
+              apiToken: embedding.apiToken,
+              model: embedding.model,
+            }
+            embeddingAccountId.value = cloudflare?.accountId ?? embedding.accountId ?? ''
+            embeddingApiToken.value = cloudflare?.apiToken ?? embedding.apiToken ?? ''
+            embeddingApiKey.value = ''
+            embeddingBaseUrl.value = ''
+          }
+          else {
+            const openai = embedding.openai ?? {
+              apiKey: embedding.apiKey,
+              baseURL: embedding.baseUrl ?? (embedding as Record<string, unknown>).baseURL,
+            }
+            embeddingApiKey.value = openai?.apiKey ?? embedding.apiKey ?? ''
+            embeddingBaseUrl.value = openai?.baseURL ?? embedding.baseUrl ?? ''
+            embeddingAccountId.value = embedding.accountId ?? ''
+            embeddingApiToken.value = embedding.apiToken ?? ''
+          }
         }
       }
     }
@@ -460,61 +499,69 @@ export const useMemoryStore = defineStore('memory', () => {
               }
             : undefined,
         },
-        longTerm: enabledLongTerm.value
-          ? longTermProvider.value === 'qdrant'
-            ? {
-              enabled: true,
-              provider: 'qdrant',
-              qdrant: {
-                url: longTermQdrantUrl.value,
-                apiKey: longTermQdrantApiKey.value || undefined,
-                collectionName: longTermQdrantCollection.value || 'memory_entries',
-                vectorSize: Number(longTermQdrantVectorSize.value) || undefined,
-              },
-              embedding: {
-                provider: embeddingProvider.value,
-                apiKey: embeddingApiKey.value,
-                baseUrl: embeddingBaseUrl.value || undefined,
-                accountId: embeddingAccountId.value || undefined,
-                model: embeddingModel.value,
-              },
-            } satisfies QdrantLongTermPayload
-            : {
-              enabled: true,
-              provider: 'postgres-pgvector',
-              connection: {
-                connectionString: longTermConnectionString.value || undefined,
-                host: longTermHost.value || undefined,
-                port: Number(longTermPort.value) || undefined,
-                database: longTermDatabase.value || undefined,
-                user: longTermUser.value || undefined,
-                password: longTermPassword.value || undefined,
-                ssl: Boolean(longTermSsl.value),
-              },
-              embedding: {
-                provider: embeddingProvider.value,
-                apiKey: embeddingApiKey.value,
-                baseUrl: embeddingBaseUrl.value || undefined,
-                accountId: embeddingAccountId.value || undefined,
-                model: embeddingModel.value,
-              },
-            } satisfies PostgresLongTermPayload
-          : longTermProvider.value === 'qdrant'
-            ? {
-              enabled: false,
-              provider: 'qdrant',
-              qdrant: {
-                url: longTermQdrantUrl.value,
-                apiKey: longTermQdrantApiKey.value || undefined,
-                collectionName: longTermQdrantCollection.value || 'memory_entries',
-                vectorSize: Number(longTermQdrantVectorSize.value) || undefined,
-              },
-            } satisfies QdrantLongTermPayload
-            : {
-              enabled: false,
-              provider: 'postgres-pgvector',
-              connection: {},
-            } satisfies PostgresLongTermPayload,
+        longTerm: (() => {
+          const embeddingPayload = {
+            provider: embeddingProvider.value,
+            model: embeddingModel.value,
+            apiKey: embeddingApiKey.value || undefined,
+            baseUrl: embeddingBaseUrl.value || undefined,
+            accountId: embeddingAccountId.value || undefined,
+            apiToken: embeddingApiToken.value || undefined,
+          } as EmbeddingConfigurationPayloadType
+
+          if (embeddingProvider.value === 'cloudflare') {
+            embeddingPayload.apiKey = undefined
+            embeddingPayload.baseUrl = undefined
+            embeddingPayload.cloudflare = {
+              accountId: embeddingAccountId.value,
+              apiToken: embeddingApiToken.value,
+              model: embeddingModel.value || undefined,
+            }
+            embeddingPayload.openai = undefined
+          }
+          else {
+            embeddingPayload.openai = {
+              apiKey: embeddingApiKey.value,
+              baseURL: embeddingBaseUrl.value || undefined,
+            }
+            embeddingPayload.cloudflare = undefined
+            embeddingPayload.apiToken = undefined
+          }
+
+          const postgresConfig = {
+            connectionString: longTermConnectionString.value || undefined,
+            host: longTermHost.value || undefined,
+            port: Number(longTermPort.value) || undefined,
+            database: longTermDatabase.value || undefined,
+            user: longTermUser.value || undefined,
+            password: longTermPassword.value || undefined,
+            ssl: longTermSsl.value,
+          }
+
+          const parsedVectorSize = Number(longTermQdrantVectorSize.value)
+          const qdrantConfig = {
+            url: longTermQdrantUrl.value || undefined,
+            apiKey: longTermQdrantApiKey.value || undefined,
+            collectionName: longTermQdrantCollection.value || 'memory_entries',
+            vectorSize: Number.isNaN(parsedVectorSize) ? undefined : parsedVectorSize,
+          }
+
+          if (longTermProvider.value === 'qdrant') {
+            return {
+              enabled: enabledLongTerm.value,
+              provider: 'qdrant' as const,
+              qdrant: qdrantConfig,
+              embedding: embeddingPayload,
+            }
+          }
+
+          return {
+            enabled: enabledLongTerm.value,
+            provider: 'postgres-pgvector' as const,
+            postgres: postgresConfig,
+            embedding: embeddingPayload,
+          }
+        })(),
       }
 
       const response = await fetch('/api/memory/config', {
