@@ -1,5 +1,5 @@
 common:
-  save: 保存配置
+  save: 保存
   apply: 应用
   refresh: 刷新
   loading: 加载中...
@@ -214,12 +214,7 @@ pages:
       embeddingProviders:
         openai: OpenAI
         openaiCompatible: OpenAI 兼容
-        cloudflare: Cloudflare Workers AI
-      embeddingApiKey: API 密钥
-      embeddingBaseUrl: 基础 URL
-      embeddingAccountId: 账户 ID
-      embeddingApiToken: API 令牌
-      embeddingModel: 嵌入模型名称
+        cloudflare: Cloudflare AI
       apiKey: API 密钥
       baseUrl: 基础 URL
       accountId: 账户 ID
@@ -242,11 +237,11 @@ pages:
     embedding:
       title: 嵌入配置
       description: 配置用于长期记忆语义搜索的嵌入服务提供商
-      envHint: 字段会自动从 MEMORY_EMBEDDING_PROVIDER、MEMORY_EMBEDDING_API_KEY、MEMORY_EMBEDDING_BASE_URL、MEMORY_EMBEDDING_MODEL 等环境变量（及其 VITE_ 前缀变体）中读取默认值。
+      envHint: '字段会自动从 MEMORY_EMBEDDING_PROVIDER、MEMORY_EMBEDDING_API_KEY、MEMORY_EMBEDDING_BASE_URL、MEMORY_EMBEDDING_MODEL（或带 VITE_ 前缀的变体）等环境变量中填充。'
       manualTitle: 手动配置指南
-      stepGenerate: 从提供商（如 OpenAI、Cloudflare 或兼容 OpenAI 的服务）生成可用的嵌入 API 凭据。
-      stepEnv: 将这些凭据写入部署环境变量并重新部署，页面即可自动填充相关字段。
-      stepFallback: 若无法自动填充，可在此手动粘贴对应的数值，然后点击“保存配置”。
+      stepGenerate: 从提供商（如 OpenAI、Cloudflare 或兼容 OpenAI 的服务）生成一组可用的嵌入 API 凭据。
+      stepEnv: 将这些凭据添加到部署环境变量并重新部署，以便字段能够自动填充。
+      stepFallback: 如果无法自动填充，可在此手动粘贴数值后点击“保存配置”。
   models:
     description: 切换角色的 Live2D，VRM 模型
     title: 角色模型
@@ -814,12 +809,7 @@ memory:
     embeddingProviders:
       openai: OpenAI
       openaiCompatible: OpenAI 兼容
-      cloudflare: Cloudflare Workers AI
-    embeddingApiKey: API 密钥
-    embeddingBaseUrl: 基础 URL
-    embeddingAccountId: 账户 ID
-    embeddingApiToken: API 令牌
-    embeddingModel: 嵌入模型名称
+      cloudflare: Cloudflare AI
     apiKey: API 密钥
     baseUrl: 基础 URL
     accountId: 账户 ID
@@ -838,13 +828,3 @@ memory:
     exportPreview: 导出预览
     searching: 正在搜索记忆...
     empty: 尚无匹配的记忆
-settings:
-  memory:
-    embedding:
-      title: 嵌入配置
-      description: 配置用于长期记忆语义搜索的嵌入服务提供商
-      envHint: 字段会自动从 MEMORY_EMBEDDING_PROVIDER、MEMORY_EMBEDDING_API_KEY、MEMORY_EMBEDDING_BASE_URL、MEMORY_EMBEDDING_MODEL 等环境变量（及其 VITE_ 前缀变体）中读取默认值。
-      manualTitle: 手动配置指南
-      stepGenerate: 从提供商（如 OpenAI、Cloudflare 或兼容 OpenAI 的服务）生成可用的嵌入 API 凭据。
-      stepEnv: 将这些凭据写入部署环境变量并重新部署，页面即可自动填充相关字段。
-      stepFallback: 若无法自动填充，可在此手动粘贴对应的数值，然后点击“保存配置”。

@@ -120,22 +120,39 @@ export const useMemoryStore = defineStore('memory', () => {
   const enabledShortTerm = useLocalStorage('settings/memory/short-term/enabled', true)
   const enabledLongTerm = useLocalStorage('settings/memory/long-term/enabled', getEnvValue('LONG_TERM_MEMORY_ENABLED', getEnvValue('MEMORY_LONG_TERM_ENABLED', false) as boolean) as boolean)
   const retentionLimit = useLocalStorage('settings/memory/short-term/limit', getEnvValue('SHORT_TERM_MEMORY_MAX_MESSAGES', 20) as number)
-
   const envShortTermProvider = getEnvValue('SHORT_TERM_MEMORY_PROVIDER', getEnvValue('MEMORY_PROVIDER', '') as string) as string
   const detectedUpstashUrlValue = getEnvValue(
     'UPSTASH_KV_REST_API_URL',
     getEnvValue('UPSTASH_KV_URL', getEnvValue('UPSTASH_REDIS_REST_URL', '') as string) as string,
   )
   const detectedUpstashUrl = typeof detectedUpstashUrlValue === 'string' ? detectedUpstashUrlValue : ''
-  const defaultShortTermProvider = (() => {
+  const vercelEnv = resolveEnvValue('VERCEL')
+  const runningOnVercel = (() => {
+    if (typeof vercelEnv === 'boolean') {
+      return vercelEnv
+    }
+    if (typeof vercelEnv === 'string') {
+      return vercelEnv === '1' || vercelEnv.toLowerCase() === 'true'
+    }
+    if (typeof process !== 'undefined' && typeof process.env?.VERCEL === 'string') {
+      const value = process.env.VERCEL
+      return value === '1' || value?.toLowerCase() === 'true'
+    }
+    return false
+  })()
+
+  const defaultShortTermProvider: ShortTermProviderType = (() => {
     const normalized = (envShortTermProvider || '').toLowerCase()
     if (normalized === 'vercel-kv' || normalized === 'upstash-redis' || normalized === 'local-redis') {
       return normalized as ShortTermProviderType
     }
     if (detectedUpstashUrl) {
-      return 'upstash-redis' as ShortTermProviderType
+      return 'upstash-redis'
     }
-    return 'vercel-kv' as ShortTermProviderType
+    if (runningOnVercel) {
+      return 'vercel-kv'
+    }
+    return 'local-redis'
   })()
 
   const shortTermProvider = useLocalStorage<ShortTermProviderType>('settings/memory/short-term/provider', defaultShortTermProvider)
@@ -149,6 +166,8 @@ export const useMemoryStore = defineStore('memory', () => {
   const shortTermRedisHost = useLocalStorage('settings/memory/short-term/redis-host', 'localhost')
   const shortTermRedisPort = useLocalStorage('settings/memory/short-term/redis-port', 6379)
   const shortTermRedisPassword = useLocalStorage('settings/memory/short-term/redis-password', '')
+
+  // Allow local-redis in non-Vercel deployments unless explicit provider overrides it
 
   const autoPromoteAssistant = useLocalStorage('settings/memory/long-term/promote-assistant', true)
   const autoPromoteUser = useLocalStorage('settings/memory/long-term/promote-user', true)
@@ -169,14 +188,8 @@ export const useMemoryStore = defineStore('memory', () => {
   const embeddingProvider = useLocalStorage<EmbeddingProviderType>('settings/memory/embedding/provider', getEnvValue('MEMORY_EMBEDDING_PROVIDER', getEnvValue('EMBEDDING_PROVIDER', 'openai') as string) as EmbeddingProviderType)
   const embeddingApiKey = useLocalStorage('settings/memory/embedding/api-key', getEnvValue('MEMORY_EMBEDDING_API_KEY', getEnvValue('OPENAI_API_KEY', '') as string) as string)
   const embeddingBaseUrl = useLocalStorage('settings/memory/embedding/base-url', getEnvValue('MEMORY_EMBEDDING_BASE_URL', getEnvValue('OPENAI_BASE_URL', '') as string) as string)
-  const embeddingAccountId = useLocalStorage(
-    'settings/memory/embedding/account-id',
-    getEnvValue('MEMORY_EMBEDDING_ACCOUNT_ID', getEnvValue('CLOUDFLARE_ACCOUNT_ID', '') as string) as string,
-  )
-  const embeddingApiToken = useLocalStorage(
-    'settings/memory/embedding/api-token',
-    getEnvValue('MEMORY_EMBEDDING_API_TOKEN', getEnvValue('CLOUDFLARE_API_TOKEN', '') as string) as string,
-  )
+  const embeddingAccountId = useLocalStorage('settings/memory/embedding/account-id', getEnvValue('CLOUDFLARE_ACCOUNT_ID', '') as string)
+  const embeddingApiToken = useLocalStorage('settings/memory/embedding/api-token', getEnvValue('CLOUDFLARE_API_TOKEN', '') as string)
   const embeddingModel = useLocalStorage('settings/memory/embedding/model', getEnvValue('MEMORY_EMBEDDING_MODEL', getEnvValue('EMBEDDING_MODEL', 'text-embedding-3-small') as string) as string)
 
   const userId = useLocalStorage('settings/memory/user-id', 'default-user')
@@ -265,17 +278,6 @@ export const useMemoryStore = defineStore('memory', () => {
       return
     }
 
-    const shouldStore = longTermEnabled.value && shouldPromote(message)
-    console.info('[Memory Debug] 消息存储检查:', {
-      shortTermEnabled: shortTermEnabled.value,
-      longTermEnabled: longTermEnabled.value,
-      shouldPromote: shouldPromote(message),
-      shouldStore,
-      messageContent: typeof message.content === 'string' ? `${message.content.substring(0, 100)}...` : 'non-string',
-      autoPromoteAssistant: autoPromoteAssistant.value,
-      autoPromoteUser: autoPromoteUser.value,
-    })
-
     const payload = {
       sessionId: sessionId.value,
       userId: userId.value,
@@ -284,32 +286,18 @@ export const useMemoryStore = defineStore('memory', () => {
         timestamp: message.timestamp ?? new Date(),
         metadata: {
           ...(message.metadata ?? {}),
-          persistLongTerm: shouldStore,
+          persistLongTerm: longTermEnabled.value && shouldPromote(message),
         },
       }),
     }
 
-    try {
-      const response = await fetch('/api/memory/save', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload),
-      })
-
-      if (!response.ok) {
-        console.error('[Memory Debug] 保存失败:', response.status, response.statusText)
-        const errorText = await response.text()
-        console.error('[Memory Debug] 错误详情:', errorText)
-      }
-      else {
-        console.info('[Memory Debug] 保存成功')
-      }
-    }
-    catch (error) {
-      console.error('[Memory Debug] 保存异常:', error)
-    }
+    await fetch('/api/memory/save', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    })
   }
 
   async function searchMemories(query: string, limit?: number) {
@@ -370,83 +358,6 @@ export const useMemoryStore = defineStore('memory', () => {
   }
 
   function shouldPromote(message: MemoryMessage) {
-    // 检查消息内容是否包含记忆关键词
-    const content = typeof message.content === 'string' ? message.content : String(message.content)
-    const lowContent = content.toLowerCase()
-
-    // 记忆关键词检测（中英文支持）
-    const memoryKeywords = [
-      // 中文关键词 - 用户输入
-      '记忆：',
-      '记忆:',
-      '记住',
-      '记一下',
-      '记下来',
-      '存储',
-      '保存',
-      '记录',
-      '长期记忆',
-      '存到记忆里',
-      '添加到记忆',
-      // 英文关键词 - 用户输入
-      'remember:',
-      'remember:',
-      'remember this',
-      'save this',
-      'store this',
-      'memorize',
-      'add to memory',
-      'long term memory',
-      'commit to memory',
-      'note this down',
-      // AI回复关键词 - 当AI回复这些时，表示它"认为"自己在存储记忆
-      '已经记住',
-      '已经存储',
-      '已经保存',
-      '已经记录',
-      '写进记忆',
-      '存进长期记忆',
-      '我会记住',
-      '我会保存',
-      '我会记住',
-      '已经记下',
-      '牢牢记进',
-      'i remember',
-      'i will remember',
-      'i\'ll save that',
-      'i\'ll remember that',
-      'saved to memory',
-      'stored in memory',
-      'recorded for future',
-      'committed to memory',
-    ]
-
-    const hasMemoryKeyword = memoryKeywords.some((keyword) => {
-      // 对于更长的关键词，使用字符串匹配而不是简单包含
-      if (keyword.length > 10) {
-        return lowContent.includes(keyword)
-      }
-      return content.includes(keyword) || lowContent.includes(keyword)
-    })
-
-    if (hasMemoryKeyword) {
-      console.info('[Memory Debug] 检测到记忆关键词:', {
-        role: message.role,
-        content: `${content.substring(0, 100)}...`,
-        matchedKeywords: memoryKeywords.filter(keyword =>
-          content.includes(keyword) || lowContent.includes(keyword),
-        ),
-      })
-
-      // 如果是AI回复并且提到了记忆存储，强制存储到长期记忆
-      if (message.role === 'assistant') {
-        return true
-      }
-
-      // 用户输入的记忆关键词也强制存储
-      return true
-    }
-
     if (message.role === 'assistant') {
       return autoPromoteAssistant.value
     }

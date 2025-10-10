@@ -12,6 +12,23 @@ export const useModsChannelServerStore = defineStore('mods:channels:proj-airi:se
 
   function initialize(options?: { token?: string }) {
     return new Promise<void>((resolve, reject) => {
+      const disableFlag = [
+        import.meta.env?.VITE_DISABLE_WEBSOCKET,
+        import.meta.env?.DISABLE_WEBSOCKET,
+      ].find(value => typeof value === 'string')
+
+      const wsDisabled = typeof disableFlag === 'string'
+        ? disableFlag.toLowerCase() === 'true'
+        : false
+
+      if (wsDisabled) {
+        connected.value = false
+        client.value = undefined
+        pendingSend.value = []
+        resolve()
+        return
+      }
+
       client.value = new Client({
         name: 'proj-airi:ui:stage',
         url: import.meta.env.VITE_AIRI_WS_URL || 'ws://localhost:6121/ws',
@@ -36,7 +53,11 @@ export const useModsChannelServerStore = defineStore('mods:channels:proj-airi:se
   }
 
   function send(data: WebSocketEvent) {
-    if (client.value && connected.value) {
+    if (!client.value) {
+      return
+    }
+
+    if (connected.value) {
       client.value.send(data)
     }
     else {
@@ -45,7 +66,11 @@ export const useModsChannelServerStore = defineStore('mods:channels:proj-airi:se
   }
 
   function flush() {
-    if (client.value && connected.value) {
+    if (!client.value) {
+      return
+    }
+
+    if (connected.value) {
       for (const update of pendingSend.value) {
         client.value.send(update)
       }
