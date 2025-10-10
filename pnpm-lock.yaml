@@ -1289,9 +1289,6 @@ importers:
       crossws:
         specifier: ^0.4.1
         version: 0.4.1(srvx@0.8.15)
-      defu:
-        specifier: ^6.1.4
-        version: 6.1.4
     devDependencies:
       '@moeru/std':
         specifier: 'catalog:'
