@@ -2,6 +2,7 @@ packages:
   - packages/**
   - plugins/**
   - services/**
+  - api/**
   - examples/**
   - docs/**
   - apps/**
