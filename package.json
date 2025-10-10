@@ -51,6 +51,7 @@
     "@iconify/utils": "^3.0.2",
     "@proj-airi/unocss-preset-chromatic": "^1.0.0",
     "@types/node": "^24.6.2",
+    "@types/pg": "^8.15.5",
     "@unocss/eslint-config": "^66.5.2",
     "@unocss/eslint-plugin": "^66.5.2",
     "@unocss/preset-mini": "^66.5.2",

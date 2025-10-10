@@ -2,6 +2,8 @@
 // Supports Vercel KV and Upstash Redis for short-term memory
 // Supports Postgres+pgvector and Qdrant for long-term memory
 
+import type { QueryResult, QueryResultRow } from 'pg'
+
 import { randomUUID } from 'node:crypto'
 
 import OpenAI from 'openai'
@@ -10,6 +12,7 @@ import { QdrantClient } from '@qdrant/js-client-rest'
 import { Redis } from '@upstash/redis'
 import { kv as vercelKv } from '@vercel/kv'
 import { sql } from '@vercel/postgres'
+import { Pool } from 'pg'
 
 export interface Message {
   role: string
@@ -75,6 +78,8 @@ let currentConfig: MemoryConfiguration | null = null
 let redisClient: Redis | null = null
 let qdrantClient: QdrantClient | null = null
 let openaiClient: OpenAI | null = null
+let externalPostgresPool: Pool | null = null
+let externalPostgresPoolConnectionString: string | null = null
 
 export function getConfiguration(): MemoryConfiguration {
   if (!currentConfig) {
@@ -89,6 +94,12 @@ export function setConfiguration(config: MemoryConfiguration): void {
   redisClient = null
   qdrantClient = null
   openaiClient = null
+
+  if (externalPostgresPool) {
+    externalPostgresPool.end().catch(() => {})
+    externalPostgresPool = null
+    externalPostgresPoolConnectionString = null
+  }
 }
 
 function createConfigurationFromEnv(): MemoryConfiguration {
@@ -155,28 +166,31 @@ function createConfigurationFromEnv(): MemoryConfiguration {
     }
 
     // Embedding configuration
-    const embeddingProvider = (process.env.EMBEDDING_PROVIDER || 'openai') as 'openai' | 'cloudflare' | 'openai-compatible'
+    const embeddingProvider = (process.env.MEMORY_EMBEDDING_PROVIDER || process.env.EMBEDDING_PROVIDER || 'openai') as 'openai' | 'cloudflare' | 'openai-compatible'
     config.longTerm.embedding = {
       provider: embeddingProvider,
-      model: process.env.EMBEDDING_MODEL,
-      dimensions: process.env.EMBEDDING_DIMENSIONS ? Number.parseInt(process.env.EMBEDDING_DIMENSIONS, 10) : undefined,
-      apiKey: process.env.OPENAI_API_KEY,
-      baseUrl: process.env.OPENAI_BASE_URL,
-      accountId: process.env.CLOUDFLARE_ACCOUNT_ID,
-      apiToken: process.env.CLOUDFLARE_API_TOKEN,
+      model: process.env.MEMORY_EMBEDDING_MODEL || process.env.EMBEDDING_MODEL,
+      dimensions: (() => {
+        const value = process.env.MEMORY_EMBEDDING_DIMENSIONS || process.env.EMBEDDING_DIMENSIONS
+        return value ? Number.parseInt(value, 10) : undefined
+      })(),
+      apiKey: process.env.MEMORY_EMBEDDING_API_KEY || process.env.OPENAI_API_KEY,
+      baseUrl: process.env.MEMORY_EMBEDDING_BASE_URL || process.env.OPENAI_BASE_URL,
+      accountId: process.env.MEMORY_EMBEDDING_ACCOUNT_ID || process.env.CLOUDFLARE_ACCOUNT_ID,
+      apiToken: process.env.MEMORY_EMBEDDING_API_TOKEN || process.env.CLOUDFLARE_API_TOKEN,
     }
 
     if (embeddingProvider === 'openai' || embeddingProvider === 'openai-compatible') {
       config.longTerm.embedding.openai = {
-        apiKey: process.env.OPENAI_API_KEY || '',
-        baseURL: process.env.OPENAI_BASE_URL,
+        apiKey: process.env.MEMORY_EMBEDDING_API_KEY || process.env.OPENAI_API_KEY || '',
+        baseURL: process.env.MEMORY_EMBEDDING_BASE_URL || process.env.OPENAI_BASE_URL,
       }
     }
     else if (embeddingProvider === 'cloudflare') {
       config.longTerm.embedding.cloudflare = {
-        accountId: process.env.CLOUDFLARE_ACCOUNT_ID || '',
-        apiToken: process.env.CLOUDFLARE_API_TOKEN || '',
-        model: process.env.CLOUDFLARE_EMBEDDING_MODEL || '@cf/baai/bge-base-en-v1.5',
+        accountId: process.env.MEMORY_EMBEDDING_ACCOUNT_ID || process.env.CLOUDFLARE_ACCOUNT_ID || '',
+        apiToken: process.env.MEMORY_EMBEDDING_API_TOKEN || process.env.CLOUDFLARE_API_TOKEN || '',
+        model: process.env.MEMORY_EMBEDDING_MODEL || process.env.CLOUDFLARE_EMBEDDING_MODEL || '@cf/baai/bge-base-en-v1.5',
       }
     }
   }
@@ -329,7 +343,7 @@ async function savePostgresMemoryEntry(
   const metadataJson = metadata ? JSON.stringify(metadata) : null
   const createdAtValue = createdAt ? new Date(createdAt).toISOString() : null
 
-  await sql.query(query, [
+  await runPostgresQuery(config, query, [
     randomUUID(),
     userId,
     content,
@@ -574,7 +588,7 @@ async function searchPostgres(embedding: number[], userId: string, limit: number
     `
 
   try {
-    const result = await sql.query<PostgresRow>(query, [
+    const result = await runPostgresQuery<PostgresRow>(config, query, [
       userId,
       JSON.stringify(embedding),
       limit,
@@ -592,6 +606,38 @@ async function searchPostgres(embedding: number[], userId: string, limit: number
     console.error('[Memory] Postgres search error:', error)
     throw new Error(`Postgres search failed: ${error instanceof Error ? error.message : String(error)}`)
   }
+}
+
+async function runPostgresQuery<T extends QueryResultRow = QueryResultRow>(
+  config: MemoryConfiguration,
+  query: string,
+  params: unknown[],
+): Promise<QueryResult<T>> {
+  const overrideConnection = config.longTerm?.postgres?.connectionString?.trim()
+  const envConnections = [process.env.POSTGRES_URL, process.env.DATABASE_URL].filter((value): value is string => Boolean(value))
+
+  if (overrideConnection && !envConnections.includes(overrideConnection)) {
+    if (!externalPostgresPool || externalPostgresPoolConnectionString !== overrideConnection) {
+      if (externalPostgresPool) {
+        await externalPostgresPool.end().catch(() => {})
+      }
+
+      externalPostgresPool = new Pool({
+        connectionString: overrideConnection,
+        max: 1,
+        idleTimeoutMillis: 10_000,
+      })
+      externalPostgresPoolConnectionString = overrideConnection
+    }
+
+    return externalPostgresPool.query<T>(query, params)
+  }
+
+  if (envConnections.length > 0) {
+    return sql.query<T>(query, params)
+  }
+
+  throw new Error('Postgres connection string is not configured')
 }
 
 // Search Qdrant

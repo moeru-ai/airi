@@ -148,8 +148,14 @@ export const useMemoryStore = defineStore('memory', () => {
   const embeddingProvider = useLocalStorage<EmbeddingProviderType>('settings/memory/embedding/provider', getEnvValue('MEMORY_EMBEDDING_PROVIDER', getEnvValue('EMBEDDING_PROVIDER', 'openai') as string) as EmbeddingProviderType)
   const embeddingApiKey = useLocalStorage('settings/memory/embedding/api-key', getEnvValue('MEMORY_EMBEDDING_API_KEY', getEnvValue('OPENAI_API_KEY', '') as string) as string)
   const embeddingBaseUrl = useLocalStorage('settings/memory/embedding/base-url', getEnvValue('MEMORY_EMBEDDING_BASE_URL', getEnvValue('OPENAI_BASE_URL', '') as string) as string)
-  const embeddingAccountId = useLocalStorage('settings/memory/embedding/account-id', getEnvValue('CLOUDFLARE_ACCOUNT_ID', '') as string)
-  const embeddingApiToken = useLocalStorage('settings/memory/embedding/api-token', getEnvValue('CLOUDFLARE_API_TOKEN', '') as string)
+  const embeddingAccountId = useLocalStorage(
+    'settings/memory/embedding/account-id',
+    getEnvValue('MEMORY_EMBEDDING_ACCOUNT_ID', getEnvValue('CLOUDFLARE_ACCOUNT_ID', '') as string) as string,
+  )
+  const embeddingApiToken = useLocalStorage(
+    'settings/memory/embedding/api-token',
+    getEnvValue('MEMORY_EMBEDDING_API_TOKEN', getEnvValue('CLOUDFLARE_API_TOKEN', '') as string) as string,
+  )
   const embeddingModel = useLocalStorage('settings/memory/embedding/model', getEnvValue('MEMORY_EMBEDDING_MODEL', getEnvValue('EMBEDDING_MODEL', 'text-embedding-3-small') as string) as string)
 
   const userId = useLocalStorage('settings/memory/user-id', 'default-user')
