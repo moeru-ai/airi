@@ -250,6 +250,16 @@ pages:
       stepGenerate: Generate embedding API credentials from your provider (OpenAI, Cloudflare, or an OpenAI-compatible service).
       stepEnv: Add the credentials to your deployment environment variables, then redeploy so the values appear here automatically.
       stepFallback: If auto-fill is unavailable, paste the values manually and press “Save Configuration”.
+      provider: Provider
+      providers:
+        openai: OpenAI
+        openaiCompatible: OpenAI Compatible
+        cloudflare: Cloudflare Workers AI
+      apiKey: API key
+      baseUrl: Base URL
+      accountId: Account ID
+      apiToken: API Token
+      model: Model
   models:
     description: Live2D, VRM, etc.
     title: Models
