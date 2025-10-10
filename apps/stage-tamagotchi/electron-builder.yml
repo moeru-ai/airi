@@ -33,12 +33,19 @@ dmg:
 linux:
   target:
     - AppImage
+    - deb
+    - snap
   maintainer: moeru.ai
   category: Utility
   executableName: AIRI
   artifactName: ${productName}-${version}-linux-${arch}.${ext}
 appImage:
   artifactName: ${productName}-${version}-linux-${arch}.${ext}
+snap:
+  publish:
+    - snapStore
+  confinement: strict
+  grade: stable
 npmRebuild: false
 publish:
   provider: generic
