@@ -14,6 +14,12 @@ import { kv as vercelKv } from '@vercel/kv'
 import { sql } from '@vercel/postgres'
 import { Pool } from 'pg'
 
+interface SqlQueryExecutor {
+  query: <T extends QueryResultRow = QueryResultRow>(text: string, params?: unknown[]) => Promise<QueryResult<T>>
+}
+
+const vercelSql = sql as unknown as SqlQueryExecutor
+
 export interface Message {
   role: string
   content: string | unknown
@@ -660,11 +666,12 @@ async function runPostgresQuery<T extends QueryResultRow = QueryResultRow>(
       externalPostgresPoolConnectionString = overrideConnection
     }
 
-    return (externalPostgresPool as Pool).query(query, params) as Promise<QueryResult<T>>
+    const pool = externalPostgresPool as Pool
+    return pool.query(query, params) as Promise<QueryResult<T>>
   }
 
   if (envConnections.length > 0) {
-    return sql.query<T>(query, params)
+    return vercelSql.query<T>(query, params)
   }
 
   throw new Error('Postgres connection string is not configured')

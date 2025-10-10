@@ -164,6 +164,9 @@ pages:
         localRedis: Local Redis
         upstash: Upstash Redis (serverless)
         vercelKv: Vercel KV
+      providerHint: Configure provider-specific settings in Modules → Short-term Memory
+      currentProvider: Current provider
+      changeProviderHint: Change provider in Settings → Memory
       enable: Enable short-term memory
       enableDescription: Persist recent dialogue context for the current browser session
       namespace: Namespace prefix
@@ -185,6 +188,9 @@ pages:
       historyHint: Preview of cached context sent to the LLM
       disabledMessage: Enable short-term memory to retain chat history locally
       empty: No messages cached yet
+      vercelKvTitle: Vercel KV configuration
+      vercelKvDescription: Vercel KV is automatically configured from environment variables when deployed on Vercel.
+      vercelKvHint: No additional configuration needed.
     long_term:
       title: Long-term Memory
       description: Store important memories inside a vector database for semantic search and multi-device sync
@@ -195,6 +201,7 @@ pages:
       providers:
         postgres: Postgres + pgvector
         qdrant: Qdrant
+      embeddingHint: Configure embedding credentials from Settings → Memory → Embedding Configuration.
       connectionTitle: Database connection
       connectionString: Connection string
       connectionHint: 'Optional: override individual fields below if you prefer key/value configuration.'

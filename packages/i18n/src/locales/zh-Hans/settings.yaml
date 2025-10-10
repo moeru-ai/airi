@@ -156,6 +156,9 @@ pages:
         localRedis: 本地 Redis
         upstash: Upstash Redis（无服务器）
         vercelKv: Vercel KV
+      providerHint: 在「模块 → 短期记忆」中配置不同提供商的详细设置
+      currentProvider: 当前提供商：
+      changeProviderHint: 请在「设置 → 记忆体」中切换提供商
       enable: 启用短期记忆
       enableDescription: 为当前浏览器会话持久化最近的对话上下文
       namespace: 命名空间键前缀
@@ -177,6 +180,9 @@ pages:
       historyHint: 预览馈送给 LLM 的缓存上下文
       disabledMessage: 启用短期记忆以在本地保留聊天历史
       empty: 尚未缓存任何消息
+      vercelKvTitle: Vercel KV 配置
+      vercelKvDescription: 部署到 Vercel 时会自动从环境变量加载 Vercel KV 配置。
+      vercelKvHint: 无需额外配置。
     long_term:
       title: 长期记忆
       description: 长期记忆使用向量数据库存储重要记忆，支持语义搜索和跨设备同步
@@ -187,6 +193,7 @@ pages:
       providers:
         postgres: Postgres + pgvector
         qdrant: Qdrant
+      embeddingHint: 请前往「设置 → 记忆体 → 嵌入配置」填写嵌入凭据。
       connectionTitle: 数据库连接
       connectionString: 连接字符串
       connectionHint: 可选：如果您更喜欢键值配置，可以覆盖下面的各个字段

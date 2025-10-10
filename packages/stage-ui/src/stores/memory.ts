@@ -122,10 +122,11 @@ export const useMemoryStore = defineStore('memory', () => {
   const retentionLimit = useLocalStorage('settings/memory/short-term/limit', getEnvValue('SHORT_TERM_MEMORY_MAX_MESSAGES', 20) as number)
 
   const envShortTermProvider = getEnvValue('SHORT_TERM_MEMORY_PROVIDER', getEnvValue('MEMORY_PROVIDER', '') as string) as string
-  const detectedUpstashUrl = getEnvValue(
+  const detectedUpstashUrlValue = getEnvValue(
     'UPSTASH_KV_REST_API_URL',
     getEnvValue('UPSTASH_KV_URL', getEnvValue('UPSTASH_REDIS_REST_URL', '') as string) as string,
-  ) as string
+  )
+  const detectedUpstashUrl = typeof detectedUpstashUrlValue === 'string' ? detectedUpstashUrlValue : ''
   const defaultShortTermProvider = (() => {
     const normalized = (envShortTermProvider || '').toLowerCase()
     if (normalized === 'vercel-kv' || normalized === 'upstash-redis' || normalized === 'local-redis') {
@@ -134,7 +135,7 @@ export const useMemoryStore = defineStore('memory', () => {
     if (detectedUpstashUrl) {
       return 'upstash-redis' as ShortTermProviderType
     }
-    return 'local-redis' as ShortTermProviderType
+    return 'vercel-kv' as ShortTermProviderType
   })()
 
   const shortTermProvider = useLocalStorage<ShortTermProviderType>('settings/memory/short-term/provider', defaultShortTermProvider)
