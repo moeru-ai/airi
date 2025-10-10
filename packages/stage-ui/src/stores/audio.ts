@@ -1,6 +1,6 @@
 import { useDevicesList, useUserMedia } from '@vueuse/core'
 import { defineStore } from 'pinia'
-import { computed, nextTick, onMounted, onUnmounted, ref, shallowRef, watch } from 'vue'
+import { computed, nextTick, onUnmounted, ref, shallowRef, watch } from 'vue'
 
 function calculateVolumeWithLinearNormalize(analyser: AnalyserNode) {
   const dataBuffer = new Uint8Array(analyser.frequencyBinCount)
@@ -105,13 +105,6 @@ export function useAudioDevice(requestPermission: boolean = false) {
         console.error('Error ensuring permissions:', error)
       })
   }
-
-  // Lifecycle
-  onMounted(() => {
-    if (requestPermission) {
-      askPermission()
-    }
-  })
 
   return {
     audioInputs,

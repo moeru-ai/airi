@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 
@@ -19,7 +19,10 @@ export function createConfig<T>(namespace: string, filename: string, options?: {
   }
 
   function setup() {
-    const data = parseOrFallback<T>(readFileSync(configPath(), { encoding: 'utf-8' }), options?.default)
+    const path = configPath()
+    const data = existsSync(path)
+      ? parseOrFallback<T>(readFileSync(configPath(), { encoding: 'utf-8' }), options?.default)
+      : options?.default
     persistenceMap.set(`${namespace}-${filename}`, data)
   }
 

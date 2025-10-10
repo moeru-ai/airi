@@ -1,8 +1,8 @@
 .slide-away-enter-active,
 .slide-away-leave-active {
   transition:
-    transform 0.3s ease-in-out,
-    opacity 0.3s ease-in-out;
+    transform 0.15s ease-in-out,
+    opacity 0.15s ease-in-out;
 }
 
 .slide-away-enter,

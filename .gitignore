@@ -20,6 +20,8 @@ lerna-debug.log*
 
 # Anything .local, especially for .env.local
 *.local
+# e.g. Claude Code settings.local.json
+*.local.*
 
 # Audio binaries
 *.pcm

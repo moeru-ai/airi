@@ -47,9 +47,9 @@
     "@ricky0123/vad-web": "^0.0.28",
     "@standard-schema/spec": "^1.0.0",
     "@stdlib/string-base-kebabcase": "^0.2.2",
-    "@tresjs/cientos": "^5.0.1",
+    "@tresjs/cientos": "^5.0.2",
     "@tresjs/core": "^5.0.3",
-    "@unbird/eventa": "^0.1.2",
+    "@unbird/eventa": "^0.1.5",
     "@valibot/to-json-schema": "1.0.0-rc.0",
     "@vercel/analytics": "^1.5.0",
     "@vueuse/core": "^13.9.0",
@@ -57,7 +57,7 @@
     "@xsai-ext/providers-cloud": "catalog:",
     "@xsai-ext/providers-local": "catalog:",
     "@xsai-ext/shared-providers": "catalog:",
-    "@xsai-transformers/embed": "^0.0.7",
+    "@xsai-transformers/embed": "^0.0.8",
     "@xsai/generate-speech": "catalog:",
     "@xsai/generate-text": "catalog:",
     "@xsai/model": "catalog:",
@@ -65,7 +65,7 @@
     "@xsai/shared-chat": "catalog:",
     "@xsai/stream-text": "catalog:",
     "@xsai/utils-chat": "catalog:",
-    "animejs": "^4.2.1",
+    "animejs": "^4.2.2",
     "colorjs.io": "^0.5.2",
     "culori": "^4.0.2",
     "date-fns": "^4.1.0",
@@ -102,17 +102,17 @@
     "workbox-window": "^7.3.0",
     "xsschema": "catalog:",
     "yauzl": "^3.2.0",
-    "zod": "^4.1.11"
+    "zod": "^4.1.12"
   },
   "devDependencies": {
     "@iconify-json/carbon": "^1.2.13",
     "@iconify-json/eos-icons": "^1.2.4",
-    "@iconify-json/lucide": "^1.2.68",
+    "@iconify-json/lucide": "^1.2.69",
     "@iconify-json/mingcute": "^1.2.5",
     "@iconify-json/simple-icons": "^1.2.54",
     "@iconify-json/solar": "^1.2.4",
     "@iconify-json/svg-spinners": "^1.2.4",
-    "@iconify-json/vscode-icons": "^1.2.30",
+    "@iconify-json/vscode-icons": "^1.2.31",
     "@intlify/unplugin-vue-i18n": "^11.0.1",
     "@proj-airi/lobe-icons": "^1.0.12",
     "@proj-airi/unplugin-fetch": "^0.1.7",
@@ -130,7 +130,7 @@
     "csstype": "^3.1.3",
     "execa": "^9.6.0",
     "hfup": "^0.6.3",
-    "less": "^4.4.1",
+    "less": "^4.4.2",
     "unplugin-info": "^1.2.4",
     "unplugin-vue-macros": "^2.14.5",
     "unplugin-vue-router": "^0.15.0",
@@ -140,6 +140,6 @@
     "vite-plugin-pwa": "^1.0.3",
     "vite-plugin-vue-devtools": "^8.0.2",
     "vite-plugin-vue-layouts": "^0.11.0",
-    "vue-tsc": "^3.1.0"
+    "vue-tsc": "^3.1.1"
   }
 }

@@ -61,7 +61,7 @@ export function useModulesList() {
       name: t('settings.pages.modules.hearing.title'),
       description: t('settings.pages.modules.hearing.description'),
       icon: 'i-solar:microphone-3-bold-duotone',
-      to: '',
+      to: '/settings/modules/hearing',
       configured: false,
       category: 'essential',
     },

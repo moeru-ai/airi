@@ -6,6 +6,9 @@ export function toggleWindowShow(window?: BrowserWindow | null): void {
   if (!window) {
     return
   }
+  if (window.isDestroyed()) {
+    return
+  }
 
   if (window?.isMinimized()) {
     window?.restore()

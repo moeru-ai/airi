@@ -4,7 +4,7 @@ import { DialogContent, DialogOverlay, DialogPortal, DialogRoot, DialogTitle, Vi
 import { DrawerContent, DrawerHandle, DrawerOverlay, DrawerPortal, DrawerRoot } from 'vaul-vue'
 import { onMounted } from 'vue'
 
-import Onboarding from './Onboarding.vue'
+import Onboarding from './onboarding.vue'
 
 const emit = defineEmits<{
   (e: 'configured'): void
