@@ -320,9 +320,11 @@ async function generateEmbedding(text: string): Promise<number[]> {
     }
 
     const payload = await response.json() as Record<string, any>
+    console.info('[Memory Debug] Cloudflare API response structure:', JSON.stringify(payload, null, 2).substring(0, 500))
     const embedding = extractCloudflareEmbedding(payload)
 
     if (!embedding || !Array.isArray(embedding) || embedding.length === 0) {
+      console.error('[Memory Debug] Failed to extract embedding. Full payload:', JSON.stringify(payload))
       throw new Error('Cloudflare embedding response did not include an embedding vector.')
     }
 
@@ -333,6 +335,32 @@ async function generateEmbedding(text: string): Promise<number[]> {
 }
 
 function extractCloudflareEmbedding(payload: Record<string, any>): number[] | undefined {
+  // Try multiple possible response structures from Cloudflare Workers AI
+
+  // Format 1: { result: { data: [[...numbers...]] } }
+  if (payload.result?.data && Array.isArray(payload.result.data)) {
+    const data = payload.result.data
+    // Handle nested array
+    if (Array.isArray(data[0]) && typeof data[0][0] === 'number') {
+      return data[0] as number[]
+    }
+    // Handle flat array
+    if (typeof data[0] === 'number') {
+      return data as number[]
+    }
+  }
+
+  // Format 2: { result: [...numbers...] }
+  if (Array.isArray(payload.result) && typeof payload.result[0] === 'number') {
+    return payload.result as number[]
+  }
+
+  // Format 3: { data: [...numbers...] } (direct)
+  if (Array.isArray(payload.data) && typeof payload.data[0] === 'number') {
+    return payload.data as number[]
+  }
+
+  // Format 4: Legacy formats
   const result = payload.result ?? payload
 
   if (Array.isArray(result?.data) && result.data.length > 0) {
