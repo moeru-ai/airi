@@ -145,14 +145,14 @@ onMounted(() => updateThemeColor())
         paddingLeft: 'env(safe-area-inset-left, 0px)',
       }"
     >
-      <div relative h-full w-full top="60px">
+      <div relative h-full w-full top="44px">
         <!-- Content -->
-        <div flex="~ col" mx-auto max-w-screen-xl h="[calc(100dvh-60px)]">
+        <div flex="~ col" mx-auto max-w-screen-xl h="[calc(100dvh-44px)]">
           <PageHeader
             :title="routeHeaderMetadata?.title"
             :subtitle="routeHeaderMetadata?.subtitle"
             :disable-back-button="route.path === '/settings'"
-            top="60px!" px-4
+            top="44px!" px-4
           />
           <div h-full px-4>
             <RouterView />

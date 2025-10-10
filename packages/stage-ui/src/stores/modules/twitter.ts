@@ -2,10 +2,10 @@ import { useLocalStorage } from '@vueuse/core'
 import { defineStore } from 'pinia'
 import { computed } from 'vue'
 
-import { useConfiguratorForAiriSdk } from '../configurator'
+import { useConfiguratorByModsChannelServer } from '../configurator'
 
 export const useTwitterStore = defineStore('twitter', () => {
-  const configurator = useConfiguratorForAiriSdk()
+  const configurator = useConfiguratorByModsChannelServer()
 
   const enabled = useLocalStorage('settings/twitter/enabled', false)
   const apiKey = useLocalStorage('settings/twitter/api-key', '')

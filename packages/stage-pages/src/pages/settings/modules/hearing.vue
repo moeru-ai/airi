@@ -1,15 +1,13 @@
 <script setup lang="ts">
-import type { TranscriptionProvider } from '@xsai-ext/shared-providers'
-
 import workletUrl from '@proj-airi/stage-ui/workers/vad/process.worklet?worker&url'
 
 import { Alert, Button, ErrorContainer, LevelMeter, RadioCardManySelect, RadioCardSimple, TestDummyMarker, ThresholdMeter, TimeSeriesChart } from '@proj-airi/stage-ui/components'
 import { useAudioAnalyzer, useAudioRecorder } from '@proj-airi/stage-ui/composables'
+import { useVAD } from '@proj-airi/stage-ui/stores/ai/models/vad'
 import { useAudioContext } from '@proj-airi/stage-ui/stores/audio'
-import { useHearingStore } from '@proj-airi/stage-ui/stores/modules/hearing'
+import { useHearingSpeechInputPipeline, useHearingStore } from '@proj-airi/stage-ui/stores/modules/hearing'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
-import { createVAD, createVADStates } from '@proj-airi/stage-ui/workers/vad'
 import { FieldCheckbox, FieldRange, FieldSelect } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
@@ -36,34 +34,14 @@ const { audioInputs, selectedAudioInput, stream } = storeToRefs(useSettingsAudio
 const { startRecord, stopRecord, onStopRecord } = useAudioRecorder(stream)
 const { startAnalyzer, stopAnalyzer, onAnalyzerUpdate, volumeLevel } = useAudioAnalyzer()
 const { audioContext } = storeToRefs(useAudioContext())
+const { transcribeForRecording } = useHearingSpeechInputPipeline()
 
-const error = ref<string>('')
-const vadModelError = ref('')
-
-const isMonitoring = ref(false)
-const enablePlayback = ref(false)
-
-// Audio processing state
-const gainNode = ref<GainNode>()
 const animationFrame = ref<number>()
 
-// Audio levels and indicators
-const isSpeaking = ref(false)
-const speakingThreshold = ref(25) // 0-100 (for volume-based fallback)
-const monitorVolume = ref(50) // 0-100
+const error = ref<string>('')
+const isMonitoring = ref(false)
 
-// VAD integration
-const vadManager = ref<ReturnType<typeof createVADStates>>()
-const isVADModelLoaded = ref(false)
-const isLoadingVADModel = ref(false)
-const useVADModel = ref(true) // Toggle between VAD and volume-based detection
-const vadProbability = ref(0) // Raw VAD probability
-const vadThreshold = ref(0.5) // VAD probability threshold for speech detection
-
-// VAD visualization
-const vadHistory = ref<number[]>([]) // History for chart visualization
-const maxVadHistory = 50 // Keep 50 samples (~1.6 seconds at 32ms intervals)
-
+const transcriptions = ref<string[]>([])
 const audios = ref<Blob[]>([])
 const audioCleanups = ref<(() => void)[]>([])
 const audioURLs = computed(() => {
@@ -73,105 +51,34 @@ const audioURLs = computed(() => {
     return url
   })
 })
-const transcriptions = ref<string[]>([])
 
-// VAD functions
-async function loadVADModel() {
-  if (isVADModelLoaded.value || isLoadingVADModel.value)
-    return
-
-  isLoadingVADModel.value = true
-  vadModelError.value = ''
-
-  try {
-    // Create and initialize the VAD
-    const vad = await createVAD({
-      sampleRate: 16000,
-      speechThreshold: vadThreshold.value,
-      exitThreshold: vadThreshold.value * 0.3,
-      minSilenceDurationMs: 400,
-    })
-
-    // Set up event handlers
-    vad.on('speech-start', () => {
-      isSpeaking.value = true
-      startRecord() // Start recording when speech is detected
-    })
-
-    vad.on('speech-end', () => {
-      isSpeaking.value = false
-      stopRecord() // Stop recording when speech ends
-    })
-
-    vad.on('debug', ({ data }) => {
-      if (data?.probability !== undefined) {
-        vadProbability.value = data.probability
-
-        // Update VAD history for visualization
-        vadHistory.value.push(data.probability)
-        if (vadHistory.value.length > maxVadHistory) {
-          vadHistory.value.shift()
-        }
-      }
-    })
-
-    vad.on('status', ({ type, message }) => {
-      if (type === 'error') {
-        vadModelError.value = message
-      }
-    })
-
-    // Create and initialize audio manager
-    const manager = createVADStates(vad, workletUrl, {
-      minChunkSize: 512,
-      // NOTICE: VAD will have it's own audio context since
-      // it needs special sample rate and latency settings
-      audioContextOptions: {
-        sampleRate: 16000,
-        latencyHint: 'interactive',
-      },
-    })
-
-    await manager.initialize()
-    vadManager.value = manager
-    isVADModelLoaded.value = true
-  }
-  catch (error) {
-    vadModelError.value = error instanceof Error ? error.message : String(error)
-    console.error('Failed to load VAD model:', error)
-  }
-  finally {
-    isLoadingVADModel.value = false
-  }
-}
-
-onStopRecord(async (recording) => {
-  if (!recording)
-    return
-
-  try {
-    if (recording && recording.size > 0) {
-      audios.value.push(recording)
-
-      const provider = await providersStore.getProviderInstance<TranscriptionProvider<string>>(activeTranscriptionProvider.value)
-      if (!provider) {
-        throw new Error('Failed to initialize speech provider')
-      }
-
-      // Get model from configuration or use default
-      const model = activeTranscriptionModel.value
-      const res = await hearingStore.transcription(provider, model, new File([recording], 'recording.wav'))
-
-      transcriptions.value.push(res.text)
-    }
-  }
-  catch (err) {
-    error.value = err instanceof Error ? err.message : String(err)
-    console.error('Error generating transcription:', error.value)
-  }
+const useVADThreshold = ref(0.6) // 0.1 - 0.9
+const useVADModel = ref(true) // Toggle between VAD and volume-based detection
+const {
+  init: initVAD,
+  dispose: disposeVAD,
+  isSpeech: isSpeechVAD,
+  isSpeechProb,
+  isSpeechHistory,
+  inferenceError: vadModelError,
+  start: startVAD,
+  loaded: loadedVAD,
+  loading: loadingVAD,
+} = useVAD(workletUrl, {
+  threshold: useVADThreshold,
+  onSpeechStart: () => startRecord(),
+  onSpeechEnd: () => stopRecord(),
 })
 
-// Audio monitoring
+const isSpeechVolume = ref(false) // Volume-based speaking detection
+const isSpeech = computed(() => {
+  if (useVADModel.value && loadedVAD.value) {
+    return isSpeechVAD.value
+  }
+
+  return isSpeechVolume.value
+})
+
 async function setupAudioMonitoring() {
   try {
     if (!selectedAudioInput.value) {
@@ -179,7 +86,6 @@ async function setupAudioMonitoring() {
       return
     }
 
-    // Clean up existing connections
     await stopAudioMonitoring()
 
     await startStream()
@@ -189,34 +95,20 @@ async function setupAudioMonitoring() {
     }
 
     const source = audioContext.value.createMediaStreamSource(stream.value)
-    const analyzer = startAnalyzer(audioContext.value)
 
+    // Fallback speaking detection (when VAD model is not used)
+    const analyzer = startAnalyzer(audioContext.value)
     onAnalyzerUpdate((volumeLevel) => {
-      // Fallback speaking detection (when VAD model is not used)
-      if (!useVADModel.value || !isVADModelLoaded.value) {
-        isSpeaking.value = volumeLevel > speakingThreshold.value
+      if (!useVADModel.value || !loadedVAD.value) {
+        isSpeechVolume.value = volumeLevel > useVADThreshold.value
       }
     })
-
-    // Create gain node for playback volume control
-    gainNode.value = audioContext.value.createGain()
-    gainNode.value.gain.value = enablePlayback.value ? (monitorVolume.value / 100) : 0
-
-    // Connect audio graph
     if (analyzer)
       source.connect(analyzer)
 
-    if (enablePlayback.value) {
-      source.connect(gainNode.value)
-      gainNode.value.connect(audioContext.value.destination)
-    }
-
-    // Load VAD model and start VAD processing if enabled
     if (useVADModel.value) {
-      await loadVADModel()
-      if (vadManager.value) {
-        await vadManager.value.start(stream.value)
-      }
+      await initVAD()
+      await startVAD(stream.value)
     }
   }
   catch (error) {
@@ -230,56 +122,13 @@ async function stopAudioMonitoring() {
     cancelAnimationFrame(animationFrame.value)
     animationFrame.value = undefined
   }
-  if (vadManager.value) { // Stop VAD manager
-    await vadManager.value.stop()
-  }
   if (stream.value) { // Stop media stream
     stopStream()
   }
 
   stopAnalyzer()
-
-  gainNode.value = undefined
-  isSpeaking.value = false
-  vadProbability.value = 0
-  vadHistory.value = []
+  disposeVAD()
 }
-
-// Update playback routing when playback setting changes
-async function updatePlayback() {
-  if (!audioContext.value || !gainNode.value)
-    return
-
-  if (enablePlayback.value) {
-    gainNode.value.gain.value = monitorVolume.value / 100
-    gainNode.value.connect(audioContext.value.destination)
-  }
-  else {
-    gainNode.value.gain.value = 0
-    gainNode.value.disconnect()
-  }
-}
-
-// Watchers
-watch(selectedAudioInput, async () => {
-  if (isMonitoring.value) {
-    await setupAudioMonitoring()
-  }
-})
-
-watch(enablePlayback, updatePlayback)
-watch(monitorVolume, () => {
-  if (gainNode.value && enablePlayback.value) {
-    gainNode.value.gain.value = monitorVolume.value / 100
-  }
-})
-
-watch(vadThreshold, () => {
-  // Update VAD threshold if model is loaded
-  if (vadManager.value && isVADModelLoaded.value) {
-    // TODO: We would need to add an updateConfig method to VADAudioManager
-  }
-})
 
 // Monitoring toggle
 async function toggleMonitoring() {
@@ -295,16 +144,16 @@ async function toggleMonitoring() {
 
 // Speaking indicator with enhanced VAD visualization
 const speakingIndicatorClass = computed(() => {
-  if (!useVADModel.value || !isVADModelLoaded.value) {
+  if (!useVADModel.value || !loadedVAD.value) {
     // Volume-based: simple green/white
-    return isSpeaking.value
+    return isSpeechVolume.value
       ? 'bg-green-500 shadow-lg shadow-green-500/50'
       : 'bg-white dark:bg-neutral-900 border-2 border-neutral-300 dark:border-neutral-600'
   }
 
   // VAD-based: color intensity based on probability
-  const prob = vadProbability.value
-  const threshold = vadThreshold.value
+  const prob = isSpeechProb.value
+  const threshold = useVADThreshold.value
 
   if (prob > threshold) {
     // Speaking: green (could add intensity in future)
@@ -324,15 +173,24 @@ function updateCustomModelName(value: string) {
   activeCustomModelName.value = value
 }
 
+onStopRecord(async (recording) => {
+  if (recording && recording.size > 0) {
+    audios.value.push(recording)
+  }
+
+  const res = await transcribeForRecording(recording)
+  res && transcriptions.value.push(res)
+})
+
+watch(selectedAudioInput, async () => isMonitoring.value && await setupAudioMonitoring())
+
 onMounted(async () => {
   await hearingStore.loadModelsForProvider(activeTranscriptionProvider.value)
 })
 
 onUnmounted(() => {
   stopAudioMonitoring()
-  if (vadManager.value) {
-    vadManager.value.dispose()
-  }
+  disposeVAD()
 
   audioCleanups.value.forEach(cleanup => cleanup())
 })
@@ -506,9 +364,9 @@ onUnmounted(() => {
 
               <!-- VAD Probability Meter (when VAD model is active) -->
               <ThresholdMeter
-                v-if="useVADModel && isVADModelLoaded"
-                :value="vadProbability"
-                :threshold="vadThreshold"
+                v-if="useVADModel && loadedVAD"
+                :value="isSpeechProb"
+                :threshold="useVADThreshold"
                 label="Probability of Speech"
                 below-label="Silence"
                 above-label="Speech"
@@ -516,9 +374,9 @@ onUnmounted(() => {
               />
 
               <!-- Threshold Controls -->
-              <div v-if="useVADModel && isVADModelLoaded" class="space-y-3">
+              <div v-if="useVADModel && loadedVAD" class="space-y-3">
                 <FieldRange
-                  v-model="vadThreshold"
+                  v-model="useVADThreshold"
                   label="Sensitivity"
                   description="Adjust the threshold for speech detection"
                   :min="0.1"
@@ -530,7 +388,7 @@ onUnmounted(() => {
 
               <div v-else class="space-y-3">
                 <FieldRange
-                  v-model="speakingThreshold"
+                  v-model="useVADThreshold"
                   label="Sensitivity"
                   description="Adjust the threshold for speech detection"
                   :min="1"
@@ -547,10 +405,10 @@ onUnmounted(() => {
                   :class="speakingIndicatorClass"
                 />
                 <span class="text-sm font-medium">
-                  {{ isSpeaking ? 'Speaking Detected' : 'Silence' }}
+                  {{ isSpeech ? 'Speaking Detected' : 'Silence' }}
                 </span>
                 <span class="ml-auto text-xs text-neutral-500">
-                  {{ useVADModel && isVADModelLoaded ? 'Model Based' : 'Volume Based' }}
+                  {{ useVADModel && loadedVAD ? 'Model Based' : 'Volume Based' }}
                 </span>
               </div>
 
@@ -564,7 +422,7 @@ onUnmounted(() => {
 
                 <!-- VAD Model Status -->
                 <div v-if="useVADModel" class="mt-3 space-y-2">
-                  <div v-if="isLoadingVADModel" class="flex items-center gap-2 text-primary-600 dark:text-primary-400">
+                  <div v-if="loadingVAD" class="flex items-center gap-2 text-primary-600 dark:text-primary-400">
                     <div class="animate-spin text-sm" i-solar:spinner-line-duotone />
                     <span class="text-sm">Loading...</span>
                   </div>
@@ -575,11 +433,11 @@ onUnmounted(() => {
                     :error="vadModelError"
                   />
 
-                  <div v-else-if="isVADModelLoaded" class="flex items-center gap-2 text-green-600 dark:text-green-400">
+                  <div v-else-if="loadedVAD" class="flex items-center gap-2 text-green-600 dark:text-green-400">
                     <div class="text-sm" i-solar:check-circle-bold-duotone />
                     <span class="text-sm">Activated</span>
                     <span class="ml-auto text-xs text-neutral-500">
-                      Probability: {{ (vadProbability * 100).toFixed(1) }}%
+                      Probability: {{ (isSpeechProb * 100).toFixed(1) }}%
                     </span>
                   </div>
                 </div>
@@ -587,11 +445,11 @@ onUnmounted(() => {
 
               <!-- Voice Activity Visualization (when VAD model is active) -->
               <TimeSeriesChart
-                v-if="useVADModel && isVADModelLoaded"
-                :history="vadHistory"
-                :current-value="vadProbability"
-                :threshold="vadThreshold"
-                :is-active="isSpeaking"
+                v-if="useVADModel && loadedVAD"
+                :history="isSpeechHistory"
+                :current-value="isSpeechProb"
+                :threshold="useVADThreshold"
+                :is-active="isSpeech"
                 title="Voice Activity"
                 subtitle="Last 2 seconds"
                 active-label="Speaking"
@@ -599,38 +457,6 @@ onUnmounted(() => {
                 inactive-legend-label="Silence"
                 threshold-label="Speech threshold"
               />
-            </div>
-
-            <!-- Audio Playback (Monitor) -->
-            <div v-if="isMonitoring" class="border-t border-neutral-200 pt-4 dark:border-neutral-700">
-              <FieldCheckbox
-                v-model="enablePlayback"
-                label="Monitor Audio (Listen)"
-                description="Enable audio playback monitoring (like OBS). Be careful of feedback!"
-              />
-
-              <div v-if="enablePlayback" class="mt-3">
-                <FieldRange
-                  v-model="monitorVolume"
-                  label="Monitor Volume"
-                  description="Control the volume of audio monitoring playback"
-                  :min="0"
-                  :max="100"
-                  :step="5"
-                  :format-value="value => `${value}%`"
-                />
-              </div>
-            </div>
-
-            <!-- Warning for playback -->
-            <div v-if="enablePlayback" class="border border-amber-200 rounded-lg bg-amber-50 p-3 dark:border-amber-800 dark:bg-amber-900/20">
-              <div class="flex items-center gap-2 text-amber-700 dark:text-amber-300">
-                <div class="text-sm" i-solar:warning-circle-bold-duotone />
-                <span class="text-sm font-medium">Audio feedback warning</span>
-              </div>
-              <div class="mt-1 text-xs text-amber-600 dark:text-amber-400">
-                Use headphones to prevent audio feedback. Lower the monitor volume if you hear echoing.
-              </div>
             </div>
           </div>
         </div>

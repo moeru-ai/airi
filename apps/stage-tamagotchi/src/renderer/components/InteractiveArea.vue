@@ -8,7 +8,7 @@ import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { BasicTextarea } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
-import { onMounted, ref, watch } from 'vue'
+import { ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import TamagotchiChatHistory from './ChatHistory.vue'
@@ -17,7 +17,7 @@ const messageInput = ref('')
 const listening = ref(false)
 const attachments = ref<{ type: 'image', data: string, mimeType: string, url: string }[]>([])
 
-// const { askPermission } = useSettingsAudioDevice()
+const { askPermission } = useSettingsAudioDevice()
 const { enabled, selectedAudioInput } = storeToRefs(useSettingsAudioDevice())
 const { send, onAfterMessageComposed, discoverToolsCompatibility } = useChatStore()
 const { messages } = storeToRefs(useChatStore())
@@ -116,21 +116,16 @@ function handleTranscription(_buffer: Float32Array) {
   alert('Transcription is not implemented yet')
 }
 
-// async function handleAudioInputChange(event: Event) {
-//   const target = event.target as HTMLSelectElement
-//   const found = audioInputs.value.find(d => d.deviceId === target.value)
-//   if (!found) {
-//     selectedAudioDevice.value = undefined
-//     return
-//   }
-
-//   selectedAudioDevice.value = found
-// }
-
 watch(enabled, async (value) => {
   if (value === false) {
     destroy()
   }
+  else {
+    await askPermission()
+    start()
+  }
+}, {
+  immediate: true,
 })
 
 watch([activeProvider, activeModel], async () => {
@@ -143,10 +138,6 @@ onAfterMessageComposed(async () => {
   messageInput.value = ''
   attachments.value.forEach(att => URL.revokeObjectURL(att.url))
   attachments.value = []
-})
-
-onMounted(() => {
-  start()
 })
 </script>
 

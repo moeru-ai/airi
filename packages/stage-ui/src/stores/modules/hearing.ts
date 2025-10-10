@@ -1,4 +1,4 @@
-import type { TranscriptionProviderWithExtraOptions } from '@xsai-ext/shared-providers'
+import type { TranscriptionProvider, TranscriptionProviderWithExtraOptions } from '@xsai-ext/shared-providers'
 
 import { useLocalStorage } from '@vueuse/core'
 import { generateTranscription } from '@xsai/generate-transcription'
@@ -86,5 +86,42 @@ export const useHearingStore = defineStore('hearing-store', () => {
     transcription,
     loadModelsForProvider,
     getModelsForProvider,
+  }
+})
+
+export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech:audio-input-pipeline', () => {
+  const error = ref<string>()
+
+  const hearingStore = useHearingStore()
+  const { activeTranscriptionProvider, activeTranscriptionModel } = storeToRefs(hearingStore)
+  const providersStore = useProvidersStore()
+
+  async function transcribeForRecording(recording: Blob | null | undefined) {
+    if (!recording)
+      return
+
+    try {
+      if (recording && recording.size > 0) {
+        const provider = await providersStore.getProviderInstance<TranscriptionProvider<string>>(activeTranscriptionProvider.value)
+        if (!provider) {
+          throw new Error('Failed to initialize speech provider')
+        }
+
+        // Get model from configuration or use default
+        const model = activeTranscriptionModel.value
+        const res = await hearingStore.transcription(provider, model, new File([recording], 'recording.wav'))
+        return res.text
+      }
+    }
+    catch (err) {
+      error.value = err instanceof Error ? err.message : String(err)
+      console.error('Error generating transcription:', error.value)
+    }
+  }
+
+  return {
+    error,
+
+    transcribeForRecording,
   }
 })

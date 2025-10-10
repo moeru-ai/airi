@@ -130,7 +130,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ env.BUNDLE_NAME }}
-          path: bundle/${{ env.BUNDLE_NAME }}
+          path: apps/stage-tamagotchi/bundle/${{ env.BUNDLE_NAME }}
 
         # ---------
         # Workflow Dispatch only
@@ -158,13 +158,13 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ env.BUNDLE_NAME }}
-          path: bundle/${{ env.BUNDLE_NAME }}
+          path: apps/stage-tamagotchi/bundle/${{ env.BUNDLE_NAME }}
 
       - name: Upload To GitHub Releases (Manual + Overwrite Release)
         if: ${{ github.event_name == 'workflow_dispatch' && !inputs.build_only && !inputs.artifacts_only }}
         uses: softprops/action-gh-release@v2
         with:
-          files: bundle/${{ env.PRODUCT_NAME }}_*
+          files: apps/stage-tamagotchi/bundle/${{ env.PRODUCT_NAME }}_*
           append_body: true
           tag_name: ${{ inputs.tag }}
 
@@ -181,5 +181,5 @@ jobs:
         if: ${{ github.event_name == 'release' }}
         uses: softprops/action-gh-release@v2
         with:
-          files: bundle/${{ env.PRODUCT_NAME }}_*
+          files: apps/stage-tamagotchi/bundle/${{ env.PRODUCT_NAME }}_*
           append_body: true
