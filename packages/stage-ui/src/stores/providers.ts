@@ -283,7 +283,7 @@ export const useProvidersStore = defineStore('providers', () => {
             return { errors, reason: errors.map(e => e.message).join(', '), valid: false }
           }
 
-          const response = await fetch(`${config.baseUrl as string}chat/completions`, { headers: { Authorization: `Bearer ${config.apiKey}` }, method: 'POST', body: `{"model": "test","messages": [{"role": "user","content": "Hello, world"}],"stream": false}` })
+          const response = await fetch(`${config.baseUrl as string}chat/completions`, { headers: { Authorization: `Bearer ${config.apiKey}`, 'Content-Type': 'application/json' }, method: 'POST', body: `{"model": "test","messages": [{"role": "user","content": "Hello, world"}],"stream": false}` })
           const responseJson = await response.json()
 
           if (!responseJson.user_id) {
@@ -859,7 +859,9 @@ export const useProvidersStore = defineStore('providers', () => {
       validation: ['health', 'model_list'],
       additionalHeaders: {
         'anthropic-dangerous-direct-browser-access': 'true',
+        'x-api-key': (apiKey: string) => apiKey,
       },
+      useAuthorizationHeader: false,
     }),
     'google-generative-ai': buildOpenAICompatibleProvider({
       id: 'google-generative-ai',
@@ -871,6 +873,10 @@ export const useProvidersStore = defineStore('providers', () => {
       defaultBaseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai/',
       creator: createGoogleGenerativeAI,
       validation: ['health', 'model_list'],
+      additionalHeaders: {
+        'x-goog-api-key': (apiKey: string) => apiKey,
+      },
+      useAuthorizationHeader: false,
     }),
     'deepseek': buildOpenAICompatibleProvider({
       id: 'deepseek',
@@ -897,6 +903,10 @@ export const useProvidersStore = defineStore('providers', () => {
         createModelProvider({ apiKey, baseURL }),
       ),
       validation: ['model_list'],
+      additionalHeaders: {
+        'x-api-key': (apiKey: string) => apiKey,
+      },
+      useAuthorizationHeader: false,
     }),
     'elevenlabs': {
       id: 'elevenlabs',
@@ -1086,7 +1096,7 @@ export const useProvidersStore = defineStore('providers', () => {
               name: voice,
               provider: 'index-tts-vllm',
               // previewURL: voice.preview_audio_url,
-              languages: [{ code: 'cn', title: 'Chinese' }, { code: 'en', title: 'English' }],
+              languages: [{ code: 'zh', title: 'Chinese' }, { code: 'en', title: 'English' }],
             }
           })
         },
@@ -1189,7 +1199,7 @@ export const useProvidersStore = defineStore('providers', () => {
       category: 'speech',
       tasks: ['text-to-speech'],
       nameKey: 'settings.pages.providers.provider.volcengine.title',
-      name: 'settings.pages.providers.provider.volcengine.title',
+      name: 'Volcengine',
       descriptionKey: 'settings.pages.providers.provider.volcengine.description',
       description: 'volcengine.com',
       iconColor: 'i-lobe-icons:volcengine',
@@ -1209,7 +1219,7 @@ export const useProvidersStore = defineStore('providers', () => {
             return {
               id: voice.id,
               name: voice.name,
-              provider: 'volcano-engine',
+              provider: 'volcengine',
               previewURL: voice.preview_audio_url,
               languages: voice.languages,
               gender: voice.labels?.gender,
@@ -1221,7 +1231,7 @@ export const useProvidersStore = defineStore('providers', () => {
             {
               id: 'v1',
               name: 'v1',
-              provider: 'volcano-engine',
+              provider: 'volcengine',
               description: '',
               contextLength: 0,
               deprecated: false,
@@ -1301,7 +1311,7 @@ export const useProvidersStore = defineStore('providers', () => {
             !config.apiKey && new Error('API key is required'),
             !config.resourceName && new Error('Resource name is required'),
             !config.modelId && new Error('Model ID is required'),
-          ]
+          ].filter(Boolean)
 
           return {
             errors,
