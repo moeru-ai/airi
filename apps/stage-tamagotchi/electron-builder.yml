@@ -45,8 +45,17 @@ snap:
   publish:
     - snapStore
   confinement: strict
+  summary: An AI VTuber/Waifu chatbot app inspired by neuro-sama
+  description: |
+    An AI VTuber/Waifu chatbot app inspired by neuro-sama
+  Key Features:
+    AIRI is a Neuro-Sama like AI Waifu created by @moeru-ai
+    - Human-like interaction with Live2D/VRM
+    - VTuber-Ready interactions include Gaming features
+    This is still in beta.
+    Bug reports, feature requests should be located at https://github.com/moeru-ai/airi
   grade: stable
 npmRebuild: false
 publish:
-  provider: generic
+  provider: snapStore
   url: https://example.com/auto-updates
