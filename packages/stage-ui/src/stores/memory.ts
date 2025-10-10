@@ -318,12 +318,17 @@ export const useMemoryStore = defineStore('memory', () => {
       return []
     }
 
-    const data = await response.json() as { success: boolean, data?: Array<{ message: { role: string, content: unknown, timestamp: string | Date, metadata?: Record<string, unknown> } }> }
+    const data = await response.json() as { success: boolean, data?: Array<{ id: string, content: string, score: number, metadata?: Record<string, unknown>, timestamp: string }> }
     if (!data.success || !Array.isArray(data.data)) {
       return []
     }
 
-    relatedMemories.value = data.data.map(item => normalizeMessage(item.message))
+    relatedMemories.value = data.data.map(item => normalizeMessage({
+      role: item.metadata?.role as string || 'user',
+      content: item.content,
+      timestamp: item.timestamp,
+      metadata: item.metadata,
+    }))
     return relatedMemories.value
   }
 
@@ -349,12 +354,17 @@ export const useMemoryStore = defineStore('memory', () => {
       return []
     }
 
-    const data = await response.json() as { success: boolean, data?: Array<{ message: { role: string, content: unknown, timestamp: string | Date, metadata?: Record<string, unknown> } }> }
+    const data = await response.json() as { success: boolean, data?: Array<{ id: string, content: string, score: number, metadata?: Record<string, unknown>, timestamp: string }> }
     if (!data.success || !Array.isArray(data.data)) {
       return []
     }
 
-    return data.data.map(item => normalizeMessage(item.message))
+    return data.data.map(item => normalizeMessage({
+      role: item.metadata?.role as string || 'user',
+      content: item.content,
+      timestamp: item.timestamp,
+      metadata: item.metadata,
+    }))
   }
 
   function shouldPromote(message: MemoryMessage) {
