@@ -207,7 +207,7 @@ export function buildOpenAICompatibleProvider(
       return {
         errors,
         // Consistent reason string (empty when no errors)
-        reason: errors.length > 0 ? errors.map(e => e.message).join(', ') : '',
+        reason: errors.length > 0 ? `Errors: ${errors.map(e => e.message).join('; ')}` : '',
         valid: errors.length === 0,
       }
     },
