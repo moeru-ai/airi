@@ -1,6 +1,5 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "framework": "vite",
   "buildCommand": "pnpm install --frozen-lockfile && pnpm --filter @proj-airi/i18n run build && pnpm --filter @proj-airi/stage-web run build",
   "outputDirectory": "apps/stage-web/dist",
   "functions": {
