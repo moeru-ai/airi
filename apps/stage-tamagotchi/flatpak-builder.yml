@@ -1,0 +1,36 @@
+id: com.moeru_ai.airi
+runtime: org.freedesktop.Platform
+runtime-version: '23.08'
+sdk: org.freedesktop.Sdk
+base: org.electronjs.Electron2.BaseApp
+base-version: '23.08'
+command: AIRI
+
+finish-args:
+  - --share=ipc
+  - --socket=x11
+  - --socket=wayland
+  - --device=dri
+  - --share=network
+  - --socket=pulseaudio
+  - --filesystem=xdg-config/dconf:ro
+  - --filesystem=xdg-data/AIRI:rw
+
+modules:
+  - name: AIRI-App
+    buildsystem: simple
+    build-commands:
+      - mkdir -p /app
+      - cp -r * /app/
+      - install -Dm644 AIRI.desktop /app/share/applications/com.moeru_ai.airi.desktop
+      - install -Dm644 resources/icon.png /app/share/icons/hicolor/512x512/apps/com.moeru_ai.airi.png
+    sources:
+      - type: archive
+        url: https://github.com/moeru-ai/airi/releases/download/${FLATPAK_RELEASE_TAG}/AIRI-${FLATPAK_RELEASE_TAG}-linux-x64.tar.gz
+        sha256: ${FLATPAK_RELEASE_SHA}
+      - type: file
+        path: AIRI.desktop
+      - type: file
+        path: resources/icon.png
+      - type: file
+        path: resources/tray-icon-macos.png
