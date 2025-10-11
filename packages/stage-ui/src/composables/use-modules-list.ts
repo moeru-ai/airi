@@ -8,6 +8,7 @@ import { useConsciousnessStore } from '../stores/modules/consciousness'
 import { useDiscordStore } from '../stores/modules/discord'
 import { useFactorioStore } from '../stores/modules/gaming-factorio'
 import { useMinecraftStore } from '../stores/modules/gaming-minecraft'
+import { useHearingStore } from '../stores/modules/hearing'
 import { useSpeechStore } from '../stores/modules/speech'
 import { useTelegramStore } from '../stores/modules/telegram'
 import { useTwitterStore } from '../stores/modules/twitter'
@@ -31,6 +32,7 @@ export function useModulesList() {
   // Initialize stores
   const consciousnessStore = useConsciousnessStore()
   const speechStore = useSpeechStore()
+  const hearingStore = useHearingStore()
   const discordStore = useDiscordStore()
   const telegramStore = useTelegramStore()
   const visionStore = useVisionStore()
@@ -66,7 +68,7 @@ export function useModulesList() {
       description: t('settings.pages.modules.hearing.description'),
       icon: 'i-solar:microphone-3-bold-duotone',
       to: '/settings/modules/hearing',
-      configured: false,
+      configured: hearingStore.configured,
       category: 'essential',
     },
     {
