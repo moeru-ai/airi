@@ -89,6 +89,7 @@
     "@xsai-transformers/embed": "^0.0.8",
     "@xsai-transformers/shared": "^0.0.8",
     "@xsai/embed": "catalog:",
+    "@xsai/generate-image": "0.4.0-beta.4",
     "@xsai/generate-speech": "catalog:",
     "@xsai/generate-text": "catalog:",
     "@xsai/generate-transcription": "catalog:",

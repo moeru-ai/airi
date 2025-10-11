@@ -1,7 +1,7 @@
 import type { VisionProvider, VisionProviderWithExtraOptions } from '@xsai-ext/shared-providers'
 
 import { useLocalStorage } from '@vueuse/core'
-import { generateVisionAnalysis } from '@xsai/generate-vision'
+import { generateImage } from '@xsai/generate-image'
 import { defineStore, storeToRefs } from 'pinia'
 import { computed, ref, watch } from 'vue'
 
@@ -102,7 +102,7 @@ export const useVisionStore = defineStore('vision-store', () => {
       model: activeVisionModel.value,
     }
 
-    return generateVisionAnalysis(imageUrl, prompt || 'Describe this image in detail.', providerOptions)
+    return generateImage(imageUrl, prompt || 'Describe this image in detail.', providerOptions)
   }
 
   async function analyzeImageDirect(imageData: Blob | ArrayBuffer | string, prompt?: string, options?: VisionProviderWithExtraOptions) {
@@ -115,7 +115,7 @@ export const useVisionStore = defineStore('vision-store', () => {
       model: activeVisionModel.value,
     }
 
-    return generateVisionAnalysis(imageData, prompt || 'Describe this image in detail.', providerOptions)
+    return generateImage(imageData, prompt || 'Describe this image in detail.', providerOptions)
   }
 
   return {

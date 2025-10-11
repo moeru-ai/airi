@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { Button } from '@proj-airi/ui'
 import { computed, ref } from 'vue'
+
+import { Button } from '../../components'
 
 interface ChatImage {
   id: string
@@ -204,11 +205,14 @@ function formatFileSize(bytes: number): string {
 }
 
 .image-preview-full {
-  border: 1px solid theme('colors.neutral.200');
-  dark:border: theme('colors.neutral.700');
-  border-radius: theme('borderRadius.lg');
-  background: theme('colors.neutral.50');
-  dark:bg: theme('colors.neutral.800');
+  border: 1px solid #e5e7eb;
+  border-radius: 0.5rem;
+  background: #f9fafb;
+}
+
+.dark .image-preview-full {
+  border: 1px solid #374151;
+  background: #1f2937;
 }
 
 /* Ensure proper scrolling for compact view */

@@ -2,6 +2,7 @@
 import type { VisionProviderWithExtraOptions } from '@xsai-ext/shared-providers'
 
 import {
+  Button,
   ErrorContainer,
   RadioCardManySelect,
   RadioCardSimple,
@@ -10,7 +11,6 @@ import {
 import { useVisionStore } from '@proj-airi/stage-ui/stores/modules/vision'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import {
-  Button,
   FieldCheckbox,
   FieldInput,
 } from '@proj-airi/ui'
