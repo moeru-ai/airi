@@ -39,6 +39,8 @@ import {
   createEmbedProvider,
   createMetadataProvider,
   createModelProvider,
+  createSpeechProvider,
+  createTranscriptionProvider,
   merge,
 } from '@xsai-ext/shared-providers'
 import { listModels } from '@xsai/model'
@@ -1250,6 +1252,38 @@ export const useProvidersStore = defineStore('providers', () => {
         },
       },
     },
+    'comet-api-speech': buildOpenAICompatibleProvider({
+      id: 'comet-api-speech',
+      name: 'CometAPI Speech',
+      nameKey: 'settings.pages.providers.provider.comet-api.title',
+      descriptionKey: 'settings.pages.providers.provider.comet-api.description',
+      icon: 'i-lobe-icons:cometapi',
+      description: 'cometapi.com',
+      category: 'speech',
+      tasks: ['text-to-speech'],
+      defaultBaseUrl: 'https://api.cometapi.com/v1/',
+      creator: (apiKey, baseURL = 'https://api.cometapi.com/v1/') => merge(
+        createModelProvider({ apiKey, baseURL }),
+        createSpeechProvider({ apiKey, baseURL }),
+      ),
+      validation: ['model_list'],
+    }),
+    'comet-api-transcription': buildOpenAICompatibleProvider({
+      id: 'comet-api-transcription',
+      name: 'CometAPI Transcription',
+      nameKey: 'settings.pages.providers.provider.comet-api.title',
+      descriptionKey: 'settings.pages.providers.provider.comet-api.description',
+      icon: 'i-lobe-icons:cometapi',
+      description: 'cometapi.com',
+      category: 'transcription',
+      tasks: ['speech-to-text', 'automatic-speech-recognition', 'asr', 'stt'],
+      defaultBaseUrl: 'https://api.cometapi.com/v1/',
+      creator: (apiKey, baseURL = 'https://api.cometapi.com/v1/') => merge(
+        createModelProvider({ apiKey, baseURL }),
+        createTranscriptionProvider({ apiKey, baseURL }),
+      ),
+      validation: ['model_list'],
+    }),
     'together-ai': buildOpenAICompatibleProvider({
       id: 'together-ai',
       name: 'Together.ai',
@@ -1482,6 +1516,20 @@ export const useProvidersStore = defineStore('providers', () => {
         },
       },
     },
+    'comet-api': buildOpenAICompatibleProvider({
+      id: 'comet-api',
+      name: 'CometAPI',
+      nameKey: 'settings.pages.providers.provider.comet-api.title',
+      descriptionKey: 'settings.pages.providers.provider.comet-api.description',
+      icon: 'i-lobe-icons:cometapi',
+      description: 'cometapi.com',
+      defaultBaseUrl: 'https://api.cometapi.com/v1/',
+      creator: (apiKey, baseURL = 'https://api.cometapi.com/v1/') => merge(
+        createChatProvider({ apiKey, baseURL }),
+        createModelProvider({ apiKey, baseURL }),
+      ),
+      validation: ['model_list'],
+    }),
     'perplexity-ai': buildOpenAICompatibleProvider({
       id: 'perplexity-ai',
       name: 'Perplexity',

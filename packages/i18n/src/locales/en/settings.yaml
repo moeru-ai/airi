@@ -568,6 +568,9 @@ pages:
       302-ai:
         description: 302.AI
         title: 302.AI
+      comet-api:
+        description: CometAPI.com
+        title: Comet API
       transcriptions:
         playground:
           title: Transcription Playground

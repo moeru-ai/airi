@@ -51,7 +51,7 @@ const {
         :icon="provider.icon"
         :icon-color="provider.iconColor"
         :icon-image="provider.iconImage"
-        :to="`/settings/providers/${provider.id}`"
+        :to="`/settings/providers/${provider.category}/${provider.id}`"
         :configured="provider.configured"
       />
     </div>
@@ -82,7 +82,7 @@ const {
         :icon="provider.icon"
         :icon-color="provider.iconColor"
         :icon-image="provider.iconImage"
-        :to="`/settings/providers/${provider.id}`"
+        :to="`/settings/providers/${provider.category}/${provider.id}`"
         :configured="provider.configured"
       />
     </div>
@@ -113,7 +113,7 @@ const {
         :icon="provider.icon"
         :icon-color="provider.iconColor"
         :icon-image="provider.iconImage"
-        :to="`/settings/providers/${provider.id}`"
+        :to="`/settings/providers/${provider.category}/${provider.id}`"
         :configured="provider.configured"
       />
     </div>

@@ -1,20 +1,26 @@
 <script setup lang="ts">
 import type { RemovableRef } from '@vueuse/core'
+import type { TranscriptionProvider } from '@xsai-ext/shared-providers'
 
 import {
   Alert,
-  ProviderAccountIdInput,
+  ProviderAdvancedSettings,
   ProviderApiKeyInput,
+  ProviderBaseUrlInput,
   ProviderBasicSettings,
   ProviderSettingsContainer,
   ProviderSettingsLayout,
+  TranscriptionPlayground,
 } from '@proj-airi/stage-ui/components'
 import { useProviderValidation } from '@proj-airi/stage-ui/composables/use-provider-validation'
+import { useHearingStore } from '@proj-airi/stage-ui/stores/modules/hearing'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
+import { FieldInput } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed } from 'vue'
 
-const providerId = 'cloudflare-workers-ai'
+const providerId = 'comet-api-transcription'
+const hearingStore = useHearingStore()
 const providersStore = useProvidersStore()
 const { providers } = storeToRefs(providersStore) as { providers: RemovableRef<Record<string, any>> }
 
@@ -28,14 +34,40 @@ const apiKey = computed({
   },
 })
 
-const accountId = computed({
-  get: () => providers.value[providerId]?.accountId || '',
+const baseUrl = computed({
+  get: () => providers.value[providerId]?.baseUrl || '',
   set: (value) => {
     if (!providers.value[providerId])
       providers.value[providerId] = {}
-    providers.value[providerId].accountId = value
+    providers.value[providerId].baseUrl = value
   },
 })
+
+const model = computed({
+  get: () => providers.value[providerId]?.model || '',
+  set: (value) => {
+    if (!providers.value[providerId])
+      providers.value[providerId] = {}
+    providers.value[providerId].model = value
+  },
+})
+
+// Check if API key is configured
+const apiKeyConfigured = computed(() => !!providers.value[providerId]?.apiKey)
+
+// Generate transcription
+async function handleGenerateTranscription(file: File) {
+  const provider = await providersStore.getProviderInstance<TranscriptionProvider<string>>(providerId)
+  if (!provider)
+    throw new Error('Failed to initialize transcription provider')
+
+  return await hearingStore.transcription(
+    provider,
+    model.value,
+    file,
+    'json',
+  )
+}
 
 // Use the composable to get validation logic and state
 const {
@@ -64,16 +96,21 @@ const {
         <ProviderApiKeyInput
           v-model="apiKey"
           :provider-name="providerMetadata?.localizedName"
-          :placeholder="t('settings.pages.providers.provider.cloudflare-workers-ai.fields.field.api-key.placeholder')"
+          placeholder="sk-..."
         />
-
-        <ProviderAccountIdInput
-          v-model="accountId"
-          :label="t('settings.pages.providers.provider.cloudflare-workers-ai.fields.field.account-id.label')"
-          :description="t('settings.pages.providers.provider.cloudflare-workers-ai.fields.field.account-id.description')"
-          :placeholder="t('settings.pages.providers.provider.cloudflare-workers-ai.fields.field.account-id.placeholder')"
+        <FieldInput
+          v-model="model"
+          :label="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.manual_model_name')"
+          :placeholder="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.manual_model_placeholder')"
         />
       </ProviderBasicSettings>
+
+      <ProviderAdvancedSettings :title="t('settings.pages.providers.common.section.advanced.title')">
+        <ProviderBaseUrlInput
+          v-model="baseUrl"
+          :placeholder="providerMetadata?.defaultOptions?.().baseUrl as string || 'https://api.cometapi.com/v1/'"
+        />
+      </ProviderAdvancedSettings>
 
       <!-- Validation Status -->
       <Alert v-if="!isValid && isValidating === 0 && validationMessage" type="error">
@@ -92,6 +129,11 @@ const {
         </template>
       </Alert>
     </ProviderSettingsContainer>
+
+    <TranscriptionPlayground
+      :generate-transcription="handleGenerateTranscription"
+      :api-key-configured="apiKeyConfigured"
+    />
   </ProviderSettingsLayout>
 </template>
 

@@ -5,7 +5,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 
-import ProviderSettingsLayout2 from './ProviderSettingsLayout2.vue'
+import ProviderSettingsLayout from './ProviderSettingsLayout.vue'
 
 import {
   ProviderAdvancedSettings,
@@ -121,9 +121,10 @@ function handleResetVoiceSettings() {
 </script>
 
 <template>
-  <ProviderSettingsLayout2
+  <ProviderSettingsLayout
     :provider-name="providerMetadata?.localizedName"
     :provider-icon="providerMetadata?.icon"
+    :provider-icon-color="providerMetadata?.iconColor"
     :on-back="() => router.back()"
   >
     <div flex="~ col md:row gap-6">
@@ -169,5 +170,5 @@ function handleResetVoiceSettings() {
         </div>
       </div>
     </div>
-  </ProviderSettingsLayout2>
+  </ProviderSettingsLayout>
 </template>

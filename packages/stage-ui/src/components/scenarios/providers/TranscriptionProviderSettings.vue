@@ -10,7 +10,7 @@ import {
   ProviderBaseUrlInput,
   ProviderBasicSettings,
   ProviderSettingsContainer,
-  ProviderSettingsLayout2,
+  ProviderSettingsLayout,
 } from '.'
 import { useProvidersStore } from '../../../stores/providers'
 
@@ -67,9 +67,10 @@ function handleResetTranscriptionSettings() {
 </script>
 
 <template>
-  <ProviderSettingsLayout2
+  <ProviderSettingsLayout
     :provider-name="providerMetadata?.localizedName"
     :provider-icon="providerMetadata?.icon"
+    :provider-icon-color="providerMetadata?.iconColor"
     :on-back="() => router.back()"
   >
     <div flex="~ col md:row gap-6">
@@ -104,5 +105,5 @@ function handleResetTranscriptionSettings() {
         </div>
       </div>
     </div>
-  </ProviderSettingsLayout2>
+  </ProviderSettingsLayout>
 </template>
