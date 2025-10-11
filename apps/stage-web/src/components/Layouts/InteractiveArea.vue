@@ -34,6 +34,14 @@ const imageInputEnabled = ref(false)
 // File input ref
 const fileInputRef = ref<HTMLInputElement>()
 
+// Image upload state
+const uploadedImages = ref<Array<{ id: string, dataUrl: string, fileName: string, isAnalyzing?: boolean, analysis?: string }>>([])
+
+// Generate unique ID for images
+function generateImageId() {
+  return `img_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+}
+
 const providersStore = useProvidersStore()
 const speechStore = useSpeechStore()
 const hearingStore = useHearingStore()
@@ -97,14 +105,45 @@ async function handleImageUpload(event: Event) {
   }
 
   try {
-    // Convert image to base64 for preview
     const reader = new FileReader()
-    reader.onload = (e) => {
+    reader.onload = async (e) => {
       const imageData = e.target?.result as string
-      // Here you would typically send the image to vision analysis
-      // For now, we can add it as a message or preview
-      console.info('Image uploaded:', imageData)
-      // TODO: Integrate with vision analysis when ready
+      const imageId = generateImageId()
+
+      // Add image to preview list
+      uploadedImages.value.push({
+        id: imageId,
+        dataUrl: imageData,
+        fileName: file.name,
+        isAnalyzing: true,
+      })
+
+      // Reset file input
+      if (fileInputRef.value) {
+        fileInputRef.value.value = ''
+      }
+
+      // Analyze image if vision is configured
+      if (visionStore.configured) {
+        try {
+          const result = await visionStore.analyzeImageDirect(imageData, 'Analyze this image in detail.')
+
+          // Update image with analysis result
+          const imageIndex = uploadedImages.value.findIndex(img => img.id === imageId)
+          if (imageIndex !== -1) {
+            uploadedImages.value[imageIndex].isAnalyzing = false
+            uploadedImages.value[imageIndex].analysis = result.content
+          }
+        }
+        catch (error) {
+          console.error('Vision analysis failed:', error)
+          const imageIndex = uploadedImages.value.findIndex(img => img.id === imageId)
+          if (imageIndex !== -1) {
+            uploadedImages.value[imageIndex].isAnalyzing = false
+            uploadedImages.value[imageIndex].analysis = `Analysis failed: ${(error as Error).message}`
+          }
+        }
+      }
     }
     reader.readAsDataURL(file)
   }
@@ -113,24 +152,44 @@ async function handleImageUpload(event: Event) {
   }
 }
 
-async function handleHearingToggle() {
-  // Only request microphone permission when turning on hearing
-  if (!hearingEnabled.value) {
-    try {
-      await askPermission()
-      hearingEnabled.value = true
-    }
-    catch (error) {
-      console.error('Failed to get microphone permission:', error)
-      // Show error to user or handle appropriately
-    }
+async function sendImageWithAnalysis(imageId: string) {
+  const image = uploadedImages.value.find(img => img.id === imageId)
+  if (!image || !image.analysis)
+    return
+
+  try {
+    await send(`[Image: ${image.fileName}]\n[Analysis: ${image.analysis}]`, {
+      chatProvider: await providersStore.getProviderInstance(activeProvider.value) as ChatProvider,
+      model: activeModel.value,
+      providerConfig: providersStore.getProviderConfig(activeProvider.value),
+    })
+
+    // Remove image after sending
+    uploadedImages.value = uploadedImages.value.filter(img => img.id !== imageId)
   }
-  else {
-    hearingEnabled.value = false
+  catch (error) {
+    console.error('Failed to send image analysis:', error)
   }
 }
 
-const { destroy, start } = useMicVAD(selectedAudioInput, {
+function removeUploadedImage(imageId: string) {
+  uploadedImages.value = uploadedImages.value.filter(img => img.id !== imageId)
+}
+
+async function handleSpeechToggle() {
+  if (!speechEnabled.value) {
+    speechEnabled.value = true
+    // Enable speech synthesis when turned on
+    // TODO: Initialize speech synthesis if needed
+  }
+  else {
+    speechEnabled.value = false
+    // Disable speech synthesis when turned off
+    // TODO: Clean up speech synthesis if needed
+  }
+}
+
+const vad = useMicVAD(selectedAudioInput, {
   onSpeechStart: () => {
     // TODO: interrupt the playback
     // TODO: interrupt any of the ongoing TTS
@@ -166,7 +225,7 @@ async function handleTranscription(buffer: ArrayBufferLike) {
 
 watch(enabled, async (value) => {
   if (value === false) {
-    destroy()
+    vad.destroy()
     terminate()
   }
 })
@@ -183,9 +242,32 @@ watch([activeProvider, activeModel], async () => {
   }
 })
 
+// Define hearing toggle after VAD is defined
+async function handleHearingToggle() {
+  // Only request microphone permission when turning on hearing
+  if (!hearingEnabled.value) {
+    try {
+      await askPermission()
+      hearingEnabled.value = true
+      // Start VAD when hearing is enabled
+      vad.start()
+    }
+    catch (error) {
+      console.error('Failed to get microphone permission:', error)
+      // Show error to user or handle appropriately
+    }
+  }
+  else {
+    hearingEnabled.value = false
+    // Stop VAD when hearing is disabled
+    vad.destroy()
+  }
+}
+
 onMounted(() => {
   // loadWhisper()
-  start()
+  // Don't start VAD automatically - only start when user enables hearing
+  // vad.start()
 })
 
 onAfterMessageComposed(async () => {
@@ -204,21 +286,60 @@ onAfterMessageComposed(async () => {
       >
         <ChatHistory h-full flex-1 w="full" max-h="<md:[60%]" />
         <div h="<md:full" flex gap-2>
-          <BasicTextarea
-            v-model="messageInput"
-            :placeholder="t('stage.message')"
-            text="primary-500 hover:primary-600 dark:primary-300/50 dark:hover:primary-500 placeholder:primary-400 placeholder:hover:primary-500 placeholder:dark:primary-300/50 placeholder:dark:hover:primary-500"
-            bg="primary-200/20 dark:primary-400/20"
-            min-h="[100px]" max-h="[300px]" w-full
-            rounded-t-xl p-4 font-medium
-            outline-none transition="all duration-250 ease-in-out placeholder:all placeholder:duration-250 placeholder:ease-in-out"
-            :class="{
-              'transition-colors-none placeholder:transition-colors-none': themeColorsHueDynamic,
-            }"
-            @submit="handleSend"
-            @compositionstart="isComposing = true"
-            @compositionend="isComposing = false"
-          />
+          <div flex="~ col" w-full>
+            <BasicTextarea
+              v-model="messageInput"
+              :placeholder="t('stage.message')"
+              text="primary-500 hover:primary-600 dark:primary-300/50 dark:hover:primary-500 placeholder:primary-400 placeholder:hover:primary-500 placeholder:dark:primary-300/50 placeholder:dark:hover:primary-500"
+              bg="primary-200/20 dark:primary-400/20"
+              min-h="[100px]" max-h="[300px]" w-full
+              rounded-t-xl p-4 font-medium
+              outline-none transition="all duration-250 ease-in-out placeholder:all placeholder:duration-250 placeholder:ease-in-out"
+              :class="{
+                'transition-colors-none placeholder:transition-colors-none': themeColorsHueDynamic,
+              }"
+              @submit="handleSend"
+              @compositionstart="isComposing = true"
+              @compositionend="isComposing = false"
+            />
+
+            <!-- Image Preview Area -->
+            <div v-if="uploadedImages.length > 0" class="border-b border-t border-neutral-200 bg-neutral-50 p-2 dark:border-neutral-700 dark:bg-neutral-800">
+              <div class="max-h-48 flex flex-col gap-2 overflow-y-auto">
+                <div v-for="image in uploadedImages" :key="image.id" class="flex items-start gap-2 rounded-lg bg-white p-2 dark:bg-neutral-900">
+                  <img :src="image.dataUrl" :alt="image.fileName" class="h-16 w-16 rounded object-cover">
+                  <div class="min-w-0 flex-1">
+                    <div class="truncate text-sm font-medium">
+                      {{ image.fileName }}
+                    </div>
+                    <div v-if="image.isAnalyzing" class="flex items-center gap-1 text-sm text-primary-600 dark:text-primary-400">
+                      <div class="i-solar:spinner-line-duotone animate-spin" />
+                      Analyzing...
+                    </div>
+                    <div v-else-if="image.analysis" class="flex flex-col gap-1">
+                      <div class="text-sm text-neutral-700 dark:text-neutral-300">
+                        {{ image.analysis }}
+                      </div>
+                      <div class="flex gap-2">
+                        <button
+                          class="rounded bg-primary-500 px-2 py-1 text-xs text-white hover:bg-primary-600"
+                          @click="sendImageWithAnalysis(image.id)"
+                        >
+                          Send
+                        </button>
+                        <button
+                          class="rounded bg-neutral-500 px-2 py-1 text-xs text-white hover:bg-neutral-600"
+                          @click="removeUploadedImage(image.id)"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -233,7 +354,7 @@ onAfterMessageComposed(async () => {
         transition-colors transition-transform active:scale-95
         :class="speechEnabled ? 'text-green-500 dark:text-green-400' : 'hover:text-green-500 dark:hover:text-green-400'"
         :title="speechEnabled ? 'Disable Speech' : 'Enable Speech'"
-        @click="speechEnabled = !speechEnabled"
+        @click="handleSpeechToggle"
       >
         <div class="i-solar:user-speak-rounded-bold-duotone" />
       </button>

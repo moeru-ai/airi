@@ -95,40 +95,60 @@ async function handleImageUpload(event: Event) {
   }
 
   try {
-    // Convert image to base64 for preview
+    // Convert image to base64 for vision analysis
     const reader = new FileReader()
-    reader.onload = (e) => {
+    reader.onload = async (e) => {
       const imageData = e.target?.result as string
-      // Here you would typically send the image to vision analysis
-      // For now, we can add it as a message or preview
-      console.info('Image uploaded:', imageData)
-      // TODO: Integrate with vision analysis when ready
+
+      // Send image to vision analysis
+      if (visionStore.configured) {
+        try {
+          const result = await visionStore.analyzeImageDirect(imageData, 'Analyze this image in detail.')
+
+          // Add analysis result to chat
+          await send(`[Image Analysis: ${result.content}]`, {
+            chatProvider: await providersStore.getProviderInstance(activeProvider.value) as ChatProvider,
+            model: activeModel.value,
+            providerConfig: providersStore.getProviderConfig(activeProvider.value),
+          })
+        }
+        catch (error) {
+          console.error('Vision analysis failed:', error)
+          // Add error message to chat
+          await send(`Image analysis failed: ${(error as Error).message}`, {
+            chatProvider: await providersStore.getProviderInstance(activeProvider.value) as ChatProvider,
+            model: activeModel.value,
+            providerConfig: providersStore.getProviderConfig(activeProvider.value),
+          })
+        }
+      }
     }
     reader.readAsDataURL(file)
+
+    // Reset file input
+    if (fileInputRef.value) {
+      fileInputRef.value.value = ''
+    }
   }
   catch (error) {
     console.error('Error uploading image:', error)
   }
 }
 
-async function handleHearingToggle() {
-  // Only request microphone permission when turning on hearing
-  if (!hearingEnabled.value) {
-    try {
-      await askPermission()
-      hearingEnabled.value = true
-    }
-    catch (error) {
-      console.error('Failed to get microphone permission:', error)
-      // Show error to user or handle appropriately
-    }
+async function handleSpeechToggle() {
+  if (!speechEnabled.value) {
+    speechEnabled.value = true
+    // Enable speech synthesis when turned on
+    // TODO: Initialize speech synthesis if needed
   }
   else {
-    hearingEnabled.value = false
+    speechEnabled.value = false
+    // Disable speech synthesis when turned off
+    // TODO: Clean up speech synthesis if needed
   }
 }
 
-const { destroy, start } = useMicVAD(selectedAudioInput, {
+const vad = useMicVAD(selectedAudioInput, {
   onSpeechStart: () => {
     // TODO: interrupt the playback
     // TODO: interrupt any of the ongoing TTS
@@ -161,7 +181,7 @@ function handleTranscription(_buffer: Float32Array<ArrayBufferLike>) {
 
 watch(enabled, async (value) => {
   if (value === false) {
-    destroy()
+    vad.destroy()
   }
 })
 
@@ -175,8 +195,31 @@ watch([activeProvider, activeModel], async () => {
   }
 })
 
+// Define hearing toggle after VAD is defined
+async function handleHearingToggle() {
+  // Only request microphone permission when turning on hearing
+  if (!hearingEnabled.value) {
+    try {
+      await askPermission()
+      hearingEnabled.value = true
+      // Start VAD when hearing is enabled
+      vad.start()
+    }
+    catch (error) {
+      console.error('Failed to get microphone permission:', error)
+      // Show error to user or handle appropriately
+    }
+  }
+  else {
+    hearingEnabled.value = false
+    // Stop VAD when hearing is disabled
+    vad.destroy()
+  }
+}
+
 onMounted(() => {
-  start()
+  // Don't start VAD automatically - only start when user enables hearing
+  // vad.start()
   screenSafeArea.update()
 })
 </script>
@@ -203,7 +246,7 @@ onMounted(() => {
             bg="neutral-50/70 dark:neutral-800/70"
             w-fit flex items-center self-end justify-center rounded-xl p-2 backdrop-blur-md
             :title="speechEnabled ? 'Disable Speech' : 'Enable Speech'"
-            @click="speechEnabled = !speechEnabled"
+            @click="handleSpeechToggle"
           >
             <div
               size-5
