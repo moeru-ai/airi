@@ -12,6 +12,7 @@ import { useLlmmarkerParser } from '../composables/llmmarkerParser'
 import { useLLM } from '../stores/llm'
 import { createQueue } from '../utils/queue'
 import { TTS_FLUSH_INSTRUCTION } from '../utils/tts'
+import { useMemoryStore } from './memory'
 import { useAiriCardStore } from './modules'
 
 export interface ErrorMessage {
@@ -22,6 +23,8 @@ export interface ErrorMessage {
 export const useChatStore = defineStore('chat', () => {
   const { stream, discoverToolsCompatibility } = useLLM()
   const { systemPrompt } = storeToRefs(useAiriCardStore())
+  const memoryStore = useMemoryStore()
+  void memoryStore.fetchRecent()
 
   const sending = ref(false)
 
@@ -97,7 +100,15 @@ export const useChatStore = defineStore('chat', () => {
 
   watch(systemPrompt, () => {
     if (messages.value.length > 0 && messages.value[0].role === 'system') {
-      messages.value[0] = generateInitialMessage()
+      const newSystemMessage = generateInitialMessage()
+      // Only update if the system prompt actually changed
+      if (messages.value[0].content !== newSystemMessage.content) {
+        messages.value[0] = newSystemMessage
+      }
+    }
+    else if (messages.value.length === 0 || messages.value[0].role !== 'system') {
+      // No system message exists, prepend one
+      messages.value = [generateInitialMessage(), ...messages.value]
     }
   }, {
     immediate: true,
@@ -196,6 +207,31 @@ export const useChatStore = defineStore('chat', () => {
         return toRaw(msg)
       })
 
+      await memoryStore.fetchRecent()
+      const similarMemories = await memoryStore.searchMemories(sendingMessage, 6)
+      let messagesWithMemory = memoryStore.appendContextMessages(newMessages as Message[])
+
+      // eslint-disable-next-line no-console
+      console.log('[Chat] System prompt length:', messagesWithMemory[0]?.role === 'system' ? (messagesWithMemory[0].content as string).length : 0)
+      // eslint-disable-next-line no-console
+      console.log('[Chat] System prompt preview:', messagesWithMemory[0]?.role === 'system' ? (messagesWithMemory[0].content as string).substring(0, 200) : 'No system prompt')
+
+      if (similarMemories.length) {
+        const longTermContext: Message = {
+          role: 'system',
+          content: `Relevant long-term memory entries:\n${similarMemories.map(memory => `${memory.role}: ${typeof memory.content === 'string' ? memory.content : JSON.stringify(memory.content)}`).join('\n')}`,
+        }
+
+        messagesWithMemory = messagesWithMemory.length
+          ? [messagesWithMemory[0], longTermContext, ...messagesWithMemory.slice(1)]
+          : [longTermContext]
+      }
+
+      // eslint-disable-next-line no-console
+      console.log('[Chat] Final messages count:', messagesWithMemory.length)
+      // eslint-disable-next-line no-console
+      console.log('[Chat] Final messages:', JSON.stringify(messagesWithMemory.map(m => ({ role: m.role, contentLength: typeof m.content === 'string' ? m.content.length : JSON.stringify(m.content).length }))))
+
       for (const hook of onAfterMessageComposedHooks.value) {
         await hook(sendingMessage)
       }
@@ -207,7 +243,7 @@ export const useChatStore = defineStore('chat', () => {
       let fullText = ''
       const headers = (options.providerConfig?.headers || {}) as Record<string, string>
 
-      await stream(options.model, options.chatProvider, newMessages as Message[], {
+      await stream(options.model, options.chatProvider, messagesWithMemory, {
         headers,
         async onStreamEvent(event: StreamEvent) {
           if (event.type === 'tool-call') {
@@ -238,6 +274,14 @@ export const useChatStore = defineStore('chat', () => {
             // Reset the streaming message for the next turn
             streamingMessage.value = { role: 'assistant', content: '', slices: [], tool_results: [] }
 
+            await memoryStore.saveMessage({
+              role: 'assistant',
+              content: fullText,
+              timestamp: new Date(),
+              metadata: { source: 'assistant-response' },
+            })
+            await memoryStore.fetchRecent()
+
             // Instruct the TTS pipeline to flush by calling hooks directly
             const flushSignal = `${TTS_FLUSH_INSTRUCTION}${TTS_FLUSH_INSTRUCTION}`
             for (const hook of onTokenLiteralHooks.value)
@@ -263,12 +307,37 @@ export const useChatStore = defineStore('chat', () => {
     }
     catch (error) {
       console.error('Error sending message:', error)
+
+      // Add error message to chat for user visibility
+      messages.value.push({
+        role: 'error',
+        content: `Failed to send message: ${error instanceof Error ? error.message : String(error)}`,
+      })
+
       throw error
     }
     finally {
       sending.value = false
     }
   }
+
+  watch(() => messages.value.length, (length, prevLength) => {
+    if (length <= prevLength)
+      return
+
+    const latest = messages.value.at(-1)
+    if (!latest)
+      return
+
+    if (latest.role === 'user') {
+      void memoryStore.saveMessage({
+        role: 'user',
+        content: typeof latest.content === 'string' ? latest.content : JSON.stringify(latest.content),
+        timestamp: new Date(),
+        metadata: { source: 'user-message' },
+      }).then(() => memoryStore.fetchRecent())
+    }
+  }, { flush: 'post' })
 
   return {
     sending,

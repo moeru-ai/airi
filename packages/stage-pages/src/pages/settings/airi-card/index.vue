@@ -126,7 +126,11 @@ function handleCardCreationDialog() {
 
 // Card activation
 function activateCard(id: string) {
+  // eslint-disable-next-line no-console
+  console.log('[CardSettings] Activating card:', id)
   activeCardId.value = id
+  // eslint-disable-next-line no-console
+  console.log('[CardSettings] Active card ID changed to:', activeCardId.value)
 }
 
 // Card version number

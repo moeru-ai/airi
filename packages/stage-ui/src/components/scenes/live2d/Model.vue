@@ -2,6 +2,7 @@
 import type { Application } from '@pixi/app'
 import type { Cubism4InternalModel, InternalModel } from 'pixi-live2d-display/cubism4'
 
+import { Container } from '@pixi/display'
 import { breakpointsTailwind, until, useBreakpoints, useDark, useDebounceFn } from '@vueuse/core'
 import { formatHex } from 'culori'
 import { storeToRefs } from 'pinia'
@@ -182,6 +183,10 @@ async function loadModel() {
     // --- Scene
 
     model.value = live2DModel
+
+    if (!pixiApp.value.stage)
+      pixiApp.value.stage = new Container()
+
     pixiApp.value.stage.addChild(model.value)
     initialModelWidth.value = model.value.width
     initialModelHeight.value = model.value.height

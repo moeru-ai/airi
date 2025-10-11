@@ -6,8 +6,6 @@ import { defineStore, storeToRefs } from 'pinia'
 import { computed, onMounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import SystemPromptV2 from '../../constants/prompts/system-v2'
-
 import { useConsciousnessStore } from './consciousness'
 import { useSpeechStore } from './speech'
 
@@ -54,7 +52,21 @@ export interface AiriCard extends Card {
 }
 
 export const useAiriCardStore = defineStore('airi-card', () => {
-  const cards = useLocalStorage<Map<string, AiriCard>>('airi-cards', new Map())
+  const cards = useLocalStorage<Map<string, AiriCard>>('airi-cards', new Map(), {
+    serializer: {
+      read: (raw: string) => {
+        try {
+          const parsed = JSON.parse(raw)
+          return new Map(Object.entries(parsed))
+        }
+        catch (error) {
+          console.error('[AiriCard] Failed to parse stored cards, resetting:', error)
+          return new Map()
+        }
+      },
+      write: (value: Map<string, AiriCard>) => JSON.stringify(Object.fromEntries(value)),
+    },
+  })
   const activeCardId = useLocalStorage('airi-card-active-id', 'default')
 
   const activeCard = computed(() => cards.value.get(activeCardId.value))
@@ -179,23 +191,58 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     }
   }
 
+  // Initialize default card if it doesn't exist (SSR-safe)
+  if (!cards.value.has('default')) {
+    // Use a minimal default card that works without i18n
+    // The full card will be created in onMounted once i18n is available
+    cards.value.set('default', newAiriCard({
+      name: 'AIRI',
+      version: '1.0.0',
+      description: 'A helpful AI assistant',
+      personality: 'Cute, expressive, emotional, playful, curious, energetic, caring',
+      scenario: 'AIRI is a virtual AI VTuber who just woke up in a life pod. She can see and hear the world through text, voice, and visual input.',
+      systemPrompt: 'You are AIRI, a friendly AI assistant. Be helpful and conversational.',
+      postHistoryInstructions: 'Remember to stay in character as AIRI. Express emotions using the emotion markers. Be authentic and human-like in your responses.',
+      greetings: ['Hello! I just woke up... where am I?'],
+    }))
+  }
+
+  // Ensure activeCardId points to an existing card
+  if (!cards.value.has(activeCardId.value)) {
+    activeCardId.value = 'default'
+  }
+
+  // Update default card with i18n translations once available (client-side only)
   onMounted(() => {
     const { t } = useI18n()
+    const defaultCard = cards.value.get('default')
 
-    cards.value.set('default', newAiriCard({
-      name: 'ReLU',
-      version: '1.0.0',
-      // description: 'ReLU is a simple and effective activation function that is used in many neural networks.',
-      description: SystemPromptV2(
-        t('base.prompt.prefix'),
-        t('base.prompt.suffix'),
-      ).content,
-    }))
+    // Only update if using the minimal default description/systemPrompt
+    if (defaultCard && defaultCard.description === 'A helpful AI assistant') {
+      cards.value.set('default', newAiriCard({
+        ...defaultCard,
+        description: t('base.prompt.prefix'),
+        systemPrompt: t('base.prompt.suffix'),
+      }))
+    }
   })
 
-  watch(activeCard, (newCard: AiriCard | undefined) => {
+  // Watch activeCardId instead of activeCard to properly detect changes
+  watch(activeCardId, (newCardId: string, oldCardId: string) => {
+    const newCard = cards.value.get(newCardId)
     if (!newCard)
       return
+
+    // Clear chat history when switching cards (but not on initial load)
+    if (oldCardId && newCardId !== oldCardId) {
+      // Dynamically import to avoid circular dependency
+      import('../chat').then(({ useChatStore }) => {
+        const chatStore = useChatStore()
+        chatStore.cleanupMessages()
+        // eslint-disable-next-line no-console
+        console.log('[AiriCard] Switched card from', oldCardId, 'to', newCardId, '- cleared chat history')
+      })
+    }
 
     // TODO: live2d, vrm
     // TODO: Minecraft Agent, etc
@@ -233,13 +280,37 @@ export const useAiriCardStore = defineStore('airi-card', () => {
       if (!card)
         return ''
 
-      const components = [
-        card.systemPrompt,
-        card.description,
-        card.personality,
-      ].filter(Boolean)
+      const components: string[] = []
 
-      return components.join('\n')
+      // Add system prompt if exists
+      if (card.systemPrompt)
+        components.push(card.systemPrompt)
+
+      // Add character description
+      if (card.description)
+        components.push(`## Character Description\n${card.description}`)
+
+      // Add personality traits
+      if (card.personality)
+        components.push(`## Personality\n${card.personality}`)
+
+      // Add scenario/background
+      if (card.scenario)
+        components.push(`## Scenario\n${card.scenario}`)
+
+      // Add message examples
+      if (card.messageExample && card.messageExample.length > 0) {
+        const examples = card.messageExample
+          .map(conversation => conversation.join('\n'))
+          .join('\n\n')
+        components.push(`## Example Conversations\n${examples}`)
+      }
+
+      // Add post history instructions if exists
+      if (card.postHistoryInstructions)
+        components.push(`## Instructions\n${card.postHistoryInstructions}`)
+
+      return components.join('\n\n')
     }),
   }
 })

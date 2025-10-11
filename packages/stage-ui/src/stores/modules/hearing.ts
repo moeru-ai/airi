@@ -3,19 +3,44 @@ import type { TranscriptionProvider, TranscriptionProviderWithExtraOptions } fro
 import { useLocalStorage } from '@vueuse/core'
 import { generateTranscription } from '@xsai/generate-transcription'
 import { defineStore, storeToRefs } from 'pinia'
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 
 import { useProvidersStore } from '../providers'
 
 export const useHearingStore = defineStore('hearing-store', () => {
   const providersStore = useProvidersStore()
-  const { allAudioTranscriptionProvidersMetadata } = storeToRefs(providersStore)
+  const { allAudioTranscriptionProvidersMetadata, configuredProviders } = storeToRefs(providersStore)
 
   // State
   const activeTranscriptionProvider = useLocalStorage('settings/hearing/active-provider', '')
   const activeTranscriptionModel = useLocalStorage('settings/hearing/active-model', '')
   const activeCustomModelName = useLocalStorage('settings/hearing/active-custom-model', '')
   const transcriptionModelSearchQuery = ref('')
+
+  const defaultTranscriptionProvider = (import.meta.env.DEFAULT_TRANSCRIPTION_PROVIDER || 'openai-audio-transcription').trim()
+
+  if (
+    defaultTranscriptionProvider
+    && Object.prototype.hasOwnProperty.call(providersStore.providerMetadata, defaultTranscriptionProvider)
+  ) {
+    watch(
+      () => configuredProviders.value[defaultTranscriptionProvider],
+      (isConfigured) => {
+        if (isConfigured && !activeTranscriptionProvider.value)
+          activeTranscriptionProvider.value = defaultTranscriptionProvider
+      },
+      { immediate: true },
+    )
+  }
+
+  watch(activeTranscriptionProvider, (provider) => {
+    if (!provider)
+      return
+
+    const envModel = providersStore.getEnvModelForProvider?.(provider)
+    if (envModel && (!activeTranscriptionModel.value || activeTranscriptionModel.value.trim().length === 0))
+      activeTranscriptionModel.value = envModel
+  }, { immediate: true })
 
   // Computed properties
   const availableProvidersMetadata = computed(() => allAudioTranscriptionProvidersMetadata.value)

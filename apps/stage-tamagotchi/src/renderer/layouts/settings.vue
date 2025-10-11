@@ -75,9 +75,13 @@ const routeHeaderMetadataMap = computed(() => {
       subtitle: t('settings.title'),
       title: t('settings.pages.modules.memory-long-term.title'),
     },
-    '/settings/modules/messaging-discord': {
+    '/settings/modules/vision': {
       subtitle: t('settings.title'),
-      title: t('settings.pages.modules.messaging-discord.title'),
+      title: t('settings.pages.modules.vision.title'),
+    },
+    '/settings/modules/messaging': {
+      subtitle: t('settings.title'),
+      title: t('settings.pages.modules.messaging.title'),
     },
     '/settings/modules/x': {
       subtitle: t('settings.title'),

@@ -1,11 +1,9 @@
 <script setup lang="ts">
-// import { useServerStore } from '@proj-airi/stage-ui/stores/servers'
-
-// const serverStore = useServerStore()
+import ShortTermSection from '../memory/components/ShortTermSection.vue'
 </script>
 
 <template>
-  <div />
+  <ShortTermSection />
 </template>
 
 <route lang="yaml">
