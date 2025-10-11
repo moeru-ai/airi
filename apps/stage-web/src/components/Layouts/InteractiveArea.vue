@@ -8,6 +8,7 @@ import { useMicVAD, useWhisper } from '@proj-airi/stage-ui/composables'
 import { useAudioContext } from '@proj-airi/stage-ui/stores/audio'
 import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
 import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
+import { useVisionStore } from '@proj-airi/stage-ui/stores/modules/vision'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { BasicTextarea } from '@proj-airi/ui'
@@ -23,7 +24,17 @@ const listening = ref(false)
 const showMicrophoneSelect = ref(false)
 const isComposing = ref(false)
 
+// Toggle states
+const speechEnabled = ref(false)
+const hearingEnabled = ref(false)
+const imageInputEnabled = ref(false)
+
+// File input ref
+const fileInputRef = ref<HTMLInputElement>()
+
 const providersStore = useProvidersStore()
+const visionStore = useVisionStore()
+
 const { activeProvider, activeModel } = storeToRefs(useConsciousnessStore())
 const { themeColorsHueDynamic } = storeToRefs(useSettings())
 
@@ -72,6 +83,29 @@ async function handleSend() {
       role: 'error',
       content: (error as Error).message,
     })
+  }
+}
+
+async function handleImageUpload(event: Event) {
+  const file = (event.target as HTMLInputElement).files?.[0]
+  if (!file || !file.type.startsWith('image/')) {
+    return
+  }
+
+  try {
+    // Convert image to base64 for preview
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      const imageData = e.target?.result as string
+      // Here you would typically send the image to vision analysis
+      // For now, we can add it as a message or preview
+      console.info('Image uploaded:', imageData)
+      // TODO: Integrate with vision analysis when ready
+    }
+    reader.readAsDataURL(file)
+  }
+  catch (error) {
+    console.error('Error uploading image:', error)
   }
 }
 
@@ -169,6 +203,70 @@ onAfterMessageComposed(async () => {
     </div>
 
     <div absolute bottom--8 right-0 flex gap-2>
+      <button
+        class="max-h-[10lh] min-h-[1lh]"
+        bg="neutral-100 dark:neutral-800"
+        text="lg neutral-500 dark:neutral-400"
+        flex items-center justify-center rounded-md p-2 outline-none
+        transition-colors transition-transform active:scale-95
+        :class="speechEnabled ? 'text-green-500 dark:text-green-400' : 'hover:text-green-500 dark:hover:text-green-400'"
+        :title="speechEnabled ? 'Disable Speech' : 'Enable Speech'"
+        @click="speechEnabled = !speechEnabled"
+      >
+        <div class="i-solar:user-speak-rounded-bold-duotone" />
+      </button>
+
+      <button
+        class="max-h-[10lh] min-h-[1lh]"
+        bg="neutral-100 dark:neutral-800"
+        text="lg neutral-500 dark:neutral-400"
+        flex items-center justify-center rounded-md p-2 outline-none
+        transition-colors transition-transform active:scale-95
+        :class="hearingEnabled ? 'text-green-500 dark:text-green-400' : 'hover:text-green-500 dark:hover:text-green-400'"
+        :title="hearingEnabled ? 'Disable Hearing' : 'Enable Hearing'"
+        @click="hearingEnabled = !hearingEnabled"
+      >
+        <div class="i-solar:microphone-3-bold-duotone" />
+      </button>
+
+      <button
+        v-if="visionStore.configured"
+        class="max-h-[10lh] min-h-[1lh]"
+        bg="neutral-100 dark:neutral-800"
+        text="lg neutral-500 dark:neutral-400"
+        flex items-center justify-center rounded-md p-2 outline-none
+        transition-colors transition-transform active:scale-95
+        :class="imageInputEnabled ? 'text-blue-500 dark:text-blue-400' : 'hover:text-blue-500 dark:hover:text-blue-400'"
+        :title="imageInputEnabled ? 'Disable Image Input' : 'Enable Image Input'"
+        @click="imageInputEnabled = !imageInputEnabled"
+      >
+        <div class="i-solar:eye-bold-duotone" />
+      </button>
+
+      <!-- Hidden file input for image upload -->
+      <input
+        v-if="imageInputEnabled"
+        ref="fileInputRef"
+        type="file"
+        accept="image/*"
+        class="hidden"
+        @change="handleImageUpload"
+      >
+
+      <button
+        v-if="imageInputEnabled"
+        class="max-h-[10lh] min-h-[1lh]"
+        bg="neutral-100 dark:neutral-800"
+        text="lg neutral-500 dark:neutral-400"
+        hover:text="blue-500 dark:hover:text-blue-400"
+        flex items-center justify-center rounded-md p-2 outline-none
+        transition-colors transition-transform active:scale-95
+        title="Upload Image"
+        @click="fileInputRef?.click()"
+      >
+        <div class="i-solar:gallery-add-bold-duotone" />
+      </button>
+
       <button
         class="max-h-[10lh] min-h-[1lh]"
         bg="neutral-100 dark:neutral-800"
