@@ -104,7 +104,14 @@ export const useVisionStore = defineStore('vision-store', () => {
       model: activeVisionModel.value,
     }
 
-    return generateImage(imageUrl, prompt || 'Describe this image in detail.', providerOptions)
+    const result = await generateImage(imageUrl, prompt || 'Describe this image in detail.', providerOptions)
+
+    // Ensure consistent return structure
+    if (typeof result === 'string') {
+      return { content: result }
+    }
+
+    return result || { content: 'Analysis failed: No response received' }
   }
 
   async function analyzeImageDirect(imageData: Blob | ArrayBuffer | string, prompt?: string, options?: ChatProviderWithExtraOptions<string, any>) {
@@ -117,7 +124,14 @@ export const useVisionStore = defineStore('vision-store', () => {
       model: activeVisionModel.value,
     }
 
-    return generateImage(imageData, prompt || 'Describe this image in detail.', providerOptions)
+    const result = await generateImage(imageData, prompt || 'Describe this image in detail.', providerOptions)
+
+    // Ensure consistent return structure
+    if (typeof result === 'string') {
+      return { content: result }
+    }
+
+    return result || { content: 'Analysis failed: No response received' }
   }
 
   return {
