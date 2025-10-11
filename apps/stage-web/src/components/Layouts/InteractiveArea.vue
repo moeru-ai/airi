@@ -8,6 +8,8 @@ import { useMicVAD, useWhisper } from '@proj-airi/stage-ui/composables'
 import { useAudioContext } from '@proj-airi/stage-ui/stores/audio'
 import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
 import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
+import { useHearingStore } from '@proj-airi/stage-ui/stores/modules/hearing'
+import { useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
 import { useVisionStore } from '@proj-airi/stage-ui/stores/modules/vision'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
@@ -33,6 +35,8 @@ const imageInputEnabled = ref(false)
 const fileInputRef = ref<HTMLInputElement>()
 
 const providersStore = useProvidersStore()
+const speechStore = useSpeechStore()
+const hearingStore = useHearingStore()
 const visionStore = useVisionStore()
 
 const { activeProvider, activeModel } = storeToRefs(useConsciousnessStore())
@@ -106,6 +110,23 @@ async function handleImageUpload(event: Event) {
   }
   catch (error) {
     console.error('Error uploading image:', error)
+  }
+}
+
+async function handleHearingToggle() {
+  // Only request microphone permission when turning on hearing
+  if (!hearingEnabled.value) {
+    try {
+      await askPermission()
+      hearingEnabled.value = true
+    }
+    catch (error) {
+      console.error('Failed to get microphone permission:', error)
+      // Show error to user or handle appropriately
+    }
+  }
+  else {
+    hearingEnabled.value = false
   }
 }
 
@@ -204,6 +225,7 @@ onAfterMessageComposed(async () => {
 
     <div absolute bottom--8 right-0 flex gap-2>
       <button
+        v-if="speechStore.configured"
         class="max-h-[10lh] min-h-[1lh]"
         bg="neutral-100 dark:neutral-800"
         text="lg neutral-500 dark:neutral-400"
@@ -217,6 +239,7 @@ onAfterMessageComposed(async () => {
       </button>
 
       <button
+        v-if="hearingStore.configured"
         class="max-h-[10lh] min-h-[1lh]"
         bg="neutral-100 dark:neutral-800"
         text="lg neutral-500 dark:neutral-400"
@@ -224,7 +247,7 @@ onAfterMessageComposed(async () => {
         transition-colors transition-transform active:scale-95
         :class="hearingEnabled ? 'text-green-500 dark:text-green-400' : 'hover:text-green-500 dark:hover:text-green-400'"
         :title="hearingEnabled ? 'Disable Hearing' : 'Enable Hearing'"
-        @click="hearingEnabled = !hearingEnabled"
+        @click="handleHearingToggle"
       >
         <div class="i-solar:microphone-3-bold-duotone" />
       </button>

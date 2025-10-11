@@ -4,6 +4,8 @@ import type { ChatProvider } from '@xsai-ext/shared-providers'
 import { useMicVAD } from '@proj-airi/stage-ui/composables'
 import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
 import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
+import { useHearingStore } from '@proj-airi/stage-ui/stores/modules/hearing'
+import { useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
 import { useVisionStore } from '@proj-airi/stage-ui/stores/modules/vision'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
@@ -38,13 +40,15 @@ const fileInputRef = ref<HTMLInputElement>()
 
 const screenSafeArea = useScreenSafeArea()
 const providersStore = useProvidersStore()
+const speechStore = useSpeechStore()
+const hearingStore = useHearingStore()
 const visionStore = useVisionStore()
 
 const { activeProvider, activeModel } = storeToRefs(useConsciousnessStore())
 
 useResizeObserver(document.documentElement, () => screenSafeArea.update())
 
-// const { askPermission } = useSettingsAudioDevice()
+const { askPermission } = useSettingsAudioDevice()
 const { themeColorsHueDynamic, stageViewControlsEnabled } = storeToRefs(useSettings())
 const { enabled, selectedAudioInput } = storeToRefs(useSettingsAudioDevice())
 const { send, onAfterMessageComposed, discoverToolsCompatibility, cleanupMessages } = useChatStore()
@@ -104,6 +108,23 @@ async function handleImageUpload(event: Event) {
   }
   catch (error) {
     console.error('Error uploading image:', error)
+  }
+}
+
+async function handleHearingToggle() {
+  // Only request microphone permission when turning on hearing
+  if (!hearingEnabled.value) {
+    try {
+      await askPermission()
+      hearingEnabled.value = true
+    }
+    catch (error) {
+      console.error('Failed to get microphone permission:', error)
+      // Show error to user or handle appropriately
+    }
+  }
+  else {
+    hearingEnabled.value = false
   }
 }
 
@@ -177,6 +198,7 @@ onMounted(() => {
 
           <!-- Speech Toggle Button -->
           <button
+            v-if="speechStore.configured"
             border="2 solid neutral-100/60 dark:neutral-800/30"
             bg="neutral-50/70 dark:neutral-800/70"
             w-fit flex items-center self-end justify-center rounded-xl p-2 backdrop-blur-md
@@ -192,11 +214,12 @@ onMounted(() => {
 
           <!-- Hearing Toggle Button -->
           <button
+            v-if="hearingStore.configured"
             border="2 solid neutral-100/60 dark:neutral-800/30"
             bg="neutral-50/70 dark:neutral-800/70"
             w-fit flex items-center self-end justify-center rounded-xl p-2 backdrop-blur-md
             :title="hearingEnabled ? 'Disable Hearing' : 'Enable Hearing'"
-            @click="hearingEnabled = !hearingEnabled"
+            @click="handleHearingToggle"
           >
             <div
               size-5
