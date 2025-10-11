@@ -2,7 +2,7 @@ import { useDevicesList, useUserMedia } from '@vueuse/core'
 import { computed, ref, watch } from 'vue'
 
 export function useAudioInput() {
-  const devices = useDevicesList({ constraints: { audio: true }, requestPermissions: false })
+  const devices = useDevicesList({ constraints: { audio: true }, requestPermissions: true })
 
   const selectedAudioInputId = ref<string>(devices.audioInputs.value[0]?.deviceId || '')
   const selectedAudioInput = ref<MediaDeviceInfo>()

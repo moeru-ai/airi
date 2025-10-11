@@ -1,3 +1,4 @@
+export * from './chat'
 export * from './data-pane'
 export * from './gadgets'
 export * from './graphics'

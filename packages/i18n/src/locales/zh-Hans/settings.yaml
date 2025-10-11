@@ -333,6 +333,9 @@ pages:
     memory-short-term:
       description: 短期记忆
       title: 短期记忆
+    messaging:
+      description: 配置AIRI的消息平台
+      title: 消息
     messaging-discord:
       description: Discord 发消息和语音聊天
       title: Discord
@@ -342,6 +345,15 @@ pages:
       token-description: 您的Discord机器人令牌
       token-placeholder: 输入您的Discord机器人令牌
       configured: Discord已正确配置！
+    messaging-telegram:
+      description: Telegram 发消息和贴纸互动
+      title: Telegram
+      enable: 启用Telegram集成
+      enable-description: 允许AIRI通过Telegram进行互动
+      token: 机器人令牌
+      token-description: 您从@BotFather获取的Telegram机器人令牌
+      token-placeholder: 输入您的Telegram机器人令牌
+      configured: Telegram已正确配置！
     speech:
       description: 语音合成
       sections:
@@ -383,8 +395,42 @@ pages:
       title: 发声
     title: 机体模块
     vision:
-      description: 视觉
+      description: 计算机视觉和图像分析
       title: 视觉
+      enable_camera: 启用摄像头捕获
+      enable_camera_description: 允许AIRI使用摄像头进行图像分析
+      enable_screen: 启用屏幕捕获
+      enable_screen_description: 允许AIRI捕获和分析屏幕内容
+      auto_analyze: 捕获后自动分析
+      auto_analyze_description: 自动分析捕获的图像
+      test_platform:
+        title: 视觉测试平台
+        description: 测试和配置视觉识别能力
+      sections:
+        section:
+          provider-selection:
+            description: 选择AI视觉分析提供商
+        test-platform:
+          title: 测试平台
+          description: 测试和可视化视觉识别
+      actions:
+        start_camera: 启动摄像头
+        start_screen: 开始屏幕捕获
+        stop_capture: 停止捕获
+        capture_frame: 捕获帧
+        upload_image: 上传图片
+        analyze: 分析图像
+      captured_image: 捕获的图像
+      prompt_label: 分析提示
+      prompt_placeholder: 这张图片中你看到了什么？
+      analysis_result: 分析结果
+      analyzing: 分析中...
+      capabilities:
+        object_detection: 物体检测
+        scene_analysis: 场景分析
+        text_recognition: 文字识别 (OCR)
+        face_analysis: 人脸分析
+        emotion_detection: 情绪检测
     x:
       description: X / Twitter 的浏览和使用
       title: X / Twitter

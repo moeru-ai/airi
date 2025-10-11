@@ -9,7 +9,9 @@ import { useDiscordStore } from '../stores/modules/discord'
 import { useFactorioStore } from '../stores/modules/gaming-factorio'
 import { useMinecraftStore } from '../stores/modules/gaming-minecraft'
 import { useSpeechStore } from '../stores/modules/speech'
+import { useTelegramStore } from '../stores/modules/telegram'
 import { useTwitterStore } from '../stores/modules/twitter'
+import { useVisionStore } from '../stores/modules/vision'
 
 export interface Module {
   id: string
@@ -30,6 +32,8 @@ export function useModulesList() {
   const consciousnessStore = useConsciousnessStore()
   const speechStore = useSpeechStore()
   const discordStore = useDiscordStore()
+  const telegramStore = useTelegramStore()
+  const visionStore = useVisionStore()
   const twitterStore = useTwitterStore()
   const minecraftStore = useMinecraftStore()
   const factorioStore = useFactorioStore()
@@ -69,9 +73,9 @@ export function useModulesList() {
       id: 'vision',
       name: t('settings.pages.modules.vision.title'),
       description: t('settings.pages.modules.vision.description'),
-      icon: 'i-solar:eye-closed-bold-duotone',
-      to: '',
-      configured: false,
+      icon: 'i-solar:eye-bold-duotone',
+      to: '/settings/modules/vision',
+      configured: visionStore.configured,
       category: 'essential',
     },
     {
@@ -93,12 +97,12 @@ export function useModulesList() {
       category: 'essential',
     },
     {
-      id: 'messaging-discord',
-      name: t('settings.pages.modules.messaging-discord.title'),
-      description: t('settings.pages.modules.messaging-discord.description'),
-      icon: 'i-simple-icons:discord',
-      to: '/settings/modules/messaging-discord',
-      configured: discordStore.configured,
+      id: 'messaging',
+      name: t('settings.pages.modules.messaging.title'),
+      description: t('settings.pages.modules.messaging.description'),
+      icon: 'i-solar:chat-circle-bold-duotone',
+      to: '/settings/modules/messaging',
+      configured: discordStore.configured || telegramStore.configured,
       category: 'messaging',
     },
     {

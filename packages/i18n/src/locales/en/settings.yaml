@@ -384,6 +384,9 @@ pages:
     memory-short-term:
       description: Short-term memory specific settings and management
       title: Short-Term Memory
+    messaging:
+      description: Configure messaging platforms for AIRI
+      title: Messaging
     messaging-discord:
       description: Chat & voice chat over Discord
       title: Discord
@@ -393,6 +396,15 @@ pages:
       token-description: Your Discord bot token
       token-placeholder: Enter your Discord bot token
       configured: Discord is properly configured!
+    messaging-telegram:
+      description: Chat & sticker interactions over Telegram
+      title: Telegram
+      enable: Enable Telegram Integration
+      enable-description: Allow AIRI to interact through Telegram
+      token: Bot Token
+      token-description: Your Telegram bot token from @BotFather
+      token-placeholder: Enter your Telegram bot token
+      configured: Telegram is properly configured!
     speech:
       description: Speech synthesis
       sections:
@@ -436,8 +448,42 @@ pages:
       title: Speech
     title: Modules
     vision:
-      description: Vision
+      description: Computer vision and image analysis
       title: Vision
+      enable_camera: Enable Camera Capture
+      enable_camera_description: Allow AIRI to use camera for image analysis
+      enable_screen: Enable Screen Capture
+      enable_screen_description: Allow AIRI to capture and analyze screen content
+      auto_analyze: Auto Analyze on Capture
+      auto_analyze_description: Automatically analyze captured images
+      test_platform:
+        title: Vision Test Platform
+        description: Test and configure vision recognition capabilities
+      sections:
+        section:
+          provider-selection:
+            description: Select your vision providers for AI-powered image analysis
+        test-platform:
+          title: Test Platform
+          description: Test and visualize vision recognition
+      actions:
+        start_camera: Start Camera
+        start_screen: Start Screen Capture
+        stop_capture: Stop Capture
+        capture_frame: Capture Frame
+        upload_image: Upload Image
+        analyze: Analyze Image
+      captured_image: Captured Image
+      prompt_label: Analysis Prompt
+      prompt_placeholder: What do you see in this image?
+      analysis_result: Analysis Result
+      analyzing: Analyzing...
+      capabilities:
+        object_detection: Object Detection
+        scene_analysis: Scene Analysis
+        text_recognition: Text Recognition (OCR)
+        face_analysis: Face Analysis
+        emotion_detection: Emotion Detection
     x:
       description: X / Twitter browsing and usage
       title: X / Twitter
