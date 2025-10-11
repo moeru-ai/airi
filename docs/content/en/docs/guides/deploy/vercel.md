@@ -189,6 +189,59 @@ Each AI provider has corresponding API key, base URL, and model configuration. O
 | `PLAYER2_SPEECH_MODEL` | Optional | Player2 speech model name | `custom-tts` |
 | `VLLM_MODEL` | Optional | vLLM model name | `meta-llama/Meta-Llama-3.1-8B-Instruct` |
 
+### Speech Provider Configuration
+
+Additional speech synthesis providers beyond OpenAI:
+
+#### ElevenLabs
+
+| Name | Required | Description | Example |
+| --- | --- | --- | --- |
+| `ELEVENLABS_API_KEY` | Optional | ElevenLabs API key | `sk_...` |
+| `ELEVENLABS_BASE_URL` | Optional | ElevenLabs API base URL, defaults to `https://unspeech.hyp3r.link/v1/` | `https://unspeech.hyp3r.link/v1/` |
+| `ELEVENLABS_MODEL` | Optional | ElevenLabs model identifier | `eleven_multilingual_v2` |
+
+#### Alibaba Cloud Model Studio (阿里百炼)
+
+| Name | Required | Description | Example |
+| --- | --- | --- | --- |
+| `ALIBABA_CLOUD_API_KEY` | Optional | Alibaba Cloud Model Studio API key | `sk-...` |
+| `ALIBABA_CLOUD_BASE_URL` | Optional | Alibaba Cloud API base URL, defaults to `https://unspeech.hyp3r.link/v1/` | `https://unspeech.hyp3r.link/v1/` |
+| `ALIBABA_CLOUD_MODEL` | Optional | CosyVoice model identifier | `cosyvoice-v1` |
+
+#### Volcengine (火山引擎 / Doubao)
+
+| Name | Required | Description | Example |
+| --- | --- | --- | --- |
+| `VOLCENGINE_API_KEY` | Optional | Volcengine API key | `your-api-key` |
+| `VOLCENGINE_APP_ID` | Required for Volcengine | Volcengine App ID | `your-app-id` |
+| `VOLCENGINE_BASE_URL` | Optional | Volcengine API base URL, defaults to `https://unspeech.hyp3r.link/v1/` | `https://unspeech.hyp3r.link/v1/` |
+| `VOLCENGINE_MODEL` | Optional | Volcengine model identifier | `v1` |
+
+**Note:** Volcengine requires both `VOLCENGINE_API_KEY` and `VOLCENGINE_APP_ID` to function properly.
+
+#### Microsoft / Azure Speech
+
+| Name | Required | Description | Example |
+| --- | --- | --- | --- |
+| `MICROSOFT_SPEECH_API_KEY` | Optional | Microsoft / Azure Speech API key | `your-subscription-key` |
+| `MICROSOFT_SPEECH_BASE_URL` | Optional | Microsoft Speech API base URL, defaults to `https://unspeech.hyp3r.link/v1/` | `https://unspeech.hyp3r.link/v1/` |
+| `MICROSOFT_SPEECH_REGION` | Optional | Azure Speech service region | `eastasia` |
+| `MICROSOFT_SPEECH_ENDPOINT` | Optional | Azure Speech service endpoint (alternative to BASE_URL + REGION) | `https://eastasia.api.cognitive.microsoft.com` |
+| `MICROSOFT_SPEECH_MODEL` | Optional | Microsoft Speech model identifier | `v1` |
+
+**Note:** You can use either `MICROSOFT_SPEECH_REGION` or `MICROSOFT_SPEECH_ENDPOINT`. The region defaults to `eastasia` if not specified.
+
+#### Index-TTS (Bilibili)
+
+| Name | Required | Description | Example |
+| --- | --- | --- | --- |
+| `INDEX_TTS_API_KEY` | Optional | Index-TTS API key (if authentication required) | `your-api-key` |
+| `INDEX_TTS_BASE_URL` | Optional | Index-TTS service URL | `http://localhost:11996/tts` |
+| `INDEX_TTS_MODEL` | Optional | Index-TTS model identifier | `IndexTTS-1.5` |
+
+**Note:** Index-TTS is typically used for local deployments. Ensure the service is running before configuration.
+
 ### Memory system configuration
 
 The Stage memory system supports running in Vercel's serverless environment without requiring a separate backend server. The system implements short-term and long-term memory functionality through `/api/memory/*` serverless functions.

@@ -189,6 +189,59 @@ Vercel 可以直接从此 monorepo 构建并提供 Stage Web 应用程序。提�
 | `PLAYER2_SPEECH_MODEL` | 可选 | Player2 语音模型名称 | `custom-tts` |
 | `VLLM_MODEL` | 可选 | vLLM 模型名称 | `meta-llama/Meta-Llama-3.1-8B-Instruct` |
 
+### 语音提供商配置
+
+除 OpenAI 之外的其他语音合成提供商：
+
+#### ElevenLabs
+
+| 名称 | 必需 | 描述 | 示例 |
+| --- | --- | --- | --- |
+| `ELEVENLABS_API_KEY` | 可选 | ElevenLabs API 密钥 | `sk_...` |
+| `ELEVENLABS_BASE_URL` | 可选 | ElevenLabs API 基础 URL，默认为 `https://unspeech.hyp3r.link/v1/` | `https://unspeech.hyp3r.link/v1/` |
+| `ELEVENLABS_MODEL` | 可选 | ElevenLabs 模型标识符 | `eleven_multilingual_v2` |
+
+#### 阿里百炼 (Alibaba Cloud Model Studio)
+
+| 名称 | 必需 | 描述 | 示例 |
+| --- | --- | --- | --- |
+| `ALIBABA_CLOUD_API_KEY` | 可选 | 阿里云百炼 API 密钥 | `sk-...` |
+| `ALIBABA_CLOUD_BASE_URL` | 可选 | 阿里云 API 基础 URL，默认为 `https://unspeech.hyp3r.link/v1/` | `https://unspeech.hyp3r.link/v1/` |
+| `ALIBABA_CLOUD_MODEL` | 可选 | CosyVoice 模型标识符 | `cosyvoice-v1` |
+
+#### 火山引擎 (Volcengine / Doubao)
+
+| 名称 | 必需 | 描述 | 示例 |
+| --- | --- | --- | --- |
+| `VOLCENGINE_API_KEY` | 可选 | 火山引擎 API 密钥 | `your-api-key` |
+| `VOLCENGINE_APP_ID` | 火山引擎必需 | 火山引擎 App ID | `your-app-id` |
+| `VOLCENGINE_BASE_URL` | 可选 | 火山引擎 API 基础 URL，默认为 `https://unspeech.hyp3r.link/v1/` | `https://unspeech.hyp3r.link/v1/` |
+| `VOLCENGINE_MODEL` | 可选 | 火山引擎模型标识符 | `v1` |
+
+**注意：** 火山引擎需要同时提供 `VOLCENGINE_API_KEY` 和 `VOLCENGINE_APP_ID` 才能正常工作。
+
+#### Microsoft / Azure Speech
+
+| 名称 | 必需 | 描述 | 示例 |
+| --- | --- | --- | --- |
+| `MICROSOFT_SPEECH_API_KEY` | 可选 | Microsoft / Azure Speech API 密钥 | `your-subscription-key` |
+| `MICROSOFT_SPEECH_BASE_URL` | 可选 | Microsoft Speech API 基础 URL，默认为 `https://unspeech.hyp3r.link/v1/` | `https://unspeech.hyp3r.link/v1/` |
+| `MICROSOFT_SPEECH_REGION` | 可选 | Azure Speech 服务区域 | `eastasia` |
+| `MICROSOFT_SPEECH_ENDPOINT` | 可选 | Azure Speech 服务端点（替代 BASE_URL + REGION） | `https://eastasia.api.cognitive.microsoft.com` |
+| `MICROSOFT_SPEECH_MODEL` | 可选 | Microsoft Speech 模型标识符 | `v1` |
+
+**注意：** 可以使用 `MICROSOFT_SPEECH_REGION` 或 `MICROSOFT_SPEECH_ENDPOINT`，两者选其一。如果未指定，区域默认为 `eastasia`。
+
+#### Index-TTS (Bilibili)
+
+| 名称 | 必需 | 描述 | 示例 |
+| --- | --- | --- | --- |
+| `INDEX_TTS_API_KEY` | 可选 | Index-TTS API 密钥（如需身份验证） | `your-api-key` |
+| `INDEX_TTS_BASE_URL` | 可选 | Index-TTS 服务 URL | `http://localhost:11996/tts` |
+| `INDEX_TTS_MODEL` | 可选 | Index-TTS 模型标识符 | `IndexTTS-1.5` |
+
+**注意：** Index-TTS 通常用于本地部署。配置前请确保服务正在运行。
+
 ### 记忆系统配置
 
 Stage 记忆系统支持在 Vercel 的 serverless 环境中运行，无需独立后端服务器。系统通过 `/api/memory/*` serverless 函数实现短期和长期记忆功能。

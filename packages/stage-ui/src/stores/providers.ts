@@ -85,7 +85,13 @@ const providerEnvPrefixes: Record<string, string> = {
   'ollama': 'OLLAMA',
   'lm-studio': 'LM_STUDIO',
   'player2': 'PLAYER2',
+  'player2-speech': 'PLAYER2',
   'vllm': 'VLLM',
+  'elevenlabs': 'ELEVENLABS',
+  'alibaba-cloud-model-studio': 'ALIBABA_CLOUD',
+  'volcengine': 'VOLCENGINE',
+  'microsoft-speech': 'MICROSOFT_SPEECH',
+  'index-tts-vllm': 'INDEX_TTS',
 }
 
 const providerEnvModelKeys: Record<string, string> = {
@@ -116,6 +122,11 @@ const providerEnvModelKeys: Record<string, string> = {
   'player2': 'PLAYER2_MODEL',
   'player2-speech': 'PLAYER2_SPEECH_MODEL',
   'vllm': 'VLLM_MODEL',
+  'elevenlabs': 'ELEVENLABS_MODEL',
+  'alibaba-cloud-model-studio': 'ALIBABA_CLOUD_MODEL',
+  'volcengine': 'VOLCENGINE_MODEL',
+  'microsoft-speech': 'MICROSOFT_SPEECH_MODEL',
+  'index-tts-vllm': 'INDEX_TTS_MODEL',
 }
 
 function ensureTrailingSlash(url: string) {
@@ -126,6 +137,9 @@ function readProviderEnvCredentials(prefix: string) {
   const apiKeyKey = `${prefix}_API_KEY`
   const baseUrlKey = `${prefix}_BASE_URL`
   const accountIdKey = `CLOUDFLARE_ACCOUNT_ID` // Shared across Cloudflare services
+  const appIdKey = `${prefix}_APP_ID`
+  const regionKey = `${prefix}_REGION`
+  const endpointKey = `${prefix}_ENDPOINT`
 
   const apiKey = typeof providerEnvSource[apiKeyKey] === 'string'
     ? (providerEnvSource[apiKeyKey] as string).trim()
@@ -136,8 +150,17 @@ function readProviderEnvCredentials(prefix: string) {
   const accountId = typeof providerEnvSource[accountIdKey] === 'string'
     ? (providerEnvSource[accountIdKey] as string).trim()
     : ''
+  const appId = typeof providerEnvSource[appIdKey] === 'string'
+    ? (providerEnvSource[appIdKey] as string).trim()
+    : ''
+  const region = typeof providerEnvSource[regionKey] === 'string'
+    ? (providerEnvSource[regionKey] as string).trim()
+    : ''
+  const endpoint = typeof providerEnvSource[endpointKey] === 'string'
+    ? (providerEnvSource[endpointKey] as string).trim()
+    : ''
 
-  const credentials: Record<string, string> = {}
+  const credentials: Record<string, any> = {}
 
   if (apiKey)
     credentials.apiKey = apiKey
@@ -146,6 +169,16 @@ function readProviderEnvCredentials(prefix: string) {
   // Only add accountId for Cloudflare providers
   if (accountId && prefix === 'CLOUDFLARE_WORKERS_AI')
     credentials.accountId = accountId
+  // Add appId for Volcengine
+  if (appId && prefix === 'VOLCENGINE') {
+    credentials.app = { appId }
+  }
+  // Add region for Microsoft Speech
+  if (region && prefix === 'MICROSOFT_SPEECH')
+    credentials.region = region
+  // Add endpoint for Microsoft Speech (alternative to baseUrl)
+  if (endpoint && prefix === 'MICROSOFT_SPEECH')
+    credentials.endpoint = endpoint
 
   return Object.keys(credentials).length > 0 ? credentials : null
 }
