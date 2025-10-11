@@ -1,4 +1,4 @@
-import type { VisionProviderWithExtraOptions } from '@xsai-ext/shared-providers'
+import type { ChatProviderWithExtraOptions } from '@xsai-ext/shared-providers'
 
 import { useVision } from './use-vision'
 
@@ -49,7 +49,7 @@ export function useChatVision() {
     }
   }
 
-  async function analyzeImageIfAvailable(imageId: string, options?: VisionProviderWithExtraOptions): Promise<void> {
+  async function analyzeImageIfAvailable(imageId: string, options?: ChatProviderWithExtraOptions<string, any>): Promise<void> {
     const index = images.value.findIndex(img => img.id === imageId)
     if (index === -1)
       return
@@ -138,7 +138,7 @@ export function useChatVision() {
     return formattedMessage
   }
 
-  async function prepareImagesForChat(options?: VisionProviderWithExtraOptions): Promise<void> {
+  async function prepareImagesForChat(options?: ChatProviderWithExtraOptions<string, any>): Promise<void> {
     const pendingImages = getPendingImages()
 
     for (const image of pendingImages) {

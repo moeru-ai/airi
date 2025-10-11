@@ -16,6 +16,7 @@ export function buildOpenAICompatibleProvider(
     descriptionKey: string
     category?: 'chat' | 'embed' | 'speech' | 'transcription'
     tasks?: string[]
+    supportsVision?: boolean
     defaultBaseUrl?: string
     creator: ProviderCreator
     capabilities?: ProviderMetadata['capabilities']
@@ -33,6 +34,7 @@ export function buildOpenAICompatibleProvider(
     descriptionKey,
     category,
     tasks,
+    supportsVision,
     defaultBaseUrl,
     creator,
     capabilities,
@@ -232,6 +234,7 @@ export function buildOpenAICompatibleProvider(
     descriptionKey,
     description,
     icon,
+    supportsVision: supportsVision || false,
     defaultOptions: () => ({
       baseUrl: defaultBaseUrl || '',
     }),

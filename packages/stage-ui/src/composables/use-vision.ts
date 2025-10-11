@@ -1,4 +1,4 @@
-import type { VisionProviderWithExtraOptions } from '@xsai-ext/shared-providers'
+import type { ChatProviderWithExtraOptions } from '@xsai-ext/shared-providers'
 
 import { useVisionStore } from '@proj-airi/stage-ui/stores/modules/vision'
 import { storeToRefs } from 'pinia'
@@ -18,7 +18,7 @@ export function useVision() {
   const isReady = computed(() => configured.value
     && ((enableCameraCapture.value || enableScreenCapture.value)))
 
-  async function analyzeImage(imageData: string | Blob | ArrayBuffer, prompt?: string, options?: VisionProviderWithExtraOptions) {
+  async function analyzeImage(imageData: string | Blob | ArrayBuffer, prompt?: string, options?: ChatProviderWithExtraOptions<string, any>) {
     if (!configured.value) {
       throw new Error('Vision provider not configured')
     }

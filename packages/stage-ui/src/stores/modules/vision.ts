@@ -1,4 +1,4 @@
-import type { VisionProvider, VisionProviderWithExtraOptions } from '@xsai-ext/shared-providers'
+import type { ChatProviderWithExtraOptions } from '@xsai-ext/shared-providers'
 
 import { useLocalStorage } from '@vueuse/core'
 import { generateImage } from '@xsai/generate-image'
@@ -54,7 +54,7 @@ export const useVisionStore = defineStore('vision-store', () => {
 
   const providerModels = computed(() => {
     return activeVisionProvider.value
-      ? providersStore.getProviderModels(VisionProvider, activeVisionProvider.value)
+      ? providersStore.getModelsForProvider(activeVisionProvider.value)
       : []
   })
 
@@ -74,7 +74,7 @@ export const useVisionStore = defineStore('vision-store', () => {
   })
 
   const isLoadingActiveProviderModels = computed(() => {
-    return providersStore.isProviderModelsLoading(activeVisionProvider.value)
+    return providersStore.isLoadingModels[activeVisionProvider.value] || false
   })
 
   const configured = computed(() => {
@@ -84,15 +84,17 @@ export const useVisionStore = defineStore('vision-store', () => {
   })
 
   const activeProviderModelError = computed(() => {
-    return providersStore.getProviderModelValidation(activeVisionProvider.value, activeVisionModel.value) || ''
+    return providersStore.modelLoadError[activeVisionProvider.value] || ''
   })
 
   // Actions
   async function loadModelsForProvider(providerId: string) {
-    await providersStore.fetchModelsForProvider(VisionProvider, providerId)
+    if (providerId && providersStore.getProviderMetadata(providerId)?.capabilities.listModels !== undefined) {
+      await providersStore.fetchModelsForProvider(providerId)
+    }
   }
 
-  async function analyzeImage(imageUrl: string, prompt?: string, options?: VisionProviderWithExtraOptions) {
+  async function analyzeImage(imageUrl: string, prompt?: string, options?: ChatProviderWithExtraOptions<string, any>) {
     if (!configured.value)
       throw new Error('Vision provider not configured')
 
@@ -105,7 +107,7 @@ export const useVisionStore = defineStore('vision-store', () => {
     return generateImage(imageUrl, prompt || 'Describe this image in detail.', providerOptions)
   }
 
-  async function analyzeImageDirect(imageData: Blob | ArrayBuffer | string, prompt?: string, options?: VisionProviderWithExtraOptions) {
+  async function analyzeImageDirect(imageData: Blob | ArrayBuffer | string, prompt?: string, options?: ChatProviderWithExtraOptions<string, any>) {
     if (!configured.value)
       throw new Error('Vision provider not configured')
 

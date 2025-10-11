@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useVision } from '@proj-airi/stage-ui/composables'
+import { breakpointsTailwind, useBreakpoints } from '@vueuse/core'
 import { computed, ref } from 'vue'
 
 interface ImageUploadProps {
@@ -16,6 +17,9 @@ const emit = defineEmits<{
 
 const fileInputRef = ref<HTMLInputElement>()
 const isDragging = ref(false)
+
+const breakpoints = useBreakpoints(breakpointsTailwind)
+const isMobile = breakpoints.smaller('md')
 
 const { configured, activeVisionProvider } = useVision()
 

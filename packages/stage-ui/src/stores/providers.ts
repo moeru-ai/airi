@@ -62,6 +62,7 @@ const providerEnvSource = import.meta.env as Record<string, string | boolean | u
 
 const providerEnvPrefixes: Record<string, string> = {
   'openai': 'OPENAI',
+  'openai-vision': 'OPENAI',
   'openai-compatible': 'OPENAI_COMPATIBLE',
   'openai-audio-speech': 'OPENAI',
   'openai-compatible-audio-speech': 'OPENAI_COMPATIBLE',
@@ -96,6 +97,7 @@ const providerEnvPrefixes: Record<string, string> = {
 
 const providerEnvModelKeys: Record<string, string> = {
   'openai': 'OPENAI_MODEL',
+  'openai-vision': 'OPENAI_VISION_MODEL',
   'openai-compatible': 'OPENAI_COMPATIBLE_MODEL',
   'openai-audio-speech': 'OPENAI_SPEECH_MODEL',
   'openai-compatible-audio-speech': 'OPENAI_COMPATIBLE_SPEECH_MODEL',
@@ -206,6 +208,7 @@ export interface ProviderMetadata {
   order?: number
   category: 'chat' | 'embed' | 'speech' | 'transcription'
   tasks: string[]
+  supportsVision?: boolean // 指示提供商是否支持视觉分析
   nameKey: string // i18n key for provider name
   name: string // Default name (fallback)
   localizedName?: string
@@ -785,6 +788,7 @@ export const useProvidersStore = defineStore('providers', () => {
       icon: 'i-lobe-icons:openai',
       description: 'openai.com',
       defaultBaseUrl: 'https://api.openai.com/v1/',
+      supportsVision: true,
       creator: createOpenAI,
       validation: ['health', 'model_list'],
     }),
@@ -795,6 +799,7 @@ export const useProvidersStore = defineStore('providers', () => {
       descriptionKey: 'settings.pages.providers.provider.openai-compatible.description',
       icon: 'i-lobe-icons:openai',
       description: 'Connect to any API that follows the OpenAI specification.',
+      supportsVision: true, // Many OpenAI-compatible providers support vision
       creator: createOpenAI,
       validation: ['health'],
     }),
@@ -998,6 +1003,7 @@ export const useProvidersStore = defineStore('providers', () => {
       icon: 'i-lobe-icons:anthropic',
       description: 'anthropic.com',
       defaultBaseUrl: 'https://api.anthropic.com/v1/',
+      supportsVision: true, // Claude models support vision
       creator: createAnthropic,
       validation: ['health', 'model_list'],
       additionalHeaders: {
@@ -1012,6 +1018,7 @@ export const useProvidersStore = defineStore('providers', () => {
       icon: 'i-lobe-icons:gemini',
       description: 'ai.google.dev',
       defaultBaseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai/',
+      supportsVision: true, // Gemini models support vision
       creator: createGoogleGenerativeAI,
       validation: ['health', 'model_list'],
     }),
@@ -2115,6 +2122,10 @@ export const useProvidersStore = defineStore('providers', () => {
     return availableProvidersMetadata.value.filter(metadata => metadata.category === 'transcription')
   })
 
+  const allVisionProvidersMetadata = computed(() => {
+    return availableProvidersMetadata.value.filter(metadata => metadata.category === 'chat' && metadata.supportsVision)
+  })
+
   const configuredChatProvidersMetadata = computed(() => {
     return allChatProvidersMetadata.value.filter(metadata => configuredProviders.value[metadata.id])
   })
@@ -2125,6 +2136,10 @@ export const useProvidersStore = defineStore('providers', () => {
 
   const configuredTranscriptionProvidersMetadata = computed(() => {
     return allAudioTranscriptionProvidersMetadata.value.filter(metadata => configuredProviders.value[metadata.id])
+  })
+
+  const configuredVisionProvidersMetadata = computed(() => {
+    return allVisionProvidersMetadata.value.filter(metadata => configuredProviders.value[metadata.id])
   })
 
   function getProviderConfig(providerId: string) {
@@ -2160,5 +2175,7 @@ export const useProvidersStore = defineStore('providers', () => {
     configuredChatProvidersMetadata,
     configuredSpeechProvidersMetadata,
     configuredTranscriptionProvidersMetadata,
+    allVisionProvidersMetadata,
+    configuredVisionProvidersMetadata,
   }
 })

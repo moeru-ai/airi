@@ -33,13 +33,13 @@ function saveTelegramSettings() {
 
       <div flex="~ col gap-6">
         <FieldCheckbox
-          v-model="discord.enabled"
+          v-model="discord.enabled.value"
           :label="t('settings.pages.modules.messaging-discord.enable')"
           :description="t('settings.pages.modules.messaging-discord.enable-description')"
         />
 
         <FieldInput
-          v-model="discord.token"
+          v-model="discord.token.value"
           type="password"
           :label="t('settings.pages.modules.messaging-discord.token')"
           :description="t('settings.pages.modules.messaging-discord.token-description')"
@@ -69,13 +69,13 @@ function saveTelegramSettings() {
 
       <div flex="~ col gap-6">
         <FieldCheckbox
-          v-model="telegram.enabled"
+          v-model="telegram.enabled.value"
           :label="t('settings.pages.modules.messaging-telegram.enable')"
           :description="t('settings.pages.modules.messaging-telegram.enable-description')"
         />
 
         <FieldInput
-          v-model="telegram.token"
+          v-model="telegram.token.value"
           type="password"
           :label="t('settings.pages.modules.messaging-telegram.token')"
           :description="t('settings.pages.modules.messaging-telegram.token-description')"
