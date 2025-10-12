@@ -1867,8 +1867,12 @@ export const useProvidersStore = defineStore('providers', () => {
     const matchesEnvCredentials = hasEnvCredentials
       ? Object.entries(envCredentials!).every(([key, value]) => {
           const configValue = config[key]
-          if (typeof configValue === 'string')
-            return configValue.trim() === value
+          if (typeof configValue === 'string') {
+            return typeof value === 'string' && configValue.trim() === value
+          }
+          if (typeof value === 'object' && value !== null && typeof configValue === 'object' && configValue !== null) {
+            return JSON.stringify(configValue) === JSON.stringify(value)
+          }
           return configValue === value
         })
       : false
