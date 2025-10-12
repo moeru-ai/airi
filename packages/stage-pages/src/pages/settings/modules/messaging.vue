@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { MessagingDiscord, MessagingTelegram } from '@proj-airi/stage-ui/components'
+import { Messaging } from '@proj-airi/stage-ui/components'
 </script>
 
 <template>
@@ -15,22 +15,8 @@ import { MessagingDiscord, MessagingTelegram } from '@proj-airi/stage-ui/compone
         <span>{{ $t('settings.pages.modules.messaging.description') }}</span>
       </div>
 
-      <div class="mt-6 flex flex-col gap-8">
-        <section>
-          <h3 class="mb-4 flex items-center gap-2 text-lg text-neutral-900 font-semibold dark:text-neutral-100">
-            <div class="i-simple-icons:discord text-xl text-[#5865F2]" />
-            Discord
-          </h3>
-          <MessagingDiscord />
-        </section>
-
-        <section>
-          <h3 class="mb-4 flex items-center gap-2 text-lg text-neutral-900 font-semibold dark:text-neutral-100">
-            <div class="i-simple-icons:telegram text-xl text-[#0088CC]" />
-            Telegram
-          </h3>
-          <MessagingTelegram />
-        </section>
+      <div class="mt-6">
+        <Messaging />
       </div>
     </div>
   </div>
