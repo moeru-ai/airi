@@ -59,8 +59,6 @@ const props = defineProps<{
           class="menu-icon-status-item-icon-color"
           transition="all ease-in-out duration-400"
           absolute right-0 size-16 translate-y-2
-          text="neutral-400/50 dark:neutral-600/50"
-          grayscale-100
           :class="[props.iconColor]"
         />
       </template>
@@ -121,7 +119,8 @@ const props = defineProps<{
 }
 
 .menu-icon-status-item-icon-color {
-  opacity: 0.5;
+  opacity: 0.6;
+  filter: brightness(0.8);
 }
 
 .menu-icon-status-item:hover .menu-icon-status-item-title,
@@ -136,10 +135,15 @@ const props = defineProps<{
 }
 
 .menu-icon-status-item:hover .menu-icon-status-item-icon,
-.menu-icon-status-item._hover .menu-icon-status-item-icon,
+.menu-icon-status-item._hover .menu-icon-status-item-icon {
+  --at-apply: text-primary-500;
+  scale: 1.2;
+}
+
 .menu-icon-status-item:hover .menu-icon-status-item-icon-color,
 .menu-icon-status-item._hover .menu-icon-status-item-icon-color {
-  --at-apply: text-primary-500;
+  opacity: 1;
+  filter: brightness(1);
   scale: 1.2;
 }
 
@@ -155,9 +159,13 @@ const props = defineProps<{
 }
 
 .dark .menu-icon-status-item:hover .menu-icon-status-item-icon,
-.dark .menu-icon-status-item._hover .menu-icon-status-item-icon,
+.dark .menu-icon-status-item._hover .menu-icon-status-item-icon {
+  --at-apply: text-primary-400;
+}
+
 .dark .menu-icon-status-item:hover .menu-icon-status-item-icon-color,
 .dark .menu-icon-status-item._hover .menu-icon-status-item-icon-color {
-  --at-apply: text-primary-400;
+  opacity: 1;
+  filter: brightness(1.2);
 }
 </style>
