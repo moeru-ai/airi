@@ -10,8 +10,17 @@ const { t } = useI18n()
 const discordStore = useDiscordStore()
 const telegramStore = useTelegramStore()
 
-const discord = storeToRefs(discordStore)
-const telegram = storeToRefs(telegramStore)
+const {
+  enabled: discordEnabled,
+  token: discordToken,
+  configured: discordConfigured,
+} = storeToRefs(discordStore)
+
+const {
+  enabled: telegramEnabled,
+  token: telegramToken,
+  configured: telegramConfigured,
+} = storeToRefs(telegramStore)
 
 function saveDiscordSettings() {
   discordStore.saveSettings()
@@ -33,13 +42,13 @@ function saveTelegramSettings() {
 
       <div flex="~ col gap-6">
         <FieldCheckbox
-          v-model="discord.enabled.value"
+          v-model="discordEnabled"
           :label="t('settings.pages.modules.messaging-discord.enable')"
           :description="t('settings.pages.modules.messaging-discord.enable-description')"
         />
 
         <FieldInput
-          v-model="discord.token.value"
+          v-model="discordToken"
           type="password"
           :label="t('settings.pages.modules.messaging-discord.token')"
           :description="t('settings.pages.modules.messaging-discord.token-description')"
@@ -49,11 +58,12 @@ function saveTelegramSettings() {
         <div>
           <Button
             :label="t('settings.common.save')"
+            variant="primary"
             @click="saveDiscordSettings"
           />
         </div>
 
-        <div v-if="discord.configured" class="mt-4 rounded-lg bg-green-100 p-4 text-green-800">
+        <div v-if="discordConfigured" class="mt-4 rounded-lg bg-green-100 p-4 text-green-800">
           {{ t('settings.pages.modules.messaging-discord.configured') }}
         </div>
       </div>
@@ -68,13 +78,13 @@ function saveTelegramSettings() {
 
       <div flex="~ col gap-6">
         <FieldCheckbox
-          v-model="telegram.enabled.value"
+          v-model="telegramEnabled"
           :label="t('settings.pages.modules.messaging-telegram.enable')"
           :description="t('settings.pages.modules.messaging-telegram.enable-description')"
         />
 
         <FieldInput
-          v-model="telegram.token.value"
+          v-model="telegramToken"
           type="password"
           :label="t('settings.pages.modules.messaging-telegram.token')"
           :description="t('settings.pages.modules.messaging-telegram.token-description')"
@@ -84,11 +94,12 @@ function saveTelegramSettings() {
         <div>
           <Button
             :label="t('settings.common.save')"
+            variant="primary"
             @click="saveTelegramSettings"
           />
         </div>
 
-        <div v-if="telegram.configured" class="mt-4 rounded-lg bg-green-100 p-4 text-green-800">
+        <div v-if="telegramConfigured" class="mt-4 rounded-lg bg-green-100 p-4 text-green-800">
           {{ t('settings.pages.modules.messaging-telegram.configured') }}
         </div>
       </div>
