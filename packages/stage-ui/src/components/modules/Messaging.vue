@@ -49,7 +49,6 @@ function saveTelegramSettings() {
         <div>
           <Button
             :label="t('settings.common.save')"
-            variant="primary"
             @click="saveDiscordSettings"
           />
         </div>
@@ -85,7 +84,6 @@ function saveTelegramSettings() {
         <div>
           <Button
             :label="t('settings.common.save')"
-            variant="primary"
             @click="saveTelegramSettings"
           />
         </div>

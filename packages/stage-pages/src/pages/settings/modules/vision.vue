@@ -167,7 +167,7 @@ watch(activeVisionProvider, async (newProvider) => {
 
 <template>
   <div flex="~ col md:row gap-6">
-    <div bg="neutral-100 dark:[rgba(0,0,0,0.3)]" rounded-xl p-4 flex="~ col gap-4" class="h-fit w-full md:w-[40%]">
+    <div bg="neutral-100 dark:[rgba(0,0,0,0.3)]" rounded-xl p-4 flex="~ col gap-4" class="h-fit w-full md:w-[60%]">
       <div flex="~ col gap-4">
         <!-- Vision Provider Selection -->
         <div>
@@ -268,7 +268,7 @@ watch(activeVisionProvider, async (newProvider) => {
       </div>
     </div>
 
-    <div flex="~ col gap-6" class="w-full md:w-[60%]">
+    <div flex="~ col gap-6" class="w-full md:w-[40%]">
       <div w-full rounded-xl>
         <h2 class="mb-4 text-lg text-neutral-500 md:text-2xl dark:text-neutral-400" w-full>
           <div class="inline-flex items-center gap-4">
