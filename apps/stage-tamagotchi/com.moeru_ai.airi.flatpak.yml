@@ -1,0 +1,49 @@
+app-id: com.moeru_ai.airi
+runtime: org.freedesktop.Platform
+runtime-version: '24.08'
+sdk: org.freedesktop.Sdk
+base: org.electronjs.Electron2.BaseApp
+base-version: '24.08'
+command: AIRI
+
+finish-args:
+  # GUI 환경
+  - --share=network
+  - --socket=x11
+  - --socket=wayland
+  - --device=dri
+  - --socket=pulseaudio
+  - --socket=system-bus
+  - --socket=session-bus
+  - --share=ipc
+
+  # DBus
+  - --talk-name=org.freedesktop.Notifications
+  - --talk-name=org.freedesktop.portal.Desktop
+  - --system-talk-name=org.freedesktop.login1
+  - --system-talk-name=org.freedesktop.UPower
+  - --filesystem=home:rw
+
+modules:
+  - name: AIRI-App
+    buildsystem: simple
+    build-commands:
+      - mkdir -p /app/bin
+      - cp -r * /app/
+      - install -Dm755 AIRI /app/bin/AIRI
+      - install -Dm644 AIRI.desktop /app/share/applications/com.moeru_ai.airi.desktop
+      - install -Dm644 resources/app.asar.unpacked/resources/icon-512.png /app/share/icons/hicolor/512x512/apps/com.moeru_ai.airi.png
+      - install -Dm644 icudtl.dat /app/bin/icudtl.dat
+      - install -Dm644 snapshot_blob.bin /app/bin/snapshot_blob.bin
+      - install -Dm644 v8_context_snapshot.bin /app/bin/v8_context_snapshot.bin
+      - install -Dm644 chrome_100_percent.pak /app/bin/chrome_100_percent.pak
+      - install -Dm644 chrome_200_percent.pak /app/bin/chrome_200_percent.pak
+      - install -Dm644 resources.pak /app/bin/resources.pak
+      - install -Dm644 vk_swiftshader_icd.json /app/bin/vk_swiftshader_icd.json
+      - mkdir -p /app/lib
+      - cp libffmpeg.so /app/lib/
+    sources:
+      - type: dir
+        path: dist/linux-unpacked
+      - type: file
+        path: AIRI.desktop

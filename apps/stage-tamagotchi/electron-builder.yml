@@ -1,8 +1,10 @@
 appId: ai.moeru.airi
 productName: AIRI
+
 directories:
   output: dist
   buildResources: build
+
 files:
   - out/**
   - resources/**
@@ -15,12 +17,15 @@ files:
   - '!{.eslintcache,eslint.config.ts,.yaml,dev-app-update.yml,CHANGELOG.md,README.md}'
   - '!{.env,.env.*,.npmrc,pnpm-lock.yaml}'
   - '!{tsconfig.json}'
+
 asar: true
 asarUnpack:
   - resources/**
   - out/renderer/**
+
 extraMetadata:
   main: 'out/main/index.js'
+
 win:
   executableName: AIRI
 nsis:
@@ -29,6 +34,7 @@ nsis:
   uninstallDisplayName: ${productName}
   createDesktopShortcut: always
   deleteAppDataOnUninstall: true
+
 mac:
   entitlementsInherit: build/entitlements.mac.plist
   extendInfo:
@@ -38,40 +44,32 @@ mac:
   executableName: AIRI
 dmg:
   artifactName: ${productName}-${version}-darwin-${arch}.${ext}
+
 linux:
   target:
     - deb
-    - AppImage
-    - snap
+    - rpm
   maintainer: moeru.ai
   category: Utility
-  synopsis: 'An AI VTuber/Waifu chatbot app inspired by Neuro-sama.'
-  description: |
-    AIRI is a Neuro-sama inspired AI VTuber/Waifu chatbot created by @moeru-ai.
-    It features interactive Live2D/VRM support and a gaming-ready architecture.
-
-    • Human-like interaction with Live2D/VRM avatars
-    • VTuber-Ready with AI-driven responses
-    • Modular stage-based rendering system
-
-    This software is still in beta.
-    Issues and feedback: https://github.com/moeru-ai/airi
+  synopsis: 'AI VTuber/Waifu chatbot app inspired by Neuro-sama.'
+  description: 'AIRI is an AI VTuber/Waifu chatbot supporting Live2D/VRM avatars, featuring human-like interactions and modular stage-based rendering.'
   executableName: AIRI
   artifactName: ${productName}-${version}-linux-${arch}.${ext}
   icon: build/icons/icon.png
+
 appImage:
   artifactName: ${productName}-${version}-linux-${arch}.${ext}
+
 snap:
   publish:
     - snapStore
   confinement: strict
   grade: stable
   summary: 'AI VTuber/Waifu chatbot app inspired by Neuro-sama'
-  description: |
-    AIRI is a Neuro-sama inspired AI VTuber/Waifu chatbot created by @moeru-ai.
-    It enables human-like conversational interaction with Live2D/VRM avatars,
-    designed for VTuber streaming and AI-driven performance.
+  description: 'AIRI enables human-like conversational interaction with Live2D/VRM avatars, designed for VTuber streaming and AI-driven performance.'
+
 npmRebuild: false
+
 publish:
   provider: github
   owner: moeru-ai
