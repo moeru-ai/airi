@@ -1926,9 +1926,21 @@ export const useProvidersStore = defineStore('providers', () => {
         const existingValue = existingCredentials[key]
         const defaultValue = defaultOptions[key]
 
+        // Helper function to check if value is effectively empty
+        const isEffectivelyEmpty = (val: any): boolean => {
+          if (val == null)
+            return true
+          if (typeof val === 'string')
+            return val.trim().length === 0
+          if (typeof val === 'object' && !Array.isArray(val)) {
+            return Object.keys(val).length === 0 || Object.values(val).every(v => isEffectivelyEmpty(v))
+          }
+          return false
+        }
+
         if (
           existingValue != null
-          && !(typeof existingValue === 'string' && existingValue.trim().length === 0)
+          && !isEffectivelyEmpty(existingValue)
           && existingValue !== defaultValue
         ) {
           continue
