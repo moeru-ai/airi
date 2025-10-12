@@ -110,13 +110,7 @@ export async function setupMainWindow(params: {
 
   setupMainWindowElectronInvokes({ window, settingsWindow: params.settingsWindow })
 
-  /**
-   * This is a know issue (or expected behavior maybe) to Electron.
-   *
-   * Discussion: https://github.com/electron/electron/issues/37789
-   * Workaround: https://github.com/noobfromph/electron-click-drag-plugin
-   */
-  ipcMain.on('start-drag', () => {
+  function handleStartDrag() {
     try {
       const hwndBuffer = window.getNativeWindowHandle()
       // Linux: extract X11 Window ID from the buffer (first 4 bytes, little-endian)
@@ -128,6 +122,18 @@ export async function setupMainWindow(params: {
     catch (error) {
       console.error(error)
     }
+  }
+
+  /**
+   * This is a know issue (or expected behavior maybe) to Electron.
+   *
+   * Discussion: https://github.com/electron/electron/issues/37789
+   * Workaround: https://github.com/noobfromph/electron-click-drag-plugin
+   */
+  ipcMain.on('start-drag', handleStartDrag)
+
+  window.on('closed', () => {
+    ipcMain.removeListener('start-drag', handleStartDrag)
   })
 
   return window
