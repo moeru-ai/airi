@@ -1,12 +1,14 @@
 import type { BrowserWindowConstructorOptions, Rectangle } from 'electron'
 
 import { dirname, join, resolve } from 'node:path'
-import { env } from 'node:process'
+import { env, platform } from 'node:process'
 import { fileURLToPath } from 'node:url'
+
+import clickDragPlugin from 'electron-click-drag-plugin'
 
 import { is } from '@electron-toolkit/utils'
 import { defu } from 'defu'
-import { BrowserWindow, shell } from 'electron'
+import { BrowserWindow, ipcMain, shell } from 'electron'
 import { isMacOS } from 'std-env'
 
 import icon from '../../../../resources/icon.png?asset'
@@ -107,6 +109,26 @@ export async function setupMainWindow(params: {
   await load(window, baseUrl(resolve(getElectronMainDirname(), '..', 'renderer')))
 
   setupMainWindowElectronInvokes({ window, settingsWindow: params.settingsWindow })
+
+  /**
+   * This is a know issue (or expected behavior maybe) to Electron.
+   *
+   * Discussion: https://github.com/electron/electron/issues/37789
+   * Workaround: https://github.com/noobfromph/electron-click-drag-plugin
+   */
+  ipcMain.on('start-drag', () => {
+    try {
+      const hwndBuffer = window.getNativeWindowHandle()
+      // Linux: extract X11 Window ID from the buffer (first 4 bytes, little-endian)
+      // macOS/Windows: pass Buffer directly
+      const windowId = platform === 'linux' ? hwndBuffer.readUInt32LE(0) : hwndBuffer
+
+      clickDragPlugin.startDrag(windowId)
+    }
+    catch (error) {
+      console.error(error)
+    }
+  })
 
   return window
 }

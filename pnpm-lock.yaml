@@ -383,6 +383,9 @@ importers:
       drizzle-orm:
         specifier: ^0.44.6
         version: 0.44.6(@opentelemetry/api@1.9.0)(@types/pg@8.15.5)(gel@2.0.0)(pg@8.16.3)(postgres@3.4.7)
+      electron-click-drag-plugin:
+        specifier: ^2.0.2
+        version: 2.0.2
       es-toolkit:
         specifier: ^1.40.0
         version: 1.40.0
@@ -9435,6 +9438,9 @@ packages:
     resolution: {integrity: sha512-lntLb4ZuQ4UPVlOiWZKO+NhHlNf0T6Bn+6ZLo+wxTuhazKJSXycmIP6tp/xNZvE+0ApF0SizAgY4sLHZtrTJgw==}
     engines: {node: '>=14.0.0'}
     hasBin: true
+
+  electron-click-drag-plugin@2.0.2:
+    resolution: {integrity: sha512-J/WdIOacc6OAWJUwn/lRng9cUvlnGomr0Y3/x1yTqL5+oz9RUtTN0rPEoY7OhgcE4eUujPkytWEiyiuY8KYn8w==}
 
   electron-publish@25.1.7:
     resolution: {integrity: sha512-+jbTkR9m39eDBMP4gfbqglDd6UvBC7RLh5Y0MhFSsc6UkGHj9Vj9TWobxevHYMMqmoujL11ZLjfPpMX+Pt6YEg==}
@@ -24834,6 +24840,8 @@ snapshots:
       - bluebird
       - electron-builder-squirrel-windows
       - supports-color
+
+  electron-click-drag-plugin@2.0.2: {}
 
   electron-publish@25.1.7:
     dependencies:

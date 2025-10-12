@@ -7,6 +7,7 @@ import { useDark, useToggle } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 
 import ControlButton from './ControlButton.vue'
+import ControlButtonTooltip from './ControlButtonTooltip.vue'
 
 import { electronOpenSettings } from '../../../../shared/eventa'
 
@@ -14,35 +15,71 @@ const isDark = useDark({ disableTransition: false })
 const toggleDark = useToggle(isDark)
 
 const settingsAudioDeviceStore = useSettingsAudioDevice()
-const { enabled } = storeToRefs(settingsAudioDeviceStore)
+const { enabled: isAudioEnabled } = storeToRefs(settingsAudioDeviceStore)
 
 const { context } = createContext(window.electron.ipcRenderer)
 const openSettings = defineInvoke(context, electronOpenSettings)
+
+function handleWindowDrag() {
+  /**
+   * This is a know issue (or expected behavior maybe) to Electron.
+   *
+   * See `apps/stage-tamagotchi/src/main/windows/main/index.ts` for handler definition
+   */
+  window.electron.ipcRenderer.send('start-drag')
+}
 </script>
 
 <template>
   <div fixed bottom-2 right-2>
     <div flex flex-col gap-1>
-      <ControlButton @click="() => openSettings()">
-        <div i-solar:settings-minimalistic-outline size-5 text="neutral-800 dark:neutral-300" />
-      </ControlButton>
-      <HearingConfigDialog>
-        <ControlButton>
+      <ControlButtonTooltip>
+        <ControlButton @click="() => openSettings()">
+          <div i-solar:settings-minimalistic-outline size-5 text="neutral-800 dark:neutral-300" />
+        </ControlButton>
+
+        <template #tooltip>
+          Open settings
+        </template>
+      </ControlButtonTooltip>
+
+      <ControlButtonTooltip>
+        <HearingConfigDialog>
+          <ControlButton>
+            <Transition name="fade" mode="out-in">
+              <div v-if="isAudioEnabled" i-ph:microphone size-5 text="neutral-800 dark:neutral-300" />
+              <div v-else i-ph:microphone-slash size-5 text="neutral-800 dark:neutral-300" />
+            </Transition>
+          </ControlButton>
+        </HearingConfigDialog>
+
+        <template #tooltip>
+          Open hearing controls
+        </template>
+      </ControlButtonTooltip>
+
+      <ControlButtonTooltip>
+        <ControlButton cursor-move @mousedown="handleWindowDrag">
+          <div i-ph:arrows-out-cardinal size-5 text="neutral-800 dark:neutral-300" />
+        </ControlButton>
+
+        <template #tooltip>
+          Drag to move window
+        </template>
+      </ControlButtonTooltip>
+
+      <ControlButtonTooltip>
+        <ControlButton @click="toggleDark">
           <Transition name="fade" mode="out-in">
-            <div v-if="enabled" i-ph:microphone size-5 text="neutral-800 dark:neutral-300" />
-            <div v-else i-ph:microphone-slash size-5 text="neutral-800 dark:neutral-300" />
+            <div v-if="isDark" i-solar:moon-outline size-5 text="neutral-800 dark:neutral-300" />
+            <div v-else i-solar:sun-2-outline size-5 text="neutral-800 dark:neutral-300" />
           </Transition>
         </ControlButton>
-      </HearingConfigDialog>
-      <ControlButton :class="['cursor-move', 'drag-region']">
-        <div i-ph:arrows-out-cardinal size-5 text="neutral-800 dark:neutral-300" />
-      </ControlButton>
-      <ControlButton @click="() => toggleDark()">
-        <Transition name="fade" mode="out-in">
-          <div v-if="isDark" i-solar:moon-outline size-5 text="neutral-800 dark:neutral-300" />
-          <div v-else i-solar:sun-2-outline size-5 text="neutral-800 dark:neutral-300" />
-        </Transition>
-      </ControlButton>
+
+        <template #tooltip>
+          {{ isDark ? 'Switch to light mode' : 'Switch to dark mode' }}
+        </template>
+      </ControlButtonTooltip>
     </div>
   </div>
 </template>

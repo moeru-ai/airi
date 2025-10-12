@@ -71,6 +71,7 @@
     "dompurify": "^3.2.7",
     "drizzle-kit": "^0.31.5",
     "drizzle-orm": "^0.44.6",
+    "electron-click-drag-plugin": "^2.0.2",
     "es-toolkit": "^1.40.0",
     "jszip": "^3.10.1",
     "listhen": "^1.9.0",
