@@ -185,7 +185,7 @@ function readProviderEnvCredentials(prefix: string) {
   return Object.keys(credentials).length > 0 ? credentials : null
 }
 
-const providerEnvOverrides: Record<string, Record<string, string>> = {}
+const providerEnvOverrides: Record<string, Record<string, unknown>> = {}
 const providerEnvModelOverrides: Record<string, string> = {}
 
 for (const [providerId, prefix] of Object.entries(providerEnvPrefixes)) {
@@ -1952,6 +1952,13 @@ export const useProvidersStore = defineStore('providers', () => {
 
         mergedCredentials[key] = value
       }
+    }
+
+    const envModel = providerEnvModelOverrides[providerId]
+    if (typeof envModel === 'string' && envModel.trim().length > 0) {
+      const currentModel = typeof mergedCredentials.model === 'string' ? mergedCredentials.model.trim() : ''
+      if (!currentModel)
+        mergedCredentials.model = envModel
     }
 
     providerCredentials.value[providerId] = mergedCredentials

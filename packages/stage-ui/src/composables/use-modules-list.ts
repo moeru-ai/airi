@@ -142,7 +142,7 @@ export function useModulesList() {
         id: 'gaming-factorio',
         name: t('settings.pages.modules.gaming-factorio.title'),
         description: t('settings.pages.modules.gaming-factorio.description'),
-        icon: 'i-solar:gameboy-bold-duotone',
+        iconColor: 'i-lobe-icons:factorio',
         to: '/settings/modules/gaming-factorio',
         configured: factorioStore.configured,
         category: 'gaming',
