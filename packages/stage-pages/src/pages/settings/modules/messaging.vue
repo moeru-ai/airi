@@ -1,22 +1,107 @@
 <script setup lang="ts">
-import { Messaging } from '@proj-airi/stage-ui/components'
+import { Button } from '@proj-airi/stage-ui/components'
+import { useDiscordStore } from '@proj-airi/stage-ui/stores/modules/discord'
+import { useTelegramStore } from '@proj-airi/stage-ui/stores/modules/telegram'
+import { FieldCheckbox, FieldInput } from '@proj-airi/ui'
+import { storeToRefs } from 'pinia'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
+const discordStore = useDiscordStore()
+const telegramStore = useTelegramStore()
+
+const discord = storeToRefs(discordStore)
+const telegram = storeToRefs(telegramStore)
+
+function saveDiscordSettings() {
+  discordStore.saveSettings()
+}
+
+function saveTelegramSettings() {
+  telegramStore.saveSettings()
+}
 </script>
 
 <template>
-  <div class="flex flex-col gap-6">
-    <div class="rounded-xl bg-neutral-100 p-6 dark:bg-[rgba(0,0,0,0.3)]">
-      <h2 class="mb-4 w-full text-lg text-neutral-500 md:text-2xl dark:text-neutral-400">
-        <div class="inline-flex items-center gap-4">
-          {{ $t('settings.pages.modules.messaging.title') }}
-        </div>
+  <div bg="neutral-50 dark:[rgba(0,0,0,0.3)]" rounded-xl p-4 flex="~ col gap-4">
+    <div>
+      <h2 class="text-lg text-neutral-500 md:text-2xl dark:text-neutral-400">
+        {{ t('settings.pages.modules.messaging.title') }}
       </h2>
+      <div text="neutral-400 dark:neutral-400">
+        <span>{{ t('settings.pages.modules.messaging.description') }}</span>
+      </div>
+    </div>
 
-      <div class="dark:neutral-400 text-neutral-400">
-        <span>{{ $t('settings.pages.modules.messaging.description') }}</span>
+    <div flex="~ col gap-8" class="mt-6">
+      <!-- Discord Section -->
+      <div border="b-1 border-neutral-200 dark:border-neutral-700 pb-6">
+        <h3 class="mb-4 flex items-center gap-2 text-lg text-neutral-700 font-semibold dark:text-neutral-300">
+          <div class="i-simple-icons:discord text-xl text-[#5865F2]" />
+          Discord
+        </h3>
+
+        <div flex="~ col gap-6">
+          <FieldCheckbox
+            v-model="discord.enabled.value"
+            :label="t('settings.pages.modules.messaging-discord.enable')"
+            :description="t('settings.pages.modules.messaging-discord.enable-description')"
+          />
+
+          <FieldInput
+            v-model="discord.token.value"
+            type="password"
+            :label="t('settings.pages.modules.messaging-discord.token')"
+            :description="t('settings.pages.modules.messaging-discord.token-description')"
+            :placeholder="t('settings.pages.modules.messaging-discord.token-placeholder')"
+          />
+
+          <div>
+            <Button
+              :label="t('settings.common.save')"
+              @click="saveDiscordSettings"
+            />
+          </div>
+
+          <div v-if="discord.configured" class="mt-4 rounded-lg bg-green-100 p-4 text-green-800 dark:bg-green-900/30 dark:text-green-300">
+            {{ t('settings.pages.modules.messaging-discord.configured') }}
+          </div>
+        </div>
       </div>
 
-      <div class="mt-6">
-        <Messaging />
+      <!-- Telegram Section -->
+      <div>
+        <h3 class="mb-4 flex items-center gap-2 text-lg text-neutral-700 font-semibold dark:text-neutral-300">
+          <div class="i-simple-icons:telegram text-xl text-[#0088CC]" />
+          Telegram
+        </h3>
+
+        <div flex="~ col gap-6">
+          <FieldCheckbox
+            v-model="telegram.enabled.value"
+            :label="t('settings.pages.modules.messaging-telegram.enable')"
+            :description="t('settings.pages.modules.messaging-telegram.enable-description')"
+          />
+
+          <FieldInput
+            v-model="telegram.token.value"
+            type="password"
+            :label="t('settings.pages.modules.messaging-telegram.token')"
+            :description="t('settings.pages.modules.messaging-telegram.token-description')"
+            :placeholder="t('settings.pages.modules.messaging-telegram.token-placeholder')"
+          />
+
+          <div>
+            <Button
+              :label="t('settings.common.save')"
+              @click="saveTelegramSettings"
+            />
+          </div>
+
+          <div v-if="telegram.configured" class="mt-4 rounded-lg bg-green-100 p-4 text-green-800 dark:bg-green-900/30 dark:text-green-300">
+            {{ t('settings.pages.modules.messaging-telegram.configured') }}
+          </div>
+        </div>
       </div>
     </div>
   </div>

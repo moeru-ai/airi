@@ -25,8 +25,8 @@ function saveTelegramSettings() {
 <template>
   <div flex="~ col gap-8">
     <!-- Discord Section -->
-    <div border="b-1 border-gray-200 dark:border-gray-700 pb-6">
-      <h3 class="mb-4 flex items-center gap-2 text-lg text-gray-900 font-semibold dark:text-gray-100">
+    <div border="b-1 border-neutral-200 dark:border-neutral-700 pb-6">
+      <h3 class="mb-4 flex items-center gap-2 text-lg text-neutral-900 font-semibold dark:text-neutral-100">
         <div class="i-simple-icons:discord text-xl text-[#5865F2]" />
         Discord
       </h3>
@@ -61,7 +61,7 @@ function saveTelegramSettings() {
 
     <!-- Telegram Section -->
     <div>
-      <h3 class="mb-4 flex items-center gap-2 text-lg text-gray-900 font-semibold dark:text-gray-100">
+      <h3 class="mb-4 flex items-center gap-2 text-lg text-neutral-900 font-semibold dark:text-neutral-100">
         <div class="i-simple-icons:telegram text-xl text-[#0088CC]" />
         Telegram
       </h3>
