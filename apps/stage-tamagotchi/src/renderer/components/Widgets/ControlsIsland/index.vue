@@ -34,7 +34,7 @@ function handleWindowDrag() {
   <div fixed bottom-2 right-2>
     <div flex flex-col gap-1>
       <ControlButtonTooltip>
-        <ControlButton @click="() => openSettings()">
+        <ControlButton @click="openSettings">
           <div i-solar:settings-minimalistic-outline size-5 text="neutral-800 dark:neutral-300" />
         </ControlButton>
 
