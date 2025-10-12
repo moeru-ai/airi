@@ -197,6 +197,8 @@ function updateCustomModelName(value: string) {
                 :value="metadata.id"
                 :title="metadata.localizedName || 'Unknown'"
                 :description="metadata.localizedDescription"
+                :icon="metadata.icon"
+                :icon-color="metadata.iconColor"
               />
             </fieldset>
             <div v-else>

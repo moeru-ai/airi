@@ -5,6 +5,8 @@ defineProps<{
   value: string
   title: string
   description?: string
+  icon?: string
+  iconColor?: string
 }>()
 
 const modelValue = defineModel<string>({ required: true })
@@ -47,18 +49,32 @@ const modelValue = defineModel<string>({ required: true })
       />
     </div>
     <div flex="~ col" min-h-16 w-full items-start justify-center pb-2 pl-5 pr-4 pt-2>
-      <span
-        class="radio-item-name font-normal"
-        text="md"
-        :class="[
-          modelValue === value
-            ? 'text-neutral-700 dark:text-neutral-300'
-            : 'text-neutral-500 dark:text-neutral-500',
-        ]"
-        transition="all duration-200 ease-in-out"
-      >
-        {{ title }}
-      </span>
+      <div flex="~ row items-center gap-2" w-full>
+        <div v-if="icon || iconColor" class="flex-shrink-0">
+          <div
+            v-if="icon"
+            :class="[icon]"
+            class="text-xl"
+          />
+          <div
+            v-else-if="iconColor"
+            :class="[iconColor]"
+            class="text-xl"
+          />
+        </div>
+        <span
+          class="radio-item-name font-normal"
+          text="md"
+          :class="[
+            modelValue === value
+              ? 'text-neutral-700 dark:text-neutral-300'
+              : 'text-neutral-500 dark:text-neutral-500',
+          ]"
+          transition="all duration-200 ease-in-out"
+        >
+          {{ title }}
+        </span>
+      </div>
       <span
         v-if="description"
         class="radio-item-description"
@@ -67,6 +83,7 @@ const modelValue = defineModel<string>({ required: true })
             ? 'text-neutral-600 dark:text-neutral-400'
             : 'text-neutral-400 dark:text-neutral-600',
         ]"
+        :style="{ 'padding-left': (icon || iconColor) ? '1.75rem' : '0' }"
         transition="all duration-200 ease-in-out"
       >
         {{ description }}

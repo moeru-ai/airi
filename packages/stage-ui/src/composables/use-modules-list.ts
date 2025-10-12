@@ -46,7 +46,7 @@ export function useModulesList() {
   const { shortTermConfigured, longTermConfigured } = storeToRefs(memoryStore)
 
   const modulesList = computed<Module[]>(() => {
-    const messagingIcon = computed(() => {
+    const messagingIcon = (() => {
       if (discordStore.configured) {
         return 'i-simple-icons:discord'
       }
@@ -54,7 +54,7 @@ export function useModulesList() {
         return 'i-simple-icons:telegram'
       }
       return 'i-solar:chat-circle-bold-duotone'
-    })
+    })()
 
     return [
       {
@@ -115,7 +115,7 @@ export function useModulesList() {
         id: 'messaging',
         name: t('settings.pages.modules.messaging.title'),
         description: t('settings.pages.modules.messaging.description'),
-        icon: messagingIcon.value,
+        icon: messagingIcon,
         to: '/settings/modules/messaging',
         configured: messagingStore.configured,
         category: 'messaging',
@@ -133,7 +133,7 @@ export function useModulesList() {
         id: 'gaming-minecraft',
         name: t('settings.pages.modules.gaming-minecraft.title'),
         description: t('settings.pages.modules.gaming-minecraft.description'),
-        iconColor: 'i-vscode-icons:file-type-minecraft',
+        icon: 'i-vscode-icons:file-type-minecraft',
         to: '/settings/modules/gaming-minecraft',
         configured: minecraftStore.configured,
         category: 'gaming',
@@ -142,7 +142,7 @@ export function useModulesList() {
         id: 'gaming-factorio',
         name: t('settings.pages.modules.gaming-factorio.title'),
         description: t('settings.pages.modules.gaming-factorio.description'),
-        iconColor: 'i-lobe-icons:factorio',
+        icon: 'i-lobe-icons:factorio',
         to: '/settings/modules/gaming-factorio',
         configured: factorioStore.configured,
         category: 'gaming',

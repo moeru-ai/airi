@@ -15,7 +15,7 @@ import {
   FieldInput,
 } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
-import { onMounted, ref } from 'vue'
+import { onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 const { t } = useI18n()
@@ -156,6 +156,13 @@ onMounted(async () => {
     await visionStore.loadModelsForProvider(activeVisionProvider.value)
   }
 })
+
+// Watch for provider changes
+watch(activeVisionProvider, async (newProvider) => {
+  if (newProvider) {
+    await visionStore.loadModelsForProvider(newProvider)
+  }
+})
 </script>
 
 <template>
@@ -188,6 +195,8 @@ onMounted(async () => {
               :value="metadata.id"
               :title="metadata.localizedName || 'Unknown'"
               :description="metadata.localizedDescription"
+              :icon="metadata.icon"
+              :icon-color="metadata.iconColor"
             />
           </fieldset>
           <div v-else>
@@ -211,12 +220,28 @@ onMounted(async () => {
         <!-- Model selection section -->
         <div v-if="activeVisionProvider && supportsModelListing">
           <div flex="~ col gap-4">
+            <div>
+              <h2 class="text-lg text-neutral-500 md:text-2xl dark:text-neutral-400">
+                {{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.title') }}
+              </h2>
+              <div text="neutral-400 dark:neutral-400">
+                <span>{{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.subtitle') }}</span>
+              </div>
+            </div>
+
             <RadioCardManySelect
               v-if="providerModels.length > 0"
               v-model="activeVisionModel"
               v-model:search-query="visionModelSearchQuery"
               :items="providerModels.sort((a, b) => a.id === activeVisionModel ? -1 : b.id === activeVisionModel ? 1 : 0)"
               :searchable="true"
+              :search-placeholder="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.search_placeholder')"
+              :search-no-results-title="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.no_search_results')"
+              :search-no-results-description="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.no_search_results_description', { query: visionModelSearchQuery })"
+              :search-results-text="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.search_results', { count: '{count}', total: '{total}' })"
+              :custom-input-placeholder="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.custom_model_placeholder')"
+              :expand-button-text="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.expand')"
+              :collapse-button-text="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.collapse')"
             />
             <ErrorContainer
               v-else-if="activeProviderModelError"
