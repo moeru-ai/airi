@@ -98,21 +98,13 @@ export const useVisionStore = defineStore('vision-store', () => {
     if (!configured.value)
       throw new Error('Vision provider not configured')
 
-    const provider = providersStore.getProviderMetadata(activeVisionProvider.value)
-    if (!provider)
-      throw new Error(`Provider not found: ${activeVisionProvider.value}`)
+    const providerOptions = {
+      ...options,
+      providerId: activeVisionProvider.value,
+      model: activeVisionModel.value,
+    }
 
-    const providerInstance = await providersStore.getProviderInstance(provider.id)
-    if (!providerInstance?.vision)
-      throw new Error('Vision function not available for this provider')
-
-    const result = await generateImage({
-      ...providerInstance.vision(activeVisionModel.value, {
-        ...options,
-      }),
-      input: imageUrl,
-      prompt: prompt || 'Describe this image in detail.',
-    })
+    const result = await generateImage(imageUrl, prompt || 'Describe this image in detail.', providerOptions)
 
     // Ensure consistent return structure
     if (typeof result === 'string') {
@@ -126,21 +118,13 @@ export const useVisionStore = defineStore('vision-store', () => {
     if (!configured.value)
       throw new Error('Vision provider not configured')
 
-    const provider = providersStore.getProviderMetadata(activeVisionProvider.value)
-    if (!provider)
-      throw new Error(`Provider not found: ${activeVisionProvider.value}`)
+    const providerOptions = {
+      ...options,
+      providerId: activeVisionProvider.value,
+      model: activeVisionModel.value,
+    }
 
-    const providerInstance = await providersStore.getProviderInstance(provider.id)
-    if (!providerInstance?.vision)
-      throw new Error('Vision function not available for this provider')
-
-    const result = await generateImage({
-      ...providerInstance.vision(activeVisionModel.value, {
-        ...options,
-      }),
-      input: imageData,
-      prompt: prompt || 'Describe this image in detail.',
-    })
+    const result = await generateImage(imageData, prompt || 'Describe this image in detail.', providerOptions)
 
     // Ensure consistent return structure
     if (typeof result === 'string') {
