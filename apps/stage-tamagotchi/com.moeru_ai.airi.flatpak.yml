@@ -7,7 +7,7 @@ base-version: '24.08'
 command: AIRI
 
 finish-args:
-  # GUI 환경
+  # GUI environment
   - --share=network
   - --socket=x11
   - --socket=wayland
