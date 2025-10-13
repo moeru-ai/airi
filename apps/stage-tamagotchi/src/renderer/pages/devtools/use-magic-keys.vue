@@ -136,7 +136,7 @@ const Key = defineComponent({
   <slot />
 </template>
 
-<!-- <route lang="yaml">
+<route lang="yaml">
 meta:
   layout: settings
-</route> -->
+</route>

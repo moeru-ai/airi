@@ -15,4 +15,6 @@ interface Point {
 
 export const electronCursorPoint = defineEventa<Point>('electron:eventa:event:cursor-point')
 export const electronStartTrackingCursorPoint = defineInvokeEventa('electron:eventa:invoke:start-tracking-cursor-point')
-export const electronOpenSettings = defineInvokeEventa<void, void>('electron:eventa:invoke:open-settings')
+export const electronOpenMainDevtools = defineInvokeEventa<void, void>('electron:eventa:invoke:windows:main:devtools:open')
+export const electronOpenSettings = defineInvokeEventa<void, void>('electron:eventa:invoke:windows:settings:open')
+export const electronOpenSettingsDevtools = defineInvokeEventa<void, void>('electron:eventa:invoke:windows:settings:devtools:open')

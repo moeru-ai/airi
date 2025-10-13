@@ -23,6 +23,9 @@ export default defineConfig({
     plugins: [externalizeDepsPlugin()],
   },
   renderer: {
+    // Thanks to [@Maqsyo](https://github.com/Maqsyo)
+    // https://github.com/alex8088/electron-vite/issues/99#issuecomment-1862671727
+    base: './',
     optimizeDeps: {
       exclude: [
         // Internal Packages
@@ -56,6 +59,7 @@ export default defineConfig({
         '@proj-airi/i18n': resolve(join(import.meta.dirname, '..', '..', 'packages', 'i18n', 'src')),
         '@proj-airi/stage-ui': resolve(join(import.meta.dirname, '..', '..', 'packages', 'stage-ui', 'src')),
         '@proj-airi/stage-pages': resolve(join(import.meta.dirname, '..', '..', 'packages', 'stage-pages', 'src')),
+        '@proj-airi/stage-shared': resolve(join(import.meta.dirname, '..', '..', 'packages', 'stage-shared', 'src')),
       },
     },
     server: {
@@ -68,6 +72,19 @@ export default defineConfig({
     },
 
     plugins: [
+      {
+        name: 'proj-airi:define-runtime-environment',
+        config(ctx) {
+          if (ctx.mode === 'production') {
+            return {
+              define: {
+                'import.meta.env.RUNTIME_ENVIRONMENT': '\'electron\'',
+              },
+            }
+          }
+        },
+      },
+
       Inspect(),
 
       Yaml(),

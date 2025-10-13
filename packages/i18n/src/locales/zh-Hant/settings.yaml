@@ -1,6 +1,5 @@
 common:
   save: 儲存
-
 animations:
   stage-transitions:
     title: 是否開啟舞台動畫
@@ -507,6 +506,10 @@ pages:
           title: 配色
         developer:
           title: 開發者
+          sections:
+            section:
+              use-magic-keys:
+                description: 測試快捷鍵
         theme-presets:
           presets:
             - colors:

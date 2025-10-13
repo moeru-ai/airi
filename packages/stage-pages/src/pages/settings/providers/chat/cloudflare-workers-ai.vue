@@ -3,9 +3,8 @@ import type { RemovableRef } from '@vueuse/core'
 
 import {
   Alert,
-  ProviderAdvancedSettings,
+  ProviderAccountIdInput,
   ProviderApiKeyInput,
-  ProviderBaseUrlInput,
   ProviderBasicSettings,
   ProviderSettingsContainer,
   ProviderSettingsLayout,
@@ -15,7 +14,7 @@ import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { storeToRefs } from 'pinia'
 import { computed } from 'vue'
 
-const providerId = 'google-generative-ai'
+const providerId = 'cloudflare-workers-ai'
 const providersStore = useProvidersStore()
 const { providers } = storeToRefs(providersStore) as { providers: RemovableRef<Record<string, any>> }
 
@@ -29,12 +28,12 @@ const apiKey = computed({
   },
 })
 
-const baseUrl = computed({
-  get: () => providers.value[providerId]?.baseUrl || 'https://generativelanguage.googleapis.com/v1beta/openai/',
+const accountId = computed({
+  get: () => providers.value[providerId]?.accountId || '',
   set: (value) => {
     if (!providers.value[providerId])
       providers.value[providerId] = {}
-    providers.value[providerId].baseUrl = value
+    providers.value[providerId].accountId = value
   },
 })
 
@@ -53,6 +52,7 @@ const {
 <template>
   <ProviderSettingsLayout
     :provider-name="providerMetadata?.localizedName"
+    :provider-icon="providerMetadata?.icon"
     :provider-icon-color="providerMetadata?.iconColor"
     :on-back="() => router.back()"
   >
@@ -65,16 +65,16 @@ const {
         <ProviderApiKeyInput
           v-model="apiKey"
           :provider-name="providerMetadata?.localizedName"
-          placeholder="AIza..."
+          :placeholder="t('settings.pages.providers.provider.cloudflare-workers-ai.fields.field.api-key.placeholder')"
+        />
+
+        <ProviderAccountIdInput
+          v-model="accountId"
+          :label="t('settings.pages.providers.provider.cloudflare-workers-ai.fields.field.account-id.label')"
+          :description="t('settings.pages.providers.provider.cloudflare-workers-ai.fields.field.account-id.description')"
+          :placeholder="t('settings.pages.providers.provider.cloudflare-workers-ai.fields.field.account-id.placeholder')"
         />
       </ProviderBasicSettings>
-
-      <ProviderAdvancedSettings :title="t('settings.pages.providers.common.section.advanced.title')">
-        <ProviderBaseUrlInput
-          v-model="baseUrl"
-          placeholder="https://generativelanguage.googleapis.com/v1beta/openai/"
-        />
-      </ProviderAdvancedSettings>
 
       <!-- Validation Status -->
       <Alert v-if="!isValid && isValidating === 0 && validationMessage" type="error">
