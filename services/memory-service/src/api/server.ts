@@ -18,9 +18,9 @@ import { Elysia, t } from 'elysia'
 import memoryRouter from './memory'
 
 import {
-  isEmbeddedPostgresEnabled,
+  isPostgresEnabled,
   isPGliteEnabled,
-  setEmbeddedPostgresEnabled,
+  setPostgresEnabled,
   setPGliteEnabled,
   useDrizzle,
 } from '../db/index.js'
@@ -133,18 +133,9 @@ export function createApp() {
     },
   )
 
-  // iet current embedded Postgres status
-  app.get('/embedded-postgres', () => {
-    return { enabled: isEmbeddedPostgresEnabled() }
-  })
-
-  // Update embedded Postgres status
-  app.post('/embedded-postgres', (body: any) => {
-    const { enabled } = body as { enabled: boolean }
-    setEmbeddedPostgresEnabled(enabled)
-    return { success: true, enabled: isEmbeddedPostgresEnabled() }
-  }, {
-    body: t.Object({ enabled: t.Boolean() }),
+  // iet current chat Postgres status
+  app.get('/chat-postgres', () => {
+    return { enabled: isPostgresEnabled() }
   })
 
   // Get current PGlite status

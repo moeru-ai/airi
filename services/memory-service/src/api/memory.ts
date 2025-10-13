@@ -40,7 +40,7 @@ function parsePwdEnv(dbUrl: string) {
 
 const memoryRouter = new Elysia({ prefix: '/memory' })
 
-memoryRouter.post('/export-chathistory', async ({ set, query, headers }) => {
+memoryRouter.post('/export-chat-pglite', async ({ set, query, headers }) => {
   try {
     const pglite = isPgliteReq(
       headers as Record<string, string | string[]>,
@@ -136,10 +136,10 @@ memoryRouter.post('/export-chathistory', async ({ set, query, headers }) => {
   }
 })
 
-memoryRouter.post('/export-embedded', ({ set, request }) => {
+memoryRouter.post('/export-chat', ({ set, request }) => {
   const url = new URL(request.url)
 
-  url.pathname = url.pathname.replace(/\/export-embedded$/, '/export-chathistory')
+  url.pathname = url.pathname.replace(/\/export-chat$/, '/export-chat-pglite')
   url.searchParams.set('isPglite', 'false')
 
   set.status = 307
@@ -168,7 +168,7 @@ memoryRouter.post('/import-chathistory', async ({ body, set, headers, query }) =
       const name = (file.name || '').toLowerCase()
       if (!name.endsWith('.sql')) {
         set.status = 400
-        return 'For Postgres/Embedded-Postgres, upload a .sql dump.'
+        return 'For PostgreSQL, upload a .sql dump.'
       }
 
       await new Promise<void>((resolve, reject) => {

@@ -25,7 +25,6 @@ const boolSerializer = {
   write: (v: boolean) => String(v),
 }
 
-const embeddedPostgresEnabled = useLocalStorage<boolean>('settings/memory/embedded-postgres-enabled', false, { serializer: boolSerializer })
 const pgLiteEnabled = useLocalStorage<boolean>('settings/memory/pglite-enabled', false, { serializer: boolSerializer })
 const exportMessage = ref('Click and wait for success log...')
 const importMessage = ref('')
@@ -428,7 +427,7 @@ function dismissRegenerationWarning() {
   settingsChanged.value = false
 }
 
-async function updateDbEnabled(endpoint: 'embedded-postgres' | 'pglite', enabled: boolean) {
+async function updateDbEnabled(endpoint: 'chat-postgres' | 'pglite', enabled: boolean) {
   try {
     const response = await fetch(`${memoryServiceUrl.value}/api/${endpoint}`, {
       method: 'POST',
@@ -448,24 +447,10 @@ async function updateDbEnabled(endpoint: 'embedded-postgres' | 'pglite', enabled
   }
 }
 
-watch(embeddedPostgresEnabled, (n, o) => {
-  const now = n === true
-  const old = o === true
-  if (now && !old) {
-    if (pgLiteEnabled.value)
-      pgLiteEnabled.value = false
-    updateDbEnabled('pglite', false)
-    updateDbEnabled('embedded-postgres', true)
-  }
-})
-
 watch(pgLiteEnabled, (n, o) => {
   const now = n === true
   const old = o === true
-  if (now && !old) {
-    if (embeddedPostgresEnabled.value)
-      embeddedPostgresEnabled.value = false
-    updateDbEnabled('embedded-postgres', false)
+    updateDbEnabled('chat-postgres', false)
     updateDbEnabled('pglite', true)
   }
 })
@@ -591,7 +576,7 @@ async function exportChatHistory() {
     const usePglite = pgLiteEnabled.value === true
     const endpoint = usePglite
       ? `${memoryServiceUrl.value}/api/memory/export-chathistory?isPglite=true`
-      : `${memoryServiceUrl.value}/api/memory/export-embedded`
+      : `${memoryServiceUrl.value}/api/memory/export-chat`
 
     const r = await fetch(endpoint, {
       method: 'POST',
@@ -738,18 +723,8 @@ async function exportChatHistory() {
         </div>
 
         <div class="mb-4">
-          <label class="flex cursor-pointer items-center gap-3">
-            <input
-              v-model="embeddedPostgresEnabled"
-              type="checkbox"
-              class="h-4 w-4 border-gray-300 rounded bg-gray-100 text-blue-600 dark:border-gray-600 dark:bg-gray-700 focus:ring-2 focus:ring-blue-500 dark:ring-offset-gray-800 dark:focus:ring-blue-600"
-            >
-            <span class="text-sm text-neutral-700 font-medium dark:text-neutral-300">
-              Enable Embedded Postgres
-            </span>
-          </label>
           <p class="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
-            Toggle the embedded Postgres database for local memory storage
+            Toggle the Postgres database for local memory storage
           </p>
           <label class="flex cursor-pointer items-center gap-3">
             <input
