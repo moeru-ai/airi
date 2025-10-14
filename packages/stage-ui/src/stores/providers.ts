@@ -493,7 +493,7 @@ export const useProvidersStore = defineStore('providers', () => {
               }
             })
             .catch((err) => {
-              const detailedError = new Error(`Failed to reach Ollama server: ${err.message}. If running locally, this may be a CORS issue. Try setting the OLLAMA_ORIGINS environment variable.`);
+              const detailedError = new Error(`Failed to reach Ollama server: ${err.message}. If running locally, this may be a CORS issue. Try setting the OLLAMA_ORIGINS environment variable.`)
               return {
                 errors: [err, detailedError],
                 reason: formatErrors([detailedError]),
@@ -561,7 +561,7 @@ export const useProvidersStore = defineStore('providers', () => {
               }
             })
             .catch((err) => {
-              const detailedError = new Error(`Failed to reach Ollama server: ${err.message}. If running locally, this may be a CORS issue. Try setting the OLLAMA_ORIGINS environment variable.`);
+              const detailedError = new Error(`Failed to reach Ollama server: ${err.message}. If running locally, this may be a CORS issue. Try setting the OLLAMA_ORIGINS environment variable.`)
               return {
                 errors: [err, detailedError],
                 reason: formatErrors([detailedError]),
@@ -640,7 +640,7 @@ export const useProvidersStore = defineStore('providers', () => {
               }
             })
             .catch((err) => {
-              const detailedError = new Error(`Failed to reach LM Studio server: ${err.message}. Make sure LM Studio is running and the local server is started.`);
+              const detailedError = new Error(`Failed to reach LM Studio server: ${err.message}. Make sure LM Studio is running and the local server is started.`)
               return {
                 errors: [err, detailedError],
                 reason: formatErrors([detailedError]),
@@ -1467,7 +1467,7 @@ export const useProvidersStore = defineStore('providers', () => {
               }
             })
             .catch((err) => {
-              const detailedError = new Error(`Failed to reach vLLM: ${err.message}.`);
+              const detailedError = new Error(`Failed to reach vLLM: ${err.message}.`)
               return {
                 errors: [err, detailedError],
                 reason: formatErrors([err]),
