@@ -12,6 +12,7 @@ import type { DirectionalLight, SphericalHarmonics3, Texture, WebGLRenderTarget 
 
 import type { Vec3 } from '../stores/model-store'
 
+import { withBase } from '@proj-airi/stage-shared'
 import { EffectComposerPmndrs, HueSaturationPmndrs } from '@proj-airi/tresjs/post-processing'
 import { TresCanvas } from '@tresjs/core'
 import { useElementBounding } from '@vueuse/core'
@@ -43,7 +44,7 @@ const props = withDefaults(defineProps<{
   paused?: boolean
 }>(), {
   showAxes: false,
-  idleAnimation: '/assets/vrm/animations/idle_loop.vrma',
+  idleAnimation: withBase('/assets/vrm/animations/idle_loop.vrma'),
   paused: false,
 })
 

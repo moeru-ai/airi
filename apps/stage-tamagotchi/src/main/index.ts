@@ -9,28 +9,47 @@ import { Format, LogLevel, setGlobalFormat, setGlobalLogLevel, useLogg } from '@
 import { createLoggLogger, injecta } from '@proj-airi/injecta'
 import { app, Menu, nativeImage, Tray } from 'electron'
 import { noop, once } from 'es-toolkit'
-import { isMacOS } from 'std-env'
+import { isLinux, isMacOS } from 'std-env'
 
 import icon from '../../resources/icon.png?asset'
 import macOSTrayIcon from '../../resources/tray-icon-macos.png?asset'
 
 import { openDebugger, setupDebugger } from './app/debugger'
 import { emitAppBeforeQuit, emitAppReady, emitAppWindowAllClosed, onAppBeforeQuit } from './libs/bootkit/lifecycle'
+import { setElectronMainDirname } from './libs/electron/location'
 import { setupInlayWindow } from './windows/inlay'
 import { setupMainWindow } from './windows/main'
-import { setupSettingsWindow } from './windows/settings'
+import { setupSettingsWindowReusableFunc } from './windows/settings'
 import { toggleWindowShow } from './windows/shared/window'
 
+setElectronMainDirname(__dirname)
 setGlobalFormat(Format.Pretty)
 setGlobalLogLevel(LogLevel.Log)
 setupDebugger()
 
 const log = useLogg('main').useGlobalConfig()
 
+// Thanks to [@blurymind](https://github.com/blurymind),
+//
+// When running Electron on Linux, navigator.gpu.requestAdapter() fails.
+// In order to enable WebGPU and process the shaders fast enough, we need the following
+// command line switches to be set.
+//
+// https://github.com/electron/electron/issues/41763#issuecomment-2051725363
+// https://github.com/electron/electron/issues/41763#issuecomment-3143338995
+if (isLinux) {
+  app.commandLine.appendSwitch('enable-features', 'SharedArrayBuffer')
+  app.commandLine.appendSwitch('enable-unsafe-webgpu')
+  app.commandLine.appendSwitch('enable-features', 'Vulkan')
+}
+
 app.dock?.setIcon(icon)
 electronApp.setAppUserModelId('ai.moeru.airi')
 
-function setupTray(params: { mainWindow: BrowserWindow }): void {
+function setupTray(params: {
+  mainWindow: BrowserWindow
+  settingsWindow: () => Promise<BrowserWindow>
+}): void {
   once(() => {
     const appTray = new Tray(nativeImage.createFromPath(macOSTrayIcon).resize({ width: 16 }))
     onAppBeforeQuit(() => appTray.destroy())
@@ -39,7 +58,7 @@ function setupTray(params: { mainWindow: BrowserWindow }): void {
       { label: 'Show', click: () => toggleWindowShow(params.mainWindow) },
       { label: 'Inlay', click: () => setupInlayWindow() },
       { type: 'separator' },
-      { label: 'Settings', click: () => setupSettingsWindow() },
+      { label: 'Settings', click: () => params.settingsWindow().then(window => toggleWindowShow(window)) },
       { type: 'separator' },
       { label: 'Quit', click: () => app.quit() },
     ])
@@ -90,9 +109,10 @@ app.whenReady().then(async () => {
   await setupProjectAIRIServerRuntime()
 
   injecta.setLogger(createLoggLogger())
-  injecta.provide('mainWindow', async () => await setupMainWindow())
-  injecta.provide<{ mainWindow: BrowserWindow }>('tray', { dependsOn: { mainWindow: 'mainWindow' }, build: async ({ dependsOn }) => setupTray({ mainWindow: dependsOn.mainWindow }) })
-  injecta.invoke({ dependsOn: { mainWindow: 'mainWindow', tray: 'tray' }, callback: noop })
+  injecta.provide('windows:settings', () => setupSettingsWindowReusableFunc())
+  injecta.provide<{ settingsWindow: () => Promise<BrowserWindow> }>('windows:main', { dependsOn: { settingsWindow: 'windows:settings' }, build: async ({ dependsOn }) => setupMainWindow(dependsOn) })
+  injecta.provide<{ mainWindow: BrowserWindow, settingsWindow: () => Promise<BrowserWindow> }>('tray', { dependsOn: { mainWindow: 'windows:main', settingsWindow: 'windows:settings' }, build: async ({ dependsOn }) => setupTray(dependsOn) })
+  injecta.invoke({ dependsOn: { mainWindow: 'windows:main', tray: 'tray' }, callback: noop })
   injecta.start()
 
   // Lifecycle

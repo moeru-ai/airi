@@ -1,26 +1,28 @@
 import type { BrowserWindowConstructorOptions, Rectangle } from 'electron'
 
 import { dirname, join, resolve } from 'node:path'
+import { env } from 'node:process'
 import { fileURLToPath } from 'node:url'
 
+import { is } from '@electron-toolkit/utils'
 import { defu } from 'defu'
 import { BrowserWindow, shell } from 'electron'
 import { isMacOS } from 'std-env'
 
 import icon from '../../../../resources/icon.png?asset'
 
-import { baseUrl, load } from '../../libs/electron/location'
+import { baseUrl, getElectronMainDirname, load } from '../../libs/electron/location'
 import { transparentWindowConfig } from '../shared'
 import { createConfig } from '../shared/persistence'
-import { setupAppInvokeHandlers } from './rpc/index.electron'
-
-const __dirname = dirname(fileURLToPath(import.meta.url))
+import { setupMainWindowElectronInvokes } from './rpc/index.electron'
 
 interface AppConfig {
   windows?: Array<Pick<BrowserWindowConstructorOptions, 'title' | 'x' | 'y' | 'width' | 'height'> & { tag: string }>
 }
 
-export async function setupMainWindow() {
+export async function setupMainWindow(params: {
+  settingsWindow: () => Promise<BrowserWindow>
+}) {
   const {
     setup: setupConfig,
     get: getConfig,
@@ -45,6 +47,16 @@ export async function setupMainWindow() {
     },
     ...transparentWindowConfig(),
   })
+
+  // NOTICE: in development mode, open devtools by default
+  if (is.dev || env.MAIN_APP_DEBUG || env.APP_DEBUG) {
+    try {
+      window.webContents.openDevTools({ mode: 'detach' })
+    }
+    catch (err) {
+      console.error('failed to open devtools:', err)
+    }
+  }
 
   function handleNewBounds(newBounds: Rectangle) {
     const config = getConfig()!
@@ -92,9 +104,9 @@ export async function setupMainWindow() {
     return { action: 'deny' }
   })
 
-  await load(window, baseUrl(resolve(__dirname, '..', '..', 'renderer')))
+  await load(window, baseUrl(resolve(getElectronMainDirname(), '..', 'renderer')))
 
-  setupAppInvokeHandlers(window)
+  setupMainWindowElectronInvokes({ window, settingsWindow: params.settingsWindow })
 
   return window
 }

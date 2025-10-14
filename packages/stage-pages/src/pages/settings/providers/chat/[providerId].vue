@@ -14,8 +14,10 @@ import { useProviderValidation } from '@proj-airi/stage-ui/composables/use-provi
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { storeToRefs } from 'pinia'
 import { computed } from 'vue'
+import { useRoute } from 'vue-router'
 
-const providerId = 'mistral-ai'
+const route = useRoute()
+const providerId = route.params.providerId as string
 const providersStore = useProvidersStore()
 const { providers } = storeToRefs(providersStore) as { providers: RemovableRef<Record<string, any>> }
 
@@ -72,7 +74,7 @@ const {
       <ProviderAdvancedSettings :title="t('settings.pages.providers.common.section.advanced.title')">
         <ProviderBaseUrlInput
           v-model="baseUrl"
-          placeholder="https://api.mistral.ai/v1/"
+          :placeholder="providerMetadata?.defaultOptions?.().baseUrl as string || 'Base URL of your provider'"
         />
       </ProviderAdvancedSettings>
 

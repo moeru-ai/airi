@@ -7,6 +7,7 @@ import type { Emotion } from '../../constants/emotions'
 
 import { drizzle } from '@proj-airi/drizzle-duckdb-wasm'
 import { getImportUrlBundles } from '@proj-airi/drizzle-duckdb-wasm/bundles/import-url-browser'
+import { withBase } from '@proj-airi/stage-shared'
 import { ThreeScene, useModelStore } from '@proj-airi/stage-ui-three'
 // import { createTransformers } from '@xsai-transformers/embed'
 // import embedWorkerURL from '@xsai-transformers/embed/worker?worker&url'
@@ -286,7 +287,7 @@ defineExpose({
         v-if="stageModelRenderer === 'vrm' && showStage"
         ref="vrmViewerRef"
         :model-src="stageModelSelectedUrl"
-        idle-animation="/assets/vrm/animations/idle_loop.vrma"
+        :idle-animation="withBase('/assets/vrm/animations/idle_loop.vrma')"
         min-w="50% <lg:full" min-h="100 sm:100" h-full w-full flex-1
         :paused="paused"
         :show-axes="stageViewControlsEnabled"
