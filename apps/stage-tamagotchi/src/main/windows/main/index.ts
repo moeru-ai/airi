@@ -7,12 +7,15 @@ import { fileURLToPath } from 'node:url'
 import clickDragPlugin from 'electron-click-drag-plugin'
 
 import { is } from '@electron-toolkit/utils'
+import { defineInvokeHandler } from '@unbird/eventa'
+import { createContext } from '@unbird/eventa/adapters/electron/main'
 import { defu } from 'defu'
 import { BrowserWindow, ipcMain, shell } from 'electron'
 import { isMacOS } from 'std-env'
 
 import icon from '../../../../resources/icon.png?asset'
 
+import { electronStartDraggingWindow } from '../../../shared/eventa'
 import { baseUrl, getElectronMainDirname, load } from '../../libs/electron/location'
 import { transparentWindowConfig } from '../shared'
 import { createConfig } from '../shared/persistence'
@@ -110,7 +113,13 @@ export async function setupMainWindow(params: {
 
   setupMainWindowElectronInvokes({ window, settingsWindow: params.settingsWindow })
 
-  function handleStartDrag() {
+  /**
+   * This is a know issue (or expected behavior maybe) to Electron.
+   *
+   * Discussion: https://github.com/electron/electron/issues/37789
+   * Workaround: https://github.com/noobfromph/electron-click-drag-plugin
+   */
+  function handleStartDraggingWindow() {
     try {
       const hwndBuffer = window.getNativeWindowHandle()
       // Linux: extract X11 Window ID from the buffer (first 4 bytes, little-endian)
@@ -124,16 +133,11 @@ export async function setupMainWindow(params: {
     }
   }
 
-  /**
-   * This is a know issue (or expected behavior maybe) to Electron.
-   *
-   * Discussion: https://github.com/electron/electron/issues/37789
-   * Workaround: https://github.com/noobfromph/electron-click-drag-plugin
-   */
-  ipcMain.on('start-drag', handleStartDrag)
+  const { context } = createContext(ipcMain, window)
+  const cleanUpWindowDraggingInvokeHandler = defineInvokeHandler(context, electronStartDraggingWindow, () => handleStartDraggingWindow())
 
   window.on('closed', () => {
-    ipcMain.removeListener('start-drag', handleStartDrag)
+    cleanUpWindowDraggingInvokeHandler()
   })
 
   return window

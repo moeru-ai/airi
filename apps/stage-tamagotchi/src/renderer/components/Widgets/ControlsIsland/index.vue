@@ -9,7 +9,7 @@ import { storeToRefs } from 'pinia'
 import ControlButton from './ControlButton.vue'
 import ControlButtonTooltip from './ControlButtonTooltip.vue'
 
-import { electronOpenSettings } from '../../../../shared/eventa'
+import { electronOpenSettings, electronStartDraggingWindow } from '../../../../shared/eventa'
 
 const isDark = useDark({ disableTransition: false })
 const toggleDark = useToggle(isDark)
@@ -20,14 +20,12 @@ const { enabled: isAudioEnabled } = storeToRefs(settingsAudioDeviceStore)
 const { context } = createContext(window.electron.ipcRenderer)
 const openSettings = defineInvoke(context, electronOpenSettings)
 
-function handleWindowDrag() {
-  /**
-   * This is a know issue (or expected behavior maybe) to Electron.
-   *
-   * See `apps/stage-tamagotchi/src/main/windows/main/index.ts` for handler definition
-   */
-  window.electron.ipcRenderer.send('start-drag')
-}
+/**
+ * This is a know issue (or expected behavior maybe) to Electron.
+ *
+ * See `apps/stage-tamagotchi/src/main/windows/main/index.ts` for handler definition
+ */
+const startDraggingWindow = defineInvoke(context, electronStartDraggingWindow)
 </script>
 
 <template>
@@ -59,7 +57,7 @@ function handleWindowDrag() {
       </ControlButtonTooltip>
 
       <ControlButtonTooltip>
-        <ControlButton cursor-move @mousedown="handleWindowDrag">
+        <ControlButton cursor-move @mousedown="startDraggingWindow">
           <div i-ph:arrows-out-cardinal size-5 text="neutral-800 dark:neutral-300" />
         </ControlButton>
 
