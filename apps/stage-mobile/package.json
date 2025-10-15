@@ -1,22 +1,44 @@
 {
-  "name": "stage-mobile",
-  "version": "1.0.0",
+  "name": "@proj-airi/stage-mobile",
+  "type": "module",
+  "version": "0.7.2-beta.3",
+  "private": true,
+  "description": "React Native mobile app for AIRI",
+  "author": {
+    "name": "Moeru AI Project AIRI Team",
+    "email": "airi@moeru.ai",
+    "url": "https://github.com/moeru-ai"
+  },
+  "license": "MIT",
   "main": "index.ts",
   "scripts": {
     "start": "expo start",
     "android": "expo start --android",
     "ios": "expo start --ios",
-    "web": "expo start --web"
+    "web": "expo start --web",
+    "dev": "expo start",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "expo": "~54.0.13",
     "expo-status-bar": "~3.0.8",
+    "expo-router": "~4.0.24",
+    "expo-three": "^9.0.0",
+    "three": "^0.180.0",
+    "@react-three/fiber": "^9.0.0",
+    "@expo/vector-icons": "^15.0.4",
+    "nativewind": "^4.1.32",
+    "tailwindcss": "^3.4.20",
+    "@gluestack-ui/themed": "^1.1.73",
+    "@ai-sdk/react": "^1.0.28",
+    "ai": "^4.3.19",
+    "realm": "^13.2.0",
     "react": "19.1.0",
     "react-native": "0.81.4"
   },
   "devDependencies": {
     "@types/react": "~19.1.0",
+    "@types/three": "^0.180.0",
     "typescript": "~5.9.2"
-  },
-  "private": true
+  }
 }
