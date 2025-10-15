@@ -22,7 +22,7 @@
   "dependencies": {
     "expo": "~54.0.13",
     "expo-status-bar": "~3.0.8",
-    "expo-router": "~4.0.24",
+    "expo-router": "^6.0.12",
     "expo-three": "^8.0.0",
     "three": "^0.180.0",
     "@react-three/fiber": "^8.17.14",
@@ -38,7 +38,9 @@
     "expo-gl": "~15.0.2",
     "expo-asset": "~11.0.3",
     "react-native-safe-area-context": "^4.15.3",
-    "expo-av": "~15.0.3"
+    "expo-av": "~15.0.3",
+    "expo-linking": "~7.0.4",
+    "expo-constants": "~18.0.2"
   },
   "devDependencies": {
     "@types/react": "~19.1.0",
