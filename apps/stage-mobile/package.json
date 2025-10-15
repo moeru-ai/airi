@@ -10,7 +10,7 @@
     "url": "https://github.com/moeru-ai"
   },
   "license": "MIT",
-  "main": "index.ts",
+  "main": "expo-router/entry",
   "scripts": {
     "start": "expo start",
     "android": "expo start --android",
