@@ -42,6 +42,6 @@
     "defu": "^6.1.4"
   },
   "devDependencies": {
-    "@moeru/std": "catalog:"
+    "foxts": "^4.5.0"
   }
 }

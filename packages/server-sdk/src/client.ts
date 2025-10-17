@@ -2,7 +2,7 @@ import type { WebSocketBaseEvent, WebSocketEvent, WebSocketEvents } from '@proj-
 
 import WebSocket from 'crossws/websocket'
 
-import { sleep } from '@moeru/std'
+import { asyncRetry } from 'foxts/async-retry'
 
 class ReconnectingError extends Error {
   constructor(message: string) {
@@ -43,7 +43,7 @@ export class Client<C = undefined> {
       onClose: () => {},
       autoConnect: true,
       autoReconnect: true,
-      maxReconnectAttempts: -1,
+      maxReconnectAttempts: Infinity,
       ...options,
     }
 
@@ -53,7 +53,7 @@ export class Client<C = undefined> {
         this.tryAnnounce()
       }
       else {
-        await this.retryWithExponentialBackoff(() => this.tryAuthenticate())
+        await this.retry(() => this.tryAuthenticate())
       }
     })
 
@@ -62,40 +62,26 @@ export class Client<C = undefined> {
     }
   }
 
-  private async retryWithExponentialBackoff(fn: () => void | Promise<void>) {
+  private async retry(fn: () => void | Promise<void>) {
     const { maxReconnectAttempts } = this.opts
-    let attempts = 0
 
-    // Loop until attempts exceed maxReconnectAttempts, or unlimited if -1
-    while (true) {
-      if (maxReconnectAttempts !== -1 && attempts >= maxReconnectAttempts) {
-        console.error(`Maximum retry attempts (${maxReconnectAttempts}) reached`)
-        return
-      }
-
-      try {
-        await fn()
-        return
-      }
-      catch (err) {
-        if (err instanceof ReconnectingError) {
+    await asyncRetry(fn, {
+      maxRetryTime: maxReconnectAttempts,
+      onFailedAttempt: ({ error }) => {
+        if (error instanceof ReconnectingError)
           return
-        }
 
-        this.opts.onError?.(err)
-        const delay = Math.min(2 ** attempts * 1000, 30_000) // capped exponential backoff
-        await sleep(delay)
-        attempts++
-      }
-    }
+        this.opts.onError?.(error)
+      },
+    })
   }
 
-  private async tryReconnectWithExponentialBackoff() {
+  private async tryReconnect() {
     if (this.shouldClose) {
       return
     }
 
-    await this.retryWithExponentialBackoff(() => this._connect())
+    await this.retry(() => this._connect())
   }
 
   private _connect(): Promise<void> {
@@ -128,7 +114,7 @@ export class Client<C = undefined> {
           this.opts.onClose?.()
         }
         if (this.opts.autoReconnect && !this.shouldClose) {
-          void this.tryReconnectWithExponentialBackoff()
+          void this.tryReconnect()
         }
       }
       ws.onopen = () => {
@@ -142,7 +128,7 @@ export class Client<C = undefined> {
   }
 
   async connect() {
-    await this.tryReconnectWithExponentialBackoff()
+    await this.tryReconnect()
   }
 
   private tryAnnounce() {
