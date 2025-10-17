@@ -1,4 +1,4 @@
-app-id: com.moeru_ai.airi
+app-id: ai.moeru.airi
 runtime: org.freedesktop.Platform
 runtime-version: '24.08'
 sdk: org.freedesktop.Sdk
@@ -31,8 +31,8 @@ modules:
       - mkdir -p /app/bin
       - cp -r * /app/
       - install -Dm755 AIRI /app/bin/AIRI
-      - install -Dm644 AIRI.desktop /app/share/applications/com.moeru_ai.airi.desktop
-      - install -Dm644 resources/app.asar.unpacked/resources/icon-512.png /app/share/icons/hicolor/512x512/apps/com.moeru_ai.airi.png
+      - install -Dm644 AIRI.desktop /app/share/applications/ai.moeru.airi.desktop
+      - install -Dm644 resources/app.asar.unpacked/resources/icon-512.png /app/share/icons/hicolor/512x512/apps/ai.moeru.airi.png
       - install -Dm644 icudtl.dat /app/bin/icudtl.dat
       - install -Dm644 snapshot_blob.bin /app/bin/snapshot_blob.bin
       - install -Dm644 v8_context_snapshot.bin /app/bin/v8_context_snapshot.bin
