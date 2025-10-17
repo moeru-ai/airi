@@ -122,7 +122,17 @@ export function buildOpenAICompatibleProvider(
             Authorization: `Bearer ${apiKey}`,
           },
         })
-        if (models && models.length > 0)
+          .then(models => models.filter(model =>
+            [
+              // exclude embedding models
+              'embed',
+              // bypass gemini pro quota
+              // TODO: more elegant solution
+              'gemini-2.5-pro',
+            ].every(str => !model.id.includes(str)),
+          ))
+
+        if (models.length > 0)
           model = models[0].id
       }
       catch (e) {
