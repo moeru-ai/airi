@@ -126,6 +126,8 @@ export function buildOpenAICompatibleProvider(
             [
               // exclude embedding models
               'embed',
+              // exclude tts models, specifically for OpenAI
+              'tts',
               // bypass gemini pro quota
               // TODO: more elegant solution
               'gemini-2.5-pro',
