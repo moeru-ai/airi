@@ -107,7 +107,6 @@ export async function loadVrm(model: string, options?: {
   }
 
   const box = computeBoundingBox(_vrm.scene)
-  // const box = new Box3().setFromObject(_vrm.scene)
   const modelSize = new Vector3()
   const modelCenter = new Vector3()
   box.getSize(modelSize)
