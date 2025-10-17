@@ -1,6 +1,6 @@
 [Desktop Entry]
 Name=AIRI
-Exec=AIRI %U
+Exec=airi %U
 Terminal=false
 Type=Application
 Icon=ai.moeru.airi

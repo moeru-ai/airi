@@ -4,14 +4,14 @@ runtime-version: '24.08'
 sdk: org.freedesktop.Sdk
 base: org.electronjs.Electron2.BaseApp
 base-version: '24.08'
-command: AIRI
+command: airi
 
 finish-args:
   # GUI environment
   - --share=network
   - --socket=x11
   - --socket=wayland
-  - --device=dri
+  - --device=all
   - --socket=pulseaudio
   - --socket=system-bus
   - --socket=session-bus
@@ -30,7 +30,7 @@ modules:
     build-commands:
       - mkdir -p /app/bin
       - cp -r * /app/
-      - install -Dm755 AIRI /app/bin/AIRI
+      - install -Dm755 AIRI /app/bin/airi
       - install -Dm644 AIRI.desktop /app/share/applications/ai.moeru.airi.desktop
       - install -Dm644 resources/app.asar.unpacked/resources/icon-512.png /app/share/icons/hicolor/512x512/apps/ai.moeru.airi.png
       - install -Dm644 icudtl.dat /app/bin/icudtl.dat
