@@ -88,7 +88,7 @@ export async function loadVrm(model: string, options?: {
       // This traverse mesh console print will be important for future debugging
       // console.debug("mesh node: ", mesh)
 
-      // 选择性过滤：跳过 VRM spring bone 的碰撞体等
+      // Selectively filter out VRM spring bone colliders
       if (mesh.name.startsWith('VRMC_springBone_collider'))
         return
 
