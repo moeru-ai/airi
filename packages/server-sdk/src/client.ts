@@ -66,6 +66,8 @@ export class Client<C = undefined> {
     const { maxReconnectAttempts } = this.opts
 
     await asyncRetry(fn, {
+      minTimeout: 1_000,
+      maxTimeout: 60_000,
       maxRetryTime: maxReconnectAttempts,
       onFailedAttempt: ({ error }) => {
         if (error instanceof ReconnectingError)
