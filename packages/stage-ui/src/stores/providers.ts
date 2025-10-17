@@ -1779,16 +1779,18 @@ export const useProvidersStore = defineStore('providers', () => {
   // Initialize all providers
   Object.keys(providerMetadata).forEach(initializeProvider)
 
-  // Update configuration status for all providers
+  // Update configuration status for all configured providers
   async function updateConfigurationStatus() {
-    await Promise.all(Object.keys(providerMetadata).map(async (providerId) => {
-      try {
-        configuredProviders.value[providerId] = await validateProvider(providerId)
-      }
-      catch {
-        configuredProviders.value[providerId] = false
-      }
-    }))
+    await Promise.all(Object.entries(providerMetadata)
+      .filter(([_, v]) => v.configured)
+      .map(async ([providerId]) => {
+        try {
+          configuredProviders.value[providerId] = await validateProvider(providerId)
+        }
+        catch {
+          configuredProviders.value[providerId] = false
+        }
+      }))
   }
 
   // Call initially and watch for changes
