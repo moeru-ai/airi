@@ -16,43 +16,43 @@
   },
   "exports": {
     ".": {
-      "types": "./dist/index.d.mts",
-      "default": "./dist/index.mjs"
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
     },
     "./locales": {
-      "types": "./dist/locales/index.d.mts",
-      "default": "./dist/locales/index.mjs"
+      "types": "./dist/locales/index.d.ts",
+      "default": "./dist/locales/index.js"
     },
     "./locales/en": {
-      "types": "./dist/locales/en/index.d.mts",
-      "default": "./dist/locales/en/index.mjs"
+      "types": "./dist/locales/en/index.d.ts",
+      "default": "./dist/locales/en/index.js"
     },
     "./locales/zh-Hans": {
-      "types": "./dist/locales/zh-Hans/index.d.mts",
-      "default": "./dist/locales/zh-Hans/index.mjs"
+      "types": "./dist/locales/zh-Hans/index.d.ts",
+      "default": "./dist/locales/zh-Hans/index.js"
     },
     "./locales/es": {
-      "types": "./dist/locales/es/index.d.mts",
-      "default": "./dist/locales/es/index.mjs"
+      "types": "./dist/locales/es/index.d.ts",
+      "default": "./dist/locales/es/index.js"
     },
     "./locales/ru": {
-      "types": "./dist/locales/ru/index.d.mts",
-      "default": "./dist/locales/ru/index.mjs"
+      "types": "./dist/locales/ru/index.d.ts",
+      "default": "./dist/locales/ru/index.js"
     },
     "./locales/fr": {
-      "types": "./dist/locales/fr/index.d.mts",
-      "default": "./dist/locales/fr/index.mjs"
+      "types": "./dist/locales/fr/index.d.ts",
+      "default": "./dist/locales/fr/index.js"
     },
     "./locales/vi": {
-      "types": "./dist/locales/vi/index.d.mts",
-      "default": "./dist/locales/vi/index.mjs"
+      "types": "./dist/locales/vi/index.d.ts",
+      "default": "./dist/locales/vi/index.js"
     },
     "./locales/*.yaml": {
       "default": "./dist/locales/*.yaml"
     }
   },
-  "main": "./dist/index.mjs",
-  "types": "./dist/index.d.mts",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "files": [
     "README.md",
     "dist",

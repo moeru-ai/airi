@@ -5,7 +5,7 @@
   "private": true,
   "description": "manifest.json description",
   "bin": {
-    "tsdown": "./dist/run.mjs"
+    "tsdown": "./dist/run.js"
   },
   "scripts": {
     "build": "tsdown",

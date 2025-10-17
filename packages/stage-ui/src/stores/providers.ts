@@ -1782,7 +1782,8 @@ export const useProvidersStore = defineStore('providers', () => {
   // Update configuration status for all configured providers
   async function updateConfigurationStatus() {
     await Promise.all(Object.entries(providerMetadata)
-      .filter(([_, v]) => v.configured)
+      // TODO: ignore un-configured provider
+      // .filter(([_, provider]) => provider.configured)
       .map(async ([providerId]) => {
         try {
           configuredProviders.value[providerId] = await validateProvider(providerId)

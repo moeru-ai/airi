@@ -6,7 +6,6 @@ export default defineConfig([
     inlineOnly: [],
     platform: 'node',
     dts: true,
-    fixedExtension: true,
     unused: true,
     publint: true,
   },

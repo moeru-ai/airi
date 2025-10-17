@@ -16,8 +16,8 @@
   },
   "exports": {
     ".": {
-      "type": "./dist/index.d.mjs",
-      "default": "./dist/index.mjs"
+      "type": "./dist/index.d.js",
+      "default": "./dist/index.js"
     }
   },
   "scripts": {

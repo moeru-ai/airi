@@ -32,7 +32,6 @@
   "include": [
     "src/**/*.ts",
     "src/**/*.d.ts",
-    "src/**/*.mts",
     "src/**/*.vue"
   ],
   "exclude": [

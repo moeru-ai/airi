@@ -8,7 +8,6 @@ export default defineConfig({
     'encoding/index': 'src/encoding/index.ts',
   },
   unbundle: true,
-  fixedExtension: true,
   external: [
     '@alexanderolsen/libsamplerate-js/dist/libsamplerate.worklet.js?worker&url',
     './processor.worklet?worker&url',
