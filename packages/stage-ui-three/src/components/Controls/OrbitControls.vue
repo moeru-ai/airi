@@ -124,10 +124,8 @@ function registerInfoFlow() {
   watch(controlEnable, (newEnable) => {
     if (!camera.value || !controls.value)
       return
-    if (newEnable) {
-      controls.value.enableRotate = true
-      controls.value.enableZoom = true
-    }
+    controls.value.enableRotate = newEnable
+    controls.value.enableZoom = newEnable
   }, { immediate: true })
 
   /*
