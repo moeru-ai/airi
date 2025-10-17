@@ -44,7 +44,7 @@
 >
 > RAG, memory system, embedded database, icons, Live2D utilities, and more!
 
-Have you dreamed about having a cyber living being (cyber waifu / husbando, digital pet) or digital companion that could play with and talk to you?
+Have you dreamed about having a cyber living being (cyber waifu, digital pet) or digital companion that could play with and talk to you?
 
 With the power of modern large language models like [ChatGPT](https://chatgpt.com) and famous [Claude](https://claude.ai), asking a virtual being to roleplay and chat with us is already easy enough for everyone. Platforms like [Character.ai (a.k.a. c.ai)](https://character.ai) and [JanitorAI](https://janitorai.com/) as well as local playgrounds like [SillyTavern](https://github.com/SillyTavern/SillyTavern) are already good-enough solutions for a chat based or visual adventure game like experience.
 

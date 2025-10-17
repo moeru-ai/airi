@@ -42,7 +42,7 @@
 > Chúng tôi có cả một tổ chức riêng [@proj-airi](https://github.com/proj-airi) cho các dự án con xuất phát từ AIRI. Hãy xem qua nhé!
 > Bao gồm: RAG, hệ thống bộ nhớ, cơ sở dữ liệu nhúng, icon, tiện ích Live2D, và nhiều hơn nữa.
 
-Bạn đã từng mơ về một thực thể số sống động (cyber-waifu / husbando, thú cưng ảo) hay một bạn đồng hành kỹ thuật số có thể chơi cùng và trò chuyện với bạn chưa?
+Bạn đã từng mơ về một thực thể số sống động (cyber-waifu, thú cưng ảo) hay một bạn đồng hành kỹ thuật số có thể chơi cùng và trò chuyện với bạn chưa?
 
 Với sức mạnh của các mô hình LLM (ngôn ngữ lớn) hiện nay như [ChatGPT](https://chatgpt.com) hay [Claude](https://claude.ai), việc yêu cầu nhân vật ảo nhập vai và trò chuyện với chúng ta đã trở nên rất dễ dàng. Các nền tảng như [Character.ai](https://character.ai), [JanitorAI](https://janitorai.com/) hay bản cài tự host như [SillyTavern](https://github.com/SillyTavern/SillyTavern) đã đủ tốt cho trải nghiệm trò chuyện và nhập vai.
 

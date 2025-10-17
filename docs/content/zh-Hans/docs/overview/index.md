@@ -11,7 +11,7 @@ description: 了解 Project AIRI 的用户界面
 - [Grok Companion](https://news.ycombinator.com/item?id=44566355) 的开源替代方案
 - 一个支持 Live2D，VRM，并且一起玩游戏，或者感知其他应用的 [SillyTavern](https://github.com/SillyTavern/SillyTavern)（酒馆）替代方案
 
-你是否梦想过拥有一个赛博生命（赛博 waifu /husbando），
+你是否梦想过拥有一个赛博生命（赛博 waifu），
 或者可以陪你玩耍、聊天的数字伙伴？
 
 借助现代 LLM 的强大功能，
