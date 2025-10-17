@@ -1,9 +1,9 @@
-import type { VRMCore } from '@pixiv/three-vrm'
-import type { Object3D, Scene } from 'three'
+import type { VRM, VRMCore } from '@pixiv/three-vrm'
+import type { Mesh, Object3D, Scene } from 'three'
 
 import { VRMUtils } from '@pixiv/three-vrm'
 import { VRMLookAtQuaternionProxy } from '@pixiv/three-vrm-animation'
-import { Box3, Group, Vector3 } from 'three'
+import { Box3, Group, Quaternion, Vector3 } from 'three'
 
 import { useVRMLoader } from './loader'
 
@@ -16,7 +16,7 @@ export async function loadVrm(model: string, options?: {
   lookAt?: boolean
   onProgress?: (progress: ProgressEvent<EventTarget>) => void | Promise<void>
 }): Promise<{
-  _vrm: VRMCore
+  _vrm: VRM
   _vrmGroup: Group
   modelCenter: Vector3
   modelSize: Vector3
@@ -55,7 +55,59 @@ export async function loadVrm(model: string, options?: {
     options.scene.add(_vrmGroup)
   }
 
-  const box = new Box3().setFromObject(_vrm.scene)
+  // Preset the facing direction
+  const targetDirection = new Vector3(0, 0, -1) // Default facing direction
+  const lookAt = _vrm.lookAt
+  const quaternion = new Quaternion()
+  if (lookAt) {
+    const facingDirection = lookAt.faceFront
+    quaternion.setFromUnitVectors(facingDirection.normalize(), targetDirection.normalize())
+    _vrmGroup.quaternion.premultiply(quaternion)
+    _vrmGroup.updateMatrixWorld(true)
+  }
+  else {
+    console.warn('No look-at target found in VRM model')
+  }
+  (_vrm as VRM).springBoneManager?.reset()
+  _vrmGroup.updateMatrixWorld(true)
+
+  function computeBoundingBox(vrm: Object3D) {
+    const box = new Box3()
+    const childBox = new Box3()
+
+    vrm.updateMatrixWorld(true)
+
+    vrm.traverse((obj) => {
+      if (!obj.visible)
+        return
+      const mesh = obj as Mesh
+      if (!mesh.isMesh)
+        return
+      if (!mesh.geometry)
+        return
+      // This traverse mesh console print will be important for future debugging
+      // console.debug("mesh node: ", mesh)
+
+      // 选择性过滤：跳过 VRM spring bone 的碰撞体等
+      if (mesh.name.startsWith('VRMC_springBone_collider'))
+        return
+
+      const geometry = mesh.geometry
+      if (!geometry.boundingBox) {
+        geometry.computeBoundingBox()
+      }
+
+      childBox.copy(geometry.boundingBox!)
+      childBox.applyMatrix4(mesh.matrixWorld)
+
+      box.union(childBox)
+    })
+
+    return box
+  }
+
+  const box = computeBoundingBox(_vrm.scene)
+  // const box = new Box3().setFromObject(_vrm.scene)
   const modelSize = new Vector3()
   const modelCenter = new Vector3()
   box.getSize(modelSize)
@@ -68,7 +120,7 @@ export async function loadVrm(model: string, options?: {
   const radians = (fov / 2 * Math.PI) / 180
   const initialCameraOffset = new Vector3(
     modelSize.x / 16,
-    modelSize.y / 6, // default y value
+    modelSize.y / 8, // default y value
     -(modelSize.y / 3) / Math.tan(radians), // default z value
   )
 

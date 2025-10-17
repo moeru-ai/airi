@@ -132,8 +132,10 @@ function onOrbitControlsReady() {
 
 //  === VRMModel ===
 const modelLoaded = ref<boolean>(false)
+const controlEnable = ref<boolean>(false)
 function onVRMModelLoadStart() {
   modelLoaded.value = false
+  controlEnable.value = false
 }
 function onVRMModelCameraPosition(value: Vec3) {
   cameraPosition.value.x = value.x
@@ -164,6 +166,7 @@ function onVRMModelLookAtTarget(value: Vec3) {
 function onVRMModelLoaded(value: string) {
   lastModelSrc.value = value
   modelLoaded.value = true
+  controlEnable.value = true
 }
 
 // === sky box ===
@@ -289,6 +292,7 @@ defineExpose({
     >
       <OrbitControls
         ref="controlsRef"
+        :control-enable="controlEnable"
         :model-loaded="modelLoaded"
         :model-size="modelSize"
         :camera-position="cameraPosition"
