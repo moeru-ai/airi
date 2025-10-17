@@ -65,16 +65,21 @@ export class Client<C = undefined> {
   private async retry(fn: () => void | Promise<void>) {
     const { maxReconnectAttempts } = this.opts
 
-    await asyncRetry(fn, {
+    await asyncRetry(async (bail) => {
+      try {
+        await fn()
+      }
+      catch (err) {
+        if (err instanceof ReconnectingError)
+          bail(err.message)
+        else
+          throw err
+      }
+    }, {
       minTimeout: 1_000,
       maxTimeout: 60_000,
-      maxRetryTime: maxReconnectAttempts,
-      onFailedAttempt: ({ error }) => {
-        if (error instanceof ReconnectingError)
-          return
-
-        this.opts.onError?.(error)
-      },
+      retries: maxReconnectAttempts,
+      onFailedAttempt: ({ error }) => this.opts.onError?.(error),
     })
   }
 
