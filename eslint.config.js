@@ -1,6 +1,8 @@
 import { defineConfig } from '@moeru/eslint-config'
 
 export default defineConfig({
+  preferArrow: false,
+  typescript: true,
   unocss: true,
   vue: true,
 }, {
