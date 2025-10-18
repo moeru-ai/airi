@@ -3,6 +3,7 @@ import { defineConfig } from '@moeru/eslint-config'
 export default defineConfig({
   masknet: false,
   preferArrow: false,
+  perfectionist: false,
   sonarjs: false,
   sortPackageJsonScripts: false,
   typescript: true,
@@ -59,7 +60,6 @@ export default defineConfig({
         newlinesBetween: 'always',
       },
     ],
-    'perfectionist/sort-keys': 'off',
     // 'sonarjs/cognitive-complexity': 'off',
     // 'sonarjs/no-commented-code': 'off',
     // 'sonarjs/pseudo-random': 'off',
