@@ -12,6 +12,7 @@ const api = {}
 if (contextIsolated) {
   try {
     contextBridge.exposeInMainWorld('electron', electronAPI)
+    contextBridge.exposeInMainWorld('platform', platform)
     contextBridge.exposeInMainWorld('api', api)
   }
   catch (error) {
