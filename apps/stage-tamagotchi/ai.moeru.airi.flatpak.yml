@@ -31,7 +31,6 @@ modules:
       - mkdir -p /app/bin
       - mkdir -p /app/bin/airi
       - cp -r ./* /app/bin/airi/
-      - mv /app/bin/airi/AIRI /app/bin/airi/airi
       - chmod +x /app/bin/airi/airi
       - install airi.sh /app/bin/airi.sh
       - chmod +x /app/bin/airi/airi.sh
