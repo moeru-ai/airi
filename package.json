@@ -29,8 +29,8 @@
     "build:crates": "cargo build --workspace",
     "test": "vitest --coverage",
     "test:run": "vitest run",
-    "lint": "eslint --cache .",
-    "lint:fix": "eslint --cache --fix .",
+    "lint": "moeru-lint .",
+    "lint:fix": "moeru-lint --fix .",
     "lint:rust": "cargo fmt --check && cargo clippy --workspace",
     "to-avif": "tsx docs/scripts/avif.ts",
     "typecheck": "pnpm -rF=\"./packages/*\" -F=\"./apps/*\" -F=\"./docs\" --parallel typecheck",
@@ -52,7 +52,9 @@
     "@vitest/coverage-v8": "^3.2.4",
     "bumpp": "^10.3.1",
     "eslint": "^9.37.0",
+    "eslint-plugin-oxlint": "^1.23.0",
     "lint-staged": "^16.2.4",
+    "oxlint": "^1.23.0",
     "publint": "^0.3.14",
     "rollup": "^4.52.4",
     "simple-git-hooks": "^2.13.1",
@@ -118,6 +120,6 @@
     "pre-commit": "pnpm lint-staged"
   },
   "lint-staged": {
-    "*": "eslint --fix"
+    "*": "moeru-lint --fix"
   }
 }

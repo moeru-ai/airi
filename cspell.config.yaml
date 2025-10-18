@@ -194,6 +194,7 @@ words:
   - OPFS
   - opusscript
   - otelcol
+  - oxlint
   - pglite
   - pgvector
   - picklist
