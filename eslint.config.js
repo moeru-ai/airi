@@ -1,6 +1,7 @@
 import { defineConfig } from '@moeru/eslint-config'
 
 export default defineConfig({
+  masknet: false,
   preferArrow: false,
   typescript: true,
   unocss: true,
@@ -56,6 +57,9 @@ export default defineConfig({
         newlinesBetween: 'always',
       },
     ],
+    'sonarjs/cognitive-complexity': 'off',
+    'sonarjs/no-commented-code': 'off',
+    'sonarjs/pseudo-random': 'off',
     'style/padding-line-between-statements': 'error',
     'vue/prefer-separate-static-class': 'off',
     'yaml/plain-scalar': 'off',
