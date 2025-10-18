@@ -10,11 +10,11 @@ catalogs:
       specifier: 1.1.0
       version: 1.1.0
     '@moeru/eslint-config':
-      specifier: 0.1.0-beta.11
-      version: 0.1.0-beta.11
+      specifier: 0.1.0-beta.12
+      version: 0.1.0-beta.12
     '@moeru/std':
-      specifier: 0.1.0-beta.11
-      version: 0.1.0-beta.11
+      specifier: 0.1.0-beta.12
+      version: 0.1.0-beta.12
     '@proj-airi/drizzle-duckdb-wasm':
       specifier: ^0.4.29
       version: 0.4.29
@@ -93,7 +93,7 @@ importers:
         version: 3.0.2
       '@moeru/eslint-config':
         specifier: 'catalog:'
-        version: 0.1.0-beta.11(@antfu/eslint-config@6.0.0(@unocss/eslint-plugin@66.5.3(eslint@9.37.0(jiti@2.5.1))(typescript@5.9.3))(@vue/compiler-sfc@3.5.22)(eslint-plugin-format@1.0.1(eslint@9.37.0(jiti@2.5.1)))(eslint@9.37.0(jiti@2.5.1))(typescript@5.9.3)(vitest@3.2.4(@types/debug@4.1.12)(@types/node@24.7.2)(jiti@2.5.1)(jsdom@25.0.1(bufferutil@4.0.9)(utf-8-validate@5.0.10))(less@4.4.2)(lightningcss@1.30.2)(msw@2.7.3(@types/node@24.7.2)(typescript@5.9.3))(terser@5.43.1)(tsx@4.20.6)(yaml@2.8.1)))(eslint@9.37.0(jiti@2.5.1))(typescript@5.9.3)
+        version: 0.1.0-beta.12(@antfu/eslint-config@6.0.0(@unocss/eslint-plugin@66.5.3(eslint@9.37.0(jiti@2.5.1))(typescript@5.9.3))(@vue/compiler-sfc@3.5.22)(eslint-plugin-format@1.0.1(eslint@9.37.0(jiti@2.5.1)))(eslint@9.37.0(jiti@2.5.1))(typescript@5.9.3)(vitest@3.2.4(@types/debug@4.1.12)(@types/node@24.7.2)(jiti@2.5.1)(jsdom@25.0.1(bufferutil@4.0.9)(utf-8-validate@5.0.10))(less@4.4.2)(lightningcss@1.30.2)(msw@2.7.3(@types/node@24.7.2)(typescript@5.9.3))(terser@5.43.1)(tsx@4.20.6)(yaml@2.8.1)))(eslint@9.37.0(jiti@2.5.1))(typescript@5.9.3)
       '@proj-airi/unocss-preset-chromatic':
         specifier: ^1.0.2
         version: 1.0.2
@@ -274,7 +274,7 @@ importers:
         version: 3.7.5
       '@moeru/std':
         specifier: 'catalog:'
-        version: 0.1.0-beta.11
+        version: 0.1.0-beta.12
       '@proj-airi/audio':
         specifier: workspace:^
         version: link:../../packages/audio
@@ -656,7 +656,7 @@ importers:
         version: 3.7.5
       '@moeru/std':
         specifier: 'catalog:'
-        version: 0.1.0-beta.11
+        version: 0.1.0-beta.12
       '@nekopaw/tempora':
         specifier: 0.3.1-alpha.1
         version: 0.3.1-alpha.1
@@ -999,7 +999,7 @@ importers:
         version: 5.2.10
       '@moeru/std':
         specifier: 'catalog:'
-        version: 0.1.0-beta.11
+        version: 0.1.0-beta.12
       '@proj-airi/chromatic':
         specifier: ^1.0.2
         version: 1.0.2
@@ -1127,7 +1127,7 @@ importers:
     devDependencies:
       '@moeru/std':
         specifier: 'catalog:'
-        version: 0.1.0-beta.11
+        version: 0.1.0-beta.12
       '@types/audioworklet':
         specifier: ^0.0.87
         version: 0.0.87
@@ -1216,7 +1216,7 @@ importers:
     devDependencies:
       '@moeru/std':
         specifier: 'catalog:'
-        version: 0.1.0-beta.11
+        version: 0.1.0-beta.12
 
   packages/server-shared: {}
 
@@ -1618,7 +1618,7 @@ importers:
         version: 1.2.31
       '@moeru/std':
         specifier: 'catalog:'
-        version: 0.1.0-beta.11
+        version: 0.1.0-beta.12
       '@proj-airi/lobe-icons':
         specifier: ^1.0.13
         version: 1.0.13
@@ -1809,7 +1809,7 @@ importers:
         version: rolldown-vite@7.1.16(@types/node@24.7.2)(esbuild@0.25.9)(jiti@2.5.1)(less@4.4.2)(terser@5.43.1)(tsx@4.20.6)(yaml@2.8.1)
       vite-plugin-vue-devtools:
         specifier: ^8.0.2
-        version: 8.0.2(rolldown-vite@7.1.16(@types/node@24.7.2)(esbuild@0.25.9)(jiti@2.5.1)(less@4.4.2)(terser@5.43.1)(tsx@4.20.6)(yaml@2.8.1))(vue@3.5.22(typescript@5.9.3))
+        version: 8.0.2(@nuxt/kit@4.0.3(magicast@0.3.5))(rolldown-vite@7.1.16(@types/node@24.7.2)(esbuild@0.25.9)(jiti@2.5.1)(less@4.4.2)(terser@5.43.1)(tsx@4.20.6)(yaml@2.8.1))(vue@3.5.22(typescript@5.9.3))
       vue-router:
         specifier: ^4.5.1
         version: 4.5.1(vue@3.5.22(typescript@5.9.3))
@@ -1843,7 +1843,7 @@ importers:
         version: rolldown-vite@7.1.16(@types/node@24.7.2)(esbuild@0.25.9)(jiti@2.5.1)(less@4.4.2)(terser@5.43.1)(tsx@4.20.6)(yaml@2.8.1)
       vite-plugin-vue-devtools:
         specifier: ^8.0.2
-        version: 8.0.2(rolldown-vite@7.1.16(@types/node@24.7.2)(esbuild@0.25.9)(jiti@2.5.1)(less@4.4.2)(terser@5.43.1)(tsx@4.20.6)(yaml@2.8.1))(vue@3.5.22(typescript@5.9.3))
+        version: 8.0.2(@nuxt/kit@4.0.3(magicast@0.3.5))(rolldown-vite@7.1.16(@types/node@24.7.2)(esbuild@0.25.9)(jiti@2.5.1)(less@4.4.2)(terser@5.43.1)(tsx@4.20.6)(yaml@2.8.1))(vue@3.5.22(typescript@5.9.3))
       vue-router:
         specifier: ^4.5.1
         version: 4.5.1(vue@3.5.22(typescript@5.9.3))
@@ -1980,7 +1980,7 @@ importers:
         version: 1.1.0
       '@moeru/std':
         specifier: 'catalog:'
-        version: 0.1.0-beta.11
+        version: 0.1.0-beta.12
       '@proj-airi/server-sdk':
         specifier: ^0.7.2-beta.2
         version: 0.7.2-beta.2(srvx@0.8.15)
@@ -2074,7 +2074,7 @@ importers:
         version: 1.1.0
       '@moeru/std':
         specifier: 'catalog:'
-        version: 0.1.0-beta.11
+        version: 0.1.0-beta.12
       '@opentelemetry/api':
         specifier: ^1.9.0
         version: 1.9.0
@@ -2189,7 +2189,7 @@ importers:
         version: 1.20.0
       '@moeru/std':
         specifier: 'catalog:'
-        version: 0.1.0-beta.11
+        version: 0.1.0-beta.12
       '@proj-airi/server-sdk':
         specifier: ^0.7.2-beta.2
         version: 0.7.2-beta.2(srvx@0.8.15)
@@ -4624,8 +4624,8 @@ packages:
     resolution: {integrity: sha512-kOQ4+fHuT4KbR2iq2IjeV32HiihueuOf1vJkq18z08CLZ1UQrTc8BXJpVfxZkq45+inLLD+D4xx4nBjUelJa4Q==}
     engines: {node: '>=18'}
 
-  '@moeru/eslint-config@0.1.0-beta.11':
-    resolution: {integrity: sha512-nWw0SO2aJnk8jwxQ8p/fNP0KUfrJtbXNcZEm7oi3R4z1rJcdVdoSd85pd0wFFUPb+SMhpQ5LhT66Gayj3fqdVQ==}
+  '@moeru/eslint-config@0.1.0-beta.12':
+    resolution: {integrity: sha512-7U++jo+rFg7E3PW2qy0jt0ziKbzTpVyxNkYQG18gue/TSAt1GAQbg7Ik6T/iUhjT21hWI4PDlofHxkeKUDn1UA==}
     hasBin: true
     peerDependencies:
       '@antfu/eslint-config': ^6.0.0
@@ -4641,8 +4641,8 @@ packages:
   '@moeru/std@0.1.0-beta.10':
     resolution: {integrity: sha512-dFTptg/pB4AVmNiPvZQh/NKNIbEw37uY8qEGUPlmsVchkyDZJvBkmWBBJy9bFMLDYblZT5DIspCq7EOIRA0NpA==}
 
-  '@moeru/std@0.1.0-beta.11':
-    resolution: {integrity: sha512-YlGSHydfhN20rvCv+AmsBIPLzMEJTOvs5snp6aW/KknK9LLGDRIl2mtIXpoy0MXk2yim7iDUsySanJCHqpxzvQ==}
+  '@moeru/std@0.1.0-beta.12':
+    resolution: {integrity: sha512-9G+/pDWnFMcFDfYL/OaBgcNd5yz3bEaaR6Gd0zx3GCvMt0VKLMY93WzQoYVUtl7vodFumGwzyAM4P2L3PI8uwg==}
 
   '@mswjs/interceptors@0.37.6':
     resolution: {integrity: sha512-wK+5pLK5XFmgtH3aQ2YVvA3HohS3xqV/OxuVOdNx9Wpnz7VE/fnC+e1A7ln6LFYeck7gOJ/dsZV6OLplOtAJ2w==}
@@ -18784,11 +18784,11 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@moeru/eslint-config@0.1.0-beta.11(@antfu/eslint-config@6.0.0(@unocss/eslint-plugin@66.5.3(eslint@9.37.0(jiti@2.5.1))(typescript@5.9.3))(@vue/compiler-sfc@3.5.22)(eslint-plugin-format@1.0.1(eslint@9.37.0(jiti@2.5.1)))(eslint@9.37.0(jiti@2.5.1))(typescript@5.9.3)(vitest@3.2.4(@types/debug@4.1.12)(@types/node@24.7.2)(jiti@2.5.1)(jsdom@25.0.1(bufferutil@4.0.9)(utf-8-validate@5.0.10))(less@4.4.2)(lightningcss@1.30.2)(msw@2.7.3(@types/node@24.7.2)(typescript@5.9.3))(terser@5.43.1)(tsx@4.20.6)(yaml@2.8.1)))(eslint@9.37.0(jiti@2.5.1))(typescript@5.9.3)':
+  '@moeru/eslint-config@0.1.0-beta.12(@antfu/eslint-config@6.0.0(@unocss/eslint-plugin@66.5.3(eslint@9.37.0(jiti@2.5.1))(typescript@5.9.3))(@vue/compiler-sfc@3.5.22)(eslint-plugin-format@1.0.1(eslint@9.37.0(jiti@2.5.1)))(eslint@9.37.0(jiti@2.5.1))(typescript@5.9.3)(vitest@3.2.4(@types/debug@4.1.12)(@types/node@24.7.2)(jiti@2.5.1)(jsdom@25.0.1(bufferutil@4.0.9)(utf-8-validate@5.0.10))(less@4.4.2)(lightningcss@1.30.2)(msw@2.7.3(@types/node@24.7.2)(typescript@5.9.3))(terser@5.43.1)(tsx@4.20.6)(yaml@2.8.1)))(eslint@9.37.0(jiti@2.5.1))(typescript@5.9.3)':
     dependencies:
       '@antfu/eslint-config': 6.0.0(@unocss/eslint-plugin@66.5.3(eslint@9.37.0(jiti@2.5.1))(typescript@5.9.3))(@vue/compiler-sfc@3.5.22)(eslint-plugin-format@1.0.1(eslint@9.37.0(jiti@2.5.1)))(eslint@9.37.0(jiti@2.5.1))(typescript@5.9.3)(vitest@3.2.4(@types/debug@4.1.12)(@types/node@24.7.2)(jiti@2.5.1)(jsdom@25.0.1(bufferutil@4.0.9)(utf-8-validate@5.0.10))(less@4.4.2)(lightningcss@1.30.2)(msw@2.7.3(@types/node@24.7.2)(typescript@5.9.3))(terser@5.43.1)(tsx@4.20.6)(yaml@2.8.1))
       '@masknet/eslint-plugin': 0.4.0(eslint@9.37.0(jiti@2.5.1))
-      '@moeru/std': 0.1.0-beta.11
+      '@moeru/std': 0.1.0-beta.12
       eslint: 9.37.0(jiti@2.5.1)
       eslint-flat-config-utils: 2.1.4
       eslint-plugin-de-morgan: 2.0.0(eslint@9.37.0(jiti@2.5.1))
@@ -18804,7 +18804,7 @@ snapshots:
 
   '@moeru/std@0.1.0-beta.10': {}
 
-  '@moeru/std@0.1.0-beta.11': {}
+  '@moeru/std@0.1.0-beta.12': {}
 
   '@mswjs/interceptors@0.37.6':
     dependencies:
@@ -23045,7 +23045,7 @@ snapshots:
   '@xsai-transformers/embed@0.0.8(electron@38.2.2)(web-worker@1.5.0)':
     dependencies:
       '@huggingface/transformers': 3.7.5
-      '@moeru/std': 0.1.0-beta.11
+      '@moeru/std': 0.1.0-beta.12
       '@unbird/eventa': 0.1.5(electron@38.2.2)(web-worker@1.5.0)
       '@xsai-ext/shared-providers': 0.4.0-beta.4
       '@xsai-transformers/shared': 0.0.8(electron@38.2.2)(web-worker@1.5.0)
@@ -33086,6 +33086,7 @@ snapshots:
       '@nuxt/kit': 3.18.1(magicast@0.3.5)
     transitivePeerDependencies:
       - supports-color
+    optional: true
 
   vite-plugin-inspect@11.3.3(@nuxt/kit@3.18.1(magicast@0.3.5))(vite@6.3.6(@types/node@24.7.2)(jiti@2.5.1)(less@4.4.2)(lightningcss@1.30.2)(terser@5.43.1)(tsx@4.20.6)(yaml@2.8.1)):
     dependencies:
@@ -33159,21 +33160,6 @@ snapshots:
       sirv: 3.0.2
       vite: rolldown-vite@7.1.16(@types/node@24.7.2)(esbuild@0.25.9)(jiti@2.5.1)(less@4.4.2)(terser@5.43.1)(tsx@4.20.6)(yaml@2.8.1)
       vite-plugin-inspect: 11.3.3(@nuxt/kit@4.0.3(magicast@0.3.5))(rolldown-vite@7.1.16(@types/node@24.7.2)(esbuild@0.25.9)(jiti@2.5.1)(less@4.4.2)(terser@5.43.1)(tsx@4.20.6)(yaml@2.8.1))
-      vite-plugin-vue-inspector: 5.3.2(rolldown-vite@7.1.16(@types/node@24.7.2)(esbuild@0.25.9)(jiti@2.5.1)(less@4.4.2)(terser@5.43.1)(tsx@4.20.6)(yaml@2.8.1))
-    transitivePeerDependencies:
-      - '@nuxt/kit'
-      - supports-color
-      - vue
-
-  vite-plugin-vue-devtools@8.0.2(rolldown-vite@7.1.16(@types/node@24.7.2)(esbuild@0.25.9)(jiti@2.5.1)(less@4.4.2)(terser@5.43.1)(tsx@4.20.6)(yaml@2.8.1))(vue@3.5.22(typescript@5.9.3)):
-    dependencies:
-      '@vue/devtools-core': 8.0.2(rolldown-vite@7.1.16(@types/node@24.7.2)(esbuild@0.25.9)(jiti@2.5.1)(less@4.4.2)(terser@5.43.1)(tsx@4.20.6)(yaml@2.8.1))(vue@3.5.22(typescript@5.9.3))
-      '@vue/devtools-kit': 8.0.2
-      '@vue/devtools-shared': 8.0.2
-      execa: 9.6.0
-      sirv: 3.0.2
-      vite: rolldown-vite@7.1.16(@types/node@24.7.2)(esbuild@0.25.9)(jiti@2.5.1)(less@4.4.2)(terser@5.43.1)(tsx@4.20.6)(yaml@2.8.1)
-      vite-plugin-inspect: 11.3.3(@nuxt/kit@3.18.1(magicast@0.3.5))(rolldown-vite@7.1.16(@types/node@24.7.2)(esbuild@0.25.9)(jiti@2.5.1)(less@4.4.2)(terser@5.43.1)(tsx@4.20.6)(yaml@2.8.1))
       vite-plugin-vue-inspector: 5.3.2(rolldown-vite@7.1.16(@types/node@24.7.2)(esbuild@0.25.9)(jiti@2.5.1)(less@4.4.2)(terser@5.43.1)(tsx@4.20.6)(yaml@2.8.1))
     transitivePeerDependencies:
       - '@nuxt/kit'
