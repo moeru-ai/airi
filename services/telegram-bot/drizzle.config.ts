@@ -1,8 +1,12 @@
-import { env } from 'node:process'
+import { env, loadEnvFile } from 'node:process'
 
 import { defineConfig } from 'drizzle-kit'
 
-import 'dotenv/config'
+loadEnvFile()
+try {
+  loadEnvFile('./env.local')
+}
+catch {}
 
 export default defineConfig({
   out: './drizzle',
