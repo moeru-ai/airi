@@ -17,7 +17,7 @@ import type {
   VoiceProviderWithExtraOptions,
 } from 'unspeech'
 
-import { isUrl } from '@proj-airi/stage-shared'
+import { isStageTamagotchi, isUrl } from '@proj-airi/stage-shared'
 import { computedAsync, useLocalStorage } from '@vueuse/core'
 import {
   createAzure,
@@ -214,19 +214,8 @@ export const useProvidersStore = defineStore('providers', () => {
     return null
   })
 
-  async function isTamagotchi() {
-    if ('window' in globalThis && globalThis.window != null) {
-      if (('__TAURI_INTERNALS__' in globalThis.window && globalThis.window.__TAURI_INTERNALS__ != null) || location.host === 'tauri.localhost') {
-        return true
-      }
-    }
-    return false
-  }
-
   async function isBrowserAndMemoryEnough() {
-    const isInApp = await isTamagotchi()
-
-    if (isInApp)
+    if (isStageTamagotchi())
       return false
 
     const webGPUAvailable = await isWebGPUSupported()
@@ -313,7 +302,7 @@ export const useProvidersStore = defineStore('providers', () => {
       description: 'https://github.com/huggingface/candle',
       category: 'speech',
       tasks: ['text-to-speech', 'tts'],
-      isAvailableBy: isTamagotchi,
+      isAvailableBy: isStageTamagotchi,
       creator: createOpenAI,
       validation: [],
       validators: {
@@ -343,7 +332,7 @@ export const useProvidersStore = defineStore('providers', () => {
       description: 'https://github.com/huggingface/candle',
       category: 'transcription',
       tasks: ['speech-to-text', 'automatic-speech-recognition', 'asr', 'stt'],
-      isAvailableBy: isTamagotchi,
+      isAvailableBy: isStageTamagotchi,
       creator: createOpenAI,
       validation: [],
       validators: {

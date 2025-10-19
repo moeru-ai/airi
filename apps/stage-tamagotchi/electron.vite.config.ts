@@ -74,13 +74,11 @@ export default defineConfig({
     plugins: [
       {
         name: 'proj-airi:define-runtime-environment',
-        config(ctx) {
-          if (ctx.mode === 'production') {
-            return {
-              define: {
-                'import.meta.env.RUNTIME_ENVIRONMENT': '\'electron\'',
-              },
-            }
+        config() {
+          return {
+            define: {
+              'import.meta.env.RUNTIME_ENVIRONMENT': '\'electron\'',
+            },
           }
         },
       },

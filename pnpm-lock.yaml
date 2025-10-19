@@ -558,6 +558,9 @@ importers:
       '@proj-airi/lobe-icons':
         specifier: ^1.0.13
         version: 1.0.13
+      '@proj-airi/stage-shared':
+        specifier: workspace:^
+        version: link:../../packages/stage-shared
       '@proj-airi/ui-transitions':
         specifier: workspace:^
         version: link:../../packages/ui-transitions
@@ -1311,7 +1314,11 @@ importers:
         specifier: ^3.1.1
         version: 3.1.1(typescript@5.9.3)
 
-  packages/stage-shared: {}
+  packages/stage-shared:
+    devDependencies:
+      '@electron-toolkit/preload':
+        specifier: ^3.0.2
+        version: 3.0.2(electron@38.2.2)
 
   packages/stage-ui:
     dependencies:
@@ -8028,6 +8035,9 @@ packages:
 
   '@xsai/shared@0.4.0-beta.4':
     resolution: {integrity: sha512-BqaX0q1j9m+YgcJuqIvNKXI+/dv5RXZUOjHbnVDfOMLUxaT3SIaA3M5I6PKjvMt6ZRzIHLLU/o5q2kQRAAVBrw==}
+
+  '@xsai/shared@0.4.0-beta.5':
+    resolution: {integrity: sha512-6oLyXkN8WoXoufNuIVFMrJyhJEEkWnGEi44v5SBd2fnBU7Wx4nT9ZRJT0A+Yfvx2pYWYqgHUQ9KVnG+DFT3VxQ==}
 
   '@xsai/stream-text@0.3.5':
     resolution: {integrity: sha512-XUyM3/jo9FulWoqmQU6vvHFOoRZzr3rcsTGm0MY8hUXg9HJl91N0voQGb6R5AMlo5XgoSbO3GMFzJ26AVxmRMg==}
@@ -23120,7 +23130,7 @@ snapshots:
 
   '@xsai-ext/shared-providers@0.2.2':
     dependencies:
-      '@xsai/shared': 0.4.0-beta.4
+      '@xsai/shared': 0.4.0-beta.5
 
   '@xsai-ext/shared-providers@0.4.0-beta.4':
     dependencies:
@@ -23211,6 +23221,8 @@ snapshots:
   '@xsai/shared@0.3.5': {}
 
   '@xsai/shared@0.4.0-beta.4': {}
+
+  '@xsai/shared@0.4.0-beta.5': {}
 
   '@xsai/stream-text@0.3.5':
     dependencies:

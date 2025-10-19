@@ -38,6 +38,7 @@
   ],
   "exclude": [
     "dist",
-    "node_modules"
+    "node_modules",
+    "src/electron-renderer.d.ts"
   ]
 }

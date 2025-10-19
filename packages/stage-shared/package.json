@@ -15,9 +15,13 @@
     "directory": "packages/stage-shared"
   },
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./electron-renderer": "./src/electron-renderer.d.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@electron-toolkit/preload": "^3.0.2"
   }
 }
