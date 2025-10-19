@@ -24,7 +24,9 @@
     "typecheck": "tsc --noEmit",
     "build": "tsdown"
   },
-  "dependencies": {
-    "@guiiai/logg": "catalog:"
+  "devDependencies": {
+    "@guiiai/logg": "catalog:",
+    "error-stack-parser": "^2.1.4",
+    "nanoid": "^5.1.6"
   }
 }

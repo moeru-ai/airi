@@ -108,11 +108,24 @@ async function setupProjectAIRIServerRuntime() {
 app.whenReady().then(async () => {
   await setupProjectAIRIServerRuntime()
 
-  injecta.setLogger(createLoggLogger())
-  injecta.provide('windows:settings', () => setupSettingsWindowReusableFunc())
-  injecta.provide<{ settingsWindow: () => Promise<BrowserWindow> }>('windows:main', { dependsOn: { settingsWindow: 'windows:settings' }, build: async ({ dependsOn }) => setupMainWindow(dependsOn) })
-  injecta.provide<{ mainWindow: BrowserWindow, settingsWindow: () => Promise<BrowserWindow> }>('tray', { dependsOn: { mainWindow: 'windows:main', settingsWindow: 'windows:settings' }, build: async ({ dependsOn }) => setupTray(dependsOn) })
-  injecta.invoke({ dependsOn: { mainWindow: 'windows:main', tray: 'tray' }, callback: noop })
+  injecta.setLogger(createLoggLogger(useLogg('injecta').useGlobalConfig()))
+
+  const settingsWindow = injecta.provide('windows:settings', {
+    build: () => setupSettingsWindowReusableFunc(),
+  })
+  const mainWindow = injecta.provide('windows:main', {
+    dependsOn: { settingsWindow },
+    build: async ({ dependsOn }) => setupMainWindow(dependsOn),
+  })
+  const tray = injecta.provide('app:tray', {
+    dependsOn: { mainWindow, settingsWindow },
+    build: async ({ dependsOn }) => setupTray(dependsOn),
+  })
+  injecta.invoke({
+    dependsOn: { mainWindow, tray },
+    callback: noop,
+  })
+
   injecta.start()
 
   // Lifecycle

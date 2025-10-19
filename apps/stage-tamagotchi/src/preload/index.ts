@@ -1,4 +1,4 @@
-import { contextIsolated } from 'node:process'
+import { contextIsolated, platform } from 'node:process'
 
 import { electronAPI } from '@electron-toolkit/preload'
 import { contextBridge } from 'electron'
@@ -12,6 +12,7 @@ const api = {}
 if (contextIsolated) {
   try {
     contextBridge.exposeInMainWorld('electron', electronAPI)
+    contextBridge.exposeInMainWorld('platform', platform)
     contextBridge.exposeInMainWorld('api', api)
   }
   catch (error) {
@@ -21,6 +22,8 @@ if (contextIsolated) {
 else {
   // @ts-expect-error (define in dts)
   window.electron = electronAPI
+  // @ts-expect-error (define in dts)
+  window.platform = platform
   // @ts-expect-error (define in dts)
   window.api = api
 }

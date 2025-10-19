@@ -194,6 +194,7 @@ words:
   - OPFS
   - opusscript
   - otelcol
+  - oxlint
   - pglite
   - pgvector
   - picklist
@@ -239,6 +240,7 @@ words:
   - sizecheck
   - smallserial
   - Sniglet
+  - sonarjs
   - sonner
   - specta
   - splt

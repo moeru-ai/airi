@@ -5,7 +5,7 @@ import process from 'node:process'
 import { readFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
 
-import { execa } from 'execa'
+import { x } from 'tinyexec'
 
 import * as yaml from 'yaml'
 
@@ -14,7 +14,7 @@ import packageJSON from '../package.json' assert { type: 'json' }
 export async function getVersion(options: { release: boolean, autoTag: boolean, tag: string[] }) {
   if (!options.release || !options.tag) {
     // Otherwise, fetch from the latest git ref
-    const res = await execa('git', ['log', '-1', '--pretty=format:"%H"'])
+    const res = await x('git', ['log', '-1', '--pretty=format:"%H"'])
     const date = new Date().toISOString().split('T')[0].replace(/-/g, '')
     return `nightly-${date}-${String(res.stdout.replace(/"/g, '')).trim().substring(0, 7)}`
   }
@@ -43,7 +43,7 @@ export async function getVersion(options: { release: boolean, autoTag: boolean, 
   // Now, only auto-tag & release && non-specific tag is the only possibility,
   // fetch the latest git ref
   try {
-    const res = await execa('git', ['describe', '--tags', '--abbrev=0'])
+    const res = await x('git', ['describe', '--tags', '--abbrev=0'])
     return String(res.stdout).replace(/^v/, '').trim()
   }
   catch {

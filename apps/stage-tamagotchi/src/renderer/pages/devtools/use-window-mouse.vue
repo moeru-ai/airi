@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { useWindowMouse } from '../../stores/window-mouse'
+import { useElectronMouse } from '../../stores/window'
 
-const { x, y } = useWindowMouse()
+const { x, y } = useElectronMouse()
 </script>
 
 <template>

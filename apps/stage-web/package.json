@@ -116,7 +116,6 @@
     "@vue-macros/volar": "^3.1.1",
     "@vueuse/motion": "^3.0.3",
     "csstype": "^3.1.3",
-    "execa": "^9.6.0",
     "hfup": "^1.0.0",
     "less": "^4.4.2",
     "unplugin-info": "^1.2.4",

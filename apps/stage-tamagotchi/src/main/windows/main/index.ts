@@ -1,7 +1,7 @@
 import type { BrowserWindowConstructorOptions, Rectangle } from 'electron'
 
 import { dirname, join, resolve } from 'node:path'
-import { env, platform } from 'node:process'
+import { env } from 'node:process'
 import { fileURLToPath } from 'node:url'
 
 import clickDragPlugin from 'electron-click-drag-plugin'
@@ -11,7 +11,7 @@ import { defineInvokeHandler } from '@unbird/eventa'
 import { createContext } from '@unbird/eventa/adapters/electron/main'
 import { defu } from 'defu'
 import { BrowserWindow, ipcMain, shell } from 'electron'
-import { isMacOS } from 'std-env'
+import { isLinux, isMacOS } from 'std-env'
 
 import icon from '../../../../resources/icon.png?asset'
 
@@ -115,30 +115,29 @@ export async function setupMainWindow(params: {
 
   /**
    * This is a know issue (or expected behavior maybe) to Electron.
+   * We don't use this approach on Linux because it's not working.
    *
    * Discussion: https://github.com/electron/electron/issues/37789
    * Workaround: https://github.com/noobfromph/electron-click-drag-plugin
    */
-  function handleStartDraggingWindow() {
-    try {
-      const hwndBuffer = window.getNativeWindowHandle()
-      // Linux: extract X11 Window ID from the buffer (first 4 bytes, little-endian)
-      // macOS/Windows: pass Buffer directly
-      const windowId = platform === 'linux' ? hwndBuffer.readUInt32LE(0) : hwndBuffer
+  if (!isLinux) {
+    function handleStartDraggingWindow() {
+      try {
+        const windowId = window.getNativeWindowHandle()
+        clickDragPlugin.startDrag(windowId)
+      }
+      catch (error) {
+        console.error(error)
+      }
+    }
 
-      clickDragPlugin.startDrag(windowId)
-    }
-    catch (error) {
-      console.error(error)
-    }
+    const { context } = createContext(ipcMain, window)
+    const cleanUpWindowDraggingInvokeHandler = defineInvokeHandler(context, electronStartDraggingWindow, handleStartDraggingWindow)
+
+    window.on('closed', () => {
+      cleanUpWindowDraggingInvokeHandler()
+    })
   }
-
-  const { context } = createContext(ipcMain, window)
-  const cleanUpWindowDraggingInvokeHandler = defineInvokeHandler(context, electronStartDraggingWindow, () => handleStartDraggingWindow())
-
-  window.on('closed', () => {
-    cleanUpWindowDraggingInvokeHandler()
-  })
 
   return window
 }

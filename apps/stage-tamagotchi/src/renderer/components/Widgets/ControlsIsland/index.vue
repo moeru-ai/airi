@@ -10,6 +10,7 @@ import ControlButton from './ControlButton.vue'
 import ControlButtonTooltip from './ControlButtonTooltip.vue'
 
 import { electronOpenSettings, electronStartDraggingWindow } from '../../../../shared/eventa'
+import { isLinux } from '../../../utils/platform'
 
 const isDark = useDark({ disableTransition: false })
 const toggleDark = useToggle(isDark)
@@ -22,10 +23,11 @@ const openSettings = defineInvoke(context, electronOpenSettings)
 
 /**
  * This is a know issue (or expected behavior maybe) to Electron.
+ * We don't use this approach on Linux because it's not working.
  *
  * See `apps/stage-tamagotchi/src/main/windows/main/index.ts` for handler definition
  */
-const startDraggingWindow = defineInvoke(context, electronStartDraggingWindow)
+const startDraggingWindow = !isLinux ? defineInvoke(context, electronStartDraggingWindow) : undefined
 </script>
 
 <template>
@@ -57,7 +59,7 @@ const startDraggingWindow = defineInvoke(context, electronStartDraggingWindow)
       </ControlButtonTooltip>
 
       <ControlButtonTooltip>
-        <ControlButton cursor-move @mousedown="startDraggingWindow">
+        <ControlButton cursor-move :class="{ 'drag-region': isLinux }" @mousedown="startDraggingWindow?.()">
           <div i-ph:arrows-out-cardinal size-5 text="neutral-800 dark:neutral-300" />
         </ControlButton>
 

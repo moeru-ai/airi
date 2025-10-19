@@ -26,7 +26,7 @@
       "unplugin-vue-router/client",
       "@types/audioworklet",
       "unplugin-info/client",
-      "./src/renderer/electron.d.ts"
+      "./src/renderer/electron-renderer.d.ts"
     ],
     "allowJs": true,
     "strict": true,

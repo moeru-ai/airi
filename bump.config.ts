@@ -3,8 +3,8 @@ import { join } from 'node:path'
 import { cwd } from 'node:process'
 
 import { defineConfig } from 'bumpp'
-import { execa } from 'execa'
 import { parse, stringify } from 'smol-toml'
+import { x } from 'tinyexec'
 
 export default defineConfig({
   recursive: true,
@@ -13,7 +13,7 @@ export default defineConfig({
   push: false,
   all: true,
   execute: async () => {
-    await execa('pnpm', ['publish', '-r', '--access', 'public', '--no-git-checks', '--dry-run'])
+    await x('pnpm', ['publish', '-r', '--access', 'public', '--no-git-checks', '--dry-run'])
 
     const cargoTomlFile = await readFile(join(cwd(), 'Cargo.toml'))
     const cargoToml = parse(cargoTomlFile.toString('utf-8')) as {
@@ -41,6 +41,6 @@ export default defineConfig({
     console.info(`Bumping Cargo.toml version to ${cargoToml.workspace.package.version} (from package.json, ${packageJSON.version})`)
 
     await writeFile(join(cwd(), 'Cargo.toml'), stringify(cargoToml))
-    await execa('cargo', ['generate-lockfile'])
+    await x('cargo', ['generate-lockfile'])
   },
 })
