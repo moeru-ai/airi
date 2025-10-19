@@ -20,10 +20,7 @@ if (contextIsolated) {
   }
 }
 else {
-  // @ts-expect-error (define in dts)
   window.electron = electronAPI
-  // @ts-expect-error (define in dts)
   window.platform = platform
-  // @ts-expect-error (define in dts)
   window.api = api
 }

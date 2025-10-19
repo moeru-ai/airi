@@ -1,7 +1,8 @@
 {
   "references": [
-    { "path": "./tsconfig.web.json" },
-    { "path": "./tsconfig.node.json" }
+    { "path": "./tsconfig.preload.json" },
+    { "path": "./tsconfig.node.json" },
+    { "path": "./tsconfig.web.json" }
   ],
   "files": []
 }

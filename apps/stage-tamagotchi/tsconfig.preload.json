@@ -5,6 +5,7 @@
     "target": "ESNext",
     "jsx": "preserve",
     "lib": [
+      "DOM",
       "ESNext"
     ],
     "useDefineForClassFields": true,
@@ -12,7 +13,8 @@
     "types": [
       "vitest",
       "vite/client",
-      "electron-vite/node"
+      "electron-vite/node",
+      "@proj-airi/stage-shared/electron-renderer"
     ],
     "allowJs": true,
     "strict": true,
@@ -22,14 +24,9 @@
     "vite.config.ts",
     "electron.vite.config.ts",
 
-    "src/main/**/*.ts",
-    "src/main/**/*.d.ts",
-    "src/main/**/*.tsx",
-    "src/main/**/*.vue",
-
-    "src/shared/**/*.ts",
-    "src/shared/**/*.d.ts",
-    "src/shared/**/*.tsx",
-    "src/shared/**/*.vue"
+    "src/preload/**/*.ts",
+    "src/preload/**/*.d.ts",
+    "src/preload/**/*.tsx",
+    "src/preload/**/*.vue"
   ]
 }
