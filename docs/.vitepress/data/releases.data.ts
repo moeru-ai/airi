@@ -53,11 +53,11 @@ export default defineLoader({
       const releases: Release[] = await releasesResponse.json()
 
       // Filter out drafts and mark beta/alpha as prereleases
-      const publishedReleases = releases.filter(r => !r.draft).map(r => {
+      const publishedReleases = releases.filter(r => !r.draft).map((r) => {
         // Mark releases with beta or alpha in tag_name as prereleases
-        const isPrerelease = r.prerelease ||
-          r.tag_name.includes('-beta') ||
-          r.tag_name.includes('-alpha')
+        const isPrerelease = r.prerelease
+          || r.tag_name.includes('-beta')
+          || r.tag_name.includes('-alpha')
 
         return {
           ...r,
@@ -78,7 +78,7 @@ export default defineLoader({
       let nightlyBuilds: NightlyBuild[] = []
       try {
         const actionsResponse = await fetch(
-          'https://api.github.com/repos/moeru-ai/airi/actions/workflows/release-tamagotchi.yml/runs?event=schedule&status=success&per_page=10',
+          'https://api.github.com/repos/moeru-ai/airi/actions/workflows/release-tamagotchi.yml/runs?status=success&per_page=10',
           {
             headers: {
               'Accept': 'application/vnd.github.v3+json',
