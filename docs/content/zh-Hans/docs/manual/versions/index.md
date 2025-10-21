@@ -4,7 +4,7 @@ description: AIRI 的不同版本以及如何获取它们
 ---
 
 <script setup>
-import DownloadButtons from '../../../../../.vitepress/components/DownloadButtons.vue'
+import ReleaseDownloads from '../../../../../.vitepress/components/ReleaseDownloads.vue'
 import ReleasesList from '../../../../../.vitepress/components/ReleasesList.vue'
 </script>
 
@@ -16,7 +16,7 @@ AIRI 提供多个发布渠道以满足不同需求。无论你想要最稳定的
 
 预发布版本会带有 `-beta.X` 或 `-alpha.X` 后缀标识(例如 `v0.7.2-beta.3`)。
 
-<DownloadButtons />
+<ReleaseDownloads />
 
 **稳定版本适合以下用户:**
 - 生产环境使用
