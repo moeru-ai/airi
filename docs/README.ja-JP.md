@@ -90,8 +90,6 @@
 
 ## 現在の進捗
 
-<img src="./content/public/readme-image-pc-preview.avif">
-
 可能なこと
 
 - [x] 脳

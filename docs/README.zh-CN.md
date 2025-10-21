@@ -89,8 +89,6 @@
 
 ## 当前进度
 
-<img src="./content/public/readme-image-pc-preview.avif">
-
 - [x] 思维能力
   - [x] 玩 [Minecraft](https://www.minecraft.net)
   - [x] 玩 [Factorio](https://www.factorio.com)
