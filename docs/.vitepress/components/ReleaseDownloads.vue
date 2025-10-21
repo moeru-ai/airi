@@ -130,7 +130,7 @@ const prereleaseConfig: ReleaseCardConfig = {
 }
 
 .release-card {
-  --at-apply: w-full flex flex-col items-center gap-3 rounded-lg px-4 pb-4 pt-6 border-2 border-solid border-gray-500/10;
+  --at-apply: w-full flex flex-col items-center gap-3 rounded-lg px-4 pb-4 pt-6 border-2 border-solid border-gray-500/10 flex-1;
 }
 
 .version-tag {
@@ -138,7 +138,7 @@ const prereleaseConfig: ReleaseCardConfig = {
 }
 
 .use-cases {
-  --at-apply: my-2 min-h-30 w-full flex flex-col items-center text-sm;
+  --at-apply: my-2 w-full flex flex-col items-center text-sm flex-1;
 }
 
 .download-button {
