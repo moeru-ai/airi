@@ -1,0 +1,16 @@
+download-buttons:
+  latest-stable: Latest Stable Release
+  latest-prerelease: Latest Pre-release
+  latest-nightly: Latest Nightly Build
+  download: Download
+  view-release: View Release
+releases-list:
+  stable: Stable
+  prerelease: Pre-release
+  nightly: Nightly
+  released-on: Released on
+  built-on: Built on
+  no-releases: 'No releases available at the moment. Check the {link} directly.'
+  no-nightly: 'No nightly builds available at the moment. Check the {link} directly.'
+  releases-page: releases page
+  workflow-page: workflow page
