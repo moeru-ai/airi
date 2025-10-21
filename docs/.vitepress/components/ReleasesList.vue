@@ -53,25 +53,22 @@ function formatDate(dateString: string, locale?: string) {
   })
 }
 
-function getVersionBadgeClass(prerelease: boolean) {
-  return prerelease
-    ? 'bg-yellow-400/10 text-yellow-900 dark:bg-yellow-600/10 dark:text-yellow-400'
-    : 'bg-green-400/10 text-green-900 dark:bg-green-600/10 dark:text-green-400'
+function getVersionBadgeClass(type: 'stable' | 'prerelease' | 'nightly') {
+  const classes = {
+    nightly: 'bg-blue-400/10 text-blue-900 dark:bg-blue-600/10 dark:text-blue-400',
+    prerelease: 'bg-yellow-400/10 text-yellow-900 dark:bg-yellow-600/10 dark:text-yellow-400',
+    stable: 'bg-green-400/10 text-green-900 dark:bg-green-600/10 dark:text-green-400',
+  }
+  return classes[type]
 }
 
-function getVersionLabel(prerelease: boolean, isNightly = false) {
-  if (isNightly) {
-    return t('docs.versions.releases-list.nightly')
+function getVersionLabel(type: 'stable' | 'prerelease' | 'nightly') {
+  const labels = {
+    nightly: t('docs.versions.releases-list.nightly'),
+    prerelease: t('docs.versions.releases-list.prerelease'),
+    stable: t('docs.versions.releases-list.stable'),
   }
-
-  if (prerelease) {
-    return t('docs.versions.releases-list.prerelease')
-  }
-  return t('docs.versions.releases-list.stable')
-}
-
-function getNightlyBadgeClass() {
-  return 'bg-blue-400/10 text-blue-900 dark:bg-blue-600/10 dark:text-blue-400'
+  return labels[type]
 }
 </script>
 
@@ -86,10 +83,10 @@ function getNightlyBadgeClass() {
         <a :href="release.html_url" target="_blank" class="release-title">
           {{ release.name }}
         </a>
-        <span :class="['release-badge', getNightlyBadgeClass()]">
-          {{ getVersionLabel(false, true) }}
+        <span :class="['release-badge', getVersionBadgeClass('nightly')]">
+          {{ getVersionLabel('nightly') }}
         </span>
-        <span :class="['release-badge', getNightlyBadgeClass()]">
+        <span :class="['release-badge', getVersionBadgeClass('nightly')]">
           {{ release.head_sha }}
         </span>
       </div>
@@ -108,9 +105,9 @@ function getNightlyBadgeClass() {
           {{ release.tag_name }}
         </a>
         <span
-          :class="['release-badge', getVersionBadgeClass(release.prerelease)]"
+          :class="['release-badge', getVersionBadgeClass(release.prerelease ? 'prerelease' : 'stable')]"
         >
-          {{ getVersionLabel(release.prerelease, false) }}
+          {{ getVersionLabel(release.prerelease ? 'prerelease' : 'stable') }}
         </span>
       </div>
       <div class="release-date">
