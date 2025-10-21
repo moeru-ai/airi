@@ -30,6 +30,19 @@ export default defineConfig({
         'code::after': {
           content: 'normal',
         },
+        'pre': {
+          'margin-top': '0.5rem',
+          'margin-bottom': '0',
+        },
+        'details': {
+          'margin-top': '0.5rem',
+          'margin-bottom': '0.5rem',
+          'padding': '0.5rem 1rem',
+          'background-color': '#a6ceef1a',
+        },
+        '.dark details': {
+          'background-color': '#5870840f',
+        },
       },
     }),
     presetWind3(),

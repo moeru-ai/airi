@@ -55,10 +55,10 @@
 
 ## Журналы разработки, которые мы опубликовали, и последние обновления
 
+- [DevLog @ 2025.08.05](https://airi.moeru.ai/docs/blog/DevLog-2025.08.05/) от 5 августа 2025 г.
+- [DevLog @ 2025.08.01](https://airi.moeru.ai/docs/blog/DevLog-2025.08.01/) от 1 августа 2025 г.
 - [DevLog @ 2025.07.18](https://airi.moeru.ai/docs/blog/DevLog-2025.07.18/) от 18 июля 2025 г.
 - [DreamLog 0x1](https://airi.moeru.ai/docs/blog/dreamlog-0x1/) от 16 июня 2025 г.
-- [DevLog @ 2025.06.08](https://airi.moeru.ai/docs/blog/DevLog-2025.06.08/) от 8 июня 2025 г.
-- [DevLog @ 2025.05.16](https://airi.moeru.ai/docs/blog/DevLog-2025.05.16/) от 16 мая 2025 г.
 - ...больше на [сайте документации](https://airi.moeru.ai/docs)
 
 ## Что такого особенного в этом проекте?
@@ -99,8 +99,6 @@
 > **Если вы заинтересованы, почему бы не представить себя здесь? [Хотите присоединиться к нам в создании AIRI？](https://github.com/moeru-ai/airi/discussions/33)**
 
 ## Текущий прогресс
-
-<img src="./content/public/readme-image-pc-preview.avif">
 
 Способен на
 

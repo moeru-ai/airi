@@ -56,10 +56,10 @@ Ainsi, ce projet AIRI offre une autre possibilité : **vous permettre de posséd
 
 ## Journaux de développement et mises à jour récentes
 
-- [DevLog @ 18.07.2025](https://airi.moeru.ai/docs/blog/DevLog-2025.07.18/)
+- [DevLog @ 05.08.2025](https://airi.moeru.ai/docs/blog/DevLog-2025.08.05/) du 5 août 2025
+- [DevLog @ 01.08.2025](https://airi.moeru.ai/docs/blog/DevLog-2025.08.01/) du 1er août 2025
+- [DevLog @ 18.07.2025](https://airi.moeru.ai/docs/blog/DevLog-2025.07.18/) du 18 juillet 2025
 - [DreamLog 0x1](https://airi.moeru.ai/docs/blog/dreamlog-0x1/) du 16 juin 2025
-- [DevLog @ 08.06.2025](https://airi.moeru.ai/docs/blog/DevLog-2025.06.08/)
-- [DevLog @ 16.05.2025](https://airi.moeru.ai/docs/blog/DevLog-2025.05.16/)
 - ...plus sur le [site de documentation](https://airi.moeru.ai/docs)
 
 ## Qu’est-ce qui rend ce projet spécial ?
@@ -100,8 +100,6 @@ Cela signifie qu’**アイリ peut fonctionner sur les navigateurs modernes et 
 > **Si vous êtes intéressé, pourquoi ne pas vous présenter ici ? [Voulez-vous rejoindre AIRI ?](https://github.com/moeru-ai/airi/discussions/33)**
 
 ## Progrès actuels
-
-<img src="./content/public/readme-image-pc-preview.avif">
 
 Capacités :
 
