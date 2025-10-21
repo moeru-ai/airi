@@ -77,6 +77,7 @@ export default defineLoader({
       // Fetch nightly builds from GitHub Actions
       let nightlyBuilds: NightlyBuild[] = []
       try {
+        // https://docs.github.com/en/rest/actions/workflow-runs?apiVersion=2022-11-28#list-workflow-runs-for-a-repository
         const actionsResponse = await fetch(
           'https://api.github.com/repos/moeru-ai/airi/actions/workflows/release-tamagotchi.yml/runs?status=success&per_page=10',
           {
@@ -89,8 +90,20 @@ export default defineLoader({
 
         if (actionsResponse.ok) {
           const actionsData = await actionsResponse.json()
-          nightlyBuilds = actionsData.workflow_runs?.map((run: any) => {
-            const shortSha = run.head_sha?.substring(0, 7) || 'unknown'
+          nightlyBuilds = actionsData.workflow_runs?.map((run: {
+            id: number
+            name: string
+            head_sha: string
+            html_url: string
+            created_at: string
+            updated_at: string
+            status: string
+            conclusion: string
+            head_commit?: {
+              message: string
+            }
+          }) => {
+            const shortSha = run.head_sha.substring(0, 7)
             // Get first line of commit message
             const commitMessage = run.head_commit?.message || 'Nightly Build'
             const firstLine = commitMessage.split('\n')[0]
