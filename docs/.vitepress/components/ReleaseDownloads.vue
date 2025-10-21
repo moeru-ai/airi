@@ -51,7 +51,7 @@ const prereleaseConfig: ReleaseCardConfig = {
 </script>
 
 <template>
-  <div w-full flex justify-center gap-2 text-xl>
+  <div class="cards-container">
     <!-- Stable Release Card -->
     <div class="release-card">
       <div flex items-center gap-2 text-5xl>
@@ -119,6 +119,16 @@ const prereleaseConfig: ReleaseCardConfig = {
 </template>
 
 <style scoped>
+.cards-container {
+  --at-apply: w-full flex flex-col justify-center gap-2 text-xl;
+}
+
+@media (min-width: 768px) {
+  .cards-container {
+    --at-apply: flex-row;
+  }
+}
+
 .release-card {
   --at-apply: w-full flex flex-col items-center gap-3 rounded-lg px-4 pb-4 pt-6 border-2 border-solid border-gray-500/10;
 }
@@ -128,7 +138,7 @@ const prereleaseConfig: ReleaseCardConfig = {
 }
 
 .use-cases {
-  --at-apply: my-2 h-30 w-full flex flex-col items-center text-sm;
+  --at-apply: my-2 min-h-30 w-full flex flex-col items-center text-sm;
 }
 
 .download-button {
