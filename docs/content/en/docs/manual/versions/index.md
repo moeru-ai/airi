@@ -16,7 +16,7 @@ Official releases include both **stable** versions (thoroughly tested and recomm
 
 Pre-releases are tagged with `-beta.X` or `-alpha.X` suffixes (e.g., `v0.7.2-beta.3`).
 
-<DownloadButtons type="stable-prerelease" />
+<DownloadButtons />
 
 **Stable releases are best for:**
 - Production use

@@ -16,7 +16,7 @@ AIRI 提供多个发布渠道以满足不同需求。无论你想要最稳定的
 
 预发布版本会带有 `-beta.X` 或 `-alpha.X` 后缀标识(例如 `v0.7.2-beta.3`)。
 
-<DownloadButtons type="stable-prerelease" />
+<DownloadButtons />
 
 **稳定版本适合以下用户:**
 - 生产环境使用
