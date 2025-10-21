@@ -18,19 +18,9 @@ AIRI 提供多个发布渠道以满足不同需求。无论你想要最稳定的
 
 <ReleaseDownloads />
 
-**稳定版本适合以下用户:**
-- 生产环境使用
-- 希望获得稳定体验的用户
-- 直播和内容创作
-
-**预发布版本适合以下用户:**
-- 希望尝试新功能的早期采用者
-- 测试新功能并向开发者提供反馈
-- 能够接受偶尔出现问题的用户
-
 ### 最近的稳定版本和预发布版本
 
-<ReleasesList :limit="5" />
+<ReleasesList type="releases" :limit="5" />
 
 [在 GitHub 上查看所有版本 →](https://github.com/moeru-ai/airi/releases)
 
@@ -65,6 +55,6 @@ AIRI 提供多个发布渠道以满足不同需求。无论你想要最稳定的
 
 ### 最近的每夜构建版本
 
-<ReleasesList type="nightly" :limit="5" />
+<ReleasesList type="nightly-builds" :limit="5" />
 
 [查看所有每夜构建版本 →](https://github.com/moeru-ai/airi/actions/workflows/release-tamagotchi.yml)

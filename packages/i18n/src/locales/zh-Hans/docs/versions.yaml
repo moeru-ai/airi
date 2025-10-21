@@ -4,6 +4,12 @@ download-buttons:
   latest-nightly: 最新每夜构建
   download: 下载
   view-release: 查看发布
+  stable-use-case-1: 生产环境使用
+  stable-use-case-2: 需要稳定体验的用户
+  stable-use-case-3: 直播和内容创作
+  prerelease-use-case-1: 想要尝试新功能的早期采用者
+  prerelease-use-case-2: 测试并向开发者提供反馈
+  prerelease-use-case-3: 能够接受偶尔出现问题的用户
 releases-list:
   stable: 稳定版
   prerelease: 预发布版

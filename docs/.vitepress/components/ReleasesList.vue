@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { NightlyBuild, Release } from '../data/releases.data'
+import type { NightlyBuild } from '../data/releases.data'
 
 import { useData } from 'vitepress'
 import { computed } from 'vue'
@@ -10,32 +10,40 @@ import { data as releases } from '../data/releases.data'
 const props = defineProps<{
   limit?: number
   locale?: string
-  type?: 'all' | 'nightly'
+  type?: 'releases' | 'nightly-builds'
 }>()
 const { lang } = useData()
 const { t } = useI18n()
 
-// Separate computed properties for different types
-const nightlyReleases = computed<NightlyBuild[]>(() => {
-  if (props.type === 'nightly') {
-    return releases.nightly
-      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-      .slice(0, props.limit || 10)
+// Combined releases for display
+const displayReleases = computed(() => {
+  if (props.type === 'releases') {
+    const allReleases = [...releases.stable, ...releases.prerelease]
+    allReleases.sort((a, b) => new Date(b.published_at).getTime() - new Date(a.published_at).getTime())
+    return (props.limit ? allReleases.slice(0, props.limit) : allReleases).map(release => ({
+      key: release.tag_name,
+      title: release.name || release.tag_name,
+      url: release.html_url,
+      date: release.published_at,
+      type: (release.prerelease ? 'prerelease' : 'stable') as 'prerelease' | 'stable',
+      dateLabel: 'docs.versions.releases-list.released-on',
+    }))
+  }
+  else if (props.type === 'nightly-builds') {
+    const nightlyBuilds = releases.nightly as NightlyBuild[]
+    nightlyBuilds.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+    return (props.limit ? nightlyBuilds.slice(0, props.limit) : nightlyBuilds).map(build => ({
+      key: build.id,
+      title: build.name,
+      url: build.html_url,
+      date: build.created_at,
+      shortHash: build.head_sha,
+      type: 'nightly' as const,
+      dateLabel: 'docs.versions.releases-list.built-on',
+    }))
   }
   return []
 })
-
-const regularReleases = computed<Release[]>(() => {
-  if (props.type !== 'nightly') {
-    const merged = [...releases.stable, ...releases.prerelease]
-    return merged
-      .sort((a, b) => new Date(b.published_at).getTime() - new Date(a.published_at).getTime())
-      .slice(0, props.limit || 10)
-  }
-  return []
-})
-
-const isNightly = computed(() => props.type === 'nightly')
 
 function formatDate(dateString: string, locale?: string) {
   const date = new Date(dateString)
@@ -62,72 +70,53 @@ function getVersionBadgeClass(type: 'stable' | 'prerelease' | 'nightly') {
   return classes[type]
 }
 
-function getVersionLabel(type: 'stable' | 'prerelease' | 'nightly') {
+function getVersionLabel(item: { type: 'stable' | 'prerelease' | 'nightly', shortHash?: string }) {
   const labels = {
-    nightly: t('docs.versions.releases-list.nightly'),
+    nightly: `${t('docs.versions.releases-list.nightly')}-${item.shortHash}`,
     prerelease: t('docs.versions.releases-list.prerelease'),
     stable: t('docs.versions.releases-list.stable'),
   }
-  return labels[type]
+  return labels[item.type]
 }
+
+const emptyStateConfig = computed(() => {
+  if (props.type === 'nightly-builds') {
+    return {
+      messageKey: 'docs.versions.releases-list.no-nightly',
+      linkUrl: 'https://github.com/moeru-ai/airi/releases',
+      linkTextKey: 'docs.versions.releases-list.workflow-page',
+    }
+  }
+  return {
+    messageKey: 'docs.versions.releases-list.no-releases',
+    linkUrl: 'https://github.com/moeru-ai/airi/actions/workflows/release-tamagotchi.yml',
+    linkTextKey: 'docs.versions.releases-list.releases-page',
+  }
+})
 </script>
 
 <template>
-  <div v-if="nightlyReleases.length > 0 || regularReleases.length > 0" class="releases-list">
-    <div
-      v-for="release in nightlyReleases"
-      :key="release.id"
-      class="release-item"
-    >
+  <div v-if="displayReleases.length > 0" class="releases-list">
+    <div v-for="item in displayReleases" :key="item.key" class="release-item">
       <div class="release-header">
-        <a :href="release.html_url" target="_blank" class="release-title">
-          {{ release.name }}
+        <a :href="item.url" target="_blank" class="release-title">
+          {{ item.title }}
         </a>
-        <span :class="['release-badge', getVersionBadgeClass('nightly')]">
-          {{ getVersionLabel('nightly') }}
-        </span>
-        <span :class="['release-badge', getVersionBadgeClass('nightly')]">
-          {{ release.head_sha }}
+        <span :class="['release-badge', getVersionBadgeClass(item.type)]">
+          {{ getVersionLabel(item) }}
         </span>
       </div>
       <div class="release-date">
-        {{ t('docs.versions.releases-list.built-on') }} {{ formatDate(release.created_at) }}
-      </div>
-    </div>
-
-    <div
-      v-for="release in regularReleases"
-      :key="release.tag_name"
-      class="release-item"
-    >
-      <div class="release-header">
-        <a :href="release.html_url" target="_blank" class="release-title">
-          {{ release.tag_name }}
-        </a>
-        <span
-          :class="['release-badge', getVersionBadgeClass(release.prerelease ? 'prerelease' : 'stable')]"
-        >
-          {{ getVersionLabel(release.prerelease ? 'prerelease' : 'stable') }}
-        </span>
-      </div>
-      <div class="release-date">
-        {{ t('docs.versions.releases-list.released-on') }} {{ formatDate(release.published_at) }}
+        {{ t(item.dateLabel) }} {{ formatDate(item.date) }}
       </div>
     </div>
   </div>
 
   <div v-else class="no-releases">
-    <p v-if="isNightly">
-      <i18n-t keypath="docs.versions.releases-list.no-nightly">
+    <p>
+      <i18n-t :keypath="emptyStateConfig.messageKey">
         <template #link>
-          <a :href="releases.nightlyUrl" target="_blank">{{ t('docs.versions.releases-list.workflow-page') }}</a>
-        </template>
-      </i18n-t>
-    </p>
-    <p v-else>
-      <i18n-t keypath="docs.versions.releases-list.no-releases">
-        <template #link>
-          <a href="https://github.com/moeru-ai/airi/releases" target="_blank">{{ t('docs.versions.releases-list.releases-page') }}</a>
+          <a :href="emptyStateConfig.linkUrl" target="_blank">{{ t(emptyStateConfig.linkTextKey) }}</a>
         </template>
       </i18n-t>
     </p>

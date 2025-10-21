@@ -18,19 +18,9 @@ Pre-releases are tagged with `-beta.X` or `-alpha.X` suffixes (e.g., `v0.7.2-bet
 
 <ReleaseDownloads />
 
-**Stable releases are best for:**
-- Production use
-- Users who want a stable experience
-- Live streaming and content creation
-
-**Pre-releases are best for:**
-- Early adopters who want to try new features
-- Testing and providing feedback to developers
-- Users comfortable with occasional bugs
-
 ### Recent Stable & Pre-release Versions
 
-<ReleasesList :limit="5" />
+<ReleasesList type="releases" :limit="5" />
 
 [View all releases on GitHub →](https://github.com/moeru-ai/airi/releases)
 
@@ -65,6 +55,6 @@ Nightly builds run automatically at **00:00 UTC** every day. If you encounter an
 
 ### Recent Nightly Builds
 
-<ReleasesList type="nightly" :limit="5" />
+<ReleasesList type="nightly-builds" :limit="5" />
 
 [View all nightly builds →](https://github.com/moeru-ai/airi/actions/workflows/release-tamagotchi.yml)
