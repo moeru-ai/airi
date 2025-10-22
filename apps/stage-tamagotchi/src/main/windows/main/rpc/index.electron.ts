@@ -1,13 +1,19 @@
 import type { BrowserWindow } from 'electron'
 
+import { defineInvokeHandler } from '@unbird/eventa'
 import { createContext } from '@unbird/eventa/adapters/electron/main'
 import { ipcMain } from 'electron'
 
-import { createFadeOnHoverService } from '../../../services/fade-on-hover'
+import { electronOpenMainDevtools, electronOpenSettings } from '../../../../shared/eventa'
+import { createScreenService, createWindowService } from '../../../services/electron'
+import { toggleWindowShow } from '../../shared'
 
-export function setupAppInvokeHandlers(window: BrowserWindow) {
-  const eventaContext = createContext(ipcMain, window)
-  const { context } = eventaContext
+export function setupMainWindowElectronInvokes(params: { window: BrowserWindow, settingsWindow: () => Promise<BrowserWindow> }) {
+  const { context } = createContext(ipcMain, params.window)
 
-  createFadeOnHoverService(context)
+  createScreenService({ context, window: params.window })
+  createWindowService({ context, window: params.window })
+
+  defineInvokeHandler(context, electronOpenMainDevtools, () => params.window.webContents.openDevTools({ mode: 'detach' }))
+  defineInvokeHandler(context, electronOpenSettings, async () => toggleWindowShow(await params.settingsWindow()))
 }

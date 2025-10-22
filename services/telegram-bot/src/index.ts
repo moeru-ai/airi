@@ -11,8 +11,6 @@ import { ATTR_SERVICE_NAME, ATTR_SERVICE_VERSION } from '@opentelemetry/semantic
 import { startTelegramBot } from './bots/telegram'
 import { initDb } from './db'
 
-import 'dotenv/config'
-
 setGlobalFormat(Format.Pretty)
 setGlobalLogLevel(LogLevel.Debug)
 

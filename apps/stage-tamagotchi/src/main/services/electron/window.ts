@@ -1,0 +1,27 @@
+import type { createContext } from '@unbird/eventa/adapters/electron/main'
+import type { BrowserWindow } from 'electron'
+
+import { defineInvokeHandler } from '@unbird/eventa'
+
+import { bounds, startLoopGetBounds } from '../../../shared/electron/window'
+import { electron } from '../../../shared/eventa'
+import { onAppBeforeQuit, onAppWindowAllClosed } from '../../libs/bootkit/lifecycle'
+import { useLoop } from '../../libs/event-loop'
+
+export function createWindowService(params: { context: ReturnType<typeof createContext>['context'], window: BrowserWindow }) {
+  const { start, stop } = useLoop(() => {
+    if (params.window.isDestroyed()) {
+      return
+    }
+
+    params.context.emit(bounds, params.window.getBounds())
+  }, {
+    autoStart: false,
+  })
+
+  onAppWindowAllClosed(() => stop())
+  onAppBeforeQuit(() => stop())
+  defineInvokeHandler(params.context, startLoopGetBounds, () => start())
+
+  defineInvokeHandler(params.context, electron.window.getBounds, () => params.window.getBounds())
+}

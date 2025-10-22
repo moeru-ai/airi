@@ -1,18 +1,11 @@
 import { defineEventa, defineInvokeEventa } from '@unbird/eventa'
 
-// TODO: currently, if we use `/shared` path, both web & node tsconfig.json
-// will include, while web gets higher priority in including files, this results
-// in type error for `electron` module, even for type only import, here the
-// `Point` interface cannot be imported directly due to this reason.
-//
-// We have to find a better way (better without sub-package) to share code between
-// main & preload & renderer process.
-interface Point {
-  // Docs: https://electronjs.org/docs/api/structures/point
-  x: number
-  y: number
-}
+export const electronStartTrackMousePosition = defineInvokeEventa('eventa:invoke:electron:start-tracking-mouse-position')
+export const electronStartDraggingWindow = defineInvokeEventa('eventa:invoke:electron:start-dragging-window')
+export const electronOpenMainDevtools = defineInvokeEventa('eventa:invoke:electron:windows:main:devtools:open')
+export const electronOpenSettings = defineInvokeEventa('eventa:invoke:electron:windows:settings:open')
+export const electronOpenSettingsDevtools = defineInvokeEventa('eventa:invoke:electron:windows:settings:devtools:open')
+export const captionIsFollowingWindowChanged = defineEventa<boolean>('eventa:event:electron:windows:caption-overlay:is-following-window-changed')
+export const captionGetIsFollowingWindow = defineInvokeEventa<boolean>('eventa:invoke:electron:windows:caption-overlay:get-is-following-window')
 
-export const electronCursorPoint = defineEventa<Point>('electron:eventa:event:cursor-point')
-export const electronStartTrackingCursorPoint = defineInvokeEventa('electron:eventa:invoke:start-tracking-cursor-point')
-export const electronOpenSettings = defineInvokeEventa<void, void>('electron:eventa:invoke:open-settings')
+export { electron } from './electron'

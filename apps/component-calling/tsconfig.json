@@ -23,7 +23,6 @@
   },
   "include": [
     "src/**/*.ts",
-    "src/**/*.d.ts",
-    "src/**/*.mts"
+    "src/**/*.d.ts"
   ]
 }

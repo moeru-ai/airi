@@ -1,5 +1,9 @@
-import type { LifecycleTriggerable } from './builtin'
+import type { Lifecycle, LifecycleTriggerable } from './builtin'
 import type { Logger, LoggerOptions } from './logger'
+
+import ErrorStackParser from 'error-stack-parser'
+
+import { nanoid } from 'nanoid'
 
 import { createDefaultLogger, createNoopLogger } from './logger'
 
@@ -19,13 +23,31 @@ export type BuildContext<D extends DependencyMap | undefined = undefined> = {
   name: string
 } & (D extends undefined ? { dependsOn?: unknown } : { dependsOn: D })
 
+export type ResolveDependencyDeclaration<Deps extends Record<string, string | ProvidedKey<any, any, any>>> = {
+  [K in keyof Deps]: Deps[K] extends ProvidedKey<any, infer T, any> ? T : any
+}
+
 export type ProvideOptionObject<T, D extends DependencyMap | undefined = undefined> = { build: (context: BuildContext<D>) => T | Promise<T> } & (D extends undefined ? { dependsOn?: Record<string, never> } : { dependsOn: { [K in keyof D]: string } })
 export type ProvideOptionFunc<T, D extends DependencyMap | undefined = undefined> = (context: BuildContext<D>) => T | Promise<T>
 export type ProvideOption<T, D extends DependencyMap | undefined = undefined> = ProvideOptionObject<T, D> | ProvideOptionFunc<T, D>
 
+export interface ProvideOptionObjectWithKeys<T, Deps extends Record<string, string | ProvidedKey<any, any, any>>> {
+  build: (context: BuildContext<ResolveDependencyDeclaration<Deps>>) => T | Promise<T>
+  dependsOn: Deps
+}
+export type ProvideOptionWithKeys<T, Deps extends Record<string, string | ProvidedKey<any, any, any>>> = ProvideOptionObjectWithKeys<T, Deps>
+
 export type InvokeOptionObject<D extends DependencyMap | undefined = undefined> = { callback: (dependencies: D) => void | Promise<void> } & (D extends undefined ? { dependsOn?: Record<string, never> } : { dependsOn: { [K in keyof D]: string } })
 export type InvokeOptionFunc<D extends DependencyMap | undefined = undefined> = (dependencies: D) => void | Promise<void>
 export type InvokeOption<D extends DependencyMap | undefined = undefined> = InvokeOptionObject<D> | InvokeOptionFunc<D>
+
+export interface InvokeOptionObjectWithKeys<Deps extends Record<string, string | ProvidedKey<any, any, any>>> {
+  callback: (dependencies: ResolveDependencyDeclaration<Deps>) => void | Promise<void>
+  dependsOn: Deps
+}
+export type InvokeOptionWithKeys<Deps extends Record<string, string | ProvidedKey<any, any, any>>> = InvokeOptionObjectWithKeys<Deps>
+
+export const lifecycle: ProvidedKey<'lifecycle', Lifecycle, undefined> = { key: 'lifecycle' }
 
 export function createContainer(options?: LoggerOptions): Container {
   const logger = options?.enabled === false
@@ -42,28 +64,92 @@ export function createContainer(options?: LoggerOptions): Container {
   }
 }
 
-export function provide<D extends DependencyMap | undefined, T = any>(
-  container: Container,
-  name: string,
-  option: ProvideOption<T, D>,
-): void {
-  const providerObject = typeof option === 'function'
-    ? { build: option } as ProvideOptionObject<any, any>
-    : option as ProvideOptionObject<any, any>
+// eslint-disable-next-line unused-imports/no-unused-vars
+export interface ProvidedKey<Key, T, D extends DependencyMap | undefined> {
+  key: Key
+}
+
+export function normalizeName(nameOrProvidedKey: string | ProvidedKey<any, any, any>): string {
+  if (typeof nameOrProvidedKey === 'object' && nameOrProvidedKey !== null && 'key' in nameOrProvidedKey) {
+    return (nameOrProvidedKey as ProvidedKey<any, any, any>).key as string
+  }
+
+  return nameOrProvidedKey as string
+}
+
+export function normalizeProvideOption<D extends DependencyMap | undefined, T = any, Key extends string = string>(nameOrOption: Key | ProvidedKey<Key, T, D> | ProvideOption<T, D> | ProvideOptionWithKeys<T, any>, option?: (ProvideOption<T, D> | ProvideOptionWithKeys<T, any>) & { autoNameStackIndex?: number }): ProvideOptionObject<T, D> {
+  if (typeof nameOrOption === 'string') {
+    if (option == null || (!('build' in option) && typeof option !== 'function')) {
+      throw new Error('When using provide(...) as named callback, the second argument must be either a valid ProvideOptionObject<T, D> or a ProvideOptionFunc<T, D>.')
+    }
+    if (typeof option === 'function') {
+      return { build: option } as ProvideOptionObject<T, D>
+    }
+
+    return option as ProvideOptionObject<T, D>
+  }
+  if (typeof nameOrOption === 'object' && 'key' in nameOrOption) {
+    if (option == null || (!('build' in option) && typeof option !== 'function')) {
+      throw new Error('When using provide(...) as typed ProvideOptionWithKeys<T, D, Key> callback, the second argument must be either a valid ProvideOptionObject<T, D> or a ProvideOptionFunc<T, D>.')
+    }
+    if (typeof option === 'function') {
+      return { build: option } as ProvideOptionObject<T, D>
+    }
+
+    return option as ProvideOptionObject<T, D>
+  }
+
+  if (typeof nameOrOption === 'function') {
+    return { build: nameOrOption } as ProvideOptionObject<T, D>
+  }
+
+  return nameOrOption as ProvideOptionObject<T, D>
+}
+
+export function provide<T, Key extends string, Deps extends Record<string, string | ProvidedKey<any, any, any>>>(container: Container, name: Key, option: ProvideOptionWithKeys<T, Deps>,): ProvidedKey<Key, T, ResolveDependencyDeclaration<Deps>>
+export function provide<T, Key extends string, Deps extends Record<string, string | ProvidedKey<any, any, any>>>(container: Container, option: ProvideOptionWithKeys<T, Deps> & { autoNameStackIndex?: number }): ProvidedKey<Key, T, ResolveDependencyDeclaration<Deps>>
+export function provide<D extends DependencyMap | undefined, T = any, Key extends string = string>(container: Container, name: Key, option: ProvideOption<T, D>,): ProvidedKey<Key, T, D>
+export function provide<D extends DependencyMap | undefined, T = any, Key extends string = string>(container: Container, option: ProvideOption<T, D> & { autoNameStackIndex?: number }): ProvidedKey<Key, T, D>
+export function provide<D extends DependencyMap | undefined, T = any, Key extends string = string>(container: Container, nameOrOption: Key | ProvideOption<T, D> | ProvideOptionWithKeys<T, any>, option?: (ProvideOption<T, D> | ProvideOptionWithKeys<T, any>) & { autoNameStackIndex?: number }): ProvidedKey<Key, T, D> {
+  const parentFile = ErrorStackParser.parse(new Error('providing'))[option?.autoNameStackIndex ?? 1]
+  const name = typeof nameOrOption === 'string'
+    ? nameOrOption
+    : `${parentFile.fileName ?? `unknown-${nanoid()}`}:${parentFile.lineNumber ?? 0}:${parentFile.columnNumber ?? 0}`
+
+  const providerObject = normalizeProvideOption<D, T, Key>(nameOrOption, option) as unknown as ProvideOptionObject<any, any>
+  if (providerObject.dependsOn) {
+    const resolvedDependsOn: Record<string, string> = {}
+    for (const [key, value] of Object.entries(providerObject.dependsOn)) {
+      resolvedDependsOn[key] = normalizeName(value)
+    }
+
+    providerObject.dependsOn = resolvedDependsOn
+  }
 
   container.providers.set(name, providerObject)
 
-  // Track dependencies for lifecycle ordering
   const dependencies = providerObject.dependsOn ? Object.values(providerObject.dependsOn) : []
-
   container.logger.provide(name, dependencies)
   container.dependencyGraph.set(name, dependencies)
+
+  return { key: name } as ProvidedKey<Key, T, D>
 }
 
-export function invoke<D extends DependencyMap>(container: Container, option: InvokeOption<D>): void {
+export function invoke<Deps extends Record<string, string | ProvidedKey<any, any, any>>>(container: Container, option: InvokeOptionWithKeys<Deps>): void
+export function invoke<D extends DependencyMap>(container: Container, option: InvokeOption<D>): void
+export function invoke<D extends DependencyMap>(container: Container, option: InvokeOption<D> | InvokeOptionWithKeys<any>): void {
   const invocationObject = typeof option === 'function'
     ? { callback: option } as InvokeOptionObject<any>
     : option as InvokeOptionObject<any>
+
+  if (invocationObject.dependsOn) {
+    const resolvedDependsOn: Record<string, string> = {}
+    for (const [key, value] of Object.entries(invocationObject.dependsOn)) {
+      resolvedDependsOn[key] = normalizeName(value)
+    }
+
+    invocationObject.dependsOn = resolvedDependsOn
+  }
 
   const dependencies = invocationObject.dependsOn ? Object.values(invocationObject.dependsOn) : []
 
@@ -91,6 +177,7 @@ async function resolveInstance<T>(container: Container, name: string): Promise<T
         const { buildLifecycle } = await import('./builtin')
         serviceLifecycle = buildLifecycle()
         resolvedDependencies[key] = serviceLifecycle
+
         // Track this service's lifecycle
         container.lifecycleHooks.set(name, serviceLifecycle)
       }
@@ -194,7 +281,7 @@ export async function start(container: Container): Promise<void> {
 
     if (invocation.dependsOn) {
       for (const [key, depName] of Object.entries(invocation.dependsOn)) {
-        resolvedDependencies[key] = await resolveInstance(container, depName)
+        resolvedDependencies[key] = await resolveInstance(container, normalizeName(depName))
       }
     }
 

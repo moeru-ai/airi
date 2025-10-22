@@ -19,8 +19,7 @@ export interface Point {
 const windowControlStore = useWindowControlStore()
 const { scale, positionInPercentageString } = storeToRefs(useLive2d())
 
-const { centerPos, live2dLookAtX, live2dLookAtY } = storeToRefs(useWindowStore())
-const live2dFocusAt = ref<Point>(centerPos.value)
+const { live2dLookAtX, live2dLookAtY } = storeToRefs(useWindowStore())
 const widgetStageRef = ref<{ canvasElement: () => HTMLCanvasElement }>()
 const resourceStatusIslandRef = ref<InstanceType<typeof ResourceStatusIsland>>()
 
@@ -30,7 +29,6 @@ const isLoading = ref(true)
 const componentStateStage = ref<'pending' | 'loading' | 'mounted'>('pending')
 
 watch(componentStateStage, () => isLoading.value = componentStateStage.value !== 'mounted', { immediate: true })
-watch([live2dLookAtX, live2dLookAtY], ([x, y]) => live2dFocusAt.value = { x, y }, { immediate: true })
 
 const modeIndicatorClass = computed(() => {
   switch (windowControlStore.controlMode) {
@@ -64,7 +62,7 @@ const modeIndicatorClass = computed(() => {
         v-model:state="componentStateStage"
         h-full w-full
         flex-1
-        :focus-at="live2dFocusAt"
+        :focus-at="{ x: live2dLookAtX, y: live2dLookAtY }"
         :scale="scale"
         :x-offset="positionInPercentageString.x"
         :y-offset="positionInPercentageString.y"

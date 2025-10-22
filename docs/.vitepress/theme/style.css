@@ -163,14 +163,7 @@ mark {
 }
 
 main .prose :where(details):not(:where(.not-prose,.not-prose *)) {
-  background-color:rgba(131, 186, 231, 0.1);
-
-  padding: 1.2rem 1.2rem;
   border-radius: 12px;
-}
-
-.dark main .prose :where(details):not(:where(.not-prose,.not-prose *)) {
-  background-color:rgba(88, 112, 132, 0.06);
 }
 
 pre.shiki {

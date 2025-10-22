@@ -1,8 +1,14 @@
 appId: ai.moeru.airi
 productName: AIRI
+
 directories:
+  output: dist
   buildResources: build
+
 files:
+  - out/**
+  - resources/**
+  - package.json
   - '!**/.vscode/*'
   - '!src/*'
   - '!electron.vite.config.{js,ts,mjs,cjs}'
@@ -11,8 +17,15 @@ files:
   - '!{.eslintcache,eslint.config.ts,.yaml,dev-app-update.yml,CHANGELOG.md,README.md}'
   - '!{.env,.env.*,.npmrc,pnpm-lock.yaml}'
   - '!{tsconfig.json}'
+
+asar: true
 asarUnpack:
   - resources/**
+  - out/renderer/**
+
+extraMetadata:
+  main: 'out/main/index.js'
+
 win:
   executableName: airi
 nsis:
@@ -21,6 +34,7 @@ nsis:
   uninstallDisplayName: ${productName}
   createDesktopShortcut: always
   deleteAppDataOnUninstall: true
+
 mac:
   entitlementsInherit: build/entitlements.mac.plist
   extendInfo:
@@ -30,16 +44,26 @@ mac:
   executableName: airi
 dmg:
   artifactName: ${productName}-${version}-darwin-${arch}.${ext}
+
 linux:
   target:
-    - AppImage
+    - deb
+    - rpm
   maintainer: moeru.ai
   category: Utility
+  synopsis: 'AI VTuber/Waifu chatbot app inspired by Neuro-sama.'
+  description: 'AIRI is an AI VTuber/Waifu chatbot supporting Live2D/VRM avatars, featuring human-like interactions and modular stage-based rendering.'
   executableName: airi
   artifactName: ${productName}-${version}-linux-${arch}.${ext}
+  icon: build/icons/icon.png
+
 appImage:
   artifactName: ${productName}-${version}-linux-${arch}.${ext}
+
+snap:
+  confinement: strict
+  grade: stable
+  summary: 'AI VTuber/Waifu chatbot app inspired by Neuro-sama'
+  description: 'AIRI enables human-like conversational interaction with Live2D/VRM avatars, designed for VTuber streaming and AI-driven performance.'
+
 npmRebuild: false
-publish:
-  provider: generic
-  url: https://example.com/auto-updates

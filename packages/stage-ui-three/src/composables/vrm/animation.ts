@@ -61,7 +61,8 @@ export function reAnchorRootPositionTrack(clip: AnimationClip, _vrm: VRMCore) {
 
   // Calculate the offset from the hips node to the hips's first frame position
   const hipsTrack = clip.tracks.find(track =>
-    track.name.endsWith('Hips.position'),
+    track instanceof VectorKeyframeTrack
+    && track.name === `${hipNode.name}.position`,
   )
   if (!(hipsTrack instanceof VectorKeyframeTrack)) {
     console.warn('No Hips.position track of type VectorKeyframeTrack found in animation.')
