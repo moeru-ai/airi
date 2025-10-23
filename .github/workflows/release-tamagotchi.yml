@@ -157,10 +157,10 @@ jobs:
         run: |
           echo "BUNDLE_NAME=$(pnpm exec tsx scripts/artifacts-metadata.ts ${{ matrix.target }} --get-bundle-name)" >> $GITHUB_ENV
 
-          - name: Rename Artifacts (Nightly)
-          if: ${{ github.event_name == 'schedule' }}
-          run:
-            pnpm run -F @proj-airi/stage-tamagotchi rename-artifacts ${{ matrix.target }}
+      - name: Rename Artifacts (Nightly)
+        if: ${{ github.event_name == 'schedule' }}
+        run:
+          pnpm run -F @proj-airi/stage-tamagotchi rename-artifacts ${{ matrix.target }}
 
       - name: Get Linux Artifact Names (Nightly + Linux Only)
         if: ${{ github.event_name == 'schedule' && (matrix.os == 'ubuntu-latest' || matrix.os == 'ubuntu-24.04-arm') }}

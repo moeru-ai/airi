@@ -91,6 +91,11 @@ defineExpose({
   captureFrame,
   canvasElement,
 })
+
+import.meta.hot?.dispose(() => {
+  console.warn('[Dev] Reload on HMR dispose is active for this component. Performing a full reload.')
+  window.location.reload()
+})
 </script>
 
 <template>
