@@ -1,4 +1,5 @@
-import { watch, onMounted, onBeforeUnmount, Ref, unref } from 'vue'
+import { onBeforeUnmount, onMounted, unref, watch } from 'vue'
+import type { Ref } from 'vue'
 
 export interface UseScrollToHashOptions {
   /**
