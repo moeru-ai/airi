@@ -21,6 +21,7 @@ import { isStageTamagotchi, isUrl } from '@proj-airi/stage-shared'
 import { computedAsync, useLocalStorage } from '@vueuse/core'
 import {
   createAzure,
+  createCerebras,
   createDeepSeek,
   createFireworks,
   createGoogleGenerativeAI,
@@ -1272,6 +1273,18 @@ export const useProvidersStore = defineStore('providers', () => {
         createTranscriptionProvider({ apiKey, baseURL }),
       ),
       validation: ['model_list'],
+    }),
+    'cerebras-ai': buildOpenAICompatibleProvider({
+      id: 'cerebras-ai',
+      name: 'Cerebras',
+      nameKey: 'settings.pages.providers.provider.cerebras.title',
+      descriptionKey: 'settings.pages.providers.provider.cerebras.description',
+      icon: 'i-lobe-icons:cerebras',
+      description: 'cerebras.ai',
+      defaultBaseUrl: 'https://api.cerebras.ai/v1/',
+      creator: createCerebras,
+      validation: ['health', 'model_list'],
+      iconColor: 'i-lobe-icons:cerebras-color',
     }),
     'together-ai': buildOpenAICompatibleProvider({
       id: 'together-ai',
