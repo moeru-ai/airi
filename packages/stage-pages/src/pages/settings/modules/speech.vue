@@ -199,7 +199,7 @@ function updateCustomModelName(value: string) {
                 :description="metadata.localizedDescription"
               />
             <RouterLink
-              to="/settings/providers/#speech"
+              to="/settings/providers#speech"
               border="2px solid"
               class="bg-white dark:bg-neutral-900/20 border-neutral-100 dark:border-neutral-900 hover:border-primary-500/30 dark:hover:border-primary-400/30"
               rounded-xl p-4
