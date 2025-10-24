@@ -1,14 +1,36 @@
 <script setup lang="ts">
+import { watch } from 'vue'
+import { useRoute } from 'vue-router'
+import { storeToRefs } from 'pinia'
 import { IconStatusItem } from '@proj-airi/stage-ui/components'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
-import { storeToRefs } from 'pinia'
 
+const route = useRoute()
 const providersStore = useProvidersStore()
 const {
   allChatProvidersMetadata,
   allAudioSpeechProvidersMetadata,
   allAudioTranscriptionProvidersMetadata,
 } = storeToRefs(providersStore)
+  
+watch(
+  () => route.hash,
+  (newHash) => {
+    if (newHash) {
+      requestAnimationFrame(() => {
+        const el = document.querySelector(newHash)
+        if (el) {
+          // Optional: offset for fixed header
+          const header = document.querySelector('header')
+          const headerHeight = header?.getBoundingClientRect().height || 0
+          const top = el.getBoundingClientRect().top + window.scrollY - headerHeight - 16
+          window.scrollTo(0, top)
+        }
+      })
+    }
+  },
+  { immediate: true }
+)
 </script>
 
 <template>
