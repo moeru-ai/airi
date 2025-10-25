@@ -55,10 +55,11 @@ export function useScrollToHash(
 
   let retryTimer: number | undefined
 
-  const getScrollContainer = (): HTMLElement | Window => {
+  const getScrollContainer = (): Window | HTMLElement => {
     if (!scrollContainer) return window
     if (typeof scrollContainer === 'string') {
-      return document.querySelector(scrollContainer) || window
+      const el = document.querySelector(scrollContainer)
+      return el instanceof HTMLElement ? el : window
     }
     return scrollContainer
   }
@@ -70,15 +71,14 @@ export function useScrollToHash(
       if (el) {
         const container = getScrollContainer()
 
-        if (container === window) {
+        if (container instanceof Window) {
           const top = el.getBoundingClientRect().top + window.scrollY - offset
           window.scrollTo({ top, behavior })
         } else {
-          const containerEl = container as HTMLElement
-          const containerRect = containerEl.getBoundingClientRect()
+          const containerRect = container.getBoundingClientRect()
           const elRect = el.getBoundingClientRect()
-          const scrollTop = elRect.top - containerRect.top + containerEl.scrollTop - offset
-          containerEl.scrollTo({ top: scrollTop, behavior })
+          const scrollTop = elRect.top - containerRect.top + container.scrollTop - offset
+          container.scrollTo({ top: scrollTop, behavior })
         }
         return
       }
