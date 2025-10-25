@@ -84,7 +84,7 @@ export function useScrollToHash(
     }
 
     requestAnimationFrame(() => {
-      const el = document.querySelector(hash)
+      const el = hash.length > 1 ? document.getElementById(hash.slice(1)) : null
       if (el) {
         const container = getScrollContainer()
 
