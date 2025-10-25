@@ -1,4 +1,4 @@
-import { onBeforeUnmount, onMounted, unref, watch } from 'vue'
+import { onBeforeUnmount, unref, watch } from 'vue'
 import type { Ref } from 'vue'
 
 export interface UseScrollToHashOptions {
@@ -32,13 +32,23 @@ export interface UseScrollToHashOptions {
  * A cross-platform composable for smooth scrolling to hash anchors.
  *
  * You can use it with or without Vue Router.
+ *
  * Example:
- *   const { scrollToHash } = useScrollToHash({ offset: 16 })
- *   scrollToHash('#chat')
+ * ```ts
+ * const { scrollToHash } = useScrollToHash({ offset: 16 })
+ * scrollToHash('#chat')
+ * ```
  *
  * Or:
- *   const route = useRoute()
- *   useScrollToHash({ hashRef: () => route.hash, auto: true })
+ * ```ts
+ * const route = useRoute()
+ * useScrollToHash(() => route.hash, { auto: true })
+ * ```
+ *
+ * Notes:
+ * - Automatically retries if the target element isn’t found yet.
+ * - Automatically cancels previous retry loops when a new scroll starts.
+ * - `onMounted` is not needed since `{ immediate: true }` on the watcher handles the initial scroll.
  */
 export function useScrollToHash(
   hashRef?: Ref<string | undefined> | (() => string | undefined),
@@ -66,6 +76,13 @@ export function useScrollToHash(
 
   const scrollToHash = (hash?: string, attempt = 0) => {
     if (!hash) return
+
+    // Cancel any existing retry loop
+    if (retryTimer) {
+      clearTimeout(retryTimer)
+      retryTimer = undefined
+    }
+
     requestAnimationFrame(() => {
       const el = document.querySelector(hash)
       if (el) {
@@ -83,6 +100,7 @@ export function useScrollToHash(
         return
       }
 
+      // Retry if element not yet found
       if (attempt < maxRetries) {
         retryTimer = window.setTimeout(() => scrollToHash(hash, attempt + 1), retryDelay)
       }
@@ -98,13 +116,6 @@ export function useScrollToHash(
       { immediate: true },
     )
   }
-
-  onMounted(() => {
-    if (auto && hashRef) {
-      const currentHash = typeof hashRef === 'function' ? hashRef() : unref(hashRef)
-      if (currentHash) scrollToHash(currentHash)
-    }
-  })
 
   onBeforeUnmount(() => {
     if (retryTimer) clearTimeout(retryTimer)
