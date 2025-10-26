@@ -8,7 +8,6 @@ preview-cover:
 # TODO
 ---
 
-
 今天 AI 操盘炒币真的很火，我们也有类似的研究想和大家分享，先从开发开始聊起吧...
 
 ## 从 Tauri 到 Electron 的迁移
@@ -29,13 +28,11 @@ Tauri 前两天又火了一波，我们最早是在 3 月尝鲜的，期间因�
 Control Island
 </div>
 
-
-
 ## 新的 Live2D 模型
 
 眼尖的伙伴可能发现了，我们的模型更新了！是的更新了！我超喜欢现在的这个模型（sadly 目前还是不想在开源仓库里直接塞这个模型）
 
-这个模型很荣幸是找到了 Neuro-sama 官方也合作过的一位画师和非常厉害的建模老师合作改进的，新的动画表情也非常丰富 
+这个模型很荣幸是找到了 Neuro-sama 官方也合作过的一位画师和非常厉害的建模老师合作改进的，新的动画表情也非常丰富
 
 （小声）也许 sponsor 多了就愿意了（x
 
@@ -64,8 +61,6 @@ Control Island
 我们曾分享过 [Netlify](https://velin-dev.netlify.app/#/) ，一个允许在浏览器里用 Vercel AI SDK 类似的方式进行纯本地推理的项目
 
 这些本地推理都只能在 Web Worker / worker_thread 中实现，而他们又都是事件通信，Electron IPC 也如此工作，但我们觉得这都不够优雅，还是感谢 RainbowBird ，用来驱动和实现基于事件的 IPC/RPC 的库，[Eventa](https://github.com/moeru-ai/eventa)，现在也是 Moeru AI 的一员了
-
-
 
 ## 项目发展现状
 
