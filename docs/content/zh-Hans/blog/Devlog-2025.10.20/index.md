@@ -17,13 +17,13 @@ Tauri 前两天又火了一波，我们最早是在 3 月尝鲜的，期间因�
 
 ...最终还是憋不住，国庆彻底换了 Electron
 
-<img src="./assets/G3tOymAWwAES3RA.png" alt="G3tOymAWwAES3RA.png"/>
+<img src="./assets/Electron.png" alt="Electron.png" />
 
 现在 Electron 在原有的基础上，有了 Linux 的支持，添加了我们称之为的 Control Island（控制岛），甚至能在 macOS 的窗口全屏的时候也可以 overlay 在界面上
 
 兼容性很好，孩子真的很喜欢，昨天也总算是有了 caption overlay，可以像 Neuro-sama 一样有个字幕可以看到 AI 输出了什么了
 
-<img src="./assets/G3tR_0uWEAA93tb.png" alt="G3tR_0uWEAA93tb.png"/>
+<img src="./assets/Control Island.png" alt="Control Island.png" />
 
 <div style="text-align: center; font-size: 0.875rem; color: #666; margin-top: 0.5rem;">
 Control Island
@@ -39,7 +39,7 @@ Control Island
 
 （小声）也许 sponsor 多了就愿意了（x
 
-<video src="./assets/SaveTwitter.Net_Al4oh9ElvbsS9aF6_(926p).mp4" alt="2025-10-20-15-40-00.mp4" controls></video>
+<video src="./assets/Airi.mp4" alt="Airi.mp4" controls></video>
 
 ## Three.js MMD 支持
 
@@ -51,15 +51,15 @@ Control Island
 
 ## Velin：用 Vue 写提示词
 
-「你可以用 [Vue](https://velin-dev.netlify.app/#/) 写提示词！」
+>「你可以用 [Vue](https://velin-dev.netlify.app/#/) 写提示词！」
 
 还记得 5 月份的时候我们也分享过我们自己实现的 prompt 库吗？感谢 RainbowBird 的努力和捐献，现在 Velin 也是 Moeru AI 的一员了，AIRI 几乎全部的提示词都是 Velin 驱动的，不过不用担心跨平台能力，Velin 在 Node.js 环境也可以用！
 
-<img src="./assets/G3tWn9DWsAARHQt.png" alt="G3tWn9DWsAARHQt.png"/>
+<img src="./assets/velin.png" alt="velin.png" />
 
 ## Eventa：事件驱动的 IPC/RPC
 
-「事件就是你所需要的一切」
+>「事件就是你所需要的一切」
 
 我们曾分享过 [Netlify](https://velin-dev.netlify.app/#/) ，一个允许在浏览器里用 Vercel AI SDK 类似的方式进行纯本地推理的项目
 
@@ -73,8 +73,8 @@ Control Island
 
 总共加起来的 follower 已经超过 800 人，这放在 1 年前我们刚创立的时候是不敢想象的，真的非常感谢大家喜欢
 
-<img src="./assets/G3taDhlWEAAUMHw.png" alt="G3taDhlWEAAUMHw.png"/>
-<img src="./assets/G3tZllQWMAAC7ND.png" alt="G3tZllQWMAAC7ND.png"/>
+<img src="./assets/Moeru.png" alt="Moeru.png" />
+<img src="./assets/project airi.png" alt="project airi.png" />
 
 ## 纯 Rust TTS 实现
 
@@ -84,7 +84,7 @@ Control Island
 
 几乎是在Rust里 1:1 对着 Python 的模型架构实现了一遍，希望能够依托其他 SOTA 的 TTS 模型变成一个很精简的本地 TTS 推理引擎
 
-<img src="./assets/G3tcR2PWsAAkNGe.png" alt="G3tcR2PWsAAkNGe.png"/>
+<img src="./assets/rust tts.png" alt="rust tts.png" />
 
 ## 最后
 

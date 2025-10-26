@@ -10,7 +10,7 @@ preview-cover:
 
 Long time no see, everyone!
 
-AI trading bots are super hot today—we've got similar research to share, starting with development...
+AI trading bots are super hot recently—we've got similar research to share, starting with development...
 
 ## From Tauri to Electron Migration
 
@@ -18,13 +18,13 @@ Tauri went viral again a couple days ago. We were early adopters back in March, 
 
 ...Finally couldn't hold out anymore—switched fully to Electron over National Day!
 
-<img src="./assets/G3tOymAWwAES3RA.png" alt="G3tOymAWwAES3RA.png"/>
+<img src="./assets/Electron.png" alt="Electron.png" />
 
 Now, building on the original Electron foundation, we've added Linux support, introduced what we call the Control Island, and it can even overlay on the interface during full-screen mode on macOS.
 
 Compatibility is excellent—I absolutely love it. Yesterday, we finally got the caption overlay working, so now we can have subtitles like Neuro-sama to see what the AI is outputting!
 
-<img src="./assets/G3tR_0uWEAA93tb.png" alt="G3tR_0uWEAA93tb.jpg"/>
+<img src="./assets/Control Island.png" alt="Control Island.png" />
 
 <div style="text-align: center; font-size: 0.875rem; color: #666; margin-top: 0.5rem;">
 Control Island
@@ -38,7 +38,7 @@ This model was honorably improved through collaboration with an artist who's wor
 
 (whispering) Maybe if we get more sponsors, I'll be willing... (x
 
-<video src="./assets/SaveTwitter.Net_Al4oh9ElvbsS9aF6_(926p).mp4" alt="2025-10-20-15-40-00.mp4" controls></video>
+<video src="./assets/Airi.mp4" alt="Airi.mp4" controls></video>
 
 ## Three.js MMD Support
 
@@ -50,15 +50,15 @@ If you're interested too, come join us in maintaining it! [moeru-ai/three-mmd](h
 
 ## Velin: Write Prompts with Vue
 
-"You can write prompts with [Vue](https://velin-dev.netlify.app/#/)!"
+ >"You can write prompts with [Vue](https://velin-dev.netlify.app/#/)"!
 
 Remember back in May when we shared our own prompt library? Thanks to RainbowBird hard work and donation, Velin is now officially part of Moeru AI! Almost all of AIRI's prompts are powered by Velin—but no worries about cross-platform capabilities, Velin works great in Node.js environments too!
 
-<img src="./assets/G3tWn9DWsAARHQt.png" alt="G3tWn9DWsAARHQt.png"/>
+<img src="./assets/velin.png" alt="velin.png" />
 
 ## Eventa: Event-Driven IPC/RPC
 
-"Events are all you need"
+>"Events are all you need"
 
 We once shared a project [netlify](https://velin-dev.netlify.app/#/) that lets you do pure local inference in the browser using Vercel AI SDK-like methods.
 
@@ -70,8 +70,8 @@ Now both Moeru AI and Project AIRI have grown into massive organizations, with o
 
 Total followers across all have exceeded 800 people. This was unimaginable when we first started a year ago—truly, thank you all so much for your support!
 
-<img src="./assets/G3taDhlWEAAUMHw.png" alt="G3taDhlWEAAUMHw.png"/>
-<img src="./assets/G3tZllQWMAAC7ND.png" alt="G3tZllQWMAAC7ND.png"/>
+<img src="./assets/Moeru.png" alt="Moeru.png" />
+<img src="./assets/project airi.png" alt="project airi.png" />
 
 ## Pure Rust TTS Implementation
 
@@ -81,7 +81,7 @@ Little teaser: Recently teamed up with kwaa to port the well-known TTS model cha
 
 Basically 1:1 recreated the Python model architecture in Rust, hoping to build it into a super streamlined local TTS inference engine leveraging other SOTA TTS models.
 
-<img src="./assets/G3tcR2PWsAAkNGe.png" alt="G3tcR2PWsAAkNGe.png"/>
+<img src="./assets/rust tts.png" alt="rust tts.png" />
 
 ## Final Words
 
