@@ -18,13 +18,13 @@ Tauri went viral again a couple days ago. We were early adopters back in March, 
 
 ...Finally couldn't hold out anymore—switched fully to Electron over National Day!
 
-<img src="./assets/Electron.png" alt="Electron.png" />
+<img src="./assets/electron.png" alt="electron.png" />
 
 Now, building on the original Electron foundation, we've added Linux support, introduced what we call the Control Island, and it can even overlay on the interface during full-screen mode on macOS.
 
 Compatibility is excellent—I absolutely love it. Yesterday, we finally got the caption overlay working, so now we can have subtitles like Neuro-sama to see what the AI is outputting!
 
-<img src="./assets/Control Island.png" alt="Control Island.png" />
+<img src="./assets/control-island.png" alt="control-island.png" />
 
 <div style="text-align: center; font-size: 0.875rem; color: #666; margin-top: 0.5rem;">
 Control Island
@@ -38,7 +38,7 @@ This model was honorably improved through collaboration with an artist who's wor
 
 (whispering) Maybe if we get more sponsors, I'll be willing... (x
 
-<video src="./assets/Airi.mp4" alt="Airi.mp4" controls></video>
+<video src="./assets/airi.mp4" alt="airi.mp4" controls></video>
 
 ## Three.js MMD Support
 
@@ -70,8 +70,15 @@ Now both Moeru AI and Project AIRI have grown into massive organizations, with o
 
 Total followers across all have exceeded 800 people. This was unimaginable when we first started a year ago—truly, thank you all so much for your support!
 
-<img src="./assets/Moeru.png" alt="Moeru.png" />
-<img src="./assets/project airi.png" alt="project airi.png" />
+<img src="./assets/moeru.png" alt="moeru.png" />
+<div style="text-align: center; font-size: 0.875rem; color: #666; margin-top: 0.5rem;">
+Moeru AI
+</div>
+
+<img src="./assets/project-airi.png" alt="project-airi.png" />
+<div style="text-align: center; font-size: 0.875rem; color: #666; margin-top: 0.5rem;">
+Project AIRI
+</div>
 
 ## Pure Rust TTS Implementation
 
@@ -81,7 +88,7 @@ Little teaser: Recently teamed up with kwaa to port the well-known TTS model cha
 
 Basically 1:1 recreated the Python model architecture in Rust, hoping to build it into a super streamlined local TTS inference engine leveraging other SOTA TTS models.
 
-<img src="./assets/rust tts.png" alt="rust tts.png" />
+<img src="./assets/rust-tts.png" alt="rust-tts.png" />
 
 ## Final Words
 
