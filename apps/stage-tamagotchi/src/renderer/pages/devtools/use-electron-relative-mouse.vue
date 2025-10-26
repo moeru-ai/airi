@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useElectronMouse, useElectronRelativeMouse, useElectronWindowBounds } from '../../stores/window'
+import { useElectronMouse, useElectronRelativeMouse, useElectronWindowBounds } from '../../composables/electron-vueuse'
 
 const { x: cursorX, y: cursorY } = useElectronMouse()
 

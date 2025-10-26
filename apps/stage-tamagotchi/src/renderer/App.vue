@@ -10,9 +10,7 @@ import { useI18n } from 'vue-i18n'
 import { RouterView, useRouter } from 'vue-router'
 
 import { electronOpenSettings, electronStartTrackMousePosition } from '../shared/eventa'
-import { useWindowMode } from './stores/window-controls'
 
-useWindowMode()
 const i18n = useI18n()
 const displayModelsStore = useDisplayModelsStore()
 const settingsStore = useSettings()

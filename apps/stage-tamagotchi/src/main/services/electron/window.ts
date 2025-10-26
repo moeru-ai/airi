@@ -23,5 +23,21 @@ export function createWindowService(params: { context: ReturnType<typeof createC
   onAppBeforeQuit(() => stop())
   defineInvokeHandler(params.context, startLoopGetBounds, () => start())
 
-  defineInvokeHandler(params.context, electron.window.getBounds, () => params.window.getBounds())
+  defineInvokeHandler(params.context, electron.window.getBounds, (_, options) => {
+    if (params.window.webContents.id === options?.raw.ipcMainEvent.sender.id) {
+      return params.window.getBounds()
+    }
+
+    return {
+      x: 0,
+      y: 0,
+      width: 0,
+      height: 0,
+    }
+  })
+  defineInvokeHandler(params.context, electron.window.setIgnoreMouseEvents, (opts, options) => {
+    if (params.window.webContents.id === options?.raw.ipcMainEvent.sender.id) {
+      params.window.setIgnoreMouseEvents(...opts)
+    }
+  })
 }

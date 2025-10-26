@@ -9,6 +9,11 @@ import { createScreenService, createWindowService } from '../../../services/elec
 import { toggleWindowShow } from '../../shared'
 
 export function setupMainWindowElectronInvokes(params: { window: BrowserWindow, settingsWindow: () => Promise<BrowserWindow> }) {
+  // TODO: once we refactored eventa to support window-namespaced contexts,
+  // we can remove the setMaxListeners call below since eventa will be able to dispatch and
+  // manage events within eventa's context system.
+  ipcMain.setMaxListeners(100)
+
   const { context } = createContext(ipcMain, params.window)
 
   createScreenService({ context, window: params.window })

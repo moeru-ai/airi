@@ -1,11 +1,8 @@
-import type { MaybeRefOrGetter, UseStorageOptions } from '@vueuse/core'
+import type { IfAny, MaybeRefOrGetter, UseStorageOptions } from '@vueuse/core'
+import type { Ref, UnwrapRef } from 'vue'
 
 import { useLocalStorage } from '@vueuse/core'
-import { defineStore } from 'pinia'
 import { ref, toValue, watch } from 'vue'
-
-import { WindowControlMode } from '../types/window-controls'
-import { useWindowControlStore } from './window-controls'
 
 interface Versioned<T> { version?: string, data?: T }
 interface UseVersionedStorageOptions<T> {
@@ -18,11 +15,11 @@ export interface OnVersionMismatchKeep<T> { action: 'keep', data?: T }
 export interface OnVersionMismatchReset<T> { action: 'reset', data?: T }
 export type OnVersionMismatchActions<T> = OnVersionMismatchKeep<T> | OnVersionMismatchReset<T>
 
-function useVersionedLocalStorage<T>(
+export function useVersionedLocalStorage<T>(
   key: MaybeRefOrGetter<string>,
   initialValue: MaybeRefOrGetter<T>,
   options?: UseStorageOptions<T> & UseVersionedStorageOptions<T>,
-) {
+): [T] extends [Ref<any, any>] ? IfAny<T, Ref<T, T>, T> : Ref<UnwrapRef<T>, T | UnwrapRef<T>> {
   const defaultVersion = options?.defaultVersion || '1.0.0'
   const data = ref(toValue(initialValue))
   const rawValue = useLocalStorage<Versioned<T>>(key, { version: defaultVersion, data: toValue(initialValue) }, options as unknown as UseStorageOptions<Versioned<T>>)
@@ -65,41 +62,3 @@ function useVersionedLocalStorage<T>(
 
   return data
 }
-
-export const useShortcutsStore = defineStore('shortcuts', () => {
-  const windowStore = useWindowControlStore()
-
-  const shortcuts = ref([
-    {
-      name: 'tamagotchi.settings.pages.themes.window-shortcuts.toggle-move.label',
-      shortcut: useVersionedLocalStorage('shortcuts/window/move', 'Shift+Alt+N', { defaultVersion: '1.0.2', satisfiesVersionBy: v => v === '1.0.2', onVersionMismatch: () => ({ action: 'reset' }) }), // Shift + Alt + N
-      group: 'window',
-      type: 'move',
-      handle: async () => {
-        windowStore.toggleMode(WindowControlMode.MOVE)
-      },
-    },
-    {
-      name: 'tamagotchi.settings.pages.themes.window-shortcuts.toggle-resize.label',
-      shortcut: useVersionedLocalStorage('shortcuts/window/resize', 'Shift+Alt+A', { defaultVersion: '1.0.2', satisfiesVersionBy: v => v === '1.0.2', onVersionMismatch: () => ({ action: 'reset' }) }), // Shift + Alt + A
-      group: 'window',
-      type: 'resize',
-      handle: async () => {
-        windowStore.toggleMode(WindowControlMode.RESIZE)
-      },
-    },
-    {
-      name: 'tamagotchi.settings.pages.themes.window-shortcuts.toggle-ignore-mouse-event.label',
-      shortcut: useVersionedLocalStorage('shortcuts/window/debug', 'Shift+Alt+I', { defaultVersion: '1.0.2', satisfiesVersionBy: v => v === '1.0.2', onVersionMismatch: () => ({ action: 'reset' }) }), // Shift + Alt + I
-      group: 'window',
-      type: 'ignore-mouse-event',
-      handle: async () => {
-        windowStore.isIgnoringMouseEvent = !windowStore.isIgnoringMouseEvent
-      },
-    },
-  ])
-
-  return {
-    shortcuts,
-  }
-})

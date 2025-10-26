@@ -7,7 +7,7 @@ import { platform } from 'node:process'
 import { electronApp, optimizer } from '@electron-toolkit/utils'
 import { Format, LogLevel, setGlobalFormat, setGlobalLogLevel, useLogg } from '@guiiai/logg'
 import { createLoggLogger, injecta } from '@proj-airi/injecta'
-import { app, Menu, nativeImage, Tray } from 'electron'
+import { app, ipcMain, Menu, nativeImage, Tray } from 'electron'
 import { noop, once } from 'es-toolkit'
 import { isLinux, isMacOS } from 'std-env'
 
@@ -22,6 +22,11 @@ import { setupInlayWindow } from './windows/inlay'
 import { setupMainWindow } from './windows/main'
 import { setupSettingsWindowReusableFunc } from './windows/settings'
 import { toggleWindowShow } from './windows/shared/window'
+
+// TODO: once we refactored eventa to support window-namespaced contexts,
+// we can remove the setMaxListeners call below since eventa will be able to dispatch and
+// manage events within eventa's context system.
+ipcMain.setMaxListeners(100)
 
 setElectronMainDirname(__dirname)
 setGlobalFormat(Format.Pretty)

@@ -217,7 +217,7 @@ export function setupCaptionWindowManager(params: { mainWindow: BrowserWindow })
       lastAppliedTy = ty
       // Animate towards target at throttled cadence for visible easing
       settleTo(tx, ty)
-    }, 1000 / 30)
+    }, 1000 / 60)
 
     const settleDebounced = debounce(() => {
       settleTo(lastTx, lastTy)
@@ -246,6 +246,11 @@ export function setupCaptionWindowManager(params: { mainWindow: BrowserWindow })
   let eventaContext: ReturnType<typeof createContext>['context'] | undefined
 
   const reusable = createReusableWindow(async () => {
+    // TODO: once we refactored eventa to support window-namespaced contexts,
+    // we can remove the setMaxListeners call below since eventa will be able to dispatch and
+    // manage events within eventa's context system.
+    ipcMain.setMaxListeners(100)
+
     const window = createCaptionWindow()
     const { context } = createContext(ipcMain, window)
     eventaContext = context
@@ -274,6 +279,7 @@ export function setupCaptionWindowManager(params: { mainWindow: BrowserWindow })
       }
       updateConfig(config)
     }
+
     window.on('resize', persistBounds)
     window.on('move', persistBounds)
 

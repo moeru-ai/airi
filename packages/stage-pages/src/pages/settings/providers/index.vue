@@ -25,7 +25,7 @@ const {
       </div>
     </div>
     <div flex="~ row items-center gap-2">
-      <div i-solar:chat-square-like-bold-duotone text="neutral-500 dark:neutral-400 4xl" />
+      <div i-solar:chat-square-like-bold-duotone text="neutral-500 dark:neutral-400 4xl" id="chat"/>
       <div>
         <div>
           <span text="neutral-300 dark:neutral-500 sm sm:base">Text generation model providers. e.g. OpenRouter, OpenAI, Ollama.</span>
@@ -56,7 +56,7 @@ const {
       />
     </div>
     <div flex="~ row items-center gap-2" my-5>
-      <div i-solar:user-speak-rounded-bold-duotone text="neutral-500 dark:neutral-400 4xl" />
+      <div i-solar:user-speak-rounded-bold-duotone text="neutral-500 dark:neutral-400 4xl" id="speech"/>
       <div>
         <div>
           <span text="neutral-300 dark:neutral-500 sm sm:base">Speech (text-to-speech) model providers. e.g. ElevenLabs, Azure Speech.</span>
@@ -87,7 +87,7 @@ const {
       />
     </div>
     <div flex="~ row items-center gap-2" my-5>
-      <div i-solar:microphone-3-bold-duotone text="neutral-500 dark:neutral-400 4xl" />
+      <div i-solar:microphone-3-bold-duotone text="neutral-500 dark:neutral-400 4xl" id="transcription"/>
       <div>
         <div>
           <span text="neutral-300 dark:neutral-500 sm sm:base">Transcription (speech-to-text) model providers. e.g. Whisper.cpp, OpenAI, Azure Speech</span>

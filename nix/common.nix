@@ -36,16 +36,20 @@ stdenvNoCC.mkDerivation (final: {
     buildPhase = ''
       runHook preBuild
 
+      echo 1
       pnpm run build:packages
+      echo 2
       pnpm -F @proj-airi/stage-web run build
 
       runHook postBuild
     '';
 
     installPhase = ''
+      echo 3
       runHook preInstall
 
       mkdir -p $out
+      echo 4
       cp -r apps/stage-web/.cache/assets "$out"
 
       runHook postInstall

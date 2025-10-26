@@ -578,6 +578,9 @@ pages:
       comet-api:
         description: CometAPI.com
         title: Comet API
+      cerebras:
+        description: cerebras.ai
+        title: Cerebras
       transcriptions:
         playground:
           title: Transcription Playground

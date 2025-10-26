@@ -1,4 +1,4 @@
-import { isStageTamagotchi, isStageWeb } from './environment'
+import { isUrlMode } from './environment'
 
 export function isUrl(url: string) {
   try {
@@ -12,16 +12,13 @@ export function isUrl(url: string) {
 }
 
 export function withBase(url: string) {
-  if (isStageWeb()) {
+  if (isUrlMode('server')) {
     return url
   }
-  if (isStageTamagotchi()) {
-    return url.startsWith('/')
-      ? `.${url}`
-      : url.startsWith('./')
-        ? url
-        : `./${url}`
-  }
 
-  throw new Error('Unknown environment')
+  return url.startsWith('/')
+    ? `.${url}`
+    : url.startsWith('./')
+      ? url
+      : `./${url}`
 }
