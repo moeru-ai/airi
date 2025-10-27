@@ -1,9 +1,9 @@
 <script setup lang="ts">
+import { IconStatusItem } from '@proj-airi/stage-ui/components'
+import { useScrollToHash } from '@proj-airi/stage-ui/composables/useScrollToHash'
+import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { storeToRefs } from 'pinia'
 import { useRoute } from 'vue-router'
-import { IconStatusItem } from '@proj-airi/stage-ui/components'
-import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
-import { useScrollToHash } from '@proj-airi/stage-ui/composables/useScrollToHash'
 
 const route = useRoute()
 const providersStore = useProvidersStore()
@@ -12,13 +12,13 @@ const {
   allAudioSpeechProvidersMetadata,
   allAudioTranscriptionProvidersMetadata,
 } = storeToRefs(providersStore)
-  
+
 useScrollToHash(() => route.hash, {
-  auto: true,        // automatically react to route hash
-  offset: 16,        // header + margin spacing
+  auto: true, // automatically react to route hash
+  offset: 16, // header + margin spacing
   behavior: 'smooth', // smooth scroll animation
-  maxRetries: 15,     // retry if target element isn’t ready
-  retryDelay: 150,    // wait between retries
+  maxRetries: 15, // retry if target element isn’t ready
+  retryDelay: 150, // wait between retries
 })
 </script>
 
@@ -36,7 +36,7 @@ useScrollToHash(() => route.hash, {
       </div>
     </div>
     <div flex="~ row items-center gap-2">
-      <div i-solar:chat-square-like-bold-duotone id="chat" text="neutral-500 dark:neutral-400 4xl" />
+      <div id="chat" i-solar:chat-square-like-bold-duotone text="neutral-500 dark:neutral-400 4xl" />
       <div>
         <div>
           <span text="neutral-300 dark:neutral-500 sm sm:base">Text generation model providers. e.g. OpenRouter, OpenAI, Ollama.</span>
@@ -67,7 +67,7 @@ useScrollToHash(() => route.hash, {
       />
     </div>
     <div flex="~ row items-center gap-2" my-5>
-      <div i-solar:user-speak-rounded-bold-duotone id="speech" text="neutral-500 dark:neutral-400 4xl" />
+      <div id="speech" i-solar:user-speak-rounded-bold-duotone text="neutral-500 dark:neutral-400 4xl" />
       <div>
         <div>
           <span text="neutral-300 dark:neutral-500 sm sm:base">Speech (text-to-speech) model providers. e.g. ElevenLabs, Azure Speech.</span>
@@ -98,7 +98,7 @@ useScrollToHash(() => route.hash, {
       />
     </div>
     <div flex="~ row items-center gap-2" my-5>
-      <div i-solar:microphone-3-bold-duotone id="transcription" text="neutral-500 dark:neutral-400 4xl" />
+      <div id="transcription" i-solar:microphone-3-bold-duotone text="neutral-500 dark:neutral-400 4xl" />
       <div>
         <div>
           <span text="neutral-300 dark:neutral-500 sm sm:base">Transcription (speech-to-text) model providers. e.g. Whisper.cpp, OpenAI, Azure Speech</span>

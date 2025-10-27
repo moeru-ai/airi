@@ -100,6 +100,7 @@ export const useSettings = defineStore('settings', () => {
   const stageViewControlsEnabled = ref(false)
 
   const live2dDisableFocus = useLocalStorage('settings/live2d/disable-focus', false)
+  const live2dIdleAnimationEnabled = useLocalStorage('settings/live2d/idle-animation-enabled', true)
 
   const disableTransitions = useLocalStorage('settings/disable-transitions', true)
   const usePageSpecificTransitions = useLocalStorage('settings/use-page-specific-transitions', true)
@@ -170,6 +171,7 @@ export const useSettings = defineStore('settings', () => {
     stageViewControlsEnabled,
 
     live2dDisableFocus,
+    live2dIdleAnimationEnabled,
     themeColorsHue,
     themeColorsHueDynamic,
 

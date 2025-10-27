@@ -60,4 +60,3 @@ export function useElectronMouseAroundWindowBorder(
 }
 
 export type UseElectronMouseAroundWindowBorderReturn = ReturnType<typeof useElectronMouseAroundWindowBorder>
-
