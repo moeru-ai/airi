@@ -4,6 +4,9 @@ import type { ChatProvider } from '@xsai-ext/shared-providers'
 import { useMicVAD } from '@proj-airi/stage-ui/composables'
 import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
 import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
+import { useHearingStore } from '@proj-airi/stage-ui/stores/modules/hearing'
+import { useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
+import { useVisionStore } from '@proj-airi/stage-ui/stores/modules/vision'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { BasicTextarea } from '@proj-airi/ui'
@@ -27,13 +30,25 @@ const messageInput = ref('')
 const listening = ref(false)
 const isComposing = ref(false)
 
+// Toggle states
+const speechEnabled = ref(false)
+const hearingEnabled = ref(false)
+const imageInputEnabled = ref(false)
+
+// File input ref
+const fileInputRef = ref<HTMLInputElement>()
+
 const screenSafeArea = useScreenSafeArea()
 const providersStore = useProvidersStore()
+const speechStore = useSpeechStore()
+const hearingStore = useHearingStore()
+const visionStore = useVisionStore()
+
 const { activeProvider, activeModel } = storeToRefs(useConsciousnessStore())
 
 useResizeObserver(document.documentElement, () => screenSafeArea.update())
 
-// const { askPermission } = useSettingsAudioDevice()
+const { askPermission } = useSettingsAudioDevice()
 const { themeColorsHueDynamic, stageViewControlsEnabled } = storeToRefs(useSettings())
 const { enabled, selectedAudioInput } = storeToRefs(useSettingsAudioDevice())
 const { send, onAfterMessageComposed, discoverToolsCompatibility, cleanupMessages } = useChatStore()
@@ -73,7 +88,67 @@ async function handleSend() {
   }
 }
 
-const { destroy, start } = useMicVAD(selectedAudioInput, {
+async function handleImageUpload(event: Event) {
+  const file = (event.target as HTMLInputElement).files?.[0]
+  if (!file || !file.type.startsWith('image/')) {
+    return
+  }
+
+  try {
+    // Convert image to base64 for vision analysis
+    const reader = new FileReader()
+    reader.onload = async (e) => {
+      const imageData = e.target?.result as string
+
+      // Send image to vision analysis
+      if (visionStore.configured) {
+        try {
+          const result = await visionStore.analyzeImageDirect(imageData, 'Analyze this image in detail.')
+
+          // Add analysis result to chat
+          await send(`[Image Analysis: ${result.content}]`, {
+            chatProvider: await providersStore.getProviderInstance(activeProvider.value) as ChatProvider,
+            model: activeModel.value,
+            providerConfig: providersStore.getProviderConfig(activeProvider.value),
+          })
+        }
+        catch (error) {
+          console.error('Vision analysis failed:', error)
+          // Add error message to chat
+          await send(`Image analysis failed: ${(error as Error).message}`, {
+            chatProvider: await providersStore.getProviderInstance(activeProvider.value) as ChatProvider,
+            model: activeModel.value,
+            providerConfig: providersStore.getProviderConfig(activeProvider.value),
+          })
+        }
+      }
+    }
+    reader.readAsDataURL(file)
+
+    // Reset file input
+    if (fileInputRef.value) {
+      fileInputRef.value.value = ''
+    }
+  }
+  catch (error) {
+    console.error('Error uploading image:', error)
+  }
+}
+
+async function handleSpeechToggle() {
+  if (!speechEnabled.value) {
+    speechEnabled.value = true
+    // Enable speech synthesis when turned on
+    // TODO: Initialize speech synthesis if needed
+  }
+  else {
+    speechEnabled.value = false
+    // Disable speech synthesis when turned off
+    // TODO: Clean up speech synthesis if needed
+  }
+}
+
+const vad = useMicVAD(selectedAudioInput, {
   onSpeechStart: () => {
     // TODO: interrupt the playback
     // TODO: interrupt any of the ongoing TTS
@@ -106,7 +181,7 @@ function handleTranscription(_buffer: Float32Array<ArrayBufferLike>) {
 
 watch(enabled, async (value) => {
   if (value === false) {
-    destroy()
+    vad.destroy()
   }
 })
 
@@ -120,8 +195,31 @@ watch([activeProvider, activeModel], async () => {
   }
 })
 
+// Define hearing toggle after VAD is defined
+async function handleHearingToggle() {
+  // Only request microphone permission when turning on hearing
+  if (!hearingEnabled.value) {
+    try {
+      await askPermission()
+      hearingEnabled.value = true
+      // Start VAD when hearing is enabled
+      vad.start()
+    }
+    catch (error) {
+      console.error('Failed to get microphone permission:', error)
+      // Show error to user or handle appropriately
+    }
+  }
+  else {
+    hearingEnabled.value = false
+    // Stop VAD when hearing is disabled
+    vad.destroy()
+  }
+}
+
 onMounted(() => {
-  start()
+  // Don't start VAD automatically - only start when user enables hearing
+  // vad.start()
   screenSafeArea.update()
 })
 </script>
@@ -140,6 +238,78 @@ onMounted(() => {
       <div translate-y="[-100%]" absolute right-0 w-full px-3 pb-3 font-sans>
         <div flex="~ col" w-full gap-1>
           <ActionAbout />
+
+          <!-- Speech Toggle Button -->
+          <button
+            v-if="speechStore.configured"
+            border="2 solid neutral-100/60 dark:neutral-800/30"
+            bg="neutral-50/70 dark:neutral-800/70"
+            w-fit flex items-center self-end justify-center rounded-xl p-2 backdrop-blur-md
+            :title="speechEnabled ? 'Disable Speech' : 'Enable Speech'"
+            @click="handleSpeechToggle"
+          >
+            <div
+              size-5
+              :class="speechEnabled ? 'text-green-500 dark:text-green-400' : 'text-neutral-500 dark:neutral-400'"
+              class="i-solar:user-speak-rounded-bold-duotone"
+            />
+          </button>
+
+          <!-- Hearing Toggle Button -->
+          <button
+            v-if="hearingStore.configured"
+            border="2 solid neutral-100/60 dark:neutral-800/30"
+            bg="neutral-50/70 dark:neutral-800/70"
+            w-fit flex items-center self-end justify-center rounded-xl p-2 backdrop-blur-md
+            :title="hearingEnabled ? 'Disable Hearing' : 'Enable Hearing'"
+            @click="handleHearingToggle"
+          >
+            <div
+              size-5
+              :class="hearingEnabled ? 'text-green-500 dark:text-green-400' : 'text-neutral-500 dark:neutral-400'"
+              class="i-solar:microphone-3-bold-duotone"
+            />
+          </button>
+
+          <!-- Vision/Image Input Toggle Button -->
+          <button
+            v-if="visionStore.configured"
+            border="2 solid neutral-100/60 dark:neutral-800/30"
+            bg="neutral-50/70 dark:neutral-800/70"
+            w-fit flex items-center self-end justify-center rounded-xl p-2 backdrop-blur-md
+            :title="imageInputEnabled ? 'Disable Image Input' : 'Enable Image Input'"
+            @click="imageInputEnabled = !imageInputEnabled"
+          >
+            <div
+              size-5
+              :class="imageInputEnabled ? 'text-blue-500 dark:text-blue-400' : 'text-neutral-500 dark:neutral-400'"
+              class="i-solar:eye-bold-duotone"
+            />
+          </button>
+
+          <!-- Hidden file input for image upload -->
+          <input
+            v-if="imageInputEnabled"
+            ref="fileInputRef"
+            type="file"
+            accept="image/*"
+            class="hidden"
+            @change="handleImageUpload"
+          >
+
+          <!-- Image Upload Button (shown when image input is enabled) -->
+          <button
+            v-if="imageInputEnabled"
+            border="2 solid neutral-100/60 dark:neutral-800/30"
+            bg="neutral-50/70 dark:neutral-800/70"
+            w-fit flex items-center self-end justify-center rounded-xl p-2 backdrop-blur-md
+            title="Upload Image"
+            @click="fileInputRef?.click()"
+          >
+            <div size-5 text="neutral-500 dark:neutral-400" class="i-solar:gallery-add-bold-duotone" />
+          </button>
+
+          <!-- Theme Toggle Button -->
           <button border="2 solid neutral-100/60 dark:neutral-800/30" bg="neutral-50/70 dark:neutral-800/70" w-fit flex items-center self-end justify-center rounded-xl p-2 backdrop-blur-md title="Theme" @click="isDark = !isDark">
             <Transition name="fade" mode="out-in">
               <div v-if="isDark" i-solar:moon-outline size-5 text="neutral-500 dark:neutral-400" />

@@ -1,3 +1,4 @@
+export * from './chat'
 export * from './data-pane'
 export * from './gadgets'
 export * from './graphics'
@@ -5,7 +6,10 @@ export * from './layouts'
 export * from './markdown'
 export * from './menu'
 export * from './misc'
+// Re-export Button for easier access
+export { Button } from './misc'
 export * from './modules'
 export * from './physics'
 export * from './scenarios'
+
 export * from './widgets'

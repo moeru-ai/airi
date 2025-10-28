@@ -1,5 +1,11 @@
 common:
   save: 保存
+  apply: 应用
+  refresh: 刷新
+  loading: 加载中...
+  saving: 保存中...
+  search: 搜索
+
 animations:
   stage-transitions:
     title: 是否开启舞台动画
@@ -141,6 +147,111 @@ pages:
   memory:
     description: 存放记忆的地方，以及策略
     title: 记忆体
+    short_term:
+      title: 短期记忆
+      description: 短期记忆存储最近的对话上下文，帮助 AIRI 维持连贯的对话
+      saved: 配置已应用
+      provider: 短期记忆提供商
+      providers:
+        localRedis: 本地 Redis
+        upstash: Upstash Redis（无服务器）
+        vercelKv: Vercel KV
+      providerHint: 在「模块 → 短期记忆」中配置不同提供商的详细设置
+      currentProvider: 当前提供商：
+      changeProviderHint: 请在「设置 → 记忆体」中切换提供商
+      enable: 启用短期记忆
+      enableDescription: 为当前浏览器会话持久化最近的对话上下文
+      namespace: 命名空间键前缀
+      retention: 短期记忆保留的消息数量
+      retentionHint: 更高的值保留更多消息，但可能会拖慢提示速度
+      ttl: TTL（秒）
+      ttlHint: 消息在此时长后从短期存储中过期
+      upstashTitle: Upstash Redis 配置
+      redisTitle: Redis 连接
+      redisHost: 主机地址
+      redisPort: 端口
+      redisPassword: 密码
+      redisPasswordPlaceholder: 可选密码
+      session: 会话控制
+      sessionHint: 短期记忆按会话隔离
+      newSession: 开始新会话
+      clear: 清除会话记忆
+      history: 最近消息
+      historyHint: 预览馈送给 LLM 的缓存上下文
+      disabledMessage: 启用短期记忆以在本地保留聊天历史
+      empty: 尚未缓存任何消息
+      vercelKvTitle: Vercel KV 配置
+      vercelKvDescription: 部署到 Vercel 时会自动从环境变量加载 Vercel KV 配置。
+      vercelKvHint: 无需额外配置。
+    long_term:
+      title: 长期记忆
+      description: 长期记忆使用向量数据库存储重要记忆，支持语义搜索和跨设备同步
+      saved: 配置已应用
+      enable: 启用长期记忆
+      enableDescription: 使用配置的数据库和嵌入模型存储记忆
+      provider: 长期记忆提供商
+      providers:
+        postgres: Postgres + pgvector
+        qdrant: Qdrant
+      embeddingHint: 请前往「设置 → 记忆体 → 嵌入配置」填写嵌入凭据。
+      connectionTitle: 数据库连接
+      connectionString: 连接字符串
+      connectionHint: 可选：如果您更喜欢键值配置，可以覆盖下面的各个字段
+      host: 主机地址
+      port: 端口
+      database: 数据库
+      user: 用户名
+      password: 密码
+      ssl: 需要 SSL/TLS
+      qdrantTitle: Qdrant 配置
+      qdrantUrl: 端点 URL
+      qdrantApiKey: API 密钥
+      qdrantApiKeyPlaceholder: 公共实例可选
+      qdrantCollection: 集合名称
+      qdrantVectorSize: 向量大小
+      embeddingTitle: 嵌入提供商
+      embeddingProvider: 提供商
+      embeddingProviders:
+        openai: OpenAI
+        openaiCompatible: OpenAI 兼容
+        cloudflare: Cloudflare AI
+      apiKey: API 密钥
+      baseUrl: 基础 URL
+      accountId: 账户 ID
+      apiToken: API 令牌
+      model: 嵌入模型名称
+      modelHint: 输入嵌入模型的确切标识符。留空则使用默认值
+      promoteAssistant: 自动持久化助手消息
+      promoteUser: 自动持久化用户消息
+      userId: 用于记忆索引的用户标识符
+      userIdPlaceholder: 例如 airi@home
+      userIdHint: 使用一致的标识符在设备间同步记忆
+      searchTitle: 搜索记忆
+      searchHint: 使用语义搜索查找相关记忆
+      searchPlaceholder: AIRI 应该记住什么...
+      export: 导出 JSON
+      disabledMessage: 启用长期记忆以访问搜索 API
+      exportPreview: 导出预览
+      searching: 正在搜索记忆...
+      empty: 尚无匹配的记忆
+    embedding:
+      title: 嵌入配置
+      description: 配置用于长期记忆语义搜索的嵌入服务提供商
+      envHint: '字段会自动从 MEMORY_EMBEDDING_PROVIDER、MEMORY_EMBEDDING_API_KEY、MEMORY_EMBEDDING_BASE_URL、MEMORY_EMBEDDING_MODEL（或带 VITE_ 前缀的变体）等环境变量中填充。'
+      manualTitle: 手动配置指南
+      stepGenerate: 从提供商（如 OpenAI、Cloudflare 或兼容 OpenAI 的服务）生成一组可用的嵌入 API 凭据。
+      stepEnv: 将这些凭据添加到部署环境变量并重新部署，以便字段能够自动填充。
+      stepFallback: 如果无法自动填充，可在此手动粘贴数值后点击“保存配置”。
+      provider: 提供商
+      providers:
+        openai: OpenAI
+        openaiCompatible: OpenAI 兼容
+        cloudflare: Cloudflare Workers AI
+      apiKey: API 密钥
+      baseUrl: 基础 URL
+      accountId: 账户 ID
+      apiToken: API 令牌
+      model: 模型
   models:
     description: 切换角色的 Live2D，VRM 模型
     title: 角色模型
@@ -222,6 +333,9 @@ pages:
     memory-short-term:
       description: 短期记忆
       title: 短期记忆
+    messaging:
+      description: 配置AIRI的消息平台
+      title: 消息
     messaging-discord:
       description: Discord 发消息和语音聊天
       title: Discord
@@ -231,6 +345,15 @@ pages:
       token-description: 您的Discord机器人令牌
       token-placeholder: 输入您的Discord机器人令牌
       configured: Discord已正确配置！
+    messaging-telegram:
+      description: Telegram 发消息和贴纸互动
+      title: Telegram
+      enable: 启用Telegram集成
+      enable-description: 允许AIRI通过Telegram进行互动
+      token: 机器人令牌
+      token-description: 您从@BotFather获取的Telegram机器人令牌
+      token-placeholder: 输入您的Telegram机器人令牌
+      configured: Telegram已正确配置！
     speech:
       description: 语音合成
       sections:
@@ -272,8 +395,42 @@ pages:
       title: 发声
     title: 机体模块
     vision:
-      description: 视觉
+      description: 计算机视觉和图像分析
       title: 视觉
+      enable_camera: 启用摄像头捕获
+      enable_camera_description: 允许AIRI使用摄像头进行图像分析
+      enable_screen: 启用屏幕捕获
+      enable_screen_description: 允许AIRI捕获和分析屏幕内容
+      auto_analyze: 捕获后自动分析
+      auto_analyze_description: 自动分析捕获的图像
+      test_platform:
+        title: 视觉测试平台
+        description: 测试和配置视觉识别能力
+      sections:
+        section:
+          provider-selection:
+            description: 选择AI视觉分析提供商
+        test-platform:
+          title: 测试平台
+          description: 测试和可视化视觉识别
+      actions:
+        start_camera: 启动摄像头
+        start_screen: 开始屏幕捕获
+        stop_capture: 停止捕获
+        capture_frame: 捕获帧
+        upload_image: 上传图片
+        analyze: 分析图像
+      captured_image: 捕获的图像
+      prompt_label: 分析提示
+      prompt_placeholder: 这张图片中你看到了什么？
+      analysis_result: 分析结果
+      analyzing: 分析中...
+      capabilities:
+        object_detection: 物体检测
+        scene_analysis: 场景分析
+        text_recognition: 文字识别 (OCR)
+        face_analysis: 人脸分析
+        emotion_detection: 情绪检测
     x:
       description: X / Twitter 的浏览和使用
       title: X / Twitter
@@ -618,6 +775,27 @@ theme:
     切换 AIRI 的基础主题，亮色模式或暗色模式。
 title: 设置
 voices: 声线
+settings:
+  memory:
+    saved: 配置已保存
+    embedding:
+      title: 嵌入配置
+      description: 配置用于长期记忆语义搜索的嵌入服务提供商
+      envHint: '字段会自动从 MEMORY_EMBEDDING_PROVIDER、MEMORY_EMBEDDING_API_KEY、MEMORY_EMBEDDING_BASE_URL、MEMORY_EMBEDDING_MODEL（或带 VITE_ 前缀的变体）等环境变量中填充。'
+      manualTitle: 手动配置指南
+      stepGenerate: 从提供商（如 OpenAI、Cloudflare 或兼容 OpenAI 的服务）生成一组可用的嵌入 API 凭据。
+      stepEnv: 将这些凭据添加到部署环境变量并重新部署，以便字段能够自动填充。
+      stepFallback: 如果无法自动填充，可在此手动粘贴数值后点击"保存配置"。
+      provider: 提供商
+      providers:
+        openai: OpenAI
+        openaiCompatible: OpenAI 兼容
+        cloudflare: Cloudflare Workers AI
+      apiKey: API 密钥
+      baseUrl: 基础 URL
+      accountId: 账户 ID
+      apiToken: API 令牌
+      model: 模型
 vrm:
   change-model:
     from-file: 从文件加载
@@ -658,3 +836,83 @@ vrm:
   skybox:
     skybox-intensity: 天空盒光照强度
     skybox-specular-mix: 漫反射/镜面反射混合系数
+memory:
+  short_term:
+    title: 短期记忆
+    description: 短期记忆存储最近的对话上下文，帮助 AIRI 维持连贯的对话
+    saved: 配置已应用
+    provider: 短期记忆提供商
+    providers:
+      localRedis: 本地 Redis
+      upstash: Upstash Redis（无服务器）
+      vercelKv: Vercel KV
+    enable: 启用短期记忆
+    enableDescription: 为当前浏览器会话持久化最近的对话上下文
+    namespace: 命名空间键前缀
+    retention: 短期记忆保留的消息数量
+    retentionHint: 更高的值保留更多消息，但可能会拖慢提示速度
+    ttl: TTL（秒）
+    ttlHint: 消息在此时长后从短期存储中过期
+    upstashTitle: Upstash Redis 配置
+    redisTitle: Redis 连接
+    redisHost: 主机地址
+    redisPort: 端口
+    redisPassword: 密码
+    redisPasswordPlaceholder: 可选密码
+    session: 会话控制
+    sessionHint: 短期记忆按会话隔离
+    newSession: 开始新会话
+    clear: 清除会话记忆
+    history: 最近消息
+    historyHint: 预览馈送给 LLM 的缓存上下文
+    disabledMessage: 启用短期记忆以在本地保留聊天历史
+    empty: 尚未缓存任何消息
+  long_term:
+    title: 长期记忆
+    description: 长期记忆使用向量数据库存储重要记忆，支持语义搜索和跨设备同步
+    saved: 配置已应用
+    enable: 启用长期记忆
+    enableDescription: 使用配置的数据库和嵌入模型存储记忆
+    provider: 长期记忆提供商
+    providers:
+      postgres: Postgres + pgvector
+      qdrant: Qdrant
+    connectionTitle: 数据库连接
+    connectionString: 连接字符串
+    connectionHint: 可选：如果您更喜欢键值配置，可以覆盖下面的各个字段
+    host: 主机地址
+    port: 端口
+    database: 数据库
+    user: 用户名
+    password: 密码
+    ssl: 需要 SSL/TLS
+    qdrantTitle: Qdrant 配置
+    qdrantUrl: 端点 URL
+    qdrantApiKey: API 密钥
+    qdrantApiKeyPlaceholder: 公共实例可选
+    qdrantCollection: 集合名称
+    qdrantVectorSize: 向量大小
+    embeddingTitle: 嵌入提供商
+    embeddingProvider: 提供商
+    embeddingProviders:
+      openai: OpenAI
+      openaiCompatible: OpenAI 兼容
+      cloudflare: Cloudflare AI
+    apiKey: API 密钥
+    baseUrl: 基础 URL
+    accountId: 账户 ID
+    model: 嵌入模型名称
+    modelHint: 输入嵌入模型的确切标识符。留空则使用默认值
+    promoteAssistant: 自动持久化助手消息
+    promoteUser: 自动持久化用户消息
+    userId: 用于记忆索引的用户标识符
+    userIdPlaceholder: 例如 airi@home
+    userIdHint: 使用一致的标识符在设备间同步记忆
+    searchTitle: 搜索记忆
+    searchHint: 使用语义搜索查找相关记忆
+    searchPlaceholder: AIRI 应该记住什么...
+    export: 导出 JSON
+    disabledMessage: 启用长期记忆以访问搜索 API
+    exportPreview: 导出预览
+    searching: 正在搜索记忆...
+    empty: 尚无匹配的记忆

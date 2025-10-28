@@ -29,7 +29,7 @@ const {
 const providersStore = useProvidersStore()
 const { configuredTranscriptionProvidersMetadata } = storeToRefs(providersStore)
 
-const { stopStream, startStream } = useSettingsAudioDevice()
+const { stopStream, startStream, askPermission } = useSettingsAudioDevice()
 const { audioInputs, selectedAudioInput, stream } = storeToRefs(useSettingsAudioDevice())
 const { startRecord, stopRecord, onStopRecord } = useAudioRecorder(stream)
 const { startAnalyzer, stopAnalyzer, onAnalyzerUpdate, volumeLevel } = useAudioAnalyzer()
@@ -40,6 +40,7 @@ const animationFrame = ref<number>()
 
 const error = ref<string>('')
 const isMonitoring = ref(false)
+const isRefreshingDevices = ref(false)
 
 const transcriptions = ref<string[]>([])
 const audios = ref<Blob[]>([])
@@ -51,6 +52,47 @@ const audioURLs = computed(() => {
     return url
   })
 })
+
+// Device checking and permission handling
+const _deviceDebugInfo = computed(() => {
+  console.info('Audio devices:', audioInputs.value)
+  console.info('Selected device:', selectedAudioInput.value)
+  console.info('Device count:', audioInputs.value.length)
+  return {
+    deviceCount: audioInputs.value.length,
+    selectedDevice: selectedAudioInput.value,
+    hasPermissions: navigator.permissions ? 'checking' : 'not supported',
+    httpsSecure: location.protocol === 'https:' || location.hostname === 'localhost',
+  }
+})
+
+async function requestAudioPermissionAndRefreshDevices() {
+  try {
+    isRefreshingDevices.value = true
+    error.value = ''
+
+    console.info('Requesting audio permissions...')
+    await askPermission()
+
+    // Give some time for device enumeration after permission
+    await new Promise(resolve => setTimeout(resolve, 1000))
+
+    if (audioInputs.value.length === 0) {
+      error.value = 'No audio devices found. Please check your microphone connection and browser permissions.'
+    }
+    else {
+      console.info(`Found ${audioInputs.value.length} audio device(s):`, audioInputs.value)
+    }
+  }
+  catch (err) {
+    const errorMessage = err instanceof Error ? err.message : String(err)
+    error.value = `Failed to get audio permissions: ${errorMessage}`
+    console.error('Audio permission error:', err)
+  }
+  finally {
+    isRefreshingDevices.value = false
+  }
+}
 
 const useVADThreshold = ref(0.6) // 0.1 - 0.9
 const useVADModel = ref(true) // Toggle between VAD and volume-based detection
@@ -185,6 +227,12 @@ onStopRecord(async (recording) => {
 watch(selectedAudioInput, async () => isMonitoring.value && await setupAudioMonitoring())
 
 onMounted(async () => {
+  // Check for audio devices on mount
+  if (audioInputs.value.length === 0) {
+    console.warn('No audio devices found on mount, attempting to request permissions')
+    await requestAudioPermissionAndRefreshDevices()
+  }
+
   await hearingStore.loadModelsForProvider(activeTranscriptionProvider.value)
 })
 
@@ -213,6 +261,30 @@ onUnmounted(() => {
             placeholder="Select an audio input device"
             layout="vertical"
           />
+
+          <!-- Device status and refresh button -->
+          <div class="mt-2 flex items-center gap-2">
+            <div class="flex items-center gap-2 text-sm">
+              <div v-if="audioInputs.length === 0" class="text-red-500">
+                <div i-solar:warning-circle-line-duotone class="mr-1 inline-block" />
+                No audio devices found
+              </div>
+              <div v-else class="text-green-500">
+                <div i-solar:check-circle-bold-duotone class="mr-1 inline-block" />
+                {{ audioInputs.length }} device(s) found
+              </div>
+            </div>
+
+            <button
+              :disabled="isRefreshingDevices"
+              class="ml-auto text-sm text-blue-500 disabled:text-gray-400 hover:text-blue-600"
+              @click="requestAudioPermissionAndRefreshDevices"
+            >
+              <div v-if="isRefreshingDevices" class="i-solar:spinner-line-duotone mr-1 inline-block animate-spin" />
+              <div v-else class="i-solar:refresh-circle-line-duotone mr-1 inline-block" />
+              {{ isRefreshingDevices ? 'Refreshing...' : 'Refresh Devices' }}
+            </button>
+          </div>
         </div>
 
         <div flex="~ col gap-4">

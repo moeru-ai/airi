@@ -38,8 +38,7 @@
   },
   "dependencies": {
     "@proj-airi/server-shared": "workspace:^",
-    "crossws": "^0.4.1",
-    "defu": "^6.1.4"
+    "crossws": "^0.4.1"
   },
   "devDependencies": {
     "@moeru/std": "catalog:"

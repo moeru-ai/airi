@@ -146,6 +146,105 @@ pnpm dev:tamagotchi
 pnpm -F @proj-airi/docs dev
 ```
 
+## 部署到 Vercel
+
+你可以通过设置环境变量，将 AIRI 部署到 Vercel 并预配置 LLM 提供商。这样用户无需配置自己的 API 密钥即可使用你的部署实例。
+
+### 环境变量
+
+在你的 Vercel 项目设置中添加这些环境变量：
+
+#### LLM 提供商凭证
+
+| 变量 | 描述 | 示例 |
+|------|------|------|
+| `OPENAI_API_KEY` | OpenAI API 密钥 | `sk-...` |
+| `OPENAI_BASE_URL` | OpenAI 基础 URL | `https://api.openai.com/v1/` |
+| `OPENAI_COMPATIBLE_API_KEY` | OpenAI 兼容 API 密钥 | `sk-...` |
+| `OPENAI_COMPATIBLE_BASE_URL` | OpenAI 兼容基础 URL | `https://your-api.com/v1/` |
+| `OPENROUTER_API_KEY` | OpenRouter API 密钥 | `sk-...` |
+| `ANTHROPIC_API_KEY` | Anthropic Claude API 密钥 | `sk-ant-...` |
+| `GOOGLE_GENERATIVE_AI_API_KEY` | Google Gemini API 密钥 | `AI...` |
+| `DEEPSEEK_API_KEY` | DeepSeek API 密钥 | `sk-...` |
+| `AI302_API_KEY` | 302.AI API 密钥 | `sk-...` |
+| `TOGETHER_API_KEY` | Together.ai API 密钥 | `...` |
+| `XAI_API_KEY` | xAI API 密钥 | `...` |
+| `NOVITA_API_KEY` | Novita API 密钥 | `...` |
+| `FIREWORKS_API_KEY` | Fireworks.ai API 密钥 | `...` |
+| `PERPLEXITY_API_KEY` | Perplexity API 密钥 | `...` |
+| `MISTRAL_API_KEY` | Mistral AI API 密钥 | `...` |
+| `MOONSHOT_API_KEY` | Moonshot AI API 密钥 | `...` |
+| `MODELSCOPE_API_KEY` | ModelScope API 密钥 | `...` |
+
+#### 默认提供商选择
+
+| 变量 | 描述 | 示例 |
+|------|------|------|
+| `DEFAULT_CHAT_PROVIDER` | 默认聊天提供商 ID | `openai` |
+| `DEFAULT_SPEECH_PROVIDER` | 默认 TTS 提供商 ID | `openai-audio-speech` |
+| `DEFAULT_TRANSCRIPTION_PROVIDER` | 默认 STT 提供商 ID | `openai-audio-transcription` |
+
+#### 默认模型选择（聊天）
+
+| 变量 | 描述 | 示例 |
+|------|------|------|
+| `OPENAI_MODEL` | OpenAI 默认聊天模型 | `gpt-4o-mini` |
+| `OPENAI_COMPATIBLE_MODEL` | OpenAI 兼容默认聊天模型 | `gpt-4o-mini` |
+| `OPENROUTER_MODEL` | OpenRouter 默认聊天模型 | `meta-llama/llama-3.1-405b-instruct` |
+| `ANTHROPIC_MODEL` | Anthropic 默认聊天模型 | `claude-3-opus-20240229` |
+| `GOOGLE_GENERATIVE_AI_MODEL` | Google Gemini 默认聊天模型 | `gemini-1.5-pro-latest` |
+| `DEEPSEEK_MODEL` | DeepSeek 默认聊天模型 | `deepseek-chat` |
+| `AI302_MODEL` | 302.AI 默认聊天模型 | `gpt-4o-mini` |
+| `TOGETHER_MODEL` | Together.ai 默认聊天模型 | `meta-llama/Llama-3-70b-chat-hf` |
+| `XAI_MODEL` | xAI 默认聊天模型 | `grok-beta` |
+| `NOVITA_MODEL` | Novita 默认聊天模型 | `gpt-4o-mini` |
+| `FIREWORKS_MODEL` | Fireworks.ai 默认聊天模型 | `accounts/fireworks/models/llama-v3p1-405b-instruct` |
+| `FEATHERLESS_MODEL` | Featherless 默认聊天模型 | `mistral-small-latest` |
+| `PERPLEXITY_MODEL` | Perplexity 默认聊天模型 | `llama-3.1-sonar-small-128k-online` |
+| `MISTRAL_MODEL` | Mistral 默认聊天模型 | `mistral-large-latest` |
+| `MOONSHOT_MODEL` | Moonshot 默认聊天模型 | `moonshot-v1-32k` |
+| `MODELSCOPE_MODEL` | ModelScope 默认聊天模型 | `qwen2-72b-instruct` |
+| `CLOUDFLARE_WORKERS_AI_MODEL` | Cloudflare Workers AI 默认聊天模型 | `@cf/meta/llama-3-8b-instruct` |
+| `OLLAMA_MODEL` | Ollama 默认聊天模型 | `llama3.1` |
+| `LM_STUDIO_MODEL` | LM Studio 默认聊天模型 | `llama3.1-8b` |
+| `PLAYER2_MODEL` | Player2 默认聊天模型 | `player2-model` |
+| `VLLM_MODEL` | vLLM 代理默认聊天模型 | `llama-2-13b` |
+
+#### 默认模型选择（语音 & 向量）
+
+| 变量 | 描述 | 示例 |
+|------|------|------|
+| `OPENAI_SPEECH_MODEL` | OpenAI 默认语音模型 | `tts-1` |
+| `OPENAI_COMPATIBLE_SPEECH_MODEL` | OpenAI 兼容默认语音模型 | `tts-1-hd` |
+| `PLAYER2_SPEECH_MODEL` | Player2 默认语音模型 | `player2-voice` |
+| `OLLAMA_EMBEDDING_MODEL` | Ollama 默认向量模型 | `nomic-embed-text` |
+
+#### 默认模型选择（语音识别）
+
+| 变量 | 描述 | 示例 |
+|------|------|------|
+| `OPENAI_TRANSCRIPTION_MODEL` | OpenAI 默认语音识别模型 | `gpt-4o-mini-transcribe` |
+| `OPENAI_COMPATIBLE_TRANSCRIPTION_MODEL` | OpenAI 兼容默认语音识别模型 | `whisper-1` |
+
+### 可用的提供商 ID
+
+- **聊天**: `openai`, `openai-compatible`, `anthropic`, `google-generative-ai`, `deepseek`, `302-ai`, `together-ai`, `xai`, `novita-ai`, `fireworks-ai`, `perplexity-ai`, `mistral-ai`, `moonshot-ai`, `modelscope`, `openrouter-ai`
+- **语音合成 (TTS)**: `openai-audio-speech`, `openai-compatible-audio-speech`, `elevenlabs`, `microsoft-speech`
+- **语音识别 (STT)**: `openai-audio-transcription`, `openai-compatible-audio-transcription`
+
+### 配置示例
+
+```env
+OPENAI_API_KEY=sk-proj-xxxxx
+OPENAI_BASE_URL=https://api.openai.com/v1/
+OPENAI_MODEL=gpt-4o-mini
+DEFAULT_CHAT_PROVIDER=openai
+DEFAULT_SPEECH_PROVIDER=openai-audio-speech
+DEFAULT_TRANSCRIPTION_PROVIDER=openai-audio-transcription
+```
+
+设置这些变量后，用户访问你的部署时将自动预配置并选择提供商。
+
 ## 原生支持的 LLM API 服务来源列表（由 [xsai](https://github.com/moeru-ai/xsai) 驱动）
 
 - [x] [302.AI](https://share.302.ai/514k2v)

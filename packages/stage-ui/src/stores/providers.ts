@@ -61,11 +61,157 @@ import { useI18n } from 'vue-i18n'
 import { models as elevenLabsModels } from './providers/elevenlabs/list-models'
 import { buildOpenAICompatibleProvider } from './providers/openai-compatible-builder'
 
+const providerEnvSource = import.meta.env as Record<string, string | boolean | undefined>
+
+const providerEnvPrefixes: Record<string, string> = {
+  'openai': 'OPENAI',
+  'openai-vision': 'OPENAI',
+  'openai-compatible': 'OPENAI_COMPATIBLE',
+  'openai-audio-speech': 'OPENAI',
+  'openai-compatible-audio-speech': 'OPENAI_COMPATIBLE',
+  'openai-audio-transcription': 'OPENAI',
+  'openai-compatible-audio-transcription': 'OPENAI_COMPATIBLE',
+  'openrouter-ai': 'OPENROUTER',
+  'anthropic': 'ANTHROPIC',
+  'google-generative-ai': 'GOOGLE_GENERATIVE_AI',
+  'deepseek': 'DEEPSEEK',
+  '302-ai': 'AI302',
+  'together-ai': 'TOGETHER',
+  'xai': 'XAI',
+  'novita-ai': 'NOVITA',
+  'fireworks-ai': 'FIREWORKS',
+  'featherless-ai': 'FEATHERLESS',
+  'perplexity-ai': 'PERPLEXITY',
+  'mistral-ai': 'MISTRAL',
+  'moonshot-ai': 'MOONSHOT',
+  'modelscope': 'MODELSCOPE',
+  'cloudflare-workers-ai': 'CLOUDFLARE_WORKERS_AI',
+  'ollama': 'OLLAMA',
+  'lm-studio': 'LM_STUDIO',
+  'player2': 'PLAYER2',
+  'player2-speech': 'PLAYER2',
+  'vllm': 'VLLM',
+  'elevenlabs': 'ELEVENLABS',
+  'alibaba-cloud-model-studio': 'ALIBABA_CLOUD',
+  'volcengine': 'VOLCENGINE',
+  'microsoft-speech': 'MICROSOFT_SPEECH',
+  'index-tts-vllm': 'INDEX_TTS',
+}
+
+const providerEnvModelKeys: Record<string, string> = {
+  'openai': 'OPENAI_MODEL',
+  'openai-vision': 'OPENAI_VISION_MODEL',
+  'openai-compatible': 'OPENAI_COMPATIBLE_MODEL',
+  'openai-audio-speech': 'OPENAI_SPEECH_MODEL',
+  'openai-compatible-audio-speech': 'OPENAI_COMPATIBLE_SPEECH_MODEL',
+  'openai-audio-transcription': 'OPENAI_TRANSCRIPTION_MODEL',
+  'openai-compatible-audio-transcription': 'OPENAI_COMPATIBLE_TRANSCRIPTION_MODEL',
+  'openrouter-ai': 'OPENROUTER_MODEL',
+  'anthropic': 'ANTHROPIC_MODEL',
+  'google-generative-ai': 'GOOGLE_GENERATIVE_AI_MODEL',
+  'deepseek': 'DEEPSEEK_MODEL',
+  '302-ai': 'AI302_MODEL',
+  'together-ai': 'TOGETHER_MODEL',
+  'xai': 'XAI_MODEL',
+  'novita-ai': 'NOVITA_MODEL',
+  'fireworks-ai': 'FIREWORKS_MODEL',
+  'featherless-ai': 'FEATHERLESS_MODEL',
+  'perplexity-ai': 'PERPLEXITY_MODEL',
+  'mistral-ai': 'MISTRAL_MODEL',
+  'moonshot-ai': 'MOONSHOT_MODEL',
+  'modelscope': 'MODELSCOPE_MODEL',
+  'cloudflare-workers-ai': 'CLOUDFLARE_WORKERS_AI_MODEL',
+  'ollama': 'OLLAMA_MODEL',
+  'ollama-embedding': 'OLLAMA_EMBEDDING_MODEL',
+  'lm-studio': 'LM_STUDIO_MODEL',
+  'player2': 'PLAYER2_MODEL',
+  'player2-speech': 'PLAYER2_SPEECH_MODEL',
+  'vllm': 'VLLM_MODEL',
+  'elevenlabs': 'ELEVENLABS_MODEL',
+  'alibaba-cloud-model-studio': 'ALIBABA_CLOUD_MODEL',
+  'volcengine': 'VOLCENGINE_MODEL',
+  'microsoft-speech': 'MICROSOFT_SPEECH_MODEL',
+  'index-tts-vllm': 'INDEX_TTS_MODEL',
+}
+
+function ensureTrailingSlash(url: string) {
+  return url.endsWith('/') ? url : `${url}/`
+}
+
+function readProviderEnvCredentials(prefix: string) {
+  const apiKeyKey = `${prefix}_API_KEY`
+  const baseUrlKey = `${prefix}_BASE_URL`
+  const accountIdKey = `CLOUDFLARE_ACCOUNT_ID` // Shared across Cloudflare services
+  const appIdKey = `${prefix}_APP_ID`
+  const regionKey = `${prefix}_REGION`
+  const endpointKey = `${prefix}_ENDPOINT`
+
+  const apiKey = typeof providerEnvSource[apiKeyKey] === 'string'
+    ? (providerEnvSource[apiKeyKey] as string).trim()
+    : ''
+  const baseUrl = typeof providerEnvSource[baseUrlKey] === 'string'
+    ? ensureTrailingSlash((providerEnvSource[baseUrlKey] as string).trim())
+    : ''
+  const accountId = typeof providerEnvSource[accountIdKey] === 'string'
+    ? (providerEnvSource[accountIdKey] as string).trim()
+    : ''
+  const appId = typeof providerEnvSource[appIdKey] === 'string'
+    ? (providerEnvSource[appIdKey] as string).trim()
+    : ''
+  const region = typeof providerEnvSource[regionKey] === 'string'
+    ? (providerEnvSource[regionKey] as string).trim()
+    : ''
+  const endpoint = typeof providerEnvSource[endpointKey] === 'string'
+    ? (providerEnvSource[endpointKey] as string).trim()
+    : ''
+
+  const credentials: Record<string, any> = {}
+
+  if (apiKey)
+    credentials.apiKey = apiKey
+  if (baseUrl)
+    credentials.baseUrl = baseUrl
+  // Only add accountId for Cloudflare providers
+  if (accountId && prefix === 'CLOUDFLARE_WORKERS_AI')
+    credentials.accountId = accountId
+  // Add appId for Volcengine
+  if (appId && prefix === 'VOLCENGINE') {
+    credentials.app = { appId }
+  }
+  // Add region for Microsoft Speech
+  if (region && prefix === 'MICROSOFT_SPEECH')
+    credentials.region = region
+  // Add endpoint for Microsoft Speech (alternative to baseUrl)
+  if (endpoint && prefix === 'MICROSOFT_SPEECH')
+    credentials.endpoint = endpoint
+
+  return Object.keys(credentials).length > 0 ? credentials : null
+}
+
+const providerEnvOverrides: Record<string, Record<string, unknown>> = {}
+const providerEnvModelOverrides: Record<string, string> = {}
+
+for (const [providerId, prefix] of Object.entries(providerEnvPrefixes)) {
+  const credentials = readProviderEnvCredentials(prefix)
+  if (credentials)
+    providerEnvOverrides[providerId] = credentials
+}
+
+for (const [providerId, envKey] of Object.entries(providerEnvModelKeys)) {
+  const value = providerEnvSource[envKey]
+  if (typeof value === 'string') {
+    const trimmedValue = value.trim()
+    if (trimmedValue)
+      providerEnvModelOverrides[providerId] = trimmedValue
+  }
+}
+
 export interface ProviderMetadata {
   id: string
   order?: number
   category: 'chat' | 'embed' | 'speech' | 'transcription'
   tasks: string[]
+  supportsVision?: boolean // 指示提供商是否支持视觉分析
   nameKey: string // i18n key for provider name
   name: string // Default name (fallback)
   localizedName?: string
@@ -634,6 +780,7 @@ export const useProvidersStore = defineStore('providers', () => {
       icon: 'i-lobe-icons:openai',
       description: 'openai.com',
       defaultBaseUrl: 'https://api.openai.com/v1/',
+      supportsVision: true,
       creator: createOpenAI,
       validation: ['health', 'model_list'],
     }),
@@ -644,6 +791,7 @@ export const useProvidersStore = defineStore('providers', () => {
       descriptionKey: 'settings.pages.providers.provider.openai-compatible.description',
       icon: 'i-lobe-icons:openai',
       description: 'Connect to any API that follows the OpenAI specification.',
+      supportsVision: true, // Many OpenAI-compatible providers support vision
       creator: createOpenAI,
       validation: ['health'],
     }),
@@ -847,6 +995,7 @@ export const useProvidersStore = defineStore('providers', () => {
       icon: 'i-lobe-icons:anthropic',
       description: 'anthropic.com',
       defaultBaseUrl: 'https://api.anthropic.com/v1/',
+      supportsVision: true, // Claude models support vision
       creator: createAnthropic,
       validation: ['health', 'model_list'],
       additionalHeaders: {
@@ -861,6 +1010,7 @@ export const useProvidersStore = defineStore('providers', () => {
       icon: 'i-lobe-icons:gemini',
       description: 'ai.google.dev',
       defaultBaseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai/',
+      supportsVision: true, // Gemini models support vision
       creator: createGoogleGenerativeAI,
       validation: ['health', 'model_list'],
     }),
@@ -1758,7 +1908,53 @@ export const useProvidersStore = defineStore('providers', () => {
     // Always cache the current config string to prevent re-validating the same config
     validatedCredentials.value[providerId] = configString
 
-    const validationResult = await metadata.validators.validateProviderConfig(config)
+    const envCredentials = providerEnvOverrides[providerId]
+    const envModel = providerEnvModelOverrides[providerId]
+
+    const hasEnvCredentials = envCredentials != null
+    const hasEnvModel = typeof envModel === 'string' && envModel.length > 0
+
+    const matchesEnvCredentials = hasEnvCredentials
+      ? Object.entries(envCredentials!).every(([key, value]) => {
+          const configValue = config[key]
+          if (typeof configValue === 'string') {
+            return typeof value === 'string' && configValue.trim() === value
+          }
+          if (typeof value === 'object' && value !== null && typeof configValue === 'object' && configValue !== null) {
+            return JSON.stringify(configValue) === JSON.stringify(value)
+          }
+          return configValue === value
+        })
+      : false
+
+    const requiresModelSelection = metadata.capabilities.listModels != null
+    const hasMatchingEnvModel = hasEnvModel && (
+      (typeof (config as any).model === 'string' && (config as any).model?.trim() === envModel)
+      || !('model' in config)
+    )
+
+    if (matchesEnvCredentials && (!requiresModelSelection || hasMatchingEnvModel)) {
+      configuredProviders.value[providerId] = true
+      return true
+    }
+
+    let validationResult: { valid: boolean }
+
+    try {
+      validationResult = await metadata.validators.validateProviderConfig(config)
+    }
+    catch (error) {
+      console.warn(`Provider validation failed for ${providerId}:`, error)
+      validationResult = { valid: false }
+    }
+
+    if (!validationResult.valid && matchesEnvCredentials) {
+      const canSkipModelCheck = !requiresModelSelection || hasMatchingEnvModel
+      if (canSkipModelCheck) {
+        configuredProviders.value[providerId] = true
+        return true
+      }
+    }
 
     configuredProviders.value[providerId] = validationResult.valid
 
@@ -1769,13 +1965,53 @@ export const useProvidersStore = defineStore('providers', () => {
 
   // Initialize provider configurations
   function initializeProvider(providerId: string) {
-    if (!providerCredentials.value[providerId]) {
-      const metadata = providerMetadata[providerId]
-      const defaultOptions = metadata.defaultOptions?.() || {}
-      providerCredentials.value[providerId] = {
-        baseUrl: defaultOptions.baseUrl || '',
+    const metadata = providerMetadata[providerId]
+    const defaultOptions = metadata.defaultOptions?.() || {}
+    const existingCredentials = providerCredentials.value[providerId] || {}
+
+    const mergedCredentials: Record<string, unknown> = {
+      ...defaultOptions,
+      ...existingCredentials,
+    }
+
+    const envCredentials = providerEnvOverrides[providerId]
+    if (envCredentials) {
+      for (const [key, value] of Object.entries(envCredentials)) {
+        const existingValue = existingCredentials[key]
+        const defaultValue = defaultOptions[key]
+
+        // Helper function to check if value is effectively empty
+        const isEffectivelyEmpty = (val: any): boolean => {
+          if (val == null)
+            return true
+          if (typeof val === 'string')
+            return val.trim().length === 0
+          if (typeof val === 'object' && !Array.isArray(val)) {
+            return Object.keys(val).length === 0 || Object.values(val).every(v => isEffectivelyEmpty(v))
+          }
+          return false
+        }
+
+        if (
+          existingValue != null
+          && !isEffectivelyEmpty(existingValue)
+          && existingValue !== defaultValue
+        ) {
+          continue
+        }
+
+        mergedCredentials[key] = value
       }
     }
+
+    const envModel = providerEnvModelOverrides[providerId]
+    if (typeof envModel === 'string' && envModel.trim().length > 0) {
+      const currentModel = typeof mergedCredentials.model === 'string' ? mergedCredentials.model.trim() : ''
+      if (!currentModel)
+        mergedCredentials.model = envModel
+    }
+
+    providerCredentials.value[providerId] = mergedCredentials
   }
 
   // Initialize all providers
@@ -1962,6 +2198,10 @@ export const useProvidersStore = defineStore('providers', () => {
     return availableProvidersMetadata.value.filter(metadata => metadata.category === 'transcription')
   })
 
+  const allVisionProvidersMetadata = computed(() => {
+    return availableProvidersMetadata.value.filter(metadata => metadata.category === 'chat' && metadata.supportsVision)
+  })
+
   const configuredChatProvidersMetadata = computed(() => {
     return allChatProvidersMetadata.value.filter(metadata => configuredProviders.value[metadata.id])
   })
@@ -1974,6 +2214,10 @@ export const useProvidersStore = defineStore('providers', () => {
     return allAudioTranscriptionProvidersMetadata.value.filter(metadata => configuredProviders.value[metadata.id])
   })
 
+  const configuredVisionProvidersMetadata = computed(() => {
+    return allVisionProvidersMetadata.value.filter(metadata => configuredProviders.value[metadata.id])
+  })
+
   function getProviderConfig(providerId: string) {
     return providerCredentials.value[providerId]
   }
@@ -1981,6 +2225,10 @@ export const useProvidersStore = defineStore('providers', () => {
   return {
     providers: providerCredentials,
     getProviderConfig,
+    getEnvModelForProvider: (providerId: string) => providerEnvModelOverrides[providerId],
+    envModelOverrides: providerEnvModelOverrides,
+    envCredentialOverrides: providerEnvOverrides,
+    refreshConfiguredProviders: updateConfigurationStatus,
     availableProviders,
     configuredProviders,
     providerMetadata,
@@ -2003,5 +2251,7 @@ export const useProvidersStore = defineStore('providers', () => {
     configuredChatProvidersMetadata,
     configuredSpeechProvidersMetadata,
     configuredTranscriptionProvidersMetadata,
+    allVisionProvidersMetadata,
+    configuredVisionProvidersMetadata,
   }
 })
