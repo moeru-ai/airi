@@ -44,20 +44,39 @@
   &::before {
     content: "";
     position: absolute;
-    left: 0;
-    top: 0;
-    width: 4px;
-    height: 100%;
+    left: 0.75rem;
+    top: 50%;
+    width: 0.25rem;
+    height: calc(100% - 2rem);
+    transform: translateY(-50%);
     border-radius: 999px;
   }
 
   & .custom-block-title {
-    margin: 0 0 8px 0;
+    margin: 0 0 0.5rem 0.5rem;
   }
 
   & > p {
-    margin: 0;
+    margin-top: 0;
+    margin-bottom: 0;
+    margin-left: 0.5rem;
     display: block;
+  }
+
+  & > div {
+    margin-top: 0;
+    margin-bottom: 0;
+    margin-left: 0.5rem;
+  }
+
+  pre.shiki.shiki-themes.catppuccin-latte.catppuccin-mocha {
+    background-color: #ffffffbd;
+  }
+}
+
+.dark .custom-block {
+  pre.shiki.shiki-themes.catppuccin-latte.catppuccin-mocha {
+    background-color: #00000040;
   }
 }
 
@@ -123,4 +142,12 @@
   & > p:nth-child(2) {
     @apply dark:text-neutral-50;
   }
+}
+
+pre.shiki.shiki-themes.catppuccin-latte.catppuccin-mocha {
+  background-color: #f6f9ff;
+}
+
+.dark pre.shiki.shiki-themes.catppuccin-latte.catppuccin-mocha {
+  background-color: #1e1e2e;
 }

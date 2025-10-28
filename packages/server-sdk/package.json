@@ -16,16 +16,16 @@
   },
   "exports": {
     ".": {
-      "types": "./dist/index.d.mts",
-      "default": "./dist/index.mjs"
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
     },
     "./utils/node": {
-      "types": "./dist/utils/node/index.d.mts",
-      "default": "./dist/utils/node/index.mjs"
+      "types": "./dist/utils/node/index.d.ts",
+      "default": "./dist/utils/node/index.js"
     }
   },
-  "main": "./dist/index.mjs",
-  "types": "./dist/index.d.mts",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "files": [
     "README.md",
     "dist",

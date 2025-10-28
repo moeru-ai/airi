@@ -17,9 +17,11 @@ import type {
   VoiceProviderWithExtraOptions,
 } from 'unspeech'
 
+import { isStageTamagotchi, isUrl } from '@proj-airi/stage-shared'
 import { computedAsync, useLocalStorage } from '@vueuse/core'
 import {
   createAzure,
+  createCerebras,
   createDeepSeek,
   createFireworks,
   createGoogleGenerativeAI,
@@ -39,6 +41,8 @@ import {
   createEmbedProvider,
   createMetadataProvider,
   createModelProvider,
+  createSpeechProvider,
+  createTranscriptionProvider,
   merge,
 } from '@xsai-ext/shared-providers'
 import { listModels } from '@xsai/model'
@@ -54,7 +58,6 @@ import {
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import { isUrl } from '../utils/url'
 import { models as elevenLabsModels } from './providers/elevenlabs/list-models'
 import { buildOpenAICompatibleProvider } from './providers/openai-compatible-builder'
 
@@ -358,19 +361,8 @@ export const useProvidersStore = defineStore('providers', () => {
     return null
   })
 
-  async function isTamagotchi() {
-    if ('window' in globalThis && globalThis.window != null) {
-      if (('__TAURI_INTERNALS__' in globalThis.window && globalThis.window.__TAURI_INTERNALS__ != null) || location.host === 'tauri.localhost') {
-        return true
-      }
-    }
-    return false
-  }
-
   async function isBrowserAndMemoryEnough() {
-    const isInApp = await isTamagotchi()
-
-    if (isInApp)
+    if (isStageTamagotchi())
       return false
 
     const webGPUAvailable = await isWebGPUSupported()
@@ -457,7 +449,7 @@ export const useProvidersStore = defineStore('providers', () => {
       description: 'https://github.com/huggingface/candle',
       category: 'speech',
       tasks: ['text-to-speech', 'tts'],
-      isAvailableBy: isTamagotchi,
+      isAvailableBy: isStageTamagotchi,
       creator: createOpenAI,
       validation: [],
       validators: {
@@ -487,7 +479,7 @@ export const useProvidersStore = defineStore('providers', () => {
       description: 'https://github.com/huggingface/candle',
       category: 'transcription',
       tasks: ['speech-to-text', 'automatic-speech-recognition', 'asr', 'stt'],
-      isAvailableBy: isTamagotchi,
+      isAvailableBy: isStageTamagotchi,
       creator: createOpenAI,
       validation: [],
       validators: {
@@ -1400,6 +1392,50 @@ export const useProvidersStore = defineStore('providers', () => {
         },
       },
     },
+    'comet-api-speech': buildOpenAICompatibleProvider({
+      id: 'comet-api-speech',
+      name: 'CometAPI Speech',
+      nameKey: 'settings.pages.providers.provider.comet-api.title',
+      descriptionKey: 'settings.pages.providers.provider.comet-api.description',
+      icon: 'i-lobe-icons:cometapi',
+      description: 'cometapi.com',
+      category: 'speech',
+      tasks: ['text-to-speech'],
+      defaultBaseUrl: 'https://api.cometapi.com/v1/',
+      creator: (apiKey, baseURL = 'https://api.cometapi.com/v1/') => merge(
+        createModelProvider({ apiKey, baseURL }),
+        createSpeechProvider({ apiKey, baseURL }),
+      ),
+      validation: ['model_list'],
+    }),
+    'comet-api-transcription': buildOpenAICompatibleProvider({
+      id: 'comet-api-transcription',
+      name: 'CometAPI Transcription',
+      nameKey: 'settings.pages.providers.provider.comet-api.title',
+      descriptionKey: 'settings.pages.providers.provider.comet-api.description',
+      icon: 'i-lobe-icons:cometapi',
+      description: 'cometapi.com',
+      category: 'transcription',
+      tasks: ['speech-to-text', 'automatic-speech-recognition', 'asr', 'stt'],
+      defaultBaseUrl: 'https://api.cometapi.com/v1/',
+      creator: (apiKey, baseURL = 'https://api.cometapi.com/v1/') => merge(
+        createModelProvider({ apiKey, baseURL }),
+        createTranscriptionProvider({ apiKey, baseURL }),
+      ),
+      validation: ['model_list'],
+    }),
+    'cerebras-ai': buildOpenAICompatibleProvider({
+      id: 'cerebras-ai',
+      name: 'Cerebras',
+      nameKey: 'settings.pages.providers.provider.cerebras.title',
+      descriptionKey: 'settings.pages.providers.provider.cerebras.description',
+      icon: 'i-lobe-icons:cerebras',
+      description: 'cerebras.ai',
+      defaultBaseUrl: 'https://api.cerebras.ai/v1/',
+      creator: createCerebras,
+      validation: ['health', 'model_list'],
+      iconColor: 'i-lobe-icons:cerebras-color',
+    }),
     'together-ai': buildOpenAICompatibleProvider({
       id: 'together-ai',
       name: 'Together.ai',
@@ -1632,6 +1668,20 @@ export const useProvidersStore = defineStore('providers', () => {
         },
       },
     },
+    'comet-api': buildOpenAICompatibleProvider({
+      id: 'comet-api',
+      name: 'CometAPI',
+      nameKey: 'settings.pages.providers.provider.comet-api.title',
+      descriptionKey: 'settings.pages.providers.provider.comet-api.description',
+      icon: 'i-lobe-icons:cometapi',
+      description: 'cometapi.com',
+      defaultBaseUrl: 'https://api.cometapi.com/v1/',
+      creator: (apiKey, baseURL = 'https://api.cometapi.com/v1/') => merge(
+        createChatProvider({ apiKey, baseURL }),
+        createModelProvider({ apiKey, baseURL }),
+      ),
+      validation: ['model_list'],
+    }),
     'perplexity-ai': buildOpenAICompatibleProvider({
       id: 'perplexity-ai',
       name: 'Perplexity',
@@ -1967,16 +2017,19 @@ export const useProvidersStore = defineStore('providers', () => {
   // Initialize all providers
   Object.keys(providerMetadata).forEach(initializeProvider)
 
-  // Update configuration status for all providers
+  // Update configuration status for all configured providers
   async function updateConfigurationStatus() {
-    await Promise.all(Object.keys(providerMetadata).map(async (providerId) => {
-      try {
-        configuredProviders.value[providerId] = await validateProvider(providerId)
-      }
-      catch {
-        configuredProviders.value[providerId] = false
-      }
-    }))
+    await Promise.all(Object.entries(providerMetadata)
+      // TODO: ignore un-configured provider
+      // .filter(([_, provider]) => provider.configured)
+      .map(async ([providerId]) => {
+        try {
+          configuredProviders.value[providerId] = await validateProvider(providerId)
+        }
+        catch {
+          configuredProviders.value[providerId] = false
+        }
+      }))
   }
 
   // Call initially and watch for changes

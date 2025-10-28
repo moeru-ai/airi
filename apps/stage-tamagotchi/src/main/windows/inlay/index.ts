@@ -1,16 +1,13 @@
-import { dirname, join, resolve } from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { join, resolve } from 'node:path'
 
 import { BrowserWindow, shell } from 'electron'
 import { isMacOS } from 'std-env'
 
 import icon from '../../../../resources/icon.png?asset'
 
-import { baseUrl, load, withHashRoute } from '../../libs/electron/location'
+import { baseUrl, getElectronMainDirname, load, withHashRoute } from '../../libs/electron/location'
 import { currentDisplayBounds, mapForBreakpoints, resolutionBreakpoints, widthFrom } from '../shared/display'
 import { spotlightLikeWindowConfig } from '../shared/window'
-
-const __dirname = dirname(fileURLToPath(import.meta.url))
 
 export async function setupInlayWindow() {
   const window = new BrowserWindow({
@@ -20,7 +17,7 @@ export async function setupInlayWindow() {
     show: false,
     icon,
     webPreferences: {
-      preload: join(dirname(fileURLToPath(import.meta.url)), '../preload/index.mjs'),
+      preload: join(__dirname, '../preload/index.mjs'),
       sandbox: false,
     },
     ...spotlightLikeWindowConfig(),
@@ -63,7 +60,7 @@ export async function setupInlayWindow() {
     return { action: 'deny' }
   })
 
-  await load(window, withHashRoute(baseUrl(resolve(__dirname, '..', '..', 'renderer')), '/inlay'))
+  await load(window, withHashRoute(baseUrl(resolve(getElectronMainDirname(), '..', 'renderer')), '/inlay'))
 
   return window
 }

@@ -105,7 +105,7 @@ const routeHeaderMetadataMap = computed(() => {
   }
 
   for (const metadata of allProvidersMetadata.value) {
-    map[`/settings/providers/${metadata.id}`] = {
+    map[`/settings/providers/${metadata.category}/${metadata.id}`] = {
       subtitle: t('settings.title'),
       title: t(metadata.nameKey),
     }
@@ -142,7 +142,7 @@ onMounted(() => updateThemeColor())
       <HeaderLink />
     </div>
     <!-- Content -->
-    <div class="h-[calc(100%-40px)] px-3 py-0 2xl:max-w-[2160px] sm:h-[calc(100%-56px)] md:py-0 xl:px-4" flex="~ col" mx-auto>
+    <div class="h-[calc(100%-40px)] px-3 py-0 sm:h-[calc(100%-56px)] 2xl:max-w-screen-2xl md:py-0 xl:px-4" flex="~ col" mx-auto>
       <PageHeader
         :title="routeHeaderMetadata?.title"
         :subtitle="routeHeaderMetadata?.subtitle"

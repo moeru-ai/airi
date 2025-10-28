@@ -42,7 +42,7 @@
 > Chúng tôi có cả một tổ chức riêng [@proj-airi](https://github.com/proj-airi) cho các dự án con xuất phát từ AIRI. Hãy xem qua nhé!
 > Bao gồm: RAG, hệ thống bộ nhớ, cơ sở dữ liệu nhúng, icon, tiện ích Live2D, và nhiều hơn nữa.
 
-Bạn đã từng mơ về một thực thể số sống động (cyber-waifu / husbando, thú cưng ảo) hay một bạn đồng hành kỹ thuật số có thể chơi cùng và trò chuyện với bạn chưa?
+Bạn đã từng mơ về một thực thể số sống động (cyber-waifu, thú cưng ảo) hay một bạn đồng hành kỹ thuật số có thể chơi cùng và trò chuyện với bạn chưa?
 
 Với sức mạnh của các mô hình LLM (ngôn ngữ lớn) hiện nay như [ChatGPT](https://chatgpt.com) hay [Claude](https://claude.ai), việc yêu cầu nhân vật ảo nhập vai và trò chuyện với chúng ta đã trở nên rất dễ dàng. Các nền tảng như [Character.ai](https://character.ai), [JanitorAI](https://janitorai.com/) hay bản cài tự host như [SillyTavern](https://github.com/SillyTavern/SillyTavern) đã đủ tốt cho trải nghiệm trò chuyện và nhập vai.
 
@@ -56,10 +56,10 @@ Do đó, dự án AIRI mang đến một lựa chọn khác: **cho phép bạn s
 
 ## DevLogs Đã Đăng & Cập Nhật Gần Đây
 
+- [DevLog @ 2025.08.05](https://airi.moeru.ai/docs/blog/DevLog-2025.08.05/) ngày 5 tháng 8, 2025
+- [DevLog @ 2025.08.01](https://airi.moeru.ai/docs/blog/DevLog-2025.08.01/) ngày 1 tháng 8, 2025
 - [DevLog @ 2025.07.18](https://airi.moeru.ai/docs/blog/DevLog-2025.07.18/) ngày 18 tháng 7, 2025
 - [DreamLog 0x1](https://airi.moeru.ai/docs/blog/dreamlog-0x1/) ngày 16 tháng 6, 2025
-- [DevLog @ 2025.06.08](https://airi.moeru.ai/docs/blog/DevLog-2025.06.08/) ngày 8 tháng 6, 2025
-- [DevLog @ 2025.05.16](https://airi.moeru.ai/docs/blog/DevLog-2025.05.16/) ngày 16 tháng 5, 2025
 - ...xem thêm tại [docs page](https://airi.moeru.ai/docs)
 
 ## Dự Án Này Có Gì Đặc Biệt?
@@ -98,8 +98,6 @@ Khác với các dự án VTuber AI mã nguồn mở khác, **アイリ** đư�
 > **Nếu bạn hứng thú, hãy giới thiệu bản thân ở đây: [Muốn tham gia cùng chúng tôi xây dựng AIRI?](https://github.com/moeru-ai/airi/discussions/33)**
 
 ## Tiến Độ Hiện Tại
-
-<img src="./content/public/readme-image-pc-preview.avif">
 
 Khả năng:
 

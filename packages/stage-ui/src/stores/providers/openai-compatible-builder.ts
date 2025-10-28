@@ -60,10 +60,7 @@ export function buildOpenAICompatibleProvider(
       const models = await listModels({
         apiKey,
         baseURL: baseUrl,
-        headers: {
-          ...additionalHeaders,
-          Authorization: `Bearer ${apiKey}`,
-        },
+        headers: additionalHeaders,
       })
 
       return models.map((model: any) => {
@@ -144,12 +141,21 @@ export function buildOpenAICompatibleProvider(
         const models = await listModels({
           apiKey,
           baseURL: baseUrl,
-          headers: {
-            ...additionalHeaders,
-            Authorization: `Bearer ${apiKey}`,
-          },
+          headers: additionalHeaders,
         })
-        if (models && models.length > 0)
+          .then(models => models.filter(model =>
+            [
+              // exclude embedding models
+              'embed',
+              // exclude tts models, specifically for OpenAI
+              'tts',
+              // bypass gemini pro quota
+              // TODO: more elegant solution
+              'models/gemini-2.5-pro',
+            ].every(str => !model.id.includes(str)),
+          ))
+
+        if (models.length > 0)
           model = models[0].id
       }
       catch (e) {
@@ -162,10 +168,7 @@ export function buildOpenAICompatibleProvider(
           await generateText({
             apiKey,
             baseURL: baseUrl,
-            headers: {
-              ...additionalHeaders,
-              Authorization: `Bearer ${apiKey}`,
-            },
+            headers: additionalHeaders,
             model,
             messages: message.messages(message.user('ping')),
             max_tokens: 1,
@@ -182,10 +185,7 @@ export function buildOpenAICompatibleProvider(
           const models = await listModels({
             apiKey,
             baseURL: baseUrl,
-            headers: {
-              ...additionalHeaders,
-              Authorization: `Bearer ${apiKey}`,
-            },
+            headers: additionalHeaders,
           })
           if (!models || models.length === 0) {
             errors.push(new Error('Model list check failed: no models found'))
@@ -202,10 +202,7 @@ export function buildOpenAICompatibleProvider(
           await generateText({
             apiKey,
             baseURL: baseUrl,
-            headers: {
-              ...additionalHeaders,
-              Authorization: `Bearer ${apiKey}`,
-            },
+            headers: additionalHeaders,
             model,
             messages: message.messages(message.user('ping')),
             max_tokens: 1,

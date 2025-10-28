@@ -1,4 +1,4 @@
-import { useLogg } from '@guiiai/logg'
+import type { Logg as LoggLogger } from '@guiiai/logg'
 
 import { name } from '../package.json'
 
@@ -80,9 +80,7 @@ export function createDefaultLogger(): Logger {
   }
 }
 
-export function createLoggLogger(): Logger {
-  const logg = useLogg(name).useGlobalConfig()
-
+export function createLoggLogger(logg: LoggLogger): Logger {
   return {
     provide: (name: string, dependencies: string[]) => {
       const depsStr = dependencies.length > 0 ? ` (depends on: ${dependencies.join(', ')})` : ''

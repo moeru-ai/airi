@@ -1,20 +1,16 @@
 import { useWindowSize } from '@vueuse/core'
 import { defineStore } from 'pinia'
-import { computed, ref } from 'vue'
+import { computed } from 'vue'
 
-// import { useTauriWindowClickThrough } from '../composables/tauri-window-pass-through-on-hover'
-import { useWindowControlStore } from './window-controls'
+import { useElectronRelativeMouse } from '../composables/electron-vueuse'
 
 export const useWindowStore = defineStore('tamagotchi-window', () => {
-  const windowControlStore = useWindowControlStore()
-
   const { width, height } = useWindowSize()
   const centerPos = computed(() => ({ x: width.value / 2, y: height.value / 2 }))
-  // const { live2dLookAtX, live2dLookAtY, isCursorInside } = useTauriWindowClickThrough(centerPos)
-  const live2dLookAtX = ref(0)
-  const live2dLookAtY = ref(0)
-  const isCursorInside = ref(false)
-  const shouldHideView = computed(() => isCursorInside.value && !windowControlStore.isControlActive && windowControlStore.isIgnoringMouseEvent)
+
+  // Use window-relative mouse coordinates for Live2D focus
+  // Transforms screen coordinates to window-relative coordinates
+  const { x: live2dLookAtX, y: live2dLookAtY } = useElectronRelativeMouse({ initialValue: centerPos.value })
 
   return {
     width,
@@ -22,7 +18,5 @@ export const useWindowStore = defineStore('tamagotchi-window', () => {
     centerPos,
     live2dLookAtX,
     live2dLookAtY,
-    isCursorInside,
-    shouldHideView,
   }
 })

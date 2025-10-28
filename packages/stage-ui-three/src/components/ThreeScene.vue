@@ -12,6 +12,7 @@ import type { DirectionalLight, SphericalHarmonics3, Texture, WebGLRenderTarget 
 
 import type { Vec3 } from '../stores/model-store'
 
+import { withBase } from '@proj-airi/stage-shared'
 import { EffectComposerPmndrs, HueSaturationPmndrs } from '@proj-airi/tresjs/post-processing'
 import { TresCanvas } from '@tresjs/core'
 import { useElementBounding } from '@vueuse/core'
@@ -43,7 +44,7 @@ const props = withDefaults(defineProps<{
   paused?: boolean
 }>(), {
   showAxes: false,
-  idleAnimation: '/assets/vrm/animations/idle_loop.vrma',
+  idleAnimation: withBase('/assets/vrm/animations/idle_loop.vrma'),
   paused: false,
 })
 
@@ -131,8 +132,10 @@ function onOrbitControlsReady() {
 
 //  === VRMModel ===
 const modelLoaded = ref<boolean>(false)
+const controlEnable = ref<boolean>(false)
 function onVRMModelLoadStart() {
   modelLoaded.value = false
+  controlEnable.value = false
 }
 function onVRMModelCameraPosition(value: Vec3) {
   cameraPosition.value.x = value.x
@@ -163,6 +166,7 @@ function onVRMModelLookAtTarget(value: Vec3) {
 function onVRMModelLoaded(value: string) {
   lastModelSrc.value = value
   modelLoaded.value = true
+  controlEnable.value = true
 }
 
 // === sky box ===
@@ -288,6 +292,7 @@ defineExpose({
     >
       <OrbitControls
         ref="controlsRef"
+        :control-enable="controlEnable"
         :model-loaded="modelLoaded"
         :model-size="modelSize"
         :camera-position="cameraPosition"

@@ -7,39 +7,75 @@ import { platform } from 'node:process'
 import { electronApp, optimizer } from '@electron-toolkit/utils'
 import { Format, LogLevel, setGlobalFormat, setGlobalLogLevel, useLogg } from '@guiiai/logg'
 import { createLoggLogger, injecta } from '@proj-airi/injecta'
-import { app, Menu, nativeImage, Tray } from 'electron'
+import { app, ipcMain, Menu, nativeImage, Tray } from 'electron'
 import { noop, once } from 'es-toolkit'
-import { isMacOS } from 'std-env'
+import { isLinux, isMacOS } from 'std-env'
 
 import icon from '../../resources/icon.png?asset'
 import macOSTrayIcon from '../../resources/tray-icon-macos.png?asset'
 
 import { openDebugger, setupDebugger } from './app/debugger'
 import { emitAppBeforeQuit, emitAppReady, emitAppWindowAllClosed, onAppBeforeQuit } from './libs/bootkit/lifecycle'
+import { setElectronMainDirname } from './libs/electron/location'
+import { setupCaptionWindowManager } from './windows/caption'
 import { setupInlayWindow } from './windows/inlay'
 import { setupMainWindow } from './windows/main'
-import { setupSettingsWindow } from './windows/settings'
+import { setupSettingsWindowReusableFunc } from './windows/settings'
 import { toggleWindowShow } from './windows/shared/window'
 
+// TODO: once we refactored eventa to support window-namespaced contexts,
+// we can remove the setMaxListeners call below since eventa will be able to dispatch and
+// manage events within eventa's context system.
+ipcMain.setMaxListeners(100)
+
+setElectronMainDirname(__dirname)
 setGlobalFormat(Format.Pretty)
 setGlobalLogLevel(LogLevel.Log)
 setupDebugger()
 
 const log = useLogg('main').useGlobalConfig()
 
+// Thanks to [@blurymind](https://github.com/blurymind),
+//
+// When running Electron on Linux, navigator.gpu.requestAdapter() fails.
+// In order to enable WebGPU and process the shaders fast enough, we need the following
+// command line switches to be set.
+//
+// https://github.com/electron/electron/issues/41763#issuecomment-2051725363
+// https://github.com/electron/electron/issues/41763#issuecomment-3143338995
+if (isLinux) {
+  app.commandLine.appendSwitch('enable-features', 'SharedArrayBuffer')
+  app.commandLine.appendSwitch('enable-unsafe-webgpu')
+  app.commandLine.appendSwitch('enable-features', 'Vulkan')
+}
+
 app.dock?.setIcon(icon)
 electronApp.setAppUserModelId('ai.moeru.airi')
 
-function setupTray(params: { mainWindow: BrowserWindow }): void {
+function setupTray(params: {
+  mainWindow: BrowserWindow
+  settingsWindow: () => Promise<BrowserWindow>
+  captionWindow: ReturnType<typeof setupCaptionWindowManager>
+}): void {
   once(() => {
     const appTray = new Tray(nativeImage.createFromPath(macOSTrayIcon).resize({ width: 16 }))
     onAppBeforeQuit(() => appTray.destroy())
 
     const contextMenu = Menu.buildFromTemplate([
       { label: 'Show', click: () => toggleWindowShow(params.mainWindow) },
-      { label: 'Inlay', click: () => setupInlayWindow() },
       { type: 'separator' },
-      { label: 'Settings', click: () => setupSettingsWindow() },
+      { label: 'Settings...', click: () => params.settingsWindow().then(window => toggleWindowShow(window)) },
+      { type: 'separator' },
+      { label: 'Open Inlay...', click: () => setupInlayWindow() },
+      { label: 'Open Caption...', click: () => params.captionWindow.getWindow().then(window => toggleWindowShow(window)) },
+      {
+        type: 'submenu',
+        label: 'Caption Overlay',
+        submenu: Menu.buildFromTemplate([
+          { type: 'checkbox', label: 'Follow window', checked: params.captionWindow.getIsFollowingWindow(), click: async menuItem => await params.captionWindow.setFollowWindow(Boolean(menuItem.checked)) },
+          { label: 'Reset position', click: async () => await params.captionWindow.resetToSide() },
+        ]),
+      },
       { type: 'separator' },
       { label: 'Quit', click: () => app.quit() },
     ])
@@ -89,10 +125,28 @@ async function setupProjectAIRIServerRuntime() {
 app.whenReady().then(async () => {
   await setupProjectAIRIServerRuntime()
 
-  injecta.setLogger(createLoggLogger())
-  injecta.provide('mainWindow', async () => await setupMainWindow())
-  injecta.provide<{ mainWindow: BrowserWindow }>('tray', { dependsOn: { mainWindow: 'mainWindow' }, build: async ({ dependsOn }) => setupTray({ mainWindow: dependsOn.mainWindow }) })
-  injecta.invoke({ dependsOn: { mainWindow: 'mainWindow', tray: 'tray' }, callback: noop })
+  injecta.setLogger(createLoggLogger(useLogg('injecta').useGlobalConfig()))
+
+  const settingsWindow = injecta.provide('windows:settings', {
+    build: () => setupSettingsWindowReusableFunc(),
+  })
+  const mainWindow = injecta.provide('windows:main', {
+    dependsOn: { settingsWindow },
+    build: async ({ dependsOn }) => setupMainWindow(dependsOn),
+  })
+  const captionWindow = injecta.provide('windows:caption', {
+    dependsOn: { mainWindow },
+    build: async ({ dependsOn }) => setupCaptionWindowManager({ mainWindow: dependsOn.mainWindow }),
+  })
+  const tray = injecta.provide('app:tray', {
+    dependsOn: { mainWindow, settingsWindow, captionWindow },
+    build: async ({ dependsOn }) => setupTray(dependsOn as any),
+  })
+  injecta.invoke({
+    dependsOn: { mainWindow, tray },
+    callback: noop,
+  })
+
   injecta.start()
 
   // Lifecycle

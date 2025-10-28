@@ -407,14 +407,6 @@ onMounted(async () => {
   updateDropShadowFilter()
 })
 
-function componentCleanUp() {
-  cancelAnimationFrame(dropShadowAnimationId.value)
-  model.value && pixiApp.value?.stage.removeChild(model.value)
-}
-onUnmounted(() => {
-  componentCleanUp()
-})
-
 function listMotionGroups() {
   return availableMotions.value
 }
@@ -424,12 +416,10 @@ defineExpose({
   listMotionGroups,
 })
 
-if (import.meta.hot) {
-  // Ensure cleanup on HMR
-  import.meta.hot.dispose(() => {
-    componentCleanUp()
-  })
-}
+import.meta.hot?.dispose(() => {
+  console.warn('[Dev] Reload on HMR dispose is active for this component. Performing a full reload.')
+  window.location.reload()
+})
 </script>
 
 <template>

@@ -1,6 +1,5 @@
 common:
   save: 儲存
-
 animations:
   stage-transitions:
     title: 是否開啟舞台動畫
@@ -474,12 +473,18 @@ pages:
       xai:
         description: X.AI
         title: xAI
-      transcriptions:
-        playground:
-          title: 實驗平台
       302-ai:
         title: 302.AI
         description: 302.AI
+      comet-api:
+        description: CometAPI.com
+        title: Comet API
+      cerebras:
+        description: cerebras.ai
+        title: Cerebras
+      transcriptions:
+        playground:
+          title: 實驗平台
     title: 服務來源
   scene:
     description: 設定角色所在環境
@@ -507,6 +512,10 @@ pages:
           title: 配色
         developer:
           title: 開發者
+          sections:
+            section:
+              use-magic-keys:
+                description: 測試快捷鍵
         theme-presets:
           presets:
             - colors:

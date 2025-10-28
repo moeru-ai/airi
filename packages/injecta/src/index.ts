@@ -19,6 +19,7 @@ export {
 export {
   createContainer,
   invoke,
+  lifecycle,
   provide,
   start,
   stop,
@@ -30,9 +31,15 @@ export type {
   InvokeOption,
   InvokeOptionFunc,
   InvokeOptionObject,
+  InvokeOptionObjectWithKeys,
+  InvokeOptionWithKeys,
+  ProvidedKey,
   ProvideOption,
   ProvideOptionFunc,
   ProvideOptionObject,
+  ProvideOptionObjectWithKeys,
+  ProvideOptionWithKeys,
+  ResolveDependencyDeclaration,
 } from './scoped'
 
 export const injecta = {

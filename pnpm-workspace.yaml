@@ -10,8 +10,9 @@ packages:
 
 catalog:
   '@guiiai/logg': 1.1.0
-  '@moeru/std': 0.1.0-beta.7
-  '@proj-airi/drizzle-duckdb-wasm': ^0.4.28
+  '@moeru/eslint-config': 0.1.0-beta.12
+  '@moeru/std': 0.1.0-beta.12
+  '@proj-airi/drizzle-duckdb-wasm': ^0.4.29
   '@xsai-ext/providers-cloud': ^0.4.0-beta.4
   '@xsai-ext/providers-local': ^0.4.0-beta.4
   '@xsai-ext/shared-providers': 0.4.0-beta.4

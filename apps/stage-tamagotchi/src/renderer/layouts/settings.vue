@@ -115,7 +115,7 @@ const routeHeaderMetadataMap = computed(() => {
   }
 
   for (const metadata of allProvidersMetadata.value) {
-    map[`/settings/providers/${metadata.id}`] = {
+    map[`/settings/providers/${metadata.category}/${metadata.id}`] = {
       subtitle: t('settings.title'),
       title: t(metadata.nameKey),
     }

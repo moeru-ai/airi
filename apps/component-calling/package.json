@@ -36,7 +36,7 @@
     "@iconify-json/solar": "^1.2.4",
     "@iconify-json/svg-spinners": "^1.2.4",
     "@types/xast": "^2.0.4",
-    "@unocss/reset": "^66.5.2",
+    "@unocss/reset": "^66.5.3",
     "@vitejs/plugin-vue": "^6.0.1",
     "superjson": "^2.2.2",
     "unplugin-vue-router": "^0.15.0",
