@@ -61,6 +61,59 @@ import { useI18n } from 'vue-i18n'
 import { models as elevenLabsModels } from './providers/elevenlabs/list-models'
 import { buildOpenAICompatibleProvider } from './providers/openai-compatible-builder'
 
+// Helper to normalize and redact error messages before showing to users
+function formatErrorForUser(e: unknown) {
+  try {
+    const redact = (s: string) => {
+      s = s.replace(/sk-[A-Za-z0-9._-]{8,}/g, 'sk-(redacted)')
+      s = s.replace(/Bearer\s+[A-Za-z0-9._\-=:]+/g, 'Bearer (redacted)')
+      s = s.replace(/([A-Za-z0-9_\-]{20,})/g, (m) => (m.length > 8 ? m.slice(0, 4) + '...(redacted)' : m))
+      return s
+    }
+
+    if (e instanceof Error) {
+      const msg = e.message || String(e)
+      const trimmed = msg.trim()
+      if (trimmed.startsWith('{')) {
+        try {
+          const parsed = JSON.parse(trimmed)
+          const candidate = parsed?.error || parsed?.errors || parsed
+          if (typeof candidate === 'string') return redact(candidate)
+          if (candidate?.message) return redact(String(candidate.message))
+          if (candidate?.error?.message) return redact(String(candidate.error.message))
+          if (parsed?.message) return redact(String(parsed.message))
+          return redact(JSON.stringify(parsed, Object.keys(parsed).slice(0, 5)))
+        }
+        catch {
+          return redact(msg)
+        }
+      }
+      return redact(msg)
+    }
+
+    if (typeof e === 'string') {
+      const trimmed = e.trim()
+      if (trimmed.startsWith('{')) {
+        try {
+          const parsed = JSON.parse(trimmed)
+          if (parsed?.error?.message) return redact(String(parsed.error.message))
+          if (parsed?.message) return redact(String(parsed.message))
+          return redact(JSON.stringify(parsed, Object.keys(parsed).slice(0, 5)))
+        }
+        catch {
+          return redact(e)
+        }
+      }
+      return redact(e)
+    }
+
+    return redact(String(e))
+  }
+  catch {
+    return String(e)
+  }
+}
+
 export interface ProviderMetadata {
   id: string
   order?: number
@@ -431,7 +484,7 @@ export const useProvidersStore = defineStore('providers', () => {
         listModels: async (config) => {
           return (await listModels({
             ...createOllama((config.baseUrl as string).trim()).model(),
-          })).map((model) => {
+          })).map((model: { id: string }) => {
             return {
               id: model.id,
               name: model.id,
@@ -498,7 +551,7 @@ export const useProvidersStore = defineStore('providers', () => {
         listModels: async (config) => {
           return (await listModels({
             ...createOllama((config.baseUrl as string).trim()).model(),
-          })).map((model) => {
+          })).map((model: { id: string }) => {
             return {
               id: model.id,
               name: model.id,
@@ -928,8 +981,8 @@ export const useProvidersStore = defineStore('providers', () => {
           })
 
           // Find indices of Aria and Bill
-          const ariaIndex = voices.findIndex(voice => voice.name.includes('Aria'))
-          const billIndex = voices.findIndex(voice => voice.name.includes('Bill'))
+          const ariaIndex = voices.findIndex((voice: { name: string }) => voice.name.includes('Aria'))
+          const billIndex = voices.findIndex((voice: { name: string }) => voice.name.includes('Bill'))
 
           // Determine the range to move (ensure valid indices and proper order)
           const startIndex = ariaIndex !== -1 ? ariaIndex : 0
@@ -1008,7 +1061,7 @@ export const useProvidersStore = defineStore('providers', () => {
             ...provider.voice({ region: config.region as string }),
           })
 
-          return voices.map((voice) => {
+          return voices.map((voice: { id: string; name: string; languages: Array<{ code: string; title: string }>; preview_audio_url?: string; labels?: { gender?: string } }) => {
             return {
               id: voice.id,
               name: voice.name,
@@ -1123,7 +1176,7 @@ export const useProvidersStore = defineStore('providers', () => {
             ...provider.voice(),
           })
 
-          return voices.map((voice) => {
+          return voices.map((voice: { id: string; name: string; compatible_models?: string[]; preview_audio_url?: string; languages: Array<{ code: string; title: string }>; labels?: { gender?: string } }) => {
             return {
               id: voice.id,
               name: voice.name,
@@ -1197,7 +1250,7 @@ export const useProvidersStore = defineStore('providers', () => {
             ...provider.voice(),
           })
 
-          return voices.map((voice) => {
+          return voices.map((voice: { id: string; name: string; preview_audio_url?: string; languages: Array<{ code: string; title: string }>; labels?: { gender?: string } }) => {
             return {
               id: voice.id,
               name: voice.name,
@@ -1758,7 +1811,21 @@ export const useProvidersStore = defineStore('providers', () => {
     // Always cache the current config string to prevent re-validating the same config
     validatedCredentials.value[providerId] = configString
 
-    const validationResult = await metadata.validators.validateProviderConfig(config)
+    let validationResult = await metadata.validators.validateProviderConfig(config)
+
+    // Normalize and redact any error messages returned by provider-specific validators
+    const normalizedErrors = (validationResult.errors || []).map((err: unknown) => new Error(formatErrorForUser(err)))
+    const reason = validationResult.reason || normalizedErrors.map(e => e.message).join(', ')
+
+    const apiKey = typeof config.apiKey === 'string' ? config.apiKey.trim() : ''
+    // If baseUrl is valid (no baseUrlValidator error) but apiKey is missing, show concise message
+    const baseCheck = baseUrlValidator.value(config.baseUrl)
+    if (!apiKey && baseCheck === null) {
+      validationResult = { errors: [new Error('API Key is required')], reason: 'API Key is required', valid: false }
+    }
+    else {
+      validationResult = { errors: normalizedErrors, reason, valid: validationResult.valid }
+    }
 
     configuredProviders.value[providerId] = validationResult.valid
 
@@ -1868,7 +1935,7 @@ export const useProvidersStore = defineStore('providers', () => {
     }
   }
   // Watch for credential changes and refetch models accordingly
-  watch(providerCredentials, (newCreds, oldCreds) => {
+  watch(providerCredentials, (newCreds: Record<string, Record<string, unknown>>, oldCreds: Record<string, Record<string, unknown>> | undefined) => {
     // Determine which providers have changed credentials
     const changedProviders = Object.keys(newCreds).filter(providerId =>
       JSON.stringify(newCreds[providerId]) !== JSON.stringify(oldCreds?.[providerId]),
@@ -1951,27 +2018,27 @@ export const useProvidersStore = defineStore('providers', () => {
   }, [])
 
   const allChatProvidersMetadata = computed(() => {
-    return availableProvidersMetadata.value.filter(metadata => metadata.category === 'chat')
+    return availableProvidersMetadata.value.filter((metadata: ProviderMetadata) => metadata.category === 'chat')
   })
 
   const allAudioSpeechProvidersMetadata = computed(() => {
-    return availableProvidersMetadata.value.filter(metadata => metadata.category === 'speech')
+    return availableProvidersMetadata.value.filter((metadata: ProviderMetadata) => metadata.category === 'speech')
   })
 
   const allAudioTranscriptionProvidersMetadata = computed(() => {
-    return availableProvidersMetadata.value.filter(metadata => metadata.category === 'transcription')
+    return availableProvidersMetadata.value.filter((metadata: ProviderMetadata) => metadata.category === 'transcription')
   })
 
   const configuredChatProvidersMetadata = computed(() => {
-    return allChatProvidersMetadata.value.filter(metadata => configuredProviders.value[metadata.id])
+    return allChatProvidersMetadata.value.filter((metadata: ProviderMetadata) => configuredProviders.value[metadata.id])
   })
 
   const configuredSpeechProvidersMetadata = computed(() => {
-    return allAudioSpeechProvidersMetadata.value.filter(metadata => configuredProviders.value[metadata.id])
+    return allAudioSpeechProvidersMetadata.value.filter((metadata: ProviderMetadata) => configuredProviders.value[metadata.id])
   })
 
   const configuredTranscriptionProvidersMetadata = computed(() => {
-    return allAudioTranscriptionProvidersMetadata.value.filter(metadata => configuredProviders.value[metadata.id])
+    return allAudioTranscriptionProvidersMetadata.value.filter((metadata: ProviderMetadata) => configuredProviders.value[metadata.id])
   })
 
   function getProviderConfig(providerId: string) {
