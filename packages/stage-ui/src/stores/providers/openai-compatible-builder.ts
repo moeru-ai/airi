@@ -4,6 +4,8 @@ import { generateText } from '@xsai/generate-text'
 import { listModels } from '@xsai/model'
 import { message } from '@xsai/utils-chat'
 
+import { formatErrorForUser } from '../../utils/error-formatter'
+
 type ProviderCreator = (apiKey: string, baseUrl: string) => any
 
 export function buildOpenAICompatibleProvider(
@@ -106,6 +108,16 @@ export function buildOpenAICompatibleProvider(
         }
       }
 
+      // If API key is not provided, skip remote checks and prompt for API key only.
+      // This avoids showing long JSON/network errors when user hasn't entered an API key yet.
+      if (!apiKey) {
+        return {
+          errors: [new Error('API Key is required')],
+          reason: 'API Key is required',
+          valid: false,
+        }
+      }
+
       const validationChecks = validation || []
 
       // Auto-detect first available model for validation
@@ -116,7 +128,7 @@ export function buildOpenAICompatibleProvider(
           baseURL: baseUrl,
           headers: additionalHeaders,
         })
-          .then(models => models.filter(model =>
+          .then((models: any[]) => models.filter((model: any) =>
             [
               // exclude embedding models
               'embed',
@@ -132,7 +144,7 @@ export function buildOpenAICompatibleProvider(
           model = models[0].id
       }
       catch (e) {
-        console.warn(`Model auto-detection failed: ${(e as Error).message}`)
+        console.warn(`Model auto-detection failed: ${formatErrorForUser(e)}`)
       }
 
       // Health check = try generating text (was: fetch(`${baseUrl}chat/completions`))
@@ -148,7 +160,7 @@ export function buildOpenAICompatibleProvider(
           })
         }
         catch (e) {
-          errors.push(new Error(`Health check failed: ${(e as Error).message}`))
+          errors.push(new Error(`Health check failed: ${formatErrorForUser(e)}`))
         }
       }
 
@@ -165,7 +177,7 @@ export function buildOpenAICompatibleProvider(
           }
         }
         catch (e) {
-          errors.push(new Error(`Model list check failed: ${(e as Error).message}`))
+          errors.push(new Error(`Model list check failed: ${formatErrorForUser(e)}`))
         }
       }
 
@@ -182,7 +194,7 @@ export function buildOpenAICompatibleProvider(
           })
         }
         catch (e) {
-          errors.push(new Error(`Chat completions check failed: ${(e as Error).message}`))
+          errors.push(new Error(`Chat completions check failed: ${formatErrorForUser(e)}`))
         }
       }
 
