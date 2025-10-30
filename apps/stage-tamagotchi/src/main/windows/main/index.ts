@@ -1,26 +1,33 @@
 import type { BrowserWindowConstructorOptions, Rectangle } from 'electron'
 
 import { dirname, join, resolve } from 'node:path'
+import { env } from 'node:process'
 import { fileURLToPath } from 'node:url'
 
+import clickDragPlugin from 'electron-click-drag-plugin'
+
+import { is } from '@electron-toolkit/utils'
+import { defineInvokeHandler } from '@unbird/eventa'
+import { createContext } from '@unbird/eventa/adapters/electron/main'
 import { defu } from 'defu'
-import { BrowserWindow, shell } from 'electron'
-import { isMacOS } from 'std-env'
+import { BrowserWindow, ipcMain, shell } from 'electron'
+import { isLinux, isMacOS } from 'std-env'
 
 import icon from '../../../../resources/icon.png?asset'
 
-import { baseUrl, load } from '../../libs/electron/location'
+import { electronStartDraggingWindow } from '../../../shared/eventa'
+import { baseUrl, getElectronMainDirname, load } from '../../libs/electron/location'
 import { transparentWindowConfig } from '../shared'
 import { createConfig } from '../shared/persistence'
-import { setupAppInvokeHandlers } from './rpc/index.electron'
-
-const __dirname = dirname(fileURLToPath(import.meta.url))
+import { setupMainWindowElectronInvokes } from './rpc/index.electron'
 
 interface AppConfig {
   windows?: Array<Pick<BrowserWindowConstructorOptions, 'title' | 'x' | 'y' | 'width' | 'height'> & { tag: string }>
 }
 
-export async function setupMainWindow() {
+export async function setupMainWindow(params: {
+  settingsWindow: () => Promise<BrowserWindow>
+}) {
   const {
     setup: setupConfig,
     get: getConfig,
@@ -43,8 +50,23 @@ export async function setupMainWindow() {
       preload: join(dirname(fileURLToPath(import.meta.url)), '../preload/index.mjs'),
       sandbox: false,
     },
+    // Thanks to [@HeartArmy](https://github.com/HeartArmy) for the tip implementation.
+    //
+    // https://github.com/electron/electron/issues/10078#issuecomment-3410164802
+    // https://stackoverflow.com/questions/39835282/set-browserwindow-always-on-top-even-other-app-is-in-fullscreen-electron-mac
+    type: 'panel',
     ...transparentWindowConfig(),
   })
+
+  // NOTICE: in development mode, open devtools by default
+  if (is.dev || env.MAIN_APP_DEBUG || env.APP_DEBUG) {
+    try {
+      window.webContents.openDevTools({ mode: 'detach' })
+    }
+    catch (err) {
+      console.error('failed to open devtools:', err)
+    }
+  }
 
   function handleNewBounds(newBounds: Rectangle) {
     const config = getConfig()!
@@ -81,7 +103,13 @@ export async function setupMainWindow() {
   window.on('resize', () => handleNewBounds(window.getBounds()))
   window.on('move', () => handleNewBounds(window.getBounds()))
 
-  window.setAlwaysOnTop(true)
+  // Thanks to [@HeartArmy](https://github.com/HeartArmy) for the tip implementation.
+  //
+  // https://github.com/electron/electron/issues/10078#issuecomment-3410164802
+  // https://stackoverflow.com/questions/39835282/set-browserwindow-always-on-top-even-other-app-is-in-fullscreen-electron-mac
+  window.setAlwaysOnTop(true, 'screen-saver', 1)
+  window.setFullScreenable(false)
+  window.setVisibleOnAllWorkspaces(true)
   if (isMacOS) {
     window.setWindowButtonVisibility(false)
   }
@@ -92,9 +120,35 @@ export async function setupMainWindow() {
     return { action: 'deny' }
   })
 
-  await load(window, baseUrl(resolve(__dirname, '..', '..', 'renderer')))
+  await load(window, baseUrl(resolve(getElectronMainDirname(), '..', 'renderer')))
 
-  setupAppInvokeHandlers(window)
+  setupMainWindowElectronInvokes({ window, settingsWindow: params.settingsWindow })
+
+  /**
+   * This is a know issue (or expected behavior maybe) to Electron.
+   * We don't use this approach on Linux because it's not working.
+   *
+   * Discussion: https://github.com/electron/electron/issues/37789
+   * Workaround: https://github.com/noobfromph/electron-click-drag-plugin
+   */
+  if (!isLinux) {
+    function handleStartDraggingWindow() {
+      try {
+        const windowId = window.getNativeWindowHandle()
+        clickDragPlugin.startDrag(windowId)
+      }
+      catch (error) {
+        console.error(error)
+      }
+    }
+
+    const { context } = createContext(ipcMain, window)
+    const cleanUpWindowDraggingInvokeHandler = defineInvokeHandler(context, electronStartDraggingWindow, handleStartDraggingWindow)
+
+    window.on('closed', () => {
+      cleanUpWindowDraggingInvokeHandler()
+    })
+  }
 
   return window
 }

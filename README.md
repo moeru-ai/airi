@@ -44,7 +44,7 @@
 >
 > RAG, memory system, embedded database, icons, Live2D utilities, and more!
 
-Have you dreamed about having a cyber living being (cyber waifu / husbando, digital pet) or digital companion that could play with and talk to you?
+Have you dreamed about having a cyber living being (cyber waifu, digital pet) or digital companion that could play with and talk to you?
 
 With the power of modern large language models like [ChatGPT](https://chatgpt.com) and famous [Claude](https://claude.ai), asking a virtual being to roleplay and chat with us is already easy enough for everyone. Platforms like [Character.ai (a.k.a. c.ai)](https://character.ai) and [JanitorAI](https://janitorai.com/) as well as local playgrounds like [SillyTavern](https://github.com/SillyTavern/SillyTavern) are already good-enough solutions for a chat based or visual adventure game like experience.
 
@@ -56,10 +56,10 @@ Therefore, this project, AIRI, offers another possibility here: **let you own yo
 
 ## DevLogs We Posted & Recent Updates
 
+- [DevLog @ 2025.08.05](https://airi.moeru.ai/docs/blog/DevLog-2025.08.05/) on August 5, 2025
+- [DevLog @ 2025.08.01](https://airi.moeru.ai/docs/blog/DevLog-2025.08.01/) on August 1, 2025
 - [DevLog @ 2025.07.18](https://airi.moeru.ai/docs/blog/DevLog-2025.07.18/) on July 18, 2025
 - [DreamLog 0x1](https://airi.moeru.ai/docs/blog/dreamlog-0x1/) on June 16, 2025
-- [DevLog @ 2025.06.08](https://airi.moeru.ai/docs/blog/DevLog-2025.06.08/) on June 8, 2025
-- [DevLog @ 2025.05.16](https://airi.moeru.ai/docs/blog/DevLog-2025.05.16/) on May 16, 2025
 - ...more on [documentation site](https://airi.moeru.ai/docs)
 
 ## What's So Special About This Project?
@@ -100,8 +100,6 @@ This means that **アイリ is capable of running on modern browsers and devices
 > **If you are interested, why not introduce yourself here? [Would like to join part of us to build AIRI?](https://github.com/moeru-ai/airi/discussions/33)**
 
 ## Current Progress
-
-<img src="./docs/content/public/readme-image-pc-preview.avif">
 
 Capable of
 

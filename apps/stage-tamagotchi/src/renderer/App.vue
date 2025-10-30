@@ -9,10 +9,8 @@ import { onMounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterView, useRouter } from 'vue-router'
 
-import { electronOpenSettings, electronStartTrackingCursorPoint } from '../shared/eventa'
-import { useWindowMode } from './stores/window-controls'
+import { electronOpenSettings, electronStartTrackMousePosition } from '../shared/eventa'
 
-useWindowMode()
 const i18n = useI18n()
 const displayModelsStore = useDisplayModelsStore()
 const settingsStore = useSettings()
@@ -32,7 +30,7 @@ onMounted(async () => {
   await settingsStore.initializeStageModel()
 
   const { context } = createContext(window.electron.ipcRenderer)
-  const startTrackingCursorPoint = defineInvoke(context, electronStartTrackingCursorPoint)
+  const startTrackingCursorPoint = defineInvoke(context, electronStartTrackMousePosition)
   await startTrackingCursorPoint()
 
   // Listen for open-settings IPC message from main process

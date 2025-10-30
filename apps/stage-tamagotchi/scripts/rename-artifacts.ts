@@ -7,7 +7,7 @@ import { cac } from 'cac'
 
 import packageJSON from '../package.json' assert { type: 'json' }
 
-import { getElectronBuilderConfig, getFilename, getVersion } from './utils'
+import { getElectronBuilderConfig, getFilenames, getVersion } from './utils'
 
 async function main() {
   const cli = cac('rename-artifact')
@@ -66,39 +66,15 @@ async function main() {
 
   mkdirSync(bundlePrefix, { recursive: true })
 
-  let renameFrom = ''
-  let renameTo = ''
-  const filename = await getFilename(target, argOptions)
-  console.info(filename, 'is the target filename')
+  const filenames = await getFilenames(target, argOptions)
+  console.info(filenames, 'is the target filename')
 
-  switch (target) {
-    case 'x86_64-pc-windows-msvc':
-      renameFrom = join(srcPrefix, `${beforeProductName}-${beforeVersion}-windows-x64-setup.exe`)
-      renameTo = join(bundlePrefix, filename)
-      break
-    case 'x86_64-unknown-linux-gnu':
-      renameFrom = join(srcPrefix, `${beforeProductName}-${beforeVersion}-linux-x86_64.AppImage`)
-      renameTo = join(bundlePrefix, filename)
-      break
-    case 'aarch64-unknown-linux-gnu':
-      renameFrom = join(srcPrefix, `${beforeProductName}-${beforeVersion}-linux-arm64.AppImage`)
-      renameTo = join(bundlePrefix, filename)
-      break
-    case 'aarch64-apple-darwin':
-      renameFrom = join(srcPrefix, `${beforeProductName}-${beforeVersion}-darwin-arm64.dmg`)
-      renameTo = join(bundlePrefix, filename)
-      break
-    case 'x86_64-apple-darwin':
-      renameFrom = join(srcPrefix, `${beforeProductName}-${beforeVersion}-darwin-x64.dmg`)
-      renameTo = join(bundlePrefix, filename)
-      break
-    default:
-      console.error('Target is not supported')
-      process.exit(1)
+  for (const filename of filenames) {
+    const renameFrom = join(srcPrefix, filename.outputFilename)
+    const renameTo = join(bundlePrefix, filename.releaseArtifactFilename)
+    console.info('renaming, from:', renameFrom, 'to:', renameTo)
+    renameSync(renameFrom, renameTo)
   }
-
-  console.info('renaming, from:', renameFrom, 'to:', renameTo)
-  renameSync(renameFrom, renameTo)
 }
 
 main()

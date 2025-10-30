@@ -1,8 +1,12 @@
 <script setup lang="ts">
-import { CheckBar, IconItem } from '@proj-airi/stage-ui/components'
+import { ButtonBar, CheckBar, IconItem } from '@proj-airi/stage-ui/components'
 import { useSettings } from '@proj-airi/stage-ui/stores/settings'
+import { defineInvoke } from '@unbird/eventa'
+import { createContext } from '@unbird/eventa/adapters/electron/renderer'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
+
+import { electronOpenMainDevtools } from '../../../../shared/eventa'
 
 const { t } = useI18n()
 const settings = useSettings()
@@ -14,10 +18,46 @@ const menu = computed(() => [
     icon: 'i-solar:sledgehammer-bold-duotone',
     to: '/devtools/use-magic-keys',
   },
+  {
+    title: t('tamagotchi.settings.pages.system.developer.sections.section.use-window-mouse.title'),
+    description: t('tamagotchi.settings.pages.system.developer.sections.section.use-window-mouse.description'),
+    icon: 'i-solar:sledgehammer-bold-duotone',
+    to: '/devtools/use-window-mouse',
+  },
+  {
+    title: 'Displays',
+    description: 'Visualize connected displays and cursor position',
+    icon: 'i-solar:sledgehammer-bold-duotone',
+    to: '/devtools/use-electron-all-displays',
+  },
+  {
+    title: 'Relative Mouse',
+    description: 'Get mouse position relative to the window',
+    icon: 'i-solar:sledgehammer-bold-duotone',
+    to: '/devtools/use-electron-relative-mouse',
+  },
 ])
+
+const { context } = createContext(window.electron.ipcRenderer)
+const openDevTools = defineInvoke(context, electronOpenMainDevtools)
 </script>
 
 <template>
+  <ButtonBar
+    v-model="settings.disableTransitions"
+    v-motion
+    mb-2
+    icon="i-solar:settings-minimalistic-outline"
+    text="settings.pages.page.developers.open-devtools.title"
+    :initial="{ opacity: 0, y: 10 }"
+    :enter="{ opacity: 1, y: 0 }"
+    :duration="250 + (19 * 10)"
+    :delay="1 * 50"
+    transition="all ease-in-out duration-250"
+    @click="() => openDevTools()"
+  >
+    {{ t('settings.pages.page.developers.open-devtools.button') }}
+  </ButtonBar>
   <CheckBar
     v-model="settings.disableTransitions"
     v-motion
@@ -28,7 +68,7 @@ const menu = computed(() => [
     :initial="{ opacity: 0, y: 10 }"
     :enter="{ opacity: 1, y: 0 }"
     :duration="250 + (19 * 10)"
-    :delay="1 * 50"
+    :delay="2 * 50"
     transition="all ease-in-out duration-250"
   />
   <CheckBar
@@ -42,11 +82,11 @@ const menu = computed(() => [
     :initial="{ opacity: 0, y: 10 }"
     :enter="{ opacity: 1, y: 0 }"
     :duration="250 + (20 * 10)"
-    :delay="2 * 50"
+    :delay="3 * 50"
     transition="all ease-in-out duration-250"
   />
 
-  <div flex="~ col gap-4" pb-12>
+  <div flex="~ col gap-4" mt-2 pb-12>
     <IconItem
       v-for="(item, index) in menu"
       :key="item.to"
@@ -55,7 +95,7 @@ const menu = computed(() => [
       :enter="{ opacity: 1, y: 0 }"
       :duration="250"
       :style="{
-        transitionDelay: `${index * 50}ms`, // delay between each item, unocss doesn't support dynamic generation of classes now
+        transitionDelay: `${(4 + index) * 50}ms`, // delay between each item, unocss doesn't support dynamic generation of classes now
       }"
       :title="item.title"
       :description="item.description"

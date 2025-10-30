@@ -1,0 +1,22 @@
+download-buttons:
+  latest-stable: Latest Stable Release
+  latest-prerelease: Latest Pre-release
+  latest-nightly: Latest Nightly Build
+  download: Download
+  view-release: View Release
+  stable-use-case-1: Production use
+  stable-use-case-2: Users who want a stable experience
+  stable-use-case-3: Live streaming and content creationr
+  prerelease-use-case-1: Early adopters who want to try new features
+  prerelease-use-case-2: Testing and providing feedback to developers
+  prerelease-use-case-3: Users comfortable with occasional bugs
+releases-list:
+  stable: Stable
+  prerelease: Pre-release
+  nightly: Nightly
+  released-on: Released on
+  built-on: Built on
+  no-releases: 'No releases available at the moment. Check the {link} directly.'
+  no-nightly: 'No nightly builds available at the moment. Check the {link} directly.'
+  releases-page: releases page
+  workflow-page: workflow page

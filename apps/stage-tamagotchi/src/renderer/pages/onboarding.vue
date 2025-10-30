@@ -2,8 +2,6 @@
 import { OnboardingScreen } from '@proj-airi/stage-ui/components'
 import { useOnboardingStore } from '@proj-airi/stage-ui/stores/onboarding'
 
-// import { useTauriWindow } from '../composables/tauri'
-
 // const window = useTauriWindow()
 const onboardingStore = useOnboardingStore()
 

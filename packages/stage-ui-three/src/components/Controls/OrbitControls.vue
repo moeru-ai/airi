@@ -27,6 +27,7 @@ import { onMounted, onUnmounted, shallowRef, toRefs, watch } from 'vue'
   * - camera distance: camera position - camera target
 */
 const props = defineProps<{
+  controlEnable: boolean
   modelLoaded: boolean
   modelSize: Vec3
   cameraPosition: Vec3
@@ -48,6 +49,7 @@ const emit = defineEmits<{
 }>()
 
 const {
+  controlEnable,
   modelLoaded,
   modelSize,
   cameraPosition,
@@ -119,6 +121,12 @@ function registerInfoFlow() {
     camera.value.updateProjectionMatrix()
     controls.value.update()
   })
+  watch(controlEnable, (newEnable) => {
+    if (!camera.value || !controls.value)
+      return
+    controls.value.enableRotate = newEnable
+    controls.value.enableZoom = newEnable
+  }, { immediate: true })
 
   /*
     * Upward info flow
@@ -160,6 +168,9 @@ onMounted(async () => {
   camera.value = cameraTres.value as PerspectiveCamera
   // Obtain orbitControl instance
   controls.value = new OrbitControls(camera.value, renderer.domElement)
+  controls.value.enablePan = false
+  controls.value.enableZoom = false
+  controls.value.enableRotate = false
   // Align to tresjs conventions
   controls.value.mouseButtons = {
     LEFT: MOUSE.ROTATE,
@@ -170,7 +181,7 @@ onMounted(async () => {
     ONE: TOUCH.ROTATE,
     TWO: TOUCH.DOLLY_PAN,
   }
-  controls.value.enablePan = false
+
   // define watch props and emit
   registerInfoFlow()
   controls.value.update()

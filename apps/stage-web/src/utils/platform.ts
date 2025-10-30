@@ -6,7 +6,7 @@ export function isStandalone() {
   if (import.meta.env.SSR) {
     return false
   }
-  if (!('window' in globalThis && globalThis.window != null)) {
+  if (!('window' in globalThis) || globalThis.window == null) {
     return false
   }
 

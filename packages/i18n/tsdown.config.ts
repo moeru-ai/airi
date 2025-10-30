@@ -13,7 +13,6 @@ export default defineConfig({
     { from: 'src/locales', to: 'dist/locales' },
   ],
   unbundle: true,
-  fixedExtension: true,
   plugins: [
     Yaml(),
   ],

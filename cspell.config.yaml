@@ -34,12 +34,14 @@ words:
   - byteorder
   - catppuccin
   - cdylib
+  - cerebras
   - cientos
   - cjkfonts
   - clippy
   - clustr
   - collectblock
   - colorjs
+  - cometapi
   - Comfortaa
   - composables
   - cooldown
@@ -177,6 +179,7 @@ words:
   - nomic
   - novita
   - nprogress
+  - nsis
   - nuxi
   - nuxt
   - nuxtjs
@@ -193,6 +196,7 @@ words:
   - OPFS
   - opusscript
   - otelcol
+  - oxlint
   - pglite
   - pgvector
   - picklist
@@ -228,6 +232,7 @@ words:
   - saccades
   - safetensors
   - SAVEPOINT
+  - Screenable
   - sensenova
   - serde
   - Shadcn
@@ -238,6 +243,7 @@ words:
   - sizecheck
   - smallserial
   - Sniglet
+  - sonarjs
   - sonner
   - specta
   - splt
@@ -251,6 +257,7 @@ words:
   - tauri
   - taze
   - tempora
+  - tinyexec
   - togetherapi
   - tolist
   - tresjs
