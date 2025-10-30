@@ -58,7 +58,7 @@ import {
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import { formatErrorForUser } from '../utils/error-formatter'
+import { buildValidationResult, formatErrorForUser } from '../utils/providerValidation'
 import { models as elevenLabsModels } from './providers/elevenlabs/list-models'
 import { buildOpenAICompatibleProvider } from './providers/openai-compatible-builder'
 
@@ -167,6 +167,14 @@ export interface VoiceInfo {
     code: string
     title: string
   }[]
+}
+export interface RawVoice {
+  id: string
+  name: string
+  languages: Array<{ code: string, title: string }>
+  preview_audio_url?: string
+  labels?: { gender?: string }
+  compatible_models?: string[]
 }
 
 function createAnthropic(apiKey: string, baseURL: string = 'https://api.anthropic.com/v1/') {
@@ -461,21 +469,20 @@ export const useProvidersStore = defineStore('providers', () => {
 
           // Check if the Ollama server is reachable
           return fetch(`${(config.baseUrl as string).trim()}models`, { headers: (config.headers as HeadersInit) || undefined })
-            .then((response) => {
-              const errors = [
-                !response.ok && new Error(`Ollama server returned non-ok status code: ${response.statusText}`),
-              ].filter(Boolean)
+            .then(async (response) => {
+              const errors: Error[] = []
 
-              return {
-                errors,
-                reason: errors.filter(e => e).map(e => formatErrorForUser(e)).join(', ') || '',
-                valid: response.ok,
+              if (!response.ok) {
+                errors.push(new Error(`Ollama server returned non-ok status: ${response.status} ${response.statusText}`))
               }
+
+              return buildValidationResult(errors, response.ok)
             })
             .catch((err) => {
+              // Network or CORS error → build a consistent error result
               return {
-                errors: [err],
-                reason: `Failed to reach Ollama server, error: ${formatErrorForUser(err)} occurred.\n\nIf you are using Ollama locally, this is likely the CORS (Cross-Origin Resource Sharing) security issue, where you will need to set OLLAMA_ORIGINS=* or OLLAMA_ORIGINS=https://airi.moeru.ai,${location.origin} environment variable before launching Ollama server to make this work.`,
+                errors: [err instanceof Error ? err : new Error(formatErrorForUser(err))],
+                reason: `Failed to reach Ollama server: ${formatErrorForUser(err)}`,
                 valid: false,
               }
             })
@@ -528,21 +535,20 @@ export const useProvidersStore = defineStore('providers', () => {
 
           // Check if the Ollama server is reachable
           return fetch(`${(config.baseUrl as string).trim()}models`, { headers: (config.headers as HeadersInit) || undefined })
-            .then((response) => {
-              const errors = [
-                !response.ok && new Error(`Ollama server returned non-ok status code: ${response.statusText}`),
-              ].filter(Boolean)
+            .then(async (response) => {
+              const errors: Error[] = []
 
-              return {
-                errors,
-                reason: errors.filter(e => e).map(e => String(e)).join(', ') || '',
-                valid: response.ok,
+              if (!response.ok) {
+                errors.push(new Error(`Ollama server returned non-ok status: ${response.status} ${response.statusText}`))
               }
+
+              return buildValidationResult(errors, response.ok)
             })
             .catch((err) => {
+              // Network or CORS error → build a consistent error result
               return {
-                errors: [err],
-                reason: `Failed to reach Ollama server, error: ${String(err)} occurred.\n\nIf you are using Ollama locally, this is likely the CORS (Cross-Origin Resource Sharing) security issue, where you will need to set OLLAMA_ORIGINS=* or OLLAMA_ORIGINS=https://airi.moeru.ai,http://localhost environment variable before launching Ollama server to make this work.`,
+                errors: [err instanceof Error ? err : new Error(formatErrorForUser(err))],
+                reason: `Failed to reach Ollama server: ${formatErrorForUser(err)}`,
                 valid: false,
               }
             })
@@ -606,21 +612,20 @@ export const useProvidersStore = defineStore('providers', () => {
 
           // Check if the LM Studio server is reachable
           return fetch(`${(config.baseUrl as string).trim()}models`, { headers: (config.headers as HeadersInit) || undefined })
-            .then((response) => {
-              const errors = [
-                !response.ok && new Error(`LM Studio server returned non-ok status code: ${response.statusText}`),
-              ].filter(Boolean)
+            .then(async (response) => {
+              const errors: Error[] = []
 
-              return {
-                errors,
-                reason: errors.filter(e => e).map(e => formatErrorForUser(e)).join(', ') || '',
-                valid: response.ok,
+              if (!response.ok) {
+                errors.push(new Error(`LM Studio server returned non-ok status: ${response.status} ${response.statusText}`))
               }
+
+              return buildValidationResult(errors, response.ok)
             })
             .catch((err) => {
+              // Network or CORS error → build a consistent error result
               return {
-                errors: [err],
-                reason: `Failed to reach LM Studio server, error: ${formatErrorForUser(err)} occurred.\n\nMake sure LM Studio is running and the local server is started. You can start the local server in LM Studio by going to the 'Local Server' tab and clicking 'Start Server'.`,
+                errors: [err instanceof Error ? err : new Error(formatErrorForUser(err))],
+                reason: `Failed to reach LM Studio server: ${formatErrorForUser(err)}\n\nMake sure LM Studio is running and the local server is started. You can start the local server in LM Studio by going to the 'Local Server' tab and clicking 'Start Server'.`,
                 valid: false,
               }
             })
@@ -776,7 +781,7 @@ export const useProvidersStore = defineStore('providers', () => {
 
           return {
             errors,
-            reason: errors.filter(e => e).map(e => String(e)).join(', ') || '',
+            reason: errors.filter(e => e).map(e => formatErrorForUser(e)).join(', ') || '',
             valid: !!config.baseUrl,
           }
         },
@@ -823,7 +828,7 @@ export const useProvidersStore = defineStore('providers', () => {
 
           return {
             errors,
-            reason: errors.filter(e => e).map(e => String(e)).join(', ') || '',
+            reason: errors.filter(e => e).map(e => formatErrorForUser(e)).join(', ') || '',
             valid: !!config.baseUrl,
           }
         },
@@ -970,7 +975,7 @@ export const useProvidersStore = defineStore('providers', () => {
 
           return {
             errors,
-            reason: errors.filter(e => e).map(e => String(e)).join(', ') || '',
+            reason: errors.filter(e => e).map(e => formatErrorForUser(e)).join(', ') || '',
             valid: !!config.apiKey && !!config.baseUrl,
           }
         },
@@ -1035,7 +1040,7 @@ export const useProvidersStore = defineStore('providers', () => {
 
           return {
             errors,
-            reason: errors.filter(e => e).map(e => String(e)).join(', ') || '',
+            reason: errors.filter(e => e).map(e => formatErrorForUser(e)).join(', ') || '',
             valid: !!config.apiKey && !!config.baseUrl,
           }
         },
@@ -1097,7 +1102,7 @@ export const useProvidersStore = defineStore('providers', () => {
 
           return {
             errors,
-            reason: errors.filter(e => e).map(e => String(e)).join(', ') || '',
+            reason: errors.filter(e => e).map(e => formatErrorForUser(e)).join(', ') || '',
             valid: !!config.baseUrl,
           }
         },
@@ -1124,7 +1129,7 @@ export const useProvidersStore = defineStore('providers', () => {
             ...provider.voice(),
           })
 
-          return voices.map((voice: { id: string, name: string, compatible_models?: string[], preview_audio_url?: string, languages: Array<{ code: string, title: string }>, labels?: { gender?: string } }) => {
+          return voices.map((voice: RawVoice) => {
             return {
               id: voice.id,
               name: voice.name,
@@ -1171,7 +1176,7 @@ export const useProvidersStore = defineStore('providers', () => {
 
           return {
             errors,
-            reason: errors.filter(e => e).map(e => String(e)).join(', ') || '',
+            reason: errors.filter(e => e).map(e => formatErrorForUser(e)).join(', ') || '',
             valid: !!config.apiKey && !!config.baseUrl,
           }
         },
@@ -1198,7 +1203,7 @@ export const useProvidersStore = defineStore('providers', () => {
             ...provider.voice(),
           })
 
-          return voices.map((voice: { id: string, name: string, preview_audio_url?: string, languages: Array<{ code: string, title: string }>, labels?: { gender?: string } }) => {
+          return voices.map((voice: RawVoice) => {
             return {
               id: voice.id,
               name: voice.name,
@@ -1237,7 +1242,7 @@ export const useProvidersStore = defineStore('providers', () => {
 
           return {
             errors,
-            reason: errors.filter(e => e).map(e => String(e)).join(', ') || '',
+            reason: errors.filter(e => e).map(e => formatErrorForUser(e)).join(', ') || '',
             valid: !!config.apiKey && !!config.baseUrl && !!config.app && !!(config.app as any).appId,
           }
         },
@@ -1342,7 +1347,7 @@ export const useProvidersStore = defineStore('providers', () => {
 
           return {
             errors,
-            reason: errors.filter(e => e).map(e => String(e)).join(', ') || '',
+            reason: errors.filter(e => e).map(e => formatErrorForUser(e)).join(', ') || '',
             valid: !!config.apiKey && !!config.resourceName && !!config.modelId,
           }
         },
@@ -1434,21 +1439,20 @@ export const useProvidersStore = defineStore('providers', () => {
 
           // Check if the vLLM is reachable
           return fetch(`${(config.baseUrl as string).trim()}models`, { headers: (config.headers as HeadersInit) || undefined })
-            .then((response) => {
-              const errors = [
-                !response.ok && new Error(`vLLM returned non-ok status code: ${response.statusText}`),
-              ].filter(Boolean)
+            .then(async (response) => {
+              const errors: Error[] = []
 
-              return {
-                errors,
-                reason: errors.filter(e => e).map(e => formatErrorForUser(e)).join(', ') || '',
-                valid: response.ok,
+              if (!response.ok) {
+                errors.push(new Error(`vLLM returned non-ok status: ${response.status} ${response.statusText}`))
               }
+
+              return buildValidationResult(errors, response.ok)
             })
             .catch((err) => {
+              // Network or CORS error → build a consistent error result
               return {
-                errors: [err],
-                reason: `Failed to reach vLLM, error: ${formatErrorForUser(err)} occurred.`,
+                errors: [err instanceof Error ? err : new Error(formatErrorForUser(err))],
+                reason: `Failed to reach vLLM: ${formatErrorForUser(err)}`,
                 valid: false,
               }
             })
@@ -1513,7 +1517,7 @@ export const useProvidersStore = defineStore('providers', () => {
 
           return {
             errors,
-            reason: errors.filter(e => e).map(e => String(e)).join(', ') || '',
+            reason: errors.filter(e => e).map(e => formatErrorForUser(e)).join(', ') || '',
             valid: !!config.apiKey && !!config.accountId,
           }
         },
@@ -1625,21 +1629,20 @@ export const useProvidersStore = defineStore('providers', () => {
               'player2-game-key': 'airi',
             },
           })
-            .then((response) => {
-              const errors = [
-                !response.ok && new Error(`Player 2 returned non-ok status code: ${response.statusText}`),
-              ].filter(Boolean)
+            .then(async (response) => {
+              const errors: Error[] = []
 
-              return {
-                errors,
-                reason: errors.filter(e => e).map(e => formatErrorForUser(e)).join(', ') || '',
-                valid: response.ok,
+              if (!response.ok) {
+                errors.push(new Error(`Player 2 returned non-ok status: ${response.status} ${response.statusText}`))
               }
+
+              return buildValidationResult(errors, response.ok)
             })
             .catch((err) => {
+              // Network or CORS error → build a consistent error result
               return {
-                errors: [err],
-                reason: `Failed to reach Player 2, error: ${formatErrorForUser(err)} occurred. If you do not have Player 2 running, please start it and try again.`,
+                errors: [err instanceof Error ? err : new Error(formatErrorForUser(err))],
+                reason: `Failed to reach Player 2: ${formatErrorForUser(err)}. If you do not have Player 2 running, please start it and try again.`,
                 valid: false,
               }
             })
@@ -1762,6 +1765,9 @@ export const useProvidersStore = defineStore('providers', () => {
     let validationResult = await metadata.validators.validateProviderConfig(config)
 
     // Normalize and redact any error messages returned by provider-specific validators
+    const normalizedErrors = (validationResult.errors || []).map((err: unknown) => new Error(formatErrorForUser(err)))
+    const reason = validationResult.reason || normalizedErrors.map(e => e.message).join(', ')
+
     const apiKey = typeof config.apiKey === 'string' ? config.apiKey.trim() : ''
     // If baseUrl is valid (no baseUrlValidator error) but apiKey is missing, show concise message
     const baseCheck = baseUrlValidator.value(config.baseUrl)
@@ -1769,9 +1775,6 @@ export const useProvidersStore = defineStore('providers', () => {
       validationResult = { errors: [new Error('API Key is required')], reason: 'API Key is required', valid: false }
     }
     else {
-      // Normalize and redact any error messages returned by provider-specific validators
-      const normalizedErrors = (validationResult.errors || []).map((err: unknown) => new Error(formatErrorForUser(err)))
-      const reason = validationResult.reason || normalizedErrors.map(e => e.message).join(', ')
       validationResult = { errors: normalizedErrors, reason, valid: validationResult.valid }
     }
 
