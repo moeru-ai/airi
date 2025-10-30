@@ -198,23 +198,23 @@ function updateCustomModelName(value: string) {
                 :title="metadata.localizedName || 'Unknown'"
                 :description="metadata.localizedDescription"
               />
-            <RouterLink
-              to="/settings/providers#speech"
-              border="2px solid"
-              class="bg-white dark:bg-neutral-900/20 border-neutral-100 dark:border-neutral-900 hover:border-primary-500/30 dark:hover:border-primary-400/30"
-              rounded-xl p-4
-              flex="~ col items-center justify-center"
-              min-w-50 w-fit
-              transition="all duration-200 ease-in-out"
-              relative
-            >
-              <div i-solar:add-circle-line-duotone class="text-2xl text-neutral-500 dark:text-neutral-500" />
-              <div
-                class="bg-dotted-neutral-200/80 dark:bg-dotted-neutral-700/50"
-                absolute inset-0 z--1
-                style="background-size: 10px 10px; mask-image: linear-gradient(165deg, white 30%, transparent 50%);"
-              />
-            </RouterLink>
+              <RouterLink
+                to="/settings/providers#speech"
+                border="2px solid"
+                class="border-neutral-100 bg-white dark:border-neutral-900 hover:border-primary-500/30 dark:bg-neutral-900/20 dark:hover:border-primary-400/30"
+
+                flex="~ col items-center justify-center"
+
+                transition="all duration-200 ease-in-out"
+                relative min-w-50 w-fit rounded-xl p-4
+              >
+                <div i-solar:add-circle-line-duotone class="text-2xl text-neutral-500 dark:text-neutral-500" />
+                <div
+                  class="bg-dotted-neutral-200/80 dark:bg-dotted-neutral-700/50"
+                  absolute inset-0 z--1
+                  style="background-size: 10px 10px; mask-image: linear-gradient(165deg, white 30%, transparent 50%);"
+                />
+              </RouterLink>
             </fieldset>
             <div v-else>
               <RouterLink

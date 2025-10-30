@@ -17,8 +17,13 @@ let source: MediaStreamAudioSourceNode | undefined
 const normalized = computed(() => Math.min(1, (volumeLevel.value ?? 0) / 100))
 
 function teardown() {
-  try { source?.disconnect() }
-  catch {}
+  try {
+    source?.disconnect()
+  }
+  catch {
+
+  }
+
   source = undefined
   stopAnalyzer()
 }

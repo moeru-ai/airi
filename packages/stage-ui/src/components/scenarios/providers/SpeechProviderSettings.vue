@@ -115,7 +115,7 @@ watch([apiKey, baseUrl], debouncedUpdate)
 watch(voiceSettings, debouncedUpdate, { deep: true })
 
 function handleResetVoiceSettings() {
-  voiceSettings.value = { ...(providerMetadata.value?.defaultOptions?.().voiceSettings || {}) }
+  voiceSettings.value = { ...providerMetadata.value?.defaultOptions?.().voiceSettings }
   debouncedUpdate()
 }
 </script>
