@@ -1762,9 +1762,6 @@ export const useProvidersStore = defineStore('providers', () => {
     let validationResult = await metadata.validators.validateProviderConfig(config)
 
     // Normalize and redact any error messages returned by provider-specific validators
-    const normalizedErrors = (validationResult.errors || []).map((err: unknown) => new Error(formatErrorForUser(err)))
-    const reason = validationResult.reason || normalizedErrors.map(e => e.message).join(', ')
-
     const apiKey = typeof config.apiKey === 'string' ? config.apiKey.trim() : ''
     // If baseUrl is valid (no baseUrlValidator error) but apiKey is missing, show concise message
     const baseCheck = baseUrlValidator.value(config.baseUrl)
@@ -1772,6 +1769,9 @@ export const useProvidersStore = defineStore('providers', () => {
       validationResult = { errors: [new Error('API Key is required')], reason: 'API Key is required', valid: false }
     }
     else {
+      // Normalize and redact any error messages returned by provider-specific validators
+      const normalizedErrors = (validationResult.errors || []).map((err: unknown) => new Error(formatErrorForUser(err)))
+      const reason = validationResult.reason || normalizedErrors.map(e => e.message).join(', ')
       validationResult = { errors: normalizedErrors, reason, valid: validationResult.valid }
     }
 
