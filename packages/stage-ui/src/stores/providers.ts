@@ -58,6 +58,7 @@ import {
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import { formatErrorForUser } from '../utils/error-formatter'
 import { models as elevenLabsModels } from './providers/elevenlabs/list-models'
 import { buildOpenAICompatibleProvider } from './providers/openai-compatible-builder'
 
@@ -431,7 +432,7 @@ export const useProvidersStore = defineStore('providers', () => {
         listModels: async (config) => {
           return (await listModels({
             ...createOllama((config.baseUrl as string).trim()).model(),
-          })).map((model) => {
+          })).map((model: { id: string }) => {
             return {
               id: model.id,
               name: model.id,
@@ -467,14 +468,14 @@ export const useProvidersStore = defineStore('providers', () => {
 
               return {
                 errors,
-                reason: errors.filter(e => e).map(e => String(e)).join(', ') || '',
+                reason: errors.filter(e => e).map(e => formatErrorForUser(e)).join(', ') || '',
                 valid: response.ok,
               }
             })
             .catch((err) => {
               return {
                 errors: [err],
-                reason: `Failed to reach Ollama server, error: ${String(err)} occurred.\n\nIf you are using Ollama locally, this is likely the CORS (Cross-Origin Resource Sharing) security issue, where you will need to set OLLAMA_ORIGINS=* or OLLAMA_ORIGINS=https://airi.moeru.ai,${location.origin} environment variable before launching Ollama server to make this work.`,
+                reason: `Failed to reach Ollama server, error: ${formatErrorForUser(err)} occurred.\n\nIf you are using Ollama locally, this is likely the CORS (Cross-Origin Resource Sharing) security issue, where you will need to set OLLAMA_ORIGINS=* or OLLAMA_ORIGINS=https://airi.moeru.ai,${location.origin} environment variable before launching Ollama server to make this work.`,
                 valid: false,
               }
             })
@@ -498,7 +499,7 @@ export const useProvidersStore = defineStore('providers', () => {
         listModels: async (config) => {
           return (await listModels({
             ...createOllama((config.baseUrl as string).trim()).model(),
-          })).map((model) => {
+          })).map((model: { id: string }) => {
             return {
               id: model.id,
               name: model.id,
@@ -612,14 +613,14 @@ export const useProvidersStore = defineStore('providers', () => {
 
               return {
                 errors,
-                reason: errors.filter(e => e).map(e => String(e)).join(', ') || '',
+                reason: errors.filter(e => e).map(e => formatErrorForUser(e)).join(', ') || '',
                 valid: response.ok,
               }
             })
             .catch((err) => {
               return {
                 errors: [err],
-                reason: `Failed to reach LM Studio server, error: ${String(err)} occurred.\n\nMake sure LM Studio is running and the local server is started. You can start the local server in LM Studio by going to the 'Local Server' tab and clicking 'Start Server'.`,
+                reason: `Failed to reach LM Studio server, error: ${formatErrorForUser(err)} occurred.\n\nMake sure LM Studio is running and the local server is started. You can start the local server in LM Studio by going to the 'Local Server' tab and clicking 'Start Server'.`,
                 valid: false,
               }
             })
@@ -928,8 +929,8 @@ export const useProvidersStore = defineStore('providers', () => {
           })
 
           // Find indices of Aria and Bill
-          const ariaIndex = voices.findIndex(voice => voice.name.includes('Aria'))
-          const billIndex = voices.findIndex(voice => voice.name.includes('Bill'))
+          const ariaIndex = voices.findIndex((voice: { name: string }) => voice.name.includes('Aria'))
+          const billIndex = voices.findIndex((voice: { name: string }) => voice.name.includes('Bill'))
 
           // Determine the range to move (ensure valid indices and proper order)
           const startIndex = ariaIndex !== -1 ? ariaIndex : 0
@@ -1008,7 +1009,7 @@ export const useProvidersStore = defineStore('providers', () => {
             ...provider.voice({ region: config.region as string }),
           })
 
-          return voices.map((voice) => {
+          return voices.map((voice: { id: string, name: string, languages: Array<{ code: string, title: string }>, preview_audio_url?: string, labels?: { gender?: string } }) => {
             return {
               id: voice.id,
               name: voice.name,
@@ -1123,7 +1124,7 @@ export const useProvidersStore = defineStore('providers', () => {
             ...provider.voice(),
           })
 
-          return voices.map((voice) => {
+          return voices.map((voice: { id: string, name: string, compatible_models?: string[], preview_audio_url?: string, languages: Array<{ code: string, title: string }>, labels?: { gender?: string } }) => {
             return {
               id: voice.id,
               name: voice.name,
@@ -1197,7 +1198,7 @@ export const useProvidersStore = defineStore('providers', () => {
             ...provider.voice(),
           })
 
-          return voices.map((voice) => {
+          return voices.map((voice: { id: string, name: string, preview_audio_url?: string, languages: Array<{ code: string, title: string }>, labels?: { gender?: string } }) => {
             return {
               id: voice.id,
               name: voice.name,
@@ -1440,14 +1441,14 @@ export const useProvidersStore = defineStore('providers', () => {
 
               return {
                 errors,
-                reason: errors.filter(e => e).map(e => String(e)).join(', ') || '',
+                reason: errors.filter(e => e).map(e => formatErrorForUser(e)).join(', ') || '',
                 valid: response.ok,
               }
             })
             .catch((err) => {
               return {
                 errors: [err],
-                reason: `Failed to reach vLLM, error: ${String(err)} occurred.`,
+                reason: `Failed to reach vLLM, error: ${formatErrorForUser(err)} occurred.`,
                 valid: false,
               }
             })
@@ -1631,14 +1632,14 @@ export const useProvidersStore = defineStore('providers', () => {
 
               return {
                 errors,
-                reason: errors.filter(e => e).map(e => String(e)).join(', ') || '',
+                reason: errors.filter(e => e).map(e => formatErrorForUser(e)).join(', ') || '',
                 valid: response.ok,
               }
             })
             .catch((err) => {
               return {
                 errors: [err],
-                reason: `Failed to reach Player 2, error: ${String(err)} occurred. If you do not have Player 2 running, please start it and try again.`,
+                reason: `Failed to reach Player 2, error: ${formatErrorForUser(err)} occurred. If you do not have Player 2 running, please start it and try again.`,
                 valid: false,
               }
             })
@@ -1758,7 +1759,21 @@ export const useProvidersStore = defineStore('providers', () => {
     // Always cache the current config string to prevent re-validating the same config
     validatedCredentials.value[providerId] = configString
 
-    const validationResult = await metadata.validators.validateProviderConfig(config)
+    let validationResult = await metadata.validators.validateProviderConfig(config)
+
+    // Normalize and redact any error messages returned by provider-specific validators
+    const normalizedErrors = (validationResult.errors || []).map((err: unknown) => new Error(formatErrorForUser(err)))
+    const reason = validationResult.reason || normalizedErrors.map(e => e.message).join(', ')
+
+    const apiKey = typeof config.apiKey === 'string' ? config.apiKey.trim() : ''
+    // If baseUrl is valid (no baseUrlValidator error) but apiKey is missing, show concise message
+    const baseCheck = baseUrlValidator.value(config.baseUrl)
+    if (!apiKey && baseCheck === null) {
+      validationResult = { errors: [new Error('API Key is required')], reason: 'API Key is required', valid: false }
+    }
+    else {
+      validationResult = { errors: normalizedErrors, reason, valid: validationResult.valid }
+    }
 
     configuredProviders.value[providerId] = validationResult.valid
 
@@ -1837,7 +1852,7 @@ export const useProvidersStore = defineStore('providers', () => {
     }
     catch (error) {
       console.error(`Error fetching models for ${providerId}:`, error)
-      modelLoadError.value[providerId] = error instanceof Error ? error.message : 'Unknown error'
+      modelLoadError.value[providerId] = formatErrorForUser(error)
       return []
     }
     finally {
@@ -1868,7 +1883,7 @@ export const useProvidersStore = defineStore('providers', () => {
     }
   }
   // Watch for credential changes and refetch models accordingly
-  watch(providerCredentials, (newCreds, oldCreds) => {
+  watch(providerCredentials, (newCreds: Record<string, Record<string, unknown>>, oldCreds: Record<string, Record<string, unknown>> | undefined) => {
     // Determine which providers have changed credentials
     const changedProviders = Object.keys(newCreds).filter(providerId =>
       JSON.stringify(newCreds[providerId]) !== JSON.stringify(oldCreds?.[providerId]),
@@ -1929,8 +1944,9 @@ export const useProvidersStore = defineStore('providers', () => {
       return await metadata.createProvider(config) as R
     }
     catch (error) {
-      console.error(`Error creating provider instance for ${providerId}:`, error)
-      throw error
+      const formattedError = formatErrorForUser(error)
+      console.error(`Error creating provider instance for ${providerId}:`, formattedError)
+      throw new Error(formattedError)
     }
   }
 
@@ -1951,27 +1967,27 @@ export const useProvidersStore = defineStore('providers', () => {
   }, [])
 
   const allChatProvidersMetadata = computed(() => {
-    return availableProvidersMetadata.value.filter(metadata => metadata.category === 'chat')
+    return availableProvidersMetadata.value.filter((metadata: ProviderMetadata) => metadata.category === 'chat')
   })
 
   const allAudioSpeechProvidersMetadata = computed(() => {
-    return availableProvidersMetadata.value.filter(metadata => metadata.category === 'speech')
+    return availableProvidersMetadata.value.filter((metadata: ProviderMetadata) => metadata.category === 'speech')
   })
 
   const allAudioTranscriptionProvidersMetadata = computed(() => {
-    return availableProvidersMetadata.value.filter(metadata => metadata.category === 'transcription')
+    return availableProvidersMetadata.value.filter((metadata: ProviderMetadata) => metadata.category === 'transcription')
   })
 
   const configuredChatProvidersMetadata = computed(() => {
-    return allChatProvidersMetadata.value.filter(metadata => configuredProviders.value[metadata.id])
+    return allChatProvidersMetadata.value.filter((metadata: ProviderMetadata) => configuredProviders.value[metadata.id])
   })
 
   const configuredSpeechProvidersMetadata = computed(() => {
-    return allAudioSpeechProvidersMetadata.value.filter(metadata => configuredProviders.value[metadata.id])
+    return allAudioSpeechProvidersMetadata.value.filter((metadata: ProviderMetadata) => configuredProviders.value[metadata.id])
   })
 
   const configuredTranscriptionProvidersMetadata = computed(() => {
-    return allAudioTranscriptionProvidersMetadata.value.filter(metadata => configuredProviders.value[metadata.id])
+    return allAudioTranscriptionProvidersMetadata.value.filter((metadata: ProviderMetadata) => configuredProviders.value[metadata.id])
   })
 
   function getProviderConfig(providerId: string) {
