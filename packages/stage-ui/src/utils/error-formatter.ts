@@ -1,18 +1,22 @@
-// lightweight utility - keep this module synchronous for UI consumption
-
 interface ErrorFormat {
   readonly _tag: 'ErrorFormat'
   readonly error: unknown
 }
 
-const redactPatterns = [
-  // mask OpenAI-like secret keys (sk-...)
+type RedactRule = {
+  pattern: RegExp
+  replacement: string | ((substring: string, ...args: any[]) => string)
+}
+
+const redactPatterns: RedactRule[] = [
+  // Mask OpenAI-like secret keys (sk-...)
   { pattern: /sk-[\w.-]{8,}/g, replacement: 'sk-(redacted)' },
-  // mask Bearer tokens
+
+  // Mask Bearer tokens
   { pattern: /Bearer\s+[\w.\-=:]+/g, replacement: 'Bearer (redacted)' },
-  // mask any long hex-like/secret-looking tokens
-  { pattern: /([\w-]{20,})/g, replacement: (m: string) =>
-    m.length > 8 ? `${m.slice(0, 4)}...(redacted)` : m },
+
+  // Mask long hex-like or secret-looking tokens
+  { pattern: /([\w-]{20,})/g, replacement: (m: string) => (m.length > 8 ? '(redacted)' : m) },
 ]
 
 function redactSensitiveData(text: string): string {
@@ -20,15 +24,15 @@ function redactSensitiveData(text: string): string {
     if (typeof replacement === 'string') {
       return acc.replace(pattern, replacement)
     }
-    return acc.replace(pattern, replacement as (substring: string, ...args: any[]) => string)
+    return acc.replace(pattern, replacement)
   }, text)
 }
 
-function truncate(s: string, max = 300) {
+function truncate(s: string, max = 300): string {
   return s.length > max ? `${s.slice(0, max)}…` : s
 }
 
-function safePretty(obj: unknown, maxKeys = 5) {
+function safePretty(obj: unknown, maxKeys = 5): string {
   try {
     if (obj && typeof obj === 'object') {
       const o = obj as Record<string, unknown>
@@ -44,7 +48,8 @@ function safePretty(obj: unknown, maxKeys = 5) {
           small[k] = `${v.length} items`
         else if (v && typeof v === 'object')
           small[k] = '[object]'
-        else small[k] = String(v)
+        else
+          small[k] = String(v)
       }
       return JSON.stringify(small)
     }
@@ -54,42 +59,46 @@ function safePretty(obj: unknown, maxKeys = 5) {
     return String(obj)
   }
 }
+
 function extractStringFrom(candidate: unknown): string | null {
-  if (candidate == null)
-    return null
-  if (typeof candidate === 'string')
-    return candidate
-  if (typeof candidate === 'number' || typeof candidate === 'boolean')
-    return String(candidate)
+  if (candidate == null) return null
+  if (typeof candidate === 'string') return candidate
+  if (typeof candidate === 'number' || typeof candidate === 'boolean') return String(candidate)
+
   if (Array.isArray(candidate)) {
-    // prefer array of messages
+    // Prefer array of messages
     const messages = candidate
-      .map((it: any) => (typeof it === 'string' ? it : (it && (it.message || it.detail || it.title)) ? String(it.message || it.detail || it.title) : null))
+      .map((it: any) =>
+        typeof it === 'string'
+          ? it
+          : (it && (it.message || it.detail || it.title))
+            ? String(it.message || it.detail || it.title)
+            : null
+      )
       .filter(Boolean)
-    if (messages.length > 0)
-      return messages.join('; ')
-    return null
+    return messages.length > 0 ? messages.join('; ') : null
   }
+
   if (typeof candidate === 'object') {
     const c = candidate as Record<string, any>
-    // common fields
+
+    // Common error fields
     for (const key of ['message', 'detail', 'error', 'error_message', 'title', 'description']) {
       const v = c[key]
-      if (typeof v === 'string' && v.trim())
-        return v
-      if (v && typeof v === 'object' && typeof v.message === 'string')
-        return v.message
+      if (typeof v === 'string' && v.trim()) return v
+      if (v && typeof v === 'object' && typeof v.message === 'string') return v.message
     }
-    // fallback: look for any first primitive string value
+
+    // Fallback: first primitive string or number
     for (const k of Object.keys(c)) {
       const v = c[k]
-      if (typeof v === 'string' && v.trim())
-        return v
-      if (typeof v === 'number' || typeof v === 'boolean')
-        return String(v)
+      if (typeof v === 'string' && v.trim()) return v
+      if (typeof v === 'number' || typeof v === 'boolean') return String(v)
     }
+
     return null
   }
+
   return null
 }
 
@@ -97,22 +106,17 @@ function parseJsonErrorSync(jsonStr: string): string {
   try {
     const parsed = JSON.parse(jsonStr)
 
-    // Try a few common patterns in order of likelihood
-    // 1) top-level 'error'
+    // Try common error structures
     const topError = (parsed as any)?.error ?? (parsed as any)?.errors ?? parsed
     const fromTop = extractStringFrom(topError)
-    if (fromTop)
-      return truncate(fromTop, 1000)
+    if (fromTop) return truncate(fromTop, 1000)
 
-    // 2) top-level message/detail/title
     const direct = extractStringFrom(parsed)
-    if (direct)
-      return truncate(direct, 1000)
+    if (direct) return truncate(direct, 1000)
 
-    // 3) fallback to a concise pretty object with limited keys
+    // Fallback: summarize object
     return safePretty(parsed)
-  }
-  catch (e: unknown) {
+  } catch (e: unknown) {
     return String(e)
   }
 }
@@ -139,8 +143,7 @@ export function formatErrorForUser(error: unknown): string {
     }
 
     return redactSensitiveData(String(error))
-  }
-  catch (e: unknown) {
+  } catch (e: unknown) {
     return String(e)
   }
 }
