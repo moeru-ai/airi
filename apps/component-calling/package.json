@@ -27,7 +27,7 @@
     "@xsai/generate-text": "catalog:",
     "@xsai/shared-chat": "catalog:",
     "@xsai/stream-text": "catalog:",
-    "es-toolkit": "^1.39.10",
+    "es-toolkit": "^1.40.0",
     "valibot": "1.0.0-beta.9",
     "vue": "^3.5.22",
     "xsschema": "catalog:"
@@ -36,12 +36,12 @@
     "@iconify-json/solar": "^1.2.4",
     "@iconify-json/svg-spinners": "^1.2.4",
     "@types/xast": "^2.0.4",
-    "@unocss/reset": "^66.5.2",
+    "@unocss/reset": "^66.5.3",
     "@vitejs/plugin-vue": "^6.0.1",
     "superjson": "^2.2.2",
     "unplugin-vue-router": "^0.15.0",
     "vite": "catalog:rolldown-vite",
     "vue-router": "^4.5.1",
-    "vue-tsc": "^3.0.8"
+    "vue-tsc": "^3.1.1"
   }
 }

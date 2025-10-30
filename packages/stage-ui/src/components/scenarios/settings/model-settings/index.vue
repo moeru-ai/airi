@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { DisplayModel } from '../../../../stores/display-models'
 
-import { ThreeScene } from '@proj-airi/stage-ui-three'
+import { ThreeScene, useModelStore } from '@proj-airi/stage-ui-three'
 import { useMouse } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { ref, watch } from 'vue'
@@ -9,13 +9,13 @@ import { ref, watch } from 'vue'
 import Callout from '../../../layouts/Callout.vue'
 import Button from '../../../misc/Button.vue'
 import Live2DScene from '../../../scenes/Live2D.vue'
-import ModelManagerDialog from '../../dialogs/model-selector/model-selector-dialog.vue'
 import Live2D from './Live2D.vue'
 import VRM from './VRM.vue'
 
 import { DisplayModelFormat } from '../../../../stores/display-models'
 import { useLive2d } from '../../../../stores/live2d'
 import { useSettings } from '../../../../stores/settings'
+import { ModelSelectorDialog } from '../../dialogs/model-selector'
 
 const props = defineProps<{
   palette: string[]
@@ -45,9 +45,7 @@ watch(selectedModel, async () => {
         useLive2d().shouldUpdateView()
         break
       case DisplayModelFormat.VRM:
-        // Lilia: settingStore.updateStageModel has been called once above
-        // I don't know why it should be recalled again by triggering useVRM().shouldUpdateView()
-        // useVRM().shouldUpdateView()
+        useModelStore().shouldUpdateView()
         break
     }
   }
@@ -73,11 +71,11 @@ watch(selectedModel, async () => {
         uses 3D model that is driven by VRM / MMD open formats.
       </p>
     </Callout>
-    <ModelManagerDialog v-model="selectedModel">
+    <ModelSelectorDialog v-model="selectedModel">
       <Button variant="secondary">
         Select Model
       </Button>
-    </ModelManagerDialog>
+    </ModelSelectorDialog>
     <Live2D v-if="stageModelRenderer === 'live2d'" :palette="palette" @extract-colors-from-model="$emit('extractColorsFromModel')" />
     <VRM v-if="stageModelRenderer === 'vrm'" :palette="palette" @extract-colors-from-model="$emit('extractColorsFromModel')" />
   </div>

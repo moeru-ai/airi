@@ -34,12 +34,12 @@
   },
   "devDependencies": {
     "@proj-airi/ui": "workspace:^",
-    "@unocss/reset": "^66.5.2",
+    "@unocss/reset": "^66.5.3",
     "@vitejs/plugin-vue": "^6.0.1",
     "unplugin-vue-router": "^0.15.0",
     "vite": "catalog:rolldown-vite",
     "vite-plugin-vue-devtools": "^8.0.2",
     "vue-router": "^4.5.1",
-    "vue-tsc": "^3.0.8"
+    "vue-tsc": "^3.1.1"
   }
 }

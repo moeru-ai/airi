@@ -1,6 +1,5 @@
 common:
   save: 保存
-
 animations:
   stage-transitions:
     title: 是否开启舞台动画
@@ -500,6 +499,12 @@ pages:
       302-ai:
         description: 302.AI
         title: 302.AI
+      comet-api:
+        description: CometAPI.com
+        title: Comet API
+      cerebras:
+        description: cerebras.ai
+        title: Cerebras
       transcriptions:
         playground:
           title: 实验平台
@@ -598,6 +603,11 @@ pages:
               title: 中国传统颜色
           title: 预设
     title: 外观
+  page:
+    developers:
+      open-devtools:
+        button: 打开
+        title: 打开开发者工具
 sections:
   section:
     general:

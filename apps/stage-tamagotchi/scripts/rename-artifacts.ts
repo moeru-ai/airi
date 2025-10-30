@@ -6,9 +6,8 @@ import { join } from 'node:path'
 import { cac } from 'cac'
 
 import packageJSON from '../package.json' assert { type: 'json' }
-import tauriConfigJSON from '../src-tauri/tauri.conf.json' assert { type: 'json' }
 
-import { getFilename, getVersion } from './utils'
+import { getElectronBuilderConfig, getFilenames, getVersion } from './utils'
 
 async function main() {
   const cli = cac('rename-artifact')
@@ -31,8 +30,9 @@ async function main() {
   const args = cli.parse()
 
   let version = packageJSON.version
+  const electronBuilderConfig = await getElectronBuilderConfig()
   const target = args.args[0]
-  const productName = tauriConfigJSON.productName
+  const productName = electronBuilderConfig.productName
   const dirname = import.meta.dirname
 
   const beforeVersion = version
@@ -46,61 +46,40 @@ async function main() {
 
   version = await getVersion(argOptions)
 
-  console.log('target:', target)
-  console.log('dirname', dirname)
-  console.log('version from:', beforeVersion, 'to:', version)
-  console.log('product name from:', beforeProductName, 'to:', productName)
+  console.info('target:', target)
+  console.info('dirname', dirname)
+  console.info('version from:', beforeVersion, 'to:', version)
+  console.info('product name from:', beforeProductName, 'to:', productName)
 
   if (!target) {
     throw new Error('<Target> is required')
   }
 
-  const srcPrefix = join(dirname, '..', '..', '..', 'target', target, 'release', 'bundle')
-  const bundlePrefix = join(dirname, '..', '..', '..', 'bundle')
+  const srcPrefix = join(dirname, '..', 'dist')
+  console.info('source directory:', srcPrefix)
+  const bundlePrefix = join(dirname, '..', 'bundle')
+  console.info('bundle directory:', bundlePrefix)
 
-  console.log('renaming directory from:', srcPrefix)
-  console.log('renaming directory to:', bundlePrefix)
-  console.log(readdirSync(srcPrefix))
+  console.info('renaming directory from:', srcPrefix)
+  console.info('renaming directory to:', bundlePrefix)
+  console.info(readdirSync(srcPrefix))
 
   mkdirSync(bundlePrefix, { recursive: true })
 
-  let renameFrom = ''
-  let renameTo = ''
-  const filename = await getFilename(target, argOptions)
+  const filenames = await getFilenames(target, argOptions)
+  console.info(filenames, 'is the target filename')
 
-  switch (target) {
-    case 'x86_64-pc-windows-msvc':
-      renameFrom = join(srcPrefix, 'nsis', `${beforeProductName}_${beforeVersion}_x64-setup.exe`)
-      renameTo = join(bundlePrefix, filename)
-      break
-    case 'x86_64-unknown-linux-gnu':
-      renameFrom = join(srcPrefix, 'appimage', `${beforeProductName}_${beforeVersion}_amd64.AppImage`)
-      renameTo = join(bundlePrefix, filename)
-      break
-    case 'aarch64-unknown-linux-gnu':
-      renameFrom = join(srcPrefix, 'appimage', `${beforeProductName}_${beforeVersion}_aarch64.AppImage`)
-      renameTo = join(bundlePrefix, filename)
-      break
-    case 'aarch64-apple-darwin':
-      renameFrom = join(srcPrefix, 'dmg', `${beforeProductName}_${beforeVersion}_aarch64.dmg`)
-      renameTo = join(bundlePrefix, filename)
-      break
-    case 'x86_64-apple-darwin':
-      renameFrom = join(srcPrefix, 'dmg', `${beforeProductName}_${beforeVersion}_x64.dmg`)
-      renameTo = join(bundlePrefix, filename)
-      break
-    default:
-      console.error('Target is not supported')
-      process.exit(1)
+  for (const filename of filenames) {
+    const renameFrom = join(srcPrefix, filename.outputFilename)
+    const renameTo = join(bundlePrefix, filename.releaseArtifactFilename)
+    console.info('renaming, from:', renameFrom, 'to:', renameTo)
+    renameSync(renameFrom, renameTo)
   }
-
-  console.log('renaming, from:', renameFrom, 'to:', renameTo)
-  renameSync(renameFrom, renameTo)
 }
 
 main()
   .then(() => {
-    console.log('Renaming completed successfully.')
+    console.info('Renaming completed successfully.')
   })
   .catch((error) => {
     console.error('Error during renaming:', error)

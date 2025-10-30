@@ -30,6 +30,19 @@ export default defineConfig({
         'code::after': {
           content: 'normal',
         },
+        'pre': {
+          'margin-top': '0.5rem',
+          'margin-bottom': '0',
+        },
+        'details': {
+          'margin-top': '0.5rem',
+          'margin-bottom': '0.5rem',
+          'padding': '0.5rem 1rem',
+          'background-color': '#a6ceef1a',
+        },
+        '.dark details': {
+          'background-color': '#5870840f',
+        },
       },
     }),
     presetWind3(),
@@ -50,6 +63,12 @@ export default defineConfig({
         'sans-rounded': {
           name: 'Comfortaa Variable',
           provider: 'none',
+        },
+        'mystery-quest': {
+          name: 'Mystery Quest',
+        },
+        'grandstander': {
+          name: 'Grandstander',
         },
       },
     }),
@@ -87,6 +106,8 @@ export default defineConfig({
     fontFamily: {
       'sans': `ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";`,
       'sans-rounded': `"DM Sans", ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";`,
+      'sans-serif-halloween-secondary': `"Grandstander", "DM Sans", ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";`,
+      'sans-serif-halloween': `"Mystery Quest", "DM Sans", ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";`,
     },
     colors: {
       border: 'hsl(var(--border))',

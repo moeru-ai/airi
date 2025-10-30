@@ -21,3 +21,9 @@ pages:
       toggle-ignore-mouse-event:
         label: Toggle Ignore Mouse Event
       press-keys: Press Keys...
+    developer:
+      sections:
+        section:
+          use-window-mouse:
+            title: useWindowMouse
+            description: Test the Electron window cursor position

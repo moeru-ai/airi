@@ -17,7 +17,7 @@ async function main() {
   const WORKER_POOL_SIZE = env.WORKER_POOL_SIZE ? Number.parseInt(env.WORKER_POOL_SIZE) : 50
   const BATCH_SIZE = env.BATCH_SIZE ? Number.parseInt(env.BATCH_SIZE) : 10
 
-  console.log(`Starting embedding with worker pool size: ${WORKER_POOL_SIZE}, batch size: ${BATCH_SIZE}`)
+  console.info(`Starting embedding with worker pool size: ${WORKER_POOL_SIZE}, batch size: ${BATCH_SIZE}`)
 
   // Create a concurrency limiter
   const limit = pLimit(WORKER_POOL_SIZE)
@@ -93,7 +93,7 @@ async function main() {
 
           // Optional progress logging
           if (processedCount.success % 100 === 0) {
-            console.log(`Processed ${processedCount.success} messages so far`)
+            console.info(`Processed ${processedCount.success} messages so far`)
           }
         }
         catch (error) {
@@ -108,7 +108,7 @@ async function main() {
 }
 
 main().then(() => {
-  console.log('Done')
+  console.info('Done')
 }).catch((err) => {
   console.error(err)
 })

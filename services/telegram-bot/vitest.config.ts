@@ -4,7 +4,7 @@ import { loadEnv } from 'vite'
 import { defineConfig } from 'vitest/config'
 
 export default defineConfig(({ mode }) => {
-  console.log('mode', mode)
+  console.info('mode', mode)
 
   return {
     test: {

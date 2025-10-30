@@ -1,7 +1,7 @@
 import type { DefaultTheme } from 'vitepress/theme'
 import type { ComputedRef, Ref } from 'vue'
 
-import { useEventListener, useMediaQuery } from '@vueuse/core'
+import { useEventListener } from '@vueuse/core'
 import { useData, withBase } from 'vitepress'
 import {
   computed,
@@ -25,53 +25,6 @@ export interface SidebarControl {
 }
 
 export interface SidebarItem extends DefaultTheme.SidebarItem {}
-
-export function useSidebar() {
-  const { frontmatter, theme } = useData()
-  const is960 = useMediaQuery('(min-width: 960px)')
-
-  const isOpen = ref(false)
-
-  const hasSidebar = computed(() => {
-    return (
-      frontmatter.value.sidebar !== false
-      && frontmatter.value.layout !== 'home'
-    )
-  })
-
-  const hasAside = computed(() => {
-    if (frontmatter.value.layout === 'home')
-      return false
-    if (frontmatter.value.aside != null)
-      return !!frontmatter.value.aside
-    return theme.value.aside !== false
-  })
-
-  const isSidebarEnabled = computed(() => hasSidebar.value && is960.value)
-
-  function open() {
-    isOpen.value = true
-  }
-
-  function close() {
-    isOpen.value = false
-  }
-
-  function toggle() {
-    isOpen.value ? close() : open()
-  }
-
-  return {
-    isOpen,
-
-    hasSidebar,
-    hasAside,
-    isSidebarEnabled,
-    open,
-    close,
-    toggle,
-  }
-}
 
 /**
  * a11y: cache the element that opened the Sidebar (the menu button) then
@@ -241,17 +194,17 @@ function ensureStartingSlash(path: string): string {
  * return empty array.
  */
 export function getSidebar(
-  _sidebar: DefaultTheme.Sidebar | undefined,
+  sidebar: DefaultTheme.Sidebar | undefined,
   path: string,
 ): SidebarItem[] {
-  if (Array.isArray(_sidebar))
-    return addBase(_sidebar)
-  if (_sidebar == null)
+  if (Array.isArray(sidebar))
+    return addBase(sidebar)
+  if (sidebar == null)
     return []
 
   path = ensureStartingSlash(path)
 
-  const dir = Object.keys(_sidebar)
+  const dir = Object.keys(sidebar)
     .sort((a, b) => {
       return b.split('/').length - a.split('/').length
     })
@@ -260,10 +213,10 @@ export function getSidebar(
       return path.startsWith(ensureStartingSlash(dir))
     })
 
-  const sidebar = dir ? _sidebar[dir]! : []
-  return Array.isArray(sidebar)
-    ? addBase(sidebar)
-    : addBase(sidebar.items, sidebar.base)
+  const sidebarDir = dir ? sidebar[dir]! : []
+  return Array.isArray(sidebarDir)
+    ? addBase(sidebarDir)
+    : addBase(sidebarDir.items, sidebarDir.base)
 }
 
 /**

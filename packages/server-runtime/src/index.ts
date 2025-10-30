@@ -5,7 +5,7 @@ import type { AuthenticatedPeer, Peer } from './types'
 import { env } from 'node:process'
 
 import { Format, LogLevel, setGlobalFormat, setGlobalLogLevel, useLogg } from '@guiiai/logg'
-import { createApp, createRouter, defineWebSocketHandler } from 'h3'
+import { defineWebSocketHandler, H3 } from 'h3'
 
 import { WebSocketReadyState } from './types'
 
@@ -30,12 +30,9 @@ function main() {
   const appLogger = useLogg('App').useGlobalConfig()
   const websocketLogger = useLogg('WebSocket').useGlobalConfig()
 
-  const app = createApp({
+  const app = new H3({
     onError: error => appLogger.withError(error).error('an error occurred'),
   })
-
-  const router = createRouter()
-  app.use(router)
 
   const peers = new Map<string, AuthenticatedPeer>()
   const peersByModule = new Map<string, Map<number | undefined, AuthenticatedPeer>>()
@@ -64,7 +61,7 @@ function main() {
     }
   }
 
-  router.get('/ws', defineWebSocketHandler({
+  app.get('/ws', defineWebSocketHandler({
     open: (peer) => {
       if (AUTH_TOKEN) {
         peers.set(peer.id, { peer, authenticated: false, name: '' })

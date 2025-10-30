@@ -2,6 +2,7 @@ import type { DisplayModel } from './display-models'
 
 import messages from '@proj-airi/i18n/locales'
 
+import { withBase } from '@proj-airi/stage-shared'
 import { useEventListener, useLocalStorage } from '@vueuse/core'
 import { converter } from 'culori'
 import { defineStore } from 'pinia'
@@ -80,7 +81,7 @@ export const useSettings = defineStore('settings', () => {
       stageModelSelectedUrl.value = URL.createObjectURL(model.file)
     }
     else {
-      stageModelSelectedUrl.value = model.url
+      stageModelSelectedUrl.value = withBase(model.url)
     }
 
     stageModelSelectedDisplayModel.value = model
@@ -186,7 +187,7 @@ export const useSettingsAudioDevice = defineStore('settings-audio-devices', () =
   const { audioInputs, deviceConstraints, selectedAudioInput: selectedAudioInputNonPersist, startStream, stopStream, stream, askPermission } = useAudioDevice()
 
   const selectedAudioInputPersist = useLocalStorage('settings/audio/input', selectedAudioInputNonPersist.value)
-  const selectedAudioInputEnabledPersist = useLocalStorage('settings/audio/input-enabled', false)
+  const selectedAudioInputEnabledPersist = useLocalStorage('settings/audio/input/enabled', false)
 
   watch(selectedAudioInputPersist, (newValue) => {
     selectedAudioInputNonPersist.value = newValue

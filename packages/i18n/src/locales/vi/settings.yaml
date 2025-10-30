@@ -495,6 +495,12 @@ pages:
       302-ai:
         description: 302.AI
         title: 302.AI
+      comet-api:
+        description: CometAPI.com
+        title: Comet API
+      cerebras:
+        description: cerebras.ai
+        title: Cerebras
       transcriptions:
         playground:
           title: Transcription Playground

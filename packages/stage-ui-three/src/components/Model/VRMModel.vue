@@ -6,7 +6,7 @@
   * - Load & initialise animation
 */
 
-import type { VRMCore } from '@pixiv/three-vrm-core'
+import type { VRM } from '@pixiv/three-vrm'
 import type {
   Group,
   Object3D,
@@ -29,7 +29,6 @@ import {
   MeshPhysicalMaterial,
   MeshStandardMaterial,
   Plane,
-  Quaternion,
   Raycaster,
 
   SRGBColorSpace,
@@ -146,7 +145,7 @@ const {
 
 // Model and scene ref
 const { scene } = useTresContext()
-const vrm = shallowRef<VRMCore>()
+const vrm = shallowRef<VRM>()
 const vrmGroup = shallowRef<Group>()
 const modelLoaded = ref<boolean>(false)
 // for eye tracking modes
@@ -315,19 +314,7 @@ async function loadModel() {
       }
 
       // Set model facing direction
-      const targetDirection = new Vector3(0, 0, -1) // Default facing direction
-      const lookAt = _vrm.lookAt
-      const quaternion = new Quaternion()
-      if (lookAt) {
-        const facingDirection = lookAt.faceFront
-        quaternion.setFromUnitVectors(facingDirection.normalize(), targetDirection.normalize())
-        _vrmGroup.quaternion.premultiply(quaternion)
-        _vrmGroup.updateMatrixWorld(true)
-      }
-      else {
-        console.warn('No look-at target found in VRM model')
-      }
-
+      // Lilia: I brought forward the rotation to the core.ts, so that any ad-hoc rotation will not impact the model centre position.
       if (isFirstLoad) {
         // Reset model rotation Y
         emit('modelRotationY', 0)
@@ -436,6 +423,7 @@ async function loadModel() {
         idleEyeSaccades.update(vrm.value, lookAtTarget, delta)
         vrmEmote.value?.update(delta)
         vrmLipSync.update(vrm.value)
+        vrm.value?.springBoneManager?.update(delta)
       }).off
 
       // update the 'last model src'

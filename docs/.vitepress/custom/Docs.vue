@@ -12,6 +12,7 @@ import DocOutline from '../components/DocOutline.vue'
 import DocSidebar from '../components/DocSidebar.vue'
 import DocTopbar from '../components/DocTopbar.vue'
 
+import { isBetweenHalloweenAndHalfOfNovember } from '../composables/date'
 import { flatten } from '../utils/flatten'
 
 const { theme, frontmatter } = useData()
@@ -51,12 +52,22 @@ const isCharactersPage = computed(() => path.value.includes('characters'))
       class="pointer-events-none absolute inset-0 left-0 top-0 z-0 h-max w-full flex justify-center overflow-hidden"
     >
       <div class="w-[108rem] flex flex-none justify-end">
-        <img
-          class="max-w-none w-[90rem] flex-none"
-          decoding="async"
-          src="/new-bg.avif"
-          alt="backdrop"
-        >
+        <ClientOnly>
+          <img
+            v-if="isBetweenHalloweenAndHalfOfNovember(new Date())"
+            class="max-w-none w-[90rem] flex-none"
+            decoding="async"
+            src="/new-bg-halloween.png"
+            alt="backdrop"
+          >
+          <img
+            v-else
+            class="max-w-none w-[90rem] flex-none"
+            decoding="async"
+            src="/new-bg.avif"
+            alt="backdrop"
+          >
+        </ClientOnly>
       </div>
     </div>
 

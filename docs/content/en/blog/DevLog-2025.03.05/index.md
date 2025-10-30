@@ -20,7 +20,7 @@ import { onMounted } from 'vue'
 
 onMounted(async () => {
   const result = await check()
-  console.log(result)
+  console.info(result)
 
   // do something with the result
 })
