@@ -6,63 +6,7 @@ import { message } from '@xsai/utils-chat'
 
 type ProviderCreator = (apiKey: string, baseUrl: string) => any
 
-function formatErrorForUser(e: unknown) {
-  try {
-    const redact = (s: string) => {
-      // mask OpenAI-like secret keys (sk-...)
-      s = s.replace(/sk-[A-Za-z0-9._-]{8,}/g, 'sk-(redacted)')
-      // mask Bearer tokens
-      s = s.replace(/Bearer\s+[A-Za-z0-9._\-=:]+/g, 'Bearer (redacted)')
-      // mask any long hex-like/secret-looking tokens
-      s = s.replace(/([A-Za-z0-9_\-]{20,})/g, (m) => (m.length > 8 ? m.slice(0, 4) + '...(redacted)' : m))
-      return s
-    }
-    // If it's an Error, try to extract meaningful message
-    if (e instanceof Error) {
-      const msg = e.message || String(e)
-      const trimmed = msg.trim()
-      // If message looks like JSON, try to parse and extract common fields
-      if (trimmed.startsWith('{')) {
-        try {
-          const parsed = JSON.parse(trimmed)
-          const candidate = parsed?.error || parsed?.errors || parsed
-          if (typeof candidate === 'string') return candidate
-          if (candidate?.message) return String(candidate.message)
-          if (candidate?.error?.message) return String(candidate.error.message)
-          if (parsed?.message) return String(parsed.message)
-          // Fallback: stringify but keep it short
-          return JSON.stringify(parsed, Object.keys(parsed).slice(0, 5))
-        }
-        catch {
-          return redact(msg)
-        }
-      }
-
-      return redact(msg)
-    }
-
-    if (typeof e === 'string') {
-      const trimmed = e.trim()
-      if (trimmed.startsWith('{')) {
-        try {
-          const parsed = JSON.parse(trimmed)
-          if (parsed?.error?.message) return String(parsed.error.message)
-          if (parsed?.message) return String(parsed.message)
-          return JSON.stringify(parsed, Object.keys(parsed).slice(0, 5))
-        }
-        catch {
-          return redact(e)
-        }
-      }
-      return redact(e)
-    }
-
-    return redact(String(e))
-  }
-  catch {
-    return String(e)
-  }
-}
+import { formatErrorForUser } from '../../utils/error-formatter'
 
 export function buildOpenAICompatibleProvider(
   options: Partial<ProviderMetadata> & {
