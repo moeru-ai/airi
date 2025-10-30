@@ -4,7 +4,11 @@ import { generateText } from '@xsai/generate-text'
 import { listModels } from '@xsai/model'
 import { message } from '@xsai/utils-chat'
 
-import { formatErrorForUser, buildValidationResult } from '../../utils/providerValidation'
+import {
+  formatErrorForUser,
+  buildValidationResult,
+  buildFetchErrorResult,
+} from '../../utils/providerValidation'
 
 type ProviderCreator = (apiKey: string, baseUrl: string) => any
 
@@ -44,7 +48,7 @@ export function buildOpenAICompatibleProvider(
     ...rest
   } = options
 
-  // Default capabilities if provider does not define its own
+  // --- Default capabilities if provider does not define its own ---
   const finalCapabilities = capabilities || {
     listModels: async (config: Record<string, unknown>) => {
       // Safer casting of apiKey/baseUrl (prevents .trim() crash if not a string)
@@ -58,24 +62,30 @@ export function buildOpenAICompatibleProvider(
 
       // Fetch model list using standard OpenAI-compatible endpoint
       // (was: fetch(`${baseUrl}models`))
-      const models = await listModels({
-        apiKey,
-        baseURL: baseUrl,
-        headers: additionalHeaders,
-      })
+      try {
+        const models = await listModels({
+          apiKey,
+          baseURL: baseUrl,
+          headers: additionalHeaders,
+        })
 
-      return models.map((model: any) => ({
-        id: model.id,
-        name: model.name || model.display_name || model.id,
-        provider: id,
-        description: model.description || '',
-        contextLength: model.context_length || 0,
-        deprecated: false,
-      }) satisfies ModelInfo)
+        return models.map((model: any) => ({
+          id: model.id,
+          name: model.name || model.display_name || model.id,
+          provider: id,
+          description: model.description || '',
+          contextLength: model.context_length || 0,
+          deprecated: false,
+        }) satisfies ModelInfo)
+      }
+      catch (err) {
+        console.warn(`Model list fetch failed: ${formatErrorForUser(err)}`)
+        return []
+      }
     },
   }
 
-  // Default validation logic for OpenAI-compatible providers
+  // --- Default validation logic for OpenAI-compatible providers ---
   const finalValidators = validators || {
     validateProviderConfig: async (config: Record<string, unknown>) => {
       const errors: Error[] = []
@@ -132,14 +142,15 @@ export function buildOpenAICompatibleProvider(
         if (models.length > 0)
           model = models[0].id
       }
-      catch (e) {
+      catch (err) {
         // Keep only warning for auto-detection (don’t fail validation)
-        console.warn(`Model auto-detection failed: ${formatErrorForUser(e)}`)
+        console.warn(`Model auto-detection failed: ${formatErrorForUser(err)}`)
       }
 
       // --- Validation routines based on `validation` array ---
 
-      // Health check = send minimal test prompt (was: fetch(`${baseUrl}chat/completions`))
+      // Health check = send minimal test prompt
+      // (was: fetch(`${baseUrl}chat/completions`))
       if (validationChecks.includes('health')) {
         try {
           await generateText({
@@ -151,12 +162,13 @@ export function buildOpenAICompatibleProvider(
             max_tokens: 1,
           })
         }
-        catch (e) {
-          errors.push(new Error(`Health check failed: ${formatErrorForUser(e)}`))
+        catch (err) {
+          errors.push(new Error(`Health check failed: ${formatErrorForUser(err)}`))
         }
       }
 
-      // Model list validation (was: fetch(`${baseUrl}models`))
+      // Model list validation
+      // (was: fetch(`${baseUrl}models`))
       if (validationChecks.includes('model_list')) {
         try {
           const models = await listModels({
@@ -167,12 +179,13 @@ export function buildOpenAICompatibleProvider(
           if (!models || models.length === 0)
             errors.push(new Error('Model list check failed: no models found.'))
         }
-        catch (e) {
-          errors.push(new Error(`Model list check failed: ${formatErrorForUser(e)}`))
+        catch (err) {
+          errors.push(new Error(`Model list check failed: ${formatErrorForUser(err)}`))
         }
       }
 
-      // Chat completions validation = generateText again (was: fetch(`${baseUrl}chat/completions`))
+      // Chat completions validation
+      // (was: fetch(`${baseUrl}chat/completions`))
       if (validationChecks.includes('chat_completions')) {
         try {
           await generateText({
@@ -184,8 +197,8 @@ export function buildOpenAICompatibleProvider(
             max_tokens: 1,
           })
         }
-        catch (e) {
-          errors.push(new Error(`Chat completions check failed: ${formatErrorForUser(e)}`))
+        catch (err) {
+          errors.push(new Error(`Chat completions check failed: ${formatErrorForUser(err)}`))
         }
       }
 
