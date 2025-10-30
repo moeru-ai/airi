@@ -61,58 +61,7 @@ import { useI18n } from 'vue-i18n'
 import { models as elevenLabsModels } from './providers/elevenlabs/list-models'
 import { buildOpenAICompatibleProvider } from './providers/openai-compatible-builder'
 
-// Helper to normalize and redact error messages before showing to users
-function formatErrorForUser(e: unknown) {
-  try {
-    const redact = (s: string) => {
-      s = s.replace(/sk-[A-Za-z0-9._-]{8,}/g, 'sk-(redacted)')
-      s = s.replace(/Bearer\s+[A-Za-z0-9._\-=:]+/g, 'Bearer (redacted)')
-      s = s.replace(/([A-Za-z0-9_\-]{20,})/g, (m) => (m.length > 8 ? m.slice(0, 4) + '...(redacted)' : m))
-      return s
-    }
-
-    if (e instanceof Error) {
-      const msg = e.message || String(e)
-      const trimmed = msg.trim()
-      if (trimmed.startsWith('{')) {
-        try {
-          const parsed = JSON.parse(trimmed)
-          const candidate = parsed?.error || parsed?.errors || parsed
-          if (typeof candidate === 'string') return redact(candidate)
-          if (candidate?.message) return redact(String(candidate.message))
-          if (candidate?.error?.message) return redact(String(candidate.error.message))
-          if (parsed?.message) return redact(String(parsed.message))
-          return redact(JSON.stringify(parsed, Object.keys(parsed).slice(0, 5)))
-        }
-        catch {
-          return redact(msg)
-        }
-      }
-      return redact(msg)
-    }
-
-    if (typeof e === 'string') {
-      const trimmed = e.trim()
-      if (trimmed.startsWith('{')) {
-        try {
-          const parsed = JSON.parse(trimmed)
-          if (parsed?.error?.message) return redact(String(parsed.error.message))
-          if (parsed?.message) return redact(String(parsed.message))
-          return redact(JSON.stringify(parsed, Object.keys(parsed).slice(0, 5)))
-        }
-        catch {
-          return redact(e)
-        }
-      }
-      return redact(e)
-    }
-
-    return redact(String(e))
-  }
-  catch {
-    return String(e)
-  }
-}
+import { formatErrorForUser } from '../utils/error-formatter'
 
 export interface ProviderMetadata {
   id: string
