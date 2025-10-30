@@ -1,14 +1,17 @@
 <script setup lang="ts">
 import { RadioCardManySelect, RadioCardSimple } from '@proj-airi/stage-ui/components'
+import { useMemoryService } from '@proj-airi/stage-ui/composables/useMemoryService'
+import { exportChatHistory as exportLocalChatHistory, importChatHistory as importLocalChatHistory, testLocalMemoryConnection } from '@proj-airi/stage-ui/services'
 import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
 import { FieldInput } from '@proj-airi/ui'
 import { useLocalStorage } from '@vueuse/core'
 import { computed, onMounted, ref, watch } from 'vue'
 
 // === EXISTING MEMORY SERVICE SETTINGS ===
-const memoryServiceEnabled = useLocalStorage('settings/memory/enabled', false)
+const memoryServiceEnabled = useLocalStorage('settings/memory/enabled', true)
 const chatStore = useChatStore()
-const memoryServiceUrl = useLocalStorage('settings/memory/service-url', 'http://localhost:3001')
+const { getActiveModelName } = useMemoryService()
+const memoryServiceUrl = useLocalStorage('settings/memory/service-url', 'local://pglite')
 const apiKey = useLocalStorage('settings/memory/api-key', '')
 const isConnected = ref(false)
 const isTesting = ref(false)
@@ -60,28 +63,12 @@ function formatTimeRemaining(ms: number | null): string {
 
 // Function to fetch regeneration status
 async function fetchRegenerationStatus() {
-  try {
-    const response = await fetch(`${memoryServiceUrl.value}/api/settings/regeneration-status`, {
-      headers: {
-        Authorization: `Bearer ${apiKey.value}`,
-      },
-    })
-
-    if (!response.ok) {
-      throw new Error('Failed to fetch regeneration status')
-    }
-
-    const status = await response.json()
-    isRegenerating.value = status.isRegenerating
-    regenerationProgress.value = status.progress
-    regenerationTotalItems.value = status.totalItems
-    regenerationProcessedItems.value = status.processedItems
-    regenerationTimeRemaining.value = status.estimatedTimeRemaining
-    regenerationBatchSize.value = status.currentBatchSize
-  }
-  catch (error) {
-    console.error('Failed to fetch regeneration status:', error)
-  }
+  isRegenerating.value = false
+  regenerationProgress.value = 100
+  regenerationTotalItems.value = 0
+  regenerationProcessedItems.value = 0
+  regenerationTimeRemaining.value = null
+  regenerationBatchSize.value = 0
 }
 
 // === LLM CONFIGURATION SETTINGS (Set explicit defaults for XsaiLLMProvider stability) ===
@@ -223,104 +210,35 @@ watch([
 
 // === FUNCTIONS ===
 async function fetchSettings() {
-  try {
-    if (!memoryServiceEnabled.value)
-      return
+  if (!memoryServiceEnabled.value)
+    return
 
-    const response = await fetch(`${memoryServiceUrl.value}/api/settings`, {
-      headers: {
-        Authorization: `Bearer ${apiKey.value}`,
-      },
-    })
+  // Ensure temporary settings mirror committed values
+  tempEmbeddingProvider.value = embeddingProvider.value
+  tempEmbeddingModel.value = embeddingModel.value
+  tempEmbeddingApiKey.value = embeddingApiKey.value
+  tempEmbeddingDim.value = embeddingDim.value
 
-    if (!response.ok) {
-      throw new Error('Failed to fetch settings')
-    }
-
-    const settings = await response.json()
-
-    // Only update settings if they exist in the response
-    if (settings) {
-      // Update LLM settings
-      // Use explicit, non-empty defaults to avoid LLMProvider constructor failure
-      llmProvider.value = settings.llmProvider || 'openai'
-      llmModel.value = settings.llmModel || 'gpt-4-turbo-preview'
-      llmApiKey.value = settings.llmApiKey || ''
-
-      // Update embedding settings (both committed and temporary)
-      embeddingProvider.value = settings.embeddingProvider || 'openai'
-      embeddingModel.value = settings.embeddingModel || 'text-embedding-3-small'
-      embeddingApiKey.value = settings.embeddingApiKey || ''
-      embeddingDim.value = settings.embeddingDimensions || 1536
-
-      // Sync temporary settings
-      tempEmbeddingProvider.value = embeddingProvider.value
-      tempEmbeddingModel.value = embeddingModel.value
-      tempEmbeddingApiKey.value = embeddingApiKey.value
-      tempEmbeddingDim.value = embeddingDim.value
-
-      connectionMessage.value = 'Settings loaded from server'
-      connectionMessageType.value = 'success'
-    }
-  }
-  catch (error) {
-    const msg = error instanceof Error ? error.message : String(error)
-    connectionMessage.value = `Failed to fetch settings: ${msg}`
-    connectionMessageType.value = 'error'
-    console.error(connectionMessage.value)
-  }
+  connectionMessage.value = 'Using embedded memory configuration'
+  connectionMessageType.value = 'success'
 }
 
 async function testConnection() {
   try {
     isTesting.value = true
+    await testLocalMemoryConnection()
+    isConnected.value = true
+    connectionStatus.value = 'Embedded Memory Ready ✅'
+    connectionMessage.value = 'Local PGlite memory initialized successfully'
+    connectionMessageType.value = 'success'
+    connectionError.value = ''
 
-    const headers: Record<string, string> = {}
-    if (apiKey.value.trim()) {
-      headers.Authorization = `Bearer ${apiKey.value}`
-    }
-
-    const response = await fetch(`${memoryServiceUrl.value}/api/test-conn`, {
-      method: 'GET',
-      headers,
-    })
-
-    if (response.ok) {
-      isConnected.value = true
-      connectionStatus.value = 'Connected to Memory Service ✅'
-      connectionMessage.value = 'Successfully connected with API key!'
-      connectionMessageType.value = 'success'
-      connectionError.value = ''
-
-      // Also fetch database info now that we have a working connection
-      await fetchDatabaseInfo()
-    }
-    else if (response.status === 401) {
-      isConnected.value = false
-      connectionStatus.value = 'Memory Service requires API key ❌'
-      connectionMessage.value = 'Connection failed: API key required'
-      connectionMessageType.value = 'error'
-      connectionError.value = 'The memory service requires a valid API key for authentication'
-    }
-    else if (response.status === 403) {
-      isConnected.value = false
-      connectionStatus.value = 'Memory Service rejected API key ❌'
-      connectionMessage.value = 'Connection failed: Invalid API key'
-      connectionMessageType.value = 'error'
-      connectionError.value = 'The provided API key is invalid or expired'
-    }
-    else {
-      isConnected.value = false
-      connectionStatus.value = 'Memory Service responded with error ❌'
-      connectionMessage.value = `Connection failed: Server responded with status ${response.status}`
-      connectionMessageType.value = 'error'
-      connectionError.value = `HTTP ${response.status}: ${response.statusText}`
-    }
+    await fetchDatabaseInfo()
   }
   catch (error) {
     isConnected.value = false
-    connectionStatus.value = 'Cannot connect to Memory Service ❌'
-    connectionMessage.value = 'Connection failed: Network error'
+    connectionStatus.value = 'Embedded Memory Not Available ❌'
+    connectionMessage.value = 'Connection failed: Unable to initialize local memory'
     connectionMessageType.value = 'error'
     connectionError.value = error instanceof Error ? error.message : 'Unknown connection error'
   }
@@ -331,7 +249,7 @@ async function testConnection() {
 
 function resetSettings() {
   memoryServiceEnabled.value = false
-  memoryServiceUrl.value = 'http://localhost:3001'
+  memoryServiceUrl.value = 'local://pglite'
   apiKey.value = ''
   // Use explicit, non-empty defaults to satisfy LLMProvider's non-fallback requirement
   llmProvider.value = 'openai'
@@ -378,35 +296,11 @@ async function confirmRegeneration() {
     embeddingApiKey.value = settingsToCommit.embeddingApiKey
     embeddingDim.value = settingsToCommit.embeddingDimensions
 
-    // Call the API to update settings and trigger regeneration
-    const response = await fetch(`${memoryServiceUrl.value}/api/settings`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey.value}`,
-      },
-      body: JSON.stringify({
-        // Transmit all settings, including the LLM settings that were just updated
-        llmProvider: settingsToCommit.llmProvider,
-        llmModel: settingsToCommit.llmModel,
-        llmApiKey: settingsToCommit.llmApiKey,
-        embeddingProvider: settingsToCommit.embeddingProvider,
-        embeddingModel: settingsToCommit.embeddingModel,
-        embeddingApiKey: settingsToCommit.embeddingApiKey,
-        embeddingDimensions: settingsToCommit.embeddingDimensions,
-      }),
-    })
-
-    if (!response.ok) {
-      const error = await response.json()
-      throw new Error(error.details || 'Failed to update settings')
-    }
-
     showRegenerationWarning.value = false
     settingsChanged.value = false
 
     // Show success message
-    connectionMessage.value = 'Settings updated and embedding regeneration started'
+    connectionMessage.value = 'Settings updated for embedded memory'
     connectionMessageType.value = 'success'
   }
   catch (error) {
@@ -428,34 +322,12 @@ function dismissRegenerationWarning() {
   settingsChanged.value = false
 }
 
-async function updateDbEnabled(endpoint: 'embedded-postgres' | 'pglite', enabled: boolean) {
-  try {
-    const response = await fetch(`${memoryServiceUrl.value}/api/${endpoint}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey.value}`,
-      },
-      body: JSON.stringify({ enabled }),
-    })
-    if (!response.ok) {
-      throw new Error(`Failed to update ${endpoint} status`)
-    }
-  }
-  catch (error) {
-    checkDbVariantMessage.value = `Error updating ${endpoint} status: ${error}`
-    console.error(checkDbVariantMessage.value)
-  }
-}
-
 watch(embeddedPostgresEnabled, (n, o) => {
   const now = n === true
   const old = o === true
   if (now && !old) {
-    if (pgLiteEnabled.value)
-      pgLiteEnabled.value = false
-    updateDbEnabled('pglite', false)
-    updateDbEnabled('embedded-postgres', true)
+    embeddedPostgresEnabled.value = false
+    checkDbVariantMessage.value = 'Embedded Postgres is not supported when memory runs inside the app. Falling back to PGLite.'
   }
 })
 
@@ -463,37 +335,20 @@ watch(pgLiteEnabled, (n, o) => {
   const now = n === true
   const old = o === true
   if (now && !old) {
-    if (embeddedPostgresEnabled.value)
-      embeddedPostgresEnabled.value = false
-    updateDbEnabled('embedded-postgres', false)
-    updateDbEnabled('pglite', true)
+    checkDbVariantMessage.value = 'PGLite is active and backing the embedded memory store.'
+  }
+  else if (!now && old) {
+    pgLiteEnabled.value = true
+    checkDbVariantMessage.value = 'PGLite is required for embedded memory and has been re-enabled.'
   }
 })
 
 async function fetchDatabaseInfo() {
-  try {
-    if (!memoryServiceEnabled.value)
-      return
+  if (!memoryServiceEnabled.value)
+    return
 
-    const response = await fetch(`${memoryServiceUrl.value}/api/database-url`, {
-      headers: {
-        Authorization: `Bearer ${apiKey.value}`,
-      },
-    })
-
-    if (!response.ok) {
-      throw new Error('Failed to fetch database info')
-    }
-
-    const { dbUrl, message } = await response.json()
-    currentDbUrl.value = dbUrl
-    dbInfoMessage.value = message
-  }
-  catch (error) {
-    console.error('Failed to fetch database info:', error)
-    currentDbUrl.value = 'Unable to fetch database info'
-    dbInfoMessage.value = 'Error connecting to memory service'
-  }
+  currentDbUrl.value = 'Embedded PGlite (IndexedDB)'
+  dbInfoMessage.value = 'Chat history is stored locally in your browser via IndexedDB.'
 }
 
 // Watch for memory service being enabled
@@ -506,6 +361,10 @@ watch(memoryServiceEnabled, async (newValue) => {
 })
 
 onMounted(async () => {
+  memoryServiceUrl.value = 'local://pglite'
+  pgLiteEnabled.value = true
+  embeddedPostgresEnabled.value = false
+
   // Initialize LLM settings to non-empty defaults for factory stability
   if (!llmProvider.value)
     llmProvider.value = 'openai'
@@ -537,7 +396,7 @@ onMounted(async () => {
 async function importChatHistory() {
   const fileInput = document.createElement('input')
   fileInput.type = 'file'
-  fileInput.accept = '.sql,.tar,.gz,.tgz'
+  fileInput.accept = '.json'
 
   fileInput.onchange = async (event) => {
     const file = (event.target as HTMLInputElement)?.files?.[0]
@@ -546,33 +405,11 @@ async function importChatHistory() {
       return
     }
 
-    const name = file.name.toLowerCase()
-    const isPglite = /\.(?:tar|tgz|gz)$/.test(name)
-
-    if (!isPglite && !name.endsWith('.sql')) {
-      importMessage.value = 'Unsupported file. Use .sql (Postgres) or .tar/.gz/.tgz (PGlite).'
-      return
-    }
-
     try {
       importMessage.value = 'Importing chat history...'
-      const formData = new FormData()
-      formData.append('file', file)
-
-      const url = `${memoryServiceUrl.value}/api/memory/import-chathistory?isPglite=${isPglite ? 'true' : 'false'}`
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${apiKey.value}`,
-          'X-DB-Variant': isPglite ? 'pglite' : 'pg',
-        },
-        body: formData,
-      })
-
-      if (!response.ok) {
-        const err = await response.text()
-        throw new Error(`Failed to import chat history: ${err}`)
-      }
+      const text = await file.text()
+      const payload = JSON.parse(text)
+      await importLocalChatHistory(payload)
       importMessage.value = 'Chat history imported successfully!'
       // use exceptionally big value to retain recent contexts!
       await chatStore.loadAllHistoryPaginated()
@@ -587,35 +424,13 @@ async function importChatHistory() {
 
 async function exportChatHistory() {
   try {
-    exportMessage.value = 'Chat export task has started...'
-    const usePglite = pgLiteEnabled.value === true
-    const endpoint = usePglite
-      ? `${memoryServiceUrl.value}/api/memory/export-chathistory?isPglite=true`
-      : `${memoryServiceUrl.value}/api/memory/export-embedded`
-
-    const r = await fetch(endpoint, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${apiKey.value}`,
-        'X-DB-Variant': usePglite ? 'pglite' : 'pg',
-      },
-    })
-
-    if (!r.ok) {
-      const t = await r.text().catch(() => '')
-      throw new Error(t || `HTTP ${r.status}`)
-    }
-
-    const cd = r.headers.get('content-disposition') || ''
-    const m = /filename\*=UTF-8''([^;]+)|filename="([^"]+)"/i.exec(cd)
-    const serverName = decodeURIComponent(m?.[1] || m?.[2] || '')
-    const blob = await r.blob()
+    exportMessage.value = 'Preparing chat history export...'
+    const payload = await exportLocalChatHistory(getActiveModelName())
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' })
     const urlObj = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = urlObj
-    a.download = serverName || (usePglite
-      ? `pglite_backup_${new Date().toISOString()}.sql`
-      : `chathistory_pg_backup_${new Date().toISOString()}.sql`)
+    a.download = `airi-memory-export-${new Date().toISOString()}.json`
     document.body.appendChild(a)
     a.click()
     a.remove()
@@ -786,16 +601,16 @@ async function exportChatHistory() {
 
         <div class="mb-4">
           <label class="mb-2 block text-sm text-neutral-700 font-medium dark:text-neutral-300">
-            Memory Service URL (default: http://localhost:3001)
+            Embedded Memory Endpoint
           </label>
           <FieldInput
             v-model="memoryServiceUrl"
-            placeholder="http://localhost:3001"
+            placeholder="local://pglite"
             class="w-full"
-            :disabled="!memoryServiceEnabled"
+            disabled
           />
           <p class="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
-            The URL where your memory service is running
+            Memory now runs inside the app via PGlite. This endpoint is fixed.
           </p>
         </div>
         <div class="mb-4">
@@ -807,10 +622,10 @@ async function exportChatHistory() {
             type="password"
             placeholder="Enter server password if authentication is required"
             class="w-full"
-            :disabled="!memoryServiceEnabled"
+            disabled
           />
           <p class="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
-            Leave empty if no authentication is required
+            Not used for embedded memory mode
           </p>
         </div>
 

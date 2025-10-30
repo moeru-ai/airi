@@ -30,45 +30,62 @@ function streamOptionsToolsCompatibilityOk(model: string, chatProvider: ChatProv
   return !!(options?.supportsTools || toolsCompatibility.get(`${chatProvider.chat(model).baseURL}-${model}`))
 }
 
+function isTextContentPart(part: unknown): part is { type: 'text', text: string } {
+  return typeof part === 'object'
+    && part !== null
+    && 'type' in part
+    && (part as { type?: unknown }).type === 'text'
+    && typeof (part as { text?: unknown }).text === 'string'
+}
+
+function extractTextFromMessage(message?: Message): string | undefined {
+  const content = message?.content
+
+  if (!content) {
+    return undefined
+  }
+
+  if (typeof content === 'string') {
+    return content
+  }
+
+  if (Array.isArray(content)) {
+    const text = content
+      .map((part) => {
+        if (typeof part === 'string') {
+          return part
+        }
+
+        if (isTextContentPart(part)) {
+          return part.text
+        }
+
+        return ''
+      })
+      .filter(Boolean)
+      .join('\n')
+
+    return text || undefined
+  }
+
+  return undefined
+}
+
 async function streamFrom(model: string, chatProvider: ChatProvider, messages: Message[], options?: StreamOptions) {
   // TODO [lucas-oma]: optimize this function
   // Right now, it fetches context and then makes LLM call for AI response,
   // this can and should be integrated into a new streamText call/function and the server API should be removed and handled
   // inside the message ingestion API.
 
-  const { memoryServiceEnabled, memoryServiceUrl, memoryApiKey, getActiveModelName } = useMemoryService()
+  const { memoryServiceEnabled, buildContext } = useMemoryService()
   let formattedMessages = messages.map(msg => ({ ...msg, content: (msg.role as string === 'error' ? `User encountered error: ${msg.content}` : msg.content), role: (msg.role as string === 'error' ? 'user' : msg.role) } as Message))
 
   if (memoryServiceEnabled.value) {
     try {
-      if (!memoryServiceUrl.value) {
-        throw new Error('Memory service URL not configured')
-      }
+      const lastMessage = messages[messages.length - 1]
+      const messageText = extractTextFromMessage(lastMessage)
 
-      // Headers just for memory service
-      const memoryHeaders: Record<string, string> = {
-        'Content-Type': 'application/json',
-      }
-
-      if (memoryApiKey.value.trim()) {
-        memoryHeaders.Authorization = `Bearer ${memoryApiKey.value}`
-      }
-
-      // 1. First get context
-      const contextResponse = await fetch(`${memoryServiceUrl.value}/api/context`, {
-        method: 'POST',
-        headers: memoryHeaders,
-        body: JSON.stringify({
-          message: messages[messages.length - 1].content, // last message
-          modelName: getActiveModelName(),
-        }),
-      })
-
-      if (!contextResponse.ok) {
-        throw new Error(`Failed to get context: ${contextResponse.statusText}`)
-      }
-
-      const context = await contextResponse.json()
+      const context = messageText ? await buildContext(messageText) : ''
 
       // 2. Add context as system message
       formattedMessages = [

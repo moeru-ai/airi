@@ -1,4 +1,4 @@
-import type { StructuredMemoryContext, StructuredMemoryFragment } from '../../composables/useMemoryService'
+import type { StructuredMemoryContext, StructuredMemoryFragment } from '../../types/memory'
 
 import { computed, reactive } from 'vue'
 import { defineStore, storeToRefs } from 'pinia'

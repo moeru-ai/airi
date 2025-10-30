@@ -1,5 +1,6 @@
 import { ref } from 'vue'
 
+import { fetchConversationHistory as fetchLocalConversationHistory } from '../services/localMemoryClient'
 import { useMemoryService } from './useMemoryService'
 
 export interface HistoryMessage {
@@ -12,7 +13,7 @@ export interface HistoryMessage {
 }
 
 export function useConversationHistory() {
-  const { memoryServiceEnabled, memoryServiceUrl, memoryApiKey, getActiveModelName } = useMemoryService()
+  const { memoryServiceEnabled, getActiveModelName } = useMemoryService()
 
   const isLoading = ref(false)
   const hasMore = ref(false)
@@ -20,7 +21,7 @@ export function useConversationHistory() {
 
   // Load conversation history
   async function loadHistory(limit: number = 10, before?: number) {
-    if (!memoryServiceEnabled.value || !memoryServiceUrl.value) {
+    if (!memoryServiceEnabled.value) {
       return []
     }
 
@@ -28,33 +29,9 @@ export function useConversationHistory() {
       isLoading.value = true
       error.value = null
 
-      const headers: Record<string, string> = {
-        'Content-Type': 'application/json',
-      }
-
-      if (memoryApiKey.value.trim()) {
-        headers.Authorization = `Bearer ${memoryApiKey.value}`
-      }
-
-      const url = new URL('/api/conversations', memoryServiceUrl.value)
-      url.searchParams.set('limit', limit.toString())
-      if (before) {
-        url.searchParams.set('before', before.toString())
-      }
-      url.searchParams.set('modelName', getActiveModelName())
-
-      const response = await fetch(url.toString(), {
-        method: 'GET',
-        headers,
-      })
-
-      if (!response.ok) {
-        throw new Error(`Failed to fetch history: ${response.statusText}`)
-      }
-
-      const data = await response.json()
-      hasMore.value = data.hasMore
-      return data.messages as HistoryMessage[]
+      const result = await fetchLocalConversationHistory(limit, before, getActiveModelName())
+      hasMore.value = result.hasMore
+      return result.messages as HistoryMessage[]
     }
     catch (err) {
       error.value = err instanceof Error ? err.message : 'Failed to load conversation history'
