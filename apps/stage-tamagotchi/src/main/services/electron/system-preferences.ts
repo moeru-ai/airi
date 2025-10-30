@@ -7,6 +7,6 @@ import { systemPreferences } from 'electron'
 import { electron } from '../../../shared/eventa'
 
 export function createSystemPreferencesService(params: { context: ReturnType<typeof createContext>['context'], window: BrowserWindow }) {
-  defineInvokeHandler(params.context, electron.systemPreferences.getMediaAccessStatus, type => systemPreferences.getMediaAccessStatus(type))
-  defineInvokeHandler(params.context, electron.systemPreferences.askForMediaAccess, type => systemPreferences.askForMediaAccess(type))
+  defineInvokeHandler(params.context, electron.systemPreferences.getMediaAccessStatus, type => systemPreferences.getMediaAccessStatus(type[0]))
+  defineInvokeHandler(params.context, electron.systemPreferences.askForMediaAccess, type => systemPreferences.askForMediaAccess(type[0]))
 }
