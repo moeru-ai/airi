@@ -169,6 +169,38 @@ jobs:
           echo "DEB_BUNDLE_NAME=$(pnpm exec tsx scripts/artifacts-metadata.ts ${{ matrix.target }} --get-filename deb)" >> $GITHUB_ENV
           echo "RPM_BUNDLE_NAME=$(pnpm exec tsx scripts/artifacts-metadata.ts ${{ matrix.target }} --get-filename rpm)" >> $GITHUB_ENV
 
+      - name: Build and Bundle Flatpak Artifact
+        if: ${{ matrix.os == 'ubuntu-latest' || matrix.os == 'ubuntu-24.04-arm' }}
+        working-directory: ./apps/stage-tamagotchi
+        run: |
+          BUILD_DIR="./flatpak"
+          REPO_DIR="./repo"
+          MANIFEST_FILE="ai.moeru.airi.flatpak.yml"
+          APP_ID="ai.moeru.airi"
+          BUNDLE_FILE="${APP_ID}.flatpak"
+    
+          flatpak-builder ${BUILD_DIR} ${MANIFEST_FILE} --force-clean
+    
+          if [ $? -ne 0 ]; then
+              exit 1
+          fi
+    
+          flatpak build-export ${REPO_DIR} ${BUILD_DIR}
+    
+          if [ $? -ne 0 ]; then
+              exit 1
+          fi
+    
+          flatpak build-bundle ${REPO_DIR} ${BUNDLE_FILE} ${APP_ID}
+    
+          if [ $? -ne 0 ]; then
+              exit 1
+          fi
+    
+          echo "FLATPAK_BUNDLE_NAME=${BUNDLE_FILE}" >> $GITHUB_ENV
+    
+    
+
       - name: Upload Artifacts (Nightly + Non-Linux)
         if: ${{ github.event_name == 'schedule' && (matrix.os != 'ubuntu-latest' && matrix.os != 'ubuntu-24.04-arm') }}
         uses: actions/upload-artifact@v4
