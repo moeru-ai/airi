@@ -64,6 +64,12 @@ export default defineConfig({
           name: 'Comfortaa Variable',
           provider: 'none',
         },
+        'mystery-quest': {
+          name: 'Mystery Quest',
+        },
+        'grandstander': {
+          name: 'Grandstander',
+        },
       },
     }),
     presetIcons(),
@@ -100,6 +106,8 @@ export default defineConfig({
     fontFamily: {
       'sans': `ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";`,
       'sans-rounded': `"DM Sans", ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";`,
+      'sans-serif-halloween-secondary': `"Grandstander", "DM Sans", ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";`,
+      'sans-serif-halloween': `"Mystery Quest", "DM Sans", ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";`,
     },
     colors: {
       border: 'hsl(var(--border))',

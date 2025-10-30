@@ -6,7 +6,14 @@ import { createAnimatable } from 'animejs'
 import { onMounted, shallowRef, useTemplateRef, watch, watchEffect } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+// NOTICE: for unknown reasons, without `?no-inline`, the inlined SVG use in the SFC template
+// of `url(...)` doesn't work properly in Vite/Vue, the entire SVG content either got incorrectly
+// cached or erased in dev/prod, causing the mask pattern to not show up.
+import homeBackgroundPatternGhost from '../assets/home-patterns-ghost.svg?no-inline'
 import ParallaxCover from './ParallaxCover.vue'
+import ParallaxCoverHalloween20251029 from './ParallaxCoverHalloween20251029.vue'
+
+import { isBetweenHalloweenAndHalfOfNovember } from '../composables/date'
 
 const heroRef = useTemplateRef<HTMLDivElement>('hero')
 
@@ -83,12 +90,30 @@ watchEffect((onCleanup) => {
     <section class="mx-auto h-full max-w-[1440px] w-full flex flex-1 flex-col">
       <div class="z-10 h-full w-full flex flex-1 flex-col items-center justify-start gap-4 overflow-hidden px-16 pb-16 pt-20 md:pt-36">
         <div ref="hero" flex="~ col items-center gap-4 justify-start">
-          <div class="relative w-full justify-center text-center font-extrabold font-sans-rounded" text="4xl md:5xl">
-            <div>
-              Project AIRI
-            </div>
+          <div class="relative w-full flex flex-col items-center justify-center text-center font-extrabold font-sans-rounded" text="4xl md:5xl">
+            <ClientOnly>
+              <div
+                v-if="isBetweenHalloweenAndHalfOfNovember(new Date())"
+                :class="[
+                  'w-fit',
+                  'flex items-center gap-2',
+                  'px-4 py-1',
+                  'mb-3 sm:mb-4 lg:mb-8',
+                  'border-1 rounded-full border-orange-500 bg-orange-100/20 text-orange-700 dark:border-orange-400 dark:bg-orange-900/20 dark:text-orange-300',
+                  'text-sm sm:text-base align-middle',
+                ]"
+              >
+                <div i-twemoji:jack-o-lantern />Happy Halloween!<div i-twemoji:jack-o-lantern />
+              </div>
+              <div :class="[isBetweenHalloweenAndHalfOfNovember(new Date()) ? 'font-sans-serif-halloween' : '']">
+                Project AIRI
+              </div>
+            </ClientOnly>
           </div>
-          <div class="relative max-w-prose text-center text-slate-900 dark:text-white">
+          <div
+            class="relative max-w-prose text-center text-slate-900 dark:text-white"
+            :class="[isBetweenHalloweenAndHalfOfNovember(new Date()) ? 'font-sans-serif-halloween-secondary' : '']"
+          >
             {{ t('docs.theme.home.subtitle') }}
           </div>
           <div class="relative z-10 w-full flex justify-center gap-4">
@@ -134,10 +159,17 @@ watchEffect((onCleanup) => {
     </section>
 
     <div class="absolute inset-0 overflow-hidden -z-10">
+      <!-- Repeating, slowly scrolling SVG pattern background -->
+      <div class="bg-ghost-pattern pointer-events-none absolute inset-0 z-0 opacity-10 dark:opacity-10" :style="{ '--bg-mask-ghost-pattern': `url(${homeBackgroundPatternGhost})` }" />
       <!-- Flickering red (even within the color space range) if to top in oklch (UnoCSS or tailwind css default), have to force to use srgb color space to prevent this -->
       <div class="absolute bottom-0 left-0 right-0 top-0 z-2 h-80% from-transparent to-white bg-gradient-to-t dark:to-[hsl(207_15%_5%)]" style="--un-gradient-shape: to top in srgb;" />
       <ClientOnly>
-        <ParallaxCover />
+        <template v-if="isBetweenHalloweenAndHalfOfNovember(new Date())">
+          <ParallaxCoverHalloween20251029 />
+        </template>
+        <template v-else>
+          <ParallaxCover />
+        </template>
       </ClientOnly>
     </div>
 
@@ -148,3 +180,27 @@ watchEffect((onCleanup) => {
     </footer>
   </div>
 </template>
+
+<style>
+/* Infinite scrolling background pattern via mask */
+.bg-ghost-pattern {
+  background-color: white;
+  -webkit-mask-image: var(--bg-mask-ghost-pattern);
+  mask-image: var(--bg-mask-ghost-pattern);
+  -webkit-mask-repeat: repeat;
+  mask-repeat: repeat;
+  -webkit-mask-size: 256px 256px;
+  mask-size: 256px 256px;
+  -webkit-mask-position: 0 0;
+  mask-position: 0 0;
+  animation: ghost-mask-scroll 8s linear infinite;
+}
+
+@keyframes ghost-mask-scroll {
+  100% { -webkit-mask-position: 256px 256px; mask-position: 256px 256px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bg-ghost-pattern { animation: none; }
+}
+</style>

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { DisplayModel } from '../../../../stores/display-models'
 
-import { ThreeScene } from '@proj-airi/stage-ui-three'
+import { ThreeScene, useModelStore } from '@proj-airi/stage-ui-three'
 import { useMouse } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { ref, watch } from 'vue'
@@ -45,9 +45,7 @@ watch(selectedModel, async () => {
         useLive2d().shouldUpdateView()
         break
       case DisplayModelFormat.VRM:
-        // Lilia: settingStore.updateStageModel has been called once above
-        // I don't know why it should be recalled again by triggering useVRM().shouldUpdateView()
-        // useVRM().shouldUpdateView()
+        useModelStore().shouldUpdateView()
         break
     }
   }

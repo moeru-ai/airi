@@ -44,6 +44,8 @@ coverage/
 out/
 bundle/
 .flatpak-builder/
+.flatpak-repo/
+*.flatpak
 # WXT specified this too
 *.output
 

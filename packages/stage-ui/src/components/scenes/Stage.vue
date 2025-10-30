@@ -9,6 +9,7 @@ import { drizzle } from '@proj-airi/drizzle-duckdb-wasm'
 import { getImportUrlBundles } from '@proj-airi/drizzle-duckdb-wasm/bundles/import-url-browser'
 import { withBase } from '@proj-airi/stage-shared'
 import { ThreeScene, useModelStore } from '@proj-airi/stage-ui-three'
+import { useBroadcastChannel } from '@vueuse/core'
 // import { createTransformers } from '@xsai-transformers/embed'
 // import embedWorkerURL from '@xsai-transformers/embed/worker?worker&url'
 // import { embed } from '@xsai/embed'
@@ -64,7 +65,7 @@ const { textSegmentationQueue } = storeToRefs(textSegmentationStore)
 clearTextSegmentationHooks()
 
 const characterSpeechPlaybackQueue = usePipelineCharacterSpeechPlaybackQueueStore()
-const { connectAudioContext, connectAudioAnalyser, clearAll } = characterSpeechPlaybackQueue
+const { connectAudioContext, connectAudioAnalyser, clearAll, onPlaybackStarted } = characterSpeechPlaybackQueue
 const { currentAudioSource, playbackQueue } = storeToRefs(characterSpeechPlaybackQueue)
 
 const settingsStore = useSettings()
@@ -84,6 +85,18 @@ const live2dStore = useLive2d()
 const vrmStore = useModelStore()
 
 const showStage = ref(true)
+
+// Caption + Presentation broadcast channels
+type CaptionChannelEvent
+  = | { type: 'caption-speaker', text: string }
+    | { type: 'caption-assistant', text: string }
+const { post: postCaption } = useBroadcastChannel<CaptionChannelEvent, CaptionChannelEvent>({ name: 'airi-caption-overlay' })
+const assistantCaption = ref('')
+
+type PresentEvent
+  = | { type: 'assistant-reset' }
+    | { type: 'assistant-append', text: string }
+const { post: postPresent } = useBroadcastChannel<PresentEvent, PresentEvent>({ name: 'airi-chat-present' })
 
 // TODO: duplicate calls may happen if this component mounted multiple times
 live2dStore.onShouldUpdateView(async () => {
@@ -216,6 +229,10 @@ onBeforeMessageComposed(async () => {
   clearAll()
   setupAnalyser()
   setupLipSync()
+  // Reset assistant caption for a new message
+  assistantCaption.value = ''
+  postCaption({ type: 'caption-assistant', text: '' })
+  postPresent({ type: 'assistant-reset' })
 })
 
 onBeforeSend(async () => {
@@ -223,6 +240,7 @@ onBeforeSend(async () => {
 })
 
 onTokenLiteral(async (literal) => {
+  // Only push to segmentation; visual presentation happens on playback start
   textSegmentationQueue.value.enqueue(literal)
 })
 
@@ -263,6 +281,12 @@ function canvasElement() {
 
 defineExpose({
   canvasElement,
+})
+
+onPlaybackStarted(({ text }) => {
+  assistantCaption.value += ` ${text}`
+  postCaption({ type: 'caption-assistant', text: assistantCaption.value })
+  postPresent({ type: 'assistant-append', text })
 })
 </script>
 

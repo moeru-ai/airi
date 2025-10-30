@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { MarkdownRenderer } from '@proj-airi/stage-ui/components'
 import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
+import { useBroadcastChannel } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { nextTick, ref } from 'vue'
+import { nextTick, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 const chatHistoryRef = ref<HTMLDivElement>()
@@ -11,6 +12,24 @@ const { t } = useI18n()
 const { messages, sending, streamingMessage } = storeToRefs(useChatStore())
 
 const { onBeforeMessageComposed, onTokenLiteral } = useChatStore()
+
+// Presentation channel: show assistant text only when corresponding TTS segment starts
+type PresentEvent
+  = | { type: 'assistant-reset' }
+    | { type: 'assistant-append', text: string }
+const { data: presentEvent } = useBroadcastChannel<PresentEvent, PresentEvent>({ name: 'airi-chat-present' })
+const presentSlices = ref<string[]>([])
+
+watch(presentEvent, (ev) => {
+  if (!ev)
+    return
+  if (ev.type === 'assistant-reset') {
+    presentSlices.value = []
+  }
+  else if (ev.type === 'assistant-append') {
+    presentSlices.value.push(ev.text)
+  }
+})
 
 onBeforeMessageComposed(async () => {
   // Scroll down to the new sent message
@@ -113,21 +132,24 @@ onTokenLiteral(async () => {
         <div>
           <span text-xs text="primary-400/90 dark:primary-600/90" font-normal class="inline <sm:hidden">{{ t('stage.chat.message.character-name.airi') }}</span>
         </div>
-        <div v-if="streamingMessage.content" class="break-words" text="primary-700 dark:primary-200">
-          <div v-for="(slice, sliceIndex) in streamingMessage.slices" :key="sliceIndex">
-            <div v-if="slice.type === 'tool-call'">
-              <div
-                p="1" border="1 solid primary-200" rounded-lg m="y-1" bg="primary-100"
-              >
-                Called: <code>{{ slice.toolCall.toolName }}</code>
-              </div>
+        <div v-if="presentSlices.length > 0 || streamingMessage.content" class="break-words" text="primary-700 dark:primary-200">
+          <!-- Prefer presentation slices if available; fallback to normal streaming -->
+          <template v-if="presentSlices.length > 0">
+            <div v-for="(text, idx) in presentSlices" :key="`present-${idx}`">
+              <MarkdownRenderer :content="text" />
             </div>
-            <div v-else-if="slice.type === 'tool-call-result'" /> <!-- this line should be unreachable -->
-            <MarkdownRenderer
-              v-else
-              :content="slice.text"
-            />
-          </div>
+          </template>
+          <template v-else>
+            <div v-for="(slice, sliceIndex) in streamingMessage.slices" :key="sliceIndex">
+              <div v-if="slice.type === 'tool-call'">
+                <div p="1" border="1 solid primary-200" rounded-lg m="y-1" bg="primary-100">
+                  Called: <code>{{ slice.toolCall.toolName }}</code>
+                </div>
+              </div>
+              <div v-else-if="slice.type === 'tool-call-result'" />
+              <MarkdownRenderer v-else :content="slice.text" />
+            </div>
+          </template>
         </div>
         <div v-else i-eos-icons:three-dots-loading />
       </div>
