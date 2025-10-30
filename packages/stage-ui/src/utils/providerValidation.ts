@@ -11,12 +11,7 @@ export function formatErrorForUser(err: unknown): string {
   if (typeof err === 'string')
     return err
 
-  try {
-    return JSON.stringify(err)
-  }
-  catch {
-    return String(err)
-  }
+  return String(err)
 }
 
 /**
