@@ -4,12 +4,7 @@ import { generateText } from '@xsai/generate-text'
 import { listModels } from '@xsai/model'
 import { message } from '@xsai/utils-chat'
 
-// ✅ replaced old error-formatter import with new unified helper module
-import {
-  formatErrorForUser,
-  buildValidationResult,
-  buildFetchErrorResult,
-} from '../../utils/providerValidation'
+import { formatErrorForUser, buildValidationResult } from '../../utils/providerValidation'
 
 type ProviderCreator = (apiKey: string, baseUrl: string) => any
 
@@ -103,7 +98,7 @@ export function buildOpenAICompatibleProvider(
       if (baseUrl && !baseUrl.endsWith('/'))
         baseUrl += '/'
 
-      // ✅ Return early if base URL problems exist
+      // Return early if base URL problems exist
       if (errors.length > 0)
         return buildValidationResult(errors, false)
 
@@ -194,7 +189,7 @@ export function buildOpenAICompatibleProvider(
         }
       }
 
-      // ✅ Return normalized validation result (safe, human-readable)
+      // Return normalized validation result (safe, human-readable)
       return buildValidationResult(errors, errors.length === 0)
     },
   }
