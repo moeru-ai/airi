@@ -1,10 +1,21 @@
 <script setup lang="ts">
+import type { ChatProvider } from '@xsai-ext/shared-providers'
+
+import workletUrl from '@proj-airi/stage-ui/workers/vad/process.worklet?worker&url'
+
 import { WidgetStage } from '@proj-airi/stage-ui/components/scenes'
+import { useAudioRecorder } from '@proj-airi/stage-ui/composables/audio/audio-recorder'
 import { useCanvasPixelIsTransparentAtPoint } from '@proj-airi/stage-ui/composables/canvas-alpha'
+import { useVAD } from '@proj-airi/stage-ui/stores/ai/models/vad'
+import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
 import { useLive2d } from '@proj-airi/stage-ui/stores/live2d'
-import { debouncedRef, watchPausable } from '@vueuse/core'
+import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
+import { useHearingSpeechInputPipeline } from '@proj-airi/stage-ui/stores/modules/hearing'
+import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
+import { useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
+import { debouncedRef, useBroadcastChannel, watchPausable } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { ref, toRef, watch } from 'vue'
+import { computed, onUnmounted, ref, toRef, watch } from 'vue'
 
 import ControlsIsland from '../components/Widgets/ControlsIsland/index.vue'
 import ResourceStatusIsland from '../components/Widgets/ResourceStatusIsland/index.vue'
@@ -49,7 +60,18 @@ const { pause, resume } = watchPausable(isTransparent, (transparent) => {
   shouldFadeOnCursorWithin.value = !transparent
 }, { immediate: true })
 
-watch([isOutsideFor250Ms, isAroundWindowBorderFor250Ms, isOutsideWindow, isTransparent], () => {
+const hearingDialogOpen = computed(() => controlsIslandRef.value?.hearingDialogOpen ?? false)
+
+watch([isOutsideFor250Ms, isAroundWindowBorderFor250Ms, isOutsideWindow, isTransparent, hearingDialogOpen], () => {
+  if (hearingDialogOpen.value) {
+    // Hearing dialog/drawer is open; keep window interactive
+    isIgnoringMouseEvents.value = false
+    shouldFadeOnCursorWithin.value = false
+    setIgnoreMouseEvents([false, { forward: true }])
+    pause()
+    return
+  }
+
   const insideControls = !isOutsideFor250Ms.value
   const nearBorder = isAroundWindowBorderFor250Ms.value
 
@@ -70,6 +92,101 @@ watch([isOutsideFor250Ms, isAroundWindowBorderFor250Ms, isOutsideWindow, isTrans
     resume()
   }
 })
+
+const settingsAudioDeviceStore = useSettingsAudioDevice()
+const { stream, enabled } = storeToRefs(settingsAudioDeviceStore)
+const { startRecord, stopRecord, onStopRecord } = useAudioRecorder(stream)
+const { transcribeForRecording } = useHearingSpeechInputPipeline()
+const providersStore = useProvidersStore()
+const consciousnessStore = useConsciousnessStore()
+const { activeProvider: activeChatProvider, activeModel: activeChatModel } = storeToRefs(consciousnessStore)
+const chatStore = useChatStore()
+
+const {
+  init: initVAD,
+  dispose: disposeVAD,
+  start: startVAD,
+  loaded: vadLoaded,
+} = useVAD(workletUrl, {
+  threshold: ref(0.6),
+  onSpeechStart: () => startRecord(),
+  onSpeechEnd: () => stopRecord(),
+})
+
+let stopOnStopRecord: (() => void) | undefined
+
+// Caption overlay broadcast channel
+type CaptionChannelEvent
+  = | { type: 'caption-speaker', text: string }
+    | { type: 'caption-assistant', text: string }
+const { post: postCaption } = useBroadcastChannel<CaptionChannelEvent, CaptionChannelEvent>({ name: 'airi-caption-overlay' })
+
+async function startAudioInteraction() {
+  try {
+    await initVAD()
+    if (stream.value)
+      await startVAD(stream.value)
+
+    // Hook once
+    stopOnStopRecord = onStopRecord(async (recording) => {
+      const text = await transcribeForRecording(recording)
+      if (!text || !text.trim())
+        return
+
+      // Update caption overlay speaker text via BroadcastChannel
+      postCaption({ type: 'caption-speaker', text })
+
+      try {
+        const provider = await providersStore.getProviderInstance(activeChatProvider.value)
+        if (!provider || !activeChatModel.value)
+          return
+
+        await chatStore.send(text, { model: activeChatModel.value, chatProvider: provider as ChatProvider })
+      }
+      catch (err) {
+        console.error('Failed to send chat from voice:', err)
+      }
+    })
+  }
+  catch (e) {
+    console.error('Audio interaction init failed:', e)
+  }
+}
+
+function stopAudioInteraction() {
+  try {
+    stopOnStopRecord?.()
+    stopOnStopRecord = undefined
+    disposeVAD()
+  }
+  catch {}
+}
+
+watch(enabled, async (val) => {
+  if (val) {
+    await startAudioInteraction()
+  }
+  else {
+    stopAudioInteraction()
+  }
+}, { immediate: true })
+
+onUnmounted(() => {
+  stopAudioInteraction()
+})
+
+watch([stream, () => vadLoaded.value], async ([s, loaded]) => {
+  if (enabled.value && loaded && s) {
+    try {
+      await startVAD(s)
+    }
+    catch (e) {
+      console.error('Failed to start VAD with stream:', e)
+    }
+  }
+})
+
+// Assistant caption is broadcast from Stage.vue via the same channel
 </script>
 
 <template>

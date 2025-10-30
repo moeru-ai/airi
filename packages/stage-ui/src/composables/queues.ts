@@ -105,14 +105,14 @@ export function useDelayMessageQueue() {
 
 export const usePipelineCharacterSpeechPlaybackQueueStore = defineStore('pipelines:character:speech', () => {
   // Hooks
-  const onPlaybackStartedHooks = ref<Array<() => Promise<void> | void>>([])
-  const onPlaybackFinishedHooks = ref<Array<() => Promise<void> | void>>([])
+  const onPlaybackStartedHooks = ref<Array<(payload: { text: string }) => Promise<void> | void>>([])
+  const onPlaybackFinishedHooks = ref<Array<(payload: { text: string }) => Promise<void> | void>>([])
 
   // Hooks registers
-  function onPlaybackStarted(hook: () => Promise<void> | void) {
+  function onPlaybackStarted(hook: (payload: { text: string }) => Promise<void> | void) {
     onPlaybackStartedHooks.value.push(hook)
   }
-  function onPlaybackFinished(hook: () => Promise<void> | void) {
+  function onPlaybackFinished(hook: (payload: { text: string }) => Promise<void> | void) {
     onPlaybackFinishedHooks.value.push(hook)
   }
 
@@ -162,16 +162,12 @@ export const usePipelineCharacterSpeechPlaybackQueueStore = defineStore('pipelin
             source.connect(audioAnalyser.value!)
 
             // Start playing the audio
-            for (const hook of onPlaybackStartedHooks.value) {
-              hook()
-            }
+            for (const hook of onPlaybackStartedHooks.value) hook({ text: ctx.data.text })
 
             currentAudioSource.value = source
             source.start(0)
             source.onended = () => {
-              for (const hook of onPlaybackFinishedHooks.value) {
-                hook()
-              }
+              for (const hook of onPlaybackFinishedHooks.value) hook({ text: ctx.data.text })
               if (currentAudioSource.value === source) {
                 currentAudioSource.value = undefined
               }
