@@ -189,4 +189,4 @@ function main() {
   return app
 }
 
-export const app = main()
+export const app: H3 = main()

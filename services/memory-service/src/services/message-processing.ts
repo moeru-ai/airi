@@ -48,13 +48,14 @@ export class MessageIngestionService {
   /**
    * Get batch of unprocessed messages ready for ingestion
    */
-  async getUnprocessedBatch(size: number): Promise<Array<{ messageId: string, content: string, timestamp: number }>> {
+  async getUnprocessedBatch(size: number): Promise<Array<{ messageId: string, content: string, timestamp: number, modelName: string }>> {
     try {
       const messages = await this.db
         .select({
           id: chatMessagesTable.id,
           content: chatMessagesTable.content,
           created_at: chatMessagesTable.created_at,
+          model_name: chatMessagesTable.model_name,
         })
         .from(chatMessagesTable)
         .where(eq(chatMessagesTable.is_processed, false)) // Get unprocessed messages (false, not NULL)
@@ -65,6 +66,7 @@ export class MessageIngestionService {
         messageId: msg.id,
         content: msg.content,
         timestamp: msg.created_at,
+        modelName: msg.model_name,
       }))
     }
     catch (error) {

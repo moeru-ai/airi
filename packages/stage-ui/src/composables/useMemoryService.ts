@@ -10,16 +10,57 @@
 // TODO [lucas-oma]: remove console.debug before merging (eslint)
 
 import { useLocalStorage } from '@vueuse/core'
+import { storeToRefs } from 'pinia'
+import { computed } from 'vue'
+
+import { useAiriCardStore } from '../stores/modules'
 
 export interface MemoryServiceConfig {
   url: string
   apiKey: string
 }
 
+export interface StructuredMemoryFragment {
+  id: string
+  content: string
+  memory_type: string
+  category: string
+  importance: number
+  emotional_impact: number
+  created_at: number
+}
+
+export interface StructuredMemoryContext {
+  workingMemory: {
+    recentMessages: Array<{ content: string, created_at: number }>
+    recentCompletions: Array<{ response: string, task: string, created_at: number }>
+  }
+  semanticMemory: {
+    shortTerm: StructuredMemoryFragment[]
+    longTerm: StructuredMemoryFragment[]
+    consolidatedMemories?: Array<{ content: string, summary_type: string, created_at: number }>
+    associatedMemories?: Array<{ content: string, association_type: string, strength: number, created_at: number }>
+  }
+  structuredKnowledge: {
+    entities: Array<{ name: string, entity_type: string, description: string | null, metadata: Record<string, unknown> }>
+  }
+  goalContext: {
+    longTermGoals: Array<{ title: string, description: string, priority: number, progress: number, status: string }>
+    shortTermIdeas?: Array<{ content: string, excitement: number, status: string }>
+  }
+}
+
 export function useMemoryService() {
   const memoryServiceEnabled = useLocalStorage('settings/memory/enabled', false)
   const memoryServiceUrl = useLocalStorage('settings/memory/service-url', 'http://localhost:3001')
   const memoryApiKey = useLocalStorage('settings/memory/api-key', '')
+
+  const airiCardStore = useAiriCardStore()
+  const { currentModels } = storeToRefs(airiCardStore)
+
+  const activeModelName = computed(() => currentModels.value?.consciousness?.model || 'default')
+
+  const resolveModelName = () => activeModelName.value
 
   /**
    * Store a user message in the memory service
@@ -53,6 +94,7 @@ export function useMemoryService() {
         body: JSON.stringify({
           content,
           platform,
+          modelName: resolveModelName(),
         }),
       })
 
@@ -101,6 +143,7 @@ export function useMemoryService() {
           prompt,
           response,
           platform,
+          modelName: resolveModelName(),
         }),
       })
 
@@ -153,6 +196,45 @@ export function useMemoryService() {
     }
   }
 
+  async function fetchStructuredContext(message: string): Promise<StructuredMemoryContext | null> {
+    try {
+      if (!memoryServiceEnabled.value) {
+        return null
+      }
+
+      if (!memoryServiceUrl.value) {
+        throw new Error('Memory service URL not configured')
+      }
+
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      }
+
+      if (memoryApiKey.value.trim()) {
+        headers.Authorization = `Bearer ${memoryApiKey.value}`
+      }
+
+      const response = await fetch(`${memoryServiceUrl.value}/api/context/structured`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          message,
+          modelName: resolveModelName(),
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error(`Memory service responded with status ${response.status}`)
+      }
+
+      return await response.json() as StructuredMemoryContext
+    }
+    catch (error) {
+      console.error('Failed to fetch structured context:', error)
+      return null
+    }
+  }
+
   return {
     memoryServiceEnabled,
     memoryServiceUrl,
@@ -160,5 +242,7 @@ export function useMemoryService() {
     storeUserMessage,
     storeAIResponse,
     testConnection,
+    getActiveModelName: resolveModelName,
+    fetchStructuredContext,
   }
 }

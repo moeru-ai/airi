@@ -6,6 +6,7 @@ export const chatMessagesTable = pgTable('chat_messages', {
   platform: text().notNull().default(''),
   content: text().notNull().default(''),
   is_processed: boolean().notNull().default(false), // Flag for processing status
+  model_name: text().notNull().default('default'),
   created_at: bigint({ mode: 'number' }).notNull().default(0).$defaultFn(() => Date.now()),
   updated_at: bigint({ mode: 'number' }).notNull().default(0).$defaultFn(() => Date.now()),
   content_vector_1536: vector({ dimensions: 1536 }),
@@ -14,6 +15,7 @@ export const chatMessagesTable = pgTable('chat_messages', {
 }, table => [
   // Partial index for unprocessed messages - only indexes FALSE values
   index('chat_messages_unprocessed_index').on(table.is_processed).where(sql`${table.is_processed} = false`),
+  index('chat_messages_model_name_index').on(table.model_name),
   // Vector indexes for similarity search
   index('chat_messages_content_vector_1536_index').using('hnsw', table.content_vector_1536.op('vector_cosine_ops')),
   index('chat_messages_content_vector_1024_index').using('hnsw', table.content_vector_1024.op('vector_cosine_ops')),
@@ -25,8 +27,11 @@ export const chatCompletionsHistoryTable = pgTable('chat_completions_history', {
   prompt: text().notNull(),
   response: text().notNull(),
   task: text().notNull(),
+  model_name: text().notNull().default('default'),
   created_at: bigint({ mode: 'number' }).notNull().default(0).$defaultFn(() => Date.now()),
-})
+}, table => [
+  index('chat_completions_history_model_name_index').on(table.model_name),
+])
 
 // Episodic Memory Table
 // Groups related memories (e.g., a single conversation or event) into a cohesive unit.
@@ -35,6 +40,7 @@ export const memoryEpisodesTable = pgTable('memory_episodes', {
   id: uuid().primaryKey().defaultRandom(),
   episode_type: text().notNull(), // 'chat_session', 'dream', 'meditation', etc.
   title: text().notNull(),
+  model_name: text().notNull().default('default'),
   start_time: bigint({ mode: 'number' }).notNull().default(0).$defaultFn(() => Date.now()),
   end_time: bigint({ mode: 'number' }),
   is_processed: boolean().notNull().default(false),
@@ -43,6 +49,7 @@ export const memoryEpisodesTable = pgTable('memory_episodes', {
   index('memory_episodes_episode_type_index').on(table.episode_type),
   index('memory_episodes_start_time_index').on(table.start_time),
   index('memory_episodes_is_processed_index').on(table.is_processed),
+  index('memory_episodes_model_name_index').on(table.model_name),
 ])
 
 // Memory Item table - base table for all memories
@@ -51,6 +58,7 @@ export const memoryFragmentsTable = pgTable('memory_fragments', {
   content: text().notNull(),
   memory_type: text().notNull(), // 'working', 'short_term', 'long_term', 'muscle'
   category: text().notNull(), // 'chat', 'relationships', 'people', 'life', etc.
+  model_name: text().notNull().default('default'),
   importance: integer().notNull().default(5), // 1-10 scale
   emotional_impact: integer().notNull().default(0), // -10 to 10 scale
   created_at: bigint({ mode: 'number' }).notNull().default(0).$defaultFn(() => Date.now()),
@@ -74,6 +82,7 @@ export const memoryFragmentsTable = pgTable('memory_fragments', {
   index('memory_items_importance_index').on(table.importance),
   index('memory_items_created_at_index').on(table.created_at),
   index('memory_items_last_accessed_index').on(table.last_accessed),
+  index('memory_items_model_name_index').on(table.model_name),
   // Episode relationship index
   index('memory_items_episode_id_index').on(table.episode_id),
 ])
@@ -82,13 +91,16 @@ export const memoryFragmentsTable = pgTable('memory_fragments', {
 // Stores information about key entities (people, places, things) and links them to memories.
 export const memoryEntitiesTable = pgTable('memory_entities', {
   id: uuid().primaryKey().defaultRandom(),
-  name: text().notNull().unique(),
+  name: text().notNull(),
   entity_type: text().notNull(), // 'person', 'place', 'organization', 'concept'
   description: text(),
   metadata: jsonb().notNull().default({}),
+  model_name: text().notNull().default('default'),
 }, table => [
+  uniqueIndex('memory_entities_model_name_name_unique').on(table.model_name, table.name),
   index('memory_entities_name_index').on(table.name),
   index('memory_entities_type_index').on(table.entity_type),
+  index('memory_entities_model_name_index').on(table.model_name),
 ])
 
 // Relationship table to link memories to entities
@@ -100,11 +112,13 @@ export const memoryEntityRelationsTable = pgTable('memory_entity_relations', {
   relationship_type: text().notNull().default('mentioned'), // 'mentioned', 'acted', 'experienced', 'created'
   confidence: integer().notNull().default(5), // How sure are we about this relation (1-10)
   created_at: bigint({ mode: 'number' }).notNull().default(0).$defaultFn(() => Date.now()),
+  model_name: text().notNull().default('default'),
 }, table => [
   uniqueIndex('memory_entity_relations_unique').on(table.memory_id, table.entity_id, table.relationship_type),
   index('memory_entity_relations_memory_id_index').on(table.memory_id),
   index('memory_entity_relations_entity_id_index').on(table.entity_id),
   index('memory_entity_relations_type_index').on(table.relationship_type),
+  index('memory_entity_relations_model_name_index').on(table.model_name),
 ])
 
 // Memory Associations table - for linking related memories
@@ -116,11 +130,13 @@ export const memoryAssociationsTable = pgTable('memory_associations', {
   strength: integer().notNull().default(5), // 1-10 scale
   created_at: bigint({ mode: 'number' }).notNull().default(0).$defaultFn(() => Date.now()),
   metadata: jsonb().notNull().default({}),
+  model_name: text().notNull().default('default'),
 }, table => [
   uniqueIndex('memory_associations_unique').on(table.source_memory_id, table.target_memory_id, table.association_type),
   index('memory_associations_source_index').on(table.source_memory_id),
   index('memory_associations_target_index').on(table.target_memory_id),
   index('memory_associations_type_index').on(table.association_type),
+  index('memory_associations_model_name_index').on(table.model_name),
 ])
 
 // Memory Consolidation Events table - for tracking memory processing
@@ -131,21 +147,26 @@ export const memoryConsolidationEventsTable = pgTable('memory_consolidation_even
   consolidation_score: integer(), // nullable, only for consolidation events
   created_at: bigint({ mode: 'number' }).notNull().default(0).$defaultFn(() => Date.now()),
   metadata: jsonb().notNull().default({}),
+  model_name: text().notNull().default('default'),
 }, table => [
   index('memory_consolidation_events_memory_id_index').on(table.memory_id),
   index('memory_consolidation_events_type_index').on(table.event_type),
   index('memory_consolidation_events_created_at_index').on(table.created_at),
+  index('memory_consolidation_events_model_name_index').on(table.model_name),
 ])
 
 // Memory Tags table - for flexible categorization
 export const memoryTagsTable = pgTable('memory_tags', {
   id: uuid().primaryKey().defaultRandom(),
-  name: text().notNull().unique(),
+  name: text().notNull(),
   description: text(),
   color: text(), // hex color code
   created_at: bigint({ mode: 'number' }).notNull().default(0).$defaultFn(() => Date.now()),
+  model_name: text().notNull().default('default'),
 }, table => [
+  uniqueIndex('memory_tags_model_name_name_unique').on(table.model_name, table.name),
   index('memory_tags_name_index').on(table.name),
+  index('memory_tags_model_name_index').on(table.model_name),
 ])
 
 // Memory-Tag relationships table
@@ -154,10 +175,12 @@ export const memoryTagRelationsTable = pgTable('memory_tag_relations', {
   memory_id: uuid().notNull().references(() => memoryFragmentsTable.id, { onDelete: 'cascade' }),
   tag_id: uuid().notNull().references(() => memoryTagsTable.id, { onDelete: 'cascade' }),
   created_at: bigint({ mode: 'number' }).notNull().default(0).$defaultFn(() => Date.now()),
+  model_name: text().notNull().default('default'),
 }, table => [
   uniqueIndex('memory_tag_relations_unique').on(table.memory_id, table.tag_id),
   index('memory_tag_relations_memory_id_index').on(table.memory_id),
   index('memory_tag_relations_tag_id_index').on(table.tag_id),
+  index('memory_tag_relations_model_name_index').on(table.model_name),
 ])
 
 // Memory Search History table - for improving search relevance
@@ -169,9 +192,11 @@ export const memorySearchHistoryTable = pgTable('memory_search_history', {
   search_duration_ms: integer(),
   created_at: bigint({ mode: 'number' }).notNull().default(0).$defaultFn(() => Date.now()),
   metadata: jsonb().notNull().default({}),
+  model_name: text().notNull().default('default'),
 }, table => [
   index('memory_search_history_query_index').on(table.query),
   index('memory_search_history_created_at_index').on(table.created_at),
+  index('memory_search_history_model_name_index').on(table.model_name),
 ])
 
 // Memory Access Patterns table - for understanding usage patterns
@@ -183,10 +208,12 @@ export const memoryAccessPatternsTable = pgTable('memory_access_patterns', {
   duration_ms: integer(), // how long the memory was accessed
   created_at: bigint({ mode: 'number' }).notNull().default(0).$defaultFn(() => Date.now()),
   metadata: jsonb().notNull().default({}),
+  model_name: text().notNull().default('default'),
 }, table => [
   index('memory_access_patterns_memory_id_index').on(table.memory_id),
   index('memory_access_patterns_type_index').on(table.access_type),
   index('memory_access_patterns_created_at_index').on(table.created_at),
+  index('memory_access_patterns_model_name_index').on(table.model_name),
 ])
 
 // Goals table - for tracking user goals and objectives
@@ -203,11 +230,13 @@ export const memoryLongTermGoalsTable = pgTable('memory_long_term_goals', {
   created_at: bigint({ mode: 'number' }).notNull().default(0).$defaultFn(() => Date.now()),
   updated_at: bigint({ mode: 'number' }).notNull().default(0).$defaultFn(() => Date.now()),
   deleted_at: bigint({ mode: 'number' }), // nullable timestamp for soft delete
+  model_name: text().notNull().default('default'),
 }, table => [
   index('memory_long_term_goals_priority_index').on(table.priority),
   index('memory_long_term_goals_status_index').on(table.status),
   index('memory_long_term_goals_deadline_index').on(table.deadline),
   index('memory_long_term_goals_parent_goal_id_index').on(table.parent_goal_id),
+  index('memory_long_term_goals_model_name_index').on(table.model_name),
 ])
 
 // Ideas generated from dreams or normal thinking
@@ -224,6 +253,7 @@ export const memoryShortTermIdeasTable = pgTable('memory_short_term_ideas', {
   content_vector_1024: vector({ dimensions: 1024 }),
   content_vector_768: vector({ dimensions: 768 }),
   deleted_at: bigint({ mode: 'number' }), // nullable timestamp for soft delete
+  model_name: text().notNull().default('default'),
 }, table => [
   index('memory_short_term_ideas_source_type_index').on(table.source_type),
   index('memory_short_term_ideas_status_index').on(table.status),
@@ -231,6 +261,7 @@ export const memoryShortTermIdeasTable = pgTable('memory_short_term_ideas', {
   index('memory_short_term_ideas_content_vector_1536_index').using('hnsw', table.content_vector_1536.op('vector_cosine_ops')),
   index('memory_short_term_ideas_content_vector_1024_index').using('hnsw', table.content_vector_1024.op('vector_cosine_ops')),
   index('memory_short_term_ideas_content_vector_768_index').using('hnsw', table.content_vector_768.op('vector_cosine_ops')),
+  index('memory_short_term_ideas_model_name_index').on(table.model_name),
 ])
 
 // Consolidated/Summary Memories Table
@@ -247,6 +278,7 @@ export const memoryConsolidatedMemoriesTable = pgTable('memory_consolidated_memo
   content_vector_768: vector({ dimensions: 768 }),
   created_at: bigint({ mode: 'number' }).notNull().default(0).$defaultFn(() => Date.now()),
   last_accessed: bigint({ mode: 'number' }).notNull().default(0).$defaultFn(() => Date.now()),
+  model_name: text().notNull().default('default'),
 }, table => [
   // Vector indexes for semantic search on summaries
   index('memory_consolidated_memories_content_vector_1536_index').using('hnsw', table.content_vector_1536.op('vector_cosine_ops')),
@@ -256,6 +288,7 @@ export const memoryConsolidatedMemoriesTable = pgTable('memory_consolidated_memo
   index('memory_consolidated_memories_type_index').on(table.summary_type),
   index('memory_consolidated_memories_created_at_index').on(table.created_at),
   index('memory_consolidated_memories_last_accessed_index').on(table.last_accessed),
+  index('memory_consolidated_memories_model_name_index').on(table.model_name),
 ])
 
 // Settings table - for storing LLM and embedding configuration

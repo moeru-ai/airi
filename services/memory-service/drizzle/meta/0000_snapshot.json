@@ -39,9 +39,32 @@
           "primaryKey": false,
           "notNull": true,
           "default": 0
+        },
+        "model_name": {
+          "name": "model_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'default'"
         }
       },
-      "indexes": {},
+      "indexes": {
+        "chat_completions_history_model_name_index": {
+          "name": "chat_completions_history_model_name_index",
+          "columns": [
+            {
+              "expression": "model_name",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
       "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
@@ -112,6 +135,13 @@
           "type": "vector(768)",
           "primaryKey": false,
           "notNull": false
+        },
+        "model_name": {
+          "name": "model_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'default'"
         }
       },
       "indexes": {
@@ -178,6 +208,21 @@
           "concurrently": false,
           "method": "hnsw",
           "with": {}
+        },
+        "chat_messages_model_name_index": {
+          "name": "chat_messages_model_name_index",
+          "columns": [
+            {
+              "expression": "model_name",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
         }
       },
       "foreignKeys": {},
@@ -235,6 +280,13 @@
           "primaryKey": false,
           "notNull": true,
           "default": "'{}'::jsonb"
+        },
+        "model_name": {
+          "name": "model_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'default'"
         }
       },
       "indexes": {
@@ -273,6 +325,21 @@
           "columns": [
             {
               "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "memory_access_patterns_model_name_index": {
+          "name": "memory_access_patterns_model_name_index",
+          "columns": [
+            {
+              "expression": "model_name",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -354,6 +421,13 @@
           "primaryKey": false,
           "notNull": true,
           "default": "'{}'::jsonb"
+        },
+        "model_name": {
+          "name": "model_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'default'"
         }
       },
       "indexes": {
@@ -419,6 +493,21 @@
           "columns": [
             {
               "expression": "association_type",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "memory_associations_model_name_index": {
+          "name": "memory_associations_model_name_index",
+          "columns": [
+            {
+              "expression": "model_name",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -539,6 +628,13 @@
           "primaryKey": false,
           "notNull": true,
           "default": 0
+        },
+        "model_name": {
+          "name": "model_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'default'"
         }
       },
       "indexes": {
@@ -634,6 +730,21 @@
           "concurrently": false,
           "method": "btree",
           "with": {}
+        },
+        "memory_consolidated_memories_model_name_index": {
+          "name": "memory_consolidated_memories_model_name_index",
+          "columns": [
+            {
+              "expression": "model_name",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
         }
       },
       "foreignKeys": {},
@@ -685,6 +796,13 @@
           "primaryKey": false,
           "notNull": true,
           "default": "'{}'::jsonb"
+        },
+        "model_name": {
+          "name": "model_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'default'"
         }
       },
       "indexes": {
@@ -723,6 +841,21 @@
           "columns": [
             {
               "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "memory_consolidation_events_model_name_index": {
+          "name": "memory_consolidation_events_model_name_index",
+          "columns": [
+            {
+              "expression": "model_name",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -790,6 +923,13 @@
           "primaryKey": false,
           "notNull": true,
           "default": "'{}'::jsonb"
+        },
+        "model_name": {
+          "name": "model_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'default'"
         }
       },
       "indexes": {
@@ -822,19 +962,47 @@
           "concurrently": false,
           "method": "btree",
           "with": {}
+        },
+        "memory_entities_model_name_index": {
+          "name": "memory_entities_model_name_index",
+          "columns": [
+            {
+              "expression": "model_name",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "memory_entities_model_name_name_unique": {
+          "name": "memory_entities_model_name_name_unique",
+          "columns": [
+            {
+              "expression": "model_name",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "name",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
         }
       },
       "foreignKeys": {},
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "memory_entities_name_unique": {
-          "name": "memory_entities_name_unique",
-          "nullsNotDistinct": false,
-          "columns": [
-            "name"
-          ]
-        }
-      },
+      "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
@@ -889,6 +1057,13 @@
           "primaryKey": false,
           "notNull": true,
           "default": 0
+        },
+        "model_name": {
+          "name": "model_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'default'"
         }
       },
       "indexes": {
@@ -954,6 +1129,21 @@
           "columns": [
             {
               "expression": "relationship_type",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "memory_entity_relations_model_name_index": {
+          "name": "memory_entity_relations_model_name_index",
+          "columns": [
+            {
+              "expression": "model_name",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -1048,6 +1238,13 @@
           "primaryKey": false,
           "notNull": true,
           "default": "'{}'::jsonb"
+        },
+        "model_name": {
+          "name": "model_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'default'"
         }
       },
       "indexes": {
@@ -1086,6 +1283,21 @@
           "columns": [
             {
               "expression": "is_processed",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "memory_episodes_model_name_index": {
+          "name": "memory_episodes_model_name_index",
+          "columns": [
+            {
+              "expression": "model_name",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -1204,6 +1416,13 @@
           "type": "uuid",
           "primaryKey": false,
           "notNull": false
+        },
+        "model_name": {
+          "name": "model_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'default'"
         }
       },
       "indexes": {
@@ -1344,6 +1563,21 @@
           "concurrently": false,
           "method": "btree",
           "with": {}
+        },
+        "memory_items_model_name_index": {
+          "name": "memory_items_model_name_index",
+          "columns": [
+            {
+              "expression": "model_name",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
         }
       },
       "foreignKeys": {
@@ -1449,6 +1683,13 @@
           "type": "bigint",
           "primaryKey": false,
           "notNull": false
+        },
+        "model_name": {
+          "name": "model_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'default'"
         }
       },
       "indexes": {
@@ -1502,6 +1743,21 @@
           "columns": [
             {
               "expression": "parent_goal_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "memory_long_term_goals_model_name_index": {
+          "name": "memory_long_term_goals_model_name_index",
+          "columns": [
+            {
+              "expression": "model_name",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -1568,6 +1824,13 @@
           "primaryKey": false,
           "notNull": true,
           "default": "'{}'::jsonb"
+        },
+        "model_name": {
+          "name": "model_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'default'"
         }
       },
       "indexes": {
@@ -1591,6 +1854,21 @@
           "columns": [
             {
               "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "memory_search_history_model_name_index": {
+          "name": "memory_search_history_model_name_index",
+          "columns": [
+            {
+              "expression": "model_name",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -1879,6 +2157,13 @@
           "type": "bigint",
           "primaryKey": false,
           "notNull": false
+        },
+        "model_name": {
+          "name": "model_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'default'"
         }
       },
       "indexes": {
@@ -1974,6 +2259,21 @@
           "concurrently": false,
           "method": "hnsw",
           "with": {}
+        },
+        "memory_short_term_ideas_model_name_index": {
+          "name": "memory_short_term_ideas_model_name_index",
+          "columns": [
+            {
+              "expression": "model_name",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
         }
       },
       "foreignKeys": {},
@@ -2012,6 +2312,13 @@
           "primaryKey": false,
           "notNull": true,
           "default": 0
+        },
+        "model_name": {
+          "name": "model_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'default'"
         }
       },
       "indexes": {
@@ -2056,6 +2363,21 @@
           "columns": [
             {
               "expression": "tag_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "memory_tag_relations_model_name_index": {
+          "name": "memory_tag_relations_model_name_index",
+          "columns": [
+            {
+              "expression": "model_name",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -2136,6 +2458,13 @@
           "primaryKey": false,
           "notNull": true,
           "default": 0
+        },
+        "model_name": {
+          "name": "model_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'default'"
         }
       },
       "indexes": {
@@ -2153,19 +2482,47 @@
           "concurrently": false,
           "method": "btree",
           "with": {}
+        },
+        "memory_tags_model_name_index": {
+          "name": "memory_tags_model_name_index",
+          "columns": [
+            {
+              "expression": "model_name",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "memory_tags_model_name_name_unique": {
+          "name": "memory_tags_model_name_name_unique",
+          "columns": [
+            {
+              "expression": "model_name",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "name",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
         }
       },
       "foreignKeys": {},
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "memory_tags_name_unique": {
-          "name": "memory_tags_name_unique",
-          "nullsNotDistinct": false,
-          "columns": [
-            "name"
-          ]
-        }
-      },
+      "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false

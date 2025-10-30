@@ -36,7 +36,7 @@ async function streamFrom(model: string, chatProvider: ChatProvider, messages: M
   // this can and should be integrated into a new streamText call/function and the server API should be removed and handled
   // inside the message ingestion API.
 
-  const { memoryServiceEnabled, memoryServiceUrl, memoryApiKey } = useMemoryService()
+  const { memoryServiceEnabled, memoryServiceUrl, memoryApiKey, getActiveModelName } = useMemoryService()
   let formattedMessages = messages.map(msg => ({ ...msg, content: (msg.role as string === 'error' ? `User encountered error: ${msg.content}` : msg.content), role: (msg.role as string === 'error' ? 'user' : msg.role) } as Message))
 
   if (memoryServiceEnabled.value) {
@@ -60,6 +60,7 @@ async function streamFrom(model: string, chatProvider: ChatProvider, messages: M
         headers: memoryHeaders,
         body: JSON.stringify({
           message: messages[messages.length - 1].content, // last message
+          modelName: getActiveModelName(),
         }),
       })
 

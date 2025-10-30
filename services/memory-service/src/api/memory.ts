@@ -7,9 +7,13 @@ import { Buffer } from 'node:buffer'
 import { exec, spawn } from 'node:child_process'
 import { writeFile } from 'node:fs/promises'
 
+import { sql } from 'drizzle-orm'
 import { PGlite } from '@electric-sql/pglite'
 import { pgDump } from '@electric-sql/pglite-tools/pg_dump'
 import { Elysia, t } from 'elysia'
+
+import { useDrizzle } from '../db'
+import { SettingsService } from '../services/settings'
 
 function isPgliteReq(headers: Record<string, string | string[]>, query: Record<string, any>) {
   const h = String(headers['x-db-variant'] || '').toLowerCase()
@@ -39,6 +43,84 @@ function parsePwdEnv(dbUrl: string) {
 }
 
 const memoryRouter = new Elysia({ prefix: '/memory' })
+const settingsService = SettingsService.getInstance()
+
+const MODEL_SCOPED_TABLES = [
+  'chat_messages',
+  'chat_completions_history',
+  'memory_episodes',
+  'memory_fragments',
+  'memory_entities',
+  'memory_entity_relations',
+  'memory_associations',
+  'memory_consolidation_events',
+  'memory_tags',
+  'memory_tag_relations',
+  'memory_search_history',
+  'memory_access_patterns',
+  'memory_long_term_goals',
+  'memory_short_term_ideas',
+  'memory_consolidated_memories',
+]
+
+function escapeLiteral(value: string): string {
+  return value.replace(/'/g, "''")
+}
+
+function isMissingRelation(error: unknown): boolean {
+  if (!(error instanceof Error))
+    return false
+  const message = error.message.toLowerCase()
+  return message.includes('does not exist') || message.includes('no such table')
+}
+
+function getHeaderValue(headers: Record<string, string | string[]>, name: string): string | undefined {
+  const value = headers[name]
+  if (Array.isArray(value))
+    return value[0]
+  return value as string | undefined
+}
+
+async function resolveTargetModelName(modelName?: string): Promise<string> {
+  if (modelName && modelName.trim())
+    return modelName.trim()
+
+  const settings = await settingsService.getSettings()
+  return settings.mem_llm_model || 'default'
+}
+
+async function ensureModelNames(modelName: string, variant: 'pg' | 'pglite', pgInstance?: PGlite) {
+  const sanitized = escapeLiteral(modelName)
+
+  if (variant === 'pglite') {
+    if (!pgInstance)
+      return
+
+    for (const table of MODEL_SCOPED_TABLES) {
+      try {
+        await pgInstance.exec(`ALTER TABLE IF EXISTS "${table}" ADD COLUMN IF NOT EXISTS model_name TEXT`)
+        await pgInstance.exec(`UPDATE "${table}" SET model_name = '${sanitized}' WHERE model_name IS NULL OR trim(model_name) = '' OR model_name = 'default'`)
+      }
+      catch (error) {
+        if (!isMissingRelation(error))
+          console.error(`Failed to update model_name for table ${table} (pglite):`, error)
+      }
+    }
+    return
+  }
+
+  const db = useDrizzle()
+  for (const table of MODEL_SCOPED_TABLES) {
+    try {
+      await db.execute(sql.raw(`ALTER TABLE IF EXISTS "${table}" ADD COLUMN IF NOT EXISTS model_name text`))
+      await db.execute(sql.raw(`UPDATE "${table}" SET model_name = '${sanitized}' WHERE model_name IS NULL OR btrim(model_name) = '' OR model_name = 'default'`))
+    }
+    catch (error) {
+      if (!isMissingRelation(error))
+        console.error(`Failed to update model_name for table ${table}:`, error)
+    }
+  }
+}
 
 memoryRouter.post('/export-chat-pglite', async ({ set, query, headers }) => {
   try {
@@ -153,6 +235,9 @@ memoryRouter.post('/import-chathistory', async ({ body, set, headers, query }) =
     return 'No file uploaded'
   }
 
+  const requestedModelName = typeof query.modelName === 'string' ? query.modelName : getHeaderValue(headers, 'x-model-name')
+  const resolvedModelName = await resolveTargetModelName(requestedModelName)
+
   const tmpPath = path.join(os.tmpdir(), file.name)
   const ab = await file.arrayBuffer()
   await writeFile(tmpPath, Buffer.from(ab))
@@ -182,7 +267,8 @@ memoryRouter.post('/import-chathistory', async ({ body, set, headers, query }) =
           }
         })
       })
-      return { ok: true }
+      await ensureModelNames(resolvedModelName, 'pg')
+      return { ok: true, modelName: resolvedModelName }
     }
 
     const dataDir = process.env.PGLITE_DATA_DIR || path.join(homeDir, 'airi_memory', 'pglite_data')
@@ -199,7 +285,8 @@ memoryRouter.post('/import-chathistory', async ({ body, set, headers, query }) =
     try {
       const sql = fs.readFileSync(tmpPath, 'utf8')
       await pg.exec(sql)
-      return { ok: true }
+      await ensureModelNames(resolvedModelName, 'pglite', pg)
+      return { ok: true, modelName: resolvedModelName }
     }
     catch (e) {
       console.error('PGlite import failed: ', e)

@@ -19,6 +19,7 @@ import {
   memoryShortTermIdeasTable,
 } from '../db/schema'
 import { broadcastRegenerationStatus } from '../utils/broadcast'
+import type { BuiltContext } from './context-builder'
 import { ContextBuilder } from './context-builder'
 import { EmbeddingProviderFactory } from './embedding-providers/factory'
 import { SettingsService } from './settings'
@@ -26,6 +27,7 @@ import { SettingsService } from './settings'
 export interface IngestMessageRequest {
   platform: string
   content: string
+  modelName?: string
 }
 
 export interface MessageResponse {
@@ -33,6 +35,7 @@ export interface MessageResponse {
   content: string
   platform: string
   created_at: number
+  modelName: string
 }
 
 export interface CompletionRequest {
@@ -40,6 +43,7 @@ export interface CompletionRequest {
   response: string
   platform: string
   task?: string
+  modelName?: string
 }
 
 export interface CompletionResponse {
@@ -48,6 +52,7 @@ export interface CompletionResponse {
   response: string
   platform: string
   created_at: number
+  modelName: string
 }
 
 export interface SearchOptions {
@@ -62,6 +67,14 @@ export class MemoryService {
   private embeddingFactory = EmbeddingProviderFactory.getInstance()
   private settingsService = SettingsService.getInstance()
   private contextBuilder = new ContextBuilder()
+
+  private async resolveModelName(modelName?: string): Promise<string> {
+    if (modelName && modelName.trim())
+      return modelName.trim()
+
+    const settings = await this.settingsService.getSettings()
+    return settings.mem_llm_model || 'default'
+  }
 
   // Constants for batch size adjustment
   private readonly MIN_BATCH_SIZE = 10
@@ -314,6 +327,7 @@ export class MemoryService {
    */
   async ingestMessage(data: IngestMessageRequest): Promise<MessageResponse> {
     try {
+      const modelName = await this.resolveModelName(data.modelName)
       // Generate embeddings based on current settings
       const embeddings = await this.embeddingFactory.generateEmbedding(data.content)
 
@@ -324,12 +338,14 @@ export class MemoryService {
         is_processed: false, // Mark as unprocessed initially
         created_at: Date.now(),
         updated_at: Date.now(),
+        model_name: modelName,
         ...embeddings, // Spread the embeddings object which has the right dimensions
       }).returning({
         id: chatMessagesTable.id,
         content: chatMessagesTable.content,
         platform: chatMessagesTable.platform,
         created_at: chatMessagesTable.created_at,
+        model_name: chatMessagesTable.model_name,
       })
 
       return {
@@ -337,6 +353,7 @@ export class MemoryService {
         content: result.content,
         platform: result.platform,
         created_at: result.created_at,
+        modelName: result.model_name,
       }
     }
     catch (error) {
@@ -356,6 +373,7 @@ export class MemoryService {
           content: chatMessagesTable.content,
           platform: chatMessagesTable.platform,
           created_at: chatMessagesTable.created_at,
+          model_name: chatMessagesTable.model_name,
         })
         .from(chatMessagesTable)
         .where(eq(chatMessagesTable.id, id))
@@ -368,6 +386,7 @@ export class MemoryService {
         content: result.content,
         platform: result.platform,
         created_at: result.created_at,
+        modelName: result.model_name,
       }
     }
     catch (error) {
@@ -381,6 +400,7 @@ export class MemoryService {
    */
   async storeCompletion(data: CompletionRequest): Promise<CompletionResponse> {
     try {
+      const modelName = await this.resolveModelName(data.modelName)
       // Import the completions table schema
       const { chatCompletionsHistoryTable } = await import('../db/schema.js')
 
@@ -390,12 +410,14 @@ export class MemoryService {
         response: data.response,
         task: data.task || 'chat', // Default task type
         created_at: Date.now(),
+        model_name: modelName,
       }).returning({
         id: chatCompletionsHistoryTable.id,
         prompt: chatCompletionsHistoryTable.prompt,
         response: chatCompletionsHistoryTable.response,
         task: chatCompletionsHistoryTable.task,
         created_at: chatCompletionsHistoryTable.created_at,
+        model_name: chatCompletionsHistoryTable.model_name,
       })
 
       return {
@@ -404,6 +426,7 @@ export class MemoryService {
         response: data.response,
         platform: data.platform, // Store platform in our response
         created_at: result.created_at,
+        modelName: result.model_name,
       }
     }
     catch (error) {
@@ -415,12 +438,24 @@ export class MemoryService {
   /**
    * Build context for a query using the context builder
    */
-  async buildQueryContext(query: string) {
+  async buildQueryContext(query: string, modelName?: string) {
     try {
-      return await this.contextBuilder.buildContext(query)
+      const resolvedModelName = await this.resolveModelName(modelName)
+      return await this.contextBuilder.buildContext(query, resolvedModelName)
     }
     catch (error) {
       console.error('Failed to build context:', error)
+      return null
+    }
+  }
+
+  async buildStructuredContext(query: string, modelName?: string): Promise<BuiltContext | null> {
+    try {
+      const resolvedModelName = await this.resolveModelName(modelName)
+      return await this.contextBuilder.buildContextData(query, resolvedModelName)
+    }
+    catch (error) {
+      console.error('Failed to build structured context:', error)
       return null
     }
   }

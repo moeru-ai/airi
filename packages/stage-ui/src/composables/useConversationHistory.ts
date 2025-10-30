@@ -12,7 +12,7 @@ export interface HistoryMessage {
 }
 
 export function useConversationHistory() {
-  const { memoryServiceEnabled, memoryServiceUrl, memoryApiKey } = useMemoryService()
+  const { memoryServiceEnabled, memoryServiceUrl, memoryApiKey, getActiveModelName } = useMemoryService()
 
   const isLoading = ref(false)
   const hasMore = ref(false)
@@ -41,6 +41,7 @@ export function useConversationHistory() {
       if (before) {
         url.searchParams.set('before', before.toString())
       }
+      url.searchParams.set('modelName', getActiveModelName())
 
       const response = await fetch(url.toString(), {
         method: 'GET',
