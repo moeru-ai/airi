@@ -4,7 +4,12 @@ import { generateText } from '@xsai/generate-text'
 import { listModels } from '@xsai/model'
 import { message } from '@xsai/utils-chat'
 
-import { formatErrorForUser } from '../../utils/error-formatter'
+// ✅ replaced old error-formatter import with new unified helper module
+import {
+  formatErrorForUser,
+  buildValidationResult,
+  buildFetchErrorResult,
+} from '../../utils/providerValidation'
 
 type ProviderCreator = (apiKey: string, baseUrl: string) => any
 
@@ -44,6 +49,7 @@ export function buildOpenAICompatibleProvider(
     ...rest
   } = options
 
+  // Default capabilities if provider does not define its own
   const finalCapabilities = capabilities || {
     listModels: async (config: Record<string, unknown>) => {
       // Safer casting of apiKey/baseUrl (prevents .trim() crash if not a string)
@@ -52,102 +58,93 @@ export function buildOpenAICompatibleProvider(
 
       const provider = await creator(apiKey, baseUrl)
       // Check provider.model exists and is a function
-      if (!provider || typeof provider.model !== 'function') {
+      if (!provider || typeof provider.model !== 'function')
         return []
-      }
 
-      // Previously: fetch(`${baseUrl}models`)
+      // Fetch model list using standard OpenAI-compatible endpoint
+      // (was: fetch(`${baseUrl}models`))
       const models = await listModels({
         apiKey,
         baseURL: baseUrl,
         headers: additionalHeaders,
       })
 
-      return models.map((model: any) => {
-        return {
-          id: model.id,
-          name: model.name || model.display_name || model.id,
-          provider: id,
-          description: model.description || '',
-          contextLength: model.context_length || 0,
-          deprecated: false,
-        } satisfies ModelInfo
-      })
+      return models.map((model: any) => ({
+        id: model.id,
+        name: model.name || model.display_name || model.id,
+        provider: id,
+        description: model.description || '',
+        contextLength: model.context_length || 0,
+        deprecated: false,
+      }) satisfies ModelInfo)
     },
   }
 
+  // Default validation logic for OpenAI-compatible providers
   const finalValidators = validators || {
     validateProviderConfig: async (config: Record<string, unknown>) => {
       const errors: Error[] = []
       let baseUrl = typeof config.baseUrl === 'string' ? config.baseUrl.trim() : ''
       const apiKey = typeof config.apiKey === 'string' ? config.apiKey.trim() : ''
 
-      if (!baseUrl) {
-        errors.push(new Error('Base URL is required'))
-      }
+      // --- Basic input validation ---
+      if (!baseUrl)
+        errors.push(new Error('Base URL is required.'))
 
       try {
-        if (new URL(baseUrl).host.length === 0) {
+        if (new URL(baseUrl).host.length === 0)
           errors.push(new Error('Base URL is not absolute. Check your input.'))
-        }
       }
       catch {
         errors.push(new Error('Base URL is invalid. It must be an absolute URL.'))
       }
 
-      // normalize trailing slash instead of rejecting
-      if (baseUrl && !baseUrl.endsWith('/')) {
+      // Normalize trailing slash instead of rejecting invalid URL
+      if (baseUrl && !baseUrl.endsWith('/'))
         baseUrl += '/'
-      }
 
-      if (errors.length > 0) {
-        return {
-          errors,
-          reason: errors.map(e => e.message).join(', '),
-          valid: false,
-        }
-      }
+      // ✅ Return early if base URL problems exist
+      if (errors.length > 0)
+        return buildValidationResult(errors, false)
 
-      // If API key is not provided, skip remote checks and prompt for API key only.
-      // This avoids showing long JSON/network errors when user hasn't entered an API key yet.
-      if (!apiKey) {
-        return {
-          errors: [new Error('API Key is required')],
-          reason: 'API Key is required',
-          valid: false,
-        }
-      }
+      // If API key is missing, skip remote validation to avoid confusing network errors
+      if (!apiKey)
+        return buildValidationResult([new Error('API Key is required.')], false)
 
       const validationChecks = validation || []
 
-      // Auto-detect first available model for validation
-      let model = 'test' // fallback to `test` if fails
+      // --- Auto-detect first available model for validation ---
+      // fallback to `test` if detection fails
+      let model = 'test'
       try {
         const models = await listModels({
           apiKey,
           baseURL: baseUrl,
           headers: additionalHeaders,
-        })
-          .then((models: any[]) => models.filter((model: any) =>
+        }).then((models: any[]) =>
+          models.filter((m: any) =>
             [
               // exclude embedding models
               'embed',
-              // exclude tts models, specifically for OpenAI
+              // exclude tts models (OpenAI specific)
               'tts',
               // bypass gemini pro quota
-              // TODO: more elegant solution
               'models/gemini-2.5-pro',
-            ].every(str => !model.id.includes(str)),
-          ))
+            ].every(str => !m.id.includes(str)),
+          ),
+        )
 
         if (models.length > 0)
           model = models[0].id
       }
       catch (e) {
+        // Keep only warning for auto-detection (don’t fail validation)
         console.warn(`Model auto-detection failed: ${formatErrorForUser(e)}`)
       }
 
-      // Health check = try generating text (was: fetch(`${baseUrl}chat/completions`))
+      // --- Validation routines based on `validation` array ---
+
+      // Health check = send minimal test prompt (was: fetch(`${baseUrl}chat/completions`))
       if (validationChecks.includes('health')) {
         try {
           await generateText({
@@ -172,9 +169,8 @@ export function buildOpenAICompatibleProvider(
             baseURL: baseUrl,
             headers: additionalHeaders,
           })
-          if (!models || models.length === 0) {
-            errors.push(new Error('Model list check failed: no models found'))
-          }
+          if (!models || models.length === 0)
+            errors.push(new Error('Model list check failed: no models found.'))
         }
         catch (e) {
           errors.push(new Error(`Model list check failed: ${formatErrorForUser(e)}`))
@@ -198,15 +194,12 @@ export function buildOpenAICompatibleProvider(
         }
       }
 
-      return {
-        errors,
-        // Consistent reason string (empty when no errors)
-        reason: errors.length > 0 ? errors.map(e => e.message).join(', ') : '',
-        valid: errors.length === 0,
-      }
+      // ✅ Return normalized validation result (safe, human-readable)
+      return buildValidationResult(errors, errors.length === 0)
     },
   }
 
+  // --- Construct final provider metadata object ---
   return {
     id,
     category: category || 'chat',
@@ -219,12 +212,12 @@ export function buildOpenAICompatibleProvider(
     defaultOptions: () => ({
       baseUrl: defaultBaseUrl || '',
     }),
-    createProvider: async (config: { apiKey: string, baseUrl: string }) => {
+    // Create provider instance
+    createProvider: async (config: { apiKey: string; baseUrl: string }) => {
       const apiKey = typeof config.apiKey === 'string' ? config.apiKey.trim() : ''
       let baseUrl = typeof config.baseUrl === 'string' ? config.baseUrl.trim() : ''
-      if (baseUrl && !baseUrl.endsWith('/')) {
+      if (baseUrl && !baseUrl.endsWith('/'))
         baseUrl += '/'
-      }
       return creator(apiKey, baseUrl)
     },
     capabilities: finalCapabilities,
