@@ -73,13 +73,19 @@ export default defineConfig({
 
     plugins: [
       {
-        name: 'proj-airi:define-runtime-environment',
-        config() {
-          return {
-            define: {
-              'import.meta.env.RUNTIME_ENVIRONMENT': '\'electron\'',
-            },
+        name: 'proj-airi:defines',
+        config(ctx) {
+          const define: Record<string, any> = {
+            'import.meta.env.RUNTIME_ENVIRONMENT': '\'electron\'',
           }
+          if (ctx.mode === 'development') {
+            define['import.meta.env.URL_MODE'] = '\'server\''
+          }
+          if (ctx.mode === 'production') {
+            define['import.meta.env.URL_MODE'] = '\'file\''
+          }
+
+          return { define }
         },
       },
 
