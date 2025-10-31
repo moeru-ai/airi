@@ -147,12 +147,12 @@ jobs:
         if: ${{ matrix.os == 'ubuntu-latest' || matrix.os == 'ubuntu-24.04-arm' }}
         working-directory: ./apps/stage-tamagotchi
         run: |
-          mkdir -p bundle
+          mkdir -p dist
           # Auto-install required SDK/Platform/BaseApp from Flathub in user scope
           flatpak-builder --user --install-deps-from=flathub ./flatpak ai.moeru.airi.flatpak.yml --force-clean
           flatpak build-export ./flatpak-repo ./flatpak
-          flatpak build-bundle ./flatpak-repo bundle/ai.moeru.airi-${{ matrix.arch }}.flatpak ai.moeru.airi
-          echo "FLATPAK_BUNDLE_NAME=ai.moeru.airi-${{ matrix.arch }}.flatpak" >> $GITHUB_ENV
+          export FLATPAK_OUTPUT_NAME=$(pnpm exec tsx scripts/artifacts-metadata.ts ${{ matrix.target }} --get-output-filename flatpak)
+          flatpak build-bundle ./flatpak-repo dist/${FLATPAK_OUTPUT_NAME} ai.moeru.airi
 
       # ---------
       # Nightly (schedule) builds only
@@ -188,6 +188,7 @@ jobs:
         run: |
           echo "DEB_BUNDLE_NAME=$(pnpm exec tsx scripts/artifacts-metadata.ts ${{ matrix.target }} --get-filename deb)" >> $GITHUB_ENV
           echo "RPM_BUNDLE_NAME=$(pnpm exec tsx scripts/artifacts-metadata.ts ${{ matrix.target }} --get-filename rpm)" >> $GITHUB_ENV
+          echo "FLATPAK_BUNDLE_NAME=$(pnpm exec tsx scripts/artifacts-metadata.ts ${{ matrix.target }} --get-filename flatpak)" >> $GITHUB_ENV
 
       - name: Upload Artifacts (Nightly + Non-Linux)
         if: ${{ github.event_name == 'schedule' && (matrix.os != 'ubuntu-latest' && matrix.os != 'ubuntu-24.04-arm') }}
@@ -251,6 +252,7 @@ jobs:
         run: |
           echo "DEB_BUNDLE_NAME=$(pnpm exec tsx scripts/artifacts-metadata.ts ${{ matrix.target }} --get-filename deb --release ${{ !inputs.build_only && !inputs.artifacts_only }} --tag ${{ inputs.tag }} --auto-tag ${{ !inputs.build_only }})" >> $GITHUB_ENV
           echo "RPM_BUNDLE_NAME=$(pnpm exec tsx scripts/artifacts-metadata.ts ${{ matrix.target }} --get-filename rpm --release ${{ !inputs.build_only && !inputs.artifacts_only }} --tag ${{ inputs.tag }} --auto-tag ${{ !inputs.build_only }})" >> $GITHUB_ENV
+          echo "FLATPAK_BUNDLE_NAME=$(pnpm exec tsx scripts/artifacts-metadata.ts ${{ matrix.target }} --get-filename flatpak --release ${{ !inputs.build_only && !inputs.artifacts_only }} --tag ${{ inputs.tag }} --auto-tag ${{ !inputs.build_only }})" >> $GITHUB_ENV
 
       - name: Upload Artifacts (Manual + Non-Release + Non-Linux)
         if: ${{ github.event_name == 'workflow_dispatch' && !inputs.build_only && inputs.artifacts_only && (matrix.os != 'ubuntu-latest' && matrix.os != 'ubuntu-24.04-arm') }}

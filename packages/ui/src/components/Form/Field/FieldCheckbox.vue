@@ -10,9 +10,9 @@ const modelValue = defineModel<boolean>({ required: true })
 </script>
 
 <template>
-  <label flex="~ col gap-4">
-    <div flex="~ row" items-center gap-2>
-      <div flex="1">
+  <label class="flex flex-col gap-4">
+    <div class="flex flex-row items-center gap-2">
+      <div class="flex-1">
         <div class="flex items-center gap-1 text-sm font-medium">
           <slot name="label">
             {{ props.label }}
