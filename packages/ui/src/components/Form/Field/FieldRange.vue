@@ -31,7 +31,7 @@ const modelValue = defineModel<number>({ required: true })
           </slot>
         </div>
       </div>
-      <span font-mono>{{ props.formatValue?.(modelValue) || modelValue }}</span>
+      <span :class="['font-mono']">{{ props.formatValue?.(modelValue) || modelValue }}</span>
     </div>
     <div :class="['flex', 'flex-row', 'items-center', 'gap-2']">
       <Range
