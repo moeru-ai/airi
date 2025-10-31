@@ -47,7 +47,7 @@ watch([inputKey, inputValue], () => {
         <div
           v-for="(keyValue, index) in keyValues"
           :key="index"
-          class="flex items-center gap-2"
+          class="w-full items-center gap-2"
         >
           <InputKeyValue
             v-model:property-key="keyValue.key"
