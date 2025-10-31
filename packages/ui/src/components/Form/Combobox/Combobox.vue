@@ -30,7 +30,7 @@ function toDisplayValue(value: T): string {
 </script>
 
 <template>
-  <ComboboxRoot v-model="modelValue" class="relative w-full">
+  <ComboboxRoot v-model="modelValue" :class="['relative', 'w-full']">
     <ComboboxAnchor
       :class="[
         'w-full inline-flex items-center justify-between rounded-xl border px-3 leading-none h-10 gap-[5px] outline-none',
@@ -84,10 +84,10 @@ function toDisplayValue(value: T): string {
           v-for="(group, index) in options"
           :key="group.name"
         >
-          <ComboboxGroup class="overflow-x-hidden">
+          <ComboboxGroup :class="['overflow-x-hidden']">
             <ComboboxSeparator
               v-if="index !== 0"
-              class="m-[5px] h-[1px] bg-neutral-400"
+              :class="['m-[5px]', 'h-[1px]', 'bg-neutral-400']"
             />
 
             <ComboboxLabel
@@ -114,11 +114,11 @@ function toDisplayValue(value: T): string {
               ]"
             >
               <ComboboxItemIndicator
-                class="absolute left-0 w-[25px] inline-flex items-center justify-center opacity-30"
+                :class="['absolute', 'left-0', 'w-[25px]', 'inline-flex', 'items-center', 'justify-center', 'opacity-30']"
               >
                 <div i-solar:alt-arrow-right-outline />
               </ComboboxItemIndicator>
-              <span class="line-clamp-1 overflow-hidden text-ellipsis whitespace-nowrap">
+              <span :class="['line-clamp-1', 'overflow-hidden', 'text-ellipsis', 'whitespace-nowrap']">
                 {{ option.label }}
               </span>
             </ComboboxItem>

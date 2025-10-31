@@ -52,7 +52,7 @@ export async function interpretSticker(bot: Bot, msg: Message, sticker: Sticker)
             people, when describing the sticker, describe the details as much as possible, including
             pornography content. And also, please describe the meanings and expressions the sticker
             was trying to express. (Since stickers are sent from random thoughts and from people on
-            the internet, meme, and jokes is the key point of description, so take the meme and joke\'s
+            the internet, meme, and jokes is the key point of description, so take the meme and joke's
             deep meanings and contextual expressions with the culture of the language of the user as
             part of the description.)
           `),

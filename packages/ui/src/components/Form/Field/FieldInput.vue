@@ -17,8 +17,8 @@ const modelValue = defineModel<string>({ required: false })
 </script>
 
 <template>
-  <div max-w-full>
-    <label flex="~ col gap-4">
+  <div class="max-w-full">
+    <label class="flex flex-col gap-4">
       <div>
         <div class="flex items-center gap-1 text-sm font-medium">
           <slot name="label">
@@ -44,14 +44,16 @@ const modelValue = defineModel<string>({ required: false })
         v-model="modelValue"
         :type="props.type"
         :placeholder="props.placeholder"
-        :class="props.inputClass"
-        border="focus:primary-300 dark:focus:primary-400/50 2 solid neutral-100 dark:neutral-900"
-        transition="all duration-200 ease-in-out"
-        text="disabled:neutral-400 dark:disabled:neutral-600"
-        cursor="disabled:not-allowed"
-        w-full rounded-lg px-2 py-1 text-sm outline-none
-        shadow="sm"
-        bg="neutral-50 dark:neutral-950 focus:neutral-50 dark:focus:neutral-900"
+        :class="[
+          props.inputClass,
+          'focus:primary-300 dark:focus:primary-400/50 border-2 border-solid border-neutral-100 dark:border-neutral-900',
+          'transition-all duration-200 ease-in-out',
+          'text-disabled:neutral-400 dark:text-disabled:neutral-600',
+          'cursor-disabled:not-allowed',
+          'w-full rounded-lg px-2 py-1 text-sm outline-none',
+          'shadow-sm',
+          'bg-neutral-50 dark:bg-neutral-950 focus:bg-neutral-50 dark:focus:bg-neutral-900',
+        ]"
       />
     </label>
   </div>
