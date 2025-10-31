@@ -9,7 +9,13 @@ defineProps<{
 
 <template>
   <BasicInputFile
-    class="min-h-[120px] flex flex-col cursor-pointer items-center justify-center rounded-xl p-6"
+    :class="[
+      'min-h-[120px] flex flex-col cursor-pointer items-center justify-center rounded-xl p-6',
+      'border-dashed border-2',
+      'transition-all duration-300',
+      'opacity-95',
+      'hover:scale-100 hover:opacity-100 hover:shadow-md hover:dark:shadow-lg',
+    ]"
     :is-not-dragging-classes="[
       'border-neutral-200 dark:border-neutral-700 hover:border-primary-300 dark:hover:border-primary-700',
       'bg-white/60 dark:bg-black/30 hover:bg-white/80 dark:hover:bg-black/40',
@@ -18,11 +24,6 @@ defineProps<{
       'border-primary-400 dark:border-primary-600 hover:border-primary-300 dark:hover:border-primary-700',
       'bg-primary-50/5 dark:bg-primary-900/5',
     ]"
-    border="dashed 2"
-    transition="all duration-300"
-    opacity-95
-    hover="scale-100 opacity-100 shadow-md dark:shadow-lg"
-
     :accept="accept"
     :multiple="multiple"
   >
