@@ -21,7 +21,7 @@ async function fetchContributors(page = 1) {
   const data: Contributor[] = await res.json()
 
   collaborators.push(...data.map(contributor => contributor.login))
-  if (res.headers.get('Link')?.includes('rel=\"next\"'))
+  if (res.headers.get('Link')?.includes('rel="next"'))
     collaborators.push(...(await fetchContributors(page + 1)))
   return collaborators.filter(name => !name.includes('[bot]'))
 }

@@ -57,7 +57,7 @@ const isCharactersPage = computed(() => path.value.includes('characters'))
             v-if="isBetweenHalloweenAndHalfOfNovember(new Date())"
             class="max-w-none w-[90rem] flex-none"
             decoding="async"
-            src="/new-bg-halloween.png"
+            src="/new-bg-halloween.avif"
             alt="backdrop"
           >
           <img

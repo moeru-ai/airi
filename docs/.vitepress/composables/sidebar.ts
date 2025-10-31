@@ -184,7 +184,7 @@ export interface SidebarLink {
 }
 
 function ensureStartingSlash(path: string): string {
-  return /^\//.test(path) ? path : `/${path}`
+  return path.startsWith('/') ? path : `/${path}`
 }
 
 /**

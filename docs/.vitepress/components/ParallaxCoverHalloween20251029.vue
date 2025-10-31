@@ -5,7 +5,7 @@ import { useLocalStorage } from '@vueuse/core'
 import { createAnimatable } from 'animejs'
 import { onMounted, shallowRef, useTemplateRef, watchEffect } from 'vue'
 
-import homeCover from '../assets/home-cover-2025-10-29.png'
+import homeCover from '../assets/home-cover-2025-10-29.avif'
 
 const surfaceRef = useTemplateRef<HTMLImageElement>('surface')
 const silhouetteLayer1Ref = useTemplateRef<HTMLDivElement>('silhouetteLayer1')
