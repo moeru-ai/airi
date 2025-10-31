@@ -17,7 +17,7 @@ const modelValue = defineModel<number>({ required: true })
 </script>
 
 <template>
-  <props.as :class="['flex', 'flex-col', 'gap-4']">
+  <props.as :class="['flex flex-col gap-4']">
     <div :class="['flex', 'flex-row', 'items-center', 'gap-2']">
       <div :class="['flex-1']">
         <div :class="['flex', 'items-center', 'gap-1', 'text-sm', 'font-medium']">
