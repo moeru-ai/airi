@@ -33,7 +33,7 @@ modules:
       - cp -r ./* /app/bin/airi/
       - install airi.sh /app/bin/airi.sh
       - chmod +x /app/bin/airi/airi.sh
-      - chmod +x /app/bin/airi/AIRI
+      - chmod +x /app/bin/airi/airi
     sources:
       - type: dir
         only-arches: [x86_64]
@@ -73,4 +73,4 @@ modules:
         commands:
           - ulimit -c 0
           - export TMPDIR="$XDG_RUNTIME_DIR/app/$FLATPAK_ID"
-          - exec zypak-wrapper /app/bin/airi/AIRI "$@"
+          - exec zypak-wrapper /app/bin/airi/airi "$@"

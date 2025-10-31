@@ -37,8 +37,9 @@ function handleFileChange(e: Event) {
 
 <template>
   <label
-    relative cursor-pointer
     :class="[
+      'relative',
+      'cursor-pointer',
       props.class,
       isDragging
         ? [...Array.isArray(isDraggingClasses) ? isDraggingClasses : [isDraggingClasses]]

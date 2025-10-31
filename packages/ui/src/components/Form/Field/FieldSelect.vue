@@ -17,25 +17,26 @@ const modelValue = defineModel<string>({ required: false })
 </script>
 
 <template>
-  <label flex="~ col gap-4">
+  <label :class="['flex', 'flex-col', 'gap-4']">
     <div
-      class="items-center justify-center"
       :class="[
+        'items-center',
+        'justify-center',
         props.layout === 'horizontal' ? 'grid grid-cols-3 gap-2' : 'grid grid-cols-2 gap-2',
       ]"
     >
       <div
-        class="w-full"
         :class="[
+          'w-full',
           props.layout === 'horizontal' ? 'col-span-2' : 'row-span-1',
         ]"
       >
-        <div class="flex items-center gap-1 break-words text-sm font-medium">
+        <div :class="['flex', 'items-center', 'gap-1', 'break-words', 'text-sm', 'font-medium']">
           <slot name="label">
             {{ props.label }}
           </slot>
         </div>
-        <div class="break-words text-xs text-neutral-500 dark:text-neutral-400">
+        <div :class="['break-words', 'text-xs', 'text-neutral-500', 'dark:text-neutral-400']">
           <slot name="description">
             {{ props.description }}
           </slot>

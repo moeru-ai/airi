@@ -98,6 +98,7 @@ onTokenLiteral(async () => {
               <MarkdownRenderer
                 v-else
                 :content="slice.text"
+                text="base <sm:xs"
               />
             </div>
           </div>
@@ -136,7 +137,7 @@ onTokenLiteral(async () => {
           <!-- Prefer presentation slices if available; fallback to normal streaming -->
           <template v-if="presentSlices.length > 0">
             <div v-for="(text, idx) in presentSlices" :key="`present-${idx}`">
-              <MarkdownRenderer :content="text" />
+              <MarkdownRenderer :content="text" text="base <sm:xs" />
             </div>
           </template>
           <template v-else>
@@ -147,7 +148,7 @@ onTokenLiteral(async () => {
                 </div>
               </div>
               <div v-else-if="slice.type === 'tool-call-result'" />
-              <MarkdownRenderer v-else :content="slice.text" />
+              <MarkdownRenderer v-else :content="slice.text" text="base <sm:xs" />
             </div>
           </template>
         </div>
