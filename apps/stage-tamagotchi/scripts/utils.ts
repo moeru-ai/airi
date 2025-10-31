@@ -84,7 +84,7 @@ interface FilenameOutputEntry {
   version: string
 }
 
-function mapArchFor(
+export function mapArchFor(
   target: string,
   ext: string,
 ): string {
@@ -213,6 +213,30 @@ export async function getFilenames(target: string, options: { release: boolean, 
             },
           )
         }
+
+        // Flatpak artifact (built outside electron-builder, but we follow linux template)
+        artifacts.push(
+          {
+            target: 'x86_64-unknown-linux-gnu',
+            extension: 'flatpak',
+            outputFilename: applyTemplateOfArtifactName(
+              electronBuilder.linux.artifactName!,
+              productName,
+              beforeVersion,
+              mapArchFor(target, 'flatpak'),
+              'flatpak',
+            ),
+            releaseArtifactFilename: applyTemplateOfArtifactName(
+              electronBuilder.linux.artifactName!,
+              productName,
+              version,
+              mapArchFor(target, 'flatpak'),
+              'flatpak',
+            ),
+            productName,
+            version,
+          },
+        )
       }
 
       return artifacts
@@ -276,6 +300,30 @@ export async function getFilenames(target: string, options: { release: boolean, 
             },
           )
         }
+
+        // Flatpak artifact (built outside electron-builder, but we follow linux template)
+        artifacts.push(
+          {
+            target: 'aarch64-unknown-linux-gnu',
+            extension: 'flatpak',
+            outputFilename: applyTemplateOfArtifactName(
+              electronBuilder.linux.artifactName!,
+              productName,
+              beforeVersion,
+              mapArchFor(target, 'flatpak'),
+              'flatpak',
+            ),
+            releaseArtifactFilename: applyTemplateOfArtifactName(
+              electronBuilder.linux.artifactName!,
+              productName,
+              version,
+              mapArchFor(target, 'flatpak'),
+              'flatpak',
+            ),
+            productName,
+            version,
+          },
+        )
       }
 
       return artifacts
