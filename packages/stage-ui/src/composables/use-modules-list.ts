@@ -66,7 +66,7 @@ export function useModulesList() {
       name: t('settings.pages.modules.vision.title'),
       description: t('settings.pages.modules.vision.description'),
       icon: 'i-solar:eye-closed-bold-duotone',
-      to: '',
+      to: '/settings/modules/vision',
       configured: false,
       category: 'essential',
     },
