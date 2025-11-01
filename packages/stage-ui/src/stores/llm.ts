@@ -1,5 +1,5 @@
 import type { ChatProvider } from '@xsai-ext/shared-providers'
-import type { CommonContentPart, CompletionToolCall, Message } from '@xsai/shared-chat'
+import type { CommonContentPart, CompletionToolCall, Message, SystemMessage } from '@xsai/shared-chat'
 
 import { readableStreamToAsyncIterator } from '@moeru/std'
 import { listModels } from '@xsai/model'
@@ -8,6 +8,7 @@ import { streamText } from '@xsai/stream-text'
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 
+import { useMemoryService } from '../composables/useMemoryService'
 import { debug, mcp } from '../tools'
 
 export type StreamEvent
@@ -22,20 +23,94 @@ export interface StreamOptions {
   onStreamEvent?: (event: StreamEvent) => void | Promise<void>
   toolsCompatibility?: Map<string, boolean>
   supportsTools?: boolean
+  use_memory_service?: boolean
 }
 
 function streamOptionsToolsCompatibilityOk(model: string, chatProvider: ChatProvider, _: Message[], options?: StreamOptions, toolsCompatibility: Map<string, boolean> = new Map()): boolean {
   return !!(options?.supportsTools || toolsCompatibility.get(`${chatProvider.chat(model).baseURL}-${model}`))
 }
 
+function isTextContentPart(part: unknown): part is { type: 'text', text: string } {
+  return typeof part === 'object'
+    && part !== null
+    && 'type' in part
+    && (part as { type?: unknown }).type === 'text'
+    && typeof (part as { text?: unknown }).text === 'string'
+}
+
+function extractTextFromMessage(message?: Message): string | undefined {
+  const content = message?.content
+
+  if (!content) {
+    return undefined
+  }
+
+  if (typeof content === 'string') {
+    return content
+  }
+
+  if (Array.isArray(content)) {
+    const text = content
+      .map((part) => {
+        if (typeof part === 'string') {
+          return part
+        }
+
+        if (isTextContentPart(part)) {
+          return part.text
+        }
+
+        return ''
+      })
+      .filter(Boolean)
+      .join('\n')
+
+    return text || undefined
+  }
+
+  return undefined
+}
+
 async function streamFrom(model: string, chatProvider: ChatProvider, messages: Message[], options?: StreamOptions) {
+  // TODO [lucas-oma]: optimize this function
+  // Right now, it fetches context and then makes LLM call for AI response,
+  // this can and should be integrated into a new streamText call/function and the server API should be removed and handled
+  // inside the message ingestion API.
+
+  const { memoryServiceEnabled, buildContext } = useMemoryService()
+  let formattedMessages = messages.map(msg => ({ ...msg, content: (msg.role as string === 'error' ? `User encountered error: ${msg.content}` : msg.content), role: (msg.role as string === 'error' ? 'user' : msg.role) } as Message))
+
+  if (memoryServiceEnabled.value) {
+    try {
+      const lastMessage = messages[messages.length - 1]
+      const messageText = extractTextFromMessage(lastMessage)
+
+      const context = messageText ? await buildContext(messageText) : ''
+
+      // 2. Add context as system message
+      formattedMessages = [
+        ...formattedMessages,
+        ...(context
+          ? [{
+              role: 'system',
+              content: context, // Context is already a formatted string
+            } as SystemMessage]
+          : []),
+      ]
+    }
+    catch (error) {
+      console.error('Error fetching context:', error)
+      // Continue with normal flow if context fails
+    }
+  }
+
   const headers = options?.headers
 
   return await streamText({
     ...chatProvider.chat(model),
     maxSteps: 10,
     // TODO: proper format for other error messages.
-    messages: messages.map(msg => ({ ...msg, content: (msg.role as string === 'error' ? `User encountered error: ${msg.content}` : msg.content), role: (msg.role as string === 'error' ? 'user' : msg.role) } as Message)),
+    messages: formattedMessages,
     headers,
     // TODO: we need Automatic tools discovery
     tools: streamOptionsToolsCompatibilityOk(model, chatProvider, messages, options)
