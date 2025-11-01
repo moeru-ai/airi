@@ -1,14 +1,13 @@
 <script setup lang="ts">
-import { HearingConfigDialog } from '@proj-airi/stage-ui/components'
 import { useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { defineInvoke } from '@unbird/eventa'
 import { useDark, useToggle } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { ref } from 'vue'
 
-import HearingPermissionStatus from '../../../components/HearingPermissionStatus.vue'
 import ControlButton from './ControlButton.vue'
 import ControlButtonTooltip from './ControlButtonTooltip.vue'
+import ControlsIslandHearingConfig from './ControlsIslandHearingConfig.vue'
 import IndicatorMicVolume from './IndicatorMicVolume.vue'
 
 import { electronOpenChat, electronOpenSettings, electronStartDraggingWindow } from '../../../../shared/eventa'
@@ -61,7 +60,7 @@ defineExpose({ hearingDialogOpen })
       </ControlButtonTooltip>
 
       <ControlButtonTooltip>
-        <HearingConfigDialog v-model:show="hearingDialogOpen">
+        <ControlsIslandHearingConfig v-model:show="hearingDialogOpen">
           <div class="relative">
             <ControlButton>
               <Transition name="fade" mode="out-in">
@@ -70,10 +69,7 @@ defineExpose({ hearingDialogOpen })
               </Transition>
             </ControlButton>
           </div>
-          <template #extra>
-            <HearingPermissionStatus />
-          </template>
-        </HearingConfigDialog>
+        </ControlsIslandHearingConfig>
 
         <template #tooltip>
           Open hearing controls

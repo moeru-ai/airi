@@ -1,11 +1,8 @@
 <script setup lang="ts">
 import type { ChatProvider } from '@xsai-ext/shared-providers'
 
-import WhisperWorker from '@proj-airi/stage-ui/libs/workers/worker?worker&url'
-
-import { toWAVBase64 } from '@proj-airi/audio'
 import { HearingConfigDialog } from '@proj-airi/stage-ui/components'
-import { useMicVAD, useWhisper } from '@proj-airi/stage-ui/composables'
+import { useAudioAnalyzer } from '@proj-airi/stage-ui/composables'
 import { useAudioContext } from '@proj-airi/stage-ui/stores/audio'
 import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
 import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
@@ -21,7 +18,6 @@ import ChatHistory from '../Widgets/ChatHistory.vue'
 import IndicatorMicVolume from '../Widgets/IndicatorMicVolume.vue'
 
 const messageInput = ref('')
-const listening = ref(false)
 const hearingDialogOpen = ref(false)
 const isComposing = ref(false)
 
@@ -30,7 +26,7 @@ const { activeProvider, activeModel } = storeToRefs(useConsciousnessStore())
 const { themeColorsHueDynamic } = storeToRefs(useSettings())
 
 const { askPermission } = useSettingsAudioDevice()
-const { enabled, selectedAudioInput } = storeToRefs(useSettingsAudioDevice())
+const { enabled, selectedAudioInput, stream, audioInputs } = storeToRefs(useSettingsAudioDevice())
 const { send, onAfterMessageComposed, discoverToolsCompatibility, cleanupMessages } = useChatStore()
 const { messages } = storeToRefs(useChatStore())
 const { audioContext } = useAudioContext()
@@ -38,21 +34,7 @@ const { t } = useI18n()
 
 const isDark = useDark({ disableTransition: false })
 
-const { transcribe: generate, terminate } = useWhisper(WhisperWorker, {
-  onComplete: async (res) => {
-    if (!res || !res.trim()) {
-      return
-    }
-
-    const providerConfig = providersStore.getProviderConfig(activeProvider.value)
-
-    await send(res, {
-      chatProvider: await providersStore.getProviderInstance(activeProvider.value) as ChatProvider,
-      model: activeModel.value,
-      providerConfig,
-    })
-  },
-})
+// Legacy whisper pipeline removed; audio pipeline handled at page level
 
 async function handleSend() {
   if (!messageInput.value.trim() || isComposing.value) {
@@ -77,46 +59,7 @@ async function handleSend() {
   }
 }
 
-const { destroy, start } = useMicVAD(selectedAudioInput, {
-  onSpeechStart: () => {
-    // TODO: interrupt the playback
-    // TODO: interrupt any of the ongoing TTS
-    // TODO: interrupt any of the ongoing LLM requests
-    // TODO: interrupt any of the ongoing animation of Live2D or VRM
-    // TODO: once interrupted, we should somehow switch to listen or thinking
-    //       emotion / expression?
-    listening.value = true
-  },
-  // VAD misfire means while speech end is detected but
-  // the frames of the segment of the audio buffer
-  // is not enough to be considered as a speech segment
-  // which controlled by the `minSpeechFrames` parameter
-  onVADMisfire: () => {
-    // TODO: do audio buffer send to whisper
-    listening.value = false
-  },
-  onSpeechEnd: (buffer) => {
-    // TODO: do audio buffer send to whisper
-    listening.value = false
-    handleTranscription(buffer.buffer)
-  },
-  auto: false,
-})
-
-async function handleTranscription(buffer: ArrayBufferLike) {
-  await audioContext.resume()
-
-  // Convert Float32Array to WAV format
-  const audioBase64 = await toWAVBase64(buffer, audioContext.sampleRate)
-  generate({ type: 'generate', data: { audio: audioBase64, language: 'en' } })
-}
-
-watch(enabled, async (value) => {
-  if (value === false) {
-    destroy()
-    terminate()
-  }
-})
+// No inline VAD/whisper here; see pages/index.vue pipeline
 
 watch(hearingDialogOpen, async (value) => {
   if (value) {
@@ -130,14 +73,38 @@ watch([activeProvider, activeModel], async () => {
   }
 })
 
-onMounted(() => {
-  // loadWhisper()
-  start()
-})
+onMounted(() => {})
 
 onAfterMessageComposed(async () => {
   messageInput.value = ''
 })
+
+const { startAnalyzer, stopAnalyzer, volumeLevel } = useAudioAnalyzer()
+let analyzerSource: MediaStreamAudioSourceNode | undefined
+
+function teardownAnalyzer() {
+  try { analyzerSource?.disconnect() }
+  catch {}
+  analyzerSource = undefined
+  stopAnalyzer()
+}
+
+async function setupAnalyzer() {
+  teardownAnalyzer()
+  if (!hearingDialogOpen.value || !enabled.value || !stream.value)
+    return
+  if (audioContext.state === 'suspended')
+    await audioContext.resume()
+  const analyser = startAnalyzer(audioContext)
+  if (!analyser)
+    return
+  analyzerSource = audioContext.createMediaStreamSource(stream.value)
+  analyzerSource.connect(analyser)
+}
+
+watch([hearingDialogOpen, enabled, stream], () => {
+  setupAnalyzer()
+}, { immediate: true })
 </script>
 
 <template>
@@ -167,12 +134,23 @@ onAfterMessageComposed(async () => {
             @compositionend="isComposing = false"
           />
 
-          <HearingConfigDialog v-model:show="hearingDialogOpen" :overlay-dim="true" :overlay-blur="true">
+          <HearingConfigDialog
+            v-model:show="hearingDialogOpen"
+            :overlay-dim="true"
+            :overlay-blur="true"
+            :enabled="enabled"
+            :audio-input-options="audioInputs"
+            :selected-audio-input="selectedAudioInput"
+            :has-devices="(audioInputs || []).length > 0"
+            :volume-level="volumeLevel"
+            @toggle-enabled="enabled = !enabled"
+            @update:selected-audio-input="val => selectedAudioInput = val as string"
+          >
             <button
               class="max-h-[10lh] min-h-[1lh]"
               bg="neutral-100 dark:neutral-800"
               text="lg neutral-500 dark:neutral-400"
-              :class="{ 'ring-2 ring-primary-400/60 ring-offset-2 dark:ring-offset-neutral-900': listening }"
+              :class="{ 'ring-2 ring-primary-400/60 ring-offset-2 dark:ring-offset-neutral-900': enabled }"
               flex items-center justify-center rounded-md p-2 outline-none
               transition="colors duration-200, transform duration-100" active:scale-95
               :title="t('settings.hearing.title')"

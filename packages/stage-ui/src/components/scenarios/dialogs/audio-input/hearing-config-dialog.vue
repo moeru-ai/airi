@@ -9,8 +9,14 @@ import HearingConfig from './hearing-config.vue'
 const props = defineProps<{
   overlayDim?: boolean
   overlayBlur?: boolean
+  granted?: boolean
+  audioInputOptions?: MediaDeviceInfo[]
+  volumeLevel?: number
 }>()
+
 const showDialog = defineModel('show', { type: Boolean, default: false, required: false })
+const selectedAudioInput = defineModel<string>('selectedAudioInput')
+const enabled = defineModel<boolean>('enabled', { default: false })
 
 const isDesktop = useMediaQuery('(min-width: 768px)')
 const screenSafeArea = useScreenSafeArea()
@@ -36,7 +42,13 @@ onMounted(() => screenSafeArea.update())
         <VisuallyHidden>
           <DialogTitle>Hearing Input</DialogTitle>
         </VisuallyHidden>
-        <HearingConfig @close="showDialog = false" />
+        <HearingConfig
+          v-model:enabled="enabled"
+          v-model:selected-audio-input="selectedAudioInput"
+          :audio-input-options="props.audioInputOptions"
+          :granted="props.granted"
+          :volume-level="props.volumeLevel"
+        />
         <slot name="extra" />
       </DialogContent>
     </DialogPortal>
@@ -47,9 +59,15 @@ onMounted(() => screenSafeArea.update())
     </DrawerTrigger>
     <DrawerPortal>
       <DrawerOverlay class="fixed inset-0" />
-      <DrawerContent class="fixed bottom-0 left-0 right-0 z-1000 mt-20 h-full max-h-[50%] flex flex-col rounded-t-2xl bg-neutral-50 px-4 pt-4 outline-none backdrop-blur-md dark:bg-neutral-900/95" :style="{ paddingBottom: `${Math.max(Number.parseFloat(screenSafeArea.bottom.value.replace('px', '')), 24)}px` }">
-        <DrawerHandle />
-        <HearingConfig @close="showDialog = false" />
+      <DrawerContent class="fixed bottom-0 left-0 right-0 z-1000 mt-20 h-full max-h-[45%] flex flex-col rounded-t-2xl bg-neutral-50 px-4 pt-4 outline-none backdrop-blur-md dark:bg-neutral-900/95" :style="{ paddingBottom: `${Math.max(Number.parseFloat(screenSafeArea.bottom.value.replace('px', '')), 24)}px` }">
+        <DrawerHandle my-2 />
+        <HearingConfig
+          v-model:enabled="enabled"
+          v-model:selected-audio-input="selectedAudioInput"
+          :audio-input-options="props.audioInputOptions"
+          :granted="props.granted"
+          :volume-level="props.volumeLevel"
+        />
         <slot name="extra" />
       </DrawerContent>
     </DrawerPortal>
