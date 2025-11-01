@@ -23,10 +23,10 @@ const sliderValue = computed({
   <input
     v-model.number="sliderValue"
     type="range" min="0" max="360" step="0.01"
-    class="color-hue-range"
-    transition="all ease-in-out duration-250"
     :disabled="props.disabled"
     :class="[
+      'color-hue-range',
+      'transition-all ease-in-out duration-250',
       props.disabled ? 'opacity-25 cursor-not-allowed' : 'cursor-pointer',
       props.class || '',
     ]"
