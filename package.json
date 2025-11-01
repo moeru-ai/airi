@@ -120,9 +120,6 @@
     "pre-commit": "pnpm lint-staged"
   },
   "lint-staged": {
-    "*": [
-      "pnpm exec oxlint --fix",
-      "pnpm exec eslint --fix"
-    ]
+    "*": "moeru-lint --fix"
   }
 }
