@@ -4,6 +4,7 @@ import type { ChatProvider } from '@xsai-ext/shared-providers'
 import WhisperWorker from '@proj-airi/stage-ui/libs/workers/worker?worker&url'
 
 import { toWAVBase64 } from '@proj-airi/audio'
+import { HearingConfigDialog } from '@proj-airi/stage-ui/components'
 import { useMicVAD, useWhisper } from '@proj-airi/stage-ui/composables'
 import { useAudioContext } from '@proj-airi/stage-ui/stores/audio'
 import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
@@ -17,10 +18,11 @@ import { onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import ChatHistory from '../Widgets/ChatHistory.vue'
+import IndicatorMicVolume from '../Widgets/IndicatorMicVolume.vue'
 
 const messageInput = ref('')
 const listening = ref(false)
-const showMicrophoneSelect = ref(false)
+const hearingDialogOpen = ref(false)
 const isComposing = ref(false)
 
 const providersStore = useProvidersStore()
@@ -116,7 +118,7 @@ watch(enabled, async (value) => {
   }
 })
 
-watch(showMicrophoneSelect, async (value) => {
+watch(hearingDialogOpen, async (value) => {
   if (value) {
     await askPermission()
   }
@@ -164,6 +166,23 @@ onAfterMessageComposed(async () => {
             @compositionstart="isComposing = true"
             @compositionend="isComposing = false"
           />
+
+          <HearingConfigDialog v-model:show="hearingDialogOpen" :overlay-dim="true" :overlay-blur="true">
+            <button
+              class="max-h-[10lh] min-h-[1lh]"
+              bg="neutral-100 dark:neutral-800"
+              text="lg neutral-500 dark:neutral-400"
+              :class="{ 'ring-2 ring-primary-400/60 ring-offset-2 dark:ring-offset-neutral-900': listening }"
+              flex items-center justify-center rounded-md p-2 outline-none
+              transition="colors duration-200, transform duration-100" active:scale-95
+              :title="t('settings.hearing.title')"
+            >
+              <Transition name="fade" mode="out-in">
+                <IndicatorMicVolume v-if="enabled" />
+                <div v-else class="i-ph:microphone-slash" />
+              </Transition>
+            </button>
+          </HearingConfigDialog>
         </div>
       </div>
     </div>

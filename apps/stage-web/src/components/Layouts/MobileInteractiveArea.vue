@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { ChatProvider } from '@xsai-ext/shared-providers'
 
+import { HearingConfigDialog } from '@proj-airi/stage-ui/components'
 import { useMicVAD } from '@proj-airi/stage-ui/composables'
 import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
 import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
@@ -19,6 +20,7 @@ import ActionViewControls from './InteractiveArea/Actions/ViewControls.vue'
 import ViewControlInputs from './ViewControls/Inputs.vue'
 
 const isDark = useDark({ disableTransition: false })
+const hearingDialogOpen = ref(false)
 
 const viewControlsActiveMode = ref<'x' | 'y' | 'z' | 'scale'>('scale')
 const viewControlsInputsRef = useTemplateRef<InstanceType<typeof ViewControlInputs>>('viewControlsInputs')
@@ -140,6 +142,19 @@ onMounted(() => {
       <div translate-y="[-100%]" absolute right-0 w-full px-3 pb-3 font-sans>
         <div flex="~ col" w-full gap-1>
           <ActionAbout />
+          <HearingConfigDialog v-model:show="hearingDialogOpen">
+            <button
+              border="2 solid neutral-100/60 dark:neutral-800/30"
+              bg="neutral-50/70 dark:neutral-800/70"
+              w-fit flex items-center self-end justify-center rounded-xl p-2 backdrop-blur-md
+              title="Hearing"
+            >
+              <Transition name="fade" mode="out-in">
+                <div v-if="enabled" i-solar:microphone-3-bold-duotone size-5 text="neutral-500 dark:neutral-400" />
+                <div v-else i-solar:microphone-3-outline size-5 text="neutral-500 dark:neutral-400" />
+              </Transition>
+            </button>
+          </HearingConfigDialog>
           <button border="2 solid neutral-100/60 dark:neutral-800/30" bg="neutral-50/70 dark:neutral-800/70" w-fit flex items-center self-end justify-center rounded-xl p-2 backdrop-blur-md title="Theme" @click="isDark = !isDark">
             <Transition name="fade" mode="out-in">
               <div v-if="isDark" i-solar:moon-outline size-5 text="neutral-500 dark:neutral-400" />
