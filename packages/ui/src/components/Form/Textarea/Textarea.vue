@@ -8,7 +8,7 @@ const modelValue = defineModel<string>({ default: '' })
   <BasicTextarea
     v-model="modelValue"
     :class="[
-      'focus:border-primary-300 dark:focus:primary-400/50 border-2 border-solid neutral-100 dark:neutral-900',
+      'focus:border-primary-300 dark:focus:border-primary-400/50 border-2 border-solid border-neutral-100 dark:borderneutral-900',
       'transition-all duration-200 ease-in-out',
       'text-disabled:neutral-400 dark:text-disabled:neutral-600',
       'cursor-disabled:not-allowed',
