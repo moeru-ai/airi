@@ -889,6 +889,9 @@ importers:
       '@iconify-json/mingcute':
         specifier: ^1.2.5
         version: 1.2.5
+      '@iconify-json/ph':
+        specifier: ^1.2.2
+        version: 1.2.2
       '@iconify-json/simple-icons':
         specifier: ^1.2.56
         version: 1.2.56

@@ -17,8 +17,8 @@ import { debouncedRef, useBroadcastChannel, watchPausable } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, onUnmounted, ref, toRef, watch } from 'vue'
 
-import ControlsIsland from '../components/Widgets/ControlsIsland/index.vue'
-import ResourceStatusIsland from '../components/Widgets/ResourceStatusIsland/index.vue'
+import ControlsIsland from '../components/StageIslands/ControlsIsland/index.vue'
+import ResourceStatusIsland from '../components/StageIslands/ResourceStatusIsland/index.vue'
 
 import { electron } from '../../shared/electron'
 import {

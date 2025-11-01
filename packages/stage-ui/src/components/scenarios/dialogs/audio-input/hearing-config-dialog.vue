@@ -10,7 +10,7 @@ const props = defineProps<{
   overlayDim?: boolean
   overlayBlur?: boolean
   granted?: boolean
-  audioInputOptions?: MediaDeviceInfo[]
+  audioInputs?: MediaDeviceInfo[]
   volumeLevel?: number
 }>()
 
@@ -45,7 +45,7 @@ onMounted(() => screenSafeArea.update())
         <HearingConfig
           v-model:enabled="enabled"
           v-model:selected-audio-input="selectedAudioInput"
-          :audio-input-options="props.audioInputOptions"
+          :audio-inputs="props.audioInputs"
           :granted="props.granted"
           :volume-level="props.volumeLevel"
         />
@@ -64,7 +64,7 @@ onMounted(() => screenSafeArea.update())
         <HearingConfig
           v-model:enabled="enabled"
           v-model:selected-audio-input="selectedAudioInput"
-          :audio-input-options="props.audioInputOptions"
+          :audio-inputs="props.audioInputs"
           :granted="props.granted"
           :volume-level="props.volumeLevel"
         />

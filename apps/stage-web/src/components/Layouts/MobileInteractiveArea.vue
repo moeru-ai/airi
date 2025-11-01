@@ -2,7 +2,8 @@
 import type { ChatProvider } from '@xsai-ext/shared-providers'
 
 import { HearingConfigDialog } from '@proj-airi/stage-ui/components'
-import { useMicVAD } from '@proj-airi/stage-ui/composables'
+import { useAudioAnalyzer } from '@proj-airi/stage-ui/composables'
+import { useAudioContext } from '@proj-airi/stage-ui/stores/audio'
 import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
 import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
@@ -10,10 +11,11 @@ import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/
 import { BasicTextarea } from '@proj-airi/ui'
 import { useDark, useResizeObserver, useScreenSafeArea } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { onMounted, ref, useTemplateRef, watch } from 'vue'
+import { onMounted, onUnmounted, ref, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
 
+import IndicatorMicVolume from '../Widgets/IndicatorMicVolume.vue'
 import MobileChatHistory from '../Widgets/MobileChatHistory.vue'
 import ActionAbout from './InteractiveArea/Actions/About.vue'
 import ActionViewControls from './InteractiveArea/Actions/ViewControls.vue'
@@ -26,7 +28,6 @@ const viewControlsActiveMode = ref<'x' | 'y' | 'z' | 'scale'>('scale')
 const viewControlsInputsRef = useTemplateRef<InstanceType<typeof ViewControlInputs>>('viewControlsInputs')
 
 const messageInput = ref('')
-const listening = ref(false)
 const isComposing = ref(false)
 
 const screenSafeArea = useScreenSafeArea()
@@ -34,13 +35,15 @@ const providersStore = useProvidersStore()
 const { activeProvider, activeModel } = storeToRefs(useConsciousnessStore())
 
 useResizeObserver(document.documentElement, () => screenSafeArea.update())
-
-// const { askPermission } = useSettingsAudioDevice()
 const { themeColorsHueDynamic, stageViewControlsEnabled } = storeToRefs(useSettings())
-const { enabled, selectedAudioInput } = storeToRefs(useSettingsAudioDevice())
+const settingsAudioDevice = useSettingsAudioDevice()
+const { enabled, selectedAudioInput, stream, audioInputs } = storeToRefs(settingsAudioDevice)
 const { send, onAfterMessageComposed, discoverToolsCompatibility, cleanupMessages } = useChatStore()
 const { messages } = storeToRefs(useChatStore())
 const { t } = useI18n()
+const { audioContext } = useAudioContext()
+const { startAnalyzer, stopAnalyzer, volumeLevel } = useAudioAnalyzer()
+let analyzerSource: MediaStreamAudioSourceNode | undefined
 
 function isMobileDevice() {
   return /Mobi|Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
@@ -75,40 +78,35 @@ async function handleSend() {
   }
 }
 
-const { destroy, start } = useMicVAD(selectedAudioInput, {
-  onSpeechStart: () => {
-    // TODO: interrupt the playback
-    // TODO: interrupt any of the ongoing TTS
-    // TODO: interrupt any of the ongoing LLM requests
-    // TODO: interrupt any of the ongoing animation of Live2D or VRM
-    // TODO: once interrupted, we should somehow switch to listen or thinking
-    //       emotion / expression?
-    listening.value = true
-  },
-  // VAD misfire means while speech end is detected but
-  // the frames of the segment of the audio buffer
-  // is not enough to be considered as a speech segment
-  // which controlled by the `minSpeechFrames` parameter
-  onVADMisfire: () => {
-    // TODO: do audio buffer send to whisper
-    listening.value = false
-  },
-  onSpeechEnd: (buffer) => {
-    // TODO: do audio buffer send to whisper
-    listening.value = false
-    handleTranscription(buffer)
-  },
-  auto: false,
-})
-
-function handleTranscription(_buffer: Float32Array<ArrayBufferLike>) {
-  // eslint-disable-next-line no-alert
-  alert('Transcription is not implemented yet')
+function teardownAnalyzer() {
+  try {
+    analyzerSource?.disconnect()
+  }
+  catch {}
+  analyzerSource = undefined
+  stopAnalyzer()
 }
 
-watch(enabled, async (value) => {
-  if (value === false) {
-    destroy()
+async function setupAnalyzer() {
+  teardownAnalyzer()
+  if (!hearingDialogOpen.value || !enabled.value || !stream.value)
+    return
+  if (audioContext.state === 'suspended')
+    await audioContext.resume()
+  const analyser = startAnalyzer(audioContext)
+  if (!analyser)
+    return
+  analyzerSource = audioContext.createMediaStreamSource(stream.value)
+  analyzerSource.connect(analyser)
+}
+
+watch([hearingDialogOpen, enabled, stream], () => {
+  setupAnalyzer()
+}, { immediate: true })
+
+watch(hearingDialogOpen, (value) => {
+  if (value) {
+    settingsAudioDevice.askPermission()
   }
 })
 
@@ -122,8 +120,11 @@ watch([activeProvider, activeModel], async () => {
   }
 })
 
+onUnmounted(() => {
+  teardownAnalyzer()
+})
+
 onMounted(() => {
-  start()
   screenSafeArea.update()
 })
 </script>
@@ -142,7 +143,14 @@ onMounted(() => {
       <div translate-y="[-100%]" absolute right-0 w-full px-3 pb-3 font-sans>
         <div flex="~ col" w-full gap-1>
           <ActionAbout />
-          <HearingConfigDialog v-model:show="hearingDialogOpen">
+          <HearingConfigDialog
+            v-model:show="hearingDialogOpen"
+            v-model:enabled="enabled"
+            v-model:selected-audio-input="selectedAudioInput"
+            :audio-inputs="audioInputs"
+            :volume-level="volumeLevel"
+            :granted="true"
+          >
             <button
               border="2 solid neutral-100/60 dark:neutral-800/30"
               bg="neutral-50/70 dark:neutral-800/70"
@@ -150,7 +158,7 @@ onMounted(() => {
               title="Hearing"
             >
               <Transition name="fade" mode="out-in">
-                <div v-if="enabled" i-solar:microphone-3-bold-duotone size-5 text="neutral-500 dark:neutral-400" />
+                <IndicatorMicVolume v-if="enabled" size-5 color-class="text-neutral-500 dark:text-neutral-400" />
                 <div v-else i-solar:microphone-3-outline size-5 text="neutral-500 dark:neutral-400" />
               </Transition>
             </button>

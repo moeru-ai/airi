@@ -7,12 +7,12 @@ import Callout from '../../../layouts/Callout.vue'
 const props = withDefaults(defineProps<{
   enabled?: boolean
   granted?: boolean
-  audioInputOptions?: MediaDeviceInfo[]
+  audioInputs?: MediaDeviceInfo[]
   volumeLevel?: number
 }>(), {
   enabled: false,
   granted: false,
-  audioInputOptions: () => [],
+  audioInputs: () => [],
   volumeLevel: 0,
 })
 
@@ -78,7 +78,7 @@ const ringEnabledClass = computed(() => enabled.value
         v-model="selectedAudioInput"
         label="Input device"
         description="Select the microphone you want to use."
-        :options="props.audioInputOptions.map(device => ({ label: device.label || 'Unknown Device', value: device.deviceId }))"
+        :options="props.audioInputs.map(device => ({ label: device.label || 'Unknown Device', value: device.deviceId }))"
         placeholder="Select microphone"
         layout="vertical"
       />

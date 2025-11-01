@@ -19,7 +19,7 @@ const toggleDark = useToggle(isDark)
 
 const settingsAudioDeviceStore = useSettingsAudioDevice()
 const context = useElectronEventaContext()
-const { enabled: isAudioEnabled } = storeToRefs(settingsAudioDeviceStore)
+const { enabled } = storeToRefs(settingsAudioDeviceStore)
 const openSettings = useElectronEventaInvoke(electronOpenSettings)
 const openChat = useElectronEventaInvoke(electronOpenChat)
 
@@ -64,7 +64,7 @@ defineExpose({ hearingDialogOpen })
           <div class="relative">
             <ControlButton>
               <Transition name="fade" mode="out-in">
-                <IndicatorMicVolume v-if="isAudioEnabled" size-5 />
+                <IndicatorMicVolume v-if="enabled" size-5 />
                 <div v-else i-ph:microphone-slash size-5 text="neutral-800 dark:neutral-300" />
               </Transition>
             </ControlButton>

@@ -51,12 +51,9 @@ onUnmounted(async () => {
     v-model:enabled="enabled"
     v-model:selected-audio-input="selectedAudioInput"
     :granted="mediaAccessStatus !== 'denied' && mediaAccessStatus !== 'restricted'"
-    :audio-input-options="audioInputs"
+    :audio-inputs="audioInputs"
     :volume-level="volumeLevel"
   >
     <slot />
-    <template #extra>
-      <slot name="extra" />
-    </template>
   </HearingConfigDialog>
 </template>
