@@ -76,9 +76,8 @@ export function useSidebarControl(
   onMounted(updateIsActiveLink)
 
   const hasActiveLink = computed(() => {
-    if (isActiveLink.value) {
+    if (isActiveLink.value)
       return true
-    }
 
     return item.value.items
       ? containsActiveLink(withBase(`/${page.value.relativePath}`), item.value.items)
@@ -94,7 +93,8 @@ export function useSidebarControl(
   })
 
   watchPostEffect(() => {
-    ;(isActiveLink.value || hasActiveLink.value) && (collapsed.value = false)
+    if (isActiveLink.value || hasActiveLink.value)
+      collapsed.value = false
   })
 
   function toggle() {
