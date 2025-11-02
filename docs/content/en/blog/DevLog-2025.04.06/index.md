@@ -365,7 +365,7 @@ For example, we can write a function to calculate the time decay score:
 function calculateTimeDecayScore(createdAt: Date, now: Date = new Date()): number {
   const timeDiff = now.getTime() - createdAt.getTime()
   const hoursDiff = timeDiff / (1000 * 60 * 60)
-  
+
   // Exponential decay: newer items get higher scores
   // Half-life of 24 hours: score reduces by half every 24 hours
   return Math.exp(-hoursDiff / 24 * Math.LN2)

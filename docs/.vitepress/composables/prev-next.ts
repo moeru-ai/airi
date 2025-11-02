@@ -59,7 +59,7 @@ export function usePrevNext() {
                   : typeof frontmatter.value.prev === 'object'
                     ? frontmatter.value.prev.text
                     : undefined)
-                ?? prevPost.title,
+                  ?? prevPost.title,
               link: withBase(prevPost.url),
             }
           : undefined
@@ -74,7 +74,7 @@ export function usePrevNext() {
                   : typeof frontmatter.value.next === 'object'
                     ? frontmatter.value.next.text
                     : undefined)
-                ?? nextPost.title,
+                  ?? nextPost.title,
               link: withBase(nextPost.url),
             }
           : undefined
@@ -112,7 +112,7 @@ export function usePrevNext() {
         return {
           prev: undefined,
           next: undefined,
-        } as { prev?: { text?: string, link?: string }; next?: { text?: string, link?: string } }
+        } as { prev?: { text?: string, link?: string }, next?: { text?: string, link?: string } }
       }
       // Keep navigation within the same docs section and exclude the section root itself
       // to avoid showing a "next" link that points back to the section index.
