@@ -114,12 +114,11 @@ export const useChatStore = defineStore('chat', () => {
       attachments?: { type: 'image', data: string, mimeType: string }[]
     },
   ) {
+    if (!sendingMessage && !options.attachments?.length)
+      return
+    sending.value = true
+
     try {
-      sending.value = true
-
-      if (!sendingMessage && !options.attachments?.length)
-        return
-
       for (const hook of onBeforeMessageComposedHooks.value) {
         await hook(sendingMessage)
       }
@@ -209,53 +208,58 @@ export const useChatStore = defineStore('chat', () => {
 
       await stream(options.model, options.chatProvider, newMessages as Message[], {
         headers,
-        async onStreamEvent(event: StreamEvent) {
-          if (event.type === 'tool-call') {
-            toolCallQueue.enqueue({
-              type: 'tool-call',
-              toolCall: event,
-            })
-          }
-          else if (event.type === 'tool-result') {
-            toolCallQueue.enqueue({
-              type: 'tool-call-result',
-              id: event.toolCallId,
-              result: event.result,
-            })
-          }
-          else if (event.type === 'text-delta') {
-            fullText += event.text
-            await parser.consume(event.text)
-          }
-          else if (event.type === 'finish') {
-            // Finalize the parsing of the actual message content
-            await parser.end()
-
-            // Add the completed message to the history only if it has content
-            if (streamingMessage.value.slices.length > 0)
-              messages.value.push(toRaw(streamingMessage.value))
-
-            // Reset the streaming message for the next turn
-            streamingMessage.value = { role: 'assistant', content: '', slices: [], tool_results: [] }
-
-            // Instruct the TTS pipeline to flush by calling hooks directly
-            const flushSignal = `${TTS_FLUSH_INSTRUCTION}${TTS_FLUSH_INSTRUCTION}`
-            for (const hook of onTokenLiteralHooks.value)
-              await hook(flushSignal)
-
-            // Call the end-of-stream hooks
-            for (const hook of onStreamEndHooks.value)
-              await hook()
-
-            // Call the end-of-response hooks with the full text
-            for (const hook of onAssistantResponseEndHooks.value)
-              await hook(fullText)
-
-            // eslint-disable-next-line no-console
-            console.debug('LLM output:', fullText)
+        onStreamEvent: async (event: StreamEvent) => {
+          switch (event.type) {
+            case 'tool-call':
+              toolCallQueue.enqueue({
+                type: 'tool-call',
+                toolCall: event,
+              })
+              break
+            case 'tool-result':
+              toolCallQueue.enqueue({
+                type: 'tool-call-result',
+                id: event.toolCallId,
+                result: event.result,
+              })
+              break
+            case 'text-delta':
+              fullText += event.text
+              await parser.consume(event.text)
+              break
+            case 'finish':
+            // Do nothing, resolve
+              break
+            case 'error':
+              throw event.error ?? new Error('Stream error')
           }
         },
       })
+      // Finalize the parsing of the actual message content
+      await parser.end()
+
+      // Add the completed message to the history only if it has content
+      if (streamingMessage.value.slices.length > 0)
+        messages.value.push(toRaw(streamingMessage.value))
+
+      // Reset the streaming message for the next turn
+      streamingMessage.value = { role: 'assistant', content: '', slices: [], tool_results: [] }
+
+      // Instruct the TTS pipeline to flush by calling hooks directly
+      const flushSignal = `${TTS_FLUSH_INSTRUCTION}${TTS_FLUSH_INSTRUCTION}`
+      for (const hook of onTokenLiteralHooks.value)
+        await hook(flushSignal)
+
+      // Call the end-of-stream hooks
+      for (const hook of onStreamEndHooks.value)
+        await hook()
+
+      // Call the end-of-response hooks with the full text
+      for (const hook of onAssistantResponseEndHooks.value)
+        await hook(fullText)
+
+      // eslint-disable-next-line no-console
+      console.debug('LLM output:', fullText)
 
       for (const hook of onAfterSendHooks.value) {
         await hook(sendingMessage)
