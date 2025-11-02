@@ -25,14 +25,14 @@ catalogs:
       specifier: ^0.4.0-beta.5
       version: 0.4.0-beta.5
     '@xsai-ext/shared-providers':
-      specifier: 0.4.0-beta.4
-      version: 0.4.0-beta.4
+      specifier: 0.4.0-beta.5
+      version: 0.4.0-beta.5
     '@xsai/embed':
       specifier: ^0.4.0-beta.5
       version: 0.4.0-beta.5
     '@xsai/generate-speech':
-      specifier: 0.4.0-beta.4
-      version: 0.4.0-beta.4
+      specifier: 0.4.0-beta.5
+      version: 0.4.0-beta.5
     '@xsai/generate-text':
       specifier: ^0.4.0-beta.5
       version: 0.4.0-beta.5
@@ -55,8 +55,8 @@ catalogs:
       specifier: ^0.4.0-beta.5
       version: 0.4.0-beta.5
     '@xsai/utils-chat':
-      specifier: 0.4.0-beta.4
-      version: 0.4.0-beta.4
+      specifier: 0.4.0-beta.5
+      version: 0.4.0-beta.5
     xsschema:
       specifier: ^0.4.0-beta.5
       version: 0.4.0-beta.5
@@ -346,13 +346,13 @@ importers:
         version: 0.4.0-beta.5
       '@xsai-ext/shared-providers':
         specifier: 'catalog:'
-        version: 0.4.0-beta.4
+        version: 0.4.0-beta.5
       '@xsai-transformers/transcription':
         specifier: ^0.0.10
         version: 0.0.10(electron@39.0.0)(web-worker@1.5.0)
       '@xsai/generate-speech':
         specifier: 'catalog:'
-        version: 0.4.0-beta.4
+        version: 0.4.0-beta.5
       '@xsai/generate-text':
         specifier: 'catalog:'
         version: 0.4.0-beta.5
@@ -370,7 +370,7 @@ importers:
         version: 0.4.0-beta.5
       '@xsai/utils-chat':
         specifier: 'catalog:'
-        version: 0.4.0-beta.4
+        version: 0.4.0-beta.5
       animejs:
         specifier: ^4.2.2
         version: 4.2.2
@@ -740,13 +740,13 @@ importers:
         version: 0.4.0-beta.5
       '@xsai-ext/shared-providers':
         specifier: 'catalog:'
-        version: 0.4.0-beta.4
+        version: 0.4.0-beta.5
       '@xsai-transformers/embed':
         specifier: ^0.0.10
         version: 0.0.10(electron@39.0.0)(web-worker@1.5.0)
       '@xsai/generate-speech':
         specifier: 'catalog:'
-        version: 0.4.0-beta.4
+        version: 0.4.0-beta.5
       '@xsai/generate-text':
         specifier: 'catalog:'
         version: 0.4.0-beta.5
@@ -764,7 +764,7 @@ importers:
         version: 0.4.0-beta.5
       '@xsai/utils-chat':
         specifier: 'catalog:'
-        version: 0.4.0-beta.4
+        version: 0.4.0-beta.5
       animejs:
         specifier: ^4.2.2
         version: 4.2.2
@@ -1287,10 +1287,10 @@ importers:
         version: 14.0.0(vue@3.5.22(typescript@5.9.3))
       '@xsai-ext/shared-providers':
         specifier: 'catalog:'
-        version: 0.4.0-beta.4
+        version: 0.4.0-beta.5
       '@xsai/generate-speech':
         specifier: 'catalog:'
-        version: 0.4.0-beta.4
+        version: 0.4.0-beta.5
       animejs:
         specifier: ^4.2.2
         version: 4.2.2
@@ -1468,7 +1468,7 @@ importers:
         version: 0.4.0-beta.5
       '@xsai-ext/shared-providers':
         specifier: 'catalog:'
-        version: 0.4.0-beta.4
+        version: 0.4.0-beta.5
       '@xsai-transformers/embed':
         specifier: ^0.0.10
         version: 0.0.10(electron@39.0.0)(web-worker@1.5.0)
@@ -1480,7 +1480,7 @@ importers:
         version: 0.4.0-beta.5
       '@xsai/generate-speech':
         specifier: 'catalog:'
-        version: 0.4.0-beta.4
+        version: 0.4.0-beta.5
       '@xsai/generate-text':
         specifier: 'catalog:'
         version: 0.4.0-beta.5
@@ -1504,7 +1504,7 @@ importers:
         version: 0.4.0-beta.5(zod-to-json-schema@3.24.6(zod@4.1.12))(zod@4.1.12)
       '@xsai/utils-chat':
         specifier: 'catalog:'
-        version: 0.4.0-beta.4
+        version: 0.4.0-beta.5
       animejs:
         specifier: ^4.2.2
         version: 4.2.2
@@ -1993,7 +1993,7 @@ importers:
         version: 0.4.0-beta.5
       '@xsai/generate-speech':
         specifier: 'catalog:'
-        version: 0.4.0-beta.4
+        version: 0.4.0-beta.5
       '@xsai/generate-text':
         specifier: 'catalog:'
         version: 0.4.0-beta.5
@@ -2164,7 +2164,7 @@ importers:
         version: 0.4.0-beta.5(zod-to-json-schema@3.24.6(zod@4.1.12))(zod@4.1.12)
       '@xsai/utils-chat':
         specifier: 'catalog:'
-        version: 0.4.0-beta.4
+        version: 0.4.0-beta.5
       best-effort-json-parser:
         specifier: ^1.2.1
         version: 1.2.1
@@ -7897,9 +7897,6 @@ packages:
   '@xsai-ext/shared-providers@0.2.2':
     resolution: {integrity: sha512-yHQ3RQf3yb/xD5neQGFKmY/9+TmNFDZmH2aOSiS11rqAZwd6wPr/Wkvo/Ls1yiVGYVfZpzZGYp9Q+0iELt5MhA==}
 
-  '@xsai-ext/shared-providers@0.4.0-beta.4':
-    resolution: {integrity: sha512-0tOSD0i3G4YWhSxn2YEUXR/Vww7VLrCBAeOjgSKEsNAY3nSJPMwVtC1SLKtjKHcj3aROAQCfuOsLtvhwRqGPYw==}
-
   '@xsai-ext/shared-providers@0.4.0-beta.5':
     resolution: {integrity: sha512-FntXIaqEDjNX2kkiqyQEJtJSsfVoVBdVtx5nRVQhIZbPbYy4tZUgIKolzPuzt4JllEmpxcwSR6smKISpuw886A==}
 
@@ -7925,8 +7922,8 @@ packages:
   '@xsai/embed@0.4.0-beta.5':
     resolution: {integrity: sha512-XQzCtArxPRgy2169bGGTwp9HKRl3C28WggFbZMR3MrU1dfGl/IM/bzNIVLdvfDKz8/gItbuGZnzNdJdPXoytcQ==}
 
-  '@xsai/generate-speech@0.4.0-beta.4':
-    resolution: {integrity: sha512-z8aQlAMaAUa4n8biw9t39gvGEa0oG2ru58nO3Ou4nc/R7bV+MNHztttNyXKGlnHKuon64APYVy5GhqAETuvElg==}
+  '@xsai/generate-speech@0.4.0-beta.5':
+    resolution: {integrity: sha512-hp2Z5ehK+HCFm6Qu4DJZB8wnNgILJEfqVzMqyOU64Wc0pOLT8TepGB2tthppnvrYbUOPtrqPdl3bJF1tzCT6RQ==}
 
   '@xsai/generate-text@0.3.5':
     resolution: {integrity: sha512-alYx0h0wAh7NpBMOLwfpfxAVPwqWjFhsKxn6fIpNWMhywkajh3LEwmpeihu4Uw7dZV85dz6qg6huTxk+C+RLnA==}
@@ -7967,8 +7964,8 @@ packages:
   '@xsai/utils-chat@0.3.4':
     resolution: {integrity: sha512-Q2ataY9i1jbbTClbZbGaUb6l6mHEjE1xA4KmGM6rqwZElllNMTzisk5JU2MoqPg4T3auTR5UkcxaySkB7BVLfQ==}
 
-  '@xsai/utils-chat@0.4.0-beta.4':
-    resolution: {integrity: sha512-eN6E98kv9+hYJY+GypCjBypK94BQYx5WzsolXI2Rfq7RzGDQthSufmhQifuD3XM0krAJnrgp9zROTKcjUrZ/kg==}
+  '@xsai/utils-chat@0.4.0-beta.5':
+    resolution: {integrity: sha512-8VExyJ+afaUokFaeG1bctymXOBtlnfDqrFPIu6t0SLXh0AVMlZjgsUPNxYik0WA7vvQUEkuVgMew7VdZ0/GW0Q==}
 
   abbrev@1.1.1:
     resolution: {integrity: sha512-nne9/IiQ/hzIhY6pdDnbBtz7DjPTKrY00P/zvPSm5pOFkl6xuGrGnXn/VtTNNfNtAfZ9/1RtehkszU9qcTii0Q==}
@@ -23140,10 +23137,6 @@ snapshots:
     dependencies:
       '@xsai/shared': 0.4.0-beta.5
 
-  '@xsai-ext/shared-providers@0.4.0-beta.4':
-    dependencies:
-      '@xsai/shared': 0.4.0-beta.5
-
   '@xsai-ext/shared-providers@0.4.0-beta.5':
     dependencies:
       '@xsai/shared': 0.4.0-beta.5
@@ -23198,7 +23191,7 @@ snapshots:
     dependencies:
       '@xsai/shared': 0.4.0-beta.5
 
-  '@xsai/generate-speech@0.4.0-beta.4':
+  '@xsai/generate-speech@0.4.0-beta.5':
     dependencies:
       '@xsai/shared': 0.4.0-beta.5
 
@@ -23260,7 +23253,7 @@ snapshots:
     dependencies:
       '@xsai/shared-chat': 0.3.5
 
-  '@xsai/utils-chat@0.4.0-beta.4':
+  '@xsai/utils-chat@0.4.0-beta.5':
     dependencies:
       '@xsai/shared-chat': 0.4.0-beta.5
 
