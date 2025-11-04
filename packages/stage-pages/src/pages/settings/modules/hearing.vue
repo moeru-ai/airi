@@ -174,12 +174,13 @@ function updateCustomModelName(value: string) {
 }
 
 onStopRecord(async (recording) => {
-  if (recording && recording.size > 0) {
+  if (recording && recording.size > 0)
     audios.value.push(recording)
-  }
 
   const res = await transcribeForRecording(recording)
-  res && transcriptions.value.push(res)
+
+  if (res)
+    transcriptions.value.push(res)
 })
 
 watch(selectedAudioInput, async () => isMonitoring.value && await setupAudioMonitoring())

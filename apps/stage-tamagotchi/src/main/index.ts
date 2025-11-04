@@ -1,8 +1,6 @@
-import type http from 'node:http'
-
 import type { BrowserWindow } from 'electron'
 
-import { platform } from 'node:process'
+import { env, platform } from 'node:process'
 
 import { electronApp, optimizer } from '@electron-toolkit/utils'
 import { Format, LogLevel, setGlobalFormat, setGlobalLogLevel, useLogg } from '@guiiai/logg'
@@ -18,6 +16,7 @@ import { openDebugger, setupDebugger } from './app/debugger'
 import { emitAppBeforeQuit, emitAppReady, emitAppWindowAllClosed, onAppBeforeQuit } from './libs/bootkit/lifecycle'
 import { setElectronMainDirname } from './libs/electron/location'
 import { setupCaptionWindowManager } from './windows/caption'
+import { setupChatWindowReusableFunc } from './windows/chat'
 import { setupInlayWindow } from './windows/inlay'
 import { setupMainWindow } from './windows/main'
 import { setupSettingsWindowReusableFunc } from './windows/settings'
@@ -83,8 +82,10 @@ function setupTray(params: {
     appTray.setContextMenu(contextMenu)
     appTray.setToolTip('Project AIRI')
     appTray.addListener('click', () => toggleWindowShow(params.mainWindow))
+
     // On macOS, there's a special double-click event
-    isMacOS && appTray.addListener('double-click', () => toggleWindowShow(params.mainWindow))
+    if (isMacOS)
+      appTray.addListener('double-click', () => toggleWindowShow(params.mainWindow))
   })()
 }
 
@@ -92,15 +93,17 @@ async function setupProjectAIRIServerRuntime() {
   // Start the server-runtime server with WebSocket support
   try {
     // Dynamically import the server-runtime and listhen
-    const [serverRuntimeModule, { listen }] = await Promise.all([
-      import('@proj-airi/server-runtime'),
-      import('listhen'),
-    ])
+    const serverRuntime = await import('@proj-airi/server-runtime')
+    const { serve } = await import('h3')
+    const { plugin: ws } = await import('crossws/server')
 
-    const serverInstance = await listen(serverRuntimeModule.app as unknown as http.RequestListener, {
-      port: 6121,
-      hostname: 'localhost',
-      ws: true,
+    const serverInstance = serve(serverRuntime.app, {
+      // TODO: fix types
+      // @ts-expect-error - the .crossws property wasn't extended in types
+      plugins: [ws({ resolve: async req => (await serverRuntime.app.fetch(req)).crossws })],
+      port: env.PORT ? Number(env.PORT) : 6121,
+      hostname: env.SERVER_RUNTIME_HOSTNAME || 'localhost',
+      reusePort: true,
     })
 
     log.log('@proj-airi/server-runtime started on ws://localhost:6121')
@@ -130,17 +133,20 @@ app.whenReady().then(async () => {
   const settingsWindow = injecta.provide('windows:settings', {
     build: () => setupSettingsWindowReusableFunc(),
   })
+  const chatWindow = injecta.provide('windows:chat', {
+    build: () => setupChatWindowReusableFunc(),
+  })
   const mainWindow = injecta.provide('windows:main', {
-    dependsOn: { settingsWindow },
+    dependsOn: { settingsWindow, chatWindow },
     build: async ({ dependsOn }) => setupMainWindow(dependsOn),
   })
   const captionWindow = injecta.provide('windows:caption', {
     dependsOn: { mainWindow },
-    build: async ({ dependsOn }) => setupCaptionWindowManager({ mainWindow: dependsOn.mainWindow }),
+    build: async ({ dependsOn }) => setupCaptionWindowManager(dependsOn),
   })
   const tray = injecta.provide('app:tray', {
     dependsOn: { mainWindow, settingsWindow, captionWindow },
-    build: async ({ dependsOn }) => setupTray(dependsOn as any),
+    build: async ({ dependsOn }) => setupTray(dependsOn),
   })
   injecta.invoke({
     dependsOn: { mainWindow, tray },

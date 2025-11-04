@@ -27,6 +27,7 @@ interface AppConfig {
 
 export async function setupMainWindow(params: {
   settingsWindow: () => Promise<BrowserWindow>
+  chatWindow: () => Promise<BrowserWindow>
 }) {
   const {
     setup: setupConfig,
@@ -122,7 +123,7 @@ export async function setupMainWindow(params: {
 
   await load(window, baseUrl(resolve(getElectronMainDirname(), '..', 'renderer')))
 
-  setupMainWindowElectronInvokes({ window, settingsWindow: params.settingsWindow })
+  setupMainWindowElectronInvokes({ window, settingsWindow: params.settingsWindow, chatWindow: params.chatWindow })
 
   /**
    * This is a know issue (or expected behavior maybe) to Electron.

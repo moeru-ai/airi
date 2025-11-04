@@ -106,9 +106,9 @@ export function normalizeProvideOption<D extends DependencyMap | undefined, T = 
   return nameOrOption as ProvideOptionObject<T, D>
 }
 
-export function provide<T, Key extends string, Deps extends Record<string, string | ProvidedKey<any, any, any>>>(container: Container, name: Key, option: ProvideOptionWithKeys<T, Deps>,): ProvidedKey<Key, T, ResolveDependencyDeclaration<Deps>>
+export function provide<T, Key extends string, Deps extends Record<string, string | ProvidedKey<any, any, any>>>(container: Container, name: Key, option: ProvideOptionWithKeys<T, Deps>): ProvidedKey<Key, T, ResolveDependencyDeclaration<Deps>>
 export function provide<T, Key extends string, Deps extends Record<string, string | ProvidedKey<any, any, any>>>(container: Container, option: ProvideOptionWithKeys<T, Deps> & { autoNameStackIndex?: number }): ProvidedKey<Key, T, ResolveDependencyDeclaration<Deps>>
-export function provide<D extends DependencyMap | undefined, T = any, Key extends string = string>(container: Container, name: Key, option: ProvideOption<T, D>,): ProvidedKey<Key, T, D>
+export function provide<D extends DependencyMap | undefined, T = any, Key extends string = string>(container: Container, name: Key, option: ProvideOption<T, D>): ProvidedKey<Key, T, D>
 export function provide<D extends DependencyMap | undefined, T = any, Key extends string = string>(container: Container, option: ProvideOption<T, D> & { autoNameStackIndex?: number }): ProvidedKey<Key, T, D>
 export function provide<D extends DependencyMap | undefined, T = any, Key extends string = string>(container: Container, nameOrOption: Key | ProvideOption<T, D> | ProvideOptionWithKeys<T, any>, option?: (ProvideOption<T, D> | ProvideOptionWithKeys<T, any>) & { autoNameStackIndex?: number }): ProvidedKey<Key, T, D> {
   const parentFile = ErrorStackParser.parse(new Error('providing'))[option?.autoNameStackIndex ?? 1]

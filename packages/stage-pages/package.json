@@ -27,23 +27,23 @@
     "@proj-airi/stage-ui": "workspace:*",
     "@proj-airi/ui": "workspace:*",
     "@stdlib/string-base-kebabcase": "^0.2.2",
-    "@vueuse/core": "^13.9.0",
-    "@vueuse/shared": "^13.9.0",
+    "@vueuse/core": "^14.0.0",
+    "@vueuse/shared": "^14.0.0",
     "@xsai-ext/shared-providers": "catalog:",
     "@xsai/generate-speech": "catalog:",
     "animejs": "^4.2.2",
-    "dompurify": "^3.2.7",
+    "dompurify": "^3.3.0",
     "nanoid": "^5.1.6",
     "node-vibrant": "^4.0.3",
     "pinia": "^3.0.3",
-    "reka-ui": "^2.5.1",
+    "reka-ui": "^2.6.0",
     "unspeech": "^0.1.7",
     "vue": "^3.5.22",
     "vue-i18n": "^11.1.12",
-    "vue-router": "^4.5.1"
+    "vue-router": "^4.6.3"
   },
   "devDependencies": {
-    "@types/three": "^0.180.0",
-    "vue-tsc": "^3.1.1"
+    "@types/three": "^0.181.0",
+    "vue-tsc": "^3.1.2"
   }
 }

@@ -107,7 +107,7 @@ export interface ProviderMetadata {
   iconImage?: string
   defaultOptions?: () => Record<string, unknown>
   createProvider: (
-    config: Record<string, unknown>
+    config: Record<string, unknown>,
   ) =>
     | ChatProvider
     | ChatProviderWithExtraOptions

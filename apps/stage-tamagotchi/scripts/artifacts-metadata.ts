@@ -17,6 +17,11 @@ async function main() {
       { default: '', type: [String] },
     )
     .option(
+      '--get-output-filename <ext>',
+      'Get the build output filename for a specific extension (pre-rename)',
+      { default: '', type: [String] },
+    )
+    .option(
       '--auto-tag',
       'Automatically tag the release with the latest git ref',
       { default: false },
@@ -52,6 +57,7 @@ async function main() {
     getProductName: boolean
     getVersion: boolean
     getFilename: string[]
+    getOutputFilename: string[]
   }
 
   const target = args.args[0]
@@ -68,6 +74,16 @@ async function main() {
       process.exit(1)
     }
     console.info(match.releaseArtifactFilename)
+  }
+  if (argOptions.getOutputFilename && argOptions.getOutputFilename[0]) {
+    const ext = String(argOptions.getOutputFilename[0]).trim()
+    const filenames = await getFilenames(target, argOptions)
+    const match = filenames.find(f => f.extension === ext)
+    if (!match) {
+      console.error(`No artifact found for extension: ${ext}`)
+      process.exit(1)
+    }
+    console.info(match.outputFilename)
   }
   if (argOptions.getProductName) {
     const electronBuilderConfig = await getElectronBuilderConfig()
