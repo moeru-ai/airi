@@ -61,9 +61,6 @@
     "@proj-airi/server-sdk": "workspace:*"
   },
   "devDependencies": {
-    "@types/node": "^24.10.0",
-    "@types/vscode": "^1.85.0",
-    "tsdown": "^0.15.2",
-    "typescript": "^5.3.0"
+    "@types/vscode": "^1.105.0"
   }
 }
