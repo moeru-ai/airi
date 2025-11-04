@@ -30,7 +30,7 @@
       }
     ],
     "configuration": {
-      "title": "Airi",
+      "title": "AIRI",
       "properties": {
         "airi.enabled": {
           "type": "boolean",
