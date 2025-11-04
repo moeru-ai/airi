@@ -1,8 +1,6 @@
-import type http from 'node:http'
-
 import type { BrowserWindow } from 'electron'
 
-import { platform } from 'node:process'
+import { env, platform } from 'node:process'
 
 import { electronApp, optimizer } from '@electron-toolkit/utils'
 import { Format, LogLevel, setGlobalFormat, setGlobalLogLevel, useLogg } from '@guiiai/logg'
@@ -95,15 +93,17 @@ async function setupProjectAIRIServerRuntime() {
   // Start the server-runtime server with WebSocket support
   try {
     // Dynamically import the server-runtime and listhen
-    const [serverRuntimeModule, { listen }] = await Promise.all([
-      import('@proj-airi/server-runtime'),
-      import('listhen'),
-    ])
+    const serverRuntime = await import('@proj-airi/server-runtime')
+    const { serve } = await import('h3')
+    const { plugin: ws } = await import('crossws/server')
 
-    const serverInstance = await listen(serverRuntimeModule.app as unknown as http.RequestListener, {
-      port: 6121,
-      hostname: 'localhost',
-      ws: true,
+    const serverInstance = serve(serverRuntime.app, {
+      // TODO: fix types
+      // @ts-expect-error - the .crossws property wasn't extended in types
+      plugins: [ws({ resolve: async req => (await serverRuntime.app.fetch(req)).crossws })],
+      port: env.PORT ? Number(env.PORT) : 6121,
+      hostname: env.SERVER_RUNTIME_HOSTNAME || 'localhost',
+      reusePort: true,
     })
 
     log.log('@proj-airi/server-runtime started on ws://localhost:6121')

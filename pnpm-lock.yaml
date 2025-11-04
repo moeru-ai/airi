@@ -44,7 +44,7 @@ catalogs:
       version: 0.4.0-beta.5
     '@xsai/shared':
       specifier: ^0.4.0-beta.5
-      version: 0.4.0-beta.5
+      version: 0.4.0-beta.8
     '@xsai/shared-chat':
       specifier: ^0.4.0-beta.5
       version: 0.4.0-beta.5
@@ -331,7 +331,7 @@ importers:
         version: 0.0.89
       '@unbird/eventa':
         specifier: ^0.2.3
-        version: 0.2.3(electron@39.0.0)(web-worker@1.5.0)
+        version: 0.2.3(electron@39.0.0)(h3@2.0.1-rc.5(crossws@0.4.1(srvx@0.9.4)))(web-worker@1.5.0)
       '@vueuse/core':
         specifier: ^14.0.0
         version: 14.0.0(vue@3.5.22(typescript@5.9.3))
@@ -349,7 +349,7 @@ importers:
         version: 0.4.0-beta.5
       '@xsai-transformers/transcription':
         specifier: ^0.0.10
-        version: 0.0.10(electron@39.0.0)(web-worker@1.5.0)
+        version: 0.0.10(electron@39.0.0)(h3@2.0.1-rc.5(crossws@0.4.1(srvx@0.9.4)))(web-worker@1.5.0)
       '@xsai/generate-speech':
         specifier: 'catalog:'
         version: 0.4.0-beta.5
@@ -361,7 +361,7 @@ importers:
         version: 0.4.0-beta.5
       '@xsai/shared':
         specifier: 'catalog:'
-        version: 0.4.0-beta.5
+        version: 0.4.0-beta.8
       '@xsai/shared-chat':
         specifier: 'catalog:'
         version: 0.4.0-beta.5
@@ -377,6 +377,9 @@ importers:
       colorjs.io:
         specifier: ^0.5.2
         version: 0.5.2
+      crossws:
+        specifier: ^0.4.1
+        version: 0.4.1(srvx@0.9.4)
       culori:
         specifier: ^4.0.2
         version: 4.0.2
@@ -404,12 +407,12 @@ importers:
       es-toolkit:
         specifier: ^1.41.0
         version: 1.41.0
+      h3:
+        specifier: 2.0.1-rc.5
+        version: 2.0.1-rc.5(crossws@0.4.1(srvx@0.9.4))
       jszip:
         specifier: ^3.10.1
         version: 3.10.1
-      listhen:
-        specifier: ^1.9.0
-        version: 1.9.0
       localforage:
         specifier: ^1.10.0
         version: 1.10.0
@@ -602,7 +605,7 @@ importers:
         version: 3.0.3(magicast@0.3.5)(vue@3.5.22(typescript@5.9.3))
       '@xsai-transformers/embed':
         specifier: ^0.0.10
-        version: 0.0.10(electron@39.0.0)(web-worker@1.5.0)
+        version: 0.0.10(electron@39.0.0)(h3@2.0.1-rc.5(crossws@0.4.1(srvx@0.9.4)))(web-worker@1.5.0)
       cac:
         specifier: ^6.7.14
         version: 6.7.14
@@ -722,7 +725,7 @@ importers:
         version: 5.1.0(three@0.181.0)(vue@3.5.22(typescript@5.9.3))
       '@unbird/eventa':
         specifier: ^0.2.3
-        version: 0.2.3(electron@39.0.0)(web-worker@1.5.0)
+        version: 0.2.3(electron@39.0.0)(h3@2.0.1-rc.5(crossws@0.4.1(srvx@0.9.4)))(web-worker@1.5.0)
       '@valibot/to-json-schema':
         specifier: 1.0.0-rc.0
         version: 1.0.0-rc.0(valibot@1.0.0-beta.9(typescript@5.9.3))
@@ -743,7 +746,7 @@ importers:
         version: 0.4.0-beta.5
       '@xsai-transformers/embed':
         specifier: ^0.0.10
-        version: 0.0.10(electron@39.0.0)(web-worker@1.5.0)
+        version: 0.0.10(electron@39.0.0)(h3@2.0.1-rc.5(crossws@0.4.1(srvx@0.9.4)))(web-worker@1.5.0)
       '@xsai/generate-speech':
         specifier: 'catalog:'
         version: 0.4.0-beta.5
@@ -755,7 +758,7 @@ importers:
         version: 0.4.0-beta.5
       '@xsai/shared':
         specifier: 'catalog:'
-        version: 0.4.0-beta.5
+        version: 0.4.0-beta.8
       '@xsai/shared-chat':
         specifier: 'catalog:'
         version: 0.4.0-beta.5
@@ -1471,10 +1474,10 @@ importers:
         version: 0.4.0-beta.5
       '@xsai-transformers/embed':
         specifier: ^0.0.10
-        version: 0.0.10(electron@39.0.0)(web-worker@1.5.0)
+        version: 0.0.10(electron@39.0.0)(h3@2.0.1-rc.5(crossws@0.4.1(srvx@0.9.4)))(web-worker@1.5.0)
       '@xsai-transformers/shared':
         specifier: ^0.0.10
-        version: 0.0.10(electron@39.0.0)(web-worker@1.5.0)
+        version: 0.0.10(electron@39.0.0)(h3@2.0.1-rc.5(crossws@0.4.1(srvx@0.9.4)))(web-worker@1.5.0)
       '@xsai/embed':
         specifier: 'catalog:'
         version: 0.4.0-beta.5
@@ -1492,7 +1495,7 @@ importers:
         version: 0.4.0-beta.5
       '@xsai/shared':
         specifier: 'catalog:'
-        version: 0.4.0-beta.5
+        version: 0.4.0-beta.8
       '@xsai/shared-chat':
         specifier: 'catalog:'
         version: 0.4.0-beta.5
@@ -1949,7 +1952,7 @@ importers:
         specifier: ^3.1.2
         version: 3.1.2(typescript@5.9.3)
 
-  plugins/airi-plugin-vscode-companion:
+  plugins/airi-plugin-vscode:
     dependencies:
       '@guiiai/logg':
         specifier: 'catalog:'
@@ -8017,11 +8020,8 @@ packages:
   '@xsai/shared@0.3.5':
     resolution: {integrity: sha512-gxWH+9UjhXgqqKeU/o9UteC/ih1FzxEEsmPojImd/jvq4j/wtIg4aP3dCFnu+EhCT/MRQ38dkBSra99iY9cC3w==}
 
-  '@xsai/shared@0.4.0-beta.5':
-    resolution: {integrity: sha512-6oLyXkN8WoXoufNuIVFMrJyhJEEkWnGEi44v5SBd2fnBU7Wx4nT9ZRJT0A+Yfvx2pYWYqgHUQ9KVnG+DFT3VxQ==}
-
-  '@xsai/shared@0.4.0-beta.6':
-    resolution: {integrity: sha512-AkPG7/jNkRyLj5a5vjDYQ4juM+MUDyMrs/NWMkLJIxKlIAPQrj7MKtk/lJxZR5SOY04YYp6H7qmkPF81AU3IxQ==}
+  '@xsai/shared@0.4.0-beta.8':
+    resolution: {integrity: sha512-z/2s+PPYTYHAZxiFSGFmAIYxZHUUqQlBIxlzTW1LzOz8YF2XNLBSy8GuOI9qQMV+Wh2D851drSIO/vnObEN+OA==}
 
   '@xsai/stream-text@0.3.5':
     resolution: {integrity: sha512-XUyM3/jo9FulWoqmQU6vvHFOoRZzr3rcsTGm0MY8hUXg9HJl91N0voQGb6R5AMlo5XgoSbO3GMFzJ26AVxmRMg==}
@@ -22024,12 +22024,13 @@ snapshots:
       '@typescript-eslint/types': 8.46.2
       eslint-visitor-keys: 4.2.1
 
-  '@unbird/eventa@0.2.3(electron@39.0.0)(web-worker@1.5.0)':
+  '@unbird/eventa@0.2.3(electron@39.0.0)(h3@2.0.1-rc.5(crossws@0.4.1(srvx@0.9.4)))(web-worker@1.5.0)':
     dependencies:
       nanoid: 5.1.6
       picomatch: 4.0.3
     optionalDependencies:
       electron: 39.0.0
+      h3: 2.0.1-rc.5(crossws@0.4.1(srvx@0.9.4))
       web-worker: 1.5.0
 
   '@ungap/structured-clone@1.3.0': {}
@@ -23263,30 +23264,30 @@ snapshots:
   '@xsai-ext/providers-cloud@0.4.0-beta.5':
     dependencies:
       '@xsai-ext/shared-providers': 0.4.0-beta.5
-      '@xsai/shared': 0.4.0-beta.5
+      '@xsai/shared': 0.4.0-beta.8
 
   '@xsai-ext/providers-local@0.4.0-beta.5':
     dependencies:
       '@xsai-ext/shared-providers': 0.4.0-beta.5
-      '@xsai/shared': 0.4.0-beta.5
+      '@xsai/shared': 0.4.0-beta.8
 
   '@xsai-ext/shared-providers@0.2.2':
     dependencies:
-      '@xsai/shared': 0.4.0-beta.6
+      '@xsai/shared': 0.4.0-beta.8
 
   '@xsai-ext/shared-providers@0.4.0-beta.5':
     dependencies:
-      '@xsai/shared': 0.4.0-beta.5
+      '@xsai/shared': 0.4.0-beta.8
 
-  '@xsai-transformers/embed@0.0.10(electron@39.0.0)(web-worker@1.5.0)':
+  '@xsai-transformers/embed@0.0.10(electron@39.0.0)(h3@2.0.1-rc.5(crossws@0.4.1(srvx@0.9.4)))(web-worker@1.5.0)':
     dependencies:
       '@huggingface/transformers': 3.7.6
       '@moeru/std': 0.1.0-beta.13
-      '@unbird/eventa': 0.2.3(electron@39.0.0)(web-worker@1.5.0)
+      '@unbird/eventa': 0.2.3(electron@39.0.0)(h3@2.0.1-rc.5(crossws@0.4.1(srvx@0.9.4)))(web-worker@1.5.0)
       '@xsai-ext/shared-providers': 0.4.0-beta.5
-      '@xsai-transformers/shared': 0.0.10(electron@39.0.0)(web-worker@1.5.0)
+      '@xsai-transformers/shared': 0.0.10(electron@39.0.0)(h3@2.0.1-rc.5(crossws@0.4.1(srvx@0.9.4)))(web-worker@1.5.0)
       '@xsai/embed': 0.4.0-beta.5
-      '@xsai/shared': 0.4.0-beta.5
+      '@xsai/shared': 0.4.0-beta.8
       gpuu: 1.0.6
     optionalDependencies:
       web-worker: 1.5.0
@@ -23294,29 +23295,29 @@ snapshots:
       - electron
       - h3
 
-  '@xsai-transformers/shared@0.0.10(electron@39.0.0)(web-worker@1.5.0)':
+  '@xsai-transformers/shared@0.0.10(electron@39.0.0)(h3@2.0.1-rc.5(crossws@0.4.1(srvx@0.9.4)))(web-worker@1.5.0)':
     dependencies:
       '@huggingface/transformers': 3.7.6
       '@moeru/std': 0.1.0-beta.13
-      '@unbird/eventa': 0.2.3(electron@39.0.0)(web-worker@1.5.0)
+      '@unbird/eventa': 0.2.3(electron@39.0.0)(h3@2.0.1-rc.5(crossws@0.4.1(srvx@0.9.4)))(web-worker@1.5.0)
       '@xsai-ext/shared-providers': 0.4.0-beta.5
-      '@xsai/shared': 0.4.0-beta.5
+      '@xsai/shared': 0.4.0-beta.8
       onnxruntime-common: 1.23.0
     transitivePeerDependencies:
       - electron
       - h3
       - web-worker
 
-  '@xsai-transformers/transcription@0.0.10(electron@39.0.0)(web-worker@1.5.0)':
+  '@xsai-transformers/transcription@0.0.10(electron@39.0.0)(h3@2.0.1-rc.5(crossws@0.4.1(srvx@0.9.4)))(web-worker@1.5.0)':
     dependencies:
       '@huggingface/transformers': 3.7.6
       '@moeru/std': 0.1.0-beta.13
-      '@unbird/eventa': 0.2.3(electron@39.0.0)(web-worker@1.5.0)
+      '@unbird/eventa': 0.2.3(electron@39.0.0)(h3@2.0.1-rc.5(crossws@0.4.1(srvx@0.9.4)))(web-worker@1.5.0)
       '@xsai-ext/shared-providers': 0.4.0-beta.5
-      '@xsai-transformers/shared': 0.0.10(electron@39.0.0)(web-worker@1.5.0)
+      '@xsai-transformers/shared': 0.0.10(electron@39.0.0)(h3@2.0.1-rc.5(crossws@0.4.1(srvx@0.9.4)))(web-worker@1.5.0)
       '@xsai/embed': 0.4.0-beta.5
       '@xsai/generate-transcription': 0.4.0-beta.5
-      '@xsai/shared': 0.4.0-beta.5
+      '@xsai/shared': 0.4.0-beta.8
       gpuu: 1.0.6
     optionalDependencies:
       web-worker: 1.5.0
@@ -23326,11 +23327,11 @@ snapshots:
 
   '@xsai/embed@0.4.0-beta.5':
     dependencies:
-      '@xsai/shared': 0.4.0-beta.5
+      '@xsai/shared': 0.4.0-beta.8
 
   '@xsai/generate-speech@0.4.0-beta.5':
     dependencies:
-      '@xsai/shared': 0.4.0-beta.5
+      '@xsai/shared': 0.4.0-beta.8
 
   '@xsai/generate-text@0.3.5':
     dependencies:
@@ -23339,16 +23340,16 @@ snapshots:
 
   '@xsai/generate-text@0.4.0-beta.5':
     dependencies:
-      '@xsai/shared': 0.4.0-beta.5
+      '@xsai/shared': 0.4.0-beta.8
       '@xsai/shared-chat': 0.4.0-beta.5
 
   '@xsai/generate-transcription@0.4.0-beta.5':
     dependencies:
-      '@xsai/shared': 0.4.0-beta.5
+      '@xsai/shared': 0.4.0-beta.8
 
   '@xsai/model@0.4.0-beta.5':
     dependencies:
-      '@xsai/shared': 0.4.0-beta.5
+      '@xsai/shared': 0.4.0-beta.8
 
   '@xsai/shared-chat@0.3.5':
     dependencies:
@@ -23356,15 +23357,13 @@ snapshots:
 
   '@xsai/shared-chat@0.4.0-beta.5':
     dependencies:
-      '@xsai/shared': 0.4.0-beta.5
+      '@xsai/shared': 0.4.0-beta.8
 
   '@xsai/shared@0.2.2': {}
 
   '@xsai/shared@0.3.5': {}
 
-  '@xsai/shared@0.4.0-beta.5': {}
-
-  '@xsai/shared@0.4.0-beta.6': {}
+  '@xsai/shared@0.4.0-beta.8': {}
 
   '@xsai/stream-text@0.3.5':
     dependencies:
@@ -23372,12 +23371,12 @@ snapshots:
 
   '@xsai/stream-text@0.4.0-beta.5':
     dependencies:
-      '@xsai/shared': 0.4.0-beta.5
+      '@xsai/shared': 0.4.0-beta.8
       '@xsai/shared-chat': 0.4.0-beta.5
 
   '@xsai/tool@0.4.0-beta.5(zod-to-json-schema@3.24.6(zod@4.1.12))(zod@4.1.12)':
     dependencies:
-      '@xsai/shared': 0.4.0-beta.5
+      '@xsai/shared': 0.4.0-beta.8
       '@xsai/shared-chat': 0.4.0-beta.5
       xsschema: 0.4.0-beta.5(@valibot/to-json-schema@1.0.0-rc.0(valibot@1.0.0-beta.9(typescript@5.9.3)))(zod-to-json-schema@3.24.6(zod@4.1.12))(zod@4.1.12)
     transitivePeerDependencies:
