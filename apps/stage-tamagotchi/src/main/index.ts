@@ -151,7 +151,7 @@ app.whenReady().then(async () => {
     callback: noop,
   })
 
-  await injecta.start()
+  injecta.start().catch(err => console.error(err))
 
   // Lifecycle
   emitAppReady()
