@@ -1,5 +1,7 @@
 import type { CodingContext } from './types'
 
+import { useLogger } from '@guiiai/logg'
+
 import * as vscode from 'vscode'
 
 /**
@@ -70,7 +72,7 @@ export class ContextCollector {
       }
     }
     catch (error) {
-      console.error('Failed to collect context:', error)
+      useLogger().errorWithError('Failed to collect context:', error)
       return null
     }
   }

@@ -1,12 +1,13 @@
 import type { AiriEvent } from './types'
 
+import { useLogger } from '@guiiai/logg'
 import { Client } from '@proj-airi/server-sdk'
 
 /**
  * Airi Channel Server Client
  */
 export class AiriClient {
-  private client: Client | null = null
+  private client: Client<AiriEvent> | null = null
 
   /**
    * Connect to Channel Server
@@ -15,11 +16,11 @@ export class AiriClient {
     try {
       this.client = new Client({ name: 'proj-airi:plugin-vscode-companion' })
 
-      console.log('Airi companion connected to Channel Server')
+      useLogger().log('Airi companion connected to Channel Server')
       return true
     }
     catch (error) {
-      console.error('Failed to connect to Airi Channel Server:', error)
+      useLogger().errorWithError('Failed to connect to Airi Channel Server:', error)
       return false
     }
   }
@@ -29,9 +30,9 @@ export class AiriClient {
    */
   disconnect(): void {
     if (this.client) {
-      // 假设 Client 有 disconnect 或 close 方法
+      // TODO: Pretend there is a disconnect method in Client
       this.client = null
-      console.log('Airi companion disconnected')
+      useLogger().log('Airi companion disconnected')
     }
   }
 
@@ -40,21 +41,21 @@ export class AiriClient {
    */
   sendEvent(event: AiriEvent): void {
     if (!this.client) {
-      console.warn('Cannot send event: not connected to Airi Channel Server')
+      useLogger().warn('Cannot send event: not connected to Airi Channel Server')
       return
     }
 
     try {
-      // 发送编码上下文事件
+      // Send event to Airi
       this.client.send({
         type: 'vscode:context',
         data: event,
       })
 
-      console.log(`Sent event to Airi: ${event.type}`, event)
+      useLogger().log(`Sent event to Airi: ${event.type}`, event)
     }
     catch (error) {
-      console.error('Failed to send event to Airi:', error)
+      useLogger().errorWithError('Failed to send event to Airi:', error)
     }
   }
 

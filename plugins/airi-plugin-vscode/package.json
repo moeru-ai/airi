@@ -1,9 +1,9 @@
 {
   "publisher": "airi",
-  "name": "airi-vscode-companion",
-  "displayName": "Airi Companion",
+  "name": "@proj-airi/vscode-extension",
+  "displayName": "Airi",
   "version": "0.1.0",
-  "description": "VSCode companion that shares your coding context with Airi",
+  "description": "VSCode extension that shares your coding context with Airi",
   "categories": [
     "Other"
   ],
@@ -17,32 +17,32 @@
   "contributes": {
     "commands": [
       {
-        "command": "airi.companion.enable",
-        "title": "Airi: Enable Companion"
+        "command": "airi.enable",
+        "title": "Airi: Enable"
       },
       {
-        "command": "airi.companion.disable",
-        "title": "Airi: Disable Companion"
+        "command": "airi.disable",
+        "title": "Airi: Disable"
       },
       {
-        "command": "airi.companion.status",
+        "command": "airi.status",
         "title": "Airi: Show Status"
       }
     ],
     "configuration": {
-      "title": "Airi Companion",
+      "title": "Airi",
       "properties": {
-        "airi.companion.enabled": {
+        "airi.enabled": {
           "type": "boolean",
           "default": true,
           "description": "Enable Airi companion"
         },
-        "airi.companion.contextLines": {
+        "airi.contextLines": {
           "type": "number",
           "default": 5,
           "description": "Number of context lines to send (before and after current line)"
         },
-        "airi.companion.sendInterval": {
+        "airi.sendInterval": {
           "type": "number",
           "default": 3000,
           "description": "Interval in milliseconds to send updates (0 for real-time)"

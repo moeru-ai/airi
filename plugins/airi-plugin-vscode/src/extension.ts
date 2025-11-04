@@ -1,5 +1,7 @@
 import type * as vscode from 'vscode'
 
+import { initLogger, LoggerFormat, LoggerLevel, useLogger } from '@guiiai/logg'
+
 import { AiriClient } from './airi-client'
 import { ContextCollector } from './context-collector'
 
@@ -12,9 +14,11 @@ let isEnabled = true
  * Activate the plugin
  */
 export async function activate(context: vscode.ExtensionContext) {
+  initLogger(LoggerLevel.Debug, LoggerFormat.Pretty)
+
   const { window, workspace, commands } = await import('vscode')
 
-  console.info('Airi Companion is activating...')
+  useLogger().log('Airi Companion is activating...')
 
   // Get the configuration
   const config = workspace.getConfiguration('airi.companion')
@@ -98,7 +102,7 @@ export async function activate(context: vscode.ExtensionContext) {
     }
   }
 
-  console.info('Airi Companion activated successfully')
+  useLogger().log('Airi Companion activated successfully')
 }
 
 /**
@@ -142,5 +146,5 @@ function stopMonitoring() {
 export function deactivate() {
   stopMonitoring()
   airiClient?.disconnect()
-  console.info('Airi Companion deactivated')
+  useLogger().log('Airi Companion deactivated')
 }
