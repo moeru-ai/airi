@@ -73,6 +73,11 @@ export function buildOpenAICompatibleProvider(
       const apiKey = normalizeString(config.apiKey)
       const baseUrl = normalizeBaseUrl(config.baseUrl)
 
+      // If not configured yet, avoid remote calls and return empty
+      if (!apiKey || !baseUrl) {
+        return []
+      }
+
       const provider = await creator(apiKey, baseUrl)
       // Check provider.model exists and is a function
       if (!provider || typeof provider.model !== 'function') {
