@@ -9,6 +9,7 @@ let airiClient: AiriClient
 let contextCollector: ContextCollector
 let updateTimer: NodeJS.Timeout | null = null
 let isEnabled = true
+let eventListeners: vscode.Disposable[] = []
 
 /**
  * Activate the plugin
@@ -46,13 +47,13 @@ export async function activate(context: vscode.ExtensionContext) {
     commands.registerCommand('airi.companion.enable', async () => {
       isEnabled = true
       await airiClient.connect()
-      startMonitoring(sendInterval)
+      await registerListeners(sendInterval)
       window.showInformationMessage('Airi Companion enabled')
     }),
 
     commands.registerCommand('airi.companion.disable', () => {
       isEnabled = false
-      stopMonitoring()
+      unregisterListeners()
       airiClient.disconnect()
       window.showInformationMessage('Airi Companion disabled')
     }),
@@ -63,46 +64,66 @@ export async function activate(context: vscode.ExtensionContext) {
     }),
   )
 
-  // Listen to editor events
+  // Register event listeners if enabled
   if (isEnabled) {
-    // File save event
-    context.subscriptions.push(
-      workspace.onDidSaveTextDocument(async (document) => {
-        const editor = window.activeTextEditor
-        if (editor && editor.document === document) {
-          const ctx = await contextCollector.collect(editor)
-          if (ctx) {
-            airiClient.sendEvent({
-              type: 'coding:save',
-              data: ctx,
-            })
-          }
-        }
-      }),
-    )
-
-    // Switch file event
-    context.subscriptions.push(
-      window.onDidChangeActiveTextEditor(async (editor) => {
-        if (editor) {
-          const ctx = await contextCollector.collect(editor)
-          if (ctx) {
-            airiClient.sendEvent({
-              type: 'coding:switch-file',
-              data: ctx,
-            })
-          }
-        }
-      }),
-    )
-
-    // Send context update periodically
-    if (sendInterval > 0) {
-      startMonitoring(sendInterval)
-    }
+    await registerListeners(sendInterval)
   }
 
   useLogger().log('Airi Companion activated successfully')
+}
+
+/**
+ * Register event listeners for file save and editor switch
+ */
+async function registerListeners(sendInterval: number) {
+  unregisterListeners()
+
+  const { window, workspace } = await import('vscode')
+
+  // File save event
+  eventListeners.push(
+    workspace.onDidSaveTextDocument(async (document) => {
+      const editor = window.activeTextEditor
+      if (editor && editor.document === document) {
+        const ctx = await contextCollector.collect(editor)
+        if (ctx) {
+          airiClient.sendEvent({
+            type: 'coding:save',
+            data: ctx,
+          })
+        }
+      }
+    }),
+  )
+
+  // Switch file event
+  eventListeners.push(
+    window.onDidChangeActiveTextEditor(async (editor) => {
+      if (editor) {
+        const ctx = await contextCollector.collect(editor)
+        if (ctx) {
+          airiClient.sendEvent({
+            type: 'coding:switch-file',
+            data: ctx,
+          })
+        }
+      }
+    }),
+  )
+
+  // Start periodic monitoring if interval is set
+  if (sendInterval > 0) {
+    startMonitoring(sendInterval)
+  }
+}
+
+/**
+ * Unregister all event listeners
+ */
+function unregisterListeners() {
+  eventListeners.forEach(listener => listener.dispose())
+  eventListeners = []
+  stopMonitoring()
 }
 
 /**
@@ -144,7 +165,7 @@ function stopMonitoring() {
  * Deactivate the plugin
  */
 export function deactivate() {
-  stopMonitoring()
+  unregisterListeners()
   airiClient?.disconnect()
   useLogger().log('Airi Companion deactivated')
 }

@@ -30,7 +30,7 @@ export class AiriClient {
    */
   disconnect(): void {
     if (this.client) {
-      // TODO: Pretend there is a disconnect method in Client
+      this.client.close()
       this.client = null
       useLogger().log('Airi companion disconnected')
     }
