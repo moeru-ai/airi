@@ -1,6 +1,6 @@
-import type * as vscode from 'vscode'
-
 import type { CodingContext } from './types'
+
+import * as vscode from 'vscode'
 
 /**
  * Collector for coding context in VSCode
@@ -101,8 +101,7 @@ export class ContextCollector {
    * Get workspace folder path
    */
   private getWorkspaceFolder(uri: vscode.Uri): string | undefined {
-    const { workspace } = require('vscode') as typeof vscode
-    const folder = workspace.getWorkspaceFolder(uri)
+    const folder = vscode.workspace.getWorkspaceFolder(uri)
     return folder?.uri.fsPath
   }
 
@@ -111,8 +110,7 @@ export class ContextCollector {
    */
   private async getGitInfo(uri: vscode.Uri): Promise<{ branch: string, isDirty: boolean } | undefined> {
     try {
-      const { extensions } = require('vscode') as typeof vscode
-      const gitExtension = extensions.getExtension('vscode.git')?.exports
+      const gitExtension = vscode.extensions.getExtension('vscode.git')?.exports
       if (!gitExtension)
         return undefined
 
