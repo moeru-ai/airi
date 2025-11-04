@@ -3,7 +3,7 @@ import type * as vscode from 'vscode'
 import type { CodingContext } from './types'
 
 /**
- * 收集当前编码环境的上下文信息
+ * Collector for coding context in VSCode
  */
 export class ContextCollector {
   constructor(
@@ -11,14 +11,14 @@ export class ContextCollector {
   ) {}
 
   /**
-   * 从当前活动编辑器收集上下文
+   * Collect context from the current active editor
    */
   async collect(editor: vscode.TextEditor): Promise<CodingContext | null> {
     try {
       const document = editor.document
       const position = editor.selection.active
 
-      // 文件信息
+      // File information
       const file = {
         path: document.uri.fsPath,
         languageId: document.languageId,
@@ -26,13 +26,13 @@ export class ContextCollector {
         workspaceFolder: this.getWorkspaceFolder(document.uri),
       }
 
-      // 光标位置
+      // Cursor position
       const cursor = {
         line: position.line,
         character: position.character,
       }
 
-      // 选中的文本
+      // Selected text
       const selection = editor.selection.isEmpty
         ? undefined
         : {
@@ -47,17 +47,17 @@ export class ContextCollector {
             },
           }
 
-      // 当前行
+      // Current line
       const currentLine = {
         lineNumber: position.line,
         text: document.lineAt(position.line).text,
       }
 
-      // 上下文(前后 N 行)
+      // Context (N lines before and after)
       const context = this.getContext(document, position.line)
 
-      // Git 信息(简化版,后续可以扩展)
-      // const git = await this.getGitInfo(document.uri)
+      // Git information (simplified, can be extended later)
+      const git = await this.getGitInfo(document.uri)
 
       return {
         file,
@@ -65,7 +65,7 @@ export class ContextCollector {
         selection,
         currentLine,
         context,
-        // git,
+        git,
         timestamp: Date.now(),
       }
     }
@@ -76,19 +76,19 @@ export class ContextCollector {
   }
 
   /**
-   * 获取当前行前后的上下文
+   * Get context before and after the current line
    */
   private getContext(document: vscode.TextDocument, currentLine: number) {
     const before: string[] = []
     const after: string[] = []
 
-    // 获取前面的行
+    // Get preceding lines
     const startLine = Math.max(0, currentLine - this.contextLines)
     for (let i = startLine; i < currentLine; i++) {
       before.push(document.lineAt(i).text)
     }
 
-    // 获取后面的行
+    // Get following lines
     const endLine = Math.min(document.lineCount - 1, currentLine + this.contextLines)
     for (let i = currentLine + 1; i <= endLine; i++) {
       after.push(document.lineAt(i).text)
@@ -98,7 +98,7 @@ export class ContextCollector {
   }
 
   /**
-   * 获取工作区文件夹
+   * Get workspace folder path
    */
   private getWorkspaceFolder(uri: vscode.Uri): string | undefined {
     const { workspace } = require('vscode') as typeof vscode
@@ -107,7 +107,7 @@ export class ContextCollector {
   }
 
   /**
-   * 获取 Git 信息(简化版)
+   * Get Git information (simplified)
    */
   private async getGitInfo(uri: vscode.Uri): Promise<{ branch: string, isDirty: boolean } | undefined> {
     try {

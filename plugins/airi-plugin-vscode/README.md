@@ -1,64 +1,64 @@
 # Airi VSCode Companion
 
-VSCode 插件,用于感知编码环境并与 Airi 陪伴系统集成。
+VSCode extension for sensing coding environment and integrating with Airi companion system.
 
-## 功能
+## Features
 
-- 实时获取编码上下文(文件、行号、周围代码)
-- 监听文件保存和切换事件
-- 追踪光标位置和选中的代码
-- 获取 Git 分支信息
-- 通过 Channel Server 与 Airi 通信
+- Real-time coding context capture (file, line number, surrounding code)
+- Listen to file save and switch events
+- Track cursor position and selected code
+- Retrieve Git branch information
+- Communicate with Airi through Channel Server
 
-## 配置
+## Configuration
 
-在 VSCode 设置中可配置以下选项:
+The following options can be configured in VSCode settings:
 
-- `airi.companion.enabled`: 启用/禁用插件 (默认: true)
-- `airi.companion.contextLines`: 获取上下文的行数 (默认: 5)
-- `airi.companion.sendInterval`: 发送更新的间隔(毫秒) (默认: 3000, 设为 0 则不定时发送)
+- `airi.companion.enabled`: Enable/disable the extension (default: true)
+- `airi.companion.contextLines`: Number of context lines to capture (default: 5)
+- `airi.companion.sendInterval`: Update send interval in milliseconds (default: 3000, set to 0 to disable periodic sending)
 
-## 命令
+## Commands
 
-- `Airi: Enable Companion` - 启用陪伴功能
-- `Airi: Disable Companion` - 禁用陪伴功能
-- `Airi: Show Status` - 显示连接状态
+- `Airi: Enable Companion` - Enable companion feature
+- `Airi: Disable Companion` - Disable companion feature
+- `Airi: Show Status` - Show connection status
 
-## 开发
+## Development
 
 ```bash
-# 安装依赖
+# Install dependencies
 pnpm install
 
-# 开发模式(监听文件变化)
+# Development mode (watch for file changes)
 pnpm dev
 
-# 构建
+# Build
 pnpm build
 
-# 类型检查
+# Type checking
 pnpm typecheck
 ```
 
-## 调试
+## Debugging
 
-1. 在 VSCode 中打开插件目录
-2. 按 `F5` 或选择 "Run Extension" 调试配置
-3. 这会打开一个新的 VSCode 窗口(扩展开发主机)
-4. 在新窗口中打开你的项目开始编码
-5. 插件会自动连接到 Airi Channel Server
-6. 上下文信息会自动发送到 Airi
+1. Open the extension directory in VSCode
+2. Press `F5` or select "Run Extension" debug configuration
+3. This will open a new VSCode window (Extension Development Host)
+4. Open your project in the new window and start coding
+5. The extension will automatically connect to Airi Channel Server
+6. Context information will be automatically sent to Airi
 
-## 使用
+## Usage
 
-### 命令面板(Cmd/Ctrl + Shift + P)
-- `Airi: Enable Companion` - 启用陪伴功能
-- `Airi: Disable Companion` - 禁用陪伴功能
-- `Airi: Show Status` - 显示连接状态
+### Command Palette (Cmd/Ctrl + Shift + P)
+- `Airi: Enable Companion` - Enable companion feature
+- `Airi: Disable Companion` - Disable companion feature
+- `Airi: Show Status` - Show connection status
 
-## 数据格式
+## Data Format
 
-发送到 Airi 的事件格式:
+Event format sent to Airi:
 
 ```typescript
 {

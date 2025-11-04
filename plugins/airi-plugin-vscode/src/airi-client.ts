@@ -3,13 +3,13 @@ import type { AiriEvent } from './types'
 import { Client } from '@proj-airi/server-sdk'
 
 /**
- * Airi Channel Server 客户端
+ * Airi Channel Server Client
  */
 export class AiriClient {
   private client: Client | null = null
 
   /**
-   * 连接到 Channel Server
+   * Connect to Channel Server
    */
   async connect(): Promise<boolean> {
     try {
@@ -25,7 +25,7 @@ export class AiriClient {
   }
 
   /**
-   * 断开连接
+   * Disconnect from Channel Server
    */
   disconnect(): void {
     if (this.client) {
@@ -36,7 +36,7 @@ export class AiriClient {
   }
 
   /**
-   * 发送事件到 Airi
+   * Send event to Airi
    */
   sendEvent(event: AiriEvent): void {
     if (!this.client) {
@@ -56,5 +56,12 @@ export class AiriClient {
     catch (error) {
       console.error('Failed to send event to Airi:', error)
     }
+  }
+
+  /**
+   * Is connected to Channel Server
+   */
+  isConnected(): boolean {
+    return !!this.client
   }
 }

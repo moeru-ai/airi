@@ -1,46 +1,46 @@
 /**
- * 编码环境上下文信息
+ * Coding context information
  */
 export interface CodingContext {
-  /** 文件信息 */
+  /** File information */
   file: {
     path: string
     languageId: string
     fileName: string
     workspaceFolder?: string
   }
-  /** 光标位置 */
+  /** Cursor position */
   cursor: {
     line: number
     character: number
   }
-  /** 选中的文本 */
+  /** Selected text */
   selection?: {
     text: string
     start: { line: number, character: number }
     end: { line: number, character: number }
   }
-  /** 当前行 */
+  /** Current line */
   currentLine: {
     lineNumber: number
     text: string
   }
-  /** 上下文(前后 N 行) */
+  /** Context (previous and next N lines) */
   context: {
     before: string[]
     after: string[]
   }
-  /** Git 信息 */
+  /** Git information */
   git?: {
     branch: string
     isDirty: boolean
   }
-  /** 时间戳 */
+  /** Timestamp */
   timestamp: number
 }
 
 /**
- * 发送到 Airi 的事件类型
+ * Event types sent to Airi
  */
 export interface AiriEvent {
   type: 'coding:context' | 'coding:save' | 'coding:switch-file'

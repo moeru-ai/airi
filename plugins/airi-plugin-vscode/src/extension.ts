@@ -9,24 +9,24 @@ let updateTimer: NodeJS.Timeout | null = null
 let isEnabled = true
 
 /**
- * 插件激活时调用
+ * Activate the plugin
  */
 export async function activate(context: vscode.ExtensionContext) {
   const { window, workspace, commands } = await import('vscode')
 
   console.info('Airi Companion is activating...')
 
-  // 获取配置
+  // Get the configuration
   const config = workspace.getConfiguration('airi.companion')
   isEnabled = config.get<boolean>('enabled', true)
   const contextLines = config.get<number>('contextLines', 5)
   const sendInterval = config.get<number>('sendInterval', 3000)
 
-  // 初始化
+  // Initialize
   airiClient = new AiriClient()
   contextCollector = new ContextCollector(contextLines)
 
-  // 连接到 Airi Channel Server
+  // Connect to Airi Channel Server
   if (isEnabled) {
     const connected = await airiClient.connect()
     if (connected) {
@@ -37,7 +37,7 @@ export async function activate(context: vscode.ExtensionContext) {
     }
   }
 
-  // 注册命令
+  // Register commands
   context.subscriptions.push(
     commands.registerCommand('airi.companion.enable', async () => {
       isEnabled = true
@@ -54,14 +54,14 @@ export async function activate(context: vscode.ExtensionContext) {
     }),
 
     commands.registerCommand('airi.companion.status', () => {
-      const status = isEnabled && airiClient.isConnected() ? 'Connected' : 'Disconnected'
+      const status = isEnabled && airiClient ? 'Connected' : 'Disconnected'
       window.showInformationMessage(`Airi Companion Status: ${status}`)
     }),
   )
 
-  // 监听编辑器事件
+  // Listen to editor events
   if (isEnabled) {
-    // 文件保存事件
+    // File save event
     context.subscriptions.push(
       workspace.onDidSaveTextDocument(async (document) => {
         const editor = window.activeTextEditor
@@ -77,7 +77,7 @@ export async function activate(context: vscode.ExtensionContext) {
       }),
     )
 
-    // 切换文件事件
+    // Switch file event
     context.subscriptions.push(
       window.onDidChangeActiveTextEditor(async (editor) => {
         if (editor) {
@@ -92,7 +92,7 @@ export async function activate(context: vscode.ExtensionContext) {
       }),
     )
 
-    // 定时发送上下文更新
+    // Send context update periodically
     if (sendInterval > 0) {
       startMonitoring(sendInterval)
     }
@@ -102,7 +102,7 @@ export async function activate(context: vscode.ExtensionContext) {
 }
 
 /**
- * 开始监控编码上下文
+ * Start monitoring the coding context
  */
 function startMonitoring(interval: number) {
   stopMonitoring()
@@ -127,7 +127,7 @@ function startMonitoring(interval: number) {
 }
 
 /**
- * 停止监控
+ * Stop monitoring
  */
 function stopMonitoring() {
   if (updateTimer) {
@@ -137,7 +137,7 @@ function stopMonitoring() {
 }
 
 /**
- * 插件停用时调用
+ * Deactivate the plugin
  */
 export function deactivate() {
   stopMonitoring()
