@@ -139,11 +139,11 @@ export function buildOpenAICompatibleProvider(
       }
 
       const validationChecks = validation || []
-
-      // Auto-detect first available model for validation
-      let model = 'test' // fallback to `test` if fails
       const hasApiKey = Boolean(apiKey)
-      if (hasApiKey) {
+      // Prepare model auto-detection promise for checks that need it
+      const modelPromise = (async () => {
+        let detected = 'test'
+        if (!hasApiKey) return detected
         try {
           const models = await listModels({
             apiKey,
@@ -152,72 +152,87 @@ export function buildOpenAICompatibleProvider(
           })
             .then(models => models.filter(model =>
               [
-                // exclude embedding models
                 'embed',
-                // exclude tts models, specifically for OpenAI
                 'tts',
-                // bypass gemini pro quota
-                // TODO: more elegant solution
                 'models/gemini-2.5-pro',
               ].every(str => !model.id.includes(str)),
             ))
-
-          if (models.length > 0)
-            model = models[0].id
+          if (models.length > 0) detected = models[0].id
         }
         catch (e) {
           logWarn(`Model auto-detection failed: ${(e as Error).message}`)
         }
-      }
+        return detected
+      })()
 
       // Health check = try generating text (was: fetch(`${baseUrl}chat/completions`))
+      const asyncChecks: Promise<Error | null>[] = []
       if (validationChecks.includes('health') && hasApiKey) {
-        try {
-          await generateText({
-            apiKey,
-            baseURL: baseUrl,
-            headers: additionalHeaders,
-            model,
-            messages: message.messages(message.user('ping')),
-            max_tokens: 1,
-          })
-        }
-        catch (e) {
-          errors.push(new Error(`Health check failed: ${(e as Error).message}`))
-        }
+        asyncChecks.push((async () => {
+          try {
+            const model = await modelPromise
+            await generateText({
+              apiKey,
+              baseURL: baseUrl,
+              headers: additionalHeaders,
+              model,
+              messages: message.messages(message.user('ping')),
+              max_tokens: 1,
+            })
+            return null
+          }
+          catch (e) {
+            return new Error(`Health check failed: ${(e as Error).message}`)
+          }
+        })())
       }
 
       // Model list validation (was: fetch(`${baseUrl}models`))
       if (validationChecks.includes('model_list') && hasApiKey) {
-        try {
-          const models = await listModels({
-            apiKey,
-            baseURL: baseUrl,
-            headers: additionalHeaders,
-          })
-          if (!models || models.length === 0) {
-            errors.push(new Error('Model list check failed: no models found'))
+        asyncChecks.push((async () => {
+          try {
+            const models = await listModels({
+              apiKey,
+              baseURL: baseUrl,
+              headers: additionalHeaders,
+            })
+            if (!models || models.length === 0) {
+              return new Error('Model list check failed: no models found')
+            }
+            return null
           }
-        }
-        catch (e) {
-          errors.push(new Error(`Model list check failed: ${(e as Error).message}`))
-        }
+          catch (e) {
+            return new Error(`Model list check failed: ${(e as Error).message}`)
+          }
+        })())
       }
 
       // Chat completions validation = generateText again (was: fetch(`${baseUrl}chat/completions`))
       if (validationChecks.includes('chat_completions') && hasApiKey) {
-        try {
-          await generateText({
-            apiKey,
-            baseURL: baseUrl,
-            headers: additionalHeaders,
-            model,
-            messages: message.messages(message.user('ping')),
-            max_tokens: 1,
-          })
-        }
-        catch (e) {
-          errors.push(new Error(`Chat completions check failed: ${(e as Error).message}`))
+        asyncChecks.push((async () => {
+          try {
+            const model = await modelPromise
+            await generateText({
+              apiKey,
+              baseURL: baseUrl,
+              headers: additionalHeaders,
+              model,
+              messages: message.messages(message.user('ping')),
+              max_tokens: 1,
+            })
+            return null
+          }
+          catch (e) {
+            return new Error(`Chat completions check failed: ${(e as Error).message}`)
+          }
+        })())
+      }
+
+      if (asyncChecks.length > 0) {
+        const results = await Promise.allSettled(asyncChecks)
+        for (const r of results) {
+          if (r.status === 'fulfilled' && r.value) errors.push(r.value)
+          else if (r.status === 'rejected') errors.push(new Error(String(r.reason)))
         }
       }
 
