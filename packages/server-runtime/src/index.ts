@@ -74,6 +74,8 @@ function main(): H3 {
       websocketLogger.withFields({ peer: peer.id, activePeers: peers.size }).log('connected')
     },
     message: (peer, message) => {
+      websocketLogger.withFields({ peer: peer.id }).debug('message received')
+
       let event: WebSocketEvent
       try {
         event = message.json() as WebSocketEvent
@@ -172,6 +174,8 @@ function main(): H3 {
           unregisterModulePeer(other)
         }
       }
+
+      websocketLogger.withFields({ peer: peer.id }).debug('event received', { event })
     },
     error: (peer, error) => {
       websocketLogger.withFields({ peer: peer.id }).withError(error).error('an error occurred')

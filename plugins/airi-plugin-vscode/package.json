@@ -1,0 +1,69 @@
+{
+  "publisher": "airi",
+  "name": "airi-vscode-companion",
+  "displayName": "Airi Companion",
+  "version": "0.1.0",
+  "description": "VSCode companion that shares your coding context with Airi",
+  "categories": [
+    "Other"
+  ],
+  "main": "./dist/extension.js",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "contributes": {
+    "commands": [
+      {
+        "command": "airi.companion.enable",
+        "title": "Airi: Enable Companion"
+      },
+      {
+        "command": "airi.companion.disable",
+        "title": "Airi: Disable Companion"
+      },
+      {
+        "command": "airi.companion.status",
+        "title": "Airi: Show Status"
+      }
+    ],
+    "configuration": {
+      "title": "Airi Companion",
+      "properties": {
+        "airi.companion.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable Airi companion"
+        },
+        "airi.companion.contextLines": {
+          "type": "number",
+          "default": 5,
+          "description": "Number of context lines to send (before and after current line)"
+        },
+        "airi.companion.sendInterval": {
+          "type": "number",
+          "default": 3000,
+          "description": "Interval in milliseconds to send updates (0 for real-time)"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "pnpm run build",
+    "build": "tsdown",
+    "dev": "tsdown --watch",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@guiiai/logg": "catalog:",
+    "@proj-airi/server-sdk": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/vscode": "^1.85.0",
+    "tsdown": "^0.5.0",
+    "typescript": "^5.3.0"
+  }
+}
