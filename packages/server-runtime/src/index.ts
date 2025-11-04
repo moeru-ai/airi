@@ -4,13 +4,20 @@ import type { AuthenticatedPeer, Peer } from './types'
 
 import { env } from 'node:process'
 
-import { Format, LogLevel, setGlobalFormat, setGlobalLogLevel, useLogg } from '@guiiai/logg'
+import { availableLogLevelStrings, Format, LogLevel, logLevelStringToLogLevelMap, setGlobalFormat, setGlobalLogLevel, useLogg } from '@guiiai/logg'
 import { defineWebSocketHandler, H3 } from 'h3'
 
 import { WebSocketReadyState } from './types'
 
 setGlobalFormat(Format.Pretty)
 setGlobalLogLevel(LogLevel.Log)
+
+if (env.LOG_LEVEL) {
+  const level = env.LOG_LEVEL as typeof availableLogLevelStrings[number]
+  if (availableLogLevelStrings.includes(level)) {
+    setGlobalLogLevel(logLevelStringToLogLevelMap[level])
+  }
+}
 
 // cache token once
 const AUTH_TOKEN = env.AUTHENTICATION_TOKEN || ''
@@ -26,7 +33,7 @@ function send(peer: Peer, event: WebSocketEvent<Record<string, unknown>> | strin
   peer.send(typeof event === 'string' ? event : JSON.stringify(event))
 }
 
-function main(): H3 {
+function setupApp(): H3 {
   const appLogger = useLogg('App').useGlobalConfig()
   const websocketLogger = useLogg('WebSocket').useGlobalConfig()
 
@@ -161,13 +168,19 @@ function main(): H3 {
       }
 
       const payload = JSON.stringify(event)
+      websocketLogger.withFields({ peer: peer.id, event: payload }).debug('broadcasting event to peers')
+
       for (const [id, other] of peers.entries()) {
-        if (id === peer.id)
+        if (id === peer.id) {
+          websocketLogger.withFields({ peer: peer.id, event: payload }).debug('not sending event to self')
           continue
+        }
         if (other.peer.readyState === WebSocketReadyState.OPEN) {
+          websocketLogger.withFields({ fromPeer: peer.id, toPeer: other.peer.id, event: payload }).debug('sending event to peer')
           other.peer.send(payload)
         }
         else {
+          websocketLogger.withFields({ peer: other.peer.id }).debug('removing closed peer')
           peers.delete(id)
           unregisterModulePeer(other)
         }
@@ -189,4 +202,4 @@ function main(): H3 {
   return app
 }
 
-export const app: H3 = main()
+export const app = setupApp() as H3

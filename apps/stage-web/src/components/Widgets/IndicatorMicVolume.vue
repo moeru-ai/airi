@@ -75,4 +75,3 @@ onUnmounted(() => teardown())
     </svg>
   </div>
 </template>
-
