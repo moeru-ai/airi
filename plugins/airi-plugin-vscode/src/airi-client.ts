@@ -14,7 +14,7 @@ export class AiriClient {
    */
   async connect(): Promise<boolean> {
     try {
-      this.client = new Client({ name: 'proj-airi:plugin-vscode-companion' })
+      this.client = new Client({ name: 'proj-airi:plugin-vscode' })
 
       useLogger().log('Airi companion connected to Channel Server')
       return true
