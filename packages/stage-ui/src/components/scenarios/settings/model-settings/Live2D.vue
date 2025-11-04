@@ -4,7 +4,7 @@ import { storeToRefs } from 'pinia'
 import { onUnmounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import { useLive2d } from '../../../../stores/live2d'
+import { defaultModelParameters, useLive2d } from '../../../../stores/live2d'
 import { useSettings } from '../../../../stores/settings'
 import { Section } from '../../../layouts'
 import { Button } from '../../../misc'
@@ -32,30 +32,7 @@ const {
 
 // Function to reset all parameters to default values
 function resetToDefaultParameters() {
-  modelParameters.value = {
-    angleX: 0,
-    angleY: 0,
-    angleZ: 0,
-    leftEyeOpen: 0,
-    rightEyeOpen: 0,
-    leftEyeSmile: 0,
-    rightEyeSmile: 0,
-    leftEyebrowLR: 0,
-    rightEyebrowLR: 0,
-    leftEyebrowY: 0,
-    rightEyebrowY: 0,
-    leftEyebrowAngle: 0,
-    rightEyebrowAngle: 0,
-    leftEyebrowForm: 0,
-    rightEyebrowForm: 0,
-    mouthOpen: 0,
-    mouthForm: 0,
-    cheek: 0,
-    bodyAngleX: 0,
-    bodyAngleY: 0,
-    bodyAngleZ: 0,
-    breath: 0,
-  }
+  modelParameters.value = { ...defaultModelParameters }
 }
 
 // Auto blink slider animation
@@ -189,25 +166,8 @@ watch(() => modelParameters.value.leftEyeOpen, (newValue, oldValue) => {
   if (!live2dAutoBlinkEnabled.value || isAnimating || isUpdatingFromAnimation || nextBlinkTimeout !== null) {
     return
   }
-
-  // If user manually changed the value while auto blink is enabled
-  if (oldValue !== undefined && Math.abs(newValue - oldValue) > 0.01) {
-    stopBlinkAnimation()
-    // Resume animation after user stops interacting
-    if (userInteractionTimeout !== null) {
-      clearTimeout(userInteractionTimeout)
-    }
-    userInteractionTimeout = setTimeout(() => {
-      if (live2dAutoBlinkEnabled.value && !isAnimating && nextBlinkTimeout === null) {
-        animateEyeBlink()
-      }
-      userInteractionTimeout = null
-    }, 1000)
-  }
-})
-
-watch(() => modelParameters.value.rightEyeOpen, (newValue, oldValue) => {
-  if (!live2dAutoBlinkEnabled.value || isAnimating || isUpdatingFromAnimation || nextBlinkTimeout !== null) {
+  if (oldValue == null && newValue > 0) {
+    animateEyeBlink()
     return
   }
 
@@ -225,7 +185,32 @@ watch(() => modelParameters.value.rightEyeOpen, (newValue, oldValue) => {
       userInteractionTimeout = null
     }, 1000)
   }
-})
+}, { immediate: true })
+
+watch(() => modelParameters.value.rightEyeOpen, (newValue, oldValue) => {
+  if (!live2dAutoBlinkEnabled.value || isAnimating || isUpdatingFromAnimation || nextBlinkTimeout !== null) {
+    return
+  }
+  if (oldValue == null && newValue > 0) {
+    animateEyeBlink()
+    return
+  }
+
+  // If user manually changed the value while auto blink is enabled
+  if (oldValue !== undefined && Math.abs(newValue - oldValue) > 0.01) {
+    stopBlinkAnimation()
+    // Resume animation after user stops interacting
+    if (userInteractionTimeout !== null) {
+      clearTimeout(userInteractionTimeout)
+    }
+    userInteractionTimeout = setTimeout(() => {
+      if (live2dAutoBlinkEnabled.value && !isAnimating && nextBlinkTimeout === null) {
+        animateEyeBlink()
+      }
+      userInteractionTimeout = null
+    }, 1000)
+  }
+}, { immediate: true })
 
 onUnmounted(() => {
   stopBlinkAnimation()
