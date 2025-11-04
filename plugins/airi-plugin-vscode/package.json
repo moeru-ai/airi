@@ -18,15 +18,15 @@
     "commands": [
       {
         "command": "airi.enable",
-        "title": "Airi: Enable"
+        "title": "AIRI: Enable"
       },
       {
         "command": "airi.disable",
-        "title": "Airi: Disable"
+        "title": "AIRI: Disable"
       },
       {
         "command": "airi.status",
-        "title": "Airi: Show Status"
+        "title": "AIRI: Show Status"
       }
     ],
     "configuration": {
