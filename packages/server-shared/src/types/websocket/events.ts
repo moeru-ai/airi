@@ -59,6 +59,7 @@ export interface WebSocketEvents<C = undefined> {
   'input:voice': {
     audio: ArrayBuffer
   } & Partial<WithInputSource<'browser' | 'discord'>>
+  'vscode:context': C
 }
 
 export type WebSocketEvent<C = undefined> = {
