@@ -98,6 +98,7 @@
     "@xsai/shared": "catalog:",
     "@xsai/shared-chat": "catalog:",
     "@xsai/stream-text": "catalog:",
+    "@xsai/stream-transcription": "0.4.0-beta.8",
     "@xsai/tool": "catalog:",
     "@xsai/utils-chat": "catalog:",
     "animejs": "^4.2.2",

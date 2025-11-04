@@ -31,6 +31,7 @@
     "@vueuse/shared": "^14.0.0",
     "@xsai-ext/shared-providers": "catalog:",
     "@xsai/generate-speech": "catalog:",
+    "@xsai/stream-transcription": "0.4.0-beta.8",
     "animejs": "^4.2.2",
     "dompurify": "^3.3.0",
     "nanoid": "^5.1.6",
