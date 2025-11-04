@@ -1,6 +1,6 @@
 {
   "publisher": "airi",
-  "name": "@proj-airi/vscode-extension",
+  "name": "@proj-airi/airi-plugin-vscode",
   "displayName": "Airi",
   "version": "0.1.0",
   "description": "VSCode extension that shares your coding context with Airi",
