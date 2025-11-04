@@ -13,7 +13,8 @@ function normalizeString(value: unknown): string {
 
 function normalizeBaseUrl(value: unknown): string {
   let base = normalizeString(value)
-  if (base && !base.endsWith('/')) base += '/'
+  if (base && !base.endsWith('/'))
+    base += '/'
   return base
 }
 
@@ -28,7 +29,8 @@ function shouldLog(): boolean {
 }
 
 function logWarn(...args: unknown[]) {
-  if (shouldLog()) console.warn(...args)
+  if (shouldLog())
+    console.warn(...args)
 }
 
 export function buildOpenAICompatibleProvider(
@@ -143,7 +145,8 @@ export function buildOpenAICompatibleProvider(
       // Prepare model auto-detection promise for checks that need it
       const modelPromise = (async () => {
         let detected = 'test'
-        if (!hasApiKey) return detected
+        if (!hasApiKey)
+          return detected
         try {
           const models = await listModels({
             apiKey,
@@ -157,7 +160,8 @@ export function buildOpenAICompatibleProvider(
                 'models/gemini-2.5-pro',
               ].every(str => !model.id.includes(str)),
             ))
-          if (models.length > 0) detected = models[0].id
+          if (models.length > 0)
+            detected = models[0].id
         }
         catch (e) {
           logWarn(`Model auto-detection failed: ${(e as Error).message}`)
@@ -231,8 +235,10 @@ export function buildOpenAICompatibleProvider(
       if (asyncChecks.length > 0) {
         const results = await Promise.allSettled(asyncChecks)
         for (const r of results) {
-          if (r.status === 'fulfilled' && r.value) errors.push(r.value)
-          else if (r.status === 'rejected') errors.push(new Error(String(r.reason)))
+          if (r.status === 'fulfilled' && r.value)
+            errors.push(r.value)
+          else if (r.status === 'rejected')
+            errors.push(new Error(String(r.reason)))
         }
       }
 
