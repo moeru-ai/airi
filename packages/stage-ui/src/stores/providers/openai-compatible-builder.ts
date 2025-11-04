@@ -133,7 +133,7 @@ export function buildOpenAICompatibleProvider(
       // Run validation checks in parallel for speed
       const asyncChecks: Promise<void>[] = []
 
-      if (validationChecks.includes('health') && hasApiKey) {
+      if ((validationChecks.includes('health') || validationChecks.includes('chat_completions')) && hasApiKey) {
         asyncChecks.push(
           generateText({
             apiKey,
@@ -143,8 +143,27 @@ export function buildOpenAICompatibleProvider(
             messages: message.messages(message.user('ping')),
             max_tokens: 1,
           }).catch(e => {
-            errors.push(new Error(`Health check failed: ${(e as Error).message}`))
+            const errorMessage = (e as Error).message;
+            if (validationChecks.includes('health')) {
+              errors.push(new Error(`Health check failed: ${errorMessage}`))
+            }
+            if (validationChecks.includes('chat_completions')) {
+              errors.push(new Error(`Chat completions check failed: ${errorMessage}`))
+            }
           }),
+        )
+      }
+
+      if (validationChecks.includes('model_list') && hasApiKey) {
+        asyncChecks.push(
+          getModelsCached(apiKey, baseUrl, additionalHeaders)
+            .then(models => {
+              if (!models || models.length === 0)
+                errors.push(new Error('Model list check failed: no models found'))
+            })
+            .catch(e => {
+              errors.push(new Error(`Model list check failed: ${(e as Error).message}`))
+            }),
         )
       }
 
