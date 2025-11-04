@@ -6,29 +6,6 @@ import { message } from '@xsai/utils-chat'
 
 type ProviderCreator = (apiKey: string, baseUrl: string) => any
 
-// Utility helpers
-const safeString = (v: unknown): string =>
-  typeof v === 'string' ? v.trim() : ''
-
-const joinErrorMessages = (errors: Error[]): string =>
-  errors.length ? errors.map(e => e.message).join(', ') : ''
-
-// In-memory cache for listModels()
-const modelCache = new Map<string, any[]>()
-
-async function getModelsCached(
-  apiKey: string,
-  baseUrl: string,
-  headers?: Record<string, string>,
-) {
-  const cacheKey = `${apiKey}:${baseUrl}:${headers ? JSON.stringify(headers) : ''}`
-  if (modelCache.has(cacheKey)) return modelCache.get(cacheKey)!
-  const models = await listModels({ apiKey, baseURL: baseUrl, headers })
-  modelCache.set(cacheKey, models)
-  return models
-}
-
-// Main provider builder
 export function buildOpenAICompatibleProvider(
   options: Partial<ProviderMetadata> & {
     id: string
@@ -65,38 +42,46 @@ export function buildOpenAICompatibleProvider(
     ...rest
   } = options
 
-  // Capabilities
   const finalCapabilities = capabilities || {
     listModels: async (config: Record<string, unknown>) => {
-      const apiKey = safeString(config.apiKey)
-      const baseUrl = safeString(config.baseUrl)
-      const provider = await creator(apiKey, baseUrl)
+      // Safer casting of apiKey/baseUrl (prevents .trim() crash if not a string)
+      const apiKey = typeof config.apiKey === 'string' ? config.apiKey.trim() : ''
+      const baseUrlRaw = typeof config.baseUrl === 'string' ? config.baseUrl.trim() : ''
+      const baseUrl = baseUrlRaw.endsWith('/') ? baseUrlRaw : `${baseUrlRaw}/`
 
+      const provider = await creator(apiKey, baseUrl)
+      // Check provider.model exists and is a function
       if (!provider || typeof provider.model !== 'function') {
         return []
       }
 
-      const models = await getModelsCached(apiKey, baseUrl, additionalHeaders)
+      // Previously: fetch(`${baseUrl}models`)
+      const models = await listModels({
+        apiKey,
+        baseURL: baseUrl,
+        headers: additionalHeaders,
+      })
 
-      return models.map((model: any) => ({
-        id: model.id,
-        name: model.name || model.display_name || model.id,
-        provider: id,
-        description: model.description || '',
-        contextLength: model.context_length || 0,
-        deprecated: false,
-      }) satisfies ModelInfo)
+      return models.map((model: any) => {
+        return {
+          id: model.id,
+          name: model.name || model.display_name || model.id,
+          provider: id,
+          description: model.description || '',
+          contextLength: model.context_length || 0,
+          deprecated: false,
+        } satisfies ModelInfo
+      })
     },
   }
 
-  // Validators
   const finalValidators = validators || {
     validateProviderConfig: async (config: Record<string, unknown>) => {
       const errors: Error[] = []
-      const apiKey = safeString(config.apiKey)
-      let baseUrl = safeString(config.baseUrl)
+      const apiKey = typeof config.apiKey === 'string' ? config.apiKey.trim() : ''
+      const baseUrlRaw = typeof config.baseUrl === 'string' ? config.baseUrl.trim() : ''
+      let baseUrl = baseUrlRaw
 
-      // --- Base URL checks ---
       if (!baseUrl) {
         errors.push(new Error('Base URL is required'))
       }
@@ -105,91 +90,144 @@ export function buildOpenAICompatibleProvider(
         if (new URL(baseUrl).host.length === 0) {
           errors.push(new Error('Base URL is not absolute. Check your input.'))
         }
-      } catch {
+      }
+      catch {
         errors.push(new Error('Base URL is invalid. It must be an absolute URL.'))
       }
 
-      // Normalize trailing slash
+      // normalize trailing slash instead of rejecting
       if (baseUrl && !baseUrl.endsWith('/')) {
         baseUrl += '/'
       }
 
-      if (errors.length > 0) {
+      // If baseUrl or apiKey is missing, skip deeper validation but still return valid = false if baseUrl invalid
+      if (errors.length > 0 || !apiKey) {
+        if (!apiKey) {
+          // Log only if debugging is enabled (conditional logging)
+          if (process.env.DEBUG_PROVIDER === 'true') {
+            console.debug(`[${id}] Skipping validation: missing API key`)
+          }
+        }
         return {
           errors,
-          reason: joinErrorMessages(errors),
-          valid: false,
+          reason: errors.map(e => e.message).join(', '),
+          valid: errors.length === 0 && !!apiKey,
         }
       }
 
       const validationChecks = validation || []
 
-      // --- Auto-detect first available model ---
-      let model = 'test' // fallback
-      try {
-        const models = (await getModelsCached(apiKey, baseUrl, additionalHeaders)).filter(m =>
-          ['embed', 'tts', 'models/gemini-2.5-pro'].every(str => !m.id.includes(str)),
-        )
-        if (models.length > 0) {
-          model = models[0].id
-        }
-      } catch (e) {
-        console.warn(`Model auto-detection failed: ${(e as Error).message}`)
-      }
-
-      // --- Validation checks ---
-      // Runs sequentially for consistent behavior (same as original code)
-      if (validationChecks.includes('health')) {
+      // Auto-detect first available model for validation
+      let model = 'test' // fallback to `test` if fails
+      if (apiKey && validationChecks.length > 0) {
         try {
-          await generateText({
+          const models = await listModels({
             apiKey,
             baseURL: baseUrl,
             headers: additionalHeaders,
-            model,
-            messages: message.messages(message.user('ping')),
-            max_tokens: 1,
-          })
-        } catch (e) {
-          errors.push(new Error(`Health check failed: ${(e as Error).message}`))
-        }
-      }
+          }).then(models =>
+            models.filter(model =>
+              [
+                // exclude embedding models
+                'embed',
+                // exclude tts models, specifically for OpenAI
+                'tts',
+                // bypass gemini pro quota
+                // TODO: more elegant solution
+                'models/gemini-2.5-pro',
+              ].every(str => !model.id.includes(str)),
+            ),
+          )
 
-      if (validationChecks.includes('model_list')) {
-        try {
-          const models = await getModelsCached(apiKey, baseUrl, additionalHeaders)
-          if (!models || models.length === 0) {
-            errors.push(new Error('Model list check failed: no models found'))
+          if (models.length > 0)
+            model = models[0].id
+        }
+        catch (e) {
+          // Conditional logging to reduce console I/O overhead
+          if (process.env.DEBUG_PROVIDER === 'true') {
+            console.warn(`Model auto-detection failed: ${(e as Error).message}`)
           }
-        } catch (e) {
-          errors.push(new Error(`Model list check failed: ${(e as Error).message}`))
         }
       }
 
+      // --- Run validation checks in parallel ---
+      const checks: Promise<void>[] = []
+
+      // Health check = try generating text (was: fetch(`${baseUrl}chat/completions`))
+      if (validationChecks.includes('health')) {
+        checks.push(
+          (async () => {
+            try {
+              await generateText({
+                apiKey,
+                baseURL: baseUrl,
+                headers: additionalHeaders,
+                model,
+                messages: message.messages(message.user('ping')),
+                max_tokens: 1,
+              })
+            }
+            catch (e) {
+              errors.push(new Error(`Health check failed: ${(e as Error).message}`))
+            }
+          })(),
+        )
+      }
+
+      // Model list validation (was: fetch(`${baseUrl}models`))
+      if (validationChecks.includes('model_list')) {
+        checks.push(
+          (async () => {
+            try {
+              const models = await listModels({
+                apiKey,
+                baseURL: baseUrl,
+                headers: additionalHeaders,
+              })
+              if (!models || models.length === 0) {
+                errors.push(new Error('Model list check failed: no models found'))
+              }
+            }
+            catch (e) {
+              errors.push(new Error(`Model list check failed: ${(e as Error).message}`))
+            }
+          })(),
+        )
+      }
+
+      // Chat completions validation = generateText again (was: fetch(`${baseUrl}chat/completions`))
       if (validationChecks.includes('chat_completions')) {
-        try {
-          await generateText({
-            apiKey,
-            baseURL: baseUrl,
-            headers: additionalHeaders,
-            model,
-            messages: message.messages(message.user('ping')),
-            max_tokens: 1,
-          })
-        } catch (e) {
-          errors.push(new Error(`Chat completions check failed: ${(e as Error).message}`))
-        }
+        checks.push(
+          (async () => {
+            try {
+              await generateText({
+                apiKey,
+                baseURL: baseUrl,
+                headers: additionalHeaders,
+                model,
+                messages: message.messages(message.user('ping')),
+                max_tokens: 1,
+              })
+            }
+            catch (e) {
+              errors.push(new Error(`Chat completions check failed: ${(e as Error).message}`))
+            }
+          })(),
+        )
       }
 
-      // --- Final result ---
+      // Wait for all validations to complete in parallel
+      await Promise.all(checks)
+
       return {
         errors,
-        reason: joinErrorMessages(errors),
+        // Consistent reason string (empty when no errors)
+        reason: errors.length > 0 ? errors.map(e => e.message).join(', ') : '',
         valid: errors.length === 0,
       }
     },
   }
 
-  // Return ProviderMetadata
   return {
     id,
     category: category || 'chat',
@@ -202,12 +240,10 @@ export function buildOpenAICompatibleProvider(
     defaultOptions: () => ({
       baseUrl: defaultBaseUrl || '',
     }),
-    createProvider: async (config: { apiKey: string; baseUrl: string }) => {
-      const apiKey = safeString(config.apiKey)
-      let baseUrl = safeString(config.baseUrl)
-      if (baseUrl && !baseUrl.endsWith('/')) {
-        baseUrl += '/'
-      }
+    createProvider: async (config: { apiKey: string, baseUrl: string }) => {
+      const apiKey = typeof config.apiKey === 'string' ? config.apiKey.trim() : ''
+      const baseUrlRaw = typeof config.baseUrl === 'string' ? config.baseUrl.trim() : ''
+      const baseUrl = baseUrlRaw.endsWith('/') ? baseUrlRaw : `${baseUrlRaw}/`
       return creator(apiKey, baseUrl)
     },
     capabilities: finalCapabilities,
