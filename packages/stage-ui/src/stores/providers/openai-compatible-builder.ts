@@ -20,7 +20,7 @@ async function getModelsCached(
   baseUrl: string,
   headers?: Record<string, string>,
 ) {
-  const cacheKey = `${apiKey}:${baseUrl}`
+  const cacheKey = `${apiKey}:${baseUrl}:${headers ? JSON.stringify(headers) : ''}`
   if (modelCache.has(cacheKey)) return modelCache.get(cacheKey)!
   const models = await listModels({ apiKey, baseURL: baseUrl, headers })
   modelCache.set(cacheKey, models)
