@@ -244,6 +244,87 @@ export default defineConfig({
         ] as (DefaultTheme.SidebarItem & { icon?: string })[],
       },
     },
+    'jp': {
+      label: '日本語',
+      lang: 'jp',
+      themeConfig: {
+        // https://vitepress.dev/reference/default-theme-config
+        nav: [
+          { text: 'ドキュメント', link: withBase('/jp/docs/overview/') },
+          { text: 'ブログ', link: withBase('/jp/blog/') },
+          {
+            text: `v${version}`,
+            items: [
+              { text: 'リリースノート ', link: releases },
+            ],
+          },
+        ],
+        outline: {
+          level: 'deep',
+        },
+        logo: withBase('/favicon.svg'),
+
+        sidebar: [
+          {
+            text: '概要',
+            icon: 'lucide:rocket',
+            items: [
+              { text: 'はじめに', link: withBase('/jp/docs/overview/') },
+              {
+                text: 'ガイド',
+                items: [
+                  {
+                    text: 'デスクトップ版ガイド',
+                    link: withBase('/jp/docs/overview/guide/tamagotchi/'),
+                    items: [],
+                  },
+                  {
+                    text: 'ウェブ版ガイド',
+                    link: withBase('/jp/docs/overview/guide/web/'),
+                    items: [],
+                  },
+                ],
+              },
+              {
+                text: '貢献する',
+                items: [
+                  { text: 'コード貢献', link: withBase('/jp/docs/overview/contributing/') },
+                  {
+                    text: 'デザイン貢献',
+                    items: [
+                      { text: 'リソース', link: withBase('/jp/docs/overview/contributing/design-guidelines/resources') },
+                      { text: 'ツール', link: withBase('/jp/docs/overview/contributing/design-guidelines/tools') },
+                    ],
+                  },
+                ],
+              },
+              { text: 'AI VTuberについて', link: withBase('/jp/docs/overview/about-ai-vtuber') },
+              { text: 'Neuro-samaについて', link: withBase('/jp/docs/overview/about-neuro-sama') },
+            ],
+          },
+          {
+            text: 'マニュアル',
+            icon: 'lucide:book-open',
+            items: [
+              { text: 'バージョン', link: withBase('/jp/docs/manual/versions') },
+            ],
+          },
+          {
+            text: '歴史',
+            icon: 'lucide:calendar-days',
+            items: [
+              { text: '初公開 v0.1.0', link: withBase('/jp/docs/chronicles/version-v0.1.0/') },
+              { text: '前世 v0.0.1', link: withBase('/jp/docs/chronicles/version-v0.0.1/') },
+            ],
+          },
+          {
+            text: 'キャラクター',
+            icon: 'lucide:scan-face',
+            link: withBase('/jp/characters/'),
+          },
+        ] as (DefaultTheme.SidebarItem & { icon?: string })[],
+      },
+    },
   },
   themeConfig: {
     socialLinks: [

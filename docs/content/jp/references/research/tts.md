@@ -1,0 +1,3 @@
+- [snakers4/silero-models](https://github.com/snakers4/silero-models#text-to-speech)
+- [voicevox-client/python](https://github.com/voicevox-client/python)
+- [VOICEVOX/voicevox_engine: 無料で使える中品質なテキスト読み上げソフトウェア、VOICEVOXの音声合成エンジン](https://github.com/VOICEVOX/voicevox_engine/tree/master)
