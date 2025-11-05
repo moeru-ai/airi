@@ -1,6 +1,6 @@
 # @proj-airi/ui
 
-A stylized UI component library built with [Reka UI](https://reka-ui.com/).
+A stylized UI component library built with [Reka UI](https://reka-ui.com/) and [UnoCSS](https://unocss.dev/).
 
 To preview the components, refer to the [`stage-ui`](../stage-ui) package for instructions for running the Histoire UI storyboard.
 
@@ -21,6 +21,24 @@ import { Button } from '@proj-airi/ui'
 <template>
   <Button>Click me</Button>
 </template>
+```
+
+In `uno.config.ts`, add the following:
+
+```ts
+import { defineConfig, presetAttributify } from 'unocss'
+
+export default defineConfig({
+  presets: [
+    presetAttributify(),
+  ],
+})
+```
+
+In `main.ts`, add the following:
+
+```ts
+import '@unocss/reset/tailwind.css'
 ```
 
 ## Components
