@@ -35,6 +35,10 @@
       "types": "./dist/locales/es/index.d.ts",
       "default": "./dist/locales/es/index.js"
     },
+    "./locales/jp": {
+      "types": "./dist/locales/jp/index.d.ts",
+      "default": "./dist/locales/jp/index.js"
+    },
     "./locales/ru": {
       "types": "./dist/locales/ru/index.d.ts",
       "default": "./dist/locales/ru/index.js"
