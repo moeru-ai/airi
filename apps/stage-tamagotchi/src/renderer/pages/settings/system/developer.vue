@@ -1,12 +1,11 @@
 <script setup lang="ts">
 import { ButtonBar, CheckBar, IconItem } from '@proj-airi/stage-ui/components'
 import { useSettings } from '@proj-airi/stage-ui/stores/settings'
-import { defineInvoke } from '@unbird/eventa'
-import { createContext } from '@unbird/eventa/adapters/electron/renderer'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { electronOpenMainDevtools } from '../../../../shared/eventa'
+import { useElectronEventaInvoke } from '../../../composables/electron-vueuse'
 
 const { t } = useI18n()
 const settings = useSettings()
@@ -44,8 +43,7 @@ const menu = computed(() => [
   },
 ])
 
-const { context } = createContext(window.electron.ipcRenderer)
-const openDevTools = defineInvoke(context, electronOpenMainDevtools)
+const openDevTools = useElectronEventaInvoke(electronOpenMainDevtools)
 </script>
 
 <template>

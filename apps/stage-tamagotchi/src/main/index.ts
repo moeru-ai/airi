@@ -1,6 +1,6 @@
 import type { BrowserWindow } from 'electron'
 
-import { env, platform } from 'node:process'
+import { platform } from 'node:process'
 
 import { electronApp, optimizer } from '@electron-toolkit/utils'
 import { Format, LogLevel, setGlobalFormat, setGlobalLogLevel, useLogg } from '@guiiai/logg'
@@ -15,6 +15,7 @@ import macOSTrayIcon from '../../resources/tray-icon-macos.png?asset'
 import { openDebugger, setupDebugger } from './app/debugger'
 import { emitAppBeforeQuit, emitAppReady, emitAppWindowAllClosed, onAppBeforeQuit } from './libs/bootkit/lifecycle'
 import { setElectronMainDirname } from './libs/electron/location'
+import { setupChannelServer } from './services/airi/channel-server'
 import { setupCaptionWindowManager } from './windows/caption'
 import { setupChatWindowReusableFunc } from './windows/chat'
 import { setupInlayWindow } from './windows/inlay'
@@ -89,53 +90,12 @@ function setupTray(params: {
   })()
 }
 
-async function setupProjectAIRIServerRuntime() {
-  // Start the server-runtime server with WebSocket support
-  try {
-    // Dynamically import the server-runtime and listhen
-    const serverRuntime = await import('@proj-airi/server-runtime')
-    const { serve } = await import('h3')
-    const { plugin: ws } = await import('crossws/server')
-
-    const serverInstance = serve(serverRuntime.app, {
-      // TODO: fix types
-      // @ts-expect-error - the .crossws property wasn't extended in types
-      plugins: [ws({ resolve: async req => (await serverRuntime.app.fetch(req)).crossws })],
-      port: env.PORT ? Number(env.PORT) : 6121,
-      hostname: env.SERVER_RUNTIME_HOSTNAME || 'localhost',
-      reusePort: true,
-    })
-
-    log.log('@proj-airi/server-runtime started on ws://localhost:6121')
-
-    onAppBeforeQuit(async () => {
-      if (serverInstance && typeof serverInstance.close === 'function') {
-        try {
-          await serverInstance.close()
-          log.log('WebSocket server closed')
-        }
-        catch (error) {
-          log.withError(error).error('Error closing WebSocket server')
-        }
-      }
-    })
-  }
-  catch (error) {
-    log.withError(error).error('failed to start WebSocket server')
-  }
-}
-
 app.whenReady().then(async () => {
-  await setupProjectAIRIServerRuntime()
-
   injecta.setLogger(createLoggLogger(useLogg('injecta').useGlobalConfig()))
 
-  const settingsWindow = injecta.provide('windows:settings', {
-    build: () => setupSettingsWindowReusableFunc(),
-  })
-  const chatWindow = injecta.provide('windows:chat', {
-    build: () => setupChatWindowReusableFunc(),
-  })
+  const channelServerModule = injecta.provide('modules:channel-server', async () => setupChannelServer())
+  const settingsWindow = injecta.provide('windows:settings', () => setupSettingsWindowReusableFunc())
+  const chatWindow = injecta.provide('windows:chat', { build: () => setupChatWindowReusableFunc() })
   const mainWindow = injecta.provide('windows:main', {
     dependsOn: { settingsWindow, chatWindow },
     build: async ({ dependsOn }) => setupMainWindow(dependsOn),
@@ -149,7 +109,7 @@ app.whenReady().then(async () => {
     build: async ({ dependsOn }) => setupTray(dependsOn),
   })
   injecta.invoke({
-    dependsOn: { mainWindow, tray },
+    dependsOn: { mainWindow, tray, channelServerModule },
     callback: noop,
   })
 
@@ -183,4 +143,5 @@ app.on('window-all-closed', () => {
 // Clean up server and intervals when app quits
 app.on('before-quit', async () => {
   emitAppBeforeQuit()
+  injecta.stop()
 })

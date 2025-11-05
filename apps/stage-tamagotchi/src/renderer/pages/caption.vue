@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { defineInvoke } from '@unbird/eventa'
-import { createContext } from '@unbird/eventa/adapters/electron/renderer'
 import { useBroadcastChannel } from '@vueuse/core'
 import { onMounted, ref, watch } from 'vue'
 
 import { captionGetIsFollowingWindow, captionIsFollowingWindowChanged } from '../../shared/eventa'
+import { useElectronEventaContext } from '../composables/electron-vueuse'
 
 const attached = ref(true)
 const speakerText = ref('')
@@ -16,8 +16,8 @@ type CaptionChannelEvent
     | { type: 'caption-assistant', text: string }
 const { data } = useBroadcastChannel<CaptionChannelEvent, CaptionChannelEvent>({ name: 'airi-caption-overlay' })
 
-const { context } = createContext(window.electron.ipcRenderer)
-const getAttached = defineInvoke(context, captionGetIsFollowingWindow)
+const context = useElectronEventaContext()
+const getAttached = defineInvoke(context.value, captionGetIsFollowingWindow)
 
 onMounted(async () => {
   try {
@@ -27,7 +27,7 @@ onMounted(async () => {
   catch {}
 
   try {
-    context.on(captionIsFollowingWindowChanged, (event) => {
+    context.value.on(captionIsFollowingWindowChanged, (event) => {
       attached.value = Boolean(event?.body)
     })
   }

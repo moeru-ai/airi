@@ -143,6 +143,11 @@ export async function setupMainWindow(params: {
       }
     }
 
+    // TODO: once we refactored eventa to support window-namespaced contexts,
+    // we can remove the setMaxListeners call below since eventa will be able to dispatch and
+    // manage events within eventa's context system.
+    ipcMain.setMaxListeners(0)
+
     const { context } = createContext(ipcMain, window)
     const cleanUpWindowDraggingInvokeHandler = defineInvokeHandler(context, electronStartDraggingWindow, handleStartDraggingWindow)
 
