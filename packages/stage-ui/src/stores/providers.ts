@@ -17,6 +17,8 @@ import type {
   VoiceProviderWithExtraOptions,
 } from 'unspeech'
 
+import type { AliyunRealtimeSpeechExtraOptions } from './providers/aliyun/stream-transcription'
+
 import { isStageTamagotchi, isUrl } from '@proj-airi/stage-shared'
 import { computedAsync, useLocalStorage } from '@vueuse/core'
 import {
@@ -58,10 +60,9 @@ import {
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import { createAliyunNLSProvider as createAliyunNlsStreamProvider } from './providers/aliyun/stream-transcription'
 import { models as elevenLabsModels } from './providers/elevenlabs/list-models'
 import { buildOpenAICompatibleProvider } from './providers/openai-compatible-builder'
-import type { AliyunRealtimeSpeechExtraOptions } from './providers/aliyun/stream-transcription'
-import { createAliyunNLSProvider as createAliyunNlsStreamProvider } from './providers/aliyun/stream-transcription'
 
 const ALIYUN_NLS_REGIONS = [
   'cn-shanghai',
