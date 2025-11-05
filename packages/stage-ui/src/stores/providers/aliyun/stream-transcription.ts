@@ -107,11 +107,6 @@ async function startRealtimeSession(options: InternalRealtimeOptions): Promise<v
   abortSignal && abortHandler.on()
 
   async function cleanup(error?: unknown) {
-    if (closed)
-      return
-
-    closed = true
-
     abortHandler && abortSignal && abortHandler.off()
     mayThrow(async () => await reader.cancel())
 

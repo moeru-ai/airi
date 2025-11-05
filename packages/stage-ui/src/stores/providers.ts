@@ -60,6 +60,19 @@ import { useI18n } from 'vue-i18n'
 
 import { models as elevenLabsModels } from './providers/elevenlabs/list-models'
 import { buildOpenAICompatibleProvider } from './providers/openai-compatible-builder'
+import type { AliyunRealtimeSpeechExtraOptions } from './providers/aliyun/stream-transcription'
+import { createAliyunNLSProvider as createAliyunNlsStreamProvider } from './providers/aliyun/stream-transcription'
+
+const ALIYUN_NLS_REGIONS = [
+  'cn-shanghai',
+  'cn-shanghai-internal',
+  'cn-beijing',
+  'cn-beijing-internal',
+  'cn-shenzhen',
+  'cn-shenzhen-internal',
+] as const
+
+type AliyunNlsRegion = typeof ALIYUN_NLS_REGIONS[number]
 
 export interface ProviderMetadata {
   id: string
@@ -140,6 +153,11 @@ export interface ProviderMetadata {
       reason: string
       valid: boolean
     }
+  }
+  transcriptionFeatures?: {
+    supportsGenerate: boolean
+    supportsStreamOutput: boolean
+    supportsStreamInput: boolean
   }
 }
 
@@ -841,6 +859,87 @@ export const useProvidersStore = defineStore('providers', () => {
       tasks: ['speech-to-text', 'automatic-speech-recognition', 'asr', 'stt'],
       creator: createOpenAI,
     }),
+    'aliyun-nls-transcription': {
+      id: 'aliyun-nls-transcription',
+      category: 'transcription',
+      tasks: ['speech-to-text', 'automatic-speech-recognition', 'asr', 'stt', 'streaming-transcription'],
+      nameKey: 'settings.pages.providers.provider.aliyun-nls.title',
+      name: 'Aliyun NLS',
+      descriptionKey: 'settings.pages.providers.provider.aliyun-nls.description',
+      description: 'nls-console.aliyun.com',
+      icon: 'i-lobe-icons:alibabacloud',
+      defaultOptions: () => ({
+        accessKeyId: '',
+        accessKeySecret: '',
+        appKey: '',
+        region: 'cn-shanghai',
+      }),
+      transcriptionFeatures: {
+        supportsGenerate: false,
+        supportsStreamOutput: true,
+        supportsStreamInput: true,
+      },
+      createProvider: async (config) => {
+        const toString = (value: unknown) => typeof value === 'string' ? value.trim() : ''
+
+        const accessKeyId = toString(config.accessKeyId)
+        const accessKeySecret = toString(config.accessKeySecret)
+        const appKey = toString(config.appKey)
+        const region = toString(config.region)
+        const resolvedRegion = ALIYUN_NLS_REGIONS.includes(region as AliyunNlsRegion) ? region as AliyunNlsRegion : 'cn-shanghai'
+
+        if (!accessKeyId || !accessKeySecret || !appKey)
+          throw new Error('Aliyun NLS credentials are incomplete.')
+
+        const provider = createAliyunNlsStreamProvider(accessKeyId, accessKeySecret, appKey, { region: resolvedRegion })
+
+        return {
+          transcription(model: string, extraOptions?: AliyunRealtimeSpeechExtraOptions) {
+            return provider.speech(model, extraOptions)
+          },
+        } as TranscriptionProviderWithExtraOptions<string, AliyunRealtimeSpeechExtraOptions>
+      },
+      capabilities: {
+        listModels: async () => {
+          return [
+            {
+              id: 'aliyun-nls-v1',
+              name: 'Aliyun NLS Realtime',
+              provider: 'aliyun-nls-transcription',
+              description: 'Realtime streaming transcription using Aliyun NLS.',
+              contextLength: 0,
+              deprecated: false,
+            },
+          ]
+        },
+      },
+      validators: {
+        validateProviderConfig: (config) => {
+          const errors: Error[] = []
+          const toString = (value: unknown) => typeof value === 'string' ? value.trim() : ''
+
+          const accessKeyId = toString(config.accessKeyId)
+          const accessKeySecret = toString(config.accessKeySecret)
+          const appKey = toString(config.appKey)
+          const region = toString(config.region)
+
+          if (!accessKeyId)
+            errors.push(new Error('Access Key ID is required.'))
+          if (!accessKeySecret)
+            errors.push(new Error('Access Key Secret is required.'))
+          if (!appKey)
+            errors.push(new Error('App Key is required.'))
+          if (region && !ALIYUN_NLS_REGIONS.includes(region as AliyunNlsRegion))
+            errors.push(new Error('Region is invalid.'))
+
+          return {
+            errors,
+            reason: errors.length > 0 ? errors.map(error => error.message).join(', ') : '',
+            valid: errors.length === 0,
+          }
+        },
+      },
+    },
     'anthropic': buildOpenAICompatibleProvider({
       id: 'anthropic',
       name: 'Anthropic',
@@ -1775,7 +1874,8 @@ export const useProvidersStore = defineStore('providers', () => {
       const metadata = providerMetadata[providerId]
       const defaultOptions = metadata.defaultOptions?.() || {}
       providerCredentials.value[providerId] = {
-        baseUrl: defaultOptions.baseUrl || '',
+        ...defaultOptions,
+        ...(Object.prototype.hasOwnProperty.call(defaultOptions, 'baseUrl') ? {} : { baseUrl: '' }),
       }
     }
   }
@@ -1908,6 +2008,17 @@ export const useProvidersStore = defineStore('providers', () => {
     }))
   })
 
+  function getTranscriptionFeatures(providerId: string) {
+    const metadata = providerMetadata[providerId]
+    const features = metadata?.transcriptionFeatures
+
+    return {
+      supportsGenerate: features?.supportsGenerate ?? true,
+      supportsStreamOutput: features?.supportsStreamOutput ?? false,
+      supportsStreamInput: features?.supportsStreamInput ?? false,
+    }
+  }
+
   // Function to get provider object by provider id
   async function getProviderInstance<R extends
   | ChatProvider
@@ -1987,6 +2098,7 @@ export const useProvidersStore = defineStore('providers', () => {
     configuredProviders,
     providerMetadata,
     getProviderMetadata,
+    getTranscriptionFeatures,
     allProvidersMetadata,
     initializeProvider,
     validateProvider,

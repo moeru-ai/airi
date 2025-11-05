@@ -49,6 +49,7 @@ export function buildOpenAICompatibleProvider(
     validators?: ProviderMetadata['validators']
     validation?: ('health' | 'model_list' | 'chat_completions')[]
     additionalHeaders?: Record<string, string>
+    transcriptionFeatures?: ProviderMetadata['transcriptionFeatures']
   },
 ): ProviderMetadata {
   const {
@@ -66,6 +67,7 @@ export function buildOpenAICompatibleProvider(
     validators,
     validation,
     additionalHeaders,
+    transcriptionFeatures,
     ...rest
   } = options
 
@@ -251,9 +253,11 @@ export function buildOpenAICompatibleProvider(
     },
   }
 
+  const resolvedCategory = category ?? 'chat'
+
   return {
     id,
-    category: category || 'chat',
+    category: resolvedCategory,
     tasks: tasks || ['text-generation'],
     nameKey,
     name,
@@ -270,6 +274,15 @@ export function buildOpenAICompatibleProvider(
     },
     capabilities: finalCapabilities,
     validators: finalValidators,
+    ...(resolvedCategory === 'transcription'
+      ? {
+          transcriptionFeatures: transcriptionFeatures ?? {
+            supportsGenerate: true,
+            supportsStreamOutput: false,
+            supportsStreamInput: false,
+          },
+        }
+      : {}),
     ...rest,
   } as ProviderMetadata
 }
