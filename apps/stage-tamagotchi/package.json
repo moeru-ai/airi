@@ -4,7 +4,7 @@
   "version": "0.7.2-beta.3",
   "private": true,
   "description": "An Electron application with Vue and TypeScript",
-  "author": "example.com",
+  "author": "Moeru AI",
   "homepage": "https://electron-vite.org",
   "main": "./out/main/index.js",
   "scripts": {
