@@ -27,6 +27,7 @@
     "@proj-airi/stage-ui": "workspace:*",
     "@proj-airi/ui": "workspace:*",
     "@stdlib/string-base-kebabcase": "^0.2.2",
+    "@unbird/eventa": "^0.2.3",
     "@vueuse/core": "^14.0.0",
     "@vueuse/shared": "^14.0.0",
     "@xsai-ext/shared-providers": "catalog:",

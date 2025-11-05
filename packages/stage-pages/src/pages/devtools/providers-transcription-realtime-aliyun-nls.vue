@@ -4,11 +4,11 @@ import type { ServerEvent, ServerEvents } from '@proj-airi/stage-ui/stores/provi
 import vadWorkletUrl from '@proj-airi/stage-ui/workers/vad/process.worklet?worker&url'
 
 import { Button } from '@proj-airi/stage-ui/components'
-import { createAliyunNLSSession } from '@proj-airi/stage-ui/stores/providers/aliyun'
+import { streamTranscription } from '@proj-airi/stage-ui/stores/providers/aliyun'
+import { createAliyunNLSProvider } from '@proj-airi/stage-ui/stores/providers/aliyun/stream-transcription'
 import { FieldInput, FieldSelect } from '@proj-airi/ui'
 import { computed, nextTick, onBeforeUnmount, reactive, ref, shallowRef, watch } from 'vue'
 
-type ConnectionState = 'idle' | 'connecting' | 'connected' | 'error' | 'closed'
 type AliyunRegion
   = | 'cn-shanghai'
     | 'cn-shanghai-internal'
@@ -17,6 +17,8 @@ type AliyunRegion
     | 'cn-shenzhen'
     | 'cn-shenzhen-internal'
 
+const SAMPLE_RATE = 16000
+
 const credentials = reactive({
   accessKeyId: '',
   accessKeySecret: '',
@@ -24,20 +26,19 @@ const credentials = reactive({
   region: 'cn-shanghai' as AliyunRegion,
 })
 
-const connectionState = ref<ConnectionState>('idle')
-const transcriptionReady = ref(false)
 const isRecording = ref(false)
+const isTranscribing = ref(false)
 const currentPartial = ref<string | undefined>('')
 const transcripts = ref<Array<{ index: number, text: string, final: boolean }>>([])
-
-const websocket = shallowRef<WebSocket>()
-const session = shallowRef<ReturnType<typeof createAliyunNLSSession>>()
-const sessionId = ref('')
 
 const audioContext = shallowRef<AudioContext>()
 const workletNode = shallowRef<AudioWorkletNode>()
 const mediaStreamSource = shallowRef<MediaStreamAudioSourceNode>()
 const mediaStream = shallowRef<MediaStream>()
+
+const audioStreamController = shallowRef<ReadableStreamDefaultController<ArrayBuffer>>()
+const transcriptionAbortController = shallowRef<AbortController>()
+const transcriptionTextPromise = shallowRef<Promise<string> | null>(null)
 
 const logs = ref<Array<{ id: number, level: 'info' | 'error', text: string }>>([])
 const logsContainer = ref<HTMLDivElement>()
@@ -51,51 +52,17 @@ const regionOptions: { label: string, value: AliyunRegion }[] = [
   { label: 'cn-shenzhen (internal)', value: 'cn-shenzhen-internal' },
 ]
 
-const statusLabel = computed(() => {
-  switch (connectionState.value) {
-    case 'connecting':
-      return 'Connecting'
-    case 'connected':
-      return 'Connected'
-    case 'error':
-      return 'Error'
-    case 'closed':
-      return 'Disconnected'
-    default:
-      return 'Idle'
-  }
-})
-
-const statusColor = computed(() => {
-  switch (connectionState.value) {
-    case 'connected':
-      return 'text-green-500'
-    case 'connecting':
-      return 'text-blue-500'
-    case 'error':
-      return 'text-red-500'
-    default:
-      return 'text-neutral-500 dark:text-neutral-400'
-  }
-})
-
-const canConnect = computed(() => {
-  return (
-    !!credentials.accessKeyId
-    && !!credentials.accessKeySecret
-    && !!credentials.appKey
-    && connectionState.value !== 'connecting'
-    && connectionState.value !== 'connected'
+const credentialsReady = computed(() => {
+  return Boolean(
+    credentials.accessKeyId.trim()
+    && credentials.accessKeySecret.trim()
+    && credentials.appKey.trim(),
   )
 })
 
-const canStartRecording = computed(() => {
-  return connectionState.value === 'connected' && transcriptionReady.value && !isRecording.value
-})
-
+const canStartRecording = computed(() => credentialsReady.value && !isRecording.value && !isTranscribing.value)
 const canStopRecording = computed(() => isRecording.value)
-
-const canDisconnect = computed(() => websocket.value && websocket.value.readyState !== WebSocket.CLOSED)
+const canAbortTranscription = computed(() => isTranscribing.value && Boolean(transcriptionAbortController.value))
 
 let audioChunkCount = 0
 let lastChunkLogAt = 0
@@ -125,21 +92,19 @@ function float32ToInt16(buffer: Float32Array) {
   return output
 }
 
-function ensureWebSocketOpen() {
-  return websocket.value && websocket.value.readyState === WebSocket.OPEN
-}
-
-function resetTranscriptionState() {
-  transcriptionReady.value = false
-  currentPartial.value = ''
-  transcripts.value = []
+function resetRecordingCounters() {
   audioChunkCount = 0
   lastChunkLogAt = 0
 }
 
+function resetTranscriptionOutput() {
+  currentPartial.value = ''
+  transcripts.value = []
+}
+
 async function initializeAudioGraph(stream: MediaStream) {
   const context = new AudioContext({
-    sampleRate: 16000,
+    sampleRate: SAMPLE_RATE,
     latencyHint: 'interactive',
   })
   await context.audioWorklet.addModule(vadWorkletUrl)
@@ -147,17 +112,18 @@ async function initializeAudioGraph(stream: MediaStream) {
   const node = new AudioWorkletNode(context, 'vad-audio-worklet-processor')
   node.port.onmessage = ({ data }: MessageEvent<{ buffer?: Float32Array }>) => {
     const buffer = data.buffer
-    if (!buffer || !ensureWebSocketOpen())
+    const controller = audioStreamController.value
+    if (!buffer || !controller)
       return
+
+    const pcm16 = float32ToInt16(buffer)
+    controller.enqueue(pcm16.buffer.slice(0))
 
     audioChunkCount += 1
     if (audioChunkCount === 1 || audioChunkCount - lastChunkLogAt >= 50) {
       appendLog(`Streaming audio chunk #${audioChunkCount}`)
       lastChunkLogAt = audioChunkCount
     }
-
-    const pcm16 = float32ToInt16(buffer)
-    websocket.value?.send(pcm16.buffer)
   }
 
   const source = context.createMediaStreamSource(stream)
@@ -174,19 +140,81 @@ async function initializeAudioGraph(stream: MediaStream) {
 }
 
 async function startRecording() {
-  if (!ensureWebSocketOpen()) {
-    appendLog('WebSocket is not ready. Connect before starting recording.', 'error')
+  if (!canStartRecording.value)
     return
-  }
 
-  if (isRecording.value)
-    return
+  resetTranscriptionOutput()
+  resetRecordingCounters()
+
+  const abortController = new AbortController()
+  transcriptionAbortController.value = abortController
+
+  const audioStream = new ReadableStream<ArrayBuffer>({
+    start(controller) {
+      audioStreamController.value = controller
+    },
+    cancel: () => {
+      audioStreamController.value = undefined
+    },
+  })
+
+  appendLog('Initializing realtime transcription session')
+
+  const transcriptionResult = streamTranscription({
+    ...createAliyunNLSProvider(
+      credentials.accessKeyId.trim(),
+      credentials.accessKeySecret.trim(),
+      credentials.appKey.trim(),
+      { region: credentials.region },
+    ).speech('aliyun-nls-v1', {
+      abortSignal: abortController.signal,
+      sessionOptions: {
+        format: 'pcm',
+        sample_rate: SAMPLE_RATE,
+      },
+      hooks: {
+        onServerEvent: (event) => {
+          handleServerEvent(event)
+        },
+      },
+      onSessionTerminated: (error) => {
+        if (error) {
+          appendLog(`Session terminated: ${error instanceof Error ? error.message : String(error)}`, 'error')
+          isTranscribing.value = false
+        }
+      },
+    }),
+    inputStream: audioStream,
+    inputAudioStream: audioStream,
+  } as unknown as Parameters<typeof streamTranscription>[0])
+  transcriptionTextPromise.value = transcriptionResult.text
+  isTranscribing.value = true
+
+  transcriptionResult.text
+    .then((finalText) => {
+      if (finalText.trim())
+        appendLog(`Transcription finished (${finalText.trim().length} characters)`)
+      else
+        appendLog('Transcription finished (no speech detected)')
+    })
+    .catch((error) => {
+      console.error(error)
+      if (error instanceof DOMException && error.name === 'AbortError')
+        appendLog('Transcription aborted by user')
+      else
+        appendLog(`Transcription failed: ${error instanceof Error ? error.message : String(error)}`, 'error')
+    })
+    .finally(() => {
+      isTranscribing.value = false
+      transcriptionAbortController.value = undefined
+      transcriptionTextPromise.value = null
+    })
 
   try {
     const stream = await navigator.mediaDevices.getUserMedia({
       audio: {
         channelCount: 1,
-        sampleRate: 16000,
+        sampleRate: SAMPLE_RATE,
         echoCancellation: true,
         noiseSuppression: true,
         autoGainControl: true,
@@ -203,19 +231,23 @@ async function startRecording() {
     appendLog('Recording started')
   }
   catch (error) {
+    console.error(error)
     appendLog(`Failed to start recording: ${error instanceof Error ? error.message : String(error)}`, 'error')
+    audioStreamController.value?.error(error instanceof Error ? error : new Error(String(error)))
+    audioStreamController.value = undefined
+    abortTranscription()
     await stopRecording()
   }
 }
 
 async function stopRecording() {
-  if (!isRecording.value)
+  if (!isRecording.value && !audioContext.value && !audioStreamController.value)
     return
 
   try {
     workletNode.value?.port.postMessage({ type: 'stop' })
   }
-  catch { /* ignore */ }
+  catch { /* noop */ }
 
   if (mediaStreamSource.value) {
     mediaStreamSource.value.disconnect()
@@ -243,19 +275,38 @@ async function stopRecording() {
     audioContext.value = undefined
   }
 
+  audioStreamController.value?.close()
+  audioStreamController.value = undefined
+
+  if (isRecording.value)
+    appendLog('Recording stopped')
+
   isRecording.value = false
-  appendLog('Recording stopped')
+  resetRecordingCounters()
+
+  if (isTranscribing.value) {
+    try {
+      await transcriptionTextPromise.value
+    }
+    catch { /* handled elsewhere */ }
+  }
+}
+
+function abortTranscription() {
+  if (!transcriptionAbortController.value)
+    return
+
+  transcriptionAbortController.value.abort(new DOMException('Aborted by user', 'AbortError'))
+  audioStreamController.value?.error(new DOMException('Aborted by user', 'AbortError'))
+  audioStreamController.value = undefined
+  void stopRecording()
 }
 
 function handleServerEvent(event: ServerEvent) {
   switch (event.header.name) {
     case 'TranscriptionStarted':
-    {
-      const payload = event.payload as ServerEvents['TranscriptionStarted']
-      transcriptionReady.value = true
-      appendLog(`Transcription started. Session: ${payload.session_id}`)
+      appendLog(`Transcription started. Session: ${(event.payload as ServerEvents['TranscriptionStarted']).session_id}`)
       break
-    }
     case 'TranscriptionResultChanged':
     {
       const payload = event.payload as ServerEvents['TranscriptionResultChanged']
@@ -298,91 +349,9 @@ function upsertTranscript(index: number, text: string, final: boolean) {
   transcripts.value.sort((a, b) => a.index - b.index)
 }
 
-async function connectWebSocket() {
-  if (!canConnect.value)
-    return
-
-  resetTranscriptionState()
-  connectionState.value = 'connecting'
-
-  try {
-    session.value = createAliyunNLSSession(
-      credentials.accessKeyId.trim(),
-      credentials.accessKeySecret.trim(),
-      credentials.appKey.trim(),
-      { region: credentials.region },
-    )
-    sessionId.value = session.value.sessionId
-
-    const url = await session.value.websocketUrl()
-    appendLog(`Connecting to ${url}`)
-
-    const ws = new WebSocket(url)
-    ws.binaryType = 'arraybuffer'
-
-    ws.onopen = () => {
-      connectionState.value = 'connected'
-      appendLog('WebSocket connected')
-      session.value?.start(ws, { enable_intermediate_result: true, enable_punctuation_prediction: true })
-    }
-
-    ws.onerror = (event) => {
-      connectionState.value = 'error'
-      appendLog(`WebSocket error: ${JSON.stringify(event)}`, 'error')
-    }
-
-    ws.onmessage = (messageEvent) => {
-      try {
-        const data = JSON.parse(messageEvent.data)
-        session.value?.onEvent(data, handleServerEvent)
-      }
-      catch {
-        appendLog(`Server message: ${messageEvent.data}`)
-      }
-    }
-
-    ws.onclose = () => {
-      connectionState.value = 'closed'
-      appendLog('WebSocket closed by server')
-      cleanupConnection()
-    }
-
-    websocket.value = ws
-  }
-  catch (error) {
-    connectionState.value = 'error'
-    appendLog(`Failed to connect: ${error instanceof Error ? error.message : String(error)}`, 'error')
-    cleanupConnection()
-  }
-}
-
-async function disconnectWebSocket() {
-  await stopRecording()
-
-  if (websocket.value && websocket.value.readyState === WebSocket.OPEN) {
-    try {
-      session.value?.stop(websocket.value)
-    }
-    catch (error) {
-      appendLog(`Failed to send stop event: ${error instanceof Error ? error.message : String(error)}`, 'error')
-    }
-    websocket.value.close()
-  }
-  else {
-    cleanupConnection()
-    connectionState.value = 'closed'
-  }
-}
-
-function cleanupConnection() {
-  stopRecording()
-  websocket.value = undefined
-  session.value = undefined
-  resetTranscriptionState()
-}
-
 onBeforeUnmount(async () => {
-  await disconnectWebSocket()
+  await stopRecording()
+  abortTranscription()
 })
 </script>
 
@@ -393,7 +362,7 @@ onBeforeUnmount(async () => {
         Aliyun NLS Realtime Transcription
       </h1>
       <p class="mt-1 text-sm text-neutral-500 dark:text-neutral-400">
-        Access Key ID and Secret with SpeechTranscriber permissions are required.
+        Provide your Access Key, Secret, and App Key to test Aliyun NLS streaming with microphone audio.
       </p>
     </div>
 
@@ -433,46 +402,44 @@ onBeforeUnmount(async () => {
 
       <div class="flex flex-wrap items-center gap-4">
         <div class="text-sm">
-          <span class="text-neutral-500 dark:text-neutral-400">Status:</span>
-          <span class="ml-2 font-medium" :class="statusColor">
-            {{ statusLabel }}
-          </span>
-          <span v-if="isRecording" class="ml-2 rounded bg-red-500/10 px-2 py-0.5 text-xs text-red-500">
+          <span
+            v-if="isRecording"
+            class="ml-2 rounded bg-red-500/10 px-2 py-0.5 text-xs text-red-500"
+          >
             Recording
+          </span>
+          <span
+            v-else-if="isTranscribing"
+            class="ml-2 rounded bg-blue-500/10 px-2 py-0.5 text-xs text-blue-500"
+          >
+            Transcribing
           </span>
         </div>
 
         <div class="flex flex-wrap gap-3">
           <Button
-            :disabled="!canConnect"
-            variant="primary"
-            @click="connectWebSocket"
-          >
-            Connect
-          </Button>
-
-          <Button
             :disabled="!canStartRecording"
             variant="primary"
             @click="startRecording"
           >
-            Listen
+            Start Recording
           </Button>
 
           <Button
             :disabled="!canStopRecording"
-            variant="danger"
+            variant="primary"
             @click="stopRecording"
           >
-            Stop
+            Stop Recording
           </Button>
 
           <Button
-            :disabled="!canDisconnect"
+            v-if="isTranscribing"
+            :disabled="!canAbortTranscription"
             variant="secondary"
-            @click="disconnectWebSocket"
+            @click="abortTranscription"
           >
-            Disconnect
+            Abort Transcription
           </Button>
         </div>
       </div>

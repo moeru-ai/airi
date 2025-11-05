@@ -187,12 +187,12 @@ export function createAliyunNLSSession(
     } satisfies EventStartTranscription))
   }
 
-  function stop(websocketConn: WebSocket, options?: {
+  function stop(websocketConn?: WebSocket, options?: {
     sessionId?: string
   }) {
     const mergedOptions = merge({ sessionId: providerSessionId }, options)
 
-    websocketConn.send(JSON.stringify({
+    websocketConn?.send(JSON.stringify({
       header: {
         appkey: provider.appKey,
         message_id: nanoid(),
@@ -253,3 +253,5 @@ export function createAliyunNLSProvider(
     appKey,
   }
 }
+export type * from './base'
+export { streamTranscription } from './base'

@@ -82,6 +82,7 @@
     "@tresjs/cientos": "^5.1.0",
     "@tresjs/core": "^5.1.0",
     "@tresjs/post-processing": "^3.1.0",
+    "@unbird/eventa": "^0.2.3",
     "@vueuse/core": "^14.0.0",
     "@vueuse/motion": "^3.0.3",
     "@vueuse/shared": "^14.0.0",
