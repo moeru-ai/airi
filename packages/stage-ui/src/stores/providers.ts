@@ -1152,7 +1152,7 @@ export const useProvidersStore = defineStore('providers', () => {
       description: 'index-tts.github.io',
       iconColor: 'i-lobe-icons:bilibiliindex',
       defaultOptions: () => ({
-        baseUrl: 'http://localhost:11996/tts',
+        baseUrl: 'http://localhost:11996/tts/',
       }),
       createProvider: async (config) => {
         const provider: SpeechProvider = {
@@ -1169,7 +1169,7 @@ export const useProvidersStore = defineStore('providers', () => {
       capabilities: {
         listVoices: async (config) => {
           const voicesUrl = config.baseUrl as string
-          const response = await fetch(`${voicesUrl}/audio/voices`)
+          const response = await fetch(`${voicesUrl}audio/voices`)
           if (!response.ok) {
             throw new Error(`Failed to fetch voices: ${response.statusText}`)
           }
@@ -1188,7 +1188,7 @@ export const useProvidersStore = defineStore('providers', () => {
       validators: {
         validateProviderConfig: (config) => {
           const errors = [
-            !config.baseUrl && new Error('Base URL is required. Default to http://localhost:11996/tts for Index-TTS.'),
+            !config.baseUrl && new Error('Base URL is required. Default to http://localhost:11996/tts/ for Index-TTS.'),
           ].filter(Boolean)
 
           const res = baseUrlValidator.value(config.baseUrl)
