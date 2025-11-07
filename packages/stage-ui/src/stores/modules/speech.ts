@@ -24,6 +24,7 @@ export const useSpeechStore = defineStore('speech', () => {
   const pitch = useLocalStorage('settings/speech/pitch', 0)
   const rate = useLocalStorage('settings/speech/rate', 1)
   const ssmlEnabled = useLocalStorage('settings/speech/ssml-enabled', false)
+  const sendFullResponseToSpeechProvider = useLocalStorage('settings/speech/send-full-response', false)
   const isLoadingSpeechProviderVoices = ref(false)
   const speechProviderError = ref<string | null>(null)
   const availableVoices = ref<Record<string, VoiceInfo[]>>({})
@@ -245,6 +246,7 @@ export const useSpeechStore = defineStore('speech', () => {
     pitch,
     rate,
     ssmlEnabled,
+    sendFullResponseToSpeechProvider,
     selectedLanguage,
     isLoadingSpeechProviderVoices,
     speechProviderError,

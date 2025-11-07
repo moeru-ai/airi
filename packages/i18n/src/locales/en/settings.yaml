@@ -335,6 +335,9 @@ pages:
             use-ssml:
               description: Enable to input raw SSML instead of plain text
               label: Use Custom SSML
+            playback-mode:
+              label: Send entire response at once
+              description: Buffer the full LLM reply and send it to your speech provider in a single request instead of sentence-by-sentence streaming.
       title: Speech
     title: Modules
     vision:

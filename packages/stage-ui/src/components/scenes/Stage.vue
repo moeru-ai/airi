@@ -29,6 +29,7 @@ import { useSpeechStore } from '../../stores/modules/speech'
 import { useProvidersStore } from '../../stores/providers'
 import { useSettings } from '../../stores/settings'
 import { createQueue } from '../../utils/queue'
+import { TTS_FLUSH_INSTRUCTION } from '../../utils/tts'
 import { logTts, summarizeTtsChunk } from '../../utils/tts-logger'
 
 withDefaults(defineProps<{
@@ -122,8 +123,9 @@ const nowSpeaking = ref(false)
 const lipSyncStarted = ref(false)
 
 const speechStore = useSpeechStore()
-const { ssmlEnabled, activeSpeechProvider, activeSpeechModel, activeSpeechVoice, pitch } = storeToRefs(speechStore)
+const { ssmlEnabled, activeSpeechProvider, activeSpeechModel, activeSpeechVoice, pitch, sendFullResponseToSpeechProvider } = storeToRefs(speechStore)
 let ttsRequestCounter = 0
+const pendingFullResponseLiteral = ref('')
 
 watch(
   [activeSpeechProvider, activeSpeechModel, activeSpeechVoice, ssmlEnabled, pitch],
@@ -251,6 +253,8 @@ async function handleSpeechGeneration(ctx: { data: string }) {
 }
 
 onTextSegmented((chunk) => {
+  if (sendFullResponseToSpeechProvider.value)
+    return
   ttsQueue.enqueue(chunk)
 })
 
@@ -316,6 +320,7 @@ onBeforeMessageComposed(async () => {
   assistantCaption.value = ''
   postCaption({ type: 'caption-assistant', text: '' })
   postPresent({ type: 'assistant-reset' })
+  pendingFullResponseLiteral.value = ''
 })
 
 onBeforeSend(async () => {
@@ -323,6 +328,13 @@ onBeforeSend(async () => {
 })
 
 onTokenLiteral(async (literal) => {
+  if (sendFullResponseToSpeechProvider.value) {
+    const sanitizedLiteral = literal.replaceAll(TTS_FLUSH_INSTRUCTION, '')
+    if (!sanitizedLiteral)
+      return
+    pendingFullResponseLiteral.value += sanitizedLiteral
+    return
+  }
   // Only push to segmentation; visual presentation happens on playback start
   textSegmentationQueue.value.enqueue(literal)
 })
@@ -337,6 +349,12 @@ onStreamEnd(async () => {
 })
 
 onAssistantResponseEnd(async (_message) => {
+  if (sendFullResponseToSpeechProvider.value) {
+    const normalized = pendingFullResponseLiteral.value.trim()
+    if (normalized.length > 0)
+      ttsQueue.enqueue(pendingFullResponseLiteral.value)
+    pendingFullResponseLiteral.value = ''
+  }
   // const res = await embed({
   //   ...transformersProvider.embed('Xenova/nomic-embed-text-v1'),
   //   input: message,

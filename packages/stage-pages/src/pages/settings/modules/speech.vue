@@ -41,6 +41,7 @@ const {
   modelSearchQuery,
   speechProviderError,
   ssmlEnabled,
+  sendFullResponseToSpeechProvider,
   availableVoices,
 } = storeToRefs(speechStore)
 
@@ -454,6 +455,11 @@ function updateCustomModelName(value: string) {
               v-model="ssmlEnabled"
               label="Enable SSML"
               description="Enable Speech Synthesis Markup Language for more control over speech output"
+            />
+            <FieldCheckbox
+              v-model="sendFullResponseToSpeechProvider"
+              :label="t('settings.pages.modules.speech.sections.section.voice-settings.playback-mode.label')"
+              :description="t('settings.pages.modules.speech.sections.section.voice-settings.playback-mode.description')"
             />
           </div>
 
