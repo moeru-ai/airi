@@ -135,7 +135,7 @@ memoryRouter.post('/export-chat-pglite', async ({ set, query, headers }) => {
     ensureDir(exportDir)
 
     if (!pglite) {
-      const dbUrl = process.env.PG_URL || 'postgres://postgres:airi_memory_password@localhost:5434/postgres'
+      const dbUrl = process.env.DATABASE_URL || 'postgres://postgres:airi_memory_password@localhost:5434/postgres'
       const envVars = parsePwdEnv(dbUrl)
       const finalOut = path.join(exportDir, `chathistory_pg_backup_${Date.now()}.sql`)
 
