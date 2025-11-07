@@ -12,8 +12,8 @@ const value = defineModel<string>('propertyValue', { required: true })
 </script>
 
 <template>
-  <div flex="~ gap-2">
-    <Input v-model="key" :placeholder="props.keyPlaceholder" class="w-1/2" />
-    <Input v-model="value" :placeholder="props.valuePlaceholder" class="w-1/2" />
+  <div :class="['flex', 'gap-2']">
+    <Input v-model="key" :placeholder="props.keyPlaceholder" :class="['w-1/2']" />
+    <Input v-model="value" :placeholder="props.valuePlaceholder" :class="['w-1/2']" />
   </div>
 </template>

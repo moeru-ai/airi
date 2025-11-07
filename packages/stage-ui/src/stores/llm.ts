@@ -1,7 +1,6 @@
 import type { ChatProvider } from '@xsai-ext/shared-providers'
 import type { CommonContentPart, CompletionToolCall, Message, SystemMessage } from '@xsai/shared-chat'
 
-import { readableStreamToAsyncIterator } from '@moeru/std'
 import { listModels } from '@xsai/model'
 import { XSAIError } from '@xsai/shared'
 import { streamText } from '@xsai/stream-text'
@@ -24,6 +23,19 @@ export interface StreamOptions {
   toolsCompatibility?: Map<string, boolean>
   supportsTools?: boolean
   use_memory_service?: boolean
+}
+
+// TODO: proper format for other error messages.
+function sanitizeMessages(messages: unknown[]): Message[] {
+  return messages.map((m: any) => {
+    if (m && m.role === 'error') {
+      return {
+        role: 'user',
+        content: `User encountered error: ${String(m.content ?? '')}`,
+      } as Message
+    }
+    return m as Message
+  })
 }
 
 function streamOptionsToolsCompatibilityOk(model: string, chatProvider: ChatProvider, _: Message[], options?: StreamOptions, toolsCompatibility: Map<string, boolean> = new Map()): boolean {
@@ -106,33 +118,46 @@ async function streamFrom(model: string, chatProvider: ChatProvider, messages: M
 
   const headers = options?.headers
 
-  return await streamText({
-    ...chatProvider.chat(model),
-    maxSteps: 10,
-    // TODO: proper format for other error messages.
-    messages: formattedMessages,
-    headers,
-    // TODO: we need Automatic tools discovery
-    tools: streamOptionsToolsCompatibilityOk(model, chatProvider, messages, options)
-      ? [
-          ...await mcp(),
-          ...await debug(),
-        ]
-      : undefined,
-    onEvent(event) {
-      options?.onStreamEvent?.(event as StreamEvent)
-    },
+  const sanitized = sanitizeMessages(messages as unknown[])
+
+  return new Promise<void>(async (resolve, reject) => {
+    try {
+      await streamText({
+        ...chatProvider.chat(model),
+        maxSteps: 10,
+        messages: sanitized,
+        headers,
+        // TODO: we need Automatic tools discovery
+        tools: streamOptionsToolsCompatibilityOk(model, chatProvider, messages, options)
+          ? [
+              ...await mcp(),
+              ...await debug(),
+            ]
+          : undefined,
+        async onEvent(event) {
+          try {
+            await options?.onStreamEvent?.(event as StreamEvent)
+            if (event.type === 'finish')
+              resolve()
+            else if (event.type === 'error')
+              reject(event.error ?? new Error('Stream error'))
+          }
+          catch (err) {
+            reject(err)
+          }
+        },
+      })
+    }
+    catch (err) {
+      reject(err)
+    }
   })
 }
 
 export async function attemptForToolsCompatibilityDiscovery(model: string, chatProvider: ChatProvider, _: Message[], options?: Omit<StreamOptions, 'supportsTools'>): Promise<boolean> {
   async function attempt(enable: boolean) {
     try {
-      const res = await streamFrom(model, chatProvider, [{ role: 'user', content: 'Hello, world!' }], { ...options, supportsTools: enable })
-      for await (const _ of readableStreamToAsyncIterator(res.textStream)) {
-        // Drop
-      }
-
+      await streamFrom(model, chatProvider, [{ role: 'user', content: 'Hello, world!' }], { ...options, supportsTools: enable })
       return true
     }
     catch (err) {

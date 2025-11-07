@@ -1,4 +1,5 @@
 import type { Plugin } from 'vue'
+import type { RouteRecordRaw } from 'vue-router'
 
 import Tres from '@tresjs/core'
 
@@ -35,7 +36,8 @@ const pinia = createPinia()
 
 const router = createRouter({
   history: createWebHashHistory(),
-  routes: setupLayouts(routes),
+  // TODO: vite-plugin-vue-layouts is long deprecated, replace with another layout solution
+  routes: setupLayouts(routes as RouteRecordRaw[]),
 })
 
 createApp(App)

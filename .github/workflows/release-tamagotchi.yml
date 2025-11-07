@@ -41,7 +41,7 @@ jobs:
       matrix:
         include:
 
-          - os: macos-13
+          - os: macos-15-intel
             artifact: darwin-x64
             target: x86_64-apple-darwin
             arch: x64
@@ -85,7 +85,7 @@ jobs:
 
       # https://docs.github.com/en/actions/how-tos/deploy/deploy-to-third-party-platforms/sign-xcode-applications
       # - name: Install the Apple certificate (macOS Only)
-      #   if: matrix.os == 'macos-13' || matrix.os == 'macos-latest'
+      #   if: matrix.os == 'macos-15-intel' || matrix.os == 'macos-latest'
       #   env:
       #     BUILD_CERTIFICATE_BASE64: ${{ secrets.BUILD_CERTIFICATE_BASE64 }}
       #     P12_PASSWORD: ${{ secrets.P12_PASSWORD }}
@@ -128,7 +128,7 @@ jobs:
         run: pnpm run -F @proj-airi/stage-tamagotchi build && pnpm -F @proj-airi/stage-tamagotchi exec electron-builder build ${{ matrix.builder-args }}
 
       - name: Build (macOS Only) # macOS
-        if: matrix.os == 'macos-13' || matrix.os == 'macos-latest'
+        if: matrix.os == 'macos-15-intel' || matrix.os == 'macos-latest'
         run: pnpm run -F @proj-airi/stage-tamagotchi build && pnpm -F @proj-airi/stage-tamagotchi exec electron-builder build ${{ matrix.builder-args }}
 
       - name: Build (Linux Only) # Linux
@@ -172,7 +172,7 @@ jobs:
           echo "VERSION=$(pnpm exec tsx scripts/artifacts-metadata.ts ${{ matrix.target }} --get-version)" >> $GITHUB_ENV
 
       - name: Get Artifacts Envs (Nightly + macOS Only)
-        if: ${{ github.event_name == 'schedule' && (matrix.os == 'macos-latest' || matrix.os == 'macos-13') }}
+        if: ${{ github.event_name == 'schedule' && (matrix.os == 'macos-latest' || matrix.os == 'macos-15-intel') }}
         working-directory: ./apps/stage-tamagotchi
         run: |
           echo "BUNDLE_NAME=$(pnpm exec tsx scripts/artifacts-metadata.ts ${{ matrix.target }} --get-bundle-name)" >> $GITHUB_ENV
@@ -236,7 +236,7 @@ jobs:
           echo "VERSION=$(pnpm exec tsx scripts/artifacts-metadata.ts ${{ matrix.target }} --get-version --release ${{ !inputs.build_only && !inputs.artifacts_only }} --tag ${{ inputs.tag }} --auto-tag ${{ !inputs.build_only }})" > $GITHUB_ENV
 
       - name: Get Artifacts Envs (Manual + macOS Only)
-        if: ${{ github.event_name == 'workflow_dispatch' && (matrix.os == 'macos-latest' || matrix.os == 'macos-13') }}
+        if: ${{ github.event_name == 'workflow_dispatch' && (matrix.os == 'macos-latest' || matrix.os == 'macos-15-intel') }}
         working-directory: ./apps/stage-tamagotchi
         run: |
           echo "BUNDLE_NAME=$(pnpm exec tsx scripts/artifacts-metadata.ts ${{ matrix.target }} --get-bundle-name --release ${{ !inputs.build_only && !inputs.artifacts_only }} --tag ${{ inputs.tag }} --auto-tag ${{ !inputs.build_only }})" > $GITHUB_ENV
@@ -307,6 +307,6 @@ jobs:
           append_body: true
 
       # - name: Clean up keychain and provisioning profile (macOS Only)
-      #   if: ${{ always() && (matrix.os == 'macos-13' || matrix.os == 'macos-latest') }}
+      #   if: ${{ always() && (matrix.os == 'macos-15-intel' || matrix.os == 'macos-latest') }}
       #   run: |
       #     security delete-keychain $RUNNER_TEMP/app-signing.keychain-db

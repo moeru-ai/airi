@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { TranscriptionProvider } from '@xsai-ext/shared-providers'
+import type { TranscriptionProviderWithExtraOptions } from '@xsai-ext/shared-providers'
 
 import {
   TranscriptionPlayground,
@@ -23,7 +23,7 @@ const apiKeyConfigured = computed(() => !!providers.value[providerId]?.apiKey)
 
 // Generate speech with ElevenLabs-specific parameters
 async function handleGenerateTranscription(file: File) {
-  const provider = await providersStore.getProviderInstance<TranscriptionProvider<string>>(providerId)
+  const provider = await providersStore.getProviderInstance<TranscriptionProviderWithExtraOptions<string, any>>(providerId)
   if (!provider) {
     throw new Error('Failed to initialize speech provider')
   }
@@ -36,6 +36,7 @@ async function handleGenerateTranscription(file: File) {
 
   // ElevenLabs doesn't need SSML conversion, but if SSML is provided, use it directly
   return await hearingStore.transcription(
+    providerId,
     provider,
     model,
     file,

@@ -1,5 +1,3 @@
-import type http from 'node:http'
-
 import type { BrowserWindow } from 'electron'
 
 import { platform } from 'node:process'
@@ -17,7 +15,9 @@ import macOSTrayIcon from '../../resources/tray-icon-macos.png?asset'
 import { openDebugger, setupDebugger } from './app/debugger'
 import { emitAppBeforeQuit, emitAppReady, emitAppWindowAllClosed, onAppBeforeQuit } from './libs/bootkit/lifecycle'
 import { setElectronMainDirname } from './libs/electron/location'
+import { setupChannelServer } from './services/airi/channel-server'
 import { setupCaptionWindowManager } from './windows/caption'
+import { setupChatWindowReusableFunc } from './windows/chat'
 import { setupInlayWindow } from './windows/inlay'
 import { setupMainWindow } from './windows/main'
 import { setupSettingsWindowReusableFunc } from './windows/settings'
@@ -83,71 +83,37 @@ function setupTray(params: {
     appTray.setContextMenu(contextMenu)
     appTray.setToolTip('Project AIRI')
     appTray.addListener('click', () => toggleWindowShow(params.mainWindow))
+
     // On macOS, there's a special double-click event
-    isMacOS && appTray.addListener('double-click', () => toggleWindowShow(params.mainWindow))
+    if (isMacOS)
+      appTray.addListener('double-click', () => toggleWindowShow(params.mainWindow))
   })()
 }
 
-async function setupProjectAIRIServerRuntime() {
-  // Start the server-runtime server with WebSocket support
-  try {
-    // Dynamically import the server-runtime and listhen
-    const [serverRuntimeModule, { listen }] = await Promise.all([
-      import('@proj-airi/server-runtime'),
-      import('listhen'),
-    ])
-
-    const serverInstance = await listen(serverRuntimeModule.app as unknown as http.RequestListener, {
-      port: 6121,
-      hostname: 'localhost',
-      ws: true,
-    })
-
-    log.log('@proj-airi/server-runtime started on ws://localhost:6121')
-
-    onAppBeforeQuit(async () => {
-      if (serverInstance && typeof serverInstance.close === 'function') {
-        try {
-          await serverInstance.close()
-          log.log('WebSocket server closed')
-        }
-        catch (error) {
-          log.withError(error).error('Error closing WebSocket server')
-        }
-      }
-    })
-  }
-  catch (error) {
-    log.withError(error).error('failed to start WebSocket server')
-  }
-}
-
 app.whenReady().then(async () => {
-  await setupProjectAIRIServerRuntime()
-
   injecta.setLogger(createLoggLogger(useLogg('injecta').useGlobalConfig()))
 
-  const settingsWindow = injecta.provide('windows:settings', {
-    build: () => setupSettingsWindowReusableFunc(),
-  })
+  const channelServerModule = injecta.provide('modules:channel-server', async () => setupChannelServer())
+  const settingsWindow = injecta.provide('windows:settings', () => setupSettingsWindowReusableFunc())
+  const chatWindow = injecta.provide('windows:chat', { build: () => setupChatWindowReusableFunc() })
   const mainWindow = injecta.provide('windows:main', {
-    dependsOn: { settingsWindow },
+    dependsOn: { settingsWindow, chatWindow },
     build: async ({ dependsOn }) => setupMainWindow(dependsOn),
   })
   const captionWindow = injecta.provide('windows:caption', {
     dependsOn: { mainWindow },
-    build: async ({ dependsOn }) => setupCaptionWindowManager({ mainWindow: dependsOn.mainWindow }),
+    build: async ({ dependsOn }) => setupCaptionWindowManager(dependsOn),
   })
   const tray = injecta.provide('app:tray', {
     dependsOn: { mainWindow, settingsWindow, captionWindow },
-    build: async ({ dependsOn }) => setupTray(dependsOn as any),
+    build: async ({ dependsOn }) => setupTray(dependsOn),
   })
   injecta.invoke({
-    dependsOn: { mainWindow, tray },
+    dependsOn: { mainWindow, tray, channelServerModule },
     callback: noop,
   })
 
-  injecta.start()
+  injecta.start().catch(err => console.error(err))
 
   // Lifecycle
   emitAppReady()
@@ -177,4 +143,5 @@ app.on('window-all-closed', () => {
 // Clean up server and intervals when app quits
 app.on('before-quit', async () => {
   emitAppBeforeQuit()
+  injecta.stop()
 })

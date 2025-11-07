@@ -1,5 +1,4 @@
-import type { MaybeRefOrGetter } from '@vueuse/core'
-import type { Ref } from 'vue'
+import type { MaybeRefOrGetter, Ref } from 'vue'
 
 import { toRef, unrefElement, useElementBounding } from '@vueuse/core'
 import { computed } from 'vue'

@@ -19,7 +19,7 @@ const attachments = ref<{ type: 'image', data: string, mimeType: string, url: st
 
 const { askPermission } = useSettingsAudioDevice()
 const { enabled, selectedAudioInput } = storeToRefs(useSettingsAudioDevice())
-const { send, onAfterMessageComposed, discoverToolsCompatibility } = useChatStore()
+const { send, onAfterMessageComposed, discoverToolsCompatibility, cleanupMessages } = useChatStore()
 const { messages } = storeToRefs(useChatStore())
 const { t } = useI18n()
 const providersStore = useProvidersStore()
@@ -153,6 +153,19 @@ onAfterMessageComposed(async () => {
           &times;
         </button>
       </div>
+    </div>
+    <div class="flex items-center justify-end gap-2 py-1">
+      <button
+        class="max-h-[10lh] min-h-[1lh]"
+        bg="neutral-100 dark:neutral-800"
+        text="lg neutral-500 dark:neutral-400"
+        hover:text="red-500 dark:red-400"
+        flex items-center justify-center rounded-md p-2 outline-none
+        transition-colors transition-transform active:scale-95
+        @click="cleanupMessages"
+      >
+        <div class="i-solar:trash-bin-2-bold-duotone" />
+      </button>
     </div>
     <BasicTextarea
       v-model="messageInput"

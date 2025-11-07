@@ -64,6 +64,6 @@
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
-    "unplugin-yaml": "^3.0.6"
+    "unplugin-yaml": "^3.0.7"
   }
 }
