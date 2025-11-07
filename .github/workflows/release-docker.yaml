@@ -17,43 +17,30 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - name: Fetch version
-        id: version
-        run: |
-          export LAST_TAGGED_COMMIT=$(git rev-list --tags --max-count=1)
-          export LAST_TAG=$(git describe --tags $LAST_TAGGED_COMMIT)
-          echo "version=${LAST_TAG#v}" >> $GITHUB_OUTPUT
-
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+      - uses: docker/metadata-action@v5
+        id: meta
         with:
-          platforms: linux/amd64,linux/arm64,linux/arm64/v8
-
-      - name: Sign in to GitHub Container Registry
-        uses: docker/login-action@v3
+          images: ghcr.io/${{ github.repository }}
+          flavor: |
+            latest=true
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}},enable=${{ !startsWith(github.ref, 'refs/tags/v0.') }}
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Create image tags
-        id: image_tag
-        run: |
-          echo "tag_latest=ghcr.io/${{ github.repository }}:latest" >> $GITHUB_OUTPUT
-          echo "tag=ghcr.io/${{ github.repository }}:${{ steps.version.outputs.version }}" >> $GITHUB_OUTPUT
-
-      - name: Build and Push
-        uses: docker/build-push-action@v6
+      - uses: docker/build-push-action@v6
         with:
           context: ./
           file: ./apps/stage-web/Dockerfile
-          push: true
           platforms: linux/amd64,linux/arm64,linux/arm64/v8
           cache-from: type=gha
           cache-to: type=gha,mode=max
-          tags: |
-            ${{ steps.image_tag.outputs.tag_latest }}
-            ${{ steps.image_tag.outputs.tag }}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}

@@ -13,12 +13,12 @@ import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consci
 import { useHearingSpeechInputPipeline } from '@proj-airi/stage-ui/stores/modules/hearing'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
-import { debouncedRef, useBroadcastChannel, watchPausable } from '@vueuse/core'
+import { refDebounced, useBroadcastChannel } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, onUnmounted, ref, toRef, watch } from 'vue'
 
-import ControlsIsland from '../components/Widgets/ControlsIsland/index.vue'
-import ResourceStatusIsland from '../components/Widgets/ResourceStatusIsland/index.vue'
+import ControlsIsland from '../components/StageIslands/ControlsIsland/index.vue'
+import ResourceStatusIsland from '../components/StageIslands/ResourceStatusIsland/index.vue'
 
 import { electron } from '../../shared/electron'
 import {
@@ -43,11 +43,11 @@ const shouldFadeOnCursorWithin = ref(false)
 
 const { isOutside: isOutsideWindow } = useElectronMouseInWindow()
 const { isOutside } = useElectronMouseInElement(controlsIslandRef)
-const isOutsideFor250Ms = debouncedRef(isOutside, 250)
+const isOutsideFor250Ms = refDebounced(isOutside, 250)
 const { x: relativeMouseX, y: relativeMouseY } = useElectronRelativeMouse()
 const isTransparent = useCanvasPixelIsTransparentAtPoint(stageCanvas, relativeMouseX, relativeMouseY)
 const { isNearAnyBorder: isAroundWindowBorder } = useElectronMouseAroundWindowBorder({ threshold: 30 })
-const isAroundWindowBorderFor250Ms = debouncedRef(isAroundWindowBorder, 250)
+const isAroundWindowBorderFor250Ms = refDebounced(isAroundWindowBorder, 250)
 
 const setIgnoreMouseEvents = useElectronEventaInvoke(electron.window.setIgnoreMouseEvents)
 
@@ -56,7 +56,7 @@ const { live2dLookAtX, live2dLookAtY } = storeToRefs(useWindowStore())
 
 watch(componentStateStage, () => isLoading.value = componentStateStage.value !== 'mounted', { immediate: true })
 
-const { pause, resume } = watchPausable(isTransparent, (transparent) => {
+const { pause, resume } = watch(isTransparent, (transparent) => {
   shouldFadeOnCursorWithin.value = !transparent
 }, { immediate: true })
 

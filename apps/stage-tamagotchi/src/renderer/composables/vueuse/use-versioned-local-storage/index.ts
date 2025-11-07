@@ -1,5 +1,5 @@
-import type { IfAny, MaybeRefOrGetter, UseStorageOptions } from '@vueuse/core'
-import type { Ref, UnwrapRef } from 'vue'
+import type { IfAny, UseStorageOptions } from '@vueuse/core'
+import type { MaybeRefOrGetter, Ref, UnwrapRef } from 'vue'
 
 import { useLocalStorage } from '@vueuse/core'
 import { ref, toValue, watch } from 'vue'

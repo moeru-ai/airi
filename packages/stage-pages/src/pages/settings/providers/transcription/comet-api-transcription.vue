@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { RemovableRef } from '@vueuse/core'
-import type { TranscriptionProvider } from '@xsai-ext/shared-providers'
+import type { TranscriptionProviderWithExtraOptions } from '@xsai-ext/shared-providers'
 
 import {
   Alert,
@@ -57,11 +57,12 @@ const apiKeyConfigured = computed(() => !!providers.value[providerId]?.apiKey)
 
 // Generate transcription
 async function handleGenerateTranscription(file: File) {
-  const provider = await providersStore.getProviderInstance<TranscriptionProvider<string>>(providerId)
+  const provider = await providersStore.getProviderInstance<TranscriptionProviderWithExtraOptions<string, any>>(providerId)
   if (!provider)
     throw new Error('Failed to initialize transcription provider')
 
   return await hearingStore.transcription(
+    providerId,
     provider,
     model.value,
     file,

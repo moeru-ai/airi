@@ -1,0 +1,30 @@
+name: autofix.ci
+
+permissions:
+  contents: read
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  autofix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v3
+      - uses: actions/setup-node@v6
+        with:
+          node-version: lts/*
+          cache: pnpm
+
+      - run: pnpm install
+      - run: pnpm prune && pnpm dedupe
+      - run: pnpm run lint:fix
+
+      # - name: AutoCorrect
+      #   uses: huacnlee/autocorrect-action@main
+      #   with:
+      #     args: --fix
+
+      - uses: autofix-ci/action@635ffb0c9798bd160680f18fd73371e355b85f27

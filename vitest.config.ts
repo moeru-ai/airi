@@ -4,6 +4,7 @@ export default defineConfig({
   test: {
     projects: [
       'packages/injecta',
+      'packages/stage-ui',
     ],
   },
 })
