@@ -43,7 +43,7 @@ const DEFAULT_OPTIONS: ContextBuildingOptions = {
   includeShortTermIdeas: true,
 }
 
-type MemoryFragmentContext = {
+interface MemoryFragmentContext {
   id: string
   content: string
   memory_type: string

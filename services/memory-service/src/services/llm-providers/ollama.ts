@@ -75,13 +75,13 @@ export class OllamaLLMProvider implements LLMProvider {
 
   private validateResponse(response: StructuredLLMResponse): void {
     if (!Array.isArray(response.memoryFragments)) {
-      throw new Error('Invalid response: missing or invalid memoryFragments')
+      throw new TypeError('Invalid response: missing or invalid memoryFragments')
     }
     if (!Array.isArray(response.goals)) {
-      throw new Error('Invalid response: missing or invalid goals')
+      throw new TypeError('Invalid response: missing or invalid goals')
     }
     if (!Array.isArray(response.ideas)) {
-      throw new Error('Invalid response: missing or invalid ideas')
+      throw new TypeError('Invalid response: missing or invalid ideas')
     }
     if (response.episodes && !Array.isArray(response.episodes)) {
       throw new Error('Invalid response: episodes must be an array if present')

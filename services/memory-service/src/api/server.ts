@@ -18,9 +18,8 @@ import { Elysia, t } from 'elysia'
 import memoryRouter from './memory'
 
 import {
-  isPostgresEnabled,
   isPGliteEnabled,
-  setPostgresEnabled,
+  isPostgresEnabled,
   setPGliteEnabled,
   useDrizzle,
 } from '../db/index.js'

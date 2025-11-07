@@ -55,7 +55,7 @@ let schemaReady: Promise<void> | null = null
 
 async function getDb(): Promise<PGliteInstance> {
   if (typeof window === 'undefined') {
-    throw new Error('Local memory is only available in browser environments.')
+    throw new TypeError('Local memory is only available in browser environments.')
   }
 
   if (!dbPromise) {

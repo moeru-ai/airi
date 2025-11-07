@@ -7,9 +7,9 @@ import { Buffer } from 'node:buffer'
 import { exec, spawn } from 'node:child_process'
 import { writeFile } from 'node:fs/promises'
 
-import { sql } from 'drizzle-orm'
 import { PGlite } from '@electric-sql/pglite'
 import { pgDump } from '@electric-sql/pglite-tools/pg_dump'
+import { sql } from 'drizzle-orm'
 import { Elysia, t } from 'elysia'
 
 import { useDrizzle } from '../db'
@@ -64,7 +64,7 @@ const MODEL_SCOPED_TABLES = [
 ]
 
 function escapeLiteral(value: string): string {
-  return value.replace(/'/g, "''")
+  return value.replace(/'/g, '\'\'')
 }
 
 function isMissingRelation(error: unknown): boolean {

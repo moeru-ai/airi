@@ -9,6 +9,8 @@
 
 // TODO [lucas-oma]: remove console.debug before merging (eslint)
 
+import type { StructuredMemoryContext } from '../types/memory'
+
 import { useLocalStorage } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed } from 'vue'
@@ -20,7 +22,6 @@ import {
   storeUserMessage as storeMessageLocally,
   testLocalMemoryConnection,
 } from '../services/localMemoryClient'
-import type { StructuredMemoryContext } from '../types/memory'
 import { useAiriCardStore } from '../stores/modules'
 
 export function useMemoryService() {

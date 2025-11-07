@@ -189,10 +189,10 @@ watch([
 ], () => {
   // 1. Check for embedding changes (Triggers Regeneration Warning)
   const hasEmbeddingChanges
-    = tempEmbeddingProvider !== embeddingProvider.value
-      || tempEmbeddingModel !== embeddingModel.value
-      || tempEmbeddingDim !== embeddingDim.value
-      || tempEmbeddingApiKey !== embeddingApiKey.value
+    = tempEmbeddingProvider.value !== embeddingProvider.value
+      || tempEmbeddingModel.value !== embeddingModel.value
+      || tempEmbeddingDim.value !== embeddingDim.value
+      || tempEmbeddingApiKey.value !== embeddingApiKey.value
 
   const tempLlmProvider = llmProvider.value
   const tempLlmModel = llmModel.value

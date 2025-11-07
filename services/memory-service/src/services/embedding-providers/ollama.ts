@@ -37,7 +37,7 @@ export class OllamaEmbeddingProvider implements EmbeddingProvider {
     }
 
     if (!Array.isArray(data.embedding)) {
-      throw new Error('Ollama embedding response missing embedding vector')
+      throw new TypeError('Ollama embedding response missing embedding vector')
     }
 
     if (data.embedding.length !== dimensions) {

@@ -9,6 +9,8 @@
  * - Session management
  */
 
+import type { BuiltContext } from './context-builder'
+
 import { and, eq, isNull } from 'drizzle-orm'
 
 import { useDrizzle } from '../db'
@@ -19,7 +21,6 @@ import {
   memoryShortTermIdeasTable,
 } from '../db/schema'
 import { broadcastRegenerationStatus } from '../utils/broadcast'
-import type { BuiltContext } from './context-builder'
 import { ContextBuilder } from './context-builder'
 import { EmbeddingProviderFactory } from './embedding-providers/factory'
 import { SettingsService } from './settings'

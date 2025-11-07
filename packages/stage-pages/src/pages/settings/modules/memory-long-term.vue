@@ -1,8 +1,7 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
-
 import { useMemoryService } from '@proj-airi/stage-ui/composables/useMemoryService'
 import { useAiriMemoryStore } from '@proj-airi/stage-ui/stores/modules/memory'
+import { computed, ref } from 'vue'
 
 const memoryStore = useAiriMemoryStore()
 const { memoryServiceEnabled, fetchStructuredContext } = useMemoryService()
