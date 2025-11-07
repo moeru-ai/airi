@@ -1,6 +1,11 @@
+import type { ChildProcess } from 'node:child_process'
+
 import type { BrowserWindow } from 'electron'
 
+import { spawn } from 'node:child_process'
 import { platform } from 'node:process'
+
+import * as path from 'node:path'
 
 import { electronApp, optimizer } from '@electron-toolkit/utils'
 import { Format, LogLevel, setGlobalFormat, setGlobalLogLevel, useLogg } from '@guiiai/logg'
@@ -34,6 +39,8 @@ setGlobalLogLevel(LogLevel.Log)
 setupDebugger()
 
 const log = useLogg('main').useGlobalConfig()
+
+let memoryServiceProcess: ChildProcess | null = null
 
 // Thanks to [@blurymind](https://github.com/blurymind),
 //
@@ -91,6 +98,21 @@ function setupTray(params: {
 }
 
 app.whenReady().then(async () => {
+  const memoryServicePath = path.join(__dirname, 'memory-service.js')
+  memoryServiceProcess = spawn('node', [memoryServicePath])
+
+  memoryServiceProcess.stdout?.on('data', (data) => {
+    log.info(`[MemoryService]: ${data}`)
+  })
+
+  memoryServiceProcess.stderr?.on('data', (data) => {
+    log.error(`[MemoryService]: ${data}`)
+  })
+
+  memoryServiceProcess.on('close', (code) => {
+    log.warn(`[MemoryService] exited with code ${code}`)
+  })
+
   injecta.setLogger(createLoggLogger(useLogg('injecta').useGlobalConfig()))
 
   const channelServerModule = injecta.provide('modules:channel-server', async () => setupChannelServer())
@@ -142,6 +164,9 @@ app.on('window-all-closed', () => {
 
 // Clean up server and intervals when app quits
 app.on('before-quit', async () => {
+  if (memoryServiceProcess) {
+    memoryServiceProcess.kill()
+  }
   emitAppBeforeQuit()
   injecta.stop()
 })

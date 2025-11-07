@@ -144,7 +144,7 @@ export function createApp() {
     },
   )
 
-  // iet current chat Postgres status
+  // Get current chat Postgres status
   app.get('/chat-postgres', () => {
     return { enabled: isPostgresEnabled() }
   })

@@ -118,14 +118,12 @@ async function streamFrom(model: string, chatProvider: ChatProvider, messages: M
 
   const headers = options?.headers
 
-  const sanitized = sanitizeMessages(messages as unknown[])
-
   return new Promise<void>(async (resolve, reject) => {
     try {
       await streamText({
         ...chatProvider.chat(model),
         maxSteps: 10,
-        messages: sanitized,
+        messages: formattedMessages,
         headers,
         // TODO: we need Automatic tools discovery
         tools: streamOptionsToolsCompatibilityOk(model, chatProvider, messages, options)

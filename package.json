@@ -55,6 +55,7 @@
     "@unocss/preset-web-fonts": "^66.5.4",
     "@vitest/coverage-v8": "^4.0.6",
     "bumpp": "^10.3.1",
+    "concurrently": "^8.2.2",
     "eslint": "^9.39.0",
     "eslint-plugin-oxlint": "^1.25.0",
     "lint-staged": "^16.2.6",
