@@ -340,6 +340,25 @@ pages:
       browser-local-audio-speech:
         title: 浏览器内（本地）
         description: https://github.com/moeru-ai/xsai-transformers
+      whisper-cpp:
+        title: whisper.cpp 服务器
+        description: ggml-org/whisper.cpp/examples/server
+        fields:
+          request-path:
+            label: 请求路径（可选）
+            description: 与 whisper-server 的 --request-path 一致。留空表示根路径 /
+          inference-path:
+            label: 推理路径
+            description: 与 whisper-server 的 --inference-path 一致。默认 /inference
+          response-format:
+            label: 响应格式
+            description: 选择你的 whisper.cpp 构建所支持的输出格式
+        alerts:
+          info:
+            title: whisper.cpp 服务器负责接收音频上传
+            description: >-
+              AIRI 在本地录音，并把每段音频上传到配置的 whisper.cpp
+              HTTP 服务器。如果不希望录音离开你的设备，请将服务器部署在可信的机器或网络中。
       alibaba-cloud-model-studio:
         description: bailian.console.aliyun.com
         title: 阿里百炼

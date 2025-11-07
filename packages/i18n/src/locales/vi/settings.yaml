@@ -342,6 +342,26 @@ pages:
       browser-local-audio-speech:
         title: Trình duyệt (Local)
         description: https://github.com/moeru-ai/xsai-transformers
+      whisper-cpp:
+        title: Máy chủ whisper.cpp
+        description: ggml-org/whisper.cpp/examples/server
+        fields:
+          request-path:
+            label: Đường dẫn yêu cầu (tùy chọn)
+            description: Trùng với --request-path trong whisper-server. Để trống để dùng /
+          inference-path:
+            label: Đường dẫn suy luận
+            description: Trùng với --inference-path trong whisper-server. Mặc định /inference
+          response-format:
+            label: Định dạng phản hồi
+            description: Chọn định dạng mà whisper.cpp của bạn hỗ trợ
+        alerts:
+          info:
+            title: Máy chủ whisper.cpp nhận tệp âm thanh tải lên
+            description: >-
+              AIRI ghi âm cục bộ và tải từng đoạn lên máy chủ HTTP
+              whisper.cpp đã cấu hình. Hãy giữ máy chủ trên thiết bị hoặc mạng
+              đáng tin cậy nếu bạn không muốn bản ghi rời khỏi máy của mình.
       alibaba-cloud-model-studio:
         description: bailian.console.aliyun.com
         title: Mô hình Studio Alibaba Cloud

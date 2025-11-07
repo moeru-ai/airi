@@ -8,7 +8,7 @@ import { useAudioContext } from '@proj-airi/stage-ui/stores/audio'
 import { useHearingSpeechInputPipeline, useHearingStore } from '@proj-airi/stage-ui/stores/modules/hearing'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
-import { FieldCheckbox, FieldRange, FieldSelect } from '@proj-airi/ui'
+import { FieldCheckbox, FieldInput, FieldRange, FieldSelect } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -50,6 +50,14 @@ const audioURLs = computed(() => {
     audioCleanups.value.push(() => URL.revokeObjectURL(url))
     return url
   })
+})
+
+const manualHearingModel = computed({
+  get: () => activeTranscriptionModel.value || activeCustomModelName.value,
+  set: (value: string) => {
+    activeTranscriptionModel.value = value
+    activeCustomModelName.value = value
+  },
 })
 
 const useVADThreshold = ref(0.6) // 0.1 - 0.9
@@ -174,10 +182,16 @@ function updateCustomModelName(value: string) {
 }
 
 onStopRecord(async (recording) => {
-  if (recording && recording.size > 0)
-    audios.value.push(recording)
+  if (!recording || recording.size <= 0)
+    return
 
-  const res = await transcribeForRecording(recording)
+  const buffer = await recording.arrayBuffer()
+  const fileType = recording.type || 'audio/wav'
+  const file = new File([buffer], `recording-${Date.now()}.wav`, { type: fileType })
+
+  audios.value.push(file)
+
+  const res = await transcribeForRecording(file)
 
   if (res)
     transcriptions.value.push(res)
@@ -305,16 +319,23 @@ onUnmounted(() => {
               <span>{{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.loading') }}</span>
             </div>
 
-            <!-- Error state -->
-            <ErrorContainer
-              v-else-if="activeProviderModelError"
-              :title="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.error')"
-              :error="activeProviderModelError"
-            />
+            <!-- Warning when models cannot be fetched -->
+            <Alert
+              v-if="!isLoadingActiveProviderModels && activeProviderModelError"
+              type="warning"
+              icon="i-solar:warning-triangle-line-duotone"
+            >
+              <template #title>
+                {{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.error') }}
+              </template>
+              <template #content>
+                {{ activeProviderModelError }}
+              </template>
+            </Alert>
 
             <!-- No models available -->
             <Alert
-              v-else-if="providerModels.length === 0 && !isLoadingActiveProviderModels"
+              v-if="providerModels.length === 0 && !isLoadingActiveProviderModels"
               type="warning"
             >
               <template #title>
@@ -325,24 +346,58 @@ onUnmounted(() => {
               </template>
             </Alert>
 
-            <!-- Using the new RadioCardManySelect component -->
-            <template v-else-if="providerModels.length > 0">
-              <RadioCardManySelect
-                v-model="activeTranscriptionModel"
-                v-model:search-query="transcriptionModelSearchQuery"
-                :items="providerModels.sort((a, b) => a.id === activeTranscriptionModel ? -1 : b.id === activeTranscriptionModel ? 1 : 0)"
-                :searchable="true"
-                :search-placeholder="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.search_placeholder')"
-                :search-no-results-title="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.no_search_results')"
-                :search-no-results-description="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.no_search_results_description', { query: transcriptionModelSearchQuery })"
-                :search-results-text="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.search_results', { count: '{count}', total: '{total}' })"
-                :custom-input-placeholder="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.custom_model_placeholder')"
-                :expand-button-text="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.expand')"
-                :collapse-button-text="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.collapse')"
-                @update:custom-value="updateCustomModelName"
-              />
+            <template v-if="!isLoadingActiveProviderModels">
+              <div
+                v-if="providerModels.length === 0"
+                class="space-y-2 rounded-xl border border-dashed border-neutral-200 p-4 dark:border-neutral-800"
+              >
+                <FieldInput
+                  v-model="manualHearingModel"
+                  label="Manual model ID"
+                  description="Enter the model identifier exactly as the provider expects."
+                  placeholder="e.g. whisper-1"
+                />
+                <p class="text-xs text-neutral-500 dark:text-neutral-400">
+                  We'll remember this value even if the provider cannot list models.
+                </p>
+              </div>
+
+              <!-- Using the new RadioCardManySelect component -->
+              <template v-else>
+                <RadioCardManySelect
+                  v-model="activeTranscriptionModel"
+                  v-model:search-query="transcriptionModelSearchQuery"
+                  :items="providerModels.sort((a, b) => a.id === activeTranscriptionModel ? -1 : b.id === activeTranscriptionModel ? 1 : 0)"
+                  :searchable="true"
+                  :search-placeholder="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.search_placeholder')"
+                  :search-no-results-title="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.no_search_results')"
+                  :search-no-results-description="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.no_search_results_description', { query: transcriptionModelSearchQuery })"
+                  :search-results-text="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.search_results', { count: '{count}', total: '{total}' })"
+                  :custom-input-placeholder="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.custom_model_placeholder')"
+                  :expand-button-text="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.expand')"
+                  :collapse-button-text="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.collapse')"
+                  @update:custom-value="updateCustomModelName"
+                />
+              </template>
             </template>
           </div>
+        </div>
+
+        <div v-else-if="activeTranscriptionProvider" class="space-y-4">
+          <Alert type="info">
+            <template #title>
+              Provider does not list models automatically
+            </template>
+            <template #content>
+              Enter the model ID manually so we can save your configuration.
+            </template>
+          </Alert>
+          <FieldInput
+            v-model="manualHearingModel"
+            label="Model ID"
+            description="Paste the transcription model name exactly as required by your provider."
+            placeholder="e.g. whisper-1"
+          />
         </div>
       </div>
     </div>

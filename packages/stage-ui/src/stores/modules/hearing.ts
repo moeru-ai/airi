@@ -5,7 +5,7 @@ import type { StreamTranscriptionResult } from '../providers/aliyun'
 import { useLocalStorage } from '@vueuse/core'
 import { generateTranscription } from '@xsai/generate-transcription'
 import { defineStore, storeToRefs } from 'pinia'
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 
 import { useProvidersStore } from '../providers'
 import { streamTranscription as streamAliyunTranscription } from '../providers/aliyun'
@@ -30,7 +30,10 @@ const STREAM_TRANSCRIPTION_EXECUTORS: Record<string, typeof streamAliyunTranscri
 
 export const useHearingStore = defineStore('hearing-store', () => {
   const providersStore = useProvidersStore()
-  const { allAudioTranscriptionProvidersMetadata } = storeToRefs(providersStore)
+  const {
+    allAudioTranscriptionProvidersMetadata,
+    configuredTranscriptionProvidersMetadata,
+  } = storeToRefs(providersStore)
 
   // State
   const activeTranscriptionProvider = useLocalStorage('settings/hearing/active-provider', '')
@@ -73,8 +76,21 @@ export const useHearingStore = defineStore('hearing-store', () => {
   }
 
   const configured = computed(() => {
-    return !!activeTranscriptionProvider.value && !!activeTranscriptionModel.value
+    return !!activeTranscriptionProvider.value
   })
+
+  watch(configuredTranscriptionProvidersMetadata, (providers) => {
+    if (!activeTranscriptionProvider.value)
+      return
+
+    const isStillConfigured = providers.some(provider => provider.id === activeTranscriptionProvider.value)
+    if (isStillConfigured)
+      return
+
+    activeTranscriptionProvider.value = ''
+    activeTranscriptionModel.value = ''
+    activeCustomModelName.value = ''
+  }, { immediate: true })
 
   async function transcription(
     providerId: string,
@@ -191,11 +207,18 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
 
         // Get model from configuration or use default
         const model = activeTranscriptionModel.value
+        const file = recording instanceof File
+          ? recording
+          : new File(
+              [await recording.arrayBuffer()],
+              `recording-${Date.now()}.wav`,
+              { type: recording.type || 'audio/wav' },
+            )
         const result = await hearingStore.transcription(
           providerId,
           provider,
           model,
-          new File([recording], 'recording.wav'),
+          file,
         )
         return result.mode === 'stream' ? await result.text : result.text
       }

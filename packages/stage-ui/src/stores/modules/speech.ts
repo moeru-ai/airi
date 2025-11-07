@@ -100,6 +100,29 @@ export const useSpeechStore = defineStore('speech', () => {
     return availableVoices.value[provider] || []
   }
 
+  function resolveVoiceById(voiceId?: string): VoiceInfo | undefined {
+    if (!voiceId)
+      return undefined
+
+    const voices = availableVoices.value[activeSpeechProvider.value] || []
+    const matchedVoice = voices.find(voice => voice.id === voiceId)
+    if (matchedVoice)
+      return matchedVoice
+
+    const languageCode = selectedLanguage.value || 'en-US'
+    return {
+      id: voiceId,
+      name: voiceId,
+      provider: activeSpeechProvider.value,
+      description: 'Custom voice',
+      previewURL: undefined,
+      languages: [{
+        code: languageCode,
+        title: languageCode,
+      }],
+    }
+  }
+
   // Watch for provider changes and load voices
   watch(activeSpeechProvider, async (newProvider) => {
     if (newProvider) {
@@ -111,23 +134,27 @@ export const useSpeechStore = defineStore('speech', () => {
   onMounted(() => {
     loadVoicesForProvider(activeSpeechProvider.value).then(() => {
       if (activeSpeechVoiceId.value) {
-        activeSpeechVoice.value = availableVoices.value[activeSpeechProvider.value]?.find(voice => voice.id === activeSpeechVoiceId.value)
+        activeSpeechVoice.value = resolveVoiceById(activeSpeechVoiceId.value)
       }
     })
   })
 
   watch(activeSpeechVoiceId, (voiceId) => {
-    if (voiceId) {
-      activeSpeechVoice.value = availableVoices.value[activeSpeechProvider.value]?.find(voice => voice.id === voiceId)
+    if (!voiceId) {
+      activeSpeechVoice.value = undefined
+      return
     }
+
+    activeSpeechVoice.value = resolveVoiceById(voiceId)
   }, {
     immediate: true,
   })
 
-  watch(availableVoices, (voices) => {
-    if (activeSpeechVoiceId.value) {
-      activeSpeechVoice.value = voices[activeSpeechProvider.value]?.find(voice => voice.id === activeSpeechVoiceId.value)
-    }
+  watch(availableVoices, () => {
+    if (!activeSpeechVoiceId.value)
+      return
+
+    activeSpeechVoice.value = resolveVoiceById(activeSpeechVoiceId.value)
   }, {
     immediate: true,
   })
@@ -205,7 +232,7 @@ export const useSpeechStore = defineStore('speech', () => {
   }
 
   const configured = computed(() => {
-    return !!activeSpeechProvider.value && !!activeSpeechModel.value && !!activeSpeechVoiceId.value
+    return !!activeSpeechProvider.value
   })
 
   return {
