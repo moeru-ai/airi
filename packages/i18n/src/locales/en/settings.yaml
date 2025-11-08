@@ -84,6 +84,8 @@ pages:
     delete: Delete
     delete_card: Delete Card
     delete_confirmation: Are you sure you want to delete this card?
+    edit: Edit
+    edit_card: Edit Card
     description: Use AIRI character card presets
     description_label: Description
     drop_here: Drop to upload
@@ -98,6 +100,7 @@ pages:
       settings: Settings
       version: Version
       create: Create
+      save: Save changes
       defaults:
         name: Name
         personality: You are a regular human, curious about everything.

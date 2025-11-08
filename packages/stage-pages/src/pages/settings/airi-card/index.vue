@@ -6,7 +6,7 @@ import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
 import { InputFile } from '@proj-airi/ui'
 import { Select } from '@proj-airi/ui/components/form'
 import { storeToRefs } from 'pinia'
-import { computed, ref, watch } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import CardCreate from './components/CardCreate.vue'
@@ -25,6 +25,7 @@ const selectedCardId = ref<string>('')
 // Dialog state
 const isCardDialogOpen = ref(false)
 const isCardCreationDialogOpen = ref(false)
+const editingCardId = ref<string | null>(null)
 
 // Search query
 const searchQuery = ref('')
@@ -59,6 +60,11 @@ watch(inputFiles, async (newFiles) => {
   catch (error) {
     console.error('Error processing card file:', error)
   }
+})
+
+watch(() => isCardCreationDialogOpen.value, (open) => {
+  if (!open)
+    editingCardId.value = null
 })
 
 // Transform cards Map to array for display
@@ -121,7 +127,21 @@ function handleSelectCard(cardId: string) {
 }
 
 function handleCardCreationDialog() {
+  editingCardId.value = null
   isCardCreationDialogOpen.value = true
+}
+
+async function handleEditCard(cardId: string) {
+  editingCardId.value = cardId
+  isCardDialogOpen.value = false
+  await nextTick()
+  isCardCreationDialogOpen.value = true
+}
+
+function handleCardSaved(payload: { id: string }) {
+  selectedCardId.value = payload.id
+  if (editingCardId.value)
+    isCardDialogOpen.value = true
 }
 
 // Card activation
@@ -279,11 +299,14 @@ function getModuleShortName(id: string, module: 'consciousness' | 'voice') {
   <CardDetailDialog
     v-model="isCardDialogOpen"
     :card-id="selectedCardId"
+    @editCard="handleEditCard"
   />
 
-  <!-- Card detail dialog -->
+  <!-- Card creation/edit dialog -->
   <CardCreationDialog
     v-model="isCardCreationDialogOpen"
+    :card-id="editingCardId || undefined"
+    @saved="handleCardSaved"
   />
 
   <!-- Background decoration -->

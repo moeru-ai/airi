@@ -26,6 +26,7 @@ interface Props {
 const props = defineProps<Props>()
 const emit = defineEmits<{
   (e: 'update:modelValue', value: boolean): void
+  (e: 'editCard', value: string): void
 }>()
 
 const { t } = useI18n()
@@ -73,6 +74,7 @@ const characterSettings = computed(() => {
 
 // Check if card is active
 const isActive = computed(() => props.cardId === activeCardId.value)
+const canEditCard = computed(() => props.cardId !== 'default' && !!selectedCard.value)
 
 // Animation control for card activation
 const isActivating = ref(false)
@@ -194,6 +196,13 @@ const activeTab = computed({
 
               <!-- Action buttons -->
               <div flex="~ row" gap-2>
+                <Button
+                  v-if="canEditCard"
+                  variant="secondary"
+                  icon="i-solar:pen-new-square-broken"
+                  :label="t('settings.pages.card.edit')"
+                  @click="emit('editCard', props.cardId)"
+                />
                 <!-- Activation button -->
                 <Button
                   variant="primary"
