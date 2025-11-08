@@ -3,9 +3,9 @@
   "type": "module",
   "version": "0.7.2-beta.3",
   "private": true,
-  "description": "An Electron application with Vue and TypeScript",
+  "description": "LLM powered virtual character",
   "author": "Moeru AI",
-  "homepage": "https://electron-vite.org",
+  "homepage": "https://airi.moeru.ai/docs/",
   "main": "./out/main/index.js",
   "scripts": {
     "lint": "eslint --cache .",
