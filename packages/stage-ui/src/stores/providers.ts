@@ -860,7 +860,6 @@ export const useProvidersStore = defineStore('providers', () => {
       description: 'Connect to any API that follows the OpenAI specification.',
       category: 'speech',
       tasks: ['text-to-speech'],
-      validation: ['audio_speech'],
       capabilities: {
         listVoices: async () => {
           return []

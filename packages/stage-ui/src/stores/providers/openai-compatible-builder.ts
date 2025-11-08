@@ -28,19 +28,6 @@ function shouldLog(): boolean {
   }
 }
 
-function resolveOrigin(): string {
-  try {
-    if (typeof window !== 'undefined' && window.location?.origin)
-      return window.location.origin
-    if (typeof location !== 'undefined' && location.origin)
-      return location.origin
-  }
-  catch {
-    // no-op, fallthrough
-  }
-  return 'https://airi.local'
-}
-
 function logWarn(...args: unknown[]) {
   if (shouldLog())
     console.warn(...args)
@@ -60,7 +47,7 @@ export function buildOpenAICompatibleProvider(
     creator: ProviderCreator
     capabilities?: ProviderMetadata['capabilities']
     validators?: ProviderMetadata['validators']
-    validation?: ('health' | 'model_list' | 'chat_completions' | 'audio_speech' | 'audio_transcriptions')[]
+    validation?: ('health' | 'model_list' | 'chat_completions' | 'audio_transcriptions')[]
     additionalHeaders?: Record<string, string>
     transcriptionFeatures?: ProviderMetadata['transcriptionFeatures']
   },
@@ -243,50 +230,6 @@ export function buildOpenAICompatibleProvider(
           }
           catch (e) {
             return new Error(`Chat completions check failed: ${(e as Error).message}`)
-          }
-        })())
-      }
-
-      const corsPreflightHeaders = {
-        'Origin': resolveOrigin(),
-        'Access-Control-Request-Method': 'POST',
-        'Access-Control-Request-Headers': 'authorization,content-type',
-      }
-
-      const preflightChecks: Array<{ flag: 'audio_speech' | 'audio_transcriptions', path: string }> = []
-      if (validationChecks.includes('audio_speech'))
-        preflightChecks.push({ flag: 'audio_speech', path: 'audio/speech' })
-      if (validationChecks.includes('audio_transcriptions'))
-        preflightChecks.push({ flag: 'audio_transcriptions', path: 'audio/transcriptions' })
-
-      for (const check of preflightChecks) {
-        asyncChecks.push((async () => {
-          try {
-            const targetUrl = new URL(check.path, baseUrl).toString()
-            const response = await fetch(targetUrl, {
-              method: 'OPTIONS',
-              headers: {
-                ...corsPreflightHeaders,
-              },
-            })
-
-            if (!response.ok) {
-              // Some OpenAI-compatible gateways expose the speech endpoints but do not
-              // implement OPTIONS. Those deployments still work (especially in
-              // non-browser runtimes), so we downgrade a 405 to a warning instead of
-              // a hard failure to let users proceed.
-              if (response.status === 405) {
-                logWarn(`CORS preflight for ${check.path} returned 405. Continuing, but runtime CORS may still fail.`)
-                return null
-              }
-
-              return new Error(`CORS preflight check failed for ${check.path}: ${response.status} ${response.statusText}`)
-            }
-
-            return null
-          }
-          catch (error) {
-            return new Error(`CORS preflight check failed for ${check.path}: ${(error as Error).message}`)
           }
         })())
       }
