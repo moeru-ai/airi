@@ -4,8 +4,12 @@ permissions:
   contents: write
 
 env:
-  PRODUCT_NAME: 'AIRI'
   BUNDLE_NAME: ''
+  DEB_BUNDLE_NAME: ''
+  RPM_BUNDLE_NAME: ''
+  FLATPAK_BUNDLE_NAME: ''
+  PRODUCT_NAME: 'AIRI'
+  VERSION: ''
 
 on:
   release:
@@ -31,41 +35,44 @@ on:
     - cron: '0 0 * * *'
 
 jobs:
-  build-tamagotchi:
-    name: Build Tamagotchi
+  build:
+    name: Build
     strategy:
       matrix:
         include:
-          - os: macos-latest
+
+          - os: macos-15-intel
+            artifact: darwin-x64
             target: x86_64-apple-darwin
+            arch: x64
+            builder-args: --macos --x64
+
           - os: macos-latest
+            artifact: darwin-arm64
             target: aarch64-apple-darwin
-          # - os: ubuntu-latest
-          #   target: x86_64-unknown-linux-gnu
-          # - os: ubuntu-24.04-arm
-          #   target: aarch64-unknown-linux-gnu
+            builder-args: --macos --arm64
+            arch: arm64
+
+          - os: ubuntu-latest
+            artifact: linux-x64
+            target: x86_64-unknown-linux-gnu
+            builder-args: --linux --x64
+            arch: x64
+
+          - os: ubuntu-24.04-arm
+            artifact: linux-arm64
+            target: aarch64-unknown-linux-gnu
+            builder-args: --linux --arm64
+            arch: arm64
+
           - os: windows-latest
+            artifact: windows-x64-setup
             target: x86_64-pc-windows-msvc
+            builder-args: --windows --x64
+            arch: x64
 
     runs-on: ${{ matrix.os }}
     steps:
-      - name: Checkout
-        uses: actions/checkout@v5
-
-      - name: Install pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          run_install: false
-
-      - name: Install Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: lts/*
-          cache: pnpm
-          # registry-url required. Learn more at
-          # https://docs.github.com/en/actions/publishing-packages/publishing-nodejs-packages
-          registry-url: https://registry.npmjs.org
-
       # Why?
       #
       # failed to build archive at `/home/runner/work/airi/airi/target/x86_64-unknown-linux-gnu/release/deps/libapp_lib.rlib`:
@@ -74,127 +81,212 @@ jobs:
         if: matrix.os == 'ubuntu-latest' || matrix.os == 'ubuntu-24.04-arm'
         uses: jlumbroso/free-disk-space@main
 
-      - name: Get Product Name (Windows Only)
-        if: matrix.os == 'windows-latest'
-        run: |
-          $productName = node -p 'require("./apps/stage-tamagotchi/src-tauri/tauri.conf.json").productName'
-          echo "PRODUCT_NAME=$productName" >> $env:GITHUB_ENV
+      - uses: actions/checkout@v5
 
-      - name: Get Product Name
-        if: matrix.os != 'windows-latest'
-        run: |
-          echo "PRODUCT_NAME=$(node -p 'require("./apps/stage-tamagotchi/src-tauri/tauri.conf.json").productName')" >> $GITHUB_ENV
+      # https://docs.github.com/en/actions/how-tos/deploy/deploy-to-third-party-platforms/sign-xcode-applications
+      # - name: Install the Apple certificate (macOS Only)
+      #   if: matrix.os == 'macos-15-intel' || matrix.os == 'macos-latest'
+      #   env:
+      #     BUILD_CERTIFICATE_BASE64: ${{ secrets.BUILD_CERTIFICATE_BASE64 }}
+      #     P12_PASSWORD: ${{ secrets.P12_PASSWORD }}
+      #     KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+      #   run: |
+      #     # create variables
+      #     CERTIFICATE_PATH=$RUNNER_TEMP/build_certificate.p12
+      #     KEYCHAIN_PATH=$RUNNER_TEMP/app-signing.keychain-db
 
-      - name: Install Rust Stable
-        uses: dtolnay/rust-toolchain@stable
+      #     # import certificate from secrets
+      #     echo -n "$BUILD_CERTIFICATE_BASE64" | base64 --decode -o $CERTIFICATE_PATH
+
+      #     # create temporary keychain
+      #     security create-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+      #     security set-keychain-settings -lut 21600 $KEYCHAIN_PATH
+      #     security unlock-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+
+      #     # import certificate to keychain
+      #     security import $CERTIFICATE_PATH -P "$P12_PASSWORD" -A -t cert -f pkcs12 -k $KEYCHAIN_PATH
+      #     security set-key-partition-list -S apple-tool:,apple: -k "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+      #     security list-keychain -d user -s $KEYCHAIN_PATH
+
+      - uses: pnpm/action-setup@v4
         with:
-          targets: ${{ matrix.target }}
+          run_install: false
+      - uses: actions/setup-node@v5
+        with:
+          node-version: lts/*
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
 
-      - name: Install system dependencies (Ubuntu Only)
+      # ---------
+      # Build
+      # ---------
+
+      - run: pnpm run build:packages
+
+      - name: Build (Windows Only) # Windows
+        if: matrix.os == 'windows-latest'
+        run: pnpm run -F @proj-airi/stage-tamagotchi build && pnpm -F @proj-airi/stage-tamagotchi exec electron-builder build ${{ matrix.builder-args }}
+
+      - name: Build (macOS Only) # macOS
+        if: matrix.os == 'macos-15-intel' || matrix.os == 'macos-latest'
+        run: pnpm run -F @proj-airi/stage-tamagotchi build && pnpm -F @proj-airi/stage-tamagotchi exec electron-builder build ${{ matrix.builder-args }}
+
+      - name: Build (Linux Only) # Linux
         if: matrix.os == 'ubuntu-latest' || matrix.os == 'ubuntu-24.04-arm'
+        run: pnpm run -F @proj-airi/stage-tamagotchi build && pnpm -F @proj-airi/stage-tamagotchi exec electron-builder build ${{ matrix.builder-args }}
+
+      - name: Setup Flatpak (Linux Only)
+        if: ${{ matrix.os == 'ubuntu-latest' || matrix.os == 'ubuntu-24.04-arm' }}
         run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            build-essential \
-            libssl-dev \
-            libgtk-3-dev \
-            librsvg2-dev \
-            libsoup-3.0-dev \
-            libgdk-pixbuf2.0-dev \
-            libwebkit2gtk-4.1-dev \
-            libappindicator3-dev \
-            librsvg2-dev \
-            patchelf
+          sudo apt update
+          sudo apt install -y flatpak flatpak-builder elfutils
+          flatpak --version
+          flatpak --user remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
 
-      - name: Install system dependencies (macOS Only)
-        if: matrix.os == 'macos-latest'
+      - name: Build Flatpak (Linux Only) # Flatpak
+        if: ${{ matrix.os == 'ubuntu-latest' || matrix.os == 'ubuntu-24.04-arm' }}
+        working-directory: ./apps/stage-tamagotchi
         run: |
-          brew install \
-            pkg-config \
-            glib
+          mkdir -p dist
+          # Auto-install required SDK/Platform/BaseApp from Flathub in user scope
+          flatpak-builder --user --install-deps-from=flathub ./flatpak ai.moeru.airi.flatpak.yml --force-clean
+          flatpak build-export ./flatpak-repo ./flatpak
+          export FLATPAK_OUTPUT_NAME=$(pnpm exec tsx scripts/artifacts-metadata.ts ${{ matrix.target }} --get-output-filename flatpak)
+          flatpak build-bundle ./flatpak-repo dist/${FLATPAK_OUTPUT_NAME} ai.moeru.airi
 
-      - name: Setup MSVC (Windows Only)
-        if: matrix.os == 'windows-latest'
-        uses: TheMrMilchmann/setup-msvc-dev@v3
-        with:
-          arch: x64
+      # ---------
+      # Nightly (schedule) builds only
+      # ---------
 
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Build Dependencies
-        run: pnpm run build:packages
-
-      - name: Build Application (macOS Only)
-        if: matrix.os == 'macos-latest'
-        run: pnpm run build:tamagotchi --target ${{ matrix.target }}
-
-      - name: Build Application (Linux and Windows Only)
-        if: matrix.os == 'ubuntu-latest' || matrix.os == 'ubuntu-24.04-arm' || matrix.os == 'windows-latest'
-        run: pnpm run build:tamagotchi --target ${{ matrix.target }} --verbose
-        env:
-          RUST_BACKTRACE: '1'
-
-        # ---------
-        # Nightly (schedule) builds only
-        # ---------
-      - name: Get Name of Artifacts (Nightly + Windows Only)
+      - name: Get Artifacts Envs (Nightly + Windows Only)
         if: ${{ github.event_name == 'schedule' && matrix.os == 'windows-latest' }}
+        working-directory: ./apps/stage-tamagotchi
         run: |
-          pnpm -F @proj-airi/stage-tamagotchi name-of-artifacts ${{ matrix.target }} --out bundle_name
-          echo "BUNDLE_NAME=$(node -p "require('node:fs').readFileSync(require('node:path').join('apps', 'stage-tamagotchi', 'bundle_name')).toString('utf-8')")" >> $env:GITHUB_ENV
+          echo "BUNDLE_NAME=$(pnpm exec tsx scripts/artifacts-metadata.ts ${{ matrix.target }} --get-bundle-name)" >> $env:GITHUB_ENV
+          echo "VERSION=$(pnpm exec tsx scripts/artifacts-metadata.ts ${{ matrix.target }} --get-version)" >> $env:GITHUB_ENV
 
-      - name: Get Name of Artifacts (Nightly)
+      - name: Get Artifacts Envs (Nightly + Non-Windows)
         if: ${{ github.event_name == 'schedule' && matrix.os != 'windows-latest' }}
+        working-directory: ./apps/stage-tamagotchi
         run: |
-          pnpm -F @proj-airi/stage-tamagotchi name-of-artifacts ${{ matrix.target }} --out bundle_name
-          echo "BUNDLE_NAME=$(node -p "require('node:fs').readFileSync(require('node:path').join('apps', 'stage-tamagotchi', 'bundle_name')).toString('utf-8')")" >> $GITHUB_ENV
+          echo "VERSION=$(pnpm exec tsx scripts/artifacts-metadata.ts ${{ matrix.target }} --get-version)" >> $GITHUB_ENV
+
+      - name: Get Artifacts Envs (Nightly + macOS Only)
+        if: ${{ github.event_name == 'schedule' && (matrix.os == 'macos-latest' || matrix.os == 'macos-15-intel') }}
+        working-directory: ./apps/stage-tamagotchi
+        run: |
+          echo "BUNDLE_NAME=$(pnpm exec tsx scripts/artifacts-metadata.ts ${{ matrix.target }} --get-bundle-name)" >> $GITHUB_ENV
 
       - name: Rename Artifacts (Nightly)
         if: ${{ github.event_name == 'schedule' }}
         run:
           pnpm run -F @proj-airi/stage-tamagotchi rename-artifacts ${{ matrix.target }}
 
-      - name: Upload Artifacts (Nightly)
-        if: ${{ github.event_name == 'schedule' }}
+      - name: Get Linux Artifact Names (Nightly + Linux Only)
+        if: ${{ github.event_name == 'schedule' && (matrix.os == 'ubuntu-latest' || matrix.os == 'ubuntu-24.04-arm') }}
+        working-directory: ./apps/stage-tamagotchi
+        run: |
+          echo "DEB_BUNDLE_NAME=$(pnpm exec tsx scripts/artifacts-metadata.ts ${{ matrix.target }} --get-filename deb)" >> $GITHUB_ENV
+          echo "RPM_BUNDLE_NAME=$(pnpm exec tsx scripts/artifacts-metadata.ts ${{ matrix.target }} --get-filename rpm)" >> $GITHUB_ENV
+          echo "FLATPAK_BUNDLE_NAME=$(pnpm exec tsx scripts/artifacts-metadata.ts ${{ matrix.target }} --get-filename flatpak)" >> $GITHUB_ENV
+
+      - name: Upload Artifacts (Nightly + Non-Linux)
+        if: ${{ github.event_name == 'schedule' && (matrix.os != 'ubuntu-latest' && matrix.os != 'ubuntu-24.04-arm') }}
         uses: actions/upload-artifact@v4
         with:
           name: ${{ env.BUNDLE_NAME }}
-          path: bundle/${{ env.BUNDLE_NAME }}
+          path: apps/stage-tamagotchi/bundle/${{ env.BUNDLE_NAME }}
 
-        # ---------
-        # Workflow Dispatch only
-        # ---------
+      - name: Upload Artifacts (Nightly + Linux deb)
+        if: ${{ github.event_name == 'schedule' && (matrix.os == 'ubuntu-latest' || matrix.os == 'ubuntu-24.04-arm') }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.DEB_BUNDLE_NAME }}
+          path: apps/stage-tamagotchi/bundle/${{ env.DEB_BUNDLE_NAME }}
 
-      - name: Get Name of Artifacts (Manual + Windows Only)
+      - name: Upload Artifacts (Nightly + Linux rpm)
+        if: ${{ github.event_name == 'schedule' && (matrix.os == 'ubuntu-latest' || matrix.os == 'ubuntu-24.04-arm') }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.RPM_BUNDLE_NAME }}
+          path: apps/stage-tamagotchi/bundle/${{ env.RPM_BUNDLE_NAME }}
+
+      - name: Upload Flatpak Artifact (Nightly + Linux Only)
+        if: ${{ github.event_name == 'schedule' && (matrix.os == 'ubuntu-latest' || matrix.os == 'ubuntu-24.04-arm') }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.FLATPAK_BUNDLE_NAME }}
+          path: apps/stage-tamagotchi/bundle/${{ env.FLATPAK_BUNDLE_NAME }}
+
+      # ---------
+      # Workflow Dispatch only
+      # ---------
+
+      - name: Get Artifacts Envs (Manual + Windows Only)
         if: ${{ github.event_name == 'workflow_dispatch' && matrix.os == 'windows-latest' }}
+        working-directory: ./apps/stage-tamagotchi
         run: |
-          pnpm -F @proj-airi/stage-tamagotchi name-of-artifacts ${{ matrix.target }} --out bundle_name --release ${{ !inputs.build_only && !inputs.artifacts_only }} --tag ${{ inputs.tag }} --auto-tag ${{ !inputs.build_only }}
-          echo "BUNDLE_NAME=$(node -p "require('node:fs').readFileSync(require('node:path').join('apps', 'stage-tamagotchi', 'bundle_name')).toString('utf-8')")" >> $env:GITHUB_ENV
+          echo "BUNDLE_NAME=$(pnpm exec tsx scripts/artifacts-metadata.ts ${{ matrix.target }} --get-bundle-name --release ${{ !inputs.build_only && !inputs.artifacts_only }} --tag ${{ inputs.tag }} --auto-tag ${{ !inputs.build_only }})" >> $env:GITHUB_ENV
+          echo "VERSION=$(pnpm exec tsx scripts/artifacts-metadata.ts ${{ matrix.target }} --get-version --release ${{ !inputs.build_only && !inputs.artifacts_only }} --tag ${{ inputs.tag }} --auto-tag ${{ !inputs.build_only }})" >> $env:GITHUB_ENV
 
-      - name: Get Name of Artifacts (Manual)
+      - name: Get Artifacts Envs (Manual + Non-Windows)
         if: ${{ github.event_name == 'workflow_dispatch' && matrix.os != 'windows-latest' }}
+        working-directory: ./apps/stage-tamagotchi
         run: |
-          pnpm -F @proj-airi/stage-tamagotchi name-of-artifacts ${{ matrix.target }} --out bundle_name --release ${{ !inputs.build_only && !inputs.artifacts_only }} --tag ${{ inputs.tag }} --auto-tag ${{ !inputs.build_only }}
-          echo "BUNDLE_NAME=$(node -p "require('node:fs').readFileSync(require('node:path').join('apps', 'stage-tamagotchi', 'bundle_name')).toString('utf-8')")" >> $GITHUB_ENV
+          echo "VERSION=$(pnpm exec tsx scripts/artifacts-metadata.ts ${{ matrix.target }} --get-version --release ${{ !inputs.build_only && !inputs.artifacts_only }} --tag ${{ inputs.tag }} --auto-tag ${{ !inputs.build_only }})" > $GITHUB_ENV
+
+      - name: Get Artifacts Envs (Manual + macOS Only)
+        if: ${{ github.event_name == 'workflow_dispatch' && (matrix.os == 'macos-latest' || matrix.os == 'macos-15-intel') }}
+        working-directory: ./apps/stage-tamagotchi
+        run: |
+          echo "BUNDLE_NAME=$(pnpm exec tsx scripts/artifacts-metadata.ts ${{ matrix.target }} --get-bundle-name --release ${{ !inputs.build_only && !inputs.artifacts_only }} --tag ${{ inputs.tag }} --auto-tag ${{ !inputs.build_only }})" > $GITHUB_ENV
 
       - name: Rename Artifacts (Manual)
         if: ${{ github.event_name == 'workflow_dispatch' }}
         run: |
           pnpm run -F @proj-airi/stage-tamagotchi rename-artifacts ${{ matrix.target }} --release ${{ !inputs.build_only && !inputs.artifacts_only }} --tag ${{ inputs.tag }} --auto-tag ${{ !inputs.build_only }}
 
-      - name: Upload Artifacts (Manual + Non-Release)
-        if: ${{ github.event_name == 'workflow_dispatch' && !inputs.build_only && inputs.artifacts_only }}
+      - name: Get Linux Artifact Names (Manual + Non-Release + Linux Only)
+        if: ${{ github.event_name == 'workflow_dispatch' && !inputs.build_only && inputs.artifacts_only && (matrix.os == 'ubuntu-latest' || matrix.os == 'ubuntu-24.04-arm') }}
+        working-directory: ./apps/stage-tamagotchi
+        run: |
+          echo "DEB_BUNDLE_NAME=$(pnpm exec tsx scripts/artifacts-metadata.ts ${{ matrix.target }} --get-filename deb --release ${{ !inputs.build_only && !inputs.artifacts_only }} --tag ${{ inputs.tag }} --auto-tag ${{ !inputs.build_only }})" >> $GITHUB_ENV
+          echo "RPM_BUNDLE_NAME=$(pnpm exec tsx scripts/artifacts-metadata.ts ${{ matrix.target }} --get-filename rpm --release ${{ !inputs.build_only && !inputs.artifacts_only }} --tag ${{ inputs.tag }} --auto-tag ${{ !inputs.build_only }})" >> $GITHUB_ENV
+          echo "FLATPAK_BUNDLE_NAME=$(pnpm exec tsx scripts/artifacts-metadata.ts ${{ matrix.target }} --get-filename flatpak --release ${{ !inputs.build_only && !inputs.artifacts_only }} --tag ${{ inputs.tag }} --auto-tag ${{ !inputs.build_only }})" >> $GITHUB_ENV
+
+      - name: Upload Artifacts (Manual + Non-Release + Non-Linux)
+        if: ${{ github.event_name == 'workflow_dispatch' && !inputs.build_only && inputs.artifacts_only && (matrix.os != 'ubuntu-latest' && matrix.os != 'ubuntu-24.04-arm') }}
         uses: actions/upload-artifact@v4
         with:
           name: ${{ env.BUNDLE_NAME }}
-          path: bundle/${{ env.BUNDLE_NAME }}
+          path: apps/stage-tamagotchi/bundle/${{ env.BUNDLE_NAME }}
+
+      - name: Upload Artifacts (Manual + Non-Release + Linux deb)
+        if: ${{ github.event_name == 'workflow_dispatch' && !inputs.build_only && inputs.artifacts_only && (matrix.os == 'ubuntu-latest' || matrix.os == 'ubuntu-24.04-arm') }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.DEB_BUNDLE_NAME }}
+          path: apps/stage-tamagotchi/bundle/${{ env.DEB_BUNDLE_NAME }}
+
+      - name: Upload Artifacts (Manual + Non-Release + Linux rpm)
+        if: ${{ github.event_name == 'workflow_dispatch' && !inputs.build_only && inputs.artifacts_only && (matrix.os == 'ubuntu-latest' || matrix.os == 'ubuntu-24.04-arm') }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.RPM_BUNDLE_NAME }}
+          path: apps/stage-tamagotchi/bundle/${{ env.RPM_BUNDLE_NAME }}
+
+      - name: Upload Flatpak Artifact (Manual + Non-Release + Linux)
+        if: ${{ github.event_name == 'workflow_dispatch' && !inputs.build_only && inputs.artifacts_only && (matrix.os == 'ubuntu-latest' || matrix.os == 'ubuntu-24.04-arm') }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.FLATPAK_BUNDLE_NAME }}
+          path: apps/stage-tamagotchi/bundle/${{ env.FLATPAK_BUNDLE_NAME }}
 
       - name: Upload To GitHub Releases (Manual + Overwrite Release)
         if: ${{ github.event_name == 'workflow_dispatch' && !inputs.build_only && !inputs.artifacts_only }}
         uses: softprops/action-gh-release@v2
         with:
-          files: bundle/${{ env.PRODUCT_NAME }}_*
+          files: apps/stage-tamagotchi/bundle/${{ env.PRODUCT_NAME }}_*
           append_body: true
           tag_name: ${{ inputs.tag }}
 
@@ -211,5 +303,10 @@ jobs:
         if: ${{ github.event_name == 'release' }}
         uses: softprops/action-gh-release@v2
         with:
-          files: bundle/${{ env.PRODUCT_NAME }}_*
+          files: apps/stage-tamagotchi/bundle/${{ env.PRODUCT_NAME }}_*
           append_body: true
+
+      # - name: Clean up keychain and provisioning profile (macOS Only)
+      #   if: ${{ always() && (matrix.os == 'macos-15-intel' || matrix.os == 'macos-latest') }}
+      #   run: |
+      #     security delete-keychain $RUNNER_TEMP/app-signing.keychain-db

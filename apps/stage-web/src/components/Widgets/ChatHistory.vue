@@ -2,7 +2,7 @@
 import { MarkdownRenderer } from '@proj-airi/stage-ui/components'
 import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
 import { storeToRefs } from 'pinia'
-import { computed, nextTick, onMounted, ref } from 'vue'
+import { ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 const chatHistoryRef = ref<HTMLDivElement>()
@@ -38,6 +38,17 @@ onMounted(async () => {
   await scrollToBottom()
 })
 
+function scrollToBottom() {
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      if (!chatHistoryRef.value)
+        return
+
+      chatHistoryRef.value.scrollTop = chatHistoryRef.value.scrollHeight
+    })
+  })
+}
+
 onBeforeMessageComposed(async () => {
   // Scroll down to the new sent message
   await scrollToBottom()
@@ -48,26 +59,9 @@ onTokenLiteral(async () => {
   await scrollToBottom()
 })
 
-// Load more history without changing scroll position
-async function handleLoadMore() {
-  if (!chatHistoryRef.value)
-    return
-
-  // Store current scroll height and position
-  const oldScrollHeight = chatHistoryRef.value.scrollHeight
-  const oldScrollTop = chatHistoryRef.value.scrollTop
-
-  // Load more history
-  await loadMoreHistory()
-
-  // After new content is loaded, adjust scroll position to maintain relative position
-  await nextTick()
-  if (chatHistoryRef.value) {
-    const newScrollHeight = chatHistoryRef.value.scrollHeight
-    const heightDiff = newScrollHeight - oldScrollHeight
-    chatHistoryRef.value.scrollTop = oldScrollTop + heightDiff
-  }
-}
+watch(sending, () => {
+  scrollToBottom()
+}, { flush: 'post' })
 </script>
 
 <template>

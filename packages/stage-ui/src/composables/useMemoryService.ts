@@ -6,150 +6,105 @@
  * - Storing AI responses in memory service
  * - Managing API key authentication
  */
+import type { StructuredMemoryContext } from '../types/memory'
 
-// TODO [lucas-oma]: remove console.debug before merging (eslint)
-
+import { memoryClient } from '@proj-airi/memory-pgvector'
 import { useLocalStorage } from '@vueuse/core'
+import { storeToRefs } from 'pinia'
+import { computed } from 'vue'
 
-export interface MemoryServiceConfig {
-  url: string
-  apiKey: string
-}
+import { useAiriCardStore } from '../stores/modules'
 
 export function useMemoryService() {
-  const memoryServiceEnabled = useLocalStorage('settings/memory/enabled', false)
-  const memoryServiceUrl = useLocalStorage('settings/memory/service-url', 'http://localhost:3001')
+  const memoryServiceEnabled = useLocalStorage('settings/memory/enabled', true)
+  const memoryServiceUrl = useLocalStorage('settings/memory/service-url', 'http://localhost:3001/api')
   const memoryApiKey = useLocalStorage('settings/memory/api-key', '')
 
+  const airiCardStore = useAiriCardStore()
+  const { currentModels } = storeToRefs(airiCardStore)
+
+  const activeModelName = computed(() => currentModels.value?.consciousness?.model || 'default')
+
+  const resolveModelName = () => activeModelName.value
+
   /**
-   * Store a user message in the memory service
-   * NOTE: Currently not used as messages are stored via /api/context when building context.
-   * Keeping this for future streaming service implementation.
+   * Store a user message in the memory service.
    */
   async function storeUserMessage(content: string, platform: string = 'web') {
     try {
-      // Check if memory service is enabled
-      if (!memoryServiceEnabled.value) {
-        // console.debug('Memory service integration disabled, skipping message storage')
+      if (!memoryServiceEnabled.value)
         return
-      }
-
-      if (!memoryServiceUrl.value) {
-        // console.debug('Memory service URL not configured, skipping message storage')
-        return
-      }
-
-      const headers: Record<string, string> = {
-        'Content-Type': 'application/json',
-      }
-
-      if (memoryApiKey.value.trim()) {
-        headers.Authorization = `Bearer ${memoryApiKey.value}`
-      }
-
-      const response = await fetch(`${memoryServiceUrl.value}/api/messages`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({
-          content,
-          platform,
-        }),
-      })
-
-      if (!response.ok) {
-        throw new Error(`Memory service responded with status ${response.status}`)
-      }
-
-      // console.debug('User message stored in memory service successfully')
+      await memoryClient.ingestMessage(content, platform, resolveModelName())
     }
     catch (error) {
       console.warn('Failed to store user message in memory service:', error)
-      // Don't throw - we don't want to break the chat flow if memory service fails
     }
   }
 
   /**
-   * Store an AI response in the memory service
-   * Note: This requires the memory service to have a completions endpoint
+   * Store an AI response in the memory service.
    */
   async function storeAIResponse(prompt: string, response: string, platform: string = 'web') {
     try {
-      // Check if memory service is enabled
-      if (!memoryServiceEnabled.value) {
-        // console.debug('Memory service integration disabled, skipping response storage')
+      if (!memoryServiceEnabled.value)
         return
-      }
 
-      if (!memoryServiceUrl.value) {
-        // console.debug('Memory service URL not configured, skipping response storage')
-        return
-      }
-
-      const headers: Record<string, string> = {
-        'Content-Type': 'application/json',
-      }
-
-      if (memoryApiKey.value.trim()) {
-        headers.Authorization = `Bearer ${memoryApiKey.value}`
-      }
-
-      // Use the dedicated completions endpoint
-      const result = await fetch(`${memoryServiceUrl.value}/api/completions`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({
-          prompt,
-          response,
-          platform,
-        }),
-      })
-
-      if (!result.ok) {
-        throw new Error(`Memory service responded with status ${result.status}`)
-      }
-
-      // console.debug('AI response stored in memory service successfully')
+      await memoryClient.storeCompletion(prompt, response, platform, resolveModelName())
     }
     catch (error) {
       console.warn('Failed to store AI response in memory service:', error)
-      // Don't throw - we don't want to break the chat flow if memory service fails
     }
   }
 
   /**
-   * Test connection to memory service
+   * Test connection to memory service.
    */
   async function testConnection(): Promise<{ success: boolean, message: string }> {
     try {
       if (!memoryServiceEnabled.value) {
         return { success: false, message: 'Memory service integration is disabled' }
       }
-
-      if (!memoryServiceUrl.value) {
-        return { success: false, message: 'Memory service URL not configured' }
-      }
-
-      const headers: Record<string, string> = {}
-      if (memoryApiKey.value.trim()) {
-        headers.Authorization = `Bearer ${memoryApiKey.value}`
-      }
-      const response = await fetch(`${memoryServiceUrl.value}/api/test-conn`, {
-        method: 'GET',
-        headers: { Accept: 'application/json' },
-      })
-
-      if (response.ok) {
-        return { success: true, message: 'Successfully connected to memory service' }
-      }
-      else {
-        return { success: false, message: `Memory service responded with status ${response.status}` }
-      }
+      await memoryClient.getContext('test')
+      return { success: true, message: 'Memory service is connected' }
     }
     catch (error) {
       return {
         success: false,
         message: `Failed to connect to memory service: ${error instanceof Error ? error.message : 'Unknown error'}`,
       }
+    }
+  }
+
+  /**
+   * Fetches structured context from the memory service.
+   */
+  async function fetchStructuredContext(message: string): Promise<StructuredMemoryContext | null> {
+    try {
+      if (!memoryServiceEnabled.value)
+        return null
+
+      return await memoryClient.getStructuredContext(message, resolveModelName())
+    }
+    catch (error) {
+      console.error('Failed to fetch structured context:', error)
+      return null
+    }
+  }
+
+  /**
+   * Builds a string context from the memory service.
+   */
+  async function buildContext(message: string): Promise<string> {
+    if (!memoryServiceEnabled.value)
+      return ''
+
+    try {
+      const context = await memoryClient.getContext(message, resolveModelName())
+      return context || ''
+    }
+    catch (error) {
+      console.error('Failed to build context string:', error)
+      return ''
     }
   }
 
@@ -160,5 +115,8 @@ export function useMemoryService() {
     storeUserMessage,
     storeAIResponse,
     testConnection,
+    getActiveModelName: resolveModelName,
+    fetchStructuredContext,
+    buildContext,
   }
 }

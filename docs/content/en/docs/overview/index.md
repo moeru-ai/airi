@@ -13,7 +13,7 @@ Think of us as
 awareness specialized [SillyTavern](https://github.com/SillyTavern/SillyTavern)
 alternative.
 
-Have you dreamed about having a cyber living being (cyber waifu / husbando),
+Have you dreamed about having a cyber living being (cyber waifu),
 or digital companion that could play with and talk to you?
 
 With the power of modern large language models, platforms like

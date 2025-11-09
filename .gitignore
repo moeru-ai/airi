@@ -20,6 +20,8 @@ lerna-debug.log*
 
 # Anything .local, especially for .env.local
 *.local
+# e.g. Claude Code settings.local.json
+*.local.*
 
 # Audio binaries
 *.pcm
@@ -41,6 +43,9 @@ coverage/
 # Build
 out/
 bundle/
+.flatpak-builder/
+.flatpak-repo/
+*.flatpak
 # WXT specified this too
 *.output
 
@@ -57,7 +62,7 @@ components.d.ts
 
 # Cache
 .eslintcache
-**/.cache/**
+**/.cache/
 **/.vitepress/cache/
 **/tsconfig.tsbuildinfo
 

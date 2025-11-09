@@ -12,7 +12,7 @@
   "repository": {
     "type": "git",
     "url": "https://github.com/moeru-ai/airi.git",
-    "directory": "packages/tres"
+    "directory": "packages/tresjs"
   },
   "exports": {
     "./post-processing": "./src/post-processing/index.ts"
@@ -28,7 +28,7 @@
     "vue": ">=3.5.0 <4.0.0"
   },
   "devDependencies": {
-    "@types/three": "^0.180.0",
-    "vue-tsc": "^3.0.8"
+    "@types/three": "^0.181.0",
+    "vue-tsc": "^3.1.2"
   }
 }

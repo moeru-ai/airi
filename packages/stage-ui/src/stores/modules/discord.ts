@@ -2,10 +2,10 @@ import { useLocalStorage } from '@vueuse/core'
 import { defineStore } from 'pinia'
 import { computed } from 'vue'
 
-import { useConfiguratorForAiriSdk } from '../configurator'
+import { useConfiguratorByModsChannelServer } from '../configurator'
 
 export const useDiscordStore = defineStore('discord', () => {
-  const configurator = useConfiguratorForAiriSdk()
+  const configurator = useConfiguratorByModsChannelServer()
   const enabled = useLocalStorage('settings/discord/enabled', false)
   const token = useLocalStorage('settings/discord/token', '')
 

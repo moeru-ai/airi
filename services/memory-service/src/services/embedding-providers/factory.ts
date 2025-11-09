@@ -1,10 +1,13 @@
+import type { EmbeddingProvider } from './base'
+
 import { SettingsService } from '../settings'
+import { OllamaEmbeddingProvider } from './ollama'
 import { XsaiEmbeddingProvider } from './xsai'
 
 export class EmbeddingProviderFactory {
   private static instance: EmbeddingProviderFactory
   private settingsService = SettingsService.getInstance()
-  private currentProvider: XsaiEmbeddingProvider | null = null // Current active provider instance
+  private currentProvider: { instance: EmbeddingProvider, key: string } | null = null // Current active provider instance
 
   private constructor() {}
 
@@ -24,7 +27,7 @@ export class EmbeddingProviderFactory {
       const settings = await this.settingsService.getSettings()
 
       // Only initialize if we have API keys configured
-      if (settings.mem_embedding_api_key) {
+      if (settings.mem_embedding_provider.toLowerCase() === 'ollama' || settings.mem_embedding_api_key) {
         await this.getProvider()
       }
       else {
@@ -37,24 +40,31 @@ export class EmbeddingProviderFactory {
     }
   }
 
-  private async getProvider(): Promise<XsaiEmbeddingProvider> {
+  private async getProvider(): Promise<EmbeddingProvider> {
     const settings = await this.settingsService.getSettings()
     const provider = settings.mem_embedding_provider.toLowerCase()
     const model = settings.mem_embedding_model.toLowerCase()
     const apiKey = settings.mem_embedding_api_key
+    const key = `${provider}:${model}:${apiKey ?? ''}`
 
-    if (
-      this.currentProvider instanceof XsaiEmbeddingProvider
-      && this.currentProvider.provider === provider // Assumes public 'provider' property exists on XsaiEmbeddingProvider
-      && this.currentProvider.modelName === model // Assumes public 'modelName' property exists on XsaiEmbeddingProvider
-    ) {
+    if (this.currentProvider && this.currentProvider.key === key) {
       console.warn('Reusing existing embedding provider')
-      return this.currentProvider
+      return this.currentProvider.instance
     }
 
-    // Create a new instance using the parameters from settings.
-    this.currentProvider = new XsaiEmbeddingProvider(provider, model, apiKey)
-    return this.currentProvider
+    if (provider === 'ollama') {
+      const instance = new OllamaEmbeddingProvider(model, process.env.OLLAMA_BASE_URL)
+      this.currentProvider = { key, instance }
+      return instance
+    }
+
+    if (!apiKey) {
+      throw new Error(`${provider} embedding provider requires an API key`)
+    }
+
+    const instance = new XsaiEmbeddingProvider(provider, model, apiKey)
+    this.currentProvider = { key, instance }
+    return instance
   }
 
   /**

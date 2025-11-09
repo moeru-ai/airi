@@ -2,11 +2,11 @@ import { useLocalStorage } from '@vueuse/core'
 import { defineStore } from 'pinia'
 import { computed } from 'vue'
 
-import { useConfiguratorForAiriSdk } from '../configurator'
+import { useConfiguratorByModsChannelServer } from '../configurator'
 
 export function createGamingModuleStore(moduleName: string, defaultPort: number) {
   return defineStore(moduleName, () => {
-    const configurator = useConfiguratorForAiriSdk()
+    const configurator = useConfiguratorByModsChannelServer()
 
     const enabled = useLocalStorage(`settings/${moduleName}/enabled`, false)
     const serverAddress = useLocalStorage(`settings/${moduleName}/server-address`, '')

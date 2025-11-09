@@ -20,8 +20,17 @@ import { LLMMemoryManager } from './llm-memory-manager.js'
 
 export interface ProcessingBatch {
   messageIds: string[]
-  messages: any[]
+  messages: QueuedMessage[]
+  modelName: string
   context?: BuiltContext // Optional context for the batch (only used when user sends a message)
+}
+
+interface QueuedMessage {
+  id: string
+  content: string
+  platform: string
+  created_at: number
+  model_name: string
 }
 
 export class BackgroundTrigger {
@@ -118,7 +127,7 @@ export class BackgroundTrigger {
   /**
    * Get unprocessed messages from PostgreSQL queue
    */
-  private async getUnprocessedMessages(limit: number): Promise<any[]> {
+  private async getUnprocessedMessages(limit: number): Promise<QueuedMessage[]> {
     try {
       // Get unprocessed messages
       const queuedMessages = await this.messageIngestion.getUnprocessedBatch(limit)
@@ -137,6 +146,7 @@ export class BackgroundTrigger {
           content: chatMessagesTable.content,
           platform: chatMessagesTable.platform,
           created_at: chatMessagesTable.created_at,
+          model_name: chatMessagesTable.model_name,
         })
         .from(chatMessagesTable)
         .where(inArray(chatMessagesTable.id, messageIds))
@@ -153,51 +163,58 @@ export class BackgroundTrigger {
   /**
    * Create smart batches based on content length and token estimation
    */
-  private createBatches(messages: any[], maxBatchSize: number): ProcessingBatch[] {
+  private createBatches(messages: QueuedMessage[], maxBatchSize: number): ProcessingBatch[] {
     if (messages.length === 0)
       return []
 
-    // Sort messages by content length (shortest first for better batching)
-    const sortedMessages = [...messages].sort((a, b) => a.content.length - b.content.length)
-
     const batches: ProcessingBatch[] = []
-    let currentBatch: any[] = []
-    let currentBatchTokens = 0
+    const messagesByModel = messages.reduce((acc, message) => {
+      if (!acc[message.model_name])
+        acc[message.model_name] = []
+      acc[message.model_name]!.push(message)
+      return acc
+    }, {} as Record<string, QueuedMessage[]>)
 
-    for (const message of sortedMessages) {
-      const messageTokens = this.estimateTokenCount(message.content)
+    for (const [modelName, groupedMessages] of Object.entries(messagesByModel)) {
+      const sortedMessages = [...groupedMessages].sort((a, b) => a.content.length - b.content.length)
 
-      // If adding this message would exceed optimal batch size, process current batch
-      if (currentBatch.length > 0 && currentBatchTokens + messageTokens > 4000) {
+      let currentBatch: QueuedMessage[] = []
+      let currentBatchTokens = 0
+
+      for (const message of sortedMessages) {
+        const messageTokens = this.estimateTokenCount(message.content)
+
+        if (currentBatch.length > 0 && currentBatchTokens + messageTokens > 4000) {
+          batches.push({
+            messageIds: currentBatch.map(m => m.id),
+            messages: currentBatch,
+            modelName,
+          })
+          currentBatch = []
+          currentBatchTokens = 0
+        }
+
+        currentBatch.push(message)
+        currentBatchTokens += messageTokens
+
+        if (currentBatch.length >= maxBatchSize) {
+          batches.push({
+            messageIds: currentBatch.map(m => m.id),
+            messages: currentBatch,
+            modelName,
+          })
+          currentBatch = []
+          currentBatchTokens = 0
+        }
+      }
+
+      if (currentBatch.length > 0) {
         batches.push({
           messageIds: currentBatch.map(m => m.id),
           messages: currentBatch,
+          modelName,
         })
-        currentBatch = []
-        currentBatchTokens = 0
       }
-
-      // Add message to current batch
-      currentBatch.push(message)
-      currentBatchTokens += messageTokens
-
-      // If batch is full, process it
-      if (currentBatch.length >= maxBatchSize) {
-        batches.push({
-          messageIds: currentBatch.map(m => m.id),
-          messages: currentBatch,
-        })
-        currentBatch = []
-        currentBatchTokens = 0
-      }
-    }
-
-    // Add any remaining messages in the final batch
-    if (currentBatch.length > 0) {
-      batches.push({
-        messageIds: currentBatch.map(m => m.id),
-        messages: currentBatch,
-      })
     }
 
     return batches

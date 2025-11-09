@@ -1,2 +1,3 @@
-export * from './About'
-export * from './Onboarding'
+export * from './about'
+export * from './audio-input'
+export * from './onboarding'

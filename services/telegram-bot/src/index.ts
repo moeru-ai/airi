@@ -11,8 +11,6 @@ import { ATTR_SERVICE_NAME, ATTR_SERVICE_VERSION } from '@opentelemetry/semantic
 import { startTelegramBot } from './bots/telegram'
 import { initDb } from './db'
 
-import 'dotenv/config'
-
 setGlobalFormat(Format.Pretty)
 setGlobalLogLevel(LogLevel.Debug)
 
@@ -36,9 +34,7 @@ async function main() {
   sdk.start()
 
   await initDb()
-  await Promise.all([
-    startTelegramBot(),
-  ])
+  await startTelegramBot()
 }
 
 process.on('unhandledRejection', (err) => {

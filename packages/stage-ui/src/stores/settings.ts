@@ -2,6 +2,7 @@ import type { DisplayModel } from './display-models'
 
 import messages from '@proj-airi/i18n/locales'
 
+import { withBase } from '@proj-airi/stage-shared'
 import { useEventListener, useLocalStorage } from '@vueuse/core'
 import { converter } from 'culori'
 import { defineStore } from 'pinia'
@@ -80,7 +81,7 @@ export const useSettings = defineStore('settings', () => {
       stageModelSelectedUrl.value = URL.createObjectURL(model.file)
     }
     else {
-      stageModelSelectedUrl.value = model.url
+      stageModelSelectedUrl.value = withBase(model.url)
     }
 
     stageModelSelectedDisplayModel.value = model
@@ -99,6 +100,8 @@ export const useSettings = defineStore('settings', () => {
   const stageViewControlsEnabled = ref(false)
 
   const live2dDisableFocus = useLocalStorage('settings/live2d/disable-focus', false)
+  const live2dIdleAnimationEnabled = useLocalStorage('settings/live2d/idle-animation-enabled', true)
+  const live2dAutoBlinkEnabled = useLocalStorage('settings/live2d/auto-blink-enabled', true)
 
   const disableTransitions = useLocalStorage('settings/disable-transitions', true)
   const usePageSpecificTransitions = useLocalStorage('settings/use-page-specific-transitions', true)
@@ -169,6 +172,8 @@ export const useSettings = defineStore('settings', () => {
     stageViewControlsEnabled,
 
     live2dDisableFocus,
+    live2dIdleAnimationEnabled,
+    live2dAutoBlinkEnabled,
     themeColorsHue,
     themeColorsHueDynamic,
 
@@ -186,7 +191,7 @@ export const useSettingsAudioDevice = defineStore('settings-audio-devices', () =
   const { audioInputs, deviceConstraints, selectedAudioInput: selectedAudioInputNonPersist, startStream, stopStream, stream, askPermission } = useAudioDevice()
 
   const selectedAudioInputPersist = useLocalStorage('settings/audio/input', selectedAudioInputNonPersist.value)
-  const selectedAudioInputEnabledPersist = useLocalStorage('settings/audio/input-enabled', false)
+  const selectedAudioInputEnabledPersist = useLocalStorage('settings/audio/input/enabled', false)
 
   watch(selectedAudioInputPersist, (newValue) => {
     selectedAudioInputNonPersist.value = newValue

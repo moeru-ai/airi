@@ -12,7 +12,8 @@
     "types": [
       "vitest",
       "vite/client",
-      "unplugin-info/client"
+      "unplugin-info/client",
+      "@types/audioworklet"
     ],
     "allowJs": true,
     "strict": true,
@@ -36,12 +37,10 @@
     "env.d.ts",
     "src/**/*.ts",
     "src/**/*.d.ts",
-    "src/**/*.mts",
     "src/**/*.vue",
     "src/**/*.story.vue",
     "stories/**/*.ts",
     "stories/**/*.d.ts",
-    "stories/**/*.mts",
     "stories/**/*.vue",
     "stories/**/*.story.vue"
   ],

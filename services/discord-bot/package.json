@@ -15,14 +15,13 @@
     "directory": "services/discord-bot"
   },
   "scripts": {
-    "start": "dotenvx run -f .env -f .env.local --overload --ignore=MISSING_ENV_FILE -- tsx src/index.ts",
+    "start": "tsx --env-file=.env --env-file-if-exists=.env.local src/index.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@discordjs/voice": "^0.19.0",
-    "@dotenvx/dotenvx": "^1.51.0",
     "@guiiai/logg": "catalog:",
-    "@huggingface/transformers": "^3.7.3",
+    "@huggingface/transformers": "^3.7.6",
     "@proj-airi/audio": "workspace:^",
     "@proj-airi/server-sdk": "workspace:^",
     "@proj-airi/server-shared": "workspace:^",
@@ -31,7 +30,7 @@
     "@xsai/generate-text": "catalog:",
     "@xsai/generate-transcription": "catalog:",
     "@xsai/shared-chat": "catalog:",
-    "discord.js": "^14.22.1",
+    "discord.js": "^14.24.2",
     "libsodium-wrappers": "^0.7.15",
     "opusscript": "^0.1.1",
     "tsx": "^4.20.6",

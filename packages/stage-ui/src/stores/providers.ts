@@ -17,9 +17,13 @@ import type {
   VoiceProviderWithExtraOptions,
 } from 'unspeech'
 
+import type { AliyunRealtimeSpeechExtraOptions } from './providers/aliyun/stream-transcription'
+
+import { isStageTamagotchi, isUrl } from '@proj-airi/stage-shared'
 import { computedAsync, useLocalStorage } from '@vueuse/core'
 import {
   createAzure,
+  createCerebras,
   createDeepSeek,
   createFireworks,
   createGoogleGenerativeAI,
@@ -39,6 +43,8 @@ import {
   createEmbedProvider,
   createMetadataProvider,
   createModelProvider,
+  createSpeechProvider,
+  createTranscriptionProvider,
   merge,
 } from '@xsai-ext/shared-providers'
 import { listModels } from '@xsai/model'
@@ -54,9 +60,20 @@ import {
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import { isUrl } from '../utils/url'
+import { createAliyunNLSProvider as createAliyunNlsStreamProvider } from './providers/aliyun/stream-transcription'
 import { models as elevenLabsModels } from './providers/elevenlabs/list-models'
 import { buildOpenAICompatibleProvider } from './providers/openai-compatible-builder'
+
+const ALIYUN_NLS_REGIONS = [
+  'cn-shanghai',
+  'cn-shanghai-internal',
+  'cn-beijing',
+  'cn-beijing-internal',
+  'cn-shenzhen',
+  'cn-shenzhen-internal',
+] as const
+
+type AliyunNlsRegion = typeof ALIYUN_NLS_REGIONS[number]
 
 export interface ProviderMetadata {
   id: string
@@ -104,7 +121,7 @@ export interface ProviderMetadata {
   iconImage?: string
   defaultOptions?: () => Record<string, unknown>
   createProvider: (
-    config: Record<string, unknown>
+    config: Record<string, unknown>,
   ) =>
     | ChatProvider
     | ChatProviderWithExtraOptions
@@ -137,6 +154,11 @@ export interface ProviderMetadata {
       reason: string
       valid: boolean
     }
+  }
+  transcriptionFeatures?: {
+    supportsGenerate: boolean
+    supportsStreamOutput: boolean
+    supportsStreamInput: boolean
   }
 }
 
@@ -212,19 +234,8 @@ export const useProvidersStore = defineStore('providers', () => {
     return null
   })
 
-  async function isTamagotchi() {
-    if ('window' in globalThis && globalThis.window != null) {
-      if (('__TAURI_INTERNALS__' in globalThis.window && globalThis.window.__TAURI_INTERNALS__ != null) || location.host === 'tauri.localhost') {
-        return true
-      }
-    }
-    return false
-  }
-
   async function isBrowserAndMemoryEnough() {
-    const isInApp = await isTamagotchi()
-
-    if (isInApp)
+    if (isStageTamagotchi())
       return false
 
     const webGPUAvailable = await isWebGPUSupported()
@@ -311,7 +322,7 @@ export const useProvidersStore = defineStore('providers', () => {
       description: 'https://github.com/huggingface/candle',
       category: 'speech',
       tasks: ['text-to-speech', 'tts'],
-      isAvailableBy: isTamagotchi,
+      isAvailableBy: isStageTamagotchi,
       creator: createOpenAI,
       validation: [],
       validators: {
@@ -341,7 +352,7 @@ export const useProvidersStore = defineStore('providers', () => {
       description: 'https://github.com/huggingface/candle',
       category: 'transcription',
       tasks: ['speech-to-text', 'automatic-speech-recognition', 'asr', 'stt'],
-      isAvailableBy: isTamagotchi,
+      isAvailableBy: isStageTamagotchi,
       creator: createOpenAI,
       validation: [],
       validators: {
@@ -773,6 +784,7 @@ export const useProvidersStore = defineStore('providers', () => {
       validators: {
         validateProviderConfig: (config) => {
           const errors = [
+            !config.apiKey && new Error('API Key is required'),
             !config.baseUrl && new Error('Base URL is required. Default to https://api.openai.com/v1/ for official OpenAI API.'),
           ].filter(Boolean)
 
@@ -784,7 +796,7 @@ export const useProvidersStore = defineStore('providers', () => {
           return {
             errors,
             reason: errors.filter(e => e).map(e => String(e)).join(', ') || '',
-            valid: !!config.baseUrl,
+            valid: !!config.apiKey && !!config.baseUrl,
           }
         },
       },
@@ -820,6 +832,7 @@ export const useProvidersStore = defineStore('providers', () => {
       validators: {
         validateProviderConfig: (config) => {
           const errors = [
+            !config.apiKey && new Error('API Key is required'),
             !config.baseUrl && new Error('Base URL is required. Default to https://api.openai.com/v1/ for official OpenAI API.'),
           ].filter(Boolean)
 
@@ -831,7 +844,7 @@ export const useProvidersStore = defineStore('providers', () => {
           return {
             errors,
             reason: errors.filter(e => e).map(e => String(e)).join(', ') || '',
-            valid: !!config.baseUrl,
+            valid: !!config.apiKey && !!config.baseUrl,
           }
         },
       },
@@ -847,6 +860,87 @@ export const useProvidersStore = defineStore('providers', () => {
       tasks: ['speech-to-text', 'automatic-speech-recognition', 'asr', 'stt'],
       creator: createOpenAI,
     }),
+    'aliyun-nls-transcription': {
+      id: 'aliyun-nls-transcription',
+      category: 'transcription',
+      tasks: ['speech-to-text', 'automatic-speech-recognition', 'asr', 'stt', 'streaming-transcription'],
+      nameKey: 'settings.pages.providers.provider.aliyun-nls.title',
+      name: 'Aliyun NLS',
+      descriptionKey: 'settings.pages.providers.provider.aliyun-nls.description',
+      description: 'nls-console.aliyun.com',
+      icon: 'i-lobe-icons:alibabacloud',
+      defaultOptions: () => ({
+        accessKeyId: '',
+        accessKeySecret: '',
+        appKey: '',
+        region: 'cn-shanghai',
+      }),
+      transcriptionFeatures: {
+        supportsGenerate: false,
+        supportsStreamOutput: true,
+        supportsStreamInput: true,
+      },
+      createProvider: async (config) => {
+        const toString = (value: unknown) => typeof value === 'string' ? value.trim() : ''
+
+        const accessKeyId = toString(config.accessKeyId)
+        const accessKeySecret = toString(config.accessKeySecret)
+        const appKey = toString(config.appKey)
+        const region = toString(config.region)
+        const resolvedRegion = ALIYUN_NLS_REGIONS.includes(region as AliyunNlsRegion) ? region as AliyunNlsRegion : 'cn-shanghai'
+
+        if (!accessKeyId || !accessKeySecret || !appKey)
+          throw new Error('Aliyun NLS credentials are incomplete.')
+
+        const provider = createAliyunNlsStreamProvider(accessKeyId, accessKeySecret, appKey, { region: resolvedRegion })
+
+        return {
+          transcription(model: string, extraOptions?: AliyunRealtimeSpeechExtraOptions) {
+            return provider.speech(model, extraOptions)
+          },
+        } as TranscriptionProviderWithExtraOptions<string, AliyunRealtimeSpeechExtraOptions>
+      },
+      capabilities: {
+        listModels: async () => {
+          return [
+            {
+              id: 'aliyun-nls-v1',
+              name: 'Aliyun NLS Realtime',
+              provider: 'aliyun-nls-transcription',
+              description: 'Realtime streaming transcription using Aliyun NLS.',
+              contextLength: 0,
+              deprecated: false,
+            },
+          ]
+        },
+      },
+      validators: {
+        validateProviderConfig: (config) => {
+          const errors: Error[] = []
+          const toString = (value: unknown) => typeof value === 'string' ? value.trim() : ''
+
+          const accessKeyId = toString(config.accessKeyId)
+          const accessKeySecret = toString(config.accessKeySecret)
+          const appKey = toString(config.appKey)
+          const region = toString(config.region)
+
+          if (!accessKeyId)
+            errors.push(new Error('Access Key ID is required.'))
+          if (!accessKeySecret)
+            errors.push(new Error('Access Key Secret is required.'))
+          if (!appKey)
+            errors.push(new Error('App Key is required.'))
+          if (region && !ALIYUN_NLS_REGIONS.includes(region as AliyunNlsRegion))
+            errors.push(new Error('Region is invalid.'))
+
+          return {
+            errors,
+            reason: errors.length > 0 ? errors.map(error => error.message).join(', ') : '',
+            valid: errors.length === 0,
+          }
+        },
+      },
+    },
     'anthropic': buildOpenAICompatibleProvider({
       id: 'anthropic',
       name: 'Anthropic',
@@ -1058,7 +1152,7 @@ export const useProvidersStore = defineStore('providers', () => {
       description: 'index-tts.github.io',
       iconColor: 'i-lobe-icons:bilibiliindex',
       defaultOptions: () => ({
-        baseUrl: 'http://localhost:11996/tts',
+        baseUrl: 'http://localhost:11996/tts/',
       }),
       createProvider: async (config) => {
         const provider: SpeechProvider = {
@@ -1075,7 +1169,7 @@ export const useProvidersStore = defineStore('providers', () => {
       capabilities: {
         listVoices: async (config) => {
           const voicesUrl = config.baseUrl as string
-          const response = await fetch(`${voicesUrl}/audio/voices`)
+          const response = await fetch(`${voicesUrl}audio/voices`)
           if (!response.ok) {
             throw new Error(`Failed to fetch voices: ${response.statusText}`)
           }
@@ -1094,7 +1188,7 @@ export const useProvidersStore = defineStore('providers', () => {
       validators: {
         validateProviderConfig: (config) => {
           const errors = [
-            !config.baseUrl && new Error('Base URL is required. Default to http://localhost:11996/tts for Index-TTS.'),
+            !config.baseUrl && new Error('Base URL is required. Default to http://localhost:11996/tts/ for Index-TTS.'),
           ].filter(Boolean)
 
           const res = baseUrlValidator.value(config.baseUrl)
@@ -1250,6 +1344,50 @@ export const useProvidersStore = defineStore('providers', () => {
         },
       },
     },
+    'comet-api-speech': buildOpenAICompatibleProvider({
+      id: 'comet-api-speech',
+      name: 'CometAPI Speech',
+      nameKey: 'settings.pages.providers.provider.comet-api.title',
+      descriptionKey: 'settings.pages.providers.provider.comet-api.description',
+      icon: 'i-lobe-icons:cometapi',
+      description: 'cometapi.com',
+      category: 'speech',
+      tasks: ['text-to-speech'],
+      defaultBaseUrl: 'https://api.cometapi.com/v1/',
+      creator: (apiKey, baseURL = 'https://api.cometapi.com/v1/') => merge(
+        createModelProvider({ apiKey, baseURL }),
+        createSpeechProvider({ apiKey, baseURL }),
+      ),
+      validation: ['model_list'],
+    }),
+    'comet-api-transcription': buildOpenAICompatibleProvider({
+      id: 'comet-api-transcription',
+      name: 'CometAPI Transcription',
+      nameKey: 'settings.pages.providers.provider.comet-api.title',
+      descriptionKey: 'settings.pages.providers.provider.comet-api.description',
+      icon: 'i-lobe-icons:cometapi',
+      description: 'cometapi.com',
+      category: 'transcription',
+      tasks: ['speech-to-text', 'automatic-speech-recognition', 'asr', 'stt'],
+      defaultBaseUrl: 'https://api.cometapi.com/v1/',
+      creator: (apiKey, baseURL = 'https://api.cometapi.com/v1/') => merge(
+        createModelProvider({ apiKey, baseURL }),
+        createTranscriptionProvider({ apiKey, baseURL }),
+      ),
+      validation: ['model_list'],
+    }),
+    'cerebras-ai': buildOpenAICompatibleProvider({
+      id: 'cerebras-ai',
+      name: 'Cerebras',
+      nameKey: 'settings.pages.providers.provider.cerebras.title',
+      descriptionKey: 'settings.pages.providers.provider.cerebras.description',
+      icon: 'i-lobe-icons:cerebras',
+      description: 'cerebras.ai',
+      defaultBaseUrl: 'https://api.cerebras.ai/v1/',
+      creator: createCerebras,
+      validation: ['health', 'model_list'],
+      iconColor: 'i-lobe-icons:cerebras-color',
+    }),
     'together-ai': buildOpenAICompatibleProvider({
       id: 'together-ai',
       name: 'Together.ai',
@@ -1482,6 +1620,20 @@ export const useProvidersStore = defineStore('providers', () => {
         },
       },
     },
+    'comet-api': buildOpenAICompatibleProvider({
+      id: 'comet-api',
+      name: 'CometAPI',
+      nameKey: 'settings.pages.providers.provider.comet-api.title',
+      descriptionKey: 'settings.pages.providers.provider.comet-api.description',
+      icon: 'i-lobe-icons:cometapi',
+      description: 'cometapi.com',
+      defaultBaseUrl: 'https://api.cometapi.com/v1/',
+      creator: (apiKey, baseURL = 'https://api.cometapi.com/v1/') => merge(
+        createChatProvider({ apiKey, baseURL }),
+        createModelProvider({ apiKey, baseURL }),
+      ),
+      validation: ['model_list'],
+    }),
     'perplexity-ai': buildOpenAICompatibleProvider({
       id: 'perplexity-ai',
       name: 'Perplexity',
@@ -1723,7 +1875,8 @@ export const useProvidersStore = defineStore('providers', () => {
       const metadata = providerMetadata[providerId]
       const defaultOptions = metadata.defaultOptions?.() || {}
       providerCredentials.value[providerId] = {
-        baseUrl: defaultOptions.baseUrl || '',
+        ...defaultOptions,
+        ...(Object.prototype.hasOwnProperty.call(defaultOptions, 'baseUrl') ? {} : { baseUrl: '' }),
       }
     }
   }
@@ -1731,16 +1884,19 @@ export const useProvidersStore = defineStore('providers', () => {
   // Initialize all providers
   Object.keys(providerMetadata).forEach(initializeProvider)
 
-  // Update configuration status for all providers
+  // Update configuration status for all configured providers
   async function updateConfigurationStatus() {
-    await Promise.all(Object.keys(providerMetadata).map(async (providerId) => {
-      try {
-        configuredProviders.value[providerId] = await validateProvider(providerId)
-      }
-      catch {
-        configuredProviders.value[providerId] = false
-      }
-    }))
+    await Promise.all(Object.entries(providerMetadata)
+      // TODO: ignore un-configured provider
+      // .filter(([_, provider]) => provider.configured)
+      .map(async ([providerId]) => {
+        try {
+          configuredProviders.value[providerId] = await validateProvider(providerId)
+        }
+        catch {
+          configuredProviders.value[providerId] = false
+        }
+      }))
   }
 
   // Call initially and watch for changes
@@ -1853,6 +2009,17 @@ export const useProvidersStore = defineStore('providers', () => {
     }))
   })
 
+  function getTranscriptionFeatures(providerId: string) {
+    const metadata = providerMetadata[providerId]
+    const features = metadata?.transcriptionFeatures
+
+    return {
+      supportsGenerate: features?.supportsGenerate ?? true,
+      supportsStreamOutput: features?.supportsStreamOutput ?? false,
+      supportsStreamInput: features?.supportsStreamInput ?? false,
+    }
+  }
+
   // Function to get provider object by provider id
   async function getProviderInstance<R extends
   | ChatProvider
@@ -1932,6 +2099,7 @@ export const useProvidersStore = defineStore('providers', () => {
     configuredProviders,
     providerMetadata,
     getProviderMetadata,
+    getTranscriptionFeatures,
     allProvidersMetadata,
     initializeProvider,
     validateProvider,

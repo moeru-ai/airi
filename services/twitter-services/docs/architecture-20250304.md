@@ -276,11 +276,11 @@ async function main() {
   const loggedIn = await twitter.login()
 
   if (loggedIn) {
-    console.log('Login successful')
+    console.info('Login successful')
 
     // Get timeline using natural language capabilities of Stagehand
     const tweets = await twitter.getTimeline({ count: 10 })
-    console.log(tweets)
+    console.info(tweets)
   }
   else {
     console.error('Login failed')
@@ -311,7 +311,7 @@ async function startAIRIModule() {
   // Start adapter
   await airiAdapter.start()
 
-  console.log('Twitter service running as AIRI module')
+  console.info('Twitter service running as AIRI module')
 }
 ```
 
@@ -332,24 +332,24 @@ async function connectToTwitterService() {
 
   // Get timeline
   const timeline = await client.get('twitter://timeline/10')
-  console.log('Timeline:', timeline.contents)
+  console.info('Timeline:', timeline.contents)
 
   // Use simplified login tool without parameters
   const loginResult = await client.useTool('login', {})
-  console.log('Login result:', loginResult.content[0].text)
+  console.info('Login result:', loginResult.content[0].text)
 
   // Use refresh timeline tool to get latest tweets
   const refreshResult = await client.useTool('refresh-timeline', { count: 15, includeReplies: false })
-  console.log('Refresh result:', refreshResult.content[0].text)
-  console.log('New tweets:', refreshResult.resources)
+  console.info('Refresh result:', refreshResult.content[0].text)
+  console.info('New tweets:', refreshResult.resources)
 
   // Get user profile information
   const profileResult = await client.useTool('get-my-profile', { username: 'twitter' })
-  console.log('Profile info:', profileResult.content[0].text)
+  console.info('Profile info:', profileResult.content[0].text)
 
   // Use tool to send tweet
   const result = await client.useTool('post-tweet', { content: 'Hello from MCP!' })
-  console.log('Result:', result.content)
+  console.info('Result:', result.content)
 
   return client
 }

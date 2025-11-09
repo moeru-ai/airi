@@ -88,4 +88,18 @@ onMounted(() => {
   background: #161b22;
   border: 1px solid #30363d;
 }
+
+/* Force Shiki multi-theme output to follow our dark mode */
+.dark .markdown-content :deep(.shiki) {
+  background: var(--shiki-dark-bg, #0d1117) !important;
+  color: var(--shiki-dark, #e6edf3) !important;
+}
+
+.dark .markdown-content :deep(.shiki span[style*="--shiki-dark"]) {
+  color: var(--shiki-dark, inherit) !important;
+}
+
+.dark .markdown-content :deep(.shiki span[style*="--shiki-dark-background"]) {
+  background-color: var(--shiki-dark-background, var(--shiki-dark-bg, transparent)) !important;
+}
 </style>

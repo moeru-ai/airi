@@ -43,6 +43,16 @@ const DEFAULT_OPTIONS: ContextBuildingOptions = {
   includeShortTermIdeas: true,
 }
 
+interface MemoryFragmentContext {
+  id: string
+  content: string
+  memory_type: string
+  category: string
+  importance: number
+  emotional_impact: number
+  created_at: number
+}
+
 export interface BuiltContext {
   workingMemory: {
     recentMessages: Array<{
@@ -56,15 +66,8 @@ export interface BuiltContext {
     }>
   }
   semanticMemory: {
-    relevantFragments: Array<{
-      id: string // needed for finding associations
-      content: string
-      memory_type: string
-      category: string
-      importance: number
-      emotional_impact: number
-      created_at: number
-    }>
+    shortTerm: MemoryFragmentContext[]
+    longTerm: MemoryFragmentContext[]
     consolidatedMemories?: Array<{
       content: string
       summary_type: string
@@ -150,10 +153,22 @@ export class ContextBuilder {
       parts.push(`${responses}\n`)
     }
 
-    // Relevant memories
-    if (context.semanticMemory.relevantFragments.length > 0) {
-      parts.push('Relevant memories YOU (LLM) recall:')
-      const memories = context.semanticMemory.relevantFragments
+    const { shortTerm, longTerm } = context.semanticMemory
+
+    if (shortTerm.length > 0) {
+      parts.push('Short-term memories YOU (LLM) recall:')
+      const memories = shortTerm
+        .map((m) => {
+          const date = new Date(m.created_at).toLocaleString()
+          return `- ${date} (${m.memory_type}, importance: ${m.importance}): ${m.content}`
+        })
+        .join('\n')
+      parts.push(`${memories}\n`)
+    }
+
+    if (longTerm.length > 0) {
+      parts.push('Long-term memories YOU (LLM) recall:')
+      const memories = longTerm
         .map((m) => {
           const date = new Date(m.created_at).toLocaleString()
           return `- ${date} (${m.memory_type}, importance: ${m.importance}): ${m.content}`
@@ -215,8 +230,18 @@ export class ContextBuilder {
    */
   async buildContext(
     query: string,
+    modelName: string,
     options: ContextBuildingOptions = {},
   ): Promise<string> {
+    const context = await this.buildContextData(query, modelName, options)
+    return this.formatContextToNaturalLanguage(context)
+  }
+
+  async buildContextData(
+    query: string,
+    modelName: string,
+    options: ContextBuildingOptions = {},
+  ): Promise<BuiltContext> {
     const mergedOptions = { ...DEFAULT_OPTIONS, ...options }
 
     // Generate embeddings for the query
@@ -229,27 +254,24 @@ export class ContextBuilder {
       structuredKnowledge,
       goalContext,
     ] = await Promise.all([
-      this.buildWorkingMemoryContext(mergedOptions), // messages and completions
-      this.buildSemanticMemoryContext(queryEmbeddings, mergedOptions), // RAG w/ memories (relevantFragments, consolidatedMemories,associatedMemories)
-      this.buildStructuredKnowledgeContext(query), // entities and tags
-      this.buildGoalContext(queryEmbeddings, mergedOptions), // goals and ideas (RAG)
+      this.buildWorkingMemoryContext(mergedOptions, modelName),
+      this.buildSemanticMemoryContext(queryEmbeddings, mergedOptions, modelName),
+      this.buildStructuredKnowledgeContext(query, modelName),
+      this.buildGoalContext(queryEmbeddings, mergedOptions, modelName),
     ])
 
-    const context = {
+    return {
       workingMemory,
       semanticMemory,
       structuredKnowledge,
       goalContext,
     }
-
-    // Format context in natural language
-    return this.formatContextToNaturalLanguage(context)
   }
 
   /**
    * Build working memory context from recent messages and completions
    */
-  private async buildWorkingMemoryContext(options: ContextBuildingOptions) {
+  private async buildWorkingMemoryContext(options: ContextBuildingOptions, modelName: string) {
     const [recentMessages, recentCompletions] = await Promise.all([
       // Get recent messages
       this.db
@@ -258,6 +280,7 @@ export class ContextBuilder {
           created_at: chatMessagesTable.created_at,
         })
         .from(chatMessagesTable)
+        .where(eq(chatMessagesTable.model_name, modelName))
         .orderBy(desc(chatMessagesTable.created_at))
         .limit(options.maxWorkingMemoryMessages!),
 
@@ -269,6 +292,7 @@ export class ContextBuilder {
           created_at: chatCompletionsHistoryTable.created_at,
         })
         .from(chatCompletionsHistoryTable)
+        .where(eq(chatCompletionsHistoryTable.model_name, modelName))
         .orderBy(desc(chatCompletionsHistoryTable.created_at))
         .limit(options.maxRecentCompletions!),
     ])
@@ -285,6 +309,7 @@ export class ContextBuilder {
   private async buildSemanticMemoryContext(
     queryEmbeddings: any, // the expected format is { content_vector_1536: number[] | null, content_vector_1024: number[] | null, content_vector_768: number[] | null }
     options: ContextBuildingOptions,
+    modelName: string,
   ) {
     const settings = await this.settings.getSettings()
     const vectorDimension = settings.mem_embedding_dimensions
@@ -295,8 +320,11 @@ export class ContextBuilder {
       throw new Error(`No vector found for dimension ${vectorDimension}`)
     }
 
-    // Search fragments
-    const relevantFragments = await this.db
+    const totalLimit = Math.max(1, options.maxSemanticMemories ?? DEFAULT_OPTIONS.maxSemanticMemories!)
+    const shortTermLimit = Math.max(1, Math.floor(totalLimit / 2))
+    const longTermLimit = Math.max(0, totalLimit - shortTermLimit)
+
+    const rawShortTerm = await this.db
       .select({
         id: memoryFragmentsTable.id,
         content: memoryFragmentsTable.content,
@@ -312,10 +340,42 @@ export class ContextBuilder {
         and(
           sql`${memoryFragmentsTable[vectorColumn as keyof typeof memoryFragmentsTable]} is not null`,
           isNull(memoryFragmentsTable.deleted_at),
+          eq(memoryFragmentsTable.model_name, modelName),
+          inArray(memoryFragmentsTable.memory_type, ['short_term', 'working']),
         ),
       )
       .orderBy(desc(sql`similarity`))
-      .limit(options.maxSemanticMemories!)
+      .limit(shortTermLimit)
+
+    let rawLongTerm: Array<typeof rawShortTerm[number]> = []
+    if (longTermLimit > 0) {
+      rawLongTerm = await this.db
+        .select({
+          id: memoryFragmentsTable.id,
+          content: memoryFragmentsTable.content,
+          memory_type: memoryFragmentsTable.memory_type,
+          category: memoryFragmentsTable.category,
+          importance: memoryFragmentsTable.importance,
+          emotional_impact: memoryFragmentsTable.emotional_impact,
+          created_at: memoryFragmentsTable.created_at,
+          similarity: sql<number>`1 - (${memoryFragmentsTable[vectorColumn as keyof typeof memoryFragmentsTable]} <=> ${JSON.stringify(queryVector)})`.as('similarity'),
+        })
+        .from(memoryFragmentsTable)
+        .where(
+          and(
+            sql`${memoryFragmentsTable[vectorColumn as keyof typeof memoryFragmentsTable]} is not null`,
+            isNull(memoryFragmentsTable.deleted_at),
+            eq(memoryFragmentsTable.model_name, modelName),
+            inArray(memoryFragmentsTable.memory_type, ['long_term']),
+          ),
+        )
+        .orderBy(desc(sql`similarity`))
+        .limit(longTermLimit)
+    }
+
+    const shortTerm = rawShortTerm.map(({ similarity, ...fragment }) => fragment)
+    const longTerm = rawLongTerm.map(({ similarity, ...fragment }) => fragment)
+    const combinedFragments = [...shortTerm, ...longTerm]
 
     // Search consolidated memories if enabled
     let consolidatedMemories
@@ -328,7 +388,12 @@ export class ContextBuilder {
           similarity: sql<number>`1 - (${memoryConsolidatedMemoriesTable[vectorColumn as keyof typeof memoryConsolidatedMemoriesTable]} <=> ${JSON.stringify(queryVector)})`.as('similarity'),
         })
         .from(memoryConsolidatedMemoriesTable)
-        .where(sql`${memoryConsolidatedMemoriesTable[vectorColumn as keyof typeof memoryConsolidatedMemoriesTable]} is not null`)
+        .where(
+          and(
+            sql`${memoryConsolidatedMemoriesTable[vectorColumn as keyof typeof memoryConsolidatedMemoriesTable]} is not null`,
+            eq(memoryConsolidatedMemoriesTable.model_name, modelName),
+          ),
+        )
         .orderBy(desc(sql`similarity`))
         .limit(Math.floor(options.maxSemanticMemories! / 2))
     }
@@ -340,8 +405,8 @@ export class ContextBuilder {
       strength: number
       created_at: number
     }> = []
-    if (options.maxAssociatedMemories! > 0 && relevantFragments.length > 0) {
-      const fragmentIds = relevantFragments.map(f => f.id)
+    if (options.maxAssociatedMemories! > 0 && combinedFragments.length > 0) {
+      const fragmentIds = Array.from(new Set(combinedFragments.map(f => f.id)))
       associatedMemories = await this.db
         .select({
           content: memoryFragmentsTable.content,
@@ -354,13 +419,20 @@ export class ContextBuilder {
           memoryFragmentsTable,
           eq(memoryAssociationsTable.target_memory_id, memoryFragmentsTable.id),
         )
-        .where(inArray(memoryAssociationsTable.source_memory_id, fragmentIds))
+        .where(
+          and(
+            inArray(memoryAssociationsTable.source_memory_id, fragmentIds),
+            eq(memoryAssociationsTable.model_name, modelName),
+            eq(memoryFragmentsTable.model_name, modelName),
+          ),
+        )
         .orderBy(desc(memoryAssociationsTable.strength))
         .limit(options.maxAssociatedMemories!)
     }
 
     return {
-      relevantFragments,
+      shortTerm,
+      longTerm,
       consolidatedMemories,
       associatedMemories,
     }
@@ -371,6 +443,7 @@ export class ContextBuilder {
    */
   private async buildStructuredKnowledgeContext(
     query: string,
+    modelName: string,
     // options: ContextBuildingOptions // TODO [lucas-oma]: add this back in when we improve the entity extraction
   ) {
     // Use LLM to extract entities and keywords from query
@@ -389,6 +462,11 @@ export class ContextBuilder {
     const extractedEntities = response.entities?.map(e => e.name) || []
 
     // TODO [lucas-oma]: filter entities based in relevance to the query
+    if (extractedEntities.length === 0) {
+      return {
+        entities: [],
+      }
+    }
 
     // Look up entities
     const entities = await this.db
@@ -399,7 +477,12 @@ export class ContextBuilder {
         metadata: memoryEntitiesTable.metadata as Record<string, any>,
       })
       .from(memoryEntitiesTable)
-      .where(inArray(memoryEntitiesTable.name, extractedEntities))
+      .where(
+        and(
+          eq(memoryEntitiesTable.model_name, modelName),
+          inArray(memoryEntitiesTable.name, extractedEntities),
+        ),
+      )
 
     return {
       entities,
@@ -412,6 +495,7 @@ export class ContextBuilder {
   private async buildGoalContext(
     queryEmbeddings: any,
     options: ContextBuildingOptions,
+    modelName: string,
   ) {
     const settings = await this.settings.getSettings()
     const vectorDimension = settings.mem_embedding_dimensions
@@ -432,7 +516,12 @@ export class ContextBuilder {
         status: memoryLongTermGoalsTable.status,
       })
       .from(memoryLongTermGoalsTable)
-      .where(isNull(memoryLongTermGoalsTable.deleted_at))
+      .where(
+        and(
+          isNull(memoryLongTermGoalsTable.deleted_at),
+          eq(memoryLongTermGoalsTable.model_name, modelName),
+        ),
+      )
       .orderBy(desc(memoryLongTermGoalsTable.priority))
       .limit(options.maxRelevantGoals!)
 
@@ -450,6 +539,7 @@ export class ContextBuilder {
           and(
             sql`${memoryShortTermIdeasTable[vectorColumn as keyof typeof memoryShortTermIdeasTable]} is not null`,
             isNull(memoryShortTermIdeasTable.deleted_at),
+            eq(memoryShortTermIdeasTable.model_name, modelName),
           ),
         )
         .orderBy(desc(memoryShortTermIdeasTable.excitement))

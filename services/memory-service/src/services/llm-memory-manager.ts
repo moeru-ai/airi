@@ -117,10 +117,11 @@ export class LLMMemoryManager {
       const response = await llmProvider.processBatch({
         messageIds: batch.messageIds,
         messages: batch.messages,
+        modelName: batch.modelName,
       })
 
       // Store the structured data
-      await this.updateMemoryTables(response)
+      await this.updateMemoryTables(response, batch.modelName)
 
       // Mark messages as processed
       // await this.messageIngestion.markMessagesAsProcessed(batch.messageIds) // This line was not in the new_code, so it's removed.
@@ -134,7 +135,7 @@ export class LLMMemoryManager {
   /**
    * Updates all memory tables in a single, efficient transaction.
    */
-  private async updateMemoryTables(structuredData: StructuredLLMResponse): Promise<void> {
+  private async updateMemoryTables(structuredData: StructuredLLMResponse, modelName: string): Promise<void> {
     // console.log(`🔍 Processing ${structuredData.memoryFragments.length} memory fragments`)
     // console.log(`🏷️ Processing ${structuredData.goals.length} goals`)
     // console.log(`💡 Processing ${structuredData.ideas.length} ideas`)
@@ -151,6 +152,7 @@ export class LLMMemoryManager {
       created_at: Date.now(),
       last_accessed: Date.now(),
       metadata: {},
+      model_name: modelName,
       // Link to episode if one was detected for this batch
       episode_id: undefined as string | undefined, // Will be set after episode creation
     }))
@@ -158,10 +160,17 @@ export class LLMMemoryManager {
     const tagsToCreate = new Set(structuredData.memoryFragments.flatMap(f => f.tags))
 
     // Get existing tags first to avoid duplicates
-    const existingTags = await this.db
-      .select({ id: memoryTagsTable.id, name: memoryTagsTable.name })
-      .from(memoryTagsTable)
-      .where(inArray(memoryTagsTable.name, Array.from(tagsToCreate)))
+    const existingTags = tagsToCreate.size === 0
+      ? []
+      : await this.db
+          .select({ id: memoryTagsTable.id, name: memoryTagsTable.name })
+          .from(memoryTagsTable)
+          .where(
+            and(
+              eq(memoryTagsTable.model_name, modelName),
+              inArray(memoryTagsTable.name, Array.from(tagsToCreate)),
+            ),
+          )
 
     const existingTagMap = new Map(existingTags.map(tag => [tag.name, tag.id]))
 
@@ -171,6 +180,7 @@ export class LLMMemoryManager {
       name,
       description: `Auto-generated tag for ${name}`,
       created_at: Date.now(),
+      model_name: modelName,
     }))
 
     // Defer memory fragment insertion to the transaction below to avoid double insertions
@@ -199,6 +209,7 @@ export class LLMMemoryManager {
       category: g.category,
       created_at: Date.now(),
       updated_at: Date.now(),
+      model_name: modelName,
     }))
 
     const ideas = structuredData.ideas.map(i => ({
@@ -208,6 +219,7 @@ export class LLMMemoryManager {
       status: i.status,
       created_at: Date.now(),
       updated_at: Date.now(),
+      model_name: modelName,
     }))
 
     // Prepare episodes for insertion
@@ -218,6 +230,7 @@ export class LLMMemoryManager {
       end_time: e.endTime,
       is_processed: false,
       metadata: e.metadata || {},
+      model_name: modelName,
     }))
 
     // Prepare entities for insertion
@@ -226,6 +239,7 @@ export class LLMMemoryManager {
       entity_type: e.entityType,
       description: e.description,
       metadata: e.metadata || {},
+      model_name: modelName,
     }))
 
     // Prepare consolidated memories for insertion
@@ -237,6 +251,7 @@ export class LLMMemoryManager {
       metadata: c.metadata || {},
       created_at: Date.now(),
       last_accessed: Date.now(),
+      model_name: modelName,
       // Note: content_vector fields will be populated by embedding service
     }))
 
@@ -260,7 +275,7 @@ export class LLMMemoryManager {
             .insert(memoryEntitiesTable)
             .values(entity)
             .onConflictDoUpdate({
-              target: memoryEntitiesTable.name,
+              target: [memoryEntitiesTable.model_name, memoryEntitiesTable.name],
               set: {
                 description: sql`CASE 
                   WHEN length(EXCLUDED.description) > length(${memoryEntitiesTable.description}) 
@@ -300,7 +315,7 @@ export class LLMMemoryManager {
         // console.log(`✅ Memory fragments inserted`)
 
         // Build tag relations using returned fragment IDs in order
-        const tagRelations: Array<{ memory_id: string, tag_id: string, created_at: number }> = []
+        const tagRelations: Array<{ memory_id: string, tag_id: string, created_at: number, model_name: string }> = []
         for (let i = 0; i < structuredData.memoryFragments.length; i++) {
           const f = structuredData.memoryFragments[i]
           const fragmentId = createdFragments[i]?.id
@@ -309,7 +324,7 @@ export class LLMMemoryManager {
           for (const tagName of f.tags) {
             const tagId = allTagMap.get(tagName)
             if (tagId) {
-              tagRelations.push({ memory_id: fragmentId, tag_id: tagId, created_at: Date.now() })
+              tagRelations.push({ memory_id: fragmentId, tag_id: tagId, created_at: Date.now(), model_name: modelName })
             }
           }
         }
@@ -332,6 +347,7 @@ export class LLMMemoryManager {
             relationship_type: string
             confidence: number
             created_at: number
+            model_name: string
           }> = []
 
           for (const relation of structuredData.entityRelations) {
@@ -346,6 +362,7 @@ export class LLMMemoryManager {
                 relationship_type: relation.relationshipType,
                 confidence: relation.confidence,
                 created_at: Date.now(),
+                model_name: modelName,
               })
             }
           }

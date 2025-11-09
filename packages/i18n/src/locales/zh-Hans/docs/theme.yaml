@@ -20,9 +20,9 @@ doc:
       title: 支持我们
     title: 社群
   next-page:
-    title: 下一页
+    title: 下一篇
   previous-page:
-    title: 前一页
+    title: 上一篇
 search:
   title: 搜索
   placeholder: 搜索文档...

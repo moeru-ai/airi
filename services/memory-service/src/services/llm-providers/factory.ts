@@ -1,12 +1,13 @@
 import type { LLMProvider } from './base'
 
 import { SettingsService } from '../settings'
+import { OllamaLLMProvider } from './ollama'
 import { XsaiLLMProvider } from './xsai'
 
 export class LLMProviderFactory {
   private static instance: LLMProviderFactory
   private settingsService = SettingsService.getInstance()
-  private currentProvider: XsaiLLMProvider | null = null
+  private currentProvider: { instance: LLMProvider, key: string } | null = null
   private providerUseCount = 0
 
   private constructor() {}
@@ -23,16 +24,13 @@ export class LLMProviderFactory {
     const provider = settings.mem_llm_provider.toLowerCase()
     const apiKey = settings.mem_llm_api_key
     const model = settings.mem_llm_model
+    const key = `${provider}:${model}:${apiKey ?? ''}`
 
     // Reuse Logic: Check if current provider exists AND its configuration matches the requested settings.
-    if (
-      this.currentProvider
-      && this.currentProvider.provider === provider
-      && this.currentProvider.model === model
-    ) {
+    if (this.currentProvider && this.currentProvider.key === key) {
       this.providerUseCount++
       console.warn(`Reusing existing ${provider} provider (use count: ${this.providerUseCount})`)
-      return this.currentProvider
+      return this.currentProvider.instance
     }
 
     // --- Creation Logic ---
@@ -40,15 +38,21 @@ export class LLMProviderFactory {
     this.providerUseCount = 1
 
     // API Key Validation
-    if (!apiKey) {
+    if (provider !== 'ollama' && !apiKey) {
       console.warn(`${provider} provider requested but no API key provided in settings`)
       throw new Error(`${provider} API key is required`)
     }
 
-    // Use the unified XsaiLLMProvider, passing all necessary configuration.
     console.warn(`Initializing ${provider} provider...`)
-    this.currentProvider = new XsaiLLMProvider(provider, apiKey, model)
 
-    return this.currentProvider
+    if (provider === 'ollama') {
+      const instance = new OllamaLLMProvider(model, process.env.OLLAMA_BASE_URL)
+      this.currentProvider = { key, instance }
+      return instance
+    }
+
+    const instance = new XsaiLLMProvider(provider, apiKey, model)
+    this.currentProvider = { key, instance }
+    return instance
   }
 }

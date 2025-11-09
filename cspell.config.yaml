@@ -11,6 +11,7 @@ words:
   - alexanderolsen
   - alibabacloud
   - aliyun
+  - aliyuncs
   - allseto
   - animejs
   - APNG
@@ -27,18 +28,21 @@ words:
   - bailian
   - bigserial
   - Bitstream
+  - bootkit
   - browserbasehq
   - buildless
   - bumpp
   - byteorder
   - catppuccin
   - cdylib
+  - cerebras
   - cientos
   - cjkfonts
   - clippy
   - clustr
   - collectblock
   - colorjs
+  - cometapi
   - Comfortaa
   - composables
   - cooldown
@@ -67,6 +71,7 @@ words:
   - defu
   - demi
   - demodel
+  - destr
   - devlog
   - devlogs
   - directml
@@ -85,14 +90,17 @@ words:
   - DuckDBWASMQuery
   - eastasia
   - elevenlabs
+  - elfutils
   - Equirectangular
   - esaxx
   - eventa
   - Factorio
   - feaxios
+  - Flathub
   - flexsearch
   - formkit
   - frontmatter
+  - Genshin
   - giteeai
   - gltf
   - gpuu
@@ -115,6 +123,7 @@ words:
   - hunyuan
   - hyoban
   - iconify
+  - injecta
   - intlify
   - jlumbroso
   - jszip
@@ -147,6 +156,7 @@ words:
   - matchall
   - mdit
   - mediabunny
+  - MeshToonMaterial
   - micvad
   - mineflayer
   - mingcute
@@ -172,6 +182,7 @@ words:
   - nomic
   - novita
   - nprogress
+  - nsis
   - nuxi
   - nuxt
   - nuxtjs
@@ -188,6 +199,7 @@ words:
   - OPFS
   - opusscript
   - otelcol
+  - oxlint
   - pglite
   - pgvector
   - picklist
@@ -223,9 +235,11 @@ words:
   - saccades
   - safetensors
   - SAVEPOINT
+  - Screenable
   - sensenova
   - serde
   - Shadcn
+  - shenzhen
   - shiki
   - shikijs
   - silero
@@ -233,6 +247,7 @@ words:
   - sizecheck
   - smallserial
   - Sniglet
+  - sonarjs
   - sonner
   - specta
   - splt
@@ -246,13 +261,16 @@ words:
   - tauri
   - taze
   - tempora
+  - tinyexec
   - togetherapi
   - tolist
   - tresjs
+  - Triggerable
   - tsdown
   - turborepo
   - unbird
   - unbundle
+  - unconfig
   - uncrypto
   - unhead
   - Unlisten
@@ -270,6 +288,7 @@ words:
   - vtuber
   - vueuse
   - waapi
+  - Warudo
   - wavefile
   - webgpu
   - webworkers

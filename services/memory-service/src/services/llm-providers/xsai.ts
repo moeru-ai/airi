@@ -4,8 +4,7 @@ import type { LLMProvider } from './base.js'
 
 import { generateText } from '@xsai/generate-text'
 
-// Placeholder for INGESTION_PROMPT definition:
-const INGESTION_PROMPT = 'You are an AI memory manager of living AI. You are a part of AI brain that is solely made for memory task. Your task is to analyze chat messages and extract structured memory fragments, goals, and ideas in JSON format. Do not include any text outside the JSON object.'
+import { INGESTION_PROMPT } from './prompts.js'
 // Placeholder for model property consistency check
 const DEFAULT_OPENAI_MODEL = 'gpt-4-turbo-preview'
 const DEFAULT_GEMINI_MODEL = 'gemini-pro'

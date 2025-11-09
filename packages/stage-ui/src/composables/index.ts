@@ -1,4 +1,5 @@
 export * from './audio'
+export * from './canvas-alpha'
 export * from './llmmarkerParser'
 export * from './markdown'
 export * from './micvad'

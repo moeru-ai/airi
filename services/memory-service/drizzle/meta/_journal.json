@@ -8,6 +8,13 @@
       "when": 1757203256759,
       "tag": "0000_sharp_iceman",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1761822083790,
+      "tag": "0001_model_name_scope",
+      "breakpoints": true
     }
   ]
 }

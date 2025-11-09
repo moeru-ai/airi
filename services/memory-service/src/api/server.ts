@@ -12,15 +12,14 @@
 import { env } from 'node:process'
 
 import { cors } from '@elysiajs/cors'
-import { desc, sql } from 'drizzle-orm'
+import { and, desc, eq, sql } from 'drizzle-orm'
 import { Elysia, t } from 'elysia'
 
 import memoryRouter from './memory'
 
 import {
-  isEmbeddedPostgresEnabled,
   isPGliteEnabled,
-  setEmbeddedPostgresEnabled,
+  isPostgresEnabled,
   setPGliteEnabled,
   useDrizzle,
 } from '../db/index.js'
@@ -33,6 +32,13 @@ export function createApp() {
   const settingsService = SettingsService.getInstance()
 
   const app = new Elysia({ prefix: '/api' })
+
+  const resolveModelName = async (input?: string) => {
+    if (input && input.trim())
+      return input.trim()
+    const settings = await settingsService.getSettings()
+    return settings.mem_llm_model || 'default'
+  }
 
   // Middleware
   app.use(cors())
@@ -72,11 +78,13 @@ export function createApp() {
       const {
         content,
         platform,
-      } = body as { content: string, platform?: string }
+        modelName,
+      } = body as { content: string, platform?: string, modelName?: string }
 
       const messageData = {
         content,
         platform: platform || '',
+        modelName,
       }
 
       try {
@@ -96,6 +104,7 @@ export function createApp() {
       body: t.Object({
         content: t.String(),
         platform: t.Optional(t.String()),
+        modelName: t.Optional(t.String()),
       }),
     },
   )
@@ -104,12 +113,13 @@ export function createApp() {
 
   app.post(
     '/completions',
-    async ({ body, set }: { body: { prompt: string, response: string, platform?: string }, set: any }) => {
-      const { prompt, response, platform } = body
+    async ({ body, set }: { body: { prompt: string, response: string, platform?: string, modelName?: string }, set: any }) => {
+      const { prompt, response, platform, modelName } = body
       const completionData = {
         prompt,
         response,
         platform: platform || '',
+        modelName,
       }
       try {
         const result = await memoryService.storeCompletion(completionData as any)
@@ -129,22 +139,14 @@ export function createApp() {
         prompt: t.String(),
         response: t.String(),
         platform: t.Optional(t.String()),
+        modelName: t.Optional(t.String()),
       }),
     },
   )
 
-  // iet current embedded Postgres status
-  app.get('/embedded-postgres', () => {
-    return { enabled: isEmbeddedPostgresEnabled() }
-  })
-
-  // Update embedded Postgres status
-  app.post('/embedded-postgres', (body: any) => {
-    const { enabled } = body as { enabled: boolean }
-    setEmbeddedPostgresEnabled(enabled)
-    return { success: true, enabled: isEmbeddedPostgresEnabled() }
-  }, {
-    body: t.Object({ enabled: t.Boolean() }),
+  // Get current chat Postgres status
+  app.get('/chat-postgres', () => {
+    return { enabled: isPostgresEnabled() }
   })
 
   // Get current PGlite status
@@ -310,7 +312,7 @@ export function createApp() {
   // Get context for a message
   app.post('/context', async ({ body, set }) => {
     try {
-      const { message } = body
+      const { message, modelName } = body as { message?: string, modelName?: string }
       if (!message) {
         set.status = 400
         return { error: 'message is required' }
@@ -320,10 +322,11 @@ export function createApp() {
       await memoryService.ingestMessage({
         content: message,
         platform: 'web',
+        modelName,
       })
 
       // Build context using ContextBuilder
-      const context = await memoryService.buildQueryContext(message)
+      const context = await memoryService.buildQueryContext(message, modelName)
 
       return context
     }
@@ -336,7 +339,47 @@ export function createApp() {
       }
     }
   }, {
-    body: t.Object({ message: t.String() }),
+    body: t.Object({
+      message: t.String(),
+      modelName: t.Optional(t.String()),
+    }),
+  })
+
+  app.post('/context/structured', async ({ body, set }) => {
+    try {
+      const { message, modelName } = body as { message?: string, modelName?: string }
+      if (!message) {
+        set.status = 400
+        return { error: 'message is required' }
+      }
+
+      await memoryService.ingestMessage({
+        content: message,
+        platform: 'web',
+        modelName,
+      })
+
+      const context = await memoryService.buildStructuredContext(message, modelName)
+      if (!context) {
+        set.status = 500
+        return { error: 'Failed to build structured context' }
+      }
+
+      return context
+    }
+    catch (error) {
+      console.error('Failed to build structured context:', error)
+      set.status = 500
+      return {
+        error: 'Failed to build structured context',
+        details: error instanceof Error ? error.message : 'Unknown error',
+      }
+    }
+  }, {
+    body: t.Object({
+      message: t.String(),
+      modelName: t.Optional(t.String()),
+    }),
   })
 
   // Get paginated conversation history
@@ -346,49 +389,59 @@ export function createApp() {
 
       // Pagination params
       const limit = Number.parseInt(query.limit as string) || 10
-      const before = Number.parseInt(query.before as string) || Date.now() // timestamp for pagination
+      const before = Number.parseInt(query.before as string) || Date.now()
+      const modelName = await resolveModelName(query.modelName as string | undefined)
 
       // Get messages and completions before the timestamp
       const [messages, completions] = await Promise.all([
-        // Get user messages
         db.select({
           id: chatMessagesTable.id,
           content: chatMessagesTable.content,
           platform: chatMessagesTable.platform,
           created_at: chatMessagesTable.created_at,
           type: sql<'user'>`'user'`.as('type'),
+          model_name: chatMessagesTable.model_name,
         })
           .from(chatMessagesTable)
-          .where(sql`${chatMessagesTable.created_at} < ${before}`)
+          .where(
+            and(
+              sql`${chatMessagesTable.created_at} < ${before}`,
+              eq(chatMessagesTable.model_name, modelName),
+            ),
+          )
           .orderBy(desc(chatMessagesTable.created_at))
           .limit(limit),
 
-        // Get AI completions
         db.select({
           id: chatCompletionsHistoryTable.id,
           content: chatCompletionsHistoryTable.response,
           task: chatCompletionsHistoryTable.task,
           created_at: chatCompletionsHistoryTable.created_at,
           type: sql<'assistant'>`'assistant'`.as('type'),
+          model_name: chatCompletionsHistoryTable.model_name,
         })
           .from(chatCompletionsHistoryTable)
-          .where(sql`${chatCompletionsHistoryTable.created_at} < ${before}`)
+          .where(
+            and(
+              sql`${chatCompletionsHistoryTable.created_at} < ${before}`,
+              eq(chatCompletionsHistoryTable.model_name, modelName),
+            ),
+          )
           .orderBy(desc(chatCompletionsHistoryTable.created_at))
           .limit(limit),
       ])
 
-      // Merge and sort by timestamp
       const conversation = [...messages, ...completions]
         .sort((a, b) => b.created_at - a.created_at)
         .slice(0, limit)
 
-      // Get the earliest timestamp for next page
       const earliestTimestamp = conversation[conversation.length - 1]?.created_at
 
       return {
-        messages: conversation.reverse(), // reversed to get chat-style order
+        messages: conversation.reverse(),
         hasMore: conversation.length === limit,
         nextCursor: earliestTimestamp,
+        modelName,
       }
     }
     catch (error) {

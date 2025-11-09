@@ -7,39 +7,13 @@ import { Buffer } from 'node:buffer'
 import { exec, spawn } from 'node:child_process'
 import { writeFile } from 'node:fs/promises'
 
-async function exportPglite(set: any): Promise<string | Response> {
-  const exportDir = path.join(homeDir, 'airi_memory')
-  ensureDir(exportDir)
+import { PGlite } from '@electric-sql/pglite'
+import { pgDump } from '@electric-sql/pglite-tools/pg_dump'
+import { sql } from 'drizzle-orm'
+import { Elysia, t } from 'elysia'
 
-  const dataDir = process.env.PGLITE_DATA_DIR || path.join(exportDir, 'pglite_data')
-  if (!fs.existsSync(dataDir)) {
-    set.status = 400
-    return 'PGlite data directory not found'
-  }
-
-  const pg = await PGlite.create({ dataDir })
-
-  try {
-    const dumpResult = await pgDump({ pg })
-    const dumpContent = await dumpResult.text()
-
-    const filename = `chathistory_pglite_backup_${Date.now()}.sql`
-    const outDir = process.env.MEMORY_EXPORT_DIR || exportDir
-    ensureDir(outDir)
-    const outPath = path.join(outDir, filename)
-    fs.writeFileSync(outPath, dumpContent)
-
-    return 'PGlite Dump exported successfully'
-  }
-  catch (e) {
-    console.error('PGlite dump failed: ', e)
-    set.status = 500
-    return 'Failed to run PGlite pg_dump'
-  }
-  finally {
-    await pg.close()
-  }
-}
+import { useDrizzle } from '../db'
+import { SettingsService } from '../services/settings'
 
 function isPgliteReq(headers: Record<string, string | string[]>, query: Record<string, any>) {
   const h = String(headers['x-db-variant'] || '').toLowerCase()
@@ -69,19 +43,96 @@ function parsePwdEnv(dbUrl: string) {
 }
 
 const memoryRouter = new Elysia({ prefix: '/memory' })
+const settingsService = SettingsService.getInstance()
 
-memoryRouter.post('/chat-history/export', async ({ set, query, headers }) => { // Changed endpoint
+const MODEL_SCOPED_TABLES = [
+  'chat_messages',
+  'chat_completions_history',
+  'memory_episodes',
+  'memory_fragments',
+  'memory_entities',
+  'memory_entity_relations',
+  'memory_associations',
+  'memory_consolidation_events',
+  'memory_tags',
+  'memory_tag_relations',
+  'memory_search_history',
+  'memory_access_patterns',
+  'memory_long_term_goals',
+  'memory_short_term_ideas',
+  'memory_consolidated_memories',
+]
+
+function escapeLiteral(value: string): string {
+  return value.replace(/'/g, '\'\'')
+}
+
+function isMissingRelation(error: unknown): boolean {
+  if (!(error instanceof Error))
+    return false
+  const message = error.message.toLowerCase()
+  return message.includes('does not exist') || message.includes('no such table')
+}
+
+function getHeaderValue(headers: Record<string, string | string[]>, name: string): string | undefined {
+  const value = headers[name]
+  if (Array.isArray(value))
+    return value[0]
+  return value as string | undefined
+}
+
+async function resolveTargetModelName(modelName?: string): Promise<string> {
+  if (modelName && modelName.trim())
+    return modelName.trim()
+
+  const settings = await settingsService.getSettings()
+  return settings.mem_llm_model || 'default'
+}
+
+async function ensureModelNames(modelName: string, variant: 'pg' | 'pglite', pgInstance?: PGlite) {
+  const sanitized = escapeLiteral(modelName)
+
+  if (variant === 'pglite') {
+    if (!pgInstance)
+      return
+
+    for (const table of MODEL_SCOPED_TABLES) {
+      try {
+        await pgInstance.exec(`ALTER TABLE IF EXISTS "${table}" ADD COLUMN IF NOT EXISTS model_name TEXT`)
+        await pgInstance.exec(`UPDATE "${table}" SET model_name = '${sanitized}' WHERE model_name IS NULL OR trim(model_name) = '' OR model_name = 'default'`)
+      }
+      catch (error) {
+        if (!isMissingRelation(error))
+          console.error(`Failed to update model_name for table ${table} (pglite):`, error)
+      }
+    }
+    return
+  }
+
+  const db = useDrizzle()
+  for (const table of MODEL_SCOPED_TABLES) {
+    try {
+      await db.execute(sql.raw(`ALTER TABLE IF EXISTS "${table}" ADD COLUMN IF NOT EXISTS model_name text`))
+      await db.execute(sql.raw(`UPDATE "${table}" SET model_name = '${sanitized}' WHERE model_name IS NULL OR btrim(model_name) = '' OR model_name = 'default'`))
+    }
+    catch (error) {
+      if (!isMissingRelation(error))
+        console.error(`Failed to update model_name for table ${table}:`, error)
+    }
+  }
+}
+
+memoryRouter.post('/export-chat-pglite', async ({ set, query, headers }) => {
   try {
     const pgliteShouldBeUsed = isPgliteReq(headers as Record<string, string | string[]>, query)
     set.headers['Cache-Control'] = 'no-store'
 
-    if (pgliteShouldBeUsed) {
-      // Use the exported PGlite helper function
-      return await exportPglite(set)
-    }
-    else {
-      // Attempt pg_dump export
-      const dbUrl = process.env.PG_URL || 'postgres://postgres:airi_memory_password@localhost:5434/postgres'
+    const homeDir = os.homedir()
+    const exportDir = path.join(homeDir, 'airi_memory')
+    ensureDir(exportDir)
+
+    if (!pglite) {
+      const dbUrl = process.env.DATABASE_URL || 'postgres://postgres:airi_memory_password@localhost:5434/postgres'
       const envVars = parsePwdEnv(dbUrl)
       const homeDir = os.homedir()
       const exportDir = path.join(homeDir, 'airi_memory')
@@ -150,10 +201,10 @@ memoryRouter.post('/chat-history/export', async ({ set, query, headers }) => { /
   }
 })
 
-memoryRouter.post('/export-embedded', ({ set, request }) => {
+memoryRouter.post('/export-chat', ({ set, request }) => {
   const url = new URL(request.url)
 
-  url.pathname = url.pathname.replace(/\/export-embedded$/, '/export-chathistory')
+  url.pathname = url.pathname.replace(/\/export-chat$/, '/export-chat-pglite')
   url.searchParams.set('isPglite', 'false')
 
   set.status = 307
@@ -166,6 +217,9 @@ memoryRouter.post('/import-chathistory', async ({ body, set, headers, query }) =
     set.status = 400
     return 'No file uploaded'
   }
+
+  const requestedModelName = typeof query.modelName === 'string' ? query.modelName : getHeaderValue(headers, 'x-model-name')
+  const resolvedModelName = await resolveTargetModelName(requestedModelName)
 
   const tmpPath = path.join(os.tmpdir(), file.name)
   const ab = await file.arrayBuffer()
@@ -182,7 +236,7 @@ memoryRouter.post('/import-chathistory', async ({ body, set, headers, query }) =
       const name = (file.name || '').toLowerCase()
       if (!name.endsWith('.sql')) {
         set.status = 400
-        return 'For Postgres/Embedded-Postgres, upload a .sql dump.'
+        return 'For PostgreSQL, upload a .sql dump.'
       }
 
       await new Promise<void>((resolve, reject) => {
@@ -196,7 +250,8 @@ memoryRouter.post('/import-chathistory', async ({ body, set, headers, query }) =
           }
         })
       })
-      return { ok: true }
+      await ensureModelNames(resolvedModelName, 'pg')
+      return { ok: true, modelName: resolvedModelName }
     }
 
     const dataDir = process.env.PGLITE_DATA_DIR || path.join(homeDir, 'airi_memory', 'pglite_data')
@@ -213,7 +268,8 @@ memoryRouter.post('/import-chathistory', async ({ body, set, headers, query }) =
     try {
       const sql = fs.readFileSync(tmpPath, 'utf8')
       await pg.exec(sql)
-      return { ok: true }
+      await ensureModelNames(resolvedModelName, 'pglite', pg)
+      return { ok: true, modelName: resolvedModelName }
     }
     catch (e) {
       console.error('PGlite import failed: ', e)

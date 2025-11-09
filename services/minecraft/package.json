@@ -4,8 +4,8 @@
   "private": true,
   "description": "An intelligent Minecraft bot powered by LLM. AIRI can understand natural language commands, interact with the world, and assist players in various tasks.",
   "scripts": {
-    "dev": "dotenvx run -f .env -f .env.local --overload --debug --ignore=MISSING_ENV_FILE -- tsx src/main.ts",
-    "start": "dotenvx run -f .env -f .env.local --overload --ignore=MISSING_ENV_FILE -- tsx src/main.ts",
+    "dev": "tsx --env-file=.env --env-file-if-exists=.env.local src/main.ts",
+    "start": "tsx --env-file=.env --env-file-if-exists=.env.local src/main.ts",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "typecheck": "tsc --noEmit",
@@ -16,9 +16,9 @@
     "@moeru/std": "catalog:",
     "@proj-airi/server-sdk": "^0.7.2-beta.2",
     "awilix": "^12.0.5",
-    "es-toolkit": "^1.39.10",
+    "es-toolkit": "^1.41.0",
     "eventemitter3": "^5.0.1",
-    "minecraft-data": "^3.98.0",
+    "minecraft-data": "^3.100.0",
     "mineflayer": "^4.33.0",
     "mineflayer-armor-manager": "^2.0.1",
     "mineflayer-auto-eat": "^5.0.3",
@@ -35,11 +35,7 @@
     "prismarine-windows": "^2.9.0",
     "valibot": "1.0.0-beta.9",
     "vec3": "^0.1.10",
-    "zod": "^4.1.11",
+    "zod": "^4.1.12",
     "zod-to-json-schema": "^3.24.6"
-  },
-  "devDependencies": {
-    "@dotenvx/dotenvx": "^1.51.0",
-    "dotenv": "^17.2.2"
   }
 }

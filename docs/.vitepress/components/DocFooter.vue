@@ -26,6 +26,12 @@ const showFooter = computed(
     || control.value.prev
     || control.value.next,
 )
+
+/**
+ * Footer navigation visibility rules (English-only comments as requested):
+ * - Render nav only when prev/next have actual links.
+ * - Do NOT show a disabled next button on the last article.
+ */
 </script>
 
 <template>
