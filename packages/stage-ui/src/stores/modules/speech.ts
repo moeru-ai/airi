@@ -11,6 +11,11 @@ import { x } from 'xastscript'
 
 import { useProvidersStore } from '../providers'
 
+export const DEFAULT_SPEECH_REGEX_ENABLED = true
+export const DEFAULT_SPEECH_REGEX_PATTERN = '\\*[^*]+\\*'
+export const DEFAULT_SPEECH_REGEX_REPLACEMENT = ''
+export const DEFAULT_SPEECH_REGEX_FLAGS = 'g'
+
 export const useSpeechStore = defineStore('speech', () => {
   const providersStore = useProvidersStore()
   const { allAudioSpeechProvidersMetadata } = storeToRefs(providersStore)
@@ -30,6 +35,49 @@ export const useSpeechStore = defineStore('speech', () => {
   const availableVoices = ref<Record<string, VoiceInfo[]>>({})
   const selectedLanguage = useLocalStorage('settings/speech/language', 'en-US')
   const modelSearchQuery = ref('')
+  const speechRegexEnabled = useLocalStorage('settings/speech/regex/enabled', DEFAULT_SPEECH_REGEX_ENABLED)
+  const speechRegexPattern = useLocalStorage('settings/speech/regex/pattern', DEFAULT_SPEECH_REGEX_PATTERN)
+  const speechRegexReplacement = useLocalStorage('settings/speech/regex/replacement', DEFAULT_SPEECH_REGEX_REPLACEMENT)
+  const speechRegexFlags = useLocalStorage('settings/speech/regex/flags', DEFAULT_SPEECH_REGEX_FLAGS)
+  const speechRegexError = ref<string | null>(null)
+
+  const compiledSpeechRegex = computed(() => {
+    if (!speechRegexEnabled.value || !speechRegexPattern.value) {
+      speechRegexError.value = null
+      return null
+    }
+
+    try {
+      const regex = new RegExp(speechRegexPattern.value, speechRegexFlags.value || 'g')
+      speechRegexError.value = null
+      return regex
+    }
+    catch (error) {
+      speechRegexError.value = error instanceof Error ? error.message : String(error)
+      return null
+    }
+  })
+
+  function applySpeechRegex(text: string) {
+    const regex = compiledSpeechRegex.value
+    if (!regex)
+      return text
+
+    try {
+      return text.replace(regex, speechRegexReplacement.value ?? '')
+    }
+    catch (error) {
+      console.warn('Failed to apply speech regex:', error)
+      return text
+    }
+  }
+
+  function resetSpeechRegex() {
+    speechRegexEnabled.value = DEFAULT_SPEECH_REGEX_ENABLED
+    speechRegexPattern.value = DEFAULT_SPEECH_REGEX_PATTERN
+    speechRegexReplacement.value = DEFAULT_SPEECH_REGEX_REPLACEMENT
+    speechRegexFlags.value = DEFAULT_SPEECH_REGEX_FLAGS
+  }
 
   // Computed properties
   const availableSpeechProvidersMetadata = computed(() => allAudioSpeechProvidersMetadata.value)
@@ -252,6 +300,11 @@ export const useSpeechStore = defineStore('speech', () => {
     speechProviderError,
     availableVoices,
     modelSearchQuery,
+    speechRegexEnabled,
+    speechRegexPattern,
+    speechRegexReplacement,
+    speechRegexFlags,
+    speechRegexError,
 
     // Computed
     availableSpeechProvidersMetadata,
@@ -267,5 +320,7 @@ export const useSpeechStore = defineStore('speech', () => {
     loadVoicesForProvider,
     getVoicesForProvider,
     generateSSML,
+    applySpeechRegex,
+    resetSpeechRegex,
   }
 })

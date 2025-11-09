@@ -171,12 +171,21 @@ ttsQueue.on('drain', () => {
 
 async function handleSpeechGeneration(ctx: { data: string }) {
   const requestId = ++ttsRequestCounter
-  const chunk = ctx.data ?? ''
-  const chunkPreview = summarizeTtsChunk(chunk)
-  if (!chunk.trim()) {
+  const rawChunk = ctx.data ?? ''
+  const rawChunkPreview = summarizeTtsChunk(rawChunk)
+  if (!rawChunk.trim()) {
     logTts('skip', { requestId, reason: 'empty-chunk' })
     return
   }
+
+  const chunk = speechStore.applySpeechRegex(rawChunk)
+  if (!chunk.trim()) {
+    logTts('skip', { requestId, reason: 'regex-empty', chunkPreview: rawChunkPreview })
+    console.warn('Speech chunk removed by regex prior to TTS playback.')
+    return
+  }
+
+  const chunkPreview = summarizeTtsChunk(chunk)
 
   if (!activeSpeechProvider.value) {
     console.warn('No active speech provider configured. Pick one under Settings → Speech to enable TTS playback.')

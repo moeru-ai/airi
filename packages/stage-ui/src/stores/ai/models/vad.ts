@@ -7,6 +7,7 @@ import { createVAD, createVADStates } from '../../../workers/vad'
 
 interface UseVADOptions {
   threshold?: MaybeRefOrGetter<number>
+  speechPadMs?: MaybeRefOrGetter<number>
 
   onSpeechStart?: () => void
   onSpeechEnd?: () => void
@@ -15,6 +16,7 @@ interface UseVADOptions {
 export function useVAD(workerUrl: string, options?: UseVADOptions) {
   const defaultOptions: UseVADOptions = {
     threshold: ref(0.6),
+    speechPadMs: ref(80),
   }
 
   options = merge(defaultOptions, options)
@@ -32,6 +34,7 @@ export function useVAD(workerUrl: string, options?: UseVADOptions) {
   const loading = ref(false)
 
   const threshold = toRef(options.threshold)
+  const speechPadMs = toRef(options.speechPadMs)
 
   async function init() {
     if (loaded.value || loading.value || manager.value)
@@ -46,6 +49,7 @@ export function useVAD(workerUrl: string, options?: UseVADOptions) {
         speechThreshold: threshold.value,
         exitThreshold: (threshold.value ?? 0.6) * 0.3,
         minSilenceDurationMs: 400,
+        speechPadMs: speechPadMs.value,
       })
 
       // Set up event handlers
@@ -121,6 +125,12 @@ export function useVAD(workerUrl: string, options?: UseVADOptions) {
   watch(threshold, (newVal) => {
     if (vad.value && newVal) {
       vad.value.updateConfig({ speechThreshold: newVal, exitThreshold: newVal * 0.3 })
+    }
+  })
+
+  watch(speechPadMs, (newVal) => {
+    if (vad.value && typeof newVal === 'number') {
+      vad.value.updateConfig({ speechPadMs: newVal })
     }
   })
 

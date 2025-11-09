@@ -23,43 +23,48 @@ const speechStore = useSpeechStore()
 const providersStore = useProvidersStore()
 const { providers } = storeToRefs(providersStore) as { providers: RemovableRef<Record<string, any>> }
 
+// Get provider metadata
+const providerId = 'openai-compatible-audio-speech'
+
+function ensureConfig() {
+  if (!providers.value[providerId])
+    providers.value[providerId] = {}
+}
+
 const defaultVoiceSettings = {
   speed: 1.0,
 }
-
-// Get provider metadata
-const providerId = 'openai-compatible-audio-speech'
 
 // Settings refs
 const apiKey = computed({
   get: () => providers.value[providerId]?.apiKey || '',
   set: (value) => {
-    if (providers.value[providerId])
-      providers.value[providerId].apiKey = value
+    ensureConfig()
+    providers.value[providerId].apiKey = value
   },
 })
 
 const baseUrl = computed({
   get: () => providers.value[providerId]?.baseUrl || '',
   set: (value) => {
-    if (providers.value[providerId])
-      providers.value[providerId].baseUrl = value
+    ensureConfig()
+    providers.value[providerId].baseUrl = value
   },
 })
 
 const model = computed({
   get: () => providers.value[providerId]?.model || 'tts-1',
   set: (value) => {
-    if (providers.value[providerId])
-      providers.value[providerId].model = value
+    ensureConfig()
+    providers.value[providerId].model = value
   },
 })
 
 const voice = computed({
   get: () => providers.value[providerId]?.voice || 'alloy',
   set: (value) => {
-    if (providers.value[providerId])
-      providers.value[providerId].voice = value
+    ensureConfig()
+    providers.value[providerId].voice = value
   },
 })
 

@@ -5,7 +5,14 @@ import { Alert, Button, ErrorContainer, LevelMeter, RadioCardManySelect, RadioCa
 import { useAudioAnalyzer, useAudioRecorder } from '@proj-airi/stage-ui/composables'
 import { useVAD } from '@proj-airi/stage-ui/stores/ai/models/vad'
 import { useAudioContext } from '@proj-airi/stage-ui/stores/audio'
-import { useHearingSpeechInputPipeline, useHearingStore } from '@proj-airi/stage-ui/stores/modules/hearing'
+import {
+  DEFAULT_TRANSCRIPTION_REGEX_ENABLED,
+  DEFAULT_TRANSCRIPTION_REGEX_FLAGS,
+  DEFAULT_TRANSCRIPTION_REGEX_PATTERN,
+  DEFAULT_TRANSCRIPTION_REGEX_REPLACEMENT,
+  useHearingSpeechInputPipeline,
+  useHearingStore,
+} from '@proj-airi/stage-ui/stores/modules/hearing'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { FieldCheckbox, FieldInput, FieldRange, FieldSelect } from '@proj-airi/ui'
@@ -25,6 +32,11 @@ const {
   supportsModelListing,
   transcriptionModelSearchQuery,
   activeCustomModelName,
+  transcriptionRegexEnabled,
+  transcriptionRegexPattern,
+  transcriptionRegexReplacement,
+  transcriptionRegexFlags,
+  transcriptionRegexError,
 } = storeToRefs(hearingStore)
 const providersStore = useProvidersStore()
 const { configuredTranscriptionProvidersMetadata } = storeToRefs(providersStore)
@@ -60,7 +72,15 @@ const manualHearingModel = computed({
   },
 })
 
+const isTranscriptionRegexDefault = computed(() => {
+  return transcriptionRegexEnabled.value === DEFAULT_TRANSCRIPTION_REGEX_ENABLED
+    && (transcriptionRegexPattern.value ?? '') === DEFAULT_TRANSCRIPTION_REGEX_PATTERN
+    && (transcriptionRegexReplacement.value ?? '') === DEFAULT_TRANSCRIPTION_REGEX_REPLACEMENT
+    && (transcriptionRegexFlags.value ?? '') === DEFAULT_TRANSCRIPTION_REGEX_FLAGS
+})
+
 const useVADThreshold = ref(0.6) // 0.1 - 0.9
+const speechPaddingMs = ref(80) // 0.08s - 1s pre-roll
 const useVADModel = ref(true) // Toggle between VAD and volume-based detection
 const {
   init: initVAD,
@@ -74,6 +94,7 @@ const {
   loading: loadingVAD,
 } = useVAD(workletUrl, {
   threshold: useVADThreshold,
+  speechPadMs: speechPaddingMs,
   onSpeechStart: () => startRecord(),
   onSpeechEnd: () => stopRecord(),
 })
@@ -349,7 +370,10 @@ onUnmounted(() => {
             <template v-if="!isLoadingActiveProviderModels">
               <div
                 v-if="providerModels.length === 0"
-                class="space-y-2 rounded-xl border border-dashed border-neutral-200 p-4 dark:border-neutral-800"
+                class="space-y-2"
+                border="~ dashed neutral-200 dark:neutral-800"
+                rounded-xl
+                p-4
               >
                 <FieldInput
                   v-model="manualHearingModel"
@@ -457,6 +481,15 @@ onUnmounted(() => {
                   :step="0.05"
                   :format-value="value => `${(value * 100).toFixed(0)}%`"
                 />
+                <FieldRange
+                  v-model="speechPaddingMs"
+                  label="Speech Padding"
+                  description="Buffer the audio so transcriptions include up to this many ms before the point VAD kicked in"
+                  :min="80"
+                  :max="1000"
+                  :step="20"
+                  :format-value="value => `${(value / 1000).toFixed(2)}s`"
+                />
               </div>
 
               <div v-else class="space-y-3">
@@ -533,6 +566,75 @@ onUnmounted(() => {
             </div>
           </div>
         </div>
+      </div>
+
+      <div
+        class="space-y-4"
+        border="~ dashed neutral-200 dark:neutral-800"
+        rounded-xl
+        p-4
+      >
+        <div>
+          <h2 class="text-lg md:text-2xl">
+            {{ t('settings.pages.modules.hearing.sections.section.regex.title') }}
+          </h2>
+          <div class="text-sm text-neutral-500 dark:text-neutral-400">
+            {{ t('settings.pages.modules.hearing.sections.section.regex.description') }}
+          </div>
+        </div>
+
+        <FieldCheckbox
+          v-model="transcriptionRegexEnabled"
+          :label="t('settings.pages.modules.hearing.sections.section.regex.enable.label')"
+          :description="t('settings.pages.modules.hearing.sections.section.regex.enable.description')"
+        />
+
+        <div class="flex flex-wrap gap-2 md:flex-nowrap md:items-end">
+          <FieldInput
+            v-model="transcriptionRegexPattern"
+            class="flex-1 min-w-0"
+            :label="t('settings.pages.modules.hearing.sections.section.regex.pattern.label')"
+            :description="t('settings.pages.modules.hearing.sections.section.regex.pattern.description')"
+            :placeholder="t('settings.pages.modules.hearing.sections.section.regex.pattern.placeholder')"
+            :disabled="!transcriptionRegexEnabled"
+            spellcheck="false"
+          />
+
+          <Button
+            class="shrink-0 whitespace-nowrap w-full md:w-auto"
+            size="sm"
+            variant="secondary-muted"
+            icon="i-solar:refresh-bold-duotone"
+            :disabled="isTranscriptionRegexDefault"
+            :title="t('settings.pages.modules.hearing.sections.section.regex.reset.tooltip')"
+            @click="hearingStore.resetTranscriptionRegex()"
+          >
+            {{ t('settings.pages.modules.hearing.sections.section.regex.reset.label') }}
+          </Button>
+        </div>
+
+        <FieldInput
+          v-model="transcriptionRegexReplacement"
+          :label="t('settings.pages.modules.hearing.sections.section.regex.replacement.label')"
+          :description="t('settings.pages.modules.hearing.sections.section.regex.replacement.description')"
+          :placeholder="t('settings.pages.modules.hearing.sections.section.regex.replacement.placeholder')"
+          :disabled="!transcriptionRegexEnabled"
+        />
+
+        <FieldInput
+          v-model="transcriptionRegexFlags"
+          :label="t('settings.pages.modules.hearing.sections.section.regex.flags.label')"
+          :description="t('settings.pages.modules.hearing.sections.section.regex.flags.description')"
+          placeholder="g"
+          :disabled="!transcriptionRegexEnabled"
+        />
+
+        <p
+          v-if="transcriptionRegexError"
+          class="rounded-lg bg-amber-100 px-3 py-2 text-sm text-amber-700 dark:bg-amber-500/10 dark:text-amber-300"
+        >
+          {{ t('settings.pages.modules.hearing.sections.section.regex.error_prefix') }} {{ transcriptionRegexError }}
+        </p>
       </div>
     </div>
   </div>

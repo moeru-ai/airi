@@ -283,6 +283,27 @@ pages:
         section:
           provider-selection:
             description: Select the suitable speech recognition provider
+          regex:
+            title: Regex preprocessing
+            description: Clean up or redact transcriptions before they are sent to chat.
+            enable:
+              label: Enable regex cleanup
+              description: Apply the pattern below to every transcription result.
+            pattern:
+              label: Regex pattern
+              description: Matches will be replaced or removed before chat submission.
+              placeholder: '\\[[^\\]]+\\]'
+            replacement:
+              label: Replacement text
+              description: Leave empty to remove matches entirely.
+              placeholder: Replacement (default empty)
+            flags:
+              label: Flags
+              description: JavaScript regex flags (e.g. gim). Defaults to g.
+            reset:
+              label: Reset to default
+              tooltip: Restore the recommended regex pattern, replacement, and flags.
+            error_prefix: Regex error
     memory-long-term:
       description: Long-term memory specific settings and management
       title: Long-Term Memory
@@ -341,6 +362,28 @@ pages:
             playback-mode:
               label: Send entire response at once
               description: Buffer the full LLM reply and send it to your speech provider in a single request instead of sentence-by-sentence streaming.
+          regex:
+            title: Regex preprocessing
+            description: Strip narration or markup before text is spoken aloud.
+            enable:
+              label: Enable regex cleanup
+              description: Remove or rewrite matches before TTS playback.
+            pattern:
+              label: Regex pattern
+              description: Matches will be removed or replaced before speech synthesis.
+              placeholder: '\\*[^*]+\\*'
+            replacement:
+              label: Replacement text
+              description: Leave empty to delete the matched text.
+              placeholder: Replacement (default empty)
+            flags:
+              label: Flags
+              description: JavaScript regex flags (e.g. gim). Defaults to g.
+            reset:
+              label: Reset to default
+              tooltip: Restore the recommended regex pattern, replacement, and flags.
+            error_prefix: Regex error
+            preview_warning: Input is empty after applying regex preprocessing. Update your pattern or text.
       title: Speech
     title: Modules
     vision:

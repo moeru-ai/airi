@@ -47,7 +47,7 @@ export function buildOpenAICompatibleProvider(
     creator: ProviderCreator
     capabilities?: ProviderMetadata['capabilities']
     validators?: ProviderMetadata['validators']
-    validation?: ('health' | 'model_list' | 'chat_completions' | 'audio_transcriptions')[]
+    validation?: ('options' | 'health' | 'model_list' | 'chat_completions' | 'audio_transcriptions')[]
     additionalHeaders?: Record<string, string>
     transcriptionFeatures?: ProviderMetadata['transcriptionFeatures']
   },
@@ -171,8 +171,26 @@ export function buildOpenAICompatibleProvider(
         return detected
       })()
 
-      // Health check = try generating text (was: fetch(`${baseUrl}chat/completions`))
       const asyncChecks: Promise<Error | null>[] = []
+      if (validationChecks.includes('options')) {
+        asyncChecks.push((async () => {
+          try {
+            const response = await fetch(baseUrl, {
+              method: 'OPTIONS',
+              headers: additionalHeaders,
+            })
+            if (!response.ok) {
+              return new Error(`OPTIONS check failed: HTTP ${response.status}`)
+            }
+            return null
+          }
+          catch (e) {
+            return new Error(`OPTIONS check failed: ${(e as Error).message}`)
+          }
+        })())
+      }
+
+      // Health check = try generating text (was: fetch(`${baseUrl}chat/completions`))
       if (validationChecks.includes('health') && hasApiKey) {
         asyncChecks.push((async () => {
           try {
