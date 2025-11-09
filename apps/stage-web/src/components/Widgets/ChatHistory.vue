@@ -2,7 +2,7 @@
 import { MarkdownRenderer } from '@proj-airi/stage-ui/components'
 import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
 import { storeToRefs } from 'pinia'
-import { nextTick, ref } from 'vue'
+import { ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 const chatHistoryRef = ref<HTMLDivElement>()
@@ -12,25 +12,30 @@ const { messages, sending, streamingMessage } = storeToRefs(useChatStore())
 
 const { onBeforeMessageComposed, onTokenLiteral } = useChatStore()
 
+function scrollToBottom() {
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      if (!chatHistoryRef.value)
+        return
+
+      chatHistoryRef.value.scrollTop = chatHistoryRef.value.scrollHeight
+    })
+  })
+}
+
 onBeforeMessageComposed(async () => {
   // Scroll down to the new sent message
-  nextTick().then(() => {
-    if (!chatHistoryRef.value)
-      return
-
-    chatHistoryRef.value.scrollTop = chatHistoryRef.value.scrollHeight
-  })
+  await scrollToBottom()
 })
 
 onTokenLiteral(async () => {
   // Scroll down to the new responding message
-  nextTick().then(() => {
-    if (!chatHistoryRef.value)
-      return
-
-    chatHistoryRef.value.scrollTop = chatHistoryRef.value.scrollHeight
-  })
+  await scrollToBottom()
 })
+
+watch(sending, () => {
+  scrollToBottom()
+}, { flush: 'post' })
 </script>
 
 <template>

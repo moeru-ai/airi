@@ -62,6 +62,12 @@ const menu = computed(() => [
     icon: 'i-solar:sledgehammer-bold-duotone',
     to: '/devtools/vibrant',
   },
+  {
+    title: 'Aliyun Real-time Transcriber',
+    description: 'Stream microphone audio to Aliyun NLS and inspect live transcripts',
+    icon: 'i-solar:sledgehammer-bold-duotone',
+    to: '/devtools/providers-transcription-realtime-aliyun-nls',
+  },
 ])
 </script>
 

@@ -27,6 +27,7 @@ interface AppConfig {
 
 export async function setupMainWindow(params: {
   settingsWindow: () => Promise<BrowserWindow>
+  chatWindow: () => Promise<BrowserWindow>
 }) {
   const {
     setup: setupConfig,
@@ -122,7 +123,7 @@ export async function setupMainWindow(params: {
 
   await load(window, baseUrl(resolve(getElectronMainDirname(), '..', 'renderer')))
 
-  setupMainWindowElectronInvokes({ window, settingsWindow: params.settingsWindow })
+  setupMainWindowElectronInvokes({ window, settingsWindow: params.settingsWindow, chatWindow: params.chatWindow })
 
   /**
    * This is a know issue (or expected behavior maybe) to Electron.
@@ -141,6 +142,11 @@ export async function setupMainWindow(params: {
         console.error(error)
       }
     }
+
+    // TODO: once we refactored eventa to support window-namespaced contexts,
+    // we can remove the setMaxListeners call below since eventa will be able to dispatch and
+    // manage events within eventa's context system.
+    ipcMain.setMaxListeners(0)
 
     const { context } = createContext(ipcMain, window)
     const cleanUpWindowDraggingInvokeHandler = defineInvokeHandler(context, electronStartDraggingWindow, handleStartDraggingWindow)

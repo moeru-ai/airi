@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { GenerateTranscriptionResult } from '@xsai/generate-transcription'
+import type { HearingTranscriptionResult } from '@proj-airi/stage-ui/stores/modules/hearing'
 
 import { FieldRange, FieldSelect } from '@proj-airi/ui'
 import { until } from '@vueuse/core'
@@ -14,7 +14,7 @@ import { Button } from '../../misc'
 
 const props = defineProps<{
   // Provider-specific handlers (provided from parent)
-  generateTranscription: (input: File) => Promise<GenerateTranscriptionResult<'json' | 'verbose_json', undefined>>
+  generateTranscription: (input: File) => Promise<HearingTranscriptionResult>
   // Current state
   apiKeyConfigured?: boolean
 }>()
@@ -107,8 +107,11 @@ onStopRecord(async (recording) => {
   try {
     if (recording && recording.size > 0) {
       audios.value.push(recording)
-      const res = await props.generateTranscription(new File([recording], 'recording.wav'))
-      transcriptions.value.push(res.text)
+      const result = await props.generateTranscription(new File([recording], 'recording.wav'))
+      const text = result.mode === 'stream'
+        ? await result.text
+        : result.text
+      transcriptions.value.push(text)
     }
   }
   catch (err) {

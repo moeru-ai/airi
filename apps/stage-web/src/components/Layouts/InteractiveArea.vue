@@ -1,10 +1,7 @@
 <script setup lang="ts">
 import type { ChatProvider } from '@xsai-ext/shared-providers'
 
-import WhisperWorker from '@proj-airi/stage-ui/libs/workers/worker?worker&url'
-
-import { toWAVBase64 } from '@proj-airi/audio'
-import { useMicVAD, useWhisper } from '@proj-airi/stage-ui/composables'
+import { useAudioAnalyzer } from '@proj-airi/stage-ui/composables'
 import { useAudioContext } from '@proj-airi/stage-ui/stores/audio'
 import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
 import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
@@ -13,17 +10,18 @@ import { useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
 import { useVisionStore } from '@proj-airi/stage-ui/stores/modules/vision'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
-import { BasicTextarea } from '@proj-airi/ui'
+import { BasicTextarea, FieldSelect } from '@proj-airi/ui'
 import { useDark } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { onMounted, ref, watch } from 'vue'
+import { TooltipContent, TooltipProvider, TooltipRoot, TooltipTrigger } from 'reka-ui'
+import { computed, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import ChatHistory from '../Widgets/ChatHistory.vue'
+import IndicatorMicVolume from '../Widgets/IndicatorMicVolume.vue'
 
 const messageInput = ref('')
-const listening = ref(false)
-const showMicrophoneSelect = ref(false)
+const hearingTooltipOpen = ref(false)
 const isComposing = ref(false)
 
 // Toggle states
@@ -51,7 +49,7 @@ const { activeProvider, activeModel } = storeToRefs(useConsciousnessStore())
 const { themeColorsHueDynamic } = storeToRefs(useSettings())
 
 const { askPermission } = useSettingsAudioDevice()
-const { enabled, selectedAudioInput } = storeToRefs(useSettingsAudioDevice())
+const { enabled, selectedAudioInput, stream, audioInputs } = storeToRefs(useSettingsAudioDevice())
 const { send, onAfterMessageComposed, discoverToolsCompatibility, cleanupMessages } = useChatStore()
 const { messages } = storeToRefs(useChatStore())
 const { audioContext } = useAudioContext()
@@ -59,21 +57,7 @@ const { t } = useI18n()
 
 const isDark = useDark({ disableTransition: false })
 
-const { transcribe: generate, terminate } = useWhisper(WhisperWorker, {
-  onComplete: async (res) => {
-    if (!res || !res.trim()) {
-      return
-    }
-
-    const providerConfig = providersStore.getProviderConfig(activeProvider.value)
-
-    await send(res, {
-      chatProvider: await providersStore.getProviderInstance(activeProvider.value) as ChatProvider,
-      model: activeModel.value,
-      providerConfig,
-    })
-  },
-})
+// Legacy whisper pipeline removed; audio pipeline handled at page level
 
 async function handleSend() {
   if (!messageInput.value.trim() || isComposing.value) {
@@ -273,6 +257,40 @@ onMounted(() => {
 onAfterMessageComposed(async () => {
   messageInput.value = ''
 })
+
+const { startAnalyzer, stopAnalyzer, volumeLevel } = useAudioAnalyzer()
+const normalizedVolume = computed(() => Math.min(1, Math.max(0, (volumeLevel.value ?? 0) / 100)))
+let analyzerSource: MediaStreamAudioSourceNode | undefined
+
+function teardownAnalyzer() {
+  try {
+    analyzerSource?.disconnect()
+  }
+  catch {}
+  analyzerSource = undefined
+  stopAnalyzer()
+}
+
+async function setupAnalyzer() {
+  teardownAnalyzer()
+  if (!hearingTooltipOpen.value || !enabled.value || !stream.value)
+    return
+  if (audioContext.state === 'suspended')
+    await audioContext.resume()
+  const analyser = startAnalyzer(audioContext)
+  if (!analyser)
+    return
+  analyzerSource = audioContext.createMediaStreamSource(stream.value)
+  analyzerSource.connect(analyser)
+}
+
+watch([hearingTooltipOpen, enabled, stream], () => {
+  setupAnalyzer()
+}, { immediate: true })
+
+onUnmounted(() => {
+  teardownAnalyzer()
+})
 </script>
 
 <template>
@@ -281,7 +299,7 @@ onAfterMessageComposed(async () => {
       <div
         flex="~ col"
         border="solid 4 primary-200/20 dark:primary-400/20"
-        h-full w-full overflow-scroll rounded-xl
+        h-full w-full rounded-xl
         bg="primary-50/50 dark:primary-950/70" backdrop-blur-md
       >
         <ChatHistory h-full flex-1 w="full" max-h="<md:[60%]" />

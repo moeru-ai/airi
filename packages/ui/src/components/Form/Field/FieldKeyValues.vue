@@ -28,8 +28,8 @@ watch([inputKey, inputValue], () => {
 </script>
 
 <template>
-  <div max-w-full>
-    <label flex="~ col gap-2">
+  <div class="max-w-full">
+    <label class="flex flex-col gap-2">
       <div>
         <div class="flex items-center gap-1 text-sm font-medium">
           <slot name="label">
@@ -43,18 +43,18 @@ watch([inputKey, inputValue], () => {
           </slot>
         </div>
       </div>
-      <div v-auto-animate flex="~ col gap-2">
+      <div v-auto-animate class="flex flex-col gap-2">
         <div
           v-for="(keyValue, index) in keyValues"
           :key="index"
-          w-full flex items-center gap-2
+          class="w-full flex items-center gap-2"
         >
           <InputKeyValue
             v-model:property-key="keyValue.key"
             v-model:property-value="keyValue.value"
             :key-placeholder="props.keyPlaceholder"
             :value-placeholder="props.valuePlaceholder"
-            w-full
+            class="w-full"
           />
           <button @click="emit('remove', index)">
             <div i-solar:minus-circle-line-duotone size="6" />

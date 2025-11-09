@@ -1,7 +1,6 @@
 import type { ChatProvider } from '@xsai-ext/shared-providers'
 import type { CommonContentPart, CompletionToolCall, Message } from '@xsai/shared-chat'
 
-import { readableStreamToAsyncIterator } from '@moeru/std'
 import { listModels } from '@xsai/model'
 import { XSAIError } from '@xsai/shared'
 import { streamText } from '@xsai/stream-text'
@@ -22,6 +21,19 @@ export interface StreamOptions {
   onStreamEvent?: (event: StreamEvent) => void | Promise<void>
   toolsCompatibility?: Map<string, boolean>
   supportsTools?: boolean
+}
+
+// TODO: proper format for other error messages.
+function sanitizeMessages(messages: unknown[]): Message[] {
+  return messages.map((m: any) => {
+    if (m && m.role === 'error') {
+      return {
+        role: 'user',
+        content: `User encountered error: ${String(m.content ?? '')}`,
+      } as Message
+    }
+    return m as Message
+  })
 }
 
 function streamOptionsToolsCompatibilityOk(model: string, chatProvider: ChatProvider, _: Message[], options?: StreamOptions, toolsCompatibility: Map<string, boolean> = new Map()): boolean {
@@ -60,11 +72,7 @@ async function streamFrom(model: string, chatProvider: ChatProvider, messages: M
 export async function attemptForToolsCompatibilityDiscovery(model: string, chatProvider: ChatProvider, _: Message[], options?: Omit<StreamOptions, 'supportsTools'>): Promise<boolean> {
   async function attempt(enable: boolean) {
     try {
-      const res = await streamFrom(model, chatProvider, [{ role: 'user', content: 'Hello, world!' }], { ...options, supportsTools: enable })
-      for await (const _ of readableStreamToAsyncIterator(res.textStream)) {
-        // Drop
-      }
-
+      await streamFrom(model, chatProvider, [{ role: 'user', content: 'Hello, world!' }], { ...options, supportsTools: enable })
       return true
     }
     catch (err) {

@@ -34,12 +34,14 @@ nsis:
   uninstallDisplayName: ${productName}
   createDesktopShortcut: always
   deleteAppDataOnUninstall: true
+  oneClick: false
+  allowToChangeInstallationDirectory: true
 
 mac:
   entitlementsInherit: build/entitlements.mac.plist
   extendInfo:
-    - NSDocumentsFolderUsageDescription: Application requests access to the user's Documents folder.
-    - NSDownloadsFolderUsageDescription: Application requests access to the user's Downloads folder.
+    - NSMicrophoneUsageDescription: 'AIRI requires microphone access for voice interaction'
+    - NSCameraUsageDescription: 'AIRI requires camera access for vision understanding'
   notarize: false
   executableName: airi
 dmg:
@@ -49,7 +51,6 @@ linux:
   target:
     - deb
     - rpm
-  maintainer: moeru.ai
   category: Utility
   synopsis: 'AI VTuber/Waifu chatbot app inspired by Neuro-sama.'
   description: 'AIRI is an AI VTuber/Waifu chatbot supporting Live2D/VRM avatars, featuring human-like interactions and modular stage-based rendering.'

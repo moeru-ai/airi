@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import type { ChatProvider } from '@xsai-ext/shared-providers'
 
-import { useMicVAD } from '@proj-airi/stage-ui/composables'
+import { HearingConfigDialog } from '@proj-airi/stage-ui/components'
+import { useAudioAnalyzer } from '@proj-airi/stage-ui/composables'
+import { useAudioContext } from '@proj-airi/stage-ui/stores/audio'
 import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
 import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
 import { useHearingStore } from '@proj-airi/stage-ui/stores/modules/hearing'
@@ -12,22 +14,23 @@ import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/
 import { BasicTextarea } from '@proj-airi/ui'
 import { useDark, useResizeObserver, useScreenSafeArea } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { onMounted, ref, useTemplateRef, watch } from 'vue'
+import { onMounted, onUnmounted, ref, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
 
+import IndicatorMicVolume from '../Widgets/IndicatorMicVolume.vue'
 import MobileChatHistory from '../Widgets/MobileChatHistory.vue'
 import ActionAbout from './InteractiveArea/Actions/About.vue'
 import ActionViewControls from './InteractiveArea/Actions/ViewControls.vue'
 import ViewControlInputs from './ViewControls/Inputs.vue'
 
 const isDark = useDark({ disableTransition: false })
+const hearingDialogOpen = ref(false)
 
 const viewControlsActiveMode = ref<'x' | 'y' | 'z' | 'scale'>('scale')
 const viewControlsInputsRef = useTemplateRef<InstanceType<typeof ViewControlInputs>>('viewControlsInputs')
 
 const messageInput = ref('')
-const listening = ref(false)
 const isComposing = ref(false)
 
 // Toggle states
@@ -50,10 +53,14 @@ useResizeObserver(document.documentElement, () => screenSafeArea.update())
 
 const { askPermission } = useSettingsAudioDevice()
 const { themeColorsHueDynamic, stageViewControlsEnabled } = storeToRefs(useSettings())
-const { enabled, selectedAudioInput } = storeToRefs(useSettingsAudioDevice())
+const settingsAudioDevice = useSettingsAudioDevice()
+const { enabled, selectedAudioInput, stream, audioInputs } = storeToRefs(settingsAudioDevice)
 const { send, onAfterMessageComposed, discoverToolsCompatibility, cleanupMessages } = useChatStore()
 const { messages } = storeToRefs(useChatStore())
 const { t } = useI18n()
+const { audioContext } = useAudioContext()
+const { startAnalyzer, stopAnalyzer, volumeLevel } = useAudioAnalyzer()
+let analyzerSource: MediaStreamAudioSourceNode | undefined
 
 function isMobileDevice() {
   return /Mobi|Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)

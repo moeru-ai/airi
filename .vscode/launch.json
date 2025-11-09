@@ -25,6 +25,18 @@
       "presentation": {
         "hidden": true
       }
+    },
+    {
+      "name": "Debug VSCode Extension",
+      "type": "extensionHost",
+      "request": "launch",
+      "args": [
+        "--extensionDevelopmentPath=${workspaceFolder}/plugins/airi-plugin-vscode"
+      ],
+      "outFiles": [
+        "${workspaceFolder}/plugins/airi-plugin-vscode/dist/**/*.js"
+      ],
+      "preLaunchTask": "npm: build - plugins/airi-plugin-vscode"
     }
   ],
   "compounds": [

@@ -180,7 +180,11 @@ export class Client<C = undefined> {
         this.connecting = false
         this.connected = true
 
-        this.opts.token ? this.tryAuthenticate() : this.tryAnnounce()
+        if (this.opts.token)
+          this.tryAuthenticate()
+        else
+          this.tryAnnounce()
+
         resolve()
       }
     })

@@ -1,5 +1,5 @@
 import type { Plugin } from 'vue'
-import type { Router } from 'vue-router'
+import type { Router, RouteRecordRaw } from 'vue-router'
 
 import Tres from '@tresjs/core'
 import NProgress from 'nprogress'
@@ -27,7 +27,8 @@ import 'uno.css'
 inject() // Enable Vercel Web Analytics
 
 const pinia = createPinia()
-const routeRecords = setupLayouts(routes)
+// TODO: vite-plugin-vue-layouts is long deprecated, replace with another layout solution
+const routeRecords = setupLayouts(routes as RouteRecordRaw[])
 
 let router: Router
 if (import.meta.env.VITE_APP_TARGET_HUGGINGFACE_SPACE)

@@ -31,11 +31,9 @@ modules:
       - mkdir -p /app/bin
       - mkdir -p /app/bin/airi
       - cp -r ./* /app/bin/airi/
-      - chmod +x /app/bin/airi/airi
       - install airi.sh /app/bin/airi.sh
       - chmod +x /app/bin/airi/airi.sh
-      - ls -la /app/bin/airi/
-      - ls -la /app/bin/airi/airi
+      - chmod +x /app/bin/airi/airi
     sources:
       - type: dir
         only-arches: [x86_64]

@@ -4,29 +4,29 @@ category: DevLog
 date: 2025-04-22
 ---
 
-## Day time 日常
+## Day time Daily
 
-大家好，我是 [@LemonNeko](https://github.com/LemonNekoGH)，这次有我来参与撰写 DevLog 和大家分享开发的故事。
+Hello everyone, I'm [@LemonNeko](https://github.com/LemonNekoGH), and this time I'm participating in writing the DevLog to share development stories with you.
 
-在两个月前，我们将 AIRI 的网页端移植到了 Electron 上 [#7](https://github.com/moeru-ai/airi/pull/7)（现在已经被我们使用 Tauri 重构 🤣 [#90](https://github.com/moeru-ai/airi/pull/90)），它可以作为桌宠出现在我们的屏幕上，于此同时，我出现了允许 AIRI 使用手机的想法，但是迟迟没有动手。
+Two months ago, we ported AIRI's web interface to Electron [#7](https://github.com/moeru-ai/airi/pull/7) (which has now been refactored using Tauri 🤣 [#90](https://github.com/moeru-ai/airi/pull/90)), allowing it to appear as a desktop pet on our screens. At the same time, I had the idea of allowing AIRI to use mobile phones, but I kept putting it off.
 
-在上个周末（2025.04.20），我花了点时间，做了一个能与 ADB 交互的 MCP 服务器 Demo [airi-android](https://github.com/LemonNekoGH/airi-android)，给 AIRI 提供了最基础的与手机交互的能力（事实上大部分 LLM 都可以通过它与手机交互），这是演示视频：
+Last weekend (2025.04.20), I spent some time creating an MCP server demo [airi-android](https://github.com/LemonNekoGH/airi-android) that can interact with ADB, providing AIRI with basic mobile interaction capabilities (in fact, most LLMs can interact with phones through it). Here's a demo video:
 
 <video controls muted>
   <source src="./assets/cursor-open-settings.mp4">
 </video>
 
-我也把它打包成了 Docker 镜像，提交到了 [MCP 服务器列表](https://mcp.so/server/airi-android/lemonnekogh)，有兴趣的可以试试。
+I also packaged it as a Docker image and submitted it to the [MCP server list](https://mcp.so/server/airi-android/lemonnekogh). Feel free to try it if you're interested.
 
-实际上我一开始的思路是写一写 Tool Calling 的代码，改一改提示词，告诉 LLM 我们可以使用这些工具来与手机交互，就结束了。~~但是最近 MCP 实在太火了，我有点 FOMO，所以选择了 MCP 来实现它。~~
+Actually, my initial idea was to write some Tool Calling code, modify the prompts, and tell the LLM that we can use these tools to interact with the phone, and that would be it. ~~But recently MCP has been so popular that I had some FOMO, so I chose MCP to implement it.~~
 
-要想编写 MCP 服务器，就不得不先了解 MCP 是什么（虽然我从来不是好好学理论再去实践的人，我选择直接上手，然后让 Cursor 来尝试使用它）。MCP（Model Context Protocol）模型上下文协议，是一个尝试去标准化应用如何给 LLM 提供上下文的协议，它提出了一些核心概念：
+To write an MCP server, I had to first understand what MCP is (although I'm not the type to study theory before practice—I prefer to dive right in and let Cursor try to use it). MCP (Model Context Protocol) is a protocol that attempts to standardize how applications provide context to LLMs. It proposes several core concepts:
 
-1. Resources 资源：服务器可以将数据和内容作为上下文提供给 LLM。
-2. Prompts 提示词：创建可服用的提示词模板和工作流。
-3. Tools 工具：允许 LLM 通过你的服务器来完成一些动作。
+1. Resources: Servers can provide data and content as context to LLMs.
+2. Prompts: Create reusable prompt templates and workflows.
+3. Tools: Allow LLMs to perform actions through your server.
 
-啊，资源，这个我知道的啊，在 Ruby on Rails 里，用户就是一种资源，那 ADB 设备是不是也是资源，让 LLM 查看连接的设备列表，是不是就可以写成：
+Ah, resources—I know this! In Ruby on Rails, users are a type of resource. So are ADB devices also resources? If I want the LLM to view the list of connected devices, could I write it like this:
 
 ```python
 from mcp.server.fastmcp import FastMCP
@@ -40,34 +40,34 @@ def get_devices():
     return adb_client.devices()
 ```
 
-错了，当我让 Cursor 来获取设备列表的时候，它并不知道怎么操作，它说它想主动去看有哪些设备连接了，所以它是工具，嗯，看来我没有理解透彻。
+Wrong! When I asked Cursor to get the device list, it didn't know how to operate. It said it wanted to actively check which devices were connected, so it's a tool. Hmm, it seems I didn't fully understand.
 
-我还没有想好具体应该怎么让 LLM 操作手机，想和大家讨论，但是 Cursor 是这样操作的：
+I haven't figured out exactly how to let LLMs operate phones yet, and I'd like to discuss it with everyone. But here's how Cursor operates:
 
-1. 使用截屏功能来大体了解手机屏幕上的内容。
-2. 使用 UI 自动化工具来获取想要操作的元素的精确位置。
-3. 点击或者滑动它。
-4. 重复以上步骤。
+1. Use screenshot functionality to get a general understanding of what's on the phone screen.
+2. Use UI automation tools to get the precise position of the element you want to operate.
+3. Click or swipe it.
+4. Repeat the above steps.
 
-目前看来运行良好，但是我有一些小小的问题：
+It seems to work well so far, but I have some small questions:
 
-1. 屏幕中是一个游戏，游戏使用图形 API 直接在屏幕上画了内容，而不是使用 UI 组件，所以 UI 自动化工具无法获取到元素的位置，也就无法操作它。
-2. 一个 LLM 响应的内容是有上限的，如果操作比较复杂，可能要分个步骤来完成，我们可以像 [airi-factorio](https://github.com/moeru-ai/airi-factorio) 那样，在步骤完成之后自动告诉它，触发下一个步骤吗？
-3. 如果有一些应用有酷炫的动画，在操作完成之后立刻截屏，可能看不到效果，我们会不会需要在操作完成之后，等待一段时间再截屏，或者直接使用录屏功能？
-4. 直接让 AI 操作手机的安全性如何，会有哪些风险？
+1. If the screen shows a game that uses graphics APIs to draw content directly on the screen rather than UI components, UI automation tools can't get the element positions and thus can't operate them.
+2. LLM responses have length limits. If the operation is complex, it might need to be completed in steps. Can we automatically notify it after each step is completed to trigger the next step, like in [airi-factorio](https://github.com/moeru-ai/airi-factorio)?
+3. If some apps have cool animations, taking a screenshot immediately after an operation might not show the effect. Would we need to wait a while after the operation before taking a screenshot, or use screen recording directly?
+4. What about the security of letting AI directly operate phones? What risks might there be?
 
-一些感想。
+Some reflections.
 
-这是我第一次和 AI 写代码的时候感受到像人类一起写代码一样，不知道是不是因为我的目的就是让 AI 来使用我的工具，所以它变成了我的客户，我需要不停地根据它给的反馈来调整我的代码，它也变成了我的同事，我需要和它一起思考，一起解决问题。看这个截屏，是不是确实很像？
+This is the first time I've felt like coding with a human while working with AI. I'm not sure if it's because my goal was to let AI use my tools, so it became my client—I constantly had to adjust my code based on its feedback. It also became my colleague—I needed to think and solve problems together with it. Look at this screenshot, doesn't it really look like that?
 
 ![](./assets/develop-with-cursor.avif)
 
-在开发过程中还学了一些小技巧，比如我们可以使用命令行来启动 Android 模拟器，这样就不用打开 Android Studio 了，内存压力也小了很多。
+During development, I also learned some small tricks, like using the command line to start Android emulators so we don't need to open Android Studio, which reduces memory pressure significantly.
 
 ```bash
 emulator -avd Pixel_6_Pro_API_34
 ```
 
-下一步，我打算给 AIRI 桌宠接上 MCP 服务器，看看它会想做什么，也许它会点开 Telegram 和我们聊天，就像现在的 ReLU 那样，只不过不是用 Telegram 的 API。
+Next, I plan to connect the AIRI desktop pet to the MCP server and see what it wants to do. Maybe it will open Telegram and chat with us, just like ReLU does now, but without using Telegram's API.
 
-感谢你看完这篇可能有点啰嗦而且干货不多的 DevLog，我们下次再见！
+Thank you for reading this possibly somewhat rambling and not very substantial DevLog. See you next time!

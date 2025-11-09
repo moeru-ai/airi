@@ -21,8 +21,8 @@
     "vue": "^3.5.22"
   },
   "devDependencies": {
-    "@anthropic-ai/claude-code": "^2.0.14",
+    "@anthropic-ai/claude-code": "^2.0.31",
     "tsx": "^4.20.6",
-    "vue-tsc": "^3.1.1"
+    "vue-tsc": "^3.1.2"
   }
 }

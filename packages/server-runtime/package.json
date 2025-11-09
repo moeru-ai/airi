@@ -22,14 +22,15 @@
   },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "bin": "./dist/bin/run.js",
   "files": [
     "README.md",
     "dist",
     "package.json"
   ],
   "scripts": {
-    "dev": "listhen -w --ws --port 6121 ./src/index.ts",
-    "start": "listhen --ws --port 6121 ./src/index.ts",
+    "dev": "tsx ./src/bin/run.js",
+    "start": "tsx ./src/bin/run.js",
     "build": "tsdown",
     "typecheck": "tsc --noEmit"
   },
@@ -38,7 +39,7 @@
     "@proj-airi/memory-system": "workspace:^",
     "@proj-airi/server-shared": "workspace:^",
     "crossws": "^0.4.1",
-    "h3": "^2.0.1-rc.2",
+    "h3": "^2.0.1-rc.5",
     "listhen": "^1.9.0"
   }
 }

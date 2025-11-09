@@ -63,6 +63,10 @@ const routeHeaderMetadataMap = computed(() => {
       subtitle: t('settings.title'),
       title: t('settings.pages.modules.hearing.title'),
     },
+    '/settings/modules/vision': {
+      subtitle: t('settings.title'),
+      title: t('settings.pages.modules.vision.title'),
+    },
     '/settings/modules/memory-short-term': {
       subtitle: t('settings.title'),
       title: t('settings.pages.modules.memory-short-term.title'),

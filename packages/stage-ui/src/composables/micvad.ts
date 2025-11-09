@@ -1,5 +1,5 @@
 import type { RealTimeVADOptions } from '@ricky0123/vad-web'
-import type { MaybeRef } from '@vueuse/shared'
+import type { MaybeRef } from 'vue'
 
 import { merge } from '@moeru/std'
 import { getDefaultRealTimeVADOptions, MicVAD } from '@ricky0123/vad-web'
