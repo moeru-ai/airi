@@ -283,6 +283,18 @@ pages:
         section:
           provider-selection:
             description: Select the suitable speech recognition provider
+          audio-processing:
+            title: Microphone processing
+            description: Choose whether the browser should enhance your microphone before sending audio to AIRI.
+            auto-gain-control:
+              label: Automatic gain control
+              description: Automatically raise or lower the microphone volume.
+            echo-cancellation:
+              label: Echo cancellation
+              description: Reduce speaker feedback that can be picked up by your mic.
+            noise-suppression:
+              label: Noise suppression
+              description: Filter out constant background sounds like fans or AC units.
           regex:
             title: Regex preprocessing
             description: Clean up or redact transcriptions before they are sent to chat.

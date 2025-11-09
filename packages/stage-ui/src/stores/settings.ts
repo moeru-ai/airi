@@ -1,3 +1,4 @@
+import type { AudioProcessingPreferences } from './audio'
 import type { DisplayModel } from './display-models'
 
 import messages from '@proj-airi/i18n/locales'
@@ -6,7 +7,7 @@ import { withBase } from '@proj-airi/stage-shared'
 import { useEventListener, useLocalStorage } from '@vueuse/core'
 import { converter } from 'culori'
 import { defineStore } from 'pinia'
-import { onMounted, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 
 import { useAudioDevice } from './audio'
 import { DisplayModelFormat, useDisplayModelsStore } from './display-models'
@@ -188,7 +189,17 @@ export const useSettings = defineStore('settings', () => {
 })
 
 export const useSettingsAudioDevice = defineStore('settings-audio-devices', () => {
-  const { audioInputs, deviceConstraints, selectedAudioInput: selectedAudioInputNonPersist, startStream, stopStream, stream, askPermission } = useAudioDevice()
+  const audioProcessingDefaults: AudioProcessingPreferences = {
+    autoGainControl: true,
+    echoCancellation: true,
+    noiseSuppression: true,
+  }
+  const audioProcessing = useLocalStorage<AudioProcessingPreferences>(
+    'settings/audio/processing',
+    audioProcessingDefaults,
+    { mergeDefaults: true },
+  )
+  const { audioInputs, deviceConstraints, selectedAudioInput: selectedAudioInputNonPersist, startStream, stopStream, stream, askPermission } = useAudioDevice(false, audioProcessing)
 
   const selectedAudioInputPersist = useLocalStorage('settings/audio/input', selectedAudioInputNonPersist.value)
   const selectedAudioInputEnabledPersist = useLocalStorage('settings/audio/input/enabled', false)
@@ -206,6 +217,14 @@ export const useSettingsAudioDevice = defineStore('settings-audio-devices', () =
     }
   })
 
+  watch(audioProcessing, () => {
+    if (!selectedAudioInputEnabledPersist.value)
+      return
+
+    stopStream()
+    startStream()
+  })
+
   onMounted(() => {
     if (selectedAudioInputEnabledPersist.value && selectedAudioInputPersist.value) {
       startStream()
@@ -213,6 +232,36 @@ export const useSettingsAudioDevice = defineStore('settings-audio-devices', () =
     if (selectedAudioInputNonPersist.value && !selectedAudioInputEnabledPersist.value) {
       selectedAudioInputPersist.value = selectedAudioInputNonPersist.value
     }
+  })
+
+  const autoGainControlEnabled = computed({
+    get: () => audioProcessing.value.autoGainControl,
+    set: (value: boolean) => {
+      audioProcessing.value = {
+        ...audioProcessing.value,
+        autoGainControl: value,
+      }
+    },
+  })
+
+  const echoCancellationEnabled = computed({
+    get: () => audioProcessing.value.echoCancellation,
+    set: (value: boolean) => {
+      audioProcessing.value = {
+        ...audioProcessing.value,
+        echoCancellation: value,
+      }
+    },
+  })
+
+  const noiseSuppressionEnabled = computed({
+    get: () => audioProcessing.value.noiseSuppression,
+    set: (value: boolean) => {
+      audioProcessing.value = {
+        ...audioProcessing.value,
+        noiseSuppression: value,
+      }
+    },
   })
 
   return {
@@ -226,5 +275,9 @@ export const useSettingsAudioDevice = defineStore('settings-audio-devices', () =
     askPermission,
     startStream,
     stopStream,
+    audioProcessing,
+    autoGainControlEnabled,
+    echoCancellationEnabled,
+    noiseSuppressionEnabled,
   }
 })

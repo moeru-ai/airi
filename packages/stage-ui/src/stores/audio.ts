@@ -1,6 +1,20 @@
+import type { Ref } from 'vue'
+
 import { useDevicesList, useUserMedia } from '@vueuse/core'
 import { defineStore } from 'pinia'
 import { computed, nextTick, onUnmounted, ref, shallowRef, watch } from 'vue'
+
+export interface AudioProcessingPreferences {
+  autoGainControl: boolean
+  echoCancellation: boolean
+  noiseSuppression: boolean
+}
+
+const DEFAULT_AUDIO_PROCESSING: Readonly<AudioProcessingPreferences> = {
+  autoGainControl: true,
+  echoCancellation: true,
+  noiseSuppression: true,
+}
 
 function calculateVolumeWithLinearNormalize(analyser: AnalyserNode) {
   const dataBuffer = new Uint8Array(analyser.frequencyBinCount)
@@ -80,11 +94,27 @@ export const useAudioContext = defineStore('audio-context', () => {
   }
 })
 
-export function useAudioDevice(requestPermission: boolean = false) {
+export function useAudioDevice(
+  requestPermission: boolean = false,
+  processingOptions?: Ref<AudioProcessingPreferences>,
+) {
   const devices = useDevicesList({ constraints: { audio: true }, requestPermissions: requestPermission })
   const audioInputs = computed(() => devices.audioInputs.value)
   const selectedAudioInput = ref<string>(devices.audioInputs.value.find(device => device.deviceId === 'default')?.deviceId || '')
-  const deviceConstraints = computed<MediaStreamConstraints>(() => ({ audio: { deviceId: { exact: selectedAudioInput.value }, autoGainControl: true, echoCancellation: true, noiseSuppression: true } }))
+  const processing = computed(() => processingOptions?.value ?? DEFAULT_AUDIO_PROCESSING)
+  const deviceConstraints = computed<MediaStreamConstraints>(() => {
+    const audioConstraints: MediaTrackConstraints = {
+      autoGainControl: processing.value.autoGainControl,
+      echoCancellation: processing.value.echoCancellation,
+      noiseSuppression: processing.value.noiseSuppression,
+    }
+
+    if (selectedAudioInput.value) {
+      audioConstraints.deviceId = { exact: selectedAudioInput.value }
+    }
+
+    return { audio: audioConstraints }
+  })
   const { stream, stop: stopStream, start: startStream } = useUserMedia({ constraints: deviceConstraints, enabled: false, autoSwitch: true })
 
   watch(audioInputs, () => {

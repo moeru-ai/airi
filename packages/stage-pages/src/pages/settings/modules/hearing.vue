@@ -41,8 +41,16 @@ const {
 const providersStore = useProvidersStore()
 const { configuredTranscriptionProvidersMetadata } = storeToRefs(providersStore)
 
-const { stopStream, startStream } = useSettingsAudioDevice()
-const { audioInputs, selectedAudioInput, stream } = storeToRefs(useSettingsAudioDevice())
+const settingsAudioDeviceStore = useSettingsAudioDevice()
+const { stopStream, startStream } = settingsAudioDeviceStore
+const {
+  audioInputs,
+  selectedAudioInput,
+  stream,
+  autoGainControlEnabled,
+  echoCancellationEnabled,
+  noiseSuppressionEnabled,
+} = storeToRefs(settingsAudioDeviceStore)
 const { startRecord, stopRecord, onStopRecord } = useAudioRecorder(stream)
 const { startAnalyzer, stopAnalyzer, onAnalyzerUpdate, volumeLevel } = useAudioAnalyzer()
 const { audioContext } = storeToRefs(useAudioContext())
@@ -80,6 +88,17 @@ const isTranscriptionRegexDefault = computed(() => {
 })
 
 const useVADThreshold = ref(0.6) // 0.1 - 0.9
+const useVADThresholdPercent = computed({
+  get: () => Math.round(useVADThreshold.value * 100),
+  set: (percent: number) => {
+    const numericValue = typeof percent === 'number' ? percent : Number(percent)
+    if (Number.isNaN(numericValue))
+      return
+
+    const normalized = numericValue / 100
+    useVADThreshold.value = Math.min(Math.max(normalized, 0), 1)
+  },
+})
 const speechPaddingMs = ref(80) // 0.08s - 1s pre-roll
 const useVADModel = ref(true) // Toggle between VAD and volume-based detection
 const {
@@ -129,7 +148,7 @@ async function setupAudioMonitoring() {
     const analyzer = startAnalyzer(audioContext.value)
     onAnalyzerUpdate((volumeLevel) => {
       if (!useVADModel.value || !loadedVAD.value) {
-        isSpeechVolume.value = volumeLevel > useVADThreshold.value
+        isSpeechVolume.value = volumeLevel > useVADThresholdPercent.value
       }
     })
     if (analyzer)
@@ -248,6 +267,32 @@ onUnmounted(() => {
             }))"
             placeholder="Select an audio input device"
             layout="vertical"
+          />
+        </div>
+
+        <div class="space-y-3 rounded-xl border border-neutral-200/60 p-4 dark:border-neutral-800/60">
+          <div class="space-y-1">
+            <h3 class="text-base font-medium text-neutral-700 dark:text-neutral-200">
+              {{ t('settings.pages.modules.hearing.sections.section.audio-processing.title') }}
+            </h3>
+            <p class="text-sm text-neutral-500 dark:text-neutral-400">
+              {{ t('settings.pages.modules.hearing.sections.section.audio-processing.description') }}
+            </p>
+          </div>
+          <FieldCheckbox
+            v-model="autoGainControlEnabled"
+            :label="t('settings.pages.modules.hearing.sections.section.audio-processing.auto-gain-control.label')"
+            :description="t('settings.pages.modules.hearing.sections.section.audio-processing.auto-gain-control.description')"
+          />
+          <FieldCheckbox
+            v-model="echoCancellationEnabled"
+            :label="t('settings.pages.modules.hearing.sections.section.audio-processing.echo-cancellation.label')"
+            :description="t('settings.pages.modules.hearing.sections.section.audio-processing.echo-cancellation.description')"
+          />
+          <FieldCheckbox
+            v-model="noiseSuppressionEnabled"
+            :label="t('settings.pages.modules.hearing.sections.section.audio-processing.noise-suppression.label')"
+            :description="t('settings.pages.modules.hearing.sections.section.audio-processing.noise-suppression.description')"
           />
         </div>
 
@@ -494,7 +539,7 @@ onUnmounted(() => {
 
               <div v-else class="space-y-3">
                 <FieldRange
-                  v-model="useVADThreshold"
+                  v-model="useVADThresholdPercent"
                   label="Sensitivity"
                   description="Adjust the threshold for speech detection"
                   :min="1"
