@@ -63,6 +63,7 @@ import { useI18n } from 'vue-i18n'
 
 import { createAliyunNLSProvider as createAliyunNlsStreamProvider } from './providers/aliyun/stream-transcription'
 import { models as elevenLabsModels } from './providers/elevenlabs/list-models'
+import { createLibreTranslateProvider, DEFAULT_LIBRETRANSLATE_BASE_URL, listLibreTranslateLanguages, verifyLibreTranslateConnection } from './providers/libretranslate'
 import { buildOpenAICompatibleProvider } from './providers/openai-compatible-builder'
 import { createWhisperCppTranscriptionProvider } from './providers/whispercpp/transcription'
 
@@ -128,7 +129,7 @@ function toWhisperResponseFormat(value: unknown): WhisperCppResponseFormat | und
 export interface ProviderMetadata {
   id: string
   order?: number
-  category: 'chat' | 'embed' | 'speech' | 'transcription'
+  category: 'chat' | 'embed' | 'speech' | 'transcription' | 'translation'
   tasks: string[]
   nameKey: string // i18n key for provider name
   name: string // Default name (fallback)
@@ -181,6 +182,7 @@ export interface ProviderMetadata {
     | SpeechProviderWithExtraOptions
     | TranscriptionProvider
     | TranscriptionProviderWithExtraOptions
+    | TranslationProvider
     | Promise<ChatProvider>
     | Promise<ChatProviderWithExtraOptions>
     | Promise<EmbedProvider>
@@ -189,10 +191,12 @@ export interface ProviderMetadata {
     | Promise<SpeechProviderWithExtraOptions>
     | Promise<TranscriptionProvider>
     | Promise<TranscriptionProviderWithExtraOptions>
+    | Promise<TranslationProvider>
   capabilities: {
     listModels?: (config: Record<string, unknown>) => Promise<ModelInfo[]>
     listVoices?: (config: Record<string, unknown>) => Promise<VoiceInfo[]>
     loadModel?: (config: Record<string, unknown>, hooks?: { onProgress?: (progress: ProgressInfo) => Promise<void> | void }) => Promise<void>
+    listLanguages?: (config: Record<string, unknown>) => Promise<TranslationLanguageInfo[]>
   }
   validators: {
     validateProviderConfig: (config: Record<string, unknown>) => Promise<{
@@ -235,6 +239,21 @@ export interface VoiceInfo {
     code: string
     title: string
   }[]
+}
+
+export interface TranslationLanguageInfo {
+  code: string
+  name: string
+}
+
+export interface TranslationProvider {
+  translate: (params: {
+    text: string
+    source?: string
+    target: string
+    format?: 'text' | 'html'
+  }) => Promise<string>
+  listLanguages?: () => Promise<TranslationLanguageInfo[]>
 }
 
 function createAnthropic(apiKey: string, baseURL: string = 'https://api.anthropic.com/v1/') {
@@ -483,6 +502,65 @@ export const useProvidersStore = defineStore('providers', () => {
         },
       },
     }),
+    'libretranslate': {
+      id: 'libretranslate',
+      category: 'translation',
+      tasks: ['text-translation'],
+      nameKey: 'settings.pages.providers.provider.libretranslate.title',
+      name: 'LibreTranslate',
+      descriptionKey: 'settings.pages.providers.provider.libretranslate.description',
+      description: 'Self-hosted translation API',
+      icon: 'i-ph:translate',
+      defaultOptions: () => ({
+        baseUrl: DEFAULT_LIBRETRANSLATE_BASE_URL,
+        apiKey: '',
+      }),
+      createProvider: config => createLibreTranslateProvider(config),
+      capabilities: {
+        listLanguages: async (config) => {
+          return await listLibreTranslateLanguages(config)
+        },
+      },
+      validators: {
+        validateProviderConfig: async (config) => {
+          const errors: Error[] = []
+          if (!config.baseUrl) {
+            errors.push(new Error('Base URL is required. Example: http://127.0.0.1:5000/'))
+          }
+
+          if (config.baseUrl) {
+            const res = baseUrlValidator.value(config.baseUrl)
+            if (res)
+              return res
+          }
+
+          if (errors.length > 0) {
+            return {
+              errors,
+              reason: errors.map(e => e.message).join(', '),
+              valid: false,
+            }
+          }
+
+          try {
+            await verifyLibreTranslateConnection(config)
+            return {
+              errors: [],
+              reason: '',
+              valid: true,
+            }
+          }
+          catch (error) {
+            const err = error instanceof Error ? error : new Error('Failed to reach LibreTranslate')
+            return {
+              errors: [err],
+              reason: err.message,
+              valid: false,
+            }
+          }
+        },
+      },
+    },
     'ollama': {
       id: 'ollama',
       category: 'chat',
@@ -2211,7 +2289,8 @@ export const useProvidersStore = defineStore('providers', () => {
   | SpeechProvider
   | SpeechProviderWithExtraOptions
   | TranscriptionProvider
-  | TranscriptionProviderWithExtraOptions,
+  | TranscriptionProviderWithExtraOptions
+  | TranslationProvider,
   >(providerId: string): Promise<R> {
     const config = providerCredentials.value[providerId]
     if (!config)
@@ -2258,6 +2337,10 @@ export const useProvidersStore = defineStore('providers', () => {
     return availableProvidersMetadata.value.filter(metadata => metadata.category === 'transcription')
   })
 
+  const allTranslationProvidersMetadata = computed(() => {
+    return availableProvidersMetadata.value.filter(metadata => metadata.category === 'translation')
+  })
+
   const configuredChatProvidersMetadata = computed(() => {
     return allChatProvidersMetadata.value.filter(metadata => configuredProviders.value[metadata.id])
   })
@@ -2268,6 +2351,10 @@ export const useProvidersStore = defineStore('providers', () => {
 
   const configuredTranscriptionProvidersMetadata = computed(() => {
     return allAudioTranscriptionProvidersMetadata.value.filter(metadata => configuredProviders.value[metadata.id])
+  })
+
+  const configuredTranslationProvidersMetadata = computed(() => {
+    return allTranslationProvidersMetadata.value.filter(metadata => configuredProviders.value[metadata.id])
   })
 
   function getProviderConfig(providerId: string) {
@@ -2297,8 +2384,10 @@ export const useProvidersStore = defineStore('providers', () => {
     allChatProvidersMetadata,
     allAudioSpeechProvidersMetadata,
     allAudioTranscriptionProvidersMetadata,
+    allTranslationProvidersMetadata,
     configuredChatProvidersMetadata,
     configuredSpeechProvidersMetadata,
     configuredTranscriptionProvidersMetadata,
+    configuredTranslationProvidersMetadata,
   }
 })

@@ -11,6 +11,7 @@ const {
   allChatProvidersMetadata,
   allAudioSpeechProvidersMetadata,
   allAudioTranscriptionProvidersMetadata,
+  allTranslationProvidersMetadata,
 } = storeToRefs(providersStore)
 
 useScrollToHash(() => route.hash, {
@@ -119,6 +120,37 @@ useScrollToHash(() => route.hash, {
         :enter="{ opacity: 1, y: 0 }"
         :duration="250 + index * 10"
         :delay="(allChatProvidersMetadata.length + allAudioSpeechProvidersMetadata.length + index) * 50"
+        :title="provider.localizedName || 'Unknown'"
+        :description="provider.localizedDescription"
+        :icon="provider.icon"
+        :icon-color="provider.iconColor"
+        :icon-image="provider.iconImage"
+        :to="`/settings/providers/${provider.category}/${provider.id}`"
+        :configured="provider.configured"
+      />
+    </div>
+    <div flex="~ row items-center gap-2" my-5>
+      <div id="translation" i-ph:translate text="neutral-500 dark:neutral-400 4xl" />
+      <div>
+        <div>
+          <span text="neutral-300 dark:neutral-500 sm sm:base">Text translation providers. e.g. LibreTranslate and other OpenAI-compatible translation APIs.</span>
+        </div>
+        <div flex text-nowrap text="2xl sm:3xl" font-normal>
+          <div>
+            Translation
+          </div>
+        </div>
+      </div>
+    </div>
+    <div grid="~ cols-1 sm:cols-2 xl:cols-3 gap-4">
+      <IconStatusItem
+        v-for="(provider, index) of allTranslationProvidersMetadata"
+        :key="provider.id"
+        v-motion
+        :initial="{ opacity: 0, y: 10 }"
+        :enter="{ opacity: 1, y: 0 }"
+        :duration="250 + index * 10"
+        :delay="(allChatProvidersMetadata.length + allAudioSpeechProvidersMetadata.length + allAudioTranscriptionProvidersMetadata.length + index) * 50"
         :title="provider.localizedName || 'Unknown'"
         :description="provider.localizedDescription"
         :icon="provider.icon"

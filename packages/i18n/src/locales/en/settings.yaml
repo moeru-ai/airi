@@ -316,6 +316,38 @@ pages:
               label: Reset to default
               tooltip: Restore the recommended regex pattern, replacement, and flags.
             error_prefix: Regex error
+    translation:
+      title: Translation
+      description: Translate user input and AI output between languages.
+      languages:
+        auto: Auto detect (recommended)
+      sections:
+        provider:
+          title: Provider
+          description: Pick which translation backend AIRI should use.
+          add: Configure provider
+          empty:
+            title: No translation providers configured
+            description: Set up LibreTranslate or another provider under Settings → Providers → Translation.
+        input:
+          title: Input translation
+          description: Convert chat text or hearing transcripts before they are sent to the LLM.
+          toggle:
+            label: Enable input translation
+            description: When enabled, AIRI rewrites your input into the target language before sending it to the AI.
+          source: Source language
+          target: Target language
+        output:
+          title: Output translation
+          description: Once the assistant responds, translate it before speech synthesis.
+          toggle:
+            label: Enable output translation
+            description: Buffer the full reply, translate it, then send the translated text to text-to-speech.
+          source: Source language
+          target: Target language
+        languages:
+          error:
+            title: Unable to load language list
     memory-long-term:
       description: Long-term memory specific settings and management
       title: Long-Term Memory
@@ -429,6 +461,7 @@ pages:
       Transcription: >-
         Transcription (speech-to-text) model providers. e.g. Whisper.cpp,
         OpenAI, Azure Speech
+      translation: Text translation providers. e.g. LibreTranslate or OpenAI-compatible translation APIs.
     helpinfo:
       title: First time here?
       description: >
@@ -471,6 +504,12 @@ pages:
       browser-local-audio-speech:
         title: Browser (Local)
         description: https://github.com/moeru-ai/xsai-transformers
+      libretranslate:
+        title: LibreTranslate
+        description: Self-hosted translation API compatible with LibreTranslate
+        api_key:
+          label: API Key (optional)
+          description: Provide a token only if your LibreTranslate instance enforces authentication.
       whisper-cpp:
         title: whisper.cpp Server
         description: ggml-org/whisper.cpp/examples/server

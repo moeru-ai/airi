@@ -15,7 +15,7 @@ import { useBroadcastChannel } from '@vueuse/core'
 // import { embed } from '@xsai/embed'
 import { generateSpeech } from '@xsai/generate-speech'
 import { storeToRefs } from 'pinia'
-import { onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 
 import Live2DScene from './Live2D.vue'
 
@@ -26,6 +26,7 @@ import { useAudioContext, useSpeakingStore } from '../../stores/audio'
 import { useChatStore } from '../../stores/chat'
 import { useLive2d } from '../../stores/live2d'
 import { useSpeechStore } from '../../stores/modules/speech'
+import { useTranslationStore } from '../../stores/modules/translation'
 import { useProvidersStore } from '../../stores/providers'
 import { useSettings } from '../../stores/settings'
 import { createQueue } from '../../utils/queue'
@@ -123,7 +124,10 @@ const nowSpeaking = ref(false)
 const lipSyncStarted = ref(false)
 
 const speechStore = useSpeechStore()
+const translationStore = useTranslationStore()
 const { ssmlEnabled, activeSpeechProvider, activeSpeechModel, activeSpeechVoice, pitch, sendFullResponseToSpeechProvider } = storeToRefs(speechStore)
+const { outputTranslationEnabled } = storeToRefs(translationStore)
+const shouldBufferFullResponse = computed(() => sendFullResponseToSpeechProvider.value || outputTranslationEnabled.value)
 let ttsRequestCounter = 0
 const pendingFullResponseLiteral = ref('')
 
@@ -262,7 +266,7 @@ async function handleSpeechGeneration(ctx: { data: string }) {
 }
 
 onTextSegmented((chunk) => {
-  if (sendFullResponseToSpeechProvider.value)
+  if (shouldBufferFullResponse.value)
     return
   ttsQueue.enqueue(chunk)
 })
@@ -337,7 +341,7 @@ onBeforeSend(async () => {
 })
 
 onTokenLiteral(async (literal) => {
-  if (sendFullResponseToSpeechProvider.value) {
+  if (shouldBufferFullResponse.value) {
     const sanitizedLiteral = literal.replaceAll(TTS_FLUSH_INSTRUCTION, '')
     if (!sanitizedLiteral)
       return
@@ -358,10 +362,21 @@ onStreamEnd(async () => {
 })
 
 onAssistantResponseEnd(async (_message) => {
-  if (sendFullResponseToSpeechProvider.value) {
-    const normalized = pendingFullResponseLiteral.value.trim()
-    if (normalized.length > 0)
-      ttsQueue.enqueue(pendingFullResponseLiteral.value)
+  if (shouldBufferFullResponse.value) {
+    const bufferedText = pendingFullResponseLiteral.value
+    const normalized = bufferedText.trim()
+    if (normalized.length > 0) {
+      let textForSpeech = bufferedText
+      if (outputTranslationEnabled.value) {
+        try {
+          textForSpeech = await translationStore.translateOutputText(bufferedText)
+        }
+        catch (error) {
+          console.error('Output translation failed:', error)
+        }
+      }
+      ttsQueue.enqueue(textForSpeech)
+    }
     pendingFullResponseLiteral.value = ''
   }
   // const res = await embed({

@@ -41,7 +41,7 @@ export function buildOpenAICompatibleProvider(
     description: string
     nameKey: string
     descriptionKey: string
-    category?: 'chat' | 'embed' | 'speech' | 'transcription'
+    category?: 'chat' | 'embed' | 'speech' | 'transcription' | 'translation'
     tasks?: string[]
     defaultBaseUrl?: string
     creator: ProviderCreator
