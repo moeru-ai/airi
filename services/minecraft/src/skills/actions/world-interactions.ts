@@ -23,8 +23,8 @@ export async function placeBlock(
   placeOn: string = 'bottom',
 ): Promise<boolean> {
   // if (!gameData.getBlockId(blockType)) {
-  //   logger.log(`Invalid block type: ${blockType}.`);
-  //   return false;
+  //   logger.log(`Invalid block type: ${blockType}.`)
+  //   return false
   // }
 
   const targetDest = new Vec3(Math.floor(x), Math.floor(y), Math.floor(z))
@@ -151,7 +151,7 @@ export async function placeBlock(
         2,
       ),
     )
-    // bot.pathfinder.setMovements(new pf.Movements(bot));
+    // bot.pathfinder.setMovements(new pf.Movements(bot))
     await mineflayer.bot.pathfinder.goto(goal)
   }
 
@@ -254,7 +254,7 @@ export async function activateNearestBlock(mineflayer: Mineflayer, type: string)
    * @param {string} type, the type of block to activate.
    * @returns {Promise<boolean>} true if the block was activated, false otherwise.
    * @example
-   * await skills.activateNearestBlock( "lever");
+   * await skills.activateNearestBlock( "lever")
    *
    */
   const block = getNearestBlock(mineflayer.bot, type, 16)
@@ -264,7 +264,7 @@ export async function activateNearestBlock(mineflayer: Mineflayer, type: string)
   }
   if (mineflayer.bot.entity.position.distanceTo(block.position) > 4.5) {
     const pos = block.position
-    // bot.pathfinder.setMovements(new pf.Movements(bot));
+    // bot.pathfinder.setMovements(new pf.Movements(bot))
     await mineflayer.bot.pathfinder.goto(new pathfinder.goals.GoalNear(pos.x, pos.y, pos.z, 4))
   }
   await mineflayer.bot.activateBlock(block)
@@ -358,7 +358,7 @@ export async function pickupNearbyItems(
 
   let pickedUp = 0
   while (nearestItem) {
-    // bot.pathfinder.setMovements(new pf.Movements(bot));
+    // bot.pathfinder.setMovements(new pf.Movements(bot))
     await mineflayer.bot.pathfinder.goto(
       new pathfinder.goals.GoalFollow(nearestItem, 0.8),
       () => {},

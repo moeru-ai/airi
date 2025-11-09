@@ -590,8 +590,8 @@ async function exportChatHistory() {
     exportMessage.value = 'Chat export task has started...'
     const usePglite = pgLiteEnabled.value === true
     const endpoint = usePglite
-      ? `${memoryServiceUrl.value}/api/memory/export-chathistory?isPglite=true`
-      : `${memoryServiceUrl.value}/api/memory/export-embedded`
+      ? `${memoryServiceUrl.value}/chat-history/export?isPglite=${usePglite}`
+      : `${memoryServiceUrl.value}/chat-history/export`
 
     const r = await fetch(endpoint, {
       method: 'POST',

@@ -10,10 +10,10 @@ const TAG_CLOSE = '|>'
  * const parser = useLlmmarkerParser({
  *   onLiteral: (text) => console.log('Literal:', text),
  *   onSpecial: (tagContent) => console.log('Special:', tagContent),
- * });
+ * })
  *
- * await parser.consume('This is some text <|tool_code|> and some more |> text.');
- * await parser.end();
+ * await parser.consume('This is some text <|tool_code|> and some more |> text.')
+ * await parser.end()
  */
 export function useLlmmarkerParser(options: {
   onLiteral?: (literal: string) => void | Promise<void>

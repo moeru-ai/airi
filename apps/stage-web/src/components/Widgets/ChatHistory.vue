@@ -8,9 +8,8 @@ import { useI18n } from 'vue-i18n'
 const chatHistoryRef = ref<HTMLDivElement>()
 
 const { t } = useI18n()
-const { messages, sending, streamingMessage, loadingInitialHistory, isLoadingHistory, hasMoreHistory } = storeToRefs(useChatStore())
+const { messages, sending, streamingMessage, isLoadingHistory, hasMoreHistory } = storeToRefs(useChatStore())
 const { onBeforeMessageComposed, onTokenLiteral, loadInitialHistory, loadMoreHistory } = useChatStore()
-
 
 // Track if we're scrolled to top
 const isScrolledToTop = ref(false)

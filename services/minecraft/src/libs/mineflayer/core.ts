@@ -226,123 +226,122 @@ export class Mineflayer extends EventEmitter<EventHandlers> {
 
   private async handleMessage(_source: string, _message: string, _maxResponses: number = Infinity) {
     // if (!source || !message) {
-  //     console.warn('Received empty message from', source);
-  //     return false;
+  //     console.warn('Received empty message from', source)
+  //     return false
   // }
 
-    // let used_command = false;
+    // let used_command = false
     // if (maxResponses === null) {
-    //     maxResponses = settings.max_commands === -1 ? Infinity : settings.max_commands;
+    //     maxResponses = settings.max_commands === -1 ? Infinity : settings.max_commands
     // }
     // if (maxResponses === -1) {
-    //     maxResponses = Infinity;
+    //     maxResponses = Infinity
     // }
 
-    // const self_prompt = source === 'system' || source === ctx.botName;
-    // const from_other_bot = convoManager.isOtherAgent(source);
+    // const self_prompt = source === 'system' || source === ctx.botName
+    // const from_other_bot = convoManager.isOtherAgent(source)
 
     // if (!self_prompt && !from_other_bot) { // from user, check for forced commands
-    //     const user_command_name = containsCommand(message);
+    //     const user_command_name = containsCommand(message)
     //     if (user_command_name) {
     //         if (!commandExists(user_command_name)) {
-    //             this.routeResponse(source, `Command '${user_command_name}' does not exist.`);
-    //             return false;
+    //             this.routeResponse(source, `Command '${user_command_name}' does not exist.`)
+    //             return false
     //         }
-    //         this.routeResponse(source, `*${source} used ${user_command_name.substring(1)}*`);
+    //         this.routeResponse(source, `*${source} used ${user_command_name.substring(1)}*`)
     //         if (user_command_name === '!newAction') {
     //             // all user-initiated commands are ignored by the bot except for this one
     //             // add the preceding message to the history to give context for newAction
-    //             this.history.add(source, message);
+    //             this.history.add(source, message)
     //         }
-    //         let execute_res = await executeCommand(this, message);
+    //         let execute_res = await executeCommand(this, message)
     //         if (execute_res)
-    //             this.routeResponse(source, execute_res);
-    //         return true;
+    //             this.routeResponse(source, execute_res)
+    //         return true
     //     }
     // }
 
     // if (from_other_bot)
-    //     this.last_sender = source;
+    //     this.last_sender = source
 
     // // Now translate the message
-    // message = await handleEnglishTranslation(message);
-    // console.log('received message from', source, ':', message);
+    // message = await handleEnglishTranslation(message)
+    // console.log('received message from', source, ':', message)
 
-    // const checkInterrupt = () => this.self_prompter.shouldInterrupt(self_prompt) || this.shut_up || convoManager.responseScheduledFor(source);
+    // const checkInterrupt = () => this.self_prompter.shouldInterrupt(self_prompt) || this.shut_up || convoManager.responseScheduledFor(source)
 
-    // let behavior_log = this.bot.modes.flushBehaviorLog();
+    // let behavior_log = this.bot.modes.flushBehaviorLog()
     // if (behavior_log.trim().length > 0) {
-    //     const MAX_LOG = 500;
+    //     const MAX_LOG = 500
     //     if (behavior_log.length > MAX_LOG) {
-    //         behavior_log = '...' + behavior_log.substring(behavior_log.length - MAX_LOG);
+    //         behavior_log = '...' + behavior_log.substring(behavior_log.length - MAX_LOG)
     //     }
-    //     behavior_log = 'Recent behaviors log: \n' + behavior_log.substring(behavior_log.indexOf('\n'));
-    //     await this.history.add('system', behavior_log);
+    //     behavior_log = 'Recent behaviors log: \n' + behavior_log.substring(behavior_log.indexOf('\n'))
+    //     await this.history.add('system', behavior_log)
     // }
 
     // // Handle other user messages
-    // await this.history.add(source, message);
-    // this.history.save();
+    // await this.history.add(source, message)
+    // this.history.save()
 
     // if (!self_prompt && this.self_prompter.on) // message is from user during self-prompting
     //     maxResponses = 1; // force only respond to this message, then let self-prompting take over
     // for (let i=0; i<maxResponses; i++) {
-    //     if (checkInterrupt()) break;
-    //     let history = this.history.getHistory();
-    //     let res = await this.prompter.promptConvo(history);
+    //     if (checkInterrupt()) break
+    //     let history = this.history.getHistory()
+    //     let res = await this.prompter.promptConvo(history)
 
-    //     console.log(`${this.name} full response to ${source}: ""${res}""`);
+    //     console.log(`${this.name} full response to ${source}: ""${res}""`)
 
     //     if (res.trim().length === 0) {
     //         console.warn('no response')
-    //         break; // empty response ends loop
+    //         break // empty response ends loop
     //     }
 
-    //     let command_name = containsCommand(res);
+    //     let command_name = containsCommand(res)
 
     //     if (command_name) { // contains query or command
-    //         res = truncCommandMessage(res); // everything after the command is ignored
-    //         this.history.add(this.name, res);
+    //         this.history.add(this.name, res)
 
     //         if (!commandExists(command_name)) {
-    //             this.history.add('system', `Command ${command_name} does not exist.`);
+    //             this.history.add('system', `Command ${command_name} does not exist.`)
     //             console.warn('Agent hallucinated command:', command_name)
-    //             continue;
+    //             continue
     //         }
 
-    //         if (checkInterrupt()) break;
-    //         this.self_prompter.handleUserPromptedCmd(self_prompt, isAction(command_name));
+    //         if (checkInterrupt()) break
+    //         this.self_prompter.handleUserPromptedCmd(self_prompt, isAction(command_name))
 
     //         if (settings.verbose_commands) {
-    //             this.routeResponse(source, res);
+    //             this.routeResponse(source, res)
     //         }
     //         else { // only output command name
-    //             let pre_message = res.substring(0, res.indexOf(command_name)).trim();
-    //             let chat_message = `*used ${command_name.substring(1)}*`;
+    //             let pre_message = res.substring(0, res.indexOf(command_name)).trim()
+    //             let chat_message = `*used ${command_name.substring(1)}*`
     //             if (pre_message.length > 0)
-    //                 chat_message = `${pre_message}  ${chat_message}`;
-    //             this.routeResponse(source, chat_message);
+    //                 chat_message = `${pre_message}  ${chat_message}`
+    //             this.routeResponse(source, chat_message)
     //         }
 
-    //         let execute_res = await executeCommand(this, res);
+    //         let execute_res = await executeCommand(this, res)
 
-    //         console.log('Agent executed:', command_name, 'and got:', execute_res);
-    //         used_command = true;
+    //         console.log('Agent executed:', command_name, 'and got:', execute_res)
+    //         used_command = true
 
     //         if (execute_res)
-    //             this.history.add('system', execute_res);
+    //             this.history.add('system', execute_res)
     //         else
-    //             break;
+    //             break
     //     }
     //     else { // conversation response
-    //         this.history.add(this.name, res);
-    //         this.routeResponse(source, res);
+    //         this.history.add(this.name, res)
+    //         this.routeResponse(source, res)
     //         break;
     //     }
 
-    //     this.history.save();
+    //     this.history.save()
     // }
 
-  // return used_command;
+  // return used_command
   }
 }

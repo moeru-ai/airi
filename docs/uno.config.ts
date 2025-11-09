@@ -226,21 +226,21 @@ export default defineConfig({
       getCSS: () => {
         return `
 html,:host {
-    line-height: 1.5;
-    -webkit-text-size-adjust: 100%;
-    -moz-tab-size: 4;
-    -o-tab-size: 4;
-    tab-size: 4;
-    font-family: 'DM Sans', ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
-    font-feature-settings: normal;
-    font-variation-settings: normal;
+    line-height: 1.5
+    -webkit-text-size-adjust: 100%
+    -moz-tab-size: 4
+    -o-tab-size: 4
+    tab-size: 4
+    font-family: 'DM Sans', ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji"
+    font-feature-settings: normal
+    font-variation-settings: normal
     -webkit-tap-highlight-color: transparent
 }
 
 code,kbd,samp,pre {
-    font-family: 'DM Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-    font-feature-settings: normal;
-    font-variation-settings: normal;
+    font-family: 'DM Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace
+    font-feature-settings: normal
+    font-variation-settings: normal
     font-size: 1em
 }
         `

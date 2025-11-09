@@ -27,9 +27,9 @@ export default definePreset(() => {
         layer: LAYER_PREFLIGHTS,
         getCSS() {
           return `
-@import '@proj-airi/font-cjkfonts-allseto/index.css';
-@import '@proj-airi/font-departure-mono/index.css';
-@import '@proj-airi/font-xiaolai/index.css';
+@import '@proj-airi/font-cjkfonts-allseto/index.css'
+@import '@proj-airi/font-departure-mono/index.css'
+@import '@proj-airi/font-xiaolai/index.css'
           `
         },
       },

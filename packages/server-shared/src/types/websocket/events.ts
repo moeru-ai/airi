@@ -62,5 +62,5 @@ export interface WebSocketEvents<C = undefined> {
 }
 
 export type WebSocketEvent<C = undefined> = {
-  [K in keyof WebSocketEvents<C>]: WebSocketBaseEvent<K, WebSocketEvents<C>[K]>;
+  [K in keyof WebSocketEvents<C>]: WebSocketBaseEvent<K, WebSocketEvents<C>[K]>
 }[keyof WebSocketEvents<C>]

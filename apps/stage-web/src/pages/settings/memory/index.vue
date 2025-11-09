@@ -202,10 +202,10 @@ watch([
 ], () => {
   // 1. Check for embedding changes (Triggers Regeneration Warning)
   const hasEmbeddingChanges
-    = tempEmbeddingProvider !== embeddingProvider.value
-      || tempEmbeddingModel !== embeddingModel.value
-      || tempEmbeddingDim !== embeddingDim.value
-      || tempEmbeddingApiKey !== embeddingApiKey.value
+    = tempEmbeddingProvider.value !== embeddingProvider.value
+      || tempEmbeddingModel.value !== embeddingModel.value
+      || tempEmbeddingDim.value !== embeddingDim.value
+      || tempEmbeddingApiKey.value !== embeddingApiKey.value
 
   const tempLlmProvider = llmProvider.value
   const tempLlmModel = llmModel.value
@@ -590,7 +590,7 @@ async function exportChatHistory() {
     exportMessage.value = 'Chat export task has started...'
     const usePglite = pgLiteEnabled.value === true
     const endpoint = usePglite
-      ? `${memoryServiceUrl.value}/api/memory/export-chathistory?isPglite=true`
+      ? `${memoryServiceUrl.value}/api/chat-history/export?isPglite=true`
       : `${memoryServiceUrl.value}/api/memory/export-embedded`
 
     const r = await fetch(endpoint, {

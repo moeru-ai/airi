@@ -7,9 +7,39 @@ import { Buffer } from 'node:buffer'
 import { exec, spawn } from 'node:child_process'
 import { writeFile } from 'node:fs/promises'
 
-import { PGlite } from '@electric-sql/pglite'
-import { pgDump } from '@electric-sql/pglite-tools/pg_dump'
-import { Elysia, t } from 'elysia'
+async function exportPglite(set: any): Promise<string | Response> {
+  const exportDir = path.join(homeDir, 'airi_memory')
+  ensureDir(exportDir)
+
+  const dataDir = process.env.PGLITE_DATA_DIR || path.join(exportDir, 'pglite_data')
+  if (!fs.existsSync(dataDir)) {
+    set.status = 400
+    return 'PGlite data directory not found'
+  }
+
+  const pg = await PGlite.create({ dataDir })
+
+  try {
+    const dumpResult = await pgDump({ pg })
+    const dumpContent = await dumpResult.text()
+
+    const filename = `chathistory_pglite_backup_${Date.now()}.sql`
+    const outDir = process.env.MEMORY_EXPORT_DIR || exportDir
+    ensureDir(outDir)
+    const outPath = path.join(outDir, filename)
+    fs.writeFileSync(outPath, dumpContent)
+
+    return 'PGlite Dump exported successfully'
+  }
+  catch (e) {
+    console.error('PGlite dump failed: ', e)
+    set.status = 500
+    return 'Failed to run PGlite pg_dump'
+  }
+  finally {
+    await pg.close()
+  }
+}
 
 function isPgliteReq(headers: Record<string, string | string[]>, query: Record<string, any>) {
   const h = String(headers['x-db-variant'] || '').toLowerCase()
@@ -40,45 +70,56 @@ function parsePwdEnv(dbUrl: string) {
 
 const memoryRouter = new Elysia({ prefix: '/memory' })
 
-memoryRouter.post('/export-chathistory', async ({ set, query, headers }) => {
+memoryRouter.post('/chat-history/export', async ({ set, query, headers }) => { // Changed endpoint
   try {
-    const pglite = isPgliteReq(
-      headers as Record<string, string | string[]>,
-      query,
-    )
+    const pgliteShouldBeUsed = isPgliteReq(headers as Record<string, string | string[]>, query)
     set.headers['Cache-Control'] = 'no-store'
 
-    const homeDir = os.homedir()
-    const exportDir = path.join(homeDir, 'airi_memory')
-    ensureDir(exportDir)
-
-    if (!pglite) {
+    if (pgliteShouldBeUsed) {
+      // Use the exported PGlite helper function
+      return await exportPglite(set)
+    }
+    else {
+      // Attempt pg_dump export
       const dbUrl = process.env.PG_URL || 'postgres://postgres:airi_memory_password@localhost:5434/postgres'
       const envVars = parsePwdEnv(dbUrl)
+      const homeDir = os.homedir()
+      const exportDir = path.join(homeDir, 'airi_memory')
+      ensureDir(exportDir)
       const finalOut = path.join(exportDir, `chathistory_pg_backup_${Date.now()}.sql`)
 
       return new Promise((resolve, reject) => {
-        const dump = spawn(
-          'pg_dump',
-          ['--no-owner', '--no-privileges', '--dbname', dbUrl, '--file', finalOut],
-          { env: envVars },
-        )
-
+        const dump = spawn('pg_dump', ['--no-owner', '--no-privileges', '--dbname', dbUrl, '--file', finalOut], { env: envVars })
         let pgErr = ''
 
         dump.stderr.on('data', (d) => {
           pgErr += d.toString()
         })
 
-        dump.on('error', (e: NodeJS.ErrnoException) => {
+        dump.on('error', async (e: NodeJS.ErrnoException) => { // Make handler async for await
           set.status = 500
-          reject(
-            new Error(
-              e?.code === 'ENOENT'
-                ? 'pg_dump not found (install postgresql-client)'
-                : 'Failed to run pg_dump',
-            ),
-          )
+          if (e?.code === 'ENOENT') {
+            console.warn('pg_dump not found. Attempting PGlite fallback...')
+            // Re-evaluate if PGlite should be used as a fallback
+            const fallbackPglite = isPgliteReq(headers as Record<string, string | string[]>, query)
+            if (fallbackPglite) {
+              try {
+                // Call the PGlite export function as a fallback
+                const pgliteResult = await exportPglite(set)
+                resolve(pgliteResult)
+              }
+              catch (pgliteError) {
+                set.status = 500
+                reject(new Error(`PGlite fallback failed: ${pgliteError instanceof Error ? pgliteError.message : String(pgliteError)}`))
+              }
+            }
+            else {
+              reject(new Error('pg_dump not found and PGlite is not enabled.'))
+            }
+          }
+          else {
+            reject(new Error(`Failed to run pg_dump: ${pgErr || e.message}`))
+          }
         })
 
         dump.on('close', (code) => {
@@ -99,39 +140,12 @@ memoryRouter.post('/export-chathistory', async ({ set, query, headers }) => {
         })
       })
     }
-
-    const dataDir = process.env.PGLITE_DATA_DIR || path.join(exportDir, 'pglite_data')
-    if (!fs.existsSync(dataDir)) {
-      set.status = 400
-      return 'PGlite data directory not found'
-    }
-
-    const pg = await PGlite.create({ dataDir })
-
-    try {
-      const dumpResult = await pgDump({ pg })
-      const dumpContent = await dumpResult.text()
-
-      const filename = `chathistory_pglite_backup_${Date.now()}.sql`
-      const outDir = process.env.MEMORY_EXPORT_DIR || exportDir
-      ensureDir(outDir)
-      const outPath = path.join(outDir, filename)
-      fs.writeFileSync(outPath, dumpContent)
-
-      return 'PGlite Dump exported successfully'
-    }
-    catch (e) {
-      console.error('PGlite dump failed: ', e)
-      set.status = 500
-      return 'Failed to run PGlite pg_dump'
-    }
-    finally {
-      await pg.close()
-    }
   }
-  catch {
-    if (!set.headersSent)
+  catch (error) {
+    if (!set.headersSent) {
       set.status = 500
+    }
+    console.error('Export chat history error:', error)
     return 'Export failed'
   }
 })

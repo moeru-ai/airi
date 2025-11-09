@@ -20,7 +20,7 @@ export function getNearestFreeSpace(
    * @param {number} distance - The maximum distance to search, default 8.
    * @returns {Vec3} - The south west corner position of the nearest free space.
    * @example
-   * let position = world.getNearestFreeSpace( 1, 8);
+   * let position = world.getNearestFreeSpace( 1, 8)
    */
   const empty_pos = mineflayer.bot.findBlocks({
     matching: (block: Block | null) => {
