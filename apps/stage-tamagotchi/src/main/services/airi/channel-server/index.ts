@@ -16,7 +16,7 @@ export async function setupChannelServer() {
 
     const serverInstance = serve(serverRuntime.app, {
       // TODO: fix types
-      
+
       plugins: [ws({ resolve: async req => (await serverRuntime.app.fetch(req)).crossws })],
       port: env.PORT ? Number(env.PORT) : 6121,
       hostname: env.SERVER_RUNTIME_HOSTNAME || 'localhost',

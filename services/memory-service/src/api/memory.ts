@@ -8,7 +8,6 @@ import { exec, spawn } from 'node:child_process'
 import { writeFile } from 'node:fs/promises'
 
 import { PGlite } from '@electric-sql/pglite'
-import { pgDump } from '@electric-sql/pglite-tools/pg_dump'
 import { sql } from 'drizzle-orm'
 import { Elysia, t } from 'elysia'
 

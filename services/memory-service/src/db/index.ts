@@ -2,9 +2,8 @@ import type { Request } from 'express'
 
 import fs from 'node:fs'
 
-import { dirname, resolve } from 'node:path'
+import { resolve } from 'node:path'
 import { cwd, env, exit } from 'node:process'
-import { fileURLToPath } from 'node:url'
 
 import { PGlite } from '@electric-sql/pglite'
 import { sql } from 'drizzle-orm'

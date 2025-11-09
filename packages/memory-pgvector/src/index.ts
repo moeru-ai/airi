@@ -1,4 +1,5 @@
 import process from 'node:process'
+
 import { consola } from 'consola'
 
 const MEMORY_API_URL = process.env.MEMORY_API_URL || 'http://localhost:3001/api'
