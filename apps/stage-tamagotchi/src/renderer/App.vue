@@ -3,13 +3,13 @@ import { useDisplayModelsStore } from '@proj-airi/stage-ui/stores/display-models
 import { useOnboardingStore } from '@proj-airi/stage-ui/stores/onboarding'
 import { useSettings } from '@proj-airi/stage-ui/stores/settings'
 import { defineInvoke, defineInvokeHandler } from '@unbird/eventa'
-import { createContext } from '@unbird/eventa/adapters/electron/renderer'
 import { storeToRefs } from 'pinia'
 import { onMounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterView, useRouter } from 'vue-router'
 
 import { electronOpenSettings, electronStartTrackMousePosition } from '../shared/eventa'
+import { useElectronEventaContext } from './composables/electron-vueuse'
 
 const i18n = useI18n()
 const displayModelsStore = useDisplayModelsStore()
@@ -29,14 +29,12 @@ onMounted(async () => {
   await displayModelsStore.loadDisplayModelsFromIndexedDB()
   await settingsStore.initializeStageModel()
 
-  const { context } = createContext(window.electron.ipcRenderer)
-  const startTrackingCursorPoint = defineInvoke(context, electronStartTrackMousePosition)
+  const context = useElectronEventaContext()
+  const startTrackingCursorPoint = defineInvoke(context.value, electronStartTrackMousePosition)
   await startTrackingCursorPoint()
 
   // Listen for open-settings IPC message from main process
-  defineInvokeHandler(context, electronOpenSettings, () => {
-    router.push('/settings')
-  })
+  defineInvokeHandler(context.value, electronOpenSettings, () => router.push('/settings'))
 })
 
 watch(themeColorsHue, () => {

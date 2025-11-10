@@ -34,9 +34,7 @@ async function main() {
   sdk.start()
 
   await initDb()
-  await Promise.all([
-    startTelegramBot(),
-  ])
+  await startTelegramBot()
 }
 
 process.on('unhandledRejection', (err) => {

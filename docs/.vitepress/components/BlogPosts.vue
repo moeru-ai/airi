@@ -58,18 +58,9 @@ const posts = computed(() => {
     })
     .filter(post => !!post.title)
 
-  const currentLanguagePostsData = [...transformedPostsData].filter(post => post.lang === lang.value)
-  const fallbackLanguagePostsData = [...transformedPostsData].filter(post => post.lang === 'en')
+  const currentLanguagePostsData = transformedPostsData.filter(post => post.lang === lang.value)
 
-  const setCurrentLanguagePostsData = new Set(currentLanguagePostsData.map(post => post.urlWithoutLang))
-  const diffFallbackLanguagePostsData = fallbackLanguagePostsData.filter(post => !setCurrentLanguagePostsData.has(post.urlWithoutLang))
-
-  return [
-    ...currentLanguagePostsData,
-    ...diffFallbackLanguagePostsData,
-  ].sort((a, b) => {
-    return b.date.time - a.date.time
-  })
+  return currentLanguagePostsData.sort((a, b) => b.date.time - a.date.time)
 })
 
 async function stringToSeed(str: string) {

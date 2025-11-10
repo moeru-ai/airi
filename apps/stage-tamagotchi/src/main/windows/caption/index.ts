@@ -249,7 +249,7 @@ export function setupCaptionWindowManager(params: { mainWindow: BrowserWindow })
     // TODO: once we refactored eventa to support window-namespaced contexts,
     // we can remove the setMaxListeners call below since eventa will be able to dispatch and
     // manage events within eventa's context system.
-    ipcMain.setMaxListeners(100)
+    ipcMain.setMaxListeners(0)
 
     const window = createCaptionWindow()
     const { context } = createContext(ipcMain, window)
