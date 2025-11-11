@@ -950,9 +950,29 @@ export const useProvidersStore = defineStore('providers', () => {
       description: 'anthropic.com',
       defaultBaseUrl: 'https://api.anthropic.com/v1/',
       creator: createAnthropic,
-      validation: ['health', 'model_list'],
+      validation: ['health'],
       additionalHeaders: {
         'anthropic-dangerous-direct-browser-access': 'true',
+      },
+      capabilities: {
+        listModels: async () => {
+          return [{
+            id: 'claude-haiku-4-5-20251001',
+            name: 'Claude Haiku 4.5',
+            provider: 'anthropic',
+            description: 'Anthropic fastest model with near-frontier intelligence',
+          }, {
+            id: 'claude-sonnet-4-5-20250929',
+            name: 'Claude Sonnet 4.5',
+            provider: 'anthropic',
+            description: 'Anthropic smartest model for complex agents and coding',
+          }, {
+            id: 'claude-opus-4-1-20250805',
+            name: 'Claude Opus 4.1',
+            provider: 'anthropic',
+            description: 'Exceptional model for specialized reasoning tasks',
+          },            // Some deprecated models are not listed here.          ] satisfies ModelInfo[]
+        },
       },
     }),
     'google-generative-ai': buildOpenAICompatibleProvider({
