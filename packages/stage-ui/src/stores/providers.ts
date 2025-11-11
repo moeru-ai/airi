@@ -955,6 +955,12 @@ export const useProvidersStore = defineStore('providers', () => {
         'anthropic-dangerous-direct-browser-access': 'true',
       },
       capabilities: {
+        // This is a hardcoded list of Anthropic models to work around issues with
+        // fetching the model list directly from their API via browser.
+        // See: https://github.com/moeru-ai/airi/issues/729
+        // This list should be periodically updated based on Anthropic's official documentation:
+        // https://docs.anthropic.com/en/docs/models-overview
+        // Some legacy models are not listed here.
         listModels: async () => {
           return [{
             id: 'claude-haiku-4-5-20251001',

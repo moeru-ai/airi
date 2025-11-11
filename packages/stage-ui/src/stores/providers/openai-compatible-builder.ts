@@ -171,6 +171,9 @@ export function buildOpenAICompatibleProvider(
           try {
             if (capabilities?.listModels) {
               const models = await capabilities.listModels(config)
+              if (models.length <= 0) {
+                throw new Error('No models returned from capabilities.listModels')
+              }
               return models[0].id
             }
           }
