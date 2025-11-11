@@ -971,7 +971,7 @@ export const useProvidersStore = defineStore('providers', () => {
             name: 'Claude Opus 4.1',
             provider: 'anthropic',
             description: 'Exceptional model for specialized reasoning tasks',
-          },            // Some deprecated models are not listed here.          ] satisfies ModelInfo[]
+          }] satisfies ModelInfo[]
         },
       },
     }),
