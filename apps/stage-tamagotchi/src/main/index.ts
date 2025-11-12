@@ -1,6 +1,11 @@
+import type { ChildProcess } from 'node:child_process'
+
 import type { BrowserWindow } from 'electron'
 
+import { spawn } from 'node:child_process'
 import { platform } from 'node:process'
+
+import * as path from 'node:path'
 
 import { electronApp, optimizer } from '@electron-toolkit/utils'
 import { Format, LogLevel, setGlobalFormat, setGlobalLogLevel, useLogg } from '@guiiai/logg'
@@ -33,7 +38,10 @@ setGlobalFormat(Format.Pretty)
 setGlobalLogLevel(LogLevel.Log)
 setupDebugger()
 
-const log = useLogg('main').useGlobalConfig()
+// TODO: add log
+// const log = createLoggLogger(useLogg('main'))
+
+let memoryServiceProcess: ChildProcess | null = null
 
 // Thanks to [@blurymind](https://github.com/blurymind),
 //
@@ -93,6 +101,20 @@ function setupTray(params: {
 }
 
 app.whenReady().then(async () => {
+  const memoryServicePath = path.join(__dirname, 'memory-service.js')
+  memoryServiceProcess = spawn('node', [memoryServicePath])
+
+  // TODO: make a clean log for each status
+  //  memoryServiceProcess.stdout?.on('data', (data) => {
+  //    log.warn(`[MemoryService]: ${data}`)
+  //  })
+  //  memoryServiceProcess.stderr?.on('data', (data) => {
+  //    log.error(`[MemoryService]: ${data}`)
+  //  })
+  //  memoryServiceProcess.on('close', (code) => {
+  //    log.warn(`[MemoryService] exited with code ${code}`)
+  //  })
+
   injecta.setLogger(createLoggLogger(useLogg('injecta').useGlobalConfig()))
 
   const channelServerModule = injecta.provide('modules:channel-server', async () => setupChannelServer())
@@ -127,9 +149,11 @@ app.whenReady().then(async () => {
   // and ignore CommandOrControl + R in production.
   // see https://github.com/alex8088/electron-toolkit/tree/master/packages/utils
   app.on('browser-window-created', (_, window) => optimizer.watchWindowShortcuts(window))
-}).catch((err) => {
-  log.withError(err).error('Error during app initialization')
 })
+// TODO: Implement Recover logic when init failed
+//  .catch((err) => {
+//    log.withError(err).error('Error during app initialization')
+//  })
 
 // Quit when all windows are closed, except on macOS. There, it's common
 // for applications and their menu bar to stay active until the user quits
@@ -144,6 +168,9 @@ app.on('window-all-closed', () => {
 
 // Clean up server and intervals when app quits
 app.on('before-quit', async () => {
+  if (memoryServiceProcess) {
+    memoryServiceProcess.kill()
+  }
   emitAppBeforeQuit()
   injecta.stop()
 })

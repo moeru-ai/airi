@@ -14,6 +14,10 @@
   "scripts": {
     "postinstall": "npx simple-git-hooks && pnpm run build:packages",
     "dev": "pnpm -r -F @proj-airi/stage-web dev",
+    "dev:memory": "pnpm -rF @proj-airi/memory-service run dev",
+    "build:memory": "pnpm -rF @proj-airi/memory-service run build",
+    "dev:with-memory": "concurrently \"pnpm run dev:memory\" \"pnpm run dev\"",
+    "build:with-memory": "concurrently \"pnpm run build:memory\" \"pnpm run build\"",
     "dev:docs": "pnpm -rF @proj-airi/docs run dev",
     "dev:ui": "pnpm -rF @proj-airi/stage-ui run story:dev",
     "dev:web": "pnpm -rF @proj-airi/stage-web run dev",
@@ -51,6 +55,7 @@
     "@unocss/preset-web-fonts": "^66.5.4",
     "@vitest/coverage-v8": "^4.0.6",
     "bumpp": "^10.3.1",
+    "concurrently": "^8.2.2",
     "eslint": "^9.39.0",
     "eslint-plugin-oxlint": "^1.25.0",
     "lint-staged": "^16.2.6",

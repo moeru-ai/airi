@@ -11,7 +11,7 @@
   "license": "MIT",
   "scripts": {
     "build": "vite build",
-    "dev": "vite",
+    "dev": "concurrently \"pnpm --filter @proj-airi/memory-service dev\" \"vite\"",
     "lint": "eslint .",
     "preview": "vite preview",
     "typecheck": "vue-tsc --noEmit"
