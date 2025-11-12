@@ -66,7 +66,9 @@ function setupTray(params: {
   captionWindow: ReturnType<typeof setupCaptionWindowManager>
 }): void {
   once(() => {
-    const appTray = new Tray(nativeImage.createFromPath(macOSTrayIcon).resize({ width: 16 }))
+    const trayImage = nativeImage.createFromPath(isMacOS ? macOSTrayIcon : icon).resize({ width: 16 })
+    trayImage.setTemplateImage(isMacOS)
+    const appTray = new Tray(trayImage)
     onAppBeforeQuit(() => appTray.destroy())
 
     const contextMenu = Menu.buildFromTemplate([
