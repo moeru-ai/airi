@@ -44,15 +44,18 @@ export function useVRMLipSync(audioNode: Ref<AudioBufferSourceNode | undefined, 
   let lastActiveAt = 0
 
   watch([isReady, audioNode], ([ready, newAudioNode], [, oldAudioNode]) => {
-    if (oldAudioNode && oldAudioNode !== newAudioNode)
+    if (oldAudioNode && oldAudioNode !== newAudioNode) {
       try {
-        oldAudioNode.disconnect() 
-      } catch {}
+        oldAudioNode.disconnect()
+      }
+      catch {}
+    }
     if (!ready || !newAudioNode || !lipSyncNode.value)
       return
     try {
       newAudioNode.connect(lipSyncNode.value)
-    } catch {}
+    }
+    catch {}
   }, { immediate: true })
   onUnmounted(() => audioNode.value?.disconnect())
 
@@ -62,7 +65,7 @@ export function useVRMLipSync(audioNode: Ref<AudioBufferSourceNode | undefined, 
       return
 
     const vol = node.volume ?? 0
-    const amp = Math.pow(Math.min(vol * 0.9, 1), 0.7)
+    const amp = Math.min(vol * 0.9, 1) ** 0.7
 
     // Remapping wLipSync output AEIOUS to AEIOU
     const projected: Record<LipKey, number> = { A: 0, E: 0, I: 0, O: 0, U: 0 }
