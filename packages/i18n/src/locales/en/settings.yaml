@@ -398,6 +398,9 @@ pages:
           title: Voice Settings
     description: LLMs, speech providers, etc.
     provider:
+      aliyun-nls:
+        title: Aliyun NLS
+        description: nls-console.aliyun.com
       app-local-audio-transcription:
         title: App (Local)
         description: https://github.com/moeru-ai/xsai-transformers
