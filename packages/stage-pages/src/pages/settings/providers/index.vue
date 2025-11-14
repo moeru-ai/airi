@@ -4,9 +4,7 @@ import { useScrollToHash } from '@proj-airi/stage-ui/composables/useScrollToHash
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { storeToRefs } from 'pinia'
 import { useRoute } from 'vue-router'
-import {useI18n} from 'vue-i18n'
 
-const {t} = useI18n()
 const route = useRoute()
 const providersStore = useProvidersStore()
 const {
@@ -34,7 +32,7 @@ useScrollToHash(() => route.hash, {
         <i18n-t keypath="settings.pages.providers.helpinfo.description">
           <template #chat>
             <div bg="primary-500/10 dark:primary-800/25" inline-flex items-center gap-1 rounded-lg px-2 py-0.5 translate-y="[0.25lh]">
-              <div class="i-solar:chat-square-like-bold-duotone" />
+              <div i-solar:chat-square-like-bold-duotone />
               <strong class="font-normal">Chat</strong>
             </div>
           </template>
