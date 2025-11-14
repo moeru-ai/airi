@@ -1,5 +1,7 @@
 import type { BrowserWindowConstructorOptions, Rectangle } from 'electron'
 
+import type { WidgetsWindowManager } from '../widgets'
+
 import { dirname, join, resolve } from 'node:path'
 import { env } from 'node:process'
 import { fileURLToPath } from 'node:url'
@@ -28,6 +30,7 @@ interface AppConfig {
 export async function setupMainWindow(params: {
   settingsWindow: () => Promise<BrowserWindow>
   chatWindow: () => Promise<BrowserWindow>
+  widgetsManager: WidgetsWindowManager
 }) {
   const {
     setup: setupConfig,
@@ -123,7 +126,12 @@ export async function setupMainWindow(params: {
 
   await load(window, baseUrl(resolve(getElectronMainDirname(), '..', 'renderer')))
 
-  setupMainWindowElectronInvokes({ window, settingsWindow: params.settingsWindow, chatWindow: params.chatWindow })
+  setupMainWindowElectronInvokes({
+    window,
+    settingsWindow: params.settingsWindow,
+    chatWindow: params.chatWindow,
+    widgetsManager: params.widgetsManager,
+  })
 
   /**
    * This is a know issue (or expected behavior maybe) to Electron.

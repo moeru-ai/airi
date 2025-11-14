@@ -1,5 +1,7 @@
 import type { BrowserWindow } from 'electron'
 
+import type { WidgetsWindowManager } from './windows/widgets'
+
 import { platform } from 'node:process'
 
 import { electronApp, optimizer } from '@electron-toolkit/utils'
@@ -22,6 +24,7 @@ import { setupInlayWindow } from './windows/inlay'
 import { setupMainWindow } from './windows/main'
 import { setupSettingsWindowReusableFunc } from './windows/settings'
 import { toggleWindowShow } from './windows/shared/window'
+import { setupWidgetsWindowManager } from './windows/widgets'
 
 // TODO: once we refactored eventa to support window-namespaced contexts,
 // we can remove the setMaxListeners call below since eventa will be able to dispatch and
@@ -56,6 +59,7 @@ function setupTray(params: {
   mainWindow: BrowserWindow
   settingsWindow: () => Promise<BrowserWindow>
   captionWindow: ReturnType<typeof setupCaptionWindowManager>
+  widgetsWindow: WidgetsWindowManager
 }): void {
   once(() => {
     const trayImage = nativeImage.createFromPath(isMacOS ? macOSTrayIcon : icon).resize({ width: 16 })
@@ -69,6 +73,7 @@ function setupTray(params: {
       { label: 'Settings...', click: () => params.settingsWindow().then(window => toggleWindowShow(window)) },
       { type: 'separator' },
       { label: 'Open Inlay...', click: () => setupInlayWindow() },
+      { label: 'Open Widgets...', click: () => params.widgetsWindow.getWindow().then(window => toggleWindowShow(window)) },
       { label: 'Open Caption...', click: () => params.captionWindow.getWindow().then(window => toggleWindowShow(window)) },
       {
         type: 'submenu',
@@ -96,10 +101,15 @@ app.whenReady().then(async () => {
   injecta.setLogger(createLoggLogger(useLogg('injecta').useGlobalConfig()))
 
   const channelServerModule = injecta.provide('modules:channel-server', async () => setupChannelServer())
-  const settingsWindow = injecta.provide('windows:settings', () => setupSettingsWindowReusableFunc())
   const chatWindow = injecta.provide('windows:chat', { build: () => setupChatWindowReusableFunc() })
+  const widgetsManager = injecta.provide('windows:widgets', { build: () => setupWidgetsWindowManager() })
+
+  const settingsWindow = injecta.provide('windows:settings', {
+    dependsOn: { widgetsManager },
+    build: ({ dependsOn }) => setupSettingsWindowReusableFunc(dependsOn),
+  })
   const mainWindow = injecta.provide('windows:main', {
-    dependsOn: { settingsWindow, chatWindow },
+    dependsOn: { settingsWindow, chatWindow, widgetsManager },
     build: async ({ dependsOn }) => setupMainWindow(dependsOn),
   })
   const captionWindow = injecta.provide('windows:caption', {
@@ -107,7 +117,7 @@ app.whenReady().then(async () => {
     build: async ({ dependsOn }) => setupCaptionWindowManager(dependsOn),
   })
   const tray = injecta.provide('app:tray', {
-    dependsOn: { mainWindow, settingsWindow, captionWindow },
+    dependsOn: { mainWindow, settingsWindow, captionWindow, widgetsWindow: widgetsManager },
     build: async ({ dependsOn }) => setupTray(dependsOn),
   })
   injecta.invoke({

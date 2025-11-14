@@ -27,3 +27,8 @@ pages:
           use-window-mouse:
             title: useWindowMouse
             description: Test the Electron window cursor position
+devtools:
+  title: Developer
+  pages:
+    widgets-calling:
+      title: Widget Calling

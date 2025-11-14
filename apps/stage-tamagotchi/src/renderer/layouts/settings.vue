@@ -108,6 +108,10 @@ const routeHeaderMetadataMap = computed(() => {
       subtitle: t('settings.title'),
       title: t('settings.pages.modules.mcp-server.title'),
     },
+    '/devtools/widgets-calling': {
+      subtitle: t('tamagotchi.settings.devtools.title'),
+      title: t('tamagotchi.settings.devtools.pages.widgets-calling.title'),
+    },
   }
 
   for (const metadata of allProvidersMetadata.value) {
