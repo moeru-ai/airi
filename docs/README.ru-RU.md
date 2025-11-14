@@ -17,7 +17,7 @@
 <p align="center">Воссоздание Neuro-sama, контейнера души для AI waifu / виртуальных персонажей, чтобы привести их в наш мир.</p>
 
 <p align="center">
-  [<a href="https://discord.gg/TgQ3Cu2F7A">Присоединиться к серверу Discord</a>] [<a href="https:///airi.moeru.ai">Попробовать</a>] [<a href="https://github.com/moeru-ai/airi/blob/main/docs/README.zh-CN.md">简体中文</a>] [<a href="https://github.com/moeru-ai/airi/blob/main/docs/README.ja-JP.md">日本語</a>] [<a href="https://github.com/moeru-ai/airi/blob/main/README.md">English</a>]
+  [<a href="https://discord.gg/TgQ3Cu2F7A">Присоединиться к серверу Discord</a>] [<a href="https://airi.moeru.ai">Попробовать</a>] [<a href="https://github.com/moeru-ai/airi/blob/main/docs/README.zh-CN.md">简体中文</a>] [<a href="https://github.com/moeru-ai/airi/blob/main/docs/README.ja-JP.md">日本語</a>] [<a href="https://github.com/moeru-ai/airi/blob/main/README.md">English</a>]
 </p>
 
 <p align="center">
@@ -55,6 +55,7 @@
 
 ## Журналы разработки, которые мы опубликовали, и последние обновления
 
+- [DevLog @ 2025.10.20](https://airi.moeru.ai/docs/blog/DevLog-2025.10.20/) от 20 октября 2025 г.
 - [DevLog @ 2025.08.05](https://airi.moeru.ai/docs/blog/DevLog-2025.08.05/) от 5 августа 2025 г.
 - [DevLog @ 2025.08.01](https://airi.moeru.ai/docs/blog/DevLog-2025.08.01/) от 1 августа 2025 г.
 - [DevLog @ 2025.07.18](https://airi.moeru.ai/docs/blog/DevLog-2025.07.18/) от 18 июля 2025 г.
