@@ -561,6 +561,9 @@ pages:
       cerebras:
         description: cerebras.ai
         title: Cerebras
+      aliyun-nls:
+        description: Aliyun NLS
+        title: Aliyun NLS
       transcriptions:
         playground:
           title: 實驗平台
