@@ -147,7 +147,7 @@ onMounted(() => updateThemeColor())
     >
       <div relative h-full w-full top="44px">
         <!-- Content -->
-        <div flex="~ col" mx-auto max-w-screen-xl h="[calc(100dvh-44px)]">
+        <div flex="~ col" mx-auto max-w-screen-xl max-h="[calc(100dvh-44px)]">
           <PageHeader
             :title="routeHeaderMetadata?.title"
             :subtitle="routeHeaderMetadata?.subtitle"
