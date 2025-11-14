@@ -289,12 +289,12 @@ export function buildOpenAICompatibleProvider(
     validators: finalValidators,
     ...(resolvedCategory === 'transcription'
       ? {
-        transcriptionFeatures: transcriptionFeatures ?? {
-          supportsGenerate: true,
-          supportsStreamOutput: false,
-          supportsStreamInput: false,
-        },
-      }
+          transcriptionFeatures: transcriptionFeatures ?? {
+            supportsGenerate: true,
+            supportsStreamOutput: false,
+            supportsStreamInput: false,
+          },
+        }
       : {}),
     ...rest,
   } as ProviderMetadata
