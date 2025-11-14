@@ -143,7 +143,7 @@ pnpm dev:tamagotchi
 ### 文档站
 
 ```shell
-pnpm -F @proj-airi/docs dev
+pnpm dev:docs
 ```
 
 ## 原生支持的 LLM API 服务来源列表（由 [xsai](https://github.com/moeru-ai/xsai) 驱动）
