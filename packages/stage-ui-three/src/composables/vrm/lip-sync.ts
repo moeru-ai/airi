@@ -35,8 +35,8 @@ export function useVRMLipSync(audioNode: Ref<AudioBufferSourceNode | undefined, 
   }
 
   const smoothState: Record<LipKey, number> = { A: 0, E: 0, I: 0, O: 0, U: 0 }
-  const ATTACK = 10
-  const RELEASE = 18
+  const ATTACK = 50 // the speed moving to the next mouth shape animation
+  const RELEASE = 30 // the speed ending the current mouth shape animation
   const CAP = 0.7
   const SILENCE_VOL = 0.04
   const SILENCE_GAIN = 0.05
@@ -44,15 +44,18 @@ export function useVRMLipSync(audioNode: Ref<AudioBufferSourceNode | undefined, 
   let lastActiveAt = 0
 
   watch([isReady, audioNode], ([ready, newAudioNode], [, oldAudioNode]) => {
-    if (oldAudioNode && oldAudioNode !== newAudioNode)
+    if (oldAudioNode && oldAudioNode !== newAudioNode) {
       try {
-        oldAudioNode.disconnect() 
-      } catch {}
+        oldAudioNode.disconnect()
+      }
+      catch {}
+    }
     if (!ready || !newAudioNode || !lipSyncNode.value)
       return
     try {
       newAudioNode.connect(lipSyncNode.value)
-    } catch {}
+    }
+    catch {}
   }, { immediate: true })
   onUnmounted(() => audioNode.value?.disconnect())
 
@@ -62,7 +65,7 @@ export function useVRMLipSync(audioNode: Ref<AudioBufferSourceNode | undefined, 
       return
 
     const vol = node.volume ?? 0
-    const amp = Math.pow(Math.min(vol * 0.9, 1), 0.7)
+    const amp = Math.min(vol * 0.9, 1) ** 0.7
 
     // Remapping wLipSync output AEIOUS to AEIOU
     const projected: Record<LipKey, number> = { A: 0, E: 0, I: 0, O: 0, U: 0 }
@@ -115,8 +118,7 @@ export function useVRMLipSync(audioNode: Ref<AudioBufferSourceNode | undefined, 
       // lerp
       const rate = 1 - Math.exp(-(to > from ? ATTACK : RELEASE) * delta)
       smoothState[key] = from + (to - from) * rate
-      // const weight = smoothState[key] <= 0.01 ? 0 : smoothState[key]
-      const weight = (target[key] <= 0.01 ? 0 : target[key]) * 0.7
+      const weight = (smoothState[key] <= 0.01 ? 0 : smoothState[key]) * 0.7
       vrm.expressionManager.setValue(BLENDSHAPE_MAP[key], weight)
     }
   }
