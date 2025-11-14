@@ -167,6 +167,19 @@ export function buildOpenAICompatibleProvider(
         }
         catch (e) {
           logWarn(`Model auto-detection failed: ${(e as Error).message}`)
+          logWarn('Falling back to default test model for validation checks.')
+          try {
+            if (capabilities?.listModels) {
+              const models = await capabilities.listModels(config)
+              if (models.length <= 0) {
+                throw new Error('No models returned from capabilities.listModels')
+              }
+              return models[0].id
+            }
+          }
+          catch (e) {
+            logWarn(`Model auto-detection via capabilities.listModels also failed: ${(e as Error).message}`)
+          }
         }
         return detected
       })()
@@ -276,12 +289,12 @@ export function buildOpenAICompatibleProvider(
     validators: finalValidators,
     ...(resolvedCategory === 'transcription'
       ? {
-          transcriptionFeatures: transcriptionFeatures ?? {
-            supportsGenerate: true,
-            supportsStreamOutput: false,
-            supportsStreamInput: false,
-          },
-        }
+        transcriptionFeatures: transcriptionFeatures ?? {
+          supportsGenerate: true,
+          supportsStreamOutput: false,
+          supportsStreamInput: false,
+        },
+      }
       : {}),
     ...rest,
   } as ProviderMetadata

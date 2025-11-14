@@ -950,9 +950,35 @@ export const useProvidersStore = defineStore('providers', () => {
       description: 'anthropic.com',
       defaultBaseUrl: 'https://api.anthropic.com/v1/',
       creator: createAnthropic,
-      validation: ['health', 'model_list'],
+      validation: ['health'],
       additionalHeaders: {
         'anthropic-dangerous-direct-browser-access': 'true',
+      },
+      capabilities: {
+        // This is a hardcoded list of Anthropic models to work around issues with
+        // fetching the model list directly from their API via browser.
+        // See: https://github.com/moeru-ai/airi/issues/729
+        // This list should be periodically updated based on Anthropic's official documentation:
+        // https://docs.anthropic.com/en/docs/models-overview
+        // Some legacy models are not listed here.
+        listModels: async () => {
+          return [{
+            id: 'claude-haiku-4-5-20251001',
+            name: 'Claude Haiku 4.5',
+            provider: 'anthropic',
+            description: 'Anthropic fastest model with near-frontier intelligence',
+          }, {
+            id: 'claude-sonnet-4-5-20250929',
+            name: 'Claude Sonnet 4.5',
+            provider: 'anthropic',
+            description: 'Anthropic smartest model for complex agents and coding',
+          }, {
+            id: 'claude-opus-4-1-20250805',
+            name: 'Claude Opus 4.1',
+            provider: 'anthropic',
+            description: 'Exceptional model for specialized reasoning tasks',
+          }] satisfies ModelInfo[]
+        },
       },
     }),
     'google-generative-ai': buildOpenAICompatibleProvider({
