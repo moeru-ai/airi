@@ -375,9 +375,6 @@ pages:
           title: 声音配置
     description: LLM，语音合成，语音识别服务来源等
     provider:
-      aliyun-nls:
-        title: 阿里云 NLS
-        description: nls-console.aliyun.com
       app-local-audio-transcription:
         title: 应用内（本地）
         description: https://github.com/moeru-ai/xsai-transformers
