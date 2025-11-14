@@ -27,3 +27,8 @@ pages:
           use-window-mouse:
             title: ウィンドウマウスの使用
             description: Electronウィンドウのカーソル位置をテストします
+devtools:
+  title: Developer
+  pages:
+    widgets-calling:
+      title: Widget Calling
