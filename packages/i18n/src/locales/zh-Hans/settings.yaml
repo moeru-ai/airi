@@ -184,7 +184,7 @@ pages:
               label: 包络滤波器频率
             highpass_filter_frequency:
               description: >-
-                高通滤波器的频率设置，用于抑制低频噪声（如次低频噪声）              
+                高通滤波器的频率设置，用于抑制低频噪声（如次低频噪声）
               label: 高通滤波器频率
             lowpass_filter_frequency:
               description: >-
