@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Checkbox, FieldRange } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
-import { onUnmounted, watch } from 'vue'
+import { onMounted, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { defaultModelParameters, useLive2d } from '../../../../stores/live2d'
