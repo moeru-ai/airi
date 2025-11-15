@@ -1,14 +1,25 @@
 import type { TranscriptionProviderWithExtraOptions } from '@xsai-ext/shared-providers'
-
-import type { StreamTranscriptionResult } from '../providers/aliyun'
+import type { WithUnknown } from '@xsai/shared'
+import type { StreamTranscriptionResult, StreamTranscriptionOptions as XSAIStreamTranscriptionOptions } from '@xsai/stream-transcription'
 
 import { useLocalStorage } from '@vueuse/core'
 import { generateTranscription } from '@xsai/generate-transcription'
+import { streamTranscription } from '@xsai/stream-transcription'
 import { defineStore, storeToRefs } from 'pinia'
 import { computed, ref } from 'vue'
 
 import { useProvidersStore } from '../providers'
-import { streamTranscription as streamAliyunTranscription } from '../providers/aliyun'
+
+export interface StreamTranscriptionFileInputOptions extends Omit<XSAIStreamTranscriptionOptions, 'file' | 'fileName'> {
+  file: Blob
+  fileName?: string
+}
+
+export interface StreamTranscriptionStreamInputOptions extends Omit<XSAIStreamTranscriptionOptions, 'file' | 'fileName'> {
+  inputAudioStream: ReadableStream<ArrayBuffer>
+}
+
+export type StreamTranscription = (options: WithUnknown<StreamTranscriptionFileInputOptions | StreamTranscriptionStreamInputOptions>) => StreamTranscriptionResult
 
 type GenerateTranscriptionResponse = Awaited<ReturnType<typeof generateTranscription>>
 type HearingTranscriptionGenerateResult = GenerateTranscriptionResponse & { mode: 'generate' }
@@ -24,8 +35,8 @@ interface HearingTranscriptionInvokeOptions {
   providerOptions?: Record<string, unknown>
 }
 
-const STREAM_TRANSCRIPTION_EXECUTORS: Record<string, typeof streamAliyunTranscription> = {
-  'aliyun-nls-transcription': streamAliyunTranscription,
+const STREAM_TRANSCRIPTION_EXECUTORS: Record<string, StreamTranscription> = {
+  'aliyun-nls-transcription': streamTranscription as StreamTranscription,
 }
 
 export const useHearingStore = defineStore('hearing-store', () => {

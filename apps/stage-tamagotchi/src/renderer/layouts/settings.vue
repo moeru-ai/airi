@@ -108,6 +108,10 @@ const routeHeaderMetadataMap = computed(() => {
       subtitle: t('settings.title'),
       title: t('settings.pages.modules.mcp-server.title'),
     },
+    '/devtools/widgets-calling': {
+      subtitle: t('tamagotchi.settings.devtools.title'),
+      title: t('tamagotchi.settings.devtools.pages.widgets-calling.title'),
+    },
   }
 
   for (const metadata of allProvidersMetadata.value) {
@@ -147,7 +151,7 @@ onMounted(() => updateThemeColor())
     >
       <div relative h-full w-full top="44px">
         <!-- Content -->
-        <div flex="~ col" mx-auto max-w-screen-xl h="[calc(100dvh-44px)]">
+        <div flex="~ col" mx-auto max-w-screen-xl max-h="[calc(100dvh-44px)]">
           <PageHeader
             :title="routeHeaderMetadata?.title"
             :subtitle="routeHeaderMetadata?.subtitle"

@@ -15,12 +15,12 @@
     "postinstall": "wxt prepare"
   },
   "dependencies": {
-    "vue": "^3.5.22"
+    "vue": "^3.5.24"
   },
   "devDependencies": {
-    "@unocss/reset": "^66.5.4",
+    "@unocss/reset": "^66.5.6",
     "@wxt-dev/module-vue": "^1.0.3",
-    "vue-tsc": "^3.1.2",
+    "vue-tsc": "^3.1.3",
     "wxt": "^0.20.11"
   }
 }

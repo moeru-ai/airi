@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { defineInvoke } from '@unbird/eventa'
+import { defineInvoke } from '@moeru/eventa'
 import { useBroadcastChannel } from '@vueuse/core'
 import { onMounted, ref, watch } from 'vue'
 

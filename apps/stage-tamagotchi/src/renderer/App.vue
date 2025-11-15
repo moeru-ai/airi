@@ -2,7 +2,7 @@
 import { useDisplayModelsStore } from '@proj-airi/stage-ui/stores/display-models'
 import { useOnboardingStore } from '@proj-airi/stage-ui/stores/onboarding'
 import { useSettings } from '@proj-airi/stage-ui/stores/settings'
-import { defineInvoke, defineInvokeHandler } from '@unbird/eventa'
+import { defineInvoke, defineInvokeHandler } from '@moeru/eventa'
 import { storeToRefs } from 'pinia'
 import { onMounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
