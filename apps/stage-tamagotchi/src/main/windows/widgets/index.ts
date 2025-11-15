@@ -4,7 +4,7 @@ import type { WidgetsAddPayload, WidgetSnapshot } from '../../../shared/eventa'
 
 import { join, resolve } from 'node:path'
 
-import { createContext } from '@unbird/eventa/adapters/electron/main'
+import { createContext } from '@moeru/eventa/adapters/electron/main'
 import { BrowserWindow as ElectronBrowserWindow, ipcMain, screen, shell } from 'electron'
 import { isMacOS } from 'std-env'
 

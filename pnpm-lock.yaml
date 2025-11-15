@@ -278,6 +278,9 @@ importers:
       '@huggingface/transformers':
         specifier: ^3.7.6
         version: 3.7.6
+      '@moeru/eventa':
+        specifier: ^0.3.0
+        version: 0.3.0(electron@39.0.0)(h3@2.0.1-rc.5(crossws@0.4.1(srvx@0.9.4)))(web-worker@1.5.0)
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.13
@@ -329,9 +332,6 @@ importers:
       '@types/audioworklet':
         specifier: ^0.0.89
         version: 0.0.89
-      '@unbird/eventa':
-        specifier: ^0.2.3
-        version: 0.2.3(electron@39.0.0)(h3@2.0.1-rc.5(crossws@0.4.1(srvx@0.9.4)))(web-worker@1.5.0)
       '@vueuse/core':
         specifier: ^14.0.0
         version: 14.0.0(vue@3.5.22(typescript@5.9.3))
@@ -672,6 +672,9 @@ importers:
       '@huggingface/transformers':
         specifier: ^3.7.6
         version: 3.7.6
+      '@moeru/eventa':
+        specifier: ^0.3.0
+        version: 0.3.0(electron@39.0.0)(h3@2.0.1-rc.5(crossws@0.4.1(srvx@0.9.4)))(web-worker@1.5.0)
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.13
@@ -726,9 +729,6 @@ importers:
       '@tresjs/core':
         specifier: ^5.1.0
         version: 5.1.0(three@0.181.0)(vue@3.5.22(typescript@5.9.3))
-      '@unbird/eventa':
-        specifier: ^0.2.3
-        version: 0.2.3(electron@39.0.0)(h3@2.0.1-rc.5(crossws@0.4.1(srvx@0.9.4)))(web-worker@1.5.0)
       '@valibot/to-json-schema':
         specifier: 1.0.0-rc.0
         version: 1.0.0-rc.0(valibot@1.0.0-beta.9(typescript@5.9.3))
@@ -1270,6 +1270,9 @@ importers:
 
   packages/stage-pages:
     dependencies:
+      '@moeru/eventa':
+        specifier: ^0.3.0
+        version: 0.3.0(electron@39.0.0)(h3@2.0.1-rc.5(crossws@0.4.1(srvx@0.9.4)))(web-worker@1.5.0)
       '@nekopaw/tempora':
         specifier: 0.3.1-alpha.1
         version: 0.3.1-alpha.1
@@ -1288,9 +1291,6 @@ importers:
       '@stdlib/string-base-kebabcase':
         specifier: ^0.2.2
         version: 0.2.2
-      '@unbird/eventa':
-        specifier: ^0.2.3
-        version: 0.2.3(electron@39.0.0)(h3@2.0.1-rc.5(crossws@0.4.1(srvx@0.9.4)))(web-worker@1.5.0)
       '@vueuse/core':
         specifier: ^14.0.0
         version: 14.0.0(vue@3.5.22(typescript@5.9.3))
@@ -1364,6 +1364,9 @@ importers:
       '@lemonneko/crop-empty-pixels':
         specifier: 0.1.1
         version: 0.1.1
+      '@moeru/eventa':
+        specifier: ^0.3.0
+        version: 0.3.0(electron@39.0.0)(h3@2.0.1-rc.5(crossws@0.4.1(srvx@0.9.4)))(web-worker@1.5.0)
       '@nekopaw/tempora':
         specifier: 0.3.1-alpha.1
         version: 0.3.1-alpha.1
@@ -1466,9 +1469,6 @@ importers:
       '@tresjs/post-processing':
         specifier: ^3.1.0
         version: 3.1.0(@tresjs/core@5.1.0(three@0.181.0)(vue@3.5.22(typescript@5.9.3)))(three@0.181.0)(vue@3.5.22(typescript@5.9.3))
-      '@unbird/eventa':
-        specifier: ^0.2.3
-        version: 0.2.3(electron@39.0.0)(h3@2.0.1-rc.5(crossws@0.4.1(srvx@0.9.4)))(web-worker@1.5.0)
       '@vueuse/core':
         specifier: ^14.0.0
         version: 14.0.0(vue@3.5.22(typescript@5.9.3))
@@ -4703,6 +4703,20 @@ packages:
       eslint-plugin-oxlint:
         optional: true
 
+  '@moeru/eventa@0.3.0':
+    resolution: {integrity: sha512-/U9BNwd+a3OAlbolkW4yWbKtbtL2poiu0V44yekV31SKOAGy9NZJe6hmAAr5nwwDO5Iu6uK/Kz/l+3maEwsUnQ==}
+    peerDependencies:
+      electron: '>=30'
+      h3: 2.0.0-beta.1
+      web-worker: ^1.5.0
+    peerDependenciesMeta:
+      electron:
+        optional: true
+      h3:
+        optional: true
+      web-worker:
+        optional: true
+
   '@moeru/std@0.1.0-beta.1':
     resolution: {integrity: sha512-ImfoMBchZP+F4aos2nFmlcipcgIhT+ZkUUVWB/bBHEqyB/w/nbI/xgA8a1ibJUtG7RcQnQH+SKom0r4/1xCWqA==}
 
@@ -7144,6 +7158,7 @@ packages:
 
   '@unbird/eventa@0.2.3':
     resolution: {integrity: sha512-RCw4sKk5NihX84lIm7q/TYKPRw9jGUsZln1DgNqmuGl6sGATFH0sJ+jRjl9v49cECVrBadg6vvnQEiw5Z2jpsg==}
+    deprecated: Please migrate to use @moeru/eventa, the API maintains the same without extra changes
     peerDependencies:
       electron: '>=30'
       h3: 2.0.0-beta.1
@@ -18951,6 +18966,15 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
       - typescript
+
+  '@moeru/eventa@0.3.0(electron@39.0.0)(h3@2.0.1-rc.5(crossws@0.4.1(srvx@0.9.4)))(web-worker@1.5.0)':
+    dependencies:
+      nanoid: 5.1.6
+      picomatch: 4.0.3
+    optionalDependencies:
+      electron: 39.0.0
+      h3: 2.0.1-rc.5(crossws@0.4.1(srvx@0.9.4))
+      web-worker: 1.5.0
 
   '@moeru/std@0.1.0-beta.1': {}
 

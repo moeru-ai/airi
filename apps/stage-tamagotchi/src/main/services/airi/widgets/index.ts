@@ -1,9 +1,9 @@
-import type { createContext } from '@unbird/eventa/adapters/electron/main'
+import type { createContext } from '@moeru/eventa/adapters/electron/main'
 import type { BrowserWindow, IpcMainEvent } from 'electron'
 
 import type { WidgetsWindowManager } from '../../../windows/widgets'
 
-import { defineInvokeHandlers } from '@unbird/eventa'
+import { defineInvokeHandlers } from '@moeru/eventa'
 
 import { widgetsAdd, widgetsClear, widgetsFetch, widgetsOpenWindow, widgetsPrepareWindow, widgetsRemove, widgetsUpdate } from '../../../../shared/eventa'
 

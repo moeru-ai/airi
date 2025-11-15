@@ -1,6 +1,6 @@
 import type { BrowserWindow, Rectangle } from 'electron'
 
-import { defineEventa, defineInvokeEventa } from '@unbird/eventa'
+import { defineEventa, defineInvokeEventa } from '@moeru/eventa'
 
 export const bounds = defineEventa<Rectangle>('eventa:event:electron:window:bounds')
 export const startLoopGetBounds = defineInvokeEventa('eventa:event:electron:window:start-loop-get-bounds')

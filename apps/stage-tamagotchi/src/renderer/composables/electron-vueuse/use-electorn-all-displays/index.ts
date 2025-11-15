@@ -1,4 +1,4 @@
-import { defineInvoke } from '@unbird/eventa'
+import { defineInvoke } from '@moeru/eventa'
 import { useAsyncState, useIntervalFn } from '@vueuse/core'
 
 import { electron } from '../../../../shared/electron'
