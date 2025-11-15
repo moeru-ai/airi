@@ -84,6 +84,8 @@ pages:
     delete: Delete
     delete_card: Delete Card
     delete_confirmation: Are you sure you want to delete this card?
+    edit: Edit
+    edit_card: Edit Card
     description: Use AIRI character card presets
     description_label: Description
     drop_here: Drop to upload
@@ -98,6 +100,7 @@ pages:
       settings: Settings
       version: Version
       create: Create
+      save: Save changes
       defaults:
         name: Name
         personality: You are a regular human, curious about everything.
@@ -280,6 +283,71 @@ pages:
         section:
           provider-selection:
             description: Select the suitable speech recognition provider
+          audio-processing:
+            title: Microphone processing
+            description: Choose whether the browser should enhance your microphone before sending audio to AIRI.
+            auto-gain-control:
+              label: Automatic gain control
+              description: Automatically raise or lower the microphone volume.
+            echo-cancellation:
+              label: Echo cancellation
+              description: Reduce speaker feedback that can be picked up by your mic.
+            noise-suppression:
+              label: Noise suppression
+              description: Filter out constant background sounds like fans or AC units.
+          regex:
+            title: Regex preprocessing
+            description: Clean up or redact transcriptions before they are sent to chat.
+            enable:
+              label: Enable regex cleanup
+              description: Apply the pattern below to every transcription result.
+            pattern:
+              label: Regex pattern
+              description: Matches will be replaced or removed before chat submission.
+              placeholder: '\\[[^\\]]+\\]'
+            replacement:
+              label: Replacement text
+              description: Leave empty to remove matches entirely.
+              placeholder: Replacement (default empty)
+            flags:
+              label: Flags
+              description: JavaScript regex flags (e.g. gim). Defaults to g.
+            reset:
+              label: Reset to default
+              tooltip: Restore the recommended regex pattern, replacement, and flags.
+            error_prefix: Regex error
+    translation:
+      title: Translation
+      description: Translate user input and AI output between languages.
+      languages:
+        auto: Auto detect (recommended)
+      sections:
+        provider:
+          title: Provider
+          description: Pick which translation backend AIRI should use.
+          add: Configure provider
+          empty:
+            title: No translation providers configured
+            description: Set up LibreTranslate or another provider under Settings → Providers → Translation.
+        input:
+          title: Input translation
+          description: Convert chat text or hearing transcripts before they are sent to the LLM.
+          toggle:
+            label: Enable input translation
+            description: When enabled, AIRI rewrites your input into the target language before sending it to the AI.
+          source: Source language
+          target: Target language
+        output:
+          title: Output translation
+          description: Once the assistant responds, translate it before speech synthesis.
+          toggle:
+            label: Enable output translation
+            description: Buffer the full reply, translate it, then send the translated text to text-to-speech.
+          source: Source language
+          target: Target language
+        languages:
+          error:
+            title: Unable to load language list
     memory-long-term:
       description: Long-term memory specific settings and management
       title: Long-Term Memory
@@ -335,6 +403,31 @@ pages:
             use-ssml:
               description: Enable to input raw SSML instead of plain text
               label: Use Custom SSML
+            playback-mode:
+              label: Send entire response at once
+              description: Buffer the full LLM reply and send it to your speech provider in a single request instead of sentence-by-sentence streaming.
+          regex:
+            title: Regex preprocessing
+            description: Strip narration or markup before text is spoken aloud.
+            enable:
+              label: Enable regex cleanup
+              description: Remove or rewrite matches before TTS playback.
+            pattern:
+              label: Regex pattern
+              description: Matches will be removed or replaced before speech synthesis.
+              placeholder: '\\*[^*]+\\*'
+            replacement:
+              label: Replacement text
+              description: Leave empty to delete the matched text.
+              placeholder: Replacement (default empty)
+            flags:
+              label: Flags
+              description: JavaScript regex flags (e.g. gim). Defaults to g.
+            reset:
+              label: Reset to default
+              tooltip: Restore the recommended regex pattern, replacement, and flags.
+            error_prefix: Regex error
+            preview_warning: Input is empty after applying regex preprocessing. Update your pattern or text.
       title: Speech
     title: Modules
     vision:
@@ -368,6 +461,7 @@ pages:
       Transcription: >-
         Transcription (speech-to-text) model providers. e.g. Whisper.cpp,
         OpenAI, Azure Speech
+      translation: Text translation providers. e.g. LibreTranslate or OpenAI-compatible translation APIs.
     helpinfo:
       title: First time here?
       description: >
@@ -410,6 +504,32 @@ pages:
       browser-local-audio-speech:
         title: Browser (Local)
         description: https://github.com/moeru-ai/xsai-transformers
+      libretranslate:
+        title: LibreTranslate
+        description: Self-hosted translation API compatible with LibreTranslate
+        api_key:
+          label: API Key (optional)
+          description: Provide a token only if your LibreTranslate instance enforces authentication.
+      whisper-cpp:
+        title: whisper.cpp Server
+        description: ggml-org/whisper.cpp/examples/server
+        fields:
+          request-path:
+            label: Request path (optional)
+            description: Matches --request-path from whisper-server. Leave empty to serve from /
+          inference-path:
+            label: Inference path
+            description: Matches --inference-path from whisper-server. Default is /inference
+          response-format:
+            label: Response format
+            description: Pick the output format that your whisper.cpp build supports
+        alerts:
+          info:
+            title: whisper.cpp server handles audio uploads
+            description: >-
+              AIRI records audio locally and uploads each clip to the configured
+              whisper.cpp HTTP server. Keep the server on the same trusted device
+              or network if you don't want recordings to leave your machine.
       alibaba-cloud-model-studio:
         description: bailian.console.aliyun.com
         title: Alibaba Cloud Model Studio

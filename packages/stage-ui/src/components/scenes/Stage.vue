@@ -15,7 +15,7 @@ import { useBroadcastChannel } from '@vueuse/core'
 // import { embed } from '@xsai/embed'
 import { generateSpeech } from '@xsai/generate-speech'
 import { storeToRefs } from 'pinia'
-import { onMounted, onUnmounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 
 import Live2DScene from './Live2D.vue'
 
@@ -26,9 +26,12 @@ import { useAudioContext, useSpeakingStore } from '../../stores/audio'
 import { useChatStore } from '../../stores/chat'
 import { useLive2d } from '../../stores/live2d'
 import { useSpeechStore } from '../../stores/modules/speech'
+import { useTranslationStore } from '../../stores/modules/translation'
 import { useProvidersStore } from '../../stores/providers'
 import { useSettings } from '../../stores/settings'
 import { createQueue } from '../../utils/queue'
+import { TTS_FLUSH_INSTRUCTION } from '../../utils/tts'
+import { logTts, summarizeTtsChunk } from '../../utils/tts-logger'
 
 withDefaults(defineProps<{
   paused?: boolean
@@ -121,45 +124,26 @@ const nowSpeaking = ref(false)
 const lipSyncStarted = ref(false)
 
 const speechStore = useSpeechStore()
-const { ssmlEnabled, activeSpeechProvider, activeSpeechModel, activeSpeechVoice, pitch } = storeToRefs(speechStore)
+const translationStore = useTranslationStore()
+const { ssmlEnabled, activeSpeechProvider, activeSpeechModel, activeSpeechVoice, pitch, sendFullResponseToSpeechProvider } = storeToRefs(speechStore)
+const { outputTranslationEnabled } = storeToRefs(translationStore)
+const shouldBufferFullResponse = computed(() => sendFullResponseToSpeechProvider.value || outputTranslationEnabled.value)
+let ttsRequestCounter = 0
+const pendingFullResponseLiteral = ref('')
 
-async function handleSpeechGeneration(ctx: { data: string }) {
-  try {
-    if (!activeSpeechProvider.value) {
-      console.warn('No active speech provider configured')
-      return
-    }
-
-    if (!activeSpeechVoice.value) {
-      console.warn('No active speech voice configured')
-      return
-    }
-
-    const provider = await providersStore.getProviderInstance(activeSpeechProvider.value) as SpeechProviderWithExtraOptions<string, UnElevenLabsOptions>
-    if (!provider) {
-      console.error('Failed to initialize speech provider')
-      return
-    }
-
-    const providerConfig = providersStore.getProviderConfig(activeSpeechProvider.value)
-
-    const input = ssmlEnabled.value
-      ? speechStore.generateSSML(ctx.data, activeSpeechVoice.value, { ...providerConfig, pitch: pitch.value })
-      : ctx.data
-
-    const res = await generateSpeech({
-      ...provider.speech(activeSpeechModel.value, providerConfig),
-      input,
-      voice: activeSpeechVoice.value.id,
+watch(
+  [activeSpeechProvider, activeSpeechModel, activeSpeechVoice, ssmlEnabled, pitch],
+  ([provider, model, voice, ssml, pitchValue]) => {
+    logTts('state', {
+      provider,
+      model,
+      voice: voice?.id ?? null,
+      ssml,
+      pitch: pitchValue,
     })
-
-    const audioBuffer = await audioContext.decodeAudioData(res)
-    playbackQueue.value.enqueue({ audioBuffer, text: ctx.data })
-  }
-  catch (error) {
-    console.error('Speech generation failed:', error)
-  }
-}
+  },
+  { immediate: true },
+)
 
 const ttsQueue = createQueue<string>({
   handlers: [
@@ -167,7 +151,123 @@ const ttsQueue = createQueue<string>({
   ],
 })
 
+ttsQueue.on('enqueue', (payload, queueLength) => {
+  logTts('enqueue', {
+    chunkChars: payload.length,
+    chunkPreview: summarizeTtsChunk(payload),
+    pendingChunks: queueLength,
+    pendingPlayback: playbackQueue.value.length(),
+  })
+})
+
+ttsQueue.on('error', (_payload, error) => {
+  logTts('error', {
+    message: error instanceof Error ? error.message : String(error),
+    source: 'queue-handler',
+  })
+})
+
+ttsQueue.on('drain', () => {
+  logTts('drain', {
+    pendingPlayback: playbackQueue.value.length(),
+  })
+})
+
+async function handleSpeechGeneration(ctx: { data: string }) {
+  const requestId = ++ttsRequestCounter
+  const rawChunk = ctx.data ?? ''
+  const rawChunkPreview = summarizeTtsChunk(rawChunk)
+  if (!rawChunk.trim()) {
+    logTts('skip', { requestId, reason: 'empty-chunk' })
+    return
+  }
+
+  const chunk = speechStore.applySpeechRegex(rawChunk)
+  if (!chunk.trim()) {
+    logTts('skip', { requestId, reason: 'regex-empty', chunkPreview: rawChunkPreview })
+    console.warn('Speech chunk removed by regex prior to TTS playback.')
+    return
+  }
+
+  const chunkPreview = summarizeTtsChunk(chunk)
+
+  if (!activeSpeechProvider.value) {
+    console.warn('No active speech provider configured. Pick one under Settings → Speech to enable TTS playback.')
+    logTts('skip', { requestId, reason: 'missing-provider' })
+    return
+  }
+
+  if (!activeSpeechVoice.value) {
+    console.warn('No active speech voice configured. Choose a voice in Settings → Speech to enable TTS playback.')
+    logTts('skip', { requestId, reason: 'missing-voice' })
+    return
+  }
+
+  try {
+    const provider = await providersStore.getProviderInstance(activeSpeechProvider.value) as SpeechProviderWithExtraOptions<string, UnElevenLabsOptions>
+    if (!provider) {
+      console.error('Failed to initialize speech provider')
+      logTts('error', { requestId, reason: 'provider-init', provider: activeSpeechProvider.value })
+      return
+    }
+
+    const providerConfig = providersStore.getProviderConfig(activeSpeechProvider.value)
+
+    logTts('request', {
+      requestId,
+      provider: activeSpeechProvider.value,
+      model: activeSpeechModel.value,
+      voice: activeSpeechVoice.value.id,
+      chunkChars: chunk.length,
+      chunkPreview,
+      ssml: ssmlEnabled.value,
+      queue: {
+        pendingChunks: ttsQueue.length(),
+        pendingPlayback: playbackQueue.value.length(),
+      },
+    })
+
+    const input = ssmlEnabled.value
+      ? speechStore.generateSSML(chunk, activeSpeechVoice.value, { ...providerConfig, pitch: pitch.value })
+      : chunk
+
+    const responseBuffer = await generateSpeech({
+      ...provider.speech(activeSpeechModel.value, providerConfig),
+      input,
+      voice: activeSpeechVoice.value.id,
+    })
+
+    logTts('response', {
+      requestId,
+      bytes: responseBuffer.byteLength,
+    })
+
+    const audioBuffer = await audioContext.decodeAudioData(responseBuffer)
+
+    logTts('enqueue-playback', {
+      requestId,
+      durationMs: Math.round(audioBuffer.duration * 1000),
+      queue: {
+        pendingChunks: ttsQueue.length(),
+        pendingPlayback: playbackQueue.value.length(),
+      },
+    })
+
+    playbackQueue.value.enqueue({ audioBuffer, text: chunk })
+  }
+  catch (error) {
+    logTts('error', {
+      requestId,
+      chunkPreview,
+      message: error instanceof Error ? error.message : String(error),
+    })
+    console.error('Speech generation failed:', error)
+  }
+}
+
 onTextSegmented((chunk) => {
+  if (shouldBufferFullResponse.value)
+    return
   ttsQueue.enqueue(chunk)
 })
 
@@ -233,6 +333,7 @@ onBeforeMessageComposed(async () => {
   assistantCaption.value = ''
   postCaption({ type: 'caption-assistant', text: '' })
   postPresent({ type: 'assistant-reset' })
+  pendingFullResponseLiteral.value = ''
 })
 
 onBeforeSend(async () => {
@@ -240,6 +341,13 @@ onBeforeSend(async () => {
 })
 
 onTokenLiteral(async (literal) => {
+  if (shouldBufferFullResponse.value) {
+    const sanitizedLiteral = literal.replaceAll(TTS_FLUSH_INSTRUCTION, '')
+    if (!sanitizedLiteral)
+      return
+    pendingFullResponseLiteral.value += sanitizedLiteral
+    return
+  }
   // Only push to segmentation; visual presentation happens on playback start
   textSegmentationQueue.value.enqueue(literal)
 })
@@ -254,6 +362,23 @@ onStreamEnd(async () => {
 })
 
 onAssistantResponseEnd(async (_message) => {
+  if (shouldBufferFullResponse.value) {
+    const bufferedText = pendingFullResponseLiteral.value
+    const normalized = bufferedText.trim()
+    if (normalized.length > 0) {
+      let textForSpeech = bufferedText
+      if (outputTranslationEnabled.value) {
+        try {
+          textForSpeech = await translationStore.translateOutputText(bufferedText)
+        }
+        catch (error) {
+          console.error('Output translation failed:', error)
+        }
+      }
+      ttsQueue.enqueue(textForSpeech)
+    }
+    pendingFullResponseLiteral.value = ''
+  }
   // const res = await embed({
   //   ...transformersProvider.embed('Xenova/nomic-embed-text-v1'),
   //   input: message,

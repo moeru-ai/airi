@@ -11,6 +11,11 @@ import { x } from 'xastscript'
 
 import { useProvidersStore } from '../providers'
 
+export const DEFAULT_SPEECH_REGEX_ENABLED = true
+export const DEFAULT_SPEECH_REGEX_PATTERN = '\\*[^*]+\\*'
+export const DEFAULT_SPEECH_REGEX_REPLACEMENT = ''
+export const DEFAULT_SPEECH_REGEX_FLAGS = 'g'
+
 export const useSpeechStore = defineStore('speech', () => {
   const providersStore = useProvidersStore()
   const { allAudioSpeechProvidersMetadata } = storeToRefs(providersStore)
@@ -24,11 +29,55 @@ export const useSpeechStore = defineStore('speech', () => {
   const pitch = useLocalStorage('settings/speech/pitch', 0)
   const rate = useLocalStorage('settings/speech/rate', 1)
   const ssmlEnabled = useLocalStorage('settings/speech/ssml-enabled', false)
+  const sendFullResponseToSpeechProvider = useLocalStorage('settings/speech/send-full-response', false)
   const isLoadingSpeechProviderVoices = ref(false)
   const speechProviderError = ref<string | null>(null)
   const availableVoices = ref<Record<string, VoiceInfo[]>>({})
   const selectedLanguage = useLocalStorage('settings/speech/language', 'en-US')
   const modelSearchQuery = ref('')
+  const speechRegexEnabled = useLocalStorage('settings/speech/regex/enabled', DEFAULT_SPEECH_REGEX_ENABLED)
+  const speechRegexPattern = useLocalStorage('settings/speech/regex/pattern', DEFAULT_SPEECH_REGEX_PATTERN)
+  const speechRegexReplacement = useLocalStorage('settings/speech/regex/replacement', DEFAULT_SPEECH_REGEX_REPLACEMENT)
+  const speechRegexFlags = useLocalStorage('settings/speech/regex/flags', DEFAULT_SPEECH_REGEX_FLAGS)
+  const speechRegexError = ref<string | null>(null)
+
+  const compiledSpeechRegex = computed(() => {
+    if (!speechRegexEnabled.value || !speechRegexPattern.value) {
+      speechRegexError.value = null
+      return null
+    }
+
+    try {
+      const regex = new RegExp(speechRegexPattern.value, speechRegexFlags.value || 'g')
+      speechRegexError.value = null
+      return regex
+    }
+    catch (error) {
+      speechRegexError.value = error instanceof Error ? error.message : String(error)
+      return null
+    }
+  })
+
+  function applySpeechRegex(text: string) {
+    const regex = compiledSpeechRegex.value
+    if (!regex)
+      return text
+
+    try {
+      return text.replace(regex, speechRegexReplacement.value ?? '')
+    }
+    catch (error) {
+      console.warn('Failed to apply speech regex:', error)
+      return text
+    }
+  }
+
+  function resetSpeechRegex() {
+    speechRegexEnabled.value = DEFAULT_SPEECH_REGEX_ENABLED
+    speechRegexPattern.value = DEFAULT_SPEECH_REGEX_PATTERN
+    speechRegexReplacement.value = DEFAULT_SPEECH_REGEX_REPLACEMENT
+    speechRegexFlags.value = DEFAULT_SPEECH_REGEX_FLAGS
+  }
 
   // Computed properties
   const availableSpeechProvidersMetadata = computed(() => allAudioSpeechProvidersMetadata.value)
@@ -100,6 +149,29 @@ export const useSpeechStore = defineStore('speech', () => {
     return availableVoices.value[provider] || []
   }
 
+  function resolveVoiceById(voiceId?: string): VoiceInfo | undefined {
+    if (!voiceId)
+      return undefined
+
+    const voices = availableVoices.value[activeSpeechProvider.value] || []
+    const matchedVoice = voices.find(voice => voice.id === voiceId)
+    if (matchedVoice)
+      return matchedVoice
+
+    const languageCode = selectedLanguage.value || 'en-US'
+    return {
+      id: voiceId,
+      name: voiceId,
+      provider: activeSpeechProvider.value,
+      description: 'Custom voice',
+      previewURL: undefined,
+      languages: [{
+        code: languageCode,
+        title: languageCode,
+      }],
+    }
+  }
+
   // Watch for provider changes and load voices
   watch(activeSpeechProvider, async (newProvider) => {
     if (newProvider) {
@@ -111,23 +183,27 @@ export const useSpeechStore = defineStore('speech', () => {
   onMounted(() => {
     loadVoicesForProvider(activeSpeechProvider.value).then(() => {
       if (activeSpeechVoiceId.value) {
-        activeSpeechVoice.value = availableVoices.value[activeSpeechProvider.value]?.find(voice => voice.id === activeSpeechVoiceId.value)
+        activeSpeechVoice.value = resolveVoiceById(activeSpeechVoiceId.value)
       }
     })
   })
 
   watch(activeSpeechVoiceId, (voiceId) => {
-    if (voiceId) {
-      activeSpeechVoice.value = availableVoices.value[activeSpeechProvider.value]?.find(voice => voice.id === voiceId)
+    if (!voiceId) {
+      activeSpeechVoice.value = undefined
+      return
     }
+
+    activeSpeechVoice.value = resolveVoiceById(voiceId)
   }, {
     immediate: true,
   })
 
-  watch(availableVoices, (voices) => {
-    if (activeSpeechVoiceId.value) {
-      activeSpeechVoice.value = voices[activeSpeechProvider.value]?.find(voice => voice.id === activeSpeechVoiceId.value)
-    }
+  watch(availableVoices, () => {
+    if (!activeSpeechVoiceId.value)
+      return
+
+    activeSpeechVoice.value = resolveVoiceById(activeSpeechVoiceId.value)
   }, {
     immediate: true,
   })
@@ -205,7 +281,7 @@ export const useSpeechStore = defineStore('speech', () => {
   }
 
   const configured = computed(() => {
-    return !!activeSpeechProvider.value && !!activeSpeechModel.value && !!activeSpeechVoiceId.value
+    return !!activeSpeechProvider.value
   })
 
   return {
@@ -218,11 +294,17 @@ export const useSpeechStore = defineStore('speech', () => {
     pitch,
     rate,
     ssmlEnabled,
+    sendFullResponseToSpeechProvider,
     selectedLanguage,
     isLoadingSpeechProviderVoices,
     speechProviderError,
     availableVoices,
     modelSearchQuery,
+    speechRegexEnabled,
+    speechRegexPattern,
+    speechRegexReplacement,
+    speechRegexFlags,
+    speechRegexError,
 
     // Computed
     availableSpeechProvidersMetadata,
@@ -238,5 +320,7 @@ export const useSpeechStore = defineStore('speech', () => {
     loadVoicesForProvider,
     getVoicesForProvider,
     generateSSML,
+    applySpeechRegex,
+    resetSpeechRegex,
   }
 })

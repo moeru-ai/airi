@@ -85,6 +85,26 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     return cards.value.get(id)
   }
 
+  const updateCard = (id: string, card: Card) => {
+    const existingCard = cards.value.get(id)
+    if (!existingCard)
+      return false
+
+    const mergedCard: Card = {
+      ...existingCard,
+      ...card,
+      greetings: card.greetings ?? existingCard.greetings,
+      messageExample: card.messageExample ?? existingCard.messageExample,
+      extensions: {
+        ...existingCard.extensions,
+        ...card.extensions,
+      },
+    }
+
+    cards.value.set(id, newAiriCard(mergedCard))
+    return true
+  }
+
   function resolveAiriExtension(card: Card | ccv3.CharacterCardV3): AiriExtension {
     // Get existing extension if available
     const existingExtension = ('data' in card
@@ -215,6 +235,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     addCard,
     removeCard,
     getCard,
+    updateCard,
 
     currentModels: computed(() => {
       return {

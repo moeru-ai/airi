@@ -5,6 +5,7 @@ import { useAudioAnalyzer } from '@proj-airi/stage-ui/composables'
 import { useAudioContext } from '@proj-airi/stage-ui/stores/audio'
 import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
 import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
+import { useTranslationStore } from '@proj-airi/stage-ui/stores/modules/translation'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { BasicTextarea, FieldSelect } from '@proj-airi/ui'
@@ -29,6 +30,7 @@ const { askPermission } = useSettingsAudioDevice()
 const { enabled, selectedAudioInput, stream, audioInputs } = storeToRefs(useSettingsAudioDevice())
 const { send, onAfterMessageComposed, discoverToolsCompatibility, cleanupMessages } = useChatStore()
 const { messages } = storeToRefs(useChatStore())
+const translationStore = useTranslationStore()
 const { audioContext } = useAudioContext()
 const { t } = useI18n()
 
@@ -41,17 +43,21 @@ async function handleSend() {
     return
   }
 
+  let sendInvoked = false
   try {
     const providerConfig = providersStore.getProviderConfig(activeProvider.value)
+    const translatedInput = await translationStore.translateInputText(messageInput.value)
 
-    await send(messageInput.value, {
+    sendInvoked = true
+    await send(translatedInput, {
       chatProvider: await providersStore.getProviderInstance(activeProvider.value) as ChatProvider,
       model: activeModel.value,
       providerConfig,
     })
   }
   catch (error) {
-    messages.value.pop()
+    if (sendInvoked)
+      messages.value.pop()
     messages.value.push({
       role: 'error',
       content: (error as Error).message,

@@ -18,6 +18,7 @@ import type {
 } from 'unspeech'
 
 import type { AliyunRealtimeSpeechExtraOptions } from './providers/aliyun/stream-transcription'
+import type { WhisperCppResponseFormat } from './providers/whispercpp/transcription'
 
 import { isStageTamagotchi, isUrl } from '@proj-airi/stage-shared'
 import { computedAsync, useLocalStorage } from '@vueuse/core'
@@ -62,7 +63,9 @@ import { useI18n } from 'vue-i18n'
 
 import { createAliyunNLSProvider as createAliyunNlsStreamProvider } from './providers/aliyun/stream-transcription'
 import { models as elevenLabsModels } from './providers/elevenlabs/list-models'
+import { createLibreTranslateProvider, DEFAULT_LIBRETRANSLATE_BASE_URL, listLibreTranslateLanguages, verifyLibreTranslateConnection } from './providers/libretranslate'
 import { buildOpenAICompatibleProvider } from './providers/openai-compatible-builder'
+import { createWhisperCppTranscriptionProvider } from './providers/whispercpp/transcription'
 
 const ALIYUN_NLS_REGIONS = [
   'cn-shanghai',
@@ -75,10 +78,58 @@ const ALIYUN_NLS_REGIONS = [
 
 type AliyunNlsRegion = typeof ALIYUN_NLS_REGIONS[number]
 
+const WHISPER_CPP_RESPONSE_FORMATS = new Set<WhisperCppResponseFormat>(['json', 'verbose_json', 'text', 'srt', 'vtt'])
+
+function toTrimmedString(value: unknown) {
+  return typeof value === 'string' ? value.trim() : ''
+}
+
+function toOptionalString(value: unknown) {
+  const str = toTrimmedString(value)
+  return str || undefined
+}
+
+function toOptionalNumber(value: unknown) {
+  if (typeof value === 'number' && Number.isFinite(value))
+    return value
+  const str = toTrimmedString(value)
+  if (!str)
+    return undefined
+  const num = Number(str)
+  return Number.isFinite(num) ? num : undefined
+}
+
+function toOptionalBoolean(value: unknown) {
+  if (typeof value === 'boolean')
+    return value
+  const str = toTrimmedString(value).toLowerCase()
+  if (!str)
+    return undefined
+  if (['true', '1', 'yes', 'on'].includes(str))
+    return true
+  if (['false', '0', 'no', 'off'].includes(str))
+    return false
+  return undefined
+}
+
+function sanitizeRelativePath(value: unknown) {
+  const str = toTrimmedString(value)
+  if (!str)
+    return ''
+  return str.replace(/^\/+/, '').replace(/\/+$/, '')
+}
+
+function toWhisperResponseFormat(value: unknown): WhisperCppResponseFormat | undefined {
+  const str = toTrimmedString(value).toLowerCase()
+  if (!str)
+    return undefined
+  return WHISPER_CPP_RESPONSE_FORMATS.has(str as WhisperCppResponseFormat) ? str as WhisperCppResponseFormat : undefined
+}
+
 export interface ProviderMetadata {
   id: string
   order?: number
-  category: 'chat' | 'embed' | 'speech' | 'transcription'
+  category: 'chat' | 'embed' | 'speech' | 'transcription' | 'translation'
   tasks: string[]
   nameKey: string // i18n key for provider name
   name: string // Default name (fallback)
@@ -131,6 +182,7 @@ export interface ProviderMetadata {
     | SpeechProviderWithExtraOptions
     | TranscriptionProvider
     | TranscriptionProviderWithExtraOptions
+    | TranslationProvider
     | Promise<ChatProvider>
     | Promise<ChatProviderWithExtraOptions>
     | Promise<EmbedProvider>
@@ -139,10 +191,12 @@ export interface ProviderMetadata {
     | Promise<SpeechProviderWithExtraOptions>
     | Promise<TranscriptionProvider>
     | Promise<TranscriptionProviderWithExtraOptions>
+    | Promise<TranslationProvider>
   capabilities: {
     listModels?: (config: Record<string, unknown>) => Promise<ModelInfo[]>
     listVoices?: (config: Record<string, unknown>) => Promise<VoiceInfo[]>
     loadModel?: (config: Record<string, unknown>, hooks?: { onProgress?: (progress: ProgressInfo) => Promise<void> | void }) => Promise<void>
+    listLanguages?: (config: Record<string, unknown>) => Promise<TranslationLanguageInfo[]>
   }
   validators: {
     validateProviderConfig: (config: Record<string, unknown>) => Promise<{
@@ -185,6 +239,21 @@ export interface VoiceInfo {
     code: string
     title: string
   }[]
+}
+
+export interface TranslationLanguageInfo {
+  code: string
+  name: string
+}
+
+export interface TranslationProvider {
+  translate: (params: {
+    text: string
+    source?: string
+    target: string
+    format?: 'text' | 'html'
+  }) => Promise<string>
+  listLanguages?: () => Promise<TranslationLanguageInfo[]>
 }
 
 function createAnthropic(apiKey: string, baseURL: string = 'https://api.anthropic.com/v1/') {
@@ -433,6 +502,65 @@ export const useProvidersStore = defineStore('providers', () => {
         },
       },
     }),
+    'libretranslate': {
+      id: 'libretranslate',
+      category: 'translation',
+      tasks: ['text-translation'],
+      nameKey: 'settings.pages.providers.provider.libretranslate.title',
+      name: 'LibreTranslate',
+      descriptionKey: 'settings.pages.providers.provider.libretranslate.description',
+      description: 'Self-hosted translation API',
+      icon: 'i-ph:translate',
+      defaultOptions: () => ({
+        baseUrl: DEFAULT_LIBRETRANSLATE_BASE_URL,
+        apiKey: '',
+      }),
+      createProvider: config => createLibreTranslateProvider(config),
+      capabilities: {
+        listLanguages: async (config) => {
+          return await listLibreTranslateLanguages(config)
+        },
+      },
+      validators: {
+        validateProviderConfig: async (config) => {
+          const errors: Error[] = []
+          if (!config.baseUrl) {
+            errors.push(new Error('Base URL is required. Example: http://127.0.0.1:5000/'))
+          }
+
+          if (config.baseUrl) {
+            const res = baseUrlValidator.value(config.baseUrl)
+            if (res)
+              return res
+          }
+
+          if (errors.length > 0) {
+            return {
+              errors,
+              reason: errors.map(e => e.message).join(', '),
+              valid: false,
+            }
+          }
+
+          try {
+            await verifyLibreTranslateConnection(config)
+            return {
+              errors: [],
+              reason: '',
+              valid: true,
+            }
+          }
+          catch (error) {
+            const err = error instanceof Error ? error : new Error('Failed to reach LibreTranslate')
+            return {
+              errors: [err],
+              reason: err.message,
+              valid: false,
+            }
+          }
+        },
+      },
+    },
     'ollama': {
       id: 'ollama',
       category: 'chat',
@@ -858,8 +986,140 @@ export const useProvidersStore = defineStore('providers', () => {
       description: 'Connect to any API that follows the OpenAI specification.',
       category: 'transcription',
       tasks: ['speech-to-text', 'automatic-speech-recognition', 'asr', 'stt'],
+      validation: ['audio_transcriptions'],
       creator: createOpenAI,
     }),
+    'whisper-cpp-transcription': {
+      id: 'whisper-cpp-transcription',
+      category: 'transcription',
+      tasks: ['speech-to-text', 'automatic-speech-recognition', 'asr', 'stt'],
+      nameKey: 'settings.pages.providers.provider.whisper-cpp.title',
+      name: 'whisper.cpp Server',
+      descriptionKey: 'settings.pages.providers.provider.whisper-cpp.description',
+      description: 'ggml-org/whisper.cpp/examples/server',
+      icon: 'i-solar:wave-square-bold-duotone',
+      defaultOptions: () => ({
+        baseUrl: '',
+        requestPath: '',
+        inferencePath: '/inference',
+        responseFormat: 'json',
+      }),
+      transcriptionFeatures: {
+        supportsGenerate: true,
+        supportsStreamOutput: false,
+        supportsStreamInput: false,
+      },
+      createProvider: async (config) => {
+        const baseUrl = toTrimmedString(config.baseUrl)
+        if (!baseUrl)
+          throw new Error('Base URL is required for whisper.cpp server.')
+
+        const requestPath = sanitizeRelativePath(config.requestPath)
+        const inferencePath = sanitizeRelativePath(config.inferencePath) || 'inference'
+
+        return createWhisperCppTranscriptionProvider({
+          baseUrl,
+          requestPath,
+          inferencePath,
+          responseFormat: toWhisperResponseFormat(config.responseFormat),
+          language: toOptionalString(config.language),
+          prompt: toOptionalString(config.prompt),
+          temperature: toOptionalNumber(config.temperature),
+          temperatureIncrement: toOptionalNumber(config.temperatureIncrement),
+          translate: toOptionalBoolean(config.translate),
+          detectLanguage: toOptionalBoolean(config.detectLanguage),
+          diarize: toOptionalBoolean(config.diarize),
+          tinydiarize: toOptionalBoolean(config.tinydiarize),
+          splitOnWord: toOptionalBoolean(config.splitOnWord),
+          suppressNonSpeechTokens: toOptionalBoolean((config as any).suppressNonSpeechTokens ?? (config as any).suppress_nst),
+          noTimestamps: toOptionalBoolean(config.noTimestamps),
+        })
+      },
+      capabilities: {
+        listModels: async () => {
+          return [
+            {
+              id: 'whisper.cpp',
+              name: 'whisper.cpp server model',
+              provider: 'whisper-cpp-transcription',
+              description: 'Uses whichever GGML/GGUF model is currently loaded in your whisper.cpp server.',
+              contextLength: 0,
+              deprecated: false,
+            },
+          ]
+        },
+      },
+      validators: {
+        validateProviderConfig: async (config) => {
+          const errors: Error[] = []
+          const baseUrl = toTrimmedString(config.baseUrl)
+          const requestPath = sanitizeRelativePath(config.requestPath)
+
+          if (!baseUrl) {
+            errors.push(new Error('Base URL is required.'))
+          }
+          else {
+            try {
+              // Ensure absolute URL
+              // eslint-disable-next-line no-new
+              new URL(baseUrl)
+            }
+            catch {
+              errors.push(new Error('Base URL must be an absolute URL (e.g. http://127.0.0.1:8080/).'))
+            }
+          }
+
+          const inferencePath = sanitizeRelativePath(config.inferencePath)
+          if (config.inferencePath && !inferencePath) {
+            errors.push(new Error('Inference path cannot be empty.'))
+          }
+
+          if (errors.length > 0) {
+            return {
+              errors,
+              reason: errors.map(error => error.message).join(', '),
+              valid: false,
+            }
+          }
+
+          try {
+            const healthPath = [requestPath, 'health'].filter(Boolean).join('/')
+            const healthUrl = new URL(healthPath ? `${healthPath}` : '', baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`)
+            const response = await fetch(healthUrl.toString())
+
+            if (!response.ok) {
+              return {
+                errors: [new Error(`Health endpoint responded with status ${response.status}`)],
+                reason: `Health endpoint responded with status ${response.status}`,
+                valid: false,
+              }
+            }
+
+            const body = await response.json().catch(() => ({}))
+            if (body.status !== 'ok') {
+              return {
+                errors: [new Error('Whisper server is not ready. Make sure the model is fully loaded.')],
+                reason: 'Whisper server is not ready. Make sure the model is fully loaded.',
+                valid: false,
+              }
+            }
+
+            return {
+              errors: [],
+              reason: '',
+              valid: true,
+            }
+          }
+          catch (error) {
+            return {
+              errors: [error as Error],
+              reason: error instanceof Error ? error.message : String(error),
+              valid: false,
+            }
+          }
+        },
+      },
+    },
     'aliyun-nls-transcription': {
       id: 'aliyun-nls-transcription',
       category: 'transcription',
@@ -2055,7 +2315,8 @@ export const useProvidersStore = defineStore('providers', () => {
   | SpeechProvider
   | SpeechProviderWithExtraOptions
   | TranscriptionProvider
-  | TranscriptionProviderWithExtraOptions,
+  | TranscriptionProviderWithExtraOptions
+  | TranslationProvider,
   >(providerId: string): Promise<R> {
     const config = providerCredentials.value[providerId]
     if (!config)
@@ -2102,6 +2363,10 @@ export const useProvidersStore = defineStore('providers', () => {
     return availableProvidersMetadata.value.filter(metadata => metadata.category === 'transcription')
   })
 
+  const allTranslationProvidersMetadata = computed(() => {
+    return availableProvidersMetadata.value.filter(metadata => metadata.category === 'translation')
+  })
+
   const configuredChatProvidersMetadata = computed(() => {
     return allChatProvidersMetadata.value.filter(metadata => configuredProviders.value[metadata.id])
   })
@@ -2112,6 +2377,10 @@ export const useProvidersStore = defineStore('providers', () => {
 
   const configuredTranscriptionProvidersMetadata = computed(() => {
     return allAudioTranscriptionProvidersMetadata.value.filter(metadata => configuredProviders.value[metadata.id])
+  })
+
+  const configuredTranslationProvidersMetadata = computed(() => {
+    return allTranslationProvidersMetadata.value.filter(metadata => configuredProviders.value[metadata.id])
   })
 
   function getProviderConfig(providerId: string) {
@@ -2141,8 +2410,10 @@ export const useProvidersStore = defineStore('providers', () => {
     allChatProvidersMetadata,
     allAudioSpeechProvidersMetadata,
     allAudioTranscriptionProvidersMetadata,
+    allTranslationProvidersMetadata,
     configuredChatProvidersMetadata,
     configuredSpeechProvidersMetadata,
     configuredTranscriptionProvidersMetadata,
+    configuredTranslationProvidersMetadata,
   }
 })

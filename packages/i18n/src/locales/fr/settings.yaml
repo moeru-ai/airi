@@ -347,6 +347,27 @@ pages:
       browser-local-audio-speech:
         title: Navigateur (Local)
         description: https://github.com/moeru-ai/xsai-transformers
+      whisper-cpp:
+        title: Serveur whisper.cpp
+        description: ggml-org/whisper.cpp/examples/server
+        fields:
+          request-path:
+            label: Chemin de requête (facultatif)
+            description: Correspond à --request-path dans whisper-server. Laisser vide pour /
+          inference-path:
+            label: Chemin d'inférence
+            description: Correspond à --inference-path dans whisper-server. Par défaut /inference
+          response-format:
+            label: Format de réponse
+            description: Choisissez le format pris en charge par votre instance whisper.cpp
+        alerts:
+          info:
+            title: Le serveur whisper.cpp reçoit les fichiers audio
+            description: >-
+              AIRI enregistre l'audio en local et envoie chaque clip au serveur
+              HTTP whisper.cpp configuré. Gardez le serveur sur un appareil ou
+              un réseau de confiance si vous ne souhaitez pas que les
+              enregistrements quittent votre machine.
       alibaba-cloud-model-studio:
         description: bailian.console.aliyun.com
         title: Studio de modèles Alibaba Cloud
