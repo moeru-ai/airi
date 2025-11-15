@@ -32,7 +32,7 @@ const {
 
 const selectedRuntimeMotion = ref<string>('')
 const selectedRuntimeMotionName = ref<string>('')
-const runtimeMotions = ref<Array<{ name: string, path: string }>>([])
+const runtimeMotions = ref<Array<{ name: string, fullPath: string, displayPath: string, group: string, index: number }>>([])
 const showMotionSelector = ref(false)
 
 // Get available runtime motions from the model
