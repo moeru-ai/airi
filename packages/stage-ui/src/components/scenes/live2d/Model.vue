@@ -230,7 +230,7 @@ async function loadModel() {
 
     // Configure the selected motion to loop
     if (selectedMotionGroup && selectedMotionIndex) {
-      const groupIndex = motionManager.groups[selectedMotionGroup]
+      const groupIndex = (motionManager.groups as Record<string, any>)[selectedMotionGroup]
       if (groupIndex !== undefined && motionManager.motionGroups[groupIndex]) {
         const motionIndex = Number.parseInt(selectedMotionIndex)
         const motion = motionManager.motionGroups[groupIndex][motionIndex]
