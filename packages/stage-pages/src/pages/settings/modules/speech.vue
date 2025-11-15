@@ -202,9 +202,7 @@ function updateCustomModelName(value: string) {
                 to="/settings/providers#speech"
                 border="2px solid"
                 class="border-neutral-100 bg-white dark:border-neutral-900 hover:border-primary-500/30 dark:bg-neutral-900/20 dark:hover:border-primary-400/30"
-
                 flex="~ col items-center justify-center"
-
                 transition="all duration-200 ease-in-out"
                 relative min-w-50 w-fit rounded-xl p-4
               >
