@@ -187,8 +187,7 @@ export function setupWidgetsWindowManager(): WidgetsWindowManager {
     windowContexts.delete(id)
 
     if (emitEvent) {
-      try { eventaContext?.emit(widgetsRemoveEvent, { id }) }
-      catch {}
+      eventaContext?.emit(widgetsRemoveEvent, { id })
     }
   }
 
@@ -242,8 +241,8 @@ export function setupWidgetsWindowManager(): WidgetsWindowManager {
     upsertRecord(snapshot)
     const context = windowContexts.get(id)
     await showWindowWithRoute(`${defaultRoute}?id=${id}`, context)
-    try { eventaContext?.emit(widgetsRenderEvent, snapshot) }
-    catch {}
+    eventaContext?.emit(widgetsRenderEvent, snapshot)
+
     return id
   }
 
@@ -262,16 +261,14 @@ export function setupWidgetsWindowManager(): WidgetsWindowManager {
 
     upsertRecord(nextSnapshot)
 
-    try { eventaContext?.emit(widgetsUpdateEvent, { id: nextSnapshot.id, componentProps: nextSnapshot.componentProps }) }
-    catch {}
+    eventaContext?.emit(widgetsUpdateEvent, { id: nextSnapshot.id, componentProps: nextSnapshot.componentProps })
   }
 
   async function removeWidget(id: string) {
     if (!id)
       return
     removeWidgetInternal(id, false)
-    try { eventaContext?.emit(widgetsRemoveEvent, { id }) }
-    catch {}
+    eventaContext?.emit(widgetsRemoveEvent, { id })
   }
 
   async function clearWidgets() {
@@ -279,8 +276,7 @@ export function setupWidgetsWindowManager(): WidgetsWindowManager {
     for (const id of ids)
       removeWidgetInternal(id, false)
 
-    try { eventaContext?.emit(widgetsClearEvent, undefined) }
-    catch {}
+    eventaContext?.emit(widgetsClearEvent, undefined)
     windowContexts.clear()
   }
 
@@ -288,6 +284,7 @@ export function setupWidgetsWindowManager(): WidgetsWindowManager {
     const record = widgetRecords.get(id)
     if (!record)
       return undefined
+
     return toSnapshot(record)
   }
 
