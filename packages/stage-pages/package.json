@@ -37,15 +37,15 @@
     "dompurify": "^3.3.0",
     "nanoid": "^5.1.6",
     "node-vibrant": "^4.0.3",
-    "pinia": "^3.0.3",
+    "pinia": "^3.0.4",
     "reka-ui": "^2.6.0",
     "unspeech": "^0.1.7",
-    "vue": "^3.5.22",
+    "vue": "^3.5.24",
     "vue-i18n": "^11.1.12",
     "vue-router": "^4.6.3"
   },
   "devDependencies": {
     "@types/three": "^0.181.0",
-    "vue-tsc": "^3.1.2"
+    "vue-tsc": "^3.1.4"
   }
 }
