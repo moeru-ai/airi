@@ -154,6 +154,53 @@ pages:
           title: VRM
           description: 配置 3D VRM 模型
   modules:
+    beat_sync:
+      description: 随音源节拍律动
+      title: 同步音律
+      sections:
+        audio_source:
+          actions:
+            start_screen_capture: 开始屏幕录制
+            stop: 停止
+          description: 选择音频来源以检测其中的节拍
+          title: 音频来源
+        beat_visualizer:
+          title: 节拍可视化
+        parameters:
+          advanced_parameters: 高级参数
+          description: 调整节拍检测参数
+          title: 参数
+          parameters:
+            adaptive_threshold:
+              description: >-
+                是否根据信号随时间变化的方差应用自适应阈值
+              label: 自适应阈值
+            buffer_duration:
+              description: 内部分析缓冲区的持续时间
+              label: 缓冲时长
+            envelope_filter_frequency:
+              description: >-
+                应用于平滑能量变化的包络滤波器频率
+              label: 包络滤波器频率
+            highpass_filter_frequency:
+              description: >-
+                高通滤波器的频率设置，用于抑制低频噪声（如次低频噪声）
+              label: 高通滤波器频率
+            lowpass_filter_frequency:
+              description: >-
+                低通滤波器的频率设置，用于削减高频信号（如人声）
+              label: 低通滤波器频率
+            min_beat_interval:
+              description: 最大每分钟节拍数（BPM）或检测到的节拍之间最小间隔
+              label: 最大BPM / 最小节拍间隔
+            sensitivity:
+              label: 灵敏度
+            spectral_flux:
+              description: 启用基于频谱流的节拍起始检测。
+              label: 频谱流
+            warmup:
+              description: 在检测节拍之前进行预热，以提高准确性
+              label: 预热
     consciousness:
       description: 人格设定、使用的模型等配置
       sections:
