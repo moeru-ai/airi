@@ -249,11 +249,11 @@ export async function chunkEmitter(
     for await (const chunk of chunkTTSInput(reader)) {
       // TODO: remove later
 
-      // console.debug('chunk to be pushed: ', chunk)
-      // Whether there is a special token to process
-      if (chunk.reason === 'special') {
+      if (chunk.reason === "special") {
         const specialToken = pendingSpecials.shift()
         // console.debug("special yield:", specialToken)
+        await handler({ chunk: sanitizeChunk(chunk.text), special: specialToken ?? null })
+      }
         await handler({ chunk: sanitizeChunk(chunk.text), special: specialToken } as TTSChunkItem)
       }
       else {
