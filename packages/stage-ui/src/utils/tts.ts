@@ -4,6 +4,8 @@ import { readGraphemeClusters } from 'clustr'
 
 // A special character to instruct the TTS pipeline to flush
 export const TTS_FLUSH_INSTRUCTION = '\u200B'
+// This is for special literals
+export const TTS_SPECIAL_TOKEN = '\u2063'
 
 const keptPunctuations = new Set('?？!！')
 const hardPunctuations = new Set('.。?？!！…⋯～~\n\t\r')
@@ -12,13 +14,19 @@ const softPunctuations = new Set(',，、–—:：;；《》「」')
 export interface TTSInputChunk {
   text: string
   words: number
-  reason: 'boost' | 'limit' | 'hard' | 'flush'
+  reason: 'boost' | 'limit' | 'hard' | 'flush' | 'special'
 }
 
 export interface TTSInputChunkOptions {
   boost?: number
   minimumWords?: number
   maximumWords?: number
+}
+
+// New output type for tts, metaData (special token) contained
+export interface TTSChunkItem {
+  chunk: string
+  special: string | null
 }
 
 /**
@@ -31,7 +39,10 @@ export interface TTSInputChunkOptions {
  * @param options.minimumWords Minimum number of words in a chunk.
  * @param options.maximumWords Maximum number of words in a chunk.
  */
-export async function* chunkTTSInput(input: string | ReaderLike, options?: TTSInputChunkOptions): AsyncGenerator<TTSInputChunk, void, unknown> {
+export async function* chunkTTSInput(
+  input: string | ReaderLike,
+  options?: TTSInputChunkOptions,
+): AsyncGenerator<TTSInputChunk, void, unknown> {
   const {
     boost = 2,
     minimumWords = 4,
@@ -69,13 +80,14 @@ export async function* chunkTTSInput(input: string | ReaderLike, options?: TTSIn
     }
 
     const flush = value === TTS_FLUSH_INSTRUCTION
+    const special = value === TTS_SPECIAL_TOKEN
     const hard = hardPunctuations.has(value)
     const soft = softPunctuations.has(value)
     const kept = keptPunctuations.has(value)
     let next: IteratorResult<string, any> | undefined
     let afterNext: IteratorResult<string, any> | undefined
 
-    if (flush || hard || soft) {
+    if (flush || special || hard || soft) {
       switch (value) {
         case '.':
         case ',': {
@@ -113,6 +125,18 @@ export async function* chunkTTSInput(input: string | ReaderLike, options?: TTSIn
       }
 
       if (buffer.length === 0) {
+        if (special) {
+          // Special token without buffered text still needs to be surfaced so
+          // downstream queues can process delay/emotion markers.
+          yield {
+            text: '',
+            words: 0,
+            reason: 'special',
+          }
+          yieldCount++
+          chunkWordsCount = 0
+        }
+
         previousValue = value
         current = await iterator.next()
         continue
@@ -136,7 +160,18 @@ export async function* chunkTTSInput(input: string | ReaderLike, options?: TTSIn
       chunkWordsCount += words.length
       buffer = ''
 
-      if (flush || hard || chunkWordsCount > maximumWords || yieldCount < boost) {
+      if (special) {
+        const text = chunk.slice(0, -1).trim()
+        yield {
+          text,
+          words: chunkWordsCount,
+          reason: 'special',
+        }
+        yieldCount++
+        chunk = ''
+        chunkWordsCount = 0
+      }
+      else if (flush || hard || chunkWordsCount > maximumWords || yieldCount < boost) {
         const text = chunk.trim()
         yield {
           text,
@@ -199,13 +234,29 @@ export async function* chunkTTSInput(input: string | ReaderLike, options?: TTSIn
   }
 }
 
-export async function chunkEmitter(reader: ReaderLike, handler: (chunk: string) => Promise<void> | void) {
+export async function chunkEmitter(
+  reader: ReaderLike,
+  pendingSpecials: string[],
+  handler: (ttsSegment: TTSChunkItem) => Promise<void> | void,
+) {
+  const sanitizeChunk = (text: string) =>
+    text
+      .replaceAll(TTS_SPECIAL_TOKEN, '')
+      .replaceAll(TTS_FLUSH_INSTRUCTION, '')
+      .trim()
+
   try {
     for await (const chunk of chunkTTSInput(reader)) {
       // TODO: remove later
-      // eslint-disable-next-line no-console
-      console.debug('chunk to be pushed: ', chunk)
-      await handler(chunk.text)
+
+      if (chunk.reason === 'special') {
+        const specialToken = pendingSpecials.shift()
+        // console.debug("special yield:", specialToken)
+        await handler({ chunk: sanitizeChunk(chunk.text), special: specialToken ?? null })
+      }
+      else {
+        await handler({ chunk: sanitizeChunk(chunk.text), special: null } as TTSChunkItem)
+      }
     }
   }
   catch (e) {

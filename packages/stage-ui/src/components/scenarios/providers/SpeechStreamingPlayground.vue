@@ -67,11 +67,11 @@ async function handleSpeechGeneration(ctx: { data: string }) {
 const ttsQueue = createQueue<string>({ handlers: [handleSpeechGeneration] })
 
 onTextSegmented((chunk) => {
-  ttsQueue.enqueue(chunk)
+  ttsQueue.enqueue(chunk.chunk)
 })
 
 async function testStreaming() {
-  textSegmentationQueue.value.enqueue(props.text)
+  textSegmentationQueue.value.enqueue({ type: 'literal', value: props.text })
 }
 
 async function testChunking() {
