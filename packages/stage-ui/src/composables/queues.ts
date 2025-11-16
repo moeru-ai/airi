@@ -174,10 +174,11 @@ export const usePipelineCharacterSpeechPlaybackQueueStore = defineStore('pipelin
             source.start(0)
             source.onended = () => {
               // Play special token: delay or emotion
-              for (const hook of onPlaybackFinishedHooks.value) {
-                if (ctx.data.special)
+              if (ctx.data.special) {
+                for (const hook of onPlaybackFinishedHooks.value)
                   hook({ special: ctx.data.special })
               }
+
               if (currentAudioSource.value === source) {
                 currentAudioSource.value = undefined
               }
