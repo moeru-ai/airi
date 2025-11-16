@@ -6,8 +6,9 @@ import { useLocalStorage } from '@vueuse/core'
 import { generateTranscription } from '@xsai/generate-transcription'
 import { streamTranscription } from '@xsai/stream-transcription'
 import { defineStore, storeToRefs } from 'pinia'
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 
+import { logHearing, summarizeHearingText } from '../../utils/hearing-logger'
 import { useProvidersStore } from '../providers'
 
 export interface StreamTranscriptionFileInputOptions extends Omit<XSAIStreamTranscriptionOptions, 'file' | 'fileName'> {
@@ -20,6 +21,11 @@ export interface StreamTranscriptionStreamInputOptions extends Omit<XSAIStreamTr
 }
 
 export type StreamTranscription = (options: WithUnknown<StreamTranscriptionFileInputOptions | StreamTranscriptionStreamInputOptions>) => StreamTranscriptionResult
+
+export const DEFAULT_TRANSCRIPTION_REGEX_ENABLED = true
+export const DEFAULT_TRANSCRIPTION_REGEX_PATTERN = '(?:\\[[^\\]]+\\])|(\\.)'
+export const DEFAULT_TRANSCRIPTION_REGEX_REPLACEMENT = ''
+export const DEFAULT_TRANSCRIPTION_REGEX_FLAGS = 'g'
 
 type GenerateTranscriptionResponse = Awaited<ReturnType<typeof generateTranscription>>
 type HearingTranscriptionGenerateResult = GenerateTranscriptionResponse & { mode: 'generate' }
@@ -41,13 +47,59 @@ const STREAM_TRANSCRIPTION_EXECUTORS: Record<string, StreamTranscription> = {
 
 export const useHearingStore = defineStore('hearing-store', () => {
   const providersStore = useProvidersStore()
-  const { allAudioTranscriptionProvidersMetadata } = storeToRefs(providersStore)
+  const {
+    allAudioTranscriptionProvidersMetadata,
+    configuredTranscriptionProvidersMetadata,
+  } = storeToRefs(providersStore)
 
   // State
   const activeTranscriptionProvider = useLocalStorage('settings/hearing/active-provider', '')
   const activeTranscriptionModel = useLocalStorage('settings/hearing/active-model', '')
   const activeCustomModelName = useLocalStorage('settings/hearing/active-custom-model', '')
   const transcriptionModelSearchQuery = ref('')
+  const transcriptionRegexEnabled = useLocalStorage('settings/hearing/regex/enabled', DEFAULT_TRANSCRIPTION_REGEX_ENABLED)
+  const transcriptionRegexPattern = useLocalStorage('settings/hearing/regex/pattern', DEFAULT_TRANSCRIPTION_REGEX_PATTERN)
+  const transcriptionRegexReplacement = useLocalStorage('settings/hearing/regex/replacement', DEFAULT_TRANSCRIPTION_REGEX_REPLACEMENT)
+  const transcriptionRegexFlags = useLocalStorage('settings/hearing/regex/flags', DEFAULT_TRANSCRIPTION_REGEX_FLAGS)
+  const transcriptionRegexError = ref<string | null>(null)
+
+  const compiledTranscriptionRegex = computed(() => {
+    if (!transcriptionRegexEnabled.value || !transcriptionRegexPattern.value) {
+      transcriptionRegexError.value = null
+      return null
+    }
+
+    try {
+      const regex = new RegExp(transcriptionRegexPattern.value, transcriptionRegexFlags.value || 'g')
+      transcriptionRegexError.value = null
+      return regex
+    }
+    catch (error) {
+      transcriptionRegexError.value = error instanceof Error ? error.message : String(error)
+      return null
+    }
+  })
+
+  function applyTranscriptionRegex(text: string) {
+    const regex = compiledTranscriptionRegex.value
+    if (!regex)
+      return text
+
+    try {
+      return text.replace(regex, transcriptionRegexReplacement.value ?? '')
+    }
+    catch (error) {
+      console.warn('Failed to apply transcription regex:', error)
+      return text
+    }
+  }
+
+  function resetTranscriptionRegex() {
+    transcriptionRegexEnabled.value = DEFAULT_TRANSCRIPTION_REGEX_ENABLED
+    transcriptionRegexPattern.value = DEFAULT_TRANSCRIPTION_REGEX_PATTERN
+    transcriptionRegexReplacement.value = DEFAULT_TRANSCRIPTION_REGEX_REPLACEMENT
+    transcriptionRegexFlags.value = DEFAULT_TRANSCRIPTION_REGEX_FLAGS
+  }
 
   // Computed properties
   const availableProvidersMetadata = computed(() => allAudioTranscriptionProvidersMetadata.value)
@@ -84,8 +136,21 @@ export const useHearingStore = defineStore('hearing-store', () => {
   }
 
   const configured = computed(() => {
-    return !!activeTranscriptionProvider.value && !!activeTranscriptionModel.value
+    return !!activeTranscriptionProvider.value
   })
+
+  watch(configuredTranscriptionProvidersMetadata, (providers) => {
+    if (!activeTranscriptionProvider.value)
+      return
+
+    const isStillConfigured = providers.some(provider => provider.id === activeTranscriptionProvider.value)
+    if (isStillConfigured)
+      return
+
+    activeTranscriptionProvider.value = ''
+    activeTranscriptionModel.value = ''
+    activeCustomModelName.value = ''
+  }, { immediate: true })
 
   async function transcription(
     providerId: string,
@@ -150,6 +215,15 @@ export const useHearingStore = defineStore('hearing-store', () => {
       throw new Error('File input is required for transcription.')
     }
 
+    logHearing('request', {
+      provider: providerId,
+      model,
+      format: format ?? 'default',
+      fileBytes: normalizedInput.file.size,
+      mimeType: normalizedInput.file.type || '(unknown)',
+      timestamp: new Date().toISOString(),
+    }, 'debug')
+
     const response = await generateTranscription({
       ...provider.transcription(model, options?.providerOptions),
       file: normalizedInput.file,
@@ -168,6 +242,11 @@ export const useHearingStore = defineStore('hearing-store', () => {
     availableProvidersMetadata,
     activeCustomModelName,
     transcriptionModelSearchQuery,
+    transcriptionRegexEnabled,
+    transcriptionRegexPattern,
+    transcriptionRegexReplacement,
+    transcriptionRegexFlags,
+    transcriptionRegexError,
 
     supportsModelListing,
     providerModels,
@@ -178,6 +257,8 @@ export const useHearingStore = defineStore('hearing-store', () => {
     transcription,
     loadModelsForProvider,
     getModelsForProvider,
+    applyTranscriptionRegex,
+    resetTranscriptionRegex,
   }
 })
 
@@ -185,7 +266,14 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
   const error = ref<string>()
 
   const hearingStore = useHearingStore()
-  const { activeTranscriptionProvider, activeTranscriptionModel } = storeToRefs(hearingStore)
+  const {
+    activeTranscriptionProvider,
+    activeTranscriptionModel,
+    transcriptionRegexEnabled,
+    transcriptionRegexPattern,
+    transcriptionRegexFlags,
+    transcriptionRegexReplacement,
+  } = storeToRefs(hearingStore)
   const providersStore = useProvidersStore()
 
   async function transcribeForRecording(recording: Blob | null | undefined) {
@@ -208,7 +296,31 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
           model,
           new File([recording], 'recording.wav'),
         )
-        return result.mode === 'stream' ? await result.text : result.text
+        const rawText = result.mode === 'stream' ? await result.text : result.text
+        const normalizedRaw = rawText ?? ''
+        const sanitized = hearingStore.applyTranscriptionRegex(normalizedRaw)
+        const regexActive = transcriptionRegexEnabled.value && !!transcriptionRegexPattern.value
+        const regexChanged = regexActive && normalizedRaw !== sanitized
+
+        logHearing('regex-transform', {
+          provider: providerId,
+          model,
+          rawPreview: summarizeHearingText(normalizedRaw),
+          sanitizedPreview: summarizeHearingText(sanitized),
+          rawLength: normalizedRaw.length,
+          sanitizedLength: sanitized.length,
+          regexEnabled: regexActive,
+          regexChanged,
+          pattern: transcriptionRegexPattern.value,
+          flags: transcriptionRegexFlags.value,
+          replacementSample: transcriptionRegexReplacement.value ? transcriptionRegexReplacement.value.slice(0, 32) : '',
+        }, 'debug')
+
+        if (!sanitized.trim() && normalizedRaw && normalizedRaw.trim()) {
+          console.warn('Transcription removed by regex; message will not be sent to the chat.')
+        }
+
+        return sanitized
       }
     }
     catch (err) {

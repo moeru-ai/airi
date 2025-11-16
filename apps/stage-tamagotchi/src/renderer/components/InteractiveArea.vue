@@ -4,6 +4,7 @@ import type { ChatProvider } from '@xsai-ext/shared-providers'
 import { useMicVAD } from '@proj-airi/stage-ui/composables'
 import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
 import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
+import { useTranslationStore } from '@proj-airi/stage-ui/stores/modules/translation'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { BasicTextarea } from '@proj-airi/ui'
@@ -25,6 +26,7 @@ const { t } = useI18n()
 const providersStore = useProvidersStore()
 const { activeModel, activeProvider } = storeToRefs(useConsciousnessStore())
 const isComposing = ref(false)
+const translationStore = useTranslationStore()
 
 async function handleSend() {
   if (isComposing.value) {
@@ -35,10 +37,14 @@ async function handleSend() {
     return
   }
 
+  let sendInvoked = false
   try {
     const providerConfig = providersStore.getProviderConfig(activeProvider.value)
     const attachmentsToSend = attachments.value.map(({ data, mimeType, type }) => ({ data, mimeType, type }))
-    await send(messageInput.value, {
+    const translatedInput = await translationStore.translateInputText(messageInput.value)
+
+    sendInvoked = true
+    await send(translatedInput, {
       model: activeModel.value,
       chatProvider: await providersStore.getProviderInstance<ChatProvider>(activeProvider.value),
       providerConfig,
@@ -49,7 +55,8 @@ async function handleSend() {
     messageInput.value = ''
   }
   catch (error) {
-    messages.value.pop()
+    if (sendInvoked)
+      messages.value.pop()
     messages.value.push({
       role: 'error',
       content: (error as Error).message,

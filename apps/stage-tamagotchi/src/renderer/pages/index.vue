@@ -10,7 +10,8 @@ import { useVAD } from '@proj-airi/stage-ui/stores/ai/models/vad'
 import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
 import { useLive2d } from '@proj-airi/stage-ui/stores/live2d'
 import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
-import { useHearingSpeechInputPipeline } from '@proj-airi/stage-ui/stores/modules/hearing'
+import { useHearingSpeechInputPipeline, useHearingStore } from '@proj-airi/stage-ui/stores/modules/hearing'
+import { useTranslationStore } from '@proj-airi/stage-ui/stores/modules/translation'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { refDebounced, useBroadcastChannel } from '@vueuse/core'
@@ -97,10 +98,13 @@ const settingsAudioDeviceStore = useSettingsAudioDevice()
 const { stream, enabled } = storeToRefs(settingsAudioDeviceStore)
 const { startRecord, stopRecord, onStopRecord } = useAudioRecorder(stream)
 const { transcribeForRecording } = useHearingSpeechInputPipeline()
+const hearingStore = useHearingStore()
 const providersStore = useProvidersStore()
 const consciousnessStore = useConsciousnessStore()
 const { activeProvider: activeChatProvider, activeModel: activeChatModel } = storeToRefs(consciousnessStore)
+const { activeTranscriptionProvider, activeTranscriptionModel } = storeToRefs(hearingStore)
 const chatStore = useChatStore()
+const translationStore = useTranslationStore()
 
 const {
   init: initVAD,
@@ -129,6 +133,15 @@ async function startAudioInteraction() {
 
     // Hook once
     stopOnStopRecord = onStopRecord(async (recording) => {
+      if (recording) {
+        console.warn('[tamagotchi][stt][request]', {
+          provider: activeTranscriptionProvider.value || '(unset)',
+          model: activeTranscriptionModel.value || '(unset)',
+          blobBytes: recording.size,
+          mimeType: recording.type || '(unknown)',
+          timestamp: new Date().toISOString(),
+        })
+      }
       const text = await transcribeForRecording(recording)
       if (!text || !text.trim())
         return
@@ -141,7 +154,14 @@ async function startAudioInteraction() {
         if (!provider || !activeChatModel.value)
           return
 
-        await chatStore.send(text, { model: activeChatModel.value, chatProvider: provider as ChatProvider })
+        console.warn('[tamagotchi][chat][prompt:voice]', {
+          provider: activeChatProvider.value || '(unset)',
+          model: activeChatModel.value || '(unset)',
+          transcriptPreview: text.slice(0, 120),
+          timestamp: new Date().toISOString(),
+        })
+        const translatedText = await translationStore.translateInputText(text)
+        await chatStore.send(translatedText, { model: activeChatModel.value, chatProvider: provider as ChatProvider })
       }
       catch (err) {
         console.error('Failed to send chat from voice:', err)

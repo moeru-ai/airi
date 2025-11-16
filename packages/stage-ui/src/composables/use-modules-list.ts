@@ -6,7 +6,9 @@ import { useConsciousnessStore } from '../stores/modules/consciousness'
 import { useDiscordStore } from '../stores/modules/discord'
 import { useFactorioStore } from '../stores/modules/gaming-factorio'
 import { useMinecraftStore } from '../stores/modules/gaming-minecraft'
+import { useHearingStore } from '../stores/modules/hearing'
 import { useSpeechStore } from '../stores/modules/speech'
+import { useTranslationStore } from '../stores/modules/translation'
 import { useTwitterStore } from '../stores/modules/twitter'
 
 export interface Module {
@@ -27,6 +29,8 @@ export function useModulesList() {
   // Initialize stores
   const consciousnessStore = useConsciousnessStore()
   const speechStore = useSpeechStore()
+  const hearingStore = useHearingStore()
+  const translationStore = useTranslationStore()
   const discordStore = useDiscordStore()
   const twitterStore = useTwitterStore()
   const minecraftStore = useMinecraftStore()
@@ -58,7 +62,16 @@ export function useModulesList() {
       description: t('settings.pages.modules.hearing.description'),
       icon: 'i-solar:microphone-3-bold-duotone',
       to: '/settings/modules/hearing',
-      configured: false,
+      configured: hearingStore.configured,
+      category: 'essential',
+    },
+    {
+      id: 'translation',
+      name: t('settings.pages.modules.translation.title'),
+      description: t('settings.pages.modules.translation.description'),
+      icon: 'i-ph:translate',
+      to: '/settings/modules/translation',
+      configured: translationStore.configured,
       category: 'essential',
     },
     {

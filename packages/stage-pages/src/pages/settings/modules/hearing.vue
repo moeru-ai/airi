@@ -5,10 +5,17 @@ import { Alert, Button, ErrorContainer, LevelMeter, RadioCardManySelect, RadioCa
 import { useAudioAnalyzer, useAudioRecorder } from '@proj-airi/stage-ui/composables'
 import { useVAD } from '@proj-airi/stage-ui/stores/ai/models/vad'
 import { useAudioContext } from '@proj-airi/stage-ui/stores/audio'
-import { useHearingSpeechInputPipeline, useHearingStore } from '@proj-airi/stage-ui/stores/modules/hearing'
+import {
+  DEFAULT_TRANSCRIPTION_REGEX_ENABLED,
+  DEFAULT_TRANSCRIPTION_REGEX_FLAGS,
+  DEFAULT_TRANSCRIPTION_REGEX_PATTERN,
+  DEFAULT_TRANSCRIPTION_REGEX_REPLACEMENT,
+  useHearingSpeechInputPipeline,
+  useHearingStore,
+} from '@proj-airi/stage-ui/stores/modules/hearing'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
-import { FieldCheckbox, FieldRange, FieldSelect } from '@proj-airi/ui'
+import { FieldCheckbox, FieldInput, FieldRange, FieldSelect } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -25,12 +32,25 @@ const {
   supportsModelListing,
   transcriptionModelSearchQuery,
   activeCustomModelName,
+  transcriptionRegexEnabled,
+  transcriptionRegexPattern,
+  transcriptionRegexReplacement,
+  transcriptionRegexFlags,
+  transcriptionRegexError,
 } = storeToRefs(hearingStore)
 const providersStore = useProvidersStore()
 const { configuredTranscriptionProvidersMetadata } = storeToRefs(providersStore)
 
-const { stopStream, startStream } = useSettingsAudioDevice()
-const { audioInputs, selectedAudioInput, stream } = storeToRefs(useSettingsAudioDevice())
+const settingsAudioDeviceStore = useSettingsAudioDevice()
+const { stopStream, startStream } = settingsAudioDeviceStore
+const {
+  audioInputs,
+  selectedAudioInput,
+  stream,
+  autoGainControlEnabled,
+  echoCancellationEnabled,
+  noiseSuppressionEnabled,
+} = storeToRefs(settingsAudioDeviceStore)
 const { startRecord, stopRecord, onStopRecord } = useAudioRecorder(stream)
 const { startAnalyzer, stopAnalyzer, onAnalyzerUpdate, volumeLevel } = useAudioAnalyzer()
 const { audioContext } = storeToRefs(useAudioContext())
@@ -52,7 +72,34 @@ const audioURLs = computed(() => {
   })
 })
 
+const manualHearingModel = computed({
+  get: () => activeTranscriptionModel.value || activeCustomModelName.value,
+  set: (value: string) => {
+    activeTranscriptionModel.value = value
+    activeCustomModelName.value = value
+  },
+})
+
+const isTranscriptionRegexDefault = computed(() => {
+  return transcriptionRegexEnabled.value === DEFAULT_TRANSCRIPTION_REGEX_ENABLED
+    && (transcriptionRegexPattern.value ?? '') === DEFAULT_TRANSCRIPTION_REGEX_PATTERN
+    && (transcriptionRegexReplacement.value ?? '') === DEFAULT_TRANSCRIPTION_REGEX_REPLACEMENT
+    && (transcriptionRegexFlags.value ?? '') === DEFAULT_TRANSCRIPTION_REGEX_FLAGS
+})
+
 const useVADThreshold = ref(0.6) // 0.1 - 0.9
+const useVADThresholdPercent = computed({
+  get: () => Math.round(useVADThreshold.value * 100),
+  set: (percent: number) => {
+    const numericValue = typeof percent === 'number' ? percent : Number(percent)
+    if (Number.isNaN(numericValue))
+      return
+
+    const normalized = numericValue / 100
+    useVADThreshold.value = Math.min(Math.max(normalized, 0), 1)
+  },
+})
+const speechPaddingMs = ref(80) // 0.08s - 1s pre-roll
 const useVADModel = ref(true) // Toggle between VAD and volume-based detection
 const {
   init: initVAD,
@@ -66,6 +113,7 @@ const {
   loading: loadingVAD,
 } = useVAD(workletUrl, {
   threshold: useVADThreshold,
+  speechPadMs: speechPaddingMs,
   onSpeechStart: () => startRecord(),
   onSpeechEnd: () => stopRecord(),
 })
@@ -100,7 +148,7 @@ async function setupAudioMonitoring() {
     const analyzer = startAnalyzer(audioContext.value)
     onAnalyzerUpdate((volumeLevel) => {
       if (!useVADModel.value || !loadedVAD.value) {
-        isSpeechVolume.value = volumeLevel > useVADThreshold.value
+        isSpeechVolume.value = volumeLevel > useVADThresholdPercent.value
       }
     })
     if (analyzer)
@@ -174,10 +222,16 @@ function updateCustomModelName(value: string) {
 }
 
 onStopRecord(async (recording) => {
-  if (recording && recording.size > 0)
-    audios.value.push(recording)
+  if (!recording || recording.size <= 0)
+    return
 
-  const res = await transcribeForRecording(recording)
+  const buffer = await recording.arrayBuffer()
+  const fileType = recording.type || 'audio/wav'
+  const file = new File([buffer], `recording-${Date.now()}.wav`, { type: fileType })
+
+  audios.value.push(file)
+
+  const res = await transcribeForRecording(file)
 
   if (res)
     transcriptions.value.push(res)
@@ -213,6 +267,32 @@ onUnmounted(() => {
             }))"
             placeholder="Select an audio input device"
             layout="vertical"
+          />
+        </div>
+
+        <div class="space-y-3 rounded-xl border border-neutral-200/60 p-4 dark:border-neutral-800/60">
+          <div class="space-y-1">
+            <h3 class="text-base font-medium text-neutral-700 dark:text-neutral-200">
+              {{ t('settings.pages.modules.hearing.sections.section.audio-processing.title') }}
+            </h3>
+            <p class="text-sm text-neutral-500 dark:text-neutral-400">
+              {{ t('settings.pages.modules.hearing.sections.section.audio-processing.description') }}
+            </p>
+          </div>
+          <FieldCheckbox
+            v-model="autoGainControlEnabled"
+            :label="t('settings.pages.modules.hearing.sections.section.audio-processing.auto-gain-control.label')"
+            :description="t('settings.pages.modules.hearing.sections.section.audio-processing.auto-gain-control.description')"
+          />
+          <FieldCheckbox
+            v-model="echoCancellationEnabled"
+            :label="t('settings.pages.modules.hearing.sections.section.audio-processing.echo-cancellation.label')"
+            :description="t('settings.pages.modules.hearing.sections.section.audio-processing.echo-cancellation.description')"
+          />
+          <FieldCheckbox
+            v-model="noiseSuppressionEnabled"
+            :label="t('settings.pages.modules.hearing.sections.section.audio-processing.noise-suppression.label')"
+            :description="t('settings.pages.modules.hearing.sections.section.audio-processing.noise-suppression.description')"
           />
         </div>
 
@@ -305,16 +385,23 @@ onUnmounted(() => {
               <span>{{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.loading') }}</span>
             </div>
 
-            <!-- Error state -->
-            <ErrorContainer
-              v-else-if="activeProviderModelError"
-              :title="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.error')"
-              :error="activeProviderModelError"
-            />
+            <!-- Warning when models cannot be fetched -->
+            <Alert
+              v-if="!isLoadingActiveProviderModels && activeProviderModelError"
+              type="warning"
+              icon="i-solar:warning-triangle-line-duotone"
+            >
+              <template #title>
+                {{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.error') }}
+              </template>
+              <template #content>
+                {{ activeProviderModelError }}
+              </template>
+            </Alert>
 
             <!-- No models available -->
             <Alert
-              v-else-if="providerModels.length === 0 && !isLoadingActiveProviderModels"
+              v-if="providerModels.length === 0 && !isLoadingActiveProviderModels"
               type="warning"
             >
               <template #title>
@@ -325,24 +412,61 @@ onUnmounted(() => {
               </template>
             </Alert>
 
-            <!-- Using the new RadioCardManySelect component -->
-            <template v-else-if="providerModels.length > 0">
-              <RadioCardManySelect
-                v-model="activeTranscriptionModel"
-                v-model:search-query="transcriptionModelSearchQuery"
-                :items="providerModels.sort((a, b) => a.id === activeTranscriptionModel ? -1 : b.id === activeTranscriptionModel ? 1 : 0)"
-                :searchable="true"
-                :search-placeholder="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.search_placeholder')"
-                :search-no-results-title="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.no_search_results')"
-                :search-no-results-description="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.no_search_results_description', { query: transcriptionModelSearchQuery })"
-                :search-results-text="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.search_results', { count: '{count}', total: '{total}' })"
-                :custom-input-placeholder="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.custom_model_placeholder')"
-                :expand-button-text="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.expand')"
-                :collapse-button-text="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.collapse')"
-                @update:custom-value="updateCustomModelName"
-              />
+            <template v-if="!isLoadingActiveProviderModels">
+              <div
+                v-if="providerModels.length === 0"
+                class="space-y-2"
+                border="~ dashed neutral-200 dark:neutral-800"
+                rounded-xl
+                p-4
+              >
+                <FieldInput
+                  v-model="manualHearingModel"
+                  label="Manual model ID"
+                  description="Enter the model identifier exactly as the provider expects."
+                  placeholder="e.g. whisper-1"
+                />
+                <p class="text-xs text-neutral-500 dark:text-neutral-400">
+                  We'll remember this value even if the provider cannot list models.
+                </p>
+              </div>
+
+              <!-- Using the new RadioCardManySelect component -->
+              <template v-else>
+                <RadioCardManySelect
+                  v-model="activeTranscriptionModel"
+                  v-model:search-query="transcriptionModelSearchQuery"
+                  :items="providerModels.sort((a, b) => a.id === activeTranscriptionModel ? -1 : b.id === activeTranscriptionModel ? 1 : 0)"
+                  :searchable="true"
+                  :search-placeholder="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.search_placeholder')"
+                  :search-no-results-title="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.no_search_results')"
+                  :search-no-results-description="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.no_search_results_description', { query: transcriptionModelSearchQuery })"
+                  :search-results-text="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.search_results', { count: '{count}', total: '{total}' })"
+                  :custom-input-placeholder="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.custom_model_placeholder')"
+                  :expand-button-text="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.expand')"
+                  :collapse-button-text="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.collapse')"
+                  @update:custom-value="updateCustomModelName"
+                />
+              </template>
             </template>
           </div>
+        </div>
+
+        <div v-else-if="activeTranscriptionProvider" class="space-y-4">
+          <Alert type="info">
+            <template #title>
+              Provider does not list models automatically
+            </template>
+            <template #content>
+              Enter the model ID manually so we can save your configuration.
+            </template>
+          </Alert>
+          <FieldInput
+            v-model="manualHearingModel"
+            label="Model ID"
+            description="Paste the transcription model name exactly as required by your provider."
+            placeholder="e.g. whisper-1"
+          />
         </div>
       </div>
     </div>
@@ -402,11 +526,20 @@ onUnmounted(() => {
                   :step="0.05"
                   :format-value="value => `${(value * 100).toFixed(0)}%`"
                 />
+                <FieldRange
+                  v-model="speechPaddingMs"
+                  label="Speech Padding"
+                  description="Buffer the audio so transcriptions include up to this many ms before the point VAD kicked in"
+                  :min="80"
+                  :max="1000"
+                  :step="20"
+                  :format-value="value => `${(value / 1000).toFixed(2)}s`"
+                />
               </div>
 
               <div v-else class="space-y-3">
                 <FieldRange
-                  v-model="useVADThreshold"
+                  v-model="useVADThresholdPercent"
                   label="Sensitivity"
                   description="Adjust the threshold for speech detection"
                   :min="1"
@@ -478,6 +611,75 @@ onUnmounted(() => {
             </div>
           </div>
         </div>
+      </div>
+
+      <div
+        class="space-y-4"
+        border="~ dashed neutral-200 dark:neutral-800"
+        rounded-xl
+        p-4
+      >
+        <div>
+          <h2 class="text-lg md:text-2xl">
+            {{ t('settings.pages.modules.hearing.sections.section.regex.title') }}
+          </h2>
+          <div class="text-sm text-neutral-500 dark:text-neutral-400">
+            {{ t('settings.pages.modules.hearing.sections.section.regex.description') }}
+          </div>
+        </div>
+
+        <FieldCheckbox
+          v-model="transcriptionRegexEnabled"
+          :label="t('settings.pages.modules.hearing.sections.section.regex.enable.label')"
+          :description="t('settings.pages.modules.hearing.sections.section.regex.enable.description')"
+        />
+
+        <div class="flex flex-wrap gap-2 md:flex-nowrap md:items-end">
+          <FieldInput
+            v-model="transcriptionRegexPattern"
+            class="flex-1 min-w-0"
+            :label="t('settings.pages.modules.hearing.sections.section.regex.pattern.label')"
+            :description="t('settings.pages.modules.hearing.sections.section.regex.pattern.description')"
+            :placeholder="t('settings.pages.modules.hearing.sections.section.regex.pattern.placeholder')"
+            :disabled="!transcriptionRegexEnabled"
+            spellcheck="false"
+          />
+
+          <Button
+            class="shrink-0 whitespace-nowrap w-full md:w-auto"
+            size="sm"
+            variant="secondary-muted"
+            icon="i-solar:refresh-bold-duotone"
+            :disabled="isTranscriptionRegexDefault"
+            :title="t('settings.pages.modules.hearing.sections.section.regex.reset.tooltip')"
+            @click="hearingStore.resetTranscriptionRegex()"
+          >
+            {{ t('settings.pages.modules.hearing.sections.section.regex.reset.label') }}
+          </Button>
+        </div>
+
+        <FieldInput
+          v-model="transcriptionRegexReplacement"
+          :label="t('settings.pages.modules.hearing.sections.section.regex.replacement.label')"
+          :description="t('settings.pages.modules.hearing.sections.section.regex.replacement.description')"
+          :placeholder="t('settings.pages.modules.hearing.sections.section.regex.replacement.placeholder')"
+          :disabled="!transcriptionRegexEnabled"
+        />
+
+        <FieldInput
+          v-model="transcriptionRegexFlags"
+          :label="t('settings.pages.modules.hearing.sections.section.regex.flags.label')"
+          :description="t('settings.pages.modules.hearing.sections.section.regex.flags.description')"
+          placeholder="g"
+          :disabled="!transcriptionRegexEnabled"
+        />
+
+        <p
+          v-if="transcriptionRegexError"
+          class="rounded-lg bg-amber-100 px-3 py-2 text-sm text-amber-700 dark:bg-amber-500/10 dark:text-amber-300"
+        >
+          {{ t('settings.pages.modules.hearing.sections.section.regex.error_prefix') }} {{ transcriptionRegexError }}
+        </p>
       </div>
     </div>
   </div>

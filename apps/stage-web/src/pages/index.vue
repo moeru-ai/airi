@@ -10,6 +10,7 @@ import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
 import { useLive2d } from '@proj-airi/stage-ui/stores/live2d'
 import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
 import { useHearingSpeechInputPipeline } from '@proj-airi/stage-ui/stores/modules/hearing'
+import { useTranslationStore } from '@proj-airi/stage-ui/stores/modules/translation'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { breakpointsTailwind, useBreakpoints, useDark, useMouse } from '@vueuse/core'
@@ -50,6 +51,7 @@ const providersStore = useProvidersStore()
 const consciousnessStore = useConsciousnessStore()
 const { activeProvider: activeChatProvider, activeModel: activeChatModel } = storeToRefs(consciousnessStore)
 const chatStore = useChatStore()
+const translationStore = useTranslationStore()
 
 const {
   init: initVAD,
@@ -81,7 +83,8 @@ async function startAudioInteraction() {
         if (!provider || !activeChatModel.value)
           return
 
-        await chatStore.send(text, { model: activeChatModel.value, chatProvider: provider as ChatProvider })
+        const translatedText = await translationStore.translateInputText(text)
+        await chatStore.send(translatedText, { model: activeChatModel.value, chatProvider: provider as ChatProvider })
       }
       catch (err) {
         console.error('Failed to send chat from voice:', err)

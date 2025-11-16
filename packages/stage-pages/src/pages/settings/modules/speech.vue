@@ -3,14 +3,20 @@ import type { SpeechProviderWithExtraOptions } from '@xsai-ext/shared-providers'
 
 import {
   Alert,
-  ErrorContainer,
+  Button,
   RadioCardManySelect,
   RadioCardSimple,
   Skeleton,
   TestDummyMarker,
   VoiceCardManySelect,
 } from '@proj-airi/stage-ui/components'
-import { useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
+import {
+  DEFAULT_SPEECH_REGEX_ENABLED,
+  DEFAULT_SPEECH_REGEX_FLAGS,
+  DEFAULT_SPEECH_REGEX_PATTERN,
+  DEFAULT_SPEECH_REGEX_REPLACEMENT,
+  useSpeechStore,
+} from '@proj-airi/stage-ui/stores/modules/speech'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import {
   FieldCheckbox,
@@ -20,7 +26,7 @@ import {
 } from '@proj-airi/ui'
 import { generateSpeech } from '@xsai/generate-speech'
 import { storeToRefs } from 'pinia'
-import { onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
 
@@ -42,7 +48,13 @@ const {
   modelSearchQuery,
   speechProviderError,
   ssmlEnabled,
+  sendFullResponseToSpeechProvider,
   availableVoices,
+  speechRegexEnabled,
+  speechRegexPattern,
+  speechRegexReplacement,
+  speechRegexFlags,
+  speechRegexError,
 } = storeToRefs(speechStore)
 
 const voiceSearchQuery = ref('')
@@ -53,6 +65,17 @@ const isGenerating = ref(false)
 const audioUrl = ref('')
 const audioPlayer = ref<HTMLAudioElement | null>(null)
 const errorMessage = ref('')
+const manualVoiceName = computed({
+  get: () => activeSpeechVoiceId.value,
+  set: value => updateCustomVoiceName(value),
+})
+
+const isSpeechRegexDefault = computed(() => {
+  return speechRegexEnabled.value === DEFAULT_SPEECH_REGEX_ENABLED
+    && (speechRegexPattern.value ?? '') === DEFAULT_SPEECH_REGEX_PATTERN
+    && (speechRegexReplacement.value ?? '') === DEFAULT_SPEECH_REGEX_REPLACEMENT
+    && (speechRegexFlags.value ?? '') === DEFAULT_SPEECH_REGEX_FLAGS
+})
 
 onMounted(async () => {
   await providersStore.loadModelsForConfiguredProviders()
@@ -71,6 +94,15 @@ async function generateTestSpeech() {
 
   if (useSSML.value && !ssmlText.value.trim())
     return
+
+  let processedText = testText.value
+  if (!useSSML.value) {
+    processedText = speechStore.applySpeechRegex(processedText)
+    if (!processedText.trim()) {
+      errorMessage.value = t('settings.pages.modules.speech.sections.section.regex.preview_warning')
+      return
+    }
+  }
 
   if (!activeSpeechModel.value) {
     console.error('No model selected')
@@ -101,7 +133,7 @@ async function generateTestSpeech() {
 
     const input = useSSML.value
       ? ssmlText.value
-      : speechStore.supportsSSML ? speechStore.generateSSML(testText.value, activeSpeechVoice.value, { ...providerConfig, pitch: pitch.value }) : testText.value
+      : speechStore.supportsSSML ? speechStore.generateSSML(processedText, activeSpeechVoice.value, { ...providerConfig, pitch: pitch.value }) : processedText
 
     const response = await generateSpeech({
       ...provider.speech(activeSpeechModel.value, providerConfig),
@@ -150,18 +182,23 @@ onUnmounted(() => {
 })
 
 function updateCustomVoiceName(value: string | undefined) {
-  if (!value) {
+  const normalizedValue = value?.trim() ?? ''
+
+  if (!normalizedValue) {
+    activeSpeechVoiceId.value = ''
     activeSpeechVoice.value = undefined
     return
   }
+
+  activeSpeechVoiceId.value = normalizedValue
   activeSpeechVoice.value = {
-    id: value,
-    name: value,
-    description: value,
-    previewURL: value,
+    id: normalizedValue,
+    name: normalizedValue,
+    description: normalizedValue,
+    previewURL: undefined,
     languages: [{ code: 'en', title: 'English' }],
     provider: activeSpeechProvider.value,
-    gender: 'male',
+    gender: 'neutral',
   }
 }
 
@@ -253,15 +290,22 @@ function updateCustomModelName(value: string) {
                 <span>{{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.loading') }}</span>
               </div>
 
-              <!-- Error state -->
-              <ErrorContainer
-                v-else-if="activeProviderModelError"
-                :title="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.error')"
-                :error="activeProviderModelError"
-              />
+              <!-- Warning when models cannot be fetched -->
+              <Alert
+                v-if="!isLoadingActiveProviderModels && activeProviderModelError"
+                type="warning"
+                icon="i-solar:warning-triangle-line-duotone"
+              >
+                <template #title>
+                  {{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.error') }}
+                </template>
+                <template #content>
+                  {{ activeProviderModelError }}
+                </template>
+              </Alert>
 
               <!-- No models available -->
-              <Alert v-else-if="providerModels.length === 0 && !isLoadingActiveProviderModels" type="warning">
+              <Alert v-if="providerModels.length === 0 && !isLoadingActiveProviderModels" type="warning">
                 <template #title>
                   {{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.no_models') }}
                 </template>
@@ -270,24 +314,61 @@ function updateCustomModelName(value: string) {
                 </template>
               </Alert>
 
-              <!-- Using the new RadioCardManySelect component -->
-              <template v-else-if="providerModels.length > 0">
-                <RadioCardManySelect
-                  v-model="activeSpeechModel"
-                  v-model:search-query="modelSearchQuery"
-                  :items="providerModels"
-                  :searchable="true"
-                  :search-placeholder="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.search_placeholder')"
-                  :search-no-results-title="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.no_search_results')"
-                  :search-no-results-description="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.no_search_results_description', { query: modelSearchQuery })"
-                  :search-results-text="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.search_results', { count: '{count}', total: '{total}' })"
-                  :custom-input-placeholder="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.custom_model_placeholder')"
-                  :expand-button-text="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.expand')"
-                  :collapse-button-text="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.collapse')"
-                  @update:custom-value="updateCustomModelName"
-                />
+              <template v-if="!isLoadingActiveProviderModels">
+                <div
+                  v-if="providerModels.length === 0"
+                  class="space-y-2"
+                  border="~ dashed neutral-200 dark:neutral-800"
+                  rounded-xl
+                  p-4
+                >
+                  <FieldInput
+                    v-model="activeSpeechModel"
+                    label="Manual model ID"
+                    description="Enter the speech model identifier manually."
+                    placeholder="e.g. eleven_multilingual_v2"
+                  />
+                  <p class="text-xs text-neutral-500 dark:text-neutral-400">
+                    We'll keep this value even when the provider cannot list models.
+                  </p>
+                </div>
+
+                <!-- Using the new RadioCardManySelect component -->
+                <template v-else>
+                  <RadioCardManySelect
+                    v-model="activeSpeechModel"
+                    v-model:search-query="modelSearchQuery"
+                    :items="providerModels"
+                    :searchable="true"
+                    :search-placeholder="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.search_placeholder')"
+                    :search-no-results-title="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.no_search_results')"
+                    :search-no-results-description="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.no_search_results_description', { query: modelSearchQuery })"
+                    :search-results-text="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.search_results', { count: '{count}', total: '{total}' })"
+                    :custom-input-placeholder="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.custom_model_placeholder')"
+                    :expand-button-text="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.expand')"
+                    :collapse-button-text="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.collapse')"
+                    @update:custom-value="updateCustomModelName"
+                  />
+                </template>
               </template>
             </div>
+          </div>
+
+          <div v-else-if="activeSpeechProvider" class="space-y-4">
+            <Alert type="info">
+              <template #title>
+                Provider does not list speech models
+              </template>
+              <template #content>
+                Provide the model ID manually so we can store your selection.
+              </template>
+            </Alert>
+            <FieldInput
+              v-model="activeSpeechModel"
+              label="Model ID"
+              description="Paste the speech model identifier as required by your provider."
+              placeholder="e.g. my-custom-tts-model"
+            />
           </div>
         </div>
       </div>
@@ -361,12 +442,19 @@ function updateCustomModelName(value: string) {
             />
           </div>
 
-          <ErrorContainer
+          <Alert
             v-else-if="speechProviderError"
+            type="warning"
+            icon="i-solar:warning-triangle-line-duotone"
             class="mb-2"
-            title="Error loading voices"
-            :error="speechProviderError"
-          />
+          >
+            <template #title>
+              Error loading voices
+            </template>
+            <template #content>
+              {{ speechProviderError }}
+            </template>
+          </Alert>
 
           <!-- No voices available -->
           <Alert
@@ -399,6 +487,80 @@ function updateCustomModelName(value: string) {
               label="Enable SSML"
               description="Enable Speech Synthesis Markup Language for more control over speech output"
             />
+            <FieldCheckbox
+              v-model="sendFullResponseToSpeechProvider"
+              :label="t('settings.pages.modules.speech.sections.section.voice-settings.playback-mode.label')"
+              :description="t('settings.pages.modules.speech.sections.section.voice-settings.playback-mode.description')"
+            />
+          </div>
+
+          <div
+            class="space-y-4"
+            border="~ dashed neutral-200 dark:neutral-800"
+            rounded-xl
+            p-4
+          >
+            <div>
+              <h2 class="text-lg md:text-2xl">
+                {{ t('settings.pages.modules.speech.sections.section.regex.title') }}
+              </h2>
+              <div class="text-sm text-neutral-500 dark:text-neutral-400">
+                {{ t('settings.pages.modules.speech.sections.section.regex.description') }}
+              </div>
+            </div>
+
+            <FieldCheckbox
+              v-model="speechRegexEnabled"
+              :label="t('settings.pages.modules.speech.sections.section.regex.enable.label')"
+              :description="t('settings.pages.modules.speech.sections.section.regex.enable.description')"
+            />
+
+            <div class="flex flex-wrap gap-2 md:flex-nowrap md:items-end">
+              <FieldInput
+                v-model="speechRegexPattern"
+                class="flex-1 min-w-0"
+                :label="t('settings.pages.modules.speech.sections.section.regex.pattern.label')"
+                :description="t('settings.pages.modules.speech.sections.section.regex.pattern.description')"
+                :placeholder="t('settings.pages.modules.speech.sections.section.regex.pattern.placeholder')"
+                :disabled="!speechRegexEnabled"
+                spellcheck="false"
+              />
+
+              <Button
+                class="shrink-0 whitespace-nowrap w-full md:w-auto"
+                size="sm"
+                variant="secondary-muted"
+                icon="i-solar:refresh-bold-duotone"
+                :disabled="isSpeechRegexDefault"
+                :title="t('settings.pages.modules.speech.sections.section.regex.reset.tooltip')"
+                @click="speechStore.resetSpeechRegex()"
+              >
+                {{ t('settings.pages.modules.speech.sections.section.regex.reset.label') }}
+              </Button>
+            </div>
+
+            <FieldInput
+              v-model="speechRegexReplacement"
+              :label="t('settings.pages.modules.speech.sections.section.regex.replacement.label')"
+              :description="t('settings.pages.modules.speech.sections.section.regex.replacement.description')"
+              :placeholder="t('settings.pages.modules.speech.sections.section.regex.replacement.placeholder')"
+              :disabled="!speechRegexEnabled"
+            />
+
+            <FieldInput
+              v-model="speechRegexFlags"
+              :label="t('settings.pages.modules.speech.sections.section.regex.flags.label')"
+              :description="t('settings.pages.modules.speech.sections.section.regex.flags.description')"
+              placeholder="g"
+              :disabled="!speechRegexEnabled"
+            />
+
+            <p
+              v-if="speechRegexError"
+              class="rounded-lg bg-amber-100 px-3 py-2 text-sm text-amber-700 dark:bg-amber-500/10 dark:text-amber-300"
+            >
+              {{ t('settings.pages.modules.speech.sections.section.regex.error_prefix') }} {{ speechRegexError }}
+            </p>
           </div>
 
           <!-- Manual voice input when no voices are available -->
@@ -407,11 +569,11 @@ function updateCustomModelName(value: string) {
             class="mt-2 space-y-6"
           >
             <FieldInput
+              v-model="manualVoiceName"
               type="text"
               label="Voice Name"
               description="Enter the voice name for your custom voice"
               placeholder="Enter voice name (e.g., 'Rachel', 'Josh')"
-              @update:model-value="updateCustomVoiceName"
             />
 
             <!-- Model selection for ElevenLabs -->
