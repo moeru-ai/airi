@@ -158,9 +158,12 @@ delaysQueue.onHandlerEvent('delay', (delay) => {
 })
 
 // Play special token: delay or emotion
-onPlaybackFinished(({ special }) => {
+function playSpecialToken(special: string) {
   delaysQueue.enqueue(special)
   emotionMessageContentQueue.enqueue(special)
+}
+onPlaybackFinished(({ special }) => {
+  playSpecialToken(special)
 })
 
 async function handleSpeechGeneration(ctx: { data: TTSChunkItem }) {
@@ -187,8 +190,7 @@ async function handleSpeechGeneration(ctx: { data: TTSChunkItem }) {
       return
     // If special token only and chunk = ""
     if (ctx.data.chunk === '' && ctx.data.special) {
-      delaysQueue.enqueue(ctx.data.special)
-      emotionMessageContentQueue.enqueue(ctx.data.special)
+      playSpecialToken(ctx.data.special)
       return
     }
 
