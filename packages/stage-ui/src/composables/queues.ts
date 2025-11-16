@@ -12,7 +12,7 @@ import { createQueue } from '../utils/queue'
 import { createControllableStream } from '../utils/stream'
 import { chunkEmitter, TTS_SPECIAL_TOKEN } from '../utils/tts'
 
-export type TextSegmentationItem = {
+export interface TextSegmentationItem {
   type: 'literal' | 'special'
   value: string
 }
@@ -147,7 +147,7 @@ export const usePipelineCharacterSpeechPlaybackQueueStore = defineStore('pipelin
   }
 
   const playbackQueue = ref(invoke(() => {
-    return createQueue<{ audioBuffer: AudioBuffer, text: string, special: string | null}>({
+    return createQueue<{ audioBuffer: AudioBuffer, text: string, special: string | null }>({
       handlers: [
         (ctx) => {
           return new Promise((resolve) => {
@@ -174,8 +174,8 @@ export const usePipelineCharacterSpeechPlaybackQueueStore = defineStore('pipelin
             source.start(0)
             source.onended = () => {
               // Play special token: delay or emotion
-              for (const hook of onPlaybackFinishedHooks.value){
-                if(ctx.data.special)
+              for (const hook of onPlaybackFinishedHooks.value) {
+                if (ctx.data.special)
                   hook({ special: ctx.data.special })
               }
               if (currentAudioSource.value === source) {

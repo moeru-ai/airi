@@ -24,7 +24,7 @@ export interface TTSInputChunkOptions {
 }
 
 // New output type for tts, metaData (special token) contained
-export type TTSChunkItem = {
+export interface TTSChunkItem {
   chunk: string
   special: string | null
 }
@@ -40,8 +40,9 @@ export type TTSChunkItem = {
  * @param options.maximumWords Maximum number of words in a chunk.
  */
 export async function* chunkTTSInput(
-  input: string | ReaderLike, 
-  options?: TTSInputChunkOptions): AsyncGenerator<TTSInputChunk, void, unknown> {
+  input: string | ReaderLike,
+  options?: TTSInputChunkOptions,
+): AsyncGenerator<TTSInputChunk, void, unknown> {
   const {
     boost = 2,
     minimumWords = 4,
@@ -159,17 +160,18 @@ export async function* chunkTTSInput(
       chunkWordsCount += words.length
       buffer = ''
 
-      if(special) {
+      if (special) {
         const text = chunk.slice(0, -1).trim()
         yield {
           text,
           words: chunkWordsCount,
-          reason: 'special'
+          reason: 'special',
         }
         yieldCount++
         chunk = ''
         chunkWordsCount = 0
-      } else if (flush || hard || chunkWordsCount > maximumWords || yieldCount < boost) {
+      }
+      else if (flush || hard || chunkWordsCount > maximumWords || yieldCount < boost) {
         const text = chunk.trim()
         yield {
           text,
@@ -233,10 +235,10 @@ export async function* chunkTTSInput(
 }
 
 export async function chunkEmitter(
-  reader: ReaderLike, 
+  reader: ReaderLike,
   pendingSpecials: string[],
-  handler: (ttsSegment: TTSChunkItem) => Promise<void> | void) {
-
+  handler: (ttsSegment: TTSChunkItem) => Promise<void> | void,
+) {
   const sanitizeChunk = (text: string) =>
     text
       .replaceAll(TTS_SPECIAL_TOKEN, '')
@@ -246,16 +248,16 @@ export async function chunkEmitter(
   try {
     for await (const chunk of chunkTTSInput(reader)) {
       // TODO: remove later
-      // eslint-disable-next-line no-console
+
       // console.debug('chunk to be pushed: ', chunk)
       // Whether there is a special token to process
-      if (chunk.reason === "special") {
-        let specialToken = pendingSpecials.shift()
+      if (chunk.reason === 'special') {
+        const specialToken = pendingSpecials.shift()
         // console.debug("special yield:", specialToken)
-        await handler({chunk: sanitizeChunk(chunk.text), special: specialToken} as TTSChunkItem)
+        await handler({ chunk: sanitizeChunk(chunk.text), special: specialToken } as TTSChunkItem)
       }
       else {
-        await handler({chunk: sanitizeChunk(chunk.text), special: null} as TTSChunkItem)
+        await handler({ chunk: sanitizeChunk(chunk.text), special: null } as TTSChunkItem)
       }
     }
   }
