@@ -3,7 +3,9 @@ import type { DuckDBWasmDrizzleDatabase } from '@proj-airi/drizzle-duckdb-wasm'
 import type { SpeechProviderWithExtraOptions } from '@xsai-ext/shared-providers'
 import type { UnElevenLabsOptions } from 'unspeech'
 
+import type { TextSegmentationItem } from '../../composables/queues'
 import type { Emotion } from '../../constants/emotions'
+import type { TTSChunkItem } from '../../utils/tts'
 
 import { drizzle } from '@proj-airi/drizzle-duckdb-wasm'
 import { getImportUrlBundles } from '@proj-airi/drizzle-duckdb-wasm/bundles/import-url-browser'
@@ -65,7 +67,7 @@ const { textSegmentationQueue } = storeToRefs(textSegmentationStore)
 clearTextSegmentationHooks()
 
 const characterSpeechPlaybackQueue = usePipelineCharacterSpeechPlaybackQueueStore()
-const { connectAudioContext, connectAudioAnalyser, clearAll, onPlaybackStarted } = characterSpeechPlaybackQueue
+const { connectAudioContext, connectAudioAnalyser, clearAll, onPlaybackStarted, onPlaybackFinished } = characterSpeechPlaybackQueue
 const { currentAudioSource, playbackQueue } = storeToRefs(characterSpeechPlaybackQueue)
 
 const settingsStore = useSettings()
@@ -123,60 +125,13 @@ const lipSyncStarted = ref(false)
 const speechStore = useSpeechStore()
 const { ssmlEnabled, activeSpeechProvider, activeSpeechModel, activeSpeechVoice, pitch } = storeToRefs(speechStore)
 
-async function handleSpeechGeneration(ctx: { data: string }) {
-  try {
-    if (!activeSpeechProvider.value) {
-      console.warn('No active speech provider configured')
-      return
-    }
-
-    if (!activeSpeechVoice.value) {
-      console.warn('No active speech voice configured')
-      return
-    }
-
-    const provider = await providersStore.getProviderInstance(activeSpeechProvider.value) as SpeechProviderWithExtraOptions<string, UnElevenLabsOptions>
-    if (!provider) {
-      console.error('Failed to initialize speech provider')
-      return
-    }
-
-    const providerConfig = providersStore.getProviderConfig(activeSpeechProvider.value)
-
-    const input = ssmlEnabled.value
-      ? speechStore.generateSSML(ctx.data, activeSpeechVoice.value, { ...providerConfig, pitch: pitch.value })
-      : ctx.data
-
-    const res = await generateSpeech({
-      ...provider.speech(activeSpeechModel.value, providerConfig),
-      input,
-      voice: activeSpeechVoice.value.id,
-    })
-
-    const audioBuffer = await audioContext.decodeAudioData(res)
-    playbackQueue.value.enqueue({ audioBuffer, text: ctx.data })
-  }
-  catch (error) {
-    console.error('Speech generation failed:', error)
-  }
-}
-
-const ttsQueue = createQueue<string>({
-  handlers: [
-    handleSpeechGeneration,
-  ],
-})
-
-onTextSegmented((chunk) => {
-  ttsQueue.enqueue(chunk)
-})
-
 const { currentMotion } = storeToRefs(useLive2d())
 
 const emotionsQueue = createQueue<Emotion>({
   handlers: [
     async (ctx) => {
       if (stageModelRenderer.value === 'vrm') {
+        // console.debug("VRM emotion anime: ", ctx.data)
         const value = EMOTION_VRMExpressionName_value[ctx.data]
         if (!value)
           return
@@ -200,6 +155,71 @@ const delaysQueue = useDelayMessageQueue()
 delaysQueue.onHandlerEvent('delay', (delay) => {
   // eslint-disable-next-line no-console
   console.debug('delay detected', delay)
+})
+
+// Play special token: delay or emotion
+onPlaybackFinished(({ special }) => {
+  delaysQueue.enqueue(special)
+  emotionMessageContentQueue.enqueue(special)
+})
+
+async function handleSpeechGeneration(ctx: { data: TTSChunkItem }) {
+  try {
+    if (!activeSpeechProvider.value) {
+      console.warn('No active speech provider configured')
+      return
+    }
+
+    if (!activeSpeechVoice.value) {
+      console.warn('No active speech voice configured')
+      return
+    }
+
+    const provider = await providersStore.getProviderInstance(activeSpeechProvider.value) as SpeechProviderWithExtraOptions<string, UnElevenLabsOptions>
+    if (!provider) {
+      console.error('Failed to initialize speech provider')
+      return
+    }
+
+    // console.debug("ctx.data.chunk is empty? ", ctx.data.chunk === "")
+    // console.debug("ctx.data.special: ", ctx.data.special)
+    if (ctx.data.chunk === '' && !ctx.data.special)
+      return
+    // If special token only and chunk = ""
+    if (ctx.data.chunk === '' && ctx.data.special) {
+      delaysQueue.enqueue(ctx.data.special)
+      emotionMessageContentQueue.enqueue(ctx.data.special)
+      return
+    }
+
+    const providerConfig = providersStore.getProviderConfig(activeSpeechProvider.value)
+
+    const input = ssmlEnabled.value
+      ? speechStore.generateSSML(ctx.data.chunk, activeSpeechVoice.value, { ...providerConfig, pitch: pitch.value })
+      : ctx.data.chunk
+
+    const res = await generateSpeech({
+      ...provider.speech(activeSpeechModel.value, providerConfig),
+      input,
+      voice: activeSpeechVoice.value.id,
+    })
+
+    const audioBuffer = await audioContext.decodeAudioData(res)
+    playbackQueue.value.enqueue({ audioBuffer, text: ctx.data.chunk, special: ctx.data.special })
+  }
+  catch (error) {
+    console.error('Speech generation failed:', error)
+  }
+}
+
+const ttsQueue = createQueue<TTSChunkItem>({
+  handlers: [
+    handleSpeechGeneration,
+  ],
+})
+
+onTextSegmented((chunkItem) => {
+  ttsQueue.enqueue(chunkItem)
 })
 
 function getVolumeWithMinMaxNormalizeWithFrameUpdates() {
@@ -241,12 +261,14 @@ onBeforeSend(async () => {
 
 onTokenLiteral(async (literal) => {
   // Only push to segmentation; visual presentation happens on playback start
-  textSegmentationQueue.value.enqueue(literal)
+  textSegmentationQueue.value.enqueue({ type: 'literal', value: literal } as TextSegmentationItem)
 })
 
 onTokenSpecial(async (special) => {
-  delaysQueue.enqueue(special)
-  emotionMessageContentQueue.enqueue(special)
+  // delaysQueue.enqueue(special)
+  // emotionMessageContentQueue.enqueue(special)
+  // Also push special token to the queue for emotion animation/delay and TTS playback synchronisation
+  textSegmentationQueue.value.enqueue({ type: 'special', value: special } as TextSegmentationItem)
 })
 
 onStreamEnd(async () => {

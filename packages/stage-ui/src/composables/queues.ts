@@ -1,5 +1,6 @@
 import type { Emotion } from '../constants/emotions'
 import type { UseQueueReturn } from '../utils/queue'
+import type { TTSChunkItem } from '../utils/tts'
 
 import { sleep } from '@moeru/std'
 import { invoke } from '@vueuse/core'
@@ -9,7 +10,12 @@ import { ref, shallowRef } from 'vue'
 import { EMOTION_VALUES } from '../constants/emotions'
 import { createQueue } from '../utils/queue'
 import { createControllableStream } from '../utils/stream'
-import { chunkEmitter } from '../utils/tts'
+import { chunkEmitter, TTS_SPECIAL_TOKEN } from '../utils/tts'
+
+export type TextSegmentationItem = {
+  type: 'literal' | 'special'
+  value: string
+}
 
 export function useEmotionsMessageQueue(emotionsQueue: UseQueueReturn<Emotion>) {
   function splitEmotion(content: string) {
@@ -106,13 +112,13 @@ export function useDelayMessageQueue() {
 export const usePipelineCharacterSpeechPlaybackQueueStore = defineStore('pipelines:character:speech', () => {
   // Hooks
   const onPlaybackStartedHooks = ref<Array<(payload: { text: string }) => Promise<void> | void>>([])
-  const onPlaybackFinishedHooks = ref<Array<(payload: { text: string }) => Promise<void> | void>>([])
+  const onPlaybackFinishedHooks = ref<Array<(payload: { special: string }) => Promise<void> | void>>([])
 
   // Hooks registers
   function onPlaybackStarted(hook: (payload: { text: string }) => Promise<void> | void) {
     onPlaybackStartedHooks.value.push(hook)
   }
-  function onPlaybackFinished(hook: (payload: { text: string }) => Promise<void> | void) {
+  function onPlaybackFinished(hook: (payload: { special: string }) => Promise<void> | void) {
     onPlaybackFinishedHooks.value.push(hook)
   }
 
@@ -141,7 +147,7 @@ export const usePipelineCharacterSpeechPlaybackQueueStore = defineStore('pipelin
   }
 
   const playbackQueue = ref(invoke(() => {
-    return createQueue<{ audioBuffer: AudioBuffer, text: string }>({
+    return createQueue<{ audioBuffer: AudioBuffer, text: string, special: string | null}>({
       handlers: [
         (ctx) => {
           return new Promise((resolve) => {
@@ -167,11 +173,14 @@ export const usePipelineCharacterSpeechPlaybackQueueStore = defineStore('pipelin
             currentAudioSource.value = source
             source.start(0)
             source.onended = () => {
-              for (const hook of onPlaybackFinishedHooks.value) hook({ text: ctx.data.text })
+              // Play special token: delay or emotion
+              for (const hook of onPlaybackFinishedHooks.value){
+                if(ctx.data.special)
+                  hook({ special: ctx.data.special })
+              }
               if (currentAudioSource.value === source) {
                 currentAudioSource.value = undefined
               }
-
               resolve()
             }
           })
@@ -206,10 +215,10 @@ export const usePipelineCharacterSpeechPlaybackQueueStore = defineStore('pipelin
 
 export const usePipelineWorkflowTextSegmentationStore = defineStore('pipelines:workflows:text-segmentation', () => {
   // Hooks
-  const onTextSegmentedHooks = ref<Array<(segment: string) => Promise<void> | void>>([])
+  const onTextSegmentedHooks = ref<Array<(segment: TTSChunkItem) => Promise<void> | void>>([])
 
   // Hooks registers
-  function onTextSegmented(hook: (segment: string) => Promise<void> | void) {
+  function onTextSegmented(hook: (segment: TTSChunkItem) => Promise<void> | void) {
     onTextSegmentedHooks.value.push(hook)
   }
 
@@ -226,17 +235,27 @@ export const usePipelineWorkflowTextSegmentationStore = defineStore('pipelines:w
     const { stream, controller } = createControllableStream<Uint8Array>()
     textSegmentationStream.value = stream
     textSegmentationStreamController.value = controller
+    // This is the queue for pending special tokens
+    const pendingSpecials: string[] = []
 
-    chunkEmitter(stream.getReader(), async (chunk) => {
+    chunkEmitter(stream.getReader(), pendingSpecials, async (chunk) => {
       for (const hook of onTextSegmentedHooks.value) {
         await hook(chunk)
       }
     })
 
-    return createQueue<string>({
+    return createQueue<TextSegmentationItem>({
       handlers: [
         async (ctx) => {
-          controller.enqueue(encoder.encode(ctx.data))
+          if (ctx.data.type === 'literal') {
+            controller.enqueue(encoder.encode(ctx.data.value))
+          }
+          else {
+            // Special literal, need to be flushed in tts rechunking
+            // console.debug("TextSegmentationQueue: Special enqueue", encoder.encode(TTS_SPECIAL_TOKEN))
+            pendingSpecials.push(ctx.data.value)
+            controller.enqueue(encoder.encode(TTS_SPECIAL_TOKEN))
+          }
         },
       ],
     })
