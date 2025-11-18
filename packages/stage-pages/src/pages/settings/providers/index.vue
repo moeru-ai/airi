@@ -1,9 +1,33 @@
 <script setup lang="ts">
+import type { ProviderMetadata } from '@proj-airi/stage-ui/stores/providers'
+import type { Ref } from 'vue'
+
 import { IconStatusItem } from '@proj-airi/stage-ui/components'
 import { useScrollToHash } from '@proj-airi/stage-ui/composables/useScrollToHash'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { storeToRefs } from 'pinia'
+import { computed } from 'vue'
 import { useRoute } from 'vue-router'
+
+interface ProviderBlock {
+  id: string
+  icon: string
+  title: string
+  description: string
+  providersRef: Ref<ProviderMetadata[]>
+}
+
+interface ProviderRenderData extends ProviderMetadata {
+  renderIndex: number
+}
+
+interface ComputedProviderBlock {
+  id: string
+  icon: string
+  title: string
+  description: string
+  providers: ProviderRenderData[]
+}
 
 const route = useRoute()
 const providersStore = useProvidersStore()
@@ -13,11 +37,49 @@ const {
   allAudioTranscriptionProvidersMetadata,
 } = storeToRefs(providersStore)
 
+const providerBlocksConfig: ProviderBlock[] = [
+  {
+    id: 'chat',
+    icon: 'i-solar:chat-square-like-bold-duotone',
+    title: 'Chat',
+    description: 'Text generation model providers. e.g. OpenRouter, OpenAI, Ollama.',
+    providersRef: allChatProvidersMetadata,
+  },
+  {
+    id: 'speech',
+    icon: 'i-solar:user-speak-rounded-bold-duotone',
+    title: 'Speech',
+    description: 'Speech (text-to-speech) model providers. e.g. ElevenLabs, Azure Speech.',
+    providersRef: allAudioSpeechProvidersMetadata,
+  },
+  {
+    id: 'transcription',
+    icon: 'i-solar:microphone-3-bold-duotone',
+    title: 'Transcription',
+    description: 'Transcription (speech-to-text) model providers. e.g. Whisper.cpp, OpenAI, Azure Speech',
+    providersRef: allAudioTranscriptionProvidersMetadata,
+  },
+]
+
+const providerBlocks = computed<ComputedProviderBlock[]>(() => {
+  let globalIndex = 0
+  return providerBlocksConfig.map(block => ({
+    id: block.id,
+    icon: block.icon,
+    title: block.title,
+    description: block.description,
+    providers: block.providersRef.value.map(provider => ({
+      ...provider,
+      renderIndex: globalIndex++,
+    })),
+  }))
+})
+
 useScrollToHash(() => route.hash, {
   auto: true, // automatically react to route hash
   offset: 16, // header + margin spacing
   behavior: 'smooth', // smooth scroll animation
-  maxRetries: 15, // retry if target element isn’t ready
+  maxRetries: 15, // retry if target element isn't ready
   retryDelay: 150, // wait between retries
 })
 </script>
@@ -39,99 +101,40 @@ useScrollToHash(() => route.hash, {
         </i18n-t>
       </div>
     </div>
-    <div flex="~ row items-center gap-2">
-      <div id="chat" i-solar:chat-square-like-bold-duotone text="neutral-500 dark:neutral-400 4xl" />
-      <div>
+
+    <template v-for="(block, blockIndex) in providerBlocks" :key="block.id">
+      <div flex="~ row items-center gap-2" :class="{ 'my-5': blockIndex > 0 }">
+        <div :id="block.id" :class="block.icon" text="neutral-500 dark:neutral-400 4xl" />
         <div>
-          <span text="neutral-300 dark:neutral-500 sm sm:base">Text generation model providers. e.g. OpenRouter, OpenAI, Ollama.</span>
-        </div>
-        <div flex text-nowrap text="2xl sm:3xl" font-normal>
           <div>
-            Chat
+            <span text="neutral-300 dark:neutral-500 sm sm:base">{{ block.description }}</span>
+          </div>
+          <div flex text-nowrap text="2xl sm:3xl" font-normal>
+            <div>
+              {{ block.title }}
+            </div>
           </div>
         </div>
       </div>
-    </div>
-    <div grid="~ cols-1 sm:cols-2 xl:cols-3 gap-4">
-      <IconStatusItem
-        v-for="(provider, index) of allChatProvidersMetadata"
-        :key="provider.id"
-        v-motion
-        :initial="{ opacity: 0, y: 10 }"
-        :enter="{ opacity: 1, y: 0 }"
-        :duration="250 + index * 10"
-        :delay="index * 50"
-        :title="provider.localizedName || 'Unknown'"
-        :description="provider.localizedDescription"
-        :icon="provider.icon"
-        :icon-color="provider.iconColor"
-        :icon-image="provider.iconImage"
-        :to="`/settings/providers/${provider.category}/${provider.id}`"
-        :configured="provider.configured"
-      />
-    </div>
-    <div flex="~ row items-center gap-2" my-5>
-      <div id="speech" i-solar:user-speak-rounded-bold-duotone text="neutral-500 dark:neutral-400 4xl" />
-      <div>
-        <div>
-          <span text="neutral-300 dark:neutral-500 sm sm:base">Speech (text-to-speech) model providers. e.g. ElevenLabs, Azure Speech.</span>
-        </div>
-        <div flex text-nowrap text="2xl sm:3xl" font-normal>
-          <div>
-            Speech
-          </div>
-        </div>
+      <div grid="~ cols-1 sm:cols-2 xl:cols-3 gap-4">
+        <IconStatusItem
+          v-for="(provider, providerIndex) of block.providers"
+          :key="provider.id"
+          v-motion
+          :initial="{ opacity: 0, y: 10 }"
+          :enter="{ opacity: 1, y: 0 }"
+          :duration="250 + providerIndex * 10"
+          :delay="provider.renderIndex * 50"
+          :title="provider.localizedName || 'Unknown'"
+          :description="provider.localizedDescription"
+          :icon="provider.icon"
+          :icon-color="provider.iconColor"
+          :icon-image="provider.iconImage"
+          :to="`/settings/providers/${provider.category}/${provider.id}`"
+          :configured="provider.configured"
+        />
       </div>
-    </div>
-    <div grid="~ cols-1 sm:cols-2 xl:cols-3 gap-4">
-      <IconStatusItem
-        v-for="(provider, index) of allAudioSpeechProvidersMetadata"
-        :key="provider.id"
-        v-motion
-        :initial="{ opacity: 0, y: 10 }"
-        :enter="{ opacity: 1, y: 0 }"
-        :duration="250 + index * 10"
-        :delay="(allChatProvidersMetadata.length + index) * 50"
-        :title="provider.localizedName || 'Unknown'"
-        :description="provider.localizedDescription"
-        :icon="provider.icon"
-        :icon-color="provider.iconColor"
-        :icon-image="provider.iconImage"
-        :to="`/settings/providers/${provider.category}/${provider.id}`"
-        :configured="provider.configured"
-      />
-    </div>
-    <div flex="~ row items-center gap-2" my-5>
-      <div id="transcription" i-solar:microphone-3-bold-duotone text="neutral-500 dark:neutral-400 4xl" />
-      <div>
-        <div>
-          <span text="neutral-300 dark:neutral-500 sm sm:base">Transcription (speech-to-text) model providers. e.g. Whisper.cpp, OpenAI, Azure Speech</span>
-        </div>
-        <div flex text-nowrap text="2xl sm:3xl" font-normal>
-          <div>
-            Transcription
-          </div>
-        </div>
-      </div>
-    </div>
-    <div grid="~ cols-1 sm:cols-2 xl:cols-3 gap-4">
-      <IconStatusItem
-        v-for="(provider, index) of allAudioTranscriptionProvidersMetadata"
-        :key="provider.id"
-        v-motion
-        :initial="{ opacity: 0, y: 10 }"
-        :enter="{ opacity: 1, y: 0 }"
-        :duration="250 + index * 10"
-        :delay="(allChatProvidersMetadata.length + allAudioSpeechProvidersMetadata.length + index) * 50"
-        :title="provider.localizedName || 'Unknown'"
-        :description="provider.localizedDescription"
-        :icon="provider.icon"
-        :icon-color="provider.iconColor"
-        :icon-image="provider.iconImage"
-        :to="`/settings/providers/${provider.category}/${provider.id}`"
-        :configured="provider.configured"
-      />
-    </div>
+    </template>
   </div>
   <div
     v-motion
