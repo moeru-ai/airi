@@ -30,6 +30,11 @@ const MAX_CONFIG_CHILDREN = 200
 const HEARTBEAT_INTERVAL_MS = 10000 // 10 seconds
 const HEARTBEAT_TIMEOUT_MS = HEARTBEAT_INTERVAL_MS * 2
 
+// extend peer interface with close method
+interface PeerWithClose extends Peer {
+    close: () => void
+  }
+
 // pre-stringified responses
 const RESPONSES = {
   authenticated: JSON.stringify({ type: 'module:authenticated', data: { authenticated: true } }),
@@ -39,9 +44,8 @@ const RESPONSES = {
 const safeSendLogger = useLogg('SafeSend').useGlobalConfig()
 
 const HEARTBEAT_EVENT_TYPE = 'server:heartbeat'
-function createHeartbeatPayload() {
-  return JSON.stringify({ type: HEARTBEAT_EVENT_TYPE, data: { timestamp: Date.now() } })
-}
+const createHeartbeatPayload = () =>
+  JSON.stringify({ type: HEARTBEAT_EVENT_TYPE, data: { timestamp: Date.now() } })
 
 // safe send utility
 function safeSend(peer: Peer, payload: string) {
@@ -204,7 +208,7 @@ function setupApp(): H3 {
       if (Date.now() - last > HEARTBEAT_TIMEOUT_MS) {
         wsLogger.withFields({ peer: peer.id }).warn('heartbeat timeout, closing connection')
         try {
-          peer.close()
+            (peer as PeerWithClose).close()
         }
         catch {
           // no-op
@@ -302,7 +306,13 @@ function setupApp(): H3 {
     if (errConfig)
       return sendJSON(peer, { type: 'error', data: { message: errConfig } })
 
-    const moduleName = data.moduleName as string
+    if (typeof data.moduleName !== 'string')
+        return sendJSON(peer, { type: 'error', data: { message: 'invalid moduleName' } })
+
+    if (typeof data.moduleIndex !== 'number' || !Number.isInteger(data.moduleIndex) || data.moduleIndex < 0)
+        return sendJSON(peer, { type: 'error', data: { message: 'invalid moduleIndex' } })
+    
+    const moduleName = data.moduleName
     const moduleIndex = data.moduleIndex as number | undefined
     const key = moduleKey(moduleName, moduleIndex)
     const targets = modulePeers.get(key)
