@@ -16,12 +16,12 @@
   },
   "exports": {
     "./types": {
-      "types": "./dist/types/index.d.ts",
-      "default": "./dist/types/index.js"
+      "types": "./dist/types/index.d.mts",
+      "default": "./dist/types/index.mjs"
     }
   },
-  "main": "./dist/types/index.js",
-  "types": "./dist/types/index.d.ts",
+  "main": "./dist/types/index.mjs",
+  "types": "./dist/types/index.d.mts",
   "files": [
     "README.md",
     "dist",

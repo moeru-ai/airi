@@ -1,7 +1,7 @@
-import type { createContext } from '@unbird/eventa/adapters/electron/main'
+import type { createContext } from '@moeru/eventa/adapters/electron/main'
 import type { BrowserWindow } from 'electron'
 
-import { defineInvokeHandler } from '@unbird/eventa'
+import { defineInvokeHandler } from '@moeru/eventa'
 
 import { bounds, startLoopGetBounds } from '../../../shared/electron/window'
 import { electron } from '../../../shared/eventa'

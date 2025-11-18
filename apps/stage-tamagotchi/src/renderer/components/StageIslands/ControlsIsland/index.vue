@@ -1,6 +1,6 @@
 <script setup lang="ts">
+import { defineInvoke } from '@moeru/eventa'
 import { useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
-import { defineInvoke } from '@unbird/eventa'
 import { useDark, useToggle } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { ref } from 'vue'

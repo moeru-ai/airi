@@ -1,6 +1,6 @@
 import type { Display, screen as electronScreen, Point } from 'electron'
 
-import { defineEventa, defineInvokeEventa } from '@unbird/eventa'
+import { defineEventa, defineInvokeEventa } from '@moeru/eventa'
 
 export const cursorScreenPoint = defineEventa<Point>('eventa:event:electron:screen:cursor-screen-point')
 export const startLoopGetCursorScreenPoint = defineInvokeEventa('eventa:event:electron:screen:start-loop-get-cursor-screen-point')

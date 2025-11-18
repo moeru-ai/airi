@@ -30,7 +30,7 @@ const links = computed(() => [
           :key="link.label"
           :href="link.url"
           target="_blank"
-          class="text-muted-foreground hover:text-foreground inline-flex items-center gap-2 text-sm font-medium"
+          class="inline-flex items-center gap-2 text-sm text-muted-foreground font-medium hover:text-foreground"
           transition-colors duration-200 ease-in-out
         >
           <Icon

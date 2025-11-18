@@ -30,6 +30,12 @@ const menu = computed(() => [
     to: '/devtools/use-electron-all-displays',
   },
   {
+    title: 'Widgets Calling',
+    description: 'Spawn overlay widgets and test component props',
+    icon: 'i-solar:sledgehammer-bold-duotone',
+    to: '/devtools/widgets-calling',
+  },
+  {
     title: 'Relative Mouse',
     description: 'Get mouse position relative to the window',
     icon: 'i-solar:sledgehammer-bold-duotone',

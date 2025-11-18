@@ -30,7 +30,7 @@ function getInitials(name: string) {
             :aria-label="`${name} on GitHub`"
             target="_blank"
           >
-            <div class="bg-card outline-background h-12 w-12 flex items-center justify-center overflow-hidden rounded-full outline-[4px] outline">
+            <div class="h-12 w-12 flex items-center justify-center overflow-hidden rounded-full bg-card outline-[4px] outline-background outline">
               <AvatarImage
                 :src="avatar"
                 :alt="`${name}'s avatar`"
@@ -47,7 +47,7 @@ function getInitials(name: string) {
       </TooltipTrigger>
 
       <TooltipContent
-        class="bg-card border-muted border rounded px-2 py-1 text-xs font-semibold"
+        class="border border-muted rounded bg-card px-2 py-1 text-xs font-semibold"
         side="bottom"
       >
         {{ name }}

@@ -253,5 +253,3 @@ export function createAliyunNLSProvider(
     appKey,
   }
 }
-export type * from './base'
-export { streamTranscription } from './base'

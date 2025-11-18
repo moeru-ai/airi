@@ -2,16 +2,17 @@ import type { ChildProcess } from 'node:child_process'
 
 import type { BrowserWindow } from 'electron'
 
-import { spawn } from 'node:child_process'
+import type { WidgetsWindowManager } from './windows/widgets'
+
 import { platform } from 'node:process'
 
 import * as path from 'node:path'
 
 import { electronApp, optimizer } from '@electron-toolkit/utils'
 import { Format, LogLevel, setGlobalFormat, setGlobalLogLevel, useLogg } from '@guiiai/logg'
-import { createLoggLogger, injecta } from '@proj-airi/injecta'
 import { app, ipcMain, Menu, nativeImage, Tray } from 'electron'
 import { noop, once } from 'es-toolkit'
+import { createLoggLogger, injeca } from 'injeca'
 import { isLinux, isMacOS } from 'std-env'
 
 import icon from '../../resources/icon.png?asset'
@@ -27,6 +28,7 @@ import { setupInlayWindow } from './windows/inlay'
 import { setupMainWindow } from './windows/main'
 import { setupSettingsWindowReusableFunc } from './windows/settings'
 import { toggleWindowShow } from './windows/shared/window'
+import { setupWidgetsWindowManager } from './windows/widgets'
 
 // TODO: once we refactored eventa to support window-namespaced contexts,
 // we can remove the setMaxListeners call below since eventa will be able to dispatch and
@@ -64,6 +66,7 @@ function setupTray(params: {
   mainWindow: BrowserWindow
   settingsWindow: () => Promise<BrowserWindow>
   captionWindow: ReturnType<typeof setupCaptionWindowManager>
+  widgetsWindow: WidgetsWindowManager
 }): void {
   once(() => {
     const trayImage = nativeImage.createFromPath(isMacOS ? macOSTrayIcon : icon).resize({ width: 16 })
@@ -77,6 +80,7 @@ function setupTray(params: {
       { label: 'Settings...', click: () => params.settingsWindow().then(window => toggleWindowShow(window)) },
       { type: 'separator' },
       { label: 'Open Inlay...', click: () => setupInlayWindow() },
+      { label: 'Open Widgets...', click: () => params.widgetsWindow.getWindow().then(window => toggleWindowShow(window)) },
       { label: 'Open Caption...', click: () => params.captionWindow.getWindow().then(window => toggleWindowShow(window)) },
       {
         type: 'submenu',
@@ -101,43 +105,34 @@ function setupTray(params: {
 }
 
 app.whenReady().then(async () => {
-  const memoryServicePath = path.join(__dirname, 'memory-service.js')
-  memoryServiceProcess = spawn('node', [memoryServicePath])
+  injeca.setLogger(createLoggLogger(useLogg('injeca').useGlobalConfig()))
 
-  // TODO: make a clean log for each status
-  //  memoryServiceProcess.stdout?.on('data', (data) => {
-  //    log.warn(`[MemoryService]: ${data}`)
-  //  })
-  //  memoryServiceProcess.stderr?.on('data', (data) => {
-  //    log.error(`[MemoryService]: ${data}`)
-  //  })
-  //  memoryServiceProcess.on('close', (code) => {
-  //    log.warn(`[MemoryService] exited with code ${code}`)
-  //  })
+  const channelServerModule = injeca.provide('modules:channel-server', async () => setupChannelServer())
+  const chatWindow = injeca.provide('windows:chat', { build: () => setupChatWindowReusableFunc() })
+  const widgetsManager = injeca.provide('windows:widgets', { build: () => setupWidgetsWindowManager() })
 
-  injecta.setLogger(createLoggLogger(useLogg('injecta').useGlobalConfig()))
-
-  const channelServerModule = injecta.provide('modules:channel-server', async () => setupChannelServer())
-  const settingsWindow = injecta.provide('windows:settings', () => setupSettingsWindowReusableFunc())
-  const chatWindow = injecta.provide('windows:chat', { build: () => setupChatWindowReusableFunc() })
-  const mainWindow = injecta.provide('windows:main', {
-    dependsOn: { settingsWindow, chatWindow },
+  const settingsWindow = injeca.provide('windows:settings', {
+    dependsOn: { widgetsManager },
+    build: ({ dependsOn }) => setupSettingsWindowReusableFunc(dependsOn),
+  })
+  const mainWindow = injeca.provide('windows:main', {
+    dependsOn: { settingsWindow, chatWindow, widgetsManager },
     build: async ({ dependsOn }) => setupMainWindow(dependsOn),
   })
-  const captionWindow = injecta.provide('windows:caption', {
+  const captionWindow = injeca.provide('windows:caption', {
     dependsOn: { mainWindow },
     build: async ({ dependsOn }) => setupCaptionWindowManager(dependsOn),
   })
-  const tray = injecta.provide('app:tray', {
-    dependsOn: { mainWindow, settingsWindow, captionWindow },
+  const tray = injeca.provide('app:tray', {
+    dependsOn: { mainWindow, settingsWindow, captionWindow, widgetsWindow: widgetsManager },
     build: async ({ dependsOn }) => setupTray(dependsOn),
   })
-  injecta.invoke({
+  injeca.invoke({
     dependsOn: { mainWindow, tray, channelServerModule },
     callback: noop,
   })
 
-  injecta.start().catch(err => console.error(err))
+  injeca.start().catch(err => console.error(err))
 
   // Lifecycle
   emitAppReady()
@@ -172,5 +167,5 @@ app.on('before-quit', async () => {
     memoryServiceProcess.kill()
   }
   emitAppBeforeQuit()
-  injecta.stop()
+  injeca.stop()
 })
