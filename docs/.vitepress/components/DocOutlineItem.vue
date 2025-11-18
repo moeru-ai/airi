@@ -20,7 +20,7 @@ function onClick({ target: el }: Event) {
       :key="title"
     >
       <a
-        class="outline-link w-full text-muted-foreground"
+        class="outline-link text-muted-foreground w-full"
         :class="{ 'font-medium': root }"
         :href="link"
         :title="title"

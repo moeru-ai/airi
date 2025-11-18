@@ -15,7 +15,7 @@ defineProps<{
 <template>
   <!-- eslint-disable vue/prefer-separate-static-class -->
   <DropdownMenuRoot>
-    <DropdownMenuTrigger class="mx-0 h-full inline-flex items-center justify-between px-2 py-2 text-nowrap text-sm text-muted-foreground font-semibold md:mx-3 md:px-0 data-[state=open]:text-foreground hover:text-foreground">
+    <DropdownMenuTrigger class="text-muted-foreground data-[state=open]:text-foreground hover:text-foreground mx-0 h-full inline-flex items-center justify-between px-2 py-2 text-nowrap text-sm font-semibold md:mx-3 md:px-0">
       <slot name="trigger">
         <span>{{ label }}</span>
         <Icon
@@ -48,7 +48,7 @@ defineProps<{
               :key="item.text"
               :value="item.text"
               as-child
-              class="h-full flex items-center rounded px-2 py-2 text-sm text-muted-foreground font-semibold transition-colors duration-200 ease-in-out hover:text-primary"
+              class="text-muted-foreground h-full flex items-center rounded px-2 py-2 text-sm font-semibold transition-colors duration-200 ease-in-out hover:text-primary"
             >
               <a
                 v-if="item.link"

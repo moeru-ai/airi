@@ -26,11 +26,11 @@ defineProps<{
         <span>{{ item.text }}</span>
         <Icon
           icon="lucide:chevron-down"
-          class="text-lg text-muted-foreground transition group-hover:text-foreground"
+          class="text-muted-foreground group-hover:text-foreground text-lg transition"
           :class="{ '-rotate-90': !open }"
         />
       </CollapsibleTrigger>
-      <CollapsibleContent class="overflow-hidden data-[state=closed]:animate-slideUp data-[state=open]:animate-slideDown">
+      <CollapsibleContent class="data-[state=closed]:animate-slideUp data-[state=open]:animate-slideDown overflow-hidden">
         <DocSidebarItem
           v-for="subitem in item.items"
           :key="subitem.text"

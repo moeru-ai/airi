@@ -25,7 +25,7 @@ const languages = computed(() => {
   <!-- eslint-disable vue/prefer-separate-static-class -->
   <DropdownMenuSub>
     <DropdownMenuSubTrigger
-      class="h-full w-full inline-flex cursor-pointer items-center justify-between rounded-lg p-2 text-sm text-muted-foreground font-semibold hover:bg-primary/10 hover:text-primary"
+      class="text-muted-foreground h-full w-full inline-flex cursor-pointer items-center justify-between rounded-lg p-2 text-sm font-semibold hover:bg-primary/10 hover:text-primary"
       :class="[
         'transition-all duration-200 ease-in-out',
       ]"
@@ -45,7 +45,7 @@ const languages = computed(() => {
         <DropdownMenuItem
           v-for="item in languages"
           :key="item.text"
-          class="h-full w-full inline-flex items-center rounded-lg p-2 text-sm text-muted-foreground font-semibold hover:text-primary"
+          class="text-muted-foreground h-full w-full inline-flex items-center rounded-lg p-2 text-sm font-semibold hover:text-primary"
           :class="[
             'hover:bg-primary/10',
             'transition-all duration-200 ease-in-out',

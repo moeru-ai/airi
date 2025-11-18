@@ -13,12 +13,12 @@ const { frontmatter } = useData()
         <h1 class="text-4xl font-bold lg:text-5xl">
           Showcase
         </h1>
-        <h2 class="mt-2 max-w-[640px] text-muted-foreground font-medium md:mt-6 md:text-xl">
+        <h2 class="text-muted-foreground mt-2 max-w-[640px] font-medium md:mt-6 md:text-xl">
           {{ frontmatter.description }}
         </h2>
 
         <a
-          class="mt-4 w-max flex items-center justify-center gap-2 whitespace-nowrap rounded-lg bg-primary px-4 py-2.5 text-sm text-primary-foreground font-semibold hover:bg-primary/90"
+          class="text-primary-foreground mt-4 w-max flex items-center justify-center gap-2 whitespace-nowrap rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold hover:bg-primary/90"
           target="_blank"
           href="https://github.com/unovue/reka-ui/edit/v2/docs/content/showcase.md"
         >

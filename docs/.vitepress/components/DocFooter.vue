@@ -42,11 +42,11 @@ const showFooter = computed(
   >
     <div
       v-if="hasEditLink || hasLastUpdated"
-      class="flex justify-between text-muted-foreground"
+      class="text-muted-foreground flex justify-between"
     >
       <div
         v-if="hasEditLink"
-        class="text-sm text-muted-foreground hover:text-foreground"
+        class="text-muted-foreground hover:text-foreground text-sm"
         transition-colors duration-200 ease-in-out
       >
         <a
@@ -93,7 +93,7 @@ const showFooter = computed(
           :href="control.prev.link"
         >
           <span
-            class="text-xs text-muted-foreground transition-all duration-200 ease-in-out group-hover:text-foreground"
+            class="text-muted-foreground group-hover:text-foreground text-xs transition-all duration-200 ease-in-out"
             v-html="theme.docFooter?.prev || t('docs.theme.doc.previous-page.title')"
           />
           <p class="mt-2 inline-flex items-center gap-1">
@@ -119,7 +119,7 @@ const showFooter = computed(
           :href="control.next.link"
         >
           <span
-            class="text-xs text-muted-foreground transition-all duration-200 ease-in-out group-hover:text-foreground"
+            class="text-muted-foreground group-hover:text-foreground text-xs transition-all duration-200 ease-in-out"
             v-html="theme.docFooter?.next || t('docs.theme.doc.next-page.title')"
           />
 

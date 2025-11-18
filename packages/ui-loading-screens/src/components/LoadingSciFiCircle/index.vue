@@ -419,7 +419,7 @@ defineExpose({
 
 <template>
   <Transition name="fade-out">
-    <div v-if="!done" w="[100dvw]" h="[100dvh]" absolute inset-0 z-99 flex items-center justify-center font-retro-mono>
+    <div v-if="!done" w="[100dvw]" h="[100dvh]" font-retro-mono absolute inset-0 z-99 flex items-center justify-center>
       <div flex flex-col max-w="800px" w="full" p="4">
         <div w="[min(200px,50dvw)]" h="[min(200px,50dvw)]" mx-auto flex justify-center overflow-hidden filter="blur-0.5px">
           <canvas ref="riveCanvas" object-contain />

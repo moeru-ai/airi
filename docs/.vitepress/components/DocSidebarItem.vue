@@ -24,7 +24,7 @@ watch(isActiveLink, () => {
 
 <template>
   <div
-    class="flex items-center rounded-lg text-sm text-muted-foreground transition-colors duration-150 ease-in-out hover:bg-card"
+    class="text-muted-foreground hover:bg-card flex items-center rounded-lg text-sm transition-colors duration-150 ease-in-out"
     :class="{ 'is-active !bg-primary/10 !text-primary font-semibold': isActiveLink }"
   >
     <a

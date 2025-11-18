@@ -44,7 +44,7 @@ useActiveAnchor(container, marker)
       {{ t('docs.theme.doc.outline.title') }}
     </div>
 
-    <div class="border-l border-muted font-sans">
+    <div class="border-muted border-l font-sans">
       <DocOutlineItem
         :headers="page.headers"
         :root="true"

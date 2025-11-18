@@ -26,10 +26,10 @@ function handleClose() {
 
 <template>
   <DialogRoot v-model:open="open">
-    <DialogTrigger class="text-md flex items-center border-muted rounded-lg px-3 py-[7px] text-muted-foreground transition-colors duration-200 ease-in-out space-x-2 md:border hover:bg-muted md:bg-card md:text-sm">
+    <DialogTrigger class="text-md border-muted text-muted-foreground hover:bg-muted md:bg-card flex items-center rounded-lg px-3 py-[7px] transition-colors duration-200 ease-in-out space-x-2 md:border md:text-sm">
       <Icon icon="lucide:search" />
-      <span class="hidden w-24 text-left lg:w-40 md:inline-flex">{{ t('docs.theme.search.title') }}</span>
-      <span class="hidden text-xs prose md:inline-flex">
+      <span class="w-24 text-left hidden lg:w-40 md:inline-flex">{{ t('docs.theme.search.title') }}</span>
+      <span class="text-xs hidden prose md:inline-flex">
         <kbd>⌘ K</kbd>
       </span>
     </DialogTrigger>
@@ -38,7 +38,7 @@ function handleClose() {
       <AnimatePresence multiple>
         <DialogOverlay as-child>
           <Motion
-            class="fixed inset-0 z-30 bg-background/50 backdrop-blur-md"
+            class="bg-background/50 fixed inset-0 z-30 backdrop-blur-md"
             :initial="{ opacity: 0, scale: 0 }"
             :animate="{ opacity: 1, scale: 1 }"
             :exit="{ opacity: 0 }"
@@ -46,7 +46,7 @@ function handleClose() {
         </DialogOverlay>
         <DialogContent as-child>
           <Motion
-            class="fixed left-[50%] top-[10%] z-[100] max-h-[85vh] max-w-[750px] w-[90vw] translate-x-[-50%] overflow-hidden border border-muted rounded-xl bg-card shadow-xl will-change-transform focus:outline-none"
+            class="border-muted bg-card fixed left-[50%] top-[10%] z-[100] max-h-[85vh] max-w-[750px] w-[90vw] translate-x-[-50%] overflow-hidden border rounded-xl shadow-xl will-change-transform focus:outline-none"
             :initial="{ opacity: 0, top: '0%', transition: { duration: 0.2, ease: 'easeInOut' } }"
             :animate="{ opacity: 1, top: '10%', transition: { duration: 0.2, ease: 'easeInOut' } }"
             :exit="{ opacity: 0, top: '0%', transition: { duration: 0.2, ease: 'easeInOut' } }"
