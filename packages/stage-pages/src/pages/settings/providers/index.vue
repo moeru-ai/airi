@@ -5,6 +5,7 @@ import type { Ref } from 'vue'
 import { IconStatusItem } from '@proj-airi/stage-ui/components'
 import { useScrollToHash } from '@proj-airi/stage-ui/composables/useScrollToHash'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
+import { breakpointsTailwind, useBreakpoints } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed } from 'vue'
 import { onBeforeRouteLeave, useRoute } from 'vue-router'
@@ -34,6 +35,7 @@ interface ComputedProviderBlock {
 const route = useRoute()
 const providersStore = useProvidersStore()
 const providersPageStore = useProvidersPageStore()
+const breakpoints = useBreakpoints(breakpointsTailwind)
 
 const {
   allChatProvidersMetadata,
@@ -81,9 +83,29 @@ const providerBlocks = computed<ComputedProviderBlock[]>(() => {
   }))
 })
 
+const cols = computed(() => {
+  if (breakpoints.greaterOrEqual('xl').value) {
+    return 3
+  }
+  if (breakpoints.greaterOrEqual('sm').value) {
+    return 2
+  }
+  return 1
+})
+
 function getAnimationDelay(renderIndex: number) {
-  const distance = Math.abs(renderIndex - lastClickedProviderIndex.value)
-  return distance * 50
+  const numCols = cols.value
+
+  const currentRow = Math.floor(renderIndex / numCols)
+  const currentCol = renderIndex % numCols
+
+  const clickedRow = Math.floor(lastClickedProviderIndex.value / numCols)
+  const clickedCol = lastClickedProviderIndex.value % numCols
+
+  // manhattan distance
+  const distance = Math.abs(currentRow - clickedRow) + Math.abs(currentCol - clickedCol)
+
+  return distance * 80
 }
 
 function handleProviderClick(renderIndex: number) {
