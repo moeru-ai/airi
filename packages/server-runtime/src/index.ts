@@ -32,8 +32,8 @@ const HEARTBEAT_TIMEOUT_MS = HEARTBEAT_INTERVAL_MS * 2
 
 // extend peer interface with close method
 interface PeerWithClose extends Peer {
-    close: () => void
-  }
+  close: () => void
+}
 
 // pre-stringified responses
 const RESPONSES = {
@@ -44,8 +44,9 @@ const RESPONSES = {
 const safeSendLogger = useLogg('SafeSend').useGlobalConfig()
 
 const HEARTBEAT_EVENT_TYPE = 'server:heartbeat'
-const createHeartbeatPayload = () =>
-  JSON.stringify({ type: HEARTBEAT_EVENT_TYPE, data: { timestamp: Date.now() } })
+function createHeartbeatPayload() {
+  return JSON.stringify({ type: HEARTBEAT_EVENT_TYPE, data: { timestamp: Date.now() } })
+}
 
 // safe send utility
 function safeSend(peer: Peer, payload: string) {
@@ -208,7 +209,7 @@ function setupApp(): H3 {
       if (Date.now() - last > HEARTBEAT_TIMEOUT_MS) {
         wsLogger.withFields({ peer: peer.id }).warn('heartbeat timeout, closing connection')
         try {
-            (peer as PeerWithClose).close()
+          (peer as PeerWithClose).close()
         }
         catch {
           // no-op
@@ -299,21 +300,21 @@ function setupApp(): H3 {
     const errName = assertString(data.moduleName, 'moduleName', 'ui:configure')
     if (errName)
       return sendJSON(peer, { type: 'error', data: { message: errName } })
-  
+
     const errIndex = assertNonNegInt(data.moduleIndex, 'moduleIndex', 'ui:configure')
     if (errIndex)
       return sendJSON(peer, { type: 'error', data: { message: errIndex } })
-  
+
     const errConfig = assertConfig(data.config)
     if (errConfig)
       return sendJSON(peer, { type: 'error', data: { message: errConfig } })
-  
+
     // Type refinement
     if (typeof data.moduleName !== 'string') {
       return sendJSON(peer, { type: 'error', data: { message: 'invalid moduleName' } })
     }
     const moduleName: string = data.moduleName
-  
+
     let moduleIndex: number | undefined
     if (data.moduleIndex !== undefined) {
       if (typeof data.moduleIndex !== 'number' || !Number.isInteger(data.moduleIndex) || data.moduleIndex < 0) {
@@ -321,25 +322,26 @@ function setupApp(): H3 {
       }
       moduleIndex = data.moduleIndex
     }
-  
+
     const key = moduleKey(moduleName, moduleIndex)
     const targets = modulePeers.get(key)
-  
+
     if (!targets || !targets.size) {
       return sendJSON(peer, { type: 'error', data: { message: 'module not found or not announced' } })
     }
-  
+
     const configStr = JSON.stringify(data.config)
     if (configStr.length > MAX_CONFIG_SIZE_BYTES) {
       return sendJSON(peer, { type: 'error', data: { message: 'config too large' } })
     }
-  
+
     const validator = moduleConfigValidators.get(key)
     if (validator) {
       const validatorErr = validator(data.config)
-      if (validatorErr) return sendJSON(peer, { type: 'error', data: { message: validatorErr } })
+      if (validatorErr)
+        return sendJSON(peer, { type: 'error', data: { message: validatorErr } })
     }
-  
+
     for (const target of targets) {
       sendJSON(target.peer, { type: 'module:configure', data: { config: data.config } })
     }
@@ -364,11 +366,11 @@ function setupApp(): H3 {
 
   const router: Record<string, (peer: Peer, p: AuthenticatedPeer, data: Record<string, unknown>) => void> = {
     'module:authenticate': (peer: Peer, p: AuthenticatedPeer, data: Record<string, unknown>) => {
-    const err = assertString(data.token, 'token', 'module:authenticate')
-    if (err) {
-      return sendJSON(peer, { type: 'error', data: { message: err } })
-    }
-    handleAuthenticate(peer, p, data.token as string)
+      const err = assertString(data.token, 'token', 'module:authenticate')
+      if (err) {
+        return sendJSON(peer, { type: 'error', data: { message: err } })
+      }
+      handleAuthenticate(peer, p, data.token as string)
     },
 
     'module:announce': (peer: Peer, p: AuthenticatedPeer, data: Record<string, unknown>) =>
