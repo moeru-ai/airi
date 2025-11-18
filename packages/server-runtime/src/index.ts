@@ -262,4 +262,5 @@ function setupApp(): H3 {
   return app
 }
 
-export const app = setupApp()
+export const app: H3 = setupApp()
+
