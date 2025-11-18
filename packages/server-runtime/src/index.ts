@@ -39,8 +39,9 @@ const RESPONSES = {
 const safeSendLogger = useLogg('SafeSend').useGlobalConfig()
 
 const HEARTBEAT_EVENT_TYPE = 'server:heartbeat'
-const createHeartbeatPayload = () =>
-  JSON.stringify({ type: HEARTBEAT_EVENT_TYPE, data: { timestamp: Date.now() } })
+function createHeartbeatPayload() {
+  return JSON.stringify({ type: HEARTBEAT_EVENT_TYPE, data: { timestamp: Date.now() } })
+}
 
 // safe send utility
 function safeSend(peer: Peer, payload: string) {
