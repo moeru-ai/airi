@@ -6,8 +6,8 @@ const props = defineProps<{
 }>()
 
 defineSlots<{
-  title?: () => any
-  content?: () => any
+  title?: (props: Record<never, never>) => any
+  content?: (props: Record<never, never>) => any
 }>()
 
 const slots = useSlots()
