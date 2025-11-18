@@ -19,8 +19,11 @@ if (env.LOG_LEVEL) {
   }
 }
 
-// cache token once
+// cache token
 const AUTH_TOKEN = env.AUTHENTICATION_TOKEN || ''
+const UNAUTH_TIMEOUT_MS = 5000
+const MESSAGE_RATE_LIMIT = 30                // events per window
+const MESSAGE_RATE_WINDOW_MS = 3000          // 3 seconds
 
 // pre-stringified responses
 const RESPONSES = {
@@ -28,178 +31,235 @@ const RESPONSES = {
   notAuthenticated: JSON.stringify({ type: 'error', data: { message: 'not authenticated' } }),
 }
 
-// helper send function
-function send(peer: Peer, event: WebSocketEvent<Record<string, unknown>> | string) {
-  peer.send(typeof event === 'string' ? event : JSON.stringify(event))
+// safe send utility
+function safeSend(peer: Peer, payload: string) {
+  try {
+    if (peer.readyState === WebSocketReadyState.OPEN) {
+      peer.send(payload)
+    }
+  }
+  catch (err) {
+    // swallow, will be handled by cleanup logic
+  }
+}
+
+function sendJSON(peer: Peer, event: WebSocketEvent | string) {
+  safeSend(peer, typeof event === 'string' ? event : JSON.stringify(event))
+}
+
+// validation helpers
+function assertString(value: unknown, field: string, event: string): string | null {
+  if (typeof value !== 'string' || value.trim() === '') {
+    return `the field '${field}' must be a non-empty string for event '${event}'`
+  }
+  return null
+}
+
+function assertNonNegInt(value: unknown, field: string, event: string): string | null {
+  if (value === undefined) return null
+  if (!Number.isInteger(value) || value < 0) {
+    return `the field '${field}' must be a non-negative integer for event '${event}'`
+  }
+  return null
+}
+
+// compact module key
+const moduleKey = (name: string, index?: number) => `${name}:${index ?? ''}`
+
+interface RateState {
+  count: number
+  resetAt: number
+}
+
+function createRateLimiter() {
+  const buckets = new Map<string, RateState>()
+
+  return {
+    check(peerId: string): boolean {
+      const now = Date.now()
+      let state = buckets.get(peerId)
+
+      if (!state || now >= state.resetAt) {
+        state = { count: 1, resetAt: now + MESSAGE_RATE_WINDOW_MS }
+        buckets.set(peerId, state)
+        return true
+      }
+
+      state.count++
+      return state.count <= MESSAGE_RATE_LIMIT
+    },
+  }
 }
 
 function setupApp(): H3 {
   const appLogger = useLogg('App').useGlobalConfig()
-  const websocketLogger = useLogg('WebSocket').useGlobalConfig()
+  const wsLogger = useLogg('WebSocket').useGlobalConfig()
 
   const app = new H3({
-    onError: error => appLogger.withError(error).error('an error occurred'),
+    onError: (error) => appLogger.withError(error).error('an error occurred'),
   })
 
+  // state
   const peers = new Map<string, AuthenticatedPeer>()
-  const peersByModule = new Map<string, Map<number | undefined, AuthenticatedPeer>>()
+  const modulePeers = new Map<string, AuthenticatedPeer>() // key: moduleName:index
+  const rateLimiter = createRateLimiter()
 
-  function registerModulePeer(p: AuthenticatedPeer, name: string, index?: number) {
-    if (!peersByModule.has(name)) {
-      peersByModule.set(name, new Map())
-    }
-    const group = peersByModule.get(name)!
-    if (group.has(index)) {
-      // log instead of silent overwrite
-      websocketLogger.withFields({ name, index }).debug('peer replaced for module')
-    }
-    group.set(index, p)
+  // peer registration helpers
+  function registerModulePeer(p: AuthenticatedPeer) {
+    if (!p.name) return
+    const key = moduleKey(p.name, p.index)
+    modulePeers.set(key, p)
   }
 
   function unregisterModulePeer(p: AuthenticatedPeer) {
-    if (!p.name)
+    if (!p.name) return
+    const key = moduleKey(p.name, p.index)
+    modulePeers.delete(key)
+  }
+
+  function handleAuthenticate(peer: Peer, p: AuthenticatedPeer, token: string) {
+    if (AUTH_TOKEN && token !== AUTH_TOKEN) {
+      wsLogger.withFields({ peer: peer.id }).debug('authentication failed')
+      sendJSON(peer, { type: 'error', data: { message: 'invalid token' } })
       return
-    const group = peersByModule.get(p.name)
-    if (group) {
-      group.delete(p.index)
-      if (group.size === 0) {
-        peersByModule.delete(p.name)
-      }
+    }
+
+    p.authenticated = true
+    safeSend(peer, RESPONSES.authenticated)
+  }
+
+  function handleAnnounce(peer: Peer, p: AuthenticatedPeer, data: any) {
+    if (AUTH_TOKEN && !p.authenticated) {
+      sendJSON(peer, { type: 'error', data: { message: 'must authenticate before announcing' } })
+      return
+    }
+
+    const errName = assertString(data.name, 'name', 'module:announce')
+    if (errName) return sendJSON(peer, { type: 'error', data: { message: errName } })
+
+    const errIndex = assertNonNegInt(data.index, 'index', 'module:announce')
+    if (errIndex) return sendJSON(peer, { type: 'error', data: { message: errIndex } })
+
+    unregisterModulePeer(p)
+    p.name = data.name
+    p.index = data.index
+    registerModulePeer(p)
+  }
+
+  function handleConfigure(peer: Peer, data: any) {
+    const errName = assertString(data.moduleName, 'moduleName', 'ui:configure')
+    if (errName) return sendJSON(peer, { type: 'error', data: { message: errName } })
+
+    const errIndex = assertNonNegInt(data.moduleIndex, 'moduleIndex', 'ui:configure')
+    if (errIndex) return sendJSON(peer, { type: 'error', data: { message: errIndex } })
+
+    const key = moduleKey(data.moduleName, data.moduleIndex)
+    const target = modulePeers.get(key)
+
+    if (!target) {
+      sendJSON(peer, { type: 'error', data: { message: 'module not found or not announced' } })
+      return
+    }
+
+    // optionally validate config (size limit)
+    const configStr = JSON.stringify(data.config)
+    if (configStr.length > 100_000) {
+      return sendJSON(peer, { type: 'error', data: { message: 'config too large' } })
+    }
+
+    sendJSON(target.peer, { type: 'module:configure', data: { config: data.config } })
+  }
+
+  function handleDefaultBroadcast(peer: Peer, p: AuthenticatedPeer, raw: string, event: WebSocketEvent) {
+    if (!p.authenticated) {
+      wsLogger.withFields({ peer: peer.id }).debug('not authenticated')
+      return safeSend(peer, RESPONSES.notAuthenticated)
+    }
+
+    if (!rateLimiter.check(peer.id)) {
+      return sendJSON(peer, { type: 'error', data: { message: 'rate limit exceeded' } })
+    }
+
+    for (const [id, other] of peers) {
+      if (id === peer.id) continue
+      safeSend(other.peer, raw)
     }
   }
 
-  app.get('/ws', defineWebSocketHandler({
-    open: (peer) => {
-      if (AUTH_TOKEN) {
-        peers.set(peer.id, { peer, authenticated: false, name: '' })
-      }
-      else {
-        peer.send(RESPONSES.authenticated)
-        peers.set(peer.id, { peer, authenticated: true, name: '' })
-      }
+  const router: Record<string, Function> = {
+    'module:authenticate': (peer: Peer, p: AuthenticatedPeer, data: any) =>
+      handleAuthenticate(peer, p, data.token),
 
-      websocketLogger.withFields({ peer: peer.id, activePeers: peers.size }).log('connected')
-    },
-    message: (peer, message) => {
-      let event: WebSocketEvent
-      try {
-        event = message.json() as WebSocketEvent
-      }
-      catch (err) {
-        const errorMessage = err instanceof Error ? err.message : String(err)
-        send(peer, { type: 'error', data: { message: `invalid JSON, error: ${errorMessage}` } })
-        return
-      }
+    'module:announce': (peer: Peer, p: AuthenticatedPeer, data: any) =>
+      handleAnnounce(peer, p, data),
 
-      switch (event.type) {
-        case 'module:authenticate': {
-          if (AUTH_TOKEN && event.data.token !== AUTH_TOKEN) {
-            websocketLogger.withFields({ peer: peer.id }).debug('authentication failed')
-            send(peer, { type: 'error', data: { message: 'invalid token' } })
-            return
-          }
+    'ui:configure': (peer: Peer, p: AuthenticatedPeer, data: any) =>
+      handleConfigure(peer, data),
+  }
 
-          peer.send(RESPONSES.authenticated)
-          const p = peers.get(peer.id)
-          if (p) {
-            Object.assign(p, { authenticated: true })
-          }
-          return
-        }
-        case 'module:announce': {
-          const p = peers.get(peer.id)
-          if (p) {
-            unregisterModulePeer(p)
-            const { name, index } = event.data as { name: string, index?: number }
-            if (!name || typeof name !== 'string') {
-              send(peer, { type: 'error', data: { message: 'the field \'name\' must be a non-empty string for event \'module:announce\'' } })
-              return
-            }
-            if (typeof index !== 'undefined') {
-              if (!Number.isInteger(index) || index < 0) {
-                send(peer, { type: 'error', data: { message: 'the field \'index\' must be a non-negative integer for event \'module:announce\'' } })
-                return
-              }
-            }
-            if (AUTH_TOKEN && !p.authenticated) {
-              send(peer, { type: 'error', data: { message: 'must authenticate before announcing' } })
-              return
-            }
-            Object.assign(p, { name, index })
-            registerModulePeer(p, p.name, p.index)
-          }
-          return
+  app.get(
+    '/ws',
+    defineWebSocketHandler({
+      open: (peer) => {
+        const peerState: AuthenticatedPeer = {
+          peer,
+          authenticated: !AUTH_TOKEN, // auto-true if no token required
+          name: '',
         }
 
-        case 'ui:configure': {
-          const { moduleName, moduleIndex, config } = event.data
+        peers.set(peer.id, peerState)
 
-          if (moduleName === '') {
-            send(peer, { type: 'error', data: { message: 'the field \'moduleName\' can\'t be empty for event \'ui:configure\'' } })
-            return
-          }
-          if (typeof moduleIndex !== 'undefined') {
-            if (!Number.isInteger(moduleIndex) || moduleIndex < 0) {
-              send(peer, {
-                type: 'error',
-                data: { message: 'the field \'moduleIndex\' must be a non-negative integer for event \'ui:configure\'' },
-              })
-              return
-            }
-          }
-
-          const target = peersByModule.get(moduleName)?.get(moduleIndex)
-          if (target) {
-            send(target.peer, { type: 'module:configure', data: { config } })
-          }
-          else {
-            send(peer, { type: 'error', data: { message: 'module not found, it hasn\'t announced itself or the name is incorrect' } })
-          }
-          return
+        if (AUTH_TOKEN) {
+          setTimeout(() => {
+            const p = peers.get(peer.id)
+            if (p && !p.authenticated) peer.close()
+          }, UNAUTH_TIMEOUT_MS)
         }
-      }
 
-      // default case
-      const p = peers.get(peer.id)
-      if (!p?.authenticated) {
-        websocketLogger.withFields({ peer: peer.id }).debug('not authenticated')
-        peer.send(RESPONSES.notAuthenticated)
-        return
-      }
+        wsLogger.withFields({ peer: peer.id, activePeers: peers.size }).log('connected')
+      },
 
-      const payload = JSON.stringify(event)
-      websocketLogger.withFields({ peer: peer.id, event: payload }).debug('broadcasting event to peers')
+      message: (peer, message) => {
+        const raw = message.text()
+        let event: WebSocketEvent
 
-      for (const [id, other] of peers.entries()) {
-        if (id === peer.id) {
-          websocketLogger.withFields({ peer: peer.id, event: payload }).debug('not sending event to self')
-          continue
+        try {
+          event = message.json()
         }
-        if (other.peer.readyState === WebSocketReadyState.OPEN) {
-          websocketLogger.withFields({ fromPeer: peer.id, toPeer: other.peer.id, event: payload }).debug('sending event to peer')
-          other.peer.send(payload)
+        catch (err: any) {
+          return sendJSON(peer, {
+            type: 'error',
+            data: { message: `invalid JSON: ${err?.message || String(err)}` },
+          })
         }
-        else {
-          websocketLogger.withFields({ peer: other.peer.id }).debug('removing closed peer')
-          peers.delete(id)
-          unregisterModulePeer(other)
-        }
-      }
-    },
-    error: (peer, error) => {
-      websocketLogger.withFields({ peer: peer.id }).withError(error).error('an error occurred')
-    },
-    close: (peer, details) => {
-      const p = peers.get(peer.id)
-      if (p)
-        unregisterModulePeer(p)
 
-      websocketLogger.withFields({ peer: peer.id, details, activePeers: peers.size }).log('closed')
-      peers.delete(peer.id)
-    },
-  }))
+        const peerState = peers.get(peer.id)
+        if (!peerState) return
+
+        const handler = router[event.type]
+        if (handler) {
+          return handler(peer, peerState, event.data)
+        }
+
+        // default: broadcast
+        handleDefaultBroadcast(peer, peerState, raw, event)
+      },
+
+      error: (peer, error) => {
+        wsLogger.withFields({ peer: peer.id }).withError(error).error('error occurred')
+      },
+
+      close: (peer, details) => {
+        const p = peers.get(peer.id)
+        if (p) unregisterModulePeer(p)
+
+        peers.delete(peer.id)
+        wsLogger.withFields({ peer: peer.id, details, activePeers: peers.size }).log('closed')
+      },
+    })
+  )
 
   return app
 }
 
-export const app = setupApp() as H3
+export const app = setupApp()
