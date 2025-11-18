@@ -21,7 +21,7 @@ defineEmits<{
 const { t } = useI18n()
 
 const settings = useSettings()
-const { live2dDisableFocus, live2dIdleAnimationEnabled, live2dAutoBlinkEnabled } = storeToRefs(settings)
+const { live2dDisableFocus, live2dIdleAnimationEnabled, live2dAutoBlinkEnabled, live2dShadowEnabled } = storeToRefs(settings)
 
 const live2d = useLive2d()
 const {
@@ -396,6 +396,11 @@ onUnmounted(() => {
     <div mt-4 flex items-center justify-between>
       <span text-sm text-neutral-600 dark:text-neutral-400>Auto Blink</span>
       <Checkbox v-model="live2dAutoBlinkEnabled" />
+    </div>
+
+    <div mt-4 flex items-center justify-between>
+      <span text-sm text-neutral-600 dark:text-neutral-400>Shadow</span>
+      <Checkbox v-model="live2dShadowEnabled" />
     </div>
 
     <button

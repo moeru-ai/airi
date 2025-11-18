@@ -133,6 +133,7 @@ const {
   themeColorsHue,
   themeColorsHueDynamic,
   live2dIdleAnimationEnabled,
+  live2dShadowEnabled,
 } = storeToRefs(useSettings())
 
 const localCurrentMotion = ref<{ group: string, index: number }>({ group: 'Idle', index: 0 })
@@ -388,7 +389,12 @@ function updateDropShadowFilter() {
   if (model.value) {
     const color = getComputedStyle(dropShadowColorComputer.value!).backgroundColor
     dropShadowFilter.value.color = Number(formatHex(color)!.replace('#', '0x'))
-    model.value.filters = [dropShadowFilter.value]
+    if (live2dShadowEnabled.value) {
+      model.value.filters = [dropShadowFilter.value]
+    }
+    else {
+      model.value.filters = []
+    }
   }
 }
 
@@ -396,6 +402,7 @@ watch([() => props.width, () => props.height], () => handleResize())
 watch(modelSrcRef, async () => await loadModel(), { immediate: true })
 watch(dark, updateDropShadowFilter, { immediate: true })
 watch([model, themeColorsHue], updateDropShadowFilter)
+watch(live2dShadowEnabled, updateDropShadowFilter)
 watch(offset, setScaleAndPosition)
 watch(() => props.scale, setScaleAndPosition)
 
