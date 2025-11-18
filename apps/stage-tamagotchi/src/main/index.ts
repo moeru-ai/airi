@@ -6,9 +6,9 @@ import { platform } from 'node:process'
 
 import { electronApp, optimizer } from '@electron-toolkit/utils'
 import { Format, LogLevel, setGlobalFormat, setGlobalLogLevel, useLogg } from '@guiiai/logg'
-import { createLoggLogger, injecta } from '@proj-airi/injecta'
 import { app, ipcMain, Menu, nativeImage, Tray } from 'electron'
 import { noop, once } from 'es-toolkit'
+import { createLoggLogger, injeca } from 'injeca'
 import { isLinux, isMacOS } from 'std-env'
 
 import icon from '../../resources/icon.png?asset'
@@ -98,34 +98,34 @@ function setupTray(params: {
 }
 
 app.whenReady().then(async () => {
-  injecta.setLogger(createLoggLogger(useLogg('injecta').useGlobalConfig()))
+  injeca.setLogger(createLoggLogger(useLogg('injeca').useGlobalConfig()))
 
-  const channelServerModule = injecta.provide('modules:channel-server', async () => setupChannelServer())
-  const chatWindow = injecta.provide('windows:chat', { build: () => setupChatWindowReusableFunc() })
-  const widgetsManager = injecta.provide('windows:widgets', { build: () => setupWidgetsWindowManager() })
+  const channelServerModule = injeca.provide('modules:channel-server', async () => setupChannelServer())
+  const chatWindow = injeca.provide('windows:chat', { build: () => setupChatWindowReusableFunc() })
+  const widgetsManager = injeca.provide('windows:widgets', { build: () => setupWidgetsWindowManager() })
 
-  const settingsWindow = injecta.provide('windows:settings', {
+  const settingsWindow = injeca.provide('windows:settings', {
     dependsOn: { widgetsManager },
     build: ({ dependsOn }) => setupSettingsWindowReusableFunc(dependsOn),
   })
-  const mainWindow = injecta.provide('windows:main', {
+  const mainWindow = injeca.provide('windows:main', {
     dependsOn: { settingsWindow, chatWindow, widgetsManager },
     build: async ({ dependsOn }) => setupMainWindow(dependsOn),
   })
-  const captionWindow = injecta.provide('windows:caption', {
+  const captionWindow = injeca.provide('windows:caption', {
     dependsOn: { mainWindow },
     build: async ({ dependsOn }) => setupCaptionWindowManager(dependsOn),
   })
-  const tray = injecta.provide('app:tray', {
+  const tray = injeca.provide('app:tray', {
     dependsOn: { mainWindow, settingsWindow, captionWindow, widgetsWindow: widgetsManager },
     build: async ({ dependsOn }) => setupTray(dependsOn),
   })
-  injecta.invoke({
+  injeca.invoke({
     dependsOn: { mainWindow, tray, channelServerModule },
     callback: noop,
   })
 
-  injecta.start().catch(err => console.error(err))
+  injeca.start().catch(err => console.error(err))
 
   // Lifecycle
   emitAppReady()
@@ -155,5 +155,5 @@ app.on('window-all-closed', () => {
 // Clean up server and intervals when app quits
 app.on('before-quit', async () => {
   emitAppBeforeQuit()
-  injecta.stop()
+  injeca.stop()
 })

@@ -2,8 +2,8 @@ import type { BrowserWindow } from 'electron'
 
 import type { WidgetsWindowManager } from '../../widgets'
 
-import { defineInvokeHandler } from '@unbird/eventa'
-import { createContext } from '@unbird/eventa/adapters/electron/main'
+import { defineInvokeHandler } from '@moeru/eventa'
+import { createContext } from '@moeru/eventa/adapters/electron/main'
 import { ipcMain } from 'electron'
 
 import { electronOpenChat, electronOpenMainDevtools, electronOpenSettings } from '../../../../shared/eventa'

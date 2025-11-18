@@ -422,7 +422,7 @@ async function loadModel() {
         blink.update(vrm.value, delta)
         idleEyeSaccades.update(vrm.value, lookAtTarget, delta)
         vrmEmote.value?.update(delta)
-        vrmLipSync.update(vrm.value)
+        vrmLipSync.update(vrm.value, delta)
         vrm.value?.springBoneManager?.update(delta)
       }).off
 

@@ -26,13 +26,17 @@ useScrollToHash(() => route.hash, {
   <div mb-6 flex flex-col gap-5>
     <div bg="primary-500/10 dark:primary-800/25" rounded-lg p-4>
       <div mb-2 text-xl font-normal text="primary-800 dark:primary-100">
-        First time here?
+        {{ $t('settings.pages.providers.helpinfo.title') }}
       </div>
       <div text="primary-700 dark:primary-300">
-        AIRI requires at least one <div bg="primary-500/10 dark:primary-800/25" inline-flex items-center gap-1 rounded-lg px-2 py-0.5 translate-y="[0.25lh]">
-          <div i-solar:chat-square-like-bold-duotone /><strong font-normal>Chat</strong>
-        </div> provider to be configured to think, and behave properly. You could think of
-        it as the brain of the characters living in AIRI system.
+        <i18n-t keypath="settings.pages.providers.helpinfo.description">
+          <template #chat>
+            <div bg="primary-500/10 dark:primary-800/25" inline-flex items-center gap-1 rounded-lg px-2 py-0.5 translate-y="[0.25lh]">
+              <div i-solar:chat-square-like-bold-duotone />
+              <strong class="font-normal">Chat</strong>
+            </div>
+          </template>
+        </i18n-t>
       </div>
     </div>
     <div flex="~ row items-center gap-2">

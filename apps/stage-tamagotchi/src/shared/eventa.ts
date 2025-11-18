@@ -1,4 +1,4 @@
-import { defineEventa, defineInvokeEventa } from '@unbird/eventa'
+import { defineEventa, defineInvokeEventa } from '@moeru/eventa'
 
 export const electronStartTrackMousePosition = defineInvokeEventa('eventa:invoke:electron:start-tracking-mouse-position')
 export const electronStartDraggingWindow = defineInvokeEventa('eventa:invoke:electron:start-dragging-window')
