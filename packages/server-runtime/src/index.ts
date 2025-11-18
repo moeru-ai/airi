@@ -22,8 +22,8 @@ if (env.LOG_LEVEL) {
 // cache token
 const AUTH_TOKEN = env.AUTHENTICATION_TOKEN || ''
 const UNAUTH_TIMEOUT_MS = 5000
-const MESSAGE_RATE_LIMIT = 30                // events per window
-const MESSAGE_RATE_WINDOW_MS = 3000          // 3 seconds
+const MESSAGE_RATE_LIMIT = 30 // events per window
+const MESSAGE_RATE_WINDOW_MS = 3000 // 3 seconds
 
 // pre-stringified responses
 const RESPONSES = {
@@ -56,7 +56,8 @@ function assertString(value: unknown, field: string, event: string): string | nu
 }
 
 function assertNonNegInt(value: unknown, field: string, event: string): string | null {
-  if (value === undefined) return null
+  if (value === undefined)
+    return null
   if (!Number.isInteger(value) || value < 0) {
     return `the field '${field}' must be a non-negative integer for event '${event}'`
   }
@@ -96,7 +97,7 @@ function setupApp(): H3 {
   const wsLogger = useLogg('WebSocket').useGlobalConfig()
 
   const app = new H3({
-    onError: (error) => appLogger.withError(error).error('an error occurred'),
+    onError: error => appLogger.withError(error).error('an error occurred'),
   })
 
   // state
@@ -106,13 +107,15 @@ function setupApp(): H3 {
 
   // peer registration helpers
   function registerModulePeer(p: AuthenticatedPeer) {
-    if (!p.name) return
+    if (!p.name)
+      return
     const key = moduleKey(p.name, p.index)
     modulePeers.set(key, p)
   }
 
   function unregisterModulePeer(p: AuthenticatedPeer) {
-    if (!p.name) return
+    if (!p.name)
+      return
     const key = moduleKey(p.name, p.index)
     modulePeers.delete(key)
   }
@@ -135,10 +138,12 @@ function setupApp(): H3 {
     }
 
     const errName = assertString(data.name, 'name', 'module:announce')
-    if (errName) return sendJSON(peer, { type: 'error', data: { message: errName } })
+    if (errName)
+      return sendJSON(peer, { type: 'error', data: { message: errName } })
 
     const errIndex = assertNonNegInt(data.index, 'index', 'module:announce')
-    if (errIndex) return sendJSON(peer, { type: 'error', data: { message: errIndex } })
+    if (errIndex)
+      return sendJSON(peer, { type: 'error', data: { message: errIndex } })
 
     unregisterModulePeer(p)
     p.name = data.name
@@ -148,10 +153,12 @@ function setupApp(): H3 {
 
   function handleConfigure(peer: Peer, data: any) {
     const errName = assertString(data.moduleName, 'moduleName', 'ui:configure')
-    if (errName) return sendJSON(peer, { type: 'error', data: { message: errName } })
+    if (errName)
+      return sendJSON(peer, { type: 'error', data: { message: errName } })
 
     const errIndex = assertNonNegInt(data.moduleIndex, 'moduleIndex', 'ui:configure')
-    if (errIndex) return sendJSON(peer, { type: 'error', data: { message: errIndex } })
+    if (errIndex)
+      return sendJSON(peer, { type: 'error', data: { message: errIndex } })
 
     const key = moduleKey(data.moduleName, data.moduleIndex)
     const target = modulePeers.get(key)
@@ -181,7 +188,8 @@ function setupApp(): H3 {
     }
 
     for (const [id, other] of peers) {
-      if (id === peer.id) continue
+      if (id === peer.id)
+        continue
       safeSend(other.peer, raw)
     }
   }
@@ -212,7 +220,8 @@ function setupApp(): H3 {
         if (AUTH_TOKEN) {
           setTimeout(() => {
             const p = peers.get(peer.id)
-            if (p && !p.authenticated) peer.close()
+            if (p && !p.authenticated)
+              peer.close()
           }, UNAUTH_TIMEOUT_MS)
         }
 
@@ -234,7 +243,8 @@ function setupApp(): H3 {
         }
 
         const peerState = peers.get(peer.id)
-        if (!peerState) return
+        if (!peerState)
+          return
 
         const handler = router[event.type]
         if (handler) {
@@ -251,16 +261,16 @@ function setupApp(): H3 {
 
       close: (peer, details) => {
         const p = peers.get(peer.id)
-        if (p) unregisterModulePeer(p)
+        if (p)
+          unregisterModulePeer(p)
 
         peers.delete(peer.id)
         wsLogger.withFields({ peer: peer.id, details, activePeers: peers.size }).log('closed')
       },
-    })
+    }),
   )
 
   return app
 }
 
 export const app: H3 = setupApp()
-
