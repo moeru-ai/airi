@@ -7,7 +7,9 @@ import { useScrollToHash } from '@proj-airi/stage-ui/composables/useScrollToHash
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { storeToRefs } from 'pinia'
 import { computed } from 'vue'
-import { useRoute } from 'vue-router'
+import { onBeforeRouteLeave, useRoute } from 'vue-router'
+
+import { useProvidersPageStore } from './store'
 
 interface ProviderBlock {
   id: string
@@ -31,11 +33,15 @@ interface ComputedProviderBlock {
 
 const route = useRoute()
 const providersStore = useProvidersStore()
+const providersPageStore = useProvidersPageStore()
+
 const {
   allChatProvidersMetadata,
   allAudioSpeechProvidersMetadata,
   allAudioTranscriptionProvidersMetadata,
 } = storeToRefs(providersStore)
+
+const { lastClickedProviderIndex } = storeToRefs(providersPageStore)
 
 const providerBlocksConfig: ProviderBlock[] = [
   {
@@ -75,12 +81,27 @@ const providerBlocks = computed<ComputedProviderBlock[]>(() => {
   }))
 })
 
+function getAnimationDelay(renderIndex: number) {
+  const distance = Math.abs(renderIndex - lastClickedProviderIndex.value)
+  return distance * 50
+}
+
+function handleProviderClick(renderIndex: number) {
+  providersPageStore.setLastClickedProviderIndex(renderIndex)
+}
+
 useScrollToHash(() => route.hash, {
   auto: true, // automatically react to route hash
   offset: 16, // header + margin spacing
   behavior: 'smooth', // smooth scroll animation
   maxRetries: 15, // retry if target element isn't ready
   retryDelay: 150, // wait between retries
+})
+
+onBeforeRouteLeave((to, from) => {
+  if (!to.path.startsWith('/settings/providers/')) {
+    providersPageStore.resetLastClickedProviderIndex()
+  }
 })
 </script>
 
@@ -117,22 +138,30 @@ useScrollToHash(() => route.hash, {
         </div>
       </div>
       <div grid="~ cols-1 sm:cols-2 xl:cols-3 gap-4">
-        <IconStatusItem
-          v-for="(provider, providerIndex) of block.providers"
+        <div
+          v-for="provider of block.providers"
           :key="provider.id"
           v-motion
           :initial="{ opacity: 0, y: 10 }"
-          :enter="{ opacity: 1, y: 0 }"
-          :duration="250 + providerIndex * 10"
-          :delay="provider.renderIndex * 50"
-          :title="provider.localizedName || 'Unknown'"
-          :description="provider.localizedDescription"
-          :icon="provider.icon"
-          :icon-color="provider.iconColor"
-          :icon-image="provider.iconImage"
+          :enter="{ opacity: 1,
+                    y: 0,
+                    transition: {
+                      duration: 250,
+                      delay: getAnimationDelay(provider.renderIndex),
+                    } }"
           :to="`/settings/providers/${provider.category}/${provider.id}`"
-          :configured="provider.configured"
-        />
+          @click="handleProviderClick(provider.renderIndex)"
+        >
+          <IconStatusItem
+            :title="provider.localizedName || 'Unknown'"
+            :description="provider.localizedDescription"
+            :icon="provider.icon"
+            :icon-color="provider.iconColor"
+            :icon-image="provider.iconImage"
+            :to="`/settings/providers/${provider.category}/${provider.id}`"
+            :configured="provider.configured"
+          />
+        </div>
       </div>
     </template>
   </div>
