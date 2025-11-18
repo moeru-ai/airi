@@ -124,7 +124,6 @@ const routeHeaderMetadataMap = computed(() => {
 const routeHeaderMetadata = computed(() => {
   return routeHeaderMetadataMap.value[route.path] || routeHeaderMetadataMap.value[`${route.path}/`]
 })
-
 </script>
 
 <template>
