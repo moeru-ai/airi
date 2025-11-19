@@ -2,20 +2,18 @@
 import { ref } from 'vue'
 import RippleGrid from './RippleGrid.vue'
 
-// Sectioned Data
 const sections = ref([
   {
     title: 'Section 1',
-    items: Array.from({ length: 25 }, (_, i) => ({ id: `s1-${i}`, label: `Item ${i + 1}` })),
+    items: Array.from({ length: 51 }, (_, i) => ({ id: `s1-${i}`, label: `Item ${i + 1}` })),
   },
   {
     title: 'Section 2',
-    items: Array.from({ length: 6 }, (_, i) => ({ id: `s2-${i}`, label: `Item ${i + 1}` })),
+    items: Array.from({ length: 11 }, (_, i) => ({ id: `s2-${i}`, label: `Item ${i + 1}` })),
   },
 ])
 
-// Flat Data
-const flatItems = ref(Array.from({ length: 12 }, (_, i) => ({ id: `flat-${i}`, label: `Flat Item ${i + 1}` })))
+const flatItems = ref(Array.from({ length: 51 }, (_, i) => ({ id: `flat-${i}`, label: `Flat Item ${i + 1}` })))
 
 const lastClickedIndex = ref(0)
 const renderKey = ref(0)
@@ -40,12 +38,10 @@ function handleItemClick({ globalIndex }: { globalIndex: number }) {
         <RippleGrid
           :key="renderKey"
           :sections="sections"
-          :items-source="s => s.items"
-          :key-source="i => i.id"
-          :columns="{ default: 2, md: 3, xl: 4 }"
+          :get-items="s => s.items"
+          :getKey="i => i.id"
+          :columns="{ default: 6, md: 8, xl: 10 }"
           :origin-index="lastClickedIndex"
-          :animation-duration="300"
-          :delay-per-unit="150"
           @item-click="handleItemClick"
         >
           <template #header="{ section }">
@@ -73,7 +69,7 @@ function handleItemClick({ globalIndex }: { globalIndex: number }) {
         <RippleGrid
           :key="renderKey"
           :items="flatItems"
-          :key-source="i => i.id"
+          :getKey="i => i.id"
           :columns="{ default: 3, md: 4, xl: 6 }"
           :origin-index="lastClickedIndex"
           @item-click="handleItemClick"

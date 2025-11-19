@@ -95,8 +95,7 @@ onBeforeRouteLeave((to, from) => {
 
     <RippleGrid
       :sections="providerBlocks"
-      :items-source="block => block.providers"
-      :key-source="provider => provider.id"
+      :get-items="block => block.providers"
       :columns="{ default: 1, sm: 2, xl: 3 }"
       :origin-index="providersPageStore.lastClickedProviderIndex"
     >

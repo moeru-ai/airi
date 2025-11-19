@@ -1,17 +1,25 @@
-<script setup lang="ts" generic="TSection, TItem">
+<script setup lang="ts" generic="TSection extends Record<string, unknown>, TItem extends Record<string, unknown>">
 import { useGridRipple } from './useGridRipple'
 import { breakpointsTailwind, useBreakpoints } from '@vueuse/core'
-import { computed } from 'vue'
+import { computed, toRef } from 'vue'
+
+type VirtualSection = {
+  _isVirtual: true
+  items: TItem[]
+}
 
 const props = withDefaults(defineProps<{
-  sections?: TSection[]
-  items?: TItem[]
-  itemsSource?: (section: TSection) => TItem[]
-  keySource?: (item: TItem) => string | number
+  items?: TItem[] 
+  sections?: TSection[] 
+  
+  getItems?: (section: TSection) => TItem[]
+  getKey?: (item: TItem) => string | number
+  
   columns?: number | Record<string, number>
+  
   originIndex?: number
-  animationInitial?: Record<string, any>
-  animationEnter?: Record<string, any>
+  animationInitial?: Record<string, unknown>
+  animationEnter?: Record<string, unknown>
   animationDuration?: number
   delayPerUnit?: number
 }>(), {
@@ -21,6 +29,8 @@ const props = withDefaults(defineProps<{
   animationEnter: () => ({ opacity: 1, y: 0 }),
   animationDuration: 250,
   delayPerUnit: 80,
+  getItems: (section: any) => section.items || [],
+  getKey: (item: any) => item.id ?? item.key
 })
 
 const emit = defineEmits<{
@@ -28,82 +38,44 @@ const emit = defineEmits<{
 }>()
 
 const breakpoints = useBreakpoints(breakpointsTailwind)
-
 const COLUMN_ORDER = ['2xl', 'xl', 'lg', 'md', 'sm'] as const
 
-// class names need to be hard-coded for tailwind to work
-const GRID_COLS_CLASSES: Record<number, string> = {
-  1: 'grid-cols-1',
-  2: 'grid-cols-2',
-  3: 'grid-cols-3',
-  4: 'grid-cols-4',
-  5: 'grid-cols-5',
-  6: 'grid-cols-6',
-  7: 'grid-cols-7',
-  8: 'grid-cols-8',
-  9: 'grid-cols-9',
-  10: 'grid-cols-10',
-  11: 'grid-cols-11',
-  12: 'grid-cols-12',
-} as const
+const isFlat = computed(() => !!props.items && !props.sections)
 
 const normalizedSections = computed(() => {
-  if (props.sections) {
-    return props.sections
+  if (isFlat.value && props.items) {
+    return [{ _isVirtual: true, items: props.items }] as unknown as TSection[]
   }
-  if (props.items) {
-    return [{ items: props.items }] as any[]
-  }
-  return []
+  return props.sections || []
 })
-
-const getItems = (section: any) => {
-  if (props.itemsSource) {
-    return props.itemsSource(section)
-  }
-  return section.items
-}
-
-const getKey = (item: any) => {
-  if (props.keySource) {
-    return props.keySource(item)
-  }
-  return item.id || item.key || JSON.stringify(item)
-}
-
 const currentCols = computed(() => {
-  if (typeof props.columns === 'number') {
-    return props.columns
-  }
+  if (typeof props.columns === 'number') return props.columns
 
   for (const key of COLUMN_ORDER) {
-    if (props.columns[key] && breakpoints.greaterOrEqual(key).value) {
-      return props.columns[key]
+    if ((props.columns as any)[key] && breakpoints.greaterOrEqual(key).value) {
+      return (props.columns as any)[key]
     }
   }
-
   return props.columns.default || 1
 })
 
-
-const gridClass = computed(() => {
-  return GRID_COLS_CLASSES[currentCols.value] || GRID_COLS_CLASSES['1']
+const sectionMeta = computed(() => {
+  let globalCounter = 0
+  return normalizedSections.value.map(section => {
+    const items = isFlat.value ? (section as unknown as VirtualSection).items : props.getItems(section)
+    const startIndex = globalCounter
+    globalCounter += items.length
+    return { items, startIndex, count: items.length }
+  })
 })
+
+const sectionItemCounts = computed(() => sectionMeta.value.map(m => m.count))
 
 const { getDelay } = useGridRipple({
   cols: currentCols,
-  originIndex: () => props.originIndex,
+  originIndex: toRef(props, 'originIndex'),
+  sectionItemCounts,
   delayPerUnit: props.delayPerUnit,
-})
-
-const sectionStartIndices = computed(() => {
-  const indices: number[] = []
-  let current = 0
-  for (const section of normalizedSections.value) {
-    indices.push(current)
-    current += getItems(section).length
-  }
-  return indices
 })
 
 function handleItemClick(item: TItem, globalIndex: number) {
@@ -112,32 +84,38 @@ function handleItemClick(item: TItem, globalIndex: number) {
 </script>
 
 <template>
-  <div flex flex-col gap-5>
-    <template v-for="(section, sectionIndex) in normalizedSections" :key="sectionIndex">
-      <div v-if="$slots.header && props.sections" :class="{ 'my-5': sectionIndex > 0 }">
-        <slot name="header" :section="section" :index="sectionIndex" />
+  <div class="flex flex-col gap-5">
+    <template v-for="(section, sIndex) in normalizedSections" :key="sIndex">
+      
+      <div v-if="$slots.header && !isFlat" :class="{ 'my-5': sIndex > 0 }">
+        <slot name="header" :section="section" :index="sIndex" />
       </div>
 
-      <div grid gap-4 :class="gridClass">
+      <div 
+        class="grid gap-4" 
+        :style="{ 
+          gridTemplateColumns: `repeat(${currentCols}, minmax(0, 1fr))` 
+        }"
+      >
         <div
-          v-for="(item, itemIndex) in getItems(section)"
-          :key="getKey(item)"
+          v-for="(item, iIndex) in sectionMeta[sIndex].items"
+          :key="props.getKey(item)"
           v-motion
           :initial="animationInitial"
           :enter="{
             ...animationEnter,
             transition: {
               duration: animationDuration,
-              delay: getDelay(sectionStartIndices[sectionIndex] + itemIndex),
+              delay: getDelay(sectionMeta[sIndex].startIndex + iIndex),
             },
           }"
-          @click="handleItemClick(item, sectionStartIndices[sectionIndex] + itemIndex)"
+          @click="handleItemClick(item, sectionMeta[sIndex].startIndex + iIndex)"
         >
           <slot
             name="item"
             :item="item"
-            :index="sectionStartIndices[sectionIndex] + itemIndex"
-            :active="originIndex === sectionStartIndices[sectionIndex] + itemIndex"
+            :index="sectionMeta[sIndex].startIndex + iIndex"
+            :active="originIndex === sectionMeta[sIndex].startIndex + iIndex"
           />
         </div>
       </div>
