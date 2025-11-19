@@ -1,41 +1,16 @@
 <script setup lang="ts">
-import type { ProviderMetadata } from '@proj-airi/stage-ui/stores/providers'
-import type { Ref } from 'vue'
-
-import { IconStatusItem } from '@proj-airi/stage-ui/components'
+import { IconStatusItem, RippleGrid } from '@proj-airi/stage-ui/components'
 import { useScrollToHash } from '@proj-airi/stage-ui/composables/useScrollToHash'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
-import { breakpointsTailwind, useBreakpoints } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed } from 'vue'
 import { onBeforeRouteLeave, useRoute } from 'vue-router'
 
 import { useProvidersPageStore } from './store'
 
-interface ProviderBlock {
-  id: string
-  icon: string
-  title: string
-  description: string
-  providersRef: Ref<ProviderMetadata[]>
-}
-
-interface ProviderRenderData extends ProviderMetadata {
-  renderIndex: number
-}
-
-interface ComputedProviderBlock {
-  id: string
-  icon: string
-  title: string
-  description: string
-  providers: ProviderRenderData[]
-}
-
 const route = useRoute()
 const providersStore = useProvidersStore()
 const providersPageStore = useProvidersPageStore()
-const breakpoints = useBreakpoints(breakpointsTailwind)
 
 const {
   allChatProvidersMetadata,
@@ -43,9 +18,7 @@ const {
   allAudioTranscriptionProvidersMetadata,
 } = storeToRefs(providersStore)
 
-const { lastClickedProviderIndex } = storeToRefs(providersPageStore)
-
-const providerBlocksConfig: ProviderBlock[] = [
+const providerBlocksConfig = [
   {
     id: 'chat',
     icon: 'i-solar:chat-square-like-bold-duotone',
@@ -69,7 +42,7 @@ const providerBlocksConfig: ProviderBlock[] = [
   },
 ]
 
-const providerBlocks = computed<ComputedProviderBlock[]>(() => {
+const providerBlocks = computed(() => {
   let globalIndex = 0
   return providerBlocksConfig.map(block => ({
     id: block.id,
@@ -82,31 +55,6 @@ const providerBlocks = computed<ComputedProviderBlock[]>(() => {
     })),
   }))
 })
-
-const cols = computed(() => {
-  if (breakpoints.greaterOrEqual('xl').value) {
-    return 3
-  }
-  if (breakpoints.greaterOrEqual('sm').value) {
-    return 2
-  }
-  return 1
-})
-
-function getAnimationDelay(renderIndex: number) {
-  const numCols = cols.value
-
-  const currentRow = Math.floor(renderIndex / numCols)
-  const currentCol = renderIndex % numCols
-
-  const clickedRow = Math.floor(lastClickedProviderIndex.value / numCols)
-  const clickedCol = lastClickedProviderIndex.value % numCols
-
-  // manhattan distance
-  const distance = Math.abs(currentRow - clickedRow) + Math.abs(currentCol - clickedCol)
-
-  return distance * 80
-}
 
 function handleProviderClick(renderIndex: number) {
   providersPageStore.setLastClickedProviderIndex(renderIndex)
@@ -145,47 +93,42 @@ onBeforeRouteLeave((to, from) => {
       </div>
     </div>
 
-    <template v-for="(block, blockIndex) in providerBlocks" :key="block.id">
-      <div flex="~ row items-center gap-2" :class="{ 'my-5': blockIndex > 0 }">
-        <div :id="block.id" :class="block.icon" text="neutral-500 dark:neutral-400 4xl" />
-        <div>
+    <RippleGrid
+      :sections="providerBlocks"
+      :items-source="block => block.providers"
+      :key-source="provider => provider.id"
+      :columns="{ default: 1, sm: 2, xl: 3 }"
+      :origin-index="providersPageStore.lastClickedProviderIndex"
+    >
+      <template #header="{ section: block }">
+        <div flex="~ row items-center gap-2">
+          <div :id="block.id" :class="block.icon" text="neutral-500 dark:neutral-400 4xl" />
           <div>
-            <span text="neutral-300 dark:neutral-500 sm sm:base">{{ block.description }}</span>
-          </div>
-          <div flex text-nowrap text="2xl sm:3xl" font-normal>
             <div>
-              {{ block.title }}
+              <span text="neutral-300 dark:neutral-500 sm sm:base">{{ block.description }}</span>
+            </div>
+            <div flex text-nowrap text="2xl sm:3xl" font-normal>
+              <div>
+                {{ block.title }}
+              </div>
             </div>
           </div>
         </div>
-      </div>
-      <div grid="~ cols-1 sm:cols-2 xl:cols-3 gap-4">
-        <div
-          v-for="provider of block.providers"
-          :key="provider.id"
-          v-motion
-          :initial="{ opacity: 0, y: 10 }"
-          :enter="{ opacity: 1,
-                    y: 0,
-                    transition: {
-                      duration: 250,
-                      delay: getAnimationDelay(provider.renderIndex),
-                    } }"
+      </template>
+
+      <template #item="{ item: provider }">
+        <IconStatusItem
+          :title="provider.localizedName || 'Unknown'"
+          :description="provider.localizedDescription"
+          :icon="provider.icon"
+          :icon-color="provider.iconColor"
+          :icon-image="provider.iconImage"
           :to="`/settings/providers/${provider.category}/${provider.id}`"
+          :configured="provider.configured"
           @click="handleProviderClick(provider.renderIndex)"
-        >
-          <IconStatusItem
-            :title="provider.localizedName || 'Unknown'"
-            :description="provider.localizedDescription"
-            :icon="provider.icon"
-            :icon-color="provider.iconColor"
-            :icon-image="provider.iconImage"
-            :to="`/settings/providers/${provider.category}/${provider.id}`"
-            :configured="provider.configured"
-          />
-        </div>
-      </div>
-    </template>
+        />
+      </template>
+    </RippleGrid>
   </div>
   <div
     v-motion
