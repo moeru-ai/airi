@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
+
 import RippleGrid from './RippleGrid.vue'
 
 const sections = ref([
@@ -13,7 +14,7 @@ const sections = ref([
   },
 ])
 
-const flatItems = ref(Array.from({ length: 51 }, (_, i) => ({ id: `flat-${i}`, label: `Flat Item ${i + 1}` })))
+const flatItems = ref(Array.from({ length: 10 }, (_, i) => ({ id: `flat-${i}`, label: `Flat Item ${i + 1}` })))
 
 const lastClickedIndex = ref(0)
 const renderKey = ref(0)
@@ -39,19 +40,20 @@ function handleItemClick({ globalIndex }: { globalIndex: number }) {
           :key="renderKey"
           :sections="sections"
           :get-items="s => s.items"
-          :getKey="i => i.id"
+          :get-key="i => i.id"
           :columns="{ default: 6, md: 8, xl: 10 }"
           :origin-index="lastClickedIndex"
           @item-click="handleItemClick"
         >
           <template #header="{ section }">
-            <h2 text-xl font-bold mb-2>{{ section.title }}</h2>
+            <h2 mb-2 text-xl font-bold>
+              {{ section.title }}
+            </h2>
           </template>
           <template #item="{ item, active }">
             <div
-              h-24 rounded-lg flex items-center justify-center
-              transition-colors duration-200
-              border-2
+
+              h-24 flex items-center justify-center border-2 rounded-lg transition-colors duration-200
               :class="active ? 'bg-primary-500 text-white border-primary-600' : 'bg-neutral-100 dark:bg-neutral-800 border-transparent hover:bg-neutral-200 dark:hover:bg-neutral-700'"
             >
               {{ item.label }}
@@ -69,16 +71,14 @@ function handleItemClick({ globalIndex }: { globalIndex: number }) {
         <RippleGrid
           :key="renderKey"
           :items="flatItems"
-          :getKey="i => i.id"
-          :columns="{ default: 3, md: 4, xl: 6 }"
+          :columns="1"
           :origin-index="lastClickedIndex"
           @item-click="handleItemClick"
         >
           <template #item="{ item, active }">
             <div
-              h-24 rounded-lg flex items-center justify-center
-              transition-colors duration-200
-              border-2
+
+              h-24 flex items-center justify-center border-2 rounded-lg transition-colors duration-200
               :class="active ? 'bg-emerald-500 text-white border-emerald-600' : 'bg-neutral-100 dark:bg-neutral-800 border-transparent hover:bg-neutral-200 dark:hover:bg-neutral-700'"
             >
               {{ item.label }}
