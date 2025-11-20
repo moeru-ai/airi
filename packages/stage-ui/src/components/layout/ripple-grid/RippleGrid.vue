@@ -9,14 +9,14 @@ type VirtualSection = {
 }
 
 const props = withDefaults(defineProps<{
-  items?: TItem[] 
-  sections?: TSection[] 
-  
+  items?: TItem[]
+  sections?: TSection[]
+
   getItems?: (section: TSection) => TItem[]
   getKey?: (item: TItem) => string | number
-  
+
   columns?: number | Record<string, number>
-  
+
   originIndex?: number
   animationInitial?: Record<string, unknown>
   animationEnter?: Record<string, unknown>
@@ -86,15 +86,15 @@ function handleItemClick(item: TItem, globalIndex: number) {
 <template>
   <div class="flex flex-col gap-5">
     <template v-for="(section, sIndex) in normalizedSections" :key="sIndex">
-      
+
       <div v-if="$slots.header && !isFlat" :class="{ 'my-5': sIndex > 0 }">
         <slot name="header" :section="section" :index="sIndex" />
       </div>
 
-      <div 
-        class="grid gap-4" 
-        :style="{ 
-          gridTemplateColumns: `repeat(${currentCols}, minmax(0, 1fr))` 
+      <div
+        class="grid gap-4"
+        :style="{
+          gridTemplateColumns: `repeat(${currentCols}, minmax(0, 1fr))`
         }"
       >
         <div

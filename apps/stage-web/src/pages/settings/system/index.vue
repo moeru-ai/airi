@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { IconItem } from '@proj-airi/stage-ui/components'
+import { IconItem, RippleGrid } from '@proj-airi/stage-ui/components'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
@@ -31,21 +31,20 @@ const settings = computed(() => [
   <div flex="~ col gap-4" font-normal>
     <div />
     <div flex="~ col gap-4">
-      <IconItem
-        v-for="(setting, index) in settings"
-        :key="setting.to"
-        v-motion
-        :initial="{ opacity: 0, y: 10 }"
-        :enter="{ opacity: 1, y: 0 }"
-        :duration="250"
-        :style="{
-          transitionDelay: `${index * 50}ms`, // delay between each item, unocss doesn't support dynamic generation of classes now
-        }"
-        :title="setting.title"
-        :description="setting.description"
-        :icon="setting.icon"
-        :to="setting.to"
-      />
+      <RippleGrid
+        :items="settings"
+        :get-key="item => item.to"
+        :columns="1"
+      >
+        <template #item="{ item }">
+          <IconItem
+            :title="item.title"
+            :description="item.description"
+            :icon="item.icon"
+            :to="item.to"
+          />
+        </template>
+      </RippleGrid>
     </div>
     <div
       v-motion
