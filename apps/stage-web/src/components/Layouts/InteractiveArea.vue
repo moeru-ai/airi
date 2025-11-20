@@ -7,8 +7,7 @@ import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
 import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
-import { BasicTextarea, FieldSelect } from '@proj-airi/ui'
-import { useDark } from '@vueuse/core'
+import { BasicTextarea, FieldSelect, useTheme } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { TooltipContent, TooltipProvider, TooltipRoot, TooltipTrigger } from 'reka-ui'
 import { computed, onUnmounted, ref, watch } from 'vue'
@@ -32,7 +31,7 @@ const { messages } = storeToRefs(useChatStore())
 const { audioContext } = useAudioContext()
 const { t } = useI18n()
 
-const isDark = useDark({ disableTransition: false })
+const { isDark, toggleDark } = useTheme()
 
 // Legacy whisper pipeline removed; audio pipeline handled at page level
 
@@ -240,7 +239,7 @@ onUnmounted(() => {
         text="lg neutral-500 dark:neutral-400"
         flex items-center justify-center rounded-md p-2 outline-none
         transition-colors transition-transform active:scale-95
-        @click="isDark = !isDark"
+        @click="toggleDark()"
       >
         <Transition name="fade" mode="out-in">
           <div v-if="isDark" i-solar:moon-bold />

@@ -2,7 +2,7 @@
 import type { Application } from '@pixi/app'
 import type { Cubism4InternalModel, InternalModel } from 'pixi-live2d-display/cubism4'
 
-import { breakpointsTailwind, until, useBreakpoints, useDark, useDebounceFn } from '@vueuse/core'
+const { isDark: dark } = useTheme()
 import { formatHex } from 'culori'
 import { storeToRefs } from 'pinia'
 import { DropShadowFilter } from 'pixi-filters'
@@ -83,18 +83,6 @@ const pixiApp = toRef(() => props.app)
 const paused = toRef(() => props.paused)
 const focusAt = toRef(() => props.focusAt)
 const model = ref<Live2DModel<PixiLive2DInternalModel>>()
-const initialModelWidth = ref<number>(0)
-const initialModelHeight = ref<number>(0)
-const mouthOpenSize = computed(() => Math.max(0, Math.min(100, props.mouthOpenSize)))
-const lastUpdateTime = ref(0)
-
-const dark = useDark()
-const breakpoints = useBreakpoints(breakpointsTailwind)
-const isMobile = computed(() => breakpoints.between('sm', 'md').value || breakpoints.smaller('sm').value)
-const idleEyeFocus = useLive2DIdleEyeFocus()
-const dropShadowFilter = shallowRef(new DropShadowFilter({
-  alpha: 0.2,
-  blur: 0,
   distance: 20,
   rotation: 45,
 }))

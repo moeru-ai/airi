@@ -3,7 +3,7 @@ import { defineInvoke, defineInvokeHandler } from '@moeru/eventa'
 import { useDisplayModelsStore } from '@proj-airi/stage-ui/stores/display-models'
 import { useOnboardingStore } from '@proj-airi/stage-ui/stores/onboarding'
 import { useSettings } from '@proj-airi/stage-ui/stores/settings'
-import { useDark } from '@vueuse/core'
+import { useTheme } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { onMounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -13,7 +13,7 @@ import { electronOpenSettings, electronStartTrackMousePosition } from '../shared
 import { useElectronEventaContext } from './composables/electron-vueuse'
 import { themeColorFromValue, useThemeColor } from './composables/theme-color'
 
-const dark = useDark({ disableTransition: false })
+const { isDark: dark } = useTheme()
 const i18n = useI18n()
 const displayModelsStore = useDisplayModelsStore()
 const settingsStore = useSettings()

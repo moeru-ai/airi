@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import { useDark } from '@vueuse/core'
+import { useTheme } from '@proj-airi/ui'
 import { RouterLink } from 'vue-router'
 
 import LogoDark from '../../assets/logo-dark.svg'
 import Logo from '../../assets/logo.svg'
 
-const dark = useDark()
+const { isDark: dark } = useTheme()
 </script>
 
 <template>
