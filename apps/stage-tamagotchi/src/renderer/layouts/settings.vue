@@ -8,6 +8,8 @@ import { RouterView, useRoute } from 'vue-router'
 
 import WindowTitleBar from '../components/Window/TitleBar.vue'
 
+import { useRestoreScroll } from '../composables/use-restore-scroll'
+
 const route = useRoute()
 const { t } = useI18n()
 const providersStore = useProvidersStore()
@@ -124,10 +126,12 @@ const routeHeaderMetadataMap = computed(() => {
 const routeHeaderMetadata = computed(() => {
   return routeHeaderMetadataMap.value[route.path] || routeHeaderMetadataMap.value[`${route.path}/`]
 })
+
+const { scrollContainer } = useRestoreScroll()
 </script>
 
 <template>
-  <div h-full w-full overflow-y-scroll scrollbar-none bg="$bg-color">
+  <div ref="scrollContainer" h-full w-full overflow-y-scroll scrollbar-none bg="$bg-color">
     <WindowTitleBar
       :title="routeHeaderMetadata?.title"
       icon="i-solar:settings-bold"
