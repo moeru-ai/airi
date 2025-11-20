@@ -139,7 +139,7 @@ const { scrollContainer } = useRestoreScroll()
 </script>
 
 <template>
-  <div h-full w-full overflow-y-scroll scrollbar-none bg="$bg-color" ref="scrollContainer">
+  <div ref="scrollContainer" h-full w-full overflow-y-scroll scrollbar-none bg="$bg-color">
     <WindowTitleBar
       :title="routeHeaderMetadata?.title"
       icon="i-solar:settings-bold"
