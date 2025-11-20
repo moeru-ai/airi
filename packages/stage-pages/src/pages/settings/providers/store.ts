@@ -15,4 +15,3 @@ export const useProvidersPageStore = defineStore('providersPage', {
     },
   },
 })
-
