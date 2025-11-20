@@ -10,6 +10,7 @@ import { RouterView, useRoute } from 'vue-router'
 import WindowTitleBar from '../components/Window/TitleBar.vue'
 
 import { themeColorFromValue, useThemeColor } from '../composables/theme-color'
+import { useRestoreScroll } from '../composables/use-restore-scroll'
 
 const route = useRoute()
 const dark = useDark()
@@ -133,10 +134,12 @@ const { updateThemeColor } = useThemeColor(themeColorFromValue({ light: 'rgb(255
 watch(dark, () => updateThemeColor(), { immediate: true })
 watch(route, () => updateThemeColor(), { immediate: true })
 onMounted(() => updateThemeColor())
+
+const { scrollContainer } = useRestoreScroll()
 </script>
 
 <template>
-  <div h-full w-full overflow-y-scroll scrollbar-none bg="$bg-color">
+  <div h-full w-full overflow-y-scroll scrollbar-none bg="$bg-color" ref="scrollContainer">
     <WindowTitleBar
       :title="routeHeaderMetadata?.title"
       icon="i-solar:settings-bold"
