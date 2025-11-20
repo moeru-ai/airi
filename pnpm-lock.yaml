@@ -314,9 +314,6 @@ importers:
       '@proj-airi/ui':
         specifier: workspace:^
         version: link:../../packages/ui
-      '@ricky0123/vad-web':
-        specifier: ^0.0.29
-        version: 0.0.29
       '@stdlib/string-base-kebabcase':
         specifier: ^0.2.2
         version: 0.2.2
@@ -714,9 +711,6 @@ importers:
       '@proj-airi/ui-transitions':
         specifier: workspace:^
         version: link:../../packages/ui-transitions
-      '@ricky0123/vad-web':
-        specifier: ^0.0.29
-        version: 0.0.29
       '@standard-schema/spec':
         specifier: ^1.0.0
         version: 1.0.0
@@ -1448,15 +1442,6 @@ importers:
       '@shikijs/rehype':
         specifier: ^3.15.0
         version: 3.15.0
-      '@tresjs/cientos':
-        specifier: ^5.1.0
-        version: 5.1.0(@tresjs/core@5.1.0(three@0.181.1)(vue@3.5.24(typescript@5.9.3)))(@types/three@0.181.0)(react@18.3.1)(three@0.181.1)(vue@3.5.24(typescript@5.9.3))
-      '@tresjs/core':
-        specifier: ^5.1.0
-        version: 5.1.0(three@0.181.1)(vue@3.5.24(typescript@5.9.3))
-      '@tresjs/post-processing':
-        specifier: ^3.1.0
-        version: 3.1.0(@tresjs/core@5.1.0(three@0.181.1)(vue@3.5.24(typescript@5.9.3)))(three@0.181.1)(vue@3.5.24(typescript@5.9.3))
       '@vueuse/core':
         specifier: ^14.0.0
         version: 14.0.0(vue@3.5.24(typescript@5.9.3))
@@ -1734,15 +1719,15 @@ importers:
       '@proj-airi/stage-shared':
         specifier: workspace:*
         version: link:../stage-shared
-      '@proj-airi/tresjs':
-        specifier: workspace:*
-        version: link:../tresjs
       '@tresjs/cientos':
         specifier: ^5.1.0
         version: 5.1.0(@tresjs/core@5.1.0(three@0.181.1)(vue@3.5.24(typescript@5.9.3)))(@types/three@0.181.0)(react@18.3.1)(three@0.181.1)(vue@3.5.24(typescript@5.9.3))
       '@tresjs/core':
         specifier: ^5.1.0
         version: 5.1.0(three@0.181.1)(vue@3.5.24(typescript@5.9.3))
+      '@tresjs/post-processing':
+        specifier: ^3.1.0
+        version: 3.1.0(@tresjs/core@5.1.0(three@0.181.1)(vue@3.5.24(typescript@5.9.3)))(three@0.181.1)(vue@3.5.24(typescript@5.9.3))
       '@vueuse/core':
         specifier: ^14.0.0
         version: 14.0.0(vue@3.5.24(typescript@5.9.3))
@@ -1784,31 +1769,6 @@ importers:
       pkgroll:
         specifier: ^2.20.1
         version: 2.20.1(typescript@5.9.3)
-
-  packages/tresjs:
-    dependencies:
-      '@tresjs/cientos':
-        specifier: '>=5.0.0 <6.0.0'
-        version: 5.1.0(@tresjs/core@5.1.0(three@0.180.0)(vue@3.5.24(typescript@5.9.3)))(@types/three@0.181.0)(react@18.3.1)(three@0.180.0)(vue@3.5.24(typescript@5.9.3))
-      '@tresjs/core':
-        specifier: '>=5.0.0 <6.0.0'
-        version: 5.1.0(three@0.180.0)(vue@3.5.24(typescript@5.9.3))
-      postprocessing:
-        specifier: '>=6.0.0 <7.0.0'
-        version: 6.38.0(three@0.180.0)
-      three:
-        specifier: '>=0.180.0 <0.181.0'
-        version: 0.180.0
-      vue:
-        specifier: '>=3.5.0 <4.0.0'
-        version: 3.5.24(typescript@5.9.3)
-    devDependencies:
-      '@types/three':
-        specifier: ^0.181.0
-        version: 0.181.0
-      vue-tsc:
-        specifier: ^3.1.4
-        version: 3.1.4(typescript@5.9.3)
 
   packages/ui:
     dependencies:
@@ -14665,9 +14625,6 @@ packages:
   three@0.128.0:
     resolution: {integrity: sha512-i0ap/E+OaSfzw7bD1TtYnPo3VEplkl70WX5fZqZnfZsE3k3aSFudqrrC9ldFZfYFkn1zwDmBcdGfiIm/hnbyZA==}
 
-  three@0.180.0:
-    resolution: {integrity: sha512-o+qycAMZrh+TsE01GqWUxUIKR1AL0S8pq7zDkYOQw8GqfX8b8VoCKYUoHbhiX5j+7hr8XsuHDVU6+gkQJQKg9w==}
-
   three@0.181.1:
     resolution: {integrity: sha512-bz9xZUQMw3pJbjKy7roiwXWgAp+oVUa+4k5o0oBAQ+IFJuru1xzvtk63h6k72XZanXS/SgoEhV6927Vgazyq2w==}
 
@@ -21472,22 +21429,6 @@ snapshots:
   '@tootallnate/quickjs-emscripten@0.23.0':
     optional: true
 
-  '@tresjs/cientos@5.1.0(@tresjs/core@5.1.0(three@0.180.0)(vue@3.5.24(typescript@5.9.3)))(@types/three@0.181.0)(react@18.3.1)(three@0.180.0)(vue@3.5.24(typescript@5.9.3))':
-    dependencies:
-      '@tresjs/core': 5.1.0(three@0.180.0)(vue@3.5.24(typescript@5.9.3))
-      '@vueuse/core': 13.9.0(vue@3.5.24(typescript@5.9.3))
-      camera-controls: 2.9.0(three@0.180.0)
-      stats-gl: 2.4.2(@types/three@0.181.0)(three@0.180.0)
-      stats.js: 0.17.0
-      three: 0.180.0
-      three-custom-shader-material: 5.4.0(react@18.3.1)(three@0.180.0)
-      three-stdlib: 2.36.0(three@0.180.0)
-      vue: 3.5.24(typescript@5.9.3)
-    transitivePeerDependencies:
-      - '@react-three/fiber'
-      - '@types/three'
-      - react
-
   '@tresjs/cientos@5.1.0(@tresjs/core@5.1.0(three@0.181.1)(vue@3.5.24(typescript@5.9.3)))(@types/three@0.181.0)(react@18.3.1)(three@0.181.1)(vue@3.5.24(typescript@5.9.3))':
     dependencies:
       '@tresjs/core': 5.1.0(three@0.181.1)(vue@3.5.24(typescript@5.9.3))
@@ -21503,15 +21444,6 @@ snapshots:
       - '@react-three/fiber'
       - '@types/three'
       - react
-
-  '@tresjs/core@5.1.0(three@0.180.0)(vue@3.5.24(typescript@5.9.3))':
-    dependencies:
-      '@pmndrs/pointer-events': 6.6.26
-      '@vue/devtools-api': 7.7.7
-      '@vueuse/core': 13.9.0(vue@3.5.24(typescript@5.9.3))
-      radashi: 12.6.2
-      three: 0.180.0
-      vue: 3.5.24(typescript@5.9.3)
 
   '@tresjs/core@5.1.0(three@0.181.1)(vue@3.5.24(typescript@5.9.3))':
     dependencies:
@@ -24428,10 +24360,6 @@ snapshots:
   camelcase@6.3.0: {}
 
   camelcase@8.0.0: {}
-
-  camera-controls@2.9.0(three@0.180.0):
-    dependencies:
-      three: 0.180.0
 
   camera-controls@2.9.0(three@0.181.1):
     dependencies:
@@ -30634,10 +30562,6 @@ snapshots:
 
   postgres@3.4.7: {}
 
-  postprocessing@6.38.0(three@0.180.0):
-    dependencies:
-      three: 0.180.0
-
   postprocessing@6.38.0(three@0.181.1):
     dependencies:
       three: 0.181.1
@@ -31990,11 +31914,6 @@ snapshots:
 
   stat-mode@1.0.0: {}
 
-  stats-gl@2.4.2(@types/three@0.181.0)(three@0.180.0):
-    dependencies:
-      '@types/three': 0.181.0
-      three: 0.180.0
-
   stats-gl@2.4.2(@types/three@0.181.0)(three@0.181.1):
     dependencies:
       '@types/three': 0.181.0
@@ -32322,16 +32241,6 @@ snapshots:
     dependencies:
       real-require: 0.2.0
 
-  three-custom-shader-material@5.4.0(react@18.3.1)(three@0.180.0):
-    dependencies:
-      glsl-token-functions: 1.0.1
-      glsl-token-string: 1.0.1
-      glsl-tokenizer: 2.1.5
-      object-hash: 3.0.0
-      three: 0.180.0
-    optionalDependencies:
-      react: 18.3.1
-
   three-custom-shader-material@5.4.0(react@18.3.1)(three@0.181.1):
     dependencies:
       glsl-token-functions: 1.0.1
@@ -32341,16 +32250,6 @@ snapshots:
       three: 0.181.1
     optionalDependencies:
       react: 18.3.1
-
-  three-stdlib@2.36.0(three@0.180.0):
-    dependencies:
-      '@types/draco3d': 1.4.10
-      '@types/offscreencanvas': 2019.7.3
-      '@types/webxr': 0.5.20
-      draco3d: 1.5.7
-      fflate: 0.6.10
-      potpack: 1.0.2
-      three: 0.180.0
 
   three-stdlib@2.36.0(three@0.181.1):
     dependencies:
@@ -32365,8 +32264,6 @@ snapshots:
   three.meshline@1.4.0: {}
 
   three@0.128.0: {}
-
-  three@0.180.0: {}
 
   three@0.181.1: {}
 
