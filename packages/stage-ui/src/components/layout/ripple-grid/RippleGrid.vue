@@ -1,9 +1,10 @@
 <script setup lang="ts" generic="TSection extends Record<string, unknown>, TItem extends Record<string, unknown>">
-import { useGridRipple } from './useGridRipple'
 import { breakpointsTailwind, useBreakpoints } from '@vueuse/core'
 import { computed, toRef } from 'vue'
 
-type VirtualSection = {
+import { useGridRipple } from './useGridRipple'
+
+interface VirtualSection {
   _isVirtual: true
   items: TItem[]
 }
@@ -30,7 +31,7 @@ const props = withDefaults(defineProps<{
   animationDuration: 250,
   delayPerUnit: 80,
   getItems: (section: any) => section.items || [],
-  getKey: (item: any) => item.id ?? item.key
+  getKey: (item: any) => item.id ?? item.key,
 })
 
 const emit = defineEmits<{
@@ -49,7 +50,8 @@ const normalizedSections = computed(() => {
   return props.sections || []
 })
 const currentCols = computed(() => {
-  if (typeof props.columns === 'number') return props.columns
+  if (typeof props.columns === 'number')
+    return props.columns
 
   for (const key of COLUMN_ORDER) {
     if ((props.columns as any)[key] && breakpoints.greaterOrEqual(key).value) {
@@ -61,7 +63,7 @@ const currentCols = computed(() => {
 
 const sectionMeta = computed(() => {
   let globalCounter = 0
-  return normalizedSections.value.map(section => {
+  return normalizedSections.value.map((section) => {
     const items = isFlat.value ? (section as unknown as VirtualSection).items : props.getItems(section)
     const startIndex = globalCounter
     globalCounter += items.length
@@ -86,7 +88,6 @@ function handleItemClick(item: TItem, globalIndex: number) {
 <template>
   <div class="flex flex-col gap-5">
     <template v-for="(section, sIndex) in normalizedSections" :key="sIndex">
-
       <div v-if="$slots.header && !isFlat" :class="{ 'my-5': sIndex > 0 }">
         <slot name="header" :section="section" :index="sIndex" />
       </div>
@@ -94,7 +95,7 @@ function handleItemClick(item: TItem, globalIndex: number) {
       <div
         class="grid gap-4"
         :style="{
-          gridTemplateColumns: `repeat(${currentCols}, minmax(0, 1fr))`
+          gridTemplateColumns: `repeat(${currentCols}, minmax(0, 1fr))`,
         }"
       >
         <div

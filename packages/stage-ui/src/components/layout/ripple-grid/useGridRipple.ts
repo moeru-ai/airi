@@ -1,4 +1,6 @@
-import { type MaybeRefOrGetter, computed, toValue } from 'vue'
+import type { MaybeRefOrGetter } from 'vue'
+
+import { computed, toValue } from 'vue'
 
 export interface UseGridRippleOptions {
   cols: MaybeRefOrGetter<number>
@@ -37,7 +39,7 @@ export function useGridRipple(options: UseGridRippleOptions) {
   const coordinateMap = computed(() => {
     const map = new Map<number, { row: number, col: number }>()
     const numCols = toValue(cols)
-    
+
     for (const meta of sectionLayout.value) {
       for (let i = 0; i < meta.itemCount; i++) {
         const linearIndex = meta.startLinearIndex + i
