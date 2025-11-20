@@ -1,12 +1,12 @@
 import { nextTick, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 
+const scrollPositions = new Map<string, number>()
+
 export function useRestoreScroll() {
   const route = useRoute()
 
   const scrollContainer = ref<HTMLElement | null>(null)
-
-  const scrollPositions = new Map<string, number>()
 
   watch(
     () => route.fullPath,
@@ -15,9 +15,15 @@ export function useRestoreScroll() {
         return
       }
 
-      scrollPositions.set(oldPath, scrollContainer.value.scrollTop)
+      if (oldPath) {
+        scrollPositions.set(oldPath, scrollContainer.value.scrollTop)
+      }
 
       await nextTick()
+
+      if (!scrollContainer.value) {
+        return
+      }
 
       const savedPosition = scrollPositions.get(newPath) || 0
       scrollContainer.value.scrollTop = savedPosition
