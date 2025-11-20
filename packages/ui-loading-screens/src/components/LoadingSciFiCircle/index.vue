@@ -2,7 +2,7 @@
 import type { Ref } from 'vue'
 
 import { Rive } from '@rive-app/canvas-lite'
-const { isDark } = useTheme()
+import { breakpointsTailwind, useBreakpoints, useDark } from '@vueuse/core'
 import { computed, onMounted, ref, watch } from 'vue'
 
 import CircleFadeInAnimation from './assets/circle_blink_in_-_loading_(@proj-airi).riv'
@@ -52,6 +52,18 @@ const PENDING_FRAMES = [
 interface BootMessage {
   template: string
   typingSpeed?: number
+  withoutTimestamp?: boolean
+  pending?: boolean
+  onPendingCheck?: () => Promise<boolean>
+  class?: string
+}
+
+const breakpoints = useBreakpoints(breakpointsTailwind)
+const isDeviceSm = computed(() => breakpoints.smaller('sm').value)
+
+/**
+ * Stick Letters
+ *
  * From @link{https://www.asciiart.eu/text-to-ascii-art}
  */
 const wideAsciiArt = computed(() => (`
@@ -233,7 +245,7 @@ const riveCanvas = ref<HTMLCanvasElement>()
 const rive = ref<Rive>()
 const crtRef = ref<InstanceType<typeof CRT>>()
 
-const { isDark } = useTheme()
+const isDark = useDark()
 
 function getTimestamp(): number {
   return performance.now() / 1000 * timeMultiplier.value
