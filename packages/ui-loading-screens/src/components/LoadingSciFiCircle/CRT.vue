@@ -53,7 +53,7 @@ defineExpose({
   <div
     v-bind="$attrs"
     h="[50dvh]" class="terminal-screen after:(pointer-events-none absolute inset-0 rounded-2xl content-[''])"
-    rounded-8xl font-retro-mono relative w-full p-4
+    rounded-8xl relative w-full p-4 font-retro-mono
     :style="{
       '--glitch-blink-speed': props.blinkSpeed,
       '--glitch-flash-freq': props.flashFrequency,

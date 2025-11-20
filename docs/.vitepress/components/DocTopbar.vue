@@ -44,17 +44,17 @@ watch(path, () => {
 
 <template>
   <div
-    class="border-muted-foreground/10 sticky top-[4.25rem] z-10 h-12 w-full border-y px-4 transition-all duration-500"
+    class="sticky top-[4.25rem] z-10 h-12 w-full border-y border-muted-foreground/10 px-4 transition-all duration-500"
     :class="[top ? 'bg-transparent backdrop-blur-0' : 'bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/80']"
   >
-    <div class="h-full items-center justify-between hidden md:flex">
+    <div class="hidden h-full items-center justify-between md:flex">
       <div class="h-full flex items-center">
         <a
           v-for="tab in sectionTabs.filter(i => !isCharacterPage(i.link))"
           :key="tab.label"
           :href="tab.link"
           :class="{ '!after:bg-primary !text-foreground': withBase(`/${page.relativePath}`).includes(tab.link?.split('/').slice(0, -1).join('/') || '') }"
-          class="text-muted-foreground hover:border-b-muted hover:text-foreground relative mx-4 h-full inline-flex items-center py-2 text-sm font-semibold after:absolute after:bottom-0 after:h-0.5 after:w-full after:rounded-t-full after:bg-transparent after:content-['']"
+          class="relative mx-4 h-full inline-flex items-center py-2 text-sm text-muted-foreground font-semibold after:absolute after:bottom-0 after:h-0.5 after:w-full hover:border-b-muted after:rounded-t-full after:bg-transparent hover:text-foreground after:content-['']"
           transition-colors duration-200 ease-in-out
         >
           <Icon
@@ -72,7 +72,7 @@ watch(path, () => {
           :key="tab.label"
           :href="tab.link"
           :class="{ '!after:bg-primary !text-foreground': withBase(page.relativePath).includes(tab.label?.toLowerCase() ?? '') }"
-          class="text-muted-foreground hover:border-b-muted hover:text-foreground relative mx-4 h-full inline-flex items-center py-2 text-sm font-semibold after:absolute after:bottom-0 after:h-0.5 after:w-full after:rounded-t-full after:bg-transparent after:content-['']"
+          class="relative mx-4 h-full inline-flex items-center py-2 text-sm text-muted-foreground font-semibold after:absolute after:bottom-0 after:h-0.5 after:w-full hover:border-b-muted after:rounded-t-full after:bg-transparent hover:text-foreground after:content-['']"
           transition-colors duration-200 ease-in-out
         >
           <Icon
@@ -89,7 +89,7 @@ watch(path, () => {
       <DialogRoot v-model:open="isSidebarOpen">
         <DialogTrigger
           aria-label="Menu button"
-          class="hover:bg-muted flex items-center rounded-lg p-2"
+          class="flex items-center rounded-lg p-2 hover:bg-muted"
           transition-colors duration-200 ease-in-out
         >
           <Icon
@@ -101,7 +101,7 @@ watch(path, () => {
 
         <DialogPortal>
           <DialogOverlay class="fixed inset-0 z-50 bg-black/80 data-[state=closed]:animate-fadeOut data-[state=open]:animate-fadeIn" />
-          <DialogContent class="data-[state=closed]:slide-out-to-left data-[state=open]:slide-in-from-left border-muted bg-background data-[state=closed]:animate-exitToLeft data-[state=open]:animate-enterFromLeft fixed inset-y-0 left-0 z-50 h-full w-3/4 gap-4 border-r pr-0 shadow-lg transition ease-in-out sm:max-w-sm">
+          <DialogContent class="data-[state=closed]:slide-out-to-left data-[state=open]:slide-in-from-left fixed inset-y-0 left-0 z-50 h-full w-3/4 gap-4 border-r border-muted bg-background pr-0 shadow-lg transition ease-in-out sm:max-w-sm data-[state=closed]:animate-exitToLeft data-[state=open]:animate-enterFromLeft">
             <DialogTitle class="sr-only">
               Sidebar menu
             </DialogTitle>
@@ -113,7 +113,7 @@ watch(path, () => {
               <div
                 v-for="group in theme.sidebar"
                 :key="group.text"
-                class="border-muted mb-4 flex flex-col gap-1 border-b px-4 pb-4"
+                class="mb-4 flex flex-col gap-1 border-b border-muted px-4 pb-4"
               >
                 <div class="mb-2 ml-2 flex items-center">
                   <Icon
@@ -158,7 +158,7 @@ watch(path, () => {
         <a
           href="/characters/"
           :class="{ '!border-b-primary !font-semibold !text-foreground': withBase(page.relativePath).includes('characters') }"
-          class="text-muted-foreground hover:border-b-muted hover:text-foreground mx-4 h-full inline-flex items-center gap-2 border-b border-b-transparent py-2 text-sm font-medium"
+          class="mx-4 h-full inline-flex items-center gap-2 border-b border-b-transparent py-2 text-sm text-muted-foreground font-medium hover:border-b-muted hover:text-foreground"
         >
           <Icon
             icon="lucide:scan-face"
