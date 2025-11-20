@@ -1,16 +1,15 @@
 <script setup lang="ts">
 import { IconStatusItem, RippleGrid } from '@proj-airi/stage-ui/components'
+import { useRippleGridState } from '@proj-airi/stage-ui/composables/use-ripple-grid-state'
 import { useScrollToHash } from '@proj-airi/stage-ui/composables/useScrollToHash'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { storeToRefs } from 'pinia'
 import { computed } from 'vue'
-import { onBeforeRouteLeave, useRoute } from 'vue-router'
-
-import { useProvidersPageStore } from './store'
+import { useRoute } from 'vue-router'
 
 const route = useRoute()
 const providersStore = useProvidersStore()
-const providersPageStore = useProvidersPageStore()
+const { lastClickedIndex, setLastClickedIndex } = useRippleGridState()
 
 const {
   allChatProvidersMetadata,
@@ -56,22 +55,12 @@ const providerBlocks = computed(() => {
   }))
 })
 
-function handleProviderClick(renderIndex: number) {
-  providersPageStore.setLastClickedProviderIndex(renderIndex)
-}
-
 useScrollToHash(() => route.hash, {
   auto: true, // automatically react to route hash
   offset: 16, // header + margin spacing
   behavior: 'smooth', // smooth scroll animation
   maxRetries: 15, // retry if target element isn't ready
   retryDelay: 150, // wait between retries
-})
-
-onBeforeRouteLeave((to, from) => {
-  if (!to.path.startsWith('/settings/providers/')) {
-    providersPageStore.resetLastClickedProviderIndex()
-  }
 })
 </script>
 
@@ -97,7 +86,8 @@ onBeforeRouteLeave((to, from) => {
       :sections="providerBlocks"
       :get-items="block => block.providers"
       :columns="{ default: 1, sm: 2, xl: 3 }"
-      :origin-index="providersPageStore.lastClickedProviderIndex"
+      :origin-index="lastClickedIndex"
+      @item-click="({ globalIndex }) => setLastClickedIndex(globalIndex)"
     >
       <template #header="{ section: block }">
         <div flex="~ row items-center gap-2">
@@ -124,7 +114,6 @@ onBeforeRouteLeave((to, from) => {
           :icon-image="provider.iconImage"
           :to="`/settings/providers/${provider.category}/${provider.id}`"
           :configured="provider.configured"
-          @click="handleProviderClick(provider.renderIndex)"
         />
       </template>
     </RippleGrid>

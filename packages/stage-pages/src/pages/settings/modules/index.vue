@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { IconStatusItem, RippleGrid } from '@proj-airi/stage-ui/components'
 import { useModulesList } from '@proj-airi/stage-ui/composables/use-modules-list'
+import { useRippleGridState } from '@proj-airi/stage-ui/composables/use-ripple-grid-state'
 
 const { modulesList } = useModulesList()
+const { lastClickedIndex, setLastClickedIndex } = useRippleGridState()
 </script>
 
 <template>
@@ -10,6 +12,8 @@ const { modulesList } = useModulesList()
     <RippleGrid
       :items="modulesList"
       :columns="{ default: 1, sm: 2 }"
+      :origin-index="lastClickedIndex"
+      @item-click="({ globalIndex }) => setLastClickedIndex(globalIndex)"
     >
       <template #item="{ item: module }">
         <IconStatusItem

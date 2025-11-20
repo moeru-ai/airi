@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { IconItem, RippleGrid } from '@proj-airi/stage-ui/components'
+import { useRippleGridState } from '@proj-airi/stage-ui/composables/use-ripple-grid-state'
 import { useSettings } from '@proj-airi/stage-ui/stores/settings'
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -8,6 +9,7 @@ import { useRouter } from 'vue-router'
 const router = useRouter()
 const resolveAnimation = ref<() => void>()
 const { t } = useI18n()
+const { lastClickedIndex, setLastClickedIndex } = useRippleGridState()
 
 const settingsStore = useSettings()
 
@@ -77,6 +79,8 @@ const settings = computed(() => [
         :items="settings"
         :get-key="item => item.to"
         :columns="1"
+        :origin-index="lastClickedIndex"
+        @item-click="({ globalIndex }) => setLastClickedIndex(globalIndex)"
       >
         <template #item="{ item }">
           <IconItem
