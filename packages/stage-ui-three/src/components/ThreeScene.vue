@@ -13,8 +13,8 @@ import type { DirectionalLight, SphericalHarmonics3, Texture, WebGLRenderTarget 
 import type { Vec3 } from '../stores/model-store'
 
 import { withBase } from '@proj-airi/stage-shared'
-import { EffectComposerPmndrs, HueSaturationPmndrs } from '@proj-airi/tresjs/post-processing'
 import { TresCanvas } from '@tresjs/core'
+import { EffectComposerPmndrs, HueSaturationPmndrs } from '@tresjs/post-processing'
 import { useElementBounding } from '@vueuse/core'
 import { formatHex } from 'culori'
 import { storeToRefs } from 'pinia'

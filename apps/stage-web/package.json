@@ -34,7 +34,6 @@
     "@proj-airi/stage-ui-three": "workspace:^",
     "@proj-airi/ui": "workspace:^",
     "@proj-airi/ui-transitions": "workspace:^",
-    "@ricky0123/vad-web": "^0.0.29",
     "@standard-schema/spec": "^1.0.0",
     "@stdlib/string-base-kebabcase": "^0.2.2",
     "@tresjs/cientos": "^5.1.0",
