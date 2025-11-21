@@ -2,6 +2,7 @@ import type { Plugin } from 'vue'
 import type { Router, RouteRecordRaw } from 'vue-router'
 
 import Tres from '@tresjs/core'
+import NProgress from 'nprogress'
 
 import { autoAnimatePlugin } from '@formkit/auto-animate/vue'
 import { MotionPlugin } from '@vueuse/motion'
@@ -30,6 +31,15 @@ if (import.meta.env.VITE_APP_TARGET_HUGGINGFACE_SPACE)
   router = createRouter({ routes: routeRecords, history: createWebHashHistory() })
 else
   router = createRouter({ routes: routeRecords, history: createWebHistory() })
+
+router.beforeEach((to, from) => {
+  if (to.path !== from.path)
+    NProgress.start()
+})
+
+router.afterEach(() => {
+  NProgress.done()
+})
 
 createApp(App)
   .use(MotionPlugin)
