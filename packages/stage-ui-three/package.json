@@ -25,20 +25,20 @@
     "@pixiv/three-vrm-animation": "^3.4.4",
     "@pixiv/three-vrm-core": "^3.4.4",
     "@proj-airi/stage-shared": "workspace:*",
-    "@proj-airi/tresjs": "workspace:*",
     "@tresjs/cientos": "^5.1.0",
     "@tresjs/core": "^5.1.0",
+    "@tresjs/post-processing": "^3.1.0",
     "@vueuse/core": "^14.0.0",
     "culori": "^4.0.2",
-    "pinia": "^3.0.3",
-    "postprocessing": "^6.37.8",
-    "three": "^0.181.0",
-    "vue": "^3.5.22",
-    "wlipsync": "^1.2.1"
+    "pinia": "^3.0.4",
+    "postprocessing": "^6.38.0",
+    "three": "^0.181.1",
+    "vue": "^3.5.24",
+    "wlipsync": "^1.3.0"
   },
   "devDependencies": {
     "@types/culori": "^4.0.1",
     "@types/three": "^0.181.0",
-    "vue-tsc": "^3.1.2"
+    "vue-tsc": "^3.1.4"
   }
 }

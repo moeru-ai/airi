@@ -1,26 +1,35 @@
 <script setup lang="ts">
+import { defineInvoke, defineInvokeHandler } from '@moeru/eventa'
 import { useDisplayModelsStore } from '@proj-airi/stage-ui/stores/display-models'
 import { useOnboardingStore } from '@proj-airi/stage-ui/stores/onboarding'
 import { useSettings } from '@proj-airi/stage-ui/stores/settings'
-import { defineInvoke, defineInvokeHandler } from '@unbird/eventa'
+import { useTheme } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { onMounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { RouterView, useRouter } from 'vue-router'
+import { RouterView, useRoute, useRouter } from 'vue-router'
 
 import { electronOpenSettings, electronStartTrackMousePosition } from '../shared/eventa'
 import { useElectronEventaContext } from './composables/electron-vueuse'
+import { themeColorFromValue, useThemeColor } from './composables/theme-color'
 
+const { isDark: dark } = useTheme()
 const i18n = useI18n()
 const displayModelsStore = useDisplayModelsStore()
 const settingsStore = useSettings()
 const { language, themeColorsHue, themeColorsHueDynamic } = storeToRefs(settingsStore)
 const onboardingStore = useOnboardingStore()
 const router = useRouter()
+const route = useRoute()
 
 watch(language, () => {
   i18n.locale.value = language.value
 })
+
+const { updateThemeColor } = useThemeColor(themeColorFromValue({ light: 'rgb(255 255 255)', dark: 'rgb(18 18 18)' }))
+watch(dark, () => updateThemeColor(), { immediate: true })
+watch(route, () => updateThemeColor(), { immediate: true })
+onMounted(() => updateThemeColor())
 
 // FIXME: store settings to file
 onMounted(async () => {

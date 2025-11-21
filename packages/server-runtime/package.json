@@ -16,13 +16,13 @@
   },
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
-      "default": "./dist/index.js"
+      "types": "./dist/index.d.mts",
+      "default": "./dist/index.mjs"
     }
   },
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
-  "bin": "./dist/bin/run.js",
+  "main": "./dist/index.mjs",
+  "types": "./dist/index.d.mts",
+  "bin": "./dist/bin/run.mjs",
   "files": [
     "README.md",
     "dist",

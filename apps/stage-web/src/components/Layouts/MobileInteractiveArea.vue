@@ -8,8 +8,8 @@ import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
 import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
-import { BasicTextarea } from '@proj-airi/ui'
-import { useDark, useResizeObserver, useScreenSafeArea } from '@vueuse/core'
+import { BasicTextarea, useTheme } from '@proj-airi/ui'
+import { useResizeObserver, useScreenSafeArea } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { onMounted, onUnmounted, ref, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -21,7 +21,7 @@ import ActionAbout from './InteractiveArea/Actions/About.vue'
 import ActionViewControls from './InteractiveArea/Actions/ViewControls.vue'
 import ViewControlInputs from './ViewControls/Inputs.vue'
 
-const isDark = useDark({ disableTransition: false })
+const { isDark, toggleDark } = useTheme()
 const hearingDialogOpen = ref(false)
 
 const viewControlsActiveMode = ref<'x' | 'y' | 'z' | 'scale'>('scale')
@@ -163,7 +163,7 @@ onMounted(() => {
               </Transition>
             </button>
           </HearingConfigDialog>
-          <button border="2 solid neutral-100/60 dark:neutral-800/30" bg="neutral-50/70 dark:neutral-800/70" w-fit flex items-center self-end justify-center rounded-xl p-2 backdrop-blur-md title="Theme" @click="isDark = !isDark">
+          <button border="2 solid neutral-100/60 dark:neutral-800/30" bg="neutral-50/70 dark:neutral-800/70" w-fit flex items-center self-end justify-center rounded-xl p-2 backdrop-blur-md title="Theme" @click="toggleDark()">
             <Transition name="fade" mode="out-in">
               <div v-if="isDark" i-solar:moon-outline size-5 text="neutral-500 dark:neutral-400" />
               <div v-else i-solar:sun-2-outline size-5 text="neutral-500 dark:neutral-400" />

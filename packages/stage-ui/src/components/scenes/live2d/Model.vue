@@ -2,7 +2,8 @@
 import type { Application } from '@pixi/app'
 import type { Cubism4InternalModel, InternalModel } from 'pixi-live2d-display/cubism4'
 
-import { breakpointsTailwind, until, useBreakpoints, useDark, useDebounceFn } from '@vueuse/core'
+import { useTheme } from '@proj-airi/ui'
+import { breakpointsTailwind, until, useBreakpoints, useDebounceFn } from '@vueuse/core'
 import { formatHex } from 'culori'
 import { storeToRefs } from 'pinia'
 import { DropShadowFilter } from 'pixi-filters'
@@ -88,7 +89,7 @@ const initialModelHeight = ref<number>(0)
 const mouthOpenSize = computed(() => Math.max(0, Math.min(100, props.mouthOpenSize)))
 const lastUpdateTime = ref(0)
 
-const dark = useDark()
+const { isDark: dark } = useTheme()
 const breakpoints = useBreakpoints(breakpointsTailwind)
 const isMobile = computed(() => breakpoints.between('sm', 'md').value || breakpoints.smaller('sm').value)
 const idleEyeFocus = useLive2DIdleEyeFocus()
@@ -134,6 +135,7 @@ const {
   themeColorsHue,
   themeColorsHueDynamic,
   live2dIdleAnimationEnabled,
+  live2dShadowEnabled,
 } = storeToRefs(useSettings())
 
 const localCurrentMotion = ref<{ group: string, index: number }>({ group: 'Idle', index: 0 })
@@ -461,7 +463,12 @@ function updateDropShadowFilter() {
   if (model.value) {
     const color = getComputedStyle(dropShadowColorComputer.value!).backgroundColor
     dropShadowFilter.value.color = Number(formatHex(color)!.replace('#', '0x'))
-    model.value.filters = [dropShadowFilter.value]
+    if (live2dShadowEnabled.value) {
+      model.value.filters = [dropShadowFilter.value]
+    }
+    else {
+      model.value.filters = []
+    }
   }
 }
 
@@ -469,6 +476,7 @@ watch([() => props.width, () => props.height], () => handleResize())
 watch(modelSrcRef, async () => await loadModel(), { immediate: true })
 watch(dark, updateDropShadowFilter, { immediate: true })
 watch([model, themeColorsHue], updateDropShadowFilter)
+watch(live2dShadowEnabled, updateDropShadowFilter)
 watch(offset, setScaleAndPosition)
 watch(() => props.scale, setScaleAndPosition)
 

@@ -2,7 +2,7 @@ import type { BrowserWindow } from 'electron'
 
 import type { WidgetsWindowManager } from '../../widgets'
 
-import { createContext } from '@unbird/eventa/adapters/electron/main'
+import { createContext } from '@moeru/eventa/adapters/electron/main'
 import { ipcMain } from 'electron'
 
 import { createWidgetsService } from '../../../services/airi/widgets'

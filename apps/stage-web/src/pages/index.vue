@@ -12,7 +12,8 @@ import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consci
 import { useHearingSpeechInputPipeline } from '@proj-airi/stage-ui/stores/modules/hearing'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
-import { breakpointsTailwind, useBreakpoints, useDark, useMouse } from '@vueuse/core'
+import { useTheme } from '@proj-airi/ui'
+import { breakpointsTailwind, useBreakpoints, useMouse } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { onMounted, onUnmounted, ref, watch } from 'vue'
 
@@ -25,7 +26,7 @@ import AnimatedWave from '../components/Widgets/AnimatedWave.vue'
 
 import { themeColorFromPropertyOf, useThemeColor } from '../composables/theme-color'
 
-const dark = useDark()
+const { isDark: dark } = useTheme()
 const paused = ref(false)
 
 function handleSettingsOpen(open: boolean) {

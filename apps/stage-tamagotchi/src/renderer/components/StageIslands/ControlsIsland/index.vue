@@ -1,7 +1,7 @@
 <script setup lang="ts">
+import { defineInvoke } from '@moeru/eventa'
 import { useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
-import { defineInvoke } from '@unbird/eventa'
-import { useDark, useToggle } from '@vueuse/core'
+import { useTheme } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { ref } from 'vue'
 
@@ -14,8 +14,7 @@ import { electronOpenChat, electronOpenSettings, electronStartDraggingWindow } f
 import { useElectronEventaContext, useElectronEventaInvoke } from '../../../composables/electron-vueuse/use-electron-eventa-context'
 import { isLinux } from '../../../utils/platform'
 
-const isDark = useDark({ disableTransition: false })
-const toggleDark = useToggle(isDark)
+const { isDark, toggleDark } = useTheme()
 
 const settingsAudioDeviceStore = useSettingsAudioDevice()
 const context = useElectronEventaContext()
