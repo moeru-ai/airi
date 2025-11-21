@@ -1,4 +1,4 @@
-<script setup lang="ts" generic="TSection extends Record<string, unknown>, TItem extends Record<string, unknown>">
+<script setup lang="ts" generic="TSection, TItem">
 import { breakpointsTailwind, useBreakpoints } from '@vueuse/core'
 import { computed, toRef } from 'vue'
 
