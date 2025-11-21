@@ -26,8 +26,8 @@ interface Config {
 }
 
 // Helper functions for type-safe environment variable parsing
-function getEnvVar(key: string, defaultValue: string): string {
-  return env[key] || defaultValue
+function getEnvVar<V extends string>(key: string, defaultValue?: V): V | undefined {
+  return (env[key] || defaultValue) as V | undefined
 }
 
 function getEnvNumber(key: string, defaultValue: number): number {
@@ -64,23 +64,23 @@ export function initEnv(): void {
 
   // Update config with environment variables
   config.openai = {
-    apiKey: getEnvVar('OPENAI_API_KEY', defaultConfig.openai.apiKey),
-    baseUrl: getEnvVar('OPENAI_API_BASEURL', defaultConfig.openai.baseUrl),
-    model: getEnvVar('OPENAI_MODEL', defaultConfig.openai.model),
-    reasoningModel: getEnvVar('OPENAI_REASONING_MODEL', defaultConfig.openai.reasoningModel),
+    apiKey: getEnvVar('OPENAI_API_KEY', defaultConfig.openai.apiKey)!,
+    baseUrl: getEnvVar('OPENAI_API_BASEURL', defaultConfig.openai.baseUrl)!,
+    model: getEnvVar('OPENAI_MODEL', defaultConfig.openai.model)!,
+    reasoningModel: getEnvVar('OPENAI_REASONING_MODEL', defaultConfig.openai.reasoningModel)!,
   }
 
   config.bot = {
-    username: getEnvVar('BOT_USERNAME', defaultConfig.bot.username as string),
-    host: getEnvVar('BOT_HOSTNAME', defaultConfig.bot.host as string),
+    username: getEnvVar('BOT_USERNAME', defaultConfig.bot.username as string)!,
+    host: getEnvVar('BOT_HOSTNAME', defaultConfig.bot.host as string)!,
     port: getEnvNumber('BOT_PORT', defaultConfig.bot.port as number),
-    password: getEnvVar('BOT_PASSWORD', defaultConfig.bot.password as string),
+    auth: getEnvVar('BOT_AUTH', defaultConfig.bot.auth as string | undefined) as BotOptions['auth'],
     version: getEnvVar('BOT_VERSION', defaultConfig.bot.version as string),
   }
 
   config.airi = {
-    wsBaseUrl: getEnvVar('AIRI_WS_BASEURL', defaultConfig.airi.wsBaseUrl),
-    clientName: getEnvVar('AIRI_CLIENT_NAME', defaultConfig.airi.clientName),
+    wsBaseUrl: getEnvVar('AIRI_WS_BASEURL', defaultConfig.airi.wsBaseUrl)!,
+    clientName: getEnvVar('AIRI_CLIENT_NAME', defaultConfig.airi.clientName)!,
   }
 
   logger.withFields({ config }).log('Environment variables initialized')
