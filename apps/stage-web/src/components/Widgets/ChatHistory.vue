@@ -39,7 +39,7 @@ watch(sending, () => {
 </script>
 
 <template>
-  <div py="<sm:2" flex="~ col" rounded="lg" relative overflow-hidden py-4>
+  <div overflow-hidden>
     <div flex-1 /> <!-- spacer -->
     <div ref="chatHistoryRef" v-auto-animate px="<sm:2" flex="~ col" h-full w-full overflow-scroll px-4>
       <div flex-1 /> <!-- spacer -->
