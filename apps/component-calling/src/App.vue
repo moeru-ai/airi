@@ -1,9 +1,8 @@
 <script setup lang="ts">
-import { useDark, useToggle } from '@vueuse/core'
+import { useTheme } from '@proj-airi/ui'
 import { RouterLink, RouterView } from 'vue-router'
 
-const isDark = useDark()
-const toggleDark = useToggle(isDark)
+const { isDark, toggleDark } = useTheme()
 </script>
 
 <template>

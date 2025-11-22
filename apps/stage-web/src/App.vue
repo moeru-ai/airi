@@ -4,8 +4,8 @@ import { useDisplayModelsStore } from '@proj-airi/stage-ui/stores/display-models
 import { useModsChannelServerStore } from '@proj-airi/stage-ui/stores/mods/api/channel-server'
 import { useOnboardingStore } from '@proj-airi/stage-ui/stores/onboarding'
 import { useSettings } from '@proj-airi/stage-ui/stores/settings'
+import { useTheme } from '@proj-airi/ui'
 import { StageTransitionGroup } from '@proj-airi/ui-transitions'
-import { useDark } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, onUnmounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -23,7 +23,7 @@ const settingsStore = useSettings()
 const settings = storeToRefs(settingsStore)
 const onboardingStore = useOnboardingStore()
 const { shouldShowSetup } = storeToRefs(onboardingStore)
-const isDark = useDark()
+const { isDark } = useTheme()
 const channelServerStore = useModsChannelServerStore()
 
 const primaryColor = computed(() => {
