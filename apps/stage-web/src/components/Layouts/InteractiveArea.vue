@@ -1,13 +1,13 @@
 <script setup lang="ts">
-import { defineAsyncComponent, ref } from 'vue'
+import { useDeferredMount } from '@proj-airi/ui'
+import { ref } from 'vue'
 
 import ChatActionButtons from '../Widgets/ChatActionButtons.vue'
 import ChatArea from '../Widgets/ChatArea.vue'
 import ChatContainer from '../Widgets/ChatContainer.vue'
+import ChatHistory from '../Widgets/ChatHistory.vue'
 
-const DeferredChatHistory = defineAsyncComponent({
-  loader: () => import('../Widgets/ChatHistory.vue'),
-})
+const { isReady } = useDeferredMount()
 
 const isLoading = ref(true)
 </script>
@@ -24,7 +24,7 @@ const isLoading = ref(true)
           <div h-full w="1/3" origin-left bg-primary-500 class="animate-scan" />
         </div>
         <div w="full" max-h="<md:[60%]" py="<sm:2" flex="~ col" rounded="lg" relative h-full flex-1 overflow-hidden py-4>
-          <DeferredChatHistory @vue:mounted="isLoading = false" />
+          <ChatHistory v-if="isReady" @vue:mounted="isLoading = false" />
         </div>
         <ChatArea />
       </ChatContainer>
