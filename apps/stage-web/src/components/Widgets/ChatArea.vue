@@ -99,10 +99,6 @@ watch([hearingTooltipOpen, enabled, stream], () => {
   setupAnalyzer()
 }, { immediate: true })
 
-onMounted(() => {
-  console.log('mounted')
-})
-
 onUnmounted(() => {
   teardownAnalyzer()
 })

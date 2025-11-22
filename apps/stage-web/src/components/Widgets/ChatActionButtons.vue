@@ -3,7 +3,7 @@ import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
 import { useTheme } from '@proj-airi/ui'
 
 const { cleanupMessages } = useChatStore()
-const { isDark } = useTheme()
+const { isDark, toggleDark } = useTheme()
 </script>
 
 <template>
@@ -26,7 +26,7 @@ const { isDark } = useTheme()
       text="lg neutral-500 dark:neutral-400"
       flex items-center justify-center rounded-md p-2 outline-none
       transition-colors transition-transform active:scale-95
-      @click="isDark = !isDark"
+      @click="() => toggleDark()"
     >
       <Transition name="fade" mode="out-in">
         <div v-if="isDark" i-solar:moon-bold />

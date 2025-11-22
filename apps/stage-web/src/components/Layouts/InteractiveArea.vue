@@ -24,7 +24,7 @@ const isLoading = ref(true)
           <div h-full w="1/3" origin-left bg-primary-500 class="animate-scan" />
         </div>
         <div w="full" max-h="<md:[60%]" py="<sm:2" flex="~ col" rounded="lg" relative h-full flex-1 overflow-hidden py-4>
-          <ChatHistory v-if="isReady" @vue:mounted="isLoading = false" />
+          <ChatHistory v-if="isReady" h-full @vue:mounted="isLoading = false" />
         </div>
         <ChatArea />
       </ChatContainer>
