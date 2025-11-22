@@ -1,6 +1,6 @@
-import { ref, onMounted } from "vue"
+import { onMounted, ref } from 'vue'
 
-export const useDeferredMount = () => {
+export function useDeferredMount() {
   const isReady = ref(false)
 
   onMounted(() => {
