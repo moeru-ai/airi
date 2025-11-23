@@ -35,6 +35,9 @@ export function createRequestWindowEventa(namespace: string) {
   }
 }
 
+// Notice window events built from generic factory
+export const noticeWindowEventa = createRequestWindowEventa('notice')
+
 // Widgets / Adhoc window events
 export interface WidgetsAddPayload {
   id?: string
