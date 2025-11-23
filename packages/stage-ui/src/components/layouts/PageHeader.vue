@@ -22,9 +22,9 @@ const subtitle = ref(props.subtitle)
 const finalizedDisableBackButton = ref(props.disableBackButton)
 
 const { apply } = useMotion(pageHeaderRef, {
-  initial: { opacity: 0, x: 10, transition: { duration: 250 } },
+  initial: { opacity: 0, x: 10, transition: { duration: 50 } },
   enter: { opacity: 1, x: 0, transition: { duration: 250 } },
-  leave: { opacity: 0, x: -5, transition: { duration: 100 } },
+  leave: { opacity: 0, x: -5, transition: { duration: 25 } },
 })
 
 onMounted(async () => {
