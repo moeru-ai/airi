@@ -4,6 +4,7 @@ import JSZip from 'jszip'
 
 import { Cubism4ModelSettings, ZipLoader } from 'pixi-live2d-display/cubism4'
 
+
 ZipLoader.zipReader = (data: Blob, _url: string) => JSZip.loadAsync(data)
 
 const defaultCreateSettings = ZipLoader.createSettings

@@ -85,6 +85,7 @@ watch(selectedModel, async () => {
       <Live2DScene
         :focus-at="{ x: positionCursor.x.value, y: positionCursor.y.value }"
         :model-src="stageModelSelectedUrl"
+        :model-id="stageModelSelected"
         :disable-focus-at="live2dDisableFocus"
       />
     </div>
