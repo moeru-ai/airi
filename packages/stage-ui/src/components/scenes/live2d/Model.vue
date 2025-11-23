@@ -488,7 +488,7 @@ function updateDropShadowFilterLoop() {
     dropShadowAnimationId.value = 0
     return
   }
-  
+
   dropShadowAnimationId.value = requestAnimationFrame(updateDropShadowFilterLoop)
 }
 
