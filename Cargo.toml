@@ -6,7 +6,6 @@ members = [
   "crates/tauri-plugin-rdev",
   "crates/tauri-plugin-window-pass-through-on-hover",
   "crates/tauri-plugin-window-router-link",
-  "apps/stage-tamagotchi/src-tauri"
 ]
 resolver = "2"
 
@@ -39,6 +38,3 @@ debug = true
 [profile.dev.package."*"]
 opt-level = 1
 debug = false
-
-[patch.crates-io.esaxx-rs]
-path = "apps/stage-tamagotchi/src-tauri/libs/esaxx-rs"
