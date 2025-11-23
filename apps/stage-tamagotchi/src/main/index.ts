@@ -2,7 +2,7 @@ import type { BrowserWindow } from 'electron'
 
 import type { WidgetsWindowManager } from './windows/widgets'
 
-import { platform } from 'node:process'
+import { env, platform } from 'node:process'
 
 import { electronApp, optimizer } from '@electron-toolkit/utils'
 import { Format, LogLevel, setGlobalFormat, setGlobalLogLevel, useLogg } from '@guiiai/logg'
@@ -50,6 +50,10 @@ if (isLinux) {
   app.commandLine.appendSwitch('enable-features', 'SharedArrayBuffer')
   app.commandLine.appendSwitch('enable-unsafe-webgpu')
   app.commandLine.appendSwitch('enable-features', 'Vulkan')
+
+  if (env.XDG_SESSION_TYPE === 'wayland') {
+    app.commandLine.appendSwitch('enable-features', 'UseOzonePlatform')
+  }
 }
 
 app.dock?.setIcon(icon)
