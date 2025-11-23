@@ -22,6 +22,7 @@ import { setupCaptionWindowManager } from './windows/caption'
 import { setupChatWindowReusableFunc } from './windows/chat'
 import { setupInlayWindow } from './windows/inlay'
 import { setupMainWindow } from './windows/main'
+import { setupNoticeWindowManager } from './windows/notice'
 import { setupSettingsWindowReusableFunc } from './windows/settings'
 import { toggleWindowShow } from './windows/shared/window'
 import { setupWidgetsWindowManager } from './windows/widgets'
@@ -103,13 +104,14 @@ app.whenReady().then(async () => {
   const channelServerModule = injeca.provide('modules:channel-server', async () => setupChannelServer())
   const chatWindow = injeca.provide('windows:chat', { build: () => setupChatWindowReusableFunc() })
   const widgetsManager = injeca.provide('windows:widgets', { build: () => setupWidgetsWindowManager() })
+  const noticeWindow = injeca.provide('windows:notice', { build: () => setupNoticeWindowManager() })
 
   const settingsWindow = injeca.provide('windows:settings', {
     dependsOn: { widgetsManager },
     build: ({ dependsOn }) => setupSettingsWindowReusableFunc(dependsOn),
   })
   const mainWindow = injeca.provide('windows:main', {
-    dependsOn: { settingsWindow, chatWindow, widgetsManager },
+    dependsOn: { settingsWindow, chatWindow, widgetsManager, noticeWindow },
     build: async ({ dependsOn }) => setupMainWindow(dependsOn),
   })
   const captionWindow = injeca.provide('windows:caption', {

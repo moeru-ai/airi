@@ -13,7 +13,7 @@ import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consci
 import { useHearingSpeechInputPipeline } from '@proj-airi/stage-ui/stores/modules/hearing'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
-import { refDebounced, useBroadcastChannel } from '@vueuse/core'
+import { refDebounced, useBroadcastChannel, watchPausable } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, onUnmounted, ref, toRef, watch } from 'vue'
 
@@ -28,6 +28,7 @@ import {
   useElectronMouseInWindow,
   useElectronRelativeMouse,
 } from '../composables/electron-vueuse'
+import { useControlsIslandStore } from '../stores/controls-island'
 import { useWindowStore } from '../stores/window'
 
 const resourceStatusIslandRef = ref<InstanceType<typeof ResourceStatusIsland>>()
@@ -53,16 +54,17 @@ const setIgnoreMouseEvents = useElectronEventaInvoke(electron.window.setIgnoreMo
 
 const { scale, positionInPercentageString } = storeToRefs(useLive2d())
 const { live2dLookAtX, live2dLookAtY } = storeToRefs(useWindowStore())
+const { fadeOnHoverEnabled } = storeToRefs(useControlsIslandStore())
 
 watch(componentStateStage, () => isLoading.value = componentStateStage.value !== 'mounted', { immediate: true })
 
-const { pause, resume } = watch(isTransparent, (transparent) => {
-  shouldFadeOnCursorWithin.value = !transparent
+const { pause, resume } = watchPausable(isTransparent, (transparent) => {
+  shouldFadeOnCursorWithin.value = fadeOnHoverEnabled.value && !transparent
 }, { immediate: true })
 
 const hearingDialogOpen = computed(() => controlsIslandRef.value?.hearingDialogOpen ?? false)
 
-watch([isOutsideFor250Ms, isAroundWindowBorderFor250Ms, isOutsideWindow, isTransparent, hearingDialogOpen], () => {
+watch([isOutsideFor250Ms, isAroundWindowBorderFor250Ms, isOutsideWindow, isTransparent, hearingDialogOpen, fadeOnHoverEnabled], () => {
   if (hearingDialogOpen.value) {
     // Hearing dialog/drawer is open; keep window interactive
     isIgnoringMouseEvents.value = false
@@ -83,13 +85,14 @@ watch([isOutsideFor250Ms, isAroundWindowBorderFor250Ms, isOutsideWindow, isTrans
     pause()
   }
   else {
-    // Otherwise allow click-through while we fade UI based on transparency
+    // Otherwise allow click-through while we fade UI based on transparency (when enabled)
     isIgnoringMouseEvents.value = true
-    if (!isOutsideWindow.value && !isTransparent.value) {
-      shouldFadeOnCursorWithin.value = true
-    }
+    shouldFadeOnCursorWithin.value = fadeOnHoverEnabled.value && !isOutsideWindow.value && !isTransparent.value
     setIgnoreMouseEvents([true, { forward: true }])
-    resume()
+    if (fadeOnHoverEnabled.value)
+      resume()
+    else
+      pause()
   }
 })
 
@@ -226,7 +229,9 @@ watch([stream, () => vadLoaded.value], async ([s, loaded]) => {
           :y-offset="positionInPercentageString.y"
           mb="<md:18"
         />
-        <ControlsIsland ref="controlsIslandRef" />
+        <ControlsIsland
+          ref="controlsIslandRef"
+        />
       </div>
     </div>
     <div v-show="isLoading" h-full w-full>
