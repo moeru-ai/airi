@@ -1,12 +1,13 @@
 import type { BrowserWindow } from 'electron'
 
+import type { NoticeWindowManager } from '../../notice'
 import type { WidgetsWindowManager } from '../../widgets'
 
 import { defineInvokeHandler } from '@moeru/eventa'
 import { createContext } from '@moeru/eventa/adapters/electron/main'
 import { ipcMain } from 'electron'
 
-import { electronOpenChat, electronOpenMainDevtools, electronOpenSettings } from '../../../../shared/eventa'
+import { electronOpenChat, electronOpenMainDevtools, electronOpenSettings, noticeWindowEventa } from '../../../../shared/eventa'
 import { createWidgetsService } from '../../../services/airi/widgets'
 import { createScreenService, createWindowService } from '../../../services/electron'
 import { toggleWindowShow } from '../../shared'
@@ -16,6 +17,7 @@ export function setupMainWindowElectronInvokes(params: {
   settingsWindow: () => Promise<BrowserWindow>
   chatWindow: () => Promise<BrowserWindow>
   widgetsManager: WidgetsWindowManager
+  noticeWindow: NoticeWindowManager
 }) {
   // TODO: once we refactored eventa to support window-namespaced contexts,
   // we can remove the setMaxListeners call below since eventa will be able to dispatch and
@@ -31,4 +33,5 @@ export function setupMainWindowElectronInvokes(params: {
   defineInvokeHandler(context, electronOpenMainDevtools, () => params.window.webContents.openDevTools({ mode: 'detach' }))
   defineInvokeHandler(context, electronOpenSettings, async () => toggleWindowShow(await params.settingsWindow()))
   defineInvokeHandler(context, electronOpenChat, async () => toggleWindowShow(await params.chatWindow()))
+  defineInvokeHandler(context, noticeWindowEventa.openWindow, (payload) => params.noticeWindow.open(payload))
 }

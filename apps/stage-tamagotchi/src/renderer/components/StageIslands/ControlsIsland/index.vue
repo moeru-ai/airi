@@ -7,6 +7,7 @@ import { ref } from 'vue'
 
 import ControlButton from './ControlButton.vue'
 import ControlButtonTooltip from './ControlButtonTooltip.vue'
+import ControlsIslandFadeOnHover from './ControlsIslandFadeOnHover.vue'
 import ControlsIslandHearingConfig from './ControlsIslandHearingConfig.vue'
 import IndicatorMicVolume from './IndicatorMicVolume.vue'
 
@@ -74,6 +75,8 @@ defineExpose({ hearingDialogOpen })
           Open hearing controls
         </template>
       </ControlButtonTooltip>
+
+      <ControlsIslandFadeOnHover />
 
       <ControlButtonTooltip>
         <ControlButton cursor-move :class="{ 'drag-region': isLinux }" @mousedown="startDraggingWindow?.()">
