@@ -1,7 +1,7 @@
 import type { BrowserWindowConstructorOptions, Rectangle } from 'electron'
 
-import type { WidgetsWindowManager } from '../widgets'
 import type { NoticeWindowManager } from '../notice'
+import type { WidgetsWindowManager } from '../widgets'
 
 import { dirname, join, resolve } from 'node:path'
 import { env } from 'node:process'

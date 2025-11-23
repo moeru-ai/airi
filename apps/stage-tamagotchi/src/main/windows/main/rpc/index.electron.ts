@@ -33,5 +33,5 @@ export function setupMainWindowElectronInvokes(params: {
   defineInvokeHandler(context, electronOpenMainDevtools, () => params.window.webContents.openDevTools({ mode: 'detach' }))
   defineInvokeHandler(context, electronOpenSettings, async () => toggleWindowShow(await params.settingsWindow()))
   defineInvokeHandler(context, electronOpenChat, async () => toggleWindowShow(await params.chatWindow()))
-  defineInvokeHandler(context, noticeWindowEventa.openWindow, (payload) => params.noticeWindow.open(payload))
+  defineInvokeHandler(context, noticeWindowEventa.openWindow, payload => params.noticeWindow.open(payload))
 }
