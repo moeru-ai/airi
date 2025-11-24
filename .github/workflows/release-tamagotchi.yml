@@ -303,7 +303,13 @@ jobs:
         if: ${{ github.event_name == 'release' }}
         uses: softprops/action-gh-release@v2
         with:
-          files: apps/stage-tamagotchi/bundle/${{ env.PRODUCT_NAME }}_*
+          files: |
+            apps/stage-tamagotchi/bundle/${{ env.PRODUCT_NAME }}_*.exe
+            apps/stage-tamagotchi/bundle/${{ env.PRODUCT_NAME }}_*.zip
+            apps/stage-tamagotchi/bundle/${{ env.PRODUCT_NAME }}_*.dmg
+            apps/stage-tamagotchi/bundle/${{ env.PRODUCT_NAME }}_*.deb
+            apps/stage-tamagotchi/bundle/${{ env.PRODUCT_NAME }}_*.rpm
+            apps/stage-tamagotchi/bundle/${{ env.PRODUCT_NAME }}_*.flatpak
           append_body: true
 
       # - name: Clean up keychain and provisioning profile (macOS Only)
