@@ -22,8 +22,9 @@ export class OPFSCache {
           value: pathPrefix + file.name,
         })
         files.push(file)
-      } else if (entry.kind === 'directory') {
-        const newPrefix = pathPrefix + entry.name + '/'
+      }
+      else if (entry.kind === 'directory') {
+        const newPrefix = `${pathPrefix + entry.name}/`
         const subFiles = await OPFSCache.readDirectoryRecursive(entry as FileSystemDirectoryHandle, newPrefix)
         files.push(...subFiles)
       }
@@ -33,7 +34,8 @@ export class OPFSCache {
 
   static async resolveDirectory(root: FileSystemDirectoryHandle, path: string): Promise<FileSystemDirectoryHandle> {
     let currentDir = root
-    if (!path || path === '.' || path === './') return currentDir
+    if (!path || path === '.' || path === './')
+      return currentDir
 
     const parts = path.split('/').filter(p => p && p !== '.')
     for (const part of parts) {
@@ -59,13 +61,14 @@ export class OPFSCache {
       const root = await navigator.storage.getDirectory()
       const dirHandle = await root.getDirectoryHandle(key, { create: false })
       console.debug(`[OPFS] Cache hit for ${key}`)
-      
+
       const files = await OPFSCache.readDirectoryRecursive(dirHandle, '')
-      
+
       if (files.length > 0) {
         return files
       }
-    } catch (e) {
+    }
+    catch (e) {
       // Cache Miss
     }
     return null
@@ -77,7 +80,7 @@ export class OPFSCache {
     try {
       const root = await navigator.storage.getDirectory()
       const dirHandle = await root.getDirectoryHandle(key, { create: true })
-      
+
       const writePromises: Promise<void>[] = []
 
       for (const file of files) {
@@ -86,7 +89,7 @@ export class OPFSCache {
       }
 
       const settingsFile = files.find(f => f.name.endsWith('model.json') || f.name.endsWith('model3.json'))
-      
+
       if (!settingsFile) {
         // reconstruct settings files from ModelSettings
         const settings: ModelSettings = (files as any).settings
@@ -94,15 +97,15 @@ export class OPFSCache {
           console.debug('[OPFS] Reconstructing settings file...')
           const settingsJson = JSON.stringify(settings.json)
           const settingsFileName = settings.url || 'model.model3.json'
-          
+
           writePromises.push(OPFSCache.writeFile(dirHandle, settingsFileName, settingsJson))
         }
       }
 
       await Promise.all(writePromises)
       console.debug(`[OPFS] Saved to cache`)
-      
-    } catch (e) {
+    }
+    catch (e) {
       console.error('[OPFS] Failed to save to cache:', e)
     }
   }
@@ -115,14 +118,15 @@ export class OPFSCache {
 
     // In Model.vue, we pass {id, url} to the loader, extract them here
     if (
-      typeof source === 'object' &&
-      source !== null &&
-      'id' in source &&
-      'url' in source
+      typeof source === 'object'
+      && source !== null
+      && 'id' in source
+      && 'url' in source
     ) {
       key = source.id
       blobUrl = source.url
-    } else {
+    }
+    else {
       return next()
     }
 
@@ -133,7 +137,7 @@ export class OPFSCache {
     }
 
     const files = await OPFSCache.get(key)
-    
+
     if (files) {
       // cache hit
       context.source = files
@@ -149,7 +153,8 @@ export class OPFSCache {
       const blob = await res.blob()
       const fileName = `${key}.zip`
       context.source = [new File([blob], fileName)]
-    } catch (e) {
+    }
+    catch (e) {
       console.error(`[OPFS] Failed to fetch blob for ${key}`, e)
       throw e
     }
@@ -174,4 +179,3 @@ export class OPFSCache {
     return next()
   }
 }
-
