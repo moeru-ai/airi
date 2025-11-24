@@ -25,6 +25,7 @@ type PixiLive2DInternalModel = InternalModel & {
 
 const props = withDefaults(defineProps<{
   modelSrc?: string
+  modelId?: string
 
   app?: Application
   mouthOpenSize?: number
@@ -176,15 +177,7 @@ async function loadModel() {
 
   try {
     const live2DModel = new Live2DModel<PixiLive2DInternalModel>()
-    if (modelSrcRef.value.startsWith('blob:')) {
-      const res = await fetch(modelSrcRef.value)
-      const blob = await res.blob()
-      await Live2DFactory.setupLive2DModel(live2DModel, [new File([blob], 'model.zip')], { autoInteract: false })
-    }
-    else {
-      await Live2DFactory.setupLive2DModel(live2DModel, modelSrcRef.value, { autoInteract: false })
-    }
-
+    await Live2DFactory.setupLive2DModel(live2DModel, { url: modelSrcRef.value, id: props.modelId }, { autoInteract: false })
     availableMotions.value.forEach((motion) => {
       if (motion.motionName in Emotion) {
         motionMap.value[motion.fileName] = motion.motionName
