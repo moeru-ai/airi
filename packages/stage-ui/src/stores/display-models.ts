@@ -11,6 +11,7 @@ import { Live2DFactory, Live2DModel } from 'pixi-live2d-display/cubism4'
 import { ref } from 'vue'
 
 import '../utils/live2d-zip-loader'
+import '../utils/live2d-opfs-registration'
 
 export enum DisplayModelFormat {
   Live2dZip = 'live2d-zip',

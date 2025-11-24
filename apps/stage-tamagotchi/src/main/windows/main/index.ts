@@ -1,5 +1,6 @@
 import type { BrowserWindowConstructorOptions, Rectangle } from 'electron'
 
+import type { NoticeWindowManager } from '../notice'
 import type { WidgetsWindowManager } from '../widgets'
 
 import { dirname, join, resolve } from 'node:path'
@@ -31,6 +32,7 @@ export async function setupMainWindow(params: {
   settingsWindow: () => Promise<BrowserWindow>
   chatWindow: () => Promise<BrowserWindow>
   widgetsManager: WidgetsWindowManager
+  noticeWindow: NoticeWindowManager
 }) {
   const {
     setup: setupConfig,
@@ -131,6 +133,7 @@ export async function setupMainWindow(params: {
     settingsWindow: params.settingsWindow,
     chatWindow: params.chatWindow,
     widgetsManager: params.widgetsManager,
+    noticeWindow: params.noticeWindow,
   })
 
   /**

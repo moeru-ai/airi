@@ -1,7 +1,8 @@
 {
   "name": "@proj-airi/core-character",
   "type": "module",
-  "version": "0.1.0",
+  "version": "0.8.0-alpha.4",
+  "private": true,
   "description": "Core character pipeline orchestration for AIRI (segmentation, emotion, delay, optional TTS)",
   "author": {
     "name": "Moeru AI Project AIRI Team",

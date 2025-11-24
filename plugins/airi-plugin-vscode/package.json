@@ -1,9 +1,10 @@
 {
   "publisher": "airi",
   "name": "@proj-airi/airi-plugin-vscode",
-  "displayName": "Airi",
-  "version": "0.1.0",
-  "description": "VSCode extension that shares your coding context with Airi",
+  "displayName": "AIRI",
+  "version": "0.8.0-alpha.4",
+  "private": true,
+  "description": "VSCode extension that shares your coding context with AIRI",
   "categories": [
     "Other"
   ],
@@ -35,7 +36,7 @@
         "airi.enabled": {
           "type": "boolean",
           "default": true,
-          "description": "Enable Airi companion"
+          "description": "Enable AIRI companion"
         },
         "airi.contextLines": {
           "type": "number",

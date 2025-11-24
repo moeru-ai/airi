@@ -5,7 +5,7 @@ import { env } from 'node:process'
 import { plugin as ws } from 'crossws/server'
 import { serve } from 'h3'
 
-import { app } from '../'
+import { app } from '..'
 
 serve(app, {
   // TODO: fix types

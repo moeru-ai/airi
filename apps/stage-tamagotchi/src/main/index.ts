@@ -2,7 +2,7 @@ import type { BrowserWindow } from 'electron'
 
 import type { WidgetsWindowManager } from './windows/widgets'
 
-import { platform } from 'node:process'
+import { env, platform } from 'node:process'
 
 import { electronApp, optimizer } from '@electron-toolkit/utils'
 import { Format, LogLevel, setGlobalFormat, setGlobalLogLevel, useLogg } from '@guiiai/logg'
@@ -22,6 +22,7 @@ import { setupCaptionWindowManager } from './windows/caption'
 import { setupChatWindowReusableFunc } from './windows/chat'
 import { setupInlayWindow } from './windows/inlay'
 import { setupMainWindow } from './windows/main'
+import { setupNoticeWindowManager } from './windows/notice'
 import { setupSettingsWindowReusableFunc } from './windows/settings'
 import { toggleWindowShow } from './windows/shared/window'
 import { setupWidgetsWindowManager } from './windows/widgets'
@@ -50,6 +51,18 @@ if (isLinux) {
   app.commandLine.appendSwitch('enable-features', 'SharedArrayBuffer')
   app.commandLine.appendSwitch('enable-unsafe-webgpu')
   app.commandLine.appendSwitch('enable-features', 'Vulkan')
+
+  // NOTICE: we need UseOzonePlatform, WaylandWindowDecorations for working on Wayland.
+  // Partially related to https://github.com/electron/electron/issues/41551, since X11 is deprecating now, 
+  // we can safely remove the feature flags for Electron once they made it default supported.
+  // Fixes: https://github.com/moeru-ai/airi/issues/757
+  // Ref: https://github.com/mmaura/poe2linuxcompanion/blob/90664607a147ea5ccea28df6139bd95fb0ebab0e/electron/main/index.ts#L28-L46
+  if (env.XDG_SESSION_TYPE === 'wayland') {
+    app.commandLine.appendSwitch('enable-features', 'GlobalShortcutsPortal')
+
+    app.commandLine.appendSwitch('enable-features', 'UseOzonePlatform')
+    app.commandLine.appendSwitch('enable-features', 'WaylandWindowDecorations')
+  }
 }
 
 app.dock?.setIcon(icon)
@@ -103,13 +116,14 @@ app.whenReady().then(async () => {
   const channelServerModule = injeca.provide('modules:channel-server', async () => setupChannelServer())
   const chatWindow = injeca.provide('windows:chat', { build: () => setupChatWindowReusableFunc() })
   const widgetsManager = injeca.provide('windows:widgets', { build: () => setupWidgetsWindowManager() })
+  const noticeWindow = injeca.provide('windows:notice', { build: () => setupNoticeWindowManager() })
 
   const settingsWindow = injeca.provide('windows:settings', {
     dependsOn: { widgetsManager },
     build: ({ dependsOn }) => setupSettingsWindowReusableFunc(dependsOn),
   })
   const mainWindow = injeca.provide('windows:main', {
-    dependsOn: { settingsWindow, chatWindow, widgetsManager },
+    dependsOn: { settingsWindow, chatWindow, widgetsManager, noticeWindow },
     build: async ({ dependsOn }) => setupMainWindow(dependsOn),
   })
   const captionWindow = injeca.provide('windows:caption', {

@@ -71,7 +71,7 @@ const { connectAudioContext, connectAudioAnalyser, clearAll, onPlaybackStarted, 
 const { currentAudioSource, playbackQueue } = storeToRefs(characterSpeechPlaybackQueue)
 
 const settingsStore = useSettings()
-const { stageModelRenderer, stageViewControlsEnabled, live2dDisableFocus, stageModelSelectedUrl } = storeToRefs(settingsStore)
+const { stageModelRenderer, stageViewControlsEnabled, live2dDisableFocus, stageModelSelectedUrl, stageModelSelected } = storeToRefs(settingsStore)
 const { mouthOpenSize } = storeToRefs(useSpeakingStore())
 const { audioContext, calculateVolume } = useAudioContext()
 connectAudioContext(audioContext)
@@ -323,6 +323,7 @@ onPlaybackStarted(({ text }) => {
         v-model:state="componentState" min-w="50% <lg:full" min-h="100 sm:100" h-full w-full
         flex-1
         :model-src="stageModelSelectedUrl"
+        :model-id="stageModelSelected"
         :focus-at="focusAt"
         :mouth-open-size="mouthOpenSize"
         :paused="paused"

@@ -9,9 +9,11 @@ import Live2DModel from './live2d/Model.vue'
 import { useLive2d } from '../../stores/live2d'
 
 import '../../utils/live2d-zip-loader'
+import '../../utils/live2d-opfs-registration'
 
 withDefaults(defineProps<{
   modelSrc?: string
+  modelId?: string
 
   paused?: boolean
   mouthOpenSize?: number
@@ -64,6 +66,7 @@ defineExpose({
       <Live2DModel
         v-model:state="componentStateModel"
         :model-src="modelSrc"
+        :model-id="modelId"
         :app="app"
         :mouth-open-size="mouthOpenSize"
         :width="width"

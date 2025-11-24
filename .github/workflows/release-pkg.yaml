@@ -18,7 +18,7 @@ permissions:
 jobs:
   release:
     name: Release
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
         with:
@@ -37,17 +37,14 @@ jobs:
           registry-url: 'https://registry.npmjs.org'
           cache: pnpm
 
+      # npm 11.5.1 or later is required so update to latest to use OIDC trusted publisher
+      # https://github.com/eslint/config-inspector/pull/174/files
+      # https://github.com/e18e/ecosystem-issues/issues/201
+      - run: npm install -g npm@latest
+
       - run: pnpm install --frozen-lockfile
       - run: pnpm run build:packages
 
       - run: pnpm publish -r --access public --no-git-checks --dry-run
-        env:
-          NODE_AUTH_TOKEN: ${{secrets.NPM_TOKEN}}
-          NPM_TOKEN: ${{secrets.NPM_TOKEN}}
-          NPM_CONFIG_PROVENANCE: true
 
       - run: pnpm publish -r --access public --no-git-checks
-        env:
-          NODE_AUTH_TOKEN: ${{secrets.NPM_TOKEN}}
-          NPM_TOKEN: ${{secrets.NPM_TOKEN}}
-          NPM_CONFIG_PROVENANCE: true

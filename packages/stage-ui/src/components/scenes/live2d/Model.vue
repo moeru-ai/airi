@@ -25,6 +25,7 @@ type PixiLive2DInternalModel = InternalModel & {
 
 const props = withDefaults(defineProps<{
   modelSrc?: string
+  modelId?: string
 
   app?: Application
   mouthOpenSize?: number
@@ -123,12 +124,13 @@ function setScaleAndPosition() {
   model.value.y = props.height + offset.value.yOffset
 }
 
+const live2dStore = useLive2d()
 const {
   currentMotion,
   availableMotions,
   motionMap,
   modelParameters,
-} = storeToRefs(useLive2d())
+} = storeToRefs(live2dStore)
 
 const {
   themeColorsHue,
@@ -138,6 +140,11 @@ const {
 } = storeToRefs(useSettings())
 
 const localCurrentMotion = ref<{ group: string, index: number }>({ group: 'Idle', index: 0 })
+
+// Listen for model reload requests (e.g., when runtime motion is uploaded)
+live2dStore.onShouldUpdateView(() => {
+  loadModel()
+})
 
 async function loadModel() {
   await until(modelLoading).not.toBeTruthy()
@@ -151,9 +158,14 @@ async function loadModel() {
     return
   }
 
-  if (model.value) {
-    pixiApp.value.stage.removeChild(model.value)
-    model.value.destroy()
+  if (model.value && pixiApp.value.stage) {
+    try {
+      pixiApp.value.stage.removeChild(model.value)
+      model.value.destroy()
+    }
+    catch (error) {
+      console.warn('Error removing old model:', error)
+    }
     model.value = undefined
   }
   if (!modelSrcRef.value) {
@@ -165,15 +177,7 @@ async function loadModel() {
 
   try {
     const live2DModel = new Live2DModel<PixiLive2DInternalModel>()
-    if (modelSrcRef.value.startsWith('blob:')) {
-      const res = await fetch(modelSrcRef.value)
-      const blob = await res.blob()
-      await Live2DFactory.setupLive2DModel(live2DModel, [new File([blob], 'model.zip')], { autoInteract: false })
-    }
-    else {
-      await Live2DFactory.setupLive2DModel(live2DModel, modelSrcRef.value, { autoInteract: false })
-    }
-
+    await Live2DFactory.setupLive2DModel(live2DModel, { url: modelSrcRef.value, id: props.modelId }, { autoInteract: false })
     availableMotions.value.forEach((motion) => {
       if (motion.motionName in Emotion) {
         motionMap.value[motion.fileName] = motion.motionName
@@ -214,6 +218,34 @@ async function loadModel() {
         fileName: motion.File,
       })) || []))
       .filter(Boolean)
+
+    // Check if user has selected a runtime motion to play as idle
+    const selectedMotionGroup = localStorage.getItem('selected-runtime-motion-group')
+    const selectedMotionIndex = localStorage.getItem('selected-runtime-motion-index')
+
+    // Configure the selected motion to loop
+    if (selectedMotionGroup && selectedMotionIndex) {
+      const groupIndex = (motionManager.groups as Record<string, any>)[selectedMotionGroup]
+      if (groupIndex !== undefined && motionManager.motionGroups[groupIndex]) {
+        const motionIndex = Number.parseInt(selectedMotionIndex)
+        const motion = motionManager.motionGroups[groupIndex][motionIndex]
+        if (motion && motion._looper) {
+          // Force the motion to loop
+          motion._looper.loopDuration = 0 // 0 means infinite loop
+          console.info('Configured motion to loop infinitely:', selectedMotionGroup, motionIndex)
+        }
+      }
+    }
+
+    if (selectedMotionGroup && selectedMotionIndex && live2dIdleAnimationEnabled.value) {
+      setTimeout(() => {
+        console.info('Playing selected runtime motion:', selectedMotionGroup, selectedMotionIndex)
+        currentMotion.value = {
+          group: selectedMotionGroup,
+          index: Number.parseInt(selectedMotionIndex),
+        }
+      }, 300)
+    }
 
     // Remove eye ball movements from idle motion group to prevent conflicts
     // This is too hacky
@@ -282,7 +314,11 @@ async function loadModel() {
 
       lastUpdateTime.value = now
 
-      const isIdleMotion = !motionManager.state.currentGroup || motionManager.state.currentGroup === motionManager.groups.idle
+      // Check if current motion is an idle motion (including user-selected runtime motion)
+      const selectedMotionGroup = localStorage.getItem('selected-runtime-motion-group')
+      const isIdleMotion = !motionManager.state.currentGroup
+        || motionManager.state.currentGroup === motionManager.groups.idle
+        || (selectedMotionGroup && motionManager.state.currentGroup === selectedMotionGroup)
 
       // Stop idle motions if they're disabled
       if (!live2dIdleAnimationEnabled.value && isIdleMotion) {
@@ -345,6 +381,24 @@ async function loadModel() {
       localCurrentMotion.value = { group, index }
     })
 
+    // Listen for motion finish to restart runtime motion for looping
+    motionManager.on('motionFinish', () => {
+      const selectedMotionGroup = localStorage.getItem('selected-runtime-motion-group')
+      const selectedMotionIndex = localStorage.getItem('selected-runtime-motion-index')
+
+      if (selectedMotionGroup && selectedMotionIndex && live2dIdleAnimationEnabled.value) {
+        // Restart the selected runtime motion immediately for seamless looping
+        console.info('Motion finished, restarting runtime motion:', selectedMotionGroup, selectedMotionIndex)
+        // Use requestAnimationFrame to restart on the next frame for smooth transition
+        requestAnimationFrame(() => {
+          currentMotion.value = {
+            group: selectedMotionGroup,
+            index: Number.parseInt(selectedMotionIndex),
+          }
+        })
+      }
+    })
+
     // Apply all stored parameters to the model
     coreModel.setParameterValueById('ParamAngleX', modelParameters.value.angleX)
     coreModel.setParameterValueById('ParamAngleY', modelParameters.value.angleY)
@@ -378,7 +432,19 @@ async function loadModel() {
 
 async function setMotion(motionName: string, index?: number) {
   // TODO: motion? Not every Live2D model has motion, we do need to help users to set motion
-  await model.value?.motion(motionName, index, MotionPriority.FORCE)
+  if (!model.value) {
+    console.warn('Cannot set motion: model not loaded')
+    return
+  }
+
+  console.info('Setting motion:', motionName, 'index:', index)
+  try {
+    await model.value.motion(motionName, index, MotionPriority.FORCE)
+    console.info('Motion started successfully:', motionName)
+  }
+  catch (error) {
+    console.error('Failed to start motion:', motionName, error)
+  }
 }
 
 const handleResize = useDebounceFn(setScaleAndPosition, 100)
@@ -387,16 +453,17 @@ const dropShadowColorComputer = ref<HTMLDivElement>()
 const dropShadowAnimationId = ref(0)
 
 function updateDropShadowFilter() {
-  if (model.value) {
-    const color = getComputedStyle(dropShadowColorComputer.value!).backgroundColor
-    dropShadowFilter.value.color = Number(formatHex(color)!.replace('#', '0x'))
-    if (live2dShadowEnabled.value) {
-      model.value.filters = [dropShadowFilter.value]
-    }
-    else {
-      model.value.filters = []
-    }
+  if (!model.value)
+    return
+
+  if (!live2dShadowEnabled.value) {
+    model.value.filters = []
+    return
   }
+
+  const color = getComputedStyle(dropShadowColorComputer.value!).backgroundColor
+  dropShadowFilter.value.color = Number(formatHex(color)!.replace('#', '0x'))
+  model.value.filters = [dropShadowFilter.value]
 }
 
 watch([() => props.width, () => props.height], () => handleResize())
@@ -410,11 +477,16 @@ watch(() => props.scale, setScaleAndPosition)
 // TODO: This is hacky!
 function updateDropShadowFilterLoop() {
   updateDropShadowFilter()
+  if (!live2dShadowEnabled.value) {
+    dropShadowAnimationId.value = 0
+    return
+  }
+
   dropShadowAnimationId.value = requestAnimationFrame(updateDropShadowFilterLoop)
 }
 
-watch(themeColorsHueDynamic, () => {
-  if (themeColorsHueDynamic.value) {
+watch([themeColorsHueDynamic, live2dShadowEnabled], ([dynamic, shadowEnabled]) => {
+  if (dynamic && shadowEnabled) {
     dropShadowAnimationId.value = requestAnimationFrame(updateDropShadowFilterLoop)
   }
   else {

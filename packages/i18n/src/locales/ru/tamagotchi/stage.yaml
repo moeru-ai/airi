@@ -8,3 +8,21 @@ docs:
     navbar:
       appearance:
         title: Внешний вид
+'controls-island':
+  'fade-on-hover':
+    enable: Скрывать при наведении
+    disable: Всегда показывать
+notice:
+  'fade-on-hover':
+    title: Исчезать при наведении
+    intro: Автоматически делает персонажа прозрачнее, когда курсор рядом. Меньше отвлекает, но остаётся видимым.
+    opacity: После включения непрозрачность падает до {value} для {targets}, когда курсор рядом.
+    toggle: Можно выключить, наведя на {controls} и снова нажав на {icon}.
+    controls-label: Остров управления
+    icon-label: значок перечёркнутого глаза
+    value: '0'
+    targets: Персонажа и интерфейса
+    confirm: Понятно
+    preparing: Подготавливаем…
+    read-more: Подробнее
+    preview-title: Что это?
