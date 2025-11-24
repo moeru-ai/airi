@@ -24,9 +24,6 @@ const AUTH_TOKEN = env.AUTHENTICATION_TOKEN || ''
 const UNAUTH_TIMEOUT_MS = 5000
 const MESSAGE_RATE_LIMIT = 30 // events per window
 const MESSAGE_RATE_WINDOW_MS = 5000 // 5 seconds
-const MAX_CONFIG_SIZE_BYTES = 200_000 // 200KB
-const MAX_CONFIG_DEPTH = 8
-const MAX_CONFIG_CHILDREN = 200
 const HEARTBEAT_INTERVAL_MS = 10000 // 10 seconds
 const HEARTBEAT_TIMEOUT_MS = HEARTBEAT_INTERVAL_MS * 2
 
@@ -100,20 +97,14 @@ export function unregisterModuleConfigValidator(moduleName: string, moduleIndex?
   moduleConfigValidators.delete(moduleKey(moduleName, moduleIndex))
 }
 
-function validateConfig(value: unknown, depth = 0, path = 'config'): string | null {
+function validateConfig(value: unknown, path = 'config'): string | null {
   if (value === null || typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean')
     return null
 
   if (typeof value === 'object') {
-    if (depth >= MAX_CONFIG_DEPTH)
-      return `config depth exceeded at '${path}'`
-
     if (Array.isArray(value)) {
-      if (value.length > MAX_CONFIG_CHILDREN)
-        return `config arrays cannot exceed ${MAX_CONFIG_CHILDREN} elements at '${path}'`
-
       for (let i = 0; i < value.length; i++) {
-        const childErr = validateConfig(value[i], depth + 1, `${path}[${i}]`)
+        const childErr = validateConfig(value[i], `${path}[${i}]`)
         if (childErr)
           return childErr
       }
@@ -121,13 +112,10 @@ function validateConfig(value: unknown, depth = 0, path = 'config'): string | nu
     }
 
     const entries = Object.entries(value as Record<string, unknown>)
-    if (entries.length > MAX_CONFIG_CHILDREN)
-      return `config objects cannot have more than ${MAX_CONFIG_CHILDREN} keys at '${path}'`
-
     for (const [key, child] of entries) {
       if (!key.length)
         return `config object keys must be non-empty strings at '${path}'`
-      const childErr = validateConfig(child, depth + 1, `${path}.${key}`)
+      const childErr = validateConfig(child, `${path}.${key}`)
       if (childErr)
         return childErr
     }
@@ -328,11 +316,6 @@ function setupApp(): H3 {
 
     if (!targets || !targets.size) {
       return sendJSON(peer, { type: 'error', data: { message: 'module not found or not announced' } })
-    }
-
-    const configStr = JSON.stringify(data.config)
-    if (configStr.length > MAX_CONFIG_SIZE_BYTES) {
-      return sendJSON(peer, { type: 'error', data: { message: 'config too large' } })
     }
 
     const validator = moduleConfigValidators.get(key)
