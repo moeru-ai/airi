@@ -1,19 +1,9 @@
 [workspace]
-members = [
-  "crates/tauri-plugin-ipc-audio-transcription-ort",
-  "crates/tauri-plugin-ipc-audio-vad-ort",
-  "crates/tauri-plugin-mcp",
-  "crates/tauri-plugin-rdev",
-  "crates/tauri-plugin-window-pass-through-on-hover",
-  "crates/tauri-plugin-window-router-link",
-  "apps/stage-tamagotchi/src-tauri"
-]
+members = [ "crates/tauri-plugin-ipc-audio-transcription-ort", "crates/tauri-plugin-ipc-audio-vad-ort", "crates/tauri-plugin-mcp", "crates/tauri-plugin-rdev", "crates/tauri-plugin-window-pass-through-on-hover", "crates/tauri-plugin-window-router-link" ]
 resolver = "2"
 
 [workspace.package]
-version = "0.7.2-beta.3"
-
-[workspace.dependencies]
+version = "0.8.0-alpha.2"
 
 [workspace.dependencies.tauri-plugin-ipc-audio-transcription-ort]
 path = "./crates/tauri-plugin-ipc-audio-transcription-ort"
@@ -33,22 +23,11 @@ path = "./crates/tauri-plugin-window-pass-through-on-hover"
 [workspace.dependencies.tauri-plugin-window-router-link]
 path = "./crates/tauri-plugin-window-router-link"
 
-[profile]
-
 [profile.dev]
 incremental = true
 opt-level = 0
 debug = true
 
-[profile.dev.package]
-
 [profile.dev.package."*"]
 opt-level = 1
 debug = false
-
-[patch]
-
-[patch.crates-io]
-
-[patch.crates-io.esaxx-rs]
-path = "apps/stage-tamagotchi/src-tauri/libs/esaxx-rs"

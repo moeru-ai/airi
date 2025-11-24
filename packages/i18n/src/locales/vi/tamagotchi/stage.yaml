@@ -8,3 +8,21 @@ docs:
     navbar:
       appearance:
         title: Giao diện
+'controls-island':
+  'fade-on-hover':
+    enable: Ẩn khi rê chuột
+    disable: Luôn hiển thị
+notice:
+  'fade-on-hover':
+    title: Mờ dần khi rê chuột
+    intro: Tự làm mờ nhân vật khi con trỏ ở gần. Giảm xao nhãng nhưng vẫn nhìn thấy nhân vật.
+    opacity: Bật lên thì độ mờ giảm xuống {value} cho {targets} khi con trỏ ở gần.
+    toggle: Tắt đi bằng cách rê chuột qua {controls} rồi bấm lại {icon}.
+    controls-label: Đảo Điều Khiển
+    icon-label: biểu tượng mắt gạch
+    value: '0'
+    targets: Nhân vật và giao diện
+    confirm: Đã hiểu
+    preparing: Đang chuẩn bị…
+    read-more: Xem thêm
+    preview-title: Đây là gì?

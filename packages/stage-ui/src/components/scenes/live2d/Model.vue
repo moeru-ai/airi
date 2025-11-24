@@ -460,16 +460,17 @@ const dropShadowColorComputer = ref<HTMLDivElement>()
 const dropShadowAnimationId = ref(0)
 
 function updateDropShadowFilter() {
-  if (model.value) {
-    const color = getComputedStyle(dropShadowColorComputer.value!).backgroundColor
-    dropShadowFilter.value.color = Number(formatHex(color)!.replace('#', '0x'))
-    if (live2dShadowEnabled.value) {
-      model.value.filters = [dropShadowFilter.value]
-    }
-    else {
-      model.value.filters = []
-    }
+  if (!model.value)
+    return
+
+  if (!live2dShadowEnabled.value) {
+    model.value.filters = []
+    return
   }
+
+  const color = getComputedStyle(dropShadowColorComputer.value!).backgroundColor
+  dropShadowFilter.value.color = Number(formatHex(color)!.replace('#', '0x'))
+  model.value.filters = [dropShadowFilter.value]
 }
 
 watch([() => props.width, () => props.height], () => handleResize())
@@ -483,11 +484,16 @@ watch(() => props.scale, setScaleAndPosition)
 // TODO: This is hacky!
 function updateDropShadowFilterLoop() {
   updateDropShadowFilter()
+  if (!live2dShadowEnabled.value) {
+    dropShadowAnimationId.value = 0
+    return
+  }
+
   dropShadowAnimationId.value = requestAnimationFrame(updateDropShadowFilterLoop)
 }
 
-watch(themeColorsHueDynamic, () => {
-  if (themeColorsHueDynamic.value) {
+watch([themeColorsHueDynamic, live2dShadowEnabled], ([dynamic, shadowEnabled]) => {
+  if (dynamic && shadowEnabled) {
     dropShadowAnimationId.value = requestAnimationFrame(updateDropShadowFilterLoop)
   }
   else {
