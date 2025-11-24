@@ -53,7 +53,10 @@ if (isLinux) {
   app.commandLine.appendSwitch('enable-features', 'Vulkan')
 
   if (env.XDG_SESSION_TYPE === 'wayland') {
+    app.commandLine.appendSwitch('enable-features', 'GlobalShortcutsPortal')
+
     app.commandLine.appendSwitch('enable-features', 'UseOzonePlatform')
+    app.commandLine.appendSwitch('enable-features', 'WaylandWindowDecorations')
   }
 }
 
