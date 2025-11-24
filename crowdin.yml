@@ -1,3 +1,7 @@
+project_id: proj-airi
+api_token_env: CROWDIN_PERSONAL_TOKEN
+preserve_hierarchy: true
+
 files:
   - source: packages/i18n/src/locales/en/**/*
     ignore:
