@@ -16,9 +16,6 @@ import { useBeatSyncStore } from '../../../stores/beat-sync'
 import { useLive2d } from '../../../stores/live2d'
 import { useSettings } from '../../../stores/settings'
 
-import '../../../utils/live2d-zip-loader'
-import '../../../utils/live2d-opfs-registration'
-
 type CubismModel = Cubism4InternalModel['coreModel']
 type CubismEyeBlink = Cubism4InternalModel['eyeBlink']
 type PixiLive2DInternalModel = InternalModel & {
