@@ -1,4 +1,4 @@
-project_id: proj-airi
+project_id: 816610
 api_token_env: CROWDIN_PERSONAL_TOKEN
 preserve_hierarchy: true
 
