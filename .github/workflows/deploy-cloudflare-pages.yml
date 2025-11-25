@@ -1,0 +1,52 @@
+name: Cloudflare Pages
+
+on:
+  push:
+    branches:
+      - 'main'
+
+jobs:
+  deploy:
+    name: Deploy - ${{ matrix.app }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      deployments: write
+
+    strategy:
+      matrix:
+        include:
+          - app: stage-web
+            environment_name: Production
+            environment_url: https://airi.moeru.ai/docs/
+            cloudflare_pages_id: proj-airi
+            dist_directory: ./apps/stage-web/dist
+            command: |
+              pnpm -F @proj-airi/stage-web run build
+
+              pnpm -F @proj-airi/docs run build:base
+              mv ./docs/.vitepress/dist ./apps/stage-web/dist/docs
+              cp ./apps/stage-web/dist/docs/sitemap.xml ./apps/stage-web/dist/sitemap.xml
+
+              pnpm -F @proj-airi/stage-ui run story:build
+              mv ./packages/stage-ui/.histoire/dist ./apps/stage-web/dist/ui
+
+    environment:
+      name: ${{ matrix.environment_name }}
+      url: ${{ matrix.environment_url }}
+
+    steps:
+      - uses: actions/checkout@v6
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v6
+        with:
+          cache: pnpm
+          node-version: latest
+          registry-url: https://registry.npmjs.org
+      - run: ${{ matrix.command }}
+      - uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy ${{ matrix.dist_directory }} --project-name=${{ matrix.cloudflare_pages_id }}
+          gitHubToken: ${{ secrets.GITHUB_TOKEN }}
