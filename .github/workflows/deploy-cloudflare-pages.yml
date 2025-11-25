@@ -5,6 +5,10 @@ on:
     branches:
       - 'main'
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   deploy:
     name: Deploy - ${{ matrix.app }}
@@ -43,6 +47,7 @@ jobs:
           cache: pnpm
           node-version: latest
           registry-url: https://registry.npmjs.org
+      - run: pnpm install --frozen-lockfile
       - run: ${{ matrix.command }}
       - uses: cloudflare/wrangler-action@v3
         with:
