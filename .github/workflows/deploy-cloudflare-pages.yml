@@ -23,7 +23,7 @@ jobs:
           - app: stage-web
             environment_name: Production
             environment_url: https://airi.moeru.ai/docs/
-            cloudflare_pages_id: proj-airi
+            cloudflare_pages_id: moeru-ai-airi
             dist_directory: ./apps/stage-web/dist
             command: |
               pnpm -F @proj-airi/stage-web run build
