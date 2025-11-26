@@ -1,4 +1,4 @@
-name: Cloudflare Workers (Preview) Comment
+name: Cloudflare Workers (Preview) Upload
 
 on:
   workflow_run:
@@ -27,7 +27,7 @@ jobs:
           - app_name: stage-web
             artifact_name: preview-build-stage-web
             artifact_path: ./apps/stage-web/dist
-            deploy_command: version deploy -c ./apps/stage-web/wrangler.toml
+            deploy_command: versions deploy -c ./apps/stage-web/wrangler.toml
 
     steps:
       - uses: actions/checkout@v6
