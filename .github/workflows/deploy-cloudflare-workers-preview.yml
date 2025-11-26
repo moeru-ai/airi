@@ -1,0 +1,91 @@
+name: Cloudflare Workers (Preview)
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'docs/**'
+
+jobs:
+  build:
+    name: Deploy Preview - ${{ matrix.app_name }}
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        include:
+          - app_name: stage-web
+            environment_name: Production
+            environment_url: https://airi.moeru.ai/docs/
+            cloudflare_pages_id: moeru-ai-airi
+            dist_directory: ./apps/stage-web/dist
+            command: |
+              pnpm -F @proj-airi/stage-web run build
+
+              pnpm -F @proj-airi/docs run build:base
+              mv ./docs/.vitepress/dist ./apps/stage-web/dist/docs
+              cp ./apps/stage-web/dist/docs/sitemap.xml ./apps/stage-web/dist/sitemap.xml
+
+              pnpm -F @proj-airi/stage-ui run story:build
+              mv ./packages/stage-ui/.histoire/dist ./apps/stage-web/dist/ui
+
+    steps:
+      # This is quite weird.
+      # Even though this is the *intended* solution introduces in official blog post here
+      # https://securitylab.github.com/research/github-actions-preventing-pwn-requests/.
+      # But still, as https://github.com/orgs/community/discussions/25220#discussioncomment-7856118 stated,
+      # this is vulnerable since there is no source of truth about which PR in the triggered workflow.
+      - name: Persist PR number
+        run: |
+          echo "${{ github.event.number }}" > pr_num
+
+      - name: Persist branch name
+        run: |
+          echo "${{ github.head_ref }}" > branch_name
+
+      - name: Upload PR artifact
+        uses: actions/upload-artifact@v5
+        with:
+          name: pr-num
+          path: ./pr_num
+          overwrite: true
+
+      - name: Upload PR artifact
+        uses: actions/upload-artifact@v5
+        with:
+          name: branch-name
+          path: ./branch_name
+          overwrite: true
+
+      - uses: actions/checkout@v6
+      # Turborepo
+      - name: Cache turbo build setup
+        uses: actions/cache@v4
+        with:
+          path: .turbo
+          key: ${{ runner.os }}-turbo-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-turbo-
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v6
+        with:
+          node-version: lts/*
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run build:packages
+      - run: ${{ matrix.command }}
+        env:
+          S3_ACCESS_KEY_ID: ${{ secrets.S3_ACCESS_KEY_ID }}
+          S3_SECRET_ACCESS_KEY: ${{ secrets.S3_SECRET_ACCESS_KEY }}
+          S3_ENDPOINT: ${{ secrets.S3_ENDPOINT }}
+          S3_REGION: ${{ secrets.S3_REGION }}
+          WARP_DRIVE_PUBLIC_BASE: ${{ secrets.WARP_DRIVE_PUBLIC_BASE }}
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v5
+        with:
+          name: preview-build-${{ matrix.app_name }}
+          path: ${{ matrix.dist_directory }}
+          overwrite: true
