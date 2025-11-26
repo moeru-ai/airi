@@ -16,7 +16,7 @@ releases-list:
   nightly: 每夜构建
   released-on: 发布于
   built-on: 构建于
-  no-releases: 暂无可用版本。请直接查看{link}。
-  no-nightly: 暂无可用的每夜构建版本。请直接查看{link}。
+  no-releases: '暂无可用版本。请直接查看{link}。'
+  no-nightly: '暂无可用的每夜构建版本。请直接查看{link}。'
   releases-page: 发布页面
   workflow-page: 工作流页面
