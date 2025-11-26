@@ -3,5 +3,5 @@ import versions from './versions.yaml'
 
 export default {
   theme,
-  versions, 
+  versions,
 }
