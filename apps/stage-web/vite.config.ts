@@ -199,6 +199,7 @@ export default defineConfig({
             prefix: 'proj-airi/stage-web/',
             include: [/\.wasm$/i, /\.ttf$/i, /\.vrm$/i, /\.zip$/i], // in existing assets, wasm, ttf, vrm files are the largest ones
             manifest: true,
+            clean: false,
             contentTypeBy: (filename: string) => {
               if (filename.endsWith('.wasm')) {
                 return 'application/wasm'
