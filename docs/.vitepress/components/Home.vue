@@ -10,6 +10,7 @@ import { useI18n } from 'vue-i18n'
 // of `url(...)` doesn't work properly in Vite/Vue, the entire SVG content either got incorrectly
 // cached or erased in dev/prod, causing the mask pattern to not show up.
 import homeBackgroundPatternGhost from '../assets/home-patterns-ghost.svg?no-inline'
+import homeBackgroundPatternLollipop from '../assets/home-patterns-lollipop.svg?no-inline'
 import ParallaxCover from './ParallaxCover.vue'
 import ParallaxCoverHalloween20251029 from './ParallaxCoverHalloween20251029.vue'
 
@@ -160,7 +161,14 @@ watchEffect((onCleanup) => {
 
     <div class="absolute inset-0 overflow-hidden -z-10">
       <!-- Repeating, slowly scrolling SVG pattern background -->
-      <div class="bg-ghost-pattern pointer-events-none absolute inset-0 z-0 opacity-10 dark:opacity-10" :style="{ '--bg-mask-ghost-pattern': `url(${homeBackgroundPatternGhost})` }" />
+      <ClientOnly>
+        <template v-if="isBetweenHalloweenAndHalfOfNovember(new Date())">
+          <div class="bg-icon-pattern pointer-events-none absolute inset-0 z-0 opacity-10 dark:opacity-10" :style="{ '--bg-mask-icon-pattern': `url(${homeBackgroundPatternGhost})` }" />
+        </template>
+        <template v-else>
+          <div class="bg-icon-pattern pointer-events-none absolute inset-0 z-0 opacity-10 dark:opacity-10" :style="{ '--bg-mask-icon-pattern': `url(${homeBackgroundPatternLollipop})` }" />
+        </template>
+      </ClientOnly>
       <!-- Flickering red (even within the color space range) if to top in oklch (UnoCSS or tailwind css default), have to force to use srgb color space to prevent this -->
       <div class="absolute bottom-0 left-0 right-0 top-0 z-2 h-80% from-transparent to-white bg-gradient-to-t dark:to-[hsl(207_15%_5%)]" style="--un-gradient-shape: to top in srgb;" />
       <ClientOnly>
@@ -183,20 +191,20 @@ watchEffect((onCleanup) => {
 
 <style>
 /* Infinite scrolling background pattern via mask */
-.bg-ghost-pattern {
+.bg-icon-pattern {
   background-color: white;
-  -webkit-mask-image: var(--bg-mask-ghost-pattern);
-  mask-image: var(--bg-mask-ghost-pattern);
+  -webkit-mask-image: var(--bg-mask-icon-pattern);
+  mask-image: var(--bg-mask-icon-pattern);
   -webkit-mask-repeat: repeat;
   mask-repeat: repeat;
   -webkit-mask-size: 256px 256px;
   mask-size: 256px 256px;
   -webkit-mask-position: 0 0;
   mask-position: 0 0;
-  animation: ghost-mask-scroll 8s linear infinite;
+  animation: icon-mask-scroll 8s linear infinite;
 }
 
-@keyframes ghost-mask-scroll {
+@keyframes icon-mask-scroll {
   100% { -webkit-mask-position: 256px 256px; mask-position: 256px 256px; }
 }
 
