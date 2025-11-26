@@ -21,3 +21,14 @@ pages:
       toggle-ignore-mouse-event:
         label: 忽略滑鼠事件
       press-keys: 請按下按鍵...
+    developer:
+      sections:
+        section:
+          use-window-mouse:
+            title: useWindowMouse
+            description: Test the Electron window cursor position
+devtools:
+  title: Developer
+  pages:
+    widgets-calling:
+      title: Widget Calling
