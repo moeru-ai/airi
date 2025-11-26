@@ -4,7 +4,8 @@ animations:
   stage-transitions:
     title: 是否开启舞台动画
   use-page-specific-transitions:
-    description: 某些页面会有自己的过场动画，这将覆盖舞台过场动画
+    description: >-
+      某些页面会有自己的过场动画，这将覆盖舞台过场动画
     title: 是否使用页面特定过场动画
 dialogs:
   onboarding:
@@ -19,17 +20,19 @@ dialogs:
     accountId: 账户 ID
     validationSuccess: 配置验证成功
     validationFailed: 配置验证失败
-    validationError: 验证错误：{error}
+    validationError: '验证错误：{error}'
     skipForNow: 暂时跳过
     saveAndContinue: 保存并继续
     next: 下一步
     start: 开始吧！
     select-model: 选择模型
     no-models: 找不到可用模型
-    no-models-help: 请返回上一步并检查您的 API Key，或检查网络连接。
+    no-models-help: >-
+      请返回上一步并检查您的 API Key，或检查网络连接。
 language:
   title: 语言
-  description: 切换显示界面的语言
+  description: >
+    切换显示界面的语言
 live2d:
   change-model:
     from-file: 从文件加载
@@ -53,9 +56,9 @@ live2d:
     title: 想切换至3D虚拟形象？
     change-to-vrm: 切换至3D虚拟形象设定页面（VRM）
   theme-color-from-model:
+    title: 从模型提取主题颜色
     button-extract:
       title: 提取
-    title: 从模型提取主题颜色
   focus:
     title: 禁用模型鼠标跟踪
     button-disable:
@@ -99,26 +102,29 @@ pages:
         systemprompt: 你将收到消息，请像真实人类一样回复。
         posthistoryinstructions: 记得模仿人类的行为。
       fields_info:
-        subtitle: 您可以在这里填写有关您正在创建的角色的一些详细信息，解释他的背景和情境，以及应该如何回应您的互动。
+        subtitle: >-
+          您可以在这里填写有关您正在创建的角色的一些详细信息，解释他的背景和情境，以及应该如何回应您的互动。
         name: 是该角色的正式名称。
         nickname: 您也可以提供一个昵称，它将被优先使用。
         description: 该角色的描述。
         notes: 如果您想添加一些个人备注。
-        personality: 在这里描述您的角色的个性。例如：害羞？好奇？其他？
+        personality: >-
+          在这里描述您的角色的个性。例如：害羞？好奇？其他？
         scenario: 周围环境是怎样的？当前的情境是什么？
         greetings_field: 问候语
         greetings: 您的角色应该如何说“你好”？
         systemprompt: 在这里向 AI LLM 解释当被提示时应该如何回应。
         posthistoryinstructions: 在消息历史之后，放入 AI LLM 应该阅读的内容。
-        version: 卡片版本，如果您从之前的卡片做了更改，应当增加此版本号。
+        version: >-
+          卡片版本，如果您从之前的卡片做了更改，应当增加此版本号。
       errors:
         name: 错误：你必须提供一个有效的名称！
-        version: 错误：版本号无效！
-        description: 错误：你必须为此卡片提供描述。
-        personality: 错误：必须为该角色提供性格描述。
-        scenario: 错误：必须提供一个情境。
-        systemprompt: 错误：请提供系统提示。
-        posthistoryinstructions: 错误：必须提供消息历史后的提示。
+        version: '错误：版本号无效！'
+        description: '错误：你必须为此卡片提供描述。'
+        personality: '错误：必须为该角色提供性格描述。'
+        scenario: '错误：必须提供一个情境。'
+        systemprompt: '错误：请提供系统提示。'
+        posthistoryinstructions: '错误：必须提供消息历史后的提示。'
     modules: 模块
     name_asc: 名称 (A-Z)
     name_desc: 名称 (Z-A)
@@ -146,13 +152,13 @@ pages:
     title: 角色模型
     sections:
       section:
-        scene: 场景
         live2d:
-          description: 配置 Live2D 模型
           title: Live2D
+          description: 配置 Live2D 模型
         vrm:
           title: VRM
           description: 配置 3D VRM 模型
+        scene: 场景
   modules:
     beat_sync:
       description: 随音源节拍律动
@@ -296,6 +302,7 @@ pages:
             no_models_description: 该服务来源的模型列表没有返回任何的数据
             no_voices: 没有任何可用的声线
             no_voices_description: 该服务来源的声线列表没有返回任何的数据
+            no_voices_hint: 可以在下方输入自定义声线名字
             pause: Pause
             play_sample: Play
             search_models_placeholder: 搜索模型...
@@ -304,12 +311,10 @@ pages:
             search_voices_results: 找到 {count} / {total} 个声线
             unsupported_voice_warning_title: 没有支持的声线
             unsupported_voice_warning_content: >-
-              我们正在尽快支持该模型的所有音色，如果你迫切希望支持该模型音色，请在 GitHub 上联系我们
-              https://github.com/moeru-ai/airi/issues
+              我们正在尽快支持该模型的所有音色，如果你迫切希望支持该模型音色，请在 GitHub 上联系我们 https://github.com/moeru-ai/airi/issues
             show_less: 显示更少
             show_more: 显示更多
             title: 选择语音合成服务来源
-            no_voices_hint: 可以在下方输入自定义声线名字
           voice-settings:
             input-ssml:
               placeholder: 请输入 SSML 文本
@@ -346,10 +351,11 @@ pages:
     explained:
       chat: 文本生成模型服务来源，例如 OpenRouter, OpenAI, Ollama
       Speech: 语音（文本转语音）模型服务来源，例如 ElevenLabs, Azure Speech
-      Transcription: 转录（语音转文本）模型服务来源，例如 Whisper.cpp, OpenAI, Azure Speech
+      Transcription: >-
+        转录（语音转文本）模型服务来源，例如 Whisper.cpp, OpenAI, Azure Speech
     helpinfo:
       title: 第一次使用？
-      description: |
+      description: >
         AIRI 需要配置至少一个 {chat} 服务来源，才能正常思考和运作。你可以把它看作是 AIRI 系统中角色的大脑。
     common:
       fields:
@@ -396,11 +402,14 @@ pages:
         helpinfo:
           title: 开始之前
           description:
-            part1: 虽然 Anthropic 最近宣布他们正在提供对 OpenAI SDK 兼容性的 Beta 版支持
-            part2: （您可以在此处阅读更多信息）
+            part1: >-
+              虽然 Anthropic 最近宣布他们正在提供对 OpenAI SDK 兼容性的 Beta 版支持
+            part2: '（您可以在此处阅读更多信息）'
             part3: 但由于实现细节附带
-            part4: 与 OpenAI SDK 不一致，目前无法在浏览器中使用此提供程序。
-            part5: 如果您确实需要使用此提供程序，则需要一个专用的代理后端，例如在
+            part4: >-
+              与 OpenAI SDK 不一致，目前无法在浏览器中使用此提供程序。
+            part5: >-
+              如果您确实需要使用此提供程序，则需要一个专用的代理后端，例如在
             part6: 上运行的Serverless Function，或者一些绕过 CORS 的服务，以绕过 CORS 限制。
       cloudflare-workers-ai:
         description: Cloudflare.com
@@ -552,6 +561,9 @@ pages:
       cerebras:
         description: cerebras.ai
         title: Cerebras
+      aliyun-nls:
+        description: Aliyun NLS
+        title: Aliyun NLS
       transcriptions:
         playground:
           title: 实验平台
@@ -589,11 +601,13 @@ pages:
                 description: 测试快捷键
         theme-presets:
           presets:
-            - colors:
+            - 
+            colors:
                 - AIRI 绿
               description: 默认的绿色主题，由 AIRI 为您带来！
               title: 默认颜色
-            - colors:
+            - 
+            colors:
                 - 灰褐色
                 - 米色
                 - 灰白色
@@ -604,7 +618,8 @@ pages:
                 - 暖灰色
               description: 受乔治·莫兰迪绘画启发的柔和、低调的色调
               title: Morandi 颜色
-            - colors:
+            - 
+            colors:
                 - 天蓝色
                 - 薄雾色
                 - 沙色
@@ -615,7 +630,8 @@ pages:
                 - 鼠尾草色
               description: 受克劳德·莫奈作品启发的印象派调色板
               title: 莫奈颜色
-            - colors:
+            - 
+            colors:
                 - 棕褐色
                 - 暖灰褐色
                 - 赭色
@@ -626,7 +642,8 @@ pages:
                 - 琥珀色
               description: 传统日本色彩调色板
               title: 日本颜色
-            - colors:
+            - 
+            colors:
                 - 北欧蓝
                 - 冰色
                 - 峡湾色
@@ -637,7 +654,8 @@ pages:
                 - 石头色
               description: 北欧极简主义配色方案
               title: 北欧颜色
-            - colors:
+            - 
+            colors:
                 - 霞光红
                 - 枣红
                 - 黄栌
@@ -646,15 +664,16 @@ pages:
                 - 缃色
                 - 青冥
                 - 赭石
-              description: 中国传统色彩，源自古代纺织品、瓷器和绘画
+              description: >-
+                中国传统色彩，源自古代纺织品、瓷器和绘画
               title: 中国传统颜色
           title: 预设
     title: 外观
   page:
     developers:
       open-devtools:
-        button: 打开
         title: 打开开发者工具
+        button: 打开
 sections:
   section:
     general:
