@@ -10,7 +10,7 @@ export default defineConfig(({ mode }) => {
     test: {
       // mode defines what ".env.{mode}" file to choose if exists
       env: loadEnv(mode, cwd(), ''),
-      workspace: [
+      projects: [
         {
           extends: true,
           test: {

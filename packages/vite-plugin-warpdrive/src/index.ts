@@ -138,7 +138,7 @@ export function WarpDrivePlugin(options: WarpDrivePluginOptions): Plugin {
         return
       }
       if (!options.provider) {
-        resolvedConfig.logger?.warn?.(`[${pluginName}] no upload provider configured, skipping upload step`)
+        resolvedConfig.logger.warn(`[${pluginName}] no upload provider configured, skipping upload step`)
         return
       }
 
@@ -186,13 +186,13 @@ export function WarpDrivePlugin(options: WarpDrivePluginOptions): Plugin {
         return
       }
       if (!options.provider) {
-        resolvedConfig.logger?.warn?.(`[${pluginName}] no upload provider configured, skipping upload step`)
+        resolvedConfig.logger.warn(`[${pluginName}] no upload provider configured, skipping upload step`)
         return
       }
       if (!pendingUploads.length)
         return
       if (isDryRun) {
-        resolvedConfig.logger.info?.(
+        resolvedConfig.logger.info(
           `[${pluginName}] dry run enabled; skipping clean/upload for ${pendingUploads.length} assets`,
         )
         return
@@ -200,16 +200,16 @@ export function WarpDrivePlugin(options: WarpDrivePluginOptions): Plugin {
 
       if (shouldCleanRemote && !cleanedRemote) {
         if (!prefix) {
-          resolvedConfig.logger?.warn?.(`[${pluginName}] skipping clean step because no prefix provided`)
+          resolvedConfig.logger.warn(`[${pluginName}] skipping clean step because no prefix provided`)
         }
         else if (typeof options.provider.cleanPrefix === 'function') {
-          resolvedConfig.logger.info?.(`[${pluginName}] cleaning remote prefix: ${prefix}`)
+          resolvedConfig.logger.info(`[${pluginName}] cleaning remote prefix: ${prefix}`)
           await options.provider.cleanPrefix(prefix)
-          resolvedConfig.logger.info?.(`[${pluginName}] cleaned remote prefix: ${prefix}`)
+          resolvedConfig.logger.info(`[${pluginName}] cleaned remote prefix: ${prefix}`)
           cleanedRemote = true
         }
         else {
-          resolvedConfig.logger?.warn?.(
+          resolvedConfig.logger.warn(
             `[${pluginName}] clean is enabled but provider does not support prefix cleaning; skipping`,
           )
         }
@@ -224,7 +224,7 @@ export function WarpDrivePlugin(options: WarpDrivePluginOptions): Plugin {
             try {
               const skip = await options.provider.shouldSkipUpload(localPath, key)
               if (skip) {
-                resolvedConfig.logger.info?.(
+                resolvedConfig.logger.info(
                   `[${pluginName}] skipped upload (not modified): ${fileName} -> ${key}`,
                 )
                 if (shouldDeleteLocalAsset) {
@@ -233,14 +233,14 @@ export function WarpDrivePlugin(options: WarpDrivePluginOptions): Plugin {
                     resolvedConfig.logger.info(`[${pluginName}] deleted local asset: ${fileName}`)
                   }
                   catch (error) {
-                    resolvedConfig.logger.warn?.(`[${pluginName}] failed to delete local asset ${fileName}: ${error}`)
+                    resolvedConfig.logger.warn(`[${pluginName}] failed to delete local asset ${fileName}: ${error}`)
                   }
                 }
                 return
               }
             }
             catch (error) {
-              resolvedConfig.logger.warn?.(
+              resolvedConfig.logger.warn(
                 `[${pluginName}] could not determine if upload should be skipped for ${fileName}: ${error}`,
               )
             }
@@ -259,7 +259,7 @@ export function WarpDrivePlugin(options: WarpDrivePluginOptions): Plugin {
               resolvedConfig.logger.info(`[${pluginName}] deleted local asset: ${fileName}`)
             }
             catch (error) {
-              resolvedConfig.logger.warn?.(`[${pluginName}] failed to delete local asset ${fileName}: ${error}`)
+              resolvedConfig.logger.warn(`[${pluginName}] failed to delete local asset ${fileName}: ${error}`)
             }
           }
         })())
@@ -278,5 +278,6 @@ function normalizePrefix(prefix: string) {
 function getAssetSize(asset: OutputAsset) {
   if (typeof asset.source === 'string')
     return Buffer.byteLength(asset.source)
+
   return asset.source?.byteLength ?? 0
 }

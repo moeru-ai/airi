@@ -1,10 +1,11 @@
-import { createHash } from 'node:crypto'
-import { readFile } from 'node:fs/promises'
-import { join } from 'node:path'
-
-import { S3mini } from 's3mini'
+import type { Buffer } from 'node:buffer'
 
 import type { UploadProvider } from './types'
+
+import { createHash } from 'node:crypto'
+import { readFile } from 'node:fs/promises'
+
+import { S3mini } from 's3mini'
 
 export interface S3ProviderOptions {
   endpoint: string
@@ -45,6 +46,7 @@ export function createS3Provider(options: S3ProviderOptions): UploadProvider {
       const normalizedPrefix = normalizePrefix(prefix)
       if (!normalizedPrefix)
         return
+
       const objects = await client.listObjects('/', `${normalizedPrefix}/`)
       if (!objects?.length)
         return
