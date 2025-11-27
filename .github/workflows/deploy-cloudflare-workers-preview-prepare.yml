@@ -14,38 +14,18 @@ jobs:
       - name: Debug
         uses: raven-actions/debug@v1
 
-      - name: Persist PR number
+      - name: Persist checkout metadata
         run: |
-          echo "${{ github.event.number }}" > pr_num
+          cat <<EOF > preview_meta
+          PR_NUM=${{ github.event.number }}
+          REPO_FULL_NAME=${{ github.event.pull_request.head.repo.full_name }}
+          HEAD_REF=${{ github.event.pull_request.head.ref }}
+          HEAD_SHA=${{ github.event.pull_request.head.sha }}
+          EOF
 
-      - name: Persist branch name
-        run: |
-          echo "${{ github.head_ref }}" > branch_name
-
-      - name: Upload PR artifact
+      - name: Upload metadata artifact
         uses: actions/upload-artifact@v5
         with:
-          name: pr-num
-          path: ./pr_num
+          name: preview-meta
+          path: ./preview_meta
           overwrite: true
-
-      - name: Upload branch artifact
-        uses: actions/upload-artifact@v5
-        with:
-          name: branch-name
-          path: ./branch_name
-          overwrite: true
-
-      - name: Checkout repository
-        uses: actions/checkout@v6
-
-      - name: Remove git metadata
-        run: rm -rf .git
-
-      - name: Upload source artifact
-        uses: actions/upload-artifact@v5
-        with:
-          name: preview-source
-          path: .
-          overwrite: true
-          include-hidden-files: true

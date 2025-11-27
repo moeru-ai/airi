@@ -34,42 +34,32 @@ jobs:
               mv ./packages/stage-ui/.histoire/dist ./apps/stage-web/dist/ui
 
     steps:
-      - name: Download artifact - PR
+      - name: Download artifact - metadata
         uses: dawidd6/action-download-artifact@v11
         with:
           workflow_conclusion: success
           run_id: ${{ github.event.workflow_run.id }}
-          name: pr-num
-          path: pr-num
+          name: preview-meta
+          path: preview-meta
           allow_forks: true
 
-      - name: Download artifact - PR
-        uses: dawidd6/action-download-artifact@v11
-        with:
-          workflow_conclusion: success
-          run_id: ${{ github.event.workflow_run.id }}
-          name: branch-name
-          path: branch-name
-          allow_forks: true
-
-      - name: Obtain PR number
-        id: pr-num
+      - name: Parse metadata
+        id: meta
         run: |
-          echo "PR_NUM=$(cat pr-num/pr_num)" >> "$GITHUB_OUTPUT"
+          source preview-meta/preview_meta
+          echo "PR_NUM=$PR_NUM" >> "$GITHUB_OUTPUT"
+          echo "REPO_FULL_NAME=$REPO_FULL_NAME" >> "$GITHUB_OUTPUT"
+          echo "HEAD_REF=$HEAD_REF" >> "$GITHUB_OUTPUT"
+          echo "HEAD_SHA=$HEAD_SHA" >> "$GITHUB_OUTPUT"
+          echo "BRANCH_NAME=$HEAD_REF" >> "$GITHUB_ENV"
 
-      - name: Obtain branch name
-        id: branch-name
-        run: |
-          echo "BRANCH_NAME=$(cat branch-name/branch_name)" >> "$GITHUB_ENV"
-
-      - name: Download source artifact
-        uses: dawidd6/action-download-artifact@v11
+      - name: Checkout repository
+        uses: actions/checkout@v6
         with:
-          workflow_conclusion: success
-          run_id: ${{ github.event.workflow_run.id }}
-          name: preview-source
-          path: .
-          allow_forks: true
+          repository: ${{ steps.meta.outputs.REPO_FULL_NAME }}
+          ref: ${{ steps.meta.outputs.HEAD_SHA }}
+          fetch-depth: 1
+          persist-credentials: false
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
@@ -111,15 +101,15 @@ jobs:
           S3_ENDPOINT: ${{ secrets.S3_ENDPOINT }}
           S3_REGION: ${{ secrets.S3_REGION }}
           WARP_DRIVE_PUBLIC_BASE: ${{ secrets.WARP_DRIVE_PUBLIC_BASE }}
-          STAGE_WEB_WARP_DRIVE_PREFIX: proj-airi/stage-web/pr-${{ steps.pr-num.outputs.PR_NUM }}/
-          STAGE_UI_WARP_DRIVE_PREFIX: proj-airi/stage-ui/pr-${{ steps.pr-num.outputs.PR_NUM }}/
+          STAGE_WEB_WARP_DRIVE_PREFIX: proj-airi/stage-web/pr-${{ steps.meta.outputs.PR_NUM }}/
+          STAGE_UI_WARP_DRIVE_PREFIX: proj-airi/stage-ui/pr-${{ steps.meta.outputs.PR_NUM }}/
 
       - name: Find Comment
         if: ${{ always() }}
         uses: peter-evans/find-comment@v4
         id: fc
         with:
-          issue-number: ${{ steps.pr-num.outputs.PR_NUM }}
+          issue-number: ${{ steps.meta.outputs.PR_NUM }}
           comment-author: 'github-actions[bot]'
           body-includes: to Cloudflare Workers (Preview) for *${{ matrix.app_name }}*
 
@@ -128,7 +118,7 @@ jobs:
         uses: peter-evans/create-or-update-comment@v5
         with:
           comment-id: ${{ steps.fc.outputs.comment-id }}
-          issue-number: ${{ steps.pr-num.outputs.PR_NUM }}
+          issue-number: ${{ steps.meta.outputs.PR_NUM }}
           edit-mode: replace
           body: |
             ## ❌ Deploy to Cloudflare Workers (Preview) for *${{ matrix.app_name }}* failed.
@@ -150,8 +140,25 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: versions upload -c ${{ matrix.wrangler_config_path }} --preview-alias pr-${{ steps.pr-num.outputs.PR_NUM }} --message "GitHub Actions uploaded preview for Pull Request ${{ steps.pr-num.outputs.PR_NUM }}" --tag v0.0.1-pr.${{ steps.pr-num.outputs.PR_NUM }}
+          command: versions upload -c ${{ matrix.wrangler_config_path }} --preview-alias pr-${{ steps.meta.outputs.PR_NUM }} --message "GitHub Actions uploaded preview for Pull Request ${{ steps.meta.outputs.PR_NUM }}" --tag v0.0.1-pr.${{ steps.meta.outputs.PR_NUM }}
           gitHubToken: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Prepare preview URLs
+        if: ${{ steps.build.outcome == 'success' }}
+        id: preview-urls
+        run: |
+          deployment_url="${{ steps.wrangler-versions-upload.outputs.deployment-url }}"
+          if [ -z "$deployment_url" ]; then
+            echo "Deployment URL from wrangler upload is empty." >&2
+            exit 1
+          fi
+
+          host_without_scheme="${deployment_url#https://}"
+          host_without_scheme="${host_without_scheme#http://}"
+          preview_alias_url="https://pr-${{ steps.meta.outputs.PR_NUM }}-${host_without_scheme#*-}"
+
+          echo "deploy_preview_url=$deployment_url" >> "$GITHUB_OUTPUT"
+          echo "pull_request_preview_url=$preview_alias_url" >> "$GITHUB_OUTPUT"
 
       # Workflows
       #
@@ -198,7 +205,7 @@ jobs:
         # - https://github.com/tuatmcc/tuatmcc.com/blob/b07197c1fb9f4939edcfa78fde96e6ad4e8a7205/.github/workflows/deploy.yml#L130C98-L130C118
         # - https://github.com/shun-shobon/blog.s2n.tech/blob/51b864301c760414d7dc910308084ffd60625384/.github/workflows/deploy.yml#L102-L109
         run: |
-          export VERSION_ID=$(wrangler versions list -c ${{ matrix.wrangler_config_path }} --json | jq -r --arg tag v0.0.1-pr.${{ steps.pr-num.outputs.PR_NUM }} 'map(select(.annotations["workers/tag"] == $tag)) | sort_by(.metadata.created_on) | .[-1] | (.id // empty)')
+          export VERSION_ID=$(wrangler versions list -c ${{ matrix.wrangler_config_path }} --json | jq -r --arg tag v0.0.1-pr.${{ steps.meta.outputs.PR_NUM }} 'map(select(.annotations["workers/tag"] == $tag)) | sort_by(.metadata.created_on) | .[-1] | (.id // empty)')
           echo "VERSION_ID=$VERSION_ID" >> $GITHUB_OUTPUT
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -210,7 +217,7 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: versions deploy -c ${{ matrix.wrangler_config_path }} --message "GitHub Actions deploying preview for Pull Request ${{ steps.pr-num.outputs.PR_NUM }}" -y ${{ steps.wrangler-version-id.outputs.VERSION_ID }}
+          command: versions deploy -c ${{ matrix.wrangler_config_path }} --message "GitHub Actions deploying preview for Pull Request ${{ steps.meta.outputs.PR_NUM }}" -y ${{ steps.wrangler-version-id.outputs.VERSION_ID }}
           gitHubToken: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Create or update comment
@@ -218,12 +225,13 @@ jobs:
         uses: peter-evans/create-or-update-comment@v5
         with:
           comment-id: ${{ steps.fc.outputs.comment-id }}
-          issue-number: ${{ steps.pr-num.outputs.PR_NUM }}
+          issue-number: ${{ steps.meta.outputs.PR_NUM }}
           edit-mode: replace
           body: |
             ## ✅ Deploy to Cloudflare Workers (Preview) for *${{ matrix.app_name }}* ready!
 
-            | Name                   | Link                                                                                         |
-            |:-----------------------|:---------------------------------------------------------------------------------------------|
-            | 🔍 Latest deploy log   | https://github.com/${{ github.repository }}/actions/runs/${{ github.event.workflow.id }} |
-            | 😎 Deploy Preview      | ${{ steps.wrangler-deploy.outputs.deployment-url }}                                          |
+            | Name                    | Link                                                                                        |
+            |:------------------------|:--------------------------------------------------------------------------------------------|
+            | 🔍 Latest deploy log    | https://github.com/${{ github.repository }}/actions/runs/${{ github.event.workflow.id }} |
+            | 😎 Deploy Preview       | ${{ steps.preview-urls.outputs.deploy_preview_url }}                                         |
+            | 🚀 Pull Request Preview | ${{ steps.preview-urls.outputs.pull_request_preview_url }}                                   |
