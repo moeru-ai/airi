@@ -571,8 +571,8 @@ importers:
         specifier: workspace:^
         version: link:../../packages/ui-transitions
       '@proj-airi/unplugin-fetch':
-        specifier: ^0.2.0
-        version: 0.2.0(rolldown-vite@7.2.5(@types/node@24.10.1)(esbuild@0.25.9)(jiti@2.6.1)(less@4.4.2)(terser@5.43.1)(tsx@4.20.6)(yaml@2.8.1))
+        specifier: ^0.2.1
+        version: 0.2.1(rolldown-vite@7.2.5(@types/node@24.10.1)(esbuild@0.25.9)(jiti@2.6.1)(less@4.4.2)(terser@5.43.1)(tsx@4.20.6)(yaml@2.8.1))
       '@proj-airi/unplugin-live2d-sdk':
         specifier: ^0.1.6
         version: 0.1.6(@types/node@24.10.1)(jiti@2.6.1)(less@4.4.2)(lightningcss@1.30.2)(terser@5.43.1)(tsx@4.20.6)(yaml@2.8.1)
@@ -920,8 +920,8 @@ importers:
         specifier: ^1.0.14
         version: 1.0.14
       '@proj-airi/unplugin-fetch':
-        specifier: ^0.2.0
-        version: 0.2.0(rolldown-vite@7.2.5(@types/node@24.10.1)(esbuild@0.25.9)(jiti@2.6.1)(less@4.4.2)(terser@5.43.1)(tsx@4.20.6)(yaml@2.8.1))
+        specifier: ^0.2.1
+        version: 0.2.1(rolldown-vite@7.2.5(@types/node@24.10.1)(esbuild@0.25.9)(jiti@2.6.1)(less@4.4.2)(terser@5.43.1)(tsx@4.20.6)(yaml@2.8.1))
       '@proj-airi/unplugin-live2d-sdk':
         specifier: ^0.1.6
         version: 0.1.6(@types/node@24.10.1)(jiti@2.6.1)(less@4.4.2)(lightningcss@1.30.2)(terser@5.43.1)(tsx@4.20.6)(yaml@2.8.1)
@@ -1833,7 +1833,7 @@ importers:
         version: rolldown-vite@7.2.5(@types/node@24.10.1)(esbuild@0.25.9)(jiti@2.6.1)(less@4.4.2)(terser@5.43.1)(tsx@4.20.6)(yaml@2.8.1)
       vite-plugin-vue-devtools:
         specifier: ^8.0.3
-        version: 8.0.3(rolldown-vite@7.2.5(@types/node@24.10.1)(esbuild@0.25.9)(jiti@2.6.1)(less@4.4.2)(terser@5.43.1)(tsx@4.20.6)(yaml@2.8.1))(vue@3.5.24(typescript@5.9.3))
+        version: 8.0.3(@nuxt/kit@4.0.3(magicast@0.3.5))(rolldown-vite@7.2.5(@types/node@24.10.1)(esbuild@0.25.9)(jiti@2.6.1)(less@4.4.2)(terser@5.43.1)(tsx@4.20.6)(yaml@2.8.1))(vue@3.5.24(typescript@5.9.3))
       vue-router:
         specifier: ^4.6.3
         version: 4.6.3(vue@3.5.24(typescript@5.9.3))
@@ -1867,7 +1867,7 @@ importers:
         version: rolldown-vite@7.2.5(@types/node@24.10.1)(esbuild@0.25.9)(jiti@2.6.1)(less@4.4.2)(terser@5.43.1)(tsx@4.20.6)(yaml@2.8.1)
       vite-plugin-vue-devtools:
         specifier: ^8.0.3
-        version: 8.0.3(rolldown-vite@7.2.5(@types/node@24.10.1)(esbuild@0.25.9)(jiti@2.6.1)(less@4.4.2)(terser@5.43.1)(tsx@4.20.6)(yaml@2.8.1))(vue@3.5.24(typescript@5.9.3))
+        version: 8.0.3(@nuxt/kit@4.0.3(magicast@0.3.5))(rolldown-vite@7.2.5(@types/node@24.10.1)(esbuild@0.25.9)(jiti@2.6.1)(less@4.4.2)(terser@5.43.1)(tsx@4.20.6)(yaml@2.8.1))(vue@3.5.24(typescript@5.9.3))
       vue-router:
         specifier: ^4.6.3
         version: 4.6.3(vue@3.5.24(typescript@5.9.3))
@@ -6244,8 +6244,8 @@ packages:
   '@proj-airi/unocss-preset-chromatic@1.0.2':
     resolution: {integrity: sha512-qotJTmQcP58ZECsdgzP9nQPWpkLA7PB2qcamkDtjNkLNt0hr9MZMQteTt7bLvSYCTcMVOmJznoOBlTc0P1vi6Q==}
 
-  '@proj-airi/unplugin-fetch@0.2.0':
-    resolution: {integrity: sha512-Y6uSShPcNfjKezK4TAGIUD7z8eW8MAMfUoXrZgaBu+zz3DhoeBup9vLPrkNv812N7hsJH/huNGF8yGaiHGt+/Q==}
+  '@proj-airi/unplugin-fetch@0.2.1':
+    resolution: {integrity: sha512-5Ig6Oa3wA2WVUQx8KJx96HteOSIeKYUf/cutXeU+GDkAJvltLAOQ9WgMV/r997FRlO/iNjSHzuJspRNEoTNOBw==}
     peerDependencies:
       vite: '>= 7'
 
@@ -21087,7 +21087,7 @@ snapshots:
 
   '@proj-airi/unocss-preset-chromatic@1.0.2': {}
 
-  '@proj-airi/unplugin-fetch@0.2.0(rolldown-vite@7.2.5(@types/node@24.10.1)(esbuild@0.25.9)(jiti@2.6.1)(less@4.4.2)(terser@5.43.1)(tsx@4.20.6)(yaml@2.8.1))':
+  '@proj-airi/unplugin-fetch@0.2.1(rolldown-vite@7.2.5(@types/node@24.10.1)(esbuild@0.25.9)(jiti@2.6.1)(less@4.4.2)(terser@5.43.1)(tsx@4.20.6)(yaml@2.8.1))':
     dependencies:
       ofetch: 1.5.1
       vite: rolldown-vite@7.2.5(@types/node@24.10.1)(esbuild@0.25.9)(jiti@2.6.1)(less@4.4.2)(terser@5.43.1)(tsx@4.20.6)(yaml@2.8.1)
@@ -33675,6 +33675,7 @@ snapshots:
       '@nuxt/kit': 3.18.1(magicast@0.3.5)
     transitivePeerDependencies:
       - supports-color
+    optional: true
 
   vite-plugin-inspect@11.3.3(@nuxt/kit@3.18.1(magicast@0.3.5))(vite@6.4.1(@types/node@24.10.1)(jiti@2.6.1)(less@4.4.2)(lightningcss@1.30.2)(terser@5.43.1)(tsx@4.20.6)(yaml@2.8.1)):
     dependencies:
@@ -33747,20 +33748,6 @@ snapshots:
       sirv: 3.0.2
       vite: rolldown-vite@7.2.5(@types/node@24.10.1)(esbuild@0.25.9)(jiti@2.6.1)(less@4.4.2)(terser@5.43.1)(tsx@4.20.6)(yaml@2.8.1)
       vite-plugin-inspect: 11.3.3(@nuxt/kit@4.0.3(magicast@0.3.5))(rolldown-vite@7.2.5(@types/node@24.10.1)(esbuild@0.25.9)(jiti@2.6.1)(less@4.4.2)(terser@5.43.1)(tsx@4.20.6)(yaml@2.8.1))
-      vite-plugin-vue-inspector: 5.3.2(rolldown-vite@7.2.5(@types/node@24.10.1)(esbuild@0.25.9)(jiti@2.6.1)(less@4.4.2)(terser@5.43.1)(tsx@4.20.6)(yaml@2.8.1))
-    transitivePeerDependencies:
-      - '@nuxt/kit'
-      - supports-color
-      - vue
-
-  vite-plugin-vue-devtools@8.0.3(rolldown-vite@7.2.5(@types/node@24.10.1)(esbuild@0.25.9)(jiti@2.6.1)(less@4.4.2)(terser@5.43.1)(tsx@4.20.6)(yaml@2.8.1))(vue@3.5.24(typescript@5.9.3)):
-    dependencies:
-      '@vue/devtools-core': 8.0.3(rolldown-vite@7.2.5(@types/node@24.10.1)(esbuild@0.25.9)(jiti@2.6.1)(less@4.4.2)(terser@5.43.1)(tsx@4.20.6)(yaml@2.8.1))(vue@3.5.24(typescript@5.9.3))
-      '@vue/devtools-kit': 8.0.3
-      '@vue/devtools-shared': 8.0.3
-      sirv: 3.0.2
-      vite: rolldown-vite@7.2.5(@types/node@24.10.1)(esbuild@0.25.9)(jiti@2.6.1)(less@4.4.2)(terser@5.43.1)(tsx@4.20.6)(yaml@2.8.1)
-      vite-plugin-inspect: 11.3.3(@nuxt/kit@3.18.1(magicast@0.3.5))(rolldown-vite@7.2.5(@types/node@24.10.1)(esbuild@0.25.9)(jiti@2.6.1)(less@4.4.2)(terser@5.43.1)(tsx@4.20.6)(yaml@2.8.1))
       vite-plugin-vue-inspector: 5.3.2(rolldown-vite@7.2.5(@types/node@24.10.1)(esbuild@0.25.9)(jiti@2.6.1)(less@4.4.2)(terser@5.43.1)(tsx@4.20.6)(yaml@2.8.1))
     transitivePeerDependencies:
       - '@nuxt/kit'

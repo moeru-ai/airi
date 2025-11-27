@@ -135,7 +135,7 @@
     "@proj-airi/lobe-icons": "^1.0.14",
     "@proj-airi/stage-shared": "workspace:^",
     "@proj-airi/ui-transitions": "workspace:^",
-    "@proj-airi/unplugin-fetch": "^0.2.0",
+    "@proj-airi/unplugin-fetch": "^0.2.1",
     "@proj-airi/unplugin-live2d-sdk": "^0.1.6",
     "@shikijs/markdown-it": "^3.15.0",
     "@types/culori": "^4.0.1",
