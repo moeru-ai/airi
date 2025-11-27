@@ -103,14 +103,14 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: versions upload -c ${{ matrix.wrangler_config_path }} --preview-alias pr-${{ steps.pr-num.outputs.PR_NUM }} --env preview --message 'GitHub Actions uploaded preview for Pull Request ${{ steps.pr-num.outputs.PR_NUM }}' --tag v0.0.1-pr.${{ steps.pr-num.outputs.PR_NUM }}
+          command: versions upload -c ${{ matrix.wrangler_config_path }} --preview-alias pr-${{ steps.pr-num.outputs.PR_NUM }} --env preview --message "GitHub Actions uploaded preview for Pull Request ${{ steps.pr-num.outputs.PR_NUM }}" --tag v0.0.1-pr.${{ steps.pr-num.outputs.PR_NUM }}
           gitHubToken: ${{ secrets.GITHUB_TOKEN }}
 
       # Workflows
       #
-      # wrangler versions upload -c ./apps/stage-web/wrangler.toml --preview-alias pr-763 --env preview --message 'GitHub Actions uploading preview for Pull Request 763' --tag v0.0.1-pr.763
+      # wrangler versions upload -c ./apps/stage-web/wrangler.toml --preview-alias pr-763 --env preview --message "GitHub Actions uploading preview for Pull Request 763" --tag v0.0.1-pr.763
       # wrangler versions list -c apps/stage-web/wrangler.toml --json --env preview | jq -r --arg tag v0.0.1-pr.763 'map(select(.annotations["workers/tag"] == $tag)) | sort_by(.metadata.created_on) | .[] | (.id // empty)'
-      # wrangler versions deploy -c ./apps/stage-web/wrangler.toml --env preview 2ab3c0ee-7597-4c20-ae5b-23536d7f79ec -y --message 'GitHub Actions deploying preview for Pull Request 763'
+      # wrangler versions deploy -c ./apps/stage-web/wrangler.toml --env preview 2ab3c0ee-7597-4c20-ae5b-23536d7f79ec -y --message "GitHub Actions deploying preview for Pull Request 763"
 
       - name: Wrangler Get Version ID
         id: wrangler-version-id
@@ -161,7 +161,7 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: versions deploy -c ${{ matrix.wrangler_config_path }} --env preview ${{ steps.wrangler-version-id.outputs.VERSION_ID }} --message 'GitHub Actions deploying preview for Pull Request ${{ steps.pr-num.outputs.PR_NUM }}' -y
+          command: versions deploy -c ${{ matrix.wrangler_config_path }} --env preview ${{ steps.wrangler-version-id.outputs.VERSION_ID }} --message "GitHub Actions deploying preview for Pull Request ${{ steps.pr-num.outputs.PR_NUM }}" -y
           gitHubToken: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Find Comment
