@@ -156,6 +156,7 @@
     "@iconify-json/vscode-icons": "^1.2.34",
     "@moeru/std": "catalog:",
     "@proj-airi/lobe-icons": "^1.0.14",
+    "@proj-airi/vite-plugin-warpdrive": "workspace:*",
     "@types/audioworklet": "^0.0.91",
     "@types/culori": "^4.0.1",
     "@types/three": "^0.181.0",

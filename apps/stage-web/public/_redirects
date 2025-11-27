@@ -2,15 +2,9 @@
 #
 # Originally proxying Plausible through Netlify | Plausible docs
 # https://plausible.io/docs/proxy/guides/netlify
-
-/remote-assets/page-external-data/js/script.js  https://plausible.io/js/script.js 200
-/api/v1/page-external-data/submit               https://plausible.io/api/event    200
+#
+# /remote-assets/page-external-data/js/script.js  https://plausible.io/js/script.js 200
+# /api/v1/page-external-data/submit               https://plausible.io/api/event    200
 
 # i18n
-/docs/*                                         /docs/zh-Hans/:splat              301  Language=zh-Hans
-/docs/*                                         /docs/zh-Hans/:splat              301  Language=zh-CN
-/docs/*                                         /docs/en/:splat                   301
-
-# Static assets
-/assets/*                                       /assets/:splat                    200
-/*                                              /index.html                       200
+/docs/    /docs/en/  301
