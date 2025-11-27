@@ -114,10 +114,20 @@ jobs:
           STAGE_WEB_WARP_DRIVE_PREFIX: proj-airi/stage-web/pr-${{ steps.pr-num.outputs.PR_NUM }}/
           STAGE_UI_WARP_DRIVE_PREFIX: proj-airi/stage-ui/pr-${{ steps.pr-num.outputs.PR_NUM }}/
 
+      - name: Find Comment
+        if: ${{ always() }}
+        uses: peter-evans/find-comment@v4
+        id: fc
+        with:
+          issue-number: ${{ steps.pr-num.outputs.PR_NUM }}
+          comment-author: 'github-actions[bot]'
+          body-includes: to Cloudflare Workers (Preview) for *${{ matrix.app_name }}*
+
       - name: Comment on build failure
         if: ${{ steps.build.outcome != 'success' }}
         uses: peter-evans/create-or-update-comment@v5
         with:
+          comment-id: ${{ steps.fc.outputs.comment-id }}
           issue-number: ${{ steps.pr-num.outputs.PR_NUM }}
           edit-mode: replace
           body: |
@@ -202,15 +212,6 @@ jobs:
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           command: versions deploy -c ${{ matrix.wrangler_config_path }} --env preview ${{ steps.wrangler-version-id.outputs.VERSION_ID }} --message "GitHub Actions deploying preview for Pull Request ${{ steps.pr-num.outputs.PR_NUM }}" -y
           gitHubToken: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Find Comment
-        if: ${{ steps.build.outcome == 'success' }}
-        uses: peter-evans/find-comment@v4
-        id: fc
-        with:
-          issue-number: ${{ steps.pr-num.outputs.PR_NUM }}
-          comment-author: 'github-actions[bot]'
-          body-includes: to Cloudflare Workers (Preview) for *${{ matrix.app_name }}*
 
       - name: Create or update comment
         if: ${{ steps.build.outcome == 'success' }}
