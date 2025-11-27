@@ -38,7 +38,7 @@ jobs:
         uses: dawidd6/action-download-artifact@v11
         with:
           workflow_conclusion: success
-          run_id: ${{ github.event.workflow.id }}
+          run_id: ${{ github.event.workflow_run.id }}
           name: pr-num
           path: pr-num
           allow_forks: true
@@ -47,7 +47,7 @@ jobs:
         uses: dawidd6/action-download-artifact@v11
         with:
           workflow_conclusion: success
-          run_id: ${{ github.event.workflow.id }}
+          run_id: ${{ github.event.workflow_run.id }}
           name: branch-name
           path: branch-name
           allow_forks: true
@@ -66,7 +66,7 @@ jobs:
         uses: dawidd6/action-download-artifact@v11
         with:
           workflow_conclusion: success
-          run_id: ${{ github.event.workflow.id }}
+          run_id: ${{ github.event.workflow_run.id }}
           name: preview-source
           path: ./source
           allow_forks: true
