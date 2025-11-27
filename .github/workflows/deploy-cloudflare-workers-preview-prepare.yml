@@ -45,3 +45,4 @@ jobs:
           name: preview-source
           path: .
           overwrite: true
+          include-hidden-files: true
