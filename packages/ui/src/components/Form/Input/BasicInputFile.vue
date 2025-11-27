@@ -39,6 +39,9 @@ function handleFileChange(e: Event) {
   }
 
   isDragging.value = false
+
+  // Allow re-selecting the same file
+  input.value = ''
 }
 </script>
 
