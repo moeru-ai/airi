@@ -1,15 +1,11 @@
-name: Cloudflare Workers (Preview) Upload
+name: Cloudflare Workers (Preview) Deploy
 
 on:
   workflow_run:
     workflows:
-      - Cloudflare Workers (Preview)
+      - Cloudflare Workers (Preview) Prepare
     types:
       - completed
-
-env:
-  PR_NUM: 0
-  BRANCH_NAME: main
 
 jobs:
   on-success:
@@ -25,22 +21,61 @@ jobs:
       matrix:
         include:
           - app_name: stage-web
-            artifact_name: preview-build-stage-web
-            artifact_path: ./apps/stage-web/dist
             wrangler_config_path: ./apps/stage-web/wrangler.toml
+            build_directory: ./apps/stage-web/dist
+            build_command: |
+              pnpm -F @proj-airi/stage-web run build
+
+              pnpm -F @proj-airi/docs run build:base
+              mv ./docs/.vitepress/dist ./apps/stage-web/dist/docs
+              cp ./apps/stage-web/dist/docs/sitemap.xml ./apps/stage-web/dist/sitemap.xml
+
+              pnpm -F @proj-airi/stage-ui run story:build
+              mv ./packages/stage-ui/.histoire/dist ./apps/stage-web/dist/ui
 
     steps:
-      - uses: actions/checkout@v6
-      # Turborepo
-      - name: Cache turbo build setup
-        uses: actions/cache@v4
+      - name: Download artifact - PR
+        uses: dawidd6/action-download-artifact@v11
         with:
-          path: .turbo
-          key: ${{ runner.os }}-turbo-${{ github.sha }}
-          restore-keys: |
-            ${{ runner.os }}-turbo-
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v6
+          workflow_conclusion: success
+          run_id: ${{ github.event.workflow.id }}
+          name: pr-num
+          path: pr-num
+          allow_forks: true
+
+      - name: Download artifact - PR
+        uses: dawidd6/action-download-artifact@v11
+        with:
+          workflow_conclusion: success
+          run_id: ${{ github.event.workflow.id }}
+          name: branch-name
+          path: branch-name
+          allow_forks: true
+
+      - name: Obtain PR number
+        id: pr-num
+        run: |
+          echo "PR_NUM=$(cat pr-num/pr_num)" >> "$GITHUB_OUTPUT"
+
+      - name: Obtain branch name
+        id: branch-name
+        run: |
+          echo "BRANCH_NAME=$(cat branch-name/branch_name)" >> "$GITHUB_ENV"
+
+      - name: Download source artifact
+        uses: dawidd6/action-download-artifact@v11
+        with:
+          workflow_conclusion: success
+          run_id: ${{ github.event.workflow.id }}
+          name: preview-source
+          path: ./source
+          allow_forks: true
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
         with:
           node-version: lts/*
           cache: pnpm
@@ -60,44 +95,49 @@ jobs:
       # with our package manager and then use it in the action.
       - run: pnpm i -g wrangler@4
 
-      - name: Download artifact - PR
-        uses: dawidd6/action-download-artifact@v11
-        with:
-          workflow_conclusion: success
-          run_id: ${{ github.event.workflow_run.id }}
-          name: pr-num
-          path: pr-num
-          allow_forks: true
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+        working-directory: ./source
 
-      - name: Download artifact - PR
-        uses: dawidd6/action-download-artifact@v11
-        with:
-          workflow_conclusion: success
-          run_id: ${{ github.event.workflow_run.id }}
-          name: branch-name
-          path: branch-name
-          allow_forks: true
+      - name: Build packages
+        run: pnpm run build:packages
+        working-directory: ./source
 
-      - name: Obtain PR number
-        id: pr-num
+      - name: Build ${{ matrix.app_name }}
+        id: build
+        run: ${{ matrix.build_command }}
+        working-directory: ./source
+        continue-on-error: true
+        env:
+          S3_ACCESS_KEY_ID: ${{ secrets.S3_ACCESS_KEY_ID }}
+          S3_SECRET_ACCESS_KEY: ${{ secrets.S3_SECRET_ACCESS_KEY }}
+          S3_ENDPOINT: ${{ secrets.S3_ENDPOINT }}
+          S3_REGION: ${{ secrets.S3_REGION }}
+          WARP_DRIVE_PUBLIC_BASE: ${{ secrets.WARP_DRIVE_PUBLIC_BASE }}
+          STAGE_WEB_WARP_DRIVE_PREFIX: proj-airi/stage-web/pr-${{ steps.pr-num.outputs.PR_NUM }}/
+          STAGE_UI_WARP_DRIVE_PREFIX: proj-airi/stage-ui/pr-${{ steps.pr-num.outputs.PR_NUM }}/
+
+      - name: Comment on build failure
+        if: ${{ steps.build.outcome != 'success' }}
+        uses: peter-evans/create-or-update-comment@v5
+        with:
+          issue-number: ${{ steps.pr-num.outputs.PR_NUM }}
+          edit-mode: replace
+          body: |
+            ## ❌ Deploy to Cloudflare Workers (Preview) for *${{ matrix.app_name }}* failed.
+
+            | Name                 | Link                                                                                   |
+            |:---------------------|:---------------------------------------------------------------------------------------|
+            | 🔍 Latest deploy log | https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }} |
+
+      - name: Fail if build failed
+        if: ${{ steps.build.outcome != 'success' }}
         run: |
-          echo "PR_NUM=$(cat pr-num/pr_num)" >> "$GITHUB_OUTPUT"
-
-      - name: Obtain branch name
-        id: branch-name
-        run: |
-          echo "BRANCH_NAME=$(cat branch-name/branch_name)" >> "$GITHUB_ENV"
-
-      - name: Download artifact
-        uses: dawidd6/action-download-artifact@v11
-        with:
-          workflow_conclusion: success
-          run_id: ${{ github.event.workflow_run.id }}
-          name: preview-build-stage-web
-          path: ./apps/stage-web/dist
-          allow_forks: true
+          echo "Build step failed; marking workflow as failed."
+          exit 1
 
       - name: Wrangler Upload
+        if: ${{ steps.build.outcome == 'success' }}
         id: wrangler-versions-upload
         uses: cloudflare/wrangler-action@v3
         with:
@@ -105,6 +145,7 @@ jobs:
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           command: versions upload -c ${{ matrix.wrangler_config_path }} --preview-alias pr-${{ steps.pr-num.outputs.PR_NUM }} --env preview --message "GitHub Actions uploaded preview for Pull Request ${{ steps.pr-num.outputs.PR_NUM }}" --tag v0.0.1-pr.${{ steps.pr-num.outputs.PR_NUM }}
           gitHubToken: ${{ secrets.GITHUB_TOKEN }}
+          workingDirectory: ./source
 
       # Workflows
       #
@@ -113,6 +154,7 @@ jobs:
       # wrangler versions deploy -c ./apps/stage-web/wrangler.toml --env preview 2ab3c0ee-7597-4c20-ae5b-23536d7f79ec -y --message "GitHub Actions deploying preview for Pull Request 763"
 
       - name: Wrangler Get Version ID
+        if: ${{ steps.build.outcome == 'success' }}
         id: wrangler-version-id
         # [
         #   {
@@ -154,8 +196,10 @@ jobs:
           echo "VERSION_ID=$VERSION_ID" >> $GITHUB_ENV
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        working-directory: ./source
 
       - name: Wrangler Deploy
+        if: ${{ steps.build.outcome == 'success' }}
         id: wrangler-deploy
         uses: cloudflare/wrangler-action@v3
         with:
@@ -163,8 +207,10 @@ jobs:
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           command: versions deploy -c ${{ matrix.wrangler_config_path }} --env preview ${{ steps.wrangler-version-id.outputs.VERSION_ID }} --message "GitHub Actions deploying preview for Pull Request ${{ steps.pr-num.outputs.PR_NUM }}" -y
           gitHubToken: ${{ secrets.GITHUB_TOKEN }}
+          workingDirectory: ./source
 
       - name: Find Comment
+        if: ${{ steps.build.outcome == 'success' }}
         uses: peter-evans/find-comment@v4
         id: fc
         with:
@@ -173,6 +219,7 @@ jobs:
           body-includes: to Cloudflare Workers (Preview) for *${{ matrix.app_name }}*
 
       - name: Create or update comment
+        if: ${{ steps.build.outcome == 'success' }}
         uses: peter-evans/create-or-update-comment@v5
         with:
           comment-id: ${{ steps.fc.outputs.comment-id }}
@@ -183,54 +230,5 @@ jobs:
 
             | Name                   | Link                                                                                         |
             |:-----------------------|:---------------------------------------------------------------------------------------------|
-            | 🔍 Latest deploy log   | https://github.com/${{ github.repository }}/actions/runs/${{ github.event.workflow_run.id }} |
+            | 🔍 Latest deploy log   | https://github.com/${{ github.repository }}/actions/runs/${{ github.event.workflow.id }} |
             | 😎 Deploy Preview      | ${{ steps.wrangler-deploy.outputs.deployment-url }}                                          |
-
-  on-failure:
-    if: ${{ github.event.workflow_run.conclusion == 'failure' }}
-    name: Failed to build previewing docs
-    runs-on: ubuntu-latest
-
-    permissions:
-      pull-requests: write
-
-    strategy:
-      matrix:
-        include:
-          - app_name: stage-web
-
-    steps:
-      - name: Download artifact - PR
-        uses: dawidd6/action-download-artifact@v11
-        with:
-          workflow_conclusion: success
-          run_id: ${{ github.event.workflow_run.id }}
-          name: pr-num
-          path: pr-num
-          allow_forks: true
-
-      - name: Obtain PR number
-        id: pr-num
-        run: |
-          echo "PR_NUM=$(cat pr-num/pr_num)" >> "$GITHUB_OUTPUT"
-
-      - name: Find Comment
-        uses: peter-evans/find-comment@v4
-        id: fc
-        with:
-          issue-number: ${{ steps.pr-num.outputs.PR_NUM }}
-          comment-author: 'github-actions[bot]'
-          body-includes: to Cloudflare Workers (Preview) for *${{ matrix.app_name }}*
-
-      - name: Create or update comment
-        uses: peter-evans/create-or-update-comment@v5
-        with:
-          comment-id: ${{ steps.fc.outputs.comment-id }}
-          issue-number: ${{ steps.pr-num.outputs.PR_NUM }}
-          edit-mode: replace
-          body: |
-            ## ❌ Deploy to Cloudflare Workers (Preview) for *${{ matrix.app_name }}* failed.
-
-            | Name                   | Link                                                                                         |
-            |:-----------------------|:---------------------------------------------------------------------------------------------|
-            | 🔍 Latest deploy log   | https://github.com/${{ github.repository }}/actions/runs/${{ github.event.workflow_run.id }} |
