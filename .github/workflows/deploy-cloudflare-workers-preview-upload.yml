@@ -27,7 +27,7 @@ jobs:
           - app_name: stage-web
             artifact_name: preview-build-stage-web
             artifact_path: ./apps/stage-web/dist
-            deploy_command: versions deploy -c ./apps/stage-web/wrangler.toml
+            wrangler_config_path: -c ./apps/stage-web/wrangler.toml
 
     steps:
       - uses: actions/checkout@v6
@@ -97,13 +97,71 @@ jobs:
           path: ./apps/stage-web/dist
           allow_forks: true
 
-      - name: Upload
-        id: deploy
+      - name: Wrangler Upload
+        id: wrangler-versions-upload
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: ${{ matrix.deploy_command }}
+          command: versions upload -c ${{ matrix.wrangler_config_path }} --preview-alias pr-${{ steps.pr-num.outputs.PR_NUM }} --env preview --message 'GitHub Actions uploaded preview for Pull Request ${{ steps.pr-num.outputs.PR_NUM }}' --tag v0.0.1-pr.${{ steps.pr-num.outputs.PR_NUM }}
+          gitHubToken: ${{ secrets.GITHUB_TOKEN }}
+
+      # Workflows
+      #
+      # wrangler versions upload -c ./apps/stage-web/wrangler.toml --preview-alias pr-763 --env preview --message 'GitHub Actions uploading preview for Pull Request 763' --tag v0.0.1-pr.763
+      # wrangler versions list -c apps/stage-web/wrangler.toml --json --env preview | jq -r --arg tag v0.0.1-pr.763 'map(select(.annotations["workers/tag"] == $tag)) | sort_by(.metadata.created_on) | .[] | (.id // empty)'
+      # wrangler versions deploy -c ./apps/stage-web/wrangler.toml --env preview 2ab3c0ee-7597-4c20-ae5b-23536d7f79ec -y --message 'GitHub Actions deploying preview for Pull Request 763'
+
+      - name: Wrangler Get Version ID
+        id: wrangler-version-id
+        # [
+        #   {
+        #     "id": "2ab3c0ee-7597-4c20-ae5b-23536d7f79ec",
+        #     "number": 4,
+        #     "metadata": {
+        #       "created_on": "2025-11-27T03:30:56.622177Z",
+        #       "source": "wrangler",
+        #       "author_id": "04391c4b41bbf6bd8220b4f469918aac",
+        #       "author_email": "user@example.com",
+        #       "has_preview": true
+        #     },
+        #     "annotations": {
+        #       "workers/alias": "pr-763",
+        #       "workers/message": "GitHub Actions deploying preview for PR 763",
+        #       "workers/tag": "v0.0.1-pr.763",
+        #       "workers/triggered_by": "version_upload"
+        #     }
+        #   }
+        # ]
+        #
+        # Here we use jq to filter the version with the specific tag we just uploaded,
+        #
+        # - map(input)
+        #   - select( if input.[index].annotations.workers/tag === $tag ) // same as filter
+        #   - sort_by( input.[index].metadata.created_on ) // sort by created_on
+        #   - .[-1] // get the last one (latest)
+        #   - .id // get the id field
+        #
+        # Which means we should get the version ID we just uploaded, in this example,
+        # 2ab3c0ee-7597-4c20-ae5b-23536d7f79ec
+        # returned
+        #
+        # Thanks to:
+        # - https://github.com/tuatmcc/tuatmcc.com/blob/b07197c1fb9f4939edcfa78fde96e6ad4e8a7205/.github/workflows/deploy.yml#L130C98-L130C118
+        # - https://github.com/shun-shobon/blog.s2n.tech/blob/51b864301c760414d7dc910308084ffd60625384/.github/workflows/deploy.yml#L102-L109
+        run: |
+          export VERSION_ID=$(wrangler versions list -c ${{ matrix.wrangler_config_path }} --json --env preview | jq -r --arg tag v0.0.1-pr.${{ steps.pr-num.outputs.PR_NUM }} 'map(select(.annotations["workers/tag"] == $tag)) | sort_by(.metadata.created_on) | .[-1] | (.id // empty)')
+          echo "VERSION_ID=$VERSION_ID" >> $GITHUB_ENV
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+
+      - name: Wrangler Deploy
+        id: wrangler-deploy
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: versions deploy -c ${{ matrix.wrangler_config_path }} --env preview ${{ steps.wrangler-version-id.outputs.VERSION_ID }} --message 'GitHub Actions deploying preview for Pull Request ${{ steps.pr-num.outputs.PR_NUM }}' -y
           gitHubToken: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Find Comment
@@ -126,7 +184,7 @@ jobs:
             | Name                   | Link                                                                                         |
             |:-----------------------|:---------------------------------------------------------------------------------------------|
             | 🔍 Latest deploy log   | https://github.com/${{ github.repository }}/actions/runs/${{ github.event.workflow_run.id }} |
-            | 😎 Deploy Preview      | ${{ steps.deploy.outputs.deployment-url }}                                                   |
+            | 😎 Deploy Preview      | ${{ steps.wrangler-deploy.outputs.deployment-url }}                                          |
 
   on-failure:
     if: ${{ github.event.workflow_run.conclusion == 'failure' }}
