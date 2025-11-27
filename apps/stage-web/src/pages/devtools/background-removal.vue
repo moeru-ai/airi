@@ -223,7 +223,7 @@ function hidePreview() {
     <!-- Main content -->
     <template v-else>
       <!-- File upload area -->
-      <InputFile v-model="imageFiles" w-full accept="image/*" multiple />
+      <InputFile v-model="imageFiles" accept="image/*" multiple w-full />
 
       <!-- Controls -->
       <div flex flex-wrap items-center justify-between gap-4>
@@ -376,8 +376,8 @@ function hidePreview() {
     <Teleport to="body">
       <div
         v-if="previewImage"
-        fixed z-50 overflow-hidden rounded-xl shadow-2xl
-        pointer-events-none
+
+        pointer-events-none fixed z-50 overflow-hidden rounded-xl shadow-2xl
         border="1 solid neutral-200 dark:neutral-700"
         bg="[url('data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2216%22%20height%3D%2216%22%3E%3Crect%20width%3D%228%22%20height%3D%228%22%20fill%3D%22%23ccc%22%2F%3E%3Crect%20x%3D%228%22%20y%3D%228%22%20width%3D%228%22%20height%3D%228%22%20fill%3D%22%23ccc%22%2F%3E%3C%2Fsvg%3E')]"
         :style="{
