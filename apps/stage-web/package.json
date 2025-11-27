@@ -105,7 +105,7 @@
     "@iconify-json/vscode-icons": "^1.2.34",
     "@intlify/unplugin-vue-i18n": "^11.0.1",
     "@proj-airi/lobe-icons": "^1.0.14",
-    "@proj-airi/unplugin-fetch": "^0.2.0",
+    "@proj-airi/unplugin-fetch": "^0.2.1",
     "@proj-airi/unplugin-live2d-sdk": "^0.1.6",
     "@proj-airi/vite-plugin-warpdrive": "workspace:*",
     "@shikijs/markdown-it": "^3.15.0",
