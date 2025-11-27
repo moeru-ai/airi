@@ -17,15 +17,16 @@ const isDragging = ref(false)
 const isDraggingDebounced = useDebounce(isDragging, 150)
 
 function handleFileChange(e: Event) {
-  files.value = []
-
   const input = e.target as HTMLInputElement
   if (!input.files)
     return
 
-  for (let i = 0; i < input.files?.length; i++) {
-    files.value.push(input.files[i])
+  const newFiles: File[] = []
+  for (let i = 0; i < input.files.length; i++) {
+    newFiles.push(input.files[i])
   }
+
+  files.value = newFiles
 
   if (files.value && files.value.length > 0) {
     firstFile.value = files.value[0]
