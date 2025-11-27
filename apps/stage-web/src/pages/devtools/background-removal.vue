@@ -2,6 +2,7 @@
 import type { PreTrainedModel, Processor } from '@huggingface/transformers'
 
 import { AutoModel, AutoProcessor, env, RawImage } from '@huggingface/transformers'
+import { Button } from '@proj-airi/stage-ui/components'
 import { Checkbox, InputFile } from '@proj-airi/ui'
 import { check } from 'gpuu/webgpu'
 import { computed, onMounted, ref, watch } from 'vue'
@@ -233,31 +234,27 @@ function hidePreview() {
           </label>
         </div>
         <div flex gap-2>
-          <button
+          <Button
             v-if="pendingCount > 0"
-            bg="emerald-500 hover:emerald-600"
-            rounded-lg px-4 py-2 text-sm text-white transition-colors
+            :label="processing ? `Processing... ${progressPercent}%` : `Process ${pendingCount} image${pendingCount > 1 ? 's' : ''}`"
             :disabled="processing || !model"
+            :loading="processing"
             @click="processAllImages"
-          >
-            {{ processing ? `Processing... ${progressPercent}%` : `Process ${pendingCount} image${pendingCount > 1 ? 's' : ''}` }}
-          </button>
-          <button
+          />
+          <Button
             v-if="doneCount > 0"
-            bg="blue-500 hover:blue-600"
-            rounded-lg px-4 py-2 text-sm text-white transition-colors
+            variant="secondary"
+            :label="`Download All (${doneCount})`"
+            icon="i-solar:download-minimalistic-bold"
             @click="downloadAllImages"
-          >
-            Download All ({{ doneCount }})
-          </button>
-          <button
+          />
+          <Button
             v-if="imageItems.length > 0"
-            bg="neutral-200 hover:neutral-300 dark:neutral-700 dark:hover:neutral-600"
-            rounded-lg px-4 py-2 text-sm transition-colors
+            variant="secondary-muted"
+            label="Clear All"
+            icon="i-solar:trash-bin-trash-line-duotone"
             @click="clearAllImages"
-          >
-            Clear All
-          </button>
+          />
         </div>
       </div>
 
@@ -354,25 +351,19 @@ function hidePreview() {
               <!-- Actions -->
               <td px-4 py-3>
                 <div flex gap-2>
-                  <button
+                  <Button
                     v-if="item.status === 'done'"
-                    bg="emerald-500 hover:emerald-600"
-                    rounded-lg p-2 text-white transition-colors
-                    title="Download"
+                    size="sm"
+                    icon="i-solar:download-minimalistic-bold"
                     @click="downloadImage(index)"
-                  >
-                    <div i-solar:download-minimalistic-bold text-sm />
-                  </button>
-                  <button
-                    bg="red-100 hover:red-200 dark:red-900/50 dark:hover:red-900"
-                    text="red-600 dark:red-400"
-                    rounded-lg p-2 transition-colors
-                    title="Remove"
+                  />
+                  <Button
+                    variant="danger"
+                    size="sm"
+                    icon="i-solar:trash-bin-trash-bold"
                     :disabled="item.status === 'processing'"
                     @click="removeImage(index)"
-                  >
-                    <div i-solar:trash-bin-trash-bold text-sm />
-                  </button>
+                  />
                 </div>
               </td>
             </tr>
