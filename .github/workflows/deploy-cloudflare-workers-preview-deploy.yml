@@ -199,7 +199,7 @@ jobs:
         # - https://github.com/shun-shobon/blog.s2n.tech/blob/51b864301c760414d7dc910308084ffd60625384/.github/workflows/deploy.yml#L102-L109
         run: |
           export VERSION_ID=$(wrangler versions list -c ${{ matrix.wrangler_config_path }} --json --env preview | jq -r --arg tag v0.0.1-pr.${{ steps.pr-num.outputs.PR_NUM }} 'map(select(.annotations["workers/tag"] == $tag)) | sort_by(.metadata.created_on) | .[-1] | (.id // empty)')
-          echo "VERSION_ID=$VERSION_ID" >> $GITHUB_ENV
+          echo "VERSION_ID=$VERSION_ID" >> $GITHUB_OUTPUT
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
 
