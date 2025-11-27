@@ -42,7 +42,10 @@ mac:
   extendInfo:
     - NSMicrophoneUsageDescription: 'AIRI requires microphone access for voice interaction'
     - NSCameraUsageDescription: 'AIRI requires camera access for vision understanding'
+  # If still fails, check:
+  # https://github.com/electron-userland/electron-builder/issues/3989#issuecomment-557013674
   notarize: false
+  hardenedRuntime: false
   executableName: airi
 dmg:
   artifactName: ${productName}-${version}-darwin-${arch}.${ext}
