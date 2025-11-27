@@ -8,30 +8,40 @@ const props = defineProps<{
   isNotDraggingClasses?: string | string[] | null
   accept?: string
   multiple?: boolean
+  modelValue?: File[]
 }>()
 
-const files = defineModel<File[]>({ required: false, default: () => [] })
+const emit = defineEmits<{
+  'update:modelValue': [files: File[]]
+}>()
+
+const files = ref<File[]>([])
 const firstFile = ref<File>()
 
 const isDragging = ref(false)
 const isDraggingDebounced = useDebounce(isDragging, 150)
 
 function handleFileChange(e: Event) {
-  files.value = []
-
   const input = e.target as HTMLInputElement
   if (!input.files)
     return
 
-  for (let i = 0; i < input.files?.length; i++) {
+  files.value = []
+
+  for (let i = 0; i < input.files.length; i++) {
     files.value.push(input.files[i])
   }
 
-  if (files.value && files.value.length > 0) {
+  emit('update:modelValue', files.value)
+
+  if (files.value.length > 0) {
     firstFile.value = files.value[0]
   }
 
   isDragging.value = false
+
+  // Allow re-selecting the same file
+  input.value = ''
 }
 </script>
 

@@ -1,0 +1,51 @@
+name: Cloudflare Workers (Preview) Prepare
+
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  prepare:
+    name: Prepare preview sources
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Debug
+        uses: raven-actions/debug@v1
+
+      - name: Persist PR number
+        run: |
+          echo "${{ github.event.number }}" > pr_num
+
+      - name: Persist branch name
+        run: |
+          echo "${{ github.head_ref }}" > branch_name
+
+      - name: Upload PR artifact
+        uses: actions/upload-artifact@v5
+        with:
+          name: pr-num
+          path: ./pr_num
+          overwrite: true
+
+      - name: Upload branch artifact
+        uses: actions/upload-artifact@v5
+        with:
+          name: branch-name
+          path: ./branch_name
+          overwrite: true
+
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Remove git metadata
+        run: rm -rf .git
+
+      - name: Upload source artifact
+        uses: actions/upload-artifact@v5
+        with:
+          name: preview-source
+          path: .
+          overwrite: true
+          include-hidden-files: true
