@@ -2,20 +2,63 @@
 import type { PreTrainedModel, Processor } from '@huggingface/transformers'
 
 import { AutoModel, AutoProcessor, env, RawImage } from '@huggingface/transformers'
-import { InputFile } from '@proj-airi/ui'
+import { Checkbox, InputFile } from '@proj-airi/ui'
 import { check } from 'gpuu/webgpu'
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 
 const model = ref<PreTrainedModel>()
 const processor = ref<Processor>()
 const error = ref<unknown>()
-const loading = ref()
+const loading = ref(true)
 const processing = ref(false)
 const progressPercent = ref(0)
-const processedImages = ref<Array<string>>()
-const downloadReady = ref<boolean>()
+const currentProcessingIndex = ref(-1)
+const autoProcess = ref(false)
+const previewImage = ref<string | null>(null)
+const previewPosition = ref({ x: 0, y: 0 })
+
+interface ImageItem {
+  file: File
+  originalUrl: string
+  processedUrl: string | null
+  status: 'pending' | 'processing' | 'done' | 'error'
+}
+
+const imageItems = ref<ImageItem[]>([])
 const imageFiles = ref<File[]>([])
-const imageFilesURLs = computed(() => imageFiles.value.map(img => URL.createObjectURL(img)))
+
+const pendingCount = computed(() => imageItems.value.filter(item => item.status === 'pending').length)
+const doneCount = computed(() => imageItems.value.filter(item => item.status === 'done').length)
+
+// Watch for new files and add to imageItems
+watch(imageFiles, (newFiles) => {
+  if (newFiles.length === 0)
+    return
+
+  const existingNames = new Set(imageItems.value.map(item => item.file.name))
+  const newItems: ImageItem[] = newFiles
+    .filter(file => !existingNames.has(file.name))
+    .map(file => ({
+      file,
+      originalUrl: URL.createObjectURL(file),
+      processedUrl: null,
+      status: 'pending' as const,
+    }))
+
+  imageItems.value.push(...newItems)
+
+  // Auto process if enabled
+  if (autoProcess.value && newItems.length > 0 && !processing.value) {
+    processAllImages()
+  }
+})
+
+// Watch for autoProcess toggle - process pending images when enabled
+watch(autoProcess, (enabled) => {
+  if (enabled && !processing.value && pendingCount.value > 0) {
+    processAllImages()
+  }
+})
 
 onMounted(async () => {
   try {
@@ -38,20 +81,16 @@ onMounted(async () => {
   loading.value = false
 })
 
-async function processImages() {
-  if (!model.value)
-    return
-  if (!processor.value)
+async function processImage(item: ImageItem, index: number): Promise<void> {
+  if (!model.value || !processor.value)
     return
 
-  processing.value = true
-  progressPercent.value = 0
-  processedImages.value = []
-  const totalImages = imageFilesURLs.value.length
+  try {
+    item.status = 'processing'
+    currentProcessingIndex.value = index
 
-  for (let i = 0; i < totalImages; ++i) {
     // Load image
-    const img = await RawImage.fromURL(imageFilesURLs.value[i])
+    const img = await RawImage.fromURL(item.originalUrl)
 
     // Pre-process image
     const { pixel_values } = await processor.value(img)
@@ -74,33 +113,50 @@ async function processImages() {
 
     // Update alpha channel
     const pixelData = ctx.getImageData(0, 0, img.width, img.height)
-    for (let i = 0; i < maskData.length; ++i) {
-      pixelData.data[4 * i + 3] = maskData[i]
+    for (let j = 0; j < maskData.length; ++j) {
+      pixelData.data[4 * j + 3] = maskData[j]
     }
 
     ctx.putImageData(pixelData, 0, 0)
-    processedImages.value.push(canvas.toDataURL('image/png'))
+    item.processedUrl = canvas.toDataURL('image/png')
+    item.status = 'done'
+  }
+  catch {
+    item.status = 'error'
+  }
+}
 
-    // Update progress
+async function processAllImages() {
+  if (!model.value || !processor.value || processing.value)
+    return
+
+  processing.value = true
+  progressPercent.value = 0
+
+  const pendingItems = imageItems.value.filter(item => item.status === 'pending')
+  const totalImages = pendingItems.length
+
+  for (let i = 0; i < totalImages; ++i) {
+    await processImage(pendingItems[i], imageItems.value.indexOf(pendingItems[i]))
     progressPercent.value = Math.round(((i + 1) / totalImages) * 100)
   }
 
   processing.value = false
-  downloadReady.value = true
+  currentProcessingIndex.value = -1
 }
 
 function downloadImage(index: number) {
-  if (!processedImages.value || index >= processedImages.value.length || !imageFiles.value[index])
+  const item = imageItems.value[index]
+  if (!item || !item.processedUrl)
     return
 
   // Get original filename and create new filename with suffix
-  const originalFileName = imageFiles.value[index].name
+  const originalFileName = item.file.name
   const fileNameWithoutExt = originalFileName.substring(0, originalFileName.lastIndexOf('.')) || originalFileName
-  const fileExt = originalFileName.substring(originalFileName.lastIndexOf('.')) || '.png'
-  const newFileName = `${fileNameWithoutExt}-background-removed${fileExt}`
+  const newFileName = `${fileNameWithoutExt}-background-removed.png`
 
   const link = document.createElement('a')
-  link.href = processedImages.value[index]
+  link.href = item.processedUrl
   link.download = newFileName
   document.body.appendChild(link)
   link.click()
@@ -108,76 +164,240 @@ function downloadImage(index: number) {
 }
 
 function downloadAllImages() {
-  if (!processedImages.value || processedImages.value.length === 0)
+  const doneItems = imageItems.value.filter(item => item.status === 'done')
+  if (doneItems.length === 0)
     return
 
-  processedImages.value.forEach((_, index) => {
-    setTimeout(() => downloadImage(index), index * 100)
+  doneItems.forEach((_, i) => {
+    const index = imageItems.value.indexOf(doneItems[i])
+    setTimeout(() => downloadImage(index), i * 100)
   })
+}
+
+function removeImage(index: number) {
+  const item = imageItems.value[index]
+  if (item.originalUrl)
+    URL.revokeObjectURL(item.originalUrl)
+  imageItems.value.splice(index, 1)
+}
+
+function clearAllImages() {
+  imageItems.value.forEach((item) => {
+    if (item.originalUrl)
+      URL.revokeObjectURL(item.originalUrl)
+  })
+  imageItems.value = []
+}
+
+function showPreview(url: string, event: MouseEvent) {
+  previewImage.value = url
+  updatePreviewPosition(event)
+}
+
+function updatePreviewPosition(event: MouseEvent) {
+  previewPosition.value = {
+    x: event.clientX + 16,
+    y: event.clientY + 16,
+  }
+}
+
+function hidePreview() {
+  previewImage.value = null
 }
 </script>
 
 <template>
-  <div flex flex-col items-center gap-4>
-    <button
-      bg="neutral-100 dark:neutral-800"
-      w-full cursor-pointer rounded-lg px-3 py-2
-      :disabled="processing"
-      @click="processImages"
-    >
-      {{ processing ? 'Processing...' : 'Process' }}
-    </button>
+  <div flex flex-col gap-4>
+    <!-- Loading state -->
+    <div v-if="loading" flex items-center justify-center gap-2 py-8 text-neutral-500>
+      <div i-svg-spinners:ring-resize text-2xl />
+      <span>Loading model...</span>
+    </div>
 
-    <div h-full w-full flex gap-2>
-      <div w="[50%]" border="2 solid neutral-200 dark:neutral-800" bg="neutral-50 dark:neutral-900" min-h="120" h="auto" overflow-hidden rounded-lg>
-        <img v-for="(url, index) in imageFilesURLs" :key="index" :src="url" h-full w-full object-cover>
-      </div>
-      <div w="[50%]" border="2 solid neutral-200 dark:neutral-800" bg="neutral-50 dark:neutral-900" min-h="120" h="auto" relative overflow-hidden rounded-lg>
-        <!-- Processing overlay with progress bar -->
-        <div v-if="processing" bg="black/50" absolute inset-0 z-10 flex flex-col items-center justify-center>
-          <div mb-4 text-white font-medium>
-            {{ progressPercent }}%
-          </div>
-          <div bg="gray-200/30" w="70%" h-2 overflow-hidden rounded-full>
-            <div
-              bg="emerald-500"
-              h-full
-              :style="{ width: `${progressPercent}%` }"
-              transition-all duration-200
-            />
-          </div>
+    <!-- Error state -->
+    <div v-else-if="error" rounded-lg bg-red-100 p-4 text-red-700 dark:bg-red-900 dark:text-red-200>
+      {{ error }}
+    </div>
+
+    <!-- Main content -->
+    <template v-else>
+      <!-- File upload area -->
+      <InputFile v-model="imageFiles" w-full accept="image/*" multiple />
+
+      <!-- Controls -->
+      <div flex flex-wrap items-center justify-between gap-4>
+        <div flex items-center gap-3>
+          <label flex cursor-pointer items-center gap-2>
+            <Checkbox v-model="autoProcess" />
+            <span text-sm>Auto process on upload</span>
+          </label>
         </div>
-
-        <!-- Processed images -->
-        <div v-for="(url, index) in processedImages" :key="index" relative class="group" h-full w-full>
-          <img :src="url" h-full w-full object-cover>
-          <div bg="black/0 group-hover:black/20" absolute inset-0 flex items-center justify-center transition-all duration-200>
-            <button
-              bg="emerald-500 hover:emerald-600"
-              rounded-full p-2 text-white opacity-0 transition-all duration-200 group-hover:opacity-100
-              @click="downloadImage(index)"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-              </svg>
-            </button>
-          </div>
-        </div>
-
-        <!-- Download all button -->
-        <div v-if="processedImages && processedImages.length > 1" absolute bottom-2 right-2>
+        <div flex gap-2>
           <button
+            v-if="pendingCount > 0"
             bg="emerald-500 hover:emerald-600"
-            rounded-full p-2 text-white
+            rounded-lg px-4 py-2 text-sm text-white transition-colors
+            :disabled="processing || !model"
+            @click="processAllImages"
+          >
+            {{ processing ? `Processing... ${progressPercent}%` : `Process ${pendingCount} image${pendingCount > 1 ? 's' : ''}` }}
+          </button>
+          <button
+            v-if="doneCount > 0"
+            bg="blue-500 hover:blue-600"
+            rounded-lg px-4 py-2 text-sm text-white transition-colors
             @click="downloadAllImages"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-            </svg>
+            Download All ({{ doneCount }})
+          </button>
+          <button
+            v-if="imageItems.length > 0"
+            bg="neutral-200 hover:neutral-300 dark:neutral-700 dark:hover:neutral-600"
+            rounded-lg px-4 py-2 text-sm transition-colors
+            @click="clearAllImages"
+          >
+            Clear All
           </button>
         </div>
       </div>
-    </div>
-    <InputFile v-model="imageFiles" w-full />
+
+      <!-- Image Table -->
+      <div overflow-x-auto rounded-lg border="1 solid neutral-200 dark:neutral-700">
+        <table w-full text-left text-sm>
+          <thead bg="neutral-100 dark:neutral-800">
+            <tr>
+              <th px-4 py-3 font-medium>
+                Original
+              </th>
+              <th px-4 py-3 font-medium>
+                Processed
+              </th>
+              <th px-4 py-3 font-medium>
+                Filename
+              </th>
+              <th px-4 py-3 font-medium>
+                Status
+              </th>
+              <th px-4 py-3 font-medium>
+                Actions
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-if="imageItems.length === 0">
+              <td colspan="5" px-4 py-8 text-center text-neutral-400>
+                No images uploaded yet
+              </td>
+            </tr>
+            <tr
+              v-for="(item, index) in imageItems"
+              :key="item.file.name"
+              border="t 1 solid neutral-200 dark:neutral-700"
+              :class="item.status === 'processing' ? 'bg-emerald-50 dark:bg-emerald-900/20' : ''"
+            >
+              <!-- Original thumbnail -->
+              <td px-4 py-3>
+                <div
+                  h-16 w-16 cursor-pointer overflow-hidden rounded-lg border="1 solid neutral-200 dark:neutral-700"
+                  @mouseenter="showPreview(item.originalUrl, $event)"
+                  @mousemove="updatePreviewPosition"
+                  @mouseleave="hidePreview"
+                >
+                  <img :src="item.originalUrl" h-full w-full object-cover>
+                </div>
+              </td>
+
+              <!-- Processed thumbnail -->
+              <td px-4 py-3>
+                <div
+                  h-16 w-16 overflow-hidden rounded-lg border="1 solid neutral-200 dark:neutral-700"
+                  :class="item.processedUrl ? 'cursor-pointer' : ''"
+                  bg="[url('data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2216%22%20height%3D%2216%22%3E%3Crect%20width%3D%228%22%20height%3D%228%22%20fill%3D%22%23ccc%22%2F%3E%3Crect%20x%3D%228%22%20y%3D%228%22%20width%3D%228%22%20height%3D%228%22%20fill%3D%22%23ccc%22%2F%3E%3C%2Fsvg%3E')]"
+                  @mouseenter="item.processedUrl && showPreview(item.processedUrl, $event)"
+                  @mousemove="updatePreviewPosition"
+                  @mouseleave="hidePreview"
+                >
+                  <img v-if="item.processedUrl" :src="item.processedUrl" h-full w-full object-cover>
+                  <div v-else-if="item.status === 'processing'" h-full w-full flex items-center justify-center bg="neutral-100 dark:neutral-800">
+                    <div i-svg-spinners:ring-resize text-emerald-500 />
+                  </div>
+                  <div v-else h-full w-full flex items-center justify-center bg="neutral-100 dark:neutral-800" text-neutral-400>
+                    -
+                  </div>
+                </div>
+              </td>
+
+              <!-- Filename -->
+              <td max-w-48 truncate px-4 py-3 :title="item.file.name">
+                {{ item.file.name }}
+              </td>
+
+              <!-- Status -->
+              <td px-4 py-3>
+                <span
+                  inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-medium
+                  :class="{
+                    'bg-neutral-100 text-neutral-600 dark:bg-neutral-800 dark:text-neutral-400': item.status === 'pending',
+                    'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-400': item.status === 'processing',
+                    'bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-400': item.status === 'done',
+                    'bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-400': item.status === 'error',
+                  }"
+                >
+                  <div v-if="item.status === 'processing'" i-svg-spinners:ring-resize text-xs />
+                  <div v-else-if="item.status === 'done'" i-solar:check-circle-bold text-xs />
+                  <div v-else-if="item.status === 'error'" i-solar:close-circle-bold text-xs />
+                  <div v-else i-solar:clock-circle-linear text-xs />
+                  {{ item.status === 'pending' ? 'Pending' : item.status === 'processing' ? 'Processing' : item.status === 'done' ? 'Done' : 'Error' }}
+                </span>
+              </td>
+
+              <!-- Actions -->
+              <td px-4 py-3>
+                <div flex gap-2>
+                  <button
+                    v-if="item.status === 'done'"
+                    bg="emerald-500 hover:emerald-600"
+                    rounded-lg p-2 text-white transition-colors
+                    title="Download"
+                    @click="downloadImage(index)"
+                  >
+                    <div i-solar:download-minimalistic-bold text-sm />
+                  </button>
+                  <button
+                    bg="red-100 hover:red-200 dark:red-900/50 dark:hover:red-900"
+                    text="red-600 dark:red-400"
+                    rounded-lg p-2 transition-colors
+                    title="Remove"
+                    :disabled="item.status === 'processing'"
+                    @click="removeImage(index)"
+                  >
+                    <div i-solar:trash-bin-trash-bold text-sm />
+                  </button>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </template>
+
+    <!-- Preview tooltip -->
+    <Teleport to="body">
+      <div
+        v-if="previewImage"
+        fixed z-50 overflow-hidden rounded-xl shadow-2xl
+        pointer-events-none
+        border="1 solid neutral-200 dark:neutral-700"
+        bg="[url('data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2216%22%20height%3D%2216%22%3E%3Crect%20width%3D%228%22%20height%3D%228%22%20fill%3D%22%23ccc%22%2F%3E%3Crect%20x%3D%228%22%20y%3D%228%22%20width%3D%228%22%20height%3D%228%22%20fill%3D%22%23ccc%22%2F%3E%3C%2Fsvg%3E')]"
+        :style="{
+          left: `${previewPosition.x}px`,
+          top: `${previewPosition.y}px`,
+          maxWidth: '400px',
+          maxHeight: '400px',
+        }"
+      >
+        <img :src="previewImage" max-h-96 max-w-96 object-contain>
+      </div>
+    </Teleport>
   </div>
 </template>
