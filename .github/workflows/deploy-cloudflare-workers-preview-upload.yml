@@ -81,12 +81,12 @@ jobs:
       - name: Obtain PR number
         id: pr-num
         run: |
-          echo "PR_NUM=$(cat pr-num/pr_num)" >> $GITHUB_ENV
+          echo "PR_NUM=$(cat pr-num/pr_num)" >> "$GITHUB_OUTPUT"
 
       - name: Obtain branch name
         id: branch-name
         run: |
-          echo "BRANCH_NAME=$(cat branch-name/branch_name)" >> $GITHUB_ENV
+          echo "BRANCH_NAME=$(cat branch-name/branch_name)" >> "$GITHUB_ENV"
 
       - name: Download artifact
         uses: dawidd6/action-download-artifact@v11
@@ -168,7 +168,7 @@ jobs:
         uses: peter-evans/find-comment@v4
         id: fc
         with:
-          issue-number: ${{ env.PR_NUM }}
+          issue-number: ${{ steps.pr-num.outputs.PR_NUM }}
           comment-author: 'github-actions[bot]'
           body-includes: to Cloudflare Workers (Preview) for *${{ matrix.app_name }}*
 
@@ -176,7 +176,7 @@ jobs:
         uses: peter-evans/create-or-update-comment@v5
         with:
           comment-id: ${{ steps.fc.outputs.comment-id }}
-          issue-number: ${{ env.PR_NUM }}
+          issue-number: ${{ steps.pr-num.outputs.PR_NUM }}
           edit-mode: replace
           body: |
             ## ✅ Deploy to Cloudflare Workers (Preview) for *${{ matrix.app_name }}* ready!
@@ -212,13 +212,13 @@ jobs:
       - name: Obtain PR number
         id: pr-num
         run: |
-          echo "PR_NUM=$(cat pr-num/pr_num)" >> $GITHUB_ENV
+          echo "PR_NUM=$(cat pr-num/pr_num)" >> "$GITHUB_OUTPUT"
 
       - name: Find Comment
         uses: peter-evans/find-comment@v4
         id: fc
         with:
-          issue-number: ${{ env.PR_NUM }}
+          issue-number: ${{ steps.pr-num.outputs.PR_NUM }}
           comment-author: 'github-actions[bot]'
           body-includes: to Cloudflare Workers (Preview) for *${{ matrix.app_name }}*
 
@@ -226,7 +226,7 @@ jobs:
         uses: peter-evans/create-or-update-comment@v5
         with:
           comment-id: ${{ steps.fc.outputs.comment-id }}
-          issue-number: ${{ env.PR_NUM }}
+          issue-number: ${{ steps.pr-num.outputs.PR_NUM }}
           edit-mode: replace
           body: |
             ## ❌ Deploy to Cloudflare Workers (Preview) for *${{ matrix.app_name }}* failed.
