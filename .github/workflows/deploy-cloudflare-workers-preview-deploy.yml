@@ -1,0 +1,234 @@
+name: Cloudflare Workers (Preview) Deploy
+
+on:
+  workflow_run:
+    workflows:
+      - Cloudflare Workers (Preview) Prepare
+    types:
+      - completed
+
+jobs:
+  on-success:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    name: Deploy - ${{ matrix.app_name }}
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      pull-requests: write
+
+    strategy:
+      matrix:
+        include:
+          - app_name: stage-web
+            wrangler_config_path: ./apps/stage-web/wrangler.toml
+            build_directory: ./apps/stage-web/dist
+            build_command: |
+              pnpm -F @proj-airi/stage-web run build
+
+              pnpm -F @proj-airi/docs run build:base
+              mv ./docs/.vitepress/dist ./apps/stage-web/dist/docs
+              cp ./apps/stage-web/dist/docs/sitemap.xml ./apps/stage-web/dist/sitemap.xml
+
+              pnpm -F @proj-airi/stage-ui run story:build
+              mv ./packages/stage-ui/.histoire/dist ./apps/stage-web/dist/ui
+
+    steps:
+      - name: Download artifact - PR
+        uses: dawidd6/action-download-artifact@v11
+        with:
+          workflow_conclusion: success
+          run_id: ${{ github.event.workflow.id }}
+          name: pr-num
+          path: pr-num
+          allow_forks: true
+
+      - name: Download artifact - PR
+        uses: dawidd6/action-download-artifact@v11
+        with:
+          workflow_conclusion: success
+          run_id: ${{ github.event.workflow.id }}
+          name: branch-name
+          path: branch-name
+          allow_forks: true
+
+      - name: Obtain PR number
+        id: pr-num
+        run: |
+          echo "PR_NUM=$(cat pr-num/pr_num)" >> "$GITHUB_OUTPUT"
+
+      - name: Obtain branch name
+        id: branch-name
+        run: |
+          echo "BRANCH_NAME=$(cat branch-name/branch_name)" >> "$GITHUB_ENV"
+
+      - name: Download source artifact
+        uses: dawidd6/action-download-artifact@v11
+        with:
+          workflow_conclusion: success
+          run_id: ${{ github.event.workflow.id }}
+          name: preview-source
+          path: ./source
+          allow_forks: true
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: lts/*
+          cache: pnpm
+
+      # NOTICE:
+      #
+      # Here installing wrangler to global is required, or otherwise:
+      # ERR_PNPM_ADDING_TO_ROOT  Running this command will add the dependency to the workspace root...
+      # error occurs.
+      #
+      # Since https://github.com/cloudflare/wrangler-action/pull/339#issuecomment-2667622947 rejected the -g support
+      # by saying un-reasonable 'I'm not sure if it's common ... to install packages to the global scope, ... might be introducing some unintended side effects.'
+      #
+      # Clearly I think installing with `<packageManager> install` brings more unintended side effects...
+      #
+      # As suggested by https://github.com/cloudflare/wrangler-action/issues/181#issuecomment-2127990708, we should pre-install
+      # with our package manager and then use it in the action.
+      - run: pnpm i -g wrangler@4
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+        working-directory: ./source
+
+      - name: Build packages
+        run: pnpm run build:packages
+        working-directory: ./source
+
+      - name: Build ${{ matrix.app_name }}
+        id: build
+        run: ${{ matrix.build_command }}
+        working-directory: ./source
+        continue-on-error: true
+        env:
+          S3_ACCESS_KEY_ID: ${{ secrets.S3_ACCESS_KEY_ID }}
+          S3_SECRET_ACCESS_KEY: ${{ secrets.S3_SECRET_ACCESS_KEY }}
+          S3_ENDPOINT: ${{ secrets.S3_ENDPOINT }}
+          S3_REGION: ${{ secrets.S3_REGION }}
+          WARP_DRIVE_PUBLIC_BASE: ${{ secrets.WARP_DRIVE_PUBLIC_BASE }}
+          STAGE_WEB_WARP_DRIVE_PREFIX: proj-airi/stage-web/pr-${{ steps.pr-num.outputs.PR_NUM }}/
+          STAGE_UI_WARP_DRIVE_PREFIX: proj-airi/stage-ui/pr-${{ steps.pr-num.outputs.PR_NUM }}/
+
+      - name: Comment on build failure
+        if: ${{ steps.build.outcome != 'success' }}
+        uses: peter-evans/create-or-update-comment@v5
+        with:
+          issue-number: ${{ steps.pr-num.outputs.PR_NUM }}
+          edit-mode: replace
+          body: |
+            ## ❌ Deploy to Cloudflare Workers (Preview) for *${{ matrix.app_name }}* failed.
+
+            | Name                 | Link                                                                                   |
+            |:---------------------|:---------------------------------------------------------------------------------------|
+            | 🔍 Latest deploy log | https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }} |
+
+      - name: Fail if build failed
+        if: ${{ steps.build.outcome != 'success' }}
+        run: |
+          echo "Build step failed; marking workflow as failed."
+          exit 1
+
+      - name: Wrangler Upload
+        if: ${{ steps.build.outcome == 'success' }}
+        id: wrangler-versions-upload
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: versions upload -c ${{ matrix.wrangler_config_path }} --preview-alias pr-${{ steps.pr-num.outputs.PR_NUM }} --env preview --message "GitHub Actions uploaded preview for Pull Request ${{ steps.pr-num.outputs.PR_NUM }}" --tag v0.0.1-pr.${{ steps.pr-num.outputs.PR_NUM }}
+          gitHubToken: ${{ secrets.GITHUB_TOKEN }}
+          workingDirectory: ./source
+
+      # Workflows
+      #
+      # wrangler versions upload -c ./apps/stage-web/wrangler.toml --preview-alias pr-763 --env preview --message "GitHub Actions uploading preview for Pull Request 763" --tag v0.0.1-pr.763
+      # wrangler versions list -c apps/stage-web/wrangler.toml --json --env preview | jq -r --arg tag v0.0.1-pr.763 'map(select(.annotations["workers/tag"] == $tag)) | sort_by(.metadata.created_on) | .[] | (.id // empty)'
+      # wrangler versions deploy -c ./apps/stage-web/wrangler.toml --env preview 2ab3c0ee-7597-4c20-ae5b-23536d7f79ec -y --message "GitHub Actions deploying preview for Pull Request 763"
+
+      - name: Wrangler Get Version ID
+        if: ${{ steps.build.outcome == 'success' }}
+        id: wrangler-version-id
+        # [
+        #   {
+        #     "id": "2ab3c0ee-7597-4c20-ae5b-23536d7f79ec",
+        #     "number": 4,
+        #     "metadata": {
+        #       "created_on": "2025-11-27T03:30:56.622177Z",
+        #       "source": "wrangler",
+        #       "author_id": "04391c4b41bbf6bd8220b4f469918aac",
+        #       "author_email": "user@example.com",
+        #       "has_preview": true
+        #     },
+        #     "annotations": {
+        #       "workers/alias": "pr-763",
+        #       "workers/message": "GitHub Actions deploying preview for PR 763",
+        #       "workers/tag": "v0.0.1-pr.763",
+        #       "workers/triggered_by": "version_upload"
+        #     }
+        #   }
+        # ]
+        #
+        # Here we use jq to filter the version with the specific tag we just uploaded,
+        #
+        # - map(input)
+        #   - select( if input.[index].annotations.workers/tag === $tag ) // same as filter
+        #   - sort_by( input.[index].metadata.created_on ) // sort by created_on
+        #   - .[-1] // get the last one (latest)
+        #   - .id // get the id field
+        #
+        # Which means we should get the version ID we just uploaded, in this example,
+        # 2ab3c0ee-7597-4c20-ae5b-23536d7f79ec
+        # returned
+        #
+        # Thanks to:
+        # - https://github.com/tuatmcc/tuatmcc.com/blob/b07197c1fb9f4939edcfa78fde96e6ad4e8a7205/.github/workflows/deploy.yml#L130C98-L130C118
+        # - https://github.com/shun-shobon/blog.s2n.tech/blob/51b864301c760414d7dc910308084ffd60625384/.github/workflows/deploy.yml#L102-L109
+        run: |
+          export VERSION_ID=$(wrangler versions list -c ${{ matrix.wrangler_config_path }} --json --env preview | jq -r --arg tag v0.0.1-pr.${{ steps.pr-num.outputs.PR_NUM }} 'map(select(.annotations["workers/tag"] == $tag)) | sort_by(.metadata.created_on) | .[-1] | (.id // empty)')
+          echo "VERSION_ID=$VERSION_ID" >> $GITHUB_ENV
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        working-directory: ./source
+
+      - name: Wrangler Deploy
+        if: ${{ steps.build.outcome == 'success' }}
+        id: wrangler-deploy
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: versions deploy -c ${{ matrix.wrangler_config_path }} --env preview ${{ steps.wrangler-version-id.outputs.VERSION_ID }} --message "GitHub Actions deploying preview for Pull Request ${{ steps.pr-num.outputs.PR_NUM }}" -y
+          gitHubToken: ${{ secrets.GITHUB_TOKEN }}
+          workingDirectory: ./source
+
+      - name: Find Comment
+        if: ${{ steps.build.outcome == 'success' }}
+        uses: peter-evans/find-comment@v4
+        id: fc
+        with:
+          issue-number: ${{ steps.pr-num.outputs.PR_NUM }}
+          comment-author: 'github-actions[bot]'
+          body-includes: to Cloudflare Workers (Preview) for *${{ matrix.app_name }}*
+
+      - name: Create or update comment
+        if: ${{ steps.build.outcome == 'success' }}
+        uses: peter-evans/create-or-update-comment@v5
+        with:
+          comment-id: ${{ steps.fc.outputs.comment-id }}
+          issue-number: ${{ steps.pr-num.outputs.PR_NUM }}
+          edit-mode: replace
+          body: |
+            ## ✅ Deploy to Cloudflare Workers (Preview) for *${{ matrix.app_name }}* ready!
+
+            | Name                   | Link                                                                                         |
+            |:-----------------------|:---------------------------------------------------------------------------------------------|
+            | 🔍 Latest deploy log   | https://github.com/${{ github.repository }}/actions/runs/${{ github.event.workflow.id }} |
+            | 😎 Deploy Preview      | ${{ steps.wrangler-deploy.outputs.deployment-url }}                                          |

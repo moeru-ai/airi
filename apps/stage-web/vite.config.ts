@@ -196,7 +196,7 @@ export default defineConfig({
       ? []
       : [
           WarpDrivePlugin({
-            prefix: 'proj-airi/stage-web/',
+            prefix: env.STAGE_WEB_WARP_DRIVE_PREFIX || 'proj-airi/stage-web/main/',
             include: [/\.wasm$/i, /\.ttf$/i, /\.vrm$/i, /\.zip$/i], // in existing assets, wasm, ttf, vrm files are the largest ones
             manifest: true,
             clean: false,
