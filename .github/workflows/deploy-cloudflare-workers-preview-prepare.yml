@@ -11,6 +11,9 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Debug
+        uses: raven-actions/debug@v1
+
       - name: Persist PR number
         run: |
           echo "${{ github.event.number }}" > pr_num
