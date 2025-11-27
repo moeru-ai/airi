@@ -38,7 +38,7 @@ jobs:
         uses: dawidd6/action-download-artifact@v11
         with:
           workflow_conclusion: success
-          run_id: ${{ github.event.workflow_run.id }}
+          run_id: ${{ github.event.workflow.id }}
           name: pr-num
           path: pr-num
           allow_forks: true
@@ -47,7 +47,7 @@ jobs:
         uses: dawidd6/action-download-artifact@v11
         with:
           workflow_conclusion: success
-          run_id: ${{ github.event.workflow_run.id }}
+          run_id: ${{ github.event.workflow.id }}
           name: branch-name
           path: branch-name
           allow_forks: true
@@ -66,9 +66,9 @@ jobs:
         uses: dawidd6/action-download-artifact@v11
         with:
           workflow_conclusion: success
-          run_id: ${{ github.event.workflow_run.id }}
+          run_id: ${{ github.event.workflow.id }}
           name: preview-source
-          path: ./source
+          path: .
           allow_forks: true
 
       - name: Setup pnpm
@@ -97,16 +97,13 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
-        working-directory: ./source
 
       - name: Build packages
         run: pnpm run build:packages
-        working-directory: ./source
 
       - name: Build ${{ matrix.app_name }}
         id: build
         run: ${{ matrix.build_command }}
-        working-directory: ./source
         continue-on-error: true
         env:
           S3_ACCESS_KEY_ID: ${{ secrets.S3_ACCESS_KEY_ID }}
@@ -145,7 +142,6 @@ jobs:
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           command: versions upload -c ${{ matrix.wrangler_config_path }} --preview-alias pr-${{ steps.pr-num.outputs.PR_NUM }} --env preview --message "GitHub Actions uploaded preview for Pull Request ${{ steps.pr-num.outputs.PR_NUM }}" --tag v0.0.1-pr.${{ steps.pr-num.outputs.PR_NUM }}
           gitHubToken: ${{ secrets.GITHUB_TOKEN }}
-          workingDirectory: ./source
 
       # Workflows
       #
@@ -196,7 +192,6 @@ jobs:
           echo "VERSION_ID=$VERSION_ID" >> $GITHUB_ENV
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-        working-directory: ./source
 
       - name: Wrangler Deploy
         if: ${{ steps.build.outcome == 'success' }}
@@ -207,7 +202,6 @@ jobs:
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           command: versions deploy -c ${{ matrix.wrangler_config_path }} --env preview ${{ steps.wrangler-version-id.outputs.VERSION_ID }} --message "GitHub Actions deploying preview for Pull Request ${{ steps.pr-num.outputs.PR_NUM }}" -y
           gitHubToken: ${{ secrets.GITHUB_TOKEN }}
-          workingDirectory: ./source
 
       - name: Find Comment
         if: ${{ steps.build.outcome == 'success' }}
