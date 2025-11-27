@@ -27,7 +27,7 @@ jobs:
           - app_name: stage-web
             artifact_name: preview-build-stage-web
             artifact_path: ./apps/stage-web/dist
-            wrangler_config_path: -c ./apps/stage-web/wrangler.toml
+            wrangler_config_path: ./apps/stage-web/wrangler.toml
 
     steps:
       - uses: actions/checkout@v6
