@@ -7,6 +7,7 @@ import { env, platform } from 'node:process'
 import { electronApp, is, optimizer } from '@electron-toolkit/utils'
 import { Format, LogLevel, setGlobalFormat, setGlobalLogLevel, useLogg } from '@guiiai/logg'
 import { app, ipcMain, Menu, nativeImage, Tray } from 'electron'
+import { initMain as initAudioLoopback } from 'electron-audio-loopback'
 import { noop, once } from 'es-toolkit'
 import { createLoggLogger, injeca } from 'injeca'
 import { isLinux, isMacOS } from 'std-env'
@@ -68,6 +69,8 @@ if (isLinux) {
 
 app.dock?.setIcon(icon)
 electronApp.setAppUserModelId('ai.moeru.airi')
+
+initAudioLoopback()
 
 function setupTray(params: {
   mainWindow: BrowserWindow

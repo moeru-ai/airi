@@ -398,6 +398,9 @@ importers:
       drizzle-orm:
         specifier: ^0.44.7
         version: 0.44.7(@opentelemetry/api@1.9.0)(@types/pg@8.15.6)(gel@2.0.0)(pg@8.16.3)(postgres@3.4.7)
+      electron-audio-loopback:
+        specifier: ^1.0.6
+        version: 1.0.6(electron@39.1.0)
       electron-click-drag-plugin:
         specifier: ^2.0.2
         version: 2.0.2
@@ -1334,6 +1337,9 @@ importers:
       '@electron-toolkit/preload':
         specifier: ^3.0.2
         version: 3.0.2(electron@39.1.0)
+      '@nekopaw/tempora':
+        specifier: 0.3.1-alpha.1
+        version: 0.3.1-alpha.1
 
   packages/stage-ui:
     dependencies:
@@ -9729,6 +9735,11 @@ packages:
     resolution: {integrity: sha512-UeJmFfOrAQS8OJWPZ4qtgHyWExa088/MtK5UEyoJGFH67cDEXkZSviOiKRCZ4Xij0zxI3JECgYs3oKx+AizQBA==}
     engines: {node: '>=0.10.0'}
     hasBin: true
+
+  electron-audio-loopback@1.0.6:
+    resolution: {integrity: sha512-QW0ogDqMpWHDAQHmQyssJ+Yh4qR3kWCP3Q4H9WuIXKwVlgkqOYGyt0v/JzbK3tBNTwfqbuHZy86kwCCajxqAdg==}
+    peerDependencies:
+      electron: '>=31.0.1'
 
   electron-builder-squirrel-windows@25.1.8:
     resolution: {integrity: sha512-2ntkJ+9+0GFP6nAISiMabKt6eqBB0kX1QqHNWFWAXgi0VULKGisM46luRFpIBiU3u/TDmhZMM8tzvo2Abn3ayg==}
@@ -25475,6 +25486,10 @@ snapshots:
   ejs@3.1.10:
     dependencies:
       jake: 10.9.4
+
+  electron-audio-loopback@1.0.6(electron@39.1.0):
+    dependencies:
+      electron: 39.1.0
 
   electron-builder-squirrel-windows@25.1.8(dmg-builder@26.0.20):
     dependencies:

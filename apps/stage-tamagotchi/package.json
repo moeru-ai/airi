@@ -76,6 +76,7 @@
     "dompurify": "^3.3.0",
     "drizzle-kit": "^0.31.7",
     "drizzle-orm": "^0.44.7",
+    "electron-audio-loopback": "^1.0.6",
     "electron-click-drag-plugin": "^2.0.2",
     "es-toolkit": "^1.41.0",
     "h3": "2.0.1-rc.5",
