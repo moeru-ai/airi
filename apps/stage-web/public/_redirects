@@ -8,3 +8,4 @@
 
 # i18n
 /docs/    /docs/en/  301
+/docs/zh-hans/* /docs/zh-Hans/:splat  301
