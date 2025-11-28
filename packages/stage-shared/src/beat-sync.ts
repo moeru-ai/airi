@@ -11,7 +11,7 @@ export interface DetectorEventMap {
   beat: (e: AnalyserBeatEvent) => void
 }
 
-interface Detector {
+export interface Detector {
   start: (createSource: (context: AudioContext) => Promise<AudioNode>) => Promise<void>
   updateParameters: (params: Partial<AnalyserWorkletParameters>) => void
   startScreenCapture: () => Promise<void>
@@ -24,7 +24,7 @@ interface Detector {
   readonly source: AudioNode | undefined
 }
 
-type CreateDetectorOptions = |
+export type CreateDetectorOptions = |
   {
     env: StageEnvironment.Tamagotchi
     enableLoopbackAudio: () => Promise<any>

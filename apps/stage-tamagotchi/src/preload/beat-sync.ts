@@ -5,18 +5,23 @@ import { createDetector, StageEnvironment } from '@proj-airi/stage-shared'
 import { ipcRenderer } from 'electron'
 
 import { beatSyncSignalBeat, beatSyncToggle } from '../shared/eventa'
+import { exposeWithCustomAPI } from './shared'
 
 const context = createContext(electronAPI.ipcRenderer).context
 const signalBeat = defineInvoke(context, beatSyncSignalBeat)
 
+function enableLoopbackAudio() {
+  return ipcRenderer.invoke('enable-loopback-audio')
+}
+
+function disableLoopbackAudio() {
+  return ipcRenderer.invoke('disable-loopback-audio')
+}
+
 const detector = createDetector({
   env: StageEnvironment.Tamagotchi,
-  enableLoopbackAudio() {
-    return ipcRenderer.invoke('enable-loopback-audio')
-  },
-  disableLoopbackAudio() {
-    return ipcRenderer.invoke('disable-loopback-audio')
-  },
+  enableLoopbackAudio,
+  disableLoopbackAudio,
 })
 
 detector.on('beat', () => signalBeat())
@@ -28,4 +33,10 @@ defineInvokeHandler(context, beatSyncToggle, async (enabled) => {
   else {
     detector.stop()
   }
+})
+
+exposeWithCustomAPI({
+  enableLoopbackAudio,
+  disableLoopbackAudio,
+  detector,
 })
