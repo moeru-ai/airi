@@ -23,12 +23,28 @@ export default defineConfig({
     plugins: [externalizeDepsPlugin()],
   },
   preload: {
+    build: {
+      lib: {
+        entry: {
+          'index': resolve(join(import.meta.dirname, 'src', 'preload', 'index.ts')),
+          'beat-sync': resolve(join(import.meta.dirname, 'src', 'preload', 'beat-sync.ts')),
+        },
+      },
+    },
     plugins: [externalizeDepsPlugin()],
   },
   renderer: {
     // Thanks to [@Maqsyo](https://github.com/Maqsyo)
     // https://github.com/alex8088/electron-vite/issues/99#issuecomment-1862671727
     base: './',
+    build: {
+      rolldownOptions: {
+        input: {
+          'main': resolve(join(import.meta.dirname, 'src', 'renderer', 'index.html')),
+          'beat-sync': resolve(join(import.meta.dirname, 'src', 'renderer', 'beat-sync.html')),
+        },
+      },
+    },
     optimizeDeps: {
       exclude: [
         // Internal Packages

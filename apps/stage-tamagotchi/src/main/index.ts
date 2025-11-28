@@ -4,7 +4,7 @@ import type { WidgetsWindowManager } from './windows/widgets'
 
 import { env, platform } from 'node:process'
 
-import { electronApp, optimizer } from '@electron-toolkit/utils'
+import { electronApp, is, optimizer } from '@electron-toolkit/utils'
 import { Format, LogLevel, setGlobalFormat, setGlobalLogLevel, useLogg } from '@guiiai/logg'
 import { app, ipcMain, Menu, nativeImage, Tray } from 'electron'
 import { noop, once } from 'es-toolkit'
@@ -18,6 +18,7 @@ import { openDebugger, setupDebugger } from './app/debugger'
 import { emitAppBeforeQuit, emitAppReady, emitAppWindowAllClosed, onAppBeforeQuit } from './libs/bootkit/lifecycle'
 import { setElectronMainDirname } from './libs/electron/location'
 import { setupChannelServer } from './services/airi/channel-server'
+import { setupBeatSyncBackgroundWindow } from './windows/beat-sync'
 import { setupCaptionWindowManager } from './windows/caption'
 import { setupChatWindowReusableFunc } from './windows/chat'
 import { setupInlayWindow } from './windows/inlay'
@@ -73,6 +74,7 @@ function setupTray(params: {
   settingsWindow: () => Promise<BrowserWindow>
   captionWindow: ReturnType<typeof setupCaptionWindowManager>
   widgetsWindow: WidgetsWindowManager
+  beatSyncBackgroundWindow: BrowserWindow
 }): void {
   once(() => {
     const trayImage = nativeImage.createFromPath(isMacOS ? macOSTrayIcon : icon).resize({ width: 16 })
@@ -97,6 +99,13 @@ function setupTray(params: {
         ]),
       },
       { type: 'separator' },
+      ...is.dev || env.MAIN_APP_DEBUG || env.APP_DEBUG
+        ? [
+            { type: 'header', label: 'DevTools' },
+            { label: 'Troubleshoot BeatSync...', click: () => params.beatSyncBackgroundWindow.webContents.openDevTools() },
+            { type: 'separator' },
+          ] as const // :(
+        : [],
       { label: 'Quit', click: () => app.quit() },
     ])
 
@@ -118,12 +127,17 @@ app.whenReady().then(async () => {
   const widgetsManager = injeca.provide('windows:widgets', { build: () => setupWidgetsWindowManager() })
   const noticeWindow = injeca.provide('windows:notice', { build: () => setupNoticeWindowManager() })
 
+  // This is a background window
+  const beatSyncBackgroundWindow = injeca.provide('windows:beat-sync', {
+    build: () => setupBeatSyncBackgroundWindow(),
+  })
+
   const settingsWindow = injeca.provide('windows:settings', {
-    dependsOn: { widgetsManager },
+    dependsOn: { widgetsManager, beatSyncBackgroundWindow },
     build: ({ dependsOn }) => setupSettingsWindowReusableFunc(dependsOn),
   })
   const mainWindow = injeca.provide('windows:main', {
-    dependsOn: { settingsWindow, chatWindow, widgetsManager, noticeWindow },
+    dependsOn: { settingsWindow, chatWindow, widgetsManager, noticeWindow, beatSyncBackgroundWindow },
     build: async ({ dependsOn }) => setupMainWindow(dependsOn),
   })
   const captionWindow = injeca.provide('windows:caption', {
@@ -131,7 +145,7 @@ app.whenReady().then(async () => {
     build: async ({ dependsOn }) => setupCaptionWindowManager(dependsOn),
   })
   const tray = injeca.provide('app:tray', {
-    dependsOn: { mainWindow, settingsWindow, captionWindow, widgetsWindow: widgetsManager },
+    dependsOn: { mainWindow, settingsWindow, captionWindow, widgetsWindow: widgetsManager, beatSyncBackgroundWindow },
     build: async ({ dependsOn }) => setupTray(dependsOn),
   })
   injeca.invoke({
