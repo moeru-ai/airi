@@ -35,5 +35,3 @@ defineInvokeHandler(context, beatSyncToggle, async (enabled) => {
     detector.stop()
   }
 })
-
-detector.startScreenCapture()
