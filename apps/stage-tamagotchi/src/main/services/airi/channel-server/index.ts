@@ -14,32 +14,37 @@ export async function setupChannelServer() {
     const { serve } = await import('h3')
     const { plugin: ws } = await import('crossws/server')
 
-    const serverInstance = serve(serverRuntime.app, {
+    try {
+      const serverInstance = serve(serverRuntime.app, {
       // TODO: fix types
-      // @ts-ignore-err
-      plugins: [ws({ resolve: async req => (await serverRuntime.app.fetch(req)).crossws })],
-      port: env.PORT ? Number(env.PORT) : 6121,
-      hostname: env.SERVER_RUNTIME_HOSTNAME || 'localhost',
-      reusePort: true,
-      gracefulShutdown: {
-        forceTimeout: 500,
-        gracefulTimeout: 500,
-      },
-    })
+      // @ts-expect-error - the .crossws property wasn't extended in types
+        plugins: [ws({ resolve: async req => (await serverRuntime.app.fetch(req)).crossws })],
+        port: env.PORT ? Number(env.PORT) : 6121,
+        hostname: env.SERVER_RUNTIME_HOSTNAME || 'localhost',
+        reusePort: true,
+        gracefulShutdown: {
+          forceTimeout: 500,
+          gracefulTimeout: 500,
+        },
+      })
 
-    log.log('@proj-airi/server-runtime started on ws://localhost:6121')
+      log.log('@proj-airi/server-runtime started on ws://localhost:6121')
 
-    onAppBeforeQuit(async () => {
-      if (serverInstance && typeof serverInstance.close === 'function') {
-        try {
-          await serverInstance.close()
-          log.log('WebSocket server closed')
+      onAppBeforeQuit(async () => {
+        if (serverInstance && typeof serverInstance.close === 'function') {
+          try {
+            await serverInstance.close()
+            log.log('WebSocket server closed')
+          }
+          catch (error) {
+            log.withError(error).error('Error closing WebSocket server')
+          }
         }
-        catch (error) {
-          log.withError(error).error('Error closing WebSocket server')
-        }
-      }
-    })
+      })
+    }
+    catch (error) {
+      log.withError(error).error('failed to start WebSocket server')
+    }
   }
   catch (error) {
     log.withError(error).error('failed to start WebSocket server')

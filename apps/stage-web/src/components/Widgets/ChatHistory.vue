@@ -65,29 +65,7 @@ watch(sending, () => {
 </script>
 
 <template>
-  <div py="<sm:2" flex="~ col" rounded="lg" relative overflow-hidden py-4>
-    <!-- Load more button -->
-    <div v-if="showLoadMore" class="load-more-container" p="x-4 y-2" flex="~ center">
-      <div class="load-more-wrapper">
-        <button
-          v-if="!isLoadingHistory"
-          class="load-more-btn"
-          bg="primary-200/20 dark:primary-400/20"
-          text="primary-500 hover:primary-600 dark:primary-300/50"
-          p="x-6 y-2"
-          rounded="full"
-          transition="all duration-200"
-          hover="bg-primary-300/20 dark:bg-primary-500/20"
-          @click="handleLoadMore"
-        >
-          Load More History
-        </button>
-        <div v-else text="primary-300/50" animate-pulse>
-          Loading...
-        </div>
-      </div>
-    </div>
-
+  <div overflow-hidden>
     <div flex-1 /> <!-- spacer -->
     <div ref="chatHistoryRef" v-auto-animate px="<sm:2" flex="~ col" h-full w-full overflow-scroll px-4 class="chat-history" @scroll="handleScroll">
       <div flex-1 /> <!-- spacer -->

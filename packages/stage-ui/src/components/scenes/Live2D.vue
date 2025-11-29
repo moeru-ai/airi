@@ -1,22 +1,24 @@
 <script setup lang="ts">
+import { storeToRefs } from 'pinia'
 import { ref, watch } from 'vue'
 
 import Screen from '../misc/Screen.vue'
 import Live2DCanvas from './live2d/Canvas.vue'
 import Live2DModel from './live2d/Model.vue'
 
+import { useLive2d } from '../../stores/live2d'
+
 import '../../utils/live2d-zip-loader'
+import '../../utils/live2d-opfs-registration'
 
 withDefaults(defineProps<{
   modelSrc?: string
+  modelId?: string
 
   paused?: boolean
   mouthOpenSize?: number
   focusAt?: { x: number, y: number }
   disableFocusAt?: boolean
-  xOffset?: number | string
-  yOffset?: number | string
-  scale?: number
 }>(), {
   paused: false,
   focusAt: () => ({ x: 0, y: 0 }),
@@ -30,6 +32,12 @@ const componentStateCanvas = defineModel<'pending' | 'loading' | 'mounted'>('can
 const componentStateModel = defineModel<'pending' | 'loading' | 'mounted'>('modelState', { default: 'pending' })
 
 const live2dCanvasRef = ref<InstanceType<typeof Live2DCanvas>>()
+
+const live2d = useLive2d()
+const {
+  scale,
+  position,
+} = storeToRefs(live2d)
 
 watch([componentStateModel, componentStateCanvas], () => {
   componentState.value = (componentStateModel.value === 'mounted' && componentStateCanvas.value === 'mounted')
@@ -58,14 +66,15 @@ defineExpose({
       <Live2DModel
         v-model:state="componentStateModel"
         :model-src="modelSrc"
+        :model-id="modelId"
         :app="app"
         :mouth-open-size="mouthOpenSize"
         :width="width"
         :height="height"
         :paused="paused"
         :focus-at="focusAt"
-        :x-offset="xOffset"
-        :y-offset="yOffset"
+        :x-offset="position.x"
+        :y-offset="position.y"
         :scale="scale"
         :disable-focus-at="disableFocusAt"
       />

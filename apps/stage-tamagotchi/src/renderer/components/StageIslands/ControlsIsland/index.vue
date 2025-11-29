@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { defineInvoke } from '@moeru/eventa'
 import { useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
-import { useDark, useToggle } from '@vueuse/core'
+import { useTheme } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { ref } from 'vue'
 
 import ControlButton from './ControlButton.vue'
 import ControlButtonTooltip from './ControlButtonTooltip.vue'
+import ControlsIslandFadeOnHover from './ControlsIslandFadeOnHover.vue'
 import ControlsIslandHearingConfig from './ControlsIslandHearingConfig.vue'
 import IndicatorMicVolume from './IndicatorMicVolume.vue'
 
@@ -14,8 +15,7 @@ import { electronOpenChat, electronOpenSettings, electronStartDraggingWindow } f
 import { useElectronEventaContext, useElectronEventaInvoke } from '../../../composables/electron-vueuse/use-electron-eventa-context'
 import { isLinux } from '../../../utils/platform'
 
-const isDark = useDark({ disableTransition: false })
-const toggleDark = useToggle(isDark)
+const { isDark, toggleDark } = useTheme()
 
 const settingsAudioDeviceStore = useSettingsAudioDevice()
 const context = useElectronEventaContext()
@@ -75,6 +75,8 @@ defineExpose({ hearingDialogOpen })
           Open hearing controls
         </template>
       </ControlButtonTooltip>
+
+      <ControlsIslandFadeOnHover />
 
       <ControlButtonTooltip>
         <ControlButton cursor-move :class="{ 'drag-region': isLinux }" @mousedown="startDraggingWindow?.()">

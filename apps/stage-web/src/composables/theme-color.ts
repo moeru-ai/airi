@@ -1,7 +1,7 @@
 import Color from 'colorjs.io'
 
 import { withRetry } from '@moeru/std'
-import { useDark } from '@vueuse/core'
+import { useTheme } from '@proj-airi/ui'
 
 export function themeColorFromPropertyOf(colorFromClass: string, property: string): () => Promise<string> {
   return async () => {
@@ -24,7 +24,7 @@ export function themeColorFromValue(value: string | { light: string, dark: strin
       return value
     }
     else {
-      const dark = useDark()
+      const { isDark: dark } = useTheme()
       return dark.value ? value.dark : value.light
     }
   }

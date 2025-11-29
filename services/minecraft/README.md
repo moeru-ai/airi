@@ -46,6 +46,27 @@ pnpm install
 
 3. Create a `.env.local` file with your configuration:
 
+> [!NOTE]
+> For all online accounts, un-comment the following line to toggle Microsoft authentication.
+> Link for authentication will popup when the bot starts.
+>
+> After signed in, according to [how Minecraft protocol was implemented](https://github.com/PrismarineJS/node-minecraft-protocol/blob/bf89f7e86526c54d8c43f555d8f6dfa4948fd2d9/src/client/microsoftAuth.js#L7-L16)
+> and also, [authentication flow implemented here](https://github.com/PrismarineJS/prismarine-auth/blob/1aef6e1387d94fca839f2811d17ac6659ae556b4/src/MicrosoftAuthFlow.js#L59-L69),
+> the token will be cached with [the cache IDs specified here](https://github.com/PrismarineJS/prismarine-auth/blob/1aef6e1387d94fca839f2811d17ac6659ae556b4/src/MicrosoftAuthFlow.js#L88-L93)
+> in split files:
+>
+> - `${hash}_live-cache.json`
+> - `${hash}_mca-cache.json`
+> - `${hash}_xbl-cache.json`
+>
+> inside of the directory provided by [`minecraft-folder-path`](https://github.com/simonmeusel/minecraft-folder-path)
+>
+> Linux: `~/.minecraft/nmp-cache/`
+> macOS: `~/Library/Application Support/minecraft/nmp-cache/`
+> Windows: `%appdata%/.minecraft/nmp-cache/`
+>
+> where `${hash}` is the `sha1` hash of the username you signing in with (as Minecraft username).
+
 ```env
 OPENAI_API_KEY=your_openai_api_key
 OPENAI_API_BASEURL=your_openai_api_baseurl
@@ -53,11 +74,11 @@ OPENAI_API_BASEURL=your_openai_api_baseurl
 BOT_USERNAME=your_bot_username
 BOT_HOSTNAME=localhost
 BOT_PORT=25565
-BOT_PASSWORD=optional_password
+BOT_AUTH='microsoft' # comment if you use offline mode
 BOT_VERSION=1.20
 ```
 
-4. Start the bot:
+1. Start the bot:
 
 ```bash
 pnpm dev

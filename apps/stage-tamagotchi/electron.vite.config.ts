@@ -15,17 +15,36 @@ import { DownloadLive2DSDK } from '@proj-airi/unplugin-live2d-sdk'
 import { templateCompilerOptions } from '@tresjs/core'
 import { defineConfig, externalizeDepsPlugin } from 'electron-vite'
 
+const stageUIAssetsRoot = resolve(join(import.meta.dirname, '..', '..', 'packages', 'stage-ui', 'src', 'assets'))
+const sharedCacheDir = resolve(join(import.meta.dirname, '..', '..', '.cache'))
+
 export default defineConfig({
   main: {
     plugins: [externalizeDepsPlugin()],
   },
   preload: {
+    build: {
+      lib: {
+        entry: {
+          'index': resolve(join(import.meta.dirname, 'src', 'preload', 'index.ts')),
+          'beat-sync': resolve(join(import.meta.dirname, 'src', 'preload', 'beat-sync.ts')),
+        },
+      },
+    },
     plugins: [externalizeDepsPlugin()],
   },
   renderer: {
     // Thanks to [@Maqsyo](https://github.com/Maqsyo)
     // https://github.com/alex8088/electron-vite/issues/99#issuecomment-1862671727
     base: './',
+    build: {
+      rolldownOptions: {
+        input: {
+          'main': resolve(join(import.meta.dirname, 'src', 'renderer', 'index.html')),
+          'beat-sync': resolve(join(import.meta.dirname, 'src', 'renderer', 'beat-sync.html')),
+        },
+      },
+    },
     optimizeDeps: {
       exclude: [
         // Internal Packages
@@ -130,10 +149,10 @@ export default defineConfig({
       }),
 
       DownloadLive2DSDK(),
-      Download('https://dist.ayaka.moe/live2d-models/hiyori_free_zh.zip', 'hiyori_free_zh.zip', 'assets/live2d/models'),
-      Download('https://dist.ayaka.moe/live2d-models/hiyori_pro_zh.zip', 'hiyori_pro_zh.zip', 'assets/live2d/models'),
-      Download('https://dist.ayaka.moe/vrm-models/VRoid-Hub/AvatarSample-A/AvatarSample_A.vrm', 'AvatarSample_A.vrm', 'assets/vrm/models/AvatarSample-A'),
-      Download('https://dist.ayaka.moe/vrm-models/VRoid-Hub/AvatarSample-B/AvatarSample_B.vrm', 'AvatarSample_B.vrm', 'assets/vrm/models/AvatarSample-B'),
+      Download('https://dist.ayaka.moe/live2d-models/hiyori_free_zh.zip', 'hiyori_free_zh.zip', 'live2d/models', { parentDir: stageUIAssetsRoot, cacheDir: sharedCacheDir }),
+      Download('https://dist.ayaka.moe/live2d-models/hiyori_pro_zh.zip', 'hiyori_pro_zh.zip', 'live2d/models', { parentDir: stageUIAssetsRoot, cacheDir: sharedCacheDir }),
+      Download('https://dist.ayaka.moe/vrm-models/VRoid-Hub/AvatarSample-A/AvatarSample_A.vrm', 'AvatarSample_A.vrm', 'vrm/models/AvatarSample-A', { parentDir: stageUIAssetsRoot, cacheDir: sharedCacheDir }),
+      Download('https://dist.ayaka.moe/vrm-models/VRoid-Hub/AvatarSample-B/AvatarSample_B.vrm', 'AvatarSample_B.vrm', 'vrm/models/AvatarSample-B', { parentDir: stageUIAssetsRoot, cacheDir: sharedCacheDir }),
     ],
   },
 })

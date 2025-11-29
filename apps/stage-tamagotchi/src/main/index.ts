@@ -4,13 +4,12 @@ import type { BrowserWindow } from 'electron'
 
 import type { WidgetsWindowManager } from './windows/widgets'
 
-import { platform } from 'node:process'
+import { env, platform } from 'node:process'
 
-import * as path from 'node:path'
-
-import { electronApp, optimizer } from '@electron-toolkit/utils'
+import { electronApp, is, optimizer } from '@electron-toolkit/utils'
 import { Format, LogLevel, setGlobalFormat, setGlobalLogLevel, useLogg } from '@guiiai/logg'
 import { app, ipcMain, Menu, nativeImage, Tray } from 'electron'
+import { initMain as initAudioLoopback } from 'electron-audio-loopback'
 import { noop, once } from 'es-toolkit'
 import { createLoggLogger, injeca } from 'injeca'
 import { isLinux, isMacOS } from 'std-env'
@@ -22,10 +21,12 @@ import { openDebugger, setupDebugger } from './app/debugger'
 import { emitAppBeforeQuit, emitAppReady, emitAppWindowAllClosed, onAppBeforeQuit } from './libs/bootkit/lifecycle'
 import { setElectronMainDirname } from './libs/electron/location'
 import { setupChannelServer } from './services/airi/channel-server'
+import { setupBeatSyncBackgroundWindow } from './windows/beat-sync'
 import { setupCaptionWindowManager } from './windows/caption'
 import { setupChatWindowReusableFunc } from './windows/chat'
 import { setupInlayWindow } from './windows/inlay'
 import { setupMainWindow } from './windows/main'
+import { setupNoticeWindowManager } from './windows/notice'
 import { setupSettingsWindowReusableFunc } from './windows/settings'
 import { toggleWindowShow } from './windows/shared/window'
 import { setupWidgetsWindowManager } from './windows/widgets'
@@ -57,16 +58,31 @@ if (isLinux) {
   app.commandLine.appendSwitch('enable-features', 'SharedArrayBuffer')
   app.commandLine.appendSwitch('enable-unsafe-webgpu')
   app.commandLine.appendSwitch('enable-features', 'Vulkan')
+
+  // NOTICE: we need UseOzonePlatform, WaylandWindowDecorations for working on Wayland.
+  // Partially related to https://github.com/electron/electron/issues/41551, since X11 is deprecating now,
+  // we can safely remove the feature flags for Electron once they made it default supported.
+  // Fixes: https://github.com/moeru-ai/airi/issues/757
+  // Ref: https://github.com/mmaura/poe2linuxcompanion/blob/90664607a147ea5ccea28df6139bd95fb0ebab0e/electron/main/index.ts#L28-L46
+  if (env.XDG_SESSION_TYPE === 'wayland') {
+    app.commandLine.appendSwitch('enable-features', 'GlobalShortcutsPortal')
+
+    app.commandLine.appendSwitch('enable-features', 'UseOzonePlatform')
+    app.commandLine.appendSwitch('enable-features', 'WaylandWindowDecorations')
+  }
 }
 
 app.dock?.setIcon(icon)
 electronApp.setAppUserModelId('ai.moeru.airi')
+
+initAudioLoopback()
 
 function setupTray(params: {
   mainWindow: BrowserWindow
   settingsWindow: () => Promise<BrowserWindow>
   captionWindow: ReturnType<typeof setupCaptionWindowManager>
   widgetsWindow: WidgetsWindowManager
+  beatSyncBackgroundWindow: BrowserWindow
 }): void {
   once(() => {
     const trayImage = nativeImage.createFromPath(isMacOS ? macOSTrayIcon : icon).resize({ width: 16 })
@@ -91,6 +107,13 @@ function setupTray(params: {
         ]),
       },
       { type: 'separator' },
+      ...is.dev || env.MAIN_APP_DEBUG || env.APP_DEBUG
+        ? [
+            { type: 'header', label: 'DevTools' },
+            { label: 'Troubleshoot BeatSync...', click: () => params.beatSyncBackgroundWindow.webContents.openDevTools() },
+            { type: 'separator' },
+          ] as const // :(
+        : [],
       { label: 'Quit', click: () => app.quit() },
     ])
 
@@ -110,13 +133,19 @@ app.whenReady().then(async () => {
   const channelServerModule = injeca.provide('modules:channel-server', async () => setupChannelServer())
   const chatWindow = injeca.provide('windows:chat', { build: () => setupChatWindowReusableFunc() })
   const widgetsManager = injeca.provide('windows:widgets', { build: () => setupWidgetsWindowManager() })
+  const noticeWindow = injeca.provide('windows:notice', { build: () => setupNoticeWindowManager() })
+
+  // This is a background window
+  const beatSyncBackgroundWindow = injeca.provide('windows:beat-sync', {
+    build: () => setupBeatSyncBackgroundWindow(),
+  })
 
   const settingsWindow = injeca.provide('windows:settings', {
-    dependsOn: { widgetsManager },
+    dependsOn: { widgetsManager, beatSyncBackgroundWindow },
     build: ({ dependsOn }) => setupSettingsWindowReusableFunc(dependsOn),
   })
   const mainWindow = injeca.provide('windows:main', {
-    dependsOn: { settingsWindow, chatWindow, widgetsManager },
+    dependsOn: { settingsWindow, chatWindow, widgetsManager, noticeWindow, beatSyncBackgroundWindow },
     build: async ({ dependsOn }) => setupMainWindow(dependsOn),
   })
   const captionWindow = injeca.provide('windows:caption', {
@@ -124,7 +153,7 @@ app.whenReady().then(async () => {
     build: async ({ dependsOn }) => setupCaptionWindowManager(dependsOn),
   })
   const tray = injeca.provide('app:tray', {
-    dependsOn: { mainWindow, settingsWindow, captionWindow, widgetsWindow: widgetsManager },
+    dependsOn: { mainWindow, settingsWindow, captionWindow, widgetsWindow: widgetsManager, beatSyncBackgroundWindow },
     build: async ({ dependsOn }) => setupTray(dependsOn),
   })
   injeca.invoke({

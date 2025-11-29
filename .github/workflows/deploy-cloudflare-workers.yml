@@ -1,0 +1,85 @@
+name: Cloudflare Workers
+
+on:
+  push:
+    branches:
+      - 'main'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    name: Deploy - ${{ matrix.app_name }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      deployments: write
+
+    strategy:
+      matrix:
+        include:
+          - app_name: stage-web
+            environment_name: Production
+            environment_url: https://airi.moeru.ai/docs/
+            cloudflare_pages_id: moeru-ai-airi
+            dist_directory: ./apps/stage-web/dist
+            command: |
+              pnpm -F @proj-airi/stage-web run build
+
+              pnpm -F @proj-airi/docs run build:base
+              mv ./docs/.vitepress/dist ./apps/stage-web/dist/docs
+              cp ./apps/stage-web/dist/docs/sitemap.xml ./apps/stage-web/dist/sitemap.xml
+
+              pnpm -F @proj-airi/stage-ui run story:build
+              mv ./packages/stage-ui/.histoire/dist ./apps/stage-web/dist/ui
+
+    environment:
+      name: ${{ matrix.environment_name }}
+      url: ${{ matrix.environment_url }}
+
+    steps:
+      - uses: actions/checkout@v6
+      # Turborepo
+      - name: Cache turbo build setup
+        uses: actions/cache@v4
+        with:
+          path: .turbo
+          key: ${{ runner.os }}-turbo-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-turbo-
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v6
+        with:
+          node-version: lts/*
+          cache: pnpm
+      # NOTICE:
+      #
+      # Here installing wrangler to global is required, or otherwise:
+      # ERR_PNPM_ADDING_TO_ROOT  Running this command will add the dependency to the workspace root...
+      # error occurs.
+      #
+      # Since https://github.com/cloudflare/wrangler-action/pull/339#issuecomment-2667622947 rejected the -g support
+      # by saying un-reasonable 'I'm not sure if it's common ... to install packages to the global scope, ... might be introducing some unintended side effects.'
+      #
+      # Clearly I think installing with `<packageManager> install` brings more unintended side effects...
+      #
+      # As suggested by https://github.com/cloudflare/wrangler-action/issues/181#issuecomment-2127990708, we should pre-install
+      # with our package manager and then use it in the action.
+      - run: pnpm i -g wrangler@4
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run build:packages
+      - run: ${{ matrix.command }}
+        env:
+          S3_ACCESS_KEY_ID: ${{ secrets.S3_ACCESS_KEY_ID }}
+          S3_SECRET_ACCESS_KEY: ${{ secrets.S3_SECRET_ACCESS_KEY }}
+          S3_ENDPOINT: ${{ secrets.S3_ENDPOINT }}
+          S3_REGION: ${{ secrets.S3_REGION }}
+          WARP_DRIVE_PUBLIC_BASE: ${{ secrets.WARP_DRIVE_PUBLIC_BASE }}
+      - uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: deploy -c ./apps/stage-web/wrangler.toml
+          gitHubToken: ${{ secrets.GITHUB_TOKEN }}

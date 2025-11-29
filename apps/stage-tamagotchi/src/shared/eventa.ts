@@ -9,6 +9,35 @@ export const electronOpenSettingsDevtools = defineInvokeEventa('eventa:invoke:el
 export const captionIsFollowingWindowChanged = defineEventa<boolean>('eventa:event:electron:windows:caption-overlay:is-following-window-changed')
 export const captionGetIsFollowingWindow = defineInvokeEventa<boolean>('eventa:invoke:electron:windows:caption-overlay:get-is-following-window')
 
+export type RequestWindowActionDefault = 'confirm' | 'cancel' | 'close'
+export interface RequestWindowPayload {
+  id?: string
+  route: string
+  type?: string
+  payload?: Record<string, any>
+}
+export interface RequestWindowPending {
+  id: string
+  type?: string
+  payload?: Record<string, any>
+}
+
+// Reference window helpers are generic; callers can alias for clarity
+export type NoticeAction = 'confirm' | 'cancel' | 'close'
+
+export function createRequestWindowEventa(namespace: string) {
+  const prefix = (name: string) => `eventa:${name}:electron:windows:${namespace}`
+  return {
+    openWindow: defineInvokeEventa<boolean, RequestWindowPayload>(prefix('invoke:open')),
+    windowAction: defineInvokeEventa<void, { id: string, action: RequestWindowActionDefault }>(prefix('invoke:action')),
+    pageMounted: defineInvokeEventa<RequestWindowPending | undefined, { id?: string }>(prefix('invoke:page-mounted')),
+    pageUnmounted: defineInvokeEventa<void, { id?: string }>(prefix('invoke:page-unmounted')),
+  }
+}
+
+// Notice window events built from generic factory
+export const noticeWindowEventa = createRequestWindowEventa('notice')
+
 // Widgets / Adhoc window events
 export interface WidgetsAddPayload {
   id?: string
@@ -41,5 +70,8 @@ export const widgetsRenderEvent = defineEventa<WidgetSnapshot>('eventa:event:ele
 export const widgetsRemoveEvent = defineEventa<{ id: string }>('eventa:event:electron:windows:widgets:remove')
 export const widgetsClearEvent = defineEventa('eventa:event:electron:windows:widgets:clear')
 export const widgetsUpdateEvent = defineEventa<{ id: string, componentProps?: Record<string, any> }>('eventa:event:electron:windows:widgets:update')
+
+export const beatSyncToggle = defineInvokeEventa<void, boolean>('eventa:event:electron:beat-sync:toggle')
+export const beatSyncSignalBeat = defineInvokeEventa<void, void>('eventa:event:electron:beat-sync:signal-beat')
 
 export { electron } from './electron'

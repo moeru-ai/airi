@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Checkbox, FieldRange } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
-import { onUnmounted, watch } from 'vue'
+import { onMounted, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { defaultModelParameters, useLive2d } from '../../../../stores/live2d'
@@ -13,7 +13,6 @@ import { ColorPalette } from '../../../widgets'
 defineProps<{
   palette: string[]
 }>()
-
 defineEmits<{
   (e: 'extractColorsFromModel'): void
 }>()
@@ -21,19 +20,93 @@ defineEmits<{
 const { t } = useI18n()
 
 const settings = useSettings()
-const { live2dDisableFocus, live2dIdleAnimationEnabled, live2dAutoBlinkEnabled } = storeToRefs(settings)
+const { live2dDisableFocus, live2dIdleAnimationEnabled, live2dAutoBlinkEnabled, live2dShadowEnabled } = storeToRefs(settings)
 
 const live2d = useLive2d()
 const {
   scale,
   position,
   modelParameters,
+  currentMotion,
 } = storeToRefs(live2d)
+
+const selectedRuntimeMotion = ref<string>('')
+const selectedRuntimeMotionName = ref<string>('')
+const runtimeMotions = ref<Array<{ name: string, fullPath: string, displayPath: string, group: string, index: number }>>([])
+const showMotionSelector = ref(false)
+
+// Get available runtime motions from the model
+onMounted(() => {
+  // Listen for available motions updates
+  watch(() => live2d.availableMotions, (motions) => {
+    // Show all motions with their full paths
+    runtimeMotions.value = motions.map(m => ({
+      name: m.fileName.split('/').pop() || m.fileName,
+      fullPath: m.fileName, // Full path like "hiyori_free_zh/runtime/motions/idle.motion3.json"
+      displayPath: m.fileName, // Show full path for clarity
+      group: m.motionName,
+      index: m.motionIndex,
+    }))
+
+    console.info('Available motions:', runtimeMotions.value)
+  }, { immediate: true })
+
+  // Restore selected motion
+  const savedPath = localStorage.getItem('selected-runtime-motion')
+  const savedName = localStorage.getItem('selected-runtime-motion-name')
+  if (savedPath) {
+    selectedRuntimeMotion.value = savedPath
+  }
+  if (savedName) {
+    selectedRuntimeMotionName.value = savedName
+  }
+
+  // Add click outside handler
+  document.addEventListener('click', handleClickOutside)
+})
 
 // Function to reset all parameters to default values
 function resetToDefaultParameters() {
   modelParameters.value = { ...defaultModelParameters }
 }
+
+// Runtime motion selection handlers
+function handleMotionSelect(motion: any) {
+  selectedRuntimeMotion.value = motion.displayPath // Store full path
+  selectedRuntimeMotionName.value = motion.name // Store just the filename for display
+  localStorage.setItem('selected-runtime-motion', motion.displayPath)
+  localStorage.setItem('selected-runtime-motion-name', motion.name)
+  localStorage.setItem('selected-runtime-motion-group', motion.group)
+  localStorage.setItem('selected-runtime-motion-index', motion.index.toString())
+
+  // Enable idle animation
+  live2dIdleAnimationEnabled.value = true
+
+  // Set the current motion to the selected runtime motion
+  currentMotion.value = { group: motion.group, index: motion.index }
+
+  showMotionSelector.value = false
+
+  console.info('✅ Selected runtime motion:', motion.name)
+  console.info('Full path:', motion.displayPath)
+  console.info('Group:', motion.group, 'Index:', motion.index)
+}
+
+function toggleMotionSelector() {
+  showMotionSelector.value = !showMotionSelector.value
+}
+
+// Close dropdown when clicking outside
+function handleClickOutside(event: MouseEvent) {
+  const target = event.target as HTMLElement
+  if (!target.closest('[data-motion-selector]')) {
+    showMotionSelector.value = false
+  }
+}
+
+onUnmounted(() => {
+  document.removeEventListener('click', handleClickOutside)
+})
 
 // Auto blink slider animation
 let blinkAnimationId: number | null = null
@@ -273,7 +346,7 @@ onUnmounted(() => {
     size="sm"
     :expand="true"
   >
-    <FieldRange v-model="scale" as="div" :min="0.5" :max="2" :step="0.01" :label="t('settings.live2d.scale-and-position.scale')">
+    <FieldRange v-model="scale" as="div" :min="0.1" :max="3" :step="0.01" :label="t('settings.live2d.scale-and-position.scale')">
       <template #label>
         <div flex items-center>
           <div>{{ t('settings.live2d.scale-and-position.scale') }}</div>
@@ -283,7 +356,7 @@ onUnmounted(() => {
         </div>
       </template>
     </FieldRange>
-    <FieldRange v-model="position.x" as="div" :min="-100" :max="100" :step="1" :label="t('settings.live2d.scale-and-position.x')">
+    <FieldRange v-model="position.x" as="div" :min="-1000" :max="1000" :step="1" :label="t('settings.live2d.scale-and-position.x')">
       <template #label>
         <div flex items-center>
           <div>{{ t('settings.live2d.scale-and-position.x') }}</div>
@@ -293,7 +366,7 @@ onUnmounted(() => {
         </div>
       </template>
     </FieldRange>
-    <FieldRange v-model="position.y" as="div" :min="-100" :max="100" :step="1" :label="t('settings.live2d.scale-and-position.y')">
+    <FieldRange v-model="position.y" as="div" :min="-1000" :max="1000" :step="1" :label="t('settings.live2d.scale-and-position.y')">
       <template #label>
         <div flex items-center>
           <div>{{ t('settings.live2d.scale-and-position.y') }}</div>
@@ -390,12 +463,61 @@ onUnmounted(() => {
   >
     <div flex items-center justify-between>
       <span text-sm text-neutral-600 dark:text-neutral-400>Idle Animation</span>
-      <Checkbox v-model="live2dIdleAnimationEnabled" />
+      <div data-motion-selector relative flex flex-col items-end gap-1>
+        <button
+
+          :title="selectedRuntimeMotion"
+          flex items-center gap-2 border rounded bg-neutral-100 px-4 py-2 text-sm text-neutral-700 font-medium transition-colors dark:border-neutral-700 dark:bg-neutral-800 hover:bg-neutral-200 dark:text-neutral-300 dark:hover:bg-neutral-700
+          @click="toggleMotionSelector"
+        >
+          <span max-w-32 truncate>{{ selectedRuntimeMotionName || 'Select Motion' }}</span>
+          <div
+            :class="showMotionSelector ? 'i-solar:alt-arrow-up-line-duotone' : 'i-solar:alt-arrow-down-line-duotone'"
+            text-xs transition-transform
+          />
+        </button>
+
+        <!-- Dropdown menu -->
+        <div
+          v-if="showMotionSelector"
+
+          bg="white dark:neutral-800"
+          border="1 neutral-200 dark:neutral-700"
+          absolute right-0 top-10 z-50 max-h-80 min-w-64 overflow-y-auto rounded-lg shadow-lg
+        >
+          <div v-if="runtimeMotions.length === 0" p-4 text-sm text-neutral-500 dark:text-neutral-400>
+            No motions available
+          </div>
+          <button
+            v-for="motion in runtimeMotions"
+            :key="motion.fullPath"
+            w-full px-4 py-2.5 text-left
+            hover:bg="neutral-100 dark:neutral-700"
+            transition-colors
+            :class="{
+              'bg-neutral-100 dark:bg-neutral-700': selectedRuntimeMotion === motion.displayPath,
+            }"
+            @click="handleMotionSelect(motion)"
+          >
+            <div text-sm text-neutral-900 font-medium dark:text-neutral-100>
+              {{ motion.name }}
+            </div>
+            <div truncate text-xs text-neutral-500 dark:text-neutral-400>
+              {{ motion.displayPath }}
+            </div>
+          </button>
+        </div>
+      </div>
     </div>
 
     <div mt-4 flex items-center justify-between>
       <span text-sm text-neutral-600 dark:text-neutral-400>Auto Blink</span>
       <Checkbox v-model="live2dAutoBlinkEnabled" />
+    </div>
+
+    <div mt-4 flex items-center justify-between>
+      <span text-sm text-neutral-600 dark:text-neutral-400>Shadow</span>
+      <Checkbox v-model="live2dShadowEnabled" />
     </div>
 
     <button

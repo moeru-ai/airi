@@ -1,7 +1,7 @@
 {
   "name": "@proj-airi/stage-tamagotchi",
   "type": "module",
-  "version": "0.7.2-beta.3",
+  "version": "0.8.0-alpha.5",
   "private": true,
   "description": "LLM powered virtual character",
   "author": {
@@ -48,7 +48,6 @@
     "@proj-airi/server-sdk": "workspace:*",
     "@proj-airi/stage-ui": "workspace:^",
     "@proj-airi/ui": "workspace:^",
-    "@ricky0123/vad-web": "^0.0.29",
     "@stdlib/string-base-kebabcase": "^0.2.2",
     "@tresjs/cientos": "^5.1.0",
     "@tresjs/core": "^5.1.0",
@@ -77,6 +76,7 @@
     "dompurify": "^3.3.0",
     "drizzle-kit": "^0.31.7",
     "drizzle-orm": "^0.44.7",
+    "electron-audio-loopback": "^1.0.6",
     "electron-click-drag-plugin": "^2.0.2",
     "es-toolkit": "^1.41.0",
     "h3": "2.0.1-rc.5",
@@ -136,7 +136,7 @@
     "@proj-airi/lobe-icons": "^1.0.14",
     "@proj-airi/stage-shared": "workspace:^",
     "@proj-airi/ui-transitions": "workspace:^",
-    "@proj-airi/unplugin-fetch": "^0.1.7",
+    "@proj-airi/unplugin-fetch": "^0.2.1",
     "@proj-airi/unplugin-live2d-sdk": "^0.1.6",
     "@shikijs/markdown-it": "^3.15.0",
     "@types/culori": "^4.0.1",

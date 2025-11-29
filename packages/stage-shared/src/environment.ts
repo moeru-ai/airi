@@ -1,3 +1,8 @@
+export enum StageEnvironment {
+  Web = 'web',
+  Tamagotchi = 'tamagotchi',
+}
+
 export function isStageWeb(): boolean {
   return !import.meta.env.RUNTIME_ENVIRONMENT || import.meta.env.RUNTIME_ENVIRONMENT === 'browser'
 }

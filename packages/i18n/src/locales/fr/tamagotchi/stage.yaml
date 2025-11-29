@@ -8,3 +8,21 @@ docs:
     navbar:
       appearance:
         title: Apparence
+'controls-island':
+  'fade-on-hover':
+    enable: Masquer au survol
+    disable: Toujours afficher
+notice:
+  'fade-on-hover':
+    title: Disparaître au survol
+    intro: Fait disparaître légèrement le personnage quand le curseur s’approche. Moins de distractions tout en restant visible.
+    opacity: Une fois activé, l’opacité descend à {value} pour {targets} quand le curseur est à proximité.
+    toggle: Vous pouvez le désactiver en survolant l’{controls}, puis en cliquant à nouveau sur l’{icon}.
+    controls-label: Îlot de commandes
+    icon-label: icône œil barré
+    value: '0'
+    targets: Personnage et UI
+    confirm: Compris
+    preparing: Préparation…
+    read-more: En savoir plus
+    preview-title: C’est quoi ?

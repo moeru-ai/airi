@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useAudioContext } from '@proj-airi/stage-ui/stores/audio'
-import { useDark, useElementBounding } from '@vueuse/core'
+import { useTheme } from '@proj-airi/ui'
+import { useElementBounding } from '@vueuse/core'
 import { onMounted, ref } from 'vue'
 
 const containerRef = ref<HTMLDivElement>()
@@ -9,7 +10,7 @@ const analyser = ref<AnalyserNode>()
 const analyserDataBuffer = ref<Uint8Array<ArrayBuffer>>()
 const { audioContext } = useAudioContext()
 const canvasElemRef = ref<HTMLCanvasElement>()
-const isDark = useDark()
+const { isDark } = useTheme()
 
 // https://developer.mozilla.org/en-US/docs/Web/API/AudioBufferSourceNode/playbackRate
 // explain: https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API/Visualizations_with_Web_Audio_API

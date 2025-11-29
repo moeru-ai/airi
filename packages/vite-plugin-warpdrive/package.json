@@ -1,0 +1,40 @@
+{
+  "name": "@proj-airi/vite-plugin-warpdrive",
+  "type": "module",
+  "version": "0.8.0-alpha.5",
+  "private": true,
+  "description": "Vite plugin to rewrite and upload heavy build assets to remote object storage",
+  "author": {
+    "name": "Moeru AI Project AIRI Team",
+    "email": "airi@moeru.ai",
+    "url": "https://github.com/moeru-ai"
+  },
+  "license": "MIT",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.mts",
+      "default": "./dist/index.mjs"
+    }
+  },
+  "main": "./dist/index.mjs",
+  "types": "./dist/index.d.mts",
+  "files": [
+    "README.md",
+    "dist",
+    "package.json"
+  ],
+  "scripts": {
+    "build": "tsdown",
+    "typecheck": "tsc --noEmit"
+  },
+  "peerDependencies": {
+    "vite": "^5.0.0 || ^6.0.0"
+  },
+  "dependencies": {
+    "rolldown": "1.0.0-beta.51",
+    "s3mini": "^0.7.0"
+  },
+  "devDependencies": {
+    "@moeru/std": "catalog:"
+  }
+}

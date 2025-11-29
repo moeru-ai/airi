@@ -9,8 +9,8 @@ import type { TTSChunkItem } from '../../utils/tts'
 
 import { drizzle } from '@proj-airi/drizzle-duckdb-wasm'
 import { getImportUrlBundles } from '@proj-airi/drizzle-duckdb-wasm/bundles/import-url-browser'
-import { withBase } from '@proj-airi/stage-shared'
 import { ThreeScene, useModelStore } from '@proj-airi/stage-ui-three'
+import { animations } from '@proj-airi/stage-ui-three/assets/vrm'
 import { useBroadcastChannel } from '@vueuse/core'
 // import { createTransformers } from '@xsai-transformers/embed'
 // import embedWorkerURL from '@xsai-transformers/embed/worker?worker&url'
@@ -71,7 +71,7 @@ const { connectAudioContext, connectAudioAnalyser, clearAll, onPlaybackStarted, 
 const { currentAudioSource, playbackQueue } = storeToRefs(characterSpeechPlaybackQueue)
 
 const settingsStore = useSettings()
-const { stageModelRenderer, stageViewControlsEnabled, live2dDisableFocus, stageModelSelectedUrl } = storeToRefs(settingsStore)
+const { stageModelRenderer, stageViewControlsEnabled, live2dDisableFocus, stageModelSelectedUrl, stageModelSelected } = storeToRefs(settingsStore)
 const { mouthOpenSize } = storeToRefs(useSpeakingStore())
 const { audioContext, calculateVolume } = useAudioContext()
 connectAudioContext(audioContext)
@@ -323,6 +323,7 @@ onPlaybackStarted(({ text }) => {
         v-model:state="componentState" min-w="50% <lg:full" min-h="100 sm:100" h-full w-full
         flex-1
         :model-src="stageModelSelectedUrl"
+        :model-id="stageModelSelected"
         :focus-at="focusAt"
         :mouth-open-size="mouthOpenSize"
         :paused="paused"
@@ -335,7 +336,7 @@ onPlaybackStarted(({ text }) => {
         v-if="stageModelRenderer === 'vrm' && showStage"
         ref="vrmViewerRef"
         :model-src="stageModelSelectedUrl"
-        :idle-animation="withBase('/assets/vrm/animations/idle_loop.vrma')"
+        :idle-animation="animations.idleLoop.toString()"
         min-w="50% <lg:full" min-h="100 sm:100" h-full w-full flex-1
         :paused="paused"
         :show-axes="stageViewControlsEnabled"
