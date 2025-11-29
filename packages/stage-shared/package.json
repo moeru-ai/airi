@@ -23,6 +23,7 @@
   },
   "devDependencies": {
     "@electron-toolkit/preload": "^3.0.2",
+    "@moeru/eventa": "^0.3.0",
     "@nekopaw/tempora": "0.3.1-alpha.1"
   }
 }

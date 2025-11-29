@@ -1337,6 +1337,9 @@ importers:
       '@electron-toolkit/preload':
         specifier: ^3.0.2
         version: 3.0.2(electron@39.1.0)
+      '@moeru/eventa':
+        specifier: ^0.3.0
+        version: 0.3.0(electron@39.1.0)(h3@2.0.1-rc.5(crossws@0.4.1(srvx@0.9.4)))(web-worker@1.5.0)
       '@nekopaw/tempora':
         specifier: 0.3.1-alpha.1
         version: 0.3.1-alpha.1

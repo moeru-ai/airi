@@ -1,13 +1,11 @@
 import { defineInvoke, defineInvokeHandler } from '@moeru/eventa'
 import { createContext } from '@moeru/eventa/adapters/electron/renderer'
-import { createDetector, StageEnvironment } from '@proj-airi/stage-shared'
-
-import { beatSyncSignalBeat, beatSyncToggle } from '../shared/eventa'
+import { beatSyncRequestSignalBeat, beatSyncToggle, createBeatSyncDetector, StageEnvironment } from '@proj-airi/stage-shared'
 
 const { ipcRenderer } = window.electron
 
 const context = createContext(ipcRenderer).context
-const signalBeat = defineInvoke(context, beatSyncSignalBeat)
+const requestSignalBeat = defineInvoke(context, beatSyncRequestSignalBeat)
 
 function enableLoopbackAudio() {
   // electron-audio-loopback currently registers this handler internally
@@ -19,13 +17,13 @@ function disableLoopbackAudio() {
   return ipcRenderer.invoke('disable-loopback-audio')
 }
 
-const detector = createDetector({
+const detector = createBeatSyncDetector({
   env: StageEnvironment.Tamagotchi,
   enableLoopbackAudio,
   disableLoopbackAudio,
 })
 
-detector.on('beat', () => signalBeat())
+detector.on('beat', e => requestSignalBeat(e))
 
 defineInvokeHandler(context, beatSyncToggle, async (enabled) => {
   if (enabled) {

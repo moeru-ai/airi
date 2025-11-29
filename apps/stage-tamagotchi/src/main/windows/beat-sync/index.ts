@@ -1,11 +1,14 @@
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-import { BrowserWindow } from 'electron'
+import { defineInvoke, defineInvokeHandler } from '@moeru/eventa'
+import { createContext } from '@moeru/eventa/adapters/electron/main'
+import { beatSyncRequestSignalBeat, beatSyncSignalBeat } from '@proj-airi/stage-shared'
+import { BrowserWindow, ipcMain } from 'electron'
 
 import { baseUrl, getElectronMainDirname, load } from '../../libs/electron/location'
 
-export async function setupBeatSyncBackgroundWindow() {
+export async function setupBeatSync() {
   const window = new BrowserWindow({
     show: false,
     webPreferences: {
@@ -13,6 +16,16 @@ export async function setupBeatSyncBackgroundWindow() {
       sandbox: false,
     },
   })
+
   await load(window, baseUrl(resolve(getElectronMainDirname(), '..', 'renderer'), 'beat-sync.html'))
-  return window
+  return {
+    window,
+    dispatchTo: (window: BrowserWindow) => {
+      const context = createContext(ipcMain, window).context
+      const signalBeat = defineInvoke(context, beatSyncSignalBeat)
+      const removeHandler = defineInvokeHandler(context, beatSyncRequestSignalBeat, async e => signalBeat(e))
+      window.on('closed', () => removeHandler())
+      return removeHandler
+    },
+  }
 }

@@ -2,29 +2,30 @@ import type { Analyser, AnalyserBeatEvent, AnalyserWorkletParameters } from '@ne
 
 import analyserWorklet from '@nekopaw/tempora/worklet?url'
 
+import { defineInvokeEventa } from '@moeru/eventa'
 import { startAnalyser as startTemporaAnalyser } from '@nekopaw/tempora'
 
 import { StageEnvironment } from './environment'
 
-export interface DetectorEventMap {
+export interface BeatSyncDetectorEventMap {
   stateChange: (isActive: boolean) => void
   beat: (e: AnalyserBeatEvent) => void
 }
 
-export interface Detector {
+export interface BeatSyncDetector {
   start: (createSource: (context: AudioContext) => Promise<AudioNode>) => Promise<void>
   updateParameters: (params: Partial<AnalyserWorkletParameters>) => void
   startScreenCapture: () => Promise<void>
   stop: () => void
-  on: <E extends keyof DetectorEventMap>(event: E, listener: DetectorEventMap[E]) => void
-  off: <E extends keyof DetectorEventMap>(event: E, listener: DetectorEventMap[E]) => void
+  on: <E extends keyof BeatSyncDetectorEventMap>(event: E, listener: BeatSyncDetectorEventMap[E]) => void
+  off: <E extends keyof BeatSyncDetectorEventMap>(event: E, listener: BeatSyncDetectorEventMap[E]) => void
   readonly isActive: boolean
   readonly context: AudioContext | undefined
   readonly analyser: Analyser | undefined
   readonly source: AudioNode | undefined
 }
 
-export type CreateDetectorOptions = |
+export type CreateBeatSyncDetectorOptions = |
   {
     env: StageEnvironment.Tamagotchi
     enableLoopbackAudio: () => Promise<any>
@@ -34,7 +35,7 @@ export type CreateDetectorOptions = |
     env: StageEnvironment.Web
   }
 
-export function createDetector(options: CreateDetectorOptions): Detector {
+export function createBeatSyncDetector(options: CreateBeatSyncDetectorOptions): BeatSyncDetector {
   let context: AudioContext | undefined
   let analyser: Analyser | undefined
   let source: AudioNode | undefined
@@ -42,12 +43,12 @@ export function createDetector(options: CreateDetectorOptions): Detector {
 
   let stopSource: (() => void) | undefined
 
-  const listeners: { [K in keyof DetectorEventMap]: Array<(...args: any) => void> } = {
+  const listeners: { [K in keyof BeatSyncDetectorEventMap]: Array<(...args: any) => void> } = {
     stateChange: [],
     beat: [],
   }
 
-  const emit = <E extends keyof DetectorEventMap>(event: E, ...args: Parameters<DetectorEventMap[E]>) => {
+  const emit = <E extends keyof BeatSyncDetectorEventMap>(event: E, ...args: Parameters<BeatSyncDetectorEventMap[E]>) => {
     listeners[event].forEach(listener => listener(...args))
   }
 
@@ -161,7 +162,7 @@ export function createDetector(options: CreateDetectorOptions): Detector {
     updateParameters,
     startScreenCapture,
     stop,
-    on: <E extends keyof DetectorEventMap>(event: E, listener: DetectorEventMap[E]) => {
+    on: <E extends keyof BeatSyncDetectorEventMap>(event: E, listener: BeatSyncDetectorEventMap[E]) => {
       switch (event) {
         case 'beat':
           listeners.beat.push(listener)
@@ -170,7 +171,7 @@ export function createDetector(options: CreateDetectorOptions): Detector {
           throw new Error(`Unknown event: ${event}`)
       }
     },
-    off: (event, listener) => {
+    off: <E extends keyof BeatSyncDetectorEventMap>(event: E, listener: BeatSyncDetectorEventMap[E]) => {
       switch (event) {
         case 'beat': {
           const index = listeners.beat.indexOf(listener)
@@ -189,3 +190,7 @@ export function createDetector(options: CreateDetectorOptions): Detector {
     get source() { return source },
   }
 }
+
+export const beatSyncToggle = defineInvokeEventa<void, boolean>('eventa:event:electron:beat-sync:toggle')
+export const beatSyncRequestSignalBeat = defineInvokeEventa<void, AnalyserBeatEvent>('eventa:event:electron:beat-sync:request-signal-beat')
+export const beatSyncSignalBeat = defineInvokeEventa<void, AnalyserBeatEvent>('eventa:event:electron:beat-sync:signal-beat')
