@@ -23,7 +23,7 @@ export class AudioMonitor {
     this.readable = readable
     this.maxSize = maxSize
     this.readable.on('data', (chunk: Buffer) => {
-      // this.logger.log('AudioMonitor got data');
+      // this.logger.log('AudioMonitor got data')
       if (this.lastFlagged < 0) {
         this.lastFlagged = this.buffers.length
       }

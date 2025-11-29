@@ -69,10 +69,11 @@ function createFakeSettings(files: string[]): ModelSettings {
     },
   })
 
-  settings.name = modelName;
+  settings.name = modelName
 
   // provide this property for FileLoader
-  (settings as any)._objectURL = `example://${settings.url}`
+  const s = settings as any
+  s._objectURL = `example://${s.url}`
 
   return settings
 }

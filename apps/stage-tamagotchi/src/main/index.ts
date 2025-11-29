@@ -1,3 +1,5 @@
+import type { ChildProcess } from 'node:child_process'
+
 import type { BrowserWindow } from 'electron'
 
 import type { WidgetsWindowManager } from './windows/widgets'
@@ -39,7 +41,10 @@ setGlobalFormat(Format.Pretty)
 setGlobalLogLevel(LogLevel.Log)
 setupDebugger()
 
-const log = useLogg('main').useGlobalConfig()
+// TODO: add log
+// const log = createLoggLogger(useLogg('main'))
+
+const memoryServiceProcess: ChildProcess | null = null
 
 // Thanks to [@blurymind](https://github.com/blurymind),
 //
@@ -180,9 +185,11 @@ app.whenReady().then(async () => {
   // and ignore CommandOrControl + R in production.
   // see https://github.com/alex8088/electron-toolkit/tree/master/packages/utils
   app.on('browser-window-created', (_, window) => optimizer.watchWindowShortcuts(window))
-}).catch((err) => {
-  log.withError(err).error('Error during app initialization')
 })
+// TODO: Implement Recover logic when init failed
+//  .catch((err) => {
+//    log.withError(err).error('Error during app initialization')
+//  })
 
 // Quit when all windows are closed, except on macOS. There, it's common
 // for applications and their menu bar to stay active until the user quits
@@ -197,6 +204,9 @@ app.on('window-all-closed', () => {
 
 // Clean up server and intervals when app quits
 app.on('before-quit', async () => {
+  if (memoryServiceProcess) {
+    memoryServiceProcess.kill()
+  }
   emitAppBeforeQuit()
   injeca.stop()
 })

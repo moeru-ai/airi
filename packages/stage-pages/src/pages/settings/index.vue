@@ -112,4 +112,5 @@ meta:
   layout: settings
   stageTransition:
     name: slide
+    pageSpecificAvailable: true
 </route>

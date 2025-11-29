@@ -16,16 +16,10 @@
     "directory": "packages/memory-pgvector"
   },
   "keywords": [],
-  "scripts": {
-    "dev": "tsx src/index.ts"
-  },
+  "main": "./src/index.ts",
+  "scripts": {},
   "dependencies": {
-    "@guiiai/logg": "catalog:",
-    "@proj-airi/server-sdk": "workspace:^",
-    "drizzle-orm": "^0.44.7",
-    "postgres": "^3.4.7"
+    "consola": "^3.2.3"
   },
-  "devDependencies": {
-    "tsx": "^4.20.6"
-  }
+  "devDependencies": {}
 }
