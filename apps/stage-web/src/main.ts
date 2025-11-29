@@ -81,8 +81,7 @@ if (import.meta.env.DEV && !import.meta.env.SSR) {
 
   observer.observe(document.body, { childList: true, subtree: true })
 
-  // Disconnect on timeout (in case)
-  setTimeout(() => {
-    observer.disconnect() // Safe to call even if already disconnected
-  }, 60 * 1000)
+  // Disconnect on timeout in case the MutationObserver is left here forever.
+  // `observer.disconnect()` is idempotent, so it's safe to call it multiple times.
+  setTimeout(() => observer.disconnect(), 15 * 1000)
 }
