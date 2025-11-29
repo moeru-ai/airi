@@ -44,7 +44,7 @@ setupDebugger()
 // TODO: add log
 // const log = createLoggLogger(useLogg('main'))
 
-let memoryServiceProcess: ChildProcess | null = null
+const memoryServiceProcess: ChildProcess | null = null
 
 // Thanks to [@blurymind](https://github.com/blurymind),
 //
