@@ -5,7 +5,9 @@ permissions:
 
 on:
   pull_request:
-    branches: [main, crowdin]
+    branches: [main]
+  push:
+    branches: [crowdin]
 
 jobs:
   autofix:
