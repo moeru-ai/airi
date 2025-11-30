@@ -10,7 +10,7 @@
   ],
   "main": "./dist/extension.js",
   "engines": {
-    "vscode": "^1.106.0"
+    "vscode": "^1.106.1"
   },
   "activationEvents": [
     "onStartupFinished"
@@ -62,6 +62,6 @@
     "@proj-airi/server-sdk": "workspace:*"
   },
   "devDependencies": {
-    "@types/vscode": "^1.106.0"
+    "@types/vscode": "^1.106.1"
   }
 }
