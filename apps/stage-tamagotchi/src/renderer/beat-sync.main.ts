@@ -1,6 +1,7 @@
 import { defineInvoke, defineInvokeHandler } from '@moeru/eventa'
 import { createContext } from '@moeru/eventa/adapters/electron/renderer'
-import { beatSyncRequestSignalBeat, beatSyncToggle, createBeatSyncDetector, StageEnvironment } from '@proj-airi/stage-shared'
+import { createBeatSyncDetector, StageEnvironment } from '@proj-airi/stage-shared'
+import { beatSyncRequestSignalBeat, beatSyncToggle } from '@proj-airi/stage-shared/beat-sync/eventa'
 
 const { ipcRenderer } = window.electron
 

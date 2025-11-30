@@ -16,6 +16,8 @@
   },
   "exports": {
     ".": "./src/index.ts",
+    "./beat-sync": "./src/beat-sync/index.ts",
+    "./beat-sync/eventa": "./src/beat-sync/eventa.ts",
     "./electron-renderer": "./src/electron-renderer.d.ts"
   },
   "scripts": {
