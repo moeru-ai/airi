@@ -3,7 +3,7 @@ import { fileURLToPath } from 'node:url'
 
 import { defineInvoke, defineInvokeHandler } from '@moeru/eventa'
 import { createContext } from '@moeru/eventa/adapters/electron/main'
-import { beatSyncRequestSignalBeat, beatSyncSignalBeat } from '@proj-airi/stage-shared'
+import { beatSyncRequestSignalBeat, beatSyncSignalBeat } from '@proj-airi/stage-shared/beat-sync/eventa'
 import { BrowserWindow, ipcMain } from 'electron'
 
 import { baseUrl, getElectronMainDirname, load } from '../../libs/electron/location'

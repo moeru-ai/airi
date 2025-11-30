@@ -29,8 +29,6 @@ const { activeModel, activeProvider } = storeToRefs(useConsciousnessStore())
 const isComposing = ref(false)
 
 async function handleSend() {
-  debugger
-
   if (isComposing.value) {
     return
   }

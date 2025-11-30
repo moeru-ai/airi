@@ -2,10 +2,9 @@ import type { Analyser, AnalyserBeatEvent, AnalyserWorkletParameters } from '@ne
 
 import analyserWorklet from '@nekopaw/tempora/worklet?url'
 
-import { defineInvokeEventa } from '@moeru/eventa'
 import { startAnalyser as startTemporaAnalyser } from '@nekopaw/tempora'
 
-import { StageEnvironment } from './environment'
+import { StageEnvironment } from '../environment'
 
 export interface BeatSyncDetectorEventMap {
   stateChange: (isActive: boolean) => void
@@ -190,7 +189,3 @@ export function createBeatSyncDetector(options: CreateBeatSyncDetectorOptions): 
     get source() { return source },
   }
 }
-
-export const beatSyncToggle = defineInvokeEventa<void, boolean>('eventa:event:electron:beat-sync:toggle')
-export const beatSyncRequestSignalBeat = defineInvokeEventa<void, AnalyserBeatEvent>('eventa:event:electron:beat-sync:request-signal-beat')
-export const beatSyncSignalBeat = defineInvokeEventa<void, AnalyserBeatEvent>('eventa:event:electron:beat-sync:signal-beat')
