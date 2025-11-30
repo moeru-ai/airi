@@ -126,7 +126,6 @@ app.whenReady().then(async () => {
   injeca.setLogger(createLoggLogger(useLogg('injeca').useGlobalConfig()))
 
   const channelServerModule = injeca.provide('modules:channel-server', async () => setupChannelServer())
-  const chatWindow = injeca.provide('windows:chat', { build: () => setupChatWindowReusableFunc() })
   const widgetsManager = injeca.provide('windows:widgets', { build: () => setupWidgetsWindowManager() })
   const noticeWindow = injeca.provide('windows:notice', { build: () => setupNoticeWindowManager() })
 
@@ -134,6 +133,12 @@ app.whenReady().then(async () => {
   const beatSync = injeca.provide('windows:beat-sync', {
     build: () => setupBeatSync(),
   })
+
+  const chatWindow = injeca.provide('windows:chat', {
+    dependsOn: { widgetsManager },
+    build: ({ dependsOn }) => setupChatWindowReusableFunc(dependsOn),
+  })
+
   const settingsWindow = injeca.provide('windows:settings', {
     dependsOn: { widgetsManager, beatSync },
     build: async ({ dependsOn }) => async () => {
