@@ -11,9 +11,9 @@ pnpm add -D @proj-airi/pinia-broadcast
 ## Usage
 
 ```ts
+import { createBroadcastPlugin } from '@proj-airi/pinia-broadcast'
 // pinia.ts
 import { createPinia } from 'pinia'
-import { createBroadcastPlugin } from '@proj-airi/pinia-broadcast'
 
 const pinia = createPinia()
 
