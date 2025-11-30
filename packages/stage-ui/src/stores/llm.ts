@@ -1,5 +1,5 @@
 import type { ChatProvider } from '@xsai-ext/shared-providers'
-import type { CommonContentPart, CompletionToolCall, Message } from '@xsai/shared-chat'
+import type { CommonContentPart, CompletionToolCall, Message, Tool } from '@xsai/shared-chat'
 
 import { listModels } from '@xsai/model'
 import { XSAIError } from '@xsai/shared'
@@ -21,6 +21,7 @@ export interface StreamOptions {
   onStreamEvent?: (event: StreamEvent) => void | Promise<void>
   toolsCompatibility?: Map<string, boolean>
   supportsTools?: boolean
+  tools?: Tool[] | (() => Promise<Tool[] | undefined>)
 }
 
 // TODO: proper format for other error messages.
@@ -36,27 +37,36 @@ function sanitizeMessages(messages: unknown[]): Message[] {
   })
 }
 
-function streamOptionsToolsCompatibilityOk(model: string, chatProvider: ChatProvider, _: Message[], options?: StreamOptions, toolsCompatibility: Map<string, boolean> = new Map()): boolean {
-  return !!(options?.supportsTools || toolsCompatibility.get(`${chatProvider.chat(model).baseURL}-${model}`))
+function streamOptionsToolsCompatibilityOk(model: string, chatProvider: ChatProvider, _: Message[], options?: StreamOptions): boolean {
+  return !!(options?.supportsTools || options?.toolsCompatibility?.get(`${chatProvider.chat(model).baseURL}-${model}`))
 }
 
 async function streamFrom(model: string, chatProvider: ChatProvider, messages: Message[], options?: StreamOptions) {
   const headers = options?.headers
 
   const sanitized = sanitizeMessages(messages as unknown[])
+  const resolveTools = async () => {
+    const tools = typeof options?.tools === 'function'
+      ? await options.tools()
+      : options?.tools
+    return tools ?? []
+  }
 
   return new Promise<void>(async (resolve, reject) => {
     try {
+      const supportedTools = streamOptionsToolsCompatibilityOk(model, chatProvider, messages, options)
+
       await streamText({
         ...chatProvider.chat(model),
         maxSteps: 10,
         messages: sanitized,
         headers,
         // TODO: we need Automatic tools discovery
-        tools: streamOptionsToolsCompatibilityOk(model, chatProvider, messages, options)
+        tools: supportedTools
           ? [
               ...await mcp(),
               ...await debug(),
+              ...await resolveTools(),
             ]
           : undefined,
         async onEvent(event) {

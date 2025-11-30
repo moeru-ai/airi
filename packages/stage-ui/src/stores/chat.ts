@@ -1,7 +1,7 @@
 import type { ChatProvider } from '@xsai-ext/shared-providers'
 import type { CommonContentPart, Message, SystemMessage } from '@xsai/shared-chat'
 
-import type { StreamEvent } from '../stores/llm'
+import type { StreamEvent, StreamOptions } from '../stores/llm'
 import type { ChatAssistantMessage, ChatMessage, ChatSlices } from '../types/chat'
 
 import { useLocalStorage } from '@vueuse/core'
@@ -112,6 +112,7 @@ export const useChatStore = defineStore('chat', () => {
       chatProvider: ChatProvider
       providerConfig?: Record<string, unknown>
       attachments?: { type: 'image', data: string, mimeType: string }[]
+      tools?: StreamOptions['tools']
     },
   ) {
     if (!sendingMessage && !options.attachments?.length)
@@ -208,6 +209,7 @@ export const useChatStore = defineStore('chat', () => {
 
       await stream(options.model, options.chatProvider, newMessages as Message[], {
         headers,
+        tools: options.tools,
         onStreamEvent: async (event: StreamEvent) => {
           switch (event.type) {
             case 'tool-call':

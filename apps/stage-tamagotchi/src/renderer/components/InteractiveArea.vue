@@ -13,6 +13,8 @@ import { useI18n } from 'vue-i18n'
 
 import TamagotchiChatHistory from './ChatHistory.vue'
 
+import { widgetsTools } from '../stores/tools/builtin/widgets'
+
 const messageInput = ref('')
 const listening = ref(false)
 const attachments = ref<{ type: 'image', data: string, mimeType: string, url: string }[]>([])
@@ -27,6 +29,8 @@ const { activeModel, activeProvider } = storeToRefs(useConsciousnessStore())
 const isComposing = ref(false)
 
 async function handleSend() {
+  debugger
+
   if (isComposing.value) {
     return
   }
@@ -43,6 +47,7 @@ async function handleSend() {
       chatProvider: await providersStore.getProviderInstance<ChatProvider>(activeProvider.value),
       providerConfig,
       attachments: attachmentsToSend,
+      tools: widgetsTools,
     })
 
     // clear after sending
@@ -132,7 +137,7 @@ watch([activeProvider, activeModel], async () => {
   if (activeProvider.value && activeModel.value) {
     await discoverToolsCompatibility(activeModel.value, await providersStore.getProviderInstance<ChatProvider>(activeProvider.value), [])
   }
-})
+}, { immediate: true })
 
 onAfterMessageComposed(async () => {
   messageInput.value = ''
@@ -170,9 +175,10 @@ onAfterMessageComposed(async () => {
     <BasicTextarea
       v-model="messageInput"
       :placeholder="t('stage.message')"
-      border="solid 2 primary-100"
-      text="primary-400 hover:primary-600  placeholder:primary-400 placeholder:hover:primary-600"
-      bg="primary-50 dark:primary-100" max-h="[10lh]" min-h="[1lh]"
+      text="primary-600  placeholder:primary-600"
+      border="solid 2 primary-200/20 dark:primary-400/20"
+      bg="primary-100/50 dark:primary-900/70"
+      max-h="[10lh]" min-h="[1lh]"
       w-full shrink-0 resize-none overflow-y-scroll rounded-xl p-2 font-medium outline-none
       transition="all duration-250 ease-in-out placeholder:all placeholder:duration-250 placeholder:ease-in-out"
       @compositionstart="isComposing = true"

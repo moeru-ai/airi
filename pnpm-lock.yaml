@@ -365,6 +365,9 @@ importers:
       '@xsai/stream-transcription':
         specifier: 0.4.0-beta.8
         version: 0.4.0-beta.8
+      '@xsai/tool':
+        specifier: 'catalog:'
+        version: 0.4.0-beta.9(zod-to-json-schema@3.24.6(zod@4.1.12))(zod@4.1.12)
       '@xsai/utils-chat':
         specifier: 'catalog:'
         version: 0.4.0-beta.5
