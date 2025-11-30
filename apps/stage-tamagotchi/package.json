@@ -134,6 +134,7 @@
     "@iconify-json/vscode-icons": "^1.2.34",
     "@iconify/utils": "^3.0.2",
     "@intlify/unplugin-vue-i18n": "^11.0.1",
+    "@nekopaw/tempora": "0.3.1-alpha.1",
     "@proj-airi/lobe-icons": "^1.0.14",
     "@proj-airi/stage-shared": "workspace:^",
     "@proj-airi/ui-transitions": "workspace:^",

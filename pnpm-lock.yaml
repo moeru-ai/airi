@@ -567,6 +567,9 @@ importers:
       '@intlify/unplugin-vue-i18n':
         specifier: ^11.0.1
         version: 11.0.1(@vue/compiler-dom@3.5.25)(eslint@9.39.1(jiti@2.6.1))(rollup@4.53.2)(typescript@5.9.3)(vue-i18n@11.1.12(vue@3.5.25(typescript@5.9.3)))(vue@3.5.25(typescript@5.9.3))
+      '@nekopaw/tempora':
+        specifier: 0.3.1-alpha.1
+        version: 0.3.1-alpha.1
       '@proj-airi/lobe-icons':
         specifier: ^1.0.14
         version: 1.0.14
@@ -1328,6 +1331,9 @@ importers:
         specifier: ^4.6.3
         version: 4.6.3(vue@3.5.25(typescript@5.9.3))
     devDependencies:
+      '@proj-airi/stage-shared':
+        specifier: workspace:^
+        version: link:../stage-shared
       '@types/three':
         specifier: ^0.181.0
         version: 0.181.0

@@ -2,6 +2,7 @@
 import type { Application } from '@pixi/app'
 import type { Cubism4InternalModel, InternalModel } from 'pixi-live2d-display/cubism4'
 
+import { listenBeatSyncBeatSignal } from '@proj-airi/stage-shared/beat-sync/browser'
 import { useTheme } from '@proj-airi/ui'
 import { breakpointsTailwind, until, useBreakpoints, useDebounceFn } from '@vueuse/core'
 import { formatHex } from 'culori'
@@ -12,7 +13,6 @@ import { computed, onMounted, onUnmounted, ref, shallowRef, toRef, watch } from 
 
 import { useLive2DIdleEyeFocus } from '../../../composables/live2d'
 import { Emotion, EmotionNeutralMotionName } from '../../../constants/emotions'
-import { useBeatSyncStore } from '../../../stores/beat-sync'
 import { useLive2d } from '../../../stores/live2d'
 import { useSettings } from '../../../stores/settings'
 
@@ -660,19 +660,14 @@ watch(focusAt, (value) => {
   model.value.focus(value.x, value.y)
 })
 
-const beatSyncStore = useBeatSyncStore()
-
 onMounted(() => {
   const onBeat = () => {
     beatSyncTargetY.value = Math.max(-5, Math.min(5, (beatSyncTargetY.value < 0 ? 10 : -10) * (0.5 + Math.random() * 0.3)))
     beatSyncTargetZ.value = Math.max(-5, Math.min(5, (beatSyncTargetZ.value < 0 ? 10 : -10) * (0.5 + Math.random() * 0.3)))
   }
 
-  beatSyncStore.on('beat', onBeat)
-
-  onUnmounted(() => {
-    beatSyncStore.off('beat', onBeat)
-  })
+  const removeListener = listenBeatSyncBeatSignal(() => onBeat())
+  onUnmounted(() => removeListener())
 })
 
 onMounted(async () => {
