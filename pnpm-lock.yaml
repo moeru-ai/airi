@@ -302,6 +302,9 @@ importers:
       '@proj-airi/i18n':
         specifier: workspace:^
         version: link:../../packages/i18n
+      '@proj-airi/pinia-broadcast':
+        specifier: workspace:^
+        version: link:../../packages/pinia-broadcast
       '@proj-airi/server-runtime':
         specifier: workspace:^
         version: link:../../packages/server-runtime
@@ -702,6 +705,9 @@ importers:
       '@proj-airi/i18n':
         specifier: workspace:^
         version: link:../../packages/i18n
+      '@proj-airi/pinia-broadcast':
+        specifier: workspace:^
+        version: link:../../packages/pinia-broadcast
       '@proj-airi/server-sdk':
         specifier: workspace:^
         version: link:../../packages/server-sdk
@@ -1213,6 +1219,16 @@ importers:
       tsx:
         specifier: ^4.20.6
         version: 4.21.0
+
+  packages/pinia-broadcast:
+    dependencies:
+      pinia:
+        specifier: ^3.0.0
+        version: 3.0.4(typescript@5.9.3)(vue@3.5.25(typescript@5.9.3))
+    devDependencies:
+      '@moeru/std':
+        specifier: 'catalog:'
+        version: 0.1.0-beta.13
 
   packages/pipelines-audio:
     dependencies:
