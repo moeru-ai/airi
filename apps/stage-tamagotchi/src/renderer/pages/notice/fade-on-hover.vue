@@ -1,6 +1,5 @@
 <script setup lang="ts">
-import { Button } from '@proj-airi/stage-ui/components'
-import { TransitionVertical } from '@proj-airi/ui'
+import { Button, TransitionVertical } from '@proj-airi/ui'
 import { refDebounced, useDark, useMouseInElement } from '@vueuse/core'
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'

@@ -10,8 +10,7 @@ import {
   toggleBeatSync,
   updateBeatSyncParameters,
 } from '@proj-airi/stage-shared/beat-sync/browser'
-import { Button } from '@proj-airi/stage-ui/components'
-import { FieldCheckbox, FieldRange } from '@proj-airi/ui'
+import { Button, FieldCheckbox, FieldRange } from '@proj-airi/ui'
 import { createTimeline } from 'animejs'
 import { nanoid } from 'nanoid'
 import { onMounted, onUnmounted, ref, toRaw, watch } from 'vue'
