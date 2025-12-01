@@ -1,4 +1,4 @@
-name: Release
+name: Release VSCE & OVSX
 
 on:
   push:
@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   release-vsix:
-    name: Release - VSCE & OVSX
+    name: Release
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
