@@ -165,7 +165,7 @@ onAfterMessageComposed(async () => {
         hover:text="red-500 dark:red-400"
         flex items-center justify-center rounded-md p-2 outline-none
         transition-colors transition-transform active:scale-95
-        @click="cleanupMessages"
+        @click="() => cleanupMessages()"
       >
         <div class="i-solar:trash-bin-2-bold-duotone" />
       </button>
@@ -173,7 +173,7 @@ onAfterMessageComposed(async () => {
     <BasicTextarea
       v-model="messageInput"
       :placeholder="t('stage.message')"
-      text="primary-600  placeholder:primary-600"
+      text="primary-600 dark:primary-100  placeholder:primary-500"
       border="solid 2 primary-200/20 dark:primary-400/20"
       bg="primary-100/50 dark:primary-900/70"
       max-h="[10lh]" min-h="[1lh]"
