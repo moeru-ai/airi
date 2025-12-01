@@ -1,7 +1,7 @@
 {
   "name": "@proj-airi/tauri-plugin-mcp",
   "type": "module",
-  "version": "0.8.0-alpha.6",
+  "version": "0.8.0-alpha.8",
   "packageManager": "pnpm@10.22.0",
   "description": "A Tauri plugin for interacting with MCP servers.",
   "author": {
