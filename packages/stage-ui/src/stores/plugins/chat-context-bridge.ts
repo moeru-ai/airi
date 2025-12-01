@@ -24,7 +24,7 @@ export function installChatContextBridge() {
 
   const stopIncomingWatch = watch(incomingContext, (event) => {
     if (event)
-      chatStore.ingestContextMessage(event, 'broadcast')
+      chatStore.ingestContextMessage(event)
   })
 
   const offPublish = chatStore.onContextPublish((envelope, origin) => {
@@ -38,7 +38,7 @@ export function installChatContextBridge() {
   modsChannelServer.initialize({ possibleEvents: ['context:update'] }).catch(error => console.error('Context bridge init error:', error))
   const offWs = modsChannelServer.onContextUpdate((event) => {
     const envelope = event.data as ContextMessage<ContextPayload, Record<string, unknown>>
-    chatStore.ingestContextMessage(envelope, 'ws')
+    chatStore.ingestContextMessage(envelope)
     broadcastContext(envelope)
   })
 

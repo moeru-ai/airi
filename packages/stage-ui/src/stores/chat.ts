@@ -195,7 +195,7 @@ export const useChatStore = defineStore('chat', () => {
     }
   }
 
-  function ingestContextMessage(envelope: ContextMessage<ContextPayload>, origin: 'local' | 'ws' | 'broadcast' = 'local') {
+  function ingestContextMessage(envelope: ContextMessage<ContextPayload>) {
     ensureSession(envelope.sessionId)
 
     const { content, slices, tool_results } = normalizePayload(envelope.payload)
@@ -232,7 +232,6 @@ export const useChatStore = defineStore('chat', () => {
         context,
       } as ChatEntry)
     }
-
   }
 
   function publishContextMessage(envelope: ContextMessage<ContextPayload>, origin: 'local' | 'ws' | 'broadcast' = 'local') {
