@@ -52,6 +52,7 @@ export function createBeatSyncDetector(options: CreateBeatSyncDetectorOptions): 
   }
 
   let stopSource: (() => void) | undefined
+  let tapNode: ScriptProcessorNode | undefined // Dev
 
   const listeners: { [K in keyof BeatSyncDetectorEventMap]: Array<(...args: any) => void> } = {
     stateChange: [],
@@ -70,6 +71,13 @@ export function createBeatSyncDetector(options: CreateBeatSyncDetectorOptions): 
     emit('stateChange', state)
     stopSource?.()
     stopSource = undefined
+
+    // Dev
+    if (tapNode) {
+      tapNode.onaudioprocess = null
+      tapNode.disconnect()
+      tapNode = undefined
+    }
 
     source?.disconnect()
     source = undefined
@@ -94,7 +102,26 @@ export function createBeatSyncDetector(options: CreateBeatSyncDetectorOptions): 
     })
 
     const node = await createSource(context)
-    node.connect(analyser.workletNode)
+
+    if (import.meta.env.DEV) {
+      // Dev: Use a tap node to verify there're audio samples flowing in the pipeline.
+      tapNode = context.createScriptProcessor(256, 1, 1)
+      tapNode.addEventListener('audioprocess', (e) => {
+        const sample = e.inputBuffer.getChannelData(0)
+        // Avoid log flooding
+        if (e.timeStamp % 10 === 0) {
+          // eslint-disable-next-line no-console
+          console.debug('[debug:tap] sample.length =', sample.length, 'timeStamp =', e.timeStamp)
+        }
+        e.outputBuffer.copyToChannel(sample, 0)
+      })
+      node.connect(tapNode)
+      tapNode.connect(analyser.workletNode)
+    }
+    else {
+      node.connect(analyser.workletNode)
+    }
+
     source = node
 
     state.isActive = true
