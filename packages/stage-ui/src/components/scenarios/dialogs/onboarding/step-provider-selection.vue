@@ -1,9 +1,9 @@
 <script setup lang="ts">
+import { Button } from '@proj-airi/ui'
 import { inject } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { RadioCardDetail } from '../../../menu'
-import { Button } from '../../../misc'
 import { OnboardingContextKey } from './utils'
 
 const { t } = useI18n()

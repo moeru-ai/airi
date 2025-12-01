@@ -15,6 +15,13 @@ jobs:
       packages: write
 
     steps:
+      # Why?
+      #
+      # failed to build archive at `/home/runner/work/airi/airi/target/x86_64-unknown-linux-gnu/release/deps/libapp_lib.rlib`:
+      # No space left on device (os error 28)
+      - name: Free Disk Space
+        uses: jlumbroso/free-disk-space@main
+
       - uses: actions/checkout@v5
 
       - uses: docker/metadata-action@v5

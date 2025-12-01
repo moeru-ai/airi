@@ -62,13 +62,13 @@ watch(sending, () => {
     <div v-for="(message, index) in messages" :key="index" mb-2>
       <div v-if="message.role === 'error'" flex mr="12">
         <div
-          flex="~ col" shadow="md violet-900/50 dark:none"
+          flex="~ col" shadow="sm violet-200/50 dark:none"
           min-w-20 rounded-xl px-3 py-3 h="unset <sm:fit"
-          class="bg-violet-50/80 <md:bg-violet-500/25 dark:bg-violet-900/80"
+          class="bg-violet-100/80 dark:bg-violet-950/80"
         >
           <div flex="~ row" gap-2>
-            <div flex-1>
-              <span text-sm text="black/60 dark:white/65" font-normal class="inline <sm:hidden">{{ t('stage.chat.message.character-name.core-system') }}</span>
+            <div flex-1 class="inline <sm:hidden">
+              <span text-sm text="black/60 dark:white/65" font-normal>{{ t('stage.chat.message.character-name.core-system') }}</span>
             </div>
             <div i-solar:danger-triangle-bold-duotone text-violet-500 />
           </div>
@@ -76,7 +76,7 @@ watch(sending, () => {
           <MarkdownRenderer
             v-else
             :content="message.content as string"
-            class="break-words text-violet-500"
+            class="break-words text-violet-500 dark:text-violet-300"
           />
         </div>
       </div>
@@ -89,7 +89,7 @@ watch(sending, () => {
           <div>
             <span text-sm text="black/60 dark:white/65" font-normal class="inline <sm:hidden">{{ t('stage.chat.message.character-name.airi') }}</span>
           </div>
-          <div v-if="message.content" class="break-words" text="primary-700 dark:primary-200">
+          <div v-if="message.content" class="break-words" text="primary-700 dark:primary-100">
             <div v-for="(slice, sliceIndex) in message.slices" :key="sliceIndex">
               <div v-if="slice.type === 'tool-call'" mb-2>
                 <Collapsable
@@ -134,7 +134,7 @@ watch(sending, () => {
         <div
           flex="~ col" shadow="sm neutral-200/50 dark:none" px="2" h="unset <sm:fit"
           min-w-20 rounded-xl px-3 py-3
-          class="bg-neutral-100/80 dark:bg-neutral-950/80"
+          class="bg-neutral-100/80 dark:bg-neutral-800/80"
         >
           <div>
             <span text-sm text="black/60 dark:white/65" font-normal class="inline <sm:hidden">{{ t('stage.chat.message.character-name.you') }}</span>
@@ -157,7 +157,7 @@ watch(sending, () => {
         <div>
           <span text-sm text="black/60 dark:white/65" font-normal class="inline <sm:hidden">{{ t('stage.chat.message.character-name.airi') }}</span>
         </div>
-        <div v-if="presentSlices.length > 0 || streamingMessage.content" class="break-words" text="primary-700 dark:primary-200">
+        <div v-if="presentSlices.length > 0 || streamingMessage.content" class="break-words" text="primary-700 dark:primary-100">
           <!-- Prefer presentation slices if available; fallback to normal streaming -->
           <template v-if="presentSlices.length > 0">
             <div v-for="(text, idx) in presentSlices" :key="`present-${idx}`">

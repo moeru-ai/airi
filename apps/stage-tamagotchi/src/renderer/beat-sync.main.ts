@@ -1,12 +1,23 @@
 import { defineInvoke, defineInvokeHandler } from '@moeru/eventa'
 import { createContext } from '@moeru/eventa/adapters/electron/renderer'
-import { createBeatSyncDetector, StageEnvironment } from '@proj-airi/stage-shared'
-import { beatSyncRequestSignalBeat, beatSyncToggle } from '@proj-airi/stage-shared/beat-sync/eventa'
+import { StageEnvironment } from '@proj-airi/stage-shared'
+import { createBeatSyncDetector } from '@proj-airi/stage-shared/beat-sync/browser'
+
+import {
+  beatSyncElectronChangeState,
+  beatSyncElectronGetState,
+  beatSyncElectronSignalBeat,
+  beatSyncElectronToggle,
+  beatSyncElectronUpdateParameters,
+} from '../shared/eventa'
 
 const { ipcRenderer } = window.electron
 
 const context = createContext(ipcRenderer).context
-const requestSignalBeat = defineInvoke(context, beatSyncRequestSignalBeat)
+
+// [renderer] beat-sync -> [main] -> [renderer] index
+const changeState = defineInvoke(context, beatSyncElectronChangeState)
+const signalBeat = defineInvoke(context, beatSyncElectronSignalBeat)
 
 function enableLoopbackAudio() {
   // electron-audio-loopback currently registers this handler internally
@@ -24,13 +35,26 @@ const detector = createBeatSyncDetector({
   disableLoopbackAudio,
 })
 
-detector.on('beat', e => requestSignalBeat(e))
+detector.on('stateChange', state => changeState(state))
+detector.on('beat', (e) => {
+  // eslint-disable-next-line no-console
+  console.debug('[beat]', e) // This could be noisy.
+  signalBeat(e)
+})
 
-defineInvokeHandler(context, beatSyncToggle, async (enabled) => {
+defineInvokeHandler(context, beatSyncElectronToggle, async (enabled) => {
+  // eslint-disable-next-line no-console
+  console.log('[toggle]', enabled)
   if (enabled) {
     detector.startScreenCapture()
   }
   else {
     detector.stop()
   }
+})
+defineInvokeHandler(context, beatSyncElectronGetState, async () => detector.state)
+defineInvokeHandler(context, beatSyncElectronUpdateParameters, async (params) => {
+  // eslint-disable-next-line no-console
+  console.log('[update-params]', params)
+  detector.updateParameters(params)
 })

@@ -45,6 +45,7 @@
     "vue-router": "^4.6.3"
   },
   "devDependencies": {
+    "@proj-airi/stage-shared": "workspace:^",
     "@types/three": "^0.181.0",
     "vue-tsc": "^3.1.4"
   }

@@ -1,16 +1,23 @@
 <script setup lang="ts">
-import type { AnalyserBeatEvent, AnalyserWorkletParameters } from '@nekopaw/tempora'
+import type { AnalyserWorkletParameters } from '@nekopaw/tempora'
+import type { BeatSyncDetectorState } from '@proj-airi/stage-shared/beat-sync'
 
 import { DEFAULT_ANALYSER_WORKLET_PARAMS } from '@nekopaw/tempora'
-import { Button } from '@proj-airi/stage-ui/components'
-import { useBeatSyncStore } from '@proj-airi/stage-ui/stores/beat-sync'
-import { FieldCheckbox, FieldRange } from '@proj-airi/ui'
+import {
+  getBeatSyncState,
+  listenBeatSyncBeatSignal,
+  listenBeatSyncStateChange,
+  toggleBeatSync,
+  updateBeatSyncParameters,
+} from '@proj-airi/stage-shared/beat-sync/browser'
+import { Button, FieldCheckbox, FieldRange } from '@proj-airi/ui'
 import { createTimeline } from 'animejs'
 import { nanoid } from 'nanoid'
-import { onMounted, onUnmounted, ref, watchEffect } from 'vue'
+import { onMounted, onUnmounted, ref, toRaw, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-const beatSyncStore = useBeatSyncStore()
+const state = ref<BeatSyncDetectorState>()
+
 const { t } = useI18n()
 
 const beatsHistory = ref<Array<{
@@ -21,9 +28,7 @@ const beatsHistory = ref<Array<{
 
 const parameters = ref<AnalyserWorkletParameters>({ ...DEFAULT_ANALYSER_WORKLET_PARAMS })
 
-watchEffect(() => {
-  beatSyncStore.updateParameters(parameters.value)
-})
+watch<AnalyserWorkletParameters>(parameters, newParameters => updateBeatSyncParameters(toRaw(newParameters)), { deep: true })
 
 function normalizeEnergy(energy: number) {
   const base = 2
@@ -32,19 +37,23 @@ function normalizeEnergy(energy: number) {
 }
 
 onMounted(() => {
-  const onBeat = ({ energy }: AnalyserBeatEvent) => {
-    beatsHistory.value.unshift({
-      id: nanoid(),
-      energy,
-      normalizedEnergy: normalizeEnergy(energy),
-    })
-  }
+  getBeatSyncState().then(initialState => state.value = initialState)
 
-  beatSyncStore.on('beat', onBeat)
+  const removeHandlerFns = [
+    listenBeatSyncStateChange((newState) => {
+      state.value = { ...newState }
+    }),
+    listenBeatSyncBeatSignal(({ energy }) => {
+      beatsHistory.value.unshift({
+        id: nanoid(),
+        energy,
+        normalizedEnergy: normalizeEnergy(energy),
+      })
+    }),
+  ]
 
-  onUnmounted(() => {
-    beatSyncStore.off('beat', onBeat)
-  })
+  const removeHandlers = () => removeHandlerFns.forEach(fn => fn())
+  onUnmounted(() => removeHandlers())
 })
 
 function onRippleEnter(el: Element, done: () => void) {
@@ -93,14 +102,14 @@ function resetDefaultParameters() {
           </div>
 
           <div max-w-full flex="~ row gap-4 wrap">
-            <template v-if="beatSyncStore.isActive">
-              <Button @click="beatSyncStore.stop">
+            <template v-if="state?.isActive">
+              <Button @click="toggleBeatSync(false)">
                 {{ t('settings.pages.modules.beat_sync.sections.audio_source.actions.stop') }}
               </Button>
             </template>
 
             <template v-else>
-              <Button @click="beatSyncStore.startFromScreenCapture">
+              <Button @click="toggleBeatSync(true)">
                 {{ t('settings.pages.modules.beat_sync.sections.audio_source.actions.start_screen_capture') }}
               </Button>
             </template>

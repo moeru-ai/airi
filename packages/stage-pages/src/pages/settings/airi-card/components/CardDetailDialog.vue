@@ -3,8 +3,8 @@ import type { AiriCard } from '@proj-airi/stage-ui/stores/modules/airi-card'
 
 import DOMPurify from 'dompurify'
 
-import { Button } from '@proj-airi/stage-ui/components'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
+import { Button } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import {
   DialogContent,

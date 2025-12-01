@@ -1,14 +1,21 @@
 {
-  "publisher": "airi",
+  "publisher": "proj-airi",
   "name": "@proj-airi/airi-plugin-vscode",
   "displayName": "AIRI",
-  "version": "0.8.0-alpha.5",
+  "version": "0.8.0-alpha.8",
   "private": true,
   "description": "VSCode extension that shares your coding context with AIRI",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/moeru-ai/airi.git",
+    "directory": "plugins/airi-plugin-vscode"
+  },
   "categories": [
     "Other"
   ],
-  "main": "./dist/extension.js",
+  "preview": true,
+  "main": "./dist/extension.cjs",
+  "icon": "res/logo.jpg",
   "engines": {
     "vscode": "^1.106.1"
   },
@@ -18,32 +25,32 @@
   "contributes": {
     "commands": [
       {
-        "command": "airi.enable",
+        "command": "airi-vscode.enable",
         "title": "AIRI: Enable"
       },
       {
-        "command": "airi.disable",
+        "command": "airi-vscode.disable",
         "title": "AIRI: Disable"
       },
       {
-        "command": "airi.status",
+        "command": "airi-vscode.status",
         "title": "AIRI: Show Status"
       }
     ],
     "configuration": {
       "title": "AIRI",
       "properties": {
-        "airi.enabled": {
+        "airi-vscode.enabled": {
           "type": "boolean",
           "default": true,
-          "description": "Enable AIRI companion"
+          "description": "Enable or disable the AIRI extension"
         },
-        "airi.contextLines": {
+        "airi-vscode.contextLines": {
           "type": "number",
           "default": 5,
           "description": "Number of context lines to send (before and after current line)"
         },
-        "airi.sendInterval": {
+        "airi-vscode.sendInterval": {
           "type": "number",
           "default": 3000,
           "description": "Interval in milliseconds to send updates (0 for real-time)"
@@ -52,9 +59,11 @@
     }
   },
   "scripts": {
-    "vscode:prepublish": "pnpm run build",
-    "build": "tsdown",
+    "prepare": "pnpm run update",
+    "update": "tsx ./scripts/vscode-ext-gen.ts",
     "dev": "tsdown --watch",
+    "build": "tsdown",
+    "publish": "tsx ./scripts/publish.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
@@ -62,6 +71,8 @@
     "@proj-airi/server-sdk": "workspace:*"
   },
   "devDependencies": {
-    "@types/vscode": "^1.106.1"
+    "@types/vscode": "^1.106.1",
+    "tinyexec": "^1.0.2",
+    "vscode-ext-gen": "^1.4.0"
   }
 }

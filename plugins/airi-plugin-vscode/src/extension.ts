@@ -2,10 +2,10 @@ import type * as vscode from 'vscode'
 
 import { initLogger, LoggerFormat, LoggerLevel, useLogger } from '@guiiai/logg'
 
-import { AiriClient } from './airi-client'
+import { Client } from './airi-client'
 import { ContextCollector } from './context-collector'
 
-let airiClient: AiriClient
+let client: Client
 let contextCollector: ContextCollector
 let updateTimer: NodeJS.Timeout | null = null
 let isEnabled = true
@@ -19,48 +19,48 @@ export async function activate(context: vscode.ExtensionContext) {
 
   const { window, workspace, commands } = await import('vscode')
 
-  useLogger().log('Airi Companion is activating...')
+  useLogger().log('AIRI is activating...')
 
   // Get the configuration
-  const config = workspace.getConfiguration('airi.companion')
+  const config = workspace.getConfiguration('airi-vscode')
   isEnabled = config.get<boolean>('enabled', true)
   const contextLines = config.get<number>('contextLines', 5)
   const sendInterval = config.get<number>('sendInterval', 3000)
 
   // Initialize
-  airiClient = new AiriClient()
+  client = new Client()
   contextCollector = new ContextCollector(contextLines)
 
   // Connect to Airi Channel Server
   if (isEnabled) {
-    const connected = await airiClient.connect()
+    const connected = await client.connect()
     if (connected) {
-      window.showInformationMessage('Airi Companion connected!')
+      window.showInformationMessage('AIRI server channel connected!')
     }
     else {
-      window.showWarningMessage('Airi Companion failed to connect to server')
+      window.showWarningMessage('AIRI server channel connection failed!')
     }
   }
 
   // Register commands
   context.subscriptions.push(
-    commands.registerCommand('airi.companion.enable', async () => {
+    commands.registerCommand('airi-vscode.enable', async () => {
       isEnabled = true
-      await airiClient.connect()
+      await client.connect()
       await registerListeners(sendInterval)
-      window.showInformationMessage('Airi Companion enabled')
+      window.showInformationMessage('AIRI enabled!')
     }),
 
-    commands.registerCommand('airi.companion.disable', () => {
+    commands.registerCommand('airi-vscode.disable', () => {
       isEnabled = false
       unregisterListeners()
-      airiClient.disconnect()
-      window.showInformationMessage('Airi Companion disabled')
+      client.disconnect()
+      window.showInformationMessage('AIRI disabled!')
     }),
 
-    commands.registerCommand('airi.companion.status', () => {
-      const status = isEnabled && airiClient ? 'Connected' : 'Disconnected'
-      window.showInformationMessage(`Airi Companion Status: ${status}`)
+    commands.registerCommand('airi-vscode.status', () => {
+      const status = isEnabled && client ? 'Connected' : 'Disconnected'
+      window.showInformationMessage(`AIRI server channel status: ${status}.`)
     }),
   )
 
@@ -69,7 +69,7 @@ export async function activate(context: vscode.ExtensionContext) {
     await registerListeners(sendInterval)
   }
 
-  useLogger().log('Airi Companion activated successfully')
+  useLogger().log('AIRI activated successfully')
 }
 
 /**
@@ -87,7 +87,7 @@ async function registerListeners(sendInterval: number) {
       if (editor && editor.document === document) {
         const ctx = await contextCollector.collect(editor)
         if (ctx) {
-          airiClient.sendEvent({
+          client.sendEvent({
             type: 'coding:save',
             data: ctx,
           })
@@ -102,7 +102,7 @@ async function registerListeners(sendInterval: number) {
       if (editor) {
         const ctx = await contextCollector.collect(editor)
         if (ctx) {
-          airiClient.sendEvent({
+          client.sendEvent({
             type: 'coding:switch-file',
             data: ctx,
           })
@@ -143,7 +143,7 @@ function startMonitoring(interval: number) {
 
     const ctx = await contextCollector.collect(editor)
     if (ctx) {
-      airiClient.sendEvent({
+      client.sendEvent({
         type: 'coding:context',
         data: ctx,
       })
@@ -166,6 +166,6 @@ function stopMonitoring() {
  */
 export function deactivate() {
   unregisterListeners()
-  airiClient?.disconnect()
-  useLogger().log('Airi Companion deactivated')
+  client?.disconnect()
+  useLogger().log('AIRI deactivated!')
 }

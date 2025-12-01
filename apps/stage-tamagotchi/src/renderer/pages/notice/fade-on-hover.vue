@@ -1,6 +1,5 @@
 <script setup lang="ts">
-import { Button } from '@proj-airi/stage-ui/components'
-import { TransitionVertical } from '@proj-airi/ui'
+import { Button, TransitionVertical } from '@proj-airi/ui'
 import { refDebounced, useDark, useMouseInElement } from '@vueuse/core'
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -80,9 +79,16 @@ async function handleAction(action: 'confirm' | 'cancel' | 'close') {
       <div class="absolute inset-0 z-0 h-full w-full overflow-hidden text-xs text-neutral-600 dark:text-neutral-400">
         <video :src="isDark ? VideoTutorialFadeOnHoverDark : VideoTutorialFadeOnHoverLight" autoplay muted loop class="h-full w-full object-cover" />
       </div>
+      <div
+        :class="[
+          'pointer-events-none absolute left-0 top-0',
+          'h-100dvh w-100dvw',
+        ]"
+        class="heading-backdrop"
+      />
       <div class="relative z-1 h-full w-full flex flex-col">
         <div class="mb-2 flex items-center justify-between gap-2 px-4 pt-4">
-          <div class="inline-flex items-center gap-2 rounded-full bg-primary-500 px-3 py-1 text-[11px] text-primary-100 font-semibold tracking-[0.14em] uppercase">
+          <div class="inline-flex items-center gap-2 rounded-full bg-primary-50 px-3 py-1 text-[11px] text-primary-900 font-semibold tracking-[0.14em] uppercase dark:bg-primary-500 dark:text-primary-100">
             Tutorial
             <div class="h-1.5 w-1.5 rounded-full bg-primary-300 shadow-[0_0_12px_rgba(0,0,0,0.35)]" />
           </div>
@@ -92,7 +98,7 @@ async function handleAction(action: 'confirm' | 'cancel' | 'close') {
             'w-fit',
             'pl-4 pr-5 py-4 text-2xl font-semibold leading-tight',
             'rounded-r-xl',
-            'bg-neutral-100/80 dark:bg-neutral-900/80',
+            'bg-neutral-200/80 dark:bg-neutral-800/80',
             'backdrop-blur-sm',
           ]"
         >
@@ -104,7 +110,7 @@ async function handleAction(action: 'confirm' | 'cancel' | 'close') {
             ref="descriptionContainerRef"
             :class="[
               'flex flex-col overflow-hidden',
-              'bg-neutral-100/90 dark:bg-neutral-900/90',
+              'bg-primary-50/80 dark:bg-primary-800/80',
               'backdrop-blur-sm',
               'p-3 sm:p-4',
               'rounded-lg',
@@ -116,19 +122,19 @@ async function handleAction(action: 'confirm' | 'cancel' | 'close') {
                   <template v-if="!descriptionOpen">
                     <i18n-t keypath="tamagotchi.stage.notice.fade-on-hover.opacity" tag="div">
                       <template #value>
-                        <span class="text-primary-800 font-semibold dark:text-primary-100">
+                        <span class="text-primary-600 font-semibold dark:text-primary-100">
                           {{ t('tamagotchi.stage.notice.fade-on-hover.value') }}
                         </span>
                       </template>
                       <template #targets>
-                        <span class="text-primary-800 font-semibold dark:text-primary-100">
+                        <span class="text-primary-600 font-semibold dark:text-primary-100">
                           {{ t('tamagotchi.stage.notice.fade-on-hover.targets') }}
                         </span>
                       </template>
                     </i18n-t>
                     <i18n-t keypath="tamagotchi.stage.notice.fade-on-hover.toggle" tag="div">
                       <template #controls>
-                        <span class="inline text-nowrap text-primary-800 font-semibold dark:text-primary-100">
+                        <span class="inline text-nowrap text-primary-600 font-semibold dark:text-primary-100">
                           {{ t('tamagotchi.stage.notice.fade-on-hover.controls-label') }}
                         </span>
                       </template>
@@ -145,7 +151,7 @@ async function handleAction(action: 'confirm' | 'cancel' | 'close') {
                 <Button
                   v-if="!descriptionOpen"
                   size="sm"
-                  :label="t('tamagotchi.stage.notice.fade-on-hover.read-more')"
+                  :label="t('tamagotchi.stage.notice.fade-on-hover.confirm')"
                 />
               </div>
               <TransitionVertical>
@@ -155,19 +161,19 @@ async function handleAction(action: 'confirm' | 'cancel' | 'close') {
                   </div>
                   <i18n-t keypath="tamagotchi.stage.notice.fade-on-hover.opacity" tag="div">
                     <template #value>
-                      <span class="text-primary-800 font-semibold dark:text-primary-100">
+                      <span class="text-primary-600 font-semibold dark:text-primary-100">
                         {{ t('tamagotchi.stage.notice.fade-on-hover.value') }}
                       </span>
                     </template>
                     <template #targets>
-                      <span class="text-primary-800 font-semibold dark:text-primary-100">
+                      <span class="text-primary-600 font-semibold dark:text-primary-100">
                         {{ t('tamagotchi.stage.notice.fade-on-hover.targets') }}
                       </span>
                     </template>
                   </i18n-t>
                   <i18n-t keypath="tamagotchi.stage.notice.fade-on-hover.toggle" tag="div">
                     <template #controls>
-                      <span class="inline text-nowrap text-primary-800 font-semibold dark:text-primary-100">
+                      <span class="inline text-nowrap text-primary-600 font-semibold dark:text-primary-100">
                         {{ t('tamagotchi.stage.notice.fade-on-hover.controls-label') }}
                       </span>
                     </template>
@@ -205,3 +211,17 @@ async function handleAction(action: 'confirm' | 'cancel' | 'close') {
 meta:
   layout: plain
 </route>
+
+<style scoped>
+.heading-backdrop {
+  mask-image: radial-gradient(200% 150% at top left, black 20%, transparent 30%);
+  -webkit-mask-image: radial-gradient(200% 150% at top left, black 20%, transparent 30%);
+  mask-size: 100% 100%;
+  -webkit-mask-size: 100% 100%;
+  mask-position: top left;
+  -webkit-mask-position: top left;
+  mask-repeat: no-repeat;
+  -webkit-mask-repeat: no-repeat;
+  backdrop-filter: blur(12px);
+}
+</style>
