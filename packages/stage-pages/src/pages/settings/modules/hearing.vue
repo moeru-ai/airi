@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import workletUrl from '@proj-airi/stage-ui/workers/vad/process.worklet?worker&url'
 
-import { Alert, Button, ErrorContainer, LevelMeter, RadioCardManySelect, RadioCardSimple, TestDummyMarker, ThresholdMeter, TimeSeriesChart } from '@proj-airi/stage-ui/components'
+import { Alert, ErrorContainer, LevelMeter, RadioCardManySelect, RadioCardSimple, TestDummyMarker, ThresholdMeter, TimeSeriesChart } from '@proj-airi/stage-ui/components'
+import { Button } from '@proj-airi/ui'
 import { useAudioAnalyzer, useAudioRecorder } from '@proj-airi/stage-ui/composables'
 import { useVAD } from '@proj-airi/stage-ui/stores/ai/models/vad'
 import { useAudioContext } from '@proj-airi/stage-ui/stores/audio'

@@ -3,9 +3,8 @@ import type { ServerEvent, ServerEvents } from '@proj-airi/stage-ui/stores/provi
 
 import vadWorkletUrl from '@proj-airi/stage-ui/workers/vad/process.worklet?worker&url'
 
-import { Button } from '@proj-airi/stage-ui/components'
 import { createAliyunNLSProvider } from '@proj-airi/stage-ui/stores/providers/aliyun/stream-transcription'
-import { FieldInput, FieldSelect } from '@proj-airi/ui'
+import { Button, FieldInput, FieldSelect } from '@proj-airi/ui'
 import { streamTranscription } from '@xsai/stream-transcription'
 import { computed, nextTick, onBeforeUnmount, reactive, ref, shallowRef, watch } from 'vue'
 

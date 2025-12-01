@@ -8,11 +8,11 @@ import vadWorkletUrl from '@proj-airi/stage-ui/workers/vad/process.worklet?worke
 
 import {
   Alert,
-  Button,
   ProviderBasicSettings,
   ProviderSettingsContainer,
   ProviderSettingsLayout,
 } from '@proj-airi/stage-ui/components'
+import { Button } from '@proj-airi/ui'
 import { useProviderValidation } from '@proj-airi/stage-ui/composables/use-provider-validation'
 import { useHearingStore } from '@proj-airi/stage-ui/stores/modules/hearing'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'

@@ -1,5 +1,4 @@
 export { default as Alert } from './Alert.vue'
-export { default as Button } from './Button.vue'
 export { default as Collapsable } from './Collapsable.vue'
 export { default as ErrorContainer } from './ErrorContainer.vue'
 export { default as Progress } from './Progress.vue'

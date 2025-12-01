@@ -1,12 +1,11 @@
 <script setup lang="ts">
 import type { DisplayModel } from '../../../../stores/display-models'
 
+import { Button } from '@proj-airi/ui'
 import { useFileDialog } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { DropdownMenuContent, DropdownMenuItem, DropdownMenuPortal, DropdownMenuRoot, DropdownMenuTrigger, EditableArea, EditableEditTrigger, EditableInput, EditablePreview, EditableRoot, EditableSubmitTrigger } from 'reka-ui'
 import { ref } from 'vue'
-
-import Button from '../../../misc/Button.vue'
 
 import { DisplayModelFormat, useDisplayModelsStore } from '../../../../stores/display-models'
 
