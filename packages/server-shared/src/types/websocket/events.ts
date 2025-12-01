@@ -15,14 +15,14 @@ interface InputSource {
   discord: Discord
 }
 
-export type ContextSource =
-  | 'text'
-  | 'stt'
-  | 'vision'
-  | 'llm'
-  | 'server-channel'
-  | 'plugin'
-  | 'system'
+export type ContextSource
+  = | 'text'
+    | 'stt'
+    | 'vision'
+    | 'llm'
+    | 'server-channel'
+    | 'plugin'
+    | 'system'
 
 export interface ContextMessage<Payload = unknown, Meta = Record<string, unknown>> {
   /**
