@@ -3,23 +3,18 @@ name: Release
 on:
   push:
     tags:
+      - '@proj-airi/airi-plugin-vscode@v*'
       - 'v*'
 
 permissions:
-  contents: write
-  issues: write
-  pull-requests: write
-  id-token: write
-  packages: write
+  contents: read
 
 jobs:
-  release:
-    name: Release
+  release-vsix:
+    name: Release - VSCE & OVSX
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-        with:
-          fetch-depth: 0
 
       - uses: pnpm/action-setup@v3
         with:
@@ -34,14 +29,11 @@ jobs:
           registry-url: 'https://registry.npmjs.org'
           cache: pnpm
 
-      # npm 11.5.1 or later is required so update to latest to use OIDC trusted publisher
-      # https://github.com/eslint/config-inspector/pull/174/files
-      # https://github.com/e18e/ecosystem-issues/issues/201
-      - run: npm install -g npm@latest
-
       - run: pnpm install --frozen-lockfile
       - run: pnpm run build:packages
-
-      - run: pnpm publish -r --access public --no-git-checks --dry-run
-
-      - run: pnpm publish -r --access public --no-git-checks
+      - run: pnpm run -F @proj-airi/airi-plugin-vscode build
+      - run: pnpm run publish
+        working-directory: ./plugins/airi-plugin-vscode
+        env:
+          VSCE_TOKEN: ${{ secrets.VSCE_TOKEN }}
+          OVSX_TOKEN: ${{ secrets.OVSX_TOKEN }}

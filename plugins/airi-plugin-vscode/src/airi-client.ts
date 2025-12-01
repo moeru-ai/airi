@@ -1,20 +1,20 @@
-import type { AiriEvent } from './types'
+import type { Events } from './types'
 
 import { useLogger } from '@guiiai/logg'
-import { Client } from '@proj-airi/server-sdk'
+import { Client as ServerClient } from '@proj-airi/server-sdk'
 
 /**
  * Airi Channel Server Client
  */
-export class AiriClient {
-  private client: Client<AiriEvent> | null = null
+export class Client {
+  private client: ServerClient<Events> | null = null
 
   /**
    * Connect to Channel Server
    */
   async connect(): Promise<boolean> {
     try {
-      this.client = new Client({ name: 'proj-airi:plugin-vscode' })
+      this.client = new ServerClient({ name: 'proj-airi:plugin-vscode' })
 
       useLogger().log('Airi companion connected to Channel Server')
       return true
@@ -39,7 +39,7 @@ export class AiriClient {
   /**
    * Send event to Airi
    */
-  sendEvent(event: AiriEvent): void {
+  sendEvent(event: Events): void {
     if (!this.client) {
       useLogger().warn('Cannot send event: not connected to Airi Channel Server')
       return
