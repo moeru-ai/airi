@@ -34,6 +34,10 @@ const startDraggingWindow = !isLinux ? defineInvoke(context.value, electronStart
 // Expose whether hearing dialog is open so parent can disable click-through
 const hearingDialogOpen = ref(false)
 defineExpose({ hearingDialogOpen })
+
+function refreshWindow() {
+  window.location.reload()
+}
 </script>
 
 <template>
@@ -56,6 +60,16 @@ defineExpose({ hearingDialogOpen })
 
         <template #tooltip>
           Open Chat
+        </template>
+      </ControlButtonTooltip>
+
+      <ControlButtonTooltip>
+        <ControlButton @click="refreshWindow">
+          <div i-solar:refresh-linear size-5 text="neutral-800 dark:neutral-300" />
+        </ControlButton>
+
+        <template #tooltip>
+          Refresh
         </template>
       </ControlButtonTooltip>
 
