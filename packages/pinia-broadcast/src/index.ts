@@ -170,7 +170,7 @@ export function createSharedWorkerTransport(name: string): BroadcastTransport {
 
   let worker: SharedWorker
   try {
-    worker = new SharedWorker(workerUrl, { name })
+    worker = new SharedWorker(workerUrl, { name, type: 'module' })
   }
   catch {
     return createSilentTransport()
