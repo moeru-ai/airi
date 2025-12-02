@@ -1,12 +1,15 @@
 // Shared worker relay that forwards messages between connected ports.
+
+// Synthetic `self` for SharedWorkerGlobalScope.
+const self: SharedWorkerGlobalScope = globalThis as any
 const ports = new Set<MessagePort>()
 
-onconnect = (event: MessageEvent) => {
+self.onconnect = (event) => {
   const port = event.ports[0]
   ports.add(port)
   port.start()
 
-  port.onmessage = (messageEvent: MessageEvent) => {
+  port.onmessage = (messageEvent) => {
     for (const target of ports) {
       if (target === port)
         continue
