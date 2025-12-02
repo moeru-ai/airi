@@ -184,7 +184,7 @@ onMounted(() => {
             bg="neutral-50/70 dark:neutral-800/70"
             w-fit flex items-center self-end justify-center rounded-xl p-2 backdrop-blur-md
             title="Cleanup Messages"
-            @click="cleanupMessages"
+            @click="cleanupMessages()"
           >
             <div class="i-solar:trash-bin-2-bold-duotone" />
           </button>
