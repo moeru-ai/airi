@@ -17,7 +17,7 @@ import NewUIV4SpeechDark from './assets/new-ui-v4-speech-dark.avif'
 import SteinsGateMayori from './assets/steins-gate-mayori.avif'
 </script>
 
-Hello again! It has been 10 days since the [last post of DevLog](../references/contributing/guide/).
+Hello again! It has been 10 days since the last post of DevLog
 
 We made a lot of improvements to our user interface, we made it possible
 to integrate more LLM providers, and speech providers, first time to post

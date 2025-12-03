@@ -1,13 +1,13 @@
 <script setup lang="ts">
 import type { DisplayModel } from '../../../../stores/display-models'
 
-import { ThreeScene } from '@proj-airi/stage-ui-three'
+import { ThreeScene, useModelStore } from '@proj-airi/stage-ui-three'
+import { Button } from '@proj-airi/ui'
 import { useMouse } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { ref, watch } from 'vue'
 
 import Callout from '../../../layouts/Callout.vue'
-import Button from '../../../misc/Button.vue'
 import Live2DScene from '../../../scenes/Live2D.vue'
 import Live2D from './Live2D.vue'
 import VRM from './VRM.vue'
@@ -45,9 +45,7 @@ watch(selectedModel, async () => {
         useLive2d().shouldUpdateView()
         break
       case DisplayModelFormat.VRM:
-        // Lilia: settingStore.updateStageModel has been called once above
-        // I don't know why it should be recalled again by triggering useVRM().shouldUpdateView()
-        // useVRM().shouldUpdateView()
+        useModelStore().shouldUpdateView()
         break
     }
   }
@@ -87,6 +85,7 @@ watch(selectedModel, async () => {
       <Live2DScene
         :focus-at="{ x: positionCursor.x.value, y: positionCursor.y.value }"
         :model-src="stageModelSelectedUrl"
+        :model-id="stageModelSelected"
         :disable-focus-at="live2dDisableFocus"
       />
     </div>

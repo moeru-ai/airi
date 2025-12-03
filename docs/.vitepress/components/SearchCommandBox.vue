@@ -142,7 +142,7 @@ function formMarkRegex(terms: Set<string>) {
     <div class="list-box w-full flex items-center px-6">
       <ListboxFilter
         v-model="filterText"
-        class="placeholder:text-muted-foreground h-12 w-full flex-1 bg-transparent text-sm outline-none md:h-14 focus:outline-none"
+        class="h-12 w-full flex-1 bg-transparent text-sm outline-none md:h-14 placeholder:text-muted-foreground focus:outline-none"
         :placeholder="t('docs.theme.search.placeholder')"
         auto-focus
       />
@@ -158,13 +158,13 @@ function formMarkRegex(terms: Set<string>) {
         }
       }"
       as="ul"
-      class="border-muted max-h-[55vh] overflow-auto border-t md:border-y empty:hidden md:empty:block md:empty:border-t-0"
+      class="max-h-[55vh] overflow-auto border-t border-muted empty:hidden md:border-y md:empty:block md:empty:border-t-0"
     >
       <ListboxItem
         v-for="p in results"
         :key="p.id"
         :value="p.id"
-        class="text-muted-foreground text-sm data-[highlighted]:bg-primary/10 data-[highlighted]:text-primary data-[highlighted]:font-semibold"
+        class="text-sm text-muted-foreground data-[highlighted]:bg-primary/10 data-[highlighted]:text-primary data-[highlighted]:font-semibold"
         as-child
         @select="emits('close')"
       >
@@ -201,13 +201,13 @@ function formMarkRegex(terms: Set<string>) {
 
       <li
         v-if="filterText && !results.length && enableNoResults"
-        class="text-foreground flex items-center justify-center p-16 text-sm"
+        class="flex items-center justify-center p-16 text-sm text-foreground"
       >
         No results for "<strong>{{ filterText }}</strong>"
       </li>
     </ListboxContent>
 
-    <div class="list-box-tips items-center gap-4 px-6 py-4 text-sm hidden md:flex">
+    <div class="list-box-tips hidden items-center gap-4 px-6 py-4 text-sm md:flex">
       <span class="inline-flex items-center gap-1 leading-4">
         <kbd aria-label="Up arrow" data-keyboard-key="up-arrow" mr-1 inline-block />
         <kbd aria-label="Down arrow" data-keyboard-key="down-arrow" />

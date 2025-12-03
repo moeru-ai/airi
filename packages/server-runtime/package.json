@@ -1,7 +1,7 @@
 {
   "name": "@proj-airi/server-runtime",
   "type": "module",
-  "version": "0.7.2-beta.3",
+  "version": "0.8.0-alpha.8",
   "description": "Server runtime implementation for AIRI running in different environments",
   "author": {
     "name": "Moeru AI Project AIRI Team",
@@ -16,20 +16,21 @@
   },
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
-      "default": "./dist/index.js"
+      "types": "./dist/index.d.mts",
+      "default": "./dist/index.mjs"
     }
   },
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
+  "main": "./dist/index.mjs",
+  "types": "./dist/index.d.mts",
+  "bin": "./dist/bin/run.mjs",
   "files": [
     "README.md",
     "dist",
     "package.json"
   ],
   "scripts": {
-    "dev": "listhen -w --ws --port 6121 ./src/index.ts",
-    "start": "listhen --ws --port 6121 ./src/index.ts",
+    "dev": "tsx ./src/bin/run.js",
+    "start": "tsx ./src/bin/run.js",
     "build": "tsdown",
     "typecheck": "tsc --noEmit"
   },
@@ -37,7 +38,7 @@
     "@guiiai/logg": "catalog:",
     "@proj-airi/server-shared": "workspace:^",
     "crossws": "^0.4.1",
-    "h3": "^2.0.1-rc.2",
+    "h3": "^2.0.1-rc.5",
     "listhen": "^1.9.0"
   }
 }

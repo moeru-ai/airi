@@ -1,0 +1,39 @@
+name: Release VSCE & OVSX
+
+on:
+  push:
+    tags:
+      - '@proj-airi/airi-plugin-vscode@v*'
+      - 'v*'
+
+permissions:
+  contents: read
+
+jobs:
+  release-vsix:
+    name: Release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: pnpm/action-setup@v3
+        with:
+          run_install: false
+
+      - name: Install Node.js 24.x
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.x
+          # registry-url required. Learn more at
+          # https://docs.github.com/en/actions/publishing-packages/publishing-nodejs-packages
+          registry-url: 'https://registry.npmjs.org'
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run build:packages
+      - run: pnpm run -F @proj-airi/airi-plugin-vscode build
+      - run: pnpm run publish
+        working-directory: ./plugins/airi-plugin-vscode
+        env:
+          VSCE_TOKEN: ${{ secrets.VSCE_TOKEN }}
+          OVSX_TOKEN: ${{ secrets.OVSX_TOKEN }}

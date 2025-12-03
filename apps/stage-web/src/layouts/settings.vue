@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { PageHeader } from '@proj-airi/stage-ui/components'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
-import { useDark } from '@vueuse/core'
+import { useTheme } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -12,7 +12,7 @@ import HeaderLink from '../components/Layouts/HeaderLink.vue'
 import { themeColorFromValue, useThemeColor } from '../composables/theme-color'
 
 const route = useRoute()
-const dark = useDark()
+const { isDark: dark } = useTheme()
 const { t } = useI18n()
 const providersStore = useProvidersStore()
 const { allProvidersMetadata } = storeToRefs(providersStore)
@@ -62,6 +62,10 @@ const routeHeaderMetadataMap = computed(() => {
     '/settings/modules/hearing': {
       subtitle: t('settings.title'),
       title: t('settings.pages.modules.hearing.title'),
+    },
+    '/settings/modules/vision': {
+      subtitle: t('settings.title'),
+      title: t('settings.pages.modules.vision.title'),
     },
     '/settings/modules/memory-short-term': {
       subtitle: t('settings.title'),
@@ -138,7 +142,7 @@ onMounted(() => updateThemeColor())
       <HeaderLink />
     </div>
     <!-- Content -->
-    <div class="h-[calc(100%-40px)] px-3 py-0 sm:h-[calc(100%-56px)] 2xl:max-w-screen-2xl md:py-0 xl:px-4" flex="~ col" mx-auto>
+    <div class="max-h-[calc(100%-40px)] px-3 py-0 sm:max-h-[calc(100%-56px)] 2xl:max-w-screen-2xl md:py-0 xl:px-4" flex="~ col" mx-auto>
       <PageHeader
         :title="routeHeaderMetadata?.title"
         :subtitle="routeHeaderMetadata?.subtitle"

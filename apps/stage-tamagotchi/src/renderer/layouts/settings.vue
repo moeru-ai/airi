@@ -1,18 +1,16 @@
 <script setup lang="ts">
 import { PageHeader } from '@proj-airi/stage-ui/components'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
-import { useDark } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { computed, onMounted, watch } from 'vue'
+import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterView, useRoute } from 'vue-router'
 
 import WindowTitleBar from '../components/Window/TitleBar.vue'
 
-import { themeColorFromValue, useThemeColor } from '../composables/theme-color'
+import { useRestoreScroll } from '../composables/use-restore-scroll'
 
 const route = useRoute()
-const dark = useDark()
 const { t } = useI18n()
 const providersStore = useProvidersStore()
 const { allProvidersMetadata } = storeToRefs(providersStore)
@@ -91,6 +89,10 @@ const routeHeaderMetadataMap = computed(() => {
       subtitle: t('settings.title'),
       title: t('settings.pages.modules.gaming-factorio.title'),
     },
+    '/settings/modules/beat-sync': {
+      subtitle: t('settings.title'),
+      title: t('settings.pages.modules.beat_sync.title'),
+    },
     '/settings/providers': {
       subtitle: t('settings.title'),
       title: t('settings.pages.providers.title'),
@@ -107,6 +109,10 @@ const routeHeaderMetadataMap = computed(() => {
     '/settings/modules/mcp': {
       subtitle: t('settings.title'),
       title: t('settings.pages.modules.mcp-server.title'),
+    },
+    '/devtools/widgets-calling': {
+      subtitle: t('tamagotchi.settings.devtools.title'),
+      title: t('tamagotchi.settings.devtools.pages.widgets-calling.title'),
     },
   }
 
@@ -125,14 +131,11 @@ const routeHeaderMetadata = computed(() => {
   return routeHeaderMetadataMap.value[route.path] || routeHeaderMetadataMap.value[`${route.path}/`]
 })
 
-const { updateThemeColor } = useThemeColor(themeColorFromValue({ light: 'rgb(255 255 255)', dark: 'rgb(18 18 18)' }))
-watch(dark, () => updateThemeColor(), { immediate: true })
-watch(route, () => updateThemeColor(), { immediate: true })
-onMounted(() => updateThemeColor())
+const { scrollContainer } = useRestoreScroll()
 </script>
 
 <template>
-  <div h-full w-full overflow-y-scroll scrollbar-none bg="$bg-color">
+  <div ref="scrollContainer" h-full w-full overflow-y-scroll scrollbar-none bg="$bg-color">
     <WindowTitleBar
       :title="routeHeaderMetadata?.title"
       icon="i-solar:settings-bold"
@@ -147,7 +150,7 @@ onMounted(() => updateThemeColor())
     >
       <div relative h-full w-full top="44px">
         <!-- Content -->
-        <div flex="~ col" mx-auto max-w-screen-xl h="[calc(100dvh-44px)]">
+        <div flex="~ col" mx-auto max-w-screen-xl max-h="[calc(100dvh-44px)]">
           <PageHeader
             :title="routeHeaderMetadata?.title"
             :subtitle="routeHeaderMetadata?.subtitle"

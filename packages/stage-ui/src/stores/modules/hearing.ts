@@ -1,11 +1,43 @@
-import type { TranscriptionProvider, TranscriptionProviderWithExtraOptions } from '@xsai-ext/shared-providers'
+import type { TranscriptionProviderWithExtraOptions } from '@xsai-ext/shared-providers'
+import type { WithUnknown } from '@xsai/shared'
+import type { StreamTranscriptionResult, StreamTranscriptionOptions as XSAIStreamTranscriptionOptions } from '@xsai/stream-transcription'
 
 import { useLocalStorage } from '@vueuse/core'
 import { generateTranscription } from '@xsai/generate-transcription'
+import { streamTranscription } from '@xsai/stream-transcription'
 import { defineStore, storeToRefs } from 'pinia'
 import { computed, ref } from 'vue'
 
 import { useProvidersStore } from '../providers'
+
+export interface StreamTranscriptionFileInputOptions extends Omit<XSAIStreamTranscriptionOptions, 'file' | 'fileName'> {
+  file: Blob
+  fileName?: string
+}
+
+export interface StreamTranscriptionStreamInputOptions extends Omit<XSAIStreamTranscriptionOptions, 'file' | 'fileName'> {
+  inputAudioStream: ReadableStream<ArrayBuffer>
+}
+
+export type StreamTranscription = (options: WithUnknown<StreamTranscriptionFileInputOptions | StreamTranscriptionStreamInputOptions>) => StreamTranscriptionResult
+
+type GenerateTranscriptionResponse = Awaited<ReturnType<typeof generateTranscription>>
+type HearingTranscriptionGenerateResult = GenerateTranscriptionResponse & { mode: 'generate' }
+type HearingTranscriptionStreamResult = StreamTranscriptionResult & { mode: 'stream' }
+export type HearingTranscriptionResult = HearingTranscriptionGenerateResult | HearingTranscriptionStreamResult
+
+type HearingTranscriptionInput = File | {
+  file?: File
+  inputAudioStream?: ReadableStream<ArrayBuffer>
+}
+
+interface HearingTranscriptionInvokeOptions {
+  providerOptions?: Record<string, unknown>
+}
+
+const STREAM_TRANSCRIPTION_EXECUTORS: Record<string, StreamTranscription> = {
+  'aliyun-nls-transcription': streamTranscription as StreamTranscription,
+}
 
 export const useHearingStore = defineStore('hearing-store', () => {
   const providersStore = useProvidersStore()
@@ -56,18 +88,78 @@ export const useHearingStore = defineStore('hearing-store', () => {
   })
 
   async function transcription(
+    providerId: string,
     provider: TranscriptionProviderWithExtraOptions<string, any>,
     model: string,
-    file: File,
+    input: HearingTranscriptionInput,
     format?: 'json' | 'verbose_json',
-  ) {
+    options?: HearingTranscriptionInvokeOptions,
+  ): Promise<HearingTranscriptionResult> {
+    const normalizedInput = (input instanceof File ? { file: input } : input ?? {}) as {
+      file?: File
+      inputAudioStream?: ReadableStream<ArrayBuffer>
+    }
+    const features = providersStore.getTranscriptionFeatures(providerId)
+    const streamExecutor = STREAM_TRANSCRIPTION_EXECUTORS[providerId]
+
+    if (features.supportsStreamOutput && streamExecutor) {
+      const request = provider.transcription(model, options?.providerOptions)
+
+      if (features.supportsStreamInput && normalizedInput.inputAudioStream) {
+        const streamResult = streamExecutor({
+          ...request,
+          inputAudioStream: normalizedInput.inputAudioStream,
+        } as Parameters<typeof streamExecutor>[0])
+        // TODO: integrate VAD-driven silence detection to stop and restart realtime sessions based on silence thresholds.
+        return {
+          mode: 'stream',
+          ...streamResult,
+        }
+      }
+
+      if (!features.supportsStreamInput && normalizedInput.file) {
+        const streamResult = streamExecutor({
+          ...request,
+          file: normalizedInput.file,
+        } as Parameters<typeof streamExecutor>[0])
+        // TODO: integrate VAD-driven silence detection to stop and restart realtime sessions based on silence thresholds.
+        return {
+          mode: 'stream',
+          ...streamResult,
+        }
+      }
+
+      if (features.supportsStreamInput && !normalizedInput.inputAudioStream && normalizedInput.file) {
+        const streamResult = streamExecutor({
+          ...request,
+          file: normalizedInput.file,
+        } as Parameters<typeof streamExecutor>[0])
+        // TODO: integrate VAD-driven silence detection to stop and restart realtime sessions based on silence thresholds.
+        return {
+          mode: 'stream',
+          ...streamResult,
+        }
+      }
+
+      if (!features.supportsGenerate || !normalizedInput.file) {
+        throw new Error('No compatible input provided for streaming transcription.')
+      }
+    }
+
+    if (!normalizedInput.file) {
+      throw new Error('File input is required for transcription.')
+    }
+
     const response = await generateTranscription({
-      ...provider.transcription(model),
-      file,
+      ...provider.transcription(model, options?.providerOptions),
+      file: normalizedInput.file,
       responseFormat: format,
     })
 
-    return response
+    return {
+      mode: 'generate',
+      ...response,
+    }
   }
 
   return {
@@ -102,15 +194,21 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
 
     try {
       if (recording && recording.size > 0) {
-        const provider = await providersStore.getProviderInstance<TranscriptionProvider<string>>(activeTranscriptionProvider.value)
+        const providerId = activeTranscriptionProvider.value
+        const provider = await providersStore.getProviderInstance<TranscriptionProviderWithExtraOptions<string, any>>(providerId)
         if (!provider) {
           throw new Error('Failed to initialize speech provider')
         }
 
         // Get model from configuration or use default
         const model = activeTranscriptionModel.value
-        const res = await hearingStore.transcription(provider, model, new File([recording], 'recording.wav'))
-        return res.text
+        const result = await hearingStore.transcription(
+          providerId,
+          provider,
+          model,
+          new File([recording], 'recording.wav'),
+        )
+        return result.mode === 'stream' ? await result.text : result.text
       }
     }
     catch (err) {

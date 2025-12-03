@@ -1,4 +1,4 @@
-import { defineInvoke } from '@unbird/eventa'
+import { defineInvoke } from '@moeru/eventa'
 import { ref } from 'vue'
 
 import { bounds, startLoopGetBounds } from '../../../../shared/electron/window'

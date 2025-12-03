@@ -1,9 +1,21 @@
 <script setup lang="ts">
+import type { ChatProvider } from '@xsai-ext/shared-providers'
+
+import workletUrl from '@proj-airi/stage-ui/workers/vad/process.worklet?worker&url'
+
 import { WidgetStage } from '@proj-airi/stage-ui/components/scenes'
+import { useAudioRecorder } from '@proj-airi/stage-ui/composables/audio/audio-recorder'
+import { useVAD } from '@proj-airi/stage-ui/stores/ai/models/vad'
+import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
 import { useLive2d } from '@proj-airi/stage-ui/stores/live2d'
-import { breakpointsTailwind, useBreakpoints, useDark, useMouse } from '@vueuse/core'
+import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
+import { useHearingSpeechInputPipeline } from '@proj-airi/stage-ui/stores/modules/hearing'
+import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
+import { useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
+import { useTheme } from '@proj-airi/ui'
+import { breakpointsTailwind, useBreakpoints, useMouse } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { onMounted, ref, watch } from 'vue'
+import { onMounted, onUnmounted, ref, watch } from 'vue'
 
 import Cross from '../components/Backgrounds/Cross.vue'
 import Header from '../components/Layouts/Header.vue'
@@ -14,7 +26,7 @@ import AnimatedWave from '../components/Widgets/AnimatedWave.vue'
 
 import { themeColorFromPropertyOf, useThemeColor } from '../composables/theme-color'
 
-const dark = useDark()
+const { isDark: dark } = useTheme()
 const paused = ref(false)
 
 function handleSettingsOpen(open: boolean) {
@@ -29,6 +41,91 @@ const isMobile = breakpoints.smaller('md')
 const { updateThemeColor } = useThemeColor(themeColorFromPropertyOf('.widgets.top-widgets .colored-area', 'background-color'))
 watch(dark, () => updateThemeColor(), { immediate: true })
 onMounted(() => updateThemeColor())
+
+// Audio + transcription pipeline (mirrors stage-tamagotchi)
+const settingsAudioDeviceStore = useSettingsAudioDevice()
+const { stream, enabled } = storeToRefs(settingsAudioDeviceStore)
+const { startRecord, stopRecord, onStopRecord } = useAudioRecorder(stream)
+const { transcribeForRecording } = useHearingSpeechInputPipeline()
+const providersStore = useProvidersStore()
+const consciousnessStore = useConsciousnessStore()
+const { activeProvider: activeChatProvider, activeModel: activeChatModel } = storeToRefs(consciousnessStore)
+const chatStore = useChatStore()
+
+const {
+  init: initVAD,
+  dispose: disposeVAD,
+  start: startVAD,
+  loaded: vadLoaded,
+} = useVAD(workletUrl, {
+  threshold: ref(0.6),
+  onSpeechStart: () => startRecord(),
+  onSpeechEnd: () => stopRecord(),
+})
+
+let stopOnStopRecord: (() => void) | undefined
+
+async function startAudioInteraction() {
+  try {
+    await initVAD()
+    if (stream.value)
+      await startVAD(stream.value)
+
+    // Hook once
+    stopOnStopRecord = onStopRecord(async (recording) => {
+      const text = await transcribeForRecording(recording)
+      if (!text || !text.trim())
+        return
+
+      try {
+        const provider = await providersStore.getProviderInstance(activeChatProvider.value)
+        if (!provider || !activeChatModel.value)
+          return
+
+        await chatStore.send(text, { model: activeChatModel.value, chatProvider: provider as ChatProvider })
+      }
+      catch (err) {
+        console.error('Failed to send chat from voice:', err)
+      }
+    })
+  }
+  catch (e) {
+    console.error('Audio interaction init failed:', e)
+  }
+}
+
+function stopAudioInteraction() {
+  try {
+    stopOnStopRecord?.()
+    stopOnStopRecord = undefined
+    disposeVAD()
+  }
+  catch {}
+}
+
+watch(enabled, async (val) => {
+  if (val) {
+    await startAudioInteraction()
+  }
+  else {
+    stopAudioInteraction()
+  }
+}, { immediate: true })
+
+onUnmounted(() => {
+  stopAudioInteraction()
+})
+
+watch([stream, () => vadLoaded.value], async ([s, loaded]) => {
+  if (enabled.value && loaded && s) {
+    try {
+      await startVAD(s)
+    }
+    catch (e) {
+      console.error('Failed to start VAD with stream:', e)
+    }
+  }
+})
 </script>
 
 <template>

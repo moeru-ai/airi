@@ -11,7 +11,7 @@
 
 stdenvNoCC.mkDerivation (final: {
   pname = "airi";
-  version = "0.7.2-beta.3";
+  version = "0.8.0-alpha.6";
 
   src = ../.;
 
@@ -36,21 +36,18 @@ stdenvNoCC.mkDerivation (final: {
     buildPhase = ''
       runHook preBuild
 
-      echo 1
       pnpm run build:packages
-      echo 2
       pnpm -F @proj-airi/stage-web run build
 
       runHook postBuild
     '';
 
     installPhase = ''
-      echo 3
       runHook preInstall
 
-      mkdir -p $out
-      echo 4
-      cp -r apps/stage-web/.cache/assets "$out"
+      mkdir -p "$out"
+      cp -r .cache/* "$out"
+      cp -r apps/stage-web/.cache/assets/* "$out"
 
       runHook postInstall
     '';

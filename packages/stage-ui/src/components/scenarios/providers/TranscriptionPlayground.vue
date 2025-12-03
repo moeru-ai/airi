@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import type { GenerateTranscriptionResult } from '@xsai/generate-transcription'
+import type { HearingTranscriptionResult } from '@proj-airi/stage-ui/stores/modules/hearing'
 
-import { FieldRange, FieldSelect } from '@proj-airi/ui'
+import { Button, FieldRange, FieldSelect } from '@proj-airi/ui'
 import { until } from '@vueuse/core'
 import { computed, onUnmounted, ref, shallowRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -10,11 +10,10 @@ import { useAudioAnalyzer } from '../../../composables/audio/audio-analyzer'
 import { useAudioRecorder } from '../../../composables/audio/audio-recorder'
 import { useAudioDevice } from '../../../composables/audio/device'
 import { LevelMeter, TestDummyMarker, ThresholdMeter } from '../../gadgets'
-import { Button } from '../../misc'
 
 const props = defineProps<{
   // Provider-specific handlers (provided from parent)
-  generateTranscription: (input: File) => Promise<GenerateTranscriptionResult<'json' | 'verbose_json', undefined>>
+  generateTranscription: (input: File) => Promise<HearingTranscriptionResult>
   // Current state
   apiKeyConfigured?: boolean
 }>()
@@ -107,8 +106,11 @@ onStopRecord(async (recording) => {
   try {
     if (recording && recording.size > 0) {
       audios.value.push(recording)
-      const res = await props.generateTranscription(new File([recording], 'recording.wav'))
-      transcriptions.value.push(res.text)
+      const result = await props.generateTranscription(new File([recording], 'recording.wav'))
+      const text = result.mode === 'stream'
+        ? await result.text
+        : result.text
+      transcriptions.value.push(text)
     }
   }
   catch (err) {

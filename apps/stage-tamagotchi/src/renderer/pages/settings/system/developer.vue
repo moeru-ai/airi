@@ -1,12 +1,11 @@
 <script setup lang="ts">
 import { ButtonBar, CheckBar, IconItem } from '@proj-airi/stage-ui/components'
 import { useSettings } from '@proj-airi/stage-ui/stores/settings'
-import { defineInvoke } from '@unbird/eventa'
-import { createContext } from '@unbird/eventa/adapters/electron/renderer'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { electronOpenMainDevtools } from '../../../../shared/eventa'
+import { useElectronEventaInvoke } from '../../../composables/electron-vueuse'
 
 const { t } = useI18n()
 const settings = useSettings()
@@ -31,15 +30,26 @@ const menu = computed(() => [
     to: '/devtools/use-electron-all-displays',
   },
   {
+    title: 'Widgets Calling',
+    description: 'Spawn overlay widgets and test component props',
+    icon: 'i-solar:sledgehammer-bold-duotone',
+    to: '/devtools/widgets-calling',
+  },
+  {
     title: 'Relative Mouse',
     description: 'Get mouse position relative to the window',
     icon: 'i-solar:sledgehammer-bold-duotone',
     to: '/devtools/use-electron-relative-mouse',
   },
+  {
+    title: 'Aliyun Real-time Transcriber',
+    description: 'Stream microphone audio to Aliyun NLS and inspect live transcripts',
+    icon: 'i-solar:sledgehammer-bold-duotone',
+    to: '/devtools/providers-transcription-realtime-aliyun-nls',
+  },
 ])
 
-const { context } = createContext(window.electron.ipcRenderer)
-const openDevTools = defineInvoke(context, electronOpenMainDevtools)
+const openDevTools = useElectronEventaInvoke(electronOpenMainDevtools)
 </script>
 
 <template>

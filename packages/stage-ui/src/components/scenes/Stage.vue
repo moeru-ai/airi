@@ -3,12 +3,15 @@ import type { DuckDBWasmDrizzleDatabase } from '@proj-airi/drizzle-duckdb-wasm'
 import type { SpeechProviderWithExtraOptions } from '@xsai-ext/shared-providers'
 import type { UnElevenLabsOptions } from 'unspeech'
 
+import type { TextSegmentationItem } from '../../composables/queues'
 import type { Emotion } from '../../constants/emotions'
+import type { TTSChunkItem } from '../../utils/tts'
 
 import { drizzle } from '@proj-airi/drizzle-duckdb-wasm'
 import { getImportUrlBundles } from '@proj-airi/drizzle-duckdb-wasm/bundles/import-url-browser'
-import { withBase } from '@proj-airi/stage-shared'
 import { ThreeScene, useModelStore } from '@proj-airi/stage-ui-three'
+import { animations } from '@proj-airi/stage-ui-three/assets/vrm'
+import { useBroadcastChannel } from '@vueuse/core'
 // import { createTransformers } from '@xsai-transformers/embed'
 // import embedWorkerURL from '@xsai-transformers/embed/worker?worker&url'
 // import { embed } from '@xsai/embed'
@@ -64,11 +67,11 @@ const { textSegmentationQueue } = storeToRefs(textSegmentationStore)
 clearTextSegmentationHooks()
 
 const characterSpeechPlaybackQueue = usePipelineCharacterSpeechPlaybackQueueStore()
-const { connectAudioContext, connectAudioAnalyser, clearAll } = characterSpeechPlaybackQueue
+const { connectAudioContext, connectAudioAnalyser, clearAll, onPlaybackStarted, onPlaybackFinished } = characterSpeechPlaybackQueue
 const { currentAudioSource, playbackQueue } = storeToRefs(characterSpeechPlaybackQueue)
 
 const settingsStore = useSettings()
-const { stageModelRenderer, stageViewControlsEnabled, live2dDisableFocus, stageModelSelectedUrl } = storeToRefs(settingsStore)
+const { stageModelRenderer, stageViewControlsEnabled, live2dDisableFocus, stageModelSelectedUrl, stageModelSelected } = storeToRefs(settingsStore)
 const { mouthOpenSize } = storeToRefs(useSpeakingStore())
 const { audioContext, calculateVolume } = useAudioContext()
 connectAudioContext(audioContext)
@@ -84,6 +87,18 @@ const live2dStore = useLive2d()
 const vrmStore = useModelStore()
 
 const showStage = ref(true)
+
+// Caption + Presentation broadcast channels
+type CaptionChannelEvent
+  = | { type: 'caption-speaker', text: string }
+    | { type: 'caption-assistant', text: string }
+const { post: postCaption } = useBroadcastChannel<CaptionChannelEvent, CaptionChannelEvent>({ name: 'airi-caption-overlay' })
+const assistantCaption = ref('')
+
+type PresentEvent
+  = | { type: 'assistant-reset' }
+    | { type: 'assistant-append', text: string }
+const { post: postPresent } = useBroadcastChannel<PresentEvent, PresentEvent>({ name: 'airi-chat-present' })
 
 // TODO: duplicate calls may happen if this component mounted multiple times
 live2dStore.onShouldUpdateView(async () => {
@@ -110,60 +125,13 @@ const lipSyncStarted = ref(false)
 const speechStore = useSpeechStore()
 const { ssmlEnabled, activeSpeechProvider, activeSpeechModel, activeSpeechVoice, pitch } = storeToRefs(speechStore)
 
-async function handleSpeechGeneration(ctx: { data: string }) {
-  try {
-    if (!activeSpeechProvider.value) {
-      console.warn('No active speech provider configured')
-      return
-    }
-
-    if (!activeSpeechVoice.value) {
-      console.warn('No active speech voice configured')
-      return
-    }
-
-    const provider = await providersStore.getProviderInstance(activeSpeechProvider.value) as SpeechProviderWithExtraOptions<string, UnElevenLabsOptions>
-    if (!provider) {
-      console.error('Failed to initialize speech provider')
-      return
-    }
-
-    const providerConfig = providersStore.getProviderConfig(activeSpeechProvider.value)
-
-    const input = ssmlEnabled.value
-      ? speechStore.generateSSML(ctx.data, activeSpeechVoice.value, { ...providerConfig, pitch: pitch.value })
-      : ctx.data
-
-    const res = await generateSpeech({
-      ...provider.speech(activeSpeechModel.value, providerConfig),
-      input,
-      voice: activeSpeechVoice.value.id,
-    })
-
-    const audioBuffer = await audioContext.decodeAudioData(res)
-    playbackQueue.value.enqueue({ audioBuffer, text: ctx.data })
-  }
-  catch (error) {
-    console.error('Speech generation failed:', error)
-  }
-}
-
-const ttsQueue = createQueue<string>({
-  handlers: [
-    handleSpeechGeneration,
-  ],
-})
-
-onTextSegmented((chunk) => {
-  ttsQueue.enqueue(chunk)
-})
-
 const { currentMotion } = storeToRefs(useLive2d())
 
 const emotionsQueue = createQueue<Emotion>({
   handlers: [
     async (ctx) => {
       if (stageModelRenderer.value === 'vrm') {
+        // console.debug("VRM emotion anime: ", ctx.data)
         const value = EMOTION_VRMExpressionName_value[ctx.data]
         if (!value)
           return
@@ -187,6 +155,73 @@ const delaysQueue = useDelayMessageQueue()
 delaysQueue.onHandlerEvent('delay', (delay) => {
   // eslint-disable-next-line no-console
   console.debug('delay detected', delay)
+})
+
+// Play special token: delay or emotion
+function playSpecialToken(special: string) {
+  delaysQueue.enqueue(special)
+  emotionMessageContentQueue.enqueue(special)
+}
+onPlaybackFinished(({ special }) => {
+  playSpecialToken(special)
+})
+
+async function handleSpeechGeneration(ctx: { data: TTSChunkItem }) {
+  try {
+    if (!activeSpeechProvider.value) {
+      console.warn('No active speech provider configured')
+      return
+    }
+
+    if (!activeSpeechVoice.value) {
+      console.warn('No active speech voice configured')
+      return
+    }
+
+    const provider = await providersStore.getProviderInstance(activeSpeechProvider.value) as SpeechProviderWithExtraOptions<string, UnElevenLabsOptions>
+    if (!provider) {
+      console.error('Failed to initialize speech provider')
+      return
+    }
+
+    // console.debug("ctx.data.chunk is empty? ", ctx.data.chunk === "")
+    // console.debug("ctx.data.special: ", ctx.data.special)
+    if (ctx.data.chunk === '' && !ctx.data.special)
+      return
+    // If special token only and chunk = ""
+    if (ctx.data.chunk === '' && ctx.data.special) {
+      playSpecialToken(ctx.data.special)
+      return
+    }
+
+    const providerConfig = providersStore.getProviderConfig(activeSpeechProvider.value)
+
+    const input = ssmlEnabled.value
+      ? speechStore.generateSSML(ctx.data.chunk, activeSpeechVoice.value, { ...providerConfig, pitch: pitch.value })
+      : ctx.data.chunk
+
+    const res = await generateSpeech({
+      ...provider.speech(activeSpeechModel.value, providerConfig),
+      input,
+      voice: activeSpeechVoice.value.id,
+    })
+
+    const audioBuffer = await audioContext.decodeAudioData(res)
+    playbackQueue.value.enqueue({ audioBuffer, text: ctx.data.chunk, special: ctx.data.special })
+  }
+  catch (error) {
+    console.error('Speech generation failed:', error)
+  }
+}
+
+const ttsQueue = createQueue<TTSChunkItem>({
+  handlers: [
+    handleSpeechGeneration,
+  ],
+})
+
+onTextSegmented((chunkItem) => {
+  ttsQueue.enqueue(chunkItem)
 })
 
 function getVolumeWithMinMaxNormalizeWithFrameUpdates() {
@@ -216,6 +251,10 @@ onBeforeMessageComposed(async () => {
   clearAll()
   setupAnalyser()
   setupLipSync()
+  // Reset assistant caption for a new message
+  assistantCaption.value = ''
+  postCaption({ type: 'caption-assistant', text: '' })
+  postPresent({ type: 'assistant-reset' })
 })
 
 onBeforeSend(async () => {
@@ -223,12 +262,15 @@ onBeforeSend(async () => {
 })
 
 onTokenLiteral(async (literal) => {
-  textSegmentationQueue.value.enqueue(literal)
+  // Only push to segmentation; visual presentation happens on playback start
+  textSegmentationQueue.value.enqueue({ type: 'literal', value: literal } as TextSegmentationItem)
 })
 
 onTokenSpecial(async (special) => {
-  delaysQueue.enqueue(special)
-  emotionMessageContentQueue.enqueue(special)
+  // delaysQueue.enqueue(special)
+  // emotionMessageContentQueue.enqueue(special)
+  // Also push special token to the queue for emotion animation/delay and TTS playback synchronisation
+  textSegmentationQueue.value.enqueue({ type: 'special', value: special } as TextSegmentationItem)
 })
 
 onStreamEnd(async () => {
@@ -264,6 +306,12 @@ function canvasElement() {
 defineExpose({
   canvasElement,
 })
+
+onPlaybackStarted(({ text }) => {
+  assistantCaption.value += ` ${text}`
+  postCaption({ type: 'caption-assistant', text: assistantCaption.value })
+  postPresent({ type: 'assistant-append', text })
+})
 </script>
 
 <template>
@@ -275,6 +323,7 @@ defineExpose({
         v-model:state="componentState" min-w="50% <lg:full" min-h="100 sm:100" h-full w-full
         flex-1
         :model-src="stageModelSelectedUrl"
+        :model-id="stageModelSelected"
         :focus-at="focusAt"
         :mouth-open-size="mouthOpenSize"
         :paused="paused"
@@ -287,7 +336,7 @@ defineExpose({
         v-if="stageModelRenderer === 'vrm' && showStage"
         ref="vrmViewerRef"
         :model-src="stageModelSelectedUrl"
-        :idle-animation="withBase('/assets/vrm/animations/idle_loop.vrma')"
+        :idle-animation="animations.idleLoop.toString()"
         min-w="50% <lg:full" min-h="100 sm:100" h-full w-full flex-1
         :paused="paused"
         :show-axes="stageViewControlsEnabled"

@@ -1,199 +1,50 @@
 <script setup lang="ts">
-import type { ChatProvider } from '@xsai-ext/shared-providers'
+import { useDeferredMount } from '@proj-airi/ui'
+import { ref } from 'vue'
 
-import WhisperWorker from '@proj-airi/stage-ui/libs/workers/worker?worker&url'
-
-import { toWAVBase64 } from '@proj-airi/audio'
-import { useMicVAD, useWhisper } from '@proj-airi/stage-ui/composables'
-import { useAudioContext } from '@proj-airi/stage-ui/stores/audio'
-import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
-import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
-import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
-import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
-import { BasicTextarea } from '@proj-airi/ui'
-import { useDark } from '@vueuse/core'
-import { storeToRefs } from 'pinia'
-import { onMounted, ref, watch } from 'vue'
-import { useI18n } from 'vue-i18n'
-
+import ChatActionButtons from '../Widgets/ChatActionButtons.vue'
+import ChatArea from '../Widgets/ChatArea.vue'
+import ChatContainer from '../Widgets/ChatContainer.vue'
 import ChatHistory from '../Widgets/ChatHistory.vue'
 
-const messageInput = ref('')
-const listening = ref(false)
-const showMicrophoneSelect = ref(false)
-const isComposing = ref(false)
+const { isReady } = useDeferredMount()
 
-const providersStore = useProvidersStore()
-const { activeProvider, activeModel } = storeToRefs(useConsciousnessStore())
-const { themeColorsHueDynamic } = storeToRefs(useSettings())
-
-const { askPermission } = useSettingsAudioDevice()
-const { enabled, selectedAudioInput } = storeToRefs(useSettingsAudioDevice())
-const { send, onAfterMessageComposed, discoverToolsCompatibility, cleanupMessages } = useChatStore()
-const { messages } = storeToRefs(useChatStore())
-const { audioContext } = useAudioContext()
-const { t } = useI18n()
-
-const isDark = useDark({ disableTransition: false })
-
-const { transcribe: generate, terminate } = useWhisper(WhisperWorker, {
-  onComplete: async (res) => {
-    if (!res || !res.trim()) {
-      return
-    }
-
-    const providerConfig = providersStore.getProviderConfig(activeProvider.value)
-
-    await send(res, {
-      chatProvider: await providersStore.getProviderInstance(activeProvider.value) as ChatProvider,
-      model: activeModel.value,
-      providerConfig,
-    })
-  },
-})
-
-async function handleSend() {
-  if (!messageInput.value.trim() || isComposing.value) {
-    return
-  }
-
-  try {
-    const providerConfig = providersStore.getProviderConfig(activeProvider.value)
-
-    await send(messageInput.value, {
-      chatProvider: await providersStore.getProviderInstance(activeProvider.value) as ChatProvider,
-      model: activeModel.value,
-      providerConfig,
-    })
-  }
-  catch (error) {
-    messages.value.pop()
-    messages.value.push({
-      role: 'error',
-      content: (error as Error).message,
-    })
-  }
-}
-
-const { destroy, start } = useMicVAD(selectedAudioInput, {
-  onSpeechStart: () => {
-    // TODO: interrupt the playback
-    // TODO: interrupt any of the ongoing TTS
-    // TODO: interrupt any of the ongoing LLM requests
-    // TODO: interrupt any of the ongoing animation of Live2D or VRM
-    // TODO: once interrupted, we should somehow switch to listen or thinking
-    //       emotion / expression?
-    listening.value = true
-  },
-  // VAD misfire means while speech end is detected but
-  // the frames of the segment of the audio buffer
-  // is not enough to be considered as a speech segment
-  // which controlled by the `minSpeechFrames` parameter
-  onVADMisfire: () => {
-    // TODO: do audio buffer send to whisper
-    listening.value = false
-  },
-  onSpeechEnd: (buffer) => {
-    // TODO: do audio buffer send to whisper
-    listening.value = false
-    handleTranscription(buffer.buffer)
-  },
-  auto: false,
-})
-
-async function handleTranscription(buffer: ArrayBufferLike) {
-  await audioContext.resume()
-
-  // Convert Float32Array to WAV format
-  const audioBase64 = await toWAVBase64(buffer, audioContext.sampleRate)
-  generate({ type: 'generate', data: { audio: audioBase64, language: 'en' } })
-}
-
-watch(enabled, async (value) => {
-  if (value === false) {
-    destroy()
-    terminate()
-  }
-})
-
-watch(showMicrophoneSelect, async (value) => {
-  if (value) {
-    await askPermission()
-  }
-})
-
-watch([activeProvider, activeModel], async () => {
-  if (activeProvider.value && activeModel.value) {
-    await discoverToolsCompatibility(activeModel.value, await providersStore.getProviderInstance<ChatProvider>(activeProvider.value), [])
-  }
-})
-
-onMounted(() => {
-  // loadWhisper()
-  start()
-})
-
-onAfterMessageComposed(async () => {
-  messageInput.value = ''
-})
+const isLoading = ref(true)
 </script>
 
 <template>
   <div flex="col" items-center pt-4>
     <div h-full max-h="[85vh]" w-full py="4">
-      <div
-        flex="~ col"
-        border="solid 4 primary-200/20 dark:primary-400/20"
-        h-full w-full overflow-scroll rounded-xl
-        bg="primary-50/50 dark:primary-950/70" backdrop-blur-md
-      >
-        <ChatHistory h-full flex-1 w="full" max-h="<md:[60%]" />
-        <div h="<md:full" flex gap-2>
-          <BasicTextarea
-            v-model="messageInput"
-            :placeholder="t('stage.message')"
-            text="primary-500 hover:primary-600 dark:primary-300/50 dark:hover:primary-500 placeholder:primary-400 placeholder:hover:primary-500 placeholder:dark:primary-300/50 placeholder:dark:hover:primary-500"
-            bg="primary-200/20 dark:primary-400/20"
-            min-h="[100px]" max-h="[300px]" w-full
-            rounded-t-xl p-4 font-medium
-            outline-none transition="all duration-250 ease-in-out placeholder:all placeholder:duration-250 placeholder:ease-in-out"
-            :class="{
-              'transition-colors-none placeholder:transition-colors-none': themeColorsHueDynamic,
-            }"
-            @submit="handleSend"
-            @compositionstart="isComposing = true"
-            @compositionend="isComposing = false"
-          />
+      <ChatContainer>
+        <div
+          v-if="isLoading"
+          absolute left-0 top-0 h-1 w-full overflow-hidden rounded-t-xl
+          class="bg-primary-500/20"
+        >
+          <div h-full w="1/3" origin-left bg-primary-500 class="animate-scan" />
         </div>
-      </div>
+        <div w="full" max-h="<md:[60%]" py="<sm:2" flex="~ col" rounded="lg" relative h-full flex-1 overflow-hidden py-4>
+          <ChatHistory v-if="isReady" h-full @vue:mounted="isLoading = false" />
+        </div>
+        <ChatArea />
+      </ChatContainer>
     </div>
 
-    <div absolute bottom--8 right-0 flex gap-2>
-      <button
-        class="max-h-[10lh] min-h-[1lh]"
-        bg="neutral-100 dark:neutral-800"
-        text="lg neutral-500 dark:neutral-400"
-        hover:text="red-500 dark:red-400"
-        flex items-center justify-center rounded-md p-2 outline-none
-        transition-colors transition-transform active:scale-95
-        @click="cleanupMessages"
-      >
-        <div class="i-solar:trash-bin-2-bold-duotone" />
-      </button>
-
-      <button
-        class="max-h-[10lh] min-h-[1lh]"
-        bg="neutral-100 dark:neutral-800"
-        text="lg neutral-500 dark:neutral-400"
-        flex items-center justify-center rounded-md p-2 outline-none
-        transition-colors transition-transform active:scale-95
-        @click="isDark = !isDark"
-      >
-        <Transition name="fade" mode="out-in">
-          <div v-if="isDark" i-solar:moon-bold />
-          <div v-else i-solar:sun-2-bold />
-        </Transition>
-      </button>
-    </div>
+    <ChatActionButtons />
   </div>
 </template>
+
+<style scoped>
+@keyframes scan {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(400%);
+  }
+}
+
+.animate-scan {
+  animation: scan 2s infinite linear;
+}
+</style>

@@ -15,6 +15,34 @@ interface InputSource {
   discord: Discord
 }
 
+export type ContextSource =
+  | 'text'
+  | 'stt'
+  | 'vision'
+  | 'llm'
+  | 'server-channel'
+  | 'plugin'
+  | 'system'
+
+export interface ContextMessage<Payload = unknown, Meta = Record<string, unknown>> {
+  /**
+   * Session identifier so UIs can group conversations from multiple windows/devices.
+   */
+  sessionId: string
+  /**
+   * Unix timestamp in milliseconds.
+   */
+  ts: number
+  role: 'user' | 'assistant' | 'system' | 'error'
+  source: ContextSource
+  /**
+   * The actual payload being carried. Keep this generic so different inputs (text, stt, vision)
+   * can share the same envelope.
+   */
+  payload: Payload
+  meta?: Meta
+}
+
 export interface WebSocketBaseEvent<T, D> {
   type: T
   data: D
@@ -59,6 +87,8 @@ export interface WebSocketEvents<C = undefined> {
   'input:voice': {
     audio: ArrayBuffer
   } & Partial<WithInputSource<'browser' | 'discord'>>
+  'vscode:context': C
+  'context:update': ContextMessage
 }
 
 export type WebSocketEvent<C = undefined> = {

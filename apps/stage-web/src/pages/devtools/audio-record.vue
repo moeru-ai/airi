@@ -33,7 +33,9 @@ async function handleStart() {
 async function handleStop() {
   await output?.finalize()
   const bufferTarget = output?.target as BufferTarget | undefined
-  bufferTarget?.buffer && recorded.value.push(bufferTarget?.buffer)
+
+  if (bufferTarget?.buffer)
+    recorded.value.push(bufferTarget.buffer)
 }
 
 function handleCancel() {

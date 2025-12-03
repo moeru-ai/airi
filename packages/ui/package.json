@@ -1,7 +1,7 @@
 {
   "name": "@proj-airi/ui",
   "type": "module",
-  "version": "0.7.2-beta.3",
+  "version": "0.8.0-alpha.8",
   "description": "A collection of UI components that used by Project AIRI",
   "author": {
     "name": "Moeru AI Project AIRI Team",
@@ -24,13 +24,13 @@
     "typecheck": "vue-tsc --noEmit"
   },
   "dependencies": {
-    "@vueuse/core": "^13.9.0",
+    "@vueuse/core": "^14.0.0",
     "floating-vue": "^5.2.2",
-    "reka-ui": "^2.5.1",
-    "vue": "^3.5.22"
+    "reka-ui": "^2.6.0",
+    "vue": "^3.5.24"
   },
   "devDependencies": {
     "@vue-macros/volar": "3.0.0-beta.8",
-    "vue-tsc": "^3.1.1"
+    "vue-tsc": "^3.1.4"
   }
 }

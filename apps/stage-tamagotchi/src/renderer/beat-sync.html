@@ -1,0 +1,32 @@
+<!-- This is intended to be a background window -->
+
+<!doctype html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>BeatSync - AIRI</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=0, viewport-fit=cover" />
+    <style>
+      html, body {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        height: 100%;
+      }
+
+      .center {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        font-family: sans-serif;
+        font-size: 16px;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div class="center">Open the DevTools to troubleshoot BeatSync</div>
+    <script type="module" src="/beat-sync.main.ts"></script>
+  </body>
+</html>

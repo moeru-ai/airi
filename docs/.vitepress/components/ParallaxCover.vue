@@ -8,8 +8,8 @@ import { onMounted, shallowRef, useTemplateRef, watchEffect } from 'vue'
 import homeCover from '../assets/home-cover-2025-07-23.avif'
 
 const surfaceRef = useTemplateRef<HTMLImageElement>('surface')
-const silhouettePinkRef = useTemplateRef<HTMLDivElement>('silhouettePink')
-const silhouettePurpleRef = useTemplateRef<HTMLDivElement>('silhouettePurple')
+const silhouetteLayer1Ref = useTemplateRef<HTMLDivElement>('silhouetteLayer1')
+const silhouetteLayer2Ref = useTemplateRef<HTMLDivElement>('silhouetteLayer2')
 
 const shouldReduceMotion = useLocalStorage('docs:settings/reduce-motion', false)
 
@@ -17,8 +17,8 @@ const DURATION = 1200
 const EASE = 'outSine'
 
 const surfaceAnimatable = shallowRef<AnimatableObject>()
-const silhouettePinkAnimatable = shallowRef<AnimatableObject>()
-const silhouettePurpleAnimatable = shallowRef<AnimatableObject>()
+const silhouetteLayer1Animatable = shallowRef<AnimatableObject>()
+const silhouetteLayer2Animatable = shallowRef<AnimatableObject>()
 
 function animateCover(xOffsetRatio: number, yOffsetRatio: number) {
   const referenceWidth = window.innerWidth
@@ -27,13 +27,13 @@ function animateCover(xOffsetRatio: number, yOffsetRatio: number) {
   surfaceAnimatable.value?.y?.(-yOffsetRatio * 0.02 * referenceWidth)
   surfaceAnimatable.value?.z?.(0)
 
-  silhouettePinkAnimatable.value?.x?.(0.01 * referenceWidth - yOffsetRatio * 0.015 * referenceWidth)
-  silhouettePinkAnimatable.value?.y?.(0.02 * referenceWidth + xOffsetRatio * 0.015 * referenceWidth)
-  silhouettePinkAnimatable.value?.z?.(0)
+  silhouetteLayer1Animatable.value?.x?.(0.01 * referenceWidth - yOffsetRatio * 0.015 * referenceWidth)
+  silhouetteLayer1Animatable.value?.y?.(0.02 * referenceWidth + xOffsetRatio * 0.015 * referenceWidth)
+  silhouetteLayer1Animatable.value?.z?.(0)
 
-  silhouettePurpleAnimatable.value?.x?.(0.01 * referenceWidth + yOffsetRatio * 0.01 * referenceWidth)
-  silhouettePurpleAnimatable.value?.y?.(-0.01 * referenceWidth - yOffsetRatio * 0.01 * referenceWidth)
-  silhouettePurpleAnimatable.value?.z?.(0)
+  silhouetteLayer2Animatable.value?.x?.(0.01 * referenceWidth + yOffsetRatio * 0.01 * referenceWidth)
+  silhouetteLayer2Animatable.value?.y?.(-0.01 * referenceWidth - yOffsetRatio * 0.01 * referenceWidth)
+  silhouetteLayer2Animatable.value?.z?.(0)
 }
 
 function onMouseMove(event: MouseEvent) {
@@ -55,8 +55,8 @@ onMounted(() => {
   }
 
   surfaceAnimatable.value = createAnimatable(surfaceRef.value!, animatableConfig)
-  silhouettePinkAnimatable.value = createAnimatable(silhouettePinkRef.value!, animatableConfig)
-  silhouettePurpleAnimatable.value = createAnimatable(silhouettePurpleRef.value!, animatableConfig)
+  silhouetteLayer1Animatable.value = createAnimatable(silhouetteLayer1Ref.value!, animatableConfig)
+  silhouetteLayer2Animatable.value = createAnimatable(silhouetteLayer2Ref.value!, animatableConfig)
 })
 
 watchEffect((onCleanup) => {
@@ -88,8 +88,8 @@ const maskImageURL = `url(${homeCover})`
     ]"
   >
     <img ref="surface" :src="homeCover" alt="Project AIRI Cover Image" class="w-full object-cover">
-    <div ref="silhouettePink" class="silhouette absolute left-0 top-0 z--1 h-full w-full bg-[oklch(0.8105_0.1267_350.84)]" />
-    <div ref="silhouettePurple" class="silhouette absolute left-0 top-0 z--2 h-full w-full bg-[oklch(0.5712_0.2396_278.59)]" />
+    <div ref="silhouetteLayer2" class="silhouette absolute left-0 top-0 z--1 h-full w-full bg-[oklch(0.8105_0.1267_350.84)]" />
+    <div ref="silhouetteLayer2" class="silhouette absolute left-0 top-0 z--2 h-full w-full bg-[oklch(0.5712_0.2396_278.59)]" />
   </div>
 </template>
 

@@ -1,14 +1,15 @@
-import type http from 'node:http'
-
 import type { BrowserWindow } from 'electron'
 
-import { platform } from 'node:process'
+import type { WidgetsWindowManager } from './windows/widgets'
 
-import { electronApp, optimizer } from '@electron-toolkit/utils'
+import { env, platform } from 'node:process'
+
+import { electronApp, is, optimizer } from '@electron-toolkit/utils'
 import { Format, LogLevel, setGlobalFormat, setGlobalLogLevel, useLogg } from '@guiiai/logg'
-import { createLoggLogger, injecta } from '@proj-airi/injecta'
 import { app, ipcMain, Menu, nativeImage, Tray } from 'electron'
+import { initMain as initAudioLoopback } from 'electron-audio-loopback'
 import { noop, once } from 'es-toolkit'
+import { createLoggLogger, injeca } from 'injeca'
 import { isLinux, isMacOS } from 'std-env'
 
 import icon from '../../resources/icon.png?asset'
@@ -17,11 +18,16 @@ import macOSTrayIcon from '../../resources/tray-icon-macos.png?asset'
 import { openDebugger, setupDebugger } from './app/debugger'
 import { emitAppBeforeQuit, emitAppReady, emitAppWindowAllClosed, onAppBeforeQuit } from './libs/bootkit/lifecycle'
 import { setElectronMainDirname } from './libs/electron/location'
+import { setupChannelServer } from './services/airi/channel-server'
+import { setupBeatSync } from './windows/beat-sync'
 import { setupCaptionWindowManager } from './windows/caption'
+import { setupChatWindowReusableFunc } from './windows/chat'
 import { setupInlayWindow } from './windows/inlay'
 import { setupMainWindow } from './windows/main'
+import { setupNoticeWindowManager } from './windows/notice'
 import { setupSettingsWindowReusableFunc } from './windows/settings'
 import { toggleWindowShow } from './windows/shared/window'
+import { setupWidgetsWindowManager } from './windows/widgets'
 
 // TODO: once we refactored eventa to support window-namespaced contexts,
 // we can remove the setMaxListeners call below since eventa will be able to dispatch and
@@ -47,18 +53,36 @@ if (isLinux) {
   app.commandLine.appendSwitch('enable-features', 'SharedArrayBuffer')
   app.commandLine.appendSwitch('enable-unsafe-webgpu')
   app.commandLine.appendSwitch('enable-features', 'Vulkan')
+
+  // NOTICE: we need UseOzonePlatform, WaylandWindowDecorations for working on Wayland.
+  // Partially related to https://github.com/electron/electron/issues/41551, since X11 is deprecating now,
+  // we can safely remove the feature flags for Electron once they made it default supported.
+  // Fixes: https://github.com/moeru-ai/airi/issues/757
+  // Ref: https://github.com/mmaura/poe2linuxcompanion/blob/90664607a147ea5ccea28df6139bd95fb0ebab0e/electron/main/index.ts#L28-L46
+  if (env.XDG_SESSION_TYPE === 'wayland') {
+    app.commandLine.appendSwitch('enable-features', 'GlobalShortcutsPortal')
+
+    app.commandLine.appendSwitch('enable-features', 'UseOzonePlatform')
+    app.commandLine.appendSwitch('enable-features', 'WaylandWindowDecorations')
+  }
 }
 
 app.dock?.setIcon(icon)
 electronApp.setAppUserModelId('ai.moeru.airi')
 
+initAudioLoopback()
+
 function setupTray(params: {
   mainWindow: BrowserWindow
   settingsWindow: () => Promise<BrowserWindow>
   captionWindow: ReturnType<typeof setupCaptionWindowManager>
+  widgetsWindow: WidgetsWindowManager
+  beatSyncBgWindow: BrowserWindow
 }): void {
   once(() => {
-    const appTray = new Tray(nativeImage.createFromPath(macOSTrayIcon).resize({ width: 16 }))
+    const trayImage = nativeImage.createFromPath(isMacOS ? macOSTrayIcon : icon).resize({ width: 16 })
+    trayImage.setTemplateImage(isMacOS)
+    const appTray = new Tray(trayImage)
     onAppBeforeQuit(() => appTray.destroy())
 
     const contextMenu = Menu.buildFromTemplate([
@@ -67,6 +91,7 @@ function setupTray(params: {
       { label: 'Settings...', click: () => params.settingsWindow().then(window => toggleWindowShow(window)) },
       { type: 'separator' },
       { label: 'Open Inlay...', click: () => setupInlayWindow() },
+      { label: 'Open Widgets...', click: () => params.widgetsWindow.getWindow().then(window => toggleWindowShow(window)) },
       { label: 'Open Caption...', click: () => params.captionWindow.getWindow().then(window => toggleWindowShow(window)) },
       {
         type: 'submenu',
@@ -77,77 +102,78 @@ function setupTray(params: {
         ]),
       },
       { type: 'separator' },
+      ...is.dev || env.MAIN_APP_DEBUG || env.APP_DEBUG
+        ? [
+            { type: 'header', label: 'DevTools' },
+            { label: 'Troubleshoot BeatSync...', click: () => params.beatSyncBgWindow.webContents.openDevTools() },
+            { type: 'separator' },
+          ] as const // :(
+        : [],
       { label: 'Quit', click: () => app.quit() },
     ])
 
     appTray.setContextMenu(contextMenu)
     appTray.setToolTip('Project AIRI')
     appTray.addListener('click', () => toggleWindowShow(params.mainWindow))
+
     // On macOS, there's a special double-click event
-    isMacOS && appTray.addListener('double-click', () => toggleWindowShow(params.mainWindow))
+    if (isMacOS)
+      appTray.addListener('double-click', () => toggleWindowShow(params.mainWindow))
   })()
 }
 
-async function setupProjectAIRIServerRuntime() {
-  // Start the server-runtime server with WebSocket support
-  try {
-    // Dynamically import the server-runtime and listhen
-    const [serverRuntimeModule, { listen }] = await Promise.all([
-      import('@proj-airi/server-runtime'),
-      import('listhen'),
-    ])
-
-    const serverInstance = await listen(serverRuntimeModule.app as unknown as http.RequestListener, {
-      port: 6121,
-      hostname: 'localhost',
-      ws: true,
-    })
-
-    log.log('@proj-airi/server-runtime started on ws://localhost:6121')
-
-    onAppBeforeQuit(async () => {
-      if (serverInstance && typeof serverInstance.close === 'function') {
-        try {
-          await serverInstance.close()
-          log.log('WebSocket server closed')
-        }
-        catch (error) {
-          log.withError(error).error('Error closing WebSocket server')
-        }
-      }
-    })
-  }
-  catch (error) {
-    log.withError(error).error('failed to start WebSocket server')
-  }
-}
-
 app.whenReady().then(async () => {
-  await setupProjectAIRIServerRuntime()
+  injeca.setLogger(createLoggLogger(useLogg('injeca').useGlobalConfig()))
 
-  injecta.setLogger(createLoggLogger(useLogg('injecta').useGlobalConfig()))
+  const channelServerModule = injeca.provide('modules:channel-server', async () => setupChannelServer())
+  const widgetsManager = injeca.provide('windows:widgets', { build: () => setupWidgetsWindowManager() })
+  const noticeWindow = injeca.provide('windows:notice', { build: () => setupNoticeWindowManager() })
 
-  const settingsWindow = injecta.provide('windows:settings', {
-    build: () => setupSettingsWindowReusableFunc(),
+  // BeatSync will create a background window to capture and process audio.
+  const beatSync = injeca.provide('windows:beat-sync', {
+    build: () => setupBeatSync(),
   })
-  const mainWindow = injecta.provide('windows:main', {
-    dependsOn: { settingsWindow },
-    build: async ({ dependsOn }) => setupMainWindow(dependsOn),
+
+  const chatWindow = injeca.provide('windows:chat', {
+    dependsOn: { widgetsManager },
+    build: ({ dependsOn }) => setupChatWindowReusableFunc(dependsOn),
   })
-  const captionWindow = injecta.provide('windows:caption', {
+
+  const settingsWindow = injeca.provide('windows:settings', {
+    dependsOn: { widgetsManager, beatSync },
+    build: async ({ dependsOn }) => async () => {
+      const { beatSync: _, ...setupArgs } = dependsOn
+      const window = await setupSettingsWindowReusableFunc(setupArgs)()
+      dependsOn.beatSync.dispatchTo(window)
+      return window
+    },
+  })
+  const mainWindow = injeca.provide('windows:main', {
+    dependsOn: { settingsWindow, chatWindow, widgetsManager, noticeWindow, beatSync },
+    build: async ({ dependsOn }) => {
+      const { beatSync: _, ...setupArgs } = dependsOn
+      const window = await setupMainWindow(setupArgs)
+      dependsOn.beatSync.dispatchTo(window)
+      return window
+    },
+  })
+  const captionWindow = injeca.provide('windows:caption', {
     dependsOn: { mainWindow },
-    build: async ({ dependsOn }) => setupCaptionWindowManager({ mainWindow: dependsOn.mainWindow }),
+    build: async ({ dependsOn }) => setupCaptionWindowManager(dependsOn),
   })
-  const tray = injecta.provide('app:tray', {
-    dependsOn: { mainWindow, settingsWindow, captionWindow },
-    build: async ({ dependsOn }) => setupTray(dependsOn as any),
+  const tray = injeca.provide('app:tray', {
+    dependsOn: { mainWindow, settingsWindow, captionWindow, widgetsWindow: widgetsManager, beatSync },
+    build: async ({ dependsOn }) => {
+      const { beatSync, ...setupArgs } = dependsOn
+      return setupTray({ ...setupArgs, beatSyncBgWindow: beatSync.window })
+    },
   })
-  injecta.invoke({
-    dependsOn: { mainWindow, tray },
+  injeca.invoke({
+    dependsOn: { mainWindow, tray, channelServerModule },
     callback: noop,
   })
 
-  injecta.start()
+  injeca.start().catch(err => console.error(err))
 
   // Lifecycle
   emitAppReady()
@@ -177,4 +203,5 @@ app.on('window-all-closed', () => {
 // Clean up server and intervals when app quits
 app.on('before-quit', async () => {
   emitAppBeforeQuit()
+  injeca.stop()
 })

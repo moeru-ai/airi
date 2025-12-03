@@ -1,6 +1,6 @@
 import type { UseMouseOptions } from '@vueuse/core'
 
-import { defineInvoke } from '@unbird/eventa'
+import { defineInvoke } from '@moeru/eventa'
 import { useMouse } from '@vueuse/core'
 import { ref } from 'vue'
 

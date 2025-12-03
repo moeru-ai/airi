@@ -26,6 +26,12 @@ const showFooter = computed(
     || control.value.prev
     || control.value.next,
 )
+
+/**
+ * Footer navigation visibility rules (English-only comments as requested):
+ * - Render nav only when prev/next have actual links.
+ * - Do NOT show a disabled next button on the last article.
+ */
 </script>
 
 <template>
@@ -36,11 +42,11 @@ const showFooter = computed(
   >
     <div
       v-if="hasEditLink || hasLastUpdated"
-      class="text-muted-foreground flex justify-between"
+      class="flex justify-between text-muted-foreground"
     >
       <div
         v-if="hasEditLink"
-        class="text-muted-foreground hover:text-foreground text-sm"
+        class="text-sm text-muted-foreground hover:text-foreground"
         transition-colors duration-200 ease-in-out
       >
         <a
@@ -87,7 +93,7 @@ const showFooter = computed(
           :href="control.prev.link"
         >
           <span
-            class="text-muted-foreground group-hover:text-foreground text-xs transition-all duration-200 ease-in-out"
+            class="text-xs text-muted-foreground transition-all duration-200 ease-in-out group-hover:text-foreground"
             v-html="theme.docFooter?.prev || t('docs.theme.doc.previous-page.title')"
           />
           <p class="mt-2 inline-flex items-center gap-1">
@@ -113,7 +119,7 @@ const showFooter = computed(
           :href="control.next.link"
         >
           <span
-            class="text-muted-foreground group-hover:text-foreground text-xs transition-all duration-200 ease-in-out"
+            class="text-xs text-muted-foreground transition-all duration-200 ease-in-out group-hover:text-foreground"
             v-html="theme.docFooter?.next || t('docs.theme.doc.next-page.title')"
           />
 

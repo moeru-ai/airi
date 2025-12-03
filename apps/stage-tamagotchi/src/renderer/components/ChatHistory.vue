@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { MarkdownRenderer } from '@proj-airi/stage-ui/components'
+import { Collapsable, MarkdownRenderer } from '@proj-airi/stage-ui/components'
 import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
+import { useBroadcastChannel } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { nextTick, ref } from 'vue'
+import { ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 const chatHistoryRef = ref<HTMLDivElement>()
@@ -12,39 +13,62 @@ const { messages, sending, streamingMessage } = storeToRefs(useChatStore())
 
 const { onBeforeMessageComposed, onTokenLiteral } = useChatStore()
 
+// Presentation channel: show assistant text only when corresponding TTS segment starts
+type PresentEvent
+  = | { type: 'assistant-reset' }
+    | { type: 'assistant-append', text: string }
+const { data: presentEvent } = useBroadcastChannel<PresentEvent, PresentEvent>({ name: 'airi-chat-present' })
+const presentSlices = ref<string[]>([])
+
+watch(presentEvent, (ev) => {
+  if (!ev)
+    return
+  if (ev.type === 'assistant-reset') {
+    presentSlices.value = []
+  }
+  else if (ev.type === 'assistant-append') {
+    presentSlices.value.push(ev.text)
+  }
+})
+
+function scrollToBottom() {
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      if (!chatHistoryRef.value)
+        return
+
+      chatHistoryRef.value.scrollTop = chatHistoryRef.value.scrollHeight
+    })
+  })
+}
+
 onBeforeMessageComposed(async () => {
   // Scroll down to the new sent message
-  nextTick().then(() => {
-    if (!chatHistoryRef.value)
-      return
-
-    chatHistoryRef.value.scrollTop = chatHistoryRef.value.scrollHeight
-  })
+  await scrollToBottom()
 })
 
 onTokenLiteral(async () => {
   // Scroll down to the new responding message
-  nextTick().then(() => {
-    if (!chatHistoryRef.value)
-      return
-
-    chatHistoryRef.value.scrollTop = chatHistoryRef.value.scrollHeight
-  })
+  await scrollToBottom()
 })
+
+watch(sending, () => {
+  scrollToBottom()
+}, { flush: 'post' })
 </script>
 
 <template>
-  <div ref="chatHistoryRef" v-auto-animate flex="~ col" relative h-full w-full overflow-y-auto rounded-lg px="<sm:2" py="<sm:2">
+  <div ref="chatHistoryRef" v-auto-animate flex="~ col" relative h-full w-full overflow-y-auto rounded-xl px="<sm:2" py="<sm:2">
     <div v-for="(message, index) in messages" :key="index" mb-2>
       <div v-if="message.role === 'error'" flex mr="12">
         <div
-          flex="~ col" shadow="md violet-900/50 dark:none"
-          min-w-20 rounded-lg px-2 py-1 h="unset <sm:fit"
-          class="bg-violet-50/80 <md:bg-violet-500/25 dark:bg-violet-900/80"
+          flex="~ col" shadow="sm violet-200/50 dark:none"
+          min-w-20 rounded-xl px-3 py-3 h="unset <sm:fit"
+          class="bg-violet-100/80 dark:bg-violet-950/80"
         >
           <div flex="~ row" gap-2>
-            <div flex-1>
-              <span text-xs text="violet-400/90 dark:violet-600/90" font-normal class="inline <sm:hidden">{{ t('stage.chat.message.character-name.core-system') }}</span>
+            <div flex-1 class="inline <sm:hidden">
+              <span text-sm text="black/60 dark:white/65" font-normal>{{ t('stage.chat.message.character-name.core-system') }}</span>
             </div>
             <div i-solar:danger-triangle-bold-duotone text-violet-500 />
           </div>
@@ -52,28 +76,49 @@ onTokenLiteral(async () => {
           <MarkdownRenderer
             v-else
             :content="message.content as string"
-            class="break-words text-violet-500"
-            text="base <sm:xs"
+            class="break-words text-violet-500 dark:text-violet-300"
           />
         </div>
       </div>
       <div v-if="message.role === 'assistant'" flex mr="12">
         <div
-          flex="~ col" shadow="sm primary-200/50 dark:none" min-w-20
-          rounded-lg px-2 py-1 h="unset <sm:fit"
-          class="bg-primary-50/80 <md:bg-primary-500/25 dark:bg-primary-900/80"
+          flex="~ col" shadow="sm primary-200/50 dark:none"
+          min-w-20 rounded-xl px-3 py-3 h="unset <sm:fit"
+          class="bg-primary-50/80 dark:bg-primary-950/80"
         >
           <div>
-            <span text-xs text="primary-400/90 dark:primary-600/90" font-normal class="inline <sm:hidden">{{ t('stage.chat.message.character-name.airi') }}</span>
+            <span text-sm text="black/60 dark:white/65" font-normal class="inline <sm:hidden">{{ t('stage.chat.message.character-name.airi') }}</span>
           </div>
-          <div v-if="message.content" class="break-words" text="primary-700 dark:primary-200">
+          <div v-if="message.content" class="break-words" text="primary-700 dark:primary-100">
             <div v-for="(slice, sliceIndex) in message.slices" :key="sliceIndex">
-              <div v-if="slice.type === 'tool-call'">
-                <div
-                  p="1" border="1 solid primary-200" rounded-lg m="y-1" bg="primary-100"
+              <div v-if="slice.type === 'tool-call'" mb-2>
+                <Collapsable
+                  :class="[
+                    'bg-primary-100/40 dark:bg-primary-900/60 rounded-lg px-2 pb-2 pt-2',
+                    'flex flex-col gap-2 items-start',
+                  ]"
                 >
-                  Called: <code>{{ slice.toolCall.toolName }}</code>
-                </div>
+                  <template #trigger="{ visible, setVisible }">
+                    <button
+                      :class="[
+                        'w-full', 'text-start',
+                      ]"
+                      @click="setVisible(!visible)"
+                    >
+                      <div i-solar:sledgehammer-bold-duotone class="mr-1 inline-block translate-y-1 op-50" /><code>{{ slice.toolCall.toolName }}</code>
+                    </button>
+                  </template>
+                  <div
+                    :class="[
+                      'rounded-md', 'p-2', 'w-full',
+                      'bg-neutral-100/80 text-sm text-neutral-800 dark:bg-neutral-900/80 dark:text-neutral-200',
+                    ]"
+                  >
+                    <div class="whitespace-pre-wrap break-words font-mono">
+                      {{ JSON.stringify(JSON.parse(slice.toolCall.args), null, 2).trim() }}
+                    </div>
+                  </div>
+                </Collapsable>
               </div>
               <div v-else-if="slice.type === 'tool-call-result'" /> <!-- this line should be unreachable -->
               <MarkdownRenderer
@@ -87,18 +132,17 @@ onTokenLiteral(async () => {
       </div>
       <div v-else-if="message.role === 'user'" flex="~ row-reverse" ml="12">
         <div
-          flex="~ col" shadow="sm cyan-200/50 dark:none" px="2"
-          h="unset <sm:fit" min-w-20 rounded-lg px-2 py-1
-          class="bg-cyan-50/80 <md:bg-cyan-500/25 dark:bg-cyan-900/80"
+          flex="~ col" shadow="sm neutral-200/50 dark:none" px="2" h="unset <sm:fit"
+          min-w-20 rounded-xl px-3 py-3
+          class="bg-neutral-100/80 dark:bg-neutral-800/80"
         >
           <div>
-            <span text-xs text="cyan-400/90 dark:cyan-600/90" font-normal class="inline <sm:hidden">{{ t('stage.chat.message.character-name.you') }}</span>
+            <span text-sm text="black/60 dark:white/65" font-normal class="inline <sm:hidden">{{ t('stage.chat.message.character-name.you') }}</span>
           </div>
           <MarkdownRenderer
             v-if="message.content"
             :content="message.content as string"
             class="break-words"
-            text="base <sm:xs"
           />
           <div v-else />
         </div>
@@ -106,28 +150,55 @@ onTokenLiteral(async () => {
     </div>
     <div v-if="sending" flex mr="12">
       <div
-        flex="~ col" shadow="sm primary-200/50 dark:none" min-w-20
-        rounded-lg px-2 py-1 h="unset <sm:fit"
-        class="bg-primary-50/80 <md:bg-primary-500/25 dark:bg-primary-900/80"
+        flex="~ col" shadow="sm primary-200/50 dark:none"
+        min-w-20 rounded-xl px-3 py-3 h="unset <sm:fit"
+        class="bg-primary-50/80 dark:bg-primary-950/80"
       >
         <div>
-          <span text-xs text="primary-400/90 dark:primary-600/90" font-normal class="inline <sm:hidden">{{ t('stage.chat.message.character-name.airi') }}</span>
+          <span text-sm text="black/60 dark:white/65" font-normal class="inline <sm:hidden">{{ t('stage.chat.message.character-name.airi') }}</span>
         </div>
-        <div v-if="streamingMessage.content" class="break-words" text="primary-700 dark:primary-200">
-          <div v-for="(slice, sliceIndex) in streamingMessage.slices" :key="sliceIndex">
-            <div v-if="slice.type === 'tool-call'">
-              <div
-                p="1" border="1 solid primary-200" rounded-lg m="y-1" bg="primary-100"
-              >
-                Called: <code>{{ slice.toolCall.toolName }}</code>
-              </div>
+        <div v-if="presentSlices.length > 0 || streamingMessage.content" class="break-words" text="primary-700 dark:primary-100">
+          <!-- Prefer presentation slices if available; fallback to normal streaming -->
+          <template v-if="presentSlices.length > 0">
+            <div v-for="(text, idx) in presentSlices" :key="`present-${idx}`">
+              <MarkdownRenderer :content="text" />
             </div>
-            <div v-else-if="slice.type === 'tool-call-result'" /> <!-- this line should be unreachable -->
-            <MarkdownRenderer
-              v-else
-              :content="slice.text"
-            />
-          </div>
+          </template>
+          <template v-else>
+            <div v-for="(slice, sliceIndex) in streamingMessage.slices" :key="sliceIndex">
+              <div v-if="slice.type === 'tool-call'" mb-2>
+                <Collapsable
+                  :class="[
+                    'bg-primary-100/40 dark:bg-primary-900/60 rounded-lg px-2 pb-2 pt-2',
+                    'flex flex-col gap-2 items-start',
+                  ]"
+                >
+                  <template #trigger="{ visible, setVisible }">
+                    <button
+                      :class="[
+                        'w-full', 'text-start',
+                      ]"
+                      @click="setVisible(!visible)"
+                    >
+                      <div i-solar:sledgehammer-bold-duotone class="mr-1 inline-block translate-y-1 op-50" /><code>{{ slice.toolCall.toolName }}</code>
+                    </button>
+                  </template>
+                  <div
+                    :class="[
+                      'rounded-md', 'p-2', 'w-full',
+                      'bg-neutral-100/80 text-sm text-neutral-800 dark:bg-neutral-900/80 dark:text-neutral-200',
+                    ]"
+                  >
+                    <div class="whitespace-pre-wrap break-words font-mono">
+                      {{ JSON.stringify(JSON.parse(slice.toolCall.args), null, 2).trim() }}
+                    </div>
+                  </div>
+                </Collapsable>
+              </div>
+              <div v-else-if="slice.type === 'tool-call-result'" />
+              <MarkdownRenderer v-else :content="slice.text" />
+            </div>
+          </template>
         </div>
         <div v-else i-eos-icons:three-dots-loading />
       </div>

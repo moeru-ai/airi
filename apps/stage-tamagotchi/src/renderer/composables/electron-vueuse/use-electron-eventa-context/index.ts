@@ -1,7 +1,7 @@
-import type { InvokeEventa } from '@unbird/eventa'
+import type { InvokeEventa } from '@moeru/eventa'
 
-import { defineInvoke } from '@unbird/eventa'
-import { createContext } from '@unbird/eventa/adapters/electron/renderer'
+import { defineInvoke } from '@moeru/eventa'
+import { createContext } from '@moeru/eventa/adapters/electron/renderer'
 import { ref } from 'vue'
 
 export function useElectronEventaContext() {

@@ -7,12 +7,14 @@
   makeWrapper,
   pnpm,
 
+  asar,
   electron,
   nodejs,
 }:
 
 (callPackage ./common.nix { }).overrideAttrs (final: {
   nativeBuildInputs = [
+    asar
     copyDesktopItems
     makeWrapper
     nodejs
@@ -39,8 +41,9 @@
     runHook preConfigure
 
     echo Setting up asset cache
+    ln -s "$assets" .cache
     mkdir apps/stage-tamagotchi/src/renderer/.cache
-    cp -r "$assets/assets" apps/stage-tamagotchi/src/renderer/.cache
+    ln -s "$assets" apps/stage-tamagotchi/src/renderer/.cache/assets
 
     runHook postConfigure
   '';
@@ -67,9 +70,16 @@
     # The icon is actually 1500x1500... install it anyway
     install -Dm644 resources/icon.png "$out/share/icons/hicolor/64x64/apps/airi.png"
 
+    # Patch the asar to include the assets
+    cd "$out/opt/AIRI/resources"
+    asar extract app.asar app
+    rm -r app.asar.unpacked
+    cp -r "$assets"/{vrm,live2d} app/out/renderer/assets
+    asar pack app app.asar
+
     makeWrapper "${electron}/bin/electron" "$out/bin/airi" \
       --add-flags "$out/opt/AIRI/resources/app.asar" \
-      --add-flags "\''${NIXOS_OZONE_WL:+\''${WAYLAND_DISPLAY:+--ozone-platform-hint=auto --enable-features=WaylandWindowDecorations --enable-wayland-ime=true --wayland-text-input-version=3}}"
+      --add-flags "\''${NIXOS_OZONE_WL:+\''${WAYLAND_DISPLAY:+--enable-wayland-ime=true --wayland-text-input-version=3}}"
 
     runHook postInstall
   '';

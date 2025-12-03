@@ -8,3 +8,21 @@ docs:
     navbar:
       appearance:
         title: 外观
+'controls-island':
+  'fade-on-hover':
+    enable: 悬停时隐藏
+    disable: 总是显示
+notice:
+  'fade-on-hover':
+    title: 悬停淡出
+    intro: 当光标靠近时自动让角色变淡，减少干扰又保持可见。
+    opacity: 开启后，不透明度会降到 {value} ，作用于 {targets} ，当光标靠近时。
+    toggle: 想关闭，移动到 {controls} 区域，再点击一次 {icon}。
+    controls-label: 控制岛
+    icon-label: 隐藏图标
+    value: '0'
+    targets: 角色和界面
+    confirm: 知道了
+    preparing: 准备中…
+    read-more: 阅读更多
+    preview-title: 这是什么？

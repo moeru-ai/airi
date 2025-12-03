@@ -44,6 +44,8 @@ coverage/
 out/
 bundle/
 .flatpak-builder/
+.flatpak-repo/
+*.flatpak
 # WXT specified this too
 *.output
 
@@ -69,11 +71,15 @@ components.d.ts
 **/.netlify/functions-serve/*
 
 **/public/assets/js/*
-**/public/assets/live2d/models/*
-**/public/assets/vrm/models/*
+**/assets/live2d/models/*
+**/assets/vrm/models/*
 
 # Serving fonts locally
 **/public/assets/fonts/
+
+# Code generation
+plugins/airi-plugin-vscode/src/generated/
+plugins/airi-plugin-vscode/LICENSE
 
 # Make it easy for devenv users to override their local environment.
 # See: https://github.com/moeru-ai/airi/pull/110#discussion_r2024378953
@@ -102,5 +108,5 @@ twitter-session.json
 
 # Symlinks created by nix build
 result*
-
-
+# Nix develop outputs
+outputs/

@@ -12,6 +12,7 @@ import DocOutline from '../components/DocOutline.vue'
 import DocSidebar from '../components/DocSidebar.vue'
 import DocTopbar from '../components/DocTopbar.vue'
 
+import { isBetweenHalloweenAndHalfOfNovember } from '../composables/date'
 import { flatten } from '../utils/flatten'
 
 const { theme, frontmatter } = useData()
@@ -51,19 +52,29 @@ const isCharactersPage = computed(() => path.value.includes('characters'))
       class="pointer-events-none absolute inset-0 left-0 top-0 z-0 h-max w-full flex justify-center overflow-hidden"
     >
       <div class="w-[108rem] flex flex-none justify-end">
-        <img
-          class="max-w-none w-[90rem] flex-none"
-          decoding="async"
-          src="/new-bg.avif"
-          alt="backdrop"
-        >
+        <ClientOnly>
+          <img
+            v-if="isBetweenHalloweenAndHalfOfNovember(new Date())"
+            class="max-w-none w-[90rem] flex-none"
+            decoding="async"
+            src="/new-bg-halloween.avif"
+            alt="backdrop"
+          >
+          <img
+            v-else
+            class="max-w-none w-[90rem] flex-none"
+            decoding="async"
+            src="/new-bg.avif"
+            alt="backdrop"
+          >
+        </ClientOnly>
       </div>
     </div>
 
     <DocTopbar />
 
     <main class="flex">
-      <aside v-if="isSidebarEnabled" class="sticky top-[7.25rem] h-full max-h-[calc(100vh-7.25rem)] w-[17rem] flex-shrink-0 overflow-y-auto py-4 pl-4 pr-4 hidden md:block">
+      <aside v-if="isSidebarEnabled" class="sticky top-[7.25rem] hidden h-full max-h-[calc(100vh-7.25rem)] w-[17rem] flex-shrink-0 overflow-y-auto py-4 pl-4 pr-4 md:block">
         <div v-if="activeSection" class="h-full flex flex-col gap-1 font-sans">
           <DocSidebar :items="activeSection.items ?? []" />
         </div>
@@ -76,11 +87,11 @@ const isCharactersPage = computed(() => path.value.includes('characters'))
           :key="path"
           class="mb-4 block xl:hidden"
         >
-          <CollapsibleTrigger class="bg-card border-muted data-[state=open]:bg-muted mb-2 border rounded-lg px-4 py-2 text-sm">
+          <CollapsibleTrigger class="mb-2 border border-muted rounded-lg bg-card px-4 py-2 text-sm data-[state=open]:bg-muted">
             On this page
           </CollapsibleTrigger>
 
-          <CollapsibleContent class="data-[state=open]:animate-slideDown data-[state=closed]:animate-slideUp ml-4 overflow-hidden">
+          <CollapsibleContent class="ml-4 overflow-hidden data-[state=closed]:animate-slideUp data-[state=open]:animate-slideDown">
             <DocOutline collapsible />
           </CollapsibleContent>
         </CollapsibleRoot>
@@ -101,14 +112,14 @@ const isCharactersPage = computed(() => path.value.includes('characters'))
 
       <div
         v-if="!isCharactersPage && (isOutlineEnabled || isCommunityEnabled)"
-        class="no-scrollbar sticky top-[7.25rem] h-[calc(100vh-7.25rem)] w-64 flex-shrink-0 flex-col overflow-y-auto py-12 pl-2 hidden xl:flex space-y-6 md:overflow-x-hidden"
+        class="no-scrollbar sticky top-[7.25rem] hidden h-[calc(100vh-7.25rem)] w-64 flex-shrink-0 flex-col overflow-y-auto py-12 pl-2 xl:flex space-y-6 md:overflow-x-hidden"
       >
         <DocOutline v-if="isOutlineEnabled" />
         <DocCommunity v-if="isCommunityEnabled" />
         <div class="grow" />
         <!-- <DocCarbonAds /> -->
 
-        <div class="to-background fixed bottom-0 z-10 h-12 w-64 from-transparent bg-gradient-to-b" />
+        <div class="fixed bottom-0 z-10 h-12 w-64 from-transparent to-background bg-gradient-to-b" />
       </div>
     </main>
   </div>

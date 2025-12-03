@@ -57,15 +57,13 @@ export function presetStoryMockHover(): PresetOrFactoryAwaitable {
 }
 
 export function safelistAllPrimaryBackgrounds(): string[] {
-  return [
-    ...[undefined, 50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 950].map((shade) => {
-      const prefix = shade ? `bg-primary-${shade}` : `bg-primary`
-      return [
-        prefix,
-        ...[5, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100].map(opacity => `${prefix}/${opacity}`),
-      ]
-    }).flat(),
-  ]
+  return [undefined, 50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 950].map((shade) => {
+    const prefix = shade ? `bg-primary-${shade}` : `bg-primary`
+    return [
+      prefix,
+      ...[5, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100].map(opacity => `${prefix}/${opacity}`),
+    ]
+  }).flat()
 }
 
 export function presetWebFontsFonts(provider: 'fontsource' | 'none'): Record<string, string | WebFontMeta | (string | WebFontMeta)[]> {

@@ -16,24 +16,24 @@
   },
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
-      "default": "./dist/index.js"
+      "types": "./dist/index.d.mts",
+      "default": "./dist/index.mjs"
     },
     "./audio-context": {
-      "types": "./dist/audio-context/index.d.ts",
-      "default": "./dist/audio-context/index.js"
+      "types": "./dist/audio-context/index.d.mts",
+      "default": "./dist/audio-context/index.mjs"
     },
     "./audio-context/processor.worklet": {
-      "types": "./dist/audio-context/processor.worklet.d.ts",
-      "default": "./dist/audio-context/processor.worklet.js"
+      "types": "./dist/audio-context/processor.worklet.d.mts",
+      "default": "./dist/audio-context/processor.worklet.mjs"
     },
     "./encoding": {
-      "types": "./dist/encoding/index.d.ts",
-      "default": "./dist/encoding/index.js"
+      "types": "./dist/encoding/index.d.mts",
+      "default": "./dist/encoding/index.mjs"
     }
   },
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
+  "main": "./dist/index.mjs",
+  "types": "./dist/index.d.mts",
   "files": [
     "README.md",
     "dist",
@@ -57,7 +57,7 @@
   },
   "devDependencies": {
     "@moeru/std": "catalog:",
-    "@types/audioworklet": "^0.0.87",
-    "vite": "^7.1.9"
+    "@types/audioworklet": "^0.0.91",
+    "vite": "^7.2.2"
   }
 }

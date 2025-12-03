@@ -1,7 +1,9 @@
-import { computed } from 'vue'
+import type { BeatSyncDetectorState } from '@proj-airi/stage-shared/beat-sync'
+
+import { getBeatSyncState, listenBeatSyncStateChange } from '@proj-airi/stage-shared/beat-sync/browser'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import { useBeatSyncStore } from '../stores/beat-sync'
 import { useConsciousnessStore } from '../stores/modules/consciousness'
 import { useDiscordStore } from '../stores/modules/discord'
 import { useFactorioStore } from '../stores/modules/gaming-factorio'
@@ -31,7 +33,7 @@ export function useModulesList() {
   const twitterStore = useTwitterStore()
   const minecraftStore = useMinecraftStore()
   const factorioStore = useFactorioStore()
-  const beatSyncStore = useBeatSyncStore()
+  const beatSyncState = ref<BeatSyncDetectorState>()
 
   const modulesList = computed<Module[]>(() => [
     {
@@ -66,7 +68,7 @@ export function useModulesList() {
       name: t('settings.pages.modules.vision.title'),
       description: t('settings.pages.modules.vision.description'),
       icon: 'i-solar:eye-closed-bold-duotone',
-      to: '',
+      to: '/settings/modules/vision',
       configured: false,
       category: 'essential',
     },
@@ -138,7 +140,7 @@ export function useModulesList() {
       description: t('settings.pages.modules.beat_sync.description'),
       icon: 'i-solar:music-notes-bold-duotone',
       to: '/settings/modules/beat-sync',
-      configured: beatSyncStore.isActive,
+      configured: beatSyncState.value?.isActive ?? false,
       category: 'essential',
     },
   ])
@@ -160,6 +162,13 @@ export function useModulesList() {
     messaging: t('settings.pages.modules.categories.messaging'),
     gaming: t('settings.pages.modules.categories.gaming'),
   }))
+
+  // TODO(Makito): We can make this a reactive value from a synthetic store.
+  onMounted(() => {
+    getBeatSyncState().then(initialState => beatSyncState.value = initialState)
+    const removeListener = listenBeatSyncStateChange(newState => beatSyncState.value = { ...newState })
+    onUnmounted(() => removeListener())
+  })
 
   return {
     modulesList,

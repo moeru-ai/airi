@@ -5,20 +5,25 @@ const props = defineProps<{
   type?: 'error' | 'warning' | 'success' | 'info' | 'loading'
 }>()
 
+defineSlots<{
+  title: (props: any) => any
+  content: (props: any) => any
+}>()
+
 const slots = useSlots()
 
 const containerClass = computed(() => {
   switch (props.type) {
     case 'error':
-      return 'border-solid border-2 border-red-200 bg-red-50 dark:border-red-800/30 dark:bg-red-900/20'
+      return 'border-red-200 bg-red-50 dark:border-red-800/30 dark:bg-red-900/20'
     case 'warning':
-      return 'border-solid border-2 border-amber-200 bg-amber-50 dark:border-amber-800/30 dark:bg-amber-900/20'
+      return 'border-amber-200 bg-amber-50 dark:border-amber-800/30 dark:bg-amber-900/20'
     case 'success':
-      return 'border-solid border-2 border-green-200 bg-green-50 dark:border-green-800/30 text-green-700 dark:bg-green-900/30 dark:text-green-300'
+      return 'border-green-200 bg-green-50 dark:border-green-800/30 text-green-700 dark:bg-green-900/30 dark:text-green-300'
     case 'info':
-      return 'border-solid border-2 border-blue-200 bg-blue-50 dark:border-blue-800/30 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
+      return 'border-blue-200 bg-blue-50 dark:border-blue-800/30 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
     case 'loading':
-      return 'border-solid border-2 border-blue-200 bg-blue-50 dark:border-blue-800/30 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
+      return 'border-blue-200 bg-blue-50 dark:border-blue-800/30 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
   }
   return ''
 })
@@ -57,7 +62,7 @@ const titleClass = computed(() => {
 </script>
 
 <template>
-  <div class="flex flex-col gap-3 rounded-xl p-2" :class="containerClass">
+  <div class="flex flex-col gap-3 border-2 rounded-xl border-solid p-2" :class="containerClass">
     <div class="flex items-center gap-1.5 font-medium">
       <div class="text-2xl" :class="iconClass" />
       <div :class="titleClass">

@@ -1,3 +1,5 @@
+import type { WidgetsWindowManager } from '../widgets'
+
 import { join, resolve } from 'node:path'
 
 import { BrowserWindow, shell } from 'electron'
@@ -8,7 +10,9 @@ import { baseUrl, getElectronMainDirname, load, withHashRoute } from '../../libs
 import { createReusableWindow } from '../../libs/electron/window-manager'
 import { setupSettingsWindowInvokes } from './rpc/index.electron'
 
-export function setupSettingsWindowReusableFunc() {
+export function setupSettingsWindowReusableFunc(params: {
+  widgetsManager: WidgetsWindowManager
+}) {
   return createReusableWindow(async () => {
     const window = new BrowserWindow({
       title: 'Settings',
@@ -29,7 +33,7 @@ export function setupSettingsWindowReusableFunc() {
     })
 
     await load(window, withHashRoute(baseUrl(resolve(getElectronMainDirname(), '..', 'renderer')), '/settings'))
-    await setupSettingsWindowInvokes({ settingsWindow: window })
+    await setupSettingsWindowInvokes({ settingsWindow: window, widgetsManager: params.widgetsManager })
 
     return window
   }).getWindow

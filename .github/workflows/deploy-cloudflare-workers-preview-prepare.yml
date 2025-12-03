@@ -1,0 +1,28 @@
+name: Cloudflare Workers (Preview) Prepare
+
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  prepare:
+    name: Prepare preview sources
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Persist checkout metadata
+        run: |
+          cat <<EOF > preview_meta
+          PR_NUM=${{ github.event.number }}
+          REPO_FULL_NAME=${{ github.event.pull_request.head.repo.full_name }}
+          HEAD_REF=${{ github.event.pull_request.head.ref }}
+          HEAD_SHA=${{ github.event.pull_request.head.sha }}
+          EOF
+
+      - name: Upload metadata artifact
+        uses: actions/upload-artifact@v5
+        with:
+          name: preview-meta
+          path: ./preview_meta
+          overwrite: true

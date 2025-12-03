@@ -4,7 +4,7 @@ WORKDIR /app
 
 RUN apt update && apt install -y ca-certificates curl
 RUN update-ca-certificates
-RUN apt update && apt install -y build-essential python3 curl
+RUN apt update && apt install -y build-essential python3 python3-setuptools curl
 
 RUN corepack enable
 

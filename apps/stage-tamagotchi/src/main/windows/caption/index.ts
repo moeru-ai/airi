@@ -3,8 +3,8 @@ import type { BrowserWindow, BrowserWindowConstructorOptions, Rectangle } from '
 import { createHash } from 'node:crypto'
 import { join, resolve } from 'node:path'
 
-import { defineInvokeHandler } from '@unbird/eventa'
-import { createContext } from '@unbird/eventa/adapters/electron/main'
+import { defineInvokeHandler } from '@moeru/eventa'
+import { createContext } from '@moeru/eventa/adapters/electron/main'
 import { animate, utils } from 'animejs'
 import { BrowserWindow as ElectronBrowserWindow, ipcMain, screen, shell } from 'electron'
 import { debounce, throttle } from 'es-toolkit'
@@ -249,7 +249,7 @@ export function setupCaptionWindowManager(params: { mainWindow: BrowserWindow })
     // TODO: once we refactored eventa to support window-namespaced contexts,
     // we can remove the setMaxListeners call below since eventa will be able to dispatch and
     // manage events within eventa's context system.
-    ipcMain.setMaxListeners(100)
+    ipcMain.setMaxListeners(0)
 
     const window = createCaptionWindow()
     const { context } = createContext(ipcMain, window)
