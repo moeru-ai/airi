@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { Application } from '@pixi/app'
-import type { Cubism4InternalModel, InternalModel } from 'pixi-live2d-display/cubism4'
+
+import type { PixiLive2DInternalModel } from '../../../composables/live2d'
 
 import { listenBeatSyncBeatSignal } from '@proj-airi/stage-shared/beat-sync/browser'
 import { useTheme } from '@proj-airi/ui'
@@ -11,17 +12,18 @@ import { DropShadowFilter } from 'pixi-filters'
 import { Live2DFactory, Live2DModel, MotionPriority } from 'pixi-live2d-display/cubism4'
 import { computed, onMounted, onUnmounted, ref, shallowRef, toRef, watch } from 'vue'
 
-import { useLive2DIdleEyeFocus } from '../../../composables/live2d'
+import {
+  createBeatSyncController,
+
+  useLive2DMotionManagerUpdate,
+  useMotionUpdatePluginAutoEyeBlink,
+  useMotionUpdatePluginBeatSync,
+  useMotionUpdatePluginIdleDisable,
+  useMotionUpdatePluginIdleFocus,
+} from '../../../composables/live2d'
 import { Emotion, EmotionNeutralMotionName } from '../../../constants/emotions'
 import { useLive2d } from '../../../stores/live2d'
 import { useSettings } from '../../../stores/settings'
-
-type CubismModel = Cubism4InternalModel['coreModel']
-type CubismEyeBlink = Cubism4InternalModel['eyeBlink']
-type PixiLive2DInternalModel = InternalModel & {
-  eyeBlink?: CubismEyeBlink
-  coreModel: CubismModel
-}
 
 const props = withDefaults(defineProps<{
   modelSrc?: string
@@ -72,13 +74,6 @@ const modelSrcRef = toRef(() => props.modelSrc)
 
 const modelLoading = ref(false)
 
-// Beat Sync: Values are all in degrees
-const beatSyncTargetY = ref<number>(0)
-const beatSyncTargetZ = ref<number>(0)
-const beatSyncVelocityY = ref<number>(0)
-const beatSyncVelocityZ = ref<number>(0)
-// End of Beat Sync
-
 const offset = computed(() => parsePropsOffset())
 
 const pixiApp = toRef(() => props.app)
@@ -93,7 +88,6 @@ const lastUpdateTime = ref(0)
 const { isDark: dark } = useTheme()
 const breakpoints = useBreakpoints(breakpointsTailwind)
 const isMobile = computed(() => breakpoints.between('sm', 'md').value || breakpoints.smaller('sm').value)
-const idleEyeFocus = useLive2DIdleEyeFocus()
 const dropShadowFilter = shallowRef(new DropShadowFilter({
   alpha: 0.2,
   blur: 0,
@@ -140,6 +134,14 @@ const {
 } = storeToRefs(useSettings())
 
 const localCurrentMotion = ref<{ group: string, index: number }>({ group: 'Idle', index: 0 })
+const beatSync = createBeatSyncController({
+  baseAngles: () => ({
+    x: modelParameters.value.angleX,
+    y: modelParameters.value.angleY,
+    z: modelParameters.value.angleZ,
+  }),
+  initialStyle: 'sway-sine',
+})
 
 // Listen for model reload requests (e.g., when runtime motion is uploaded)
 live2dStore.onShouldUpdateView(() => {
@@ -262,119 +264,22 @@ async function loadModel() {
     }
 
     // This is hacky too
-    const hookedUpdate = motionManager.update as (model: CubismModel, now: number) => boolean
-    motionManager.update = function (model: CubismModel, now: number) {
-      const timeDelta = now - lastUpdateTime.value
+    const motionManagerUpdate = useLive2DMotionManagerUpdate({
+      internalModel,
+      motionManager,
+      modelParameters,
+      live2dIdleAnimationEnabled,
+      lastUpdateTime,
+    })
 
-      // Beat Sync
-      {
-        // Semi-implicit Euler approach
-        const stiffness = 120 // Higher -> Snappier
-        const damping = 16 // Higher -> Less bounce
-        const mass = 1
+    motionManagerUpdate.register(useMotionUpdatePluginBeatSync(beatSync), 'pre')
+    motionManagerUpdate.register(useMotionUpdatePluginIdleDisable(), 'pre')
+    motionManagerUpdate.register(useMotionUpdatePluginIdleFocus(), 'post')
+    motionManagerUpdate.register(useMotionUpdatePluginAutoEyeBlink(), 'post')
 
-        let paramAngleY = coreModel.getParameterValueById('ParamAngleY') as number
-        let paramAngleZ = coreModel.getParameterValueById('ParamAngleZ') as number
-
-        // Y
-        {
-          const target = beatSyncTargetY.value
-          const pos = paramAngleY
-          const vel = beatSyncVelocityY.value
-          const accel = (stiffness * (target - pos) - damping * vel) / mass
-          beatSyncVelocityY.value = vel + accel * timeDelta
-          paramAngleY = pos + beatSyncVelocityY.value * timeDelta
-
-          // Snap
-          if (Math.abs(target - paramAngleY) < 0.01 && Math.abs(beatSyncVelocityY.value) < 0.01) {
-            paramAngleY = target
-            beatSyncVelocityY.value = 0
-          }
-        }
-
-        // Z
-        {
-          const target = beatSyncTargetZ.value
-          const pos = paramAngleZ
-          const vel = beatSyncVelocityZ.value
-          const accel = (stiffness * (target - pos) - damping * vel) / mass
-          beatSyncVelocityZ.value = vel + accel * timeDelta
-          paramAngleZ = pos + beatSyncVelocityZ.value * timeDelta
-
-          // Snap
-          if (Math.abs(target - paramAngleZ) < 0.01 && Math.abs(beatSyncVelocityZ.value) < 0.01) {
-            paramAngleZ = target
-            beatSyncVelocityZ.value = 0
-          }
-        }
-
-        coreModel.setParameterValueById('ParamAngleY', paramAngleY)
-        coreModel.setParameterValueById('ParamAngleZ', paramAngleZ)
-      }
-
-      lastUpdateTime.value = now
-
-      // Check if current motion is an idle motion (including user-selected runtime motion)
-      const selectedMotionGroup = localStorage.getItem('selected-runtime-motion-group')
-      const isIdleMotion = !motionManager.state.currentGroup
-        || motionManager.state.currentGroup === motionManager.groups.idle
-        || (selectedMotionGroup && motionManager.state.currentGroup === selectedMotionGroup)
-
-      // Stop idle motions if they're disabled
-      if (!live2dIdleAnimationEnabled.value && isIdleMotion) {
-        motionManager.stopAllMotions()
-        // Still update eye focus and blink even if idle motion is stopped
-        idleEyeFocus.update(internalModel, now)
-        if (internalModel.eyeBlink != null) {
-          internalModel.eyeBlink.updateParameters(model, timeDelta / 1000)
-        }
-        // Apply manual eye parameters after auto eye blink
-        coreModel.setParameterValueById('ParamEyeLOpen', modelParameters.value.leftEyeOpen)
-        coreModel.setParameterValueById('ParamEyeROpen', modelParameters.value.rightEyeOpen)
-        return true
-      }
-
-      hookedUpdate?.call(this, model, now)
-
-      // Possibility 1: Only update eye focus when the model is idle
-      // Possibility 2: For models having no motion groups, currentGroup will be undefined while groups can be { idle: ... }
-      if (isIdleMotion) {
-        idleEyeFocus.update(internalModel, now)
-
-        // If the model has eye blink parameters
-        if (internalModel.eyeBlink != null) {
-          // For the part of the auto eye blink implementation in pixi-live2d-display
-          //
-          // this.emit("beforeMotionUpdate");
-          // const motionUpdated = this.motionManager.update(this.coreModel, now);
-          // this.emit("afterMotionUpdate");
-          // model.saveParameters();
-          // this.motionManager.expressionManager?.update(model, now);
-          // if (!motionUpdated) {
-          //   this.eyeBlink?.updateParameters(model, dt);
-          // }
-          //
-          // https://github.com/guansss/pixi-live2d-display/blob/31317b37d5e22955a44d5b11f37f421e94a11269/src/cubism4/Cubism4InternalModel.ts#L202-L214
-          //
-          // If the this.motionManager.update returns true, as motion updated flag on,
-          // the eye blink parameters will not be updated, in another hand, the auto eye blink is disabled
-          //
-          // Since we are hooking the motionManager.update method currently,
-          // and previously a always `true` was returned, eye blink parameters were never updated.
-          //
-          // Thous we are here to manually update the eye blink parameters within this hooked method
-          internalModel.eyeBlink.updateParameters(model, (now - lastUpdateTime.value) / 1000)
-        }
-
-        // Apply manual eye parameters after auto eye blink
-        coreModel.setParameterValueById('ParamEyeLOpen', modelParameters.value.leftEyeOpen)
-        coreModel.setParameterValueById('ParamEyeROpen', modelParameters.value.rightEyeOpen)
-
-        // still, mark the motion as updated
-        return true
-      }
-
-      return false
+    const hookedUpdate = motionManager.update as (model: PixiLive2DInternalModel['coreModel'], now: number) => boolean
+    motionManager.update = function (model: PixiLive2DInternalModel['coreModel'], now: number) {
+      return motionManagerUpdate.hookUpdate(model, now, hookedUpdate)
     }
 
     motionManager.on('motionStart', (group, index) => {
@@ -661,12 +566,7 @@ watch(focusAt, (value) => {
 })
 
 onMounted(() => {
-  const onBeat = () => {
-    beatSyncTargetY.value = Math.max(-5, Math.min(5, (beatSyncTargetY.value < 0 ? 10 : -10) * (0.5 + Math.random() * 0.3)))
-    beatSyncTargetZ.value = Math.max(-5, Math.min(5, (beatSyncTargetZ.value < 0 ? 10 : -10) * (0.5 + Math.random() * 0.3)))
-  }
-
-  const removeListener = listenBeatSyncBeatSignal(() => onBeat())
+  const removeListener = listenBeatSyncBeatSignal(() => beatSync.scheduleBeat())
   onUnmounted(() => removeListener())
 })
 
