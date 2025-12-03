@@ -1,0 +1,30 @@
+{
+  "name": "server",
+  "version": "1.0.0",
+  "packageManager": "pnpm@10.22.0",
+  "description": "",
+  "author": "",
+  "license": "ISC",
+  "keywords": [],
+  "main": "index.js",
+  "scripts": {
+    "apply:env": "dotenvx run -f .env -f .env.local --overload --ignore=MISSING_ENV_FILE",
+    "generate:auth": "pnpm run apply:env -- better-auth generate --config src/services/auth.ts --output src/schemas/auth.ts -y",
+    "dev": "pnpm run apply:env -- tsx src/app.ts",
+    "push:db": "pnpm run apply:env -- drizzle-kit push"
+  },
+  "dependencies": {
+    "@dotenvx/dotenvx": "^1.51.1",
+    "@guiiai/logg": "catalog:",
+    "@hono/node-server": "^1.19.6",
+    "better-auth": "^1.4.5",
+    "drizzle-orm": "^0.44.7",
+    "hono": "^4.10.7",
+    "postgres": "^3.4.7",
+    "tsx": "^4.21.0"
+  },
+  "devDependencies": {
+    "@better-auth/cli": "^1.4.5",
+    "drizzle-kit": "^0.31.7"
+  }
+}

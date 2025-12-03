@@ -54,6 +54,7 @@
     "@xsai/stream-transcription": "0.4.0-beta.8",
     "@xsai/utils-chat": "catalog:",
     "animejs": "^4.2.2",
+    "better-auth": "^1.4.5",
     "colorjs.io": "^0.5.2",
     "culori": "^4.0.2",
     "date-fns": "^4.1.0",
