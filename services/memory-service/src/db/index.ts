@@ -82,7 +82,7 @@ function ensureLite(): PGlite {
   if (!lite) {
     const dir = env.PGLITE_DATA_DIR || resolve(cwd(), '.pglite')
     fs.mkdirSync(dir, { recursive: true })
-    lite = new PGlite(`file:${dir}`)
+    lite = new PGlite(dir)
   }
   return lite
 }

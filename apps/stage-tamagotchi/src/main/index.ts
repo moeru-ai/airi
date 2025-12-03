@@ -193,6 +193,7 @@ app.on('window-all-closed', () => {
 // Clean up server and intervals when app quits
 app.on('before-quit', async () => {
   if (memoryServiceProcess) {
+    // @ts-expect-error
     memoryServiceProcess.kill()
   }
   emitAppBeforeQuit()

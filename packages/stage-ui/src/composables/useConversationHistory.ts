@@ -1,9 +1,9 @@
 import { ref } from 'vue'
 
-import { conversationHistoryService, HistoryMessage } from '../services'
+import { conversationHistoryService, type HistoryMessage } from '../services'
 import { useMemoryService } from './useMemoryService'
 
-export { HistoryMessage }
+export type { HistoryMessage }
 
 export function useConversationHistory() {
   const { memoryServiceEnabled, getActiveModelName } = useMemoryService()

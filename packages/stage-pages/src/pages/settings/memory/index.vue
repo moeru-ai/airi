@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { RadioCardManySelect, RadioCardSimple } from '@proj-airi/stage-ui/components'
 import { useMemoryService } from '@proj-airi/stage-ui/composables/useMemoryService'
-import { exportChatHistory as exportLocalChatHistory, importChatHistory as importLocalChatHistory, testLocalMemoryConnection } from '@proj-airi/stage-ui/services'
+
 import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
 import { FieldInput } from '@proj-airi/ui'
 import { useLocalStorage } from '@vueuse/core'
@@ -10,7 +10,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 // === EXISTING MEMORY SERVICE SETTINGS ===
 const memoryServiceEnabled = useLocalStorage('settings/memory/enabled', true)
 const chatStore = useChatStore()
-const { getActiveModelName } = useMemoryService()
+const { getActiveModelName, testConnection: testLocalMemoryConnection } = useMemoryService()
 const memoryServiceUrl = useLocalStorage('settings/memory/service-url', 'local://pglite')
 const apiKey = useLocalStorage('settings/memory/api-key', '')
 const isConnected = ref(false)

@@ -25,18 +25,7 @@ export interface StreamOptions {
   use_memory_service?: boolean
 }
 
-// TODO: proper format for other error messages.
-function sanitizeMessages(messages: unknown[]): Message[] {
-  return messages.map((m: any) => {
-    if (m && m.role === 'error') {
-      return {
-        role: 'user',
-        content: `User encountered error: ${String(m.content ?? '')}`,
-      } as Message
-    }
-    return m as Message
-  })
-}
+
 
 function streamOptionsToolsCompatibilityOk(model: string, chatProvider: ChatProvider, _: Message[], options?: StreamOptions, toolsCompatibility: Map<string, boolean> = new Map()): boolean {
   return !!(options?.supportsTools || toolsCompatibility.get(`${chatProvider.chat(model).baseURL}-${model}`))

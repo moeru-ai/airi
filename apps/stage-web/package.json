@@ -118,6 +118,7 @@
     "@vitejs/plugin-vue": "^6.0.1",
     "@vue-macros/volar": "^3.1.1",
     "@vueuse/motion": "^3.0.3",
+    "concurrently": "^9.2.1",
     "csstype": "^3.2.1",
     "hfup": "^1.0.0",
     "less": "^4.4.2",

@@ -26,7 +26,7 @@ export interface ErrorMessage {
 export const useChatStore = defineStore('chat', () => {
   const { stream, discoverToolsCompatibility } = useLLM()
   const { systemPrompt } = storeToRefs(useAiriCardStore())
-  const { storeAIResponse, memoryServiceEnabled } = useMemoryService()
+  const { storeAIResponse } = useMemoryService()
   const { loadHistory, isLoading: isLoadingHistory, hasMore: hasMoreHistory, error: historyError } = useConversationHistory()
 
   const sending = ref(false)
@@ -113,38 +113,7 @@ export const useChatStore = defineStore('chat', () => {
 
   const streamingMessage = ref<ChatAssistantMessage>({ role: 'assistant', content: '', slices: [], tool_results: [] })
 
-  // Dedupe guard to prevent duplicate storage calls
-  const DEDUPE_WINDOW_MS = 100
-  const DEDUPE_STORAGE_KEY = 'airi-chat-last-message'
-
-  function shouldSkipStorage(message: string): boolean {
-    try {
-      const lastMessageData = localStorage.getItem(DEDUPE_STORAGE_KEY)
-
-      if (!lastMessageData) {
-        localStorage.setItem(DEDUPE_STORAGE_KEY, JSON.stringify({ message, timestamp: Date.now() }))
-        return false
-      }
-
-      const { message: lastMessage, timestamp } = JSON.parse(lastMessageData)
-      const now = Date.now()
-      const timeDiff = now - timestamp
-
-      // Skip if same message and within dedupe window
-      if (message === lastMessage && timeDiff < DEDUPE_WINDOW_MS) {
-        // console.log('Dedup check - Skipping duplicate message')
-        return true
-      }
-
-      // Update with current message
-      localStorage.setItem(DEDUPE_STORAGE_KEY, JSON.stringify({ message, timestamp: now }))
-      return false
-    }
-    catch (error) {
-      console.warn('Dedupe guard error:', error)
-      return false
-    }
-  }
+  
 
   async function send(
     sendingMessage: string,
@@ -298,8 +267,10 @@ export const useChatStore = defineStore('chat', () => {
         await hook()
 
       // Call the end-of-response hooks with the full text
-      for (const hook of onAssistantResponseEndHooks.value)
+      for (const hook of onAssistantResponseEndHooks.value) {
         await hook(fullText)
+      }
+      await storeAIResponse(sendingMessage, fullText)
 
       // eslint-disable-next-line no-console
       console.debug('LLM output:', fullText)
