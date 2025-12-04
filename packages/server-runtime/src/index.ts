@@ -1,10 +1,3 @@
-import {
-  HEARTBEAT_INTERVAL_MS,
-  HEARTBEAT_TIMEOUT_MS,
-  MESSAGE_RATE_LIMIT,
-  MESSAGE_RATE_WINDOW_MS,
-  UNAUTH_TIMEOUT_MS,
-} from '@proj-airi/server-shared'
 import type { WebSocketEvent } from '@proj-airi/server-shared/types'
 
 import type { AuthenticatedPeer, Peer } from './types'
@@ -21,6 +14,13 @@ import {
   useLogg,
 } from '@guiiai/logg'
 import { clearClockInterval, setClockInterval } from '@moeru/std/set-interval'
+import {
+  HEARTBEAT_INTERVAL_MS,
+  HEARTBEAT_TIMEOUT_MS,
+  MESSAGE_RATE_LIMIT,
+  MESSAGE_RATE_WINDOW_MS,
+  UNAUTH_TIMEOUT_MS,
+} from '@proj-airi/server-shared'
 import { defineWebSocketHandler, H3 } from 'h3'
 
 import { WebSocketReadyState } from './types'
@@ -289,13 +289,13 @@ function setupApp(): H3 {
     if (typeof data !== 'object' || data === null || Array.isArray(data)) {
       sendJSON(peer, {
         type: 'error',
-        data: { message: 'invalid configuration data' }
+        data: { message: 'invalid configuration data' },
       })
       return
     }
-  
+
     const config = data as Record<string, unknown>
-  
+
     const errName = assertString(
       config.moduleName,
       'moduleName',
@@ -303,7 +303,7 @@ function setupApp(): H3 {
     )
     if (errName)
       return sendJSON(peer, { type: 'error', data: { message: errName } })
-  
+
     const errIndex = assertNonNegInt(
       config.moduleIndex,
       'moduleIndex',
@@ -311,27 +311,27 @@ function setupApp(): H3 {
     )
     if (errIndex)
       return sendJSON(peer, { type: 'error', data: { message: errIndex } })
-  
+
     const errConfig = assertConfig(config.config)
     if (errConfig)
       return sendJSON(peer, { type: 'error', data: { message: errConfig } })
-  
+
     const moduleName = config.moduleName as string
-    const moduleIndex =
-      typeof config.moduleIndex === 'number'
+    const moduleIndex
+      = typeof config.moduleIndex === 'number'
         ? config.moduleIndex
         : undefined
-  
+
     const key = moduleKey(moduleName, moduleIndex)
     const targets = modulePeers.get(key)
-  
+
     if (!targets || !targets.size) {
       return sendJSON(peer, {
         type: 'error',
         data: { message: 'module not found or not announced' },
       })
     }
-  
+
     const validator = moduleConfigValidators.get(key)
     if (validator) {
       const validatorErr = validator(config.config)
@@ -342,7 +342,7 @@ function setupApp(): H3 {
         })
       }
     }
-  
+
     const configurePayload = JSON.stringify({
       type: 'module:configure',
       data: { config: config.config },
@@ -389,7 +389,7 @@ function setupApp(): H3 {
           data: { message: 'invalid authenticate payload' },
         })
       }
-    
+
       const err = assertString(
         (data as Record<string, unknown>).token,
         'token',
@@ -397,7 +397,7 @@ function setupApp(): H3 {
       )
       if (err)
         return sendJSON(peer, { type: 'error', data: { message: err } })
-    
+
       handleAuthenticate(peer, p, (data as any).token)
     },
 
