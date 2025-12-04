@@ -14,7 +14,7 @@ import {
   useLogg,
 } from '@guiiai/logg'
 import { clearClockInterval, setClockInterval } from '@moeru/std/set-interval'
-import {
+import type {
   HEARTBEAT_INTERVAL_MS,
   HEARTBEAT_TIMEOUT_MS,
   MESSAGE_RATE_LIMIT,
