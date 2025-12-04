@@ -258,27 +258,27 @@ function setupApp(): H3 {
   function handleAnnounce(
     peer: Peer,
     p: AuthenticatedPeer,
-    data: Record<string, unknown>,
+    data: unknown,
   ) {
-    if (AUTH_TOKEN && !p.authenticated) {
-      sendJSON(peer, {
+    if (typeof data !== 'object' || data === null || Array.isArray(data)) {
+      return sendJSON(peer, {
         type: 'error',
-        data: { message: 'must authenticate before announcing' },
+        data: { message: 'invalid announce payload' },
       })
-      return
     }
-
-    const errName = assertString(data.name, 'name', 'module:announce')
+  
+    const payload = data as Record<string, unknown>
+  
+    const errName = assertString(payload.name, 'name', 'module:announce')
     if (errName)
       return sendJSON(peer, { type: 'error', data: { message: errName } })
-    const name = data.name as string
-
-    const errIndex = assertNonNegInt(data.index, 'index', 'module:announce')
+    const name = payload.name as string
+  
+    const errIndex = assertNonNegInt(payload.index, 'index', 'module:announce')
     if (errIndex)
       return sendJSON(peer, { type: 'error', data: { message: errIndex } })
-    const index
-      = typeof data.index === 'number' ? (data.index as number) : undefined
-
+    const index = typeof payload.index === 'number' ? (payload.index as number) : undefined
+  
     unregisterModulePeer(p)
     p.name = name
     p.index = index
