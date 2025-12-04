@@ -1,14 +1,30 @@
 import type { WebSocketEvent } from '@proj-airi/server-shared/types'
-
 import type { AuthenticatedPeer, Peer } from './types'
 
 import { env } from 'node:process'
 
-import { availableLogLevelStrings, Format, LogLevel, logLevelStringToLogLevelMap, setGlobalFormat, setGlobalLogLevel, useLogg } from '@guiiai/logg'
+import {
+  availableLogLevelStrings,
+  Format,
+  LogLevel,
+  logLevelStringToLogLevelMap,
+  setGlobalFormat,
+  setGlobalLogLevel,
+  useLogg,
+} from '@guiiai/logg'
 import { defineWebSocketHandler, H3 } from 'h3'
 
 import { WebSocketReadyState } from './types'
 
+// ⬇️ NEW: import validation helpers from validation.ts
+import {
+  assertString,
+  assertNonNegInt,
+  assertConfig,
+  validateConfig,
+} from './validation'
+
+// logging setup
 setGlobalFormat(Format.Pretty)
 setGlobalLogLevel(LogLevel.Log)
 
@@ -22,9 +38,9 @@ if (env.LOG_LEVEL) {
 // cache token
 const AUTH_TOKEN = env.AUTHENTICATION_TOKEN || ''
 const UNAUTH_TIMEOUT_MS = 5000
-const MESSAGE_RATE_LIMIT = 30 // events per window
-const MESSAGE_RATE_WINDOW_MS = 5000 // 5 seconds
-const HEARTBEAT_INTERVAL_MS = 10000 // 10 seconds
+const MESSAGE_RATE_LIMIT = 30
+const MESSAGE_RATE_WINDOW_MS = 5000
+const HEARTBEAT_INTERVAL_MS = 10000
 const HEARTBEAT_TIMEOUT_MS = HEARTBEAT_INTERVAL_MS * 2
 
 // extend peer interface with close method
@@ -34,15 +50,24 @@ interface PeerWithClose extends Peer {
 
 // pre-stringified responses
 const RESPONSES = {
-  authenticated: JSON.stringify({ type: 'module:authenticated', data: { authenticated: true } }),
-  notAuthenticated: JSON.stringify({ type: 'error', data: { message: 'not authenticated' } }),
+  authenticated: JSON.stringify({
+    type: 'module:authenticated',
+    data: { authenticated: true },
+  }),
+  notAuthenticated: JSON.stringify({
+    type: 'error',
+    data: { message: 'not authenticated' },
+  }),
 }
 
 const safeSendLogger = useLogg('SafeSend').useGlobalConfig()
 
 const HEARTBEAT_EVENT_TYPE = 'server:heartbeat'
 function createHeartbeatPayload() {
-  return JSON.stringify({ type: HEARTBEAT_EVENT_TYPE, data: { timestamp: Date.now() } })
+  return JSON.stringify({
+    type: HEARTBEAT_EVENT_TYPE,
+    data: { timestamp: Date.now() },
+  })
 }
 
 // safe send utility
@@ -54,29 +79,15 @@ function safeSend(peer: Peer, payload: string) {
   }
   catch (err) {
     const error = err instanceof Error ? err : new Error(String(err))
-    safeSendLogger.withFields({ peer: peer.id }).withError(error).debug('failed to send payload')
+    safeSendLogger
+      .withFields({ peer: peer.id })
+      .withError(error)
+      .debug('failed to send payload')
   }
 }
 
 function sendJSON(peer: Peer, event: WebSocketEvent | string) {
   safeSend(peer, typeof event === 'string' ? event : JSON.stringify(event))
-}
-
-// validation helpers
-function assertString(value: unknown, field: string, event: string): string | null {
-  if (typeof value !== 'string' || value.trim() === '') {
-    return `the field '${field}' must be a non-empty string for event '${event}'`
-  }
-  return null
-}
-
-function assertNonNegInt(value: unknown, field: string, event: string): string | null {
-  if (value === undefined)
-    return null
-  if (typeof value !== 'number' || !Number.isInteger(value) || value < 0) {
-    return `the field '${field}' must be a non-negative integer for event '${event}'`
-  }
-  return null
 }
 
 // compact module key
@@ -93,46 +104,14 @@ export function registerModuleConfigValidator(
   moduleConfigValidators.set(moduleKey(moduleName, moduleIndex), validator)
 }
 
-export function unregisterModuleConfigValidator(moduleName: string, moduleIndex?: number) {
+export function unregisterModuleConfigValidator(
+  moduleName: string,
+  moduleIndex?: number,
+) {
   moduleConfigValidators.delete(moduleKey(moduleName, moduleIndex))
 }
 
-function validateConfig(value: unknown, path = 'config'): string | null {
-  if (value === null || typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean')
-    return null
-
-  if (typeof value === 'object') {
-    if (Array.isArray(value)) {
-      for (let i = 0; i < value.length; i++) {
-        const childErr = validateConfig(value[i], `${path}[${i}]`)
-        if (childErr)
-          return childErr
-      }
-      return null
-    }
-
-    const entries = Object.entries(value as Record<string, unknown>)
-    for (const [key, child] of entries) {
-      if (!key.length)
-        return `config object keys must be non-empty strings at '${path}'`
-      const childErr = validateConfig(child, `${path}.${key}`)
-      if (childErr)
-        return childErr
-    }
-    return null
-  }
-
-  return `config contains unsupported value at '${path}'`
-}
-
-function assertConfig(value: unknown): string | null {
-  if (value === undefined)
-    return `'config' is required for event 'ui:configure'`
-  if (value === null || (typeof value !== 'object' && !Array.isArray(value)))
-    return `'config' must be an object or array for event 'ui:configure'`
-  return validateConfig(value)
-}
-
+// rate limiter
 interface RateState {
   count: number
   resetAt: number
@@ -171,7 +150,7 @@ function setupApp(): H3 {
 
   // state
   const peers = new Map<string, AuthenticatedPeer>()
-  const modulePeers = new Map<string, Set<AuthenticatedPeer>>() // key: moduleName:index
+  const modulePeers = new Map<string, Set<AuthenticatedPeer>>()
   const rateLimiter = createRateLimiter()
   const heartbeatTimers = new Map<string, ReturnType<typeof setInterval>>()
   const peerActivity = new Map<string, number>()
@@ -182,8 +161,7 @@ function setupApp(): H3 {
 
   function stopHeartbeat(peerId: string) {
     const timer = heartbeatTimers.get(peerId)
-    if (timer)
-      clearInterval(timer)
+    if (timer) clearInterval(timer)
     heartbeatTimers.delete(peerId)
     peerActivity.delete(peerId)
   }
@@ -195,13 +173,13 @@ function setupApp(): H3 {
     const interval = setInterval(() => {
       const last = peerActivity.get(peer.id) ?? 0
       if (Date.now() - last > HEARTBEAT_TIMEOUT_MS) {
-        wsLogger.withFields({ peer: peer.id }).warn('heartbeat timeout, closing connection')
+        wsLogger
+          .withFields({ peer: peer.id })
+          .warn('heartbeat timeout, closing connection')
         try {
           (peer as PeerWithClose).close()
         }
-        catch {
-          // no-op
-        }
+        catch {}
         stopHeartbeat(peer.id)
         return
       }
@@ -214,8 +192,7 @@ function setupApp(): H3 {
 
   // peer registration helpers
   function registerModulePeer(p: AuthenticatedPeer) {
-    if (!p.name)
-      return
+    if (!p.name) return
     const key = moduleKey(p.name, p.index)
     const existing = modulePeers.get(key)
     if (existing) {
@@ -226,35 +203,37 @@ function setupApp(): H3 {
   }
 
   function unregisterModulePeer(p: AuthenticatedPeer) {
-    if (!p.name)
-      return
+    if (!p.name) return
     const key = moduleKey(p.name, p.index)
     const bucket = modulePeers.get(key)
-    if (!bucket)
-      return
+    if (!bucket) return
     bucket.delete(p)
-    if (!bucket.size)
-      modulePeers.delete(key)
+    if (!bucket.size) modulePeers.delete(key)
   }
 
   function broadcastModuleRemoved(p: AuthenticatedPeer) {
-    if (!p.name)
-      return
+    if (!p.name) return
     const payload = JSON.stringify({
       type: 'module:removed',
       data: { moduleName: p.name, moduleIndex: p.index },
     })
     for (const [id, other] of peers) {
-      if (id === p.peer.id)
-        continue
+      if (id === p.peer.id) continue
       safeSend(other.peer, payload)
     }
   }
 
-  function handleAuthenticate(peer: Peer, p: AuthenticatedPeer, token: string) {
+  function handleAuthenticate(
+    peer: Peer,
+    p: AuthenticatedPeer,
+    token: string,
+  ) {
     if (AUTH_TOKEN && token !== AUTH_TOKEN) {
       wsLogger.withFields({ peer: peer.id }).debug('authentication failed')
-      sendJSON(peer, { type: 'error', data: { message: 'invalid token' } })
+      sendJSON(peer, {
+        type: 'error',
+        data: { message: 'invalid token' },
+      })
       return
     }
 
@@ -262,9 +241,16 @@ function setupApp(): H3 {
     safeSend(peer, RESPONSES.authenticated)
   }
 
-  function handleAnnounce(peer: Peer, p: AuthenticatedPeer, data: Record<string, unknown>) {
+  function handleAnnounce(
+    peer: Peer,
+    p: AuthenticatedPeer,
+    data: Record<string, unknown>,
+  ) {
     if (AUTH_TOKEN && !p.authenticated) {
-      sendJSON(peer, { type: 'error', data: { message: 'must authenticate before announcing' } })
+      sendJSON(peer, {
+        type: 'error',
+        data: { message: 'must authenticate before announcing' },
+      })
       return
     }
 
@@ -276,7 +262,8 @@ function setupApp(): H3 {
     const errIndex = assertNonNegInt(data.index, 'index', 'module:announce')
     if (errIndex)
       return sendJSON(peer, { type: 'error', data: { message: errIndex } })
-    const index: number | undefined = typeof data.index === 'number' ? data.index : undefined
+    const index =
+      typeof data.index === 'number' ? (data.index as number) : undefined
 
     unregisterModulePeer(p)
     p.name = name
@@ -285,11 +272,19 @@ function setupApp(): H3 {
   }
 
   function handleConfigure(peer: Peer, data: Record<string, unknown>) {
-    const errName = assertString(data.moduleName, 'moduleName', 'ui:configure')
+    const errName = assertString(
+      data.moduleName,
+      'moduleName',
+      'ui:configure',
+    )
     if (errName)
       return sendJSON(peer, { type: 'error', data: { message: errName } })
 
-    const errIndex = assertNonNegInt(data.moduleIndex, 'moduleIndex', 'ui:configure')
+    const errIndex = assertNonNegInt(
+      data.moduleIndex,
+      'moduleIndex',
+      'ui:configure',
+    )
     if (errIndex)
       return sendJSON(peer, { type: 'error', data: { message: errIndex } })
 
@@ -297,79 +292,112 @@ function setupApp(): H3 {
     if (errConfig)
       return sendJSON(peer, { type: 'error', data: { message: errConfig } })
 
-    // Type refinement
     if (typeof data.moduleName !== 'string') {
-      return sendJSON(peer, { type: 'error', data: { message: 'invalid moduleName' } })
+      return sendJSON(peer, {
+        type: 'error',
+        data: { message: 'invalid moduleName' },
+      })
     }
     const moduleName: string = data.moduleName
 
     let moduleIndex: number | undefined
     if (data.moduleIndex !== undefined) {
-      if (typeof data.moduleIndex !== 'number' || !Number.isInteger(data.moduleIndex) || data.moduleIndex < 0) {
-        return sendJSON(peer, { type: 'error', data: { message: 'invalid moduleIndex' } })
+      if (
+        typeof data.moduleIndex !== 'number' ||
+        !Number.isInteger(data.moduleIndex) ||
+        data.moduleIndex < 0
+      ) {
+        return sendJSON(peer, {
+          type: 'error',
+          data: { message: 'invalid moduleIndex' },
+        })
       }
-      moduleIndex = data.moduleIndex as number
+      moduleIndex = data.moduleIndex
     }
 
     const key = moduleKey(moduleName, moduleIndex)
     const targets = modulePeers.get(key)
 
     if (!targets || !targets.size) {
-      return sendJSON(peer, { type: 'error', data: { message: 'module not found or not announced' } })
+      return sendJSON(peer, {
+        type: 'error',
+        data: { message: 'module not found or not announced' },
+      })
     }
 
     const validator = moduleConfigValidators.get(key)
     if (validator) {
       const validatorErr = validator(data.config)
       if (validatorErr)
-        return sendJSON(peer, { type: 'error', data: { message: validatorErr } })
+        return sendJSON(peer, {
+          type: 'error',
+          data: { message: validatorErr },
+        })
     }
 
-    const configurePayload = JSON.stringify({ type: 'module:configure', data: { config: data.config } })
-    for (const target of targets)
-      safeSend(target.peer, configurePayload)
+    const configurePayload = JSON.stringify({
+      type: 'module:configure',
+      data: { config: data.config },
+    })
+    for (const target of targets) safeSend(target.peer, configurePayload)
   }
 
-  function handleDefaultBroadcast(peer: Peer, p: AuthenticatedPeer, raw: string) {
+  function handleDefaultBroadcast(
+    peer: Peer,
+    p: AuthenticatedPeer,
+    raw: string,
+  ) {
     if (!p.authenticated) {
       wsLogger.withFields({ peer: peer.id }).debug('not authenticated')
       return safeSend(peer, RESPONSES.notAuthenticated)
     }
 
     if (!rateLimiter.check(peer.id)) {
-      return sendJSON(peer, { type: 'error', data: { message: 'rate limit exceeded' } })
+      return sendJSON(peer, {
+        type: 'error',
+        data: { message: 'rate limit exceeded' },
+      })
     }
 
     for (const [id, other] of peers) {
-      if (id === peer.id)
-        continue
+      if (id === peer.id) continue
       safeSend(other.peer, raw)
     }
   }
 
-  const router: Record<string, (peer: Peer, p: AuthenticatedPeer, data: Record<string, unknown>) => void> = {
-    'module:authenticate': (peer: Peer, p: AuthenticatedPeer, data: Record<string, unknown>) => {
-      const err = assertString(data.token, 'token', 'module:authenticate')
-      if (err) {
+  const router: Record<
+    string,
+    (peer: Peer, p: AuthenticatedPeer, data: Record<string, unknown>) => void
+  > = {
+    'module:authenticate': (
+      peer: Peer,
+      p: AuthenticatedPeer,
+      data: Record<string, unknown>,
+    ) => {
+      const err = assertString(
+        data.token,
+        'token',
+        'module:authenticate',
+      )
+      if (err)
         return sendJSON(peer, { type: 'error', data: { message: err } })
-      }
       handleAuthenticate(peer, p, data.token as string)
     },
 
-    'module:announce': (peer: Peer, p: AuthenticatedPeer, data: Record<string, unknown>) =>
+    'module:announce': (peer, p, data) =>
       handleAnnounce(peer, p, data),
 
-    'ui:configure': (peer: Peer, p: AuthenticatedPeer, data: Record<string, unknown>) =>
+    'ui:configure': (peer, p, data) =>
       handleConfigure(peer, data),
   }
 
   app.get(
     '/ws',
     defineWebSocketHandler({
-      open: (peer) => {
+      open: peer => {
         const peerState: AuthenticatedPeer = {
           peer,
-          authenticated: !AUTH_TOKEN, // auto-true if no token required
+          authenticated: !AUTH_TOKEN,
           name: '',
         }
 
@@ -379,12 +407,13 @@ function setupApp(): H3 {
         if (AUTH_TOKEN) {
           setTimeout(() => {
             const p = peers.get(peer.id)
-            if (p && !p.authenticated)
-              peer.close()
+            if (p && !p.authenticated) peer.close()
           }, UNAUTH_TIMEOUT_MS)
         }
 
-        wsLogger.withFields({ peer: peer.id, activePeers: peers.size }).log('connected')
+        wsLogger
+          .withFields({ peer: peer.id, activePeers: peers.size })
+          .log('connected')
       },
 
       message: (peer, message) => {
@@ -398,25 +427,26 @@ function setupApp(): H3 {
         catch (err: any) {
           return sendJSON(peer, {
             type: 'error',
-            data: { message: `invalid JSON: ${err?.message || String(err)}` },
+            data: {
+              message: `invalid JSON: ${err?.message || String(err)}`,
+            },
           })
         }
 
         const peerState = peers.get(peer.id)
-        if (!peerState)
-          return
+        if (!peerState) return
 
         const handler = router[event.type]
-        if (handler) {
-          return handler(peer, peerState, event.data)
-        }
+        if (handler) return handler(peer, peerState, event.data)
 
-        // default: broadcast
         handleDefaultBroadcast(peer, peerState, raw)
       },
 
       error: (peer, error) => {
-        wsLogger.withFields({ peer: peer.id }).withError(error).error('error occurred')
+        wsLogger
+          .withFields({ peer: peer.id })
+          .withError(error)
+          .error('error occurred')
       },
 
       close: (peer, details) => {
@@ -429,7 +459,14 @@ function setupApp(): H3 {
         peers.delete(peer.id)
         rateLimiter.remove(peer.id)
         stopHeartbeat(peer.id)
-        wsLogger.withFields({ peer: peer.id, details, activePeers: peers.size }).log('closed')
+
+        wsLogger
+          .withFields({
+            peer: peer.id,
+            details,
+            activePeers: peers.size,
+          })
+          .log('closed')
       },
     }),
   )
