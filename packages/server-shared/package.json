@@ -24,8 +24,8 @@
       "default": "./dist/types/index.mjs"
     }
   },
-  "main": "./dist/types/index.mjs",
-  "types": "./dist/types/index.d.mts",
+  "main": "./dist/index.mjs",
+  "types": "./dist/index.d.mts",
   "files": [
     "README.md",
     "dist",
