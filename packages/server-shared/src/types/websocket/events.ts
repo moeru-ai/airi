@@ -70,6 +70,10 @@ export interface WebSocketEvents<C = undefined> {
     name: string
     possibleEvents: Array<(keyof WebSocketEvents<C>)>
   }
+  'module:removed': {
+    moduleName: string
+    moduleIndex?: number
+  }
   'module:configure': {
     config: C
   }
