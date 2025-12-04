@@ -1,4 +1,4 @@
-import type {
+import {
   HEARTBEAT_INTERVAL_MS,
   HEARTBEAT_TIMEOUT_MS,
   MESSAGE_RATE_LIMIT,
@@ -285,63 +285,56 @@ function setupApp(): H3 {
     registerModulePeer(p)
   }
 
-  function handleConfigure(peer: Peer, data: Record<string, unknown>) {
+  function handleConfigure(peer: Peer, p: AuthenticatedPeer, data: unknown) {
+    if (typeof data !== 'object' || data === null || Array.isArray(data)) {
+      sendJSON(peer, {
+        type: 'error',
+        data: { message: 'invalid configuration data' }
+      })
+      return
+    }
+  
+    const config = data as Record<string, unknown>
+  
     const errName = assertString(
-      data.moduleName,
+      config.moduleName,
       'moduleName',
       'ui:configure',
     )
     if (errName)
       return sendJSON(peer, { type: 'error', data: { message: errName } })
-
+  
     const errIndex = assertNonNegInt(
-      data.moduleIndex,
+      config.moduleIndex,
       'moduleIndex',
       'ui:configure',
     )
     if (errIndex)
       return sendJSON(peer, { type: 'error', data: { message: errIndex } })
-
-    const errConfig = assertConfig(data.config)
+  
+    const errConfig = assertConfig(config.config)
     if (errConfig)
       return sendJSON(peer, { type: 'error', data: { message: errConfig } })
-
-    if (typeof data.moduleName !== 'string') {
-      return sendJSON(peer, {
-        type: 'error',
-        data: { message: 'invalid moduleName' },
-      })
-    }
-    const moduleName: string = data.moduleName
-
-    let moduleIndex: number | undefined
-    if (data.moduleIndex !== undefined) {
-      if (
-        typeof data.moduleIndex !== 'number'
-        || !Number.isInteger(data.moduleIndex)
-        || data.moduleIndex < 0
-      ) {
-        return sendJSON(peer, {
-          type: 'error',
-          data: { message: 'invalid moduleIndex' },
-        })
-      }
-      moduleIndex = data.moduleIndex
-    }
-
+  
+    const moduleName = config.moduleName as string
+    const moduleIndex =
+      typeof config.moduleIndex === 'number'
+        ? config.moduleIndex
+        : undefined
+  
     const key = moduleKey(moduleName, moduleIndex)
     const targets = modulePeers.get(key)
-
+  
     if (!targets || !targets.size) {
       return sendJSON(peer, {
         type: 'error',
         data: { message: 'module not found or not announced' },
       })
     }
-
+  
     const validator = moduleConfigValidators.get(key)
     if (validator) {
-      const validatorErr = validator(data.config)
+      const validatorErr = validator(config.config)
       if (validatorErr) {
         return sendJSON(peer, {
           type: 'error',
@@ -349,10 +342,10 @@ function setupApp(): H3 {
         })
       }
     }
-
+  
     const configurePayload = JSON.stringify({
       type: 'module:configure',
-      data: { config: data.config },
+      data: { config: config.config },
     })
     for (const target of targets) safeSend(target.peer, configurePayload)
   }
@@ -388,23 +381,31 @@ function setupApp(): H3 {
     'module:authenticate': (
       peer: Peer,
       p: AuthenticatedPeer,
-      data: Record<string, unknown>,
+      data: unknown,
     ) => {
+      if (typeof data !== 'object' || data === null || Array.isArray(data)) {
+        return sendJSON(peer, {
+          type: 'error',
+          data: { message: 'invalid authenticate payload' },
+        })
+      }
+    
       const err = assertString(
-        data.token,
+        (data as Record<string, unknown>).token,
         'token',
         'module:authenticate',
       )
       if (err)
         return sendJSON(peer, { type: 'error', data: { message: err } })
-      handleAuthenticate(peer, p, data.token as string)
+    
+      handleAuthenticate(peer, p, (data as any).token)
     },
 
     'module:announce': (peer, p, data) =>
       handleAnnounce(peer, p, data),
 
     'ui:configure': (peer, p, data) =>
-      handleConfigure(peer, data),
+      handleConfigure(peer, p, data),
   }
 
   app.get(
