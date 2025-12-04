@@ -21,6 +21,13 @@ import {
   assertNonNegInt,
   assertString,
 } from './validation'
+import {
+  UNAUTH_TIMEOUT_MS,
+  MESSAGE_RATE_LIMIT,
+  MESSAGE_RATE_WINDOW_MS,
+  HEARTBEAT_INTERVAL_MS,
+  HEARTBEAT_TIMEOUT_MS,
+} from '@proj-airi/server-shared'
 
 // logging setup
 setGlobalFormat(Format.Pretty)
@@ -35,11 +42,6 @@ if (env.LOG_LEVEL) {
 
 // cache token
 const AUTH_TOKEN = env.AUTHENTICATION_TOKEN || ''
-const UNAUTH_TIMEOUT_MS = 5000
-const MESSAGE_RATE_LIMIT = 30
-const MESSAGE_RATE_WINDOW_MS = 5000
-const HEARTBEAT_INTERVAL_MS = 10000
-const HEARTBEAT_TIMEOUT_MS = HEARTBEAT_INTERVAL_MS * 2
 
 // extend peer interface with close method
 interface PeerWithClose extends Peer {
