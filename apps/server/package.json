@@ -9,8 +9,8 @@
   "main": "index.js",
   "scripts": {
     "apply:env": "dotenvx run -f .env -f .env.local --overload --ignore=MISSING_ENV_FILE",
-    "generate:auth": "pnpm run apply:env -- better-auth generate --config src/services/auth.ts --output src/schemas/auth.ts -y",
-    "dev": "pnpm run apply:env -- tsx src/app.ts",
+    "generate:auth": "pnpm run apply:env -- better-auth generate --config src/scripts/auth.ts --output src/schemas/auth.ts -y",
+    "dev": "pnpm run apply:env -- tsx --watch src/app.ts",
     "push:db": "pnpm run apply:env -- drizzle-kit push"
   },
   "dependencies": {
