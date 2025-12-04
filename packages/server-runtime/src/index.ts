@@ -266,19 +266,19 @@ function setupApp(): H3 {
         data: { message: 'invalid announce payload' },
       })
     }
-  
+
     const payload = data as Record<string, unknown>
-  
+
     const errName = assertString(payload.name, 'name', 'module:announce')
     if (errName)
       return sendJSON(peer, { type: 'error', data: { message: errName } })
     const name = payload.name as string
-  
+
     const errIndex = assertNonNegInt(payload.index, 'index', 'module:announce')
     if (errIndex)
       return sendJSON(peer, { type: 'error', data: { message: errIndex } })
     const index = typeof payload.index === 'number' ? (payload.index as number) : undefined
-  
+
     unregisterModulePeer(p)
     p.name = name
     p.index = index
