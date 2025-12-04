@@ -1,4 +1,5 @@
 import type { WebSocketEvent } from '@proj-airi/server-shared/types'
+
 import type { AuthenticatedPeer, Peer } from './types'
 
 import { env } from 'node:process'
@@ -12,25 +13,22 @@ import {
   setGlobalLogLevel,
   useLogg,
 } from '@guiiai/logg'
-
+import { clearClockInterval, setClockInterval } from '@moeru/std/set-interval'
+import {
+  HEARTBEAT_INTERVAL_MS,
+  HEARTBEAT_TIMEOUT_MS,
+  MESSAGE_RATE_LIMIT,
+  MESSAGE_RATE_WINDOW_MS,
+  UNAUTH_TIMEOUT_MS,
+} from '@proj-airi/server-shared'
 import { defineWebSocketHandler, H3 } from 'h3'
-import { WebSocketReadyState } from './types'
 
+import { WebSocketReadyState } from './types'
 import {
   assertConfig,
   assertNonNegInt,
   assertString,
 } from './validation'
-
-import {
-  UNAUTH_TIMEOUT_MS,
-  MESSAGE_RATE_LIMIT,
-  MESSAGE_RATE_WINDOW_MS,
-  HEARTBEAT_INTERVAL_MS,
-  HEARTBEAT_TIMEOUT_MS,
-} from '@proj-airi/server-shared'
-
-import { setClockInterval, clearClockInterval } from '@moeru/std/set-interval'
 
 // logging setup
 setGlobalFormat(Format.Pretty)
