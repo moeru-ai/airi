@@ -383,7 +383,7 @@ function setupApp(): H3 {
 
   const router: Record<
     string,
-    (peer: Peer, p: AuthenticatedPeer, data: Record<string, unknown>) => void
+    (peer: Peer, p: AuthenticatedPeer, data: unknown) => void
   > = {
     'module:authenticate': (
       peer: Peer,
