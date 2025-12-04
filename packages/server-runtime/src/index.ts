@@ -13,6 +13,13 @@ import {
   setGlobalLogLevel,
   useLogg,
 } from '@guiiai/logg'
+import {
+  HEARTBEAT_INTERVAL_MS,
+  HEARTBEAT_TIMEOUT_MS,
+  MESSAGE_RATE_LIMIT,
+  MESSAGE_RATE_WINDOW_MS,
+  UNAUTH_TIMEOUT_MS,
+} from '@proj-airi/server-shared'
 import { defineWebSocketHandler, H3 } from 'h3'
 
 import { WebSocketReadyState } from './types'
@@ -21,13 +28,6 @@ import {
   assertNonNegInt,
   assertString,
 } from './validation'
-import {
-  UNAUTH_TIMEOUT_MS,
-  MESSAGE_RATE_LIMIT,
-  MESSAGE_RATE_WINDOW_MS,
-  HEARTBEAT_INTERVAL_MS,
-  HEARTBEAT_TIMEOUT_MS,
-} from '@proj-airi/server-shared'
 
 // logging setup
 setGlobalFormat(Format.Pretty)
