@@ -89,6 +89,10 @@ const routeHeaderMetadataMap = computed(() => {
       subtitle: t('settings.title'),
       title: t('settings.pages.modules.gaming-factorio.title'),
     },
+    '/settings/modules/beat-sync': {
+      subtitle: t('settings.title'),
+      title: t('settings.pages.modules.beat_sync.title'),
+    },
     '/settings/providers': {
       subtitle: t('settings.title'),
       title: t('settings.pages.providers.title'),

@@ -42,7 +42,7 @@ export interface CodingContext {
 /**
  * Event types sent to Airi
  */
-export interface AiriEvent {
+export interface Events {
   type: 'coding:context' | 'coding:save' | 'coding:switch-file'
   data: CodingContext
 }

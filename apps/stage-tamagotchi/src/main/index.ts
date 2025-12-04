@@ -4,9 +4,10 @@ import type { WidgetsWindowManager } from './windows/widgets'
 
 import { env, platform } from 'node:process'
 
-import { electronApp, optimizer } from '@electron-toolkit/utils'
+import { electronApp, is, optimizer } from '@electron-toolkit/utils'
 import { Format, LogLevel, setGlobalFormat, setGlobalLogLevel, useLogg } from '@guiiai/logg'
 import { app, ipcMain, Menu, nativeImage, Tray } from 'electron'
+import { initMain as initAudioLoopback } from 'electron-audio-loopback'
 import { noop, once } from 'es-toolkit'
 import { createLoggLogger, injeca } from 'injeca'
 import { isLinux, isMacOS } from 'std-env'
@@ -18,6 +19,7 @@ import { openDebugger, setupDebugger } from './app/debugger'
 import { emitAppBeforeQuit, emitAppReady, emitAppWindowAllClosed, onAppBeforeQuit } from './libs/bootkit/lifecycle'
 import { setElectronMainDirname } from './libs/electron/location'
 import { setupChannelServer } from './services/airi/channel-server'
+import { setupBeatSync } from './windows/beat-sync'
 import { setupCaptionWindowManager } from './windows/caption'
 import { setupChatWindowReusableFunc } from './windows/chat'
 import { setupInlayWindow } from './windows/inlay'
@@ -68,11 +70,14 @@ if (isLinux) {
 app.dock?.setIcon(icon)
 electronApp.setAppUserModelId('ai.moeru.airi')
 
+initAudioLoopback()
+
 function setupTray(params: {
   mainWindow: BrowserWindow
   settingsWindow: () => Promise<BrowserWindow>
   captionWindow: ReturnType<typeof setupCaptionWindowManager>
   widgetsWindow: WidgetsWindowManager
+  beatSyncBgWindow: BrowserWindow
 }): void {
   once(() => {
     const trayImage = nativeImage.createFromPath(isMacOS ? macOSTrayIcon : icon).resize({ width: 16 })
@@ -97,6 +102,13 @@ function setupTray(params: {
         ]),
       },
       { type: 'separator' },
+      ...is.dev || env.MAIN_APP_DEBUG || env.APP_DEBUG
+        ? [
+            { type: 'header', label: 'DevTools' },
+            { label: 'Troubleshoot BeatSync...', click: () => params.beatSyncBgWindow.webContents.openDevTools() },
+            { type: 'separator' },
+          ] as const // :(
+        : [],
       { label: 'Quit', click: () => app.quit() },
     ])
 
@@ -114,25 +126,47 @@ app.whenReady().then(async () => {
   injeca.setLogger(createLoggLogger(useLogg('injeca').useGlobalConfig()))
 
   const channelServerModule = injeca.provide('modules:channel-server', async () => setupChannelServer())
-  const chatWindow = injeca.provide('windows:chat', { build: () => setupChatWindowReusableFunc() })
   const widgetsManager = injeca.provide('windows:widgets', { build: () => setupWidgetsWindowManager() })
   const noticeWindow = injeca.provide('windows:notice', { build: () => setupNoticeWindowManager() })
 
-  const settingsWindow = injeca.provide('windows:settings', {
+  // BeatSync will create a background window to capture and process audio.
+  const beatSync = injeca.provide('windows:beat-sync', {
+    build: () => setupBeatSync(),
+  })
+
+  const chatWindow = injeca.provide('windows:chat', {
     dependsOn: { widgetsManager },
-    build: ({ dependsOn }) => setupSettingsWindowReusableFunc(dependsOn),
+    build: ({ dependsOn }) => setupChatWindowReusableFunc(dependsOn),
+  })
+
+  const settingsWindow = injeca.provide('windows:settings', {
+    dependsOn: { widgetsManager, beatSync },
+    build: async ({ dependsOn }) => async () => {
+      const { beatSync: _, ...setupArgs } = dependsOn
+      const window = await setupSettingsWindowReusableFunc(setupArgs)()
+      dependsOn.beatSync.dispatchTo(window)
+      return window
+    },
   })
   const mainWindow = injeca.provide('windows:main', {
-    dependsOn: { settingsWindow, chatWindow, widgetsManager, noticeWindow },
-    build: async ({ dependsOn }) => setupMainWindow(dependsOn),
+    dependsOn: { settingsWindow, chatWindow, widgetsManager, noticeWindow, beatSync },
+    build: async ({ dependsOn }) => {
+      const { beatSync: _, ...setupArgs } = dependsOn
+      const window = await setupMainWindow(setupArgs)
+      dependsOn.beatSync.dispatchTo(window)
+      return window
+    },
   })
   const captionWindow = injeca.provide('windows:caption', {
     dependsOn: { mainWindow },
     build: async ({ dependsOn }) => setupCaptionWindowManager(dependsOn),
   })
   const tray = injeca.provide('app:tray', {
-    dependsOn: { mainWindow, settingsWindow, captionWindow, widgetsWindow: widgetsManager },
-    build: async ({ dependsOn }) => setupTray(dependsOn),
+    dependsOn: { mainWindow, settingsWindow, captionWindow, widgetsWindow: widgetsManager, beatSync },
+    build: async ({ dependsOn }) => {
+      const { beatSync, ...setupArgs } = dependsOn
+      return setupTray({ ...setupArgs, beatSyncBgWindow: beatSync.window })
+    },
   })
   injeca.invoke({
     dependsOn: { mainWindow, tray, channelServerModule },

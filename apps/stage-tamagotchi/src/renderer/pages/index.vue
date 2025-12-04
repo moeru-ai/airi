@@ -85,11 +85,12 @@ watch([isOutsideFor250Ms, isAroundWindowBorderFor250Ms, isOutsideWindow, isTrans
     pause()
   }
   else {
+    const fadeEnabled = fadeOnHoverEnabled.value
     // Otherwise allow click-through while we fade UI based on transparency (when enabled)
-    isIgnoringMouseEvents.value = true
-    shouldFadeOnCursorWithin.value = fadeOnHoverEnabled.value && !isOutsideWindow.value && !isTransparent.value
-    setIgnoreMouseEvents([true, { forward: true }])
-    if (fadeOnHoverEnabled.value)
+    isIgnoringMouseEvents.value = fadeEnabled
+    shouldFadeOnCursorWithin.value = fadeEnabled && !isOutsideWindow.value && !isTransparent.value
+    setIgnoreMouseEvents([fadeEnabled, { forward: true }])
+    if (fadeEnabled)
       resume()
     else
       pause()

@@ -15,12 +15,21 @@ export function getElectronMainDirname() {
   return electronMainDirname
 }
 
-export function baseUrl(parentOfIndexHtml: string) {
+export function baseUrl(parentOfIndexHtml: string, filename?: string) {
   if (is.dev && env.ELECTRON_RENDERER_URL) {
-    return { url: env.ELECTRON_RENDERER_URL }
+    if (!filename) {
+      return { url: env.ELECTRON_RENDERER_URL }
+    }
+
+    const url = new URL(env.ELECTRON_RENDERER_URL)
+    const paths = url.pathname.split('/')
+    paths.pop()
+    paths.push(filename)
+    url.pathname = paths.join('/')
+    return { url: url.toString() }
   }
   else {
-    return { file: join(parentOfIndexHtml, 'index.html') }
+    return { file: join(parentOfIndexHtml, filename ?? 'index.html') }
   }
 }
 

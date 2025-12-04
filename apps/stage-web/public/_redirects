@@ -8,3 +8,8 @@
 
 # i18n
 /docs/    /docs/en/  301
+
+# Normalize old zh-hans locale path to zh-Hans
+# This ensures legacy links like /docs/zh-hans/ still work
+/docs/zh-hans/*   /docs/zh-Hans/:splat   301
+/docs/zh-hans     /docs/zh-Hans/         301

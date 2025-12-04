@@ -15,6 +15,7 @@
     "directory": "packages/stage-ui-three"
   },
   "exports": {
+    "./assets/vrm": "./src/assets/vrm/index.ts",
     ".": "./src/index.ts"
   },
   "scripts": {

@@ -77,6 +77,10 @@ components.d.ts
 # Serving fonts locally
 **/public/assets/fonts/
 
+# Code generation
+plugins/airi-plugin-vscode/src/generated/
+plugins/airi-plugin-vscode/LICENSE
+
 # Make it easy for devenv users to override their local environment.
 # See: https://github.com/moeru-ai/airi/pull/110#discussion_r2024378953
 .direnv

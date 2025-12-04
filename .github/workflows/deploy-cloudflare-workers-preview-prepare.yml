@@ -11,9 +11,6 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Debug
-        uses: raven-actions/debug@v1
-
       - name: Persist checkout metadata
         run: |
           cat <<EOF > preview_meta

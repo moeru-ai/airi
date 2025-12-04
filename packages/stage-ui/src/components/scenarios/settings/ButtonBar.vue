@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import Bar from './Bar.vue'
+import { Button } from '@proj-airi/ui'
 
-import { Button } from '../../misc'
+import Bar from './Bar.vue'
 
 defineProps<{
   text: string

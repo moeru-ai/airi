@@ -2,8 +2,7 @@
 import type { PreTrainedModel, Processor } from '@huggingface/transformers'
 
 import { AutoModel, AutoProcessor, env, RawImage } from '@huggingface/transformers'
-import { Button } from '@proj-airi/stage-ui/components'
-import { Checkbox, InputFile } from '@proj-airi/ui'
+import { Button, Checkbox, InputFile } from '@proj-airi/ui'
 import { check } from 'gpuu/webgpu'
 import { computed, onMounted, ref, watch } from 'vue'
 

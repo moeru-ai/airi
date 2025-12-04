@@ -1,3 +1,6 @@
+import type { AnalyserBeatEvent, AnalyserWorkletParameters } from '@nekopaw/tempora'
+import type { BeatSyncDetectorState } from '@proj-airi/stage-shared/beat-sync'
+
 import { defineEventa, defineInvokeEventa } from '@moeru/eventa'
 
 export const electronStartTrackMousePosition = defineInvokeEventa('eventa:invoke:electron:start-tracking-mouse-position')
@@ -70,5 +73,12 @@ export const widgetsRenderEvent = defineEventa<WidgetSnapshot>('eventa:event:ele
 export const widgetsRemoveEvent = defineEventa<{ id: string }>('eventa:event:electron:windows:widgets:remove')
 export const widgetsClearEvent = defineEventa('eventa:event:electron:windows:widgets:clear')
 export const widgetsUpdateEvent = defineEventa<{ id: string, componentProps?: Record<string, any> }>('eventa:event:electron:windows:widgets:update')
+
+export const beatSyncElectronSignalBeat = defineInvokeEventa<void, AnalyserBeatEvent>('eventa:event:electron:beat-sync:electron:signal-beat')
+export const beatSyncElectronChangeState = defineInvokeEventa<void, BeatSyncDetectorState>('eventa:event:electron:beat-sync:electron:change-state')
+export const beatSyncElectronGetState = defineInvokeEventa<BeatSyncDetectorState>('eventa:event:electron:beat-sync:electron:get-state')
+export const beatSyncElectronToggle = defineInvokeEventa<void, boolean>('eventa:event:electron:beat-sync:electron:toggle')
+export const beatSyncElectronUpdateParameters = defineInvokeEventa<void, Partial<AnalyserWorkletParameters>>('eventa:event:electron:beat-sync:electron:update-parameters')
+export const beatSyncElectronGetInputByteFrequencyData = defineInvokeEventa<Uint8Array<ArrayBuffer>>('eventa:event:electron:beat-sync:electron:get-input-byte-frequency-data')
 
 export { electron } from './electron'
