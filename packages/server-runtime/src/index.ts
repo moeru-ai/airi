@@ -1,4 +1,5 @@
 import type { WebSocketEvent } from '@proj-airi/server-shared/types'
+
 import type { AuthenticatedPeer, Peer } from './types'
 
 import { env } from 'node:process'
@@ -15,12 +16,10 @@ import {
 import { defineWebSocketHandler, H3 } from 'h3'
 
 import { WebSocketReadyState } from './types'
-
 import {
-  assertString,
-  assertNonNegInt,
   assertConfig,
-  validateConfig,
+  assertNonNegInt,
+  assertString,
 } from './validation'
 
 // logging setup
@@ -160,7 +159,8 @@ function setupApp(): H3 {
 
   function stopHeartbeat(peerId: string) {
     const timer = heartbeatTimers.get(peerId)
-    if (timer) clearInterval(timer)
+    if (timer)
+      clearInterval(timer)
     heartbeatTimers.delete(peerId)
     peerActivity.delete(peerId)
   }
@@ -191,7 +191,8 @@ function setupApp(): H3 {
 
   // peer registration helpers
   function registerModulePeer(p: AuthenticatedPeer) {
-    if (!p.name) return
+    if (!p.name)
+      return
     const key = moduleKey(p.name, p.index)
     const existing = modulePeers.get(key)
     if (existing) {
@@ -202,22 +203,27 @@ function setupApp(): H3 {
   }
 
   function unregisterModulePeer(p: AuthenticatedPeer) {
-    if (!p.name) return
+    if (!p.name)
+      return
     const key = moduleKey(p.name, p.index)
     const bucket = modulePeers.get(key)
-    if (!bucket) return
+    if (!bucket)
+      return
     bucket.delete(p)
-    if (!bucket.size) modulePeers.delete(key)
+    if (!bucket.size)
+      modulePeers.delete(key)
   }
 
   function broadcastModuleRemoved(p: AuthenticatedPeer) {
-    if (!p.name) return
+    if (!p.name)
+      return
     const payload = JSON.stringify({
       type: 'module:removed',
       data: { moduleName: p.name, moduleIndex: p.index },
     })
     for (const [id, other] of peers) {
-      if (id === p.peer.id) continue
+      if (id === p.peer.id)
+        continue
       safeSend(other.peer, payload)
     }
   }
@@ -261,8 +267,8 @@ function setupApp(): H3 {
     const errIndex = assertNonNegInt(data.index, 'index', 'module:announce')
     if (errIndex)
       return sendJSON(peer, { type: 'error', data: { message: errIndex } })
-    const index =
-      typeof data.index === 'number' ? (data.index as number) : undefined
+    const index
+      = typeof data.index === 'number' ? (data.index as number) : undefined
 
     unregisterModulePeer(p)
     p.name = name
@@ -302,9 +308,9 @@ function setupApp(): H3 {
     let moduleIndex: number | undefined
     if (data.moduleIndex !== undefined) {
       if (
-        typeof data.moduleIndex !== 'number' ||
-        !Number.isInteger(data.moduleIndex) ||
-        data.moduleIndex < 0
+        typeof data.moduleIndex !== 'number'
+        || !Number.isInteger(data.moduleIndex)
+        || data.moduleIndex < 0
       ) {
         return sendJSON(peer, {
           type: 'error',
@@ -327,11 +333,12 @@ function setupApp(): H3 {
     const validator = moduleConfigValidators.get(key)
     if (validator) {
       const validatorErr = validator(data.config)
-      if (validatorErr)
+      if (validatorErr) {
         return sendJSON(peer, {
           type: 'error',
           data: { message: validatorErr },
         })
+      }
     }
 
     const configurePayload = JSON.stringify({
@@ -359,7 +366,8 @@ function setupApp(): H3 {
     }
 
     for (const [id, other] of peers) {
-      if (id === peer.id) continue
+      if (id === peer.id)
+        continue
       safeSend(other.peer, raw)
     }
   }
@@ -393,7 +401,7 @@ function setupApp(): H3 {
   app.get(
     '/ws',
     defineWebSocketHandler({
-      open: peer => {
+      open: (peer) => {
         const peerState: AuthenticatedPeer = {
           peer,
           authenticated: !AUTH_TOKEN,
@@ -406,7 +414,8 @@ function setupApp(): H3 {
         if (AUTH_TOKEN) {
           setTimeout(() => {
             const p = peers.get(peer.id)
-            if (p && !p.authenticated) peer.close()
+            if (p && !p.authenticated)
+              peer.close()
           }, UNAUTH_TIMEOUT_MS)
         }
 
@@ -433,10 +442,12 @@ function setupApp(): H3 {
         }
 
         const peerState = peers.get(peer.id)
-        if (!peerState) return
+        if (!peerState)
+          return
 
         const handler = router[event.type]
-        if (handler) return handler(peer, peerState, event.data)
+        if (handler)
+          return handler(peer, peerState, event.data)
 
         handleDefaultBroadcast(peer, peerState, raw)
       },
