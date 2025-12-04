@@ -16,7 +16,6 @@ import { defineWebSocketHandler, H3 } from 'h3'
 
 import { WebSocketReadyState } from './types'
 
-// ⬇️ NEW: import validation helpers from validation.ts
 import {
   assertString,
   assertNonNegInt,
