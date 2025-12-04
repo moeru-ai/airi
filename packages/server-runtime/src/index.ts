@@ -1,5 +1,4 @@
 import type { WebSocketEvent } from '@proj-airi/server-shared/types'
-
 import type { AuthenticatedPeer, Peer } from './types'
 
 import { env } from 'node:process'
@@ -13,21 +12,25 @@ import {
   setGlobalLogLevel,
   useLogg,
 } from '@guiiai/logg'
-import {
-  HEARTBEAT_INTERVAL_MS,
-  HEARTBEAT_TIMEOUT_MS,
-  MESSAGE_RATE_LIMIT,
-  MESSAGE_RATE_WINDOW_MS,
-  UNAUTH_TIMEOUT_MS,
-} from '@proj-airi/server-shared'
-import { defineWebSocketHandler, H3 } from 'h3'
 
+import { defineWebSocketHandler, H3 } from 'h3'
 import { WebSocketReadyState } from './types'
+
 import {
   assertConfig,
   assertNonNegInt,
   assertString,
 } from './validation'
+
+import {
+  UNAUTH_TIMEOUT_MS,
+  MESSAGE_RATE_LIMIT,
+  MESSAGE_RATE_WINDOW_MS,
+  HEARTBEAT_INTERVAL_MS,
+  HEARTBEAT_TIMEOUT_MS,
+} from '@proj-airi/server-shared'
+
+import { setClockInterval, clearClockInterval } from '@moeru/std/set-interval'
 
 // logging setup
 setGlobalFormat(Format.Pretty)
@@ -152,7 +155,9 @@ function setupApp(): H3 {
   const peers = new Map<string, AuthenticatedPeer>()
   const modulePeers = new Map<string, Set<AuthenticatedPeer>>()
   const rateLimiter = createRateLimiter()
-  const heartbeatTimers = new Map<string, ReturnType<typeof setInterval>>()
+
+  // UPDATED TYPE: number (setClockInterval ID)
+  const heartbeatTimers = new Map<string, number>()
   const peerActivity = new Map<string, number>()
 
   function markPeerActivity(peerId: string) {
@@ -160,9 +165,10 @@ function setupApp(): H3 {
   }
 
   function stopHeartbeat(peerId: string) {
-    const timer = heartbeatTimers.get(peerId)
-    if (timer)
-      clearInterval(timer)
+    const timerId = heartbeatTimers.get(peerId)
+    if (timerId !== undefined) {
+      clearClockInterval(timerId)
+    }
     heartbeatTimers.delete(peerId)
     peerActivity.delete(peerId)
   }
@@ -171,16 +177,19 @@ function setupApp(): H3 {
     stopHeartbeat(peer.id)
     markPeerActivity(peer.id)
 
-    const interval = setInterval(() => {
+    const timerId = setClockInterval(() => {
       const last = peerActivity.get(peer.id) ?? 0
+
       if (Date.now() - last > HEARTBEAT_TIMEOUT_MS) {
         wsLogger
           .withFields({ peer: peer.id })
           .warn('heartbeat timeout, closing connection')
+
         try {
           (peer as PeerWithClose).close()
         }
         catch {}
+
         stopHeartbeat(peer.id)
         return
       }
@@ -188,7 +197,7 @@ function setupApp(): H3 {
       safeSend(peer, createHeartbeatPayload())
     }, HEARTBEAT_INTERVAL_MS)
 
-    heartbeatTimers.set(peer.id, interval)
+    heartbeatTimers.set(peer.id, timerId)
   }
 
   // peer registration helpers
