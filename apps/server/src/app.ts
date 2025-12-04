@@ -9,13 +9,15 @@ import { createAuth } from './services/auth'
 import { createDrizzle } from './services/db'
 import { parseEnv } from './services/env'
 
-(async () => {
+function createApp() {
+  initLogger(LoggerLevel.Debug, LoggerFormat.Pretty)
+
   const app = new Hono()
 
   app.use(
     '/api/auth/*', // or replace with "*" to enable cors for all routes
     cors({
-      origin: 'http://localhost:5173', // replace with your origin
+      origin: '*', // replace with your origin
       allowHeaders: ['Content-Type', 'Authorization'],
       allowMethods: ['POST', 'GET', 'OPTIONS'],
       exposeHeaders: ['Content-Length'],
@@ -25,7 +27,7 @@ import { parseEnv } from './services/env'
   )
 
   const env = parseEnv(process.env)
-  initLogger(LoggerLevel.Debug, LoggerFormat.Pretty)
+
   const logger = useLogger('app').useGlobalConfig()
   const db = createDrizzle(env.DATABASE_URL)
   const auth = createAuth(db, env)
@@ -42,7 +44,9 @@ import { parseEnv } from './services/env'
     return auth.handler(c.req.raw)
   })
 
-  serve(app)
-
   logger.withFields({ port: 3000 }).log('Server started')
-})()
+
+  return app
+}
+
+serve(createApp())

@@ -1,12 +1,7 @@
 {
-  "name": "server",
-  "version": "1.0.0",
-  "packageManager": "pnpm@10.22.0",
-  "description": "",
-  "author": "",
-  "license": "ISC",
-  "keywords": [],
-  "main": "index.js",
+  "name": "@proj-airi/api-server",
+  "version": "0.0.1",
+  "private": true,
   "scripts": {
     "apply:env": "dotenvx run -f .env -f .env.local --overload --ignore=MISSING_ENV_FILE",
     "generate:auth": "pnpm run apply:env -- better-auth generate --config src/scripts/auth.ts --output src/schemas/auth.ts -y",

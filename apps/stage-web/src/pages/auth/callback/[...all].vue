@@ -1,30 +1,17 @@
 <script setup lang="ts">
-import { createAuthClient } from 'better-auth/client'
-import { onMounted, ref } from 'vue'
-import { useRoute } from 'vue-router'
-import { toast } from 'vue-sonner'
+import { onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 
-const route = useRoute()
-const response = ref()
+import { authClient } from '../../../composables/auth'
+
+const router = useRouter()
 
 onMounted(async () => {
-  const authClient = createAuthClient({
-    baseURL: import.meta.env.VITE_SERVER_URL || 'http://localhost:3000',
-  })
-
-  const { error, data } = await authClient.signIn.social({
-    provider: 'google',
-    idToken: {
-      token: route.query.state,
-      accessToken: route.query.code,
-    },
-  })
-
-  if (error) {
-    toast.error(error?.message || 'An unknown error occurred')
-  }
-
-  response.value = data
+  const { data } = await authClient.getSession()
+  if (data)
+    router.replace('/')
+  else
+    router.replace('/auth/login')
 })
 </script>
 
@@ -35,17 +22,5 @@ onMounted(async () => {
 
   <code>
     {{ $route.query }}
-  </code>
-
-  <code>
-    {{ route.query.state }}
-  </code>
-
-  <code>
-    {{ route.query.code }}
-  </code>
-
-  <code>
-    {{ response }}
   </code>
 </template>

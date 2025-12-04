@@ -1,19 +1,16 @@
 <script setup lang="ts">
 import { Button } from '@proj-airi/ui'
-import { createAuthClient } from 'better-auth/client'
 import { useRouter } from 'vue-router'
 import { toast } from 'vue-sonner'
 
+import { API_SERVER_URL, authClient } from '../../composables/auth'
+
 const router = useRouter()
 
-async function signIn() {
-  const authClient = createAuthClient({
-    baseURL: import.meta.env.VITE_SERVER_URL || 'http://localhost:3000',
-  })
-
+async function signIn(type: 'google' | 'github') {
   const { error, data } = await authClient.signIn.social({
-    provider: 'google',
-    callbackURL: `${window.location.origin}/auth/callback/google`,
+    provider: type,
+    callbackURL: `${API_SERVER_URL}/api/auth/callback/${type}`,
   })
 
   if (error) {
@@ -21,17 +18,23 @@ async function signIn() {
   }
 
   if (data && data.redirect && data.url) {
-    router.push(data.url)
+    // window.open(data.url, '_blank')
+    router.replace(data.url)
   }
 }
 </script>
 
 <template>
   <div>
-    <h1>Login</h1>
 
-    <Button @click="signIn">
-      Sign In
-    </Button>
+    <div class="flex flex-row gap-2">
+      <Button @click="signIn('google')">
+        Sign In with Google
+      </Button>
+
+      <Button @click="signIn('github')">
+        Sign In with GitHub
+      </Button>
+    </div>
   </div>
 </template>
