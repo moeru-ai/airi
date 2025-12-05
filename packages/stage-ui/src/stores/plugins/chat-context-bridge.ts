@@ -1,9 +1,10 @@
 import type { ContextMessage } from '@proj-airi/server-sdk'
 
+import type { ContextPayload } from '../chat'
+
 import { useBroadcastChannel } from '@vueuse/core'
 import { watch } from 'vue'
 
-import type { ContextPayload } from '../chat'
 import { CONTEXT_CHANNEL_NAME, useChatStore } from '../chat'
 import { useModsChannelServerStore } from '../mods/api/channel-server'
 

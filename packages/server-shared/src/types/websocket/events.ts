@@ -15,14 +15,14 @@ interface InputSource {
   discord: Discord
 }
 
-export type ContextSource =
-  | 'text'
-  | 'stt'
-  | 'vision'
-  | 'llm'
-  | 'server-channel'
-  | 'plugin'
-  | 'system'
+export type ContextSource
+  = | 'text'
+    | 'stt'
+    | 'vision'
+    | 'llm'
+    | 'server-channel'
+    | 'plugin'
+    | 'system'
 
 export interface ContextMessage<Payload = unknown, Meta = Record<string, unknown>> {
   /**
@@ -69,6 +69,10 @@ export interface WebSocketEvents<C = undefined> {
   'module:announce': {
     name: string
     possibleEvents: Array<(keyof WebSocketEvents<C>)>
+  }
+  'module:removed': {
+    moduleName: string
+    moduleIndex?: number
   }
   'module:configure': {
     config: C
