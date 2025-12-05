@@ -11,6 +11,7 @@ import { startAnalyser as startTemporaAnalyser } from '@nekopaw/tempora'
 import { isStageTamagotchi, isStageWeb, StageEnvironment } from '../../environment'
 import {
   beatSyncBeatSignaledInvokeEventa,
+  beatSyncGetInputByteFrequencyDataInvokeEventa,
   beatSyncGetStateInvokeEventa,
   beatSyncStateChangedInvokeEventa,
   beatSyncToggleInvokeEventa,
@@ -20,6 +21,8 @@ import {
   createContext,
 } from './eventa'
 
+export const inputAnalyserFFTSize = 1024
+
 export interface BeatSyncDetector {
   start: (createSource: (context: AudioContext) => Promise<AudioNode>) => Promise<void>
   updateParameters: (params: Partial<AnalyserWorkletParameters>) => void
@@ -27,6 +30,7 @@ export interface BeatSyncDetector {
   stop: () => void
   on: <E extends keyof BeatSyncDetectorEventMap>(event: E, listener: BeatSyncDetectorEventMap[E]) => () => void
   off: <E extends keyof BeatSyncDetectorEventMap>(event: E, listener: BeatSyncDetectorEventMap[E]) => void
+  getInputByteFrequencyData: () => Uint8Array<ArrayBuffer>
   readonly state: BeatSyncDetectorState
   readonly context: AudioContext | undefined
   readonly analyser: Analyser | undefined
@@ -52,7 +56,9 @@ export function createBeatSyncDetector(options: CreateBeatSyncDetectorOptions): 
   }
 
   let stopSource: (() => void) | undefined
-  let tapNode: ScriptProcessorNode | undefined // Dev
+
+  let inputAnalyserNode: AnalyserNode | undefined
+  let inputAnalyserBuffer: Uint8Array<ArrayBuffer> | undefined
 
   const listeners: { [K in keyof BeatSyncDetectorEventMap]: Array<(...args: any) => void> } = {
     stateChange: [],
@@ -72,11 +78,10 @@ export function createBeatSyncDetector(options: CreateBeatSyncDetectorOptions): 
     stopSource?.()
     stopSource = undefined
 
-    // Dev
-    if (tapNode) {
-      tapNode.onaudioprocess = null
-      tapNode.disconnect()
-      tapNode = undefined
+    if (inputAnalyserNode) {
+      inputAnalyserNode.disconnect()
+      inputAnalyserNode = undefined
+      inputAnalyserBuffer = undefined
     }
 
     source?.disconnect()
@@ -103,24 +108,14 @@ export function createBeatSyncDetector(options: CreateBeatSyncDetectorOptions): 
 
     const node = await createSource(context)
 
-    if (import.meta.env.DEV) {
-      // Dev: Use a tap node to verify there're audio samples flowing in the pipeline.
-      tapNode = context.createScriptProcessor(256, 1, 1)
-      tapNode.addEventListener('audioprocess', (e) => {
-        const sample = e.inputBuffer.getChannelData(0)
-        // Avoid log flooding
-        if (e.timeStamp % 10 === 0) {
-          // eslint-disable-next-line no-console
-          console.debug('[debug:tap] sample.length =', sample.length, 'timeStamp =', e.timeStamp)
-        }
-        e.outputBuffer.copyToChannel(sample, 0)
-      })
-      node.connect(tapNode)
-      tapNode.connect(analyser.workletNode)
-    }
-    else {
-      node.connect(analyser.workletNode)
-    }
+    inputAnalyserNode = context.createAnalyser()
+    inputAnalyserNode.fftSize = inputAnalyserFFTSize // Fast Fourier Transform size (power of 2, 32-32768)
+    // A smaller fftSize gives better time resolution but worse frequency resolution.
+    inputAnalyserNode.smoothingTimeConstant = 0.8 // A value between 0 and 1. Higher value smooths out changes.
+    inputAnalyserBuffer = new Uint8Array(inputAnalyserNode.frequencyBinCount)
+
+    node.connect(inputAnalyserNode)
+    inputAnalyserNode.connect(analyser?.workletNode)
 
     source = node
 
@@ -214,6 +209,11 @@ export function createBeatSyncDetector(options: CreateBeatSyncDetectorOptions): 
     return () => off(event, listener)
   }
 
+  const getInputByteFrequencyData = () => {
+    inputAnalyserNode?.getByteFrequencyData(inputAnalyserBuffer!)
+    return inputAnalyserBuffer!
+  }
+
   return {
     start,
     updateParameters,
@@ -221,6 +221,7 @@ export function createBeatSyncDetector(options: CreateBeatSyncDetectorOptions): 
     stop,
     on,
     off,
+    getInputByteFrequencyData,
 
     get state() { return state },
     get context() { return context },
@@ -312,4 +313,16 @@ export function listenBeatSyncBeatSignal(listener: (e: AnalyserBeatEvent) => voi
   }
 
   throw new Error('Unknown environment for listenBeatSyncBeatSignal()')
+}
+
+export async function getBeatSyncInputByteFrequencyData() {
+  if (isStageWeb()) {
+    return getDetector().getInputByteFrequencyData()
+  }
+
+  if (isStageTamagotchi()) {
+    return defineInvoke(getContext(), beatSyncGetInputByteFrequencyDataInvokeEventa)()
+  }
+
+  throw new Error('Unknown environment for getBeatSyncInputByteFrequencyData()')
 }

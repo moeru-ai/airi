@@ -5,6 +5,7 @@ import { createBeatSyncDetector } from '@proj-airi/stage-shared/beat-sync/browse
 
 import {
   beatSyncElectronChangeState,
+  beatSyncElectronGetInputByteFrequencyData,
   beatSyncElectronGetState,
   beatSyncElectronSignalBeat,
   beatSyncElectronToggle,
@@ -57,4 +58,9 @@ defineInvokeHandler(context, beatSyncElectronUpdateParameters, async (params) =>
   // eslint-disable-next-line no-console
   console.log('[update-params]', params)
   detector.updateParameters(params)
+})
+defineInvokeHandler(context, beatSyncElectronGetInputByteFrequencyData, async () => {
+  // eslint-disable-next-line no-console
+  console.debug('[get-input-byte-frequency-data]') // This could be noisy.
+  return detector.getInputByteFrequencyData()
 })

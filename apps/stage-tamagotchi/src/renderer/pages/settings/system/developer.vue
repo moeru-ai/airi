@@ -47,6 +47,12 @@ const menu = computed(() => [
     icon: 'i-solar:sledgehammer-bold-duotone',
     to: '/devtools/providers-transcription-realtime-aliyun-nls',
   },
+  {
+    title: 'Beat Sync Visualizer',
+    description: 'Plot V-motion targets, trajectory, and scalar Y/Z over time',
+    icon: 'i-solar:chart-bold-duotone',
+    to: '/devtools/beat-sync',
+  },
 ])
 
 const openDevTools = useElectronEventaInvoke(electronOpenMainDevtools)

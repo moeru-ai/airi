@@ -79,5 +79,6 @@ export const beatSyncElectronChangeState = defineInvokeEventa<void, BeatSyncDete
 export const beatSyncElectronGetState = defineInvokeEventa<BeatSyncDetectorState>('eventa:event:electron:beat-sync:electron:get-state')
 export const beatSyncElectronToggle = defineInvokeEventa<void, boolean>('eventa:event:electron:beat-sync:electron:toggle')
 export const beatSyncElectronUpdateParameters = defineInvokeEventa<void, Partial<AnalyserWorkletParameters>>('eventa:event:electron:beat-sync:electron:update-parameters')
+export const beatSyncElectronGetInputByteFrequencyData = defineInvokeEventa<Uint8Array<ArrayBuffer>>('eventa:event:electron:beat-sync:electron:get-input-byte-frequency-data')
 
 export { electron } from './electron'

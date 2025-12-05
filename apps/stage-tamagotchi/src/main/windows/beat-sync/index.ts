@@ -5,6 +5,7 @@ import { defineInvoke, defineInvokeHandler } from '@moeru/eventa'
 import { createContext } from '@moeru/eventa/adapters/electron/main'
 import {
   beatSyncBeatSignaledInvokeEventa,
+  beatSyncGetInputByteFrequencyDataInvokeEventa,
   beatSyncGetStateInvokeEventa,
   beatSyncStateChangedInvokeEventa,
   beatSyncToggleInvokeEventa,
@@ -14,6 +15,7 @@ import { BrowserWindow, ipcMain } from 'electron'
 
 import {
   beatSyncElectronChangeState,
+  beatSyncElectronGetInputByteFrequencyData,
   beatSyncElectronGetState,
   beatSyncElectronSignalBeat,
   beatSyncElectronToggle,
@@ -36,6 +38,7 @@ export async function setupBeatSync() {
   const toggle = defineInvoke(context, beatSyncElectronToggle) as (enabled: boolean) => Promise<void> // TODO: Better type
   const getState = defineInvoke(context, beatSyncElectronGetState)
   const updateParameters = defineInvoke(context, beatSyncElectronUpdateParameters)
+  const getInputByteFrequencyData = defineInvoke(context, beatSyncElectronGetInputByteFrequencyData)
 
   await load(window, baseUrl(resolve(getElectronMainDirname(), '..', 'renderer'), 'beat-sync.html'))
   return {
@@ -54,6 +57,7 @@ export async function setupBeatSync() {
         defineInvokeHandler(context, beatSyncToggleInvokeEventa, async enabled => toggle(enabled)),
         defineInvokeHandler(context, beatSyncGetStateInvokeEventa, async () => getState()),
         defineInvokeHandler(context, beatSyncUpdateParametersInvokeEventa, async params => updateParameters(params)),
+        defineInvokeHandler(context, beatSyncGetInputByteFrequencyDataInvokeEventa, async () => getInputByteFrequencyData()),
       ]
       const removeHandlers = () => removeHandlerFns.forEach(fn => fn())
       window.on('closed', () => removeHandlers())
