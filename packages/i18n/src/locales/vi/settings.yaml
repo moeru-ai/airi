@@ -1,13 +1,11 @@
 common:
   save: Lưu
-
 animations:
   stage-transitions:
     title: Tắt hiệu ứng chuyển cảnh
   use-page-specific-transitions:
     description: >-
-      Một số trang sẽ có hiệu ứng chuyển cảnh riêng, điều này sẽ ghi đè hiệu ứng
-      chuyển cảnh mặc định
+      Một số trang sẽ có hiệu ứng chuyển cảnh riêng, điều này sẽ ghi đè hiệu ứng chuyển cảnh mặc định
     title: Dùng hiệu ứng chuyển cảnh riêng cho từng trang
 dialogs:
   onboarding:
@@ -20,6 +18,7 @@ dialogs:
     baseUrl: URL gốc
     baseUrlHelp: Địa chỉ API đầu cuối (dùng mặc định nếu không chắc)
     accountId: ID tài khoản
+    validationSuccess: Configuration validation success
     validationFailed: Xác thực cấu hình thất bại
     validationError: 'Lỗi xác thực: {error}'
     skipForNow: Bỏ qua
@@ -28,12 +27,12 @@ dialogs:
     start: Bắt đầu thôi!
     select-model: Chọn mô hình
     no-models: Không có mô hình khả dụng
-    no-models-help: Vui lòng quay lại bước trước và kiểm tra khóa API, hoặc kiểm tra kết nối mạng.
+    no-models-help: >-
+      Vui lòng quay lại bước trước và kiểm tra khóa API, hoặc kiểm tra kết nối mạng.
 language:
   title: Ngôn ngữ
   description: >
-    Thay đổi ngôn ngữ giao diện AIRI. Điều này sẽ không ảnh hưởng đến ngôn ngữ
-    phản hồi của nhân vật.
+    Thay đổi ngôn ngữ giao diện AIRI. Điều này sẽ không ảnh hưởng đến ngôn ngữ phản hồi của nhân vật.
 live2d:
   change-model:
     from-file: Tải từ tệp
@@ -52,7 +51,7 @@ live2d:
     title: Tỉ lệ và vị trí
     scale: Tỉ lệ
     x: X
-    'y': Y
+    'y': 'Y'
   switch-to-vrm:
     title: Chuyển sang mô hình 3D?
     change-to-vrm: Bấm vào đây để đổi sang cài đặt mô hình 3D (VRM)
@@ -104,8 +103,7 @@ pages:
         posthistoryinstructions: Nhớ bắt chước như một con người.
       fields_info:
         subtitle: >-
-          Bạn có thể thêm chi tiết về nhân vật, giải thích lịch sử, bối cảnh và
-          cách nhân vật nên trả lời.
+          Bạn có thể thêm chi tiết về nhân vật, giải thích lịch sử, bối cảnh và cách nhân vật nên trả lời.
         name: Tên chính thức của nhân vật.
         nickname: Có thể đặt biệt danh để ưu tiên dùng.
         description: Mô tả nhân vật này.
@@ -162,6 +160,53 @@ pages:
           description: Cấu hình mô hình 3D VRM
         scene: Bối cảnh
   modules:
+    beat_sync:
+      description: Vibe with beats from the audio source
+      title: Beat Sync
+      sections:
+        audio_source:
+          actions:
+            start_screen_capture: Start screen capture
+            stop: Stop
+          description: Select an audio source to detect beats from.
+          title: Audio source
+        beat_visualizer:
+          title: Beat visualizer
+        parameters:
+          advanced_parameters: Advanced Parameters
+          description: Tweak the beat detection parameters.
+          title: Parameters
+          parameters:
+            adaptive_threshold:
+              description: >-
+                Whether to apply adaptive thresholds based on signal variance over time.
+              label: Adaptive threshold
+            buffer_duration:
+              description: Duration of the internal analysis buffer.
+              label: Buffer duration
+            envelope_filter_frequency:
+              description: >-
+                Frequency for the envelope filter applied to smooth energy changes.
+              label: Envelope filter frequency
+            highpass_filter_frequency:
+              description: >-
+                Frequency for the highpass filter applied to reduce low frequencies like sub-bass noises.
+              label: Highpass filter frequency
+            lowpass_filter_frequency:
+              description: >-
+                Frequency for the lowpass filter applied to reduce high frequencies like vocals.
+              label: Lowpass filter frequency
+            min_beat_interval:
+              description: Maximum BPM or minimum interval between detected beats.
+              label: Max BPM / Min beat interval
+            sensitivity:
+              label: Sensitivity
+            spectral_flux:
+              description: Whether to enable spectral flux-based onset detection.
+              label: Spectral flux
+            warmup:
+              description: Whether to warm up before detecting beats for better accuracy.
+              label: Warmup
     consciousness:
       description: Tính cách, mô hình mong muốn, v.v.
       sections:
@@ -220,6 +265,10 @@ pages:
     hearing:
       description: Cấu hình nhận diện giọng nói
       title: Nghe
+      sections:
+        section:
+          provider-selection:
+            description: Select the suitable speech recognition provider
     memory-long-term:
       description: Cài đặt và quản lý trí nhớ dài hạn
       title: Trí nhớ dài hạn
@@ -253,12 +302,16 @@ pages:
             no_models_description: Không tìm thấy mô hình nào cho nhà cung cấp này
             no_voices: Không có giọng nói
             no_voices_description: Không tìm thấy giọng nói nào cho nhà cung cấp này
+            no_voices_hint: You can enter a custom voice name below.
             pause: Tạm dừng
             play_sample: Nghe thử
             search_models_placeholder: Tìm mô hình...
             search_models_results: Tìm thấy {count}/{total} mô hình
             search_voices_placeholder: Tìm giọng nói...
             search_voices_results: Tìm thấy {count}/{total} giọng nói
+            unsupported_voice_warning_title: No supported voices
+            unsupported_voice_warning_content: >-
+              Try a different model or provider. We are working on supporting all the voice for this model as quickly as possible. If you need it urgently, please let us know on GitHub at https://github.com/moeru-ai/airi/issues.
             show_less: Ẩn bớt
             show_more: Hiện thêm
             title: Nhà cung cấp
@@ -299,13 +352,11 @@ pages:
       chat: 'Nhà cung cấp mô hình tạo văn bản. Ví dụ: OpenRouter, OpenAI, Ollama.'
       Speech: 'Nhà cung cấp mô hình giọng nói (text-to-speech). Ví dụ: ElevenLabs, Azure Speech.'
       Transcription: >-
-        Nhà cung cấp mô hình chuyển giọng nói thành văn bản. Ví dụ: Whisper.cpp,
-        OpenAI, Azure Speech
+        Nhà cung cấp mô hình chuyển giọng nói thành văn bản. Ví dụ: Whisper.cpp, OpenAI, Azure Speech
     helpinfo:
       title: Lần đầu tới đây?
       description: >
-        {chat} AIRI cần ít nhất một nhà cung cấp để suy nghĩ và hoạt động đúng cách.
-        Có thể coi nó như bộ não của nhân vật AIRI trong hệ thống.
+        {chat} AIRI cần ít nhất một nhà cung cấp để suy nghĩ và hoạt động đúng cách. Có thể coi nó như bộ não của nhân vật AIRI trong hệ thống.
     common:
       fields:
         field:
@@ -372,6 +423,9 @@ pages:
               placeholder: Nhập khóa API cho Cloudflare
         title: Cloudflare Workers AI
       common:
+        status:
+          validating: Validating
+          valid: Configuration seems to be valid.
         fields:
           field:
             pitch:
@@ -439,12 +493,18 @@ pages:
       index-tts-vllm:
         description: https://index-tts.github.io/
         title: Bilibili / IndexTTS
+      azure-ai-foundry:
+        description: Azure AI Foundry
+        title: Azure AI Foundry
       mistral:
         description: mistral.ai
         title: Mistral
       moonshot:
         description: moonshot.ai
         title: Moonshot AI
+      modelscope:
+        description: modelscope.cn
+        title: ModelScope
       novita:
         description: novita.ai
         title: Novita
@@ -501,6 +561,9 @@ pages:
       cerebras:
         description: cerebras.ai
         title: Cerebras
+      aliyun-nls:
+        description: Aliyun NLS
+        title: Aliyun NLS
       transcriptions:
         playground:
           title: Transcription Playground
@@ -531,13 +594,20 @@ pages:
           title: Bảng màu
         developer:
           title: Nhà phát triển
+          sections:
+            section:
+              use-magic-keys:
+                title: useMagicKeys
+                description: Test shortcuts
         theme-presets:
           presets:
-            - colors:
+            - 
+            colors:
                 - Xanh AIRI
               description: Màu xanh đặc trưng mặc định của AIRI
               title: Màu mặc định
-            - colors:
+            - 
+            colors:
                 - Taupe
                 - Be
                 - Xám tro
@@ -548,7 +618,8 @@ pages:
                 - Xám ấm
               description: Tông màu dịu nhẹ lấy cảm hứng từ tranh Giorgio Morandi
               title: Màu Morandi
-            - colors:
+            - 
+            colors:
                 - Xanh Da Trời
                 - Sương Mù
                 - Cát
@@ -559,7 +630,8 @@ pages:
                 - Xanh Xô Thơm
               description: Bảng màu ấn tượng lấy cảm hứng từ các tác phẩm của Claude Monet
               title: Màu Monet
-            - colors:
+            - 
+            colors:
                 - Nâu Vàng
                 - Nâu Ấm
                 - Nâu Đậm (Umber)
@@ -570,7 +642,8 @@ pages:
                 - Hổ Phách
               description: Bảng màu truyền thống Nhật Bản
               title: Màu Nhật Bản
-            - colors:
+            - 
+            colors:
                 - Xanh Bắc Âu
                 - Băng Giá
                 - Xanh đậm (Fjord)
@@ -581,7 +654,8 @@ pages:
                 - Đá
               description: Bảng màu tối giản phong cách Bắc Âu
               title: Màu Bắc Âu
-            - colors:
+            - 
+            colors:
                 - Hồng Bình Minh
                 - Đỏ Trung Hoa
                 - Nâu Khói
@@ -591,11 +665,15 @@ pages:
                 - Xanh Lam Ngọc
                 - Son Đất
               description: >-
-                Màu sắc truyền thống Trung Hoa, bắt nguồn từ vải dệt cổ, gốm sứ
-                và tranh vẽ
+                Màu sắc truyền thống Trung Hoa, bắt nguồn từ vải dệt cổ, gốm sứ và tranh vẽ
               title: Màu Truyền Thống Trung Hoa
           title: Bộ Màu Có Sẵn
     title: Giao Diện
+  page:
+    developers:
+      open-devtools:
+        title: Open Developer Tools
+        button: Open
 sections:
   section:
     general:
@@ -646,3 +724,6 @@ vrm:
   skybox:
     skybox-intensity: Cường Độ SkyBox
     skybox-specular-mix: Độ Trộn Phản Chiếu
+wip:
+  title: Work in Progress
+  description: This feature is currently under development and not yet publicly available. Check back in future updates for this functionality.
