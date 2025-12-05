@@ -601,13 +601,11 @@ pages:
                 description: Test shortcuts
         theme-presets:
           presets:
-            - 
-            colors:
+            - colors:
                 - AIRI Green
               description: Стандартный зелёный оттенок AIRI
               title: Цвет по умолчанию
-            - 
-            colors:
+            - colors:
                 - Taupe
                 - Beige
                 - Ash Grey
@@ -618,8 +616,7 @@ pages:
                 - Warm Grey
               description: Приглушённые тона в стиле Джорджо Моранди
               title: Цвета Моранди
-            - 
-            colors:
+            - colors:
                 - Sky Blue
                 - Mist
                 - Sand
@@ -630,8 +627,7 @@ pages:
                 - Sage
               description: Палитра импрессионизма, вдохновлённая Моне
               title: Цвета Моне
-            - 
-            colors:
+            - colors:
                 - Tan
                 - Warm Taupe
                 - Umber
@@ -642,8 +638,7 @@ pages:
                 - Amber
               description: Традиционная японская цветовая палитра
               title: Японские цвета
-            - 
-            colors:
+            - colors:
                 - Nordic Blue
                 - Ice
                 - Fjord
@@ -654,8 +649,7 @@ pages:
                 - Stone
               description: Скандинавская минималистичная схема
               title: Северные цвета
-            - 
-            colors:
+            - colors:
                 - Rosy Dawn
                 - Chinese Red
                 - Smoky Brown

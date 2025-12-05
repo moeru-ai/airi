@@ -601,13 +601,11 @@ pages:
                 description: Test shortcuts
         theme-presets:
           presets:
-            - 
-            colors:
+            - colors:
                 - Verde AIRI
               description: '¡El color de tema verdoso predeterminado, traído por AIRI para ti!'
               title: Color Predeterminado
-            - 
-            colors:
+            - colors:
                 - Taupe
                 - Beige
                 - Gris Ceniza
@@ -618,8 +616,7 @@ pages:
                 - Gris Cálido
               description: Tonos suaves y apagados inspirados en las pinturas de Giorgio Morandi
               title: Colores Morandi
-            - 
-            colors:
+            - colors:
                 - Azul Cielo
                 - Niebla
                 - Arena
@@ -630,8 +627,7 @@ pages:
                 - Salvia
               description: Paleta impresionista inspirada en las obras de Claude Monet
               title: Colores Monet
-            - 
-            colors:
+            - colors:
                 - Bronceado
                 - Taupe Cálido
                 - Umber
@@ -642,8 +638,7 @@ pages:
                 - Ámbar
               description: Paleta de colores japonesa tradicional
               title: Colores Japoneses
-            - 
-            colors:
+            - colors:
                 - Azul Nórdico
                 - Hielo
                 - Fiordo
@@ -654,8 +649,7 @@ pages:
                 - Piedra
               description: Esquema de colores minimalista escandinavo
               title: Colores Nórdicos
-            - 
-            colors:
+            - colors:
                 - Amanecer Rosado
                 - Rojo Chino
                 - Marrón Ahumado

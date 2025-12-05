@@ -601,13 +601,11 @@ pages:
                 description: Test shortcuts
         theme-presets:
           presets:
-            - 
-            colors:
+            - colors:
                 - AIRI Green
               description: La couleur verte par défaut, apportée par AIRI pour vous !
               title: Couleur par défaut
-            - 
-            colors:
+            - colors:
                 - Taupe
                 - Beige
                 - Gris cendré
@@ -618,8 +616,7 @@ pages:
                 - Gris chaud
               description: Tons doux et atténués inspirés des peintures de Giorgio Morandi
               title: Couleurs Morandi
-            - 
-            colors:
+            - colors:
                 - Bleu ciel
                 - Brume
                 - Sable
@@ -630,8 +627,7 @@ pages:
                 - Sauge
               description: Palette impressionniste inspirée des œuvres de Claude Monet
               title: Couleurs Monet
-            - 
-            colors:
+            - colors:
                 - Fauve
                 - Taupe chaud
                 - Ombre
@@ -642,8 +638,7 @@ pages:
                 - Ambre
               description: Palette traditionnelle japonaise
               title: Couleurs japonaises
-            - 
-            colors:
+            - colors:
                 - Bleu nordique
                 - Glace
                 - Fjord
@@ -654,8 +649,7 @@ pages:
                 - Pierre
               description: Schéma de couleurs minimaliste scandinave
               title: Couleurs nordiques
-            - 
-            colors:
+            - colors:
                 - Aube rosée
                 - Rouge chinois
                 - Marron fumé
