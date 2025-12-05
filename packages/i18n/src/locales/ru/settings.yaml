@@ -1,6 +1,5 @@
 common:
   save: Сохранить
-
 animations:
   stage-transitions:
     title: Отключить переходы между сценами
@@ -19,6 +18,7 @@ dialogs:
     baseUrl: Базовый URL
     baseUrlHelp: URL конечной точки API (оставьте по умолчанию, если не уверены)
     accountId: ID аккаунта
+    validationSuccess: Configuration validation success
     validationFailed: Проверка конфигурации не удалась
     validationError: 'Ошибка проверки: {error}'
     skipForNow: Пропустить на сейчас
@@ -27,7 +27,12 @@ dialogs:
     start: Поехали!
     select-model: Выберите модель
     no-models: Нет доступных моделей
-    no-models-help: Вернитесь на предыдущий шаг и проверьте API-ключ или подключение к сети.
+    no-models-help: >-
+      Вернитесь на предыдущий шаг и проверьте API-ключ или подключение к сети.
+language:
+  title: Language
+  description: >
+    Change the language of the AIRI interface. This will not affect the language of the character's responses.
 live2d:
   change-model:
     from-file: Загрузить из файла
@@ -98,8 +103,7 @@ pages:
         posthistoryinstructions: Не забывайте подражать человеку.
       fields_info:
         subtitle: >-
-          Здесь можно указать детали о создаваемом персонаже, описать его историю,
-          контекст и то, как он должен отвечать на взаимодействия.
+          Здесь можно указать детали о создаваемом персонаже, описать его историю, контекст и то, как он должен отвечать на взаимодействия.
         name: Формальное имя персонажа.
         nickname: Можно дать ник, который будет приоритетным.
         description: Описание персонажа.
@@ -156,6 +160,53 @@ pages:
           description: Настройка 3D-моделей VRM
         scene: Сцена
   modules:
+    beat_sync:
+      description: Vibe with beats from the audio source
+      title: Beat Sync
+      sections:
+        audio_source:
+          actions:
+            start_screen_capture: Start screen capture
+            stop: Stop
+          description: Select an audio source to detect beats from.
+          title: Audio source
+        beat_visualizer:
+          title: Beat visualizer
+        parameters:
+          advanced_parameters: Advanced Parameters
+          description: Tweak the beat detection parameters.
+          title: Parameters
+          parameters:
+            adaptive_threshold:
+              description: >-
+                Whether to apply adaptive thresholds based on signal variance over time.
+              label: Adaptive threshold
+            buffer_duration:
+              description: Duration of the internal analysis buffer.
+              label: Buffer duration
+            envelope_filter_frequency:
+              description: >-
+                Frequency for the envelope filter applied to smooth energy changes.
+              label: Envelope filter frequency
+            highpass_filter_frequency:
+              description: >-
+                Frequency for the highpass filter applied to reduce low frequencies like sub-bass noises.
+              label: Highpass filter frequency
+            lowpass_filter_frequency:
+              description: >-
+                Frequency for the lowpass filter applied to reduce high frequencies like vocals.
+              label: Lowpass filter frequency
+            min_beat_interval:
+              description: Maximum BPM or minimum interval between detected beats.
+              label: Max BPM / Min beat interval
+            sensitivity:
+              label: Sensitivity
+            spectral_flux:
+              description: Whether to enable spectral flux-based onset detection.
+              label: Spectral flux
+            warmup:
+              description: Whether to warm up before detecting beats for better accuracy.
+              label: Warmup
     consciousness:
       description: Личность, модель сознания и др.
       sections:
@@ -214,6 +265,10 @@ pages:
     hearing:
       description: Настройка распознавания речи
       title: Слух
+      sections:
+        section:
+          provider-selection:
+            description: Select the suitable speech recognition provider
     memory-long-term:
       description: Настройки долговременной памяти
       title: Долговременная память
@@ -247,12 +302,16 @@ pages:
             no_models_description: Модели не найдены
             no_voices: Голосов нет
             no_voices_description: Голоса не найдены
+            no_voices_hint: You can enter a custom voice name below.
             pause: Пауза
             play_sample: Воспроизвести пример
             search_models_placeholder: Поиск моделей...
             search_models_results: Найдено {count} из {total} моделей
             search_voices_placeholder: Поиск голосов...
             search_voices_results: Найдено {count} из {total} голосов
+            unsupported_voice_warning_title: No supported voices
+            unsupported_voice_warning_content: >-
+              Try a different model or provider. We are working on supporting all the voice for this model as quickly as possible. If you need it urgently, please let us know on GitHub at https://github.com/moeru-ai/airi/issues.
             show_less: Показать меньше
             show_more: Показать больше
             title: Провайдер
@@ -297,8 +356,7 @@ pages:
     helpinfo:
       title: Впервые здесь?
       description: >
-        AIRI требует как минимум одного {chat}-провайдера для корректной работы.
-        Можно считать его "мозгом" персонажей в системе AIRI.
+        AIRI требует как минимум одного {chat}-провайдера для корректной работы. Можно считать его "мозгом" персонажей в системе AIRI.
     common:
       fields:
         field:
@@ -349,11 +407,9 @@ pages:
             part2: (подробнее здесь)
             part3: но из-за особенностей реализации есть
             part4: >-
-              ограничения, не совпадающие со спецификой OpenAI SDK, поэтому сейчас
-              использовать этого провайдера в браузере нельзя.
+              ограничения, не совпадающие со спецификой OpenAI SDK, поэтому сейчас использовать этого провайдера в браузере нельзя.
             part5: >-
-              Если провайдер необходим, нужен выделенный прокси-бэкенд
-              (например, Serverless Function)
+              Если провайдер необходим, нужен выделенный прокси-бэкенд (например, Serverless Function)
             part6: или сервисы обхода CORS для снятия ограничений CORS.
       cloudflare-workers-ai:
         description: cloudflare.com
@@ -367,6 +423,9 @@ pages:
               placeholder: Введите Cloudflare API Key
         title: Cloudflare Workers AI
       common:
+        status:
+          validating: Validating
+          valid: Configuration seems to be valid.
         fields:
           field:
             pitch:
@@ -434,12 +493,18 @@ pages:
       index-tts-vllm:
         description: https://index-tts.github.io/
         title: Bilibili / IndexTTS
+      azure-ai-foundry:
+        description: Azure AI Foundry
+        title: Azure AI Foundry
       mistral:
         description: mistral.ai
         title: Mistral
       moonshot:
         description: moonshot.ai
         title: Moonshot AI
+      modelscope:
+        description: modelscope.cn
+        title: ModelScope
       novita:
         description: novita.ai
         title: Novita
@@ -496,6 +561,9 @@ pages:
       cerebras:
         description: cerebras.ai
         title: Cerebras
+      aliyun-nls:
+        description: Aliyun NLS
+        title: Aliyun NLS
       transcriptions:
         playground:
           title: Песочница транскрипции
@@ -526,13 +594,20 @@ pages:
           title: Цветовая схема
         developer:
           title: Разработчик
+          sections:
+            section:
+              use-magic-keys:
+                title: useMagicKeys
+                description: Test shortcuts
         theme-presets:
           presets:
-            - colors:
+            - 
+            colors:
                 - AIRI Green
               description: Стандартный зелёный оттенок AIRI
               title: Цвет по умолчанию
-            - colors:
+            - 
+            colors:
                 - Taupe
                 - Beige
                 - Ash Grey
@@ -543,7 +618,8 @@ pages:
                 - Warm Grey
               description: Приглушённые тона в стиле Джорджо Моранди
               title: Цвета Моранди
-            - colors:
+            - 
+            colors:
                 - Sky Blue
                 - Mist
                 - Sand
@@ -554,7 +630,8 @@ pages:
                 - Sage
               description: Палитра импрессионизма, вдохновлённая Моне
               title: Цвета Моне
-            - colors:
+            - 
+            colors:
                 - Tan
                 - Warm Taupe
                 - Umber
@@ -565,7 +642,8 @@ pages:
                 - Amber
               description: Традиционная японская цветовая палитра
               title: Японские цвета
-            - colors:
+            - 
+            colors:
                 - Nordic Blue
                 - Ice
                 - Fjord
@@ -576,7 +654,8 @@ pages:
                 - Stone
               description: Скандинавская минималистичная схема
               title: Северные цвета
-            - colors:
+            - 
+            colors:
                 - Rosy Dawn
                 - Chinese Red
                 - Smoky Brown
@@ -590,6 +669,11 @@ pages:
               title: Китайские традиционные цвета
           title: Наборы цветовых схем
     title: Внешний вид
+  page:
+    developers:
+      open-devtools:
+        title: Open Developer Tools
+        button: Open
 sections:
   section:
     general:
@@ -637,3 +721,9 @@ vrm:
   theme-color-from-model:
     button-extract:
       title: Извлечь
+  skybox:
+    skybox-intensity: SkyBox Intensity
+    skybox-specular-mix: Specular Mix
+wip:
+  title: Work in Progress
+  description: This feature is currently under development and not yet publicly available. Check back in future updates for this functionality.

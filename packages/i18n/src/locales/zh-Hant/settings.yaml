@@ -4,7 +4,8 @@ animations:
   stage-transitions:
     title: 是否開啟舞台動畫
   use-page-specific-transitions:
-    description: 某些頁面會有自己的過場動畫，這將會覆蓋舞台過場動畫
+    description: >-
+      某些頁面會有自己的過場動畫，這將會覆蓋舞台過場動畫
     title: 是否使用頁面特定過場動畫
 dialogs:
   onboarding:
@@ -17,18 +18,21 @@ dialogs:
     baseUrl: 基礎 URL
     baseUrlHelp: API 端點 URL（如果不確定請使用預設值）
     accountId: 帳號 ID
+    validationSuccess: Configuration validation success
     validationFailed: 設定驗證失敗
-    validationError: 驗證錯誤：{error}
+    validationError: '驗證錯誤：{error}'
     skipForNow: 先略過
     saveAndContinue: 儲存並繼續
     next: 下一步
     start: 開始吧！
     select-model: 選擇模型
     no-models: 找不到可用的模型
-    no-models-help: 請返回上一步並檢查您的 API Key，或檢查網路連線。
+    no-models-help: >-
+      請返回上一步並檢查您的 API Key，或檢查網路連線。
 language:
   title: 語言
-  description: 切換顯示介面的語言
+  description: >
+    切換顯示介面的語言
 live2d:
   change-model:
     from-file: 從檔案載入
@@ -52,6 +56,7 @@ live2d:
     title: 想切換至 3D 虛擬角色嗎？
     change-to-vrm: 切換至 3D 虛擬角色設定頁面（VRM）
   theme-color-from-model:
+    title: Extract colors from model
     button-extract:
       title: 提取
   focus:
@@ -97,26 +102,29 @@ pages:
         systemprompt: 你將會收到訊息，請像真實人類一樣回覆。
         posthistoryinstructions: 記得模仿人類的行為。
       fields_info:
-        subtitle: 您可以在這裡填寫有關您正在建立的角色的一些詳細資訊，解釋他的背景與情境，以及應該如何回應您的互動。
+        subtitle: >-
+          您可以在這裡填寫有關您正在建立的角色的一些詳細資訊，解釋他的背景與情境，以及應該如何回應您的互動。
         name: 是該角色的正式名稱。
         nickname: 您也可以提供一個暱稱，它將會被優先使用。
         description: 該角色的描述。
         notes: 如果您想加入一些個人備註。
-        personality: 在這裡描述您的角色的個性。例如：害羞？好奇？其他？
+        personality: >-
+          在這裡描述您的角色的個性。例如：害羞？好奇？其他？
         scenario: 周遭環境是怎樣的？當前的情境是什麼？
         greetings_field: 問候語
         greetings: 您的角色應該如何說「你好」？
         systemprompt: 在這裡向 AI LLM 解釋當被提示時應該如何回應。
         posthistoryinstructions: 在訊息歷史之後，放入 AI LLM 應該閱讀的內容。
-        version: 卡片版本，如果您從先前的卡片做了更改，應當增加此版本號。
+        version: >-
+          卡片版本，如果您從先前的卡片做了更改，應當增加此版本號。
       errors:
         name: 錯誤：你必須提供一個有效的名稱！
-        version: 錯誤：版本號無效！
-        description: 錯誤：你必須為此卡片提供描述。
-        personality: 錯誤：必須為該角色提供個性描述。
-        scenario: 錯誤：必須提供一個情境。
-        systemprompt: 錯誤：請提供系統提示。
-        posthistoryinstructions: 錯誤：必須提供訊息歷史後的提示。
+        version: '錯誤：版本號無效！'
+        description: '錯誤：你必須為此卡片提供描述。'
+        personality: '錯誤：必須為該角色提供個性描述。'
+        scenario: '錯誤：必須提供一個情境。'
+        systemprompt: '錯誤：請提供系統提示。'
+        posthistoryinstructions: '錯誤：必須提供訊息歷史後的提示。'
     modules: 模組
     name_asc: 名稱 (A-Z)
     name_desc: 名稱 (Z-A)
@@ -144,8 +152,61 @@ pages:
     title: 角色模型
     sections:
       section:
+        live2d:
+          title: Live2D
+          description: Configure Live2D models and settings
+        vrm:
+          title: VRM
+          description: Configure 3D VRM models and settings
         scene: 場景
   modules:
+    beat_sync:
+      description: Vibe with beats from the audio source
+      title: Beat Sync
+      sections:
+        audio_source:
+          actions:
+            start_screen_capture: Start screen capture
+            stop: Stop
+          description: Select an audio source to detect beats from.
+          title: Audio source
+        beat_visualizer:
+          title: Beat visualizer
+        parameters:
+          advanced_parameters: Advanced Parameters
+          description: Tweak the beat detection parameters.
+          title: Parameters
+          parameters:
+            adaptive_threshold:
+              description: >-
+                Whether to apply adaptive thresholds based on signal variance over time.
+              label: Adaptive threshold
+            buffer_duration:
+              description: Duration of the internal analysis buffer.
+              label: Buffer duration
+            envelope_filter_frequency:
+              description: >-
+                Frequency for the envelope filter applied to smooth energy changes.
+              label: Envelope filter frequency
+            highpass_filter_frequency:
+              description: >-
+                Frequency for the highpass filter applied to reduce low frequencies like sub-bass noises.
+              label: Highpass filter frequency
+            lowpass_filter_frequency:
+              description: >-
+                Frequency for the lowpass filter applied to reduce high frequencies like vocals.
+              label: Lowpass filter frequency
+            min_beat_interval:
+              description: Maximum BPM or minimum interval between detected beats.
+              label: Max BPM / Min beat interval
+            sensitivity:
+              label: Sensitivity
+            spectral_flux:
+              description: Whether to enable spectral flux-based onset detection.
+              label: Spectral flux
+            warmup:
+              description: Whether to warm up before detecting beats for better accuracy.
+              label: Warmup
     consciousness:
       description: 人格設定、使用的模型等設定
       sections:
@@ -204,6 +265,10 @@ pages:
     hearing:
       description: 語音辨識
       title: 聽覺
+      sections:
+        section:
+          provider-selection:
+            description: Select the suitable speech recognition provider
     memory-long-term:
       description: 長期記憶
       title: 長期記憶
@@ -237,12 +302,16 @@ pages:
             no_models_description: 該服務來源的模型清單沒有回傳任何資料
             no_voices: 沒有任何可用的聲線
             no_voices_description: 該服務來源的聲線清單沒有回傳任何資料
+            no_voices_hint: You can enter a custom voice name below.
             pause: Pause
             play_sample: Play
             search_models_placeholder: 搜尋模型...
             search_models_results: 找到 {count} / {total} 個模型
             search_voices_placeholder: 搜尋聲線...
             search_voices_results: 找到 {count} / {total} 條聲線
+            unsupported_voice_warning_title: No supported voices
+            unsupported_voice_warning_content: >-
+              Try a different model or provider. We are working on supporting all the voice for this model as quickly as possible. If you need it urgently, please let us know on GitHub at https://github.com/moeru-ai/airi/issues.
             show_less: 顯示更少
             show_more: 顯示更多
             title: 選擇語音合成服務來源
@@ -282,10 +351,11 @@ pages:
     explained:
       chat: 文字生成模型服務來源，例如 OpenRouter、OpenAI、Ollama
       Speech: 語音（文字轉語音）模型服務來源，例如 ElevenLabs、Azure Speech
-      Transcription: 轉錄（語音轉文字）模型服務來源，例如 Whisper.cpp、OpenAI、Azure Speech
+      Transcription: >-
+        轉錄（語音轉文字）模型服務來源，例如 Whisper.cpp、OpenAI、Azure Speech
     helpinfo:
       title: 第一次使用？
-      description: |
+      description: >
         AIRI 需要設定至少一個 {chat} 服務來源，才能正常思考與運作。你可以把它看作是 AIRI 系統中角色的大腦。
     common:
       fields:
@@ -332,11 +402,14 @@ pages:
         helpinfo:
           title: 開始之前
           description:
-            part1: 雖然 Anthropic 最近宣布他們正在提供對 OpenAI SDK 相容性的 Beta 版支援
-            part2: （您可以在此處閱讀更多資訊）
+            part1: >-
+              雖然 Anthropic 最近宣布他們正在提供對 OpenAI SDK 相容性的 Beta 版支援
+            part2: '（您可以在此處閱讀更多資訊）'
             part3: 但由於實作細節附帶
-            part4: 與 OpenAI SDK 不一致，目前無法在瀏覽器中使用此提供者。
-            part5: 如果您確實需要使用此提供者，則需要一個專用的代理後端，例如在
+            part4: >-
+              與 OpenAI SDK 不一致，目前無法在瀏覽器中使用此提供者。
+            part5: >-
+              如果您確實需要使用此提供者，則需要一個專用的代理後端，例如在
             part6: 上運行的 Serverless Function，或者一些繞過 CORS 的服務，以繞過 CORS 限制。
       cloudflare-workers-ai:
         description: Cloudflare.com
@@ -417,6 +490,12 @@ pages:
               description: 服務 Endpoint 地區（例如亞太 eastasia 區域）
               label: Endpoint 地區
         title: Microsoft / Azure 語音服務
+      index-tts-vllm:
+        description: https://index-tts.github.io/
+        title: Bilibili / IndexTTS
+      azure-ai-foundry:
+        description: Azure AI Foundry
+        title: Azure AI Foundry
       mistral:
         description: mistral.ai
         title: Mistral
@@ -474,14 +553,17 @@ pages:
         description: X.AI
         title: xAI
       302-ai:
-        title: 302.AI
         description: 302.AI
+        title: 302.AI
       comet-api:
         description: CometAPI.com
         title: Comet API
       cerebras:
         description: cerebras.ai
         title: Cerebras
+      aliyun-nls:
+        description: Aliyun NLS
+        title: Aliyun NLS
       transcriptions:
         playground:
           title: 實驗平台
@@ -515,14 +597,17 @@ pages:
           sections:
             section:
               use-magic-keys:
+                title: useMagicKeys
                 description: 測試快捷鍵
         theme-presets:
           presets:
-            - colors:
+            - 
+            colors:
                 - AIRI 綠
               description: 預設的綠色主題，由 AIRI 為您帶來！
               title: 預設顏色
-            - colors:
+            - 
+            colors:
                 - 灰褐色
                 - 米色
                 - 灰白色
@@ -533,7 +618,8 @@ pages:
                 - 暖灰色
               description: 受喬治·莫蘭迪繪畫啟發的柔和、低調色調
               title: Morandi 顏色
-            - colors:
+            - 
+            colors:
                 - 天藍色
                 - 薄霧色
                 - 沙色
@@ -544,7 +630,8 @@ pages:
                 - 鼠尾草色
               description: 受克勞德·莫內作品啟發的印象派調色盤
               title: 莫內顏色
-            - colors:
+            - 
+            colors:
                 - 棕褐色
                 - 暖灰褐色
                 - 赭色
@@ -555,7 +642,8 @@ pages:
                 - 琥珀色
               description: 傳統日本色彩調色盤
               title: 日本顏色
-            - colors:
+            - 
+            colors:
                 - 北歐藍
                 - 冰色
                 - 峽灣色
@@ -566,7 +654,8 @@ pages:
                 - 石頭色
               description: 北歐極簡主義配色方案
               title: 北歐顏色
-            - colors:
+            - 
+            colors:
                 - 霞光紅
                 - 棗紅
                 - 黃櫨
@@ -575,10 +664,16 @@ pages:
                 - 緗色
                 - 青冥
                 - 赭石
-              description: 中國傳統色彩，源自古代紡織品、瓷器與繪畫
+              description: >-
+                中國傳統色彩，源自古代紡織品、瓷器與繪畫
               title: 中國傳統顏色
           title: 預設
     title: 外觀
+  page:
+    developers:
+      open-devtools:
+        title: Open Developer Tools
+        button: Open
 sections:
   section:
     general:
@@ -629,3 +724,6 @@ vrm:
   skybox:
     skybox-intensity: 天空盒光照強度
     skybox-specular-mix: 漫反射／鏡面反射混合係數
+wip:
+  title: Work in Progress
+  description: This feature is currently under development and not yet publicly available. Check back in future updates for this functionality.

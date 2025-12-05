@@ -21,3 +21,14 @@ pages:
       toggle-ignore-mouse-event:
         label: Игнорировать курсор мыши
       press-keys: Нажмите любую клавишу...
+    developer:
+      sections:
+        section:
+          use-window-mouse:
+            title: useWindowMouse
+            description: Test the Electron window cursor position
+devtools:
+  title: Developer
+  pages:
+    widgets-calling:
+      title: Widget Calling
