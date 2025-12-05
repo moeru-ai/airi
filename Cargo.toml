@@ -1,5 +1,12 @@
 [workspace]
-members = [ "crates/tauri-plugin-ipc-audio-transcription-ort", "crates/tauri-plugin-ipc-audio-vad-ort", "crates/tauri-plugin-mcp", "crates/tauri-plugin-rdev", "crates/tauri-plugin-window-pass-through-on-hover", "crates/tauri-plugin-window-router-link" ]
+members = [
+  "crates/tauri-plugin-ipc-audio-transcription-ort",
+  "crates/tauri-plugin-ipc-audio-vad-ort",
+  "crates/tauri-plugin-mcp",
+  "crates/tauri-plugin-rdev",
+  "crates/tauri-plugin-window-pass-through-on-hover",
+  "crates/tauri-plugin-window-router-link"
+]
 resolver = "2"
 
 [workspace.package]

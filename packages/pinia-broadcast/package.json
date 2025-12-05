@@ -1,0 +1,40 @@
+{
+  "name": "@proj-airi/pinia-broadcast",
+  "type": "module",
+  "version": "0.1.0-alpha.0",
+  "private": true,
+  "description": "Pinia plugin to synchronize store state across windows via BroadcastChannel or SharedWorker",
+  "author": {
+    "name": "Moeru AI Project AIRI Team",
+    "email": "airi@moeru.ai",
+    "url": "https://github.com/moeru-ai"
+  },
+  "license": "MIT",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.mts",
+      "default": "./dist/index.mjs"
+    },
+    "./relay.worker": {
+      "types": "./dist/relay.worker.d.mts",
+      "default": "./dist/relay.worker.mjs"
+    }
+  },
+  "main": "./dist/index.mjs",
+  "types": "./dist/index.d.mts",
+  "files": [
+    "README.md",
+    "dist",
+    "package.json"
+  ],
+  "scripts": {
+    "build": "tsdown",
+    "typecheck": "tsc --noEmit"
+  },
+  "peerDependencies": {
+    "pinia": "^3.0.0"
+  },
+  "devDependencies": {
+    "@moeru/std": "catalog:"
+  }
+}

@@ -5,6 +5,7 @@ import Tres from '@tresjs/core'
 import NProgress from 'nprogress'
 
 import { autoAnimatePlugin } from '@formkit/auto-animate/vue'
+import { createBroadcastPlugin } from '@proj-airi/pinia-broadcast'
 import { MotionPlugin } from '@vueuse/motion'
 import { createPinia } from 'pinia'
 import { setupLayouts } from 'virtual:generated-layouts'
@@ -23,6 +24,10 @@ import './styles/main.css'
 import 'uno.css'
 
 const pinia = createPinia()
+pinia.use(createBroadcastPlugin({
+  includeStore: ({ store }) => store.$id === 'chat',
+  disabled: import.meta.env.RUNTIME_ENVIRONMENT !== 'electron',
+}))
 // TODO: vite-plugin-vue-layouts is long deprecated, replace with another layout solution
 const routeRecords = setupLayouts(routes as RouteRecordRaw[])
 

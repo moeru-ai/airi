@@ -4,6 +4,7 @@ import type { RouteRecordRaw } from 'vue-router'
 import Tres from '@tresjs/core'
 
 import { autoAnimatePlugin } from '@formkit/auto-animate/vue'
+import { createBroadcastPlugin } from '@proj-airi/pinia-broadcast'
 import { MotionPlugin } from '@vueuse/motion'
 import { createPinia } from 'pinia'
 import { setupLayouts } from 'virtual:generated-layouts'
@@ -33,6 +34,10 @@ import '@fontsource/m-plus-rounded-1c'
 import '@fontsource/sniglet'
 
 const pinia = createPinia()
+pinia.use(createBroadcastPlugin({
+  includeStore: ({ store }) => store.$id === 'chat',
+  disabled: import.meta.env.RUNTIME_ENVIRONMENT !== 'electron',
+}))
 
 const router = createRouter({
   history: createWebHashHistory(),
