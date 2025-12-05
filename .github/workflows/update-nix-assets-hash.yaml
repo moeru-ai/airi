@@ -6,8 +6,8 @@ on:
     branches:
       - main
     paths:
-      - 'apps/stage-tamagotchi/package.json'
-      - 'apps/stage-tamagotchi/vite.config.ts'
+      - 'apps/stage-web/package.json'
+      - 'apps/stage-web/vite.config.ts'
 
 permissions:
   contents: write
