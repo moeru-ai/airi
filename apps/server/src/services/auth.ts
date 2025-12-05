@@ -3,6 +3,7 @@ import type { Env } from './env'
 
 import { betterAuth } from 'better-auth'
 import { drizzleAdapter } from 'better-auth/adapters/drizzle'
+import { bearer } from 'better-auth/plugins'
 
 import * as authSchema from '../schemas/auth'
 
@@ -14,6 +15,11 @@ export function createAuth(db: Database, env: Env) {
         ...authSchema,
       },
     }),
+
+    plugins: [
+      // jwt(),
+      bearer(),
+    ],
 
     emailAndPassword: {
       enabled: true,

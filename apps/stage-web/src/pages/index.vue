@@ -24,6 +24,7 @@ import MobileHeader from '../components/Layouts/MobileHeader.vue'
 import MobileInteractiveArea from '../components/Layouts/MobileInteractiveArea.vue'
 import AnimatedWave from '../components/Widgets/AnimatedWave.vue'
 
+import { fetchSession } from '../composables/auth'
 import { themeColorFromPropertyOf, useThemeColor } from '../composables/theme-color'
 
 const { isDark: dark } = useTheme()
@@ -125,6 +126,11 @@ watch([stream, () => vadLoaded.value], async ([s, loaded]) => {
       console.error('Failed to start VAD with stream:', e)
     }
   }
+})
+
+onMounted(() => {
+  // Fetch session, ignore errors
+  fetchSession().catch(() => {})
 })
 </script>
 

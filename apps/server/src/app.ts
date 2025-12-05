@@ -17,7 +17,7 @@ function createApp() {
   app.use(
     '/api/auth/*', // or replace with "*" to enable cors for all routes
     cors({
-      origin: '*', // replace with your origin
+      origin: ['http://localhost:5173'], // replace with your origin
       allowHeaders: ['Content-Type', 'Authorization'],
       allowMethods: ['POST', 'GET', 'OPTIONS'],
       exposeHeaders: ['Content-Length'],
