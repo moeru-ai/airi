@@ -1,13 +1,11 @@
 common:
   save: Sauvegarder
-
 animations:
   stage-transitions:
     title: Désactiver les transitions de scène
   use-page-specific-transitions:
     description: >-
-      Certaines pages auront leurs propres transitions, ceci remplacera les
-      transitions de scène.
+      Certaines pages auront leurs propres transitions, ceci remplacera les transitions de scène.
     title: Utiliser les transitions spécifiques à chaque page
 dialogs:
   onboarding:
@@ -20,6 +18,7 @@ dialogs:
     baseUrl: URL de base
     baseUrlHelp: URL de l'endpoint API (utilisez la valeur par défaut si vous n’êtes pas sûr)
     accountId: ID du compte
+    validationSuccess: Configuration validation success
     validationFailed: La validation de la configuration a échouée.
     validationError: 'Erreur de validation: {error}'
     skipForNow: Passer pour l'instant
@@ -28,12 +27,12 @@ dialogs:
     start: Commençons !
     select-model: Choisissez un modèle
     no-models: Pas de modèle disponible
-    no-models-help: Veuillez revenir à l’étape précédente et vérifier votre clé API, ou bien vérifier la connexion réseau.
+    no-models-help: >-
+      Veuillez revenir à l’étape précédente et vérifier votre clé API, ou bien vérifier la connexion réseau.
 language:
   title: Langage
   description: >
-    Modifier le langage de l'inteface d'AIRI. Cela n'affectera pas le langage des
-    réponses du personnage.
+    Modifier le langage de l'inteface d'AIRI. Cela n'affectera pas le langage des réponses du personnage.
 live2d:
   change-model:
     from-file: Charger depuis un Fichier
@@ -52,7 +51,7 @@ live2d:
     title: Échelle et position
     scale: Échelle
     x: X
-    'y': Y
+    'y': 'Y'
   switch-to-vrm:
     title: Passer à l’avatar 3D ?
     change-to-vrm: Cliquez ici pour passer aux paramètres de l’avatar 3D (VRM)
@@ -104,24 +103,20 @@ pages:
         posthistoryinstructions: N’oubliez pas d’imiter un humain.
       fields_info:
         subtitle: >-
-          Vous pouvez ici ajouter des détails sur le personnage que vous créez,
-          expliquer son histoire et son contexte, et comment vos interactions
-          devraient être répondues.
+          Vous pouvez ici ajouter des détails sur le personnage que vous créez, expliquer son histoire et son contexte, et comment vos interactions devraient être répondues.
         name: Le nom officiel du personnage.
         nickname: Vous pouvez également donner un surnom qui sera utilisé en priorité.
         description: Description du personnage.
         notes: Si vous souhaitez ajouter des notes personnelles.
         personality: >-
-          Décrivez ici la personnalité de votre personnage. Timide ? Curieux ?
-          Autre chose ?
+          Décrivez ici la personnalité de votre personnage. Timide ? Curieux ? Autre chose ?
         scenario: Quel est l’environnement ? Quelle est la situation actuelle ?
         greetings_field: Salutations
         greetings: Comment votre personnage devrait dire « bonjour » ?
         systemprompt: Expliquez ici à l’IA comment elle doit répondre lorsqu’on l’interroge.
         posthistoryinstructions: Placez ici tout ce que l’IA doit lire après l’historique des messages.
         version: >-
-          Version de la carte, vous devez l’incrémenter si vous apportez des modifications
-          par rapport à une carte précédente.
+          Version de la carte, vous devez l’incrémenter si vous apportez des modifications par rapport à une carte précédente.
       errors:
         name: Le nom doit être valide ou non vide.
         version: 'Erreur : numéro de version invalide !'
@@ -165,6 +160,53 @@ pages:
           description: Configurer les modèles et paramètres 3D VRM
         scene: Scène
   modules:
+    beat_sync:
+      description: Vibe with beats from the audio source
+      title: Beat Sync
+      sections:
+        audio_source:
+          actions:
+            start_screen_capture: Start screen capture
+            stop: Stop
+          description: Select an audio source to detect beats from.
+          title: Audio source
+        beat_visualizer:
+          title: Beat visualizer
+        parameters:
+          advanced_parameters: Advanced Parameters
+          description: Tweak the beat detection parameters.
+          title: Parameters
+          parameters:
+            adaptive_threshold:
+              description: >-
+                Whether to apply adaptive thresholds based on signal variance over time.
+              label: Adaptive threshold
+            buffer_duration:
+              description: Duration of the internal analysis buffer.
+              label: Buffer duration
+            envelope_filter_frequency:
+              description: >-
+                Frequency for the envelope filter applied to smooth energy changes.
+              label: Envelope filter frequency
+            highpass_filter_frequency:
+              description: >-
+                Frequency for the highpass filter applied to reduce low frequencies like sub-bass noises.
+              label: Highpass filter frequency
+            lowpass_filter_frequency:
+              description: >-
+                Frequency for the lowpass filter applied to reduce high frequencies like vocals.
+              label: Lowpass filter frequency
+            min_beat_interval:
+              description: Maximum BPM or minimum interval between detected beats.
+              label: Max BPM / Min beat interval
+            sensitivity:
+              label: Sensitivity
+            spectral_flux:
+              description: Whether to enable spectral flux-based onset detection.
+              label: Spectral flux
+            warmup:
+              description: Whether to warm up before detecting beats for better accuracy.
+              label: Warmup
     consciousness:
       description: Personnalité, modèle désiré, etc.
       sections:
@@ -223,6 +265,10 @@ pages:
     hearing:
       description: Configurer la reconnaissance vocale
       title: Audition
+      sections:
+        section:
+          provider-selection:
+            description: Select the suitable speech recognition provider
     memory-long-term:
       description: Paramètres et gestion de la mémoire à long terme
       title: Mémoire à long terme
@@ -263,6 +309,9 @@ pages:
             search_models_results: '{count} modèles trouvés sur {total}'
             search_voices_placeholder: Rechercher des voix...
             search_voices_results: '{count} voix trouvées sur {total}'
+            unsupported_voice_warning_title: No supported voices
+            unsupported_voice_warning_content: >-
+              Try a different model or provider. We are working on supporting all the voice for this model as quickly as possible. If you need it urgently, please let us know on GitHub at https://github.com/moeru-ai/airi/issues.
             show_less: Afficher moins
             show_more: Afficher plus
             title: Fournisseur
@@ -303,14 +352,11 @@ pages:
       chat: Fournisseurs de modèles de génération de texte, par ex. OpenRouter, OpenAI, Ollama.
       Speech: Fournisseurs de modèles de synthèse vocale, par ex. ElevenLabs, Azure Speech.
       Transcription: >-
-        Fournisseurs de modèles de transcription (speech-to-text),
-        par ex. Whisper.cpp, OpenAI, Azure Speech
+        Fournisseurs de modèles de transcription (speech-to-text), par ex. Whisper.cpp, OpenAI, Azure Speech
     helpinfo:
       title: Première fois ici ?
       description: >
-        AIRI nécessite qu’au moins un fournisseur {chat} soit configuré pour penser et
-        se comporter correctement. On peut le considérer comme le cerveau
-        des personnages vivant dans le système AIRI.
+        AIRI nécessite qu’au moins un fournisseur {chat} soit configuré pour penser et se comporter correctement. On peut le considérer comme le cerveau des personnages vivant dans le système AIRI.
     common:
       fields:
         field:
@@ -357,16 +403,13 @@ pages:
           title: Avant de commencer
           description:
             part1: >-
-              Bien qu’Anthropic ait récemment annoncé un support bêta pour
-              la compatibilité SDK OpenAI
+              Bien qu’Anthropic ait récemment annoncé un support bêta pour la compatibilité SDK OpenAI
             part2: (vous pouvez en lire plus ici)
             part3: en raison de détails d’implémentation
             part4: >-
-              des restrictions non alignées avec le SDK OpenAI, il n’est actuellement
-              pas possible d’utiliser ce fournisseur dans le navigateur.
+              des restrictions non alignées avec le SDK OpenAI, il n’est actuellement pas possible d’utiliser ce fournisseur dans le navigateur.
             part5: >-
-              Si vous devez utiliser ce fournisseur, vous aurez besoin d’un
-              proxy backend dédié comme une fonction serverless
+              Si vous devez utiliser ce fournisseur, vous aurez besoin d’un proxy backend dédié comme une fonction serverless
             part6: ou des services contournant le CORS pour éviter les restrictions CORS.
       cloudflare-workers-ai:
         description: cloudflare.com
@@ -450,6 +493,9 @@ pages:
       index-tts-vllm:
         description: https://index-tts.github.io/
         title: Bilibili / IndexTTS
+      azure-ai-foundry:
+        description: Azure AI Foundry
+        title: Azure AI Foundry
       mistral:
         description: mistral.ai
         title: Mistral
@@ -515,6 +561,9 @@ pages:
       cerebras:
         description: cerebras.ai
         title: Cerebras
+      aliyun-nls:
+        description: Aliyun NLS
+        title: Aliyun NLS
       transcriptions:
         playground:
           title: Terrain de test de transcription
@@ -545,6 +594,11 @@ pages:
           title: Schéma de couleurs
         developer:
           title: Développeur
+          sections:
+            section:
+              use-magic-keys:
+                title: useMagicKeys
+                description: Test shortcuts
         theme-presets:
           presets:
             - colors:
@@ -605,11 +659,15 @@ pages:
                 - Bleu azur
                 - Ocre
               description: >-
-                Couleurs traditionnelles chinoises, issues des textiles anciens,
-                de la porcelaine et des peintures
+                Couleurs traditionnelles chinoises, issues des textiles anciens, de la porcelaine et des peintures
               title: Couleurs traditionnelles chinoises
           title: Préréglages de couleurs
     title: Apparence
+  page:
+    developers:
+      open-devtools:
+        title: Open Developer Tools
+        button: Open
 sections:
   section:
     general:
@@ -660,3 +718,6 @@ vrm:
   skybox:
     skybox-intensity: Intensité de la SkyBox
     skybox-specular-mix: Mélange spéculaire
+wip:
+  title: Work in Progress
+  description: This feature is currently under development and not yet publicly available. Check back in future updates for this functionality.

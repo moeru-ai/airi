@@ -1,17 +1,15 @@
 common:
   save: Guardar
-
 animations:
   stage-transitions:
     title: Desactivar Transiciones del Escenario
   use-page-specific-transitions:
-    description: >
-      Algunas páginas tendrán sus propias transiciones, esto anulará las transiciones
-      del escenario
+    description: >-
+      Algunas páginas tendrán sus propias transiciones, esto anulará las transiciones del escenario
     title: Usar Transiciones Específicas de Página
 dialogs:
   onboarding:
-    title: ¡Bienvenido a AIRI!
+    title: '¡Bienvenido a AIRI!'
     description: Configuremos tu primer proveedor de IA para comenzar.
     selectProvider: Elige un Proveedor de IA
     configureProvider: Configurar {provider}
@@ -26,13 +24,15 @@ dialogs:
     skipForNow: Omitir por ahora
     saveAndContinue: Guardar y Continuar
     next: Siguiente
-    start: ¡Hagámoslo!
+    start: '¡Hagámoslo!'
     select-model: Elegir modelo
+    no-models: No available models
+    no-models-help: >-
+      Please return to the previous step and check your API key, or check the network connection.
 language:
   title: Idioma
   description: >
-    Cambia el idioma de la interfaz de AIRI. Esto no afectará el idioma
-    de las respuestas del personaje.
+    Cambia el idioma de la interfaz de AIRI. Esto no afectará el idioma de las respuestas del personaje.
 live2d:
   change-model:
     from-file: Cargar desde Archivo
@@ -53,7 +53,7 @@ live2d:
     x: X
     'y': 'Y'
   switch-to-vrm:
-    title: ¿Cambiar a Avatar 3D?
+    title: '¿Cambiar a Avatar 3D?'
     change-to-vrm: Haz clic aquí para cambiar a la configuración de avatar 3D (VRM)
   theme-color-from-model:
     title: Extraer colores del modelo
@@ -80,7 +80,7 @@ pages:
     creator_notes: Notas del Creador
     delete: Eliminar
     delete_card: Eliminar Tarjeta
-    delete_confirmation: ¿Estás seguro de que quieres eliminar esta tarjeta?
+    delete_confirmation: '¿Estás seguro de que quieres eliminar esta tarjeta?'
     description: Usar presets de tarjeta de personaje AIRI
     description_label: Descripción
     drop_here: Suelta para subir
@@ -102,24 +102,21 @@ pages:
         systemprompt: Recibirás mensajes, respóndelos como un humano real.
         posthistoryinstructions: Recuerda imitar a un humano.
       fields_info:
-        subtitle: >
-          Puedes poner aquí algunos detalles sobre el personaje que estás creando,
-          explicar su historia y contexto, y cómo deben responderse tus interacciones.
+        subtitle: >-
+          Puedes poner aquí algunos detalles sobre el personaje que estás creando, explicar su historia y contexto, y cómo deben responderse tus interacciones.
         name: Es el nombre formal de este personaje.
         nickname: También puedes dar un apodo que se usará con prioridad.
         description: Descripción de este personaje.
         notes: Si quieres agregar algunas notas personales.
-        personality: >
-          Describe aquí la personalidad de tu personaje. ¿Tímido? ¿Curioso?
-          ¿Algo más?
-        scenario: ¿Cuáles son los alrededores? ¿Cuál es la situación actual?
+        personality: >-
+          Describe aquí la personalidad de tu personaje. ¿Tímido? ¿Curioso? ¿Algo más?
+        scenario: '¿Cuáles son los alrededores? ¿Cuál es la situación actual?'
         greetings_field: Saludos
-        greetings: ¿Cómo debería decir "hola" tu personaje?
+        greetings: '¿Cómo debería decir "hola" tu personaje?'
         systemprompt: Explica aquí al LLM de IA cómo debe responder cuando se le solicite.
         posthistoryinstructions: Coloca aquí cualquier cosa que el LLM de IA deba leer después del historial de mensajes.
-        version: >
-          Versión de la tarjeta, deberías aumentar esto si estás haciendo cambios desde
-          una tarjeta anterior.
+        version: >-
+          Versión de la tarjeta, deberías aumentar esto si estás haciendo cambios desde una tarjeta anterior.
       errors:
         name: El nombre debe ser válido o no estar vacío.
         version: '¡Error: Número de versión inválido!'
@@ -163,6 +160,53 @@ pages:
           description: Configurar modelos VRM 3D y configuraciones
         scene: Escena
   modules:
+    beat_sync:
+      description: Vibe with beats from the audio source
+      title: Beat Sync
+      sections:
+        audio_source:
+          actions:
+            start_screen_capture: Start screen capture
+            stop: Stop
+          description: Select an audio source to detect beats from.
+          title: Audio source
+        beat_visualizer:
+          title: Beat visualizer
+        parameters:
+          advanced_parameters: Advanced Parameters
+          description: Tweak the beat detection parameters.
+          title: Parameters
+          parameters:
+            adaptive_threshold:
+              description: >-
+                Whether to apply adaptive thresholds based on signal variance over time.
+              label: Adaptive threshold
+            buffer_duration:
+              description: Duration of the internal analysis buffer.
+              label: Buffer duration
+            envelope_filter_frequency:
+              description: >-
+                Frequency for the envelope filter applied to smooth energy changes.
+              label: Envelope filter frequency
+            highpass_filter_frequency:
+              description: >-
+                Frequency for the highpass filter applied to reduce low frequencies like sub-bass noises.
+              label: Highpass filter frequency
+            lowpass_filter_frequency:
+              description: >-
+                Frequency for the lowpass filter applied to reduce high frequencies like vocals.
+              label: Lowpass filter frequency
+            min_beat_interval:
+              description: Maximum BPM or minimum interval between detected beats.
+              label: Max BPM / Min beat interval
+            sensitivity:
+              label: Sensitivity
+            spectral_flux:
+              description: Whether to enable spectral flux-based onset detection.
+              label: Spectral flux
+            warmup:
+              description: Whether to warm up before detecting beats for better accuracy.
+              label: Warmup
     consciousness:
       description: Personalidad, modelo deseado, etc.
       sections:
@@ -191,7 +235,7 @@ pages:
       title: Consciencia
     description: Pensamiento, visión, síntesis de voz, juegos, etc.
     gaming-factorio:
-      description: ¡Jugando Factorio!
+      description: '¡Jugando Factorio!'
       title: Factorio
       enable: Habilitar integración con Factorio
       enable-description: Permitir que AIRI interactúe con el juego Factorio
@@ -203,9 +247,9 @@ pages:
       username: Nombre de usuario
       username-description: Su nombre de usuario en el servidor de Factorio
       username-placeholder: Ingrese su nombre de usuario de Factorio
-      configured: ¡Factorio está configurado correctamente!
+      configured: '¡Factorio está configurado correctamente!'
     gaming-minecraft:
-      description: ¡Jugando Minecraft!
+      description: '¡Jugando Minecraft!'
       title: Minecraft
       enable: Habilitar integración con Minecraft
       enable-description: Permitir que AIRI interactúe con el juego Minecraft
@@ -217,10 +261,14 @@ pages:
       username: Nombre de usuario
       username-description: Su nombre de usuario en el servidor de Minecraft
       username-placeholder: Ingrese su nombre de usuario de Minecraft
-      configured: ¡Minecraft está configurado correctamente!
+      configured: '¡Minecraft está configurado correctamente!'
     hearing:
       description: Configurar cómo funciona el reconocimiento de voz
       title: Audición
+      sections:
+        section:
+          provider-selection:
+            description: Select the suitable speech recognition provider
     memory-long-term:
       description: Configuraciones específicas y gestión de memoria a largo plazo
       title: Memoria a Largo Plazo
@@ -235,7 +283,7 @@ pages:
       token: Token del bot
       token-description: Su token de bot de Discord
       token-placeholder: Ingrese su token de bot de Discord
-      configured: ¡Discord está configurado correctamente!
+      configured: '¡Discord está configurado correctamente!'
     speech:
       description: Síntesis de voz
       sections:
@@ -254,12 +302,16 @@ pages:
             no_models_description: No se encontraron modelos para este proveedor
             no_voices: No hay voces disponibles
             no_voices_description: No se encontraron voces para este proveedor
+            no_voices_hint: You can enter a custom voice name below.
             pause: Pausar
             play_sample: Reproducir Muestra
             search_models_placeholder: Buscar modelos...
             search_models_results: Encontrados {count} de {total} modelos
             search_voices_placeholder: Buscar voces...
             search_voices_results: Encontradas {count} de {total} voces
+            unsupported_voice_warning_title: No supported voices
+            unsupported_voice_warning_content: >-
+              Try a different model or provider. We are working on supporting all the voice for this model as quickly as possible. If you need it urgently, please let us know on GitHub at https://github.com/moeru-ai/airi/issues.
             show_less: Mostrar menos
             show_more: Mostrar más
             title: Proveedor
@@ -291,7 +343,7 @@ pages:
       access-token-secret: Secreto de token de acceso
       access-token-secret-description: Su secreto de token de acceso de X / Twitter
       access-token-secret-placeholder: Ingrese su secreto de token de acceso de X / Twitter
-      configured: ¡X / Twitter está configurado correctamente!
+      configured: '¡X / Twitter está configurado correctamente!'
     mcp-server:
       description: Conectar y gestionar servidor MCP y herramientas
       title: Servidor MCP
@@ -299,15 +351,12 @@ pages:
     explained:
       chat: Proveedores de modelos de generación de texto. ej. OpenRouter, OpenAI, Ollama.
       Speech: Proveedores de modelos de habla (texto a voz). ej. ElevenLabs, Azure Speech.
-      Transcription: >
-        Proveedores de modelos de transcripción (voz a texto). ej. Whisper.cpp,
-        OpenAI, Azure Speech
+      Transcription: >-
+        Proveedores de modelos de transcripción (voz a texto). ej. Whisper.cpp, OpenAI, Azure Speech
     helpinfo:
-      title: ¿Primera vez aquí?
+      title: '¿Primera vez aquí?'
       description: >
-        AIRI requiere que al menos un proveedor de {chat} esté configurado para pensar
-        y comportarse correctamente. Podrías pensarlo como el cerebro de los
-        personajes que viven en el sistema AIRI.
+        AIRI requiere que al menos un proveedor de {chat} esté configurado para pensar y comportarse correctamente. Podrías pensarlo como el cerebro de los personajes que viven en el sistema AIRI.
     common:
       fields:
         field:
@@ -353,17 +402,14 @@ pages:
         helpinfo:
           title: Antes de comenzar
           description:
-            part1: >
-              Aunque Anthropic recientemente anunció que tienen soporte beta
-              para compatibilidad con SDK de OpenAI
+            part1: >-
+              Aunque Anthropic recientemente anunció que tienen soporte beta para compatibilidad con SDK de OpenAI
             part2: (puedes leer más aquí)
             part3: pero debido a los detalles de implementación que vienen con
-            part4: >
-              restricciones que no están alineadas con el SDK de OpenAI, actualmente
-              no es posible usar este proveedor en el navegador.
-            part5: >
-              Si necesitas usar este proveedor, necesitarás un backend proxy dedicado
-              como una Función Serverless ejecutándose en
+            part4: >-
+              restricciones que no están alineadas con el SDK de OpenAI, actualmente no es posible usar este proveedor en el navegador.
+            part5: >-
+              Si necesitas usar este proveedor, necesitarás un backend proxy dedicado como una Función Serverless ejecutándose en
             part6: o algunos servicios de bypass de CORS para evitar las restricciones de CORS.
       cloudflare-workers-ai:
         description: cloudflare.com
@@ -377,6 +423,9 @@ pages:
               placeholder: Ingresa la Clave API de Cloudflare
         title: Cloudflare Workers AI
       common:
+        status:
+          validating: Validating
+          valid: Configuration seems to be valid.
         fields:
           field:
             pitch:
@@ -512,6 +561,9 @@ pages:
       cerebras:
         description: cerebras.ai
         title: Cerebras
+      aliyun-nls:
+        description: Aliyun NLS
+        title: Aliyun NLS
       transcriptions:
         playground:
           title: Playground de Transcripción
@@ -529,7 +581,7 @@ pages:
     general:
       description: Tema oscuro, idiomas, etc.
       title: General
-    description: ¡Personaliza tu escenario!
+    description: '¡Personaliza tu escenario!'
     sections:
       section:
         custom-color:
@@ -538,15 +590,20 @@ pages:
               primary-color:
                 label: Color primario
                 rgb-on:
-                  title: ¡Lo Quiero Dinámico!
+                  title: '¡Lo Quiero Dinámico!'
           title: Esquema de Colores
         developer:
           title: Desarrollador
+          sections:
+            section:
+              use-magic-keys:
+                title: useMagicKeys
+                description: Test shortcuts
         theme-presets:
           presets:
             - colors:
                 - Verde AIRI
-              description: ¡El color de tema verdoso predeterminado, traído por AIRI para ti!
+              description: '¡El color de tema verdoso predeterminado, traído por AIRI para ti!'
               title: Color Predeterminado
             - colors:
                 - Taupe
@@ -601,12 +658,16 @@ pages:
                 - Amarillo Dorado
                 - Azul Azure
                 - Ocre
-              description: >
-                Colores chinos tradicionales, derivados de textiles antiguos,
-                porcelana y pinturas
+              description: >-
+                Colores chinos tradicionales, derivados de textiles antiguos, porcelana y pinturas
               title: Colores Tradicionales Chinos
           title: Presets de Esquema de Colores
     title: Apariencia
+  page:
+    developers:
+      open-devtools:
+        title: Open Developer Tools
+        button: Open
 sections:
   section:
     general:
@@ -649,8 +710,14 @@ vrm:
           mouse: Ratón
           disabled: Desactivado
   switch-to-vrm:
-    title: ¿Cambiar a Avatar Live2D?
+    title: '¿Cambiar a Avatar Live2D?'
     change-to-vrm: Haz clic aquí para cambiar a la configuración de avatar Live2D
   theme-color-from-model:
     button-extract:
       title: Extraer
+  skybox:
+    skybox-intensity: SkyBox Intensity
+    skybox-specular-mix: Specular Mix
+wip:
+  title: Work in Progress
+  description: This feature is currently under development and not yet publicly available. Check back in future updates for this functionality.
