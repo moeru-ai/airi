@@ -16,6 +16,14 @@ export function createAuth(db: Database, env: Env) {
       },
     }),
 
+    // session: {
+    //   cookieCache: {
+    //     enabled: true,
+    //     maxAge: 5 * 60,
+    //     strategy: 'jwt', // or "compact" or "jwe"
+    //   },
+    // },
+
     plugins: [
       // jwt(),
       bearer(),

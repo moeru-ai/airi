@@ -10,11 +10,11 @@ export const useAuthStore = defineStore('auth', () => {
   const session = ref<Session>()
   const isAuthenticated = computed(() => !!user.value && !!session.value)
 
-  watch(session, (newSession) => {
-    if (newSession) {
-      authToken.value = newSession.token
-    }
-  })
+  // watch(session, (newSession) => {
+  //   if (newSession) {
+  //     authToken.value = newSession.token
+  //   }
+  // })
 
   return {
     authToken,

@@ -5,21 +5,24 @@ import { useRouter } from 'vue-router'
 import { toast } from 'vue-sonner'
 
 import { authClient, fetchSession } from '../../composables/auth'
+import { useAuthStore } from '../../stores/auth'
 
 const router = useRouter()
 
-async function signIn(provider: 'google' | 'github') {
-  try {
-    await authClient.signIn.social({
-      provider,
-      callbackURL: window.location.origin,
-    })
-
-    toast.success('Sign in successful')
-  }
-  catch (error) {
+function signIn(provider: 'google' | 'github') {
+  authClient.signIn.social({
+    provider,
+    callbackURL: window.location.origin,
+  }, {
+    onSuccess: (ctx) => {
+      const authToken = ctx.response.headers.get('set-auth-token') // get the token from the response headers
+      if (authToken) {
+        useAuthStore().authToken = authToken
+      }
+    },
+  }).catch((error) => {
     toast.error(error instanceof Error ? error.message : 'An unknown error occurred')
-  }
+  })
 }
 
 onMounted(() => {

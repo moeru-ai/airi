@@ -8,22 +8,23 @@ const authStore = useAuthStore()
 
 export const authClient = createAuthClient({
   baseURL: API_SERVER_URL,
-  credentials: 'include',
+
+  // credentials: 'include',
   // plugins: [
   //   jwtClient(),
   // ],
-  auth: {
-    type: 'Bearer',
-    token: () => authStore.authToken,
+  fetchOptions: {
+    auth: {
+      type: 'Bearer',
+      token: () => authStore.authToken,
+    },
+    onSuccess: (ctx) => {
+      const newToken = ctx.response.headers.get('set-auth-token')
+      if (newToken) {
+        authStore.authToken = newToken
+      }
+    },
   },
-  // fetchOptions: {
-  //   onSuccess: (ctx) => {
-  //     const newToken = ctx.response.headers.get('set-auth-token')
-  //     if (newToken) {
-  //       authStore.authToken = newToken
-  //     }
-  //   },
-  // },
 })
 
 export async function fetchSession() {
@@ -35,4 +36,16 @@ export async function fetchSession() {
   }
 
   return false
+}
+
+export async function listSessions() {
+  return await authClient.listSessions()
+}
+
+export async function signOut() {
+  await authClient.signOut()
+
+  authStore.user = undefined
+  authStore.session = undefined
+  authStore.authToken = ''
 }
