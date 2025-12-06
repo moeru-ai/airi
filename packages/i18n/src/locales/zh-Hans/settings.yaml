@@ -601,11 +601,13 @@ pages:
                 description: 测试快捷键
         theme-presets:
           presets:
-            - colors:
+            - 
+            colors:
                 - AIRI 绿
               description: 默认的绿色主题，由 AIRI 为您带来！
               title: 默认颜色
-            - colors:
+            - 
+            colors:
                 - 灰褐色
                 - 米色
                 - 灰白色
@@ -616,7 +618,8 @@ pages:
                 - 暖灰色
               description: 受乔治·莫兰迪绘画启发的柔和、低调的色调
               title: Morandi 颜色
-            - colors:
+            - 
+            colors:
                 - 天蓝色
                 - 薄雾色
                 - 沙色
@@ -627,7 +630,8 @@ pages:
                 - 鼠尾草色
               description: 受克劳德·莫奈作品启发的印象派调色板
               title: 莫奈颜色
-            - colors:
+            - 
+            colors:
                 - 棕褐色
                 - 暖灰褐色
                 - 赭色
@@ -638,7 +642,8 @@ pages:
                 - 琥珀色
               description: 传统日本色彩调色板
               title: 日本颜色
-            - colors:
+            - 
+            colors:
                 - 北欧蓝
                 - 冰色
                 - 峡湾色
@@ -649,7 +654,8 @@ pages:
                 - 石头色
               description: 北欧极简主义配色方案
               title: 北欧颜色
-            - colors:
+            - 
+            colors:
                 - 霞光红
                 - 枣红
                 - 黄栌
