@@ -601,11 +601,13 @@ pages:
                 description: 測試快捷鍵
         theme-presets:
           presets:
-            - colors:
+            - 
+            colors:
                 - AIRI 綠
               description: 預設的綠色主題，由 AIRI 為您帶來！
               title: 預設顏色
-            - colors:
+            - 
+            colors:
                 - 灰褐色
                 - 米色
                 - 灰白色
@@ -616,7 +618,8 @@ pages:
                 - 暖灰色
               description: 受喬治·莫蘭迪繪畫啟發的柔和、低調色調
               title: Morandi 顏色
-            - colors:
+            - 
+            colors:
                 - 天藍色
                 - 薄霧色
                 - 沙色
@@ -627,7 +630,8 @@ pages:
                 - 鼠尾草色
               description: 受克勞德·莫內作品啟發的印象派調色盤
               title: 莫內顏色
-            - colors:
+            - 
+            colors:
                 - 棕褐色
                 - 暖灰褐色
                 - 赭色
@@ -638,7 +642,8 @@ pages:
                 - 琥珀色
               description: 傳統日本色彩調色盤
               title: 日本顏色
-            - colors:
+            - 
+            colors:
                 - 北歐藍
                 - 冰色
                 - 峽灣色
@@ -649,7 +654,8 @@ pages:
                 - 石頭色
               description: 北歐極簡主義配色方案
               title: 北歐顏色
-            - colors:
+            - 
+            colors:
                 - 霞光紅
                 - 棗紅
                 - 黃櫨

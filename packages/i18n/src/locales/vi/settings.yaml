@@ -601,11 +601,13 @@ pages:
                 description: Test shortcuts
         theme-presets:
           presets:
-            - colors:
+            - 
+            colors:
                 - Xanh AIRI
               description: Màu xanh đặc trưng mặc định của AIRI
               title: Màu mặc định
-            - colors:
+            - 
+            colors:
                 - Taupe
                 - Be
                 - Xám tro
@@ -616,7 +618,8 @@ pages:
                 - Xám ấm
               description: Tông màu dịu nhẹ lấy cảm hứng từ tranh Giorgio Morandi
               title: Màu Morandi
-            - colors:
+            - 
+            colors:
                 - Xanh Da Trời
                 - Sương Mù
                 - Cát
@@ -627,7 +630,8 @@ pages:
                 - Xanh Xô Thơm
               description: Bảng màu ấn tượng lấy cảm hứng từ các tác phẩm của Claude Monet
               title: Màu Monet
-            - colors:
+            - 
+            colors:
                 - Nâu Vàng
                 - Nâu Ấm
                 - Nâu Đậm (Umber)
@@ -638,7 +642,8 @@ pages:
                 - Hổ Phách
               description: Bảng màu truyền thống Nhật Bản
               title: Màu Nhật Bản
-            - colors:
+            - 
+            colors:
                 - Xanh Bắc Âu
                 - Băng Giá
                 - Xanh đậm (Fjord)
@@ -649,7 +654,8 @@ pages:
                 - Đá
               description: Bảng màu tối giản phong cách Bắc Âu
               title: Màu Bắc Âu
-            - colors:
+            - 
+            colors:
                 - Hồng Bình Minh
                 - Đỏ Trung Hoa
                 - Nâu Khói
