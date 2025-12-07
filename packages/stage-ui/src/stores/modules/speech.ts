@@ -106,6 +106,9 @@ export const useSpeechStore = defineStore('speech', () => {
       await loadVoicesForProvider(newProvider)
       // Don't reset voice settings when changing providers to allow for persistence
     }
+  }, {
+    // REVIEW: should we always load voices on init? What will happen when network is not available?
+    immediate: true,
   })
 
   onMounted(() => {
@@ -116,20 +119,13 @@ export const useSpeechStore = defineStore('speech', () => {
     })
   })
 
-  watch(activeSpeechVoiceId, (voiceId) => {
+  watch([activeSpeechVoiceId, availableVoices], ([voiceId, voices]) => {
     if (voiceId) {
-      activeSpeechVoice.value = availableVoices.value[activeSpeechProvider.value]?.find(voice => voice.id === voiceId)
+      activeSpeechVoice.value = voices[activeSpeechProvider.value]?.find(voice => voice.id === voiceId)
     }
   }, {
     immediate: true,
-  })
-
-  watch(availableVoices, (voices) => {
-    if (activeSpeechVoiceId.value) {
-      activeSpeechVoice.value = voices[activeSpeechProvider.value]?.find(voice => voice.id === activeSpeechVoiceId.value)
-    }
-  }, {
-    immediate: true,
+    deep: true,
   })
 
   /**

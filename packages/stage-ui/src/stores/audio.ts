@@ -1,6 +1,6 @@
 import { useDevicesList, useUserMedia } from '@vueuse/core'
 import { defineStore } from 'pinia'
-import { computed, nextTick, onUnmounted, ref, shallowRef, watch } from 'vue'
+import { computed, nextTick, ref, shallowRef, watch } from 'vue'
 
 function calculateVolumeWithLinearNormalize(analyser: AnalyserNode) {
   const dataBuffer = new Uint8Array(analyser.frequencyBinCount)
@@ -67,12 +67,6 @@ function calculateVolume(analyser: AnalyserNode, mode: 'linear' | 'minmax' = 'li
 
 export const useAudioContext = defineStore('audio-context', () => {
   const audioContext = shallowRef<AudioContext>(new AudioContext())
-
-  onUnmounted(async () => {
-    // Close audio context
-    if (audioContext)
-      await audioContext.value.suspend()
-  })
 
   return {
     audioContext,
