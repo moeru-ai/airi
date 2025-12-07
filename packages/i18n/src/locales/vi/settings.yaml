@@ -601,63 +601,69 @@ pages:
                 description: Test shortcuts
         theme-presets:
           presets:
-            - colors:
-                - Xanh AIRI
+            default:
+              colors:
+                color-1: Xanh AIRI
               description: Màu xanh đặc trưng mặc định của AIRI
               title: Màu mặc định
-            - colors:
-                - Taupe
-                - Be
-                - Xám tro
-                - Nâu sáng
-                - Ngà
-                - Xám ô liu
-                - Cát
-                - Xám ấm
+            morandi:
+              colors:
+                color-1: Taupe
+                color-2: Be
+                color-3: Xám tro
+                color-4: Nâu sáng
+                color-5: Ngà
+                color-6: Xám ô liu
+                color-7: Cát
+                color-8: Xám ấm
               description: Tông màu dịu nhẹ lấy cảm hứng từ tranh Giorgio Morandi
               title: Màu Morandi
-            - colors:
-                - Xanh Da Trời
-                - Sương Mù
-                - Cát
-                - Xanh Rêu
-                - Hoa Súng
-                - Lúa Mì
-                - Xanh Đá Phiến
-                - Xanh Xô Thơm
+            monet:
+              colors:
+                color-1: Xanh Da Trời
+                color-2: Sương Mù
+                color-3: Cát
+                color-4: Xanh Rêu
+                color-5: Hoa Súng
+                color-6: Lúa Mì
+                color-7: Xanh Đá Phiến
+                color-8: Xanh Xô Thơm
               description: Bảng màu ấn tượng lấy cảm hứng từ các tác phẩm của Claude Monet
               title: Màu Monet
-            - colors:
-                - Nâu Vàng
-                - Nâu Ấm
-                - Nâu Đậm (Umber)
-                - Cà Phê
-                - Đồng
-                - Vàng Kim
-                - Mù Tạt
-                - Hổ Phách
+            japanese:
+              colors:
+                color-1: Nâu Vàng
+                color-2: Nâu Ấm
+                color-3: Nâu Đậm (Umber)
+                color-4: Cà Phê
+                color-5: Đồng
+                color-6: Vàng Kim
+                color-7: Mù Tạt
+                color-8: Hổ Phách
               description: Bảng màu truyền thống Nhật Bản
               title: Màu Nhật Bản
-            - colors:
-                - Xanh Bắc Âu
-                - Băng Giá
-                - Xanh đậm (Fjord)
-                - Thép
-                - Sông Băng
-                - Đá Phiến
-                - Mây
-                - Đá
+            nordic:
+              colors:
+                color-1: Xanh Bắc Âu
+                color-2: Băng Giá
+                color-3: Xanh đậm (Fjord)
+                color-4: Thép
+                color-5: Sông Băng
+                color-6: Đá Phiến
+                color-7: Mây
+                color-8: Đá
               description: Bảng màu tối giản phong cách Bắc Âu
               title: Màu Bắc Âu
-            - colors:
-                - Hồng Bình Minh
-                - Đỏ Trung Hoa
-                - Nâu Khói
-                - Xanh Tre
-                - Tím Đậm
-                - Vàng Óng
-                - Xanh Lam Ngọc
-                - Son Đất
+            chinese:
+              colors:
+                color-1: Hồng Bình Minh
+                color-2: Đỏ Trung Hoa
+                color-3: Nâu Khói
+                color-4: Xanh Tre
+                color-5: Tím Đậm
+                color-6: Vàng Óng
+                color-7: Xanh Lam Ngọc
+                color-8: Son Đất
               description: >-
                 Màu sắc truyền thống Trung Hoa, bắt nguồn từ vải dệt cổ, gốm sứ và tranh vẽ
               title: Màu Truyền Thống Trung Hoa

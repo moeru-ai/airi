@@ -2,12 +2,56 @@
 import { ColorPalette, Section } from '@proj-airi/stage-ui/components'
 import { useSettings } from '@proj-airi/stage-ui/stores/settings'
 import { ColorHueRange } from '@proj-airi/ui'
+import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import COLOR_PRESETS from './color-presets.json'
 
 const settings = useSettings()
-const { t } = useI18n()
+const { t, tm } = useI18n()
+
+const themePresetOrder = ['default', 'morandi', 'monet', 'japanese', 'nordic', 'chinese'] as const
+
+const themePresets = computed(() => {
+  const presets = tm('settings.pages.system.sections.section.theme-presets.presets') as Record<
+    (typeof themePresetOrder)[number],
+    {
+      title: string
+      description: string
+      colors?: Record<string, string>
+    }
+  >
+
+  if (!presets || typeof presets !== 'object') {
+    return []
+  }
+
+  return themePresetOrder
+    .map((key) => {
+      const preset = presets[key]
+      if (!preset)
+        return null
+
+      const presetColors = (COLOR_PRESETS as Record<string, Record<string, string | null>>)[key] || {}
+      const colors = Object.entries(preset.colors ?? {}).map(([colorKey, name]) => {
+        const hex = presetColors[colorKey]
+
+        return {
+          key: colorKey,
+          name,
+          hex: typeof hex === 'string' && hex.length ? hex : undefined,
+        }
+      })
+
+      return {
+        key,
+        title: preset.title,
+        description: preset.description,
+        colors,
+      }
+    })
+    .filter((preset): preset is NonNullable<typeof preset> => Boolean(preset))
+})
 </script>
 
 <template>
@@ -118,7 +162,8 @@ const { t } = useI18n()
     transition="all ease-in-out duration-250"
   >
     <div
-      v-for="({ title, description, colors }, i) in $tm('settings.pages.system.sections.section.theme-presets.presets')" :key="i"
+      v-for="(preset, i) in themePresets"
+      :key="preset.key"
       v-motion
       class="w-full flex flex-col items-start justify-between gap-2 rounded-lg px-4 py-3 outline-none transition-all duration-250 ease-in-out md:flex-row md:items-center md:gap-0"
       bg="neutral-100 dark:neutral-800"
@@ -130,12 +175,12 @@ const { t } = useI18n()
       transition="all ease-in-out duration-250"
     >
       <div>
-        <span font-medium>{{ $rt(title) }}</span>
+        <span font-medium>{{ $rt(preset.title) }}</span>
         <div text="sm neutral-500">
-          {{ $rt(description) }}
+          {{ $rt(preset.description) }}
         </div>
       </div>
-      <ColorPalette :colors="(colors as any[]).map((name, j) => ({ hex: COLOR_PRESETS[i][j], name: $rt(name) }))" />
+      <ColorPalette :colors="preset.colors.map(({ hex, name }) => ({ hex, name: $rt(name) }))" />
     </div>
   </Section>
 

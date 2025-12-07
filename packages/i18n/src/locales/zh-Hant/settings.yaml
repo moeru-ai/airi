@@ -601,63 +601,69 @@ pages:
                 description: 測試快捷鍵
         theme-presets:
           presets:
-            - colors:
-                - AIRI 綠
+            default:
+              colors:
+                color-1: AIRI 綠
               description: 預設的綠色主題，由 AIRI 為您帶來！
               title: 預設顏色
-            - colors:
-                - 灰褐色
-                - 米色
-                - 灰白色
-                - 淺灰褐色
-                - 象牙色
-                - 橄欖灰
-                - 沙色
-                - 暖灰色
+            morandi:
+              colors:
+                color-1: 灰褐色
+                color-2: 米色
+                color-3: 灰白色
+                color-4: 淺灰褐色
+                color-5: 象牙色
+                color-6: 橄欖灰
+                color-7: 沙色
+                color-8: 暖灰色
               description: 受喬治·莫蘭迪繪畫啟發的柔和、低調色調
               title: Morandi 顏色
-            - colors:
-                - 天藍色
-                - 薄霧色
-                - 沙色
-                - 苔蘚綠
-                - 睡蓮色
-                - 小麥色
-                - 板岩藍
-                - 鼠尾草色
+            monet:
+              colors:
+                color-1: 天藍色
+                color-2: 薄霧色
+                color-3: 沙色
+                color-4: 苔蘚綠
+                color-5: 睡蓮色
+                color-6: 小麥色
+                color-7: 板岩藍
+                color-8: 鼠尾草色
               description: 受克勞德·莫內作品啟發的印象派調色盤
               title: 莫內顏色
-            - colors:
-                - 棕褐色
-                - 暖灰褐色
-                - 赭色
-                - 咖啡色
-                - 青銅色
-                - 金色
-                - 芥末色
-                - 琥珀色
+            japanese:
+              colors:
+                color-1: 棕褐色
+                color-2: 暖灰褐色
+                color-3: 赭色
+                color-4: 咖啡色
+                color-5: 青銅色
+                color-6: 金色
+                color-7: 芥末色
+                color-8: 琥珀色
               description: 傳統日本色彩調色盤
               title: 日本顏色
-            - colors:
-                - 北歐藍
-                - 冰色
-                - 峽灣色
-                - 鋼鐵色
-                - 冰川色
-                - 板岩色
-                - 雲色
-                - 石頭色
+            nordic:
+              colors:
+                color-1: 北歐藍
+                color-2: 冰色
+                color-3: 峽灣色
+                color-4: 鋼鐵色
+                color-5: 冰川色
+                color-6: 板岩色
+                color-7: 雲色
+                color-8: 石頭色
               description: 北歐極簡主義配色方案
               title: 北歐顏色
-            - colors:
-                - 霞光紅
-                - 棗紅
-                - 黃櫨
-                - 竹青
-                - 烏梅紫
-                - 緗色
-                - 青冥
-                - 赭石
+            chinese:
+              colors:
+                color-1: 霞光紅
+                color-2: 棗紅
+                color-3: 黃櫨
+                color-4: 竹青
+                color-5: 烏梅紫
+                color-6: 緗色
+                color-7: 青冥
+                color-8: 赭石
               description: >-
                 中國傳統色彩，源自古代紡織品、瓷器與繪畫
               title: 中國傳統顏色

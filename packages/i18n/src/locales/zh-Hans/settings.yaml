@@ -601,63 +601,69 @@ pages:
                 description: 测试快捷键
         theme-presets:
           presets:
-            - colors:
-                - AIRI 绿
+            default:
+              colors:
+                color-1: AIRI 绿
               description: 默认的绿色主题，由 AIRI 为您带来！
               title: 默认颜色
-            - colors:
-                - 灰褐色
-                - 米色
-                - 灰白色
-                - 浅灰褐色
-                - 象牙色
-                - 橄榄灰
-                - 沙色
-                - 暖灰色
+            morandi:
+              colors:
+                color-1: 灰褐色
+                color-2: 米色
+                color-3: 灰白色
+                color-4: 浅灰褐色
+                color-5: 象牙色
+                color-6: 橄榄灰
+                color-7: 沙色
+                color-8: 暖灰色
               description: 受乔治·莫兰迪绘画启发的柔和、低调的色调
               title: Morandi 颜色
-            - colors:
-                - 天蓝色
-                - 薄雾色
-                - 沙色
-                - 苔藓绿
-                - 睡莲色
-                - 小麦色
-                - 板岩蓝
-                - 鼠尾草色
+            monet:
+              colors:
+                color-1: 天蓝色
+                color-2: 薄雾色
+                color-3: 沙色
+                color-4: 苔藓绿
+                color-5: 睡莲色
+                color-6: 小麦色
+                color-7: 板岩蓝
+                color-8: 鼠尾草色
               description: 受克劳德·莫奈作品启发的印象派调色板
               title: 莫奈颜色
-            - colors:
-                - 棕褐色
-                - 暖灰褐色
-                - 赭色
-                - 咖啡色
-                - 青铜色
-                - 金色
-                - 芥末色
-                - 琥珀色
+            japanese:
+              colors:
+                color-1: 棕褐色
+                color-2: 暖灰褐色
+                color-3: 赭色
+                color-4: 咖啡色
+                color-5: 青铜色
+                color-6: 金色
+                color-7: 芥末色
+                color-8: 琥珀色
               description: 传统日本色彩调色板
               title: 日本颜色
-            - colors:
-                - 北欧蓝
-                - 冰色
-                - 峡湾色
-                - 钢铁色
-                - 冰川色
-                - 板岩色
-                - 云色
-                - 石头色
+            nordic:
+              colors:
+                color-1: 北欧蓝
+                color-2: 冰色
+                color-3: 峡湾色
+                color-4: 钢铁色
+                color-5: 冰川色
+                color-6: 板岩色
+                color-7: 云色
+                color-8: 石头色
               description: 北欧极简主义配色方案
               title: 北欧颜色
-            - colors:
-                - 霞光红
-                - 枣红
-                - 黄栌
-                - 竹青
-                - 乌梅紫
-                - 缃色
-                - 青冥
-                - 赭石
+            chinese:
+              colors:
+                color-1: 霞光红
+                color-2: 枣红
+                color-3: 黄栌
+                color-4: 竹青
+                color-5: 乌梅紫
+                color-6: 缃色
+                color-7: 青冥
+                color-8: 赭石
               description: >-
                 中国传统色彩，源自古代纺织品、瓷器和绘画
               title: 中国传统颜色

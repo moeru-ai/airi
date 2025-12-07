@@ -601,63 +601,69 @@ pages:
                 description: Test shortcuts
         theme-presets:
           presets:
-            - colors:
-                - AIRI Green
+            default:
+              colors:
+                color-1: AIRI Green
               description: La couleur verte par défaut, apportée par AIRI pour vous !
               title: Couleur par défaut
-            - colors:
-                - Taupe
-                - Beige
-                - Gris cendré
-                - Taupe clair
-                - Ivoire
-                - Gris olive
-                - Sable
-                - Gris chaud
+            morandi:
+              colors:
+                color-1: Taupe
+                color-2: Beige
+                color-3: Gris cendré
+                color-4: Taupe clair
+                color-5: Ivoire
+                color-6: Gris olive
+                color-7: Sable
+                color-8: Gris chaud
               description: Tons doux et atténués inspirés des peintures de Giorgio Morandi
               title: Couleurs Morandi
-            - colors:
-                - Bleu ciel
-                - Brume
-                - Sable
-                - Vert mousse
-                - Nénuphar
-                - Blé
-                - Bleu ardoise
-                - Sauge
+            monet:
+              colors:
+                color-1: Bleu ciel
+                color-2: Brume
+                color-3: Sable
+                color-4: Vert mousse
+                color-5: Nénuphar
+                color-6: Blé
+                color-7: Bleu ardoise
+                color-8: Sauge
               description: Palette impressionniste inspirée des œuvres de Claude Monet
               title: Couleurs Monet
-            - colors:
-                - Fauve
-                - Taupe chaud
-                - Ombre
-                - Café
-                - Bronze
-                - Or
-                - Moutarde
-                - Ambre
+            japanese:
+              colors:
+                color-1: Fauve
+                color-2: Taupe chaud
+                color-3: Ombre
+                color-4: Café
+                color-5: Bronze
+                color-6: Or
+                color-7: Moutarde
+                color-8: Ambre
               description: Palette traditionnelle japonaise
               title: Couleurs japonaises
-            - colors:
-                - Bleu nordique
-                - Glace
-                - Fjord
-                - Acier
-                - Glacier
-                - Ardoise
-                - Nuage
-                - Pierre
+            nordic:
+              colors:
+                color-1: Bleu nordique
+                color-2: Glace
+                color-3: Fjord
+                color-4: Acier
+                color-5: Glacier
+                color-6: Ardoise
+                color-7: Nuage
+                color-8: Pierre
               description: Schéma de couleurs minimaliste scandinave
               title: Couleurs nordiques
-            - colors:
-                - Aube rosée
-                - Rouge chinois
-                - Marron fumé
-                - Vert bambou
-                - Violet foncé
-                - Jaune doré
-                - Bleu azur
-                - Ocre
+            chinese:
+              colors:
+                color-1: Aube rosée
+                color-2: Rouge chinois
+                color-3: Marron fumé
+                color-4: Vert bambou
+                color-5: Violet foncé
+                color-6: Jaune doré
+                color-7: Bleu azur
+                color-8: Ocre
               description: >-
                 Couleurs traditionnelles chinoises, issues des textiles anciens, de la porcelaine et des peintures
               title: Couleurs traditionnelles chinoises

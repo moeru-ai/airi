@@ -601,63 +601,69 @@ pages:
                 description: Test shortcuts
         theme-presets:
           presets:
-            - colors:
-                - Verde AIRI
+            default:
+              colors:
+                color-1: Verde AIRI
               description: '¡El color de tema verdoso predeterminado, traído por AIRI para ti!'
               title: Color Predeterminado
-            - colors:
-                - Taupe
-                - Beige
-                - Gris Ceniza
-                - Taupe Claro
-                - Marfil
-                - Gris Oliva
-                - Arena
-                - Gris Cálido
+            morandi:
+              colors:
+                color-1: Taupe
+                color-2: Beige
+                color-3: Gris Ceniza
+                color-4: Taupe Claro
+                color-5: Marfil
+                color-6: Gris Oliva
+                color-7: Arena
+                color-8: Gris Cálido
               description: Tonos suaves y apagados inspirados en las pinturas de Giorgio Morandi
               title: Colores Morandi
-            - colors:
-                - Azul Cielo
-                - Niebla
-                - Arena
-                - Verde Musgo
-                - Nenúfar
-                - Trigo
-                - Azul Pizarra
-                - Salvia
+            monet:
+              colors:
+                color-1: Azul Cielo
+                color-2: Niebla
+                color-3: Arena
+                color-4: Verde Musgo
+                color-5: Nenúfar
+                color-6: Trigo
+                color-7: Azul Pizarra
+                color-8: Salvia
               description: Paleta impresionista inspirada en las obras de Claude Monet
               title: Colores Monet
-            - colors:
-                - Bronceado
-                - Taupe Cálido
-                - Umber
-                - Café
-                - Bronce
-                - Oro
-                - Mostaza
-                - Ámbar
+            japanese:
+              colors:
+                color-1: Bronceado
+                color-2: Taupe Cálido
+                color-3: Umber
+                color-4: Café
+                color-5: Bronce
+                color-6: Oro
+                color-7: Mostaza
+                color-8: Ámbar
               description: Paleta de colores japonesa tradicional
               title: Colores Japoneses
-            - colors:
-                - Azul Nórdico
-                - Hielo
-                - Fiordo
-                - Acero
-                - Glaciar
-                - Pizarra
-                - Nube
-                - Piedra
+            nordic:
+              colors:
+                color-1: Azul Nórdico
+                color-2: Hielo
+                color-3: Fiordo
+                color-4: Acero
+                color-5: Glaciar
+                color-6: Pizarra
+                color-7: Nube
+                color-8: Piedra
               description: Esquema de colores minimalista escandinavo
               title: Colores Nórdicos
-            - colors:
-                - Amanecer Rosado
-                - Rojo Chino
-                - Marrón Ahumado
-                - Verde Bambú
-                - Púrpura Oscuro
-                - Amarillo Dorado
-                - Azul Azure
-                - Ocre
+            chinese:
+              colors:
+                color-1: Amanecer Rosado
+                color-2: Rojo Chino
+                color-3: Marrón Ahumado
+                color-4: Verde Bambú
+                color-5: Púrpura Oscuro
+                color-6: Amarillo Dorado
+                color-7: Azul Azure
+                color-8: Ocre
               description: >-
                 Colores chinos tradicionales, derivados de textiles antiguos, porcelana y pinturas
               title: Colores Tradicionales Chinos
