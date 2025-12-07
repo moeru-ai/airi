@@ -151,6 +151,12 @@ export const usePipelineCharacterSpeechPlaybackQueueStore = defineStore('pipelin
       handlers: [
         (ctx) => {
           return new Promise((resolve) => {
+            // NOTICE: here clearPlaying is called because that createQueue guarantees that only one handler is running at a time,
+            // so we can safely stop any currently playing audio before starting a new one. If multiple audios were to play
+            // simultaneously, this would lead to overlapping sounds.
+            //
+            // TODO: when migrating to better solution for audio playback management, be careful with this part.
+            // as without proper singleton gated, this may lead to audio cutoffs.
             clearPlaying()
 
             if (!audioContext.value) {
@@ -168,15 +174,34 @@ export const usePipelineCharacterSpeechPlaybackQueueStore = defineStore('pipelin
             source.connect(audioAnalyser.value!)
 
             // Start playing the audio
-            for (const hook of onPlaybackStartedHooks.value) hook({ text: ctx.data.text })
+            for (const hook of onPlaybackStartedHooks.value) {
+              try {
+                hook({ text: ctx.data.text })
+              }
+              catch (err) {
+                // NOTICE: onPlaybackStarted hook errors should not block audio playback.
+                // in currently use case of Stage.vue, BroadcastChannel is involved,
+                // navigating from pages may cause unexpected onUnmounted calls to close the channel,
+                // which throws error when posting message to closed channel.
+                //
+                // TODO: we should consider better way to manage BroadcastChannel lifecycle to avoid such issues.
+                console.error('Error in onPlaybackStarted hook:', err)
+              }
+            }
 
             currentAudioSource.value = source
             source.start(0)
             source.onended = () => {
               // Play special token: delay or emotion
               if (ctx.data.special) {
-                for (const hook of onPlaybackFinishedHooks.value)
-                  hook({ special: ctx.data.special })
+                for (const hook of onPlaybackFinishedHooks.value) {
+                  try {
+                    hook({ special: ctx.data.special })
+                  }
+                  catch (err) {
+                    console.error('Error in onPlaybackFinished hook:', err)
+                  }
+                }
               }
 
               if (currentAudioSource.value === source) {

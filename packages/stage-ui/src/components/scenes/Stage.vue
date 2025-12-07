@@ -308,6 +308,12 @@ defineExpose({
 })
 
 onPlaybackStarted(({ text }) => {
+  // NOTICE: currently, postCaption, postPresent from useBroadcastChannel may throw error
+  // once we navigate away from the page that created the BroadcastChannel,
+  // as the channel gets closed on unmount, leading to "Failed to execute 'postMessage' on 'BroadcastChannel': The channel is closed."
+  // error that may block hooks or throw exceptions silently.
+  //
+  // TODO: we should consider better way to manage BroadcastChannel lifecycle to avoid such issues.
   assistantCaption.value += ` ${text}`
   postCaption({ type: 'caption-assistant', text: assistantCaption.value })
   postPresent({ type: 'assistant-append', text })
