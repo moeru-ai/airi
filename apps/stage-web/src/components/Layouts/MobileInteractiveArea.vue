@@ -2,6 +2,7 @@
 import type { ChatProvider } from '@xsai-ext/shared-providers'
 
 import { HearingConfigDialog } from '@proj-airi/stage-ui/components'
+import { ChatHistory } from '@proj-airi/stage-ui/components/scenarios/chat'
 import { useAudioAnalyzer } from '@proj-airi/stage-ui/composables'
 import { useAudioContext } from '@proj-airi/stage-ui/stores/audio'
 import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
@@ -16,13 +17,13 @@ import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
 
 import IndicatorMicVolume from '../Widgets/IndicatorMicVolume.vue'
-import MobileChatHistory from '../Widgets/MobileChatHistory.vue'
 import ActionAbout from './InteractiveArea/Actions/About.vue'
 import ActionViewControls from './InteractiveArea/Actions/ViewControls.vue'
 import ViewControlInputs from './ViewControls/Inputs.vue'
 
 const { isDark, toggleDark } = useTheme()
 const hearingDialogOpen = ref(false)
+const { messages, sending, streamingMessage } = storeToRefs(useChatStore())
 
 const viewControlsActiveMode = ref<'x' | 'y' | 'z' | 'scale'>('scale')
 const viewControlsInputsRef = useTemplateRef<InstanceType<typeof ViewControlInputs>>('viewControlsInputs')
@@ -39,7 +40,6 @@ const { themeColorsHueDynamic, stageViewControlsEnabled } = storeToRefs(useSetti
 const settingsAudioDevice = useSettingsAudioDevice()
 const { enabled, selectedAudioInput, stream, audioInputs } = storeToRefs(settingsAudioDevice)
 const { send, onAfterMessageComposed, discoverToolsCompatibility, cleanupMessages } = useChatStore()
-const { messages } = storeToRefs(useChatStore())
 const { t } = useI18n()
 const { audioContext } = useAudioContext()
 const { startAnalyzer, stopAnalyzer, volumeLevel } = useAudioAnalyzer()
@@ -133,7 +133,21 @@ onMounted(() => {
   <div fixed bottom-0 w-full flex flex-col>
     <KeepAlive>
       <Transition name="fade">
-        <MobileChatHistory v-if="!stageViewControlsEnabled" max-w="[calc(100%-3.5rem)]" w-full self-start pl-3 />
+        <ChatHistory
+          v-if="!stageViewControlsEnabled"
+          variant="mobile"
+          :messages="messages"
+          :sending="sending"
+          :streaming-message="streamingMessage"
+          max-w="[calc(100%-3.5rem)]"
+          w-full
+          self-start
+          pl-3
+          class="chat-history"
+          :class="[
+            'relative z-20',
+          ]"
+        />
       </Transition>
     </KeepAlive>
     <div relative w-full self-end>
@@ -220,3 +234,37 @@ onMounted(() => {
     </div>
   </div>
 </template>
+
+<style scoped>
+@keyframes scan {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(400%);
+  }
+}
+
+.animate-scan {
+  animation: scan 2s infinite linear;
+}
+
+/*
+DO NOT ATTEMPT TO USE backdrop-filter TOGETHER WITH mask-image.
+
+html - Why doesn't blur backdrop-filter work together with mask-image? - Stack Overflow
+https://stackoverflow.com/questions/72780266/why-doesnt-blur-backdrop-filter-work-together-with-mask-image
+*/
+.chat-history {
+  --gradient: linear-gradient(to bottom, rgba(0,0,0,0) 0%, rgba(0,0,0,1) 20%);
+  -webkit-mask-image: var(--gradient);
+  mask-image: var(--gradient);
+  -webkit-mask-size: 100% 100%;
+  mask-size: 100% 100%;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: bottom;
+  mask-position: bottom;
+  max-height: 35dvh;
+}
+</style>

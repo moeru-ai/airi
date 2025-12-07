@@ -28,7 +28,7 @@ function handleItemClick({ globalIndex }: { globalIndex: number }) {
 <template>
   <Story
     title="RippleGrid"
-    group="layout"
+    group="common"
     :layout="{ type: 'grid', width: '100%' }"
   >
     <Variant

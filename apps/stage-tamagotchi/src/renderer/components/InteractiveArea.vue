@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { ChatProvider } from '@xsai-ext/shared-providers'
 
+import { ChatHistory } from '@proj-airi/stage-ui/components/scenarios/chat'
 import { useMicVAD } from '@proj-airi/stage-ui/composables'
 import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
 import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
@@ -11,8 +12,6 @@ import { storeToRefs } from 'pinia'
 import { ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import TamagotchiChatHistory from './ChatHistory.vue'
-
 import { widgetsTools } from '../stores/tools/builtin/widgets'
 
 const messageInput = ref('')
@@ -21,8 +20,9 @@ const attachments = ref<{ type: 'image', data: string, mimeType: string, url: st
 
 const { askPermission } = useSettingsAudioDevice()
 const { enabled, selectedAudioInput } = storeToRefs(useSettingsAudioDevice())
-const { send, onAfterMessageComposed, discoverToolsCompatibility, cleanupMessages } = useChatStore()
-const { messages } = storeToRefs(useChatStore())
+const chatStore = useChatStore()
+const { send, onAfterMessageComposed, discoverToolsCompatibility, cleanupMessages } = chatStore
+const { messages, sending, streamingMessage } = storeToRefs(chatStore)
 const { t } = useI18n()
 const providersStore = useProvidersStore()
 const { activeModel, activeProvider } = storeToRefs(useConsciousnessStore())
@@ -147,7 +147,11 @@ onAfterMessageComposed(async () => {
 <template>
   <div h-full w-full flex="~ col gap-1">
     <div w-full flex-1 overflow-hidden>
-      <TamagotchiChatHistory />
+      <ChatHistory
+        :messages="messages"
+        :sending="sending"
+        :streaming-message="streamingMessage"
+      />
     </div>
     <div v-if="attachments.length > 0" class="flex flex-wrap gap-2 border-t border-primary-100 p-2">
       <div v-for="(attachment, index) in attachments" :key="index" class="relative">
@@ -173,7 +177,7 @@ onAfterMessageComposed(async () => {
     <BasicTextarea
       v-model="messageInput"
       :placeholder="t('stage.message')"
-      text="primary-600 dark:primary-100  placeholder:primary-500"
+      text="primary-600 dark:primary-100  placeholder:primary-500 dark:placeholder:primary-200"
       border="solid 2 primary-200/20 dark:primary-400/20"
       bg="primary-100/50 dark:primary-900/70"
       max-h="[10lh]" min-h="[1lh]"
