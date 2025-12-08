@@ -603,70 +603,70 @@ pages:
           presets:
             default:
               colors:
-                color-1: AIRI 綠
-              description: 預設的綠色主題，由 AIRI 為您帶來！
-              title: 預設顏色
+                color-1: AIRI Green
+              description: The default greenish theme color, brought by AIRI to you!
+              title: Default Color
             morandi:
               colors:
-                color-1: 灰褐色
-                color-2: 米色
-                color-3: 灰白色
-                color-4: 淺灰褐色
-                color-5: 象牙色
-                color-6: 橄欖灰
-                color-7: 沙色
-                color-8: 暖灰色
-              description: 受喬治·莫蘭迪繪畫啟發的柔和、低調色調
-              title: Morandi 顏色
+                color-1: Taupe
+                color-2: Beige
+                color-3: Ash Grey
+                color-4: Light Taupe
+                color-5: Ivory
+                color-6: Olive Grey
+                color-7: Sand
+                color-8: Warm Grey
+              description: Soft, muted tones inspired by Giorgio Morandi's paintings
+              title: Morandi Colors
             monet:
               colors:
-                color-1: 天藍色
-                color-2: 薄霧色
-                color-3: 沙色
-                color-4: 苔蘚綠
-                color-5: 睡蓮色
-                color-6: 小麥色
-                color-7: 板岩藍
-                color-8: 鼠尾草色
-              description: 受克勞德·莫內作品啟發的印象派調色盤
-              title: 莫內顏色
+                color-1: Sky Blue
+                color-2: Mist
+                color-3: Sand
+                color-4: Moss Green
+                color-5: Water Lily
+                color-6: Wheat
+                color-7: Slate Blue
+                color-8: Sage
+              description: Impressionist palette inspired by Claude Monet's works
+              title: Monet Colors
             japanese:
               colors:
-                color-1: 棕褐色
-                color-2: 暖灰褐色
-                color-3: 赭色
-                color-4: 咖啡色
-                color-5: 青銅色
-                color-6: 金色
-                color-7: 芥末色
-                color-8: 琥珀色
-              description: 傳統日本色彩調色盤
-              title: 日本顏色
+                color-1: Tan
+                color-2: Warm Taupe
+                color-3: Umber
+                color-4: Coffee
+                color-5: Bronze
+                color-6: Gold
+                color-7: Mustard
+                color-8: Amber
+              description: Traditional Japanese color palette
+              title: Japanese Colors
             nordic:
               colors:
-                color-1: 北歐藍
-                color-2: 冰色
-                color-3: 峽灣色
-                color-4: 鋼鐵色
-                color-5: 冰川色
-                color-6: 板岩色
-                color-7: 雲色
-                color-8: 石頭色
-              description: 北歐極簡主義配色方案
-              title: 北歐顏色
+                color-1: Nordic Blue
+                color-2: Ice
+                color-3: Fjord
+                color-4: Steel
+                color-5: Glacier
+                color-6: Slate
+                color-7: Cloud
+                color-8: Stone
+              description: Scandinavian minimalist color scheme
+              title: Nordic Colors
             chinese:
               colors:
-                color-1: 霞光紅
-                color-2: 棗紅
-                color-3: 黃櫨
-                color-4: 竹青
-                color-5: 烏梅紫
-                color-6: 緗色
-                color-7: 青冥
-                color-8: 赭石
+                color-1: Rosy Dawn
+                color-2: Chinese Red
+                color-3: Smoky Brown
+                color-4: Bamboo Green
+                color-5: Dark Purple
+                color-6: Golden Yellow
+                color-7: Azure Blue
+                color-8: Ochre
               description: >-
-                中國傳統色彩，源自古代紡織品、瓷器與繪畫
-              title: 中國傳統顏色
+                Traditional Chinese colors, derived from ancient textiles, porcelain and paintings
+              title: Chinese Traditional Colors
           title: 預設
     title: 外觀
   page:

@@ -1,22 +1,22 @@
 download-buttons:
-  latest-stable: Latest Stable Release
-  latest-prerelease: Latest Pre-release
-  latest-nightly: Latest Nightly Build
-  download: Download
-  view-release: View Release
-  stable-use-case-1: Production use
-  stable-use-case-2: Users who want a stable experience
-  stable-use-case-3: Live streaming and content creationr
-  prerelease-use-case-1: Early adopters who want to try new features
-  prerelease-use-case-2: Testing and providing feedback to developers
-  prerelease-use-case-3: Users comfortable with occasional bugs
+  latest-stable: 最新の安定版リリース
+  latest-prerelease: 最新のプレリリース
+  latest-nightly: 最新のナイトリービルド
+  download: ダウンロード
+  view-release: リリースを見る
+  stable-use-case-1: 本番環境での利用
+  stable-use-case-2: 安定した体験を求めるユーザー
+  stable-use-case-3: ライブ配信やコンテンツ制作
+  prerelease-use-case-1: 新機能を早期に試したいユーザー
+  prerelease-use-case-2: テストや開発者へのフィードバック提供
+  prerelease-use-case-3: 時折発生する不具合に対応できるユーザー
 releases-list:
-  stable: Stable
-  prerelease: Pre-release
-  nightly: Nightly
-  released-on: Released on
-  built-on: Built on
-  no-releases: 'No releases available at the moment. Check the {link} directly.'
-  no-nightly: 'No nightly builds available at the moment. Check the {link} directly.'
-  releases-page: releases page
-  workflow-page: workflow page
+  stable: 安定版
+  prerelease: プレリリース
+  nightly: ナイトリー
+  released-on: リリース日
+  built-on: ビルド日
+  no-releases: '現在利用可能なリリースはありません。直接{link}を確認してください。'
+  no-nightly: '現在利用可能なナイトリービルドはありません。直接{link}を確認してください。'
+  releases-page: リリースページ
+  workflow-page: ワークフローページ

@@ -604,8 +604,8 @@ pages:
             default:
               colors:
                 color-1: AIRI Green
-              description: Стандартный зелёный оттенок AIRI
-              title: Цвет по умолчанию
+              description: The default greenish theme color, brought by AIRI to you!
+              title: Default Color
             morandi:
               colors:
                 color-1: Taupe
@@ -616,8 +616,8 @@ pages:
                 color-6: Olive Grey
                 color-7: Sand
                 color-8: Warm Grey
-              description: Приглушённые тона в стиле Джорджо Моранди
-              title: Цвета Моранди
+              description: Soft, muted tones inspired by Giorgio Morandi's paintings
+              title: Morandi Colors
             monet:
               colors:
                 color-1: Sky Blue
@@ -628,8 +628,8 @@ pages:
                 color-6: Wheat
                 color-7: Slate Blue
                 color-8: Sage
-              description: Палитра импрессионизма, вдохновлённая Моне
-              title: Цвета Моне
+              description: Impressionist palette inspired by Claude Monet's works
+              title: Monet Colors
             japanese:
               colors:
                 color-1: Tan
@@ -640,8 +640,8 @@ pages:
                 color-6: Gold
                 color-7: Mustard
                 color-8: Amber
-              description: Традиционная японская цветовая палитра
-              title: Японские цвета
+              description: Traditional Japanese color palette
+              title: Japanese Colors
             nordic:
               colors:
                 color-1: Nordic Blue
@@ -652,8 +652,8 @@ pages:
                 color-6: Slate
                 color-7: Cloud
                 color-8: Stone
-              description: Скандинавская минималистичная схема
-              title: Северные цвета
+              description: Scandinavian minimalist color scheme
+              title: Nordic Colors
             chinese:
               colors:
                 color-1: Rosy Dawn
@@ -665,8 +665,8 @@ pages:
                 color-7: Azure Blue
                 color-8: Ochre
               description: >-
-                Традиционные китайские цвета, вдохновлённые текстилем, фарфором и живописью
-              title: Китайские традиционные цвета
+                Traditional Chinese colors, derived from ancient textiles, porcelain and paintings
+              title: Chinese Traditional Colors
           title: Наборы цветовых схем
     title: Внешний вид
   page:

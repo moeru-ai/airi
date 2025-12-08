@@ -1,398 +1,398 @@
 common:
-  save: Save
+  save: 保存
 animations:
   stage-transitions:
-    title: Disable Stage Transitions
+    title: ステージ遷移を無効にする
   use-page-specific-transitions:
     description: >-
-      Some pages will have their own transitions, this will override the stage transitions
-    title: Use Page Specific Transitions
+      一部のページには独自の遷移アニメーションがあり、ステージ遷移アニメーションを上書きします
+    title: ページ固有の遷移を使用する
 dialogs:
   onboarding:
-    title: Welcome to AIRI!
-    description: Let's set up your first AI provider to get started.
-    selectProvider: Choose an AI Provider
-    configureProvider: Configure {provider}
-    apiKey: API Key
-    apiKeyHelp: Get your API key from {provider} and paste it here
-    baseUrl: Base URL
-    baseUrlHelp: API endpoint URL (use default if unsure)
-    accountId: Account ID
-    validationSuccess: Configuration validation success
-    validationFailed: Configuration validation failed
-    validationError: 'Validation error: {error}'
-    skipForNow: Skip for now
-    saveAndContinue: Save and Continue
-    next: Next
-    start: Let's do it!
-    select-model: Choose model
-    no-models: No available models
+    title: AIRI へようこそ！
+    description: まず最初のAIプロバイダーを設定しましょう。
+    selectProvider: AIプロバイダーを選択
+    configureProvider: 設定 {provider}
+    apiKey: APIキー
+    apiKeyHelp: '{provider}からAPIキーを取得し、ここに貼り付けてください'
+    baseUrl: ベースURL
+    baseUrlHelp: APIエンドポイントURL（不明な場合はデフォルトを使用）
+    accountId: アカウントID
+    validationSuccess: 設定検証に成功
+    validationFailed: 設定検証に失敗
+    validationError: '検証エラー: {error}'
+    skipForNow: 今はスキップ
+    saveAndContinue: 保存して続行
+    next: 次へ
+    start: 始めましょう！
+    select-model: モデルを選択
+    no-models: 利用可能なモデルがありません
     no-models-help: >-
-      Please return to the previous step and check your API key, or check the network connection.
+      前のステップに戻ってAPIキーを確認するか、ネットワーク接続を確認してください。
 language:
-  title: Language
+  title: 言語
   description: >
-    Change the language of the AIRI interface. This will not affect the language of the character's responses.
+    AIRIインターフェースの言語を変更します。これはキャラクターの応答言語には影響しません。
 live2d:
   change-model:
-    from-file: Load from File
-    from-file-select: Select
-    from-url: Load from URL
-    from-url-confirm: Load
-    from-url-placeholder: Enter Live2D model URL
-    title: Change Model
+    from-file: ファイルから読み込む
+    from-file-select: 選択
+    from-url: URL から読み込む
+    from-url-confirm: 読み込み
+    from-url-placeholder: Live2DモデルのURLを入力
+    title: モデルを変更
   edit-motion-map:
-    title: Edit motion map
+    title: モーションマップを編集
   map-motions:
-    play: Play Motion
-    title: Map Motions
-  title: Live2D Settings
+    play: モーションを再生
+    title: モーションをマップ
+  title: Live2D設定
   scale-and-position:
-    title: Scale And Position
-    scale: Scale
+    title: スケールと位置
+    scale: スケール
     x: X
     'y': 'Y'
   switch-to-vrm:
-    title: Switch to 3D Avatar?
-    change-to-vrm: Click here to switch to the 3D avatar setting (VRM)
+    title: 3Dアバターに切り替えますか？
+    change-to-vrm: 3Dアバター設定 (VRM) に切り替えるにはここをクリック
   theme-color-from-model:
-    title: Extract colors from model
+    title: モデルから色を抽出
     button-extract:
-      title: Extract
+      title: 抽出
   focus:
-    title: Disable model mouse tracking
+    title: モデルのマウストラッキングを無効にする
     button-disable:
-      title: Disable
-microphone: Microphone
-models: Model
+      title: 無効
+microphone: マイク
+models: モデル
 pages:
   card:
-    activate: Activate
-    active: Active
-    active_badge: Currently Active
-    cancel: Cancel
-    card_not_found: Card not found
-    character: Character
-    close: Close
+    activate: 有効化
+    active: 有効
+    active_badge: 現在有効
+    cancel: キャンセル
+    card_not_found: カードが見つかりません
+    character: キャラクター
+    close: 閉じる
     consciousness:
-      model: Consciousness / Model
-    created_by: created by
-    creator_notes: Creator Notes
-    delete: Delete
-    delete_card: Delete Card
-    delete_confirmation: Are you sure you want to delete this card?
-    description: Use AIRI character card presets
-    description_label: Description
-    drop_here: Drop to upload
-    create_card: Create a new Card
+      model: 意識 / モデル
+    created_by: 作成者
+    creator_notes: 作成者のメモ
+    delete: 削除
+    delete_card: カードを削除
+    delete_confirmation: このカードを削除してもよろしいですか？
+    description: AIRIキャラクターカードプリセットを使用する
+    description_label: 説明
+    drop_here: アップロードするにはここにドラッグ
+    create_card: 新しいカードを作成
     creation:
-      identity: Identity
-      name: Name
-      nickname: Nickname
-      description: Description
-      behavior: Behavior
-      greetings: Greetings (one per line)
-      settings: Settings
-      version: Version
-      create: Create
+      identity: 識別子
+      name: 名前
+      nickname: ニックネーム
+      description: 説明
+      behavior: 振る舞い
+      greetings: 挨拶 (1行に1つ)
+      settings: 設定
+      version: バージョン
+      create: 作成
       defaults:
-        name: Name
-        personality: You are a regular human, curious about everything.
-        scenario: You recently woke up and forgot everything about your previous life.
-        systemprompt: You will receive messages, answer to them like a real human.
-        posthistoryinstructions: Remember to imitate an human.
+        name: 名前
+        personality: あなたはあらゆることに好奇心旺盛な普通の人間です。
+        scenario: あなたは最近目覚め、前世のすべてを忘れてしまいました。
+        systemprompt: 受け取ったメッセージに、本物の人間のように答えてください。
+        posthistoryinstructions: 人間の真似をすることを忘れないでください。
       fields_info:
         subtitle: >-
-          You can put here some details about the character you are creating, explain his history and context, and how your interactions should be answered.
-        name: Is the formal name of this character.
-        nickname: You can also give a nickname that will be used in priority.
-        description: Description of this character.
-        notes: If you want to add some personal notes.
+          ここに作成するキャラクターの詳細、履歴とコンテキスト、 およびあなたにどう返答してほしいか記述できます。
+        name: このキャラクターの正式名称です。
+        nickname: 優先的に使用されるニックネームも設定できます。
+        description: このキャラクターの説明です。
+        notes: 個人的なメモを追加したい場合はここに。
         personality: >-
-          Describe here the personality of your character. Shy ? Curious ? Anything else ?
-        scenario: What are the surroundings ? What is the current situation ?
-        greetings_field: Greetings
-        greetings: How your character should say "hello" ?
-        systemprompt: Explain here to the AI LLM how it should answer when prompted.
-        posthistoryinstructions: Place here anything the AI LLM should read after the messages history.
+          ここにキャラクターの性格を記述してください。 恥ずかしがり屋？好奇心旺盛？他には？
+        scenario: 周囲の状況はどうなっていますか？現在の状況は？
+        greetings_field: 挨拶
+        greetings: キャラクターはどのように「こんにちは」と言うべきですか？
+        systemprompt: AI LLMに対して、質問された際にどのように回答すべきかをここで説明してください。
+        posthistoryinstructions: メッセージ履歴の後にAI LLMに読んでほしい内容をここに配置してください。
         version: >-
-          Card version, you should increase this if you are making changes from a previous card.
+          カードのバージョン。以前のカードから変更を加える場合は、これを増やす必要があります。
       errors:
-        name: Name should be valid or non-empty.
-        version: 'Error: Invalid version number !'
-        description: 'Error: You must provide a description for this card.'
-        personality: 'Error: A personality must be provided for this character.'
-        scenario: 'Error: A scenario is required.'
-        systemprompt: 'Error: Please, provide a system prompt.'
-        posthistoryinstructions: 'Error: Post history prompt is required.'
-    modules: Modules
-    name_asc: Name (A-Z)
-    name_desc: Name (Z-A)
-    no_cards: No cards yet. Click the button above to upload one!
-    no_results: No matching cards found
-    personality: Personality
-    posthistoryinstructions: Post-History Instructions
-    recent: Recently Added
-    scenario: Scenario
-    search: Search cards...
-    sort_by: Sort by
+        name: 名前は有効であるか、空でない必要があります。
+        version: 'エラー: 無効なバージョン番号です！'
+        description: 'エラー: このカードの説明を入力してください。'
+        personality: 'エラー: このキャラクターには性格が必要です。'
+        scenario: 'エラー: シナリオは必須です。'
+        systemprompt: 'エラー: システムプロンプトを入力してください。'
+        posthistoryinstructions: 'エラー: 履歴の後のプロンプトは必須です。'
+    modules: モジュール
+    name_asc: 名前(A-Z)
+    name_desc: 名前(Z-A)
+    no_cards: まだカードがありません。上のボタンをクリックしてアップロードしてください！
+    no_results: 一致するカードが見つかりません
+    personality: 性格
+    posthistoryinstructions: 会話履歴の後の指示
+    recent: 最近追加されたもの
+    scenario: 背景
+    search: カードを検索…
+    sort_by: 並び替え
     speech:
-      model: Speech / Model
-      voice: Speech / Voice
-    systemprompt: System Prompt
-    title: AIRI Card
-    try_different_search: Try a different search term
-    upload: Upload
-    upload_desc: Click or drag file to upload
+      model: 発話/モデル
+      voice: 発話/音声
+    systemprompt: システムプロンプト
+    title: AIRIカード
+    try_different_search: 別の検索ワードを試してください
+    upload: アップロード
+    upload_desc: ファイルをアップロードするにはクリックまたはドラッグ
   memory:
-    description: Where memories got stored, and organized
-    title: Memory
+    description: 記憶が保存され、整理される場所
+    title: 記憶
   models:
-    description: Live2D, VRM, etc.
-    title: Models
+    description: Live2D、VRMなど。
+    title: モデル
     sections:
       section:
         live2d:
           title: Live2D
-          description: Configure Live2D models and settings
+          description: Live2Dモデルと設定を構成
         vrm:
           title: VRM
-          description: Configure 3D VRM models and settings
-        scene: Scene
+          description: 3D VRMモデルと設定を構成
+        scene: シーン
   modules:
     beat_sync:
-      description: Vibe with beats from the audio source
-      title: Beat Sync
+      description: オーディオソースのビートに合わせて雰囲気を出す
+      title: ビート同期
       sections:
         audio_source:
           actions:
-            start_screen_capture: Start screen capture
-            stop: Stop
-          description: Select an audio source to detect beats from.
-          title: Audio source
+            start_screen_capture: 画面キャプチャを開始
+            stop: 停止
+          description: ビートを検出するオーディオソースを選択します。
+          title: オーディオソース
         beat_visualizer:
-          title: Beat visualizer
+          title: ビートビジュアライザー
         parameters:
-          advanced_parameters: Advanced Parameters
-          description: Tweak the beat detection parameters.
-          title: Parameters
+          advanced_parameters: 高度なパラメータ
+          description: ビート検出パラメーターを調整します。
+          title: パラメーター
           parameters:
             adaptive_threshold:
               description: >-
-                Whether to apply adaptive thresholds based on signal variance over time.
-              label: Adaptive threshold
+                時間の経過に伴う信号の変動に基づいて補正閾値を適用するかどうか。
+              label: 補正閾値
             buffer_duration:
-              description: Duration of the internal analysis buffer.
-              label: Buffer duration
+              description: 内部分析バッファの期間。
+              label: バッファ期間
             envelope_filter_frequency:
               description: >-
-                Frequency for the envelope filter applied to smooth energy changes.
-              label: Envelope filter frequency
+                エネルギー変化を平滑化するために適用されるエンベロープフィルターの周波数。
+              label: エンベロープフィルター周波数
             highpass_filter_frequency:
               description: >-
-                Frequency for the highpass filter applied to reduce low frequencies like sub-bass noises.
-              label: Highpass filter frequency
+                サブベースノイズのような低周波を低減するために適用される ハイパスフィルターの周波数。
+              label: ハイパスフィルター周波数
             lowpass_filter_frequency:
               description: >-
-                Frequency for the lowpass filter applied to reduce high frequencies like vocals.
-              label: Lowpass filter frequency
+                声のような高周波を低減するために適用されるローパスフィルターの周波数。
+              label: ローパスフィルター周波数
             min_beat_interval:
-              description: Maximum BPM or minimum interval between detected beats.
-              label: Max BPM / Min beat interval
+              description: 最大BPM、または検出されるビート間の最小間隔。
+              label: 最大BPM / 最小ビート間隔
             sensitivity:
-              label: Sensitivity
+              label: 感度
             spectral_flux:
-              description: Whether to enable spectral flux-based onset detection.
-              label: Spectral flux
+              description: スペクトルフラックスに基づく開始検出を有効にするかどうか。
+              label: スペクトルフラックス
             warmup:
-              description: Whether to warm up before detecting beats for better accuracy.
-              label: Warmup
+              description: より高い精度のために、ビートを検出する前にウォームアップを行うべきかどうか。
+              label: ウォームアップ
     consciousness:
-      description: Personality, desired model, etc.
+      description: 性格、希望するモデルなど。
       sections:
         section:
           provider-model-selection:
-            collapse: Collapse
-            custom_model_placeholder: Enter custom model name...
-            description: Select the suitable LLM provider for consciousness
-            error: Error loading models
-            expand: Expand
-            loading: Loading available models...
-            manual_model_name: Model Name
-            manual_model_placeholder: Enter the model name to use with this provider
-            no_models: No models available
-            no_models_description: No models were found for this provider
-            no_search_results: No matching models
-            no_search_results_description: No models match '{query}'. Try a different search term.
-            not_supported: Model listing not supported
-            not_supported_description: This provider doesn't support model listing functionality
-            search_placeholder: Search models...
-            search_results: Found {count} of {total} models
-            show_less: Show less
-            show_more: Show more
-            subtitle: Select a model from the provider
-            title: Model
-      title: Consciousness
-    description: Thinking, vision, speech synthesis, gaming, etc.
+            collapse: 折りたたむ
+            custom_model_placeholder: カスタムモデル名を入力…
+            description: 意識に適したLLMプロバイダーを選択
+            error: モデルの読み込みエラー
+            expand: 展開
+            loading: 利用可能なモデルを読み込み中…
+            manual_model_name: モデル名
+            manual_model_placeholder: このプロバイダーで使用するモデル名を入力
+            no_models: 利用可能なモデルがありません
+            no_models_description: このプロバイダーのモデルが見つかりませんでした
+            no_search_results: 一致するモデルがありません
+            no_search_results_description: ワード「{query}」に一致するモデルがありません。別の検索語を試してください。
+            not_supported: モデルリストはサポートされていません
+            not_supported_description: このプロバイダーはモデルリスト機能をサポートしていません
+            search_placeholder: モデルを検索…
+            search_results: 結果{total}個中{count}個のモデルが見つかりました
+            show_less: 表示を減らす
+            show_more: もっと表示
+            subtitle: プロバイダーからモデルを選択
+            title: モデル
+      title: 意識
+    description: 思考、視覚、音声合成、ゲームなど。
     gaming-factorio:
-      description: Playing Factorio!
+      description: Factorioをプレイ！
       title: Factorio
-      enable: Enable Factorio Integration
-      enable-description: Allow AIRI to interact with Factorio game
-      server-address: Server Address
-      server-address-description: The IP address or hostname of the Factorio server
-      server-address-placeholder: Enter server address (e.g., localhost or 192.168.1.100)
-      server-port: Server Port
-      server-port-description: The port number of the Factorio server (default 34197)
-      username: Username
-      username-description: Your username in the Factorio server
-      username-placeholder: Enter your Factorio username
-      configured: Factorio is properly configured!
+      enable: Factorio連携を有効にする
+      enable-description: AIRIがFactorioゲームと通信できるようにする
+      server-address: サーバーアドレス
+      server-address-description: FactorioサーバーのIPアドレスまたはホスト名
+      server-address-placeholder: サーバーアドレスを入力 (例： localhostまたは192.168.1.100)
+      server-port: サーバーポート
+      server-port-description: Factorioサーバーのポート番号 (デフォルト 34197)
+      username: ユーザー名
+      username-description: Factorioサーバーでのユーザー名
+      username-placeholder: Factorioユーザー名を入力
+      configured: Factorioは適切に設定されています！
     gaming-minecraft:
-      description: Playing Minecraft!
+      description: Minecraftをプレイ！
       title: Minecraft
-      enable: Enable Minecraft Integration
-      enable-description: Allow AIRI to interact with Minecraft game
-      server-address: Server Address
-      server-address-description: The IP address or hostname of the Minecraft server
-      server-address-placeholder: Enter server address (e.g., localhost or play.example.com)
-      server-port: Server Port
-      server-port-description: The port number of the Minecraft server (default 25565)
-      username: Username
-      username-description: Your username in the Minecraft server
-      username-placeholder: Enter your Minecraft username
-      configured: Minecraft is properly configured!
+      enable: Minecraft連携を有効にする
+      enable-description: AIRIがMinecraftゲームと対話できるようにする
+      server-address: サーバーアドレス
+      server-address-description: MinecraftサーバーのIPアドレスまたはホスト名
+      server-address-placeholder: サーバーアドレスを入力 (例： localhostまたはplay.example.com)
+      server-port: サーバーポート
+      server-port-description: Minecraftサーバーのポート番号 (デフォルト 25565)
+      username: ユーザー名
+      username-description: Minecraftサーバーでのユーザー名
+      username-placeholder: Minecraftユーザー名を入力
+      configured: Minecraftは適切に設定されています！
     hearing:
-      description: Configure how speech recognition works
-      title: Hearing
+      description: 音声認識の動作を設定する
+      title: 聴覚
       sections:
         section:
           provider-selection:
-            description: Select the suitable speech recognition provider
+            description: 適切な音声認識プロバイダーを選択
     memory-long-term:
-      description: Long-term memory specific settings and management
-      title: Long-Term Memory
+      description: 長期記憶固有の設定と管理
+      title: 長期記憶
     memory-short-term:
-      description: Short-term memory specific settings and management
-      title: Short-Term Memory
+      description: 短期記憶固有の設定と管理
+      title: 短期記憶
     messaging-discord:
-      description: Chat & voice chat over Discord
+      description: Discordでのチャットとボイスチャット
       title: Discord
-      enable: Enable Discord Integration
-      enable-description: Allow AIRI to interact through Discord
-      token: Bot Token
-      token-description: Your Discord bot token
-      token-placeholder: Enter your Discord bot token
-      configured: Discord is properly configured!
+      enable: Discord連携を有効にする
+      enable-description: AIRIがDiscordを介して対話できるようにする
+      token: ボットトークン
+      token-description: あなたのDiscordボットトークン
+      token-placeholder: Discordボットトークンを入力
+      configured: Discordは適切に設定されています！
     speech:
-      description: Speech synthesis
+      description: 音声合成
       sections:
         section:
           playground:
             buttons:
               stop:
-                label: Stop
+                label: 停止
             select-voice:
-              required: Please select a voice
+              required: 音声を選択してください
           provider-voice-selection:
-            custom_model_placeholder: Enter custom model name...
-            custom_voice_placeholder: Enter custom voice ID...
-            description: Select the suitable speech provider
-            no_models: No models available
-            no_models_description: No models were found for this provider
-            no_voices: No voices available
-            no_voices_description: No voices were found for this provider
-            no_voices_hint: You can enter a custom voice name below.
-            pause: Pause
-            play_sample: Play Sample
-            search_models_placeholder: Search models...
-            search_models_results: Found {count} of {total} models
-            search_voices_placeholder: Search voices...
-            search_voices_results: Found {count} of {total} voices
-            unsupported_voice_warning_title: No supported voices
+            custom_model_placeholder: カスタムモデル名を入力…
+            custom_voice_placeholder: カスタム音声IDを入力…
+            description: 適切な音声プロバイダーを選択
+            no_models: 利用可能なモデルがありません
+            no_models_description: このプロバイダーのモデルが見つかりませんでした
+            no_voices: 利用可能な音声がありません
+            no_voices_description: このプロバイダーの音声が見つかりませんでした
+            no_voices_hint: 下にカスタム音声名を入力できます。
+            pause: 一時停止
+            play_sample: サンプルを再生
+            search_models_placeholder: モデルを検索…
+            search_models_results: 結果{total}個中{count}個のモデルが見つかりました
+            search_voices_placeholder: 音声を検索…
+            search_voices_results: 結果{total}個中{count}個の音声が見つかりました
+            unsupported_voice_warning_title: サポートされている音声がありません
             unsupported_voice_warning_content: >-
-              Try a different model or provider. We are working on supporting all the voice for this model as quickly as possible. If you need it urgently, please let us know on GitHub at https://github.com/moeru-ai/airi/issues.
-            show_less: Show less
-            show_more: Show more
-            title: Provider
+              別のモデルまたはプロバイダーを試してください。このモデルのすべての音声をできるだけ早くサポートできるように取り組んでいます。 緊急に必要な場合は、GitHubの https://github.com/moeru-ai/airi/issues でお知らせください。
+            show_less: 表示を減らす
+            show_more: もっと表示
+            title: プロバイダー
           voice-settings:
             input-ssml:
-              placeholder: Enter SSML text...
+              placeholder: SSMLテキストを入力…
             use-ssml:
-              description: Enable to input raw SSML instead of plain text
-              label: Use Custom SSML
-      title: Speech
-    title: Modules
+              description: 平文の代わりに生のSSMLを入力できるようにする
+              label: カスタムSSMLを使用する
+      title: 音声
+    title: モジュール
     vision:
-      description: Vision
-      title: Vision
+      description: 視覚
+      title: 視覚
     x:
-      description: X / Twitter browsing and usage
+      description: X / Twitterの閲覧と使用
       title: X / Twitter
-      enable: Enable X / Twitter Integration
-      enable-description: Allow AIRI to interact with X / Twitter
-      api-key: API Key
-      api-key-description: Your X / Twitter API key
-      api-key-placeholder: Enter your X / Twitter API key
-      api-secret: API Secret
-      api-secret-description: Your X / Twitter API secret
-      api-secret-placeholder: Enter your X / Twitter API secret
-      access-token: Access Token
-      access-token-description: Your X / Twitter access token
-      access-token-placeholder: Enter your X / Twitter access token
-      access-token-secret: Access Token Secret
-      access-token-secret-description: Your X / Twitter access token secret
-      access-token-secret-placeholder: Enter your X / Twitter access token secret
-      configured: X / Twitter is properly configured!
+      enable: X / Twitter連携を有効にする
+      enable-description: AIRIがX / Twitterと対話できるようにする
+      api-key: APIキー
+      api-key-description: あなたのX / Twitter APIキー
+      api-key-placeholder: あなたのX / Twitter APIキーを入力
+      api-secret: APIシークレット
+      api-secret-description: あなたのX / Twitter APIシークレット
+      api-secret-placeholder: あなたのX / Twitter APIシークレットを入力
+      access-token: アクセストークン
+      access-token-description: あなたのX / Twitterアクセストークン
+      access-token-placeholder: あなたのX / Twitterアクセストークンを入力
+      access-token-secret: アクセストークンシークレット
+      access-token-secret-description: あなたのX / Twitterアクセストークンシークレット
+      access-token-secret-placeholder: あなたのX / Twitterアクセストークンシークレットを入力
+      configured: X / Twitterは適切に設定されています！
     mcp-server:
-      description: Connect and manage MCP server and tools
-      title: MCP Server
+      description: MCPサーバーとツールの接続と管理
+      title: MCPサーバー
   providers:
     explained:
-      chat: Text generation model providers. e.g. OpenRouter, OpenAI, Ollama.
-      Speech: Speech (text-to-speech) model providers. e.g. ElevenLabs, Azure Speech.
+      chat: テキスト生成モデルプロバイダー。例： OpenRouter, OpenAI, Ollama。
+      Speech: 音声 (テキスト読み上げ) モデルプロバイダー。例： ElevenLabs, Azure Speech。
       Transcription: >-
-        Transcription (speech-to-text) model providers. e.g. Whisper.cpp, OpenAI, Azure Speech
+        音声認識 (speech-to-text) モデルプロバイダー。例： Whisper.cpp, OpenAI, Azure Speech
     helpinfo:
-      title: First time here?
+      title: ここを初めて利用しますか？
       description: >
-        AIRI requires at least one {chat} provider to be configured to think, and behave properly. You could think of it as the brain of the characters living in AIRI system.
+        AIRIが正常に思考し動作するためには、少なくとも1つの{chat}プロバイダーの設定が必要です。 これはAIRIシステム内に存在するキャラクターの脳と考えることができます。
     common:
       fields:
         field:
           api-key:
-            label: API Key Input
+            label: APIキーを入力
       section:
         advanced:
           fields:
             field:
               headers:
-                description: Add custom HTTP headers
+                description: カスタムHTTPヘッダーを追加
                 key:
-                  placeholder: Key
-                label: HTTP Headers
+                  placeholder: キー
+                label: HTTPヘッダー
                 value:
-                  placeholder: Value
-          title: Advanced
+                  placeholder: 値
+          title: 詳細
         basic:
-          description: Essential settings
-          title: Basic
+          description: 必須設定
+          title: 基本
         voice:
-          title: Voice Settings
-    description: LLMs, speech providers, etc.
+          title: 音声設定
+    description: LLM、音声プロバイダーなど。
     provider:
       app-local-audio-transcription:
-        title: App (Local)
-        description: https://github.com/moeru-ai/xsai-transformers
+        title: アプリ (ローカル)
+        description: https://github.com/moeru-ai/xsai-transforers
       app-local-audio-speech:
-        title: App (Local)
-        description: https://github.com/moeru-ai/xsai-transformers
+        title: アプリ (ローカル)
+        description: https://github.com/moeru-ai/xsai-transforers
       browser-local-audio-transcription:
-        title: Browser (Local)
-        description: https://github.com/moeru-ai/xsai-transformers
+        title: ブラウザ (ローカル)
+        description: https://github.com/moeru-ai/xsai-transforers
       browser-local-audio-speech:
-        title: Browser (Local)
-        description: https://github.com/moeru-ai/xsai-transformers
+        title: ブラウザ (ローカル)
+        description: https://github.com/moeru-ai/xsai-transforers
       alibaba-cloud-model-studio:
         description: bailian.console.aliyun.com
         title: Alibaba Cloud Model Studio
@@ -400,43 +400,43 @@ pages:
         description: anthropic.com
         title: Anthropic | Claude
         helpinfo:
-          title: Before you start
+          title: 始める前に
           description:
             part1: >-
-              While Anthropic recently did announce that they are having a beta support for OpenAI SDK compatibility
-            part2: (you can read more here)
-            part3: but due to the implementation details comes with
+              Anthropicは最近、OpenAI SDK互換のベータサポートを発表しましたが
+            part2: (詳細はこちら)
+            part3: 詳細な実装を見ると、
             part4: >-
-              restrictions which not aligned with the OpenAI SDK, it's currently not possible to use this provider in the browser.
+              OpenAI SDKと一致しない制限があり、現在このプロバイダーをブラウザで使用することはできません。
             part5: >-
-              If you do need to use this provider, you will need a dedicated proxy backend like a Serverless Function running on
-            part6: or some CORS bypassing services to bypass the CORS restrictions.
+              このプロバイダーを使用する必要がある場合は、 Serverless Function で実行される専用のプロキシバックエンド、
+            part6: またはCORS制限をバイパスするためのCORSバイパスサービスが必要です。
       cloudflare-workers-ai:
         description: cloudflare.com
         fields:
           field:
             account-id:
-              description: Cloudflare Account ID
-              label: Account ID
-              placeholder: Your Cloudflare Account ID
+              description: CloudflareアカウントID
+              label: アカウントID
+              placeholder: あなたのCloudflareアカウントID
             api-key:
-              placeholder: Input Cloudflare API Key
+              placeholder: Cloudflare APIキーを入力
         title: Cloudflare Workers AI
       common:
         status:
-          validating: Validating
-          valid: Configuration seems to be valid.
+          validating: 検証中
+          valid: 設定は有効なようです。
         fields:
           field:
             pitch:
-              description: Tune the pitch of synthesized speech (e.g., sharper or coarser)
-              label: Pitch
+              description: 合成音声のピッチを調整 (例： よりシャープに、またはより粗く)
+              label: ピッチ
             speed:
-              description: Adjust the speed of speech
-              label: Speed
+              description: 音声の速度を調整
+              label: 速度
             volume:
-              description: Adjust the volume of speech
-              label: Volume
+              description: 音声の音量を調整
+              label: 音量
       deepseek:
         description: deepseek.com
         title: DeepSeek
@@ -445,39 +445,39 @@ pages:
         fields:
           field:
             simularity-boost:
-              description: Voice similarity adherence
-              label: Similarity Boost
+              description: 音声特性の近似度
+              label: 類似度ブースト
             speaker-boost:
-              description: Enhance speaker similarity
-              label: Speaker Boost
+              description: 話者近似度を上げる
+              label: 話者ブースト
             speed:
-              description: Speech generation speed
-              label: Speed
+              description: 音声生成速度
+              label: 速度
             stability:
-              description: Voice stability and randomness
-              label: Stability
+              description: 音声の安定性とランダム性
+              label: 安定性
             style:
-              description: Voice style exaggeration
-              label: Style
+              description: 音声スタイルの誇張
+              label: スタイル
         playground:
           buttons:
             button:
               test-voice:
-                generating: Generating...
-                label: Test Voice
+                generating: 生成中…
+                label: 音声をテスト
           fields:
             field:
               input:
-                placeholder: Enter text to test the voice...
+                placeholder: 音声をテストするテキストを入力…
               language:
-                description: Select voice language
-                label: Language
+                description: 音声言語を選択
+                label: 言語
               voice:
-                description: Select preferred voice
-                label: Voice
-          title: Voice Playground
+                description: 希望する音声を選択
+                label: 音声
+          title: 音声合成実験場
           validation:
-            error-missing-api-key: Please enter an API key to test the voice.
+            error-missing-api-key: 音声をテストするにはAPIキーを入力してください。
         title: ElevenLabs
       fireworks:
         description: fireworks.ai
@@ -487,12 +487,12 @@ pages:
         fields:
           field:
             region:
-              description: Speech Service region
-              label: Region
+              description: 音声サービスリージョン
+              label: リージョン
         title: Microsoft / Azure Speech
       index-tts-vllm:
         description: https://index-tts.github.io/
-        title: Bilibili / IndexTTS
+        title: Bilibili/IndexTTS
       azure-ai-foundry:
         description: Azure AI Foundry
         title: Azure AI Foundry
@@ -515,8 +515,8 @@ pages:
         description: openai.com
         title: OpenAI
       openai-compatible:
-        description: OpenAI Compatible
-        title: OpenAI Compatible
+        description: OpenAI互換
+        title: OpenAI互換
       openrouter:
         description: openrouter.ai
         title: OpenRouter
@@ -546,7 +546,7 @@ pages:
         fields:
           field:
             appId:
-              description: App ID of the project where you can obtain in Console
+              description: コンソールで取得できるプロジェクトのApp ID
               label: App ID
         title: Volcano Engine
       xai:
@@ -566,39 +566,39 @@ pages:
         title: Aliyun NLS
       transcriptions:
         playground:
-          title: Transcription Playground
-    title: Providers
+          title: 文字起こし実験場
+    title: プロバイダー
   scene:
-    description: Configure the environment where the character lives
-    title: Scene
+    description: キャラクターが過ごす環境を設定する
+    title: シーン
   system:
     color-scheme:
-      description: Change the color scheme of the stage.
-      title: Color Scheme
+      description: ステージの配色を変更します。
+      title: 配色
     developer:
-      description: Some developer options.
-      title: Developers
+      description: 開発者向けオプション。
+      title: 開発者
     general:
-      description: Dark theme, languages, etc.
-      title: General
-    description: Customize your stage!
+      description: ダークテーマ、言語など。
+      title: 一般
+    description: ステージをカスタマイズしよう！
     sections:
       section:
         custom-color:
           fields:
             field:
               primary-color:
-                label: Primary color
+                label: プライマリカラー
                 rgb-on:
-                  title: I Want It Dynamic!
-          title: Color Scheme
+                  title: ダイナミックにやりたい！
+          title: 配色
         developer:
-          title: Developer
+          title: 開発者
           sections:
             section:
               use-magic-keys:
-                title: useMagicKeys
-                description: Test shortcuts
+                title: マジックキーを使用
+                description: ショートカットをテスト
         theme-presets:
           presets:
             default:
@@ -667,63 +667,63 @@ pages:
               description: >-
                 Traditional Chinese colors, derived from ancient textiles, porcelain and paintings
               title: Chinese Traditional Colors
-          title: Color Scheme Presets
-    title: System
+          title: 配色プリセット
+    title: システム
   page:
     developers:
       open-devtools:
-        title: Open Developer Tools
-        button: Open
+        title: 開発者ツールを開く
+        button: 開く
 sections:
   section:
     general:
-      title: General
+      title: 一般
 theme:
-  title: Theme
+  title: テーマ
   description: |
-    Switch the base theme of AIRI, Light mode or Dark mode.
-title: Settings
-voices: Voice
+    AIRIの基本テーマをライトモードまたはダークモードに切り替えます。
+title: 設定
+voices: 音声
 vrm:
   change-model:
-    from-file: Load from File
-    from-file-select: Select
-    from-url: Load from URL
-    from-url-confirm: Load
-    from-url-placeholder: Enter VRM model URL
-    title: Change Model
-  title: VRM Settings
+    from-file: ファイルから読み込む
+    from-file-select: 選択
+    from-url: URL から読み込む
+    from-url-confirm: 読み込み
+    from-url-placeholder: VRMモデルのURLを入力
+    title: モデルを変更
+  title: VRM設定
   scale-and-position:
-    model-info-title: Model Size Information
-    model-info-x: Width (X)
-    model-info-y: Height (Y)
-    model-info-z: Depth (Z)
+    model-info-title: モデルサイズ情報
+    model-info-x: 幅 (X)
+    model-info-y: 高さ (Y)
+    model-info-z: 奥行き (Z)
     tips: |
-      Edit the initial position the VRM model.
-      Coordinate axes are visualised.
-    scale: Scale
-    x: X Offset
-    'y': Y Offset
-    z: Z Offset
-    fov: FOV (degree)
-    rotation-y: Rotation (Y-axis)
-    camera-distance: Camera distance
+      VRMモデルの初期位置を編集します。
+      座標軸が視覚化されます。
+    scale: スケール
+    x: Xオフセット
+    'y': Yオフセット
+    z: Zオフセット
+    fov: FOV (度)
+    rotation-y: 回転 (Y軸)
+    camera-distance: カメラ距離
     eye-tracking-mode:
-      title: Looking at
+      title: 視線
       options:
         option:
-          camera: Camera
-          mouse: Mouse
-          disabled: Disabled
+          camera: カメラ
+          mouse: マウス
+          disabled: 無効
   switch-to-vrm:
-    title: Switch to Live2D Avatar?
-    change-to-vrm: Click here to switch to the Live2D avatar setting
+    title: Live2Dアバターに切り替えますか？
+    change-to-vrm: Live2Dアバター設定に切り替えるにはここをクリック
   theme-color-from-model:
     button-extract:
-      title: Extract
+      title: 抽出
   skybox:
-    skybox-intensity: SkyBox Intensity
-    skybox-specular-mix: Specular Mix
+    skybox-intensity: スカイボックスの強度
+    skybox-specular-mix: 鏡面反射の混合
 wip:
-  title: Work in Progress
-  description: This feature is currently under development and not yet publicly available. Check back in future updates for this functionality.
+  title: 開発中
+  description: この機能は現在開発中で、まだ一般には公開されていません。今後のアップデートで利用可能になる予定ですので、しばらくお待ちください。
