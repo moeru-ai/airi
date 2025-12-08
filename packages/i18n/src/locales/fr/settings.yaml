@@ -604,69 +604,69 @@ pages:
             default:
               colors:
                 color-1: AIRI Green
-              description: La couleur verte par défaut, apportée par AIRI pour vous !
-              title: Couleur par défaut
+              description: The default greenish theme color, brought by AIRI to you!
+              title: Default Color
             morandi:
               colors:
                 color-1: Taupe
                 color-2: Beige
-                color-3: Gris cendré
-                color-4: Taupe clair
-                color-5: Ivoire
-                color-6: Gris olive
-                color-7: Sable
-                color-8: Gris chaud
-              description: Tons doux et atténués inspirés des peintures de Giorgio Morandi
-              title: Couleurs Morandi
+                color-3: Ash Grey
+                color-4: Light Taupe
+                color-5: Ivory
+                color-6: Olive Grey
+                color-7: Sand
+                color-8: Warm Grey
+              description: Soft, muted tones inspired by Giorgio Morandi's paintings
+              title: Morandi Colors
             monet:
               colors:
-                color-1: Bleu ciel
-                color-2: Brume
-                color-3: Sable
-                color-4: Vert mousse
-                color-5: Nénuphar
-                color-6: Blé
-                color-7: Bleu ardoise
-                color-8: Sauge
-              description: Palette impressionniste inspirée des œuvres de Claude Monet
-              title: Couleurs Monet
+                color-1: Sky Blue
+                color-2: Mist
+                color-3: Sand
+                color-4: Moss Green
+                color-5: Water Lily
+                color-6: Wheat
+                color-7: Slate Blue
+                color-8: Sage
+              description: Impressionist palette inspired by Claude Monet's works
+              title: Monet Colors
             japanese:
               colors:
-                color-1: Fauve
-                color-2: Taupe chaud
-                color-3: Ombre
-                color-4: Café
+                color-1: Tan
+                color-2: Warm Taupe
+                color-3: Umber
+                color-4: Coffee
                 color-5: Bronze
-                color-6: Or
-                color-7: Moutarde
-                color-8: Ambre
-              description: Palette traditionnelle japonaise
-              title: Couleurs japonaises
+                color-6: Gold
+                color-7: Mustard
+                color-8: Amber
+              description: Traditional Japanese color palette
+              title: Japanese Colors
             nordic:
               colors:
-                color-1: Bleu nordique
-                color-2: Glace
+                color-1: Nordic Blue
+                color-2: Ice
                 color-3: Fjord
-                color-4: Acier
+                color-4: Steel
                 color-5: Glacier
-                color-6: Ardoise
-                color-7: Nuage
-                color-8: Pierre
-              description: Schéma de couleurs minimaliste scandinave
-              title: Couleurs nordiques
+                color-6: Slate
+                color-7: Cloud
+                color-8: Stone
+              description: Scandinavian minimalist color scheme
+              title: Nordic Colors
             chinese:
               colors:
-                color-1: Aube rosée
-                color-2: Rouge chinois
-                color-3: Marron fumé
-                color-4: Vert bambou
-                color-5: Violet foncé
-                color-6: Jaune doré
-                color-7: Bleu azur
-                color-8: Ocre
+                color-1: Rosy Dawn
+                color-2: Chinese Red
+                color-3: Smoky Brown
+                color-4: Bamboo Green
+                color-5: Dark Purple
+                color-6: Golden Yellow
+                color-7: Azure Blue
+                color-8: Ochre
               description: >-
-                Couleurs traditionnelles chinoises, issues des textiles anciens, de la porcelaine et des peintures
-              title: Couleurs traditionnelles chinoises
+                Traditional Chinese colors, derived from ancient textiles, porcelain and paintings
+              title: Chinese Traditional Colors
           title: Préréglages de couleurs
     title: Apparence
   page:

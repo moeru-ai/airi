@@ -1,34 +1,34 @@
 allow-visible-on-all-workspaces:
-  title: Cross-Space Visibility
-  description: Allow the window to be visible on all workspaces, macOS only.
+  title: すべてのワークスペースで表示
+  description: ウィンドウをすべてのワークスペースで表示可能にします。macOSのみ。
 pages:
   modules:
     mcp-server:
-      description: Connect and manage MCP server and tools
-      title: MCP Server
+      description: MCPサーバーとツールの接続と管理
+      title: MCPサーバー
   system:
     sections:
       section:
         window-shortcuts:
-          title: Keyboard Shortcuts
+          title: キーボードショートカット
     window-shortcuts:
-      description: Modify the window shortcuts.
-      title: Window Shortcuts
+      description: ウィンドウ用ショートカットを変更します。
+      title: ウィンドウショートカット
       toggle-move:
-        label: Toggle Move
+        label: 移動の切り替え
       toggle-resize:
-        label: Toggle Resize
+        label: サイズ変更の切り替え
       toggle-ignore-mouse-event:
-        label: Toggle Ignore Mouse Event
-      press-keys: Press Keys...
+        label: マウスイベント無視の切り替え
+      press-keys: 何かキーを押してください…
     developer:
       sections:
         section:
           use-window-mouse:
-            title: useWindowMouse
-            description: Test the Electron window cursor position
+            title: ウィンドウマウスの使用
+            description: Electronウィンドウのカーソル位置をテストします
 devtools:
-  title: Developer
+  title: 開発者
   pages:
     widgets-calling:
-      title: Widget Calling
+      title: ウィジェット呼び出し

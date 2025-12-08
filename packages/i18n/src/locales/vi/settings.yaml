@@ -603,70 +603,70 @@ pages:
           presets:
             default:
               colors:
-                color-1: Xanh AIRI
-              description: Màu xanh đặc trưng mặc định của AIRI
-              title: Màu mặc định
+                color-1: AIRI Green
+              description: The default greenish theme color, brought by AIRI to you!
+              title: Default Color
             morandi:
               colors:
                 color-1: Taupe
-                color-2: Be
-                color-3: Xám tro
-                color-4: Nâu sáng
-                color-5: Ngà
-                color-6: Xám ô liu
-                color-7: Cát
-                color-8: Xám ấm
-              description: Tông màu dịu nhẹ lấy cảm hứng từ tranh Giorgio Morandi
-              title: Màu Morandi
+                color-2: Beige
+                color-3: Ash Grey
+                color-4: Light Taupe
+                color-5: Ivory
+                color-6: Olive Grey
+                color-7: Sand
+                color-8: Warm Grey
+              description: Soft, muted tones inspired by Giorgio Morandi's paintings
+              title: Morandi Colors
             monet:
               colors:
-                color-1: Xanh Da Trời
-                color-2: Sương Mù
-                color-3: Cát
-                color-4: Xanh Rêu
-                color-5: Hoa Súng
-                color-6: Lúa Mì
-                color-7: Xanh Đá Phiến
-                color-8: Xanh Xô Thơm
-              description: Bảng màu ấn tượng lấy cảm hứng từ các tác phẩm của Claude Monet
-              title: Màu Monet
+                color-1: Sky Blue
+                color-2: Mist
+                color-3: Sand
+                color-4: Moss Green
+                color-5: Water Lily
+                color-6: Wheat
+                color-7: Slate Blue
+                color-8: Sage
+              description: Impressionist palette inspired by Claude Monet's works
+              title: Monet Colors
             japanese:
               colors:
-                color-1: Nâu Vàng
-                color-2: Nâu Ấm
-                color-3: Nâu Đậm (Umber)
-                color-4: Cà Phê
-                color-5: Đồng
-                color-6: Vàng Kim
-                color-7: Mù Tạt
-                color-8: Hổ Phách
-              description: Bảng màu truyền thống Nhật Bản
-              title: Màu Nhật Bản
+                color-1: Tan
+                color-2: Warm Taupe
+                color-3: Umber
+                color-4: Coffee
+                color-5: Bronze
+                color-6: Gold
+                color-7: Mustard
+                color-8: Amber
+              description: Traditional Japanese color palette
+              title: Japanese Colors
             nordic:
               colors:
-                color-1: Xanh Bắc Âu
-                color-2: Băng Giá
-                color-3: Xanh đậm (Fjord)
-                color-4: Thép
-                color-5: Sông Băng
-                color-6: Đá Phiến
-                color-7: Mây
-                color-8: Đá
-              description: Bảng màu tối giản phong cách Bắc Âu
-              title: Màu Bắc Âu
+                color-1: Nordic Blue
+                color-2: Ice
+                color-3: Fjord
+                color-4: Steel
+                color-5: Glacier
+                color-6: Slate
+                color-7: Cloud
+                color-8: Stone
+              description: Scandinavian minimalist color scheme
+              title: Nordic Colors
             chinese:
               colors:
-                color-1: Hồng Bình Minh
-                color-2: Đỏ Trung Hoa
-                color-3: Nâu Khói
-                color-4: Xanh Tre
-                color-5: Tím Đậm
-                color-6: Vàng Óng
-                color-7: Xanh Lam Ngọc
-                color-8: Son Đất
+                color-1: Rosy Dawn
+                color-2: Chinese Red
+                color-3: Smoky Brown
+                color-4: Bamboo Green
+                color-5: Dark Purple
+                color-6: Golden Yellow
+                color-7: Azure Blue
+                color-8: Ochre
               description: >-
-                Màu sắc truyền thống Trung Hoa, bắt nguồn từ vải dệt cổ, gốm sứ và tranh vẽ
-              title: Màu Truyền Thống Trung Hoa
+                Traditional Chinese colors, derived from ancient textiles, porcelain and paintings
+              title: Chinese Traditional Colors
           title: Bộ Màu Có Sẵn
     title: Giao Diện
   page:

@@ -1,28 +1,28 @@
 operations:
-  load-models: Load Models
+  load-models: モデルの読み込み
   load-models-status:
-    loading: Loading
-    ready: Ready
+    loading: 読み込み中
+    ready: 準備完了
 docs:
   theme:
     navbar:
       appearance:
-        title: Appearance
+        title: 外観
 'controls-island':
   'fade-on-hover':
-    enable: Auto hide
-    disable: Always show
+    enable: 自動的に隠す
+    disable: 常に表示
 notice:
   'fade-on-hover':
-    title: Fade on Hover
-    intro: Automatically fades the character when your cursor roams nearby. It helps reduce distractions while keeping your character visible.
-    opacity: After turning on, the opacity drops to {value} for both {targets} when your cursor is nearby.
-    toggle: You can toggle it off by hovering at {controls}, then clicking the {icon} again.
-    controls-label: Controls Island
-    icon-label: eye-slash icon
+    title: ホバー時にフェード
+    intro: カーソルが近くを移動するとキャラクターが自動的にフェードアウトする。この仕組みは視界の妨げを抑えつつ、キャラクターを見失わないように保つ。
+    opacity: 有効にすると、カーソルが近くに来た時に、{targets} の不透明度が {value} に下がります。
+    toggle: '{controls}にカーソルを合わせて、もう一度 {icon} をクリックすることでオフに切り替えることができます。'
+    controls-label: コントロールアイランド
+    icon-label: eye-slash アイコン
     value: '0'
-    targets: Character and UI
-    confirm: Got it
-    preparing: Preparing…
-    read-more: Read more
-    preview-title: What is it?
+    targets: キャラクターとUI
+    confirm: 了解
+    preparing: 準備中…
+    read-more: 続きを読む
+    preview-title: これは何？
