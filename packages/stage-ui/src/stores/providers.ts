@@ -1931,6 +1931,18 @@ export const useProvidersStore = defineStore('providers', () => {
   // Available providers (only those that are properly configured)
   const availableProviders = computed(() => Object.keys(providerMetadata).filter(providerId => configuredProviders.value[providerId]))
 
+  async function resetProviderSettings() {
+    providerCredentials.value = {}
+    configuredProviders.value = {}
+    validatedCredentials.value = {}
+    availableModels.value = {}
+    isLoadingModels.value = {}
+    modelLoadError.value = {}
+
+    Object.keys(providerMetadata).forEach(initializeProvider)
+    await updateConfigurationStatus()
+  }
+
   // Store available models for each provider
   const availableModels = ref<Record<string, ModelInfo[]>>({})
   const isLoadingModels = ref<Record<string, boolean>>({})
@@ -2137,6 +2149,7 @@ export const useProvidersStore = defineStore('providers', () => {
     allAvailableModels,
     loadModelsForConfiguredProviders,
     getProviderInstance,
+    resetProviderSettings,
     availableProvidersMetadata,
     allChatProvidersMetadata,
     allAudioSpeechProvidersMetadata,

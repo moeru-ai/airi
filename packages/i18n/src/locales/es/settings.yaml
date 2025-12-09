@@ -70,7 +70,7 @@ pages:
     activate: Activar
     active: Activo
     active_badge: Actualmente Activo
-    cancel: Cancelar
+    cancel: Cancelar acción
     card_not_found: Tarjeta no encontrada
     character: Personaje
     close: Cerrar
@@ -147,6 +147,52 @@ pages:
   memory:
     description: Donde se almacenan y organizan las memorias
     title: Memoria
+  data:
+    title: Data
+    description: Manage stored AIRI data, exports, and resets
+    sections:
+      chats:
+        title: Chat sessions
+        description: Export or import saved chat sessions.
+        export: Export chats
+        import: Import chats
+        delete: Delete all chat sessions
+      models:
+        title: Models
+        description: Remove imported Live2D/VRM models.
+        delete: Delete all models
+      modules:
+        title: Modules
+        description: Reset module preferences and credentials.
+        reset: Reset module settings
+      providers:
+        title: Providers
+        description: Reset all provider settings and credentials.
+        reset: Reset provider settings
+      danger:
+        title: Danger zone
+        description: Irreversible actions. Export what you need before continuing.
+      all:
+        title: Delete all data
+        description: Wipe every local setting, provider config, and model.
+        delete: Delete all data
+      desktop:
+        title: Reset desktop settings & states
+        description: Clear AIRI desktop settings and runtime state.
+        reset: Reset desktop data
+    confirmations:
+      tooltip: Are you sure?
+      yes: Yes
+    status:
+      exported: Chat sessions exported.
+      imported: Chat sessions imported.
+      import_error: Failed to import chat sessions. Please check the file format.
+      chats_deleted: Chat sessions deleted.
+      models_deleted: Models deleted.
+      modules_reset: Module settings reset.
+      providers_reset: Provider settings reset.
+      all_deleted: All local data deleted.
+      desktop_reset: Desktop data reset.
   models:
     description: Live2D, VRM, etc.
     title: Modelos

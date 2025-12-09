@@ -3,7 +3,7 @@ import { BidirectionalTransition } from '@proj-airi/ui'
 import { computed } from 'vue'
 
 // Define button variants for better type safety and maintainability
-type ButtonVariant = 'primary' | 'secondary' | 'secondary-muted' | 'danger'
+type ButtonVariant = 'primary' | 'secondary' | 'secondary-muted' | 'danger' | 'caution'
 
 type ButtonTheme
   = | 'default'
@@ -65,6 +65,11 @@ const variantClasses: Record<ButtonVariant, {
   'danger': {
     default: {
       default: 'bg-red-500/15 hover:bg-red-500/20 active:bg-red-500/30 dark:bg-red-700/30 dark:hover:bg-red-700/40 dark:active:bg-red-700/30 focus:ring-red-300/30 dark:focus:ring-red-600/60 dark:focus:ring-red-600/30 border-2 border-solid border-red-200/30 dark:border-red-900/30 text-red-950 dark:text-red-100',
+    },
+  },
+  'caution': {
+    default: {
+      default: 'bg-amber-400/20 hover:bg-amber-400/25 active:bg-amber-400/35 dark:bg-amber-500/20 dark:hover:bg-amber-500/30 dark:active:bg-amber-500/35 focus:ring-amber-300/40 dark:focus:ring-amber-400/40 border-2 border-solid border-amber-300/40 dark:border-amber-500/40 text-amber-900 dark:text-amber-50',
     },
   },
 }

@@ -95,6 +95,10 @@ const routeHeaderMetadataMap = computed(() => {
       subtitle: t('settings.title'),
       title: t('settings.pages.providers.title'),
     },
+    '/settings/data': {
+      subtitle: t('settings.title'),
+      title: t('settings.pages.data.title'),
+    },
     '/settings/scene': {
       subtitle: t('settings.title'),
       title: t('settings.pages.scene.title'),

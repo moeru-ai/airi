@@ -64,6 +64,12 @@ const settings = computed(() => [
     to: '/settings/providers',
   },
   {
+    title: t('settings.pages.data.title'),
+    description: t('settings.pages.data.description'),
+    icon: 'i-solar:database-bold-duotone',
+    to: '/settings/data',
+  },
+  {
     title: t('settings.pages.system.title'),
     description: t('settings.pages.system.description'),
     icon: 'i-solar:filters-bold-duotone',

@@ -28,6 +28,7 @@ interface MessageContext {
 }
 
 type ChatEntry = (ChatMessage | ErrorMessage) & { context?: MessageContext }
+export type { ChatEntry }
 
 export interface ContextPayload {
   content?: unknown
@@ -164,6 +165,25 @@ export const useChatStore = defineStore('chat', () => {
         ts: Date.now(),
       },
     }]
+  }
+
+  function getAllSessions() {
+    return JSON.parse(JSON.stringify(toRaw(sessionMessages.value))) as Record<string, ChatEntry[]>
+  }
+
+  function replaceSessions(sessions: Record<string, ChatEntry[]>) {
+    sessionMessages.value = sessions
+    const [firstSessionId] = Object.keys(sessions)
+    if (!sessionMessages.value[activeSessionId.value] && firstSessionId)
+      activeSessionId.value = firstSessionId
+
+    ensureSession(activeSessionId.value)
+  }
+
+  function resetAllSessions() {
+    sessionMessages.value = {}
+    activeSessionId.value = 'default'
+    ensureSession(activeSessionId.value)
   }
 
   watch(systemPrompt, () => {
@@ -465,6 +485,9 @@ export const useChatStore = defineStore('chat', () => {
     ingestContextMessage,
     publishContextMessage,
     cleanupMessages,
+    getAllSessions,
+    replaceSessions,
+    resetAllSessions,
     clearHooks,
 
     onBeforeMessageComposed,

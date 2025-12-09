@@ -1,5 +1,6 @@
 export { default as Alert } from './Alert.vue'
 export { default as Collapsable } from './Collapsable.vue'
+export { default as DoubleCheckButton } from './DoubleCheckButton.vue'
 export { default as ErrorContainer } from './ErrorContainer.vue'
 export { default as Progress } from './Progress.vue'
 export { default as Screen } from './Screen.vue'
