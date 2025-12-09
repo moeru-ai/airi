@@ -1,4 +1,4 @@
-import type { ChatAssistantMessage, ChatMessage, ChatSlices } from '../../../types/chat'
+import type { ChatMessage, ChatSlices } from '../../../types/chat'
 
 export interface ChatErrorMessage {
   role: 'error'

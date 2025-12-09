@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ChatHistory } from '@proj-airi/stage-ui/components/scenarios/chat'
+import { ChatHistory } from '@proj-airi/stage-ui/components'
 import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
 import { useDeferredMount } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
