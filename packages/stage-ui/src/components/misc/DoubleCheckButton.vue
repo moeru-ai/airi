@@ -27,10 +27,10 @@ const emit = defineEmits<{
 }>()
 
 const slots = defineSlots<{
-  'default'?: () => unknown
-  'confirm'?: () => unknown
-  'cancel'?: () => unknown
-  'cancel-botton-icon'?: () => unknown
+  'default': (props: Record<string, unknown>) => unknown
+  'confirm': (props: Record<string, unknown>) => unknown
+  'cancel': (props: Record<string, unknown>) => unknown
+  'cancel-botton-icon': (props: Record<string, unknown>) => unknown
 }>()
 
 const confirming = ref(false)
