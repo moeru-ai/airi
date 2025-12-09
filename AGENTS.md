@@ -84,7 +84,7 @@ Concise but detailed reference for contributors working across the `moeru-ai/air
 
 ## Styling & Components
 
-- Prefer UnoCSS class arrays/attributes for readability: `:class="['px-2','py-1','flex','items-center','bg-white/50','dark:bg-black/50']"`; avoid long inline `class=""`. Refactor legacy when you touch it; prefer attributes/arrays over inline Tailwind blobs.
+- Prefer Vue v-bind class arrays for readability when working with UnoCSS & tailwindcss: do `:class="['px-2','py-1','flex','items-center','bg-white/50','dark:bg-black/50']"`, don't do `class="px-2 py-1 flex items-center bg-white/50 dark:bg-black/50"`, don't do `px="2" py="1" flex="~ items-center" bg="white/50 dark:black/50"`; avoid long inline `class=""`. Refactor legacy when you touch it.
 - Use/extend UnoCSS shortcuts/rules in `uno.config.ts`; add new shortcuts/rules/plugins there when standardizing styles. Prefer UnoCSS over Tailwind.
 - Check `apps/stage-web/src/styles` for existing animations; reuse or extend before adding new ones. If you need config references, see `apps/stage-web/tsconfig.json` and `uno.config.ts`.
 - Build primitives on `@proj-airi/ui` (reka-ui) instead of raw DOM; see `packages/ui/src/components/Form` for patterns.
