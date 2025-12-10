@@ -21,6 +21,7 @@ export async function packageJSONForVSCode(name: string) {
   }
 
   return {
+    json,
     originalName,
     originalVersion,
     name,

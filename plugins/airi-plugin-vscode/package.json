@@ -68,6 +68,7 @@
   },
   "dependencies": {
     "@guiiai/logg": "catalog:",
+    "@moeru/std": "catalog:",
     "@proj-airi/server-sdk": "workspace:*"
   },
   "devDependencies": {
