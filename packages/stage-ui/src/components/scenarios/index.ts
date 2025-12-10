@@ -1,3 +1,4 @@
+export * from './about'
 export * from './chat'
 export * from './dialogs'
 export * from './providers'

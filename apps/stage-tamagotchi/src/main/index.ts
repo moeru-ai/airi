@@ -19,6 +19,7 @@ import { openDebugger, setupDebugger } from './app/debugger'
 import { emitAppBeforeQuit, emitAppReady, emitAppWindowAllClosed, onAppBeforeQuit } from './libs/bootkit/lifecycle'
 import { setElectronMainDirname } from './libs/electron/location'
 import { setupChannelServer } from './services/airi/channel-server'
+import { setupAboutWindowReusable } from './windows/about'
 import { setupBeatSync } from './windows/beat-sync'
 import { setupCaptionWindowManager } from './windows/caption'
 import { setupChatWindowReusableFunc } from './windows/chat'
@@ -78,6 +79,7 @@ function setupTray(params: {
   captionWindow: ReturnType<typeof setupCaptionWindowManager>
   widgetsWindow: WidgetsWindowManager
   beatSyncBgWindow: BrowserWindow
+  aboutWindow: () => Promise<BrowserWindow>
 }): void {
   once(() => {
     const trayImage = nativeImage.createFromPath(isMacOS ? macOSTrayIcon : icon).resize({ width: 16 })
@@ -89,6 +91,7 @@ function setupTray(params: {
       { label: 'Show', click: () => toggleWindowShow(params.mainWindow) },
       { type: 'separator' },
       { label: 'Settings...', click: () => params.settingsWindow().then(window => toggleWindowShow(window)) },
+      { label: 'About...', click: () => params.aboutWindow().then(window => toggleWindowShow(window)) },
       { type: 'separator' },
       { label: 'Open Inlay...', click: () => setupInlayWindow() },
       { label: 'Open Widgets...', click: () => params.widgetsWindow.getWindow().then(window => toggleWindowShow(window)) },
@@ -128,6 +131,7 @@ app.whenReady().then(async () => {
   const channelServerModule = injeca.provide('modules:channel-server', async () => setupChannelServer())
   const widgetsManager = injeca.provide('windows:widgets', { build: () => setupWidgetsWindowManager() })
   const noticeWindow = injeca.provide('windows:notice', { build: () => setupNoticeWindowManager() })
+  const aboutWindow = injeca.provide('windows:about', { build: () => setupAboutWindowReusable() })
 
   // BeatSync will create a background window to capture and process audio.
   const beatSync = injeca.provide('windows:beat-sync', {
@@ -162,10 +166,10 @@ app.whenReady().then(async () => {
     build: async ({ dependsOn }) => setupCaptionWindowManager(dependsOn),
   })
   const tray = injeca.provide('app:tray', {
-    dependsOn: { mainWindow, settingsWindow, captionWindow, widgetsWindow: widgetsManager, beatSync },
+    dependsOn: { mainWindow, settingsWindow, captionWindow, widgetsWindow: widgetsManager, beatSync, aboutWindow },
     build: async ({ dependsOn }) => {
-      const { beatSync, ...setupArgs } = dependsOn
-      return setupTray({ ...setupArgs, beatSyncBgWindow: beatSync.window })
+      const { beatSync, aboutWindow, ...setupArgs } = dependsOn
+      return setupTray({ ...setupArgs, beatSyncBgWindow: beatSync.window, aboutWindow })
     },
   })
   injeca.invoke({

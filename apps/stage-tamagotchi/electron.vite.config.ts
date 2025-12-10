@@ -3,6 +3,7 @@ import { join, resolve } from 'node:path'
 import VueI18n from '@intlify/unplugin-vue-i18n/vite'
 import Vue from '@vitejs/plugin-vue'
 import UnoCss from 'unocss/vite'
+import Info from 'unplugin-info/vite'
 import VueMacros from 'unplugin-vue-macros/vite'
 import VueRouter from 'unplugin-vue-router/vite'
 import Yaml from 'unplugin-yaml/vite'
@@ -91,6 +92,8 @@ export default defineConfig({
     },
 
     plugins: [
+      Info(),
+
       {
         name: 'proj-airi:defines',
         config(ctx) {
