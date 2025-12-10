@@ -6,7 +6,7 @@ interface OPFSContext extends Live2DFactoryContext {
 
 declare global {
   interface FileSystemDirectoryHandle {
-    values(): AsyncIterableIterator<FileSystemDirectoryHandle | FileSystemFileHandle>
+    values: () => AsyncIterableIterator<FileSystemDirectoryHandle | FileSystemFileHandle>
   }
 }
 
@@ -60,6 +60,7 @@ export class OPFSCache {
     try {
       const root = await navigator.storage.getDirectory()
       const dirHandle = await root.getDirectoryHandle(key, { create: false })
+      // eslint-disable-next-line no-console
       console.debug(`[OPFS] Cache hit for ${key}`)
 
       const files = await OPFSCache.readDirectoryRecursive(dirHandle, '')
@@ -68,13 +69,14 @@ export class OPFSCache {
         return files
       }
     }
-    catch (e) {
+    catch {
       // Cache Miss
     }
     return null
   }
 
   static async save(key: string, files: File[]): Promise<void> {
+    // eslint-disable-next-line no-console
     console.debug(`[OPFS] Saving ${files.length} files to ${key}`)
 
     try {
@@ -94,6 +96,7 @@ export class OPFSCache {
         // reconstruct settings files from ModelSettings
         const settings: ModelSettings = (files as any).settings
         if (settings) {
+          // eslint-disable-next-line no-console
           console.debug('[OPFS] Reconstructing settings file...')
           const settingsJson = JSON.stringify(settings.json)
           const settingsFileName = settings.url || 'model.model3.json'
@@ -103,6 +106,7 @@ export class OPFSCache {
       }
 
       await Promise.all(writePromises)
+      // eslint-disable-next-line no-console
       console.debug(`[OPFS] Saved to cache`)
     }
     catch (e) {
@@ -145,6 +149,7 @@ export class OPFSCache {
     }
 
     // cache miss
+    // eslint-disable-next-line no-console
     console.debug(`[OPFS] Cache miss for ${key}`)
     context.opfsKey = key
 

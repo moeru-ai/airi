@@ -1931,6 +1931,11 @@ export const useProvidersStore = defineStore('providers', () => {
   // Available providers (only those that are properly configured)
   const availableProviders = computed(() => Object.keys(providerMetadata).filter(providerId => configuredProviders.value[providerId]))
 
+  // Store available models for each provider
+  const availableModels = ref<Record<string, ModelInfo[]>>({})
+  const isLoadingModels = ref<Record<string, boolean>>({})
+  const modelLoadError = ref<Record<string, string | null>>({})
+
   async function resetProviderSettings() {
     providerCredentials.value = {}
     configuredProviders.value = {}
@@ -1942,11 +1947,6 @@ export const useProvidersStore = defineStore('providers', () => {
     Object.keys(providerMetadata).forEach(initializeProvider)
     await updateConfigurationStatus()
   }
-
-  // Store available models for each provider
-  const availableModels = ref<Record<string, ModelInfo[]>>({})
-  const isLoadingModels = ref<Record<string, boolean>>({})
-  const modelLoadError = ref<Record<string, string | null>>({})
 
   // Function to fetch models for a specific provider
   async function fetchModelsForProvider(providerId: string) {

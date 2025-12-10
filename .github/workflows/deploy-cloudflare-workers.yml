@@ -57,7 +57,7 @@ jobs:
       # NOTICE:
       #
       # Here installing wrangler to global is required, or otherwise:
-      # ERR_PNPM_ADDING_TO_ROOT  Running this command will add the dependency to the workspace root...
+      # ERR_PNPM_ADDING_TO_ROOT Running this command will add the dependency to the workspace root...
       # error occurs.
       #
       # Since https://github.com/cloudflare/wrangler-action/pull/339#issuecomment-2667622947 rejected the -g support

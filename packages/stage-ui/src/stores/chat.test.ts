@@ -56,7 +56,9 @@ vi.mock('./mods/api/channel-server', () => ({
     initialize: mockInitialize,
     onContextUpdate: (cb: typeof contextUpdateHandler) => {
       contextUpdateHandler = cb
-      return () => { contextUpdateHandler = null }
+      return () => {
+        contextUpdateHandler = null
+      }
     },
     sendContextUpdate: mockSendContextUpdate,
   }),
