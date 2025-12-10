@@ -1,7 +1,7 @@
 # https://rust-lang.github.io/rustup/overrides.html#the-toolchain-file
 
 [toolchain]
-channel = "stable"
+channel = "1.89.0"
 # https://rust-lang.github.io/rustup/concepts/components.html
 components = [
   "rustc",
