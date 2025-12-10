@@ -70,7 +70,7 @@ pages:
     activate: Kích hoạt
     active: Đang hoạt động
     active_badge: Hiện đang hoạt động
-    cancel: Hủy thao tác
+    cancel: Cancel action
     card_not_found: Không tìm thấy thẻ
     character: Nhân vật
     close: Đóng

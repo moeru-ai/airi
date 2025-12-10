@@ -70,7 +70,7 @@ pages:
     activate: Активировать
     active: Активно
     active_badge: Текущая
-    cancel: Отменить действие
+    cancel: Cancel action
     card_not_found: Карта не найдена
     character: Персонаж
     close: Закрыть
