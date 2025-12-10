@@ -28,6 +28,7 @@ export default defineConfig({
   ],
 }, {
   rules: {
+    'pnpm/json-valid-catalog': 'off',
     'antfu/import-dedupe': 'error',
     // TODO: remove this
     'depend/ban-dependencies': 'warn',

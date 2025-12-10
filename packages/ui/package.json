@@ -24,13 +24,13 @@
     "typecheck": "vue-tsc --noEmit"
   },
   "dependencies": {
-    "@vueuse/core": "^14.0.0",
+    "@vueuse/core": "^14.1.0",
     "floating-vue": "^5.2.2",
-    "reka-ui": "^2.6.0",
-    "vue": "^3.5.24"
+    "reka-ui": "^2.6.1",
+    "vue": "^3.5.25"
   },
   "devDependencies": {
     "@vue-macros/volar": "3.0.0-beta.8",
-    "vue-tsc": "^3.1.4"
+    "vue-tsc": "^3.1.8"
   }
 }
