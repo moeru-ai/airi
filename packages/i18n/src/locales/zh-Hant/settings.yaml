@@ -70,7 +70,7 @@ pages:
     activate: 啟用
     active: 已啟用
     active_badge: 目前使用中
-    cancel: 取消操作
+    cancel: Cancel action
     card_not_found: 找不到角色卡
     character: 角色設定
     close: 關閉

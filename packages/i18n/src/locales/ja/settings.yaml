@@ -70,7 +70,7 @@ pages:
     activate: 有効化
     active: 有効
     active_badge: 現在有効
-    cancel: 操作をキャンセル
+    cancel: Cancel action
     card_not_found: カードが見つかりません
     character: キャラクター
     close: 閉じる
