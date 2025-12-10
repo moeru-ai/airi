@@ -94,7 +94,7 @@ export function useLive2DMotionManagerUpdate(options: UseLive2DMotionManagerUpda
 
     if (!ctx.handled && ctx.hookedUpdate) {
       const result = ctx.hookedUpdate.call(motionManager, model, now)
-      if (Boolean(result))
+      if (result)
         ctx.handled = true
     }
 

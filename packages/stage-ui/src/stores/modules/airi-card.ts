@@ -1,6 +1,5 @@
 import type { Card, ccv3 } from '@proj-airi/ccc'
 
-import { useLocalStorage } from '@vueuse/core'
 import { nanoid } from 'nanoid'
 import { defineStore, storeToRefs } from 'pinia'
 import { computed, onMounted, watch } from 'vue'
@@ -8,6 +7,7 @@ import { useI18n } from 'vue-i18n'
 
 import SystemPromptV2 from '../../constants/prompts/system-v2'
 
+import { createResettableLocalStorage } from '../../utils/resettable'
 import { useConsciousnessStore } from './consciousness'
 import { useSpeechStore } from './speech'
 
@@ -54,8 +54,8 @@ export interface AiriCard extends Card {
 }
 
 export const useAiriCardStore = defineStore('airi-card', () => {
-  const cards = useLocalStorage<Map<string, AiriCard>>('airi-cards', new Map())
-  const activeCardId = useLocalStorage('airi-card-active-id', 'default')
+  const [cards, resetCards] = createResettableLocalStorage<Map<string, AiriCard>>('airi-cards', new Map())
+  const [activeCardId, resetActiveCardId] = createResettableLocalStorage('airi-card-active-id', 'default')
 
   const activeCard = computed(() => cards.value.get(activeCardId.value))
 
@@ -208,6 +208,11 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     activeSpeechVoiceId.value = extension?.modules?.speech?.voice_id
   })
 
+  function resetState() {
+    resetActiveCardId()
+    resetCards()
+  }
+
   return {
     cards,
     activeCard,
@@ -215,6 +220,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     addCard,
     removeCard,
     getCard,
+    resetState,
 
     currentModels: computed(() => {
       return {

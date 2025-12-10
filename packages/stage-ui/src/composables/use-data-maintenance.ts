@@ -1,6 +1,11 @@
+import type { ChatEntry } from '../stores/chat'
+
 import { isStageTamagotchi } from '@proj-airi/stage-shared'
-import { DEFAULT_THEME_COLORS_HUE, useSettings, useSettingsAudioDevice } from '../stores/settings'
-import { defaultModelParameters, useLive2d } from '../stores/live2d'
+
+import { useChatStore } from '../stores/chat'
+import { useDisplayModelsStore } from '../stores/display-models'
+import { useLive2d } from '../stores/live2d'
+import { useMcpStore } from '../stores/mcp'
 import { useAiriCardStore } from '../stores/modules/airi-card'
 import { useConsciousnessStore } from '../stores/modules/consciousness'
 import { useDiscordStore } from '../stores/modules/discord'
@@ -9,12 +14,9 @@ import { useMinecraftStore } from '../stores/modules/gaming-minecraft'
 import { useHearingStore } from '../stores/modules/hearing'
 import { useSpeechStore } from '../stores/modules/speech'
 import { useTwitterStore } from '../stores/modules/twitter'
-import type { ChatEntry } from '../stores/chat'
-import { useChatStore } from '../stores/chat'
-import { useDisplayModelsStore } from '../stores/display-models'
-import { useMcpStore } from '../stores/mcp'
 import { useOnboardingStore } from '../stores/onboarding'
 import { useProvidersStore } from '../stores/providers'
+import { useSettings, useSettingsAudioDevice } from '../stores/settings'
 
 export function useDataMaintenance() {
   const chatStore = useChatStore()
@@ -45,45 +47,13 @@ export function useDataMaintenance() {
   }
 
   function resetModulesSettings() {
-    hearingStore.activeTranscriptionProvider = ''
-    hearingStore.activeTranscriptionModel = ''
-    hearingStore.activeCustomModelName = ''
-
-    speechStore.activeSpeechProvider = ''
-    speechStore.activeSpeechModel = 'eleven_multilingual_v2'
-    speechStore.activeSpeechVoiceId = ''
-    speechStore.activeSpeechVoice = undefined
-    speechStore.pitch = 0
-    speechStore.rate = 1
-    speechStore.ssmlEnabled = false
-    speechStore.selectedLanguage = 'en-US'
-
-    consciousnessStore.activeProvider = ''
-    consciousnessStore.activeModel = ''
-    consciousnessStore.activeCustomModelName = ''
-
-    twitterStore.enabled = false
-    twitterStore.apiKey = ''
-    twitterStore.apiSecret = ''
-    twitterStore.accessToken = ''
-    twitterStore.accessTokenSecret = ''
-    twitterStore.saveSettings()
-
-    discordStore.enabled = false
-    discordStore.token = ''
-    discordStore.saveSettings()
-
-    factorioStore.enabled = false
-    factorioStore.serverAddress = ''
-    factorioStore.serverPort = 34197
-    factorioStore.username = ''
-    factorioStore.saveSettings()
-
-    minecraftStore.enabled = false
-    minecraftStore.serverAddress = ''
-    minecraftStore.serverPort = 25565
-    minecraftStore.username = ''
-    minecraftStore.saveSettings()
+    hearingStore.resetState()
+    speechStore.resetState()
+    consciousnessStore.resetState()
+    twitterStore.resetState()
+    discordStore.resetState()
+    factorioStore.resetState()
+    minecraftStore.resetState()
   }
 
   function deleteAllChatSessions() {
@@ -107,42 +77,13 @@ export function useDataMaintenance() {
     chatStore.replaceSessions(sessions)
   }
 
-  function resetSettingsState() {
-    settingsStore.language = ''
-    settingsStore.stageModelSelected = 'preset-live2d-1'
-    settingsStore.stageViewControlsEnabled = false
-
-    settingsStore.live2dDisableFocus = false
-    settingsStore.live2dIdleAnimationEnabled = true
-    settingsStore.live2dAutoBlinkEnabled = true
-    settingsStore.live2dShadowEnabled = true
-
-    settingsStore.disableTransitions = true
-    settingsStore.usePageSpecificTransitions = true
-
-    settingsStore.themeColorsHue = DEFAULT_THEME_COLORS_HUE
-    settingsStore.themeColorsHueDynamic = false
-
-    settingsStore.allowVisibleOnAllWorkspaces = true
-
-    audioSettingsStore.enabled = false
-    audioSettingsStore.selectedAudioInput = ''
-    audioSettingsStore.stopStream()
-
-    live2dStore.position = { x: 0, y: 0 }
-    live2dStore.scale = 1
-    live2dStore.motionMap = {}
-    live2dStore.modelParameters = { ...defaultModelParameters }
-
-    mcpStore.serverCmd = ''
-    mcpStore.serverArgs = ''
-    mcpStore.connected = false
-
+  async function resetSettingsState() {
+    await settingsStore.resetState()
+    audioSettingsStore.resetState()
+    live2dStore.resetState()
+    mcpStore.resetState()
     onboardingStore.resetSetupState()
-    airiCardStore.activeCardId = 'default'
-    airiCardStore.cards = new Map()
-
-    void settingsStore.updateStageModel()
+    airiCardStore.resetState()
   }
 
   async function deleteAllData() {
@@ -150,14 +91,14 @@ export function useDataMaintenance() {
     await resetProvidersSettings()
     resetModulesSettings()
     deleteAllChatSessions()
-    resetSettingsState()
+    await resetSettingsState()
   }
 
-  function resetDesktopApplicationState() {
+  async function resetDesktopApplicationState() {
     if (!isStageTamagotchi())
       return
 
-    resetSettingsState()
+    await resetSettingsState()
     resetModulesSettings()
   }
 

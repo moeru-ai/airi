@@ -2,11 +2,12 @@ import type { DisplayModel } from './display-models'
 
 import messages from '@proj-airi/i18n/locales'
 
-import { useEventListener, useLocalStorage } from '@vueuse/core'
+import { useEventListener } from '@vueuse/core'
 import { converter } from 'culori'
 import { defineStore } from 'pinia'
-import { onMounted, ref, watch } from 'vue'
+import { onMounted, watch } from 'vue'
 
+import { createResettableLocalStorage, createResettableRef } from '../utils/resettable'
 import { useAudioDevice } from './audio'
 import { DisplayModelFormat, useDisplayModelsStore } from './display-models'
 
@@ -37,12 +38,12 @@ const getHueFrom = (color?: string) => color ? convert(color)?.h : DEFAULT_THEME
 export const useSettings = defineStore('settings', () => {
   const displayModelsStore = useDisplayModelsStore()
 
-  const language = useLocalStorage('settings/language', '')
+  const [language, resetLanguage] = createResettableLocalStorage('settings/language', '')
 
-  const stageModelSelected = useLocalStorage<string | undefined>('settings/stage/model', 'preset-live2d-1')
-  const stageModelSelectedDisplayModel = ref<DisplayModel | undefined>()
-  const stageModelSelectedUrl = ref<string>()
-  const stageModelRenderer = ref<'live2d' | 'vrm' | 'disabled'>()
+  const [stageModelSelected, resetStageModelSelected] = createResettableLocalStorage<string | undefined>('settings/stage/model', 'preset-live2d-1')
+  const [stageModelSelectedDisplayModel, resetStageModelSelectedDisplayModel] = createResettableRef<DisplayModel | undefined>(undefined)
+  const [stageModelSelectedUrl, resetStageModelSelectedUrl] = createResettableRef<string | undefined>(undefined)
+  const [stageModelRenderer, resetStageModelRenderer] = createResettableRef<'live2d' | 'vrm' | 'disabled' | undefined>(undefined)
 
   async function updateStageModel() {
     if (!stageModelSelected.value) {
@@ -96,20 +97,20 @@ export const useSettings = defineStore('settings', () => {
     }
   })
 
-  const stageViewControlsEnabled = ref(false)
+  const [stageViewControlsEnabled, resetStageViewControlsEnabled] = createResettableRef(false)
 
-  const live2dDisableFocus = useLocalStorage('settings/live2d/disable-focus', false)
-  const live2dIdleAnimationEnabled = useLocalStorage('settings/live2d/idle-animation-enabled', true)
-  const live2dAutoBlinkEnabled = useLocalStorage('settings/live2d/auto-blink-enabled', true)
-  const live2dShadowEnabled = useLocalStorage('settings/live2d/shadow-enabled', true)
+  const [live2dDisableFocus, resetLive2dDisableFocus] = createResettableLocalStorage('settings/live2d/disable-focus', false)
+  const [live2dIdleAnimationEnabled, resetLive2dIdleAnimationEnabled] = createResettableLocalStorage('settings/live2d/idle-animation-enabled', true)
+  const [live2dAutoBlinkEnabled, resetLive2dAutoBlinkEnabled] = createResettableLocalStorage('settings/live2d/auto-blink-enabled', true)
+  const [live2dShadowEnabled, resetLive2dShadowEnabled] = createResettableLocalStorage('settings/live2d/shadow-enabled', true)
 
-  const disableTransitions = useLocalStorage('settings/disable-transitions', true)
-  const usePageSpecificTransitions = useLocalStorage('settings/use-page-specific-transitions', true)
+  const [disableTransitions, resetDisableTransitions] = createResettableLocalStorage('settings/disable-transitions', true)
+  const [usePageSpecificTransitions, resetUsePageSpecificTransitions] = createResettableLocalStorage('settings/use-page-specific-transitions', true)
 
-  const themeColorsHue = useLocalStorage('settings/theme/colors/hue', DEFAULT_THEME_COLORS_HUE)
-  const themeColorsHueDynamic = useLocalStorage('settings/theme/colors/hue-dynamic', false)
+  const [themeColorsHue, resetThemeColorsHue] = createResettableLocalStorage('settings/theme/colors/hue', DEFAULT_THEME_COLORS_HUE)
+  const [themeColorsHueDynamic, resetThemeColorsHueDynamic] = createResettableLocalStorage('settings/theme/colors/hue-dynamic', false)
 
-  const allowVisibleOnAllWorkspaces = useLocalStorage('settings/allow-visible-on-all-workspaces', true)
+  const [allowVisibleOnAllWorkspaces, resetAllowVisibleOnAllWorkspaces] = createResettableLocalStorage('settings/allow-visible-on-all-workspaces', true)
 
   function getLanguage() {
     let language = localStorage.getItem('settings/language')
@@ -158,6 +159,33 @@ export const useSettings = defineStore('settings', () => {
     return hueDifference < 0.01 || hueDifference > 359.99
   }
 
+  async function resetState() {
+    if (stageModelSelectedUrl.value)
+      URL.revokeObjectURL(stageModelSelectedUrl.value)
+
+    resetLanguage()
+    resetStageModelSelected()
+    resetStageModelSelectedDisplayModel()
+    resetStageModelSelectedUrl()
+    resetStageModelRenderer()
+    resetStageViewControlsEnabled()
+
+    resetLive2dDisableFocus()
+    resetLive2dIdleAnimationEnabled()
+    resetLive2dAutoBlinkEnabled()
+    resetLive2dShadowEnabled()
+
+    resetDisableTransitions()
+    resetUsePageSpecificTransitions()
+
+    resetThemeColorsHue()
+    resetThemeColorsHueDynamic()
+
+    resetAllowVisibleOnAllWorkspaces()
+
+    await updateStageModel()
+  }
+
   onMounted(() => language.value = getLanguage())
 
   return {
@@ -185,14 +213,15 @@ export const useSettings = defineStore('settings', () => {
     isColorSelectedForPrimary,
     initializeStageModel,
     updateStageModel,
+    resetState,
   }
 })
 
 export const useSettingsAudioDevice = defineStore('settings-audio-devices', () => {
   const { audioInputs, deviceConstraints, selectedAudioInput: selectedAudioInputNonPersist, startStream, stopStream, stream, askPermission } = useAudioDevice()
 
-  const selectedAudioInputPersist = useLocalStorage('settings/audio/input', selectedAudioInputNonPersist.value)
-  const selectedAudioInputEnabledPersist = useLocalStorage('settings/audio/input/enabled', false)
+  const [selectedAudioInputPersist, resetSelectedAudioInputPersist] = createResettableLocalStorage('settings/audio/input', selectedAudioInputNonPersist.value)
+  const [selectedAudioInputEnabledPersist, resetSelectedAudioInputEnabledPersist] = createResettableLocalStorage('settings/audio/input/enabled', false)
 
   watch(selectedAudioInputPersist, (newValue) => {
     selectedAudioInputNonPersist.value = newValue
@@ -216,6 +245,13 @@ export const useSettingsAudioDevice = defineStore('settings-audio-devices', () =
     }
   })
 
+  function resetState() {
+    resetSelectedAudioInputPersist()
+    selectedAudioInputNonPersist.value = ''
+    resetSelectedAudioInputEnabledPersist()
+    stopStream()
+  }
+
   return {
     audioInputs,
     deviceConstraints,
@@ -227,5 +263,6 @@ export const useSettingsAudioDevice = defineStore('settings-audio-devices', () =
     askPermission,
     startStream,
     stopStream,
+    resetState,
   }
 })
