@@ -6,7 +6,7 @@ interface OPFSContext extends Live2DFactoryContext {
 
 declare global {
   interface FileSystemDirectoryHandle {
-    values: () => AsyncIterableIterator<FileSystemDirectoryHandle | FileSystemFileHandle>
+    values: () => FileSystemDirectoryHandleAsyncIterator<FileSystemHandle>
   }
 }
 
