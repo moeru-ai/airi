@@ -21,6 +21,7 @@ jobs:
           download_translations: true
           localization_branch_name: crowdin
           create_pull_request: true
+          commit_message: 'chore(i18n): update translations'
           pull_request_title: 'chore(i18n): update translations'
           pull_request_body: 'This PR contains updated translations from Crowdin. Created from [GitHub Actions](https://github.com/moeru-ai/airi/blob/main/.github/workflows/crowdin.yaml).\n\n You can review the source of translations [here](https://crowdin.com/project/proj-airi)'
           pull_request_base_branch_name: main
