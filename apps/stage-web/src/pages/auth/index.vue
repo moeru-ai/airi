@@ -3,7 +3,10 @@ import { RouterView } from 'vue-router'
 </script>
 
 <template>
-  <main h-full font-cute>
-    <RouterView />
-  </main>
+  <RouterView />
 </template>
+
+<route lang="yaml">
+meta:
+  layout: plain
+</route>
