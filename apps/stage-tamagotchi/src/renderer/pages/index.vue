@@ -31,7 +31,6 @@ import {
 import { useControlsIslandStore } from '../stores/controls-island'
 import { useWindowStore } from '../stores/window'
 
-const resourceStatusIslandRef = ref<InstanceType<typeof ResourceStatusIsland>>()
 const controlsIslandRef = ref<InstanceType<typeof ControlsIsland>>()
 const widgetStageRef = ref<{ canvasElement: () => HTMLCanvasElement }>()
 const stageCanvas = toRef(() => widgetStageRef.value?.canvasElement())
@@ -218,7 +217,7 @@ watch([stream, () => vadLoaded.value], async ([s, loaded]) => {
           'transition-opacity duration-250 ease-in-out',
         ]"
       >
-        <ResourceStatusIsland ref="resourceStatusIslandRef" />
+        <ResourceStatusIsland />
         <WidgetStage
           ref="widgetStageRef"
           v-model:state="componentStateStage"

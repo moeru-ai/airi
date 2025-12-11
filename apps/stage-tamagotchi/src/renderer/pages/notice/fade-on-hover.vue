@@ -20,7 +20,6 @@ const { t } = useI18n()
 
 const descriptionContainerRef = ref<HTMLDivElement>()
 const { isOutside } = useMouseInElement(descriptionContainerRef)
-const descriptionContainerTitleRef = ref<HTMLDivElement>()
 const descriptionOpenImmediate = computed(() => !isOutside.value)
 const descriptionOpen = refDebounced(descriptionOpenImmediate, 80)
 
@@ -118,7 +117,7 @@ async function handleAction(action: 'confirm' | 'cancel' | 'close') {
           >
             <div class="space-y-2">
               <div class="flex items-center gap-3">
-                <div ref="descriptionContainerTitleRef" class="line-clamp-1 min-h-full flex-1 overflow-hidden text-ellipsis text-lg font-semibold space-y-0.5">
+                <div class="line-clamp-1 min-h-full flex-1 overflow-hidden text-ellipsis text-lg font-semibold space-y-0.5">
                   <template v-if="!descriptionOpen">
                     <i18n-t keypath="tamagotchi.stage.notice.fade-on-hover.opacity" tag="div">
                       <template #value>

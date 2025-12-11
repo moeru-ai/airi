@@ -9,7 +9,6 @@ interface Point {
   y: number
 }
 
-const containerRef = ref<HTMLDivElement>()
 const canvasContainerRef = ref<HTMLDivElement>()
 const canvasRef = ref<HTMLCanvasElement>()
 const canvasContext = ref<CanvasRenderingContext2D | undefined | null>()
@@ -129,7 +128,7 @@ watch(pointThrottled, (point) => {
 </script>
 
 <template>
-  <div ref="containerRef" h="[calc(100dvh-40px)]">
+  <div h="[calc(100dvh-40px)]">
     <div relative h-full>
       <div bg="neutral-100/50 dark:neutral-900/50" absolute inset-0 h-fit rounded-xl px-3 py-2 font-mono shadow-md backdrop-blur-md grid="~ cols-[150px_1fr]">
         <div text="neutral-400 dark:neutral-600">

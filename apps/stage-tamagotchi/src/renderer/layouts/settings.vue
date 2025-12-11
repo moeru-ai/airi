@@ -2,7 +2,7 @@
 import { PageHeader } from '@proj-airi/stage-ui/components'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { storeToRefs } from 'pinia'
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterView, useRoute } from 'vue-router'
 
@@ -14,6 +14,8 @@ const route = useRoute()
 const { t } = useI18n()
 const providersStore = useProvidersStore()
 const { allProvidersMetadata } = storeToRefs(providersStore)
+const scrollContainer = ref<HTMLElement>()
+useRestoreScroll(scrollContainer)
 
 const routeHeaderMetadataMap = computed(() => {
   const map: Record<string, { subtitle?: string, title: string }> = {
@@ -134,8 +136,6 @@ const routeHeaderMetadataMap = computed(() => {
 const routeHeaderMetadata = computed(() => {
   return routeHeaderMetadataMap.value[route.path] || routeHeaderMetadataMap.value[`${route.path}/`]
 })
-
-const { scrollContainer } = useRestoreScroll()
 </script>
 
 <template>
