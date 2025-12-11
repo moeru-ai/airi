@@ -70,7 +70,7 @@ pages:
     activate: 有効化
     active: 有効
     active_badge: 現在有効
-    cancel: Cancel action
+    cancel: 操作の取消
     card_not_found: カードが見つかりません
     character: キャラクター
     close: 閉じる
@@ -148,51 +148,51 @@ pages:
     description: 記憶が保存され、整理される場所
     title: 記憶
   data:
-    title: Data
-    description: Manage stored AIRI data, exports, and resets
+    title: データ
+    description: AIRIデータの保存、エクスポート、およびリセットの管理
     sections:
       chats:
-        title: Chat sessions
-        description: Export or import saved chat sessions.
-        export: Export chats
-        import: Import chats
-        delete: Delete all chat sessions
+        title: チャット セッション
+        description: 保存されたチャットセッションをエクスポートまたはインポートします。
+        export: チャットをエクスポート
+        import: チャットをインポート
+        delete: 全てのチャットセッションを削除
       models:
-        title: Models
-        description: Remove imported Live2D/VRM models.
-        delete: Delete all models
+        title: モデル
+        description: インポートされた Live2D/VRM モデルを削除。
+        delete: すべてのモデルを削除
       modules:
-        title: Modules
-        description: Reset module preferences and credentials.
-        reset: Reset module settings
+        title: モジュール
+        description: モジュールの設定と認証情報をリセットします。
+        reset: モジュールの設定をリセット
       providers:
-        title: Providers
-        description: Reset all provider settings and credentials.
-        reset: Reset provider settings
+        title: プロバイダー
+        description: すべてのプロバイダーの設定と資格情報をリセットします。
+        reset: プロバイダーの設定をリセット
       danger:
-        title: Danger zone
-        description: Irreversible actions. Export what you need before continuing.
+        title: 危険区域
+        description: この操作は元に戻せません。続行する前に必要なものをエクスポートしてください。
       all:
-        title: Delete all data
-        description: Wipe every local setting, provider config, and model.
-        delete: Delete all data
+        title: すべてのデータを削除
+        description: すべてのローカルの設定、プロバイダーの設定、モデルを消去します。
+        delete: すべてのデータを削除
       desktop:
-        title: Reset desktop settings & states
-        description: Clear AIRI desktop settings and runtime state.
-        reset: Reset desktop data
+        title: デスクトップの設定と状態をリセット
+        description: AIRIデスクトップの設定と実行時の状態を消去します。
+        reset: デスクトップのデータをリセット
     confirmations:
-      tooltip: Are you sure?
+      tooltip: 本当によろしいですか？
       yes: Yes
     status:
-      exported: Chat sessions exported.
-      imported: Chat sessions imported.
-      import_error: Failed to import chat sessions. Please check the file format.
-      chats_deleted: Chat sessions deleted.
-      models_deleted: Models deleted.
-      modules_reset: Module settings reset.
-      providers_reset: Provider settings reset.
-      all_deleted: All local data deleted.
-      desktop_reset: Desktop data reset.
+      exported: チャットセッションをエクスポートしました。
+      imported: チャットセッションをインポートしました。
+      import_error: チャットセッションのインポートに失敗しました。ファイルの形式を確認してください。
+      chats_deleted: チャットセッションを削除しました。
+      models_deleted: モデルを削除しました。
+      modules_reset: モジュールの設定をリセットしました。
+      providers_reset: プロバイダーの設定をリセットしました。
+      all_deleted: すべてのローカルデータを削除しました。
+      desktop_reset: デスクトップのデータをリセットしました。
   models:
     description: Live2D、VRMなど。
     title: モデル
@@ -649,70 +649,70 @@ pages:
           presets:
             default:
               colors:
-                color-1: AIRI Green
-              description: The default greenish theme color, brought by AIRI to you!
-              title: Default Color
+                color-1: AIRIグリーン
+              description: AIRIによって用意された、デフォルトの緑がかったテーマカラー！
+              title: デフォルトカラー
             morandi:
               colors:
-                color-1: Taupe
-                color-2: Beige
-                color-3: Ash Grey
-                color-4: Light Taupe
-                color-5: Ivory
-                color-6: Olive Grey
-                color-7: Sand
-                color-8: Warm Grey
-              description: Soft, muted tones inspired by Giorgio Morandi's paintings
-              title: Morandi Colors
+                color-1: トープ
+                color-2: ベージュ
+                color-3: アッシュグレー
+                color-4: ライトトープ
+                color-5: アイボリー
+                color-6: オリーブグレー
+                color-7: サンド
+                color-8: ウォームグレー
+              description: ジョルジョ・モランディの絵画から着想を得た、柔らかく落ち着いたトーン
+              title: モランディカラー
             monet:
               colors:
-                color-1: Sky Blue
-                color-2: Mist
-                color-3: Sand
-                color-4: Moss Green
-                color-5: Water Lily
-                color-6: Wheat
-                color-7: Slate Blue
-                color-8: Sage
-              description: Impressionist palette inspired by Claude Monet's works
-              title: Monet Colors
+                color-1: スカイブルー
+                color-2: ミスト
+                color-3: サンド
+                color-4: モスグリーン
+                color-5: スイレン
+                color-6: 小麦色
+                color-7: スレートブルー
+                color-8: セージ
+              description: クロード・モネの作品から着想を得た、印象派のパレット
+              title: モネカラー
             japanese:
               colors:
-                color-1: Tan
-                color-2: Warm Taupe
-                color-3: Umber
-                color-4: Coffee
-                color-5: Bronze
-                color-6: Gold
-                color-7: Mustard
-                color-8: Amber
-              description: Traditional Japanese color palette
-              title: Japanese Colors
+                color-1: 薄茶色
+                color-2: 温かみのある灰茶色
+                color-3: 暗い茶褐色
+                color-4: コーヒー
+                color-5: ブロンズ
+                color-6: ゴールド
+                color-7: マスタード
+                color-8: 琥珀色
+              description: 日本の伝統的な色調をもとにしたカラーパレット
+              title: 日本の色
             nordic:
               colors:
-                color-1: Nordic Blue
-                color-2: Ice
-                color-3: Fjord
-                color-4: Steel
-                color-5: Glacier
-                color-6: Slate
-                color-7: Cloud
-                color-8: Stone
-              description: Scandinavian minimalist color scheme
-              title: Nordic Colors
+                color-1: ノルディックブルー
+                color-2: アイス
+                color-3: フィヨルド
+                color-4: スチール
+                color-5: 氷河
+                color-6: スレート
+                color-7: 雲
+                color-8: 石
+              description: スカンジナビアのミニマリストな配色
+              title: 北欧カラー
             chinese:
               colors:
-                color-1: Rosy Dawn
-                color-2: Chinese Red
-                color-3: Smoky Brown
-                color-4: Bamboo Green
-                color-5: Dark Purple
-                color-6: Golden Yellow
-                color-7: Azure Blue
-                color-8: Ochre
+                color-1: バラ色
+                color-2: チャイニーズレッド
+                color-3: スモーキーブラウン
+                color-4: 竹緑色
+                color-5: 濃紫
+                color-6: 黄金色
+                color-7: 群青
+                color-8: 黄土色
               description: >-
-                Traditional Chinese colors, derived from ancient textiles, porcelain and paintings
-              title: Chinese Traditional Colors
+                古代の染織品や陶磁器、絵画に由来する中国の伝統色
+              title: 中国の伝統色
           title: 配色プリセット
     title: システム
   page:
