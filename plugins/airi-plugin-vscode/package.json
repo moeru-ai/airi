@@ -66,12 +66,10 @@
     "publish": "tsx ./scripts/publish.ts",
     "typecheck": "tsc --noEmit"
   },
-  "dependencies": {
+  "devDependencies": {
     "@guiiai/logg": "catalog:",
     "@moeru/std": "catalog:",
-    "@proj-airi/server-sdk": "workspace:*"
-  },
-  "devDependencies": {
+    "@proj-airi/server-sdk": "workspace:*",
     "@types/vscode": "^1.106.1",
     "tinyexec": "^1.0.2",
     "vscode-ext-gen": "^1.4.0"

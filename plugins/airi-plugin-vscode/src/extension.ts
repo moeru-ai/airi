@@ -1,8 +1,9 @@
 import type * as vscode from 'vscode'
 
 import { initLogger, LoggerFormat, LoggerLevel, useLogger } from '@guiiai/logg'
+import { commands, window, workspace } from 'vscode'
 
-import { Client } from './airi-client'
+import { Client } from './airi'
 import { ContextCollector } from './context-collector'
 
 let client: Client
@@ -16,8 +17,6 @@ let eventListeners: vscode.Disposable[] = []
  */
 export async function activate(context: vscode.ExtensionContext) {
   initLogger(LoggerLevel.Debug, LoggerFormat.Pretty)
-
-  const { window, workspace, commands } = await import('vscode')
 
   useLogger().log('AIRI is activating...')
 
@@ -35,10 +34,10 @@ export async function activate(context: vscode.ExtensionContext) {
   if (isEnabled) {
     const connected = await client.connect()
     if (connected) {
-      window.showInformationMessage('AIRI server channel connected!')
+      window.showInformationMessage('AIRI Server Channel connected!')
     }
     else {
-      window.showWarningMessage('AIRI server channel connection failed!')
+      window.showWarningMessage('AIRI Server Channel connection failed!')
     }
   }
 
@@ -60,7 +59,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
     commands.registerCommand('airi-vscode.status', () => {
       const status = isEnabled && client ? 'Connected' : 'Disconnected'
-      window.showInformationMessage(`AIRI server channel status: ${status}.`)
+      window.showInformationMessage(`AIRI Server Channel status: ${status}.`)
     }),
   )
 
@@ -77,8 +76,6 @@ export async function activate(context: vscode.ExtensionContext) {
  */
 async function registerListeners(sendInterval: number) {
   unregisterListeners()
-
-  const { window, workspace } = await import('vscode')
 
   // File save event
   eventListeners.push(
@@ -136,7 +133,6 @@ function startMonitoring(interval: number) {
     if (!isEnabled)
       return
 
-    const { window } = await import('vscode')
     const editor = window.activeTextEditor
     if (!editor)
       return
