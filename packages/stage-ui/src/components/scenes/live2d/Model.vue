@@ -73,6 +73,8 @@ function parsePropsOffset() {
 const modelSrcRef = toRef(() => props.modelSrc)
 
 const modelLoading = ref(false)
+// NOTICE: boolean is sufficient; this flag is only used inside loadModel to bail out if the component unmounts mid-load.
+let isUnmounted = false
 
 const offset = computed(() => parsePropsOffset())
 
@@ -154,13 +156,21 @@ async function loadModel() {
   modelLoading.value = true
   componentState.value = 'loading'
 
-  if (!pixiApp.value) {
-    modelLoading.value = false
-    componentState.value = 'mounted'
-    return
+  if (!pixiApp.value || !pixiApp.value.stage) {
+    try {
+      // NOTICE: shouldUpdateView can fire while the canvas (pixiApp) is being torn down/recreated.
+      // Wait briefly for the new stage instead of bailing out, otherwise we keep a blank screen.
+      await until(() => !!pixiApp.value && !!pixiApp.value.stage).toBeTruthy({ timeout: 1500 })
+    }
+    catch {
+      modelLoading.value = false
+      componentState.value = 'mounted'
+      return
+    }
   }
 
-  if (model.value && pixiApp.value.stage) {
+  // REVIEW: here as await until(...) guarded the pixiApp and stage to be valid.
+  if (model.value && pixiApp.value?.stage) {
     try {
       pixiApp.value.stage.removeChild(model.value)
       model.value.destroy()
@@ -178,6 +188,12 @@ async function loadModel() {
   }
 
   try {
+    if (isUnmounted) {
+      modelLoading.value = false
+      componentState.value = 'mounted'
+      return
+    }
+
     const live2DModel = new Live2DModel<PixiLive2DInternalModel>()
     await Live2DFactory.setupLive2DModel(live2DModel, { url: modelSrcRef.value, id: props.modelId }, { autoInteract: false })
     availableMotions.value.forEach((motion) => {
@@ -192,7 +208,8 @@ async function loadModel() {
     // --- Scene
 
     model.value = live2DModel
-    pixiApp.value.stage.addChild(model.value)
+    // REVIEW: pixiApp and stage are guaranteed to be valid here due to the until(...) above.
+    pixiApp.value!.stage.addChild(model.value)
     initialModelWidth.value = model.value.width
     initialModelHeight.value = model.value.height
     model.value.anchor.set(0.5, 0.5)
@@ -572,6 +589,10 @@ onMounted(() => {
 
 onMounted(async () => {
   updateDropShadowFilter()
+})
+
+onUnmounted(() => {
+  isUnmounted = true
 })
 
 function listMotionGroups() {
