@@ -6,9 +6,6 @@ import { createI18n } from 'vue-i18n'
 
 import Layout from '../custom/Layout.vue'
 
-import '../modules/posthog'
-
-// eslint-disable-next-line perfectionist/sort-imports
 import '@unocss/reset/tailwind.css'
 import 'uno.css'
 import './style.css'
@@ -27,6 +24,10 @@ import '@fontsource-variable/comfortaa'
 export default {
   Layout,
   enhanceApp({ app }) {
+    if (!import.meta.env.SSR) {
+      import('../modules/posthog')
+    }
+
     const i18n = createI18n({
       legacy: false,
       locale: 'en',
