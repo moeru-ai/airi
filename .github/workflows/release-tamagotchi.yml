@@ -125,15 +125,15 @@ jobs:
 
       - name: Build (Windows Only) # Windows
         if: matrix.os == 'windows-latest'
-        run: pnpm run -F @proj-airi/stage-tamagotchi build && pnpm -F @proj-airi/stage-tamagotchi exec electron-builder build ${{ matrix.builder-args }}
+        run: pnpm run -F @proj-airi/stage-tamagotchi build && pnpm -F @proj-airi/stage-tamagotchi exec electron-builder build ${{ matrix.builder-args }} --publish=never
 
       - name: Build (macOS Only) # macOS
         if: matrix.os == 'macos-15-intel' || matrix.os == 'macos-latest'
-        run: pnpm run -F @proj-airi/stage-tamagotchi build && pnpm -F @proj-airi/stage-tamagotchi exec electron-builder build ${{ matrix.builder-args }}
+        run: pnpm run -F @proj-airi/stage-tamagotchi build && pnpm -F @proj-airi/stage-tamagotchi exec electron-builder build ${{ matrix.builder-args }} --publish=never
 
       - name: Build (Linux Only) # Linux
         if: matrix.os == 'ubuntu-latest' || matrix.os == 'ubuntu-24.04-arm'
-        run: pnpm run -F @proj-airi/stage-tamagotchi build && pnpm -F @proj-airi/stage-tamagotchi exec electron-builder build ${{ matrix.builder-args }}
+        run: pnpm run -F @proj-airi/stage-tamagotchi build && pnpm -F @proj-airi/stage-tamagotchi exec electron-builder build ${{ matrix.builder-args }} --publish=never
 
       - name: Setup Flatpak (Linux Only)
         if: ${{ matrix.os == 'ubuntu-latest' || matrix.os == 'ubuntu-24.04-arm' }}

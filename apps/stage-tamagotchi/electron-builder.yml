@@ -68,10 +68,4 @@ linux:
 appImage:
   artifactName: ${productName}-${version}-linux-${arch}.${ext}
 
-snap:
-  confinement: strict
-  grade: stable
-  summary: 'AI VTuber/Waifu chatbot app inspired by Neuro-sama'
-  description: 'AIRI enables human-like conversational interaction with Live2D/VRM avatars, designed for VTuber streaming and AI-driven performance.'
-
 npmRebuild: false
