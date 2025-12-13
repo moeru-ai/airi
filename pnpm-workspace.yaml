@@ -13,6 +13,15 @@ packages:
   - apps/**
   - '!**/dist/**'
 
+overrides:
+  array-flatten: npm:@nolyfill/array-flatten@^1.0.44
+  axios: npm:feaxios@^0.0.23
+  is-core-module: npm:@nolyfill/is-core-module@^1.0.39
+  isarray: npm:@nolyfill/isarray@^1.0.44
+  safe-buffer: npm:@nolyfill/safe-buffer@^1.0.44
+  safer-buffer: npm:@nolyfill/safer-buffer@^1.0.44
+  side-channel: npm:@nolyfill/side-channel@^1.0.44
+  string.prototype.matchall: npm:@nolyfill/string.prototype.matchall@^1.0.44
 catalog:
   '@guiiai/logg': 1.1.0
   '@moeru/eslint-config': 0.1.0-beta.13
@@ -35,4 +44,22 @@ catalog:
 
 catalogs:
   rolldown-vite:
-    vite: npm:rolldown-vite@^7.2.10
+    vite: npm:rolldown-vite@^7.2.11
+onlyBuiltDependencies:
+  - '@discordjs/opus'
+  - '@ffmpeg-installer/darwin-arm64'
+  - '@parcel/watcher'
+  - bufferutil
+  - electron
+  - electron-click-drag-plugin
+  - es5-ext
+  - esbuild
+  - ffmpeg-static
+  - msw
+  - onnxruntime-node
+  - protobufjs
+  - sharp
+  - simple-git-hooks
+  - spawn-sync
+  - utf-8-validate
+  - vue-demi

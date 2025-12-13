@@ -82,6 +82,7 @@ export class OPFSCache {
       if (meta?.sourceUrl && meta.sourceUrl !== sourceUrl) {
         // NOTICE: Skip cache when the requested URL changes while the key stays the same.
         // This avoids serving a stale model when ids are reused or props are out of sync.
+        // eslint-disable-next-line no-console
         console.debug(`[OPFS] Cache mismatch for ${key}, source url changed`)
         return null
       }
