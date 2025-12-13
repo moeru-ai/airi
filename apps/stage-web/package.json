@@ -72,6 +72,7 @@
     "ofetch": "^1.5.1",
     "onnxruntime-web": "^1.23.2",
     "pinia": "^3.0.4",
+    "posthog-js": "catalog:",
     "rehype-stringify": "^10.0.1",
     "reka-ui": "^2.6.1",
     "remark-parse": "^11.0.0",

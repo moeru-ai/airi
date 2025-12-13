@@ -214,6 +214,7 @@ words:
   - pmrem
   - popmotion
   - poppin
+  - posthog
   - PREFLIGHTS
   - prereleased
   - pretrained

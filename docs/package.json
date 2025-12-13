@@ -27,6 +27,7 @@
     "mark.js": "^8.11.1",
     "motion-v": "^1.7.4",
     "pathe": "^2.0.3",
+    "posthog-js": "catalog:",
     "reka-ui": "^2.6.1",
     "vue": "^3.5.25",
     "vue-i18n": "^11.2.2",

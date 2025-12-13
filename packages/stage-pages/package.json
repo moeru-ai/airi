@@ -38,6 +38,7 @@
     "nanoid": "^5.1.6",
     "node-vibrant": "^4.0.3",
     "pinia": "^3.0.4",
+    "posthog-js": "catalog:",
     "reka-ui": "^2.6.1",
     "unspeech": "^0.1.7",
     "vue": "^3.5.25",

@@ -112,6 +112,7 @@
     "pinia": "^3.0.4",
     "pixi-filters": "4",
     "pixi-live2d-display": "^0.4.0",
+    "posthog-js": "catalog:",
     "postprocessing": "^6.38.0",
     "rehype-katex": "^7.0.1",
     "rehype-stringify": "^10.0.1",

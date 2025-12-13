@@ -6,6 +6,9 @@ import { createI18n } from 'vue-i18n'
 
 import Layout from '../custom/Layout.vue'
 
+import '../modules/posthog'
+
+// eslint-disable-next-line perfectionist/sort-imports
 import '@unocss/reset/tailwind.css'
 import 'uno.css'
 import './style.css'

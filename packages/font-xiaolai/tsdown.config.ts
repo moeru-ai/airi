@@ -5,7 +5,7 @@ export default defineConfig({
   external: ['./index.css'],
   copy: [
     { from: 'src/files', to: 'dist/files' },
-    { from: 'src/index.css', to: 'dist/index.css' },
+    { from: 'src/index.css', to: 'dist' },
   ],
   unbundle: true,
 })
