@@ -39,12 +39,14 @@
           document.documentElement.classList.toggle('dark', true)
       })()
     </script>
-    <script
-      defer
-      data-domain="airi.moeru.ai"
-      data-api="/api/v1/page-external-data/submit"
-      src="/remote-assets/page-external-data/js/script.js"
-    ></script>
+    <!-- Privacy-friendly analytics by Plausible -->
+    <script async src="https://moeru-ai-airi-helper.kwaa.workers.dev/remote-assets/page-external-data/js/script.js"></script>
+    <script>
+      window.plausible=window.plausible||function(){(plausible.q=plausible.q||[]).push(arguments)},plausible.init=plausible.init||function(i){plausible.o=i||{}};
+      plausible.init({
+        endpoint: "https://moeru-ai-airi-helper.kwaa.workers.dev/api/v1/page-external-data/submit"
+      })
+    </script>
     <script src="/assets/js/CubismSdkForWeb-5-r.3/Core/live2dcubismcore.min.js"></script>
   </head>
   <body class="font-sans">
