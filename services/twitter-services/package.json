@@ -16,7 +16,7 @@
     "@guiiai/logg": "catalog:",
     "@modelcontextprotocol/sdk": "^1.24.3",
     "@moeru/std": "catalog:",
-    "@proj-airi/server-sdk": "^0.8.0-beta.2",
+    "@proj-airi/server-sdk": "^0.8.0-beta.3",
     "h3": "^2.0.1-rc.6",
     "listhen": "^1.9.0",
     "ofetch": "^1.5.1",
@@ -24,7 +24,7 @@
     "zod": "^4.1.13"
   },
   "devDependencies": {
-    "@types/node": "^24.10.3",
+    "@types/node": "^24.10.4",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3"
   }

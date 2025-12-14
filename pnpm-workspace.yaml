@@ -39,6 +39,7 @@ onlyBuiltDependencies:
   - '@ffmpeg-installer/darwin-arm64'
   - '@parcel/watcher'
   - bufferutil
+  - core-js
   - electron
   - electron-click-drag-plugin
   - es5-ext
