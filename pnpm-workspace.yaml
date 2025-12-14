@@ -1,7 +1,6 @@
 catalogMode: prefer
 
 shellEmulator: true
-trustPolicy: no-downgrade
 
 packages:
   - packages/**

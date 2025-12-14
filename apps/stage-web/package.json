@@ -123,7 +123,6 @@
     "hfup": "^1.0.0",
     "less": "^4.4.2",
     "unplugin-info": "^1.2.4",
-    "unplugin-vue-macros": "^2.14.5",
     "unplugin-vue-router": "^0.19.0",
     "unplugin-yaml": "^3.0.7",
     "vite": "catalog:rolldown-vite",
@@ -131,6 +130,7 @@
     "vite-plugin-pwa": "^1.2.0",
     "vite-plugin-vue-devtools": "^8.0.5",
     "vite-plugin-vue-layouts": "^0.11.0",
+    "vue-macros": "^3.1.1",
     "vue-tsc": "^3.1.8"
   }
 }
