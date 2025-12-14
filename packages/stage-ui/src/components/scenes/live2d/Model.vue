@@ -112,7 +112,12 @@ function setScaleAndPosition() {
 
   const heightScale = (props.height * 0.95 / initialModelHeight.value * offsetFactor)
   const widthScale = (props.width * 0.95 / initialModelWidth.value * offsetFactor)
-  const scale = Math.min(heightScale, widthScale)
+  let scale = Math.min(heightScale, widthScale)
+
+  // Prevent zero or NaN values to fix the "headless" model issue.
+  if (Number.isNaN(scale) || scale <= 0) {
+    scale = 1e-6
+  }
 
   model.value.scale.set(scale * props.scale, scale * props.scale)
 
