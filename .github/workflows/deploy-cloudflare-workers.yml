@@ -84,6 +84,7 @@ jobs:
           directory: ${{ matrix.dist_directory }}
           env-id: ${{ secrets.POSTHOG_ENV_ID }}
           cli-token: ${{ secrets.POSTHOG_TOKEN }}
+          ignore: '**/*worker.js'
       - uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
