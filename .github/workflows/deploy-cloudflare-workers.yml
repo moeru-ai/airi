@@ -78,13 +78,14 @@ jobs:
           S3_REGION: ${{ secrets.S3_REGION }}
           WARP_DRIVE_PUBLIC_BASE: ${{ secrets.WARP_DRIVE_PUBLIC_BASE }}
       - name: Inject & upload source maps to PostHog
-        uses: PostHog/upload-source-maps@v0.4.6
-        continue-on-error: true
-        with:
-          directory: ${{ matrix.dist_directory }}
-          env-id: ${{ secrets.POSTHOG_ENV_ID }}
-          cli-token: ${{ secrets.POSTHOG_TOKEN }}
-          ignore: '**/*worker.js'
+        run: |
+          CI=true pnpm install -g @posthog/cli
+          pnpm exec posthog-cli sourcemap inject --directory ${{ matrix.dist_directory }}
+          pnpm exec posthog-cli sourcemap upload --directory ${{ matrix.dist_directory }}
+        env:
+          POSTHOG_CLI_ENV_ID: ${{ secrets.POSTHOG_ENV_ID }}
+          POSTHOG_CLI_TOKEN: ${{ secrets.POSTHOG_TOKEN }}
+
       - uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
