@@ -24,8 +24,8 @@ export async function setupServerChannel() {
         reusePort: true,
         silent: true,
         gracefulShutdown: {
-          forceTimeout: 500,
-          gracefulTimeout: 500,
+          forceTimeout: 0.5,
+          gracefulTimeout: 0.5,
         },
       })
 

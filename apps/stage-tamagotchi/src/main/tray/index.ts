@@ -10,8 +10,8 @@ import { app, Menu, nativeImage, Tray } from 'electron'
 import { once } from 'es-toolkit'
 import { isMacOS } from 'std-env'
 
-import icon from '../../resources/icon.png?asset'
-import macOSTrayIcon from '../../resources/tray-icon-macos.png?asset'
+import icon from '../../../resources/icon.png?asset'
+import macOSTrayIcon from '../../../resources/tray-icon-macos.png?asset'
 
 import { onAppBeforeQuit } from '../libs/bootkit/lifecycle'
 import { setupInlayWindow } from '../windows/inlay'
