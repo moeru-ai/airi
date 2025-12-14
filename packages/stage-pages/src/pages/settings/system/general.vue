@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { all } from '@proj-airi/i18n'
 import { useSettings } from '@proj-airi/stage-ui/stores/settings'
-import { useTheme } from '@proj-airi/ui'
+import { FieldCheckbox, FieldSelect, useTheme } from '@proj-airi/ui'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
