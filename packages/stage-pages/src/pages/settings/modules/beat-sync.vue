@@ -11,15 +11,16 @@ import {
   toggleBeatSync,
   updateBeatSyncParameters,
 } from '@proj-airi/stage-shared/beat-sync/browser'
-import { AudioSpectrumVisualizer } from '@proj-airi/stage-ui/components'
+import { Alert, AudioSpectrumVisualizer } from '@proj-airi/stage-ui/components'
 import { Button, FieldCheckbox, FieldRange } from '@proj-airi/ui'
 import { createTimeline } from 'animejs'
 import { nanoid } from 'nanoid'
-import { onMounted, onUnmounted, ref, toRaw, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref, toRaw, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 const state = ref<BeatSyncDetectorState>()
 const frequencies = ref<number[]>([])
+const totalFreqHistory = ref<number[]>([])
 const isUpdatingFrequencies = ref(false)
 
 const { t } = useI18n()
@@ -72,12 +73,29 @@ function resetDefaultParameters() {
 
 async function updateFrequencies() {
   frequencies.value = Array.from(await getBeatSyncInputByteFrequencyData())
+  totalFreqHistory.value.push(frequencies.value.reduce((a, b) => a + b, 0))
 
-  if (isUpdatingFrequencies.value)
+  while (totalFreqHistory.value.length > 50)
+    totalFreqHistory.value.shift()
+
+  if (isUpdatingFrequencies.value) {
     requestAnimationFrame(updateFrequencies)
-  else
-    frequencies.value = [0]
+  }
+  else {
+    frequencies.value = frequencies.value.map(() => 0)
+    totalFreqHistory.value = []
+  }
 }
+
+const noAudioDetected = computed(() => {
+  if (!isUpdatingFrequencies.value)
+    return false
+
+  if (totalFreqHistory.value.length < 50)
+    return false
+
+  return totalFreqHistory.value.reduce((a, b) => a + b, 0) === 0
+})
 
 watch(state, async (newState) => {
   if (newState?.isActive) {
@@ -144,6 +162,18 @@ onUnmounted(() => {
             </template>
           </div>
         </div>
+
+        <Alert
+          v-if="noAudioDetected"
+          type="warning"
+        >
+          <template #title>
+            No audio detected
+          </template>
+          <template #content>
+            Please make sure that the correct permissions are granted and the audio source is playing sound.
+          </template>
+        </Alert>
 
         <div flex="~ col gap-4">
           <div flex="~ row" items-center justify-between>

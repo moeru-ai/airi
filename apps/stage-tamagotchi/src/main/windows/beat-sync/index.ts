@@ -33,7 +33,7 @@ export async function setupBeatSync() {
   })
   const context = createContext(ipcMain, window).context
 
-  // TODO(Makito): Revisit and improve
+  // TODO(Makito): Bypass here with the broadcast channel-based transport when it is released.
   // [main] -> [renderer] beat-sync
   const toggle = defineInvoke(context, beatSyncElectronToggle) as (enabled: boolean) => Promise<void> // TODO: Better type
   const getState = defineInvoke(context, beatSyncElectronGetState)
