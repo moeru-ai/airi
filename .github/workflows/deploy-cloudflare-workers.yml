@@ -79,6 +79,7 @@ jobs:
           WARP_DRIVE_PUBLIC_BASE: ${{ secrets.WARP_DRIVE_PUBLIC_BASE }}
       - name: Inject & upload source maps to PostHog
         uses: PostHog/upload-source-maps@v0.4.6
+        continue-on-error: true
         with:
           directory: ${{ matrix.dist_directory }}
           env-id: ${{ secrets.POSTHOG_ENV_ID }}
