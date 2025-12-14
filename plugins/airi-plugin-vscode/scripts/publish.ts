@@ -34,7 +34,11 @@ async function publish() {
     {
       // eslint-disable-next-line no-console
       console.log('\nPublish to VSCE...\n')
-      const execPublish = exec('pnpx', ['@vscode/vsce', 'publish', '--no-dependencies', '-p', process.env.VSCE_TOKEN!, ...[(isPreview ? '--pre-release' : '')]], { nodeOptions: { cwd: root } })
+      const vsceArgs = ['@vscode/vsce', 'publish', '--no-dependencies', '-p', process.env.VSCE_TOKEN!]
+      if (isPreview)
+        vsceArgs.push('--pre-release')
+
+      const execPublish = exec('pnpx', vsceArgs, { nodeOptions: { cwd: root } })
       for await (const line of execPublish) {
       // eslint-disable-next-line no-console
         console.log(line)
@@ -43,7 +47,11 @@ async function publish() {
     {
       // eslint-disable-next-line no-console
       console.log('\nPublish to OVSE...\n')
-      const execPublish = exec('pnpx', ['ovsx', 'publish', '--no-dependencies', '-p', process.env.OVSX_TOKEN!, ...[(isPreview ? '--pre-release' : '')]], { nodeOptions: { cwd: root } })
+      const ovseArgs = ['ovsx', 'publish', '--no-dependencies', '-p', process.env.OVSX_TOKEN!]
+      if (isPreview)
+        ovseArgs.push('--pre-release')
+
+      const execPublish = exec('pnpx', ovseArgs, { nodeOptions: { cwd: root } })
       for await (const line of execPublish) {
       // eslint-disable-next-line no-console
         console.log(line)

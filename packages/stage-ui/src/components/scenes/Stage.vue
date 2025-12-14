@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import type { DuckDBWasmDrizzleDatabase } from '@proj-airi/drizzle-duckdb-wasm'
+import type { Live2DLipSync } from '@proj-airi/model-driver-lipsync'
+import type { Profile } from '@proj-airi/model-driver-lipsync/shared/wlipsync'
 import type { SpeechProviderWithExtraOptions } from '@xsai-ext/shared-providers'
 import type { UnElevenLabsOptions } from 'unspeech'
 
@@ -9,6 +11,8 @@ import type { TTSChunkItem } from '../../utils/tts'
 
 import { drizzle } from '@proj-airi/drizzle-duckdb-wasm'
 import { getImportUrlBundles } from '@proj-airi/drizzle-duckdb-wasm/bundles/import-url-browser'
+import { createLive2DLipSync } from '@proj-airi/model-driver-lipsync'
+import { wlipsyncProfile } from '@proj-airi/model-driver-lipsync/shared/wlipsync'
 import { ThreeScene, useModelStore } from '@proj-airi/stage-ui-three'
 import { animations } from '@proj-airi/stage-ui-three/assets/vrm'
 import { useBroadcastChannel } from '@vueuse/core'
@@ -67,13 +71,13 @@ const { textSegmentationQueue } = storeToRefs(textSegmentationStore)
 clearTextSegmentationHooks()
 
 const characterSpeechPlaybackQueue = usePipelineCharacterSpeechPlaybackQueueStore()
-const { connectAudioContext, connectAudioAnalyser, clearAll, onPlaybackStarted, onPlaybackFinished } = characterSpeechPlaybackQueue
+const { connectAudioContext, connectAudioAnalyser, connectLipSyncNode, clearAll, onPlaybackStarted, onPlaybackFinished } = characterSpeechPlaybackQueue
 const { currentAudioSource, playbackQueue } = storeToRefs(characterSpeechPlaybackQueue)
 
 const settingsStore = useSettings()
 const { stageModelRenderer, stageViewControlsEnabled, live2dDisableFocus, stageModelSelectedUrl, stageModelSelected } = storeToRefs(settingsStore)
 const { mouthOpenSize } = storeToRefs(useSpeakingStore())
-const { audioContext, calculateVolume } = useAudioContext()
+const { audioContext } = useAudioContext()
 connectAudioContext(audioContext)
 
 const { onBeforeMessageComposed, onBeforeSend, onTokenLiteral, onTokenSpecial, onStreamEnd, onAssistantResponseEnd, clearHooks } = useChatStore()
@@ -121,6 +125,8 @@ vrmStore.onShouldUpdateView(async () => {
 const audioAnalyser = ref<AnalyserNode>()
 const nowSpeaking = ref(false)
 const lipSyncStarted = ref(false)
+const lipSyncLoopId = ref<number>()
+const live2dLipSync = ref<Live2DLipSync>()
 
 const speechStore = useSpeechStore()
 const { ssmlEnabled, activeSpeechProvider, activeSpeechModel, activeSpeechVoice, pitch } = storeToRefs(speechStore)
@@ -224,19 +230,38 @@ onTextSegmented((chunkItem) => {
   ttsQueue.enqueue(chunkItem)
 })
 
-function getVolumeWithMinMaxNormalizeWithFrameUpdates() {
-  requestAnimationFrame(getVolumeWithMinMaxNormalizeWithFrameUpdates)
-  if (!nowSpeaking.value)
+function startLipSyncLoop() {
+  if (lipSyncLoopId.value)
     return
 
-  mouthOpenSize.value = calculateVolume(audioAnalyser.value!, 'linear')
+  const tick = () => {
+    if (!nowSpeaking.value || !live2dLipSync.value) {
+      mouthOpenSize.value = 0
+    }
+    else {
+      mouthOpenSize.value = live2dLipSync.value.getMouthOpen()
+    }
+    lipSyncLoopId.value = requestAnimationFrame(tick)
+  }
+
+  lipSyncLoopId.value = requestAnimationFrame(tick)
 }
 
-function setupLipSync() {
-  if (!lipSyncStarted.value) {
-    getVolumeWithMinMaxNormalizeWithFrameUpdates()
-    audioContext.resume()
+async function setupLipSync() {
+  if (lipSyncStarted.value)
+    return
+
+  try {
+    const lipSync = await createLive2DLipSync(audioContext, wlipsyncProfile as Profile)
+    live2dLipSync.value = lipSync
+    connectLipSyncNode(lipSync.node)
+    await audioContext.resume()
+    startLipSyncLoop()
     lipSyncStarted.value = true
+  }
+  catch (error) {
+    lipSyncStarted.value = false
+    console.error('Failed to setup Live2D lip sync', error)
   }
 }
 
@@ -250,7 +275,7 @@ function setupAnalyser() {
 onBeforeMessageComposed(async () => {
   clearAll()
   setupAnalyser()
-  setupLipSync()
+  await setupLipSync()
   // Reset assistant caption for a new message
   assistantCaption.value = ''
   postCaption({ type: 'caption-assistant', text: '' })
@@ -303,11 +328,24 @@ function canvasElement() {
     return vrmViewerRef.value?.canvasElement()
 }
 
+onUnmounted(() => {
+  if (lipSyncLoopId.value) {
+    cancelAnimationFrame(lipSyncLoopId.value)
+    lipSyncLoopId.value = undefined
+  }
+})
+
 defineExpose({
   canvasElement,
 })
 
+onPlaybackFinished(() => {
+  nowSpeaking.value = false
+  mouthOpenSize.value = 0
+})
+
 onPlaybackStarted(({ text }) => {
+  nowSpeaking.value = true
   // NOTICE: currently, postCaption, postPresent from useBroadcastChannel may throw error
   // once we navigate away from the page that created the BroadcastChannel,
   // as the channel gets closed on unmount, leading to "Failed to execute 'postMessage' on 'BroadcastChannel': The channel is closed."

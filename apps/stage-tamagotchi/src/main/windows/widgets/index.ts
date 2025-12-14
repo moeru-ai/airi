@@ -157,7 +157,7 @@ export function setupWidgetsWindowManager(): WidgetsWindowManager {
   }
 
   function toSnapshot(record: WidgetRecord): WidgetSnapshot {
-    const { timer, ...snapshot } = record
+    const { timer: _timer, ...snapshot } = record
     return snapshot
   }
 

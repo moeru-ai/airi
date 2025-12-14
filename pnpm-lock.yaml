@@ -1183,6 +1183,12 @@ importers:
         specifier: ^7.2.7
         version: 7.2.7(@types/node@24.10.4)(jiti@2.6.1)(less@4.4.2)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2)
 
+  packages/model-driver-lipsync:
+    dependencies:
+      wlipsync:
+        specifier: ^1.3.0
+        version: 1.3.0
+
   packages/ccc:
     dependencies:
       meta-png:
@@ -1439,6 +1445,9 @@ importers:
       '@proj-airi/audio':
         specifier: workspace:^
         version: link:../audio
+      '@proj-airi/model-driver-lipsync':
+        specifier: workspace:^
+        version: link:../model-driver-lipsync
       '@proj-airi/ccc':
         specifier: workspace:^
         version: link:../ccc

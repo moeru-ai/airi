@@ -80,7 +80,7 @@ function eventListenerOf(type: string, listener: EventListenerOrEventListenerObj
   }
 }
 
-async function startRealtimeSession(options: InternalRealtimeOptions): Promise<void> {
+async function startRealtimeSession(options: InternalRealtimeOptions): Promise<AliyunStreamTranscriptionHandle> {
   const {
     accessKeyId,
     accessKeySecret,
@@ -103,11 +103,13 @@ async function startRealtimeSession(options: InternalRealtimeOptions): Promise<v
   const websocket = new WebSocket(url)
   websocket.binaryType = 'arraybuffer'
 
-  const abortHandler = eventListenerOf('abort', () => cleanup(abortSignal?.reason ?? new DOMException('Aborted', 'AbortError')), abortSignal)
-  abortSignal && abortHandler.on()
+  const abortHandler = abortSignal
+    ? eventListenerOf('abort', () => cleanup(abortSignal?.reason ?? new DOMException('Aborted', 'AbortError')), abortSignal)
+    : undefined
+  abortHandler?.on()
 
   async function cleanup(error?: unknown) {
-    abortHandler && abortSignal && abortHandler.off()
+    abortHandler?.off()
     mayThrow(async () => await reader.cancel())
 
     if (websocket) {
@@ -121,6 +123,10 @@ async function startRealtimeSession(options: InternalRealtimeOptions): Promise<v
     }
 
     await onSessionTerminated?.(error)
+  }
+
+  const handle: AliyunStreamTranscriptionHandle = {
+    close: async () => await cleanup(new DOMException('Closed', 'AbortError')),
   }
 
   async function onTranscriptionStarted() {
@@ -188,6 +194,8 @@ async function startRealtimeSession(options: InternalRealtimeOptions): Promise<v
 
   if (abortSignal?.aborted)
     throw abortSignal.reason ?? new DOMException('Aborted', 'AbortError')
+
+  return handle
 }
 
 export function createAliyunNLSProvider(
@@ -240,6 +248,16 @@ export function createAliyunNLSProvider(
                     controller.enqueue(encodeSSE({ delta: text, type: 'transcript.text.delta' }))
                   controller.enqueue(encodeSSE({ delta: '', type: 'transcript.text.done' }))
                 },
+              }).then((handle) => {
+                sessionHandle = handle
+              }).catch(async (error) => {
+                controllerClosed = true
+                try {
+                  await extraOptions?.onSessionTerminated?.(error)
+                }
+                finally {
+                  controller.error(error instanceof Error ? error : new Error(String(error)))
+                }
               })
             },
             cancel: async () => {
