@@ -51,7 +51,7 @@ vi.mock('./modules', () => ({
 }))
 
 vi.mock('./mods/api/channel-server', () => ({
-  useModsChannelServerStore: () => ({
+  useModsServerChannelStore: () => ({
     connected: ref(true),
     initialize: mockInitialize,
     onContextUpdate: (cb: typeof contextUpdateHandler) => {

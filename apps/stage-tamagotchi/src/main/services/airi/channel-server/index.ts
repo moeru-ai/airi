@@ -4,7 +4,7 @@ import { useLogg } from '@guiiai/logg'
 
 import { onAppBeforeQuit } from '../../../libs/bootkit/lifecycle'
 
-export async function setupChannelServer() {
+export async function setupServerChannel() {
   const log = useLogg('main/server-runtime').useGlobalConfig()
 
   // Start the server-runtime server with WebSocket support
@@ -22,13 +22,12 @@ export async function setupChannelServer() {
         port: env.PORT ? Number(env.PORT) : 6121,
         hostname: env.SERVER_RUNTIME_HOSTNAME || 'localhost',
         reusePort: true,
+        silent: true,
         gracefulShutdown: {
           forceTimeout: 500,
           gracefulTimeout: 500,
         },
       })
-
-      log.log('@proj-airi/server-runtime started on ws://localhost:6121')
 
       onAppBeforeQuit(async () => {
         if (serverInstance && typeof serverInstance.close === 'function') {
@@ -41,6 +40,8 @@ export async function setupChannelServer() {
           }
         }
       })
+
+      log.log('@proj-airi/server-runtime started on ws://localhost:6121')
     }
     catch (error) {
       log.withError(error).error('failed to start WebSocket server')

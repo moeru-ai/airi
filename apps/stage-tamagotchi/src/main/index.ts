@@ -1,33 +1,27 @@
-import type { BrowserWindow } from 'electron'
-
-import type { WidgetsWindowManager } from './windows/widgets'
-
 import { env, platform } from 'node:process'
 
-import { electronApp, is, optimizer } from '@electron-toolkit/utils'
+import { electronApp, optimizer } from '@electron-toolkit/utils'
 import { Format, LogLevel, setGlobalFormat, setGlobalLogLevel, useLogg } from '@guiiai/logg'
-import { app, ipcMain, Menu, nativeImage, Tray } from 'electron'
+import { app, ipcMain } from 'electron'
 import { initMain as initAudioLoopback } from 'electron-audio-loopback'
-import { noop, once } from 'es-toolkit'
+import { noop } from 'es-toolkit'
 import { createLoggLogger, injeca } from 'injeca'
-import { isLinux, isMacOS } from 'std-env'
+import { isLinux } from 'std-env'
 
 import icon from '../../resources/icon.png?asset'
-import macOSTrayIcon from '../../resources/tray-icon-macos.png?asset'
 
 import { openDebugger, setupDebugger } from './app/debugger'
-import { emitAppBeforeQuit, emitAppReady, emitAppWindowAllClosed, onAppBeforeQuit } from './libs/bootkit/lifecycle'
+import { emitAppBeforeQuit, emitAppReady, emitAppWindowAllClosed } from './libs/bootkit/lifecycle'
 import { setElectronMainDirname } from './libs/electron/location'
-import { setupChannelServer } from './services/airi/channel-server'
+import { setupServerChannel } from './services/airi/channel-server'
+import { setupTray } from './tray'
 import { setupAboutWindowReusable } from './windows/about'
 import { setupBeatSync } from './windows/beat-sync'
 import { setupCaptionWindowManager } from './windows/caption'
 import { setupChatWindowReusableFunc } from './windows/chat'
-import { setupInlayWindow } from './windows/inlay'
 import { setupMainWindow } from './windows/main'
 import { setupNoticeWindowManager } from './windows/notice'
 import { setupSettingsWindowReusableFunc } from './windows/settings'
-import { toggleWindowShow } from './windows/shared/window'
 import { setupWidgetsWindowManager } from './windows/widgets'
 
 // TODO: once we refactored eventa to support window-namespaced contexts,
@@ -73,70 +67,16 @@ electronApp.setAppUserModelId('ai.moeru.airi')
 
 initAudioLoopback()
 
-function setupTray(params: {
-  mainWindow: BrowserWindow
-  settingsWindow: () => Promise<BrowserWindow>
-  captionWindow: ReturnType<typeof setupCaptionWindowManager>
-  widgetsWindow: WidgetsWindowManager
-  beatSyncBgWindow: BrowserWindow
-  aboutWindow: () => Promise<BrowserWindow>
-}): void {
-  once(() => {
-    const trayImage = nativeImage.createFromPath(isMacOS ? macOSTrayIcon : icon).resize({ width: 16 })
-    trayImage.setTemplateImage(isMacOS)
-    const appTray = new Tray(trayImage)
-    onAppBeforeQuit(() => appTray.destroy())
-
-    const contextMenu = Menu.buildFromTemplate([
-      { label: 'Show', click: () => toggleWindowShow(params.mainWindow) },
-      { type: 'separator' },
-      { label: 'Settings...', click: () => params.settingsWindow().then(window => toggleWindowShow(window)) },
-      { label: 'About...', click: () => params.aboutWindow().then(window => toggleWindowShow(window)) },
-      { type: 'separator' },
-      { label: 'Open Inlay...', click: () => setupInlayWindow() },
-      { label: 'Open Widgets...', click: () => params.widgetsWindow.getWindow().then(window => toggleWindowShow(window)) },
-      { label: 'Open Caption...', click: () => params.captionWindow.getWindow().then(window => toggleWindowShow(window)) },
-      {
-        type: 'submenu',
-        label: 'Caption Overlay',
-        submenu: Menu.buildFromTemplate([
-          { type: 'checkbox', label: 'Follow window', checked: params.captionWindow.getIsFollowingWindow(), click: async menuItem => await params.captionWindow.setFollowWindow(Boolean(menuItem.checked)) },
-          { label: 'Reset position', click: async () => await params.captionWindow.resetToSide() },
-        ]),
-      },
-      { type: 'separator' },
-      ...is.dev || env.MAIN_APP_DEBUG || env.APP_DEBUG
-        ? [
-            { type: 'header', label: 'DevTools' },
-            { label: 'Troubleshoot BeatSync...', click: () => params.beatSyncBgWindow.webContents.openDevTools() },
-            { type: 'separator' },
-          ] as const // :(
-        : [],
-      { label: 'Quit', click: () => app.quit() },
-    ])
-
-    appTray.setContextMenu(contextMenu)
-    appTray.setToolTip('Project AIRI')
-    appTray.addListener('click', () => toggleWindowShow(params.mainWindow))
-
-    // On macOS, there's a special double-click event
-    if (isMacOS)
-      appTray.addListener('double-click', () => toggleWindowShow(params.mainWindow))
-  })()
-}
-
 app.whenReady().then(async () => {
   injeca.setLogger(createLoggLogger(useLogg('injeca').useGlobalConfig()))
 
-  const channelServerModule = injeca.provide('modules:channel-server', async () => setupChannelServer())
-  const widgetsManager = injeca.provide('windows:widgets', { build: () => setupWidgetsWindowManager() })
-  const noticeWindow = injeca.provide('windows:notice', { build: () => setupNoticeWindowManager() })
-  const aboutWindow = injeca.provide('windows:about', { build: () => setupAboutWindowReusable() })
+  const serverChannel = injeca.provide('modules:channel-server', () => setupServerChannel())
+  const widgetsManager = injeca.provide('windows:widgets', () => setupWidgetsWindowManager())
+  const noticeWindow = injeca.provide('windows:notice', () => setupNoticeWindowManager())
+  const aboutWindow = injeca.provide('windows:about', () => setupAboutWindowReusable())
 
   // BeatSync will create a background window to capture and process audio.
-  const beatSync = injeca.provide('windows:beat-sync', {
-    build: () => setupBeatSync(),
-  })
+  const beatSync = injeca.provide('windows:beat-sync', () => setupBeatSync())
 
   const chatWindow = injeca.provide('windows:chat', {
     dependsOn: { widgetsManager },
@@ -152,6 +92,7 @@ app.whenReady().then(async () => {
       return window
     },
   })
+
   const mainWindow = injeca.provide('windows:main', {
     dependsOn: { settingsWindow, chatWindow, widgetsManager, noticeWindow, beatSync },
     build: async ({ dependsOn }) => {
@@ -161,10 +102,12 @@ app.whenReady().then(async () => {
       return window
     },
   })
+
   const captionWindow = injeca.provide('windows:caption', {
     dependsOn: { mainWindow },
     build: async ({ dependsOn }) => setupCaptionWindowManager(dependsOn),
   })
+
   const tray = injeca.provide('app:tray', {
     dependsOn: { mainWindow, settingsWindow, captionWindow, widgetsWindow: widgetsManager, beatSync, aboutWindow },
     build: async ({ dependsOn }) => {
@@ -172,8 +115,9 @@ app.whenReady().then(async () => {
       return setupTray({ ...setupArgs, beatSyncBgWindow: beatSync.window, aboutWindow })
     },
   })
+
   injeca.invoke({
-    dependsOn: { mainWindow, tray, channelServerModule },
+    dependsOn: { mainWindow, tray, serverChannel },
     callback: noop,
   })
 

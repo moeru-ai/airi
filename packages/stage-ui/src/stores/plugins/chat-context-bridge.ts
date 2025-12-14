@@ -6,7 +6,7 @@ import { useBroadcastChannel } from '@vueuse/core'
 import { watch } from 'vue'
 
 import { CONTEXT_CHANNEL_NAME, useChatStore } from '../chat'
-import { useModsChannelServerStore } from '../mods/api/channel-server'
+import { useModsServerChannelStore } from '../mods/api/channel-server'
 
 let installed = false
 
@@ -18,7 +18,7 @@ export function installChatContextBridge() {
   }
 
   const chatStore = useChatStore()
-  const modsChannelServer = useModsChannelServerStore()
+  const modsChannelServer = useModsServerChannelStore()
   const { post: broadcastContext, data: incomingContext } = useBroadcastChannel<ContextMessage<ContextPayload>, ContextMessage<ContextPayload>>({
     name: CONTEXT_CHANNEL_NAME,
   })

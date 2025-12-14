@@ -4,7 +4,7 @@ import { Client } from '@proj-airi/server-sdk'
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 
-export const useModsChannelServerStore = defineStore('mods:channels:proj-airi:server', () => {
+export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:server', () => {
   const connected = ref(false)
   const client = ref<Client>()
   const initializing = ref<Promise<void> | null>(null)
