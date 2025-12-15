@@ -37,15 +37,15 @@ export interface ContextPayload {
   text?: string
 }
 
-export type ChatStreamEvent =
-  | { type: 'before-compose', message: string, sessionId: string }
-  | { type: 'after-compose', message: string, sessionId: string }
-  | { type: 'before-send', message: string, sessionId: string }
-  | { type: 'after-send', message: string, sessionId: string }
-  | { type: 'token-literal', literal: string, sessionId: string }
-  | { type: 'token-special', special: string, sessionId: string }
-  | { type: 'stream-end', sessionId: string }
-  | { type: 'assistant-end', message: string, sessionId: string }
+export type ChatStreamEvent
+  = | { type: 'before-compose', message: string, sessionId: string }
+    | { type: 'after-compose', message: string, sessionId: string }
+    | { type: 'before-send', message: string, sessionId: string }
+    | { type: 'after-send', message: string, sessionId: string }
+    | { type: 'token-literal', literal: string, sessionId: string }
+    | { type: 'token-special', special: string, sessionId: string }
+    | { type: 'stream-end', sessionId: string }
+    | { type: 'assistant-end', message: string, sessionId: string }
 
 const CHAT_STORAGE_KEY = 'chat/messages/v2'
 const ACTIVE_SESSION_STORAGE_KEY = 'chat/active-session'
