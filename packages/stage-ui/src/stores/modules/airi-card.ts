@@ -193,6 +193,24 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     }))
   })
 
+  // Lilia: onMounted initialisation cause default card system prompt initialisation failure
+  function ensureDefaultCard() {
+    const { t } = useI18n()
+    if (cards.value.has('default'))
+      return
+    cards.value.set('default', newAiriCard({
+      name: 'ReLU',
+      version: '1.0.0',
+      description: SystemPromptV2(
+        t('base.prompt.prefix'),
+        t('base.prompt.suffix'),
+      ).content,
+    }))
+    if (!activeCardId.value)
+      activeCardId.value = 'default'
+  }
+  ensureDefaultCard()
+
   watch(activeCard, (newCard: AiriCard | undefined) => {
     if (!newCard)
       return
