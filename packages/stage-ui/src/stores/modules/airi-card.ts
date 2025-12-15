@@ -2,7 +2,7 @@ import type { Card, ccv3 } from '@proj-airi/ccc'
 
 import { nanoid } from 'nanoid'
 import { defineStore, storeToRefs } from 'pinia'
-import { computed, onMounted, watch } from 'vue'
+import { computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import SystemPromptV2 from '../../constants/prompts/system-v2'
@@ -179,20 +179,20 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     }
   }
 
-  onMounted(() => {
-    if (cards.value.has('default'))
-      return
-    const { t } = useI18n()
-    cards.value.set('default', newAiriCard({
-      name: 'ReLU',
-      version: '1.0.0',
-      // description: 'ReLU is a simple and effective activation function that is used in many neural networks.',
-      description: SystemPromptV2(
-        t('base.prompt.prefix'),
-        t('base.prompt.suffix'),
-      ).content,
-    }))
-  })
+  // onMounted(() => {
+  //   if (cards.value.has('default'))
+  //     return
+  //   const { t } = useI18n()
+  //   cards.value.set('default', newAiriCard({
+  //     name: 'ReLU',
+  //     version: '1.0.0',
+  //     // description: 'ReLU is a simple and effective activation function that is used in many neural networks.',
+  //     description: SystemPromptV2(
+  //       t('base.prompt.prefix'),
+  //       t('base.prompt.suffix'),
+  //     ).content,
+  //   }))
+  // })
 
   // Lilia: onMounted initialisation cause default card system prompt initialisation failure
   function ensureDefaultCard() {
