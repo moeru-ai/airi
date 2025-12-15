@@ -80,11 +80,11 @@ const { mouthOpenSize } = storeToRefs(useSpeakingStore())
 const { audioContext } = useAudioContext()
 connectAudioContext(audioContext)
 
-const { onBeforeMessageComposed, onBeforeSend, onTokenLiteral, onTokenSpecial, onStreamEnd, onAssistantResponseEnd, clearHooks } = useChatStore()
-// WORKAROUND: clear previous hooks to avoid duplicate calls
-//             due to re-mounting of this component when switching routes and stages.
-//            See the comment above for more details.
-clearHooks()
+const { onBeforeMessageComposed, onBeforeSend, onTokenLiteral, onTokenSpecial, onStreamEnd, onAssistantResponseEnd } = useChatStore()
+const chatHookCleanups: Array<() => void> = []
+// WORKAROUND: clear previous handlers on unmount to avoid duplicate calls when this component remounts.
+//             We keep per-hook disposers instead of wiping the global chat hooks to play nicely with
+//             cross-window broadcast wiring.
 
 const providersStore = useProvidersStore()
 const live2dStore = useLive2d()
@@ -272,7 +272,7 @@ function setupAnalyser() {
   }
 }
 
-onBeforeMessageComposed(async () => {
+chatHookCleanups.push(onBeforeMessageComposed(async () => {
   clearAll()
   setupAnalyser()
   await setupLipSync()
@@ -280,36 +280,36 @@ onBeforeMessageComposed(async () => {
   assistantCaption.value = ''
   postCaption({ type: 'caption-assistant', text: '' })
   postPresent({ type: 'assistant-reset' })
-})
+}))
 
-onBeforeSend(async () => {
+chatHookCleanups.push(onBeforeSend(async () => {
   currentMotion.value = { group: EmotionThinkMotionName }
-})
+}))
 
-onTokenLiteral(async (literal) => {
+chatHookCleanups.push(onTokenLiteral(async (literal) => {
   // Only push to segmentation; visual presentation happens on playback start
   textSegmentationQueue.value.enqueue({ type: 'literal', value: literal } as TextSegmentationItem)
-})
+}))
 
-onTokenSpecial(async (special) => {
+chatHookCleanups.push(onTokenSpecial(async (special) => {
   // delaysQueue.enqueue(special)
   // emotionMessageContentQueue.enqueue(special)
   // Also push special token to the queue for emotion animation/delay and TTS playback synchronisation
   textSegmentationQueue.value.enqueue({ type: 'special', value: special } as TextSegmentationItem)
-})
+}))
 
-onStreamEnd(async () => {
+chatHookCleanups.push(onStreamEnd(async () => {
   delaysQueue.enqueue(llmInferenceEndToken)
-})
+}))
 
-onAssistantResponseEnd(async (_message) => {
+chatHookCleanups.push(onAssistantResponseEnd(async (_message) => {
   // const res = await embed({
   //   ...transformersProvider.embed('Xenova/nomic-embed-text-v1'),
   //   input: message,
   // })
 
   // await db.value?.execute(`INSERT INTO memory_test (vec) VALUES (${JSON.stringify(res.embedding)});`)
-})
+}))
 
 onUnmounted(() => {
   lipSyncStarted.value = false
@@ -333,6 +333,8 @@ onUnmounted(() => {
     cancelAnimationFrame(lipSyncLoopId.value)
     lipSyncLoopId.value = undefined
   }
+
+  chatHookCleanups.forEach(dispose => dispose?.())
 })
 
 defineExpose({

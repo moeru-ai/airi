@@ -12,7 +12,7 @@ import { installChatContextBridge } from './plugins/chat-context-bridge'
 const mockSendContextUpdate = vi.fn()
 const mockInitialize = vi.fn().mockResolvedValue(undefined)
 let contextUpdateHandler: ((event: { type: 'context:update', data: ContextMessage }) => void | Promise<void>) | null = null
-let broadcastPosts: ContextMessage[] = []
+let broadcastPosts: unknown[] = []
 let bridge: { dispose: () => void } | null = null
 
 const localStorageMap = new Map<string, unknown>()
@@ -25,9 +25,9 @@ vi.mock('@vueuse/core', () => {
 
       return localStorageMap.get(key) as ReturnType<typeof ref<T>>
     },
-    useBroadcastChannel: () => {
-      const data = ref<ContextMessage | undefined>()
-      const post = (value: ContextMessage) => {
+    useBroadcastChannel: <T>() => {
+      const data = ref<T | undefined>()
+      const post = (value: T) => {
         broadcastPosts.push(value)
         data.value = value
       }
