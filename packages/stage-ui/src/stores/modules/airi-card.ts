@@ -180,8 +180,9 @@ export const useAiriCardStore = defineStore('airi-card', () => {
   }
 
   onMounted(() => {
+    if (cards.value.has('default'))
+      return
     const { t } = useI18n()
-
     cards.value.set('default', newAiriCard({
       name: 'ReLU',
       version: '1.0.0',
