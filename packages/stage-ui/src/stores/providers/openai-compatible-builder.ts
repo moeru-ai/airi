@@ -43,6 +43,7 @@ export function buildOpenAICompatibleProvider(
     descriptionKey: string
     category?: 'chat' | 'embed' | 'speech' | 'transcription'
     tasks?: string[]
+    supportsVision?: boolean
     defaultBaseUrl?: string
     creator: ProviderCreator
     capabilities?: ProviderMetadata['capabilities']
@@ -61,6 +62,7 @@ export function buildOpenAICompatibleProvider(
     descriptionKey,
     category,
     tasks,
+    supportsVision,
     defaultBaseUrl,
     creator,
     capabilities,
@@ -139,6 +141,31 @@ export function buildOpenAICompatibleProvider(
           errors,
           reason: errors.map(e => e.message).join(', '),
           valid: false,
+        }
+      }
+
+      // Check if we should skip validation via environment variable
+      // Default to 'true' in browser environments to avoid CORS issues in serverless deployments
+      const envSkipHealthCheck = import.meta.env.VITE_SKIP_PROVIDER_HEALTH_CHECK
+      const defaultSkipInBrowser = typeof window !== 'undefined' && !(
+        // @ts-expect-error - Tauri specific
+        window.__TAURI__ !== undefined
+        // @ts-expect-error - Electron specific
+        || (window as any).process?.type === 'renderer'
+      )
+
+      // Priority: explicit env var > auto-detect browser environment
+      const skipHealthChecks = envSkipHealthCheck !== undefined
+        ? envSkipHealthCheck === 'true' || envSkipHealthCheck === true
+        : defaultSkipInBrowser
+
+      if (skipHealthChecks) {
+        // eslint-disable-next-line no-console
+        console.log('[Provider] Skipping health checks (SKIP_PROVIDER_HEALTH_CHECK=true or browser environment)')
+        return {
+          errors: [],
+          reason: '',
+          valid: true,
         }
       }
 
@@ -277,6 +304,7 @@ export function buildOpenAICompatibleProvider(
     descriptionKey,
     description,
     icon,
+    supportsVision: supportsVision || false,
     defaultOptions: () => ({
       baseUrl: defaultBaseUrl || '',
     }),
