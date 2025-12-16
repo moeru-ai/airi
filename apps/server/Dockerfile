@@ -5,7 +5,7 @@ WORKDIR /app
 RUN corepack enable
 
 COPY . .
-RUN pnpm install --frozen-lockfile --ignore-scripts
+RUN pnpm install --ignore-scripts
 
 ENV NODE_ENV=production
 EXPOSE 3000
