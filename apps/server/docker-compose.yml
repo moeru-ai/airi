@@ -1,4 +1,4 @@
-version: "3.9"
+version: '3.9'
 
 services:
   db:
@@ -9,9 +9,9 @@ services:
       - POSTGRES_USER=airi
       - POSTGRES_PASSWORD=airi
     ports:
-      - "5432:5432"
+      - '5432:5432'
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      test: ['CMD-SHELL', 'pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB']
       interval: 5s
       timeout: 5s
       retries: 10
@@ -32,7 +32,7 @@ services:
       - AUTH_GITHUB_CLIENT_ID=changeme
       - AUTH_GITHUB_CLIENT_SECRET=changeme
     ports:
-      - "3000:3000"
+      - '3000:3000'
     command: >
       sh -lc "pnpm -F @proj-airi/api-server run push:db &&
               pnpm -F @proj-airi/api-server start"
@@ -40,4 +40,3 @@ services:
 volumes:
   pgdata:
     driver: local
-
