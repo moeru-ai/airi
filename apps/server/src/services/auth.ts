@@ -1,6 +1,8 @@
 import type { Database } from './db'
 import type { Env } from './env'
 
+import process from 'node:process'
+
 import { betterAuth } from 'better-auth'
 import { drizzleAdapter } from 'better-auth/adapters/drizzle'
 import { bearer } from 'better-auth/plugins'
@@ -33,8 +35,8 @@ export function createAuth(db: Database, env: Env) {
       enabled: true,
     },
 
-    baseURL: 'http://localhost:3000',
-    trustedOrigins: ['http://localhost:5173'],
+    baseURL: process.env.API_SERVER_URL || 'http://localhost:3000',
+    trustedOrigins: ['http://localhost:5173', 'https://airi.moeru.ai'],
 
     socialProviders: {
       google: {

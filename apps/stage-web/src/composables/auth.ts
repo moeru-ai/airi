@@ -2,14 +2,14 @@ import { createAuthClient } from 'better-auth/vue'
 
 import { useAuthStore } from '../stores/auth'
 
-export const API_SERVER_URL = import.meta.env.VITE_SERVER_URL || 'http://localhost:3000'
+export const API_SERVER_URL = import.meta.env.VITE_SERVER_URL || 'https://airi-production.up.railway.app'
 
 const authStore = useAuthStore()
 
 export const authClient = createAuthClient({
   baseURL: API_SERVER_URL,
 
-  // credentials: 'include',
+  credentials: 'include',
   // plugins: [
   //   jwtClient(),
   // ],
