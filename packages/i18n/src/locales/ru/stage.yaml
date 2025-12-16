@@ -2,31 +2,31 @@ chat:
   message:
     character-name:
       airi: AIRI
-      core-system: Core система
-      you: Ты
-message: Спроси что-нибудь
+      core-system: Core System
+      you: You
+message: Say something...
 operations:
-  load-models: Загрузить модели
+  load-models: Load Models
   load-models-status:
-    loading: Загружается...
-    ready: Готово!
-select-a-audio-input: Выберите аудио вход
-select-a-model: Выберите модель
-select-a-voice: Выберите голос
+    loading: Loading
+    ready: Ready
+select-a-audio-input: Select a Audio Input
+select-a-model: Select a model
+select-a-voice: Choose a voice
 viewers:
   debug-menu:
-    emotions: Эмоции
+    emotions: Emotions
     emotions-btn:
-      angry: '😠 Злость'
-      awkward: '😳 Неловкость'
-      happy: '😄 Радость'
-      neutral: '🙂 Нейтраль'
-      question: '🤔 Вопрос'
-      sad: '😫 Грусть'
-      surprised: '🤯 Удивление'
-      think: '🤨 Задумчивость'
+      angry: '😠 Angry'
+      awkward: '😳 Awkward'
+      happy: '😄 Happy'
+      neutral: '🙂 Neutral'
+      question: '🤔 Question'
+      sad: '😫 Sad'
+      surprised: '🤯 Surprised'
+      think: '🤨 Think'
     vrm:
-      camera: Камера
+      camera: Camera
       model:
-        title: Модель
-waiting: Ожидание
+        title: Model
+waiting: Waiting
