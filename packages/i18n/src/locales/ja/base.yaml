@@ -25,3 +25,23 @@ toaster:
     action:
       notNow: 後で
       ok: OK
+chat:
+  history: '履歴'
+  new_chat: '新しいチャット'
+  attach_image: '画像を添付'
+  thinking: 'アヤカは考え中です、少々お待ちください... (｡•̀ᴗ•́｡)'
+journal:
+  title: 'AIRIの日記'
+  write_today: '今日の日記を書く'
+  generating: '執筆中...'
+  no_memories: 'まだ思い出がありません...'
+  has_written: '今日の思い出を記録しますか？'
+  search: '思い出を検索...'
+  no_results: '一致する思い出が見つかりません'
+  today: '今日'
+  yesterday: '昨日'
+  days_ago: '日前'
+  delete: '削除'
+  cancel: 'キャンセル'
+
+

@@ -22,4 +22,24 @@ toaster:
     message: 新版本就绪，现在更新？
     action:
       notNow: 稍后
-      ok: 好的
+      ok: OK
+chat:
+  history: '历史记录'
+  new_chat: '新对话'
+  attach_image: '上传图片'
+  thinking: 'Ayaka 正在思考，请稍等... (｡•̀ᴗ•́｡)'
+journal:
+  title: 'AIRI 的日记'
+  write_today: '写今天的日记'
+  generating: '写作中...'
+  no_memories: '还没有日记...'
+  has_written: '记录今天的回忆？'
+  search: '搜索回忆...'
+  no_results: '没有找到相关回忆'
+  today: '今天'
+  yesterday: '昨天'
+  days_ago: '天前'
+  delete: '删除'
+  cancel: '取消'
+
+

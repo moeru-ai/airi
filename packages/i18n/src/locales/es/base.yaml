@@ -23,3 +23,23 @@ toaster:
     action:
       notNow: Ahora no
       ok: OK
+chat:
+  history: 'Historial'
+  new_chat: 'Nuevo chat'
+  attach_image: 'Adjuntar imagen'
+  thinking: 'Ayaka está pensando, por favor espere un momento... (｡•̀ᴗ•́｡)'
+journal:
+  title: 'Diario de AIRI'
+  write_today: 'Escribir entrada de hoy'
+  generating: 'Escribiendo...'
+  no_memories: 'Aún no hay recuerdos...'
+  has_written: '¿Guardar los recuerdos de hoy?'
+  search: 'Buscar recuerdos...'
+  no_results: 'No se encontraron recuerdos'
+  today: 'Hoy'
+  yesterday: 'Ayer'
+  days_ago: 'días atrás'
+  delete: 'Eliminar'
+  cancel: 'Cancelar'
+
+

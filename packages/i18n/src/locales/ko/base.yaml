@@ -23,3 +23,23 @@ toaster:
     action:
       notNow: Not now
       ok: OK
+chat:
+  history: '기록'
+  new_chat: '새 채팅'
+  attach_image: '이미지 첨부'
+  thinking: '아야카가 생각 중입니다, 잠시만 기다려 주세요... (｡•̀ᴗ•́｡)'
+journal:
+  title: 'AIRI의 일기'
+  write_today: '오늘의 일기 쓰기'
+  generating: '작성 중...'
+  no_memories: '아직 추억이 없습니다...'
+  has_written: '오늘의 추억을 기록할까요?'
+  search: '추억 검색...'
+  no_results: '일치하는 추억을 찾을 수 없습니다'
+  today: '오늘'
+  yesterday: '어제'
+  days_ago: '일 전'
+  delete: '삭제'
+  cancel: '취소'
+
+

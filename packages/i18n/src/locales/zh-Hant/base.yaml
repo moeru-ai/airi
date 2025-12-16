@@ -23,3 +23,23 @@ toaster:
     action:
       notNow: 稍後
       ok: 好的
+chat:
+  history: '歷史記錄'
+  new_chat: '新對話'
+  attach_image: '上傳圖片'
+  thinking: 'Ayaka 正在思考，請稍等... (｡•̀ᴗ•́｡)'
+journal:
+  title: 'AIRI 的日記'
+  write_today: '寫今天的日記'
+  generating: '寫作中...'
+  no_memories: '還沒有日記...'
+  has_written: '記錄今天的回憶？'
+  search: '搜尋回憶...'
+  no_results: '找不到符合的回憶'
+  today: '今天'
+  yesterday: '昨天'
+  days_ago: '天前'
+  delete: '刪除'
+  cancel: '取消'
+
+

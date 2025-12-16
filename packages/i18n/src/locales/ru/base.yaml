@@ -23,3 +23,23 @@ toaster:
     action:
       notNow: Не сейчас
       ok: ОК
+chat:
+  history: 'История'
+  new_chat: 'Новый чат'
+  attach_image: 'Прикрепить изображение'
+  thinking: 'Аяка думает, пожалуйста, подождите немного... (｡•̀ᴗ•́｡) ОК'
+journal:
+  title: 'Дневник AIRI'
+  write_today: 'Записать сегодня'
+  generating: 'Пишу...'
+  no_memories: 'Воспоминаний пока нет...'
+  has_written: 'Сохранить воспоминания сегодня?'
+  search: 'Искать воспоминания...'
+  no_results: 'Воспоминания не найдены'
+  today: 'Сегодня'
+  yesterday: 'Вчера'
+  days_ago: 'дней назад'
+  delete: 'Удалить'
+  cancel: 'Отмена'
+
+

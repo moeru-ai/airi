@@ -23,3 +23,23 @@ toaster:
     action:
       notNow: Để sau
       ok: OK
+chat:
+  history: 'Lịch sử'
+  new_chat: 'Cuộc trò chuyện mới'
+  attach_image: 'Gửi ảnh'
+  thinking: 'Ayaka đang suy nghĩ chờ xíu nhé... (｡•̀ᴗ•́｡)'
+journal:
+  title: 'Nhật Ký AIRI'
+  write_today: 'Viết Nhật Ký Hôm Nay'
+  generating: 'Đang viết...'
+  no_memories: 'Chưa có nhật ký nào...'
+  has_written: 'Ghi lại kỷ niệm hôm nay?'
+  search: 'Tìm kiếm ký ức...'
+  no_results: 'Không tìm thấy ký ức phù hợp'
+  today: 'Hôm nay'
+  yesterday: 'Hôm qua'
+  days_ago: 'ngày trước'
+  delete: 'Xóa'
+  cancel: 'Hủy'
+
+
