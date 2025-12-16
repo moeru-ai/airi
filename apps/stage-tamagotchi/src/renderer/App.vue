@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { defineInvoke, defineInvokeHandler } from '@moeru/eventa'
 import { useDisplayModelsStore } from '@proj-airi/stage-ui/stores/display-models'
+import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
 import { useOnboardingStore } from '@proj-airi/stage-ui/stores/onboarding'
 import { installChatContextBridge } from '@proj-airi/stage-ui/stores/plugins/chat-context-bridge'
 import { useSettings } from '@proj-airi/stage-ui/stores/settings'
@@ -22,6 +23,7 @@ const { language, themeColorsHue, themeColorsHueDynamic } = storeToRefs(settings
 const onboardingStore = useOnboardingStore()
 const router = useRouter()
 const route = useRoute()
+const cardStore = useAiriCardStore()
 let disposeChatBridge: (() => void) | undefined
 
 watch(language, () => {
@@ -35,6 +37,7 @@ onMounted(() => updateThemeColor())
 
 // FIXME: store settings to file
 onMounted(async () => {
+  cardStore.initialize()
   onboardingStore.initializeSetupCheck()
 
   await displayModelsStore.loadDisplayModelsFromIndexedDB()

@@ -54,6 +54,8 @@ export interface AiriCard extends Card {
 }
 
 export const useAiriCardStore = defineStore('airi-card', () => {
+  const { t } = useI18n()
+
   const [cards, resetCards] = createResettableLocalStorage<Map<string, AiriCard>>('airi-cards', new Map())
   const [activeCardId, resetActiveCardId] = createResettableLocalStorage('airi-card-active-id', 'default')
 
@@ -179,24 +181,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     }
   }
 
-  // onMounted(() => {
-  //   if (cards.value.has('default'))
-  //     return
-  //   const { t } = useI18n()
-  //   cards.value.set('default', newAiriCard({
-  //     name: 'ReLU',
-  //     version: '1.0.0',
-  //     // description: 'ReLU is a simple and effective activation function that is used in many neural networks.',
-  //     description: SystemPromptV2(
-  //       t('base.prompt.prefix'),
-  //       t('base.prompt.suffix'),
-  //     ).content,
-  //   }))
-  // })
-
-  // Lilia: onMounted initialisation cause default card system prompt initialisation failure
-  function ensureDefaultCard() {
-    const { t } = useI18n()
+  function initialize() {
     if (cards.value.has('default'))
       return
     cards.value.set('default', newAiriCard({
@@ -210,7 +195,6 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     if (!activeCardId.value)
       activeCardId.value = 'default'
   }
-  ensureDefaultCard()
 
   watch(activeCard, (newCard: AiriCard | undefined) => {
     if (!newCard)
@@ -240,6 +224,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     removeCard,
     getCard,
     resetState,
+    initialize,
 
     currentModels: computed(() => {
       return {

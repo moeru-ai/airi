@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { OnboardingDialog, ToasterRoot } from '@proj-airi/stage-ui/components'
 import { useDisplayModelsStore } from '@proj-airi/stage-ui/stores/display-models'
+import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
 import { useOnboardingStore } from '@proj-airi/stage-ui/stores/onboarding'
 import { installChatContextBridge } from '@proj-airi/stage-ui/stores/plugins/chat-context-bridge'
 import { useSettings } from '@proj-airi/stage-ui/stores/settings'
@@ -24,6 +25,7 @@ const settings = storeToRefs(settingsStore)
 const onboardingStore = useOnboardingStore()
 const { shouldShowSetup } = storeToRefs(onboardingStore)
 const { isDark } = useTheme()
+const cardStore = useAiriCardStore()
 let disposeChatBridge: (() => void) | undefined
 
 const primaryColor = computed(() => {
@@ -62,6 +64,8 @@ watch(settings.themeColorsHueDynamic, () => {
 
 // Initialize first-time setup check when app mounts
 onMounted(async () => {
+  cardStore.initialize()
+
   onboardingStore.initializeSetupCheck()
   const bridge = installChatContextBridge()
   disposeChatBridge = bridge.dispose
