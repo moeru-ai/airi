@@ -1,49 +1,49 @@
 doc:
   outline:
-    title: このページについて
+    title: On this page
   community:
-    title: コミュニティ
+    title: Community
     edit:
-      title: このページを編集
+      title: Edit this page
     star-github:
-      title: GitHubでスターを付ける
+      title: Star on GitHub
     discord:
-      title: Discordでチャット
+      title: Chat on Discord
     support:
-      title: プロジェクトを支援
+      title: Support the project
   next-page:
-    title: 次のページ
+    title: Next page
   previous-page:
-    title: 前のページ
+    title: Previous page
 home:
   subtitle: >-
-    Neuro-samaを再構築し、AIの推しやバーチャルキャラクターを現実の世界へと招く。
+    Re-creating Neuro-sama, a container of souls of AI waifu / virtual characters to bring them into our worlds.
   download:
-    title: ダウンロード
+    title: Download
   get-started:
-    title: はじめに
+    title: Get Started
   try-live:
-    title: ライブ版を試す
+    title: Try Live
 search:
-  title: 検索
-  placeholder: ドキュメントを検索…
+  title: Search
+  placeholder: Search documentation...
 navbar:
   appearance:
-    title: 外観
+    title: Appearance
   language:
-    title: 言語
+    title: Language
 pages:
   characters:
-    title: キャラクター
+    title: Characters
 blog:
-  title: ブログ & 開発ログ
-  subtitle: 私たちの歩みを追い、開発チームからの最新情報を受け取ろう。
+  title: Blog & DevLogs
+  subtitle: Follow our journey and get the latest updates from the development team.
   card:
     post:
       read-more:
-        title: 続きを読む
-  no-posts: このカテゴリには投稿がありません。
+        title: Read more
+  no-posts: No posts found in this category.
   categories:
-    all: すべて
-    devlog: 開発ログ
-    dreamlog: ドリームログ
+    all: All
+    devlog: DevLog
+    dreamlog: DreamLog
