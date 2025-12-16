@@ -2,31 +2,31 @@ chat:
   message:
     character-name:
       airi: AIRI
-      core-system: 核心系统
-      you: 你
-message: 说点什么...
+      core-system: Core System
+      you: You
+message: Say something...
 operations:
-  load-models: 加载模型
+  load-models: Load Models
   load-models-status:
-    loading: 模型加载中
-    ready: 已就绪
-select-a-audio-input: 选择一个音频输入设备
-select-a-model: 选择一个模型
-select-a-voice: 选择一个声线
+    loading: Loading
+    ready: Ready
+select-a-audio-input: Select a Audio Input
+select-a-model: Select a model
+select-a-voice: Choose a voice
 viewers:
   debug-menu:
-    emotions: 表情
+    emotions: Emotions
     emotions-btn:
-      angry: '😠 生气'
-      awkward: '😳 尴尬'
-      happy: '😄 开心'
-      neutral: '🙂 日常'
-      question: '🤔 疑问'
-      sad: '😫 难过'
-      surprised: '🤯 惊喜'
-      think: '🤨 思考'
+      angry: '😠 Angry'
+      awkward: '😳 Awkward'
+      happy: '😄 Happy'
+      neutral: '🙂 Neutral'
+      question: '🤔 Question'
+      sad: '😫 Sad'
+      surprised: '🤯 Surprised'
+      think: '🤨 Think'
     vrm:
-      camera: 摄像机
+      camera: Camera
       model:
-        title: 模型
-waiting: 等待中
+        title: Model
+waiting: Waiting
