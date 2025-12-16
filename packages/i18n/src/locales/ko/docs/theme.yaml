@@ -4,34 +4,34 @@ doc:
   community:
     title: Community
     edit:
-      title: Edit this page
+      title: 페이지 편집
     star-github:
-      title: Star on GitHub
+      title: GitHub에 Star 달기
     discord:
       title: Discord 채팅 참여하기
     support:
       title: Support the project
   next-page:
-    title: Next page
+    title: 다음 페이지
   previous-page:
-    title: Previous page
+    title: 이전 페이지
 home:
   subtitle: >-
     Re-creating Neuro-sama, a container of souls of AI waifu / virtual characters to bring them into our worlds.
   download:
-    title: Download
+    title: 다운로드
   get-started:
-    title: Get Started
+    title: 시작하기
   try-live:
     title: Try Live
 search:
-  title: Search
+  title: 검색
   placeholder: Search documentation...
 navbar:
   appearance:
     title: Appearance
   language:
-    title: Language
+    title: 언어
 pages:
   characters:
     title: Characters
