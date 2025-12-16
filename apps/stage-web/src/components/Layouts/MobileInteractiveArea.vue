@@ -1,28 +1,31 @@
 <script setup lang="ts">
 import type { ChatProvider } from '@xsai-ext/shared-providers'
 
-import { ChatHistory, HearingConfigDialog } from '@proj-airi/stage-ui/components'
+import { HearingConfigDialog } from '@proj-airi/stage-ui/components'
 import { useAudioAnalyzer } from '@proj-airi/stage-ui/composables'
 import { useAudioContext } from '@proj-airi/stage-ui/stores/audio'
 import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
 import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
+import { useHearingStore } from '@proj-airi/stage-ui/stores/modules/hearing'
+import { useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
+import { useVisionStore } from '@proj-airi/stage-ui/stores/modules/vision'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
-import { BasicTextarea, useTheme } from '@proj-airi/ui'
-import { useResizeObserver, useScreenSafeArea } from '@vueuse/core'
+import { BasicTextarea } from '@proj-airi/ui'
+import { useDark, useResizeObserver, useScreenSafeArea } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { onMounted, onUnmounted, ref, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
 
 import IndicatorMicVolume from '../Widgets/IndicatorMicVolume.vue'
+import MobileChatHistory from '../Widgets/MobileChatHistory.vue'
 import ActionAbout from './InteractiveArea/Actions/About.vue'
 import ActionViewControls from './InteractiveArea/Actions/ViewControls.vue'
 import ViewControlInputs from './ViewControls/Inputs.vue'
 
-const { isDark, toggleDark } = useTheme()
+const isDark = useDark({ disableTransition: false })
 const hearingDialogOpen = ref(false)
-const { messages, sending, streamingMessage } = storeToRefs(useChatStore())
 
 const viewControlsActiveMode = ref<'x' | 'y' | 'z' | 'scale'>('scale')
 const viewControlsInputsRef = useTemplateRef<InstanceType<typeof ViewControlInputs>>('viewControlsInputs')
@@ -30,15 +33,30 @@ const viewControlsInputsRef = useTemplateRef<InstanceType<typeof ViewControlInpu
 const messageInput = ref('')
 const isComposing = ref(false)
 
+// Toggle states
+const speechEnabled = ref(false)
+const hearingEnabled = ref(false)
+const imageInputEnabled = ref(false)
+
+// File input ref
+const fileInputRef = ref<HTMLInputElement>()
+
 const screenSafeArea = useScreenSafeArea()
 const providersStore = useProvidersStore()
+const speechStore = useSpeechStore()
+const hearingStore = useHearingStore()
+const visionStore = useVisionStore()
+
 const { activeProvider, activeModel } = storeToRefs(useConsciousnessStore())
 
 useResizeObserver(document.documentElement, () => screenSafeArea.update())
+
+const { askPermission } = useSettingsAudioDevice()
 const { themeColorsHueDynamic, stageViewControlsEnabled } = storeToRefs(useSettings())
 const settingsAudioDevice = useSettingsAudioDevice()
 const { enabled, selectedAudioInput, stream, audioInputs } = storeToRefs(settingsAudioDevice)
 const { send, onAfterMessageComposed, discoverToolsCompatibility, cleanupMessages } = useChatStore()
+const { messages } = storeToRefs(useChatStore())
 const { t } = useI18n()
 const { audioContext } = useAudioContext()
 const { startAnalyzer, stopAnalyzer, volumeLevel } = useAudioAnalyzer()
@@ -77,35 +95,100 @@ async function handleSend() {
   }
 }
 
-function teardownAnalyzer() {
-  try {
-    analyzerSource?.disconnect()
+async function handleImageUpload(event: Event) {
+  const file = (event.target as HTMLInputElement).files?.[0]
+  if (!file || !file.type.startsWith('image/')) {
+    return
   }
-  catch {}
-  analyzerSource = undefined
-  stopAnalyzer()
+
+  try {
+    // Convert image to base64 for vision analysis
+    const reader = new FileReader()
+    reader.onload = async (e) => {
+      const imageData = e.target?.result as string
+
+      // Send image to vision analysis
+      if (visionStore.configured) {
+        try {
+          const result = await visionStore.analyzeImageDirect(imageData, 'Analyze this image in detail.')
+
+          // Add analysis result to chat
+          await send(`[Image Analysis: ${result.content}]`, {
+            chatProvider: await providersStore.getProviderInstance(activeProvider.value) as ChatProvider,
+            model: activeModel.value,
+            providerConfig: providersStore.getProviderConfig(activeProvider.value),
+          })
+        }
+        catch (error) {
+          console.error('Vision analysis failed:', error)
+          // Add error message to chat
+          await send(`Image analysis failed: ${(error as Error).message}`, {
+            chatProvider: await providersStore.getProviderInstance(activeProvider.value) as ChatProvider,
+            model: activeModel.value,
+            providerConfig: providersStore.getProviderConfig(activeProvider.value),
+          })
+        }
+      }
+    }
+    reader.readAsDataURL(file)
+
+    // Reset file input
+    if (fileInputRef.value) {
+      fileInputRef.value.value = ''
+    }
+  }
+  catch (error) {
+    console.error('Error uploading image:', error)
+  }
 }
 
-async function setupAnalyzer() {
-  teardownAnalyzer()
-  if (!hearingDialogOpen.value || !enabled.value || !stream.value)
-    return
-  if (audioContext.state === 'suspended')
-    await audioContext.resume()
-  const analyser = startAnalyzer(audioContext)
-  if (!analyser)
-    return
-  analyzerSource = audioContext.createMediaStreamSource(stream.value)
-  analyzerSource.connect(analyser)
+async function handleSpeechToggle() {
+  if (!speechEnabled.value) {
+    speechEnabled.value = true
+    // Enable speech synthesis when turned on
+    // TODO: Initialize speech synthesis if needed
+  }
+  else {
+    speechEnabled.value = false
+    // Disable speech synthesis when turned off
+    // TODO: Clean up speech synthesis if needed
+  }
 }
 
-watch([hearingDialogOpen, enabled, stream], () => {
-  setupAnalyzer()
-}, { immediate: true })
+const vad = useMicVAD(selectedAudioInput, {
+  onSpeechStart: () => {
+    // TODO: interrupt the playback
+    // TODO: interrupt any of the ongoing TTS
+    // TODO: interrupt any of the ongoing LLM requests
+    // TODO: interrupt any of the ongoing animation of Live2D or VRM
+    // TODO: once interrupted, we should somehow switch to listen or thinking
+    //       emotion / expression?
+    listening.value = true
+  },
+  // VAD misfire means while speech end is detected but
+  // the frames of the segment of the audio buffer
+  // is not enough to be considered as a speech segment
+  // which controlled by the `minSpeechFrames` parameter
+  onVADMisfire: () => {
+    // TODO: do audio buffer send to whisper
+    listening.value = false
+  },
+  onSpeechEnd: (buffer) => {
+    // TODO: do audio buffer send to whisper
+    listening.value = false
+    handleTranscription(buffer)
+  },
+  auto: false,
+})
 
-watch(hearingDialogOpen, (value) => {
-  if (value) {
-    settingsAudioDevice.askPermission()
+function handleTranscription(_buffer: Float32Array<ArrayBufferLike>) {
+  // eslint-disable-next-line no-alert
+  alert('Transcription is not implemented yet')
+}
+
+watch(enabled, async (value) => {
+  if (value === false) {
+    vad.destroy()
   }
 })
 
@@ -119,11 +202,31 @@ watch([activeProvider, activeModel], async () => {
   }
 })
 
-onUnmounted(() => {
-  teardownAnalyzer()
-})
+// Define hearing toggle after VAD is defined
+async function handleHearingToggle() {
+  // Only request microphone permission when turning on hearing
+  if (!hearingEnabled.value) {
+    try {
+      await askPermission()
+      hearingEnabled.value = true
+      // Start VAD when hearing is enabled
+      vad.start()
+    }
+    catch (error) {
+      console.error('Failed to get microphone permission:', error)
+      // Show error to user or handle appropriately
+    }
+  }
+  else {
+    hearingEnabled.value = false
+    // Stop VAD when hearing is disabled
+    vad.destroy()
+  }
+}
 
 onMounted(() => {
+  // Don't start VAD automatically - only start when user enables hearing
+  // vad.start()
   screenSafeArea.update()
 })
 </script>
@@ -132,21 +235,7 @@ onMounted(() => {
   <div fixed bottom-0 w-full flex flex-col>
     <KeepAlive>
       <Transition name="fade">
-        <ChatHistory
-          v-if="!stageViewControlsEnabled"
-          variant="mobile"
-          :messages="messages"
-          :sending="sending"
-          :streaming-message="streamingMessage"
-          max-w="[calc(100%-3.5rem)]"
-          w-full
-          self-start
-          pl-3
-          class="chat-history"
-          :class="[
-            'relative z-20',
-          ]"
-        />
+        <MobileChatHistory v-if="!stageViewControlsEnabled" max-w="[calc(100%-3.5rem)]" w-full self-start pl-3 />
       </Transition>
     </KeepAlive>
     <div relative w-full self-end>
@@ -156,27 +245,79 @@ onMounted(() => {
       <div translate-y="[-100%]" absolute right-0 w-full px-3 pb-3 font-sans>
         <div flex="~ col" w-full gap-1>
           <ActionAbout />
-          <HearingConfigDialog
-            v-model:show="hearingDialogOpen"
-            v-model:enabled="enabled"
-            v-model:selected-audio-input="selectedAudioInput"
-            :audio-inputs="audioInputs"
-            :volume-level="volumeLevel"
-            :granted="true"
+
+          <!-- Speech Toggle Button -->
+          <button
+            v-if="speechStore.configured"
+            border="2 solid neutral-100/60 dark:neutral-800/30"
+            bg="neutral-50/70 dark:neutral-800/70"
+            w-fit flex items-center self-end justify-center rounded-xl p-2 backdrop-blur-md
+            :title="speechEnabled ? 'Disable Speech' : 'Enable Speech'"
+            @click="handleSpeechToggle"
           >
-            <button
-              border="2 solid neutral-100/60 dark:neutral-800/30"
-              bg="neutral-50/70 dark:neutral-800/70"
-              w-fit flex items-center self-end justify-center rounded-xl p-2 backdrop-blur-md
-              title="Hearing"
-            >
-              <Transition name="fade" mode="out-in">
-                <IndicatorMicVolume v-if="enabled" size-5 color-class="text-neutral-500 dark:text-neutral-400" />
-                <div v-else i-solar:microphone-3-outline size-5 text="neutral-500 dark:neutral-400" />
-              </Transition>
-            </button>
-          </HearingConfigDialog>
-          <button border="2 solid neutral-100/60 dark:neutral-800/30" bg="neutral-50/70 dark:neutral-800/70" w-fit flex items-center self-end justify-center rounded-xl p-2 backdrop-blur-md title="Theme" @click="toggleDark()">
+            <div
+              size-5
+              :class="speechEnabled ? 'text-green-500 dark:text-green-400' : 'text-neutral-500 dark:neutral-400'"
+              class="i-solar:user-speak-rounded-bold-duotone"
+            />
+          </button>
+
+          <!-- Hearing Toggle Button -->
+          <button
+            v-if="hearingStore.configured"
+            border="2 solid neutral-100/60 dark:neutral-800/30"
+            bg="neutral-50/70 dark:neutral-800/70"
+            w-fit flex items-center self-end justify-center rounded-xl p-2 backdrop-blur-md
+            :title="hearingEnabled ? 'Disable Hearing' : 'Enable Hearing'"
+            @click="handleHearingToggle"
+          >
+            <div
+              size-5
+              :class="hearingEnabled ? 'text-green-500 dark:text-green-400' : 'text-neutral-500 dark:neutral-400'"
+              class="i-solar:microphone-3-bold-duotone"
+            />
+          </button>
+
+          <!-- Vision/Image Input Toggle Button -->
+          <button
+            v-if="visionStore.configured"
+            border="2 solid neutral-100/60 dark:neutral-800/30"
+            bg="neutral-50/70 dark:neutral-800/70"
+            w-fit flex items-center self-end justify-center rounded-xl p-2 backdrop-blur-md
+            :title="imageInputEnabled ? 'Disable Image Input' : 'Enable Image Input'"
+            @click="imageInputEnabled = !imageInputEnabled"
+          >
+            <div
+              size-5
+              :class="imageInputEnabled ? 'text-blue-500 dark:text-blue-400' : 'text-neutral-500 dark:neutral-400'"
+              class="i-solar:eye-bold-duotone"
+            />
+          </button>
+
+          <!-- Hidden file input for image upload -->
+          <input
+            v-if="imageInputEnabled"
+            ref="fileInputRef"
+            type="file"
+            accept="image/*"
+            class="hidden"
+            @change="handleImageUpload"
+          >
+
+          <!-- Image Upload Button (shown when image input is enabled) -->
+          <button
+            v-if="imageInputEnabled"
+            border="2 solid neutral-100/60 dark:neutral-800/30"
+            bg="neutral-50/70 dark:neutral-800/70"
+            w-fit flex items-center self-end justify-center rounded-xl p-2 backdrop-blur-md
+            title="Upload Image"
+            @click="fileInputRef?.click()"
+          >
+            <div size-5 text="neutral-500 dark:neutral-400" class="i-solar:gallery-add-bold-duotone" />
+          </button>
+
+          <!-- Theme Toggle Button -->
+          <button border="2 solid neutral-100/60 dark:neutral-800/30" bg="neutral-50/70 dark:neutral-800/70" w-fit flex items-center self-end justify-center rounded-xl p-2 backdrop-blur-md title="Theme" @click="isDark = !isDark">
             <Transition name="fade" mode="out-in">
               <div v-if="isDark" i-solar:moon-outline size-5 text="neutral-500 dark:neutral-400" />
               <div v-else i-solar:sun-2-outline size-5 text="neutral-500 dark:neutral-400" />
@@ -197,7 +338,7 @@ onMounted(() => {
             bg="neutral-50/70 dark:neutral-800/70"
             w-fit flex items-center self-end justify-center rounded-xl p-2 backdrop-blur-md
             title="Cleanup Messages"
-            @click="cleanupMessages()"
+            @click="cleanupMessages"
           >
             <div class="i-solar:trash-bin-2-bold-duotone" />
           </button>
@@ -233,37 +374,3 @@ onMounted(() => {
     </div>
   </div>
 </template>
-
-<style scoped>
-@keyframes scan {
-  0% {
-    transform: translateX(-100%);
-  }
-  100% {
-    transform: translateX(400%);
-  }
-}
-
-.animate-scan {
-  animation: scan 2s infinite linear;
-}
-
-/*
-DO NOT ATTEMPT TO USE backdrop-filter TOGETHER WITH mask-image.
-
-html - Why doesn't blur backdrop-filter work together with mask-image? - Stack Overflow
-https://stackoverflow.com/questions/72780266/why-doesnt-blur-backdrop-filter-work-together-with-mask-image
-*/
-.chat-history {
-  --gradient: linear-gradient(to bottom, rgba(0,0,0,0) 0%, rgba(0,0,0,1) 20%);
-  -webkit-mask-image: var(--gradient);
-  mask-image: var(--gradient);
-  -webkit-mask-size: 100% 100%;
-  mask-size: 100% 100%;
-  -webkit-mask-repeat: no-repeat;
-  mask-repeat: no-repeat;
-  -webkit-mask-position: bottom;
-  mask-position: bottom;
-  max-height: 35dvh;
-}
-</style>
