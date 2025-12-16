@@ -1,49 +1,49 @@
 doc:
   outline:
-    title: Trong trang này
+    title: On this page
   community:
-    title: Cộng đồng
+    title: Community
     edit:
-      title: Chỉnh sửa trang này
+      title: Edit this page
     star-github:
-      title: Gắn sao trên GitHub
+      title: Star on GitHub
     discord:
-      title: Trò chuyện trên Discord
+      title: Chat on Discord
     support:
-      title: Hỗ trợ dự án
+      title: Support the project
   next-page:
-    title: Trang sau
+    title: Next page
   previous-page:
-    title: Trang trước
+    title: Previous page
 home:
   subtitle: >-
-    Một nhân vật chứa linh hồn của AI waifu / VTuber nhân vật ảo để đưa họ vào thế giới của chúng ta.
+    Re-creating Neuro-sama, a container of souls of AI waifu / virtual characters to bring them into our worlds.
   download:
-    title: Tải xuống
+    title: Download
   get-started:
-    title: Bắt đầu
+    title: Get Started
   try-live:
-    title: Thử trực tiếp
+    title: Try Live
 search:
-  title: Tìm kiếm
-  placeholder: Tìm trong tài liệu...
+  title: Search
+  placeholder: Search documentation...
 navbar:
   appearance:
-    title: Giao diện
+    title: Appearance
   language:
-    title: Ngôn ngữ
+    title: Language
 pages:
   characters:
-    title: Nhân vật
+    title: Characters
 blog:
   title: Blog & DevLogs
-  subtitle: Theo dõi hành trình của chúng tôi và nhận các cập nhật mới nhất từ đội ngũ phát triển.
+  subtitle: Follow our journey and get the latest updates from the development team.
   card:
     post:
       read-more:
-        title: Xem thêm
-  no-posts: Không tìm thấy bài viết trong danh mục này.
+        title: Read more
+  no-posts: No posts found in this category.
   categories:
-    all: Tất cả
+    all: All
     devlog: DevLog
     dreamlog: DreamLog
