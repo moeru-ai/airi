@@ -1,49 +1,49 @@
 doc:
   outline:
-    title: Содержание статьи
+    title: On this page
   community:
-    title: Сообщество
+    title: Community
     edit:
-      title: Редактировать страницу
+      title: Edit this page
     star-github:
-      title: Дать звезду на Github
+      title: Star on GitHub
     discord:
-      title: Наш Discord сервер
+      title: Chat on Discord
     support:
-      title: Поддержать проект
+      title: Support the project
   next-page:
-    title: Следующая страница
+    title: Next page
   previous-page:
-    title: Предыдущая страница
+    title: Previous page
 home:
   subtitle: >-
-    Воссоздаем Нейро-саму, воплощая души нейронных вайфу в реальность
+    Re-creating Neuro-sama, a container of souls of AI waifu / virtual characters to bring them into our worlds.
   download:
-    title: Скачать
+    title: Download
   get-started:
-    title: Мануал по установке
+    title: Get Started
   try-live:
-    title: Попробовать в Live
+    title: Try Live
 search:
-  title: Поиск
-  placeholder: Искать в документации...
+  title: Search
+  placeholder: Search documentation...
 navbar:
   appearance:
-    title: Внешность
+    title: Appearance
   language:
-    title: Язык
+    title: Language
 pages:
   characters:
-    title: Персонажи
+    title: Characters
 blog:
-  title: Блог & ДевЛоги
-  subtitle: Следи за новостями и получай последние обновления от команды разработки
+  title: Blog & DevLogs
+  subtitle: Follow our journey and get the latest updates from the development team.
   card:
     post:
       read-more:
-        title: Читать дальше
-  no-posts: Посты не найдены в этой категории.
+        title: Read more
+  no-posts: No posts found in this category.
   categories:
-    all: Всё
-    devlog: ДевЛог
-    dreamlog: Хроники
+    all: All
+    devlog: DevLog
+    dreamlog: DreamLog
