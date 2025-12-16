@@ -1,26 +1,26 @@
 allow-visible-on-all-workspaces:
-  title: Visibilidad Entre Espacios
-  description: Permitir que la ventana sea visible en todos los espacios de trabajo, solo macOS.
+  title: Cross-Space Visibility
+  description: Allow the window to be visible on all workspaces, macOS only.
 pages:
   modules:
     mcp-server:
-      description: Conectar y gestionar servidor MCP y herramientas
-      title: Servidor MCP
+      description: Connect and manage MCP server and tools
+      title: MCP Server
   system:
     sections:
       section:
         window-shortcuts:
-          title: Atajos de Teclado
+          title: Keyboard Shortcuts
     window-shortcuts:
-      description: Modificar los atajos de ventana.
-      title: Atajos de Ventana
+      description: Modify the window shortcuts.
+      title: Window Shortcuts
       toggle-move:
-        label: Alternar Mover
+        label: Toggle Move
       toggle-resize:
-        label: Alternar Redimensionar
+        label: Toggle Resize
       toggle-ignore-mouse-event:
-        label: Alternar Ignorar Evento del Ratón
-      press-keys: Presionar Teclas...
+        label: Toggle Ignore Mouse Event
+      press-keys: Press Keys...
     developer:
       sections:
         section:
