@@ -6,7 +6,7 @@ RUN corepack enable
 
 COPY . .
 RUN --mount=type=cache,id=pnpm-store,target=/root/.pnpm-store \
-    pnpm install --frozen-lockfile
+    pnpm install --frozen-lockfile --ignore-scripts
 
 ENV NODE_ENV=production
 EXPOSE 3000
