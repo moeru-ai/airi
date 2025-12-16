@@ -1,26 +1,26 @@
 allow-visible-on-all-workspaces:
-  title: Межпространственная видимость
-  description: Позволяет окну быть видимым на всех рабочих столах, только для macOS.
+  title: Cross-Space Visibility
+  description: Allow the window to be visible on all workspaces, macOS only.
 pages:
   modules:
     mcp-server:
-      description: Возможность подключения и управления MCP сервером с инструментами
-      title: MCP Сервер
+      description: Connect and manage MCP server and tools
+      title: MCP Server
   system:
     sections:
       section:
         window-shortcuts:
-          title: Клавиши навигации окна
+          title: Keyboard Shortcuts
     window-shortcuts:
-      description: Редактирование горячих клавиш для управления окном
-      title: Горячие клавиши управления окном
+      description: Modify the window shortcuts.
+      title: Window Shortcuts
       toggle-move:
-        label: Перемещение окна
+        label: Toggle Move
       toggle-resize:
-        label: Масштабирование окна
+        label: Toggle Resize
       toggle-ignore-mouse-event:
-        label: Игнорировать курсор мыши
-      press-keys: Нажмите любую клавишу...
+        label: Toggle Ignore Mouse Event
+      press-keys: Press Keys...
     developer:
       sections:
         section:
