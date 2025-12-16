@@ -4,8 +4,10 @@ WORKDIR /app
 
 RUN corepack enable
 
-COPY . .
-RUN pnpm install --ignore-scripts
+COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
+COPY apps/server apps/server
+
+RUN pnpm install --frozen-lockfile --ignore-scripts
 
 ENV NODE_ENV=production
 EXPOSE 3000

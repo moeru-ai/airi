@@ -20,7 +20,7 @@ services:
 
   server:
     build:
-      context: .
+      context: ../..
       dockerfile: apps/server/Dockerfile
     depends_on:
       db:
@@ -33,9 +33,6 @@ services:
       - AUTH_GITHUB_CLIENT_SECRET=changeme
     ports:
       - '3000:3000'
-    command: >
-      sh -lc "pnpm -F @proj-airi/api-server run push:db &&
-              pnpm -F @proj-airi/api-server start"
 
 volumes:
   pgdata:
