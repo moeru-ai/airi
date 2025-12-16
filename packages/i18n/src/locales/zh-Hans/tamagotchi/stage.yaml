@@ -1,28 +1,28 @@
 operations:
-  load-models: 加载推理模型
+  load-models: Load Models
   load-models-status:
-    loading: 加载中
-    ready: 已就绪
+    loading: Loading
+    ready: Ready
 docs:
   theme:
     navbar:
       appearance:
-        title: 外观
+        title: Appearance
 'controls-island':
   'fade-on-hover':
-    enable: 悬停时隐藏
-    disable: 总是显示
+    enable: Auto hide
+    disable: Always show
 notice:
   'fade-on-hover':
-    title: 悬停淡出
-    intro: 当光标靠近时自动让角色变淡，减少干扰又保持可见。
-    opacity: 开启后，不透明度会降到 {value} ，作用于 {targets} ，当光标靠近时。
-    toggle: 想关闭，移动到 {controls} 区域，再点击一次 {icon}。
-    controls-label: 控制岛
-    icon-label: 隐藏图标
+    title: Fade on Hover
+    intro: Automatically fades the character when your cursor roams nearby. It helps reduce distractions while keeping your character visible.
+    opacity: After turning on, the opacity drops to {value} for both {targets} when your cursor is nearby.
+    toggle: You can toggle it off by hovering at {controls}, then clicking the {icon} again.
+    controls-label: Controls Island
+    icon-label: eye-slash icon
     value: '0'
-    targets: 角色和界面
-    confirm: 知道了
-    preparing: 准备中…
-    read-more: 阅读更多
-    preview-title: 这是什么？
+    targets: Character and UI
+    confirm: Got it
+    preparing: Preparing…
+    read-more: Read more
+    preview-title: What is it?
