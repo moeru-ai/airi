@@ -32,18 +32,21 @@ export interface MarkerEventPayload {
   key: string
 }
 
-export type PerformanceEventPayload
-  = | SpeechEventPayload
-    | VisemeEventPayload
-    | ExpressionEventPayload
-    | BodyEventPayload
-    | MarkerEventPayload
+interface PerformanceEventPayloadMap {
+  speech: SpeechEventPayload
+  viseme: VisemeEventPayload
+  expression: ExpressionEventPayload
+  body: BodyEventPayload
+  marker: MarkerEventPayload
+}
+
+export type PerformanceEventPayload = PerformanceEventPayloadMap[keyof PerformanceEventPayloadMap]
 
 export interface PerformanceEvent<T extends PerformanceEventKind = PerformanceEventKind> {
   id: string
   kind: T
   t: number // milliseconds since timeline start
-  payload: PerformanceEventPayload
+  payload: PerformanceEventPayloadMap[T]
 }
 
 export interface PerformanceTrack {
