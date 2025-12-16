@@ -1,0 +1,12 @@
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "apps/server/Dockerfile"
+watchPatterns = [
+  "apps/server/**",
+  "packages/**",
+  "pnpm-lock.yaml"
+]
+
+[deploy]
+preDeployCommand = [ "pnpm -F @proj-airi/api-server run push:db" ]
+startCommand = "pnpm -F @proj-airi/api-server start"
