@@ -1,152 +1,152 @@
 common:
-  save: 保存
+  save: Save
 animations:
   stage-transitions:
-    title: 是否开启舞台动画
+    title: Disable Stage Transitions
   use-page-specific-transitions:
     description: >-
-      某些页面会有自己的过场动画，这将覆盖舞台过场动画
-    title: 是否使用页面特定过场动画
+      Some pages will have their own transitions, this will override the stage transitions
+    title: Use Page Specific Transitions
 dialogs:
   onboarding:
-    title: 欢迎来到 AIRI！
-    description: 让我们设置您的第一个服务来源来开始使用。
-    selectProvider: 选择服务来源
-    configureProvider: 配置 {provider}
-    apiKey: API 密钥
-    apiKeyHelp: 从 {provider} 获取您的 API 密钥并粘贴到这里
-    baseUrl: 基础 URL
-    baseUrlHelp: API 端点 URL（如果不确定请使用默认值）
-    accountId: 账户 ID
-    validationSuccess: 配置验证成功
-    validationFailed: 配置验证失败
-    validationError: '验证错误：{error}'
-    skipForNow: 暂时跳过
-    saveAndContinue: 保存并继续
-    next: 下一步
-    start: 开始吧！
-    select-model: 选择模型
-    no-models: 找不到可用模型
+    title: Welcome to AIRI!
+    description: Let's set up your first AI provider to get started.
+    selectProvider: Choose an AI Provider
+    configureProvider: Configure {provider}
+    apiKey: API Key
+    apiKeyHelp: Get your API key from {provider} and paste it here
+    baseUrl: Base URL
+    baseUrlHelp: API endpoint URL (use default if unsure)
+    accountId: Account ID
+    validationSuccess: Configuration validation success
+    validationFailed: Configuration validation failed
+    validationError: 'Validation error: {error}'
+    skipForNow: Skip for now
+    saveAndContinue: Save and Continue
+    next: Next
+    start: Let's do it!
+    select-model: Choose model
+    no-models: No available models
     no-models-help: >-
-      请返回上一步并检查您的 API Key，或检查网络连接。
+      Please return to the previous step and check your API key, or check the network connection.
 language:
-  title: 语言
+  title: Language
   description: >
-    切换显示界面的语言
+    Change the language of the AIRI interface. This will not affect the language of the character's responses.
 live2d:
   change-model:
-    from-file: 从文件加载
-    from-file-select: 选择
-    from-url: 从 URL 加载
-    from-url-confirm: 加载
-    from-url-placeholder: 输入 Live2D 模型 URL
-    title: 更换模型
+    from-file: Load from File
+    from-file-select: Select
+    from-url: Load from URL
+    from-url-confirm: Load
+    from-url-placeholder: Enter Live2D model URL
+    title: Change Model
   edit-motion-map:
-    title: 编辑动作映射
+    title: Edit motion map
   map-motions:
-    play: 播放动作
-    title: 映射动作
-  title: Live2D 设置
+    play: Play Motion
+    title: Map Motions
+  title: Live2D Settings
   scale-and-position:
-    title: 缩放与位置
-    scale: 缩放
+    title: Scale And Position
+    scale: Scale
     x: X
     'y': 'Y'
   switch-to-vrm:
-    title: 想切换至3D虚拟形象？
-    change-to-vrm: 切换至3D虚拟形象设定页面（VRM）
+    title: Switch to 3D Avatar?
+    change-to-vrm: Click here to switch to the 3D avatar setting (VRM)
   theme-color-from-model:
-    title: 从模型提取主题颜色
+    title: Extract colors from model
     button-extract:
-      title: 提取
+      title: Extract
   focus:
-    title: 禁用模型鼠标跟踪
+    title: Disable model mouse tracking
     button-disable:
-      title: 禁用
-microphone: 麦克风
-models: 模型
+      title: Disable
+microphone: Microphone
+models: Model
 pages:
   card:
-    activate: 激活
-    active: 已激活
-    active_badge: 当前使用中
+    activate: Activate
+    active: Active
+    active_badge: Currently Active
     cancel: Cancel action
-    card_not_found: 未找到角色卡
-    character: 角色设定
-    close: 关闭
+    card_not_found: Card not found
+    character: Character
+    close: Close
     consciousness:
-      model: 意识 / 模型
-    created_by: 创建者
-    creator_notes: 创建者笔记
-    delete: 删除
-    delete_card: 删除角色卡
-    delete_confirmation: 确定要删除这张角色卡吗？
-    description: 使用 AIRI 角色卡预设
-    description_label: 描述
-    drop_here: 放开以上传文件
-    create_card: 创建新角色卡
+      model: Consciousness / Model
+    created_by: created by
+    creator_notes: Creator Notes
+    delete: Delete
+    delete_card: Delete Card
+    delete_confirmation: Are you sure you want to delete this card?
+    description: Use AIRI character card presets
+    description_label: Description
+    drop_here: Drop to upload
+    create_card: Create a new Card
     creation:
-      identity: 身份
-      name: 名字
-      nickname: 昵称
-      description: 描述
-      behavior: 行为
-      greetings: 问候语（每行一个）
-      settings: 设置
-      version: 版本
-      create: 创建
+      identity: Identity
+      name: Name
+      nickname: Nickname
+      description: Description
+      behavior: Behavior
+      greetings: Greetings (one per line)
+      settings: Settings
+      version: Version
+      create: Create
       defaults:
-        name: 名字
-        personality: 你是一个普通人，对一切都充满好奇。
-        scenario: 你最近醒来，忘记了之前的所有生活。
-        systemprompt: 你将收到消息，请像真实人类一样回复。
-        posthistoryinstructions: 记得模仿人类的行为。
+        name: Name
+        personality: You are a regular human, curious about everything.
+        scenario: You recently woke up and forgot everything about your previous life.
+        systemprompt: You will receive messages, answer to them like a real human.
+        posthistoryinstructions: Remember to imitate an human.
       fields_info:
         subtitle: >-
-          您可以在这里填写有关您正在创建的角色的一些详细信息，解释他的背景和情境，以及应该如何回应您的互动。
-        name: 是该角色的正式名称。
-        nickname: 您也可以提供一个昵称，它将被优先使用。
-        description: 该角色的描述。
-        notes: 如果您想添加一些个人备注。
+          You can put here some details about the character you are creating, explain his history and context, and how your interactions should be answered.
+        name: Is the formal name of this character.
+        nickname: You can also give a nickname that will be used in priority.
+        description: Description of this character.
+        notes: If you want to add some personal notes.
         personality: >-
-          在这里描述您的角色的个性。例如：害羞？好奇？其他？
-        scenario: 周围环境是怎样的？当前的情境是什么？
-        greetings_field: 问候语
-        greetings: 您的角色应该如何说“你好”？
-        systemprompt: 在这里向 AI LLM 解释当被提示时应该如何回应。
-        posthistoryinstructions: 在消息历史之后，放入 AI LLM 应该阅读的内容。
+          Describe here the personality of your character. Shy ? Curious ? Anything else ?
+        scenario: What are the surroundings ? What is the current situation ?
+        greetings_field: Greetings
+        greetings: How your character should say "hello" ?
+        systemprompt: Explain here to the AI LLM how it should answer when prompted.
+        posthistoryinstructions: Place here anything the AI LLM should read after the messages history.
         version: >-
-          卡片版本，如果您从之前的卡片做了更改，应当增加此版本号。
+          Card version, you should increase this if you are making changes from a previous card.
       errors:
-        name: 错误：你必须提供一个有效的名称！
-        version: '错误：版本号无效！'
-        description: '错误：你必须为此卡片提供描述。'
-        personality: '错误：必须为该角色提供性格描述。'
-        scenario: '错误：必须提供一个情境。'
-        systemprompt: '错误：请提供系统提示。'
-        posthistoryinstructions: '错误：必须提供消息历史后的提示。'
-    modules: 模块
-    name_asc: 名称 (A-Z)
-    name_desc: 名称 (Z-A)
-    no_cards: 还没有任何角色卡，点击上方按钮上传一个吧！
-    no_results: 没有找到匹配的角色卡
-    personality: 性格
-    posthistoryinstructions: 历史提示指令
-    recent: 最近添加
-    scenario: 场景
-    search: 搜索角色卡...
-    sort_by: 排序方式
+        name: Name should be valid or non-empty.
+        version: 'Error: Invalid version number !'
+        description: 'Error: You must provide a description for this card.'
+        personality: 'Error: A personality must be provided for this character.'
+        scenario: 'Error: A scenario is required.'
+        systemprompt: 'Error: Please, provide a system prompt.'
+        posthistoryinstructions: 'Error: Post history prompt is required.'
+    modules: Modules
+    name_asc: Name (A-Z)
+    name_desc: Name (Z-A)
+    no_cards: No cards yet. Click the button above to upload one!
+    no_results: No matching cards found
+    personality: Personality
+    posthistoryinstructions: Post-History Instructions
+    recent: Recently Added
+    scenario: Scenario
+    search: Search cards...
+    sort_by: Sort by
     speech:
-      model: 声音 / 模型
-      voice: 声音 / 声线
-    systemprompt: 系统提示词
-    title: AIRI 角色卡
-    try_different_search: 尝试使用其他关键词搜索
-    upload: 上传
-    upload_desc: 点击或拖拽文件到此处上传
+      model: Speech / Model
+      voice: Speech / Voice
+    systemprompt: System Prompt
+    title: AIRI Card
+    try_different_search: Try a different search term
+    upload: Upload
+    upload_desc: Click or drag file to upload
   memory:
-    description: 存放记忆的地方，以及策略
-    title: 记忆体
+    description: Where memories got stored, and organized
+    title: Memory
   data:
     title: Data
     description: Manage stored AIRI data, exports, and resets
@@ -194,348 +194,348 @@ pages:
       all_deleted: All local data deleted.
       desktop_reset: Desktop data reset.
   models:
-    description: 切换角色的 Live2D，VRM 模型
-    title: 角色模型
+    description: Live2D, VRM, etc.
+    title: Models
     sections:
       section:
         live2d:
           title: Live2D
-          description: 配置 Live2D 模型
+          description: Configure Live2D models and settings
         vrm:
           title: VRM
-          description: 配置 3D VRM 模型
-        scene: 场景
+          description: Configure 3D VRM models and settings
+        scene: Scene
   modules:
     beat_sync:
-      description: 随音源节拍律动
-      title: 同步音律
+      description: Vibe with beats from the audio source
+      title: Beat Sync
       sections:
         audio_source:
           actions:
-            start_screen_capture: 开始屏幕录制
-            stop: 停止
-          description: 选择音频来源以检测其中的节拍
-          title: 音频来源
+            start_screen_capture: Start screen capture
+            stop: Stop
+          description: Select an audio source to detect beats from.
+          title: Audio source
         beat_visualizer:
-          title: 节拍可视化
+          title: Beat visualizer
         parameters:
-          advanced_parameters: 高级参数
-          description: 调整节拍检测参数
-          title: 参数
+          advanced_parameters: Advanced Parameters
+          description: Tweak the beat detection parameters.
+          title: Parameters
           parameters:
             adaptive_threshold:
               description: >-
-                是否根据信号随时间变化的方差应用自适应阈值
-              label: 自适应阈值
+                Whether to apply adaptive thresholds based on signal variance over time.
+              label: Adaptive threshold
             buffer_duration:
-              description: 内部分析缓冲区的持续时间
-              label: 缓冲时长
+              description: Duration of the internal analysis buffer.
+              label: Buffer duration
             envelope_filter_frequency:
               description: >-
-                应用于平滑能量变化的包络滤波器频率
-              label: 包络滤波器频率
+                Frequency for the envelope filter applied to smooth energy changes.
+              label: Envelope filter frequency
             highpass_filter_frequency:
               description: >-
-                高通滤波器的频率设置，用于抑制低频噪声（如次低频噪声）
-              label: 高通滤波器频率
+                Frequency for the highpass filter applied to reduce low frequencies like sub-bass noises.
+              label: Highpass filter frequency
             lowpass_filter_frequency:
               description: >-
-                低通滤波器的频率设置，用于削减高频信号（如人声）
-              label: 低通滤波器频率
+                Frequency for the lowpass filter applied to reduce high frequencies like vocals.
+              label: Lowpass filter frequency
             min_beat_interval:
-              description: 最大每分钟节拍数（BPM）或检测到的节拍之间最小间隔
-              label: 最大BPM / 最小节拍间隔
+              description: Maximum BPM or minimum interval between detected beats.
+              label: Max BPM / Min beat interval
             sensitivity:
-              label: 灵敏度
+              label: Sensitivity
             spectral_flux:
-              description: 启用基于频谱流的节拍起始检测。
-              label: 频谱流
+              description: Whether to enable spectral flux-based onset detection.
+              label: Spectral flux
             warmup:
-              description: 在检测节拍之前进行预热，以提高准确性
-              label: 预热
+              description: Whether to warm up before detecting beats for better accuracy.
+              label: Warmup
     consciousness:
-      description: 人格设定、使用的模型等配置
+      description: Personality, desired model, etc.
       sections:
         section:
           provider-model-selection:
-            collapse: 折叠
-            custom_model_placeholder: 输入自订模型名称
-            description: 为意识选择合适的 LLM 服务来源
-            error: 获取出错啦
-            expand: 展开
-            loading: 获取模型中...
-            manual_model_name: 模型名字
-            manual_model_placeholder: 输入与该服务来源一起使用的模型名称
-            no_models: 没有任何可用的模型
-            no_models_description: 该服务来源的模型列表没有返回任何的数据
-            no_search_results: 没有匹配的模型
-            no_search_results_description: 没有模型匹配 '{query}' 关键字，请尝试一下别的关键词呢
-            not_supported: 无法列出模型
-            not_supported_description: 此服务来源不支持列出模型的功能
-            search_placeholder: 搜索模型...
-            search_results: 找到 {count} / {total} 个模型
-            show_less: 显示更多
-            show_more: 收起
-            subtitle: 选择一个模型
-            title: 模型
-      title: 意识
-    description: 思维，视觉，言语综合，游戏等
+            collapse: Collapse
+            custom_model_placeholder: Enter custom model name...
+            description: Select the suitable LLM provider for consciousness
+            error: Error loading models
+            expand: Expand
+            loading: Loading available models...
+            manual_model_name: Model Name
+            manual_model_placeholder: Enter the model name to use with this provider
+            no_models: No models available
+            no_models_description: No models were found for this provider
+            no_search_results: No matching models
+            no_search_results_description: No models match '{query}'. Try a different search term.
+            not_supported: Model listing not supported
+            not_supported_description: This provider doesn't support model listing functionality
+            search_placeholder: Search models...
+            search_results: Found {count} of {total} models
+            show_less: Show less
+            show_more: Show more
+            subtitle: Select a model from the provider
+            title: Model
+      title: Consciousness
+    description: Thinking, vision, speech synthesis, gaming, etc.
     gaming-factorio:
-      description: 一起玩 Factorio！
-      title: 异星工厂 Factorio
-      enable: 启用异星工厂集成
-      enable-description: 允许AIRI与异星工厂游戏互动
-      server-address: 服务器地址
-      server-address-description: 异星工厂服务器的IP地址或主机名
-      server-address-placeholder: 输入服务器地址（例如：localhost或192.168.1.100）
-      server-port: 服务器端口
-      server-port-description: 异星工厂服务器的端口号（默认 34197）
-      username: 用户名
-      username-description: 您在异星工厂服务器中的用户名
-      username-placeholder: 输入您的异星工厂用户名
-      configured: 异星工厂已正确配置！
+      description: Playing Factorio!
+      title: Factorio
+      enable: Enable Factorio Integration
+      enable-description: Allow AIRI to interact with Factorio game
+      server-address: Server Address
+      server-address-description: The IP address or hostname of the Factorio server
+      server-address-placeholder: Enter server address (e.g., localhost or 192.168.1.100)
+      server-port: Server Port
+      server-port-description: The port number of the Factorio server (default 34197)
+      username: Username
+      username-description: Your username in the Factorio server
+      username-placeholder: Enter your Factorio username
+      configured: Factorio is properly configured!
     gaming-minecraft:
-      description: 一起玩 Minecraft！
-      title: 我的世界 Minecraft
-      enable: 启用我的世界集成
-      enable-description: 允许AIRI与我的世界游戏互动
-      server-address: 服务器地址
-      server-address-description: 我的世界服务器的IP地址或主机名
-      server-address-placeholder: 输入服务器地址（例如：localhost或play.example.com）
-      server-port: 服务器端口
-      server-port-description: 我的世界服务器的端口号（默认 25565）
-      username: 用户名
-      username-description: 您在我的世界服务器中的用户名
-      username-placeholder: 输入您的我的世界用户名
-      configured: 我的世界已正确配置！
+      description: Playing Minecraft!
+      title: Minecraft
+      enable: Enable Minecraft Integration
+      enable-description: Allow AIRI to interact with Minecraft game
+      server-address: Server Address
+      server-address-description: The IP address or hostname of the Minecraft server
+      server-address-placeholder: Enter server address (e.g., localhost or play.example.com)
+      server-port: Server Port
+      server-port-description: The port number of the Minecraft server (default 25565)
+      username: Username
+      username-description: Your username in the Minecraft server
+      username-placeholder: Enter your Minecraft username
+      configured: Minecraft is properly configured!
     hearing:
-      description: 语音识别
-      title: 听觉
+      description: Configure how speech recognition works
+      title: Hearing
       sections:
         section:
           provider-selection:
-            description: 选择合适的语音转文本的服务来源
+            description: Select the suitable speech recognition provider
     memory-long-term:
-      description: 长期记忆
-      title: 长期记忆
+      description: Long-term memory specific settings and management
+      title: Long-Term Memory
     memory-short-term:
-      description: 短期记忆
-      title: 短期记忆
+      description: Short-term memory specific settings and management
+      title: Short-Term Memory
     messaging-discord:
-      description: Discord 发消息和语音聊天
+      description: Chat & voice chat over Discord
       title: Discord
-      enable: 启用Discord集成
-      enable-description: 允许AIRI通过Discord进行互动
-      token: 机器人令牌
-      token-description: 您的Discord机器人令牌
-      token-placeholder: 输入您的Discord机器人令牌
-      configured: Discord已正确配置！
+      enable: Enable Discord Integration
+      enable-description: Allow AIRI to interact through Discord
+      token: Bot Token
+      token-description: Your Discord bot token
+      token-placeholder: Enter your Discord bot token
+      configured: Discord is properly configured!
     speech:
-      description: 语音合成
+      description: Speech synthesis
       sections:
         section:
           playground:
             buttons:
               stop:
-                label: 停止
+                label: Stop
             select-voice:
-              required: 请选择声线
+              required: Please select a voice
           provider-voice-selection:
-            custom_model_placeholder: 输入指定模型名称...
-            custom_voice_placeholder: 输入指定声线 ID...
-            description: 选择合适的语音服务来源
-            no_models: 没有任何可用的模型
-            no_models_description: 该服务来源的模型列表没有返回任何的数据
-            no_voices: 没有任何可用的声线
-            no_voices_description: 该服务来源的声线列表没有返回任何的数据
-            no_voices_hint: 可以在下方输入自定义声线名字
+            custom_model_placeholder: Enter custom model name...
+            custom_voice_placeholder: Enter custom voice ID...
+            description: Select the suitable speech provider
+            no_models: No models available
+            no_models_description: No models were found for this provider
+            no_voices: No voices available
+            no_voices_description: No voices were found for this provider
+            no_voices_hint: You can enter a custom voice name below.
             pause: Pause
-            play_sample: Play
-            search_models_placeholder: 搜索模型...
-            search_models_results: 找到 {count} / {total} 个模型
-            search_voices_placeholder: 搜索声线...
-            search_voices_results: 找到 {count} / {total} 个声线
-            unsupported_voice_warning_title: 没有支持的声线
+            play_sample: Play Sample
+            search_models_placeholder: Search models...
+            search_models_results: Found {count} of {total} models
+            search_voices_placeholder: Search voices...
+            search_voices_results: Found {count} of {total} voices
+            unsupported_voice_warning_title: No supported voices
             unsupported_voice_warning_content: >-
-              我们正在尽快支持该模型的所有音色，如果你迫切希望支持该模型音色，请在 GitHub 上联系我们 https://github.com/moeru-ai/airi/issues
-            show_less: 显示更少
-            show_more: 显示更多
-            title: 选择语音合成服务来源
+              Try a different model or provider. We are working on supporting all the voice for this model as quickly as possible. If you need it urgently, please let us know on GitHub at https://github.com/moeru-ai/airi/issues.
+            show_less: Show less
+            show_more: Show more
+            title: Provider
           voice-settings:
             input-ssml:
-              placeholder: 请输入 SSML 文本
+              placeholder: Enter SSML text...
             use-ssml:
-              description: 启用后可以输入原始 SSML 而不是纯文本
-              label: 选用自定义 SSML
-      title: 发声
-    title: 机体模块
+              description: Enable to input raw SSML instead of plain text
+              label: Use Custom SSML
+      title: Speech
+    title: Modules
     vision:
-      description: 视觉
-      title: 视觉
+      description: Vision
+      title: Vision
     x:
-      description: X / Twitter 的浏览和使用
+      description: X / Twitter browsing and usage
       title: X / Twitter
-      enable: 启用X / Twitter集成
-      enable-description: 允许AIRI与X / Twitter互动
-      api-key: API密钥
-      api-key-description: 您的X / Twitter API密钥
-      api-key-placeholder: 输入您的X / Twitter API密钥
-      api-secret: API密钥密文
-      api-secret-description: 您的X / Twitter API密钥密文
-      api-secret-placeholder: 输入您的X / Twitter API密钥密文
-      access-token: 访问令牌
-      access-token-description: 您的X / Twitter访问令牌
-      access-token-placeholder: 输入您的X / Twitter访问令牌
-      access-token-secret: 访问令牌密文
-      access-token-secret-description: 您的X / Twitter访问令牌密文
-      access-token-secret-placeholder: 输入您的X / Twitter访问令牌密文
-      configured: X / Twitter已正确配置！
+      enable: Enable X / Twitter Integration
+      enable-description: Allow AIRI to interact with X / Twitter
+      api-key: API Key
+      api-key-description: Your X / Twitter API key
+      api-key-placeholder: Enter your X / Twitter API key
+      api-secret: API Secret
+      api-secret-description: Your X / Twitter API secret
+      api-secret-placeholder: Enter your X / Twitter API secret
+      access-token: Access Token
+      access-token-description: Your X / Twitter access token
+      access-token-placeholder: Enter your X / Twitter access token
+      access-token-secret: Access Token Secret
+      access-token-secret-description: Your X / Twitter access token secret
+      access-token-secret-placeholder: Enter your X / Twitter access token secret
+      configured: X / Twitter is properly configured!
     mcp-server:
-      description: 连接和管理 MCP 服务器及工具
-      title: MCP 服务器
+      description: Connect and manage MCP server and tools
+      title: MCP Server
   providers:
     explained:
-      chat: 文本生成模型服务来源，例如 OpenRouter, OpenAI, Ollama
-      Speech: 语音（文本转语音）模型服务来源，例如 ElevenLabs, Azure Speech
+      chat: Text generation model providers. e.g. OpenRouter, OpenAI, Ollama.
+      Speech: Speech (text-to-speech) model providers. e.g. ElevenLabs, Azure Speech.
       Transcription: >-
-        转录（语音转文本）模型服务来源，例如 Whisper.cpp, OpenAI, Azure Speech
+        Transcription (speech-to-text) model providers. e.g. Whisper.cpp, OpenAI, Azure Speech
     helpinfo:
-      title: 第一次使用？
+      title: First time here?
       description: >
-        AIRI 需要配置至少一个 {chat} 服务来源，才能正常思考和运作。你可以把它看作是 AIRI 系统中角色的大脑。
+        AIRI requires at least one {chat} provider to be configured to think, and behave properly. You could think of it as the brain of the characters living in AIRI system.
     common:
       fields:
         field:
           api-key:
-            label: API 密钥
+            label: API Key Input
       section:
         advanced:
           fields:
             field:
               headers:
-                description: 添加自定义 HTTP 标头
+                description: Add custom HTTP headers
                 key:
-                  placeholder: 请求头名字
-                label: HTTP 请求头
+                  placeholder: Key
+                label: HTTP Headers
                 value:
-                  placeholder: 请求头数值
-          title: 高级配置
+                  placeholder: Value
+          title: Advanced
         basic:
-          description: 基本设置
-          title: 基础配置
+          description: Essential settings
+          title: Basic
         voice:
-          title: 声音配置
-    description: LLM，语音合成，语音识别服务来源等
+          title: Voice Settings
+    description: LLMs, speech providers, etc.
     provider:
       app-local-audio-transcription:
-        title: 应用内（本地）
+        title: App (Local)
         description: https://github.com/moeru-ai/xsai-transformers
       app-local-audio-speech:
-        title: 应用内（本地）
+        title: App (Local)
         description: https://github.com/moeru-ai/xsai-transformers
       browser-local-audio-transcription:
-        title: 浏览器内（本地）
+        title: Browser (Local)
         description: https://github.com/moeru-ai/xsai-transformers
       browser-local-audio-speech:
-        title: 浏览器内（本地）
+        title: Browser (Local)
         description: https://github.com/moeru-ai/xsai-transformers
       alibaba-cloud-model-studio:
         description: bailian.console.aliyun.com
-        title: 阿里百炼
+        title: Alibaba Cloud Model Studio
       anthropic:
         description: anthropic.com
         title: Anthropic | Claude
         helpinfo:
-          title: 开始之前
+          title: Before you start
           description:
             part1: >-
-              虽然 Anthropic 最近宣布他们正在提供对 OpenAI SDK 兼容性的 Beta 版支持
-            part2: '（您可以在此处阅读更多信息）'
-            part3: 但由于实现细节附带
+              While Anthropic recently did announce that they are having a beta support for OpenAI SDK compatibility
+            part2: (you can read more here)
+            part3: but due to the implementation details comes with
             part4: >-
-              与 OpenAI SDK 不一致，目前无法在浏览器中使用此提供程序。
+              restrictions which not aligned with the OpenAI SDK, it's currently not possible to use this provider in the browser.
             part5: >-
-              如果您确实需要使用此提供程序，则需要一个专用的代理后端，例如在
-            part6: 上运行的Serverless Function，或者一些绕过 CORS 的服务，以绕过 CORS 限制。
+              If you do need to use this provider, you will need a dedicated proxy backend like a Serverless Function running on
+            part6: or some CORS bypassing services to bypass the CORS restrictions.
       cloudflare-workers-ai:
-        description: Cloudflare.com
+        description: cloudflare.com
         fields:
           field:
             account-id:
-              description: Cloudflare 帐户 ID
-              label: Cloudflare Account ID
-              placeholder: 请输入 Cloudflare Account ID
+              description: Cloudflare Account ID
+              label: Account ID
+              placeholder: Your Cloudflare Account ID
             api-key:
-              placeholder: 请输入 Cloudflare Workers AI 的 API Key
-        title: Workers AI
+              placeholder: Input Cloudflare API Key
+        title: Cloudflare Workers AI
       common:
         status:
-          validating: 正在验证配置
-          valid: 配置似乎有效。
+          validating: Validating
+          valid: Configuration seems to be valid.
         fields:
           field:
             pitch:
-              description: 调节合成语音的音高（比如更尖锐或者更粗旷）
-              label: 音高
+              description: Tune the pitch of synthesized speech (e.g., sharper or coarser)
+              label: Pitch
             speed:
-              description: 调节说话的语速
-              label: 语速
+              description: Adjust the speed of speech
+              label: Speed
             volume:
-              description: 调节语音的响度
-              label: 响度
+              description: Adjust the volume of speech
+              label: Volume
       deepseek:
-        description: DeepSeek.com
-        title: 深度求索 DeepSeek
+        description: deepseek.com
+        title: DeepSeek
       elevenlabs:
-        description: Elevenlabs.io
+        description: elevenlabs.io
         fields:
           field:
             simularity-boost:
-              description: 声音相似性与依从性
-              label: 相似度修正
+              description: Voice similarity adherence
+              label: Similarity Boost
             speaker-boost:
-              description: 增强说话者的相似性
-              label: 扬声器增强
+              description: Enhance speaker similarity
+              label: Speaker Boost
             speed:
-              description: 语音生成速度
-              label: 语速
+              description: Speech generation speed
+              label: Speed
             stability:
-              description: 语音稳定性和随机性
-              label: 稳定性
+              description: Voice stability and randomness
+              label: Stability
             style:
-              description: 夸张的语音风格
-              label: 风格
+              description: Voice style exaggeration
+              label: Style
         playground:
           buttons:
             button:
               test-voice:
-                generating: 生成中...
-                label: 测试声音
+                generating: Generating...
+                label: Test Voice
           fields:
             field:
               input:
-                placeholder: 输入用于测试发音的文本
+                placeholder: Enter text to test the voice...
               language:
-                description: 选择语音语言
-                label: 语言
+                description: Select voice language
+                label: Language
               voice:
-                description: 选择首选语音
-                label: 声线
-          title: 实验平台
+                description: Select preferred voice
+                label: Voice
+          title: Voice Playground
           validation:
-            error-missing-api-key: 需要填写 API Key 才能用哦！
-        title: ElevenLabs (11labs)
+            error-missing-api-key: Please enter an API key to test the voice.
+        title: ElevenLabs
       fireworks:
-        description: Fireworks.ai
+        description: fireworks.ai
         title: Fireworks.ai
       microsoft-speech:
         description: speech.microsoft.com
         fields:
           field:
             region:
-              description: 服务 Endpoint 地区（比如亚太 eastasia 区域）
-              label: Endpoint 地区
-        title: Microsoft / Azure 语音服务
+              description: Speech Service region
+              label: Region
+        title: Microsoft / Azure Speech
       index-tts-vllm:
         description: https://index-tts.github.io/
         title: Bilibili / IndexTTS
@@ -546,11 +546,11 @@ pages:
         description: mistral.ai
         title: Mistral
       moonshot:
-        description: Moonshot.ai
-        title: 月之暗面
+        description: moonshot.ai
+        title: Moonshot AI
       modelscope:
         description: modelscope.cn
-        title: 魔搭社区 ModelScope
+        title: ModelScope
       novita:
         description: novita.ai
         title: Novita
@@ -558,13 +558,13 @@ pages:
         description: ollama.ai
         title: Ollama
       openai:
-        description: OpenAi.com
+        description: openai.com
         title: OpenAI
       openai-compatible:
         description: OpenAI Compatible
         title: OpenAI Compatible
       openrouter:
-        description: OpenRouter.ai
+        description: openrouter.ai
         title: OpenRouter
       perplexity:
         description: perplexity.ai
@@ -592,11 +592,11 @@ pages:
         fields:
           field:
             appId:
-              description: 可在控制台获取的 App ID
+              description: App ID of the project where you can obtain in Console
               label: App ID
-        title: 火山引擎
+        title: Volcano Engine
       xai:
-        description: X.AI
+        description: x.ai
         title: xAI
       302-ai:
         description: 302.AI
@@ -612,39 +612,39 @@ pages:
         title: Aliyun NLS
       transcriptions:
         playground:
-          title: 实验平台
-    title: 服务来源
+          title: Transcription Playground
+    title: Providers
   scene:
-    description: 配置角色所在环境
-    title: 场景
+    description: Configure the environment where the character lives
+    title: Scene
   system:
     color-scheme:
-      description: 更改舞台的配色方案
-      title: 配色方案
+      description: Change the color scheme of the stage.
+      title: Color Scheme
     developer:
-      description: 为开发者提供的选项
-      title: 开发者
+      description: Some developer options.
+      title: Developers
     general:
-      description: 深色主题、语言等选项
-      title: 通用
-    description: 自定义你的舞台外观！
+      description: Dark theme, languages, etc.
+      title: General
+    description: Customize your stage!
     sections:
       section:
         custom-color:
           fields:
             field:
               primary-color:
-                label: 强调色
+                label: Primary color
                 rgb-on:
-                  title: RGB ON!
-          title: 配色
+                  title: I Want It Dynamic!
+          title: Color Scheme
         developer:
-          title: 开发者
+          title: Developer
           sections:
             section:
               use-magic-keys:
                 title: useMagicKeys
-                description: 测试快捷键
+                description: Test shortcuts
         theme-presets:
           presets:
             default:
@@ -713,63 +713,63 @@ pages:
               description: >-
                 Traditional Chinese colors, derived from ancient textiles, porcelain and paintings
               title: Chinese Traditional Colors
-          title: 预设
-    title: 外观
+          title: Color Scheme Presets
+    title: System
   page:
     developers:
       open-devtools:
-        title: 打开开发者工具
-        button: 打开
+        title: Open Developer Tools
+        button: Open
 sections:
   section:
     general:
-      title: 通用
+      title: General
 theme:
-  title: 主题
+  title: Theme
   description: |
-    切换 AIRI 的基础主题，亮色模式或暗色模式。
-title: 设置
-voices: 声线
+    Switch the base theme of AIRI, Light mode or Dark mode.
+title: Settings
+voices: Voice
 vrm:
   change-model:
-    from-file: 从文件加载
-    from-file-select: 选择
-    from-url: 从 URL 加载
-    from-url-confirm: 加载
-    from-url-placeholder: 输入 VRM 模型 URL
-    title: 更换模型
-  title: VRM 设置
+    from-file: Load from File
+    from-file-select: Select
+    from-url: Load from URL
+    from-url-confirm: Load
+    from-url-placeholder: Enter VRM model URL
+    title: Change Model
+  title: VRM Settings
   scale-and-position:
-    model-info-title: 模型尺寸信息
-    model-info-x: 宽度（X轴）
-    model-info-y: 高度（Y轴）
-    model-info-z: 深度（Z轴）
+    model-info-title: Model Size Information
+    model-info-x: Width (X)
+    model-info-y: Height (Y)
+    model-info-z: Depth (Z)
     tips: |
-      设定模型放置的空间坐标。
-      坐标轴已被可视化。
-    scale: 缩放
-    x: X轴偏移
-    'y': Y 轴偏移
-    z: Z轴偏移
-    fov: 视角调整（度）
-    rotation-y: 模型朝向（Y轴旋转）
-    camera-distance: 相机距离（画面缩放）
+      Edit the initial position the VRM model.
+      Coordinate axes are visualised.
+    scale: Scale
+    x: X Offset
+    'y': Y Offset
+    z: Z Offset
+    fov: FOV (degree)
+    rotation-y: Rotation (Y-axis)
+    camera-distance: Camera distance
     eye-tracking-mode:
-      title: 模型注视方向
+      title: Looking at
       options:
         option:
-          camera: 相机
-          mouse: 鼠标
-          disabled: 禁用
+          camera: Camera
+          mouse: Mouse
+          disabled: Disabled
   switch-to-vrm:
-    title: 想切换至Live2D虚拟形象？
-    change-to-vrm: 切换至Live2D虚拟形象设定页面
+    title: Switch to Live2D Avatar?
+    change-to-vrm: Click here to switch to the Live2D avatar setting
   theme-color-from-model:
     button-extract:
-      title: 提取
+      title: Extract
   skybox:
-    skybox-intensity: 天空盒光照强度
-    skybox-specular-mix: 漫反射/镜面反射混合系数
+    skybox-intensity: SkyBox Intensity
+    skybox-specular-mix: Specular Mix
 wip:
-  title: 正在开发中
-  description: 此功能正在开发中，尚未公开发布。请在未来的更新中再次查看此功能。
+  title: Work in Progress
+  description: This feature is currently under development and not yet publicly available. Check back in future updates for this functionality.
