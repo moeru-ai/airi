@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import type { ChatProvider } from '@xsai-ext/shared-providers'
 
-import { HearingConfigDialog } from '@proj-airi/stage-ui/components'
 import { useAudioAnalyzer } from '@proj-airi/stage-ui/composables'
 import { useAudioContext } from '@proj-airi/stage-ui/stores/audio'
 import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
@@ -14,11 +13,10 @@ import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/
 import { BasicTextarea } from '@proj-airi/ui'
 import { useDark, useResizeObserver, useScreenSafeArea } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { onMounted, onUnmounted, ref, useTemplateRef, watch } from 'vue'
+import { onMounted, ref, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
 
-import IndicatorMicVolume from '../Widgets/IndicatorMicVolume.vue'
 import MobileChatHistory from '../Widgets/MobileChatHistory.vue'
 import ActionAbout from './InteractiveArea/Actions/About.vue'
 import ActionViewControls from './InteractiveArea/Actions/ViewControls.vue'

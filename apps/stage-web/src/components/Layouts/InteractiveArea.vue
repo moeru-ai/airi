@@ -10,15 +10,13 @@ import { useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
 import { useVisionStore } from '@proj-airi/stage-ui/stores/modules/vision'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
-import { BasicTextarea, FieldSelect } from '@proj-airi/ui'
+import { BasicTextarea } from '@proj-airi/ui'
 import { useDark } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { TooltipContent, TooltipProvider, TooltipRoot, TooltipTrigger } from 'reka-ui'
 import { computed, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import ChatHistory from '../Widgets/ChatHistory.vue'
-import IndicatorMicVolume from '../Widgets/IndicatorMicVolume.vue'
 
 const messageInput = ref('')
 const hearingTooltipOpen = ref(false)
