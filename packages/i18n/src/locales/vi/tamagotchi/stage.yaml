@@ -1,28 +1,28 @@
 operations:
-  load-models: Tải các mô hình
+  load-models: Load Models
   load-models-status:
-    loading: Đang tải
-    ready: Sẵn sàng
+    loading: Loading
+    ready: Ready
 docs:
   theme:
     navbar:
       appearance:
-        title: Giao diện
+        title: Appearance
 'controls-island':
   'fade-on-hover':
-    enable: Ẩn khi rê chuột
-    disable: Luôn hiển thị
+    enable: Auto hide
+    disable: Always show
 notice:
   'fade-on-hover':
-    title: Mờ dần khi rê chuột
-    intro: Tự làm mờ nhân vật khi con trỏ ở gần. Giảm xao nhãng nhưng vẫn nhìn thấy nhân vật.
-    opacity: Bật lên thì độ mờ giảm xuống {value} cho {targets} khi con trỏ ở gần.
-    toggle: Tắt đi bằng cách rê chuột qua {controls} rồi bấm lại {icon}.
-    controls-label: Đảo Điều Khiển
-    icon-label: biểu tượng mắt gạch
+    title: Fade on Hover
+    intro: Automatically fades the character when your cursor roams nearby. It helps reduce distractions while keeping your character visible.
+    opacity: After turning on, the opacity drops to {value} for both {targets} when your cursor is nearby.
+    toggle: You can toggle it off by hovering at {controls}, then clicking the {icon} again.
+    controls-label: Controls Island
+    icon-label: eye-slash icon
     value: '0'
-    targets: Nhân vật và giao diện
-    confirm: Đã hiểu
-    preparing: Đang chuẩn bị…
-    read-more: Xem thêm
-    preview-title: Đây là gì?
+    targets: Character and UI
+    confirm: Got it
+    preparing: Preparing…
+    read-more: Read more
+    preview-title: What is it?
